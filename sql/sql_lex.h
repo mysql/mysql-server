@@ -117,6 +117,9 @@ class Select_lex_visitor;
 class THD;
 class Window;
 
+typedef Parse_tree_node_tmpl<struct Alter_tablespace_parse_context>
+    PT_alter_tablespace_option_base;
+
 /* YACC and LEX Definitions */
 
 class Event_parse_data;
@@ -131,6 +134,9 @@ class sp_name;
 class sp_pcontext;
 class sql_exchange;
 struct sql_digest_state;
+class Sql_cmd_tablespace;
+class Sql_cmd_logfile_group;
+struct Tablespace_options;
 
 const size_t INITIAL_LEX_PLUGIN_LIST_SIZE = 16;
 
@@ -2218,6 +2224,8 @@ union YYSTYPE {
   class PT_adm_partition *adm_partition;
   class PT_preload_keys *preload_keys;
   Trivial_array<PT_preload_keys *> *preload_list;
+  PT_alter_tablespace_option_base *ts_option;
+  Trivial_array<PT_alter_tablespace_option_base *> *ts_options;
 };
 
 static_assert(sizeof(YYSTYPE) <= 32, "YYSTYPE is too big");
@@ -3825,12 +3833,6 @@ public:
   */
   bool use_only_table_context;
 
-  /*
-    Reference to a struct that contains information in various commands
-    to add/create/drop/change table spaces.
-  */
-  st_alter_tablespace *alter_tablespace_info;
-  
   bool is_lex_started; /* If lex_start() did run. For debugging. */
   /// Set to true while resolving values in ON DUPLICATE KEY UPDATE clause
   bool in_update_value_clause;

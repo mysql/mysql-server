@@ -10832,6 +10832,9 @@ ER_CLIENT_DOES_NOT_SUPPORT
 ER_I_S_SKIPPED_TABLESPACE
   eng "Tablespace '%s' was skipped since its definition is being modified by concurrent DDL statement"
 
+ER_TABLESPACE_ENGINE_MISMATCH
+  eng "Engine '%.192s' does not match stored engine '%.192s' for tablespace '%.192s'"
+
 #
 #  End of 8.0 error messages.
 #

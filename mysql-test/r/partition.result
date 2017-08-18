@@ -1397,8 +1397,14 @@ t1	CREATE TABLE `t1` (
  PARTITION x3 VALUES LESS THAN MAXVALUE TABLESPACE = `ts3` ENGINE = InnoDB) */
 drop table t1;
 DROP TABLESPACE ts1 ENGINE = InnoDB;
+Warnings:
+Warning	1681	'ENGINE tablespace option' is deprecated and will be removed in a future release.
 DROP TABLESPACE ts2 ENGINE = InnoDB;
+Warnings:
+Warning	1681	'ENGINE tablespace option' is deprecated and will be removed in a future release.
 DROP TABLESPACE ts3 ENGINE = InnoDB;
+Warnings:
+Warning	1681	'ENGINE tablespace option' is deprecated and will be removed in a future release.
 create table t1 (a int,b int, c int)
 partition by list(a)
 partitions 2

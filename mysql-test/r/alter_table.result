@@ -2818,6 +2818,8 @@ ALTER TABLE t TABLESPACE s;
 # Drop table and tablespace.
 DROP TABLE t;
 DROP TABLESPACE s ENGINE InnoDB;
+Warnings:
+Warning	1681	'ENGINE tablespace option' is deprecated and will be removed in a future release.
 #
 # Bug#20279241 - ALTER TABLE ... CHARACTER SET UTF8, CONVERT TO
 #                CHARACTER SET LATIN1 SHOULD FAIL

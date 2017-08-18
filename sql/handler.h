@@ -81,6 +81,7 @@ struct TABLE;
 struct TABLE_LIST;
 struct TABLE_SHARE;
 struct handlerton;
+struct Tablespace_options;
 
 typedef struct st_bitmap MY_BITMAP;
 typedef struct st_foreign_key_info FOREIGN_KEY_INFO;
@@ -95,8 +96,11 @@ namespace dd {
   class  Table;
   class  Tablespace;
 
-  typedef struct sdi_key sdi_key_t;
-  typedef struct sdi_vector sdi_vector_t;
+  struct sdi_key;
+  struct sdi_vector;
+
+typedef sdi_key sdi_key_t;
+typedef sdi_vector sdi_vector_t;
 }
 
 typedef bool (*qc_engine_callback)(THD *thd, const char *table_key,
@@ -720,6 +724,8 @@ struct st_handler_tablename
   on add/drop/change tablespace definitions to the proper hton.
 */
 #define UNDEF_NODEGROUP 65535
+
+// FUTURE: Combine these two enums into one enum class
 enum ts_command_type
 {
   TS_CMD_NOT_DEFINED = -1,
@@ -729,6 +735,7 @@ enum ts_command_type
   ALTER_LOGFILE_GROUP = 3,
   DROP_TABLESPACE = 4,
   DROP_LOGFILE_GROUP = 5,
+  // FUTURE: Remove these as they are never used, execpt as case labels in SE
   CHANGE_FILE_TABLESPACE = 6,
   ALTER_ACCESS_MODE_TABLESPACE = 7
 };
@@ -737,39 +744,36 @@ enum ts_alter_tablespace_type
 {
   TS_ALTER_TABLESPACE_TYPE_NOT_DEFINED = -1,
   ALTER_TABLESPACE_ADD_FILE = 1,
-  ALTER_TABLESPACE_DROP_FILE = 2
+  ALTER_TABLESPACE_DROP_FILE = 2,
+  ALTER_TABLESPACE_RENAME = 3
 };
 
-enum tablespace_access_mode
-{
-  TS_NOT_DEFINED= -1,
-  TS_READ_ONLY = 0,
-  TS_READ_WRITE = 1,
-  TS_NOT_ACCESSIBLE = 2
-};
+/**
+  Legacy struct for passing tablespace information to SEs.
 
-class st_alter_tablespace : public Sql_alloc
+  FUTURE: Pass all info through dd objects
+ */
+class st_alter_tablespace
 {
-  public:
-  const char *tablespace_name;
-  const char *logfile_group_name;
-  enum ts_command_type ts_cmd_type;
-  enum ts_alter_tablespace_type ts_alter_tablespace_type;
-  const char *data_file_name;
-  const char *undo_file_name;
-  const char *redo_file_name;
-  ulonglong extent_size;
-  ulonglong undo_buffer_size;
-  ulonglong redo_buffer_size;
-  ulonglong initial_size;
-  ulonglong autoextend_size;
-  ulonglong max_size;
-  ulonglong file_block_size;
-  uint nodegroup_id;
-  handlerton *storage_engine;
-  bool wait_until_completed;
-  const char *ts_comment;
-  enum tablespace_access_mode ts_access_mode;
+public:
+  const char *tablespace_name= nullptr;
+  const char *logfile_group_name= nullptr;
+  ts_command_type ts_cmd_type= TS_CMD_NOT_DEFINED;
+  enum ts_alter_tablespace_type ts_alter_tablespace_type=
+    TS_ALTER_TABLESPACE_TYPE_NOT_DEFINED;
+  const char *data_file_name= nullptr;
+  const char *undo_file_name= nullptr;
+  ulonglong extent_size= 1024*1024;        // Default 1 MByte
+  ulonglong undo_buffer_size= 8*1024*1024; // Default 8 MByte
+  ulonglong redo_buffer_size= 8*1024*1024; // Default 8 MByte
+  ulonglong initial_size= 128*1024*1024;   // Default 128 MByte
+  ulonglong autoextend_size= 0;            // No autoextension as default
+  ulonglong max_size=0;                    // Max size == initial size => no extension
+  ulonglong file_block_size= 0;            // 0=default or must be a valid Page Size
+  uint nodegroup_id= UNDEF_NODEGROUP;
+  bool wait_until_completed= true;
+  const char *ts_comment= nullptr;
+
   bool is_tablespace_command()
   {
     return ts_cmd_type == CREATE_TABLESPACE      ||
@@ -779,28 +783,28 @@ class st_alter_tablespace : public Sql_alloc
             ts_cmd_type == ALTER_ACCESS_MODE_TABLESPACE;
   }
 
-  /** Default constructor */
-  st_alter_tablespace()
-  {
-    tablespace_name= NULL;
-    logfile_group_name= "DEFAULT_LG"; //Default log file group
-    ts_cmd_type= TS_CMD_NOT_DEFINED;
-    data_file_name= NULL;
-    undo_file_name= NULL;
-    redo_file_name= NULL;
-    extent_size= 1024*1024;        // Default 1 MByte
-    undo_buffer_size= 8*1024*1024; // Default 8 MByte
-    redo_buffer_size= 8*1024*1024; // Default 8 MByte
-    initial_size= 128*1024*1024;   // Default 128 MByte
-    autoextend_size= 0;            // No autoextension as default
-    max_size= 0;                   // Max size == initial size => no extension
-    storage_engine= NULL;
-    file_block_size= 0;            // 0=default or must be a valid Page Size
-    nodegroup_id= UNDEF_NODEGROUP;
-    wait_until_completed= TRUE;
-    ts_comment= NULL;
-    ts_access_mode= TS_NOT_DEFINED;
-  }
+  /**
+    Proper constructor even for all-public class simplifies initialization and allows
+    members to be const.
+
+    FUTURE: With constructor all members can be made const, and do not need default
+    initializers.
+
+    @param tablespace name of tabelspace (nullptr for logfile group statements)
+    @param logfile_group name of logfile group or nullptr
+    @param cmd main statement type
+    @param alter_tablespace_cmd subcommand type for ALTER TABLESPACE
+    @param datafile tablespace file for CREATE and ALTER ... ADD ...
+    @param undofile only applies to logfile group statements. nullptr otherwise.
+    @param opts options provided by parser
+  */
+  st_alter_tablespace(const char *tablespace,
+		      const char *logfile_group,
+		      ts_command_type cmd,
+		      enum ts_alter_tablespace_type alter_tablespace_cmd,
+		      const char *datafile,
+		      const char *undofile,
+		      const Tablespace_options &opts);
 };
 
 
@@ -2051,6 +2055,10 @@ struct handlerton
 
 #define HTON_SUPPORTS_ATOMIC_DDL     (1 << 12)
 
+inline bool ddl_is_atomic(const handlerton *hton)
+{
+  return (hton->flags & HTON_SUPPORTS_ATOMIC_DDL) != 0;
+}
 
 enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
 			 ISO_REPEATABLE_READ, ISO_SERIALIZABLE};

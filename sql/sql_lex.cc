@@ -507,7 +507,6 @@ void LEX::reset()
   is_lex_started= true;
   used_tables= 0;
   reset_slave_info.all= false;
-  alter_tablespace_info= NULL;
   mi.channel= NULL;
 
   wild= NULL;

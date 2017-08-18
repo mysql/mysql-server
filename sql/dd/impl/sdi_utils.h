@@ -51,7 +51,7 @@ inline bool checked_return(bool ret)
 {
 #ifndef DBUG_OFF
   THD *cthd= current_thd;
-  DBUG_ASSERT(!ret || cthd->is_error() || cthd->killed);
+  DBUG_ASSERT(!ret || cthd->is_system_thread() || cthd->is_error() || cthd->killed);
 #endif /*!DBUG_OFF*/
   return ret;
 }
@@ -128,6 +128,12 @@ bool handle_errors(THD *thd, CH_CLOS &&chc, ACTION_CLOS &&ac)
   bool r= ac();
   thd->pop_internal_handler();
   return r;
+}
+
+template <typename P_TYPE, typename CLOS_TYPE>
+std::unique_ptr<P_TYPE, CLOS_TYPE> make_guard(P_TYPE *p, CLOS_TYPE &&clos)
+{
+  return std::unique_ptr<P_TYPE, CLOS_TYPE>(p, std::forward<CLOS_TYPE>(clos));
 }
 
 } // namespace sdi_utils

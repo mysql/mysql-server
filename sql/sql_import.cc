@@ -47,11 +47,6 @@ namespace {
 
 typedef Prealloced_array<dd::sdi::Import_target, 5> Targets_type;
 
-template <typename P_TYPE, typename CLOS_TYPE>
-std::unique_ptr<P_TYPE, CLOS_TYPE> make_guard(P_TYPE *p, CLOS_TYPE &&clos)
-{
-  return std::unique_ptr<P_TYPE, CLOS_TYPE>(p, std::forward<CLOS_TYPE>(clos));
-}
 } // namepspace
 
 
@@ -64,7 +59,7 @@ bool Sql_cmd_import_table::execute(THD *thd)
 {
   DBUG_ASSERT(!m_sdi_patterns.empty());
 
-  auto rbgrd= make_guard(thd, [] (THD *thd) {
+  auto rbgrd= dd::sdi_utils::make_guard(thd, [] (THD *thd) {
       trans_rollback_stmt(thd);
       trans_rollback(thd);
     });
@@ -107,7 +102,7 @@ bool Sql_cmd_import_table::execute(THD *thd)
   Targets_type targets{key_memory_DD_import};
 
   auto tgtgrd=
-    make_guard(thd, [&] (THD*)
+    dd::sdi_utils::make_guard(thd, [&] (THD*)
                {
                  for (auto &tgt : targets)
                  {

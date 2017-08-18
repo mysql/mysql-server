@@ -14181,7 +14181,9 @@ ha_innobase::truncate(dd::Table *table_def)
 	} else {
 		innobase_register_trx(ht, thd, m_prebuilt->trx);
 
-		dd_get_and_save_data_dir_path<dd::Table>(m_prebuilt->table, NULL, false);
+		dd_get_and_save_data_dir_path<dd::Table>(
+			m_prebuilt->table, NULL, false);
+
 		if (m_prebuilt->table->tablespace != NULL) {
 			tsname = mem_strdup(m_prebuilt->table->tablespace);
 		}
@@ -14216,14 +14218,14 @@ ha_innobase::truncate(dd::Table *table_def)
 
 	DBUG_EXECUTE_IF("ib_truncate_crash_after_rename", DBUG_SUICIDE(););
 
-	if (!error) {
+	if (error == 0) {
 		error = innobase_basic_ddl::delete_impl(
 			thd, name, table_def, SQLCOM_TRUNCATE);
 	}
 
 	DBUG_EXECUTE_IF("ib_truncate_crash_after_drop_old_table", DBUG_SUICIDE(););
 
-	if (!error) {
+	if (error == 0) {
 		table_def->set_se_private_id(dd::INVALID_OBJECT_ID);
 		for (auto dd_index : *table_def->indexes()) {
 			dd_index->se_private_data().clear();
@@ -14238,17 +14240,17 @@ ha_innobase::truncate(dd::Table *table_def)
 		trx->in_truncate = false;
 	}
 
-	if (!error) {
+	DBUG_EXECUTE_IF("ib_truncate_crash_after_create_new_table", DBUG_SUICIDE(););
+
+	if (error == 0) {
+		error = open(name, 0, 0, table_def);
+	}
+
+	if (error == 0) {
 		if (table->found_next_number_field != nullptr) {
 			dd_set_autoinc(table_def->se_private_data(), 0);
 		}
-	}
 
-	DBUG_EXECUTE_IF("ib_truncate_crash_after_create_new_table", DBUG_SUICIDE(););
-
-	open(name, 0, 0, table_def);
-
-	if (!error) {
 		dict_names_t    fk_tables;
 
 		dd::cache::Dictionary_client*	client
@@ -14646,6 +14648,9 @@ innobase_alter_tablespace(
 	DBUG_ENTER("innobase_alter_tablespace");
 
 	switch (alter_info->ts_cmd_type) {
+		const char*	from;
+		const char*	to;
+		dberr_t		err;
 	case CREATE_TABLESPACE:
 		ut_ad(new_ts_def != NULL);
 		error = innobase_create_tablespace(hton, thd, alter_info,
@@ -14653,10 +14658,79 @@ innobase_alter_tablespace(
 		break;
 
 	case DROP_TABLESPACE:
-		ut_ad(old_ts_def != NULL);
+                ut_ad(old_ts_def != NULL);
 		error = innobase_drop_tablespace(hton, thd, alter_info,
 						 old_ts_def);
 		break;
+
+	case ALTER_TABLESPACE:
+		if (alter_info->ts_alter_tablespace_type ==
+		    ALTER_TABLESPACE_RENAME)
+                {
+			/* Only support rename tablespace at the time being */
+			from = old_ts_def->name().c_str();
+			to = new_ts_def->name().c_str();
+
+			ut_ad(ut_strcmp(from, to) != 0);
+			err = fil_rename_tablespace_by_name(from, to);
+
+			/* Rename any in-memory cached table->tablespace */
+			if (err == DB_SUCCESS) {
+				dict_table_t*	table = nullptr;
+				mutex_enter(&dict_sys->mutex);
+				for (table = UT_LIST_GET_FIRST(
+					dict_sys->table_LRU);
+				     table;
+				     table = UT_LIST_GET_NEXT(
+					table_LRU, table)) {
+					if (table->tablespace
+					    && strcmp(
+						from, table->tablespace) == 0) {
+						ulint old_size
+							= mem_heap_get_size(
+							table->heap);
+						table->tablespace
+							= mem_heap_strdupl(
+								table->heap,
+								to, strlen(to));
+						ulint	new_size
+							= mem_heap_get_size(
+							table->heap);
+						dict_sys->size += new_size
+								  - old_size;
+					}
+				}
+
+
+				for (table = UT_LIST_GET_FIRST(
+					dict_sys->table_non_LRU);
+				     table;
+				     table = UT_LIST_GET_NEXT(
+					table_LRU, table)) {
+					if (table->tablespace
+					    && strcmp(
+						from, table->tablespace) == 0) {
+						ulint old_size
+							= mem_heap_get_size(
+							table->heap);
+						table->tablespace
+							= mem_heap_strdupl(
+								table->heap,
+								to, strlen(to));
+						ulint	new_size
+							= mem_heap_get_size(
+							table->heap);
+						dict_sys->size += new_size
+								  - old_size;
+					}
+				}
+				mutex_exit(&dict_sys->mutex);
+			 }
+
+			error = convert_error_code_to_mysql(err, 0, NULL);
+			break;
+		}
+		// fallthrough
 
 	default:
 		error = HA_ADMIN_NOT_IMPLEMENTED;
@@ -15687,6 +15761,7 @@ ha_innobase::info_low(
 						" unique inside InnoDB, but"
 						" MySQL is asking statistics for"
 						" %lu columns. Have you mixed"
+
 						" up .frm files from different"
 						" installations? %s",
 						index->name(),
@@ -20493,6 +20568,7 @@ wait_background_drop_list_empty(
 					MY_ATTRIBUTE((unused)),
 	void*				var_ptr	/*!< out: where the formal
 						string goes */
+
 					MY_ATTRIBUTE((unused)),
 	const void*			save)	/*!< in: immediate result from
 						check function */
@@ -22815,3 +22891,4 @@ debug_set:
 
 	return(0);
 }
+

@@ -774,11 +774,11 @@ alter logfile group ndb_lg1 add undofile 'ndb_undo1.dat' engine=myisam;
 -- error ER_ILLEGAL_HA_CREATE_OPTION
 alter logfile group ndb_lg1 add undofile 'ndb_undo1.dat' engine=myisam;
 
--- error ER_ILLEGAL_HA_CREATE_OPTION
+-- error ER_TABLESPACE_MISSING_WITH_NAME
 alter tablespace ndb_ts1 add datafile 'ndb_ts1.dat' initial_size=32M engine=myisam;
--- error ER_ILLEGAL_HA_CREATE_OPTION
+-- error ER_TABLESPACE_MISSING_WITH_NAME
 alter tablespace ndb_ts1 add datafile 'ndb_ts1.dat' engine=myisam;
--- error ER_ILLEGAL_HA_CREATE_OPTION
+-- error ER_TABLESPACE_MISSING_WITH_NAME
 alter tablespace ndb_ts1 add datafile 'ndb_ts1.dat' engine=myisam;
 
 -- error ER_ILLEGAL_HA_CREATE_OPTION
@@ -786,9 +786,9 @@ drop logfile group ndb_lg1 engine=myisam;
 -- error ER_ILLEGAL_HA_CREATE_OPTION
 drop logfile group ndb_lg1 engine=myisam;
 
--- error ER_ILLEGAL_HA_CREATE_OPTION
+-- error ER_TABLESPACE_MISSING_WITH_NAME
 drop tablespace ndb_ts1 engine=myisam;
--- error ER_ILLEGAL_HA_CREATE_OPTION
+-- error ER_TABLESPACE_MISSING_WITH_NAME
 drop tablespace ndb_ts1 engine=myisam;
 
 #

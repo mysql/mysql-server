@@ -4501,12 +4501,6 @@ mysql_execute_command(THD *thd, bool first_level)
     res= lex->m_sql_cmd->execute(thd);
     break;
   }
-  case SQLCOM_ALTER_TABLESPACE:
-    if (check_global_access(thd, CREATE_TABLESPACE_ACL))
-      break;
-    if (!(res= mysql_alter_tablespace(thd, lex->alter_tablespace_info)))
-      my_ok(thd);
-    break;
   case SQLCOM_BINLOG_BASE64_EVENT:
   {
     mysql_client_binlog_statement(thd);
@@ -4564,6 +4558,8 @@ mysql_execute_command(THD *thd, bool first_level)
   case SQLCOM_CLONE:
   case SQLCOM_LOCK_INSTANCE:
   case SQLCOM_UNLOCK_INSTANCE:
+  case SQLCOM_ALTER_TABLESPACE:
+
     DBUG_ASSERT(lex->m_sql_cmd != nullptr);
     res= lex->m_sql_cmd->execute(thd);
     break;

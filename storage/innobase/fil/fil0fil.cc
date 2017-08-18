@@ -4159,6 +4159,58 @@ retry:
 	return(success);
 }
 
+/* Rename a tablespace by its name only
+@param[in]	old_name	old tablespace name
+@param[in]	new_name	new tablespace name
+@return DB_SUCCESS on success */
+/* purecov: begin inspected */
+dberr_t
+fil_rename_tablespace_by_name(
+	const char*     old_name,
+	const char*	new_name)
+{
+	mutex_enter(&fil_system->mutex);
+	fil_space_t*	space = fil_space_get_by_name(old_name);
+
+	if (!space) {
+		mutex_exit(&fil_system->mutex);
+		ib::error()
+			<< "Cannot find space for " << old_name
+			<< " in tablespace memory cache";
+
+		return(DB_ERROR);
+	}
+
+	auto    new_space = fil_space_get_by_name(new_name);
+
+	if (new_space != nullptr) {
+		mutex_exit(&fil_system->mutex);
+		if (new_space->id != space->id) {
+			ib::error()
+				<< new_name
+				<< " is already in the tablespace"
+				<< " memory cache";
+
+			return(DB_ERROR);
+		}
+		return(DB_SUCCESS);
+	}
+
+	char*	new_space_name = mem_strdup(new_name);
+	char*	old_space_name = space->name;
+
+	fil_system->names.erase(space->name);
+	space->name = new_space_name;
+	auto	it = fil_system->names.insert(
+		Names::value_type(space->name, space));
+	mutex_exit(&fil_system->mutex);
+	ut_a(it.second);
+	ut_free(old_space_name);
+
+	return(DB_SUCCESS);
+}
+/* purecov: end */
+
 /** Create a tablespace file.
 @param[in]	space_id	Tablespace ID
 @param[in]	name		Tablespace name in dbname/tablename format.

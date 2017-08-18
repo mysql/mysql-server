@@ -127,15 +127,16 @@ public:
 /**
   Contextualize a Mem_root_array of parse tree nodes of the type PTN
 
-  @tparam PTN           Common type of parse tree nodes in the array.
+  @tparam Context       Parse context.
+  @tparam Array         Array of parse tree nodes.
 
   @param[in,out] pc     Parse context.
   @param[in,out] array  Array of nodes to contextualize.
 
   @return false on success.
 */
-template<class PTN>
-bool contextualize_array(Parse_context *pc, Mem_root_array_YY<PTN *> *array)
+template<typename Context, typename Array>
+bool contextualize_array(Context *pc, Array *array)
 {
   for (auto it : *array)
   {

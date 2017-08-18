@@ -76,7 +76,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 DROP TABLESPACE s-bad;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-bad' at line 1
 DROP TABLESPACE `test/s_bad`;
-ERROR 42000: InnoDB: A general tablespace name cannot contain '/'.
+ERROR HY000: Tablespace test/s_bad doesn't exist.
 DROP TABLESPACE s_does_not_exist;
 ERROR HY000: Tablespace s_does_not_exist doesn't exist.
 #
@@ -226,7 +226,7 @@ Level	Code	Message
 Error	3119	InnoDB: A general tablespace name cannot start with `innodb_`.
 Error	3119	Incorrect tablespace name `innodb_custom`
 DROP TABLESPACE `innodb_custom`;
-ERROR 42000: InnoDB: A general tablespace name cannot start with `innodb_`.
+ERROR HY000: Tablespace innodb_custom doesn't exist.
 CREATE TABLESPACE `InnoDB_Custom` ADD DATAFILE 's_InnoDB_Custom.ibd';
 DROP TABLESPACE `InnoDB_Custom`;
 CREATE TABLESPACE `INNODB_CUSTOM` ADD DATAFILE 's_INNODB_CUSTOM.ibd';
@@ -773,45 +773,61 @@ DROP TABLESPACE s_multiple;
 #
 # Try the syntax that InnoDB does not support.
 #
-CREATE TABLESPACE s_bad USE LOGFILE GROUP logfile_group;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'USE LOGFILE GROUP logfile_group' at line 1
-CREATE TABLESPACE s_bad EXTENT_SIZE = 1G;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'EXTENT_SIZE = 1G' at line 1
-CREATE TABLESPACE s_bad INITIAL_SIZE = 100M;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INITIAL_SIZE = 100M' at line 1
+# Try NDB settings for CREATE TABLESPACE. These are currently accepted
+# even if they probably should not be. This is valid syntax from the
+# parser's POW
+CREATE TABLESPACE s_bad ADD DATAFILE 's_bad.ibd'
+       USE LOGFILE GROUP logfile_group;
+DROP TABLESPACE s_bad;
+CREATE TABLESPACE s_bad ADD DATAFILE 's_bad.ibd' EXTENT_SIZE = 100M;
+DROP TABLESPACE s_bad;
+CREATE TABLESPACE s_bad ADD DATAFILE 's_bad.ibd' NO_WAIT;
+DROP TABLESPACE s_bad;
+#
+# Checking LOGFILE GROUP commands (only supported by NDB)
+#
 CREATE LOGFILE GROUP s_bad;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 CREATE LOGFILE GROUP s_bad ADD UNDOFILE 'undo_1.dat';
 ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'LOGFILE GROUP'
-DROP LOGFILE GROUP s_bad;
-ERROR 42000: The storage engine for the table doesn't support DROP LOGFILE GROUP
-CREATE TABLESPACE s_bad ADD DATAFILE 's_bad.ibd';
 ALTER LOGFILE GROUP s_bad;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+ALTER LOGFILE GROUP s_bad ADD UNDOFILE 'undo_1.dat'
+      INITIAL_SIZE = 100M, NO_WAIT;
+ERROR 42000: The storage engine for the table doesn't support CREATE/ALTER/DROP LOGFILE GROUP
+DROP LOGFILE GROUP s_bad;
+ERROR 42000: The storage engine for the table doesn't support CREATE/ALTER/DROP LOGFILE GROUP
+#
+# Checking ALTER TABLESPACE (only NDB in 5.7)
+#
+CREATE TABLESPACE s_bad ADD DATAFILE 's_bad.ibd';
 ALTER TABLESPACE s_bad;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 ALTER TABLESPACE s_bad ADD DATAFILE 'bad2.ibd';
-ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE
+ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE ... ADD DATAFILE
 ALTER TABLESPACE s_bad DROP DATAFILE 's_bad.ibd';
-ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE
+ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE ... DROP DATAFILE
+ALTER TABLESPACE s_bad ADD DATAFILE 'bad2.ibd' INITIAL_SIZE = 1G;
+ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE ... ADD DATAFILE
+ALTER TABLESPACE s_def ADD DATAFILE 'bad2.ibd' NO_WAIT;
+ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE ... ADD DATAFILE
+ALTER TABLESPACE s_bad DROP DATAFILE 's_bad.ibd' INITIAL_SIZE = 1G;
+ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE ... DROP DATAFILE
+ALTER TABLESPACE s_bad DROP DATAFILE 's_bad.ibd' NO_WAIT;
+ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE ... DROP DATAFILE
+#
+# Undocumented ALTER TABLESPACE syntax which was removed by wl#8972
+#
+ALTER TABLESPACE s_bad CHANGE 's_bad.ibd'
+      INITIAL_SIZE = 1G, AUTOEXTEND_SIZE = 100M, MAX_SIZE = 2G;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CHANGE 's_bad.ibd'
+      INITIAL_SIZE = 1G, AUTOEXTEND_SIZE = 100M, MAX_SIZE = 2' at line 1
 ALTER TABLESPACE s_bad READ_ONLY;
-ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE ACCESS MODE
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'READ_ONLY' at line 1
 ALTER TABLESPACE s_bad READ_WRITE;
-ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE ACCESS MODE
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'READ_WRITE' at line 1
 ALTER TABLESPACE s_bad NOT ACCESSIBLE;
-ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE ACCESS MODE
-ALTER TABLESPACE s_def INITIAL_SIZE = 1G;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INITIAL_SIZE = 1G' at line 1
-ALTER TABLESPACE s_def MAX_SIZE = 1G;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'MAX_SIZE = 1G' at line 1
-ALTER TABLESPACE s_def AUTOEXTEND_SIZE = 10M;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'AUTOEXTEND_SIZE = 10M' at line 1
-ALTER TABLESPACE s_def NODEGROUP = 5;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'NODEGROUP = 5' at line 1
-ALTER TABLESPACE s_def WAIT;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'WAIT' at line 1
-ALTER TABLESPACE s_def COMMENT = 'This comment is ignored';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'COMMENT = 'This comment is ignored'' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'NOT ACCESSIBLE' at line 1
 DROP TABLESPACE s_bad;
 #
 # Try the syntax that MySQL docs say is ignored.

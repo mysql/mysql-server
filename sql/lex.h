@@ -507,7 +507,6 @@ static const SYMBOL symbols[] = {
   { SYM("RECOVER",                  RECOVER_SYM)},
   { SYM("RECURSIVE",                RECURSIVE_SYM)},
   { SYM("REDO_BUFFER_SIZE",         REDO_BUFFER_SIZE_SYM)},
-  { SYM("REDOFILE",                 REDOFILE_SYM)},
   { SYM("REDUNDANT",                REDUNDANT_SYM)},
   { SYM("REFERENCES",               REFERENCES)},
   { SYM("REGEXP",                   REGEXP)},
