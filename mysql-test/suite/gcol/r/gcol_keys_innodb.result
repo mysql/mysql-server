@@ -1237,7 +1237,7 @@ INSERT INTO t VALUES (14, 0, "ss");
 ALTER TABLE t ADD c INT GENERATED ALWAYS AS (a/b) VIRTUAL;
 CREATE INDEX idx ON t(c);
 ERROR 22012: Division by 0
-CALL mtr.add_suppression("\\[Warning\\] InnoDB: Compute virtual column values failed");
+CALL mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Compute virtual column values failed");
 DROP TABLE t;
 #
 # Bug#21770798 OPTIMIZER DOES NOT USE INDEX FOR GENERATED EXPRESSIONS

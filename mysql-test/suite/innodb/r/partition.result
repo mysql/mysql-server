@@ -452,12 +452,12 @@ DROP TABLESPACE ts1;
 #
 # Bug#21957001 INNODB: FAILING ASSERTION: 0 IN FILE HA_INNOPART.CC LINE 3526
 #
-call mtr.add_suppression("\\[Warning\\] InnoDB: Trying to access missing tablespace .*");
-call mtr.add_suppression("\\[Warning\\] InnoDB: Missing .ibd file for table `test`\.`t1` .* ");
-call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot calculate statistics for table .*");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 2 in a file operation.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot open datafile for read-only:");
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Trying to access missing tablespace .*");
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Missing .ibd file for table `test`\.`t1` .* ");
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Cannot calculate statistics for table .*");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Operating system error number 2 in a file operation.");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: The error means the system cannot find the path specified.");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Cannot open datafile for read-only:");
 CREATE TABLE t1(c1 INT,c2 CHAR(1)) PARTITION BY KEY(c1) PARTITIONS 4;
 ALTER TABLE t1 DISCARD PARTITION p3 TABLESPACE;
 ANALYZE TABLE t1;

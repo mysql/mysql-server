@@ -377,7 +377,7 @@ perl;
   use strict;
   my $outf= $ENV{'OUTF'} or die "OUTF not set";
   open(FILE, "$outf") or die("Unable to open $outf: $!\n");
-  my $count_error= grep(/\[ERROR\] Syntax error at '\[strength tertiary\]'/gi,<FILE>);
+  my $count_error= grep(/\[ERROR\] \[[^]]*\] Syntax error at '\[strength tertiary\]'/gi,<FILE>);
   print "Occurances : $count_error\n";
   close(FILE);
 EOF

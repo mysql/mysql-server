@@ -1087,6 +1087,7 @@ static int log_sink_trad(void *instance MY_ATTRIBUTE((unused)), log_line *ll)
                       ts_len=        0,
                       label_len=     0;
   enum loglevel       prio=          ERROR_LEVEL;
+  unsigned int        errcode=       0;
   log_item_type       item_type=     LOG_ITEM_END;
   log_item_type_mask  out_types=     0;
   const char         *iso_timestamp= "";
@@ -1105,6 +1106,9 @@ static int log_sink_trad(void *instance MY_ATTRIBUTE((unused)), log_line *ll)
 
       switch (item_type)
       {
+      case LOG_ITEM_SQL_ERRCODE:
+        errcode= (unsigned int) ll->item[c].data.data_integer;
+        break;
       case LOG_ITEM_LOG_PRIO:
         prio=  (enum loglevel) ll->item[c].data.data_integer;
         break;
@@ -1184,23 +1188,31 @@ static int log_sink_trad(void *instance MY_ATTRIBUTE((unused)), log_line *ll)
         ts_len=        strlen(buff_local_time);
       }
 
-      len= snprintf(buff_line, sizeof(buff_line), "%.*s %u [%.*s] %.*s",
+      /*
+        WL#11009 adds "error identifier" as a field in square brackets
+        that directly precedes the error message. As a result, new
+        tools can check for the presence of this field by testing
+        whether the first character of the presumed message field is '['.
+        Older tools will just consider this identifier part of the
+        message; this should therefore not affect log aggregation.
+        Tools reacting to the contents of the message may wish to
+        use the new field instead as it's simpler to parse.
+        While for the time being, this field contains a numerical
+        value, the rules are like so:
+
+          '[' [ <namespace> ':' ] <identifier> ']'
+
+        That is, an error identifier may be namespaced by a
+        subsystem/component name and a ':'; the identifier
+        itself should be considered opaque; in particular, it
+        may be non-numerical: [ <alpha> | <digit> | '_' | '.' ]
+      */
+      len= snprintf(buff_line, sizeof(buff_line), "%.*s %u [%.*s] [%06u] %.*s",
                     (int) ts_len,    iso_timestamp,
                     thread_id,
                     (int) label_len, label,
+                    errcode,
                     (int) msg_len,   msg);
-
-#if 0
-      /*
-        We should not have newlines in traditional (non-structured) logs.
-        We may enforce this later.
-      */
-      for (c= 0; c < len; c++)
-      {
-        if (buff_line[c] == '\n')
-          buff_line[c]= ' ';
-      }
-#endif
 
       log_write_errstream(buff_line, len);
 

@@ -697,7 +697,7 @@ INSERT INTO t VALUES (14, 0, "ss");
 ALTER TABLE t ADD c INT GENERATED ALWAYS AS (a/b) VIRTUAL;
 --error ER_DIVISION_BY_ZERO
 CREATE INDEX idx ON t(c);
-CALL mtr.add_suppression("\\[Warning\\] InnoDB: Compute virtual column values failed");
+CALL mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Compute virtual column values failed");
 DROP TABLE t;
 }
 

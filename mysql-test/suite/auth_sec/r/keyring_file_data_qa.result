@@ -1,13 +1,13 @@
-call mtr.add_suppression("\\[Error\\] Function 'keyring_file' already exists");
-call mtr.add_suppression("\\[Error\\] Couldn't load plugin named 'keyring_file' with soname 'keyring_file.so'.");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] Function 'keyring_file' already exists");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] Couldn't load plugin named 'keyring_file' with soname 'keyring_file.so'.");
 call mtr.add_suppression("keyring_file_data cannot be set to new value as the keyring file cannot be created/accessed in the provided path");
-call mtr.add_suppression("\\[Error\\] Plugin keyring_file reported: 'keyring_file initialization failure.");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] Plugin keyring_file reported: 'keyring_file initialization failure.");
 call mtr.add_suppression("Plugin keyring_file reported: 'Could not create keyring directory The keyring_file will stay unusable until correct path to the keyring directory gets provided");
 call mtr.add_suppression("Error while loading keyring content. The keyring might be malformed");
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'File .*keyring' not found .*");
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'File .*keyring/' not found .*");
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'File 'MYSQL_test_invalid/dir/' not found .*");
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'File '/' not found .*");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] Plugin keyring_file reported: 'File .*keyring' not found .*");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] Plugin keyring_file reported: 'File .*keyring/' not found .*");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] Plugin keyring_file reported: 'File 'MYSQL_test_invalid/dir/' not found .*");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] Plugin keyring_file reported: 'File '/' not found .*");
 INSTALL PLUGIN keyring_file SONAME 'keyring_file.so';
 SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS
 FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_file';

@@ -50,7 +50,7 @@ Pattern "InnoDB: Some files associated with the tablespace \d+ were not found: '
 Pattern "InnoDB: Some files associated with the tablespace \d+ were not found" found
 # Fault 5: Empty data file
 # Attempt to start mysqld. Recovery will fail
-Pattern "\[ERROR\] InnoDB: Datafile .*t2.*\. Cannot determine the space ID from the first 64 pages" found
+Pattern "\[ERROR\] \[[^]]*\] InnoDB: Datafile .*t2.*\. Cannot determine the space ID from the first 64 pages" found
 # Restore t2.ibd
 # restart
 SELECT * FROM t2;
@@ -95,16 +95,16 @@ Pattern "InnoDB: Attempted to open a previously opened tablespace. Previous tabl
 # Make the header page of u1.ibd consists of zero bytes
 # Write "" to u2.ibd
 # Attempt to start mysqld. Recovery will fail
-Pattern "\[ERROR\] InnoDB: Datafile .*u1.*\. Cannot determine the space ID from the first 64 pages" found
-Pattern "\[ERROR\] InnoDB: Cannot read first page of .*u2.ibd.*" found
+Pattern "\[ERROR\] \[[^]]*\] InnoDB: Datafile .*u1.*\. Cannot determine the space ID from the first 64 pages" found
+Pattern "\[ERROR\] \[[^]]*\] InnoDB: Cannot read first page of .*u2.ibd.*" found
 # Fault 8: Missing or wrong data file
 # Remove empty u2.ibd
 # Attempt to start mysqld. Recovery will fail
-Pattern "\[ERROR\] InnoDB: Header page consists of zero bytes in datafile: .*u1.ibd" found
+Pattern "\[ERROR\] \[[^]]*\] InnoDB: Header page consists of zero bytes in datafile: .*u1.ibd" found
 # Remove empty u6.ibd
 # Attempt to start mysqld with force-recovery=1. Recovery will fail
-Pattern "\[ERROR\] unknown option '--innodb-nonexistent-option'" found
-Pattern "\[ERROR\] InnoDB: Header page consists of zero bytes in datafile: .*u1.ibd" found
+Pattern "\[ERROR\] \[[^]]*\] unknown option '--innodb-nonexistent-option'" found
+Pattern "\[ERROR\] \[[^]]*\] InnoDB: Header page consists of zero bytes in datafile: .*u1.ibd" found
 Pattern "InnoDB: At LSN: \d+: unable to open file .*u[1-5].ibd for tablespace" found
 # restart
 DROP TABLE u1,u2,u3,u6;

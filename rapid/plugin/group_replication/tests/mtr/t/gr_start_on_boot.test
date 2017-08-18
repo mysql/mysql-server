@@ -27,11 +27,11 @@ SET SESSION sql_log_bin= 1;
 # Each test will log only one warning line
 --let $assert_count= 1
 
---let $assert_select=.* \[ERROR\] Plugin group_replication reported: 'The group name option is mandatory'
+--let $assert_select=.* \[ERROR\] \[[^]]*\] Plugin group_replication reported: 'The group name option is mandatory'
 --let $assert_text= The GR plug-in reported an error on group name option being mandatory
 --source include/assert_grep.inc
 
---let $assert_select=.* \[ERROR\] Plugin group_replication reported: 'Unable to start Group Replication on boot'
+--let $assert_select=.* \[ERROR\] \[[^]]*\] Plugin group_replication reported: 'Unable to start Group Replication on boot'
 --let $assert_text= The GR plug-in reported an error stating it was unable to start Group Replication on boot
 --source include/assert_grep.inc
 
