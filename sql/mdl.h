@@ -363,7 +363,10 @@ public:
      - LOCKING_SERVICE is for the name plugin RW-lock service
      - SRID is for spatial reference systems
      - ACL_CACHE is for ACL caches
-     - COLUMN_STATISTICS is for column statistics, such as histograms.
+     - COLUMN_STATISTICS is for column statistics, such as histograms
+     - BACKUP_LOCK is to block any operations that could cause
+       inconsistent backup. Such operations are most DDL statements,
+       and some administrative statements.
     Note that requests waiting for user-level locks get special
     treatment - waiting is aborted if connection to client is lost.
   */
@@ -381,6 +384,7 @@ public:
                             SRID,
                             ACL_CACHE,
                             COLUMN_STATISTICS,
+                            BACKUP_LOCK,
                             /* This should be the last ! */
                             NAMESPACE_END };
 

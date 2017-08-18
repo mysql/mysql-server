@@ -50,6 +50,9 @@ void mysql_comp_status_var_services_init();
 void mysql_comp_sys_var_services_init();
 void mysql_comp_system_variable_source_init();
 
+void mysql_backup_lock_service_init();
+
+
 /* implementation of the built-in components */
 
 /**

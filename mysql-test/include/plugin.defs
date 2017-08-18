@@ -93,6 +93,8 @@ component_example_component3    component_output_directory  EXAMPLE_COMPONENT_3
 component_test_string_service   component_output_directory  TEST_STRING_SERVICE
 component_test_string_service_long   component_output_directory  TEST_STRING_SERVICE_LONG
 component_test_string_service_charset   component_output_directory  TEST_STRING_SERVICE_CHARSET
+
+component_test_backup_lock_service   component_output_directory  TEST_BACKUP_LOCK_SERVICE
 # Test Performance Schema services
 component_test_pfs_notification         component_output_directory  TEST_PFS_NOTIFICATION_SERVICE
 component_test_pfs_resource_group       component_output_directory  TEST_PFS_RESOURCE_GROUP_SERVICE

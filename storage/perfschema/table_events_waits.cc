@@ -497,6 +497,12 @@ table_events_waits_common::make_metadata_lock_object_columns(
       m_row.m_object_schema_length = mdl->db_name_length();
       m_row.m_object_name_length = mdl->name_length();
       break;
+    case MDL_key::BACKUP_LOCK:
+      m_row.m_object_type = "BACKUP_LOCK";
+      m_row.m_object_type_length = sizeof("BACKUP_LOCK") - 1;
+      m_row.m_object_schema_length = 0;
+      m_row.m_object_name_length = 0;
+      break;
     case MDL_key::NAMESPACE_END:
     default:
       m_row.m_object_type_length = 0;

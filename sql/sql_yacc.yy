@@ -74,6 +74,8 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "sp_rcontext.h"
 #include "sql_admin.h"                         // Sql_cmd_analyze/Check..._table
 #include "sql_alter.h"                         // Sql_cmd_alter_table*
+#include "sql_backup_lock.h"                   // Sql_cmd_lock_instance,
+                                               // Sql_cmd_unlock_instance
 #include "sql_base.h"                        // find_temporary_table
 #include "sql_class.h"      /* Key_part_spec, enum_filetype */
 #include "sql_component.h"
@@ -13974,6 +13976,13 @@ lock:
           }
           table_lock_list
           {}
+        | LOCK_SYM INSTANCE_SYM FOR_SYM BACKUP_SYM
+          {
+            Lex->sql_command= SQLCOM_LOCK_INSTANCE;
+            Lex->m_sql_cmd= NEW_PTN Sql_cmd_lock_instance();
+            if (Lex->m_sql_cmd == nullptr)
+              MYSQL_YYABORT; // OOM
+          }
         ;
 
 table_or_tables:
@@ -14039,6 +14048,13 @@ unlock:
           }
           table_or_tables
           {}
+        | UNLOCK_SYM INSTANCE_SYM
+          {
+            Lex->sql_command= SQLCOM_UNLOCK_INSTANCE;
+            Lex->m_sql_cmd= NEW_PTN Sql_cmd_unlock_instance();
+            if (Lex->m_sql_cmd == nullptr)
+              MYSQL_YYABORT; // OOM
+          }
         ;
 
 

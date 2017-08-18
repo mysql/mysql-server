@@ -24,6 +24,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include <mysql/components/my_service.h>
 #include <mysql/components/service.h>
 #include <mysql/components/service_implementation.h>
+#include <mysql/components/services/backup_lock_service.h>
 #include <mysql/components/services/component_sys_var_service.h>
 #include <mysql/components/services/dynamic_loader.h>
 #include <mysql/components/services/persistent_dynamic_loader.h>
@@ -155,6 +156,20 @@ DEFINE_BOOL_METHOD(mysql_status_variable_registration_imp::unregister_variable,
 
 DEFINE_BOOL_METHOD(mysql_system_variable_source_imp::get,
   (const char*, unsigned int, enum enum_variable_source*))
+{
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_acquire_backup_lock,
+  (MYSQL_THD,
+   enum enum_backup_lock_service_lock_kind,
+   unsigned long))
+{
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_release_backup_lock,
+  (MYSQL_THD))
 {
   return true;
 }

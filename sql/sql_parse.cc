@@ -111,6 +111,7 @@
 #include "sql/sp_head.h"      // sp_head
 #include "sql/sql_alter.h"
 #include "sql/sql_audit.h"    // MYSQL_AUDIT_NOTIFY_CONNECTION_CHANGE_USER
+#include "sql/sql_backup_lock.h"  // acquire_shared_mdl_for_backup
 #include "sql/sql_base.h"     // find_temporary_table
 #include "sql/sql_binlog.h"   // mysql_client_binlog_statement
 #include "sql/sql_class.h"
@@ -379,28 +380,58 @@ void init_update_queries(void)
   */
   sql_command_flags[SQLCOM_CREATE_TABLE]=   CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
                                             CF_AUTO_COMMIT_TRANS |
-                                            CF_CAN_GENERATE_ROW_EVENTS;
-  sql_command_flags[SQLCOM_CREATE_INDEX]=   CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
+                                            CF_CAN_GENERATE_ROW_EVENTS |
+                                            CF_ACQUIRE_BACKUP_LOCK;
+  sql_command_flags[SQLCOM_CREATE_INDEX]=   CF_CHANGES_DATA |
+                                            CF_AUTO_COMMIT_TRANS |
+                                            CF_ACQUIRE_BACKUP_LOCK;
   sql_command_flags[SQLCOM_ALTER_TABLE]=    CF_CHANGES_DATA | CF_WRITE_LOGS_COMMAND |
-                                            CF_AUTO_COMMIT_TRANS;
+                                            CF_AUTO_COMMIT_TRANS |
+                                            CF_ACQUIRE_BACKUP_LOCK;
   sql_command_flags[SQLCOM_TRUNCATE]=       CF_CHANGES_DATA | CF_WRITE_LOGS_COMMAND |
-                                            CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_DROP_TABLE]=     CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
+                                            CF_AUTO_COMMIT_TRANS |
+                                            CF_ACQUIRE_BACKUP_LOCK;
+  sql_command_flags[SQLCOM_DROP_TABLE]=     CF_CHANGES_DATA |
+                                            CF_AUTO_COMMIT_TRANS |
+                                            CF_ACQUIRE_BACKUP_LOCK;
   sql_command_flags[SQLCOM_LOAD]=           CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
                                             CF_CAN_GENERATE_ROW_EVENTS;
-  sql_command_flags[SQLCOM_CREATE_DB]=      CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_DROP_DB]=        CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_ALTER_DB]=       CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_RENAME_TABLE]=   CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_DROP_INDEX]=     CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_CREATE_DB]=      CF_CHANGES_DATA |
+                                            CF_AUTO_COMMIT_TRANS |
+                                            CF_ACQUIRE_BACKUP_LOCK;
+  sql_command_flags[SQLCOM_DROP_DB]=        CF_CHANGES_DATA |
+                                            CF_AUTO_COMMIT_TRANS |
+                                            CF_ACQUIRE_BACKUP_LOCK;
+  sql_command_flags[SQLCOM_ALTER_DB]=       CF_CHANGES_DATA |
+                                            CF_AUTO_COMMIT_TRANS |
+                                            CF_ACQUIRE_BACKUP_LOCK;
+  sql_command_flags[SQLCOM_RENAME_TABLE]=   CF_CHANGES_DATA |
+                                            CF_AUTO_COMMIT_TRANS |
+                                            CF_ACQUIRE_BACKUP_LOCK;
+  sql_command_flags[SQLCOM_DROP_INDEX]=     CF_CHANGES_DATA |
+                                            CF_AUTO_COMMIT_TRANS |
+                                            CF_ACQUIRE_BACKUP_LOCK;
   sql_command_flags[SQLCOM_CREATE_VIEW]=    CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
-                                            CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_DROP_VIEW]=      CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_CREATE_TRIGGER]= CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_DROP_TRIGGER]=   CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_CREATE_EVENT]=   CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_ALTER_EVENT]=    CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_DROP_EVENT]=     CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
+                                            CF_AUTO_COMMIT_TRANS  |
+                                            CF_ACQUIRE_BACKUP_LOCK;
+  sql_command_flags[SQLCOM_DROP_VIEW]=      CF_CHANGES_DATA |
+                                            CF_AUTO_COMMIT_TRANS |
+                                            CF_ACQUIRE_BACKUP_LOCK;
+  sql_command_flags[SQLCOM_CREATE_TRIGGER]= CF_CHANGES_DATA |
+                                            CF_AUTO_COMMIT_TRANS |
+                                            CF_ACQUIRE_BACKUP_LOCK;
+  sql_command_flags[SQLCOM_DROP_TRIGGER]=   CF_CHANGES_DATA |
+                                            CF_AUTO_COMMIT_TRANS |
+                                            CF_ACQUIRE_BACKUP_LOCK;
+  sql_command_flags[SQLCOM_CREATE_EVENT]=   CF_CHANGES_DATA |
+                                            CF_AUTO_COMMIT_TRANS |
+                                            CF_ACQUIRE_BACKUP_LOCK;
+  sql_command_flags[SQLCOM_ALTER_EVENT]=    CF_CHANGES_DATA |
+                                            CF_AUTO_COMMIT_TRANS |
+                                            CF_ACQUIRE_BACKUP_LOCK;
+  sql_command_flags[SQLCOM_DROP_EVENT]=     CF_CHANGES_DATA |
+                                            CF_AUTO_COMMIT_TRANS |
+                                            CF_ACQUIRE_BACKUP_LOCK;
   sql_command_flags[SQLCOM_IMPORT]=         CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
 
   sql_command_flags[SQLCOM_UPDATE]=	    CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
@@ -544,51 +575,79 @@ void init_update_queries(void)
   */
   sql_command_flags[SQLCOM_CREATE_USER]=       CF_CHANGES_DATA |
                                                CF_NEEDS_AUTOCOMMIT_OFF |
-                                               CF_POTENTIAL_ATOMIC_DDL;
+                                               CF_POTENTIAL_ATOMIC_DDL  |
+                                               CF_ACQUIRE_BACKUP_LOCK;
   sql_command_flags[SQLCOM_RENAME_USER]=       CF_CHANGES_DATA |
                                                CF_NEEDS_AUTOCOMMIT_OFF |
-                                               CF_POTENTIAL_ATOMIC_DDL;
+                                               CF_POTENTIAL_ATOMIC_DDL |
+                                               CF_ACQUIRE_BACKUP_LOCK;
   sql_command_flags[SQLCOM_DROP_USER]=         CF_CHANGES_DATA |
                                                CF_NEEDS_AUTOCOMMIT_OFF |
-                                               CF_POTENTIAL_ATOMIC_DDL;
+                                               CF_POTENTIAL_ATOMIC_DDL |
+                                               CF_ACQUIRE_BACKUP_LOCK;
   sql_command_flags[SQLCOM_ALTER_USER]=        CF_CHANGES_DATA |
                                                CF_NEEDS_AUTOCOMMIT_OFF |
-                                               CF_POTENTIAL_ATOMIC_DDL;
+                                               CF_POTENTIAL_ATOMIC_DDL |
+                                               CF_ACQUIRE_BACKUP_LOCK;
   sql_command_flags[SQLCOM_GRANT]=             CF_CHANGES_DATA |
                                                CF_NEEDS_AUTOCOMMIT_OFF |
-                                               CF_POTENTIAL_ATOMIC_DDL;
+                                               CF_POTENTIAL_ATOMIC_DDL |
+                                               CF_ACQUIRE_BACKUP_LOCK;
   sql_command_flags[SQLCOM_REVOKE]=            CF_CHANGES_DATA |
                                                CF_NEEDS_AUTOCOMMIT_OFF |
-                                               CF_POTENTIAL_ATOMIC_DDL;
+                                               CF_POTENTIAL_ATOMIC_DDL |
+                                               CF_ACQUIRE_BACKUP_LOCK;
   sql_command_flags[SQLCOM_REVOKE_ALL]=        CF_CHANGES_DATA |
                                                CF_NEEDS_AUTOCOMMIT_OFF |
-                                               CF_POTENTIAL_ATOMIC_DDL;
+                                               CF_POTENTIAL_ATOMIC_DDL |
+                                               CF_ACQUIRE_BACKUP_LOCK;
   sql_command_flags[SQLCOM_ALTER_USER_DEFAULT_ROLE]=
                                                CF_CHANGES_DATA |
                                                CF_NEEDS_AUTOCOMMIT_OFF |
-                                               CF_POTENTIAL_ATOMIC_DDL;
+                                               CF_POTENTIAL_ATOMIC_DDL |
+                                               CF_ACQUIRE_BACKUP_LOCK;
   sql_command_flags[SQLCOM_GRANT_ROLE]=        CF_CHANGES_DATA |
                                                CF_NEEDS_AUTOCOMMIT_OFF |
-                                               CF_POTENTIAL_ATOMIC_DDL;
+                                               CF_POTENTIAL_ATOMIC_DDL |
+                                               CF_ACQUIRE_BACKUP_LOCK;
   sql_command_flags[SQLCOM_REVOKE_ROLE]=       CF_CHANGES_DATA |
                                                CF_NEEDS_AUTOCOMMIT_OFF |
-                                               CF_POTENTIAL_ATOMIC_DDL;
+                                               CF_POTENTIAL_ATOMIC_DDL |
+                                               CF_ACQUIRE_BACKUP_LOCK;
   sql_command_flags[SQLCOM_DROP_ROLE]=         CF_CHANGES_DATA |
                                                CF_NEEDS_AUTOCOMMIT_OFF |
-                                               CF_POTENTIAL_ATOMIC_DDL;
+                                               CF_POTENTIAL_ATOMIC_DDL |
+                                               CF_ACQUIRE_BACKUP_LOCK;
   sql_command_flags[SQLCOM_CREATE_ROLE]=       CF_CHANGES_DATA |
                                                CF_NEEDS_AUTOCOMMIT_OFF |
-                                               CF_POTENTIAL_ATOMIC_DDL;
+                                               CF_POTENTIAL_ATOMIC_DDL |
+                                               CF_ACQUIRE_BACKUP_LOCK;
 
-  sql_command_flags[SQLCOM_OPTIMIZE]=          CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_ALTER_INSTANCE]=    CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_CREATE_FUNCTION]=   CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_CREATE_PROCEDURE]=  CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_CREATE_SPFUNCTION]= CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_DROP_PROCEDURE]=    CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_DROP_FUNCTION]=     CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_ALTER_PROCEDURE]=   CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_ALTER_FUNCTION]=    CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_OPTIMIZE]=          CF_CHANGES_DATA |
+                                               CF_ACQUIRE_BACKUP_LOCK;
+  sql_command_flags[SQLCOM_ALTER_INSTANCE]=    CF_CHANGES_DATA |
+                                               CF_ACQUIRE_BACKUP_LOCK;
+  sql_command_flags[SQLCOM_CREATE_FUNCTION]=   CF_CHANGES_DATA |
+                                               CF_AUTO_COMMIT_TRANS |
+                                               CF_ACQUIRE_BACKUP_LOCK;
+  sql_command_flags[SQLCOM_CREATE_PROCEDURE]=  CF_CHANGES_DATA |
+                                               CF_AUTO_COMMIT_TRANS |
+                                               CF_ACQUIRE_BACKUP_LOCK;
+  sql_command_flags[SQLCOM_CREATE_SPFUNCTION]= CF_CHANGES_DATA |
+                                               CF_AUTO_COMMIT_TRANS |
+                                               CF_ACQUIRE_BACKUP_LOCK;
+  sql_command_flags[SQLCOM_DROP_PROCEDURE]=    CF_CHANGES_DATA |
+                                               CF_AUTO_COMMIT_TRANS |
+                                               CF_ACQUIRE_BACKUP_LOCK;
+  sql_command_flags[SQLCOM_DROP_FUNCTION]=     CF_CHANGES_DATA |
+                                               CF_AUTO_COMMIT_TRANS |
+                                               CF_ACQUIRE_BACKUP_LOCK;
+  sql_command_flags[SQLCOM_ALTER_PROCEDURE]=   CF_CHANGES_DATA |
+                                               CF_AUTO_COMMIT_TRANS |
+                                               CF_ACQUIRE_BACKUP_LOCK;
+  sql_command_flags[SQLCOM_ALTER_FUNCTION]=    CF_CHANGES_DATA |
+                                               CF_AUTO_COMMIT_TRANS |
+                                               CF_ACQUIRE_BACKUP_LOCK;
   sql_command_flags[SQLCOM_INSTALL_PLUGIN]=    CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_UNINSTALL_PLUGIN]=  CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_INSTALL_COMPONENT]= CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
@@ -610,10 +669,16 @@ void init_update_queries(void)
     The following admin table operations are allowed
     on log tables.
   */
-  sql_command_flags[SQLCOM_REPAIR]=    CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_REPAIR]=    CF_WRITE_LOGS_COMMAND |
+                                       CF_AUTO_COMMIT_TRANS |
+                                       CF_ACQUIRE_BACKUP_LOCK;
   sql_command_flags[SQLCOM_OPTIMIZE]|= CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_ANALYZE]=   CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_CHECK]=     CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_ANALYZE]=   CF_WRITE_LOGS_COMMAND |
+                                       CF_AUTO_COMMIT_TRANS |
+                                       CF_ACQUIRE_BACKUP_LOCK;
+  sql_command_flags[SQLCOM_CHECK]=     CF_WRITE_LOGS_COMMAND |
+                                       CF_AUTO_COMMIT_TRANS |
+                                       CF_ACQUIRE_BACKUP_LOCK;
 
   sql_command_flags[SQLCOM_CREATE_USER]|=       CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_CREATE_ROLE]|=       CF_AUTO_COMMIT_TRANS;
@@ -634,14 +699,18 @@ void init_update_queries(void)
 
   sql_command_flags[SQLCOM_FLUSH]=              CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_RESET]=              CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_CREATE_SERVER]=      CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_ALTER_SERVER]=       CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_DROP_SERVER]=        CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_CREATE_SERVER]=      CF_AUTO_COMMIT_TRANS |
+                                                CF_ACQUIRE_BACKUP_LOCK;
+  sql_command_flags[SQLCOM_ALTER_SERVER]=       CF_AUTO_COMMIT_TRANS |
+                                                CF_ACQUIRE_BACKUP_LOCK;
+  sql_command_flags[SQLCOM_DROP_SERVER]=        CF_AUTO_COMMIT_TRANS |
+                                                CF_ACQUIRE_BACKUP_LOCK;
   sql_command_flags[SQLCOM_CHANGE_MASTER]=      CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_CHANGE_REPLICATION_FILTER]=    CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_SLAVE_START]=        CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_SLAVE_STOP]=         CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_ALTER_TABLESPACE]|=  CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_ALTER_TABLESPACE]|=  CF_AUTO_COMMIT_TRANS |
+                                                CF_ACQUIRE_BACKUP_LOCK;
 
   /*
     The following statements can deal with temporary tables,
@@ -2471,6 +2540,18 @@ static inline void binlog_gtid_end_transaction(THD *thd)
 }
 
 
+static inline bool check_if_backup_lock_has_to_be_acquired(LEX *lex)
+{
+  if ((lex->sql_command == SQLCOM_CREATE_TABLE &&
+       (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE)) ||
+      (lex->sql_command == SQLCOM_DROP_TABLE &&
+       lex->drop_temporary))
+    return false;
+
+  return sql_command_flags[lex->sql_command] & CF_ACQUIRE_BACKUP_LOCK;
+}
+
+
 /**
   Execute command saved in thd and lex->sql_command.
 
@@ -2704,6 +2785,10 @@ mysql_execute_command(THD *thd, bool first_level)
     binlog_gtid_end_transaction(thd);
     DBUG_RETURN(0);
   }
+
+  if (check_if_backup_lock_has_to_be_acquired(lex) &&
+      acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout))
+    DBUG_RETURN(1);
 
   /*
     End a active transaction so that this command will have it's
@@ -4477,6 +4562,8 @@ mysql_execute_command(THD *thd, bool first_level)
   case SQLCOM_SHOW_KEYS:
   case SQLCOM_SHOW_TABLES:
   case SQLCOM_CLONE:
+  case SQLCOM_LOCK_INSTANCE:
+  case SQLCOM_UNLOCK_INSTANCE:
     DBUG_ASSERT(lex->m_sql_cmd != nullptr);
     res= lex->m_sql_cmd->execute(thd);
     break;

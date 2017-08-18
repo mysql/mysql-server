@@ -1462,13 +1462,15 @@ static void server_component_init()
 {
   /*
     Below are dummy initialization functions. Else linker, is cutting out (as
-    library optimization) the string services and component system variables
-    code. This is because of libsql code is not calling any functions of them.
+    library optimization) the string services, component system variables and
+    backup lock service code. This is because of libsql code is not calling
+    any functions of them
   */
   mysql_string_services_init();
   mysql_comp_status_var_services_init();
   mysql_comp_sys_var_services_init();
   mysql_comp_system_variable_source_init();
+  mysql_backup_lock_service_init();
 }
 
 /**
@@ -3049,6 +3051,9 @@ SHOW_VAR com_status_vars[]= {
   {"install_plugin",       (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_INSTALL_PLUGIN]),             SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"kill",                 (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_KILL]),                       SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"load",                 (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_LOAD]),                       SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"lock_instance",        (char*) offsetof(System_status_var,
+                                            com_stat[(uint) SQLCOM_LOCK_INSTANCE]),
+    SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"lock_tables",          (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_LOCK_TABLES]),                SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"optimize",             (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_OPTIMIZE]),                   SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"preload_keys",         (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_PRELOAD_KEYS]),               SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
@@ -3129,6 +3134,9 @@ SHOW_VAR com_status_vars[]= {
   {"truncate",             (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_TRUNCATE]),                   SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"uninstall_component",  (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_UNINSTALL_COMPONENT]),        SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"uninstall_plugin",     (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_UNINSTALL_PLUGIN]),           SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"unlock_instance",      (char*) offsetof(System_status_var,
+                                            com_stat[(uint) SQLCOM_UNLOCK_INSTANCE]),
+    SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"unlock_tables",        (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_UNLOCK_TABLES]),              SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"update",               (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_UPDATE]),                     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"update_multi",         (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_UPDATE_MULTI]),               SHOW_LONG_STATUS, SHOW_SCOPE_ALL},

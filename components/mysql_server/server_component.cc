@@ -32,6 +32,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include "log_builtins_filter_imp.h"
 #include "log_builtins_imp.h"
 #include "my_inttypes.h"
+#include "mysql_backup_lock.h"
 #include "mysql_string_service.h"
 #include "mysqld_error.h"
 #include "persistent_dynamic_loader.h"
@@ -277,6 +278,11 @@ BEGIN_SERVICE_IMPLEMENTATION(mysql_server, system_variable_source)
     mysql_system_variable_source_imp::get
 END_SERVICE_IMPLEMENTATION()
 
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_backup_lock)
+  mysql_acquire_backup_lock,
+  mysql_release_backup_lock
+END_SERVICE_IMPLEMENTATION()
+
 BEGIN_COMPONENT_PROVIDES(mysql_server)
   PROVIDES_SERVICE(mysql_server, registry)
   PROVIDES_SERVICE(mysql_server, registry_registration)
@@ -313,6 +319,7 @@ BEGIN_COMPONENT_PROVIDES(mysql_server)
   PROVIDES_SERVICE(mysql_server, mysql_rwlock_v1)
   PROVIDES_SERVICE(mysql_server, status_variable_registration)
   PROVIDES_SERVICE(mysql_server, system_variable_source)
+  PROVIDES_SERVICE(mysql_server, mysql_backup_lock)
 END_COMPONENT_PROVIDES()
 
 static BEGIN_COMPONENT_REQUIRES(mysql_server)

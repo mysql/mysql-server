@@ -24,6 +24,7 @@
 typedef int mysql_mutex_t; // mock to load persistent_dynamic_loader imp header
 #include <component_status_var_service.h>
 #include <component_sys_var_service.h>
+#include <mysql/components/services/backup_lock_service.h>
 #include <mysql/components/services/component_sys_var_service.h>
 #include <mysql/components/services/persistent_dynamic_loader.h>
 #include <persistent_dynamic_loader.h>
@@ -165,6 +166,20 @@ DEFINE_BOOL_METHOD(mysql_status_variable_registration_imp::unregister_variable,
 
 DEFINE_BOOL_METHOD(mysql_system_variable_source_imp::get,
   (const char*, unsigned int, enum enum_variable_source*))
+{
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_acquire_backup_lock,
+  (MYSQL_THD,
+   enum enum_backup_lock_service_lock_kind,
+   unsigned long))
+{
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_release_backup_lock,
+  (MYSQL_THD))
 {
   return true;
 }
