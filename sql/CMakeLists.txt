@@ -688,10 +688,6 @@ IF(HAVE_NO_BUILTIN_MEMCMP)
   )
 ENDIF()
 
-IF (WIN32 AND OPENSSL_APPLINK_C)
-  LIST(APPEND SQL_SOURCE "${OPENSSL_APPLINK_C}")
-ENDIF()
-
 ADD_CONVENIENCE_LIBRARY(sql_rtree gis/rtree_support.cc)
 ADD_DEPENDENCIES(sql_rtree GenError)
 ADD_DEPENDENCIES(sql_rtree GenServerSource)
@@ -719,6 +715,11 @@ ADD_DEPENDENCIES(sql_gis GenError)
 IF(WIN32)
   ADD_DEFINITIONS(-DAUTHENTICATION_WIN)
   TARGET_LINK_LIBRARIES(sql_main auth_win_client)
+  IF(OPENSSL_APPLINK_C)
+    ADD_COMPILE_FLAGS(
+      ../sql-common/client_authentication.cc
+      COMPILE_FLAGS -DHAVE_OPENSSL_APPLINK_C)
+  ENDIF()
 ENDIF()
 
 SET (BINLOG_SOURCE rpl_gtid_misc.cc
