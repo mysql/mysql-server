@@ -8013,7 +8013,7 @@ Fil_system::encryption_rotate_in_a_shard(Fil_shard* shard)
 		server uuid is not ready yet. */
 
 		if (fsp_is_undo_tablespace(space->id)
-		    && Encryption::master_key_id
+		    && Encryption::s_master_key_id
 		    == ENCRYPTION_DEFAULT_MASTER_KEY_ID) {
 
 			continue;

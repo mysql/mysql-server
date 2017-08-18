@@ -945,7 +945,7 @@ fsp_header_write_encryption(
 	tablespaces. */
 	master_key_id = mach_read_from_4(
 		page + offset + ENCRYPTION_MAGIC_SIZE);
-	if (master_key_id == Encryption::master_key_id) {
+	if (master_key_id == Encryption::s_master_key_id) {
 		ut_ad(memcmp(page + offset,
 			     ENCRYPTION_KEY_MAGIC_V1,
 			     ENCRYPTION_MAGIC_SIZE) == 0

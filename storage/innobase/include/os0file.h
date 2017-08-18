@@ -421,8 +421,8 @@ struct Encryption {
 
 	/** Decrypt the log block.
 	@param[in]	type		IORequest
-	@param[in,out]	src		data read from disk, decrypted data will be
-					copied to this page
+	@param[in,out]	src		data read from disk, decrypted data
+					will be copied to this page
 	@param[in,out]	dst		scratch area to use for decryption
 	@return DB_SUCCESS or error code */
 	dberr_t decrypt_log_block(
@@ -432,8 +432,8 @@ struct Encryption {
 
 	/** Decrypt the log data contents.
 	@param[in]	type		IORequest
-	@param[in,out]	src		data read from disk, decrypted data will be
-					copied to this page
+	@param[in,out]	src		data read from disk, decrypted data
+					will be copied to this page
 	@param[in]	src_len		source data length
 	@param[in,out]	dst		scratch area to use for decryption
 	@param[in]	dst_len		size of the scratch area in bytes
@@ -480,10 +480,10 @@ struct Encryption {
 	byte*			m_iv;
 
 	/** Current master key id */
-	static ulint		master_key_id;
+	static ulint		s_master_key_id;
 
 	/** Current uuid of server instance */
-	static char		uuid[ENCRYPTION_SERVER_UUID_LEN + 1];
+	static char		s_uuid[ENCRYPTION_SERVER_UUID_LEN + 1];
 };
 
 /** Types for AIO operations @{ */

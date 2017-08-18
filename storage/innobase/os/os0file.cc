@@ -46,7 +46,6 @@ Created 10/21/1995 Heikki Tuuri
 # include "os0event.h"
 # include "os0thread.h"
 #ifdef _WIN32
-# include <sys/types.h>
 # include <sys/stat.h>
 # include <errno.h>
 # include <tchar.h>
@@ -57,17 +56,12 @@ Created 10/21/1995 Heikki Tuuri
 # ifdef _WIN32
 #  include <errno.h>
 #  include <sys/stat.h>
-#  include <sys/types.h>
 # endif /* _WIN32 */
 #endif /* !UNIV_HOTBACKUP */
 
 #ifdef __linux__
 #include <sys/sendfile.h>
 #endif /* __linux__ */
-
-#include <functional>
-#include <new>
-#include <vector>
 
 #ifdef LINUX_NATIVE_AIO
 #include <libaio.h>
@@ -80,13 +74,17 @@ Created 10/21/1995 Heikki Tuuri
 
 #include <errno.h>
 #include <lz4.h>
-#include <my_aes.h>
-#include <my_rnd.h>
-#include <mysql/service_mysql_keyring.h>
-#include <mysqld.h>
-#include <sys/types.h>
-#include <time.h>
+#include "my_aes.h"
+#include "my_rnd.h"
+#include "mysql/service_mysql_keyring.h"
+#include "mysqld.h"
+
+#include <new>
+#include <ctime>
 #include <zlib.h>
+#include <vector>
+#include <sys/types.h>
+#include <functional>
 
 /** Insert buffer segment id */
 static const ulint IO_IBUF_SEGMENT = 0;
@@ -8883,7 +8881,8 @@ Encryption::to_string(Type type)
 
 /** Generate random encryption value for key and iv.
 @param[in,out]	value	Encryption value */
-void Encryption::random_value(byte* value)
+void
+Encryption::random_value(byte* value)
 {
 	ut_ad(value != NULL);
 
@@ -8895,40 +8894,43 @@ void Encryption::random_value(byte* value)
 void
 Encryption::create_master_key(byte** master_key)
 {
-	char*	key_type = NULL;
 	size_t	key_len;
+	char*	key_type = NULL;
 	char	key_name[ENCRYPTION_MASTER_KEY_NAME_MAX_LEN];
-	int	ret;
 
 	/* If uuid does not match with current server uuid,
 	set uuid as current server uuid. */
-	if (strcmp(uuid, server_uuid) != 0) {
-		memcpy(uuid, server_uuid, ENCRYPTION_SERVER_UUID_LEN);
+	if (strcmp(s_uuid, server_uuid) != 0) {
+		strncpy(s_uuid, server_uuid, sizeof(s_uuid) - 1);
 	}
-	memset(key_name, 0, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN);
 
 	/* Generate new master key */
 	snprintf(key_name, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN,
-		    "%s-%s-" ULINTPF, ENCRYPTION_MASTER_KEY_PRIFIX,
-		    uuid, master_key_id + 1);
+		 "%s-%s-" ULINTPF, ENCRYPTION_MASTER_KEY_PRIFIX,
+		 s_uuid, s_master_key_id + 1);
 
 	/* We call key ring API to generate master key here. */
-	ret = my_key_generate(key_name, "AES",
-			      NULL, ENCRYPTION_KEY_LEN);
+	int	ret = my_key_generate(
+		key_name, "AES", nullptr, ENCRYPTION_KEY_LEN);
 
 	/* We call key ring API to get master key here. */
-	ret = my_key_fetch(key_name, &key_type, NULL,
-			   reinterpret_cast<void**>(master_key), &key_len);
+	ret = my_key_fetch(
+		key_name, &key_type, nullptr,
+		reinterpret_cast<void**>(master_key), &key_len);
 
-	if (ret || *master_key == NULL) {
-		ib::error() << "Encryption can't find master key"
-			    << ", please check the keyring plugin is loaded.";
-		*master_key = NULL;
+	if (ret != 0 || *master_key == nullptr) {
+
+		ib::error()
+			<< "Encryption can't find master key,"
+			<< " please check the keyring plugin is loaded."
+			<< " ret=" << ret;
+
+		*master_key = nullptr;
 	} else {
-		master_key_id++;
+		++s_master_key_id;
 	}
 
-	if (key_type) {
+	if (key_type != nullptr) {
 		my_free(key_type);
 	}
 }
@@ -8938,156 +8940,182 @@ Encryption::create_master_key(byte** master_key)
 @param[in]	srv_uuid	uuid of server instance
 @param[in,out]	master_key	master key */
 void
-Encryption::get_master_key(ulint master_key_id,
-			   char* srv_uuid,
-			   byte** master_key)
+Encryption::get_master_key(
+	ulint		master_key_id,
+	char*		srv_uuid,
+	byte**		master_key)
 {
-	char*	key_type = NULL;
 	size_t	key_len;
+	char*	key_type = nullptr;
 	char	key_name[ENCRYPTION_MASTER_KEY_NAME_MAX_LEN];
-	int	ret;
 
-	memset(key_name, 0, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN);
+	if (srv_uuid != nullptr) {
 
-	if (srv_uuid != NULL) {
+		ut_ad(strlen(srv_uuid) > 0);
+
 		snprintf(key_name, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN,
-			    "%s-%s-" ULINTPF, ENCRYPTION_MASTER_KEY_PRIFIX,
-			    srv_uuid, master_key_id);
+			 "%s-%s-" ULINTPF, ENCRYPTION_MASTER_KEY_PRIFIX,
+			 srv_uuid, master_key_id);
 	} else {
+
 		/* For compitable with 5.7.11, we need to get master key with
 		server id. */
-		memset(key_name, 0, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN);
+
 		snprintf(key_name, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN,
-			    "%s-%lu-" ULINTPF, ENCRYPTION_MASTER_KEY_PRIFIX,
-			    server_id, master_key_id);
+			 "%s-%lu-" ULINTPF, ENCRYPTION_MASTER_KEY_PRIFIX,
+			 server_id, master_key_id);
 	}
 
 	/* We call key ring API to get master key here. */
-	ret = my_key_fetch(key_name, &key_type, NULL,
-			   reinterpret_cast<void**>(master_key),
-			   &key_len);
+	int	ret = my_key_fetch(
+		key_name, &key_type, nullptr,
+		reinterpret_cast<void**>(master_key), &key_len);
 
-	if (key_type) {
+	ib::info()
+		<< "z. ret: " << ret << " - '"
+		<< key_name << "', type: "
+		<< (key_type == nullptr ? "null" : key_type)
+		<< ", " << key_len << ", '"
+		<< ((char*) *master_key ? (char*) *master_key : "null") << "'";
+
+	if (key_type != nullptr) {
 		my_free(key_type);
 	}
 
-	if (ret) {
-		*master_key = NULL;
-		ib::error() << "Encryption can't find master key"
-			    << ", please check the keyring plugin is loaded.";
+	if (ret != 0) {
+
+		*master_key = nullptr;
+
+		ib::error()
+			<< "Encryption can't find master key,"
+			<< " please check the keyring plugin is loaded."
+			<< " ret=" << ret;
 	}
 
 #ifdef UNIV_ENCRYPT_DEBUG
-	if (!ret && *master_key) {
-		fprintf(stderr, "Fetched master key:%lu ", master_key_id);
-		ut_print_buf(stderr, *master_key, key_len);
-		fprintf(stderr, "\n");
+	if (ret == 0 && *master_key != nullptr) {
+		std::ostringstream	msg;
+
+		ut_print_buf(msg, *master_key, key_len);
+
+		ib::info()
+			<< "Fetched master key: " << master_key_id
+			<< "{" << msg.str() << "}";
 	}
-#endif /* DEBUG_TDE */
+#endif /* UNIV_ENCRYPT_DEBUG */
 }
 
 /** Current master key id */
-ulint	Encryption::master_key_id = 0;
+ulint	Encryption::s_master_key_id = 0;
 
 /** Current uuid of server instance */
-char	Encryption::uuid[ENCRYPTION_SERVER_UUID_LEN + 1] = {0};
+char	Encryption::s_uuid[ENCRYPTION_SERVER_UUID_LEN + 1] = {0};
 
 /** Get current master key and master key id
 @param[in,out]	master_key_id	master key id
 @param[in,out]	master_key	master key
 @param[in,out]	version		encryption information version */
 void
-Encryption::get_master_key(ulint* master_key_id,
-			   byte** master_key,
-			   Encryption::Version*  version)
+Encryption::get_master_key(
+	ulint*		master_key_id,
+	byte**		master_key,
+	Version*	version)
 {
-	char*	key_type = NULL;
-	size_t	key_len;
-	char	key_name[ENCRYPTION_MASTER_KEY_NAME_MAX_LEN];
 	int	ret;
+	size_t	key_len;
+	char*	key_type = nullptr;
+	char	key_name[ENCRYPTION_MASTER_KEY_NAME_MAX_LEN];
 
-	memset(key_name, 0, ENCRYPTION_KEY_LEN);
 	*version = Encryption::ENCRYPTION_VERSION_2;
 
-	if (Encryption::master_key_id == 0) {
+	if (s_master_key_id == 0) {
+
 		/* If m_master_key is 0, means there's no encrypted
 		tablespace, we need to generate the first master key,
 		and store it to key ring. */
-		memset(uuid, 0, ENCRYPTION_SERVER_UUID_LEN + 1);
-		memcpy(uuid, server_uuid, ENCRYPTION_SERVER_UUID_LEN);
+		strncpy(s_uuid, server_uuid, sizeof(s_uuid) - 1);
 
-		/* Prepare the server uuid. */
+		/* Prepare the server s_uuid. */
 		snprintf(key_name, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN,
-			    "%s-%s-1", ENCRYPTION_MASTER_KEY_PRIFIX,
-			    uuid);
+			 "%s-%s-1", ENCRYPTION_MASTER_KEY_PRIFIX, s_uuid);
 
 		/* We call key ring API to generate master key here. */
-		ret = my_key_generate(key_name, "AES",
-				      NULL, ENCRYPTION_KEY_LEN);
+		ret = my_key_generate(
+			key_name, "AES", nullptr, ENCRYPTION_KEY_LEN);
 
 		/* We call key ring API to get master key here. */
-		ret = my_key_fetch(key_name, &key_type, NULL,
-				   reinterpret_cast<void**>(master_key),
-				   &key_len);
+		ret = my_key_fetch(
+			key_name, &key_type, nullptr,
+			reinterpret_cast<void**>(master_key), &key_len);
 
-		if (!ret && *master_key != NULL) {
-			Encryption::master_key_id++;
-			*master_key_id = Encryption::master_key_id;
+		if (ret == 0 && *master_key != nullptr) {
+			++s_master_key_id;
+			*master_key_id = s_master_key_id;
 		}
 #ifdef UNIV_ENCRYPT_DEBUG
-		if (!ret && *master_key) {
-			fprintf(stderr, "Generated new master key:");
-			ut_print_buf(stderr, *master_key, key_len);
-			fprintf(stderr, "\n");
+		if (ret == 0 && *master_key != nullptr) {
+			std::ostringstream	msg;
+
+			ut_print_buf(msg, *master_key, key_len);
+
+			ib::info()
+				<<"Generated new master key: {"
+				<< msg.str() << "}";
 		}
-#endif
+#endif /* UNIV_ENCRYPT_DEBUG */
 	} else {
-		*master_key_id = Encryption::master_key_id;
+		*master_key_id = s_master_key_id;
 
 		snprintf(key_name, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN,
-			    "%s-%s-" ULINTPF, ENCRYPTION_MASTER_KEY_PRIFIX,
-			    uuid, *master_key_id);
+			 "%s-%s-" ULINTPF, ENCRYPTION_MASTER_KEY_PRIFIX,
+			 s_uuid, *master_key_id);
 
 		/* We call key ring API to get master key here. */
-		ret = my_key_fetch(key_name, &key_type, NULL,
-				   reinterpret_cast<void**>(master_key),
-				   &key_len);
+		ret = my_key_fetch(
+			key_name, &key_type, nullptr,
+			reinterpret_cast<void**>(master_key), &key_len);
 
-		/* For compitable with 5.7.11, we need to try to get master key with
-		server id when get master key with server uuid failure. */
-		if (ret || *master_key == NULL) {
-			if (key_type) {
+		/* For compitability with 5.7.11, we need to try to get master
+		key with server id when get master key with server uuid
+		failure. */
+		if (ret != 0 || *master_key == nullptr) {
+
+			if (key_type != nullptr) {
 				my_free(key_type);
 			}
 
-			memset(key_name, 0,
-			       ENCRYPTION_MASTER_KEY_NAME_MAX_LEN);
-			snprintf(key_name, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN,
-				    "%s-%lu-" ULINTPF, ENCRYPTION_MASTER_KEY_PRIFIX,
-				    server_id, *master_key_id);
+			snprintf(key_name,
+				 ENCRYPTION_MASTER_KEY_NAME_MAX_LEN,
+				 "%s-%lu-" ULINTPF, ENCRYPTION_MASTER_KEY_PRIFIX,
+				 server_id, *master_key_id);
 
-			ret = my_key_fetch(key_name, &key_type, NULL,
-					   reinterpret_cast<void**>(master_key),
-					   &key_len);
+			ret = my_key_fetch(
+				key_name, &key_type, nullptr,
+				reinterpret_cast<void**>(master_key), &key_len);
+
 			*version = Encryption::ENCRYPTION_VERSION_1;
 		}
 #ifdef UNIV_ENCRYPT_DEBUG
-		if (!ret && *master_key) {
-			fprintf(stderr, "Fetched master key:%lu ",
-				*master_key_id);
-			ut_print_buf(stderr, *master_key, key_len);
-			fprintf(stderr, "\n");
+		if (ret == 0 && *master_key != nullptr) {
+			std::ostringstream	msg;
+
+			ut_print_buf(msg, *master_key, key_len);
+
+			ib::info()
+				<< "Fetched master key: " << *master_key_id
+				<< ": {" << msg.str() << "}";
 		}
-#endif
+#endif /* UNIV_ENCRYPT_DEBUG */
 	}
 
-	if (ret) {
-		*master_key = NULL;
-		ib::error() << "Encryption can't find master key, please check"
-				" the keyring plugin is loaded.";
+	if (ret != 0) {
+		*master_key = nullptr;
+		ib::error()
+			<< "Encryption can't find master key, please check"
+			<< " the keyring plugin is loaded.";
 	}
 
-	if (key_type) {
+	if (key_type != nullptr) {
 		my_free(key_type);
 	}
 }
@@ -9098,84 +9126,90 @@ Encryption::get_master_key(ulint* master_key_id,
 @param[in,out]	encrypt_info	encryption information
 @param[in]	is_boot		if it's for bootstrap
 @return true if success */
-bool Encryption::fill_encryption_info(byte*	key,
-				      byte*	iv,
-				      byte*	encrypt_info,
-				      bool	is_boot)
+bool
+Encryption::fill_encryption_info(
+	byte*		key,
+	byte*		iv,
+	byte*		encrypt_info,
+	bool		is_boot)
 {
-	byte*			ptr;
-	lint			elen;
-	ulint			master_key_id;
-	byte*			master_key;
-	byte			key_info[ENCRYPTION_KEY_LEN * 2];
-	ulint			crc;
-	Version			version;
-#ifdef UNIV_ENCRYPT_DEBUG
-	const byte*		data;
-	ulint			i;
-#endif
+	Version		version;
+	byte*		master_key;
+	ulint		master_key_id;
 
 	/* Get master key from key ring. For bootstrap, we use a default
 	master key which master_key_id is 0. */
 	if (is_boot) {
 		master_key_id = 0;
+
 		master_key = static_cast<byte*>(ut_zalloc_nokey(
 			ENCRYPTION_KEY_LEN));
-		memcpy(master_key, ENCRYPTION_DEFAULT_MASTER_KEY,
-		       strlen(ENCRYPTION_DEFAULT_MASTER_KEY));
+
+		ut_ad(ENCRYPTION_KEY_LEN
+		      >= sizeof(ENCRYPTION_DEFAULT_MASTER_KEY));
+
+		strcpy(reinterpret_cast<char*>(master_key),
+		       ENCRYPTION_DEFAULT_MASTER_KEY);
+
 		version = ENCRYPTION_VERSION_2;
 	} else {
+
 		get_master_key(&master_key_id, &master_key, &version);
-		if (master_key == NULL) {
+
+		if (master_key == nullptr) {
 			return(false);
 		}
 	}
 
-	memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE_V2);
-	memset(key_info, 0, ENCRYPTION_KEY_LEN * 2);
-
 	/* Use the new master key to encrypt the key. */
-	ut_ad(encrypt_info != NULL);
-	ptr = encrypt_info;
+	ut_ad(encrypt_info != nullptr);
+	auto	ptr = encrypt_info;
 
 	if (version == ENCRYPTION_VERSION_1) {
 		memcpy(ptr, ENCRYPTION_KEY_MAGIC_V1, ENCRYPTION_MAGIC_SIZE);
 	} else {
 		memcpy(ptr, ENCRYPTION_KEY_MAGIC_V2, ENCRYPTION_MAGIC_SIZE);
 	}
+
 	ptr += ENCRYPTION_MAGIC_SIZE;
 
 	mach_write_to_4(ptr, master_key_id);
-	ptr += sizeof(ulint);
+	ptr += sizeof(uint32_t);
+
+	/* Unused. */
+	mach_write_to_4(ptr, 0);
+	ptr += sizeof(uint32_t);
 
 	if (version == ENCRYPTION_VERSION_2) {
-		memcpy(ptr, uuid, ENCRYPTION_SERVER_UUID_LEN);
-		ptr += ENCRYPTION_SERVER_UUID_LEN;
+		strncpy(reinterpret_cast<char*>(ptr), s_uuid, sizeof(s_uuid));
+		ptr += sizeof(s_uuid) - 1;
 	}
+
+	byte	key_info[ENCRYPTION_KEY_LEN * 2];
 
 	memcpy(key_info, key, ENCRYPTION_KEY_LEN);
 
 	memcpy(key_info + ENCRYPTION_KEY_LEN, iv, ENCRYPTION_KEY_LEN);
 
 	/* Encrypt key and iv. */
-	elen = my_aes_encrypt(key_info,
-			      ENCRYPTION_KEY_LEN * 2,
-			      ptr,
-			      master_key,
-			      ENCRYPTION_KEY_LEN,
-			      my_aes_256_ecb,
-			      NULL, false);
+	auto	elen = my_aes_encrypt(
+		key_info, sizeof(key_info), ptr, master_key,
+		ENCRYPTION_KEY_LEN, my_aes_256_ecb, nullptr, false);
 
 	if (elen == MY_AES_BAD_DATA) {
 		my_free(master_key);
 		return(false);
 	}
 
-	ptr += ENCRYPTION_KEY_LEN * 2;
+	ptr += sizeof(key_info);
 
 	/* Write checksum bytes. */
-	crc = ut_crc32(key_info, ENCRYPTION_KEY_LEN * 2);
+	auto	crc = ut_crc32(key_info, sizeof(key_info));
+
 	mach_write_to_4(ptr, crc);
+	ptr += sizeof(uint32_t);
+
+	memset(ptr, 0x0, ENCRYPTION_INFO_SIZE_V2 - (ptr - encrypt_info));
 
 	if (is_boot) {
 		ut_free(master_key);
@@ -9193,30 +9227,21 @@ from the first page of a tablespace.
 @param[in]	encryption_info	encrytion info.
 @return true if success */
 bool
-Encryption::decode_encryption_info(byte*	key,
-				   byte*	iv,
-				   byte*	encryption_info)
+Encryption::decode_encryption_info(
+	byte*		key,
+	byte*		iv,
+	byte*		encryption_info)
 {
-	byte*			ptr;
-	ulint			m_key_id;
-	byte*			master_key = NULL;
-	lint			elen;
-	byte			key_info[ENCRYPTION_KEY_LEN * 2];
-	ulint			crc1;
-	ulint			crc2;
-	char			srv_uuid[ENCRYPTION_SERVER_UUID_LEN + 1];
-	Version			version;
-#ifdef	UNIV_ENCRYPT_DEBUG
-	const byte*		data;
-	ulint			i;
-#endif
+	byte*		ptr;
+	Version		version;
+	byte*		master_key = nullptr;
+	char		srv_uuid[ENCRYPTION_SERVER_UUID_LEN + 1];
 
 	ptr = encryption_info;
 
 	/* For compatibility with 5.7.11, we need to handle the
 	encryption information which created in this old version. */
-	if (memcmp(ptr, ENCRYPTION_KEY_MAGIC_V1,
-		     ENCRYPTION_MAGIC_SIZE) == 0) {
+	if (memcmp(ptr, ENCRYPTION_KEY_MAGIC_V1, ENCRYPTION_MAGIC_SIZE) == 0) {
 		version = ENCRYPTION_VERSION_1;
 	} else {
 		version = ENCRYPTION_VERSION_2;
@@ -9224,85 +9249,106 @@ Encryption::decode_encryption_info(byte*	key,
 
 	/* Check magic. */
 	if (version == ENCRYPTION_VERSION_2
-	    && memcmp(ptr, ENCRYPTION_KEY_MAGIC_V2, ENCRYPTION_MAGIC_SIZE) != 0) {
-		/* We ignore report error for recovery,
-		since the encryption info maybe hasn't writen
-		into datafile when the table is newly created. */
-		if (!recv_recovery_is_on()) {
-			return(false);
-		} else {
-			return(true);
-		}
+	    && memcmp(ptr,
+		      ENCRYPTION_KEY_MAGIC_V2, ENCRYPTION_MAGIC_SIZE) != 0) {
+
+		/* We don't report an error during recovery, since the
+		encryption info maybe hasn't writen into datafile when
+		the table is newly created. */
+
+		return(recv_recovery_is_on());
 	}
 
 	ptr += ENCRYPTION_MAGIC_SIZE;
 
 	/* Get master key id. */
-	m_key_id = mach_read_from_4(ptr);
-	ptr += sizeof(ulint);
+	auto	key_id = mach_read_from_4(ptr);
+
+	/* 4 bytes are unused */
+	ptr += sizeof(uint64_t);
 
 	/* Get server uuid. */
 	if (version == ENCRYPTION_VERSION_2) {
-		memset(srv_uuid, 0, ENCRYPTION_SERVER_UUID_LEN + 1);
-		memcpy(srv_uuid, ptr, ENCRYPTION_SERVER_UUID_LEN);
+
+		srv_uuid[sizeof(srv_uuid) - 1] = 0;
+		memcpy(srv_uuid, ptr, sizeof(srv_uuid) - 1);
+
 		ptr += ENCRYPTION_SERVER_UUID_LEN;
 	}
 
 	/* Get master key by key id. */
-	memset(key_info, 0, ENCRYPTION_KEY_LEN * 2);
+
 	if (version == ENCRYPTION_VERSION_1) {
-		get_master_key(m_key_id, NULL, &master_key);
+
+		get_master_key(key_id, nullptr, &master_key);
+
+	} else if (key_id == 0) {
+
+		/* When key_id is 0, which means it's the
+		default master key for bootstrap. */
+		master_key = static_cast<byte*>(ut_zalloc_nokey(
+			ENCRYPTION_KEY_LEN));
+
+		ut_ad(ENCRYPTION_KEY_LEN
+		      >= sizeof(ENCRYPTION_DEFAULT_MASTER_KEY));
+
+		memcpy(reinterpret_cast<char*>(master_key),
+			ENCRYPTION_DEFAULT_MASTER_KEY,
+			sizeof(ENCRYPTION_DEFAULT_MASTER_KEY));
+
 	} else {
-		if (m_key_id == 0) {
-			/* When m_key_id is 0, which means it's the
-			default master key for bootstrap. */
-			master_key = static_cast<byte*>(ut_zalloc_nokey(
-				ENCRYPTION_KEY_LEN));
-			memcpy(master_key, ENCRYPTION_DEFAULT_MASTER_KEY,
-			       strlen(ENCRYPTION_DEFAULT_MASTER_KEY));
-		} else {
-			get_master_key(m_key_id, srv_uuid, &master_key);
-		}
+		get_master_key(key_id, srv_uuid, &master_key);
 	}
 
-        if (master_key == NULL) {
+        if (master_key == nullptr) {
                 return(false);
         }
 
 #ifdef	UNIV_ENCRYPT_DEBUG
-	fprintf(stderr, "%lu ", m_key_id);
-	for (data = (const byte*) master_key, i = 0;
-	     i < ENCRYPTION_KEY_LEN; i++)
-		fprintf(stderr, "%02lx", (ulong)*data++);
-#endif
+	{
+		std::ostringstream	msg;
 
-	/* Decrypt tablespace key and iv. */
-	elen = my_aes_decrypt(
-		ptr,
-		ENCRYPTION_KEY_LEN * 2,
-		key_info,
-		master_key,
-		ENCRYPTION_KEY_LEN,
-		my_aes_256_ecb, NULL, false);
+		ut_print_buf_hex(msg, master_key, ENCRYPTION_KEY_LEN);
 
-	if (elen == MY_AES_BAD_DATA) {
-		if (m_key_id == 0) {
-			ut_free(master_key);
-		} else {
-			my_free(master_key);
+		ib::info()
+			<< "Key ID: " << key_id
+			<< " hex: {" << msg.str() << "}";
+	}
+#endif /* UNIV_ENCRYPT_DEBUG */
+
+	byte	key_info[ENCRYPTION_KEY_LEN * 2];
+
+	{
+		/* Decrypt tablespace key and iv. */
+
+		auto	len = my_aes_decrypt(
+			ptr, sizeof(key_info), key_info,
+			master_key, ENCRYPTION_KEY_LEN, my_aes_256_ecb,
+			nullptr, false);
+
+		if (len == MY_AES_BAD_DATA) {
+			if (key_id == 0) {
+				ut_free(master_key);
+			} else {
+				my_free(master_key);
+			}
+			return(false);
 		}
-		return(NULL);
 	}
 
 	/* Check checksum bytes. */
-	ptr += ENCRYPTION_KEY_LEN * 2;
+	ptr += sizeof(key_info);
 
-	crc1 = mach_read_from_4(ptr);
-	crc2 = ut_crc32(key_info, ENCRYPTION_KEY_LEN * 2);
+	auto	crc1 = mach_read_from_4(ptr);
+	auto	crc2 = ut_crc32(key_info, sizeof(key_info));
+
 	if (crc1 != crc2) {
-		ib::error() << "Failed to decrypt encryption information,"
+
+		ib::error()
+			<< "Failed to decrypt encryption information,"
 			<< " please check whether key file has been changed!";
-		if (m_key_id == 0) {
+
+		if (key_id == 0) {
 			ut_free(master_key);
 		} else {
 			my_free(master_key);
@@ -9314,30 +9360,33 @@ Encryption::decode_encryption_info(byte*	key,
 	memcpy(key, key_info, ENCRYPTION_KEY_LEN);
 
 	/* Get tablespace iv */
-	memcpy(iv, key_info + ENCRYPTION_KEY_LEN,
-	       ENCRYPTION_KEY_LEN);
+	memcpy(iv, key_info + ENCRYPTION_KEY_LEN, ENCRYPTION_KEY_LEN);
 
 #ifdef	UNIV_ENCRYPT_DEBUG
-	fprintf(stderr, " ");
-	for (data = (const byte*) key,
-	     i = 0; i < ENCRYPTION_KEY_LEN; i++)
-		fprintf(stderr, "%02lx", (ulong)*data++);
-	fprintf(stderr, " ");
-	for (data = (const byte*) iv,
-	     i = 0; i < ENCRYPTION_KEY_LEN; i++)
-		fprintf(stderr, "%02lx", (ulong)*data++);
-	fprintf(stderr, "\n");
-#endif
+	{
+		std::ostringstream	msg;
 
-	if (m_key_id == 0) {
+		ut_print_buf_hex(msg, key, ENCRYPTION_KEY_LEN);
+
+		ib::info() << "Key: {" << msg.str() << "}";
+	}
+	{
+		std::ostringstream	msg;
+
+		ut_print_buf_hex(msg, iv, ENCRYPTION_KEY_LEN);
+		ib::info() << "IV: {" << msg.str() << "}";
+	}
+#endif /* UNIV_ENCRYPT_DEBUG */
+
+	if (key_id == 0) {
 		ut_free(master_key);
 	} else {
 		my_free(master_key);
 	}
 
-	if (master_key_id < m_key_id) {
-		master_key_id = m_key_id;
-		memcpy(uuid, srv_uuid, ENCRYPTION_SERVER_UUID_LEN);
+	if (s_master_key_id < key_id) {
+		s_master_key_id = key_id;
+		memcpy(s_uuid, srv_uuid, sizeof(s_uuid) - 1);
 	}
 
 	return(true);
@@ -9383,11 +9432,18 @@ Encryption::encrypt_log_block(
 	byte		remain_buf[MY_AES_BLOCK_SIZE * 2];
 
 #ifdef UNIV_ENCRYPT_DEBUG
-	fprintf(stderr, "Encrypting block %lu.\n",
-		log_block_get_hdr_no(src_ptr));
-	ut_print_buf_hex(stderr, src_ptr, OS_FILE_LOG_BLOCK_SIZE);
-	fprintf(stderr, "\n");
-#endif
+	{
+		std::ostringstream	msg;
+
+		ut_print_buf_hex(msg, src_ptr, OS_FILE_LOG_BLOCK_SIZE);
+
+		ib::info()
+			<< "Encrypting block: "
+			<< log_block_get_hdr_no(src_ptr)
+			<< "{" << msg.str() << "}";
+	}
+#endif /* UNIV_ENCRYPT_DEBUG */
+
 	/* This is data size which need to encrypt. */
 	data_len = OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_HDR_SIZE;
 	main_len = (data_len / MY_AES_BLOCK_SIZE) * MY_AES_BLOCK_SIZE;
@@ -9403,11 +9459,9 @@ Encryption::encrypt_log_block(
 		ut_error;
 
 	case Encryption::AES: {
-		lint			elen;
-
 		ut_ad(m_klen == ENCRYPTION_KEY_LEN);
 
-		elen = my_aes_encrypt(
+		auto	elen = my_aes_encrypt(
 			src_ptr + LOG_BLOCK_HDR_SIZE,
 			static_cast<uint32>(main_len),
 			dst_ptr + LOG_BLOCK_HDR_SIZE,
@@ -9492,7 +9546,7 @@ Encryption::encrypt_log_block(
 	}
 	ut_free(buf2);
 	ut_free(check_buf);
-#endif
+#endif /* UNIV_ENCRYPT_DEBUG */
 
 	/* Set the encrypted flag. */
 	log_block_set_encrypt_bit(dst_ptr, true);
@@ -9550,7 +9604,7 @@ Encryption::encrypt_log(
 	}
 	ut_free(buf2);
 	ut_free(check_buf);
-#endif
+#endif /* UNIV_ENCRYPT_DEBUG */
 
 	return(dst);
 }
@@ -9591,7 +9645,7 @@ Encryption::encrypt(
 		space_id, page_no, src_len);
 	ut_print_buf(stderr, m_key, 32);
 	ut_print_buf(stderr, m_iv, 32);
-#endif
+#endif /* UNIV_ENCRYPT_DEBUG */
 
 	/* Shouldn't encrypte an already encrypted page. */
 	ut_ad(page_type != FIL_PAGE_ENCRYPTED
@@ -9725,7 +9779,8 @@ Encryption::encrypt(
 	ut_free(buf2);
 	ut_free(check_buf);
 	fprintf(stderr, "Encrypted page:%lu.%lu\n", space_id, page_no);
-#endif
+#endif /* UNIV_ENCRYPT_DEBUG */
+
 	*dst_len = src_len;
 
 	return(dst);
@@ -9870,12 +9925,20 @@ Encryption::decrypt_log(
 
 	/* Encrypt the log blocks one by one. */
 	while (ptr != src + src_len) {
+
 #ifdef UNIV_ENCRYPT_DEBUG
-		fprintf(stderr, "Decrypting block %lu.\n",
-			log_block_get_hdr_no(ptr));
-		ut_print_buf_hex(stderr, ptr, OS_FILE_LOG_BLOCK_SIZE);
-		fprintf(stderr, "\n");
-#endif
+		{
+			std::ostringstream	msg;
+
+			ut_print_buf_hex(msg, ptr, OS_FILE_LOG_BLOCK_SIZE);
+
+			ib::info()
+				<< "Decrypting block: "
+				<< log_block_get_hdr_no(ptr) << std::endl
+				<< "data={" << std::endl
+				<< msg.str << std::endl << "}";
+#endif /* UNIV_ENCRYPT_DEBUG */
+
 		/* If it's not an encrypted block, skip it. */
 		if (!is_encrypted_log(ptr)) {
 			ptr += OS_FILE_LOG_BLOCK_SIZE;
@@ -9943,15 +10006,26 @@ Encryption::decrypt(
 	}
 
 #ifdef UNIV_ENCRYPT_DEBUG
-	ulint space_id =
-		mach_read_from_4(src + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
-	ulint page_no = mach_read_from_4(src + FIL_PAGE_OFFSET);
+	{
+		auto	space_id =
+			mach_read_from_4(src + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 
-	fprintf(stderr, "Decrypting page:%lu.%lu len:%lu\n",
-		space_id, page_no, src_len);
-	ut_print_buf(stderr, m_key, 32);
-	ut_print_buf(stderr, m_iv, 32);
-#endif
+		auto	page_no = mach_read_from_4(src + FIL_PAGE_OFFSET);
+
+		std::ostringstream	msg;
+
+		msg << "key={"
+		ut_print_buf(msg, m_key, 32);
+		msg << "}" << std::endl << "iv= {
+		ut_print_buf(msg, m_iv, 32);
+		msg << "}";
+
+		ib::info()
+			<< "Decrypting page: "
+			<< space_id << "." <<  page_no, << " len: " <<  src_len
+			<< std::endl << msg.str();
+	}
+#endif /* UNIV_ENCRYPT_DEBUG */
 
 	original_type = static_cast<uint16_t>(
 		mach_read_from_2(src + FIL_PAGE_ORIGINAL_TYPE_V1));
@@ -10072,8 +10146,8 @@ Encryption::decrypt(
 	}
 
 #ifdef UNIV_ENCRYPT_DEBUG
-	fprintf(stderr, "Decrypted page:%lu.%lu\n", space_id, page_no);
-#endif
+	ib::info() << "Decrypted page: " << space_id << "." << page_no;
+#endif /* UNIV_ENCRYPT_DEBUG */
 
 	DBUG_EXECUTE_IF("ib_crash_during_decrypt_page", DBUG_SUICIDE(););
 
@@ -10081,40 +10155,42 @@ Encryption::decrypt(
 }
 
 /** Check if keyring plugin loaded. */
-bool Encryption::check_keyring()
+bool
+Encryption::check_keyring()
 {
-	char*	key_type = NULL;
 	size_t	key_len;
-	char	key_name[ENCRYPTION_MASTER_KEY_NAME_MAX_LEN];
-	int	my_ret;
 	bool	ret = false;
-	char*	master_key = NULL;
+	char*	key_type = nullptr;
+	char*	master_key = nullptr;
+	char	key_name[ENCRYPTION_MASTER_KEY_NAME_MAX_LEN];
 
-	memset(key_name, 0, ENCRYPTION_KEY_LEN);
-	ut_strcpy(key_name, ENCRYPTION_DEFAULT_MASTER_KEY);
+	key_name[sizeof(ENCRYPTION_DEFAULT_MASTER_KEY)] = 0;
+
+	strncpy(key_name, ENCRYPTION_DEFAULT_MASTER_KEY, sizeof(key_name));
 
 	/* We call key ring API to generate master key here. */
-	my_ret = my_key_generate(key_name, "AES",
-			      NULL, ENCRYPTION_KEY_LEN);
+	int	my_ret = my_key_generate(
+		key_name, "AES", NULL, ENCRYPTION_KEY_LEN);
 
 	/* We call key ring API to get master key here. */
-	my_ret = my_key_fetch(key_name, &key_type, NULL,
-			   reinterpret_cast<void**>(&master_key),
-			   &key_len);
+	my_ret = my_key_fetch(
+		key_name, &key_type, nullptr,
+		reinterpret_cast<void**>(&master_key), &key_len);
 
-	if (my_ret) {
-		ib::error() << "Check keyring plugin fail, please check"
-				" the keyring plugin is loaded.";
+	if (my_ret != 0) {
+		ib::error()
+			<< "Check keyring plugin fail, please check the"
+			<< " keyring plugin is loaded.";
 	} else {
-		my_key_remove(key_name, NULL);
+		my_key_remove(key_name, nullptr);
 		ret = true;
 	}
 
-	if (key_type != NULL) {
+	if (key_type != nullptr) {
 		my_free(key_type);
 	}
 
-	if (master_key != NULL) {
+	if (master_key != nullptr) {
 		my_free(master_key);
 	}
 

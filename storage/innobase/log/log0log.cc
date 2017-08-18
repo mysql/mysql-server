@@ -1271,7 +1271,7 @@ log_enable_encryption_if_set()
 	/* If the redo log space is using default key, rotate it.
 	We also need the server_uuid initialized. */
 	if (space->encryption_type != Encryption::NONE
-	    && Encryption::master_key_id == ENCRYPTION_DEFAULT_MASTER_KEY_ID
+	    && Encryption::s_master_key_id == ENCRYPTION_DEFAULT_MASTER_KEY_ID
 	    && !srv_read_only_mode
 	    && strlen(server_uuid) > 0) {
 		ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
