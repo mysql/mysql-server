@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -215,6 +215,7 @@ int xcom_client_remove_node(connection_descriptor* fd, node_list *nl,
 int64_t xcom_client_send_data(uint32_t size, char *data,
                               connection_descriptor* fd);
 int	xcom_client_terminate_and_exit(connection_descriptor* fd);
+int	xcom_client_set_cache_limit(connection_descriptor *fd, uint64_t cache_limit);
 
 #define XCOM_COMMS_ERROR 1
 #define XCOM_COMMS_OK 0

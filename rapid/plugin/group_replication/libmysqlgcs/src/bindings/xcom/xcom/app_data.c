@@ -240,7 +240,7 @@ size_t synode_no_array_size(synode_no_array sa)
 /**
    Return size of an app_data.
  */
-size_t app_data_size(app_data_ptr const a)
+size_t app_data_size(app_data const *a)
 {
 	size_t size = sizeof(*a);
 	if (a == 0)
@@ -291,8 +291,16 @@ size_t app_data_size(app_data_ptr const a)
 	return size;
 }
 
-
-
+/* app_data structs may be linked. This function returns the size of the whole list */
+size_t app_data_list_size(app_data const *a)
+{
+	size_t size = 0;
+	while (a) {
+		size += app_data_size(a);
+		a = a->next;
+	}
+	return(size);
+}
 
 
 /**
