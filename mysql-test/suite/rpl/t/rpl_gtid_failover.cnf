@@ -8,17 +8,14 @@
 [mysqld.1]
 gtid-mode=on
 enforce-gtid-consistency
-log-slave-updates
 
 [mysqld.2]
 gtid-mode=on
 enforce-gtid-consistency
-log-slave-updates
 
 [mysqld.3]
 gtid-mode=on
 enforce-gtid-consistency
-log-slave-updates
 loose-innodb_write_io_threads=    2
 loose-innodb_read_io_threads=     2
 

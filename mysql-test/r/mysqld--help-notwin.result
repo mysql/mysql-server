@@ -449,8 +449,8 @@ The following options may be given as the first argument:
  --log-short-format  Don't log extra information to update and slow-query
  logs.
  --log-slave-updates Tells the slave to log the updates from the slave thread
- to the binary log. You will need to turn it on if you
- plan to daisy-chain the slaves
+ to the binary log.
+ (Defaults to on; use --skip-log-slave-updates to disable.)
  --log-slow-admin-statements 
  Log slow OPTIMIZE, ANALYZE, ALTER and other
  administrative statements to the slow log if it is open.
@@ -1399,7 +1399,7 @@ log-output FILE
 log-queries-not-using-indexes FALSE
 log-raw FALSE
 log-short-format FALSE
-log-slave-updates FALSE
+log-slave-updates TRUE
 log-slow-admin-statements FALSE
 log-slow-slave-statements FALSE
 log-statements-unsafe-for-binlog TRUE

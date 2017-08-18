@@ -99,7 +99,7 @@ SELECT @@global.innodb_log_file_size;
 5242880
 SELECT @@global.log_slave_updates;
 @@global.log_slave_updates
-0
+1
 # modify existing persisted variables and add new
 SET PERSIST_ONLY innodb_read_io_threads= 16;
 SET PERSIST_ONLY innodb_log_file_size= 4194304, log_slave_updates= 1;

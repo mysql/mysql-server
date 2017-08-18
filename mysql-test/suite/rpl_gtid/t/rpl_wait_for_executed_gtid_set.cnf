@@ -8,10 +8,10 @@
 [mysqld.1]
 
 [mysqld.2]
-log-slave-updates
 
 [mysqld.3]
 skip-log-bin
+skip-log-slave-updates
 loose-innodb_write_io_threads=    2
 loose-innodb_read_io_threads=     2
 

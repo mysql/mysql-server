@@ -6,6 +6,7 @@
 
 [mysqld.3]
 skip-log-bin
+skip-log-slave-updates
 
 [mysqld.4]
 disable-log-bin
