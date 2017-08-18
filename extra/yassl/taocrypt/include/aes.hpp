@@ -31,10 +31,17 @@
     #define DO_AES_ASM
 #endif
 
+#ifdef ENABLE_ARM64V8_CRYPTO
+#define ARMV8_CE
+#endif
 
+#ifdef ARMV8_CE
+#include <arm_neon.h>
+#define EXPND_R_KEY_MSIZE 60*4
+//#define ARMV8_CE_DEBUG
+#endif
 
 namespace TaoCrypt {
-
 
 enum { AES_BLOCK_SIZE = 16 };
 
@@ -49,6 +56,10 @@ public:
 
 #ifdef DO_AES_ASM
     void Process(byte*, const byte*, word32);
+#endif
+#ifdef ARMV8_CE
+    void Process(byte*, const byte*, word32);
+    void armv8_aes_blkcrypt(int, uint8x16_t*, const uint8x16_t*);
 #endif
     void SetKey(const byte* key, word32 sz, CipherDir fake = ENCRYPTION);
     void SetIV(const byte* iv) { memcpy(r_, iv, BLOCK_SIZE); }

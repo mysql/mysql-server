@@ -449,4 +449,7 @@
 /* For default value of --early_plugin_load */
 #cmakedefine DEFAULT_EARLY_PLUGIN_LOAD @DEFAULT_EARLY_PLUGIN_LOAD@
 
+/* For enable arm64v8 crypto extension */
+#cmakedefine ENABLE_ARM64V8_CRYPTO 1
+
 #endif
