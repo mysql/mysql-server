@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -317,3 +317,68 @@ Transporter::resetCounters()
   m_overload_count = 0;
   m_slowdown_count = 0;
 };
+
+void
+Transporter::checksum_state::dumpBadChecksumInfo(Uint32 inputSum,
+                                                 Uint32 badSum,
+                                                 size_t offset,
+                                                 Uint32 sig_remaining,
+                                                 const void* buf,
+                                                 size_t len) const
+{
+  /* Timestamped event showing issue, followed by details */
+  /* As eventLogger and stderr may not be in-sync, put details together */
+  g_eventLogger->error("Transporter::checksum_state::compute() failed");
+  fprintf(stderr,
+          "checksum_state::compute() failed "
+          "with sum 0x%x.\n"
+          "Input sum 0x%x compute offset %llu len %u "
+          "bufflen %llu\n",
+          badSum,
+          inputSum,
+          Uint64(offset),
+          sig_remaining,
+          Uint64(len));
+  /* Next dump buf content, with word alignment
+   * Buffer is a byte aligned window on signals made of words
+   * remaining bytes to end of multiple-of-word sized signal
+   * indicates where word alignmnent boundaries are
+   */
+  {
+    Uint32 pos = 0;
+    Uint32 buf_remain = Uint32(len);
+    const char* data = (const char*) buf;
+    const Uint32 firstWordBytes = Uint32((offset + sig_remaining) & 3);
+    if (firstWordBytes && (buf_remain >= firstWordBytes))
+    {
+      /* Partial first word */
+      Uint32 word = 0;
+      memcpy(&word, data, firstWordBytes);
+      fprintf(stderr, "\n-%4x  : 0x%08x\n", 4 - firstWordBytes, word);
+      buf_remain -= firstWordBytes;
+      pos += firstWordBytes;
+    }
+
+    if (buf_remain)
+      fprintf(stderr, "\n %4x  : ", pos);
+
+    while (buf_remain > 4)
+    {
+      Uint32 word;
+      memcpy(&word, data+pos, 4);
+      pos += 4;
+      buf_remain -= 4;
+      fprintf(stderr, "0x%08x ", word);
+      if (((pos + firstWordBytes) % 24) == 0)
+        fprintf(stderr, "\n %4x  : ", pos);
+    }
+    if (buf_remain > 0)
+    {
+      /* Partial last word */
+      Uint32 word = 0;
+      memcpy(&word, data + pos, buf_remain);
+      fprintf(stderr, "0x%08x\n", word);
+    }
+    fprintf(stderr, "\n\n");
+  }
+}
