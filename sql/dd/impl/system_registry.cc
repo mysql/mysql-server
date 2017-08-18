@@ -21,6 +21,7 @@
 #include "dd/impl/system_views/column_statistics.h"  // Column_statistics
 #include "dd/impl/system_views/columns.h"            // Columns
 #include "dd/impl/system_views/events.h"             // Events
+#include "dd/impl/system_views/files.h"              // Files
 #include "dd/impl/system_views/innodb_datafiles.h"   // Innodb_datafiles
 #include "dd/impl/system_views/innodb_foreign.h"     // Innodb_foreign
 #include "dd/impl/system_views/innodb_foreign_cols.h"// Innodb_foreign_cols
@@ -170,6 +171,7 @@ void System_views::init()
   register_view<dd::system_views::Columns>(is);
   register_view<dd::system_views::Column_statistics>(is);
   register_view<dd::system_views::Events>(is);
+  register_view<dd::system_views::Files>(is);
   register_view<dd::system_views::Innodb_datafiles>(is);
   register_view<dd::system_views::Innodb_foreign>(is);
   register_view<dd::system_views::Innodb_foreign_cols>(is);
@@ -177,6 +179,7 @@ void System_views::init()
   register_view<dd::system_views::Innodb_tablespaces_brief>(is);
   register_view<dd::system_views::Key_column_usage>(is);
   register_view<dd::system_views::Parameters>(is);
+  register_view<dd::system_views::Partitions>(is);
   register_view<dd::system_views::Routines>(is);
   register_view<dd::system_views::Schemata>(is);
   register_view<dd::system_views::Show_statistics>(is);
@@ -190,7 +193,6 @@ void System_views::init()
   register_view<dd::system_views::Tables_dynamic>(is);
   register_view<dd::system_views::Triggers>(is);
   register_view<dd::system_views::Views>(is);
-  register_view<dd::system_views::Partitions>(is);
 }
 
 } // namespace dd

@@ -121,15 +121,16 @@ PATH
 ./test/#################################################_long_.ibd
 ./this_sixty_four_byte_name_is_not_too_long_______________________/this_sixty_four_byte_name_is_not_too_long_______________________.ibd
 ./twenty_byte_db_name_/#################################################_long_.ibd
-SELECT file_name, tablespace_name FROM information_schema.files WHERE file_name LIKE '%long%';
-file_name	./this_sixty_four_byte_name_is_not_too_long_______________________/this_sixty_four_byte_name_is_not_too_long_______________________.ibd
-tablespace_name	this_sixty_four_byte_name_is_not_too_long_______________________/this_sixty_four_byte_name_is_not_too_long_______________________
-file_name	./test/#################################################_long_.ibd
-tablespace_name	test/#################################################_long_
-file_name	./twenty_byte_db_name_/#################################################_long_.ibd
-tablespace_name	twenty_byte_db_name_/#################################################_long_
-file_name	./##################################################_long/#################################################_long.ibd
-tablespace_name	##################################################_long/#################################################_long
+SELECT file_name, tablespace_name FROM information_schema.files
+WHERE file_name LIKE '%long%' ORDER BY file_name;
+FILE_NAME	./##################################################_long/#################################################_long.ibd
+TABLESPACE_NAME	##################################################_long/#################################################_long
+FILE_NAME	./test/#################################################_long_.ibd
+TABLESPACE_NAME	test/#################################################_long_
+FILE_NAME	./this_sixty_four_byte_name_is_not_too_long_______________________/this_sixty_four_byte_name_is_not_too_long_______________________.ibd
+TABLESPACE_NAME	this_sixty_four_byte_name_is_not_too_long_______________________/this_sixty_four_byte_name_is_not_too_long_______________________
+FILE_NAME	./twenty_byte_db_name_/#################################################_long_.ibd
+TABLESPACE_NAME	twenty_byte_db_name_/#################################################_long_
 #
 # Cleanup
 #

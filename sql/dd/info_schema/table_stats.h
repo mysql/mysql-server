@@ -13,8 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef DD_INFO_SCHEMA_INCLUDED
-#define DD_INFO_SCHEMA_INCLUDED
+#ifndef DD_INFO_SCHEMA_TABLE_STATS_INCLUDED
+#define DD_INFO_SCHEMA_TABLE_STATS_INCLUDED
 
 #include <sys/types.h>
 #include <string>
@@ -74,7 +74,7 @@ bool convert_table_name_case(char *db, char *table_name);
 
 
 // Statistics that are cached.
-enum class enum_statistics_type
+enum class enum_table_stats_type
 {
   TABLE_ROWS,
   TABLE_AVG_ROW_LENGTH,
@@ -108,10 +108,10 @@ enum class enum_stats
   multiple calls to same SE API to retrieve the statistics.
 */
 
-class Statistics_cache
+class Table_statistics
 {
 public:
-  Statistics_cache()
+  Table_statistics()
     : m_checksum(0)
   {}
 
@@ -221,7 +221,7 @@ public:
                       dd::Object_id se_private_id,
                       const char* ts_se_private_data,
                       const char* tbl_se_private_data,
-                      enum_statistics_type stype);
+                      enum_table_stats_type stype);
 
 
   // Fetch table stats. Invokes the above method.
@@ -233,7 +233,7 @@ public:
                       dd::Object_id se_private_id,
                       const char* ts_se_private_data,
                       const char* tbl_se_private_data,
-                      enum_statistics_type stype)
+                      enum_table_stats_type stype)
   {
     const String tmp;
     return read_stat(thd,
@@ -292,7 +292,7 @@ private:
                               dd::Object_id se_private_id,
                               const char* ts_se_private_data,
                               const char* tbl_se_private_data,
-                              enum_statistics_type stype);
+                              enum_table_stats_type stype);
 
 
   /**
@@ -316,7 +316,7 @@ private:
                                     const String &index_name_ptr,
                                     const char* partition_name,
                                     uint column_ordinal_position,
-                                    enum_statistics_type stype);
+                                    enum_table_stats_type stype);
 
 
   /**
@@ -365,8 +365,8 @@ private:
 
     @returns ulonglong statistics value.
   */
-  ulonglong get_stat(ha_statistics &stat, enum_statistics_type stype);
-  inline ulonglong get_stat(enum_statistics_type stype)
+  ulonglong get_stat(ha_statistics &stat, enum_table_stats_type stype);
+  inline ulonglong get_stat(enum_table_stats_type stype)
   { return get_stat(m_stats, stype); }
 
 
@@ -417,4 +417,4 @@ public:
 } // namespace info_schema
 } // namespace dd
 
-#endif // DD_INFO_SCHEMA_INCLUDED
+#endif // DD_INFO_SCHEMA_TABLE_STATS_INCLUDED

@@ -10829,6 +10829,9 @@ ER_WARNING_PASSWORD_HISTORY_CLAUSES_VOID
 ER_CLIENT_DOES_NOT_SUPPORT
   eng "The client doesn't support %s"
 
+ER_I_S_SKIPPED_TABLESPACE
+  eng "Tablespace '%s' was skipped since its definition is being modified by concurrent DDL statement"
+
 #
 #  End of 8.0 error messages.
 #

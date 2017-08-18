@@ -85,7 +85,7 @@
 #include "sql/conn_handler/connection_handler_impl.h" // Per_thread_connection_handler
 #include "sql/conn_handler/connection_handler_manager.h" // Connection_handler_manager
 #include "sql/conn_handler/socket_connection.h" // MY_BIND_ALL_ADDRESSES
-#include "sql/dd/info_schema/stats.h"
+#include "sql/dd/info_schema/table_stats.h"
 #include "sql/derror.h"                  // read_texts
 #include "sql/discrete_interval.h"
 #include "sql/events.h"                  // Events

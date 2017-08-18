@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql/dd/info_schema/stats.h"         // dd::info_schema::*
+#include "sql/dd/info_schema/table_stats.h"   // dd::info_schema::*
 
 #include <assert.h>
 #include <string.h>
@@ -245,39 +245,39 @@ private:
 
 
 // Returns the required statistics from the cache.
-ulonglong Statistics_cache::get_stat(ha_statistics &stat,
-                                     enum_statistics_type stype)
+ulonglong Table_statistics::get_stat(ha_statistics &stat,
+                                     enum_table_stats_type stype)
 {
   switch (stype)
   {
-  case enum_statistics_type::TABLE_ROWS:
+  case enum_table_stats_type::TABLE_ROWS:
     return(stat.records);
 
-  case enum_statistics_type::TABLE_AVG_ROW_LENGTH:
+  case enum_table_stats_type::TABLE_AVG_ROW_LENGTH:
     return(stat.mean_rec_length);
 
-  case enum_statistics_type::DATA_LENGTH:
+  case enum_table_stats_type::DATA_LENGTH:
     return(stat.data_file_length);
 
-  case enum_statistics_type::MAX_DATA_LENGTH:
+  case enum_table_stats_type::MAX_DATA_LENGTH:
     return(stat.max_data_file_length);
 
-  case enum_statistics_type::INDEX_LENGTH:
+  case enum_table_stats_type::INDEX_LENGTH:
     return(stat.index_file_length);
 
-  case enum_statistics_type::DATA_FREE:
+  case enum_table_stats_type::DATA_FREE:
     return(stat.delete_length);
 
-  case enum_statistics_type::AUTO_INCREMENT:
+  case enum_table_stats_type::AUTO_INCREMENT:
     return(stat.auto_increment_value);
 
-  case enum_statistics_type::CHECKSUM:
+  case enum_table_stats_type::CHECKSUM:
     return(get_checksum());
 
-  case enum_statistics_type::TABLE_UPDATE_TIME:
+  case enum_table_stats_type::TABLE_UPDATE_TIME:
     return(stat.update_time);
 
-  case enum_statistics_type::CHECK_TIME:
+  case enum_table_stats_type::CHECK_TIME:
     return(stat.check_time);
 
   default:
@@ -290,7 +290,7 @@ ulonglong Statistics_cache::get_stat(ha_statistics &stat,
 
 // Read dynamic table statistics from SE by opening the user table
 // provided OR by reading cached statistics from SELECT_LEX.
-ulonglong Statistics_cache::read_stat(
+ulonglong Table_statistics::read_stat(
             THD *thd,
             const String &schema_name_ptr,
             const String &table_name_ptr,
@@ -302,9 +302,9 @@ ulonglong Statistics_cache::read_stat(
             Object_id se_private_id,
             const char* ts_se_private_data,
             const char* tbl_se_private_data,
-            enum_statistics_type stype)
+            enum_table_stats_type stype)
 {
-  DBUG_ENTER("Statistics_cache::read_stat");
+  DBUG_ENTER("Table_statistics::read_stat");
   ulonglong result;
 
   // NOTE: read_stat() may generate many "useless" warnings, which will be
@@ -376,7 +376,7 @@ ulonglong Statistics_cache::read_stat(
 
 
 // Fetch stats from SE
-ulonglong Statistics_cache::read_stat_from_SE(
+ulonglong Table_statistics::read_stat_from_SE(
             THD *thd,
             const String &schema_name_ptr,
             const String &table_name_ptr,
@@ -386,9 +386,9 @@ ulonglong Statistics_cache::read_stat_from_SE(
             Object_id se_private_id,
             const char* ts_se_private_data,
             const char* tbl_se_private_data,
-            enum_statistics_type stype)
+            enum_table_stats_type stype)
 {
-  DBUG_ENTER("Statistics_cache::read_stat_from_SE");
+  DBUG_ENTER("Table_statistics::read_stat_from_SE");
 
   uint se_flags= 0;
   bool ignore_cache= false;
@@ -424,27 +424,27 @@ ulonglong Statistics_cache::read_stat_from_SE(
   */
   switch (stype)
   {
-  case enum_statistics_type::TABLE_UPDATE_TIME:
+  case enum_table_stats_type::TABLE_UPDATE_TIME:
     se_flags= HA_STATUS_TIME;
     ignore_cache= true;
     break;
 
-  case enum_statistics_type::DATA_FREE:
+  case enum_table_stats_type::DATA_FREE:
     se_flags= HA_STATUS_VARIABLE_EXTRA;
     ignore_cache= true;
     break;
 
-  case enum_statistics_type::AUTO_INCREMENT:
+  case enum_table_stats_type::AUTO_INCREMENT:
     se_flags= HA_STATUS_AUTO;
     ignore_cache= true;
     break;
 
-  case enum_statistics_type::CHECK_TIME:
-  case enum_statistics_type::CHECKSUM:
+  case enum_table_stats_type::CHECK_TIME:
+  case enum_table_stats_type::CHECKSUM:
     // InnoDB does return always zero for these statistics.
     DBUG_RETURN(0);
 
-  case enum_statistics_type::INDEX_COLUMN_CARDINALITY:
+  case enum_table_stats_type::INDEX_COLUMN_CARDINALITY:
     ignore_cache= true;
     break;
 
@@ -514,7 +514,7 @@ ulonglong Statistics_cache::read_stat_from_SE(
     //
     return_value= -1;
 
-    if (stype == enum_statistics_type::INDEX_COLUMN_CARDINALITY &&
+    if (stype == enum_table_stats_type::INDEX_COLUMN_CARDINALITY &&
         hton->get_index_column_cardinality &&
         !hton->get_index_column_cardinality(
                  schema_name_ptr.ptr(),
@@ -550,7 +550,7 @@ ulonglong Statistics_cache::read_stat_from_SE(
       cache_stats(schema_name_ptr, table_name_ptr, ha_stat);
 
     // Only cardinality is not stored in the cache.
-    if (stype != enum_statistics_type::INDEX_COLUMN_CARDINALITY)
+    if (stype != enum_table_stats_type::INDEX_COLUMN_CARDINALITY)
       return_value= get_stat(ha_stat, stype);
 
     DBUG_RETURN(return_value);
@@ -586,16 +586,16 @@ ulonglong Statistics_cache::read_stat_from_SE(
 
 
 // Fetch stats by opening the table.
-ulonglong Statistics_cache::read_stat_by_open_table(
+ulonglong Table_statistics::read_stat_by_open_table(
             THD *thd,
             const String &schema_name_ptr,
             const String &table_name_ptr,
             const String &index_name_ptr,
             const char* partition_name,
             uint column_ordinal_position,
-            enum_statistics_type stype)
+            enum_table_stats_type stype)
 {
-  DBUG_ENTER("Statistics_cache::read_stat_by_open_table");
+  DBUG_ENTER("Table_statistics::read_stat_by_open_table");
   ulonglong return_value= 0;
   ulonglong error= 0;
   ha_statistics ha_stat;
@@ -609,8 +609,10 @@ ulonglong Statistics_cache::read_stat_by_open_table(
   if (check_error_for_key(schema_name_ptr, table_name_ptr))
     DBUG_RETURN(0);
 
-  if (stype != enum_statistics_type::INDEX_COLUMN_CARDINALITY &&
-      is_stat_cached(schema_name_ptr, table_name_ptr, partition_name))
+  if (stype != enum_table_stats_type::INDEX_COLUMN_CARDINALITY &&
+      is_stat_cached(schema_name_ptr,
+                     table_name_ptr,
+                     partition_name))
     DBUG_RETURN(get_stat(stype));
 
 
@@ -804,7 +806,7 @@ ulonglong Statistics_cache::read_stat_by_open_table(
     }
 
     // If we are reading cardinality, just read and do not cache it.
-    if (stype == enum_statistics_type::INDEX_COLUMN_CARDINALITY)
+    if (stype == enum_table_stats_type::INDEX_COLUMN_CARDINALITY)
     {
       TABLE *table= table_list->table;
       uint key_index= 0;

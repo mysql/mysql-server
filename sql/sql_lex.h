@@ -49,7 +49,8 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "prealloced_array.h"         // Prealloced_array
-#include "sql/dd/info_schema/stats.h" // dd::info_schema::Statistics_cache
+#include "sql/dd/info_schema/table_stats.h"  // dd::info_schema::Table_stati...
+#include "sql/dd/info_schema/tablespace_stats.h" // dd::info_schema::Tablesp...
 #include "sql/enum_query_type.h"
 #include "sql/field.h"
 #include "sql/handler.h"
@@ -4007,7 +4008,8 @@ public:
     These statistics are cached, to avoid opening of table more
     than once while preparing a single output record buffer.
   */
-  dd::info_schema::Statistics_cache m_IS_dyn_stat_cache;
+  dd::info_schema::Table_statistics m_IS_table_stats;
+  dd::info_schema::Tablespace_statistics m_IS_tablespace_stats;
 
   bool accept(Select_lex_visitor *visitor);
 

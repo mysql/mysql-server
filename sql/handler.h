@@ -108,6 +108,7 @@ typedef bool (stat_print_fn)(THD *thd, const char *type, size_t type_len,
                              const char *status, size_t status_len);
 
 class ha_statistics;
+class ha_tablespace_statistics;
 
 namespace AQP {
   class Join_plan;
@@ -811,7 +812,6 @@ enum enum_schema_tables
   SCH_FIRST=0,
   SCH_COLUMN_PRIVILEGES=SCH_FIRST,
   SCH_ENGINES,
-  SCH_FILES,
   SCH_OPEN_TABLES,
   SCH_OPTIMIZER_TRACE,
   SCH_PLUGINS,
@@ -1739,7 +1739,7 @@ typedef bool (*rotate_encryption_master_key_t)(void);
   @param ts_se_private_data       Tablespace SE private data.
   @param tbl_se_private_data      Table SE private data.
   @param flags                    Type of statistics to retrieve.
-  @param stats                    (OUT) Contains statistics read from SE.
+  @param[out] stats               Contains statistics read from SE.
 
   @returns false on success,
            true on failure
@@ -1763,7 +1763,7 @@ typedef bool (*get_table_statistics_t)(
   @param index_ordinal_position   Position of index.
   @param column_ordinal_position  Position of column in index.
   @param se_private_id            SE private id of the table.
-  @param cardinality              (OUT) cardinality being returned by SE.
+  @param[out] cardinality         cardinality being returned by SE.
 
   @returns false on success,
            true on failure
@@ -1775,6 +1775,21 @@ typedef bool (*get_index_column_cardinality_t)(const char *db_name,
                                                uint column_ordinal_position,
                                                dd::Object_id se_private_id,
                                                ulonglong *cardinality);
+
+/**
+  Retrieve ha_tablespace_statistics from SE.
+
+  @param tablespace_name          Tablespace_name
+  @param ts_se_private_data       Tablespace SE private data.
+  @param tbl_se_private_data      Table SE private data.
+  @param[out] stats               Contains tablespace
+                                  statistics read from SE.
+  @returns false on success, true on failure
+*/
+typedef bool (*get_tablespace_statistics_t)(
+                const char *tablespace_name,
+                const dd::Properties &ts_se_private_data,
+                ha_tablespace_statistics *stats);
 
 /* Database physical clone interfaces */
 using Clone_begin_t = int (*)(handlerton* hton, THD* thd,
@@ -1969,6 +1984,7 @@ struct handlerton
 
   get_table_statistics_t get_table_statistics;
   get_index_column_cardinality_t get_index_column_cardinality;
+  get_tablespace_statistics_t get_tablespace_statistics;
 
   post_ddl_t post_ddl;
   post_recover_t post_recover;
@@ -6056,5 +6072,50 @@ std::string indexed_cells_to_string(const uchar *indexed_cells,
                                     uint indexed_cells_len,
                                     const KEY &mysql_index);
 #endif /* DBUG_OFF */
+
+/*
+  This class is used by INFORMATION_SCHEMA.FILES to read SE specific
+  tablespace dynamic metadata. Some member like m_type and id, is not
+  really dynamic, but as this information is not stored in data dictionary
+  in a generic format and still is SE specific Some member like m_type and
+  id, is not really dynamic, but as this information is not stored in data
+  dictionary in a generic format and still needs SE specific decision, we
+  are requesting the same from SE.
+*/
+
+class ha_tablespace_statistics
+{
+public:
+  ha_tablespace_statistics()
+   :m_id(0),
+    m_logfile_group_number(0),
+    m_free_extents(0),
+    m_total_extents(0),
+    m_extent_size(0),
+    m_initial_size(0),
+    m_maximum_size(0),
+    m_maximum_size_is_null(false),
+    m_autoextend_size(0),
+    m_version(0),
+    m_data_free(0)
+  { }
+
+  ulonglong   m_id;
+  dd::String_type m_type;
+  dd::String_type m_logfile_group_name;   // Cluster
+  ulonglong   m_logfile_group_number; // Cluster
+  ulonglong   m_free_extents;
+  ulonglong   m_total_extents;
+  ulonglong   m_extent_size;
+  ulonglong   m_initial_size;
+  ulonglong   m_maximum_size;
+  bool        m_maximum_size_is_null;
+  ulonglong   m_autoextend_size;
+  ulonglong   m_version;    // NDB only
+  dd::String_type m_row_format; // NDB only
+  ulonglong   m_data_free;  // InnoDB
+  dd::String_type m_status;
+};
+
 
 #endif /* HANDLER_INCLUDED */

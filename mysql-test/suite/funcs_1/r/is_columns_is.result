@@ -83,44 +83,44 @@ def	information_schema	EVENTS	ORIGINATOR	21	NULL	NO	int	NULL	NULL	10	0	NULL	NULL
 def	information_schema	EVENTS	CHARACTER_SET_CLIENT	22	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select		
 def	information_schema	EVENTS	COLLATION_CONNECTION	23	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select		
 def	information_schema	EVENTS	DATABASE_COLLATION	24	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select		
-def	information_schema	FILES	FILE_ID	1		NO	bigint	NULL	NULL	NULL	NULL	NULL	NULL	NULL	bigint(4)			select		
-def	information_schema	FILES	FILE_NAME	2		YES	varchar	1333	4000	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(4000)			select		
-def	information_schema	FILES	FILE_TYPE	3		NO	varchar	6	20	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(20)			select		
-def	information_schema	FILES	TABLESPACE_NAME	4		YES	varchar	86	259	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(259)			select		
-def	information_schema	FILES	TABLE_CATALOG	5		NO	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select		
-def	information_schema	FILES	TABLE_SCHEMA	6		YES	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select		
-def	information_schema	FILES	TABLE_NAME	7		YES	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select		
-def	information_schema	FILES	LOGFILE_GROUP_NAME	8		YES	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select		
-def	information_schema	FILES	LOGFILE_GROUP_NUMBER	9		YES	bigint	NULL	NULL	NULL	NULL	NULL	NULL	NULL	bigint(4)			select		
-def	information_schema	FILES	ENGINE	10		NO	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select		
-def	information_schema	FILES	FULLTEXT_KEYS	11		YES	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select		
-def	information_schema	FILES	DELETED_ROWS	12		YES	bigint	NULL	NULL	NULL	NULL	NULL	NULL	NULL	bigint(4)			select		
-def	information_schema	FILES	UPDATE_COUNT	13		YES	bigint	NULL	NULL	NULL	NULL	NULL	NULL	NULL	bigint(4)			select		
-def	information_schema	FILES	FREE_EXTENTS	14		YES	bigint	NULL	NULL	NULL	NULL	NULL	NULL	NULL	bigint(4)			select		
-def	information_schema	FILES	TOTAL_EXTENTS	15		YES	bigint	NULL	NULL	NULL	NULL	NULL	NULL	NULL	bigint(4)			select		
-def	information_schema	FILES	EXTENT_SIZE	16		NO	bigint	NULL	NULL	NULL	NULL	NULL	NULL	NULL	bigint(4)			select		
-def	information_schema	FILES	INITIAL_SIZE	17		YES	bigint	NULL	NULL	NULL	NULL	NULL	NULL	NULL	bigint(21) unsigned			select		
-def	information_schema	FILES	MAXIMUM_SIZE	18		YES	bigint	NULL	NULL	NULL	NULL	NULL	NULL	NULL	bigint(21) unsigned			select		
-def	information_schema	FILES	AUTOEXTEND_SIZE	19		YES	bigint	NULL	NULL	NULL	NULL	NULL	NULL	NULL	bigint(21) unsigned			select		
-def	information_schema	FILES	CREATION_TIME	20		YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select		
-def	information_schema	FILES	LAST_UPDATE_TIME	21		YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select		
-def	information_schema	FILES	LAST_ACCESS_TIME	22		YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select		
-def	information_schema	FILES	RECOVER_TIME	23		YES	bigint	NULL	NULL	NULL	NULL	NULL	NULL	NULL	bigint(4)			select		
-def	information_schema	FILES	TRANSACTION_COUNTER	24		YES	bigint	NULL	NULL	NULL	NULL	NULL	NULL	NULL	bigint(4)			select		
-def	information_schema	FILES	VERSION	25		YES	bigint	NULL	NULL	NULL	NULL	NULL	NULL	NULL	bigint(21) unsigned			select		
-def	information_schema	FILES	ROW_FORMAT	26		YES	varchar	3	10	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(10)			select		
-def	information_schema	FILES	TABLE_ROWS	27		YES	bigint	NULL	NULL	NULL	NULL	NULL	NULL	NULL	bigint(21) unsigned			select		
-def	information_schema	FILES	AVG_ROW_LENGTH	28		YES	bigint	NULL	NULL	NULL	NULL	NULL	NULL	NULL	bigint(21) unsigned			select		
-def	information_schema	FILES	DATA_LENGTH	29		YES	bigint	NULL	NULL	NULL	NULL	NULL	NULL	NULL	bigint(21) unsigned			select		
-def	information_schema	FILES	MAX_DATA_LENGTH	30		YES	bigint	NULL	NULL	NULL	NULL	NULL	NULL	NULL	bigint(21) unsigned			select		
-def	information_schema	FILES	INDEX_LENGTH	31		YES	bigint	NULL	NULL	NULL	NULL	NULL	NULL	NULL	bigint(21) unsigned			select		
-def	information_schema	FILES	DATA_FREE	32		YES	bigint	NULL	NULL	NULL	NULL	NULL	NULL	NULL	bigint(21) unsigned			select		
-def	information_schema	FILES	CREATE_TIME	33		YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select		
-def	information_schema	FILES	UPDATE_TIME	34		YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select		
-def	information_schema	FILES	CHECK_TIME	35		YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select		
-def	information_schema	FILES	CHECKSUM	36		YES	bigint	NULL	NULL	NULL	NULL	NULL	NULL	NULL	bigint(21) unsigned			select		
-def	information_schema	FILES	STATUS	37		NO	varchar	6	20	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(20)			select		
-def	information_schema	FILES	EXTRA	38		YES	varchar	85	255	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(255)			select		
+def	information_schema	FILES	FILE_ID	1	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select		
+def	information_schema	FILES	FILE_NAME	2	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select		
+def	information_schema	FILES	FILE_TYPE	3	NULL	YES	varchar	256	768	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select		
+def	information_schema	FILES	TABLESPACE_NAME	4	NULL	NO	varchar	259	777	NULL	NULL	NULL	utf8	utf8_bin	varchar(259)			select		
+def	information_schema	FILES	TABLE_CATALOG	5		NO	char	0	0	NULL	NULL	NULL	utf8	utf8_general_ci	char(0)			select		
+def	information_schema	FILES	TABLE_SCHEMA	6	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select		
+def	information_schema	FILES	TABLE_NAME	7	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select		
+def	information_schema	FILES	LOGFILE_GROUP_NAME	8	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select		
+def	information_schema	FILES	LOGFILE_GROUP_NUMBER	9	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select		
+def	information_schema	FILES	ENGINE	10	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select		
+def	information_schema	FILES	FULLTEXT_KEYS	11	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select		
+def	information_schema	FILES	DELETED_ROWS	12	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select		
+def	information_schema	FILES	UPDATE_COUNT	13	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select		
+def	information_schema	FILES	FREE_EXTENTS	14	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select		
+def	information_schema	FILES	TOTAL_EXTENTS	15	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select		
+def	information_schema	FILES	EXTENT_SIZE	16	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select		
+def	information_schema	FILES	INITIAL_SIZE	17	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select		
+def	information_schema	FILES	MAXIMUM_SIZE	18	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select		
+def	information_schema	FILES	AUTOEXTEND_SIZE	19	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select		
+def	information_schema	FILES	CREATION_TIME	20	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select		
+def	information_schema	FILES	LAST_UPDATE_TIME	21	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select		
+def	information_schema	FILES	LAST_ACCESS_TIME	22	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select		
+def	information_schema	FILES	RECOVER_TIME	23	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select		
+def	information_schema	FILES	TRANSACTION_COUNTER	24	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select		
+def	information_schema	FILES	VERSION	25	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select		
+def	information_schema	FILES	ROW_FORMAT	26	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select		
+def	information_schema	FILES	TABLE_ROWS	27	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select		
+def	information_schema	FILES	AVG_ROW_LENGTH	28	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select		
+def	information_schema	FILES	DATA_LENGTH	29	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select		
+def	information_schema	FILES	MAX_DATA_LENGTH	30	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select		
+def	information_schema	FILES	INDEX_LENGTH	31	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select		
+def	information_schema	FILES	DATA_FREE	32	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select		
+def	information_schema	FILES	CREATE_TIME	33	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select		
+def	information_schema	FILES	UPDATE_TIME	34	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select		
+def	information_schema	FILES	CHECK_TIME	35	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select		
+def	information_schema	FILES	CHECKSUM	36	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select		
+def	information_schema	FILES	STATUS	37	NULL	YES	varchar	256	768	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select		
+def	information_schema	FILES	EXTRA	38	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select		
 def	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_CATALOG	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select		
 def	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_SCHEMA	2	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select		
 def	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_NAME	3	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select		
@@ -177,7 +177,7 @@ def	information_schema	PARTITIONS	CHECK_TIME	21	NULL	YES	datetime	NULL	NULL	NULL
 def	information_schema	PARTITIONS	CHECKSUM	22	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select		
 def	information_schema	PARTITIONS	PARTITION_COMMENT	23	NULL	NO	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select		
 def	information_schema	PARTITIONS	NODEGROUP	24	NULL	YES	varchar	256	768	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select		
-def	information_schema	PARTITIONS	TABLESPACE_NAME	25	NULL	YES	varchar	255	765	NULL	NULL	NULL	utf8	utf8_bin	varchar(255)			select		
+def	information_schema	PARTITIONS	TABLESPACE_NAME	25	NULL	YES	varchar	259	777	NULL	NULL	NULL	utf8	utf8_bin	varchar(259)			select		
 def	information_schema	PLUGINS	PLUGIN_NAME	1		NO	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select		
 def	information_schema	PLUGINS	PLUGIN_VERSION	2		NO	varchar	6	20	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(20)			select		
 def	information_schema	PLUGINS	PLUGIN_STATUS	3		NO	varchar	3	10	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(10)			select		
@@ -389,9 +389,7 @@ COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
 3.0000	set	utf8	utf8_bin
 3.0000	varchar	utf8	utf8_bin
 3.0000	varchar	utf8	utf8_general_ci
-3.0008	varchar	utf8	utf8_general_ci
 3.0029	varchar	utf8	utf8_general_ci
-3.0116	varchar	utf8	utf8_general_ci
 3.0118	varchar	utf8	utf8_general_ci
 3.0476	varchar	utf8	utf8_general_ci
 3.0769	varchar	utf8	utf8_general_ci
@@ -417,6 +415,7 @@ NULL	int	NULL	NULL
 NULL	json	NULL	NULL
 NULL	timestamp	NULL	NULL
 NULL	tinyint	NULL	NULL
+NULL	char	utf8	utf8_general_ci
 --> CHAR(0) is allowed (see manual), and here both CHARACHTER_* values
 --> are 0, which is intended behavior, and the result of 0 / 0 IS NULL
 SELECT CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH AS COL_CML,
@@ -509,44 +508,44 @@ NULL	information_schema	EVENTS	ORIGINATOR	int	NULL	NULL	NULL	NULL	int(10) unsign
 3.0000	information_schema	EVENTS	CHARACTER_SET_CLIENT	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	EVENTS	COLLATION_CONNECTION	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	EVENTS	DATABASE_COLLATION	varchar	64	192	utf8	utf8_general_ci	varchar(64)
-NULL	information_schema	FILES	FILE_ID	bigint	NULL	NULL	NULL	NULL	bigint(4)
-3.0008	information_schema	FILES	FILE_NAME	varchar	1333	4000	utf8	utf8_general_ci	varchar(4000)
-3.3333	information_schema	FILES	FILE_TYPE	varchar	6	20	utf8	utf8_general_ci	varchar(20)
-3.0116	information_schema	FILES	TABLESPACE_NAME	varchar	86	259	utf8	utf8_general_ci	varchar(259)
-3.0476	information_schema	FILES	TABLE_CATALOG	varchar	21	64	utf8	utf8_general_ci	varchar(64)
-3.0476	information_schema	FILES	TABLE_SCHEMA	varchar	21	64	utf8	utf8_general_ci	varchar(64)
-3.0476	information_schema	FILES	TABLE_NAME	varchar	21	64	utf8	utf8_general_ci	varchar(64)
-3.0476	information_schema	FILES	LOGFILE_GROUP_NAME	varchar	21	64	utf8	utf8_general_ci	varchar(64)
-NULL	information_schema	FILES	LOGFILE_GROUP_NUMBER	bigint	NULL	NULL	NULL	NULL	bigint(4)
-3.0476	information_schema	FILES	ENGINE	varchar	21	64	utf8	utf8_general_ci	varchar(64)
-3.0476	information_schema	FILES	FULLTEXT_KEYS	varchar	21	64	utf8	utf8_general_ci	varchar(64)
-NULL	information_schema	FILES	DELETED_ROWS	bigint	NULL	NULL	NULL	NULL	bigint(4)
-NULL	information_schema	FILES	UPDATE_COUNT	bigint	NULL	NULL	NULL	NULL	bigint(4)
-NULL	information_schema	FILES	FREE_EXTENTS	bigint	NULL	NULL	NULL	NULL	bigint(4)
-NULL	information_schema	FILES	TOTAL_EXTENTS	bigint	NULL	NULL	NULL	NULL	bigint(4)
-NULL	information_schema	FILES	EXTENT_SIZE	bigint	NULL	NULL	NULL	NULL	bigint(4)
-NULL	information_schema	FILES	INITIAL_SIZE	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
-NULL	information_schema	FILES	MAXIMUM_SIZE	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
-NULL	information_schema	FILES	AUTOEXTEND_SIZE	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
-NULL	information_schema	FILES	CREATION_TIME	datetime	NULL	NULL	NULL	NULL	datetime
-NULL	information_schema	FILES	LAST_UPDATE_TIME	datetime	NULL	NULL	NULL	NULL	datetime
-NULL	information_schema	FILES	LAST_ACCESS_TIME	datetime	NULL	NULL	NULL	NULL	datetime
-NULL	information_schema	FILES	RECOVER_TIME	bigint	NULL	NULL	NULL	NULL	bigint(4)
-NULL	information_schema	FILES	TRANSACTION_COUNTER	bigint	NULL	NULL	NULL	NULL	bigint(4)
-NULL	information_schema	FILES	VERSION	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
-3.3333	information_schema	FILES	ROW_FORMAT	varchar	3	10	utf8	utf8_general_ci	varchar(10)
-NULL	information_schema	FILES	TABLE_ROWS	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
-NULL	information_schema	FILES	AVG_ROW_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
-NULL	information_schema	FILES	DATA_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
-NULL	information_schema	FILES	MAX_DATA_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
-NULL	information_schema	FILES	INDEX_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
-NULL	information_schema	FILES	DATA_FREE	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
-NULL	information_schema	FILES	CREATE_TIME	datetime	NULL	NULL	NULL	NULL	datetime
-NULL	information_schema	FILES	UPDATE_TIME	datetime	NULL	NULL	NULL	NULL	datetime
-NULL	information_schema	FILES	CHECK_TIME	datetime	NULL	NULL	NULL	NULL	datetime
-NULL	information_schema	FILES	CHECKSUM	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
-3.3333	information_schema	FILES	STATUS	varchar	6	20	utf8	utf8_general_ci	varchar(20)
-3.0000	information_schema	FILES	EXTRA	varchar	85	255	utf8	utf8_general_ci	varchar(255)
+NULL	information_schema	FILES	FILE_ID	bigint	NULL	NULL	NULL	NULL	bigint(21)
+1.0000	information_schema	FILES	FILE_NAME	text	65535	65535	utf8	utf8_bin	text
+3.0000	information_schema	FILES	FILE_TYPE	varchar	256	768	utf8	utf8_general_ci	varchar(256)
+3.0000	information_schema	FILES	TABLESPACE_NAME	varchar	259	777	utf8	utf8_bin	varchar(259)
+NULL	information_schema	FILES	TABLE_CATALOG	char	0	0	utf8	utf8_general_ci	char(0)
+NULL	information_schema	FILES	TABLE_SCHEMA	binary	0	0	NULL	NULL	binary(0)
+NULL	information_schema	FILES	TABLE_NAME	binary	0	0	NULL	NULL	binary(0)
+NULL	information_schema	FILES	LOGFILE_GROUP_NAME	binary	0	0	NULL	NULL	binary(0)
+NULL	information_schema	FILES	LOGFILE_GROUP_NUMBER	binary	0	0	NULL	NULL	binary(0)
+3.0000	information_schema	FILES	ENGINE	varchar	64	192	utf8	utf8_bin	varchar(64)
+NULL	information_schema	FILES	FULLTEXT_KEYS	binary	0	0	NULL	NULL	binary(0)
+NULL	information_schema	FILES	DELETED_ROWS	binary	0	0	NULL	NULL	binary(0)
+NULL	information_schema	FILES	UPDATE_COUNT	binary	0	0	NULL	NULL	binary(0)
+NULL	information_schema	FILES	FREE_EXTENTS	bigint	NULL	NULL	NULL	NULL	bigint(21)
+NULL	information_schema	FILES	TOTAL_EXTENTS	bigint	NULL	NULL	NULL	NULL	bigint(21)
+NULL	information_schema	FILES	EXTENT_SIZE	bigint	NULL	NULL	NULL	NULL	bigint(21)
+NULL	information_schema	FILES	INITIAL_SIZE	bigint	NULL	NULL	NULL	NULL	bigint(21)
+NULL	information_schema	FILES	MAXIMUM_SIZE	bigint	NULL	NULL	NULL	NULL	bigint(21)
+NULL	information_schema	FILES	AUTOEXTEND_SIZE	bigint	NULL	NULL	NULL	NULL	bigint(21)
+NULL	information_schema	FILES	CREATION_TIME	binary	0	0	NULL	NULL	binary(0)
+NULL	information_schema	FILES	LAST_UPDATE_TIME	binary	0	0	NULL	NULL	binary(0)
+NULL	information_schema	FILES	LAST_ACCESS_TIME	binary	0	0	NULL	NULL	binary(0)
+NULL	information_schema	FILES	RECOVER_TIME	binary	0	0	NULL	NULL	binary(0)
+NULL	information_schema	FILES	TRANSACTION_COUNTER	binary	0	0	NULL	NULL	binary(0)
+NULL	information_schema	FILES	VERSION	binary	0	0	NULL	NULL	binary(0)
+NULL	information_schema	FILES	ROW_FORMAT	binary	0	0	NULL	NULL	binary(0)
+NULL	information_schema	FILES	TABLE_ROWS	binary	0	0	NULL	NULL	binary(0)
+NULL	information_schema	FILES	AVG_ROW_LENGTH	binary	0	0	NULL	NULL	binary(0)
+NULL	information_schema	FILES	DATA_LENGTH	binary	0	0	NULL	NULL	binary(0)
+NULL	information_schema	FILES	MAX_DATA_LENGTH	binary	0	0	NULL	NULL	binary(0)
+NULL	information_schema	FILES	INDEX_LENGTH	binary	0	0	NULL	NULL	binary(0)
+NULL	information_schema	FILES	DATA_FREE	bigint	NULL	NULL	NULL	NULL	bigint(21)
+NULL	information_schema	FILES	CREATE_TIME	binary	0	0	NULL	NULL	binary(0)
+NULL	information_schema	FILES	UPDATE_TIME	binary	0	0	NULL	NULL	binary(0)
+NULL	information_schema	FILES	CHECK_TIME	binary	0	0	NULL	NULL	binary(0)
+NULL	information_schema	FILES	CHECKSUM	binary	0	0	NULL	NULL	binary(0)
+3.0000	information_schema	FILES	STATUS	varchar	256	768	utf8	utf8_general_ci	varchar(256)
+NULL	information_schema	FILES	EXTRA	binary	0	0	NULL	NULL	binary(0)
 3.0000	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_CATALOG	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_SCHEMA	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
@@ -603,7 +602,7 @@ NULL	information_schema	PARTITIONS	CHECK_TIME	datetime	NULL	NULL	NULL	NULL	datet
 NULL	information_schema	PARTITIONS	CHECKSUM	bigint	NULL	NULL	NULL	NULL	bigint(21)
 1.0000	information_schema	PARTITIONS	PARTITION_COMMENT	text	65535	65535	utf8	utf8_bin	text
 3.0000	information_schema	PARTITIONS	NODEGROUP	varchar	256	768	utf8	utf8_general_ci	varchar(256)
-3.0000	information_schema	PARTITIONS	TABLESPACE_NAME	varchar	255	765	utf8	utf8_bin	varchar(255)
+3.0000	information_schema	PARTITIONS	TABLESPACE_NAME	varchar	259	777	utf8	utf8_bin	varchar(259)
 3.0476	information_schema	PLUGINS	PLUGIN_NAME	varchar	21	64	utf8	utf8_general_ci	varchar(64)
 3.3333	information_schema	PLUGINS	PLUGIN_VERSION	varchar	6	20	utf8	utf8_general_ci	varchar(20)
 3.3333	information_schema	PLUGINS	PLUGIN_STATUS	varchar	3	10	utf8	utf8_general_ci	varchar(10)

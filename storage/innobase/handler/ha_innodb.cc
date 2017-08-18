@@ -1264,6 +1264,22 @@ innobase_get_index_column_cardinality(
 	dd::Object_id	se_private_id,
 	ulonglong*	cardinality);
 
+/**
+  Retrieve ha_tablespace_statistics for the tablespace.
+
+  @param tablespace_name          Tablespace_name
+  @param ts_se_private_data       Tablespace SE private data.
+  @param[out] stats               Contains tablespace
+                                  statistics read from SE.
+
+  @returns false on success, true on failure
+*/
+static
+bool
+innobase_get_tablespace_statistics(const char *tablespace_name,
+                                   const dd::Properties &ts_se_private_data,
+                                   ha_tablespace_statistics *stats);
+
 /** Perform post-commit/rollback cleanup after DDL statement.
 @param[in,out]	thd	connection thread */
 static
@@ -1504,13 +1520,11 @@ innobase_fill_i_s_table(
 	Item*,
 	enum_schema_tables	idx)
 {
-	int	ret = 0;
+        DBUG_ASSERT(idx == SCH_TABLESPACES);
 
-	if (idx == SCH_FILES) {
-		ret = i_s_files_table_fill(thd, tables);
-	}
+        /** InnoDB does not implement I_S.TABLESPACES */
 
-	return(ret);
+	return(0);
 }
 
 /** Store doc_id value into FTS_DOC_ID field
@@ -4499,6 +4513,9 @@ innodb_init(
 
 	innobase_hton->get_index_column_cardinality =
 		innobase_get_index_column_cardinality;
+
+	innobase_hton->get_tablespace_statistics =
+		innobase_get_tablespace_statistics;
 
 	innobase_hton->is_dict_readonly=
 		innobase_is_dict_readonly;
@@ -16130,6 +16147,113 @@ innobase_get_index_column_cardinality(
 	dd_table_close(ib_table, thd, &mdl, false);
 	return(failure);
 }
+
+
+/**  Retrieve ha_tablespace_statistics for the tablespace */
+static
+bool
+innobase_get_tablespace_statistics(const char *tablespace_name,
+                                   const dd::Properties &ts_se_private_data,
+                                   ha_tablespace_statistics *stats)
+{
+	/** Tablespace does not have space id stored. */
+	if (!ts_se_private_data.exists(dd_space_key_strings[DD_SPACE_ID]))
+        {
+          my_error(ER_TABLESPACE_MISSING, MYF(0), tablespace_name);
+          return(true);
+        }
+
+	space_id_t space_id;
+        ts_se_private_data.get_uint32(
+                        dd_space_key_strings[DD_SPACE_ID],
+                         &space_id);
+
+	fil_space_t* space;
+	space = fil_space_acquire(space_id);
+
+	/** Tablespace is missing in this case. */
+	if (space == nullptr) {
+          my_error(ER_TABLESPACE_MISSING, MYF(0), tablespace_name);
+          return(true);
+	}
+
+        /** Store space id */
+        stats->m_id= space->id;
+
+        /** Store space type */
+        const char*	type = "TABLESPACE";
+        fil_type_t	purpose = space->purpose;
+        switch (purpose) {
+        case FIL_TYPE_LOG:
+                /* Do not report REDO LOGs to I_S.FILES */
+                space = nullptr;
+                return(false);
+        case FIL_TYPE_TABLESPACE:
+                if (fsp_is_undo_tablespace(space->id)) {
+                        type = "UNDO LOG";
+                        break;
+                } /* else fall through for TABLESPACE */
+        case FIL_TYPE_IMPORT:
+                /* 'IMPORTING'is a status. The type is TABLESPACE. */
+                break;
+        case FIL_TYPE_TEMPORARY:
+                type = "TEMPORARY";
+                break;
+        };
+        stats->m_type= type;
+
+        /** Store free_extents */
+        stats->m_free_extents= space->free_len;
+
+        /** Store total extents */
+        page_no_t	extent_pages;
+        page_size_t	page_size(space->flags);
+        extent_pages = fsp_get_extent_size_in_pages(page_size);
+        stats->m_total_extents= space->size_in_header / extent_pages;
+
+        /** Store extent size. */
+        stats->m_extent_size= extent_pages * page_size.physical();
+
+        /** Store initial size */
+
+        /** The following code must change when InnoDB supports
+        multiple datafiles per tablespace. */
+        ut_a(1 == UT_LIST_GET_LEN(space->chain));
+	fil_node_t*	node = UT_LIST_GET_FIRST(space->chain);
+        stats->m_initial_size= node->init_size * page_size.physical();
+
+        /** Store maximum size */
+        if (node->max_size >= PAGE_NO_MAX) {
+                stats->m_maximum_size= -1;
+        } else {
+                stats->m_maximum_size= node->max_size * page_size.physical();
+        }
+
+        /** Store autoextend size */
+        page_no_t	extend_pages;
+        if (space->id == TRX_SYS_SPACE) {
+                extend_pages = srv_sys_space.get_increment();
+        } else if (fsp_is_system_temporary(space->id)) {
+                extend_pages = srv_tmp_space.get_increment();
+        } else {
+                extend_pages = fsp_get_pages_to_extend_ibd(
+                        page_size, node->size);
+        }
+        stats->m_autoextend_size= extend_pages * page_size.physical();
+
+        /** Store data free */
+        uintmax_t	avail_space;
+        avail_space = fsp_get_available_space_in_free_extents(space);
+        stats->m_data_free= avail_space * 1024;
+
+        stats->m_status= ((purpose == FIL_TYPE_IMPORT)
+                              ? "IMPORTING" : "NORMAL");
+
+	fil_space_release(space);
+
+        return(false);
+}
+
 
 /** Enable indexes.
 @param[in]	mode	enable index mode.

@@ -41,7 +41,7 @@
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/clone_handler.h"
 #include "sql/dd/dd_table.h"                 // dd::recreate_table
-#include "sql/dd/info_schema/stats.h"        // dd::info_schema::update_*
+#include "sql/dd/info_schema/table_stats.h"  // dd::info_schema::update_*
 #include "sql/dd/types/abstract_table.h"     // dd::enum_table_type
 #include "sql/debug_sync.h"                  // DEBUG_SYNC
 #include "sql/derror.h"                      // ER_THD

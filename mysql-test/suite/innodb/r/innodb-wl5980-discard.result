@@ -546,6 +546,11 @@ test/t5980c	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980c.ibd
 test/t5980d	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+Warnings:
+Warning	1812	Tablespace is missing for table test/t5980a.
+Warning	1812	Tablespace is missing for table test/t5980b.
+Warning	1812	Tablespace is missing for table test/t5980c.
+Warning	1812	Tablespace is missing for table test/t5980d.
 ### files in MYSQLD_DATADIR/test
 ### files in MYSQL_TMP_DIR/alt_dir/test
 #
@@ -614,6 +619,11 @@ test/t5980c	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980c.ibd
 test/t5980d	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+Warnings:
+Warning	1812	Tablespace is missing for table test/t5980aa.
+Warning	1812	Tablespace is missing for table test/t5980bb.
+Warning	1812	Tablespace is missing for table test/t5980c.
+Warning	1812	Tablespace is missing for table test/t5980d.
 #
 # Discarded tablespaces cannot be ALTERED with ALGORITHM=COPY.
 #
@@ -671,6 +681,11 @@ test/t5980aa	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980aa.ibd
 test/t5980bb	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980bb.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+Warnings:
+Warning	1812	Tablespace is missing for table test/t5980c.
+Warning	1812	Tablespace is missing for table test/t5980d.
+Warning	1812	Tablespace is missing for table test/t5980aa.
+Warning	1812	Tablespace is missing for table test/t5980bb.
 ### files in MYSQLD_DATADIR/test
 ### files in MYSQL_TMP_DIR/alt_dir/test
 #
@@ -722,6 +737,11 @@ test/t5980a	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980aa.ibd
 test/t5980b	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980bb.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+Warnings:
+Warning	1812	Tablespace is missing for table test/t5980c.
+Warning	1812	Tablespace is missing for table test/t5980d.
+Warning	1812	Tablespace is missing for table test/t5980a.
+Warning	1812	Tablespace is missing for table test/t5980b.
 ### files in MYSQLD_DATADIR/test
 ### files in MYSQL_TMP_DIR/alt_dir/test
 #

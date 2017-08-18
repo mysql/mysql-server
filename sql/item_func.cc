@@ -64,7 +64,8 @@
 #include "sql/binlog.h"          // mysql_bin_log
 #include "sql/check_stack.h"
 #include "sql/current_thd.h"     // current_thd
-#include "sql/dd/info_schema/stats.h" // dd::info_schema::Statistics_cache
+#include "sql/dd/info_schema/table_stats.h"  // dd::info_schema::Table_stati...
+#include "sql/dd/info_schema/tablespace_stats.h" // dd::info_schema::Tablesp...
 #include "sql/dd/object_id.h"
 #include "sql/dd/properties.h"   // dd::Properties
 #include "sql/dd/types/abstract_table.h"
@@ -9540,7 +9541,7 @@ longlong Item_func_is_visible_dd_object::val_int()
 
 
 /**
-  Get table statistics from dd::info_schema::Statistics_cache.
+  Get table statistics from dd::info_schema::get_table_statistics.
 
   @param      args       List of parameters in following order,
 
@@ -9553,6 +9554,8 @@ longlong Item_func_is_visible_dd_object::val_int()
                          - Table_se_private_data (Used if stype is AUTO_INC)
                          - Partition name (optional argument).
 
+  @param      arg_count  Number of arguments in 'args'
+
   @param      stype      Type of statistics that is requested
 
   @param[out] null_value Marked true indicating NULL, if there is no value.
@@ -9560,13 +9563,13 @@ longlong Item_func_is_visible_dd_object::val_int()
   @returns ulonglong representing the statistics requested.
 */
 
-static ulonglong get_statistics_from_cache(
+static ulonglong get_table_statistics(
                    Item** args,
                    uint arg_count,
-                   dd::info_schema::enum_statistics_type stype,
+                   dd::info_schema::enum_table_stats_type stype,
                    bool *null_value)
 {
-  DBUG_ENTER("get_statistics_from_cache");
+  DBUG_ENTER("get_table_statistics");
   *null_value= FALSE;
 
   // Reads arguments
@@ -9590,7 +9593,7 @@ static ulonglong get_statistics_from_cache(
     as a last argument. So, we check for argument count below, before
     reading partition name.
   */
-  if (stype == dd::info_schema::enum_statistics_type::AUTO_INCREMENT)
+  if (stype == dd::info_schema::enum_table_stats_type::AUTO_INCREMENT)
   {
     tbl_se_private_data_ptr= args[6]->val_str(&tbl_se_private_data);
     if (arg_count == 8)
@@ -9619,7 +9622,7 @@ static ulonglong get_statistics_from_cache(
   THD *thd= current_thd;
   dd::Object_id se_private_id= (dd::Object_id) args[3]->val_uint();
   ulonglong result=
-    thd->lex->m_IS_dyn_stat_cache.read_stat(thd,
+    thd->lex->m_IS_table_stats.read_stat(thd,
                 *schema_name_ptr,
                 *table_name_ptr,
                 *engine_name_ptr,
@@ -9639,10 +9642,10 @@ longlong Item_func_internal_table_rows::val_int()
 {
   DBUG_ENTER("Item_func_internal_table_rows::val_int");
 
-  ulonglong result= get_statistics_from_cache(
+  ulonglong result= get_table_statistics(
                       args,
                       arg_count,
-                      dd::info_schema::enum_statistics_type::TABLE_ROWS,
+                      dd::info_schema::enum_table_stats_type::TABLE_ROWS,
                       &null_value);
 
   if (null_value == FALSE && result == (ulonglong) -1)
@@ -9656,10 +9659,10 @@ longlong Item_func_internal_avg_row_length::val_int()
   DBUG_ENTER("Item_func_internal_avg_row_length::val_int");
 
   ulonglong result=
-    get_statistics_from_cache(
+    get_table_statistics(
       args,
       arg_count,
-      dd::info_schema::enum_statistics_type::TABLE_AVG_ROW_LENGTH,
+      dd::info_schema::enum_table_stats_type::TABLE_AVG_ROW_LENGTH,
       &null_value);
   DBUG_RETURN(result);
 }
@@ -9668,10 +9671,10 @@ longlong Item_func_internal_data_length::val_int()
 {
   DBUG_ENTER("Item_func_internal_data_length::val_int");
 
-  ulonglong result= get_statistics_from_cache(
+  ulonglong result= get_table_statistics(
                       args,
                       arg_count,
-                      dd::info_schema::enum_statistics_type::DATA_LENGTH,
+                      dd::info_schema::enum_table_stats_type::DATA_LENGTH,
                       &null_value);
   DBUG_RETURN(result);
 }
@@ -9680,10 +9683,10 @@ longlong Item_func_internal_max_data_length::val_int()
 {
   DBUG_ENTER("Item_func_internal_max_data_length::val_int");
 
-  ulonglong result= get_statistics_from_cache(
+  ulonglong result= get_table_statistics(
                       args,
                       arg_count,
-                      dd::info_schema::enum_statistics_type::MAX_DATA_LENGTH,
+                      dd::info_schema::enum_table_stats_type::MAX_DATA_LENGTH,
                       &null_value);
   DBUG_RETURN(result);
 }
@@ -9692,10 +9695,10 @@ longlong Item_func_internal_index_length::val_int()
 {
   DBUG_ENTER("Item_func_internal_index_length::val_int");
 
-  ulonglong result= get_statistics_from_cache(
+  ulonglong result= get_table_statistics(
                       args,
                       arg_count,
-                      dd::info_schema::enum_statistics_type::INDEX_LENGTH,
+                      dd::info_schema::enum_table_stats_type::INDEX_LENGTH,
                       &null_value);
   DBUG_RETURN(result);
 }
@@ -9704,10 +9707,10 @@ longlong Item_func_internal_data_free::val_int()
 {
   DBUG_ENTER("Item_func_internal_data_free::val_int");
 
-  ulonglong result= get_statistics_from_cache(
+  ulonglong result= get_table_statistics(
                       args,
                       arg_count,
-                      dd::info_schema::enum_statistics_type::DATA_FREE,
+                      dd::info_schema::enum_table_stats_type::DATA_FREE,
                       &null_value);
 
   if (null_value == FALSE && result == (ulonglong) -1)
@@ -9720,10 +9723,10 @@ longlong Item_func_internal_auto_increment::val_int()
 {
   DBUG_ENTER("Item_func_internal_auto_increment::val_int");
 
-  ulonglong result= get_statistics_from_cache(
+  ulonglong result= get_table_statistics(
                       args,
                       arg_count,
-                      dd::info_schema::enum_statistics_type::AUTO_INCREMENT,
+                      dd::info_schema::enum_table_stats_type::AUTO_INCREMENT,
                       &null_value);
 
   if (null_value == FALSE && result < (ulonglong) 1)
@@ -9736,10 +9739,10 @@ longlong Item_func_internal_checksum::val_int()
 {
   DBUG_ENTER("Item_func_internal_checksum::val_int");
 
-  ulonglong result= get_statistics_from_cache(
+  ulonglong result= get_table_statistics(
                       args,
                       arg_count,
-                      dd::info_schema::enum_statistics_type::CHECKSUM,
+                      dd::info_schema::enum_table_stats_type::CHECKSUM,
                       &null_value);
 
   if (null_value == FALSE && result == 0)
@@ -9838,7 +9841,7 @@ longlong Item_func_internal_index_column_cardinality::val_int()
 
   ulonglong result= 0;
   THD *thd= current_thd;
-  result= thd->lex->m_IS_dyn_stat_cache.read_stat(thd,
+  result= thd->lex->m_IS_table_stats.read_stat(thd,
             *schema_name_ptr,
             *table_name_ptr,
             *index_name_ptr,
@@ -9849,10 +9852,217 @@ longlong Item_func_internal_index_column_cardinality::val_int()
             se_private_id,
             nullptr,
             nullptr,
-            dd::info_schema::enum_statistics_type::INDEX_COLUMN_CARDINALITY);
+            dd::info_schema::enum_table_stats_type::INDEX_COLUMN_CARDINALITY);
 
   if (result == (ulonglong) -1)
     null_value= TRUE;
+
+  DBUG_RETURN(result);
+}
+
+
+/**
+  Retrieve tablespace statistics from SE
+
+  @param      thd        The current thread.
+
+  @param      args       List of parameters in following order,
+
+                         - Tablespace_name
+                         - Engine_name
+                         - Tablespace_se_private_data
+
+  @param[out] null_value Marked true indicating NULL, if there is no value.
+
+  @returns void
+*/
+
+void retrieve_tablespace_statistics(THD *thd, Item** args, bool *null_value)
+{
+  DBUG_ENTER("retrieve_tablespace_statistics");
+  *null_value= FALSE;
+
+  // Reads arguments
+  String tablespace_name;
+  String *tablespace_name_ptr=args[0]->val_str(&tablespace_name);
+  String engine_name;
+  String *engine_name_ptr=args[1]->val_str(&engine_name);
+  String ts_se_private_data;
+  String *ts_se_private_data_ptr= args[2]->val_str(&ts_se_private_data);
+
+  if (tablespace_name_ptr == nullptr ||
+      my_strcasecmp(system_charset_info,
+                    engine_name_ptr->c_ptr_safe(),
+                    "InnoDB"))
+  {
+    *null_value= TRUE;
+    DBUG_VOID_RETURN;
+  }
+
+  // Make sure we have safe string to access.
+  tablespace_name_ptr->c_ptr_safe();
+
+  // Read the statistic value from cache.
+  if (thd->lex->m_IS_tablespace_stats.read_stat(thd,
+                *tablespace_name_ptr,
+                (ts_se_private_data_ptr ?
+                 ts_se_private_data_ptr->c_ptr_safe() : nullptr)))
+    *null_value= TRUE;
+
+  DBUG_VOID_RETURN;
+}
+
+
+longlong Item_func_internal_tablespace_id::val_int()
+{
+  DBUG_ENTER("Item_func_internal_tablespace_id::val_int");
+  ulonglong result= -1;
+
+  THD *thd= current_thd;
+  retrieve_tablespace_statistics(thd, args, &null_value);
+  if (null_value == false)
+  {
+     thd->lex->m_IS_tablespace_stats.get_stat(
+                  dd::info_schema::enum_tablespace_stats_type::TS_ID,
+                  &result);
+     DBUG_RETURN(result);
+  }
+
+  DBUG_RETURN(result);
+}
+
+
+longlong Item_func_internal_tablespace_free_extents::val_int()
+{
+  DBUG_ENTER("Item_func_internal_tablespace_free_extents::val_int");
+  ulonglong result= -1;
+
+  THD *thd= current_thd;
+  retrieve_tablespace_statistics(thd, args, &null_value);
+  if (null_value == false)
+  {
+     thd->lex->m_IS_tablespace_stats.get_stat(
+                  dd::info_schema::enum_tablespace_stats_type::TS_FREE_EXTENTS,
+                  &result);
+     DBUG_RETURN(result);
+  }
+
+  DBUG_RETURN(result);
+}
+
+
+longlong Item_func_internal_tablespace_total_extents::val_int()
+{
+  DBUG_ENTER("Item_func_internal_tablespace_total_extents::val_int");
+  ulonglong result= -1;
+
+  THD *thd= current_thd;
+  retrieve_tablespace_statistics(thd, args, &null_value);
+  if (null_value == false)
+  {
+     thd->lex->m_IS_tablespace_stats.get_stat(
+                  dd::info_schema::enum_tablespace_stats_type::TS_TOTAL_EXTENTS,
+                  &result);
+     DBUG_RETURN(result);
+  }
+
+  DBUG_RETURN(result);
+}
+
+
+longlong Item_func_internal_tablespace_extent_size::val_int()
+{
+  DBUG_ENTER("Item_func_internal_tablespace_extent_size::val_int");
+  ulonglong result= -1;
+
+  THD *thd= current_thd;
+  retrieve_tablespace_statistics(thd, args, &null_value);
+  if (null_value == false)
+  {
+     thd->lex->m_IS_tablespace_stats.get_stat(
+                  dd::info_schema::enum_tablespace_stats_type::TS_EXTENT_SIZE,
+                  &result);
+     DBUG_RETURN(result);
+  }
+
+  DBUG_RETURN(result);
+}
+
+
+longlong Item_func_internal_tablespace_initial_size::val_int()
+{
+  DBUG_ENTER("Item_func_internal_tablespace_initial_size::val_int");
+  ulonglong result= -1;
+
+  THD *thd= current_thd;
+  retrieve_tablespace_statistics(thd, args, &null_value);
+  if (null_value == false)
+  {
+     thd->lex->m_IS_tablespace_stats.get_stat(
+                  dd::info_schema::enum_tablespace_stats_type::TS_INITIAL_SIZE,
+                  &result);
+     DBUG_RETURN(result);
+  }
+
+  DBUG_RETURN(result);
+}
+
+
+longlong Item_func_internal_tablespace_maximum_size::val_int()
+{
+  DBUG_ENTER("Item_func_internal_tablespace_maximum_size::val_int");
+  ulonglong result= -1;
+
+  THD *thd= current_thd;
+  retrieve_tablespace_statistics(thd, args, &null_value);
+  if (null_value == false)
+  {
+     thd->lex->m_IS_tablespace_stats.get_stat(
+                  dd::info_schema::enum_tablespace_stats_type::TS_MAXIMUM_SIZE,
+                  &result);
+     if (result == (ulonglong) -1)
+       null_value= TRUE;
+
+     DBUG_RETURN(result);
+  }
+
+  DBUG_RETURN(result);
+}
+
+
+longlong Item_func_internal_tablespace_autoextend_size::val_int()
+{
+  DBUG_ENTER("Item_func_internal_tablespace_autoextend_size::val_int");
+  ulonglong result= -1;
+
+  THD *thd= current_thd;
+  retrieve_tablespace_statistics(thd, args, &null_value);
+  if (null_value == false)
+  {
+     thd->lex->m_IS_tablespace_stats.get_stat(
+       dd::info_schema::enum_tablespace_stats_type::TS_AUTOEXTEND_SIZE,
+       &result);
+     DBUG_RETURN(result);
+  }
+
+  DBUG_RETURN(result);
+}
+
+
+longlong Item_func_internal_tablespace_data_free::val_int()
+{
+  DBUG_ENTER("Item_func_internal_tablespace_data_free::val_int");
+  ulonglong result= -1;
+
+  THD *thd= current_thd;
+  retrieve_tablespace_statistics(thd, args, &null_value);
+  if (null_value == false)
+  {
+     thd->lex->m_IS_tablespace_stats.get_stat(
+       dd::info_schema::enum_tablespace_stats_type::TS_DATA_FREE,
+       &result);
+     DBUG_RETURN(result);
+  }
 
   DBUG_RETURN(result);
 }

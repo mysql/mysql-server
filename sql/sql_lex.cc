@@ -547,7 +547,8 @@ bool lex_start(THD *thd)
   DBUG_ASSERT(lex->current_select() == NULL);
   lex->m_current_select= lex->select_lex;
 
-  lex->m_IS_dyn_stat_cache.invalidate_cache();
+  lex->m_IS_table_stats.invalidate_cache();
+  lex->m_IS_tablespace_stats.invalidate_cache();
 
   DBUG_RETURN(status);
 }

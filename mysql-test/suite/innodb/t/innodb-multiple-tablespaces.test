@@ -29,6 +29,8 @@ call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Operating system error
 call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: The error means the system cannot find the path specified.");
 call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Cannot calculate statistics for table `test`\.`.*` because the \.ibd file is missing");
 call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Ignoring tablespace `test/.*` because it could not be opened.");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Unable to open tablespace .* \\(flags=.*, filename=");
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Trying to access missing tablespace .*");
 --enable_query_log
 
 --echo #

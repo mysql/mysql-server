@@ -779,12 +779,6 @@ EVENTS	ENDS	datetime
 EVENTS	EXECUTE_AT	datetime
 EVENTS	LAST_EXECUTED	datetime
 EVENTS	STARTS	datetime
-FILES	CHECK_TIME	datetime
-FILES	CREATE_TIME	datetime
-FILES	CREATION_TIME	datetime
-FILES	LAST_ACCESS_TIME	datetime
-FILES	LAST_UPDATE_TIME	datetime
-FILES	UPDATE_TIME	datetime
 PARTITIONS	CHECK_TIME	datetime
 PARTITIONS	UPDATE_TIME	datetime
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES A
@@ -1156,7 +1150,7 @@ GROUP BY column_type ORDER BY num;
 COLUMN_TYPE	GROUP_CONCAT(table_schema, '.', table_name ORDER BY table_name)	num
 varchar(30)	information_schema.PROFILING,information_schema.PROFILING	2
 varchar(7)	information_schema.INNODB_TABLESPACES_BRIEF,information_schema.VIEWS	2
-varchar(20)	information_schema.FILES,information_schema.FILES,information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PROFILING	6
+varchar(20)	information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PROFILING	4
 create table t1(f1 char(1) not null, f2 char(9) not null)
 default character set utf8;
 select CHARACTER_MAXIMUM_LENGTH, CHARACTER_OCTET_LENGTH from

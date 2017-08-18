@@ -21,7 +21,7 @@
 #include "m_string.h"
 #include "my_sqlcommand.h"
 #include "sql/dd/info_schema/show_query_builder.h" // Select_lex_builder
-#include "sql/dd/info_schema/stats.h"
+#include "sql/dd/info_schema/table_stats.h"
 #include "sql/dd/string_type.h"
 #include "sql/key.h"
 #include "sql/parse_tree_node_base.h"

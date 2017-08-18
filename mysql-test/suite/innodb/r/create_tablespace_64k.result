@@ -137,7 +137,7 @@ Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 s_64k	General	DEFAULT	0	Any	s_64k.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
-s_64k	TABLESPACE	InnoDB	NORMAL	s_64k	s_64k.ibd
+s_64k	TABLESPACE	InnoDB	NORMAL	s_64k	MYSQLD_DATADIR/s_64k.ibd
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_com_in_64k	s_64k	129	5	Compact	0	General

@@ -497,7 +497,7 @@ test/t7_restart#p#p0#sp#s0	TABLESPACE	InnoDB	NORMAL	test/t7_restart#p#p0#sp#s0	M
 test/t7_restart#p#p0#sp#s1	TABLESPACE	InnoDB	NORMAL	test/t7_restart#p#p0#sp#s1	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p0#sp#s1.ibd
 test/t7_restart#p#p1#sp#s2	TABLESPACE	InnoDB	NORMAL	test/t7_restart#p#p1#sp#s2	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p1#sp#s2.ibd
 test/t7_restart#p#p1#sp#s3	TABLESPACE	InnoDB	NORMAL	test/t7_restart#p#p1#sp#s3	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p1#sp#s3.ibd
-s1_restart	TABLESPACE	InnoDB	NORMAL	s1_restart	s1_restart.ibd
+s1_restart	TABLESPACE	InnoDB	NORMAL	s1_restart	MYSQLD_DATADIR/s1_restart.ibd
 DROP TABLE t1_restart;
 DROP TABLE t2_restart;
 DROP TABLE t3_restart;

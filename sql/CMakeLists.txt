@@ -99,6 +99,7 @@ SET(DD_SOURCES
   dd/impl/system_views/columns.cc
   dd/impl/system_views/column_statistics.cc
   dd/impl/system_views/events.cc
+  dd/impl/system_views/files.cc
   dd/impl/system_views/innodb_datafiles.cc
   dd/impl/system_views/innodb_foreign.cc
   dd/impl/system_views/innodb_foreign_cols.cc
@@ -117,8 +118,6 @@ SET(DD_SOURCES
   dd/impl/system_views/triggers.cc
   dd/impl/system_views/views.cc
 
-  dd/impl/tables/table_stats.cc
-  dd/impl/tables/index_stats.cc
   dd/impl/tables/character_sets.cc
   dd/impl/tables/collations.cc
   dd/impl/tables/columns.cc
@@ -131,12 +130,14 @@ SET(DD_SOURCES
   dd/impl/tables/index_column_usage.cc
   dd/impl/tables/indexes.cc
   dd/impl/tables/index_partitions.cc
+  dd/impl/tables/index_stats.cc
   dd/impl/tables/parameters.cc
   dd/impl/tables/parameter_type_elements.cc
   dd/impl/tables/routines.cc
   dd/impl/tables/schemata.cc
   dd/impl/tables/spatial_reference_systems.cc
   dd/impl/tables/table_partitions.cc
+  dd/impl/tables/table_stats.cc
   dd/impl/tables/table_partition_values.cc
   dd/impl/tables/tables.cc
   dd/impl/tables/tablespace_files.cc
@@ -182,7 +183,8 @@ SET(DD_SOURCES
   dd/info_schema/metadata.cc
   dd/info_schema/show.cc
   dd/info_schema/show_query_builder.cc
-  dd/info_schema/stats.cc
+  dd/info_schema/table_stats.cc
+  dd/info_schema/tablespace_stats.cc
 
   dd/performance_schema/init.cc
 

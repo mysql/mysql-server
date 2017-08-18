@@ -66,7 +66,7 @@
 #include "sql/dd/dd.h"        // dd::get_dictionary
 #include "sql/dd/dd_schema.h" // Schema_MDL_locker
 #include "sql/dd/dictionary.h" // dd::Dictionary::is_system_view_name
-#include "sql/dd/info_schema/stats.h"
+#include "sql/dd/info_schema/table_stats.h"
 #include "sql/debug_sync.h"   // DEBUG_SYNC
 #include "sql/derror.h"       // ER_THD
 #include "sql/discrete_interval.h"

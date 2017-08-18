@@ -2581,6 +2581,178 @@ public:
   { return "get_dd_index_sub_part_length"; }
 };
 
+
+class Item_func_internal_tablespace_id : public Item_int_func
+{
+public:
+  Item_func_internal_tablespace_id(const POS &pos, Item *a, Item *b, Item *c)
+    :Item_int_func(pos, a, b, c)
+  {}
+  longlong val_int() override;
+  const char *func_name() const override { return "internal_tablespace_id"; }
+  bool resolve_type(THD *) override
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
+};
+
+
+class Item_func_internal_tablespace_free_extents : public Item_int_func
+{
+public:
+  Item_func_internal_tablespace_free_extents(const POS &pos, Item *a,
+                                             Item *b, Item *c)
+    :Item_int_func(pos, a, b, c)
+  {}
+
+  longlong val_int() override;
+
+  const char *func_name() const override
+  { return "internal_tablespace_free_extents"; }
+
+  bool resolve_type(THD *) override
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
+};
+
+
+class Item_func_internal_tablespace_total_extents : public Item_int_func
+{
+public:
+  Item_func_internal_tablespace_total_extents(const POS &pos, Item *a,
+                                             Item *b, Item *c)
+    :Item_int_func(pos, a, b, c)
+  {}
+
+  longlong val_int() override;
+
+  const char *func_name() const override
+  { return "internal_tablespace_total_extents"; }
+
+  bool resolve_type(THD *) override
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
+};
+
+
+class Item_func_internal_tablespace_extent_size : public Item_int_func
+{
+public:
+  Item_func_internal_tablespace_extent_size(const POS &pos, Item *a,
+                                            Item *b, Item *c)
+    :Item_int_func(pos, a, b, c)
+  {}
+
+  longlong val_int() override;
+
+  const char *func_name() const override
+  { return "internal_tablespace_extent_size"; }
+
+  bool resolve_type(THD *) override
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
+};
+
+
+class Item_func_internal_tablespace_initial_size : public Item_int_func
+{
+public:
+  Item_func_internal_tablespace_initial_size(const POS &pos, Item *a,
+                                             Item *b, Item *c)
+    :Item_int_func(pos, a, b, c)
+  {}
+
+  longlong val_int() override;
+
+  const char *func_name() const override
+  { return "internal_tablespace_initial_size"; }
+
+  bool resolve_type(THD *) override
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
+};
+
+
+class Item_func_internal_tablespace_maximum_size : public Item_int_func
+{
+public:
+  Item_func_internal_tablespace_maximum_size(const POS &pos, Item *a,
+                                             Item *b, Item *c)
+    :Item_int_func(pos, a, b, c)
+  {}
+
+  longlong val_int() override;
+
+  const char *func_name() const override
+  { return "internal_tablespace_maximum_size"; }
+
+  bool resolve_type(THD *) override
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
+};
+
+
+class Item_func_internal_tablespace_autoextend_size : public Item_int_func
+{
+public:
+  Item_func_internal_tablespace_autoextend_size(const POS &pos, Item *a,
+                                                Item *b, Item *c)
+    :Item_int_func(pos, a, b, c)
+  {}
+
+  longlong val_int() override;
+
+  const char *func_name() const override
+  { return "internal_tablespace_autoextend_size"; }
+
+  bool resolve_type(THD *) override
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
+};
+
+
+class Item_func_internal_tablespace_data_free : public Item_int_func
+{
+public:
+  Item_func_internal_tablespace_data_free(const POS &pos, Item *a,
+                                                Item *b, Item *c)
+    :Item_int_func(pos, a, b, c)
+  {}
+
+  longlong val_int() override;
+
+  const char *func_name() const override
+  { return "internal_tablespace_data_free"; }
+
+  bool resolve_type(THD *) override
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
+};
+
+
 /**
   Common class for:
     Item_func_get_system_var
@@ -3592,6 +3764,8 @@ double my_double_round(double value, longlong dec, bool dec_unsigned,
                        bool truncate);
 bool eval_const_cond(THD *thd, Item *cond, bool *value);
 Item_field *get_gc_for_expr(Item_func **func, Field *fld, Item_result type);
+
+void retrieve_tablespace_statistics(THD *thd, Item** args, bool *null_value);
 
 extern bool volatile  mqh_used;
 

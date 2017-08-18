@@ -68,7 +68,7 @@
 #include "sql/auth/auth_common.h"    // check_password_policy
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"         // current_thd
-#include "sql/dd/info_schema/stats.h"
+#include "sql/dd/info_schema/table_stats.h"
 #include "sql/dd/properties.h"       // dd::Properties
 #include "sql/dd/string_type.h"
 #include "sql/dd_sql_view.h"         // push_view_warning_or_error
@@ -4900,14 +4900,14 @@ String *Item_func_internal_get_comment_or_error::val_str(String *str)
     else
       oss << "VIEW";
   }
-  else if (!thd->lex->m_IS_dyn_stat_cache.error().empty())
+  else if (!thd->lex->m_IS_table_stats.error().empty())
   {
     /*
       There could be error generated due to INTERNAL_*() UDF calls
       in I_S query. If there was a error found, we show that as
       part of COMMENT field.
     */
-    oss << thd->lex->m_IS_dyn_stat_cache.error();
+    oss << thd->lex->m_IS_table_stats.error();
   }
   else
   {
@@ -4959,6 +4959,48 @@ String *Item_func_get_partition_nodegroup::val_str(String *str)
   str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
 
   DBUG_RETURN(str);
+}
+
+
+String *Item_func_internal_tablespace_type::val_str(String *str)
+{
+  DBUG_ENTER("Item_func_internal_tablespace_type::val_str");
+  dd::String_type result;
+
+  THD *thd= current_thd;
+  retrieve_tablespace_statistics(thd, args, &null_value);
+  if (null_value == false)
+  {
+    thd->lex->m_IS_tablespace_stats.get_stat(
+                dd::info_schema::enum_tablespace_stats_type::TS_TYPE,
+                &result);
+    str->copy(result.c_str(), result.length(), system_charset_info);
+
+    DBUG_RETURN(str);
+  }
+
+  DBUG_RETURN(nullptr);
+}
+
+
+String *Item_func_internal_tablespace_status::val_str(String *str)
+{
+  DBUG_ENTER("Item_func_internal_tablespace_status::val_str");
+  dd::String_type result;
+
+  THD *thd= current_thd;
+  retrieve_tablespace_statistics(thd, args, &null_value);
+  if (null_value == false)
+  {
+    thd->lex->m_IS_tablespace_stats.get_stat(
+                dd::info_schema::enum_tablespace_stats_type::TS_STATUS,
+                &result);
+    str->copy(result.c_str(), result.length(), system_charset_info);
+
+    DBUG_RETURN(str);
+  }
+
+  DBUG_RETURN(nullptr);
 }
 
 
