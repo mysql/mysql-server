@@ -4825,7 +4825,9 @@ public:
     table_map inner_map= (*ref)->used_tables();
     return
       !(inner_map & ~INNER_TABLE_BIT) && first_inner_table != NULL ?
-        first_inner_table->map() :
+        (*ref)->real_item()->type() == FIELD_ITEM ?
+          down_cast<Item_field *>((*ref)->real_item())->table_ref->map() :
+          first_inner_table->map() :
         inner_map;
   }
 
