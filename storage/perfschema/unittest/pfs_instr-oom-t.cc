@@ -32,7 +32,7 @@
 PSI_thread_key thread_key_1;
 PSI_thread_info all_thread[]=
 {
-  {&thread_key_1, "T-1", 0}
+  {&thread_key_1, "T-1", 0, 0, ""}
 };
 
 /** Simulate initialize_performance_schema(). */

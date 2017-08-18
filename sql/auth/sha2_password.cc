@@ -144,7 +144,7 @@ namespace sha2_password
   static PSI_rwlock_key key_m_cache_lock;
   static PSI_rwlock_info all_rwlocks[]=
   {
-    {&key_m_cache_lock, "key_m_cache_lock", 0}
+    {&key_m_cache_lock, "key_m_cache_lock", 0, 0, PSI_DOCUMENT_ME}
   };
 
 

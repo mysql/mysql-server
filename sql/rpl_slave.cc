@@ -2038,7 +2038,7 @@ bool start_slave_thread(
     while (start_id == *slave_run_id && thd != NULL)
     {
       DBUG_PRINT("sleep",("Waiting for slave thread to start"));
-      PSI_stage_info saved_stage= {0, "", 0};
+      PSI_stage_info saved_stage= {0, "", 0, ""};
       thd->ENTER_COND(start_cond, cond_lock,
                       & stage_waiting_for_slave_thread_to_start,
                       & saved_stage);

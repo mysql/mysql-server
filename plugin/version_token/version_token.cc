@@ -160,12 +160,12 @@ PSI_rwlock_key key_LOCK_vtoken_hash;
 
 static PSI_rwlock_info all_vtoken_rwlocks[]=
 {
-  {&key_LOCK_vtoken_hash, "LOCK_vtoken_hash", 0},
+  {&key_LOCK_vtoken_hash, "LOCK_vtoken_hash", 0, 0, PSI_DOCUMENT_ME},
 };
 
 static PSI_memory_info all_vtoken_memory[]=
 {
-  {&key_memory_vtoken, "vtoken", 0}
+  {&key_memory_vtoken, "vtoken", 0, 0, PSI_DOCUMENT_ME}
 };
 
 // Function to register the lock

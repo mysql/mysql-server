@@ -38,7 +38,7 @@ PSI_memory_key key_memory_mysql_heartbeat_context;
 
 static PSI_memory_info all_deamon_example_memory[]=
 {
-  {&key_memory_mysql_heartbeat_context, "mysql_heartbeat_context", 0}
+  {&key_memory_mysql_heartbeat_context, "mysql_heartbeat_context", 0, 0, PSI_DOCUMENT_ME}
 };
 
 static void init_deamon_example_psi_keys()

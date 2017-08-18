@@ -509,8 +509,8 @@ PSI_mutex_key key_ss_mutex_Ack_receiver_mutex;
 
 static PSI_mutex_info all_semisync_mutexes[]=
 {
-  { &key_ss_mutex_LOCK_binlog_, "LOCK_binlog_", 0, 0},
-  { &key_ss_mutex_Ack_receiver_mutex, "Ack_receiver::m_mutex", 0, 0}
+  { &key_ss_mutex_LOCK_binlog_, "LOCK_binlog_", 0, 0, PSI_DOCUMENT_ME},
+  { &key_ss_mutex_Ack_receiver_mutex, "Ack_receiver::m_mutex", 0, 0, PSI_DOCUMENT_ME}
 };
 
 PSI_cond_key key_ss_cond_COND_binlog_send_;
@@ -518,8 +518,8 @@ PSI_cond_key key_ss_cond_Ack_receiver_cond;
 
 static PSI_cond_info all_semisync_conds[]=
 {
-  { &key_ss_cond_COND_binlog_send_, "COND_binlog_send_", 0},
-  { &key_ss_cond_Ack_receiver_cond, "Ack_receiver::m_cond", 0}
+  { &key_ss_cond_COND_binlog_send_, "COND_binlog_send_", 0, 0, PSI_DOCUMENT_ME},
+  { &key_ss_cond_Ack_receiver_cond, "Ack_receiver::m_cond", 0, 0, PSI_DOCUMENT_ME}
 };
 
 PSI_thread_key key_ss_thread_Ack_receiver_thread;
@@ -531,13 +531,13 @@ static PSI_thread_info all_semisync_threads[]=
 #endif /* HAVE_PSI_INTERFACE */
 
 PSI_stage_info stage_waiting_for_semi_sync_ack_from_slave=
-{ 0, "Waiting for semi-sync ACK from slave", 0};
+{ 0, "Waiting for semi-sync ACK from slave", 0, PSI_DOCUMENT_ME};
 
 PSI_stage_info stage_waiting_for_semi_sync_slave=
-{ 0, "Waiting for semi-sync slave connection", 0};
+{ 0, "Waiting for semi-sync slave connection", 0, PSI_DOCUMENT_ME};
 
 PSI_stage_info stage_reading_semi_sync_ack=
-{ 0, "Reading semi-sync ACK from slave", 0};
+{ 0, "Reading semi-sync ACK from slave", 0, PSI_DOCUMENT_ME};
 
 /* Always defined. */
 PSI_memory_key key_ss_memory_TranxNodeAllocator_block;
@@ -552,7 +552,7 @@ PSI_stage_info *all_semisync_stages[]=
 
 PSI_memory_info all_semisync_memory[]=
 {
-  {&key_ss_memory_TranxNodeAllocator_block, "TranxNodeAllocator::block", 0}
+  {&key_ss_memory_TranxNodeAllocator_block, "TranxNodeAllocator::block", 0, 0, PSI_DOCUMENT_ME}
 };
 
 static void init_semisync_psi_keys(void)

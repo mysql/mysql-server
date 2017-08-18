@@ -74,7 +74,7 @@ namespace connection_control
   static PSI_rwlock_key key_connection_event_delay_lock;
   static PSI_rwlock_info all_rwlocks[]=
   {
-    {&key_connection_event_delay_lock, "connection_event_delay_lock", 0}
+    {&key_connection_event_delay_lock, "connection_event_delay_lock", 0, 0, PSI_DOCUMENT_ME}
   };
 
   static opt_connection_control opt_enums[]=

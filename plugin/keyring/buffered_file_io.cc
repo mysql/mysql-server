@@ -32,8 +32,8 @@ PSI_file_key keyring_backup_file_data_key;
 
 static PSI_file_info all_keyring_files[]=
 {
-  { &keyring_file_data_key, "keyring_file_data", 0},
-  { &keyring_backup_file_data_key, "keyring_backup_file_data", 0}
+  { &keyring_file_data_key, "keyring_file_data", 0, 0, PSI_DOCUMENT_ME},
+  { &keyring_backup_file_data_key, "keyring_backup_file_data", 0, 0, PSI_DOCUMENT_ME}
 };
 
 void keyring_init_psi_file_keys(void)

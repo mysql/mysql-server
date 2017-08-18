@@ -411,7 +411,7 @@ static void test_bad_registration()
   PSI_mutex_key dummy_mutex_key= 9999;
   PSI_mutex_info bad_mutex_1[]=
   {
-    { & dummy_mutex_key, "X", 0, 0}
+    { & dummy_mutex_key, "X", 0, 0, ""}
   };
 
   mutex_service->register_mutex("/", bad_mutex_1, 1);
@@ -445,7 +445,7 @@ static void test_bad_registration()
       "12345678901234567890123456789012345678901234567890"
       "12345678901234567890123456789012345678901234567890"
       "1234567890",
-      0, 0}
+      0, 0, ""}
   };
 
   mutex_service->register_mutex("X", bad_mutex_2, 1);
@@ -459,7 +459,7 @@ static void test_bad_registration()
       "12345678901234567890123456789012345678901234567890"
       "12345678901234567890123456789012345678901234567890"
       "123456789",
-      0, 0}
+      0, 0, ""}
   };
 
   mutex_service->register_mutex("XX", bad_mutex_3, 1);
@@ -476,7 +476,7 @@ static void test_bad_registration()
   PSI_rwlock_key dummy_rwlock_key= 9999;
   PSI_rwlock_info bad_rwlock_1[]=
   {
-    { & dummy_rwlock_key, "X", 0}
+    { & dummy_rwlock_key, "X", 0, 0, ""}
   };
 
   rwlock_service->register_rwlock("/", bad_rwlock_1, 1);
@@ -510,7 +510,7 @@ static void test_bad_registration()
       "12345678901234567890123456789012345678901234567890"
       "12345678901234567890123456789012345678901234567890"
       "123456789",
-      0}
+      0, 0, ""}
   };
 
   rwlock_service->register_rwlock("X", bad_rwlock_2, 1);
@@ -524,7 +524,7 @@ static void test_bad_registration()
       "12345678901234567890123456789012345678901234567890"
       "12345678901234567890123456789012345678901234567890"
       "123456789",
-      PSI_FLAG_RWLOCK_SX}
+      PSI_FLAG_RWLOCK_SX, 0, ""}
   };
 
   rwlock_service->register_rwlock("Y", bad_rwlock_2_sx, 1);
@@ -538,7 +538,7 @@ static void test_bad_registration()
       "12345678901234567890123456789012345678901234567890"
       "12345678901234567890123456789012345678901234567890"
       "12345678",
-      0}
+      0, 0, ""}
   };
 
   rwlock_service->register_rwlock("XX", bad_rwlock_3, 1);
@@ -555,7 +555,7 @@ static void test_bad_registration()
       "12345678901234567890123456789012345678901234567890"
       "12345678901234567890123456789012345678901234567890"
       "12345678",
-      PSI_FLAG_RWLOCK_SX}
+      PSI_FLAG_RWLOCK_SX, 0, ""}
   };
 
   rwlock_service->register_rwlock("YY", bad_rwlock_3_sx, 1);
@@ -572,7 +572,7 @@ static void test_bad_registration()
   PSI_cond_key dummy_cond_key= 9999;
   PSI_cond_info bad_cond_1[]=
   {
-    { & dummy_cond_key, "X", 0}
+    { & dummy_cond_key, "X", 0, 0, ""}
   };
 
   cond_service->register_cond("/", bad_cond_1, 1);
@@ -606,7 +606,7 @@ static void test_bad_registration()
       "12345678901234567890123456789012345678901234567890"
       "12345678901234567890123456789012345678901234567890"
       "12345678901",
-      0}
+      0, 0, ""}
   };
 
   cond_service->register_cond("X", bad_cond_2, 1);
@@ -620,7 +620,7 @@ static void test_bad_registration()
       "12345678901234567890123456789012345678901234567890"
       "12345678901234567890123456789012345678901234567890"
       "1234567890",
-      0}
+      0, 0, ""}
   };
 
   cond_service->register_cond("XX", bad_cond_3, 1);
@@ -637,7 +637,7 @@ static void test_bad_registration()
   PSI_thread_key dummy_thread_key= 9999;
   PSI_thread_info bad_thread_1[]=
   {
-    { & dummy_thread_key, "X", 0}
+    { & dummy_thread_key, "X", 0, 0, ""}
   };
 
   thread_service->register_thread("/", bad_thread_1, 1);
@@ -671,7 +671,7 @@ static void test_bad_registration()
       "12345678901234567890123456789012345678901234567890"
       "12345678901234567890123456789012345678901234567890"
       "12345678901234567890",
-      0}
+      0, 0, ""}
   };
 
   thread_service->register_thread("X", bad_thread_2, 1);
@@ -685,7 +685,7 @@ static void test_bad_registration()
       "12345678901234567890123456789012345678901234567890"
       "12345678901234567890123456789012345678901234567890"
       "1234567890123456789",
-      0}
+      0, 0, ""}
   };
 
   thread_service->register_thread("XX", bad_thread_3, 1);
@@ -702,7 +702,7 @@ static void test_bad_registration()
   PSI_file_key dummy_file_key= 9999;
   PSI_file_info bad_file_1[]=
   {
-    { & dummy_file_key, "X", 0}
+    { & dummy_file_key, "X", 0, 0, ""}
   };
 
   file_service->register_file("/", bad_file_1, 1);
@@ -736,7 +736,7 @@ static void test_bad_registration()
       "12345678901234567890123456789012345678901234567890"
       "12345678901234567890123456789012345678901234567890"
       "12345678901234",
-      0}
+      0, 0, ""}
   };
 
   file_service->register_file("X", bad_file_2, 1);
@@ -750,7 +750,7 @@ static void test_bad_registration()
       "12345678901234567890123456789012345678901234567890"
       "12345678901234567890123456789012345678901234567890"
       "1234567890123",
-      0}
+      0, 0, ""}
   };
 
   file_service->register_file("XX", bad_file_3, 1);
@@ -767,7 +767,7 @@ static void test_bad_registration()
   PSI_socket_key dummy_socket_key= 9999;
   PSI_socket_info bad_socket_1[]=
   {
-    { & dummy_socket_key, "X", 0}
+    { & dummy_socket_key, "X", 0, 0, ""}
   };
 
   socket_service->register_socket("/", bad_socket_1, 1);
@@ -801,7 +801,7 @@ static void test_bad_registration()
       "12345678901234567890123456789012345678901234567890"
       "12345678901234567890123456789012345678901234567890"
       "123456789012",
-      0}
+      0, 0, ""}
   };
 
   socket_service->register_socket("X", bad_socket_2, 1);
@@ -815,7 +815,7 @@ static void test_bad_registration()
       "12345678901234567890123456789012345678901234567890"
       "12345678901234567890123456789012345678901234567890"
       "12345678901",
-      0}
+      0, 0, ""}
   };
 
   socket_service->register_socket("XX", bad_socket_3, 1);
@@ -858,37 +858,37 @@ static void test_init_disabled()
   PSI_mutex_key mutex_key_A;
   PSI_mutex_info all_mutex[]=
   {
-    { & mutex_key_A, "M-A", 0, 0}
+    { & mutex_key_A, "M-A", 0, 0, ""}
   };
 
   PSI_rwlock_key rwlock_key_A;
   PSI_rwlock_info all_rwlock[]=
   {
-    { & rwlock_key_A, "RW-A", 0}
+    { & rwlock_key_A, "RW-A", 0, 0, ""}
   };
 
   PSI_cond_key cond_key_A;
   PSI_cond_info all_cond[]=
   {
-    { & cond_key_A, "C-A", 0}
+    { & cond_key_A, "C-A", 0, 0, ""}
   };
 
   PSI_file_key file_key_A;
   PSI_file_info all_file[]=
   {
-    { & file_key_A, "F-A", 0}
+    { & file_key_A, "F-A", 0, 0, ""}
   };
 
   PSI_socket_key socket_key_A;
   PSI_socket_info all_socket[]=
   {
-    { & socket_key_A, "S-A", 0}
+    { & socket_key_A, "S-A", 0, 0, ""}
   };
 
   PSI_thread_key thread_key_1;
   PSI_thread_info all_thread[]=
   {
-    { & thread_key_1, "T-1", 0}
+    { & thread_key_1, "T-1", 0, 0, ""}
   };
 
   mutex_service->register_mutex("test", all_mutex, 1);
@@ -1315,37 +1315,37 @@ static void test_locker_disabled()
   PSI_mutex_key mutex_key_A;
   PSI_mutex_info all_mutex[]=
   {
-    { & mutex_key_A, "M-A", 0, 0}
+    { & mutex_key_A, "M-A", 0, 0, ""}
   };
 
   PSI_rwlock_key rwlock_key_A;
   PSI_rwlock_info all_rwlock[]=
   {
-    { & rwlock_key_A, "RW-A", 0}
+    { & rwlock_key_A, "RW-A", 0, 0, ""}
   };
 
   PSI_cond_key cond_key_A;
   PSI_cond_info all_cond[]=
   {
-    { & cond_key_A, "C-A", 0}
+    { & cond_key_A, "C-A", 0, 0, ""}
   };
 
   PSI_file_key file_key_A;
   PSI_file_info all_file[]=
   {
-    { & file_key_A, "F-A", 0}
+    { & file_key_A, "F-A", 0, 0, ""}
   };
 
   PSI_socket_key socket_key_A;
   PSI_socket_info all_socket[]=
   {
-    { & socket_key_A, "S-A", 0}
+    { & socket_key_A, "S-A", 0, 0, ""}
   };
 
   PSI_thread_key thread_key_1;
   PSI_thread_info all_thread[]=
   {
-    { & thread_key_1, "T-1", 0}
+    { & thread_key_1, "T-1", 0, 0, ""}
   };
 
   mutex_service->register_mutex("test", all_mutex, 1);
@@ -1671,14 +1671,14 @@ static void test_file_instrumentation_leak()
   PSI_file_key file_key_B;
   PSI_file_info all_file[]=
   {
-    { & file_key_A, "F-A", 0},
-    { & file_key_B, "F-B", 0}
+    { & file_key_A, "F-A", 0, 0, ""},
+    { & file_key_B, "F-B", 0, 0, ""}
   };
 
   PSI_thread_key thread_key_1;
   PSI_thread_info all_thread[]=
   {
-    { & thread_key_1, "T-1", 0}
+    { & thread_key_1, "T-1", 0, 0, ""}
   };
 
   file_service->register_file("test", all_file, 2);
@@ -1759,24 +1759,24 @@ static void test_enabled()
   PSI_mutex_key mutex_key_B;
   PSI_mutex_info all_mutex[]=
   {
-    { & mutex_key_A, "M-A", 0, 0},
-    { & mutex_key_B, "M-B", 0, 0}
+    { & mutex_key_A, "M-A", 0, 0, ""},
+    { & mutex_key_B, "M-B", 0, 0, ""}
   };
 
   PSI_rwlock_key rwlock_key_A;
   PSI_rwlock_key rwlock_key_B;
   PSI_rwlock_info all_rwlock[]=
   {
-    { & rwlock_key_A, "RW-A", 0},
-    { & rwlock_key_B, "RW-B", 0}
+    { & rwlock_key_A, "RW-A", 0, 0, ""},
+    { & rwlock_key_B, "RW-B", 0, 0, ""}
   };
 
   PSI_cond_key cond_key_A;
   PSI_cond_key cond_key_B;
   PSI_cond_info all_cond[]=
   {
-    { & cond_key_A, "C-A", 0},
-    { & cond_key_B, "C-B", 0}
+    { & cond_key_A, "C-A", 0, 0, ""},
+    { & cond_key_B, "C-B", 0, 0, ""}
   };
 
   shutdown_performance_schema();
@@ -1938,8 +1938,8 @@ static void test_event_name_index()
   PSI_mutex_key dummy_mutex_key_2;
   PSI_mutex_info dummy_mutexes[]=
   {
-    { & dummy_mutex_key_1, "M-1", 0, 0},
-    { & dummy_mutex_key_2, "M-2", 0, 0}
+    { & dummy_mutex_key_1, "M-1", 0, 0, ""},
+    { & dummy_mutex_key_2, "M-2", 0, 0, ""}
   };
 
   mutex_service->register_mutex("X", dummy_mutexes, 2);
@@ -1955,8 +1955,8 @@ static void test_event_name_index()
   PSI_rwlock_key dummy_rwlock_key_2;
   PSI_rwlock_info dummy_rwlocks[]=
   {
-    { & dummy_rwlock_key_1, "RW-1", 0},
-    { & dummy_rwlock_key_2, "RW-2", 0}
+    { & dummy_rwlock_key_1, "RW-1", 0, 0, ""},
+    { & dummy_rwlock_key_2, "RW-2", 0, 0, ""}
   };
 
   rwlock_service->register_rwlock("X", dummy_rwlocks, 2);
@@ -1972,8 +1972,8 @@ static void test_event_name_index()
   PSI_cond_key dummy_cond_key_2;
   PSI_cond_info dummy_conds[]=
   {
-    { & dummy_cond_key_1, "C-1", 0},
-    { & dummy_cond_key_2, "C-2", 0}
+    { & dummy_cond_key_1, "C-1", 0, 0, ""},
+    { & dummy_cond_key_2, "C-2", 0, 0, ""}
   };
 
   cond_service->register_cond("X", dummy_conds, 2);
@@ -1989,8 +1989,8 @@ static void test_event_name_index()
   PSI_file_key dummy_file_key_2;
   PSI_file_info dummy_files[]=
   {
-    { & dummy_file_key_1, "F-1", 0},
-    { & dummy_file_key_2, "F-2", 0}
+    { & dummy_file_key_1, "F-1", 0, 0, ""},
+    { & dummy_file_key_2, "F-2", 0, 0, ""}
   };
 
   file_service->register_file("X", dummy_files, 2);
@@ -2006,8 +2006,8 @@ static void test_event_name_index()
   PSI_socket_key dummy_socket_key_2;
   PSI_socket_info dummy_sockets[]=
   {
-    { & dummy_socket_key_1, "S-1", 0},
-    { & dummy_socket_key_2, "S-2", 0}
+    { & dummy_socket_key_1, "S-1", 0, 0, ""},
+    { & dummy_socket_key_2, "S-2", 0, 0, ""}
   };
 
   socket_service->register_socket("X", dummy_sockets, 2);
@@ -2056,13 +2056,13 @@ static void test_memory_instruments()
   PSI_memory_key memory_key_A;
   PSI_memory_info all_memory[]=
   {
-    { & memory_key_A, "M-A", 0}
+    { & memory_key_A, "M-A", 0, 0, ""}
   };
 
   PSI_thread_key thread_key_1;
   PSI_thread_info all_thread[]=
   {
-    { & thread_key_1, "T-1", 0}
+    { & thread_key_1, "T-1", 0, 0, ""}
   };
 
   memory_service->register_memory("test", all_memory, 1);
