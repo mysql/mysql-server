@@ -2504,6 +2504,14 @@ drop_base_table(THD *thd, const Drop_tables_ctx &drop_ctx,
     return true;
   DBUG_ASSERT(table_def != nullptr);
 
+  if (table_def && table_def->hidden() == dd::Abstract_table::HT_HIDDEN_SE)
+  {
+    my_error(ER_NO_SUCH_TABLE, MYF(0), table->db,
+             table->table_name);
+    DBUG_ASSERT(true);
+    return true;
+  }
+
   handlerton *hton;
   if (dd::table_storage_engine(thd, table_def, &hton))
   {
