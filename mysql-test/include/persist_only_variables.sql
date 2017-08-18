@@ -15,8 +15,6 @@
 
 set @@persist_only.back_log=80;
 set @@persist_only.binlog_gtid_simple_recovery=1;
-set @@persist_only.date_format='%Y-%m-%d';
-set @@persist_only.datetime_format='%Y-%m-%d %H:%i:%s';
 set @@persist_only.disabled_storage_engines='';
 set @@persist_only.ft_max_word_len=84;
 set @@persist_only.ft_min_word_len=4;
@@ -106,7 +104,6 @@ set @@persist_only.slave_type_conversions='';
 set @@persist_only.table_open_cache_instances=16;
 set @@persist_only.thread_handling='one-thread-per-connection';
 set @@persist_only.thread_stack=286720;
-set @@persist_only.time_format='%H:%i:%s';
 set @@persist_only.tls_version='TLSv1,TLSv1.1';
 set @@persist_only.report_host=NULL;
 set @@persist_only.report_port=21000;

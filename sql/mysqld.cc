@@ -1046,10 +1046,7 @@ uint reg_ext_length;
 char logname_path[FN_REFLEN];
 char slow_logname_path[FN_REFLEN];
 char secure_file_real_path[FN_REFLEN];
-
-Date_time_format global_date_format, global_datetime_format, global_time_format;
 Time_zone *default_tz;
-
 char *mysql_data_home= const_cast<char*>(".");
 const char *mysql_real_data_home_ptr= mysql_real_data_home;
 char server_version[SERVER_VERSION_LENGTH];
@@ -2982,23 +2979,6 @@ static int check_enough_stack_size(int recurse_level)
   @retval
     1 error
 */
-
-static bool init_global_datetime_format(timestamp_type format_type,
-                                        Date_time_format *format)
-{
-  /*
-    Get command line option
-    format->format.str is already set by my_getopt
-  */
-  format->format.length= strlen(format->format.str);
-
-  if (parse_date_time_format(format_type, format))
-  {
-    LogErr(ERROR_LEVEL, ER_WRONG_DATETIME_SPEC, format->format.str);
-    return true;
-  }
-  return false;
-}
 
 SHOW_VAR com_status_vars[]= {
   {"admin_commands",       (char*) offsetof(System_status_var, com_other),                                          SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
@@ -8810,14 +8790,6 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
 
   if (opt_short_log_format)
     opt_specialflag|= SPECIAL_SHORT_LOG_FORMAT;
-
-  if (init_global_datetime_format(MYSQL_TIMESTAMP_DATE,
-                                  &global_date_format) ||
-      init_global_datetime_format(MYSQL_TIMESTAMP_TIME,
-                                  &global_time_format) ||
-      init_global_datetime_format(MYSQL_TIMESTAMP_DATETIME,
-                                  &global_datetime_format))
-    return 1;
 
   if (Connection_handler_manager::init())
   {

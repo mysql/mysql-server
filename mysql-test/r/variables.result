@@ -520,9 +520,6 @@ Warnings:
 Warning	1292	Truncated incorrect max_heap_table_size value: '100'
 set max_join_size=100;
 set max_sort_length=100;
-set max_tmp_tables=100;
-Warnings:
-Warning	1287	'@@max_tmp_tables' is deprecated and will be removed in a future release.
 set global max_user_connections=100;
 select @@max_user_connections;
 @@max_user_connections

@@ -206,9 +206,6 @@ The following options may be given as the first argument:
  Abort a recursive common table expression if it does more
  than this number of iterations.
  -h, --datadir=name  Path to the database root directory
- --date-format=name  The DATE format (ignored)
- --datetime-format=name 
- The DATETIME format (ignored)
  --default-authentication-plugin=name 
  The default authentication plugin used by the server to
  hash the password.
@@ -570,8 +567,6 @@ The following options may be given as the first argument:
  value are used; the rest are ignored)
  --max-sp-recursion-depth[=#] 
  Maximum stored procedure recursion depth
- --max-tmp-tables=#  Maximum number of temporary tables a client can keep open
- at a time
  --max-user-connections=# 
  The maximum number of active connections for a single
  user (0 = no limit)
@@ -1234,7 +1229,6 @@ The following options may be given as the first argument:
  Define threads usage for handling queries, one of
  one-thread-per-connection, no-threads, loaded-dynamically
  --thread-stack=#    The stack size for each thread
- --time-format=name  The TIME format (ignored)
  --tls-version=name  TLS version, permitted values are TLSv1, TLSv1.1,
  TLSv1.2(Only for openssl)
  --tmp-table-size=#  If an internal in-memory temporary table in the MEMORY
@@ -1326,8 +1320,6 @@ concurrent-insert AUTO
 connect-timeout 10
 console FALSE
 cte-max-recursion-depth 1000
-date-format %Y-%m-%d
-datetime-format %Y-%m-%d %H:%i:%s
 default-authentication-plugin mysql_native_password
 default-password-lifetime 0
 default-storage-engine InnoDB
@@ -1435,7 +1427,6 @@ max-relay-log-size 0
 max-seeks-for-key 18446744073709551615
 max-sort-length 1024
 max-sp-recursion-depth 0
-max-tmp-tables 32
 max-user-connections 0
 max-write-lock-count 18446744073709551615
 memlock FALSE
@@ -1616,7 +1607,6 @@ temptable-max-ram 1073741824
 thread-cache-size 9
 thread-handling one-thread-per-connection
 thread-stack 262144
-time-format %H:%i:%s
 tmp-table-size 16777216
 transaction-alloc-block-size 8192
 transaction-isolation REPEATABLE-READ

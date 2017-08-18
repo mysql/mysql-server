@@ -179,7 +179,6 @@ struct System_variables
   ulong max_length_for_sort_data;
   ulong max_points_in_geometry;
   ulong max_sort_length;
-  ulong max_tmp_tables;
   ulong max_insert_delayed_threads;
   ulong min_examined_row_limit;
   ulong net_buffer_length;

@@ -2720,13 +2720,6 @@ static Sys_var_max_user_conn Sys_max_user_connections(
        VALID_RANGE(0, UINT_MAX), DEFAULT(0), BLOCK_SIZE(1), NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(session_readonly));
 
-static Sys_var_ulong Sys_max_tmp_tables(
-       "max_tmp_tables",
-       "Maximum number of temporary tables a client can keep open at a time",
-       SESSION_VAR(max_tmp_tables), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1, ULONG_MAX), DEFAULT(32), BLOCK_SIZE(1), NO_MUTEX_GUARD,
-       NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0), DEPRECATED(""));
-
 static Sys_var_ulong Sys_max_write_lock_count(
        "max_write_lock_count",
        "After this many write locks, allow some read locks to run in between",
@@ -4820,39 +4813,6 @@ static Sys_var_debug_sync Sys_debug_sync(
        sys_var::ONLY_SESSION, NO_CMD_LINE,
        DEFAULT(0), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_has_super));
 #endif /* defined(ENABLED_DEBUG_SYNC) */
-
-/**
- "time_format" "date_format" "datetime_format"
-
-  the following three variables are unused, and the source of confusion
-  (bug reports like "I've changed date_format, but date format hasn't changed.
-  I've made them read-only, to alleviate the situation somewhat.
-
-  @todo make them NO_CMD_LINE ?
-*/
-static Sys_var_charptr Sys_date_format(
-       "date_format", "The DATE format (ignored)",
-       READ_ONLY GLOBAL_VAR(global_date_format.format.str),
-       CMD_LINE(REQUIRED_ARG), IN_SYSTEM_CHARSET,
-       DEFAULT(known_date_time_formats[ISO_FORMAT].date_format),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
-       DEPRECATED(""));
-
-static Sys_var_charptr Sys_datetime_format(
-       "datetime_format", "The DATETIME format (ignored)",
-       READ_ONLY GLOBAL_VAR(global_datetime_format.format.str),
-       CMD_LINE(REQUIRED_ARG), IN_SYSTEM_CHARSET,
-       DEFAULT(known_date_time_formats[ISO_FORMAT].datetime_format),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
-       DEPRECATED(""));
-
-static Sys_var_charptr Sys_time_format(
-       "time_format", "The TIME format (ignored)",
-       READ_ONLY GLOBAL_VAR(global_time_format.format.str),
-       CMD_LINE(REQUIRED_ARG), IN_SYSTEM_CHARSET,
-       DEFAULT(known_date_time_formats[ISO_FORMAT].time_format),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
-       DEPRECATED(""));
 
 static bool fix_autocommit(sys_var* self, THD *thd, enum_var_type type)
 {
