@@ -1251,6 +1251,20 @@ public:
   }
 };
 
+/**
+  parse_view_definition creates a dummy lex object. Restore the parent_lex for
+  all the selects.
+
+  @param view_lex  View's LEX object.
+  @param old_lex   Original LEX object.
+*/
+void restore_parent_lex(LEX *view_lex, LEX *old_lex)
+{
+  for (SELECT_LEX *select= view_lex->all_selects_list;
+       select != nullptr; select= select->next_select_in_list())
+    select->parent_lex= old_lex;
+}
+
 
 /**
   Parse a view definition.
@@ -1707,6 +1721,8 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
     sl->context.view_error_handler= true;
     sl->context.view_error_handler_arg= view_ref;
   }
+
+  restore_parent_lex(thd->lex, old_lex);
 
   view_select->linkage= DERIVED_TABLE_TYPE;
 

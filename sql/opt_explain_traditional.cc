@@ -69,7 +69,8 @@ static const char *traditional_extra_tags[ET_total]=
   "",                                  // ET_PUSHED_JOIN
   "Ft_hints:",                         // ET_FT_HINTS
   "Backward index scan",               // ET_BACKWARD_SCAN
-  "Recursive"                          // ET_RECURSIVE
+  "Recursive",                         // ET_RECURSIVE
+  "Index dive skipped due to FORCE"    // ET_SKIP_RECORDS_IN_RANGE
 };
 
 static const char *mod_type_name[]=

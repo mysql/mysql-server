@@ -1274,6 +1274,19 @@ public:
   SELECT_LEX *outer_select() const { return master->outer_select(); }
   SELECT_LEX *next_select() const { return next; }
 
+  /**
+    @return true  If STRAIGHT_JOIN applies to all tables.
+    @return false Else.
+  */
+  bool is_straight_join()
+  {
+    bool straight_join= true;
+    /// false for exmaple in t1 STRAIGHT_JOIN t2 JOIN t3.
+    for (TABLE_LIST *tbl= leaf_tables->next_leaf; tbl ; tbl=tbl->next_leaf)
+      straight_join&= tbl->straight;
+    return straight_join || (active_options() & SELECT_STRAIGHT_JOIN);
+  }
+
   SELECT_LEX* last_select()
   {
     SELECT_LEX* mylast= this;
