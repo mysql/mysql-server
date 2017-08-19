@@ -1671,6 +1671,8 @@ SELECT MBREQUALS(a.g, b.g) FROM t1 AS a JOIN t1 AS b;
 
 SELECT ST_EQUALS(ST_SRID(a.g, 4326), ST_SRID(b.g, 4326))
 FROM t1 AS a JOIN t1 AS b;
+SELECT MBREQUALS(ST_SRID(a.g, 4326), ST_SRID(b.g, 4326))
+FROM t1 AS a JOIN t1 AS b;
 --enable_result_log
 
 --echo # clean up
@@ -1741,3 +1743,109 @@ SELECT MBREQUALS(
   ST_GEOMFROMTEXT('POINT(0 0)', 15000001)
 );
 DELETE FROM mysql.st_spatial_reference_systems WHERE id = 15000001;
+
+--echo #
+--echo # WL#10827 Ellipsoidal R-tree support functions
+--echo #
+
+SET @pt = ST_GeomFromText('POINT(0 0)', 4326);
+--error ER_LATITUDE_OUT_OF_RANGE
+SELECT ST_Equals(ST_SRID(ST_GeomFromText('POINT(0 -91)'), 4326), @pt);
+--error ER_LATITUDE_OUT_OF_RANGE
+SELECT ST_Equals(ST_SRID(ST_GeomFromText('POINT(0 91)'), 4326), @pt);
+--error ER_LONGITUDE_OUT_OF_RANGE
+SELECT ST_Equals(ST_SRID(ST_GeomFromText('POINT(-181 0)'), 4326), @pt);
+--error ER_LONGITUDE_OUT_OF_RANGE
+SELECT ST_Equals(ST_SRID(ST_GeomFromText('POINT(181 0)'), 4326), @pt);
+--error ER_LATITUDE_OUT_OF_RANGE
+SELECT MBREquals(ST_SRID(ST_GeomFromText('POINT(0 -91)'), 4326), @pt);
+--error ER_LATITUDE_OUT_OF_RANGE
+SELECT MBREquals(ST_SRID(ST_GeomFromText('POINT(0 91)'), 4326), @pt);
+--error ER_LONGITUDE_OUT_OF_RANGE
+SELECT MBREquals(ST_SRID(ST_GeomFromText('POINT(-181 0)'), 4326), @pt);
+--error ER_LONGITUDE_OUT_OF_RANGE
+SELECT MBREquals(ST_SRID(ST_GeomFromText('POINT(181 0)'), 4326), @pt);
+
+CREATE TABLE t1 (
+  id INT,
+  c GEOMETRY NOT NULL,
+  g GEOMETRY AS (ST_SRID(c, 4326)) STORED NOT NULL,
+  SPATIAL INDEX c_idx (c),
+  SPATIAL INDEX g_idx (g)
+);
+
+INSERT INTO t1 (id, c) VALUES
+  (0, ST_GeomFromText('POLYGON((0 0, 10 0, 10 5, 0 5, 0 0))')),
+  (1, ST_GeomFromText('POLYGON((1 1, 2 1, 2 2, 1 2, 1 1))')),
+  (2, ST_GeomFromText('POINT(3 3)')),
+  (3, ST_GeomFromText('MULTIPOINT((0 0), (10 0), (10 5), (0 5), (0 0))')),
+  (4, ST_GeomFromText('MULTIPOINT((0 0), (10 5))')),
+  (5, ST_GeomFromText('POINT(5 5.00001)')),
+  (6, ST_GeomFromText('MULTIPOLYGON(((0 0, 10 0, 10 5, 0 5, 0 0)))')),
+  (7, ST_GeomFromText('GEOMETRYCOLLECTION(POINT(0 0), POINT(10 5))'));
+
+SET @py = 'POLYGON((0 0, 10 0, 10 5, 0 5, 0 0))';
+SET @cart_py = ST_GeomFromText(@py);
+SET @geo_py = ST_GeomFromText(@py, 4326, 'axis-order=long-lat');
+
+SET @mpt = 'MULTIPOINT((0 0), (10 5))';
+SET @cart_mpt = ST_GeomFromText(@mpt);
+SET @geo_mpt = ST_GeomFromText(@mpt, 4326, 'axis-order=long-lat');
+
+--echo # Cartesian ST_Equals
+SELECT id, ST_AsText(c)
+  FROM t1 IGNORE INDEX(c_idx)
+  WHERE ST_Equals(c, @cart_py)
+  ORDER BY id;
+SELECT id, ST_AsText(c)
+  FROM t1 FORCE INDEX(c_idx)
+  WHERE ST_Equals(c, @cart_py)
+  ORDER BY id;
+
+--echo # Geographic ST_Equals
+SELECT id, ST_AsText(g)
+  FROM t1 IGNORE INDEX(g_idx)
+  WHERE ST_Equals(g, @geo_py)
+  ORDER BY id;
+SELECT id, ST_AsText(g)
+  FROM t1 FORCE INDEX(g_idx)
+  WHERE ST_Equals(g, @geo_py)
+  ORDER BY id;
+
+--echo # Cartesian MBREquals
+SELECT id, ST_AsText(c)
+  FROM t1 IGNORE INDEX(c_idx)
+  WHERE MBREquals(c, @cart_py)
+  ORDER BY id;
+SELECT id, ST_AsText(c)
+  FROM t1 FORCE INDEX(c_idx)
+  WHERE MBREquals(c, @cart_py)
+  ORDER BY id;
+SELECT id, ST_AsText(c)
+  FROM t1 IGNORE INDEX(c_idx)
+  WHERE MBREquals(c, @cart_mpt)
+  ORDER BY id;
+SELECT id, ST_AsText(c)
+  FROM t1 FORCE INDEX(c_idx)
+  WHERE MBREquals(c, @cart_mpt)
+  ORDER BY id;
+
+--echo # Geographic MBREquals
+SELECT id, ST_AsText(g)
+  FROM t1 IGNORE INDEX(g_idx)
+  WHERE MBREquals(g, @geo_py)
+  ORDER BY id;
+SELECT id, ST_AsText(g)
+  FROM t1 FORCE INDEX(g_idx)
+  WHERE MBREquals(g, @geo_py)
+  ORDER BY id;
+SELECT id, ST_AsText(g)
+  FROM t1 IGNORE INDEX(g_idx)
+  WHERE MBREquals(g, @geo_mpt)
+  ORDER BY id;
+SELECT id, ST_AsText(g)
+  FROM t1 FORCE INDEX(g_idx)
+  WHERE MBREquals(g, @geo_mpt)
+  ORDER BY id;
+
+DROP TABLE t1;
