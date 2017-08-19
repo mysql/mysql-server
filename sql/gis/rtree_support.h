@@ -97,12 +97,13 @@ bool mbr_disjoint_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
 
 /// Whether MBR 'a' within 'b'
 ///
+/// @param[in] srs Spatial reference system.
 /// @param a    The first MBR.
 /// @param b    The second MBR.
-/// @param srid SRID value.
 ///
 /// @return true if 'a' is within 'b', else false.
-bool mbr_within_cmp(rtr_mbr_t* a, rtr_mbr_t* b, std::uint32_t srid);
+bool mbr_within_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
+                    rtr_mbr_t* b);
 
 /// Join 2 MBR's of dimensions n_dim.
 ///

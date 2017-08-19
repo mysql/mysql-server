@@ -146,7 +146,7 @@ lock_prdt_consistent(
 		ret = mbr_intersect_cmp(srs, mbr1, mbr2);
 		break;
 	case PAGE_CUR_WITHIN:
-		ret = mbr_within_cmp(mbr1, mbr2, 0);
+		ret = mbr_within_cmp(srs, mbr1, mbr2);
 		break;
 	default:
 		ib::error() << "invalid operator " << action;

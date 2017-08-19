@@ -297,7 +297,7 @@ rtree_key_cmp(
 		}
 		break;
 	case PAGE_CUR_WITHIN:
-		if (mbr_within_cmp(&x, &y, 0)) {
+		if (mbr_within_cmp(srs, &x, &y)) {
 			return(0);
 		}
 		break;
