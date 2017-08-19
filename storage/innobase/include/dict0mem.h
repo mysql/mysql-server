@@ -59,6 +59,7 @@ Created 1/8/1996 Heikki Tuuri
 #include <vector>
 #include <algorithm>
 #include <iterator>
+#include <memory>  /* std::unique_ptr */
 
 /* Forward declaration. */
 struct ib_rbt_t;
@@ -922,6 +923,10 @@ public:
 system clustered index when there is no primary key. */
 const char innobase_index_reserve_name[] = "GEN_CLUST_INDEX";
 
+namespace dd {
+class Spatial_reference_system;
+}
+
 /** Data structure for an index.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_index_create(). */
 struct dict_index_t{
@@ -994,6 +999,9 @@ struct dict_index_t{
 	bool		srid_is_valid;
 				/* says whether SRID is valid - it cane be
 				undefined */
+	std::unique_ptr<dd::Spatial_reference_system> rtr_srs;
+				/*!< Cached spatial reference system dictionary
+				entry used by R-tree indexes. */
 
 #ifdef UNIV_DEBUG
 	uint32_t	magic_n;/*!< magic number */

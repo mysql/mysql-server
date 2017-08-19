@@ -35,6 +35,7 @@ Data dictionary interface */
 #include "mach0data.h"
 #include "dict0dict.h"
 #include "fts0priv.h"
+#include "gis/rtree_support.h"  // fetch_srs
 #include "ut0crc32.h"
 #include "srv0start.h"
 #include "sql_table.h"
@@ -3740,6 +3741,16 @@ dd_open_table_one(
 		index->space = sid;
 		index->id = id;
 		index->trx_id = trx_id;
+
+		/** Look up the spatial reference system in the
+		dictionary. Since this may cause a table open to read the
+		dictionary tables, it must be done while not holding
+		&dict_sys->mutex. */
+		/** TODO: Replace "0" with "index->srid" to enable geo
+		support. */
+		if (dict_index_is_spatial(index))
+			index->rtr_srs.reset(fetch_srs(0));
+
 		index = index->next();
 	}
 
