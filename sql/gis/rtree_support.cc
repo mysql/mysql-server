@@ -156,8 +156,53 @@ bool mbr_disjoint_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
 
 bool mbr_within_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
                     rtr_mbr_t* b) {
-  return ((((b)->xmin <= (a)->xmin) && ((b)->xmax >= (a)->xmax)) &&
-          (((b)->ymin <= (a)->ymin) && ((b)->ymax >= (a)->ymax)));
+  bool result = false;
+  try {
+    // If min and max coordinates have been reversed, InnoDB expects the result
+    // to be inverse too. But not if a and b have the exact same coordinates.
+    bool invert = false;
+    if (a->xmin > a->xmax && a->ymin > a->ymax &&
+        !(a->xmin == b->xmin && a->ymin == b->ymin && a->xmax == b->xmax &&
+          a->ymax == b->ymax)) {
+      invert = true;
+    }
+
+    // Correct the min and max corners to generate proper boxes.
+    double a_xmin = std::min(a->xmin, a->xmax);
+    double a_ymin = std::min(a->ymin, a->ymax);
+    double a_xmax = std::max(a->xmin, a->xmax);
+    double a_ymax = std::max(a->ymin, a->ymax);
+    double b_xmin = std::min(b->xmin, b->xmax);
+    double b_ymin = std::min(b->ymin, b->ymax);
+    double b_xmax = std::max(b->xmin, b->xmax);
+    double b_ymax = std::max(b->ymin, b->ymax);
+
+    gis::Covered_by covered_by(srs ? srs->semi_major_axis() : 0.0,
+                               srs ? srs->semi_minor_axis() : 0.0);
+    if (srs == nullptr || srs->is_cartesian()) {
+      gis::Cartesian_box a_box(gis::Cartesian_point(a_xmin, a_ymin),
+                               gis::Cartesian_point(a_xmax, a_ymax));
+      gis::Cartesian_box b_box(gis::Cartesian_point(b_xmin, b_ymin),
+                               gis::Cartesian_point(b_xmax, b_ymax));
+      result = covered_by(&a_box, &b_box);
+    } else {
+      DBUG_ASSERT(srs->is_geographic());
+      gis::Geographic_box a_box(gis::Geographic_point(srs->to_radians(a_xmin),
+                                                      srs->to_radians(a_ymin)),
+                                gis::Geographic_point(srs->to_radians(a_xmax),
+                                                      srs->to_radians(a_ymax)));
+      gis::Geographic_box b_box(gis::Geographic_point(srs->to_radians(b_xmin),
+                                                      srs->to_radians(b_ymin)),
+                                gis::Geographic_point(srs->to_radians(b_xmax),
+                                                      srs->to_radians(b_ymax)));
+      result = covered_by(&a_box, &b_box);
+    }
+    if (invert) result = !result;
+  } catch (...) {
+    DBUG_ASSERT(false); /* purecov: inspected */
+  }
+
+  return result;
 }
 
 void mbr_join(const dd::Spatial_reference_system* srs, double* a,

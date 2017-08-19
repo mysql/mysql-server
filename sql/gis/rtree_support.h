@@ -116,13 +116,22 @@ bool mbr_intersect_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
 bool mbr_disjoint_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
                       rtr_mbr_t* b);
 
-/// Whether MBR 'a' within 'b'
+/// Checks if one MBR is covered by another MBR.
+///
+/// @warning Despite the name, this function computes the covered_by relation,
+/// not within.
+///
+/// @note If the minimum corner coordinates are larger than the corresponding
+/// coordinates of the maximum corner, and if not all a and b coordinates are
+/// the same, the function returns the inverse result, i.e., return true if a is
+/// not covered by b.
 ///
 /// @param[in] srs Spatial reference system.
-/// @param a    The first MBR.
-/// @param b    The second MBR.
+/// @param[in] a The first MBR.
+/// @param[in] b The second MBR.
 ///
-/// @return true if 'a' is within 'b', else false.
+/// @retval true MBR a is within MBR b.
+/// @retval false MBR a isn't within MBR b.
 bool mbr_within_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
                     rtr_mbr_t* b);
 
