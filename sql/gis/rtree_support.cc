@@ -361,8 +361,9 @@ int get_mbr_from_store(const dd::Spatial_reference_system* srs, uchar* store,
                                 mbr, 1);
 }
 
-double rtree_area_increase(const uchar* mbr_a, const uchar* mbr_b, int mbr_len,
-                           double* ab_area, std::uint32_t srid) {
+double rtree_area_increase(const dd::Spatial_reference_system* srs,
+                           const uchar* mbr_a, const uchar* mbr_b, int mbr_len,
+                           double* ab_area) {
   double a_area = 1.0;
   double loc_ab_area = 1.0;
   double amin, amax, bmin, bmax;

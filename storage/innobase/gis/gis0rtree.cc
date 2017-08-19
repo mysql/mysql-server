@@ -1822,7 +1822,8 @@ rtr_rec_cal_increase(
 				has an equal number or more fields than
 				dtuple */
 	const ulint*	offsets,/*!< in: array returned by rec_get_offsets() */
-	double*		area)	/*!< out: increased area */
+	double*		area,	/*!< out: increased area */
+	const dd::Spatial_reference_system*	srs) /*!< in: SRS of R-tree */
 {
 	const dfield_t*	dtuple_field;
 	ulint		dtuple_f_len;
@@ -1838,9 +1839,9 @@ rtr_rec_cal_increase(
 
 	rec_b_ptr = rec_get_nth_field(rec, offsets, 0, &rec_f_len);
 	ret = rtree_area_increase(
-		rec_b_ptr,
+		srs, rec_b_ptr,
 		static_cast<const byte*>(dfield_get_data(dtuple_field)),
-		static_cast<int>(dtuple_f_len), area, 0);
+		static_cast<int>(dtuple_f_len), area);
 
 	return(ret);
 }

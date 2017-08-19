@@ -1793,7 +1793,8 @@ rtr_cur_search_with_match(
 
 				if (cmp != 0) {
 					increase = rtr_rec_cal_increase(
-						tuple, rec, offsets, &area);
+						tuple, rec, offsets, &area,
+						index->rtr_srs.get());
 					/* Once it goes beyond DBL_MAX,
 					it would not make sense to record
 					such value, just make it

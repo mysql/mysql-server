@@ -158,15 +158,16 @@ int get_mbr_from_store(const dd::Spatial_reference_system* srs, uchar* store,
 /// the area increase can be really big, so this function
 /// can return 'inf' as a result.
 ///
+/// @param[in] srs Spatial reference system.
 /// @param      mbr_a   First MBR.
 /// @param      mbr_b   Second MBR.
 /// @param      mbr_len MBR length.
 /// @param[out] ab_area Total area.
-/// @param      srid    SRID value.
 ///
 /// @return Increased area
-double rtree_area_increase(const uchar* mbr_a, const uchar* mbr_b, int mbr_len,
-                           double* ab_area, std::uint32_t srid);
+double rtree_area_increase(const dd::Spatial_reference_system* srs,
+                           const uchar* mbr_a, const uchar* mbr_b, int mbr_len,
+                           double* ab_area);
 
 /// Calculates overlapping area
 ///
