@@ -123,7 +123,8 @@ double mbr_join_area(const dd::Spatial_reference_system* srs, const double* a,
   return area;
 }
 
-double compute_area(const double* a, int n_dim, std::uint32_t srid) {
+double compute_area(const dd::Spatial_reference_system* srs, const double* a,
+                    int n_dim) {
   const double* end = a + n_dim * 2;
   double area = 1.0;
 

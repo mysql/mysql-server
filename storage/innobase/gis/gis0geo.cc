@@ -203,7 +203,7 @@ split_rtree_node(
 
 	cur = node;
 	for (; cur < end; ++cur) {
-		cur->square = compute_area(cur->coords, n_dim, 0);
+		cur->square = compute_area(srs, cur->coords, n_dim);
 		cur->n_node = 0;
 	}
 

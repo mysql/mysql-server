@@ -128,12 +128,14 @@ double mbr_join_area(const dd::Spatial_reference_system* srs, const double* a,
 
 /// Computes the area of MBR of dimension n_dim.
 ///
+/// @param[in] srs Spatial reference system.
 /// @param a     MBR.
 /// @param n_dim Number of dimensions.
 /// @param srid  SRID value.
 ///
 /// @return calculated MBR area
-double compute_area(const double* a, int n_dim, std::uint32_t srid);
+double compute_area(const dd::Spatial_reference_system* srs, const double* a,
+                    int n_dim);
 
 /// Calculate Minimal Bounding Rectangle (MBR) of the spatial object
 /// stored in in geometry storage format (WKB+SRID).
