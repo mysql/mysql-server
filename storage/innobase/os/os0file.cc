@@ -10010,7 +10010,7 @@ Encryption::decrypt(
 
 		msg << "key={"
 		ut_print_buf(msg, m_key, 32);
-		msg << "}" << std::endl << "iv= {
+		msg << "}" << std::endl << "iv= {";
 		ut_print_buf(msg, m_iv, 32);
 		msg << "}";
 
