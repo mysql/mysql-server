@@ -87,6 +87,9 @@
 #include "sql/parse_tree_helpers.h" // PT_item_list
 #include "sql/psi_memory_key.h"
 #include "sql/query_result.h"    // sql_exchange
+#include "sql/resourcegroups/resource_group.h"
+#include "sql/resourcegroups/resource_group_basic_types.h"
+#include "sql/resourcegroups/resource_group_mgr.h"
 #include "sql/rpl_gtid.h"
 #include "sql/rpl_mi.h"          // Master_info
 #include "sql/rpl_msr.h"         // channel_map
@@ -9305,6 +9308,75 @@ longlong Item_func_can_access_event::val_int()
 
   DBUG_RETURN(TRUE);
 }
+
+/**
+  @brief
+    INFORMATION_SCHEMA picks metadata from DD using system views.
+    In order for INFORMATION_SCHEMA to skip listing resource groups for which
+    the user does not have rights, the following internal functions are used.
+
+  Syntax:
+    int CAN_ACCCESS_RESOURCE_GROUP(resource_group_name);
+
+  @returns,
+    1 - If current user has access.
+    0 - If not.
+*/
+
+longlong Item_func_can_access_resource_group::val_int()
+{
+  DBUG_ENTER("Item_func_can_access_resource_group::val_int");
+
+  auto mgr_ptr= resourcegroups::Resource_group_mgr::instance();
+  if (!mgr_ptr->resource_group_support())
+  {
+    null_value= true;
+    DBUG_RETURN(FALSE);
+  }
+
+  // Read resource group name.
+  String res_grp_name;
+  String *res_grp_name_ptr= args[0]->val_str(&res_grp_name);
+
+  if (res_grp_name_ptr == nullptr)
+  {
+    null_value= true;
+    DBUG_RETURN(FALSE);
+  }
+
+  // Make sure we have safe string to access.
+  res_grp_name_ptr->c_ptr_safe();
+
+  MDL_ticket *ticket= nullptr;
+  if (mgr_ptr->acquire_shared_mdl_for_resource_group(current_thd,
+                                                     res_grp_name_ptr->c_ptr(),
+                                                     MDL_EXPLICIT, &ticket,
+                                                     false))
+    DBUG_RETURN(FALSE);
+
+  auto res_grp_ptr= mgr_ptr->get_resource_group(res_grp_name_ptr->c_ptr());
+  longlong result= TRUE;
+  if (res_grp_ptr != nullptr)
+  {
+    Security_context *sctx= current_thd->security_context();
+    if (res_grp_ptr->type() == resourcegroups::Type::SYSTEM_RESOURCE_GROUP)
+    {
+      if (!(sctx->check_access(SUPER_ACL) ||
+          sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN")).first))
+        result= FALSE;
+    }
+    else
+    {
+      if (!(sctx->check_access(SUPER_ACL) ||
+          sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN")).first ||
+          sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_USER")).first))
+        result= FALSE;
+    }
+  }
+  mgr_ptr->release_shared_mdl_for_resource_group(current_thd, ticket);
+  DBUG_RETURN(res_grp_ptr != nullptr ? result : FALSE);
+}
+
 
 /**
   @brief

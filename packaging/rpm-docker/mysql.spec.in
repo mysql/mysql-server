@@ -277,6 +277,7 @@ rm -r $(readlink var) var
 /bin/touch /var/log/mysqld.log >/dev/null 2>&1 || :
 /bin/chmod 0640 /var/log/mysqld.log >/dev/null 2>&1 || :
 /bin/chown mysql:mysql /var/log/mysqld.log >/dev/null 2>&1 || :
+%{_sbindir}/setcap cap_sys_nice+ep %{_sbindir}/mysqld >/dev/null 2>&1 || :
 
 %files -n mysql%{?cluster:-cluster}-%{product_suffix}-server-minimal
 %defattr(-, root, root, -)

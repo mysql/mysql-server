@@ -23,6 +23,7 @@
 #include "sql/dd/types/collation.h"           // Collation
 #include "sql/dd/types/column_statistics.h"   // Column_statistics
 #include "sql/dd/types/event.h"               // Event
+#include "sql/dd/types/resource_group.h"      // Resource_group
 #include "sql/dd/types/routine.h"             // Routine
 #include "sql/dd/types/schema.h"              // Schema
 #include "sql/dd/types/spatial_reference_system.h"// Spatial_reference_system
@@ -56,6 +57,7 @@ private:
   Local_multi_map<Collation>      m_collation_map;
   Local_multi_map<Column_statistics> m_column_statistics_map;
   Local_multi_map<Event>          m_event_map;
+  Local_multi_map<Resource_group> m_resource_group_map;
   Local_multi_map<Routine>        m_routine_map;
   Local_multi_map<Schema>         m_schema_map;
   Local_multi_map<Spatial_reference_system> m_spatial_reference_system_map;
@@ -106,6 +108,14 @@ private:
   const Local_multi_map<Event>
     *m_map(Type_selector<Event>) const
   { return &m_event_map; }
+
+  Local_multi_map<Resource_group>
+    *m_map(Type_selector<Resource_group>)
+  { return &m_resource_group_map; }
+
+  const Local_multi_map<Resource_group>
+    *m_map(Type_selector<Resource_group>) const
+  { return &m_resource_group_map; }
 
   Local_multi_map<Routine>
     *m_map(Type_selector<Routine>)

@@ -8152,7 +8152,7 @@ find_field_in_tables(THD *thd, Item_ident *item,
           (want_privilege == 0) ||
           !check_column_grant_in_table_ref(thd, first_table, name, length,
                                            want_privilege))
-             my_error(ER_BAD_FIELD_ERROR, MYF(0), item->full_name(), thd->where);
+        my_error(ER_BAD_FIELD_ERROR, MYF(0), item->full_name(), thd->where);
     }
     else
       found= not_found_field;

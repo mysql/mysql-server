@@ -52,6 +52,7 @@ void Shared_dictionary_cache::init()
   instance()->m_map<Spatial_reference_system>()->
     set_capacity(spatial_reference_system_capacity);
   instance()->m_map<Tablespace>()->set_capacity(tablespace_def_size);
+  instance()->m_map<Resource_group>()->set_capacity(resource_group_capacity);
 }
 
 
@@ -66,6 +67,7 @@ void Shared_dictionary_cache::shutdown()
   instance()->m_map<Schema>()->shutdown();
   instance()->m_map<Spatial_reference_system>()->shutdown();
   instance()->m_map<Tablespace>()->shutdown();
+  instance()->m_map<Resource_group>()->shutdown();
 }
 
 
@@ -389,5 +391,34 @@ template bool Shared_dictionary_cache::
 template void Shared_dictionary_cache::put<Tablespace>(
     const Tablespace*,
     Cache_element<Tablespace>**);
+
+
+template bool Shared_dictionary_cache::
+  get<Resource_group::id_key_type, Resource_group>(
+    THD *thd, const Resource_group::id_key_type&,
+    Cache_element<Resource_group>**);
+template bool Shared_dictionary_cache::
+  get<Resource_group::name_key_type, Resource_group>(
+    THD *thd, const Resource_group::name_key_type&,
+    Cache_element<Resource_group>**);
+template bool Shared_dictionary_cache::
+  get<Resource_group::aux_key_type, Resource_group>(
+    THD *thd, const Resource_group::aux_key_type&,
+    Cache_element<Resource_group>**);
+template bool Shared_dictionary_cache::
+  get_uncached<Resource_group::id_key_type, Resource_group>(
+    THD *thd, const Resource_group::id_key_type&,
+    enum_tx_isolation, const Resource_group**) const;
+template bool Shared_dictionary_cache::
+  get_uncached<Resource_group::name_key_type, Resource_group>(
+    THD *thd, const Resource_group::name_key_type&,
+    enum_tx_isolation, const Resource_group**) const;
+template bool Shared_dictionary_cache::
+  get_uncached<Resource_group::aux_key_type, Resource_group>(
+    THD *thd, const Resource_group::aux_key_type&,
+    enum_tx_isolation, const Resource_group**) const;
+template void Shared_dictionary_cache::put<Resource_group>(
+  const Resource_group*,
+  Cache_element<Resource_group>**);
 }
 } // namespace dd

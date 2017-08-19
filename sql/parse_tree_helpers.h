@@ -30,6 +30,7 @@
 #include "sql/mem_root_array.h"
 #include "sql/my_decimal.h"
 #include "sql/parse_tree_node_base.h"
+#include "sql/resourcegroups/resource_group_basic_types.h"  // resourcegroups::Range
 #include "sql/set_var.h"    // enum_var_type
 #include "sql/sql_list.h"
 #include "sql/table.h"
@@ -257,4 +258,11 @@ inline bool is_identifier(const LEX_STRING &str, const char *ident)
 }
 bool is_key_cache_variable_suffix(const char *suffix);
 
+
+bool validate_vcpu_range(const resourcegroups::Range &range);
+bool validate_resource_group_priority(THD *thd, int *priority,
+                                      const LEX_CSTRING &name,
+                                      const resourcegroups::Type &type);
+bool check_resource_group_support();
+bool check_resource_group_name_len(const LEX_CSTRING &name);
 #endif /* PARSE_TREE_HELPERS_INCLUDED */

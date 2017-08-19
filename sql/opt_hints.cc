@@ -66,6 +66,7 @@ struct st_opt_hint_info opt_hint_info[]=
   {"JOIN_ORDER", false, false, true},
   {"JOIN_FIXED_ORDER", false, true, false},
   {"INDEX_MERGE", false, false, false},
+  {"RESOURCE_GROUP", false, false, false},
   {0, 0, 0, 0}
 };
 

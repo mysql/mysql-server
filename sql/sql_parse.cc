@@ -99,6 +99,7 @@
 #include "sql/psi_memory_key.h"
 #include "sql/query_options.h"
 #include "sql/query_result.h"
+#include "sql/resourcegroups/resource_group_mgr.h" // Resource_group_mgr::instance
 #include "sql/rpl_context.h"
 #include "sql/rpl_filter.h"   // rpl_filter
 #include "sql/rpl_group_replication.h" // group_replication_start
@@ -655,6 +656,10 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_UNINSTALL_PLUGIN]=  CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_INSTALL_COMPONENT]= CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_UNINSTALL_COMPONENT]= CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_CREATE_RESOURCE_GROUP]= CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_ALTER_RESOURCE_GROUP]=  CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_DROP_RESOURCE_GROUP]=   CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_SET_RESOURCE_GROUP]=    CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
 
   /* Does not change the contents of the Diagnostics Area. */
   sql_command_flags[SQLCOM_GET_DIAGNOSTICS]= CF_DIAGNOSTIC_STMT;
@@ -2632,6 +2637,58 @@ mysql_execute_command(THD *thd, bool first_level)
     thd->get_stmt_da()->reset_condition_info(thd);
   }
 
+  if (thd->resource_group_ctx()->m_warn != 0)
+  {
+    auto res_grp_name=
+      thd->resource_group_ctx()->m_switch_resource_group_str;
+    switch(thd->resource_group_ctx()->m_warn)
+    {
+      case WARN_RESOURCE_GROUP_UNSUPPORTED:
+      {
+        auto res_grp_mgr= resourcegroups::Resource_group_mgr::instance();
+        push_warning_printf(thd, Sql_condition::SL_WARNING,
+                            ER_FEATURE_UNSUPPORTED,
+                            ER_THD(thd, ER_FEATURE_UNSUPPORTED),
+                            "Resource groups",
+                            res_grp_mgr->unsupport_reason());
+        break;
+      }
+      case WARN_RESOURCE_GROUP_UNSUPPORTED_HINT:
+        push_warning_printf(thd, Sql_condition::SL_WARNING,
+                            ER_WARN_UNSUPPORTED_HINT,
+                            ER_THD(thd, ER_WARN_UNSUPPORTED_HINT),
+                            "Subquery or Stored procedure or Trigger");
+        break;
+      case WARN_RESOURCE_GROUP_TYPE_MISMATCH:
+      {
+        ulonglong pfs_thread_id= 0;
+        ulonglong unused_event_id MY_ATTRIBUTE((unused));
+        PSI_THREAD_CALL(get_thread_event_id)(&pfs_thread_id, &unused_event_id);
+        push_warning_printf(thd, Sql_condition::SL_WARNING,
+                            ER_RESOURCE_GROUP_BIND_FAILED,
+                            ER_THD(thd, ER_RESOURCE_GROUP_BIND_FAILED),
+                            res_grp_name, pfs_thread_id,
+                            "System resource group can't be bound"
+                            " with a session thread");
+        break;
+      }
+      case WARN_RESOURCE_GROUP_NOT_EXISTS:
+        push_warning_printf(thd, Sql_condition::SL_WARNING,
+                            ER_RESOURCE_GROUP_NOT_EXISTS,
+                            ER_THD(thd, ER_RESOURCE_GROUP_NOT_EXISTS),
+                            res_grp_name);
+        break;
+      case WARN_RESOURCE_GROUP_ACCESS_DENIED:
+        push_warning_printf(thd, Sql_condition::SL_WARNING,
+                            ER_SPECIFIC_ACCESS_DENIED_ERROR,
+                            ER_THD(thd, ER_SPECIFIC_ACCESS_DENIED_ERROR),
+                            "SUPER OR RESOURCE_GROUP_ADMIN OR "
+                            "RESOURCE_GROUP_USER");
+    }
+    thd->resource_group_ctx()->m_warn= 0;
+    res_grp_name[0]= '\0';
+  }
+
   if (unlikely(thd->slave_thread))
   {
     bool need_increase_counter= !(lex->sql_command == SQLCOM_XA_START ||
@@ -4527,8 +4584,12 @@ mysql_execute_command(THD *thd, bool first_level)
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     /* fall through */
   case SQLCOM_CREATE_SERVER:
+  case SQLCOM_CREATE_RESOURCE_GROUP:
   case SQLCOM_ALTER_SERVER:
+  case SQLCOM_ALTER_RESOURCE_GROUP:
+  case SQLCOM_DROP_RESOURCE_GROUP:
   case SQLCOM_DROP_SERVER:
+  case SQLCOM_SET_RESOURCE_GROUP:
   case SQLCOM_SIGNAL:
   case SQLCOM_RESIGNAL:
   case SQLCOM_GET_DIAGNOSTICS:
@@ -4811,7 +4872,6 @@ finish:
 
   if (!(res || thd->is_error()))
     binlog_gtid_end_transaction(thd);
-
   DBUG_RETURN(res || thd->is_error());
 }
 
@@ -5342,7 +5402,26 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
           error= 1;
         }
         else
+        {
+          resourcegroups::Resource_group *src_res_grp= nullptr;
+          resourcegroups::Resource_group *dest_res_grp= nullptr;
+          MDL_ticket *ticket= nullptr;
+          MDL_ticket *cur_ticket= nullptr;
+          auto mgr_ptr= resourcegroups::Resource_group_mgr::instance();
+          bool switched= mgr_ptr->switch_resource_group_if_needed(
+            thd, &src_res_grp, &dest_res_grp, &ticket, &cur_ticket);
+
           error= mysql_execute_command(thd, true);
+
+          if (switched)
+            mgr_ptr->restore_original_resource_group(thd, src_res_grp,
+                                                     dest_res_grp);
+          thd->resource_group_ctx()->m_switch_resource_group_str[0]= '\0';
+          if (ticket != nullptr)
+            mgr_ptr->release_shared_mdl_for_resource_group(thd, ticket);
+          if (cur_ticket != nullptr)
+            mgr_ptr->release_shared_mdl_for_resource_group(thd, cur_ticket);
+        }
       }
     }
   }

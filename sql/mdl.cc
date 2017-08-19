@@ -125,7 +125,8 @@ PSI_stage_info MDL_key::m_namespace_to_wait_state_name[NAMESPACE_END]=
   {0, "Waiting for spatial reference system lock", 0, PSI_DOCUMENT_ME},
   {0, "Waiting for acl cache lock", 0, PSI_DOCUMENT_ME},
   {0, "Waiting for column statistics lock", 0, PSI_DOCUMENT_ME},
-  {0, "Waiting for backup lock", 0, PSI_DOCUMENT_ME}
+  {0, "Waiting for backup lock", 0, PSI_DOCUMENT_ME},
+  {0, "Waiting for resource groups metadata lock", 0, PSI_DOCUMENT_ME}
 };
 
 #ifdef HAVE_PSI_INTERFACE
@@ -1705,6 +1706,7 @@ inline void MDL_lock::reinit(const MDL_key *mdl_key)
     case MDL_key::SCHEMA:
     case MDL_key::COMMIT:
     case MDL_key::BACKUP_LOCK:
+    case MDL_key::RESOURCE_GROUPS:
       m_strategy= &m_scoped_lock_strategy;
       break;
     default:

@@ -172,6 +172,7 @@ PLUGINS
 PROCESSLIST
 PROFILING
 REFERENTIAL_CONSTRAINTS
+RESOURCE_GROUPS
 ROUTINES
 SCHEMATA
 SCHEMA_PRIVILEGES
@@ -254,6 +255,7 @@ CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES(1);
 SET GLOBAL innodb_fast_shutdown = 0;
 # restart: --innodb-read-only
+call mtr.add_suppression('Skipped updating resource group metadata in InnoDB read only mode.');
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	Warning	InnoDB: Running in read-only mode

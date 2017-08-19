@@ -467,6 +467,7 @@
 #include "sql/psi_memory_key.h"         // key_memory_MYSQL_RELAY_LOG_index
 #include "sql/query_options.h"
 #include "sql/replication.h"            // thd_enter_cond
+#include "sql/resourcegroups/resource_group_mgr.h" // init, post_init
 #include "sql/rpl_filter.h"
 #include "sql/rpl_gtid.h"
 #include "sql/rpl_gtid_persist.h"       // Gtid_table_persistor
@@ -2024,6 +2025,8 @@ static void clean_up(bool print_message)
   free_connection_acceptors();
   Connection_handler_manager::destroy_instance();
 
+  if (!opt_help && !opt_initialize)
+    resourcegroups::Resource_group_mgr::destroy_instance();
   mysql_client_plugin_deinit();
   finish_client_errs();
   deinit_errmessage(); // finish server errs
@@ -2045,8 +2048,11 @@ static void clean_up(bool print_message)
   */
   log_builtins_error_stack("log_filter_internal; log_sink_internal", false);
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  unregister_pfs_notification_service();
-  unregister_pfs_resource_group_service();
+  if (!opt_help && !opt_initialize)
+  {
+    unregister_pfs_notification_service();
+    unregister_pfs_resource_group_service();
+  }
 #endif
   component_infrastructure_deinit();
   /*
@@ -2992,6 +2998,7 @@ SHOW_VAR com_status_vars[]= {
   {"alter_function",       (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_ALTER_FUNCTION]),             SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"alter_instance",       (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_ALTER_INSTANCE]),             SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"alter_procedure",      (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_ALTER_PROCEDURE]),            SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"alter_resource_group", (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_ALTER_RESOURCE_GROUP]),       SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"alter_server",         (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_ALTER_SERVER]),               SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"alter_table",          (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_ALTER_TABLE]),                SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"alter_tablespace",     (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_ALTER_TABLESPACE]),           SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
@@ -3016,6 +3023,7 @@ SHOW_VAR com_status_vars[]= {
   {"create_role",          (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_CREATE_ROLE]),                SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"create_server",        (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_CREATE_SERVER]),              SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"create_table",         (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_CREATE_TABLE]),               SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"create_resource_group",(char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_CREATE_RESOURCE_GROUP]),      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"create_trigger",       (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_CREATE_TRIGGER]),             SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"create_udf",           (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_CREATE_FUNCTION]),            SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"create_user",          (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_CREATE_USER]),                SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
@@ -3029,6 +3037,7 @@ SHOW_VAR com_status_vars[]= {
   {"drop_function",        (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_DROP_FUNCTION]),              SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"drop_index",           (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_DROP_INDEX]),                 SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"drop_procedure",       (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_DROP_PROCEDURE]),             SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"drop_resource_group",  (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_DROP_RESOURCE_GROUP]),        SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"drop_role",            (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_DROP_ROLE]),                  SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"drop_server",          (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_DROP_SERVER]),                SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"drop_table",           (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_DROP_TABLE]),                 SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
@@ -3079,6 +3088,7 @@ SHOW_VAR com_status_vars[]= {
   {"select",               (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_SELECT]),                     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"set_option",           (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_SET_OPTION]),                 SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"set_password",         (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_SET_PASSWORD]),               SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"set_resource_group",   (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_SET_RESOURCE_GROUP]),         SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"set_role",             (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_SET_ROLE]),                   SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"signal",               (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_SIGNAL]),                     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"show_binlog_events",   (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_SHOW_BINLOG_EVENTS]),         SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
@@ -4733,6 +4743,16 @@ static int init_server_components()
   }
   dynamic_plugins_are_initialized= true;  /* Don't separate from init function */
 
+  LEX_CSTRING plugin_name= { C_STRING_WITH_LEN("thread_pool") };
+  if (Connection_handler_manager::thread_handling !=
+      Connection_handler_manager::SCHEDULER_ONE_THREAD_PER_CONNECTION ||
+      plugin_is_ready(plugin_name, MYSQL_DAEMON_PLUGIN))
+  {
+    auto res_grp_mgr= resourcegroups::Resource_group_mgr::instance();
+    res_grp_mgr->disable_resource_group();
+    res_grp_mgr->set_unsupport_reason("Thread pool plugin enabled");
+  }
+
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   /*
     A value of the variable dd_upgrade_flag is reset after
@@ -4778,6 +4798,17 @@ static int init_server_components()
     }
   }
 #endif
+
+  auto res_grp_mgr= resourcegroups::Resource_group_mgr::instance();
+  // Initialize the Resource group subsystem.
+  if (!opt_help && !opt_initialize)
+  {
+    if (res_grp_mgr->post_init())
+    {
+      sql_print_error("Resource group post initialization failed");
+      unireg_abort(MYSQLD_ABORT_EXIT);
+    }
+  }
 
   Session_tracker session_track_system_variables_check;
   LEX_STRING var_list;
@@ -5338,13 +5369,6 @@ int mysqld_main(int argc, char **argv)
   */
   init_server_psi_keys();
 
-#ifdef HAVE_PSI_THREAD_INTERFACE
-  /* Instrument the main thread */
-  PSI_thread *psi= PSI_THREAD_CALL(new_thread)(key_thread_main, NULL, 0);
-  PSI_THREAD_CALL(set_thread_os_id)(psi);
-  PSI_THREAD_CALL(set_thread)(psi);
-#endif /* HAVE_PSI_THREAD_INTERFACE */
-
   /*
     Now that some instrumentation is in place,
     recreate objects which were initialised early,
@@ -5365,9 +5389,30 @@ int mysqld_main(int argc, char **argv)
     Initialize Performance Schema component services.
   */
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  register_pfs_notification_service();
-  register_pfs_resource_group_service();
+  if (!opt_help && !opt_initialize)
+  {
+    register_pfs_notification_service();
+    register_pfs_resource_group_service();
+  }
 #endif
+
+  // Initialize the resource group subsystem.
+  auto res_grp_mgr= resourcegroups::Resource_group_mgr::instance();
+  if (!opt_help && !opt_initialize)
+  {
+    if (res_grp_mgr->init())
+    {
+      sql_print_error("Resource Group subsystem initialization failed.");
+      unireg_abort(MYSQLD_ABORT_EXIT);
+    }
+  }
+
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  /* Instrument the main thread */
+  PSI_thread *psi= PSI_THREAD_CALL(new_thread)(key_thread_main, NULL, 0);
+  PSI_THREAD_CALL(set_thread_os_id)(psi);
+  PSI_THREAD_CALL(set_thread)(psi);
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 
   /* Initialize audit interface globals. Audit plugins are inited later. */
   mysql_audit_initialize();
@@ -5566,6 +5611,7 @@ int mysqld_main(int argc, char **argv)
 
   if (((opt_initialize || opt_initialize_insecure) && !server_id_supplied))
     LogErr(WARNING_LEVEL, ER_WARN_NO_SERVERID_SPECIFIED);
+
 
   /*
     Add server_uuid to the sid_map.  This must be done after
@@ -9589,6 +9635,7 @@ PSI_rwlock_key key_rwlock_Server_state_delegate_lock;
 PSI_rwlock_key key_rwlock_Binlog_storage_delegate_lock;
 PSI_rwlock_key key_rwlock_Binlog_transmit_delegate_lock;
 PSI_rwlock_key key_rwlock_Binlog_relay_IO_delegate_lock;
+PSI_rwlock_key key_rwlock_resource_group_mgr_map_lock;
 
 /* clang-format off */
 static PSI_rwlock_info all_server_rwlocks[]=
@@ -9608,7 +9655,8 @@ static PSI_rwlock_info all_server_rwlocks[]=
   { &key_rwlock_Binlog_storage_delegate_lock, "Binlog_storage_delegate::lock", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_rwlock_receiver_sid_lock, "gtid_retrieved", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_rwlock_rpl_filter_lock, "rpl_filter_lock", 0, 0, PSI_DOCUMENT_ME},
-  { &key_rwlock_channel_to_filter_lock, "channel_to_filter_lock", 0, 0, PSI_DOCUMENT_ME}
+  { &key_rwlock_channel_to_filter_lock, "channel_to_filter_lock", 0, 0, PSI_DOCUMENT_ME},
+  { &key_rwlock_resource_group_mgr_map_lock, "Resource_group_mgr::m_map_rwlock", 0, 0, PSI_DOCUMENT_ME}
 };
 /* clang-format on */
 

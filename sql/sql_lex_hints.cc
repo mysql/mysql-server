@@ -174,6 +174,7 @@ void Hint_scanner::add_hint_token_digest()
       case JOIN_FIXED_ORDER_HINT:
       case INDEX_MERGE_HINT:
       case NO_INDEX_MERGE_HINT:
+      case RESOURCE_GROUP_HINT:
         break;
       default:
         DBUG_ASSERT(false);

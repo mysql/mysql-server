@@ -65,6 +65,8 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "parse_tree_hints.h"
 #include "partition_info.h"                   /* partition_info */
 #include "password.h"       /* my_make_scrambled_password_323, my_make_scrambled_password */
+#include "resourcegroups/resource_group_mgr.h" // resource_group_support
+#include "resourcegroups/resource_group_sql_cmd.h" // Sql_cmd_*_resource_group etc.
 #include "rpl_filter.h"
 #include "rpl_msr.h"       /* multisource replication */
 #include "rpl_slave.h"
@@ -1183,6 +1185,11 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  HISTORY_SYM                   /* MYSQL */
 %token  REUSE_SYM                     /* MYSQL */
 %token  SRID_SYM                      /* MYSQL */
+%token  THREAD_PRIORITY_SYM           /* MYSQL */
+%token  RESOURCE_SYM                  /* MYSQL */
+%token  SYSTEM_SYM                    /* SQL-2003-R */
+%token  VCPU_SYM                      /* MYSQL */
+
 
 /*
   Resolve column attribute ambiguity -- force precedence of "UNIQUE KEY" against
@@ -1252,6 +1259,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         ev_alter_on_schedule_completion opt_ev_rename_to opt_ev_sql_stmt
         trg_action_time trg_event
         view_check_option
+        signed_num
 
 
 %type <order_direction> order_dir
@@ -1351,6 +1359,22 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %type <interval_time_st> interval_time_stamp
 
 %type <row_type> row_types
+
+%type <resource_group_type> resource_group_types
+
+%type <resource_group_vcpu_list_type>
+        opt_resource_group_vcpu_list
+        vcpu_range_spec_list
+
+%type <resource_group_priority_type> opt_resource_group_priority
+
+%type <resource_group_state_type> opt_resource_group_enable_disable
+
+%type <resource_group_flag_type> opt_force
+
+%type <thread_id_list_type> thread_id_list thread_id_list_options
+
+%type <vcpu_range_type> vcpu_num_or_range
 
 %type <tx_isolation> isolation_types
 
@@ -1571,6 +1595,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         shutdown_stmt
         truncate_stmt
         update_stmt
+        set_resource_group_stmt
 
 %type <table_ident> table_ident_opt_wild
 
@@ -1967,6 +1992,7 @@ simple_statement:
         | savepoint
         | select_stmt           { MAKE_CMD($1); }
         | set                   { CONTEXTUALIZE($1); }
+        | set_resource_group_stmt { MAKE_CMD($1); }
         | set_role_stmt         { MAKE_CMD($1); } // TODO: merge with "set"
         | signal_stmt
         | show
@@ -2640,6 +2666,15 @@ create:
               MYSQL_YYABORT; /* purecov: inspected */ //OOM
             Lex->m_sql_cmd= cmd;
             Lex->sql_command= SQLCOM_ALTER_TABLESPACE;
+          }
+        | CREATE RESOURCE_SYM GROUP_SYM ident TYPE_SYM opt_equal resource_group_types
+          opt_resource_group_vcpu_list opt_resource_group_priority
+          opt_resource_group_enable_disable
+          {
+            auto *tmp= NEW_PTN PT_create_resource_group(
+                                 to_lex_cstring($4), $7, $8,
+                                 $9, $10.is_default ? true : $10.value);
+            MAKE_CMD(tmp);
           }
         | CREATE SERVER_SYM ident_or_text FOREIGN DATA_SYM WRAPPER_SYM
           ident_or_text OPTIONS_SYM '(' server_options_list ')'
@@ -7165,6 +7200,14 @@ alter_user_stmt:
                                                  users, $5, ROLE_NAME);
             MAKE_CMD(tmp);
           }
+        | ALTER RESOURCE_SYM GROUP_SYM ident opt_resource_group_vcpu_list
+          opt_resource_group_priority opt_resource_group_enable_disable
+          opt_force
+          {
+            auto *tmp= NEW_PTN PT_alter_resource_group(
+              to_lex_cstring($4), $5, $6, $7, $8);
+            MAKE_CMD(tmp);
+          }
         ;
 
 alter_user_command:
@@ -11114,7 +11157,12 @@ drop_function_stmt:
             spname->init_qname(thd);
             lex->spname= spname;
           }
-        ;
+        | DROP RESOURCE_SYM GROUP_SYM ident opt_force
+          {
+            auto *tmp= NEW_PTN PT_drop_resource_group(to_lex_cstring($4), $5);
+            MAKE_CMD(tmp);
+          }
+         ;
 
 drop_procedure_stmt:
           DROP PROCEDURE_SYM if_exists sp_name
@@ -13328,6 +13376,7 @@ label_keyword:
         | PROXY_SYM                {}
         | RELOAD                   {}
         | REPLICATION              {}
+        | RESOURCE_SYM             {}
         | SUPER_SYM                {}
         ;
 
@@ -13541,6 +13590,7 @@ role_or_label_keyword:
         | PRECEDING_SYM            {}        
         | PRESERVE_SYM             {}
         | PREV_SYM                 {}
+        | THREAD_PRIORITY_SYM      {}
         | PRIVILEGES               {}
         | PROCESSLIST_SYM          {}
         | PROFILE_SYM              {}
@@ -13642,10 +13692,11 @@ role_or_label_keyword:
         | UNDOFILE_SYM             {}
         | UNKNOWN_SYM              {}
         | UNTIL_SYM                {}
-        | USER                     {}
+        | USER                 {}
         | USE_FRM                  {}
         | VALIDATION_SYM           {}
         | VARIABLES                {}
+        | VCPU_SYM                 {}
         | VIEW_SYM                 {}
         | VALUE_SYM                {}
         | WARNINGS                 {}
@@ -13673,6 +13724,7 @@ role_or_label_keyword:
     PROXY_SYM
     RELOAD
     REPLICATION
+    RESOURCE_SYM
     SHUTDOWN
     SUPER_SYM
 */
@@ -13773,6 +13825,36 @@ opt_except_role_list:
           /* empty */          { $$= NULL; }
         | EXCEPT_SYM role_list { $$= $2; }
         ;
+
+set_resource_group_stmt:
+          SET_SYM RESOURCE_SYM GROUP_SYM ident
+          {
+            $$= NEW_PTN PT_set_resource_group(to_lex_cstring($4), nullptr);
+          }
+        | SET_SYM RESOURCE_SYM GROUP_SYM ident FOR_SYM thread_id_list_options
+          {
+            $$= NEW_PTN PT_set_resource_group(to_lex_cstring($4), $6);
+          }
+       ;
+
+thread_id_list:
+          real_ulong_num
+          {
+            $$= NEW_PTN Trivial_array<ulonglong>(YYMEM_ROOT);
+            if ($$ == nullptr || $$->push_back($1))
+              MYSQL_YYABORT; // OOM
+          }
+        | thread_id_list opt_comma real_ulong_num
+          {
+            $$= $1;
+            if ($$->push_back($3))
+              MYSQL_YYABORT; // OOM
+          }
+        ;
+
+thread_id_list_options:
+         thread_id_list { $$= $1; }
+       ;
 
 // Start of option value list, option_type was given
 start_option_value_list_following_option_type:
@@ -13967,7 +14049,7 @@ set_expr_or_default:
         | DEFAULT_SYM { $$= NULL; }
         | ON_SYM
           {
-            $$= NEW_PTN Item_string(@$, "ON",  2, system_charset_info);
+            $$= NEW_PTN Item_string(@$, "ON", 2, system_charset_info);
           }
         | ALL
           {
@@ -13980,6 +14062,10 @@ set_expr_or_default:
         | ROW_SYM
           {
             $$= NEW_PTN Item_string(@$, "ROW", 3, system_charset_info);
+          }
+        | SYSTEM_SYM
+          {
+            $$= NEW_PTN Item_string(@$, "SYSTEM", 6, system_charset_info);
           }
         ;
 
@@ -15575,6 +15661,92 @@ clone_stmt:
 opt_for_replication:
           /* empty */         { $$= false; }
         | FOR_SYM REPLICATION { $$= true; }
+        ;
+
+resource_group_types:
+          USER { $$= resourcegroups::Type::USER_RESOURCE_GROUP; }
+        | SYSTEM_SYM { $$= resourcegroups::Type::SYSTEM_RESOURCE_GROUP; }
+        ;
+
+opt_resource_group_vcpu_list:
+          /* empty */
+          {
+            /* Make an empty list. */
+            $$= NEW_PTN Trivial_array<resourcegroups::Range>(YYMEM_ROOT);
+            if ($$ == nullptr)
+              MYSQL_YYABORT;
+          }
+        | VCPU_SYM opt_equal vcpu_range_spec_list { $$= $3; }
+        ;
+
+vcpu_range_spec_list:
+          vcpu_num_or_range
+          {
+            resourcegroups::Range r($1.start, $1.end);
+            $$= NEW_PTN Trivial_array<resourcegroups::Range>(YYMEM_ROOT);
+            if ($$ == nullptr || $$->push_back(r))
+              MYSQL_YYABORT;
+          }
+        | vcpu_range_spec_list opt_comma vcpu_num_or_range
+          {
+            resourcegroups::Range r($3.start, $3.end);
+            $$= $1;
+            if ($$ == nullptr || $$->push_back(r))
+              MYSQL_YYABORT;
+          }
+        ;
+
+vcpu_num_or_range:
+          NUM
+          {
+            auto cpu_id= my_strtoull($1.str, nullptr, 10);
+            $$.start= $$.end=
+              static_cast<resourcegroups::platform::cpu_id_t>(cpu_id);
+            DBUG_ASSERT($$.start == cpu_id); // truncation check
+          }
+        | NUM '-' NUM
+          {
+            auto start= my_strtoull($1.str, nullptr, 10);
+            $$.start= static_cast<resourcegroups::platform::cpu_id_t>(start);
+            DBUG_ASSERT($$.start == start); // truncation check
+
+            auto end= my_strtoull($3.str, nullptr, 10);
+            $$.end= static_cast<resourcegroups::platform::cpu_id_t>(end);
+            DBUG_ASSERT($$.end == end); // truncation check
+          }
+        ;
+
+signed_num:
+          NUM     { $$= static_cast<int>(my_strtoll($1.str, nullptr, 10)); }
+        | '-' NUM { $$= -static_cast<int>(my_strtoll($2.str, nullptr, 10)); }
+        ;
+
+opt_resource_group_priority:
+          /* empty */ { $$.is_default= true; }
+        | THREAD_PRIORITY_SYM opt_equal signed_num
+          {
+            $$.is_default= false;
+            $$.value= $3;
+          }
+        ;
+
+opt_resource_group_enable_disable:
+          /* empty */ { $$.is_default= true; }
+        | ENABLE_SYM
+          {
+            $$.is_default= false;
+            $$.value= true;
+          }
+        | DISABLE_SYM
+          {
+            $$.is_default= false;
+            $$.value= false;
+          }
+        ;
+
+opt_force:
+          /* empty */ { $$= false; }
+        | FORCE_SYM   { $$= true; }
         ;
 
 /**

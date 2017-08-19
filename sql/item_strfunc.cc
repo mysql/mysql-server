@@ -76,6 +76,7 @@
 #include "sql/handler.h"
 #include "sql/key.h"
 #include "sql/mysqld.h"              // binary_keyword etc
+#include "resourcegroups/resource_group_mgr.h"  // num_vcpus
 #include "sql/rpl_gtid.h"
 #include "sql/sql_class.h"           // THD
 #include "sql/sql_error.h"
@@ -5159,4 +5160,53 @@ mysqld_collation_get_by_name(const char *name, CHARSET_INFO *name_cs)
   return cs;
 }
 
+
+String *Item_func_convert_cpu_id_mask::val_str(String *str)
+{
+  DBUG_ENTER("Item_func_convert_cpu_id_mask::val_str");
+  null_value= FALSE;
+
+  String  cpu_mask;
+  String *cpu_mask_str= args[0]->val_str(&cpu_mask);
+
+  if (cpu_mask_str == nullptr || cpu_mask_str->length() == 0)
+  {
+    null_value= TRUE;
+    DBUG_RETURN(nullptr);
+  }
+
+  std::ostringstream oss("");
+  cpu_mask_str->set_charset(&my_charset_bin);
+
+
+  int bit_start= -1, bit_end= -1;
+  int start_pos= cpu_mask_str->length() - 1;
+  bool first= true;
+  for (int i= start_pos; i >= 0; i--)
+  {
+    if (cpu_mask_str->ptr()[i] == '1')
+      bit_start == -1 ? (bit_start= bit_end= start_pos - i) : bit_end++;
+    else
+      if (bit_start != -1)
+      {
+        if (first)
+          first= false;
+        else
+          oss << ",";
+
+        if (bit_start == bit_end)
+          oss << bit_start;
+        else
+          oss << bit_start << "-" << bit_end;
+        bit_start= bit_end= -1;
+      }
+  }
+  if (oss.str().length() == 0)
+    oss << "0-"<<
+      resourcegroups::Resource_group_mgr::instance()->num_vcpus() - 1;
+
+  str->copy(oss.str().c_str(), oss.str().length(), &my_charset_bin);
+
+  DBUG_RETURN(str);
+}
 

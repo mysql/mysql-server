@@ -65,6 +65,7 @@
 #include "sql/dd/types/function.h"           // Function
 #include "sql/dd/types/index_stat.h"         // Index_stat
 #include "sql/dd/types/procedure.h"          // Procedure
+#include "sql/dd/types/resource_group.h"     // Resource_group
 #include "sql/dd/types/routine.h"
 #include "sql/dd/types/schema.h"             // Schema
 #include "sql/dd/types/spatial_reference_system.h" // Spatial_reference_system
@@ -596,6 +597,68 @@ public:
     return is_read_locked(thd, routine);
   }
 #endif // EXTRA_DD_DEBUG
+
+
+  /**
+    Private helper function for asserting MDL for resource groups.
+
+    @param   thd              THD context.
+    @param   resource_group   DD Resource group object.
+    @param   lock_type        Weakest lock type accepted.
+
+    @return  true             if we have the required lock, otherwise false.
+  */
+
+  static bool is_locked(THD *thd, const dd::Resource_group *resource_group,
+                        enum_mdl_type lock_type)
+  {
+    if (resource_group == nullptr)
+      return true;
+
+    char lc_name[NAME_CHAR_LEN + 1];
+    my_stpcpy(lc_name, resource_group->name().c_str());
+    lc_name[NAME_CHAR_LEN]= '\0';
+    my_casedn_str(system_charset_info, lc_name);
+
+    return thd->mdl_context.owns_equal_or_stronger_lock(
+      MDL_key::RESOURCE_GROUPS, "", lc_name, lock_type);
+  }
+
+
+  /**
+    Check whether a resource group object holds at least MDL_INTENTION_EXCLUSIVE.
+    IX is acquired when a resource group is being accessed when creating/altering
+    a resource group.
+
+    @param   thd                   THD context.
+    @param   resource_group        Pointer to DD resource group object.
+
+    @return  true if required lock is held else false
+  */
+
+  static bool is_read_locked(THD *thd, const dd::Resource_group *resource_group)
+  {
+    return thd->is_dd_system_thread() ||
+      is_locked(thd, resource_group, MDL_INTENTION_EXCLUSIVE);
+  }
+
+
+  /**
+    Check if MDL_EXCLUSIVE lock is held by DD Resource group object.
+    Writing a resource group object should be governed by MDL_EXCLUSIVE.
+
+    @param    thd                 THD context
+    @param    resource_group      Pointer to DD resource group object.
+
+    @return   true if required lock is held else false.
+  */
+
+  static bool is_write_locked(THD *thd, const dd::Resource_group *resource_group)
+  {
+    return thd->is_dd_system_thread() ||
+      is_locked(thd, resource_group, MDL_EXCLUSIVE);
+  }
+
 };
 
 // Check if the component is hidden.
@@ -678,6 +741,7 @@ Dictionary_client::Auto_releaser::~Auto_releaser()
   m_client->release<Event>(&m_release_registry);
   m_client->release<Routine>(&m_release_registry);
   m_client->release<Spatial_reference_system>(&m_release_registry);
+  m_client->release<Resource_group>(&m_release_registry);
 
   // Restore the client's previous releaser.
   m_client->m_current_releaser= m_prev;
@@ -960,6 +1024,7 @@ size_t Dictionary_client::release(Object_registry *registry)
           release<Charset>(registry) +
           release<Collation>(registry) +
           release<Event>(registry) +
+          release<Resource_group>(registry) +
           release<Routine>(registry) +
           release<Spatial_reference_system>(registry) +
           release<Column_statistics>(registry);
@@ -2661,6 +2726,7 @@ void Dictionary_client::rollback_modified_objects()
   remove_uncommitted_objects<Event>(false);
   remove_uncommitted_objects<Routine>(false);
   remove_uncommitted_objects<Spatial_reference_system>(false);
+  remove_uncommitted_objects<Resource_group>(false);
 }
 
 
@@ -2675,6 +2741,7 @@ void Dictionary_client::commit_modified_objects()
   remove_uncommitted_objects<Event>(true);
   remove_uncommitted_objects<Routine>(true);
   remove_uncommitted_objects<Spatial_reference_system>(true);
+  remove_uncommitted_objects<Resource_group>(true);
 }
 
 
@@ -2752,6 +2819,9 @@ template bool Dictionary_client::fetch_global_components(
 
 template bool Dictionary_client::fetch_global_components(
     std::vector<const Table*>*) const;
+
+template bool Dictionary_client::fetch_global_components(
+    std::vector<const Resource_group*>*) const;
 
 template bool Dictionary_client::fetch_schema_component_names<Abstract_table>(
     const Schema*,
@@ -2982,6 +3052,14 @@ template bool Dictionary_client::acquire_uncached(Object_id,
                                                   Routine**);
 template bool Dictionary_client::acquire_for_modification(Object_id,
                                                           Routine**);
+template bool Dictionary_client::acquire(const String_type&,
+                                         const Resource_group**);
+template bool Dictionary_client::acquire_for_modification(const String_type&,
+                                                          Resource_group**);
+template bool Dictionary_client::drop(const Resource_group*);
+template bool Dictionary_client::store(Resource_group*);
+template void Dictionary_client::remove_uncommitted_objects<Resource_group>(bool);
+template bool Dictionary_client::update(Resource_group*);
 /**
  @endcond
 */

@@ -919,6 +919,12 @@ private:
   */
   LEX_CSTRING m_db;
 
+  /**
+    Resource group context indicating the current resource group
+    and the name of the resource group to switch to during execution
+    of a query.
+  */
+  resourcegroups::Resource_group_ctx m_resource_group_ctx;
 public:
 
   /**
@@ -3537,6 +3543,16 @@ public:
 
 
   thd_scheduler scheduler;
+
+
+  /**
+    Get resource group context.
+
+    @returns pointer to resource group context.
+  */
+
+  resourcegroups::Resource_group_ctx *resource_group_ctx()
+  {  return &m_resource_group_ctx; }
 
 public:
   /**

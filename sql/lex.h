@@ -536,6 +536,7 @@ static const SYMBOL symbols[] = {
   { SYM("RESET",                    RESET_SYM)},
   { SYM("RESPECT",                  RESPECT_SYM)},
   { SYM("RESIGNAL",                 RESIGNAL_SYM)},
+  { SYM("RESOURCE",                 RESOURCE_SYM)},
   { SYM("RESTORE",                  RESTORE_SYM)},
   { SYM("RESTRICT",                 RESTRICT)},
   { SYM("RESUME",                   RESUME_SYM)},
@@ -635,6 +636,7 @@ static const SYMBOL symbols[] = {
   { SYM("SUSPEND",                  SUSPEND_SYM)},
   { SYM("SWAPS",                    SWAPS_SYM)},
   { SYM("SWITCHES",                 SWITCHES_SYM)},
+  { SYM("SYSTEM",                   SYSTEM_SYM)},
   { SYM("TABLE",                    TABLE_SYM)},
   { SYM("TABLE_NAME",               TABLE_NAME_SYM)},
   { SYM("TABLES",                   TABLES)},
@@ -646,6 +648,7 @@ static const SYMBOL symbols[] = {
   { SYM("TEXT",                     TEXT_SYM)},
   { SYM("THAN",                     THAN_SYM)},
   { SYM("THEN",                     THEN_SYM)},
+  { SYM("THREAD_PRIORITY",          THREAD_PRIORITY_SYM)},
   { SYM("TIES",                     TIES_SYM)},
   { SYM("TIME",                     TIME_SYM)},
   { SYM("TIMESTAMP",                TIMESTAMP_SYM)},
@@ -703,6 +706,7 @@ static const SYMBOL symbols[] = {
   { SYM("WHERE",                    WHERE)},
   { SYM("WHILE",                    WHILE_SYM)},
   { SYM("WINDOW",                   WINDOW_SYM)},
+  { SYM("VCPU",                     VCPU_SYM)},
   { SYM("VIEW",                     VIEW_SYM)},
   { SYM("VIRTUAL",                  VIRTUAL_SYM)},
   { SYM("VISIBLE",                  VISIBLE_SYM)},
@@ -795,6 +799,7 @@ static const SYMBOL symbols[] = {
   { SYM_H("JOIN_FIXED_ORDER",       JOIN_FIXED_ORDER_HINT)},
   { SYM_H("INDEX_MERGE",            INDEX_MERGE_HINT)},
   { SYM_H("NO_INDEX_MERGE",         NO_INDEX_MERGE_HINT)},
+  { SYM_H("RESOURCE_GROUP",         RESOURCE_GROUP_HINT)}
 };
 
 #endif /* LEX_INCLUDED */

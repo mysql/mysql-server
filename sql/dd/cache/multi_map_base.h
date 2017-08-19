@@ -24,6 +24,7 @@
 #include "sql/dd/types/collation.h"
 #include "sql/dd/types/column_statistics.h"
 #include "sql/dd/types/event.h"
+#include "sql/dd/types/resource_group.h"
 #include "sql/dd/types/routine.h"
 #include "sql/dd/types/schema.h"
 #include "sql/dd/types/spatial_reference_system.h"

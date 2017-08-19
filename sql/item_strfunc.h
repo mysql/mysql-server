@@ -1518,4 +1518,25 @@ public:
 };
 
 
+class Item_func_convert_cpu_id_mask final : public Item_str_func
+{
+public:
+  Item_func_convert_cpu_id_mask(const POS &pos, Item *list)
+    :Item_str_func(pos, list)
+  {}
+
+  bool resolve_type(THD *) override
+  {
+    max_length= 1024;
+    maybe_null= false;
+    set_data_type_string(1024, &my_charset_bin);
+    return false;
+  }
+
+  const char *func_name() const override
+  {  return "convert_cpu_id_mask"; }
+
+  String *val_str(String *) override;
+};
+
 #endif /* ITEM_STRFUNC_INCLUDED */

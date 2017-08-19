@@ -2308,6 +2308,22 @@ public:
   }
 };
 
+class Item_func_can_access_resource_group : public Item_int_func
+{
+public:
+  Item_func_can_access_resource_group(const POS &pos, Item *a)
+    : Item_int_func(pos, a)
+  {}
+  longlong val_int();
+  const char *func_name() const { return "can_access_resource_group"; }
+  bool resolve_type(THD *)
+  {
+    max_length= 1; // Function can return 0 or 1.
+    maybe_null= true;
+    return false;
+  }
+};
+
 class Item_func_can_access_view : public Item_int_func
 {
 public:

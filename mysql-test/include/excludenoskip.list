@@ -198,3 +198,9 @@ have_no_ndb.inc
 # to test it in other way. Time based tests are unstable on PB2.
 # Waiting for some kind of in test time simulation functionality.
 is_local_machine.inc
+
+# 19.0 Resource group test exclusion.
+have_thread_prio.inc
+have_not_thread_prio.inc
+resource_group_init.inc
+have_mac_os.inc

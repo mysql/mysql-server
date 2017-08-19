@@ -10865,6 +10865,45 @@ ER_COULD_NOT_APPLY_JSON_DIFF
 ER_CORRUPTED_JSON_DIFF
   eng "Corrupted JSON diff for table %.*s, column %s."
 
+ER_RESOURCE_GROUP_EXISTS
+  eng "Resource Group '%-.192s' exists"
+
+ER_RESOURCE_GROUP_NOT_EXISTS
+  eng "Resource Group '%-.192s' does not exist."
+
+ER_INVALID_VCPU_ID
+  eng "Invalid cpu id %u"
+
+ER_INVALID_VCPU_RANGE
+  eng "Invalid VCPU range %u-%u"
+
+ER_INVALID_THREAD_PRIORITY
+  eng "Invalid thread priority value %d for %s resource group %s. Allowed range is [%d, %d]."
+
+ER_DISALLOWED_OPERATION
+  eng "%s operation is disallowed on %s "
+
+ER_RESOURCE_GROUP_BUSY
+  eng "Resource group %s is busy."
+
+ER_RESOURCE_GROUP_DISABLED
+  eng "Resource group %s is disabled."
+
+ER_FEATURE_UNSUPPORTED
+  eng "Feature %s is unsupported (%s)."
+
+ER_ATTRIBUTE_IGNORED
+  eng "Attribute %s is ignored (%s)."
+
+ER_INVALID_THREAD_ID
+  eng "Invalid thread id (%llu)."
+
+ER_RESOURCE_GROUP_BIND_FAILED
+  eng "Unable to bind resource group %s with thread id (%llu).(%s)."
+
+ER_INVALID_USE_OF_FORCE_OPTION
+  eng "Option FORCE invalid as DISABLE option is not specified."
+
 #
 #  End of 8.0 error messages.
 #

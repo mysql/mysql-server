@@ -23,6 +23,7 @@
 #include "sql/dd/types/column_statistics.h"   // Column_statistics
 #include "sql/dd/types/event.h"               // Event
 #include "sql/dd/types/routine.h"             // Routine
+#include "dd/types/resource_group.h"          // Resource_group
 #include "sql/dd/types/schema.h"              // Schema
 #include "sql/dd/types/spatial_reference_system.h"// Spatial_reference_system
 #include "sql/dd/types/tablespace.h"          // Tablespace
@@ -71,6 +72,7 @@ template class Multi_map_base<Charset>;
 template class Multi_map_base<Collation>;
 template class Multi_map_base<Column_statistics>;
 template class Multi_map_base<Event>;
+template class Multi_map_base<Resource_group>;
 template class Multi_map_base<Routine>;
 template class Multi_map_base<Schema>;
 template class Multi_map_base<Spatial_reference_system>;

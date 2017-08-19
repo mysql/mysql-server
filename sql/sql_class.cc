@@ -473,6 +473,9 @@ THD::THD(bool enable_plugins)
   m_release_resources_done= false;
   peer_port= 0;					// For SHOW PROCESSLIST
   get_transaction()->m_flags.enabled= true;
+  m_resource_group_ctx.m_cur_resource_group= nullptr;
+  m_resource_group_ctx.m_switch_resource_group_str[0]= '\0';
+  m_resource_group_ctx.m_warn= 0;
 
   mysql_mutex_init(key_LOCK_thd_data, &LOCK_thd_data, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_thd_query, &LOCK_thd_query, MY_MUTEX_INIT_FAST);

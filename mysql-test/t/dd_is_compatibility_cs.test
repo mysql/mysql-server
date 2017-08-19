@@ -242,6 +242,7 @@ use test;
 CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES(1);
 --source include/restart_innodb_read_only.inc
+call mtr.add_suppression('Skipped updating resource group metadata in InnoDB read only mode.');
 ANALYZE TABLE t1;
 let $restart_parameters = restart;
 --source include/restart_mysqld.inc

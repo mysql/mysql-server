@@ -367,6 +367,7 @@ public:
      - BACKUP_LOCK is to block any operations that could cause
        inconsistent backup. Such operations are most DDL statements,
        and some administrative statements.
+     - RESOURCE_GROUPS is for resource groups.
     Note that requests waiting for user-level locks get special
     treatment - waiting is aborted if connection to client is lost.
   */
@@ -385,6 +386,7 @@ public:
                             ACL_CACHE,
                             COLUMN_STATISTICS,
                             BACKUP_LOCK,
+                            RESOURCE_GROUPS,
                             /* This should be the last ! */
                             NAMESPACE_END };
 

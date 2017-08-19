@@ -210,6 +210,10 @@ bool dynamic_privilege_init(void)
         service->register_privilege(STRING_WITH_LEN("PERSIST_RO_VARIABLES_ADMIN"));
       ret |=
         service->register_privilege(STRING_WITH_LEN("BACKUP_ADMIN"));
+      ret |=
+        service->register_privilege(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN"));
+      ret |=
+        service->register_privilege(STRING_WITH_LEN("RESOURCE_GROUP_USER"));
     }
   } // exist scope
   mysql_plugin_registry_release(r);

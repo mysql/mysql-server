@@ -1,0 +1,3 @@
+--source include/have_not_thread_prio.inc
+--echo # Resource group tests with thread priority disabled.
+--source include/resource_group_common.inc

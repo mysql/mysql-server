@@ -1542,7 +1542,7 @@ struct dict_sys_t{
 	}
 
 	/** Number of hard coded new dd tables */
-	static constexpr table_id_t	s_num_hard_coded_tables = 32;
+	static constexpr table_id_t	s_num_hard_coded_tables = 33;
 
 	/** Max table id for DD table */
 	static constexpr uint	INNODB_DD_TABLE_ID_MAX = 60;
@@ -1599,10 +1599,10 @@ struct dict_sys_t{
 	static const char*		s_file_per_table_name;
 
 	/** The table ID of mysql.innodb_dynamic_metadata */
-	static constexpr table_id_t	s_dynamic_meta_table_id = 32;
+	static constexpr table_id_t	s_dynamic_meta_table_id = 33;
 
 	/** The clustered index ID of mysql.innodb_dynamic_metadata */
-	static constexpr space_index_t	s_dynamic_meta_index_id = 88;
+        static constexpr space_index_t	s_dynamic_meta_index_id = 91;
 };
 
 /** Structure for persisting dynamic metadata of data dictionary */

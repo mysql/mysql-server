@@ -31,6 +31,7 @@
 #include "dd/impl/system_views/parameters.h"         // Parameters
 #include "dd/impl/system_views/partitions.h"         // Partitions
 #include "dd/impl/system_views/routines.h"           // Routines
+#include "dd/impl/system_views/resource_groups.h"    // Resource_groups
 #include "dd/impl/system_views/schemata.h"           // Schemata
 #include "dd/impl/system_views/st_geometry_columns.h"// st_geometry_columns
 #include "dd/impl/system_views/st_spatial_reference_systems.h" // St_spatial...
@@ -56,6 +57,7 @@
 #include "dd/impl/tables/indexes.h"                  // Indexes
 #include "dd/impl/tables/parameter_type_elements.h"  // Parameter_type_elements
 #include "dd/impl/tables/parameters.h"               // Parameters
+#include "dd/impl/tables/resource_groups.h"          // Resource_groups
 #include "dd/impl/tables/routines.h"                 // Routines
 #include "dd/impl/tables/schemata.h"                 // Schemata
 #include "dd/impl/tables/spatial_reference_systems.h"// Spatial_reference_systems
@@ -158,6 +160,7 @@ void System_tables::init()
   register_table<Parameters>(second);
   register_table<Parameter_type_elements>(second);
   register_table<Triggers>(core);
+  register_table<Resource_groups>(core);
 }
 
 void System_views::init()
@@ -180,6 +183,7 @@ void System_views::init()
   register_view<dd::system_views::Key_column_usage>(is);
   register_view<dd::system_views::Parameters>(is);
   register_view<dd::system_views::Partitions>(is);
+  register_view<dd::system_views::Resource_groups>(is);
   register_view<dd::system_views::Routines>(is);
   register_view<dd::system_views::Schemata>(is);
   register_view<dd::system_views::Show_statistics>(is);

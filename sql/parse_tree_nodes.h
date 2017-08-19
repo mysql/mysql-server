@@ -49,6 +49,8 @@
 #include "sql/parse_tree_partitions.h"
 #include "sql/partition_info.h"
 #include "sql/query_result.h"        // Query_result
+#include "sql/resourcegroups/resource_group_sql_cmd.h"
+#include "sql/resourcegroups/resource_group_sql_cmd.h" // Type, Range
 #include "sql/session_tracker.h"
 #include "sql/set_var.h"
 #include "sql/sp_head.h"             // sp_head
@@ -5434,6 +5436,162 @@ public:
 
 private:
   const option_type m_file_block_size;
+};
+
+
+/**
+  Parse tree node for CREATE RESOURCE GROUP statement.
+*/
+
+class PT_create_resource_group final : public Parse_tree_root
+{
+  resourcegroups::Sql_cmd_create_resource_group sql_cmd;
+  const bool has_priority;
+
+public:
+  PT_create_resource_group(const LEX_CSTRING &name,
+                           const resourcegroups::Type type,
+                           const Trivial_array<resourcegroups::Range> *cpu_list,
+                           const Value_or_default<int> &opt_priority,
+                           bool enabled)
+    : sql_cmd(name, type, cpu_list,
+              opt_priority.is_default ? 0 : opt_priority.value, enabled),
+      has_priority(!opt_priority.is_default)
+  {}
+
+
+  Sql_cmd *make_cmd(THD *thd) override
+  {
+    if (check_resource_group_support())
+      return nullptr;
+
+    if (check_resource_group_name_len(sql_cmd.m_name))
+      return nullptr;
+
+    if (has_priority &&
+        validate_resource_group_priority(thd, &sql_cmd.m_priority,
+                                         sql_cmd.m_name, sql_cmd.m_type))
+      return nullptr;
+
+    for (auto &range : *sql_cmd.m_cpu_list)
+    {
+      if (validate_vcpu_range(range))
+        return nullptr;
+    }
+
+    thd->lex->sql_command= SQLCOM_CREATE_RESOURCE_GROUP;
+    return &sql_cmd;
+  }
+
+
+  virtual ~PT_create_resource_group() {}
+};
+
+
+/**
+  Parse tree node for ALTER RESOURCE GROUP statement.
+*/
+
+class PT_alter_resource_group final : public Parse_tree_root
+{
+  resourcegroups::Sql_cmd_alter_resource_group sql_cmd;
+
+public:
+  PT_alter_resource_group(const LEX_CSTRING &name,
+                          const Trivial_array<resourcegroups::Range> *cpu_list,
+                          const Value_or_default<int> &opt_priority,
+                          const Value_or_default<bool> &enable,
+                          bool force)
+    : sql_cmd(name, cpu_list, opt_priority.is_default ? 0 : opt_priority.value,
+              enable.is_default ? false : enable.value,
+              force, !enable.is_default)
+  {}
+
+
+  Sql_cmd *make_cmd(THD *thd) override
+  {
+    if (check_resource_group_support())
+      return nullptr;
+
+    if (check_resource_group_name_len(sql_cmd.m_name))
+      return nullptr;
+
+    for (auto &range : *sql_cmd.m_cpu_list)
+    {
+      if (validate_vcpu_range(range))
+        return nullptr;
+    }
+
+    thd->lex->sql_command= SQLCOM_ALTER_RESOURCE_GROUP;
+    return &sql_cmd;
+  }
+
+
+  virtual ~PT_alter_resource_group() {}
+};
+
+
+/**
+  Parse tree node for DROP RESOURCE GROUP statement.
+*/
+
+class PT_drop_resource_group final : public Parse_tree_root
+{
+  resourcegroups::Sql_cmd_drop_resource_group sql_cmd;
+
+public:
+  PT_drop_resource_group(const LEX_CSTRING &resource_group_name,
+                         bool force)
+    : sql_cmd(resource_group_name, force)
+  {}
+
+
+  Sql_cmd *make_cmd(THD *thd) override
+  {
+    if (check_resource_group_support())
+      return nullptr;
+
+    if (check_resource_group_name_len(sql_cmd.m_name))
+      return nullptr;
+
+    thd->lex->sql_command= SQLCOM_DROP_RESOURCE_GROUP;
+    return &sql_cmd;
+  }
+
+
+  virtual ~PT_drop_resource_group() {}
+};
+
+
+/**
+  Parse tree node for SET RESOURCE GROUP statement.
+*/
+
+class PT_set_resource_group final : public Parse_tree_root
+{
+  resourcegroups::Sql_cmd_set_resource_group sql_cmd;
+
+public:
+  PT_set_resource_group(const LEX_CSTRING &name,
+                        Trivial_array<ulonglong> *thread_id_list)
+    : sql_cmd(name, thread_id_list)
+  { }
+
+
+  Sql_cmd *make_cmd(THD *thd) override
+  {
+    if (check_resource_group_support())
+      return nullptr;
+
+    if (check_resource_group_name_len(sql_cmd.m_name))
+      return nullptr;
+
+    thd->lex->sql_command= SQLCOM_SET_RESOURCE_GROUP;
+    return &sql_cmd;
+  }
+
+
+  virtual ~PT_set_resource_group() {}
 };
 
 #endif /* PARSE_TREE_NODES_INCLUDED */

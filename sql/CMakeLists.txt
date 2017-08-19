@@ -61,6 +61,7 @@ ENDIF()
 SET(DD_SOURCES
   dd/collection.cc
   dd/dd_event.cc
+  dd/dd_resource_group.cc
   dd/dd_routine.cc
   dd/dd_schema.cc
   dd/dd_table.cc
@@ -108,6 +109,7 @@ SET(DD_SOURCES
   dd/impl/system_views/key_column_usage.cc
   dd/impl/system_views/parameters.cc
   dd/impl/system_views/partitions.cc
+  dd/impl/system_views/resource_groups.cc
   dd/impl/system_views/routines.cc
   dd/impl/system_views/schemata.cc
   dd/impl/system_views/statistics.cc
@@ -133,6 +135,7 @@ SET(DD_SOURCES
   dd/impl/tables/index_stats.cc
   dd/impl/tables/parameters.cc
   dd/impl/tables/parameter_type_elements.cc
+  dd/impl/tables/resource_groups.cc
   dd/impl/tables/routines.cc
   dd/impl/tables/schemata.cc
   dd/impl/tables/spatial_reference_systems.cc
@@ -168,6 +171,7 @@ SET(DD_SOURCES
   dd/impl/types/partition_index_impl.cc
   dd/impl/types/partition_value_impl.cc
   dd/impl/types/procedure_impl.cc
+  dd/impl/types/resource_group_impl.cc
   dd/impl/types/routine_impl.cc
   dd/impl/types/schema_impl.cc
   dd/impl/types/spatial_reference_system_impl.cc
@@ -339,6 +343,10 @@ SET(SQL_SHARED_SOURCES
   psi_memory_key.cc
   query_result.cc
   records.cc
+  resourcegroups/thread_resource_control.cc
+  resourcegroups/platform/thread_attrs_api_common.cc
+  resourcegroups/resource_group_mgr.cc
+  resourcegroups/resource_group_sql_cmd.cc
   rpl_group_replication.cc
   rpl_handler.cc
   rpl_transaction_ctx.cc
@@ -463,6 +471,28 @@ FILE(GLOB_RECURSE SQL_HEADERS
   "${CMAKE_SOURCE_DIR}/sql/*.h"
   "${CMAKE_SOURCE_DIR}/storage/*.h"
 ) 
+
+IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
+  LIST(APPEND SQL_SHARED_SOURCES resourcegroups/platform/thread_attrs_api_linux.cc)
+ENDIF()
+
+IF(APPLE)
+  LIST(APPEND SQL_SHARED_SOURCES resourcegroups/platform/thread_attrs_api_apple.cc)
+ENDIF()
+
+IF(CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
+  LIST(APPEND SQL_SHARED_SOURCES resourcegroups/platform/thread_attrs_api_freebsd.cc)
+ENDIF()
+
+IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
+  LIST(APPEND SQL_SHARED_SOURCES resourcegroups/platform/thread_attrs_api_solaris.cc)
+ENDIF()
+
+IF(WIN32)
+  LIST(APPEND SQL_SHARED_SOURCES resourcegroups/platform/thread_attrs_api_win.cc)
+ENDIF()
+
+SET(SQL_EXPORTED_SOURCES ${SQL_SHARED_SOURCES} ${SQL_GIS_SOURCES} PARENT_SCOPE)
 
 SET(SQL_SOURCE
   ${GEN_SOURCES}

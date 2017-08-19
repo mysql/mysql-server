@@ -1942,18 +1942,9 @@ bool partition_info::set_part_expr(char *start_token, Item *item_ptr,
     return true;
   }
 
-  size_t valid_length;
-  bool dummy_len_err;
-  if (validate_string(system_charset_info, func_string, expr_len,
-                      &valid_length, &dummy_len_err))
-  {
-    char hexbuf[7];
-    octet2hex(hexbuf, func_string + valid_length,
-              std::min<size_t>(expr_len - valid_length, 3));
-    my_error(ER_INVALID_CHARACTER_STRING, MYF(0), system_charset_info->csname,
-             hexbuf);
+  if (is_invalid_string(LEX_CSTRING{func_string, expr_len},
+                        system_charset_info))
     return true;
-  }
 
   if (is_subpart)
   {

@@ -66,6 +66,8 @@
 #include "sql/parse_tree_hints.h"
 #include "sql/parse_tree_node_base.h" // enum_parsing_context
 #include "sql/query_options.h"        // OPTION_NO_CONST_TABLES
+#include "sql/resourcegroups/platform/thread_attrs_api.h" // cpu_id_t
+#include "sql/resourcegroups/resource_group_basic_types.h" // Type, Range
 #include "sql/set_var.h"
 #include "sql/sql_admin.h"
 #include "sql/sql_alloc.h"            // Sql_alloc
@@ -196,7 +198,6 @@ enum enum_yes_no_unknown
 enum class enum_ha_read_modes;
 
 enum enum_filetype { FILETYPE_CSV, FILETYPE_XML };
-
 
 /**
   used by the parser to store internal variable name
@@ -1918,6 +1919,14 @@ private:
 };
 
 
+template<typename T>
+struct Value_or_default
+{
+  bool is_default;
+  T value; ///< undefined if is_default is true
+};
+
+
 union YYSTYPE {
   /*
     Hint parser section (sql_hints.yy)
@@ -2226,6 +2235,16 @@ union YYSTYPE {
   Trivial_array<PT_preload_keys *> *preload_list;
   PT_alter_tablespace_option_base *ts_option;
   Trivial_array<PT_alter_tablespace_option_base *> *ts_options;
+  struct {
+    resourcegroups::platform::cpu_id_t start;
+    resourcegroups::platform::cpu_id_t end;
+  } vcpu_range_type;
+  Trivial_array<resourcegroups::Range> *resource_group_vcpu_list_type;
+  Value_or_default<int> resource_group_priority_type;
+  Value_or_default<bool> resource_group_state_type;
+  bool resource_group_flag_type;
+  resourcegroups::Type resource_group_type;
+  Trivial_array<ulonglong> *thread_id_list_type;
 };
 
 static_assert(sizeof(YYSTYPE) <= 32, "YYSTYPE is too big");
@@ -4280,5 +4299,36 @@ void print_derived_column_names(THD *thd, String *str,
 /**
   @} (End of group GROUP_PARSER)
 */
+
+
+/**
+   Check if the given string is invalid using the system charset.
+
+   @param string_val       Reference to the string.
+   @param charset_info     Pointer to charset info.
+
+   @return true if the string has an invalid encoding using
+                the system charset else false.
+*/
+
+inline bool is_invalid_string(const LEX_CSTRING &string_val,
+                              const CHARSET_INFO *charset_info)
+{
+  size_t valid_len;
+  bool len_error;
+
+  if (validate_string(charset_info, string_val.str, string_val.length,
+                      &valid_len, &len_error))
+  {
+    char hexbuf[7];
+    octet2hex(hexbuf, string_val.str + valid_len,
+              std::min<size_t>(string_val.length - valid_len, 3));
+    my_error(ER_INVALID_CHARACTER_STRING, MYF(0), charset_info->csname,
+             hexbuf);
+    return true;
+  }
+  return false;
+}
+
 
 #endif /* SQL_LEX_INCLUDED */

@@ -313,5 +313,6 @@ call mtr.add_suppression('\\[Warning\\] \\[[^]]*\\] InnoDB: Cannot set innodb_ro
 call mtr.add_suppression('\\[Warning\\] \\[[^]]*\\] InnoDB: Cannot set innodb_undo_tablespaces to [8,3] when in innodb_force_recovery > 0');
 call mtr.add_suppression('\\[Warning\\] \\[[^]]*\\] InnoDB: Cannot set innodb_rollback_segments to [8,3] when in innodb_force_recovery > 0');
 call mtr.add_suppression('\\[Warning\\] \\[[^]]*\\] Skip updating information_schema metadata in InnoDB read-only mode');
+call mtr.add_suppression('\\[Warning\\] \\[[^]]*\\] Skipped updating resource group metadata in InnoDB read only mode.');
 --enable_query_log
 

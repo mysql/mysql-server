@@ -525,6 +525,18 @@ template bool Storage_adapter::get<Event::aux_key_type, Event>
 template bool Storage_adapter::drop(THD *, const Event*);
 template bool Storage_adapter::store(THD *, Event*);
 
+template bool Storage_adapter::get<Resource_group::id_key_type, Resource_group>
+  (THD *, const Tablespace::id_key_type &,
+   enum_tx_isolation, const Resource_group **);
+template bool Storage_adapter::get<Resource_group::name_key_type, Resource_group>
+  (THD *, const Tablespace::name_key_type &,
+   enum_tx_isolation, const Resource_group **);
+template bool Storage_adapter::get<Resource_group::aux_key_type, Resource_group>
+  (THD *, const Tablespace::aux_key_type &,
+   enum_tx_isolation, const Resource_group **);
+template bool Storage_adapter::drop(THD *, const Resource_group *);
+template bool Storage_adapter::store(THD *, Resource_group *);
+
 template bool Storage_adapter::get<Routine::id_key_type, Routine>
        (THD *, const Routine::id_key_type &, enum_tx_isolation,
         const Routine **);

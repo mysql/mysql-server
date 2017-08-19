@@ -1743,6 +1743,8 @@ static const std::pair<const char *, Create_func *> func_array[]=
   { "CAN_ACCESS_ROUTINE",
     SQL_FN_LIST_INTERNAL(Item_func_can_access_routine, 5) },
   { "CAN_ACCESS_EVENT", SQL_FN_INTERNAL(Item_func_can_access_event, 1) },
+  { "CAN_ACCESS_RESOURCE_GROUP", SQL_FN_INTERNAL(Item_func_can_access_resource_group, 1) },
+  { "CONVERT_CPU_ID_MASK", SQL_FN_INTERNAL(Item_func_convert_cpu_id_mask, 1) },
   { "IS_VISIBLE_DD_OBJECT",
     SQL_FN_INTERNAL_V(Item_func_is_visible_dd_object, 1, 2) },
   { "INTERNAL_TABLE_ROWS",

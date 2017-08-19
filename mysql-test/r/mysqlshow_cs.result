@@ -126,6 +126,7 @@ Database: information_schema
 | PROCESSLIST                           |
 | PROFILING                             |
 | REFERENTIAL_CONSTRAINTS               |
+| RESOURCE_GROUPS                       |
 | ROUTINES                              |
 | SCHEMATA                              |
 | SCHEMA_PRIVILEGES                     |
@@ -191,6 +192,7 @@ Database: INFORMATION_SCHEMA
 | PROCESSLIST                           |
 | PROFILING                             |
 | REFERENTIAL_CONSTRAINTS               |
+| RESOURCE_GROUPS                       |
 | ROUTINES                              |
 | SCHEMATA                              |
 | SCHEMA_PRIVILEGES                     |

@@ -977,7 +977,8 @@ bool lock_object_name(THD *thd, MDL_key::enum_mdl_namespace mdl_type,
   */
   DBUG_ASSERT(mdl_type == MDL_key::FUNCTION ||
               mdl_type == MDL_key::PROCEDURE ||
-              mdl_type == MDL_key::EVENT);
+              mdl_type == MDL_key::EVENT ||
+              mdl_type == MDL_key::RESOURCE_GROUPS);
 
   char lc_name[NAME_LEN + 1];
   my_stpncpy(lc_name, name, NAME_LEN);
