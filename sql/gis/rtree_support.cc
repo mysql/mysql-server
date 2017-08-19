@@ -22,6 +22,7 @@
 
 #include <algorithm>  // std::min, std::max
 #include <cmath>      // std::isinf, std::isnan
+#include <cstdint>    // std::uint32_t
 
 #include "my_byteorder.h"  // doubleget, float8get
 #include "my_inttypes.h"   // uchar
@@ -431,8 +432,9 @@ double rtree_area_increase(const dd::Spatial_reference_system* srs,
   return (loc_ab_area - a_area);
 }
 
-double rtree_area_overlapping(const uchar* mbr_a, const uchar* mbr_b,
-                              int mbr_len, std::uint32_t srid) {
+double rtree_area_overlapping(const dd::Spatial_reference_system* srs,
+                              const uchar* mbr_a, const uchar* mbr_b,
+                              int mbr_len) {
   double area = 1.0;
   double amin;
   double amax;

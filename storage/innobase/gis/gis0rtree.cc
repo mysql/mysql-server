@@ -1967,15 +1967,19 @@ rtr_estimate_n_rows_in_range(
 			switch (mode) {
 			case PAGE_CUR_CONTAIN:
 			case PAGE_CUR_INTERSECT:
-				area += rtree_area_overlapping(range_mbr_ptr,
-						field, DATA_MBR_LEN, 0)
+				area += rtree_area_overlapping(
+						index->rtr_srs.get(),
+						range_mbr_ptr, field,
+						DATA_MBR_LEN)
 					/ rec_area;
 				break;
 
 			case PAGE_CUR_DISJOINT:
 				area += 1;
-				area -= rtree_area_overlapping(range_mbr_ptr,
-						field, DATA_MBR_LEN, 0)
+				area -= rtree_area_overlapping(
+						index->rtr_srs.get(),
+						range_mbr_ptr, field,
+						DATA_MBR_LEN)
 					/ rec_area;
 				break;
 

@@ -21,10 +21,8 @@
 /// This file declares a set of functions that storage engines can call to do
 /// geometrical operations.
 
-#include <cstdint>  // std::uint32_t
-
-#include "sql/gis/srid.h"
 #include "my_inttypes.h"  // uchar, uint
+#include "sql/gis/srid.h"
 
 namespace dd {
 class Spatial_reference_system;
@@ -171,13 +169,14 @@ double rtree_area_increase(const dd::Spatial_reference_system* srs,
 
 /// Calculates overlapping area
 ///
+/// @param[in] srs Spatial reference system.
 /// @param mbr_a   First MBR.
 /// @param mbr_b   Second MBR.
 /// @param mbr_len MBR length.
-/// @param srid    SRID value.
 ///
 /// @return overlapping area
-double rtree_area_overlapping(const uchar* mbr_a, const uchar* mbr_b,
-                              int mbr_len, std::uint32_t srid);
+double rtree_area_overlapping(const dd::Spatial_reference_system* srs,
+                              const uchar* mbr_a, const uchar* mbr_b,
+                              int mbr_len);
 
 #endif  // GIS__RTREE_SUPPORT_H_INCLUDED
