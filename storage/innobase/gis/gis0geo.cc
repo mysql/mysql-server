@@ -287,7 +287,7 @@ rtree_key_cmp(
 
 	switch (mode) {
 	case PAGE_CUR_INTERSECT:
-		if (mbr_intersect_cmp(&x, &y, 0)) {
+		if (mbr_intersect_cmp(srs, &x, &y)) {
 			return(0);
 		}
 		break;

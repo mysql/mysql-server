@@ -77,12 +77,13 @@ bool mbr_equal_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
 
 /// Whether MBR 'a' intersects 'b'
 ///
+/// @param[in] srs Spatial reference system.
 /// @param a    The first MBR.
 /// @param b    The second MBR.
-/// @param srid SRID value.
 ///
 /// @return true if 'a' intersects 'b', else false.
-bool mbr_intersect_cmp(rtr_mbr_t* a, rtr_mbr_t* b, std::uint32_t srid);
+bool mbr_intersect_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
+                       rtr_mbr_t* b);
 
 /// Whether MBR 'a' and 'b' disjoint
 ///
