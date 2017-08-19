@@ -430,41 +430,67 @@ double rtree_area_increase(const dd::Spatial_reference_system* srs,
 
 double rtree_area_overlapping(const dd::Spatial_reference_system* srs,
                               const uchar* mbr_a, const uchar* mbr_b,
-                              int mbr_len) {
-  double area = 1.0;
-  double amin;
-  double amax;
-  double bmin;
-  double bmax;
-  int key_len;
-  int keyseg_len;
+                              int mbr_len MY_ATTRIBUTE((unused))) {
+  DBUG_ASSERT(mbr_len == sizeof(double) * 4);
 
-  keyseg_len = 2 * sizeof(double);
+  double a_xmin;
+  double a_ymin;
+  double a_xmax;
+  double a_ymax;
+  double b_xmin;
+  double b_ymin;
+  double b_xmax;
+  double b_ymax;
 
-  for (key_len = mbr_len; key_len > 0; key_len -= keyseg_len) {
-#ifdef WORDS_BIGENDIAN
-    float8get(&amin, mbr_a);
-    float8get(&bmin, mbr_b);
-    float8get(&amax, mbr_a + sizeof(double));
-    float8get(&bmax, mbr_b + sizeof(double));
-#else
-    doubleget(&amin, mbr_a);
-    doubleget(&bmin, mbr_b);
-    doubleget(&amax, mbr_a + sizeof(double));
-    doubleget(&bmax, mbr_b + sizeof(double));
-#endif
+  float8get(&a_xmin, mbr_a);
+  float8get(&a_xmax, mbr_a + sizeof(double));
+  float8get(&a_ymin, mbr_a + sizeof(double) * 2);
+  float8get(&a_ymax, mbr_a + sizeof(double) * 3);
+  float8get(&b_xmin, mbr_b);
+  float8get(&b_xmax, mbr_b + sizeof(double));
+  float8get(&b_ymin, mbr_b + sizeof(double) * 2);
+  float8get(&b_ymax, mbr_b + sizeof(double) * 3);
 
-    amin = std::max(amin, bmin);
-    amax = std::min(amax, bmax);
+  DBUG_ASSERT(a_xmin <= a_xmax && a_ymin <= a_ymax);
+  DBUG_ASSERT(b_xmin <= b_xmax && b_ymin <= b_ymax);
 
-    if (amin > amax)
-      return (0);
-    else
-      area *= (amax - amin);
-
-    mbr_a += keyseg_len;
-    mbr_b += keyseg_len;
+  double area = 0.0;
+  try {
+    if (srs == nullptr || srs->is_cartesian()) {
+      gis::Cartesian_box a_box(gis::Cartesian_point(a_xmin, a_ymin),
+                               gis::Cartesian_point(a_xmax, a_ymax));
+      gis::Cartesian_box b_box(gis::Cartesian_point(b_xmin, b_ymin),
+                               gis::Cartesian_point(b_xmax, b_ymax));
+      gis::Cartesian_box overlapping_box;
+      bg::intersection(a_box, b_box, overlapping_box);
+      area = bg::area(overlapping_box);
+    } else {
+      DBUG_ASSERT(srs->is_geographic());
+      gis::Geographic_box a_box(gis::Geographic_point(srs->to_radians(a_xmin),
+                                                      srs->to_radians(a_ymin)),
+                                gis::Geographic_point(srs->to_radians(a_xmax),
+                                                      srs->to_radians(a_ymax)));
+      gis::Geographic_box b_box(gis::Geographic_point(srs->to_radians(b_xmin),
+                                                      srs->to_radians(b_ymin)),
+                                gis::Geographic_point(srs->to_radians(b_xmax),
+                                                      srs->to_radians(b_ymax)));
+      gis::Geographic_box overlapping_box;
+      bg::intersection(a_box, b_box, overlapping_box,
+                       bg::strategy::intersection::geographic_segments<>(
+                           bg::srs::spheroid<double>(srs->semi_major_axis(),
+                                                     srs->semi_minor_axis())));
+      area = bg::area(
+          overlapping_box,
+          bg::strategy::area::geographic<
+              gis::Geographic_point, bg::strategy::andoyer,
+              bg::strategy::default_order<bg::strategy::andoyer>::value,
+              bg::srs::spheroid<double>>(bg::srs::spheroid<double>(
+              srs->semi_major_axis(), srs->semi_minor_axis())));
+    }
+  } catch (...) {
+    DBUG_ASSERT(false); /* purecov: inspected */
   }
 
-  return (area);
+  if (std::isnan(area)) area = 0.0;
+  return area;
 }

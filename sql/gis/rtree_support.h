@@ -222,14 +222,14 @@ double rtree_area_increase(const dd::Spatial_reference_system* srs,
                            const uchar* mbr_a, const uchar* mbr_b, int mbr_len,
                            double* ab_area);
 
-/// Calculates overlapping area
+/// Calculates the overlapping area between two MBRs.
 ///
 /// @param[in] srs Spatial reference system.
-/// @param mbr_a   First MBR.
-/// @param mbr_b   Second MBR.
-/// @param mbr_len MBR length.
+/// @param[in] mbr_a First MBR.
+/// @param[in] mbr_b Second MBR.
+/// @param[in] mbr_len MBR length in bytes. Must be 4 * sizeof(double).
 ///
-/// @return overlapping area
+/// @return The area of the overlapping region.
 double rtree_area_overlapping(const dd::Spatial_reference_system* srs,
                               const uchar* mbr_a, const uchar* mbr_b,
                               int mbr_len);
