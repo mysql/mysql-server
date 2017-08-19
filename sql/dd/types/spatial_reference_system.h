@@ -122,6 +122,7 @@ public:
   virtual double prime_meridian() const = 0;
   virtual bool positive_east() const = 0;
   virtual bool positive_north() const = 0;
+  virtual double to_radians(double d) const = 0;
   virtual double from_radians(double d) const = 0;
 
   /////////////////////////////////////////////////////////////////////////

@@ -233,6 +233,13 @@ public:
     }
   }
 
+  virtual double to_radians(double d) const override
+  {
+    DBUG_ASSERT(is_geographic());
+    DBUG_ASSERT(angular_unit() > 0.0);
+    return d * angular_unit();
+  }
+
   virtual double from_radians(double d) const override
   {
     DBUG_ASSERT(is_geographic());
