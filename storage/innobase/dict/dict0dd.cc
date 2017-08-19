@@ -3746,10 +3746,8 @@ dd_open_table_one(
 		dictionary. Since this may cause a table open to read the
 		dictionary tables, it must be done while not holding
 		&dict_sys->mutex. */
-		/** TODO: Replace "0" with "index->srid" to enable geo
-		support. */
 		if (dict_index_is_spatial(index))
-			index->rtr_srs.reset(fetch_srs(0));
+			index->rtr_srs.reset(fetch_srs(index->srid));
 
 		index = index->next();
 	}

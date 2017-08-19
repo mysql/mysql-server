@@ -33,6 +33,8 @@
 #include "sql/current_thd.h"
 #include "sql/derror.h"                  // ER_THD
 #include "sql/filesort.h"                // change_double_for_sort
+#include "sql/gis/rtree_support.h"       // get_mbr_from_store
+#include "sql/gis/srid.h"
 #include "sql/item_json_func.h"          // ensure_utf8mb4
 #include "sql/item_timefunc.h"           // Item_func_now_local
 #include "sql/json_binary.h"             // json_binary::serialize
@@ -49,6 +51,7 @@
 #include "sql/sql_class.h"               // THD
 #include "sql/sql_join_buffer.h"         // CACHE_FIELD
 #include "sql/sql_time.h"                // str_to_datetime_with_warn
+#include "sql/srs_fetcher.h"
 #include "sql/strfunc.h"                 // find_type2
 #include "sql/tztime.h"                  // Time_zone
 #include "template_utils.h"              // pointer_cast
@@ -8400,9 +8403,6 @@ size_t Field_blob::get_key_image(uchar *buff, size_t length, imagetype type_arg)
 
   if (type_arg == itMBR)
   {
-    MBR mbr;
-    Geometry_buffer buffer;
-    Geometry *gobj;
     const uint image_length= SIZEOF_STORED_DOUBLE*4;
 
     if (blob_length < SRID_SIZE)
@@ -8411,16 +8411,25 @@ size_t Field_blob::get_key_image(uchar *buff, size_t length, imagetype type_arg)
       return image_length;
     }
     get_ptr(&blob);
-    gobj= Geometry::construct(&buffer, (char*) blob, blob_length);
-    if (!gobj || gobj->get_mbr(&mbr))
+    gis::srid_t srid = uint4korr(blob);
+    const dd::Spatial_reference_system* srs = nullptr;
+    dd::cache::Dictionary_client::Auto_releaser m_releaser(
+      current_thd->dd_client());
+    Srs_fetcher fetcher(current_thd);
+    if (srid != 0) fetcher.acquire(srid, &srs);
+    if (get_mbr_from_store(srs, blob, blob_length, 2,
+                           pointer_cast<double *>(buff), &srid)) {
       memset(buff, 0, image_length);
-    else
-    {
-      float8store(buff,    mbr.xmin);
-      float8store(buff+8,  mbr.xmax);
-      float8store(buff+16, mbr.ymin);
-      float8store(buff+24, mbr.ymax);
     }
+    else {
+      // get_mbr_from_store returns the MBR in machine byte order, but buff
+      // should always be in little-endian order.
+      float8store(buff, *pointer_cast<double*>(buff));
+      float8store(buff+8, *(pointer_cast<double*>(buff) + 1));
+      float8store(buff+16, *(pointer_cast<double*>(buff) + 2));
+      float8store(buff+24, *(pointer_cast<double*>(buff) + 3));
+    }
+
     return image_length;
   }
 
