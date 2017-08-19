@@ -11122,7 +11122,16 @@ create_index(
                 const dd::Index* dd_index = get_my_dd_index(dd_index_auto);
 		ut_ad(dd_index->name() == key->name);
 
-		const dd::Column& col = dd_index->elements()[0]->column();
+		size_t geom_col_idx;
+		for (
+			geom_col_idx = 0;
+			geom_col_idx < dd_index->elements().size();
+			++geom_col_idx) {
+			if (!dd_index->elements()[geom_col_idx]->column().is_hidden())
+				break;
+		}
+		const dd::Column& col =
+			dd_index->elements()[geom_col_idx]->column();
 		has_srid = col.srs_id().has_value();
 		srid = has_srid ? col.srs_id().value() : 0;
 	}
@@ -11150,6 +11159,7 @@ create_index(
 		if (ind_type == DICT_SPATIAL) {
 			index->srid_is_valid = has_srid;
 			index->srid = srid;
+			index->rtr_srs.reset(fetch_srs(index->srid));
 		}
 
 		DBUG_RETURN(convert_error_code_to_mysql(

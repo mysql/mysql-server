@@ -1880,7 +1880,16 @@ dd_fill_one_dict_index(
 
 	if (dict_index_is_spatial(index)) {
 		ut_ad(dd_index->name() == key.name);
-		const dd::Column& col = dd_index->elements()[0]->column();
+		size_t geom_col_idx;
+		for (
+			geom_col_idx = 0;
+			geom_col_idx < dd_index->elements().size();
+			++geom_col_idx) {
+			if (!dd_index->elements()[geom_col_idx]->column().is_hidden())
+				break;
+		}
+		const dd::Column& col =
+			dd_index->elements()[geom_col_idx]->column();
 		bool srid_has_value = col.srs_id().has_value();
 		index->fill_srid_value(
 			srid_has_value ? col.srs_id().value() : 0,

@@ -2571,6 +2571,11 @@ dict_index_add_to_cache_w_vcol(
 	new_index->srid_is_valid = index->srid_is_valid;
 	new_index->srid = index->srid;
 
+	new_index->srid = index->srid;
+	new_index->srid_is_valid = index->srid_is_valid;
+	if (index->rtr_srs.get() != nullptr)
+		new_index->rtr_srs.reset(index->rtr_srs->clone());
+
 	if (dict_index_too_big_for_tree(table, new_index, strict)) {
 
 		if (strict) {

@@ -2324,7 +2324,16 @@ innobase_create_index_def(
 		if (dd_index != nullptr) {
 			ut_ad(dd_index->name() == key->name);
 			/* Spatial index indexes on only one column */
-			const dd::Column& col = dd_index->elements()[0]->column();
+			size_t geom_col_idx;
+			for (
+				geom_col_idx = 0;
+				geom_col_idx < dd_index->elements().size();
+				++geom_col_idx) {
+				if (!dd_index->elements()[geom_col_idx]->column().is_hidden())
+					break;
+			}
+			const dd::Column& col =
+				dd_index->elements()[geom_col_idx]->column();
 			bool has_value = col.srs_id().has_value();
 			index->srid_is_valid = has_value;
 			index->srid = has_value ? col.srs_id().value() : 0;

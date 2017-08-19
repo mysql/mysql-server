@@ -3850,6 +3850,12 @@ row_merge_create_index(
 		}
 	}
 
+	if (dict_index_is_spatial(index)) {
+		index->fill_srid_value(
+			index_def->srid, index_def->srid_is_valid);
+		index->rtr_srs.reset(fetch_srs(index->srid));
+	}
+
 	index->parser = index_def->parser;
 	index->is_ngram = index_def->is_ngram;
 	index->has_new_v_col = has_new_v_col;
