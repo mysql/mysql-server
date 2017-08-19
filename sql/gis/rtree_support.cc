@@ -21,8 +21,9 @@
 #include "sql/gis/rtree_support.h"
 
 #include <algorithm>  // std::min, std::max
-#include <cmath>      // std::isinf, std::isnan
+#include <cmath>      // std::isfinite
 #include <cstdint>    // std::uint32_t
+#include <limits>
 
 #include <boost/geometry.hpp>
 
@@ -246,19 +247,38 @@ void mbr_join(const dd::Spatial_reference_system* srs, double* a,
 
 double mbr_join_area(const dd::Spatial_reference_system* srs, const double* a,
                      const double* b, int n_dim) {
-  const double* end = a + n_dim * 2;
-  double area = 1.0;
+  DBUG_ASSERT(n_dim == 2);
 
-  do {
-    area *= std::max(a[1], b[1]) - std::min(a[0], b[0]);
+  double area = 0.0;
+  try {
+    if (srs == nullptr || srs->is_cartesian()) {
+      gis::Cartesian_box a_box(gis::Cartesian_point(a[0], a[2]),
+                               gis::Cartesian_point(a[1], a[3]));
+      gis::Cartesian_box b_box(gis::Cartesian_point(b[0], b[2]),
+                               gis::Cartesian_point(b[1], b[3]));
+      bg::expand(a_box, b_box);
+      area = bg::area(a_box);
+    } else {
+      DBUG_ASSERT(srs->is_geographic());
+      gis::Geographic_box a_box(
+          gis::Geographic_point(srs->to_radians(a[0]), srs->to_radians(a[2])),
+          gis::Geographic_point(srs->to_radians(a[1]), srs->to_radians(a[3])));
+      gis::Geographic_box b_box(
+          gis::Geographic_point(srs->to_radians(b[0]), srs->to_radians(b[2])),
+          gis::Geographic_point(srs->to_radians(b[1]), srs->to_radians(b[3])));
+      bg::expand(a_box, b_box);
+      area = bg::area(
+          a_box, bg::strategy::area::geographic<
+                     gis::Geographic_point, bg::strategy::andoyer,
+                     bg::strategy::default_order<bg::strategy::andoyer>::value,
+                     bg::srs::spheroid<double>>(bg::srs::spheroid<double>(
+                     srs->semi_major_axis(), srs->semi_minor_axis())));
+    }
+  } catch (...) {
+    DBUG_ASSERT(false); /* purecov: inspected */
+  }
 
-    a += 2;
-    b += 2;
-  } while (a != end);
-
-  /* Check for infinity or NaN, so we don't get NaN in calculations */
-  if (std::isinf(area) || std::isnan(area)) return DBL_MAX;
-
+  if (!std::isfinite(area)) area = std::numeric_limits<double>::max();
   return area;
 }
 
