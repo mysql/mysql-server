@@ -939,7 +939,6 @@ str_to_time_with_warn(String *str, MYSQL_TIME *l_time)
   }
   return ret_val;
 }
-#endif // ifdef MYSQL_SERVER
 
 
 /**
@@ -958,6 +957,7 @@ void time_to_datetime(THD *thd, const MYSQL_TIME *ltime, MYSQL_TIME *ltime2)
   ltime2->time_type= MYSQL_TIMESTAMP_DATE;
   mix_date_and_time(ltime2, ltime);
 }
+#endif // ifdef MYSQL_SERVER
 
 
 /*
