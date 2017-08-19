@@ -26,6 +26,10 @@ Created 2013/03/27 Allen Lai and Jimmy Yang
 #include <cmath>
 #include "page0cur.h"
 
+namespace dd {
+class Spatial_reference_system;
+}
+
 /*************************************************************//**
 Copy mbr of dimension n_dim from src to dst. */
 inline
@@ -255,6 +259,7 @@ nextflag can contain these flags:
 @param[in]	a_len	first key len
 @param[in]	b	second key
 @param[in]	b_len	second_key_len
+@param[in]	srs	Spatial reference system of R-tree
 @retval 0 on success, otherwise 1. */
 int
 rtree_key_cmp(
@@ -262,7 +267,8 @@ rtree_key_cmp(
 	const uchar*	a,
 	int		a_len,
 	const uchar*	b,
-	int		b_len)
+	int		b_len,
+	const dd::Spatial_reference_system*	srs)
 {
 	rtr_mbr_t	x, y;
 
@@ -286,7 +292,7 @@ rtree_key_cmp(
 		}
 		break;
 	case PAGE_CUR_CONTAIN:
-		if (mbr_contain_cmp(&x, &y, 0)) {
+		if (mbr_contain_cmp(srs, &x, &y)) {
 			return(0);
 		}
 		break;

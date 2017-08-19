@@ -1950,7 +1950,8 @@ rtr_estimate_n_rows_in_range(
 			case PAGE_CUR_MBR_EQUAL:
 				if (rtree_key_cmp(
 					PAGE_CUR_WITHIN, range_mbr_ptr,
-					DATA_MBR_LEN, field, DATA_MBR_LEN)
+					DATA_MBR_LEN, field, DATA_MBR_LEN,
+					index->rtr_srs.get())
 				    == 0) {
 					area += 1;
 				}
@@ -1980,7 +1981,8 @@ rtr_estimate_n_rows_in_range(
 			case PAGE_CUR_MBR_EQUAL:
 				if (rtree_key_cmp(
 					PAGE_CUR_WITHIN, range_mbr_ptr,
-					DATA_MBR_LEN, field, DATA_MBR_LEN)
+					DATA_MBR_LEN, field, DATA_MBR_LEN,
+					index->rtr_srs.get())
 				    == 0) {
 					area += range_area / rec_area;
 				}

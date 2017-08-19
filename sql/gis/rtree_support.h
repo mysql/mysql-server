@@ -57,12 +57,13 @@ dd::Spatial_reference_system* fetch_srs(gis::srid_t srid);
 
 /// Whether MBR 'a' contains 'b'
 ///
+/// @param[in] srs Spatial reference system.
 /// @param a    The first MBR.
 /// @param b    The second MBR.
-/// @param srid SRID value.
 ///
 /// @return true if 'a' contains 'b', else false.
-bool mbr_contain_cmp(rtr_mbr_t* a, rtr_mbr_t* b, std::uint32_t srid);
+bool mbr_contain_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
+                     rtr_mbr_t* b);
 
 /// Whether MBR 'a' equals to 'b'
 ///

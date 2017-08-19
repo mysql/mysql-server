@@ -29,6 +29,10 @@ The r-tree define from MyISAM
 #define SPTYPE HA_KEYTYPE_DOUBLE
 #define SPLEN  8
 
+namespace dd {
+class Spatial_reference_system;
+}
+
 /* Rtree split node structure. */
 struct rtr_split_node_t
 {
@@ -83,6 +87,7 @@ nextflag can contain these flags:
 @param[in]	a_len	first key len
 @param[in]	b	second key
 @param[in]	b_len	second_key_len
+@param[in]	srs	Spatial reference system of R-tree
 @retval 0 on success, otherwise 1. */
 int
 rtree_key_cmp(
@@ -90,5 +95,6 @@ rtree_key_cmp(
 	const uchar*	a,
 	int		a_len,
 	const uchar*	b,
-	int		b_len);
+	int		b_len,
+	const dd::Spatial_reference_system*	srs);
 #endif
