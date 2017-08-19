@@ -8945,7 +8945,7 @@ Encryption::get_master_key(
 	char*		srv_uuid,
 	byte**		master_key)
 {
-	size_t	key_len;
+	size_t	key_len = 0;
 	char*	key_type = nullptr;
 	char	key_name[ENCRYPTION_MASTER_KEY_NAME_MAX_LEN];
 
@@ -8971,13 +8971,6 @@ Encryption::get_master_key(
 		key_name, &key_type, nullptr,
 		reinterpret_cast<void**>(master_key), &key_len);
 
-	ib::info()
-		<< "z. ret: " << ret << " - '"
-		<< key_name << "', type: "
-		<< (key_type == nullptr ? "null" : key_type)
-		<< ", " << key_len << ", '"
-		<< ((char*) *master_key ? (char*) *master_key : "null") << "'";
-
 	if (key_type != nullptr) {
 		my_free(key_type);
 	}
@@ -8988,8 +8981,7 @@ Encryption::get_master_key(
 
 		ib::error()
 			<< "Encryption can't find master key,"
-			<< " please check the keyring plugin is loaded."
-			<< " ret=" << ret;
+			<< " please check the keyring plugin is loaded.";
 	}
 
 #ifdef UNIV_ENCRYPT_DEBUG
@@ -9220,8 +9212,7 @@ Encryption::fill_encryption_info(
 	return(true);
  }
 
-/** Decoding the encryption info
-from the first page of a tablespace.
+/** Decoding the encryption info from the first page of a tablespace.
 @param[in,out]	key		key
 @param[in,out]	iv		iv
 @param[in]	encryption_info	encrytion info.
@@ -9270,10 +9261,12 @@ Encryption::decode_encryption_info(
 	/* Get server uuid. */
 	if (version == ENCRYPTION_VERSION_2) {
 
-		srv_uuid[sizeof(srv_uuid) - 1] = 0;
-		memcpy(srv_uuid, ptr, sizeof(srv_uuid) - 1);
+		constexpr size_t	len = sizeof(srv_uuid) - 1;
 
-		ptr += ENCRYPTION_SERVER_UUID_LEN;
+		srv_uuid[len] = 0;
+		memcpy(srv_uuid, ptr, len);
+
+		ptr += len;
 	}
 
 	/* Get master key by key id. */
@@ -9937,6 +9930,7 @@ Encryption::decrypt_log(
 				<< log_block_get_hdr_no(ptr) << std::endl
 				<< "data={" << std::endl
 				<< msg.str << std::endl << "}";
+		}
 #endif /* UNIV_ENCRYPT_DEBUG */
 
 		/* If it's not an encrypted block, skip it. */

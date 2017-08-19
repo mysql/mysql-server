@@ -2324,7 +2324,7 @@ void
 recv_apply_log_rec(recv_addr_t* recv_addr)
 {
 	if (recv_addr->state == RECV_DISCARDED) {
-		ut_a(recv_sys->n_addrs);
+		ut_a(recv_sys->n_addrs > 0);
 		--recv_sys->n_addrs;
 		return;
 	}
@@ -2445,18 +2445,26 @@ recv_apply_hashed_log_recs(bool allow_ibuf)
 
 	for (const auto& space : *recv_sys->spaces) {
 
+		bool	dropped;
+
 		if (space.first != TRX_SYS_SPACE
 		    && !fil_tablespace_open_for_recovery(space.first)) {
 
 			/* Tablespace was dropped. */
 			ut_ad(!fil_tablespace_lookup_for_recovery(space.first));
 
-			continue;
+			dropped = true;
+		} else {
+			dropped = false;
 		}
 
 		for (auto pages : space.second.m_pages) {
 
 			ut_ad(pages.second->space == space.first);
+
+			if (dropped) {
+				pages.second->state = RECV_DISCARDED;
+			}
 
 			recv_apply_log_rec(pages.second);
 
