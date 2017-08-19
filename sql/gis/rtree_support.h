@@ -23,7 +23,12 @@
 
 #include <cstdint>  // std::uint32_t
 
+#include "sql/gis/srid.h"
 #include "my_inttypes.h"  // uchar, uint
+
+namespace dd {
+class Spatial_reference_system;
+}
 
 /// In memory representation of a minimum bounding rectangle
 typedef struct rtr_mbr {
@@ -36,6 +41,19 @@ typedef struct rtr_mbr {
   /// maximum on y
   double ymax;
 } rtr_mbr_t;
+
+/// Fetches a copy of the dictionary entry for a spatial reference system.
+///
+/// Spatial reference dictionary cache objects have a limited lifetime,
+/// typically until the end of a transaction. This function returns a clone of
+/// the dictionary object so that it is valid also after the transaction has
+/// ended. This is necessary since InnoDB may do index operations after the
+/// transaction has ended.
+///
+/// @param[in] srid The spatial reference system ID to look up.
+///
+/// @return The spatial reference system dictionary entry, or nullptr.
+dd::Spatial_reference_system* fetch_srs(gis::srid_t srid);
 
 /// Whether MBR 'a' contains 'b'
 ///

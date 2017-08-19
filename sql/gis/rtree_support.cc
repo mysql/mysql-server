@@ -18,14 +18,19 @@
 /// This file implements the set of functions that storage engines can call to
 /// do geometrical operations.
 
-#include "rtree_support.h"
+#include "sql/gis/rtree_support.h"
 
 #include <algorithm>  // std::min, std::max
 #include <cmath>      // std::isinf, std::isnan
 
 #include "my_byteorder.h"  // doubleget, float8get
 #include "my_inttypes.h"   // uchar
-#include "sql/spatial.h"   // SRID_SIZE
+#include "sql/current_thd.h"
+#include "sql/dd/cache/dictionary_client.h"
+#include "sql/dd/types/spatial_reference_system.h"
+#include "sql/spatial.h"    // SRID_SIZE
+#include "sql/sql_class.h"  // THD
+#include "sql/srs_fetcher.h"
 
 /// Types of "well-known binary representation" (wkb) format.
 enum wkbType {
@@ -43,6 +48,19 @@ enum wkbByteOrder {
   wkbXDR = 0, /* Big Endian. */
   wkbNDR = 1  /* Little Endian. */
 };
+
+dd::Spatial_reference_system* fetch_srs(gis::srid_t srid) {
+  const dd::Spatial_reference_system* srs = nullptr;
+  dd::cache::Dictionary_client::Auto_releaser m_releaser(
+      current_thd->dd_client());
+  Srs_fetcher fetcher(current_thd);
+  if (srid != 0 && fetcher.acquire(srid, &srs)) return nullptr;
+
+  if (srs)
+    return srs->clone();
+  else
+    return nullptr;
+}
 
 bool mbr_contain_cmp(rtr_mbr_t* a, rtr_mbr_t* b, std::uint32_t srid) {
   return ((((b)->xmin >= (a)->xmin) && ((b)->xmax <= (a)->xmax) &&
