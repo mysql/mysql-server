@@ -31,6 +31,7 @@
 #include "sql/dd/types/spatial_reference_system.h"
 #include "sql/gis/box.h"
 #include "sql/gis/covered_by_functor.h"
+#include "sql/gis/equals_functor.h"
 #include "sql/gis/geometries.h"
 #include "sql/gis/geometries_cs.h"
 #include "sql/spatial.h"    // SRID_SIZE
@@ -105,8 +106,38 @@ bool mbr_contain_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
 
 bool mbr_equal_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
                    rtr_mbr_t* b) {
-  return ((((b)->xmin == (a)->xmin) && ((b)->xmax == (a)->xmax)) &&
-          (((b)->ymin == (a)->ymin) && ((b)->ymax == (a)->ymax)));
+  DBUG_ASSERT(a->xmin <= a->xmax && a->ymin <= a->ymax);
+  DBUG_ASSERT(b->xmin <= b->xmax && b->ymin <= b->ymax);
+
+  bool result = false;
+  try {
+    gis::Equals equals(srs ? srs->semi_major_axis() : 0.0,
+                       srs ? srs->semi_minor_axis() : 0.0);
+    if (srs == nullptr || srs->is_cartesian()) {
+      gis::Cartesian_box a_box(gis::Cartesian_point(a->xmin, a->ymin),
+                               gis::Cartesian_point(a->xmax, a->ymax));
+      gis::Cartesian_box b_box(gis::Cartesian_point(b->xmin, b->ymin),
+                               gis::Cartesian_point(b->xmax, b->ymax));
+      result = equals(&a_box, &b_box);
+    } else {
+      DBUG_ASSERT(srs->is_geographic());
+      gis::Geographic_box a_box(
+          gis::Geographic_point(srs->to_radians(a->xmin),
+                                srs->to_radians(a->ymin)),
+          gis::Geographic_point(srs->to_radians(a->xmax),
+                                srs->to_radians(a->ymax)));
+      gis::Geographic_box b_box(
+          gis::Geographic_point(srs->to_radians(b->xmin),
+                                srs->to_radians(b->ymin)),
+          gis::Geographic_point(srs->to_radians(b->xmax),
+                                srs->to_radians(b->ymax)));
+      result = equals(&a_box, &b_box);
+    }
+  } catch (...) {
+    DBUG_ASSERT(false); /* purecov: inspected */
+  }
+
+  return result;
 }
 
 bool mbr_intersect_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,

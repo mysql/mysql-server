@@ -70,13 +70,17 @@ dd::Spatial_reference_system* fetch_srs(gis::srid_t srid);
 bool mbr_contain_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
                      rtr_mbr_t* b);
 
-/// Whether MBR 'a' equals to 'b'
+/// Checks if two MBRs are equal
+///
+/// For both MBRs, the coordinates of the MBR's minimum corners must be smaller
+/// than or equal to the corresponding coordinates of the maximum corner.
 ///
 /// @param[in] srs Spatial reference system.
-/// @param a    The first MBR.
-/// @param b    The second MBR.
+/// @param[in] a The first MBR.
+/// @param[in] b The second MBR.
 ///
-/// @return true if 'a' equals 'b', else false.
+/// @retval true The two MBRs are equal.
+/// @retval false The two MBRs aren't equal.
 bool mbr_equal_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
                    rtr_mbr_t* b);
 
