@@ -3653,7 +3653,8 @@ row_ins_spatial_index_entry_set_mbr_field(
 /*======================================*/
 	dfield_t*	field,		/*!< in/out: mbr field */
 	const dfield_t*	row_field,	/*!< in: row field */
-	uint32_t*	srid)		/*!< in/out: spatial reference id */
+	uint32_t*	srid,		/*!< in/out: spatial reference id */
+        const dd::Spatial_reference_system *srs) /*!< in: SRS of row_field */
 {
 	uchar*		dptr = NULL;
 	ulint		dlen = 0;
@@ -3666,7 +3667,8 @@ row_ins_spatial_index_entry_set_mbr_field(
 	dlen = dfield_get_len(row_field);
 
 	/* obtain the MBR */
-	get_mbr_from_store(dptr, static_cast<uint>(dlen), SPDIMS, mbr, srid);
+	get_mbr_from_store(srs, dptr, static_cast<uint>(dlen), SPDIMS, mbr,
+			srid);
 
 	/* Set mbr as index entry data */
 	dfield_write_mbr(field, mbr);
@@ -3748,7 +3750,7 @@ row_ins_index_entry_set_vals(
 
 			uint32_t srid;
 			row_ins_spatial_index_entry_set_mbr_field(
-				field, row_field, &srid);
+				field, row_field, &srid, index->rtr_srs.get());
 
 			if (index->srid_is_valid && index->srid != srid) {
 				return DB_CANT_CREATE_GEOMETRY_OBJECT;

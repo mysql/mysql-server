@@ -140,6 +140,7 @@ double compute_area(const dd::Spatial_reference_system* srs, const double* a,
 /// Calculate Minimal Bounding Rectangle (MBR) of the spatial object
 /// stored in in geometry storage format (WKB+SRID).
 ///
+/// @param[in] srs Spatial reference system.
 /// @param         store  Pointer to storage format of WKB+SRID, where point is
 ///                       stored.
 /// @param         size   Size of WKB.
@@ -148,8 +149,9 @@ double compute_area(const dd::Spatial_reference_system* srs, const double* a,
 /// @param[in,out] srid_ptr Pointer to spatial reference id to be retrieved
 ///
 /// @return 0 if the geometry is valid, otherwise -1.
-int get_mbr_from_store(uchar* store, uint size, uint n_dims, double* mbr,
-                       uint32_t* srid_ptr);
+int get_mbr_from_store(const dd::Spatial_reference_system* srs, uchar* store,
+                       uint size, uint n_dims, double* mbr,
+                       gis::srid_t* srid_ptr);
 
 /// Calculates MBR_AREA(a+b) - MBR_AREA(a)
 /// Note: when 'a' and 'b' objects are far from each other,

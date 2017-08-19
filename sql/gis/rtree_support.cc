@@ -347,8 +347,9 @@ int rtree_get_geometry_mbr(std::uint32_t srid, uchar** wkb, uchar* end,
   return (res);
 }
 
-int get_mbr_from_store(uchar* store, uint size, uint n_dims, double* mbr,
-                       uint32_t* srid_ptr) {
+int get_mbr_from_store(const dd::Spatial_reference_system* srs, uchar* store,
+                       uint size, uint n_dims, double* mbr,
+                       gis::srid_t* srid_ptr) {
   uint32_t srid = uint4korr(store);
   store += SRID_SIZE;
 
