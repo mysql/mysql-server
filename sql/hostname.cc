@@ -549,15 +549,6 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage,
                   }
                   );
 
-
-  DBUG_EXECUTE_IF ("getnameinfo_fake_max_length",
-                  {
-                    std::string s(NI_MAXHOST, 'a');
-                    strcpy(hostname_buffer, s.c_str());
-                    err_code= 0;
-                  }
-                  );
-
   /*
   ===========================================================================
   DEBUG code only (end)
