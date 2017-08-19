@@ -181,7 +181,8 @@ split_rtree_node(
 	int			size2,		/*!< in: initial group sizes */
 	double**		d_buffer,	/*!< in/out: buffer. */
 	int			n_dim,		/*!< in: dimensions. */
-	uchar*			first_rec)	/*!< in: the first rec. */
+	uchar*			first_rec,	/*!< in: the first rec. */
+	const dd::Spatial_reference_system*	srs) /*!< in: SRS of R-tree */
 {
 	rtr_split_node_t*	cur;
 	rtr_split_node_t*	a = NULL;
@@ -229,10 +230,10 @@ split_rtree_node(
 		pick_next(node, n_entries, g1, g2, &next, &next_node, n_dim);
 		if (next_node == 1) {
 			size1 += key_size;
-			mbr_join(g1, next->coords, n_dim, 0);
+			mbr_join(srs, g1, next->coords, n_dim);
 		} else {
 			size2 += key_size;
-			mbr_join(g2, next->coords, n_dim, 0);
+			mbr_join(srs, g2, next->coords, n_dim);
 		}
 
 		next->n_node = next_node;

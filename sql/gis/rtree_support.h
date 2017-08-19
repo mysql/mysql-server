@@ -107,11 +107,12 @@ bool mbr_within_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
 
 /// Join 2 MBR's of dimensions n_dim.
 ///
+/// @param[in] srs Spatial reference system.
 /// @param          a     The first MBR, where the joined result will be.
 /// @param          b     The second MBR.
 /// @param[in, out] n_dim Number of dimensions.
-/// @param          srid  SRID value.
-void mbr_join(double* a, const double* b, int n_dim, std::uint32_t srid);
+void mbr_join(const dd::Spatial_reference_system* srs, double* a,
+              const double* b, int n_dim);
 
 /// Computes the area of MBR which is the join of a and b. Both a and b are of
 /// dimensions n_dim.

@@ -71,7 +71,8 @@ split_rtree_node(
 	int			size2,		/*!< in: initial group sizes */
 	double**		d_buffer,	/*!< in/out: buffer.*/
 	int			n_dim,		/*!< in: dimensions. */
-	uchar*			first_rec);	/*!< in: the first rec. */
+	uchar*			first_rec,	/*!< in: the first rec. */
+	const dd::Spatial_reference_system*	srs); /*!< in: SRS of R-tree */
 
 /*************************************************************//**
 Compares two keys a and b depending on nextflag

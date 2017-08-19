@@ -91,7 +91,8 @@ bool mbr_within_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
           (((b)->ymin <= (a)->ymin) && ((b)->ymax >= (a)->ymax)));
 }
 
-void mbr_join(double* a, const double* b, int n_dim, std::uint32_t srid) {
+void mbr_join(const dd::Spatial_reference_system* srs, double* a,
+              const double* b, int n_dim) {
   double* end = a + n_dim * 2;
 
   do {

@@ -1094,7 +1094,8 @@ func_start:
 					   static_cast<int>(total_data),
 					   static_cast<int>(insert_size),
 					   0, 2, 2, &buf_pos, SPDIMS,
-					   static_cast<uchar*>(first_rec));
+					   static_cast<uchar*>(first_rec),
+					   cursor->index->rtr_srs.get());
 
 	/* Allocate a new page to the index */
 	direction = FSP_UP;
