@@ -9181,7 +9181,8 @@ bool Field_json::is_before_image_equal_to_after_image() const
 
 
 longlong Field_json::get_diff_vector_and_length(
-  ulonglong value_options, const Json_diff_vector **diff_vector_p) const
+  ulonglong value_options,
+  const Json_diff_vector **diff_vector_p) const
 {
   DBUG_ENTER("Field_json::get_diff_vector_and_length");
 
@@ -9193,8 +9194,8 @@ longlong Field_json::get_diff_vector_and_length(
     DBUG_RETURN(0);
   }
 
-  size_t length_of_full_format= const_cast<Field_json *>(this)->get_length();
-  size_t length= 0;
+  longlong length_of_full_format= const_cast<Field_json *>(this)->get_length();
+  longlong length= -1;
   const Json_diff_vector *diff_vector= nullptr;
   // Is the partial update smaller than the full update?
   DBUG_PRINT("info", ("length_of_full_format=%lu",
@@ -9233,8 +9234,8 @@ longlong Field_json::get_diff_vector_and_length(
     }
     else
     {
-      size_t length_of_diff_vector= diff_vector->binary_length();
-      size_t length_of_empty_diff_vector=
+      longlong length_of_diff_vector= diff_vector->binary_length();
+      longlong length_of_empty_diff_vector=
         Json_diff_vector::EMPTY_JSON_DIFF_VECTOR.binary_length();
       DBUG_PRINT("info", ("length_of_diff_vector=%lu diff_vector->size()=%u",
                           (unsigned long) length_of_diff_vector,
@@ -9279,7 +9280,13 @@ longlong Field_json::get_diff_vector_and_length(
     }
   }
 
-  DBUG_ASSERT(length != 0);
+  /*
+    Can be equal to zero in the corner case where user inserted NULL
+    value in a JSON NOT NULL column in non-strict mode.  The server
+    will store this as a zero-length non-NULL object, and interpret it
+    as a JSON 'null' literal.
+  */
+  DBUG_ASSERT(length >= 0);
 
   if (diff_vector_p != nullptr)
     *diff_vector_p= diff_vector;
