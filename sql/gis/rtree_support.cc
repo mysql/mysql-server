@@ -21,7 +21,7 @@
 #include "sql/gis/rtree_support.h"
 
 #include <algorithm>  // std::min, std::max
-#include <cmath>      // std::isfinite, std::isnan
+#include <cmath>      // std::isfinite, std::isinf, std::isnan
 #include <limits>
 
 #include <boost/geometry.hpp>
@@ -357,73 +357,75 @@ int get_mbr_from_store(const dd::Spatial_reference_system* srs, uchar* store,
 }
 
 double rtree_area_increase(const dd::Spatial_reference_system* srs,
-                           const uchar* mbr_a, const uchar* mbr_b, int mbr_len,
+                           const uchar* mbr_a, const uchar* mbr_b,
+                           int mbr_len MY_ATTRIBUTE((unused)),
                            double* ab_area) {
-  double a_area = 1.0;
-  double loc_ab_area = 1.0;
-  double amin, amax, bmin, bmax;
-  int key_len;
-  int keyseg_len;
-  double data_round = 1.0;
-  /*
-    Since the mbr could be a point or a linestring, in this case, area of mbr is
-    0. So, we define this macro for calculating the area increasing when we need
-    to
-    enlarge the mbr.
-  */
-  double line_mbr_weights = 0.001;
+  DBUG_ASSERT(mbr_len == sizeof(double) * 4);
 
-  keyseg_len = 2 * sizeof(double);
+  double a_xmin;
+  double a_ymin;
+  double a_xmax;
+  double a_ymax;
+  double b_xmin;
+  double b_ymin;
+  double b_xmax;
+  double b_ymax;
 
-  for (key_len = mbr_len; key_len > 0; key_len -= keyseg_len) {
-    double area;
+  float8get(&a_xmin, mbr_a);
+  float8get(&a_xmax, mbr_a + sizeof(double));
+  float8get(&a_ymin, mbr_a + sizeof(double) * 2);
+  float8get(&a_ymax, mbr_a + sizeof(double) * 3);
+  float8get(&b_xmin, mbr_b);
+  float8get(&b_xmax, mbr_b + sizeof(double));
+  float8get(&b_ymin, mbr_b + sizeof(double) * 2);
+  float8get(&b_ymax, mbr_b + sizeof(double) * 3);
 
-#ifdef WORDS_BIGENDIAN
-    float8get(&amin, mbr_a);
-    float8get(&bmin, mbr_b);
-    float8get(&amax, mbr_a + sizeof(double));
-    float8get(&bmax, mbr_b + sizeof(double));
-#else
-    doubleget(&amin, mbr_a);
-    doubleget(&bmin, mbr_b);
-    doubleget(&amax, mbr_a + sizeof(double));
-    doubleget(&bmax, mbr_b + sizeof(double));
-#endif
+  DBUG_ASSERT(a_xmin <= a_xmax && a_ymin <= a_ymax);
+  DBUG_ASSERT(b_xmin <= b_xmax && b_ymin <= b_ymax);
 
-    area = amax - amin;
-    if (area == 0)
-      a_area *= line_mbr_weights;
-    else
-      a_area *= area;
-
-    area = (double)std::max(amax, bmax) - (double)std::min(amin, bmin);
-
-    if (area == 0)
-      loc_ab_area *= line_mbr_weights;
-    else
-      loc_ab_area *= area;
-
-    /* Value of amax or bmin can be so large that small difference
-    are ignored. For example: 3.2884281489988079e+284 - 100 =
-    3.2884281489988079e+284. This results some area difference
-    are not detected */
-    if (loc_ab_area == a_area) {
-      if (bmin < amin || bmax > amax)
-        data_round *= ((double)std::max(amax, bmax) - amax +
-                       (amin - (double)std::min(amin, bmin)));
-      else
-        data_round *= area;
+  double a_area = 0.0;
+  try {
+    if (srs == nullptr || srs->is_cartesian()) {
+      gis::Cartesian_box a_box(gis::Cartesian_point(a_xmin, a_ymin),
+                               gis::Cartesian_point(a_xmax, a_ymax));
+      gis::Cartesian_box b_box(gis::Cartesian_point(b_xmin, b_ymin),
+                               gis::Cartesian_point(b_xmax, b_ymax));
+      a_area = bg::area(a_box);
+      if (a_area == 0.0) a_area = 0.001 * 0.001;
+      bg::expand(a_box, b_box);
+      *ab_area = bg::area(a_box);
+    } else {
+      DBUG_ASSERT(srs->is_geographic());
+      gis::Geographic_box a_box(gis::Geographic_point(srs->to_radians(a_xmin),
+                                                      srs->to_radians(a_ymin)),
+                                gis::Geographic_point(srs->to_radians(a_xmax),
+                                                      srs->to_radians(a_ymax)));
+      gis::Geographic_box b_box(gis::Geographic_point(srs->to_radians(b_xmin),
+                                                      srs->to_radians(b_ymin)),
+                                gis::Geographic_point(srs->to_radians(b_xmax),
+                                                      srs->to_radians(b_ymax)));
+      a_area = bg::area(
+          a_box, bg::strategy::area::geographic<
+                     gis::Geographic_point, bg::strategy::andoyer,
+                     bg::strategy::default_order<bg::strategy::andoyer>::value,
+                     bg::srs::spheroid<double>>(bg::srs::spheroid<double>(
+                     srs->semi_major_axis(), srs->semi_minor_axis())));
+      bg::expand(a_box, b_box);
+      *ab_area = bg::area(
+          a_box, bg::strategy::area::geographic<
+                     gis::Geographic_point, bg::strategy::andoyer,
+                     bg::strategy::default_order<bg::strategy::andoyer>::value,
+                     bg::srs::spheroid<double>>(bg::srs::spheroid<double>(
+                     srs->semi_major_axis(), srs->semi_minor_axis())));
     }
-
-    mbr_a += keyseg_len;
-    mbr_b += keyseg_len;
+    if (std::isinf(a_area)) a_area = std::numeric_limits<double>::max();
+    if (std::isinf(*ab_area)) *ab_area = std::numeric_limits<double>::max();
+  } catch (...) {
+    DBUG_ASSERT(false); /* purecov: inspected */
   }
 
-  *ab_area = loc_ab_area;
-
-  if (loc_ab_area == a_area && data_round != 1.0) return (data_round);
-
-  return (loc_ab_area - a_area);
+  DBUG_ASSERT(std::isfinite(*ab_area - a_area));
+  return *ab_area - a_area;
 }
 
 double rtree_area_overlapping(const dd::Spatial_reference_system* srs,

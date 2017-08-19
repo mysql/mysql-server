@@ -203,18 +203,21 @@ double compute_area(const dd::Spatial_reference_system* srs, const double* a,
 int get_mbr_from_store(const dd::Spatial_reference_system* srs, uchar* store,
                        uint size, uint n_dims, double* mbr, gis::srid_t* srid);
 
-/// Calculates MBR_AREA(a+b) - MBR_AREA(a)
-/// Note: when 'a' and 'b' objects are far from each other,
-/// the area increase can be really big, so this function
-/// can return 'inf' as a result.
+/// Computes the extra area covered if an MBR is expanded to cover another MBR.
+///
+/// The formula is area(a + b) - area(a). This is generally different from
+/// area(b). If MBR b overlaps MBR a, area(a+b) - area(a) < area(b). If they are
+/// far apart, area(a+b) - area(a) > area(b).
+///
+/// @note If MBRs a and b are far apart, the function may return Inf.
 ///
 /// @param[in] srs Spatial reference system.
-/// @param      mbr_a   First MBR.
-/// @param      mbr_b   Second MBR.
-/// @param      mbr_len MBR length.
-/// @param[out] ab_area Total area.
+/// @param[in] mbr_a First MBR.
+/// @param[in] mbr_b Second MBR.
+/// @param[in] mbr_len MBR length in bytes. Must be 4 * sizeof(double).
+/// @param[out] ab_area The total area of MBRs a and b combined into one MBR.
 ///
-/// @return Increased area
+/// @return The increase in area when expanding from MBR a to also cover MBR b.
 double rtree_area_increase(const dd::Spatial_reference_system* srs,
                            const uchar* mbr_a, const uchar* mbr_b, int mbr_len,
                            double* ab_area);
