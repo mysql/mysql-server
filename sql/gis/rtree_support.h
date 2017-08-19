@@ -178,21 +178,30 @@ double mbr_join_area(const dd::Spatial_reference_system* srs, const double* a,
 double compute_area(const dd::Spatial_reference_system* srs, const double* a,
                     int n_dim);
 
-/// Calculate Minimal Bounding Rectangle (MBR) of the spatial object
-/// stored in in geometry storage format (WKB+SRID).
+/// Computes the MBR of a geometry.
+///
+/// If the geometry is empty, a box that covers the entire domain is returned.
+///
+/// The geometry is expected to be on the storage format (SRID + WKB). The
+/// caller is expected to provide an output buffer that is large enough.
+///
+/// @note The function takes a dimension parameter, but currently only supports
+/// 2d MBRs.
+///
+/// The SRID of the SRS parameter must match the SRID stored in the first four
+/// bytes of the geometry string.
 ///
 /// @param[in] srs Spatial reference system.
-/// @param         store  Pointer to storage format of WKB+SRID, where point is
-///                       stored.
-/// @param         size   Size of WKB.
-/// @param         n_dims Number of dimensions.
-/// @param[in,out] mbr    MBR, which must be of length n_dims * 2.
-/// @param[in,out] srid_ptr Pointer to spatial reference id to be retrieved
+/// @param[in] store The geometry.
+/// @param[in] size Number of bytes in the geometry string.
+/// @param[in] n_dims Number of dimensions. Must be 2.
+/// @param[out] mbr The computed MBR.
+/// @param[out] srid SRID of the geometry
 ///
-/// @return 0 if the geometry is valid, otherwise -1.
+/// @retval 0 The geometry is valid.
+/// @retval -1 The geometry is invalid.
 int get_mbr_from_store(const dd::Spatial_reference_system* srs, uchar* store,
-                       uint size, uint n_dims, double* mbr,
-                       gis::srid_t* srid_ptr);
+                       uint size, uint n_dims, double* mbr, gis::srid_t* srid);
 
 /// Calculates MBR_AREA(a+b) - MBR_AREA(a)
 /// Note: when 'a' and 'b' objects are far from each other,

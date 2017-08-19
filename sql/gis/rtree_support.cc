@@ -21,8 +21,7 @@
 #include "sql/gis/rtree_support.h"
 
 #include <algorithm>  // std::min, std::max
-#include <cmath>      // std::isfinite
-#include <cstdint>    // std::uint32_t
+#include <cmath>      // std::isfinite, std::isnan
 #include <limits>
 
 #include <boost/geometry.hpp>
@@ -38,28 +37,15 @@
 #include "sql/gis/equals_functor.h"
 #include "sql/gis/geometries.h"
 #include "sql/gis/geometries_cs.h"
+#include "sql/gis/mbr_utils.h"
+#include "sql/gis/srid.h"
+#include "sql/gis/wkb_parser.h"
 #include "sql/spatial.h"    // SRID_SIZE
 #include "sql/sql_class.h"  // THD
 #include "sql/srs_fetcher.h"
+#include "template_utils.h"  // pointer_cast
 
 namespace bg = boost::geometry;
-
-/// Types of "well-known binary representation" (wkb) format.
-enum wkbType {
-  wkbPoint = 1,
-  wkbLineString = 2,
-  wkbPolygon = 3,
-  wkbMultiPoint = 4,
-  wkbMultiLineString = 5,
-  wkbMultiPolygon = 6,
-  wkbGeometryCollection = 7
-};
-
-/// Byte order of "well-known binary representation" (wkb) format.
-enum wkbByteOrder {
-  wkbXDR = 0, /* Big Endian. */
-  wkbNDR = 1  /* Little Endian. */
-};
 
 dd::Spatial_reference_system* fetch_srs(gis::srid_t srid) {
   const dd::Spatial_reference_system* srs = nullptr;
@@ -311,229 +297,63 @@ double compute_area(const dd::Spatial_reference_system* srs, const double* a,
   return area;
 }
 
-/// Add one point stored in WKB to a given MBR.
-///
-/// @param         srid       Spatail reference system ID.
-/// @param         wkb        Pointer to WKB, where point is stored.
-/// @param         end        End of WKB.
-/// @param         n_dims     Number of dimensions.
-/// @param         byte_order Byte order.
-/// @param[in,out] mbr        MBR, which must be of length n_dims * 2.
-///
-/// @return 0 if the point in wkb is valid, otherwise -1.
-static int rtree_add_point_to_mbr(std::uint32_t srid, uchar** wkb, uchar* end,
-                                  uint n_dims, uchar byte_order, double* mbr) {
-  double ord;
-  double* mbr_end = mbr + n_dims * 2;
-
-  while (mbr < mbr_end) {
-    if ((*wkb) + sizeof(double) > end) return (-1);
-
-#ifdef WORDS_BIGENDIAN
-    float8get(&ord, *wkb);
-#else
-    doubleget(&ord, *wkb);
-#endif
-
-    (*wkb) += sizeof(double);
-
-    if (ord < *mbr) *mbr = ord;
-
-    mbr++;
-
-    if (ord > *mbr) *mbr = ord;
-
-    mbr++;
-  }
-
-  return (0);
-}
-
-/// Get MBR of point stored in WKB.
-///
-/// @param         srid       Spatail reference system ID.
-/// @param         wkb        Pointer to WKB, where point is stored.
-/// @param         end        End of WKB.
-/// @param         n_dims     Number of dimensions.
-/// @param         byte_order Byte order.
-/// @param[in,out] mbr        MBR, which must be of length n_dims * 2.
-///
-/// @return 0 if ok, otherwise -1.
-static int rtree_get_point_mbr(std::uint32_t srid, uchar** wkb, uchar* end,
-                               uint n_dims, uchar byte_order, double* mbr) {
-  return rtree_add_point_to_mbr(srid, wkb, end, n_dims, byte_order, mbr);
-}
-
-/// Get MBR of linestring stored in WKB.
-///
-/// @param         srid       Spatail reference system ID.
-/// @param         wkb        Pointer to WKB, where point is stored.
-/// @param         end        End of WKB.
-/// @param         n_dims     Number of dimensions.
-/// @param         byte_order Byte order.
-/// @param[in,out] mbr        MBR, which must be of length n_dims * 2.
-///
-/// @return 0 if the linestring is valid, otherwise -1.
-static int rtree_get_linestring_mbr(std::uint32_t srid, uchar** wkb, uchar* end,
-                                    uint n_dims, uchar byte_order,
-                                    double* mbr) {
-  uint n_points;
-
-  n_points = uint4korr(*wkb);
-  (*wkb) += 4;
-
-  for (; n_points > 0; --n_points) {
-    /* Add next point to mbr */
-    if (rtree_add_point_to_mbr(srid, wkb, end, n_dims, byte_order, mbr))
-      return (-1);
-  }
-
-  return (0);
-}
-
-/// Get MBR of polygon stored in WKB.
-///
-/// @param         srid       Spatail reference system ID.
-/// @param         wkb        Pointer to WKB, where point is stored.
-/// @param         end        End of WKB.
-/// @param         n_dims     Number of dimensions.
-/// @param         byte_order Byte order.
-/// @param[in,out] mbr        MBR, which must be of length n_dims * 2.
-///
-/// @return 0 if the polygon is valid, otherwise -1.
-static int rtree_get_polygon_mbr(std::uint32_t srid, uchar** wkb, uchar* end,
-                                 uint n_dims, uchar byte_order, double* mbr) {
-  uint n_linear_rings;
-  uint n_points;
-
-  n_linear_rings = uint4korr((*wkb));
-  (*wkb) += 4;
-
-  for (; n_linear_rings > 0; --n_linear_rings) {
-    n_points = uint4korr((*wkb));
-    (*wkb) += 4;
-
-    for (; n_points > 0; --n_points) {
-      /* Add next point to mbr */
-      if (rtree_add_point_to_mbr(srid, wkb, end, n_dims, byte_order, mbr))
-        return (-1);
-    }
-  }
-
-  return (0);
-}
-
-/// Get MBR of geometry stored in WKB (well-known binary representation).
-///
-/// @param         srid   Spatail reference system ID.
-/// @param         wkb    Pointer to WKB, where point is stored.
-/// @param         end    End of WKB.
-/// @param         n_dims Number of dimensions.
-/// @param[in,out] mbr    MBR, which must be of length n_dims * 2.
-/// @param         top    If it's called by itself or not.
-///
-/// @return 0 if the geometry is valid, otherwise -1.
-int rtree_get_geometry_mbr(std::uint32_t srid, uchar** wkb, uchar* end,
-                           uint n_dims, double* mbr, int top) {
-  int res;
-  uchar byte_order = 2;
-  uint wkb_type = 0;
-  uint n_items;
-
-  byte_order = *(*wkb);
-  ++(*wkb);
-
-  wkb_type = uint4korr((*wkb));
-  (*wkb) += 4;
-
-  for (uint i = 0; i < n_dims; ++i) {
-    mbr[i * 2] = DBL_MAX;
-    mbr[i * 2 + 1] = -DBL_MAX;
-  }
-
-  switch ((enum wkbType)wkb_type) {
-    case wkbPoint:
-      res = rtree_get_point_mbr(srid, wkb, end, n_dims, byte_order, mbr);
-      break;
-
-    case wkbLineString:
-      res = rtree_get_linestring_mbr(srid, wkb, end, n_dims, byte_order, mbr);
-      break;
-
-    case wkbPolygon:
-      res = rtree_get_polygon_mbr(srid, wkb, end, n_dims, byte_order, mbr);
-      break;
-
-    case wkbMultiPoint:
-      n_items = uint4korr((*wkb));
-      (*wkb) += 4;
-
-      for (; n_items > 0; --n_items) {
-        byte_order = *(*wkb);
-        ++(*wkb);
-        (*wkb) += 4;
-        if (rtree_get_point_mbr(srid, wkb, end, n_dims, byte_order, mbr))
-          return (-1);
-      }
-      res = 0;
-      break;
-
-    case wkbMultiLineString:
-      n_items = uint4korr((*wkb));
-      (*wkb) += 4;
-      for (; n_items > 0; --n_items) {
-        byte_order = *(*wkb);
-        ++(*wkb);
-        (*wkb) += 4;
-        if (rtree_get_linestring_mbr(srid, wkb, end, n_dims, byte_order, mbr))
-          return (-1);
-      }
-      res = 0;
-      break;
-
-    case wkbMultiPolygon:
-      n_items = uint4korr((*wkb));
-      (*wkb) += 4;
-      for (; n_items > 0; --n_items) {
-        byte_order = *(*wkb);
-        ++(*wkb);
-        (*wkb) += 4;
-        if (rtree_get_polygon_mbr(srid, wkb, end, n_dims, byte_order, mbr))
-          return (-1);
-      }
-      res = 0;
-      break;
-
-    case wkbGeometryCollection:
-      if (!top) return (-1);
-
-      n_items = uint4korr((*wkb));
-      (*wkb) += 4;
-      for (; n_items > 0; --n_items) {
-        if (rtree_get_geometry_mbr(srid, wkb, end, n_dims, mbr, 0)) return (-1);
-      }
-      res = 0;
-      break;
-
-    default:
-      res = -1;
-  }
-
-  return (res);
-}
-
 int get_mbr_from_store(const dd::Spatial_reference_system* srs, uchar* store,
-                       uint size, uint n_dims, double* mbr,
-                       gis::srid_t* srid_ptr) {
-  uint32_t srid = uint4korr(store);
-  store += SRID_SIZE;
+                       uint size, uint n_dims, double* mbr, gis::srid_t* srid) {
+  DBUG_ASSERT(n_dims == 2);
+  // The SRS should match the SRID of the geometry, with one exception: For
+  // backwards compatibility it is allowed to create indexes with mixed
+  // SRIDs. Although these indexes can never be used to optimize queries, the
+  // user is allowed to create them. These indexes will call get_mbr_from_store
+  // with srs == nullptr. There is, unfortunately, no way to differentiate mixed
+  // SRID indexes from SRID 0 indexes here, so the assertion is not perfect.
+  DBUG_ASSERT(srs == nullptr || (srs->id() == uint4korr(store)));
 
-  if (srid_ptr != nullptr) {
-    *srid_ptr = srid;
+  if (srid != nullptr) *srid = uint4korr(store);
+
+  try {
+    std::unique_ptr<gis::Geometry> g =
+        gis::parse_wkb(srs, pointer_cast<char*>(store) + sizeof(gis::srid_t),
+                       size - sizeof(gis::srid_t), true);
+    if (g.get() == nullptr) {
+      return -1; /* purecov: inspected */
+    }
+    if (srs == nullptr || srs->is_cartesian()) {
+      gis::Cartesian_box box;
+      gis::box_envelope(g.get(), srs, &box);
+      mbr[0] = box.min_corner().x();
+      mbr[1] = box.max_corner().x();
+      mbr[2] = box.min_corner().y();
+      mbr[3] = box.max_corner().y();
+    } else {
+      DBUG_ASSERT(srs->is_geographic());
+      gis::Geographic_box box;
+      gis::box_envelope(g.get(), srs, &box);
+      mbr[0] = srs->from_radians(box.min_corner().x());
+      mbr[1] = srs->from_radians(box.max_corner().x());
+      mbr[2] = srs->from_radians(box.min_corner().y());
+      mbr[3] = srs->from_radians(box.max_corner().y());
+    }
+  } catch (...) {
+    DBUG_ASSERT(false); /* purecov: inspected */
+    return -1;
   }
 
-  return rtree_get_geometry_mbr(srid, &store, store + size - SRID_SIZE, n_dims,
-                                mbr, 1);
+  if (std::isnan(mbr[0])) {
+    /* purecov: begin inspected */
+    DBUG_ASSERT(std::isnan(mbr[1]) && std::isnan(mbr[2]) && std::isnan(mbr[3]));
+    // The geometry is empty, so there is no bounding box. Return a box that
+    // covers the entire domain.
+    mbr[0] = std::numeric_limits<double>::lowest();
+    mbr[1] = std::numeric_limits<double>::max();
+    mbr[2] = std::numeric_limits<double>::lowest();
+    mbr[3] = std::numeric_limits<double>::max();
+    /* purecov: end inspected */
+  }
+
+  // xmin <= xmax && ymin <= ymax
+  DBUG_ASSERT(mbr[0] <= mbr[1] && mbr[2] <= mbr[3]);
+
+  return 0;
 }
 
 double rtree_area_increase(const dd::Spatial_reference_system* srs,
