@@ -6567,15 +6567,12 @@ pfs_set_statement_text_v1(PSI_statement_locker *locker,
     return;
   }
 
-  if (text_len > 0)
+  if (text_len > pfs_max_sqltext)
   {
-    if (text_len > pfs_max_sqltext)
-    {
-      text_len = (uint)pfs_max_sqltext;
-      state->m_query_sample_truncated = true;
-    }
-    state->m_query_sample = text;
+    text_len = (uint)pfs_max_sqltext;
+    state->m_query_sample_truncated = true;
   }
+  state->m_query_sample = text;
   state->m_query_sample_length = text_len;
 
   if (state->m_flags & STATE_FLAG_EVENT)
@@ -6587,7 +6584,11 @@ pfs_set_statement_text_v1(PSI_statement_locker *locker,
     pfs->m_sqltext_length = text_len;
     pfs->m_sqltext_truncated = state->m_query_sample_truncated;
     pfs->m_sqltext_cs_number = state->m_cs_number;
-    memcpy(pfs->m_sqltext, text, text_len);
+    if (text_len)
+    {
+      DBUG_ASSERT(pfs->m_sqltext != NULL);
+      memcpy(pfs->m_sqltext, text, text_len);
+    }
   }
 
   return;
@@ -6943,7 +6944,7 @@ pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
       digest_stat->m_stat.aggregate_counted();
     }
 
-    if (state->m_query_sample != nullptr)
+    if (state->m_query_sample_length != 0)
     {
       /* Get a new query sample if:
          - This is the first query sample, or
@@ -6975,6 +6976,7 @@ pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
         if (digest_stat->inc_sample_ref() == 0)
         {
           digest_stat->set_sample_timer_wait(wait_time);
+          DBUG_ASSERT(digest_stat->m_query_sample != NULL);
           memcpy(digest_stat->m_query_sample, state->m_query_sample,
                  state->m_query_sample_length);
           digest_stat->m_query_sample_length = state->m_query_sample_length;
