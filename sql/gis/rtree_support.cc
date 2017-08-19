@@ -142,8 +142,11 @@ bool mbr_equal_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
 
 bool mbr_intersect_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
                        rtr_mbr_t* b) {
-  return ((((b)->xmin <= (a)->xmax) || ((b)->xmax >= (a)->xmin)) &&
-          (((b)->ymin <= (a)->ymax) || ((b)->ymax >= (a)->ymin)));
+  // This assertion contains the old return value of the function. Given a valid
+  // box, it should always be true.
+  DBUG_ASSERT((b->xmin <= a->xmax || b->xmax >= a->xmin) &&
+              (b->ymin <= a->ymax || b->ymax >= a->ymin));
+  return true;
 }
 
 bool mbr_disjoint_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,

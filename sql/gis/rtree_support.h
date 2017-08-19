@@ -84,13 +84,19 @@ bool mbr_contain_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
 bool mbr_equal_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
                    rtr_mbr_t* b);
 
-/// Whether MBR 'a' intersects 'b'
+/// Returns true.
 ///
-/// @param[in] srs Spatial reference system.
-/// @param a    The first MBR.
-/// @param b    The second MBR.
+/// @warning Despite the name, this function does not compute the intersection
+/// relationship. It always returns true.
 ///
-/// @return true if 'a' intersects 'b', else false.
+/// For both MBRs, the coordinates of the MBR's minimum corners must be smaller
+/// than or equal to the corresponding coordinates of the maximum corner.
+///
+/// @param[in] srs Ignored.
+/// @param[in] a Ignored.
+/// @param[in] b Ignored.
+///
+/// @return Always returns true.
 bool mbr_intersect_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
                        rtr_mbr_t* b);
 
