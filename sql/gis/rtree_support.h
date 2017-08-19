@@ -86,12 +86,13 @@ bool mbr_intersect_cmp(rtr_mbr_t* a, rtr_mbr_t* b, std::uint32_t srid);
 
 /// Whether MBR 'a' and 'b' disjoint
 ///
+/// @param[in] srs Spatial reference system.
 /// @param a    The first MBR.
 /// @param b    The second MBR.
-/// @param srid SRID value.
 ///
 /// @return true if 'a' and 'b' are disjoint, else false.
-bool mbr_disjoint_cmp(rtr_mbr_t* a, rtr_mbr_t* b, std::uint32_t srid);
+bool mbr_disjoint_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
+                      rtr_mbr_t* b);
 
 /// Whether MBR 'a' within 'b'
 ///

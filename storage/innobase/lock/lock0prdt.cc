@@ -137,7 +137,7 @@ lock_prdt_consistent(
 		ret = mbr_contain_cmp(srs, mbr1, mbr2);
 		break;
 	case PAGE_CUR_DISJOINT:
-		ret = mbr_disjoint_cmp(mbr1, mbr2, 0);
+		ret = mbr_disjoint_cmp(srs, mbr1, mbr2);
 		break;
 	case PAGE_CUR_MBR_EQUAL:
 		ret = mbr_equal_cmp(srs, mbr1, mbr2);

@@ -307,7 +307,7 @@ rtree_key_cmp(
 		}
 		break;
 	case PAGE_CUR_DISJOINT:
-		if (!mbr_disjoint_cmp(&x, &y, 0)
+		if (!mbr_disjoint_cmp(srs, &x, &y)
 		    || (b_len - (2 * dim_len) > 0)) {
 			return(0);
 		}

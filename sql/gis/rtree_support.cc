@@ -79,8 +79,9 @@ bool mbr_intersect_cmp(rtr_mbr_t* a, rtr_mbr_t* b, std::uint32_t srid) {
           (((b)->ymin <= (a)->ymax) || ((b)->ymax >= (a)->ymin)));
 }
 
-bool mbr_disjoint_cmp(rtr_mbr_t* a, rtr_mbr_t* b, std::uint32_t srid) {
-  return !mbr_intersect_cmp(a, b, srid);
+bool mbr_disjoint_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
+                      rtr_mbr_t* b) {
+  return !mbr_intersect_cmp(a, b, 0);
 }
 
 bool mbr_within_cmp(rtr_mbr_t* a, rtr_mbr_t* b, std::uint32_t srid) {
