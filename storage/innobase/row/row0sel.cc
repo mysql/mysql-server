@@ -317,7 +317,8 @@ row_sel_sec_rec_is_for_clust_rec(
 					   nullptr);
 			rtr_read_mbr(sec_field, &sec_mbr);
 
-			if (!mbr_equal_cmp(&sec_mbr, &tmp_mbr, 0)) {
+			if (!mbr_equal_cmp(sec_index->rtr_srs.get(), &sec_mbr,
+					   &tmp_mbr)) {
 				is_equal = FALSE;
 				goto func_exit;
 			}

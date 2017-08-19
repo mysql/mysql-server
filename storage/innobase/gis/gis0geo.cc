@@ -302,7 +302,7 @@ rtree_key_cmp(
 		}
 		break;
 	case PAGE_CUR_MBR_EQUAL:
-		if (mbr_equal_cmp(&x, &y, 0)) {
+		if (mbr_equal_cmp(srs, &x, &y)) {
 			return(0);
 		}
 		break;

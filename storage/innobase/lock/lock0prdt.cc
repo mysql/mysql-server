@@ -140,7 +140,7 @@ lock_prdt_consistent(
 		ret = mbr_disjoint_cmp(mbr1, mbr2, 0);
 		break;
 	case PAGE_CUR_MBR_EQUAL:
-		ret = mbr_equal_cmp(mbr1, mbr2, 0);
+		ret = mbr_equal_cmp(srs, mbr1, mbr2);
 		break;
 	case PAGE_CUR_INTERSECT:
 		ret = mbr_intersect_cmp(mbr1, mbr2, 0);
@@ -377,12 +377,13 @@ bool
 lock_prdt_is_same(
 /*==============*/
 	lock_prdt_t*	prdt1,		/*!< in: MBR with the lock */
-	lock_prdt_t*	prdt2)		/*!< in: MBR with the lock */
+	lock_prdt_t*	prdt2,		/*!< in: MBR with the lock */
+	const dd::Spatial_reference_system*	srs) /*!< in: SRS of R-tree */
 {
 	rtr_mbr_t*	mbr1 = prdt_get_mbr_from_prdt(prdt1);
 	rtr_mbr_t*	mbr2 = prdt_get_mbr_from_prdt(prdt2);
 
-	if (prdt1->op == prdt2->op && mbr_equal_cmp(mbr1, mbr2, 0)) {
+	if (prdt1->op == prdt2->op && mbr_equal_cmp(srs, mbr1, mbr2)) {
 		return(true);
 	}
 
@@ -420,7 +421,8 @@ lock_prdt_find_on_page(
 			ut_ad(lock->type_mode & LOCK_PREDICATE);
 
 			if (lock_prdt_is_same(lock_get_prdt_from_lock(lock),
-					      prdt)) {
+					      prdt,
+					      lock->index->rtr_srs.get())) {
 				return(lock);
 			}
 		}

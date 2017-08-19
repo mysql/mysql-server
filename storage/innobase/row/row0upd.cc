@@ -1689,7 +1689,8 @@ row_upd_changes_ord_field_binary_func(
 				mem_heap_free(temp_heap);
 			}
 
-			if (!mbr_equal_cmp(old_mbr, new_mbr, 0)) {
+			if (!mbr_equal_cmp(index->rtr_srs.get(), old_mbr,
+					   new_mbr)) {
 				return(TRUE);
 			} else {
 				continue;

@@ -68,7 +68,8 @@ bool mbr_contain_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
            ((b)->ymin >= (a)->ymin) && ((b)->ymax <= (a)->ymax)));
 }
 
-bool mbr_equal_cmp(rtr_mbr_t* a, rtr_mbr_t* b, std::uint32_t srid) {
+bool mbr_equal_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
+                   rtr_mbr_t* b) {
   return ((((b)->xmin == (a)->xmin) && ((b)->xmax == (a)->xmax)) &&
           (((b)->ymin == (a)->ymin) && ((b)->ymax == (a)->ymax)));
 }
