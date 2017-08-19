@@ -117,14 +117,14 @@ void mbr_join(const dd::Spatial_reference_system* srs, double* a,
 /// Computes the area of MBR which is the join of a and b. Both a and b are of
 /// dimensions n_dim.
 ///
+/// @param[in] srs Spatial reference system.
 /// @param a     The first MBR.
 /// @param b     The second MBR.
 /// @param n_dim Number of dimensions.
-/// @param srid  SRID value.
 ///
 /// @return calculated MBR area of a join between 2 MBRs
-double mbr_join_area(const double* a, const double* b, int n_dim,
-                     std::uint32_t srid);
+double mbr_join_area(const dd::Spatial_reference_system* srs, const double* a,
+                     const double* b, int n_dim);
 
 /// Computes the area of MBR of dimension n_dim.
 ///

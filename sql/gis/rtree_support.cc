@@ -105,8 +105,8 @@ void mbr_join(const dd::Spatial_reference_system* srs, double* a,
   } while (a != end);
 }
 
-double mbr_join_area(const double* a, const double* b, int n_dim,
-                     std::uint32_t srid) {
+double mbr_join_area(const dd::Spatial_reference_system* srs, const double* a,
+                     const double* b, int n_dim) {
   const double* end = a + n_dim * 2;
   double area = 1.0;
 
