@@ -165,14 +165,16 @@ void mbr_join(const dd::Spatial_reference_system* srs, double* a,
 double mbr_join_area(const dd::Spatial_reference_system* srs, const double* a,
                      const double* b, int n_dim);
 
-/// Computes the area of MBR of dimension n_dim.
+/// Computes the area of an MBR.
+///
+/// @note The function takes a dimension parameter, but currently only supports
+/// 2d MBRs.
 ///
 /// @param[in] srs Spatial reference system.
-/// @param a     MBR.
-/// @param n_dim Number of dimensions.
-/// @param srid  SRID value.
+/// @param[in] a The MBR.
+/// @param[in] n_dim Number of dimensions. Must be 2.
 ///
-/// @return calculated MBR area
+/// @return Are of the MBR.
 double compute_area(const dd::Spatial_reference_system* srs, const double* a,
                     int n_dim);
 

@@ -284,13 +284,29 @@ double mbr_join_area(const dd::Spatial_reference_system* srs, const double* a,
 
 double compute_area(const dd::Spatial_reference_system* srs, const double* a,
                     int n_dim) {
-  const double* end = a + n_dim * 2;
-  double area = 1.0;
+  DBUG_ASSERT(n_dim == 2);
 
-  do {
-    area *= a[1] - a[0];
-    a += 2;
-  } while (a != end);
+  double area = 0.0;
+  try {
+    if (srs == nullptr || srs->is_cartesian()) {
+      gis::Cartesian_box a_box(gis::Cartesian_point(a[0], a[2]),
+                               gis::Cartesian_point(a[1], a[3]));
+      area = bg::area(a_box);
+    } else {
+      DBUG_ASSERT(srs->is_geographic());
+      gis::Geographic_box a_box(
+          gis::Geographic_point(srs->to_radians(a[0]), srs->to_radians(a[2])),
+          gis::Geographic_point(srs->to_radians(a[1]), srs->to_radians(a[3])));
+      area = bg::area(
+          a_box, bg::strategy::area::geographic<
+                     gis::Geographic_point, bg::strategy::andoyer,
+                     bg::strategy::default_order<bg::strategy::andoyer>::value,
+                     bg::srs::spheroid<double>>(bg::srs::spheroid<double>(
+                     srs->semi_major_axis(), srs->semi_minor_axis())));
+    }
+  } catch (...) {
+    DBUG_ASSERT(false); /* purecov: inspected */
+  }
 
   return area;
 }
