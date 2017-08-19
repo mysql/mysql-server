@@ -24,12 +24,15 @@
 #include <cmath>      // std::isinf, std::isnan
 #include <cstdint>    // std::uint32_t
 
+#include <boost/geometry.hpp>
+
 #include "my_byteorder.h"  // doubleget, float8get
 #include "my_inttypes.h"   // uchar
 #include "sql/current_thd.h"
 #include "sql/dd/cache/dictionary_client.h"
 #include "sql/dd/types/spatial_reference_system.h"
 #include "sql/gis/box.h"
+#include "sql/gis/box_traits.h"
 #include "sql/gis/covered_by_functor.h"
 #include "sql/gis/equals_functor.h"
 #include "sql/gis/geometries.h"
@@ -37,6 +40,8 @@
 #include "sql/spatial.h"    // SRID_SIZE
 #include "sql/sql_class.h"  // THD
 #include "sql/srs_fetcher.h"
+
+namespace bg = boost::geometry;
 
 /// Types of "well-known binary representation" (wkb) format.
 enum wkbType {
@@ -207,16 +212,36 @@ bool mbr_within_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
 
 void mbr_join(const dd::Spatial_reference_system* srs, double* a,
               const double* b, int n_dim) {
-  double* end = a + n_dim * 2;
+  DBUG_ASSERT(n_dim == 2);
 
-  do {
-    if (a[0] > b[0]) a[0] = b[0];
-
-    if (a[1] < b[1]) a[1] = b[1];
-
-    a += 2;
-    b += 2;
-  } while (a != end);
+  try {
+    if (srs == nullptr || srs->is_cartesian()) {
+      gis::Cartesian_box a_box(gis::Cartesian_point(a[0], a[2]),
+                               gis::Cartesian_point(a[1], a[3]));
+      gis::Cartesian_box b_box(gis::Cartesian_point(b[0], b[2]),
+                               gis::Cartesian_point(b[1], b[3]));
+      bg::expand(a_box, b_box);
+      a[0] = a_box.min_corner().x();
+      a[1] = a_box.max_corner().x();
+      a[2] = a_box.min_corner().y();
+      a[3] = a_box.max_corner().y();
+    } else {
+      DBUG_ASSERT(srs->is_geographic());
+      gis::Geographic_box a_box(
+          gis::Geographic_point(srs->to_radians(a[0]), srs->to_radians(a[2])),
+          gis::Geographic_point(srs->to_radians(a[1]), srs->to_radians(a[3])));
+      gis::Geographic_box b_box(
+          gis::Geographic_point(srs->to_radians(b[0]), srs->to_radians(b[2])),
+          gis::Geographic_point(srs->to_radians(b[1]), srs->to_radians(b[3])));
+      bg::expand(a_box, b_box);
+      a[0] = srs->from_radians(a_box.min_corner().x());
+      a[1] = srs->from_radians(a_box.max_corner().x());
+      a[2] = srs->from_radians(a_box.min_corner().y());
+      a[3] = srs->from_radians(a_box.max_corner().y());
+    }
+  } catch (...) {
+    DBUG_ASSERT(false); /* purecov: inspected */
+  }
 }
 
 double mbr_join_area(const dd::Spatial_reference_system* srs, const double* a,

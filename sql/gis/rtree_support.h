@@ -135,12 +135,17 @@ bool mbr_disjoint_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
 bool mbr_within_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
                     rtr_mbr_t* b);
 
-/// Join 2 MBR's of dimensions n_dim.
+/// Expands an MBR to also cover another MBR.
+///
+/// @note The function takes a dimension parameter, but currently only supports
+/// 2d MBRs.
+///
+/// MBR format: a[0] = xmin, a[1] = xmax, a[2] = ymin, a[3] = ymax. Same for b.
 ///
 /// @param[in] srs Spatial reference system.
-/// @param          a     The first MBR, where the joined result will be.
-/// @param          b     The second MBR.
-/// @param[in, out] n_dim Number of dimensions.
+/// @param[in,out] a The first MBR, where the joined result will be.
+/// @param[in] b The second MBR.
+/// @param[in] n_dim Number of dimensions. Must be 2.
 void mbr_join(const dd::Spatial_reference_system* srs, double* a,
               const double* b, int n_dim);
 
