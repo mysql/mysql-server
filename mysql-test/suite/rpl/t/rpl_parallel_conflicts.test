@@ -46,14 +46,6 @@ call mtr.add_suppression('Error reading slave worker configuration');
 
 create view coord_wait_list  as SELECT id from Information_Schema.processlist where state like 'Waiting for Slave Worker%';
 
-source include/stop_slave.inc;
-
-set @save.slave_parallel_workers= @@global.slave_parallel_workers;
-set @@global.slave_parallel_workers= 4;
-
-source include/start_slave.inc;
-
-
 connection master;
 
 create database d1;
@@ -217,6 +209,4 @@ drop database d3;
 #connection slave;
 
 drop view coord_wait_list;
-set @@global.slave_parallel_workers= @save.slave_parallel_workers;
-
 --source include/rpl_end.inc

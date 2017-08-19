@@ -38,7 +38,8 @@ if ($binlog_file)
   {
     if ($is_relay_log)
     {
-      --let $_binlog_file= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1)
+      --source include/rpl_get_end_of_relay_log.inc
+      --let $_binlog_file= $relay_log_file
     }
     if (!$is_relay_log)
     {

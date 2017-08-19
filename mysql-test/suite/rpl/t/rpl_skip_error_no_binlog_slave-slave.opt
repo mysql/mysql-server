@@ -1,1 +1,2 @@
 --slave-skip-errors=1062,1050 --disable-log-bin --disable-log-slave-updates
+--slave-preserve-commit-order=OFF

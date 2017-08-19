@@ -15,7 +15,6 @@
 
 --source include/have_binlog_format_statement.inc
 --source include/only_mts_slave_parallel_workers.inc
---source include/only_mts_slave_parallel_type_database.inc
 --source include/master-slave.inc
 
 --let $slave_stop_wait=5
