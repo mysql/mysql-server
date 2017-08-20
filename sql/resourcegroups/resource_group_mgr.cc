@@ -437,9 +437,13 @@ bool Resource_group_mgr::move_resource_group(
 
   // Set resource group name in PFS.
   ulonglong pfs_thread_id= 0;
+
+#ifdef HAVE_PSI_THREAD_INTERFACE
   ulonglong unused_event_id MY_ATTRIBUTE((unused));
 
   PSI_THREAD_CALL(get_thread_event_id)(&pfs_thread_id, &unused_event_id);
+#endif
+
   m_resource_group_svc->set_thread_resource_group_by_id(nullptr, pfs_thread_id,
     to_res_grp->name().c_str(), to_res_grp->name().length(), nullptr);
 
