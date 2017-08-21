@@ -105,7 +105,7 @@
   \ref mem and \ref THR_LOCK_udf are always initialized, even in
   --skip-grant-tables mode.
 */
-static bool initialized = 0;
+static bool initialized= 0;
 static MEM_ROOT mem;
 static collation_unordered_map<std::string, udf_func*> *udf_hash;
 static mysql_rwlock_t THR_LOCK_udf;
@@ -225,11 +225,11 @@ void udf_read_functions_table()
 
   if (initialized)
   {
-    DBUG_ASSERT("wrong init order: trying to read the UDFs without initializaton");
+    DBUG_ASSERT("wrong init order: reading UDFs from the table twice");
     DBUG_VOID_RETURN;
   }
 
-  initialized = 1;
+  initialized= 1;
 
   THD *new_thd = new(std::nothrow) THD;
   if (new_thd == nullptr)
