@@ -2666,9 +2666,8 @@ v1_25	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER
 FLUSH STATUS;
 INSERT INTO v1_25_check VALUES (31, "Insert in v1_25_check");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	3
-Handler_external_lock	6
-Handler_read_key	2
+Handler_commit	1
+Handler_external_lock	2
 Handler_write	1
 FLUSH STATUS;
 INSERT INTO v1_25_check VALUES (30, "Insert in v1_25_check fail");
