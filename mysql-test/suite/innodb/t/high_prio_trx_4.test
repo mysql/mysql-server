@@ -5,9 +5,6 @@
 #
 # Outcome: T1 and T2 must abort, T3 must commit.
 
-# Remove this work around after Bug#26629790
---source include/restart_mysqld.inc
-
 --source include/count_sessions.inc
 
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY, c2 INT NOT NULL, c3 INT NOT NULL) ENGINE=InnoDB;

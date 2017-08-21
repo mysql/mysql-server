@@ -6,9 +6,6 @@
 #
 # Outcome: T2 should error.
 
-# Remove this work around after Bug#26629790
---source include/restart_mysqld.inc
-
 --source include/count_sessions.inc
 
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;

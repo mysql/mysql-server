@@ -4392,6 +4392,10 @@ ha_innopart::external_lock(
 
 	if (m_prebuilt->table == nullptr) {
 		ut_ad(lock_type == F_UNLCK);
+		ut_ad(m_prebuilt->trx->n_mysql_tables_in_use > 0);
+		TrxInInnoDB::end_stmt(m_prebuilt->trx);
+		--m_prebuilt->trx->n_mysql_tables_in_use;
+		m_mysql_has_locked = false;
 		return(error);
 	}
 

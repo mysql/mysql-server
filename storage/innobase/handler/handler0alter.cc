@@ -10191,9 +10191,6 @@ alter_parts::try_commit(
 		return(error);
 	}
 
-	ut_ad(m_trx->n_mysql_tables_in_use > 0);
-	--m_trx->n_mysql_tables_in_use;
-
 	return(0);
 }
 

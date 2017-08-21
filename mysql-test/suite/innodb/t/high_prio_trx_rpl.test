@@ -5,9 +5,6 @@
 #
 # Outcome: T2 completes and T1 abort.T2 is replicated to slave.
 
-# Remove this work around after Bug#26629790
---source include/restart_mysqld.inc
-
 --source include/master-slave.inc
 --source include/count_sessions.inc
 
