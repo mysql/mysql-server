@@ -518,4 +518,21 @@ CREATE TABLE t2 (FK VARCHAR(100), FOREIGN KEY(FK) REFERENCES t1 (PK), KEY(FK));
 ALTER TABLE t2 DROP INDEX FK, ADD INDEX FK2(FK(10));
 ERROR HY000: Cannot drop index 'FK': needed in a foreign key constraint
 DROP TABLE t2, t1;
+# Bug#25817660: Combination of virtual index, foreign key and trigger
+#               result in assert failure
+CREATE TABLE t1(fld1 INT NOT NULL PRIMARY KEY);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=0;
+CREATE TABLE t2(fld1 INT NOT NULL, fld2 INT AS (fld1) VIRTUAL, KEY(fld2),
+FOREIGN KEY(fld1) REFERENCES t1(fld1) ON UPDATE CASCADE);
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1, DEFAULT);
+UPDATE t1 SET fld1= 2;
+SELECT * FROM t1;
+fld1
+2
+SELECT * FROM t2;
+fld1	fld2
+2	2
+DROP TABLE t2;
+DROP TABLE t1;
 SET @@foreign_key_checks= DEFAULT;
