@@ -2060,33 +2060,29 @@ bool Item_func_json_extract::eq(const Item *item, bool binary_cmp) const
   return std::equal(args, args + arg_count, item_json->args, cmp);
 }
 
+#ifndef DBUG_OFF
 /**
-  If there is no parent in v, we must have a path that specifified either
+  Is this a path that could possibly return the root node of a JSON document?
+
+  A path that returns the root node must be on one of the following forms:
   - the root ('$'), or
-  - an array cell at index 0 that any non-array element at the top level could
-    have been autowrapped to (since we got a hit), i.e. '$[0]' or
-    $[0][0]...[0]'.
+  - a sequence of array cells at index 0 or `last` that any non-array element
+    at the top level could have been autowrapped to, i.e. '$[0]' or
+    '$[0][0]...[0]'.
 
   @see Json_path_leg::is_autowrap
 
-  @param[in] path the specified path which gave a match
-  @param[in] v    the JSON item matched
-  @return true if v is a top level item
+  @param begin  the beginning of the path
+  @param end    the end of the path (exclusive)
+  @return true if the path may match the root, false otherwise
 */
-static inline
-bool wrapped_top_level_item(const Json_path *path MY_ATTRIBUTE((unused)),
-                            Json_dom *v)
+static bool possible_root_path(const Json_path_iterator &begin,
+                               const Json_path_iterator &end)
 {
-  if (v->parent())
-    return false;
-
-#ifndef DBUG_OFF
-  for (const Json_path_leg *leg : *path)
-    DBUG_ASSERT(leg->is_autowrap());
-#endif
-
-  return true;
+  auto is_autowrap= [](const Json_path_leg *leg) { return leg->is_autowrap(); };
+  return std::all_of(begin, end, is_autowrap);
 }
+#endif // DBUG_OFF
 
 
 bool Item_func_json_array_append::val_json(Json_wrapper *wr)
@@ -2162,13 +2158,14 @@ bool Item_func_json_array_append::val_json(Json_wrapper *wr)
           inside an array or object, we need to find the parent DOM to be
           able to replace it in situ.
         */
-        if (wrapped_top_level_item(path, hit))
+        Json_dom *parent= hit->parent();
+        if (parent == nullptr) // root
         {
+          DBUG_ASSERT(possible_root_path(path->begin(), path->end()));
           docw= Json_wrapper(std::move(arr));
         }
         else
         {
-          Json_dom *parent= hit->parent();
           parent->replace_dom_in_container(hit, std::move(arr));
         }
       }
@@ -2299,15 +2296,14 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr)
             array or object, we need to find the parent DOM to be able to
             replace it in situ.
           */
-          if (path->leg_count() == 1) // root
+          Json_dom *parent= hit->parent();
+          if (parent == nullptr) // root
           {
+            DBUG_ASSERT(possible_root_path(path->begin(), path->end() - 1));
             docw= Json_wrapper(std::move(newarr));
           }
           else
           {
-            Json_dom *parent= hit->parent();
-            DBUG_ASSERT(parent);
-
             parent->replace_dom_in_container(hit, std::move(newarr));
           }
         }
@@ -2712,7 +2708,8 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
               inside an array or object, we need to find the parent DOM to be
               able to replace it in situ.
             */
-            if (m_path.leg_count() == 1) // root
+            Json_dom *parent= hit->parent();
+            if (parent == nullptr) // root
             {
               docw= Json_wrapper(std::move(newarr));
 
@@ -2734,8 +2731,6 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
                                         enum_json_diff_operation::REPLACE,
                                         &array_wrapper);
               }
-              Json_dom *parent= hit->parent();
-              DBUG_ASSERT(parent);
               parent->replace_dom_in_container(hit, std::move(newarr));
             }
           }

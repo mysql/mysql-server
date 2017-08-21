@@ -3811,3 +3811,14 @@ JSON_INSERT('{"a":1}', '$[0].a[1]', 123) AS c2,
 JSON_INSERT('{"a":1}', '$.a[0][1]', 123) AS c3;
 c1	c2	c3
 {"a": [1, 123]}	{"a": [1, 123]}	{"a": [1, 123]}
+#
+# Bug#26649978: JSON_INSERT: ASSERTION FAILED: PARENT
+#
+# c1, c2 and c3 should have the same result due to auto-wrapping,
+# but the expressions in c2, c3 and c4 used to hit an assert.
+SELECT JSON_INSERT('{"a":1}', '$[1]', 2) AS c1,
+JSON_INSERT('{"a":1}', '$[0][1]', 2) AS c2,
+JSON_INSERT('{"a":1}', '$[0][0][1]', 2) AS c3,
+JSON_INSERT('{"a":1}', '$[last][1]', 2) AS c4;
+c1	c2	c3	c4
+[{"a": 1}, 2]	[{"a": 1}, 2]	[{"a": 1}, 2]	[{"a": 1}, 2]
