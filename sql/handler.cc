@@ -8837,7 +8837,6 @@ bool handler::my_eval_gcolumn_expr_with_open(THD *thd,
                                              uchar *record)
 {
   bool retval= true;
-  lex_start(thd);
 
   char path[FN_REFLEN + 1];
   bool was_truncated;
@@ -8846,8 +8845,8 @@ bool handler::my_eval_gcolumn_expr_with_open(THD *thd,
   DBUG_ASSERT(!was_truncated);
 
   MDL_ticket *mdl_ticket= NULL;
-  if (dd::acquire_shared_table_mdl(
-                                   thd, db_name, table_name, false, &mdl_ticket))
+  if (dd::acquire_shared_table_mdl(thd, db_name, table_name, false,
+                                   &mdl_ticket))
     return true;
 
   TABLE *table= nullptr;
@@ -8870,7 +8869,6 @@ bool handler::my_eval_gcolumn_expr_with_open(THD *thd,
     intern_close_table(table);
   }
 
-  lex_end(thd->lex);
   return retval;
 }
 
