@@ -1205,7 +1205,6 @@ static int	is_task_head(task_env *t)
 static int	msdiff(double time)
 {
 	return (int)(1000.5 * (first_delayed()->time - time));
-  task_sys_deinit();
 }
 
 
@@ -1288,6 +1287,7 @@ done_wait:
 			idle_time += seconds() - time;
 		}
 	}
+  task_sys_deinit();
 }
 
 
