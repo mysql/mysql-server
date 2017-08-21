@@ -1,0 +1,69 @@
+﻿#
+# Copyright (C) 2016 and later: Unicode, Inc. and others.
+# License & terms of use: http://www.unicode.org/copyright.html
+# Copyright (c) 2016, International Business Machines Corporation and others. All Rights Reserved.
+
+# file: grapheme.txt
+#
+# Reference Grapheme Break rules for intltest rbbi/RBBIMonkeyTest
+#
+#
+# Note: Rule syntax and the monkey test itself are still a work in progress.
+#       They are expected to change with review and the addition of support for rule tailoring.
+
+type = grapheme;      # one of grapheme | word | line | sentence
+locale = en;
+
+CR                 = [\p{Grapheme_Cluster_Break = CR}];
+LF                 = [\p{Grapheme_Cluster_Break = LF}];
+
+Control            = [[\p{Grapheme_Cluster_Break = Control}]];
+Extend             = [[\p{Grapheme_Cluster_Break = Extend}]];
+ZWJ                = [\p{Grapheme_Cluster_Break = ZWJ}];
+Regional_Indicator = [\p{Grapheme_Cluster_Break = Regional_Indicator}];
+Prepend            = [\p{Grapheme_Cluster_Break = Prepend}];
+SpacingMark        = [\p{Grapheme_Cluster_Break = SpacingMark}];
+
+#
+# Korean Syllable Definitions
+#
+L                  = [\p{Grapheme_Cluster_Break = L}];
+V                  = [\p{Grapheme_Cluster_Break = V}];
+T                  = [\p{Grapheme_Cluster_Break = T}];
+LV                 = [\p{Grapheme_Cluster_Break = LV}];
+LVT                = [\p{Grapheme_Cluster_Break = LVT}];
+
+# Emoji defintions
+
+EmojiNRK           = [[\p{Emoji}] - [Regional_Indicator\u002a\u00230-9©®™〰〽]];
+E_Base             = [\p{Grapheme_Cluster_Break = EB}];
+E_Modifier         = [\p{Grapheme_Cluster_Break = EM}];
+E_Base_GAZ         = [\p{Grapheme_Cluster_Break = EBG}];
+
+# Data for Extended Pictographic scraped from CLDR common/properties/ExtendedPictographic.txt, r13267
+Extended_Pict         = [\U0001F774-\U0001F77F\U00002700-\U00002701\U00002703-\U00002704\U0000270E\U00002710-\U00002711\U00002765-\U00002767\U0001F030-\U0001F093\U0001F094-\U0001F09F\U0001F10D-\U0001F10F\U0001F12F\U0001F16C-\U0001F16F\U0001F1AD-\U0001F1E5\U0001F260-\U0001F265\U0001F203-\U0001F20F\U0001F23C-\U0001F23F\U0001F249-\U0001F24F\U0001F252-\U0001F25F\U0001F266-\U0001F2FF\U0001F7D5-\U0001F7FF\U0001F000-\U0001F003\U0001F005-\U0001F02B\U0001F02C-\U0001F02F\U0001F322-\U0001F323\U0001F394-\U0001F395\U0001F398\U0001F39C-\U0001F39D\U0001F3F1-\U0001F3F2\U0001F3F6\U0001F4FE\U0001F53E-\U0001F548\U0001F54F\U0001F568-\U0001F56E\U0001F571-\U0001F572\U0001F57B-\U0001F586\U0001F588-\U0001F589\U0001F58E-\U0001F58F\U0001F591-\U0001F594\U0001F597-\U0001F5A3\U0001F5A6-\U0001F5A7\U0001F5A9-\U0001F5B0\U0001F5B3-\U0001F5BB\U0001F5BD-\U0001F5C1\U0001F5C5-\U0001F5D0\U0001F5D4-\U0001F5DB\U0001F5DF-\U0001F5E0\U0001F5E2\U0001F5E4-\U0001F5E7\U0001F5E9-\U0001F5EE\U0001F5F0-\U0001F5F2\U0001F5F4-\U0001F5F9\U00002605\U00002607-\U0000260D\U0000260F-\U00002610\U00002612\U00002616-\U00002617\U00002619-\U0000261C\U0000261E-\U0000261F\U00002621\U00002624-\U00002625\U00002627-\U00002629\U0000262B-\U0000262D\U00002630-\U00002637\U0000263B-\U00002647\U00002654-\U0000265F\U00002661-\U00002662\U00002664\U00002667\U00002669-\U0000267A\U0000267C-\U0000267E\U00002680-\U00002691\U00002695\U00002698\U0000269A\U0000269D-\U0000269F\U000026A2-\U000026A9\U000026AC-\U000026AF\U000026B2-\U000026BC\U000026BF-\U000026C3\U000026C6-\U000026C7\U000026C9-\U000026CD\U000026D0\U000026D2\U000026D5-\U000026E8\U000026EB-\U000026EF\U000026F6\U000026FB-\U000026FC\U000026FE-\U000026FF\U00002388\U0001FA00-\U0001FFFD\U0001F0A0-\U0001F0AE\U0001F0B1-\U0001F0BF\U0001F0C1-\U0001F0CF\U0001F0D1-\U0001F0F5\U0001F0AF-\U0001F0B0\U0001F0C0\U0001F0D0\U0001F0F6-\U0001F0FF\U0001F80C-\U0001F80F\U0001F848-\U0001F84F\U0001F85A-\U0001F85F\U0001F888-\U0001F88F\U0001F8AE-\U0001F8FF\U0001F900-\U0001F90B\U0001F91F\U0001F928-\U0001F92F\U0001F931-\U0001F932\U0001F94C\U0001F95F-\U0001F96B\U0001F992-\U0001F997\U0001F9D0-\U0001F9E6\U0001F90C-\U0001F90F\U0001F93F\U0001F94D-\U0001F94F\U0001F96C-\U0001F97F\U0001F998-\U0001F9BF\U0001F9C1-\U0001F9CF\U0001F9E7-\U0001F9FF\U0001F6C6-\U0001F6CA\U0001F6D3-\U0001F6D4\U0001F6E6-\U0001F6E8\U0001F6EA\U0001F6F1-\U0001F6F2\U0001F6F7-\U0001F6F8\U0001F6D5-\U0001F6DF\U0001F6ED-\U0001F6EF\U0001F6F9-\U0001F6FF];
+
+
+GB3:     CR LF;
+GB4:     (Control | CR | LF) ÷;
+GB5:     . ÷ (Control | CR | LF);
+
+GB6:     L (L | V | LV | LVT);
+GB7:     (LV | V) (V | T);
+GB8:     (LVT | T) T;
+
+GB10:    (E_Base | E_Base_GAZ) Extend* E_Modifier;
+GB11:    (Extended_Pict | EmojiNRK) Extend* ZWJ (Extended_Pict | EmojiNRK);
+GB9:     . (Extend | ZWJ);
+
+GB9a:    . SpacingMark;
+GB9b:    Prepend .;
+
+# Regional Indicators, split into pairs.
+#      Note that a pair of RIs that is not followed by a third RI will fall into
+#      the normal rules for Extend, etc.
+#
+GB12:  Regional_Indicator Regional_Indicator ÷ Regional_Indicator;
+GB13:  Regional_Indicator Regional_Indicator;
+
+GB999:     . ÷;

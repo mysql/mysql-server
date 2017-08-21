@@ -1,0 +1,1112 @@
+﻿// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
+// Copyright (C) 2015-2016, International Business Machines
+// Corporation and others.  All Rights Reserved.
+//
+// This file is divided into test suites separated by whitespace. Each test
+// suite starts with the name of the test followed by global field settings
+// for that test suite. After the global settings, comes "begin", the
+// per-test field names, and finally the test specific field values, 1 test
+// per line.
+// For more information on the format of this file, including all the available
+// field names, please see
+// https://docs.google.com/document/d/1T2P0p953_Lh1pRwo-5CuPVrHlIBa_wcXElG-Hhg_WHM/edit?usp=sharing
+
+test plus sign
+set locale ar
+set pattern +0;-#
+begin
+format	output	breaks
+6	\u061C+\u0666	JK
+-6	\u061C-\u0666	JK
+
+test basic patterns
+set locale fr_FR
+set format 1234.567
+begin
+pattern	output
+#,##0.##	1\u00a0234,57
+0.##	1234,57
+0	1235
+#,##0.###	1\u00a0234,567
+###0.######	1234,567
+###0.0000#	1234,5670
+00000.0000	01234,5670
+#,##0.00 \u00a4	1\u00a0234,57 \u20ac
+'tick''bitten '0.00	tick'bitten 1234,57
+'tick' 'bitten '0.00	tick bitten 1234,57
+
+
+test minimum and maximum fraction digits
+set locale en
+set minIntegerDigits 2
+set maxIntegerDigits 4
+set minFractionDigits 3
+set maxFractionDigits 5
+begin
+format	output
+6	06.000
+6.000005	06.000
+6.000006	06.00001
+1002003004005	4005.000
+-1002003004005	-4005.000
+12	12.000
+12345	2345.000
+72.1234	72.1234
+
+test int64
+set locale en
+begin
+format	output
+1002003004005	1002003004005
+-1002003004005	-1002003004005
+
+test rounding
+set locale fr
+begin
+pattern	format	output	breaks
+0.5	1.25	1,0	K
+0.5	1.75	2,0	K
+0.5	-1.25	-1,0	K
+00.5	-1.75	-02,0	K
+4	2.0	0	K
+4	6.0	8	K
+4	10.0	8	K
+2.70	99.0	99,90	K
+2.73	272.0	273,00	K
+#,#3.70	104.0	1\u00a003,60	K
+
+test significant digits
+set locale en
+set pattern #,#@,@###
+begin
+format	output	breaks
+7	7.0	K
+23	23	K
+100	100	K
+1000	1000	K
+10000	1,0000	K
+10001	1,0001	K
+10001.5	1,0002	K
+1234567	1,23,4600	K
+-1234567	-1,23,4600	K
+3.14159	3.1416	K
+
+test scientific notation
+set locale fr
+begin
+pattern	format	output	breaks
+0.00E0	12345	1,23E4
+000.00E0	12300	123,00E2
+000.0#E0	12300	123,0E2
+000.0#E0	12300.1	123,0E2
+000.0#E0	12301.0	123,01E2
+// JDK does not support exponent signs
+000.0#E+00	12301.0	123,01E+02	K
+// JDK gives 12,345E3. JDK seems to include the hashes in significant digits
+##0.00E0	12345	12,3E3	K
+// JDK gives 12,3001E3
+##0.0000E0	12300.1	12,300E3	K
+// JDK gives 12,3001E3
+##0.000#E0	12300.1	12,30E3	K
+##0.000#E0	12301	12,301E3
+0.05E0	12301.2	1,25E4	JK
+##0.000#E0	0.17	170,0E-3
+// JDK doesn't support significant digits in exponents
+@@@E0	6235	6,24E3	K
+@@@#E0	6200	6,20E3	K
+@@@#E0	6201	6,201E3	K
+@@@#E0	6201.7	6,202E3	K
+@@@#E00	6201.7	6,202E03	K
+@@@#E+00	6201.7	6,202E+03	K
+
+test percents
+set locale fr
+begin
+pattern	format	output	breaks
+0.0%	0.573	57,3%
+%0.0	0.573	%57,3
+p%p0.0	0.573	p%p57,3
+p'%'p0.0	0.573	p%p0,6
+%@@@@	0.0326	%3,260	K
+%#,@@@	15.43	%1\u00a0540	K
+// JDK does not support rounding increments
+%#,##4.1	16.55	%1\u00a0656,4	K
+// JDK gives %16,255E3
+%##0.00E0	162.55	%16,3E3	K
+
+test permille
+set locale fr
+begin
+pattern	format	output	breaks
+0.0\u2030	0.573	573,0‰
+\u20300.0	0.573	\u2030573,0
+p\u2030p0.0	0.573	p\u2030p573,0
+p'\u2030'p0.0	0.573	p\u2030p0,6
+\u2030@@@@	0.0326	\u203032,60	K
+\u2030#,@@@	15.43	\u203015\u00a0400	K
+\u2030#,##4.1	16.55	\u203016\u00a0551,7	K
+// JDK gives \u2030162,55E3
+\u2030##0.00E0	162.55	\u2030163E3	K
+
+test padding
+set locale fr_FR
+begin
+pattern	format	output	breaks
+// JDK does not seem to support padding
+$**####,##0	1234	$***1\u00a0234	K
+*x$####,##0	1234	xxx$1\u00a0234	K
+####,##0*x$	1234	1\u00a0234xxx$	K
+####,##0$*x	1234	1\u00a0234$xxx	K
+// JDK doesn't seem to handle suffixes correctly dropping the 'nx' entirely
+####,##0$*x;ne#n	-1234	ne1\u00a0234nx	K
+####,##0$*x;n#'*'	-1234	n1\u00a0234*xx	K
+*y%4.2######	4.33	yyyy%432,6	K
+// In J ICU adds padding as if 'EUR' is only 2 chars (2 * 0xa4)
+\u00a4\u00a4 **####0.00	433.0	EUR *433,00	JK
+// In J ICU adds padding as if 'EUR' is only 2 chars (2 * 0xa4)
+\u00a4\u00a4 **#######0	433.0	EUR *433,00	JK
+
+test padding and currencies
+begin
+locale	currency	pattern	format	output	breaks
+// In J, JPY is considered 2 char (2 * 0xa4) even though padding is done
+// after prefix. In C this test works.
+fr	JPY	\u00a4\u00a4 **#######0	433.22	JPY ****433	JK
+// JDK doesn't correct rounding for currency, shows USD (433
+en	USD	\u00a4\u00a4 **#######0;\u00a4\u00a4 (#)	-433.22	USD (433.22)	K
+
+test currencies
+set locale fr
+set format 1234.567
+begin
+pattern	currency	output	breaks
+// JDK gives shows EUR instead of the euro symbol in this case
+#,##0.00 \u00a4	EUR	1\u00a0234,57 \u20ac	K
+// JDK gives 1\u00A0234,57. JDK doesn't seem to correct rounding
+// based on currency.
+#,##0.00 \u00a4	JPY	1\u00a0235 JPY	K
+
+test prefixes and suffixes
+set locale en
+set pattern 0.00+;(#)
+begin
+format	output	breaks
+7	7.00+
+// JDK does not support negative suffixes
+-3.5	(3.50)	K
+
+test minimum grouping digits
+set locale en
+set pattern #,##0
+set minGroupingDigits 2
+begin
+format	output	breaks
+// min grouping digits not supported in any existing implementation
+// but could be easily added to the new DecimalFormat C code.
+1000	1000	JK
+10000	10,000
+100000	100,000
+1000000	1,000,000
+
+test min max fraction digits
+set locale en
+set pattern #,##0.###
+set format 1234.567
+begin
+minFractionDigits	maxFractionDigits	output
+0	0	1,235
+0	2	1,234.57
+4	5	1,234.5670
+
+test min max integer digits
+set locale en
+set pattern #,##0.###
+set format 1234.567
+begin
+minIntegerDigits	maxIntegerDigits	output
+0	0	.567
+0	3	234.567
+5	5	01,234.567
+
+test min max fraction digits scientific
+set locale en
+set pattern #E0
+set format 299792458.0
+begin
+minIntegerDigits	maxIntegerDigits	minFractionDigits	maxFractionDigits	output	breaks
+// JDK gives .3E9 instead of unlimited precision.
+0	1	0	0	2.99792458E8	K
+1	1	0	0	3E8
+// JDK gives E0 instead of allowing for unlimited precision
+0	0	0	0	2.99792458E8	K
+// JDK gives .299792E9
+0	1	0	5	2.9979E8	K
+// JDK gives 300E6	
+0	3	0	0	299.792458E6	K
+// JDK gives 299.8E6 (maybe maxInt + maxFrac instead of minInt + maxFrac)?
+0	3	0	1	300E6	K
+// JDK gives 299.7925E6
+2	3	0	4	299.792E6	K
+// JDK gives 299.79246E6
+2	3	0	5	299.7925E6	K
+3	3	0	5	299.79246E6
+3	3	0	4	299.7925E6
+2	2	0	3	29.979E7
+4	4	0	0	2998E5
+0	0	1	5	.29979E9
+// JDK gives E0
+0	0	1	0	2.99792458E8	K
+// JDK gives .2998E9
+0	0	0	4	2.998E8	K
+// JDK uses 8 + 6 for significant digits instead of 2 + 6
+2	8	1	6	2.9979246E8	K
+// Treat max int digits > 8 as being the same as min int digits.
+// This behavior is not spelled out in the specification.
+// JDK fails here because it tries to use 9 + 6 = 15 sig digits.
+2	9	1	6	29.979246E7	K
+
+test significant digits scientific
+set locale en
+set pattern #E0
+set format 290000000.0
+begin
+minSigDigits	maxSigDigits	output	breaks
+0	1	3E8	K
+0	2	2.9E8	K
+0	3	2.9E8	K
+1	1	3E8	K
+1	2	2.9E8	K
+1	3	2.9E8	K
+2	2	2.9E8	K
+2	3	2.9E8	K
+3	3	2.90E8	K
+3	4	2.90E8	K
+
+test min max fraction digits scientific 2
+set locale en
+set pattern #E0
+set format 29979245.0
+begin
+minIntegerDigits	maxIntegerDigits	minFractionDigits	maxFractionDigits	output	breaks
+// JDK gives E0
+0	0	0	0	2.9979245E7	K
+// JDK gives .3E8
+0	1	0	0	2.9979245E7	K
+// JDK gives 2998E4.
+0	4	0	0	2997.9245E4	K
+
+test ticket 11524
+set locale en
+set pattern #,##0.###
+begin
+format	maxIntegerDigits	output
+123	1	3
+123	-2147483648	0
+12345	1	5
+12345	-2147483648	0
+5.3	1	5.3
+5.3	-2147483648	.3
+
+test patterns with zero
+set locale en
+set format 0
+begin
+pattern	output
+#.#	0
+#.	0.
+.#	.0
+#	0
+00.000E00	00.000E00
+0.####E0	0E0
+##0.######E000	0E000
+
+test significant digits manually set
+set locale en_US
+set pattern 0.0
+set useSigDigits 1
+set minSigDigits 3
+set maxSigDigits 5
+begin
+format	output	breaks
+0.0012	0.00120	K
+0.00123	0.00123	K
+0.001234	0.001234	K
+0.0012345	0.0012345	K
+0.00123456	0.0012346	K
+-43	-43.0	K
+-43.7	-43.7	K
+-43.76	-43.76	K
+-43.762	-43.762	K
+-43.7626	-43.763	K
+
+test grouping used setters
+set locale en_US
+set pattern #,##0
+set format 12345
+begin
+output	useGrouping
+12,345
+12,345	1
+12345	0
+
+test grouping setters
+set locale en_US
+set pattern 0
+set format 123456789
+set useGrouping 1
+begin
+output	grouping	breaks	grouping2	minGroupingDigits
+1,2345,6789	4
+1,23,45,6789	4	K	2
+1,23,45,6789	4	K	2	2
+123,456789	6	K	6	3
+123456789	6	JK	6	4
+
+test multiplier setters
+set locale en_US
+begin
+format	multiplier	output	breaks
+23	-12	-276
+23	-1	-23
+// ICU4J and JDK throw exception on zero multiplier. ICU4C does not.
+23	0	23	JK
+23	1	23
+23	12	276
+-23	12	-276
+-23	-12	276
+
+test rounding setters
+set locale en_US
+set pattern 0.0#
+set roundingIncrement 0.25
+begin
+format	output	breaks
+-0.35	-0.25	K
+0.35	0.25	K
+0.39	0.5	K
+0.62	0.5	K
+0.63	0.75	K
+
+test padding setters
+set locale en_US
+set pattern bill0
+set format 1357
+begin
+padCharacter	formatWidth	output	breaks
+*	8	bill1357	K
+*	9	*bill1357	K
+^	10	^^bill1357	K
+
+test use scientific setter
+set locale en_US
+set pattern 0.00
+set format 186283
+begin
+output	breaks	useScientific
+186283.00
+1.86E5	K	1
+186283.00	K	0
+
+test rounding mode setters
+set locale en_US
+set pattern 0.#
+set roundingIncrement 0.5
+begin
+format	roundingMode	output	breaks
+1.24	halfUp	1	K
+1.25	halfUp	1.5	K
+1.25	halfDown	1	K
+1.26	halfDown	1.5	K
+1.25	halfEven	1	K
+-1.01	up	-1.5	K
+-1.49	down	-1	K
+1.01	up	1.5	K
+1.49	down	1	K
+-1.01	ceiling	-1	K
+-1.49	floor	-1.5	K
+
+test currency usage setters
+// TODO: Find a country and currency where standard and cash differ
+set locale CH
+set currency CHF
+set pattern \u00a4\u00a4 0
+begin
+format	currencyUsage	output	breaks
+0.37	standard	CHF 0.37	K
+// TODO: Get the rounding data into ICU4C and ICU4J
+0.37	cash	CHF 0.35	CJK
+
+test exponent parameter setters
+set locale en_US
+set pattern 0.##E0
+set format 299792458
+begin
+decimalSeparatorAlwaysShown	exponentSignAlwaysShown	minimumExponentDigits	output	breaks
+0	0	2	3E08	K
+0	1	3	3E+008	K
+// ICU DecimalFormat J does not honor decimalSeparatorAlwaysShown
+// for scientific notation. But JDK DecimalFormat does honor
+// decimalSeparatorAlwaysShown K=JDK; C=ICU4C; J=ICU4J
+// See ticket 11621
+1	0	2	3.E08	JK
+1	1	3	3.E+008	JK
+1	0	1	3.E8
+0	0	1	3E8
+
+test exponent decimalSeparatorAlwaysShown default
+set locale en_US
+set pattern 0.##E0
+begin
+format	output	breaks	decimalSeparatorAlwaysShown
+// decimalSeparatorAlwaysShown off by default
+299792458	3E8
+299000000	2.99E8
+299792458	3.E8	J	1
+
+test pad position setters
+set locale en_US
+set pattern **[#####0.##];((#))
+begin
+format	padPosition	output	breaks
+12.34	beforePrefix	****[12.34]	K
+12.34	afterPrefix	[****12.34]	K
+12.34	beforeSuffix	[12.34****]	K
+12.34	afterSuffix	[12.34]****	K
+-12.34	beforePrefix	**((12.34))	K
+-12.34	afterPrefix	((**12.34))	K
+-12.34	beforeSuffix	((12.34**))	K
+-12.34	afterSuffix	((12.34))**	K
+
+test affix setters
+set locale fr_FR
+set currency EUR
+set pattern 0.00
+begin
+format	positivePrefix	positiveSuffix	negativePrefix	negativeSuffix	output
+12.34	%				%12,34
+12.34		\u00a4\u00a4			12,34\u00a4\u00a4
+12.34			-	+	12,34
+-12.34			-	+	-12,34+
+-12.34			\u00a4		\u00a412,34
+12.34			\u00a4		12,34
+-12.34				%	12,34%
+12.34				%	12,34
+
+test more affix setters
+set locale fr_FR
+set pattern %0.00
+begin
+format	positivePrefix	negativePrefix	output
+0.648	booya	cooya	booya64,80
+
+test nan and infinity
+set locale en_US
+set pattern [0.00];(#)
+begin
+format	output	breaks
+Inf	[\u221e]	K
+-Inf	(\u221e)	K
+NaN	NaN	K
+
+test nan and infinity with multiplication
+set locale en
+set multiplier 100
+begin
+format	output	breaks
+Inf	\u221e
+-Inf	-\u221e
+NaN	NaN	K
+
+test nan and infinity with padding
+set locale en_US
+set pattern $$$0.00$
+set formatWidth 7
+begin
+format	padPosition	output	breaks
+Inf	beforePrefix	  $$$\u221e$	K
+Inf	afterPrefix	$$$  \u221e$	K
+Inf	beforeSuffix	$$$\u221e  $	K
+Inf	afterSuffix	$$$\u221e$  	K
+NaN	beforePrefix	    NaN	K
+NaN	afterPrefix	    NaN	K
+NaN	beforeSuffix	NaN    	K
+NaN	afterSuffix	NaN    	K
+
+test apply formerly localized patterns
+begin
+// documentation says localizedPattern is not supported, change to pattern
+locale	pattern	format	output	breaks
+en	#0%	0.4376	44%
+// This next test breaks JDK. JDK doesn't multiply by 100.
+// It also is now broken in ICU4J until #10368 is fixed.
+fa	\u0025\u00a0\u0023\u0030	0.4376	\u200e\u066a\u00a0\u06f4\u06f4	JK
+
+test toPattern
+set locale en
+begin
+pattern	toPattern	breaks
+// JDK doesn't support any patterns with padding or both negative prefix and suffix
+// Breaks ICU4J See ticket 11671
+**0,000	**0,000		JK
+**##0,000	**##0,000	K
+**###0,000	**###0,000	K
+**####0,000	**#,##0,000	K
+###,000.	#,000.
+0,000	#0,000
+.00	#.00
+000	#000
+000,000	#,000,000
+pp#,000	pp#,000
+00.##	#00.##
+#,#00.025	#,#00.025
+// No secondary grouping in JDK
+#,##,###.02500	#,##,###.02500	K
+pp#,000;(#)	pp#,000;(#,000)	K
+**####,##,##0.0##;(#)	**#,##,##,##0.0##;**(##,##,##0.0##)	K
+// No significant digits in JDK
+@@###	@@###	K
+@,@#,###	@,@#,###	K
+0.00E0	0.00E0
+@@@##E0	@@@##E0	K
+###0.00#E0	###0.00#E0
+##00.00#E0	##00.00#E0
+0.00E+00	0.00E+00	K
+000.00E00	000.00E00
+###0.00#E00	###0.00#E00
+
+test parse
+set locale en
+set pattern +#,##0.0###;(#)
+begin
+parse	output	breaks
++5,347.25	5347.25
++5,347,.25	5347.25
++5,347,	5347
++5347,,,	5347
++5347,,,d8	5347
+(5,347.25)	-5347.25
+// J requires prefix and suffix for lenient parsing, but C doesn't
+5,347.25	5347.25	JK
+(5,347.25	-5347.25	J
+-5,347.25	fail
++3.52E4	35200
+(34.8E-3)	-0.0348
+// JDK stops parsing at the spaces. JDK doesn't see space as a grouping separator
+(34  25E-1)	-342.5	K
+(34,,25E-1)	-342.5
+// J doesn't allow trailing separators before E but C does
+(34,,25,E-1)	-342.5	J
+(34  25 E-1)	-342.5	JK
+(34,,25 E-1)	-3425	J
+// Spaces are not allowed after exponent symbol
+// C parses up to the E but J bails
+(34  25E -1)	-3425	JK
++3.52EE4	3.52
++1,234,567.8901	1234567.8901
++1,23,4567.8901	1234567.8901
++1,23,4567.89,01	1234567.89
++1,23,456.78.9	123456.78
++12.34,56	12.34
++79,,20,3	79203
++79  20 3	79203	K
+// Parsing stops at comma as it is different from other separators
++79  20,3	7920	K
++79,,20 3	7920
++  79	79	K
++,79,,20,3	79203
++7920d3	7920
+// Whitespace immediately after prefix doesn't count as digit separator
+// in C but is does in J
++ ,79,,20,3	79203	JK
+(  19 45)	-1945	K
+// C allows trailing separators when there is a prefix and suffix.
+// J allows trailing separators only when there is just a prefix.
+// In this case, J just bails
+(  19 45 )	-1945	JK
+(,,19,45)	-1945
+// C parses to the space, but J bails
+(,,19 45)	-19	J
+// J bails b/c comma different separator than space. C doesn't treat leading spaces
+// as a separator.
+(  19,45)	-1945	JK
+// J bails. Doesn't allow trailing separators when there is prefix and suffix.
+(,,19,45,)	-1945	J
+// J bails on next 4 because J doesn't allow letters inside prefix and suffix.
+// C will parse up to the letter.
+(,,19,45,d1)	-1945	J
+(,,19,45d1)	-1945	J
+(  19 45 d1)	-1945	JK
+(  19 45d1)	-1945	JK
+// J does allow trailing separator before a decimal point
+(19,45,.25)	-1945.25
+// 2nd decimal points are ignored
++4.12.926	4.12
+
+test parse suffix
+set locale en
+set pattern #,##0.0###+;#-
+begin
+parse	output	breaks
+// C sees this as -3426, don't understand why
+3426	-3426	JK
+3426+	3426
+// J bails, but JDK will parse up to the space and get 34.
+// C sees -34
+34 d1+	-34	JK
+// JDK sees this as -1234 for some reason
+// J bails b/c of trailing separators
+// C parses until trailing separators, but sees -1234
+1,234,,,+	-1234	JK
+1,234-	-1234
+// J bails because of trailing separators
+1,234,-	-1234	J
+// J bails here too
+1234  -	-1234	J
+
+
+
+test parse strict
+set locale en
+set pattern +#,##0.0###;(#)
+set lenient 0
+begin
+parse	output	breaks
++123d5	123
++5347.25	5347.25
+// separators in wrong place cause failure, no separators ok.
++5,347.25	5347.25
+(5347.25)	-5347.25
+(5,347.25)	-5347.25
+// JDK does allow separators in the wrong place and parses as -5347.25
+(53,47.25)	fail	K
+// strict requires prefix or suffix
+5,347.25	fail
++3.52E4	35200
+(34.8E-3)	-0.0348
+(3425E-1)	-342.5
+// Strict doesn't allow separators in sci notation.
+(3,425)	-3425
+// JDK allows separators in sci notation and parses as -342.5
+(3,425E-1)	fail	K
+// Both prefix and suffix needed for strict.
+// JDK accepts this and parses as -342.5
+(3425E-1	fail	K
++3.52EE4	3.52
++1,234,567.8901	1234567.8901
+// With strict digit separators don't have to be the right type
+// JDK doesn't acknowledge space as a separator
++1 234 567.8901	1234567.8901	K
+// In general the grouping separators have to match their expected
+// location exactly. The only exception is when string being parsed
+// have no separators at all.
++1,234,567.8901	1234567.8901
+// JDK doesn't require separators to be in the right place
++1,23,4567.8901	fail	K
++1234,567.8901	fail	K
++1,234567.8901	fail	K
++1234567.8901	1234567.8901
+// Comma after decimal means parse to a comma
++123,456.78,9	123456.78
+// A decimal after a decimal means bail
+// JDK parses as 123456.78
++123,456.78.9	fail	K
++79	79
++79	79
++ 79	fail
+// JDK parses as -1945
+(1,945d1)	fail	K
+
+test parse integer only
+set locale en
+set pattern 0.00
+set parseIntegerOnly 1
+begin
+parse	output	breaks
+35	35
++35	fail
+-35	-35
+2.63	2
+-39.99	-39
+
+test parse no exponent flag
+set pattern 0
+set locale en
+begin
+parseNoExponent	parse	output	breaks
+// JDK doesn't allow lowercase exponent but ICU4J and ICU4C do.
+0	5e2	500	K
+0	5.3E2	530
+// See ticket 11725
+1	5e2	5	J
+1	5.3E2	5.3	JK
+
+test parse currency fail
+set pattern 0
+set locale en
+begin
+parse	output	outputCurrency	breaks
+// See ticket 11735
+53.45	fail	USD	J
+
+test parse strange prefix
+set locale en
+set positivePrefix dd
+set negativePrefix ddd
+begin
+parse	output
+dd4582	4582
+ddd4582	-4582
+
+test parse strange suffix
+set locale en
+set positiveSuffix dd
+set negativePrefix 
+set negativeSuffix ddd
+begin
+parse	output
+4582dd	4582
+4582ddd	-4582
+
+test really strange suffix
+set locale en
+set positiveSuffix 9K
+set negativePrefix 
+set negativeSuffix 9N
+begin
+parse	output	breaks
+// C consumes the '9' as a digit and assumes number is negative
+// J and JDK bail
+// 6549K	654	CJK
+// C consumes the '9' as a digit and assumes number is negative
+// J and JDK bail
+// 6549N	-654	CJK
+
+test really strange prefix
+set locale en
+set positivePrefix 82
+set negativePrefix 28
+begin
+parse	output
+8245	45
+2845	-45
+
+test select
+set locale sr
+begin
+format	pattern	plural
+Inf	0	other
+-Inf	0	other
+NaN	0	other
+Inf	0.0	other
+-Inf	0.0	other
+NaN	0.0	other
+1	0	one
+1	0.0	other
+2	0	few
+2	0.0	other
+2	0E0	other
+5.1	0.0	one
+5.09	0.0	one
+
+test parse currency ISO
+set pattern 0.00 \u00a4\u00a4;(#) \u00a4\u00a4
+set locale en_US
+begin
+parse	output	outputCurrency	breaks
+$53.45	53.45	USD
+53.45 USD	53.45	USD
+USD 53.45	53.45	USD	J
+53.45USD	fail	USD
+USD53.45	53.45	USD
+(7.92) USD	-7.92	USD
+(7.92) EUR	-7.92	EUR
+(7.926) USD	-7.926	USD
+(7.926 USD)	fail	USD
+(USD 7.926)	fail	USD
+USD (7.926)	fail	USD
+USD (7.92)	fail	USD
+(7.92)USD	fail	USD
+USD(7.92)	fail	USD
+(8) USD	-8	USD
+-8 USD	fail	USD
+67 USD	67	USD
+53.45$	fail	USD
+US Dollars 53.45	53.45	USD	J
+53.45 US Dollars	53.45	USD
+US Dollar 53.45	53.45	USD	J
+53.45 US Dollar	53.45	USD
+US Dollars53.45	53.45	USD
+53.45US Dollars	fail	USD
+US Dollar53.45	53.45	USD
+US Dollat53.45	fail	USD
+53.45US Dollar	fail	USD
+US Dollars (53.45)	fail	USD
+(53.45) US Dollars	-53.45	USD
+US Dollar (53.45)	fail	USD
+(53.45) US Dollar	-53.45	USD
+US Dollars(53.45)	fail	USD
+(53.45)US Dollars	fail	USD
+US Dollar(53.45)	fail	USD
+US Dollat(53.45)	fail	USD
+(53.45)US Dollar	fail	USD
+
+
+test parse currency ISO negative
+set pattern 0.00 \u00a4\u00a4;-# \u00a4\u00a4
+set locale en_US
+begin
+parse	output	outputCurrency	breaks
+$53.45	53.45	USD
+53.45 USD	53.45	USD
+USD 53.45	53.45	USD	J
+53.45USD	fail	USD
+USD53.45	53.45	USD
+-7.92 USD	-7.92	USD
+-7.92 EUR	-7.92	EUR
+-7.926 USD	-7.926	USD
+USD -7.926	fail	USD
+-7.92USD	fail	USD
+USD-7.92	fail	USD
+-8 USD	-8	USD
+67 USD	67	USD
+53.45$	fail	USD
+US Dollars 53.45	53.45	USD	J
+53.45 US Dollars	53.45	USD
+US Dollar 53.45	53.45	USD	J
+53.45 US Dollar	53.45	USD
+US Dollars53.45	53.45	USD
+53.45US Dollars	fail	USD
+US Dollar53.45	53.45	USD
+US Dollat53.45	fail	USD
+53.45US Dollar	fail	USD
+
+
+test parse currency long
+set pattern 0.00 \u00a4\u00a4\u00a4;(#) \u00a4\u00a4\u00a4
+set locale en_US
+begin
+parse	output	outputCurrency	breaks
+$53.45	53.45	USD
+53.45 USD	53.45	USD
+USD 53.45	53.45	USD	J
+// See ticket 11735
+53.45USD	fail	USD	J
+USD53.45	53.45	USD
+(7.92) USD	-7.92	USD
+(7.926) USD	-7.926	USD
+(7.926 USD)	fail	USD
+(USD 7.926)	fail	USD
+USD (7.926)	fail	USD
+USD (7.92)	fail	USD
+(7.92)USD	fail	USD
+USD(7.92)	fail	USD
+(8) USD	-8	USD
+// See ticket 11735
+-8 USD	fail	USD	J
+67 USD	67	USD
+// See ticket 11735
+53.45$	fail	USD	J
+US Dollars 53.45	53.45	USD	J
+53.45 US Dollars	53.45	USD
+US Dollar 53.45	53.45	USD	J
+53.45 US Dollar	53.45	USD
+US Dollars53.45	53.45	USD
+// See ticket 11735
+53.45US Dollars	fail	USD	J
+US Dollar53.45	53.45	USD
+US Dollat53.45	fail	USD
+// See ticket 11735
+53.45US Dollar	fail	USD	J
+
+
+test parse currency short
+set pattern 0.00 \u00a4;(#) \u00a4
+set locale en_US
+begin
+parse	output	outputCurrency	breaks
+$53.45	53.45	USD
+53.45 USD	53.45	USD
+USD 53.45	53.45	USD	J
+53.45USD	fail	USD
+USD53.45	53.45	USD
+(7.92) USD	-7.92	USD
+(7.926) USD	-7.926	USD
+(7.926 USD)	fail	USD
+(USD 7.926)	fail	USD
+USD (7.926)	fail	USD
+USD (7.92)	fail	USD
+(7.92)USD	fail	USD
+USD(7.92)	fail	USD
+(8) USD	-8	USD
+-8 USD	fail	USD
+67 USD	67	USD
+53.45$	fail	USD
+US Dollars 53.45	53.45	USD	J
+53.45 US Dollars	53.45	USD
+US Dollar 53.45	53.45	USD	J
+53.45 US Dollar	53.45	USD
+US Dollars53.45	53.45	USD
+53.45US Dollars	fail	USD
+US Dollar53.45	53.45	USD
+US Dollat53.45	fail	USD
+53.45US Dollar	fail	USD
+
+
+test parse currency short prefix
+set pattern \u00a40.00;(\u00a4#)
+set locale en_US
+begin
+parse	output	outputCurrency	breaks
+$53.45	53.45	USD
+53.45 USD	fail	USD
+USD 53.45	53.45	USD	J
+53.45USD	fail	USD
+USD53.45	53.45	USD
+(7.92) USD	fail	USD
+(7.926) USD	fail	USD
+(7.926 USD)	fail	USD
+(USD 7.926)	-7.926	USD	J
+USD (7.926)	fail	USD
+USD (7.92)	fail	USD
+(7.92)USD	fail	USD
+USD(7.92)	fail	USD
+(8) USD	fail	USD
+-8 USD	fail	USD
+67 USD	fail	USD
+53.45$	fail	USD
+US Dollars 53.45	53.45	USD	J
+53.45 US Dollars	53.45	USD
+US Dollar 53.45	53.45	USD	J
+53.45 US Dollar	53.45	USD
+US Dollars53.45	53.45	USD
+53.45US Dollars	fail	USD
+US Dollar53.45	53.45	USD
+53.45US Dollar	fail	USD
+
+test format foreign currency
+set locale fa_IR
+begin
+pattern	format	output	breaks
+\u00a4\u00a4\u00a4 0.00;\u00a4\u00a4\u00a4 #	1235	\u0631\u06cc\u0627\u0644 \u0627\u06cc\u0631\u0627\u0646 \u06F1\u06F2\u06F3\u06F5	K
+\u00a4\u00a4 0.00;\u00a4\u00a4 -#	1235	IRR \u06F1\u06F2\u06F3\u06F5	K
+\u00a4 0.00;\u00a4 -#	1235	\u0631\u06cc\u0627\u0644 \u06F1\u06F2\u06F3\u06F5	K
+
+test parse foreign currency symbol
+set pattern \u00a4 0.00;\u00a4 -#
+set locale fa_IR
+begin
+parse	output	outputCurrency
+\u0631\u06cc\u0627\u0644 \u06F1\u06F2\u06F3\u06F5	1235	IRR
+IRR \u06F1\u06F2\u06F3\u06F5	1235	IRR
+\u0631\u06cc\u0627\u0644 \u0627\u06cc\u0631\u0627\u0646 \u06F1\u06F2\u06F3\u06F5	1235	IRR
+IRR 1235	1235	IRR
+\u0631\u06cc\u0627\u0644 1235	1235	IRR
+\u0631\u06cc\u0627\u0644 \u0627\u06cc\u0631\u0627\u0646 1235	1235	IRR
+
+test parse foreign currency ISO
+set pattern \u00a4\u00a4 0.00;\u00a4\u00a4 -#
+set locale fa_IR
+begin
+parse	output	outputCurrency
+\u0631\u06cc\u0627\u0644 \u06F1\u06F2\u06F3\u06F5	1235	IRR
+IRR \u06F1\u06F2\u06F3\u06F5	1235	IRR
+\u0631\u06cc\u0627\u0644 \u0627\u06cc\u0631\u0627\u0646 \u06F1\u06F2\u06F3\u06F5	1235	IRR
+IRR 1235	1235	IRR
+\u0631\u06cc\u0627\u0644 1235	1235	IRR
+\u0631\u06cc\u0627\u0644 \u0627\u06cc\u0631\u0627\u0646 1235	1235	IRR
+
+test parse foreign currency full
+set pattern \u00a4\u00a4\u00a4 0.00;\u00a4\u00a4\u00a4 -#
+set locale fa_IR
+begin
+parse	output	outputCurrency
+\u0631\u06cc\u0627\u0644 \u06F1\u06F2\u06F3\u06F5	1235	IRR
+IRR \u06F1\u06F2\u06F3\u06F5	1235	IRR
+\u0631\u06cc\u0627\u0644 \u0627\u06cc\u0631\u0627\u0646 \u06F1\u06F2\u06F3\u06F5	1235	IRR
+IRR 1235	1235	IRR
+\u0631\u06cc\u0627\u0644 1235	1235	IRR
+\u0631\u06cc\u0627\u0644 \u0627\u06cc\u0631\u0627\u0646 1235	1235	IRR
+
+test parse currency with foreign symbols symbol english
+set pattern \u00a4 0.00;\u00a4 (#)
+set locale en_US
+begin
+parse	output	outputCurrency
+EUR 7.82	7.82	EUR
+\u20ac 7.82	7.82	EUR
+Euro 7.82	7.82	EUR
+Euros 7.82	7.82	EUR
+
+test parse currency with foreign symbols ISO english
+set pattern \u00a4\u00a4 0.00;\u00a4\u00a4 (#)
+set locale en_US
+begin
+parse	output	outputCurrency
+EUR 7.82	7.82	EUR
+\u20ac 7.82	7.82	EUR
+Euro 7.82	7.82	EUR
+Euros 7.82	7.82	EUR
+
+test parse currency with foreign symbols full english
+set pattern \u00a4\u00a4\u00a4 0.00;\u00a4\u00a4\u00a4 (#)
+set locale en_US
+begin
+parse	output	outputCurrency
+EUR 7.82	7.82	EUR
+\u20ac 7.82	7.82	EUR
+Euro 7.82	7.82	EUR
+Euros 7.82	7.82	EUR
+
+test parse currency ISO strict
+set pattern 0.00 \u00a4\u00a4;(#) \u00a4\u00a4
+set locale en_US
+set lenient 0
+begin
+parse	output	outputCurrency	breaks
+$53.45	53.45	USD
+53.45 USD	53.45	USD
+USD 53.45	fail	USD
+53.45USD	fail	USD
+USD53.45	53.45	USD
+(7.92) USD	-7.92	USD
+(7.92) EUR	-7.92	EUR
+(7.926) USD	-7.926	USD
+(7.926 USD)	fail	USD
+(USD 7.926)	fail	USD
+USD (7.926)	fail	USD
+USD (7.92)	fail	USD
+(7.92)USD	fail	USD
+USD(7.92)	fail	USD
+(8) USD	-8	USD
+-8 USD	fail	USD
+67 USD	67	USD
+53.45$	fail	USD
+US Dollars 53.45	fail	USD
+53.45 US Dollars	53.45	USD
+US Dollar 53.45	fail	USD
+53.45 US Dollar	53.45	USD
+US Dollars53.45	53.45	USD
+53.45US Dollars	fail	USD
+US Dollar53.45	53.45	USD
+US Dollat53.45	fail	USD
+53.45US Dollar	fail	USD
+US Dollars (53.45)	fail	USD
+(53.45) US Dollars	-53.45	USD
+US Dollar (53.45)	fail	USD
+(53.45) US Dollar	-53.45	USD
+US Dollars(53.45)	fail	USD
+(53.45)US Dollars	fail	USD
+US Dollar(53.45)	fail	USD
+US Dollat(53.45)	fail	USD
+(53.45)US Dollar	fail	USD
+
+test ticket 10436
+set locale en
+set roundingMode ceiling
+set minFractionDigits 0
+set maxFractionDigits 0
+begin
+format	output	breaks
+-0.99	-0	JK
+

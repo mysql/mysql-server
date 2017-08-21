@@ -1,0 +1,214 @@
+﻿#
+# Copyright (C) 2016 and later: Unicode, Inc. and others.
+# License & terms of use: http://www.unicode.org/copyright.html
+# Copyright (c) 2016, International Business Machines Corporation and others. All Rights Reserved.
+#
+# file: line_normal.txt
+#
+# Reference Line Break rules for intltest rbbi/RBBIMonkeyTest
+#
+# Note: Rule syntax and the monkey test itself are still a work in progress.
+#       They are expected to change with review and the addition of support for rule tailoring.
+#
+#         Line Breaking Rules
+#         Implement default line breaking as defined by
+#         Unicode Standard Annex #14 Revision 34 for Unicode 8.0
+#         http://www.unicode.org/reports/tr14/
+#         tailored as noted in 2nd paragraph below.
+#
+#         TODO:  Rule LB 8 remains as it was in Unicode 5.2
+#         This is only because of a limitation of ICU break engine implementation,
+#         not because the older behavior is desirable.
+#
+#         This tailors the line break behavior to correspond to CSS
+#         line-break=normal (BCP47 -u-lb-normal) as defined for languages other than
+#         Chinese & Japanese.
+#         It sets characters of class CJ to behave like ID.
+
+
+type = line;
+locale = en@lb=normal;
+
+AI = [:LineBreak =  Ambiguous:];
+AL = [:LineBreak =  Alphabetic:];
+BA = [:LineBreak =  Break_After:];
+BB = [:LineBreak =  Break_Before:];
+BK = [:LineBreak =  Mandatory_Break:];
+B2 = [:LineBreak =  Break_Both:];
+CB = [:LineBreak =  Contingent_Break:];
+CJ = [:LineBreak =  Conditional_Japanese_Starter:];
+CL = [:LineBreak =  Close_Punctuation:];
+CM = [:LineBreak =  Combining_Mark:];
+CP = [:LineBreak =  Close_Parenthesis:];
+CR = [:LineBreak =  Carriage_Return:];
+EB = [:LineBreak =  EB:];
+EM = [:LineBreak =  EM:];
+EX = [:LineBreak =  Exclamation:];
+GL = [:LineBreak =  Glue:];
+HL = [:LineBreak =  Hebrew_Letter:];
+HY = [:LineBreak =  Hyphen:];
+H2 = [:LineBreak =  H2:];
+H3 = [:LineBreak =  H3:];
+ID = [[:LineBreak =  Ideographic:] CJ];  # CSS Normal tailoring: CJ resolves to ID
+IN = [:LineBreak =  Inseperable:];
+IS = [:LineBreak =  Infix_Numeric:];
+JL = [:LineBreak =  JL:];
+JV = [:LineBreak =  JV:];
+JT = [:LineBreak =  JT:];
+LF = [:LineBreak =  Line_Feed:];
+NL = [:LineBreak =  Next_Line:];
+NS = [:LineBreak =  Nonstarter:];
+NU = [:LineBreak =  Numeric:];
+OP = [:LineBreak =  Open_Punctuation:];
+PO = [:LineBreak =  Postfix_Numeric:];
+PR = [:LineBreak =  Prefix_Numeric:];
+QU = [:LineBreak =  Quotation:];
+RI = [:LineBreak =  Regional_Indicator:];
+SA = [:LineBreak =  Complex_Context:];
+SG = [:LineBreak =  Surrogate:];
+SP = [:LineBreak =  Space:];
+SY = [:LineBreak =  Break_Symbols:];
+WJ = [:LineBreak =  Word_Joiner:];
+XX = [:LineBreak =  Unknown:];
+ZW = [:LineBreak =  ZWSpace:];
+ZWJ = [:LineBreak =  ZWJ:];
+
+EmojiNRK = [[\p{Emoji}] - [[RI]\u002a\u00230-9©®™〰〽]];
+# Data for Extended Pictographic scraped from CLDR common/properties/ExtendedPictographic.txt, r13267
+Extended_Pict = [\U0001F774-\U0001F77F\U00002700-\U00002701\U00002703-\U00002704\U0000270E\U00002710-\U00002711\U00002765-\U00002767\U0001F030-\U0001F093\U0001F094-\U0001F09F\U0001F10D-\U0001F10F\U0001F12F\U0001F16C-\U0001F16F\U0001F1AD-\U0001F1E5\U0001F260-\U0001F265\U0001F203-\U0001F20F\U0001F23C-\U0001F23F\U0001F249-\U0001F24F\U0001F252-\U0001F25F\U0001F266-\U0001F2FF\U0001F7D5-\U0001F7FF\U0001F000-\U0001F003\U0001F005-\U0001F02B\U0001F02C-\U0001F02F\U0001F322-\U0001F323\U0001F394-\U0001F395\U0001F398\U0001F39C-\U0001F39D\U0001F3F1-\U0001F3F2\U0001F3F6\U0001F4FE\U0001F53E-\U0001F548\U0001F54F\U0001F568-\U0001F56E\U0001F571-\U0001F572\U0001F57B-\U0001F586\U0001F588-\U0001F589\U0001F58E-\U0001F58F\U0001F591-\U0001F594\U0001F597-\U0001F5A3\U0001F5A6-\U0001F5A7\U0001F5A9-\U0001F5B0\U0001F5B3-\U0001F5BB\U0001F5BD-\U0001F5C1\U0001F5C5-\U0001F5D0\U0001F5D4-\U0001F5DB\U0001F5DF-\U0001F5E0\U0001F5E2\U0001F5E4-\U0001F5E7\U0001F5E9-\U0001F5EE\U0001F5F0-\U0001F5F2\U0001F5F4-\U0001F5F9\U00002605\U00002607-\U0000260D\U0000260F-\U00002610\U00002612\U00002616-\U00002617\U00002619-\U0000261C\U0000261E-\U0000261F\U00002621\U00002624-\U00002625\U00002627-\U00002629\U0000262B-\U0000262D\U00002630-\U00002637\U0000263B-\U00002647\U00002654-\U0000265F\U00002661-\U00002662\U00002664\U00002667\U00002669-\U0000267A\U0000267C-\U0000267E\U00002680-\U00002691\U00002695\U00002698\U0000269A\U0000269D-\U0000269F\U000026A2-\U000026A9\U000026AC-\U000026AF\U000026B2-\U000026BC\U000026BF-\U000026C3\U000026C6-\U000026C7\U000026C9-\U000026CD\U000026D0\U000026D2\U000026D5-\U000026E8\U000026EB-\U000026EF\U000026F6\U000026FB-\U000026FC\U000026FE-\U000026FF\U00002388\U0001FA00-\U0001FFFD\U0001F0A0-\U0001F0AE\U0001F0B1-\U0001F0BF\U0001F0C1-\U0001F0CF\U0001F0D1-\U0001F0F5\U0001F0AF-\U0001F0B0\U0001F0C0\U0001F0D0\U0001F0F6-\U0001F0FF\U0001F80C-\U0001F80F\U0001F848-\U0001F84F\U0001F85A-\U0001F85F\U0001F888-\U0001F88F\U0001F8AE-\U0001F8FF\U0001F900-\U0001F90B\U0001F91F\U0001F928-\U0001F92F\U0001F931-\U0001F932\U0001F94C\U0001F95F-\U0001F96B\U0001F992-\U0001F997\U0001F9D0-\U0001F9E6\U0001F90C-\U0001F90F\U0001F93F\U0001F94D-\U0001F94F\U0001F96C-\U0001F97F\U0001F998-\U0001F9BF\U0001F9C1-\U0001F9CF\U0001F9E7-\U0001F9FF\U0001F6C6-\U0001F6CA\U0001F6D3-\U0001F6D4\U0001F6E6-\U0001F6E8\U0001F6EA\U0001F6F1-\U0001F6F2\U0001F6F7-\U0001F6F8\U0001F6D5-\U0001F6DF\U0001F6ED-\U0001F6EF\U0001F6F9-\U0001F6FF];
+
+# LB1 - Resolve AI, CB, CJ, SA, SG, and XX into other line breaking classes
+AL = [AL AI SG XX ];
+dictionary = SA;
+
+# By LB9, a ZWJ also behaves as a CM. Including it in the definition of CM avoids having to explicitly
+#         list it in the numerous rules that use CM.
+CM = [CM ZWJ];
+
+LB4:        BK ÷;
+LB5:        CR LF;
+LB5.1:      CR ÷;
+LB5.2:      LF ÷;
+LB5.3:      NL ÷;
+
+LB6:        . (BK | CR | LF | NL);
+LB6.1:      [^BK CR LF NL SP ZW] CM* (BK | CR | LF | NL);
+
+# Rules LB14 - LB17.
+# Moved before LB7, because they can match a longer sequence that would also match LB7,
+# for example, the sequence "OP CM SP AL" matches LB14 while the prefix of it,
+#                           "while only the prefix "OP CM SP" matches LB7.1
+LB14:        OP CM* SP* .;
+LB15:        QU CM* SP* OP;
+LB16:        (CL | CP)CM* SP* NS;
+LB17:        B2 CM* SP* B2;
+
+LB7.1:      [^ZW SP] CM* [SP ZW];
+LB7.2:      [ZW SP] [SP ZW];
+
+# LB8, ICU differs from UAX-14,
+#    ICU:    ZW ÷;
+#    UAX 14: ZW SP* ÷;
+LB8:        ZW ÷;
+
+# LB8a
+#      ZWJ x (ID | Extended_Pict | EmojiNRK)
+LB8a:       ZWJ (ID | Extended_Pict | EmojiNRK);
+
+
+# LB9:  X CM -> X
+# LB10: Unattached CM -> AL
+
+#LB11:       × WJ;
+#            WJ ×
+
+LB11.1:      [^BK CR LF NL SP ZW] CM* WJ;
+LB11.2:      SP WJ;
+LB11.3:      WJ CM* [^CM];
+
+LB12:        GL CM* [^CM];
+
+LB12a:       [^SP BA HY] CM* GL;
+
+# LB 13 ICU Tailoring, matches tailoring exmaple 8 from UAX 14.
+#
+#   LB13.1   [^SP] CM* [CL CP EX IS SY]    # original UAX 14 rule.
+#   LB13.2   SP    CM* [CL CP EX IS SY]
+
+LB13.1: [^NU SP] CM* [CL CP IS SY];
+LB13.2: [^SP] CM* EX;
+LB13.2: SP [CL CP EX IS SY];
+
+
+# LB 14-17 are moved above LB 7.
+
+LB18:        SP ÷;
+
+LB19:        . CM* QU;
+LB19.1:      QU CM* [^CM];
+
+# LB 20   Break before and after CB.
+#         Interaction with LB8a:  ZWJ x ID is tricky because CM includes ZWJ.
+#                                 ZWJ acts like a CM to the left, combining with CB.
+#                                 ZWJ acts independently to the right, no break from ID by LB8a.
+LB20:        . CM* ÷ CB;
+LB20.1a:     CB CM* ZWJ (ID | Extended_Pict | EmojiNRK);
+LB20.1b:      CB CM* ÷;
+
+# Note: Rule 21a must come before 21 to prevent 21.1 from matching HL BA, then
+#       not picking up the continuing match after the BA from 21a.
+LB21a:       HL CM* (HY | BA) CM* [^CM CB];
+
+LB21.1:      . CM* [BA HY NS];
+LB21.2:      BB CM* [^CM CB];
+
+LB21b:       SY CM* HL;
+
+LB22.1:        (AL | HL | CM) CM* IN;   # The CM is from LB10, treat an unattached CM as AL.
+LB22.2:       EX CM* IN;
+LB22.3:       (ID | EB | EM) CM* IN;
+LB22.4:       IN CM* IN;
+LB22.5:       NU CM* IN;
+
+LB23.1:      (AL | HL | CM) CM* NU;
+LB23.2:      NU CM* (AL | HL);
+
+LB23a.1:     PR CM* (ID | EB | EM);
+LB23a.2:     (ID | EB | EM) CM* PO;
+
+LB24.2:      (PR | PO) CM* (AL | HL);
+LB24.3:      (AL | HL | CM) CM* (PR | PO);
+
+# Numbers. Equivalent to Tailoring example 8 from UAx 14.
+LB25:        ((PR | PO)CM*)? ((OP | HY)CM*)? NU (CM*(NU | SY | IS))* (CM*(CL | CP))? (CM*(PR | PO))?;
+
+LB26.1:      JL CM* (JL | JV | H2 | H3);
+LB26.2:      (JV | H2) CM* (JV | JT);
+LB26.3:      (JT | H3) CM* JT;
+
+LB27.1:      (JL | JV | JT | H2 | H3) CM* IN;
+LB27.2:      (JL | JV | JT | H2 | H3) CM* PO;
+LB27.3:      PR CM* (JL | JV | JT | H2 | H3);
+
+# LB28 Do not break between Alphabetics.
+#      Unattached (leading) CM treated as AL.
+LB28:        (AL | HL | CM)CM* (AL | HL);
+
+LB29:        IS CM* (AL | HL);
+
+# LB30  is adjusted for unattached leading CM being treated as AL.
+LB30.1:      (AL | CM | HL | NU) CM* OP;
+LB30.2:      CP CM* (AL | HL | NU);
+
+# LB31  keep pairs of RI together.
+LB30a.1:     RI CM* RI CM* [BK CR LF NL SP ZW WJ GL CL CP EX IS SY QU BA HY NS];
+LB30a.2:     RI CM* RI CM* ZWJ (ID | Extended_Pict | EmojiNRK);
+LB30a.3:     RI CM* RI CM* ÷;
+
+# LB30b Do not break between Emoji Base and Emoji Modifier
+LB30b:       EB CM* EM;
+
+# LB31 Break Everywhere Else.
+#      Include combining marks
+LB31.1:        . CM* ZWJ (ID | Extended_Pict | EmojiNRK);
+LB31.2:        . CM* ÷;
