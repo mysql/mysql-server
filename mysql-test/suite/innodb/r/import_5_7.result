@@ -40,7 +40,7 @@ a	b	c	d
     "dd_object_type": "Table",
     "dd_object": {
         "name": "t1",
-        "mysql_version_id": 80003,
+        "mysql_version_id": 80004,
         "created": NNN,
         "last_altered": NNN,
         "hidden": 1,
