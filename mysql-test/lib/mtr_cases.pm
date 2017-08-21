@@ -988,11 +988,20 @@ sub collect_one_test_case {
     # should fail by default
     $tinfo->{result_file}= $result_file;
   }
-  else {
-    # No .result file exist
-    # Remember the path  where it should be
-    # saved in case of --record
-    $tinfo->{record_file}= $result_file;
+  else
+  {
+    # Result file doesn't exist
+    if ($::opt_check_testcases and !$::opt_record)
+    {
+      # Set 'no_result_file' flag if check-testcases is enabled.
+      $tinfo->{'no_result_file'}= $result_file;
+    }
+    else
+    {
+      # No .result file exist, remember the path where it should
+      # be saved in case of --record.
+      $tinfo->{record_file}= $result_file;
+    }
   }
 
   # ----------------------------------------------------------------------

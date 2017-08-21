@@ -250,7 +250,7 @@ my $ports_per_thread= 10;
 our $group_replication= 0;
 our $xplugin= 0;
 
-my $opt_record;
+our $opt_record;
 my $opt_report_features;
 my $opt_charset_for_testdb;
 
@@ -4765,10 +4765,10 @@ sub run_testcase ($) {
 
       if ($res == 0 and $opt_warnings and check_warnings($tinfo))
       {
-	# Test case suceeded, but it has produced unexpected
-	# warnings, continue in $res == 1
-	$res= 1;
-	resfile_output($tinfo->{'warnings'}) if $opt_resfile;
+        # Test case succeeded, but it has produced unexpected
+        # warnings, continue in $res == 1
+        $res= 1;
+        resfile_output($tinfo->{'warnings'}) if $opt_resfile;
       }
 
       my $check_res;
@@ -4779,21 +4779,39 @@ sub run_testcase ($) {
         "system status. Please fix the test case to perform the skip\n".
         "condition check before modifying the system status.";
 
-      if ($opt_check_testcases and
-          !restart_forced_by_test('force_restart') and
-          !restart_forced_by_test('force_restart_if_skipped'))
+      if ($res == 0 or $res == 62)
       {
-        $check_res= check_testcase($tinfo, "after")
-          if ($res == 0 or $res == 62);
-
-        # Test run succeeded but failed in check-testcase, marking
-        # the test case as failed.
-        if (defined $check_res and $check_res == 1)
+        if ($tinfo->{'no_result_file'})
         {
-          $tinfo->{comment}.= "\n$message" if ($res == 62);
-          resfile_output($tinfo->{'comment'}) if $opt_resfile;
+          # Test case doesn't have it's corresponding result file, marking
+          # the test case as failed.
+          $tinfo->{comment}=
+            "Result file '$tinfo->{'no_result_file'}' doesn't exist.\n".
+            "Either create a result file or disable check-testcases and ".
+            "run the test case. Use --nocheck-testcases option to ".
+            "disable check-testcases.\n";
           $res= 1;
         }
+        elsif ($opt_check_testcases and
+               !restart_forced_by_test('force_restart') and
+               !restart_forced_by_test('force_restart_if_skipped'))
+        {
+          $check_res= check_testcase($tinfo, "after");
+
+          # Test run succeeded but failed in check-testcase, marking
+          # the test case as failed.
+          if (defined $check_res and $check_res == 1)
+          {
+            $tinfo->{comment}.= "\n$message" if ($res == 62);
+            $res= 1;
+          }
+        }
+      }
+      elsif ($res == 1)
+      {
+        # Test case has failed, delete 'no_result_file' key and its
+        # associated value from the test object to avoid any unknown error.
+        delete $tinfo->{'no_result_file'} if $tinfo->{'no_result_file'};
       }
 
       if ($res == 0)
@@ -5691,8 +5709,7 @@ sub report_failure_and_restart ($) {
   $tinfo->{'result'}= 'MTR_RES_FAILED';
 
   my $test_failures= $tinfo->{'failures'} || 0;
-  $tinfo->{'failures'}=  $test_failures + 1;
-
+  $tinfo->{'failures'}= $test_failures + 1;
 
   if ( $tinfo->{comment} )
   {
@@ -5702,7 +5719,7 @@ sub report_failure_and_restart ($) {
     ;
   }
 
-  if ( !defined $tinfo->{logfile} )
+  if (!defined $tinfo->{logfile} and !$tinfo->{'no_result_file'})
   {
     my $logfile= $path_current_testlog;
     if ( defined $logfile )
@@ -5738,9 +5755,7 @@ sub report_failure_and_restart ($) {
   }
 
   after_failure($tinfo);
-
   mtr_report_test($tinfo);
-
 }
 
 
