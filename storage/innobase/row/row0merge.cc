@@ -163,7 +163,7 @@ public:
 						     i < dtuple_get_n_fields(cp_tuple);
 						     i++) {
 							dfield_dup(&cp_tuple->fields[i],
-								   row_heap);
+								   m_heap);
 						}
 					}
 					btr_pcur_move_to_prev_on_page(pcur);
