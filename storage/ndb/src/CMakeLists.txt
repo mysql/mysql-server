@@ -36,7 +36,7 @@ ENDIF()
 # Build static ndbclient library
 #
 SET(NDBCLIENT_LIBS
-  mysys dbug strings
+  mysys dbug strings mysys_ssl
   ndbapi
   ndbtransport
   ndbtrace
@@ -47,6 +47,16 @@ SET(NDBCLIENT_LIBS
   ndbportlib
   ndbgeneral
   ndbconf)
+
+IF(WITH_SSL STREQUAL "bundled")
+  SET(NDBCLIENT_LIBS "${NDBCLIENT_LIBS};${SSL_LIBRARIES}")
+ENDIF()
+
+IF(WITH_ZLIB STREQUAL "bundled")
+  SET(NDBCLIENT_LIBS "${NDBCLIENT_LIBS};${ZLIB_LIBRARY}")
+ENDIF()
+
+MESSAGE(STATUS "NDBCLIENT_LIBS ${NDBCLIENT_LIBS}")
 
 MERGE_LIBRARIES(ndbclient_static STATIC ${NDBCLIENT_LIBS} COMPONENT Development)
 # Build test program to check linking against ndclient_static
@@ -136,6 +146,7 @@ ELSE()
 
     ENDFOREACH()
   ENDFOREACH()
+  LIST(REMOVE_DUPLICATES NDBCLIENT_SYSTEM_LIBS)
   MESSAGE(STATUS "System libs used by ndbclient_so: ${NDBCLIENT_SYSTEM_LIBS}")
   TARGET_LINK_LIBRARIES(ndbclient_so LINK_INTERFACE_LIBRARIES
     ${NDBCLIENT_SYSTEM_LIBS})

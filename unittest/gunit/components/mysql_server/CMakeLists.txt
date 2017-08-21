@@ -41,6 +41,7 @@ FOREACH(test ${TESTS})
     ${CMAKE_SOURCE_DIR}/sql/server_component/mysql_string_service.cc
     ${CMAKE_SOURCE_DIR}/sql-common/sql_string.cc
     builtins_stubs.cc
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/component_output_directory
     ADD_TEST ${test}
   )
   TARGET_LINK_LIBRARIES(${test}-t
@@ -68,15 +69,4 @@ SET(EXAMPLE_COMPONENTS
 
 FOREACH(EXAMPLE_COMPONENT ${EXAMPLE_COMPONENTS})
   ADD_DEPENDENCIES(dynamic_loader-t ${EXAMPLE_COMPONENT})
-
-  # Copy all libraries to dynamic_loader-t's binary directory. This directory is
-  # on VS different from target directory even for components defined in this
-  # CMakeLists file.
-  GET_TARGET_PROPERTY(example_location ${EXAMPLE_COMPONENT} LOCATION)
-  ADD_CUSTOM_COMMAND(
-    TARGET dynamic_loader-t
-    COMMAND ${CMAKE_COMMAND} -E copy
-      ${example_location}
-      ${CMAKE_CURRENT_BINARY_DIR}
-  )
 ENDFOREACH()

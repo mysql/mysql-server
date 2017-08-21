@@ -128,12 +128,11 @@ ADD_EXECUTABLE(ndbinfo_sql
   ndbinfo_sql.cpp
 )
 TARGET_LINK_LIBRARIES(ndbinfo_sql ndbclient_static)
-GET_TARGET_PROPERTY(NDBINFO_SQL_EXE ndbinfo_sql LOCATION)
-ADD_CUSTOM_COMMAND(OUTPUT ${PROJECT_BINARY_DIR}/storage/ndb/tools/ndbinfo.sql
-                   COMMAND ${NDBINFO_SQL_EXE} ARGS > ndbinfo.sql
-                   DEPENDS ndbinfo_sql)
-ADD_CUSTOM_TARGET(ndbinfo_sql_run ALL
-                  DEPENDS ${PROJECT_BINARY_DIR}/storage/ndb/tools/ndbinfo.sql)
+
+ADD_CUSTOM_COMMAND(TARGET ndbinfo_sql POST_BUILD
+  COMMAND $<TARGET_FILE:ndbinfo_sql>
+  > ${PROJECT_BINARY_DIR}/storage/ndb/tools/ndbinfo.sql
+  )
 
 MYSQL_ADD_EXECUTABLE(ndb_index_stat
   ndb_index_stat.cpp

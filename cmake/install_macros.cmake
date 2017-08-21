@@ -119,37 +119,6 @@ FUNCTION(INSTALL_SCRIPT)
   INSTALL_MANPAGE(${script})
 ENDFUNCTION()
 
-# Install symbolic link to CMake target. 
-# We do 'cd path; ln -s target_name link_name'
-# We also add an INSTALL target for "${path}/${link_name}"
-MACRO(INSTALL_SYMLINK target target_name link_name destination component)
-IF(UNIX)
-  GET_TARGET_PROPERTY(location ${target} LOCATION)
-  GET_FILENAME_COMPONENT(path ${location} PATH)
-
-  SET(output ${path}/${link_name})
-  ADD_CUSTOM_COMMAND(
-    OUTPUT ${output}
-    COMMAND ${CMAKE_COMMAND} ARGS -E remove -f ${output}
-    COMMAND ${CMAKE_COMMAND} ARGS -E create_symlink 
-      ${target_name} 
-      ${link_name}
-    WORKING_DIRECTORY ${path}
-    DEPENDS ${target}
-    )
-  
-  ADD_CUSTOM_TARGET(symlink_${link_name}
-    ALL
-    DEPENDS ${output})
-  SET_TARGET_PROPERTIES(symlink_${link_name} PROPERTIES CLEAN_DIRECT_OUTPUT 1)
-  IF(CMAKE_GENERATOR MATCHES "Xcode")
-    # For Xcode, replace project config with install config
-    STRING(REPLACE "${CMAKE_CFG_INTDIR}" 
-      "\${CMAKE_INSTALL_CONFIG_NAME}" output ${output})
-  ENDIF()
-  INSTALL(FILES ${output} DESTINATION ${destination} COMPONENT ${component})
-ENDIF()
-ENDMACRO()
 
 IF(WIN32)
   OPTION(SIGNCODE "Sign executables and dlls with digital certificate" OFF)

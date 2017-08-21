@@ -787,23 +787,24 @@ IF(NOT DISABLE_SHARED)
   ENDIF()
   IF(MSVC)
     # Set module definition file.
-    SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_FLAGS "${mysqld_link_flags} /DEF:mysqld.def")
+    SET_TARGET_PROPERTIES(mysqld
+      PROPERTIES LINK_FLAGS "${mysqld_link_flags} /DEF:mysqld.def")
 
-    FOREACH (CORELIB sql_main binlog slave mysys mysys_ssl dbug regex strings
-        vio binlogevents_static)
-      GET_TARGET_PROPERTY(LOC ${CORELIB} LOCATION)
-      IF (NOT LOC)
-        GET_TARGET_PROPERTY(LOC ${CORELIB} IMPORTED_LOCATION)
-      ENDIF()
-
-
-      FILE(TO_NATIVE_PATH ${LOC} LOC)
-      SET (LIB_LOCATIONS ${LIB_LOCATIONS} ${LOC}) 
-    ENDFOREACH (CORELIB ${MYSQLD_CORE_LIBS})
     SET(_PLATFORM  x64)
     ADD_CUSTOM_COMMAND(TARGET mysqld PRE_LINK
       COMMAND echo ${_PLATFORM} && cscript ARGS //nologo ${PROJECT_SOURCE_DIR}/win/create_def_file.js
-                  ${_PLATFORM}  ${LIB_LOCATIONS} > mysqld.def 
+      ${_PLATFORM}
+      "$<TARGET_FILE:binlog>"
+      "$<TARGET_FILE:binlogevents_static>"
+      "$<TARGET_FILE:dbug>"
+      "$<TARGET_FILE:mysys>"
+      "$<TARGET_FILE:mysys_ssl>"
+      "$<TARGET_FILE:regex>"
+      "$<TARGET_FILE:slave>"
+      "$<TARGET_FILE:sql_main>"
+      "$<TARGET_FILE:strings>"
+      "$<TARGET_FILE:vio>"
+      > mysqld.def
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
     ADD_DEPENDENCIES(sql_main GenError)
   ENDIF()
