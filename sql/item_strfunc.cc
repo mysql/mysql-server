@@ -4804,6 +4804,18 @@ String *Item_func_get_dd_create_options::val_str(String *str)
       }
     }
 
+    if (p->exists("encrypt_type"))
+    {
+      dd::String_type opt_value;
+      p->get("encrypt_type", opt_value);
+      if (!opt_value.empty())
+      {
+        ptr=my_stpcpy(ptr, " ENCRYPTION=\"");
+        ptr=my_stpcpy(ptr, opt_value.c_str());
+        ptr=my_stpcpy(ptr, "\"");
+      }
+    }
+
     if (p->exists("stats_persistent"))
     {
       p->get_uint32("stats_persistent", &opt_value);
