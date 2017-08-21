@@ -95,6 +95,16 @@
   @sa add_udf, udf_hash_delete.
 */
 
+
+/**
+  A local flag indicating whether SQL based UDF operations are allowed.
+  Now the UDF structures are always allocated/deallocated due to
+  the component service.
+
+  So this variable does not cover initialization/deinitialization of these.
+  \ref mem and \ref THR_LOCK_udf are always initialized, even in
+  --skip-grant-tables mode.
+*/
 static bool initialized = 0;
 static MEM_ROOT mem;
 static collation_unordered_map<std::string, udf_func*> *udf_hash;
@@ -194,8 +204,6 @@ void udf_init_globals()
 
   udf_hash= new collation_unordered_map<std::string, udf_func *>(
     system_charset_info, key_memory_udf_mem);
-  initialized= 1;
-
   DBUG_VOID_RETURN;
 }
 
@@ -215,11 +223,13 @@ void udf_read_functions_table()
   DBUG_ENTER("ufd_read_functions_table");
   char db[]= "mysql"; /* A subject to casednstr, can't be constant */
 
-  if (!initialized)
+  if (initialized)
   {
     DBUG_ASSERT("wrong init order: trying to read the UDFs without initializaton");
     DBUG_VOID_RETURN;
   }
+
+  initialized = 1;
 
   THD *new_thd = new(std::nothrow) THD;
   if (new_thd == nullptr)
@@ -376,11 +386,9 @@ void udf_deinit_globals()
     udf_hash= nullptr;
   }
   free_root(&mem,MYF(0));
-  if (initialized)
-  {
-    initialized= 0;
-    mysql_rwlock_destroy(&THR_LOCK_udf);
-  }
+  initialized= 0;
+
+  mysql_rwlock_destroy(&THR_LOCK_udf);
   DBUG_VOID_RETURN;
 }
 
