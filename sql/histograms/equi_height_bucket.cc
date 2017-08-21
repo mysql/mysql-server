@@ -205,8 +205,10 @@ double Bucket<T>::get_distance_from_lower(const T &value) const
   else if (values_are_equal(get_lower_inclusive(), get_upper_inclusive()))
     return 1.0;
 
-  return (value - get_lower_inclusive() + 1.0) /
-    (get_upper_inclusive() - static_cast<double>(get_lower_inclusive()) + 1.0);
+  // Make sure that double arithmeric is used in case of very large values.
+  const double lower_inclusive= static_cast<double>(get_lower_inclusive());
+  return (value - lower_inclusive + 1.0) /
+    (get_upper_inclusive() - lower_inclusive + 1.0);
 }
 
 
@@ -465,7 +467,7 @@ template <>
 double Bucket<longlong>::value_probability() const
 {
   return get_num_distinct() /
-         (get_upper_inclusive() - get_lower_inclusive() + 1.0);
+    (static_cast<double>(get_upper_inclusive()) - get_lower_inclusive() + 1);
 }
 
 
@@ -473,7 +475,7 @@ template <>
 double Bucket<ulonglong>::value_probability() const
 {
   return get_num_distinct() /
-         (get_upper_inclusive() - get_lower_inclusive() + 1.0);
+    (static_cast<double>(get_upper_inclusive()) - get_lower_inclusive() + 1);
 }
 
 
