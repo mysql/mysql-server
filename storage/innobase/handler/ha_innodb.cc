@@ -8705,6 +8705,14 @@ calc_row_difference(
 			if (!uvect->old_vrow) {
 				uvect->old_vrow = dtuple_create_with_vcol(
 					uvect->heap, 0, prebuilt->table->n_v_cols);
+				for (int j = 0; j < prebuilt->table->n_v_cols;
+				     j++) {
+					dfield_t*       field =
+						dtuple_get_nth_v_field(
+							uvect->old_vrow, j);
+
+					dfield_set_len(field, UNIV_SQL_NULL);
+				}
 			}
 
 			ulint   max_field_len = DICT_MAX_FIELD_LEN_BY_FORMAT(
