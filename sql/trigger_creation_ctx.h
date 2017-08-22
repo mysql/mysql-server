@@ -55,7 +55,7 @@ public:
 protected:
   virtual Object_creation_ctx *create_backup_ctx(THD *thd) const
   {
-    return new Trigger_creation_ctx(thd);
+    return new (*THR_MALLOC) Trigger_creation_ctx(thd);
   }
 
 private:

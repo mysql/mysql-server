@@ -20,6 +20,8 @@
 
 #include "query_string_builder.h"
 
+#include <mutex>
+
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h" // escape_string_for_mysql
@@ -28,7 +30,7 @@
 using namespace xpl;
 
 charset_info_st* Query_string_builder::m_charset = NULL;
-my_thread_once_t Query_string_builder::m_charset_initialized = MY_THREAD_ONCE_INIT;
+std::once_flag Query_string_builder::m_charset_initialized;
 
 void Query_string_builder::init_charset()
 {
@@ -39,7 +41,7 @@ void Query_string_builder::init_charset()
 Query_string_builder::Query_string_builder(size_t reserve)
   : m_in_quoted(false), m_in_identifier(false)
 {
-  my_thread_once(&m_charset_initialized, init_charset);
+  std::call_once(m_charset_initialized, init_charset);
   DBUG_ASSERT(m_charset != NULL);
 
   m_str.reserve(reserve);

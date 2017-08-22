@@ -65,18 +65,18 @@ test.t1	analyze	status	OK
 FLUSH STATUS;
 SELECT * FROM t1 FORCE INDEX (`PRIMARY`);
 a	b
+4	4
+3	3
+2	2
+1	4
+1	3
+1	2
+1	1
+0	1
+0	0
 55	55
 55	54
 54	54
-2	2
-1	2
-0	1
-4	4
-0	0
-3	3
-1	4
-1	3
-1	1
 SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
 Variable_name	Value
 Handler_commit	1
@@ -87,18 +87,18 @@ Handler_read_next	12
 FLUSH STATUS;
 SELECT * FROM t1 FORCE INDEX (`ab_asc`);
 a	b
+0	0
 0	1
+1	1
 1	2
+1	3
+1	4
 2	2
+3	3
+4	4
 54	54
 55	54
 55	55
-0	0
-4	4
-1	1
-1	3
-1	4
-3	3
 SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
 Variable_name	Value
 Handler_commit	1
@@ -110,17 +110,17 @@ FLUSH STATUS;
 SELECT * FROM t1 FORCE INDEX (`a_asc_b_desc`);
 a	b
 0	1
+0	0
+1	4
+1	3
 1	2
+1	1
 2	2
+3	3
+4	4
 54	54
 55	55
 55	54
-0	0
-4	4
-1	4
-1	3
-1	1
-3	3
 SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
 Variable_name	Value
 Handler_commit	1
@@ -131,18 +131,18 @@ Handler_read_next	12
 FLUSH STATUS;
 SELECT * FROM t1 FORCE INDEX (`a_desc_b_asc`);
 a	b
+4	4
+3	3
+2	2
+1	1
+1	2
+1	3
+1	4
+0	0
+0	1
 55	54
 55	55
 54	54
-2	2
-1	2
-0	1
-4	4
-0	0
-3	3
-1	1
-1	3
-1	4
 SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
 Variable_name	Value
 Handler_commit	1
@@ -262,7 +262,7 @@ EXPLAIN
           "a",
           "b"
         ],
-        "key_length": "24",
+        "key_length": "84",
         "rows_examined_per_scan": "X",
         "rows_produced_per_join": "X",
         "filtered": "X",
@@ -306,7 +306,7 @@ EXPLAIN
           "a",
           "b"
         ],
-        "key_length": "24",
+        "key_length": "84",
         "rows_examined_per_scan": "X",
         "rows_produced_per_join": "X",
         "filtered": "X",
@@ -350,7 +350,7 @@ EXPLAIN
           "a",
           "b"
         ],
-        "key_length": "24",
+        "key_length": "84",
         "rows_examined_per_scan": "X",
         "rows_produced_per_join": "X",
         "filtered": "X",
@@ -394,7 +394,7 @@ EXPLAIN
           "a",
           "b"
         ],
-        "key_length": "24",
+        "key_length": "84",
         "rows_examined_per_scan": "X",
         "rows_produced_per_join": "X",
         "filtered": "X",
@@ -527,7 +527,7 @@ EXPLAIN
           "a",
           "b"
         ],
-        "key_length": "24",
+        "key_length": "84",
         "rows_examined_per_scan": "X",
         "rows_produced_per_join": "X",
         "filtered": "X",
@@ -575,7 +575,7 @@ EXPLAIN
           "a",
           "b"
         ],
-        "key_length": "24",
+        "key_length": "84",
         "rows_examined_per_scan": "X",
         "rows_produced_per_join": "X",
         "filtered": "X",
@@ -622,7 +622,7 @@ EXPLAIN
           "a",
           "b"
         ],
-        "key_length": "24",
+        "key_length": "84",
         "rows_examined_per_scan": "X",
         "rows_produced_per_join": "X",
         "filtered": "X",

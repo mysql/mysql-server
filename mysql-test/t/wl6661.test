@@ -2,8 +2,6 @@
 --echo # WL#6661: Error logging: Allow control of verbosity
 --echo #
 
---source include/not_embedded.inc
-
 # Unfortunately while the order of the requirements was sensible for
 # human consumption, it's relatively impractical to test in that order. :(
 
@@ -67,8 +65,7 @@ SET SESSION log_error_verbosity=DEFAULT;
 --echo # Spec 4e "SUPER required for log_error_verbosity"
 --echo # Spec Ed "SUPER required for log_timestamps"
 # It's not settable by just anyone.
-# We keep these two in here rather than in the log_..._basic
-# as they depend on not_embedded.
+
 CREATE USER mysqltest_1;
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 connect(user1,localhost,mysqltest_1,,*NO-ONE*);

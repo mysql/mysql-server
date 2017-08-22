@@ -55,7 +55,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 [connection server2]
 include/sync_slave_sql_with_master.inc
 [connection server_1]
-ERROR HY000: Plugin instructed the server to rollback the current transaction.
+ERROR 40000: Plugin instructed the server to rollback the current transaction.
 
 ## 3.6 Set a debug sync before broadcast message to group on server1
 ##     execute a transaction that will be blocked before broadcast.

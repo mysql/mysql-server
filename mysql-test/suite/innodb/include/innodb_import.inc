@@ -713,7 +713,7 @@ col_6 text (255), col_7 text (255),
 col_8 text (255),col_9 text (255),
 col_10 BLOB (255),col_11  BLOB (255),
 col_12 BLOB (255), col_13 BLOB (255),
-col_14 BLOB (255), col_15 int) ENGINE = InnoDB
+col_14 BLOB (255), col_15 int) ENGINE = InnoDB charset latin1
 $col1_key_part;
 
 CREATE INDEX prefix_idx ON t1(
@@ -771,7 +771,7 @@ col_6 text (255), col_7 text (255),
 col_8 text (255),col_9 text (255),
 col_10 BLOB (255),col_11  BLOB (255),
 col_12 BLOB (255), col_13 BLOB (255),
-col_14 BLOB (255), col_15 int) ENGINE = InnoDB
+col_14 BLOB (255), col_15 int) ENGINE = InnoDB charset latin1
 $col1_key_part;
 
 CREATE INDEX prefix_idx ON t1(
@@ -828,7 +828,7 @@ col_6 text (255), col_7 text (255),
 col_8 text (255),col_9 text (255),
 col_10 BLOB (255),col_11  BLOB (255),
 col_12 BLOB (255), col_13 BLOB (255),
-col_14 BLOB (255), col_15 int) ENGINE = InnoDB
+col_14 BLOB (255), col_15 int) ENGINE = InnoDB charset latin1
 $col1_key_part;
 
 CREATE INDEX idx1 ON t1(col_1);
@@ -894,7 +894,7 @@ col_6 text (255), col_7 text (255),
 col_8 text (255),col_9 text (255),
 col_10 BLOB (255),col_11  BLOB (255),
 col_12 BLOB (255), col_13 BLOB (255),
-col_14 BLOB (255), col_15 int) ENGINE = InnoDB
+col_14 BLOB (255), col_15 int) ENGINE = InnoDB charset latin1
 $col1_key_part;
 
 CREATE INDEX idx1 ON t1(col_1);

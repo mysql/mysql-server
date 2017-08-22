@@ -1,4 +1,3 @@
--- source include/not_embedded.inc
 # Tests for sys schema
 # Verify the sys.ps_is_account_enabled() function perfoms as expected
 

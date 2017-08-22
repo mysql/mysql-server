@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,12 +25,12 @@ enum enum_field_types Mysql_field::get_type() const
   return m_type;
 }
 
-uint Mysql_field::get_additional_flags() const
+unsigned Mysql_field::get_additional_flags() const
 {
   return m_flags;
 }
 
-uint Mysql_field::get_character_set_nr() const
+unsigned int Mysql_field::get_character_set_nr() const
 {
   return m_charsetnr;
 }

@@ -1,4 +1,3 @@
--- source include/not_embedded.inc
 
 # Disable a few instruments
 UPDATE performance_schema.setup_instruments

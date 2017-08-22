@@ -1,4 +1,5 @@
 eval create table t1 (a date not null, b varchar(50) not null, c varchar(50) not null, d enum('m', 'w') not null, e int not null, f decimal (18,2) not null, g bigint not null, h tinyint not null, i char(255), primary key(a,b,c,d,e,f,g,h)) engine=$engine 
+charset latin1
 partition by key(a,b,c,d,e,f,g,h) (
 partition pa1 max_rows=20 min_rows=2,
 partition pa2 max_rows=30 min_rows=3,

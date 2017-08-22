@@ -116,7 +116,6 @@ public:
     allowed_arg_cols(1), arg_count(0)
   {
     args= tmp_arg;
-    with_sum_func= 0;
   }
 
   explicit Item_func(const POS &pos)
@@ -130,7 +129,7 @@ public:
   {
     args= tmp_arg;
     args[0]= a;
-    with_sum_func= a->with_sum_func;
+    set_accum_properties(a);
   }
   Item_func(const POS &pos, Item *a): super(pos),
     allowed_arg_cols(1), arg_count(1)
@@ -144,7 +143,9 @@ public:
   {
     args= tmp_arg;
     args[0]= a; args[1]= b;
-    with_sum_func= a->with_sum_func || b->with_sum_func;
+    m_accum_properties= 0;
+    add_accum_properties(a);
+    add_accum_properties(b);
   }
   Item_func(const POS &pos, Item *a,Item *b): super(pos),
     allowed_arg_cols(1), arg_count(2)
@@ -159,7 +160,10 @@ public:
     if ((args= (Item**) sql_alloc(sizeof(Item*)*3)))
     {
       args[0]= a; args[1]= b; args[2]= c;
-      with_sum_func= a->with_sum_func || b->with_sum_func || c->with_sum_func;
+      m_accum_properties= 0;
+      add_accum_properties(a);
+      add_accum_properties(b);
+      add_accum_properties(c);
     }
     else
       arg_count= 0; // OOM
@@ -182,8 +186,11 @@ public:
     if ((args= (Item**) sql_alloc(sizeof(Item*)*4)))
     {
       args[0]= a; args[1]= b; args[2]= c; args[3]= d;
-      with_sum_func= a->with_sum_func || b->with_sum_func ||
-	c->with_sum_func || d->with_sum_func;
+      m_accum_properties= 0;
+      add_accum_properties(a);
+      add_accum_properties(b);
+      add_accum_properties(c);
+      add_accum_properties(d);
     }
     else
       arg_count= 0; // OOM
@@ -205,8 +212,12 @@ public:
     if ((args= (Item**) sql_alloc(sizeof(Item*)*5)))
     {
       args[0]= a; args[1]= b; args[2]= c; args[3]= d; args[4]= e;
-      with_sum_func= a->with_sum_func || b->with_sum_func ||
-	c->with_sum_func || d->with_sum_func || e->with_sum_func ;
+      m_accum_properties= 0;
+      add_accum_properties(a);
+      add_accum_properties(b);
+      add_accum_properties(c);
+      add_accum_properties(d);
+      add_accum_properties(e);
     }
     else
       arg_count= 0; // OOM
@@ -268,12 +279,8 @@ public:
   void print_op(String *str, enum_query_type query_type);
   void print_args(String *str, uint from, enum_query_type query_type);
   virtual void fix_num_length_and_dec();
-  void count_only_length(Item **item, uint nitems);
   void count_real_length(Item **item, uint nitems);
   void count_decimal_length(Item **item, uint nitems);
-  void count_datetime_length(Item **item, uint nitems);
-  bool count_string_result_length(enum_field_types field_type,
-                                  Item **item, uint nitems);
   bool get_arg0_date(MYSQL_TIME *ltime, my_time_flags_t fuzzy_date)
   {
     return (null_value=args[0]->get_date(ltime, fuzzy_date));
@@ -283,7 +290,11 @@ public:
     return (null_value= args[0]->get_time(ltime));
   }
   bool is_null() override {
-    update_null_value();
+    /*
+      TODO : Implement error handling for this function as
+      update_null_value() can return error.
+    */
+    (void )update_null_value();
     return null_value;
   }
   void signal_divide_by_null();
@@ -713,7 +724,15 @@ public:
   */
   virtual bool date_op(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)= 0;
   virtual bool time_op(MYSQL_TIME *ltime)= 0;
-  bool is_null() override { update_null_value(); return null_value; }
+  bool is_null() override
+  {
+    /*
+      TODO : Implement error handling for this function as
+      update_null_value() can return error.
+    */
+    (void) update_null_value();
+    return null_value;
+  }
 };
 
 /* function where type of result detected by first argument */
@@ -2318,12 +2337,31 @@ public:
   }
 };
 
+class Item_func_is_visible_dd_object : public Item_int_func
+{
+public:
+  Item_func_is_visible_dd_object(const POS &pos, Item *a)
+    : Item_int_func(pos, a)
+  {}
+  Item_func_is_visible_dd_object(const POS &pos, Item *a, Item *b)
+    : Item_int_func(pos, a, b)
+  {}
+  longlong val_int();
+  const char *func_name() const { return "is_visible_dd_object"; }
+  bool resolve_type(THD*)
+  {
+    max_length= 1;
+    maybe_null= true;
+    return false;
+  }
+};
+
 class Item_func_internal_table_rows : public Item_int_func
 {
 public:
-  Item_func_internal_table_rows(const POS &pos,
-                                 Item *a, Item *b, Item *c, Item *d)
-    : Item_int_func(pos, a, b, c, d)
+  Item_func_internal_table_rows(
+    const POS &pos, PT_item_list *list)
+    : Item_int_func(pos, list)
   {}
   longlong val_int() override;
   const char *func_name() const override { return "internal_table_rows"; }
@@ -2338,9 +2376,9 @@ public:
 class Item_func_internal_avg_row_length : public Item_int_func
 {
 public:
-  Item_func_internal_avg_row_length(const POS &pos,
-                                    Item *a, Item *b, Item *c, Item *d)
-    : Item_int_func(pos, a, b, c, d)
+  Item_func_internal_avg_row_length(
+    const POS &pos, PT_item_list *list)
+    : Item_int_func(pos, list)
   {}
   longlong val_int() override;
   const char *func_name() const override { return "internal_avg_row_length"; }
@@ -2355,9 +2393,9 @@ public:
 class Item_func_internal_data_length : public Item_int_func
 {
 public:
-  Item_func_internal_data_length(const POS &pos,
-                                 Item *a, Item *b, Item *c, Item *d)
-    : Item_int_func(pos, a, b, c, d)
+  Item_func_internal_data_length(
+    const POS &pos, PT_item_list *list)
+    : Item_int_func(pos, list)
   {}
   longlong val_int() override;
   const char *func_name() const override { return "internal_data_length"; }
@@ -2372,9 +2410,9 @@ public:
 class Item_func_internal_max_data_length : public Item_int_func
 {
 public:
-  Item_func_internal_max_data_length(const POS &pos,
-                                     Item *a, Item *b, Item *c, Item *d)
-    : Item_int_func(pos, a, b, c, d)
+  Item_func_internal_max_data_length(
+    const POS &pos, PT_item_list *list)
+    : Item_int_func(pos, list)
   {}
   longlong val_int() override;
   const char *func_name() const override { return "internal_max_data_length"; }
@@ -2389,9 +2427,9 @@ public:
 class Item_func_internal_index_length : public Item_int_func
 {
 public:
-  Item_func_internal_index_length(const POS &pos,
-                                  Item *a, Item *b, Item *c, Item *d)
-    : Item_int_func(pos, a, b, c, d)
+  Item_func_internal_index_length(
+    const POS &pos, PT_item_list *list)
+    : Item_int_func(pos, list)
   {}
   longlong val_int() override;
   const char *func_name() const override { return "internal_index_length"; }
@@ -2406,9 +2444,9 @@ public:
 class Item_func_internal_data_free : public Item_int_func
 {
 public:
-  Item_func_internal_data_free(const POS &pos,
-                               Item *a, Item *b, Item *c, Item *d)
-    : Item_int_func(pos, a, b, c, d)
+  Item_func_internal_data_free(
+    const POS &pos, PT_item_list *list)
+    : Item_int_func(pos, list)
   {}
   longlong val_int() override;
   const char *func_name() const override { return "internal_data_free"; }
@@ -2423,9 +2461,9 @@ public:
 class Item_func_internal_auto_increment : public Item_int_func
 {
 public:
-  Item_func_internal_auto_increment(const POS &pos,
-                                    Item *a, Item *b, Item *c, Item *d)
-    : Item_int_func(pos, a, b, c, d)
+  Item_func_internal_auto_increment(
+    const POS &pos, PT_item_list *list)
+    : Item_int_func(pos, list)
   {}
   longlong val_int() override;
   const char *func_name() const override { return "internal_auto_increment"; }
@@ -2440,9 +2478,9 @@ public:
 class Item_func_internal_checksum : public Item_int_func
 {
 public:
-  Item_func_internal_checksum(const POS &pos,
-                              Item *a, Item *b, Item *c, Item *d)
-    : Item_int_func(pos, a, b, c, d)
+  Item_func_internal_checksum(
+    const POS &pos, PT_item_list *list)
+    : Item_int_func(pos, list)
   {}
   longlong val_int() override;
   const char *func_name() const override { return "internal_checksum"; }
@@ -2521,6 +2559,23 @@ public:
     maybe_null= false;
     return false;
   }
+};
+
+class Item_func_get_dd_index_sub_part_length final : public Item_int_func
+{
+public:
+  Item_func_get_dd_index_sub_part_length(const POS &pos, PT_item_list *list)
+    :Item_int_func(pos, list)
+  {}
+  longlong val_int() override;
+  bool resolve_type(THD *) override
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
+  const char *func_name() const override
+  { return "get_dd_index_sub_part_length"; }
 };
 
 /**
@@ -2800,7 +2855,7 @@ public:
   longlong val_int() override;
   String *val_str(String *str) override;
   my_decimal *val_decimal(my_decimal *) override;
-  double val_result() override;
+  double val_real_result() override;
   longlong val_int_result() override;
   bool val_bool_result() override;
   String *str_result(String *str) override;
@@ -2924,6 +2979,39 @@ public:
 #define GET_SYS_VAR_CACHE_DOUBLE   2
 #define GET_SYS_VAR_CACHE_STRING   4
 
+class Item_func_get_system_var;
+/** Class to log audit event MYSQL_AUDIT_GLOBAL_VARIABLE_GET. */
+class Audit_global_variable_get_event
+{
+public:
+  Audit_global_variable_get_event(THD *thd, Item_func_get_system_var *item,
+                                  uchar cache_type);
+  ~Audit_global_variable_get_event();
+private:
+  // Thread handle.
+  THD *m_thd;
+
+  // Item_func_get_system_var instance.
+  Item_func_get_system_var *m_item;
+
+  /*
+    Value conversion type.
+    Depending on the value conversion type GET_SYS_VAR_CACHE_* is stored in this
+    member while creating the object. While converting value if there are any
+    intermediate conversions in the same query then this member is used to avoid
+    auditing more than once.
+  */
+  uchar m_val_type;
+
+  /*
+    To indicate event auditing is required or not. Event is not audited if
+      * scope of the variable is *not* GLOBAL.
+      * or the event is already audited for global variable for the same query.
+  */
+  bool m_audit_event;
+};
+
+
 class Item_func_get_system_var final : public Item_var_func
 {
   sys_var *var;
@@ -2938,6 +3026,8 @@ class Item_func_get_system_var final : public Item_var_func
 
   template <typename T>
   longlong get_sys_var_safe(THD *thd);
+
+  friend class Audit_global_variable_get_event;
 
 public:
   Item_func_get_system_var(sys_var *var_arg, enum_var_type var_type_arg,
@@ -3019,7 +3109,7 @@ public:
     if (!master && ft_handler)
     {
       ft_handler->please->close_search(ft_handler);
-      delete hints;
+      destroy(hints);
     }
     ft_handler= NULL;
     concat_ws= NULL;

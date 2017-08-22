@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -178,11 +178,6 @@ public:
 		MY_ATTRIBUTE((warn_unused_result));
 
 private:
-	/** Check if the DDTableBuffer exists in this tablespace.
-	FIXME: This should be removed away once we can upgrade for new DD
-	@return DB_SUCCESS or error code */
-	dberr_t check_dd_table_buffer();
-
 	/** Check the tablespace header for this tablespace.
 	@param[out]	flushed_lsn	the value of FIL_PAGE_FILE_FLUSH_LSN
 	@return DB_SUCCESS or error code */

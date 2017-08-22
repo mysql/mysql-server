@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -345,7 +345,8 @@ ib_err_t
 innodb_cb_read_row(
 /*===============*/
 	ib_crsr_t	ib_crsr,	/*!< in: InnoDB cursor instance */
-	ib_tpl_t	ib_tpl);	/*!< out: read cols into this tuple */
+	ib_tpl_t	ib_tpl  	/*!< out: read cols into this tuple */
+);
 
 /*****************************************************************//**
 Get a column type, length and attributes from the tuple.

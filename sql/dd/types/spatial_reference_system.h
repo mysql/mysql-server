@@ -16,7 +16,7 @@
 #ifndef DD__SPATIAL_REFERENCE_SYSTEM_INCLUDED
 #define DD__SPATIAL_REFERENCE_SYSTEM_INCLUDED
 
-#include "dd/types/dictionary_object.h"   // dd::Dictionary_object
+#include "dd/types/entity_object.h"       // dd::Entity_object
 #include "gis/srid.h"
 #include "gis/srs/srs.h"                  // srid_t
 #include "my_inttypes.h"
@@ -27,6 +27,7 @@ namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
+class Entity_object_table;
 class Item_name_key;
 class Object_type;
 class Primary_id_key;
@@ -38,11 +39,11 @@ namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Spatial_reference_system : public Dictionary_object
+class Spatial_reference_system : virtual public Entity_object
 {
 public:
   static const Object_type &TYPE();
-  static const Dictionary_object_table &OBJECT_TABLE();
+  static const Entity_object_table &OBJECT_TABLE();
 
   typedef Spatial_reference_system cache_partition_type;
   typedef tables::Spatial_reference_systems cache_partition_table_type;

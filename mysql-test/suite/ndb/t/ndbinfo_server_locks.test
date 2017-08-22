@@ -1,5 +1,3 @@
-# Need two servers for this test, so not embedded
---source include/not_embedded.inc
 --source include/have_ndb.inc
 
 use ndbinfo;

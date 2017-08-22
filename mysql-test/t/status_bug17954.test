@@ -2,9 +2,6 @@
 # This test requires that --log-output includes 'table', and the general
 # log is on
 
-# embedded server causes different stat
--- source include/not_embedded.inc
-
 # thread pool causes different results
 -- source include/not_threadpool.inc
 

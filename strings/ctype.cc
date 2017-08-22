@@ -1041,7 +1041,7 @@ my_convert(char *to, size_t to_length, const CHARSET_INFO *to_cs,
 
   length= length2= MY_MIN(to_length, from_length);
 
-#if defined(__i386__)
+#if defined(__i386__) || defined(_WIN32) || defined(__x86_64__)
   /*
     Special loop for i386, it allows to refer to a
     non-aligned memory block as UINT32, which makes
@@ -1051,9 +1051,9 @@ my_convert(char *to, size_t to_length, const CHARSET_INFO *to_cs,
   */
   for ( ; length >= 4; length-= 4, from+= 4, to+= 4)
   {
-    if ((*(uint32*)from) & 0x80808080)
+    if (uint4korr(from) & 0x80808080)
       break;
-    *((uint32*) to)= *((const uint32*) from);
+    int4store(to, uint4korr(from));
   }
 #endif /* __i386__ */
 

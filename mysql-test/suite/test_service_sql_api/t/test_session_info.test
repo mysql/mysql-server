@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 
 CREATE TABLE t1(id INT NOT NULL);
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,12 +23,7 @@
   of buffers to a given size.
 */
 
-#include "my_inttypes.h"
-
 #define MY_ALIGN(A,L)   (((A) + (L) - 1) & ~((L) - 1))
 #define ALIGN_SIZE(A)   MY_ALIGN((A),sizeof(double))
-/* Size to make adressable obj. */
-#define ADD_TO_PTR(ptr,size,type) (type) ((uchar*) (ptr)+size)
-#define PTR_BYTE_DIFF(A,B) (my_ptrdiff_t) ((uchar*) (A) - (uchar*) (B))
 
 #endif  // MY_POINTER_ARITHMETIC_INCLUDED

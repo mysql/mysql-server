@@ -1,4 +1,3 @@
--- source include/not_embedded.inc
 -- source include/have_ndb.inc
 --echo # We are using some debug-only features in this test
 -- source include/have_debug.inc
@@ -308,6 +307,17 @@ set @save_debug = @@session.debug;
 SET SESSION debug="+d,ndb_simulate_nodefail";
 --error 1297
 show create table t1;
+show warnings;
+SET SESSION debug=@save_debug;
+drop table t1;
+
+--echo # mysqld gets timeout error 4009 while creating transaction for bulk update
+create table t1(id int primary key, val int) engine=ndb;
+insert into t1 values(1,1), (2,2), (3,3), (4,4), (5,5);
+set @save_debug = @@session.debug;
+SET SESSION debug="+d,ndb_start_transaction_fail";
+--error 1296
+update t1 set val = 11111 where id > 0;
 show warnings;
 SET SESSION debug=@save_debug;
 drop table t1;

@@ -9,6 +9,7 @@
 # 3. Validate number of members are 2 in the group once server1 rejoins.
 ################################################################################
 
+--source include/big_test.inc
 --source ../inc/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
 --source ../inc/group_replication.inc

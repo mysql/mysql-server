@@ -1,0 +1,67 @@
+/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+
+#if !defined(UDF_REGISTRATION_IMP_H)
+#define UDF_REGISTRATION_IMP_H
+
+#include <mysql/components/services/udf_registration.h>
+#include <mysql/components/service_implementation.h>
+
+typedef struct st_udf_func udf_func;
+
+/**
+  A helper class for the implementation of the
+  udf_registration and udf_aggregate functions
+
+  Needed because we register these service implementations
+  as part of the mysql_server component.
+*/
+class mysql_udf_registration_imp
+{
+public: /* service implementations */
+
+  /** udf_registration::udf_register */
+  static DEFINE_BOOL_METHOD(udf_register,
+    (const char *name,
+     Item_result return_type,
+     Udf_func_any func,
+     Udf_func_init init_func,
+     Udf_func_deinit deinit_func));
+
+  /** udf_registration::udf_unregister
+      and udf_registration_aggregate::udf_register
+  */
+  static DEFINE_BOOL_METHOD(udf_unregister,
+    (const char *name, int *was_present));
+
+  /** udf_registration_aggregate::udf_register */
+  static DEFINE_BOOL_METHOD(udf_register_aggregate,
+    (const char *func_name,
+     enum Item_result return_type,
+     Udf_func_any func,
+     Udf_func_init init_func,
+     Udf_func_deinit deinit_func,
+     Udf_func_add add_func,
+     Udf_func_clear clear_func));
+private:
+  static bool udf_register_inner(udf_func *func);
+  static udf_func *alloc_udf(const char *func_name,
+                             enum Item_result return_type,
+                             Udf_func_any func,
+                             Udf_func_init init_func,
+                             Udf_func_deinit deinit_func);
+};
+
+#endif

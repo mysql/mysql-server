@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -87,7 +87,6 @@ SET(HAVE_DECL_FDATASYNC CACHE INTERNAL "")
 SET(HAVE_FEDISABLEEXCEPT CACHE  INTERNAL "")
 SET(HAVE_FSEEKO CACHE  INTERNAL "")
 SET(HAVE_FSYNC CACHE  INTERNAL "")
-SET(HAVE_GETHOSTBYADDR_R CACHE  INTERNAL "")
 SET(HAVE_GETHRTIME CACHE  INTERNAL "")
 # Check needed HAVE_GETNAMEINFO
 SET(HAVE_GETPASS CACHE  INTERNAL "")
@@ -150,8 +149,6 @@ SET(HAVE_LRAND48 CACHE  INTERNAL "")
 SET(GWINSZ_IN_SYS_IOCTL CACHE INTERNAL "")
 SET(FIONREAD_IN_SYS_IOCTL CACHE INTERNAL "")
 SET(FIONREAD_IN_SYS_FILIO CACHE INTERNAL "")
-SET(HAVE_SIGEV_THREAD_ID CACHE INTERNAL "")
-SET(HAVE_SIGEV_PORT CACHE INTERNAL "")
 
 SET(HAVE_C_ISINF TRUE CACHE INTERNAL "")   # Only needed by CMake
 SET(HAVE_CXX_ISINF TRUE CACHE INTERNAL "") # Only needed by CMake

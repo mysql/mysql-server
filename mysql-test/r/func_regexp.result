@@ -167,3 +167,7 @@ SELECT '\t' REGEXP '[[:space:]]';
 #
 DO 1 regexp (multilinestring(point(1,1)));
 ERROR HY000: Incorrect arguments to multilinestring
+#
+# Bug#58026: massive recursion and crash in regular expression handling
+#
+SELECT '1' RLIKE RPAD('1', 10000, '(');

@@ -211,7 +211,7 @@ CREATE TABLE t1 (
   a6 timestamp NOT NULL DEFAULT '2000-01-01 01:01:01',
   a7 tinyblob,
   INDEX idx (a6,a7(239),a5)
-) ENGINE=InnoDB;
+) charset latin1 ENGINE=InnoDB;
 
 EXPLAIN SELECT a4 FROM t1 WHERE
 a6=NULL AND

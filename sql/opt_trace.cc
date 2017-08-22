@@ -190,7 +190,8 @@ public:
   size_t alloced_length() const
   { return trace_buffer.alloced_length() + query_buffer.alloced_length(); }
 
-  void assert_current_struct(const Opt_trace_struct *s) const
+  void assert_current_struct
+    (const Opt_trace_struct *s MY_ATTRIBUTE((unused))) const
   { DBUG_ASSERT(current_struct == s); }
 
   /// @see Opt_trace_context::missing_privilege()

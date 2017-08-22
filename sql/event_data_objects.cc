@@ -177,7 +177,7 @@ Event_creation_ctx::create_event_creation_ctx(const dd::Event &event_obj,
                         (event_obj.schema_collation_id()));
 
   // Create the context.
-  *ctx = new Event_creation_ctx(client_cs, connection_cl, db_cl);
+  *ctx = new (*THR_MALLOC) Event_creation_ctx(client_cs, connection_cl, db_cl);
 
   return invalid_creation_ctx;
 }
@@ -1133,36 +1133,6 @@ Event_job_data::construct_sp_sql(THD *thd, String *sp_sql)
 
 
 /**
-  Get DROP EVENT statement to binlog the drop of ON COMPLETION NOT
-  PRESERVE event.
-*/
-
-bool
-Event_job_data::construct_drop_event_sql(THD *thd, String *sp_sql)
-{
-  LEX_STRING buffer;
-  const uint STATIC_SQL_LENGTH= 14;
-
-  DBUG_ENTER("Event_job_data::construct_drop_event_sql");
-
-  buffer.length= STATIC_SQL_LENGTH + m_event_name.length*2 + 
-                 m_schema_name.length*2;
-  if (! (buffer.str= (char*) thd->alloc(buffer.length)))
-    DBUG_RETURN(true);
-
-  sp_sql->set(buffer.str, buffer.length, system_charset_info);
-  sp_sql->length(0);
-
-  sp_sql->append(C_STRING_WITH_LEN("DROP EVENT "));
-  append_identifier(thd, sp_sql, m_schema_name.str, m_schema_name.length);
-  sp_sql->append('.');
-  append_identifier(thd, sp_sql, m_event_name.str, 
-                    m_event_name.length);
-
-  DBUG_RETURN(thd->is_fatal_error);
-}
-
-/**
   Compiles and executes the event (the underlying sp_head object)
 
   @retval true  error (reported to the error log)
@@ -1207,11 +1177,9 @@ Event_job_data::execute(THD *thd, bool drop)
                                          m_definer_user, m_definer_host,
                                          &m_schema_name, &save_sctx))
   {
-    sql_print_error("Event Scheduler: "
-                    "[%s].[%s.%s] execution failed, "
-                    "failed to authenticate the user.",
-                    m_definer.str, m_schema_name.str,
-                    m_event_name.str);
+    LogErr(ERROR_LEVEL, ER_EVENT_EXECUTION_FAILED_CANT_AUTHENTICATE_USER,
+           m_definer.str, m_schema_name.str,
+           m_event_name.str);
     goto end;
   }
 
@@ -1223,11 +1191,9 @@ Event_job_data::execute(THD *thd, bool drop)
       privilege is revoked from trigger definer,
       triggers are not executed.
     */
-    sql_print_error("Event Scheduler: "
-                    "[%s].[%s.%s] execution failed, "
-                    "user no longer has EVENT privilege.",
-                    m_definer.str, m_schema_name.str, 
-                    m_event_name.str);
+    LogErr(ERROR_LEVEL, ER_EVENT_EXECUTION_FAILED_USER_LOST_EVEN_PRIVILEGE,
+           m_definer.str, m_schema_name.str, 
+           m_event_name.str);
     goto end;
   }
 
@@ -1257,11 +1223,10 @@ Event_job_data::execute(THD *thd, bool drop)
     thd->m_statement_psi= NULL;
     if (parse_sql(thd, & parser_state, m_creation_ctx))
     {
-      sql_print_error("Event Scheduler: "
-                      "%serror during compilation of %s.%s",
-                      thd->is_fatal_error ? "fatal " : "",
-                      m_schema_name.str,
-                      m_event_name.str);
+      LogErr(ERROR_LEVEL, ER_EVENT_ERROR_DURING_COMPILATION,
+             thd->is_fatal_error ? "fatal " : "",
+             m_schema_name.str,
+             m_event_name.str);
       thd->m_digest= parent_digest;
       thd->m_statement_psi= parent_locker;
       goto end;
@@ -1305,14 +1270,14 @@ end:
       We must do it here since here we're under the right authentication
       ID of the event definer.
     */
-    sql_print_information("Event Scheduler: Dropping %s.%s",
-                          m_schema_name.str,
-                          m_event_name.str);
+    LogErr(INFORMATION_LEVEL, ER_EVENT_DROPPING,
+           m_schema_name.str,
+           m_event_name.str);
     /*
       Construct a query for the binary log, to ensure the event is dropped
       on the slave
     */
-    if (construct_drop_event_sql(thd, &sp_sql))
+    if (construct_drop_event_sql(thd, &sp_sql, m_schema_name, m_event_name))
       ret= 1;
     else
     {
@@ -1351,6 +1316,37 @@ end:
 
   DBUG_PRINT("info", ("EXECUTED %s.%s  ret: %d", m_schema_name.str, 
                      m_event_name.str, ret));
+
+  DBUG_RETURN(ret);
+}
+
+/**
+  Get DROP EVENT statement to binlog the drop of ON COMPLETION NOT
+  PRESERVE event.
+*/
+bool construct_drop_event_sql(THD *thd, String *sp_sql,
+                              const LEX_STRING &schema_name,
+                              const LEX_STRING &event_name)
+{
+  LEX_STRING buffer;
+  const uint STATIC_SQL_LENGTH= 14;
+  int ret= 0;
+
+  DBUG_ENTER("construct_drop_event_sql");
+
+  buffer.length= STATIC_SQL_LENGTH + event_name.length*2 +
+                 schema_name.length * 2;
+  if (! (buffer.str= (char*) thd->alloc(buffer.length)))
+    DBUG_RETURN(true);
+
+  sp_sql->set(buffer.str, buffer.length, system_charset_info);
+  sp_sql->length(0);
+
+  ret|= sp_sql->append(C_STRING_WITH_LEN("DROP EVENT IF EXISTS"));
+  append_identifier(thd, sp_sql, schema_name.str, schema_name.length);
+  ret|= sp_sql->append('.');
+  append_identifier(thd, sp_sql, event_name.str,
+                    event_name.length);
 
   DBUG_RETURN(ret);
 }

@@ -235,6 +235,7 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/sql
   ${CMAKE_SOURCE_DIR}/sql/auth
   ${CMAKE_SOURCE_DIR}/storage/example
+  ${CMAKE_SOURCE_DIR}/storage/temptable/include
 )
 
 # main-wrapper libraries (with tap-compatible option).
@@ -252,6 +253,15 @@ SET_TARGET_PROPERTIES(gunit_small
   PROPERTIES COMPILE_DEFINITIONS "${DISABLE_PSI_DEFINITIONS}"
 )
 
+# Several "small" unit tests got 'missing symbol client_errors'
+# When building with Sun Studio
+ADD_LIBRARY(libmysql_errmsg STATIC
+  ${CMAKE_SOURCE_DIR}/libmysql/errmsg.cc
+)
+SET_TARGET_PROPERTIES(libmysql_errmsg
+  PROPERTIES COMPILE_DEFINITIONS "${DISABLE_PSI_DEFINITIONS}"
+)
+
 ADD_LIBRARY(gunit_large STATIC
   benchmark.cc
   gunit_test_main_server.cc
@@ -262,7 +272,7 @@ ADD_LIBRARY(gunit_large STATIC
 ADD_DEPENDENCIES(gunit_small GenError)
 ADD_DEPENDENCIES(gunit_large GenError)
 TARGET_LINK_LIBRARIES(gunit_small
-  mysys mysys_ssl mytap dbug strings myisam_sys ${GTEST_LIBRARIES})
+  mysys mysys_ssl mytap dbug strings myisam_sys ${GTEST_LIBRARIES} libmysql_errmsg)
 TARGET_LINK_LIBRARIES(gunit_large
   mysys mysys_ssl mytap dbug strings ${GTEST_LIBRARIES})
 MESSAGE(STATUS "GTEST_LIBRARIES:${GTEST_LIBRARIES}")
@@ -303,12 +313,10 @@ SET(TESTS
   my_error
   my_fileutils
   my_murmur3
-  my_qsort_vs_stdsort
   my_regex
   my_thread
   mysys_base64
   mysys_lf
-  mysys_my_atomic
   mysys_my_loadpath
   mysys_my_malloc
   mysys_my_pwrite
@@ -338,6 +346,7 @@ SET(TESTS
   my_alloc
   pump_object_filter
   val_int_compare
+  varlen_sort
   )
  
 IF(WIN32)
@@ -353,6 +362,7 @@ ENDFOREACH()
 SET(SERVER_TESTS
   copy_info
   create_field
+  dd_column_statistics
   dd_info_schema_native_func
   dd_properties
   dd_sdi
@@ -366,6 +376,7 @@ SET(SERVER_TESTS
   get_diagnostics
   gis_algos
   gis_geometries
+  gis_relops
   gis_wkb_parser
   handler
   histograms
@@ -376,6 +387,7 @@ SET(SERVER_TESTS
   item_filter
   item_func_case
   item_func_now_local
+  item_json_func
   item_like
   item_timefunc
   join_syntax
@@ -403,9 +415,12 @@ SET(SERVER_TESTS
   table_cache
   table_factor_syntax
   tc_log_mmap
+  temptable_allocator
+  temptable_storage
   thd_manager
   union_syntax
   unique
+  value_map
   wild_case_compare
 )
 
@@ -490,10 +505,11 @@ IF(HAVE_NO_BUILTIN_MEMCMP)
 ENDIF()
 
 ## BOOST_HEAP_ASSERT generates if () ; else ;
+## Also Boost has unused parameter warnings.
 IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   ADD_COMPILE_FLAGS(
     bounded_queue-t.cc
-    COMPILE_FLAGS "-Wno-empty-body"
+    COMPILE_FLAGS "-Wno-empty-body -Wno-unused-parameter"
     )
 ENDIF()
 ADD_COMPILE_FLAGS(

@@ -3,7 +3,6 @@
 --echo #
 
 # no connections when embedded
---source include/not_embedded.inc
 
 SELECT CONNECTION_ID() INTO @id1;
 SELECT MAX(processlist_id) FROM performance_schema.threads INTO @id2;

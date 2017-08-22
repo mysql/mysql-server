@@ -19,6 +19,7 @@
 #include <string>            // std::string
 
 #include "equi_height.h"     // Equi_height
+#include "field.h"           // my_charset_numeric
 #include "histogram.h"       // Histogram, Histogram_comparator
 #include "json_dom.h"        // Json_object
 #include "lex_string.h"
@@ -30,44 +31,26 @@
 #include "sql_time.h"        // my_time_compare
 #include "template_utils.h"  // down_cast
 #include "tztime.h"          // my_tz_UTC
+#include "value_map.h"       // Value_map<T>
 
 namespace histograms_unittest {
 
 using namespace histograms;
 
-class Mem_root_wrapper
-{
-private:
-  MEM_ROOT m_mem_root;
-public:
-  Mem_root_wrapper()
-  {
-    init_alloc_root(PSI_NOT_INSTRUMENTED, &m_mem_root, 256, 0);
-  }
-
-  ~Mem_root_wrapper()
-  {
-    free_root(&m_mem_root, MYF(0));
-  }
-
-  MEM_ROOT &mem_root() { return m_mem_root; }
-};
-
 class HistogramsTest : public ::testing::Test
 {
 protected:
-  Histogram_comparator compare;
-  Mem_root_wrapper mem_root;
+  MEM_ROOT m_mem_root;
 
-  value_map_type<double> double_values;
-  value_map_type<String> string_values;
-  value_map_type<ulonglong> uint_values;
-  value_map_type<longlong> int_values;
-  value_map_type<my_decimal> decimal_values;
-  value_map_type<MYSQL_TIME> datetime_values;
-  value_map_type<MYSQL_TIME> date_values;
-  value_map_type<MYSQL_TIME> time_values;
-  value_map_type<String> blob_values;
+  Value_map<double> double_values;
+  Value_map<String> string_values;
+  Value_map<ulonglong> uint_values;
+  Value_map<longlong> int_values;
+  Value_map<my_decimal> decimal_values;
+  Value_map<MYSQL_TIME> datetime_values;
+  Value_map<MYSQL_TIME> date_values;
+  Value_map<MYSQL_TIME> time_values;
+  Value_map<String> blob_values;
 
   /*
     Declare these arrays here, so that they survive the lifetime of the unit
@@ -81,95 +64,99 @@ protected:
 
 public:
   HistogramsTest()
-    :double_values(compare, value_map_allocator<double>(&mem_root.mem_root())),
-    string_values(compare, value_map_allocator<String>(&mem_root.mem_root())),
-    uint_values(compare, value_map_allocator<ulonglong>(&mem_root.mem_root())),
-    int_values(compare, value_map_allocator<longlong>(&mem_root.mem_root())),
-    decimal_values(compare,
-                   value_map_allocator<my_decimal>(&mem_root.mem_root())),
-    datetime_values(compare,
-                    value_map_allocator<MYSQL_TIME>(&mem_root.mem_root())),
-    date_values(compare, value_map_allocator<MYSQL_TIME>(&mem_root.mem_root())),
-    time_values(compare, value_map_allocator<MYSQL_TIME>(&mem_root.mem_root())),
-    blob_values(compare, value_map_allocator<String>(&mem_root.mem_root()))
+  :m_mem_root(PSI_NOT_INSTRUMENTED, 256, 0),
+  double_values(&my_charset_numeric),
+  string_values(&my_charset_latin1),
+  uint_values(&my_charset_numeric),
+  int_values(&my_charset_numeric),
+  decimal_values(&my_charset_numeric),
+  datetime_values(&my_charset_numeric),
+  date_values(&my_charset_numeric),
+  time_values(&my_charset_numeric),
+  blob_values(&my_charset_bin)
   {
     // Double values.
-    double_values.emplace(std::numeric_limits<double>::lowest(), 10);
-    double_values.emplace(std::numeric_limits<double>::max(), 10);
-    double_values.emplace(std::numeric_limits<double>::epsilon(), 10);
-    double_values.emplace(0.0, 10);
-    double_values.emplace(42.0, 10);
-    double_values.emplace(43.0, 10);
+    double_values.add_values(std::numeric_limits<double>::lowest(), 10);
+    double_values.add_values(std::numeric_limits<double>::max(), 10);
+    double_values.add_values(std::numeric_limits<double>::epsilon(), 10);
+    double_values.add_values(0.0, 10);
+    double_values.add_values(42.0, 10);
+    double_values.add_values(43.0, 10);
 
     // String values.
-    string_values.emplace(String("", &my_charset_latin1), 10);
-    string_values.emplace(String("string4", &my_charset_latin1), 10);
-    string_values.emplace(String("string3", &my_charset_latin1), 10);
-    string_values.emplace(String("string1", &my_charset_latin1), 10);
-    string_values.emplace(String("string2", &my_charset_latin1), 10);
+    string_values.add_values(String("", &my_charset_latin1), 10);
+    string_values.add_values(String("string4", &my_charset_latin1), 10);
+    string_values.add_values(String("string3", &my_charset_latin1), 10);
+    string_values.add_values(String("string1", &my_charset_latin1), 10);
+    string_values.add_values(String("string2", &my_charset_latin1), 10);
 
     // Unsigned integer values (ulonglong).
-    uint_values.emplace(std::numeric_limits<ulonglong>::lowest(), 10);
-    uint_values.emplace(std::numeric_limits<ulonglong>::max(), 10);
-    uint_values.emplace(42ULL, 10);
-    uint_values.emplace(43ULL, 10);
-    uint_values.emplace(10000ULL, 10);
+    uint_values.add_values(std::numeric_limits<ulonglong>::lowest(), 10);
+    uint_values.add_values(std::numeric_limits<ulonglong>::max(), 10);
+    uint_values.add_values(42ULL, 10);
+    uint_values.add_values(43ULL, 10);
+    uint_values.add_values(10000ULL, 10);
 
     // Signed integer values (longlong).
-    int_values.emplace(std::numeric_limits<longlong>::lowest(), 10);
-    int_values.emplace(std::numeric_limits<longlong>::max(), 10);
-    int_values.emplace(0LL, 10);
-    int_values.emplace(-1LL, 10);
-    int_values.emplace(1LL, 10);
-    int_values.emplace(42LL, 10);
-    int_values.emplace(10000LL, 10);
+    int_values.add_values(std::numeric_limits<longlong>::lowest(), 10);
+    int_values.add_values(std::numeric_limits<longlong>::max(), 10);
+    int_values.add_values(0LL, 10);
+    int_values.add_values(-1LL, 10);
+    int_values.add_values(1LL, 10);
+    int_values.add_values(42LL, 10);
+    int_values.add_values(10000LL, 10);
 
     // Decimal values (my_decimal).
     my_decimal decimal1;
     int2my_decimal(E_DEC_FATAL_ERROR, 0LL, FALSE, &decimal1);
-    decimal_values.emplace(decimal1, 10);
+    decimal_values.add_values(decimal1, 10);
 
     my_decimal decimal2;
     int2my_decimal(E_DEC_FATAL_ERROR, -1000LL, FALSE, &decimal2);
-    decimal_values.emplace(decimal2, 10);
+    decimal_values.add_values(decimal2, 10);
 
     my_decimal decimal3;
     int2my_decimal(E_DEC_FATAL_ERROR, 1000LL, FALSE, &decimal3);
-    decimal_values.emplace(decimal3, 10);
+    decimal_values.add_values(decimal3, 10);
 
     my_decimal decimal4;
     int2my_decimal(E_DEC_FATAL_ERROR, 42LL, FALSE, &decimal4);
-    decimal_values.emplace(decimal4, 10);
+    decimal_values.add_values(decimal4, 10);
 
     my_decimal decimal5;
     int2my_decimal(E_DEC_FATAL_ERROR, 1LL, FALSE, &decimal5);
-    decimal_values.emplace(decimal5, 10);
+    decimal_values.add_values(decimal5, 10);
 
     /*
       Datetime values (MYSQL_TIME).
 
-      Do not test negative values, since negative DATETIME is not supported by
-      MySQL.
+      We are using these packed values for testing:
+
+      914866242077065216  => 1000-01-01 00:00:00.000000
+      914866242077065217  => 1000-01-01 00:00:00.000001
+      1845541820734373888 => 2017-05-23 08:08:03.000000
+      9147936188962652735 => 9999-12-31 23:59:59.999999
+      9147936188962652734 => 9999-12-31 23:59:59.999998
     */
     MYSQL_TIME datetime1;
-    TIME_from_longlong_datetime_packed(&datetime1, 1000000);
-    datetime_values.emplace(datetime1, 10);
+    TIME_from_longlong_datetime_packed(&datetime1, 9147936188962652734);
+    datetime_values.add_values(datetime1, 10);
 
     MYSQL_TIME datetime2;
-    TIME_from_longlong_datetime_packed(&datetime2, 1);
-    datetime_values.emplace(datetime2, 10);
+    TIME_from_longlong_datetime_packed(&datetime2, 914866242077065217);
+    datetime_values.add_values(datetime2, 10);
 
     MYSQL_TIME datetime3;
-    TIME_from_longlong_datetime_packed(&datetime3, 0);
-    datetime_values.emplace(datetime3, 10);
+    TIME_from_longlong_datetime_packed(&datetime3, 914866242077065216);
+    datetime_values.add_values(datetime3, 10);
 
     MYSQL_TIME datetime4;
-    TIME_from_longlong_datetime_packed(&datetime4, 42);
-    datetime_values.emplace(datetime4, 10);
+    TIME_from_longlong_datetime_packed(&datetime4, 1845541820734373888);
+    datetime_values.add_values(datetime4, 10);
 
     MYSQL_TIME datetime5;
-    TIME_from_longlong_datetime_packed(&datetime5, 100000);
-    datetime_values.emplace(datetime5, 10);
+    TIME_from_longlong_datetime_packed(&datetime5, 9147936188962652735);
+    datetime_values.add_values(datetime5, 10);
 
 
     /*
@@ -182,27 +169,27 @@ public:
     MYSQL_TIME date1;
     set_zero_time(&date1, MYSQL_TIMESTAMP_DATE);
     set_max_hhmmss(&date1);
-    date_values.emplace(date1, 10);
+    date_values.add_values(date1, 10);
 
     MYSQL_TIME date2;
     set_zero_time(&date2, MYSQL_TIMESTAMP_DATE);
     TIME_from_longlong_date_packed(&date2, 10000);
-    date_values.emplace(date2, 10);
+    date_values.add_values(date2, 10);
 
     MYSQL_TIME date3;
     set_zero_time(&date3, MYSQL_TIMESTAMP_DATE);
     TIME_from_longlong_date_packed(&date3, 0);
-    date_values.emplace(date3, 10);
+    date_values.add_values(date3, 10);
 
     MYSQL_TIME date4;
     set_zero_time(&date4, MYSQL_TIMESTAMP_DATE);
     TIME_from_longlong_date_packed(&date4, 100);
-    date_values.emplace(date4, 10);
+    date_values.add_values(date4, 10);
 
     MYSQL_TIME date5;
     set_zero_time(&date5, MYSQL_TIMESTAMP_DATE);
     TIME_from_longlong_date_packed(&date5, 100000);
-    date_values.emplace(date5, 10);
+    date_values.add_values(date5, 10);
 
 
     /*
@@ -214,47 +201,34 @@ public:
     MYSQL_TIME time1;
     set_zero_time(&time1, MYSQL_TIMESTAMP_TIME);
     set_max_time(&time1, FALSE);
-    time_values.emplace(time1, 10);
+    time_values.add_values(time1, 10);
 
     MYSQL_TIME time2;
     set_zero_time(&time2, MYSQL_TIMESTAMP_TIME);
-    set_max_time(&time2, TRUE);
-    time_values.emplace(time2, 10);
+    TIME_from_longlong_time_packed(&time2, 12);
+    time_values.add_values(time2, 10);
 
     MYSQL_TIME time3;
     set_zero_time(&time3, MYSQL_TIMESTAMP_TIME);
     TIME_from_longlong_time_packed(&time3, 0);
-    time_values.emplace(time3, 10);
+    time_values.add_values(time3, 10);
 
     MYSQL_TIME time4;
     set_zero_time(&time4, MYSQL_TIMESTAMP_TIME);
     TIME_from_longlong_time_packed(&time4, 42);
-    time_values.emplace(time4, 10);
+    time_values.add_values(time4, 10);
 
     MYSQL_TIME time5;
     set_zero_time(&time5, MYSQL_TIMESTAMP_TIME);
     TIME_from_longlong_time_packed(&time5, 100000);
-    time_values.emplace(time5, 10);
+    time_values.add_values(time5, 10);
 
     // Blob values.
-    blob_values.emplace(String(blob_buf1, 4, &my_charset_bin), 10);
-    blob_values.emplace(String(blob_buf2, 4, &my_charset_bin), 10);
-    blob_values.emplace(String("foo", &my_charset_bin), 10);
-    blob_values.emplace(String("bar", &my_charset_bin), 10);
-    blob_values.emplace(String("foobar", &my_charset_bin), 10);
-  }
-
-  ~HistogramsTest()
-  {
-    double_values.clear();
-    string_values.clear();
-    uint_values.clear();
-    int_values.clear();
-    decimal_values.clear();
-    datetime_values.clear();
-    date_values.clear();
-    time_values.clear();
-    blob_values.clear();
+    blob_values.add_values(String(blob_buf1, 4, &my_charset_bin), 10);
+    blob_values.add_values(String(blob_buf2, 4, &my_charset_bin), 10);
+    blob_values.add_values(String("foo", &my_charset_bin), 10);
+    blob_values.add_values(String("bar", &my_charset_bin), 10);
+    blob_values.add_values(String("foobar", &my_charset_bin), 10);
   }
 };
 
@@ -269,6 +243,7 @@ public:
       * Check that the number of buckets in the JSON array is the same as the
         amount of buckets in the original histogram.
     - All histogram types must have the field "null-values" of type J_DOUBLE.
+    - All histogram types must have the field "charset-id" of type J_UINT.
 */
 void VerifyCommonJSONFields(Json_object *json_histogram,
                             const Histogram &histogram)
@@ -305,6 +280,11 @@ void VerifyCommonJSONFields(Json_object *json_histogram,
   Json_dom *null_values_dom= json_histogram->get("null-values");
   EXPECT_NE(null_values_dom, nullptr);
   EXPECT_EQ(null_values_dom->json_type(), enum_json_type::J_DOUBLE);
+
+  // Character set ID
+  Json_dom *charset_id_dom= json_histogram->get("charset-id");
+  EXPECT_NE(charset_id_dom, nullptr);
+  EXPECT_EQ(charset_id_dom->json_type(), enum_json_type::J_UINT);
 
   Json_array *buckets= static_cast<Json_array*>(buckets_dom);
   EXPECT_EQ(buckets->size(), histogram.get_num_buckets());
@@ -345,8 +325,7 @@ void VerifySingletonBucketConstraintsDouble(const Histogram &histogram)
     double current_value= json_double->value();
     if (i > 0)
     {
-      EXPECT_LE(Histogram_comparator::compare(previous_value, current_value),
-                0);
+      EXPECT_TRUE(Histogram_comparator()(previous_value, current_value));
       EXPECT_LT(previous_cumulative_frequency, current_cumulative_frequency);
     }
     previous_value= current_value;
@@ -379,8 +358,7 @@ void VerifySingletonBucketConstraintsInt(Histogram &histogram)
     longlong current_value= json_int->value();
     if (i > 0)
     {
-      EXPECT_LE(Histogram_comparator::compare(previous_value, current_value),
-                0);
+      EXPECT_TRUE(Histogram_comparator()(previous_value, current_value));
       EXPECT_LT(previous_cumulative_frequency, current_cumulative_frequency);
     }
     previous_value= current_value;
@@ -413,8 +391,7 @@ void VerifySingletonBucketConstraintsUInt(Histogram &histogram)
     ulonglong current_value= json_uint->value();
     if (i > 0)
     {
-      EXPECT_LE(Histogram_comparator::compare(previous_value, current_value),
-                0);
+      EXPECT_TRUE(Histogram_comparator()(previous_value, current_value));
       EXPECT_LT(previous_cumulative_frequency, current_cumulative_frequency);
     }
     previous_value= current_value;
@@ -448,8 +425,7 @@ void VerifySingletonBucketConstraintsString(Histogram &histogram,
     String current_value(json_opaque->value(), json_opaque->size(), charset);
     if (i > 0)
     {
-      EXPECT_LE(Histogram_comparator::compare(previous_value, current_value),
-                0);
+      EXPECT_TRUE(Histogram_comparator()(previous_value, current_value));
       EXPECT_LT(previous_cumulative_frequency, current_cumulative_frequency);
     }
     previous_value= current_value;
@@ -482,8 +458,7 @@ void VerifySingletonBucketConstraintsDecimal(Histogram &histogram)
     const my_decimal *current_value= json_decimal->value();
     if (i > 0)
     {
-      EXPECT_LE(Histogram_comparator::compare(*previous_value, *current_value),
-                0);
+      EXPECT_TRUE(Histogram_comparator()(*previous_value, *current_value));
       EXPECT_LT(previous_cumulative_frequency, current_cumulative_frequency);
     }
     previous_value= current_value;
@@ -516,8 +491,7 @@ void VerifySingletonBucketConstraintsTemporal(Histogram &histogram)
     const MYSQL_TIME *current_value= json_datetime->value();
     if (i > 0)
     {
-      EXPECT_LE(Histogram_comparator::compare(*previous_value, *current_value),
-                0);
+      EXPECT_TRUE(Histogram_comparator()(*previous_value, *current_value));
       EXPECT_LT(previous_cumulative_frequency, current_cumulative_frequency);
     }
     previous_value= current_value;
@@ -573,13 +547,13 @@ void VerifyEquiHeightBucketConstraintsDouble(Histogram &histogram)
     double current_upper_value= json_double_upper->value();
     if (i > 0)
     {
-      EXPECT_LT(Histogram_comparator::compare(previous_upper_value,
-                                              current_lower_value), 0);
+      EXPECT_TRUE(Histogram_comparator()(previous_upper_value,
+                                         current_lower_value));
       EXPECT_LT(previous_cumulative_frequency, current_cumulative_frequency);
     }
 
-    EXPECT_LE(Histogram_comparator::compare(current_lower_value,
-                                            current_upper_value), 0);
+    EXPECT_FALSE(Histogram_comparator()(current_upper_value,
+                                        current_lower_value));
 
     previous_upper_value= current_upper_value;
     previous_cumulative_frequency= current_cumulative_frequency;
@@ -621,13 +595,13 @@ void VerifyEquiHeightBucketConstraintsInt(Histogram &histogram)
     longlong current_upper_value= json_int_upper->value();
     if (i > 0)
     {
-      EXPECT_LT(Histogram_comparator::compare(previous_upper_value,
-                                              current_lower_value), 0);
+      EXPECT_TRUE(Histogram_comparator()(previous_upper_value,
+                                         current_lower_value));
       EXPECT_LT(previous_cumulative_frequency, current_cumulative_frequency);
     }
 
-    EXPECT_LE(Histogram_comparator::compare(current_lower_value,
-                                            current_upper_value), 0);
+    EXPECT_FALSE(Histogram_comparator()(current_upper_value,
+                                        current_lower_value));
 
     previous_upper_value= current_upper_value;
     previous_cumulative_frequency= current_cumulative_frequency;
@@ -669,13 +643,13 @@ void VerifyEquiHeightBucketConstraintsUInt(Histogram &histogram)
     ulonglong current_upper_value= json_uint_upper->value();
     if (i > 0)
     {
-      EXPECT_LT(Histogram_comparator::compare(previous_upper_value,
-                                              current_lower_value), 0);
+      EXPECT_TRUE(Histogram_comparator()(previous_upper_value,
+                                         current_lower_value));
       EXPECT_LT(previous_cumulative_frequency, current_cumulative_frequency);
     }
 
-    EXPECT_LE(Histogram_comparator::compare(current_lower_value,
-                                            current_upper_value), 0);
+    EXPECT_FALSE(Histogram_comparator()(current_upper_value,
+                                        current_lower_value));
 
     previous_upper_value= current_upper_value;
     previous_cumulative_frequency= current_cumulative_frequency;
@@ -721,13 +695,13 @@ void VerifyEquiHeightBucketConstraintsString(Histogram &histogram,
 
     if (i > 0)
     {
-      EXPECT_LT(Histogram_comparator::compare(previous_upper_value,
-                                              current_lower_value), 0);
+      EXPECT_TRUE(Histogram_comparator()(previous_upper_value,
+                                         current_lower_value));
       EXPECT_LT(previous_cumulative_frequency, current_cumulative_frequency);
     }
 
-    EXPECT_LE(Histogram_comparator::compare(current_lower_value,
-                                            current_upper_value), 0);
+    EXPECT_FALSE(Histogram_comparator()(current_upper_value,
+                                        current_lower_value));
 
     previous_upper_value= current_upper_value;
     previous_cumulative_frequency= current_cumulative_frequency;
@@ -770,13 +744,13 @@ void VerifyEquiHeightBucketConstraintsDecimal(Histogram &histogram)
 
     if (i > 0)
     {
-      EXPECT_LT(Histogram_comparator::compare(*previous_upper_value,
-                                              *current_lower_value), 0);
+      EXPECT_TRUE(Histogram_comparator()(*previous_upper_value,
+                                         *current_lower_value));
       EXPECT_LT(previous_cumulative_frequency, current_cumulative_frequency);
     }
 
-    EXPECT_LE(Histogram_comparator::compare(*current_lower_value,
-                                            *current_upper_value), 0);
+    EXPECT_FALSE(Histogram_comparator()(*current_upper_value,
+                                        *current_lower_value));
 
     previous_upper_value= current_upper_value;
     previous_cumulative_frequency= current_cumulative_frequency;
@@ -821,13 +795,13 @@ void VerifyEquiHeightBucketConstraintsTemporal(Histogram &histogram)
 
     if (i > 0)
     {
-      EXPECT_LT(Histogram_comparator::compare(*previous_upper_value,
-                                              *current_lower_value), 0);
+      EXPECT_TRUE(Histogram_comparator()(*previous_upper_value,
+                                         *current_lower_value));
       EXPECT_LT(previous_cumulative_frequency, current_cumulative_frequency);
     }
 
-    EXPECT_LE(Histogram_comparator::compare(*current_lower_value,
-                                            *current_upper_value), 0);
+    EXPECT_FALSE(Histogram_comparator()(*current_upper_value,
+                                        *current_lower_value));
 
     previous_upper_value= current_upper_value;
     previous_cumulative_frequency= current_cumulative_frequency;
@@ -939,9 +913,9 @@ void VerifySingletonJSONStructure(Histogram &histogram,
 */
 TEST_F(HistogramsTest, DoubleSingletonToJSON)
 {
-  Singleton<double> histogram(&mem_root.mem_root(), "db1", "tbl1", "col1");
+  Singleton<double> histogram(&m_mem_root, "db1", "tbl1", "col1");
 
-  EXPECT_FALSE(histogram.build_histogram(double_values, 0));
+  EXPECT_FALSE(histogram.build_histogram(double_values, double_values.size()));
   EXPECT_EQ(double_values.size(), histogram.get_num_buckets());
 
   VerifySingletonJSONStructure(histogram, enum_json_type::J_DOUBLE);
@@ -951,9 +925,9 @@ TEST_F(HistogramsTest, DoubleSingletonToJSON)
 
 TEST_F(HistogramsTest, StringSingletonToJSON)
 {
-  Singleton<String> histogram(&mem_root.mem_root(), "db1", "tbl1", "col1");
+  Singleton<String> histogram(&m_mem_root, "db1", "tbl1", "col1");
 
-  EXPECT_FALSE(histogram.build_histogram(string_values, 0));
+  EXPECT_FALSE(histogram.build_histogram(string_values, string_values.size()));
   EXPECT_EQ(string_values.size(), histogram.get_num_buckets());
 
   VerifySingletonJSONStructure(histogram, enum_json_type::J_OPAQUE);
@@ -963,9 +937,9 @@ TEST_F(HistogramsTest, StringSingletonToJSON)
 
 TEST_F(HistogramsTest, UintSingletonToJSON)
 {
-  Singleton<ulonglong> histogram(&mem_root.mem_root(), "db1", "tbl1", "col1");
+  Singleton<ulonglong> histogram(&m_mem_root, "db1", "tbl1", "col1");
 
-  EXPECT_FALSE(histogram.build_histogram(uint_values, 0));
+  EXPECT_FALSE(histogram.build_histogram(uint_values, uint_values.size()));
   EXPECT_EQ(uint_values.size(), histogram.get_num_buckets());
 
   VerifySingletonJSONStructure(histogram, enum_json_type::J_UINT);
@@ -975,9 +949,9 @@ TEST_F(HistogramsTest, UintSingletonToJSON)
 
 TEST_F(HistogramsTest, IntSingletonToJSON)
 {
-  Singleton<longlong> histogram(&mem_root.mem_root(), "db1", "tbl1", "col1");
+  Singleton<longlong> histogram(&m_mem_root, "db1", "tbl1", "col1");
 
-  EXPECT_FALSE(histogram.build_histogram(int_values, 0));
+  EXPECT_FALSE(histogram.build_histogram(int_values, int_values.size()));
   EXPECT_EQ(int_values.size(), histogram.get_num_buckets());
 
   VerifySingletonJSONStructure(histogram, enum_json_type::J_INT);
@@ -987,9 +961,10 @@ TEST_F(HistogramsTest, IntSingletonToJSON)
 
 TEST_F(HistogramsTest, DecimalSingletonToJSON)
 {
-  Singleton<my_decimal> histogram(&mem_root.mem_root(), "db1", "tbl1", "col1");
+  Singleton<my_decimal> histogram(&m_mem_root, "db1", "tbl1", "col1");
 
-  EXPECT_FALSE(histogram.build_histogram(decimal_values, 0));
+  EXPECT_FALSE(histogram.build_histogram(decimal_values,
+                                         decimal_values.size()));
   EXPECT_EQ(decimal_values.size(), histogram.get_num_buckets());
 
   VerifySingletonJSONStructure(histogram, enum_json_type::J_DECIMAL);
@@ -999,9 +974,10 @@ TEST_F(HistogramsTest, DecimalSingletonToJSON)
 
 TEST_F(HistogramsTest, DatetimeSingletonToJSON)
 {
-  Singleton<MYSQL_TIME> histogram(&mem_root.mem_root(), "db1", "tbl1", "col1");
+  Singleton<MYSQL_TIME> histogram(&m_mem_root, "db1", "tbl1", "col1");
 
-  EXPECT_FALSE(histogram.build_histogram(datetime_values, 0));
+  EXPECT_FALSE(histogram.build_histogram(datetime_values,
+                                         datetime_values.size()));
   EXPECT_EQ(datetime_values.size(), histogram.get_num_buckets());
 
   VerifySingletonJSONStructure(histogram, enum_json_type::J_DATETIME);
@@ -1011,9 +987,9 @@ TEST_F(HistogramsTest, DatetimeSingletonToJSON)
 
 TEST_F(HistogramsTest, DateSingletonToJSON)
 {
-  Singleton<MYSQL_TIME> histogram(&mem_root.mem_root(), "db1", "tbl1", "col1");
+  Singleton<MYSQL_TIME> histogram(&m_mem_root, "db1", "tbl1", "col1");
 
-  EXPECT_FALSE(histogram.build_histogram(date_values, 0));
+  EXPECT_FALSE(histogram.build_histogram(date_values, date_values.size()));
   EXPECT_EQ(date_values.size(), histogram.get_num_buckets());
 
   VerifySingletonJSONStructure(histogram, enum_json_type::J_DATE);
@@ -1023,9 +999,9 @@ TEST_F(HistogramsTest, DateSingletonToJSON)
 
 TEST_F(HistogramsTest, TimeSingletonToJSON)
 {
-  Singleton<MYSQL_TIME> histogram(&mem_root.mem_root(), "db1", "tbl1", "col1");
+  Singleton<MYSQL_TIME> histogram(&m_mem_root, "db1", "tbl1", "col1");
 
-  EXPECT_FALSE(histogram.build_histogram(time_values, 0));
+  EXPECT_FALSE(histogram.build_histogram(time_values, time_values.size()));
   EXPECT_EQ(time_values.size(), histogram.get_num_buckets());
 
   VerifySingletonJSONStructure(histogram, enum_json_type::J_TIME);
@@ -1056,10 +1032,9 @@ TEST_F(HistogramsTest, TimeSingletonToJSON)
 */
 TEST_F(HistogramsTest, DoubleEquiHeightToJSON)
 {
-  Equi_height<double> histogram(&mem_root.mem_root(), "db1", "tbl1", "col1");
+  Equi_height<double> histogram(&m_mem_root, "db1", "tbl1", "col1");
 
-  EXPECT_FALSE(histogram.build_histogram(double_values, 0,
-                                         double_values.size()));
+  EXPECT_FALSE(histogram.build_histogram(double_values, double_values.size()));
   EXPECT_EQ(double_values.size(), histogram.get_num_buckets());
 
   VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_DOUBLE);
@@ -1069,10 +1044,9 @@ TEST_F(HistogramsTest, DoubleEquiHeightToJSON)
 
 TEST_F(HistogramsTest, StringEquiHeightToJSON)
 {
-  Equi_height<String> histogram(&mem_root.mem_root(), "db1", "tbl1", "col1");
+  Equi_height<String> histogram(&m_mem_root, "db1", "tbl1", "col1");
 
-  EXPECT_FALSE(histogram.build_histogram(string_values, 0,
-                                         string_values.size()));
+  EXPECT_FALSE(histogram.build_histogram(string_values, string_values.size()));
   EXPECT_EQ(string_values.size(), histogram.get_num_buckets());
 
   VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_OPAQUE);
@@ -1082,9 +1056,9 @@ TEST_F(HistogramsTest, StringEquiHeightToJSON)
 
 TEST_F(HistogramsTest, UintEquiHeightToJSON)
 {
-  Equi_height<ulonglong> histogram(&mem_root.mem_root(), "db1", "tbl1", "col1");
+  Equi_height<ulonglong> histogram(&m_mem_root, "db1", "tbl1", "col1");
 
-  EXPECT_FALSE(histogram.build_histogram(uint_values, 0, uint_values.size()));
+  EXPECT_FALSE(histogram.build_histogram(uint_values, uint_values.size()));
   EXPECT_EQ(uint_values.size(), histogram.get_num_buckets());
 
   VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_UINT);
@@ -1094,9 +1068,9 @@ TEST_F(HistogramsTest, UintEquiHeightToJSON)
 
 TEST_F(HistogramsTest, IntEquiHeightToJSON)
 {
-  Equi_height<longlong> histogram(&mem_root.mem_root(), "db1", "tbl1", "col1");
+  Equi_height<longlong> histogram(&m_mem_root, "db1", "tbl1", "col1");
 
-  EXPECT_FALSE(histogram.build_histogram(int_values, 0, int_values.size()));
+  EXPECT_FALSE(histogram.build_histogram(int_values, int_values.size()));
   EXPECT_EQ(int_values.size(), histogram.get_num_buckets());
 
   VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_INT);
@@ -1106,10 +1080,9 @@ TEST_F(HistogramsTest, IntEquiHeightToJSON)
 
 TEST_F(HistogramsTest, DecimalEquiHeightToJSON)
 {
-  Equi_height<my_decimal> histogram(&mem_root.mem_root(), "db1", "tbl1",
-                                    "col1");
+  Equi_height<my_decimal> histogram(&m_mem_root, "db1", "tbl1", "col1");
 
-  EXPECT_FALSE(histogram.build_histogram(decimal_values, 0,
+  EXPECT_FALSE(histogram.build_histogram(decimal_values,
                                          decimal_values.size()));
   EXPECT_EQ(decimal_values.size(), histogram.get_num_buckets());
 
@@ -1120,10 +1093,9 @@ TEST_F(HistogramsTest, DecimalEquiHeightToJSON)
 
 TEST_F(HistogramsTest, DatetimeEquiHeightToJSON)
 {
-  Equi_height<MYSQL_TIME> histogram(&mem_root.mem_root(), "db1", "tbl1",
-                                    "col1");
+  Equi_height<MYSQL_TIME> histogram(&m_mem_root, "db1", "tbl1", "col1");
 
-  EXPECT_FALSE(histogram.build_histogram(datetime_values, 0,
+  EXPECT_FALSE(histogram.build_histogram(datetime_values,
                                          datetime_values.size()));
   EXPECT_EQ(datetime_values.size(), histogram.get_num_buckets());
 
@@ -1134,10 +1106,9 @@ TEST_F(HistogramsTest, DatetimeEquiHeightToJSON)
 
 TEST_F(HistogramsTest, DateEquiHeightToJSON)
 {
-  Equi_height<MYSQL_TIME> histogram(&mem_root.mem_root(), "db1", "tbl1",
-                                    "col1");
+  Equi_height<MYSQL_TIME> histogram(&m_mem_root, "db1", "tbl1", "col1");
 
-  EXPECT_FALSE(histogram.build_histogram(date_values, 0, date_values.size()));
+  EXPECT_FALSE(histogram.build_histogram(date_values, date_values.size()));
   EXPECT_EQ(date_values.size(), histogram.get_num_buckets());
 
   VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_DATE);
@@ -1147,10 +1118,9 @@ TEST_F(HistogramsTest, DateEquiHeightToJSON)
 
 TEST_F(HistogramsTest, TimeEquiHeightToJSON)
 {
-  Equi_height<MYSQL_TIME> histogram(&mem_root.mem_root(), "db1", "tbl1",
-                                    "col1");
+  Equi_height<MYSQL_TIME> histogram(&m_mem_root, "db1", "tbl1", "col1");
 
-  EXPECT_FALSE(histogram.build_histogram(time_values, 0, time_values.size()));
+  EXPECT_FALSE(histogram.build_histogram(time_values, time_values.size()));
   EXPECT_EQ(time_values.size(), histogram.get_num_buckets());
 
   VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_TIME);
@@ -1168,9 +1138,9 @@ TEST_F(HistogramsTest, TimeEquiHeightToJSON)
 */
 TEST_F(HistogramsTest, DoubleEquiHeightFewBuckets)
 {
-  Equi_height<double> histogram(&mem_root.mem_root(), "db1", "tbl1", "col1");
+  Equi_height<double> histogram(&m_mem_root, "db1", "tbl1", "col1");
 
-  EXPECT_FALSE(histogram.build_histogram(double_values, 0, 2U));
+  EXPECT_FALSE(histogram.build_histogram(double_values, 2U));
   VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_DOUBLE);
   VerifyEquiHeightBucketConstraintsDouble(histogram);
 }
@@ -1178,9 +1148,9 @@ TEST_F(HistogramsTest, DoubleEquiHeightFewBuckets)
 
 TEST_F(HistogramsTest, StringEquiHeightFewBuckets)
 {
-  Equi_height<String> histogram(&mem_root.mem_root(), "db1", "tbl1", "col1");
+  Equi_height<String> histogram(&m_mem_root, "db1", "tbl1", "col1");
 
-  EXPECT_FALSE(histogram.build_histogram(string_values, 0, 2U));
+  EXPECT_FALSE(histogram.build_histogram(string_values, 2U));
   VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_OPAQUE);
   VerifyEquiHeightBucketConstraintsString(histogram, &my_charset_latin1);
 }
@@ -1188,9 +1158,9 @@ TEST_F(HistogramsTest, StringEquiHeightFewBuckets)
 
 TEST_F(HistogramsTest, UintEquiHeightFewBuckets)
 {
-  Equi_height<ulonglong> histogram(&mem_root.mem_root(), "db1", "tbl1", "col1");
+  Equi_height<ulonglong> histogram(&m_mem_root, "db1", "tbl1", "col1");
 
-  EXPECT_FALSE(histogram.build_histogram(uint_values, 0, 2U));
+  EXPECT_FALSE(histogram.build_histogram(uint_values, 2U));
   VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_UINT);
   VerifyEquiHeightBucketConstraintsUInt(histogram);
 }
@@ -1198,9 +1168,9 @@ TEST_F(HistogramsTest, UintEquiHeightFewBuckets)
 
 TEST_F(HistogramsTest, IntEquiHeightFewBuckets)
 {
-  Equi_height<longlong> histogram(&mem_root.mem_root(), "db1", "tbl1", "col1");
+  Equi_height<longlong> histogram(&m_mem_root, "db1", "tbl1", "col1");
 
-  EXPECT_FALSE(histogram.build_histogram(int_values, 0, 2U));
+  EXPECT_FALSE(histogram.build_histogram(int_values, 2U));
   VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_INT);
   VerifyEquiHeightBucketConstraintsInt(histogram);
 }
@@ -1208,10 +1178,9 @@ TEST_F(HistogramsTest, IntEquiHeightFewBuckets)
 
 TEST_F(HistogramsTest, DecimalEquiHeightFewBuckets)
 {
-  Equi_height<my_decimal> histogram(&mem_root.mem_root(), "db1", "tbl1",
-                                    "col1");
+  Equi_height<my_decimal> histogram(&m_mem_root, "db1", "tbl1", "col1");
 
-  EXPECT_FALSE(histogram.build_histogram(decimal_values, 0, 2U));
+  EXPECT_FALSE(histogram.build_histogram(decimal_values, 2U));
   VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_DECIMAL);
   VerifyEquiHeightBucketConstraintsDecimal(histogram);
 }
@@ -1219,10 +1188,9 @@ TEST_F(HistogramsTest, DecimalEquiHeightFewBuckets)
 
 TEST_F(HistogramsTest, DatetimeEquiHeightFewBuckets)
 {
-  Equi_height<MYSQL_TIME> histogram(&mem_root.mem_root(), "db1", "tbl1",
-                                    "col1");
+  Equi_height<MYSQL_TIME> histogram(&m_mem_root, "db1", "tbl1", "col1");
 
-  EXPECT_FALSE(histogram.build_histogram(datetime_values, 0, 2U));
+  EXPECT_FALSE(histogram.build_histogram(datetime_values, 2U));
   VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_DATETIME);
   VerifyEquiHeightBucketConstraintsTemporal(histogram);
 }
@@ -1230,10 +1198,9 @@ TEST_F(HistogramsTest, DatetimeEquiHeightFewBuckets)
 
 TEST_F(HistogramsTest, DateEquiHeightFewBuckets)
 {
-  Equi_height<MYSQL_TIME> histogram(&mem_root.mem_root(), "db1", "tbl1",
-                                    "col1");
+  Equi_height<MYSQL_TIME> histogram(&m_mem_root, "db1", "tbl1", "col1");
 
-  EXPECT_FALSE(histogram.build_histogram(date_values, 0, 2U));
+  EXPECT_FALSE(histogram.build_histogram(date_values, 2U));
   VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_DATE);
   VerifyEquiHeightBucketConstraintsTemporal(histogram);
 }
@@ -1241,10 +1208,9 @@ TEST_F(HistogramsTest, DateEquiHeightFewBuckets)
 
 TEST_F(HistogramsTest, TimeEquiHeightFewBuckets)
 {
-  Equi_height<MYSQL_TIME> histogram(&mem_root.mem_root(), "db1", "tbl1",
-                                    "col1");
+  Equi_height<MYSQL_TIME> histogram(&m_mem_root, "db1", "tbl1", "col1");
 
-  EXPECT_FALSE(histogram.build_histogram(time_values, 0, 2U));
+  EXPECT_FALSE(histogram.build_histogram(time_values, 2U));
   VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_TIME);
   VerifyEquiHeightBucketConstraintsTemporal(histogram);
 }
@@ -1263,8 +1229,8 @@ TEST_F(HistogramsTest, AutoSelectHistogramType)
   */
   size_t num_buckets= double_values.size() - 1;
   Histogram *histogram1=
-    build_histogram(&mem_root.mem_root(), double_values, 0, num_buckets, "db1",
-                    "tbl1", "col1");
+    build_histogram(&m_mem_root, double_values, num_buckets, "db1", "tbl1",
+                    "col1");
 
   EXPECT_EQ(Histogram::enum_histogram_type::EQUI_HEIGHT,
             histogram1->get_histogram_type());
@@ -1276,8 +1242,8 @@ TEST_F(HistogramsTest, AutoSelectHistogramType)
   */
   num_buckets= double_values.size();
   Histogram *histogram2=
-    build_histogram(&mem_root.mem_root(), double_values, 0, num_buckets, "db1",
-                    "tbl1", "col1");
+    build_histogram(&m_mem_root, double_values, num_buckets, "db1", "tbl1",
+                    "col1");
 
   EXPECT_EQ(Histogram::enum_histogram_type::SINGLETON,
             histogram2->get_histogram_type());
@@ -1289,8 +1255,8 @@ TEST_F(HistogramsTest, AutoSelectHistogramType)
   */
   num_buckets= std::numeric_limits<std::size_t>::max();
   Histogram *histogram3=
-    build_histogram(&mem_root.mem_root(), double_values, 0, num_buckets, "db1",
-                    "tbl1", "col1");
+    build_histogram(&m_mem_root, double_values, num_buckets, "db1", "tbl1",
+                    "col1");
 
   EXPECT_EQ(Histogram::enum_histogram_type::SINGLETON,
             histogram3->get_histogram_type());
@@ -1611,13 +1577,13 @@ void VerifySingletonBucketContentsTemporal(Json_array *singleton_buckets,
 */
 TEST_F(HistogramsTest, VerifyEquiHeightContentsInt1)
 {
-  Equi_height<longlong> histogram(&mem_root.mem_root(), "db1", "tbl1", "col1");
+  Equi_height<longlong> histogram(&m_mem_root, "db1", "tbl1", "col1");
 
   EXPECT_STREQ(histogram.get_database_name().str, "db1");
   EXPECT_STREQ(histogram.get_table_name().str, "tbl1");
   EXPECT_STREQ(histogram.get_column_name().str, "col1");
 
-  EXPECT_FALSE(histogram.build_histogram(int_values, 0, 3U));
+  EXPECT_FALSE(histogram.build_histogram(int_values, 3U));
   EXPECT_EQ(histogram.get_num_buckets(), 3U);
 
   VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_INT);
@@ -1653,7 +1619,7 @@ TEST_F(HistogramsTest, VerifyEquiHeightContentsInt1)
 */
 TEST_F(HistogramsTest, VerifyEquiHeightContentsInt2)
 {
-  Equi_height<longlong> histogram(&mem_root.mem_root(), "db2", "tbl2", "col2");
+  Equi_height<longlong> histogram(&m_mem_root, "db2", "tbl2", "col2");
 
   EXPECT_EQ(0U, histogram.get_num_buckets());
 
@@ -1671,17 +1637,17 @@ TEST_F(HistogramsTest, VerifyEquiHeightContentsInt2)
       [9998,  2]
       [9998,  1]
   */
-  value_map_type<longlong>
-    values(compare, value_map_allocator<longlong>(&mem_root.mem_root()));
+  Value_map<longlong> values(&my_charset_numeric);
+  values.add_null_values(10000);
   for (longlong i= 0; i < 10000; i++)
   {
     size_t frequency= static_cast<size_t>(10000 - i);
-    values.insert(std::make_pair(i, frequency));
+    values.add_values(i, frequency);
   }
 
   // Build a histogram with 10 buckets and 10000 NULL values
   size_t num_buckets= 10;
-  EXPECT_FALSE(histogram.build_histogram(values, 10000, num_buckets));
+  EXPECT_FALSE(histogram.build_histogram(values, num_buckets));
   EXPECT_LE(histogram.get_num_buckets(), num_buckets);
 
   VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_INT);
@@ -1696,7 +1662,7 @@ TEST_F(HistogramsTest, VerifyEquiHeightContentsInt2)
 
   /*
     The sum of all numbers (integers) from M to N, where M = 1, can be
-    found by N(N+1)/2. Add 100 to include the NULL values.
+    found by N(N+1)/2. Add_values 100 to include the NULL values.
   */
   longlong total_sum= (10000 * (10000 + 1) / 2) + 10000;
 
@@ -1796,13 +1762,13 @@ TEST_F(HistogramsTest, VerifyEquiHeightContentsInt2)
 */
 TEST_F(HistogramsTest, VerifyEquiHeightContentsDouble)
 {
-  Equi_height<double> histogram(&mem_root.mem_root(), "db3", "tbl3", "col3");
+  Equi_height<double> histogram(&m_mem_root, "db3", "tbl3", "col3");
 
   EXPECT_STREQ(histogram.get_database_name().str, "db3");
   EXPECT_STREQ(histogram.get_table_name().str, "tbl3");
   EXPECT_STREQ(histogram.get_column_name().str, "col3");
 
-  EXPECT_FALSE(histogram.build_histogram(double_values, 0, 3U));
+  EXPECT_FALSE(histogram.build_histogram(double_values, 3U));
   EXPECT_EQ(histogram.get_num_buckets(), 3U);
 
   VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_DOUBLE);
@@ -1840,13 +1806,13 @@ TEST_F(HistogramsTest, VerifyEquiHeightContentsDouble)
 */
 TEST_F(HistogramsTest, VerifyEquiHeightContentsString)
 {
-  Equi_height<String> histogram(&mem_root.mem_root(), "db4", "tbl4", "col4");
+  Equi_height<String> histogram(&m_mem_root, "db4", "tbl4", "col4");
 
   EXPECT_STREQ(histogram.get_database_name().str, "db4");
   EXPECT_STREQ(histogram.get_table_name().str, "tbl4");
   EXPECT_STREQ(histogram.get_column_name().str, "col4");
 
-  EXPECT_FALSE(histogram.build_histogram(string_values, 0, 3U));
+  EXPECT_FALSE(histogram.build_histogram(string_values, 3U));
   EXPECT_EQ(histogram.get_num_buckets(), 3U);
 
   VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_OPAQUE);
@@ -1891,13 +1857,13 @@ TEST_F(HistogramsTest, VerifyEquiHeightContentsString)
 */
 TEST_F(HistogramsTest, VerifyEquiHeightContentsUint)
 {
-  Equi_height<ulonglong> histogram(&mem_root.mem_root(), "db5", "tbl5", "col5");
+  Equi_height<ulonglong> histogram(&m_mem_root, "db5", "tbl5", "col5");
 
   EXPECT_STREQ(histogram.get_database_name().str, "db5");
   EXPECT_STREQ(histogram.get_table_name().str, "tbl5");
   EXPECT_STREQ(histogram.get_column_name().str, "col5");
 
-  EXPECT_FALSE(histogram.build_histogram(uint_values, 0, 3U));
+  EXPECT_FALSE(histogram.build_histogram(uint_values, 3U));
   EXPECT_EQ(histogram.get_num_buckets(), 3U);
 
   VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_UINT);
@@ -1934,14 +1900,13 @@ TEST_F(HistogramsTest, VerifyEquiHeightContentsUint)
 */
 TEST_F(HistogramsTest, VerifyEquiHeightContentsDecimal)
 {
-  Equi_height<my_decimal> histogram(&mem_root.mem_root(), "db6", "tbl6",
-                                    "col6");
+  Equi_height<my_decimal> histogram(&m_mem_root, "db6", "tbl6", "col6");
 
   EXPECT_STREQ(histogram.get_database_name().str, "db6");
   EXPECT_STREQ(histogram.get_table_name().str, "tbl6");
   EXPECT_STREQ(histogram.get_column_name().str, "col6");
 
-  EXPECT_FALSE(histogram.build_histogram(decimal_values, 0, 3U));
+  EXPECT_FALSE(histogram.build_histogram(decimal_values, 3U));
   EXPECT_EQ(histogram.get_num_buckets(), 3U);
 
   VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_DECIMAL);
@@ -1992,14 +1957,13 @@ TEST_F(HistogramsTest, VerifyEquiHeightContentsDecimal)
 */
 TEST_F(HistogramsTest, VerifyEquiHeightContentsDatetime)
 {
-  Equi_height<MYSQL_TIME> histogram(&mem_root.mem_root(), "db7", "tbl7",
-                                    "col7");
+  Equi_height<MYSQL_TIME> histogram(&m_mem_root, "db7", "tbl7", "col7");
 
   EXPECT_STREQ(histogram.get_database_name().str, "db7");
   EXPECT_STREQ(histogram.get_table_name().str, "tbl7");
   EXPECT_STREQ(histogram.get_column_name().str, "col7");
 
-  EXPECT_FALSE(histogram.build_histogram(datetime_values, 0, 3U));
+  EXPECT_FALSE(histogram.build_histogram(datetime_values, 3U));
   EXPECT_EQ(histogram.get_num_buckets(), 3U);
 
   VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_DATETIME);
@@ -2013,19 +1977,19 @@ TEST_F(HistogramsTest, VerifyEquiHeightContentsDatetime)
   EXPECT_EQ(json_buckets->size(), 3U);
 
   MYSQL_TIME lower_bucket1;
-  TIME_from_longlong_datetime_packed(&lower_bucket1, 0);
+  TIME_from_longlong_datetime_packed(&lower_bucket1, 914866242077065216);
 
   MYSQL_TIME upper_bucket1;
-  TIME_from_longlong_datetime_packed(&upper_bucket1, 1);
+  TIME_from_longlong_datetime_packed(&upper_bucket1, 914866242077065217);
 
   MYSQL_TIME bucket2;
-  TIME_from_longlong_datetime_packed(&bucket2, 42);
+  TIME_from_longlong_datetime_packed(&bucket2, 1845541820734373888);
 
   MYSQL_TIME lower_bucket3;
-  TIME_from_longlong_datetime_packed(&lower_bucket3, 100000);
+  TIME_from_longlong_datetime_packed(&lower_bucket3, 9147936188962652734);
 
   MYSQL_TIME upper_bucket3;
-  TIME_from_longlong_datetime_packed(&upper_bucket3, 1000000);
+  TIME_from_longlong_datetime_packed(&upper_bucket3, 9147936188962652735);
 
   // First bucket.
   VerifyEquiHeightBucketContentsTemporal(json_buckets, 0, (20.0 / 50.0),
@@ -2049,13 +2013,13 @@ TEST_F(HistogramsTest, VerifyEquiHeightContentsDatetime)
 */
 TEST_F(HistogramsTest, VerifyEquiHeightContentsBlob)
 {
-  Equi_height<String> histogram(&mem_root.mem_root(), "db8", "tbl8", "col8");
+  Equi_height<String> histogram(&m_mem_root, "db8", "tbl8", "col8");
 
   EXPECT_STREQ(histogram.get_database_name().str, "db8");
   EXPECT_STREQ(histogram.get_table_name().str, "tbl8");
   EXPECT_STREQ(histogram.get_column_name().str, "col8");
 
-  EXPECT_FALSE(histogram.build_histogram(blob_values, 0, 3U));
+  EXPECT_FALSE(histogram.build_histogram(blob_values, 3U));
   EXPECT_EQ(histogram.get_num_buckets(), 3U);
 
   VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_OPAQUE);
@@ -2100,14 +2064,18 @@ TEST_F(HistogramsTest, VerifyEquiHeightContentsBlob)
 */
 TEST_F(HistogramsTest, VerifySingletonContentsDouble)
 {
-  Singleton<double> histogram(&mem_root.mem_root(), "db1", "tbl1", "col1");
+  Singleton<double> histogram(&m_mem_root, "db1", "tbl1", "col1");
 
   EXPECT_STREQ(histogram.get_database_name().str, "db1");
   EXPECT_STREQ(histogram.get_table_name().str, "tbl1");
   EXPECT_STREQ(histogram.get_column_name().str, "col1");
 
-  EXPECT_FALSE(histogram.build_histogram(double_values, 10));
-  EXPECT_EQ(histogram.get_num_buckets(), double_values.size());
+  Value_map<double> value_map(&my_charset_numeric);
+  value_map.add_null_values(10);
+  value_map.insert(double_values.begin(), double_values.end());
+
+  EXPECT_FALSE(histogram.build_histogram(value_map, value_map.size()));
+  EXPECT_EQ(histogram.get_num_buckets(), value_map.size());
 
   Json_object json_object;
   EXPECT_FALSE(histogram.histogram_to_json(&json_object));
@@ -2138,14 +2106,18 @@ TEST_F(HistogramsTest, VerifySingletonContentsDouble)
 */
 TEST_F(HistogramsTest, VerifySingletonContentsInt)
 {
-  Singleton<longlong> histogram(&mem_root.mem_root(), "db1", "tbl1", "col1");
+  Singleton<longlong> histogram(&m_mem_root, "db1", "tbl1", "col1");
 
   EXPECT_STREQ(histogram.get_database_name().str, "db1");
   EXPECT_STREQ(histogram.get_table_name().str, "tbl1");
   EXPECT_STREQ(histogram.get_column_name().str, "col1");
 
-  EXPECT_FALSE(histogram.build_histogram(int_values, 10));
-  EXPECT_EQ(histogram.get_num_buckets(), int_values.size());
+  Value_map<longlong> value_map(&my_charset_numeric);
+  value_map.add_null_values(10);
+  value_map.insert(int_values.begin(), int_values.end());
+
+  EXPECT_FALSE(histogram.build_histogram(value_map, value_map.size()));
+  EXPECT_EQ(histogram.get_num_buckets(), value_map.size());
 
   Json_object json_object;
   EXPECT_FALSE(histogram.histogram_to_json(&json_object));
@@ -2177,14 +2149,18 @@ TEST_F(HistogramsTest, VerifySingletonContentsInt)
 */
 TEST_F(HistogramsTest, VerifySingletonContentsUInt)
 {
-  Singleton<ulonglong> histogram(&mem_root.mem_root(), "db1", "tbl1", "col1");
+  Singleton<ulonglong> histogram(&m_mem_root, "db1", "tbl1", "col1");
 
   EXPECT_STREQ(histogram.get_database_name().str, "db1");
   EXPECT_STREQ(histogram.get_table_name().str, "tbl1");
   EXPECT_STREQ(histogram.get_column_name().str, "col1");
 
-  EXPECT_FALSE(histogram.build_histogram(uint_values, 10));
-  EXPECT_EQ(histogram.get_num_buckets(), uint_values.size());
+  Value_map<ulonglong> value_map(&my_charset_numeric);
+  value_map.add_null_values(10);
+  value_map.insert(uint_values.begin(), uint_values.end());
+
+  EXPECT_FALSE(histogram.build_histogram(value_map, value_map.size()));
+  EXPECT_EQ(histogram.get_num_buckets(), value_map.size());
 
   Json_object json_object;
   EXPECT_FALSE(histogram.histogram_to_json(&json_object));
@@ -2212,14 +2188,18 @@ TEST_F(HistogramsTest, VerifySingletonContentsUInt)
 */
 TEST_F(HistogramsTest, VerifySingletonContentsString)
 {
-  Singleton<String> histogram(&mem_root.mem_root(), "db1", "tbl1", "col1");
+  Singleton<String> histogram(&m_mem_root, "db1", "tbl1", "col1");
 
   EXPECT_STREQ(histogram.get_database_name().str, "db1");
   EXPECT_STREQ(histogram.get_table_name().str, "tbl1");
   EXPECT_STREQ(histogram.get_column_name().str, "col1");
 
-  EXPECT_FALSE(histogram.build_histogram(string_values, 10));
-  EXPECT_EQ(histogram.get_num_buckets(), string_values.size());
+  Value_map<String> value_map(&my_charset_latin1);
+  value_map.add_null_values(10);
+  value_map.insert(string_values.begin(), string_values.end());
+
+  EXPECT_FALSE(histogram.build_histogram(value_map, value_map.size()));
+  EXPECT_EQ(histogram.get_num_buckets(), value_map.size());
 
   Json_object json_object;
   EXPECT_FALSE(histogram.histogram_to_json(&json_object));
@@ -2252,14 +2232,18 @@ TEST_F(HistogramsTest, VerifySingletonContentsString)
 */
 TEST_F(HistogramsTest, VerifySingletonContentsDecimal)
 {
-  Singleton<my_decimal> histogram(&mem_root.mem_root(), "db1", "tbl1", "col1");
+  Singleton<my_decimal> histogram(&m_mem_root, "db1", "tbl1", "col1");
 
   EXPECT_STREQ(histogram.get_database_name().str, "db1");
   EXPECT_STREQ(histogram.get_table_name().str, "tbl1");
   EXPECT_STREQ(histogram.get_column_name().str, "col1");
 
-  EXPECT_FALSE(histogram.build_histogram(decimal_values, 10));
-  EXPECT_EQ(histogram.get_num_buckets(), decimal_values.size());
+  Value_map<my_decimal> value_map(&my_charset_latin1);
+  value_map.add_null_values(10);
+  value_map.insert(decimal_values.begin(), decimal_values.end());
+
+  EXPECT_FALSE(histogram.build_histogram(value_map, value_map.size()));
+  EXPECT_EQ(histogram.get_num_buckets(), value_map.size());
 
   Json_object json_object;
   EXPECT_FALSE(histogram.histogram_to_json(&json_object));
@@ -2301,14 +2285,18 @@ TEST_F(HistogramsTest, VerifySingletonContentsDecimal)
 */
 TEST_F(HistogramsTest, VerifySingletonContentsDateTime)
 {
-  Singleton<MYSQL_TIME> histogram(&mem_root.mem_root(), "db1", "tbl1", "col1");
+  Singleton<MYSQL_TIME> histogram(&m_mem_root, "db1", "tbl1", "col1");
 
   EXPECT_STREQ(histogram.get_database_name().str, "db1");
   EXPECT_STREQ(histogram.get_table_name().str, "tbl1");
   EXPECT_STREQ(histogram.get_column_name().str, "col1");
 
-  EXPECT_FALSE(histogram.build_histogram(datetime_values, 10));
-  EXPECT_EQ(histogram.get_num_buckets(), datetime_values.size());
+  Value_map<MYSQL_TIME> value_map(&my_charset_latin1);
+  value_map.add_null_values(10);
+  value_map.insert(datetime_values.begin(), datetime_values.end());
+
+  EXPECT_FALSE(histogram.build_histogram(value_map, value_map.size()));
+  EXPECT_EQ(histogram.get_num_buckets(), value_map.size());
 
   Json_object json_object;
   EXPECT_FALSE(histogram.histogram_to_json(&json_object));
@@ -2317,19 +2305,19 @@ TEST_F(HistogramsTest, VerifySingletonContentsDateTime)
   Json_array *json_buckets= static_cast<Json_array*>(buckets_dom);
 
   MYSQL_TIME time1;
-  TIME_from_longlong_datetime_packed(&time1, 0);
+  TIME_from_longlong_datetime_packed(&time1, 914866242077065216);
 
   MYSQL_TIME time2;
-  TIME_from_longlong_datetime_packed(&time2, 1);
+  TIME_from_longlong_datetime_packed(&time2, 914866242077065217);
 
   MYSQL_TIME time3;
-  TIME_from_longlong_datetime_packed(&time3, 42);
+  TIME_from_longlong_datetime_packed(&time3, 1845541820734373888);
 
   MYSQL_TIME time4;
-  TIME_from_longlong_datetime_packed(&time4, 100000);
+  TIME_from_longlong_datetime_packed(&time4, 9147936188962652734);
 
   MYSQL_TIME time5;
-  TIME_from_longlong_datetime_packed(&time5, 1000000);
+  TIME_from_longlong_datetime_packed(&time5, 9147936188962652735);
 
   VerifySingletonBucketContentsTemporal(json_buckets, 0, (10.0 / 60.0), time1);
   VerifySingletonBucketContentsTemporal(json_buckets, 1, (20.0 / 60.0), time2);
@@ -2345,14 +2333,18 @@ TEST_F(HistogramsTest, VerifySingletonContentsDateTime)
 */
 TEST_F(HistogramsTest, VerifySingletonContentsBlob)
 {
-  Singleton<String> histogram(&mem_root.mem_root(), "db1", "tbl1", "col1");
+  Singleton<String> histogram(&m_mem_root, "db1", "tbl1", "col1");
 
   EXPECT_STREQ(histogram.get_database_name().str, "db1");
   EXPECT_STREQ(histogram.get_table_name().str, "tbl1");
   EXPECT_STREQ(histogram.get_column_name().str, "col1");
 
-  EXPECT_FALSE(histogram.build_histogram(blob_values, 10));
-  EXPECT_EQ(histogram.get_num_buckets(), blob_values.size());
+  Value_map<String> value_map(&my_charset_bin);
+  value_map.add_null_values(10);
+  value_map.insert(blob_values.begin(), blob_values.end());
+
+  EXPECT_FALSE(histogram.build_histogram(value_map, value_map.size()));
+  EXPECT_EQ(histogram.get_num_buckets(), value_map.size());
 
   Json_object json_object;
   EXPECT_FALSE(histogram.histogram_to_json(&json_object));
@@ -2385,17 +2377,17 @@ TEST_F(HistogramsTest, VerifySingletonContentsBlob)
 */
 TEST_F(HistogramsTest, EmptyEquiHeightHistogram)
 {
-  Equi_height<longlong> histogram(&mem_root.mem_root(), "db1", "tbl1", "col1");
+  Equi_height<longlong> histogram(&m_mem_root, "db1", "tbl1", "col1");
 
-  value_map_type<longlong>
-    empty_map(compare, value_map_allocator<longlong>(&mem_root.mem_root()));
+  Value_map<longlong> empty_value_map(&my_charset_numeric);
 
   // Empty map, no null values, but several buckets specified.
-  EXPECT_FALSE(histogram.build_histogram(empty_map, 0U, 10U));
+  EXPECT_FALSE(histogram.build_histogram(empty_value_map, 10U));
   EXPECT_EQ(histogram.get_num_buckets(), 0U);
 
   // Empty map, multiple null values and several buckets specified.
-  EXPECT_FALSE(histogram.build_histogram(empty_map, 500U, 10U));
+  empty_value_map.add_null_values(500);
+  EXPECT_FALSE(histogram.build_histogram(empty_value_map, 10U));
   EXPECT_EQ(histogram.get_num_buckets(), 0U);
 }
 
@@ -2406,13 +2398,12 @@ TEST_F(HistogramsTest, EmptyEquiHeightHistogram)
 */
 TEST_F(HistogramsTest, EmptySingletonHistogram)
 {
-  Singleton<longlong> histogram(&mem_root.mem_root(), "db1", "tbl1", "col1");
+  Singleton<longlong> histogram(&m_mem_root, "db1", "tbl1", "col1");
 
-  value_map_type<longlong>
-    empty_map(compare, value_map_allocator<longlong>(&mem_root.mem_root()));
+  Value_map<longlong> empty_value_map(&my_charset_numeric);
 
   // Empty map, no null values,
-  EXPECT_FALSE(histogram.build_histogram(empty_map, 0U));
+  EXPECT_FALSE(histogram.build_histogram(empty_value_map, 10U));
   EXPECT_EQ(histogram.get_num_buckets(), 0U);
 }
 
@@ -2424,12 +2415,12 @@ TEST_F(HistogramsTest, EmptySingletonHistogram)
 */
 TEST_F(HistogramsTest, EquiHeightNullValues)
 {
-  Equi_height<longlong> histogram(&mem_root.mem_root(), "db1", "tbl1", "col1");
+  Equi_height<longlong> histogram(&m_mem_root, "db1", "tbl1", "col1");
 
-  value_map_type<longlong>
-    empty_map(compare, value_map_allocator<longlong>(&mem_root.mem_root()));
+  Value_map<longlong> empty_value_map(&my_charset_numeric);
+  empty_value_map.add_null_values(10);
 
-  EXPECT_FALSE(histogram.build_histogram(empty_map, 10U, 1U));
+  EXPECT_FALSE(histogram.build_histogram(empty_value_map, 1U));
   EXPECT_DOUBLE_EQ(histogram.get_null_values_fraction(), 1.0);
 }
 
@@ -2441,12 +2432,12 @@ TEST_F(HistogramsTest, EquiHeightNullValues)
 */
 TEST_F(HistogramsTest, SingletonNullValues)
 {
-  Singleton<longlong> histogram(&mem_root.mem_root(), "db1", "tbl1", "col1");
+  Singleton<longlong> histogram(&m_mem_root, "db1", "tbl1", "col1");
 
-  value_map_type<longlong>
-    empty_map(compare, value_map_allocator<longlong>(&mem_root.mem_root()));
+  Value_map<longlong> empty_value_map(&my_charset_numeric);
+  empty_value_map.add_null_values(10);
 
-  EXPECT_FALSE(histogram.build_histogram(empty_map, 10U));
+  EXPECT_FALSE(histogram.build_histogram(empty_value_map, 10U));
   EXPECT_DOUBLE_EQ(histogram.get_null_values_fraction(), 1.0);
 }
 
@@ -2466,8 +2457,7 @@ TEST_F(HistogramsTest, LongStringValues)
   */
   EXPECT_EQ(42U, HISTOGRAM_MAX_COMPARE_LENGTH);
 
-  value_map_type<String>
-    long_strings(compare, value_map_allocator<String>(&mem_root.mem_root()));
+  Value_map<String> long_strings(&my_charset_latin1);
 
   /*
     The following three strings should be considered equal, since the 42 first
@@ -2495,16 +2485,14 @@ TEST_F(HistogramsTest, LongStringValues)
   String string6("abcdefghijklmnopqrstuvwxyzabcdefghijklmno0000",
                  &my_charset_latin1);
 
-  long_strings.insert(std::make_pair(string1, 10));
-  long_strings.insert(std::make_pair(string2, 10));
-  long_strings.insert(std::make_pair(string3, 10));
-  long_strings.insert(std::make_pair(string4, 10));
-  long_strings.insert(std::make_pair(string5, 10));
-  long_strings.insert(std::make_pair(string6, 10));
+  long_strings.add_values(string1, 10);
+  long_strings.add_values(string2, 10);
+  long_strings.add_values(string3, 10);
+  long_strings.add_values(string4, 10);
+  long_strings.add_values(string5, 10);
+  long_strings.add_values(string6, 10);
 
   EXPECT_EQ(4U, long_strings.size());
-  for (auto it : long_strings)
-    EXPECT_EQ(it.second, 10U);
 }
 
 
@@ -2523,8 +2511,7 @@ TEST_F(HistogramsTest, LongBlobValues)
   */
   EXPECT_EQ(42U, HISTOGRAM_MAX_COMPARE_LENGTH);
 
-  value_map_type<String>
-    long_blobs(compare, value_map_allocator<String>(&mem_root.mem_root()));
+  Value_map<String> long_blobs(&my_charset_bin);
 
   /*
     The following three blobs should be considered equal, since the 42 first
@@ -2564,16 +2551,14 @@ TEST_F(HistogramsTest, LongBlobValues)
                          29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 0,
                          0,  0,  0,  0};
 
-  long_blobs.insert(std::make_pair(String(buf1, 46, &my_charset_bin), 10));
-  long_blobs.insert(std::make_pair(String(buf2, 46, &my_charset_bin), 10));
-  long_blobs.insert(std::make_pair(String(buf3, 46, &my_charset_bin), 10));
-  long_blobs.insert(std::make_pair(String(buf4, 46, &my_charset_bin), 10));
-  long_blobs.insert(std::make_pair(String(buf5, 46, &my_charset_bin), 10));
-  long_blobs.insert(std::make_pair(String(buf6, 46, &my_charset_bin), 10));
+  long_blobs.add_values(String(buf1, 46, &my_charset_bin), 10);
+  long_blobs.add_values(String(buf2, 46, &my_charset_bin), 10);
+  long_blobs.add_values(String(buf3, 46, &my_charset_bin), 10);
+  long_blobs.add_values(String(buf4, 46, &my_charset_bin), 10);
+  long_blobs.add_values(String(buf5, 46, &my_charset_bin), 10);
+  long_blobs.add_values(String(buf6, 46, &my_charset_bin), 10);
 
   EXPECT_EQ(4U, long_blobs.size());
-  for (auto it : long_blobs)
-    EXPECT_EQ(it.second, 10U);
 }
 
 
@@ -2593,9 +2578,6 @@ TEST_F(HistogramsTest, MultiByteStrings)
   */
   EXPECT_EQ(42U, HISTOGRAM_MAX_COMPARE_LENGTH);
 
-  value_map_type<String>
-    long_strings(compare, value_map_allocator<String>(&mem_root.mem_root()));
-
   /*
     Declare the strings to have UCS2 character set, which is fixed 2 byte per
     character.
@@ -2604,6 +2586,8 @@ TEST_F(HistogramsTest, MultiByteStrings)
   my_charset_loader_init_mysys(&loader);
   CHARSET_INFO *cs=
     my_collation_get_by_name(&loader, "ucs2_general_ci", MYF(0));
+
+  Value_map<String> long_strings(cs);
 
   String string1("", cs);
   String string2("", cs);
@@ -2640,121 +2624,14 @@ TEST_F(HistogramsTest, MultiByteStrings)
   EXPECT_EQ(string6.numchars(), 46U);
   EXPECT_EQ(string6.length(), 92U);
 
-  long_strings.insert(std::make_pair(string1, 10));
-  long_strings.insert(std::make_pair(string2, 10));
-  long_strings.insert(std::make_pair(string3, 10));
-  long_strings.insert(std::make_pair(string4, 10));
-  long_strings.insert(std::make_pair(string5, 10));
-  long_strings.insert(std::make_pair(string6, 10));
+  long_strings.add_values(string1, 10);
+  long_strings.add_values(string2, 10);
+  long_strings.add_values(string3, 10);
+  long_strings.add_values(string4, 10);
+  long_strings.add_values(string5, 10);
+  long_strings.add_values(string6, 10);
 
   EXPECT_EQ(4U, long_strings.size());
-  for (auto it : long_strings)
-    EXPECT_EQ(it.second, 10U);
-}
-
-
-/*
-  Check that an out-of-memory situation doesn't crash brutally, but fails
-  gracefully.
-*/
-TEST_F(HistogramsTest, AutoSelectHistogramOOM)
-{
-  MEM_ROOT oom_mem_root;
-  init_alloc_root(PSI_NOT_INSTRUMENTED, &oom_mem_root, 32, 0);
-
-  {
-    value_map_type<longlong>
-      values(compare, value_map_allocator<longlong>(&oom_mem_root));
-
-    values.insert(std::make_pair(1LL, 10));
-    values.insert(std::make_pair(2LL, 10));
-    values.insert(std::make_pair(3LL, 10));
-    values.insert(std::make_pair(4LL, 10));
-
-    /*
-      Restrict the maximum capacity of the MEM_ROOT so it cannot grow anymore.
-      We do however add four extra bytes, due to std::vector with
-      Memroot_allocator on Windows. The constructor
-
-        "explicit vector( const Allocator& alloc );"
-
-      is on windows defined with _NOEXCEPT. It will however try to allocate one
-      single byte during construction. So be sure to have at least one byte
-      available on the supplied MEM_ROOT.
-    */
-    oom_mem_root.max_capacity= oom_mem_root.allocated_size + 4;
-
-    Histogram *histogram;
-    histogram= build_histogram(&oom_mem_root, values, 0, 1U, "db1", "tbl1",
-                               "col1");
-    EXPECT_EQ(histogram, nullptr);
-
-    histogram= build_histogram(&oom_mem_root, values, 0, 10U, "db1", "tbl1",
-                               "col1");
-    EXPECT_EQ(histogram, nullptr);
-
-    values.clear();
-  }
-  free_root(&oom_mem_root, MYF(0));
-}
-
-
-/*
-  Check that an out-of-memory situation doesn't crash brutally, but fails
-  gracefully.
-*/
-TEST_F(HistogramsTest, EquiHeightOOM)
-{
-  MEM_ROOT oom_mem_root;
-  init_alloc_root(PSI_NOT_INSTRUMENTED, &oom_mem_root, 128, 0);
-
-  {
-    value_map_type<longlong>
-      values(compare, value_map_allocator<longlong>(&oom_mem_root));
-
-    values.insert(std::make_pair(1LL, 10));
-    values.insert(std::make_pair(2LL, 10));
-    values.insert(std::make_pair(3LL, 10));
-    values.insert(std::make_pair(4LL, 10));
-
-    Equi_height<longlong> histogram(&oom_mem_root, "db1", "tbl1", "col1");
-
-    // Restrict the maximum capacity of the MEM_ROOT so it cannot grow anymore.
-    oom_mem_root.max_capacity= oom_mem_root.allocated_size;
-    EXPECT_TRUE(histogram.build_histogram(values, 0, 10U));
-
-    values.clear();
-  }
-  free_root(&oom_mem_root, MYF(0));
-}
-
-
-/*
-  Check that an out-of-memory situation doesn't crash brutally, but fails
-  gracefully.
-*/
-TEST_F(HistogramsTest, SingletonOOM)
-{
-  MEM_ROOT oom_mem_root;
-  init_alloc_root(PSI_NOT_INSTRUMENTED, &oom_mem_root, 128, 0);
-
-  {
-    value_map_type<longlong>
-      values(compare, value_map_allocator<longlong>(&oom_mem_root));
-
-    values.insert(std::make_pair(1LL, 10));
-    values.insert(std::make_pair(2LL, 10));
-    values.insert(std::make_pair(3LL, 10));
-    values.insert(std::make_pair(4LL, 10));
-
-    Singleton<longlong> histogram(&oom_mem_root, "db1", "tbl1", "col1");
-    // Restrict the maximum capacity of the MEM_ROOT so it cannot grow anymore.
-    oom_mem_root.max_capacity= oom_mem_root.allocated_size;
-    EXPECT_TRUE(histogram.build_histogram(values, 0));
-
-    values.clear();
-  }
-  free_root(&oom_mem_root, MYF(0));
 }
 
 
@@ -2763,21 +2640,21 @@ TEST_F(HistogramsTest, SingletonOOM)
 */
 TEST_F(HistogramsTest, BigEquiHeight)
 {
-  value_map_type<longlong>
-    values(compare, value_map_allocator<longlong>(&mem_root.mem_root()));
+  Value_map<longlong> values(&my_charset_numeric);
+  values.add_null_values(514);
   for (longlong i= 0; i < 100000; i++)
   {
     size_t frequency= static_cast<size_t>((rand() % 10000) + 1);
-    values.insert(std::make_pair(i, frequency));
+    values.add_values(i, frequency);
   }
 
-  Equi_height<longlong> histogram(&mem_root.mem_root(), "db1", "tbl1", "col1");
+  Equi_height<longlong> histogram(&m_mem_root, "db1", "tbl1", "col1");
 
   EXPECT_EQ(0U, histogram.get_num_buckets());
 
   // Build a histogram with 200 buckets.
   size_t num_buckets= 200;
-  EXPECT_FALSE(histogram.build_histogram(values, 514, num_buckets));
+  EXPECT_FALSE(histogram.build_histogram(values, num_buckets));
   EXPECT_LE(histogram.get_num_buckets(), num_buckets);
 
   VerifyEquiHeightJSONStructure(histogram, enum_json_type::J_INT);
@@ -2794,14 +2671,13 @@ TEST_F(HistogramsTest, BigEquiHeight)
 */
 TEST_F(HistogramsTest, HistogramTimeCreated)
 {
-  value_map_type<longlong>
-    values(compare, value_map_allocator<longlong>(&mem_root.mem_root()));
+  Value_map<longlong> values(&my_charset_numeric);
 
-  Singleton<longlong> histogram(&mem_root.mem_root(), "db1", "tbl1", "col1");
+  Singleton<longlong> histogram(&m_mem_root, "db1", "tbl1", "col1");
 
   EXPECT_EQ(0U, histogram.get_num_buckets());
 
-  EXPECT_FALSE(histogram.build_histogram(values, 0));
+  EXPECT_FALSE(histogram.build_histogram(values, 10U));
 
   // Get the current time in GMT timezone.
   MYSQL_TIME current_time;
@@ -2821,6 +2697,97 @@ TEST_F(HistogramsTest, HistogramTimeCreated)
                  &microseconds_diff);
 
   EXPECT_LE(seconds_diff, 2LL);
+}
+
+
+/*
+  Check that an out-of-memory situation doesn't crash brutally, but fails
+  gracefully.
+*/
+TEST_F(HistogramsTest, HistogramOOM)
+{
+  Value_map<longlong> values(&my_charset_numeric);
+  values.add_values(1, 10);
+  values.add_values(2, 10);
+  values.add_values(3, 10);
+  values.add_values(4, 10);
+
+  MEM_ROOT oom_mem_root;
+  init_alloc_root(PSI_NOT_INSTRUMENTED, &oom_mem_root, 32, 0);
+
+  /*
+    Restrict the maximum capacity of the MEM_ROOT so it cannot grow anymore. But
+    don't set it to 0, as this means "unlimited".
+  */
+  oom_mem_root.max_capacity= 4;
+
+  Histogram *histogram= nullptr;
+
+  // Force an equi-height (num_buckets < num_distinct_values)
+  histogram= build_histogram(&oom_mem_root, values, 1U, "db1", "tbl1", "col1");
+  EXPECT_EQ(histogram, nullptr);
+
+  // Force a singleton (num_buckets >= num_distinct_values)
+  histogram= build_histogram(&oom_mem_root, values, 10U, "db1", "tbl1", "col1");
+  EXPECT_EQ(histogram, nullptr);
+}
+
+
+/*
+  Check that an out-of-memory situation doesn't crash brutally, but fails
+  gracefully.
+*/
+TEST_F(HistogramsTest, EquiHeightOOM)
+{
+  Value_map<longlong> values(&my_charset_numeric);
+  values.add_values(1, 10);
+  values.add_values(2, 10);
+  values.add_values(3, 10);
+  values.add_values(4, 10);
+
+  MEM_ROOT oom_mem_root;
+  init_alloc_root(PSI_NOT_INSTRUMENTED, &oom_mem_root, 128, 0);
+
+  {
+    /*
+      Create the histogram in a new scope so that the underlying structures
+      are freed before the MEM_ROOT.
+    */
+    Equi_height<longlong> histogram(&oom_mem_root, "db1", "tbl1", "col1");
+
+    // Restrict the maximum capacity of the MEM_ROOT so it cannot grow anymore.
+    oom_mem_root.max_capacity= oom_mem_root.allocated_size;
+    EXPECT_TRUE(histogram.build_histogram(values, 10U));
+  }
+}
+
+
+/*
+  Check that an out-of-memory situation doesn't crash brutally, but fails
+  gracefully.
+*/
+TEST_F(HistogramsTest, SingletonOOM)
+{
+  Value_map<longlong> values(&my_charset_numeric);
+  values.add_values(1, 10);
+  values.add_values(2, 10);
+  values.add_values(3, 10);
+  values.add_values(4, 10);
+
+  MEM_ROOT oom_mem_root;
+  init_alloc_root(PSI_NOT_INSTRUMENTED, &oom_mem_root, 128, 0);
+
+  {
+    /*
+      Create the histogram in a new scope so that the underlying structures
+      are freed before the MEM_ROOT.
+    */
+    Singleton<longlong> histogram(&oom_mem_root, "db1", "tbl1", "col1");
+
+    // Restrict the maximum capacity of the MEM_ROOT so it cannot grow anymore.
+    oom_mem_root.max_capacity= oom_mem_root.allocated_size;
+    EXPECT_TRUE(histogram.build_histogram(values, 10U));
+  }
 }
 
 }

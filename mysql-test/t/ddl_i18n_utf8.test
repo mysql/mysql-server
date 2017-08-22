@@ -30,9 +30,6 @@
 #
 ###########################################################################
 
-# Test requires server to accept client connections (for mysqldump portions)
---source include/not_embedded.inc
-
 ###########################################################################
 
 set names utf8;

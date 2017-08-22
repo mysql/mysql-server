@@ -27,7 +27,6 @@
 -- source include/not_group_replication_plugin.inc
 # Don't test this under valgrind, memory leaks will occur
 -- source include/not_valgrind.inc
--- source include/not_embedded.inc
 -- source include/have_debug.inc
 -- source include/have_myisam.inc
 -- source include/have_binlog_format_row.inc

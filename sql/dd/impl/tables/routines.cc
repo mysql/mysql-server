@@ -25,11 +25,6 @@
 #include "dd/types/procedure.h"          // dd::Procedure
 
 namespace dd {
-class Dictionary_object;
-}  // namespace dd
-
-
-namespace dd {
 namespace tables {
 
 const Routines &Routines::instance()
@@ -196,7 +191,7 @@ Routines::Routines()
 
 ///////////////////////////////////////////////////////////////////////////
 
-Dictionary_object *Routines::create_dictionary_object(
+Routine *Routines::create_entity_object(
   const Raw_record &r) const
 {
   Routine::enum_routine_type routine_type=

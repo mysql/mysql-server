@@ -20,7 +20,7 @@
 #include <algorithm>
 
 #include "dynamic_ids.h"        // Server_ids
-#include "log.h"                // sql_print_error
+#include "log.h"
 #include "my_dbug.h"
 #include "my_macros.h"
 #include "my_sys.h"
@@ -159,10 +159,7 @@ Master_info::Master_info(
   start_user[0]= 0;
   ignore_server_ids= new Server_ids;
 
-  last_queued_trx= new trx_monitoring_info;
-  last_queued_trx->clear();
-  queueing_trx= new trx_monitoring_info;
-  queueing_trx->clear();
+  gtid_monitoring_info= new Gtid_monitoring_info(&data_lock);
 
   /*channel is set in base class, rpl_info.cc*/
   my_snprintf(for_channel_str, sizeof(for_channel_str)-1,
@@ -187,8 +184,7 @@ Master_info::~Master_info()
   delete m_channel_lock;
   delete ignore_server_ids;
   delete mi_description_event;
-  delete last_queued_trx;
-  delete queueing_trx;
+  delete gtid_monitoring_info;
 }
 
 /**
@@ -286,7 +282,7 @@ int Master_info::flush_info(bool force)
   DBUG_RETURN(0);
 
 err:
-  sql_print_error("Error writing master configuration.");
+  LogErr(ERROR_LEVEL, ER_RPL_ERROR_WRITING_MASTER_CONFIGURATION);
   DBUG_RETURN(1);
 }
 
@@ -334,7 +330,7 @@ int Master_info::mi_init_info()
 err:
   handler->end_info();
   inited= 0;
-  sql_print_error("Error reading master configuration.");
+  LogErr(ERROR_LEVEL, ER_RPL_ERROR_READING_MASTER_CONFIGURATION);
   DBUG_RETURN(1);
 }
 
@@ -509,16 +505,14 @@ bool Master_info::read_info(Rpl_info_handler *from)
       DBUG_RETURN(true);
   }
 
-  ssl= (bool) MY_TEST(temp_ssl);
-  ssl_verify_server_cert= (bool) MY_TEST(temp_ssl_verify_server_cert);
+  ssl= (bool) temp_ssl;
+  ssl_verify_server_cert= (bool) temp_ssl_verify_server_cert;
   master_log_pos= (my_off_t) temp_master_log_pos;
-  auto_position= MY_TEST(temp_auto_position);
+  auto_position= temp_auto_position;
 
 #ifndef HAVE_OPENSSL
   if (ssl)
-    sql_print_warning("SSL information in the master info file "
-                      "are ignored because this MySQL slave was "
-                      "compiled without SSL support.");
+    LogErr(WARNING_LEVEL, ER_RPL_SSL_INFO_IN_MASTER_INFO_IGNORED);
 #endif /* HAVE_OPENSSL */
 
   DBUG_RETURN(false);

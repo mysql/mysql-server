@@ -32,6 +32,7 @@
 #include "dd/impl/cache/storage_adapter.h"
 #include "dd/impl/types/charset_impl.h"
 #include "dd/impl/types/collation_impl.h"
+#include "dd/impl/types/column_statistics_impl.h"
 #include "dd/impl/types/event_impl.h"
 #include "dd/impl/types/procedure_impl.h"
 #include "dd/impl/types/schema_impl.h"
@@ -101,11 +102,11 @@ class CacheStorageTest: public ::testing::Test, public Test_MDL_context_owner
 public:
   dd::Schema_impl *mysql;
 
-  void lock_object(const dd::Entity_object &eo)
+  void lock_object(const dd::String_type &name)
   {
     MDL_request mdl_request;
     MDL_REQUEST_INIT(&mdl_request, MDL_key::TABLE,
-                     MYSQL_SCHEMA_NAME.str, eo.name().c_str(),
+                     MYSQL_SCHEMA_NAME.str, name.c_str(),
                      MDL_EXCLUSIVE, MDL_TRANSACTION);
     EXPECT_FALSE(m_mdl_context.
                  acquire_lock(&mdl_request,
@@ -211,6 +212,7 @@ typedef ::testing::Types
 <
   dd::Charset_impl,
   dd::Collation_impl,
+  dd::Column_statistics_impl,
   dd::Schema_impl,
   dd::Table_impl,
   dd::Tablespace_impl,
@@ -412,7 +414,7 @@ void test_basic_store_and_get(CacheStorageTest *tst, THD *thd)
   Intrfc_type *icreated= created.get();
   dd_unittest::set_attributes(created.get(), "global_test_object");
 
-  tst->lock_object(*created.get());
+  tst->lock_object(created->name());
   EXPECT_FALSE(dc->store(icreated));
   EXPECT_LT(9999u, icreated->id());
 
@@ -442,6 +444,21 @@ TEST_F(CacheStorageTest, BasicStoreAndGetCollation)
   test_basic_store_and_get<dd::Collation, dd::Collation_impl>(this, thd());
 }
 
+TEST_F(CacheStorageTest, BasicStoreAndGetColumnStatistics)
+{
+  test_basic_store_and_get<dd::Column_statistics,
+                           dd::Column_statistics_impl>(this, thd());
+}
+
+TEST_F(CacheStorageTest, BasicStoreAndGetColumnStatisticWithCloneFail)
+{
+  // Verify that we don't crash even if cloning of the histogram fails.
+  DBUG_SET("+d,fail_histogram_clone");
+  test_basic_store_and_get<dd::Column_statistics,
+                           dd::Column_statistics_impl>(this, thd());
+  DBUG_SET("-d,fail_histogram_clone");
+}
+
 TEST_F(CacheStorageTest, BasicStoreAndGetSchema)
 {
   test_basic_store_and_get<dd::Schema, dd::Schema_impl>(this, thd());
@@ -465,7 +482,7 @@ void test_basic_store_and_get_with_schema(CacheStorageTest *tst, THD *thd)
   dd_unittest::set_attributes(created.get(), "schema_qualified_test_object",
                               *tst->mysql);
 
-  tst->lock_object(*created.get());
+  tst->lock_object(created->name());
   EXPECT_FALSE(dc->store(icreated));
   EXPECT_LT(9999u, icreated->id());
 
@@ -519,7 +536,7 @@ void test_acquire_for_modification(CacheStorageTest *tst, THD *thd)
   Intrfc_type *icreated= created.get();
   dd_unittest::set_attributes(created.get(), "global_test_object");
 
-  tst->lock_object(*created.get());
+  tst->lock_object(created->name());
   EXPECT_FALSE(dc->store(icreated));
   EXPECT_LT(9999u, icreated->id());
 
@@ -563,6 +580,12 @@ TEST_F(CacheStorageTest, AquireForModificationCollation)
   test_acquire_for_modification<dd::Collation, dd::Collation_impl>(this, thd());
 }
 
+TEST_F(CacheStorageTest, AquireForModificationColumnStatistic)
+{
+  test_acquire_for_modification<dd::Column_statistics,
+                                dd::Column_statistics_impl>(this, thd());
+}
+
 TEST_F(CacheStorageTest, AquireForModificationSchema)
 {
   test_acquire_for_modification<dd::Schema, dd::Schema_impl>(this, thd());
@@ -586,7 +609,7 @@ void test_acquire_for_modification_with_schema(CacheStorageTest *tst, THD *thd)
   dd_unittest::set_attributes(created.get(), "schema_qualified_test_object",
                               *tst->mysql);
 
-  tst->lock_object(*created.get());
+  tst->lock_object(created->name());
   EXPECT_FALSE(dc->store(icreated));
   EXPECT_LT(9999u, icreated->id());
 
@@ -651,7 +674,7 @@ void test_acquire_and_rename(CacheStorageTest *tst, THD *thd)
   Intrfc_type *icreated= created.get();
   dd_unittest::set_attributes(created.get(), "old_name");
 
-  tst->lock_object(*created.get());
+  tst->lock_object(created->name());
   EXPECT_FALSE(dc->store(icreated));
   EXPECT_LT(9999u, icreated->id());
 
@@ -662,7 +685,7 @@ void test_acquire_and_rename(CacheStorageTest *tst, THD *thd)
                                                          &old_modified));
 
   dd_unittest::set_attributes(old_modified, "new_name");
-  dc->update(old_modified);
+  EXPECT_FALSE(dc->update(old_modified));
 
   // Should be possible to acquire with the new name.
   Intrfc_type *new_modified= NULL;
@@ -702,6 +725,12 @@ TEST_F(CacheStorageTest, AquireAndRenameCollation)
   test_acquire_and_rename<dd::Collation, dd::Collation_impl>(this, thd());
 }
 
+TEST_F(CacheStorageTest, AquireAndRenameColumnStatistic)
+{
+  test_acquire_and_rename<dd::Column_statistics,
+                          dd::Column_statistics_impl>(this, thd());
+}
+
 TEST_F(CacheStorageTest, AquireAndRenameSchema)
 {
   test_acquire_and_rename<dd::Schema, dd::Schema_impl>(this, thd());
@@ -725,7 +754,7 @@ void test_acquire_and_rename_with_schema(CacheStorageTest *tst, THD *thd)
   dd_unittest::set_attributes(created.get(), "schema_old_name",
                               *tst->mysql);
 
-  tst->lock_object(*created.get());
+  tst->lock_object(created->name());
   EXPECT_FALSE(dc->store(icreated));
   EXPECT_LT(9999u, icreated->id());
 
@@ -736,7 +765,7 @@ void test_acquire_and_rename_with_schema(CacheStorageTest *tst, THD *thd)
 
   dd_unittest::set_attributes(old_modified, "schema_new_name",
                               *tst->mysql);
-  dc->update(old_modified);
+  EXPECT_FALSE(dc->update(old_modified));
 
   // Should be possible to acquire with the new name.
   Intrfc_type *new_modified= NULL;
@@ -802,7 +831,7 @@ void test_acquire_and_move(CacheStorageTest *tst, THD *thd)
   dd_unittest::set_attributes(created.get(), "schema_name",
                               *tst->mysql);
 
-  tst->lock_object(*created.get());
+  tst->lock_object(created->name());
   EXPECT_FALSE(dc->store(icreated));
   EXPECT_LT(9999u, icreated->id());
 
@@ -819,7 +848,7 @@ void test_acquire_and_move(CacheStorageTest *tst, THD *thd)
   // Move object to a new schema, but keep object name.
   dd_unittest::set_attributes(old_modified, created->name(),
                               *new_schema);
-  dc->update(old_modified);
+  EXPECT_FALSE(dc->update(old_modified));
 
   // Should be possible to acquire in the new schema.
   Intrfc_type *new_modified= NULL;
@@ -889,7 +918,7 @@ void test_acquire_and_drop(CacheStorageTest *tst, THD *thd)
   Intrfc_type *icreated= created.get();
   dd_unittest::set_attributes(created.get(), "drop_test_object");
 
-  tst->lock_object(*created.get());
+  tst->lock_object(created->name());
   EXPECT_FALSE(dc->store(icreated));
   EXPECT_LT(9999u, icreated->id());
 
@@ -921,6 +950,12 @@ TEST_F(CacheStorageTest, AquireAndDropCollation)
   test_acquire_and_drop<dd::Collation, dd::Collation_impl>(this, thd());
 }
 
+TEST_F(CacheStorageTest, AquireAndDropColumnStatistic)
+{
+  test_acquire_and_drop<dd::Column_statistics,
+                        dd::Column_statistics_impl>(this, thd());
+}
+
 TEST_F(CacheStorageTest, AquireAndDropSchema)
 {
   test_acquire_and_drop<dd::Schema, dd::Schema_impl>(this, thd());
@@ -944,7 +979,7 @@ void test_acquire_and_drop_with_schema(CacheStorageTest *tst, THD *thd)
   dd_unittest::set_attributes(created.get(), "schema_drop_test_object",
                               *tst->mysql);
 
-  tst->lock_object(*created.get());
+  tst->lock_object(created->name());
   EXPECT_FALSE(dc->store(icreated));
   EXPECT_LT(9999u, icreated->id());
 
@@ -997,12 +1032,37 @@ TEST_F(CacheStorageTest, CommitNewObject)
   dd::Table *icreated= created;
   created->set_schema_id(mysql->id());
   dd_unittest::set_attributes(created, "new_object", *mysql);
-  lock_object(*created);
+  lock_object(created->name());
   EXPECT_FALSE(dc->store(icreated));
   EXPECT_LT(9999u, icreated->id());
 
   dc->commit_modified_objects();
   delete created;
+}
+
+
+TEST_F(CacheStorageTest, DoubleUpdate)
+{
+  dd::cache::Dictionary_client *dc= thd()->dd_client();
+  dd::cache::Dictionary_client::Auto_releaser releaser(dc);
+
+  std::unique_ptr<dd::Table> created(new dd::Table_impl());
+  created->set_name("old_name");
+  created->set_engine("innodb");
+  lock_object(created->name());
+  EXPECT_FALSE(dc->store(created.get()));
+  EXPECT_LT(9999u, created->id());
+
+  dd::Table *new_obj= nullptr;
+  EXPECT_FALSE(dc->acquire_for_modification(created->id(), &new_obj));
+
+  new_obj->set_name("new name");
+  EXPECT_FALSE(dc->update(new_obj));
+
+  new_obj->set_name("newer name");
+  EXPECT_FALSE(dc->update(new_obj));
+
+  dc->commit_modified_objects();
 }
 
 
@@ -1025,7 +1085,7 @@ TEST_F(CacheStorageTest, GetTableBySePrivateId)
   part_obj->set_comment("Partition comment");
   part_obj->set_tablespace_id(1);
 
-  lock_object(*obj.get());
+  lock_object(obj->name());
   EXPECT_FALSE(dc->store(obj.get()));
 
   dd::String_type schema_name;
@@ -1064,7 +1124,7 @@ TEST_F(CacheStorageTest, TestRename)
   std::unique_ptr<dd::Table> temp_table(dd::create_object<dd::Table>());
   dd_unittest::set_attributes(temp_table.get(), "temp_table", *mysql);
 
-  lock_object(*temp_table.get());
+  lock_object(temp_table->name());
   EXPECT_FALSE(dc.store(temp_table.get()));
 
   {
@@ -1096,8 +1156,8 @@ TEST_F(CacheStorageTest, TestRename)
         i->set_name(i->name() + "_changed");
 
       // Store the object.
-      lock_object(*temp_table);
-      dc.update(temp_table);
+      lock_object(temp_table->name());
+      EXPECT_FALSE(dc.update(temp_table));
 
       // Enable foreign key checks
       thd()->variables.option_bits&= ~OPTION_NO_FOREIGN_KEY_CHECKS;
@@ -1199,27 +1259,20 @@ TEST_F(CacheStorageTest, TestTransactionMaxSePrivateId)
   dd_unittest::set_attributes(tab1.get(), "table1", *mysql);
   tab1->set_se_private_id(5);
   tab1->set_engine("innodb");
-  lock_object(*tab1.get());
-  dc.store(tab1.get());
+  lock_object(tab1->name());
+  EXPECT_FALSE(dc.store(tab1.get()));
 
   dd_unittest::set_attributes(tab2.get(), "table2", *mysql);
   tab2->set_se_private_id(10);
   tab2->set_engine("innodb");
-  lock_object(*tab2.get());
+  lock_object(tab2->name());
   EXPECT_FALSE(dc.store(tab2.get()));
 
   dd_unittest::set_attributes(tab3.get(), "table3", *mysql);
   tab3->set_se_private_id(20);
   tab3->set_engine("unknown");
-  lock_object(*tab3.get());
-  dc.store(tab3.get());
-
-  // Needs working dd::get_dictionary()
-  //dd::Object_id max_id;
-  //EXPECT_FALSE(dc.get_tables_max_se_private_id("innodb", &max_id));
-  //EXPECT_EQ(10u, max_id);
-  //EXPECT_FALSE(dc.get_tables_max_se_private_id("unknown", &max_id));
-  //EXPECT_EQ(20u, max_id);
+  lock_object(tab3->name());
+  EXPECT_FALSE(dc.store(tab3.get()));
 
   dd::Table *tab1_new= NULL;
   EXPECT_FALSE(dc.acquire_uncached_table_by_se_private_id("innodb", 5, &tab1_new));
@@ -1370,7 +1423,7 @@ TEST_F(CacheStorageTest, TestCacheLookup)
     obj->set_engine("innodb");
     obj->set_se_private_id(0xFFFA); // Storing some magic number
 
-    lock_object(*obj.get());
+    lock_object(obj->name());
     EXPECT_FALSE(dc.store(obj.get()));
   }
 
@@ -1486,7 +1539,7 @@ TEST_F(CacheStorageTest, TestTriggers)
     trig_obj1->set_connection_collation_id(1);
     trig_obj1->set_schema_collation_id(1);
 
-    lock_object(*obj.get());
+    lock_object(obj->name());
     EXPECT_FALSE(dc.store(obj.get()));
     id= obj->id();
   }

@@ -20,8 +20,8 @@ SET GLOBAL innodb_fast_shutdown=0;
 SET SESSION debug="+d,dict_set_index_corrupted";
 check table t;
 Table	Op	Msg_type	Msg_text
-test.t	check	Warning	InnoDB: The B-tree of index idx is corrupted.
 test.t	check	Warning	InnoDB: The B-tree of index idx1 is corrupted.
+test.t	check	Warning	InnoDB: The B-tree of index idx is corrupted.
 test.t	check	error	Corrupt
 SET SESSION debug="-d,dict_set_index_corrupted";
 select c from t;

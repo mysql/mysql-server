@@ -80,8 +80,8 @@ bool service_get_read_locks_init(UDF_INIT *initid, UDF_ARGS *args,
 }
 
 
-long long service_get_read_locks(UDF_INIT *initid, UDF_ARGS *args,
-                                 char *is_null, char *error)
+long long service_get_read_locks(UDF_INIT*, UDF_ARGS *args,
+                                 char*, char*)
 {
   const char *lock_namespace= args->args[0];
   long long timeout= *((long long*)args->args[args->arg_count - 1]);
@@ -102,8 +102,8 @@ bool service_get_write_locks_init(UDF_INIT *initid, UDF_ARGS *args,
 }
 
 
-long long service_get_write_locks(UDF_INIT *initid, UDF_ARGS *args,
-                                  char *is_null, char *error)
+long long service_get_write_locks(UDF_INIT*, UDF_ARGS *args,
+                                  char*, char*)
 {
   const char *lock_namespace= args->args[0];
   long long timeout= *((long long*)args->args[args->arg_count - 1]);
@@ -143,8 +143,8 @@ bool service_release_locks_init(UDF_INIT *initid, UDF_ARGS *args,
 }
 
 
-long long service_release_locks(UDF_INIT *initid, UDF_ARGS *args,
-                                char *is_null, char *error)
+long long service_release_locks(UDF_INIT*, UDF_ARGS *args,
+                                char*, char*)
 {
   const char *lock_namespace= args->args[0];
   // For the UDF 1 == success, 0 == failure.

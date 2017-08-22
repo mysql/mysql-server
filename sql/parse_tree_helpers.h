@@ -241,4 +241,16 @@ bool resolve_engine(THD *thd,
 bool apply_privileges(THD *thd,
                       const Trivial_array<class PT_role_or_privilege *> &privs);
 
+
+inline bool is_identifier(const char *str, const char *ident)
+{
+  return !my_strcasecmp(system_charset_info, str, ident);
+}
+
+
+inline bool is_identifier(const LEX_STRING &str, const char *ident)
+{
+  return is_identifier(str.str, ident);
+}
+
 #endif /* PARSE_TREE_HELPERS_INCLUDED */

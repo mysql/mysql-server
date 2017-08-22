@@ -15,4 +15,3 @@ RESET MASTER;
 ERROR HY000: Target log not found in binlog index
 SET GLOBAL binlog_error_action= ABORT_SERVER;
 FLUSH LOGS;
-RESET MASTER;

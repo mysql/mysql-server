@@ -36,7 +36,7 @@
 %{!?compilation_comment_debug:   %global compilation_comment_debug MySQL Community Server - Debug (GPL)}
 %{!?src_base:                    %global src_base mysql}
 
-%global compatver             5.6.31
+%global compatver             5.6.37
 %global compatlib             18
 %global compatsrc             https://cdn.mysql.com/Downloads/MySQL-5.6/mysql-%{compatver}.tar.gz
 
@@ -77,6 +77,7 @@ BuildRequires:  perl
 BuildRequires:  perl-generators
 %endif
 BuildRequires:  time
+BuildRequires:  cyrus-sasl-devel
 BuildRequires:  libaio-devel
 BuildRequires:  mecab-devel
 BuildRequires:  multilib-rpm-config
@@ -445,7 +446,6 @@ install -d -m 0755 %{buildroot}%{_sysconfdir}/ld.so.conf.d
 echo "%{_libdir}/mysql" > %{buildroot}%{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
 
 # multiarch support
-%multilib_fix_c_header --file %{_includedir}/mysql/my_config.h
 if %multilib_capable ; then
     mv %{buildroot}%{_bindir}/mysql_config %{buildroot}%{_bindir}/mysql_config-%{__isa_bits}
     install -p -m 0755 packaging/rpm-common/mysql_config.sh %{buildroot}%{_bindir}/mysql_config
@@ -467,9 +467,12 @@ rm -f  %{buildroot}%{_mandir}/man1/mysql_client_test_embedded.1*
 rm -f  %{buildroot}%{_mandir}/man1/mysqltest_embedded.1*
 
 %check
-%if 0%{?runselftest}
+%if 0%{?runselftest} || 0%{?with_unittests}
 pushd release
-make test VERBOSE=1
+export CTEST_OUTPUT_ON_FAILURE=1
+make test || true
+%endif
+%if 0%{?runselftest}
 export MTR_BUILD_THREAD=auto
 pushd mysql-test
 ./mtr \
@@ -562,7 +565,10 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %dir %{_libdir}/mysql/plugin
 %attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_socket.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/group_replication.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_syseventlog.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_json.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/ha_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/innodb_engine.so
@@ -583,7 +589,10 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %dir %{_libdir}/mysql/plugin/debug
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_socket.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/group_replication.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_sink_syseventlog.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_sink_json.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_file.so
@@ -721,9 +730,26 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_example_component1.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_example_component2.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_example_component3.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_test.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_string_service_charset.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_string_service_long.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_string_service.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_pfs_example_component_population.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/pfs_example_plugin_employee.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_pfs_notification.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_pfs_resource_group.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_udf_registration.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_udf_reg_3_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_udf_reg_avg_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_udf_reg_int_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_udf_reg_int_same_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_udf_reg_only_3_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_udf_reg_real_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_udf_unreg_3_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_udf_unreg_int_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_udf_unreg_real_func.so
 %attr(644, root, root) %{_libdir}/mysql/plugin/daemon_example.ini
 %attr(755, root, root) %{_libdir}/mysql/plugin/libdaemon_example.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/test_udf_services.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/replication_observers_example_plugin.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_framework.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_services.so
@@ -752,11 +778,30 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_server.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/test_security_context.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/test_services_plugin_registry.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/test_udf_services.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_test_plugin.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_example_component1.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_example_component2.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_example_component3.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_sink_test.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_string_service_charset.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_string_service_long.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_string_service.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_pfs_example_component_population.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/pfs_example_plugin_employee.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_pfs_notification.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_pfs_resource_group.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_udf_registration.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_udf_reg_3_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_udf_reg_avg_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_udf_reg_int_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_udf_reg_int_same_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_udf_reg_only_3_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_udf_reg_real_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_udf_unreg_3_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_udf_unreg_int_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_udf_unreg_real_func.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libdaemon_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_udf_services.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/replication_observers_example_plugin.so
@@ -801,6 +846,9 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %attr(755, root, root) %{_libdir}/mysql/libmysqld.so.18*
 
 %changelog
+* Thu May 11 2017 Horst Hunger <horst.hunger@oracle.com> - 8.0.2-0.1
+- Add UDF components
+
 * Tue Sep 13 2016 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 8.0.1-0.1
 - Add test_services_plugin_registry.so plugin
 - Add connection_control.so to server subpackage

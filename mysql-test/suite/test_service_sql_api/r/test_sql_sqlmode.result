@@ -814,8 +814,8 @@ EXECUTING:[57][SELECT * FROM t1 WHERE t1.a IN (SELECT MAX(t1.b) FROM t2)]
 			[meta][field] org table name: t1
 			[meta][field] col name: a
 			[meta][field] org col name: a
-			[meta][field] length: 20
-			[meta][field] charsetnr: 8
+			[meta][field] length: 80
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 4097 (NOT_NULL NO_DEFAULT_VALUE )
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -825,8 +825,8 @@ EXECUTING:[57][SELECT * FROM t1 WHERE t1.a IN (SELECT MAX(t1.b) FROM t2)]
 			[meta][field] org table name: t1
 			[meta][field] col name: b
 			[meta][field] org col name: b
-			[meta][field] length: 20
-			[meta][field] charsetnr: 8
+			[meta][field] length: 80
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 0
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -857,8 +857,8 @@ EXECUTING:[57][SELECT * FROM t1 WHERE t1.a IN (SELECT MAX(t1.b) FROM t2)]
 			[meta][field] org table name: t1
 			[meta][field] col name: a
 			[meta][field] org col name: a
-			[meta][field] length: 20
-			[meta][field] charsetnr: 8
+			[meta][field] length: 80
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 4097 (NOT_NULL NO_DEFAULT_VALUE )
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -868,8 +868,8 @@ EXECUTING:[57][SELECT * FROM t1 WHERE t1.a IN (SELECT MAX(t1.b) FROM t2)]
 			[meta][field] org table name: t1
 			[meta][field] col name: b
 			[meta][field] org col name: b
-			[meta][field] length: 20
-			[meta][field] charsetnr: 8
+			[meta][field] length: 80
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 0
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -1171,8 +1171,8 @@ EXECUTING:[33][SELECT * FROM t1 WHERE a = 't2a2']
 			[meta][field] org table name: t1
 			[meta][field] col name: a
 			[meta][field] org col name: a
-			[meta][field] length: 20
-			[meta][field] charsetnr: 8
+			[meta][field] length: 80
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 4097 (NOT_NULL NO_DEFAULT_VALUE )
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -1182,8 +1182,8 @@ EXECUTING:[33][SELECT * FROM t1 WHERE a = 't2a2']
 			[meta][field] org table name: t1
 			[meta][field] col name: b
 			[meta][field] org col name: b
-			[meta][field] length: 20
-			[meta][field] charsetnr: 8
+			[meta][field] length: 80
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 0
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -1214,8 +1214,8 @@ EXECUTING:[33][SELECT * FROM t1 WHERE a = 't2a2']
 			[meta][field] org table name: t1
 			[meta][field] col name: a
 			[meta][field] org col name: a
-			[meta][field] length: 20
-			[meta][field] charsetnr: 8
+			[meta][field] length: 80
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 4097 (NOT_NULL NO_DEFAULT_VALUE )
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -1225,8 +1225,8 @@ EXECUTING:[33][SELECT * FROM t1 WHERE a = 't2a2']
 			[meta][field] org table name: t1
 			[meta][field] col name: b
 			[meta][field] org col name: b
-			[meta][field] length: 20
-			[meta][field] charsetnr: 8
+			[meta][field] length: 80
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 0
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -1397,8 +1397,8 @@ EXECUTING:[33][SELECT * FROM t1 WHERE a = 't2a2']
 			[meta][field] org table name: t1
 			[meta][field] col name: a
 			[meta][field] org col name: a
-			[meta][field] length: 20
-			[meta][field] charsetnr: 8
+			[meta][field] length: 80
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 4097 (NOT_NULL NO_DEFAULT_VALUE )
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -1408,8 +1408,8 @@ EXECUTING:[33][SELECT * FROM t1 WHERE a = 't2a2']
 			[meta][field] org table name: t1
 			[meta][field] col name: b
 			[meta][field] org col name: b
-			[meta][field] length: 20
-			[meta][field] charsetnr: 8
+			[meta][field] length: 80
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 0
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -1440,8 +1440,8 @@ EXECUTING:[33][SELECT * FROM t1 WHERE a = 't2a2']
 			[meta][field] org table name: t1
 			[meta][field] col name: a
 			[meta][field] org col name: a
-			[meta][field] length: 20
-			[meta][field] charsetnr: 8
+			[meta][field] length: 80
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 4097 (NOT_NULL NO_DEFAULT_VALUE )
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -1451,8 +1451,8 @@ EXECUTING:[33][SELECT * FROM t1 WHERE a = 't2a2']
 			[meta][field] org table name: t1
 			[meta][field] col name: b
 			[meta][field] org col name: b
-			[meta][field] length: 20
-			[meta][field] charsetnr: 8
+			[meta][field] length: 80
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 0
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -2300,8 +2300,8 @@ EXECUTING:[57][SELECT * FROM t1 WHERE t1.a IN (SELECT MAX(t1.b) FROM t2)]
 			[meta][field] org table name: t1
 			[meta][field] col name: a
 			[meta][field] org col name: a
-			[meta][field] length: 20
-			[meta][field] charsetnr: 8
+			[meta][field] length: 80
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 4097 (NOT_NULL NO_DEFAULT_VALUE )
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -2311,8 +2311,8 @@ EXECUTING:[57][SELECT * FROM t1 WHERE t1.a IN (SELECT MAX(t1.b) FROM t2)]
 			[meta][field] org table name: t1
 			[meta][field] col name: b
 			[meta][field] org col name: b
-			[meta][field] length: 20
-			[meta][field] charsetnr: 8
+			[meta][field] length: 80
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 0
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -2343,8 +2343,8 @@ EXECUTING:[57][SELECT * FROM t1 WHERE t1.a IN (SELECT MAX(t1.b) FROM t2)]
 			[meta][field] org table name: t1
 			[meta][field] col name: a
 			[meta][field] org col name: a
-			[meta][field] length: 20
-			[meta][field] charsetnr: 8
+			[meta][field] length: 80
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 4097 (NOT_NULL NO_DEFAULT_VALUE )
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -2354,8 +2354,8 @@ EXECUTING:[57][SELECT * FROM t1 WHERE t1.a IN (SELECT MAX(t1.b) FROM t2)]
 			[meta][field] org table name: t1
 			[meta][field] col name: b
 			[meta][field] org col name: b
-			[meta][field] length: 20
-			[meta][field] charsetnr: 8
+			[meta][field] length: 80
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 0
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -2657,8 +2657,8 @@ EXECUTING:[33][SELECT * FROM t1 WHERE a = 't2a2']
 			[meta][field] org table name: t1
 			[meta][field] col name: a
 			[meta][field] org col name: a
-			[meta][field] length: 20
-			[meta][field] charsetnr: 8
+			[meta][field] length: 80
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 4097 (NOT_NULL NO_DEFAULT_VALUE )
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -2668,8 +2668,8 @@ EXECUTING:[33][SELECT * FROM t1 WHERE a = 't2a2']
 			[meta][field] org table name: t1
 			[meta][field] col name: b
 			[meta][field] org col name: b
-			[meta][field] length: 20
-			[meta][field] charsetnr: 8
+			[meta][field] length: 80
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 0
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -2700,8 +2700,8 @@ EXECUTING:[33][SELECT * FROM t1 WHERE a = 't2a2']
 			[meta][field] org table name: t1
 			[meta][field] col name: a
 			[meta][field] org col name: a
-			[meta][field] length: 20
-			[meta][field] charsetnr: 8
+			[meta][field] length: 80
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 4097 (NOT_NULL NO_DEFAULT_VALUE )
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -2711,8 +2711,8 @@ EXECUTING:[33][SELECT * FROM t1 WHERE a = 't2a2']
 			[meta][field] org table name: t1
 			[meta][field] col name: b
 			[meta][field] org col name: b
-			[meta][field] length: 20
-			[meta][field] charsetnr: 8
+			[meta][field] length: 80
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 0
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -2883,8 +2883,8 @@ EXECUTING:[33][SELECT * FROM t1 WHERE a = 't2a2']
 			[meta][field] org table name: t1
 			[meta][field] col name: a
 			[meta][field] org col name: a
-			[meta][field] length: 20
-			[meta][field] charsetnr: 8
+			[meta][field] length: 80
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 4097 (NOT_NULL NO_DEFAULT_VALUE )
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -2894,8 +2894,8 @@ EXECUTING:[33][SELECT * FROM t1 WHERE a = 't2a2']
 			[meta][field] org table name: t1
 			[meta][field] col name: b
 			[meta][field] org col name: b
-			[meta][field] length: 20
-			[meta][field] charsetnr: 8
+			[meta][field] length: 80
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 0
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -2926,8 +2926,8 @@ EXECUTING:[33][SELECT * FROM t1 WHERE a = 't2a2']
 			[meta][field] org table name: t1
 			[meta][field] col name: a
 			[meta][field] org col name: a
-			[meta][field] length: 20
-			[meta][field] charsetnr: 8
+			[meta][field] length: 80
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 4097 (NOT_NULL NO_DEFAULT_VALUE )
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -2937,8 +2937,8 @@ EXECUTING:[33][SELECT * FROM t1 WHERE a = 't2a2']
 			[meta][field] org table name: t1
 			[meta][field] col name: b
 			[meta][field] org col name: b
-			[meta][field] length: 20
-			[meta][field] charsetnr: 8
+			[meta][field] length: 80
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 0
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)

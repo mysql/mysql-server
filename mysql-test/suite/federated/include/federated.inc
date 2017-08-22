@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 --source suite/federated/include/have_federated_db.inc
 
 connect (master,127.0.0.1,root,,test,$MASTER_MYPORT,);

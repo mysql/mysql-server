@@ -11,7 +11,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include <my_sys.h>                         // my_error
 #include <mysql/components/component_implementation.h>
@@ -23,12 +23,17 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 #include "dynamic_loader.h"
 #include "dynamic_loader_path_filter.h"
 #include "dynamic_loader_scheme_file.h"
+#include "log.h"
+#include "log_builtins_imp.h"
+#include "log_builtins_filter_imp.h"
 #include "my_inttypes.h"
 #include "mysqld_error.h"
 #include "persistent_dynamic_loader.h"
+#include "mysql_string_service.h"
 #include "registry.h"
 #include "server_component.h"
 #include "auth/dynamic_privileges_impl.h"
+#include "udf_registration_imp.h"
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, registry)
   mysql_registry_imp::acquire,
@@ -112,6 +117,138 @@ BEGIN_SERVICE_IMPLEMENTATION(mysql_server, global_grants_check)
   dynamic_privilege_services_impl::has_global_grant
 END_SERVICE_IMPLEMENTATION()
 
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_string_factory)
+  mysql_string_imp::create,
+  mysql_string_imp::destroy
+END_SERVICE_IMPLEMENTATION()
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_string_case)
+  mysql_string_imp::tolower,
+  mysql_string_imp::toupper
+END_SERVICE_IMPLEMENTATION()
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_string_converter)
+  mysql_string_imp::convert_from_buffer,
+  mysql_string_imp::convert_to_buffer
+END_SERVICE_IMPLEMENTATION()
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_string_character_access)
+  mysql_string_imp::get_char,
+  mysql_string_imp::get_char_length
+END_SERVICE_IMPLEMENTATION()
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_string_byte_access)
+  mysql_string_imp::get_byte,
+  mysql_string_imp::get_byte_length
+END_SERVICE_IMPLEMENTATION()
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_string_iterator)
+  mysql_string_imp::iterator_create,
+  mysql_string_imp::iterator_get_next,
+  mysql_string_imp::iterator_destroy
+END_SERVICE_IMPLEMENTATION()
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_string_ctype)
+  mysql_string_imp::is_upper,
+  mysql_string_imp::is_lower,
+  mysql_string_imp::is_digit
+END_SERVICE_IMPLEMENTATION()
+
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, log_builtins)
+  log_builtins_imp::wellknown_by_type,
+  log_builtins_imp::wellknown_by_name,
+  log_builtins_imp::wellknown_get_type,
+  log_builtins_imp::wellknown_get_name,
+
+  log_builtins_imp::item_inconsistent,
+  log_builtins_imp::item_generic_type,
+  log_builtins_imp::item_string_class,
+  log_builtins_imp::item_numeric_class,
+
+  log_builtins_imp::item_set_int,
+  log_builtins_imp::item_set_float,
+  log_builtins_imp::item_set_lexstring,
+  log_builtins_imp::item_set_cstring,
+
+  log_builtins_imp::item_set_with_key,
+  log_builtins_imp::item_set,
+
+  log_builtins_imp::line_item_set_with_key,
+  log_builtins_imp::line_item_set,
+
+  log_builtins_imp::line_init,
+  log_builtins_imp::line_exit,
+  log_builtins_imp::line_item_count,
+
+  log_builtins_imp::line_item_types_seen,
+
+  log_builtins_imp::line_item_iter_acquire,
+  log_builtins_imp::line_item_iter_release,
+  log_builtins_imp::line_item_iter_first,
+  log_builtins_imp::line_item_iter_next,
+  log_builtins_imp::line_item_iter_current,
+
+  log_builtins_imp::line_submit,
+
+  log_builtins_imp::message,
+
+  log_builtins_imp::sanitize,
+
+  log_builtins_imp::errmsg_by_errcode,
+  log_builtins_imp::errcode_by_errsymbol,
+
+  log_builtins_imp::label_from_prio,
+
+  log_builtins_imp::open_errstream,
+  log_builtins_imp::write_errstream,
+  log_builtins_imp::dedicated_errstream,
+  log_builtins_imp::close_errstream
+END_SERVICE_IMPLEMENTATION()
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, log_builtins_filter)
+  log_builtins_filter_imp::filter_run,
+  log_builtins_filter_imp::filter_ruleset_get,
+  log_builtins_filter_imp::filter_ruleset_drop,
+  log_builtins_filter_imp::filter_ruleset_release,
+  log_builtins_filter_imp::filter_rule_init
+END_SERVICE_IMPLEMENTATION()
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, log_builtins_string)
+  log_builtins_string_imp::malloc,
+  log_builtins_string_imp::strndup,
+  log_builtins_string_imp::free,
+
+  log_builtins_string_imp::length,
+  log_builtins_string_imp::find_first,
+  log_builtins_string_imp::find_last,
+
+  log_builtins_string_imp::compare,
+
+  log_builtins_string_imp::substitutev,
+  log_builtins_string_imp::substitute
+END_SERVICE_IMPLEMENTATION()
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, log_builtins_tmp)
+  log_builtins_tmp_imp::connection_loop_aborted
+END_SERVICE_IMPLEMENTATION()
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, log_builtins_syseventlog)
+  log_builtins_syseventlog_imp::open,
+  log_builtins_syseventlog_imp::write,
+  log_builtins_syseventlog_imp::close
+END_SERVICE_IMPLEMENTATION()
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, udf_registration)
+  mysql_udf_registration_imp::udf_register,
+  mysql_udf_registration_imp::udf_unregister
+END_SERVICE_IMPLEMENTATION()
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, udf_registration_aggregate)
+  mysql_udf_registration_imp::udf_register_aggregate,
+  mysql_udf_registration_imp::udf_unregister
+END_SERVICE_IMPLEMENTATION()
+
 BEGIN_COMPONENT_PROVIDES(mysql_server)
   PROVIDES_SERVICE(mysql_server, registry)
   PROVIDES_SERVICE(mysql_server, registry_registration)
@@ -127,6 +264,20 @@ BEGIN_COMPONENT_PROVIDES(mysql_server)
   PROVIDES_SERVICE(mysql_server, dynamic_loader_scheme_file)
   PROVIDES_SERVICE(mysql_server, dynamic_privilege_register)
   PROVIDES_SERVICE(mysql_server, global_grants_check)
+  PROVIDES_SERVICE(mysql_server, mysql_string_factory)
+  PROVIDES_SERVICE(mysql_server, mysql_string_case)
+  PROVIDES_SERVICE(mysql_server, mysql_string_converter)
+  PROVIDES_SERVICE(mysql_server, mysql_string_character_access)
+  PROVIDES_SERVICE(mysql_server, mysql_string_byte_access)
+  PROVIDES_SERVICE(mysql_server, mysql_string_iterator)
+  PROVIDES_SERVICE(mysql_server, mysql_string_ctype)
+  PROVIDES_SERVICE(mysql_server, log_builtins)
+  PROVIDES_SERVICE(mysql_server, log_builtins_filter)
+  PROVIDES_SERVICE(mysql_server, log_builtins_string)
+  PROVIDES_SERVICE(mysql_server, log_builtins_tmp)
+  PROVIDES_SERVICE(mysql_server, log_builtins_syseventlog)
+  PROVIDES_SERVICE(mysql_server, udf_registration)
+  PROVIDES_SERVICE(mysql_server, udf_registration_aggregate)
 END_COMPONENT_PROVIDES()
 
 static BEGIN_COMPONENT_REQUIRES(mysql_server)
@@ -197,9 +348,21 @@ bool mysql_services_bootstrap(SERVICE_TYPE(registry)** registry)
   return false;
 }
 
+
 /**
-  Shutdowns service registry and dynamic loader making sure all basic services
-  are unregistered. Will fail if any service implementation is in use.
+  Shutdowns dynamic loader.
+*/
+void shutdown_dynamic_loader()
+{
+  /* Dynamic loader deinitialization still needs all scheme service
+    implementations to be functional. */
+  dynamic_loader_deinit();
+  dynamic_loader_scheme_file_deinit();
+}
+
+/**
+  Shutdowns service registry making sure all basic services are unregistered.
+  Will fail if any service implementation is in use.
 
   @return Status of performed operation
   @retval false success
@@ -207,11 +370,6 @@ bool mysql_services_bootstrap(SERVICE_TYPE(registry)** registry)
 */
 bool mysql_services_shutdown()
 {
-  /* Dynamic loader deinitialization still needs all scheme service
-    implementations to be functional. */
-  dynamic_loader_deinit();
-  dynamic_loader_scheme_file_deinit();
-
   for (int inx= 0;
     mysql_component_mysql_server.provides[inx].implementation != NULL;
     ++inx)

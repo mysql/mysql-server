@@ -149,6 +149,15 @@ void thd_set_psi(THD *thd, PSI_thread *psi)
 
 void thd_set_killed(THD *thd)
 {
+  /*
+    TODO: This method just sets the state of the THD::killed member. Now used
+          for the idle threads. To awake and set killed status for active
+          threads, THD::awake() should be used as part of this method or in a
+          new API.
+          Setting KILL state for a thread in a kill immune mode is handled
+          as part of THD::awake(). Direct KILL state set for active thread
+          breaks it.
+  */
   thd->killed= THD::KILL_CONNECTION;
 }
 
@@ -369,7 +378,7 @@ int mysql_tmpfile(const char *prefix)
 extern "C"
 int thd_in_lock_tables(const MYSQL_THD thd)
 {
-  return MY_TEST(thd->in_lock_tables);
+  return thd->in_lock_tables;
 }
 
 
@@ -381,8 +390,11 @@ int thd_tablespace_op(const MYSQL_THD thd)
     statement, so this function must check both the SQL command
     code and the Alter_info::flags.
   */
-  return MY_TEST(thd->lex->sql_command == SQLCOM_ALTER_TABLE &&
-                 (thd->lex->alter_info.flags &
+  if (thd->lex->sql_command != SQLCOM_ALTER_TABLE)
+    return 0;
+  DBUG_ASSERT(thd->lex->alter_info != NULL);
+
+  return MY_TEST((thd->lex->alter_info->flags &
                   (Alter_info::ALTER_DISCARD_TABLESPACE |
                    Alter_info::ALTER_IMPORT_TABLESPACE)));
 }

@@ -24,16 +24,16 @@ include/start_slave.inc
 CREATE TABLE t1(id MEDIUMINT NOT NULL AUTO_INCREMENT,
 dt TIMESTAMP, user CHAR(255), uuidf LONGBLOB,
 fkid MEDIUMINT, filler VARCHAR(255),
-PRIMARY KEY(id)) ENGINE='innodb';
+PRIMARY KEY(id)) charset latin1 ENGINE='innodb';
 CREATE TABLE t2(id MEDIUMINT NOT NULL AUTO_INCREMENT,
 dt TIMESTAMP, user CHAR(255), uuidf LONGBLOB,
 fkid MEDIUMINT, filler VARCHAR(255),
-PRIMARY KEY(id)) ENGINE='innodb'
+PRIMARY KEY(id)) charset latin1 ENGINE='innodb'
 PARTITION BY KEY(id) partitions 5;
 CREATE TABLE t3(id MEDIUMINT NOT NULL AUTO_INCREMENT,
 dt TIMESTAMP, user CHAR(255), uuidf LONGBLOB,
 fkid MEDIUMINT, filler VARCHAR(255),
-PRIMARY KEY(id)) ENGINE='innodb' 
+PRIMARY KEY(id)) ENGINE='innodb' charset latin1
 PARTITION BY RANGE(id) 
 SUBPARTITION BY hash(id) subpartitions 2
 (PARTITION pa1 values less than (10),
@@ -123,15 +123,15 @@ show create table t3;
 Table	t3
 Create Table	CREATE TABLE `t3` (
   `id` mediumint(9) NOT NULL AUTO_INCREMENT,
-  `dt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `dt` timestamp NULL DEFAULT NULL,
   `user` char(255) DEFAULT NULL,
   `uuidf` longblob,
   `fkid` mediumint(9) DEFAULT NULL,
   `filler` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1001 DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (id)
-SUBPARTITION BY HASH (id)
+/*!50100 PARTITION BY RANGE (`id`)
+SUBPARTITION BY HASH (`id`)
 SUBPARTITIONS 2
 (PARTITION pa1 VALUES LESS THAN (10) ENGINE = InnoDB,
  PARTITION pa2 VALUES LESS THAN (20) ENGINE = InnoDB,

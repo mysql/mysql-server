@@ -549,7 +549,6 @@ SET NAMES utf8mb4 COLLATE utf8mb4_unicode_520_ci;
 --echo #                 ABOUT LDML DEFINITION PROBLEMS
 --echo #
 
--- source include/not_embedded.inc
 
 # Creating a temporary file for Index.xml
 --copy_file $MYSQL_CHARSETSDIR/Index.xml $MYSQLTEST_VARDIR/temp.xml

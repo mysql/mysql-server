@@ -37,32 +37,22 @@
 
 THR_LOCK table_status_by_host::m_table_lock;
 
-/* clang-format off */
-static const TABLE_FIELD_TYPE field_types[]=
-{
-  {
-    { C_STRING_WITH_LEN("HOST") },
-    { C_STRING_WITH_LEN("char(60)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("VARIABLE_NAME") },
-    { C_STRING_WITH_LEN("varchar(64)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("VARIABLE_VALUE") },
-    { C_STRING_WITH_LEN("varchar(1024)") },
-    { NULL, 0}
-  }
-};
-/* clang-format on */
-
-TABLE_FIELD_DEF
-table_status_by_host::m_field_def = {3, field_types};
+Plugin_table table_status_by_host::m_table_def(
+  /* Schema name */
+  "performance_schema",
+  /* Name */
+  "status_by_host",
+  /* Definition */
+  "  HOST CHAR(60) collate utf8_bin default null,\n"
+  "  VARIABLE_NAME VARCHAR(64) not null,\n"
+  "  VARIABLE_VALUE VARCHAR(1024),\n"
+  "  UNIQUE KEY (HOST, VARIABLE_NAME) USING HASH\n",
+  /* Options */
+  " ENGINE=PERFORMANCE_SCHEMA",
+  /* Tablespace */
+  nullptr);
 
 PFS_engine_table_share table_status_by_host::m_share = {
-  {C_STRING_WITH_LEN("status_by_host")},
   &pfs_truncatable_acl,
   table_status_by_host::create,
   NULL, /* write_row */
@@ -70,9 +60,8 @@ PFS_engine_table_share table_status_by_host::m_share = {
   table_status_by_host::get_row_count,
   sizeof(pos_t),
   &m_table_lock,
-  &m_field_def,
-  false, /* checked */
-  false  /* perpetual */
+  &m_table_def,
+  false /* perpetual */
 };
 
 bool
@@ -103,7 +92,7 @@ PFS_index_status_by_host::match(const Status_variable *pfs)
 }
 
 PFS_engine_table *
-table_status_by_host::create(void)
+table_status_by_host::create(PFS_engine_table_share *)
 {
   return new table_status_by_host();
 }
@@ -221,7 +210,7 @@ table_status_by_host::rnd_pos(const void *pos)
 }
 
 int
-table_status_by_host::index_init(uint idx, bool)
+table_status_by_host::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
   /* Build array of SHOW_VARs from the global status array prior to
    * materializing. */

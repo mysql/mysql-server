@@ -51,7 +51,6 @@ INCLUDE_DIRECTORIES(SYSTEM
 )
 
 INCLUDE_DIRECTORIES(
-  ${CMAKE_SOURCE_DIR}/testing/include
   ${PROJECT_SOURCE_DIR}/rapid/plugin/x/ngs/include
   ${PROJECT_SOURCE_DIR}/rapid/plugin/x/ngs/include/ngs
   ${PROJECT_SOURCE_DIR}/rapid/plugin/x/mysqlxtest_src

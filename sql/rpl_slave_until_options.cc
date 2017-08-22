@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -95,8 +95,8 @@ bool Until_position::check_position(const char* log_name,
     else
     {
       /* Base names do not match, so we abort */
-      sql_print_error("Slave SQL thread is stopped because UNTIL condition "
-                      "is bad(%s:%llu).", m_until_log_name, m_until_log_pos);
+      LogErr(ERROR_LEVEL, ER_SLAVE_SQL_THREAD_STOPPED_UNTIL_CONDITION_BAD,
+             m_until_log_name, m_until_log_pos);
       DBUG_RETURN(true);
     }
   }
@@ -106,8 +106,8 @@ bool Until_position::check_position(const char* log_name,
        log_pos < m_until_log_pos))
     DBUG_RETURN(false);
 
-  sql_print_information("Slave SQL thread stopped because it reached its"
-                          " UNTIL position %llu", m_until_log_pos);
+  LogErr(INFORMATION_LEVEL,
+         ER_SLAVE_SQL_THREAD_STOPPED_UNTIL_POSITION_REACHED, m_until_log_pos);
   DBUG_RETURN(true);
 }
 
@@ -195,9 +195,8 @@ bool Until_before_gtids::check_at_start_slave()
     m_gtids.to_string(&buffer);
     global_sid_lock->unlock();
 
-    sql_print_information("Slave SQL thread stopped because "
-                          "UNTIL SQL_BEFORE_GTIDS %s is already "
-                          "applied", buffer);
+    LogErr(INFORMATION_LEVEL,
+           ER_SLAVE_SQL_THREAD_STOPPED_BEFORE_GTIDS_ALREADY_APPLIED, buffer);
     my_free(buffer);
     return true;
   }
@@ -216,8 +215,8 @@ bool Until_before_gtids::check_before_dispatching_event(const Log_event *ev)
       char *buffer;
       m_gtids.to_string(&buffer);
       global_sid_lock->unlock();
-      sql_print_information("Slave SQL thread stopped because it reached "
-                            "UNTIL SQL_BEFORE_GTIDS %s", buffer);
+      LogErr(INFORMATION_LEVEL,
+             ER_SLAVE_SQL_THREAD_STOPPED_BEFORE_GTIDS_REACHED, buffer);
       my_free(buffer);
       return true;
     }
@@ -239,8 +238,8 @@ bool Until_after_gtids::check_at_start_slave()
     char *buffer;
     m_gtids.to_string(&buffer);
     global_sid_lock->unlock();
-    sql_print_information("Slave SQL thread stopped because it reached "
-                          "UNTIL SQL_AFTER_GTIDS %s", buffer);
+    LogErr(INFORMATION_LEVEL,
+           ER_SLAVE_SQL_THREAD_STOPPED_AFTER_GTIDS_REACHED, buffer);
     my_free(buffer);
     return true;
   }
@@ -323,10 +322,7 @@ bool Until_mts_gap::check_before_dispatching_event(const Log_event*)
 {
   if (m_rli->mts_recovery_group_cnt == 0)
   {
-    sql_print_information("Slave SQL thread stopped according to "
-                          "UNTIL SQL_AFTER_MTS_GAPS as it has "
-                          "processed all gap transactions left from "
-                          "the previous slave session.");
+    LogErr(INFORMATION_LEVEL, ER_SLAVE_SQL_THREAD_STOPPED_GAP_TRX_PROCESSED);
     m_rli->until_condition= Relay_log_info::UNTIL_DONE;
     return true;
   }

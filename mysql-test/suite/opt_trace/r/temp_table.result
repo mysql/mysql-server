@@ -100,20 +100,21 @@ SELECT uniq, col1 FROM t1 GROUP BY col2,uniq LIMIT 3	{
             } /* attaching_conditions_to_tables */
           },
           {
-            "clause_processing": {
-              "clause": "GROUP BY",
-              "original_clause": "`t1`.`col2`,`t1`.`uniq`",
-              "items": [
-                {
-                  "item": "`t1`.`col2`"
-                },
-                {
-                  "item": "`t1`.`uniq`"
-                }
-              ] /* items */,
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`col2`,`t1`.`uniq`"
-            } /* clause_processing */
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_group_by": {
+                "original_clause": "`t1`.`col2`,`t1`.`uniq`",
+                "items": [
+                  {
+                    "item": "`t1`.`col2`"
+                  },
+                  {
+                    "item": "`t1`.`uniq`"
+                  }
+                ] /* items */,
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`col2`,`t1`.`uniq`"
+              } /* simplifying_group_by */
+            } /* optimizing_distinct_group_by_order_by */
           },
           {
             "refine_plan": [
@@ -121,6 +122,14 @@ SELECT uniq, col1 FROM t1 GROUP BY col2,uniq LIMIT 3	{
                 "table": "`t1`"
               }
             ] /* refine_plan */
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_tmp_table_in_plan_at_position": 1,
+                "write_method": "write_all_rows"
+              }
+            ] /* considering_tmp_tables */
           }
         ] /* steps */
       } /* join_optimization */
@@ -133,11 +142,14 @@ SELECT uniq, col1 FROM t1 GROUP BY col2,uniq LIMIT 3	{
             "creating_tmp_table": {
               "tmp_table_info": {
                 "table": "intermediate_tmp_table",
+                "in_plan_at_position": 1,
+                "columns": 4,
                 "row_length": 4190,
                 "key_length": 8,
                 "unique_constraint": true,
-                "location": "memory (heap)",
-                "row_limit_estimate": 4004
+                "makes_grouped_rows": true,
+                "cannot_insert_duplicates": false,
+                "location": "TempTable"
               } /* tmp_table_info */
             } /* creating_tmp_table */
           }
@@ -241,17 +253,18 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
             } /* attaching_conditions_to_tables */
           },
           {
-            "clause_processing": {
-              "clause": "GROUP BY",
-              "original_clause": "`t1`.`uniq`",
-              "items": [
-                {
-                  "item": "`t1`.`uniq`"
-                }
-              ] /* items */,
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`uniq`"
-            } /* clause_processing */
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_group_by": {
+                "original_clause": "`t1`.`uniq`",
+                "items": [
+                  {
+                    "item": "`t1`.`uniq`"
+                  }
+                ] /* items */,
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`uniq`"
+              } /* simplifying_group_by */
+            } /* optimizing_distinct_group_by_order_by */
           },
           {
             "refine_plan": [
@@ -259,6 +272,14 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
                 "table": "`t1`"
               }
             ] /* refine_plan */
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_tmp_table_in_plan_at_position": 1,
+                "write_method": "write_all_rows"
+              }
+            ] /* considering_tmp_tables */
           }
         ] /* steps */
       } /* join_optimization */
@@ -271,11 +292,14 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
             "creating_tmp_table": {
               "tmp_table_info": {
                 "table": "intermediate_tmp_table",
+                "in_plan_at_position": 1,
+                "columns": 3,
                 "row_length": 4182,
                 "key_length": 43,
                 "unique_constraint": false,
-                "location": "memory (heap)",
-                "row_limit_estimate": 4011
+                "makes_grouped_rows": true,
+                "cannot_insert_duplicates": false,
+                "location": "TempTable"
               } /* tmp_table_info */
             } /* creating_tmp_table */
           }
@@ -289,6 +313,7 @@ select @@tmp_table_size;
 16777216
 SET @old_size= @@tmp_table_size;
 SET SESSION tmp_table_size= 1024;
+SET SESSION internal_tmp_mem_storage_engine='memory';
 INSERT INTO t1 SELECT pk+8, col1, col1 FROM tmp;
 SELECT uniq, col1, col2 FROM t1 GROUP BY uniq;
 uniq	col1	col2
@@ -393,17 +418,18 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
             } /* attaching_conditions_to_tables */
           },
           {
-            "clause_processing": {
-              "clause": "GROUP BY",
-              "original_clause": "`t1`.`uniq`",
-              "items": [
-                {
-                  "item": "`t1`.`uniq`"
-                }
-              ] /* items */,
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`uniq`"
-            } /* clause_processing */
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_group_by": {
+                "original_clause": "`t1`.`uniq`",
+                "items": [
+                  {
+                    "item": "`t1`.`uniq`"
+                  }
+                ] /* items */,
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`uniq`"
+              } /* simplifying_group_by */
+            } /* optimizing_distinct_group_by_order_by */
           },
           {
             "refine_plan": [
@@ -411,6 +437,14 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
                 "table": "`t1`"
               }
             ] /* refine_plan */
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_tmp_table_in_plan_at_position": 1,
+                "write_method": "write_all_rows"
+              }
+            ] /* considering_tmp_tables */
           }
         ] /* steps */
       } /* join_optimization */
@@ -423,9 +457,13 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
             "creating_tmp_table": {
               "tmp_table_info": {
                 "table": "intermediate_tmp_table",
+                "in_plan_at_position": 1,
+                "columns": 3,
                 "row_length": 4182,
                 "key_length": 43,
                 "unique_constraint": false,
+                "makes_grouped_rows": true,
+                "cannot_insert_duplicates": false,
                 "location": "memory (heap)",
                 "row_limit_estimate": 1
               } /* tmp_table_info */
@@ -436,9 +474,13 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
               "cause": "memory_table_size_exceeded",
               "tmp_table_info": {
                 "table": "intermediate_tmp_table",
+                "in_plan_at_position": 1,
+                "columns": 3,
                 "row_length": 4182,
                 "key_length": 43,
                 "unique_constraint": false,
+                "makes_grouped_rows": true,
+                "cannot_insert_duplicates": false,
                 "location": "disk (TMP_TABLE_ENGINE)",
                 "record_format": "packed"
               } /* tmp_table_info */
@@ -449,6 +491,7 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
     }
   ] /* steps */
 }	0	0
+SET SESSION internal_tmp_mem_storage_engine=default;
 SET GLOBAL tmp_table_size= @old_size;
 SELECT pool_id FROM information_schema.INNODB_BUFFER_PAGE LIMIT 1;
 pool_id
@@ -460,9 +503,12 @@ SELECT pool_id FROM information_schema.INNODB_BUFFER_PAGE LIMIT 1	{
     {
       "creating_tmp_table": {
         "tmp_table_info": {
+          "columns": 20,
           "row_length": 6852,
           "key_length": 0,
           "unique_constraint": false,
+          "makes_grouped_rows": false,
+          "cannot_insert_duplicates": false,
           "location": "memory (heap)",
           "row_limit_estimate": 1
         } /* tmp_table_info */
@@ -560,9 +606,13 @@ SELECT pool_id FROM information_schema.INNODB_BUFFER_PAGE LIMIT 1	{
               "cause": "memory_table_size_exceeded",
               "tmp_table_info": {
                 "table": "`information_schema`.`INNODB_BUFFER_PAGE`",
+                "in_plan_at_position": 0,
+                "columns": 20,
                 "row_length": 6852,
                 "key_length": 0,
                 "unique_constraint": false,
+                "makes_grouped_rows": false,
+                "cannot_insert_duplicates": false,
                 "location": "disk (TMP_TABLE_ENGINE)",
                 "record_format": "packed"
               } /* tmp_table_info */
@@ -588,20 +638,13 @@ SET @@max_heap_table_size=1;
 Warnings:
 Warning	1292	Truncated incorrect max_heap_table_size value: '1'
 SET @@group_concat_max_len= 500;
+SET SESSION internal_tmp_mem_storage_engine='memory';
 SELECT c1,GROUP_CONCAT(c2) cc FROM
 (SELECT * FROM t1 UNION SELECT c1, 'a' FROM t1) tt
 GROUP BY c1
 ORDER BY cc;
 c1	cc
 1	a,b
-2	a,b
-3	a,b
-4	a,b
-5	a,b
-6	a,b
-7	a,b
-8	a,b
-9	a,b
 10	a,b
 11	a,b
 12	a,b
@@ -612,6 +655,7 @@ c1	cc
 17	a,b
 18	a,b
 19	a,b
+2	a,b
 20	a,b
 21	a,b
 22	a,b
@@ -622,6 +666,7 @@ c1	cc
 27	a,b
 28	a,b
 29	a,b
+3	a,b
 30	a,b
 31	a,b
 32	a,b
@@ -632,6 +677,7 @@ c1	cc
 37	a,b
 38	a,b
 39	a,b
+4	a,b
 40	a,b
 41	a,b
 42	a,b
@@ -642,6 +688,7 @@ c1	cc
 47	a,b
 48	a,b
 49	a,b
+5	a,b
 50	a,b
 51	a,b
 52	a,b
@@ -652,6 +699,7 @@ c1	cc
 57	a,b
 58	a,b
 59	a,b
+6	a,b
 60	a,b
 61	a,b
 62	a,b
@@ -659,6 +707,9 @@ c1	cc
 64	a,b
 65	a,b
 66	a,b
+7	a,b
+8	a,b
+9	a,b
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 SELECT c1,GROUP_CONCAT(c2) cc FROM
@@ -694,9 +745,12 @@ ORDER BY cc	{
             "creating_tmp_table": {
               "tmp_table_info": {
                 "table": "intermediate_tmp_table",
+                "columns": 2,
                 "row_length": 757,
                 "key_length": 757,
                 "unique_constraint": false,
+                "makes_grouped_rows": false,
+                "cannot_insert_duplicates": true,
                 "location": "memory (heap)",
                 "row_limit_estimate": 1
               } /* tmp_table_info */
@@ -1012,30 +1066,28 @@ ORDER BY cc	{
             } /* attaching_conditions_to_tables */
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`cc`",
-              "items": [
-                {
-                  "item": "group_concat(`tt`.`c2` separator ',')"
-                }
-              ] /* items */,
-              "resulting_clause_is_simple": false,
-              "resulting_clause": "`cc`"
-            } /* clause_processing */
-          },
-          {
-            "clause_processing": {
-              "clause": "GROUP BY",
-              "original_clause": "`tt`.`c1`",
-              "items": [
-                {
-                  "item": "`tt`.`c1`"
-                }
-              ] /* items */,
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`tt`.`c1`"
-            } /* clause_processing */
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`cc`",
+                "items": [
+                  {
+                    "item": "group_concat(`tt`.`c2` separator ',')"
+                  }
+                ] /* items */,
+                "resulting_clause_is_simple": false,
+                "resulting_clause": "`cc`"
+              } /* simplifying_order_by */,
+              "simplifying_group_by": {
+                "original_clause": "`tt`.`c1`",
+                "items": [
+                  {
+                    "item": "`tt`.`c1`"
+                  }
+                ] /* items */,
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`tt`.`c1`"
+              } /* simplifying_group_by */
+            } /* optimizing_distinct_group_by_order_by */
           },
           {
             "refine_plan": [
@@ -1045,16 +1097,33 @@ ORDER BY cc	{
             ] /* refine_plan */
           },
           {
-            "creating_tmp_table": {
-              "tmp_table_info": {
-                "table": "intermediate_tmp_table",
-                "row_length": 753,
-                "key_length": 0,
-                "unique_constraint": false,
-                "location": "memory (heap)",
-                "row_limit_estimate": 1
-              } /* tmp_table_info */
-            } /* creating_tmp_table */
+            "considering_tmp_tables": [
+              {
+                "adding_tmp_table_in_plan_at_position": 1,
+                "filesort": {
+                  "adding_sort_to_table_in_plan_at_position": 0
+                } /* filesort */,
+                "unknown_key_1": {
+                  "creating_tmp_table": {
+                    "tmp_table_info": {
+                      "table": "intermediate_tmp_table",
+                      "columns": 1,
+                      "row_length": 753,
+                      "key_length": 0,
+                      "unique_constraint": false,
+                      "makes_grouped_rows": false,
+                      "cannot_insert_duplicates": false,
+                      "location": "memory (heap)",
+                      "row_limit_estimate": 1
+                    } /* tmp_table_info */
+                  } /* creating_tmp_table */
+                },
+                "write_method": "write_group_row_when_complete"
+              },
+              {
+                "adding_sort_to_table_in_plan_at_position": 1
+              } /* filesort */
+            ] /* considering_tmp_tables */
           }
         ] /* steps */
       } /* join_optimization */
@@ -1067,9 +1136,13 @@ ORDER BY cc	{
             "creating_tmp_table": {
               "tmp_table_info": {
                 "table": " `tt`",
+                "in_plan_at_position": 0,
+                "columns": 2,
                 "row_length": 757,
                 "key_length": 0,
                 "unique_constraint": false,
+                "makes_grouped_rows": false,
+                "cannot_insert_duplicates": false,
                 "location": "memory (heap)",
                 "row_limit_estimate": 1
               } /* tmp_table_info */
@@ -1084,9 +1157,13 @@ ORDER BY cc	{
                     "cause": "memory_table_size_exceeded",
                     "tmp_table_info": {
                       "table": "intermediate_tmp_table",
+                      "in_plan_at_position": 0,
+                      "columns": 2,
                       "row_length": 757,
                       "key_length": 757,
                       "unique_constraint": false,
+                      "makes_grouped_rows": false,
+                      "cannot_insert_duplicates": true,
                       "location": "disk (TMP_TABLE_ENGINE)",
                       "record_format": "packed"
                     } /* tmp_table_info */
@@ -1111,9 +1188,13 @@ ORDER BY cc	{
                     "cause": "memory_table_size_exceeded",
                     "tmp_table_info": {
                       "table": " `tt`",
+                      "in_plan_at_position": 0,
+                      "columns": 2,
                       "row_length": 757,
                       "key_length": 0,
                       "unique_constraint": false,
+                      "makes_grouped_rows": false,
+                      "cannot_insert_duplicates": false,
                       "location": "disk (TMP_TABLE_ENGINE)",
                       "record_format": "packed"
                     } /* tmp_table_info */
@@ -1123,6 +1204,7 @@ ORDER BY cc	{
             } /* join_execution */
           },
           {
+            "sorting_table_in_plan_at_position": 0,
             "filesort_information": [
               {
                 "direction": "asc",
@@ -1144,7 +1226,7 @@ ORDER BY cc	{
               "num_rows_estimate": 1365,
               "num_rows_found": 132,
               "num_examined_rows": 132,
-              "num_tmp_files": 0,
+              "num_initial_chunks_spilled_to_disk": 0,
               "sort_buffer_size": 262144,
               "sort_algorithm": "std::stable_sort",
               "sort_mode": "<fixed_sort_key, packed_additional_fields>"
@@ -1154,9 +1236,13 @@ ORDER BY cc	{
             "creating_tmp_table": {
               "tmp_table_info": {
                 "table": "intermediate_tmp_table",
+                "in_plan_at_position": 1,
+                "columns": 2,
                 "row_length": 1507,
                 "key_length": 0,
                 "unique_constraint": false,
+                "makes_grouped_rows": false,
+                "cannot_insert_duplicates": false,
                 "location": "memory (heap)",
                 "row_limit_estimate": 1
               } /* tmp_table_info */
@@ -1167,15 +1253,20 @@ ORDER BY cc	{
               "cause": "memory_table_size_exceeded",
               "tmp_table_info": {
                 "table": "intermediate_tmp_table",
+                "in_plan_at_position": 1,
+                "columns": 2,
                 "row_length": 1507,
                 "key_length": 0,
                 "unique_constraint": false,
+                "makes_grouped_rows": false,
+                "cannot_insert_duplicates": false,
                 "location": "disk (TMP_TABLE_ENGINE)",
                 "record_format": "packed"
               } /* tmp_table_info */
             } /* converting_tmp_table_to_ondisk */
           },
           {
+            "sorting_table_in_plan_at_position": 1,
             "filesort_information": [
               {
                 "direction": "asc",
@@ -1197,7 +1288,7 @@ ORDER BY cc	{
               "num_rows_estimate": 1365,
               "num_rows_found": 66,
               "num_examined_rows": 66,
-              "num_tmp_files": 0,
+              "num_initial_chunks_spilled_to_disk": 0,
               "sort_buffer_size": 261872,
               "sort_algorithm": "std::sort",
               "unpacked_addon_fields": "max_length_for_sort_data",
@@ -1211,4 +1302,5 @@ ORDER BY cc	{
 }	0	0
 DROP TABLE t1;
 #
+SET SESSION internal_tmp_mem_storage_engine=default;
 SET max_length_for_sort_data=DEFAULT;

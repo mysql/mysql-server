@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -168,7 +168,9 @@ void
 NdbCondition_ComputeAbsTime(struct timespec * abstime, unsigned msecs)
 {
   int secs = 0;
-#ifndef NDB_WIN
+#ifdef _WIN32
+  set_timespec_nsec(abstime, msecs * 1000000ULL);
+#else
 #ifdef HAVE_CLOCK_GETTIME
   clock_gettime(clock_id, abstime);
 #else
@@ -191,15 +193,15 @@ NdbCondition_ComputeAbsTime(struct timespec * abstime, unsigned msecs)
     abstime->tv_sec  += 1;
     abstime->tv_nsec -= 1000000000;
   }
-#else
-  set_timespec_nsec(abstime,msecs*1000000ULL);
 #endif
 }
 
 void
 NdbCondition_ComputeAbsTime_ns(struct timespec * abstime, Uint64 nsecs)
 {
-#ifndef NDB_WIN
+#ifdef _WIN32
+  set_timespec_nsec(abstime, nsecs);
+#else
 #ifdef HAVE_CLOCK_GETTIME
   clock_gettime(clock_id, abstime);
 #else
@@ -221,8 +223,6 @@ NdbCondition_ComputeAbsTime_ns(struct timespec * abstime, Uint64 nsecs)
   {
     abstime->tv_nsec  = nsecs;
   }
-#else
-  set_timespec_nsec(abstime,nsecs);
 #endif
 }
 
@@ -231,7 +231,7 @@ NdbCondition_WaitTimeoutAbs(struct NdbCondition* p_cond,
                             NdbMutex* p_mutex,
                             const struct timespec * abstime)
 {
-#ifdef NDB_WIN
+#ifdef _WIN32
   /**
    * mysys windows wrapper of pthread_cond_timedwait
    *   does not have a const argument for the timespec

@@ -160,6 +160,7 @@ extern bool plugin_register_early_plugins(int *argc, char **argv, int flags);
 extern bool plugin_register_builtin_and_init_core_se(int *argc, char **argv);
 extern bool plugin_register_dynamic_and_init_all(int *argc,
                                                  char **argv, int init_flags);
+extern bool is_builtin_and_core_se_initialized();
 extern void plugin_shutdown(void);
 extern void memcached_shutdown(void);
 void add_plugin_options(std::vector<my_option> *options, MEM_ROOT *mem_root);
@@ -190,5 +191,7 @@ extern bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func **funcs,
                                      int type, uint state_mask, void *arg);
 int lock_plugin_data();
 int unlock_plugin_data();
+
+bool end_transaction(THD *thd, bool error);
 
 #endif

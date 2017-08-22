@@ -5,6 +5,3 @@
 --replicate-wild-do-table=global_db.t%
 --replicate-wild-ignore-table=global_idb.t%
 --replicate-rewrite-db=global_db1->rewrite_db7
-
---master-info-repository=TABLE
---relay-log-info-repository=TABLE

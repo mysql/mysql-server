@@ -2,7 +2,6 @@
 # Simple test for blackhole example
 # Taken from the select test
 #
--- source include/not_embedded.inc
 -- source include/have_blackhole.inc
 -- source include/have_log_bin.inc
 

@@ -1,6 +1,3 @@
-# Not supported in embedded
---source include/not_embedded.inc
-
 # Adding big test option for this test.
 --source include/big_test.inc
 
@@ -13,15 +10,6 @@
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
 
-
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4. opt file added too.
---disable_query_log
-let $testdbcs43=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-alter schema test default character set latin1;
---enable_query_log
-########################################
 
 let MYSQLD_DATADIR =`SELECT @@datadir`;
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
@@ -868,7 +856,7 @@ CREATE TABLE test_wl5522.t1 (
 	c4 VARCHAR(2048),
 	INDEX idx1(c2),
 	INDEX idx2(c3(512)),
-	INDEX idx3(c4(512))) Engine=InnoDB;
+	INDEX idx3(c4(512))) Engine=InnoDB Charset=latin1;
 
 # Stop purge so that it doesn't remove the delete marked entries.
 SET GLOBAL INNODB_PURGE_STOP_NOW=ON;
@@ -952,7 +940,7 @@ CREATE TABLE test_wl5522.t1 (
 	c4 VARCHAR(2048),
 	INDEX idx1(c2),
 	INDEX idx2(c3(512)),
-	INDEX idx3(c4(512))) Engine=InnoDB;
+	INDEX idx3(c4(512))) Engine=InnoDB Charset=latin1;
 
 SELECT c1, c2 FROM test_wl5522.t1;
 
@@ -1256,6 +1244,8 @@ call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, reme
 call mtr.add_suppression("\\[ERROR\\] InnoDB: IO Error: while reading index meta-data, expected to read 44 bytes but read only 0 bytes");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 2 in a file operation.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Unable to open tablespace .*");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Trying to import a tablespace, but could not open the tablespace file");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Unsupported tablespace format");
 --enable_query_log
 
@@ -1266,10 +1256,3 @@ call mtr.add_suppression("\\[ERROR\\] InnoDB: Unsupported tablespace format");
 eval SET GLOBAL INNODB_FILE_PER_TABLE=$innodb_file_per_table;
 
 -- source suite/innodb/include/check_pfs_mem_other_is_zero.inc
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
---eval alter schema test default character set $testdbcs43;
---enable_query_log
-########################################

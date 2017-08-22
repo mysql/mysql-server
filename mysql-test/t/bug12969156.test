@@ -1,5 +1,4 @@
 --source include/have_daemon_example_plugin.inc
---source include/not_embedded.inc
 # TODO: the windows emulation of pthreads doesn't behave predictably
 --source include/not_windows.inc
 

@@ -15,9 +15,42 @@
 
 
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_ndbapitools.cmake)
+INCLUDE(${CMAKE_SOURCE_DIR}/cmake/bison.cmake)
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbapi
-  ${CMAKE_SOURCE_DIR}/storage/ndb/include/kernel/signaldata)
+  ${CMAKE_SOURCE_DIR}/storage/ndb/include/kernel/signaldata
+  ${CMAKE_SOURCE_DIR}/storage/ndb/include/ndbtools
+  ${CMAKE_SOURCE_DIR}/storage/ndb/include/util
+  ${CMAKE_BINARY_DIR}/storage/ndb/tools)
+
+IF(NOT WIN32)
+ADD_CONVENIENCE_LIBRARY(ndbtools
+  NdbImport.cpp
+  NdbImportImpl.cpp
+  NdbImportCsv.cpp
+  NdbImportCsvGram.cpp
+  NdbImportUtil.cpp)
+
+IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  # Suppress warnings for undefined identifiers in bison output
+  ADD_COMPILE_FLAGS(${CMAKE_CURRENT_BINARY_DIR}/NdbImportCsvGram.cpp
+                    COMPILE_FLAGS "-Wno-undef")
+ENDIF()
+
+COPY_BISON_OUTPUT(
+  ${CMAKE_CURRENT_SOURCE_DIR}/NdbImportCsvGram.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/NdbImportCsvGram.hpp
+  ${CMAKE_CURRENT_BINARY_DIR}/NdbImportCsvGram.cpp
+  ${CMAKE_CURRENT_BINARY_DIR}/NdbImportCsvGram.hpp
+)
+
+RUN_BISON(
+  ${CMAKE_CURRENT_SOURCE_DIR}/NdbImportCsvGram.ypp
+  ${CMAKE_CURRENT_BINARY_DIR}/NdbImportCsvGram.cpp
+  ${CMAKE_CURRENT_BINARY_DIR}/NdbImportCsvGram.hpp
+  NdbImportCsv_yy
+)
+ENDIF()
 
 MYSQL_ADD_EXECUTABLE(ndb_waiter
   waiter.cpp
@@ -68,6 +101,19 @@ MYSQL_ADD_EXECUTABLE(ndb_restore
   ndb_lib_move_data.cpp
   COMPONENT ClusterTools)
 TARGET_LINK_LIBRARIES(ndb_restore ndbclient_static ndbNDBT)
+
+IF(NOT WIN32)
+MYSQL_ADD_EXECUTABLE(ndb_import
+  ndb_import.cpp
+  COMPONENT ClusterTools)
+TARGET_LINK_LIBRARIES(ndb_import ndbtools ndbclient_static regex)
+
+NDB_ADD_TEST(NdbImportUtil-t NdbImportUtil.cpp
+             LIBS ndbtools ndbclient_static regex)
+
+NDB_ADD_TEST(NdbImportCsv-t NdbImportCsv.cpp
+             LIBS ndbtools ndbclient_static regex)
+ENDIF()
 
 MYSQL_ADD_EXECUTABLE(ndb_config
   ndb_config.cpp

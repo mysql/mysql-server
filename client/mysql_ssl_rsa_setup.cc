@@ -186,11 +186,9 @@ static
 int set_file_pair_permission(const Sql_string_t &priv,
                              const Sql_string_t &pub)
 {
-  if (MY_TEST(my_chmod(priv.c_str(),
-              USER_READ| USER_WRITE, MYF(MY_FAE+MY_WME))) ||
-      MY_TEST(my_chmod(pub.c_str(),
-              USER_READ|USER_WRITE|GROUP_READ|OTHERS_READ,
-              MYF(MY_FAE+MY_WME))))
+  if (my_chmod(priv.c_str(), USER_READ| USER_WRITE, MYF(MY_FAE+MY_WME)) ||
+      my_chmod(pub.c_str(), USER_READ|USER_WRITE|GROUP_READ|OTHERS_READ,
+              MYF(MY_FAE+MY_WME)))
   {
     error << "Error setting file permissions for" << priv.c_str()
           << " and " << pub.c_str() << endl;
@@ -360,9 +358,7 @@ void usage(void)
 
 extern "C" {
 static bool
-my_arguments_get_one_option(int optid,
-                            const struct my_option *opt MY_ATTRIBUTE((unused)),
-                            char *argument)
+my_arguments_get_one_option(int optid, const struct my_option*, char*)
 {
   switch(optid){
     case '?':

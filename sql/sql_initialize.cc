@@ -37,6 +37,7 @@
 #include "sql_bootstrap.h"
 #include "sql_class.h"
 #include "sql_error.h"
+#include "components/mysql_server/log_builtins_filter_imp.h" // verbosity
 
 static const char *initialization_cmds[] =
 {
@@ -61,14 +62,26 @@ static const char *initialization_data[] =
   NULL
 };
 
+static const char *session_service_initialization_data[] =
+{
+  "CREATE USER 'mysql.session'@localhost IDENTIFIED "
+    "WITH mysql_native_password AS '*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE' "
+    "ACCOUNT LOCK;\n",
+  "REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'mysql.session'@localhost;\n",
+  "GRANT SELECT ON mysql.user TO 'mysql.session'@localhost;\n",
+  "GRANT SELECT ON performance_schema.* TO 'mysql.session'@localhost;\n",
+  "GRANT SUPER ON *.* TO 'mysql.session'@localhost;\n",
+  NULL
+};
 
-static const char** cmds[]= 
+static const char** cmds[]=
 {
   initialization_cmds,
   mysql_system_tables,
   initialization_data,
   mysql_system_data,
   fill_help_tables,
+  session_service_initialization_data,
   mysql_sys_schema,
   NULL
 };
@@ -81,6 +94,7 @@ static const char *cmd_descs[]=
   "Filling in the system tables, part 1",
   "Filling in the system tables, part 2",
   "Filling in the mysql.help table",
+  "Creating user for internal session service",
   "Creating the sys schema",
   NULL
 };
@@ -165,8 +179,7 @@ void Compiled_in_command_iterator::begin(void)
   if (opt_initialize_insecure)
   {
     strcpy(insert_user_buffer, INSERT_USER_CMD_INSECURE);
-    sql_print_warning("root@localhost is created with an empty password ! "
-                      "Please consider switching off the --initialize-insecure option.");
+    LogErr(WARNING_LEVEL, ER_INIT_ROOT_WITHOUT_PASSWORD);
   }
   else
   {
@@ -181,10 +194,11 @@ void Compiled_in_command_iterator::begin(void)
       Temporarily bump verbosity to print the password.
       It's safe to do it since we're the sole process running.
     */
-    log_error_verbosity= 3;
-    sql_print_information(
-      "A temporary password is generated for root@localhost: %s", password);
-    log_error_verbosity= saved_verbosity;
+    log_builtins_filter_update_verbosity((log_error_verbosity= 3));
+    LogErr(INFORMATION_LEVEL, ER_INIT_GENERATING_TEMP_PASSWORD_FOR_ROOT,
+           password);
+    log_builtins_filter_update_verbosity((log_error_verbosity=
+                                          saved_verbosity));
 
     escape_string_for_mysql(&my_charset_bin,
                             escaped_password, sizeof(escaped_password),
@@ -220,7 +234,7 @@ int Compiled_in_command_iterator::next(std::string &query, int *read_error,
       init_file_iter= new bootstrap::File_command_iterator(opt_init_file);
       if (!init_file_iter->has_file())
       {
-        sql_print_error("Failed to open the bootstrap file %s", opt_init_file);
+        LogErr(ERROR_LEVEL, ER_INIT_CANT_OPEN_BOOTSTRAP_FILE, opt_init_file);
         /* in case of error in open */
         delete init_file_iter;
         init_file_iter= NULL;
@@ -247,7 +261,7 @@ void Compiled_in_command_iterator::end(void)
   }
   if (is_active)
   {
-    sql_print_information("Bootstrapping complete");
+    LogErr(INFORMATION_LEVEL, ER_INIT_BOOTSTRAP_COMPLETE);
     is_active= false;
   }
 }
@@ -302,18 +316,17 @@ bool initialize_create_data_directory(const char *data_home)
 
     if (!no_files)
     {
-      sql_print_error("--initialize specified but the data directory"
-                      " has files in it. Aborting.");
+      LogErr(ERROR_LEVEL, ER_INIT_DATADIR_NOT_EMPTY_WONT_INITIALIZE);
       return true;        /* purecov: inspected */
     }
 
-    sql_print_information("--initialize specifed on an existing data directory.");
+    LogErr(INFORMATION_LEVEL, ER_INIT_DATADIR_EXISTS_WONT_INITIALIZE);
 
     if (NULL == fn_format(path, "is_writable", data_home, "",
       MY_UNPACK_FILENAME | MY_SAFE_PATH))
     {
-      sql_print_error("--initialize specified but the data directory"
-      " exists and the path is too long. Aborting.");
+      LogErr(ERROR_LEVEL,
+             ER_INIT_DATADIR_EXISTS_AND_PATH_TOO_LONG_WONT_INITIALIZE);
       return true;        /* purecov: inspected */
 
     }
@@ -324,8 +337,8 @@ bool initialize_create_data_directory(const char *data_home)
     }
     else
     {
-      sql_print_error("--initialize specified but the data directory"
-      " exists and is not writable. Aborting.");
+      LogErr(ERROR_LEVEL,
+             ER_INIT_DATADIR_EXISTS_AND_NOT_WRITABLE_WONT_INITIALIZE);
       return true;        /* purecov: inspected */
     }
 
@@ -333,7 +346,7 @@ bool initialize_create_data_directory(const char *data_home)
     return false;
   }
 
-  sql_print_information("Creating the data directory %s", data_home);
+  LogErr(INFORMATION_LEVEL, ER_INIT_CREATING_DD, data_home);
   if (my_mkdir(data_home, flags, MYF(MY_WME)))
     return true;        /* purecov: inspected */
 

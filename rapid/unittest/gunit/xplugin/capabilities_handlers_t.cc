@@ -41,7 +41,7 @@ class No_delete
 {
 public:
   template <typename T>
-  void operator() (T *memory)
+  void operator() (T*)
   {
   }
 };

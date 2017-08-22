@@ -1,0 +1,9 @@
+#
+# Removing partitioning would not change the table level tablespace
+#
+CREATE TABLE t1 (col1 INT)
+ENGINE = InnoDB PARTITION BY KEY(col1) PARTITIONS 3;
+ALTER TABLE t1 ROW_FORMAT = COMPRESSED TABLESPACE innodb_system;
+ALTER TABLE t1 REMOVE PARTITIONING;
+ERROR HY000: InnoDB: Tablespace `innodb_system` cannot contain a COMPRESSED table
+DROP TABLE t1;

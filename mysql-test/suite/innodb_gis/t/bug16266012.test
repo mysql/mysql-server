@@ -3,7 +3,6 @@
 # COLLECTION_INIT_FROM_OPRESULT
 #********************************************************
 
---source include/not_embedded.inc
 --source include/have_debug.inc
 --echo # Invalid geometry in input
 SELECT ST_WITHIN( ST_LINESTRINGFROMTEXT('  LINESTRING( 5 9 , 3 4 , 4 1 , 4

@@ -12,6 +12,7 @@
 # 6. Stop M2. Check one member on the group.
 # 7. Stop M3. Check no members on the group.
 ################################################################################
+--source include/big_test.inc
 --let $group_replication_group_name= 8a94f357-aab4-11df-86ab-c80aa9429500
 --source ../inc/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
@@ -91,7 +92,7 @@
 --source ../inc/gr_wait_for_number_of_members.inc
 
 --replace_column 2 MEMBER_ID 3 MEMBER_HOST 4 MEMBER_PORT
-SELECT * FROM performance_schema.replication_group_members;
+SELECT CHANNEL_NAME, MEMBER_ID, MEMBER_HOST, MEMBER_PORT, MEMBER_STATE FROM performance_schema.replication_group_members;
 
 
 --echo

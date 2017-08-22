@@ -33,11 +33,11 @@ use mysqltest1;
 set @my_binlog_format= @@global.binlog_format;
 
 #  play with switching
-set session binlog_format=mixed;
+set session binlog_format='mixed';
 show session variables like "binlog_format%";
-set session binlog_format=statement;
+set session binlog_format='statement';
 show session variables like "binlog_format%";
-set session binlog_format=row;
+set session binlog_format='row';
 show session variables like "binlog_format%";
 
 set global binlog_format=DEFAULT;
@@ -46,7 +46,7 @@ set global binlog_format=MIXED;
 show global variables like "binlog_format%";
 set global binlog_format=STATEMENT;
 show global variables like "binlog_format%";
-set global binlog_format=ROW;
+set global binlog_format='ROW';
 show global variables like "binlog_format%";
 show session variables like "binlog_format%";
 select @@global.binlog_format, @@session.binlog_format;
@@ -173,13 +173,13 @@ begin
 insert into t1 values(concat("emergency_28_",UUID()));
 insert into t1 values("work_29_");
 insert into t1 values(concat("for_30_",UUID()));
-set session binlog_format=row; # accepted for stored procs
+set session binlog_format='row'; # accepted for stored procs
 insert into t1 values("more work_31_");
 set session binlog_format=mixed;
 end|
 create function foo3() returns bigint unsigned
 begin
-  set session binlog_format=row; # rejected for stored funcs
+  set session binlog_format='row'; # rejected for stored funcs
   insert into t1 values("alarm");
   return 100;
 end|
@@ -523,7 +523,7 @@ DROP TABLE IF EXISTS t11;
 SET SESSION BINLOG_FORMAT=STATEMENT;
 CREATE TABLE t11 (song VARCHAR(255));
 LOCK TABLES t11 WRITE;
-SET SESSION BINLOG_FORMAT=ROW;
+SET SESSION BINLOG_FORMAT='ROW';
 INSERT INTO t11 VALUES('Several Species of Small Furry Animals Gathered Together in a Cave and Grooving With a Pict');
 SET SESSION BINLOG_FORMAT=STATEMENT;
 INSERT INTO t11 VALUES('Careful With That Axe, Eugene');

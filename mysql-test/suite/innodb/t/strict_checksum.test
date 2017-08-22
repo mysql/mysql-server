@@ -3,8 +3,6 @@
 --echo #
 
 --source include/have_debug.inc
-# Embedded mode doesn't support restart
---source include/not_embedded.inc
 
 # Plugin 'InnoDB' has ref_count=1 after shutdown
 call mtr.add_suppression("Plugin \'InnoDB\'");

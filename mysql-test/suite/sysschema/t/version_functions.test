@@ -8,7 +8,6 @@
 #                                                                #
 ##################################################################
 
--- source include/not_embedded.inc
 
 # Sanity check - the functions should not return any warnings or errors
 --disable_result_log

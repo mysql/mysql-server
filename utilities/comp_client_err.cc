@@ -48,10 +48,7 @@ static void usage(void)
          " -O, --out_file=name Output file name\n");
 }
 
-static bool
-get_one_option(int optid,
-               const struct my_option *opt MY_ATTRIBUTE ((unused)),
-               char *argument MY_ATTRIBUTE ((unused)))
+static bool get_one_option(int, const struct my_option*, char*)
 {
   return 0;
 }

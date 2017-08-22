@@ -28,35 +28,23 @@
 #include "my_systime.h"
 #include "plugin_psi.h"
 
-/**
-  This method instructs all local transactions to rollback when certification is
-  no longer possible.
-*/
-void unblock_waiting_transactions();
+class Blocked_transaction_handler
+{
+public:
+  Blocked_transaction_handler();
+  virtual ~Blocked_transaction_handler();
 
-/**
-  This method creates a server session and connects to the server
-  to enable the read mode
+  /**
+    This method instructs all local transactions to rollback when certification is
+    no longer possible.
+  */
+  void unblock_waiting_transactions();
 
-  @param threaded   Shall the session create a new dedicated thread
+private:
 
-  @return the operation status
-    @retval 0      OK
-    @retval !=0    Error
-*/
-int set_server_read_mode(bool threaded);
-
-/**
-  This method creates a server session and connects to the server
-  to reset the read mode
-
-  @param threaded   Shall the session create a new dedicated thread
-
-  @return the operation status
-    @retval 0      OK
-    @retval !=0    Error
-*/
-int reset_server_read_mode(bool threaded);
+  /* The lock that disallows concurrent method executions */
+  mysql_mutex_t unblocking_process_lock;
+};
 
 template <typename T>
 class Synchronized_queue

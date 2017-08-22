@@ -103,10 +103,10 @@ DROP TABLE t2;
 # row has a lower rank than another, the JSON value in that row is
 # expected to be smaller than the JSON value in the other row.
 CREATE TABLE numbers(id INT NOT NULL AUTO_INCREMENT,
-                     rank INT,
+                     `rank` INT,
                      j JSON,
                      PRIMARY KEY(id));
-INSERT INTO numbers(rank, j) VALUES
+INSERT INTO numbers(`rank`, j) VALUES
 (1, '-1e100'),
 (2, '-1e65'),
 # smallest DECIMAL (negative with 65 digits)
@@ -162,10 +162,10 @@ SELECT *, JSON_TYPE(j) FROM numbers ORDER BY id;
 # If all is well, the query returns no rows.
 SELECT a.j, b.j, a.j < b.j, a.j = b.j, a.j > b.j, a.j <=> b.j
 FROM numbers a, numbers b
-WHERE ((a.j < b.j) <> (a.rank < b.rank)) OR
-      ((a.j = b.j) <> (a.rank = b.rank)) OR
-      ((a.j > b.j) <> (a.rank > b.rank)) OR
-      ((a.j <=> b.j) <> (a.rank <=> b.rank));
+WHERE ((a.j < b.j) <> (a.`rank` < b.`rank`)) OR
+      ((a.j = b.j) <> (a.`rank` = b.`rank`)) OR
+      ((a.j > b.j) <> (a.`rank` > b.`rank`)) OR
+      ((a.j <=> b.j) <> (a.`rank` <=> b.`rank`));
 
 DROP TABLE numbers;
 
@@ -1986,7 +1986,9 @@ JSON_ARRAY(j, j),
 JSON_OBJECT('k', j),
 JSON_UNQUOTE(CAST(j AS CHAR)),
 JSON_QUOTE(CAST(j AS CHAR)),
-JSON_PRETTY(j)
+JSON_PRETTY(j),
+JSON_STORAGE_FREE(j),
+JSON_STORAGE_SIZE(j)
 FROM T_WITH_NULLS
 ORDER BY i;
 eval $query;
@@ -3251,6 +3253,7 @@ EXPLAIN SELECT f1->"$.a" FROM t1 WHERE f1->"$.b" > 1 order by autopk;
 SELECT f1->"$.a", f1->"$.b" FROM t1 ORDER BY autopk;
 EXPLAIN SELECT f1->"$.a", f1->"$.b" FROM t1 ORDER BY autopk;
 
+--sorted_result
 SELECT MAX(f1->"$.a"), f1->"$.b" FROM t1 GROUP BY f1->"$.b";
 EXPLAIN SELECT MAX(f1->"$.a"), f1->"$.b" FROM t1 GROUP BY f1->"$.b";
 
@@ -3397,7 +3400,9 @@ DROP TABLE t;
 --echo #
 CREATE TABLE t(j JSON);
 INSERT INTO t VALUES ('{"":"a"}'), ('{"":{"":"a"}}'), ('{"a":{"":{"b":"a"}}}');
+--sorted_result
 SELECT JSON_UNQUOTE(JSON_SEARCH(j, 'one', 'a')) AS path FROM t;
+--sorted_result
 SELECT j->'$.""' AS c1, j->'$."".""' AS c2, j->'$.a."".b' AS c3 FROM t;
 DROP TABLE t;
 --error ER_INVALID_JSON_PATH
@@ -3422,7 +3427,9 @@ INSERT INTO t2 SELECT f2('[1,2,3]');
 CREATE FUNCTION f3(j JSON) RETURNS JSON RETURN j;
 INSERT INTO t1 SELECT f3('[4,5,6]');
 INSERT INTO t2 SELECT f3('[4,5,6]');
+--sorted_result
 SELECT * FROM t1;
+--sorted_result
 SELECT * FROM t2;
 DROP TABLE t1, t2;
 DROP FUNCTION f1;
@@ -3550,6 +3557,435 @@ SELECT JSON_PRETTY('this is not JSON') AS j;
 SELECT JSON_PRETTY();
 --error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
 SELECT JSON_PRETTY('{}', 2);
+
+--echo #
+--echo # WL#9192: Add JSON_STORAGE_SIZE / JSON_STORAGE_FREE functions
+--echo #
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT JSON_STORAGE_SIZE();
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT JSON_STORAGE_FREE();
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT JSON_STORAGE_SIZE('{}', '[]');
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT JSON_STORAGE_FREE('{}', '[]');
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT JSON_STORAGE_SIZE('this is not JSON');
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT JSON_STORAGE_FREE('this is not JSON');
+SELECT JSON_STORAGE_SIZE(NULL);
+SELECT JSON_STORAGE_FREE(NULL);
+SELECT JSON_STORAGE_SIZE(JSON_ARRAY(1,2,3));
+SELECT JSON_STORAGE_FREE(JSON_ARRAY(1,2,3));
+CREATE TABLE t(id INT PRIMARY KEY, j JSON, v VARCHAR(100));
+INSERT INTO t(id, j) VALUES (0, NULL), (1, '[["abc", "def", "ghi"], "jkl"]');
+UPDATE t SET v = j;
+let $dump_table=
+SELECT *,
+       JSON_STORAGE_SIZE(j), JSON_STORAGE_SIZE(v),
+       JSON_STORAGE_SIZE(j->'\$[0]'), JSON_STORAGE_SIZE(v->'\$[0]'),
+       JSON_STORAGE_FREE(j), JSON_STORAGE_FREE(v),
+       JSON_STORAGE_FREE(j->'\$[0]'), JSON_STORAGE_FREE(v->'\$[0]')
+       FROM t ORDER BY id;
+--eval $dump_table
+UPDATE t SET j = JSON_SET(j, '$[0][1]', NULL, '$[1]', 'X'),
+             v = JSON_SET(v, '$[0][1]', NULL, '$[1]', 'X');
+--eval $dump_table
+DROP TABLE t;
+
+#
+# Get some extra coverage for partial update of JSON, WL#8963.
+#
+
+CREATE TABLE t(id INT PRIMARY KEY, j JSON);
+INSERT INTO t VALUES
+(1, '{"a":"a"}'), (2, '{"a":"b", "b":"b"}'), (3, '{"a":"c", "c":"c"}');
+let $dump_table= SELECT *, JSON_STORAGE_SIZE(j) ss,
+                        JSON_STORAGE_FREE(j) sf FROM t ORDER BY id;
+--eval $dump_table
+UPDATE t SET j = JSON_SET(j, '$.a', 'x');
+--eval $dump_table
+UPDATE t SET j = JSON_SET(j, '$.a', 'y', '$.b', j->'$.a');
+--eval $dump_table
+UPDATE t SET j = JSON_SET(j, '$.a', 'z'), j = JSON_SET(j, '$.b', j->'$.a');
+--eval $dump_table
+UPDATE t SET j = JSON_SET(j, '$.a', 'w'),
+             j = JSON_SET(j, '$.a', 'v', '$.b', j->'$.a');
+--eval $dump_table
+UPDATE t SET j = JSON_REPLACE(j, '$.a', '1', '$.c', '2', '$.a', '3');
+--eval $dump_table
+UPDATE t SET j = JSON_REPLACE(j, '$.a', '4'), j = JSON_REPLACE(j, '$.c', '5'),
+             j = JSON_REPLACE(j, '$.a', '6');
+--eval $dump_table
+UPDATE t SET j = JSON_REPLACE(j, '$.a', '');
+--eval $dump_table
+UPDATE t SET j = JSON_REPLACE(j, '$.a', 'a');
+--eval $dump_table
+UPDATE t SET j = JSON_REPLACE(j, '$.a', 'ab');
+--eval $dump_table
+UPDATE t SET j = JSON_REPLACE(JSON_REPLACE(j, '$.a', 'A'), '$.b', true);
+--eval $dump_table
+UPDATE t SET j = JSON_REPLACE(JSON_REPLACE(j, '$.a', 'X'), '$.unknown', 'Y');
+--eval $dump_table
+UPDATE t SET j = JSON_REPLACE(JSON_REPLACE(j, '$.unknown', 'Z'), '$.a', 'W');
+--eval $dump_table
+UPDATE t SET j = JSON_REPLACE(JSON_REPLACE(j, '$.unknown1', 1),
+                              '$.unknown2', 2);
+--eval $dump_table
+UPDATE t SET j = JSON_SET(JSON_REPLACE(j, '$.a', 99), '$.b', 88);
+--eval $dump_table
+UPDATE t SET j = JSON_REPLACE(JSON_SET(j, '$.a', 77), '$.b', 66);
+--eval $dump_table
+UPDATE t SET j = JSON_REPLACE(JSON_SET(j, '$.c', 0), '$.a', 1);
+--eval $dump_table
+UPDATE t SET j = JSON_SET(JSON_REPLACE(JSON_SET(j, '$.a', 11),
+                                       '$.unknown', 12),
+                          '$.b', 13);
+--eval $dump_table
+DROP TABLE t;
+
+CREATE TABLE t(id INT PRIMARY KEY, j1 JSON, j2 JSON);
+INSERT INTO t VALUES
+(1, '{"a":"a","b":"b"}', '{"a":"a","b":"b"}'),
+(2, NULL, NULL),
+(3, '{"a":"aa","b":"bb"}', '{"a":"aa","b":"bb"}');
+ANALYZE TABLE t;
+let $dump_table= SELECT *, JSON_STORAGE_SIZE(j1) ss1,
+                           JSON_STORAGE_FREE(j1) sf1,
+                           JSON_STORAGE_SIZE(j2) ss2,
+                           JSON_STORAGE_FREE(j2) sf2 FROM t ORDER BY id;
+--eval $dump_table
+let $query= UPDATE t SET j1 = JSON_SET(j1, '\$.a', 'x'),
+                         j2 = JSON_SET(j2, '\$.a', 'y'),
+                         j1 = JSON_SET(j1, '\$.b', 'z');
+--eval EXPLAIN FORMAT=JSON $query
+SET optimizer_trace="enabled=on";
+--eval $query
+SET optimizer_trace="enabled=off";
+SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+--eval $dump_table
+let $query= UPDATE t SET j1 = JSON_SET(j1, '\$.a', 's'),
+                         j2 = JSON_SET(j2, '\$.a', 'abcdefghi'),
+                         j1 = JSON_SET(j1, '\$.b', 't');
+--eval EXPLAIN FORMAT=JSON $query
+SET optimizer_trace="enabled=on";
+--eval $query
+SET optimizer_trace="enabled=off";
+SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+--eval $dump_table
+--let $query= UPDATE t SET j1 = JSON_SET(j1, '\$.x.y.z', 'abc', '\$.b', 'X')
+--eval EXPLAIN FORMAT=JSON $query
+SET optimizer_trace="enabled=on";
+--eval $query
+SET optimizer_trace="enabled=off";
+SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+--eval $dump_table
+--let $query= UPDATE t SET j1 = JSON_REPLACE(j1, '\$.x', 'abc', '\$.b', 'Y')
+--eval EXPLAIN FORMAT=JSON $query
+SET optimizer_trace="enabled=on";
+--eval $query
+SET optimizer_trace="enabled=off";
+SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+--eval $dump_table
+--let $query= UPDATE t SET j1 = JSON_SET(j1, '\$.x', 'abc', '\$.b', 'Z')
+--eval EXPLAIN FORMAT=JSON $query
+SET optimizer_trace="enabled=on";
+--eval $query
+SET optimizer_trace="enabled=off";
+SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+--eval $dump_table
+# No partial update here since input column is different from target column.
+--let $query= UPDATE t SET j1 = JSON_SET(j2, '\$.a', 'ABC')
+--eval EXPLAIN FORMAT=JSON $query
+SET optimizer_trace="enabled=on";
+--eval $query
+SET optimizer_trace="enabled=off";
+SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+--eval $dump_table
+# No partial update here since JSON_ARRAY doesn't support partial update.
+--let $query= UPDATE t SET j1 = JSON_ARRAY(j1, j1)
+--eval EXPLAIN FORMAT=JSON $query
+SET optimizer_trace="enabled=on";
+--eval $query
+SET optimizer_trace="enabled=off";
+SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+--eval $dump_table
+# No partial update of j1, but j2 should be partially updated.
+let $query= UPDATE t SET j1 = JSON_SET(j2, '\$.a', 1),
+                         j2 = JSON_SET(j2, '\$.a', 1);
+--eval EXPLAIN FORMAT=JSON $query
+SET optimizer_trace="enabled=on";
+--eval $query
+SET optimizer_trace="enabled=off";
+SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+--eval $dump_table
+DROP TABLE t;
+
+CREATE TABLE t(j JSON,
+               i INT DEFAULT 42,
+               db DOUBLE DEFAULT 2.34e-10,
+               dc DECIMAL(5, 3) DEFAULT 98.765,
+               ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+               gc JSON GENERATED ALWAYS AS (JSON_ARRAY(i, db, dc, ts)));
+INSERT INTO t(j, ts) VALUES
+('[null, "abc", true, "def", false]', '2017-01-02 14:15:16');
+let $dump_table= SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss,
+                        JSON_STORAGE_FREE(j) sf FROM t;
+--eval $dump_table
+# The update of $[3] to a longer value should be able to reuse the space freed
+# by the update of $[1] to a shorter value.
+UPDATE t SET j = JSON_SET(j, '$[1]', 'xy', '$[3]', 'xyzw');
+--eval $dump_table
+# Again, increasing the size of $[3] is OK as long as $[1] shrinks first, also
+# when done in two separate operations.
+UPDATE t SET j = JSON_SET(j, '$[1]', 'a');
+--eval $dump_table
+UPDATE t SET j = JSON_SET(j, '$[3]', 'abcde');
+--eval $dump_table
+
+# See what happens if one partial update overwrites a nested array that had a
+# partial update performed to one of its elements previously in the same
+# statement.
+UPDATE t SET j = '[[[[[1]]]]]';
+--eval $dump_table
+UPDATE t SET j = JSON_SET(JSON_SET(j, '$[0][0][0]', 'ab'), '$[0][0]', 'cdefgh');
+--eval $dump_table
+
+# Replacing the root of a document will result in a full update.
+UPDATE t SET j = JSON_REPLACE(j, '$', JSON_ARRAY(123));
+--eval $dump_table
+UPDATE t SET j = JSON_SET(j, '$', 456);
+--eval $dump_table
+
+# Replacing with non-existent paths (array access on object, or member access on
+# array, or member/array access on scalar) cannot be performed as partial
+# update.
+UPDATE t SET j = JSON_ARRAY(1,2,3);
+UPDATE t SET j = JSON_REPLACE(j, '$.a', 4);
+--eval $dump_table
+UPDATE t SET j = JSON_REPLACE(j, '$[1000]', 1000);
+--eval $dump_table
+UPDATE t SET j = JSON_SET(j, '$[1000]', 1000);
+--eval $dump_table
+UPDATE t SET j = JSON_OBJECT('a',1,'b',2,'c',3);
+UPDATE t SET j = JSON_REPLACE(j, '$[1]', 4);
+--eval $dump_table
+UPDATE t SET j = JSON_OBJECT('a',1,'b',2,'c',3);
+UPDATE t SET j = JSON_REPLACE(j, '$[1]', 4);
+--eval $dump_table
+UPDATE t SET j = JSON_REPLACE(j, '$.a.b', 5);
+--eval $dump_table
+UPDATE t SET j = JSON_REPLACE(j, '$.a[2]', 6);
+--eval $dump_table
+
+# Test update to some other data types.
+UPDATE t SET j = JSON_ARRAY('abcdefghijklmnopqrstuvwxyz');
+--eval $dump_table
+UPDATE t SET j = JSON_SET(j, '$[0]', 3.14e0);
+--eval $dump_table
+UPDATE t SET j = JSON_SET(j, '$[0]', CAST(10000000000 AS UNSIGNED));
+--eval $dump_table
+UPDATE t SET j = JSON_SET(j, '$[0]', CAST(4000000000 AS SIGNED));
+--eval $dump_table
+UPDATE t SET j = JSON_SET(j, '$[0]', CAST(123 AS UNSIGNED));
+--eval $dump_table
+UPDATE t SET j = JSON_SET(j, '$[0]', CAST(456 AS SIGNED));
+--eval $dump_table
+UPDATE t SET j = JSON_SET(j, '$[0]', -123);
+--eval $dump_table
+UPDATE t SET j = JSON_SET(j, '$[0]', -4000000000);
+--eval $dump_table
+UPDATE t SET j = JSON_SET(j, '$[0]', CAST(76543 AS SIGNED));
+--eval $dump_table
+UPDATE t SET j = JSON_SET(j, '$[0]', CAST(87654 AS UNSIGNED));
+--eval $dump_table
+UPDATE t SET j = JSON_SET(j, '$[0]', -100000);
+--eval $dump_table
+UPDATE t SET j = JSON_SET(j, '$[0]', TRUE);
+--eval $dump_table
+UPDATE t SET j = JSON_SET(j, '$[0]', NULL);
+--eval $dump_table
+UPDATE t SET j = JSON_SET(j, '$[0]', CAST('abc' AS BINARY));
+--eval $dump_table
+UPDATE t SET j = JSON_SET(j, '$[0]', CAST('2016-12-23 13:16:40' AS DATETIME));
+--eval $dump_table
+UPDATE t SET j = JSON_SET(j, '$[0]', CAST('2016-12-24' AS DATE));
+--eval $dump_table
+UPDATE t SET j = JSON_SET(j, '$[0]', CAST('14:17:41' AS TIME));
+--eval $dump_table
+UPDATE t SET j = JSON_SET(j, '$[0]', 1.23);
+--eval $dump_table
+UPDATE t SET j = JSON_SET(j, '$[0]', i);
+--eval $dump_table
+UPDATE t SET j = JSON_SET(j, '$[0]', db);
+--eval $dump_table
+UPDATE t SET j = JSON_SET(j, '$[0]', dc);
+--eval $dump_table
+UPDATE t SET j = JSON_SET(j, '$[0]', ts);
+--eval $dump_table
+UPDATE t SET j = JSON_SET(j, '$[0]', JSON_ARRAY());
+--eval $dump_table
+UPDATE t SET j = JSON_SET(j, '$[0]', JSON_ARRAY('abc'));
+--eval $dump_table
+UPDATE t SET j = JSON_SET(j, '$[0]', JSON_OBJECT());
+--eval $dump_table
+UPDATE t SET j = JSON_SET(j, '$[0]', JSON_OBJECT('abc', 'def'));
+--eval $dump_table
+UPDATE t SET j = JSON_SET(j, '$[0]', gc->'$[0]');
+--eval $dump_table
+UPDATE t SET j = JSON_SET(j, '$[0]', gc->'$[1]');
+--eval $dump_table
+UPDATE t SET j = JSON_SET(j, '$[0]', gc->'$[2]');
+--eval $dump_table
+UPDATE t SET j = JSON_SET(j, '$[0]', gc->'$[3]');
+--eval $dump_table
+UPDATE t SET j = JSON_SET(j, '$[0]', gc->'$[4]');
+--eval $dump_table
+
+--echo # Test update with indexes relative to the end of the array.
+UPDATE t SET j = JSON_ARRAY('a','b','c');
+--eval $dump_table
+UPDATE t SET j = JSON_SET(j, '$[last]', 4);
+--eval $dump_table
+UPDATE t SET j = JSON_SET(j, '$[last-1]', 5);
+--eval $dump_table
+UPDATE t SET j = JSON_SET(j, '$[last-2]', 6);
+--eval $dump_table
+UPDATE t SET j = JSON_SET(j, '$[last-3]', 7);
+--eval $dump_table
+UPDATE t SET j = JSON_ARRAY('a','b');
+--eval $dump_table
+UPDATE t SET j = JSON_REPLACE(j, '$[last]', 3);
+--eval $dump_table
+UPDATE t SET j = JSON_REPLACE(j, '$[last-1]', 4);
+--eval $dump_table
+UPDATE t SET j = JSON_REPLACE(j, '$[last-2]', 5);
+--eval $dump_table
+
+DROP TABLE t;
+
+# Some multi-table updates which perform partial updates.
+CREATE TABLE t1(id INT PRIMARY KEY, j JSON, x INT);
+INSERT INTO t1 VALUES (1, '{"a":"xy"}', 1), (2, '{"a":"zw"}', 2);
+let $dump_t1= SELECT *, JSON_STORAGE_SIZE(j) ss,
+                        JSON_STORAGE_FREE(j) sf FROM t1 ORDER BY id;
+--eval $dump_t1
+CREATE TABLE t2(id INT PRIMARY KEY, j JSON, x INT);
+INSERT INTO t2 VALUES
+(1, '{"b":"X"}', 3),
+(2, '{"b":"Y"}', 4),
+(3, '{"b":"Z"}', 9);
+let $dump_t2= SELECT *, JSON_STORAGE_SIZE(j) ss,
+                        JSON_STORAGE_FREE(j) sf FROM t2 ORDER BY id;
+--eval $dump_t2
+ANALYZE TABLE t1, t2;
+let $query= UPDATE t1, t2
+                   SET t1.j = JSON_SET(t1.j, '\$.a', t2.j->'\$.b')
+                   WHERE t1.id = t2.id;
+--replace_regex /"used_columns": \[[^]]*\]/"used_columns": "filtered due to bug#22472365"/
+--eval EXPLAIN FORMAT=JSON $query
+SET optimizer_trace="enabled=on";
+--eval $query
+SET optimizer_trace="enabled=off";
+SELECT trace->'$**.json_partial_update'
+       FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+--eval $dump_t1
+--eval $dump_t2
+let $query= UPDATE t1, t2 SET t1.j = JSON_SET(t1.j, '\$.a', t2.x),
+                              t2.j = JSON_SET(t2.j, '\$.b', t1.x)
+                          WHERE t1.id = t2.id;
+--eval EXPLAIN FORMAT=JSON $query
+SET optimizer_trace="enabled=on";
+--eval $query
+SET optimizer_trace="enabled=off";
+SELECT trace->'$**.json_partial_update'
+       FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+--eval $dump_t1
+--eval $dump_t2
+let $query= UPDATE t1, t2 SET t1.j = '[123]', t2.j = JSON_SET(t2.j, '\$.b', 99);
+--replace_regex /"used_columns": \[[^]]*\]/"used_columns": "filtered due to bug#22472365"/
+--eval EXPLAIN FORMAT=JSON $query
+SET optimizer_trace="enabled=on";
+--eval $query
+SET optimizer_trace="enabled=off";
+SELECT trace->'$**.json_partial_update'
+       FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+--eval $dump_t1
+--eval $dump_t2
+DROP TABLE t1, t2;
+
+# MyISAM doesn't support partial update, so don't expect partial
+# update to be used.
+CREATE TABLE t(j JSON) ENGINE=MyISAM;
+INSERT INTO t VALUES ('["abcdef"]');
+SELECT j, JSON_STORAGE_SIZE(j), JSON_STORAGE_FREE(j) FROM t;
+SET optimizer_trace="enabled=on";
+UPDATE t SET j = JSON_SET(j, '$[0]', 1);
+SET optimizer_trace="enabled=off";
+SELECT trace->'$**.json_partial_update'
+       FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+SELECT j, JSON_STORAGE_SIZE(j), JSON_STORAGE_FREE(j) FROM t;
+DROP TABLE t;
+
+--echo # Partial update on a DEFAULT NULL value in a NOT NULL column.
+CREATE TABLE t(j JSON NOT NULL);
+INSERT IGNORE INTO t VALUES ();
+UPDATE t SET j = JSON_SET(j, '$[0]', 'abc');
+SELECT j, JSON_STORAGE_SIZE(j), JSON_STORAGE_FREE(j) FROM t;
+UPDATE IGNORE t SET j = DEFAULT;
+UPDATE t SET j = JSON_REMOVE(j, '$[0]');
+SELECT j, JSON_STORAGE_SIZE(j), JSON_STORAGE_FREE(j) FROM t;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#25893720: TABLE::SETUP_PARTIAL_UPDATE():
+--echo #               ASSERTION `M_PARTIAL_UPDATE_INFO == NULLPTR' FAIL
+--echo #
+CREATE TEMPORARY TABLE t(j JSON);
+INSERT INTO t VALUES ('["abc"]');
+UPDATE t SET j = JSON_SET(j, '$[0]', 'de');
+UPDATE t SET j = JSON_SET(j, '$[0]', 'f');
+SELECT j, JSON_STORAGE_SIZE(j), JSON_STORAGE_FREE(j) FROM t;
+DROP TABLE t;
+
+--echo # Partial update in JSON_REMOVE.
+CREATE TABLE t(id INT PRIMARY KEY AUTO_INCREMENT, j JSON);
+INSERT INTO t(j) VALUES
+(JSON_ARRAY('x', JSON_ARRAY(1, 2, 3, 'abc', 4, 5, 6))),
+(JSON_OBJECT('x', JSON_OBJECT('a', 'one',
+                              'b', 'two',
+                              'c', 'ABC',
+                              'defghijkl', 'm'),
+             'y', 'z')),
+('null'),
+(NULL);
+let $dump_table= SELECT *, JSON_STORAGE_SIZE(j) ss,
+                        JSON_STORAGE_FREE(j) sf FROM t ORDER BY id;
+--eval $dump_table
+ANALYZE TABLE t;
+--let $query= UPDATE t SET j = JSON_REMOVE(j, '\$.x.b', '\$[1][2]')
+--eval EXPLAIN FORMAT=JSON $query
+--eval $query
+--eval $dump_table
+--echo # See that the free space can be reused by increasing
+--echo # the size of some values.
+UPDATE t SET j = JSON_REPLACE(j, '$[1][2]', 'xyzw', '$.x.c', 'XYZW');
+--eval $dump_table
+--echo # Nested calls
+UPDATE t SET j = JSON_REMOVE(JSON_REMOVE(j, '$[1][2]'), '$.x.c');
+--eval $dump_table
+UPDATE t SET j = JSON_REMOVE(JSON_SET(j, '$.x.a', 'xyz'), '$.x.a');
+--eval $dump_table
+UPDATE t SET j = JSON_REMOVE(JSON_SET(j, '$.x.a', 'zyx'), '$.x.a');
+--eval $dump_table
+UPDATE t SET j = JSON_SET(JSON_REMOVE(j, '$.x.a'), '$.x.a', 'abcd', '$.x.b', 9);
+--eval $dump_table
+UPDATE t SET j = JSON_SET(JSON_REMOVE(j, '$.x.b'), '$.x.a', 'efg');
+--eval $dump_table
+UPDATE t SET j = JSON_REMOVE(JSON_REMOVE(j, '$[0]', '$[0]', '$.x'),
+                             '$.b', '$.y', '$.z');
+--eval $dump_table
+DROP TABLE t;
 
 # Local Variables:
 # mode: sql

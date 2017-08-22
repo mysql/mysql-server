@@ -5,8 +5,6 @@
 -- echo #
 
 -- source include/have_innodb_max_16k.inc
-# restart does not work with embedded
--- source include/not_embedded.inc
 
 CREATE TABLE t (a INT) ENGINE=INNODB;
 

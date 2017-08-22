@@ -41,7 +41,7 @@ namespace dd {
 // Spatial reference system implementation.
 ///////////////////////////////////////////////////////////////////////////
 
-const Dictionary_object_table &Spatial_reference_system::OBJECT_TABLE()
+const Entity_object_table &Spatial_reference_system::OBJECT_TABLE()
 {
   return Spatial_reference_systems::instance();
 }

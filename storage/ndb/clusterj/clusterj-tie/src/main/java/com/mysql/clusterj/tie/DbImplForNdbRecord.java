@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -80,7 +80,7 @@ class DbImplForNdbRecord implements com.mysql.clusterj.core.store.Db {
         handleError(ndbDictionary, ndb);
     }
 
-    protected void assertOpen(String where) {
+    public void assertNotClosed(String where) {
         if (closing || ndb == null) {
             throw new ClusterJUserException(local.message("ERR_Db_Is_Closing", where));
         }

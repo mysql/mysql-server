@@ -18,7 +18,6 @@
 #
 
 source include/have_mysqlx_plugin.inc;
-source include/not_embedded.inc;
 
 --source include/xplugin_install_and_wait.inc
 --source mysqlxtest_macro_dir.inc

@@ -2,8 +2,6 @@
 # changes 2008-02-20 hhunger splitted events.test into events_1 and events_2
 # changes 2008-02-22 hhunger replaced all sleep by wait_condition
 #
-# Can't test with embedded server that doesn't support grants
--- source include/not_embedded.inc
 
 --disable_warnings
 drop database if exists events_test;
@@ -191,9 +189,11 @@ create event root20 on schedule every '50:20:12:45' day_second do select 1;
 --replace_regex /STARTS '[^']+'/STARTS '#'/
 SHOW CREATE EVENT root20;
 set names cp1251;
+--character_set cp1251
 create event руут21 on schedule every '50:23:59:95' day_second COMMENT 'това е 1251 коментар' do select 1;
 --replace_regex /STARTS '[^']+'/STARTS '#'/
 SHOW CREATE EVENT руут21;
+--character_set utf8mb4
 
 --echo #
 --echo # WL#9262: All system tables should support 32 character length user names
@@ -223,6 +223,7 @@ let $wait_condition=
 --echo #
 SET @orig_character_set_client = @@character_set_client;
 SET character_set_client = utf8;
+--character_set binary
 --error ER_INVALID_CHARACTER_STRING
 CREATE EVENT tчest ON SCHEDULE AT NOW() ON COMPLETION NOT PRESERVE DO SELECT 1;
 --error ER_INVALID_CHARACTER_STRING

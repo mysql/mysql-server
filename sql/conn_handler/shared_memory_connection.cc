@@ -22,7 +22,7 @@
 #include "violite.h"                    // Vio
 #include "channel_info.h"               // Channel_info
 #include "connection_handler_manager.h" // Connection_handler_manager
-#include "log.h"                        // sql_print_error
+#include "log.h"
 #include "mysqld.h"                     // connection_events_loop_aborted
 #include "my_shm_defaults.h"
 #include "sql_class.h"                  // THD
@@ -146,7 +146,7 @@ void Shared_mem_listener::close_shared_mem()
 bool Shared_mem_listener::setup_listener()
 {
   const char *errmsg= NULL;
-  sql_print_information("Shared memory setting up listener");
+  LogErr(INFORMATION_LEVEL, ER_CONN_SHM_LISTENER);
   /*
     get enough space base-name + '_' + longest suffix we might ever send
   */
@@ -219,8 +219,8 @@ bool Shared_mem_listener::setup_listener()
 error:
   if (errmsg)
   {
-    sql_print_error("Can't create shared memory service: %s. : %s",
-                    errmsg, strerror(errno));
+    LogErr(ERROR_LEVEL, ER_CONN_SHM_CANT_CREATE_SERVICE,
+           errmsg, strerror(errno));
   }
 
   close_shared_mem();
@@ -310,39 +310,41 @@ Channel_info* Shared_mem_listener::listen_for_connection_event()
   if (connection_events_loop_aborted())
     goto errorconn;
 
-  Channel_info* channel_info= new (std::nothrow)
-    Channel_info_shared_mem(m_handle_client_file_map,
-                            m_handle_client_map,
-                            m_event_server_wrote,
-                            m_event_server_read,
-                            m_event_client_wrote,
-                            m_event_client_read,
-                            m_event_conn_closed);
-  if (channel_info != NULL)
   {
-    int4store(m_connect_map,  m_connect_number);
-    if (!SetEvent(m_event_connect_answer))
+    Channel_info* channel_info= new (std::nothrow)
+      Channel_info_shared_mem(m_handle_client_file_map,
+                              m_handle_client_map,
+                              m_event_server_wrote,
+                              m_event_server_read,
+                              m_event_client_wrote,
+                              m_event_client_read,
+                              m_event_conn_closed);
+    if (channel_info != NULL)
     {
-      errmsg= "Could not send answer event";
-      delete channel_info;
-      goto errorconn;
-    }
+      int4store(m_connect_map,  m_connect_number);
+      if (!SetEvent(m_event_connect_answer))
+      {
+        errmsg= "Could not send answer event";
+        delete channel_info;
+        goto errorconn;
+      }
 
-    if (!SetEvent(m_event_client_read))
-    {
-      errmsg= "Could not set client to read mode";
-      delete channel_info;
-      goto errorconn;
+      if (!SetEvent(m_event_client_read))
+      {
+        errmsg= "Could not set client to read mode";
+        delete channel_info;
+        goto errorconn;
+      }
+      m_connect_number++;
+      return channel_info;
     }
-    m_connect_number++;
-    return channel_info;
   }
 errorconn:
   /* Could not form connection;  Free used handlers/memort and retry */
   if (errmsg)
   {
-    sql_print_error("Can't create shared memory connection: %s. : %s",
-                    errmsg, strerror(errno));
+    LogErr(ERROR_LEVEL, ER_CONN_SHM_CANT_CREATE_CONNECTION,
+           errmsg, strerror(errno));
   }
   if (m_handle_client_file_map)
     CloseHandle(m_handle_client_file_map);

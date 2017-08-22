@@ -59,7 +59,7 @@
 #include "auth_internal.h"
 #include "current_thd.h"
 #include "derror.h"                     /* ER_THD */
-#include "log.h"                        /* sql_print_warning */
+#include "log.h"
 #include "mysqld.h"
 #include "prealloced_array.h"
 #include "sql_auth_cache.h"
@@ -1440,9 +1440,9 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists, bool
           extra_users.insert(user_name);
         }
         catch (...) {
-          sql_print_warning("Failed to add %s in extra_users. "
-                            "Binary log entry may miss some of the users.",
-                            warn_user.c_ptr_safe());
+          LogErr(WARNING_LEVEL,
+                 ER_USER_NOT_IN_EXTRA_USERS_BINLOG_POSSIBLY_INCOMPLETE,
+                 warn_user.c_ptr_safe());
         }
         continue;
       }
@@ -1468,7 +1468,6 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists, bool
       continue;
     }
   } // END while tmp_user_name= user_lists++
-
   /* In case of SE error, we would have raised error before reaching here. */
   if (result && !thd->is_error())
   {
@@ -1510,6 +1509,14 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list, bool if_exists)
   DBUG_ENTER("mysql_drop_user");
 
   /*
+    Make sure that none of the authids we're about to drop is used as a
+    mandatory role. Mandatory roles needs to be disabled first before the
+    authid can be dropped.
+  */
+  LEX_USER *user;
+  std::vector<Role_id > mandatory_roles;
+
+  /*
     This statement will be replicated as a statement, even when using
     row-based replication.  The binlog state will be cleared here to
     statement based replication and will be reset to the originals
@@ -1528,6 +1535,23 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list, bool if_exists)
     DBUG_RETURN(true);
   }
 
+  get_mandatory_roles(&mandatory_roles);
+  while((user= user_list++) != 0)
+  {
+    if (std::find_if(mandatory_roles.begin(), mandatory_roles.end(),
+                     [&](Role_id &id)->bool { Role_id id2(user->user,
+                                                          user->host);
+                                              return id == id2; }) !=
+          mandatory_roles.end())
+    {
+      Role_id authid(user->user,user->host);
+      std::string out;
+      authid.auth_str(&out);
+      my_error(ER_MANDATORY_ROLE,MYF(0), out.c_str());
+      DBUG_RETURN(true);
+    }
+  }
+  user_list.rewind();
   thd->variables.sql_mode&= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
 
   while ((tmp_user_name= user_list++))
@@ -1867,9 +1891,9 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
           extra_users.insert(tmp_user_from);
         }
         catch (...) {
-          sql_print_warning("Failed to add %s in extra_users. "
-                            "Binary log entry may miss some of the users.",
-                            warn_user.c_ptr_safe());
+          LogErr(WARNING_LEVEL,
+                 ER_USER_NOT_IN_EXTRA_USERS_BINLOG_POSSIBLY_INCOMPLETE,
+                 warn_user.c_ptr_safe());
         }
       }
       else
@@ -1904,9 +1928,9 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
           extra_users.insert(user_from);
         }
         catch (...) {
-          sql_print_warning("Failed to add %s in extra_users. "
-                            "Binary log entry may miss some of the users.",
-                            warn_user.c_ptr_safe());
+          LogErr(WARNING_LEVEL,
+                 ER_USER_NOT_IN_EXTRA_USERS_BINLOG_POSSIBLY_INCOMPLETE,
+                 warn_user.c_ptr_safe());
         }
       }
       else

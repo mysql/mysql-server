@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
 #ifndef CharsetMap_hpp
 #define CharsetMap_hpp
 
-#include <stdint.h>
+#include "ndb_types.h"
 
 /**
  * Handles encoding issues for character data
@@ -116,7 +116,7 @@ public:
      * If the conversion is successful we return RECODE_OK.
      * Other return values are noted above.
      */
-    RecodeStatus recode(int32_t *lengths /* IN/OUT */,
+    RecodeStatus recode(Int32 *lengths /* IN/OUT */,
                         int cs_from, int cs_to, const void *src,
                         void *dest) const;
                         

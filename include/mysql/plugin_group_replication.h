@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 */
 
 #include <mysql/plugin.h>
-#define MYSQL_GROUP_REPLICATION_INTERFACE_VERSION 0x0101
+#define MYSQL_GROUP_REPLICATION_INTERFACE_VERSION 0x0102
 
 /*
   Callbacks for get_connection_status_info function.
@@ -59,6 +59,8 @@ typedef struct st_group_replication_group_members_callbacks
   void (*set_member_host)(void* const context, const char& value, size_t length);
   void (*set_member_port)(void* const context, unsigned int value);
   void (*set_member_state)(void* const context, const char& value, size_t length);
+  void (*set_member_role)(void* const context, const char& value, size_t length);
+  void (*set_member_version)(void* const context, const char& value, size_t length);
 } GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS;
 
 /*
@@ -82,6 +84,10 @@ typedef struct st_group_replication_member_stats_callbacks
   void (*set_transactions_certified)(void* const context, unsigned long long int value);
   void (*set_transactions_conflicts_detected)(void* const context, unsigned long long int value);
   void (*set_transactions_rows_in_validation)(void* const context, unsigned long long int value);
+  void (*set_transactions_remote_applier_queue)(void* const context, unsigned long long int value);
+  void (*set_transactions_remote_applied)(void* const context, unsigned long long int value);
+  void (*set_transactions_local_proposed)(void* const context, unsigned long long int value);
+  void (*set_transactions_local_rollback)(void* const context, unsigned long long int value);
 } GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS;
 
 struct st_mysql_group_replication
@@ -123,6 +129,8 @@ struct st_mysql_group_replication
   /*
     This function is used to fetch information for group replication members.
 
+    @param index     Row index for which information needs to be fetched
+
     @param callbacks The set of callbacks and its context used to set the
                      information on caller.
 
@@ -136,6 +144,8 @@ struct st_mysql_group_replication
   /*
     This function is used to fetch information for group replication members statistics.
 
+    @param index     Row index for which information needs to be fetched
+
     @param callbacks The set of callbacks and its context used to set the
                      information on caller.
 
@@ -143,7 +153,8 @@ struct st_mysql_group_replication
           from all its fields.
   */
   bool (*get_group_member_stats_info)
-       (const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS& callbacks);
+       (unsigned int index,
+        const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS& callbacks);
 
   /*
     Get number of group replication members.

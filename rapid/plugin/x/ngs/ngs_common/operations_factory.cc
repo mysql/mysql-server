@@ -48,7 +48,8 @@ public:
   : m_mysql_socket(mysql_socket) {
   }
 
-  Socket(PSI_socket_key key, int domain, int type, int protocol)
+  Socket(PSI_socket_key key MY_ATTRIBUTE((unused)),
+         int domain, int type, int protocol)
   : m_mysql_socket(mysql_socket_socket(key, domain, type, protocol)) {
   }
 
@@ -60,7 +61,8 @@ public:
     return mysql_socket_bind(m_mysql_socket, addr, len);
   }
 
-  virtual MYSQL_SOCKET accept(PSI_socket_key key, struct sockaddr *addr, socklen_t *addr_len) {
+  virtual MYSQL_SOCKET accept(PSI_socket_key key MY_ATTRIBUTE((unused)),
+                              struct sockaddr *addr, socklen_t *addr_len) {
     return mysql_socket_accept(key, m_mysql_socket, addr, addr_len);
   }
 

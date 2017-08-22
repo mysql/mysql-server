@@ -26,6 +26,7 @@
 #include <functional>
 #include <sstream>
 
+#include "column_statistic.h"
 #include "mysql_function.h"
 #include "privilege.h"
 #include "stored_procedure.h"
@@ -264,7 +265,7 @@ void Sql_formatter::format_database_start(
     this->append_output(database->get_sql_formatted_definition() + ";\n");
 }
 
-void Sql_formatter::format_dump_end(Dump_end_dump_task* dump_start_dump_task)
+void Sql_formatter::format_dump_end(Dump_end_dump_task*)
 {
   std::ostringstream out;
   std::time_t sys_time = std::chrono::system_clock::to_time_t(
@@ -331,7 +332,7 @@ void Sql_formatter::format_dump_start(
       << "SET GLOBAL INNODB_STATS_AUTO_RECALC=OFF;\n";
 
   if (dump_start_dump_task->m_gtid_mode == "OFF" &&
-      *((ulong*)&m_options->m_gtid_purged) == ((ulong)GTID_PURGED_ON))
+      m_options->m_gtid_purged == enum_gtid_purged_mode::GTID_PURGED_ON)
   {
     m_options->m_mysql_chain_element_options->get_program()->error(
       Mysql::Tools::Base::Message_data(1, "Server has GTIDs disabled.\n",
@@ -340,14 +341,8 @@ void Sql_formatter::format_dump_start(
   }
   if (dump_start_dump_task->m_gtid_mode != "OFF")
   {
-    /*
-     value for m_gtid_purged is set by typecasting its address to ulong*
-     however below conditions fails if we do direct comparison without
-     typecasting on solaris sparc. Guessing that this is due to differnt
-     endianess.
-    */
-    if (*((ulong*)&m_options->m_gtid_purged) == ((ulong)GTID_PURGED_ON) ||
-        *((ulong*)&m_options->m_gtid_purged) == ((ulong)GTID_PURGED_AUTO))
+    if (m_options->m_gtid_purged == enum_gtid_purged_mode::GTID_PURGED_ON ||
+        m_options->m_gtid_purged == enum_gtid_purged_mode::GTID_PURGED_AUTO)
     {
       if (!m_mysqldump_tool_options->m_dump_all_databases)
       {
@@ -405,6 +400,16 @@ void Sql_formatter::format_plain_sql_object(
       this->append_output("DROP USER "
        + (dynamic_cast<Abstract_data_object*>(new_priv_task))->get_name()
        + ";\n");
+  }
+
+  Column_statistic* new_col_stats_task=
+    dynamic_cast<Column_statistic*>(plain_sql_dump_task);
+  if (new_col_stats_task != NULL)
+  {
+    if (m_options->m_column_statistics)
+      this->append_output(plain_sql_dump_task->get_sql_formatted_definition()
+        + ";\n");
+    return;
   }
 
   this->append_output(plain_sql_dump_task->get_sql_formatted_definition()

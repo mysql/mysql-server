@@ -1,9 +1,9 @@
 --source include/have_udf.inc
---source include/not_embedded.inc
 #
-# To run this tests the "sql/udf_example.c" need to be compiled into
+# To run this test, "sql/udf_example.cc" need to be compiled into
 # udf_example.so and LD_LIBRARY_PATH should be setup to point out where
-# the library are.
+# the library are. The regular CMake build system takes care of this
+# automatically.
 #
 
 
@@ -35,6 +35,17 @@ eval CREATE FUNCTION reverse_lookup
 --replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
 eval CREATE AGGREGATE FUNCTION avgcost
         RETURNS REAL SONAME "$UDF_EXAMPLE_LIB";
+
+--echo # Should get 7 rows 1 aggregate
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval SELECT * FROM performance_schema.user_defined_functions
+  WHERE udf_library='$UDF_EXAMPLE_LIB'
+  ORDER BY UDF_NAME;
+
+--echo # Should get an index lookup
+EXPLAIN
+SELECT udf_type FROM performance_schema.user_defined_functions
+  WHERE udf_name = 'metaphon';
 
 --error ER_CANT_INITIALIZE_UDF
 select myfunc_double();

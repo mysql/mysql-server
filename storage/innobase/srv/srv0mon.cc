@@ -39,6 +39,7 @@ Created 12/9/2009 Jimmy Yang
 #include "srv0srv.h"
 #include "trx0rseg.h"
 #include "trx0sys.h"
+#include "trx0purge.h"
 
 /* Macro to standardize the counter names for counters in the
 "monitor_buf_page" module as they have very structured defines */
@@ -610,83 +611,123 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_MODULE | MONITOR_GROUP_MODULE),
 	 MONITOR_DEFAULT_START, MONITOR_MODULE_BUF_PAGE},
 
+	/* MONITOR_INDEX_LEAF_PAGE_READ */
 	MONITOR_BUF_PAGE_READ("index_leaf","Index Leaf", INDEX_LEAF),
 
+	/* MONITOR_INDEX_NON_LEAF_PAGE_READ */
 	MONITOR_BUF_PAGE_READ("index_non_leaf","Index Non-leaf",
 			      INDEX_NON_LEAF),
 
+	/* MONITOR_INDEX_IBUF_LEAF_PAGE_READ */
 	MONITOR_BUF_PAGE_READ("index_ibuf_leaf", "Insert Buffer Index Leaf",
 			      INDEX_IBUF_LEAF),
 
+	/* MONITOR_INDEX_IBUF_NON_LEAF_PAGE_READ */
 	MONITOR_BUF_PAGE_READ("index_ibuf_non_leaf",
 			      "Insert Buffer Index Non-Leaf",
 			       INDEX_IBUF_NON_LEAF),
 
+	/* MONITOR_UNDO_LOG_PAGE_READ */
 	MONITOR_BUF_PAGE_READ("undo_log", "Undo Log", UNDO_LOG),
 
+	/* MONITOR_INODE_PAGE_READ */
 	MONITOR_BUF_PAGE_READ("index_inode", "Index Inode", INODE),
 
+	/* MONITOR_IBUF_FREELIST_PAGE_READ */
 	MONITOR_BUF_PAGE_READ("ibuf_free_list", "Insert Buffer Free List",
 			      IBUF_FREELIST),
 
+	/* MONITOR_IBUF_BITMAP_PAGE_READ */
 	MONITOR_BUF_PAGE_READ("ibuf_bitmap", "Insert Buffer Bitmap",
 			      IBUF_BITMAP),
 
+	/* MONITOR_SYSTEM_PAGE_READ */
 	MONITOR_BUF_PAGE_READ("system_page", "System", SYSTEM),
 
+	/* MONITOR_TRX_SYSTEM_PAGE_READ */
 	MONITOR_BUF_PAGE_READ("trx_system", "Transaction System", TRX_SYSTEM),
 
+	/* MONITOR_FSP_HDR_PAGE_READ */
 	MONITOR_BUF_PAGE_READ("fsp_hdr", "File Space Header", FSP_HDR),
 
+	/* MONITOR_XDES_PAGE_READ */
 	MONITOR_BUF_PAGE_READ("xdes", "Extent Descriptor", XDES),
 
+	/* MONITOR_BLOB_PAGE_READ */
 	MONITOR_BUF_PAGE_READ("blob", "Uncompressed BLOB", BLOB),
 
+	/* MONITOR_ZBLOB_PAGE_READ */
 	MONITOR_BUF_PAGE_READ("zblob", "First Compressed BLOB", ZBLOB),
 
+	/* MONITOR_ZBLOB2_PAGE_READ */
 	MONITOR_BUF_PAGE_READ("zblob2", "Subsequent Compressed BLOB", ZBLOB2),
 
+	/* MONITOR_RSEG_ARRAY_PAGE_READ */
+	MONITOR_BUF_PAGE_READ("rseg_array", "Rollback Segment Array",
+			      RSEG_ARRAY),
+
+	/* MONITOR_OTHER_PAGE_READ */
 	MONITOR_BUF_PAGE_READ("other", "other/unknown (old version of InnoDB)",
 			      OTHER),
 
+	/* MONITOR_INDEX_LEAF_PAGE_WRITTEN */
 	MONITOR_BUF_PAGE_WRITTEN("index_leaf","Index Leaf", INDEX_LEAF),
 
+	/* MONITOR_INDEX_NON_LEAF_PAGE_WRITTEN */
 	MONITOR_BUF_PAGE_WRITTEN("index_non_leaf","Index Non-leaf",
 				 INDEX_NON_LEAF),
 
+	/* MONITOR_INDEX_IBUF_LEAF_PAGE_WRITTEN */
 	MONITOR_BUF_PAGE_WRITTEN("index_ibuf_leaf", "Insert Buffer Index Leaf",
 				 INDEX_IBUF_LEAF),
 
+	/*MONITOR_INDEX_IBUF_NON_LEAF_PAGE_WRITTEN */
 	MONITOR_BUF_PAGE_WRITTEN("index_ibuf_non_leaf",
 				 "Insert Buffer Index Non-Leaf",
 				 INDEX_IBUF_NON_LEAF),
 
+	/* MONITOR_UNDO_LOG_PAGE_WRITTEN */
 	MONITOR_BUF_PAGE_WRITTEN("undo_log", "Undo Log", UNDO_LOG),
 
+	/* MONITOR_INODE_PAGE_WRITTEN */
 	MONITOR_BUF_PAGE_WRITTEN("index_inode", "Index Inode", INODE),
 
+	/* MONITOR_IBUF_FREELIST_PAGE_WRITTEN */
 	MONITOR_BUF_PAGE_WRITTEN("ibuf_free_list", "Insert Buffer Free List",
 				 IBUF_FREELIST),
 
+	/* MONITOR_IBUF_BITMAP_PAGE_WRITTEN */
 	MONITOR_BUF_PAGE_WRITTEN("ibuf_bitmap", "Insert Buffer Bitmap",
 				 IBUF_BITMAP),
 
+	/* MONITOR_SYSTEM_PAGE_WRITTEN */
 	MONITOR_BUF_PAGE_WRITTEN("system_page", "System", SYSTEM),
 
+	/* MONITOR_TRX_SYSTEM_PAGE_WRITTEN */
 	MONITOR_BUF_PAGE_WRITTEN("trx_system", "Transaction System",
 				 TRX_SYSTEM),
 
+	/* MONITOR_FSP_HDR_PAGE_WRITTEN */
 	MONITOR_BUF_PAGE_WRITTEN("fsp_hdr", "File Space Header", FSP_HDR),
 
+	/* MONITOR_XDES_PAGE_WRITTEN */
 	MONITOR_BUF_PAGE_WRITTEN("xdes", "Extent Descriptor", XDES),
 
+	/* MONITOR_BLOB_PAGE_WRITTEN */
 	MONITOR_BUF_PAGE_WRITTEN("blob", "Uncompressed BLOB", BLOB),
 
+	/* MONITOR_ZBLOB_PAGE_WRITTEN */
 	MONITOR_BUF_PAGE_WRITTEN("zblob", "First Compressed BLOB", ZBLOB),
 
+	/* MONITOR_ZBLOB2_PAGE_WRITTEN */
 	MONITOR_BUF_PAGE_WRITTEN("zblob2", "Subsequent Compressed BLOB",
 				 ZBLOB2),
 
+	/* MONITOR_RSEG_ARRAY_PAGE_WRITTEN */
+	MONITOR_BUF_PAGE_WRITTEN("rseg_array", "Rollback Segment Array",
+				 RSEG_ARRAY),
+
+	/* MONITOR_OTHER_PAGE_WRITTEN */
 	MONITOR_BUF_PAGE_WRITTEN("other", "other/unknown (old version InnoDB)",
 				 OTHER),
 
@@ -1491,26 +1532,57 @@ srv_mon_set_module_control(
 	}
 }
 
-/****************************************************************//**
-Get transaction system's rollback segment size in pages
+/** Get transaction system's rollback segment size in pages.
+If srv_undo_tablespaces == 0, then all rollback segments will come out of
+the system tablespace. If srv_undo_tablespaces > 0, then all rollback
+segments come out of the undo tablespaces.
 @return size in pages */
 static
 ulint
 srv_mon_get_rseg_size(void)
-/*=======================*/
 {
-	ulint		value = 0;
+	ulint	value = 0;
+	ulong	cur_spaces = srv_undo_tablespaces;
+	ulong	cur_rsegs = srv_rollback_segments;
 
-	/* trx_sys_t::rsegs is a static vector, so we can go through it without
-	mutex protection. In addition, we provide an estimate of the
-	total rollback segment size and to avoid mutex contention we
-	don't acquire the rseg->mutex" */
-	for (Rseg_Iterator it = trx_sys->rsegs.begin();
-	     it != trx_sys->rsegs.end(); ++it) {
+	/* Rollback segments used in the temporary tablespace */
+	trx_sys->tmp_rsegs.s_lock();
+	for (const auto tmp_rseg : trx_sys->tmp_rsegs) {
 
-		ut_ad(*it != NULL);
-		value += (*it)->curr_size;
+		value += tmp_rseg->curr_size;
 	}
+	trx_sys->tmp_rsegs.s_unlock();
+
+	if (cur_spaces == 0) {
+		/* Rollback segments used in the system tablespace */
+		trx_sys->rsegs.s_lock();
+		for (const auto rseg : trx_sys->rsegs) {
+
+			value += rseg->curr_size;
+		}
+		trx_sys->rsegs.s_unlock();
+
+		return(value);
+	}
+
+	/* Rollback segments used in undo tablespaces */
+	undo::spaces->s_lock();
+	for (auto undo_space : undo::spaces->m_spaces) {
+
+		if (undo_space->num() > cur_spaces) {
+			break;
+		}
+
+		for (auto rseg : *undo_space->rsegs()) {
+
+			if (rseg->id >= cur_rsegs) {
+				break;
+			}
+
+			value += rseg->curr_size;
+		}
+	}
+	undo::spaces->s_unlock();
 
 	return(value);
 }

@@ -19,11 +19,11 @@
 #define MYSQL_QUERY_RUNNER_INCLUDED
 
 #include <algorithm>
+#include <atomic>
 #include <functional>
 #include <string>
 #include <vector>
 
-#include "atomic.h"
 #include "message_data.h"
 #include "mutex.h"
 #include "my_inttypes.h"
@@ -220,7 +220,7 @@ private:
     Indicates if there is query currently executed. Only one query can be
     executed in specified time moment.
    */
-  my_boost::atomic<bool>* m_is_processing;
+  std::atomic<bool>* m_is_processing;
 
   /**
     Indicates if this is original runner or a copy. In case of original the

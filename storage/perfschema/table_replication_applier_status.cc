@@ -38,37 +38,23 @@
 
 THR_LOCK table_replication_applier_status::m_table_lock;
 
-/* clang-format off */
-static const TABLE_FIELD_TYPE field_types[]=
-{
-  {
-    {C_STRING_WITH_LEN("CHANNEL_NAME")},
-    {C_STRING_WITH_LEN("char(64)")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("SERVICE_STATE")},
-    {C_STRING_WITH_LEN("enum('ON','OFF')")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("REMAINING_DELAY")},
-    {C_STRING_WITH_LEN("int")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("COUNT_TRANSACTIONS_RETRIES")},
-    {C_STRING_WITH_LEN("bigint")},
-    {NULL, 0}
-  },
-};
-/* clang-format on */
-
-TABLE_FIELD_DEF
-table_replication_applier_status::m_field_def = {4, field_types};
+Plugin_table table_replication_applier_status::m_table_def(
+  /* Schema name */
+  "performance_schema",
+  /* Name */
+  "replication_applier_status",
+  /* Definition */
+  "  CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,\n"
+  "  SERVICE_STATE ENUM('ON','OFF') not null,\n"
+  "  REMAINING_DELAY INTEGER unsigned,\n"
+  "  COUNT_TRANSACTIONS_RETRIES BIGINT unsigned not null,\n"
+  "  PRIMARY KEY (CHANNEL_NAME) USING HASH\n",
+  /* Options */
+  " ENGINE=PERFORMANCE_SCHEMA",
+  /* Tablespace */
+  nullptr);
 
 PFS_engine_table_share table_replication_applier_status::m_share = {
-  {C_STRING_WITH_LEN("replication_applier_status")},
   &pfs_readonly_acl,
   table_replication_applier_status::create,
   NULL,                                            /* write_row */
@@ -76,9 +62,8 @@ PFS_engine_table_share table_replication_applier_status::m_share = {
   table_replication_applier_status::get_row_count, /* records */
   sizeof(PFS_simple_index),                        /* ref length */
   &m_table_lock,
-  &m_field_def,
-  false, /* checked */
-  false  /* perpetual */
+  &m_table_def,
+  true /* perpetual */
 };
 
 bool
@@ -103,7 +88,7 @@ PFS_index_rpl_applier_status::match(Master_info *mi)
 }
 
 PFS_engine_table *
-table_replication_applier_status::create(void)
+table_replication_applier_status::create(PFS_engine_table_share *)
 {
   return new table_replication_applier_status();
 }

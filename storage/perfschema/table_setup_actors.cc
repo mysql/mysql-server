@@ -33,42 +33,24 @@
 
 THR_LOCK table_setup_actors::m_table_lock;
 
-/* clang-format off */
-static const TABLE_FIELD_TYPE field_types[]=
-{
-  {
-    { C_STRING_WITH_LEN("HOST") },
-    { C_STRING_WITH_LEN("char(60)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("USER") },
-    { C_STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("ROLE") },
-    { C_STRING_WITH_LEN("char(32)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("ENABLED") },
-    { C_STRING_WITH_LEN("enum(\'YES\',\'NO\')") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("HISTORY") },
-    { C_STRING_WITH_LEN("enum(\'YES\',\'NO\')") },
-    { NULL, 0}
-  }
-};
-/* clang-format on */
-
-TABLE_FIELD_DEF
-table_setup_actors::m_field_def = {5, field_types};
+Plugin_table table_setup_actors::m_table_def(
+  /* Schema name */
+  "performance_schema",
+  /* Name */
+  "setup_actors",
+  /* Definition */
+  "  HOST CHAR(60) COLLATE utf8_bin default '%' not null,\n"
+  "  USER CHAR(32) COLLATE utf8_bin default '%' not null,\n"
+  "  `ROLE` CHAR(32) COLLATE utf8_bin default '%' not null,\n"
+  "  ENABLED ENUM ('YES', 'NO') not null default 'YES',\n"
+  "  HISTORY ENUM ('YES', 'NO') not null default 'YES',\n"
+  "  PRIMARY KEY (HOST, USER, `ROLE`) USING HASH\n",
+  /* Options */
+  " ENGINE=PERFORMANCE_SCHEMA",
+  /* Tablespace */
+  nullptr);
 
 PFS_engine_table_share table_setup_actors::m_share = {
-  {C_STRING_WITH_LEN("setup_actors")},
   &pfs_editable_acl,
   table_setup_actors::create,
   table_setup_actors::write_row,
@@ -76,9 +58,8 @@ PFS_engine_table_share table_setup_actors::m_share = {
   table_setup_actors::get_row_count,
   sizeof(PFS_simple_index),
   &m_table_lock,
-  &m_field_def,
-  false, /* checked */
-  false  /* perpetual */
+  &m_table_def,
+  false /* perpetual */
 };
 
 bool
@@ -112,13 +93,16 @@ PFS_index_setup_actors::match(PFS_setup_actor *pfs)
 }
 
 PFS_engine_table *
-table_setup_actors::create()
+table_setup_actors::create(PFS_engine_table_share *)
 {
   return new table_setup_actors();
 }
 
 int
-table_setup_actors::write_row(TABLE *table, unsigned char *, Field **fields)
+table_setup_actors::write_row(PFS_engine_table *,
+                              TABLE *table,
+                              unsigned char *,
+                              Field **fields)
 {
   Field *f;
   String user_data("%", 1, &my_charset_utf8_bin);
@@ -242,7 +226,7 @@ table_setup_actors::rnd_pos(const void *pos)
 }
 
 int
-table_setup_actors::index_init(uint idx, bool)
+table_setup_actors::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
   PFS_index_setup_actors *result = NULL;
   DBUG_ASSERT(idx == 0);

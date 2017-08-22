@@ -189,15 +189,23 @@ String_type generic_serialize(THD *thd, const char *dd_object_type,
   w.String(dd_object_type, dd_object_type_size);
 
   w.String(STRING_WITH_LEN("dd_object"));
+
   dd_obj.serialize(&wctx, &w);
+
   w.EndObject();
 
   return (wctx.error() ? empty_ : String_type(buf.GetString(), buf.GetSize()));
 }
 
 
-const String_type &lookup_tablespace_name(Sdi_wcontext *wctx, dd::Object_id id)
+const String_type&
+lookup_tablespace_name(Sdi_wcontext *wctx MY_ATTRIBUTE((unused)),
+                       dd::Object_id id MY_ATTRIBUTE((unused)))
 {
+  // TODO: WL#9538  Remove this when SDI is enabled for InnoDB
+  return empty_;
+
+#if 0 // TODO: WL#9538  Remove this when SDI is enabled for InnoDB
   if (wctx->m_thd == nullptr || id == INVALID_OBJECT_ID)
   {
     return empty_;
@@ -219,6 +227,7 @@ const String_type &lookup_tablespace_name(Sdi_wcontext *wctx, dd::Object_id id)
   DBUG_ASSERT(tsp != nullptr);
 
   return tsp->name();
+#endif
 }
 
 /**
@@ -398,10 +407,11 @@ sdi_t serialize(const Tablespace &tablespace)
 }
 
 
-template <class Dd_type>
-bool generic_deserialize(THD *thd, const sdi_t &sdi,
-                         const String_type &object_type_name, Dd_type *dst,
-                         String_type *schema_name_from_sdi= nullptr)
+template <class Dd_type> bool
+generic_deserialize(THD *thd, const sdi_t &sdi,
+                    const String_type &object_type_name MY_ATTRIBUTE((unused)),
+                    Dd_type *dst,
+                    String_type *schema_name_from_sdi= nullptr)
 {
   RJ_Document doc;
   doc.Parse<0>(sdi.c_str());
@@ -676,12 +686,16 @@ bool store(THD *thd, const Table *t)
 
 bool store(THD *thd, const Tablespace *ts)
 {
+  handlerton *hton= resolve_hton(thd, *ts);
+  if (hton->sdi_set == nullptr)
+  {
+    return false; // SDI api not supported
+  }
   sdi_t sdi= serialize(*ts);
   if (sdi.empty())
   {
     return checked_return(true);
   }
-  handlerton *hton= resolve_hton(thd, *ts);
   return checked_return(sdi_tablespace::store(hton, lex_cstring_handle(sdi),
                                               ts));
 }
@@ -703,7 +717,12 @@ bool drop(THD *thd, const Table *t)
 
 bool drop(THD *thd, const Tablespace *ts)
 {
-  return checked_return(sdi_tablespace::remove(resolve_hton(thd, *ts), ts));
+  handlerton *hton= resolve_hton(thd, *ts);
+  if (!hton->sdi_delete)
+  {
+    return false;
+  }
+  return checked_return(sdi_tablespace::remove(hton, ts));
 }
 
 bool drop_after_update(THD *thd, const Schema *old_s,

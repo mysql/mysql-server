@@ -21,6 +21,7 @@
 #include <sys/types.h>
 #include <string>
 
+#include "my_inttypes.h"  // IWYU pragma: keep
 #include "mysql.h"
 
 namespace Mysql{
@@ -34,9 +35,9 @@ public:
 
   std::string get_name() const;
 
-  uint get_character_set_nr() const;
+  unsigned int get_character_set_nr() const;
 
-  uint get_additional_flags() const;
+  unsigned int get_additional_flags() const;
 
   enum enum_field_types get_type() const;
 

@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 
 CREATE USER test1@localhost;
 CREATE USER test2@localhost;

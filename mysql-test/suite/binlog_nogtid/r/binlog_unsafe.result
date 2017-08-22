@@ -2605,7 +2605,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 DROP TABLE t1,t2,t3;
 SET SESSION binlog_format = STATEMENT;
-CREATE TABLE t1 (a VARCHAR(1000));
+CREATE TABLE t1 (a VARCHAR(1000)) charset latin1;
 INSERT INTO t1 VALUES (CURRENT_USER());
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.

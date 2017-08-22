@@ -41,8 +41,7 @@ SET(MY_C_WARNING_FLAGS
     "${MY_WARNING_FLAGS} -Wwrite-strings -Wdeclaration-after-statement")
 
 # Common warning flags for G++ and Clang++
-SET(MY_CXX_WARNING_FLAGS
-    "${MY_WARNING_FLAGS} -Woverloaded-virtual -Wno-unused-parameter")
+SET(MY_CXX_WARNING_FLAGS "${MY_WARNING_FLAGS} -Woverloaded-virtual")
 
 # GCC bug #36750 (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=36750)
 # Remove when we require GCC >= 5.1 everywhere.

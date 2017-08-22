@@ -13,7 +13,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) GENERATED ALWAYS AS ((`a` * 2)) STORED,
   UNIQUE KEY `b` (`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 describe t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
@@ -26,7 +26,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) GENERATED ALWAYS AS ((`a` * 2)) STORED,
   UNIQUE KEY `b` (`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 describe t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
@@ -48,7 +48,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) GENERATED ALWAYS AS ((`a` * 2)) STORED,
   KEY `b` (`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 describe t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
@@ -61,7 +61,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) GENERATED ALWAYS AS ((`a` * 2)) STORED,
   KEY `a` (`a`,`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 describe t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES	MUL	NULL	
@@ -476,17 +476,18 @@ EXPLAIN SELECT * FROM t1 ORDER BY f1 + 1	{
             } /* attaching_conditions_to_tables */
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`t1`.`gc`",
-              "items": [
-                {
-                  "item": "`t1`.`gc`"
-                }
-              ] /* items */,
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`gc`"
-            } /* clause_processing */
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`t1`.`gc`",
+                "items": [
+                  {
+                    "item": "`t1`.`gc`"
+                  }
+                ] /* items */,
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`gc`"
+              } /* simplifying_order_by */
+            } /* optimizing_distinct_group_by_order_by */
           },
           {
             "reconsidering_access_paths_for_index_ordering": {
@@ -506,6 +507,13 @@ EXPLAIN SELECT * FROM t1 ORDER BY f1 + 1	{
                 "table": "`t1`"
               }
             ] /* refine_plan */
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_sort_to_table_in_plan_at_position": 0
+              } /* filesort */
+            ] /* considering_tmp_tables */
           }
         ] /* steps */
       } /* join_optimization */
@@ -528,6 +536,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`gc` AS `gc
 SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1;
 f1 + 1	MAX(GC)
 1	1
+10	10
 2	2
 3	3
 4	4
@@ -536,7 +545,6 @@ f1 + 1	MAX(GC)
 7	7
 8	8
 9	9
-10	10
 EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	10	100.00	NULL
@@ -654,17 +662,18 @@ EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1	{
             } /* attaching_conditions_to_tables */
           },
           {
-            "clause_processing": {
-              "clause": "GROUP BY",
-              "original_clause": "`t1`.`gc`",
-              "items": [
-                {
-                  "item": "`t1`.`gc`"
-                }
-              ] /* items */,
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`gc`"
-            } /* clause_processing */
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_group_by": {
+                "original_clause": "`t1`.`gc`",
+                "items": [
+                  {
+                    "item": "`t1`.`gc`"
+                  }
+                ] /* items */,
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`gc`"
+              } /* simplifying_group_by */
+            } /* optimizing_distinct_group_by_order_by */
           },
           {
             "reconsidering_access_paths_for_index_ordering": {
@@ -685,6 +694,10 @@ EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1	{
                 "table": "`t1`"
               }
             ] /* refine_plan */
+          },
+          {
+            "considering_tmp_tables": [
+            ] /* considering_tmp_tables */
           }
         ] /* steps */
       } /* join_optimization */
@@ -947,7 +960,7 @@ Table	Op	Msg_type	Msg_text
 test.employees	analyze	status	OK
 EXPLAIN SELECT * FROM employees WHERE JSON_EXTRACT(data, '$.name') = 'Jane';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	employees	NULL	ref	name_idx2	name_idx2	33	const	1	100.00	NULL
+1	SIMPLE	employees	NULL	ref	name_idx2	name_idx2	123	const	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`employees`.`data` AS `data`,`test`.`employees`.`name1` AS `name1`,`test`.`employees`.`name2` AS `name2` from `test`.`employees` where (`test`.`employees`.`name2` = 'Jane')
 SELECT * FROM employees WHERE JSON_EXTRACT(data, '$.name') = 'Jane';

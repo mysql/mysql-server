@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,8 +20,8 @@
 #ifndef _RPC_TYPES_H
 #define _RPC_TYPES_H 1
 
-#if defined(WIN32) || defined(WIN64)
-#include "sys/missing_sys_types.h"
+#if defined(_WIN32) 
+#include "sys/sunrpc_sys_types.h"
 #endif
 
 
@@ -77,7 +77,7 @@ typedef __caddr_t caddr_t;
 #endif
 
 #include <sys/time.h>
-#if !defined(WIN32) && !defined(WIN64)
+#if !defined(_WIN32)
 #include <sys/param.h>
 
 #include <netinet/in.h>

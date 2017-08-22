@@ -29,24 +29,24 @@ set global innodb_file_per_table=on;
 create table t6(a int primary key) engine=innodb
 key_block_size=1 row_format=redundant;
 Warnings:
-Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=1 unless ROW_FORMAT=COMPRESSED.
+Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=1 as ROW_FORMAT is not COMPRESSED.
 create table t7(a int primary key) engine=innodb
 key_block_size=1 row_format=redundant;
 Warnings:
-Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=1 unless ROW_FORMAT=COMPRESSED.
+Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=1 as ROW_FORMAT is not COMPRESSED.
 create table t8(a int primary key) engine=innodb
 key_block_size=1 row_format=fixed;
 Warnings:
-Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=1 unless ROW_FORMAT=COMPRESSED.
+Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=1 as ROW_FORMAT is not COMPRESSED.
 Warning	1478	InnoDB: assuming ROW_FORMAT=DYNAMIC.
 create table t9(a int primary key) engine=innodb
 key_block_size=1 row_format=compact;
 Warnings:
-Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=1 unless ROW_FORMAT=COMPRESSED.
+Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=1 as ROW_FORMAT is not COMPRESSED.
 create table t10(a int primary key) engine=innodb
 key_block_size=1 row_format=dynamic;
 Warnings:
-Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=1 unless ROW_FORMAT=COMPRESSED.
+Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=1 as ROW_FORMAT is not COMPRESSED.
 create table t11(a int primary key) engine=innodb
 key_block_size=1 row_format=compressed;
 create table t12(a int primary key) engine=innodb
@@ -222,21 +222,21 @@ key_block_size = 4 row_format = redundant;
 ERROR HY000: Table storage engine for 't2' doesn't have this option
 show warnings;
 Level	Code	Message
-Warning	1478	InnoDB: cannot specify ROW_FORMAT = REDUNDANT with KEY_BLOCK_SIZE.
+Warning	1478	InnoDB: cannot specify ROW_FORMAT=REDUNDANT with KEY_BLOCK_SIZE.
 Error	1031	Table storage engine for 't2' doesn't have this option
 create table t3 (id int primary key) engine = innodb
 key_block_size = 4 row_format = compact;
 ERROR HY000: Table storage engine for 't3' doesn't have this option
 show warnings;
 Level	Code	Message
-Warning	1478	InnoDB: cannot specify ROW_FORMAT = COMPACT with KEY_BLOCK_SIZE.
+Warning	1478	InnoDB: cannot specify ROW_FORMAT=COMPACT with KEY_BLOCK_SIZE.
 Error	1031	Table storage engine for 't3' doesn't have this option
 create table t4 (id int primary key) engine = innodb
 key_block_size = 4 row_format = dynamic;
 ERROR HY000: Table storage engine for 't4' doesn't have this option
 show warnings;
 Level	Code	Message
-Warning	1478	InnoDB: cannot specify ROW_FORMAT = DYNAMIC with KEY_BLOCK_SIZE.
+Warning	1478	InnoDB: cannot specify ROW_FORMAT=DYNAMIC with KEY_BLOCK_SIZE.
 Error	1031	Table storage engine for 't4' doesn't have this option
 create table t5 (id int primary key) engine = innodb
 key_block_size = 4 row_format = default;
@@ -257,7 +257,7 @@ ERROR HY000: Table storage engine for 't1' doesn't have this option
 show warnings;
 Level	Code	Message
 Warning	1478	InnoDB: invalid KEY_BLOCK_SIZE = 9. Valid values are [1, 2, 4, 8, 16]
-Warning	1478	InnoDB: cannot specify ROW_FORMAT = REDUNDANT with KEY_BLOCK_SIZE.
+Warning	1478	InnoDB: cannot specify ROW_FORMAT=REDUNDANT with KEY_BLOCK_SIZE.
 Error	1031	Table storage engine for 't1' doesn't have this option
 create table t2 (id int primary key) engine = innodb
 key_block_size = 9 row_format = compact;
@@ -265,7 +265,7 @@ ERROR HY000: Table storage engine for 't2' doesn't have this option
 show warnings;
 Level	Code	Message
 Warning	1478	InnoDB: invalid KEY_BLOCK_SIZE = 9. Valid values are [1, 2, 4, 8, 16]
-Warning	1478	InnoDB: cannot specify ROW_FORMAT = COMPACT with KEY_BLOCK_SIZE.
+Warning	1478	InnoDB: cannot specify ROW_FORMAT=COMPACT with KEY_BLOCK_SIZE.
 Error	1031	Table storage engine for 't2' doesn't have this option
 create table t2 (id int primary key) engine = innodb
 key_block_size = 9 row_format = dynamic;
@@ -273,7 +273,7 @@ ERROR HY000: Table storage engine for 't2' doesn't have this option
 show warnings;
 Level	Code	Message
 Warning	1478	InnoDB: invalid KEY_BLOCK_SIZE = 9. Valid values are [1, 2, 4, 8, 16]
-Warning	1478	InnoDB: cannot specify ROW_FORMAT = DYNAMIC with KEY_BLOCK_SIZE.
+Warning	1478	InnoDB: cannot specify ROW_FORMAT=DYNAMIC with KEY_BLOCK_SIZE.
 Error	1031	Table storage engine for 't2' doesn't have this option
 SELECT table_schema, table_name, row_format, data_length, index_length FROM information_schema.tables WHERE engine='innodb' AND table_schema != 'mysql' AND table_schema != 'sys' AND table_schema != 'PERFORMANCE_SCHEMA' AND table_schema != 'information_schema' ORDER BY table_schema, table_name;;
 TABLE_SCHEMA	TABLE_NAME	ROW_FORMAT	DATA_LENGTH	INDEX_LENGTH

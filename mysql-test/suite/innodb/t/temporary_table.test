@@ -4,24 +4,13 @@
 # WL#7899: InnoDB: Map compressed temporary tables to uncompressed
 #
 
-# Embedded server does not restart of server
---source include/not_embedded.inc
 --source include/no_valgrind_without_big.inc
-
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs81=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-alter schema default character set latin1;
-use test;
---enable_query_log
-########################################
 
 --disable_query_log
 call mtr.add_suppression("Tablespace innodb_temporary ran out of space. Please add another file or use 'autoextend' for the last file in setting innodb_temp_data_file_path.");
 call mtr.add_suppression("The table 't1' is full");
 call mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode.");
+call mtr.add_suppression("Skip updating information_schema metadata in InnoDB read-only mode.");
 --enable_query_log
 
 ################################################################################
@@ -197,14 +186,14 @@ drop table t1;
 #
 # 8. try re-starting server with param so that temp-tablespace can't be expanded
 #    and insert enough data to make it full.
-#
+#    Note that each rollback segment will take one full page
 --echo # test condition of full-temp-tablespace
-let $restart_parameters = restart: --innodb_temp_data_file_path=ibtmp1:32M;
+let $restart_parameters = restart: --innodb-rollback-segments=32 --innodb_temp_data_file_path=ibtmp1:32M;
 --source include/restart_mysqld.inc
 #
 create temporary table t1
 	(keyc int, c1 char(250), c2 char(250), c3 char(250),
-	 primary key(keyc, c1, c2, c3)) engine = innodb;
+	 primary key(keyc, c1, c2, c3)) engine = innodb charset latin1;
 delimiter |;
 CREATE PROCEDURE populate_t1()
 BEGIN
@@ -320,7 +309,7 @@ CREATE TEMPORARY TABLE t1(
 SELECT count(*) AS `Expect 1` FROM information_schema.innodb_temp_table_info;
 
 CREATE TABLE space_id(
-  id INT
+  id INT UNSIGNED
 ) ENGINE = InnoDB;
 INSERT INTO space_id SELECT space FROM information_schema.innodb_temp_table_info;
 SELECT count(*) AS `Expect 1` FROM space_id;
@@ -642,7 +631,7 @@ drop table t1;
 #
 --source include/shutdown_mysqld.inc
 --echo "try starting server with temp-tablespace size < min. threshold"
---error 1
+--error 1,42
 --exec $MYSQLD_CMD $sizeoftempfile1
 let SEARCH_PATTERN = Tablespace size must be at least;
 --source ./include/search_pattern_in_file.inc
@@ -703,10 +692,3 @@ CREATE TEMPORARY TABLE t2 (
 SELECT count(*) AS `Expect 2` FROM information_schema.innodb_temp_table_info;
 
 DROP TABLE t1, t2;
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
---eval alter schema test default character set $testdbcs81;
---enable_query_log
-########################################

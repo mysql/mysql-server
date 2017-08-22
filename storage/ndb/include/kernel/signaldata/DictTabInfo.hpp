@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #include <ndb_limits.h>
 #include <NdbSqlUtil.hpp>
 #include <ndb_global.h>
+#include "decimal.h"
 
 #define JAM_FILE_ID 87
 
@@ -38,10 +39,6 @@
 #ifndef DECIMAL_NOT_SPECIFIED
 #define DECIMAL_NOT_SPECIFIED 31
 #endif
-
-C_MODE_START
-extern int decimal_bin_size(int, int);
-C_MODE_END
 
 inline int my_decimal_get_binary_size(uint precision, uint scale)
 {

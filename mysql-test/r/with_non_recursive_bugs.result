@@ -906,7 +906,7 @@ KEY test_idx (col_int_key,col_int) USING BTREE
 ) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=latin1;
 CREATE OR REPLACE VIEW view_c AS SELECT * FROM c;
 CREATE OR REPLACE VIEW view_bb AS SELECT * FROM bb;
-# WHERE utf8_string IN (SELECT latin1_column)
+# WHERE bogus_string IN (SELECT timestamp_column)
 # makes semijoin transformation fail half-way, we want to check
 # that INNRcte is properly cleaned up.
 WITH cte AS (
@@ -935,7 +935,7 @@ FROM aa AS innr1 JOIN cte AS innrcte
 ON innr1.pk = innrcte.field1
 WHERE outr1 . col_int_key <> 0
 ORDER BY innr1 . col_blob );
-ERROR HY000: Illegal mix of collations (utf8_general_ci,COERCIBLE) and (latin1_swedish_ci,NUMERIC) for operation '='
+ERROR 22007: Incorrect datetime value: 'g' for column 'field1' at row 1
 DROP VIEW view_c, view_bb;
 DROP TABLE aa,b,bb,c,e;
 #

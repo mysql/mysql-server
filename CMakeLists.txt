@@ -119,13 +119,15 @@ ELSEIF(NOT HAVE_CMAKE_BUILD_TYPE OR OLD_WITH_DEBUG)
   SET(OLD_WITH_DEBUG 0 CACHE INTERNAL "" FORCE)
 ENDIF()
 
+IF(CMAKE_GENERATOR MATCHES "Visual Studio 14.*")
 # Switch to 64 bit toolset on Windows (32 bit is default).
 # This is recommended as the 32 bit linker can run into address space issues.
 # Sadly there is no clean way to do it from CMake yet, so therefore this
 # slightly hackish way of doing it.
-IF(WIN32)
-  SET(CMAKE_GENERATOR_TOOLSET
-      "v140</PlatformToolset><PreferredToolArchitecture>x64</PreferredToolArchitecture><PlatformToolset>v140")
+  IF(WIN32)
+    SET(CMAKE_GENERATOR_TOOLSET
+        "v140</PlatformToolset><PreferredToolArchitecture>x64</PreferredToolArchitecture><PlatformToolset>v140")
+  ENDIF()
 ENDIF()
 
 # On Linux el6/el7 the default gcc is too old, see if devtoolset is installed.
@@ -278,6 +280,7 @@ INCLUDE(install_macros)
 INCLUDE(install_layout)
 INCLUDE(mysql_add_executable)
 INCLUDE(mysqlgcs)
+INCLUDE(curl)
 
 # Handle options
 IF(EXISTS ${CMAKE_SOURCE_DIR}/rapid)
@@ -303,7 +306,8 @@ ENDIF()
 IF(NOT WITHOUT_SERVER)
   OPTION (WITH_UNIT_TESTS "Compile MySQL with unit tests" ON)
 ENDIF()
-
+OPTION(WITH_AUTHENTICATION_LDAP
+       "Report error if the LDAP authentication plugin cannot be built." OFF)
 
 include(CheckCSourceCompiles)
 include(CheckCXXSourceCompiles)
@@ -518,7 +522,7 @@ IF(REPRODUCIBLE_BUILD)
 ENDIF()
 
 OPTION(ENABLED_LOCAL_INFILE
- "If we should enable LOAD DATA LOCAL by default" ${IF_WIN})
+ "If we should enable LOAD DATA LOCAL by default" OFF)
 MARK_AS_ADVANCED(ENABLED_LOCAL_INFILE)
 
 OPTION(OPTIMIZER_TRACE "Support tracing of Optimizer" ON)
@@ -659,6 +663,8 @@ MYSQL_CHECK_LZ4()
 IF(NOT WITHOUT_SERVER)
   MYSQL_CHECK_PROTOBUF()
 ENDIF()
+# Try and set CURL_LIBRARY
+MYSQL_CHECK_CURL()
 
 IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
   # Check for pthread_setname_np

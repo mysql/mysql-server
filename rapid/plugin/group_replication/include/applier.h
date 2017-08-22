@@ -147,6 +147,7 @@ public:
   virtual int handle(const uchar *data, ulong len)= 0;
   virtual int handle_pipeline_action(Pipeline_action *action)= 0;
   virtual Flow_control_module* get_flow_control_module()= 0;
+  virtual void run_flow_control_step()= 0;
   virtual int purge_applier_queue_and_restart_applier_module()= 0;
   virtual void kill_pending_transactions(bool set_read_mode,
                                          bool threaded_sql_session)= 0;
@@ -482,6 +483,11 @@ public:
     return &flow_control_module;
   }
 
+  virtual void run_flow_control_step()
+  {
+    flow_control_module.flow_control_step(&pipeline_stats_member_collector);
+  }
+
   /**
     Kill pending transactions and enable super_read_only mode, if chosen.
 
@@ -668,14 +674,6 @@ private:
 
   /* The applier pipeline for event execution */
   Event_handler *pipeline;
-
-  /**
-    The Format description event used for Pipeline Events
-    One event is enough for now as we assume that the group is homogeneous.
-    If heterogeneous sources are used, then different format description events
-    can be used to describe each source.
-  */
-  Format_description_log_event fde_evt;
 
   /* Applier timeout on shutdown */
   ulong stop_wait_timeout;

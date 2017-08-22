@@ -100,8 +100,8 @@ bool Open_dictionary_tables_ctx::open_tables()
   const uint flags= (MYSQL_LOCK_IGNORE_TIMEOUT |
                      MYSQL_OPEN_IGNORE_KILLED |
                      MYSQL_OPEN_IGNORE_FLUSH |
-                     m_ignore_global_read_lock ?
-                       MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK : 0);
+                     (m_ignore_global_read_lock ?
+                      MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK : 0));
   uint counter;
 
   if (::open_tables(m_thd, &table_list, &counter, flags))

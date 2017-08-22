@@ -1,0 +1,35 @@
+# ==== Purpose ====
+#
+# This test will check that mysql client program is able to apply
+# GTID skipped transactions without errors in the "use `<DATABASE>`"
+# statements.
+#
+# ==== Related Bugs and Worklogs ====
+#
+# BUG#26128931 USE `DATABASE` STATEMENT FAILS INSIDE GTID SKIPPED TRANSACTION
+#
+--source include/have_log_bin.inc
+
+--echo #
+--echo # 1. Apply some data on server.
+--echo #
+CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+
+--echo #
+--echo # 2. Check that a SQL file with already logged transactions
+--echo #    is correctly skipped when is replayed.
+--echo #
+--let $MYSQLD_DATADIR= `SELECT @@DATADIR`
+--let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+FLUSH LOGS;
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/$binlog_file > $MYSQLTEST_VARDIR/tmp/binlog_gtid_set_gtid_next.sql
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/binlog_gtid_set_gtid_next.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/binlog_gtid_set_gtid_next.sql
+
+--echo #
+--echo # 3. Clean up.
+--echo #
+DROP TABLE t1;

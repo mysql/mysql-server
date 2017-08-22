@@ -340,7 +340,7 @@ void Client::on_session_auth_success(Session_interface&)
 }
 
 
-void Client::on_session_close(Session_interface &s)
+void Client::on_session_close(Session_interface &s MY_ATTRIBUTE((unused)))
 {
   log_debug("%s: Session %i removed", client_id(), s.session_id());
 
@@ -356,7 +356,7 @@ void Client::on_session_close(Session_interface &s)
 }
 
 
-void Client::on_session_reset(Session_interface &s)
+void Client::on_session_reset(Session_interface &s MY_ATTRIBUTE((unused)))
 {
   log_debug("%s: Resetting session %i", client_id(), s.session_id());
 

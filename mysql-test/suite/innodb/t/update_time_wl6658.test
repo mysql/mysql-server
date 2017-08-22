@@ -9,7 +9,6 @@
 #case7: when autocommit off pk-fk with ON DELETE CASCADE
 ###################################################################
 --source include/no_valgrind_without_big.inc
---source include/not_embedded.inc
 
 --echo #create base table
 CREATE TABLE tab1(c1 int,c2 varchar(30), c3 BLOB) ENGINE=InnoDB;

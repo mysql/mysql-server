@@ -12,7 +12,6 @@
 # Description: Test Cases of variable original_commit_timestamp that checks   #
 #              the scope of this variable.                                    #
 ###############################################################################
--- source include/not_embedded.inc
 
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SELECT @@GLOBAL.original_commit_timestamp;

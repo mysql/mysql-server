@@ -29,6 +29,7 @@ Created 3/26/1996 Heikki Tuuri
 #include <set>
 
 #include "btr0sea.h"
+#include "dict0dd.h"
 #include "fsp0sysspace.h"
 #include "ha_prototypes.h"
 #include "lock0lock.h"
@@ -789,15 +790,15 @@ trx_resurrect_locks()
 
 		for (table_id_set::const_iterator i = tables.begin();
 		     i != tables.end(); i++) {
-			if (dict_table_t* table = dict_table_open_on_id(
-				    *i, FALSE,
-				    DICT_TABLE_OP_LOAD_TABLESPACE)) {
+			dict_table_t* table = dd_table_open_on_id(
+				*i, NULL, NULL, false);
+			if (table) {
 				ut_ad(!table->is_temporary());
 
 				if (table->ibd_file_missing
 				    || table->is_temporary()) {
 					mutex_enter(&dict_sys->mutex);
-					dict_table_close(table, TRUE, FALSE);
+					dd_table_close(table, NULL, NULL, true);
 					dict_table_remove_from_cache(table);
 					mutex_exit(&dict_sys->mutex);
 					continue;
@@ -815,7 +816,7 @@ trx_resurrect_locks()
 					    trx_get_id_for_print(trx),
 					    table->name.m_name));
 
-				dict_table_close(table, FALSE, FALSE);
+				dd_table_close(table, NULL, NULL, false);
 			}
 		}
 	}
@@ -824,7 +825,7 @@ trx_resurrect_locks()
 }
 
 /****************************************************************//**
-Resurrect the transactions that were doing inserts the time of the
+Resurrect the transactions that were doing inserts at the time of the
 crash, they need to be undone.
 @return trx_t instance */
 static
@@ -841,11 +842,8 @@ trx_resurrect_insert(
 	ut_d(trx->start_file = __FILE__);
 	ut_d(trx->start_line = __LINE__);
 
+	rseg->trx_ref_count++;
 	trx->rsegs.m_redo.rseg = rseg;
-	/* For transactions with active data will not have rseg size = 1
-	or will not qualify for purge limit criteria. So it is safe to increment
-	this trx_ref_count w/o mutex protection. */
-	++trx->rsegs.m_redo.rseg->trx_ref_count;
 	*trx->xid = undo->xid;
 	trx->id = undo->trx_id;
 	trx->rsegs.m_redo.insert_undo = undo;
@@ -935,23 +933,15 @@ trx_resurrect_update_in_prepared_state(
 		ib::info() << "Transaction " << trx_get_id_for_print(trx)
 			<< " was in the XA prepared state.";
 
-		if (srv_force_recovery == 0) {
+		ut_ad(trx->state != TRX_STATE_FORCED_ROLLBACK);
 
-			ut_ad(trx->state != TRX_STATE_FORCED_ROLLBACK);
-
-			if (trx_state_eq(trx, TRX_STATE_NOT_STARTED)) {
-				++trx_sys->n_prepared_trx;
-			} else {
-				ut_ad(trx_state_eq(trx, TRX_STATE_PREPARED));
-			}
-
-			trx->state = TRX_STATE_PREPARED;
+		if (trx_state_eq(trx, TRX_STATE_NOT_STARTED)) {
+			++trx_sys->n_prepared_trx;
 		} else {
-			ib::info() << "Since innodb_force_recovery > 0, we"
-				" will rollback it anyway.";
-
-			trx->state = TRX_STATE_ACTIVE;
+			ut_ad(trx_state_eq(trx, TRX_STATE_PREPARED));
 		}
+
+		trx->state = TRX_STATE_PREPARED;
 	} else {
 		trx->state = TRX_STATE_COMMITTED_IN_MEMORY;
 	}
@@ -968,11 +958,8 @@ trx_resurrect_update(
 	trx_undo_t*	undo,	/*!< in/out: update UNDO record */
 	trx_rseg_t*	rseg)	/*!< in/out: rollback segment */
 {
+	rseg->trx_ref_count++;
 	trx->rsegs.m_redo.rseg = rseg;
-	/* For transactions with active data will not have rseg size = 1
-	or will not qualify for purge limit criteria. So it is safe to increment
-	this trx_ref_count w/o mutex protection. */
-	++trx->rsegs.m_redo.rseg->trx_ref_count;
 	*trx->xid = undo->xid;
 	trx->id = undo->trx_id;
 	trx->rsegs.m_redo.update_undo = undo;
@@ -1016,6 +1003,57 @@ trx_resurrect_update(
 	}
 }
 
+/** Resurrect the transactions that were doing inserts and updates at
+the time of a crash, they need to be undone.
+@param[in]	rseg	rollback segment */
+static
+void
+trx_resurrect(trx_rseg_t* rseg)
+{
+	trx_t*	trx;
+	trx_undo_t*	undo;
+
+	ut_ad(rseg != nullptr);
+
+	/* Resurrect transactions that were doing inserts. */
+	for (undo = UT_LIST_GET_FIRST(rseg->insert_undo_list);
+	     undo != NULL;
+	     undo = UT_LIST_GET_NEXT(undo_list, undo)) {
+
+		trx = trx_resurrect_insert(undo, rseg);
+
+		trx_sys_rw_trx_add(trx);
+
+		trx_resurrect_table_ids(trx, &trx->rsegs.m_redo, undo);
+	}
+
+	/* Ressurrect transactions that were doing updates. */
+	for (undo = UT_LIST_GET_FIRST(rseg->update_undo_list);
+	     undo != NULL;
+	     undo = UT_LIST_GET_NEXT(undo_list, undo)) {
+
+		/* Check the trx_sys->rw_trx_set first. */
+		trx_sys_mutex_enter();
+
+		trx_t*	trx = trx_get_rw_trx_by_id(undo->trx_id);
+
+		trx_sys_mutex_exit();
+
+		if (trx == NULL) {
+			trx = trx_allocate_for_background();
+
+			ut_d(trx->start_file = __FILE__);
+			ut_d(trx->start_line = __LINE__);
+		}
+
+		trx_resurrect_update(trx, undo, rseg);
+
+		trx_sys_rw_trx_add(trx);
+
+		trx_resurrect_table_ids(trx, &trx->rsegs.m_redo, undo);
+	}
+}
+
 /****************************************************************//**
 Creates trx objects for transactions and initializes the trx list of
 trx_sys at database start. Rollback segments and undo log lists must
@@ -1028,58 +1066,23 @@ trx_lists_init_at_db_start(void)
 {
 	ut_a(srv_is_being_started);
 
-	/* Look through the rollback segments for transaction undo logs. */
-
-	for (Rseg_Iterator it = trx_sys->rsegs.begin();
-	     it != trx_sys->rsegs.end(); ++it) {
-
-		trx_undo_t*	undo;
-		trx_rseg_t*	rseg = *it;
-
-		ut_ad(rseg != nullptr);
-
-		/* Resurrect transactions that were doing inserts. */
-		for (undo = UT_LIST_GET_FIRST(rseg->insert_undo_list);
-		     undo != NULL;
-		     undo = UT_LIST_GET_NEXT(undo_list, undo)) {
-
-			trx_t*	trx;
-
-			trx = trx_resurrect_insert(undo, rseg);
-
-			trx_sys_rw_trx_add(trx);
-
-			trx_resurrect_table_ids(
-				trx, &trx->rsegs.m_redo, undo);
-		}
-
-		/* Ressurrect transactions that were doing updates. */
-		for (undo = UT_LIST_GET_FIRST(rseg->update_undo_list);
-		     undo != NULL;
-		     undo = UT_LIST_GET_NEXT(undo_list, undo)) {
-
-			/* Check the trx_sys->rw_trx_set first. */
-			trx_sys_mutex_enter();
-
-			trx_t*	trx = trx_get_rw_trx_by_id(undo->trx_id);
-
-			trx_sys_mutex_exit();
-
-			if (trx == NULL) {
-				trx = trx_allocate_for_background();
-
-				ut_d(trx->start_file = __FILE__);
-				ut_d(trx->start_line = __LINE__);
-			}
-
-			trx_resurrect_update(trx, undo, rseg);
-
-			trx_sys_rw_trx_add(trx);
-
-			trx_resurrect_table_ids(
-				trx, &trx->rsegs.m_redo, undo);
-		}
+	/* Look through the rollback segments in the TRX_SYS for
+	transaction undo logs. */
+	for (auto rseg : trx_sys->rsegs) {
+		trx_resurrect(rseg);
 	}
+
+	/* Look through the rollback segments in each RSEG_ARRAY for
+	transaction undo logs. */
+	undo::spaces->s_lock();
+	for (auto undo_space : undo::spaces->m_spaces) {
+		undo_space->rsegs()->s_lock();
+		for (auto rseg : *undo_space->rsegs()) {
+			trx_resurrect(rseg);
+		}
+		undo_space->rsegs()->s_unlock();
+	}
+	undo::spaces->s_unlock();
 
 	TrxIdSet::iterator	end = trx_sys->rw_trx_set.end();
 
@@ -1105,82 +1108,146 @@ trx_lists_init_at_db_start(void)
 }
 
 /** Get next redo rollback segment in round-robin fashion.
+While InnoDB is running in multi-threaded mode, the vectors of undo
+tablespaces and rsegs do not shrink.  So they do not need protection
+to get a pointer to an rseg.
+If an rseg is not marked for undo tablespace truncation, we assign
+it to a transaction. We increment trx_ref_count to keep the purge
+thread from truncating the undo tablespace that contains this rseg
+until the transaction is done with it.
+@param[in]	target_undo_tablespaces
+				number of undo tablespaces to use when
+				calculating which rseg to assign.
+@return assigned rollback segment instance */
+static
+trx_rseg_t*
+get_next_redo_rseg_from_undo_spaces(
+	ulong	target_undo_tablespaces)
+{
+	undo::Tablespace*	undo_space;
+	ulong target_rollback_segments = srv_rollback_segments;
+
+	ut_ad(target_undo_tablespaces > 0);
+	ut_d(undo::spaces->s_lock());
+	ut_ad(target_undo_tablespaces <= undo::spaces->size());
+	ut_d(undo::spaces->s_unlock());
+
+	static ulint	rseg_counter = 0;
+	trx_rseg_t*	rseg = nullptr;
+	ulint		current = rseg_counter;
+
+	/* Increment the static redo_rseg_slot so the next call from any thread
+	starts with the next rseg. */
+	os_atomic_increment_ulint(&rseg_counter, 1);
+
+	while (rseg == nullptr) {
+
+		/* Traverse the rsegs like this: (space, rseg_id)
+		(0,0), (1,0), ... (n,0), (0,1), (1,1), ... (n,1), ... */
+		ulint	window = current % (target_rollback_segments
+					    * target_undo_tablespaces);
+		ulint	spaces_slot = window % target_undo_tablespaces;
+		ulint	rseg_slot = window / target_undo_tablespaces;
+
+		current++;
+
+		undo_space = undo::spaces->at(spaces_slot);
+
+		ut_ad(target_rollback_segments <= undo_space->rsegs()->size());
+
+		/* Avoid any rseg that resides in a tablespace that has
+		been marked for truncate. This is possible only if there
+		are at least 2 UNDO tablespaces active.
+		We do not want to wait below on an s_lock for an rseg in
+		an undo tablespace that is being truncated.  So check
+		this first.  It could be set immediately after this, but
+		that is a very short gap, compared to the time it takes
+		to truncate an undo tablespace.*/
+		if (undo_space->rsegs()->is_inactive()) {
+			rseg = nullptr;
+			continue;
+		}
+
+		/* Check again with a shared lock. */
+		undo_space->rsegs()->s_lock();
+		if (undo_space->rsegs()->is_inactive()) {
+			rseg = nullptr;
+			undo_space->rsegs()->s_unlock();
+			continue;
+		}
+
+		/* Mark the chosen rseg so that it will not be selected
+		for UNDO truncation. */
+		rseg = undo_space->rsegs()->at(rseg_slot);
+		rseg->trx_ref_count++;
+
+		undo_space->rsegs()->s_unlock();
+	}
+
+	ut_ad(rseg->trx_ref_count > 0);
+
+	return(rseg);
+}
+
+/** Get the next redo rollback segment in round-robin fashion.
+The assigned slots may have gaps but the vector does not.
+@return assigned rollback segment instance */
+static
+trx_rseg_t*
+get_next_redo_rseg_from_trx_sys()
+{
+	static ulint	rseg_counter = 0;
+	ulong		n_rollback_segments = srv_rollback_segments;
+
+	/* Versions 5.6 and 5.7 of InnoDB would allow 128 as the max for
+	innodb_rollback_segments but would only use 96 since 32 slots were
+	used for temporary rsegs. Now those rsegs are in trx_sys_t::tmp_rsegs
+	and trx_sys_t::rsegs which each can hold all 128.  As a result,
+	an existing system tablespace might have gaps in the slot assignment.
+	The Rsegs vector only contains the rsegs that exist. Since
+	srv_rollback_segments can be set to a smaller number at runtime,
+	it might be smaller than Rsegs::size().  But srv_rollback_segments
+	can never be larger than Rsegs::size() because when the user increases
+	innodb_rollback_segments, the rollback segments are created and rseg
+	objects are added to the vector ready to use before
+	srv_rollback_segments is increased. */
+	ut_ad(n_rollback_segments <= trx_sys->rsegs.size());
+
+	/* Try the next slot that no other thread is looking at */
+	ulint	slot = os_atomic_increment_ulint(&rseg_counter, 1)
+		       % n_rollback_segments;
+
+	/* s_lock the vector since it might be sorted when added to. */
+	trx_sys->rsegs.s_lock();
+	trx_rseg_t*	rseg = trx_sys->rsegs.at(slot);
+	trx_sys->rsegs.s_unlock();
+
+	/* It is not neccessary to s_lock Rsegs::m_latch here because the
+	system tablespace is never truncated like other undo tablespaces. */
+	rseg->trx_ref_count++;
+
+	ut_ad(rseg->space_id == TRX_SYS_SPACE);
+
+	return(rseg);
+}
+
+/** Get next redo rollback segment in round-robin fashion.
 We assume that the assigned slots are not contiguous and have gaps.
 @return assigned rollback segment instance */
 static
 trx_rseg_t*
 get_next_redo_rseg()
 {
-	static ulint	redo_rseg_slot = 0;
+	/* Since this global value can change at any instant, use the
+	value at this instant. */
+	ulong target = srv_undo_tablespaces;
 
-	/* Versions 5.6 and 5.7 of InnoDB would allow 128 as the max for
-	innodb_rollback_segments but would only use 96 since 32 slots were
-	used for temporary rsegs. Now those rsegs are in trx_sys_t::tmp_rsegs
-	and trx_sys_t::rsegs can hold all 128.  So existing databases may
-	have srv_available_rollback_segments=96 while srv_rollback_segments
-	is 128.  Another possibility is that srv_rollback_segments can be set
-	to a smaller number at runtime.  So use the smaller of these two. */
-	ulint		max_rollback_segments
-			= ut_min(static_cast<ulint>(srv_rollback_segments),
-				 static_cast<ulint>(trx_sys->rsegs.size()));
-	ulint		slot = redo_rseg_slot % max_rollback_segments;
-	ulint		last = (slot == 0
-				? max_rollback_segments - 1 : slot - 1);
-	trx_rseg_t*	rseg = nullptr;
-	bool		is_last = (slot == last);
-	bool		wrapped = false;
-
-	/* Increment the static redo_rseg_slot so the next call from any thread
-	starts with the next rseg. */
-	os_atomic_increment_ulint(&redo_rseg_slot, 1);
-
-	while (rseg == nullptr) {
-
-		/* Set wrapped == true if this is the last rseg, the next
-		time around we will be looking at where we started. */
-		wrapped = wrapped ? true : is_last;
-		is_last = (slot == last);
-
-		rseg = trx_sys->rsegs.at(slot);
-
-		/* Set the next slot to look at. */
-		slot = (slot + 1) % max_rollback_segments;
-
-		/* When srv_undo_tablespaces is > 0, do not use any rseg
-		allocated from the system-tablespace unless we have looked
-		at all other possible rsegs. */
-		if (!wrapped
-		    && rseg->space_id == TRX_SYS_SPACE
-		    && srv_undo_tablespaces > 0) {
-			rseg = nullptr;
-			continue;
-		}
-
-		/* Avoid any rseg that resides in a tablespace that has
-		been marked for truncate. This is possible only if there
-		are at least 2 UNDO tablespaces active with 2 redo rsegs
-		active in them. */
-		if (rseg->skip_allocation) {
-			rseg = nullptr;
-			continue;
-		}
-
-		/* Try again with mutex protection. */
-		mutex_enter(&rseg->mutex);
-		if (rseg->skip_allocation) {
-			rseg = nullptr;
-		} else {
-			/* We now have an rseg selected.  By marking it
-			allocated we are ensuring that it will not be
-			selected for UNDO truncation. */
-			rseg->trx_ref_count++;
-		}
-		mutex_exit(&rseg->mutex);
+	if (target == 0) {
+		return(get_next_redo_rseg_from_trx_sys());
 	}
-
-	ut_ad(rseg->trx_ref_count > 0);
-
-	return(rseg);
+	else {
+		return(get_next_redo_rseg_from_undo_spaces(target));
+	}
 }
 
 /** Get the next noredo rollback segment.
@@ -1189,14 +1256,17 @@ static
 trx_rseg_t*
 get_next_temp_rseg()
 {
-	static ulint	temp_rseg_slot;
+	static ulint	temp_rseg_counter = 0;
+	ulong		n_rollback_segments = srv_rollback_segments;
 
-	ut_ad(trx_sys->tmp_rsegs.size() == srv_tmp_rollback_segments);
+	ut_ad(n_rollback_segments <= trx_sys->tmp_rsegs.size());
 
 	/* Try the next slot that no other thread is looking at */
-	ulint	slot = os_atomic_increment_ulint(&temp_rseg_slot, 1)
-		       % srv_tmp_rollback_segments;
+	ulint	slot = os_atomic_increment_ulint(&temp_rseg_counter, 1)
+		       % n_rollback_segments;
 
+	/* No need to s_lock the vector since it is only added to at the end,
+	and it is never resized or sorted. */
 	trx_rseg_t*	rseg = trx_sys->tmp_rsegs.at(slot);
 
 	ut_ad(rseg->id == slot);
@@ -1915,10 +1985,11 @@ trx_commit_in_memory(
 
 	if (trx->rsegs.m_redo.rseg != NULL) {
 		trx_rseg_t*	rseg = trx->rsegs.m_redo.rseg;
-		mutex_enter(&rseg->mutex);
 		ut_ad(rseg->trx_ref_count > 0);
-		--rseg->trx_ref_count;
-		mutex_exit(&rseg->mutex);
+
+		/* Multiple transactions can simultaneously decrement
+		the atomic counter. */
+		rseg->trx_ref_count--;
 	}
 
 	if (mtr != NULL) {
@@ -2034,7 +2105,8 @@ trx_commit_low(
 	ut_ad(!mtr == !(trx_is_rseg_updated(trx)));
 
 	/* undo_no is non-zero if we're doing the final commit. */
-	if (trx->fts_trx != NULL && trx->undo_no != 0) {
+	if (trx->fts_trx != NULL && trx->undo_no != 0
+	    && trx->lock.que_state != TRX_QUE_ROLLING_BACK) {
 		dberr_t	error;
 
 		ut_a(!trx_is_autocommit_non_locking(trx));
@@ -2060,11 +2132,6 @@ trx_commit_low(
 	if (mtr != NULL) {
 
 		mtr->set_sync();
-
-		if (trx_is_redo_rseg_updated(trx)) {
-			mtr->set_undo_space(trx->rsegs.m_redo.rseg->space_id);
-			mtr->set_sys_modified();
-		}
 
 		serialised = trx_write_serialisation_history(trx, mtr);
 
@@ -2130,8 +2197,8 @@ trx_commit(
 
 	if (trx_is_rseg_updated(trx)) {
 		mtr = &local_mtr;
+
 		mtr_start_sync(mtr);
-		mtr->set_sys_modified();
 	} else {
 		mtr = NULL;
 	}
@@ -2150,9 +2217,10 @@ trx_cleanup_at_db_startup(
 {
 	ut_ad(trx->is_recovered);
 
-	/* At db start-up there shouldn't be any active trx on temp-table
-	that needs insert_cleanup as temp-table are not visible on
-	restart and temporary rseg is re-created. */
+	/* Cleanup any durable undo logs in non-temporary rollback segments.
+	At database start-up there are no active transactions recorded in
+	any rollback segments in the temporary tablespace because all those
+	changes are all lost on restart. */
 	if (trx->rsegs.m_redo.insert_undo != NULL) {
 
 		trx_undo_insert_cleanup(&trx->rsegs.m_redo, false);
@@ -2692,8 +2760,6 @@ trx_prepare_low(
 
 		if (noredo_logging) {
 			mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
-		} else {
-			mtr.set_undo_space(rseg->space_id);
 		}
 
 		/* Change the undo log segment states from TRX_UNDO_ACTIVE to

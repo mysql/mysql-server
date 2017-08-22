@@ -5,8 +5,6 @@
 --echo # collations are deleted if they are not present in the
 --echo # character sets dir when restarting.
 
---source include/not_embedded.inc
-
 --echo #
 --echo # New character sets dir:
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR

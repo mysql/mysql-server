@@ -658,7 +658,9 @@ b`) */ 1;
 EXPLAIN SELECT /*+ QB_NAME(``) */ 1;
 
 SET NAMES utf8;
+--character_set latin1
 EXPLAIN SELECT /*+ QB_NAME(`ø``ø`) */ 1;
+--character_set utf8mb4
 
 CREATE TABLE table–¢ (i INT);
 SELECT /*+ BKA(table–¢) */ 1 FROM t1;

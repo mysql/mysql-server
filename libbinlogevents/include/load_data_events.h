@@ -249,8 +249,8 @@ public:
 #ifndef HAVE_MYSYS
   //TODO(WL#7684): Implement the method print_event_info and print_long_info for
   //            all the events supported  in  MySQL Binlog
-  void print_event_info(std::ostream& info) {};
-  void print_long_info(std::ostream& info) {};
+  void print_event_info(std::ostream&) {};
+  void print_long_info(std::ostream&) {};
 #endif
 };
 
@@ -364,8 +364,8 @@ public:
 #ifndef HAVE_MYSYS
   //TODO(WL#7684): Implement the method print_event_info and print_long_info for
   //            all the events supported  in  MySQL Binlog
-  void print_event_info(std::ostream& info) {};
-  void print_long_info(std::ostream& info) {};
+  void print_event_info(std::ostream&) {};
+  void print_long_info(std::ostream&) {};
 #endif
 };
 
@@ -424,8 +424,8 @@ public:
 #ifndef HAVE_MYSYS
   //TODO(WL#7684): Implement the method print_event_info and print_long_info for
   //            all the events supported  in  MySQL Binlog
-  void print_event_info(std::ostream& info) {};
-  void print_long_info(std::ostream& info) {};
+  void print_event_info(std::ostream&) {};
+  void print_long_info(std::ostream&) {};
 #endif
 };
 } // end namespace binary_log

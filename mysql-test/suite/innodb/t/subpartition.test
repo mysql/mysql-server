@@ -1,0 +1,172 @@
+SET @file_per_table=@@global.innodb_file_per_table;
+
+CREATE TABLESPACE table_level ADD DATAFILE 'table.ibd';
+CREATE TABLESPACE partition_level ADD DATAFILE 'partition.ibd';
+CREATE TABLESPACE subpartition_level ADD DATAFILE 'subpartition.ibd';
+
+--mkdir $MYSQL_TMP_DIR/table
+--mkdir $MYSQL_TMP_DIR/partition
+--mkdir $MYSQL_TMP_DIR/subpartition
+
+CREATE TABLE subpartitioned(a int auto_increment primary key)
+TABLESPACE table_level
+PARTITION BY RANGE (a)
+SUBPARTITION BY HASH (a) SUBPARTITIONS 2
+(PARTITION p0 VALUES LESS THAN (0) TABLESPACE partition_level
+ (SUBPARTITION sp0 TABLESPACE subpartition_level,
+  SUBPARTITION sp1),
+ PARTITION p1 VALUES LESS THAN (16)
+ (SUBPARTITION sp2,
+  SUBPARTITION sp3 TABLESPACE innodb_file_per_table),
+ PARTITION p2 VALUES LESS THAN (256) TABLESPACE innodb_file_per_table
+ (SUBPARTITION sp4 TABLESPACE subpartition_level,
+  SUBPARTITION sp5));
+
+--echo # Subpartitions show the inherited TABLESPACE.
+--echo # Bug#23219564 FIXME: the TABLESPACE of PARTITION should be shown!
+SHOW CREATE TABLE subpartitioned;
+
+--echo # The TABLESPACE of PARTITION/TABLE should be inherited for subpartitions
+
+ALTER TABLE subpartitioned ADD PARTITION (PARTITION p3 VALUES LESS THAN (65536) (SUBPARTITION sp6 TABLESPACE innodb_file_per_table, SUBPARTITION sp7 TABLESPACE innodb_system));
+
+SHOW CREATE TABLE subpartitioned;
+
+ALTER TABLE subpartitioned REORGANIZE PARTITION p3 INTO (PARTITION p3 VALUES LESS THAN(65536) (SUBPARTITION sp6, SUBPARTITION sp7 TABLESPACE subpartition_level));
+
+SHOW CREATE TABLE subpartitioned;
+
+ALTER TABLE subpartitioned DROP PARTITION p3;
+
+SHOW CREATE TABLE subpartitioned;
+
+DROP TABLE subpartitioned;
+
+CREATE TABLE partitioned(a int auto_increment primary key)
+TABLESPACE table_level
+PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (0) TABLESPACE partition_level,
+ PARTITION p1 VALUES LESS THAN (16),
+ PARTITION p2 VALUES LESS THAN (256) TABLESPACE innodb_file_per_table);
+
+--echo # Bug#23219685 FIXME: PARTITION should show inherited TABLESPACE!
+SHOW CREATE TABLE partitioned;
+
+DROP TABLE partitioned;
+
+SET GLOBAL innodb_file_per_table=ON;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE subpartitioned(a int auto_increment primary key)
+DATA DIRECTORY '$MYSQL_TMP_DIR/table'
+PARTITION BY RANGE (a)
+SUBPARTITION BY HASH (a) SUBPARTITIONS 2
+(PARTITION p0 VALUES LESS THAN (0) DATA DIRECTORY '$MYSQL_TMP_DIR/partition'
+ (SUBPARTITION sp0 DATA DIRECTORY '$MYSQL_TMP_DIR/subpartition',
+  SUBPARTITION sp1),
+ PARTITION p1 VALUES LESS THAN (16)
+ TABLESPACE innodb_file_per_table DATA DIRECTORY '$MYSQL_TMP_DIR/partition'
+ (SUBPARTITION sp2,
+  SUBPARTITION sp3 DATA DIRECTORY '$MYSQL_TMP_DIR/subpartition'),
+ PARTITION p2 VALUES LESS THAN (256)
+ (SUBPARTITION sp4 DATA DIRECTORY '$MYSQL_TMP_DIR/subpartition',
+  SUBPARTITION sp5));
+
+--echo # Subpartitions show the inherited DATA DIRECTORY.
+--echo # Bug#23219564 FIXME: the DATA DIRECTORY of PARTITION should be shown!
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE subpartitioned;
+
+DROP TABLE subpartitioned;
+
+SET GLOBAL innodb_file_per_table=OFF;
+SET innodb_strict_mode=OFF;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE subpartitioned(a int auto_increment primary key)
+DATA DIRECTORY '$MYSQL_TMP_DIR/table'
+PARTITION BY RANGE (a)
+SUBPARTITION BY HASH (a) SUBPARTITIONS 2
+(PARTITION p0 VALUES LESS THAN (0) DATA DIRECTORY '$MYSQL_TMP_DIR/partition'
+ (SUBPARTITION sp0 DATA DIRECTORY '$MYSQL_TMP_DIR/subpartition',
+  SUBPARTITION sp1),
+ PARTITION p1 VALUES LESS THAN (16)
+ TABLESPACE innodb_file_per_table DATA DIRECTORY '$MYSQL_TMP_DIR/partition'
+ (SUBPARTITION sp2,
+  SUBPARTITION sp3 DATA DIRECTORY '$MYSQL_TMP_DIR/subpartition'),
+ PARTITION p2 VALUES LESS THAN (256)
+ (SUBPARTITION sp4 DATA DIRECTORY '$MYSQL_TMP_DIR/subpartition',
+  SUBPARTITION sp5));
+SET innodb_strict_mode=ON;
+
+--echo # Subpartitions show the inherited DATA DIRECTORY.
+--echo # Bug#23219564 FIXME: the DATA DIRECTORY of PARTITION should be shown!
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE subpartitioned;
+
+--echo # The DATA DIRECTORY of PARTITION/TABLE should be inherited for subpartitions
+SET GLOBAL innodb_file_per_table=ON;
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval ALTER TABLE subpartitioned ADD PARTITION (PARTITION p3 VALUES LESS THAN (65536) TABLESPACE innodb_file_per_table DATA DIRECTORY '$MYSQL_TMP_DIR/partition' (SUBPARTITION sp6, SUBPARTITION sp7));
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE subpartitioned;
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval ALTER TABLE subpartitioned REORGANIZE PARTITION p3 INTO (PARTITION p3 VALUES LESS THAN(65536) (SUBPARTITION sp6, SUBPARTITION sp7 DATA DIRECTORY '$MYSQL_TMP_DIR/subpartition'));
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE subpartitioned;
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+ALTER TABLE subpartitioned DROP PARTITION p3;
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE subpartitioned;
+
+DROP TABLE subpartitioned;
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE partitioned(a int auto_increment primary key)
+DATA DIRECTORY '$MYSQL_TMP_DIR/table'
+PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (0) TABLESPACE innodb_file_per_table,
+ PARTITION p1 VALUES LESS THAN (16)
+ TABLESPACE innodb_file_per_table DATA DIRECTORY '$MYSQL_TMP_DIR/partition',
+ PARTITION p2 VALUES LESS THAN (256));
+
+--echo # Bug#23219685 FIXME: PARTITION should show inherited DATA DIRECTORY!
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE partitioned;
+
+DROP TABLE partitioned;
+
+SET GLOBAL innodb_file_per_table=OFF;
+SET innodb_strict_mode=OFF;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE partitioned(a int auto_increment primary key)
+DATA DIRECTORY '$MYSQL_TMP_DIR/table'
+PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (0) TABLESPACE innodb_file_per_table,
+ PARTITION p1 VALUES LESS THAN (16)
+ TABLESPACE innodb_file_per_table DATA DIRECTORY '$MYSQL_TMP_DIR/partition',
+ PARTITION p2 VALUES LESS THAN (256));
+SET innodb_strict_mode=ON;
+
+--echo # Bug#23219685 FIXME: PARTITION should show inherited DATA DIRECTORY!
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE partitioned;
+
+DROP TABLE partitioned;
+
+--rmdir $MYSQL_TMP_DIR/table/test
+--rmdir $MYSQL_TMP_DIR/table
+--rmdir $MYSQL_TMP_DIR/partition/test
+--rmdir $MYSQL_TMP_DIR/partition
+--rmdir $MYSQL_TMP_DIR/subpartition/test
+--rmdir $MYSQL_TMP_DIR/subpartition
+
+DROP TABLESPACE table_level;
+DROP TABLESPACE partition_level;
+DROP TABLESPACE subpartition_level;
+
+SET GLOBAL innodb_file_per_table=@file_per_table;

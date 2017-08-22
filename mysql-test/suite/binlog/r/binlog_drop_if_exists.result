@@ -54,7 +54,7 @@ END
 master-bin.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` PROCEDURE `db_bug_13684`.`p`(OUT p1 INT)
 BEGIN
 END
-master-bin.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `db_bug_13684`.`f`(s CHAR(20)) RETURNS char(50) CHARSET latin1
+master-bin.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `db_bug_13684`.`f`(s CHAR(20)) RETURNS char(50) CHARSET utf8mb4
     DETERMINISTIC
 RETURN s
 DROP PROCEDURE IF EXISTS db_bug_13684.p;
@@ -86,7 +86,7 @@ END
 master-bin.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` PROCEDURE `db_bug_13684`.`p`(OUT p1 INT)
 BEGIN
 END
-master-bin.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `db_bug_13684`.`f`(s CHAR(20)) RETURNS char(50) CHARSET latin1
+master-bin.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `db_bug_13684`.`f`(s CHAR(20)) RETURNS char(50) CHARSET utf8mb4
     DETERMINISTIC
 RETURN s
 master-bin.000001	#	Query	#	#	use `test`; DROP PROCEDURE IF EXISTS db_bug_13684.p

@@ -4,20 +4,8 @@
 
 --source include/have_debug.inc
 
-# Embedded server does not support crashing
---source include/not_embedded.inc
-
 # Avoid CrashReporter popup on Mac
 #--source include/not_crashrep.inc
-
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs41=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-alter schema test default character set latin1;
---enable_query_log
-########################################
 
 SET default_storage_engine=InnoDB;
 
@@ -41,6 +29,7 @@ call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 2 in
 call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified.");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot calculate statistics for table `test`\.`.*` because the \.ibd file is missing");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Ignoring tablespace `test/.*` because it could not be opened.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Unable to open tablespace .* \\(flags=.*, filename=");
 --enable_query_log
 
 --echo #
@@ -395,12 +384,13 @@ let $mysqld=$MYSQLD_CMD --core-file --console > $SEARCH_FILE 2>&1;
 
 # TODO: This could fail to refuse startup, in case there was a log
 # checkpoint after the INSERT INTO yn.
---error 1
+--error 1,42
 --exec $mysqld
 
-let SEARCH_PATTERN= InnoDB: Tablespace \d+ was not found at .*alt_dir.test.yn.ibd;
+let SEARCH_PATTERN= InnoDB: Could not find any file associated with the tablespace \d+;
 --source include/search_pattern_in_file.inc
-let SEARCH_PATTERN= InnoDB: Tablespace \d+ was not found at .*alt_dir.test.yw.ibd;
+
+let SEARCH_PATTERN= InnoDB: Tablespace file '.*.tmp.*alt_dir.test.yw.ibd' ID mismatch, expected \d+ but found \d+;
 --source include/search_pattern_in_file.inc
 
 --echo # restoring yn.ibd, yw.ibd
@@ -460,10 +450,3 @@ DROP TABLE yy;
 --rmdir $MYSQL_TMP_DIR/alt_dir
 --rmdir $MYSQL_TMP_DIR/new_dir/test
 --rmdir $MYSQL_TMP_DIR/new_dir
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
---eval alter schema test default character set $testdbcs41;
---enable_query_log
-########################################

@@ -297,8 +297,11 @@ select extractvalue('<a>A<b>B1</b><b>B2</b></a>','/a/b[count(.)=position()]');
 #
 select extractvalue('<a>Jack</a>','/a[contains(../a,"J")]');
 select extractvalue('<a>Jack</a>','/a[contains(../a,"j")]');
+
+set names latin1;
 select extractvalue('<a>Jack</a>','/a[contains(../a,"j")]' collate latin1_bin);
 select extractvalue('<a>Jack</a>' collate latin1_bin,'/a[contains(../a,"j")]');
+set names utf8mb4;
 
 #
 # Bug#18285: ExtractValue not returning character

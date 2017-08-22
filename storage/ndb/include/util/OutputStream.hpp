@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2008 MySQL AB, 2008 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,6 +35,28 @@ public:
   virtual int write(const void * buf, size_t len) = 0;
   virtual void flush() {};
   virtual void reset_timeout() {};
+};
+
+/**
+ * Strings going to BufferedOutputStream are appended to
+ * a LogBuffer object which are later retrieved by a log
+ * thread and written to the log file.
+ */
+
+class BufferedOutputStream : public OutputStream {
+public:
+  BufferedOutputStream(class LogBuffer* plogBuf);
+  virtual ~BufferedOutputStream() {}
+
+  int print(const char * fmt, ...)
+    ATTRIBUTE_FORMAT(printf, 2, 3);
+  int println(const char * fmt, ...)
+    ATTRIBUTE_FORMAT(printf, 2, 3);
+  int write(const void * buf, size_t len);
+  void flush() {};
+
+private:
+  class LogBuffer* logBuf;
 };
 
 class FileOutputStream : public OutputStream {

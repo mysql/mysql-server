@@ -22,7 +22,7 @@ CREATE TABLE t1(
 class	INT,
 id	INT,
 title	VARCHAR(100)
-) ENGINE=InnoDB ;
+) charset latin1 ENGINE=InnoDB ;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 50
@@ -115,7 +115,7 @@ CREATE TABLE t_part (
 class INT ,
 id INT ,
 title VARCHAR(30)
-) ENGINE=InnoDB
+) charset latin1 ENGINE=InnoDB
 PARTITION BY RANGE(id)
 SUBPARTITION BY KEY(id)
 SUBPARTITIONS 4
@@ -165,7 +165,7 @@ t_part	CREATE TABLE `t_part` (
   `title` varchar(30) DEFAULT NULL,
   KEY `idx` (`class`,`id`,`title`(10))
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (id)
+/*!50100 PARTITION BY RANGE (`id`)
 SUBPARTITION BY KEY (id)
 SUBPARTITIONS 4
 (PARTITION p0 VALUES LESS THAN (5000) ENGINE = InnoDB,

@@ -2,8 +2,6 @@
 # 		ERROR FROM ENGINE
 
 
-# Embedded server does not support crashing
---source include/not_embedded.inc
 
 SET GLOBAL innodb_file_per_table=ON;
 

@@ -123,12 +123,6 @@ public:
   virtual void referenced_column_name(const String_type &name)
   { m_referenced_column_name= name; }
 
-  // Fix "inherits ... via dominance" warnings
-  virtual Weak_object_impl *impl()
-  { return Weak_object_impl::impl(); }
-  virtual const Weak_object_impl *impl() const
-  { return Weak_object_impl::impl(); }
-
 public:
   static Foreign_key_element_impl *restore_item(Foreign_key_impl *fk)
   {

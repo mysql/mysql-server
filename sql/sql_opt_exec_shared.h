@@ -511,4 +511,12 @@ protected:
   QEP_shared *m_qs; // qs stands for Qep_Shared
 };
 
+/**
+  Symbolic slice numbers into JOIN's arrays ref_items, tmp_fields and
+  tmp_all_fields
+*/
+enum { REF_SLICE_BASE = 0,
+       REF_SLICE_TMP1, REF_SLICE_TMP2, REF_SLICE_TMP3, REF_SLICE_SAVE,
+       REF_SLICE_WIN_1 };
+
 #endif // SQL_OPT_EXEC_SHARED_INCLUDED

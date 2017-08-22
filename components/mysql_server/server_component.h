@@ -1,4 +1,4 @@
-/* Copyright (c) 2016,2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #ifndef MYSQL_SERVER_COMPONENT_H
 #define MYSQL_SERVER_COMPONENT_H
@@ -45,6 +45,7 @@ void persistent_dynamic_loader_deinit();
 void dynamic_loader_scheme_file_init();
 void dynamic_loader_scheme_file_deinit();
 
+void mysql_string_services_init();
 /* implementation of the built-in components */
 
 /**
@@ -60,8 +61,13 @@ void dynamic_loader_scheme_file_deinit();
 bool mysql_services_bootstrap(SERVICE_TYPE(registry)** registry);
 
 /**
-  Shutdowns service registry and dynamic loader making sure all basic services
-  are unregistered. Will fail if any service implementation is in use.
+  Shutdowns dynamic loader.
+*/
+void shutdown_dynamic_loader();
+
+/**
+  Shutdowns service registry making sure all basic services are unregistered.
+  Will fail if any service implementation is in use.
 
   @return Status of performed operation
   @retval false success
@@ -73,5 +79,7 @@ void mysql_components_handle_std_exception(const char* funcname);
 
 /* A declaration of registry service required for my_service<> to work. */
 extern SERVICE_TYPE(registry) imp_mysql_server_registry;
+
+extern SERVICE_TYPE(registry_registration) imp_mysql_server_registry_registration;
 
 #endif /* MYSQL_SERVER_COMPONENT_H */

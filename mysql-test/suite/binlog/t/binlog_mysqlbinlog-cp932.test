@@ -1,6 +1,4 @@
 
-# disabled in embedded until tools running is fixed with embedded
---source include/not_embedded.inc
 
 -- source include/have_binlog_format_mixed_or_statement.inc
 -- source include/have_log_bin.inc

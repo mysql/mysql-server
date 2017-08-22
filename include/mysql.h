@@ -82,6 +82,9 @@ typedef int my_socket;
 // MYSQL_TIME is part of our public API.
 #include "mysql_time.h"  // IWYU pragma: keep
 
+// The error messages are part of our public API.
+#include "errmsg.h"  // IWYU pragma: keep
+
 #ifdef	__cplusplus
 extern "C" {
 #endif

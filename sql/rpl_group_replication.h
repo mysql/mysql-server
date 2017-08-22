@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -42,6 +42,7 @@ public:
       unsigned int index,
       const GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS& callbacks);
   bool get_group_member_stats_info(
+      unsigned int index,
       const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS& callbacks);
   unsigned int get_members_number_info();
 
@@ -70,6 +71,7 @@ bool get_group_replication_group_members_info(
     unsigned int index,
     const GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS& callbacks);
 bool get_group_replication_group_member_stats_info(
+    unsigned int index,
     const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS& callbacks);
 unsigned int get_group_replication_members_number_info();
 

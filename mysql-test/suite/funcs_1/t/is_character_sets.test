@@ -9,8 +9,6 @@
 #                   Create this script based on older scripts and new code.
 #
 
-# Bug#37456 funcs_1: Several tests crash when used with embedded server
---source include/not_embedded.inc
 
 let $is_table = CHARACTER_SETS;
 

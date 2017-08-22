@@ -7,7 +7,7 @@ RESET PERSIST max_connections;
 ERROR HY000: Variable max_connections does not exist in persisted config file
 RESET PERSIST IF EXISTS max_connections;
 Warnings:
-Warning	3593	Variable max_connections does not exist in persisted config file
+Warning	3615	Variable max_connections does not exist in persisted config file
 RESET PERSIST IF EXISTS;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 RESET PERSIST IF EXISTS max_connections, long_query_time;
@@ -60,7 +60,7 @@ VARIABLE_NAME	VARIABLE_VALUE
 # check for errors and warnings
 RESET PERSIST IF EXISTS sort_buffer_size;
 Warnings:
-Warning	3593	Variable sort_buffer_size does not exist in persisted config file
+Warning	3615	Variable sort_buffer_size does not exist in persisted config file
 RESET PERSIST sort_buffer_size;
 ERROR HY000: Variable sort_buffer_size does not exist in persisted config file
 SET GLOBAL long_query_time= DEFAULT,

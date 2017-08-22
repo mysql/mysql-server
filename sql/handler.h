@@ -31,12 +31,14 @@
 #include <string>
 
 #include "dd/object_id.h"      // dd::Object_id
+#include "dd/properties.h"     // dd::Properties
 #include "discrete_interval.h" // Discrete_interval
 #include "ft_global.h"         // ft_hints
 #include "hash.h"
 #include "key.h"
 #include "lex_string.h"
 #include "m_string.h"
+#include "map_helpers.h"
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
@@ -455,6 +457,11 @@ enum enum_alter_inplace_result {
 */
 #define HA_DESCENDING_INDEX (1LL << 48)
 
+/**
+  Supports partial update of BLOB columns.
+*/
+#define HA_BLOB_PARTIAL_UPDATE (1LL << 49)
+
 /*
   Bits in index_flags(index_number) for what you can do with index.
   If you do not implement indexes, just return zero here.
@@ -598,6 +605,7 @@ enum legacy_db_type
   DB_TYPE_MARIA,
   /** Performance schema engine. */
   DB_TYPE_PERFORMANCE_SCHEMA,
+  DB_TYPE_TEMPTABLE,
   DB_TYPE_FIRST_DYNAMIC=42,
   DB_TYPE_DEFAULT=127 // Must be last
 };
@@ -824,8 +832,8 @@ enum ha_notification_type { HA_NOTIFY_PRE_EVENT, HA_NOTIFY_POST_EVENT };
 
 /**
   Class to hold information regarding a table to be created on
-  behalf of a plugin. The class stores the name, definition and
-  options of the table. The definition should not contain the
+  behalf of a plugin. The class stores the name, definition, options
+  and optional tablespace of the table. The definition should not contain the
   'CREATE TABLE name' prefix.
 
   @note The data members are not owned by the class, and will not
@@ -834,17 +842,27 @@ enum ha_notification_type { HA_NOTIFY_PRE_EVENT, HA_NOTIFY_POST_EVENT };
 class Plugin_table
 {
 private:
+  const char *m_schema_name;
   const char *m_table_name;
   const char *m_table_definition;
   const char *m_table_options;
+  const char *m_tablespace_name;
 
 public:
-  Plugin_table(const char *name, const char *definition,
-               const char *options):
-    m_table_name(name),
+  Plugin_table(const char *schema_name,
+               const char *table_name,
+               const char *definition,
+               const char *options,
+               const char *tablespace_name)
+  : m_schema_name(schema_name),
+    m_table_name(table_name),
     m_table_definition(definition),
-    m_table_options(options)
+    m_table_options(options),
+    m_tablespace_name(tablespace_name)
   { }
+
+  const char *get_schema_name() const
+  { return m_schema_name; }
 
   const char *get_name() const
   { return m_table_name; }
@@ -854,6 +872,9 @@ public:
 
   const char *get_table_options() const
   { return m_table_options; }
+
+  const char *get_tablespace_name() const
+  { return m_tablespace_name; }
 };
 
 /**
@@ -1081,6 +1102,43 @@ typedef int (*alter_tablespace_t)(handlerton *hton, THD *thd,
                                   st_alter_tablespace *ts_info,
                                   const dd::Tablespace *old_ts_def,
                                   dd::Tablespace *new_ts_def);
+
+/**
+  Get the tablespace data from SE and insert it into Data dictionary
+
+  @param    thd         Thread context
+
+  @return Operation status.
+  @retval == 0  Success.
+  @retval != 0  Error (handler error code returned)
+*/
+typedef int (*upgrade_tablespace_t)(THD *thd);
+
+
+/**
+  Finish upgrade process inside storage engines.
+  This includes resetting flags to indicate upgrade process
+  and cleanup after upgrade.
+
+  @param    thd      Thread context
+
+  @return Operation status.
+  @retval == 0  Success.
+  @retval != 0  Error (handler error code returned)
+*/
+typedef int (*finish_upgrade_t)(THD *thd, bool failed_upgrade);
+
+/**
+  Upgrade logs after the checkpoint from where upgrade
+  process can only roll forward.
+
+  @param    thd      Thread context
+
+  @return Operation status.
+  @retval == 0  Success.
+  @retval != 0  Error (handler error code returned)
+*/
+typedef int (*upgrade_logs_t)(THD *thd);
 
 typedef int (*fill_is_table_t)(handlerton *hton, THD *thd, TABLE_LIST *tables,
                                class Item *cond,
@@ -1352,6 +1410,7 @@ enum dict_init_mode_t
 {
   DICT_INIT_CREATE_FILES,         //< Create all required SE files
   DICT_INIT_CHECK_FILES,          //< Verify existence of expected files
+  DICT_INIT_UPGRADE_FILES,        //< Used for upgrade from mysql-5.7
   DICT_INIT_IGNORE_FILES          //< Don't care about files at all
 };
 
@@ -1382,6 +1441,20 @@ typedef bool (*dict_init_t)(dict_init_mode_t dict_init_mode,
                             uint version,
                             List<const Plugin_table> *DDSE_tables,
                             List<const Plugin_tablespace> *DDSE_tablespaces);
+
+
+/**
+  Invalidate an entry in the local dictionary cache.
+
+  Needed during bootstrap to make sure the contents in the DDSE
+  dictionary cache is in sync with the global DD.
+
+  @param   schema_name    Schema name.
+  @param   table name     Table name.
+ */
+
+typedef void (*dict_cache_reset_t)(const char* schema_name,
+                                   const char* table_name);
 
 
 /** Mode for data dictionary recovery. */
@@ -1493,17 +1566,22 @@ typedef bool (*rotate_encryption_master_key_t)(void);
   @param db_name                  Name of schema
   @param table_name               Name of table
   @param se_private_id            SE private id of the table.
+  @param ts_se_private_data       Tablespace SE private data.
+  @param tbl_se_private_data      Table SE private data.
   @param flags                    Type of statistics to retrieve.
   @param stats                    (OUT) Contains statistics read from SE.
 
   @returns false on success,
            true on failure
 */
-typedef bool (*get_table_statistics_t)(const char *db_name,
-                                       const char *table_name,
-                                       dd::Object_id se_private_id,
-                                       uint flags,
-                                       ha_statistics *stats);
+typedef bool (*get_table_statistics_t)(
+                const char *db_name,
+                const char *table_name,
+                dd::Object_id se_private_id,
+                const dd::Properties &ts_se_private_data,
+                const dd::Properties &tbl_se_private_data,
+                uint flags,
+                ha_statistics *stats);
 
 /**
   @brief
@@ -1612,8 +1690,12 @@ struct handlerton
   is_valid_tablespace_name_t is_valid_tablespace_name;
   get_tablespace_t get_tablespace;
   alter_tablespace_t alter_tablespace;
+  upgrade_tablespace_t upgrade_tablespace;
+  upgrade_logs_t upgrade_logs;
+  finish_upgrade_t finish_upgrade;
   fill_is_table_t fill_is_table;
   dict_init_t dict_init;
+  dict_cache_reset_t dict_cache_reset;
   dict_recover_t dict_recover;
 
   /** Global handler flags. */
@@ -2208,7 +2290,7 @@ public:
 
   ~Alter_inplace_info()
   {
-    delete handler_ctx;
+    destroy(handler_ctx);
   }
 
   /**
@@ -3466,6 +3548,13 @@ public:
   */
   int ha_external_lock(THD *thd, int lock_type);
   int ha_write_row(uchar * buf);
+  /**
+    Update the current row.
+
+    @param old_data  the old contents of the row
+    @param new_data  the new contents of the row
+    @return error status (zero on success, HA_ERR_* error code on error)
+  */
   int ha_update_row(const uchar * old_data, uchar * new_data);
   int ha_delete_row(const uchar * buf);
   void ha_release_auto_increment();
@@ -3830,17 +3919,6 @@ public:
            ((create_info->table_options & HA_OPTION_PACK_RECORD) ?
              ROW_TYPE_DYNAMIC : ROW_TYPE_FIXED);
   }
-
-  /**
-    Get the row type from the storage engine for upgrade. If this method
-    returns ROW_TYPE_NOT_USED, the information in HA_CREATE_INFO should be
-    used.
-    This function is temporarily added to handle case of upgrade. It should
-    not be used in any other use case. This function will be removed in future.
-    This function was handler::get_row_type() in mysql-5.7.
-  */
-  virtual enum row_type get_row_type_for_upgrade() const
-  { return ROW_TYPE_NOT_USED; }
 
   /**
     Get default key algorithm for SE. It is used when user has not provided
@@ -5144,6 +5222,13 @@ private:
   virtual bool is_record_buffer_wanted(ha_rows *const max_rows) const
   { *max_rows= 0; return false; }
 
+  // Set se_private_id and se_private_data during upgrade
+  virtual bool upgrade_table(THD *thd MY_ATTRIBUTE((unused)),
+                             const char* dbname MY_ATTRIBUTE((unused)),
+                             const char* table_name MY_ATTRIBUTE((unused)),
+                             dd::Table *dd_table MY_ATTRIBUTE((unused)))
+  { return false; }
+
   virtual int sample_init();
   virtual int sample_next(uchar *buf);
   virtual int sample_end();
@@ -5407,6 +5492,26 @@ public:
   virtual Partition_handler *get_partition_handler()
   { return NULL; }
 
+  /**
+  Set se_private_id and se_private_data during upgrade
+
+    @param   thd         Pointer of THD
+    @param   dbname      Database name
+    @param   table_name  Table name
+    @param   dd_table    dd::Table for the table
+    @param   table_arg   TABLE object for the table.
+
+    @return Operation status
+      @retval false     Success
+      @retval true      Error
+  */
+
+  bool ha_upgrade_table(THD *thd,
+                         const char* dbname,
+                         const char* table_name,
+                         dd::Table *dd_table,
+                         TABLE *table_arg);
+
 protected:
   Handler_share *get_ha_share_ptr();
   void set_ha_share_ptr(Handler_share *arg_ha_share);
@@ -5563,7 +5668,7 @@ const char *ha_resolve_storage_engine_name(const handlerton *db_type);
 
 static inline bool ha_check_storage_engine_flag(const handlerton *db_type, uint32 flag)
 {
-  return db_type == NULL ? FALSE : MY_TEST(db_type->flags & flag);
+  return db_type == nullptr ? false : (db_type->flags & flag);
 }
 
 static inline bool ha_storage_engine_is_enabled(const handlerton *db_type)
@@ -5660,7 +5765,8 @@ int ha_prepare(THD *thd);
     there should be no prepared transactions in this case.
 */
 
-int ha_recover(HASH *commit_list);
+typedef ulonglong my_xid; // this line is the same as in log_event.h
+int ha_recover(const memroot_unordered_set<my_xid> *commit_list);
 
 /*
  transactions: interface to low-level handlerton functions. These are
@@ -5719,5 +5825,55 @@ bool ha_notify_alter_table(THD *thd, const MDL_key *mdl_key,
 int commit_owned_gtids(THD *thd, bool all, bool *need_clear_ptr);
 int commit_owned_gtid_by_partial_command(THD *thd);
 int check_table_for_old_types(const TABLE *table);
+bool set_tx_isolation(THD *thd,
+                      enum_tx_isolation tx_isolation,
+                      bool one_shot);
+
+/** Generate a string representation of an `ha_rkey_function` enum value.
+ * @param[in] r value to turn into string
+ * @return a string, e.g. "HA_READ_KEY_EXACT" if r == HA_READ_KEY_EXACT */
+const char* ha_rkey_function_to_str(enum ha_rkey_function r);
+
+/** Generate a human readable string that describes a table structure. For
+ * example:
+ * t1 (`c1` char(60) not null, `c2` char(60), hash unique index0(`c1`, `c2`))
+ * @param[in] table_name name of the table to be described
+ * @param[in] mysql_table table structure
+ * @return a string similar to a CREATE TABLE statement */
+std::string table_definition(const char *table_name, const TABLE *mysql_table);
+
+#ifndef DBUG_OFF
+/** Generate a human readable string that describes the contents of a row. The
+ * row must be in the same format as provided to handler::write_row(). For
+ * example, given this table structure:
+ * t1 (`pk` int(11) not null,
+ *     `col_int_key` int(11),
+ *     `col_varchar_key` varchar(1),
+ *     hash unique index0(`pk`, `col_int_key`, `col_varchar_key`))
+ *
+ * something like this will be generated (without the new lines):
+ *
+ * len=16,
+ * raw=..........c.....,
+ * hex=f9 1d 00 00 00 08 00 00 00 01 63 a5 a5 a5 a5 a5,
+ * human=(`pk`=29, `col_int_key`=8, `col_varchar_key`=c)
+ *
+ * @param[in] mysql_row row to dump
+ * @param[in] mysql_table table to which the row belongs, for querying metadata
+ * @return textual dump of the row */
+std::string row_to_string(const uchar *mysql_row, TABLE *mysql_table);
+
+/** Generate a human readable string that describes indexed cells that are given
+ * to handler::index_read() as input. The generated string is similar to the one
+ * generated by row_to_string(), but only contains the cells covered by the
+ * given index.
+ * @param[in] indexed_cells raw buffer in handler::index_read() input format
+ * @param[in] indexed_cells_len length of indexed_cells in bytes
+ * @param[in] mysql_index the index that covers the cells, for querying metadata
+ * @return textual dump of the cells */
+std::string indexed_cells_to_string(const uchar *indexed_cells,
+                                    uint indexed_cells_len,
+                                    const KEY &mysql_index);
+#endif /* DBUG_OFF */
 
 #endif /* HANDLER_INCLUDED */

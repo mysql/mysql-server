@@ -1,6 +1,5 @@
 --source include/have_ssl.inc
 --source include/windows.inc
---source include/not_embedded.inc
 
 --echo # pipe protocol with ssl default (enabled).
 --exec $MYSQL --user=root --host=localhost --protocol=pipe -e "SHOW STATUS like 'Ssl_cipher'"

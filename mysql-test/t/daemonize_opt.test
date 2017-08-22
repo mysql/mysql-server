@@ -1,7 +1,6 @@
 #
 # Start mysqld under mtr by specifying --daemonize option in an opt file
 #
---source include/not_embedded.inc
 --source include/not_windows.inc
 --source include/not_valgrind.inc
 

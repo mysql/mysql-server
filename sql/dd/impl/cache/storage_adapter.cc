@@ -25,12 +25,11 @@
 #include "dd/impl/raw/raw_table.h"            // Raw_table
 #include "dd/impl/sdi.h"                      // sdi::store() sdi::drop()
 #include "dd/impl/transaction_impl.h"         // Transaction_ro
-#include "dd/impl/types/weak_object_impl.h"   // Weak_object_impl
 #include "dd/types/abstract_table.h"          // Abstract_table
 #include "dd/types/charset.h"                 // Charset
 #include "dd/types/collation.h"               // Collation
-#include "dd/types/dictionary_object.h"       // Dictionary_object
-#include "dd/types/dictionary_object_table.h" // Dictionary_object_table
+#include "dd/types/column_statistics.h"       // Column_statistics
+#include "dd/types/entity_object_table.h"     // Entity_object_table
 #include "dd/types/event.h"                   // Event
 #include "dd/types/function.h"                // Routine, Function
 #include "dd/types/index_stat.h"              // Index_stat
@@ -41,8 +40,9 @@
 #include "dd/types/table_stat.h"              // Table_stat
 #include "dd/types/tablespace.h"              // Tablespace
 #include "dd/types/view.h"                    // View
+#include "dd/upgrade/upgrade.h"               // allow_sdi_creation
 #include "debug_sync.h"                       // DEBUG_SYNC
-#include "log.h"                              // sql_print_error
+#include "log.h"
 #include "mutex_lock.h"                       // Mutex_lock
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -144,7 +144,7 @@ bool Storage_adapter::get(THD *thd,
     return true;
   }
 
-  const Dictionary_object_table &table= T::OBJECT_TABLE();
+  const Entity_object_table &table= T::OBJECT_TABLE();
   // Get main object table.
   Raw_table *t= trx.otx.get_table(table.name());
 
@@ -157,7 +157,7 @@ bool Storage_adapter::get(THD *thd,
   }
 
   // Restore the object from the record.
-  Dictionary_object *new_object= NULL;
+  Entity_object *new_object= NULL;
   if (r.get() && table.restore_object_from_record(&trx.otx, *r.get(), &new_object))
   {
     DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
@@ -187,7 +187,8 @@ bool Storage_adapter::get(THD *thd,
 
 // Drop a dictionary object from core storage.
 template <typename T>
-void Storage_adapter::core_drop(THD *thd, const T *object)
+void Storage_adapter::core_drop(THD *thd MY_ATTRIBUTE((unused)),
+                                const T *object)
 {
   DBUG_ASSERT(s_use_fake_storage || thd->is_dd_system_thread());
   DBUG_ASSERT(bootstrap::stage() <= bootstrap::BOOTSTRAP_CREATED);
@@ -309,7 +310,10 @@ bool Storage_adapter::store(THD *thd, T *object)
     return true;
   }
 
+  // Do not create SDIs for tablespaces and tables while creating
+  // dictionary entry during upgrade.
   if (bootstrap::stage() > bootstrap::BOOTSTRAP_CREATED &&
+      dd::upgrade::allow_sdi_creation() &&
       sdi::store(thd, object))
     return true;
 
@@ -368,8 +372,7 @@ bool Storage_adapter::core_sync(THD *thd,
   */
   if (get(thd, key, ISO_READ_COMMITTED, &new_obj) || new_obj == nullptr)
   {
-    sql_print_error("Unable to start server. Cannot find the meta data for "
-                    "data dictionary table '%s'.", name.c_str());
+    LogErr(ERROR_LEVEL, ER_DD_METADATA_NOT_FOUND, name.c_str());
     return true;
   }
 
@@ -439,6 +442,7 @@ template Object_id Storage_adapter::next_oid<Table>();
 template Object_id Storage_adapter::next_oid<View>();
 template Object_id Storage_adapter::next_oid<Charset>();
 template Object_id Storage_adapter::next_oid<Collation>();
+template Object_id Storage_adapter::next_oid<Column_statistics>();
 template Object_id Storage_adapter::next_oid<Event>();
 template Object_id Storage_adapter::next_oid<Routine>();
 template Object_id Storage_adapter::next_oid<Function>();
@@ -494,6 +498,21 @@ template bool Storage_adapter::get<Collation::aux_key_type, Collation>
         enum_tx_isolation, const Collation **);
 template bool Storage_adapter::drop(THD *, const Collation*);
 template bool Storage_adapter::store(THD *, Collation*);
+
+template bool
+Storage_adapter::get<Column_statistics::id_key_type, Column_statistics>
+  (THD *, const Column_statistics::id_key_type &, enum_tx_isolation,
+   const Column_statistics **);
+template bool
+Storage_adapter::get<Column_statistics::name_key_type, Column_statistics>
+  (THD *, const Column_statistics::name_key_type &, enum_tx_isolation,
+   const Column_statistics **);
+template bool
+Storage_adapter::get<Column_statistics::aux_key_type, Column_statistics>
+  (THD *, const Column_statistics::aux_key_type &, enum_tx_isolation,
+   const Column_statistics **);
+template bool Storage_adapter::drop(THD *, const Column_statistics*);
+template bool Storage_adapter::store(THD *, Column_statistics*);
 
 template bool Storage_adapter::get<Event::id_key_type, Event>
 (THD *, const Event::id_key_type &, enum_tx_isolation, const Event **);

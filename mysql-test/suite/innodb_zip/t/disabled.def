@@ -9,10 +9,10 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-wl6501           : WL#6795 2015-11-06 jhauglid WL6795_WL7016_RECOVERY
-wl6501_1         : WL#6795 2015-11-06 jhauglid WL6795_WL7016_RECOVERY
-wl6501_debug     : WL#6795 2015-11-06 jhauglid WL6795_WL7016_RECOVERY
-wl6501_error_1   : WL#6795 2015-11-06 jhauglid WL6795_WL7016_RECOVERY
-wl6501_crash_3   : WL#6795 2015-11-06 jhauglid WL6795_WL7016_RECOVERY
-wl6501_crash_4   : WL#6795 2015-11-06 jhauglid WL6795_WL7016_RECOVERY
-wl6501_crash_5   : WL#6795 2015-11-06 jhauglid WL6795_WL7016_RECOVERY
+wl6501           : WL#6795 2015-11-06 jhauglid WL6795_WL9536_RECOVERY
+wl6501_1         : WL#6795 2015-11-06 jhauglid WL6795_WL9536_RECOVERY
+wl6501_debug     : WL#6795 2015-11-06 jhauglid WL6795_WL9536_RECOVERY
+wl6501_error_1   : WL#6795 2015-11-06 jhauglid WL6795_WL9536_RECOVERY
+wl6501_crash_3   : WL#6795 2015-11-06 jhauglid WL6795_WL9536_RECOVERY
+wl6501_crash_4   : WL#6795 2015-11-06 jhauglid WL6795_WL9536_RECOVERY
+wl6501_crash_5   : WL#6795 2015-11-06 jhauglid WL6795_WL9536_RECOVERY

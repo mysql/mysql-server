@@ -219,7 +219,6 @@ if ($push_message)
   --output $dump_file
   eval EXPLAIN FORMAT=TRADITIONAL $push_query;
 
-  --chmod 0777 $dump_file   # needed for embedded
   eval LOAD DATA INFILE '$dump_file' INTO TABLE messages
          FIELDS TERMINATED BY '\n';
   --remove_file $dump_file

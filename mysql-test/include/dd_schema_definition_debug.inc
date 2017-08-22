@@ -32,6 +32,7 @@ let $dd_table_ids=
                'tables',
                'view_table_usage',
                'columns',
+               'column_statistics',
                'indexes',
                'index_column_usage',
                'column_type_elements',
@@ -40,7 +41,7 @@ let $dd_table_ids=
                'table_partitions',
                'table_partition_values',
                'index_partitions',
-               'version');
+               'dd_properties');
 
 # Expression representing the DD index ids
 let $dd_index_ids= SELECT id FROM indexes

@@ -62,57 +62,27 @@ PFS_index_ees_by_thread_by_error::match_error_index(uint error_index)
 
 THR_LOCK table_ees_by_thread_by_error::m_table_lock;
 
-/* clang-format off */
-static const TABLE_FIELD_TYPE field_types[]=
-{
-  {
-    { C_STRING_WITH_LEN("THREAD_ID") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("ERROR_NUMBER") },
-    { C_STRING_WITH_LEN("int(11)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("ERROR_NAME") },
-    { C_STRING_WITH_LEN("varchar(64)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SQL_STATE") },
-    { C_STRING_WITH_LEN("varchar(5)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_ERROR_RAISED") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_ERROR_HANDLED") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("FIRST_SEEN") },
-    { C_STRING_WITH_LEN("timestamp") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("LAST_SEEN") },
-    { C_STRING_WITH_LEN("timestamp") },
-    { NULL, 0}
-  }
-};
-/* clang-format on */
-
-TABLE_FIELD_DEF
-table_ees_by_thread_by_error::m_field_def = {8, field_types};
+Plugin_table table_ees_by_thread_by_error::m_table_def(
+  /* Schema name */
+  "performance_schema",
+  /* Name */
+  "events_errors_summary_by_thread_by_error",
+  /* Definition */
+  "  THREAD_ID BIGINT unsigned not null,\n"
+  "  ERROR_NUMBER INTEGER,\n"
+  "  ERROR_NAME VARCHAR(64),\n"
+  "  SQL_STATE VARCHAR(5),\n"
+  "  SUM_ERROR_RAISED  BIGINT unsigned not null,\n"
+  "  SUM_ERROR_HANDLED BIGINT unsigned not null,\n"
+  "  FIRST_SEEN TIMESTAMP(0) null default 0,\n"
+  "  LAST_SEEN TIMESTAMP(0) null default 0,\n"
+  "  UNIQUE KEY (THREAD_ID, ERROR_NUMBER) USING HASH\n",
+  /* Options */
+  " ENGINE=PERFORMANCE_SCHEMA",
+  /* Tablespace */
+  nullptr);
 
 PFS_engine_table_share table_ees_by_thread_by_error::m_share = {
-  {C_STRING_WITH_LEN("events_errors_summary_by_thread_by_error")},
   &pfs_truncatable_acl,
   table_ees_by_thread_by_error::create,
   NULL, /* write_row */
@@ -120,13 +90,12 @@ PFS_engine_table_share table_ees_by_thread_by_error::m_share = {
   table_ees_by_thread_by_error::get_row_count,
   sizeof(pos_ees_by_thread_by_error),
   &m_table_lock,
-  &m_field_def,
-  false, /* checked */
-  false  /* perpetual */
+  &m_table_def,
+  false /* perpetual */
 };
 
 PFS_engine_table *
-table_ees_by_thread_by_error::create(void)
+table_ees_by_thread_by_error::create(PFS_engine_table_share *)
 {
   return new table_ees_by_thread_by_error();
 }
@@ -211,7 +180,7 @@ table_ees_by_thread_by_error::rnd_pos(const void *pos)
 }
 
 int
-table_ees_by_thread_by_error::index_init(uint idx, bool)
+table_ees_by_thread_by_error::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
   PFS_index_ees_by_thread_by_error *result = NULL;
   DBUG_ASSERT(idx == 0);

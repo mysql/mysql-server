@@ -1,0 +1,120 @@
+# needed in sourced show_i_s_tablespaces.inc
+let $MYSQLD_DATADIR = `select @@datadir`;
+let $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
+
+CREATE TABLESPACE s1 ADD DATAFILE 's1.ibd' ENGINE InnoDB;
+
+# Change tablespace of partitioned table from innodb_file_per_table
+# to general tablespace
+CREATE TABLE t1 (col1 INT, col2 INT) ENGINE = InnoDB TABLESPACE innodb_file_per_table PARTITION BY KEY(col1) PARTITIONS 3;
+
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+ALTER TABLE t1 ENGINE = InnoDB TABLESPACE s1;
+SHOW CREATE TABLE t1;
+
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+ALTER TABLE t1 ENGINE = InnoDB TABLESPACE innodb_file_per_table;
+SHOW CREATE TABLE t1;
+
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+DROP TABLE t1;
+
+# Change tablespace of partitioned table from innodb_system
+# to general tablespace
+CREATE TABLE t1 (col1 INT, col2 INT) ENGINE = InnoDB TABLESPACE innodb_system PARTITION BY KEY(col1) PARTITIONS 3;
+
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+ALTER TABLE t1 ENGINE = InnoDB TABLESPACE s1;
+SHOW CREATE TABLE t1;
+
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+ALTER TABLE t1 ENGINE = InnoDB TABLESPACE innodb_system;
+SHOW CREATE TABLE t1;
+
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+DROP TABLE t1;
+
+# Change tablespace of partitioned table from general tablespace
+# to innodb_file_per_table
+CREATE TABLE t1 (col1 INT, col2 INT) ENGINE = InnoDB TABLESPACE s1 PARTITION BY KEY(col1) PARTITIONS 3;
+
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+ALTER TABLE t1 ENGINE = InnoDB TABLESPACE innodb_file_per_table;
+SHOW CREATE TABLE t1;
+
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+ALTER TABLE t1 ENGINE = InnoDB TABLESPACE s1;
+SHOW CREATE TABLE t1;
+
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+DROP TABLE t1;
+
+# Change tablespace of partitioned table from general tablespace
+# to innodb_system
+CREATE TABLE t1 (col1 INT, col2 INT) ENGINE = InnoDB TABLESPACE s1 PARTITION BY KEY(col1) PARTITIONS 3;
+
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+ALTER TABLE t1 ENGINE = InnoDB TABLESPACE innodb_system;
+SHOW CREATE TABLE t1;
+
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+ALTER TABLE t1 ENGINE = InnoDB TABLESPACE s1;
+SHOW CREATE TABLE t1;
+
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+DROP TABLE t1;
+
+DROP TABLESPACE s1;
+
+
+--echo #
+--echo # Check if tablespace id of general tablespace or system tablespace
+--echo # are set properly
+--echo #
+
+CREATE TABLESPACE gt1 ADD DATAFILE '1.ibd' FILE_BLOCK_SIZE = 16k ENGINE = InnoDB;
+CREATE TABLE t1 (col1 INT) ENGINE = InnoDB TABLESPACE gt1;
+
+ALTER TABLE t1 ENGINE = InnoDB PARTITION BY RANGE(col1 * 2)
+( PARTITION p3 VALUES LESS THAN MAXVALUE );
+
+SHOW CREATE TABLE t1;
+
+ALTER TABLE t1 ENGINE = InnoDB TABLESPACE innodb_system;
+
+SHOW CREATE TABLE t1;
+
+TRUNCATE TABLE t1;
+
+SHOW CREATE TABLE t1;
+
+ALTER TABLE t1 ENGINE = InnoDB TABLESPACE gt1;
+
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;
+DROP TABLESPACE gt1;

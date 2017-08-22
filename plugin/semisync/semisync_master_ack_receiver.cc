@@ -184,7 +184,8 @@ void Ack_receiver::remove_slave(THD *thd)
   function_exit(kWho);
 }
 
-inline void Ack_receiver::set_stage_info(const PSI_stage_info &stage)
+inline void Ack_receiver::
+set_stage_info(const PSI_stage_info &stage MY_ATTRIBUTE((unused)))
 {
 #ifdef HAVE_PSI_STAGE_INTERFACE
   MYSQL_SET_STAGE(stage.m_key, __FILE__, __LINE__);

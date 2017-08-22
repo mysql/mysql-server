@@ -7,7 +7,6 @@
 # using it are restricted to this mode only.
 --source include/have_log_bin.inc
 --source include/have_binlog_format_row.inc
---source include/not_embedded.inc
 
 #
 # Check if server has support for loading plugins

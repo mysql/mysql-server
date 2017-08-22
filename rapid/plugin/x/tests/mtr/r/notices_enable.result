@@ -7147,7 +7147,7 @@ Mysqlx.Notice.Frame {
 Mysqlx.Notice.Frame {
   type: 1
   scope: LOCAL
-  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1478\nmsg: \"InnoDB: cannot specify ROW_FORMAT = REDUNDANT with KEY_BLOCK_SIZE.\"\n }"
+  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1478\nmsg: \"InnoDB: cannot specify ROW_FORMAT=REDUNDANT with KEY_BLOCK_SIZE.\"\n }"
 }
 
 Mysqlx.Error {

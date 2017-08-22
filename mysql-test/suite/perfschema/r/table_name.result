@@ -153,6 +153,7 @@ FROM performance_schema.objects_summary_global_by_type
 WHERE object_schema="test"
 ORDER BY object_name;
 object_type	object_schema	object_name
+TABLE	test	t1
 
 # Drop the MyISAM table
 

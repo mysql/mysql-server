@@ -33,7 +33,7 @@ INNER JOIN sys_tables st ON i.TABLE_ID=st.TABLE_ID;
 NAME	POS	MTYPE	PRTYPE	LEN
 c1	0	6	1283	4
 c2	1	6	1027	4
-ct	2	5	524540	10
+ct	2	5	16711932	10
 SELECT si.NAME,i.POS,i.NAME FROM INFORMATION_SCHEMA.INNODB_SYS_FIELDS i
 INNER JOIN sys_indexes si ON i.INDEX_ID=si.INDEX_ID;
 NAME	POS	NAME
@@ -52,7 +52,7 @@ t1	CREATE TABLE `t1` (
   `ct` text,
   PRIMARY KEY (`c1`),
   KEY `c2` (`c2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 ALTER TABLE t1 ALTER c2 DROP DEFAULT;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -62,7 +62,7 @@ t1	CREATE TABLE `t1` (
   `ct` text,
   PRIMARY KEY (`c1`),
   KEY `c2` (`c2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 ### files in MYSQL_DATA_DIR/test
 sys_foreign.ibd
 sys_indexes.ibd
@@ -77,7 +77,7 @@ INNER JOIN sys_tables st ON i.TABLE_ID=st.TABLE_ID;
 NAME	POS	MTYPE	PRTYPE	LEN
 c1	0	6	1283	4
 c2	1	6	1027	4
-ct	2	5	524540	10
+ct	2	5	16711932	10
 SELECT si.NAME,i.POS,i.NAME FROM INFORMATION_SCHEMA.INNODB_SYS_FIELDS i
 INNER JOIN sys_indexes si ON i.INDEX_ID=si.INDEX_ID;
 NAME	POS	NAME
@@ -104,7 +104,7 @@ INNER JOIN sys_tables st ON i.TABLE_ID=st.TABLE_ID;
 NAME	POS	MTYPE	PRTYPE	LEN
 c1	0	6	1283	4
 c2	1	6	1027	4
-ct	2	5	524540	10
+ct	2	5	16711932	10
 SELECT si.NAME,i.POS,i.NAME FROM INFORMATION_SCHEMA.INNODB_SYS_FIELDS i
 INNER JOIN sys_indexes si ON i.INDEX_ID=si.INDEX_ID;
 NAME	POS	NAME
@@ -130,7 +130,7 @@ INNER JOIN sys_tables st ON i.TABLE_ID=st.TABLE_ID;
 NAME	POS	MTYPE	PRTYPE	LEN
 c1	0	6	1283	4
 c3	1	6	1027	4
-ct	2	5	524540	10
+ct	2	5	16711932	10
 SELECT si.NAME,i.POS,i.NAME FROM INFORMATION_SCHEMA.INNODB_SYS_FIELDS i
 INNER JOIN sys_indexes si ON i.INDEX_ID=si.INDEX_ID;
 NAME	POS	NAME
@@ -156,7 +156,7 @@ INNER JOIN sys_tables st ON i.TABLE_ID=st.TABLE_ID;
 NAME	POS	MTYPE	PRTYPE	LEN
 c1	0	6	1283	4
 C	1	6	1027	4
-ct	2	5	524540	10
+ct	2	5	16711932	10
 SELECT si.NAME,i.POS,i.NAME FROM INFORMATION_SCHEMA.INNODB_SYS_FIELDS i
 INNER JOIN sys_indexes si ON i.INDEX_ID=si.INDEX_ID;
 NAME	POS	NAME
@@ -187,7 +187,7 @@ INNER JOIN sys_tables st ON i.TABLE_ID=st.TABLE_ID;
 NAME	POS	MTYPE	PRTYPE	LEN
 c1	0	6	1283	4
 Cöŀumň_TWO	1	6	1027	4
-ct	2	5	524540	10
+ct	2	5	16711932	10
 SELECT si.NAME,i.POS,i.NAME FROM INFORMATION_SCHEMA.INNODB_SYS_FIELDS i
 INNER JOIN sys_indexes si ON i.INDEX_ID=si.INDEX_ID;
 NAME	POS	NAME
@@ -222,7 +222,7 @@ t3	CREATE TABLE `t3` (
   `ct` text,
   PRIMARY KEY (`c1`),
   KEY `c2` (`c3`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 SHOW CREATE TABLE t1c;
 Table	Create Table
 t1c	CREATE TABLE `t1c` (
@@ -234,7 +234,7 @@ t1c	CREATE TABLE `t1c` (
   KEY `c3` (`c3`),
   CONSTRAINT `t1c2` FOREIGN KEY (`c2`) REFERENCES `t3` (`c3`),
   CONSTRAINT `t1c3` FOREIGN KEY (`c3`) REFERENCES `t1p` (`c2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 ALTER TABLE t3 CHANGE c3
 `12345678901234567890123456789012345678901234567890123456789012345` INT;
 ERROR 42000: Identifier name '12345678901234567890123456789012345678901234567890123456789012345' is too long
@@ -256,7 +256,7 @@ t3	CREATE TABLE `t3` (
   `ct` text,
   PRIMARY KEY (`c1`),
   KEY `c2` (`1234567890123456789012345678901234567890123456789012345678901234`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 ALTER TABLE t3 CHANGE
 `1234567890123456789012345678901234567890123456789012345678901234`
 `倀倁倂倃倄倅倆倇倈倉倊個倌倍倎倏倐們倒倓倔倕倖倗倘候倚倛倜倝倞借倠倡倢倣値倥倦倧倨倩倪倫倬倭倮倯倰倱倲倳倴倵倶倷倸倹债倻值倽倾倿偀` INT;
@@ -313,7 +313,7 @@ t2	CREATE TABLE `t2` (
   `ct` text,
   PRIMARY KEY (`c1`),
   KEY `c2` (`c3`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 RENAME TABLE t2 TO t1;
 SELECT st.NAME, i.NAME
 FROM sys_tables st INNER JOIN INFORMATION_SCHEMA.INNODB_SYS_TABLES i
@@ -334,7 +334,7 @@ INNER JOIN sys_tables st ON i.TABLE_ID=st.TABLE_ID;
 NAME	POS	MTYPE	PRTYPE	LEN
 c1	0	6	1283	4
 c3	1	6	1027	4
-ct	2	5	524540	10
+ct	2	5	16711932	10
 SELECT si.NAME,i.POS,i.NAME FROM INFORMATION_SCHEMA.INNODB_SYS_FIELDS i
 INNER JOIN sys_indexes si ON i.INDEX_ID=si.INDEX_ID;
 NAME	POS	NAME
@@ -370,7 +370,7 @@ t1c	CREATE TABLE `t1c` (
   KEY `c3` (`c3`),
   CONSTRAINT `t1c2` FOREIGN KEY (`c2`) REFERENCES `t1` (`c3`),
   CONSTRAINT `t1c3` FOREIGN KEY (`c3`) REFERENCES `t1p` (`c2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 SET foreign_key_checks=0;
 DROP TABLE t1p;
 SET foreign_key_checks=1;
@@ -385,7 +385,7 @@ t1c	CREATE TABLE `t1c` (
   KEY `c3` (`c3`),
   CONSTRAINT `t1c2` FOREIGN KEY (`c2`) REFERENCES `t1` (`c3`),
   CONSTRAINT `t1c3` FOREIGN KEY (`c3`) REFERENCES `t1p` (`c2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 ### files in MYSQL_DATA_DIR/test
 sys_foreign.ibd
 sys_indexes.ibd
@@ -399,7 +399,7 @@ INNER JOIN sys_tables st ON i.TABLE_ID=st.TABLE_ID;
 NAME	POS	MTYPE	PRTYPE	LEN
 c1	0	6	1283	4
 c3	1	6	1027	4
-ct	2	5	524540	10
+ct	2	5	16711932	10
 SELECT si.NAME,i.POS,i.NAME FROM INFORMATION_SCHEMA.INNODB_SYS_FIELDS i
 INNER JOIN sys_indexes si ON i.INDEX_ID=si.INDEX_ID;
 NAME	POS	NAME
@@ -439,14 +439,14 @@ t1c	CREATE TABLE `t1c` (
   KEY `c3` (`c3`),
   CONSTRAINT `t1c2` FOREIGN KEY (`c2`) REFERENCES `t1` (`c3`),
   CONSTRAINT `t1c3` FOREIGN KEY (`c3`) REFERENCES `t1p` (`c2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 SELECT i.NAME,i.POS,i.MTYPE,i.PRTYPE,i.LEN
 FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS i
 INNER JOIN sys_tables st ON i.TABLE_ID=st.TABLE_ID;
 NAME	POS	MTYPE	PRTYPE	LEN
 c1	0	6	1283	4
 c3	1	6	1027	4
-ct	2	5	524540	10
+ct	2	5	16711932	10
 SELECT si.NAME,i.POS,i.NAME FROM INFORMATION_SCHEMA.INNODB_SYS_FIELDS i
 INNER JOIN sys_indexes si ON i.INDEX_ID=si.INDEX_ID;
 NAME	POS	NAME
@@ -476,14 +476,14 @@ t1c	CREATE TABLE `t1c` (
   KEY `c2` (`c2`),
   KEY `c3` (`c3`),
   CONSTRAINT `t1c2` FOREIGN KEY (`c2`) REFERENCES `t1` (`c3`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 SELECT i.NAME,i.POS,i.MTYPE,i.PRTYPE,i.LEN
 FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS i
 INNER JOIN sys_tables st ON i.TABLE_ID=st.TABLE_ID;
 NAME	POS	MTYPE	PRTYPE	LEN
 c1	0	6	1283	4
 c3	1	6	1027	4
-ct	2	5	524540	10
+ct	2	5	16711932	10
 SELECT si.NAME,i.POS,i.NAME FROM INFORMATION_SCHEMA.INNODB_SYS_FIELDS i
 INNER JOIN sys_indexes si ON i.INDEX_ID=si.INDEX_ID;
 NAME	POS	NAME
@@ -510,14 +510,14 @@ t1c	CREATE TABLE `t1c` (
   `c3` int(11) DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `c3` (`c3`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 SELECT i.NAME,i.POS,i.MTYPE,i.PRTYPE,i.LEN
 FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS i
 INNER JOIN sys_tables st ON i.TABLE_ID=st.TABLE_ID;
 NAME	POS	MTYPE	PRTYPE	LEN
 c1	0	6	1283	4
 c3	1	6	1027	4
-ct	2	5	524540	10
+ct	2	5	16711932	10
 SELECT si.NAME,i.POS,i.NAME FROM INFORMATION_SCHEMA.INNODB_SYS_FIELDS i
 INNER JOIN sys_indexes si ON i.INDEX_ID=si.INDEX_ID;
 NAME	POS	NAME
@@ -541,7 +541,7 @@ INNER JOIN sys_tables st ON i.TABLE_ID=st.TABLE_ID;
 NAME	POS	MTYPE	PRTYPE	LEN
 c1	0	6	1283	4
 c2	1	6	1027	4
-ct	2	5	524540	10
+ct	2	5	16711932	10
 SELECT si.NAME,i.POS,i.NAME FROM INFORMATION_SCHEMA.INNODB_SYS_FIELDS i
 INNER JOIN sys_indexes si ON i.INDEX_ID=si.INDEX_ID;
 NAME	POS	NAME
@@ -565,17 +565,17 @@ sys_indexes.ibd
 sys_tables.ibd
 t1o.ibd
 ### files in MYSQL_TMP_DIR/alt_dir/test
-FTS_AUX_INDEX_1.ibd
-FTS_AUX_INDEX_2.ibd
-FTS_AUX_INDEX_3.ibd
-FTS_AUX_INDEX_4.ibd
-FTS_AUX_INDEX_5.ibd
-FTS_AUX_INDEX_6.ibd
-FTS_AUX_BEING_DELETED.ibd
-FTS_AUX_BEING_DELETED_CACHE.ibd
-FTS_AUX_CONFIG.ibd
-FTS_AUX_DELETED.ibd
-FTS_AUX_DELETED_CACHE.ibd
+fts_aux_index_1.ibd
+fts_aux_index_2.ibd
+fts_aux_index_3.ibd
+fts_aux_index_4.ibd
+fts_aux_index_5.ibd
+fts_aux_index_6.ibd
+fts_aux_being_deleted.ibd
+fts_aux_being_deleted_cache.ibd
+fts_aux_config.ibd
+fts_aux_deleted.ibd
+fts_aux_deleted_cache.ibd
 t1c.ibd
 t1p.ibd
 tt.ibd
@@ -597,7 +597,7 @@ tt	CREATE TABLE `tt` (
   `ct` text,
   PRIMARY KEY (`pk`),
   FULLTEXT KEY `ct` (`ct`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 ALTER TABLE t1o CHANGE c1 dB_row_Id INT, ALGORITHM=COPY;
 ERROR 42000: Incorrect column name 'dB_row_Id'
 ALTER TABLE t1o CHANGE c1 dB_row_Id INT, ALGORITHM=INPLACE;
@@ -605,16 +605,16 @@ ERROR 42000: Incorrect column name 'DB_ROW_ID'
 ALTER TABLE t1o CHANGE c1 DB_TRX_ID INT;
 ERROR 42000: Incorrect column name 'DB_TRX_ID'
 ALTER TABLE t1o CHANGE c1 db_roll_ptr INT;
-ERROR 42000: Incorrect column name 'DB_ROLL_PTR'
+ERROR 42000: Incorrect column name 'db_roll_ptr'
 ALTER TABLE t1o ADD FULLTEXT INDEX(ct), CHANGE c1 FTS_DOC_ID INT,
 ALGORITHM=COPY;
-ERROR 42000: Incorrect column name 'FTS_DOC_ID'
+ERROR HY000: Column 'FTS_DOC_ID' is of wrong type for an InnoDB FULLTEXT index
 ALTER TABLE t1o ADD FULLTEXT INDEX(ct), CHANGE c1 FTS_DOC_ID INT,
 ALGORITHM=INPLACE;
 ERROR HY000: Column 'FTS_DOC_ID' is of wrong type for an InnoDB FULLTEXT index
 ALTER TABLE t1o ADD FULLTEXT INDEX(ct), CHANGE c1 FTS_Doc_ID INT,
 ALGORITHM=INPLACE;
-ERROR 42000: Incorrect column name 'FTS_Doc_ID'
+ERROR HY000: Column 'FTS_Doc_ID' is of wrong type for an InnoDB FULLTEXT index
 ALTER TABLE t1o ADD FULLTEXT INDEX(ct),
 CHANGE c1 FTS_DOC_ID BIGINT UNSIGNED NOT NULL,
 ALGORITHM=INPLACE;
@@ -624,140 +624,140 @@ ALTER TABLE t1n ADD FULLTEXT INDEX(ct);
 Warnings:
 Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 ### files in MYSQL_DATA_DIR/test
-FTS_AUX_INDEX_1.ibd
-FTS_AUX_INDEX_2.ibd
-FTS_AUX_INDEX_3.ibd
-FTS_AUX_INDEX_4.ibd
-FTS_AUX_INDEX_5.ibd
-FTS_AUX_INDEX_6.ibd
-FTS_AUX_BEING_DELETED.ibd
-FTS_AUX_BEING_DELETED_CACHE.ibd
-FTS_AUX_CONFIG.ibd
-FTS_AUX_DELETED.ibd
-FTS_AUX_DELETED_CACHE.ibd
+fts_aux_index_1.ibd
+fts_aux_index_2.ibd
+fts_aux_index_3.ibd
+fts_aux_index_4.ibd
+fts_aux_index_5.ibd
+fts_aux_index_6.ibd
+fts_aux_being_deleted.ibd
+fts_aux_being_deleted_cache.ibd
+fts_aux_config.ibd
+fts_aux_deleted.ibd
+fts_aux_deleted_cache.ibd
 sys_foreign.ibd
 sys_indexes.ibd
 sys_tables.ibd
 t1n.ibd
 t1o.ibd
 ### files in MYSQL_TMP_DIR/alt_dir/test
-FTS_AUX_INDEX_1.ibd
-FTS_AUX_INDEX_2.ibd
-FTS_AUX_INDEX_3.ibd
-FTS_AUX_INDEX_4.ibd
-FTS_AUX_INDEX_5.ibd
-FTS_AUX_INDEX_6.ibd
-FTS_AUX_BEING_DELETED.ibd
-FTS_AUX_BEING_DELETED_CACHE.ibd
-FTS_AUX_CONFIG.ibd
-FTS_AUX_DELETED.ibd
-FTS_AUX_DELETED_CACHE.ibd
+fts_aux_index_1.ibd
+fts_aux_index_2.ibd
+fts_aux_index_3.ibd
+fts_aux_index_4.ibd
+fts_aux_index_5.ibd
+fts_aux_index_6.ibd
+fts_aux_being_deleted.ibd
+fts_aux_being_deleted_cache.ibd
+fts_aux_config.ibd
+fts_aux_deleted.ibd
+fts_aux_deleted_cache.ibd
 t1c.ibd
 t1p.ibd
 tt.ibd
 ALTER TABLE t1n CHANGE c1 Fts_DOC_ID INT, ALGORITHM=INPLACE;
-ERROR 42000: Incorrect column name 'FTS_DOC_ID'
+ERROR HY000: Column 'Fts_DOC_ID' is of wrong type for an InnoDB FULLTEXT index
 ALTER TABLE t1n CHANGE c1 Fts_DOC_ID INT, ALGORITHM=COPY;
-ERROR 42000: Incorrect column name 'Fts_DOC_ID'
+ERROR HY000: Column 'Fts_DOC_ID' is of wrong type for an InnoDB FULLTEXT index
 ALTER TABLE t1n CHANGE FTS_DOC_ID c11 INT, ALGORITHM=INPLACE;
 ERROR 42S22: Unknown column 'FTS_DOC_ID' in 't1n'
 ALTER TABLE t1n CHANGE c1 FTS_DOC_ïD INT, ALGORITHM=INPLACE;
 ### files in MYSQL_DATA_DIR/test
-FTS_AUX_INDEX_1.ibd
-FTS_AUX_INDEX_2.ibd
-FTS_AUX_INDEX_3.ibd
-FTS_AUX_INDEX_4.ibd
-FTS_AUX_INDEX_5.ibd
-FTS_AUX_INDEX_6.ibd
-FTS_AUX_BEING_DELETED.ibd
-FTS_AUX_BEING_DELETED_CACHE.ibd
-FTS_AUX_CONFIG.ibd
-FTS_AUX_DELETED.ibd
-FTS_AUX_DELETED_CACHE.ibd
+fts_aux_index_1.ibd
+fts_aux_index_2.ibd
+fts_aux_index_3.ibd
+fts_aux_index_4.ibd
+fts_aux_index_5.ibd
+fts_aux_index_6.ibd
+fts_aux_being_deleted.ibd
+fts_aux_being_deleted_cache.ibd
+fts_aux_config.ibd
+fts_aux_deleted.ibd
+fts_aux_deleted_cache.ibd
 sys_foreign.ibd
 sys_indexes.ibd
 sys_tables.ibd
 t1n.ibd
 t1o.ibd
 ### files in MYSQL_TMP_DIR/alt_dir/test
-FTS_AUX_INDEX_1.ibd
-FTS_AUX_INDEX_2.ibd
-FTS_AUX_INDEX_3.ibd
-FTS_AUX_INDEX_4.ibd
-FTS_AUX_INDEX_5.ibd
-FTS_AUX_INDEX_6.ibd
-FTS_AUX_BEING_DELETED.ibd
-FTS_AUX_BEING_DELETED_CACHE.ibd
-FTS_AUX_CONFIG.ibd
-FTS_AUX_DELETED.ibd
-FTS_AUX_DELETED_CACHE.ibd
+fts_aux_index_1.ibd
+fts_aux_index_2.ibd
+fts_aux_index_3.ibd
+fts_aux_index_4.ibd
+fts_aux_index_5.ibd
+fts_aux_index_6.ibd
+fts_aux_being_deleted.ibd
+fts_aux_being_deleted_cache.ibd
+fts_aux_config.ibd
+fts_aux_deleted.ibd
+fts_aux_deleted_cache.ibd
 t1c.ibd
 t1p.ibd
 tt.ibd
 ALTER TABLE t1n CHANGE FTS_DOC_ÏD c1 INT, ALGORITHM=INPLACE;
 ### files in MYSQL_DATA_DIR/test
-FTS_AUX_INDEX_1.ibd
-FTS_AUX_INDEX_2.ibd
-FTS_AUX_INDEX_3.ibd
-FTS_AUX_INDEX_4.ibd
-FTS_AUX_INDEX_5.ibd
-FTS_AUX_INDEX_6.ibd
-FTS_AUX_BEING_DELETED.ibd
-FTS_AUX_BEING_DELETED_CACHE.ibd
-FTS_AUX_CONFIG.ibd
-FTS_AUX_DELETED.ibd
-FTS_AUX_DELETED_CACHE.ibd
+fts_aux_index_1.ibd
+fts_aux_index_2.ibd
+fts_aux_index_3.ibd
+fts_aux_index_4.ibd
+fts_aux_index_5.ibd
+fts_aux_index_6.ibd
+fts_aux_being_deleted.ibd
+fts_aux_being_deleted_cache.ibd
+fts_aux_config.ibd
+fts_aux_deleted.ibd
+fts_aux_deleted_cache.ibd
 sys_foreign.ibd
 sys_indexes.ibd
 sys_tables.ibd
 t1n.ibd
 t1o.ibd
 ### files in MYSQL_TMP_DIR/alt_dir/test
-FTS_AUX_INDEX_1.ibd
-FTS_AUX_INDEX_2.ibd
-FTS_AUX_INDEX_3.ibd
-FTS_AUX_INDEX_4.ibd
-FTS_AUX_INDEX_5.ibd
-FTS_AUX_INDEX_6.ibd
-FTS_AUX_BEING_DELETED.ibd
-FTS_AUX_BEING_DELETED_CACHE.ibd
-FTS_AUX_CONFIG.ibd
-FTS_AUX_DELETED.ibd
-FTS_AUX_DELETED_CACHE.ibd
+fts_aux_index_1.ibd
+fts_aux_index_2.ibd
+fts_aux_index_3.ibd
+fts_aux_index_4.ibd
+fts_aux_index_5.ibd
+fts_aux_index_6.ibd
+fts_aux_being_deleted.ibd
+fts_aux_being_deleted_cache.ibd
+fts_aux_config.ibd
+fts_aux_deleted.ibd
+fts_aux_deleted_cache.ibd
 t1c.ibd
 t1p.ibd
 tt.ibd
 ALTER TABLE t1n CHANGE c1 c2 INT, CHANGE c2 ct INT, CHANGE ct c1 TEXT,
 ALGORITHM=INPLACE;
 ### files in MYSQL_DATA_DIR/test
-FTS_AUX_INDEX_1.ibd
-FTS_AUX_INDEX_2.ibd
-FTS_AUX_INDEX_3.ibd
-FTS_AUX_INDEX_4.ibd
-FTS_AUX_INDEX_5.ibd
-FTS_AUX_INDEX_6.ibd
-FTS_AUX_BEING_DELETED.ibd
-FTS_AUX_BEING_DELETED_CACHE.ibd
-FTS_AUX_CONFIG.ibd
-FTS_AUX_DELETED.ibd
-FTS_AUX_DELETED_CACHE.ibd
+fts_aux_index_1.ibd
+fts_aux_index_2.ibd
+fts_aux_index_3.ibd
+fts_aux_index_4.ibd
+fts_aux_index_5.ibd
+fts_aux_index_6.ibd
+fts_aux_being_deleted.ibd
+fts_aux_being_deleted_cache.ibd
+fts_aux_config.ibd
+fts_aux_deleted.ibd
+fts_aux_deleted_cache.ibd
 sys_foreign.ibd
 sys_indexes.ibd
 sys_tables.ibd
 t1n.ibd
 t1o.ibd
 ### files in MYSQL_TMP_DIR/alt_dir/test
-FTS_AUX_INDEX_1.ibd
-FTS_AUX_INDEX_2.ibd
-FTS_AUX_INDEX_3.ibd
-FTS_AUX_INDEX_4.ibd
-FTS_AUX_INDEX_5.ibd
-FTS_AUX_INDEX_6.ibd
-FTS_AUX_BEING_DELETED.ibd
-FTS_AUX_BEING_DELETED_CACHE.ibd
-FTS_AUX_CONFIG.ibd
-FTS_AUX_DELETED.ibd
-FTS_AUX_DELETED_CACHE.ibd
+fts_aux_index_1.ibd
+fts_aux_index_2.ibd
+fts_aux_index_3.ibd
+fts_aux_index_4.ibd
+fts_aux_index_5.ibd
+fts_aux_index_6.ibd
+fts_aux_being_deleted.ibd
+fts_aux_being_deleted_cache.ibd
+fts_aux_config.ibd
+fts_aux_deleted.ibd
+fts_aux_deleted_cache.ibd
 t1c.ibd
 t1p.ibd
 tt.ibd
@@ -769,38 +769,38 @@ t1n	CREATE TABLE `t1n` (
   `c1` text,
   PRIMARY KEY (`c2`),
   FULLTEXT KEY `ct` (`c1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ALTER TABLE t1n CHANGE c2 c1 INT, CHANGE ct c2 INT, CHANGE c1 ct TEXT,
 ALGORITHM=COPY;
 ### files in MYSQL_DATA_DIR/test
-FTS_AUX_INDEX_1.ibd
-FTS_AUX_INDEX_2.ibd
-FTS_AUX_INDEX_3.ibd
-FTS_AUX_INDEX_4.ibd
-FTS_AUX_INDEX_5.ibd
-FTS_AUX_INDEX_6.ibd
-FTS_AUX_BEING_DELETED.ibd
-FTS_AUX_BEING_DELETED_CACHE.ibd
-FTS_AUX_CONFIG.ibd
-FTS_AUX_DELETED.ibd
-FTS_AUX_DELETED_CACHE.ibd
+fts_aux_index_1.ibd
+fts_aux_index_2.ibd
+fts_aux_index_3.ibd
+fts_aux_index_4.ibd
+fts_aux_index_5.ibd
+fts_aux_index_6.ibd
+fts_aux_being_deleted.ibd
+fts_aux_being_deleted_cache.ibd
+fts_aux_config.ibd
+fts_aux_deleted.ibd
+fts_aux_deleted_cache.ibd
 sys_foreign.ibd
 sys_indexes.ibd
 sys_tables.ibd
 t1n.ibd
 t1o.ibd
 ### files in MYSQL_TMP_DIR/alt_dir/test
-FTS_AUX_INDEX_1.ibd
-FTS_AUX_INDEX_2.ibd
-FTS_AUX_INDEX_3.ibd
-FTS_AUX_INDEX_4.ibd
-FTS_AUX_INDEX_5.ibd
-FTS_AUX_INDEX_6.ibd
-FTS_AUX_BEING_DELETED.ibd
-FTS_AUX_BEING_DELETED_CACHE.ibd
-FTS_AUX_CONFIG.ibd
-FTS_AUX_DELETED.ibd
-FTS_AUX_DELETED_CACHE.ibd
+fts_aux_index_1.ibd
+fts_aux_index_2.ibd
+fts_aux_index_3.ibd
+fts_aux_index_4.ibd
+fts_aux_index_5.ibd
+fts_aux_index_6.ibd
+fts_aux_being_deleted.ibd
+fts_aux_being_deleted_cache.ibd
+fts_aux_config.ibd
+fts_aux_deleted.ibd
+fts_aux_deleted_cache.ibd
 t1c.ibd
 t1p.ibd
 tt.ibd
@@ -812,41 +812,41 @@ t1n	CREATE TABLE `t1n` (
   `ct` text,
   PRIMARY KEY (`c1`),
   FULLTEXT KEY `ct` (`ct`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ALTER TABLE t1n ADD INDEX(c2), CHANGE c2 c4 INT, ALGORITHM=INPLACE;
 ERROR 42000: Key column 'c2' doesn't exist in table
 ALTER TABLE t1n ADD INDEX(c2), CHANGE c2 c4 INT, ALGORITHM=COPY;
 ERROR 42000: Key column 'c2' doesn't exist in table
 ALTER TABLE t1n ADD INDEX(c4), CHANGE c2 c4 INT, ALGORITHM=INPLACE;
 ### files in MYSQL_DATA_DIR/test
-FTS_AUX_INDEX_1.ibd
-FTS_AUX_INDEX_2.ibd
-FTS_AUX_INDEX_3.ibd
-FTS_AUX_INDEX_4.ibd
-FTS_AUX_INDEX_5.ibd
-FTS_AUX_INDEX_6.ibd
-FTS_AUX_BEING_DELETED.ibd
-FTS_AUX_BEING_DELETED_CACHE.ibd
-FTS_AUX_CONFIG.ibd
-FTS_AUX_DELETED.ibd
-FTS_AUX_DELETED_CACHE.ibd
+fts_aux_index_1.ibd
+fts_aux_index_2.ibd
+fts_aux_index_3.ibd
+fts_aux_index_4.ibd
+fts_aux_index_5.ibd
+fts_aux_index_6.ibd
+fts_aux_being_deleted.ibd
+fts_aux_being_deleted_cache.ibd
+fts_aux_config.ibd
+fts_aux_deleted.ibd
+fts_aux_deleted_cache.ibd
 sys_foreign.ibd
 sys_indexes.ibd
 sys_tables.ibd
 t1n.ibd
 t1o.ibd
 ### files in MYSQL_TMP_DIR/alt_dir/test
-FTS_AUX_INDEX_1.ibd
-FTS_AUX_INDEX_2.ibd
-FTS_AUX_INDEX_3.ibd
-FTS_AUX_INDEX_4.ibd
-FTS_AUX_INDEX_5.ibd
-FTS_AUX_INDEX_6.ibd
-FTS_AUX_BEING_DELETED.ibd
-FTS_AUX_BEING_DELETED_CACHE.ibd
-FTS_AUX_CONFIG.ibd
-FTS_AUX_DELETED.ibd
-FTS_AUX_DELETED_CACHE.ibd
+fts_aux_index_1.ibd
+fts_aux_index_2.ibd
+fts_aux_index_3.ibd
+fts_aux_index_4.ibd
+fts_aux_index_5.ibd
+fts_aux_index_6.ibd
+fts_aux_being_deleted.ibd
+fts_aux_being_deleted_cache.ibd
+fts_aux_config.ibd
+fts_aux_deleted.ibd
+fts_aux_deleted_cache.ibd
 t1c.ibd
 t1p.ibd
 tt.ibd
@@ -859,37 +859,37 @@ t1n	CREATE TABLE `t1n` (
   PRIMARY KEY (`c1`),
   KEY `c4` (`c4`),
   FULLTEXT KEY `ct` (`ct`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ALTER TABLE t1n DROP INDEX c4;
 ### files in MYSQL_DATA_DIR/test
-FTS_AUX_INDEX_1.ibd
-FTS_AUX_INDEX_2.ibd
-FTS_AUX_INDEX_3.ibd
-FTS_AUX_INDEX_4.ibd
-FTS_AUX_INDEX_5.ibd
-FTS_AUX_INDEX_6.ibd
-FTS_AUX_BEING_DELETED.ibd
-FTS_AUX_BEING_DELETED_CACHE.ibd
-FTS_AUX_CONFIG.ibd
-FTS_AUX_DELETED.ibd
-FTS_AUX_DELETED_CACHE.ibd
+fts_aux_index_1.ibd
+fts_aux_index_2.ibd
+fts_aux_index_3.ibd
+fts_aux_index_4.ibd
+fts_aux_index_5.ibd
+fts_aux_index_6.ibd
+fts_aux_being_deleted.ibd
+fts_aux_being_deleted_cache.ibd
+fts_aux_config.ibd
+fts_aux_deleted.ibd
+fts_aux_deleted_cache.ibd
 sys_foreign.ibd
 sys_indexes.ibd
 sys_tables.ibd
 t1n.ibd
 t1o.ibd
 ### files in MYSQL_TMP_DIR/alt_dir/test
-FTS_AUX_INDEX_1.ibd
-FTS_AUX_INDEX_2.ibd
-FTS_AUX_INDEX_3.ibd
-FTS_AUX_INDEX_4.ibd
-FTS_AUX_INDEX_5.ibd
-FTS_AUX_INDEX_6.ibd
-FTS_AUX_BEING_DELETED.ibd
-FTS_AUX_BEING_DELETED_CACHE.ibd
-FTS_AUX_CONFIG.ibd
-FTS_AUX_DELETED.ibd
-FTS_AUX_DELETED_CACHE.ibd
+fts_aux_index_1.ibd
+fts_aux_index_2.ibd
+fts_aux_index_3.ibd
+fts_aux_index_4.ibd
+fts_aux_index_5.ibd
+fts_aux_index_6.ibd
+fts_aux_being_deleted.ibd
+fts_aux_being_deleted_cache.ibd
+fts_aux_config.ibd
+fts_aux_deleted.ibd
+fts_aux_deleted_cache.ibd
 t1c.ibd
 t1p.ibd
 tt.ibd
@@ -897,34 +897,34 @@ ALTER TABLE t1n CHANGE c4 c1 INT, ADD INDEX(c1), ALGORITHM=INPLACE;
 ERROR 42S21: Duplicate column name 'c1'
 ALTER TABLE t1n CHANGE c4 c11 INT, ADD INDEX(c11), ALGORITHM=INPLACE;
 ### files in MYSQL_DATA_DIR/test
-FTS_AUX_INDEX_1.ibd
-FTS_AUX_INDEX_2.ibd
-FTS_AUX_INDEX_3.ibd
-FTS_AUX_INDEX_4.ibd
-FTS_AUX_INDEX_5.ibd
-FTS_AUX_INDEX_6.ibd
-FTS_AUX_BEING_DELETED.ibd
-FTS_AUX_BEING_DELETED_CACHE.ibd
-FTS_AUX_CONFIG.ibd
-FTS_AUX_DELETED.ibd
-FTS_AUX_DELETED_CACHE.ibd
+fts_aux_index_1.ibd
+fts_aux_index_2.ibd
+fts_aux_index_3.ibd
+fts_aux_index_4.ibd
+fts_aux_index_5.ibd
+fts_aux_index_6.ibd
+fts_aux_being_deleted.ibd
+fts_aux_being_deleted_cache.ibd
+fts_aux_config.ibd
+fts_aux_deleted.ibd
+fts_aux_deleted_cache.ibd
 sys_foreign.ibd
 sys_indexes.ibd
 sys_tables.ibd
 t1n.ibd
 t1o.ibd
 ### files in MYSQL_TMP_DIR/alt_dir/test
-FTS_AUX_INDEX_1.ibd
-FTS_AUX_INDEX_2.ibd
-FTS_AUX_INDEX_3.ibd
-FTS_AUX_INDEX_4.ibd
-FTS_AUX_INDEX_5.ibd
-FTS_AUX_INDEX_6.ibd
-FTS_AUX_BEING_DELETED.ibd
-FTS_AUX_BEING_DELETED_CACHE.ibd
-FTS_AUX_CONFIG.ibd
-FTS_AUX_DELETED.ibd
-FTS_AUX_DELETED_CACHE.ibd
+fts_aux_index_1.ibd
+fts_aux_index_2.ibd
+fts_aux_index_3.ibd
+fts_aux_index_4.ibd
+fts_aux_index_5.ibd
+fts_aux_index_6.ibd
+fts_aux_being_deleted.ibd
+fts_aux_being_deleted_cache.ibd
+fts_aux_config.ibd
+fts_aux_deleted.ibd
+fts_aux_deleted_cache.ibd
 t1c.ibd
 t1p.ibd
 tt.ibd
@@ -937,7 +937,7 @@ t1n	CREATE TABLE `t1n` (
   PRIMARY KEY (`c1`),
   KEY `c11` (`c11`),
   FULLTEXT KEY `ct` (`ct`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1n;
 ALTER TABLE t1o MODIFY c1 BIGINT UNSIGNED NOT NULL;
 ### files in MYSQL_DATA_DIR/test
@@ -946,17 +946,17 @@ sys_indexes.ibd
 sys_tables.ibd
 t1o.ibd
 ### files in MYSQL_TMP_DIR/alt_dir/test
-FTS_AUX_INDEX_1.ibd
-FTS_AUX_INDEX_2.ibd
-FTS_AUX_INDEX_3.ibd
-FTS_AUX_INDEX_4.ibd
-FTS_AUX_INDEX_5.ibd
-FTS_AUX_INDEX_6.ibd
-FTS_AUX_BEING_DELETED.ibd
-FTS_AUX_BEING_DELETED_CACHE.ibd
-FTS_AUX_CONFIG.ibd
-FTS_AUX_DELETED.ibd
-FTS_AUX_DELETED_CACHE.ibd
+fts_aux_index_1.ibd
+fts_aux_index_2.ibd
+fts_aux_index_3.ibd
+fts_aux_index_4.ibd
+fts_aux_index_5.ibd
+fts_aux_index_6.ibd
+fts_aux_being_deleted.ibd
+fts_aux_being_deleted_cache.ibd
+fts_aux_config.ibd
+fts_aux_deleted.ibd
+fts_aux_deleted_cache.ibd
 t1c.ibd
 t1p.ibd
 tt.ibd
@@ -964,33 +964,33 @@ ALTER TABLE t1o ADD FULLTEXT INDEX(ct),
 CHANGE c1 FTS_DOC_ID BIGINT UNSIGNED NOT NULL,
 ALGORITHM=INPLACE;
 ### files in MYSQL_DATA_DIR/test
-FTS_AUX_INDEX_1.ibd
-FTS_AUX_INDEX_2.ibd
-FTS_AUX_INDEX_3.ibd
-FTS_AUX_INDEX_4.ibd
-FTS_AUX_INDEX_5.ibd
-FTS_AUX_INDEX_6.ibd
-FTS_AUX_BEING_DELETED.ibd
-FTS_AUX_BEING_DELETED_CACHE.ibd
-FTS_AUX_CONFIG.ibd
-FTS_AUX_DELETED.ibd
-FTS_AUX_DELETED_CACHE.ibd
+fts_aux_index_1.ibd
+fts_aux_index_2.ibd
+fts_aux_index_3.ibd
+fts_aux_index_4.ibd
+fts_aux_index_5.ibd
+fts_aux_index_6.ibd
+fts_aux_being_deleted.ibd
+fts_aux_being_deleted_cache.ibd
+fts_aux_config.ibd
+fts_aux_deleted.ibd
+fts_aux_deleted_cache.ibd
 sys_foreign.ibd
 sys_indexes.ibd
 sys_tables.ibd
 t1o.ibd
 ### files in MYSQL_TMP_DIR/alt_dir/test
-FTS_AUX_INDEX_1.ibd
-FTS_AUX_INDEX_2.ibd
-FTS_AUX_INDEX_3.ibd
-FTS_AUX_INDEX_4.ibd
-FTS_AUX_INDEX_5.ibd
-FTS_AUX_INDEX_6.ibd
-FTS_AUX_BEING_DELETED.ibd
-FTS_AUX_BEING_DELETED_CACHE.ibd
-FTS_AUX_CONFIG.ibd
-FTS_AUX_DELETED.ibd
-FTS_AUX_DELETED_CACHE.ibd
+fts_aux_index_1.ibd
+fts_aux_index_2.ibd
+fts_aux_index_3.ibd
+fts_aux_index_4.ibd
+fts_aux_index_5.ibd
+fts_aux_index_6.ibd
+fts_aux_being_deleted.ibd
+fts_aux_being_deleted_cache.ibd
+fts_aux_config.ibd
+fts_aux_deleted.ibd
+fts_aux_deleted_cache.ibd
 t1c.ibd
 t1p.ibd
 tt.ibd
@@ -1011,7 +1011,7 @@ t1o	CREATE TABLE `t1o` (
   `ct` text,
   PRIMARY KEY (`FTS_DOC_ID`),
   FULLTEXT KEY `ct` (`ct`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ALTER TABLE t1o CHANGE FTS_DOC_ID foo_id BIGINT UNSIGNED NOT NULL,
 DROP INDEX ct, LOCK=NONE;
 ### files in MYSQL_DATA_DIR/test
@@ -1020,17 +1020,17 @@ sys_indexes.ibd
 sys_tables.ibd
 t1o.ibd
 ### files in MYSQL_TMP_DIR/alt_dir/test
-FTS_AUX_INDEX_1.ibd
-FTS_AUX_INDEX_2.ibd
-FTS_AUX_INDEX_3.ibd
-FTS_AUX_INDEX_4.ibd
-FTS_AUX_INDEX_5.ibd
-FTS_AUX_INDEX_6.ibd
-FTS_AUX_BEING_DELETED.ibd
-FTS_AUX_BEING_DELETED_CACHE.ibd
-FTS_AUX_CONFIG.ibd
-FTS_AUX_DELETED.ibd
-FTS_AUX_DELETED_CACHE.ibd
+fts_aux_index_1.ibd
+fts_aux_index_2.ibd
+fts_aux_index_3.ibd
+fts_aux_index_4.ibd
+fts_aux_index_5.ibd
+fts_aux_index_6.ibd
+fts_aux_being_deleted.ibd
+fts_aux_being_deleted_cache.ibd
+fts_aux_config.ibd
+fts_aux_deleted.ibd
+fts_aux_deleted_cache.ibd
 t1c.ibd
 t1p.ibd
 tt.ibd
@@ -1041,7 +1041,7 @@ t1o	CREATE TABLE `t1o` (
   `c2` int(11) DEFAULT NULL,
   `ct` text,
   PRIMARY KEY (`foo_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1c, t1p, sys_tables, sys_indexes, sys_foreign;
 CREATE TABLE sys_tables SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
 WHERE NAME='test/t1o';
@@ -1055,7 +1055,7 @@ INNER JOIN sys_tables st ON i.TABLE_ID=st.TABLE_ID;
 NAME	POS	MTYPE	PRTYPE	LEN
 foo_id	0	6	1800	8
 c2	1	6	1027	4
-ct	2	5	524540	10
+ct	2	5	16711932	10
 SELECT si.NAME,i.POS,i.NAME FROM INFORMATION_SCHEMA.INNODB_SYS_FIELDS i
 INNER JOIN sys_indexes si ON i.INDEX_ID=si.INDEX_ID;
 NAME	POS	NAME
@@ -1070,48 +1070,48 @@ sys_indexes.ibd
 sys_tables.ibd
 t1o.ibd
 ### files in MYSQL_TMP_DIR/alt_dir/test
-FTS_AUX_INDEX_1.ibd
-FTS_AUX_INDEX_2.ibd
-FTS_AUX_INDEX_3.ibd
-FTS_AUX_INDEX_4.ibd
-FTS_AUX_INDEX_5.ibd
-FTS_AUX_INDEX_6.ibd
-FTS_AUX_BEING_DELETED.ibd
-FTS_AUX_BEING_DELETED_CACHE.ibd
-FTS_AUX_CONFIG.ibd
-FTS_AUX_DELETED.ibd
-FTS_AUX_DELETED_CACHE.ibd
+fts_aux_index_1.ibd
+fts_aux_index_2.ibd
+fts_aux_index_3.ibd
+fts_aux_index_4.ibd
+fts_aux_index_5.ibd
+fts_aux_index_6.ibd
+fts_aux_being_deleted.ibd
+fts_aux_being_deleted_cache.ibd
+fts_aux_config.ibd
+fts_aux_deleted.ibd
+fts_aux_deleted_cache.ibd
 tt.ibd
 ALTER TABLE t1o CHANGE foo_id FTS_DOC_ID BIGINT UNSIGNED NOT NULL,
 ADD FULLTEXT INDEX(ct);
 ### files in MYSQL_DATA_DIR/test
-FTS_AUX_INDEX_1.ibd
-FTS_AUX_INDEX_2.ibd
-FTS_AUX_INDEX_3.ibd
-FTS_AUX_INDEX_4.ibd
-FTS_AUX_INDEX_5.ibd
-FTS_AUX_INDEX_6.ibd
-FTS_AUX_BEING_DELETED.ibd
-FTS_AUX_BEING_DELETED_CACHE.ibd
-FTS_AUX_CONFIG.ibd
-FTS_AUX_DELETED.ibd
-FTS_AUX_DELETED_CACHE.ibd
+fts_aux_index_1.ibd
+fts_aux_index_2.ibd
+fts_aux_index_3.ibd
+fts_aux_index_4.ibd
+fts_aux_index_5.ibd
+fts_aux_index_6.ibd
+fts_aux_being_deleted.ibd
+fts_aux_being_deleted_cache.ibd
+fts_aux_config.ibd
+fts_aux_deleted.ibd
+fts_aux_deleted_cache.ibd
 sys_foreign.ibd
 sys_indexes.ibd
 sys_tables.ibd
 t1o.ibd
 ### files in MYSQL_TMP_DIR/alt_dir/test
-FTS_AUX_INDEX_1.ibd
-FTS_AUX_INDEX_2.ibd
-FTS_AUX_INDEX_3.ibd
-FTS_AUX_INDEX_4.ibd
-FTS_AUX_INDEX_5.ibd
-FTS_AUX_INDEX_6.ibd
-FTS_AUX_BEING_DELETED.ibd
-FTS_AUX_BEING_DELETED_CACHE.ibd
-FTS_AUX_CONFIG.ibd
-FTS_AUX_DELETED.ibd
-FTS_AUX_DELETED_CACHE.ibd
+fts_aux_index_1.ibd
+fts_aux_index_2.ibd
+fts_aux_index_3.ibd
+fts_aux_index_4.ibd
+fts_aux_index_5.ibd
+fts_aux_index_6.ibd
+fts_aux_being_deleted.ibd
+fts_aux_being_deleted_cache.ibd
+fts_aux_config.ibd
+fts_aux_deleted.ibd
+fts_aux_deleted_cache.ibd
 tt.ibd
 ALTER TABLE t1o CHANGE FTS_DOC_ID foo_id BIGINT UNSIGNED NOT NULL;
 ERROR HY000: Index 'FTS_DOC_ID_INDEX' is of wrong type for an InnoDB FULLTEXT index
@@ -1124,7 +1124,7 @@ INNER JOIN sys_tables st ON i.TABLE_ID=st.TABLE_ID;
 NAME	POS	MTYPE	PRTYPE	LEN
 FTS_DOC_ID	0	6	1800	8
 c2	1	6	1027	4
-ct	2	5	524540	10
+ct	2	5	16711932	10
 SELECT si.NAME,i.POS,i.NAME FROM INFORMATION_SCHEMA.INNODB_SYS_FIELDS i
 INNER JOIN sys_indexes si ON i.INDEX_ID=si.INDEX_ID;
 NAME	POS	NAME

@@ -1,5 +1,4 @@
 -- source include/not_windows.inc
--- source include/not_embedded.inc
 --disable_warnings
 DROP TABLE IF EXISTS t1, t2;
 --enable_warnings
@@ -10,7 +9,6 @@ let $MYSQLD_DATADIR= `SELECT @@datadir`;
 # This test case renames the table such that the partition file name 
 # is 255 chars long. Due the restriction of 260 char path name (including drive label)
 # this will fail in windows.
-# Other tests related to this bug can be found in partition_not_embedded.test
 #
 CREATE TABLE t1 (a INT)
 PARTITION BY RANGE (a)

@@ -438,7 +438,7 @@ select min(t1.a3), max(t2.a2) from t1, t2 where t1.a2 = 0 and t2.a3 = 'CA';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 Warnings:
-Note	1003	/* select#1 */ select min(`test`.`t1`.`a3`) AS `min(t1.a3)`,max(`test`.`t2`.`a2`) AS `max(t2.a2)` from `test`.`t1` join `test`.`t2` where (multiple equal(0, `test`.`t1`.`a2`) and multiple equal('CA', `test`.`t2`.`a3`))
+Note	1003	/* select#1 */ select min(`test`.`t1`.`a3`) AS `min(t1.a3)`,max(`test`.`t2`.`a2`) AS `max(t2.a2)` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a3` = 'CA') and multiple equal(0, `test`.`t1`.`a2`))
 select min(t1.a3), max(t2.a2) from t1, t2 where t1.a2 = 0 and t2.a3 = 'CA';
 min(t1.a3)	max(t2.a2)
 DEN	San Diego
@@ -519,7 +519,7 @@ select max(a3) from t1 where a3 = 'MIN' and a2 = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 Warnings:
-Note	1003	/* select#1 */ select max(`test`.`t1`.`a3`) AS `max(a3)` from `test`.`t1` where (multiple equal('MIN', `test`.`t1`.`a3`) and multiple equal(2, `test`.`t1`.`a2`))
+Note	1003	/* select#1 */ select max(`test`.`t1`.`a3`) AS `max(a3)` from `test`.`t1` where ((`test`.`t1`.`a3` = 'MIN') and multiple equal(2, `test`.`t1`.`a2`))
 select max(a3) from t1 where a3 = 'MIN' and a2 = 2;
 max(a3)
 MIN
@@ -528,7 +528,7 @@ select max(a3) from t1 where a3 = 'DEN' and a2 = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
 Warnings:
-Note	1003	/* select#1 */ select max(`test`.`t1`.`a3`) AS `max(a3)` from `test`.`t1` where (multiple equal('DEN', `test`.`t1`.`a3`) and multiple equal(2, `test`.`t1`.`a2`))
+Note	1003	/* select#1 */ select max(`test`.`t1`.`a3`) AS `max(a3)` from `test`.`t1` where ((`test`.`t1`.`a3` = 'DEN') and multiple equal(2, `test`.`t1`.`a2`))
 select max(a3) from t1 where a3 = 'DEN' and a2 = 2;
 max(a3)
 NULL
@@ -537,7 +537,7 @@ select max(t1.a3), min(t2.a2) from t1, t2 where t1.a2 = 2 and t1.a3 < 'MIN' and 
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 Warnings:
-Note	1003	/* select#1 */ select max(`test`.`t1`.`a3`) AS `max(t1.a3)`,min(`test`.`t2`.`a2`) AS `min(t2.a2)` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`a3` < 'MIN') and multiple equal(2, `test`.`t1`.`a2`) and multiple equal('CA', `test`.`t2`.`a3`))
+Note	1003	/* select#1 */ select max(`test`.`t1`.`a3`) AS `max(t1.a3)`,min(`test`.`t2`.`a2`) AS `min(t2.a2)` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`a3` < 'MIN') and (`test`.`t2`.`a3` = 'CA') and multiple equal(2, `test`.`t1`.`a2`))
 select max(t1.a3), min(t2.a2) from t1, t2 where t1.a2 = 2 and t1.a3 < 'MIN' and t2.a3 = 'CA';
 max(t1.a3)	min(t2.a2)
 CHI	Los Angeles
@@ -645,7 +645,7 @@ select min(a3) from t1 where a2 = 2 and a3 >= 'CHI' and a3 = 'MIN';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 Warnings:
-Note	1003	/* select#1 */ select min(`test`.`t1`.`a3`) AS `min(a3)` from `test`.`t1` where (multiple equal(2, `test`.`t1`.`a2`) and multiple equal('MIN', `test`.`t1`.`a3`))
+Note	1003	/* select#1 */ select min(`test`.`t1`.`a3`) AS `min(a3)` from `test`.`t1` where ((`test`.`t1`.`a3` = 'MIN') and multiple equal(2, `test`.`t1`.`a2`))
 select min(a3) from t1 where a2 = 2 and a3 >= 'CHI' and a3 = 'MIN';
 min(a3)
 MIN
@@ -670,13 +670,13 @@ AME	AME
 explain 
 select min(a1) from t1 where a1 > 'KKK' or a1 < 'XXX';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	3	NULL	15	55.55	Using where; Using index
+1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	12	NULL	15	55.55	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select min(`test`.`t1`.`a1`) AS `min(a1)` from `test`.`t1` where ((`test`.`t1`.`a1` > 'KKK') or (`test`.`t1`.`a1` < 'XXX'))
 explain 
 select min(a1) from t1 where a1 != 'KKK';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	3	NULL	15	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	12	NULL	15	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select min(`test`.`t1`.`a1`) AS `min(a1)` from `test`.`t1` where (`test`.`t1`.`a1` <> 'KKK')
 explain
@@ -688,44 +688,44 @@ Note	1003	/* select#1 */ select max(`test`.`t1`.`a3`) AS `max(a3)` from `test`.`
 explain
 select max(t1.a3), min(t2.a2) from t1, t2 where t1.a2 = 2 and t1.a3 < 'MIN' and t2.a3 > 'CA';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	k1	k1	7	NULL	1	100.00	Using where; Using index
-1	SIMPLE	t2	NULL	range	k1	k1	3	NULL	4	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	range	k1	k1	16	NULL	1	100.00	Using where; Using index
+1	SIMPLE	t2	NULL	range	k1	k1	9	NULL	4	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select max(`test`.`t1`.`a3`) AS `max(t1.a3)`,min(`test`.`t2`.`a2`) AS `min(t2.a2)` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`a2` = 2) and (`test`.`t1`.`a3` < 'MIN') and (`test`.`t2`.`a3` > 'CA'))
 explain
 select min(a4 - 0.01) from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	k2	12	NULL	15	100.00	Using index
+1	SIMPLE	t1	NULL	index	NULL	k2	21	NULL	15	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select min((`test`.`t1`.`a4` - 0.01)) AS `min(a4 - 0.01)` from `test`.`t1`
 explain
 select max(a4 + 0.01) from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	k2	12	NULL	15	100.00	Using index
+1	SIMPLE	t1	NULL	index	NULL	k2	21	NULL	15	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select max((`test`.`t1`.`a4` + 0.01)) AS `max(a4 + 0.01)` from `test`.`t1`
 explain
 select min(a3) from t1 where (a2 +1 ) is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	k1	7	NULL	15	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	index	NULL	k1	16	NULL	15	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select min(`test`.`t1`.`a3`) AS `min(a3)` from `test`.`t1` where isnull((`test`.`t1`.`a2` + 1))
 explain
 select min(a3) from t1 where (a2 + 1) = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	k1	7	NULL	15	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	index	NULL	k1	16	NULL	15	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select min(`test`.`t1`.`a3`) AS `min(a3)` from `test`.`t1` where ((`test`.`t1`.`a2` + 1) = 2)
 explain
 select min(a3) from t1 where 2 = (a2 + 1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	k1	7	NULL	15	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	index	NULL	k1	16	NULL	15	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select min(`test`.`t1`.`a3`) AS `min(a3)` from `test`.`t1` where (2 = (`test`.`t1`.`a2` + 1))
 explain
 select min(a2) from t1 where a2 < 2 * a2 - 8;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	k1	7	NULL	15	33.33	Using where; Using index
+1	SIMPLE	t1	NULL	index	NULL	k1	16	NULL	15	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select min(`test`.`t1`.`a2`) AS `min(a2)` from `test`.`t1` where (`test`.`t1`.`a2` < ((2 * `test`.`t1`.`a2`) - 8))
 explain
@@ -737,14 +737,14 @@ Note	1003	/* select#1 */ select min(`test`.`t1`.`a1`) AS `min(a1)` from `test`.`
 explain
 select min(a4) from t1  where (a4 + 0.01) between 0.07 and 0.08;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	k2	12	NULL	15	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	index	NULL	k2	21	NULL	15	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select min(`test`.`t1`.`a4`) AS `min(a4)` from `test`.`t1` where ((`test`.`t1`.`a4` + 0.01) between 0.07 and 0.08)
 explain
 select concat(min(t1.a1),min(t2.a4)) from t1, t2 where t2.a4 <> 'AME';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	k2	k2	4	NULL	6	100.00	Using where; Using index
-1	SIMPLE	t1	NULL	index	NULL	PRIMARY	3	NULL	15	100.00	Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	range	k2	k2	13	NULL	6	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	index	NULL	PRIMARY	12	NULL	15	100.00	Using index; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select concat(min(`test`.`t1`.`a1`),min(`test`.`t2`.`a4`)) AS `concat(min(t1.a1),min(t2.a4))` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`a4` <> 'AME')
 drop table t1, t2;
@@ -764,21 +764,21 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(1) CHARACTER SET latin2 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 create table t2 select max(a),min(a) from t1;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `max(a)` char(1) CHARACTER SET latin2 DEFAULT NULL,
   `min(a)` char(1) CHARACTER SET latin2 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 drop table t2;
 create table t2 select concat(a) from t1;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `concat(a)` varchar(1) CHARACTER SET latin2 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 drop table t2,t1;
 create table t1 (a int);
 insert into t1 values (1);
@@ -867,7 +867,7 @@ show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `MAX(b)` datetime DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 drop table t1, t2;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
@@ -1031,7 +1031,7 @@ select col1,sum(col1),max(col1),min(col1) from t1 group by col1;
 col1	sum(col1)	max(col1)	min(col1)
 5.000000000010	10.000000000020	5.000000000010	5.000000000010
 DROP TABLE t1;
-CREATE TABLE t1 (a VARCHAR(400));
+CREATE TABLE t1 (a VARCHAR(400)) charset latin1;
 INSERT INTO t1 (a) VALUES ("A"), ("a"), ("a "), ("a   "),
 ("B"), ("b"), ("b "), ("b   ");
 SELECT COUNT(DISTINCT a) FROM t1;
@@ -1114,14 +1114,14 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `variance(0)` double DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1 select stddev(0);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `stddev(0)` double DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table bug22555 (i smallint primary key auto_increment, s1 smallint, s2 smallint, e decimal(30,10), o double);
 insert into bug22555 (s1, s2, e, o) values (53, 78, 11.4276528, 6.828112), (17, 78, 5.916793, 1.8502951), (18, 76, 2.679231, 9.17975591), (31, 62, 6.07831, 0.1), (19, 41, 5.37463, 15.1), (83, 73, 14.567426, 7.959222), (92, 53, 6.10151, 13.1856852), (7, 12, 13.92272, 3.442007), (92, 35, 11.95358909, 6.01376678), (38, 84, 2.572, 7.904571);

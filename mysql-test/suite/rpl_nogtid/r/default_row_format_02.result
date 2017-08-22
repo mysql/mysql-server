@@ -10,7 +10,7 @@ USE test;
 SELECT @@innodb_default_row_format;
 @@innodb_default_row_format
 dynamic
-CREATE TABLE tab(a INT PRIMARY KEY, b VARCHAR(5000),KEY idx1(b(3070)))
+CREATE TABLE tab(a INT PRIMARY KEY, b VARCHAR(5000) CHARSET latin1, KEY idx1(b(3070)))
 ENGINE= InnoDB;
 INSERT INTO tab(a,b) VALUES(1,'Check with max prefix');
 include/sync_slave_sql_with_master.inc

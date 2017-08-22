@@ -1,6 +1,3 @@
-
--- source include/not_embedded.inc
-
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
@@ -372,6 +369,24 @@ SELECT @@global.innodb_buffer_pool_size;
 SELECT @@global.innodb_buffer_pool_size;
 --echo # Check mysqld-auto.cnf file.
 --cat_file $MYSQLD_DATADIR/mysqld-auto.cnf
+--echo
+
+--echo #
+--echo # Bug#26085712: SERVER FAILS TO START AFTER SET PERSIST GTID_MODE
+--echo #                = ON_PERMISSIVE OR ON
+--echo #
+
+RESET PERSIST;
+SELECT @@gtid_mode;
+SET PERSIST gtid_mode=OFF_PERMISSIVE;
+SET PERSIST gtid_mode=ON_PERMISSIVE;
+SELECT @@gtid_mode;
+
+--echo # Restart server and check for gtid_mode value
+--source include/restart_mysqld.inc
+
+SELECT @@gtid_mode;
+RESET PERSIST;
 
 --remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
 

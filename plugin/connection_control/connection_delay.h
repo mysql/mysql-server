@@ -16,8 +16,9 @@
 #ifndef CONNECTION_DELAY_H
 #define CONNECTION_DELAY_H
 
+#include <atomic>
+
 #include <lf.h>                         /* LF Hash */
-#include <my_atomic.h>                  /* my_atomic_* */
 #include <mysql_com.h>                  /* USERNAME_LENGTH */
 
 #include "connection_control_data.h"    /* variables and status */
@@ -46,7 +47,6 @@ namespace connection_control
       memset((void *)m_userhost, 0, sizeof(m_userhost));
       memcpy((void *)m_userhost, s.c_str(), s.length());
       m_length= s.length();
-      m_count= 1;
     }
 
     /**
@@ -56,20 +56,19 @@ namespace connection_control
     */
     int64 get_count() const
     {
-      int64 result= my_atomic_load64((volatile int64*)&m_count);
-      return result;
+      return m_count.load();
     }
 
     /** Increment failed login count for given user entry by 1 */
     void inc_count()
     {
-      my_atomic_add64((volatile int64*)&m_count, 1);
+      ++m_count;
     }
 
     /** Reset failed login count for given user entry */
     void reset_count()
     {
-      my_atomic_store64(&m_count, 0);
+      m_count.store(0);
     }
 
     /** Get user information */
@@ -96,7 +95,7 @@ namespace connection_control
     /* Length of m_userhost */
     size_t m_length;
     /* connection event count */
-    volatile int64 m_count;
+    std::atomic<int64> m_count;
   };
 
 
@@ -172,7 +171,7 @@ namespace connection_control
 
     void set_threshold(int64 threshold)
     {
-      my_atomic_store64(&m_threshold, threshold);
+      m_threshold.store(threshold);
       /* Clear the hash */
       m_userhost_hash.reset_all();
     }
@@ -180,8 +179,7 @@ namespace connection_control
     /** Get threshold value */
     int64 get_threshold()
     {
-      int64 result= my_atomic_load64(&m_threshold);
-      return result;
+      return m_threshold.load();
     }
 
     /**
@@ -208,23 +206,20 @@ namespace connection_control
         return true;
 
       else
-        min ? my_atomic_store64(&m_min_delay, new_value) :
-        my_atomic_store64(&m_max_delay, new_value);
+        min ? m_min_delay.store(new_value) : m_max_delay.store(new_value);
       return false;
     }
 
     /** Get max value */
     int64 get_max_delay()
     {
-      int64 result= my_atomic_load64(&m_max_delay);
-      return result;
+      return m_max_delay.load();
     }
 
     /** Get min value */
     int64 get_min_delay()
     {
-      int64 result= my_atomic_load64(&m_min_delay);
-      return result;
+      return m_min_delay.load();
     }
 
     void fill_IS_table(THD *thd,
@@ -274,11 +269,11 @@ namespace connection_control
 
   private:
     /** Threshold value which triggers wait */
-    volatile int64 m_threshold;
+    std::atomic<int64> m_threshold;
     /** Lower cap on delay to be generated */
-    volatile int64 m_min_delay;
+    std::atomic<int64> m_min_delay;
     /** Upper cap on delay to be generated */
-    volatile int64 m_max_delay;
+    std::atomic<int64> m_max_delay;
     /** System variables */
     std::vector<opt_connection_control> m_sys_vars;
     /** Status variables */

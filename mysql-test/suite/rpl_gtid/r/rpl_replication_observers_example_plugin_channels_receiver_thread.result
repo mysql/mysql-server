@@ -1,5 +1,6 @@
 include/have_replication_observers_example_plugin.inc
 include/rpl_init.inc [topology=1->2]
+RESET SLAVE ALL;
 CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_USER="root", MASTER_PASSWORD="", MASTER_PORT=SERVER_1_PORT, MASTER_AUTO_POSITION=1 FOR CHANNEL "example_channel";
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.

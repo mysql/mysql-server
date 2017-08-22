@@ -18,18 +18,6 @@
 Here are the details of tests that are disabled due
 to new data dictionary implementation.
 
-////////////////////////////////////////////////////////////
-Following are the tests that mostly pass or will be
-disabled due to some other dependencies.
-////////////////////////////////////////////////////////////
-
-/** LOW
-  Deals with upgrade scenarios.
-  Need to re-visit once we have WL6392
-*/
-i_main.mysql_upgrade                   WL6378_UPGRADE
-main.mysql_upgrade                     WL6378_UPGRADE
-
 ///////////////////////////////////////////////////////////////////
 // RELATED TO INNODB SE
 ///////////////////////////////////////////////////////////////////

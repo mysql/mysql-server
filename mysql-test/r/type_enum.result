@@ -1630,14 +1630,14 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` enum('','a','b') NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1 (a enum (' ','a','b ') not null default 'b ');
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` enum('','a','b') NOT NULL DEFAULT 'b'
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1 (a enum ('0','1'));
 insert into t1 set a='foobar';
@@ -1654,7 +1654,7 @@ a
 
 drop table t1;
 set names latin1;
-create table t1 (a enum(0xE4, '1', '2') not null default 0xE4);
+create table t1 (a enum(0xE4, '1', '2') not null default 0xE4) character set latin1;
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
 a	enum('ä','1','2')	NO		ä	
@@ -1673,8 +1673,8 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT '1',
-  `b` enum('value','öäü_value','ÊÃÕ') NOT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  `b` enum('value','öäü_value','ÊÃÕ') CHARACTER SET latin1 NOT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		1	
@@ -1703,7 +1703,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` enum('ä','ö','ü') CHARACTER SET utf8 DEFAULT 'ü'
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
 insert into t1 values ('ä'), ('ö'), ('ü');
 select a from t1 order by a;
 a
@@ -1720,8 +1720,8 @@ set names latin1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` enum('ä','ö','ü') DEFAULT 'ü'
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  `a` enum('ä','ö','ü') CHARACTER SET latin1 DEFAULT 'ü'
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
 select a from t1 order by a;
 a
 ä
@@ -1754,29 +1754,29 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `f1` int(11) DEFAULT NULL,
-  `f2` enum('ÿÿ') DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+  `f2` enum('') DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1(russian enum('E','F','EÿF','FÿE') NOT NULL DEFAULT'E');
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `russian` enum('E','F','EÿF','FÿE') NOT NULL DEFAULT 'E'
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1(denormal enum('E','F','E,F','F,E') NOT NULL DEFAULT'E');
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `denormal` enum('E','F','E,F','F,E') NOT NULL DEFAULT 'E'
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1(russian_deviant enum('E','F','EÿF','F,E') NOT NULL DEFAULT'E');
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `russian_deviant` enum('E','F','EÿF','F,E') NOT NULL DEFAULT 'E'
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1(exhausting_charset enum('ABCDEFGHIJKLMNOPQRSTUVWXYZ','	
  !"','#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~','xx\','yy\€','zz‚ƒ„…†‡ˆ‰Š‹Œ‘’“”•–—˜™š›œŸ ¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏĞÑÒÓÔÕÖ×ØÙÚÛÜİŞßàáâãäåæçèéêëìíîïğñòóôõö÷øùúûüışÿ'));
@@ -1863,3 +1863,32 @@ a
 DROP TABLE t1;
 SET sql_mode = default;
 End of 5.1 tests
+#
+# Bug #25481355: Handle long enum literals gracefully.
+#
+# Handle a column type element < 255 symbols but > 255 bytes.
+CREATE TABLE t1(exhausting_charset enum(
+'zz‚ƒ„…†‡ˆ‰Š‹Œ‘’“”•–—˜™š›œŸ ¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏĞÑÒÓÔÕÖ×ØÙÚÛÜİŞßàáâãäåæçèéêëìíîïğñòóôõö÷øùúûüışÿ'))
+CHARSET=utf8mb4;
+DROP TABLE t1;
+# Fail if the element is > 255 symbols.
+CREATE TABLE t1(exhausting_charset enum(
+'zz‚ƒ„…†‡ˆ‰Š‹Œ‘’“”•–—˜™š›œŸ ¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏĞÑÒÓÔÕÖ×ØÙÚÛÜİŞßàáâãäåæçèéêëìíîïğñòóôõö÷øùúûüışÿ
+ zz‚ƒ„…†‡ˆ‰Š‹Œ‘’“”•–—˜™š›œŸ ¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏĞÑÒÓÔÕÖ×ØÙÚÛÜİŞßàáâãäåæçèéêëìíîïğñòóôõö÷øùúûüışÿ'))
+CHARSET=utf8mb4;
+ERROR HY000: Too long enumeration/set value for column exhausting_charset.
+# Handle a parameter type element < 255 symbols but > 255 bytes.
+CREATE PROCEDURE p1(exhausting_charset enum(
+'zz‚ƒ„…†‡ˆ‰Š‹Œ‘’“”•–—˜™š›œŸ ¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏĞÑÒÓÔÕÖ×ØÙÚÛÜİŞßàáâãäåæçèéêëìíîïğñòóôõö÷øùúûüışÿ')
+CHARACTER SET utf8mb4)
+BEGIN
+END;
+DROP PROCEDURE p1;
+# Fail if the element is > 255 symbols.
+CREATE PROCEDURE p1(exhausting_charset enum(
+'zz‚ƒ„…†‡ˆ‰Š‹Œ‘’“”•–—˜™š›œŸ ¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏĞÑÒÓÔÕÖ×ØÙÚÛÜİŞßàáâãäåæçèéêëìíîïğñòóôõö÷øùúûüışÿ
+ zz‚ƒ„…†‡ˆ‰Š‹Œ‘’“”•–—˜™š›œŸ ¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏĞÑÒÓÔÕÖ×ØÙÚÛÜİŞßàáâãäåæçèéêëìíîïğñòóôõö÷øùúûüışÿ')
+CHARACTER SET utf8mb4)
+BEGIN
+END;
+ERROR HY000: Too long enumeration/set value for column exhausting_charset.

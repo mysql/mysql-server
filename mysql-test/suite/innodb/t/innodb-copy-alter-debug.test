@@ -2,27 +2,13 @@
 
 # Valgrind would complain about memory leaks when we crash on purpose.
 --source include/not_valgrind.inc
-# Embedded server does not support crashing
---source include/not_embedded.inc
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
-
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4. opt file added too.
---disable_query_log
-let $testdbcs37=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-alter schema test default character set latin1;
---enable_query_log
-########################################
 
 --echo #
 --echo # Bug #17479594 AVOID INTERMEDIATE COMMIT WHILE DOING
 --echo #		ALTER TABLE...ALGORITHM=COPY
 --echo #
-
-CREATE DATABASE alter_db;
-USE alter_db;
 
 CREATE TABLE t(a SERIAL, b INT, c INT, d INT) ENGINE=InnoDB;
 INSERT INTO t(a) VALUES(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0);
@@ -82,11 +68,3 @@ SELECT * FROM t1 WHERE MATCH(c) AGAINST ("first");
 SELECT * FROM t1 WHERE MATCH(b,c) AGAINST ("column");
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
-DROP DATABASE alter_db;
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
---eval alter schema test default character set $testdbcs37;
---enable_query_log
-########################################

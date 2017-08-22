@@ -30,7 +30,9 @@
 #include "dd/impl/sdi.h"                     // dd::sdi::drop_after_update
 #include "dd/impl/tables/character_sets.h"   // create_name_key()
 #include "dd/impl/tables/collations.h"       // create_name_key()
+#include "dd/impl/tables/column_statistics.h"// create_name_key()
 #include "dd/impl/tables/events.h"           // create_name_key()
+#include "dd/impl/tables/foreign_keys.h"
 #include "dd/impl/tables/index_stats.h"      // dd::Index_stats
 #include "dd/impl/tables/routines.h"         // create_name_key()
 #include "dd/impl/tables/schemata.h"         // create_name_key()
@@ -49,7 +51,7 @@
 #include "dd/types/abstract_table.h"         // Abstract_table
 #include "dd/types/charset.h"                // Charset
 #include "dd/types/collation.h"              // Collation
-#include "dd/types/dictionary_object_table.h"
+#include "dd/types/column_statistics.h"      // Column_statistics
 #include "dd/types/event.h"                  // Event
 #include "dd/types/function.h"               // Function
 #include "dd/types/index_stat.h"             // Index_stat
@@ -66,7 +68,7 @@
 #include "debug_sync.h"                      // DEBUG_SYNC()
 #include "handler.h"
 #include "lex_string.h"
-#include "log.h"                             // sql_print_warning()
+#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "mdl.h"
@@ -81,14 +83,6 @@
 #include "sql_plugin_ref.h"
 #include "storage_adapter.h"                 // store(), drop(), ...
 #include "table.h"
-
-namespace dd {
-class Dictionary_object;
-namespace cache {
-class Object_registry;
-template <typename T> class Cache_element;
-}  // namespace cache
-}  // namespace dd
 
 namespace {
 
@@ -188,27 +182,23 @@ private:
     // surrounding code calling this function only if '!thd->is_dd_system_thread'
     // i.e., this is not a bootstrapping thread.
     DBUG_ASSERT(!thd->is_dd_system_thread());
+    DBUG_ASSERT(schema);
 
     // We must take l_c_t_n into account when reconstructing the
     // MDL key from the table name.
     char table_name_buf[NAME_LEN + 1];
 
-    if (schema)
-    {
-      if (!my_strcasecmp(system_charset_info,
-                         schema->name().c_str(),
-                         "information_schema"))
-        return is_locked(thd, schema->name().c_str(), table->name().c_str(),
-                         MDL_key::TABLE, lock_type);
-      else
-        return is_locked(thd, schema->name().c_str(),
-                         dd::Object_table_definition_impl::fs_name_case(
-                                                             table->name(),
-                                                             table_name_buf),
-                         MDL_key::TABLE, lock_type);
-    }
+    if (!my_strcasecmp(system_charset_info,
+                       schema->name().c_str(),
+                       "information_schema"))
+      return is_locked(thd, schema->name().c_str(), table->name().c_str(),
+                       MDL_key::TABLE, lock_type);
 
-    return false;
+    return is_locked(thd, schema->name().c_str(),
+                     dd::Object_table_definition_impl::fs_name_case(
+                                                         table->name(),
+                                                         table_name_buf),
+                     MDL_key::TABLE, lock_type);
   }
 
 
@@ -238,21 +228,14 @@ private:
     if (thd->dd_client()->acquire(event->schema_id(), &schema))
       return false;
 
+    DBUG_ASSERT(schema);
+
     char lc_event_name[NAME_LEN + 1];
     my_stpcpy(lc_event_name, event->name().c_str());
     my_casedn_str(&my_charset_utf8_tolower_ci, lc_event_name);
 
-    // Likewise, if there is no schema, we cannot have a proper lock.
-    // @todo This may happen during bootstrapping since the meta data for the
-    // system schema is not stored yet. To be fixed in wl#6394. TODO_WL6394.
-    if (schema)
-      return is_locked(thd, schema->name().c_str(), lc_event_name,
-                       MDL_key::EVENT, lock_type);
-    else if (event->schema_id() == 1)
-      return is_locked(thd, MYSQL_SCHEMA_NAME.str, lc_event_name,
-                       MDL_key::EVENT, lock_type);
-
-    return false;
+    return is_locked(thd, schema->name().c_str(), lc_event_name,
+                     MDL_key::EVENT, lock_type);
   }
 
 
@@ -282,6 +265,8 @@ private:
     if (thd->dd_client()->acquire(routine->schema_id(), &schema))
       return false;
 
+    DBUG_ASSERT(schema);
+
     MDL_key::enum_mdl_namespace mdl_namespace= MDL_key::FUNCTION;
     if (routine->type() == dd::Routine::RT_PROCEDURE)
       mdl_namespace= MDL_key::PROCEDURE;
@@ -292,17 +277,8 @@ private:
     my_stpcpy(lc_routine_name, routine->name().c_str());
     my_casedn_str(system_charset_info, lc_routine_name);
 
-    // Likewise, if there is no schema, we cannot have a proper lock.
-    // @todo This may happen during bootstrapping since the meta data for the
-    // system schema is not stored yet. To be fixed in wl#6394. TODO_WL6394.
-    if (schema)
-      return is_locked(thd, schema->name().c_str(), lc_routine_name,
-                       mdl_namespace, lock_type);
-    else if (routine->schema_id() == 1)
-      return is_locked(thd, MYSQL_SCHEMA_NAME.str, lc_routine_name,
-                       mdl_namespace, lock_type);
-
-    return false;
+    return is_locked(thd, schema->name().c_str(), lc_routine_name,
+                     mdl_namespace, lock_type);
   }
 
 
@@ -367,6 +343,33 @@ private:
   }
 
 
+
+
+  /**
+    Private helper function for asserting MDL for column statistics.
+
+    @param   thd              Thread context.
+    @param   s Column statistic object.
+    @param   lock_type        Weakest lock type accepted.
+
+    @return true if we have the required lock, otherwise false.
+  */
+
+  static bool is_locked(THD *thd,
+                        const dd::Column_statistics *column_statistics,
+                        enum_mdl_type lock_type)
+  {
+    if (!column_statistics)
+      return true;  /* purecov: deadcode */
+
+    return thd->mdl_context.owns_equal_or_stronger_lock(
+                              MDL_key::COLUMN_STATISTICS,
+                              "",
+                              column_statistics->create_mdl_key().c_str(),
+                              lock_type);
+  }
+
+
   /**
     Private helper function for asserting MDL for tablespaces.
 
@@ -394,7 +397,7 @@ private:
 
 public:
   // Releasing arbitrary dictionary objects is not checked.
-  static bool is_release_locked(THD*, const dd::Dictionary_object*)
+  static bool is_release_locked(THD*, const dd::Entity_object*)
   { return true; }
 
   // Reading a table object should be governed by MDL_SHARED.
@@ -408,6 +411,24 @@ public:
            is_locked(thd, table, MDL_EXCLUSIVE);
   }
 
+#ifdef EXTRA_DD_DEBUG // Too intrusive/expensive to have enabled by default.
+  // Releasing a table object should be covered in the same way as for reading.
+  static bool is_release_locked(THD *thd, const dd::Abstract_table *table)
+  {
+    if (thd->is_dd_system_thread())
+      return true;
+    dd::Schema *schema= nullptr;
+    if (thd->dd_client()->acquire_uncached(table->schema_id(), &schema))
+      return false;
+    if (schema == nullptr)
+      return false;
+    dd::Schema_MDL_locker mdl_locker(thd);
+    if (mdl_locker.ensure_locked(schema->name().c_str()))
+      return false;
+    return is_read_locked(thd, table);
+  }
+#endif // EXTRA_DD_DEBUG
+
   // Reading a spatial reference system object should be governed by MDL_SHARED.
   static bool is_read_locked(THD *thd, const dd::Spatial_reference_system *srs)
   { return thd->is_dd_system_thread() || is_locked(thd, srs, MDL_SHARED); }
@@ -416,6 +437,38 @@ public:
   // MDL_EXCLUSIVE.
   static bool is_write_locked(THD *thd, const dd::Spatial_reference_system *srs)
   { return !mysqld_server_started || is_locked(thd, srs, MDL_EXCLUSIVE); }
+
+  // Releasing a spatial reference system object should be covered
+  // in the same way as for reading.
+  static bool is_release_locked(THD *thd, const dd::Spatial_reference_system *srs)
+  { return is_read_locked(thd, srs); }
+
+
+  // Reading a column_statistics object should be governed by MDL_SHARED.
+  static bool is_read_locked(THD *thd,
+                             const dd::Column_statistics *column_statistics)
+  {
+    return thd->is_dd_system_thread() ||
+           is_locked(thd, column_statistics, MDL_SHARED);
+  }
+
+  // Writing a column_statistics  object should be governed by
+  // MDL_EXCLUSIVE.
+  static bool is_write_locked(THD *thd,
+                              const dd::Column_statistics *column_statistics)
+  {
+    return !mysqld_server_started ||
+           is_locked(thd, column_statistics, MDL_EXCLUSIVE);
+  }
+
+  // Releasing a column_statistics object should be covered
+  // in the same way as for reading.
+  static bool is_release_locked(THD *thd,
+                                const dd::Column_statistics *column_statistics)
+  {
+    return is_read_locked(thd, column_statistics);
+  }
+
 
   // No MDL namespace for character sets.
   static bool is_read_locked(THD*, const dd::Charset*)
@@ -475,6 +528,10 @@ public:
            is_locked(thd, tablespace, MDL_EXCLUSIVE);
   }
 
+  // Releasing a tablespace object should be covered in the same way as for reading.
+  static bool is_release_locked(THD *thd, const dd::Tablespace *tablespace)
+  { return is_read_locked(thd, tablespace); }
+
   // Reading a Event object should be governed at least MDL_SHARED.
   static bool is_read_locked(THD *thd, const dd::Event *event)
   {
@@ -489,6 +546,24 @@ public:
             is_locked(thd, event, MDL_EXCLUSIVE));
   }
 
+#ifdef EXTRA_DD_DEBUG // Too intrusive/expensive to have enabled by default.
+  // Releasing an Event object should be covered in the same way as for reading.
+  static bool is_release_locked(THD *thd, const dd::Event *event)
+  {
+    if (thd->is_dd_system_thread())
+      return true;
+    dd::Schema *schema= nullptr;
+    if (thd->dd_client()->acquire_uncached(event->schema_id(), &schema))
+      return false;
+    if (schema == nullptr)
+      return false;
+    dd::Schema_MDL_locker mdl_locker(thd);
+    if (mdl_locker.ensure_locked(schema->name().c_str()))
+      return false;
+    return is_read_locked(thd, event);
+  }
+#endif // EXTRA_DD_DEBUG
+
   // Reading a Routine object should be governed at least MDL_SHARED.
   static bool is_read_locked(THD *thd, const dd::Routine *routine)
   {
@@ -502,6 +577,24 @@ public:
     return (thd->is_dd_system_thread() ||
             is_locked(thd, routine, MDL_EXCLUSIVE));
   }
+
+#ifdef EXTRA_DD_DEBUG // Too intrusive/expensive to have enabled by default.
+  // Releasing a Routine object should be covered in the same way as for reading.
+  static bool is_release_locked(THD *thd, const dd::Routine *routine)
+  {
+    if (thd->is_dd_system_thread())
+      return true;
+    dd::Schema *schema= nullptr;
+    if (thd->dd_client()->acquire_uncached(routine->schema_id(), &schema))
+      return false;
+    if (schema == nullptr)
+      return false;
+    dd::Schema_MDL_locker mdl_locker(thd);
+    if (mdl_locker.ensure_locked(schema->name().c_str()))
+      return false;
+    return is_read_locked(thd, routine);
+  }
+#endif // EXTRA_DD_DEBUG
 };
 
 // Check if the component is hidden.
@@ -511,7 +604,9 @@ bool is_component_hidden(dd::Raw_record*)
 
 template <>
 bool is_component_hidden<dd::Abstract_table>(dd::Raw_record *r)
-{ return r->read_bool(dd::tables::Tables::FIELD_HIDDEN); }
+{ return static_cast<dd::Abstract_table::enum_hidden_type>(
+            r->read_int(dd::tables::Tables::FIELD_HIDDEN)) !=
+         dd::Abstract_table::HT_VISIBLE; }
 
 }
 
@@ -578,6 +673,7 @@ Dictionary_client::Auto_releaser::~Auto_releaser()
   m_client->release<Tablespace>(&m_release_registry);
   m_client->release<Charset>(&m_release_registry);
   m_client->release<Collation>(&m_release_registry);
+  m_client->release<Column_statistics>(&m_release_registry);
   m_client->release<Event>(&m_release_registry);
   m_client->release<Routine>(&m_release_registry);
   m_client->release<Spatial_reference_system>(&m_release_registry);
@@ -789,8 +885,9 @@ size_t Dictionary_client::release(Object_registry *registry)
       (void) m_current_releaser->remove(element);
 
     // Clone the object before releasing it. The object is needed for checking
-    // the meta data lock afterwards.
-#ifndef DBUG_OFF
+    // the meta data lock afterwards. This is an expensive check, so only
+    // do it if EXTRA_DD_DEBUG is set.
+#ifdef EXTRA_DD_DEBUG
     std::unique_ptr<const T> object_clone(element->object()->clone());
 #endif
 
@@ -810,7 +907,9 @@ size_t Dictionary_client::release(Object_registry *registry)
     // counter of the corresponding cache element is already > 0, which may
     // again trigger asserts in the shared cache and allow for improper object
     // usage.
+#ifdef EXTRA_DD_DEBUG
     DBUG_ASSERT(MDL_checker::is_release_locked(m_thd, object_clone.get()));
+#endif
   }
   return num_released;
 }
@@ -826,7 +925,8 @@ size_t Dictionary_client::release(Object_registry *registry)
           release<Collation>(registry) +
           release<Event>(registry) +
           release<Routine>(registry) +
-          release<Spatial_reference_system>(registry);
+          release<Spatial_reference_system>(registry) +
+          release<Column_statistics>(registry);
 }
 
 
@@ -846,11 +946,11 @@ Dictionary_client::Dictionary_client(THD *thd): m_thd(thd),
 Dictionary_client::~Dictionary_client()
 {
   // Release the objects left in the object registry (should be empty).
-  size_t num_released= release();
+  size_t num_released= release(&m_registry_committed);
   DBUG_ASSERT(num_released == 0);
   if (num_released > 0)
   {
-    sql_print_warning("Dictionary objects used but not released.");
+    LogErr(WARNING_LEVEL, ER_DD_OBJECT_REMAINS);
   }
 
   // Delete the additional releasers (should be none).
@@ -858,7 +958,7 @@ Dictionary_client::~Dictionary_client()
          m_current_releaser != &m_default_releaser)
   {
     /* purecov: begin deadcode */
-    sql_print_warning("Dictionary object auto releaser not deleted");
+    LogErr(WARNING_LEVEL, ER_DD_OBJECT_RELEASER_REMAINS);
     DBUG_ASSERT(false);
     delete m_current_releaser;
     /* purecov: end */
@@ -870,7 +970,7 @@ Dictionary_client::~Dictionary_client()
   DBUG_ASSERT(num_released == 0);
   if (num_released > 0)
   {
-    sql_print_warning("Dictionary objects left in default releaser.");
+    LogErr(WARNING_LEVEL, ER_DD_OBJECT_REMAINS_IN_RELEASER);
   }
 }
 
@@ -1345,7 +1445,7 @@ bool Dictionary_client::acquire_for_modification(const String_type &schema_name,
     if (cached_object != nullptr)
     {
       *object= cached_object->clone();
-      auto_delete<T>(*object);
+      auto_delete(*object);
     }
   }
   else
@@ -1403,7 +1503,6 @@ bool Dictionary_client::acquire_uncached_table_by_se_private_id(
 }
 
 // Retrieve a table object by its partition se private id.
-/* purecov: begin deadcode */
 bool Dictionary_client::acquire_uncached_table_by_partition_se_private_id(
                           const String_type &engine,
                           Object_id se_partition_id,
@@ -1436,7 +1535,6 @@ bool Dictionary_client::acquire_uncached_table_by_partition_se_private_id(
 
   return false;
 }
-/* purecov: end */
 
 
 // Get names of index and column names from index statistics entries.
@@ -1650,7 +1748,6 @@ bool Dictionary_client::get_table_name_by_se_private_id(
 
 
 // Retrieve a schema- and table name by the se private id of the partition.
-/* purecov: begin deadcode */
 bool Dictionary_client::get_table_name_by_partition_se_private_id(
                                       const String_type &engine,
                                       Object_id se_partition_id,
@@ -1695,10 +1792,10 @@ bool Dictionary_client::get_table_name_by_partition_se_private_id(
 
   return false;
 }
-/* purecov: end */
+
 
 bool Dictionary_client::get_table_name_by_trigger_name(
-                          Object_id schema_id,
+                          const Schema &schema,
                           const String_type &trigger_name,
                           String_type *table_name)
 {
@@ -1708,7 +1805,7 @@ bool Dictionary_client::get_table_name_by_trigger_name(
   // Read record directly from the tables.
   Object_id table_id;
   if (tables::Triggers::get_trigger_table_id(m_thd,
-                                             schema_id,
+                                             schema.id(),
                                              trigger_name,
                                              &table_id))
   {
@@ -1750,27 +1847,6 @@ bool Dictionary_client::get_table_name_by_trigger_name(
 
   return error;
 }
-
-
-// Get the highest currently used se private id for the table objects.
-/* purecov: begin deadcode */
-bool Dictionary_client::get_tables_max_se_private_id(const String_type &engine,
-                                                     Object_id *max_id)
-{
-  dd::Transaction_ro trx(m_thd, ISO_READ_COMMITTED);
-
-  trx.otx.register_tables<dd::Schema>();
-  trx.otx.register_tables<dd::Table>();
-
-  if (trx.otx.open_tables())
-  {
-    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
-    return true;
-  }
-
-  return dd::tables::Tables::max_se_private_id(&trx.otx, engine, max_id);
-}
-/* purecov: end */
 
 
 // Fetch the names of all the components in the schema.
@@ -2014,9 +2090,87 @@ bool Dictionary_client::fetch_referencing_views_object_id(
 }
 
 
-// Mark all objects acquired by this client as not being used anymore.
-size_t Dictionary_client::release()
-{ return release(&m_registry_committed); }
+bool Dictionary_client::fetch_fk_children_uncached(
+    const String_type &parent_schema,
+    const String_type &parent_name,
+    std::vector<String_type> *children_schemas,
+    std::vector<String_type> *children_names)
+{
+  dd::Transaction_ro trx(m_thd, ISO_READ_COMMITTED);
+
+  trx.otx.register_tables<Foreign_key>();
+  Raw_table *foreign_keys_table= trx.otx.get_table<Foreign_key>();
+  DBUG_ASSERT(foreign_keys_table);
+
+  if (trx.otx.open_tables())
+  {
+    DBUG_ASSERT(m_thd->is_system_thread() ||
+                m_thd->killed ||
+                m_thd->is_error());
+    return true;
+  }
+
+  // Create the key based on the parent table name.
+  std::unique_ptr<Object_key> object_key(
+    tables::Foreign_keys::create_key_by_referenced_name(
+      String_type(Dictionary_impl::default_catalog_name()),
+                  parent_schema, parent_name));
+
+  std::unique_ptr<Raw_record_set> rs;
+  if (foreign_keys_table->open_record_set(object_key.get(), rs))
+  {
+    DBUG_ASSERT(m_thd->is_system_thread() ||
+                m_thd->killed ||
+                m_thd->is_error());
+    return true;
+  }
+
+  Raw_record *r= rs->current_record();
+  while (r)
+  {
+    /* READ TABLE ID */
+    Object_id id= r->read_int(tables::Foreign_keys::FIELD_TABLE_ID);
+
+    dd::Table *table= nullptr;
+    dd::Schema *schema= nullptr;
+    dd::cache::Dictionary_client::Auto_releaser releaser(this);
+    if (acquire_uncached(id, &table))
+    {
+      DBUG_ASSERT(m_thd->is_system_thread() ||
+                  m_thd->killed ||
+                  m_thd->is_error());
+      return true;
+    }
+
+    if (table)
+    {
+      if (acquire_uncached(table->schema_id(), &schema))
+      {
+        DBUG_ASSERT(m_thd->is_system_thread() ||
+                    m_thd->killed ||
+                    m_thd->is_error());
+        return true;
+      }
+      if (schema)
+      {
+        children_schemas->push_back(schema->name());
+        children_names->push_back(table->name());
+      }
+    }
+    // If table/schema is not found, it was deleted since we retrieved the ID.
+    // That can happen since we don't have a lock and is not an error.
+
+    if (rs->next(r))
+    {
+      DBUG_ASSERT(m_thd->is_system_thread() ||
+                  m_thd->killed ||
+                  m_thd->is_error());
+      return true;
+    }
+  }
+
+  return false;
+}
 
 
 // Remove and delete an object from the cache and the dd tables.
@@ -2184,8 +2338,12 @@ bool Dictionary_client::update(T* new_object)
   {
     // Remove and delete the old uncommitted object.
     m_registry_uncommitted.remove(element);
-    delete element->object();
-    element->set_object(new_object);
+    // If we update an already updated object, don't delete it.
+    if (element->object() != new_object)
+    {
+      delete element->object();
+      element->set_object(new_object);
+    }
     element->recreate_keys();
     m_registry_uncommitted.put(element);
   }
@@ -2434,6 +2592,7 @@ void Dictionary_client::rollback_modified_objects()
   remove_uncommitted_objects<Tablespace>(false);
   remove_uncommitted_objects<Charset>(false);
   remove_uncommitted_objects<Collation>(false);
+  remove_uncommitted_objects<Column_statistics>(false);
   remove_uncommitted_objects<Event>(false);
   remove_uncommitted_objects<Routine>(false);
   remove_uncommitted_objects<Spatial_reference_system>(false);
@@ -2447,6 +2606,7 @@ void Dictionary_client::commit_modified_objects()
   remove_uncommitted_objects<Tablespace>(true);
   remove_uncommitted_objects<Charset>(true);
   remove_uncommitted_objects<Collation>(true);
+  remove_uncommitted_objects<Column_statistics>(true);
   remove_uncommitted_objects<Event>(true);
   remove_uncommitted_objects<Routine>(true);
   remove_uncommitted_objects<Spatial_reference_system>(true);
@@ -2467,7 +2627,7 @@ void Dictionary_client::dump() const
   fprintf(stderr, "Dictionary client (dropped)\n");
   m_registry_dropped.dump<T>();
   fprintf(stderr, "Dictionary client (uncached)\n");
-  for (std::vector<Dictionary_object*>::const_iterator it=
+  for (std::vector<Entity_object*>::const_iterator it=
          m_uncached_objects.begin();
        it != m_uncached_objects.end(); it++)
   {
@@ -2522,6 +2682,12 @@ template bool Dictionary_client::fetch_global_components(
 template bool Dictionary_client::fetch_global_components(
     std::vector<const Schema*>*) const;
 
+template bool Dictionary_client::fetch_global_components(
+    std::vector<const Tablespace*>*) const;
+
+template bool Dictionary_client::fetch_global_components(
+    std::vector<const Table*>*) const;
+
 template bool Dictionary_client::fetch_schema_component_names<Abstract_table>(
     const Schema*,
     std::vector<String_type>*) const;
@@ -2545,6 +2711,9 @@ template bool Dictionary_client::acquire_uncached(Object_id,
 template bool Dictionary_client::acquire(const String_type&,
                                          const String_type&,
                                          const Abstract_table**);
+template bool Dictionary_client::acquire_for_modification(const String_type&,
+                                                          const String_type&,
+                                                          Abstract_table**);
 template void Dictionary_client::remove_uncommitted_objects<Abstract_table>(bool);
 template bool Dictionary_client::drop(const Abstract_table*);
 template bool Dictionary_client::store(Abstract_table*);
@@ -2608,6 +2777,22 @@ template bool Dictionary_client::store(Spatial_reference_system*);
 template bool Dictionary_client::update(Spatial_reference_system*);
 template void Dictionary_client::dump<Spatial_reference_system>() const;
 
+
+template bool Dictionary_client::acquire(const String_type &,
+                                         const Column_statistics**);
+template bool Dictionary_client::acquire(Object_id, const Column_statistics**);
+template bool Dictionary_client::acquire_for_modification(Object_id,
+                                                          Column_statistics**);
+template bool Dictionary_client::acquire_for_modification(const String_type &,
+                                                          Column_statistics**);
+template bool Dictionary_client::acquire_uncached(Object_id,
+                                                  Column_statistics**);
+template bool Dictionary_client::drop(const Column_statistics*);
+template bool Dictionary_client::store(Column_statistics*);
+template bool Dictionary_client::update(Column_statistics*);
+template void Dictionary_client::dump<Column_statistics>() const;
+
+
 template bool Dictionary_client::acquire_uncached(Object_id,
                                                   Table**);
 template bool Dictionary_client::acquire(Object_id,
@@ -2629,8 +2814,6 @@ template bool Dictionary_client::acquire_uncached(Object_id,
                                                   Tablespace**);
 template bool Dictionary_client::acquire(const String_type&,
                                          const Tablespace**);
-
-
 template bool Dictionary_client::acquire_for_modification(const String_type&,
                                                           Tablespace**);
 template bool Dictionary_client::acquire(Object_id,

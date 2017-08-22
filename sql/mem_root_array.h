@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 #ifndef MEM_ROOT_ARRAY_INCLUDED
 #define MEM_ROOT_ARRAY_INCLUDED
 
+#include <algorithm>
 #include <type_traits>
 
 #include "my_alloc.h"
@@ -127,6 +128,12 @@ public:
   /// Returns a pointer to the past-the-end element in the array.
   Element_type *end() { return &m_array[size()]; }
   const Element_type *end() const { return &m_array[size()]; }
+
+  /// Returns a constant pointer to the first element in the array.
+  const_iterator cbegin() const { return begin(); }
+
+  /// Returns a constant pointer to the past-the-end element in the array.
+  const_iterator cend() const { return end(); }
 
   /// Erases all of the elements. 
   void clear()
@@ -259,6 +266,66 @@ public:
     m_size= n;
   }
 
+  /**
+    Erase all the elements in the specified range.
+
+    @param first  iterator that points to the first element to remove
+    @param last   iterator that points to the element after the
+                  last one to remove
+    @return an iterator to the first element after the removed range
+  */
+  iterator erase(const_iterator first, const_iterator last)
+  {
+    iterator pos= begin() + (first - cbegin());
+    if (first != last)
+    {
+      iterator new_end= std::move(last, cend(), pos);
+      chop(new_end - begin());
+    }
+    return pos;
+  }
+
+  /**
+    Removes a single element from the array.
+
+    @param position  iterator that points to the element to remove
+
+    @return an iterator to the first element after the removed range
+  */
+  iterator erase(const_iterator position)
+  {
+    return erase(position, std::next(position));
+  }
+
+  /**
+    Removes a single element from the array.
+
+    @param ix  zero-based number of the element to remove
+
+    @return an iterator to the first element after the removed range
+  */
+  iterator erase(size_t ix)
+  {
+    DBUG_ASSERT(ix < size());
+    return erase(std::next(this->cbegin(), ix));
+  }
+
+  /**
+    Insert an element at a given position.
+
+    @param pos    the new element is inserted before the element
+                  at this position
+    @param value  the value of the new element
+    @return an iterator that points to the inserted element
+  */
+  iterator insert(const_iterator pos, const Element_type &value)
+  {
+    ptrdiff_t idx= pos - cbegin();
+    if (!push_back(value))
+      std::rotate(begin() + idx, end() - 1, end());
+    return begin() + idx;
+  }
+
   size_t capacity()     const { return m_capacity; }
   size_t element_size() const { return sizeof(Element_type); }
   bool   empty()        const { return size() == 0; }
@@ -291,6 +358,8 @@ public:
   /// Convenience typedef, same typedef name as std::vector
   typedef Element_type value_type;
 
+  typedef typename super::const_iterator const_iterator;
+
   explicit Mem_root_array(MEM_ROOT *root)
   {
     super::init(root);
@@ -300,6 +369,31 @@ public:
     super::init(root);
     super::resize(n, val);
   }
+
+  /**
+    Range constructor.
+
+    Constructs a container with as many elements as the range [first,last),
+    with each element constructed from its corresponding element in that range,
+    in the same order.
+
+    @param root   MEM_ROOT to use for memory allocation.
+    @param first  iterator that points to the first element to copy
+    @param last   iterator that points to the element after the
+                  last one to copy
+  */
+  Mem_root_array(MEM_ROOT *root, const_iterator first, const_iterator last)
+  {
+    super::init(root);
+    if (this->reserve(last - first))
+      return;
+    for (auto it= first; it != last; ++it)
+      this->push_back(*it);
+  }
+
+  Mem_root_array(MEM_ROOT *root, const Mem_root_array &x)
+    : Mem_root_array(root, x.cbegin(), x.cend())
+  {}
 
   ~Mem_root_array()
   {

@@ -1,5 +1,4 @@
 source include/have_log_bin.inc;
-source include/not_embedded.inc;
 
 # Checking that the drop of a database does not replicate anything in
 # addition to the drop of the database
@@ -94,3 +93,4 @@ SHOW TABLES FROM db1;                   # t1 was dropped, t2 remains
 # Cleanup
 DROP TABLE t3;
 DROP DATABASE db1;
+RESET MASTER;

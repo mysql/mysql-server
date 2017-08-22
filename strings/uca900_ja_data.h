@@ -16,6 +16,10 @@
 #ifndef UCA900_JA_DATA_H
 #define UCA900_JA_DATA_H
 
+// Quaternary weight of katakana.
+static constexpr int JA_KATA_QUAT_WEIGHT= 0x08;
+// Quaternary weight of hiragana.
+static constexpr int JA_HIRA_QUAT_WEIGHT= 0x02;
 static const char ja_cldr_30[]=
   "&\\u309D <<<< \\u30FD"
   "&[before 3]\\u3041 <<<\\u3041|\\u30FC=\\u3042|\\u30FC=\\u304B|\\u30FC"

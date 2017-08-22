@@ -21,6 +21,7 @@
 #include "dd/types/abstract_table.h"
 #include "dd/types/charset.h"               // Charset
 #include "dd/types/collation.h"             // Collation
+#include "dd/types/column_statistics.h"     // Column_statistics
 #include "dd/types/event.h"                 // Event
 #include "dd/types/routine.h"               // Routine
 #include "dd/types/schema.h"                // Schema
@@ -59,6 +60,7 @@ private:
   // reference systems after initializing the server, as of MySQL
   // 8.0.0.
   static const size_t collation_capacity= 256;
+  static const size_t column_statistics_capacity= 32;
   static const size_t charset_capacity= 64;
   static const size_t event_capacity= 256;
   static const size_t spatial_reference_system_capacity= 256;
@@ -66,6 +68,7 @@ private:
   Shared_multi_map<Abstract_table> m_abstract_table_map;
   Shared_multi_map<Charset>        m_charset_map;
   Shared_multi_map<Collation>      m_collation_map;
+  Shared_multi_map<Column_statistics> m_column_stat_map;
   Shared_multi_map<Event>          m_event_map;
   Shared_multi_map<Routine>        m_routine_map;
   Shared_multi_map<Schema>         m_schema_map;
@@ -86,6 +89,8 @@ private:
   { return &m_charset_map; }
   Shared_multi_map<Collation>      *m_map(Type_selector<Collation>)
   { return &m_collation_map; }
+  Shared_multi_map<Column_statistics> *m_map(Type_selector<Column_statistics>)
+  { return &m_column_stat_map; }
   Shared_multi_map<Event>        *m_map(Type_selector<Event>)
   { return &m_event_map; }
   Shared_multi_map<Routine>        *m_map(Type_selector<Routine>)
@@ -105,6 +110,9 @@ private:
   { return &m_charset_map; }
   const Shared_multi_map<Collation>      *m_map(Type_selector<Collation>) const
   { return &m_collation_map; }
+  const Shared_multi_map<Column_statistics> *
+    m_map(Type_selector<Column_statistics>) const
+  { return &m_column_stat_map; }
   const Shared_multi_map<Schema>         *m_map(Type_selector<Schema>) const
   { return &m_schema_map; }
   const Shared_multi_map<Spatial_reference_system> *

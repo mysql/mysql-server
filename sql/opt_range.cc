@@ -136,7 +136,7 @@
 #include "item_sum.h"            // Item_sum
 #include "key.h"                 // is_key_used
 #include "lex_string.h"
-#include "log.h"                 // sql_print_error
+#include "log.h"
 #include "m_ctype.h"
 #include "malloc_allocator.h"
 #include "mem_root_array.h"
@@ -289,7 +289,7 @@ class SEL_ARG;
   As a special case, a nullptr SEL_ROOT means a range that is always true.
   This is true both for keys[] and next_key_part.
 */
-class SEL_ROOT : public Sql_alloc
+class SEL_ROOT
 {
 public:
   /**
@@ -672,7 +672,7 @@ public:
     SEL_ARG object we can construct during one range analysis invocation.
 */
 
-class SEL_ARG : public Sql_alloc
+class SEL_ARG
 {
 public:
   uint8 min_flag{0}, max_flag{0};
@@ -693,7 +693,7 @@ public:
     SEL_ROOT. Most code seems to assume the latter, but a few select places,
     non-root nodes appear to be modified.
   */
-  uint8 maybe_flag{0};
+  bool maybe_flag{false};
 
   /*
     Which key part. TODO: This is the same for all values in a SEL_ROOT,
@@ -774,7 +774,7 @@ public:
   SEL_ARG(SEL_ARG &);
   SEL_ARG(Field *,const uchar *, const uchar *, bool asc);
   SEL_ARG(Field *field, uint8 part, uchar *min_value, uchar *max_value,
-	  uint8 min_flag, uint8 max_flag, uint8 maybe_flag, bool asc);
+	  uint8 min_flag, uint8 max_flag, bool maybe_flag, bool asc);
   /**
     Note that almost all SEL_ARGs are created on the MEM_ROOT,
     so this destructor will only rarely be called.
@@ -796,7 +796,7 @@ public:
   }
 
   inline void merge_flags(SEL_ARG *arg) { maybe_flag|=arg->maybe_flag; }
-  inline void maybe_smaller() { maybe_flag=1; }
+  inline void maybe_smaller() { maybe_flag= true; }
   /* Return true iff it's a single-point null interval */
   inline bool is_null_interval() { return maybe_null() && max_value[0] == 1; }
   inline int cmp_min_to_min(const SEL_ARG* arg) const
@@ -836,19 +836,19 @@ public:
       new_max=arg->max_value; flag_max=arg->max_flag;
     }
     return new (mem_root) SEL_ARG(field, part, new_min, new_max, flag_min, flag_max,
-		       MY_TEST(maybe_flag && arg->maybe_flag), is_ascending);
+		       maybe_flag && arg->maybe_flag, is_ascending);
   }
   SEL_ARG *clone_first(SEL_ARG *arg, MEM_ROOT *mem_root)
   {                                             // arg->min <= X < arg->min
     return new (mem_root) SEL_ARG(field,part, min_value, arg->min_value,
 		       min_flag, arg->min_flag & NEAR_MIN ? 0 : NEAR_MAX,
-		       maybe_flag | arg->maybe_flag, is_ascending);
+		       maybe_flag || arg->maybe_flag, is_ascending);
   }
   SEL_ARG *clone_last(SEL_ARG *arg, MEM_ROOT *mem_root)
   {                                             // arg->min <= X <= key_max
     return new (mem_root) SEL_ARG(field, part, min_value, arg->max_value,
 		       min_flag, arg->max_flag,
-                       maybe_flag | arg->maybe_flag, is_ascending);
+                       maybe_flag || arg->maybe_flag, is_ascending);
   }
   SEL_ARG *clone(RANGE_OPT_PARAM *param, SEL_ARG *new_parent, SEL_ARG **next);
 
@@ -1531,9 +1531,16 @@ static void append_range_all_keyparts(Opt_trace_array *range_trace,
                                       SEL_ROOT *keypart,
                                       const KEY_PART_INFO *key_parts,
                                       const bool print_full);
+#ifndef DBUG_OFF
 static inline void dbug_print_tree(const char *tree_name,
                                    SEL_TREE *tree,
                                    const RANGE_OPT_PARAM *param);
+#else
+static inline void dbug_print_tree(const char*,
+                                   SEL_TREE*,
+                                   const RANGE_OPT_PARAM*)
+{}
+#endif
 
 static inline void print_tree(String *out,
                               const char *tree_name,
@@ -1583,13 +1590,13 @@ static bool sel_trees_can_be_ored(SEL_TREE *tree1, SEL_TREE *tree2,
 
 void range_optimizer_init()
 {
-  null_element= ::new SEL_ARG;
+  null_element= new SEL_ARG;
   null_element->color= SEL_ARG::BLACK;  // Don't trip up the test in test_rb_tree.
 }
 
 void range_optimizer_free()
 {
-  ::delete null_element;
+  delete null_element;
 }
 
 /*
@@ -2002,7 +2009,7 @@ QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT()
                             free_file));
         file->ha_external_lock(current_thd, F_UNLCK);
         file->ha_close();
-        delete file;
+        destroy(file);
       }
     }
     if (alloc != nullptr)
@@ -2060,7 +2067,7 @@ QUICK_INDEX_MERGE_SELECT::~QUICK_INDEX_MERGE_SELECT()
   List_iterator_fast<QUICK_RANGE_SELECT> quick_it(quick_selects);
   QUICK_RANGE_SELECT* quick;
   DBUG_ENTER("QUICK_INDEX_MERGE_SELECT::~QUICK_INDEX_MERGE_SELECT");
-  delete unique;
+  destroy(unique);
   quick_it.rewind();
   while ((quick= quick_it++))
     quick->file= NULL;
@@ -2221,7 +2228,7 @@ end:
 
 failure:
   head->column_bitmaps_set(save_read_set, save_write_set);
-  delete file;
+  destroy(file);
   file= save_file;
   DBUG_RETURN(1);
 }
@@ -2488,21 +2495,20 @@ QUICK_RANGE::QUICK_RANGE(const uchar *min_key_arg, uint min_length_arg,
 }
 
 SEL_ARG::SEL_ARG(SEL_ARG &arg)
-  :Sql_alloc(),
-  min_flag(arg.min_flag),
-  max_flag(arg.max_flag),
-  maybe_flag(arg.maybe_flag),
-  part(arg.part),
-  rkey_func_flag(arg.rkey_func_flag),
-  field(arg.field),
-  min_value(arg.min_value),
-  max_value(arg.max_value),
-  left(null_element),
-  right(null_element),
-  next(NULL),
-  prev(NULL),
-  next_key_part(arg.next_key_part),
-  is_ascending(arg.is_ascending)
+  : min_flag(arg.min_flag),
+    max_flag(arg.max_flag),
+    maybe_flag(arg.maybe_flag),
+    part(arg.part),
+    rkey_func_flag(arg.rkey_func_flag),
+    field(arg.field),
+    min_value(arg.min_value),
+    max_value(arg.max_value),
+    left(null_element),
+    right(null_element),
+    next(NULL),
+    prev(NULL),
+    next_key_part(arg.next_key_part),
+    is_ascending(arg.is_ascending)
 {
   if (next_key_part)
     ++next_key_part->use_count;
@@ -2530,7 +2536,7 @@ SEL_ARG::SEL_ARG(Field *f,const uchar *min_value_arg,
 
 SEL_ARG::SEL_ARG(Field *field_,uint8 part_,
                  uchar *min_value_, uchar *max_value_,
-		 uint8 min_flag_,uint8 max_flag_,uint8 maybe_flag_,
+		 uint8 min_flag_,uint8 max_flag_,bool maybe_flag_,
                  bool asc)
   :min_flag(min_flag_),max_flag(max_flag_),maybe_flag(maybe_flag_), part(part_),
   rkey_func_flag(HA_READ_INVALID),
@@ -2782,7 +2788,9 @@ public:
   static void *operator new(size_t size, MEM_ROOT *mem_root,
         const std::nothrow_t &arg MY_ATTRIBUTE((unused))= std::nothrow) throw ()
   { return alloc_root(mem_root, size); }
-  static void operator delete(void *ptr,size_t size) { TRASH(ptr, size); }
+  static void operator delete(void *ptr MY_ATTRIBUTE((unused)),
+                              size_t size MY_ATTRIBUTE((unused)))
+  { TRASH(ptr, size); }
   static void operator delete(void*, MEM_ROOT*,
                               const std::nothrow_t &) throw ()
   { /* Never called */ }
@@ -3680,7 +3688,7 @@ free_mem:
     Assume that if the user is using 'limit' we will only need to scan
     limit rows if we are using a key
   */
-  DBUG_RETURN(records ? MY_TEST(*quick) : -1);
+  DBUG_RETURN(records ? (*quick != nullptr) : -1);
 }
 
 /****************************************************************************
@@ -4716,7 +4724,7 @@ process_next_key_part:
         ppar->mark_full_partition_used(ppar->part_info, part_id);
         found= TRUE;
       }
-      res= MY_TEST(found);
+      res= found;
     }
     /*
       Restore the "used partitions iterator" to the default setting that
@@ -5777,8 +5785,7 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
   SEL_ARG *tuple_arg= NULL;
   key_part_map keypart_map= 0;
   bool cur_covered;
-  bool prev_covered= MY_TEST(bitmap_is_set(&info->covered_fields,
-                                           key_part->fieldnr-1));
+  bool prev_covered= bitmap_is_set(&info->covered_fields, key_part->fieldnr-1);
   key_range min_range;
   key_range max_range;
   min_range.key= key_val;
@@ -5792,8 +5799,8 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
        sel_root= sel_root->root->next_key_part)
   {
     DBUG_PRINT("info",("sel_root step"));
-    cur_covered= MY_TEST(bitmap_is_set(&info->covered_fields,
-                                       key_part[sel_root->root->part].fieldnr - 1));
+    cur_covered= bitmap_is_set(
+      &info->covered_fields, key_part[sel_root->root->part].fieldnr - 1);
     if (cur_covered != prev_covered)
     {
       /* create (part1val, ..., part{n-1}val) tuple. */
@@ -6148,7 +6155,7 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
   intersect_scans_end= intersect_scans;
 
   /* Create and incrementally update ROR intersection. */
-  ROR_INTERSECT_INFO *intersect, *intersect_best;
+  ROR_INTERSECT_INFO *intersect, *intersect_best= nullptr;
   if (!(intersect= ror_intersect_init(param)) || 
       !(intersect_best= ror_intersect_init(param)))
     DBUG_RETURN(NULL);
@@ -10056,24 +10063,24 @@ static int test_rb_tree(SEL_ARG *element,SEL_ARG *parent)
     return 0;					// Found end of tree
   if (element->parent != parent)
   {
-    sql_print_error("Wrong tree: Parent doesn't point at parent");
+    LogErr(ERROR_LEVEL, ER_TREE_CORRUPT_PARENT_SHOULD_POINT_AT_PARENT);
     return -1;
   }
   if (!parent && element->color != SEL_ARG::BLACK)
   {
-    sql_print_error("Wrong tree: Root should be black");
+    LogErr(ERROR_LEVEL, ER_TREE_CORRUPT_ROOT_SHOULD_BE_BLACK);
     return -1;
   }
   if (element->color == SEL_ARG::RED &&
       (element->left->color == SEL_ARG::RED ||
        element->right->color == SEL_ARG::RED))
   {
-    sql_print_error("Wrong tree: Found two red in a row");
+    LogErr(ERROR_LEVEL, ER_TREE_CORRUPT_2_CONSECUTIVE_REDS);
     return -1;
   }
   if (element->left == element->right && element->left != null_element)
   {						// Dummy test
-    sql_print_error("Wrong tree: Found right == left");
+    LogErr(ERROR_LEVEL, ER_TREE_CORRUPT_RIGHT_IS_LEFT);
     return -1;
   }
   count_l=test_rb_tree(element->left,element);
@@ -10082,8 +10089,8 @@ static int test_rb_tree(SEL_ARG *element,SEL_ARG *parent)
   {
     if (count_l == count_r)
       return count_l+(element->color == SEL_ARG::BLACK);
-    sql_print_error("Wrong tree: Incorrect black-count: %d - %d",
-	    count_l,count_r);
+    LogErr(ERROR_LEVEL, ER_TREE_CORRUPT_INCORRECT_BLACK_COUNT,
+           count_l,count_r);
   }
   return -1;					// Error, no more warnings
 }
@@ -10162,7 +10169,7 @@ bool SEL_ROOT::test_use_count(const SEL_ROOT *origin) const
   uint e_count=0;
   if (this == origin && use_count != 1)
   {
-    sql_print_information("Use_count: Wrong count %lu for origin %p",use_count, this);
+    LogErr(INFORMATION_LEVEL, ER_WRONG_COUNT_FOR_ORIGIN, use_count, this);
     DBUG_ASSERT(false);
     return true;
   }
@@ -10181,9 +10188,8 @@ bool SEL_ROOT::test_use_count(const SEL_ROOT *origin) const
       */
       if (count > pos->next_key_part->use_count)
       {
-        sql_print_information("Use_count: Wrong count for key at %p, %lu "
-                              "should be %lu", pos->next_key_part,
-                              pos->next_key_part->use_count, count);
+        LogErr(INFORMATION_LEVEL, ER_WRONG_COUNT_FOR_KEY, pos->next_key_part,
+               pos->next_key_part->use_count, count);
         DBUG_ASSERT(false);
         return true;
       }
@@ -10192,8 +10198,7 @@ bool SEL_ROOT::test_use_count(const SEL_ROOT *origin) const
   }
   if (e_count != elements)
   {
-    sql_print_warning("Wrong number of elements: %u (should be %u) for tree at %p",
-                      e_count, elements, this);
+    LogErr(WARNING_LEVEL, ER_WRONG_COUNT_OF_ELEMENTS, e_count, elements, this);
     DBUG_ASSERT(false);
     return true;
   }
@@ -11001,12 +11006,12 @@ get_quick_select(PARAM *param, uint idx, SEL_ROOT *key_tree, uint mrr_flags,
   if (param->table->key_info[param->real_keynr[idx]].flags & HA_SPATIAL)
     quick=new QUICK_RANGE_SELECT_GEOM(param->thd, param->table,
                                       param->real_keynr[idx],
-                                      MY_TEST(parent_alloc),
+                                      parent_alloc != nullptr,
                                       parent_alloc, &create_err);
   else
     quick=new QUICK_RANGE_SELECT(param->thd, param->table,
                                  param->real_keynr[idx],
-                                 MY_TEST(parent_alloc), NULL, &create_err);
+                                 parent_alloc != nullptr, NULL, &create_err);
 
   if (quick)
   {
@@ -11171,13 +11176,12 @@ get_quick_keys(PARAM *param,QUICK_RANGE_SELECT *quick,KEY_PART *key,
     flag= (flag & ~DESC_FLAG) | *desc_flag;
 
   /* Get range for retrieving rows in QUICK_SELECT::get_next */
-  if (!(range= new QUICK_RANGE(param->min_key,
-			       (uint) (tmp_min_key - param->min_key),
-                               min_part >=0 ? make_keypart_map(min_part) : 0,
-			       param->max_key,
-			       (uint) (tmp_max_key - param->max_key),
-                               max_part >=0 ? make_keypart_map(max_part) : 0,
-			       flag, key_tree->rkey_func_flag)))
+  if (!(range= new (*THR_MALLOC)
+        QUICK_RANGE(param->min_key, (uint) (tmp_min_key - param->min_key),
+                    min_part >=0 ? make_keypart_map(min_part) : 0,
+                    param->max_key, (uint) (tmp_max_key - param->max_key),
+                    max_part >=0 ? make_keypart_map(max_part) : 0, flag,
+                    key_tree->rkey_func_flag)))
     return 1;			// out of memory
 
   set_if_bigger(quick->max_used_key_length, range->min_length);
@@ -11491,9 +11495,9 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
     DBUG_EXECUTE_IF("only_one_Unique_may_be_created", 
                     DBUG_SET("+d,index_merge_may_not_create_a_Unique"); );
 
-    unique= new Unique(refpos_order_cmp, (void *)file,
-                       file->ref_length,
-                       thd->variables.sortbuff_size);
+    unique= new (*THR_MALLOC) Unique(refpos_order_cmp, (void *)file,
+                                     file->ref_length,
+                                     thd->variables.sortbuff_size);
   }
   else
   {
@@ -11809,13 +11813,36 @@ int QUICK_RANGE_SELECT::reset()
 
   if (!file->inited)
   {
+    /*
+      read_set is set to the correct value for ror_merge_scan here as a
+      subquery execution during optimization might result in innodb not
+      initializing the read set in index_read() leading to wrong
+      results while merging.
+    */
+    MY_BITMAP * const save_read_set= head->read_set;
+    MY_BITMAP * const save_write_set= head->write_set;
     const bool sorted= (mrr_flags & HA_MRR_SORTED);
     DBUG_EXECUTE_IF("bug14365043_2",
                     DBUG_SET("+d,ha_index_init_fail"););
+
+    /* Pass index specifc read set for ror_merged_scan */
+    if (in_ror_merged_scan)
+    {
+      /*
+        We don't need to signal the bitmap change as the bitmap is always the
+        same for this head->file
+      */
+      head->column_bitmaps_set_no_signal(&column_bitmap, &column_bitmap);
+    }
     if ((error= file->ha_index_init(index, sorted)))
     {
       file->print_error(error, MYF(0));
       DBUG_RETURN(error);
+    }
+    if (in_ror_merged_scan)
+    {
+      /* Restore bitmaps set on entry */
+      head->column_bitmaps_set_no_signal(save_read_set, save_write_set);
     }
   }
 
@@ -14180,14 +14207,14 @@ int QUICK_GROUP_MIN_MAX_SELECT::init()
   {
     if (have_min)
     {
-      if (!(min_functions= new List<Item_sum>))
+      if (!(min_functions= new (*THR_MALLOC) List<Item_sum>))
         return 1;
     }
     else
       min_functions= NULL;
     if (have_max)
     {
-      if (!(max_functions= new List<Item_sum>))
+      if (!(max_functions= new (*THR_MALLOC) List<Item_sum>))
         return 1;
     }
     else
@@ -14282,11 +14309,11 @@ bool QUICK_GROUP_MIN_MAX_SELECT::add_range(SEL_ARG *sel_range)
                     min_max_arg_len) == 0)
       range_flag|= EQ_RANGE;  /* equality condition */
   }
-  range= new QUICK_RANGE(sel_range->min_value, min_max_arg_len,
-                         make_keypart_map(sel_range->part),
-                         sel_range->max_value, min_max_arg_len,
-                         make_keypart_map(sel_range->part),
-                         range_flag, HA_READ_INVALID);
+  range= new (*THR_MALLOC) QUICK_RANGE(sel_range->min_value, min_max_arg_len,
+                                       make_keypart_map(sel_range->part),
+                                       sel_range->max_value, min_max_arg_len,
+                                       make_keypart_map(sel_range->part),
+                                       range_flag, HA_READ_INVALID);
   if (!range)
     return TRUE;
   if (min_max_ranges.push_back(range))
@@ -15529,15 +15556,16 @@ static void append_range_all_keyparts(Opt_trace_array *range_trace,
   @param tree        The SEL_TREE that will be printed to debug log
   @param param       PARAM from test_quick_select
 */
-static inline void dbug_print_tree(const char *tree_name,
-                                   SEL_TREE *tree,
-                                   const RANGE_OPT_PARAM *param)
-{
 #ifndef DBUG_OFF
+static inline
+void dbug_print_tree(const char *tree_name,
+                     SEL_TREE *tree,
+                     const RANGE_OPT_PARAM *param)
+{
   if (_db_enabled_())
     print_tree(NULL, tree_name, tree, param, true);
-#endif
 }
+#endif
 
 
 static inline void print_tree(String *out,

@@ -1,4 +1,3 @@
--- source include/not_embedded.inc
 # Tests for sys schema
 # Verify the sys.ps_thread_id() function perfoms as expected
 

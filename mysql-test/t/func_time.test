@@ -1,18 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs180=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-alter schema default character set latin1;
-use test;
---enable_query_log
-########################################
-
 #
 # time functions
 #
@@ -710,9 +695,11 @@ INSERT INTO t1 VALUES
 INSERT INTO t2 VALUES
   (1, '2005-08-01'), (2, '2005-06-15'), (3, '2005-07-15');
 
+--sorted_result
 SELECT * FROM t1, t2 
   WHERE t1.day BETWEEN 
                '2005.09.01' - INTERVAL 6 MONTH AND t2.day;
+--sorted_result
 SELECT * FROM t1, t2 
   WHERE CAST(t1.day AS DATE) BETWEEN 
                              '2005.09.01' - INTERVAL 6 MONTH AND t2.day;
@@ -1012,7 +999,7 @@ SET sql_mode = default;
 --echo #
 
 CREATE TABLE t1(c1 DATE NOT NULL PRIMARY KEY, c2 DATE NULL, c3 INT,
-INDEX idx2(c2));
+INDEX idx2(c2)) ENGINE=MyISAM;
 SET TIMESTAMP=1235553613; #'2009-02-25'
 INSERT INTO t1 VALUES(NOW(),NOW(),3),
 (ADDTIME(NOW(),'1 01:01:01'),ADDTIME(NOW(),'1 01:01:01'),4),
@@ -1088,7 +1075,7 @@ drop table t1;
 --echo # BUG#13545236 - ASSERT IN SEC_SINCE_EPOCH
 --echo #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-CREATE TABLE t1 (a TIME NOT NULL);
+CREATE TABLE t1 (a TIME NOT NULL) ENGINE=MyIsam;
 INSERT INTO t1 VALUES ('04:39:24');
 INSERT INTO t1 VALUES ('00:20:09');
 SELECT a FROM t1
@@ -1098,7 +1085,7 @@ SELECT a FROM t1
 WHERE CONVERT_TZ(TIMESTAMPADD(YEAR, a, DATE('0000-00-00')),
                  '+00:00','+00:00');
 DROP TABLE t1;
-CREATE TABLE t1 (a TIME);
+CREATE TABLE t1 (a TIME) ENGINE=MyIsam;
 INSERT INTO t1 VALUES ('00:00:00');
 SELECT * FROM t1 WHERE TIMESTAMPDIFF(MONTH, a, TIMESTAMP('0000-00-01')) IS NULL;
 SELECT * FROM t1 WHERE TIMESTAMPDIFF(MONTH, a, TIMESTAMP'0000-00-01 00:00:00') IS NULL;
@@ -1172,10 +1159,3 @@ SELECT * FROM v2;
 --echo # Cleanup
 DROP VIEW v1, v2;
 SET @@TIMESTAMP= DEFAULT;
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
---eval alter schema test default character set $testdbcs180;
---enable_query_log
-########################################

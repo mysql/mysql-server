@@ -24,7 +24,7 @@ The r-tree define from MyISAM
 #define _gis0geo_h
 
 #include "page0types.h"
-#include "gis/srs/rtree_support.h"
+#include "gis/rtree_support.h"
 
 #define SPTYPE HA_KEYTYPE_DOUBLE
 #define SPLEN  8

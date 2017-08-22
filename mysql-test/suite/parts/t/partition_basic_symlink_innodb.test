@@ -31,19 +31,6 @@
 # windows does not support symlink for DATA/INDEX DIRECTORY.
 --source include/not_windows.inc
 
-# Does not work with --embedded
---source include/not_embedded.inc
-
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs335=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-alter schema default character set latin1;
-use test;
---enable_query_log
-########################################
-
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir`;
 
@@ -141,7 +128,7 @@ SHOW CREATE TABLE t2;
 
 --echo # Verifying .par and MyISAM files (.MYD, MYI)
 --echo ---- MYSQLD_DATADIR/test
---replace_regex /_[0-9]+\.SDI/_XXX.SDI/
+--replace_regex /_[0-9]+\.sdi/_XXX.sdi/
 --list_files $MYSQLD_DATADIR/test
 --echo ---- MYSQLTEST_VARDIR/mysql-test-data-dir
 --list_files $MYSQLTEST_VARDIR/mysql-test-data-dir
@@ -231,24 +218,24 @@ INSERT INTO t1 VALUES (1);
 ALTER TABLE test.t1 ENGINE= MyISAM REMOVE PARTITIONING;
 
 --echo # datadir/test:
---replace_regex /_[0-9]+\.SDI/_XXX.SDI/
+--replace_regex /_[0-9]+\.sdi/_XXX.sdi/
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
 --list_files $MYSQLD_DATADIR/test
 
 --echo # datadir/test2:
---replace_regex /_[0-9]+\.SDI/_XXX.SDI/
+--replace_regex /_[0-9]+\.sdi/_XXX.sdi/
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
 --list_files $MYSQLD_DATADIR/test2
 
 ALTER TABLE test2.t1 ENGINE= MyISAM REMOVE PARTITIONING;
 
 --echo # datadir/test:
---replace_regex /_[0-9]+\.SDI/_XXX.SDI/
+--replace_regex /_[0-9]+\.sdi/_XXX.sdi/
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
 --list_files $MYSQLD_DATADIR/test
 
 --echo # datadir/test2:
---replace_regex /_[0-9]+\.SDI/_XXX.SDI/
+--replace_regex /_[0-9]+\.sdi/_XXX.sdi/
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
 --list_files $MYSQLD_DATADIR/test2
 
@@ -269,10 +256,3 @@ DROP DATABASE test2;
 --rmdir $MYSQLTEST_VARDIR/mysql-test-idx-dir
 --rmdir $MYSQLTEST_VARDIR/tmp/test2
 --rmdir $MYSQLTEST_VARDIR/tmp/test
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
---eval alter schema test default character set $testdbcs335;
---enable_query_log
-########################################

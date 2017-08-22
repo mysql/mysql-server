@@ -60,16 +60,17 @@
 #include "thr_malloc.h"
 #include "trigger_chain.h"                    // Trigger_chain
 #include "trigger_def.h"
+#include "varlen_sort.h"
 
 
 // TODO: Create ::get_copy() for getting a deep copy.
 
-partition_info *partition_info::get_clone(bool reset /* = false */)
+partition_info *partition_info::get_clone(THD *thd, bool reset /* = false */)
 {
   DBUG_ENTER("partition_info::get_clone");
   List_iterator<partition_element> part_it(partitions);
   partition_element *part;
-  partition_info *clone= new partition_info();
+  partition_info *clone= new (*THR_MALLOC) partition_info();
   if (!clone)
   {
     mem_alloc_error(sizeof(partition_info));
@@ -86,13 +87,18 @@ partition_info *partition_info::get_clone(bool reset /* = false */)
   {
     List_iterator<partition_element> subpart_it(part->subpartitions);
     partition_element *subpart;
-    partition_element *part_clone= new partition_element();
+    partition_element *part_clone= new (*THR_MALLOC) partition_element();
     if (!part_clone)
     {
       mem_alloc_error(sizeof(partition_element));
       DBUG_RETURN(NULL);
     }
     memcpy(part_clone, part, sizeof(partition_element));
+
+    /* Explicitly copy the tablespace name, use the thd->mem_root. */
+    if (part->tablespace_name != nullptr)
+      part_clone->tablespace_name= strmake_root(thd->mem_root,
+        part->tablespace_name, strlen(part->tablespace_name) + 1);
 
     /*
       Mark that RANGE and LIST values needs to be fixed so that we don't
@@ -116,13 +122,19 @@ partition_info *partition_info::get_clone(bool reset /* = false */)
     part_clone->subpartitions.empty();
     while ((subpart= (subpart_it++)))
     {
-      partition_element *subpart_clone= new partition_element();
+      partition_element *subpart_clone= new (*THR_MALLOC) partition_element();
       if (!subpart_clone)
       {
         mem_alloc_error(sizeof(partition_element));
         DBUG_RETURN(NULL);
       }
       memcpy(subpart_clone, subpart, sizeof(partition_element));
+
+      /* Explicitly copy the tablespace name, use the thd->mem_root. */
+      if (subpart->tablespace_name != nullptr)
+        subpart_clone->tablespace_name= strmake_root(thd->mem_root,
+          subpart->tablespace_name, strlen(subpart->tablespace_name) + 1);
+
       part_clone->subpartitions.push_back(subpart_clone);
     }
     clone->partitions.push_back(part_clone);
@@ -130,11 +142,11 @@ partition_info *partition_info::get_clone(bool reset /* = false */)
   DBUG_RETURN(clone);
 }
 
-partition_info *partition_info::get_full_clone()
+partition_info *partition_info::get_full_clone(THD *thd)
 {
   partition_info *clone;
   DBUG_ENTER("partition_info::get_full_clone");
-  clone= get_clone();
+  clone= get_clone(thd);
   if (!clone)
     DBUG_RETURN(NULL);
   memcpy(&clone->read_partitions, &read_partitions, sizeof(read_partitions));
@@ -762,7 +774,7 @@ bool partition_info::set_up_default_partitions(Partition_handler *part_handler,
   i= 0;
   do
   {
-    partition_element *part_elem= new partition_element();
+    partition_element *part_elem= new (*THR_MALLOC) partition_element();
     if (likely(part_elem != 0 &&
                (!partitions.push_back(part_elem))))
     {
@@ -838,7 +850,7 @@ partition_info::set_up_default_subpartitions(Partition_handler *part_handler,
     j= 0;
     do
     {
-      partition_element *subpart_elem= new partition_element(part_elem);
+      partition_element *subpart_elem= new (*THR_MALLOC) partition_element(part_elem);
       if (likely(subpart_elem != 0 &&
           (!part_elem->subpartitions.push_back(subpart_elem))))
       {
@@ -987,8 +999,7 @@ partition_element *partition_info::get_part_elem(const char *partition_name,
           if (file_name)
             create_subpartition_name(file_name, "",
                                      part_elem->partition_name,
-                                     partition_name,
-                                     NORMAL_PART_NAME);
+                                     partition_name);
           *part_id= j + (i * num_subparts);
           DBUG_RETURN(sub_part_elem);
         }
@@ -1003,8 +1014,7 @@ partition_element *partition_info::get_part_elem(const char *partition_name,
                             part_elem->partition_name, partition_name))
     {
       if (file_name)
-        create_partition_name(file_name, "", partition_name,
-                              NORMAL_PART_NAME, TRUE);
+        create_partition_name(file_name, "", partition_name, TRUE);
       *part_id= i;
       DBUG_RETURN(part_elem);
     }
@@ -1316,8 +1326,7 @@ bool partition_info::check_range_constants(THD *thd)
         loc_range_col_array+= num_column_values;
         if (!first)
         {
-          if (compare_column_values((const void*)current_largest_col_val,
-                                    (const void*)col_val) >= 0)
+          if (!compare_column_values(current_largest_col_val, col_val))
             goto range_not_increasing_error;
         }
         current_largest_col_val= col_val;
@@ -1375,91 +1384,48 @@ range_not_increasing_error:
 
 
 /*
-  Support routines for check_list_constants used by qsort to sort the
-  constant list expressions. One routine for integers and one for
-  column lists.
-
-  SYNOPSIS
-    list_part_cmp()
-      a                First list constant to compare with
-      b                Second list constant to compare with
-
-  RETURN VALUE
-    +1                 a > b
-    0                  a  == b
-    -1                 a < b
-*/
-
-extern "C" {
-static int partition_info_list_part_cmp(const void* a, const void* b)
-{
-  longlong a1= ((LIST_PART_ENTRY*)a)->list_value;
-  longlong b1= ((LIST_PART_ENTRY*)b)->list_value;
-  if (a1 < b1)
-    return -1;
-  else if (a1 > b1)
-    return +1;
-  else
-    return 0;
-}
-} // extern "C"
-
-
-/*
   Compare two lists of column values in RANGE/LIST partitioning
   SYNOPSIS
     compare_column_values()
     first                    First column list argument
     second                   Second column list argument
   RETURN VALUES
-    0                        Equal
-    -1                       First argument is smaller
-    +1                       First argument is larger
+    true                     first < second
+    false                    first >= second
 */
 
-extern "C" {
 static
-int partition_info_compare_column_values(const void *first_arg,
-                                         const void *second_arg)
+bool partition_info_compare_column_values(
+  const part_column_list_val *first, const part_column_list_val *second)
 {
-  const part_column_list_val *first= (part_column_list_val*)first_arg;
-  const part_column_list_val *second= (part_column_list_val*)second_arg;
-  partition_info *part_info= first->part_info;
-  Field **field;
-
-  for (field= part_info->part_field_array; *field;
+  for (Field **field= first->part_info->part_field_array; *field;
        field++, first++, second++)
   {
+    /*
+      If both are maxvalue, they are equal (don't check the rest of the parts).
+      Otherwise, maxvalue > *.
+    */
     if (first->max_value || second->max_value)
+      return first->max_value < second->max_value;
+
+    // NULLs sort before non-NULLs.
+    if (first->null_value != second->null_value)
+      return first->null_value;
+
+    // For non-NULLs, compare the actual fields.
+    if (!first->null_value)
     {
-      if (first->max_value && second->max_value)
-        return 0;
-      if (second->max_value)
-        return -1;
-      else
-        return +1;
+      int res= (*field)->cmp(first->column_value.field_image,
+                             second->column_value.field_image);
+      if (res != 0) return res < 0;
     }
-    if (first->null_value || second->null_value)
-    {
-      if (first->null_value && second->null_value)
-        continue;
-      if (second->null_value)
-        return +1;
-      else
-        return -1;
-    }
-    int res= (*field)->cmp(first->column_value.field_image,
-                           second->column_value.field_image);
-    if (res)
-      return res;
   }
-  return 0;
+  return false;
 }
-} // extern "C"
 
 
-int partition_info::compare_column_values(const void *first_arg,
-                                          const void *second_arg)
+bool partition_info::compare_column_values(
+  const part_column_list_val *first_arg, const part_column_list_val *second_arg)
 {
   return partition_info_compare_column_values(first_arg, second_arg);
 }
@@ -1493,11 +1459,8 @@ bool partition_info::check_list_constants(THD *thd)
   part_elem_value *list_value;
   bool result= TRUE;
   longlong calc_value;
-  void *curr_value;
-  void *prev_value= NULL;
   partition_element* part_def;
   bool found_null= FALSE;
-  qsort_cmp compare_func;
   void *ptr;
   List_iterator<partition_element> list_func_it(partitions);
   DBUG_ENTER("partition_info::check_list_constants");
@@ -1553,7 +1516,6 @@ bool partition_info::check_list_constants(THD *thd)
     part_column_list_val *loc_list_col_array;
     loc_list_col_array= (part_column_list_val*)ptr;
     list_col_array= (part_column_list_val*)ptr;
-    compare_func= partition_info_compare_column_values;
     i= 0;
     do
     {
@@ -1570,10 +1532,24 @@ bool partition_info::check_list_constants(THD *thd)
         loc_list_col_array+= num_column_values;
       }
     } while (++i < num_parts);
+
+    varlen_sort(list_col_array,
+                list_col_array + num_list_values * num_column_values,
+                size_entries, partition_info_compare_column_values);
+
+    for (uint i= 1; i < num_list_values; ++i)
+    {
+      if (!partition_info_compare_column_values(
+            &list_col_array[num_column_values * (i - 1)],
+            &list_col_array[num_column_values * i]))
+      {
+        my_error(ER_MULTIPLE_DEF_CONST_IN_LIST_PART_ERROR, MYF(0));
+        goto end;
+      }
+    }
   }
   else
   {
-    compare_func= partition_info_list_part_cmp;
     list_array= (LIST_PART_ENTRY*)ptr;
     i= 0;
     /*
@@ -1595,36 +1571,25 @@ bool partition_info::check_list_constants(THD *thd)
         list_array[list_index++].partition_id= i;
       }
     } while (++i < num_parts);
+
+    LIST_PART_ENTRY *list_array_end= list_array + num_list_values;
+    std::sort(list_array, list_array_end,
+              [](const LIST_PART_ENTRY &a, const LIST_PART_ENTRY &b)
+              {
+                return a.list_value < b.list_value;
+              });
+    if (std::adjacent_find(
+         list_array, list_array_end,
+         [](const LIST_PART_ENTRY &a, const LIST_PART_ENTRY &b)
+         {
+           return a.list_value == b.list_value;
+         }) != list_array_end)
+    {
+      my_error(ER_MULTIPLE_DEF_CONST_IN_LIST_PART_ERROR, MYF(0));
+      goto end;
+    }
   }
   DBUG_ASSERT(fixed);
-  if (num_list_values)
-  {
-    bool first= TRUE;
-    /*
-      list_array and list_col_array are unions, so this works for both
-      variants of LIST partitioning.
-    */
-    my_qsort((void*)list_array, num_list_values, size_entries,
-             compare_func);
-
-    i= 0;
-    do
-    {
-      DBUG_ASSERT(i < num_list_values);
-      curr_value= column_list ? (void*)&list_col_array[num_column_values * i] :
-                                (void*)&list_array[i];
-      if (likely(first || compare_func(curr_value, prev_value)))
-      {
-        prev_value= curr_value;
-        first= FALSE;
-      }
-      else
-      {
-        my_error(ER_MULTIPLE_DEF_CONST_IN_LIST_PART_ERROR, MYF(0));
-        goto end;
-      }
-    } while (++i < num_list_values);
-  }
   result= FALSE;
 end:
   DBUG_RETURN(result);
@@ -3260,7 +3225,8 @@ bool partition_info::same_key_column_order(List<Create_field> *create_list)
 }
 
 
-void partition_info::print_debug(const char *str, uint *value)
+void partition_info::print_debug(const char *str MY_ATTRIBUTE((unused)),
+                                 uint *value)
 {
   DBUG_ENTER("print_debug");
   if (value)

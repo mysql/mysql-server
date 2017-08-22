@@ -26,7 +26,8 @@
   and Time Values" chapter in documentation.
 */
 
-#include "my_inttypes.h"
+// Do not not pull in the server header "my_inttypes.h" from client code.
+// IWYU pragma: no_include "my_inttypes.h"
 
 enum enum_mysql_timestamp_type
 {

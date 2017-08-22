@@ -3,7 +3,6 @@
 --let plugins= AUDIT_NULL,TEST_SESSION_IN_THD
 --source include/check_plugin_dir.inc
 
---source include/not_embedded.inc
 
 --echo ##########################################
 --echo # Run audit_null plugin

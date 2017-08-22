@@ -18,8 +18,9 @@
 #ifndef SIMPLE_ID_GENERATOR_INCLUDED
 #define SIMPLE_ID_GENERATOR_INCLUDED
 
-#include "base/atomic.h"
 #include "my_inttypes.h"
+
+#include <atomic>
 
 namespace Mysql{
 namespace Tools{
@@ -32,7 +33,7 @@ public:
   uint64 create_id();
 
 private:
-  my_boost::atomic_int64_t m_next_id;
+  std::atomic<int64_t> m_next_id;
 };
 
 }

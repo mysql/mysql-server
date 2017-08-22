@@ -16,8 +16,6 @@
 # database.
 #------------------------------------------------------------------------------
 --source include/not_windows.inc
-# no embeeded run
---source include/not_embedded.inc
 
 # Create tables zone tables in test_zone database
 CREATE DATABASE test_zone;

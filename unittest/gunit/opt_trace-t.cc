@@ -122,7 +122,7 @@ bool TraceContentTest::oom;
 void (*TraceContentTest::m_old_error_handler_hook)(uint, const char *, myf);
 
 
-void my_error_handler(uint error, const char *str, myf MyFlags)
+void my_error_handler(uint error, const char*, myf)
 {
   const uint EE= static_cast<uint>(EE_OUTOFMEMORY);
   EXPECT_EQ(EE, error);

@@ -23,7 +23,7 @@
 
 namespace my_thread_unittest {
 
-extern "C" void *handle_thread(void *arg)
+extern "C" void *handle_thread(void*)
 {
   my_thread_exit(0);
   return 0; // Avoid compiler warning

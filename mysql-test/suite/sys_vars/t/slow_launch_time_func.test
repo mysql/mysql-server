@@ -30,7 +30,6 @@
 # Setup
 #
 
---source include/not_embedded.inc
 --source include/not_threadpool.inc
 --source include/not_valgrind.inc
 

@@ -123,6 +123,7 @@ extern mysql_pfs_key_t	rtr_match_mutex_key;
 extern mysql_pfs_key_t	rtr_path_mutex_key;
 extern mysql_pfs_key_t	rtr_ssn_mutex_key;
 extern mysql_pfs_key_t	temp_space_rseg_mutex_key;
+extern mysql_pfs_key_t	undo_space_rseg_mutex_key;
 extern mysql_pfs_key_t	trx_sys_rseg_mutex_key;
 extern mysql_pfs_key_t page_zip_stat_per_index_mutex_key;
 # ifdef UNIV_DEBUG
@@ -155,6 +156,7 @@ extern mysql_pfs_key_t	sync_array_mutex_key;
 extern mysql_pfs_key_t	thread_mutex_key;
 extern mysql_pfs_key_t  zip_pad_mutex_key;
 extern mysql_pfs_key_t  row_drop_list_mutex_key;
+extern mysql_pfs_key_t  file_open_mutex_key;
 extern mysql_pfs_key_t	master_key_id_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
@@ -171,6 +173,8 @@ extern	mysql_pfs_key_t	buf_block_debug_latch_key;
 extern	mysql_pfs_key_t	dict_operation_lock_key;
 extern  mysql_pfs_key_t	dict_persist_checkpoint_key;
 extern	mysql_pfs_key_t	checkpoint_lock_key;
+extern	mysql_pfs_key_t	undo_spaces_lock_key;
+extern	mysql_pfs_key_t	rsegs_lock_key;
 extern	mysql_pfs_key_t	fil_space_latch_key;
 extern	mysql_pfs_key_t	fts_cache_rw_lock_key;
 extern	mysql_pfs_key_t	fts_cache_init_rw_lock_key;

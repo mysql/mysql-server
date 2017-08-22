@@ -1,0 +1,21 @@
+SET character_set_client= 'utf8';
+SET character_set_connection= 'utf8';
+SET character_set_results= 'utf8';
+
+SET character_set_client= 'latin1';
+SET character_set_connection= 'latin1';
+SET character_set_results= 'latin1';
+SET NAMES 'latin1';
+
+--echo # Simple load test
+INSTALL COMPONENT "file://component_test_string_service_charset";
+UNINSTALL COMPONENT "file://component_test_string_service_charset";
+
+# Write the test results in "test_string_service_charset.log" into the result file of this test
+--echo ########## test_string_service_charset.log: 
+let $MYSQLD_DATADIR= `select @@datadir`;
+cat_file $MYSQLD_DATADIR/test_string_service_charset.log;
+remove_file $MYSQLD_DATADIR/test_string_service_charset.log;
+
+
+

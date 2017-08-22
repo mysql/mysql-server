@@ -617,11 +617,13 @@ SELECT (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SELECT 2 FROM t6 WHERE d
             "creating_tmp_table": {
               "tmp_table_info": {
                 "table": "intermediate_tmp_table",
+                "columns": 1,
                 "row_length": 9,
                 "key_length": 8,
                 "unique_constraint": false,
-                "location": "memory (heap)",
-                "row_limit_estimate": 1864135
+                "makes_grouped_rows": false,
+                "cannot_insert_duplicates": true,
+                "location": "TempTable"
               } /* tmp_table_info */
             } /* creating_tmp_table */
           },
@@ -1047,11 +1049,13 @@ SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SEL
             "creating_tmp_table": {
               "tmp_table_info": {
                 "table": "intermediate_tmp_table",
+                "columns": 1,
                 "row_length": 9,
                 "key_length": 8,
                 "unique_constraint": false,
-                "location": "memory (heap)",
-                "row_limit_estimate": 1864135
+                "makes_grouped_rows": false,
+                "cannot_insert_duplicates": true,
+                "location": "TempTable"
               } /* tmp_table_info */
             } /* creating_tmp_table */
           },
@@ -1324,7 +1328,7 @@ select (@query:=QUERY)+NULL, (@trace:=TRACE)+NULL from information_schema.OPTIMI
 NULL	NULL
 select length(@trace);
 length(@trace)
-13602
+13676
 set @max_mem_size=13900;
 set optimizer_trace_max_mem_size=@max_mem_size;
 select length(@query)+length(@trace) > @@optimizer_trace_max_mem_size;
@@ -1342,7 +1346,7 @@ select length(@trace2),
 (length(@trace2) + @missing_bytes) = length(@trace),
 @query2 = @query;
 length(@trace2)	(length(@trace2) + @missing_bytes) = length(@trace)	@query2 = @query
-13602	1	1
+13676	1	1
 select length(@query2) + length(@trace2)
 between (@@optimizer_trace_max_mem_size-200) and (@@optimizer_trace_max_mem_size+200);
 length(@query2) + length(@trace2)
@@ -2207,11 +2211,19 @@ explain extended select * from t1 where s1 > any (select s2 from t1)	{
             } /* attaching_conditions_to_tables */
           },
           {
+            "optimizing_distinct_group_by_order_by": {
+            } /* optimizing_distinct_group_by_order_by */
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
               }
             ] /* refine_plan */
+          },
+          {
+            "considering_tmp_tables": [
+            ] /* considering_tmp_tables */
           }
         ] /* steps */
       } /* join_optimization */
@@ -2442,11 +2454,19 @@ explain extended select * from t1 where s1 > any (select max(s2) from t1)	{
             } /* attaching_conditions_to_tables */
           },
           {
+            "optimizing_distinct_group_by_order_by": {
+            } /* optimizing_distinct_group_by_order_by */
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
               }
             ] /* refine_plan */
+          },
+          {
+            "considering_tmp_tables": [
+            ] /* considering_tmp_tables */
           }
         ] /* steps */
       } /* join_optimization */
@@ -4077,11 +4097,13 @@ SELECT * FROM t1 WHERE c1=5 UNION SELECT * FROM t2 WHERE c2=5	{
       "creating_tmp_table": {
         "tmp_table_info": {
           "table": "intermediate_tmp_table",
+          "columns": 1,
           "row_length": 5,
           "key_length": 5,
           "unique_constraint": false,
-          "location": "memory (heap)",
-          "row_limit_estimate": 3355443
+          "makes_grouped_rows": false,
+          "cannot_insert_duplicates": true,
+          "location": "TempTable"
         } /* tmp_table_info */
       } /* creating_tmp_table */
     },
@@ -6197,17 +6219,18 @@ trace
             } /* attaching_conditions_to_tables */
           },
           {
-            "clause_processing": {
-              "clause": "GROUP BY",
-              "original_clause": "`t1`.`a`",
-              "items": [
-                {
-                  "item": "`t1`.`a`"
-                }
-              ] /* items */,
-              "resulting_clause_is_simple": false,
-              "resulting_clause": "`t1`.`a`"
-            } /* clause_processing */
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_group_by": {
+                "original_clause": "`t1`.`a`",
+                "items": [
+                  {
+                    "item": "`t1`.`a`"
+                  }
+                ] /* items */,
+                "resulting_clause_is_simple": false,
+                "resulting_clause": "`t1`.`a`"
+              } /* simplifying_group_by */
+            } /* optimizing_distinct_group_by_order_by */
           },
           {
             "refine_plan": [
@@ -6218,6 +6241,14 @@ trace
                 "table": "`t1`"
               }
             ] /* refine_plan */
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_tmp_table_in_plan_at_position": 2,
+                "write_method": "continuously_update_group_row"
+              }
+            ] /* considering_tmp_tables */
           }
         ] /* steps */
       } /* join_optimization */
@@ -6230,11 +6261,14 @@ trace
             "creating_tmp_table": {
               "tmp_table_info": {
                 "table": "intermediate_tmp_table",
+                "in_plan_at_position": 2,
+                "columns": 2,
                 "row_length": 30,
                 "key_length": 5,
                 "unique_constraint": false,
-                "location": "memory (heap)",
-                "row_limit_estimate": 559240
+                "makes_grouped_rows": true,
+                "cannot_insert_duplicates": false,
+                "location": "TempTable"
               } /* tmp_table_info */
             } /* creating_tmp_table */
           }
@@ -6684,6 +6718,14 @@ insert into t6 select * from t6 where d>7	{
                 "table": "`t6`"
               }
             ] /* refine_plan */
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_tmp_table_in_plan_at_position": 1,
+                "write_method": "write_all_rows"
+              }
+            ] /* considering_tmp_tables */
           }
         ] /* steps */
       } /* join_optimization */
@@ -6696,11 +6738,14 @@ insert into t6 select * from t6 where d>7	{
             "creating_tmp_table": {
               "tmp_table_info": {
                 "table": "intermediate_tmp_table",
+                "in_plan_at_position": 1,
+                "columns": 1,
                 "row_length": 5,
                 "key_length": 0,
                 "unique_constraint": false,
-                "location": "memory (heap)",
-                "row_limit_estimate": 3355443
+                "makes_grouped_rows": false,
+                "cannot_insert_duplicates": false,
+                "location": "TempTable"
               } /* tmp_table_info */
             } /* creating_tmp_table */
           }
@@ -6886,11 +6931,13 @@ update t5, t6 set t6.d=t6.d+t5.c+4-t5.c-4 where d>7000	{
             "creating_tmp_table": {
               "tmp_table_info": {
                 "table": "intermediate_tmp_table",
+                "columns": 2,
                 "row_length": 12,
                 "key_length": 7,
                 "unique_constraint": false,
-                "location": "memory (heap)",
-                "row_limit_estimate": 1398101
+                "makes_grouped_rows": true,
+                "cannot_insert_duplicates": false,
+                "location": "TempTable"
               } /* tmp_table_info */
             } /* creating_tmp_table */
           },
@@ -7771,11 +7818,19 @@ select sum(data) into ret from t1	{
             } /* attaching_conditions_to_tables */
           },
           {
+            "optimizing_distinct_group_by_order_by": {
+            } /* optimizing_distinct_group_by_order_by */
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
               }
             ] /* refine_plan */
+          },
+          {
+            "considering_tmp_tables": [
+            ] /* considering_tmp_tables */
           }
         ] /* steps */
       } /* join_optimization */
@@ -7922,11 +7977,19 @@ select sum(data) into ret from t1	{
             } /* attaching_conditions_to_tables */
           },
           {
+            "optimizing_distinct_group_by_order_by": {
+            } /* optimizing_distinct_group_by_order_by */
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
               }
             ] /* refine_plan */
+          },
+          {
+            "considering_tmp_tables": [
+            ] /* considering_tmp_tables */
           }
         ] /* steps */
       } /* join_optimization */
@@ -8073,11 +8136,19 @@ select sum(data) into ret from t1	{
             } /* attaching_conditions_to_tables */
           },
           {
+            "optimizing_distinct_group_by_order_by": {
+            } /* optimizing_distinct_group_by_order_by */
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
               }
             ] /* refine_plan */
+          },
+          {
+            "considering_tmp_tables": [
+            ] /* considering_tmp_tables */
           }
         ] /* steps */
       } /* join_optimization */
@@ -8224,11 +8295,19 @@ select sum(data) into ret from t1	{
             } /* attaching_conditions_to_tables */
           },
           {
+            "optimizing_distinct_group_by_order_by": {
+            } /* optimizing_distinct_group_by_order_by */
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
               }
             ] /* refine_plan */
+          },
+          {
+            "considering_tmp_tables": [
+            ] /* considering_tmp_tables */
           }
         ] /* steps */
       } /* join_optimization */
@@ -8766,11 +8845,19 @@ select sum(data) into ret from t1	{
             } /* attaching_conditions_to_tables */
           },
           {
+            "optimizing_distinct_group_by_order_by": {
+            } /* optimizing_distinct_group_by_order_by */
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
               }
             ] /* refine_plan */
+          },
+          {
+            "considering_tmp_tables": [
+            ] /* considering_tmp_tables */
           }
         ] /* steps */
       } /* join_optimization */
@@ -8917,11 +9004,19 @@ select sum(data) into ret from t1	{
             } /* attaching_conditions_to_tables */
           },
           {
+            "optimizing_distinct_group_by_order_by": {
+            } /* optimizing_distinct_group_by_order_by */
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
               }
             ] /* refine_plan */
+          },
+          {
+            "considering_tmp_tables": [
+            ] /* considering_tmp_tables */
           }
         ] /* steps */
       } /* join_optimization */
@@ -9068,11 +9163,19 @@ select sum(data) into ret from t1	{
             } /* attaching_conditions_to_tables */
           },
           {
+            "optimizing_distinct_group_by_order_by": {
+            } /* optimizing_distinct_group_by_order_by */
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
               }
             ] /* refine_plan */
+          },
+          {
+            "considering_tmp_tables": [
+            ] /* considering_tmp_tables */
           }
         ] /* steps */
       } /* join_optimization */
@@ -9219,11 +9322,19 @@ select sum(data) into ret from t1	{
             } /* attaching_conditions_to_tables */
           },
           {
+            "optimizing_distinct_group_by_order_by": {
+            } /* optimizing_distinct_group_by_order_by */
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
               }
             ] /* refine_plan */
+          },
+          {
+            "considering_tmp_tables": [
+            ] /* considering_tmp_tables */
           }
         ] /* steps */
       } /* join_optimization */
@@ -9663,11 +9774,19 @@ select sum(data) into ret from t1	{
             } /* attaching_conditions_to_tables */
           },
           {
+            "optimizing_distinct_group_by_order_by": {
+            } /* optimizing_distinct_group_by_order_by */
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
               }
             ] /* refine_plan */
+          },
+          {
+            "considering_tmp_tables": [
+            ] /* considering_tmp_tables */
           }
         ] /* steps */
       } /* join_optimization */
@@ -9818,11 +9937,19 @@ select sum(data) into ret from t1	{
             } /* attaching_conditions_to_tables */
           },
           {
+            "optimizing_distinct_group_by_order_by": {
+            } /* optimizing_distinct_group_by_order_by */
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
               }
             ] /* refine_plan */
+          },
+          {
+            "considering_tmp_tables": [
+            ] /* considering_tmp_tables */
           }
         ] /* steps */
       } /* join_optimization */
@@ -9973,11 +10100,19 @@ select sum(data) into ret from t1	{
             } /* attaching_conditions_to_tables */
           },
           {
+            "optimizing_distinct_group_by_order_by": {
+            } /* optimizing_distinct_group_by_order_by */
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
               }
             ] /* refine_plan */
+          },
+          {
+            "considering_tmp_tables": [
+            ] /* considering_tmp_tables */
           }
         ] /* steps */
       } /* join_optimization */
@@ -10128,11 +10263,19 @@ select sum(data) into ret from t1	{
             } /* attaching_conditions_to_tables */
           },
           {
+            "optimizing_distinct_group_by_order_by": {
+            } /* optimizing_distinct_group_by_order_by */
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
               }
             ] /* refine_plan */
+          },
+          {
+            "considering_tmp_tables": [
+            ] /* considering_tmp_tables */
           }
         ] /* steps */
       } /* join_optimization */
@@ -10276,11 +10419,19 @@ select @trace;
             } /* attaching_conditions_to_tables */
           },
           {
+            "optimizing_distinct_group_by_order_by": {
+            } /* optimizing_distinct_group_by_order_by */
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
               }
             ] /* refine_plan */
+          },
+          {
+            "considering_tmp_tables": [
+            ] /* considering_tmp_tables */
           }
         ] /* steps */
       } /* join_optimization */
@@ -10767,11 +10918,19 @@ select sum(data) into ret from t1	{
             } /* attaching_conditions_to_tables */
           },
           {
+            "optimizing_distinct_group_by_order_by": {
+            } /* optimizing_distinct_group_by_order_by */
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
               }
             ] /* refine_plan */
+          },
+          {
+            "considering_tmp_tables": [
+            ] /* considering_tmp_tables */
           }
         ] /* steps */
       } /* join_optimization */
@@ -10918,11 +11077,19 @@ select sum(data) into ret from t1	{
             } /* attaching_conditions_to_tables */
           },
           {
+            "optimizing_distinct_group_by_order_by": {
+            } /* optimizing_distinct_group_by_order_by */
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
               }
             ] /* refine_plan */
+          },
+          {
+            "considering_tmp_tables": [
+            ] /* considering_tmp_tables */
           }
         ] /* steps */
       } /* join_optimization */
@@ -11069,11 +11236,19 @@ select sum(data) into ret from t1	{
             } /* attaching_conditions_to_tables */
           },
           {
+            "optimizing_distinct_group_by_order_by": {
+            } /* optimizing_distinct_group_by_order_by */
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
               }
             ] /* refine_plan */
+          },
+          {
+            "considering_tmp_tables": [
+            ] /* considering_tmp_tables */
           }
         ] /* steps */
       } /* join_optimization */
@@ -11220,11 +11395,19 @@ select sum(data) into ret from t1	{
             } /* attaching_conditions_to_tables */
           },
           {
+            "optimizing_distinct_group_by_order_by": {
+            } /* optimizing_distinct_group_by_order_by */
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
               }
             ] /* refine_plan */
+          },
+          {
+            "considering_tmp_tables": [
+            ] /* considering_tmp_tables */
           }
         ] /* steps */
       } /* join_optimization */
@@ -11762,11 +11945,14 @@ explain select * from v1 where id="b"	{
             "creating_tmp_table": {
               "tmp_table_info": {
                 "table": "`v1`",
+                "in_plan_at_position": 0,
+                "columns": 2,
                 "row_length": 69,
                 "key_length": 64,
                 "unique_constraint": false,
-                "location": "memory (heap)",
-                "row_limit_estimate": 243148
+                "makes_grouped_rows": false,
+                "cannot_insert_duplicates": false,
+                "location": "TempTable"
               } /* tmp_table_info */
             } /* creating_tmp_table */
           },
@@ -11815,11 +12001,13 @@ select TRACE into dumpfile 'MYSQLTEST_VARDIR/tmp/optimizer_trace.txt' from infor
       "creating_tmp_table": {
         "tmp_table_info": {
           "table": "intermediate_tmp_table",
+          "columns": 1,
           "row_length": 9,
           "key_length": 8,
           "unique_constraint": false,
-          "location": "memory (heap)",
-          "row_limit_estimate": 1864135
+          "makes_grouped_rows": false,
+          "cannot_insert_duplicates": true,
+          "location": "TempTable"
         }
       }
     },

@@ -1,3 +1,2 @@
 # Tests in this file are disabled for UBSAN runs in pushbuild.
 # This is in addition to tests disabled by normal disabled.def files
-gis.geojson_functions      : Bug#25664323 edahl

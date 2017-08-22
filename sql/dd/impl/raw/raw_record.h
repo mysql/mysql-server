@@ -29,6 +29,7 @@
 #include "dd/object_id.h"      // dd::Object_id
 #include "dd/string_type.h"    // dd::String_type
 
+class Json_wrapper;
 class Field;
 struct TABLE;
 
@@ -85,6 +86,7 @@ public:
 
   bool store_timestamp(int field_no, const timeval &tv);
 
+  bool store_json(int field_no, const Json_wrapper &json);
 
 public:
   bool is_null(int field_no) const;
@@ -119,7 +121,7 @@ public:
 
   timeval read_timestamp(int field_no) const;
 
-
+  bool read_json(int field_no, Json_wrapper *json_wrapper) const;
 protected:
   void set_null(int field_no, bool is_null);
 

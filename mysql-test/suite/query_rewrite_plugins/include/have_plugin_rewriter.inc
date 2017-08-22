@@ -1,4 +1,3 @@
-source include/not_embedded.inc;
 
 
 # Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled

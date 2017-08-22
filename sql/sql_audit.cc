@@ -154,10 +154,11 @@ public:
                              const char* sqlstate,
                              const char* msg)
   {
-    sql_print_warning("%s. The trigger error was (%d) [%s]: %s", warn_msg,
-                      sql_errno,
-                      sqlstate ? sqlstate : "<NO_STATE>",
-                      msg ? msg : "<NO_MESSAGE>");
+    LogErr(WARNING_LEVEL, ER_AUDIT_WARNING,
+           warn_msg,
+           sql_errno,
+           sqlstate ? sqlstate : "<NO_STATE>",
+           msg ? msg : "<NO_MESSAGE>");
   }
 
   /**
@@ -380,12 +381,11 @@ public:
                              const char* sqlstate,
                              const char* msg)
   {
-    sql_print_warning("Event '%s' cannot be aborted. "
-                      "The trigger error was (%d) [%s]: %s",
-                      m_event_name,
-                      sql_errno,
-                      sqlstate ? sqlstate : "<NO_STATE>",
-                      msg ? msg : "<NO_MESSAGE>");
+    LogErr(WARNING_LEVEL, ER_AUDIT_CANT_ABORT_EVENT,
+           m_event_name,
+           sql_errno,
+           sqlstate ? sqlstate : "<NO_STATE>",
+           msg ? msg : "<NO_MESSAGE>");
   }
 
 private:
@@ -874,12 +874,11 @@ public:
                              const char* sqlstate,
                              const char* msg)
   {
-    sql_print_warning("Command '%s' cannot be aborted. "
-                      "The trigger error was (%d) [%s]: %s",
-                      m_command_text,
-                      sql_errno,
-                      sqlstate ? sqlstate : "<NO_STATE>",
-                      msg ? msg : "<NO_MESSAGE>");
+    LogErr(WARNING_LEVEL, ER_AUDIT_CANT_ABORT_COMMAND,
+           m_command_text,
+           sql_errno,
+           sqlstate ? sqlstate : "<NO_STATE>",
+           msg ? msg : "<NO_MESSAGE>");
   }
 
   /**
@@ -1247,23 +1246,20 @@ int initialize_audit_plugin(st_plugin_int *plugin)
 
   if (data->class_mask[MYSQL_AUDIT_AUTHORIZATION_CLASS])
   {
-    sql_print_error("Plugin '%s' cannot subscribe to "
-                 "MYSQL_AUDIT_AUTHORIZATION events. Currently not supported.",
-                 plugin->name.str);
+    LogErr(ERROR_LEVEL, ER_AUDIT_PLUGIN_DOES_NOT_SUPPORT_AUDIT_AUTH_EVENTS,
+           plugin->name.str);
     return 1;
   }
 
   if (!data->event_notify || !masks)
   {
-    sql_print_error("Plugin '%s' has invalid data.",
-                    plugin->name.str);
+    LogErr(ERROR_LEVEL, ER_AUDIT_PLUGIN_HAS_INVALID_DATA, plugin->name.str);
     return 1;
   }
 
   if (plugin->plugin->init && plugin->plugin->init(plugin))
   {
-    sql_print_error("Plugin '%s' init function returned error.",
-                    plugin->name.str);
+    LogErr(ERROR_LEVEL, ER_PLUGIN_INIT_FAILED, plugin->name.str);
     return 1;
   }
 

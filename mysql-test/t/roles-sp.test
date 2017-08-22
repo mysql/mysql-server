@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 CREATE ROLE r1;
 CREATE USER u1@localhost IDENTIFIED BY 'foo';
 GRANT r1 TO u1@localhost;

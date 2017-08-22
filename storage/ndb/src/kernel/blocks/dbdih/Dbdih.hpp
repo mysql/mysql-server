@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -113,7 +113,9 @@
 #define MAX_CONCURRENT_DIH_TAB_DEF_OPS (MAX_CONCURRENT_LCP_TAB_DEF_FLUSHES + 2)
 #define ZPAGEREC (MAX_CONCURRENT_DIH_TAB_DEF_OPS * PACK_TABLE_PAGES)
 #define ZCREATE_REPLICA_FILE_SIZE 4
-#define ZPROXY_MASTER_FILE_SIZE 10
+#define ZPROXY_MASTER_FILE_SIZE (MAX_NDB_NODES + 1)
+
+/*MaxConcurrent proxied WaitGcpReq.  Set to 10 as safety margin on 1.*/
 #define ZPROXY_FILE_SIZE 10
 #endif
 
@@ -2339,6 +2341,7 @@ private:
     SignalCounter m_LAST_LCP_FRAG_ORD;
     NdbNodeBitmask m_participatingLQH;
     NdbNodeBitmask m_participatingDIH;
+    NdbNodeBitmask m_allReplicasQueuedLQH;
     
     Uint32 m_masterLcpDihRef;
     bool   m_MASTER_LCPREQ_Received;

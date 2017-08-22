@@ -19,7 +19,6 @@
 
 #include "m_string.h"
 #include "decimal.h"
-#include "my_decimal.h"
 
 #include "decimal_utils.hpp"
 

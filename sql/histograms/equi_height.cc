@@ -33,16 +33,61 @@
 #include "my_decimal.h"
 #include "my_inttypes.h"
 #include "sql_string.h"
+#include "sql/histograms/value_map.h"      // Value_map
 
 namespace histograms {
 
 template <class T>
-Equi_height<T>::Equi_height(MEM_ROOT *mem_root, std::string db_name,
-                            std::string tbl_name, std::string col_name)
+Equi_height<T>::Equi_height(MEM_ROOT *mem_root, const std::string &db_name,
+                            const std::string &tbl_name,
+                            const std::string &col_name)
   :Histogram(mem_root, db_name, tbl_name, col_name,
              enum_histogram_type::EQUI_HEIGHT),
   m_buckets(Memroot_allocator<equi_height::Bucket<T> >(mem_root))
 {}
+
+
+template <class T>
+Equi_height<T>::Equi_height(MEM_ROOT *mem_root, const Equi_height<T> &other)
+  :Histogram(mem_root, other),
+  m_buckets(other.m_buckets,
+            Memroot_allocator<equi_height::Bucket<T>>(mem_root))
+{}
+
+
+template <>
+Equi_height<String>::Equi_height(MEM_ROOT *mem_root,
+                                 const Equi_height<String> &other)
+  :Histogram(mem_root, other),
+  m_buckets(Memroot_allocator<equi_height::Bucket<String>>(mem_root))
+{
+  /*
+    Copy bucket contents. We need to make duplicates of String data, since they
+    are allocated on a MEM_ROOT that most likely will be freed way too early.
+  */
+  m_buckets.reserve(other.m_buckets.size());
+  for (const auto &pair : other.m_buckets)
+  {
+    char *lower_string_data= pair.get_lower_inclusive().dup(mem_root);
+    char *upper_string_data= pair.get_upper_inclusive().dup(mem_root);
+    if (lower_string_data == nullptr || upper_string_data == nullptr)
+    {
+      DBUG_ASSERT(false);  /* purecov: deadcode */
+      return;
+    }
+
+    String lower_string_dup(lower_string_data,
+                            pair.get_lower_inclusive().length(),
+                            pair.get_lower_inclusive().charset());
+    String upper_string_dup(upper_string_data,
+                            pair.get_upper_inclusive().length(),
+                            pair.get_upper_inclusive().charset());
+    equi_height::Bucket<String> bucket(lower_string_dup, upper_string_dup,
+                                       pair.get_cumulative_frequency(),
+                                       pair.get_num_distinct());
+    m_buckets.push_back(bucket);
+  }
+}
 
 
 /*
@@ -53,7 +98,7 @@ Equi_height<T>::Equi_height(MEM_ROOT *mem_root, std::string db_name,
     of distinct values, a single bucket is created for each value.
 
   - If we have more distinct values than the number of buckets, we calculate a
-    theadshold T for each bucket. The threshold T for bucket number N (counting
+    threshold T for each bucket. The threshold T for bucket number N (counting
     from 1) is calculated as;
 
       num_non_null_values
@@ -67,17 +112,23 @@ Equi_height<T>::Equi_height(MEM_ROOT *mem_root, std::string db_name,
     is closest to the threshold.
 */
 template <class T>
-bool Equi_height<T>::build_histogram(const value_map_type<T> &value_map,
-                                     ha_rows num_null_values,
+bool Equi_height<T>::build_histogram(const Value_map<T> &value_map,
                                      size_t num_buckets)
 {
   DBUG_ASSERT(num_buckets > 0);
   if (num_buckets < 1)
     return true;                              /* purecov: inspected */
 
+  // Set the number of buckets that was specified/requested by the user.
+  m_num_buckets_specified= num_buckets;
+
   // Clear any existing data.
   m_buckets.clear();
   m_null_values_fraction= INVALID_NULL_VALUES_FRACTION;
+  m_sampling_rate= value_map.get_sampling_rate();
+
+  // Set the character set for the histogram contents.
+  m_charset= value_map.get_character_set();
 
   // Get total frequency count.
   ha_rows num_non_null_values= 0;
@@ -87,7 +138,7 @@ bool Equi_height<T>::build_histogram(const value_map_type<T> &value_map,
   // No non-null values, nothing to do.
   if (num_non_null_values == 0)
   {
-    if (num_null_values > 0)
+    if (value_map.get_num_null_values() > 0)
       m_null_values_fraction= 1.0;
     else
       m_null_values_fraction= 0.0;
@@ -98,26 +149,35 @@ bool Equi_height<T>::build_histogram(const value_map_type<T> &value_map,
   DBUG_ASSERT(num_buckets > 0);
 
   // Set the fraction of NULL values.
-  const ha_rows total_count= num_null_values + num_non_null_values;
-  m_null_values_fraction= num_null_values / static_cast<double>(total_count);
+  const ha_rows total_count=
+    value_map.get_num_null_values() + num_non_null_values;
+
+  m_null_values_fraction=
+    value_map.get_num_null_values() / static_cast<double>(total_count);
 
   /*
     Divide the frequencies into evenly-ish spaced buckets, and set the bucket
-    threadshold accordingly.
+    threshold accordingly.
   */
   const double avg_bucket_size=
     num_non_null_values / static_cast<double>(num_buckets);
-  double current_threadshold= avg_bucket_size;
+  double current_threshold= avg_bucket_size;
 
   ha_rows cumulative_sum= 0;
   ha_rows sum= 0;
   ha_rows num_distinct= 0;
   size_t values_remaining= value_map.size();
+
+  // Number of values that occurs only one time.
+  int num_singlecount_values= 0;
   auto freq_it= value_map.begin();
   const T *lowest_value= &freq_it->first;
 
   for (; freq_it != value_map.end(); ++freq_it)
   {
+    if (freq_it->second == 1)
+      num_singlecount_values++;
+
     sum+= freq_it->second;
     cumulative_sum+= freq_it->second;
     num_distinct++;
@@ -128,16 +188,16 @@ bool Equi_height<T>::build_histogram(const value_map_type<T> &value_map,
     {
       /*
         Check if including the next bucket will make the frequency become
-        larger than the threadshold. If that is the case, check whether only
-        including the current value is closer to the threadshold than
+        larger than the threshold. If that is the case, check whether only
+        including the current value is closer to the threshold than
         including the next value as well.
       */
-      if ((cumulative_sum + next->second) > current_threadshold)
+      if ((cumulative_sum + next->second) > current_threshold)
       {
         double current_distance=
-          std::abs(current_threadshold - cumulative_sum);
+          std::abs(current_threshold - cumulative_sum);
         double next_distance=
-          std::abs(current_threadshold - (cumulative_sum + next->second));
+          std::abs(current_threshold - (cumulative_sum + next->second));
 
         if (current_distance >= next_distance)
           continue;
@@ -156,13 +216,34 @@ bool Equi_height<T>::build_histogram(const value_map_type<T> &value_map,
     double cumulative_frequency=
       cumulative_sum / static_cast<double>(total_count);
 
+    ha_rows num_distinct_estimate;
+
+    /*
+      If the sampling rate is less than 80%, we use the "unsmoothed first-order
+      jackknife estimator" to estimate the number of distinct values. If the
+      sampling rate is 80% or above, using the estimator seems to yield worse
+      results than using the non-estimated count.
+    */
+    const double estimator_threshold= 0.8;
+    if (value_map.get_sampling_rate() < estimator_threshold)
+    {
+      double num_distinct_rounded=
+        std::round(1.0 / (1.0 - ((1.0 - value_map.get_sampling_rate()) *
+                                 num_singlecount_values) / sum) * num_distinct);
+      num_distinct_estimate= static_cast<ha_rows>(num_distinct_rounded);
+    }
+    else
+    {
+      num_distinct_estimate= num_distinct;
+    }
+
     equi_height::Bucket<T> bucket(*lowest_value, freq_it->first,
-                                  cumulative_frequency, num_distinct);
+                                  cumulative_frequency, num_distinct_estimate);
 
     /*
       Since we are using a std::vector with Memroot_allocator, we are forced to
-      wrap the following section in a try-catch. The Memroot_allocator will throw
-      an exception of class std::bad_alloc when it runs out of memory.
+      wrap the following section in a try-catch. The Memroot_allocator will
+      throw an exception of class std::bad_alloc when it runs out of memory.
     */
     try
     {
@@ -177,9 +258,8 @@ bool Equi_height<T>::build_histogram(const value_map_type<T> &value_map,
       In debug, check that the lower value actually is less than or equal to
       the upper value.
     */
-    DBUG_ASSERT(
-      value_map.key_comp().compare(bucket.get_lower_inclusive(),
-                                   bucket.get_upper_inclusive()) <= 0);
+    DBUG_ASSERT(!Histogram_comparator()(bucket.get_upper_inclusive(),
+                                        bucket.get_lower_inclusive()));
 
     /*
       We also check that the lower inclusive value of the current bucket is
@@ -187,28 +267,20 @@ bool Equi_height<T>::build_histogram(const value_map_type<T> &value_map,
     */
     if (m_buckets.size() > 1)
     {
-      DBUG_ASSERT(value_map.key_comp().compare(
+      DBUG_ASSERT(Histogram_comparator()(
         std::prev(m_buckets.end(), 2)->get_upper_inclusive(),
-        bucket.get_lower_inclusive()) < 0);
+        bucket.get_lower_inclusive()));
     }
 
+    num_singlecount_values= 0;
     sum= 0;
     num_distinct= 0;
-    current_threadshold= avg_bucket_size * (m_buckets.size() + 1);
+    current_threshold= avg_bucket_size * (m_buckets.size() + 1);
     if (next != value_map.end())
       lowest_value= &next->first;
   }
 
   DBUG_ASSERT(m_buckets.size() <= num_buckets);
-
-  if (!m_buckets.empty())
-  {
-    DBUG_ASSERT(
-      Float_compare::almost_equal(m_buckets.back().get_cumulative_frequency() +
-                                  get_null_values_fraction(),
-                                  1.0));
-  }
-
   return false;
 }
 
@@ -237,6 +309,9 @@ bool Equi_height<T>::histogram_to_json(Json_object *json_object) const
 
   if (json_object->add_clone(buckets_str(), &buckets))
     return true;                              /* purecov: inspected */
+
+  if (Histogram::histogram_data_type_to_json<T>(json_object))
+    return true;                              /* purecov: inspected */
   return false;
 }
 
@@ -245,6 +320,87 @@ template <class T>
 std::string Equi_height<T>::histogram_type_to_str() const
 {
   return equi_height_str();
+}
+
+
+template <class T>
+bool Equi_height<T>::json_to_histogram(const Json_object &json_object)
+{
+  if (Histogram::json_to_histogram(json_object))
+    return true; /* purecov: deadcode */
+
+  const Json_dom *buckets_dom= json_object.get(buckets_str());
+  DBUG_ASSERT(buckets_dom->json_type() == enum_json_type::J_ARRAY);
+
+  const Json_array *buckets= down_cast<const Json_array*>(buckets_dom);
+  for (size_t i= 0; i < buckets->size(); ++i)
+  {
+    const Json_dom *bucket_dom= (*buckets)[i];
+    DBUG_ASSERT(bucket_dom->json_type() == enum_json_type::J_ARRAY);
+
+    const Json_array *bucket= down_cast<const Json_array*>(bucket_dom);
+    DBUG_ASSERT(bucket->size() == 4);
+
+    if (add_bucket_from_json(bucket))
+      return true; /* purecov: deadcode */
+  }
+  return false;
+}
+
+
+template <class T>
+bool Equi_height<T>::add_bucket_from_json(const Json_array *json_bucket)
+{
+  const Json_dom *cumulative_frequency_dom= (*json_bucket)[2];
+  if (cumulative_frequency_dom->json_type() != enum_json_type::J_DOUBLE)
+    return true; /* purecov: deadcode */
+
+  const Json_dom *num_distinct_dom= (*json_bucket)[3];
+  if (num_distinct_dom->json_type() != enum_json_type::J_UINT)
+    return true; /* purecov: deadcode */
+
+  const Json_double *cumulative_frequency=
+    down_cast<const Json_double*>(cumulative_frequency_dom);
+
+  const Json_uint *num_distinct=
+    down_cast<const Json_uint*>(num_distinct_dom);
+
+  const Json_dom *lower_inclusive_dom= (*json_bucket)[0];
+  const Json_dom *upper_inclusive_dom= (*json_bucket)[1];
+
+  T upper_value;
+  T lower_value;
+  if (extract_json_dom_value(upper_inclusive_dom, &upper_value) ||
+      extract_json_dom_value(lower_inclusive_dom, &lower_value))
+    return true; /* purecov: deadcode */
+
+  try
+  {
+    m_buckets.emplace_back(lower_value, upper_value,
+                           cumulative_frequency->value(),
+                           num_distinct->value());
+  }
+  catch (const std::bad_alloc&)
+  {
+    return true; /* purecov: deadcode */
+  }
+  return false;
+}
+
+
+template <class T>
+Histogram *Equi_height<T>::clone(MEM_ROOT *mem_root) const
+{
+  DBUG_EXECUTE_IF("fail_histogram_clone", return nullptr;);
+
+  try
+  {
+    return new (mem_root)Equi_height<T>(mem_root, *this);
+  }
+  catch (const std::bad_alloc&)
+  {
+    return nullptr; /* purecov: deadcode */
+  }
 }
 
 // Explicit template instantiations.

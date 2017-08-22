@@ -1,4 +1,5 @@
 CALL mtr.add_suppression("but MySQL is asking statistics for 2 columns. Have you mixed");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Tablespace for table .* is set as discarded");
 CREATE TABLE tab(c1 int NOT NULL PRIMARY KEY,c2 POINT NOT NULL,
 c3 LINESTRING NOT NULL,c4 POLYGON NOT NULL,c5 GEOMETRY NOT NULL)
 ENGINE=InnoDB;
@@ -109,7 +110,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 ALTER TABLE tab ADD SPATIAL INDEX idx6(c2) USING HASH;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'USING HASH' at line 1
 ALTER TABLE tab CHANGE c2 c2 MULTIPOINT NOT NULL FIRST, ALGORITHM=COPY;
-ERROR 22004: Invalid use of NULL value
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 ALTER TABLE tab MODIFY COLUMN c3 MULTILINESTRING NOT NULL,ALGORITHM=COPY;
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 ALTER TABLE tab MODIFY COLUMN c4 MULTIPOLYGON NOT NULL;
@@ -128,7 +129,7 @@ tab	CREATE TABLE `tab` (
   SPATIAL KEY `idx4` (`c4`) COMMENT 'testing spatial index on Polygon',
   SPATIAL KEY `idx5` (`c5`) COMMENT 'testing spatial index on Geometry',
   KEY `idx6` (`c4`(10)) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SHOW INDEX FROM tab;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 tab	0	PRIMARY	1	c1	A	#	NULL	NULL		BTREE			YES
@@ -138,12 +139,16 @@ tab	1	idx4	1	c4	A	#	32	NULL		SPATIAL		testing spatial index on Polygon	YES
 tab	1	idx5	1	c5	A	#	32	NULL		SPATIAL		testing spatial index on Geometry	YES
 tab	1	idx6	1	c4	A	#	10	NULL		BTREE			YES
 SET @g1 = ST_GeomFromText('POLYGON((20 20,30 30,40 40,50 50,40 50,30 40,30 30,20 20))');
+# Invalid polygon.
 SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE ST_Crosses(tab.c4, @g1);
 c1	ST_Astext(c2)	ST_Astext(c4)
+# Invalid polygon.
 UPDATE tab SET C2 = ST_GeomFromText('POINT(1000 1000)')
 WHERE ST_Crosses(tab.c4, @g1);
+# Invalid polygon.
 SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE ST_Crosses(tab.c4, @g1);
 c1	ST_Astext(c2)	ST_Astext(c4)
+# Invalid polygon.
 DELETE FROM tab WHERE ST_Crosses(tab.c4, @g1);
 ALTER TABLE tab CHANGE COLUMN c2 c22 POINT NOT NULL;
 ALTER TABLE tab CHANGE COLUMN c3 c33 LINESTRING NOT NULL;
@@ -162,7 +167,7 @@ tab	CREATE TABLE `tab` (
   SPATIAL KEY `idx4` (`c44`) COMMENT 'testing spatial index on Polygon',
   SPATIAL KEY `idx5` (`c5`) COMMENT 'testing spatial index on Geometry',
   KEY `idx6` (`c44`(10)) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SHOW INDEX FROM tab;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 tab	0	PRIMARY	1	c1	A	#	NULL	NULL		BTREE			YES
@@ -188,7 +193,7 @@ tab	CREATE TABLE `tab` (
   SPATIAL KEY `idx4` (`c4`) COMMENT 'testing spatial index on Polygon',
   SPATIAL KEY `idx5` (`c5`) COMMENT 'testing spatial index on Geometry',
   KEY `idx6` (`c4`(10)) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SHOW INDEX FROM tab;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 tab	0	PRIMARY	1	c1	A	#	NULL	NULL		BTREE			YES
@@ -220,12 +225,12 @@ ALTER TABLE tab ADD PRIMARY KEY(c2) ;
 SET @g1 = ST_GeomFromText( 'POLYGON((0 0,0 30,30 40,40 50,50 30,0 0))');
 SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE ST_Touches(tab.c4, @g1);
 c1	ST_Astext(c2)	ST_Astext(c4)
-2	POINT(20 20)	POLYGON((40 50,70 50,80 80,70 100,50 100,40 70,40 50))
+2	POINT(20 20)	POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))
 UPDATE tab SET C2 = ST_GeomFromText('POINT(3000 3000)') 
 WHERE ST_Touches(tab.c4, @g1);
 SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE ST_Touches(tab.c4, @g1);
 c1	ST_Astext(c2)	ST_Astext(c4)
-2	POINT(3000 3000)	POLYGON((40 50,70 50,80 80,70 100,50 100,40 70,40 50))
+2	POINT(3000 3000)	POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))
 DELETE FROM tab WHERE ST_Touches(tab.c4, @g1);
 SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE ST_Touches(tab.c4, @g1);
 c1	ST_Astext(c2)	ST_Astext(c4)
@@ -285,7 +290,7 @@ temp_tab	CREATE TEMPORARY TABLE `temp_tab` (
   SPATIAL KEY `idx3` (`c3`),
   SPATIAL KEY `idx4` (`c4`),
   SPATIAL KEY `idx5` (`c5`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SET @g1 = ST_GeomFromText( 'POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))');
 SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM temp_tab WHERE MBRContains(temp_tab.c4, @g1) ORDER BY c1;
 c1	ST_Astext(c2)	ST_Astext(c4)
@@ -308,7 +313,7 @@ tab	CREATE TABLE `tab` (
   SPATIAL KEY `idx4` (`c4`) COMMENT 'testing spatial index on Polygon',
   SPATIAL KEY `idx5` (`c5`) COMMENT 'testing spatial index on Geometry',
   KEY `idx6` (`c4`(10)) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SHOW INDEX FROM tab;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 tab	1	idx3	1	c3	A	#	32	NULL		SPATIAL			YES
@@ -334,7 +339,7 @@ tab	CREATE TABLE `tab` (
   SPATIAL KEY `idx5` (`c5`) COMMENT 'testing spatial index on Geometry',
   KEY `idx6` (`c4`(10)) USING BTREE,
   SPATIAL KEY `idx2` (`c2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SHOW INDEX FROM tab;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 tab	0	PRIMARY	1	c2	A	#	25	NULL		BTREE			YES
@@ -368,7 +373,7 @@ tab	CREATE TABLE `tab` (
   SPATIAL KEY `idx5` (`c5`) COMMENT 'testing spatial index on Geometry',
   KEY `idx6` (`c4`(10)) USING BTREE,
   SPATIAL KEY `idx2` (`c2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SHOW INDEX FROM tab;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 tab	0	PRIMARY	1	c5	A	#	10	NULL		BTREE			YES
@@ -455,7 +460,7 @@ tab	CREATE TABLE `tab` (
   SPATIAL KEY `idx4` (`c4`) COMMENT 'testing spatial index on Polygon',
   SPATIAL KEY `idx5` (`c5`) COMMENT 'testing spatial index on Geometry',
   KEY `idx6` (`c4`(10)) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SHOW INDEX FROM tab;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 tab	0	PRIMARY	1	c1	A	#	NULL	NULL		BTREE			YES
@@ -490,7 +495,7 @@ tab	CREATE TABLE `tab` (
   SPATIAL KEY `idx4` (`c4`) COMMENT 'testing spatial index on Polygon',
   SPATIAL KEY `idx5` (`c5`) COMMENT 'testing spatial index on Geometry',
   KEY `idx6` (`c4`(10)) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SHOW INDEX FROM tab;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 tab	0	PRIMARY	1	c1	A	#	NULL	NULL		BTREE			YES
@@ -540,7 +545,7 @@ tab	CREATE TABLE `tab` (
   SPATIAL KEY `idx4` (`c4`) COMMENT 'testing spatial index on Polygon',
   SPATIAL KEY `idx5` (`c5`) COMMENT 'testing spatial index on Geometry',
   KEY `idx6` (`c4`(10)) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SHOW INDEX FROM tab;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 tab	0	PRIMARY	1	c1	A	#	NULL	NULL		BTREE			YES
@@ -566,13 +571,13 @@ c1	ST_Astext(c2)	ST_AsText(c3)	ST_Astext(c4)
 SELECT c1,ST_Astext(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE ST_Touches(tab.c4, @g1)
 OR ST_Touches(tab.c3,@g2);
 c1	ST_Astext(c2)	ST_AsText(c3)	ST_Astext(c4)
-2	POINT(20 20)	LINESTRING(20 20,30 30,40 40)	POLYGON((40 50,70 50,80 80,70 100,50 100,40 70,40 50))
+2	POINT(20 20)	LINESTRING(20 20,30 30,40 40)	POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))
 UPDATE tab SET C2 = ST_GeomFromText('POINT(2000 2000)')
 WHERE ST_Touches(tab.c4, @g1) OR ST_Touches(tab.c3,@g2);
 SELECT c1,ST_Astext(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE ST_Touches(tab.c4, @g1)
 OR ST_Touches(tab.c3,@g2);
 c1	ST_Astext(c2)	ST_AsText(c3)	ST_Astext(c4)
-2	POINT(2000 2000)	LINESTRING(20 20,30 30,40 40)	POLYGON((40 50,70 50,80 80,70 100,50 100,40 70,40 50))
+2	POINT(2000 2000)	LINESTRING(20 20,30 30,40 40)	POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))
 DELETE FROM tab WHERE ST_Touches(tab.c4, @g1) OR ST_Touches(tab.c3,@g2);
 SELECT c1,ST_Astext(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE ST_Touches(tab.c4, @g1)
 OR ST_Touches(tab.c3,@g2);
@@ -619,14 +624,14 @@ parent	CREATE TABLE `parent` (
   `id` point NOT NULL,
   PRIMARY KEY (`id`(25)),
   SPATIAL KEY `idx1` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
   `id` geometry NOT NULL,
   `parent_id` point NOT NULL,
   SPATIAL KEY `idx2` (`parent_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SHOW INDEX FROM parent;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 parent	0	PRIMARY	1	id	A	0	25	NULL		BTREE			YES
@@ -655,14 +660,14 @@ parent	CREATE TABLE `parent` (
   `id` geometry NOT NULL,
   PRIMARY KEY (`id`(10)),
   SPATIAL KEY `idx1` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
   `id` geometry NOT NULL,
   `parent_id` geometry NOT NULL,
   SPATIAL KEY `idx2` (`parent_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SHOW INDEX FROM parent;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 parent	0	PRIMARY	1	id	A	0	10	NULL		BTREE			YES

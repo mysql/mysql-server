@@ -926,9 +926,11 @@ public:
         Key segments are always packed with a 2 byte length prefix.
         See mi_rkey for details.
       */
-      to_field= new Field_varstring(ptr, length, 2, null, 1, 
-                                    Field::NONE, field_arg->field_name,
-                                    field_arg->table->s, field_arg->charset());
+      to_field= new (*THR_MALLOC) Field_varstring(ptr, length, 2, null, 1,
+                                                  Field::NONE,
+                                                  field_arg->field_name,
+                                                  field_arg->table->s,
+                                                  field_arg->charset());
       to_field->init(field_arg->table);
     }
     else

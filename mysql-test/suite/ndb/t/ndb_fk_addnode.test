@@ -1,5 +1,4 @@
 -- source include/have_ndb.inc
--- source include/not_embedded.inc
 
 create table t1(id1 int NOT NULL PRIMARY KEY, data char(8)) engine=ndb
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";

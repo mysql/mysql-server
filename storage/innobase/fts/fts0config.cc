@@ -96,7 +96,7 @@ fts_config_get_value(
 	to the actual number of bytes copied to value. */
 	pars_info_bind_varchar_literal(info, "name", (byte*) name, name_len);
 
-	fts_table->suffix = "CONFIG";
+	fts_table->suffix = FTS_SUFFIX_CONFIG;
 	fts_get_table_name(fts_table, table_name);
 	pars_info_bind_id(info, true, "table_name", table_name);
 
@@ -175,8 +175,8 @@ fts_config_get_index_value(
 	dberr_t		error;
 	fts_table_t	fts_table;
 
-	FTS_INIT_FTS_TABLE(&fts_table, "CONFIG", FTS_COMMON_TABLE,
-			   index->table);
+	FTS_INIT_FTS_TABLE(&fts_table, FTS_SUFFIX_CONFIG,
+			   FTS_COMMON_TABLE, index->table);
 
 	/* We are responsible for free'ing name. */
 	name = fts_config_create_index_param_name(param, index);
@@ -216,7 +216,7 @@ fts_config_set_value(
 	pars_info_bind_varchar_literal(info, "value",
 				       value->f_str, value->f_len);
 
-	fts_table->suffix = "CONFIG";
+	fts_table->suffix = FTS_SUFFIX_CONFIG;
 	fts_get_table_name(fts_table, table_name);
 	pars_info_bind_id(info, true, "table_name", table_name);
 
@@ -280,8 +280,8 @@ fts_config_set_index_value(
 	dberr_t		error;
 	fts_table_t	fts_table;
 
-	FTS_INIT_FTS_TABLE(&fts_table, "CONFIG", FTS_COMMON_TABLE,
-			   index->table);
+	FTS_INIT_FTS_TABLE(&fts_table, FTS_SUFFIX_CONFIG,
+			   FTS_COMMON_TABLE, index->table);
 
 	/* We are responsible for free'ing name. */
 	name = fts_config_create_index_param_name(param, index);

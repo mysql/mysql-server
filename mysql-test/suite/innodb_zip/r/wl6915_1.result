@@ -21,8 +21,8 @@ c9 decimal(6,3),
 PRIMARY KEY (c1),
 INDEX (c3,c4(50),c5(50)), 
 INDEX (c2))
-ENGINE=InnoDB ROW_FORMAT=redundant;
-set @s = concat("CREATE TABLE t1",id," ( c1 int NOT NULL,   c2 int NOT NULL,   c3 char(255) NOT NULL,   c4 text(600) NOT NULL,   c5 blob(600) NOT NULL,   c6 varchar(600) NOT NULL,   c7 varchar(600) NOT NULL,   c8 datetime,   c9 decimal(6,3),   PRIMARY KEY (c1),   INDEX (c3,c4(50),c5(50)),   INDEX (c2))   ENGINE=InnoDB ROW_FORMAT=redundant;");
+charset latin1 ENGINE=InnoDB ROW_FORMAT=redundant;
+set @s = concat("CREATE TABLE t1",id," ( c1 int NOT NULL,   c2 int NOT NULL,   c3 char(255) NOT NULL,   c4 text(600) NOT NULL,   c5 blob(600) NOT NULL,   c6 varchar(600) NOT NULL,   c7 varchar(600) NOT NULL,   c8 datetime,   c9 decimal(6,3),   PRIMARY KEY (c1),   INDEX (c3,c4(50),c5(50)),   INDEX (c2))   charset latin1 ENGINE=InnoDB ROW_FORMAT=redundant;");
 PREPARE createTable FROM @s;
 EXECUTE createTable;
 DEALLOCATE PREPARE createTable;
@@ -38,12 +38,12 @@ c9 decimal(6,3),
 PRIMARY KEY (c1),
 INDEX (c3,c4(50),c5(50)),
 INDEX (c2))
-ENGINE=InnoDB ROW_FORMAT=compact;
-set @s = concat("CREATE TABLE t2",id," (c1 int NOT NULL,   c2 int NOT NULL,   c3 char(255) NOT NULL,   c4 text(600) NOT NULL,   c5 blob(600) NOT NULL,   c6 varchar(600) NOT NULL,   c7 varchar(600) NOT NULL,   c8 datetime,   c9 decimal(6,3),   PRIMARY KEY (c1),   INDEX (c3,c4(50),c5(50)),   INDEX (c2))   ENGINE=InnoDB ROW_FORMAT=compact;");
+charset latin1 ENGINE=InnoDB ROW_FORMAT=compact;
+set @s = concat("CREATE TABLE t2",id," (c1 int NOT NULL,   c2 int NOT NULL,   c3 char(255) NOT NULL,   c4 text(600) NOT NULL,   c5 blob(600) NOT NULL,   c6 varchar(600) NOT NULL,   c7 varchar(600) NOT NULL,   c8 datetime,   c9 decimal(6,3),   PRIMARY KEY (c1),   INDEX (c3,c4(50),c5(50)),   INDEX (c2))   charset latin1 ENGINE=InnoDB ROW_FORMAT=compact;");
 PREPARE createTable FROM @s;
 EXECUTE createTable;
 DEALLOCATE PREPARE createTable;
-set @s = concat("CREATE TABLE t3",id," (c1 int NOT NULL,   c2 int NOT NULL,   c3 char(255) NOT NULL,   c4 text(600) NOT NULL,   c5 blob(600) NOT NULL,   c6 varchar(600) NOT NULL,   c7 varchar(600) NOT NULL,   c8 datetime,   c9 decimal(6,3),   PRIMARY KEY (c1),   INDEX (c3,c4(50),c5(50)),   INDEX (c2))   ENGINE=InnoDB ROW_FORMAT=compressed key_block_size=4;");
+set @s = concat("CREATE TABLE t3",id," (c1 int NOT NULL,   c2 int NOT NULL,   c3 char(255) NOT NULL,   c4 text(600) NOT NULL,   c5 blob(600) NOT NULL,   c6 varchar(600) NOT NULL,   c7 varchar(600) NOT NULL,   c8 datetime,   c9 decimal(6,3),   PRIMARY KEY (c1),   INDEX (c3,c4(50),c5(50)),   INDEX (c2))   charset latin1 ENGINE=InnoDB ROW_FORMAT=compressed key_block_size=4;");
 PREPARE createTable FROM @s;
 EXECUTE createTable;
 DEALLOCATE PREPARE createTable;
@@ -59,8 +59,8 @@ c9 decimal(6,3),
 PRIMARY KEY (c1),
 INDEX (c3,c4(50),c5(50)),
 INDEX (c2))
-ENGINE=InnoDB ROW_FORMAT=dynamic;
-set @s = concat("CREATE TABLE t4",id," (c1 int NOT NULL,   c2 int NOT NULL,   c3 char(255) NOT NULL,   c4 text(600) NOT NULL,   c5 blob(600) NOT NULL,   c6 varchar(600) NOT NULL,   c7 varchar(600) NOT NULL,   c8 datetime,   c9 decimal(6,3),   PRIMARY KEY (c1),   INDEX (c3,c4(50),c5(50)),   INDEX (c2))   ENGINE=InnoDB ROW_FORMAT=dynamic;");
+charset latin1 ENGINE=InnoDB ROW_FORMAT=dynamic;
+set @s = concat("CREATE TABLE t4",id," (c1 int NOT NULL,   c2 int NOT NULL,   c3 char(255) NOT NULL,   c4 text(600) NOT NULL,   c5 blob(600) NOT NULL,   c6 varchar(600) NOT NULL,   c7 varchar(600) NOT NULL,   c8 datetime,   c9 decimal(6,3),   PRIMARY KEY (c1),   INDEX (c3,c4(50),c5(50)),   INDEX (c2))   charset latin1 ENGINE=InnoDB ROW_FORMAT=dynamic;");
 PREPARE createTable FROM @s;
 EXECUTE createTable;
 DEALLOCATE PREPARE createTable;
@@ -823,7 +823,7 @@ c1	c2	c3	c4	c5	c6	c7	c9	c10	c11
 -2	-2	a	a	a	a	a	100.550	99	test
 DROP TABLE t1_1 ,t2_1 ,t3_1,t4_1;
 DROP TABLE t1_2 ,t2_2 ,t3_2,t4_2;
-# restart: --innodb_undo_tablespaces=0 --innodb_rollback_segments=20 --innodb_undo_logs=20 --innodb_log_files_in_group=4
+# restart: --innodb_undo_tablespaces=0 --innodb_rollback_segments=20 --innodb_log_files_in_group=4
 call populate_tables('_1');;
 call populate_tables('_2');;
 "#connection 1 - verify tables"
@@ -1324,7 +1324,7 @@ c1
 138
 140
 DROP TABLE t1_2 ,t2_2 ,t3_2,t4_2;
-# restart: --innodb_undo_tablespaces=0 --innodb_rollback_segments=30 --innodb_undo_logs=20 --innodb_log_files_in_group=4
+# restart: --innodb_undo_tablespaces=0 --innodb_rollback_segments=30 --innodb_log_files_in_group=4
 call populate_tables('_1');;
 call populate_tables('_2');;
 "#connection 1 - verify tables"

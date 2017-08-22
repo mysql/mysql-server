@@ -97,10 +97,10 @@ SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
 DROP TRIGGER trig;
 DROP TEMPORARY TABLE tmp_myisam1, tmp_myisam2;
-SET BINLOG_FORMAT = ROW;
+SET BINLOG_FORMAT = 'ROW';
 CREATE TEMPORARY TABLE tmp_myisam1 (a INT) ENGINE = MyISAM;
 CREATE TEMPORARY TABLE tmp_myisam2 (a INT) ENGINE = MyISAM;
----- InnoDB followed by temp MyISAM in one trx, binlog_format=row ----
+---- InnoDB followed by temp MyISAM in one trx, binlog_format='row' ----
 # enforce_gtid_consistency=0 gtid_mode=2 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO innodb VALUES (1);
@@ -116,7 +116,7 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
----- InnoDB and temp MyISAM in one statement, binlog_format=row ----
+---- InnoDB and temp MyISAM in one statement, binlog_format='row' ----
 CREATE TRIGGER trig BEFORE INSERT ON innodb FOR EACH ROW BEGIN INSERT INTO tmp_myisam1 VALUES (1); INSERT INTO tmp_myisam2 VALUES (1); END;
 # enforce_gtid_consistency=0 gtid_mode=2 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
@@ -275,10 +275,10 @@ SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
 DROP TRIGGER trig;
 DROP TEMPORARY TABLE tmp_myisam1, tmp_myisam2;
-SET BINLOG_FORMAT = ROW;
+SET BINLOG_FORMAT = 'ROW';
 CREATE TEMPORARY TABLE tmp_myisam1 (a INT) ENGINE = MyISAM;
 CREATE TEMPORARY TABLE tmp_myisam2 (a INT) ENGINE = MyISAM;
----- InnoDB followed by temp MyISAM in one trx, binlog_format=row ----
+---- InnoDB followed by temp MyISAM in one trx, binlog_format='row' ----
 # enforce_gtid_consistency=0 gtid_mode=2 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO innodb VALUES (1);
@@ -294,7 +294,7 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
----- InnoDB and temp MyISAM in one statement, binlog_format=row ----
+---- InnoDB and temp MyISAM in one statement, binlog_format='row' ----
 CREATE TRIGGER trig BEFORE INSERT ON innodb FOR EACH ROW BEGIN INSERT INTO tmp_myisam1 VALUES (1); INSERT INTO tmp_myisam2 VALUES (1); END;
 # enforce_gtid_consistency=0 gtid_mode=2 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
@@ -421,10 +421,10 @@ SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
 DROP TRIGGER trig;
 DROP TEMPORARY TABLE tmp_myisam1, tmp_myisam2;
-SET BINLOG_FORMAT = ROW;
+SET BINLOG_FORMAT = 'ROW';
 CREATE TEMPORARY TABLE tmp_myisam1 (a INT) ENGINE = MyISAM;
 CREATE TEMPORARY TABLE tmp_myisam2 (a INT) ENGINE = MyISAM;
----- InnoDB followed by temp MyISAM in one trx, binlog_format=row ----
+---- InnoDB followed by temp MyISAM in one trx, binlog_format='row' ----
 # enforce_gtid_consistency=0 gtid_mode=2 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO innodb VALUES (1);
@@ -440,7 +440,7 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
----- InnoDB and temp MyISAM in one statement, binlog_format=row ----
+---- InnoDB and temp MyISAM in one statement, binlog_format='row' ----
 CREATE TRIGGER trig BEFORE INSERT ON innodb FOR EACH ROW BEGIN INSERT INTO tmp_myisam1 VALUES (1); INSERT INTO tmp_myisam2 VALUES (1); END;
 # enforce_gtid_consistency=0 gtid_mode=2 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
@@ -600,10 +600,10 @@ SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
 DROP TRIGGER trig;
 DROP TEMPORARY TABLE tmp_myisam1, tmp_myisam2;
-SET BINLOG_FORMAT = ROW;
+SET BINLOG_FORMAT = 'ROW';
 CREATE TEMPORARY TABLE tmp_myisam1 (a INT) ENGINE = MyISAM;
 CREATE TEMPORARY TABLE tmp_myisam2 (a INT) ENGINE = MyISAM;
----- InnoDB followed by temp MyISAM in one trx, binlog_format=row ----
+---- InnoDB followed by temp MyISAM in one trx, binlog_format='row' ----
 # enforce_gtid_consistency=0 gtid_mode=1 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO innodb VALUES (1);
@@ -619,7 +619,7 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
----- InnoDB and temp MyISAM in one statement, binlog_format=row ----
+---- InnoDB and temp MyISAM in one statement, binlog_format='row' ----
 CREATE TRIGGER trig BEFORE INSERT ON innodb FOR EACH ROW BEGIN INSERT INTO tmp_myisam1 VALUES (1); INSERT INTO tmp_myisam2 VALUES (1); END;
 # enforce_gtid_consistency=0 gtid_mode=1 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
@@ -778,10 +778,10 @@ SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
 DROP TRIGGER trig;
 DROP TEMPORARY TABLE tmp_myisam1, tmp_myisam2;
-SET BINLOG_FORMAT = ROW;
+SET BINLOG_FORMAT = 'ROW';
 CREATE TEMPORARY TABLE tmp_myisam1 (a INT) ENGINE = MyISAM;
 CREATE TEMPORARY TABLE tmp_myisam2 (a INT) ENGINE = MyISAM;
----- InnoDB followed by temp MyISAM in one trx, binlog_format=row ----
+---- InnoDB followed by temp MyISAM in one trx, binlog_format='row' ----
 # enforce_gtid_consistency=0 gtid_mode=1 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO innodb VALUES (1);
@@ -797,7 +797,7 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
----- InnoDB and temp MyISAM in one statement, binlog_format=row ----
+---- InnoDB and temp MyISAM in one statement, binlog_format='row' ----
 CREATE TRIGGER trig BEFORE INSERT ON innodb FOR EACH ROW BEGIN INSERT INTO tmp_myisam1 VALUES (1); INSERT INTO tmp_myisam2 VALUES (1); END;
 # enforce_gtid_consistency=0 gtid_mode=1 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
@@ -924,10 +924,10 @@ SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
 DROP TRIGGER trig;
 DROP TEMPORARY TABLE tmp_myisam1, tmp_myisam2;
-SET BINLOG_FORMAT = ROW;
+SET BINLOG_FORMAT = 'ROW';
 CREATE TEMPORARY TABLE tmp_myisam1 (a INT) ENGINE = MyISAM;
 CREATE TEMPORARY TABLE tmp_myisam2 (a INT) ENGINE = MyISAM;
----- InnoDB followed by temp MyISAM in one trx, binlog_format=row ----
+---- InnoDB followed by temp MyISAM in one trx, binlog_format='row' ----
 # enforce_gtid_consistency=0 gtid_mode=1 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO innodb VALUES (1);
@@ -943,7 +943,7 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
----- InnoDB and temp MyISAM in one statement, binlog_format=row ----
+---- InnoDB and temp MyISAM in one statement, binlog_format='row' ----
 CREATE TRIGGER trig BEFORE INSERT ON innodb FOR EACH ROW BEGIN INSERT INTO tmp_myisam1 VALUES (1); INSERT INTO tmp_myisam2 VALUES (1); END;
 # enforce_gtid_consistency=0 gtid_mode=1 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
@@ -1103,10 +1103,10 @@ SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
 DROP TRIGGER trig;
 DROP TEMPORARY TABLE tmp_myisam1, tmp_myisam2;
-SET BINLOG_FORMAT = ROW;
+SET BINLOG_FORMAT = 'ROW';
 CREATE TEMPORARY TABLE tmp_myisam1 (a INT) ENGINE = MyISAM;
 CREATE TEMPORARY TABLE tmp_myisam2 (a INT) ENGINE = MyISAM;
----- InnoDB followed by temp MyISAM in one trx, binlog_format=row ----
+---- InnoDB followed by temp MyISAM in one trx, binlog_format='row' ----
 # enforce_gtid_consistency=0 gtid_mode=0 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO innodb VALUES (1);
@@ -1122,7 +1122,7 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
----- InnoDB and temp MyISAM in one statement, binlog_format=row ----
+---- InnoDB and temp MyISAM in one statement, binlog_format='row' ----
 CREATE TRIGGER trig BEFORE INSERT ON innodb FOR EACH ROW BEGIN INSERT INTO tmp_myisam1 VALUES (1); INSERT INTO tmp_myisam2 VALUES (1); END;
 # enforce_gtid_consistency=0 gtid_mode=0 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
@@ -1281,10 +1281,10 @@ SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
 DROP TRIGGER trig;
 DROP TEMPORARY TABLE tmp_myisam1, tmp_myisam2;
-SET BINLOG_FORMAT = ROW;
+SET BINLOG_FORMAT = 'ROW';
 CREATE TEMPORARY TABLE tmp_myisam1 (a INT) ENGINE = MyISAM;
 CREATE TEMPORARY TABLE tmp_myisam2 (a INT) ENGINE = MyISAM;
----- InnoDB followed by temp MyISAM in one trx, binlog_format=row ----
+---- InnoDB followed by temp MyISAM in one trx, binlog_format='row' ----
 # enforce_gtid_consistency=0 gtid_mode=0 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO innodb VALUES (1);
@@ -1300,7 +1300,7 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
----- InnoDB and temp MyISAM in one statement, binlog_format=row ----
+---- InnoDB and temp MyISAM in one statement, binlog_format='row' ----
 CREATE TRIGGER trig BEFORE INSERT ON innodb FOR EACH ROW BEGIN INSERT INTO tmp_myisam1 VALUES (1); INSERT INTO tmp_myisam2 VALUES (1); END;
 # enforce_gtid_consistency=0 gtid_mode=0 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
@@ -1464,10 +1464,10 @@ SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
 DROP TRIGGER trig;
 DROP TEMPORARY TABLE tmp_myisam1, tmp_myisam2;
-SET BINLOG_FORMAT = ROW;
+SET BINLOG_FORMAT = 'ROW';
 CREATE TEMPORARY TABLE tmp_myisam1 (a INT) ENGINE = MyISAM;
 CREATE TEMPORARY TABLE tmp_myisam2 (a INT) ENGINE = MyISAM;
----- InnoDB followed by temp MyISAM in one trx, binlog_format=row ----
+---- InnoDB followed by temp MyISAM in one trx, binlog_format='row' ----
 # enforce_gtid_consistency=1 gtid_mode=3 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO innodb VALUES (1);
@@ -1483,7 +1483,7 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
----- InnoDB and temp MyISAM in one statement, binlog_format=row ----
+---- InnoDB and temp MyISAM in one statement, binlog_format='row' ----
 CREATE TRIGGER trig BEFORE INSERT ON innodb FOR EACH ROW BEGIN INSERT INTO tmp_myisam1 VALUES (1); INSERT INTO tmp_myisam2 VALUES (1); END;
 # enforce_gtid_consistency=1 gtid_mode=3 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
@@ -1610,10 +1610,10 @@ SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
 DROP TRIGGER trig;
 DROP TEMPORARY TABLE tmp_myisam1, tmp_myisam2;
-SET BINLOG_FORMAT = ROW;
+SET BINLOG_FORMAT = 'ROW';
 CREATE TEMPORARY TABLE tmp_myisam1 (a INT) ENGINE = MyISAM;
 CREATE TEMPORARY TABLE tmp_myisam2 (a INT) ENGINE = MyISAM;
----- InnoDB followed by temp MyISAM in one trx, binlog_format=row ----
+---- InnoDB followed by temp MyISAM in one trx, binlog_format='row' ----
 # enforce_gtid_consistency=1 gtid_mode=3 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO innodb VALUES (1);
@@ -1629,7 +1629,7 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
----- InnoDB and temp MyISAM in one statement, binlog_format=row ----
+---- InnoDB and temp MyISAM in one statement, binlog_format='row' ----
 CREATE TRIGGER trig BEFORE INSERT ON innodb FOR EACH ROW BEGIN INSERT INTO tmp_myisam1 VALUES (1); INSERT INTO tmp_myisam2 VALUES (1); END;
 # enforce_gtid_consistency=1 gtid_mode=3 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
@@ -1789,10 +1789,10 @@ SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
 DROP TRIGGER trig;
 DROP TEMPORARY TABLE tmp_myisam1, tmp_myisam2;
-SET BINLOG_FORMAT = ROW;
+SET BINLOG_FORMAT = 'ROW';
 CREATE TEMPORARY TABLE tmp_myisam1 (a INT) ENGINE = MyISAM;
 CREATE TEMPORARY TABLE tmp_myisam2 (a INT) ENGINE = MyISAM;
----- InnoDB followed by temp MyISAM in one trx, binlog_format=row ----
+---- InnoDB followed by temp MyISAM in one trx, binlog_format='row' ----
 # enforce_gtid_consistency=1 gtid_mode=2 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO innodb VALUES (1);
@@ -1808,7 +1808,7 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
----- InnoDB and temp MyISAM in one statement, binlog_format=row ----
+---- InnoDB and temp MyISAM in one statement, binlog_format='row' ----
 CREATE TRIGGER trig BEFORE INSERT ON innodb FOR EACH ROW BEGIN INSERT INTO tmp_myisam1 VALUES (1); INSERT INTO tmp_myisam2 VALUES (1); END;
 # enforce_gtid_consistency=1 gtid_mode=2 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
@@ -1967,10 +1967,10 @@ SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
 DROP TRIGGER trig;
 DROP TEMPORARY TABLE tmp_myisam1, tmp_myisam2;
-SET BINLOG_FORMAT = ROW;
+SET BINLOG_FORMAT = 'ROW';
 CREATE TEMPORARY TABLE tmp_myisam1 (a INT) ENGINE = MyISAM;
 CREATE TEMPORARY TABLE tmp_myisam2 (a INT) ENGINE = MyISAM;
----- InnoDB followed by temp MyISAM in one trx, binlog_format=row ----
+---- InnoDB followed by temp MyISAM in one trx, binlog_format='row' ----
 # enforce_gtid_consistency=1 gtid_mode=2 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO innodb VALUES (1);
@@ -1986,7 +1986,7 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
----- InnoDB and temp MyISAM in one statement, binlog_format=row ----
+---- InnoDB and temp MyISAM in one statement, binlog_format='row' ----
 CREATE TRIGGER trig BEFORE INSERT ON innodb FOR EACH ROW BEGIN INSERT INTO tmp_myisam1 VALUES (1); INSERT INTO tmp_myisam2 VALUES (1); END;
 # enforce_gtid_consistency=1 gtid_mode=2 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
@@ -2113,10 +2113,10 @@ SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
 DROP TRIGGER trig;
 DROP TEMPORARY TABLE tmp_myisam1, tmp_myisam2;
-SET BINLOG_FORMAT = ROW;
+SET BINLOG_FORMAT = 'ROW';
 CREATE TEMPORARY TABLE tmp_myisam1 (a INT) ENGINE = MyISAM;
 CREATE TEMPORARY TABLE tmp_myisam2 (a INT) ENGINE = MyISAM;
----- InnoDB followed by temp MyISAM in one trx, binlog_format=row ----
+---- InnoDB followed by temp MyISAM in one trx, binlog_format='row' ----
 # enforce_gtid_consistency=1 gtid_mode=2 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO innodb VALUES (1);
@@ -2132,7 +2132,7 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
----- InnoDB and temp MyISAM in one statement, binlog_format=row ----
+---- InnoDB and temp MyISAM in one statement, binlog_format='row' ----
 CREATE TRIGGER trig BEFORE INSERT ON innodb FOR EACH ROW BEGIN INSERT INTO tmp_myisam1 VALUES (1); INSERT INTO tmp_myisam2 VALUES (1); END;
 # enforce_gtid_consistency=1 gtid_mode=2 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
@@ -2292,10 +2292,10 @@ SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
 DROP TRIGGER trig;
 DROP TEMPORARY TABLE tmp_myisam1, tmp_myisam2;
-SET BINLOG_FORMAT = ROW;
+SET BINLOG_FORMAT = 'ROW';
 CREATE TEMPORARY TABLE tmp_myisam1 (a INT) ENGINE = MyISAM;
 CREATE TEMPORARY TABLE tmp_myisam2 (a INT) ENGINE = MyISAM;
----- InnoDB followed by temp MyISAM in one trx, binlog_format=row ----
+---- InnoDB followed by temp MyISAM in one trx, binlog_format='row' ----
 # enforce_gtid_consistency=1 gtid_mode=1 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO innodb VALUES (1);
@@ -2311,7 +2311,7 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
----- InnoDB and temp MyISAM in one statement, binlog_format=row ----
+---- InnoDB and temp MyISAM in one statement, binlog_format='row' ----
 CREATE TRIGGER trig BEFORE INSERT ON innodb FOR EACH ROW BEGIN INSERT INTO tmp_myisam1 VALUES (1); INSERT INTO tmp_myisam2 VALUES (1); END;
 # enforce_gtid_consistency=1 gtid_mode=1 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
@@ -2470,10 +2470,10 @@ SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
 DROP TRIGGER trig;
 DROP TEMPORARY TABLE tmp_myisam1, tmp_myisam2;
-SET BINLOG_FORMAT = ROW;
+SET BINLOG_FORMAT = 'ROW';
 CREATE TEMPORARY TABLE tmp_myisam1 (a INT) ENGINE = MyISAM;
 CREATE TEMPORARY TABLE tmp_myisam2 (a INT) ENGINE = MyISAM;
----- InnoDB followed by temp MyISAM in one trx, binlog_format=row ----
+---- InnoDB followed by temp MyISAM in one trx, binlog_format='row' ----
 # enforce_gtid_consistency=1 gtid_mode=1 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO innodb VALUES (1);
@@ -2489,7 +2489,7 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
----- InnoDB and temp MyISAM in one statement, binlog_format=row ----
+---- InnoDB and temp MyISAM in one statement, binlog_format='row' ----
 CREATE TRIGGER trig BEFORE INSERT ON innodb FOR EACH ROW BEGIN INSERT INTO tmp_myisam1 VALUES (1); INSERT INTO tmp_myisam2 VALUES (1); END;
 # enforce_gtid_consistency=1 gtid_mode=1 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
@@ -2616,10 +2616,10 @@ SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
 DROP TRIGGER trig;
 DROP TEMPORARY TABLE tmp_myisam1, tmp_myisam2;
-SET BINLOG_FORMAT = ROW;
+SET BINLOG_FORMAT = 'ROW';
 CREATE TEMPORARY TABLE tmp_myisam1 (a INT) ENGINE = MyISAM;
 CREATE TEMPORARY TABLE tmp_myisam2 (a INT) ENGINE = MyISAM;
----- InnoDB followed by temp MyISAM in one trx, binlog_format=row ----
+---- InnoDB followed by temp MyISAM in one trx, binlog_format='row' ----
 # enforce_gtid_consistency=1 gtid_mode=1 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO innodb VALUES (1);
@@ -2635,7 +2635,7 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
----- InnoDB and temp MyISAM in one statement, binlog_format=row ----
+---- InnoDB and temp MyISAM in one statement, binlog_format='row' ----
 CREATE TRIGGER trig BEFORE INSERT ON innodb FOR EACH ROW BEGIN INSERT INTO tmp_myisam1 VALUES (1); INSERT INTO tmp_myisam2 VALUES (1); END;
 # enforce_gtid_consistency=1 gtid_mode=1 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
@@ -2795,10 +2795,10 @@ SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
 DROP TRIGGER trig;
 DROP TEMPORARY TABLE tmp_myisam1, tmp_myisam2;
-SET BINLOG_FORMAT = ROW;
+SET BINLOG_FORMAT = 'ROW';
 CREATE TEMPORARY TABLE tmp_myisam1 (a INT) ENGINE = MyISAM;
 CREATE TEMPORARY TABLE tmp_myisam2 (a INT) ENGINE = MyISAM;
----- InnoDB followed by temp MyISAM in one trx, binlog_format=row ----
+---- InnoDB followed by temp MyISAM in one trx, binlog_format='row' ----
 # enforce_gtid_consistency=1 gtid_mode=0 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO innodb VALUES (1);
@@ -2814,7 +2814,7 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
----- InnoDB and temp MyISAM in one statement, binlog_format=row ----
+---- InnoDB and temp MyISAM in one statement, binlog_format='row' ----
 CREATE TRIGGER trig BEFORE INSERT ON innodb FOR EACH ROW BEGIN INSERT INTO tmp_myisam1 VALUES (1); INSERT INTO tmp_myisam2 VALUES (1); END;
 # enforce_gtid_consistency=1 gtid_mode=0 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
@@ -2973,10 +2973,10 @@ SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
 DROP TRIGGER trig;
 DROP TEMPORARY TABLE tmp_myisam1, tmp_myisam2;
-SET BINLOG_FORMAT = ROW;
+SET BINLOG_FORMAT = 'ROW';
 CREATE TEMPORARY TABLE tmp_myisam1 (a INT) ENGINE = MyISAM;
 CREATE TEMPORARY TABLE tmp_myisam2 (a INT) ENGINE = MyISAM;
----- InnoDB followed by temp MyISAM in one trx, binlog_format=row ----
+---- InnoDB followed by temp MyISAM in one trx, binlog_format='row' ----
 # enforce_gtid_consistency=1 gtid_mode=0 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO innodb VALUES (1);
@@ -2992,7 +2992,7 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
----- InnoDB and temp MyISAM in one statement, binlog_format=row ----
+---- InnoDB and temp MyISAM in one statement, binlog_format='row' ----
 CREATE TRIGGER trig BEFORE INSERT ON innodb FOR EACH ROW BEGIN INSERT INTO tmp_myisam1 VALUES (1); INSERT INTO tmp_myisam2 VALUES (1); END;
 # enforce_gtid_consistency=1 gtid_mode=0 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
@@ -3155,10 +3155,10 @@ SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
 DROP TRIGGER trig;
 DROP TEMPORARY TABLE tmp_myisam1, tmp_myisam2;
-SET BINLOG_FORMAT = ROW;
+SET BINLOG_FORMAT = 'ROW';
 CREATE TEMPORARY TABLE tmp_myisam1 (a INT) ENGINE = MyISAM;
 CREATE TEMPORARY TABLE tmp_myisam2 (a INT) ENGINE = MyISAM;
----- InnoDB followed by temp MyISAM in one trx, binlog_format=row ----
+---- InnoDB followed by temp MyISAM in one trx, binlog_format='row' ----
 # enforce_gtid_consistency=2 gtid_mode=2 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO innodb VALUES (1);
@@ -3174,7 +3174,7 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
----- InnoDB and temp MyISAM in one statement, binlog_format=row ----
+---- InnoDB and temp MyISAM in one statement, binlog_format='row' ----
 CREATE TRIGGER trig BEFORE INSERT ON innodb FOR EACH ROW BEGIN INSERT INTO tmp_myisam1 VALUES (1); INSERT INTO tmp_myisam2 VALUES (1); END;
 # enforce_gtid_consistency=2 gtid_mode=2 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
@@ -3333,10 +3333,10 @@ SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
 DROP TRIGGER trig;
 DROP TEMPORARY TABLE tmp_myisam1, tmp_myisam2;
-SET BINLOG_FORMAT = ROW;
+SET BINLOG_FORMAT = 'ROW';
 CREATE TEMPORARY TABLE tmp_myisam1 (a INT) ENGINE = MyISAM;
 CREATE TEMPORARY TABLE tmp_myisam2 (a INT) ENGINE = MyISAM;
----- InnoDB followed by temp MyISAM in one trx, binlog_format=row ----
+---- InnoDB followed by temp MyISAM in one trx, binlog_format='row' ----
 # enforce_gtid_consistency=2 gtid_mode=2 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO innodb VALUES (1);
@@ -3352,7 +3352,7 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
----- InnoDB and temp MyISAM in one statement, binlog_format=row ----
+---- InnoDB and temp MyISAM in one statement, binlog_format='row' ----
 CREATE TRIGGER trig BEFORE INSERT ON innodb FOR EACH ROW BEGIN INSERT INTO tmp_myisam1 VALUES (1); INSERT INTO tmp_myisam2 VALUES (1); END;
 # enforce_gtid_consistency=2 gtid_mode=2 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
@@ -3479,10 +3479,10 @@ SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
 DROP TRIGGER trig;
 DROP TEMPORARY TABLE tmp_myisam1, tmp_myisam2;
-SET BINLOG_FORMAT = ROW;
+SET BINLOG_FORMAT = 'ROW';
 CREATE TEMPORARY TABLE tmp_myisam1 (a INT) ENGINE = MyISAM;
 CREATE TEMPORARY TABLE tmp_myisam2 (a INT) ENGINE = MyISAM;
----- InnoDB followed by temp MyISAM in one trx, binlog_format=row ----
+---- InnoDB followed by temp MyISAM in one trx, binlog_format='row' ----
 # enforce_gtid_consistency=2 gtid_mode=2 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO innodb VALUES (1);
@@ -3498,7 +3498,7 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
----- InnoDB and temp MyISAM in one statement, binlog_format=row ----
+---- InnoDB and temp MyISAM in one statement, binlog_format='row' ----
 CREATE TRIGGER trig BEFORE INSERT ON innodb FOR EACH ROW BEGIN INSERT INTO tmp_myisam1 VALUES (1); INSERT INTO tmp_myisam2 VALUES (1); END;
 # enforce_gtid_consistency=2 gtid_mode=2 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
@@ -3658,10 +3658,10 @@ SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
 DROP TRIGGER trig;
 DROP TEMPORARY TABLE tmp_myisam1, tmp_myisam2;
-SET BINLOG_FORMAT = ROW;
+SET BINLOG_FORMAT = 'ROW';
 CREATE TEMPORARY TABLE tmp_myisam1 (a INT) ENGINE = MyISAM;
 CREATE TEMPORARY TABLE tmp_myisam2 (a INT) ENGINE = MyISAM;
----- InnoDB followed by temp MyISAM in one trx, binlog_format=row ----
+---- InnoDB followed by temp MyISAM in one trx, binlog_format='row' ----
 # enforce_gtid_consistency=2 gtid_mode=1 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO innodb VALUES (1);
@@ -3677,7 +3677,7 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
----- InnoDB and temp MyISAM in one statement, binlog_format=row ----
+---- InnoDB and temp MyISAM in one statement, binlog_format='row' ----
 CREATE TRIGGER trig BEFORE INSERT ON innodb FOR EACH ROW BEGIN INSERT INTO tmp_myisam1 VALUES (1); INSERT INTO tmp_myisam2 VALUES (1); END;
 # enforce_gtid_consistency=2 gtid_mode=1 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
@@ -3836,10 +3836,10 @@ SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
 DROP TRIGGER trig;
 DROP TEMPORARY TABLE tmp_myisam1, tmp_myisam2;
-SET BINLOG_FORMAT = ROW;
+SET BINLOG_FORMAT = 'ROW';
 CREATE TEMPORARY TABLE tmp_myisam1 (a INT) ENGINE = MyISAM;
 CREATE TEMPORARY TABLE tmp_myisam2 (a INT) ENGINE = MyISAM;
----- InnoDB followed by temp MyISAM in one trx, binlog_format=row ----
+---- InnoDB followed by temp MyISAM in one trx, binlog_format='row' ----
 # enforce_gtid_consistency=2 gtid_mode=1 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO innodb VALUES (1);
@@ -3855,7 +3855,7 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
----- InnoDB and temp MyISAM in one statement, binlog_format=row ----
+---- InnoDB and temp MyISAM in one statement, binlog_format='row' ----
 CREATE TRIGGER trig BEFORE INSERT ON innodb FOR EACH ROW BEGIN INSERT INTO tmp_myisam1 VALUES (1); INSERT INTO tmp_myisam2 VALUES (1); END;
 # enforce_gtid_consistency=2 gtid_mode=1 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
@@ -3982,10 +3982,10 @@ SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
 DROP TRIGGER trig;
 DROP TEMPORARY TABLE tmp_myisam1, tmp_myisam2;
-SET BINLOG_FORMAT = ROW;
+SET BINLOG_FORMAT = 'ROW';
 CREATE TEMPORARY TABLE tmp_myisam1 (a INT) ENGINE = MyISAM;
 CREATE TEMPORARY TABLE tmp_myisam2 (a INT) ENGINE = MyISAM;
----- InnoDB followed by temp MyISAM in one trx, binlog_format=row ----
+---- InnoDB followed by temp MyISAM in one trx, binlog_format='row' ----
 # enforce_gtid_consistency=2 gtid_mode=1 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO innodb VALUES (1);
@@ -4001,7 +4001,7 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
----- InnoDB and temp MyISAM in one statement, binlog_format=row ----
+---- InnoDB and temp MyISAM in one statement, binlog_format='row' ----
 CREATE TRIGGER trig BEFORE INSERT ON innodb FOR EACH ROW BEGIN INSERT INTO tmp_myisam1 VALUES (1); INSERT INTO tmp_myisam2 VALUES (1); END;
 # enforce_gtid_consistency=2 gtid_mode=1 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
@@ -4161,10 +4161,10 @@ SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
 DROP TRIGGER trig;
 DROP TEMPORARY TABLE tmp_myisam1, tmp_myisam2;
-SET BINLOG_FORMAT = ROW;
+SET BINLOG_FORMAT = 'ROW';
 CREATE TEMPORARY TABLE tmp_myisam1 (a INT) ENGINE = MyISAM;
 CREATE TEMPORARY TABLE tmp_myisam2 (a INT) ENGINE = MyISAM;
----- InnoDB followed by temp MyISAM in one trx, binlog_format=row ----
+---- InnoDB followed by temp MyISAM in one trx, binlog_format='row' ----
 # enforce_gtid_consistency=2 gtid_mode=0 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO innodb VALUES (1);
@@ -4180,7 +4180,7 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
----- InnoDB and temp MyISAM in one statement, binlog_format=row ----
+---- InnoDB and temp MyISAM in one statement, binlog_format='row' ----
 CREATE TRIGGER trig BEFORE INSERT ON innodb FOR EACH ROW BEGIN INSERT INTO tmp_myisam1 VALUES (1); INSERT INTO tmp_myisam2 VALUES (1); END;
 # enforce_gtid_consistency=2 gtid_mode=0 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
@@ -4339,10 +4339,10 @@ SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
 DROP TRIGGER trig;
 DROP TEMPORARY TABLE tmp_myisam1, tmp_myisam2;
-SET BINLOG_FORMAT = ROW;
+SET BINLOG_FORMAT = 'ROW';
 CREATE TEMPORARY TABLE tmp_myisam1 (a INT) ENGINE = MyISAM;
 CREATE TEMPORARY TABLE tmp_myisam2 (a INT) ENGINE = MyISAM;
----- InnoDB followed by temp MyISAM in one trx, binlog_format=row ----
+---- InnoDB followed by temp MyISAM in one trx, binlog_format='row' ----
 # enforce_gtid_consistency=2 gtid_mode=0 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO innodb VALUES (1);
@@ -4358,7 +4358,7 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
----- InnoDB and temp MyISAM in one statement, binlog_format=row ----
+---- InnoDB and temp MyISAM in one statement, binlog_format='row' ----
 CREATE TRIGGER trig BEFORE INSERT ON innodb FOR EACH ROW BEGIN INSERT INTO tmp_myisam1 VALUES (1); INSERT INTO tmp_myisam2 VALUES (1); END;
 # enforce_gtid_consistency=2 gtid_mode=0 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';

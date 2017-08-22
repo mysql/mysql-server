@@ -1,7 +1,5 @@
 # Tests for setting innodb-page-size=8k
 
-# WL#7554: Added setting --bootstrap --character-set-server=latin1
-# in the opt file. This test should be migrated to utf8mb4.
 SET default_storage_engine=InnoDB;
 
 --disable_query_log
@@ -88,7 +86,7 @@ c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
 c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(200),
 c11 char(200), c12 char(200), c13 char(200), c14 char(200), c15 char(200),
 c16 char(200), c17 char(200), c18 char(200), c19 char(200), c20 char(156)
-) ROW_FORMAT=redundant;
+) charset latin1 ROW_FORMAT=redundant;
 
 # Compact table; 4002 bytes with 20 CHAR fields
 CREATE TABLE t1 (
@@ -105,7 +103,7 @@ c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
 c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(200),
 c11 char(200), c12 char(200), c13 char(200), c14 char(200), c15 char(200),
 c16 char(200), c17 char(200), c18 char(200), c19 char(200), c20 char(203)
-) ROW_FORMAT=compact;
+) charset latin1 ROW_FORMAT=compact;
 
 # Compressed table; 3905 bytes with 20 CHAR fields
 # Bug#13391353 Limit is 3903 on 32-Linux only
@@ -123,7 +121,7 @@ c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
 c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(200),
 c11 char(200), c12 char(200), c13 char(200), c14 char(200), c15 char(200),
 c16 char(200), c17 char(200), c18 char(200), c19 char(200), c20 char(106)
-) ROW_FORMAT=compressed;
+) charset latin1 ROW_FORMAT=compressed;
 
 # Dynamic table; 4002 bytes with 20 CHAR fields
 CREATE TABLE t1 (
@@ -140,7 +138,7 @@ c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
 c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(200),
 c11 char(200), c12 char(200), c13 char(200), c14 char(200), c15 char(200),
 c16 char(200), c17 char(200), c18 char(200), c19 char(200), c20 char(203)
-) ROW_FORMAT=dynamic;
+) charset latin1 ROW_FORMAT=dynamic;
 
 #
 # Test the maximum key length
@@ -154,6 +152,7 @@ CREATE TABLE t1 (a varchar(128) character set utf8,
                  c varchar(128) character set utf8,
                  d varchar(128) character set utf8,
                  PRIMARY KEY (a,b,c,d))
+		 charset latin1
 		 ENGINE=innodb;
 DROP TABLE t1;
 --error ER_TOO_LONG_KEY
@@ -162,6 +161,7 @@ CREATE TABLE t1 (a varchar(128) character set utf8,
                  c varchar(128) character set utf8,
                  d varchar(129) character set utf8,
                  PRIMARY KEY (a,b,c,d))
+		 charset latin1
 		 ENGINE=innodb;
 CREATE TABLE t1 (a varchar(128) character set utf8,
                  b varchar(128) character set utf8,
@@ -169,6 +169,7 @@ CREATE TABLE t1 (a varchar(128) character set utf8,
                  d varchar(128) character set utf8,
                  e varchar(128) character set utf8,
                  PRIMARY KEY (a), KEY (b,c,d,e))
+		 charset latin1
 		 ENGINE=innodb;
 DROP TABLE t1;
 --error ER_TOO_LONG_KEY
@@ -178,6 +179,7 @@ CREATE TABLE t1 (a varchar(128) character set utf8,
                  d varchar(128) character set utf8,
                  e varchar(129) character set utf8,
                  PRIMARY KEY (a), KEY (b,c,d,e))
+		 charset latin1
 		 ENGINE=innodb;
 
 --echo # Test 5) Make sure that KEY_BLOCK_SIZE=8, 4, 2 & 1 are all
@@ -375,6 +377,7 @@ CREATE TABLE t1(
                   pk09,pk10,pk11,pk12,pk13,pk14,pk15,pk16),
    KEY pk(sk01,sk02,sk03,sk04,sk05,sk06,sk07,sk08,
           sk09,sk10,sk11,sk12,sk13,sk14,sk15,sk16))
+   charset latin1
    ROW_FORMAT=Redundant ENGINE=InnoDB;
 SET @r = repeat('a', 96);
 INSERT INTO t1 VALUES(@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,
@@ -412,6 +415,7 @@ CREATE TABLE t1(
                   pk09,pk10,pk11,pk12,pk13,pk14,pk15,pk16),
    KEY pk(sk01,sk02,sk03,sk04,sk05,sk06,sk07,sk08,
           sk09,sk10,sk11,sk12,sk13,sk14,sk15,sk16))
+   charset latin1
    ROW_FORMAT=Compressed KEY_BLOCK_SIZE=8 ENGINE=InnoDB;
 SET @r = repeat('a', 96);
 INSERT INTO t1 VALUES(@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,@r,

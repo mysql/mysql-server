@@ -26,14 +26,14 @@
 	   HA_ERR_END_OF_FILE = EOF.
 */
 
-int heap_rrnd(HP_INFO *info, uchar *record, uchar *pos)
+int heap_rrnd(HP_INFO *info, uchar *record, HP_HEAP_POSITION *pos)
 {
   HP_SHARE *share=info->s;
   DBUG_ENTER("heap_rrnd");
   DBUG_PRINT("enter",("info: %p  pos: %p", info, pos));
 
   info->lastinx= -1;
-  if (!(info->current_ptr= pos))
+  if (!(info->current_ptr= pos->ptr))
   {
     info->update= 0;
     set_my_errno(HA_ERR_END_OF_FILE);
@@ -47,6 +47,10 @@ int heap_rrnd(HP_INFO *info, uchar *record, uchar *pos)
   }
   info->update=HA_STATE_PREV_FOUND | HA_STATE_NEXT_FOUND | HA_STATE_AKTIV;
   memcpy(record,info->current_ptr,(size_t) share->reclength);
+
+  // reposition scan state also
+  info->current_record= info->next_block= pos->record_no;
+
   DBUG_PRINT("exit", ("found record at %p", info->current_ptr));
   info->current_hash_ptr=0;			/* Can't use rnext */
   DBUG_RETURN(0);

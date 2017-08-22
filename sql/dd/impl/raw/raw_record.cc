@@ -20,6 +20,7 @@
 #include "dd/properties.h"          // dd::Properties
 #include "field.h"                  // Field
 #include "handler.h"
+#include "json_dom.h"               // Json_wrapper
 #include "m_ctype.h"
 #include "my_base.h"
 #include "my_bitmap.h"
@@ -227,6 +228,14 @@ bool Raw_record::store_timestamp(int field_no, const timeval &tv)
 
 ///////////////////////////////////////////////////////////////////////////
 
+bool Raw_record::store_json(int field_no, const Json_wrapper &json)
+{
+  Field_json *json_field= down_cast<Field_json *>(field(field_no));
+  return json_field->store_json(&json) != TYPE_OK;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
 bool Raw_record::is_null(int field_no) const
 {
   return field(field_no)->is_null();
@@ -292,7 +301,15 @@ timeval Raw_record::read_timestamp(int field_no) const
   return tv;
 }
 
+////////////////////////////////////////////////////////////////////////////
+
+bool Raw_record::read_json(int field_no, Json_wrapper *json_wrapper) const
+{
+  return down_cast<Field_json*>(field(field_no))->val_json(json_wrapper);
+}
+
 ///////////////////////////////////////////////////////////////////////////
+
 ///////////////////////////////////////////////////////////////////////////
 
 Raw_new_record::Raw_new_record(TABLE *table)

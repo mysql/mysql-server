@@ -1,4 +1,3 @@
--- source include/not_embedded.inc
 
 --echo #
 --echo # WL#7766 Deprecate the EOF packet

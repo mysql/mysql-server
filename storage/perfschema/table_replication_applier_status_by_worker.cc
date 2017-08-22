@@ -39,98 +39,43 @@
 
 THR_LOCK table_replication_applier_status_by_worker::m_table_lock;
 
-/* clang-format off */
-static const TABLE_FIELD_TYPE field_types[]=
-{
-  {
-    {C_STRING_WITH_LEN("CHANNEL_NAME")},
-    {C_STRING_WITH_LEN("char(64)")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("WORKER_ID")},
-    {C_STRING_WITH_LEN("bigint")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("THREAD_ID")},
-    {C_STRING_WITH_LEN("bigint")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("SERVICE_STATE")},
-    {C_STRING_WITH_LEN("enum('ON','OFF')")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("LAST_ERROR_NUMBER")},
-    {C_STRING_WITH_LEN("int(11)")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("LAST_ERROR_MESSAGE")},
-    {C_STRING_WITH_LEN("varchar(1024)")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("LAST_ERROR_TIMESTAMP")},
-    {C_STRING_WITH_LEN("timestamp")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("LAST_APPLIED_TRANSACTION")},
-    {C_STRING_WITH_LEN("char(57)")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("LAST_APPLIED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP")},
-    {C_STRING_WITH_LEN("timestamp")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("LAST_APPLIED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP")},
-    {C_STRING_WITH_LEN("timestamp")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP")},
-    {C_STRING_WITH_LEN("timestamp")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("LAST_APPLIED_TRANSACTION_END_APPLY_TIMESTAMP")},
-    {C_STRING_WITH_LEN("timestamp")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("APPLYING_TRANSACTION")},
-    {C_STRING_WITH_LEN("char(57)")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("APPLYING_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP")},
-    {C_STRING_WITH_LEN("timestamp")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("APPLYING_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP")},
-    {C_STRING_WITH_LEN("timestamp")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("APPLYING_TRANSACTION_START_APPLY_TIMESTAMP")},
-    {C_STRING_WITH_LEN("timestamp")},
-    {NULL, 0}
-  }
-};
-/* clang-format on */
-
-TABLE_FIELD_DEF
-table_replication_applier_status_by_worker::m_field_def=
-{ 16, field_types };
+Plugin_table table_replication_applier_status_by_worker::m_table_def(
+  /* Schema name */
+  "performance_schema",
+  /* Name */
+  "replication_applier_status_by_worker",
+  /* Definition */
+  "  CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,\n"
+  "  WORKER_ID BIGINT UNSIGNED not null,\n"
+  "  THREAD_ID BIGINT UNSIGNED,\n"
+  "  SERVICE_STATE ENUM('ON','OFF') not null,\n"
+  "  LAST_ERROR_NUMBER INTEGER not null,\n"
+  "  LAST_ERROR_MESSAGE VARCHAR(1024) not null,\n"
+  "  LAST_ERROR_TIMESTAMP TIMESTAMP(6) not null,\n"
+  "  PRIMARY KEY (CHANNEL_NAME, WORKER_ID) USING HASH,\n"
+  "  KEY (THREAD_ID) USING HASH,\n"
+  "  LAST_APPLIED_TRANSACTION CHAR(57),\n"
+  "  LAST_APPLIED_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP TIMESTAMP(6)\n"
+  "                                                     not null,\n"
+  "  LAST_APPLIED_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP TIMESTAMP(6)\n"
+  "                                                      not null,\n"
+  "  LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP TIMESTAMP(6)\n"
+  "                                                 not null,\n"
+  "  LAST_APPLIED_TRANSACTION_END_APPLY_TIMESTAMP TIMESTAMP(6)\n"
+  "                                               not null,\n"
+  "  APPLYING_TRANSACTION CHAR(57),\n"
+  "  APPLYING_TRANSACTION_ORIGINAL_COMMIT_TIMESTAMP TIMESTAMP(6)\n"
+  "                                                 not null,\n"
+  "  APPLYING_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP TIMESTAMP(6)\n"
+  "                                                  not null,\n"
+  "  APPLYING_TRANSACTION_START_APPLY_TIMESTAMP TIMESTAMP(6)\n"
+  "                                             not null\n",
+  /* Options */
+  " ENGINE=PERFORMANCE_SCHEMA",
+  /* Tablespace */
+  nullptr);
 
 PFS_engine_table_share table_replication_applier_status_by_worker::m_share = {
-  {C_STRING_WITH_LEN("replication_applier_status_by_worker")},
   &pfs_readonly_acl,
   table_replication_applier_status_by_worker::create,
   NULL, /* write_row */
@@ -138,9 +83,8 @@ PFS_engine_table_share table_replication_applier_status_by_worker::m_share = {
   table_replication_applier_status_by_worker::get_row_count, /*records*/
   sizeof(PFS_simple_index),                                  /* ref length */
   &m_table_lock,
-  &m_field_def,
-  false, /* checked */
-  false  /* perpetual */
+  &m_table_def,
+  true /* perpetual */
 };
 
 bool
@@ -176,12 +120,35 @@ PFS_index_rpl_applier_status_by_worker_by_thread::match(Master_info *mi)
 
     if (mi->rli->slave_running)
     {
-      PSI_thread *psi = thd_get_psi(mi->rli->info_thd);
-      PFS_thread *pfs = reinterpret_cast<PFS_thread *>(psi);
-      if (pfs)
+      /* STS will use SQL thread as workers on this table */
+      if (mi->rli->get_worker_count() == 0)
       {
-        row.thread_id = pfs->m_thread_internal_id;
-        row.thread_id_is_null = false;
+        PSI_thread *psi = thd_get_psi(mi->rli->info_thd);
+        PFS_thread *pfs = reinterpret_cast<PFS_thread *>(psi);
+        if (pfs)
+        {
+          row.thread_id = pfs->m_thread_internal_id;
+          row.thread_id_is_null = false;
+        }
+      }
+      /* MTS will have to check each channel worker for a match */
+      else
+      {
+        for (int index = mi->rli->get_worker_count() - 1; index >= 0; index--)
+        {
+          Slave_worker *worker = mi->rli->get_worker(index);
+          if (worker)
+          {
+            PSI_thread *psi = thd_get_psi(worker->info_thd);
+            PFS_thread *pfs = reinterpret_cast<PFS_thread *>(psi);
+            if (pfs && m_key.match(pfs->m_thread_internal_id))
+            {
+              row.thread_id = pfs->m_thread_internal_id;
+              row.thread_id_is_null = false;
+              break;
+            }
+          }
+        }
       }
     }
 
@@ -202,7 +169,7 @@ PFS_index_rpl_applier_status_by_worker_by_thread::match(Master_info *mi)
 }
 
 PFS_engine_table *
-table_replication_applier_status_by_worker::create(void)
+table_replication_applier_status_by_worker::create(PFS_engine_table_share *)
 {
   return new table_replication_applier_status_by_worker();
 }
@@ -485,14 +452,13 @@ table_replication_applier_status_by_worker::make_row(Master_info *mi)
       m_row.last_error_message, temp_store, m_row.last_error_message_length);
 
     /** time in microsecond since epoch */
-    m_row.last_error_timestamp= (ulonglong)mi->rli->last_error().skr;
+    m_row.last_error_timestamp = (ulonglong)mi->rli->last_error().skr;
   }
 
   mysql_mutex_unlock(&mi->rli->err_lock);
 
-  populate_trx_info(mi->rli->get_last_processed_trx(), mi->rli->get_processing_trx());
-
-  mysql_mutex_unlock(&mi->rli->data_lock);
+  /** The mi->rli->data_lock will be unlocked by populate_trx_info */
+  populate_trx_info(mi->rli->get_gtid_monitoring_info(), &mi->rli->data_lock);
 
   return 0;
 }
@@ -537,9 +503,9 @@ table_replication_applier_status_by_worker::make_row(Slave_worker *w)
     m_row.service_state = PS_RPL_NO;
   }
 
-  m_row.last_error_number= (unsigned int) w->last_error().number;
-  m_row.last_error_message_length= 0;
-  m_row.last_error_timestamp= 0;
+  m_row.last_error_number = (unsigned int)w->last_error().number;
+  m_row.last_error_message_length = 0;
+  m_row.last_error_timestamp = 0;
 
   /** if error, set error message and timestamp */
   if (m_row.last_error_number)
@@ -551,45 +517,49 @@ table_replication_applier_status_by_worker::make_row(Slave_worker *w)
            m_row.last_error_message_length);
 
     /** time in microsecond since epoch */
-    m_row.last_error_timestamp= (ulonglong)w->last_error().skr;
+    m_row.last_error_timestamp = (ulonglong)w->last_error().skr;
   }
 
-  mysql_mutex_lock(&w->data_lock);
+  /** The w->jobs_lock will be unlocked by populate_trx_info */
+  populate_trx_info(w->get_gtid_monitoring_info(), &w->jobs_lock);
 
-  populate_trx_info(w->get_last_processed_trx(), w->get_processing_trx());
-
-  mysql_mutex_unlock(&w->data_lock);
-  mysql_mutex_unlock(&w->jobs_lock);
   return 0;
 }
 
 /**
-  Auxiliary function to populate the transaction information fields by copying
-  data from last_processed_trx and processing_trx structures if they are set.
+  Auxiliary function to populate the transaction information fields.
 
-  @param[in] last_processed_trx information on the last processed transaction
-  @param[in] processing_trx     information on the processing transaction
+  @param[in] monitoring_info   Gtid monitoring info about the transactions.
+  @param[in] data_or_jobs_lock Lock to be released right after copying info.
 */
-void table_replication_applier_status_by_worker
-     ::populate_trx_info(trx_monitoring_info* last_processed_trx,
-                         trx_monitoring_info* processing_trx)
+void
+table_replication_applier_status_by_worker::populate_trx_info(
+  Gtid_monitoring_info *monitoring_info, mysql_mutex_t *data_or_jobs_lock)
 {
-  last_processed_trx->copy_to_ps_table(m_row.last_applied_trx,
-                                       m_row.last_applied_trx_length,
-                                       m_row.last_applied_trx_original_commit_timestamp,
-                                       m_row.last_applied_trx_immediate_commit_timestamp,
-                                       m_row.last_applied_trx_start_apply_timestamp,
-                                       m_row.last_applied_trx_end_apply_timestamp,
-                                       global_sid_map);
+  Trx_monitoring_info applying_trx;
+  Trx_monitoring_info last_applied_trx;
 
-  processing_trx->copy_to_ps_table(m_row.applying_trx,
-                                   m_row.applying_trx_length,
-                                   m_row.applying_trx_original_commit_timestamp,
-                                   m_row.applying_trx_immediate_commit_timestamp,
-                                   m_row.applying_trx_start_apply_timestamp,
-                                   global_sid_map);
+  monitoring_info->copy_info_to(&applying_trx, &last_applied_trx);
+
+  mysql_mutex_unlock(data_or_jobs_lock);
+
+  // The processing info is always visible
+  applying_trx.copy_to_ps_table(global_sid_map,
+                                m_row.applying_trx,
+                                &m_row.applying_trx_length,
+                                &m_row.applying_trx_original_commit_timestamp,
+                                &m_row.applying_trx_immediate_commit_timestamp,
+                                &m_row.applying_trx_start_apply_timestamp);
+
+  last_applied_trx.copy_to_ps_table(
+    global_sid_map,
+    m_row.last_applied_trx,
+    &m_row.last_applied_trx_length,
+    &m_row.last_applied_trx_original_commit_timestamp,
+    &m_row.last_applied_trx_immediate_commit_timestamp,
+    &m_row.last_applied_trx_start_apply_timestamp,
+    &m_row.last_applied_trx_end_apply_timestamp);
 }
-
 
 int
 table_replication_applier_status_by_worker::read_row_values(
@@ -632,16 +602,19 @@ table_replication_applier_status_by_worker::read_row_values(
         set_field_ulong(f, m_row.last_error_number);
         break;
       case 5: /*last_error_message*/
-        set_field_varchar_utf8(f, m_row.last_error_message, m_row.last_error_message_length);
+        set_field_varchar_utf8(
+          f, m_row.last_error_message, m_row.last_error_message_length);
         break;
       case 6: /*last_error_timestamp*/
         set_field_timestamp(f, m_row.last_error_timestamp);
         break;
       case 7: /*last_applied_trx*/
-        set_field_char_utf8(f, m_row.last_applied_trx, m_row.last_applied_trx_length);
+        set_field_char_utf8(
+          f, m_row.last_applied_trx, m_row.last_applied_trx_length);
         break;
       case 8: /*last_applied_trx_original_commit_timestamp*/
-        set_field_timestamp(f, m_row.last_applied_trx_original_commit_timestamp);
+        set_field_timestamp(f,
+                            m_row.last_applied_trx_original_commit_timestamp);
         break;
       case 9: /*last_applied_trx_immediate_commit_timestamp*/
         set_field_timestamp(f,

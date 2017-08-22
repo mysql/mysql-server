@@ -255,7 +255,7 @@ Gcs_xcom_state_exchange::
 Gcs_xcom_state_exchange(Gcs_communication_interface *comm)
   :m_broadcaster(comm), m_awaited_vector(), m_ms_total(),
    m_ms_left(), m_ms_joined(), m_member_states(),
-   m_group_name(NULL), m_local_information(NULL),
+   m_group_name(NULL), m_local_information("none"),
    m_configuration_id(null_synode)
 {}
 
@@ -357,7 +357,7 @@ state_exchange(synode_no configuration_id,
                std::vector<Gcs_message_data *> &exchangeable_data,
                Gcs_view *current_view,
                std::string *group,
-               Gcs_member_identifier *local_info)
+               const Gcs_member_identifier &local_info)
 {
   uint64_t fixed_part= 0;
   uint32_t monotonic_part= 0;
@@ -428,6 +428,7 @@ state_exchange(synode_no configuration_id,
 }
 
 
+/* purecov: begin deadcode */
 bool Gcs_xcom_state_exchange::is_joining()
 {
   bool is_joining= false;
@@ -435,10 +436,11 @@ bool Gcs_xcom_state_exchange::is_joining()
   std::set<Gcs_member_identifier *>::iterator it;
 
   for (it= m_ms_joined.begin(); it != m_ms_joined.end() && !is_joining; it++)
-    is_joining= (*(*it) == *m_local_information);
+    is_joining= (*(*it) == m_local_information);
 
   return is_joining;
 }
+/* purecov: end */
 
 
 bool Gcs_xcom_state_exchange::is_leaving()
@@ -448,7 +450,7 @@ bool Gcs_xcom_state_exchange::is_leaving()
   std::set<Gcs_member_identifier *>::iterator it;
 
   for (it= m_ms_left.begin(); it != m_ms_left.end() && !is_leaving; it++)
-    is_leaving= (*(*it) == *m_local_information);
+    is_leaving= (*(*it) == m_local_information);
 
   return is_leaving;
 }
@@ -556,7 +558,7 @@ enum_gcs_error Gcs_xcom_state_exchange::broadcast_state(
   buffer= NULL;
 
   Gcs_group_identifier group_id(*m_group_name);
-  Gcs_message message(*m_local_information, group_id, message_data);
+  Gcs_message message(m_local_information, group_id, message_data);
 
   Gcs_xcom_communication_interface *binding_broadcaster=
     static_cast<Gcs_xcom_communication_interface *>(m_broadcaster);
@@ -739,6 +741,7 @@ void Gcs_xcom_view_change_control::set_current_view(Gcs_view *view)
   m_current_view_mutex.unlock();
 }
 
+
 /* purecov: begin deadcode */
 void Gcs_xcom_view_change_control::set_unsafe_current_view(Gcs_view *view)
 {
@@ -746,6 +749,8 @@ void Gcs_xcom_view_change_control::set_unsafe_current_view(Gcs_view *view)
   m_current_view= view;
 }
 /* purecov: end */
+
+
 Gcs_view*
 Gcs_xcom_view_change_control::get_current_view()
 {

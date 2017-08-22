@@ -274,3 +274,16 @@ calc_var	if_var	case_var
 5000.0000	5000.0000	5000.0000
 5000.0000	5000.0000	5000.0000
 DROP TABLE test_grids_1, test_grid_dtl_1;
+# Bug#25669606: regression: assertion failed: !is_temporal()
+DO NULLIF(CAST(DATABASE() AS TIME), 1);
+Warnings:
+Warning	1292	Truncated incorrect time value: 'test'
+Warning	1292	Truncated incorrect time value: 'test'
+DO NULLIF(CAST(DATABASE() AS DATE), 1);
+Warnings:
+Warning	1292	Incorrect datetime value: 'test'
+Warning	1292	Incorrect datetime value: 'test'
+DO NULLIF(CAST(DATABASE() AS DATETIME), 1);
+Warnings:
+Warning	1292	Incorrect datetime value: 'test'
+Warning	1292	Incorrect datetime value: 'test'

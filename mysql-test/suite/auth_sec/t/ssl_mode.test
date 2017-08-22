@@ -1,5 +1,3 @@
-# Embedded server doesn't support external clients
---source include/not_embedded.inc
 
 # Purpose : To check cases related to the client option -ssl-mode
 # Author  : Prabeen Pradhan

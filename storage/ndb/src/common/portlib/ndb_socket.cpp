@@ -80,11 +80,7 @@ int my_socketpair(ndb_socket_t s[2])
     goto err;
 
   /* get sockname */
-  /*
-    TODO: if there was a my_getsockname, this wouldnt have to use
-    definition of my_socket (i.e l.s)
-  */
-  if (getsockname(listener.s, (struct sockaddr*)&addr, &addrlen) < 0)
+  if (ndb_getsockname(listener, (struct sockaddr*)&addr, &addrlen) != 0)
     goto err;
 
   if (my_listen(listener, 1) == -1)

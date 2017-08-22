@@ -3,19 +3,6 @@
 # increase when binary logging is enabled.
 --source include/not_log_bin.inc
 
-# Test uses performance_schema.status_by_thread, not available in embedded
---source include/not_embedded.inc
-
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs244=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-alter schema default character set latin1;
-use test;
---enable_query_log
-########################################
-
 # Different page sizes gives different query plans
 # results based on default 16k.
 
@@ -24,11 +11,6 @@ SET @old_innodb_stats_persistent= @@global.innodb_stats_persistent;
 SET @@global.innodb_stats_persistent= 0;
 
 --echo # Original tests for WL#4443
-
---echo # Must have InnoDB as engine to get the same statistics results.
---echo # embedded uses MyISAM as default. CREATE SELECT uses the default engine.
-SET @old_default_storage_engine = @@default_storage_engine;
-SET @@default_storage_engine = 'InnoDB';
 
 # Helper statement
 
@@ -288,6 +270,7 @@ CREATE TABLE t3
  d int unsigned DEFAULT 9,
  e varchar(255) DEFAULT "Default-filler.filler.filler.",
  PRIMARY KEY (a,b,c,d))
+charset latin1
 PARTITION BY RANGE COLUMNS (a, b)
 SUBPARTITION BY LINEAR KEY (d, c)
 SUBPARTITIONS 4
@@ -586,8 +569,6 @@ DROP TABLE t3;
 --echo # End of LOCK TABLE test.
 --echo #
 
-# Only TIMESTAMP auto converts NULL to NOW().
---let $null_as_now= 1;
 --let $default_update= 0;
 --echo #
 --echo # Test INSERT with timestamp column NO default function
@@ -644,8 +625,6 @@ SHOW CREATE TABLE t3;
 --source include/partition_default_functions.inc
 DROP TABLE t3;
 
-# Only TIMESTAMP auto converts NULL to NOW().
---let $null_as_now= 0;
 --let $default_update= 0;
 --echo #
 --echo # Test INSERT with DATETIME column NO default function
@@ -705,6 +684,7 @@ FLUSH STATUS;
 TRUNCATE TABLE t2;
 
 connection monitor;
+--replace_regex /[0-9]*//
 --source include/get_handler_status_counts.inc
 connection default;
 
@@ -730,6 +710,7 @@ FLUSH STATUS;
 ALTER TABLE t2 TRUNCATE PARTITION p1;
 
 connection monitor;
+--replace_regex /[0-9]*//
 --source include/get_handler_status_counts.inc
 connection default;
 
@@ -3053,10 +3034,3 @@ DROP TABLE tq, tsq, t1, t2;
 DROP TABLE test.thread_to_monitor;
 
 SET @@global.innodb_stats_persistent= @old_innodb_stats_persistent;
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
---eval alter schema test default character set $testdbcs244;
---enable_query_log
-########################################

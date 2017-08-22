@@ -114,8 +114,8 @@ EXECUTING:[16][SELECT * FROM v1]
 			[meta][field] org table name: v1
 			[meta][field] col name: c2
 			[meta][field] org col name: c2
-			[meta][field] length: 128
-			[meta][field] charsetnr: 8
+			[meta][field] length: 512
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 0
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -164,8 +164,8 @@ EXECUTING:[16][SELECT * FROM v1]
 			[meta][field] org table name: v1
 			[meta][field] col name: c2
 			[meta][field] org col name: c2
-			[meta][field] length: 128
-			[meta][field] charsetnr: 8
+			[meta][field] length: 512
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 0
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -330,8 +330,8 @@ EXECUTING:[16][SELECT * FROM v1]
 			[meta][field] org table name: v1
 			[meta][field] col name: c2
 			[meta][field] org col name: c2
-			[meta][field] length: 128
-			[meta][field] charsetnr: 8
+			[meta][field] length: 512
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 0
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -380,8 +380,8 @@ EXECUTING:[16][SELECT * FROM v1]
 			[meta][field] org table name: v1
 			[meta][field] col name: c2
 			[meta][field] org col name: c2
-			[meta][field] length: 128
-			[meta][field] charsetnr: 8
+			[meta][field] length: 512
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 0
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -457,8 +457,8 @@ EXECUTING:[16][SELECT * FROM t2]
 			[meta][field] org table name: t2
 			[meta][field] col name: c2
 			[meta][field] org col name: c2
-			[meta][field] length: 128
-			[meta][field] charsetnr: 8
+			[meta][field] length: 512
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 0
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -501,8 +501,8 @@ EXECUTING:[16][SELECT * FROM t2]
 			[meta][field] org table name: t2
 			[meta][field] col name: c2
 			[meta][field] org col name: c2
-			[meta][field] length: 128
-			[meta][field] charsetnr: 8
+			[meta][field] length: 512
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 0
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -684,8 +684,8 @@ EXECUTING:[16][SELECT * FROM t2]
 			[meta][field] org table name: t2
 			[meta][field] col name: c2
 			[meta][field] org col name: c2
-			[meta][field] length: 128
-			[meta][field] charsetnr: 8
+			[meta][field] length: 512
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 0
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -731,8 +731,8 @@ EXECUTING:[16][SELECT * FROM t2]
 			[meta][field] org table name: t2
 			[meta][field] col name: c2
 			[meta][field] org col name: c2
-			[meta][field] length: 128
-			[meta][field] charsetnr: 8
+			[meta][field] length: 512
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 0
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -854,8 +854,8 @@ EXECUTING:[16][SELECT * FROM v1]
 			[meta][field] org table name: v1
 			[meta][field] col name: c2
 			[meta][field] org col name: c2
-			[meta][field] length: 128
-			[meta][field] charsetnr: 8
+			[meta][field] length: 512
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 0
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -904,8 +904,8 @@ EXECUTING:[16][SELECT * FROM v1]
 			[meta][field] org table name: v1
 			[meta][field] col name: c2
 			[meta][field] org col name: c2
-			[meta][field] length: 128
-			[meta][field] charsetnr: 8
+			[meta][field] length: 512
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 0
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -1070,8 +1070,8 @@ EXECUTING:[16][SELECT * FROM v1]
 			[meta][field] org table name: v1
 			[meta][field] col name: c2
 			[meta][field] org col name: c2
-			[meta][field] length: 128
-			[meta][field] charsetnr: 8
+			[meta][field] length: 512
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 0
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -1120,8 +1120,8 @@ EXECUTING:[16][SELECT * FROM v1]
 			[meta][field] org table name: v1
 			[meta][field] col name: c2
 			[meta][field] org col name: c2
-			[meta][field] length: 128
-			[meta][field] charsetnr: 8
+			[meta][field] length: 512
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 0
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -1197,8 +1197,8 @@ EXECUTING:[16][SELECT * FROM t2]
 			[meta][field] org table name: t2
 			[meta][field] col name: c2
 			[meta][field] org col name: c2
-			[meta][field] length: 128
-			[meta][field] charsetnr: 8
+			[meta][field] length: 512
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 0
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -1247,8 +1247,8 @@ EXECUTING:[16][SELECT * FROM t2]
 			[meta][field] org table name: t2
 			[meta][field] col name: c2
 			[meta][field] org col name: c2
-			[meta][field] length: 128
-			[meta][field] charsetnr: 8
+			[meta][field] length: 512
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 0
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -1436,8 +1436,8 @@ EXECUTING:[16][SELECT * FROM t2]
 			[meta][field] org table name: t2
 			[meta][field] col name: c2
 			[meta][field] org col name: c2
-			[meta][field] length: 128
-			[meta][field] charsetnr: 8
+			[meta][field] length: 512
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 0
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)
@@ -1489,8 +1489,8 @@ EXECUTING:[16][SELECT * FROM t2]
 			[meta][field] org table name: t2
 			[meta][field] col name: c2
 			[meta][field] org col name: c2
-			[meta][field] length: 128
-			[meta][field] charsetnr: 8
+			[meta][field] length: 512
+			[meta][field] charsetnr: 255
 			[meta][field] flags: 0
 			[meta][field] decimals: 0
 			[meta][field] type: VARCHAR (15)

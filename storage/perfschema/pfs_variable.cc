@@ -273,9 +273,9 @@ PFS_system_variable_cache::set_mem_root(void)
       PSI_INSTRUMENT_ME, &m_mem_sysvar, SYSVAR_MEMROOT_BLOCK_SIZE, 0);
     m_mem_sysvar_ptr = &m_mem_sysvar;
   }
-  m_mem_thd = my_thread_get_THR_MALLOC(); /* pointer to current THD mem_root */
-  m_mem_thd_save = *m_mem_thd;            /* restore later */
-  *m_mem_thd = &m_mem_sysvar;             /* use temporary mem_root */
+  m_mem_thd = THR_MALLOC;      /* pointer to current THD mem_root */
+  m_mem_thd_save = *m_mem_thd; /* restore later */
+  *m_mem_thd = &m_mem_sysvar;  /* use temporary mem_root */
 }
 
 /**
@@ -570,6 +570,24 @@ PFS_system_persisted_variables_cache::do_materialize_all(THD *unsafe_thd)
         system_var.m_value_length = iter->second.length();
         memcpy(system_var.m_value_str,
                iter->second.c_str(),
+               system_var.m_value_length);
+        system_var.m_value_str[system_var.m_value_length] = 0;
+
+        m_cache.push_back(system_var);
+      }
+      map<string, string> *persist_ro_hash = pv->get_persist_ro_hash();
+      map<string, string>::const_iterator ro_iter;
+      for(ro_iter = persist_ro_hash->begin();
+          ro_iter != persist_ro_hash->end(); ro_iter++)
+      {
+        System_variable system_var;
+        system_var.m_charset = system_charset_info;
+
+        system_var.m_name = ro_iter->first.c_str();
+        system_var.m_name_length = ro_iter->first.length();
+        system_var.m_value_length = ro_iter->second.length();
+        memcpy(system_var.m_value_str,
+               ro_iter->second.c_str(),
                system_var.m_value_length);
         system_var.m_value_str[system_var.m_value_length] = 0;
 

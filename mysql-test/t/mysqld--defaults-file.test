@@ -3,7 +3,6 @@
 # Starting mysqld with defaults file without extension cause
 # segmentation fault
 
-source include/not_embedded.inc;
 source include/not_windows.inc;
 
 # All these tests refer to configuration files that do not exist

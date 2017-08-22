@@ -21,7 +21,6 @@
 #                                                                             #
 ###############################################################################
 
---source include/not_embedded.inc
 --source include/not_threadpool.inc
 
 SET @start_value= @@global.wait_timeout;

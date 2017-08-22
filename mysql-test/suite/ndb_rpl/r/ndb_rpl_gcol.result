@@ -1,7 +1,9 @@
 include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 --- Doing pre test setup and CREATE TABLE ---
-DROP TABLE IF EXISTS test_gcol_stored;
 CREATE TABLE test_gcol_stored
 (id MEDIUMINT NOT NULL PRIMARY KEY,
 gcol_int int GENERATED ALWAYS AS (100 + id) STORED,
@@ -21,7 +23,7 @@ test_gcol_stored	CREATE TABLE `test_gcol_stored` (
   `id` mediumint(9) NOT NULL,
   `gcol_int` int(11) GENERATED ALWAYS AS ((100 + `id`)) STORED,
   `misc` int(11) DEFAULT NULL,
-  `gcol_str` varchar(20) GENERATED ALWAYS AS (concat('User ',`id`)) STORED,
+  `gcol_str` varchar(20) GENERATED ALWAYS AS (concat(_latin1'User ',`id`)) STORED,
   PRIMARY KEY (`id`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=NOLOGGING=1'
 --- Insert on master

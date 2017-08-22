@@ -6,8 +6,6 @@
 
 # This test uses chmod, can't be run with root permissions
 --source include/not_as_root.inc
-# Embedded server does not support restarting
---source include/not_embedded.inc
 # disabling it on Windows as chmod semantics that we need in test-case
 # is not same as on Windows given the limited ACL bits available on Windows.
 # Aim of the TC is still being served by keep it enabled on other platforms.

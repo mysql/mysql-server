@@ -59,9 +59,9 @@ CREATE TABLE t2 (
   o INT
 );
 
-SET sql_mode = default;
-
 INSERT INTO t2 ( o ) VALUES ( 1 );
+
+SET sql_mode = default;
 
 --echo sync_slave_with_master
 --source include/sync_slave_sql_with_master.inc

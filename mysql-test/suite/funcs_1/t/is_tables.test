@@ -2,9 +2,6 @@
 #
 # Check the layout of information_schema.tables and the impact of
 # CREATE/ALTER/DROP TABLE/VIEW/SCHEMA ... on it.
-# Variant for the non embedded server
-#    The expected results must equal is_tables_embedded except that
-#    that the privilege system works (affects some result sets).
 #
 # There is detailed information about this test within
 #    suite/funcs_1/datadict/is_tables.inc
@@ -21,7 +18,6 @@ if (!$require_case_insensitive_file_system)
   --source include/have_case_sensitive_file_system.inc
 }
 
---source include/not_embedded.inc
 
 # The test
 # - results are MyISAM specific

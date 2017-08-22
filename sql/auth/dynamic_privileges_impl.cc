@@ -11,7 +11,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include <mysql/components/service_implementation.h>
 #include <auth/auth_common.h>
 #include <auth/dynamic_privilege_table.h>
@@ -161,6 +161,12 @@ DEFINE_BOOL_METHOD(dynamic_privilege_services_impl::has_global_grant,
   return sctx->has_global_grant(privilege_str, privilege_str_len).first;
 }
 
+
+/**
+  Boostrap the dynamic privilege service by seeding it with server
+  implementation specific data. 
+*/
+
 bool dynamic_privilege_init(void)
 {
   // Set up default dynamic privileges
@@ -187,6 +193,10 @@ bool dynamic_privilege_init(void)
         service->register_privilege(STRING_WITH_LEN("CONNECTION_ADMIN"));
       ret |=
         service->register_privilege(STRING_WITH_LEN("SET_USER_ID"));
+      ret |=
+        service->register_privilege(STRING_WITH_LEN("XA_RECOVER_ADMIN"));
+      ret |=
+        service->register_privilege(STRING_WITH_LEN("PERSIST_RO_VARIABLES_ADMIN"));
     }
   } // exist scope
   mysql_plugin_registry_release(r);

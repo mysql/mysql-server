@@ -1,0 +1,103 @@
+SET character_set_client= 'utf8';
+SET character_set_connection= 'utf8';
+SET character_set_results= 'utf8';
+SET character_set_client= 'latin1';
+SET character_set_connection= 'latin1';
+SET character_set_results= 'latin1';
+SET NAMES 'latin1';
+# Simple load test
+INSTALL COMPONENT "file://component_test_string_service_charset";
+UNINSTALL COMPONENT "file://component_test_string_service_charset";
+########## test_string_service_charset.log: 
+test_string_service_long init:
+-------------------------------------------------------------
+Charset: latin1
+Greetings from  beautiful Austria at March, 9th!
+Destroy string object.
+Convert from buffer passed.
+Number of chars: 48
+Number of bytes: 48
+Tolower passed:
+greetings from  beautiful austria at march, 9th!
+Toupper passed:
+GREETINGS FROM  BEAUTIFUL AUSTRIA AT MARCH, 9TH!
+Get char with index 1 passed.
+Get char with index > strlen passed.
+Get byte with index strlen passed.
+Destroy string object.
+-------------------------------------------------------------
+Charset: latin1
+Grüße  aus  dem  schönen  Österreich am 9. März!
+Destroy string object.
+Convert from buffer passed.
+Number of chars: 48
+Number of bytes: 48
+Tolower passed:
+gr��e  aus  dem  sch�nen  �sterreich am 9. m
+Toupper passed:
+GRüßE  AUS  DEM  SCHöNEN  ÖSTERREICH AM 9. M
+Get char with index 1 passed.
+Get char with index > strlen passed.
+Get byte with index strlen failed.
+Destroy string object.
+-------------------------------------------------------------
+Charset: utf8
+Greetings from  beautiful Austria at March, 9th!
+Destroy string object.
+Convert from buffer passed.
+Number of chars: 48
+Number of bytes: 48
+Tolower passed:
+greetings from  beautiful austria at march, 9th!
+Toupper passed:
+GREETINGS FROM  BEAUTIFUL AUSTRIA AT MARCH, 9TH!
+Get char with index 1 passed.
+Get char with index > strlen passed.
+Get byte with index strlen passed.
+Destroy string object.
+-------------------------------------------------------------
+Charset: utf8
+Grüße  aus  dem  schönen  Österreich am 9. März!
+Destroy string object.
+Convert from buffer passed.
+Number of chars: 44
+Number of bytes: 48
+Tolower passed:
+grüße  aus  dem  schönen  österreich am 9. m
+Toupper passed:
+GRÜßE  AUS  DEM  SCHÖNEN  ÖSTERREICH AM 9. M
+Get char with index 1 passed.
+Get char with index > strlen passed.
+Get byte with index strlen failed.
+Destroy string object.
+-------------------------------------------------------------
+Charset: utf8
+遥想公瑾当年，小乔初嫁了，雄姿英发
+Destroy string object.
+Convert from buffer passed.
+Number of chars: 16
+Number of bytes: 48
+Tolower passed:
+遥想公瑾当年，小乔初嫁了，雄姿英
+Toupper passed:
+遥想公瑾当年，小乔初嫁了，雄姿英
+Get char with index 1 passed.
+Get char with index > strlen passed.
+Get byte with index strlen failed.
+Destroy string object.
+-------------------------------------------------------------
+Charset: gb18030
+遥想公瑾当年，小乔初嫁了，雄姿英发
+Destroy string object.
+Convert from buffer passed.
+Number of chars: 24
+Number of bytes: 48
+Tolower passed:
+遥想公瑾当年，小乔初嫁了，雄姿英
+Toupper passed:
+遥想公瑾当年，小乔初嫁了，雄姿英
+Get char with index 1 passed.
+Get char with index > strlen passed.
+Get byte with index strlen failed.
+Destroy string object.
+End of init

@@ -194,27 +194,6 @@ struct mtr_t {
 		/** specifies which operations should be logged; default
 		value MTR_LOG_ALL */
 		mtr_log_t	m_log_mode;
-#ifdef UNIV_DEBUG
-		/** Persistent user tablespace associated with the
-		mini-transaction, or 0 (TRX_SYS_SPACE) if none yet */
-		space_id_t	m_user_space_id;
-		/** Undo tablespace associated with the
-		mini-transaction, or 0 (TRX_SYS_SPACE) if none yet */
-		space_id_t	m_undo_space_id;
-#endif /* UNIV_DEBUG */
-		/** User tablespace that is being modified by the
-		mini-transaction */
-		fil_space_t*	m_user_space;
-		/** Undo tablespace that is being modified by the
-		mini-transaction */
-		fil_space_t*	m_undo_space;
-		/** System tablespace if it is being modified by the
-		mini-transaction */
-		fil_space_t*	m_sys_space;
-
-		/** Set if this mini-transaction modifies the system
-		tablespace. */
-		bool		m_modifies_sys_space;
 
 		/** State of the transaction */
 		mtr_state_t	m_state;
@@ -229,27 +208,6 @@ struct mtr_t {
 
 		/** Owning mini-transaction */
 		mtr_t*		m_mtr;
-
-		/** Look up the tablespace for the given space_id, that
-		is being modified by the mini-transaction
-		@param[in]	space_id	tablespace identifier.
-		@return tablespace, or NULL if not found */
-		fil_space_t* space(space_id_t space_id) const
-		{
-			if (m_user_space != NULL
-			    && m_user_space->id == space_id) {
-				return(m_user_space);
-			} else if (m_undo_space != NULL
-				   && m_undo_space->id == space_id) {
-				return(m_undo_space);
-			} else if (m_sys_space != NULL
-				   && m_sys_space->id == space_id) {
-				return(m_sys_space);
-			}
-
-			return(NULL);
-		}
-
 	};
 
 	mtr_t()
@@ -272,19 +230,6 @@ struct mtr_t {
 #endif /* UNIV_DEBUG */
 	}
 
-	/** Increment the free list (FSP_FREE) length of the
-	tablespace */
-	void fsp_free_list_length_incr(space_id_t space_id) {
-		space(space_id)->free_len++;
-	}
-
-	/** Release the free extents that was reserved using
-	fsp_reserve_free_extents().  This is equivalent to calling
-	fil_space_release_free_extents().  This is intended for use
-	with index pages.
-	@param[in]	n_reserved	number of reserved extents */
-	void release_free_extents(ulint n_reserved);
-
 	/** Start a mini-transaction.
 	@param sync		true if it is a synchronous mini-transaction
 	@param read_only	true if read only mini-transaction */
@@ -304,18 +249,6 @@ struct mtr_t {
 
 	/** Commit the mini-transaction. */
 	void commit();
-
-	/** Commit a mini-transaction that did not modify any pages,
-	but generated some redo log on a higher level, such as
-	MLOG_FILE_NAME records and a MLOG_CHECKPOINT marker.
-	The caller must invoke log_mutex_enter() and log_mutex_exit().
-	This is to be used at log_checkpoint().
-	@param[in]	checkpoint_lsn		the LSN of the log checkpoint
-	@param[in]	write_mlog_checkpoint	Write MLOG_CHECKPOINT marker
-						if it is enabled. */
-	void commit_checkpoint(
-		lsn_t	checkpoint_lsn,
-		bool	write_mlog_checkpoint);
 
 	/** Return current size of the buffer.
 	@return	savepoint */
@@ -357,89 +290,6 @@ struct mtr_t {
 	@return	old mode */
 	inline mtr_log_t set_log_mode(mtr_log_t mode);
 
-	/** Note that the mini-transaction is modifying the system tablespace
-	(for example, for the change buffer or for undo logs)
-	@return the system tablespace */
-	fil_space_t* set_sys_modified()
-	{
-		m_impl.m_modifies_sys_space = true;
-		if (!m_impl.m_sys_space) {
-			lookup_sys_space();
-		}
-		return(m_impl.m_sys_space);
-	}
-
-	/** Copy the tablespaces associated with the mini-transaction
-	(needed for generating MLOG_FILE_NAME records)
-	@param[in]	mtr	mini-transaction that may modify
-	the same set of tablespaces as this one */
-	void set_spaces(const mtr_t& mtr)
-	{
-		ut_ad(!m_impl.m_modifies_sys_space);
-		ut_ad(m_impl.m_user_space_id == TRX_SYS_SPACE);
-		ut_ad(m_impl.m_undo_space_id == TRX_SYS_SPACE);
-		ut_ad(!m_impl.m_user_space);
-		ut_ad(!m_impl.m_undo_space);
-		ut_ad(!m_impl.m_sys_space);
-
-		m_impl.m_modifies_sys_space = mtr.m_impl.m_modifies_sys_space;
-		ut_d(m_impl.m_user_space_id = mtr.m_impl.m_user_space_id);
-		ut_d(m_impl.m_undo_space_id = mtr.m_impl.m_undo_space_id);
-		m_impl.m_user_space = mtr.m_impl.m_user_space;
-		m_impl.m_undo_space = mtr.m_impl.m_undo_space;
-		m_impl.m_sys_space = mtr.m_impl.m_sys_space;
-	}
-
-	/** Set the tablespace associated with the mini-transaction
-	(needed for generating a MLOG_FILE_NAME record)
-	@param[in]	space_id	user or system tablespace ID
-	@return	the tablespace */
-	fil_space_t* set_named_space(space_id_t space_id)
-	{
-		ut_ad(m_impl.m_user_space_id == TRX_SYS_SPACE);
-		ut_d(m_impl.m_user_space_id = space_id);
-		if (space_id == TRX_SYS_SPACE) {
-			return(set_sys_modified());
-		} else {
-			lookup_user_space(space_id);
-			return(m_impl.m_user_space);
-		}
-	}
-
-	/** Set the tablespace associated with the mini-transaction
-	@param[in]	space	user or system tablespace */
-	void set_named_space(fil_space_t* space);
-
-	/** Set the undo tablespace associated with the mini-transaction
-	(needed for generating a MLOG_FILE_NAME record)
-	@param[in]	space_id	undo tablespace id
-	@return the undo tablespace */
-	fil_space_t* set_undo_space(space_id_t space_id)
-	{
-		ut_ad(m_impl.m_undo_space_id == TRX_SYS_SPACE);
-		ut_d(m_impl.m_undo_space_id = space_id);
-		if (space_id == TRX_SYS_SPACE) {
-			return(set_sys_modified());
-		} else {
-			lookup_undo_space(space_id);
-			return(m_impl.m_undo_space);
-		}
-	}
-
-#ifdef UNIV_DEBUG
-	/** Check if a tablespace is associated with the mini-transaction
-	(needed for generating a MLOG_FILE_NAME record)
-	@param[in]	space	tablespace
-	@return whether the mini-transaction is associated with the space */
-	bool is_named_space(space_id_t space) const;
-
-	/** Check if an undo tablespace is associated with the mini-transaction
-	(needed for generating a MLOG_FILE_NAME record)
-	@param[in]	space	undo tablespace
-	@return whether the mini-transaction is associated with the undo */
-	bool is_undo_space(space_id_t space) const;
-#endif /* UNIV_DEBUG */
-
 	/** Read 1 - 4 bytes from a file page buffered in the buffer pool.
 	@param ptr	pointer from where to read
 	@param type	MLOG_1BYTE, MLOG_2BYTES, MLOG_4BYTES
@@ -470,20 +320,19 @@ struct mtr_t {
 
 	/** Acquire a tablespace X-latch.
 	NOTE: use mtr_x_lock_space().
-	@param[in]	space_id	tablespace ID
+	@param[in]	space		tablespace instance
 	@param[in]	file		file name from where called
-	@param[in]	line		line number in file
-	@return the tablespace object (never NULL) */
-	fil_space_t* x_lock_space(
-		space_id_t	space_id,
+	@param[in]	line		line number in file */
+	void x_lock_space(
+		fil_space_t*	space,
 		const char*	file,
 		ulint		line);
 
 	/** Release an object in the memo stack.
 	@param object	object
-	@param type	object type: MTR_MEMO_S_LOCK, ...
-	@return bool if lock released */
-	bool memo_release(const void* object, ulint type);
+	@param type	object type: MTR_MEMO_S_LOCK, ... */
+	void memo_release(const void* object, ulint type);
+
 	/** Release a page latch.
 	@param[in]	ptr	pointer to within a page frame
 	@param[in]	type	object type: MTR_MEMO_PAGE_X_FIX, ... */
@@ -507,6 +356,7 @@ struct mtr_t {
 	@return the commit LSN
 	@retval 0 if the transaction only modified temporary tablespaces */
 	lsn_t commit_lsn() const
+		MY_ATTRIBUTE((warn_unused_result))
 	{
 		ut_ad(has_committed());
 		return(m_commit_lsn);
@@ -526,6 +376,7 @@ struct mtr_t {
 
 	/** @return true if we are inside the change buffer code */
 	bool is_inside_ibuf() const
+		MY_ATTRIBUTE((warn_unused_result))
 	{
 		return(m_impl.m_inside_ibuf);
 	}
@@ -533,6 +384,7 @@ struct mtr_t {
 	/*
 	@return true if the mini-transaction is active */
 	bool is_active() const
+		MY_ATTRIBUTE((warn_unused_result))
 	{
 		return(m_impl.m_state == MTR_STATE_ACTIVE);
 	}
@@ -540,6 +392,7 @@ struct mtr_t {
 	/** Get flush observer
 	@return flush observer */
 	FlushObserver* get_flush_observer() const
+		MY_ATTRIBUTE((warn_unused_result))
 	{
 		return(m_impl.m_flush_observer);
 	}
@@ -571,7 +424,8 @@ struct mtr_t {
 	@param flags		specify types of object (can be ORred) of
 				MTR_MEMO_PAGE_S_FIX ... values
 	@return true if contains */
-	bool memo_contains_flagged(const void* ptr, ulint flags) const;
+	bool memo_contains_flagged(const void* ptr, ulint flags) const
+		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Check if memo contains the given page.
 	@param[in]	ptr	pointer to within buffer frame
@@ -581,7 +435,8 @@ struct mtr_t {
 	@retval	NULL	if not found */
 	buf_block_t* memo_contains_page_flagged(
 		const byte*	ptr,
-		ulint		flags) const;
+		ulint		flags) const
+		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Mark the given latched page as modified.
 	@param[in]	ptr	pointer to within buffer frame */
@@ -592,6 +447,7 @@ struct mtr_t {
 
 	/** @return true if the mini-transaction has committed */
 	bool has_committed() const
+		MY_ATTRIBUTE((warn_unused_result))
 	{
 		return(m_impl.m_state == MTR_STATE_COMMITTED);
 	}
@@ -604,18 +460,21 @@ struct mtr_t {
 
 	/** @return true if mini-transaction contains modifications. */
 	bool has_modifications() const
+		MY_ATTRIBUTE((warn_unused_result))
 	{
 		return(m_impl.m_modifications);
 	}
 
 	/** @return the memo stack */
 	const mtr_buf_t* get_memo() const
+		MY_ATTRIBUTE((warn_unused_result))
 	{
 		return(&m_impl.m_memo);
 	}
 
 	/** @return the memo stack */
 	mtr_buf_t* get_memo()
+		MY_ATTRIBUTE((warn_unused_result))
 	{
 		return(&m_impl.m_memo);
 	}
@@ -623,6 +482,7 @@ struct mtr_t {
 
 	/** @return true if a record was added to the mini-transaction */
 	bool is_dirty() const
+		MY_ATTRIBUTE((warn_unused_result))
 	{
 		return(m_impl.m_made_dirty);
 	}
@@ -636,6 +496,7 @@ struct mtr_t {
 	/** Get the buffered redo log of this mini-transaction.
 	@return	redo log */
 	const mtr_buf_t* get_log() const
+		MY_ATTRIBUTE((warn_unused_result))
 	{
 		ut_ad(m_impl.m_magic_n == MTR_MAGIC_N);
 
@@ -645,6 +506,7 @@ struct mtr_t {
 	/** Get the buffered redo log of this mini-transaction.
 	@return	redo log */
 	mtr_buf_t* get_log()
+		MY_ATTRIBUTE((warn_unused_result))
 	{
 		ut_ad(m_impl.m_magic_n == MTR_MAGIC_N);
 
@@ -663,33 +525,18 @@ struct mtr_t {
 		MY_ATTRIBUTE((warn_unused_result));
 
 private:
-	/** Look up the system tablespace. */
-	void lookup_sys_space();
-	/** Look up an undo tablespace.
-	@param[in]	space_id	tablespace ID  */
-	void lookup_undo_space(space_id_t space_id);
-	/** Look up a user tablespace.
-	@param[in]	space_id	tablespace ID  */
-	void lookup_user_space(space_id_t space_id);
+	Impl			m_impl;
+
+	/** LSN at commit time */
+	lsn_t			m_commit_lsn;
+
+	/** true if it is synchronous mini-transaction */
+	bool			m_sync;
 
 	class Command;
 
 	friend class Command;
 
-private:
-	Impl			m_impl;
-
-	/** LSN at commit time */
-	volatile lsn_t		m_commit_lsn;
-
-	/** true if it is synchronous mini-transaction */
-	bool			m_sync;
-
-	/** Look up the tablespace for the given space_id, that
-	is being modified by the mini-transaction.
-	@param[in]	space_id	tablespace identifier.
-	@return tablespace, or NULL if not found */
-	fil_space_t*	space(space_id_t space_id) const;
 };
 
 #include "mtr0mtr.ic"

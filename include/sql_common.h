@@ -146,7 +146,6 @@ typedef struct st_mysql_methods
   int (*stmt_execute)(MYSQL_STMT *stmt);
   int (*read_binary_rows)(MYSQL_STMT *stmt);
   int (*unbuffered_fetch)(MYSQL *mysql, char **row);
-  void (*free_embedded_thd)(MYSQL *mysql);
   const char *(*read_statistics)(MYSQL *mysql);
   bool (*next_result)(MYSQL *mysql);
   int (*read_rows_from_cursor)(MYSQL_STMT *stmt);

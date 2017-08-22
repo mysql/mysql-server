@@ -17,7 +17,6 @@
 
 #include "delayed_plugin_initialization.h"
 #include "observer_server_state.h"
-#include "sql_service_gr_user.h"
 
 using std::string;
 
@@ -26,7 +25,7 @@ using std::string;
 */
 int group_replication_before_handle_connection(Server_state_param*)
 {
-  if (wait_on_engine_initialization || delay_gr_user_creation)
+  if (wait_on_engine_initialization)
   {
     delayed_initialization_thread->signal_thread_ready();
     delayed_initialization_thread->wait_for_initialization();

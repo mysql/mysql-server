@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 let $MYSQLD_DATADIR= `select @@datadir`;
 
 CREATE TABLE t_int (c1  TINYINT,

@@ -3,11 +3,7 @@
 
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 
-# You cannot use `KILL' with the Embedded MySQL Server library,
-# because the embedded server merely runs inside the threads of the host
-# application. -- the docs
 
--- source include/not_embedded.inc
 
 ###
 ### bug#22725 : incorrect killed error in binlogged query
@@ -31,8 +27,6 @@ connection con2;
 let $ID= `select connection_id()`;
 
 #
-# reset master does not reset binlogging on the embedded server.
-# the test is not run on the embedded for reason of using KILL query.
 # `reset master' problem is to be addressed by bug#15580 fixes.
 #
 reset master;

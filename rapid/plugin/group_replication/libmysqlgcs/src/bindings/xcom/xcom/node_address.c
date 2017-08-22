@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,18 +15,17 @@
 
 #include <rpc/rpc.h>
 
-#include "xcom_common.h"
 #include "task_debug.h"
+#include "xcom_common.h"
+#include "xcom_profile.h"
 
-#include "xcom_vp.h"
 #include "node_address.h"
 
 /**
    Debug a node address.
  */
- /* purecov: begin deadcode */
-char *dbg_node_address(node_address n)
-{
+/* purecov: begin deadcode */
+char *dbg_node_address(node_address n) {
   GET_NEW_GOUT;
   STRLIT("node_address ");
   PTREXP(n.address);

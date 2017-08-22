@@ -17,13 +17,13 @@
 #include "mysql/plugin.h"
 
 extern "C" {
-  
-int thd_killed(const MYSQL_THD thd)
+
+int thd_killed(const MYSQL_THD)
 {
   return 0;
 }
 
-void thd_set_kill_status(const MYSQL_THD thd)
+void thd_set_kill_status(const MYSQL_THD)
 {
 }
 }

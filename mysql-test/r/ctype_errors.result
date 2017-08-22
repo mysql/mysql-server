@@ -5,7 +5,7 @@ SHOW VARIABLES LIKE 'lc_messages';
 Variable_name	Value
 lc_messages	ru_RU
 CREATE TABLE t1(f1 INT);
-ERROR 42S01: \0422\0430\0431\043B\0438\0446\0430 't1' \0443\0436\0435 \0441\0443\0449\0435\0441\0442\0432\0443\0435\0442
+ERROR 42S01: Таблица 't1' уже существует
 SET NAMES utf8;
 CREATE TABLE t1(f1 INT);
 ERROR 42S01: Таблица 't1' уже существует

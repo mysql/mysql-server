@@ -176,6 +176,7 @@ static void check_foreign_key(TABLE *table, THD *thd,
 
 }
 
+#ifndef DBUG_OFF
 static void debug_check_for_write_sets(std::vector<std::string> &key_list_to_hash)
 {
   DBUG_EXECUTE_IF("PKE_assert_single_primary_key_generated_insert",
@@ -279,6 +280,7 @@ static void debug_check_for_write_sets(std::vector<std::string> &key_list_to_has
                                key_list_to_hash[3] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t2"
                                                        HASH_STRING_SEPARATOR "25" HASH_STRING_SEPARATOR "1")););
 }
+#endif
 
 
 /**
@@ -490,7 +492,9 @@ void add_pke(TABLE *table, THD *thd)
     if (table->file->referenced_by_foreign_key())
       ws_ctx->set_has_related_foreign_keys();
 
+#ifndef DBUG_OFF
     debug_check_for_write_sets(key_list_to_hash);
+#endif
 
     while(key_list_to_hash.size())
     {

@@ -1,5 +1,3 @@
-# Can't run with embedded server.
---source include/not_embedded.inc
 
 --echo # Verify that the client can show JSON data and metadata.
 

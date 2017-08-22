@@ -44,6 +44,31 @@ with recursive qn as
 select * from qn;
 
 --echo # No aggregation on the QN
+create table t1(b int);
+insert into t1 values(10),(20),(10);
+
+with recursive qn as
+  (select max(b) as a from t1 union
+   select a from qn)
+select * from qn;
+--error ER_CTE_RECURSIVE_FORBIDS_AGGREGATION
+with recursive qn as
+  (select b as a from t1 union
+   select max(a) from qn)
+select * from qn;
+
+--echo # No window functions
+with recursive qn as
+  (select rank() over (order by b) as a from t1 union
+   select a from qn)
+select * from qn;
+--error ER_CTE_RECURSIVE_FORBIDS_AGGREGATION
+with recursive qn as
+  (select b as a from t1 union
+   select rank() over (order by a) from qn)
+select * from qn;
+drop table t1;
+
 --error ER_CTE_RECURSIVE_FORBIDS_AGGREGATION
 with recursive qn as
   (select 1 as a from dual union all

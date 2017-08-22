@@ -22,8 +22,6 @@
 # Change date:
 ###############################################################################
 
-# Embedded server doesn't support external clients
---source include/not_embedded.inc
 --source include/have_log_bin.inc
 
 --echo # Set concurrent_insert = 0 to prevent random errors

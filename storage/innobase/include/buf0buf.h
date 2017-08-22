@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -695,8 +695,8 @@ UNIV_INLINE
 buf_frame_t*
 buf_frame_align(
 /*============*/
-                        /* out: pointer to frame */
-        byte*   ptr);   /* in: pointer to a frame */
+			/* out: pointer to frame */
+	byte*   ptr);   /* in: pointer to a frame */
 
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
@@ -1957,7 +1957,7 @@ struct buf_pool_t{
 	ulint		n_pend_reads;	/*!< number of pending read
 					operations. Accessed atomically */
 	ulint		n_pend_unzip;	/*!< number of pending decompressions.
-                                        Accessed atomically. */
+					Accessed atomically. */
 
 	time_t		last_printout_time;
 					/*!< when buf_print_io was last time
@@ -2127,8 +2127,8 @@ struct buf_pool_t{
 @return the output stream */
 std::ostream&
 operator<<(
-        std::ostream&		out,
-        const buf_pool_t&	buf_pool);
+	std::ostream&		out,
+	const buf_pool_t&	buf_pool);
 
 /** @name Accessors for buffer pool mutexes
 Use these instead of accessing buffer pool mutexes directly. */
@@ -2282,8 +2282,8 @@ struct	CheckInFreeList {
 struct	CheckUnzipLRUAndLRUList {
 	void	operator()(const buf_block_t* elem) const
 	{
-                ut_a(elem->page.in_LRU_list);
-                ut_a(elem->in_unzip_LRU_list);
+		ut_a(elem->page.in_LRU_list);
+		ut_a(elem->in_unzip_LRU_list);
 	}
 
 	static void validate(const buf_pool_t* buf_pool)

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,21 +21,20 @@
 #include <string>
 
 #include "dd/impl/raw/object_keys.h"          // Composite_char_key
-#include "dd/impl/types/dictionary_object_table_impl.h"
-                                              // Dictionary_object_table_impl
+#include "dd/impl/types/entity_object_table_impl.h"
+                                              // Entity_object_table_impl
 #include "dd/impl/types/table_stat_impl.h"    // Table_stat
 #include "dd/types/table_stat.h"
 
 namespace dd {
 
-class Dictionary_object;
 class Raw_record;
 
 namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Table_stats: virtual public Dictionary_object_table_impl
+class Table_stats: virtual public Entity_object_table_impl
 {
 public:
   Table_stats();
@@ -69,7 +68,7 @@ public:
   virtual const String_type &name() const
   { return Table_stats::table_name(); }
 
-  virtual Dictionary_object *create_dictionary_object(const Raw_record &) const
+  virtual Table_stat *create_entity_object(const Raw_record &) const
   { return new (std::nothrow) Table_stat_impl(); }
 
 public:

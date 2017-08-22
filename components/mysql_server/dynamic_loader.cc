@@ -11,7 +11,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include <c_string_less.h>
 #include <depth_first_search.h>
@@ -1134,9 +1134,9 @@ bool mysql_dynamic_loader_imp::unload_do_deinitialize_components(
     }
   }
 
-  return mysql_dynamic_loader_imp::unload_do_unload_dependencies(
-      components_to_unload, scheme_services)
-    || deinit_result;
+  return deinit_result ||
+    mysql_dynamic_loader_imp::unload_do_unload_dependencies(
+      components_to_unload, scheme_services);
 }
 
 /**

@@ -26,7 +26,7 @@
 #include "my_macros.h"
 #include "my_sys.h"
 #include "mysql/psi/psi_memory.h"
-#include "mysqld.h"                             // my_thread_get_THR_MALLOC
+#include "mysqld.h"
 #include "sql_servers.h"
 #include "sql_string.h"
 
@@ -44,7 +44,7 @@ void init_sql_alloc(PSI_memory_key key,
 
 void *sql_alloc(size_t Size)
 {
-  MEM_ROOT *root= *my_thread_get_THR_MALLOC();
+  MEM_ROOT *root= *THR_MALLOC;
   return alloc_root(root,Size);
 }
 

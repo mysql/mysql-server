@@ -189,7 +189,6 @@ bool Index_element_impl::has_new_primary_key() const
         As result it returns funny results for BLOB/GIS types.
 */
 
-/* purecov: begin deadcode */
 bool Index_element_impl::is_prefix() const
 {
   uint interval_parts;
@@ -207,7 +206,6 @@ bool Index_element_impl::is_prefix() const
                          col.is_unsigned(),
                          interval_parts) != length();
 }
-/* purecov: end */
 
 ///////////////////////////////////////////////////////////////////////////
 

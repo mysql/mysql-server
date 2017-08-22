@@ -4,10 +4,9 @@
 # after a crash with active user tranactions.
 
 #
-# Restarting is not supported in embedded.
---source include/not_embedded.inc
 
-# Disabled in --log-bin runs until Bug #25651042 is fixed.
+# Disabled in --log-bin runs until atomic DDL is properly supported in
+# binary log.
 --source include/not_log_bin.inc
 
 --disable_query_log
@@ -15,6 +14,7 @@ call mtr.add_suppression('InnoDB: Failed to find tablespace for table `mysql`\..
 call mtr.add_suppression('InnoDB: Failed to find tablespace for table `test`\.`t1` in the cache');
 call mtr.add_suppression('InnoDB: Allocated tablespace [0-9]+, old maximum was [0-9]+');
 call mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode.");
+call mtr.add_suppression("Skip updating information_schema metadata in InnoDB read-only mode.");
 --enable_query_log
 
 --echo # Restart the server in force recovery mode (2)

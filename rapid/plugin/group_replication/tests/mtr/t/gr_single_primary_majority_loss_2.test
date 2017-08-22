@@ -14,8 +14,7 @@
 # 7. Wait for data to recover in the group.
 # 8. Clean up.
 #######################################################################################
-# This test does crashes servers, thence we skip it on asan and valgrind.
---source include/not_asan.inc
+# This test does crashes servers, thence we skip it on valgrind.
 --source include/not_valgrind.inc
 --source include/big_test.inc
 --source include/force_restart.inc
@@ -155,6 +154,11 @@ INSERT INTO test.t1 VALUES (1);
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 DROP TABLE test.t1;
+
+set session sql_log_bin=0;
+call mtr.add_suppression("The member lost contact with a majority of the members in the group. Until the network is restored.*");
+call mtr.add_suppression("The member resumed contact with a majority of the members in the group.*");
+set session sql_log_bin=1;
 
 --source ../inc/group_replication_end.inc
 

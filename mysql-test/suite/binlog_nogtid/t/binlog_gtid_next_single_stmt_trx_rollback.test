@@ -16,8 +16,6 @@
 # Bug#21338147  INNODB: FAILING ASSERTION: !TRX_IS_AUTOCOMMIT_NON_LOCKING(TRX) IN TRX0TRX.CC
 
 --source include/have_log_bin.inc
-# Test is not required to run against embedded server
---source include/not_embedded.inc
 
 call mtr.add_suppression("Did not write failed 'GRANT ALL ON *.* TO user2' into binary log while granting/revoking privileges in databases.");
 call mtr.add_suppression("Did not write failed 'REVOKE ALL PRIVILEGES ON *.* FROM user2' into binary log while granting/revoking privileges in databases.");

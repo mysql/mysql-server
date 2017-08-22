@@ -10,16 +10,6 @@
 #
 --source include/no_valgrind_without_big.inc
 
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs232=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-alter schema default character set latin1;
-use test;
---enable_query_log
-########################################
-
 --disable_warnings
 drop table if exists t1, t2;
 --enable_warnings
@@ -2538,7 +2528,7 @@ CALL mtr.add_suppression(".ERROR. InnoDB: The error means mysqld does not have t
 
 #
 # Bug 20770 Partitions: DATA DIRECTORY clause change in reorganize
-#                       doesn't remove old directory
+#                       does not remove old directory
 
 let $MYSQLD_DATADIR= `select @@datadir`;
 let $data_directory = DATA DIRECTORY = '$MYSQLTEST_VARDIR/tmp';
@@ -2691,9 +2681,88 @@ DROP TABLE example;
 --rmdir $MYSQLTEST_VARDIR/p3Data
 
 
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
---eval alter schema test default character set $testdbcs232;
---enable_query_log
-########################################
+--echo #
+--echo # Bug#18513130 STRANGE INTERACTION OF SQL_MODE=ANSI AND PARTITION
+--echo #
+
+SET @@SQL_MODE= 'ANSI_QUOTES';
+
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+
+CREATE TABLE t1(col1 INT, col2 DATE)
+ENGINE=INNODB
+PARTITION BY RANGE(YEAR("col2"))
+SUBPARTITION BY HASH(TO_DAYS("col2"))(
+      PARTITION p0 VALUES LESS THAN (1990)(
+          SUBPARTITION s0,
+          SUBPARTITION s1 tablespace=`ts1`
+      ),
+      PARTITION p1 VALUES LESS THAN MAXVALUE(
+            SUBPARTITION s2,
+            SUBPARTITION s3 tablespace="ts1"
+        )
+    );
+
+SHOW CREATE TABLE t1;
+SELECT partition_expression FROM information_schema.partitions
+WHERE table_schema = 'test' AND table_name = 't1';
+
+SET @@SQL_MODE= DEFAULT;
+FLUSH TABLES;
+
+SHOW CREATE TABLE t1;
+SELECT partition_expression FROM information_schema.partitions
+WHERE table_schema = 'test' AND table_name = 't1';
+
+SET @@SQL_QUOTE_SHOW_CREATE= 0;
+SHOW CREATE TABLE t1;
+SELECT partition_expression FROM information_schema.partitions
+WHERE table_schema = 'test' AND table_name = 't1';
+
+SET @@SQL_QUOTE_SHOW_CREATE= 1;
+DROP TABLE t1;
+DROP TABLESPACE ts1;
+
+
+--echo #
+--echo # Test max partitioning and subpartition expression length
+--echo #
+
+--let $ALMOST_TOO_LONG_EXPR= `SELECT CONCAT(REPEAT("a+", 255),"a")`
+--replace_result $ALMOST_TOO_LONG_EXPR ALMOST_TOO_LONG_EXPR
+--eval CREATE TABLE t1 (a INT) PARTITION BY HASH($ALMOST_TOO_LONG_EXPR)
+DROP TABLE t1;
+--let $TOO_LONG_EXPR= `SELECT CONCAT(REPEAT("a+", 256),"a")`
+--replace_result $TOO_LONG_EXPR TOO_LONG_EXPR
+--error ER_PART_EXPR_TOO_LONG
+--eval CREATE TABLE t1 (a INT) PARTITION BY HASH($TOO_LONG_EXPR)
+
+--echo # Check that the limit is on number of characters and not on bytes
+--let $ALMOST_TOO_LONG_EXPR= `SELECT CONCAT(REPEAT("\`å\`+", 255),"\`å\`")`
+--replace_result $ALMOST_TOO_LONG_EXPR ALMOST_TOO_LONG_EXPR
+--eval CREATE TABLE t1 (`å` INT) PARTITION BY HASH($ALMOST_TOO_LONG_EXPR)
+DROP TABLE t1;
+--let $TOO_LONG_EXPR= `SELECT CONCAT(REPEAT("\`å\`+", 256),"\`å\`")`
+--replace_result $TOO_LONG_EXPR TOO_LONG_EXPR
+--error ER_PART_EXPR_TOO_LONG
+--eval CREATE TABLE t1 (`å` INT) PARTITION BY HASH($TOO_LONG_EXPR)
+
+--echo # Repeat the same tests for subpartitioning expressions.
+--let $ALMOST_TOO_LONG_EXPR= `SELECT CONCAT(REPEAT("a+", 255),"a")`
+--replace_result $ALMOST_TOO_LONG_EXPR ALMOST_TOO_LONG_EXPR
+--eval CREATE TABLE t1 (b INT, a INT) PARTITION BY LIST (b) SUBPARTITION BY HASH($ALMOST_TOO_LONG_EXPR) (PARTITION p1 VALUES IN (1))
+DROP TABLE t1;
+--let $TOO_LONG_EXPR= `SELECT CONCAT(REPEAT("a+", 256),"a")`
+--replace_result $TOO_LONG_EXPR TOO_LONG_EXPR
+--error ER_PART_EXPR_TOO_LONG
+--eval CREATE TABLE t1 (b INT, a INT) PARTITION BY LIST (b) SUBPARTITION BY HASH($TOO_LONG_EXPR) (PARTITION p1 VALUES IN (1))
+
+--echo # Again the limit is on number of characters and not on bytes
+--let $ALMOST_TOO_LONG_EXPR= `SELECT CONCAT(REPEAT("\`å\`+", 255),"\`å\`")`
+--replace_result $ALMOST_TOO_LONG_EXPR ALMOST_TOO_LONG_EXPR
+--eval CREATE TABLE t1 (b INT, `å` INT) PARTITION BY LIST (b) SUBPARTITION BY HASH($ALMOST_TOO_LONG_EXPR) (PARTITION p1 VALUES IN (1))
+DROP TABLE t1;
+--let $TOO_LONG_EXPR= `SELECT CONCAT(REPEAT("\`å\`+", 256),"\`å\`")`
+--replace_result $TOO_LONG_EXPR TOO_LONG_EXPR
+--error ER_PART_EXPR_TOO_LONG
+--eval CREATE TABLE t1 (b INT, `å` INT) PARTITION BY LIST (b) SUBPARTITION BY HASH($TOO_LONG_EXPR) (PARTITION p1 VALUES IN (1))

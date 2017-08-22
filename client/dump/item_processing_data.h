@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,12 +18,12 @@
 #ifndef ITEM_PROCESSING_DATA_INCLUDED
 #define ITEM_PROCESSING_DATA_INCLUDED
 
+#include <atomic>
 #include <functional>
 
 #include "chain_data.h"
 #include "i_dump_task.h"
 #include "i_chain_element.h"
-#include "base/atomic.h"
 
 namespace Mysql{
 namespace Tools{
@@ -93,7 +93,7 @@ private:
   /**
     Number of modules that have pending or are executing this task.
    */
-  my_boost::atomic_uint32_t m_active_executions;
+  std::atomic<uint32_t> m_active_executions;
   /**
     Indicates if this item led to creation of at least one new chain.
   */

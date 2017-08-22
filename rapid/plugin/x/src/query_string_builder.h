@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -20,7 +20,6 @@
 #ifndef _QUERY_STRING_BUILDER_H_
 #define _QUERY_STRING_BUILDER_H_
 
-#include <string>
 #include <string.h>
 #include <stdint.h>
 
@@ -28,6 +27,9 @@
 #include <ngs/memory.h>
 
 #include <query_formatter.h>
+
+#include <mutex>
+#include <string>
 
 struct charset_info_st;
 
@@ -136,7 +138,7 @@ private:
   bool m_in_identifier;
 
   static void init_charset();
-  static my_thread_once_t  m_charset_initialized;
+  static std::once_flag m_charset_initialized;
   static charset_info_st *m_charset;
 };
 

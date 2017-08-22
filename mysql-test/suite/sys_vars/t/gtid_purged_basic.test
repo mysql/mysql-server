@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 --source include/gtid_utils.inc
 # Clear gtid_purged to make variable settable.
 RESET MASTER;

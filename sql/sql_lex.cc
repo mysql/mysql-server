@@ -105,7 +105,8 @@ Query_tables_list::binlog_stmt_unsafe_errcode[BINLOG_STMT_UNSAFE_COUNT] =
   ER_BINLOG_UNSAFE_AUTOINC_NOT_FIRST,
   ER_BINLOG_UNSAFE_FULLTEXT_PLUGIN,
   ER_BINLOG_UNSAFE_SKIP_LOCKED,
-  ER_BINLOG_UNSAFE_NOWAIT
+  ER_BINLOG_UNSAFE_NOWAIT,
+  ER_BINLOG_UNSAFE_XA
 };
 
 
@@ -267,7 +268,7 @@ Lex_input_stream::reset(const char *buffer, size_t length)
   m_cpp_utf8_processed_ptr= NULL;
   next_state= MY_LEX_START;
   found_semicolon= NULL;
-  ignore_space= MY_TEST(m_thd->variables.sql_mode & MODE_IGNORE_SPACE);
+  ignore_space= m_thd->variables.sql_mode & MODE_IGNORE_SPACE;
   stmt_prepare_mode= FALSE;
   multi_statements= TRUE;
   in_comment=NO_COMMENT;
@@ -459,8 +460,6 @@ void LEX::reset()
   load_update_list.empty();
   load_value_list.empty();
 
-  call_value_list.empty();
-
   purge_value_list.empty();
 
   kill_value_list.empty();
@@ -475,6 +474,7 @@ void LEX::reset()
   insert_table= NULL;
   insert_table_leaf= NULL;
   parsing_options.reset();
+  alter_info= NULL;
   part_info= NULL;
   duplicates= DUP_ERROR;
   ignore= false;
@@ -496,6 +496,7 @@ void LEX::reset()
   profile_options= PROFILE_NONE;
   select_number= 0;
   allow_sum_func= 0;
+  m_deny_window_func= 0;
   in_sum_func= NULL;
   create_info= NULL;
   server_options.reset();
@@ -513,6 +514,7 @@ void LEX::reset()
   reparse_common_table_expr_at= 0;
   opt_hints_global= NULL;
   binlog_need_explicit_defaults_ts= false;
+  m_extended_show= false;
 
   clear_privileges();
 }
@@ -566,7 +568,6 @@ void lex_end(LEX *lex)
 
   sp_head::destroy(lex->sphead);
   lex->sphead= NULL;
-  lex->clear_values_map();
 
   DBUG_VOID_RETURN;
 }
@@ -1146,10 +1147,10 @@ static char *get_text(Lex_input_stream *lip, int pre_skip, int post_skip)
 }
 
 
-uint Lex_input_stream::get_lineno(const char *raw_ptr)
+uint Lex_input_stream::get_lineno(const char *raw_ptr) const
 {
-  DBUG_ASSERT(m_buf <= raw_ptr && raw_ptr < m_end_of_query);
-  if (!(m_buf <= raw_ptr && raw_ptr < m_end_of_query))
+  DBUG_ASSERT(m_buf <= raw_ptr && raw_ptr <= m_end_of_query);
+  if (!(m_buf <= raw_ptr && raw_ptr <= m_end_of_query))
     return 1;
 
   uint ret= 1;
@@ -1586,7 +1587,11 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
           If we find a space then this can't be an identifier. We notice this
           below by checking start != lex->ptr.
         */
-        for (; state_map[c] == MY_LEX_SKIP ; c= lip->yyGet()) ;
+        for (; state_map[c] == MY_LEX_SKIP ; c= lip->yyGet())
+        {
+          if (c == '\n')
+            lip->yylineno++;
+        }
       }
       if (start == lip->get_ptr() && c == '.' && ident_map[lip->yyPeek()])
 	lip->next_state=MY_LEX_IDENT_SEP;
@@ -3315,6 +3320,30 @@ void SELECT_LEX::print(THD *thd, String *str, enum_query_type query_type)
       str->append(having_value != Item::COND_FALSE ? "1" : "0");
   }
 
+  List_iterator<Window> li(m_windows);
+  Window *w;
+  first= true;
+  while ((w= li++))
+  {
+    if (w->name() == nullptr)
+      continue; // will be printed with function
+
+    if (first)
+    {
+      first= false;
+      str->append(" window ");
+    }
+    else
+    {
+      str->append(", ");
+    }
+
+    append_identifier(thd, str, w->name()->item_name.ptr(),
+                      strlen(w->name()->item_name.ptr()));
+    str->append(" AS ");
+    w->print(thd, this, str, query_type, true);
+  }
+
   if (order_list.elements)
   {
     str->append(STRING_WITH_LEN(" order by "));
@@ -3711,7 +3740,7 @@ bool LEX::need_correct_ident()
 */
 
 bool
-LEX::copy_db_to(char **p_db, size_t *p_db_length) const
+LEX::copy_db_to(char const **p_db, size_t *p_db_length) const
 {
   if (sphead)
   {
@@ -3737,7 +3766,8 @@ LEX::copy_db_to(char **p_db, size_t *p_db_length) const
 
   @returns false if success, true if error
 */
-bool SELECT_LEX_UNIT::prepare_limit(THD *thd_arg, SELECT_LEX *provider)
+bool SELECT_LEX_UNIT::prepare_limit(THD *thd_arg MY_ATTRIBUTE((unused)),
+                                    SELECT_LEX *provider)
 {
   /// @todo Remove THD from class SELECT_LEX_UNIT
   DBUG_ASSERT(this->thd == thd_arg);
@@ -3758,7 +3788,8 @@ bool SELECT_LEX_UNIT::prepare_limit(THD *thd_arg, SELECT_LEX *provider)
 
   @returns false if success, true if error
 */
-bool SELECT_LEX_UNIT::set_limit(THD *thd_arg, SELECT_LEX *provider)
+bool SELECT_LEX_UNIT::set_limit(THD *thd_arg MY_ATTRIBUTE((unused)),
+                                SELECT_LEX *provider)
 {
   /// @todo Remove THD from class SELECT_LEX_UNIT
   DBUG_ASSERT(this->thd == thd_arg);
@@ -3830,6 +3861,7 @@ void SELECT_LEX_UNIT::include_down(LEX *lex, SELECT_LEX *outer)
    - A table-less query (unimportant special case).
    - A query with a LIMIT (limit applies to subquery, so the implementation
      strategy is to materialize this subquery, including row count constraint).
+   - It has windows
 */
 
 bool SELECT_LEX_UNIT::is_mergeable() const
@@ -3842,7 +3874,8 @@ bool SELECT_LEX_UNIT::is_mergeable() const
          !select->having_cond() &&
          !select->is_distinct() &&
          select->table_list.elements > 0 &&
-         !select->has_limit();
+         !select->has_limit() &&
+         select->m_windows.elements == 0;
 }
 
 
@@ -4082,7 +4115,7 @@ TABLE_LIST *LEX::unlink_first_table(bool *link_to_local)
     /*
       and from local list if it is not empty
     */
-    if ((*link_to_local= MY_TEST(select_lex->get_table_list())))
+    if ((*link_to_local= select_lex->get_table_list() != nullptr))
     {
       select_lex->context.table_list= 
         select_lex->context.first_name_resolution_table= first->next_local;
@@ -4548,6 +4581,17 @@ bool SELECT_LEX::get_optimizable_conditions(THD *thd,
 Item_exists_subselect::enum_exec_method
 SELECT_LEX::subquery_strategy(THD *thd) const
 {
+  if (m_windows.elements > 0)
+    /*
+      A window function is in the SELECT list.
+      In-to-exists could not work: it would attach an equality like
+      outer_expr = WF to either WHERE or HAVING; but a WF is not allowed in
+      those clauses, and even if we allowed it, it would modify the result
+      rows over which the WF is supposed to be calculated.
+      So, subquery materialization is imposed. Grep for (and read) WL#10431.
+    */
+    return Item_exists_subselect::EXEC_MATERIALIZATION;
+
   if (opt_hints_qb)
   {
     Item_exists_subselect::enum_exec_method strategy=
@@ -4637,6 +4681,7 @@ bool SELECT_LEX::validate_outermost_option(LEX *lex,
           OPTION_BUFFER_RESULT
           OPTION_FOUND_ROWS
           OPTION_TO_QUERY_CACHE
+          OPTION_SELECT_FOR_SHOW
   DELETE: OPTION_QUICK
           LOW_PRIORITY
   INSERT: LOW_PRIORITY
@@ -4656,7 +4701,8 @@ bool SELECT_LEX::validate_base_options(LEX *lex, ulonglong options_arg) const
                                 SELECT_BIG_RESULT |
                                 OPTION_BUFFER_RESULT |
                                 OPTION_FOUND_ROWS |
-                                OPTION_TO_QUERY_CACHE)));
+                                OPTION_TO_QUERY_CACHE |
+                                OPTION_SELECT_FOR_SHOW)));
 
   if (options_arg & SELECT_DISTINCT &&
       options_arg & SELECT_ALL)
@@ -4778,22 +4824,6 @@ bool Query_options::save_to(Parse_context *pc)
   pc->select->set_base_options(options);
 
   return false;
-}
-
-
-/**
-  A routine used by the parser to decide whether we are specifying a full
-  partitioning or if only partitions to add or to split.
-
-  @retval  TRUE    Yes, it is part of a management partition command
-  @retval  FALSE          No, not a management partition command
-*/
-
-bool LEX::is_partition_management() const
-{
-  return (sql_command == SQLCOM_ALTER_TABLE &&
-          (alter_info.flags == Alter_info::ALTER_ADD_PARTITION ||
-           alter_info.flags == Alter_info::ALTER_REORGANIZE_PARTITION));
 }
 
 

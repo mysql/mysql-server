@@ -41,7 +41,7 @@ RELEASE_LOCK('Bug#34306')
 # not prevent the source table from being modified if under RBR.
 #
 # con2
-SET SESSION BINLOG_FORMAT = ROW;
+SET SESSION BINLOG_FORMAT = 'ROW';
 # con1
 SELECT GET_LOCK('Bug#34306', 120);
 GET_LOCK('Bug#34306', 120)

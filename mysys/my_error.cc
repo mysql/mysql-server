@@ -141,7 +141,7 @@ char *my_strerror(char *buf, size_t len, int nr)
        (defined _XOPEN_SOURCE   && (_XOPEN_SOURCE >= 600)))      &&    \
       ! defined _GNU_SOURCE
     strerror_r(nr, buf, len);             /* I can build with or without GNU */
-#elif defined _GNU_SOURCE && (!defined(__SUNPRO_C) && !defined(__SUNPRO_CC))
+#elif defined(__GLIBC__) && defined (_GNU_SOURCE)
     char *r= strerror_r(nr, buf, len);
     if (r != buf)                         /* Want to help, GNU? */
       strmake(buf, r, len - 1);           /* Then don't. */
@@ -154,8 +154,8 @@ char *my_strerror(char *buf, size_t len, int nr)
     strerror() return values are implementation-dependent, so let's
     be pragmatic.
   */
-  if (!buf[0])
-    strmake(buf, "unknown error", len - 1);
+  if (!buf[0] || !strcmp(buf, "No error information"))
+    strmake(buf, "Unknown error", len - 1);
 
   return buf;
 }
@@ -466,9 +466,9 @@ void my_message_local_stderr(enum loglevel ll,
 
   This goes through local_message_hook, i.e. by default, it calls
   my_message_local_stderr() which prepends an Error/Warning/Note
-  label to the string, then prints it to stderr.  More advanced
-  programs can use their own printers; mysqld for instance uses
-  its own error log facilities which prepend an ISO 8601 / RFC 3339
+  label to the string, then prints it to stderr using my_message_stderr().
+  More advanced programs can use their own printers; mysqld for instance
+  uses its own error log facilities which prepend an ISO 8601 / RFC 3339
   compliant timestamp etc.
 
   @param ll      log level: (ERROR|WARNING|INFORMATION)_LEVEL

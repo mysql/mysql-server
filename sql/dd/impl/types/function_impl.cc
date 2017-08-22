@@ -22,7 +22,6 @@
 #include "dd/impl/raw/raw_record.h"              // Raw_record
 #include "dd/impl/tables/routines.h"             // Routines
 #include "dd/impl/transaction_impl.h"            // Open_dictionary_tables_ctx
-#include "dd/types/dictionary_object_table.h"
 #include "dd/types/parameter.h"                  // Parameter
 #include "dd/types/weak_object.h"
 #include "my_sys.h"

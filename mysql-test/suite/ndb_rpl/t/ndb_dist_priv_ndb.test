@@ -1,15 +1,9 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #
 # Test the behaviour of all SQL commands affected
 # by having MySQL privilege tables stored in NDB
 # This should yield the same result as when running
 # this test with default privilege tables
 
---source include/not_embedded.inc
 --source include/have_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
 

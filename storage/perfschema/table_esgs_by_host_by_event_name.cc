@@ -36,52 +36,26 @@
 
 THR_LOCK table_esgs_by_host_by_event_name::m_table_lock;
 
-/* clang-format off */
-static const TABLE_FIELD_TYPE field_types[]=
-{
-  {
-    { C_STRING_WITH_LEN("HOST") },
-    { C_STRING_WITH_LEN("char(60)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("EVENT_NAME") },
-    { C_STRING_WITH_LEN("varchar(128)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("COUNT_STAR") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_TIMER_WAIT") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("MIN_TIMER_WAIT") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("AVG_TIMER_WAIT") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("MAX_TIMER_WAIT") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  }
-};
-/* clang-format on */
-
-TABLE_FIELD_DEF
-table_esgs_by_host_by_event_name::m_field_def = {7, field_types};
+Plugin_table table_esgs_by_host_by_event_name::m_table_def(
+  /* Schema name */
+  "performance_schema",
+  /* Name */
+  "events_stages_summary_by_host_by_event_name",
+  /* Definition */
+  "  HOST CHAR(60) COLLATE utf8_bin default null,\n"
+  "  EVENT_NAME VARCHAR(128) not null,\n"
+  "  COUNT_STAR BIGINT unsigned not null,\n"
+  "  SUM_TIMER_WAIT BIGINT unsigned not null,\n"
+  "  MIN_TIMER_WAIT BIGINT unsigned not null,\n"
+  "  AVG_TIMER_WAIT BIGINT unsigned not null,\n"
+  "  MAX_TIMER_WAIT BIGINT unsigned not null,\n"
+  "  UNIQUE KEY (HOST, EVENT_NAME) USING HASH\n",
+  /* Options */
+  " ENGINE=PERFORMANCE_SCHEMA",
+  /* Tablespace */
+  nullptr);
 
 PFS_engine_table_share table_esgs_by_host_by_event_name::m_share = {
-  {C_STRING_WITH_LEN("events_stages_summary_by_host_by_event_name")},
   &pfs_truncatable_acl,
   table_esgs_by_host_by_event_name::create,
   NULL, /* write_row */
@@ -89,9 +63,8 @@ PFS_engine_table_share table_esgs_by_host_by_event_name::m_share = {
   table_esgs_by_host_by_event_name::get_row_count,
   sizeof(pos_esgs_by_host_by_event_name),
   &m_table_lock,
-  &m_field_def,
-  false, /* checked */
-  false  /* perpetual */
+  &m_table_def,
+  false /* perpetual */
 };
 
 bool
@@ -121,7 +94,7 @@ PFS_index_esgs_by_host_by_event_name::match(PFS_instr_class *instr_class)
 }
 
 PFS_engine_table *
-table_esgs_by_host_by_event_name::create(void)
+table_esgs_by_host_by_event_name::create(PFS_engine_table_share *)
 {
   return new table_esgs_by_host_by_event_name();
 }
@@ -206,7 +179,8 @@ table_esgs_by_host_by_event_name::rnd_pos(const void *pos)
 }
 
 int
-table_esgs_by_host_by_event_name::index_init(uint idx, bool)
+table_esgs_by_host_by_event_name::index_init(uint idx MY_ATTRIBUTE((unused)),
+                                             bool)
 {
   m_normalizer = time_normalizer::get(stage_timer);
 

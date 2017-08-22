@@ -113,6 +113,18 @@ struct purge_node_t {
 	/** table where purge is done */
 	dict_table_t*		table;
 
+	/** MDL ticket for the table name */
+	MDL_ticket*		mdl;
+
+	/** parent table for an FTS AUX TABLE */
+	dict_table_t*		parent;
+
+	/** MDL ticket for the parent table of an FTS AUX TABLE */
+	MDL_ticket*		parent_mdl;
+
+	/** MySQL table instance */
+	TABLE*			mysql_table;
+
 	/** compiler analysis info of an update */
 	ulint			cmpl_info;
 

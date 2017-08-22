@@ -21,13 +21,13 @@
 extern "C" {
 #endif
 
-  int command_service_run_command(MYSQL_SESSION session,
-                                enum enum_server_command command,
-                                const union COM_DATA * data,
-                                const CHARSET_INFO * client_cs,
-                                const struct st_command_service_cbs * callbacks,
-                                enum cs_text_or_binary text_or_binary,
-                                void * service_callbacks_ctx)
+  int command_service_run_command(MYSQL_SESSION,
+                                enum enum_server_command,
+                                const union COM_DATA*,
+                                const CHARSET_INFO*,
+                                const struct st_command_service_cbs*,
+                                enum cs_text_or_binary,
+                                void*)
   {
     DBUG_ASSERT(0);
     return 0;

@@ -11,8 +11,7 @@
 #   5) Kill the member M3 that did not receive the new membership.
 #   6) Clean up.
 ################################################################################
-# This test does crashes servers, thence we skip it on asan and valgrind.
---source include/not_asan.inc
+# This test does crashes servers, thence we skip it on valgrind.
 --source include/not_valgrind.inc
 --source include/big_test.inc
 --source include/force_restart.inc
@@ -67,7 +66,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 --let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_members WHERE member_id="$uuid_server2"] = 1
 --source include/assert.inc
 
---let $raw_view_id= query_get_value(SELECT view_id FROM performance_schema.replication_group_member_stats, view_id, 1)
+--let $raw_view_id= query_get_value(SELECT view_id FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), view_id, 1)
 --let $view_id= `SELECT RIGHT('$raw_view_id', 1)`
 --let $assert_text= The value of view_id must be random:4
 --let $assert_cond= $view_id >= 4
@@ -87,7 +86,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 --let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_members WHERE member_id="$uuid_server2"] = 1
 --source include/assert.inc
 
---let $raw_view_id= query_get_value(SELECT view_id FROM performance_schema.replication_group_member_stats, view_id, 1)
+--let $raw_view_id= query_get_value(SELECT view_id FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), view_id, 1)
 --let $view_id= `SELECT RIGHT('$raw_view_id', 1)`
 --let $assert_text= The value of view_id must be random:4
 --let $assert_cond= $view_id >= 4

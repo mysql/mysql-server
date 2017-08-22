@@ -22,16 +22,6 @@
 -- source include/have_myisam.inc
 -- source include/have_debug.inc
 -- source include/have_binlog_format_statement.inc
-
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs79=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-alter schema test default character set latin1;
---enable_query_log
-########################################
-
 -- source include/master-slave.inc
 
 -- echo #######################################################################
@@ -110,8 +100,8 @@ RESET MASTER;
 ### ACTION: create some tables (t1, t2, t4) and insert some values in
 ###         table t1
 CREATE TABLE t1 (a INT);
-CREATE TABLE t2 (a VARCHAR(16384)) Engine=InnoDB;
-CREATE TABLE t4 (a VARCHAR(16384)) Engine=MyISAM;
+CREATE TABLE t2 (a VARCHAR(16383)) Engine=InnoDB;
+CREATE TABLE t4 (a VARCHAR(16383)) Engine=MyISAM;
 INSERT INTO t1 VALUES (1);
 RESET MASTER;
 
@@ -558,10 +548,3 @@ RESET SLAVE;
 RESET MASTER;
 --let $rpl_only_running_threads= 1
 --source include/rpl_end.inc
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
---eval alter schema test default character set $testdbcs79;
---enable_query_log
-########################################

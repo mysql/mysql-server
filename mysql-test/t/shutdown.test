@@ -1,7 +1,5 @@
 # shutdown SQL command test cases.
 
-# Skip test in embedded mode
---source include/not_embedded.inc
 
 let $BDIR= `select @@basedir`;
 let $DDIR= `select @@datadir`;

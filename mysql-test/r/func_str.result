@@ -5200,3 +5200,20 @@ Warning	1301	Result of repeat() was larger than max_allowed_packet (4194304) - t
 SET SQL_MODE=@orig_sql_mode;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+#
+# Bug#25688192 ASSERTION FAILED: MAYBE_NULL IN ITEM_FUNC_CONCAT::VAL_STR
+#
+set @max_allowed_packet=@@global.max_allowed_packet;
+set global max_allowed_packet=2048;
+Warnings:
+Warning	1708	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
+connect  con1,localhost,root,,;
+set sql_mode="";
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+do concat(export_set(1,1,repeat('a',31),' $',213));
+Warnings:
+Warning	1301	Result of export_set() was larger than max_allowed_packet (2048) - truncated
+disconnect con1;
+connection default;
+set global max_allowed_packet=@max_allowed_packet;

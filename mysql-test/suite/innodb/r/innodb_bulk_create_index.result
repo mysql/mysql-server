@@ -39,7 +39,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`id` = 10)
 EXPLAIN SELECT * FROM t1 WHERE title = 'a10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	idx_title	idx_title	103	const	1	100.00	NULL
+1	SIMPLE	t1	NULL	ref	idx_title	idx_title	403	const	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`title` = 'a10')
 SELECT * FROM t1 WHERE id = 10;
@@ -215,7 +215,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`id` = 10)
 EXPLAIN SELECT * FROM t1 WHERE title = 'a10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	idx_title	idx_title	103	const	1	100.00	NULL
+1	SIMPLE	t1	NULL	ref	idx_title	idx_title	403	const	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`title` = 'a10')
 SELECT * FROM t1 WHERE id = 10;
@@ -391,7 +391,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`id` = 10)
 EXPLAIN SELECT * FROM t1 WHERE title = 'a10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	idx_title	idx_title	103	const	1	100.00	NULL
+1	SIMPLE	t1	NULL	ref	idx_title	idx_title	403	const	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`title` = 'a10')
 SELECT * FROM t1 WHERE id = 10;
@@ -568,7 +568,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`id` = 10)
 EXPLAIN SELECT * FROM t1 WHERE title = 'a10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	idx_title	idx_title	103	const	1	100.00	NULL
+1	SIMPLE	t1	NULL	ref	idx_title	idx_title	403	const	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`title` = 'a10')
 SELECT * FROM t1 WHERE id = 10;
@@ -746,7 +746,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`id` = 10)
 EXPLAIN SELECT * FROM t1 WHERE title = 'a10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	idx_title	idx_title	103	const	1	100.00	NULL
+1	SIMPLE	t1	NULL	ref	idx_title	idx_title	403	const	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`title` = 'a10')
 SELECT * FROM t1 WHERE id = 10;
@@ -923,7 +923,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`id` = 10)
 EXPLAIN SELECT * FROM t1 WHERE title = 'a10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	idx_title	idx_title	103	const	1	100.00	NULL
+1	SIMPLE	t1	NULL	ref	idx_title	idx_title	403	const	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`title` = 'a10')
 SELECT * FROM t1 WHERE id = 10;

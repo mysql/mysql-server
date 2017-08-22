@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 --source include/have_innodb_max_16k.inc
 
 # Test the redundant format

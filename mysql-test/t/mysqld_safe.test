@@ -1,5 +1,4 @@
 --source include/have_mysqld_safe.inc
---source include/not_embedded.inc
 --source include/not_windows.inc
 
 # 1) Set valiables to be used in parameters of mysqld_safe.

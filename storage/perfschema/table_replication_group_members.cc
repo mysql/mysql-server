@@ -95,44 +95,51 @@ set_member_state(void* const context, const char& value, size_t length)
   memcpy(row->member_state, &value, length);
 }
 
+static void set_member_version(void* const context, const char& value,
+                               size_t length)
+{
+  struct st_row_group_members* row=
+      static_cast<struct st_row_group_members*>(context);
+  const size_t max= NAME_LEN;
+  length= std::min(length, max);
+
+  row->member_version_length= length;
+  memcpy(row->member_version, &value, length);
+}
+
+static void set_member_role(void* const context, const char& value,
+                            size_t length)
+{
+  struct st_row_group_members* row=
+      static_cast<struct st_row_group_members*>(context);
+  const size_t max= NAME_LEN;
+  length= std::min(length, max);
+
+  row->member_role_length= length;
+  memcpy(row->member_role, &value, length);
+}
+
 THR_LOCK table_replication_group_members::m_table_lock;
 
-/* clang-format off */
-static const TABLE_FIELD_TYPE field_types[]=
-{
-  {
-    {C_STRING_WITH_LEN("CHANNEL_NAME")},
-    {C_STRING_WITH_LEN("char(64)")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("MEMBER_ID")},
-    {C_STRING_WITH_LEN("char(36)")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("MEMBER_HOST")},
-    {C_STRING_WITH_LEN("char(60)")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("MEMBER_PORT")},
-    {C_STRING_WITH_LEN("int(11)")},
-    {NULL, 0}
-  },
-  {
-    {C_STRING_WITH_LEN("MEMBER_STATE")},
-    {C_STRING_WITH_LEN("char(64)")},
-    {NULL, 0}
-  }
-};
-/* clang-format on */
-
-TABLE_FIELD_DEF
-table_replication_group_members::m_field_def = {5, field_types};
+Plugin_table table_replication_group_members::m_table_def(
+  /* Schema name */
+  "performance_schema",
+  /* Name */
+  "replication_group_members",
+  /* Definition */
+  "  CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,\n"
+  "  MEMBER_ID CHAR(36) collate utf8_bin not null,\n"
+  "  MEMBER_HOST CHAR(60) collate utf8_bin not null,\n"
+  "  MEMBER_PORT INTEGER,\n"
+  "  MEMBER_STATE CHAR(64) collate utf8_bin not null,\n"
+  "  MEMBER_ROLE CHAR(64) collate utf8_bin not null,\n"
+  "  MEMBER_VERSION CHAR(64) collate utf8_bin not null\n",
+  /* Options */
+  " ENGINE=PERFORMANCE_SCHEMA",
+  /* Tablespace */
+  nullptr);
 
 PFS_engine_table_share table_replication_group_members::m_share = {
-  {C_STRING_WITH_LEN("replication_group_members")},
   &pfs_readonly_acl,
   &table_replication_group_members::create,
   NULL, /* write_row */
@@ -140,13 +147,12 @@ PFS_engine_table_share table_replication_group_members::m_share = {
   table_replication_group_members::get_row_count,
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
-  &m_field_def,
-  false, /* checked */
-  false  /* perpetual */
+  &m_table_def,
+  true /* perpetual */
 };
 
 PFS_engine_table*
-table_replication_group_members::create(void)
+table_replication_group_members::create(PFS_engine_table_share*)
 {
   return new table_replication_group_members();
 }
@@ -213,6 +219,8 @@ table_replication_group_members::make_row(uint index)
   m_row.member_host_length = 0;
   m_row.member_port = 0;
   m_row.member_state_length = 0;
+  m_row.member_version_length= 0;
+  m_row.member_role_length= 0;
 
   // Set callbacks on GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS.
   const GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS callbacks = {
@@ -222,6 +230,8 @@ table_replication_group_members::make_row(uint index)
     &set_member_host,
     &set_member_port,
     &set_member_state,
+    &set_member_role,
+    &set_member_version,
   };
 
   // Query plugin and let callbacks do their job.
@@ -275,6 +285,12 @@ table_replication_group_members::read_row_values(
         break;
       case 4: /** member_state */
         set_field_char_utf8(f, m_row.member_state, m_row.member_state_length);
+        break;
+      case 5: /** member_role */
+        set_field_char_utf8(f, m_row.member_role, m_row.member_role_length);
+        break;
+      case 6: /** member_version */
+        set_field_char_utf8(f, m_row.member_version, m_row.member_version_length);
         break;
       default:
         DBUG_ASSERT(false);

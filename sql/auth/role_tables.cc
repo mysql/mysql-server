@@ -41,10 +41,10 @@
 #include "sql_user_table.h"
 #include "table.h"
 #include "thr_lock.h"
+#include "mysqld.h"
 
 class THD;
 bool trans_commit_stmt(THD *thd);
-void grant_role(THD *thd, ACL_USER *role, ACL_USER *user, bool with_admin_opt);
 extern Granted_roles_graph *g_granted_roles;
 extern Default_roles *g_default_roles;
 extern Role_index_map *g_authid_to_vertex;
@@ -240,7 +240,6 @@ bool modify_default_roles_in_table(THD *thd, TABLE *table,
   DBUG_RETURN(false);
 }
 
-
 /*
   Populates caches from roles tables.
   Assumes that tables are opened and requried locks are taken.
@@ -355,6 +354,7 @@ bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst)
   end_read_record(&read_record_info);
   free_root(&tmp_mem, MYF(0));
   rebuild_vertex_index(thd);
+  opt_mandatory_roles_cache= false;
   DBUG_RETURN(false);
 }
 

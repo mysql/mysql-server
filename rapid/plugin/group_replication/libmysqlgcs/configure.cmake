@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -69,13 +69,6 @@ CHECK_STRUCT_HAS_MEMBER("struct xdr_ops" x_getint32 rpc/xdr.h
 
 CHECK_C_SOURCE_COMPILES(
   "
-  #include <rpc/rpc.h>
-  int main(__const int *i){return *i;}
-  "
-  HAVE___CONST)
-
-CHECK_C_SOURCE_COMPILES(
-  "
   #include <rpc/types.h>
   int main(void) { rpc_inline_t x; return 0; }
   "
@@ -101,20 +94,6 @@ IF(NOT APPLE
     int main() { XDR xdr; xdr.x_handy = -1; return (int)xdr.x_handy; }
     "
     OLD_XDR)
-
-  CHECK_C_SOURCE_COMPILES(
-    "
-    #include <rpc/xdr.h>
-    u_int getpostn(XDR* xdr) { return (u_int)xdr->x_handy; }
-    int main() {
-      XDR xdr;
-      struct xdr_ops ops;
-
-      ops.x_getpostn = getpostn;
-      return (int)ops.x_getpostn(&xdr);
-    }
-    "
-    X_GETPOSTN_NOT_USE_CONST)
 
   CHECK_C_COMPILER_FLAG("-Wincompatible-pointer-types"
                         HAS_INCOMPATIBLE_POINTER_TYPES)

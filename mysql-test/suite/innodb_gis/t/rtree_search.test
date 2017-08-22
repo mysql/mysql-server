@@ -1,7 +1,5 @@
 # WL#6968 InnoDB R-tree cursor support
 
-# Not supported in embedded
---source include/not_embedded.inc
 --source include/not_valgrind.inc
 
 

@@ -10,8 +10,6 @@
 # WL#7361 MSR: per-channel replication filters
 #
 
---source include/not_embedded.inc
-
 -- error ER_DBACCESS_DENIED_ERROR
 ALTER TABLE performance_schema.replication_applier_global_filters
   ADD COLUMN foo integer;

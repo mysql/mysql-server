@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include <gtest/gtest.h>
 #include <m_ctype.h>
@@ -24,6 +24,7 @@
 typedef int mysql_mutex_t; // mock to load persistent_dynamic_loader imp header
 #include <mysql/components/services/persistent_dynamic_loader.h>
 #include <auth/dynamic_privileges_impl.h>
+#include <udf_registration_imp.h>
 #include <persistent_dynamic_loader.h>
 #include <scope_guard.h>
 #include <server_component.h>
@@ -41,13 +42,13 @@ struct mysql_component_t *mysql_builtin_components[]=
 };
 
 DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::load,
-  (void* thd_ptr, const char *urns[], int component_count))
+  (void*, const char *[], int))
 {
   return true;
 }
 
 DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::unload,
-  (void* thd_ptr, const char *urns[], int component_count))
+  (void*, const char *[], int))
 {
   return true;
 }
@@ -65,23 +66,51 @@ DEFINE_BOOL_METHOD(unregister_privilege,
 }
 
 DEFINE_BOOL_METHOD(dynamic_privilege_services_impl::register_privilege,
-  (const char *privilege_str, size_t privilege_str_len))
+  (const char *, size_t))
 {
   return true;
 }
 
 DEFINE_BOOL_METHOD(dynamic_privilege_services_impl::unregister_privilege,
-  (const char *privilege_str, size_t privilege_str_len))
+  (const char *, size_t))
 {
   return true;
 }
 
 DEFINE_BOOL_METHOD(dynamic_privilege_services_impl::has_global_grant,
-  (Security_context_handle handle, const char *privilege_str,
-   size_t privilege_str_len))
+  (Security_context_handle, const char *, size_t))
 {
   return true;
 }
+
+DEFINE_BOOL_METHOD(mysql_udf_registration_imp::udf_unregister,
+(const char *, int *))
+{
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_udf_registration_imp::udf_register_aggregate,
+(const char *,
+ enum Item_result,
+ Udf_func_any,
+ Udf_func_init,
+ Udf_func_deinit,
+ Udf_func_add,
+ Udf_func_clear))
+{
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_udf_registration_imp::udf_register,
+(const char *,
+ Item_result,
+ Udf_func_any,
+ Udf_func_init,
+ Udf_func_deinit))
+{
+  return true;
+}
+
 
 /* TODO following code resembles symbols used in sql library, these should be
   some day extracted to be reused both in sql library and server component unit
@@ -94,15 +123,15 @@ extern "C"
 }
 char opt_plugin_dir[FN_REFLEN];
 
-bool check_string_char_length(const LEX_CSTRING &str, const char *err_msg,
-  size_t max_char_length, const CHARSET_INFO *cs,
-  bool no_error)
+bool check_string_char_length(const LEX_CSTRING &, const char *,
+                              size_t, const CHARSET_INFO *,
+                              bool)
 {
   MY_ASSERT_UNREACHABLE();
   return true;
 }
 
-bool check_valid_path(const char *path, size_t len)
+bool check_valid_path(const char *, size_t)
 {
   MY_ASSERT_UNREACHABLE();
   return true;

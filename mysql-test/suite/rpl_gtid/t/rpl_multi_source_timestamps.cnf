@@ -2,20 +2,12 @@
 
 [mysqld.1]
 log-slave-updates
-gtid-mode=               ON
-enforce-gtid-consistency=ON
 
 [mysqld.2]
-master-info-repository=   TABLE
-relay-log-info-repository=TABLE
 log-slave-updates
-gtid-mode=               ON
-enforce-gtid-consistency=ON
 
 [mysqld.3]
 log-slave-updates
-gtid-mode=               ON
-enforce-gtid-consistency=ON
 
 [ENV]
 SERVER_MYPORT_3=                @mysqld.3.port

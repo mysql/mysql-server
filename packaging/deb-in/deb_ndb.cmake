@@ -13,6 +13,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA 
 
+SET (DEB_NDB_CONTROL_TEST_DEPS "mysql-${DEB_PRODUCTNAME}-data-node (= \${binary:Version}), mysql-${DEB_PRODUCTNAME}-management-server (= \${binary:Version})")
 
 SET(DEB_NDB_CONTROL_EXTRAS
 "
@@ -26,7 +27,8 @@ Description: Management server
 
 Package: mysql-${DEB_PRODUCTNAME}-data-node
 Architecture: any
-Depends: \${shlibs:Depends}, \${misc:Depends}
+Depends: \${shlibs:Depends}, \${misc:Depends},
+ libclass-methodmaker-perl
 Description: Data node
  This package contains MySQL Cluster Data Node Daemon, it's the process
  that is used to handle all the data in tables using the NDB Cluster
@@ -35,7 +37,8 @@ Description: Data node
 
 Package: mysql-${DEB_PRODUCTNAME}-auto-installer
 Architecture: any
-Depends: \${shlibs:Depends}, \${misc:Depends}
+Depends: \${shlibs:Depends}, \${misc:Depends},
+ python-paramiko
 Description: Data node
  This package contains MySQL Cluster Data Node Daemon, it's the process
  that is used to handle all the data in tables using the NDB Cluster
@@ -90,6 +93,7 @@ Description: memcached
 /usr/bin/ndb_drop_table
 /usr/bin/ndb_error_reporter
 /usr/bin/ndb_index_stat
+/usr/bin/ndb_import
 /usr/bin/ndb_mgm
 /usr/bin/ndb_move_data
 /usr/bin/ndb_print_backup_file
@@ -120,6 +124,7 @@ Description: memcached
 /usr/share/man/man1/ndb_mgm.1*
 /usr/share/man/man1/ndb_print_backup_file.1*
 /usr/share/man/man1/ndb_print_file.1*
+/usr/share/man/man1/ndb_print_frag_file.1*
 /usr/share/man/man1/ndb_print_schema_file.1*
 /usr/share/man/man1/ndb_print_sys_file.1*
 /usr/share/man/man1/ndb_restore.1*
@@ -129,7 +134,7 @@ Description: memcached
 /usr/share/man/man1/ndb_show_tables.1*
 /usr/share/man/man1/ndb_size.pl.1*
 /usr/share/man/man1/ndb_waiter.1*
-/usr/share/man/man1/ndbd_redo_log_reader.1*
+/usr/share/man/man1/ndb_redo_log_reader.1*
 /usr/share/man/man1/ndbinfo_select_all.1*
 ")
 
@@ -156,11 +161,11 @@ Description: memcached
 ")
   SET (DEB_NDB_RULES_DOCDIRS
 "
-	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-@DEB_PRODUCTNAME@-auto-installer
-	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-@DEB_PRODUCTNAME@-data-node
-	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-@DEB_PRODUCTNAME@-java
-	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-@DEB_PRODUCTNAME@-management-server
-	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-@DEB_PRODUCTNAME@-memcached
+	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-auto-installer
+	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-data-node
+	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-java
+	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-management-server
+	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-memcached
 	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/ndbclient
 	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/ndbclient-dev
 ")

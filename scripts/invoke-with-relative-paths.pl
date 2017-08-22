@@ -56,6 +56,10 @@ sub relativize {
 		return $dir1;
 	}
 
+	if (! -e $dir1) {
+		print STDERR "Unknown file/directory $dir1.\n";
+		return $dir1;
+	}
 	# Resolve symlinks and such, because getcwd() does.
 	$dir1 = Cwd::abs_path($dir1);
 

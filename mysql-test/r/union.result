@@ -628,19 +628,19 @@ NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using temporary
 Warnings:
 Note	1003	(/* select#1 */ select '1' AS `a`,'1' AS `b` from `test`.`t1` where 1) union (/* select#2 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` = 1))
 drop table t1,t2;
-create table groups (id int not null auto_increment, primary key (id) ,user_name text );
+create table `groups` (id int not null auto_increment, primary key (id) ,user_name text );
 create table users (id int not null auto_increment, primary key (id) ,group_name text );
-create table t3 (id int not null auto_increment, primary key (id),user_id int,index user_idx (user_id),foreign key (user_id) references users(id),group_id int,index group_idx (group_id),foreign key (group_id) references groups(id) );
-insert into groups (user_name) values ('Tester');
+create table t3 (id int not null auto_increment, primary key (id),user_id int,index user_idx (user_id),foreign key (user_id) references users(id),group_id int,index group_idx (group_id),foreign key (group_id) references `groups`(id) );
+insert into `groups` (user_name) values ('Tester');
 insert into users (group_name) values ('Group A');
 insert into users (group_name) values ('Group B');
 insert into t3 (user_id, group_id) values (1,1);
-select 1 'is_in_group', a.user_name, c.group_name, b.id from groups a, t3 b, users c where a.id = b.user_id and b.group_id = c.id UNION  select 0 'is_in_group', a.user_name, c.group_name, null from groups a, users c;
+select 1 'is_in_group', a.user_name, c.group_name, b.id from `groups` a, t3 b, users c where a.id = b.user_id and b.group_id = c.id UNION  select 0 'is_in_group', a.user_name, c.group_name, null from `groups` a, users c;
 is_in_group	user_name	group_name	id
 1	Tester	Group A	1
 0	Tester	Group A	NULL
 0	Tester	Group B	NULL
-drop table t3, users, groups;
+drop table t3, users, `groups`;
 create table t1 (mat_id MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, matintnum CHAR(6) NOT NULL, test MEDIUMINT UNSIGNED NULL);
 create table t2 (mat_id MEDIUMINT UNSIGNED NOT NULL, pla_id MEDIUMINT UNSIGNED NOT NULL);
 insert into t1 values (NULL, 'a', 1), (NULL, 'b', 2), (NULL, 'c', 3), (NULL, 'd', 4), (NULL, 'e', 5), (NULL, 'f', 6), (NULL, 'g', 7), (NULL, 'h', 8), (NULL, 'i', 9);
@@ -663,7 +663,7 @@ aa
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` varchar(2) CHARACTER SET latin1 NOT NULL DEFAULT ''
+  `a` varchar(2) NOT NULL DEFAULT ''
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1 SELECT 12 as a UNION select "aa" as a;
@@ -674,7 +674,7 @@ aa
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` varchar(2) CHARACTER SET latin1 NOT NULL DEFAULT ''
+  `a` varchar(2) NOT NULL DEFAULT ''
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1 SELECT 12 as a UNION select 12.2 as a;
@@ -1158,6 +1158,7 @@ a
 No
 aaa,bbb
 drop table t1,t2,t3,t4;
+set names latin1;
 create table t1 as
 (select _latin1'test') union
 (select _latin1'TEST') union

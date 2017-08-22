@@ -265,3 +265,20 @@ DROP DATABASE mysqltest;
 # failed DROP DATABASE statement are covered by
 # rpl_gtid/no_gtid_split_statements_debug tests.
 #
+#
+# Additional coverage for hidden tables handling by DROP DATABASE.
+#
+CREATE DATABASE mysqltest;
+# Create hidden '#sql...' table in mysqltest by starting
+# non-atomic ALTER TABLE and crashing the server in the
+# middle of it.
+CREATE TABLE mysqltest.t1 (i INT) ENGINE=MYISAM;
+SET DEBUG='+d,crash_copy_before_commit';
+ALTER TABLE mysqltest.t1 ADD COLUMN j INT;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+# Check that after restart this hidden table is there.
+#sqlXXXX.MYD
+t1.MYD
+# And that DROP DATABASE can remove this table, without problems.
+DROP DATABASE mysqltest;

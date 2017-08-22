@@ -1,13 +1,3 @@
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs355=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-alter schema default character set latin1;
-use test;
---enable_query_log
-########################################
-
 CREATE TABLE t1 (c1 TINYINT NOT NULL, c2 CHAR(5)) PARTITION BY RANGE ( c1 ) (
     PARTITION p0 VALUES LESS THAN (10),
     PARTITION p1 VALUES LESS THAN (20),
@@ -152,11 +142,3 @@ ALTER TABLE t1 DROP PARTITION m0;
 SELECT * FROM t1 ORDER BY c1;
 SHOW TABLES; 
  SHOW CREATE TABLE t1; DROP TABLE t1; SHOW TABLES;
-
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
---eval alter schema test default character set $testdbcs355;
---enable_query_log
-########################################

@@ -126,9 +126,9 @@ bool set_gtid_next(THD *thd, const Gtid_specification &spec)
         */
         break;
       }
-      my_thread_id owner= gtid_state->get_owner(spec.gtid);
+
       // GTID not owned by anyone: acquire ownership
-      if (owner == 0)
+      if (!gtid_state->is_owned(spec.gtid))
       {
         // acquire_ownership can't fail
         gtid_state->acquire_ownership(thd, spec.gtid);
@@ -361,7 +361,7 @@ static inline bool is_already_logged_transaction(const THD *thd)
 
   @param  thd     The calling thread.
 */
-static inline void skip_statement(const THD *thd)
+static inline void skip_statement(const THD *thd MY_ATTRIBUTE((unused)))
 {
   DBUG_ENTER("skip_statement");
 
@@ -445,8 +445,10 @@ static bool is_stmt_innocent(const THD *thd)
   bool is_select= (sql_command == SQLCOM_SELECT);
   bool is_do= (sql_command == SQLCOM_DO);
   bool is_empty= (sql_command == SQLCOM_EMPTY_QUERY);
+  bool is_use= (sql_command == SQLCOM_CHANGE_DB);
   return
-    (is_set || is_set_role || is_select || is_do || is_show || is_empty) &&
+    (is_set || is_set_role || is_select || is_do || is_show || is_empty ||
+     is_use) &&
     !lex->uses_stored_routines();
 }
 
@@ -605,7 +607,7 @@ bool gtid_pre_statement_post_implicit_commit_checks(THD *thd)
 }
 
 
-void gtid_set_performance_schema_values(const THD *thd)
+void gtid_set_performance_schema_values(const THD *thd MY_ATTRIBUTE((unused)))
 {
   DBUG_ENTER("gtid_set_performance_schema_values");
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE

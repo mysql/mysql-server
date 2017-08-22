@@ -53,7 +53,6 @@ ALTER TABLE t1 MODIFY a VARCHAR(10) COLLATE filename;
 ALTER TABLE t1 MODIFY a VARCHAR(10) CHARACTER SET cp932;
 DROP DATABASE db21958734;
 
---source include/not_embedded.inc
 --source include/not_valgrind.inc
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server

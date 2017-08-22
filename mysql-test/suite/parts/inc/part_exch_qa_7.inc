@@ -1,6 +1,5 @@
 CREATE USER test_2@localhost;
 
---source include/not_embedded.inc
 --disable_result_log
 --disable_query_log
 --source suite/parts/inc/part_exch_tabs.inc

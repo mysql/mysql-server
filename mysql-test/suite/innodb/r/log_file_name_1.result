@@ -1,0 +1,22 @@
+SET GLOBAL innodb_limit_optimistic_insert_debug = 2;
+SET GLOBAL innodb_file_per_table = 0;
+SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+SET GLOBAL innodb_dict_stats_disabled_debug = 1;
+SET GLOBAL innodb_master_thread_disabled_debug = 1;
+create table t1(f1 int not null)engine=innodb;
+insert into t1 values(1), (2);
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+update t1 set f1 = 2;
+# Kill and restart
+drop table t1;

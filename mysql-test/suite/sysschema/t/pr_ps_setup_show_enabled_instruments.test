@@ -1,4 +1,3 @@
--- source include/not_embedded.inc
 
 # Disable all but a few instruments (reduces output as well)
 # It is not possible to disable memory/performance_schema/%

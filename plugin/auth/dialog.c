@@ -193,8 +193,9 @@ mysql_declare_plugin(dialog)
   "Sergei Golubchik",
   "Dialog plugin demo 1",
   PLUGIN_LICENSE_GPL,
-  NULL,
-  NULL,
+  NULL, /* Init */
+  NULL, /* Check uninstall */
+  NULL, /* Deinit */
   0x0101,
   NULL,
   NULL,
@@ -208,8 +209,9 @@ mysql_declare_plugin(dialog)
   "Sergei Golubchik",
   "Dialog plugin demo 2",
   PLUGIN_LICENSE_GPL,
-  NULL,
-  NULL,
+  NULL, /* Init */
+  NULL, /* Check uninstall */
+  NULL, /* Deinit */
   0x0101,
   NULL,
   NULL,

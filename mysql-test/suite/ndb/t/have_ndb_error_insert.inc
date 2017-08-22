@@ -14,8 +14,6 @@ let $dump_file = $MYSQLTEST_VARDIR/tmp/ndb_mgm_error.txt;
 # Load the file into a temporary table
 CREATE TEMPORARY TABLE t37 (a varchar(512)) ENGINE = HEAP;
 
-# needed for embedded
---chmod 0777 $dump_file
 --replace_result $dump_file DUMP_FILE
 eval LOAD DATA INFILE '$dump_file' INTO TABLE t37;
 --remove_file $dump_file

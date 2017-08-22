@@ -7,8 +7,8 @@ call mtr.add_suppression("\\[Warning\\] You need to use --log-bin to make --binl
 # Bug#17733 Flushing logs causes daily server crash
 #
 
---source include/not_embedded.inc
 select @@GLOBAL.relay_log_info_repository into @save_relay_log_info_repository;
+select @@GLOBAL.expire_logs_days into @save_expire_logs_days;
 set @@GLOBAL.relay_log_info_repository = 'FILE';
 # The hostname needs to be stripped off its extensions as even
 # in code we use the stripped hostname as default basename
@@ -22,5 +22,5 @@ flush logs;
 show variables like 'log_bin%';
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $HOST_NAME hostname
 show variables like 'relay_log%';
-set global expire_logs_days = 0;
 set @@GLOBAL.relay_log_info_repository = @save_relay_log_info_repository;
+set @@GLOBAL.expire_logs_days = @save_expire_logs_days;

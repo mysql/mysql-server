@@ -1,4 +1,4 @@
-# Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -32,4 +32,16 @@ MYSQL_ADD_COMPONENT(example_component2
 MYSQL_ADD_COMPONENT(example_component3
   example_component3.cc
   example_math_wrapping_imp.cc
+  TEST MODULE)
+
+MYSQL_ADD_COMPONENT(test_string_service
+  test_string_service.cc
+  TEST MODULE)
+
+MYSQL_ADD_COMPONENT(test_string_service_long
+  test_string_service_long.cc
+  TEST MODULE)
+
+MYSQL_ADD_COMPONENT(test_string_service_charset
+  test_string_service_charset.cc
   TEST MODULE)

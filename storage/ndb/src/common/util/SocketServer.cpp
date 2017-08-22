@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +25,8 @@
 #include <NdbThread.h>
 #include <NdbSleep.h>
 #include <NdbTick.h>
+#include <ndb_socket.h>
+#include <OwnProcessInfo.hpp>
 
 SocketServer::SocketServer(unsigned maxSessions) :
   m_sessions(10),
@@ -128,15 +130,19 @@ SocketServer::setup(SocketServer::Service * service,
     DBUG_RETURN(false);
   }
 
-  /* Get the port we bound to */
-  if(my_socket_get_port(sock, port))
+  /* Get the address and port we bound to */
+  struct sockaddr_in serv_addr;
+  socket_len_t addr_len = sizeof(serv_addr);
+  if(ndb_getsockname(sock, (struct sockaddr *) &serv_addr, &addr_len))
   {
     ndbout_c("An error occurred while trying to find out what"
 	     " port we bound to. Error: %d - %s",
-             socket_errno, strerror(socket_errno));
+             my_socket_errno(), strerror(my_socket_errno()));
     my_socket_close(sock);
     DBUG_RETURN(false);
   }
+  *port = ntohs(serv_addr.sin_port);
+  setOwnProcessInfoServerAddress(& serv_addr.sin_addr);
 
   DBUG_PRINT("info",("bound to %u", *port));
 

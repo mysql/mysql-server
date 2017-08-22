@@ -16,6 +16,7 @@
 # 5. Assert that server1 and server2 have the same data and GTID_EXECUTED.
 # 6. Clean up.
 ################################################################################
+--source include/big_test.inc
 --source include/have_debug.inc
 --source ../inc/have_group_replication_plugin.inc
 --source ../inc/group_replication.inc

@@ -18,7 +18,7 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
-#include "log.h"                  // sql_print_error
+#include "log.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
@@ -26,6 +26,7 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld.h"               // mysqld_port
+#include "mysqld_error.h"         // ER_*
 #include "mysqld_thd_manager.h"   // Global_THD_manager
 #include "replication.h"          // Trans_context_info
 #include "rpl_channel_service_interface.h"
@@ -120,10 +121,11 @@ get_group_members_info(
 bool
 Group_replication_handler::
 get_group_member_stats_info(
+    unsigned int index,
     const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS& callbacks)
 {
   if (plugin_handle)
-    return plugin_handle->get_group_member_stats_info(callbacks);
+    return plugin_handle->get_group_member_stats_info(index, callbacks);
   return true;
 }
 
@@ -231,7 +233,7 @@ int group_replication_start()
     return ret;
   }
   mysql_mutex_unlock(&LOCK_group_replication_handler);
-  sql_print_error("Group Replication plugin is not installed.");
+  LogErr(ERROR_LEVEL, ER_GROUP_REPLICATION_PLUGIN_NOT_INSTALLED);
   return 1;
 }
 
@@ -246,7 +248,7 @@ int group_replication_stop()
   }
   mysql_mutex_unlock(&LOCK_group_replication_handler);
 
-  sql_print_error("Group Replication plugin is not installed.");
+  LogErr(ERROR_LEVEL, ER_GROUP_REPLICATION_PLUGIN_NOT_INSTALLED);
   return 1;
 }
 
@@ -304,12 +306,13 @@ bool get_group_replication_group_members_info(
 }
 
 bool get_group_replication_group_member_stats_info(
+    unsigned int index,
     const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS& callbacks)
 {
   mysql_mutex_lock(&LOCK_group_replication_handler);
   if (is_group_replication_plugin_loaded())
   {
-    bool ret= group_replication_handler->get_group_member_stats_info(callbacks);
+    bool ret= group_replication_handler->get_group_member_stats_info(index, callbacks);
     mysql_mutex_unlock(&LOCK_group_replication_handler);
     return ret;
   }
@@ -333,14 +336,15 @@ unsigned int get_group_replication_members_number_info()
 }
 
 
+
 /*
   Server methods exported to plugin through
   include/mysql/group_replication_priv.h
 */
-
 void get_server_parameters(char **hostname, uint *port, char** uuid,
-                           unsigned int *out_server_version)
-{
+                           unsigned int *out_server_version,
+                           st_server_ssl_variables* server_ssl_variables)
+  {
   /*
     use startup option report-host and report-port when provided,
     as value provided by glob_hostname, which used gethostname() function
@@ -381,6 +385,20 @@ void get_server_parameters(char **hostname, uint *port, char** uuid,
   int v4= major - v5 * 10;
 
   *out_server_version= v0 + v1 * 16 + v2 * 256 + v3 * 4096 + v4 * 65536 + v5 * 1048576;
+
+#ifdef HAVE_OPENSSL
+  server_ssl_variables->have_ssl_opt= true;
+#else
+  server_ssl_variables->have_ssl_opt= false;
+#endif
+  server_ssl_variables->ssl_ca= opt_ssl_ca;
+  server_ssl_variables->ssl_capath= opt_ssl_capath;
+  server_ssl_variables->tls_version= opt_tls_version;
+  server_ssl_variables->ssl_cert= opt_ssl_cert;
+  server_ssl_variables->ssl_cipher= opt_ssl_cipher;
+  server_ssl_variables->ssl_key= opt_ssl_key;
+  server_ssl_variables->ssl_crl= opt_ssl_crl;
+  server_ssl_variables->ssl_crlpath= opt_ssl_crlpath;
 
   return;
 }

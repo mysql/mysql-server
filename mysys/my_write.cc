@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,6 +37,9 @@
 #include "mysys_priv.h"
 #endif
 
+#include <algorithm>
+
+extern PSI_stage_info stage_waiting_for_disk_space;
 
 #ifndef _WIN32
 // Mock away write() for unit testing.
@@ -66,6 +69,7 @@ size_t my_write(File Filedes, const uchar *Buffer, size_t Count, myf MyFlags)
   size_t sum_written= 0;
   uint errors= 0;
   const size_t initial_count= Count;
+  size_t ToWriteCount;
 
   DBUG_ENTER("my_write");
   DBUG_PRINT("my",("fd: %d  Buffer: %p  Count: %lu  MyFlags: %d",
@@ -80,18 +84,55 @@ size_t my_write(File Filedes, const uchar *Buffer, size_t Count, myf MyFlags)
   for (;;)
   {
     errno= 0;
+
+    ToWriteCount= Count;
+    DBUG_EXECUTE_IF("force_wait_for_disk_space",
+                    {
+                      ToWriteCount= 1;
+                    });
+    DBUG_EXECUTE_IF("simulate_io_thd_wait_for_disk_space",
+                    {
+                      if (strstr(my_filename(Filedes), "slave-relay-bin.0"))
+                        ToWriteCount= 1;
+                    });
+    DBUG_EXECUTE_IF("simulate_random_io_thd_wait_for_disk_space",
+                    {
+                      if (strstr(my_filename(Filedes), "slave-relay-bin.0"))
+                      {
+                        if (rand() % 3 == 0)
+                          ToWriteCount= Count;
+                        else
+                          ToWriteCount= std::min(Count,
+                                                 1 + (Count*(rand()%100)/100));
+                      }
+                    });
 #ifdef _WIN32
-    writtenbytes= my_win_write(Filedes, Buffer, Count);
+    writtenbytes= my_win_write(Filedes, Buffer, ToWriteCount);
 #else
     if (mock_write)
-      writtenbytes= mock_write(Filedes, Buffer, Count);
+      writtenbytes= mock_write(Filedes, Buffer, ToWriteCount);
     else
-      writtenbytes= write(Filedes, Buffer, Count);
+      writtenbytes= write(Filedes, Buffer, ToWriteCount);
 #endif
     DBUG_EXECUTE_IF("simulate_file_write_error",
                     {
                       errno= ENOSPC;
                       writtenbytes= (size_t) -1;
+                    });
+    DBUG_EXECUTE_IF("force_wait_for_disk_space",
+                    {
+                      errno= ENOSPC;
+                    });
+    DBUG_EXECUTE_IF("simulate_io_thd_wait_for_disk_space",
+                    {
+                      if (strstr(my_filename(Filedes), "slave-relay-bin.0"))
+                        errno= ENOSPC;
+                    });
+    DBUG_EXECUTE_IF("simulate_random_io_thd_wait_for_disk_space",
+                    {
+                      if (strstr(my_filename(Filedes), "slave-relay-bin.0") &&
+                          ToWriteCount != Count)
+                        errno= ENOSPC;
                     });
     if (writtenbytes == Count)
     {
@@ -113,14 +154,30 @@ size_t my_write(File Filedes, const uchar *Buffer, size_t Count, myf MyFlags)
     if ((my_errno() == ENOSPC || my_errno() == EDQUOT) &&
         (MyFlags & MY_WAIT_IF_FULL))
     {
+      PSI_stage_info old_stage;
+      if (MyFlags & MY_REPORT_WAITING_IF_FULL)
+      {
+        set_waiting_for_disk_space_hook(NULL, true);
+        enter_stage_hook(NULL, &stage_waiting_for_disk_space, &old_stage,
+                         __func__, __FILE__, __LINE__);
+      }
       wait_for_free_space(my_filename(Filedes), errors);
+      if (MyFlags & MY_REPORT_WAITING_IF_FULL)
+      {
+        enter_stage_hook(NULL, &old_stage, NULL,
+                         __func__, __FILE__, __LINE__);
+        set_waiting_for_disk_space_hook(NULL, false);
+      }
+
       errors++;
       DBUG_EXECUTE_IF("simulate_no_free_space_error",
                       { DBUG_SET("-d,simulate_file_write_error");});
+      if (is_killed_hook(NULL))
+        break;
       continue;
     }
 
-    if (writtenbytes != 0 && writtenbytes != (size_t) -1)
+    if (writtenbytes != 0 && writtenbytes != (size_t) -1 && !is_killed_hook(NULL))
       continue;                                 /* Retry if something written */
     else if (my_errno() == EINTR)
     {

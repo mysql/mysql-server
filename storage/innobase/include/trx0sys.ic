@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -95,14 +95,14 @@ space_id_t
 trx_sysf_rseg_get_space(
 /*====================*/
 	trx_sysf_t*	sys_header,	/*!< in: trx sys header */
-	ulint		i,		/*!< in: slot index == rseg id */
+	ulint		slot,		/*!< in: slot index == rseg id */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
 	ut_ad(sys_header);
-	ut_ad(i < TRX_SYS_N_RSEGS);
+	ut_ad(slot < TRX_SYS_N_RSEGS);
 
 	return(mtr_read_ulint(sys_header + TRX_SYS_RSEGS
-			+ i * TRX_SYS_RSEG_SLOT_SIZE
+			+ slot * TRX_SYS_RSEG_SLOT_SIZE
 			+ TRX_SYS_RSEG_SPACE, MLOG_4BYTES, mtr));
 }
 
@@ -134,15 +134,15 @@ void
 trx_sysf_rseg_set_space(
 /*====================*/
 	trx_sysf_t*	sys_header,	/*!< in: trx sys file copy */
-	ulint		i,		/*!< in: slot index == rseg id */
+	ulint		slot,		/*!< in: slot index == rseg id */
 	space_id_t	space,		/*!< in: space id */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
 	ut_ad(sys_header);
-	ut_ad(i < TRX_SYS_N_RSEGS);
+	ut_ad(slot < TRX_SYS_N_RSEGS);
 
 	mlog_write_ulint(sys_header + TRX_SYS_RSEGS
-			 + i * TRX_SYS_RSEG_SLOT_SIZE
+			 + slot * TRX_SYS_RSEG_SLOT_SIZE
 			 + TRX_SYS_RSEG_SPACE,
 			 space,
 			 MLOG_4BYTES, mtr);
@@ -156,16 +156,16 @@ void
 trx_sysf_rseg_set_page_no(
 /*======================*/
 	trx_sysf_t*	sys_header,	/*!< in: trx sys header */
-	ulint		i,		/*!< in: slot index == rseg id */
+	ulint		slot,		/*!< in: slot index == rseg id */
 	page_no_t	page_no,	/*!< in: page number, FIL_NULL if the
 					slot is reset to unused */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
 	ut_ad(sys_header);
-	ut_ad(i < TRX_SYS_N_RSEGS);
+	ut_ad(slot < TRX_SYS_N_RSEGS);
 
 	mlog_write_ulint(sys_header + TRX_SYS_RSEGS
-			 + i * TRX_SYS_RSEG_SLOT_SIZE
+			 + slot * TRX_SYS_RSEG_SLOT_SIZE
 			 + TRX_SYS_RSEG_PAGE_NO,
 			 page_no,
 			 MLOG_4BYTES, mtr);

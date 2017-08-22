@@ -4,8 +4,7 @@
 
 [cluster_config.1]
 NoOfReplicas=                  2
-DataMemory=                    80M
-IndexMemory=                   20M
+DataMemory=                    100M
 #NoOfFragmentLogFiles=          4
 NoOfFragmentLogFiles=          16
 #FragmentLogFileSize=           80M

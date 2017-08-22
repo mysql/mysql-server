@@ -324,7 +324,7 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
     // fulltext indexes require special treatment
     if (cur_keytype != FULLTEXT)
     {
-      *found_condition|= MY_TEST(found_part);
+      *found_condition|= found_part;
 
       const bool all_key_parts_covered=
          (found_part == LOWER_BITS(key_part_map, actual_key_parts(keyinfo)));
@@ -4594,8 +4594,9 @@ void Optimize_table_order::advance_sj_state(
                           current partial join order.
 */
 
-void Optimize_table_order::backout_nj_state(const table_map remaining_tables,
-                                            const JOIN_TAB *tab)
+void Optimize_table_order::
+backout_nj_state(const table_map remaining_tables MY_ATTRIBUTE((unused)),
+                 const JOIN_TAB *tab)
 {
   DBUG_ASSERT(remaining_tables & tab->table_ref->map());
 

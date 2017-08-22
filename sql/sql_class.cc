@@ -38,7 +38,6 @@
 #include "log_event.h"
 #include "m_ctype.h"
 #include "m_string.h"
-#include "my_atomic.h"
 #include "my_dbug.h"
 #include "mysql/psi/mysql_stage.h"
 #include "mysql/psi/mysql_statement.h"
@@ -91,6 +90,7 @@ LEX_CSTRING EMPTY_CSTR= { "", 0 };
 LEX_CSTRING NULL_CSTR=  { NULL, 0 };
 
 const char * const THD::DEFAULT_WHERE= "field list";
+extern PSI_stage_info stage_waiting_for_disk_space;
 
 
 void THD::Transaction_state::backup(THD *thd)
@@ -271,40 +271,9 @@ THD::Attachable_trx::~Attachable_trx()
   }
 }
 
-
-static const uchar *get_var_key(const uchar *arg, size_t *length)
-{
-  const user_var_entry *entry= pointer_cast<const user_var_entry*>(arg);
-  *length= entry->entry_name.length();
-  return (uchar*) entry->entry_name.ptr();
-}
-
-static void free_user_var(void *arg)
-{
-  user_var_entry *entry= pointer_cast<user_var_entry*>(arg);
-  entry->destroy();
-}
-
-
-PSI_thread* THD::get_psi()
-{
-  void *addr= & m_psi;
-  void * volatile * typed_addr= static_cast<void * volatile *>(addr);
-  void *ptr;
-  ptr= my_atomic_loadptr(typed_addr);
-  return static_cast<PSI_thread*>(ptr);
-}
-
-void THD::set_psi(PSI_thread *psi)
-{
-  void *addr= & m_psi;
-  void * volatile * typed_addr= static_cast<void * volatile *>(addr);
-  my_atomic_storeptr(typed_addr, psi);
-}
-
 void THD::enter_stage(const PSI_stage_info *new_stage,
                       PSI_stage_info *old_stage,
-                      const char *calling_func,
+                      const char *calling_func MY_ATTRIBUTE((unused)),
                       const char *calling_file,
                       const unsigned int calling_line)
 {
@@ -443,7 +412,8 @@ THD::THD(bool enable_plugins)
    m_query_rewrite_plugin_da_ptr(&m_query_rewrite_plugin_da),
    m_stmt_da(&main_da),
    duplicate_slave_id(false),
-   is_a_srv_session_thd(false)
+   is_a_srv_session_thd(false),
+   m_is_plugin_fake_ddl(false)
 {
   main_lex.reset();
   set_psi(NULL);
@@ -525,10 +495,7 @@ THD::THD(bool enable_plugins)
   profiling.set_thd(this);
 #endif
   m_user_connect= NULL;
-  my_hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0,
-               get_var_key,
-               free_user_var, 0,
-               key_memory_user_var_entry);
+  user_vars.clear();
 
   sp_proc_cache= NULL;
   sp_func_cache= NULL;
@@ -932,10 +899,7 @@ void THD::cleanup_connection(void)
   cleanup_done= 0;
   init();
   stmt_map.reset();
-  my_hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0,
-               get_var_key,
-               free_user_var, 0,
-               key_memory_user_var_entry);
+  user_vars.clear();
   sp_cache_clear(&sp_proc_cache);
   sp_cache_clear(&sp_func_cache);
 
@@ -1024,7 +988,7 @@ void THD::cleanup(void)
 
   /* Protects user_vars. */
   mysql_mutex_lock(&LOCK_thd_data);
-  my_hash_free(&user_vars);
+  user_vars.clear();
   mysql_mutex_unlock(&LOCK_thd_data);
 
   /*
@@ -1346,22 +1310,38 @@ void THD::disconnect(bool server_shutdown)
 
   mysql_mutex_lock(&LOCK_thd_data);
 
-  killed= THD::KILL_CONNECTION;
-
   /*
-    Since a active vio might might have not been set yet, in
-    any case save a reference to avoid closing a inexistent
-    one or closing the vio twice if there is a active one.
-  */
-  vio= active_vio;
-  shutdown_active_vio();
+    If thread is in kill immune mode (i.e. operation on new DD tables
+    is in progress) then just save state_to_set with THD::kill_immunizer
+    object.
 
-  /* Disconnect even if a active vio is not associated. */
-  if (is_classic_protocol() &&
-      get_protocol_classic()->get_vio() != vio &&
-      get_protocol_classic()->connection_alive())
+    While exiting kill immune mode, awake() is called again with the killed
+    state saved in THD::kill_immunizer object.
+
+    active_vio is aleady associated to the thread when it is in the kill
+    immune mode. THD::awake() closes the active_vio.
+ */
+  if (kill_immunizer != nullptr)
+    kill_immunizer->save_killed_state(THD::KILL_CONNECTION);
+  else
   {
-    m_protocol->shutdown(server_shutdown);
+    killed= THD::KILL_CONNECTION;
+
+    /*
+      Since a active vio might might have not been set yet, in
+      any case save a reference to avoid closing a inexistent
+      one or closing the vio twice if there is a active one.
+    */
+    vio= active_vio;
+    shutdown_active_vio();
+
+    /* Disconnect even if a active vio is not associated. */
+    if (is_classic_protocol() &&
+        get_protocol_classic()->get_vio() != vio &&
+        get_protocol_classic()->connection_alive())
+    {
+      m_protocol->shutdown(server_shutdown);
+    }
   }
 
   mysql_mutex_unlock(&LOCK_thd_data);
@@ -1408,9 +1388,8 @@ bool THD::store_globals()
   */
   DBUG_ASSERT(thread_stack);
 
-  if (my_thread_set_THR_THD(this) ||
-      my_thread_set_THR_MALLOC(&mem_root))
-    return true;
+  current_thd= this;
+  THR_MALLOC= &mem_root;
   /*
     is_killable is concurrently readable by a killer thread.
     It is protected by LOCK_thd_data, it is not needed to lock while the
@@ -1444,8 +1423,8 @@ void THD::restore_globals()
   DBUG_ASSERT(thread_stack);
 
   /* Undocking the thread specific data. */
-  my_thread_set_THR_THD(NULL);
-  my_thread_set_THR_MALLOC(NULL);
+  current_thd= nullptr;
+  THR_MALLOC= nullptr;
 }
 
 
@@ -2495,9 +2474,9 @@ void THD::leave_locked_tables_mode()
       Also ensure that we don't release metadata locks for open HANDLERs
       and user-level locks.
     */
-    if (handler_tables_hash.records)
+    if (!handler_tables_hash.empty())
       mysql_ha_set_explicit_lock_duration(this);
-    if (ull_hash.records)
+    if (!ull_hash.empty())
       mysql_ull_set_explicit_lock_duration(this);
   }
   locked_tables_mode= LTM_NONE;
@@ -2718,8 +2697,81 @@ void THD::Query_plan::set_modification_plan(Modification_plan *plan_arg)
   modification_plan= plan_arg;
 }
 
+
 /**
-  Push an error message into MySQL diagnostic area with line
+  Push an error message into MySQL diagnostic area with line number and position
+
+  This function provides semantic action implementers with a way
+  to push the famous "You have a syntax error near..." error
+  message into the diagnostic area, which is normally produced only if
+  a syntax error is discovered according to the Bison grammar.
+  Unlike the syntax_error_at() function, the error position points to the last
+  parsed token.
+
+  @note Parse-time only function!
+
+  @param format         Error format message. NULL means ER(ER_SYNTAX_ERROR).
+*/
+void THD::syntax_error(const char *format, ...)
+{
+  va_list args;
+  va_start(args, format);
+  vsyntax_error_at(m_parser_state->m_lip.get_tok_start(), format, args);
+  va_end(args);
+}
+
+
+/**
+  Push an error message into MySQL diagnostic area with line number and position
+
+  This function provides semantic action implementers with a way
+  to push the famous "You have a syntax error near..." error
+  message into the diagnostic area, which is normally produced only if
+  a syntax error is discovered according to the Bison grammar.
+  Unlike the syntax_error_at() function, the error position points to the last
+  parsed token.
+
+  @note Parse-time only function!
+
+  @param mysql_errno    Error number to get a format string with ER_THD().
+*/
+void THD::syntax_error(int mysql_errno, ...)
+{
+  va_list args;
+  va_start(args, mysql_errno);
+  vsyntax_error_at(m_parser_state->m_lip.get_tok_start(),
+                   ER_THD(this, mysql_errno), args);
+  va_end(args);
+}
+
+
+/**
+  Push a syntax error message into MySQL diagnostic area with line
+  and position information.
+
+  This function provides semantic action implementers with a way
+  to push the famous "You have a syntax error near..." error
+  message into the diagnostic area, which is normally produced only if
+  a parse error is discovered internally by the Bison generated
+  parser.
+
+  @note Parse-time only function!
+
+  @param location       YYSTYPE object: error position.
+  @param format         Error format message. NULL means ER(ER_SYNTAX_ERROR).
+*/
+
+void THD::syntax_error_at(const YYLTYPE &location, const char *format, ...)
+{
+  va_list args;
+  va_start(args, format);
+  vsyntax_error_at(location, format, args);
+  va_end(args);
+}
+
+
+/**
+  Push a syntax error message into MySQL diagnostic area with line
   and position information.
 
   This function provides semantic action implementers with a way
@@ -2731,18 +2783,53 @@ void THD::Query_plan::set_modification_plan(Modification_plan *plan_arg)
   @note Parse-time only function!
 
   @param location       YYSTYPE object: error position
-  @param s              error message: NULL default means ER(ER_SYNTAX_ERROR)
+  @param mysql_errno    Error number to get a format string with ER_THD()
+*/
+void THD::syntax_error_at(const YYLTYPE &location, int mysql_errno, ...)
+{
+  va_list args;
+  va_start(args, mysql_errno);
+  vsyntax_error_at(location, ER_THD(this, mysql_errno), args);
+  va_end(args);
+}
+
+
+/**
+  Push a syntax error message into MySQL diagnostic area with line number and
+  position
+
+  This function provides semantic action implementers with a way
+  to push the famous "You have a syntax error near..." error
+  message into the error stack, which is normally produced only if
+  a parse error is discovered internally by the Bison generated
+  parser.
+
+  @param pos_in_lexer_raw_buffer        Pointer into LEX::m_buf or NULL.
+  @param format                         An error message format string.
+  @param args                           Arguments to the format string.
 */
 
-void THD::syntax_error_at(const YYLTYPE &location, const char *s)
+void THD::vsyntax_error_at(const char *pos_in_lexer_raw_buffer,
+                           const char *format, va_list args)
 {
-  uint lineno= location.raw.start ?
-    m_parser_state->m_lip.get_lineno(location.raw.start) : 1;
-  const char *pos= location.raw.start ? location.raw.start : "";
+  DBUG_ASSERT(pos_in_lexer_raw_buffer == NULL ||
+              (pos_in_lexer_raw_buffer >= m_parser_state->m_lip.get_buf() &&
+               pos_in_lexer_raw_buffer <=
+               m_parser_state->m_lip.get_end_of_query()));
+
+  char buff[MYSQL_ERRMSG_SIZE];
+  if (check_stack_overrun(this, STACK_MIN_SIZE, (uchar *)buff))
+    return;
+
+  const uint lineno= pos_in_lexer_raw_buffer ?
+    m_parser_state->m_lip.get_lineno(pos_in_lexer_raw_buffer) : 1;
+  const char *pos= pos_in_lexer_raw_buffer ? pos_in_lexer_raw_buffer : "";
   ErrConvString err(pos, variables.character_set_client);
-  my_printf_error(ER_PARSE_ERROR,  ER_THD(this, ER_PARSE_ERROR), MYF(0),
-                  s ? s : ER_THD(this, ER_SYNTAX_ERROR), err.ptr(), lineno);
+  (void) my_vsnprintf(buff, sizeof(buff), format, args);
+  my_printf_error(ER_PARSE_ERROR, ER_THD(this, ER_PARSE_ERROR), MYF(0), buff,
+                  err.ptr(), lineno);
 }
+
 
 bool THD::send_result_metadata(List<Item> *list, uint flags)
 {
@@ -2864,7 +2951,10 @@ void THD::claim_memory_ownership()
     p->claim_memory_ownership();
   session_tracker.claim_memory_ownership();
   session_sysvar_res_mgr.claim_memory_ownership();
-  my_hash_claim(&user_vars);
+  for (const auto &key_and_value : user_vars)
+  {
+    my_claim(key_and_value.second.get());
+  }
 #if defined(ENABLED_DEBUG_SYNC)
   debug_sync_claim_memory_ownership(this);
 #endif /* defined(ENABLED_DEBUG_SYNC) */

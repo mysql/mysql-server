@@ -13,9 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 #ifndef NODE_CONNECTION_H
-#define	NODE_CONNECTION_H
+#define NODE_CONNECTION_H
 
 #ifdef XCOM_HAVE_OPENSSL
 #include "openssl/ssl.h"
@@ -29,66 +28,57 @@
 #include "xcom_proto.h"
 #include "xcom_vp.h"
 
-#ifdef	__cplusplus
-extern "C"
-{
+#ifdef __cplusplus
+extern "C" {
 #endif
 
-	enum con_state {
-		CON_NULL,
-		CON_FD,
-		CON_PROTO
-	};
-	typedef enum con_state con_state;
+enum con_state { CON_NULL, CON_FD, CON_PROTO };
+typedef enum con_state con_state;
 
-	struct connection_descriptor {
-		int fd;
+struct connection_descriptor {
+  int fd;
 #ifdef XCOM_HAVE_OPENSSL
-		SSL *ssl_fd;
+  SSL *ssl_fd;
 #endif
-		con_state connected_;
-		unsigned int snd_tag;
-		xcom_proto x_proto;
-	};
+  con_state connected_;
+  unsigned int snd_tag;
+  xcom_proto x_proto;
+};
 
-	typedef struct connection_descriptor connection_descriptor;
+typedef struct connection_descriptor connection_descriptor;
 
 #ifdef XCOM_HAVE_OPENSSL
-	static inline connection_descriptor *new_connection(int fd, SSL *ssl_fd)
-	{
-		connection_descriptor *c = (connection_descriptor *) calloc(1,sizeof(connection_descriptor));
-		c->fd = fd;
-		c->ssl_fd = ssl_fd;
-		c->connected_ = CON_NULL;
-		return c;
-	}
+static inline connection_descriptor *new_connection(int fd, SSL *ssl_fd) {
+  connection_descriptor *c =
+      (connection_descriptor *)calloc((size_t)1, sizeof(connection_descriptor));
+  c->fd = fd;
+  c->ssl_fd = ssl_fd;
+  c->connected_ = CON_NULL;
+  return c;
+}
 #else
-	static inline connection_descriptor *new_connection(int fd)
-	{
-		connection_descriptor *c = (connection_descriptor *) calloc(1,sizeof(connection_descriptor));
-		c->fd = fd;
-		c->connected_ = CON_NULL;
-		return c;
-	}
+static inline connection_descriptor *new_connection(int fd) {
+  connection_descriptor *c =
+      (connection_descriptor *)calloc((size_t)1, sizeof(connection_descriptor));
+  c->fd = fd;
+  c->connected_ = CON_NULL;
+  return c;
+}
 #endif
-	static inline int is_connected(connection_descriptor *con)
-	{
-		return con->connected_ >= CON_FD;
-	}
+static inline int is_connected(connection_descriptor *con) {
+  return con->connected_ >= CON_FD;
+}
 
-	static inline int proto_done(connection_descriptor *con)
-	{
-		return con->connected_ == CON_PROTO;
-	}
+static inline int proto_done(connection_descriptor *con) {
+  return con->connected_ == CON_PROTO;
+}
 
-	static inline void set_connected(connection_descriptor *con, con_state val)
-	{
-		con->connected_ = val;
-	}
+static inline void set_connected(connection_descriptor *con, con_state val) {
+  con->connected_ = val;
+}
 
-#ifdef	__cplusplus
+#ifdef __cplusplus
 }
 #endif
 
-#endif	/* NODE_CONNECTION_H */
-
+#endif /* NODE_CONNECTION_H */

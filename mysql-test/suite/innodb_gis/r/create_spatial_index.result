@@ -1376,7 +1376,7 @@ Table	Create Table
 tab	CREATE TABLE `tab` (
   `c1` point NOT NULL,
   SPATIAL KEY `idx1` (`c1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ANALYZE TABLE tab;
 Table	Op	Msg_type	Msg_text
 test.tab	analyze	status	OK

@@ -1,13 +1,3 @@
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs54=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-alter schema default character set latin1;
-use test;
---enable_query_log
-########################################
-
 --echo #
 --echo # This is a copy of innodb-alter.test except using remote tablespaces
 --echo # and showing those files.
@@ -23,7 +13,7 @@ LET $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
 # makes a whitespace delimited word recognized as a path, the '\' characters will
 # get converted to '/' in the result file on Windows, but not on Unix.
 # So just look for ".i".
-LET $regexp=/FTS_([0-9a-f_]+)([A-Z0-9_]+)\.i/FTS_AUX_\2.i/;
+LET $regexp=/fts_([0-9a-f_]+)([A-Z0-9_]+)/fts_aux\2/;
 
 # Set up some variables
 LET $MYSQL_DATA_DIR = `select @@datadir`;
@@ -383,14 +373,14 @@ ALTER TABLE t1o CHANGE c1 db_roll_ptr INT;
 
 # FTS_DOC_ID is the internal row identifier for full-text search.
 # It should be of type BIGINT UNSIGNED NOT NULL.
---error ER_WRONG_COLUMN_NAME
+--error ER_INNODB_FT_WRONG_DOCID_COLUMN
 ALTER TABLE t1o ADD FULLTEXT INDEX(ct), CHANGE c1 FTS_DOC_ID INT,
 ALGORITHM=COPY;
 
 --error ER_INNODB_FT_WRONG_DOCID_COLUMN
 ALTER TABLE t1o ADD FULLTEXT INDEX(ct), CHANGE c1 FTS_DOC_ID INT,
 ALGORITHM=INPLACE;
---error ER_WRONG_COLUMN_NAME
+--error ER_INNODB_FT_WRONG_DOCID_COLUMN
 ALTER TABLE t1o ADD FULLTEXT INDEX(ct), CHANGE c1 FTS_Doc_ID INT,
 ALGORITHM=INPLACE;
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
@@ -409,9 +399,9 @@ ALTER TABLE t1n ADD FULLTEXT INDEX(ct);
 --replace_regex $regexp
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
---error ER_WRONG_COLUMN_NAME
+--error ER_INNODB_FT_WRONG_DOCID_COLUMN
 ALTER TABLE t1n CHANGE c1 Fts_DOC_ID INT, ALGORITHM=INPLACE;
---error ER_WRONG_COLUMN_NAME
+--error ER_INNODB_FT_WRONG_DOCID_COLUMN
 ALTER TABLE t1n CHANGE c1 Fts_DOC_ID INT, ALGORITHM=COPY;
 --error ER_BAD_FIELD_ERROR
 ALTER TABLE t1n CHANGE FTS_DOC_ID c11 INT, ALGORITHM=INPLACE;
@@ -607,10 +597,3 @@ DROP TABLE tt, t1o, sys_tables, sys_indexes, sys_foreign;
 eval set global innodb_file_per_table=$innodb_file_per_table_orig;
 call mtr.add_suppression("deleting orphaned .ibd file");
 -- enable_query_log
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
---eval alter schema test default character set $testdbcs54;
---enable_query_log
-########################################

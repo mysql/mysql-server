@@ -17,7 +17,7 @@ c9 decimal(6,3),
 primary key (c1),
 index (c3,c4(50),c5(50)),
 index (c2))
-engine=innodb row_format=redundant;
+engine=innodb row_format=redundant charset latin1;
 create temporary table t2(c1 int not null,
 c2 int not null,
 c3 char(255) not null,
@@ -30,7 +30,7 @@ c9 decimal(6,3),
 primary key (c1),
 index (c3,c4(50),c5(50)),
 index (c2))
-engine=innodb row_format=compact;
+engine=innodb row_format=compact charset latin1;
 create temporary table t4(c1 int not null,
 c2 int not null,
 c3 char(255) not null,
@@ -43,7 +43,7 @@ c9 decimal(6,3),
 primary key (c1),
 index (c3,c4(50),c5(50)),
 index (c2))
-engine=innodb row_format=dynamic;
+engine=innodb row_format=dynamic charset latin1;
 create temporary table t5(c1 int not null,
 c2 int not null,
 c3 char(255) not null,
@@ -56,7 +56,7 @@ c9 decimal(6,3),
 primary key (c1),
 index (c3,c4(50),c5(50)),
 index (c2))
-engine=innodb;
+engine=innodb charset latin1;
 create temporary table t6 ( a int ) engine = innodb;
 insert into t6 values (50),(100),(150),(190);
 while (n > 0) do

@@ -36,7 +36,6 @@ cursor_by_thread.h
 cursor_by_user.h
 pfs.h
 pfs_account.h
-pfs_atomic.h
 pfs_buffer_container.h
 pfs_builtin_memory.h
 pfs_column_types.h
@@ -58,6 +57,7 @@ pfs_instr.h
 pfs_instr_class.h
 pfs_lock.h
 pfs_memory.h
+pfs_plugin_table.h
 pfs_prepared_stmt.h
 pfs_program.h
 pfs_server.h
@@ -146,6 +146,7 @@ table_threads.h
 table_tiws_by_index_usage.h
 table_tiws_by_table.h
 table_tlws_by_table.h
+table_user_defined_functions.h
 table_users.h
 table_uvar_by_thread.h
 table_variables_info.h
@@ -161,6 +162,7 @@ table_replication_applier_status.h
 table_replication_applier_status_by_coordinator.h
 table_replication_applier_status_by_worker.h
 table_replication_group_member_stats.h
+table_plugin_table.h
 table_replication_applier_filters.h
 table_replication_applier_global_filters.h
 cursor_by_account.cc
@@ -173,7 +175,6 @@ pfs_account.cc
 pfs_autosize.cc
 pfs_buffer_container.cc
 pfs_builtin_memory.cc
-pfs_check.cc
 pfs_column_types.cc
 pfs_column_values.cc
 pfs_con_slice.cc
@@ -192,6 +193,7 @@ pfs_host.cc
 pfs_instr.cc
 pfs_instr_class.cc
 pfs_memory.cc
+pfs_plugin_table.cc
 pfs_prepared_stmt.cc
 pfs_program.cc
 pfs_server.cc
@@ -202,6 +204,8 @@ pfs_timer.cc
 pfs_user.cc
 pfs_variable.cc
 pfs_visitor.cc
+service_pfs_notification.cc
+service_pfs_resource_group.cc
 table_accounts.cc
 table_all_instr.cc
 table_esgs_by_account_by_event_name.cc
@@ -279,6 +283,7 @@ table_threads.cc
 table_tiws_by_index_usage.cc
 table_tiws_by_table.cc
 table_tlws_by_table.cc
+table_user_defined_functions.cc
 table_users.cc
 table_uvar_by_thread.cc
 table_variables_info.cc
@@ -294,6 +299,7 @@ table_replication_applier_status.cc
 table_replication_applier_status_by_coordinator.cc
 table_replication_applier_status_by_worker.cc
 table_replication_group_member_stats.cc
+table_plugin_table.cc
 table_replication_applier_filters.cc
 table_replication_applier_global_filters.cc
 )

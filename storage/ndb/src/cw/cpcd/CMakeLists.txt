@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,8 +18,7 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbapi
                     ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi
                     ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/mgmcommon
                     ${CMAKE_SOURCE_DIR}/storage/ndb/include/portlib
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmclient
-                    ${CMAKE_SOURCE_DIR}/sql)
+                    ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmclient)
 
 
 ADD_EXECUTABLE(ndb_cpcd

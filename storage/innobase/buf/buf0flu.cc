@@ -952,6 +952,7 @@ buf_flush_init_for_writing(
 				case FIL_PAGE_TYPE_ZBLOB3:
 				case FIL_PAGE_SDI_BLOB:
 				case FIL_PAGE_SDI_ZBLOB:
+				case FIL_PAGE_TYPE_RSEG_ARRAY:
 					break;
 				case FIL_PAGE_TYPE_FSP_HDR:
 				case FIL_PAGE_TYPE_XDES:
@@ -3184,7 +3185,8 @@ buf_flush_page_coordinator_thread(size_t n_page_cleaners)
 
 	while (!srv_read_only_mode
 	       && srv_shutdown_state == SRV_SHUTDOWN_NONE
-	       && recv_sys->heap != NULL) {
+	       && recv_sys->spaces != NULL) {
+
 		/* treat flushing requests during recovery. */
 		ulint	n_flushed_lru = 0;
 		ulint	n_flushed_list = 0;
@@ -3192,7 +3194,8 @@ buf_flush_page_coordinator_thread(size_t n_page_cleaners)
 		os_event_wait(recv_sys->flush_start);
 
 		if (srv_shutdown_state != SRV_SHUTDOWN_NONE
-		    || recv_sys->heap == NULL) {
+		    || recv_sys->spaces == NULL) {
+
 			break;
 		}
 

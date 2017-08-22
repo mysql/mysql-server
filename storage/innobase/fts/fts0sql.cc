@@ -33,6 +33,10 @@ Created 2007-03-27 Sunny Bains
 #include "que0que.h"
 #include "trx0roll.h"
 
+#include <algorithm>
+#include <string>
+#include "current_thd.h"
+
 /** SQL statements for creating the ancillary FTS tables. */
 
 /** Preamble to all SQL statements. */
@@ -91,14 +95,15 @@ fts_get_table_id(
 	return(len);
 }
 
-/******************************************************************//**
-Construct the prefix name of an FTS table.
+/** Construct the prefix name of an FTS table.
+@param[in]	fts_table	Auxiliary FTS table
+@param[in]	is_5_7		true if we need 5.7 compatible name
 @return own: table name, must be freed with ut_free() */
+static
 char*
-fts_get_table_name_prefix(
-/*======================*/
-	const fts_table_t*
-			fts_table)	/*!< in: Auxiliary table type */
+fts_get_table_name_prefix_low(
+	const fts_table_t* fts_table,
+	bool		   is_5_7)
 {
 	int		len;
 	const char*	slash;
@@ -121,13 +126,64 @@ fts_get_table_name_prefix(
 
 	prefix_name = static_cast<char*>(ut_malloc_nokey(prefix_name_len));
 
-	len = sprintf(prefix_name, "%.*sFTS_%s",
-		      dbname_len, fts_table->parent, table_id);
+	len = sprintf(prefix_name, "%.*s%s%s",
+		      dbname_len, fts_table->parent,
+		      is_5_7 ? FTS_PREFIX_5_7 : FTS_PREFIX,
+		      table_id);
 
 	ut_a(len > 0);
 	ut_a(len == prefix_name_len - 1);
 
 	return(prefix_name);
+}
+
+/******************************************************************//**
+Construct the prefix name of an FTS table.
+@return own: table name, must be freed with ut_free() */
+char*
+fts_get_table_name_prefix(
+/*======================*/
+	const fts_table_t*
+			fts_table)	/*!< in: Auxiliary table type */
+{
+	return(fts_get_table_name_prefix_low(fts_table, false));
+}
+
+/** Construct the prefix name of an FTS table in 5.7 compatible name
+@param[in]	fts_table	Auxiliary FTS table
+@return own: table name, must be freed with ut_free() */
+char*
+fts_get_table_name_prefix_5_7(const fts_table_t* fts_table)
+{
+	return(fts_get_table_name_prefix_low(fts_table, true));
+}
+
+/** Construct the name of an ancillary FTS table for the given table.
+Caller must allocate enough memory(usually size of MAX_FULL_NAME_LEN)
+for param 'table_name'
+@param[in]	fts_table	FTS Aux table
+@param[in,out]	table_name	aux table name
+@param[in]	is_5_7		true if we need 5.7 compatible name */
+static
+void
+fts_get_table_name_low(
+	const fts_table_t*	fts_table,
+	char*			table_name,
+	bool			is_5_7)
+{
+	int		len;
+	char*		prefix_name;
+
+	prefix_name = is_5_7 ? fts_get_table_name_prefix_5_7(fts_table)
+		: fts_get_table_name_prefix(fts_table);
+
+	len = sprintf(table_name, "%s_%s", prefix_name, fts_table->suffix);
+
+	ut_a(len > 0);
+	ut_a(strlen(prefix_name) + 1 + strlen(fts_table->suffix)
+	     == static_cast<uint>(len));
+
+	ut_free(prefix_name);
 }
 
 /******************************************************************//**
@@ -142,18 +198,20 @@ fts_get_table_name(
 	char*			table_name)
 					/*!< in/out: aux table name */
 {
-	int		len;
-	char*		prefix_name;
+	fts_get_table_name_low(fts_table, table_name, false);
+}
 
-	prefix_name = fts_get_table_name_prefix(fts_table);
-
-	len = sprintf(table_name, "%s_%s", prefix_name, fts_table->suffix);
-
-	ut_a(len > 0);
-	ut_a(strlen(prefix_name) + 1 + strlen(fts_table->suffix)
-	     == static_cast<uint>(len));
-
-	ut_free(prefix_name);
+/** Construct the name of an ancillary FTS table for the given table in
+5.7 compatible format. Caller must allocate enough memory(usually size
+of MAX_FULL_NAME_LEN) for param 'table_name'
+@param[in]	fts_table	Auxiliary table object
+@param[in,out]	table_name	aux table name */
+void
+fts_get_table_name_5_7(
+	const fts_table_t*	fts_table,
+	char*			table_name)
+{
+	fts_get_table_name_low(fts_table, table_name, true);
 }
 
 /******************************************************************//**
@@ -169,12 +227,35 @@ fts_parse_sql(
 	char*		str;
 	que_t*		graph;
 	ibool		dict_locked;
+	dict_table_t*	aux_table = nullptr;
+	MDL_ticket*     mdl = nullptr;
+	THD*		thd = current_thd;
 
 	str = ut_str3cat(fts_sql_begin, sql, fts_sql_end);
 
 	dict_locked = (fts_table && fts_table->table->fts
 		       && (fts_table->table->fts->fts_status
 			   & TABLE_DICT_LOCKED));
+
+	if (fts_table != nullptr) {
+		char		table_name[MAX_FULL_NAME_LEN];
+
+		fts_get_table_name(fts_table, table_name);
+
+		aux_table = dd_table_open_on_name_in_mem(
+			table_name, dict_locked);
+
+		if (aux_table == nullptr) {
+			if (dict_locked) {
+				mutex_exit(&dict_sys->mutex);
+				dict_locked = false;
+			}
+
+			aux_table = dd_table_open_on_name(
+					thd, &mdl, table_name, false,
+					DICT_ERR_IGNORE_NONE);
+		}
+	}
 
 	if (!dict_locked) {
 		ut_ad(!mutex_own(&dict_sys->mutex));
@@ -188,6 +269,10 @@ fts_parse_sql(
 
 	if (!dict_locked) {
 		mutex_exit(&dict_sys->mutex);
+	}
+
+	if (aux_table != nullptr) {
+		dd_table_close(aux_table, thd, &mdl, dict_locked);
 	}
 
 	ut_free(str);

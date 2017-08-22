@@ -119,7 +119,7 @@ public:
   {
     cnt= 0;
   }
-  void operator() (THD* thd)
+  void operator() (THD*)
   {
     cnt= cnt + 1;
   }

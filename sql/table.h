@@ -18,6 +18,7 @@
 
 #include <string.h>
 #include <sys/types.h>
+#include <vector>
 
 #include "binary_log_types.h"
 #include "key.h"
@@ -43,13 +44,19 @@
 #include "typelib.h"
 
 class Field;
+class Field_json;
 class Item;
+class Json_diff;
+class Json_seekable_path;
+class Json_wrapper;
 class String;
 class THD;
 class partition_info;
+struct Partial_update_info;
 struct TABLE;
 struct TABLE_LIST;
 struct TABLE_SHARE;
+template <class T> class Memroot_allocator;
 
 #include "enum_query_type.h" // enum_query_type
 #include "handler.h"       // row_type
@@ -92,6 +99,9 @@ class Common_table_expr;
 typedef Mem_root_array_YY<LEX_CSTRING> Create_col_name_list;
 
 typedef int64 query_id_t;
+
+enum class enum_json_diff_operation;
+using Json_diff_vector= std::vector<Json_diff, Memroot_allocator<Json_diff>>;
 
 #define store_record(A,B) memcpy((A)->B,(A)->record[0],(size_t) (A)->s->reclength)
 #define restore_record(A,B) memcpy((A)->record[0],(A)->B,(size_t) (A)->s->reclength)
@@ -623,7 +633,7 @@ struct TABLE_SHARE
   TABLE_CATEGORY table_category;
 
   /* hash of field names (contains pointers to elements of field array) */
-  HASH	name_hash;			/* hash of field names */
+  collation_unordered_map<std::string, Field**> *name_hash{nullptr};
   MEM_ROOT mem_root;
   TYPELIB keynames;			/* Pointers to keynames */
   TYPELIB *intervals;			/* pointer to interval info */
@@ -1091,6 +1101,54 @@ public:
 
 
 /**
+  Class that represents a single change to a column value in partial
+  update of a JSON column.
+*/
+class Binary_diff final
+{
+  /// The offset of the start of the change.
+  size_t m_offset;
+
+  /// The size of the portion that is to be replaced.
+  size_t m_length;
+
+public:
+  /**
+    Create a new Binary_diff object.
+
+    @param offset     the offset of the beginning of the change
+    @param length     the length of the section that is to be replaced
+  */
+  Binary_diff(size_t offset, size_t length)
+    : m_offset(offset), m_length(length)
+  {}
+
+  /// @return the offset of the changed data
+  size_t offset() const { return m_offset; }
+
+  /// @return the length of the changed data
+  size_t length() const { return m_length; }
+
+  /**
+    Get a pointer to the start of the replacement data.
+
+    @param field  the column that is updated
+    @return a pointer to the start of the replacement data
+  */
+  const char *new_data(Field *field) const;
+};
+
+
+/**
+  Vector of Binary_diff objects.
+
+  The Binary_diff objects in the vector should be ordered on offset, and none
+  of the diffs should be overlapping or adjacent.
+*/
+using Binary_diff_vector= Mem_root_array<Binary_diff>;
+
+
+/**
   Flags for TABLE::m_status (maximum 8 bits).
   The flags define the state of the row buffer in TABLE::record[0].
 */
@@ -1415,7 +1473,6 @@ public:
      and BLOB field count > 0.
    */
   Blob_mem_storage *blob_storage;
-  GRANT_INFO grant;
   Filesort_info sort;
   partition_info *part_info;            /* Partition related information */
   /* If true, all partitions have been pruned away */
@@ -1425,6 +1482,14 @@ public:
 private:
   /// Cost model object for operations on this table
   Cost_model_table m_cost_model;
+#ifndef DBUG_OFF
+  /**
+    Internal tmp table sequential number. Increased in the order of
+    creation. Used for debugging purposes when many tmp tables are used
+    during execution (e.g several windows with window functions)
+  */
+  uint tmp_table_seq_id;
+#endif
 public:
 
   void init(THD *thd, TABLE_LIST *tl);
@@ -1712,6 +1777,218 @@ public:
     the next statement.
   */
   void cleanup_gc_items();
+
+#ifndef DBUG_OFF
+  void set_tmp_table_seq_id(uint arg) { tmp_table_seq_id= arg; }
+#endif
+
+private:
+  /**
+    Bitmap that tells which columns are eligible for partial update in an
+    update statement.
+
+    The bitmap is lazily allocated in the TABLE's mem_root when
+    #mark_column_for_partial_update() is called.
+  */
+  MY_BITMAP *m_partial_update_columns;
+
+  /**
+    Object which contains execution time state used for partial update
+    of JSON columns.
+
+    It is allocated in the execution mem_root by #setup_partial_update() if
+    there are columns that have been marked as eligible for partial update.
+  */
+  Partial_update_info *m_partial_update_info;
+
+public:
+  /**
+    Does this table have any columns that can be updated using partial update
+    in the current row?
+
+    @return whether any columns in the current row can be updated using partial
+    update
+  */
+  bool has_binary_diff_columns() const;
+
+  /**
+    Get the list of binary diffs that have been collected for a given column in
+    the current row, or `nullptr` if partial update cannot be used for that
+    column.
+
+    @param  field   the column to get binary diffs for
+    @return the list of binary diffs for the column, or `nullptr` if the column
+    cannot be updated using partial update
+  */
+  const Binary_diff_vector *get_binary_diffs(const Field *field) const;
+
+  /**
+    Mark a given column as one that can potentially be updated using
+    partial update during execution of an update statement.
+
+    Whether it is actually updated using partial update, is not
+    determined until execution time, since that depends both on the
+    data that is in the column and the new data that is written to the
+    column.
+
+    This function should be called during preparation of an update
+    statement.
+
+    @param  field  a column which is eligible for partial update
+    @retval false  on success
+    @retval true   on out-of-memory
+  */
+  bool mark_column_for_partial_update(const Field *field);
+
+  /**
+    Has this column been marked for partial update?
+
+    Note that this only tells if the column satisfies the syntactical
+    requirements for being partially updated. Use #is_binary_diff_enabled() or
+    #is_logical_diff_enabled() instead to see if partial update should be used
+    on the column.
+
+    @param  field  the column to check
+    @return whether the column has been marked for partial update
+  */
+  bool is_marked_for_partial_update(const Field *field) const;
+
+  /**
+    Does this table have any columns that were marked with
+    #mark_column_for_partial_update()?
+
+    Note that this only tells if any of the columns satisfy the syntactical
+    requirements for being partially updated. Use
+    #has_binary_diff_columns(), #is_binary_diff_enabled() or
+    #is_logical_diff_enabled() instead to see if partial update should be used
+    on a column.
+  */
+  bool has_columns_marked_for_partial_update() const;
+
+  /**
+    Enable partial update of JSON columns in this table. It is only
+    enabled for the columns that have previously been marked for
+    partial update using #mark_column_for_partial_update().
+
+    @param logical_diffs  should logical JSON diffs be collected in addition
+                          to the physical binary diffs?
+
+    This function should be called once per statement execution, when
+    the update statement is optimized.
+
+    @retval false  on success
+    @retval true   on out-of-memory
+  */
+  bool setup_partial_update(bool logical_diffs);
+
+  /**
+    Add a binary diff for a column that is updated using partial update.
+
+    @param field   the column that is being updated
+    @param offset  the offset of the changed portion
+    @param length  the length of the changed portion
+
+    @retval false  on success
+    @retval true   on out-of-memory
+  */
+  bool add_binary_diff(const Field *field, size_t offset, size_t length);
+
+  /**
+    Clear the diffs that have been collected for partial update of
+    JSON columns, and re-enable partial update for any columns where
+    partial update was temporarily disabled for the current row.
+    Should be called between each row that is updated.
+  */
+  void clear_partial_update_diffs();
+
+  /**
+    Clean up state used for partial update of JSON columns.
+
+    This function should be called at the end of each statement
+    execution.
+  */
+  void cleanup_partial_update();
+
+  /**
+    Temporarily disable collection of binary diffs for a column in the current
+    row.
+
+    This function is called during execution to disable partial update of a
+    column that was previously marked as eligible for partial update with
+    #mark_column_for_partial_update() during preparation.
+
+    Partial update of this column will be re-enabled when we go to the next
+    row.
+
+    @param  field  the column to stop collecting binary diffs for
+  */
+  void disable_binary_diffs_for_current_row(const Field *field);
+
+  /**
+    Temporarily disable collection of Json_diff objects describing the
+    logical changes of a JSON column in the current row.
+
+    Collection of logical JSON diffs is re-enabled when we go to the next row.
+
+    @param field  the column to stop collecting logical JSON diffs for
+  */
+  void disable_logical_diffs_for_current_row(const Field *field) const;
+
+  /**
+    Get a buffer that can be used to hold the partially updated column value
+    while performing partial update.
+  */
+  String *get_partial_update_buffer();
+
+  /**
+    Add a logical JSON diff describing a logical change to a JSON column in
+    partial update.
+
+    @param field      the column that is updated
+    @param path       the JSON path that is changed
+    @param operation  the operation to perform
+    @param new_value  the new value in the path
+
+    @throws std::bad_alloc if memory cannot be allocated
+  */
+  void add_logical_diff(const Field_json *field,
+                        const Json_seekable_path &path,
+                        enum_json_diff_operation operation,
+                        const Json_wrapper *new_value);
+
+
+  /**
+    Get the list of JSON diffs that have been collected for a given column in
+    the current row, or `nullptr` if partial update cannot be used for that
+    column.
+
+    @param  field   the column to get JSON diffs for
+    @return the list of JSON diffs for the column, or `nullptr` if the column
+    cannot be updated using partial update
+  */
+  const Json_diff_vector *get_logical_diffs(const Field_json *field) const;
+
+  /**
+    Is partial update using binary diffs enabled on this JSON column?
+
+    @param field  the column to check
+    @return whether the column can be updated with binary diffs
+  */
+  bool is_binary_diff_enabled(const Field *field) const;
+
+  /**
+    Is partial update using logical diffs enabled on this JSON column?
+
+    @param field  the column to check
+    @return whether the column can be updated with JSON diffs
+  */
+  bool is_logical_diff_enabled(const Field *field) const;
+
+  /**
+    Virtual fields of type BLOB have a flag m_keep_old_value. This flag is set
+    to false for all such fields in this table.
+  */
+  void blobs_need_not_keep_old_value();
 };
 
 
@@ -2557,8 +2834,6 @@ struct TABLE_LIST
   void set_privileges(ulong privilege)
   {
     grant.privilege|= privilege;
-    if (table)
-      table->grant.privilege|= privilege;
   }
   /*
     List of tables local to a subquery or the top-level SELECT (used by
@@ -3392,8 +3667,8 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
                           uint db_stat, uint prgflag, uint ha_open_flags,
                           TABLE *outparam, bool is_create_table,
                           const dd::Table *table_def_param);
-TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
-                               size_t key_length);
+TABLE_SHARE *alloc_table_share(const char *db, const char *table_name,
+                               const char *key, size_t key_length);
 void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
                           size_t key_length,
                           const char *table_name, const char *path,

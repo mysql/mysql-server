@@ -42,6 +42,8 @@
 #include "memcached_mysql.h"
 
 #define INNODB_MEMCACHED
+void my_thread_init();
+void my_thread_end();
 
 static inline void item_set_cas(const void *cookie, item *it, uint64_t cas) {
     settings.engine.v1->item_set_cas(settings.engine.v0, cookie, it, cas);
@@ -7855,8 +7857,13 @@ int main (int argc, char **argv) {
         exit(EXIT_FAILURE);
     }
 
+#ifdef INNODB_MEMCACHED
+    my_thread_init();
+#endif
+
     if(!init_engine(engine_handle,engine_config,settings.extensions.logger)) {
 #ifdef INNODB_MEMCACHED
+	my_thread_end();
         shutdown_server();
         goto func_exit;
 #else
@@ -7942,6 +7949,7 @@ int main (int argc, char **argv) {
                                             portnumber_file)) {
 		vperror("failed to listen on TCP port %d", settings.port);
 #ifdef INNODB_MEMCACHED
+		my_thread_end();
 		shutdown_server();
 		goto func_exit;
 #else
@@ -8007,6 +8015,7 @@ func_exit:
         event_base_free(main_base);
         main_base = NULL;
     }
+    my_thread_end();
 #endif
 
     memcached_shutdown = 2;

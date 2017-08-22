@@ -25,9 +25,18 @@
 extern "C" {
 #endif
 
-#define copy_app_data(target, source) {MAY_DBG(FN; STRLIT(" copy_app_data "); PTREXP(target); PTREXP(*target); PTREXP(source)); _replace_app_data_list(target, source);}
+#define copy_app_data(target, source)                                       \
+  {                                                                         \
+    MAY_DBG(FN; STRLIT(" copy_app_data "); PTREXP(target); PTREXP(*target); \
+            PTREXP(source));                                                \
+    _replace_app_data_list(target, source);                                 \
+  }
 
-#define steal_app_data(target, source) {(target) = (source); (source) = NULL; }
+#define steal_app_data(target, source) \
+  {                                    \
+    (target) = (source);               \
+    (source) = NULL;                   \
+  }
 
 app_data_ptr clone_app_data(app_data_ptr a);
 app_data_ptr clone_app_data_single(app_data_ptr a);
@@ -39,8 +48,7 @@ app_data_ptr new_exit();
 app_data_ptr new_nodes(u_int n, node_address *names, cargo_type cargo);
 app_data_ptr new_reset(cargo_type type);
 
-d_xdr_funcs(app_data_ptr)
-unsigned long msg_count(app_data_ptr a);
+d_xdr_funcs(app_data_ptr) unsigned long msg_count(app_data_ptr a);
 void _replace_app_data_list(app_data_list target, app_data_ptr source);
 char *dbg_app_data(app_data_ptr a);
 void follow(app_data_list l, app_data_ptr p);
@@ -48,10 +56,8 @@ void sort_app_data(app_data_ptr x[], int n);
 size_t app_data_size(app_data const *a);
 size_t app_data_list_size(app_data const *a);
 
-
 #ifdef __cplusplus
 }
 #endif
 
 #endif
-

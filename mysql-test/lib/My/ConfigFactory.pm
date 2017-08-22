@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -212,7 +212,7 @@ sub ssl_supported {
 
 sub fix_ssl_disabled {
   return if !ssl_supported(@_);
-  return if $::opt_ssl;
+
   # Add ssl-mode=DISABLED to avoid
   # that mysqltest connects with SSL by default
   return "DISABLED";
@@ -224,34 +224,16 @@ sub fix_ssl_ca {
   return "$std_data/cacert.pem"
 }
 
-sub fix_client_ssl_ca {
-  return if !$::opt_ssl;
-  my $std_data= fix_std_data(@_); 
-  return "$std_data/cacert.pem"
-}
-
 sub fix_ssl_server_cert {
   return if !ssl_supported(@_);
   my $std_data= fix_std_data(@_);
   return "$std_data/server-cert.pem"
 }
 
-sub fix_ssl_client_cert {
-  return if !ssl_supported(@_);
-  my $std_data= fix_std_data(@_);
-  return "$std_data/client-cert.pem"
-}
-
 sub fix_ssl_server_key {
   return if !ssl_supported(@_);
   my $std_data= fix_std_data(@_);
   return "$std_data/server-key.pem"
-}
-
-sub fix_ssl_client_key {
-  return if !ssl_supported(@_);
-  my $std_data= fix_std_data(@_);
-  return "$std_data/client-key.pem"
 }
 
 
@@ -380,9 +362,6 @@ my @client_rules=
 #
 my @mysqltest_rules=
 (
- { 'ssl-ca' => \&fix_client_ssl_ca },
- { 'ssl-cert' => \&fix_ssl_client_cert },
- { 'ssl-key' => \&fix_ssl_client_key },
  { 'ssl-mode' => \&fix_ssl_disabled },
 );
 
@@ -394,6 +373,7 @@ my @mysqltest_rules=
 my @mysqlbinlog_rules=
 (
  { 'character-sets-dir' => \&fix_charset_dir },
+ { 'local-load' => sub { return shift->{ARGS}->{tmpdir}; } },
 );
 
 

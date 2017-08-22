@@ -159,7 +159,8 @@ static bool ignore_errors=0,wait_flag=0,quick=0,
             default_pager_set= 0, opt_sigint_ignore= 0,
             auto_vertical_output= 0,
             show_warnings= 0, executing_query= 0, interrupted_query= 0,
-            ignore_spaces= 0, sigint_received= 0, opt_syslog= 0;
+            ignore_spaces= 0, sigint_received= 0, opt_syslog= 0,
+            opt_binhex= 0;
 static bool debug_info_flag, debug_check_flag;
 static bool column_types_flag;
 static bool preserve_comments= 0;
@@ -262,8 +263,8 @@ static bool execute_buffer_conversion_done= 0;
   The same is true for stderr.
 */
 static uint win_is_console_cache= 
-  (MY_TEST(my_win_is_console(stdout)) * (1 << _fileno(stdout))) |
-  (MY_TEST(my_win_is_console(stderr)) * (1 << _fileno(stderr)));
+  ((my_win_is_console(stdout)) * (1 << _fileno(stdout))) |
+  ((my_win_is_console(stderr)) * (1 << _fileno(stderr)));
 
 static inline bool
 my_win_is_console_cached(FILE *file)
@@ -1181,10 +1182,10 @@ static void mysql_end_timer(ulong start_time,char *buff);
 static void nice_time(double sec,char *buff,bool part_second);
 static void kill_query(const char* reason);
 extern "C" void mysql_end(int sig);
-extern "C" void handle_ctrlc_signal(int sig);
+extern "C" void handle_ctrlc_signal(int);
 extern "C" void handle_quit_signal(int sig);
 #if defined(HAVE_TERMIOS_H) && defined(GWINSZ_IN_SYS_IOCTL)
-static void window_resize(int sig);
+static void window_resize(int);
 #endif
 
 const char DELIMITER_NAME[]= "delimiter";
@@ -1541,11 +1542,9 @@ void mysql_end(int sig)
     This function handles SIGINT (Ctrl - C). It sends a 'KILL [QUERY]' command
     to the server if a query is currently executing. On Windows, 'Ctrl - Break'
     is treated alike.
-
-  @param sig               Signal number
 */
 
-void handle_ctrlc_signal(int sig)
+void handle_ctrlc_signal(int)
 {
   sigint_received= 1;
 
@@ -1638,7 +1637,7 @@ err:
 
 
 #if defined(HAVE_TERMIOS_H) && defined(GWINSZ_IN_SYS_IOCTL)
-void window_resize(int sig)
+void window_resize(int)
 {
   struct winsize window_size;
 
@@ -1675,6 +1674,8 @@ static struct my_option my_long_options[] =
   {"bind-address", 0, "IP address to bind to.",
    (uchar**) &opt_bind_addr, (uchar**) &opt_bind_addr, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"binary-as-hex", 'b', "Print binary data as hex", &opt_binhex, &opt_binhex,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR,
    "Directory for character set files.", &charsets_dir,
    &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -3648,12 +3649,13 @@ com_go(String *buffer,char *line MY_ATTRIBUTE((unused)))
       }
       else
       {
-	init_pager();
+        init_pager();
 	if (opt_html)
 	  print_table_data_html(result);
 	else if (opt_xml)
 	  print_table_data_xml(result);
-  else if (vertical || (auto_vertical_output && (terminal_width < get_result_width(result))))
+        else if (vertical || (auto_vertical_output &&
+                (terminal_width < get_result_width(result))))
 	  print_table_data_vertically(result);
 	else if (opt_silent && verbose <= 2 && !output_tables)
 	  print_tab_data(result);
@@ -3874,6 +3876,41 @@ print_field_types(MYSQL_RES *result)
 }
 
 
+/* Used to determine if we should invoke print_as_hex for this field */
+
+static bool
+is_binary_field(MYSQL_FIELD *field)
+{
+  if ((field->charsetnr == 63) &&
+      (field->type == MYSQL_TYPE_BIT ||
+       field->type == MYSQL_TYPE_BLOB ||
+       field->type == MYSQL_TYPE_LONG_BLOB ||
+       field->type == MYSQL_TYPE_MEDIUM_BLOB ||
+       field->type == MYSQL_TYPE_TINY_BLOB ||
+       field->type == MYSQL_TYPE_VAR_STRING ||
+       field->type == MYSQL_TYPE_STRING ||
+       field->type == MYSQL_TYPE_VARCHAR ||
+       field->type == MYSQL_TYPE_GEOMETRY))
+    return 1;
+  return 0;
+}
+
+
+/* Print binary value as hex literal (0x ...) */
+
+static void
+print_as_hex(FILE *output_file, const char *str, ulong len, ulong total_bytes_to_send)
+{
+  const char *ptr= str, *end= ptr+len;
+  ulong i;
+  fprintf(output_file, "0x");
+  for(; ptr < end; ptr++)
+    fprintf(output_file, "%02X", *((uchar*)ptr));
+  for (i= 2*len+2; i < total_bytes_to_send; i++)
+    tee_putc((int)' ', output_file);
+}
+
+
 static void
 print_table_data(MYSQL_RES *result)
 {
@@ -3902,7 +3939,9 @@ print_table_data(MYSQL_RES *result)
       length= max<size_t>(length, field->max_length);
     if (length < 4 && !IS_NOT_NULL(field->flags))
       length=4;					// Room for "NULL"
-    field->max_length=length;
+    if (opt_binhex && is_binary_field(field))
+      length= 2 + length * 2;
+    field->max_length=(ulong) length;
     separator.fill(separator.length()+length+2,'-');
     separator.append('+');
   }
@@ -3920,7 +3959,7 @@ print_table_data(MYSQL_RES *result)
                                                     field->name + name_length);
       size_t display_length= field->max_length + name_length - numcells;
       tee_fprintf(PAGER, " %-*s |",
-                  min<int>(display_length, MAX_COLUMN_LENGTH),
+                  min<int>((int) display_length, MAX_COLUMN_LENGTH),
                   field->name);
       num_flag[off]= IS_NUM(field->type);
     }
@@ -3969,9 +4008,11 @@ print_table_data(MYSQL_RES *result)
        many extra padding-characters we should send with the printing function.
       */
       visible_length= charset_info->cset->numcells(charset_info, buffer, buffer + data_length);
-      extra_padding= data_length - visible_length;
+      extra_padding= (uint) (data_length - visible_length);
 
-      if (field_max_length > MAX_COLUMN_LENGTH)
+      if (opt_binhex && is_binary_field(field))
+        print_as_hex(PAGER, cur[off], lengths[off], field_max_length);
+      else if (field_max_length > MAX_COLUMN_LENGTH)
         tee_print_sized_data(buffer, data_length, MAX_COLUMN_LENGTH+extra_padding, FALSE);
       else
       {
@@ -4097,11 +4138,15 @@ print_table_data_html(MYSQL_RES *result)
     if (interrupted_query)
       break;
     ulong *lengths=mysql_fetch_lengths(result);
+    field= mysql_fetch_fields(result);
     (void) tee_fputs("<TR>", PAGER);
     for (uint i=0; i < mysql_num_fields(result); i++)
     {
       (void) tee_fputs("<TD>", PAGER);
-      xmlencode_print(cur[i], lengths[i]);
+      if (opt_binhex && is_binary_field(&field[i]))
+        print_as_hex(PAGER, cur[i], lengths[i], lengths[i]);
+      else
+        xmlencode_print(cur[i], lengths[i]);
       (void) tee_fputs("</TD>", PAGER);
     }
     (void) tee_fputs("</TR>", PAGER);
@@ -4137,7 +4182,10 @@ print_table_data_xml(MYSQL_RES *result)
       if (cur[i])
       {
         tee_fprintf(PAGER, "\">");
-        xmlencode_print(cur[i], lengths[i]);
+        if (opt_binhex && is_binary_field(&fields[i]))
+          print_as_hex(PAGER, cur[i], lengths[i], lengths[i]);
+        else
+          xmlencode_print(cur[i], lengths[i]);
         tee_fprintf(PAGER, "</field>\n");
       }
       else
@@ -4182,7 +4230,10 @@ print_table_data_vertically(MYSQL_RES *result)
         tee_fprintf(PAGER, "%*s: ",(int) max_length,field->name);
       if (cur[off])
       {
-        tee_write(PAGER, cur[off], lengths[off], MY_PRINT_SPS_0 | MY_PRINT_MB);
+        if (opt_binhex && is_binary_field(field))
+          print_as_hex(PAGER, cur[off], lengths[off], lengths[off]);
+        else
+          tee_write(PAGER, cur[off], lengths[off], MY_PRINT_SPS_0 | MY_PRINT_MB);
         tee_putc('\n', PAGER);
       }
       else
@@ -4291,11 +4342,18 @@ print_tab_data(MYSQL_RES *result)
   while ((cur = mysql_fetch_row(result)))
   {
     lengths=mysql_fetch_lengths(result);
-    safe_put_field(cur[0],lengths[0]);
+    field= mysql_fetch_fields(result);
+    if (opt_binhex && is_binary_field(&field[0]))
+      print_as_hex(PAGER, cur[0], lengths[0], lengths[0]);
+    else
+      safe_put_field(cur[0],lengths[0]);
     for (uint off=1 ; off < mysql_num_fields(result); off++)
     {
       (void) tee_fputs("\t", PAGER);
-      safe_put_field(cur[off], lengths[off]);
+      if (opt_binhex && field && is_binary_field(&field[off]))
+        print_as_hex(PAGER, cur[off], lengths[off], lengths[off]);
+      else
+        safe_put_field(cur[off], lengths[off]);
     }
     (void) tee_fputs("\n", PAGER);
   }
@@ -4674,10 +4732,9 @@ com_use(String *buffer MY_ATTRIBUTE((unused)), char *line)
   memset(buff, 0, sizeof(buff));
 
   /*
-    In case number of quotes exceed 2, we try to get
-    the normalized db name.
+    In case of quotes used, try to get the normalized db name.
   */
-  if (get_quote_count(line) > 2)
+  if (get_quote_count(line) > 0)
   {
     if (normalize_dbname(line, buff, sizeof(buff)))
       return put_error(&mysql);
@@ -4908,11 +4965,13 @@ char *get_arg(char *line, bool get_next_arg)
 static int
 get_quote_count(const char *line)
 {
-  int quote_count;
-  const char *ptr= line;
+  int quote_count= 0;
+  const char *quote= line;
 
-  for(quote_count= 0; ptr ++ && *ptr; ptr= strpbrk(ptr, "\"\'`"))
-    quote_count ++;
+  while ((quote= strpbrk(quote, "'`\"")) != NULL) {
+    quote_count++;
+    quote++;
+  }
 
   return quote_count;
 }

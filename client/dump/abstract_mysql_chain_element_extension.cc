@@ -80,7 +80,7 @@ Mysql::Nullable<std::string>
   Abstract_mysql_chain_element_extension::get_create_statement(
     Mysql::Tools::Base::Mysql_query_runner* runner,
     const std::string& database_name, const std::string& object_name,
-    const std::string& object_type, uint field_id/*= 1*/)
+    const std::string& object_type, uint)
 {
   std::vector<const Mysql::Tools::Base::Mysql_query_runner::Row*> result;
 

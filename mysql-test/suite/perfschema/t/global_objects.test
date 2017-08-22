@@ -19,7 +19,7 @@ select count(*) > 0 from performance_schema.socket_instances;
 
 # Check for some known global objects.
 select NAME from performance_schema.mutex_instances
-  where NAME = "wait/synch/mutex/sql/LOCK_gdl";
+  where NAME = "wait/synch/mutex/sql/tz_LOCK";
 select NAME from performance_schema.rwlock_instances
   where NAME = "wait/synch/rwlock/sql/LOCK_system_variables_hash";
 select NAME from performance_schema.cond_instances

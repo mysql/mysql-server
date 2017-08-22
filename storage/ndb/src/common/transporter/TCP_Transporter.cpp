@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,7 +26,8 @@
 extern EventLogger * g_eventLogger;
 // End of stuff to be moved
 
-#ifdef NDB_WIN32
+#ifdef DEBUG_TRANSPORTER
+#ifdef _WIN32
 class ndbstrerror
 {
 public:
@@ -59,6 +60,7 @@ ndbstrerror::~ndbstrerror(void)
 }
 #else
 #define ndbstrerror strerror
+#endif
 #endif
 
 static

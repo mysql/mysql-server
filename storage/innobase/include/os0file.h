@@ -42,7 +42,14 @@ Created 10/21/1995 Heikki Tuuri
 #include <dirent.h>
 #include <sys/stat.h>
 #include <time.h>
+#else
+#include <string>
+#include <locale>
+#include <Strsafe.h>
 #endif /* !_WIN32 */
+
+#include <functional>
+#include <stack>
 
 /** File node of a tablespace or the log data space */
 struct fil_node_t;
@@ -90,12 +97,11 @@ typedef int	os_file_t;
 
 /** Common file descriptor for file IO instrumentation with PFS
 on windows and other platforms */
-struct pfs_os_file_t
-{
+struct pfs_os_file_t {
 	os_file_t   m_file;
 #ifdef UNIV_PFS_IO
 	struct PSI_file *m_psi;
-#endif
+#endif /* UNIV_PFS_IO */
 };
 
 static const os_file_t OS_FILE_CLOSED = os_file_t(~0);
@@ -144,7 +150,11 @@ static const ulint OS_FILE_NORMAL = 62;
 /** Types for file create @{ */
 static const ulint OS_DATA_FILE = 100;
 static const ulint OS_LOG_FILE = 101;
-static const ulint OS_DATA_TEMP_FILE = 102;
+/* Don't use this for Data files, Log files. Use it for smaller files
+or if number of bytes to write are not multiple of sector size.
+With this flag, writes to file will be always buffered and ignores the value
+of innodb_flush_method. */
+static const ulint OS_BUFFERED_FILE = 102;
 /* @} */
 
 /** Error codes from os_file_get_last_error @{ */
@@ -473,7 +483,7 @@ public:
 		/** Double write buffer recovery. */
 		DBLWR_RECOVER = 4,
 
-		/** Enumarations below can be ORed to READ/WRITE above*/
+		/** Enumerations below can be ORed to READ/WRITE above*/
 
 		/** Data file */
 		DATA_FILE = 8,
@@ -836,7 +846,8 @@ extern ulint	os_n_fsyncs;
 /* File types for directory entry data type */
 
 enum os_file_type_t {
-	OS_FILE_TYPE_UNKNOWN = 0,
+	OS_FILE_TYPE_MISSING = 0,
+	OS_FILE_TYPE_UNKNOWN,
 	OS_FILE_TYPE_FILE,			/* regular file */
 	OS_FILE_TYPE_DIR,			/* directory */
 	OS_FILE_TYPE_LINK,			/* symbolic link */
@@ -1010,9 +1021,10 @@ os_file_close_func(os_file_t file);
 #ifdef UNIV_PFS_IO
 
 /* Keys to register InnoDB I/O with performance schema */
-extern mysql_pfs_key_t	innodb_data_file_key;
 extern mysql_pfs_key_t	innodb_log_file_key;
 extern mysql_pfs_key_t	innodb_temp_file_key;
+extern mysql_pfs_key_t	innodb_data_file_key;
+extern mysql_pfs_key_t	innodb_tablespace_open_file_key;
 
 /* Following four macros are instumentations to register
 various file I/O operations with performance schema.
@@ -1031,13 +1043,13 @@ do {									\
 		state, key.m_value, op, name, &locker);			\
 	if (locker != NULL) {						\
 		PSI_FILE_CALL(start_file_open_wait)(			\
-			locker, src_file, src_line);			\
+			locker, src_file, static_cast<uint>(src_line));	\
 	}								\
 } while (0)
 
 # define register_pfs_file_open_end(locker, file, result)		\
 do {									\
-	if (locker != NULL) {				\
+	if (locker != NULL) {						\
 		file.m_psi = PSI_FILE_CALL(				\
 		end_file_open_wait)(					\
 			locker, result);				\
@@ -1045,13 +1057,14 @@ do {									\
 } while (0)
 
 # define register_pfs_file_rename_begin(state, locker, key, op, name,	\
-				src_file, src_line)                     \
-	register_pfs_file_open_begin(state, locker, key, op, name,      \
 					src_file, src_line)             \
+	register_pfs_file_open_begin(					\
+		state, locker, key, op, name,				\
+		src_file, static_cast<uint>(src_line))			\
 
 # define register_pfs_file_rename_end(locker, result)			\
 do {									\
-	if (locker != NULL) {                              \
+	if (locker != NULL) {						\
 		 PSI_FILE_CALL(						\
 			end_file_open_wait)(				\
 			locker, result);				\
@@ -1059,13 +1072,13 @@ do {									\
 }while(0)
 
 # define register_pfs_file_close_begin(state, locker, key, op, name,	\
-				      src_file, src_line)		\
+				       src_file, src_line)		\
 do {									\
 	locker = PSI_FILE_CALL(get_thread_file_name_locker)(		\
 		state, key.m_value, op, name, &locker);			\
 	if (locker != NULL) {						\
 		PSI_FILE_CALL(start_file_close_wait)(			\
-			locker, src_file, src_line);			\
+			locker, src_file, static_cast<uint>(src_line));	\
 	}								\
 } while (0)
 
@@ -1080,11 +1093,12 @@ do {									\
 # define register_pfs_file_io_begin(state, locker, file, count, op,	\
 				    src_file, src_line)			\
 do {									\
-	locker = PSI_FILE_CALL(get_thread_file_stream_locker)(	\
+	locker = PSI_FILE_CALL(get_thread_file_stream_locker)(		\
 		state, file.m_psi, op);					\
 	if (locker != NULL) {						\
 		PSI_FILE_CALL(start_file_wait)(				\
-			locker, count, src_file, src_line);		\
+			locker, count,					\
+			src_file, static_cast<uint>(src_line));		\
 	}								\
 } while (0)
 
@@ -2058,6 +2072,71 @@ is_absolute_path(
 
 	return(false);
 }
+
+/** Class to scan the directory heirarch using a depth first scan. */
+class Dir_Walker {
+public:
+	using Path = std::string;
+
+	/** Check if the path is a directory. The file/directory must exist.
+	@param[in]	path		The path to check
+	@return true if it is a directory */
+	static bool is_directory(const Path& path);
+
+	/** Depth first traversal of the directory starting from basedir
+	@param[in]	basedir		Start scanning from this directory
+	@param[in]	f		Function to call for each entry */
+	template<typename F>
+	static void walk(const Path& basedir, F&& f)
+	{
+#ifdef _WIN32
+		walk_win32(
+			basedir,
+			[&](const Path& path, size_t depth)
+			{
+				f(path);
+			});
+#else
+		walk_posix(
+			basedir,
+			[&](const Path& path, size_t depth)
+			{
+				f(path);
+			});
+#endif /* _WIN32 */
+	}
+private:
+
+	/** Directory names for the depth first directory scan. */
+	struct Entry {
+
+		/** Constructor
+		@param[in]	path		Directory to traverse
+		@param[in]	depth		Relative depth to the base
+						directory in walk() */
+		Entry(const Path& path, size_t depth)
+			:
+			m_path(path),
+			m_depth(depth) { }
+
+		/** Path to the directory */
+		Path		m_path;
+
+		/** Relative depth of m_path */
+		size_t		m_depth;
+	};
+
+	using Function = std::function<void(const Path&, size_t)>;
+
+	/** Depth first traversal of the directory starting from basedir
+	@param[in]	basedir		Start scanning from this directory
+	@param[in]	f		Function to call for each entry */
+#ifdef _WIN32
+	static void walk_win32(const Path& basedir, Function&& f);
+#else
+	static void walk_posix(const Path& basedir, Function&& f);
+#endif /* _WIN32 */
+};
 
 #include "os0file.ic"
 

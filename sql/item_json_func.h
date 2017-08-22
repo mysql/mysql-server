@@ -128,6 +128,8 @@ public:
 */
 class Item_json_func : public Item_func
 {
+  /// Can this function type be used in partial update?
+  virtual bool can_use_in_partial_update() const { return false; }
 protected:
   /// String used when reading JSON binary values or JSON text values.
   String m_value;
@@ -141,6 +143,12 @@ protected:
 
   type_conversion_status save_in_field_inner(Field *field, bool no_conversions)
     override;
+
+  /**
+    Target column for partial update, if this function is used in an
+    update statement and partial update can be used.
+  */
+  const Field_json *m_partial_update_column= nullptr;
 
 public:
   /**
@@ -171,6 +179,28 @@ public:
   void cleanup() override;
 
   Item_result cast_to_int_type() const override { return INT_RESULT; }
+
+  /**
+    Does this function call support partial update of the given JSON column?
+
+    JSON_SET, JSON_REPLACE and JSON_REMOVE support partial update of a JSON
+    column if the JSON column is the first argument of the function call, or if
+    the first argument is a sequence of nested JSON_SET, JSON_REPLACE and
+    JSON_REMOVE calls in which the JSON column is the first argument of the
+    inner function call.
+
+    For example, this expression can be used to partially update column
+    `json_col`:
+
+        JSON_SET(JSON_REPLACE(json_col, path1, val1), path2, val2)
+  */
+  bool supports_partial_update(const Field_json *field) const override;
+
+  /**
+    Mark this expression as used in partial update. Should only be
+    called if #supports_partial_update returns true.
+  */
+  void mark_for_partial_update(const Field_json *field);
 };
 
 /**
@@ -531,14 +561,16 @@ class Item_func_json_set_replace :public Item_json_func
   const bool m_json_set;
   String m_doc_value;
   Json_path_clone m_path;
+  bool can_use_in_partial_update() const override { return true; }
 
 protected:
-  Item_func_json_set_replace(THD *thd, const POS &pos, PT_item_list *a, bool json_set)
-    : Item_json_func(thd, pos, a), m_json_set(json_set)
+  template <typename... Args>
+  Item_func_json_set_replace(bool json_set, Args&&... args)
+    : Item_json_func(std::forward<Args>(args)...), m_json_set(json_set)
   {}
 
 public:
-  bool val_json(Json_wrapper *wr);
+  bool val_json(Json_wrapper *wr) override;
 };
 
 /**
@@ -547,8 +579,9 @@ public:
 class Item_func_json_set :public Item_func_json_set_replace
 {
 public:
-  Item_func_json_set(THD *thd, const POS &pos, PT_item_list *a)
-    : Item_func_json_set_replace(thd, pos, a, true)
+  template <typename... Args>
+  Item_func_json_set(Args&&... args)
+    : Item_func_json_set_replace(true, std::forward<Args>(args)...)
   {}
 
   const char *func_name() const override { return "json_set"; }
@@ -560,8 +593,9 @@ public:
 class Item_func_json_replace :public Item_func_json_set_replace
 {
 public:
-  Item_func_json_replace(THD *thd, const POS &pos, PT_item_list *a)
-    : Item_func_json_set_replace(thd, pos, a, false)
+  template <typename... Args>
+  Item_func_json_replace(Args&&... args)
+    : Item_func_json_set_replace(false, std::forward<Args>(args)...)
   {}
 
   const char *func_name() const override { return "json_replace"; }
@@ -573,8 +607,9 @@ public:
 class Item_func_json_array :public Item_json_func
 {
 public:
-  Item_func_json_array(THD *thd, const POS &pos, PT_item_list *a)
-    : Item_json_func(thd, pos, a)
+  template <typename... Args>
+  Item_func_json_array(Args&&... args)
+    : Item_json_func(std::forward<Args>(args)...)
   {}
 
   const char *func_name() const override { return "json_array"; }
@@ -645,9 +680,13 @@ public:
 class Item_func_json_remove :public Item_json_func
 {
   String m_doc_value;
+  bool can_use_in_partial_update() const override { return true; }
 
 public:
-  Item_func_json_remove(THD *thd, const POS &pos, PT_item_list *a);
+  template <typename... Args>
+  Item_func_json_remove(Args&&... args)
+    : Item_json_func(std::forward<Args>(args)...)
+  {}
 
   const char *func_name() const override { return "json_remove"; }
 
@@ -743,6 +782,32 @@ public:
   }
 
   String *val_str(String *str) override;
+};
+
+/**
+  Class that represents the function JSON_STORAGE_SIZE.
+*/
+class Item_func_json_storage_size final : public Item_int_func
+{
+public:
+  Item_func_json_storage_size(const POS &pos, Item *a)
+    : Item_int_func(pos, a)
+  {}
+  const char *func_name() const override { return "json_storage_size"; }
+  longlong val_int() override;
+};
+
+/**
+  Class that represents the function JSON_STORAGE_FREE.
+*/
+class Item_func_json_storage_free final : public Item_int_func
+{
+public:
+  Item_func_json_storage_free(const POS &pos, Item *a)
+    : Item_int_func(pos, a)
+  {}
+  const char *func_name() const override { return "json_storage_free"; }
+  longlong val_int() override;
 };
 
 /**

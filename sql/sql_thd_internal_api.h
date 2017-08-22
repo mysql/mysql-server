@@ -183,6 +183,16 @@ void thd_get_autoinc(const THD *thd, ulong* off, ulong* inc);
 bool thd_is_strict_mode(const THD *thd);
 
 /**
+  Is an error set in the DA.
+  Needed by InnoDB to catch behavior modified by an error handler.
+  @param thd	Thread object
+  @return True if THD::is_error() returns true.
+    @retval true  An error has been raised.
+    @retval false No error has been raised.
+*/
+bool thd_is_error(const THD *thd);
+
+/**
   Test a file path whether it is same as mysql data directory path.
 
   @param path null terminated character string

@@ -183,9 +183,9 @@ TYPED_TEST_CASE(IntegralTest, IntegralTypes);
 /*
   Wrap all the __get, __store, __korr macros in functions.
  */
-template<typename T> void put_integral(uchar *buf, T val)
+template<typename T> void put_integral(uchar*, T)
 { ADD_FAILURE() << "unknown type in put_integral"; }
-template<typename T> void get_integral(T &val, uchar *buf)
+template<typename T> void get_integral(T&, uchar*)
 { ADD_FAILURE() << "unknown type in get_integral"; }
 
 template<> void put_integral(uchar *buf, short val)  { shortstore(buf, val); }

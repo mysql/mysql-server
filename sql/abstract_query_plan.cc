@@ -48,7 +48,7 @@ namespace AQP
                 || (m_qep_tabs[0].type() == JT_ALL)
                 || (m_qep_tabs[0].quick() == NULL));
 
-    m_table_accesses= new Table_access[m_access_count];
+    m_table_accesses= new (*THR_MALLOC) Table_access[m_access_count];
     for(uint i= 0; i < m_access_count; i++)
     {
       m_table_accesses[i].m_join_plan= this; 
@@ -231,7 +231,8 @@ namespace AQP
     DBUG_PRINT("info", ("group_optimized_away:%d",
                         get_qep_tab()->join()->group_optimized_away));
 
-    DBUG_PRINT("info", ("need_tmp:%d", get_qep_tab()->join()->need_tmp));
+    DBUG_PRINT("info", ("need_tmp_before_win:%d",
+                        get_qep_tab()->join()->need_tmp_before_win));
     DBUG_PRINT("info", ("select_distinct:%d",
                         get_qep_tab()->join()->select_distinct));
 
@@ -498,7 +499,7 @@ namespace AQP
     if (qep_tab == join->qep_tab + join->const_tables &&    // First non-const table
         !join->plan_is_const())                         // There are more tables
     {
-      if (join->need_tmp)
+      if (join->need_tmp_before_win)
         return false;
       else if (join->group_list && join->simple_group)
         return (join->ordered_index_usage!=JOIN::ordered_index_group_by);

@@ -3,9 +3,6 @@
 # Tests for "LOAD XML" - a contributed patch from Erik Wetterberg.
 #
 
-# Running the $MYSQL_DUMP tool against an embedded server does not work.
---source include/not_embedded.inc
-
 --disable_warnings
 drop table if exists t1, t2;
 --enable_warnings

@@ -28,8 +28,8 @@ Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Replicate_Do_DB = 'test,my_db2,my_db3'
 Replicate_Ignore_DB = 'db1,db11,my_db6'
-Replicate_Do_Table = 'test.t2,test.t1'
-Replicate_Ignore_Table = 'test.t22,test.t11'
+Replicate_Do_Table = 'test.t1,test.t2'
+Replicate_Ignore_Table = 'test.t11,test.t22'
 Replicate_Wild_Do_Table = 'test.t%,test.s%'
 Replicate_Wild_Ignore_Table = 'test.m%,test.n%'
 Replicate_Rewrite_DB = '(my_db7,rewrite_db7),(my_db8,rewrite_db8)'
@@ -47,8 +47,8 @@ SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM perfo
 CHANNEL_NAME	FILTER_NAME	FILTER_RULE	CONFIGURED_BY	COUNTER
 	REPLICATE_DO_DB	test,my_db2,my_db3	STARTUP_OPTIONS_FOR_CHANNEL	0
 	REPLICATE_IGNORE_DB	db1,db11,my_db6	STARTUP_OPTIONS_FOR_CHANNEL	0
-	REPLICATE_DO_TABLE	test.t2,test.t1	STARTUP_OPTIONS_FOR_CHANNEL	0
-	REPLICATE_IGNORE_TABLE	test.t22,test.t11	STARTUP_OPTIONS_FOR_CHANNEL	0
+	REPLICATE_DO_TABLE	test.t1,test.t2	STARTUP_OPTIONS_FOR_CHANNEL	0
+	REPLICATE_IGNORE_TABLE	test.t11,test.t22	STARTUP_OPTIONS_FOR_CHANNEL	0
 	REPLICATE_WILD_DO_TABLE	test.t%,test.s%	STARTUP_OPTIONS_FOR_CHANNEL	0
 	REPLICATE_WILD_IGNORE_TABLE	test.m%,test.n%	STARTUP_OPTIONS_FOR_CHANNEL	0
 	REPLICATE_REWRITE_DB	(my_db7,rewrite_db7),(my_db8,rewrite_db8)	STARTUP_OPTIONS_FOR_CHANNEL	0
@@ -116,7 +116,7 @@ Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Replicate_Do_DB = ':test,my_db3,my_db4'
 Replicate_Ignore_DB = 'my_initfiledb3'
-Replicate_Do_Table = 'test.t2,test.t1'
+Replicate_Do_Table = 'test.t1,test.t2'
 Replicate_Ignore_Table = 'db3.initfilet3'
 Replicate_Wild_Do_Table = 'te%.t%'
 Replicate_Wild_Ignore_Table = 'test.m%,test.n%'
@@ -136,7 +136,7 @@ SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM perfo
 CHANNEL_NAME	FILTER_NAME	FILTER_RULE	CONFIGURED_BY	COUNTER
 	REPLICATE_DO_DB	:test,my_db3,my_db4	CHANGE_REPLICATION_FILTER_FOR_CHANNEL	0
 	REPLICATE_IGNORE_DB	my_initfiledb3	CHANGE_REPLICATION_FILTER_FOR_CHANNEL	0
-	REPLICATE_DO_TABLE	test.t2,test.t1	STARTUP_OPTIONS_FOR_CHANNEL	4
+	REPLICATE_DO_TABLE	test.t1,test.t2	STARTUP_OPTIONS_FOR_CHANNEL	4
 	REPLICATE_IGNORE_TABLE	db3.initfilet3	CHANGE_REPLICATION_FILTER_FOR_CHANNEL	0
 	REPLICATE_WILD_DO_TABLE	te%.t%	CHANGE_REPLICATION_FILTER_FOR_CHANNEL	0
 	REPLICATE_WILD_IGNORE_TABLE	test.m%,test.n%	STARTUP_OPTIONS_FOR_CHANNEL	0

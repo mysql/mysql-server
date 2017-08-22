@@ -3115,9 +3115,6 @@ INSERT INTO t1 VALUES (1), (2), (3);
 #
 # See bugs
 #
-# - Bug#52173: Reading NULL value from non-NULL index gives
-#   wrong result in embedded server 
-#
 # - Bug#52174: Sometimes wrong plan when reading a MAX value from 
 #   non-NULL index
 #

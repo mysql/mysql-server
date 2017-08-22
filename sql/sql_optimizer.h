@@ -47,6 +47,7 @@
 #include "sql_array.h"
 #include "sql_class.h"
 #include "sql_executor.h"                       // Next_select_func
+#include "sql_tmp_table.h"                      // enum_tmpfile_windowing_action
 #include "sql_lex.h"
 #include "sql_list.h"
 #include "sql_opt_exec_shared.h"
@@ -79,7 +80,8 @@ typedef struct st_rollup
   State state;
   Item_null_array null_items;
   Ref_item_array *ref_item_arrays;
-  List<Item> *fields;
+  List<Item> *fields_list;  ///< SELECT list
+  List<Item> *all_fields;   ///< Including hidden fields
 } ROLLUP;
 
 /**
@@ -213,8 +215,6 @@ public:
       group_fields_cache(),
       sum_funcs(NULL),
       sum_funcs_end(),
-      sum_funcs2(NULL),
-      sum_funcs_end2(),
       tmp_table_param(),
       lock(thd->lock),
       rollup(),
@@ -227,15 +227,18 @@ public:
       ordered_index_usage(ordered_index_void),
       no_order(false),
       skip_sort_order(false),
-      need_tmp(false),
+      need_tmp_before_win(false),
       keyuse_array(thd->mem_root),
       all_fields(select->all_fields),
       fields_list(select->fields_list),
-      tmp_all_fields(),
-      tmp_fields_list(),
+      tmp_all_fields(nullptr),
+      tmp_fields_list(nullptr),
       error(0),
       order(select->order_list.first, ESC_ORDER_BY),
       group_list(select->group_list.first, ESC_GROUP_BY),
+      m_windows(select->m_windows),
+      m_windows_sort(false),
+      m_windowing_steps(false),
       explain_flags(),
       /*
         Those four members are meaningless before JOIN::optimize(), so force a
@@ -247,7 +250,7 @@ public:
       tables_list((TABLE_LIST*)1),
       cond_equal(NULL),
       return_tab(0),
-      ref_items(),
+      ref_items(nullptr),
       current_ref_item_slice(REF_SLICE_SAVE),
       zero_result_cause(NULL),
       child_subquery_can_materialize(false),
@@ -270,6 +273,8 @@ public:
       explain_flags.set(ESC_GROUP_BY, ESP_EXISTS);
     if (select->is_distinct())
       explain_flags.set(ESC_DISTINCT, ESP_EXISTS);
+    if (m_windows.elements > 0)
+      explain_flags.set(ESC_WINDOWING, ESP_EXISTS);
     // Calculate the number of groups
     for (ORDER *group= group_list; group; group= group->next)
       send_group_parts++;
@@ -315,8 +320,9 @@ public:
       materialized temporary tables from semi-join operation.
     - "const_tables" are those tables among primary_tables that are detected
       to be constant.
-    - "tmp_tables" is 0, 1 or 2 and counts the maximum possible number of
-      intermediate tables in post-processing (ie sorting and duplicate removal).
+    - "tmp_tables" is 0, 1 or 2 (more if windows) and counts the maximum 
+      possible number of intermediate tables in post-processing (ie sorting and
+      duplicate removal).
       Later, tmp_tables will be adjusted to the correct number of
       intermediate tables, @see JOIN::make_tmp_tables_info.
     - The remaining tables (ie. tables - primary_tables - tmp_tables) are
@@ -402,8 +408,6 @@ public:
   List<Item> *fields;
   List<Cached_item> group_fields, group_fields_cache;
   Item_sum  **sum_funcs, ***sum_funcs_end;
-  /** second copy of sumfuncs (for queries with 2 temporary tables */
-  Item_sum  **sum_funcs2, ***sum_funcs_end2;
   Temp_table_param tmp_table_param;
   MYSQL_LOCK *lock;
   
@@ -448,7 +452,12 @@ public:
   /** Is set if we have a GROUP BY and we have ORDER BY on a constant. */
   bool          skip_sort_order;
 
-  bool need_tmp;
+  /**
+    If true we need a temporary table on the result set before any
+    windowing steps, e.g. for DISTINCT or we have a query ORDER BY.
+    See details in JOIN::optimize
+  */
+  bool need_tmp_before_win;
 
   /// Used and updated by JOIN::make_join_plan() and optimize_keyuse()
   Key_use_array keyuse_array;
@@ -459,11 +468,11 @@ public:
   /// List storing all expressions of select list
   List<Item> &fields_list;
 
-  /// "all_fields" changed to use temporary table (uses slice 1-3)
-  List<Item> tmp_all_fields[4];
+  /// "all_fields" changed to use temporary table (uses slice 1 -(N-1))
+  List<Item> *tmp_all_fields;
 
-  /// "fields_list" changed to use temporary table (uses slice 1-3)
-  List<Item> tmp_fields_list[4];
+  /// "fields_list" changed to use temporary table (uses slice 1 - (N-1))
+  List<Item> *tmp_fields_list;
 
   int error; ///< set in optimize(), exec(), prepare_result()
 
@@ -471,6 +480,20 @@ public:
     ORDER BY and GROUP BY lists, to transform with prepare,optimize and exec
   */
   ORDER_with_src order, group_list;
+
+  /**
+    Any window definitions
+  */
+  List<Window> m_windows;
+
+  /**
+    True if a window requires a certain order of rows, which implies that any
+    order of rows coming out of the pre-window join will be disturbed.
+  */
+  bool m_windows_sort;
+
+  /// If we have set up tmp tables for windowing, @see make_tmp_tables_info
+  bool m_windowing_steps;
 
   /**
     Buffer to gather GROUP BY, ORDER BY and DISTINCT QEP details for EXPLAIN
@@ -544,19 +567,15 @@ public:
     - slice 4 is a copy of the original slice 0. It is created if
       slice overwriting is necessary, and it is used to restore
       original values in slice 0 after having been overwritten.
+    - slices 5 -> N are used by windowing:
+      1 window: N==5       N==7 used by window 1 for framing tmp table
+      2 windows: N==6      N==8 used by window 2 for framing tmp table
 
     Slice 0 is allocated for the lifetime of a statement, whereas slices 1-4
     are associated with a single optimization. The size of slice 0 determines
     the slice size used when allocating the other slices.
    */
-  Ref_item_array ref_items[5];
-
-  /// Symbolic slice numbers into ref_items, tmp_fields and tmp_all_fields
-  static const uint REF_SLICE_BASE = 0;
-  static const uint REF_SLICE_TMP1 = 1;
-  static const uint REF_SLICE_TMP2 = 2;
-  static const uint REF_SLICE_TMP3 = 3;
-  static const uint REF_SLICE_SAVE = 4;
+  Ref_item_array *ref_items; // cardinality: REF_SLICE_SAVE + 1 + #windows*2
 
   /**
     The slice currently stored in ref_items[0].
@@ -657,7 +676,7 @@ public:
   */
   bool alloc_ref_item_slice(THD *thd_arg, uint sliceno)
   {
-    DBUG_ASSERT(sliceno > 0 && sliceno < 5 &&
+    DBUG_ASSERT(sliceno > 0 &&
                 ref_items[sliceno].is_null());
     size_t count= ref_items[0].size();
     Item **slice= pointer_cast<Item **>(thd_arg->alloc(sizeof(Item *) * count));
@@ -669,14 +688,18 @@ public:
   /**
     Overwrite the base slice of ref_items with the slice supplied as argument.
 
-    @param sliceno number to overwrite the base slice with, must be 1-4.
+    @param sliceno number to overwrite the base slice with, must be 1-4 or
+           4 + windowno.
   */
   void set_ref_item_slice(uint sliceno)
   {
-    DBUG_ASSERT(sliceno > 0 && sliceno < 5);
+    DBUG_ASSERT(sliceno >= 1);
     copy_ref_item_slice(REF_SLICE_BASE, sliceno);
     current_ref_item_slice= sliceno;
   }
+
+  /// @note do also consider Switch_ref_item_slice
+  uint get_ref_item_slice() const { return current_ref_item_slice; }
 
   bool optimize_rollup();
   bool rollup_process_const_fields();
@@ -721,7 +744,8 @@ public:
   bool get_best_combination();
   bool attach_join_conditions(plan_idx last_tab);
   bool update_equalities_for_sjm();
-  bool add_sorting_to_table(uint idx, ORDER_with_src *order);
+  bool add_sorting_to_table(uint idx, ORDER_with_src *order,
+                            bool force_stable_sort= false);
   bool decide_subquery_strategy();
   void refine_best_rowcount();
   void mark_const_table(JOIN_TAB *table, Key_use *key);
@@ -786,12 +810,18 @@ private:
     @param save_sum_fields  If true, do not replace Item_sum items in 
                             @c tmp_fields list with Item_field items referring 
                             to fields in temporary table.
+    @param windowing        informs on whether this call is made on behalf of
+                            a window function, and if so how to treat it.
+    @param last_window_step The tmp table represents the last windowing step
 
     @returns false on success, true on failure
   */
   bool create_intermediate_table(QEP_TAB *tab, List<Item> *tmp_table_fields,
                                  ORDER_with_src &tmp_table_group,
-                                 bool save_sum_fields);
+                                 bool save_sum_fields,
+                                 enum_tmpfile_windowing_action windowing,
+                                 bool last_window_step);
+
   /**
     Optimize distinct when used on a subset of the tables.
 
@@ -904,8 +934,7 @@ private:
   bool compare_costs_of_subquery_strategies(
          Item_exists_subselect::enum_exec_method *method);
   ORDER *remove_const(ORDER *first_order, Item *cond,
-                      bool change_list, bool *simple_order,
-                      const char *clause_type);
+                      bool change_list, bool *simple_order, bool group_by);
 
   /**
     Check whether this is a subquery that can be evaluated by index look-ups.
@@ -941,7 +970,31 @@ private:
       use by 'execute' or 'explain'
   */
   void test_skip_sort();
+
+  bool alloc_indirection_slices();
 };
+
+
+/**
+  RAII class to ease the temporary switching to a different slice of
+  the ref item array.
+*/
+class Switch_ref_item_slice
+{
+  JOIN *join;
+  uint saved;
+public:
+  Switch_ref_item_slice(JOIN *join_arg, uint new_v):
+  join(join_arg), saved(join->get_ref_item_slice())
+  {
+    join->set_ref_item_slice(new_v);
+  }
+  ~Switch_ref_item_slice()
+  {
+    join->set_ref_item_slice(saved);
+  }
+};
+
 
 /**
   RAII class to ease the call of LEX::mark_broken() if error.

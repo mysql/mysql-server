@@ -2194,7 +2194,7 @@ type_conversion_status Field::store_time(MYSQL_TIME *ltime, uint8 dec_arg)
 
 bool Field::optimize_range(uint idx, uint part)
 {
-  return MY_TEST(table->file->index_flags(idx, part, 1) & HA_READ_RANGE);
+  return table->file->index_flags(idx, part, 1) & HA_READ_RANGE;
 }
 
 
@@ -2942,8 +2942,9 @@ Field *Field_new_decimal::create_from_item (Item *item)
       /* Corrected value fits. */
       len= required_length;
   }
-  return new Field_new_decimal(len, item->maybe_null, item->item_name.ptr(),
-                               dec, item->unsigned_flag);
+  return new (*THR_MALLOC) Field_new_decimal(len, item->maybe_null,
+                                             item->item_name.ptr(), dec,
+                                             item->unsigned_flag);
 }
 
 
@@ -3548,7 +3549,8 @@ int Field_tiny::cmp(const uchar *a_ptr, const uchar *b_ptr)
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
-size_t Field_tiny::make_sort_key(uchar *to, size_t length)
+size_t Field_tiny::make_sort_key(uchar *to,
+                                 size_t length MY_ATTRIBUTE((unused)))
 {
   DBUG_ASSERT(length == 1);
   if (unsigned_flag)
@@ -3786,7 +3788,8 @@ int Field_short::cmp(const uchar *a_ptr, const uchar *b_ptr)
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
-size_t Field_short::make_sort_key(uchar *to, size_t length)
+size_t Field_short::make_sort_key(uchar *to,
+                                  size_t length MY_ATTRIBUTE((unused)))
 {
   DBUG_ASSERT(length == 2);
 #ifdef WORDS_BIGENDIAN
@@ -3994,7 +3997,8 @@ int Field_medium::cmp(const uchar *a_ptr, const uchar *b_ptr)
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
-size_t Field_medium::make_sort_key(uchar *to, size_t length)
+size_t Field_medium::make_sort_key(uchar *to,
+                                   size_t length MY_ATTRIBUTE((unused)))
 {
   DBUG_ASSERT(length == 3);
   if (unsigned_flag)
@@ -4243,7 +4247,8 @@ int Field_long::cmp(const uchar *a_ptr, const uchar *b_ptr)
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
-size_t Field_long::make_sort_key(uchar *to, size_t length)
+size_t Field_long::make_sort_key(uchar *to,
+                                 size_t length MY_ATTRIBUTE((unused)))
 {
   DBUG_ASSERT(length == 4);
 #ifdef WORDS_BIGENDIAN
@@ -5132,8 +5137,13 @@ my_decimal *Field_temporal::val_decimal(my_decimal *decimal_value)
 
   @param str       Value.
   @param warnings  Warning vector.
+
+  @retval false  Function reported warning
+  @retval true   Function reported error
+
+  @note STRICT mode can convert warnings to error.
 */
-void
+bool
 Field_temporal::set_warnings(ErrConvString str, int warnings)
 {
   bool truncate_incremented= false;
@@ -5141,31 +5151,36 @@ Field_temporal::set_warnings(ErrConvString str, int warnings)
 
   if (warnings & MYSQL_TIME_WARN_TRUNCATED)
   {
-    set_datetime_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED,
-                         str, ts_type, !truncate_incremented);
+    if (set_datetime_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED,
+                             str, ts_type, !truncate_incremented))
+      return true;
     truncate_incremented= true;
   }
   if (warnings & (MYSQL_TIME_WARN_OUT_OF_RANGE | MYSQL_TIME_WARN_ZERO_DATE |
                   MYSQL_TIME_WARN_ZERO_IN_DATE))
   {
-    set_datetime_warning(Sql_condition::SL_WARNING,
-                         ER_WARN_DATA_OUT_OF_RANGE,
-                         str, ts_type, !truncate_incremented);
+    if (set_datetime_warning(Sql_condition::SL_WARNING,
+                             ER_WARN_DATA_OUT_OF_RANGE,
+                             str, ts_type, !truncate_incremented))
+      return true;
     truncate_incremented= true;
   }
   if (warnings & MYSQL_TIME_WARN_INVALID_TIMESTAMP)
   {
-    set_datetime_warning(Sql_condition::SL_WARNING,
-                         ER_WARN_INVALID_TIMESTAMP,
-                         str, ts_type, !truncate_incremented);
+    if (set_datetime_warning(Sql_condition::SL_WARNING,
+                             ER_WARN_INVALID_TIMESTAMP,
+                             str, ts_type, !truncate_incremented))
+      return true;
     truncate_incremented= true;
   }
   if ((warnings & MYSQL_TIME_NOTE_TRUNCATED) &&
       !(warnings & MYSQL_TIME_WARN_TRUNCATED))
   {
-    set_datetime_warning(Sql_condition::SL_NOTE, WARN_DATA_TRUNCATED,
-                         str, ts_type, !truncate_incremented);
-  }   
+    if (set_datetime_warning(Sql_condition::SL_NOTE, WARN_DATA_TRUNCATED,
+                             str, ts_type, !truncate_incremented))
+      return true;
+  }
+  return false;
 }
 
 
@@ -5187,8 +5202,9 @@ type_conversion_status Field_temporal::store(longlong nr, bool unsigned_val)
         !current_thd->is_strict_mode())
       error= TYPE_NOTE_TIME_TRUNCATED;
   }
-  if (warnings)
-    set_warnings(ErrConvString(nr, unsigned_val), warnings);
+  if (warnings && set_warnings(ErrConvString(nr, unsigned_val), warnings))
+    return TYPE_ERR_BAD_VALUE;
+
   return error;
 }
 
@@ -5224,8 +5240,9 @@ type_conversion_status Field_temporal::store_decimal(const my_decimal *decimal)
   /* Pass 0 in the first argument, not to produce warnings automatically */
   my_decimal2lldiv_t(0, decimal, &lld);
   const type_conversion_status error= store_lldiv_t(&lld, &warnings);
-  if (warnings)
-    set_warnings(ErrConvString(decimal), warnings);
+  if (warnings && set_warnings(ErrConvString(decimal), warnings))
+    return TYPE_ERR_BAD_VALUE;
+
   return error;
 }
 
@@ -5237,8 +5254,9 @@ type_conversion_status Field_temporal::store(double nr)
   lldiv_t lld;
   double2lldiv_t(nr, &lld);
   const type_conversion_status error= store_lldiv_t(&lld, &warnings);
-  if (warnings)
-    set_warnings(ErrConvString(nr), warnings);
+  if (warnings && set_warnings(ErrConvString(nr), warnings))
+    return TYPE_ERR_BAD_VALUE;
+
    return error;
 }
 
@@ -5285,8 +5303,10 @@ Field_temporal::store(const char *str, size_t len, const CHARSET_INFO *cs)
     if (tmp_error > error)
       error= tmp_error;
   }
-  if (status.warnings)
-    set_warnings(ErrConvString(str, len, cs), status.warnings);
+  if (status.warnings && set_warnings(ErrConvString(str, len, cs),
+                                       status.warnings))
+    return TYPE_ERR_BAD_VALUE;
+
   return error;
 }
 
@@ -5501,8 +5521,9 @@ Field_temporal_with_date::store_time(MYSQL_TIME *ltime,
     error= TYPE_WARN_TRUNCATED;
   }
 
-  if (warnings)
-    set_warnings(ErrConvString(ltime, decimals()), warnings);
+  if (warnings && set_warnings(ErrConvString(ltime, decimals()), warnings))
+    return TYPE_ERR_BAD_VALUE;
+
   return error;
 }
 
@@ -5570,7 +5591,8 @@ type_conversion_status Field_temporal_with_date::validate_stored_val(THD*)
   if (warnings)
   {
     ltime.time_type = field_type_to_timestamp_type(type());
-    set_warnings(ErrConvString(&ltime, dec), warnings);
+    if (set_warnings(ErrConvString(&ltime, dec), warnings))
+      return TYPE_ERR_BAD_VALUE;
   }
 
   return error;
@@ -5828,7 +5850,8 @@ int Field_timestamp::cmp(const uchar *a_ptr, const uchar *b_ptr)
 }
 
 
-size_t Field_timestamp::make_sort_key(uchar *to, size_t length)
+size_t Field_timestamp::make_sort_key(uchar *to,
+                                      size_t length MY_ATTRIBUTE((unused)))
 {
   DBUG_ASSERT(length == 4);
 #ifdef WORDS_BIGENDIAN
@@ -6060,8 +6083,9 @@ Field_time_common::store_time(MYSQL_TIME *ltime,
   /* Check if seconds or minutes are out of range */
   if (ltime->second >= 60 || ltime->minute >= 60)
   {
-    set_warnings(ErrConvString(ltime, decimals()),
-                 MYSQL_TIME_WARN_OUT_OF_RANGE);
+    if (set_warnings(ErrConvString(ltime, decimals()),
+                     MYSQL_TIME_WARN_OUT_OF_RANGE))
+      return TYPE_ERR_BAD_VALUE;
     reset();
     return TYPE_WARN_OUT_OF_RANGE;
   }
@@ -6220,7 +6244,8 @@ int Field_time::cmp(const uchar *a_ptr, const uchar *b_ptr)
 }
 
 
-size_t Field_time::make_sort_key(uchar *to, size_t length)
+size_t Field_time::make_sort_key(uchar *to,
+                                 size_t length MY_ATTRIBUTE((unused)))
 {
   DBUG_ASSERT(length == 3);
   to[0] = (uchar) (ptr[2] ^ 128);
@@ -6630,7 +6655,8 @@ int Field_newdate::cmp(const uchar *a_ptr, const uchar *b_ptr)
 }
 
 
-size_t Field_newdate::make_sort_key(uchar *to, size_t length)
+size_t Field_newdate::make_sort_key(uchar *to,
+                                    size_t length MY_ATTRIBUTE((unused)))
 {
   DBUG_ASSERT(length == 3);
   to[0] = ptr[2];
@@ -6760,8 +6786,8 @@ type_conversion_status Field_datetime::store(longlong nr, bool unsigned_val)
     error= time_warning_to_type_conversion_status(warnings);
     datetime_store_internal(table, tmp, ptr);
   }
-  if (warnings)
-    set_warnings(ErrConvString(nr, unsigned_val), warnings);
+  if (warnings && set_warnings(ErrConvString(nr, unsigned_val), warnings))
+      error= TYPE_ERR_BAD_VALUE;
   return error;
 }
 
@@ -7543,8 +7569,9 @@ Field *Field_string::new_field(MEM_ROOT *root, TABLE *new_table,
   Field *field;
   if (type() != MYSQL_TYPE_VAR_STRING || keep_type)
     field= Field::new_field(root, new_table, keep_type);
-  else if ((field= new Field_varstring(field_length, maybe_null(), field_name,
-                                       new_table->s, charset())))
+  else if ((field= new (*THR_MALLOC) Field_varstring(field_length, maybe_null(),
+                                                     field_name, new_table->s,
+                                                     charset())))
   {
     /*
       Old VARCHAR field which should be modified to a VARCHAR on copy
@@ -7783,27 +7810,16 @@ int Field_varstring::key_cmp(const uchar *a,const uchar *b)
 
 size_t Field_varstring::make_sort_key(uchar *to, size_t length)
 {
-  size_t orig_length= length;
-  size_t tot_length=  length_bytes == 1 ? (uint) *ptr : uint2korr(ptr);
+  size_t input_bytes= length_bytes == 1 ? (uint) *ptr : uint2korr(ptr);
 
-  if (field_charset->pad_attribute == NO_PAD)
-  {
-    /*
-      Store length last in high-byte order to sort longer strings first.
-      Note that we always store two bytes, since otherwise, we would be
-      breaking the invariant that strnxfrm needs an even number of bytes.
-    */
-    mi_int2store(to + length - 2, tot_length);
-    length-= 2;
-  }
- 
-  tot_length= field_charset->coll->strnxfrm(field_charset,
-                                            to, length, length,
-                                            ptr + length_bytes,
-                                            tot_length,
-                                            MY_STRXFRM_PAD_TO_MAXLEN);
-  DBUG_ASSERT(tot_length == length);
-  return orig_length;
+  const int flags=
+    (field_charset->pad_attribute == NO_PAD) ? 0 : MY_STRXFRM_PAD_TO_MAXLEN;
+
+  return field_charset->coll->strnxfrm(field_charset,
+                                       to, length, char_length(),
+                                       ptr + length_bytes,
+                                       input_bytes,
+                                       flags);
 }
 
 
@@ -8591,7 +8607,6 @@ uchar *Field_blob::pack(uchar *to, const uchar *from,
    simply is used as a pass-through to the original unpack() method for
    blob fields.
 
-   @param   to         Destination of the data
    @param   from       Source of the data
    @param   param_data @c TRUE if base types should be stored in little-
                        endian format, @c FALSE if native format should
@@ -8601,15 +8616,15 @@ uchar *Field_blob::pack(uchar *to, const uchar *from,
 
    @return  New pointer into memory based on from + length of the data
 */
-const uchar *Field_blob::unpack(uchar *to, 
+const uchar *Field_blob::unpack(uchar*,
                                 const uchar *from,
                                 uint param_data,
                                 bool low_byte_first)
 {
   DBUG_ENTER("Field_blob::unpack");
-  DBUG_PRINT("enter", ("to: %p; from: %p;"
+  DBUG_PRINT("enter", ("from: %p;"
                        " param_data: %u; low_byte_first: %d",
-                       to, from, param_data, low_byte_first));
+                       from, param_data, low_byte_first));
   uint const master_packlength=
     param_data > 0 ? param_data & 0xFF : packlength;
   uint32 const length= get_length(from, master_packlength, low_byte_first);
@@ -8714,17 +8729,17 @@ type_conversion_status
 Field_geom::store_internal(const char *from, size_t length,
                            const CHARSET_INFO *cs)
 {
-  DBUG_ASSERT(length > 0);
-
   // Check that the given WKB
-  // 1. isn't marked as bad geometry data
-  // 2. isn't shorter than empty geometrycollection
-  // 3. is a valid geometry type
-  // 4. is well formed
-  if (from == Geometry::bad_geometry_data.ptr() ||                    // 1
-      length < SRID_SIZE + WKB_HEADER_SIZE + sizeof(uint32) ||        // 2
-      !Geometry::is_valid_geotype(uint4korr(from + SRID_SIZE + 1)) || // 3
-      !Geometry::is_well_formed(from, length,                         // 4
+  // 1. is at least 13 bytes long (length of GEOMETRYCOLLECTION EMPTY)
+  // 2. isn't marked as bad geometry data
+  // 3. isn't shorter than empty geometrycollection
+  // 4. is a valid geometry type
+  // 5. is well formed
+  if (length < 13 ||                                                  // 1
+      from == Geometry::bad_geometry_data.ptr() ||                    // 2
+      length < SRID_SIZE + WKB_HEADER_SIZE + sizeof(uint32) ||        // 3
+      !Geometry::is_valid_geotype(uint4korr(from + SRID_SIZE + 1)) || // 4
+      !Geometry::is_well_formed(from, length,                         // 5
                                 geometry_type_to_wkb_type(geom_type),
                                 Geometry::wkb_ndr))
   {
@@ -8775,7 +8790,7 @@ Field_json *Field_json::clone(MEM_ROOT *mem_root) const
 Field_json *Field_json::clone() const
 {
   DBUG_ASSERT(type() == MYSQL_TYPE_JSON);
-  return new Field_json(*this);
+  return new (*THR_MALLOC) Field_json(*this);
 }
 
 
@@ -8947,7 +8962,7 @@ type_conversion_status Field_json::store_time(MYSQL_TIME*, uint8)
   @param json  the JSON value to store
   @return zero on success, non-zero otherwise
 */
-type_conversion_status Field_json::store_json(Json_wrapper *json)
+type_conversion_status Field_json::store_json(const Json_wrapper *json)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
 
@@ -9018,7 +9033,8 @@ bool Field_json::val_json(Json_wrapper *wr)
   */
   if (s->length() == 0)
   {
-    *wr= Json_wrapper(new (std::nothrow) Json_null());
+    using namespace json_binary;
+    *wr= Json_wrapper(Value(Value::LITERAL_NULL));
     return false;
   }
 
@@ -9136,6 +9152,14 @@ ulonglong Field_json::make_hash_key(ulonglong *hash_val)
   if (val_json(&wr))
     return *hash_val;                         /* purecov: inspected */
   return wr.make_hash_key(hash_val);
+}
+
+
+const char *Field_json::get_binary() const
+{
+  char *blob;
+  memcpy(&blob, ptr + packlength, sizeof(blob));
+  return blob;
 }
 
 
@@ -10353,9 +10377,15 @@ void Create_field::create_length_to_internal_length(void)
   case MYSQL_TYPE_VAR_STRING:
   case MYSQL_TYPE_STRING:
   case MYSQL_TYPE_VARCHAR:
-    length*= charset->mbmaxlen;
-    key_length= length;
-    pack_length= calc_pack_length(sql_type, length);
+    {
+      const ulonglong ull_length=
+        static_cast<ulonglong>(length) *
+        static_cast<ulonglong>(charset->mbmaxlen);
+      length= static_cast<size_t>(std::min<ulonglong>(ull_length, 
+                                                      MAX_FIELD_BLOBLENGTH));
+      key_length= length;
+      pack_length= calc_pack_length(sql_type, length);
+    }
     break;
   case MYSQL_TYPE_ENUM:
   case MYSQL_TYPE_SET:
@@ -10372,7 +10402,7 @@ void Create_field::create_length_to_internal_length(void)
     {
       pack_length= length / 8;
       /* We need one extra byte to store the bits we save among the null bits */
-      key_length= pack_length + MY_TEST(length & 7);
+      key_length= pack_length + (length & 7 ? 1 : 0);
     }
     break;
   case MYSQL_TYPE_NEWDECIMAL:
@@ -10403,7 +10433,6 @@ void Create_field::create_length_to_internal_length(void)
         Field::key_length() is probably overkill.
 */
 
-/* purecov: begin deadcode */
 uint32 calc_key_length(enum_field_types sql_type, uint32 length,
                        uint32 decimals, bool is_unsigned, uint32 elements)
 {
@@ -10413,8 +10442,8 @@ uint32 calc_key_length(enum_field_types sql_type, uint32 length,
   case MYSQL_TYPE_LONG_BLOB:
   case MYSQL_TYPE_BLOB:
   case MYSQL_TYPE_GEOMETRY:
-  case MYSQL_TYPE_VAR_STRING:
-  case MYSQL_TYPE_STRING:
+  case MYSQL_TYPE_JSON:
+    return 0;
   case MYSQL_TYPE_VARCHAR:
     return length;
   case MYSQL_TYPE_ENUM:
@@ -10422,7 +10451,7 @@ uint32 calc_key_length(enum_field_types sql_type, uint32 length,
   case MYSQL_TYPE_SET:
     return get_set_pack_length(elements);
   case MYSQL_TYPE_BIT:
-    return length / 8 + MY_TEST(length & 7);
+    return length / 8 + (length & 7 ? 1 : 0);
     break;
   case MYSQL_TYPE_NEWDECIMAL:
     return my_decimal_get_binary_size(my_decimal_length_to_precision(length,
@@ -10432,7 +10461,6 @@ uint32 calc_key_length(enum_field_types sql_type, uint32 length,
     return calc_pack_length(sql_type, length);
   }
 }
-/* purecov: end */
 
 
 /**
@@ -10667,12 +10695,13 @@ bool Create_field::init(THD *thd, const char *fld_name,
   if (fld_length != NULL)
   {
     errno= 0;
-    length= strtoul(fld_length, NULL, 10);
-    if ((errno != 0) || (length > MAX_FIELD_BLOBLENGTH))
+    const ulonglong ull_length= my_strtoull(fld_length, NULL, 10);
+    if ((errno != 0) || (ull_length > MAX_FIELD_BLOBLENGTH))
     {
       my_error(ER_TOO_BIG_DISPLAYWIDTH, MYF(0), fld_name, MAX_FIELD_BLOBLENGTH);
       DBUG_RETURN(TRUE);
     }
+    length= static_cast<size_t>(ull_length);
 
     if (length == 0)
       fld_length= NULL; /* purecov: inspected */
@@ -11078,15 +11107,16 @@ Field *make_field(TABLE_SHARE *share, uchar *ptr, size_t field_length,
   switch (field_type) {
   case MYSQL_TYPE_VAR_STRING:
   case MYSQL_TYPE_STRING:
-    return new Field_string(ptr,field_length,null_pos,null_bit,
-                            auto_flags, field_name, field_charset);
+    return new (*THR_MALLOC) Field_string(ptr,field_length,null_pos,null_bit,
+                                          auto_flags, field_name,
+                                          field_charset);
   case MYSQL_TYPE_VARCHAR:
-    return new Field_varstring(ptr,field_length,
-                               HA_VARCHAR_PACKLENGTH(field_length),
-                               null_pos,null_bit,
-                               auto_flags, field_name,
-                               share,
-                               field_charset);
+    return new (*THR_MALLOC)
+      Field_varstring(ptr,field_length, HA_VARCHAR_PACKLENGTH(field_length),
+                      null_pos,null_bit,
+                      auto_flags, field_name,
+                      share,
+                      field_charset);
   case MYSQL_TYPE_BLOB:
   case MYSQL_TYPE_MEDIUM_BLOB:
   case MYSQL_TYPE_TINY_BLOB:
@@ -11099,9 +11129,9 @@ Field *make_field(TABLE_SHARE *share, uchar *ptr, size_t field_length,
       uint pack_length= calc_pack_length(field_type, field_length) -
                         portable_sizeof_char_ptr;
 
-      return new Field_blob(ptr, null_pos, null_bit, auto_flags,
-                            field_name, share,
-                            pack_length, field_charset);
+      return new (*THR_MALLOC) Field_blob(ptr, null_pos, null_bit, auto_flags,
+                                          field_name, share,
+                                          pack_length, field_charset);
     }
   case MYSQL_TYPE_GEOMETRY:
     {
@@ -11112,8 +11142,9 @@ Field *make_field(TABLE_SHARE *share, uchar *ptr, size_t field_length,
       uint pack_length= calc_pack_length(field_type, field_length) -
                         portable_sizeof_char_ptr;
 
-      return new Field_geom(ptr, null_pos, null_bit, auto_flags,
-                            field_name, share, pack_length, geom_type);
+      return new (*THR_MALLOC) Field_geom(ptr, null_pos, null_bit, auto_flags,
+                                          field_name, share, pack_length,
+                                          geom_type);
     }
   case MYSQL_TYPE_JSON:
     {
@@ -11124,111 +11155,115 @@ Field *make_field(TABLE_SHARE *share, uchar *ptr, size_t field_length,
       uint pack_length= calc_pack_length(field_type, field_length) -
                         portable_sizeof_char_ptr;
 
-      return new Field_json(ptr, null_pos, null_bit, auto_flags,
-                            field_name, share, pack_length);
+      return new (*THR_MALLOC) Field_json(ptr, null_pos, null_bit, auto_flags,
+                                          field_name, share, pack_length);
     }
   case MYSQL_TYPE_ENUM:
     DBUG_ASSERT(interval);
-    return new Field_enum(ptr, field_length, null_pos, null_bit,
-                          auto_flags, field_name,
-                          (pack_length_override ? pack_length_override :
-                           get_enum_pack_length(interval->count)),
-                          interval, field_charset);
+    return new (*THR_MALLOC)
+      Field_enum(ptr, field_length, null_pos, null_bit, auto_flags, field_name,
+                 (pack_length_override ? pack_length_override :
+                 get_enum_pack_length(interval->count)),
+                 interval, field_charset);
   case MYSQL_TYPE_SET:
     DBUG_ASSERT(interval);
-    return new Field_set(ptr, field_length, null_pos, null_bit,
-			 auto_flags, field_name,
-                         (pack_length_override ? pack_length_override :
-                          get_set_pack_length(interval->count)),
-                         interval, field_charset);
+    return new (*THR_MALLOC)
+      Field_set(ptr, field_length, null_pos, null_bit, auto_flags, field_name,
+                (pack_length_override ? pack_length_override :
+                 get_set_pack_length(interval->count)),
+                 interval, field_charset);
   case MYSQL_TYPE_DECIMAL:
-    return new Field_decimal(ptr,field_length,null_pos,null_bit,
-			     auto_flags, field_name,
-			     decimals,
-                             is_zerofill,
-                             is_unsigned);
+    return new (*THR_MALLOC) Field_decimal(ptr,field_length,null_pos,null_bit,
+                                           auto_flags, field_name,
+                                           decimals,
+                                           is_zerofill,
+                                           is_unsigned);
   case MYSQL_TYPE_NEWDECIMAL:
-    return new Field_new_decimal(ptr,field_length,null_pos,null_bit,
-                                 auto_flags, field_name,
-                                 decimals,
-                                 is_zerofill,
-                                 is_unsigned);
+    return new (*THR_MALLOC) Field_new_decimal(ptr,field_length,null_pos,
+                                               null_bit, auto_flags, field_name,
+                                               decimals,
+                                               is_zerofill,
+                                               is_unsigned);
   case MYSQL_TYPE_FLOAT:
-    return new Field_float(ptr,field_length,null_pos,null_bit,
-			   auto_flags, field_name,
-			   decimals,
-                           is_zerofill,
-                           is_unsigned);
+    return new (*THR_MALLOC) Field_float(ptr,field_length,null_pos,null_bit,
+                                         auto_flags, field_name,
+                                         decimals,
+                                         is_zerofill,
+                                         is_unsigned);
   case MYSQL_TYPE_DOUBLE:
-    return new Field_double(ptr,field_length,null_pos,null_bit,
-			    auto_flags, field_name,
-			    decimals,
-                            is_zerofill,
-                            is_unsigned);
+    return new (*THR_MALLOC) Field_double(ptr,field_length,null_pos,null_bit,
+                                          auto_flags, field_name,
+                                          decimals,
+                                          is_zerofill,
+                                          is_unsigned);
   case MYSQL_TYPE_TINY:
-    return new Field_tiny(ptr,field_length,null_pos,null_bit,
-			  auto_flags, field_name,
-                          is_zerofill,
-                          is_unsigned);
+    return new (*THR_MALLOC) Field_tiny(ptr,field_length,null_pos,null_bit,
+                                        auto_flags, field_name,
+                                        is_zerofill,
+                                        is_unsigned);
   case MYSQL_TYPE_SHORT:
-    return new Field_short(ptr,field_length,null_pos,null_bit,
-			   auto_flags, field_name,
-                           is_zerofill,
-                           is_unsigned);
+    return new (*THR_MALLOC) Field_short(ptr,field_length,null_pos,null_bit,
+                                         auto_flags, field_name,
+                                         is_zerofill,
+                                         is_unsigned);
   case MYSQL_TYPE_INT24:
-    return new Field_medium(ptr,field_length,null_pos,null_bit,
-			    auto_flags, field_name,
-                            is_zerofill,
-                            is_unsigned);
+    return new (*THR_MALLOC) Field_medium(ptr,field_length,null_pos,null_bit,
+                                          auto_flags, field_name,
+                                          is_zerofill,
+                                          is_unsigned);
   case MYSQL_TYPE_LONG:
-    return new Field_long(ptr,field_length,null_pos,null_bit,
-			   auto_flags, field_name,
-                           is_zerofill,
-                           is_unsigned);
+    return new (*THR_MALLOC) Field_long(ptr,field_length,null_pos,null_bit,
+                                        auto_flags, field_name,
+                                        is_zerofill,
+                                        is_unsigned);
   case MYSQL_TYPE_LONGLONG:
-    return new Field_longlong(ptr,field_length,null_pos,null_bit,
-			      auto_flags, field_name,
-                              is_zerofill,
-                              is_unsigned);
+    return new (*THR_MALLOC) Field_longlong(ptr,field_length,null_pos,null_bit,
+                                            auto_flags, field_name,
+                                            is_zerofill,
+                                            is_unsigned);
   case MYSQL_TYPE_TIMESTAMP:
-    return new Field_timestamp(ptr, field_length, null_pos, null_bit,
-                               auto_flags, field_name);
+    return new (*THR_MALLOC) Field_timestamp(ptr, field_length, null_pos,
+                                             null_bit, auto_flags, field_name);
   case MYSQL_TYPE_TIMESTAMP2:
-    return new Field_timestampf(ptr, null_pos, null_bit,
-                                auto_flags, field_name,
-                                field_length > MAX_DATETIME_WIDTH ?
-                                field_length - 1 - MAX_DATETIME_WIDTH : 0);
+    return new (*THR_MALLOC)
+      Field_timestampf(ptr, null_pos, null_bit,
+                       auto_flags, field_name,
+                       field_length > MAX_DATETIME_WIDTH ?
+                       field_length - 1 - MAX_DATETIME_WIDTH : 0);
   case MYSQL_TYPE_YEAR:
-    return new Field_year(ptr,field_length,null_pos,null_bit,
-			  auto_flags, field_name);
+    return new (*THR_MALLOC) Field_year(ptr,field_length,null_pos,null_bit,
+                                        auto_flags, field_name);
   case MYSQL_TYPE_NEWDATE:
-    return new Field_newdate(ptr, null_pos, null_bit, auto_flags, field_name);
+    return new (*THR_MALLOC) Field_newdate(ptr, null_pos, null_bit, auto_flags,
+  field_name);
 
   case MYSQL_TYPE_TIME:
-    return new Field_time(ptr, null_pos, null_bit,
-                          auto_flags, field_name);
+    return new (*THR_MALLOC) Field_time(ptr, null_pos, null_bit, auto_flags,
+                                        field_name);
   case MYSQL_TYPE_TIME2:
-    return new Field_timef(ptr, null_pos, null_bit,
-                           auto_flags, field_name,
-                           (field_length > MAX_TIME_WIDTH) ?
-                           field_length - 1 - MAX_TIME_WIDTH : 0);
+    return new (*THR_MALLOC)
+      Field_timef(ptr, null_pos, null_bit, auto_flags, field_name,
+                  (field_length > MAX_TIME_WIDTH) ?
+                  field_length - 1 - MAX_TIME_WIDTH : 0);
   case MYSQL_TYPE_DATETIME:
-    return new Field_datetime(ptr, null_pos, null_bit,
-                              auto_flags, field_name);
+    return new (*THR_MALLOC) Field_datetime(ptr, null_pos, null_bit, auto_flags,
+                                            field_name);
   case MYSQL_TYPE_DATETIME2:
-    return new Field_datetimef(ptr, null_pos, null_bit,
-                               auto_flags, field_name,
-                               (field_length > MAX_DATETIME_WIDTH) ?
-                               field_length - 1 - MAX_DATETIME_WIDTH : 0);
+    return new (*THR_MALLOC)
+      Field_datetimef(ptr, null_pos, null_bit, auto_flags, field_name,
+                      (field_length > MAX_DATETIME_WIDTH) ?
+                      field_length - 1 - MAX_DATETIME_WIDTH : 0);
   case MYSQL_TYPE_NULL:
-    return new Field_null(ptr, field_length, auto_flags, field_name,
-                          field_charset);
+    return new (*THR_MALLOC) Field_null(ptr, field_length, auto_flags,
+                                        field_name, field_charset);
   case MYSQL_TYPE_BIT:
     return treat_bit_as_char ?
-           new Field_bit_as_char(ptr, field_length, null_pos, null_bit,
-                                 auto_flags, field_name) :
-           new Field_bit(ptr, field_length, null_pos, null_bit, bit_ptr,
-                         bit_offset, auto_flags, field_name);
+           new (*THR_MALLOC)
+             Field_bit_as_char(ptr, field_length, null_pos, null_bit,
+                               auto_flags, field_name) :
+           new (*THR_MALLOC)
+             Field_bit(ptr, field_length, null_pos, null_bit, bit_ptr,
+                       bit_offset, auto_flags, field_name);
 
   default:					// Impossible (Wrong version)
     break;
@@ -11280,6 +11315,13 @@ Create_field::Create_field(Field *old_field,Field *orig_field) :
 {
 
   switch (sql_type) {
+  case MYSQL_TYPE_JSON:
+    /*
+      Divide by four here, so we can multiply by four in
+      create_length_to_internal_length()
+     */
+    length/= charset->mbmaxlen;
+    break;
   case MYSQL_TYPE_BLOB:
     sql_type= blob_type_from_pack_length(pack_length - portable_sizeof_char_ptr);
     length/= charset->mbmaxlen;
@@ -11571,12 +11613,16 @@ bool Field::set_warning(Sql_condition::enum_severity_level level,
   @param val              error parameter (the value)
   @param ts_type          type of datetime value (datetime/date/time)
   @param truncate_increment  whether we should increase truncated fields count
+
+  @retval false  Function reported warning
+  @retval true   Function reported error
+
   @note
     This function will always produce some warning but won't increase truncated
     fields counter if check_for_truncated_fields == FIELD_CHECK_IGNORE
     for current thread.
 */
-void 
+bool
 Field_temporal::set_datetime_warning(Sql_condition::enum_severity_level level,
                                      uint code,
                                      ErrConvString val,
@@ -11589,7 +11635,9 @@ Field_temporal::set_datetime_warning(Sql_condition::enum_severity_level level,
         (thd->variables.sql_mode & MODE_STRICT_TRANS_TABLES &&
          !thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT)))) ||
       set_warning(level, code, truncate_increment))
-    make_truncated_value_warning(thd, level, val, ts_type, field_name);
+    return make_truncated_value_warning(thd, level, val, ts_type, field_name);
+
+  return false;
 }
 
 bool Field::is_part_of_actual_key(THD *thd, uint cur_index)

@@ -205,7 +205,7 @@ private:
     4 and "Baktus" installed in slot 7.
   */
  
-  uint find_handler_slot_from_name(THD *thd,
+  uint find_handler_slot_from_name(THD*,
                                    const LEX_CSTRING &name) const
   {
     if (my_strcasecmp(&my_charset_utf8_general_ci, "Karius", name.str) == 0)

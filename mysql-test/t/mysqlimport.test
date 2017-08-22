@@ -1,7 +1,4 @@
 
-# Embedded server doesn't support external clients
---source include/not_embedded.inc
-
 --echo #
 --echo # Bug#12688860 : SECURITY RECOMMENDATION: PASSWORDS ON CLI
 --echo #

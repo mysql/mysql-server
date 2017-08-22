@@ -1,7 +1,6 @@
 ### t/log_state.test ###
 #
 
---source include/not_embedded.inc
 
 # Several subtests modify global variables. Save the initial values only here,
 # but reset to the initial values per subtest.

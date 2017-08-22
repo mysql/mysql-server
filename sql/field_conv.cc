@@ -127,8 +127,7 @@ static void do_field_8(Copy_field *copy)
 
 static void do_field_to_null_str(Copy_field *copy)
 {
-  if (*copy->null_row ||
-      (copy->from_null_ptr && (*copy->from_null_ptr & copy->from_bit)))
+  if (copy->from_null_ptr && (*copy->from_null_ptr & copy->from_bit))
   {
     memset(copy->to_ptr, 0, copy->from_length());
     copy->to_null_ptr[0]=1;			// Always bit 1
@@ -254,6 +253,12 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
 
   switch (field->table->in_use->check_for_truncated_fields) {
   case CHECK_FIELD_WARN:
+    // There's no valid conversion for geometry values.
+    if (field->type() == MYSQL_TYPE_GEOMETRY)
+    {
+      my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);
+      return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
+    }
     field->set_warning(Sql_condition::SL_WARNING, ER_BAD_NULL_ERROR, 1);
     /* fall through */
   case CHECK_FIELD_IGNORE:
@@ -275,8 +280,7 @@ static void do_skip(Copy_field *copy MY_ATTRIBUTE((unused)))
 
 static void do_copy_null(Copy_field *copy)
 {
-  if (*copy->null_row ||
-      (copy->from_null_ptr && (*copy->from_null_ptr & copy->from_bit)))
+  if (copy->from_null_ptr && (*copy->from_null_ptr & copy->from_bit))
   {
     *copy->to_null_ptr|=copy->to_bit;
     copy->to_field()->reset();
@@ -291,8 +295,7 @@ static void do_copy_null(Copy_field *copy)
 
 static void do_copy_not_null(Copy_field *copy)
 {
-  if (*copy->null_row ||
-      (copy->from_null_ptr && (*copy->from_null_ptr & copy->from_bit)))
+  if (copy->from_null_ptr && (*copy->from_null_ptr & copy->from_bit))
   {
     if (copy->to_field()->reset() == TYPE_ERR_NULL_CONSTRAINT_VIOLATION)
       my_error(ER_INVALID_USE_OF_NULL, MYF(0));
@@ -315,7 +318,7 @@ static void do_copy_maybe_null(Copy_field *copy)
 
 static void do_copy_timestamp(Copy_field *copy)
 {
-  if (*copy->null_row || (*copy->from_null_ptr & copy->from_bit))
+  if (*copy->from_null_ptr & copy->from_bit)
   {
     /* Same as in set_field_to_null_with_conversions() */
     Item_func_now_local::store_in(copy->to_field());
@@ -327,7 +330,7 @@ static void do_copy_timestamp(Copy_field *copy)
 
 static void do_copy_next_number(Copy_field *copy)
 {
-  if (*copy->null_row || (*copy->from_null_ptr & copy->from_bit))
+  if (*copy->from_null_ptr & copy->from_bit)
   {
     /* Same as in set_field_to_null_with_conversions() */
     copy->to_field()->table->auto_increment_field_not_null= false;
@@ -416,8 +419,7 @@ static void do_field_varbinary_pre50(Copy_field *copy)
 static void do_field_int(Copy_field *copy)
 {
   longlong value= copy->from_field()->val_int();
-  copy->to_field()->store(value,
-                          MY_TEST(copy->from_field()->flags & UNSIGNED_FLAG));
+  copy->to_field()->store(value, copy->from_field()->flags & UNSIGNED_FLAG);
 }
 
 static void do_field_real(Copy_field *copy)
@@ -662,11 +664,23 @@ void Copy_field::set(uchar *to,Field *from)
   from_ptr=from->ptr;
   to_ptr=to;
   m_from_length= from->pack_length();
-  null_row= &from->table->null_row;
   if (from->maybe_null())
   {
-    from_null_ptr=from->get_null_ptr();
-    from_bit=	  from->null_bit;
+    if ((from_null_ptr= from->get_null_ptr()))
+      from_bit= from->null_bit;
+    else
+    {
+      /*
+        Field is not nullable but its table is the inner table of an outer
+        join so field may be NULL. Read its NULLness information from
+        TABLE::null_row.
+        @note that in the code of window functions, bring_back_frame_row() may
+        cause a change to *from_null_ptr, thus setting TABLE::null_row to be
+        what it was when the row was buffered, which is correct.
+      */
+      from_null_ptr= (uchar*)&from->table->null_row;
+      from_bit= 1; // as TABLE::null_row contains 0 or 1
+    }
     to_ptr[0]=	  1;				// Null as default value
     to_null_ptr=  to_ptr++;
     to_bit=	  1;
@@ -710,11 +724,15 @@ void Copy_field::set(Field *to,Field *from,bool save)
 
   // set up null handling
   from_null_ptr=to_null_ptr=0;
-  null_row= &from->table->null_row;
   if (from->maybe_null())
   {
-    from_null_ptr=	from->get_null_ptr();
-    from_bit=		from->null_bit;
+    if ((from_null_ptr= from->get_null_ptr()))
+      from_bit= from->null_bit;
+    else
+    {
+      from_null_ptr= (uchar*)&from->table->null_row;
+      from_bit= 1;
+    }
     if (m_to_field->real_maybe_null())
     {
       to_null_ptr=	to->get_null_ptr();
@@ -918,6 +936,16 @@ Copy_field::get_copy_func(Field *to,Field *from)
   return do_field_eq;
 }
 
+
+void Copy_field::swap_direction()
+{
+  std::swap(from_ptr, to_ptr);
+  std::swap(from_null_ptr, to_null_ptr);
+  std::swap(from_bit, to_bit);
+  std::swap(m_from_length, m_to_length);
+  std::swap(m_from_field, m_to_field);
+}
+
 static inline bool is_blob_type(Field *to)
 {
   return (to->type() == MYSQL_TYPE_BLOB || to->type() == MYSQL_TYPE_GEOMETRY);
@@ -1090,5 +1118,5 @@ type_conversion_status field_conv(Field *to,Field *from)
     return to->store_decimal(from->val_decimal(&buff));
   }
   else
-    return to->store(from->val_int(), MY_TEST(from->flags & UNSIGNED_FLAG));
+    return to->store(from->val_int(), from->flags & UNSIGNED_FLAG);
 }

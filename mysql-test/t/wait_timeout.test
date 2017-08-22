@@ -7,8 +7,6 @@
 #                       - Replaced sleeps by wait condition
 #                       - Minor improvements
 ###############################################################################
-# These tests cannot run with the embedded server
--- source include/not_embedded.inc
 -- source include/one_thread_per_connection.inc
 
 # Save the initial number of concurrent sessions

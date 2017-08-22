@@ -2,7 +2,6 @@
 ## INNOBASE_BUFFER_POOL_SIZE
 
 --source include/have_32bit.inc
---source include/not_embedded.inc
 
 SET @before_innodb_buffer_pool_size = @@innodb_buffer_pool_size;
 CALL mtr.add_suppression("option 'innodb-buffer-pool-size': unsigned value 4294967296 adjusted to 2146435072");

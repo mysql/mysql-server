@@ -33,12 +33,14 @@ extern const char *my_defaults_file;
 extern bool my_getopt_use_args_separator;
 extern bool my_defaults_read_login_file;
 extern bool no_defaults;
+extern char datadir_buffer[];
 
 /* Define the type of function to be passed to process_default_option_files */
 typedef int (*Process_option_func)(void *ctx, const char *group_name,
                                    const char *option, const char *cnf_file);
-
+void set_persist_args_separator(char** arg);
 bool my_getopt_is_args_separator(const char* arg);
+bool my_getopt_is_ro_persist_args_separator(const char* arg);
 int get_defaults_options(int argc, char **argv,
                          char **defaults, char **extra_defaults,
                          char **group_suffix, char **login_path,

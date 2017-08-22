@@ -822,4 +822,34 @@ TEST(UCAWildCmpTest, UCA900WildCmpCaseSensitive)
   EXPECT_FALSE(uca_wildcmp(cs, "abecd", "a%bd"));
 
 }
+
+TEST(UCAWildCmpTest, UCA900WildCmp_AS_CI)
+{
+  MY_CHARSET_LOADER loader;
+  my_charset_loader_init_mysys(&loader);
+  CHARSET_INFO *cs= my_collation_get_by_name(&loader, "utf8mb4_0900_as_ci",
+                                             MYF(0));
+  EXPECT_TRUE(uca_wildcmp(cs, "ǎḄÇ", "Ǎḅç"));
+  EXPECT_FALSE(uca_wildcmp(cs, "ÁḆĈ", "Ǎḅç"));
+  EXPECT_TRUE(uca_wildcmp(cs, "ǍBc", "_bc"));
+  EXPECT_TRUE(uca_wildcmp(cs, "Aḅc", "a_c"));
+  EXPECT_TRUE(uca_wildcmp(cs, "Abç", "ab_"));
+  EXPECT_TRUE(uca_wildcmp(cs, "Ǎḅç", "%ç"));
+  EXPECT_TRUE(uca_wildcmp(cs, "Ǎḅç", "ǎ%Ç"));
+  EXPECT_TRUE(uca_wildcmp(cs, "aḅç", "a%"));
+  EXPECT_TRUE(uca_wildcmp(cs, "Ǎḅçdef", "ǎ%d_f"));
+  EXPECT_TRUE(uca_wildcmp(cs, "Ǎḅçdefg", "ǎ%d%g"));
+  EXPECT_TRUE(uca_wildcmp(cs, "ǎ\\", "Ǎ\\"));
+  EXPECT_TRUE(uca_wildcmp(cs, "ǎa\\", "Ǎ%\\"));
+  EXPECT_FALSE(uca_wildcmp(cs, "Y", u8"\u00dd"));
+  EXPECT_FALSE(uca_wildcmp(cs, "abcd", "Ǎḅçde"));
+  EXPECT_FALSE(uca_wildcmp(cs, "abcde", "Ǎḅçd"));
+  EXPECT_FALSE(uca_wildcmp(cs, "Ǎḅçde", "a%f"));
+  EXPECT_TRUE(uca_wildcmp(cs, "Ǎḅçdef", "ǎ%%f"));
+  EXPECT_TRUE(uca_wildcmp(cs, "Ǎḅçd", "ǎ__d"));
+  EXPECT_TRUE(uca_wildcmp(cs, "Ǎḅçd", "ǎ\\ḄÇd"));
+  EXPECT_FALSE(uca_wildcmp(cs, "a\\bcd", "Ǎḅçd"));
+  EXPECT_TRUE(uca_wildcmp(cs, "Ǎḅdbçd", "ǎ%Çd"));
+  EXPECT_FALSE(uca_wildcmp(cs, "Ǎḅeçd", "a%bd"));
+}
 }

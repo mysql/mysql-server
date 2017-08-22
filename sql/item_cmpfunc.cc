@@ -574,7 +574,7 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
                                      *item) :
 #endif
           new Item_int_with_ref(field->type(), field->val_int(), *item,
-                                MY_TEST(field->flags & UNSIGNED_FLAG));
+                                field->flags & UNSIGNED_FLAG);
         if (tmp == NULL)
           return true;
 
@@ -717,7 +717,7 @@ bool Arg_comparator::set_compare_func(Item_result_field *item, Item_result type)
       comparators= 0;
       return true;
     }
-    if (!(comparators= new Arg_comparator[n]))
+    if (!(comparators= new (*THR_MALLOC) Arg_comparator[n]))
       return true;
     comparator_count= n;
 
@@ -740,7 +740,7 @@ bool Arg_comparator::set_compare_func(Item_result_field *item, Item_result type)
       We must set cmp_charset here as we may be called from for an automatic
       generated item, like in natural join
     */
-    if (cmp_collation.set((*a)->collation, (*b)->collation) || 
+    if (cmp_collation.set((*a)->collation, (*b)->collation, MY_COLL_CMP_CONV) ||
 	cmp_collation.derivation == DERIVATION_NONE)
     {
       my_coll_agg_error((*a)->collation, (*b)->collation,
@@ -836,7 +836,7 @@ bool Arg_comparator::set_compare_func(Item_result_field *item, Item_result type)
   @retval True Indicates failure.
 */
 
-bool get_mysql_time_from_str(THD *thd, String *str, timestamp_type warn_type, 
+bool get_mysql_time_from_str(THD *thd, String *str, timestamp_type warn_type,
                              const char *warn_name, MYSQL_TIME *l_time)
 {
   bool value;
@@ -865,8 +865,11 @@ bool get_mysql_time_from_str(THD *thd, String *str, timestamp_type warn_type,
   }
 
   if (status.warnings > 0)
-    make_truncated_value_warning(thd, Sql_condition::SL_WARNING,
-                                 ErrConvString(str), warn_type, warn_name);
+  {
+    if (make_truncated_value_warning(thd, Sql_condition::SL_WARNING,
+                                     ErrConvString(str), warn_type, warn_name))
+      return true;
+  }
 
   return value;
 }
@@ -1093,7 +1096,7 @@ get_time_value(THD*, Item ***item_arg, Item **cache_arg,
     Item_cache_datetime *cache= new Item_cache_datetime(item->data_type());
     /* Mark the cache as non-const to prevent re-caching. */
     cache->set_used_tables(1);
-    cache->store(item, value);
+    cache->store_value(item, value);
     *cache_arg= cache;
     *item_arg= cache_arg;
   }
@@ -1151,13 +1154,13 @@ bool Arg_comparator::set_cmp_func(Item_result_field *owner_arg,
       cache->set_used_tables(1);
       if (!(*a)->is_temporal_with_date())
       {
-        cache->store((*a), const_value);
+        cache->store_value((*a), const_value);
         a_cache= cache;
         a= &a_cache;
       }
       else
       {
-        cache->store((*b), const_value);
+        cache->store_value((*b), const_value);
         b_cache= cache;
         b= &b_cache;
       }
@@ -1191,7 +1194,7 @@ bool Arg_comparator::set_cmp_func(Item_result_field *owner_arg,
            (*b)->result_type() == STRING_RESULT)
   {
     DTCollation coll;
-    coll.set((*a)->collation.collation);
+    coll.set((*a)->collation, (*b)->collation, MY_COLL_CMP_CONV);
     if (agg_item_set_converter(coll, owner->func_name(),
                                b, 1, MY_COLL_CMP_CONV, 1))
       return true;
@@ -1406,7 +1409,7 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
     Item_cache_datetime *cache= new Item_cache_datetime(MYSQL_TYPE_DATETIME);
     /* Mark the cache as non-const to prevent re-caching. */
     cache->set_used_tables(1);
-    cache->store(item, value);
+    cache->store_value(item, value);
     *cache_arg= cache;
     *item_arg= cache_arg;
   }
@@ -1559,7 +1562,7 @@ static bool get_json_arg(Item* arg, String *value, String *tmp,
       so. Otherwise, we reuse the previously allocated memory.
     */
     if (*scalar == NULL)
-      *scalar= new Json_scalar_holder();
+      *scalar= new (*THR_MALLOC) Json_scalar_holder();
 
     holder= *scalar;
   }
@@ -1703,8 +1706,8 @@ int Arg_comparator::compare_e_string()
   res1= (*a)->val_str(&value1);
   res2= (*b)->val_str(&value2);
   if (!res1 || !res2)
-    return MY_TEST(res1 == res2);
-  return MY_TEST(sortcmp(res1, res2, cmp_collation.collation) == 0);
+    return (res1 == res2);
+  return (sortcmp(res1, res2, cmp_collation.collation) == 0);
 }
 
 
@@ -1714,8 +1717,8 @@ int Arg_comparator::compare_e_binary_string()
   res1= (*a)->val_str(&value1);
   res2= (*b)->val_str(&value2);
   if (!res1 || !res2)
-    return MY_TEST(res1 == res2);
-  return MY_TEST(stringcmp(res1, res2) == 0);
+    return (res1 == res2);
+  return (stringcmp(res1, res2) == 0);
 }
 
 
@@ -1770,8 +1773,8 @@ int Arg_comparator::compare_e_real()
   double val1= (*a)->val_real();
   double val2= (*b)->val_real();
   if ((*a)->null_value || (*b)->null_value)
-    return MY_TEST((*a)->null_value && (*b)->null_value);
-  return MY_TEST(val1 == val2);
+    return ((*a)->null_value && (*b)->null_value);
+  return (val1 == val2);
 }
 
 int Arg_comparator::compare_e_decimal()
@@ -1780,8 +1783,8 @@ int Arg_comparator::compare_e_decimal()
   my_decimal *val1= (*a)->val_decimal(&decimal1);
   my_decimal *val2= (*b)->val_decimal(&decimal2);
   if ((*a)->null_value || (*b)->null_value)
-    return MY_TEST((*a)->null_value && (*b)->null_value);
-  return MY_TEST(my_decimal_cmp(val1, val2) == 0);
+    return ((*a)->null_value && (*b)->null_value);
+  return (my_decimal_cmp(val1, val2) == 0);
 }
 
 
@@ -1819,8 +1822,8 @@ int Arg_comparator::compare_e_real_fixed()
   double val1= (*a)->val_real();
   double val2= (*b)->val_real();
   if ((*a)->null_value || (*b)->null_value)
-    return MY_TEST((*a)->null_value && (*b)->null_value);
-  return MY_TEST(val1 == val2 || fabs(val1 - val2) < precision);
+    return ((*a)->null_value && (*b)->null_value);
+  return (val1 == val2 || fabs(val1 - val2) < precision);
 }
 
 
@@ -1894,8 +1897,8 @@ int Arg_comparator::compare_e_time_packed()
   longlong val1= (*a)->val_time_temporal();
   longlong val2= (*b)->val_time_temporal();
   if ((*a)->null_value || (*b)->null_value)
-    return MY_TEST((*a)->null_value && (*b)->null_value);
-  return MY_TEST(val1 == val2);
+    return ((*a)->null_value && (*b)->null_value);
+  return (val1 == val2);
 }
 
 
@@ -1986,8 +1989,8 @@ int Arg_comparator::compare_e_int()
   longlong val1= (*a)->val_int();
   longlong val2= (*b)->val_int();
   if ((*a)->null_value || (*b)->null_value)
-    return MY_TEST((*a)->null_value && (*b)->null_value);
-  return MY_TEST(val1 == val2);
+    return ((*a)->null_value && (*b)->null_value);
+  return (val1 == val2);
 }
 
 /**
@@ -1998,8 +2001,8 @@ int Arg_comparator::compare_e_int_diff_signedness()
   longlong val1= (*a)->val_int();
   longlong val2= (*b)->val_int();
   if ((*a)->null_value || (*b)->null_value)
-    return MY_TEST((*a)->null_value && (*b)->null_value);
-  return (val1 >= 0) && MY_TEST(val1 == val2);
+    return ((*a)->null_value && (*b)->null_value);
+  return (val1 >= 0) && (val1 == val2);
 }
 
 int Arg_comparator::compare_row()
@@ -2150,7 +2153,7 @@ bool Item_in_optimizer::fix_left(THD *thd, Item**)
     }
   }
   not_null_tables_cache= args[0]->not_null_tables();
-  with_sum_func= args[0]->with_sum_func;
+  add_accum_properties(args[0]);
   if ((const_item_cache= args[0]->const_item()))
     cache->store(args[0]);
   return 0;
@@ -2175,7 +2178,7 @@ bool Item_in_optimizer::fix_fields(THD *thd, Item **ref)
   }
   if (args[1]->maybe_null)
     maybe_null=1;
-  with_sum_func= with_sum_func || args[1]->with_sum_func;
+  add_accum_properties(args[1]);
   used_tables_cache|= args[1]->used_tables();
   not_null_tables_cache|= args[1]->not_null_tables();
 
@@ -2752,7 +2755,7 @@ bool Item_func_interval::resolve_type(THD *)
   max_length= 2;
   used_tables_cache|= row->used_tables();
   not_null_tables_cache= row->not_null_tables();
-  with_sum_func= with_sum_func || row->with_sum_func;
+  add_accum_properties(row);
   const_item_cache&= row->const_item();
   return false;
 }
@@ -3639,6 +3642,10 @@ bool Item_func_nullif::resolve_type(THD *thd)
       agg_arg_charsets_for_comparison(collation, args, arg_count))
     return true;
 
+  // This class does not implement temporal data types
+  if (is_temporal())
+    set_data_type_string(args[0]->max_length);
+
   return false;
 }
 
@@ -3656,11 +3663,11 @@ bool Item_func_nullif::resolve_type(THD *thd)
 double
 Item_func_nullif::val_real()
 {
-  DBUG_ASSERT(fixed == 1);
+  DBUG_ASSERT(fixed);
   double value;
   if (!cmp.compare())
   {
-    null_value=1;
+    null_value= true;
     return 0.0;
   }
   value= args[0]->val_real();
@@ -3671,11 +3678,11 @@ Item_func_nullif::val_real()
 longlong
 Item_func_nullif::val_int()
 {
-  DBUG_ASSERT(fixed == 1);
+  DBUG_ASSERT(fixed);
   longlong value;
   if (!cmp.compare())
   {
-    null_value=1;
+    null_value= true;
     return 0;
   }
   value=args[0]->val_int();
@@ -3686,12 +3693,12 @@ Item_func_nullif::val_int()
 String *
 Item_func_nullif::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  DBUG_ASSERT(fixed);
   String *res;
   if (!cmp.compare())
   {
-    null_value=1;
-    return 0;
+    null_value= true;
+    return nullptr;
   }
   res=args[0]->val_str(str);
   null_value=args[0]->null_value;
@@ -3702,14 +3709,28 @@ Item_func_nullif::val_str(String *str)
 my_decimal *
 Item_func_nullif::val_decimal(my_decimal * decimal_value)
 {
-  DBUG_ASSERT(fixed == 1);
+  DBUG_ASSERT(fixed);
   my_decimal *res;
   if (!cmp.compare())
   {
-    null_value=1;
-    return 0;
+    null_value= true;
+    return nullptr;
   }
   res= args[0]->val_decimal(decimal_value);
+  null_value= args[0]->null_value;
+  return res;
+}
+
+
+bool Item_func_nullif::val_json(Json_wrapper *wr)
+{
+  DBUG_ASSERT(fixed);
+  if (cmp.compare() == 0)
+  {
+    null_value= true;
+    return false;
+  }
+  bool res= args[0]->val_json(wr);
   null_value= args[0]->null_value;
   return res;
 }
@@ -4165,7 +4186,7 @@ void Item_func_case::cleanup()
   Item_func::cleanup();
   for (i= 0; i <= (uint)DECIMAL_RESULT; i++)
   {
-    delete cmp_items[i];
+    destroy(cmp_items[i]);
     cmp_items[i]= 0;
   }
   DBUG_VOID_RETURN;
@@ -4756,15 +4777,15 @@ cmp_item* cmp_item::get_comparator(Item_result type,
 {
   switch (type) {
   case STRING_RESULT:
-    return new cmp_item_string(cs);
+    return new (*THR_MALLOC) cmp_item_string(cs);
   case INT_RESULT:
-    return new cmp_item_int;
+    return new (*THR_MALLOC) cmp_item_int;
   case REAL_RESULT:
-    return new cmp_item_real;
+    return new (*THR_MALLOC) cmp_item_real;
   case ROW_RESULT:
-    return new cmp_item_row;
+    return new (*THR_MALLOC) cmp_item_row;
   case DECIMAL_RESULT:
-    return new cmp_item_decimal;
+    return new (*THR_MALLOC) cmp_item_decimal;
   default:
     DBUG_ASSERT(0);
     break;
@@ -4775,22 +4796,22 @@ cmp_item* cmp_item::get_comparator(Item_result type,
 
 cmp_item* cmp_item_string::make_same()
 {
-  return new cmp_item_string(cmp_charset);
+  return new (*THR_MALLOC) cmp_item_string(cmp_charset);
 }
 
 cmp_item* cmp_item_int::make_same()
 {
-  return new cmp_item_int();
+  return new (*THR_MALLOC) cmp_item_int();
 }
 
 cmp_item* cmp_item_real::make_same()
 {
-  return new cmp_item_real();
+  return new (*THR_MALLOC) cmp_item_real();
 }
 
 cmp_item* cmp_item_row::make_same()
 {
-  return new cmp_item_row();
+  return new (*THR_MALLOC) cmp_item_row();
 }
 
 
@@ -4955,7 +4976,7 @@ int cmp_item_decimal::compare(const cmp_item *arg) const
 
 cmp_item* cmp_item_decimal::make_same()
 {
-  return new cmp_item_decimal();
+  return new (*THR_MALLOC) cmp_item_decimal();
 }
 
 
@@ -4991,7 +5012,7 @@ int cmp_item_datetime::compare(const cmp_item *ci) const
 
 cmp_item *cmp_item_datetime::make_same()
 {
-  return new cmp_item_datetime(warn_item);
+  return new (*THR_MALLOC) cmp_item_datetime(warn_item);
 }
 
 
@@ -5734,9 +5755,7 @@ Item_cond::fix_fields(THD *thd, Item**)
       not_null_tables_cache|= item->not_null_tables();
     else
       not_null_tables_cache&= item->not_null_tables();
-    with_sum_func|=  item->with_sum_func;
-    with_subselect|= item->has_subquery();
-    with_stored_program|= item->has_stored_program();
+    add_accum_properties(item);
     maybe_null|= item->maybe_null;
   }
   thd->lex->current_select()->cond_count+= list.elements;
@@ -5945,16 +5964,15 @@ void Item_cond::update_used_tables()
   Item *item;
 
   used_tables_cache=0;
-  const_item_cache=1;
-  with_subselect= false;
-  with_stored_program= false;
+  const_item_cache= true;
+  m_accum_properties= 0;
+
   while ((item=li++))
   {
     item->update_used_tables();
     used_tables_cache|= item->used_tables();
     const_item_cache&= item->const_item();
-    with_subselect|= item->has_subquery();
-    with_stored_program|= item->has_stored_program();
+    add_accum_properties(item);
   }
 }
 
@@ -6146,7 +6164,7 @@ longlong Item_is_not_null_test::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   DBUG_ENTER("Item_is_not_null_test::val_int");
-  if (!used_tables_cache && !with_subselect && !with_stored_program)
+  if (!used_tables_cache && !has_subquery() && !has_stored_program())
   {
     /*
      TODO: Currently this branch never executes, since used_tables_cache
@@ -6180,11 +6198,11 @@ void Item_is_not_null_test::update_used_tables()
     return;
   }
   args[0]->update_used_tables();
-  with_subselect= args[0]->has_subquery();
-  with_stored_program= args[0]->has_stored_program();
+  set_accum_properties(args[0]);
   used_tables_cache|= args[0]->used_tables();
-  if (used_tables_cache == initial_pseudo_tables && !with_subselect &&
-      !with_stored_program)
+  if (used_tables_cache == initial_pseudo_tables &&
+      !has_subquery() &&
+      !has_stored_program())
     /* Remember if the value is always NULL or never NULL */
     cached_value= !args[0]->is_null();
 }
@@ -6289,8 +6307,6 @@ longlong Item_func_like::val_int()
     return 0;
   }
   null_value=0;
-  if (can_do_bm)
-    return bm_matches(res->ptr(), res->length()) ? 1 : 0;
   return my_wildcmp(cmp.cmp_collation.collation,
 		    res->ptr(),res->ptr()+res->length(),
 		    res2->ptr(),res2->ptr()+res2->length(),
@@ -6337,71 +6353,25 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref)
     my_error(ER_WRONG_ARGUMENTS,MYF(0),"ESCAPE");
     return true;
   }
-  
+
+  /*
+    If the escape item is const, evaluate it now, so that the range optimizer
+    can try to optimize LIKE 'foo%' into a range query.
+
+    TODO: If we move this into escape_is_evaluated(), which is called later,
+    it could be that we could optimize more cases.
+  */
   if (escape_item->const_item())
   {
-    /*
-      We need to know the escape character in order to apply Boyer-Moore. Since
-      it is const, it is safe to evaluate it now at the resolution stage.
-    */
     if (eval_escape_clause(thd))
       return true;
-
-    /*
-      We could also do boyer-more for non-const items, but as we would have to
-      recompute the tables for each row it's not worth it.
-    */
-    if (args[1]->const_item() && !use_strnxfrm(collation.collation) &&
-       !(specialflag & SPECIAL_NO_NEW_FUNC))
-    {
-      String* res2 = args[1]->val_str(&cmp.value2);
-      if (thd->is_error())
-        return true;
-      if (!res2)
-        return false;				// Null argument
-
-      const size_t len   = res2->length();
-      const char*  first = res2->ptr();
-      const char*  last  = first + len - 1;
-
-      /*
-        Minimum length pattern before Boyer-Moore is used
-        for SELECT "text" LIKE "%pattern%" including the two
-        wildcards in class Item_func_like.
-      */
-
-      const size_t min_bm_pattern_len= 5;
-
-      if (len > min_bm_pattern_len &&
-          *first == wild_many &&
-          *last  == wild_many)
-      {
-        const char* tmp = first + 1;
-        for (; *tmp != wild_many && *tmp != wild_one && *tmp != escape; tmp++) ;
-        can_do_bm= (tmp == last) && !use_mb(args[0]->collation.collation);
-      }
-      if (can_do_bm)
-      {
-        pattern_len = (int) len - 2;
-        pattern     = thd->strmake(first + 1, pattern_len);
-        DBUG_PRINT("info", ("Initializing pattern: '%s'", first));
-        int *suff = (int*) thd->alloc((int) (sizeof(int)*
-                                      ((pattern_len + 1)*2+
-                                      alphabet_size)));
-        bmGs      = suff + pattern_len + 1;
-        bmBc      = bmGs + pattern_len + 1;
-        bm_compute_good_suffix_shifts(suff);
-        bm_compute_bad_character_shifts();
-        DBUG_PRINT("info",("done"));
-      }
-    }
   }
+  
   return false;
 }
 
 void Item_func_like::cleanup()
 {
-  can_do_bm= false;
   escape_evaluated= false;
   Item_bool_func2::cleanup();
 }
@@ -6540,10 +6510,9 @@ Item_func_regex::fix_fields(THD *thd, Item**)
       (!args[1]->fixed &&
        args[1]->fix_fields(thd, args + 1)) || args[1]->check_cols(1))
     return TRUE;				/* purecov: inspected */
-  with_sum_func=args[0]->with_sum_func || args[1]->with_sum_func;
-  with_subselect= args[0]->has_subquery() || args[1]->has_subquery();
-  with_stored_program= args[0]->has_stored_program() ||
-                       args[1]->has_stored_program();
+  m_accum_properties= 0;
+  add_accum_properties(args[0]);
+  add_accum_properties(args[1]);
   max_length= 1;
   decimals= 0;
 
@@ -6627,197 +6596,6 @@ void Item_func_regex::cleanup()
   DBUG_VOID_RETURN;
 }
 
-
-#define likeconv(cs,A) (uchar) (cs)->sort_order[(uchar) (A)]
-
-
-/**
-  Precomputation dependent only on pattern_len.
-*/
-
-void Item_func_like::bm_compute_suffixes(int *suff)
-{
-  const int   plm1 = pattern_len - 1;
-  int            f = 0;
-  int            g = plm1;
-  int *const splm1 = suff + plm1;
-  const CHARSET_INFO	*cs= cmp.cmp_collation.collation;
-
-  *splm1 = pattern_len;
-
-  if (!cs->sort_order)
-  {
-    int i;
-    for (i = pattern_len - 2; i >= 0; i--)
-    {
-      int tmp = *(splm1 + i - f);
-      if (g < i && tmp < i - g)
-	suff[i] = tmp;
-      else
-      {
-	if (i < g)
-	  g = i; // g = min(i, g)
-	f = i;
-	while (g >= 0 && pattern[g] == pattern[g + plm1 - f])
-	  g--;
-	suff[i] = f - g;
-      }
-    }
-  }
-  else
-  {
-    int i;
-    for (i = pattern_len - 2; 0 <= i; --i)
-    {
-      int tmp = *(splm1 + i - f);
-      if (g < i && tmp < i - g)
-	suff[i] = tmp;
-      else
-      {
-	if (i < g)
-	  g = i; // g = min(i, g)
-	f = i;
-	while (g >= 0 &&
-	       likeconv(cs, pattern[g]) == likeconv(cs, pattern[g + plm1 - f]))
-	  g--;
-	suff[i] = f - g;
-      }
-    }
-  }
-}
-
-
-/**
-  Precomputation dependent only on pattern_len.
-*/
-
-void Item_func_like::bm_compute_good_suffix_shifts(int *suff)
-{
-  bm_compute_suffixes(suff);
-
-  int *end = bmGs + pattern_len;
-  int *k;
-  for (k = bmGs; k < end; k++)
-    *k = pattern_len;
-
-  int tmp;
-  int i;
-  int j          = 0;
-  const int plm1 = pattern_len - 1;
-  for (i = plm1; i > -1; i--)
-  {
-    if (suff[i] == i + 1)
-    {
-      for (tmp = plm1 - i; j < tmp; j++)
-      {
-	int *tmp2 = bmGs + j;
-	if (*tmp2 == pattern_len)
-	  *tmp2 = tmp;
-      }
-    }
-  }
-
-  int *tmp2;
-  for (tmp = plm1 - i; j < tmp; j++)
-  {
-    tmp2 = bmGs + j;
-    if (*tmp2 == pattern_len)
-      *tmp2 = tmp;
-  }
-
-  tmp2 = bmGs + plm1;
-  for (i = 0; i <= pattern_len - 2; i++)
-    *(tmp2 - suff[i]) = plm1 - i;
-}
-
-
-/**
-   Precomputation dependent on pattern_len.
-*/
-
-void Item_func_like::bm_compute_bad_character_shifts()
-{
-  int *i;
-  int *end = bmBc + alphabet_size;
-  int j;
-  const int plm1 = pattern_len - 1;
-  const CHARSET_INFO	*cs= cmp.cmp_collation.collation;
-
-  for (i = bmBc; i < end; i++)
-    *i = pattern_len;
-
-  if (!cs->sort_order)
-  {
-    for (j = 0; j < plm1; j++)
-      bmBc[(uchar) pattern[j]] = plm1 - j;
-  }
-  else
-  {
-    for (j = 0; j < plm1; j++)
-      bmBc[likeconv(cs,pattern[j])] = plm1 - j;
-  }
-}
-
-
-/**
-  Search for pattern in text.
-
-  @return
-    returns true/false for match/no match
-*/
-
-bool Item_func_like::bm_matches(const char* text, size_t text_len) const
-{
-  int bcShift;
-  int shift = pattern_len;
-  int j     = 0;
-  const CHARSET_INFO	*cs= cmp.cmp_collation.collation;
-
-  const int plm1=  pattern_len - 1;
-  const int tlmpl= text_len - pattern_len;
-
-  /* Searching */
-  if (!cs->sort_order)
-  {
-    while (j <= tlmpl)
-    {
-      int i;
-
-      for (i= plm1; (i >= 0) && (pattern[i] == text[i + j]) ;--i) {}
-
-      if (i < 0)
-	return true;
-      else
-      {
-        bcShift= bmBc[(uchar) text[i + j]] - plm1 + i;
-        shift= max(bcShift, bmGs[i]);
-      }
-      j+= shift;
-    }
-    return false;
-  }
-  else
-  {
-    while (j <= tlmpl)
-    {
-      int i;
-
-      for (i= plm1;
-           (i >= 0) && likeconv(cs,pattern[i]) == likeconv(cs,text[i + j]);
-           --i) {}
-
-      if (i < 0)
-	return true;
-      else
-      {
-        bcShift= bmBc[likeconv(cs, text[i + j])] - plm1 + i;
-        shift= max(bcShift, bmGs[i]);
-      }
-      j+= shift;
-    }
-    return false;
-  }
-}
 
 float Item_func_xor::get_filtering_effect(table_map filter_for_table,
                                           table_map read_tables,
@@ -7403,8 +7181,7 @@ void Item_equal::update_used_tables()
   not_null_tables_cache= used_tables_cache= 0;
   if ((const_item_cache= cond_false))
     return;
-  with_subselect= false;
-  with_stored_program= false;
+  m_accum_properties= 0;
   while ((item=li++))
   {
     item->update_used_tables();
@@ -7412,8 +7189,8 @@ void Item_equal::update_used_tables()
     not_null_tables_cache|= item->not_null_tables();
     /* see commentary at Item_equal::update_const() */
     const_item_cache&= item->const_item() && !item->is_outer_field();
-    with_subselect|= item->has_subquery();
-    with_stored_program|= item->has_stored_program();
+    add_accum_properties(item);
+
   }
 }
 

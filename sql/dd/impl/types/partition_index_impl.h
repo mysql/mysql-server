@@ -138,12 +138,6 @@ public:
   virtual void set_tablespace_id(Object_id tablespace_id)
   { m_tablespace_id= tablespace_id; }
 
-  // Fix "inherits ... via dominance" warnings
-  virtual Weak_object_impl *impl()
-  { return Weak_object_impl::impl(); }
-  virtual const Weak_object_impl *impl() const
-  { return Weak_object_impl::impl(); }
-
 public:
   static Partition_index_impl *restore_item(Partition_impl *partition)
   {
@@ -182,6 +176,22 @@ public:
 
   virtual Weak_object *create_object() const
   { return new (std::nothrow) Partition_index_impl(); }
+};
+
+///////////////////////////////////////////////////////////////////////////
+
+/**
+  Used to sort Partition_index objects for the same partition in
+  the same order as Index objects for the table.
+*/
+
+struct Partition_index_order_comparator
+{
+  bool operator()(const dd::Partition_index* pi1,
+                  const dd::Partition_index* pi2) const
+  {
+    return pi1->index().ordinal_position() < pi2->index().ordinal_position();
+  }
 };
 
 ///////////////////////////////////////////////////////////////////////////

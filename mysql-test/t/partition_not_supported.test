@@ -6,8 +6,6 @@
 --echo # an error.
 --echo # 
 
-# WL#7554: Added setting --bootstrap --character-set-server=latin1
-# in the opt file. This test should be migrated to utf8mb4.
 
 --echo # 
 --echo # Test recursively for various storage engines.

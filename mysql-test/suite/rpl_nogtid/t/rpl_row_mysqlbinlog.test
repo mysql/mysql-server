@@ -9,8 +9,6 @@
 # Include Section
 # Make sure that we have row based bin log
 -- source include/have_binlog_format_row.inc
-# Embedded server doesn't support binlogging
--- source include/not_embedded.inc
 -- source include/master-slave.inc
 
 # Setup Section

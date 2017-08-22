@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 --source include/big_test.inc
 
 CALL mtr.add_suppression("innodb_open_files should not be greater than the open_files_limit.");

@@ -1,7 +1,7 @@
 --echo === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 --disable_query_log
 --replace_result  #P# #p#  #SP# #sp#
---replace_regex /FTS_([0-9a-f_]+)([A-Z0-9_]+)/FTS_AUX_\2/
+--replace_regex /fts_([0-9a-f_]+)([A-Z0-9_]+)/fts_aux\2/
 
 SELECT t.name 'Table Name',
 	IFNULL(s.name, 'innodb_system') 'Tablespace',

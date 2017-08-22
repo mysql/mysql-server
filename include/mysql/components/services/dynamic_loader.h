@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017 Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #ifndef MYSQL_DYNAMIC_LOADER_H
 #define MYSQL_DYNAMIC_LOADER_H
@@ -269,8 +269,8 @@ struct mysql_component_t {
   struct mysql_service_ref_t* provides;
   struct mysql_service_placeholder_ref_t* requires;
   struct mysql_metadata_ref_t* metadata;
-  bool (*init)();
-  bool (*deinit)();
+  mysql_service_status_t (*init)();
+  mysql_service_status_t (*deinit)();
 };
 
 /**

@@ -1,7 +1,6 @@
 #
 --source include/not_windows.inc
 --source include/force_restart.inc
---source include/not_embedded.inc
 
 # 
 # Bug#14757009 : WHEN THE GENERAL_LOG IS A SOCKET AND THE READER GOES AWAY,

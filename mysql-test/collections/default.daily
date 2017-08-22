@@ -14,8 +14,8 @@ perl mysql-test-run.pl --force --timer   --parallel=auto --experimental=collecti
 
 # Additional modes for rpl and binlog suites. Checksum and relay-log-info-repository
 perl mysql-test-run.pl --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=rpl_binlog_checksum  --vardir=var-rpl_binlog_checksum --suite=rpl,rpl_gtid,rpl_nogtid,binlog,binlog_gtid,binlog_nogtid --mysqld=--binlog-checksum=CRC32 --skip-test-list=collections/disabled-daily.list --no-skip
-perl mysql-test-run.pl --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=rpl_crash_safe_relay --vardir=var-rpl_crash_safe_relay --suite=rpl,rpl_gtid,rpl_nogtid --mysqld=--relay-log-info-repository=TABLE --skip-test-list=collections/disabled-daily.list --no-skip
-perl mysql-test-run.pl --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=rpl_crash_safe_master --vardir=var-rpl_crash_safe_master --suite=rpl,rpl_gtid,rpl_nogtid --mysqld=--master-info-repository=TABLE --skip-test-list=collections/disabled-daily.list --no-skip
+perl mysql-test-run.pl --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=rpl_relay_log_info_file --vardir=var-rpl_relay_log_info_file --suite=rpl,rpl_gtid,rpl_nogtid --mysqld=--relay-log-info-repository=FILE --skip-test-list=collections/disabled-daily.list --no-skip
+perl mysql-test-run.pl --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=rpl_master_info_file --vardir=var-rpl_master_info_file --suite=rpl,rpl_gtid,rpl_nogtid --mysqld=--master-info-repository=FILE --skip-test-list=collections/disabled-daily.list --no-skip
 
 # Additional modes for rpl. Multi-Threaded Slave
 # Skipped test rpl_incompatible_gtids_in_relay_log.test from MTS runs
@@ -36,7 +36,7 @@ perl mysql-test-run.pl --timer --force  --parallel=auto --comment=n_mix_8k_size 
 
 # Run innodb_undo suite with innodb_undo_tablespace set to > 0
 perl mysql-test-run.pl --timer --force   --parallel=auto --comment=innodb_undo-2 --vardir=var-innodb-undo-2 --experimental=collections/default.experimental --suite=innodb_undo --mysqld=--innodb_undo_tablespaces=2 --bootstrap --innodb_undo_tablespaces=2 --skip-test-list=collections/disabled-per-push.list --no-skip
-perl mysql-test-run.pl --timer --force --parallel=auto --comment=innodb_undo-3-64k --vardir=var-innodb-undo-3-64k --experimental=collections/default.experimental --suite=innodb_undo --mysqld=--innodb_undo_tablespaces=3 --mysqld=--innodb_page_size=64K --bootstrap --innodb_undo_tablespaces=3 --bootstrap --innodb_page_size=64K --bootstrap --innodb_undo_logs=35 --skip-test-list=collections/disabled-per-push.list --big-test noop
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=innodb_undo-3-64k --vardir=var-innodb-undo-3-64k --experimental=collections/default.experimental --suite=innodb_undo --mysqld=--innodb_undo_tablespaces=3 --mysqld=--innodb_page_size=64K --bootstrap --innodb_undo_tablespaces=3 --bootstrap --innodb_page_size=64K --bootstrap --innodb_rollback_segments=3 --skip-test-list=collections/disabled-per-push.list --big-test noop
 
 # Engine independent tests
 perl mysql-test-run.pl --timer --force   --parallel=auto  --comment=eits-tests-myisam-engine --experimental=collections/default.experimental --vardir=var-stmt-eits-tests-myisam-engine --suite=engines/iuds,engines/funcs --max-test-fail=0 --retry-failure=0 --mysqld=--default-storage-engine=myisam --mysqld=--default-tmp-storage-engine=myisam --skip-test-list=collections/disabled-daily.list --no-skip
@@ -55,5 +55,3 @@ perl mysql-test-run.pl --force --timer  --testcase-timeout=60 --parallel=auto --
 # Run some tests that use no_parallel.inc
 perl mysql-test-run.pl --force --timer  --testcase-timeout=60 --comment=serial_tests  --vardir=var-serial-tests main.blackhole_plugin main.archive_plugin --no-skip
 
-# Run collation regression tests
-perl mysql-test-run.pl --force --timer --comment=collations  --vardir=var-collations --suite=collations --no-skip

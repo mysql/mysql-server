@@ -839,6 +839,17 @@ private:
     FB86 weight, and are ready to return the origin weight.
   */
   bool return_origin_weight{true};
+  /*
+    For Japanese kana-sensitive collation, we only add quaternary
+    weight for katakana and hiragana, but not for others like latin
+    and kanji, because characters like latin and kanji can be already
+    distinguished from kana by three levels of weight.
+    has_quaternary_weight is to indicate whether quaternary weight is
+    needed for characters in string.
+  */
+  bool has_quaternary_weight{false};
+  int handle_ja_contraction_quat_wt();
+  int handle_ja_common_quat_wt(my_wc_t wc);
 };
 
 
@@ -1470,7 +1481,7 @@ ALWAYS_INLINE int uca_scanner_any<Mb_wc>::next()
 
   do
   {
-    my_wc_t wc;
+    my_wc_t wc= 0;
 
     /* Get next code point */
     int mblen= mb_wc(&wc, sbeg, send);
@@ -1563,6 +1574,118 @@ inline int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::more_weight()
   return -1;
 }
 
+static inline bool
+is_hiragana_char(my_wc_t wc)
+{
+  return wc >= 0x3041 && wc <= 0x3096;
+}
+
+static inline bool
+is_katakana_char(my_wc_t wc)
+{
+  return (wc >= 0x30A1 && wc <= 0x30FA) || // Full width katakana
+         (wc >= 0xFF66 && wc <= 0xFF9D);   // Half width katakana
+}
+
+static inline bool
+is_katakana_iteration(my_wc_t wc)
+{
+  return wc == 0x30FD || wc == 0x30FE;
+}
+
+static inline bool
+is_hiragana_iteration(my_wc_t wc)
+{
+  return wc == 0x309D || wc == 0x309E;
+}
+
+static inline bool
+is_ja_length_mark(my_wc_t wc)
+{
+  return wc == 0x30FC;
+}
+
+/**
+  Return quaternary weight when running for that level.
+
+  @retval  0 - Do not return quaternary weight.
+  @retval  others - Quaternary weight for this character.
+*/
+template<class Mb_wc, int LEVELS_FOR_COMPARE>
+ALWAYS_INLINE int
+uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::handle_ja_contraction_quat_wt()
+{
+  /*
+    For Japanese, only weight shift rule and previous context rule is
+    defined. And in previous context rules, the first character is always
+    katakana / hiragana, and the second character is always iteration or
+    length mark. The quaternary weight of iteration / length mark is
+    same as the first character. So has_quaternary_weight is always true.
+    For how we return quaternary weight, please refer to the comment in
+    handle_ja_common_quat_wt().
+  */
+  if (weight_lv == 3)
+  {
+    wbeg= nochar;
+    num_of_ce_left= 0;
+    if (is_katakana_char(prev_char))
+    {
+      return JA_KATA_QUAT_WEIGHT;
+    }
+    else if (is_hiragana_char(prev_char))
+    {
+      return JA_HIRA_QUAT_WEIGHT;
+    }
+  }
+  return 0;
+}
+
+/**
+  Check whether quaternary weight is needed for character with Japanese
+  kana-sensitive collation. If it is, return quaternary weight when running
+  for that level.
+
+  @retval  0 - Quaternary weight check is done.
+  @retval -1 - There is no quaternary weight for this character.
+  @retval others - Quaternary weight for this character.
+*/
+template<class Mb_wc, int LEVELS_FOR_COMPARE>
+ALWAYS_INLINE int
+uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::handle_ja_common_quat_wt(
+    my_wc_t wc)
+{
+  /*
+    For Japanese kana-sensitive collation, we detect whether quaternary
+    weight is necessary when scanning for the first level of weight.
+    If it is, the quaternary weight will be returned for katakana /
+    hiragana later.
+  */
+  if (weight_lv == 0 && !has_quaternary_weight)
+  {
+    if (is_katakana_char(wc) || is_katakana_iteration(wc) ||
+        is_hiragana_char(wc) || is_hiragana_iteration(wc) ||
+        is_ja_length_mark(wc))
+      has_quaternary_weight= true;
+  }
+  else if (weight_lv == 3)
+  {
+    wbeg= nochar;
+    num_of_ce_left= 0;
+    if (is_katakana_char(wc) ||
+        is_katakana_iteration(wc) ||
+        is_ja_length_mark(wc))
+    {
+      return JA_KATA_QUAT_WEIGHT;
+    }
+    else if (is_hiragana_char(wc) || is_hiragana_iteration(wc))
+    {
+      return JA_HIRA_QUAT_WEIGHT;
+    }
+    return -1;
+  }
+  return 0;
+}
+
 // Generic version that can handle any number of levels.
 template<class Mb_wc, int LEVELS_FOR_COMPARE>
 ALWAYS_INLINE int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::next_raw()
@@ -1573,7 +1696,7 @@ ALWAYS_INLINE int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::next_raw()
 
   do
   {
-    my_wc_t wc;
+    my_wc_t wc= 0;
 
     /* Get next code point */
     int mblen= mb_wc(&wc, sbeg, send);
@@ -1587,6 +1710,12 @@ ALWAYS_INLINE int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::next_raw()
 
       if (++weight_lv < LEVELS_FOR_COMPARE)
       {
+        if (LEVELS_FOR_COMPARE == 4 && cs->coll_param == &ja_coll_param)
+        {
+          // Return directly if we don't have quaternary weight.
+          if (weight_lv == 3 && !has_quaternary_weight)
+            return -1;
+        }
         /*
           Restart scanning from the beginning of the string, and add
           a level separator.
@@ -1612,12 +1741,21 @@ ALWAYS_INLINE int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::next_raw()
         a real previous context pair.
         Note, we support only 2-character long sequences with previous
         context at the moment. CLDR does not have longer sequences.
+        CLDR doesn't have previous context rule whose first character is
+        0x0000, so the initial value (0) of prev_char won't break the logic.
       */
       if (my_uca_can_be_previous_context_tail(&uca->contractions, wc) &&
-          wbeg != nochar &&     /* if not the very first code point */
           my_uca_can_be_previous_context_head(&uca->contractions, prev_char) &&
           (cweight= previous_context_find(prev_char, wc)))
       {
+        // For Japanese kana-sensitive collation.
+        if (LEVELS_FOR_COMPARE == 4 && cs->coll_param == &ja_coll_param)
+        {
+          int quat_wt= handle_ja_contraction_quat_wt();
+          prev_char= 0;
+          if (quat_wt > 0)
+            return quat_wt;
+        }
         prev_char= 0; /* Clear for the next code point */
         return *cweight;
       }
@@ -1631,6 +1769,15 @@ ALWAYS_INLINE int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::next_raw()
       prev_char= wc;
     }
 
+    // For Japanese kana-sensitive collation.
+    if (LEVELS_FOR_COMPARE == 4 && cs->coll_param == &ja_coll_param)
+    {
+      int quat_wt= handle_ja_common_quat_wt(wc);
+      if (quat_wt == -1)
+        continue;
+      else if (quat_wt)
+        return quat_wt;
+    }
     /* Process single code point */
     uint page= wc >> 8;
     uint code= wc & 0xFF;
@@ -1891,8 +2038,8 @@ static int my_strnncoll_uca(const CHARSET_INFO *cs,
 {
   Scanner sscanner(mb_wc, cs, s, slen);
   Scanner tscanner(mb_wc, cs, t, tlen);
-  int s_res;
-  int t_res;
+  int s_res= 0;
+  int t_res= 0;
 
   /*
     We compare 2 strings in same level first. If only string A's scanner
@@ -5229,6 +5376,9 @@ static int my_strnncoll_uca_900(const CHARSET_INFO *cs,
     case 3:
       return my_strnncoll_uca<uca_scanner_900<Mb_wc_utf8mb4, 3>, 3>(
         cs, Mb_wc_utf8mb4(), s, slen, t, tlen, t_is_prefix);
+    case 4:
+      return my_strnncoll_uca<uca_scanner_900<Mb_wc_utf8mb4, 4>, 4>(
+        cs, Mb_wc_utf8mb4(), s, slen, t, tlen, t_is_prefix);
     }
   }
 
@@ -5245,6 +5395,9 @@ static int my_strnncoll_uca_900(const CHARSET_INFO *cs,
     DBUG_ASSERT(false);
   case 3:
     return my_strnncoll_uca<uca_scanner_900<decltype(mb_wc), 3>, 3>(
+      cs, mb_wc, s, slen, t, tlen, t_is_prefix);
+  case 4:
+    return my_strnncoll_uca<uca_scanner_900<decltype(mb_wc), 4>, 4>(
       cs, mb_wc, s, slen, t, tlen, t_is_prefix);
   }
 }
@@ -5301,7 +5454,7 @@ static void my_hash_sort_uca_900_tmpl(const CHARSET_INFO *cs,
   uint64 h= *n1;
   h^= 14695981039346656037ULL;
 
-  scanner.for_each_weight([&](int s_res, bool is_level_separator) {
+  scanner.for_each_weight([&](int s_res, bool) -> bool {
     h^= s_res;
     h*= 1099511628211ULL;
     return true;
@@ -5331,6 +5484,9 @@ static void my_hash_sort_uca_900(const CHARSET_INFO *cs,
     case 3:
       return my_hash_sort_uca_900_tmpl<Mb_wc_utf8mb4, 3>(
         cs, Mb_wc_utf8mb4(), s, slen, n1);
+    case 4:
+      return my_hash_sort_uca_900_tmpl<Mb_wc_utf8mb4, 4>(
+        cs, Mb_wc_utf8mb4(), s, slen, n1);
     }
   }
 
@@ -5347,6 +5503,9 @@ static void my_hash_sort_uca_900(const CHARSET_INFO *cs,
     DBUG_ASSERT(false);
   case 3:
     return my_hash_sort_uca_900_tmpl<decltype(mb_wc), 3>(
+      cs, mb_wc, s, slen, n1);
+  case 4:
+    return my_hash_sort_uca_900_tmpl<decltype(mb_wc), 4>(
       cs, mb_wc, s, slen, n1);
   }
 }
@@ -5374,7 +5533,9 @@ static size_t my_strnxfrm_uca_900_tmpl(const CHARSET_INFO *cs,
   if (dst != dst_end)
   {
     scanner.for_each_weight([&dst, d0, dst_end, flags]
-                              (int s_res, bool is_level_separator) {
+                            (int s_res,
+                              bool is_level_separator
+                             MY_ATTRIBUTE((unused))) -> bool {
       DBUG_ASSERT(is_level_separator == (s_res == 0));
       if (LEVELS_FOR_COMPARE == 1)
         DBUG_ASSERT(!is_level_separator);
@@ -5418,6 +5579,9 @@ static size_t my_strnxfrm_uca_900(const CHARSET_INFO *cs,
     case 3:
       return my_strnxfrm_uca_900_tmpl<Mb_wc_utf8mb4, 3>(
         cs, Mb_wc_utf8mb4(), dst, dstlen, src, srclen, flags);
+    case 4:
+      return my_strnxfrm_uca_900_tmpl<Mb_wc_utf8mb4, 4>(
+        cs, Mb_wc_utf8mb4(), dst, dstlen, src, srclen, flags);
     }
   }
   else
@@ -5436,8 +5600,38 @@ static size_t my_strnxfrm_uca_900(const CHARSET_INFO *cs,
     case 3:
       return my_strnxfrm_uca_900_tmpl<decltype(mb_wc), 3>(
         cs, mb_wc, dst, dstlen, src, srclen, flags);
+    case 4:
+      return my_strnxfrm_uca_900_tmpl<decltype(mb_wc), 4>(
+        cs, mb_wc, dst, dstlen, src, srclen, flags);
     }
   }
+}
+
+static size_t my_strnxfrmlen_uca_900(const CHARSET_INFO *cs, size_t len)
+{
+  /*
+    The character with the most weights is U+FDFA ARABIC LIGATURE SALLALLAHOU
+    ALAYHE WASALLAM, which we truncate to eight weights. This is the most we
+    can get in regular DUCET.
+
+    In addition, collations with reorderings can add an extra weight per weight,
+    which currently only happens on the primary level. We simulate this by
+    simply adding an extra level.
+
+    One could conceivably have tailorings yielding expansions having more than
+    this, but we don't currently, and mostly, tailorings are about contractions
+    and adding single weights anyway.
+
+    We also need to add room for one level separator between each level.
+  */
+  // We really ought to have len % 4 == 0, but not all calling code conforms.
+  const size_t num_codepoints= (len + 3) / 4;
+  const size_t max_num_weights_per_level= num_codepoints * 8;
+  size_t max_num_weights= max_num_weights_per_level * cs->levels_for_compare;
+  if (cs->coll_param && cs->coll_param->reorder_param) {
+    max_num_weights+= max_num_weights_per_level;
+  }
+  return (max_num_weights + (cs->levels_for_compare - 1)) * sizeof(uint16_t);
 }
 
 } // extern "C"
@@ -6373,7 +6567,7 @@ MY_COLLATION_HANDLER my_collation_uca_900_handler =
     my_strnncoll_uca_900,
     my_strnncollsp_uca_900,
     my_strnxfrm_uca_900,
-    my_strnxfrmlen_simple,
+    my_strnxfrmlen_uca_900,
     my_like_range_mb,
     my_wildcmp_uca,
     my_strcasecmp_uca,
@@ -8127,7 +8321,7 @@ MY_COLLATION_HANDLER my_collation_utf32_uca_handler =
 
 extern MY_CHARSET_HANDLER my_charset_utf32_handler;
 
-#define MY_CS_UTF32_UCA_FLAGS (MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII)
+#define MY_CS_UTF32_UCA_FLAGS (MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_UNICODE_SUPPLEMENT|MY_CS_NONASCII)
 
 CHARSET_INFO my_charset_utf32_unicode_ci=
 {
@@ -9942,7 +10136,7 @@ CHARSET_INFO my_charset_utf8mb4_0900_ai_ci=
   &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
-  8,                  /* strxfrm_multiply */
+  0,                  /* strxfrm_multiply */
   1,                  /* caseup_multiply  */
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen      */
@@ -9977,7 +10171,7 @@ CHARSET_INFO my_charset_utf8mb4_de_pb_0900_ai_ci=
   &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
-  8,                  /* strxfrm_multiply */
+  0,                  /* strxfrm_multiply */
   1,                  /* caseup_multiply  */
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen      */
@@ -10012,7 +10206,7 @@ CHARSET_INFO my_charset_utf8mb4_is_0900_ai_ci=
   &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
-  8,                  /* strxfrm_multiply */
+  0,                  /* strxfrm_multiply */
   1,                  /* caseup_multiply  */
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen      */
@@ -10047,7 +10241,7 @@ CHARSET_INFO my_charset_utf8mb4_lv_0900_ai_ci=
   &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
-  8,                  /* strxfrm_multiply */
+  0,                  /* strxfrm_multiply */
   1,                  /* caseup_multiply  */
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen      */
@@ -10082,7 +10276,7 @@ CHARSET_INFO my_charset_utf8mb4_ro_0900_ai_ci=
   &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
-  8,                  /* strxfrm_multiply */
+  0,                  /* strxfrm_multiply */
   1,                  /* caseup_multiply  */
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen      */
@@ -10117,7 +10311,7 @@ CHARSET_INFO my_charset_utf8mb4_sl_0900_ai_ci=
   &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
-  8,                  /* strxfrm_multiply */
+  0,                  /* strxfrm_multiply */
   1,                  /* caseup_multiply  */
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen      */
@@ -10152,7 +10346,7 @@ CHARSET_INFO my_charset_utf8mb4_pl_0900_ai_ci=
   &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
-  8,                  /* strxfrm_multiply */
+  0,                  /* strxfrm_multiply */
   1,                  /* caseup_multiply  */
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen      */
@@ -10187,7 +10381,7 @@ CHARSET_INFO my_charset_utf8mb4_et_0900_ai_ci=
   &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
-  8,                  /* strxfrm_multiply */
+  0,                  /* strxfrm_multiply */
   1,                  /* caseup_multiply  */
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen      */
@@ -10222,7 +10416,7 @@ CHARSET_INFO my_charset_utf8mb4_es_0900_ai_ci=
   &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
-  8,                  /* strxfrm_multiply */
+  0,                  /* strxfrm_multiply */
   1,                  /* caseup_multiply  */
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen      */
@@ -10257,7 +10451,7 @@ CHARSET_INFO my_charset_utf8mb4_sv_0900_ai_ci=
   &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
-  8,                  /* strxfrm_multiply */
+  0,                  /* strxfrm_multiply */
   1,                  /* caseup_multiply  */
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen      */
@@ -10292,7 +10486,7 @@ CHARSET_INFO my_charset_utf8mb4_tr_0900_ai_ci=
   &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
-  8,                  /* strxfrm_multiply */
+  0,                  /* strxfrm_multiply */
   1,                  /* caseup_multiply  */
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen      */
@@ -10327,7 +10521,7 @@ CHARSET_INFO my_charset_utf8mb4_cs_0900_ai_ci=
   &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
-  8,                  /* strxfrm_multiply */
+  0,                  /* strxfrm_multiply */
   1,                  /* caseup_multiply  */
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen      */
@@ -10362,7 +10556,7 @@ CHARSET_INFO my_charset_utf8mb4_da_0900_ai_ci=
   &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
-  8,                  /* strxfrm_multiply */
+  0,                  /* strxfrm_multiply */
   1,                  /* caseup_multiply  */
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen      */
@@ -10397,7 +10591,7 @@ CHARSET_INFO my_charset_utf8mb4_lt_0900_ai_ci=
   &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
-  8,                  /* strxfrm_multiply */
+  0,                  /* strxfrm_multiply */
   1,                  /* caseup_multiply  */
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen      */
@@ -10432,7 +10626,7 @@ CHARSET_INFO my_charset_utf8mb4_sk_0900_ai_ci=
   &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
-  8,                  /* strxfrm_multiply */
+  0,                  /* strxfrm_multiply */
   1,                  /* caseup_multiply  */
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen      */
@@ -10467,7 +10661,7 @@ CHARSET_INFO my_charset_utf8mb4_es_trad_0900_ai_ci=
   &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
-  8,                  /* strxfrm_multiply */
+  0,                  /* strxfrm_multiply */
   1,                  /* caseup_multiply  */
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen      */
@@ -10502,7 +10696,7 @@ CHARSET_INFO my_charset_utf8mb4_la_0900_ai_ci=
   &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
-  8,                  /* strxfrm_multiply */
+  0,                  /* strxfrm_multiply */
   1,                  /* caseup_multiply  */
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen      */
@@ -10538,7 +10732,7 @@ CHARSET_INFO my_charset_utf8mb4_fa_0900_ai_ci=
   &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
-  8,                  /* strxfrm_multiply */
+  0,                  /* strxfrm_multiply */
   1,                  /* caseup_multiply  */
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen      */
@@ -10574,7 +10768,7 @@ CHARSET_INFO my_charset_utf8mb4_eo_0900_ai_ci=
   &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
-  8,                  /* strxfrm_multiply */
+  0,                  /* strxfrm_multiply */
   1,                  /* caseup_multiply  */
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen      */
@@ -10609,7 +10803,7 @@ CHARSET_INFO my_charset_utf8mb4_hu_0900_ai_ci=
   &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
-  8,                  /* strxfrm_multiply */
+  0,                  /* strxfrm_multiply */
   1,                  /* caseup_multiply  */
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen      */
@@ -10644,7 +10838,7 @@ CHARSET_INFO my_charset_utf8mb4_hr_0900_ai_ci=
   &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
-  8,                  /* strxfrm_multiply */
+  0,                  /* strxfrm_multiply */
   1,                  /* caseup_multiply  */
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen      */
@@ -10680,7 +10874,7 @@ CHARSET_INFO my_charset_utf8mb4_si_0900_ai_ci=
   &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
-  8,                  /* strxfrm_multiply */
+  0,                  /* strxfrm_multiply */
   1,                  /* caseup_multiply  */
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen      */
@@ -10716,7 +10910,7 @@ CHARSET_INFO my_charset_utf8mb4_vi_0900_ai_ci=
   &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
-  8,                  /* strxfrm_multiply */
+  0,                  /* strxfrm_multiply */
   1,                  /* caseup_multiply  */
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen      */
@@ -10751,7 +10945,7 @@ CHARSET_INFO my_charset_utf8mb4_0900_as_cs=
   &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
-  24,                 /* strxfrm_multiply */
+  0,                  /* strxfrm_multiply */
   1,                  /* caseup_multiply  */
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen      */
@@ -10786,7 +10980,7 @@ CHARSET_INFO my_charset_utf8mb4_de_pb_0900_as_cs=
   &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
-  24,                 /* strxfrm_multiply */
+  0,                  /* strxfrm_multiply */
   1,                  /* caseup_multiply  */
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen      */
@@ -10821,7 +11015,7 @@ CHARSET_INFO my_charset_utf8mb4_is_0900_as_cs=
   &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
-  24,                 /* strxfrm_multiply */
+  0,                  /* strxfrm_multiply */
   1,                  /* caseup_multiply  */
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen      */
@@ -10856,7 +11050,7 @@ CHARSET_INFO my_charset_utf8mb4_lv_0900_as_cs=
   &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
-  24,                 /* strxfrm_multiply */
+  0,                  /* strxfrm_multiply */
   1,                  /* caseup_multiply  */
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen      */
@@ -10891,7 +11085,7 @@ CHARSET_INFO my_charset_utf8mb4_ro_0900_as_cs=
   &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
-  24,                 /* strxfrm_multiply */
+  0,                  /* strxfrm_multiply */
   1,                  /* caseup_multiply  */
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen      */
@@ -10926,7 +11120,7 @@ CHARSET_INFO my_charset_utf8mb4_sl_0900_as_cs=
   &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
-  24,                 /* strxfrm_multiply */
+  0,                  /* strxfrm_multiply */
   1,                  /* caseup_multiply  */
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen      */
@@ -10961,7 +11155,7 @@ CHARSET_INFO my_charset_utf8mb4_pl_0900_as_cs=
   &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
-  24,                 /* strxfrm_multiply */
+  0,                  /* strxfrm_multiply */
   1,                  /* caseup_multiply  */
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen      */
@@ -10996,7 +11190,7 @@ CHARSET_INFO my_charset_utf8mb4_et_0900_as_cs=
   &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
-  24,                 /* strxfrm_multiply */
+  0,                  /* strxfrm_multiply */
   1,                  /* caseup_multiply  */
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen      */
@@ -11031,7 +11225,7 @@ CHARSET_INFO my_charset_utf8mb4_es_0900_as_cs=
   &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
-  24,                 /* strxfrm_multiply */
+  0,                  /* strxfrm_multiply */
   1,                  /* caseup_multiply  */
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen      */
@@ -11066,7 +11260,7 @@ CHARSET_INFO my_charset_utf8mb4_sv_0900_as_cs=
   &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
-  24,                 /* strxfrm_multiply */
+  0,                  /* strxfrm_multiply */
   1,                  /* caseup_multiply  */
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen      */
@@ -11101,7 +11295,7 @@ CHARSET_INFO my_charset_utf8mb4_tr_0900_as_cs=
   &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
-  24,                 /* strxfrm_multiply */
+  0,                  /* strxfrm_multiply */
   1,                  /* caseup_multiply  */
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen      */
@@ -11136,7 +11330,7 @@ CHARSET_INFO my_charset_utf8mb4_cs_0900_as_cs=
   &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
-  24,                 /* strxfrm_multiply */
+  0,                  /* strxfrm_multiply */
   1,                  /* caseup_multiply  */
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen      */
@@ -11171,7 +11365,7 @@ CHARSET_INFO my_charset_utf8mb4_da_0900_as_cs=
   &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
-  24,                 /* strxfrm_multiply */
+  0,                  /* strxfrm_multiply */
   1,                  /* caseup_multiply  */
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen      */
@@ -11206,7 +11400,7 @@ CHARSET_INFO my_charset_utf8mb4_lt_0900_as_cs=
   &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
-  24,                 /* strxfrm_multiply */
+  0,                  /* strxfrm_multiply */
   1,                  /* caseup_multiply  */
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen      */
@@ -11241,7 +11435,7 @@ CHARSET_INFO my_charset_utf8mb4_sk_0900_as_cs=
   &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
-  24,                 /* strxfrm_multiply */
+  0,                  /* strxfrm_multiply */
   1,                  /* caseup_multiply  */
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen      */
@@ -11276,7 +11470,7 @@ CHARSET_INFO my_charset_utf8mb4_es_trad_0900_as_cs=
   &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
-  24,                 /* strxfrm_multiply */
+  0,                  /* strxfrm_multiply */
   1,                  /* caseup_multiply  */
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen      */
@@ -11311,7 +11505,7 @@ CHARSET_INFO my_charset_utf8mb4_la_0900_as_cs=
   &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
-  24,                 /* strxfrm_multiply */
+  0,                  /* strxfrm_multiply */
   1,                  /* caseup_multiply  */
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen      */
@@ -11347,7 +11541,7 @@ CHARSET_INFO my_charset_utf8mb4_fa_0900_as_cs=
   &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
-  24,                 /* strxfrm_multiply */
+  0,                  /* strxfrm_multiply */
   1,                  /* caseup_multiply  */
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen      */
@@ -11383,7 +11577,7 @@ CHARSET_INFO my_charset_utf8mb4_eo_0900_as_cs=
   &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
-  24,                 /* strxfrm_multiply */
+  0,                  /* strxfrm_multiply */
   1,                  /* caseup_multiply  */
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen      */
@@ -11418,7 +11612,7 @@ CHARSET_INFO my_charset_utf8mb4_hu_0900_as_cs=
   &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
-  24,                 /* strxfrm_multiply */
+  0,                  /* strxfrm_multiply */
   1,                  /* caseup_multiply  */
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen      */
@@ -11453,7 +11647,7 @@ CHARSET_INFO my_charset_utf8mb4_hr_0900_as_cs=
   &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
-  24,                 /* strxfrm_multiply */
+  0,                  /* strxfrm_multiply */
   1,                  /* caseup_multiply  */
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen      */
@@ -11489,7 +11683,7 @@ CHARSET_INFO my_charset_utf8mb4_si_0900_as_cs=
   &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
-  24,                 /* strxfrm_multiply */
+  0,                  /* strxfrm_multiply */
   1,                  /* caseup_multiply  */
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen      */
@@ -11525,7 +11719,7 @@ CHARSET_INFO my_charset_utf8mb4_vi_0900_as_cs=
   &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
-  24,                 /* strxfrm_multiply */
+  0,                  /* strxfrm_multiply */
   1,                  /* caseup_multiply  */
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen      */
@@ -11560,7 +11754,7 @@ CHARSET_INFO my_charset_utf8mb4_ja_0900_as_cs=
   &my_unicase_unicode900,/* caseinfo     */
   NULL,               /* state_map    */
   NULL,               /* ident_map    */
-  24,                 /* strxfrm_multiply */
+  0,                  /* strxfrm_multiply */
   1,                  /* caseup_multiply  */
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen      */
@@ -11571,6 +11765,76 @@ CHARSET_INFO my_charset_utf8mb4_ja_0900_as_cs=
   ' ',                /* pad char      */
   0,                  /* escape_with_backslash_is_dangerous */
   3,                  /* levels_for_compare */
+  &my_charset_utf8mb4_handler,
+  &my_collation_uca_900_handler,
+  NO_PAD
+};
+
+CHARSET_INFO my_charset_utf8mb4_ja_0900_as_cs_ks=
+{
+  304, 0, 0,            /* number       */
+  MY_CS_UTF8MB4_UCA_FLAGS|MY_CS_CSSORT,/* state    */
+  MY_UTF8MB4,         /* csname       */
+  MY_UTF8MB4 "_ja_0900_as_cs_ks",/* name */
+  "",                 /* comment      */
+  ja_cldr_30,         /* tailoring    */
+  &ja_coll_param,     /* coll_param   */
+  ctype_utf8,         /* ctype        */
+  NULL,               /* to_lower     */
+  NULL,               /* to_upper     */
+  NULL,               /* sort_order   */
+  &my_uca_v900,       /* uca          */
+  NULL,               /* tab_to_uni   */
+  NULL,               /* tab_from_uni */
+  &my_unicase_unicode900,/* caseinfo     */
+  NULL,               /* state_map    */
+  NULL,               /* ident_map    */
+  24,                 /* strxfrm_multiply */
+  1,                  /* caseup_multiply  */
+  1,                  /* casedn_multiply  */
+  1,                  /* mbminlen      */
+  4,                  /* mbmaxlen      */
+  1,                  /* mbmaxlenlen   */
+  32,                 /* min_sort_char */
+  0x10FFFF,           /* max_sort_char */
+  ' ',                /* pad char      */
+  0,                  /* escape_with_backslash_is_dangerous */
+  4,                  /* levels_for_compare */
+  &my_charset_utf8mb4_handler,
+  &my_collation_uca_900_handler,
+  NO_PAD
+};
+
+CHARSET_INFO my_charset_utf8mb4_0900_as_ci=
+{
+  305, 0, 0,            /* number       */
+  MY_CS_UTF8MB4_UCA_FLAGS,/* state    */
+  MY_UTF8MB4,         /* csname       */
+  MY_UTF8MB4 "_0900_as_ci",/* name */
+  "",                 /* comment      */
+  NULL,               /* tailoring    */
+  NULL,               /* coll_param   */
+  ctype_utf8,         /* ctype        */
+  NULL,               /* to_lower     */
+  NULL,               /* to_upper     */
+  NULL,               /* sort_order   */
+  &my_uca_v900,       /* uca          */
+  NULL,               /* tab_to_uni   */
+  NULL,               /* tab_from_uni */
+  &my_unicase_unicode900,/* caseinfo     */
+  NULL,               /* state_map    */
+  NULL,               /* ident_map    */
+  0,                  /* strxfrm_multiply */
+  1,                  /* caseup_multiply  */
+  1,                  /* casedn_multiply  */
+  1,                  /* mbminlen      */
+  4,                  /* mbmaxlen      */
+  1,                  /* mbmaxlenlen   */
+  32,                 /* min_sort_char */
+  0x10FFFF,           /* max_sort_char */
+  ' ',                /* pad char      */
+  0,                  /* escape_with_backslash_is_dangerous */
+  2,                  /* levels_for_compare */
   &my_charset_utf8mb4_handler,
   &my_collation_uca_900_handler,
   NO_PAD

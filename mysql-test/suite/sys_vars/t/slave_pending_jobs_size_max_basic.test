@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 
 let $var= slave_pending_jobs_size_max;
 eval set @save.$var= @@global.$var;

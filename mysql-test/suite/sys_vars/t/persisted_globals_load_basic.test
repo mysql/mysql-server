@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 
 --echo #
 --echo # Variable name : persisted_globals_load

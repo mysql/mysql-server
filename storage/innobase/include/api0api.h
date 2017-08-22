@@ -90,7 +90,7 @@ and we use the Microsoft types when building with Visual Studio. */
 typedef __int8			ib_i8_t;
 #else
 /** A signed 8 bit integral type. */
-typedef int8_t                  ib_i8_t;
+typedef int8_t			ib_i8_t;
 #endif
 
 #if defined(_MSC_VER)
@@ -98,7 +98,7 @@ typedef int8_t                  ib_i8_t;
 typedef unsigned __int8		ib_u8_t;
 #else
 /** An unsigned 8 bit integral type. */
-typedef uint8_t                 ib_u8_t;
+typedef uint8_t			ib_u8_t;
 #endif
 
 #if defined(_MSC_VER)
@@ -106,7 +106,7 @@ typedef uint8_t                 ib_u8_t;
 typedef __int16			ib_i16_t;
 #else
 /** A signed 16 bit integral type. */
-typedef int16_t                 ib_i16_t;
+typedef int16_t			ib_i16_t;
 #endif
 
 #if defined(_MSC_VER)
@@ -114,7 +114,7 @@ typedef int16_t                 ib_i16_t;
 typedef unsigned __int16	ib_u16_t;
 #else
 /** An unsigned 16 bit integral type. */
-typedef uint16_t                ib_u16_t;
+typedef uint16_t		ib_u16_t;
 #endif
 
 #if defined(_MSC_VER)
@@ -122,7 +122,7 @@ typedef uint16_t                ib_u16_t;
 typedef __int32			ib_i32_t;
 #else
 /** A signed 32 bit integral type. */
-typedef int32_t                 ib_i32_t;
+typedef int32_t			ib_i32_t;
 #endif
 
 #if defined(_MSC_VER)
@@ -130,7 +130,7 @@ typedef int32_t                 ib_i32_t;
 typedef unsigned __int32	ib_u32_t;
 #else
 /** An unsigned 32 bit integral type. */
-typedef uint32_t                ib_u32_t;
+typedef uint32_t		ib_u32_t;
 #endif
 
 #if defined(_MSC_VER)
@@ -138,7 +138,7 @@ typedef uint32_t                ib_u32_t;
 typedef __int64			ib_i64_t;
 #else
 /** A signed 64 bit integral type. */
-typedef int64_t                 ib_i64_t;
+typedef int64_t			ib_i64_t;
 #endif
 
 #if defined(_MSC_VER)
@@ -146,7 +146,7 @@ typedef int64_t                 ib_i64_t;
 typedef unsigned __int64	ib_u64_t;
 #else
 /** An unsigned 64 bit integral type. */
-typedef uint64_t                ib_u64_t;
+typedef uint64_t		ib_u64_t;
 #endif
 
 typedef void*			ib_opaque_t;
@@ -457,25 +457,26 @@ ib_trx_start(
 					single DML */
 	void*		thd);		/*!< in: THD */
 
-/*****************************************************************//**
-Begin a transaction. This will allocate a new transaction handle and
+/** Begin a transaction. This will allocate a new transaction handle and
 put the transaction in the active state.
+@param[in]	ib_trx_level	trx isolation level
+@param[in]	read_write	true if read write transaction
+@param[in]	auto_commit	auto commit after each single DML
+@param[in,out]	thd		MySQL THD
 @return innobase txn handle */
 ib_trx_t
 ib_trx_begin(
-/*=========*/
-	ib_trx_level_t	ib_trx_level,	/*!< in: trx isolation level */
-	ib_bool_t	read_write,	/*!< in: true if read write
-					transaction */
-	ib_bool_t	auto_commit);	/*!< in: auto commit after each
-					single DML */
+	ib_trx_level_t	ib_trx_level,
+	ib_bool_t	read_write,
+	ib_bool_t	auto_commit,
+	void*		thd);
 
 /*****************************************************************//**
 Check if the transaction is read_only */
 ib_u32_t
 ib_trx_read_only(
 /*=============*/
-        ib_trx_t        ib_trx);         /*!< in: trx handle */
+	ib_trx_t	ib_trx);	/*!< in: trx handle */
 
 /*****************************************************************//**
 Release the resources of the transaction. If the transaction was

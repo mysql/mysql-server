@@ -15,7 +15,7 @@
 
 #include "checker.h"
 
-#include <boost/move/unique_ptr.hpp>
+#include <memory>
 #include <mysql/psi/mysql_file.h>
 
 #include "my_compiler.h"
@@ -61,7 +61,7 @@ bool Checker::is_file_tag_correct(File file)
 
 bool Checker::is_file_version_correct(File file)
 {
-  boost::movelib::unique_ptr<uchar[]> version(new uchar[file_version.length()+1]);
+  std::unique_ptr<uchar[]> version(new uchar[file_version.length()+1]);
   version.get()[file_version.length()]= '\0';
   mysql_file_seek(file, 0, MY_SEEK_SET, MYF(0));
   if (unlikely(mysql_file_read(file, version.get(), file_version.length(), MYF(0)) !=

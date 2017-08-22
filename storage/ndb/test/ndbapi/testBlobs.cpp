@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@
 #include <NdbRestarter.hpp>
 
 #include <ndb_rand.h>
+#include <NdbHost.h>
 
 struct Chr {
   NdbDictionary::Column::Type m_type;
@@ -4010,7 +4011,7 @@ testmain()
     createDefaultTableSpace(); 
 
   if (g_opt.m_seed == -1)
-    g_opt.m_seed = getpid();
+    g_opt.m_seed = NdbHost_GetProcessId();
   if (g_opt.m_seed != 0) {
     DBG("random seed = " << g_opt.m_seed);
     ndb_srand(g_opt.m_seed);

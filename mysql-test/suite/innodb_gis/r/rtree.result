@@ -148,7 +148,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`i`),
   SPATIAL KEY `idx` (`g`),
   SPATIAL KEY `idx2` (`g`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop index idx on t1;
 drop table t1;
 create table t1 (i int, i2 char(10), g geometry not null, primary key (i, i2), spatial index (g))engine=innodb;

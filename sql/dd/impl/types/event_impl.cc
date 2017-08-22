@@ -38,7 +38,7 @@ namespace dd {
 // Event implementation.
 ///////////////////////////////////////////////////////////////////////////
 
-const Dictionary_object_table &Event::OBJECT_TABLE()
+const Entity_object_table &Event::OBJECT_TABLE()
 {
   return Events::instance();
 }

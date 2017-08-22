@@ -1,0 +1,33 @@
+-- source include/load_sysvars.inc
+
+SELECT @@global.temptable_max_ram;
+
+-- error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.temptable_max_ram;
+
+SET @@global.temptable_max_ram = 5666777;
+SELECT @@global.temptable_max_ram;
+
+# -- error ER_WRONG_VALUE_FOR_VAR
+SET @@global.temptable_max_ram = -5666777;
+SELECT @@global.temptable_max_ram;
+
+# -- error ER_WRONG_VALUE_FOR_VAR
+SET @@global.temptable_max_ram = -1;
+SELECT @@global.temptable_max_ram;
+
+SET @@global.temptable_max_ram = 0;
+SELECT @@global.temptable_max_ram;
+
+SET @@global.temptable_max_ram = 1;
+SELECT @@global.temptable_max_ram;
+
+SET @@global.temptable_max_ram = default;
+
+-- error ER_WRONG_TYPE_FOR_VAR
+SET @@global.temptable_max_ram = NULL;
+SELECT @@global.temptable_max_ram;
+
+-- error ER_WRONG_TYPE_FOR_VAR
+SET @@global.temptable_max_ram = 'foo';
+SELECT @@global.temptable_max_ram;

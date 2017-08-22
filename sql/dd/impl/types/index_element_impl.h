@@ -155,12 +155,6 @@ public:
 
   virtual bool is_prefix() const;
 
-  // Fix "inherits ... via dominance" warnings
-  virtual Weak_object_impl *impl()
-  { return Weak_object_impl::impl(); }
-  virtual const Weak_object_impl *impl() const
-  { return Weak_object_impl::impl(); }
-
 public:
   static Index_element_impl *restore_item(Index_impl *index)
   {

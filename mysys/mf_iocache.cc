@@ -186,7 +186,7 @@ int init_io_cache_ext(IO_CACHE *info, File file, size_t cachesize,
   info->arg = 0;
   info->alloced_buffer = 0;
   info->buffer=0;
-  info->seek_not_done= 0;
+  info->seek_not_done= false;
 
   if (file >= 0)
   {
@@ -197,7 +197,7 @@ int init_io_cache_ext(IO_CACHE *info, File file, size_t cachesize,
          This kind of object doesn't support seek() or tell(). Don't set a
          flag that will make us again try to seek() later and fail.
       */
-      info->seek_not_done= 0;
+      info->seek_not_done= false;
       /*
         Additionally, if we're supposed to start somewhere other than the
         the beginning of whatever this file is, then somebody made a bad
@@ -206,7 +206,7 @@ int init_io_cache_ext(IO_CACHE *info, File file, size_t cachesize,
       DBUG_ASSERT(seek_offset == 0);
     }
     else
-      info->seek_not_done= MY_TEST(seek_offset != pos);
+      info->seek_not_done= (seek_offset != pos);
   }
 
   info->disk_writes= 0;
@@ -222,7 +222,7 @@ int init_io_cache_ext(IO_CACHE *info, File file, size_t cachesize,
       /* Calculate end of file to avoid allocating oversized buffers */
       end_of_file= mysql_file_seek(file, 0L, MY_SEEK_END, MYF(0));
       /* Need to reset seek_not_done now that we just did a seek. */
-      info->seek_not_done= end_of_file == seek_offset ? 0 : 1;
+      info->seek_not_done= !(end_of_file == seek_offset);
       if (end_of_file < seek_offset)
         end_of_file=seek_offset;
       /* Trim cache size if the file is very small */
@@ -366,7 +366,7 @@ bool reinit_io_cache(IO_CACHE *info, enum cache_type type,
       if (info->type == READ_CACHE)
       {
 	info->write_end=info->write_buffer+info->buffer_length;
-	info->seek_not_done=1;
+	info->seek_not_done= true;
       }
       info->end_of_file = ~(my_off_t) 0;
     }
@@ -389,7 +389,7 @@ bool reinit_io_cache(IO_CACHE *info, enum cache_type type,
       DBUG_RETURN(1);
     info->pos_in_file=seek_offset;
     /* Better to do always do a seek */
-    info->seek_not_done=1;
+    info->seek_not_done= true;
     info->request_pos=info->read_pos=info->write_pos=info->buffer;
     if (type == READ_CACHE)
     {
@@ -471,7 +471,7 @@ int _my_b_read(IO_CACHE *info, uchar *Buffer, size_t Count)
         != MY_FILEPOS_ERROR))
     {
       /* No error, reset seek_not_done flag. */
-      info->seek_not_done= 0;
+      info->seek_not_done= false;
     }
     else
     {
@@ -1075,7 +1075,7 @@ int _my_b_read_r(IO_CACHE *cache, uchar *Buffer, size_t Count)
             (size_t) (cache->read_end - cache->buffer));
     }
     cache->read_pos=      cache->buffer;
-    cache->seek_not_done= 0;
+    cache->seek_not_done= false;
     if (len == 0 || len == (size_t) -1)
     {
       DBUG_PRINT("io_cache_share", ("reader error. len %lu  left %lu",
@@ -1189,7 +1189,7 @@ int _my_b_seq_read(IO_CACHE *info, uchar *Buffer, size_t Count)
    unlock_append_buffer(info);
    return (1);
   }
-  info->seek_not_done=0;
+  info->seek_not_done= false;
 
   diff_length= (size_t) (pos_in_file & (IO_SIZE-1));
 
@@ -1367,7 +1367,7 @@ int _my_b_write(IO_CACHE *info, const uchar *Buffer, size_t Count)
         info->error= -1;
         return (1);
       }
-      info->seek_not_done=0;
+      info->seek_not_done= false;
     }
     if (mysql_file_write(info->file, Buffer, length, info->myflags | MY_NABP))
       return info->error= -1;
@@ -1492,7 +1492,7 @@ int my_block_write(IO_CACHE *info, const uchar *Buffer, size_t Count,
     pos+=  length;
     Count-= length;
 #ifdef _WIN32
-    info->seek_not_done=1;
+    info->seek_not_done= true;
 #endif
   }
 
@@ -1577,7 +1577,7 @@ int my_b_flush_io_cache(IO_CACHE *info,
 	  DBUG_RETURN((info->error= -1));
 	}
 	if (!append_cache)
-	  info->seek_not_done=0;
+	  info->seek_not_done= false;
       }
       if (!append_cache)
 	info->pos_in_file+=length;

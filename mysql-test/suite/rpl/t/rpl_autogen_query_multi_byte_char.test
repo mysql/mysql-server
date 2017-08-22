@@ -27,6 +27,7 @@
 while ($iter <= 2)
 {
   --connection master
+  set names latin1;
   if ($iter == 1)
   {
     --echo Test case 1:- table name with one character latin name.

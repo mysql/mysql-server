@@ -3813,7 +3813,7 @@ SET DEBUG_SYNC= 'now SIGNAL blocked';
 # Reaping: DROP DATABASE db1
 # Connection con2
 # Reaping: RENAME TABLE db1.t1 TO test.t1
-ERROR 42S02: Table 'db1.t1' doesn't exist
+ERROR 42000: Unknown database 'db1'
 # Connection default
 CREATE DATABASE db1;
 CREATE TABLE test.t2 (a INT);

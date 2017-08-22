@@ -46,6 +46,9 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0trx.h"
 #include "trx0undo.h"
 #include "usr0sess.h"
+#include "os0thread-create.h"
+#include <current_thd.h>
+#include "dict0dd.h"
 
 /** This many pages must be undone before a truncate is tried within
 rollback */
@@ -219,11 +222,13 @@ trx_rollback_low(
 			so that if the system gets killed,
 			recovery will perform the rollback. */
 			trx_undo_ptr_t*	undo_ptr = &trx->rsegs.m_redo;
+
 			mtr_t		mtr;
+
 			mtr.start();
-			mtr.set_undo_space(trx->rsegs.m_redo.rseg->space_id);
 
 			mutex_enter(&trx->rsegs.m_redo.rseg->mutex);
+
 			if (undo_ptr->insert_undo != NULL) {
 				trx_undo_set_state_at_prepare(
 					trx, undo_ptr->insert_undo,
@@ -691,12 +696,16 @@ trx_rollback_active(
 
 		ut_ad(dictionary_locked);
 
+		/* TODO: With Atomic DDL (WL#9536), this should not be
+		happening. Remove the code below */
+
 		/* If the transaction was for a dictionary operation,
 		we drop the relevant table only if it is not flagged
 		as DISCARDED. If it still exists. */
+		MDL_ticket*	mdl;
 
-		table = dict_table_open_on_id(
-			trx->table_id, TRUE, DICT_TABLE_OP_NORMAL);
+		table = dd_table_open_on_id(
+			trx->table_id, current_thd, &mdl, false);
 
 		if (table && !dict_table_is_discarded(table)) {
 			ib::warn() << "Dropping table '" << table->name
@@ -987,7 +996,8 @@ trx_roll_pop_top_rec_of_trx_low(
 	is_insert = (undo == ins_undo);
 
 	*roll_ptr = trx_undo_build_roll_ptr(
-		is_insert, undo->rseg->id, undo->top_page_no, undo->top_offset);
+		is_insert, undo->rseg->space_id,
+		undo->top_page_no, undo->top_offset);
 
 	mtr_start(&mtr);
 

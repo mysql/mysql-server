@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #
 # Bug#49132 
 # This test verifies if executing DDL statement before trying to manipulate
@@ -11,8 +6,6 @@
 #
 
 source include/have_ndb.inc;
-# test uses event scheduler, hence not embedded
-source include/not_embedded.inc;
 
 LET $ENGINE_TYPE= NDB;
 source extra/rpl_tests/rpl_tmp_table_and_DDL.test;

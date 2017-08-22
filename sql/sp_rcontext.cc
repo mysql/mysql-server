@@ -17,6 +17,7 @@
 
 #include <new>
 
+#include "current_thd.h"
 #include "derror.h"            // ER_THD
 #include "field.h"
 #include "my_dbug.h"
@@ -554,7 +555,7 @@ void sp_cursor::destroy()
 }
 
 
-bool sp_cursor::fetch(THD *thd, List<sp_variable> *vars)
+bool sp_cursor::fetch(List<sp_variable> *vars)
 {
   if (! m_server_side_cursor)
   {
@@ -569,9 +570,9 @@ bool sp_cursor::fetch(THD *thd, List<sp_variable> *vars)
   }
 
   DBUG_EXECUTE_IF("bug23032_emit_warning",
-                  push_warning(thd, Sql_condition::SL_WARNING,
+                  push_warning(current_thd, Sql_condition::SL_WARNING,
                                ER_UNKNOWN_ERROR,
-                               ER_THD(thd, ER_UNKNOWN_ERROR)););
+                               ER_THD(current_thd, ER_UNKNOWN_ERROR)););
 
   m_result.set_spvar_list(vars);
 

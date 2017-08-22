@@ -3,9 +3,6 @@
 # Privilege-specific tests for WL#4897: Add EXPLAIN INSERT/UPDATE/DELETE
 #
 
-# Grant tests not performed with embedded server
--- source include/not_embedded.inc
-
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 

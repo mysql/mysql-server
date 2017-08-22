@@ -1,6 +1,6 @@
 drop table if exists t1,t2,t3,t4;
 drop database if exists mysqltest;
-create table t1 (v varchar(16384)) engine=innodb;
+create table t1 (v varchar(16384)) charset latin1 engine=innodb;
 drop table t1;
 create table t1 (a char(1), b char(1), key(a, b)) engine=innodb;
 insert into t1 values ('8', '6'), ('4', '7');
@@ -221,37 +221,19 @@ Table	Checksum
 test.t1	2050879373
 drop table t1;
 set foreign_key_checks=0;
-create table t2 (a int primary key, b int, foreign key (b) references t1(a)) engine = innodb;
-create table t1(a char(10) primary key, b varchar(20)) engine = innodb;
-ERROR HY000: Cannot add foreign key constraint
-set foreign_key_checks=1;
-drop table t2;
-set foreign_key_checks=0;
 create table t1(a varchar(10) primary key) engine = innodb DEFAULT CHARSET=latin1;
 create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = innodb DEFAULT CHARSET=utf8;
 ERROR HY000: Cannot add foreign key constraint
 set foreign_key_checks=1;
 drop table t1;
-set foreign_key_checks=0;
-create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = innodb;
-create table t1(a varchar(10) primary key) engine = innodb;
-alter table t1 modify column a int;
-Got one of the listed errors
-set foreign_key_checks=1;
-drop table t2,t1;
+TODO: NEWDD: Bug 25722927 - NEWDD FK: ALTER TABLE CHANGE COLUMN TYPE SHOULD CHECK FK CONSTRAINT
 set foreign_key_checks=0;
 create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = innodb DEFAULT CHARSET=latin1;
 create table t1(a varchar(10) primary key) engine = innodb DEFAULT CHARSET=latin1;
 alter table t1 convert to character set utf8;
 set foreign_key_checks=1;
 drop table t2,t1;
-set foreign_key_checks=0;
-create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = innodb DEFAULT CHARSET=latin1;
-create table t3(a varchar(10) primary key) engine = innodb DEFAULT CHARSET=utf8;
-rename table t3 to t1;
-ERROR HY000: Error on rename of './test/t3' to './test/t1' (errno: 150 - Foreign key constraint is incorrectly formed)
-set foreign_key_checks=1;
-drop table t2,t3;
+TODO: NEWDD: Bug 25722927 - NEWDD FK: ALTER TABLE CHANGE COLUMN TYPE SHOULD CHECK FK CONSTRAINT
 create table t1(a int primary key) row_format=redundant engine=innodb;
 create table t2(a int primary key,constraint foreign key(a)references t1(a)) row_format=compact engine=innodb;
 create table t3(a int primary key) row_format=compact engine=innodb;
@@ -400,7 +382,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
   KEY `t2_ibfk_0` (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t2,t1;
 CREATE TABLE t1 (
 field1 varchar(8) NOT NULL DEFAULT '',
@@ -440,7 +422,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`c1`),
   UNIQUE KEY `c2` (`c2`),
   CONSTRAINT `c2_fk` FOREIGN KEY (`c2`) REFERENCES `t2` (`c1`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 alter table t1 drop foreign key c2_fk;
 show create table t1;
 Table	Create Table
@@ -449,7 +431,7 @@ t1	CREATE TABLE `t1` (
   `c2` bigint(20) NOT NULL,
   PRIMARY KEY (`c1`),
   UNIQUE KEY `c2` (`c2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1, t2;
 create table t1(a date) engine=innodb;
 create table t2(a date, key(a)) engine=innodb;
@@ -659,7 +641,7 @@ t2	CREATE TABLE `t2` (
   KEY `f` (`f`),
   CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`f`) REFERENCES `t1` (`f`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `t2_t1` FOREIGN KEY (`id`) REFERENCES `t1` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t2, t1;
 CREATE TABLE t1 (a INT, INDEX(a)) ENGINE=InnoDB;
 CREATE TABLE t2 (a INT, INDEX(a)) ENGINE=InnoDB;
@@ -692,7 +674,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=349 DEFAULT CHARSET=latin1
+) ENGINE=InnoDB AUTO_INCREMENT=349 DEFAULT CHARSET=utf8mb4
 CREATE TABLE t2 (id int PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t2 VALUES(42),(347),(348);
 ALTER TABLE t1 ADD CONSTRAINT t1_t2 FOREIGN KEY (id) REFERENCES t2(id);
@@ -702,7 +684,7 @@ t1	CREATE TABLE `t1` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`id`),
   CONSTRAINT `t1_t2` FOREIGN KEY (`id`) REFERENCES `t2` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=349 DEFAULT CHARSET=latin1
+) ENGINE=InnoDB AUTO_INCREMENT=349 DEFAULT CHARSET=utf8mb4
 DROP TABLE t1,t2;
 SET innodb_strict_mode=ON;
 CREATE TABLE t1 (
@@ -714,7 +696,7 @@ c17 CHAR(255), c18 CHAR(255), c19 CHAR(255), c20 CHAR(255),
 c21 CHAR(255), c22 CHAR(255), c23 CHAR(255), c24 CHAR(255),
 c25 CHAR(255), c26 CHAR(255), c27 CHAR(255), c28 CHAR(255),
 c29 CHAR(255), c30 CHAR(255), c31 CHAR(255), c32 CHAR(255)
-) ENGINE = InnoDB;
+) ENGINE = InnoDB charset latin1;
 ERROR 42000: Row size too large (> {checked_valid}). Changing some columns to TEXT or BLOB may help. In current row format, BLOB prefix of 0 bytes is stored inline.
 SET innodb_strict_mode=OFF;
 DROP TABLE IF EXISTS t1;
@@ -823,11 +805,11 @@ TRUNCATE TABLE t1;
 affected rows: 0
 DROP TABLE t1;
 Variable_name	Value
-Handler_update	2
+Handler_update	10
 Variable_name	Value
 Handler_delete	0
 Variable_name	Value
-Handler_update	3
+Handler_update	11
 Variable_name	Value
 Handler_delete	1
 count_alloc WHERE event_name like 'memory/innodb/other'

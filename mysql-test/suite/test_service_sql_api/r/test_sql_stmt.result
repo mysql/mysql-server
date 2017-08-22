@@ -2799,7 +2799,7 @@ handle_ok
 		[meta][field] col name: col2
 		[meta][field] org col name: col2
 		[meta][field] length: 16777215
-		[meta][field] charsetnr: 8
+		[meta][field] charsetnr: 255
 		[meta][field] flags: 16 (BLOB )
 		[meta][field] decimals: 0
 		[meta][field] type: BLOB (252)
@@ -3133,8 +3133,8 @@ handle_ok
 		[meta][field] org table name: t3
 		[meta][field] col name: a2
 		[meta][field] org col name: a2
-		[meta][field] length: 32
-		[meta][field] charsetnr: 8
+		[meta][field] length: 128
+		[meta][field] charsetnr: 255
 		[meta][field] flags: 0
 		[meta][field] decimals: 0
 		[meta][field] type: STRING (254)
@@ -3402,8 +3402,8 @@ handle_ok
 		[meta][field] org table name: t3
 		[meta][field] col name: a2
 		[meta][field] org col name: a2
-		[meta][field] length: 32
-		[meta][field] charsetnr: 8
+		[meta][field] length: 128
+		[meta][field] charsetnr: 255
 		[meta][field] flags: 0
 		[meta][field] decimals: 0
 		[meta][field] type: STRING (254)
@@ -3490,8 +3490,8 @@ handle_ok
 		[meta][field] org table name: t4
 		[meta][field] col name: b2
 		[meta][field] org col name: b2
-		[meta][field] length: 32
-		[meta][field] charsetnr: 8
+		[meta][field] length: 128
+		[meta][field] charsetnr: 255
 		[meta][field] flags: 0
 		[meta][field] decimals: 0
 		[meta][field] type: STRING (254)
@@ -3761,8 +3761,8 @@ handle_ok
 		[meta][field] org table name: t3
 		[meta][field] col name: a2
 		[meta][field] org col name: a2
-		[meta][field] length: 32
-		[meta][field] charsetnr: 8
+		[meta][field] length: 128
+		[meta][field] charsetnr: 255
 		[meta][field] flags: 0
 		[meta][field] decimals: 0
 		[meta][field] type: STRING (254)
@@ -3849,8 +3849,8 @@ handle_ok
 		[meta][field] org table name: t4
 		[meta][field] col name: b2
 		[meta][field] org col name: b2
-		[meta][field] length: 32
-		[meta][field] charsetnr: 8
+		[meta][field] length: 128
+		[meta][field] charsetnr: 255
 		[meta][field] flags: 0
 		[meta][field] decimals: 0
 		[meta][field] type: STRING (254)
@@ -3921,8 +3921,8 @@ handle_ok
 		[meta][field] org table name: p1
 		[meta][field] col name: v_str_1
 		[meta][field] org col name: v_str_1
-		[meta][field] length: 32
-		[meta][field] charsetnr: 8
+		[meta][field] length: 128
+		[meta][field] charsetnr: 255
 		[meta][field] flags: 0
 		[meta][field] decimals: 0
 		[meta][field] type: STRING (254)
@@ -3965,8 +3965,8 @@ handle_ok
 		[meta][field] org table name: p1
 		[meta][field] col name: v_str_2
 		[meta][field] org col name: v_str_2
-		[meta][field] length: 64
-		[meta][field] charsetnr: 8
+		[meta][field] length: 256
+		[meta][field] charsetnr: 255
 		[meta][field] flags: 0
 		[meta][field] decimals: 0
 		[meta][field] type: STRING (254)
@@ -4227,8 +4227,8 @@ handle_ok
 		[meta][field] org table name: t3
 		[meta][field] col name: a2
 		[meta][field] org col name: a2
-		[meta][field] length: 32
-		[meta][field] charsetnr: 8
+		[meta][field] length: 128
+		[meta][field] charsetnr: 255
 		[meta][field] flags: 0
 		[meta][field] decimals: 0
 		[meta][field] type: STRING (254)
@@ -4315,8 +4315,8 @@ handle_ok
 		[meta][field] org table name: t4
 		[meta][field] col name: b2
 		[meta][field] org col name: b2
-		[meta][field] length: 32
-		[meta][field] charsetnr: 8
+		[meta][field] length: 128
+		[meta][field] charsetnr: 255
 		[meta][field] flags: 0
 		[meta][field] decimals: 0
 		[meta][field] type: STRING (254)
@@ -4387,8 +4387,8 @@ handle_ok
 		[meta][field] org table name: p1
 		[meta][field] col name: v_str_1
 		[meta][field] org col name: v_str_1
-		[meta][field] length: 32
-		[meta][field] charsetnr: 8
+		[meta][field] length: 128
+		[meta][field] charsetnr: 255
 		[meta][field] flags: 0
 		[meta][field] decimals: 0
 		[meta][field] type: STRING (254)
@@ -4431,8 +4431,8 @@ handle_ok
 		[meta][field] org table name: p1
 		[meta][field] col name: v_str_2
 		[meta][field] org col name: v_str_2
-		[meta][field] length: 64
-		[meta][field] charsetnr: 8
+		[meta][field] length: 256
+		[meta][field] charsetnr: 255
 		[meta][field] flags: 0
 		[meta][field] decimals: 0
 		[meta][field] type: STRING (254)
@@ -7382,7 +7382,7 @@ handle_ok
 		[meta][field] col name: col2
 		[meta][field] org col name: col2
 		[meta][field] length: 16777215
-		[meta][field] charsetnr: 8
+		[meta][field] charsetnr: 255
 		[meta][field] flags: 16 (BLOB )
 		[meta][field] decimals: 0
 		[meta][field] type: BLOB (252)
@@ -7716,8 +7716,8 @@ handle_ok
 		[meta][field] org table name: t3
 		[meta][field] col name: a2
 		[meta][field] org col name: a2
-		[meta][field] length: 32
-		[meta][field] charsetnr: 8
+		[meta][field] length: 128
+		[meta][field] charsetnr: 255
 		[meta][field] flags: 0
 		[meta][field] decimals: 0
 		[meta][field] type: STRING (254)
@@ -7985,8 +7985,8 @@ handle_ok
 		[meta][field] org table name: t3
 		[meta][field] col name: a2
 		[meta][field] org col name: a2
-		[meta][field] length: 32
-		[meta][field] charsetnr: 8
+		[meta][field] length: 128
+		[meta][field] charsetnr: 255
 		[meta][field] flags: 0
 		[meta][field] decimals: 0
 		[meta][field] type: STRING (254)
@@ -8073,8 +8073,8 @@ handle_ok
 		[meta][field] org table name: t4
 		[meta][field] col name: b2
 		[meta][field] org col name: b2
-		[meta][field] length: 32
-		[meta][field] charsetnr: 8
+		[meta][field] length: 128
+		[meta][field] charsetnr: 255
 		[meta][field] flags: 0
 		[meta][field] decimals: 0
 		[meta][field] type: STRING (254)
@@ -8344,8 +8344,8 @@ handle_ok
 		[meta][field] org table name: t3
 		[meta][field] col name: a2
 		[meta][field] org col name: a2
-		[meta][field] length: 32
-		[meta][field] charsetnr: 8
+		[meta][field] length: 128
+		[meta][field] charsetnr: 255
 		[meta][field] flags: 0
 		[meta][field] decimals: 0
 		[meta][field] type: STRING (254)
@@ -8432,8 +8432,8 @@ handle_ok
 		[meta][field] org table name: t4
 		[meta][field] col name: b2
 		[meta][field] org col name: b2
-		[meta][field] length: 32
-		[meta][field] charsetnr: 8
+		[meta][field] length: 128
+		[meta][field] charsetnr: 255
 		[meta][field] flags: 0
 		[meta][field] decimals: 0
 		[meta][field] type: STRING (254)
@@ -8504,8 +8504,8 @@ handle_ok
 		[meta][field] org table name: p1
 		[meta][field] col name: v_str_1
 		[meta][field] org col name: v_str_1
-		[meta][field] length: 32
-		[meta][field] charsetnr: 8
+		[meta][field] length: 128
+		[meta][field] charsetnr: 255
 		[meta][field] flags: 0
 		[meta][field] decimals: 0
 		[meta][field] type: STRING (254)
@@ -8548,8 +8548,8 @@ handle_ok
 		[meta][field] org table name: p1
 		[meta][field] col name: v_str_2
 		[meta][field] org col name: v_str_2
-		[meta][field] length: 64
-		[meta][field] charsetnr: 8
+		[meta][field] length: 256
+		[meta][field] charsetnr: 255
 		[meta][field] flags: 0
 		[meta][field] decimals: 0
 		[meta][field] type: STRING (254)
@@ -8810,8 +8810,8 @@ handle_ok
 		[meta][field] org table name: t3
 		[meta][field] col name: a2
 		[meta][field] org col name: a2
-		[meta][field] length: 32
-		[meta][field] charsetnr: 8
+		[meta][field] length: 128
+		[meta][field] charsetnr: 255
 		[meta][field] flags: 0
 		[meta][field] decimals: 0
 		[meta][field] type: STRING (254)
@@ -8898,8 +8898,8 @@ handle_ok
 		[meta][field] org table name: t4
 		[meta][field] col name: b2
 		[meta][field] org col name: b2
-		[meta][field] length: 32
-		[meta][field] charsetnr: 8
+		[meta][field] length: 128
+		[meta][field] charsetnr: 255
 		[meta][field] flags: 0
 		[meta][field] decimals: 0
 		[meta][field] type: STRING (254)
@@ -8970,8 +8970,8 @@ handle_ok
 		[meta][field] org table name: p1
 		[meta][field] col name: v_str_1
 		[meta][field] org col name: v_str_1
-		[meta][field] length: 32
-		[meta][field] charsetnr: 8
+		[meta][field] length: 128
+		[meta][field] charsetnr: 255
 		[meta][field] flags: 0
 		[meta][field] decimals: 0
 		[meta][field] type: STRING (254)
@@ -9014,8 +9014,8 @@ handle_ok
 		[meta][field] org table name: p1
 		[meta][field] col name: v_str_2
 		[meta][field] org col name: v_str_2
-		[meta][field] length: 64
-		[meta][field] charsetnr: 8
+		[meta][field] length: 256
+		[meta][field] charsetnr: 255
 		[meta][field] flags: 0
 		[meta][field] decimals: 0
 		[meta][field] type: STRING (254)

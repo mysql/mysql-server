@@ -199,7 +199,7 @@ protected:
   */
   bool push_extra(Extra_tag tag)
   {
-    extra *e= new extra(tag);
+    extra *e= new (*THR_MALLOC) extra(tag);
     return e == NULL || fmt->entry()->col_extra.push_back(e);
   }
 
@@ -217,7 +217,7 @@ protected:
   {
     if (arg.is_empty())
       return push_extra(tag);
-    extra *e= new extra(tag, arg.dup(thd->mem_root));
+    extra *e= new (*THR_MALLOC) extra(tag, arg.dup(thd->mem_root));
     return !e || !e->data || fmt->entry()->col_extra.push_back(e);
   }
 
@@ -235,7 +235,7 @@ protected:
   */
   bool push_extra(Extra_tag tag, const char *arg)
   {
-    extra *e= new extra(tag, arg);
+    extra *e= new (*THR_MALLOC) extra(tag, arg);
     return !e || fmt->entry()->col_extra.push_back(e);
   }
 
@@ -304,7 +304,7 @@ public:
     message(message_arg), rows(rows_arg)
   {
     if (can_walk_clauses())
-      order_list= MY_TEST(select_lex_arg->order_list.elements);
+      order_list= (select_lex_arg->order_list.elements != 0);
   }
 
 protected:
@@ -332,7 +332,7 @@ public:
     DBUG_ASSERT(select_lex_arg ==
                 select_lex_arg->master_unit()->fake_select_lex);
     // Use optimized values from fake_select_lex's join
-    order_list= MY_TEST(select_lex_arg->join->order);
+    order_list= (select_lex_arg->join->order != nullptr);
     // A plan exists so the reads above are safe:
     DBUG_ASSERT(select_lex_arg->join->get_plan_state() != JOIN::NO_PLAN);
   }
@@ -419,7 +419,7 @@ public:
     DBUG_ASSERT(join->get_plan_state() == JOIN::PLAN_READY);
     /* it is not UNION: */
     DBUG_ASSERT(join->select_lex != join->unit->fake_select_lex);
-    order_list= MY_TEST(join->order);
+    order_list= (join->order != nullptr);
   }
 
 private:
@@ -488,7 +488,7 @@ public:
     tab= tab_arg;
     usable_keys= table->possible_quick_keys;
     if (can_walk_clauses())
-      order_list= MY_TEST(select_lex_arg->order_list.elements);
+      order_list= (select_lex_arg->order_list.elements != 0);
   }
 
   virtual bool explain_modify_flags();
@@ -598,6 +598,13 @@ Explain_no_table::get_subquery_context(SELECT_LEX_UNIT *unit) const
 */
 bool Explain::explain_subqueries()
 {
+  /*
+    Subqueries in empty queries are neither optimized nor executed. They are
+    therefore not to be included in the explain output.
+  */
+  if (select_lex->is_empty_query())
+    return false;
+
   for (SELECT_LEX_UNIT *unit= select_lex->first_inner_unit();
        unit;
        unit= unit->next_unit())
@@ -1083,7 +1090,7 @@ bool Explain_table_base::explain_extra_common(int quick_type,
       {
         if (fmt->is_hierarchical() && can_print_clauses())
         {
-          Lazy_condition *c= new Lazy_condition(tab->condition_optim());
+          Lazy_condition *c= new (*THR_MALLOC) Lazy_condition(tab->condition_optim());
           if (c == NULL)
             return true;
           fmt->entry()->col_attached_condition.set(c);
@@ -1319,6 +1326,22 @@ bool Explain_join::shallow_explain()
     return true; /* purecov: inspected */
   if (begin_sort_context(ESC_DISTINCT, CTX_DISTINCT))
     return true; /* purecov: inspected */
+  if (join->m_windowing_steps)
+  {
+    if (begin_sort_context(ESC_WINDOWING, CTX_WINDOW))
+      return true; /* purecov: inspected */
+    fmt->entry()->m_windows= &select_lex->m_windows;
+    if (!fmt->is_hierarchical())
+    {
+      /*
+        TRADITIONAL prints nothing for window functions, except the use of a
+        temporary table and a filesort.
+      */
+      push_warning(thd, Sql_condition::SL_NOTE,
+                   ER_WINDOW_EXPLAIN_JSON,
+                   ER_THD(thd, ER_WINDOW_EXPLAIN_JSON));
+    }
+  }
   if (begin_sort_context(ESC_GROUP_BY, CTX_GROUP_BY))
     return true; /* purecov: inspected */
 
@@ -1347,6 +1370,11 @@ bool Explain_join::shallow_explain()
     return true;
   if (end_sort_context(ESC_GROUP_BY, CTX_GROUP_BY))
     return true;
+  if (join->m_windowing_steps)
+  {
+    if (end_sort_context(ESC_WINDOWING, CTX_WINDOW))
+      return true; /* purecov: inspected */
+  }
   if (end_sort_context(ESC_DISTINCT, CTX_DISTINCT))
     return true;
   if (end_sort_context(ESC_ORDER_BY, CTX_ORDER_BY))
@@ -1778,6 +1806,8 @@ bool Explain_join::explain_extra()
           !bitmap_is_set(table->write_set, (*fld)->field_index))
         continue;
       fmt->entry()->col_used_columns.push_back((*fld)->field_name);
+      if (table->is_binary_diff_enabled(*fld))
+        fmt->entry()->col_partial_update_columns.push_back((*fld)->field_name);
     }
   }
   return false;
@@ -1925,6 +1955,10 @@ bool Explain_table::explain_extra()
   if (message)
     return fmt->entry()->col_message.set(message);
 
+  for (Field **fld= table->field; *fld != nullptr; ++fld)
+    if (table->is_binary_diff_enabled(*fld))
+      fmt->entry()->col_partial_update_columns.push_back((*fld)->field_name);
+
   uint keyno;
   int quick_type;
   if (tab && tab->quick_optim())
@@ -2050,7 +2084,13 @@ bool explain_single_table_modification(THD *ethd,
 
   ethd->lex->explain_format->send_headers(&result);
 
-  if (!other)
+  /*
+    Optimize currently non-optimized subqueries when needed, but
+    - do not optimize subqueries for other connections, and
+    - there is no need to optimize subqueries that will not be explained
+      because they are attached to a query block that do not return any rows.
+  */
+  if (!other && !select->is_empty_query())
   {
     for (SELECT_LEX_UNIT *unit= select->first_inner_unit();
          unit;
@@ -2241,7 +2281,7 @@ bool explain_query(THD *ethd, SELECT_LEX_UNIT *unit)
 
   if (other)  
   {
-    if (!((explain_result= new Query_result_send(ethd))))
+    if (!((explain_result= new (*THR_MALLOC) Query_result_send(ethd))))
       DBUG_RETURN(true); /* purecov: inspected */
     List<Item> dummy;
     if (explain_result->prepare(dummy, ethd->lex->unit))
@@ -2288,7 +2328,7 @@ bool explain_query(THD *ethd, SELECT_LEX_UNIT *unit)
     explain_result->send_eof();
 
   if (other)
-    delete explain_result;
+    destroy(explain_result);
 
   DBUG_RETURN(res);
 }

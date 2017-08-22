@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -849,7 +849,7 @@ int Dbtup::retrieve_log_page(Signal *signal,
     signal->theData[0] = 1;
     return res;
   case -1:
-    g_eventLogger->warning("Out of space in RG_DISK_OPERATIONS resource,"
+    g_eventLogger->warning("Out of space in RG_TRANSACTION_MEMORY resource,"
                            " increase config parameter GlobalSharedMemory");
     ndbrequire("NOT YET IMPLEMENTED" == 0);
     break;

@@ -10,6 +10,7 @@ drop table if exists t1;
 --enable_warnings
 
 SET NAMES cp1251;
+--character_set cp1251
 
 #
 # Test problem with LEFT() (Bug #514)

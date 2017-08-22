@@ -159,8 +159,10 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
   }
 
   if (options & REFRESH_ERROR_LOG)
+  {
     if (reopen_error_log())
       result= 1;
+  }
 
   if ((options & REFRESH_SLOW_LOG) && opt_slow_log)
     query_logger.reopen_log_file(QUERY_LOG_SLOW);
@@ -208,7 +210,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
     {
       delete tmp_thd;
       /* Remember that we don't have a THD */
-      my_thread_set_THR_THD(NULL);
+      current_thd= nullptr;
       thd= 0;
     }
   }
@@ -224,7 +226,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
 
   DBUG_ASSERT(!thd || thd->locked_tables_mode ||
               !thd->mdl_context.has_locks() ||
-              thd->handler_tables_hash.records ||
+              !thd->handler_tables_hash.empty() ||
               thd->mdl_context.has_locks(MDL_key::USER_LEVEL_LOCK) ||
               thd->mdl_context.has_locks(MDL_key::LOCKING_SERVICE) ||
               thd->global_read_lock.is_acquired());

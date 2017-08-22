@@ -151,7 +151,7 @@ inline void* bapi_memdup(const void* source, size_t len)
   @param flags        flags to pass to MySQL server my_malloc functions
   @return Void pointer to the allocated chunk of memory
 */
-inline void * bapi_malloc(size_t size, int flags)
+inline void * bapi_malloc(size_t size, int flags MY_ATTRIBUTE((unused)))
 {
   void * dest= NULL;
 #ifdef HAVE_MYSYS

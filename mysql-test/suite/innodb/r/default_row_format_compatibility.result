@@ -62,7 +62,7 @@ SET GLOBAL innodb_default_row_format=Dynamic;
 SELECT @@innodb_default_row_format;
 @@innodb_default_row_format
 dynamic
-CREATE TABLE tab(a INT PRIMARY KEY, b VARCHAR(5000), KEY idx1(b(3070))) ENGINE= InnoDB;
+CREATE TABLE tab(a INT PRIMARY KEY, b VARCHAR(5000), KEY idx1(b(3070))) ENGINE= InnoDB charset latin1;
 INSERT INTO tab(a,b) VALUES(1,'Check with max column size');
 SELECT * FROM tab;
 a	b
@@ -78,7 +78,7 @@ SET GLOBAL innodb_default_row_format=Default;
 SELECT @@innodb_default_row_format;
 @@innodb_default_row_format
 dynamic
-CREATE TABLE tab(a INT PRIMARY KEY, b VARCHAR(5000), KEY idx1(b(767))) ENGINE= InnoDB;
+CREATE TABLE tab(a INT PRIMARY KEY, b VARCHAR(5000), KEY idx1(b(767))) ENGINE= InnoDB charset latin1;
 INSERT INTO tab(a,b) VALUES(1,'Check with max column size');
 SELECT * FROM tab;
 a	b

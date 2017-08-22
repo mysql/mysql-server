@@ -41,9 +41,12 @@ select _utf8mb4 0xD0B0D0B1D0B2 like concat(_utf8mb4'%',_utf8mb4 0xD0B1,_utf8mb4 
 # characters in case insensitive manner.
 # Case insensitive search LIKE comparison
 # was broken for multibyte characters:
+--character_set latin1
 select convert(_latin1'Günter André' using utf8mb4) like CONVERT(_latin1'GÜNTER%' USING utf8mb4);
+--character_set koi8r
 select CONVERT(_koi8r'×ÁÓÑ' USING utf8mb4) LIKE CONVERT(_koi8r'÷áóñ' USING utf8mb4);
 select CONVERT(_koi8r'÷áóñ' USING utf8mb4) LIKE CONVERT(_koi8r'×ÁÓÑ' USING utf8mb4);
+--character_set utf8mb4
 
 #
 # Check the following:
@@ -125,6 +128,7 @@ set LC_TIME_NAMES='en_US';
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 set names koi8r;
 eval create table t1 (s1 char(1) character set utf8mb4) engine $engine;
+--character_set koi8r
 insert into t1 values (_koi8r'ÁÂ');
 select s1,hex(s1),char_length(s1),octet_length(s1) from t1;
 drop table t1;
@@ -164,6 +168,7 @@ insert into t1 select repeat('ÑÑ',66000);
 --sorted_result
 select length(s1),char_length(s1) from t1;
 drop table t1;
+--character_set utf8mb4
 SET sql_mode = default;
 #
 # Bug #2368 Multibyte charsets do not check that incoming data is well-formed
@@ -1875,10 +1880,12 @@ DROP TABLE t2;
 # This should perhaps be changed to return ER_INVALID_CHARACTER_STRING
 eval CREATE TABLE t1 (utf8mb4 VARCHAR(10) CHARACTER SET utf8mb4) ENGINE $engine;
 INSERT INTO t1 VALUES (x'f48fbfbf');
+--character_set binary
 --error ER_CANT_AGGREGATE_2COLLATIONS
 SELECT CONCAT(utf8mb4, _utf8 '¿') FROM t1;
 --error ER_CANT_AGGREGATE_2COLLATIONS
 SELECT CONCAT('a', _utf8 '¿') FROM t1;
+--character_set utf8mb4
 DROP TABLE t1;
 
 --echo #

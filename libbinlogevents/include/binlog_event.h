@@ -157,9 +157,6 @@ const int64_t UNDEFINED_COMMIT_TIMESTAMP= MAX_COMMIT_TIMESTAMP_VALUE;
 #define FN_REFLEN       512     /* Max length of full path-name */
 #endif
 
-/* The number of event types need to be permuted. */
-static const unsigned int EVENT_TYPE_PERMUTATION_NUM= 23;
-
 /**
    Splits server 'version' string into three numeric pieces stored
    into 'split_versions':
@@ -266,6 +263,10 @@ enum Log_event_type
     - Fix Format_description_event::Format_description_event().
   */
   UNKNOWN_EVENT= 0,
+  /*
+    Deprecated since mysql 8.0.2. It is just a placeholder,
+    should not be used anywhere else.
+  */
   START_EVENT_V3= 1,
   QUERY_EVENT= 2,
   STOP_EVENT= 3,
@@ -366,7 +367,6 @@ enum Log_event_type
 #define ST_COMMON_HEADER_LEN_OFFSET (ST_CREATED_OFFSET + 4)
 
 #define LOG_EVENT_HEADER_LEN 19U    /* the fixed header length */
-#define OLD_HEADER_LEN       13U    /* the fixed header length in 3.23 */
 
 /**
    Fixed header length, where 4.x and 5.0 agree. That is, 5.0 may have a longer

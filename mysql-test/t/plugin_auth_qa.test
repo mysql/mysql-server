@@ -1,7 +1,6 @@
 # The numbers represent test cases of the test plan.
 
 --source include/have_plugin_auth.inc
---source include/not_embedded.inc
 
 CREATE DATABASE test_user_db;
 
@@ -217,7 +216,7 @@ DROP USER 'plüg_dest';
 SET NAMES utf8;
 # 
 --error ER_PLUGIN_IS_NOT_LOADED
-CREATE USER plüg IDENTIFIED WITH 'test_plügin_server' AS 'plüg_dest';
+CREATE USER plüg IDENTIFIED WITH 'test_pluggggin_server' AS 'plüg_dest';
 CREATE USER 'plüg' IDENTIFIED WITH 'test_plugin_server' AS 'plüg_dest';
 --source include/plugin_auth_check_non_default_users.inc
 DROP USER 'plüg';

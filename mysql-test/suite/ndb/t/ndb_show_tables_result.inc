@@ -11,8 +11,6 @@ let $show_cmd = $show_cmd --ndb-nodeid=255;  # fixed nodeid to avoid "steal"
 
 TRUNCATE ndb_show_tables_results;
 
-# needed for embedded
---chmod 0777 $dump_file
 eval LOAD DATA INFILE '$dump_file'
   INTO TABLE ndb_show_tables_results;
 --remove_file $dump_file

@@ -3,9 +3,6 @@
 # with right and wrong password, with and without database
 # Unfortunately the check is incomplete as we can't connect without database
 
-# This test makes no sense with the embedded server
---source include/not_embedded.inc
-
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
@@ -81,8 +78,8 @@ connect (fail_con,localhost,test,,);
 
 # remove user 'test' so that other tests which may use 'test'
 # do not depend on this test.
-delete from mysql.user where user=_binary"test";
-flush privileges;
+drop user test@localhost;
+drop user test@127.0.0.1;
 
 #
 # Bug#12517 Clear user variables and replication events before

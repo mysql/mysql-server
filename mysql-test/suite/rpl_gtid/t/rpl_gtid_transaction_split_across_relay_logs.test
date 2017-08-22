@@ -21,6 +21,9 @@
 # Problem happens only in gtid mode
 # Run only in row format
 --source include/have_binlog_format_row.inc
+# Test requires relay-log-info-repository = TABLE
+--source include/not_relay_log_info_file.inc
+
 # Disable auto position protocol
 --let use_gtids=0
 --let $rpl_skip_start_slave= 1

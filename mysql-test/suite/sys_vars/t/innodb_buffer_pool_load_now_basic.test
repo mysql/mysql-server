@@ -2,7 +2,6 @@
 # Basic test for innodb_buffer_pool_load_now
 #
 
--- source include/not_embedded.inc
 
 # Restart mysqld to ensure that the status variables below do not contain
 # stale value from previous executions of this or other tests. The following

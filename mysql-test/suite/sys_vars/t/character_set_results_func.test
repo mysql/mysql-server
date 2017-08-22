@@ -19,9 +19,6 @@
 #                                                                             #
 ###############################################################################
 
-# WL#7554: Added setting --bootstrap --character-set-server=latin1
-# in the opt file. This test should be migrated to utf8mb4.
-
 --echo '#--------------------FN_DYNVARS_012_01-------------------------#'
 #######################################################################
 # Check if setting character_set_results is changed in new connection # 
@@ -46,6 +43,8 @@ disconnect con1;
 #############################################################
 # Begin the functionality Testing of character_set_results  #
 #############################################################
+
+--character_set latin1
 
 --echo 'connection default'
 connection default;

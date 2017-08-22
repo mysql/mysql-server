@@ -1,0 +1,12 @@
+RESET MASTER;
+SET SESSION GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+CREATE TABLE t1 (a INT);
+SET SESSION GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2';
+DROP TABLE t1;
+SET @@SESSION.GTID_NEXT= 'AUTOMATIC';
+# run mysqlbinlog with a flag so that the OCT is not printed
+# to simulate a 5.7 mysqlbinlog
+RESET MASTER;
+# replay the transactions on the server
+include/assert.inc [The OCT is zero for GTID aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1]
+include/assert.inc [The OCT is zero for GTID aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2]

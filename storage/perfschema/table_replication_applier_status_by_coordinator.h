@@ -58,20 +58,20 @@ struct st_row_coordinator
 {
   char channel_name[CHANNEL_NAME_LENGTH];
   uint channel_name_length;
-  ulonglong thread_id;
+  ulonglong thread_id{0};
   bool thread_id_is_null;
   enum_rpl_yes_no service_state;
   uint last_error_number;
   char last_error_message[MAX_SLAVE_ERRMSG];
   uint last_error_message_length;
   ulonglong last_error_timestamp;
-  char last_processed_trx[Gtid::MAX_TEXT_LENGTH+1];
+  char last_processed_trx[Gtid::MAX_TEXT_LENGTH + 1];
   uint last_processed_trx_length;
   ulonglong last_processed_trx_original_commit_timestamp;
   ulonglong last_processed_trx_immediate_commit_timestamp;
   ulonglong last_processed_trx_start_buffer_timestamp;
   ulonglong last_processed_trx_end_buffer_timestamp;
-  char processing_trx[Gtid::MAX_TEXT_LENGTH+1];
+  char processing_trx[Gtid::MAX_TEXT_LENGTH + 1];
   uint processing_trx_length;
   ulonglong processing_trx_original_commit_timestamp;
   ulonglong processing_trx_immediate_commit_timestamp;
@@ -139,8 +139,9 @@ private:
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
-  /** Fields definition. */
-  static TABLE_FIELD_DEF m_field_def;
+  /** Table definition. */
+  static Plugin_table m_table_def;
+
   /** Current row */
   st_row_coordinator m_row;
   /** Current position. */
@@ -169,7 +170,7 @@ public:
 
   /** Table share. */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table *create();
+  static PFS_engine_table *create(PFS_engine_table_share *);
   static ha_rows get_row_count();
   virtual void reset_position(void);
 

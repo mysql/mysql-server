@@ -209,7 +209,12 @@ extern MY_UNI_CTYPE my_uni_ctype[256];
 #define MY_CS_LOADED    8      /* sets that are currently loaded */
 #define MY_CS_BINSORT	16     /* if binary sort order           */
 #define MY_CS_PRIMARY	32     /* if primary collation           */
-#define MY_CS_STRNXFRM	64     /* if strnxfrm is used for sort   */
+#define MY_CS_STRNXFRM	64     /*
+                                 if _not_ set, sort_order will
+                                 give same result as strnxfrm --
+                                 all new collations should have this
+                                 flag set, do not check it in new code
+                               */
 #define MY_CS_UNICODE	128    /* is a charset is BMP Unicode    */
 #define MY_CS_READY	256    /* if a charset is initialized    */
 #define MY_CS_AVAILABLE	512    /* If either compiled-in or loaded*/
@@ -308,7 +313,18 @@ typedef struct my_collation_handler_st
   size_t  (*strnxfrm)(const struct charset_info_st *,
                       uchar *dst, size_t dstlen, uint num_codepoints,
                       const uchar *src, size_t srclen, uint flags);
-  size_t    (*strnxfrmlen)(const struct charset_info_st *, size_t);
+
+  /**
+    Return the maximum number of output bytes needed for strnxfrm()
+    to output all weights for any string of the given input length.
+    You can use this to e.g. size buffers for sort keys.
+
+    @param num_bytes Number of bytes in the input string. Note that for
+      multibyte character sets, this _must_ be a pessimistic estimate,
+      ie., one that's cs->mbmaxlen * max_num_codepoints. So for e.g.
+      the utf8mb4 string "foo", you will need to give in 12, not 3.
+  */
+  size_t    (*strnxfrmlen)(const struct charset_info_st *, size_t num_bytes);
   bool (*like_range)(const struct charset_info_st *,
 		     const char *s, size_t s_length,
 		     char w_prefix, char w_one, char w_many,
@@ -512,6 +528,7 @@ typedef struct charset_info_st
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_bin;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_latin1;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_filename;
+extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_utf8mb4_0900_ai_ci;
 
 extern CHARSET_INFO my_charset_latin1_bin;
 extern CHARSET_INFO my_charset_utf32_unicode_ci;

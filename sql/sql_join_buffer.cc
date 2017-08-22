@@ -199,7 +199,7 @@ void JOIN_CACHE::calc_record_fields()
                            &used_fields, &used_fieldlength, &used_blobs,
                            &tab->used_null_fields, &tab->used_uneven_bit_fields);
     flag_fields+= tab->used_null_fields || tab->used_uneven_bit_fields;
-    flag_fields+= MY_TEST(tab->table()->is_nullable());
+    flag_fields+= tab->table()->is_nullable();
     fields+= used_fields;
     blobs+= used_blobs;
   }
@@ -1536,7 +1536,7 @@ void JOIN_CACHE::get_record_by_pos(uchar *rec_ptr)
 bool JOIN_CACHE::get_match_flag_by_pos(uchar *rec_ptr)
 {
   if (with_match_flag)
-    return MY_TEST(*rec_ptr);
+    return *rec_ptr != 0;
   if (prev_cache)
   {
     auto prev_rec_ptr= prev_cache->get_rec_ref(rec_ptr);
@@ -1779,7 +1779,7 @@ bool JOIN_CACHE::skip_record_if_match()
   if (prev_cache)
     offset+= prev_cache->get_size_of_rec_offset();
   /* Check whether the match flag is on */
-  if (MY_TEST(*(pos+offset)))
+  if (*(pos+offset) != 0)
   {
     pos+= size_of_rec_len + get_rec_length(pos);
     return TRUE;
@@ -2070,7 +2070,7 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
         reset_cache(false);
 
         /* Read each record from the join buffer and look for matches */
-        for (uint cnt= records - MY_TEST(skip_last) ; cnt; cnt--)
+        for (uint cnt= records - skip_last; cnt; cnt--)
         { 
           /* 
             If only the first match is needed and it has been already found for
@@ -2195,6 +2195,9 @@ enum_nested_loop_state JOIN_CACHE::generate_full_extensions(uchar *rec_ptr)
     if (!qep_tab->check_weed_out_table ||
         !(res= do_sj_dups_weedout(join->thd, qep_tab->check_weed_out_table)))
     {
+      // Set proper slice before going to the next qep_tab
+      Switch_ref_item_slice slice_switch(join, qep_tab->ref_item_slice);
+
       set_curr_rec_link(rec_ptr);
       rc= (qep_tab->next_select)(join, qep_tab + 1, 0);
       if (rc != NESTED_LOOP_OK)
@@ -2334,7 +2337,7 @@ enum_nested_loop_state JOIN_CACHE::join_null_complements(bool skip_last)
   if (!records)
     DBUG_RETURN(NESTED_LOOP_OK);
   
-  cnt= records - (is_key_access() ? 0 : MY_TEST(skip_last));
+  cnt= records - (is_key_access() ? 0 : skip_last);
 
   /* This function may be called only for inner tables of outer joins */ 
   DBUG_ASSERT(qep_tab->first_inner() != NO_PLAN_IDX);
@@ -2527,7 +2530,8 @@ bool bka_range_seq_skip_record(range_seq_t rseq, char *range_info, uchar*)
     return one of enum_nested_loop_state
 */
 
-enum_nested_loop_state JOIN_CACHE_BKA::join_matching_records(bool skip_last)
+enum_nested_loop_state JOIN_CACHE_BKA::
+join_matching_records(bool skip_last MY_ATTRIBUTE((unused)))
 {
   /* The value of skip_last must be always FALSE when this function is called */
   DBUG_ASSERT(!skip_last);
@@ -3400,8 +3404,8 @@ bool bka_unique_skip_index_tuple(range_seq_t rseq, char *range_info)
     return one of enum_nested_loop_state 
 */
 
-enum_nested_loop_state 
-JOIN_CACHE_BKA_UNIQUE::join_matching_records(bool skip_last)
+enum_nested_loop_state JOIN_CACHE_BKA_UNIQUE::
+join_matching_records(bool skip_last MY_ATTRIBUTE((unused)))
 {
   /* The value of skip_last must be always FALSE when this function is called */
   DBUG_ASSERT(!skip_last);

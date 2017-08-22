@@ -7,7 +7,7 @@
   Copyright Abandoned 1998 Irena Pancirov - Irnet Snc
   This file is public domain and comes with NO WARRANTY of any kind
 
-  Modifications copyright (c) 2000, 2015. Oracle and/or its affiliates.
+  Modifications copyright (c) 2000, 2017. Oracle and/or its affiliates.
   All rights reserved.
 */
 #include <windows.h>
@@ -512,7 +512,7 @@ BOOL NTService::IsService(LPCSTR ServiceName)
 }
 /* ------------------------------------------------------------------------
  -------------------------------------------------------------------------- */
-BOOL NTService::got_service_option(char **argv, char *service_option)
+BOOL NTService::got_service_option(char **argv, const char *service_option)
 {
   char *option;
   for (option= argv[1]; *option; option++)

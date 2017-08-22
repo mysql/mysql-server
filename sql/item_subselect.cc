@@ -88,7 +88,7 @@ Item_subselect::Item_subselect():
   used_tables_cache(0), have_to_be_excluded(0), const_item_cache(1),
   changed(false)
 {
-  with_subselect= 1;
+  set_subquery();
   reset();
   /*
     Item value is NULL if Query_result_interceptor didn't change this value
@@ -104,7 +104,7 @@ Item_subselect::Item_subselect(const POS &pos):
   used_tables_cache(0), have_to_be_excluded(0), const_item_cache(1),
   changed(false)
 {
-  with_subselect= 1;
+  set_subquery();
   reset();
   /*
     Item value is NULL if Query_result_interceptor didn't change this value
@@ -149,9 +149,9 @@ void Item_subselect::init(SELECT_LEX *select_lex,
                     CTX_NONE :
                     outer_select->parsing_place);
     if (unit->is_union() || unit->fake_select_lex)
-      engine= new subselect_union_engine(unit, result, this);
+      engine= new (*THR_MALLOC) subselect_union_engine(unit, result, this);
     else
-      engine= new subselect_single_select_engine(select_lex, result, this);
+      engine= new (*THR_MALLOC) subselect_single_select_engine(select_lex, result, this);
   }
   {
     SELECT_LEX *upper= unit->outer_select();
@@ -171,7 +171,7 @@ void Item_subselect::cleanup()
     if (engine)
     {
       engine->cleanup();
-      delete engine;
+      destroy(engine);
     }
     engine= old_engine;
     old_engine= 0;
@@ -376,7 +376,7 @@ bool Item_in_subselect::finalize_materialization_transform(JOIN *join)
   oto1.add("chosen", true);
 
   subselect_hash_sj_engine * const new_engine=
-    new subselect_hash_sj_engine(this, old_engine_derived);
+    new (*THR_MALLOC) subselect_hash_sj_engine(this, old_engine_derived);
   if (!new_engine)
     return true;
   if (new_engine->setup(unit->get_unit_column_types()))
@@ -386,7 +386,7 @@ bool Item_in_subselect::finalize_materialization_transform(JOIN *join)
       Delete all materialization-related objects, and return error.
     */
     new_engine->cleanup();
-    delete new_engine;
+    destroy(new_engine);
     return true;
   }
   if (change_engine(new_engine))
@@ -403,7 +403,7 @@ void Item_in_subselect::cleanup()
   if (left_expr_cache)
   {
     left_expr_cache->delete_elements();
-    delete left_expr_cache;
+    destroy(left_expr_cache);
     left_expr_cache= NULL;
   }
   left_expr_cache_filled= false;
@@ -436,7 +436,7 @@ void Item_in_subselect::cleanup()
 
 Item_subselect::~Item_subselect()
 {
-  delete engine;
+  destroy(engine);
 }
 
 
@@ -508,6 +508,12 @@ bool Item_subselect::fix_fields(THD *thd, Item **ref)
     if (uncacheable & UNCACHEABLE_RAND)
       used_tables_cache|= RAND_TABLE_BIT;
   }
+  /*
+    If this subquery references window functions, per the SQL standard they
+    are aggregated in the subquery's query block, and never outside of it, so:
+  */
+  DBUG_ASSERT(!has_wf());
+
   fixed= 1;
 
 err:
@@ -823,9 +829,14 @@ bool Item_subselect::const_item() const
 
 Item *Item_subselect::get_tmp_table_item(THD *thd_arg)
 {
-  if (!with_sum_func && !const_item())
-    return new Item_field(result_field);
-  return copy_or_same(thd_arg);
+  DBUG_ENTER("Item_subselect::get_tmp_table_item");
+  if (!has_aggregation() && !const_item())
+  {
+    Item *result= new Item_field(result_field);
+    DBUG_RETURN(result);
+  }
+  Item *result= copy_or_same(thd_arg);
+  DBUG_RETURN(result);
 }
 
 void Item_subselect::update_used_tables()
@@ -893,7 +904,7 @@ Item_singlerow_subselect::Item_singlerow_subselect(SELECT_LEX *select_lex)
   :Item_subselect(), value(0), no_rows(false)
 {
   DBUG_ENTER("Item_singlerow_subselect::Item_singlerow_subselect");
-  init(select_lex, new Query_result_scalar_subquery(current_thd, this));
+  init(select_lex, new (*THR_MALLOC) Query_result_scalar_subquery(current_thd, this));
   maybe_null= 1; // if the subquery is empty, value is NULL
   max_columns= UINT_MAX;
   DBUG_VOID_RETURN;
@@ -1103,9 +1114,9 @@ Item_maxmin_subselect::Item_maxmin_subselect(THD *thd_param,
 {
   DBUG_ENTER("Item_maxmin_subselect::Item_maxmin_subselect");
   max= max_arg;
-  init(select_lex, new Query_result_max_min_subquery(thd_param,
-                                                     this, max_arg,
-                                                     ignore_nulls));
+  init(select_lex,
+       new (*THR_MALLOC) Query_result_max_min_subquery(thd_param, this, max_arg,
+                                                       ignore_nulls));
   max_columns= 1;
   maybe_null= 1;
   max_columns= 1;
@@ -1169,7 +1180,8 @@ Item_singlerow_subselect::select_transformer(SELECT_LEX *select)
   if (!unit->is_union() &&
       !select->table_list.elements &&
       select->item_list.elements == 1 &&
-      !select->item_list.head()->with_sum_func &&
+      !select->item_list.head()->has_aggregation() &&
+      !select->item_list.head()->has_wf() &&
       /*
 	We cant change name of Item_field or Item_ref, because it will
 	prevent it's correct resolving, but we should save name of
@@ -1451,7 +1463,7 @@ Item_exists_subselect::Item_exists_subselect(SELECT_LEX *select):
      sj_convert_priority(0), embedding_join_nest(NULL)
 {
   DBUG_ENTER("Item_exists_subselect::Item_exists_subselect");
-  init(select, new Query_result_exists_subquery(current_thd, this));
+  init(select, new (*THR_MALLOC) Query_result_exists_subquery(current_thd, this));
   max_columns= UINT_MAX;
   null_value= FALSE; //can't be NULL
   maybe_null= 0; //can't be NULL
@@ -1487,7 +1499,7 @@ Item_in_subselect::Item_in_subselect(Item * left_exp,
   in2exists_info(NULL), pushed_cond_guards(NULL), upper_item(NULL)
 {
   DBUG_ENTER("Item_in_subselect::Item_in_subselect");
-  init(select, new Query_result_exists_subquery(current_thd, this));
+  init(select, new (*THR_MALLOC) Query_result_exists_subquery(current_thd, this));
   max_columns= UINT_MAX;
   maybe_null= 1;
   reset();
@@ -1521,7 +1533,7 @@ bool Item_in_subselect::itemize(Parse_context *pc, Item **res)
       pt_subselect->contextualize(pc))
     return true;
   SELECT_LEX *select_lex= pt_subselect->value();
-  init(select_lex, new Query_result_exists_subquery(pc->thd, this));
+  init(select_lex, new (*THR_MALLOC) Query_result_exists_subquery(pc->thd, this));
   if (test_limit())
     return true;
   return false;
@@ -1536,7 +1548,7 @@ Item_allany_subselect::Item_allany_subselect(Item * left_exp,
   DBUG_ENTER("Item_allany_subselect::Item_allany_subselect");
   left_expr= left_exp;
   func= func_creator(all_arg);
-  init(select, new Query_result_exists_subquery(current_thd, this));
+  init(select, new (*THR_MALLOC) Query_result_exists_subquery(current_thd, this));
   max_columns= 1;
   abort_on_null= 0;
   reset();
@@ -1831,7 +1843,8 @@ Item_in_subselect::single_value_transformer(SELECT_LEX *select,
     Item *subs;
     if (!select->group_list.elements &&
         !select->having_cond() &&
-        !select->with_sum_func &&
+        // MIN/MAX(agg_or_window_func) would not be valid
+        !select->with_sum_func && select->m_windows.elements == 0 &&
         !(select->next_select()) &&
         select->table_list.elements &&
         !(substype() == ALL_SUBS && subquery_maybe_null))
@@ -1970,7 +1983,7 @@ Item_in_subselect::single_value_transformer(SELECT_LEX *select,
     m_injected_left_expr= left;
 
     DBUG_ASSERT(in2exists_info == NULL);
-    in2exists_info= new In2exists_info;
+    in2exists_info= new (*THR_MALLOC) In2exists_info;
     in2exists_info->dependent_before= unit->uncacheable & UNCACHEABLE_DEPENDENT;
     if (!left_expr->const_item())
       unit->uncacheable|= UNCACHEABLE_DEPENDENT;
@@ -2048,7 +2061,7 @@ Item_in_subselect::single_value_in_to_exists_transformer(SELECT_LEX *select,
   in2exists_info->added_to_where= false;
 
   if (select->having_cond() || select->with_sum_func ||
-      select->group_list.elements)
+      select->group_list.elements || select->m_windows.elements > 0)
   {
     bool tmp;
     Item_bool_func *item=
@@ -2291,7 +2304,7 @@ Item_in_subselect::row_value_transformer(SELECT_LEX *select)
 
     thd->lex->set_current_select(select);
     DBUG_ASSERT(in2exists_info == NULL);
-    in2exists_info= new In2exists_info;
+    in2exists_info= new (*THR_MALLOC) In2exists_info;
     in2exists_info->dependent_before= unit->uncacheable & UNCACHEABLE_DEPENDENT;
     if (!left_expr->const_item())
       unit->uncacheable|= UNCACHEABLE_DEPENDENT;
@@ -2758,10 +2771,7 @@ bool Item_in_subselect::init_left_expr_cache()
     return false;
   }
 
-  JOIN *outer_join;
-  bool use_result_field= FALSE;
-
-  outer_join= unit->outer_select()->join;
+  JOIN *outer_join= unit->outer_select()->join;
   /*
     An IN predicate might be evaluated in a query for which all tables have
     been optimized away.
@@ -2772,29 +2782,13 @@ bool Item_in_subselect::init_left_expr_cache()
     return FALSE;
   }
 
-  /*
-    If we use end_[send | write]_group to handle complete rows of the outer
-    query, make the cache of the left IN operand use Item_field::result_field
-    instead of Item_field::field.  We need this because normally
-    Cached_item_field uses Item::field to fetch field data, while
-    copy_ref_key() that copies the left IN operand into a lookup key uses
-    Item::result_field. In the case end_[send | write]_group result_field is
-    one row behind field.
-  */
-  QEP_TAB *const qep_tab=
-    &outer_join->qep_tab[outer_join->primary_tables - 1];
-  Next_select_func end_select= qep_tab->next_select;
-  if (end_select == end_send_group || end_select == end_write_group)
-    use_result_field= TRUE;
-
-  if (!(left_expr_cache= new List<Cached_item>))
+  if (!(left_expr_cache= new  (*THR_MALLOC) List<Cached_item>))
     return TRUE;
 
   for (uint i= 0; i < left_expr->cols(); i++)
   {
     Cached_item *cur_item_cache= new_Cached_item(unit->thd,
-                                                 left_expr->element_index(i),
-                                                 use_result_field);
+                                                 left_expr->element_index(i));
     if (!cur_item_cache || left_expr_cache->push_front(cur_item_cache))
       return TRUE;
   }
@@ -3858,7 +3852,7 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
     managed (created/filled/etc) internally by the interceptor.
   */
   THD * const thd= item->unit->thd;
-  if (!(tmp_result_sink= new Query_result_union(thd)))
+  if (!(tmp_result_sink= new (*THR_MALLOC) Query_result_union(thd)))
     DBUG_RETURN(TRUE);
   if (tmp_result_sink->create_result_table(
                          thd, tmp_columns,
@@ -3950,7 +3944,7 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
   tmp_table_ref->table= tmp_table;
 
   /* Name resolution context for all tmp_table columns created below. */
-  Name_resolution_context *context= new Name_resolution_context;
+  Name_resolution_context *context= new (*THR_MALLOC) Name_resolution_context;
   context->init();
   context->first_name_resolution_table=
     context->last_name_resolution_table= tmp_table_ref;
@@ -3979,25 +3973,25 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
 
     if (tmp_table->hash_field)
       tab->ref().key_copy[part_no]=
-        new store_key_hash_item(thd, field,
-                           cur_ref_buff,
-                           0,
-                           field->pack_length(),
-                           tab->ref().items[part_no],
-                           &hash);
+        new (*THR_MALLOC) store_key_hash_item(thd, field,
+                                              cur_ref_buff,
+                                              0,
+                                              field->pack_length(),
+                                              tab->ref().items[part_no],
+                                              &hash);
     else
-      tab->ref().key_copy[part_no]=
-        new store_key_item(thd, field,
-                           /* TODO:
-                              the NULL byte is taken into account in
-                              key_parts[part_no].store_length, so instead of
-                              cur_ref_buff + test(maybe_null), we could
-                              use that information instead.
-                           */
-                           cur_ref_buff + (nullable ? 1 : 0),
-                           nullable ? cur_ref_buff : 0,
-                           key_parts[part_no].length,
-                           tab->ref().items[part_no]);
+      tab->ref().key_copy[part_no]= new (*THR_MALLOC)
+        store_key_item(thd, field,
+                       /* TODO:
+                          the NULL byte is taken into account in
+                          key_parts[part_no].store_length, so instead of
+                          cur_ref_buff + test(maybe_null), we could
+                          use that information instead.
+                        */
+                       cur_ref_buff + (nullable ? 1 : 0),
+                       nullable ? cur_ref_buff : 0,
+                       key_parts[part_no].length,
+                       tab->ref().items[part_no]);
     if (nullable &&          // nullable column in tmp table,
         // and UNKNOWN should not be interpreted as FALSE
         !item_in->is_top_level_item())

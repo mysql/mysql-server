@@ -8,7 +8,6 @@
 #                                                                                #
 ##################################################################################
 
--- source include/not_embedded.inc
 # Performance schema tracks prepared statements separately, and does not
 # yet have a summary view that we can use for this view.
 # Until then, we disable this test with --ps-protocol

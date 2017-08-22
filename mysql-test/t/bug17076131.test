@@ -3,7 +3,6 @@
 --echo #              DELETED ON WINDOWS
 --echo #
 
---source include/not_embedded.inc
 
 --echo # Creating file aliases.
 let $dump_with_err_log=$MYSQLTEST_VARDIR/tmp/bug17076131_with_err_log.sql;

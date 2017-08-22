@@ -19,7 +19,6 @@
 #                                                                              #
 ################################################################################
 
---source include/not_embedded.inc
 
 --echo '#--------------------FN_DYNVARS_037_01-------------------------#'
 ####################################################################
@@ -87,7 +86,7 @@ SELECT count(*) from t1;
 
 # clean up and restore
 DROP TABLE t1;
-SET @@global.local_infile = 1;
+SET @@global.local_infile = 0;
 ######################################################
 # Endo of functionality Testing for local_infile     #
 ######################################################

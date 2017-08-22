@@ -182,6 +182,8 @@ public:
     @param column_ordinal_position - Ordinal position of column in table.
     @param engine_name_ptr         - Engine of the table.
     @param se_private_id           - se_private_id of the table.
+    @param ts_se_private_data      - Tablespace SE private data.
+    @param tbl_se_private_data     - Table SE private data.
     @param stype                   - Enum specifying the stat we are
                                      interested to read.
 
@@ -195,6 +197,8 @@ public:
                       uint column_ordinal_position,
                       const String &engine_name_ptr,
                       dd::Object_id se_private_id,
+                      const char* ts_se_private_data,
+                      const char* tbl_se_private_data,
                       enum_statistics_type stype);
 
 
@@ -204,6 +208,8 @@ public:
                       const String &table_name_ptr,
                       const String &engine_name_ptr,
                       dd::Object_id se_private_id,
+                      const char* ts_se_private_data,
+                      const char* tbl_se_private_data,
                       enum_statistics_type stype)
   {
     const String tmp;
@@ -213,6 +219,8 @@ public:
                      tmp, 0, 0,
                      engine_name_ptr,
                      se_private_id,
+                     ts_se_private_data,
+                     tbl_se_private_data,
                      stype);
   }
 
@@ -243,6 +251,8 @@ private:
     @param index_ordinal_position  - Ordinal position of index in table.
     @param column_ordinal_position - Ordinal position of column in table.
     @param se_private_id           - se_private_id of the table.
+    @param ts_se_private_data      - Tablespace SE private data.
+    @param tbl_se_private_data     - Table SE private data.
     @param stype                   - Enum specifying the stat we are
                                      interested to read.
 
@@ -255,6 +265,8 @@ private:
                               uint index_ordinal_position,
                               uint column_ordinal_position,
                               dd::Object_id se_private_id,
+                              const char* ts_se_private_data,
+                              const char* tbl_se_private_data,
                               enum_statistics_type stype);
 
 

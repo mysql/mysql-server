@@ -14,7 +14,6 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 #ifndef TABLE_REPLICATION_APPLIER_FILTERS_H
 #define TABLE_REPLICATION_APPLIER_FILTERS_H
 
@@ -35,7 +34,8 @@
 #include "table_helper.h"
 
 /** A row in the table */
-struct st_row_applier_filters {
+struct st_row_applier_filters
+{
   /* The name of the channel */
   char channel_name[CHANNEL_NAME_LENGTH];
   uint channel_name_length;
@@ -73,7 +73,7 @@ struct st_row_applier_filters {
 };
 
 /** Table PERFORMANCE_SCHEMA.replication_applier_filters */
-class table_replication_applier_filters: public PFS_engine_table
+class table_replication_applier_filters : public PFS_engine_table
 {
 private:
   /**
@@ -81,12 +81,13 @@ private:
 
     @param rpl_pfs_filter a pointer to a Rpl_pfs_filter object.
   */
-  void make_row(Rpl_pfs_filter* rpl_pfs_filter);
+  void make_row(Rpl_pfs_filter *rpl_pfs_filter);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
-  /** Fields definition. */
-  static TABLE_FIELD_DEF m_field_def;
+  /** Table definition. */
+  static Plugin_table m_table_def;
+
   /** Current row */
   st_row_applier_filters m_row;
   /** True is the current row exists. */
@@ -118,7 +119,7 @@ public:
 
   /** Table share. */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
+  static PFS_engine_table *create(PFS_engine_table_share *);
   /**
     Get the table count.
 

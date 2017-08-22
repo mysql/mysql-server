@@ -1,7 +1,7 @@
 #ifndef ERRMSG_INCLUDED
 #define ERRMSG_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,7 +18,18 @@
 
 /**
   @file include/errmsg.h
+
   Error messages for MySQL clients.
+  These are constant and use the CR_ prefix.
+  <mysqlclient_ername.h> will contain auto-generated mappings
+  containing the symbolic name and the number from this file,
+  and the english error messages in libmysql/errmsg.c.
+
+  Dynamic error messages for the daemon are in share/language/errmsg.sys.
+  The server equivalent to <errmsg.h> is <mysqld_error.h>.
+  The server equivalent to <mysqlclient_ername.h> is <mysqld_ername.h>.
+
+  Note that the auth subsystem also uses codes with a CR_ prefix.
 */
 
 #ifdef	__cplusplus

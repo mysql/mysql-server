@@ -11,6 +11,7 @@ drop table if exists t1;
 --enable_warnings
 create table t1 (a varchar(255) character set latin2, b varchar(4));
 SET CHARACTER SET cp1250_latin2;
+--character_set latin2
 INSERT INTO t1 VALUES ('ŠŒ','80');
 INSERT INTO t1 VALUES ('šœŸ','90');
 INSERT INTO t1 VALUES ('£¥ª¯','A0');
@@ -19,6 +20,7 @@ INSERT INTO t1 VALUES ('ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏ','C0');
 INSERT INTO t1 VALUES ('ĞÑÒÓÔÕÖ×ØÙÚÛÜİŞß','D0');
 INSERT INTO t1 VALUES ('àáâãäåæçèéêëìíîï','E0');
 INSERT INTO t1 VALUES ('ğñòóôõö÷øùúûüışÿ','F0');
+--character_set utf8mb4
 select "--- on master ---";
 select hex(a),b from t1 order by b;
 --source include/sync_slave_sql_with_master.inc

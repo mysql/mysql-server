@@ -45,6 +45,7 @@
 #include "system_variables.h"
 #include "table.h"
 #include "thr_lock.h"
+#include "varlen_sort.h"
 
 static int rr_quick(READ_RECORD *info);
 static int rr_from_tempfile(READ_RECORD *info);
@@ -736,14 +737,6 @@ static int init_rr_cache(THD *thd, READ_RECORD *info)
 } /* init_rr_cache */
 
 
-static int rr_cmp(const void *p_ref_length, const void *a, const void *b)
-{
-  size_t ref_length= *(static_cast<size_t*>(const_cast<void*>(p_ref_length)));
-  DBUG_ASSERT(ref_length <= MAX_REFLENGTH);
-  return memcmp(a, b, ref_length);
-}
-
-
 static int rr_from_cache(READ_RECORD *info)
 {
   uint i;
@@ -793,8 +786,14 @@ static int rr_from_cache(READ_RECORD *info)
       ref_position+=3;
     }
     size_t ref_length= info->ref_length;
-    my_qsort2(info->read_positions, length, info->struct_length,
-              rr_cmp, &ref_length);
+    DBUG_ASSERT(ref_length <= MAX_REFLENGTH);
+    varlen_sort(info->read_positions,
+                info->read_positions + length * info->struct_length,
+                info->struct_length,
+                [ref_length](const uchar *a, const uchar *b)
+                {
+                  return memcmp(a, b, ref_length) < 0;
+                });
 
     position=info->read_positions;
     for (i=0 ; i < length ; i++)

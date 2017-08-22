@@ -1,5 +1,12 @@
 mysql-@DEB_PRODUCTNAME@ (@DEB_SERVERVERSION@@DEB_PLATFORMRELEASE@) @DEB_CODENAME@; urgency=low
 
+  [ Horst Hunger ]
+  * Added new test_string components/plugin to source/include-binaries, mysql-*-test.install
+  * added new plugin to source/include-binaries, mysql-*-test.install
+    component_test_string_service
+    component_test_string_service_chsarset
+    component_test_string_service_long
+
   [ Akhil Mohan ]
   * new upstream release
   * Added new libtest_* plugins to source/include-binaries, mysql-*-test.install

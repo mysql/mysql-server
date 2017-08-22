@@ -18,6 +18,7 @@
 #  - Assert check the events sequence in binlog of M2.
 # 6. Clean up.
 ################################################################################
+--source include/big_test.inc
 --source ../inc/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
 --source ../inc/group_replication.inc

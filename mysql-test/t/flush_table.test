@@ -7,8 +7,6 @@
 # Test needs MyISAM for few subtests
 --source include/have_myisam.inc
 
-# Should work in embedded server after mysqltest is fixed
--- source include/not_embedded.inc
 --disable_warnings
 drop table if exists t1,t2;
 --enable_warnings

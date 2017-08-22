@@ -7,8 +7,6 @@
 # See also BUG#32407.
 
 
-# BINLOG statement does not work in embedded mode.
-source include/not_embedded.inc;
 
 disable_warnings;
 DROP TABLE IF EXISTS t1;

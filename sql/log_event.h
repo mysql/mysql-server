@@ -620,6 +620,14 @@ public:
      event's type, and its content is distributed in the event-specific fields.
   */
   char *temp_buf;
+
+  /*
+    This variable determines whether the event is responsible for deallocating
+    the memory pointed by temp_buf. When set to true temp_buf is deallocated
+    and when it is set to false just make temp_buf point to NULL.
+  */
+  bool m_free_temp_buf_in_destructor;
+
   /* The number of seconds the query took to run on the master. */
   ulong exec_time;
 
@@ -879,6 +887,22 @@ public:
   {
     return common_header->type_code;
   }
+
+  /**
+    Return true if the event has to be logged using SBR for DMLs.
+  */
+  virtual bool is_sbr_logging_format() const
+  {
+    return false;
+  }
+  /**
+    Return true if the event has to be logged using RBR for DMLs.
+  */
+  virtual bool is_rbr_logging_format() const
+  {
+    return false;
+  }
+
   /*
    is_valid is event specific sanity checks to determine that the
     object is correctly initialized.
@@ -930,12 +954,17 @@ public:
             Log_event_footer *footer);
 
   virtual ~Log_event() { free_temp_buf(); }
-  void register_temp_buf(char* buf) { temp_buf = buf; }
+  void register_temp_buf(char* buf, bool free_in_destructor= true)
+  {
+    m_free_temp_buf_in_destructor= free_in_destructor;
+    temp_buf = buf;
+  }
   void free_temp_buf()
   {
     if (temp_buf)
     {
-      my_free(temp_buf);
+      if (m_free_temp_buf_in_destructor)
+        my_free(temp_buf);
       temp_buf = 0;
     }
   }
@@ -976,7 +1005,6 @@ public:
   {
     switch(get_type_code())
     {
-    case binary_log::START_EVENT_V3:
     case binary_log::STOP_EVENT:
     case binary_log::ROTATE_EVENT:
     case binary_log::SLAVE_EVENT:
@@ -1126,7 +1154,8 @@ public:
      @return     number of the filled intances indicating how many
                  databases the event accesses.
   */
-  virtual uint8 get_mts_dbs(Mts_db_names *arg, Rpl_filter *rpl_filter)
+  virtual uint8 get_mts_dbs(Mts_db_names *arg,
+                            Rpl_filter *rpl_filter MY_ATTRIBUTE((unused)))
   {
     arg->name[0]= get_db();
 
@@ -1180,6 +1209,16 @@ public:
      @see do_apply_event
    */
   int apply_event(Relay_log_info *rli);
+
+  /**
+     Apply the GTID event in curr_group_data to the database.
+
+     @param rli Pointer to coordinato's relay log info.
+
+     @retval 0 success
+     @retval 1 error
+  */
+  inline int apply_gtid_event(Relay_log_info *rli);
 
   /**
      Update the relay log position.
@@ -1481,7 +1520,7 @@ public:        /* !!! Public in this patch to allow old usage */
     If true, the event always be applied by slave SQL thread or be printed by
     mysqlbinlog
    */
-  bool is_trans_keyword()
+  bool is_trans_keyword() const
   {
     /*
       Before the patch for bug#50407, The 'SAVEPOINT and ROLLBACK TO'
@@ -1497,7 +1536,26 @@ public:        /* !!! Public in this patch to allow old usage */
     return !strncmp(query, "BEGIN", q_len) ||
       !strncmp(query, "COMMIT", q_len) ||
       !native_strncasecmp(query, "SAVEPOINT", 9) ||
-      !native_strncasecmp(query, "ROLLBACK", 8);
+      !native_strncasecmp(query, "ROLLBACK", 8) ||
+      !native_strncasecmp(query, STRING_WITH_LEN("XA START")) ||
+      !native_strncasecmp(query, STRING_WITH_LEN("XA END")) ||
+      !native_strncasecmp(query, STRING_WITH_LEN("XA PREPARE")) ||
+      !native_strncasecmp(query, STRING_WITH_LEN("XA COMMIT")) ||
+      !native_strncasecmp(query, STRING_WITH_LEN("XA ROLLBACK"));
+  }
+
+  /**
+    When a query log event contains a non-transaction control statement, we
+    assume that it is changing database content (DML) and was logged using
+    binlog_format=statement.
+
+    @return True the event represents a statement that was logged using SBR
+            that can change database content.
+            False for transaction control statements.
+  */
+  bool is_sbr_logging_format() const
+  {
+    return !is_trans_keyword();
   }
 
   /**
@@ -1532,70 +1590,6 @@ public:        /* !!! Public in this patch to allow old usage */
 };
 
 /**
-  @class Start_log_event_v3
-
-  Start_log_event_v3 is the Start_log_event of binlog format 3 (MySQL 3.23 and
-  4.x).
-
-  @internal
-  The inheritance structure in the current design for the classes is
-  as follows:
-                  Binary_log_event
-                        ^
-                        |
-                        |
-                Start_event_v3   Log_event
-                         \       /
-               <<virtual>>\     /
-                           \   /
-                       Start_log_event_v3
-  @endinternal
-*/
-class Start_log_event_v3: public virtual binary_log::Start_event_v3, public Log_event
-{
-public:
-#ifdef MYSQL_SERVER
-  Start_log_event_v3();
-  int pack_info(Protocol* protocol);
-#else
-  Start_log_event_v3()
-  : Log_event(header(), footer())
-  {
-  }
-
-  void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
-#endif
-
-  Start_log_event_v3(const char* buf, uint event_len,
-                     const Format_description_event* description_event);
-  ~Start_log_event_v3() {}
-#ifdef MYSQL_SERVER
-  bool write(IO_CACHE* file);
-#endif
-  size_t get_data_size()
-  {
-    return Binary_log_event::START_V3_HEADER_LEN; //no variable-sized part
-  }
-
-protected:
-#if defined(MYSQL_SERVER)
-  virtual int do_apply_event(Relay_log_info const *rli);
-  virtual enum_skip_reason do_shall_skip(Relay_log_info*)
-  {
-    /*
-      Events from ourself should be skipped, but they should not
-      decrease the slave skip counter.
-     */
-    if (this->server_id == ::server_id)
-      return Log_event::EVENT_SKIP_IGNORE;
-    else
-      return Log_event::EVENT_SKIP_NOT;
-  }
-#endif
-};
-
-
-/**
   @class Format_description_log_event
 
   For binlog version 4.
@@ -1606,32 +1600,22 @@ protected:
   @internal
   The inheritance structure in the current design for the classes is
   as follows:
-                         Binary_log_event
-                                 ^
-                                 |
-                                 |
-                                 |
-                Log_event  Start_event_v3
-                     ^            /\
-                     |           /  \
-                     |   <<vir>>/    \ <<vir>>
-                     |         /      \
-                     |        /        \
-                     |       /          \
-                Start_log_event_v3   Format_description_event
-                             \          /
-                              \        /
-                               \      /
-                                \    /
-                                 \  /
-                                  \/
-                       Format_description_log_event
+
+            Binary_log_event
+                   ^
+                   |
+                   |
+            Format_description_event  Log_event
+                               \       /
+                                \     /
+                                 \   /
+                    Format_description_log_event
   @endinternal
   @section Format_description_log_event_binary_format Binary Format
 */
 
 class Format_description_log_event: public Format_description_event,
-                                    public Start_log_event_v3
+                                    public Log_event
 {
 public:
   /*
@@ -1651,18 +1635,23 @@ public:
     decrement and increment are done by the single SQL thread.
   */
   std::atomic<int32> atomic_usage_counter{0};
-  Format_description_log_event(uint8_t binlog_ver, const char* server_ver=0);
+
+  Format_description_log_event();
   Format_description_log_event(const char* buf, uint event_len,
                                const Format_description_event
                                *description_event);
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);
+  int pack_info(Protocol* protocol);
+#else
+  void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
+
+
 
   bool header_is_valid() const
   {
-    return ((common_header_len >= ((binlog_version==1) ? OLD_HEADER_LEN :
-                                   LOG_EVENT_MINIMAL_HEADER_LEN)) &&
+    return ((common_header_len >= LOG_EVENT_MINIMAL_HEADER_LEN) &&
             (!post_header_len.empty()));
   }
 
@@ -1743,6 +1732,10 @@ public:
   bool write(IO_CACHE* file);
 #endif
 
+  bool is_sbr_logging_format() const
+  {
+    return true;
+  }
 private:
 #if defined(MYSQL_SERVER)
   virtual int do_apply_event(Relay_log_info const *rli);
@@ -1804,6 +1797,10 @@ class Rand_log_event: public binary_log::Rand_event, public Log_event
   bool write(IO_CACHE* file);
 #endif
 
+  bool is_sbr_logging_format() const
+  {
+    return true;
+  }
 private:
 #if defined(MYSQL_SERVER)
   virtual int do_apply_event(Relay_log_info const *rli);
@@ -2011,6 +2008,10 @@ public:
   void set_deferred(query_id_t qid) { deferred= true; query_id= qid; }
 #endif
 
+  bool is_sbr_logging_format() const
+  {
+    return true;
+  }
 private:
 #if defined(MYSQL_SERVER)
   virtual int do_apply_event(Relay_log_info const *rli);
@@ -2168,6 +2169,10 @@ public:
   const char* get_db() { return db; }
 #endif
 
+  bool is_sbr_logging_format() const
+  {
+    return true;
+  }
 private:
 #if defined(MYSQL_SERVER)
   virtual int do_apply_event(Relay_log_info const *rli);
@@ -2226,6 +2231,10 @@ public:
   const char* get_db() { return db; }
 #endif
 
+  bool is_sbr_logging_format() const
+  {
+    return true;
+  }
 private:
 #if defined(MYSQL_SERVER)
   virtual int do_apply_event(Relay_log_info const *rli);
@@ -2356,6 +2365,10 @@ public:
   bool write_post_header_for_derived(IO_CACHE* file);
 #endif
 
+  bool is_sbr_logging_format() const
+  {
+    return true;
+  }
 private:
 #if defined(MYSQL_SERVER)
   virtual int do_apply_event(Relay_log_info const *rli);
@@ -2574,6 +2587,10 @@ public:
                          const Optional_metadata_fields &fields);
 #endif
 
+  bool is_rbr_logging_format() const
+  {
+    return true;
+  }
 
 private:
 #if defined(MYSQL_SERVER)
@@ -3027,6 +3044,10 @@ private:
   }
 #endif
 
+  bool is_rbr_logging_format() const
+  {
+    return true;
+  }
 private:
 
 #if defined(MYSQL_SERVER)
@@ -3577,6 +3598,8 @@ public:
     return Binary_log_event::INCIDENT_HEADER_LEN + 1 + message_length;
   }
 
+  virtual bool ends_group() const { return true; }
+
 private:
   const char *description() const;
 };
@@ -3793,6 +3816,7 @@ public:
   */
   Gtid_log_event(THD *thd_arg, bool using_trans,
                  int64 last_committed_arg, int64 sequence_number_arg,
+                 bool may_have_sbr_stmts_arg,
                  ulonglong original_commit_timestamp_arg,
                  ulonglong immediate_commit_timestamp_arg);
 
@@ -3802,6 +3826,7 @@ public:
   */
   Gtid_log_event(uint32 server_id_arg, bool using_trans,
                  int64 last_committed_arg, int64 sequence_number_arg,
+                 bool may_have_sbr_stmts_arg,
                  ulonglong original_commit_timestamp_arg,
                  ulonglong immediate_commit_timestamp_arg,
                  const Gtid_specification spec_arg);
@@ -3818,7 +3843,14 @@ public:
   size_t get_data_size()
   {
     DBUG_EXECUTE_IF("do_not_write_rpl_timestamps", return POST_HEADER_LENGTH;);
-    return POST_HEADER_LENGTH + get_commit_timestamp_length();
+    return POST_HEADER_LENGTH +
+           get_commit_timestamp_length() +
+           net_length_size(transaction_length);
+  }
+
+  size_t get_event_length()
+  {
+    return LOG_EVENT_HEADER_LEN + get_data_size();
   }
 
 private:
@@ -3970,6 +4002,29 @@ private:
   Gtid_specification spec;
   /// SID for this GTID.
   rpl_sid sid;
+public:
+  /**
+    Set the transaction length information based on binlog cache size.
+
+    Note that is_checksum_enabled and event_counter are optional parameters.
+    When not specified, the function will assume that no checksum will be used
+    and the informed cache_size is the final transaction size without
+    considering the GTID event size.
+
+    The high level formula that will be used by the function is:
+
+    trx_length = cache_size +
+                 cache_checksum_active * cache_events * CRC32_payload +
+                 gtid_length +
+                 cache_checksum_active * CRC32_payload; // For the GTID.
+
+    @param cache_size The size of the binlog cache in bytes.
+    @param is_checksum_enabled If checksum will be added to events on flush.
+    @param event_counter The amount of events in the cache.
+  */
+  void set_trx_length_by_cache_size(ulonglong cache_size,
+                                    bool is_checksum_enabled= false,
+                                    int event_counter= 0);
 };
 
 /**

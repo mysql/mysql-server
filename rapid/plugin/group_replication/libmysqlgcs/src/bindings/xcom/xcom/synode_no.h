@@ -16,32 +16,34 @@
 #ifndef SYNODE_NO_H
 #define SYNODE_NO_H
 
+#include "xcom_common.h"
+
 #include "xdr_utils.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-
-#define FILENAME_SYNODE_FMT "%x_%llu_%u"
+#define FILENAME_SYNODE_FMT "%x_%PRIu64%u"
 #define FILENAME_SYNODE_MEM(x) SY_MEM(x)
-#define NULL_SYNODE {0ul,0ull,0ull}
+#define NULL_SYNODE \
+  { 0ul, 0ull, 0ull }
 #define SY_FMT "{" SY_FMT_DEF "}"
-#define SY_FMT_DEF "%x %llu %u"
-#define SY_MEM(s) (s).group_id, (long long unsigned int)(s).msgno, (s).node
+#define SY_FMT_DEF "%x %" PRIu64 " %u"
+#define SY_MEM(s) (s).group_id, (uint64_t)(s).msgno, (s).node
 
 d_xdr_funcs(synode_no)
 
-int	synode_eq(synode_no x, synode_no y);
-int	synode_gt(synode_no x, synode_no y);
-int	synode_lt(synode_no x, synode_no y);
+    int synode_eq(synode_no x, synode_no y);
+int synode_gt(synode_no x, synode_no y);
+int synode_lt(synode_no x, synode_no y);
 static const synode_no null_synode = NULL_SYNODE;
-synode_no vp_count_to_synode(u_long high, u_long low, node_no nodeid, uint32_t groupid);
-void	add_synode_event(synode_no const synode);
+synode_no vp_count_to_synode(u_long high, u_long low, node_no nodeid,
+                             uint32_t groupid);
+void add_synode_event(synode_no const synode);
 
 #ifdef __cplusplus
 }
 #endif
 
 #endif
-

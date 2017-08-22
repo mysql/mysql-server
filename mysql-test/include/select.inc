@@ -1779,12 +1779,8 @@ select period as "Nuvarande period" from t1 group by "Nuvarande period" limit 1;
 show tables;
 show tables from test like "s%";
 show tables from test like "t?";
-# We mask out the Privileges column because it differs with embedded server
---replace_column 8 #
 show full columns from t2;
---replace_column 8 #
 show full columns from t2 from test like 'f%';
---replace_column 8 #
 show full columns from t2 from test like 's%';
 analyze table t2;
 show keys from t2;
@@ -3378,7 +3374,7 @@ DROP TABLE t1,t2;
 CREATE TABLE t1 (
  access_id int NOT NULL default '0',
  name varchar(20) default NULL,
- rank int NOT NULL default '0',
+ `rank` int NOT NULL default '0',
  KEY idx (access_id)
 );
 

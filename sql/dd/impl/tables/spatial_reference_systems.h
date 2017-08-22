@@ -18,12 +18,12 @@
 
 #include <string>
 
-#include "dd/impl/types/dictionary_object_table_impl.h" // dd::Dictionary_obj...
+#include "dd/impl/types/entity_object_table_impl.h"
 #include "dd/object_id.h"
+#include "dd/types/spatial_reference_system.h"
 
 namespace dd {
 
-class Dictionary_object;
 class Item_name_key;
 class Object_key;
 class Raw_record;
@@ -32,7 +32,7 @@ namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Spatial_reference_systems : public Dictionary_object_table_impl
+class Spatial_reference_systems : public Entity_object_table_impl
 {
 public:
   static const Spatial_reference_systems &instance();
@@ -61,7 +61,8 @@ public:
   virtual const String_type &name() const
   { return Spatial_reference_systems::table_name(); }
 
-  virtual Dictionary_object *create_dictionary_object(const Raw_record &) const;
+  virtual Spatial_reference_system*
+    create_entity_object(const Raw_record &) const;
 
   static bool update_object_key(Item_name_key *key,
                                 Object_id catalog_id,

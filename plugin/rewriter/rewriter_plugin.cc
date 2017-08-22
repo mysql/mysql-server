@@ -16,13 +16,14 @@
 
 #include "my_config.h"
 
-#include <my_atomic.h>
 #include <my_sys.h>
 #include <mysql/plugin_audit.h>
 #include <mysql/psi/mysql_thread.h>
 #include <mysql/service_my_plugin_log.h>
 #include <stddef.h>
+
 #include <algorithm>
+#include <atomic>
 #include <new>
 
 #include "my_dbug.h"
@@ -70,7 +71,7 @@ static Rewriter* rewriter;
 ///@{
 
 /// Number of queries that were rewritten.
-static long long status_var_number_rewritten_queries;
+static std::atomic<long long> status_var_number_rewritten_queries;
 
 /// Indicates if there was an error during the last reload.
 static bool status_var_reload_error;
@@ -183,6 +184,7 @@ mysql_declare_plugin(audit_log)
     " parse tree.",                 /* description                   */
     PLUGIN_LICENSE_GPL,             /* license                       */
     rewriter_plugin_init,           /* plugin initializer            */
+    NULL,                           /* plugin check uninstall        */
     rewriter_plugin_deinit,         /* plugin deinitializer          */
     0x0002,                         /* version                       */
     rewriter_plugin_status_vars,    /* status variables              */
@@ -340,8 +342,10 @@ static void log_nonrewritten_query(MYSQL_THD thd, const uchar *digest_buf,
   query when the plugin is active. The function extracts the digest of the
   query. If the digest matches an existing rewrite rule, it is executed.
 */
-static int rewrite_query_notify(MYSQL_THD thd, mysql_event_class_t event_class,
-                                 const void *event)
+static
+int rewrite_query_notify(MYSQL_THD thd,
+                         mysql_event_class_t event_class MY_ATTRIBUTE((unused)),
+                         const void *event)
 {
   DBUG_ASSERT(event_class == MYSQL_AUDIT_PARSE_CLASS);
 
@@ -390,7 +394,7 @@ static int rewrite_query_notify(MYSQL_THD thd, mysql_event_class_t event_class,
                             "Rewritten query failed to parse:%s\n",
                             mysql_parser_get_query(thd).str);
 
-    my_atomic_add64(&status_var_number_rewritten_queries, 1);
+    ++status_var_number_rewritten_queries;
   }
 
   return 0;

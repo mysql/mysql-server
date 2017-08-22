@@ -81,6 +81,9 @@ private:
   void enumerate_table_triggers(const Table& table,
     Abstract_dump_task* dependency);
 
+  void enumerate_column_statistics(const Table& table,
+    Abstract_dump_task* dependency);
+
   void enumerate_views(const Database& db);
 
   template<typename TObject>void enumerate_functions(

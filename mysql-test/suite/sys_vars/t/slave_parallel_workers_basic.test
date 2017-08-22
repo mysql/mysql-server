@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 
 let $var= slave_parallel_workers;
 eval set @save.$var= @@global.$var;

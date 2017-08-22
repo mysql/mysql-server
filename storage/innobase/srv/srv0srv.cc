@@ -73,6 +73,13 @@ Created 10/8/1995 Heikki Tuuri
 #include "ut0crc32.h"
 #include "ut0mem.h"
 
+#ifdef INNODB_DD_TABLE
+/* true when upgrading. */
+bool	srv_is_upgrade_mode = false;
+bool	srv_downgrade_logs = false;
+bool	srv_upgrade_old_undo_found = false;
+#endif /* INNODB_DD_TABLE */
+
 /* The following is the maximum allowed duration of a lock wait. */
 ulint	srv_fatal_semaphore_wait_threshold = 600;
 
@@ -104,14 +111,17 @@ char*	srv_undo_dir = NULL;
 /** The number of tablespaces to use for rollback segments. */
 ulong	srv_undo_tablespaces = 0;
 
-/* The number of rollback segments to use for durable,
-redo-logged, non-temporary transactions */
-ulong	srv_rollback_segments = 1;
+/* The number of rollback segments per tablespace */
+ulong	srv_rollback_segments = TRX_SYS_N_RSEGS;
 
-/** The number of rollback segments to use for non-durable,
-non-redo-logged, temporary transactions. These logs reside in the
-temp tablespace.*/
-ulong	srv_tmp_rollback_segments = TRX_SYS_OLD_TMP_RSEGS;
+/* Used for the deprecated setting innodb_undo_logs. This will still get
+put into srv_rollback_segments if it is set to a non-default value. */
+ulong	srv_undo_logs = 0;
+const char* deprecated_undo_logs =
+	"The parameter innodb_undo_logs is deprecated"
+	" and may be removed in future releases."
+	" Please use innodb_rollback_segments instead."
+	" See " REFMAN "innodb-undo-logs.html";
 
 /** Rate at which UNDO records should be purged. */
 ulong	srv_purge_rseg_truncate_frequency = 128;
@@ -137,6 +147,7 @@ const page_no_t SRV_UNDO_TABLESPACE_SIZE_IN_PAGES =
 recovery and open all tables in RO mode instead of RW mode. We don't
 sync the max trx id to disk either. */
 bool	srv_read_only_mode;
+
 /** store to its own file each table created by an user; data
 dictionary tables are in the system tablespace 0 */
 bool	srv_file_per_table;
@@ -379,7 +390,6 @@ static ulint		srv_n_rows_deleted_old		= 0;
 static ulint		srv_n_rows_read_old		= 0;
 
 ulint	srv_truncated_status_writes	= 0;
-ulint	srv_available_rollback_segments	= 0;
 
 /* Set the following to 0 if you want InnoDB to write messages on
 stderr on startup/shutdown. */
@@ -1457,9 +1467,6 @@ srv_export_innodb_status(void)
 	export_vars.innodb_truncated_status_writes =
 		srv_truncated_status_writes;
 
-	export_vars.innodb_available_undo_logs =
-		srv_available_rollback_segments;
-
 #ifdef UNIV_DEBUG
 	rw_lock_s_lock(&purge_sys->latch);
 	trx_id_t	up_limit_id;
@@ -2202,6 +2209,7 @@ srv_master_do_shutdown_tasks(
 func_exit:
 	/* Make a new checkpoint about once in 10 seconds */
 	srv_main_thread_op_info = "making checkpoint";
+
 	log_checkpoint(TRUE, FALSE);
 
 	/* Print progress message every 60 seconds during shutdown */
@@ -2221,169 +2229,179 @@ void
 srv_enable_undo_encryption_if_set()
 {
 	fil_space_t*	space;
-	ulint		space_id;
+	const char*	cant_set_undo_tablespace = "Can't set undo tablespace";
+	const char*	to_be_encrypted = " to be encrypted";
 
 	if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
 		return;
 	}
 
-	/* Check encryption for undo log is enabled or not. If it's
-	enabled, we will store the encryption metadata to space header and
-	start to encrypt the undo log block from now on. */
+	/* Check if encryption for undo log is enabled or not. If it's
+	enabled, we will store the encryption metadata to the space header
+	and start to encrypt the undo log block from now on. */
 	if (srv_undo_log_encrypt) {
-		if (trx_sys_undo_spaces->size() == 0) {
+		if (undo::spaces->empty()) {
 			srv_undo_log_encrypt = false;
-			ib::error() << "Can't set undo log tablespace"
-				<< " to be encrypted, since it is a"
-				<< " shared tablespace.";
+			ib::error() << cant_set_undo_tablespace << "s"
+				<< to_be_encrypted
+				<< ", since innodb_undo_tablespaces=0.";
 			return;
 		}
 
 		if (srv_read_only_mode) {
 			srv_undo_log_encrypt = false;
-			ib::error() << "Can't set undo log tablespace to be"
-				<< " encrypted in read-only mode.";
+			ib::error() << cant_set_undo_tablespace << "s"
+				<< to_be_encrypted
+				<< " in read-only mode.";
 			return;
 		}
 
-		Space_Ids::iterator it;
-		for (it = trx_sys_undo_spaces->begin();
-		     it != trx_sys_undo_spaces->end(); it++) {
-
-			space_id = *it;
+		undo::spaces->s_lock();
+		for (auto undo_space : undo::spaces->m_spaces) {
 
 			/* Skip system tablespace, since it's also shared
 			tablespace. */
-			if (space_id == TRX_SYS_SPACE) {
+			if (undo_space->id() == TRX_SYS_SPACE) {
 				continue;
 			}
 
-			space = fil_space_get(space_id);
-			ut_ad(fsp_is_undo_tablespace(space_id));
+			space = fil_space_get(undo_space->id());
+			ut_ad(fsp_is_undo_tablespace(undo_space->id()));
 
 			ulint	new_flags =
 				space->flags | FSP_FLAGS_MASK_ENCRYPTION;
 
 			/* We need the server_uuid initialized, otherwise,
 			the keyname will not contains server uuid. */
-			if (!FSP_FLAGS_GET_ENCRYPTION(space->flags)
-			    && strlen(server_uuid) > 0) {
-				dberr_t err;
-				mtr_t	mtr;
-				byte	encrypt_info[ENCRYPTION_INFO_SIZE_V2];
-				byte	key[ENCRYPTION_KEY_LEN];
-				byte	iv[ENCRYPTION_KEY_LEN];
+			if (FSP_FLAGS_GET_ENCRYPTION(space->flags)
+			    || strlen(server_uuid) == 0) {
+				continue;
+			}
 
-				Encryption::random_value(key);
-				Encryption::random_value(iv);
+			dberr_t err;
+			mtr_t	mtr;
+			byte	encrypt_info[ENCRYPTION_INFO_SIZE_V2];
+			byte	key[ENCRYPTION_KEY_LEN];
+			byte	iv[ENCRYPTION_KEY_LEN];
 
-				mtr_start(&mtr);
-				mtr.set_named_space(space->id);
+			Encryption::random_value(key);
+			Encryption::random_value(iv);
 
-				space = mtr_x_lock_space(space->id,
-							 &mtr);
-				memset(encrypt_info, 0,
-				       ENCRYPTION_INFO_SIZE_V2);
+			mtr_start(&mtr);
 
-				if (!Encryption::fill_encryption_info(
-						key, iv,
-						encrypt_info, false)) {
+			mtr_x_lock_space(space, &mtr);
+
+			memset(encrypt_info, 0,
+			       ENCRYPTION_INFO_SIZE_V2);
+
+			if (!Encryption::fill_encryption_info(
+					key, iv,
+					encrypt_info, false)) {
+				srv_undo_log_encrypt = false;
+				ib::error() << cant_set_undo_tablespace
+					<< " number " << undo_space->num()
+					<< to_be_encrypted << ".";
+				mtr_commit(&mtr);
+				undo::spaces->s_unlock();
+				return;
+			} else {
+				if (!fsp_header_write_encryption(
+						space->id,
+						new_flags,
+						encrypt_info,
+						true,
+						&mtr)) {
 					srv_undo_log_encrypt = false;
-					ib::error() << "Can't set undo log"
-						<< " tablespace to be"
-						<< " encrypted.";
+					ib::error() << cant_set_undo_tablespace
+						<< " number "
+						<< undo_space->num()
+						<< to_be_encrypted
+						<< ". Failed to write header"
+						<< " page.";
 					mtr_commit(&mtr);
+					undo::spaces->s_unlock();
+					return;
+				}
+				space->flags |=
+					FSP_FLAGS_MASK_ENCRYPTION;
+				err = fil_set_encryption(
+					space->id, Encryption::AES,
+					key, iv);
+				if (err != DB_SUCCESS) {
+					srv_undo_log_encrypt = false;
+					ib::error() << cant_set_undo_tablespace
+						<< " number "
+						<< undo_space->num()
+						<< to_be_encrypted
+						<< ". Error=" << err << ".";
+					mtr_commit(&mtr);
+					undo::spaces->s_unlock();
 					return;
 				} else {
-					if (!fsp_header_write_encryption(
-							space->id,
-							new_flags,
-							encrypt_info,
-							true,
-							&mtr)) {
-						srv_undo_log_encrypt = false;
-						ib::error() << "Can't set"
-							<< " undo log"
-							<< " tablespace to be"
-							<< " encrypted.";
-						mtr_commit(&mtr);
-						return;
-					}
-					space->flags |=
-						FSP_FLAGS_MASK_ENCRYPTION;
-					err = fil_set_encryption(
-						space->id, Encryption::AES,
-						key, iv);
-					if (err != DB_SUCCESS) {
-						srv_undo_log_encrypt = false;
-						ib::warn() << "Can't set undo"
-							<< " log tablespace"
-							<< " to be encrypted.";
-						mtr_commit(&mtr);
-						return;
-					} else {
-						ib::info() << "Undo log"
-							<< " encryption is"
-							<< " enabled.";
+					ib::info() << "Encryption is enabled"
+					" for undo tablespace number "
+					<< undo::id2num(undo_space->id()) << ".";
 #ifdef UNIV_ENCRYPT_DEBUG
-						ut_print_buf(stderr, key, 32);
-						ut_print_buf(stderr, iv, 32);
+					ut_print_buf(stderr, key, 32);
+					ut_print_buf(stderr, iv, 32);
 #endif
-					}
 				}
-				mtr_commit(&mtr);
 			}
+			mtr_commit(&mtr);
 		}
+		undo::spaces->s_unlock();
 
-	} else {
-		Space_Ids::iterator it;
-		for (it = trx_sys_undo_spaces->begin();
-		     it != trx_sys_undo_spaces->end(); it++) {
-
-			space_id = *it;
-			ut_ad(fsp_is_undo_tablespace(space_id));
-
-			space = fil_space_get(space_id);
-			ut_ad(space);
-
-			/* If the undo log space is using default key, rotate
-			it. We need the server_uuid initialized, otherwise,
-			the keyname will not contains server uuid. */
-			if (space->encryption_type != Encryption::NONE
-			    && Encryption::master_key_id == 0
-			    && !srv_read_only_mode
-			    && strlen(server_uuid) > 0) {
-				byte	encrypt_info[ENCRYPTION_INFO_SIZE_V2];
-				mtr_t	mtr;
-
-				ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
-
-				mtr_start(&mtr);
-				mtr.set_named_space(space->id);
-
-				space = mtr_x_lock_space(space->id,
-							 &mtr);
-
-				memset(encrypt_info, 0,
-				       ENCRYPTION_INFO_SIZE_V2);
-
-				if (!fsp_header_rotate_encryption(
-						space,
-						encrypt_info,
-						&mtr)) {
-					ib::error() << "Can't set"
-						<< " undo log"
-						<< " tablespace to be"
-						<< " encrypted.";
-				} else {
-					ib::info() << "Undo log"
-						<< " encryption is"
-						<< " enabled.";
-				}
-				mtr_commit(&mtr);
-			}
-		}
+		return;
 	}
+
+	/* If the undo log space is using default key, rotate
+	it. We need the server_uuid initialized, otherwise,
+	the keyname will not contains server uuid. */
+	if (Encryption::master_key_id != 0
+	    || srv_read_only_mode
+	    || strlen(server_uuid) == 0) {
+		return;
+	}
+
+	undo::spaces->s_lock();
+	for (auto undo_space : undo::spaces->m_spaces) {
+
+		ut_ad(fsp_is_undo_tablespace(undo_space->id()));
+
+		space = fil_space_get(undo_space->id());
+		ut_ad(space);
+
+		if (space->encryption_type == Encryption::NONE) {
+			continue;
+		}
+
+		byte	encrypt_info[ENCRYPTION_INFO_SIZE_V2];
+		mtr_t	mtr;
+
+		ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
+
+		mtr_start(&mtr);
+
+		mtr_x_lock_space(space, &mtr);
+
+		memset(encrypt_info, 0,
+		       ENCRYPTION_INFO_SIZE_V2);
+
+		if (!fsp_header_rotate_encryption(
+				space,
+				encrypt_info,
+				&mtr)) {
+			ib::error() << "Can't rotate encryption on undo"
+				" tablespace number "
+				<< undo::id2num(space->id) << ".";
+		} else {
+			ib::info() << "Encryption is enabled"
+				" for undo tablespace number "
+				<< undo::id2num(space->id) << ".";
+		}
+		mtr_commit(&mtr);
+	}
+	undo::spaces->s_unlock();
 }
 
 /*********************************************************************//**
@@ -2411,6 +2429,8 @@ srv_master_thread()
 	ib_time_t	last_print_time;
 
 	my_thread_init();
+
+	THD*	thd = create_thd(false, true, true, 0);
 
 	ut_ad(!srv_read_only_mode);
 
@@ -2470,6 +2490,7 @@ suspend_thread:
 		goto loop;
 	}
 
+	destroy_thd(thd);
 	my_thread_end();
 }
 
@@ -2549,8 +2570,9 @@ srv_worker_thread()
 
 #ifdef UNIV_PFS_THREAD
 	THD*	thd = create_thd(false, true, true, srv_worker_thread_key.m_value);
-#endif /* UNIV_PFS_THREAD */
-
+#else
+	THD*	thd = create_thd(false, true, true, 0);
+#endif
 	slot = srv_reserve_slot(SRV_WORKER);
 
 	ut_a(srv_n_purge_threads > 1);
@@ -2592,9 +2614,7 @@ srv_worker_thread()
 
 	rw_lock_x_unlock(&purge_sys->latch);
 
-#ifdef UNIV_PFS_THREAD
 	destroy_thd(thd);
-#endif /* UNIV_PFS_THREAD */
 
 	my_thread_end();
 }
@@ -2798,7 +2818,10 @@ srv_purge_coordinator_thread()
 #ifdef UNIV_PFS_THREAD
 	THD*	thd = create_thd(false, true, true,
 				 srv_purge_thread_key.m_value);
-#endif /* UNIV_PFS_THREAD */
+#else
+	THD*	thd = create_thd(false, true, true, 0);
+#endif
+
 	ulint	n_total_purged = ULINT_UNDEFINED;
 
 	my_thread_init();
@@ -2886,9 +2909,9 @@ srv_purge_coordinator_thread()
 
 	purge_sys->state = PURGE_STATE_EXIT;
 
-	/* If there are any pending undo-tablespace truncate then clear
-	it off as we plan to shutdown the purge thread. */
-	purge_sys->undo_trunc.clear();
+	/* Clear out any pending undo-tablespaces to truncate and reset
+	the list as we plan to shutdown the purge thread. */
+	purge_sys->undo_trunc.reset();
 
 	purge_sys->running = false;
 
@@ -2899,9 +2922,7 @@ srv_purge_coordinator_thread()
 		srv_release_threads(SRV_WORKER, srv_n_purge_threads - 1);
 	}
 
-#ifdef UNIV_PFS_THREAD
 	destroy_thd(thd);
-#endif /* UNIV_PFS_THREAD */
 
 	my_thread_end();
 }

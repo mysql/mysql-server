@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,7 +36,7 @@ namespace dd {
 // Table_stat implementation.
 ///////////////////////////////////////////////////////////////////////////
 
-const Dictionary_object_table &Table_stat::OBJECT_TABLE()
+const Entity_object_table &Table_stat::OBJECT_TABLE()
 {
   return Table_stats::instance();
 }

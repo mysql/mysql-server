@@ -2,16 +2,6 @@ source include/not_valgrind.inc;
 source include/have_memcached_plugin.inc;
 source include/not_windows.inc;
 
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs5=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-alter schema test default character set latin1;
-use test;
---enable_query_log
-########################################
-
 # This is a test on max daemon_memcached_w_batch_size configure option (1048576)
 # The read configure option daemon_memcached_r_batch_size is also configured
 # to 1048576. This means the transaction never commits
@@ -198,10 +188,3 @@ SET @@global.tx_isolation= @tx_isolation;
 SET  @@global.autocommit=@auto_commit;
 SET @@global.lock_wait_timeout=@lock_wait;
 SET @@global.innodb_lock_wait_timeout=@innodb_lock_wait;
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
---eval alter schema test default character set $testdbcs5;
---enable_query_log
-########################################

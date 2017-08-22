@@ -317,3 +317,22 @@ CREATE TABLE t1 ( a INT ) ENGINE = MyISAM;
 SELECT * FROM t1 FOR UPDATE NOWAIT;
 a
 DROP TABLE t1;
+#
+# Bug#25972285: UNCLEAR ERROR MESSAGE FOR NOWAIT
+#
+CREATE USER test@localhost;
+GRANT CREATE, SELECT, UPDATE on *.* to test@localhost;
+CREATE USER test2@localhost;
+GRANT CREATE, SELECT, UPDATE on *.* to test2@localhost;
+CREATE TABLE t1 ( a INT ) ENGINE=InnoDB;
+INSERT INTO t1 VALUES ( 1 );
+BEGIN;
+SELECT * FROM t1 WHERE a = 2 FOR UPDATE ;
+a
+BEGIN;
+SELECT * FROM t1 FOR UPDATE NOWAIT;
+ERROR HY000: Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.
+COMMIT;
+DROP TABLE t1;
+DROP USER test@localhost;
+DROP USER test2@localhost;

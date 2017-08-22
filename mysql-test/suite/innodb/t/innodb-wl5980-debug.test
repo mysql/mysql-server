@@ -4,9 +4,6 @@
 # better code coverage.
 #
 
-# Not supported in embedded
---source include/not_embedded.inc
-
 # the DBUG_EXECUTE_IF() macro needs a debug server.
 --source include/have_debug.inc
 

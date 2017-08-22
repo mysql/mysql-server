@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,9 +21,14 @@ import com.mysql.clusterj.query.QueryBuilder;
 import com.mysql.clusterj.query.QueryDefinition;
 
 /** Session is the primary user interface to the cluster.
- *
+ * Session extends AutoCloseable so it can be used in the try-with-resources
+ * pattern. This pattern allows the application to create a session in the try
+ * declaration and regardless of the outcome of the try/catch/finally block,
+ * clusterj will clean up and close the session. If the try block exits with
+ * an open transaction, the transaction will be rolled back before the session
+ * is closed.
  */
-public interface Session {
+public interface Session  extends AutoCloseable {
 
     /** Get a QueryBuilder. 
      * @return the query builder

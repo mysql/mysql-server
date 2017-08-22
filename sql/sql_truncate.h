@@ -55,18 +55,9 @@ public:
     return SQLCOM_TRUNCATE;
   }
 
-protected:
-  enum truncate_result{
-    TRUNCATE_OK=0,
-    TRUNCATE_FAILED_BUT_BINLOG,
-    TRUNCATE_FAILED_SKIP_BINLOG
-  };
-
+private:
   /** Handle locking a base table for truncate. */
   bool lock_table(THD *, TABLE_LIST *, handlerton **);
-
-  /** Truncate table via the handler method. */
-  enum truncate_result handler_truncate(THD *, TABLE_LIST *, bool);
 
   /**
     Optimized delete of all rows by doing a full regenerate of the table.

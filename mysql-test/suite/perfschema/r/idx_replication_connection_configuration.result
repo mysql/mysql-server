@@ -2,8 +2,6 @@ include/master-slave.inc
 [connection master]
 include/stop_slave.inc
 RESET SLAVE ALL;
-SET GLOBAL master_info_repository='TABLE';
-SET GLOBAL relay_log_info_repository='TABLE';
 include/start_slave.inc
 
 ====================================================================
@@ -43,7 +41,5 @@ HOST
 OK: handler_read_key incremented
 include/stop_slave.inc
 RESET SLAVE ALL;
-SET GLOBAL master_info_repository= "FILE";
-SET GLOBAL relay_log_info_repository= "FILE";
 include/start_slave.inc
 include/rpl_end.inc

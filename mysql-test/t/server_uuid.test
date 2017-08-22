@@ -12,7 +12,6 @@
 # This test case tests whether the server's UUID can be generated, stored,
 # initialized correctly.
 ##############################################################################
-source include/not_embedded.inc;
 
 CALL mtr.add_suppression("Master's UUID has changed, its old UUID is");
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -104,7 +104,7 @@ Object_key *View_routine_usage::create_key_by_name(
 {
   const int index_no= 1;
 
-  return new (std::nothrow) View_usage_range_key(index_no,
+  return new (std::nothrow) Table_reference_range_key(index_no,
                                                  FIELD_ROUTINE_CATALOG,
                                                  routine_catalog,
                                                  FIELD_ROUTINE_SCHEMA,

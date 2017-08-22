@@ -3,6 +3,8 @@
 #insensitive filsystem is not allowed.
 -- source include/have_case_sensitive_file_system.inc
 
+--character_set ujis
+
 # half-with kana is not handled correctly in 4.1
 # because of bug #5174
 # It will be fixed in 5.0

@@ -584,9 +584,10 @@ list_err:
 */
 
 bool
-File_parser_dummy_hook::process_unknown_string(const char *&unknown_key,
-                                               uchar*, MEM_ROOT*,
-                                               const char*)
+File_parser_dummy_hook::
+process_unknown_string(const char *&unknown_key MY_ATTRIBUTE((unused)),
+                       uchar*, MEM_ROOT*,
+                       const char*)
 {
   DBUG_ENTER("file_parser_dummy_hook::process_unknown_string");
   DBUG_PRINT("info", ("Unknown key: '%60s'", unknown_key));

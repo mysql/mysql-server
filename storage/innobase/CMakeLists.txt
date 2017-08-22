@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -51,10 +51,12 @@ SET(INNOBASE_SOURCES
 	dict/dict0boot.cc
 	dict/dict0crea.cc
 	dict/dict0dict.cc
+	dict/dict0dd.cc
 	dict/dict0load.cc
 	dict/dict0mem.cc
 	dict/dict0stats.cc
 	dict/dict0stats_bg.cc
+	dict/dict0upgrade.cc
 	eval/eval0eval.cc
 	eval/eval0proc.cc
 	fil/fil0fil.cc

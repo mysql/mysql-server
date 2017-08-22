@@ -26,7 +26,7 @@
 #include "error_handler.h"      // Internal_error_handler
 #include "field.h"              // Field
 #include "item_func.h"          // mqh_used
-#include "log.h"                // sql_print_warning
+#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"           // LEX_CSTRING
 #include "mdl.h"
@@ -69,7 +69,8 @@
 #include "xa.h"
 #include "mysqld_error.h"
 #include "dynamic_privilege_table.h"
-#include "role_tables.h"        // close_all_role_tables
+#include "role_tables.h"
+#include "sql_authorization.h"        // close_all_role_tables
 
 #define INVALID_DATE "0000-00-00 00:00:00"
 
@@ -115,6 +116,7 @@ Prealloced_array<ACL_DB, ACL_PREALLOC_SIZE> *acl_dbs= NULL;
 Prealloced_array<ACL_HOST_AND_IP, ACL_PREALLOC_SIZE> *acl_wild_hosts= NULL;
 Db_access_map acl_db_map;
 Default_roles *g_default_roles= NULL;
+std::vector<Role_id > *g_mandatory_roles= NULL;
 
 HASH column_priv_hash, proc_priv_hash, func_priv_hash;
 HASH db_cache;
@@ -318,12 +320,11 @@ ACL_PROXY_USER::check_validity(bool check_no_resolve)
       (hostname_requires_resolving(host.get_host()) ||
        hostname_requires_resolving(proxied_host.get_host())))
   {
-    sql_print_warning("'proxies_priv' entry '%s@%s %s@%s' "
-                      "ignored in --skip-name-resolve mode.",
-                      proxied_user ? proxied_user : "",
-                      proxied_host.get_host() ? proxied_host.get_host() : "",
-                      user ? user : "",
-                      host.get_host() ? host.get_host() : "");
+    LogErr(WARNING_LEVEL, ER_AUTHCACHE_PROXIES_PRIV_SKIPPED_NEEDS_RESOLVE,
+           proxied_user ? proxied_user : "",
+           proxied_host.get_host() ? proxied_host.get_host() : "",
+           user ? user : "",
+           host.get_host() ? host.get_host() : "");
   }
   return FALSE;
 }
@@ -852,8 +853,8 @@ bool GRANT_TABLE::init(TABLE *col_privs)
       ulong priv= (ulong) col_privs->field[6]->val_int();
       DBUG_EXECUTE_IF("mysql_grant_table_init_out_of_memory",
                       DBUG_SET("+d,simulate_out_of_memory"););
-      if (!(mem_check= new GRANT_COLUMN(*res,
-                                        fix_rights_for_column(priv))) ||
+      if (!(mem_check= new (*THR_MALLOC)
+              GRANT_COLUMN(*res, fix_rights_for_column(priv))) ||
             my_hash_insert(&hash_columns, (uchar *) mem_check))
       {
         /* Don't use this entry */
@@ -1379,8 +1380,9 @@ bool acl_getroot(THD *thd, Security_context *sctx, char *user, char *host,
                            strlen(acl_user->host.get_host()) : 0);
 
     sctx->set_password_expired(acl_user->password_expired);
+    sctx->lock_account(acl_user->account_locked);
   } // end if
- 
+
   if (acl_user && sctx->get_active_roles()->size() > 0)
   {
     sctx->checkout_access_maps();
@@ -1472,31 +1474,27 @@ validate_user_plugin_records()
 
         if (!plugin)
         {
-          sql_print_warning("The plugin '%.*s' used to authenticate "
-                            "user '%s'@'%.*s' is not loaded."
-                            " Nobody can currently login using this account.",
-                            (int) acl_user->plugin.length, acl_user->plugin.str,
-                            acl_user->user,
-                            static_cast<int>(acl_user->host.get_host_len()),
-                            acl_user->host.get_host());
+          LogErr(WARNING_LEVEL, ER_AUTHCACHE_PLUGIN_MISSING,
+                 (int) acl_user->plugin.length, acl_user->plugin.str,
+                 acl_user->user,
+                 static_cast<int>(acl_user->host.get_host_len()),
+                 acl_user->host.get_host());
         }
       }
       if (acl_user->plugin.str == sha256_password_plugin_name.str &&
           rsa_auth_status() && !ssl_acceptor_fd)
       {
-          sql_print_warning("The plugin '%s' is used to authenticate "
-                            "user '%s'@'%.*s', "
 #if !defined(HAVE_YASSL)
-                            "but neither SSL nor RSA keys are "
+        const char *missing= "but neither SSL nor RSA keys are";
 #else
-                            "but no SSL is "
+        const char *missing= "but no SSL is";
 #endif
-                            "configured. "
-                            "Nobody can currently login using this account.",
-                            sha256_password_plugin_name.str,
-                            acl_user->user,
-                            static_cast<int>(acl_user->host.get_host_len()),
-                            acl_user->host.get_host());
+
+        LogErr(WARNING_LEVEL, ER_AUTHCACHE_PLUGIN_CONFIG,
+               sha256_password_plugin_name.str,
+               acl_user->user,
+               static_cast<int>(acl_user->host.get_host_len()),
+               acl_user->host.get_host(), missing);
       }
     }
   }
@@ -1544,10 +1542,7 @@ void roles_init(THD *thd)
 
   if (result)
   {
-   sql_print_warning("Could not load mysql.role_edges and "
-                     "mysql.default_roles tables. ACL DDLs "
-                     "will not work unless mysql_upgrade is "
-                     "executed.");
+    LogErr(WARNING_LEVEL, ER_AUTHCACHE_ROLE_TABLES_DODGY);
   }
 }
 
@@ -1738,10 +1733,9 @@ static bool acl_load(THD *thd, TABLE_LIST *tables)
                          table->field[table_schema->user_idx()]);
     if (check_no_resolve && hostname_requires_resolving(user.host.get_host()))
     {
-      sql_print_warning("'user' entry '%s@%s' "
-                        "ignored in --skip-name-resolve mode.",
-                        user.user ? user.user : "",
-                        user.host.get_host() ? user.host.get_host() : "");
+      LogErr(WARNING_LEVEL, ER_AUTHCACHE_USER_SKIPPED_NEEDS_RESOLVE,
+             user.user ? user.user : "",
+             user.host.get_host() ? user.host.get_host() : "");
     }
 
     /* Read password from authentication_string field */
@@ -1751,8 +1745,7 @@ static bool acl_load(THD *thd, TABLE_LIST *tables)
                   table->field[table_schema->authentication_string_idx()]);
     else
     {
-      sql_print_error("Fatal error: mysql.user table is damaged. "
-                      "Please run mysql_upgrade.");
+      LogErr(ERROR_LEVEL, ER_AUTHCACHE_USER_TABLE_DODGY);
 
       end_read_record(&read_record_info);
       goto end;
@@ -1896,11 +1889,10 @@ static bool acl_load(THD *thd, TABLE_LIST *tables)
                     && (tmpstr == NULL || strlen(tmpstr) == 0))
                   super_users_with_empty_plugin= true;
 
-                sql_print_warning("User entry '%s'@'%s' has a deprecated "
-                "pre-4.1 password. The user will be ignored and no one can "
-                "login with this user anymore.",
-                user.user ? user.user : "",
-                user.host.get_host() ? user.host.get_host() : "");
+                LogErr(WARNING_LEVEL,
+                       ER_AUTHCACHE_USER_IGNORED_DEPRECATED_PASSWORD,
+                       user.user ? user.user : "",
+                       user.host.get_host() ? user.host.get_host() : "");
                 plugin_unlock(0, native_plugin);
                 continue;
               }
@@ -1916,11 +1908,9 @@ static bool acl_load(THD *thd, TABLE_LIST *tables)
           {
             if ((user.access & SUPER_ACL) && !super_users_with_empty_plugin)
                       super_users_with_empty_plugin= true;
-            sql_print_warning("User entry '%s'@'%s' has an empty plugin "
-      			"value. The user will be ignored and no one can login "
-      			"with this user anymore.",
-      			user.user ? user.user : "",
-      			user.host.get_host() ? user.host.get_host() : "");
+            LogErr(WARNING_LEVEL, ER_AUTHCACHE_USER_IGNORED_NEEDS_PLUGIN,
+                   user.user ? user.user : "",
+                   user.host.get_host() ? user.host.get_host() : "");
             continue;
           }
           /*
@@ -1953,9 +1943,9 @@ static bool acl_load(THD *thd, TABLE_LIST *tables)
           if (auth->validate_authentication_string(user.auth_string.str,
                                                    user.auth_string.length))
           {
-            sql_print_warning("Found invalid password for user: '%s@%s'; "
-                              "Ignoring user", user.user ? user.user : "",
-                              user.host.get_host() ? user.host.get_host() : "");
+            LogErr(WARNING_LEVEL, ER_AUTHCACHE_USER_IGNORED_INVALID_PASSWORD,
+                   user.user ? user.user : "",
+                   user.host.get_host() ? user.host.get_host() : "");
             plugin_unlock(0, plugin);
             continue;
           }
@@ -1972,12 +1962,10 @@ static bool acl_load(THD *thd, TABLE_LIST *tables)
 
             if (!auth_plugin_supports_expiration(user.plugin.str))
             {
-              sql_print_warning("'user' entry '%s@%s' has the password ignore "
-                                "flag raised, but its authentication plugin "
-                                "doesn't support password expiration. "
-                                "The user id will be ignored.",
-                                user.user ? user.user : "",
-                                user.host.get_host() ? user.host.get_host() : "");
+              LogErr(WARNING_LEVEL,
+                     ER_AUTHCACHE_EXPIRED_PASSWORD_UNSUPPORTED,
+                     user.user ? user.user : "",
+                     user.host.get_host() ? user.host.get_host() : "");
               continue;
             }
             password_expired= true;
@@ -2005,7 +1993,7 @@ static bool acl_load(THD *thd, TABLE_LIST *tables)
           {
             user.access |= CREATE_ROLE_ACL;
           }
-          
+
           priv= get_field(&global_acl_memory,
                           table->field[table_schema->drop_role_priv_idx()]);
 
@@ -2087,20 +2075,7 @@ static bool acl_load(THD *thd, TABLE_LIST *tables)
 
   if (super_users_with_empty_plugin)
   {
-    sql_print_warning("Some of the user accounts with SUPER privileges were "
-                      "disabled because of empty mysql.user.plugin value. "
-                      "If you are upgrading from MySQL 5.6 to MySQL 5.7 it "
-                      "means we were not able to substitute for empty plugin "
-                      "column. Probably because of pre 4.1 password hash. "
-                      "If your account is disabled you will need to:");
-    sql_print_warning("1. Stop the server and restart it with "
-                      "--skip-grant-tables.");
-    sql_print_warning("2. Run mysql_upgrade.");
-    sql_print_warning("3. Restart the server with the parameters you "
-                      "normally use.");
-    sql_print_warning("For complete instructions on how to upgrade MySQL "
-                      "to a new version please see the 'Upgrading MySQL' "
-                      "section from the MySQL manual");
+    LogErr(WARNING_LEVEL, ER_NO_SUPER_WITHOUT_USER_PLUGIN);
   }
 
   /*
@@ -2121,17 +2096,16 @@ static bool acl_load(THD *thd, TABLE_LIST *tables)
     db.db=get_field(&global_acl_memory, table->field[MYSQL_DB_FIELD_DB]);
     if (!db.db)
     {
-      sql_print_warning("Found an entry in the 'db' table with empty database name; Skipped");
+      LogErr(WARNING_LEVEL, ER_AUTHCACHE_DB_IGNORED_EMPTY_NAME);
       continue;
     }
     db.user=get_field(&global_acl_memory, table->field[MYSQL_DB_FIELD_USER]);
     if (check_no_resolve && hostname_requires_resolving(db.host.get_host()))
     {
-      sql_print_warning("'db' entry '%s %s@%s' "
-                        "ignored in --skip-name-resolve mode.",
-                        db.db,
-                        db.user ? db.user : "",
-                        db.host.get_host() ? db.host.get_host() : "");
+      LogErr(WARNING_LEVEL, ER_AUTHCACHE_DB_SKIPPED_NEEDS_RESOLVE,
+             db.db,
+             db.user ? db.user : "",
+             db.host.get_host() ? db.host.get_host() : "");
     }
     db.access=get_access(table,3,0);
     db.access=fix_rights_for_db(db.access);
@@ -2145,13 +2119,11 @@ static bool acl_load(THD *thd, TABLE_LIST *tables)
       my_casedn_str(files_charset_info, db.db);
       if (strcmp(db.db, tmp_name) != 0)
       {
-        sql_print_warning("'db' entry '%s %s@%s' had database in mixed "
-                          "case that has been forced to lowercase because "
-                          "lower_case_table_names is set. It will not be "
-                          "possible to remove this privilege using REVOKE.",
-                          db.db,
-                          db.user ? db.user : "",
-                          db.host.get_host() ? db.host.get_host() : "");
+        LogErr(WARNING_LEVEL,
+               ER_AUTHCACHE_DB_ENTRY_LOWERCASED_REVOKE_WILL_FAIL,
+               db.db,
+               db.user ? db.user : "",
+               db.host.get_host() ? db.host.get_host() : "");
       }
     }
     db.sort=get_sort(3,db.host.get_host(),db.db,db.user);
@@ -2201,8 +2173,7 @@ static bool acl_load(THD *thd, TABLE_LIST *tables)
   }
   else
   {
-    sql_print_error("Missing system table mysql.proxies_priv; "
-                    "please run mysql_upgrade to create it");
+    LogErr(ERROR_LEVEL, ER_AUTHCACHE_TABLE_PROXIES_PRIV_MISSING);
   }
   acl_proxy_users->shrink_to_fit();
   validate_user_plugin_records();
@@ -2544,7 +2515,7 @@ bool acl_reload(THD *thd)
   tables[1].next_local= tables[1].next_global= tables + 2;
   tables[2].next_local= tables[2].next_global= tables + 3;
 
-  tables[0].open_type= tables[1].open_type= tables[2].open_type= 
+  tables[0].open_type= tables[1].open_type= tables[2].open_type=
     tables[3].open_type= OT_BASE_ONLY;
   tables[3].open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
 
@@ -2559,8 +2530,8 @@ bool acl_reload(THD *thd)
     */
     if (! is_expected_or_transient_error(thd))
     {
-      sql_print_error("Fatal error: Can't open and lock privilege tables: %s",
-                      thd->get_stmt_da()->message_text());
+      LogErr(ERROR_LEVEL, ER_AUTHCACHE_CANT_OPEN_AND_LOCK_PRIVILEGE_TABLES,
+             thd->get_stmt_da()->message_text());
     }
     goto end;
   }
@@ -2719,8 +2690,8 @@ bool grant_init(bool skip_grant_tables)
   return_val=  grant_reload(thd);
 
   if (return_val && thd->get_stmt_da()->is_error())
-    sql_print_error("Fatal: can't initialize grant subsystem - '%s'",
-                    thd->get_stmt_da()->message_text());
+    LogErr(ERROR_LEVEL, ER_AUTHCACHE_CANT_INIT_GRANT_SUBSYSTEM,
+           thd->get_stmt_da()->message_text());
 
   thd->release_resources();
   delete thd;
@@ -2750,7 +2721,7 @@ static bool grant_load_procs_priv(TABLE *p_table)
   bool return_val= 1;
   int error;
   bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
-  MEM_ROOT **save_mem_root_ptr= my_thread_get_THR_MALLOC();
+  MEM_ROOT **save_mem_root_ptr= THR_MALLOC;
   DBUG_ENTER("grant_load_procs_priv");
   (void) my_hash_init(&proc_priv_hash, &my_charset_utf8_bin,
                       0, 0, get_grant_table,
@@ -2787,7 +2758,7 @@ static bool grant_load_procs_priv(TABLE *p_table)
   else
   {
     memex_ptr= &memex;
-    my_thread_set_THR_MALLOC(&memex_ptr);
+    THR_MALLOC= &memex_ptr;
     do
     {
       GRANT_NAME *mem_check;
@@ -2802,11 +2773,10 @@ static bool grant_load_procs_priv(TABLE *p_table)
       {
         if (hostname_requires_resolving(mem_check->host.get_host()))
         {
-          sql_print_warning("'procs_priv' entry '%s %s@%s' "
-                            "ignored in --skip-name-resolve mode.",
-                            mem_check->tname, mem_check->user,
-                            mem_check->host.get_host() ?
-                            mem_check->host.get_host() : "");
+          LogErr(WARNING_LEVEL, ER_AUTHCACHE_PROCS_PRIV_SKIPPED_NEEDS_RESOLVE,
+                 mem_check->tname, mem_check->user,
+                 mem_check->host.get_host() ?
+                 mem_check->host.get_host() : "");
         }
       }
       const enum_sp_type sp_type= to_sp_type(p_table->field[4]->val_int());
@@ -2820,18 +2790,18 @@ static bool grant_load_procs_priv(TABLE *p_table)
       }
       else
       {
-        sql_print_warning("'procs_priv' entry '%s' "
-                          "ignored, bad routine type",
-                          mem_check->tname);
+        LogErr(WARNING_LEVEL,
+               ER_AUTHCACHE_PROCS_PRIV_ENTRY_IGNORED_BAD_ROUTINE_TYPE,
+               mem_check->tname);
         continue;
       }
 
       mem_check->privs= fix_rights_for_procedure(mem_check->privs);
       if (! mem_check->ok())
-        delete mem_check;
+        destroy(mem_check);
       else if (my_hash_insert(hash, (uchar*) mem_check))
       {
-        delete mem_check;
+        destroy(mem_check);
         goto end_unlock;
       }
       error= p_table->file->ha_index_next(p_table->record[0]);
@@ -2855,7 +2825,7 @@ static bool grant_load_procs_priv(TABLE *p_table)
 
 end_unlock:
   p_table->file->ha_index_end();
-  my_thread_set_THR_MALLOC(save_mem_root_ptr);
+  THR_MALLOC= save_mem_root_ptr;
   DBUG_RETURN(return_val);
 }
 
@@ -2882,7 +2852,7 @@ static bool grant_load(THD *thd, TABLE_LIST *tables)
   int error;
   TABLE *t_table= 0, *c_table= 0;
   bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
-  MEM_ROOT **save_mem_root_ptr= my_thread_get_THR_MALLOC();
+  MEM_ROOT **save_mem_root_ptr= THR_MALLOC;
   sql_mode_t old_sql_mode= thd->variables.sql_mode;
   DBUG_ENTER("grant_load");
 
@@ -2925,7 +2895,7 @@ static bool grant_load(THD *thd, TABLE_LIST *tables)
   else
   {
     memex_ptr= &memex;
-    my_thread_set_THR_MALLOC(&memex_ptr);
+    THR_MALLOC= &memex_ptr;
     do
     {
       GRANT_TABLE *mem_check;
@@ -2939,7 +2909,7 @@ static bool grant_load(THD *thd, TABLE_LIST *tables)
 
       if (mem_check->init(c_table))
       {
-        delete mem_check;
+        destroy(mem_check);
         goto end_unlock;
       }
 
@@ -2947,20 +2917,19 @@ static bool grant_load(THD *thd, TABLE_LIST *tables)
       {
         if (hostname_requires_resolving(mem_check->host.get_host()))
         {
-          sql_print_warning("'tables_priv' entry '%s %s@%s' "
-                            "ignored in --skip-name-resolve mode.",
-                            mem_check->tname,
-                            mem_check->user ? mem_check->user : "",
-                            mem_check->host.get_host() ?
-                            mem_check->host.get_host() : "");
+          LogErr(WARNING_LEVEL, ER_AUTHCACHE_TABLES_PRIV_SKIPPED_NEEDS_RESOLVE,
+                 mem_check->tname,
+                 mem_check->user ? mem_check->user : "",
+                 mem_check->host.get_host() ?
+                 mem_check->host.get_host() : "");
         }
       }
 
       if (! mem_check->ok())
-        delete mem_check;
+        destroy(mem_check);
       else if (my_hash_insert(&column_priv_hash,(uchar*) mem_check))
       {
-        delete mem_check;
+        destroy(mem_check);
         goto end_unlock;
       }
       error= t_table->file->ha_index_next(t_table->record[0]);
@@ -2985,7 +2954,7 @@ static bool grant_load(THD *thd, TABLE_LIST *tables)
 
 end_unlock:
   t_table->file->ha_index_end();
-  my_thread_set_THR_MALLOC(save_mem_root_ptr);
+  THR_MALLOC= save_mem_root_ptr;
 end_index_init:
   thd->variables.sql_mode= old_sql_mode;
   DBUG_RETURN(return_val);
@@ -3058,7 +3027,7 @@ bool grant_reload(THD *thd)
   bool return_val= 1;
   Acl_cache_lock_guard acl_cache_lock(thd,
                                       Acl_cache_lock_mode::WRITE_MODE);
-  
+
   DBUG_ENTER("grant_reload");
 
   /* Don't do anything if running with --skip-grant-tables */
@@ -3087,8 +3056,9 @@ bool grant_reload(THD *thd)
   {
     if (! is_expected_or_transient_error(thd))
     {
-      sql_print_error("Fatal error: Can't open and lock privilege tables: %s",
-                      thd->get_stmt_da()->message_text());
+      LogErr(ERROR_LEVEL,
+             ER_AUTHCACHE_CANT_OPEN_AND_LOCK_PRIVILEGE_TABLES,
+             thd->get_stmt_da()->message_text());
     }
     goto end;
   }
@@ -3242,7 +3212,7 @@ void acl_update_user(const char *user, const char *host,
 }
 
 
-void acl_insert_user(const char *user, const char *host,
+void acl_insert_user(THD *thd, const char *user, const char *host,
                      enum SSL_type ssl_type,
                      const char *ssl_cipher,
                      const char *x509_issuer,
@@ -3257,7 +3227,7 @@ void acl_insert_user(const char *user, const char *host,
   DBUG_ENTER("acl_insert_user");
   ACL_USER acl_user;
 
-  DBUG_ASSERT(assert_acl_cache_write_lock(current_thd));
+  DBUG_ASSERT(assert_acl_cache_write_lock(thd));
   /*
      All accounts can authenticate per default. This will change when
      we add a new field to the user table.
@@ -3319,6 +3289,10 @@ void acl_insert_user(const char *user, const char *host,
 
   /* Rebuild 'acl_check_hosts' since 'acl_users' has been modified */
   rebuild_check_host();
+  /* Add vertex to role graph. ACL_USER object is copied with a shallow copy */
+  create_role_vertex(&acl_user);
+  /* reparse mandatory roles variable */
+  opt_mandatory_roles_cache= false;
   DBUG_VOID_RETURN;
 }
 
@@ -3493,13 +3467,13 @@ const uchar *hash_key(const uchar *el, size_t *length)
 /**
   Allocate a new cache key based on active roles, current user and
   global cache version
- 
+
   @param [out] out_key The resulting key
   @param [out] key_len Key length
   @param version Global Acl_cache version
   @param uid The authorization ID of the current user
   @param active_roles The active roles of the current user
- 
+
   @return Success state
     @retval true OK
     @retval false Fatal error occurred.
@@ -3532,7 +3506,7 @@ bool create_acl_cache_hash_key(uchar **out_key, unsigned *key_len,
   memcpy(*out_key + offset, reinterpret_cast<void *>(&version), sizeof(uint64));
   it= active_roles.begin();
   offset += sizeof(uint64);
-  
+
   for(; it != active_roles.end(); ++it)
   {
     memcpy(*out_key + offset, it->first.str, it->first.length);
@@ -3631,7 +3605,7 @@ Acl_map &Acl_map::operator=(Acl_map &&map)
 {
   m_db_acls= std::move(map.m_db_acls);
   m_global_acl= map.m_global_acl;
-  m_reference_count= map.m_reference_count;
+  m_reference_count= map.m_reference_count.load();
   m_table_acls= std::move(map.m_table_acls);
   m_sp_acls= std::move(map.m_sp_acls);
   m_func_acls= std::move(map.m_func_acls);
@@ -3691,39 +3665,37 @@ Acl_map::func_acls()
 Dynamic_privileges *
 Acl_map::dynamic_privileges()
 {
-  return &m_dynamic_privileges;  
+  return &m_dynamic_privileges;
 }
 
 void
 Acl_map::increase_reference_count()
 {
-  my_atomic_add32(&m_reference_count, 1);
+  ++m_reference_count;
 }
 
 void
 Acl_map::decrease_reference_count()
 {
-  my_atomic_add32(&m_reference_count, -1);
+  --m_reference_count;
 }
 
 void Acl_cache::increase_version()
 {
   DBUG_ENTER("Acl_cache::increase_version");
-  my_atomic_add64((volatile int64 *)&m_role_graph_version, 1);
+  ++m_role_graph_version;
   flush_cache();
   DBUG_VOID_RETURN;
 }
 
 uint64 Acl_cache::version()
 {
-  uint64 version= (uint64)my_atomic_load64((volatile int64 *)&m_role_graph_version);
-  return version;
+  return m_role_graph_version.load();
 }
 
 int32 Acl_cache::size()
 {
-  uint32 size= (uint32)my_atomic_load32((volatile int32 *)&m_cache.count);
-  return size;
+  return m_cache.count.load();
 }
 
 /**
@@ -3748,7 +3720,7 @@ Acl_cache::checkout_acl_map(Security_context *sctx, Auth_id_ref &uid,
   // CREATE KEY
   uchar *key; // allocated by create_hash_key and released by Acl_cache::flush_cache
   unsigned key_len;
-  uint64 version= my_atomic_load64((volatile int64 *)&m_role_graph_version);
+  uint64 version= m_role_graph_version.load();
   if (!create_acl_cache_hash_key(&key, &key_len, version, uid,
                                  active_roles))
   {
@@ -3832,7 +3804,7 @@ void Acl_cache::flush_cache()
   Acl_hash_entry *entry= 0;
   mysql_mutex_lock(&m_cache_flush_mutex);
   l_cache_flusher_global_version= version();
-  do 
+  do
   {
     entry=
       static_cast<Acl_hash_entry*>(lf_hash_random_match(&m_cache,
@@ -3867,13 +3839,15 @@ void Acl_map::operator delete(void* p)
 {
   my_free(p);
 }
-        
+
 void init_acl_cache()
 {
   g_default_roles= new Default_roles;
   roles_init_graph();
   dynamic_privileges_init();
   g_acl_cache= new Acl_cache();
+  g_mandatory_roles= new std::vector<Role_id >;
+  opt_mandatory_roles_cache= false;
 }
 
 
@@ -3897,6 +3871,7 @@ void shutdown_acl_cache()
   g_default_roles= NULL;
   roles_delete_graph();
   dynamic_privileges_delete();
+  delete g_mandatory_roles;
 }
 
 
@@ -3905,8 +3880,8 @@ static const ulong ACL_CACHE_LOCK_TIMEOUT= 3600UL;
 static const MDL_key ACL_CACHE_KEY(MDL_key::ACL_CACHE, "", "");
 
 /**
-  Internal_error_hanlder subclass to suppress ER_LOCK_DEADLOCK and
-  ER_LOCK_WAIT_TIMEOUT.
+  Internal_error_handler subclass to suppress ER_LOCK_DEADLOCK,
+  ER_LOCK_WAIT_TIMEOUT, ER_QUERY_INTERRUPTED and ER_QUERY_TIMEOUT.
   Instead, we will use Acl_cache_lock_guard::lock()
   to raise ER_CANNOT_LOCK_USER_MANAGEMENT_CACHES error.
 */
@@ -3931,7 +3906,9 @@ public:
                                 const char *msg MY_ATTRIBUTE((unused)))
   {
     return (sql_errno == ER_LOCK_DEADLOCK ||
-            sql_errno == ER_LOCK_WAIT_TIMEOUT);
+            sql_errno == ER_LOCK_WAIT_TIMEOUT ||
+            sql_errno == ER_QUERY_INTERRUPTED ||
+            sql_errno == ER_QUERY_TIMEOUT);
   }
 };
 

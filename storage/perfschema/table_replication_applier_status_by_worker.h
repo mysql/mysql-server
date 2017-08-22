@@ -73,13 +73,13 @@ struct st_row_worker
   char last_error_message[MAX_SLAVE_ERRMSG];
   uint last_error_message_length;
   ulonglong last_error_timestamp;
-  char last_applied_trx[Gtid::MAX_TEXT_LENGTH+1];
+  char last_applied_trx[Gtid::MAX_TEXT_LENGTH + 1];
   uint last_applied_trx_length;
   ulonglong last_applied_trx_original_commit_timestamp;
   ulonglong last_applied_trx_immediate_commit_timestamp;
   ulonglong last_applied_trx_start_apply_timestamp;
   ulonglong last_applied_trx_end_apply_timestamp;
-  char applying_trx[Gtid::MAX_TEXT_LENGTH+1];
+  char applying_trx[Gtid::MAX_TEXT_LENGTH + 1];
   uint applying_trx_length;
   ulonglong applying_trx_original_commit_timestamp;
   ulonglong applying_trx_immediate_commit_timestamp;
@@ -180,12 +180,13 @@ private:
     information in STS mode
   */
   int make_row(Master_info *);
-  void populate_trx_info(trx_monitoring_info *, trx_monitoring_info *);
+  void populate_trx_info(Gtid_monitoring_info *, mysql_mutex_t *);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
-  /** Fields definition. */
-  static TABLE_FIELD_DEF m_field_def;
+  /** Table definition. */
+  static Plugin_table m_table_def;
+
   /** current row*/
   st_row_worker m_row;
   /** Current position. */
@@ -218,7 +219,7 @@ public:
 
   /** Table share. */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table *create();
+  static PFS_engine_table *create(PFS_engine_table_share *);
   static ha_rows get_row_count();
   virtual void reset_position(void);
 

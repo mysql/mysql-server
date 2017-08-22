@@ -60,7 +60,7 @@ include/assert_binlog_events.inc
 # Case 6 : Add a row in mysql.user without FLUSH PRIVILEGES and
 #          execute CREATE USER for same user
 # Insert an entry in mysql.user table but do not execute FLUSH PRIVILEGES
-CREATE TEMPORARY TABLE mysql.tmp_user LIKE mysql.user;
+CREATE TABLE mysql.tmp_user LIKE mysql.user;
 INSERT INTO mysql.tmp_user SELECT * FROM mysql.user WHERE user LIKE 'userX';
 UPDATE mysql.tmp_user SET user='userW' WHERE user LIKE 'userX';
 INSERT INTO mysql.user SELECT * FROM mysql.tmp_user;
@@ -135,7 +135,7 @@ include/assert_binlog_events.inc
 # Case 6 : Add a row in mysql.user without FLUSH PRIVILEGES and
 #          execute CREATE USER IF NOT for same user
 # Insert an entry in mysql.user table but do not execute FLUSH PRIVILEGES
-CREATE TEMPORARY TABLE mysql.tmp_user LIKE mysql.user;
+CREATE TABLE mysql.tmp_user LIKE mysql.user;
 INSERT INTO mysql.tmp_user SELECT * FROM mysql.user WHERE user LIKE 'userX';
 UPDATE mysql.tmp_user SET user='userW' WHERE user LIKE 'userX';
 INSERT INTO mysql.user SELECT * FROM mysql.tmp_user;

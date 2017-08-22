@@ -18,20 +18,20 @@
 
 #include <string>
 
-#include "dd/impl/types/dictionary_object_table_impl.h"
+#include "dd/impl/types/entity_object_table_impl.h"
+#include "dd/types/collation.h"
 
 class THD;
 
 namespace dd {
 class Global_name_key;
-class Dictionary_object;
 class Raw_record;
 
 namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Collations : public Dictionary_object_table_impl
+class Collations : public Entity_object_table_impl
 {
 public:
   static const Collations &instance();
@@ -60,7 +60,7 @@ public:
   virtual const String_type &name() const
   { return Collations::table_name(); }
 
-  virtual Dictionary_object *create_dictionary_object(const Raw_record &) const;
+  virtual Collation *create_entity_object(const Raw_record &) const;
 
 public:
   static bool update_object_key(Global_name_key *key,

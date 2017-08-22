@@ -3,6 +3,11 @@
 #
 --source include/have_debug.inc
 
+# Valgrind would complain about memory leaks when we crash on purpose.
+--source include/not_valgrind.inc
+# Avoid CrashReporter popup on Mac
+--source include/not_crashrep.inc
+
 --echo #
 --echo # Bug#21625393 : Assert condition (e->usage() == 1) failure in
 --echo #                dd::cache::Shared_multi_map<T>::remove()
@@ -282,3 +287,28 @@ DROP DATABASE mysqltest;
 --echo # failed DROP DATABASE statement are covered by
 --echo # rpl_gtid/no_gtid_split_statements_debug tests.
 --echo #
+
+
+--echo #
+--echo # Additional coverage for hidden tables handling by DROP DATABASE.
+--echo #
+
+CREATE DATABASE mysqltest;
+
+--echo # Create hidden '#sql...' table in mysqltest by starting
+--echo # non-atomic ALTER TABLE and crashing the server in the
+--echo # middle of it.
+CREATE TABLE mysqltest.t1 (i INT) ENGINE=MYISAM;
+--source include/expect_crash.inc
+SET DEBUG='+d,crash_copy_before_commit';
+--error 2013
+ALTER TABLE mysqltest.t1 ADD COLUMN j INT;
+
+--source include/start_mysqld.inc
+
+--echo # Check that after restart this hidden table is there.
+let $MYSQLD_DATADIR= `SELECT @@global.datadir`;
+--replace_regex /#sql.*\./#sqlXXXX./
+--list_files $MYSQLD_DATADIR/mysqltest *.MYD
+--echo # And that DROP DATABASE can remove this table, without problems.
+DROP DATABASE mysqltest;

@@ -62,6 +62,7 @@ SELECT hex(convert(@uE USING tis620));
 SELECT hex(convert(@uF USING tis620));
 
 SET NAMES tis620;
+--character_set tis620
 
 CREATE TABLE t1 (
   recid int(11) NOT NULL auto_increment,

@@ -10,7 +10,7 @@ SHOW CREATE TABLE tinnodb;
 Table	Create Table
 tinnodb	CREATE TABLE `tinnodb` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 set @old_debug= @@debug;
 set @@debug= 'd,do_not_write_xid';
 ==== Test ====

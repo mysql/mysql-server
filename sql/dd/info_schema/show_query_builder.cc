@@ -24,6 +24,7 @@
 #include "parse_tree_nodes.h"                  // PT_select_item_list
 #include "sql_lex.h"                           // Query_options
 #include "sql_string.h"
+#include "query_options.h"                     // OPTION_SELECT_FOR_SHOW
 
 class Item;
 
@@ -33,7 +34,7 @@ namespace info_schema {
 
 static const Query_options options=
 {
-  0, /* query_spec_options */
+  OPTION_SELECT_FOR_SHOW, /* query_spec_options */
   SELECT_LEX::SQL_CACHE_UNSPECIFIED /* sql_cache */
 };
 
@@ -400,6 +401,7 @@ SELECT_LEX* Select_lex_builder::prepare_select_lex()
 
   LEX *lex= m_thd->lex;
   SELECT_LEX *current_select= lex->current_select();
+
   Parse_context pc(m_thd, current_select);
   if (m_thd->is_error())
     return nullptr;

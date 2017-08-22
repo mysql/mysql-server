@@ -9,7 +9,6 @@
 # storage engines specified by disabled-storage-engine option.
 
 --source include/have_example_plugin.inc
---source include/not_embedded.inc
 
 CALL mtr.add_suppression("default_storage_engine is set to a disabled storage engine .*");
 CALL mtr.add_suppression("default_tmp_storage_engine is set to a disabled storage engine .*");

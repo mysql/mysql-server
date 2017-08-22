@@ -1,5 +1,4 @@
 --source include/have_debug.inc
---source include/not_embedded.inc
 
 --echo #
 --echo # Bug#21914871 : ASSERTION `! IS_SET()' FOR DIAGNOSTICS_AREA::SET_OK_STATUS

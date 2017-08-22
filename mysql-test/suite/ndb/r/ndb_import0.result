@@ -1,0 +1,55 @@
+# manual ndb_import tests
+# database argument is required
+# no args is ok
+# table does not exist
+create table t1 (
+a int primary key,
+b int
+) engine=ndb;
+# csv file does not exist
+# bad state dir
+# normal import
+select count(*) from t1;
+count(*)
+1000
+# invalid --input-type
+# invalid --output-type
+# simple utf8 test
+create table t2 (
+a int primary key,
+b char(3)
+) charset utf8
+engine=ndb;
+create table t2ver (
+a int primary key,
+b char(3)
+) charset utf8
+engine=ndb;
+select count(*) from t2 x, t2ver y
+where x.a = y.a
+and (x.b = y.b or (x.b is null and y.b is null));
+count(*)
+4
+# simple hidden-pk test
+create table t3 (
+b int not null,
+# unique key would turn into pk
+key bx (b)
+) engine=ndb;
+create table t3ver like t3;
+select count(*) from t3;
+count(*)
+1000
+select count(*) from t3ver;
+count(*)
+1000
+select count(*) from t3 x, t3ver y
+where x.b = y.b;
+count(*)
+1000
+# test with rejects and no --keep-state
+create table t4 (
+a int primary key,
+b int not null
+) engine=ndb;
+drop table t1, t2, t2ver, t3, t3ver, t4;

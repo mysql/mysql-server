@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 call mtr.add_suppression(".* Failed to activate default role .*");
 --echo # test CREATE ROLE and variations of authorizationID:
 --echo # WL988.I-1
@@ -22,7 +21,7 @@ CREATE ROLE r1 IDENTIFIED BY 'test';
 
 --echo # Created roles should not allow login per default
 --echo # WL988.R-1.4
-SELECT user,host, plugin,IF(account_locked = 'Y',"Account is locked","ERROR") FROM mysql.user u WHERE u.user <> 'root' AND u.user <> 'mysql.sys';
+SELECT user,host, plugin,IF(account_locked = 'Y',"Account is locked","ERROR") FROM mysql.user u WHERE u.user NOT IN ('root', 'mysql.sys', 'mysql.session');
 
 --echo # Creating roles which already exist should not cause an error to be raised
 --echo # WL988.I-1
@@ -153,7 +152,9 @@ REVOKE engineering, role1 FROM root@localhost;
 --echo # List all subgraphs as a graphml document. This should verify that 
 --echo # revoking worked too.
 --echo # WL988.I-14,R-2.1
-SELECT ROLES_GRAPHML();
+--echo # only count nodes and edges as the sorting order is depending on platform
+SELECT ExtractValue(ROLES_GRAPHML(),'count(//node)') as num_nodes;
+SELECT ExtractValue(ROLES_GRAPHML(),'count(//edge)') as num_edges;
 --echo # Make sure the tables reflect the in memory representation
 SELECT * FROM mysql.role_edges;
 SELECT * FROM mysql.default_roles;
@@ -170,7 +171,9 @@ DROP ROLE IF EXISTS `role`, `role`@`host`;
 DROP ROLE 'role';
 --echo # Dropping roles should update the in memory roles graph
 --echo # WL988.R-1.10
-SELECT ROLES_GRAPHML();
+--echo # only count nodes and edges as the sorting order is depending on platform
+SELECT ExtractValue(ROLES_GRAPHML(),'count(//node)') as num_nodes;
+SELECT ExtractValue(ROLES_GRAPHML(),'count(//edge)') as num_edges;
 --echo # ..and synchronize the non-volatile area:
 SELECT * FROM mysql.role_edges;
 SELECT * FROM mysql.default_roles;
@@ -218,7 +221,9 @@ SHOW GRANTS FOR sally USING consultants;
 SHOW GRANTS FOR sally USING engineering;
 GRANT consultants TO engineering WITH ADMIN OPTION;
 GRANT consultants TO sally WITH ADMIN OPTION;
-SELECT ROLES_GRAPHML();
+--echo # only count nodes and edges as the sorting order is depending on platform
+SELECT ExtractValue(ROLES_GRAPHML(),'count(//node)') as num_nodes;
+SELECT ExtractValue(ROLES_GRAPHML(),'count(//edge)') as num_edges;
 
 DROP ROLE engineering;
 --error ER_ROLE_NOT_GRANTED
@@ -269,7 +274,9 @@ DROP ROLE user3@host3;
 DROP ROLE engineering@india;
 DROP ROLE engineering@us;
 DROP ROLE joe@localhost;
-SELECT ROLES_GRAPHML();
+--echo # only count nodes and edges as the sorting order is depending on platform
+SELECT ExtractValue(ROLES_GRAPHML(),'count(//node)') as num_nodes;
+SELECT ExtractValue(ROLES_GRAPHML(),'count(//edge)') as num_edges;
 SELECT IF (COUNT(*) > 0, "ERROR! There shouldn't be any edges in the table", "ALL OK!") AS health_check FROM mysql.role_edges;
 DROP TABLE t_external;
 
@@ -440,7 +447,7 @@ SELECT * FROM mysql.default_roles;
 
 DROP DATABASE db1;
 DROP PROCEDURE test.sp1;
-SELECT user,host FROM mysql.user WHERE user <> 'root' AND user <> 'mysql.sys';
+SELECT user,host FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
 DROP ROLE maintenance_admin;
 DROP ROLE user_admin;
 DROP ROLE security_admin;
@@ -797,9 +804,15 @@ CREATE ROLE r1;
 GRANT r1 TO u1@localhost;
 CREATE ROLE r2;
 GRANT r2 TO r1;
-SELECT ROLES_GRAPHML();
+SELECT ExtractValue(ROLES_GRAPHML(),'//node[text()="`mysql.sys`@`localhost`"]');
+SELECT ExtractValue(ROLES_GRAPHML(),'//node[text()="`mysql.session_user`@`localhost`"]');
+SELECT ExtractValue(ROLES_GRAPHML(),'count(//node)') as num_nodes;
+SELECT ExtractValue(ROLES_GRAPHML(),'count(//edge)') as num_edges;
 connect(con1, localhost, u1, foo, test);
-SELECT ROLES_GRAPHML();
+SELECT ExtractValue(ROLES_GRAPHML(),'//node[text()="`mysql.sys`@`localhost`"]');
+SELECT ExtractValue(ROLES_GRAPHML(),'//node[text()="`mysql.session_user`@`localhost`"]');
+SELECT ExtractValue(ROLES_GRAPHML(),'count(//node)') as num_nodes;
+SELECT ExtractValue(ROLES_GRAPHML(),'count(//edge)') as num_edges;
 connection default;
 disconnect con1;
 DROP USER u1@localhost;

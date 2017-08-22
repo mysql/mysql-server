@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -47,6 +47,8 @@ void Shared_dictionary_cache::init()
   instance()->m_map<Event>()->set_capacity(event_capacity);
   instance()->m_map<Routine>()->set_capacity(stored_program_def_size);
   instance()->m_map<Schema>()->set_capacity(schema_def_size);
+  instance()->m_map<Column_statistics>()->
+    set_capacity(column_statistics_capacity);
   instance()->m_map<Spatial_reference_system>()->
     set_capacity(spatial_reference_system_capacity);
   instance()->m_map<Tablespace>()->set_capacity(tablespace_def_size);
@@ -57,6 +59,7 @@ void Shared_dictionary_cache::shutdown()
 {
   instance()->m_map<Abstract_table>()->shutdown();
   instance()->m_map<Collation>()->shutdown();
+  instance()->m_map<Column_statistics>()->shutdown();
   instance()->m_map<Charset>()->shutdown();
   instance()->m_map<Event>()->shutdown();
   instance()->m_map<Routine>()->shutdown();
@@ -321,6 +324,35 @@ template bool Shared_dictionary_cache::
 template void Shared_dictionary_cache::put<Spatial_reference_system>(
     const Spatial_reference_system*,
     Cache_element<Spatial_reference_system>**);
+
+
+template bool Shared_dictionary_cache::
+  get<Column_statistics::id_key_type, Column_statistics>(
+    THD *thd, const Column_statistics::id_key_type&,
+    Cache_element<Column_statistics>**);
+template bool Shared_dictionary_cache::
+  get<Column_statistics::name_key_type, Column_statistics>(
+    THD *thd, const Column_statistics::name_key_type&,
+    Cache_element<Column_statistics>**);
+template bool Shared_dictionary_cache::
+  get<Column_statistics::aux_key_type, Column_statistics>(
+    THD *thd, const Column_statistics::aux_key_type&,
+    Cache_element<Column_statistics>**);
+template bool Shared_dictionary_cache::
+  get_uncached<Column_statistics::id_key_type, Column_statistics>(
+    THD *thd, const Column_statistics::id_key_type&, enum_tx_isolation,
+    const Column_statistics**) const;
+template bool Shared_dictionary_cache::
+  get_uncached<Column_statistics::name_key_type, Column_statistics>(
+    THD *thd, const Column_statistics::name_key_type&, enum_tx_isolation,
+    const Column_statistics**) const;
+template bool Shared_dictionary_cache::
+  get_uncached<Column_statistics::aux_key_type, Column_statistics>(
+    THD *thd, const Column_statistics::aux_key_type&, enum_tx_isolation,
+    const Column_statistics**) const;
+template void Shared_dictionary_cache::put<Column_statistics>(
+    const Column_statistics*, Cache_element<Column_statistics>**);
+
 
 template bool Shared_dictionary_cache::
   get<Tablespace::id_key_type, Tablespace>(

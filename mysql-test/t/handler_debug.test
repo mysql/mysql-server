@@ -1,5 +1,4 @@
 --source include/have_debug.inc
---source include/not_embedded.inc
 
 --echo #
 --echo # Bug#21906010 - ASSERT DIAGNOSTICS_AREA::SET_EOF_STATUS(THD*):

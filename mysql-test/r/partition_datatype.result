@@ -273,7 +273,7 @@ select * from t1 where a = 'y';
 a
 y
 drop table t1;
-create table t1 (a varchar(3068)) partition by key (a);
+create table t1 (a varchar(3068)) charset latin1 partition by key (a);
 insert into t1 values ('bbbb');
 insert into t1 values ('aaaa');
 select * from t1 where a = 'aaaa';
@@ -286,7 +286,7 @@ select * from t1 where a = 'bbbb';
 a
 bbbb
 drop table t1;
-create table t1 (a varchar(3069)) partition by key (a);
+create table t1 (a varchar(3069)) charset latin1 partition by key (a);
 insert into t1 values ('bbbb');
 insert into t1 values ('aaaa');
 select * from t1 where a = 'aaaa';
@@ -299,7 +299,7 @@ select * from t1 where a = 'bbbb';
 a
 bbbb
 drop table t1;
-create table t1 (a varchar(3070) not null) partition by key (a);
+create table t1 (a varchar(3070) not null) charset latin1 partition by key (a);
 insert into t1 values ('bbbb');
 insert into t1 values ('aaaa');
 select * from t1 where a = 'aaaa';
@@ -314,11 +314,11 @@ bbbb
 drop table t1;
 create table t1 (a varchar(3070)) partition by key (a);
 ERROR HY000: The total length of the partitioning fields is too large
-create table t1 (a varchar(65533)) partition by key (a);
+create table t1 (a varchar(65533)) charset latin1 partition by key (a);
 ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 65535. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
-create table t1 (a varchar(65534) not null) partition by key (a);
+create table t1 (a varchar(65534) not null) charset latin1 partition by key (a);
 ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 65535. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
-create table t1 (a varchar(65535)) partition by key (a);
+create table t1 (a varchar(65535)) charset latin1 partition by key (a);
 ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 65535. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 create table t1 (a bit(27), primary key (a))
 partition by hash (a)
@@ -328,8 +328,8 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` bit(27) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY HASH (a)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+/*!50100 PARTITION BY HASH (`a`)
 (PARTITION p0 ENGINE = InnoDB,
  PARTITION p1 ENGINE = InnoDB,
  PARTITION p2 ENGINE = InnoDB) */
@@ -869,8 +869,8 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` timestamp NULL DEFAULT NULL,
   `tz` varchar(16) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (UNIX_TIMESTAMP(a))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+/*!50100 PARTITION BY RANGE (unix_timestamp(`a`))
 (PARTITION p0 VALUES LESS THAN (0) ENGINE = InnoDB,
  PARTITION `p-2000` VALUES LESS THAN (946684800) ENGINE = InnoDB,
  PARTITION `p-2011-MSK` VALUES LESS THAN (1301180400) ENGINE = InnoDB,
@@ -1385,8 +1385,8 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` timestamp NULL DEFAULT NULL,
   `tz` varchar(16) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (UNIX_TIMESTAMP(a))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+/*!50100 PARTITION BY RANGE (unix_timestamp(`a`))
 (PARTITION p0 VALUES LESS THAN (0) ENGINE = InnoDB,
  PARTITION `p-2000` VALUES LESS THAN (946684800) ENGINE = InnoDB,
  PARTITION `p-2011-MSK` VALUES LESS THAN (1301180400) ENGINE = InnoDB,

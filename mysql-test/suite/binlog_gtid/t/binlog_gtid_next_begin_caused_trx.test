@@ -19,8 +19,6 @@
 # Test in this file is binlog format agnostic, thus no need
 # to rerun them for every format.
 --source include/have_binlog_format_row.inc
-# Test is not required to run against embedded server
---source include/not_embedded.inc
 
 # Make sure the test is repeatable
 RESET MASTER;

@@ -3,7 +3,6 @@ drop view if exists v1;
 drop database if exists client_test_db;
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -18,6 +17,7 @@ mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
 mysql.help_topic                                   OK
+mysql.innodb_dynamic_metadata                      OK
 mysql.innodb_index_stats                           OK
 mysql.innodb_table_stats                           OK
 mysql.plugin                                       OK
@@ -41,9 +41,6 @@ mysql.user                                         OK
 sys.sys_config                                     OK
 mtr.global_suppressions                            Table is already up to date
 mtr.test_suppressions                              Table is already up to date
-mysql.column_stats
-note     : Table does not support optimize, doing recreate + analyze instead
-status   : OK
 mysql.columns_priv
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
@@ -83,12 +80,18 @@ status   : OK
 mysql.help_topic
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
+mysql.innodb_dynamic_metadata
+note     : Table does not support optimize, doing recreate + analyze instead
+error    : The used command is not allowed with this MySQL version
+status   : Operation failed
 mysql.innodb_index_stats
 note     : Table does not support optimize, doing recreate + analyze instead
-status   : OK
+error    : The used command is not allowed with this MySQL version
+status   : Operation failed
 mysql.innodb_table_stats
 note     : Table does not support optimize, doing recreate + analyze instead
-status   : OK
+error    : The used command is not allowed with this MySQL version
+status   : Operation failed
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.plugin
@@ -144,7 +147,6 @@ status   : OK
 sys.sys_config
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -159,6 +161,7 @@ mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
 mysql.help_topic                                   OK
+mysql.innodb_dynamic_metadata                      OK
 mysql.innodb_index_stats                           OK
 mysql.innodb_table_stats                           OK
 mysql.plugin                                       OK
@@ -179,9 +182,6 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
-mysql.column_stats
-note     : Table does not support optimize, doing recreate + analyze instead
-status   : OK
 mysql.columns_priv
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
@@ -221,12 +221,18 @@ status   : OK
 mysql.help_topic
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
+mysql.innodb_dynamic_metadata
+note     : Table does not support optimize, doing recreate + analyze instead
+error    : The used command is not allowed with this MySQL version
+status   : Operation failed
 mysql.innodb_index_stats
 note     : Table does not support optimize, doing recreate + analyze instead
-status   : OK
+error    : The used command is not allowed with this MySQL version
+status   : Operation failed
 mysql.innodb_table_stats
 note     : Table does not support optimize, doing recreate + analyze instead
-status   : OK
+error    : The used command is not allowed with this MySQL version
+status   : Operation failed
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.plugin

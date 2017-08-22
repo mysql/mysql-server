@@ -18,20 +18,14 @@
 # 2. Try restart after dropping the version table.
 # ------------------------------------------------
 # 2.1 Create bootstrap file.
-# 2.2 First start the server with --initialize, and drop the version table. Succeeds.
-# 2.3 Restart the server against DDIR - should fail.
-# 2.4 Look for error.
-#     Data Dictionary initialization error found 1 times.
-# 2.5 Delete bootstrap file, log file and datadir.
+# 2.2 First start the server with --initialize, and drop the version table. Should fail.
+# 2.3 Delete bootstrap file, log file and datadir.
 #
 # 3. Try restart after dropping the tables table.
 # -----------------------------------------------
 # 3.1 Create bootstrap file.
 # 3.2 First start the server with --initialize, and drop the tables table: Should fail.
-# 3.3 Restart the server against DDIR - should fail.
-# 3.4 Look for error.
-#     Data Dictionary initialization error found 1 times.
-# 3.5 Delete bootstrap file, log file and datadir.
+# 3.3 Delete bootstrap file, log file and datadir.
 #
 # 4. Try restart after altering the schemata table.
 # -------------------------------------------------

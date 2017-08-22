@@ -445,7 +445,7 @@ int mi_repair_parallel(MI_CHECK *param, MI_INFO *info,
                        const char * name, int rep_quick, bool no_copy_stat);
 int change_to_newfile(const char * filename, const char * old_ext,
 		      const char * new_ext, myf myflags);
-int lock_file(MI_CHECK *param, File file, my_off_t start, int lock_type,
+int lock_file(MI_CHECK *param, File file, int lock_type,
 	      const char *filetype, const char *filename);
 void lock_memory(MI_CHECK *param);
 void update_auto_increment_key(MI_CHECK *param, MI_INFO *info,

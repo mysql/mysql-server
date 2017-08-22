@@ -44,8 +44,8 @@ ERROR HY000: Error writing file 'master-bin' ((errno: #)
 DROP VIEW v1;
 DROP VIEW v1;
 ERROR HY000: Error writing file 'master-bin' ((errno: #)
-CREATE PROCEDURE p1(OUT rows INT) SELECT count(*) INTO rows FROM t1;
-CREATE PROCEDURE p1(OUT rows INT) SELECT count(*) INTO rows FROM t1;
+CREATE PROCEDURE p1(OUT `rows` INT) SELECT count(*) INTO `rows` FROM t1;
+CREATE PROCEDURE p1(OUT `rows` INT) SELECT count(*) INTO `rows` FROM t1;
 ERROR HY000: Error writing file 'master-bin' ((errno: #)
 DROP PROCEDURE p1;
 DROP PROCEDURE p1;

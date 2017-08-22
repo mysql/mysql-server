@@ -1,7 +1,6 @@
 # Checking if perl Expect module is installed on the system.
 # If not, the test will be skipped.
 --source include/have_expect.inc
---source include/not_embedded.inc
 --source include/not_windows.inc
 
 SELECT plugin into @plugin from mysql.user where user= 'root' and host='localhost';

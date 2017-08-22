@@ -219,8 +219,9 @@ Item_geometry_func::Item_geometry_func(const POS &pos, PT_item_list *list)
 Field *Item_geometry_func::tmp_table_field(TABLE *t_arg)
 {
   Field *result;
-  if ((result= new Field_geom(max_length, maybe_null, item_name.ptr(),
-                              get_geometry_type())))
+  if ((result= new (*THR_MALLOC) Field_geom(max_length, maybe_null,
+                                            item_name.ptr(),
+                                            get_geometry_type())))
     result->init(t_arg);
   return result;
 }
@@ -3088,6 +3089,7 @@ Item_func_latlongfromgeohash::check_geohash_argument_valid_type(Item *item)
   {
   case MYSQL_TYPE_VARCHAR:
   case MYSQL_TYPE_VAR_STRING:
+  case MYSQL_TYPE_STRING:
   case MYSQL_TYPE_BLOB:
   case MYSQL_TYPE_TINY_BLOB:
   case MYSQL_TYPE_MEDIUM_BLOB:

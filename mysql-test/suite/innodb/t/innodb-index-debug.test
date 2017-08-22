@@ -2,15 +2,6 @@
 -- source include/count_sessions.inc
 -- source include/have_debug_sync.inc
 
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs38=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-alter schema test default character set latin1;
---enable_query_log
-########################################
-
 let $MYSQLD_DATADIR= `select @@datadir`;
 
 #
@@ -67,7 +58,7 @@ insert into t480 select 0 from t480;
 # Error during file write in alter operation.
 create table t1(f1 int auto_increment not null,
 		f2 char(200) not null, f3 char(200) not null,
-		primary key(f1,f2,f3), key(f1))engine=innodb;
+		primary key(f1,f2,f3), key(f1))engine=innodb charset latin1;
 insert into t1 select NULL,'aaa','bbb' from t480;
 insert into t1 select NULL,'aaaa','bbbb' from t480;
 insert into t1 select NULL,'aaaaa','bbbbb' from t480;
@@ -136,10 +127,3 @@ SET debug="+d,innodb_alter_table_pk_assert_no_sort";
 --source suite/innodb/include/alter_table_pk_no_sort.inc
 
 SET debug="-d,innodb_alter_table_pk_assert_no_sort";
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
---eval alter schema test default character set $testdbcs38;
---enable_query_log
-########################################

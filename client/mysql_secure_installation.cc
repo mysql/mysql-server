@@ -47,7 +47,7 @@ static bool g_expire_password_on_exit= FALSE;
 static bool opt_use_default= FALSE;
 
 #if defined (_WIN32)
-static char *shared_memory_base_name= default_shared_memory_base_name;
+static const char *shared_memory_base_name= default_shared_memory_base_name;
 #endif
 
 #include "sslopt-vars.h"

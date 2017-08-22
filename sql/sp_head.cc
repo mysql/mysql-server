@@ -41,6 +41,7 @@
 #include "my_bitmap.h"
 #include "my_config.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "my_pointer_arithmetic.h"
 #include "my_user.h"           // parse_user
 #include "mysql/psi/mysql_error.h"
@@ -75,9 +76,6 @@
 #include "thr_malloc.h"
 #include "transaction.h"       // trans_commit_stmt
 #include "trigger_def.h"
-
-class Table_trigger_field_support;
-struct PSI_statement_locker;
 
 /**
   @page stored_programs Stored Programs
@@ -166,11 +164,7 @@ struct PSI_statement_locker;
 
   - #Table_trigger_dispatcher::create_trigger()
 
-  - #Table_trigger_dispatcher::drop_trigger()
-
   - #Table_trigger_dispatcher::check_n_load()
-
-  - #Trigger_loader::drop_all_triggers()
 
   See the C++ class #Table_trigger_dispatcher in general.
 
@@ -1626,8 +1620,7 @@ static bool sp_update_sp_used_routines(HASH *dst, HASH *src)
   for (uint i= 0 ; i < src->records ; i++)
   {
     Sroutine_hash_entry *rt= (Sroutine_hash_entry *)my_hash_element(src, i);
-    if (!my_hash_search(dst, (uchar *)rt->mdl_request.key.ptr(),
-                        rt->mdl_request.key.length()))
+    if (!my_hash_search(dst, rt->m_key, rt->m_key_length))
     {
       if (my_hash_insert(dst, (uchar *)rt))
         return true;
@@ -1641,30 +1634,33 @@ static bool sp_update_sp_used_routines(HASH *dst, HASH *src)
 ///////////////////////////////////////////////////////////////////////////
 
 /**
-  Create temporary sp_name object from MDL key.
+  Create temporary sp_name object for Sroutine_hash_entry.
 
-  @note The lifetime of this object is bound to the lifetime of the MDL_key.
+  @note The lifetime of this object is bound to the lifetime of the
+        Sroutine_hash_entry object.
         This should be fine as sp_name objects created by this constructor
         are mainly used for SP-cache lookups.
 
-  @note Stored routine names are case insensitive. So for the proper MDL key
+  @note Stored routine names are case insensitive. So for the proper key
         comparison, routine name is converted to the lower case while
-        preparing the MDL_key. Hence the instance of sp_name created from the
-        MDL_key has the routine name in lower case.
+        creating Sroutine_hash_entry. Hence the instance of sp_name created
+        from it has the routine name in lower case.
         Since instances created by this constructor are mainly used for
         SP-cache lookups, routine name in lower case should work fine.
 
-  @param key         MDL key containing database and routine name.
+  @param rt          Sroutine_hash_entry with key containing database and
+                     routine name.
   @param qname_buff  Buffer to be used for storing quoted routine name
                      (should be at least 2*NAME_LEN+1+1 bytes).
 */
 
-sp_name::sp_name(const MDL_key *key, char *qname_buff)
+sp_name::sp_name(const Sroutine_hash_entry *rt, char *qname_buff)
 {
-  m_db.str= (char*)key->db_name();
-  m_db.length= key->db_name_length();
-  m_name.str= (char*)key->name();
-  m_name.length= key->name_length();
+  m_db.str= rt->db();
+  m_db.length= rt->db_length();
+  // Safe as sp_name is not changed in scenarios when this ctor is used.
+  m_name.str= const_cast<char*>(rt->name());
+  m_name.length= rt->name_length();
   m_qname.str= qname_buff;
   if (m_db.length)
   {
@@ -1762,7 +1758,11 @@ sp_head::sp_head(MEM_ROOT &&mem_root, enum_sp_type type)
 
   my_hash_init(&m_sptabs, system_charset_info, 0, 0, sp_table_key, nullptr, 0,
                key_memory_sp_head_main_root);
-  my_hash_init(&m_sroutines, system_charset_info, 0, 0, sp_sroutine_key,
+  /*
+    See Sroutine_hash_entry for explanation why this hash uses binary
+    key comparison.
+  */
+  my_hash_init(&m_sroutines, &my_charset_bin, 0, 0, sp_sroutine_key,
                nullptr, 0,
                key_memory_sp_head_main_root);
 
@@ -1949,9 +1949,9 @@ sp_head::~sp_head()
   DBUG_ASSERT(!m_parser_data.is_parsing_sp_body());
 
   for (uint ip = 0 ; (i = get_instr(ip)) ; ip++)
-    delete i;
+    ::destroy(i);
 
-  delete m_root_parsing_ctx;
+  ::destroy(m_root_parsing_ctx);
 
   free_items();
 
@@ -2566,7 +2566,7 @@ err_with_cleanup:
 
   m_security_ctx.restore_security_context(thd, save_ctx);
 
-  delete trigger_runtime_ctx;
+  ::destroy(trigger_runtime_ctx);
   call_arena.free_items();
   free_root(&call_mem_root, MYF(0));
   thd->sp_runtime_ctx= parent_sp_runtime_ctx;
@@ -2803,7 +2803,7 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   m_security_ctx.restore_security_context(thd, save_security_ctx);
 
 err_with_cleanup:
-  delete func_runtime_ctx;
+  ::destroy(func_runtime_ctx);
   call_arena.free_items();
   free_root(&call_mem_root, MYF(0));
   thd->sp_runtime_ctx= parent_sp_runtime_ctx;
@@ -2866,7 +2866,7 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args)
     thd->sp_runtime_ctx= sp_runtime_ctx_saved;
 
     if (!sp_runtime_ctx_saved)
-      delete parent_sp_runtime_ctx;
+      ::destroy(parent_sp_runtime_ctx);
 
     DBUG_RETURN(true);
   }
@@ -3060,9 +3060,9 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args)
     m_security_ctx.restore_security_context(thd, save_security_ctx);
 
   if (!sp_runtime_ctx_saved)
-    delete parent_sp_runtime_ctx;
+    ::destroy(parent_sp_runtime_ctx);
 
-  delete proc_runtime_ctx;
+  ::destroy(proc_runtime_ctx);
   thd->sp_runtime_ctx= sp_runtime_ctx_saved;
   thd->utime_after_lock= utime_before_sp_exec;
 
@@ -3245,7 +3245,7 @@ void sp_head::optimize()
   {
     if (!i->opt_is_marked())
     {
-      delete i;
+      ::destroy(i);
       src+= 1;
     }
     else
@@ -3350,10 +3350,10 @@ bool sp_head::show_routine_code(THD *thd)
     */
     if (ip != i->get_ip())
     {
-      const char *format= "Instruction at position %u has m_ip=%u";
-      char tmp[sizeof(format) + 2 * sizeof(uint) + 1];
-
-      sprintf(tmp, format, ip, i->get_ip());
+      char tmp[64 + 2 * MY_INT32_NUM_DECIMAL_DIGITS];
+      snprintf(tmp, sizeof(tmp),
+               "Instruction at position %u has m_ip=%u",
+               ip, i->get_ip());
       /*
         Since this is for debugging purposes only, we don't bother to
         introduce a special error code for it.

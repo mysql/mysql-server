@@ -11,7 +11,7 @@
 # When the created table is myisam, it is considered a
 # non-transactional statement, and therefore logged before the
 # transaction ends, and thus anonymous ownership is released and the
-# counters decreased.  Except when binlog_format=row: in that case
+# counters decreased.  Except when binlog_format='row': in that case
 # CREATE TEMPORARY is not logged at all.  Therefore, the transaction
 # context is left open, so it keeps anonymous ownership, and does not
 # modify counter values.

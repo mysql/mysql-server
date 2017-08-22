@@ -21,7 +21,6 @@
 # For crash recovery test on default change please run the ibtest             #
 ###############################################################################
 
--- source include/not_embedded.inc
 
 CALL mtr.add_suppression("innodb_open_files should not be greater than the open_files_limit.");
 CALL mtr.add_suppression("You must raise the value of innodb_open_files in my.cnf! Remember that InnoDB keeps all");

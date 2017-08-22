@@ -69,7 +69,7 @@ protected:
       data structure.
    */
   Abstract_option(void* value, ulong var_type, std::string name,
-    std::string description, uint64 default_value);
+    std::string description, longlong default_value);
 
   /**
     Returns my_getopt internal option data structure representing this option.
@@ -134,7 +134,7 @@ template<typename T_type> T_type* Abstract_option<T_type>::set_short_character(
 
 template<typename T_type> Abstract_option<T_type>::Abstract_option(void* value,
     ulong var_type, std::string name, std::string description,
-    uint64 default_value)
+    longlong default_value)
   : m_option_changed_listener(NULL)
 {
   this->m_option_structure.block_size= 0;

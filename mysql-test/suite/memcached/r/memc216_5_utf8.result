@@ -48,7 +48,7 @@ SLEEP(2)
 Here the memcached results with D,B,M,C:
 Darmstadt|City|1|dddddddddddddd|1234|2012
 Berlin|Mitte|2|bbbbbbbbbbbbbb|2345|2012
-MÃ¼nchen|SÃ¼d|4|ÃœÃ–Ã„ÃŸÃ¼Ã¶Ã¤|4567|2012
+München|Süd|4|ÜÖÄßüöä|4567|2012
 Cottbus|West|3|cccccccccccccc|3456|2012
 SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
 c1	c2	c21	c22	c23	c24	c25
@@ -70,7 +70,7 @@ C	Cottbus	West	3	cccccccccccccc	3456	2012
 D	Darmstadt	City	1	dddddddddddddd	1234	2012
 M	München	Süd	4	ÜÖÄßüöä	4567	2012
 _	Beijing	City	6	fffffffff	6789	2012
-�	�lzen	City	5	�������	5678	2012
+Ü	Ülzen	City	5	üöäßÜÖÄ	5678	2012
 DROP TABLE t1;
 UNINSTALL PLUGIN daemon_memcached;
 DROP TABLE IF EXISTS t1;
@@ -115,7 +115,7 @@ SLEEP(2)
 Here the memcached results with D,B,M,C:
 Darmstadt                               |City                                    |1                                       |dddddddddddddd                          |1234                                    |2012                                    
 Berlin                                  |Mitte                                   |2                                       |bbbbbbbbbbbbbb                          |2345                                    |2012                                    
-MÃ¼nchen                              |SÃ¼d                                  |4                                       |ÃœÃ–Ã„ÃŸÃ¼Ã¶Ã¤          |4567                                    |2012                                    
+München                                |Süd                                    |4                                       |ÜÖÄßüöä                          |4567                                    |2012                                    
 Cottbus                                 |West                                    |3                                       |cccccccccccccc                          |3456                                    |2012                                    
 SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
 c1	c2	c21	c22	c23	c24	c25
@@ -137,7 +137,7 @@ C	Cottbus	West	3	cccccccccccccc	3456	2012
 D	Darmstadt	City	1	dddddddddddddd	1234	2012
 M	München	Süd	4	ÜÖÄßüöä	4567	2012
 _	Beijing	City	6	fffffffff	6789	2012
-�	�lzen	City	5	�������	5678	2012
+Ü	Ülzen	City	5	üöäßÜÖÄ	5678	2012
 DROP TABLE t1;
 UNINSTALL PLUGIN daemon_memcached;
 DROP DATABASE innodb_memcache;

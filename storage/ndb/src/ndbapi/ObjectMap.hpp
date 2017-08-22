@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2008 MySQL AB, 2008 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,6 +22,7 @@
 #include <NdbOut.hpp>
 
 #include <EventLogger.hpp>
+#include <NdbMutex.h>
 extern EventLogger * g_eventLogger;
 
 //#define DEBUG_OBJECTMAP
@@ -34,14 +34,24 @@ class NdbObjectIdMap
 {
 public:
   STATIC_CONST( InvalidId = 0x7fffffff );
-  NdbObjectIdMap(Uint32 initalSize, Uint32 expandSize);
+
+private:
+  /**
+   * class NdbObjectIdMap is only intended to be used through
+   * class NdbImpl.
+   */
+  friend class NdbImpl;
+
+  NdbObjectIdMap(Uint32 initialSize, Uint32 expandSize, NdbMutex* mutex);
   ~NdbObjectIdMap();
 
   Uint32 map(void * object);
   void * unmap(Uint32 id, void *object);
   
-  void * getObject(Uint32 id);
-private:
+  void * getObject(Uint32 id) const;
+
+  // mutex belonging to the NdbImpl object that owns this object map
+  NdbMutex* m_mutex;
   const Uint32 m_expandSize;
   Uint32 m_size;
   Uint32 m_firstFree;
@@ -105,8 +115,11 @@ inline
 Uint32
 NdbObjectIdMap::map(void * object)
 {
-  if(m_firstFree == InvalidId && expand(m_expandSize))
-    return InvalidId;
+  if(m_firstFree == InvalidId)
+  {
+    if (expand(m_expandSize) != 0)
+      return InvalidId;
+  }
   
   const Uint32 ff = m_firstFree;
   m_firstFree = m_map[ff].getNext();
@@ -158,7 +171,7 @@ NdbObjectIdMap::unmap(Uint32 id, void *object)
 }
 
 inline void *
-NdbObjectIdMap::getObject(Uint32 id)
+NdbObjectIdMap::getObject(Uint32 id) const
 {
   // DBUG_PRINT("info",("NdbObjectIdMap::getObject(%u) obj=0x%x", id,  m_map[id>>2].m_obj));
   id >>= 2;

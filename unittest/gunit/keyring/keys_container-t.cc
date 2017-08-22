@@ -184,8 +184,7 @@ namespace keyring__keys_container_unittest
     EXPECT_CALL(*((Mock_logger *)logger),
                 log(MY_ERROR_LEVEL, StrEq("Incorrect Keyring file")));
     EXPECT_CALL(*((Mock_logger *)logger),
-                log(MY_ERROR_LEVEL, StrEq("Error while loading keyring content."
-                                          " The keyring might be malformed")));
+                log(MY_ERROR_LEVEL, StrEq("Error while loading keyring content. The keyring might be malformed")));
     EXPECT_EQ(keys_container->init(keyring_io, keyring_incorrect_tag), 1);
     remove(keyring_incorrect_tag);
     delete sample_key; //unused in this test
@@ -301,7 +300,7 @@ namespace keyring__keys_container_unittest
     ASSERT_TRUE(keys_container->get_number_of_keys() == 3);
 
     my_free(fetched_key->release_key_data());
-  }
+}
 
   TEST_F(Keys_container_test, StoreTwiceTheSame)
   {
@@ -420,7 +419,7 @@ namespace keyring__keys_container_unittest
     Buffered_file_io_dont_remove_backup(ILogger *logger)
       : Buffered_file_io(logger) {}
 
-    bool remove_backup(myf myFlags)
+    bool remove_backup(myf)
     {
       return FALSE;
     }
@@ -794,6 +793,7 @@ namespace keyring__keys_container_unittest
     delete keys_container;
     delete logger;
     my_free(fetchedKey->release_key_data());
+//    fetchedKey->release_key_data();
   }
 
   class Mock_keyring_io : public IKeyring_io

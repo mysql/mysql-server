@@ -21,7 +21,6 @@
 # For crash recovery test on default change please run the ibtest             #
 ###############################################################################
 
--- source include/not_embedded.inc
 
 echo '#________________________VAR_05_table_definition_cache__________________#'
 echo '##'

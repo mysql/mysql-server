@@ -150,6 +150,11 @@ static int repl_semi_slave_io_end(Binlog_relay_IO_param *param)
   return repl_semisync.slaveStop(param);
 }
 
+int repl_semi_slave_sql_start(Binlog_relay_IO_param*)
+{
+  return 0;
+}
+
 static int repl_semi_slave_sql_stop(Binlog_relay_IO_param*, bool)
 {
   return 0;
@@ -211,6 +216,7 @@ Binlog_relay_IO_observer relay_io_observer = {
 
   repl_semi_slave_io_start,	// start
   repl_semi_slave_io_end,	// stop
+  repl_semi_slave_sql_start,    // start sql thread
   repl_semi_slave_sql_stop,     // stop sql thread
   repl_semi_slave_request_dump,	// request_transmit
   repl_semi_slave_read_event,	// after_read_event
@@ -251,6 +257,7 @@ mysql_declare_plugin(semi_sync_slave)
   "Semi-synchronous replication slave",
   PLUGIN_LICENSE_GPL,
   semi_sync_slave_plugin_init, /* Plugin Init */
+  NULL, /* Plugin Check uninstall */
   semi_sync_slave_plugin_deinit, /* Plugin Deinit */
   0x0100 /* 1.0 */,
   semi_sync_slave_status_vars,	/* status variables */

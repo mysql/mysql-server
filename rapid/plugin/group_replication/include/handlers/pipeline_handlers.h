@@ -30,9 +30,11 @@
 */
 enum enum_event_modifier
 {
-  TRANSACTION_BEGIN= 1, //transaction start event
-  TRANSACTION_END= 2,   //transaction end event
-  UNMARKED_EVENT= 3,    //transaction regular event
+  TRANSACTION_BEGIN= 1, ///< transaction start event
+  TRANSACTION_END= 2,   ///< transaction end event
+  UNMARKED_EVENT= 3,    ///< transaction regular event
+  SINGLE_VIEW_EVENT= 4, ///< the current Pipeline_event only contains
+                        ///< a single view event injected from GCS
 };
 
 /**

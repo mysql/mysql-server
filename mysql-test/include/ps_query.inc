@@ -610,10 +610,9 @@ select 1 < (select a from t1) ;
 prepare stmt1 from ' select 1 < (select a from t1) ' ;
 --error 1242
 execute stmt1 ;
-# Bug#5066 embedded server, select after failed subquery provides wrong result
+# Bug#5066, select after failed subquery provides wrong result
 #          (two additional records, all column values NULL)
 select 1 as my_col ;
-
 ################ union tests ################
 --disable_query_log
 select '------ union tests ------' as test_sequence ;

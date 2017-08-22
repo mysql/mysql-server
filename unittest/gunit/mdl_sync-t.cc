@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -640,7 +640,7 @@ TEST_F(MDLSyncTest, PriorityDeadlock2)
 class MDLSyncContextVisitor : public MDL_context_visitor
 {
 public:
-  virtual void visit_context(const MDL_context *ctx) { };
+  virtual void visit_context(const MDL_context*) { };
 };
 
 

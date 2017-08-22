@@ -6,8 +6,6 @@
 
 # Must have debug code to use SET DEBUG
 --source include/have_debug.inc
-# Embedded server does not support restarting
---source include/not_embedded.inc
 
 # Enable diag print to print query parse tree
 SET GLOBAL innodb_ft_enable_diag_print = 1;

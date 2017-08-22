@@ -129,6 +129,7 @@ SHOW TABLES;
 Tables_in_test
 tab1
 tab2
+tab3
 SELECT count(*) FROM tab1;
 count(*)
 1
@@ -136,6 +137,7 @@ SELECT count(*) FROM tab2;
 count(*)
 0
 SELECT count(*) FROM tab3;
-ERROR 42S02: Table 'test.tab3' doesn't exist
+count(*)
+1
 SET innodb_strict_mode=Default;
 # restart

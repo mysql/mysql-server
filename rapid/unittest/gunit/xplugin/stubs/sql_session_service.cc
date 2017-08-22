@@ -20,7 +20,7 @@
 extern "C" {
 #endif
 
-  int srv_session_init_thread(const void *p)
+  int srv_session_init_thread(const void*)
   {
     DBUG_ASSERT(0);
     return 0;
@@ -31,26 +31,26 @@ extern "C" {
     DBUG_ASSERT(0);
   }
 
-  MYSQL_THD srv_session_info_get_thd(MYSQL_SESSION session)
+  MYSQL_THD srv_session_info_get_thd(MYSQL_SESSION)
   {
     DBUG_ASSERT(0);
     return 0;
   }
 
-  MYSQL_SESSION srv_session_open(srv_session_error_cb errok_cb,
-                                                    void *plugin_ctx)
+  MYSQL_SESSION srv_session_open(srv_session_error_cb,
+                                 void*)
   {
     DBUG_ASSERT(0);
     return 0;
   }
 
-  int srv_session_close(MYSQL_SESSION session)
+  int srv_session_close(MYSQL_SESSION)
   {
     DBUG_ASSERT(0);
     return 0;
   }
 
-  int srv_session_detach(MYSQL_SESSION session)
+  int srv_session_detach(MYSQL_SESSION)
   {
     DBUG_ASSERT(0);
     return 0;
@@ -68,13 +68,13 @@ extern "C" {
     return 0;
   }
 
-  int srv_session_info_set_client_port(Srv_session *session, uint16_t port)
+  int srv_session_info_set_client_port(Srv_session*, uint16_t)
   {
     DBUG_ASSERT(0);
     return 0;
   }
 
-  int srv_session_info_set_connection_type(Srv_session *session, enum_vio_type type)
+  int srv_session_info_set_connection_type(Srv_session*, enum_vio_type)
   {
     DBUG_ASSERT(0);
     return 0;

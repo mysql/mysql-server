@@ -1,7 +1,6 @@
 #
 # mysqld --help
 #
---source include/not_embedded.inc
 
 #
 # force lower-case-table-names=1 (linux/macosx have different defaults)
@@ -57,13 +56,19 @@ perl;
     # fixes for 32-bit
     s/\b4294967295\b/18446744073709551615/;
     s/\b2146435072\b/9223372036853727232/;
-    s/\b196608\b/262144/;
-    s/\b524288\b/262144/;
-    s/\b393216\b/262144/;
+    # s/\b196608\b/262144/;
+    # s/\b524288\b/262144/;
+    # s/\b393216\b/262144/;
+    s/\b573440\b/262144/;
+    s/\b286720\b/262144/;
+    s/\b442368\b/262144/;
+    s/\b221184\b/262144/;
     # Replacing port number with string
     s/^port \d+/port ####/;
     # log-tc-size varies by platform
     s/^log-tc-size \d+/log-tc-size #####/;
+    # Avoid test failures when adding new error message
+    s/^performance-schema-error-size \d+/performance-schema-error-size ####/;
     foreach $var (@env) { s/$ENV{$var}/$var/ }
     next if /use --skip-(use-)?symbolic-links to disable/; # for valgrind, again
     next if $skip;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,10 +17,12 @@
 #define DD__DICTIONARY_INCLUDED
 
 
+#include "my_compiler.h"
 #include "dd/string_type.h"                    // dd::String_type
 
 class THD;
 class MDL_ticket;
+class Plugin_table;
 
 namespace dd {
 
@@ -51,15 +53,6 @@ public:
   virtual const Object_table *get_dd_table(
     const String_type &schema_name,
     const String_type &table_name) const = 0;
-
-  /**
-    Store metadata of plugin's information schema tables into
-    DD tables.
-
-    @return false - On success
-    @return true - On error
-  */
-  virtual bool install_plugin_IS_table_metadata() = 0;
 
 public:
   /////////////////////////////////////////////////////////////////////////
@@ -126,6 +119,24 @@ public:
   /**
     Check if given table name is a system view name.
 
+    @param schema_name              Schema name to check.
+    @param table_name               Table name to check.
+    @param[out] hidden              Pointer to boolean flag indicating
+                                    if the object is hidden.
+
+    @returns true -  If given table name is a system view.
+    @returns false - If table name is not a system view.
+  */
+  virtual bool is_system_view_name(const char *schema_name,
+                                   const char *table_name,
+                                   bool *hidden) const = 0;
+
+  /**
+    Check if given table name is a system view name.
+
+    @param schema_name              Schema name to check.
+    @param table_name               Table name to check.
+
     @returns true -  If given table name is a system view.
     @returns false - If table name is not a system view.
   */
@@ -163,8 +174,8 @@ bool acquire_shared_table_mdl(THD *thd,
                               const char *schema_name,
                               const char *table_name,
                               bool no_wait,
-                              MDL_ticket **out_mdl_ticket);
-
+                              MDL_ticket **out_mdl_ticket)
+  MY_ATTRIBUTE((warn_unused_result));
 
 /**
   Predicate to check if we have a shared meta data lock on the
@@ -216,7 +227,8 @@ bool has_exclusive_table_mdl(THD *thd,
 
 bool acquire_exclusive_tablespace_mdl(THD *thd,
                                       const char *tablespace_name,
-                                      bool no_wait);
+                                      bool no_wait)
+  MY_ATTRIBUTE((warn_unused_result));
 
 
 /**
@@ -234,7 +246,8 @@ bool acquire_exclusive_tablespace_mdl(THD *thd,
 */
 bool acquire_shared_tablespace_mdl(THD *thd,
                                    const char *tablespace_name,
-                                   bool no_wait);
+                                   bool no_wait)
+  MY_ATTRIBUTE((warn_unused_result));
 
 
 /**
@@ -269,7 +282,7 @@ bool has_exclusive_tablespace_mdl(THD *thd,
 
 /**
   Acquire exclusive metadata lock on the given table name with
-  explicit duration.
+  TRANSACTIONAL duration.
 
   @param[in]  thd              THD to which lock belongs to.
   @param[in]  schema_name      Schema name
@@ -285,7 +298,8 @@ bool acquire_exclusive_table_mdl(THD *thd,
                                  const char *schema_name,
                                  const char *table_name,
                                  bool no_wait,
-                                 MDL_ticket **out_mdl_ticket);
+                                 MDL_ticket **out_mdl_ticket)
+  MY_ATTRIBUTE((warn_unused_result));
 
 
 /**
@@ -304,7 +318,8 @@ bool acquire_exclusive_table_mdl(THD *thd,
 bool acquire_exclusive_schema_mdl(THD *thd,
                                  const char *schema_name,
                                  bool no_wait,
-                                 MDL_ticket **out_mdl_ticket);
+                                 MDL_ticket **out_mdl_ticket)
+  MY_ATTRIBUTE((warn_unused_result));
 
 /**
   @brief
@@ -318,6 +333,35 @@ void release_mdl(THD *thd, MDL_ticket *mdl_ticket);
 
 /** Get Dictionary_client from THD object (the latter is opaque * in SEs). */
 cache::Dictionary_client *get_dd_client(THD *thd);
+
+
+/**
+  Create plugin native table. The API would only write metadata to DD
+  and skip calling handler::create().
+
+  @param[in]  thd              THD to which lock belongs to.
+  @param[in]  pt               Plugin_table* contain metadata of table to
+                               be created.
+
+  @returns false on success, otherwise true.
+*/
+
+bool create_native_table(THD *thd, const Plugin_table *pt);
+
+
+/**
+  Remove plugin native table from DD. The API would only update
+  metadata to DD and skip calling handler::drop().
+
+  @param[in]  thd              THD to which lock belongs to.
+  @param[in]  schema_name      schema name which the table belongs to.
+  @param[in]  table_name       table name to be dropped.
+
+  @returns false on success, otherwise true.
+*/
+
+bool drop_native_table(THD *thd, const char* schema_name, const char* table_name);
+
 }
 
 #endif // DD__DICTIONARY_INCLUDED

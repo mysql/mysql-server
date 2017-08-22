@@ -36,7 +36,7 @@ public:
   /** Table share */
   static PFS_engine_table_share m_share;
   /** Table builder */
-  static PFS_engine_table* create();
+  static PFS_engine_table* create(PFS_engine_table_share*);
 
 protected:
   table_session_connect_attrs();
@@ -49,6 +49,8 @@ public:
 private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
+  /** Table definition. */
+  static Plugin_table m_table_def;
 };
 
 /** @} */

@@ -7,8 +7,6 @@
 --source include/not_group_replication_plugin.inc
 --source include/no_valgrind_without_big.inc
 --source include/not_mts_slave_parallel_workers.inc
---source include/not_relay_log_info_table.inc
---source include/not_master_info_table.inc
 --source include/master-slave.inc
 --connection slave
 --source include/stop_slave.inc
@@ -261,7 +259,7 @@ perl;
   use strict;
   my $outf= $ENV{'OUTF'} or die "OUTF not set";
   open(FILE, "$outf") or die("Unable to open $outf: $!\n");
-  my $count = () = grep(/CREATE TABLE `slave_master_info`/gi,<FILE>);
+  my $count = () = grep(/CREATE TABLE IF NOT EXISTS `slave_master_info`/gi,<FILE>);
   print "- Occurrences: $count\n";
   close(FILE);
 EOF

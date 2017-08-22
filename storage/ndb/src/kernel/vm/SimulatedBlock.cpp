@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -94,7 +94,7 @@ SimulatedBlock::SimulatedBlock(BlockNumber blockNumber,
 {
   m_threadId = 0;
   m_watchDogCounter = NULL;
-  m_jamBuffer = (EmulatedJamBuffer *)NdbThread_GetTlsKey(NDB_THREAD_TLS_JAM);
+  m_jamBuffer = NDB_THREAD_TLS_JAM;
   NewVarRef = 0;
   
   SimulatedBlock* mainBlock = globalData.getBlock(blockNumber);
@@ -159,6 +159,8 @@ SimulatedBlock::addInstance(SimulatedBlock* b, Uint32 theInstance)
 void
 SimulatedBlock::initCommon()
 {
+  NDB_STATIC_ASSERT(RG_COUNT == MM_RG_COUNT + 1);
+
   Uint32 count = 10;
   this->getParam("FragmentSendPool", &count);
   c_fragmentSendPool.setSize(count);

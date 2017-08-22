@@ -1,12 +1,3 @@
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs38=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-alter schema test default character set latin1;
---enable_query_log
-########################################
-
 --disable_warnings
 let $ENGINE=`select variable_value from performance_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --enable_warnings
@@ -270,11 +261,3 @@ ALTER TABLE t5 ADD c4 VARBINARY(20)  NOT NULL AFTER c2;
 SHOW TABLES; 
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
  SHOW CREATE TABLE t5; DROP TABLE t5; SHOW TABLES;
-
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
---eval alter schema test default character set $testdbcs38;
---enable_query_log
-########################################

@@ -1,6 +1,3 @@
-# Restarting is not supported in embedded
---source include/not_embedded.inc
-
 # This test case needs to crash the server. Needs a debug server.
 --source include/have_debug.inc
 
@@ -11,15 +8,6 @@
 --source include/not_crashrep.inc
 
 -- source include/have_innodb_max_16k.inc
-
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4. Added opt file too.
---disable_query_log
-let $testdbcs57=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-alter schema test default character set latin1;
---enable_query_log
-########################################
 
 # compressed table in tests are with sizes KEY_BLOCK_SIZE 1,2,4,8,16
 # Table creatation fails if KEY_BLOCK_SIZE > innodb-page-size,so
@@ -731,6 +719,10 @@ call mtr.add_suppression("\\[Warning\\] InnoDB: Ignoring tablespace `test_wl5522
 call mtr.add_suppression("\\[Warning\\] InnoDB: Monitor ibuf_merges is already enabled");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Monitor ibuf_merges_insert is already enabled");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Tablespace for table .* is set as discarded.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Unable to open tablespace .* \\(flags=.*, filename=");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Trying to import a tablespace, but could not open the tablespace file");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 32 in a file operation.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means that another program is using InnoDB's files.");
 --enable_query_log
 
 #cleanup
@@ -738,10 +730,3 @@ call mtr.add_suppression("\\[Warning\\] InnoDB: Tablespace for table .* is set a
 --remove_file $MYSQLTEST_VARDIR/tmp/t1.ibd
 
 eval SET GLOBAL INNODB_FILE_PER_TABLE=$innodb_file_per_table;
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
---eval alter schema test default character set $testdbcs57;
---enable_query_log
-########################################

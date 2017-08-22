@@ -28,10 +28,10 @@
 extern "C" {
 
 PSI_memory_key key_memory_DATE_TIME_FORMAT;
+PSI_memory_key key_memory_DD_column_statistics;
 PSI_memory_key key_memory_DD_default_values;
 PSI_memory_key key_memory_DD_import;
 PSI_memory_key key_memory_DD_String_type;
-PSI_memory_key key_memory_DDL_LOG_MEMORY_ENTRY;
 PSI_memory_key key_memory_Event_queue_element_for_exec_names;
 PSI_memory_key key_memory_Event_scheduler_scheduler_param;
 PSI_memory_key key_memory_File_query_log_name;
@@ -113,6 +113,7 @@ PSI_memory_key key_memory_handler_errmsgs;
 PSI_memory_key key_memory_handlerton;
 PSI_memory_key key_memory_hash_index_key_buffer;
 PSI_memory_key key_memory_help;
+PSI_memory_key key_memory_histograms;
 PSI_memory_key key_memory_host_cache_hostname;
 PSI_memory_key key_memory_ignored_db;
 PSI_memory_key key_memory_locked_table_list;
@@ -261,6 +262,7 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_READ_INFO, "READ_INFO", 0},
   { &key_memory_JOIN_CACHE, "JOIN_CACHE", 0},
   { &key_memory_TABLE_sort_io_cache, "TABLE::sort_io_cache", 0},
+  { &key_memory_DD_column_statistics, "dd::column_statistics", 0},
   { &key_memory_DD_default_values, "dd::default_values", 0},
   { &key_memory_DD_import, "dd::import", 0},
   { &key_memory_Unique_sort_buffer, "Unique::sort_buffer", 0},
@@ -269,7 +271,6 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_LOG_name, "LOG_name", 0},
   { &key_memory_DATE_TIME_FORMAT, "DATE_TIME_FORMAT", 0},
   { &key_memory_DD_String_type, "dd::String_type", 0},
-  { &key_memory_DDL_LOG_MEMORY_ENTRY, "DDL_LOG_MEMORY_ENTRY", 0},
   { &key_memory_ST_SCHEMA_TABLE, "ST_SCHEMA_TABLE", 0},
   { &key_memory_ignored_db, "ignored_db", 0},
   { &key_memory_PROFILE, "PROFILE", 0},
@@ -299,6 +300,9 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_fill_schema_schemata, "fill_schema_schemata", 0},
   { &key_memory_native_functions, "native_functions", PSI_FLAG_GLOBAL},
   { &key_memory_JSON, "JSON", 0},
+  { &key_memory_log_error_loaded_services, "log_error_loaded_services", 0},
+  { &key_memory_log_error_stack, "log_error_stack", 0},
+  { &key_memory_histograms, "histograms", 0},
 };
 
 void register_server_memory_keys()

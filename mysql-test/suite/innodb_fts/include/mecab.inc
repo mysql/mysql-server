@@ -9,8 +9,6 @@
 #
 #------------------------------------------------------------------------------
 
-# restart does not work with embedded
--- source include/not_embedded.inc
 
 call mtr.add_suppression("unknown variable 'loose_mecab_rc_file");
 call mtr.add_suppression("Fulltext index charset 'big5' doesn't match mecab charset");

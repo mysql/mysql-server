@@ -1,6 +1,4 @@
-# This test  uses grants, which can't get tested for embedded server
 -- source include/big_test.inc
--- source include/not_embedded.inc
 
 --disable_warnings
 DROP TABLE IF EXISTS t0,t1,t2,t3,t4,t5;

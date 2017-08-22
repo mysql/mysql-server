@@ -1,7 +1,5 @@
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
-# Test uses performance_schema.events_waits_current
---source include/not_embedded.inc
 --enable_connect_log
 
 --echo ###########################################################

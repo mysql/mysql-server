@@ -4,7 +4,6 @@
 # - Pass    :remove redo files,restart without keyring plugin 
 
 --source include/no_valgrind_without_big.inc
---source include/not_embedded.inc
 
 --disable_query_log
 #Suppress following messages from myslqd log

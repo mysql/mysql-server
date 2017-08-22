@@ -794,7 +794,7 @@ show create function fn3;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 fn3	ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `fn3`() RETURNS point
     DETERMINISTIC
-return ST_GeomFromText("point(1 1)")	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+return ST_GeomFromText("point(1 1)")	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 select ST_astext(fn3());
 ST_astext(fn3())
 POINT(1 1)
@@ -1003,7 +1003,7 @@ drop table t1;
 create table `t1` (`col002` point)engine=myisam;
 insert into t1 values (),(),();
 select min(`col002`) from t1 union select `col002` from t1;
-ERROR HY000: Incorrect arguments to min(
+ERROR HY000: Incorrect arguments to min
 drop table t1;
 #
 # Bug #47780: crash when comparing GIS items from subquery
@@ -1518,62 +1518,42 @@ SELECT ST_Equals(boundary,
 ST_PolyFromText('POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )',101))
 FROM named_places
 WHERE name = 'Goose Island';
-ST_Equals(boundary,
-ST_PolyFromText('POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )',101))
-1
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_equals will be done in SRID 0.
+ERROR SR001: There's no spatial reference system with SRID 101.
 SELECT ST_Equals(boundary,
 ST_PolyFromText('POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )',1))
 FROM named_places
 WHERE name = 'Goose Island';
-ERROR HY000: Binary geometry function st_equals given two geometries of different srids: 101 and 1, which should have been identical.
+ERROR SR001: There's no spatial reference system with SRID 101.
 # Conformance Item T38 
 SELECT ST_Disjoint(centerlines, boundary) 
 FROM divided_routes, named_places 
 WHERE divided_routes.name = 'Route 75' 
 AND named_places.name = 'Ashton';
-ST_Disjoint(centerlines, boundary)
-1
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_disjoint will be done in SRID 0.
+ERROR SR001: There's no spatial reference system with SRID 101.
 # Conformance Item T39 
 SELECT ST_Touches(centerline, shore) 
 FROM streams, lakes 
 WHERE streams.name = 'Cam Stream' 
 AND lakes.name = 'Blue Lake';
-ST_Touches(centerline, shore)
-1
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_touches will be done in SRID 0.
+ERROR SR001: There's no spatial reference system with SRID 101.
 # Conformance Item T42
 SELECT ST_Crosses(road_segments.centerline, divided_routes.centerlines)
 FROM road_segments, divided_routes 
 WHERE road_segments.fid = 102 
 AND divided_routes.name = 'Route 75';
-ST_Crosses(road_segments.centerline, divided_routes.centerlines)
-1
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_crosses will be done in SRID 0.
+ERROR SR001: There's no spatial reference system with SRID 101.
 # Conformance Item T43 
 SELECT ST_Intersects(road_segments.centerline, divided_routes.centerlines) 
 FROM road_segments, divided_routes 
 WHERE road_segments.fid = 102 
 AND divided_routes.name = 'Route 75';
-ST_Intersects(road_segments.centerline, divided_routes.centerlines)
-1
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_intersects will be done in SRID 0.
+ERROR SR001: There's no spatial reference system with SRID 101.
 # Conformance Item T44 
 SELECT ST_Contains(forests.boundary, named_places.boundary) 
 FROM forests, named_places 
 WHERE forests.name = 'Green Forest' 
 AND named_places.name = 'Ashton';
-ST_Contains(forests.boundary, named_places.boundary)
-0
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_contains will be done in SRID 0.
+ERROR SR001: There's no spatial reference system with SRID 101.
 # Conformance Item T46 
 SELECT ST_Distance(position, boundary) 
 FROM bridges, named_places 
@@ -1613,12 +1593,7 @@ Warning	3565	There's no spatial reference system with SRID 101. The axis order i
 SELECT count(*) 
 FROM buildings, bridges 
 WHERE ST_Contains(ST_Buffer(bridges.position, 15.0), buildings.footprint) = 1;
-count(*)
-1
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_buffer will be done in SRID 0.
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_contains will be done in SRID 0.
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_contains will be done in SRID 0.
+ERROR SR001: There's no spatial reference system with SRID 101.
 DROP DATABASE gis_ogs;
 #
 # Bug#13362660 ASSERTION `FIELD_POS < FIELD_COUNT' FAILED. IN PROTOCOL_TEXT::STORE
@@ -2378,10 +2353,10 @@ CREATE TABLE t1 (g GEOMETRY);
 INSERT INTO t1 (g) VALUES (ST_GeomFromText("MULTIPOLYGON(((0 7,-3 -14,9 -11,0 7)))"));
 SELECT ST_AsText(ST_Buffer(g, 2)), ST_AsText(ST_Buffer(g, 2)) FROM t1;
 ST_AsText(ST_Buffer(g, 2))	ST_AsText(ST_Buffer(g, 2))
-POLYGON((1.7888 7.8944,1.5815 8.2242,1.3142 8.5075,0.9970 8.7337,0.6420 8.8941,0.2627 8.9826,-0.1265 8.9959,-0.5110 8.9335,-0.8762 8.7978,-1.2081 8.5938,-1.4941 8.3294,-1.7235 8.0146,-1.8875 7.6612,-1.9798 7.2828,-4.9798 -13.7171,-4.9970 -14.1076,-4.9380 -14.4941,-4.8048 -14.8616,-4.6027 -15.1962,-4.3394 -15.4851,-4.0249 -15.7173,-3.6713 -15.8839,-3.2920 -15.9785,-2.9016 -15.9975,-2.5149 -15.9402,9.4850 -12.9402,9.8226 -12.8229,10.1340 -12.6474,10.4091 -12.4192,10.6392 -12.1457,10.8170 -11.8357,10.9367 -11.4989,10.9946 -11.1462,10.9888 -10.7888,10.9194 -10.4382,10.7888 -10.1055,1.7888 7.8944))	POLYGON((1.7888 7.8944,1.5815 8.2242,1.3142 8.5075,0.9970 8.7337,0.6420 8.8941,0.2627 8.9826,-0.1265 8.9959,-0.5110 8.9335,-0.8762 8.7978,-1.2081 8.5938,-1.4941 8.3294,-1.7235 8.0146,-1.8875 7.6612,-1.9798 7.2828,-4.9798 -13.7171,-4.9970 -14.1076,-4.9380 -14.4941,-4.8048 -14.8616,-4.6027 -15.1962,-4.3394 -15.4851,-4.0249 -15.7173,-3.6713 -15.8839,-3.2920 -15.9785,-2.9016 -15.9975,-2.5149 -15.9402,9.4850 -12.9402,9.8226 -12.8229,10.1340 -12.6474,10.4091 -12.4192,10.6392 -12.1457,10.8170 -11.8357,10.9367 -11.4989,10.9946 -11.1462,10.9888 -10.7888,10.9194 -10.4382,10.7888 -10.1055,1.7888 7.8944))
+POLYGON((1.7889 7.8944,1.5815 8.2242,1.3142 8.5076,0.9971 8.7337,0.6421 8.8941,0.2627 8.9827,-0.1266 8.996,-0.5111 8.9336,-0.8762 8.7978,-1.2081 8.5939,-1.4942 8.3295,-1.7235 8.0146,-1.8875 7.6613,-1.9799 7.2828,-4.9799 -13.7172,-4.9971 -14.1077,-4.938 -14.4941,-4.8049 -14.8616,-4.6028 -15.1963,-4.3395 -15.4852,-4.025 -15.7174,-3.6714 -15.884,-3.2921 -15.9786,-2.9016 -15.9976,-2.5149 -15.9403,9.4851 -12.9403,9.8227 -12.823,10.134 -12.6474,10.4091 -12.4193,10.6393 -12.1458,10.817 -11.8357,10.9368 -11.499,10.9946 -11.1463,10.9888 -10.7889,10.9195 -10.4383,10.7889 -10.1056,1.7889 7.8944))	POLYGON((1.7889 7.8944,1.5815 8.2242,1.3142 8.5076,0.9971 8.7337,0.6421 8.8941,0.2627 8.9827,-0.1266 8.996,-0.5111 8.9336,-0.8762 8.7978,-1.2081 8.5939,-1.4942 8.3295,-1.7235 8.0146,-1.8875 7.6613,-1.9799 7.2828,-4.9799 -13.7172,-4.9971 -14.1077,-4.938 -14.4941,-4.8049 -14.8616,-4.6028 -15.1963,-4.3395 -15.4852,-4.025 -15.7174,-3.6714 -15.884,-3.2921 -15.9786,-2.9016 -15.9976,-2.5149 -15.9403,9.4851 -12.9403,9.8227 -12.823,10.134 -12.6474,10.4091 -12.4193,10.6393 -12.1458,10.817 -11.8357,10.9368 -11.499,10.9946 -11.1463,10.9888 -10.7889,10.9195 -10.4383,10.7889 -10.1056,1.7889 7.8944))
 SELECT ST_AsText(ST_Buffer(g, 2)), ST_AsText(ST_Difference(g, g)) FROM t1;
 ST_AsText(ST_Buffer(g, 2))	ST_AsText(ST_Difference(g, g))
-POLYGON((1.7888 7.8944,1.5815 8.2242,1.3142 8.5075,0.9970 8.7337,0.6420 8.8941,0.2627 8.9826,-0.1265 8.9959,-0.5110 8.9335,-0.8762 8.7978,-1.2081 8.5938,-1.4941 8.3294,-1.7235 8.0146,-1.8875 7.6612,-1.9798 7.2828,-4.9798 -13.7171,-4.9970 -14.1076,-4.9380 -14.4941,-4.8048 -14.8616,-4.6027 -15.1962,-4.3394 -15.4851,-4.0249 -15.7173,-3.6713 -15.8839,-3.2920 -15.9785,-2.9016 -15.9975,-2.5149 -15.9402,9.4850 -12.9402,9.8226 -12.8229,10.1340 -12.6474,10.4091 -12.4192,10.6392 -12.1457,10.8170 -11.8357,10.9367 -11.4989,10.9946 -11.1462,10.9888 -10.7888,10.9194 -10.4382,10.7888 -10.1055,1.7888 7.8944))	GEOMETRYCOLLECTION EMPTY
+POLYGON((1.7889 7.8944,1.5815 8.2242,1.3142 8.5076,0.9971 8.7337,0.6421 8.8941,0.2627 8.9827,-0.1266 8.996,-0.5111 8.9336,-0.8762 8.7978,-1.2081 8.5939,-1.4942 8.3295,-1.7235 8.0146,-1.8875 7.6613,-1.9799 7.2828,-4.9799 -13.7172,-4.9971 -14.1077,-4.938 -14.4941,-4.8049 -14.8616,-4.6028 -15.1963,-4.3395 -15.4852,-4.025 -15.7174,-3.6714 -15.884,-3.2921 -15.9786,-2.9016 -15.9976,-2.5149 -15.9403,9.4851 -12.9403,9.8227 -12.823,10.134 -12.6474,10.4091 -12.4193,10.6393 -12.1458,10.817 -11.8357,10.9368 -11.499,10.9946 -11.1463,10.9888 -10.7889,10.9195 -10.4383,10.7889 -10.1056,1.7889 7.8944))	GEOMETRYCOLLECTION EMPTY
 DROP TABLE t1;
 CREATE TABLE t1(id INT PRIMARY KEY AUTO_INCREMENT, g GEOMETRY NOT NULL,
 SPATIAL INDEX(g));
@@ -4302,3 +4277,31 @@ DO ST_EXTERIORRING(x'00000000010700000001000000010500000001000000');
 ERROR 22023: Invalid GIS data provided to function st_exteriorring.
 DO ST_EXTERIORRING(x'00000000010700000001000000010600000001000000');
 ERROR 22023: Invalid GIS data provided to function st_exteriorring.
+#
+# Bug #25582178 ASSERTION `LENGTH > 0' FAILED. IN SQL/FIELD.CC:8732
+#
+CREATE TABLE t1(g GEOMETRY NOT NULL) ENGINE=ARCHIVE;
+INSERT INTO t1 VALUES (NULL), (NULL);
+ERROR 23000: Column 'g' cannot be null
+ALTER TABLE t1 FORCE;
+DROP TABLE t1;
+SET @save_sql_mode=@@sql_mode;
+SET sql_mode='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+CREATE TABLE t1(g GEOMETRY NOT NULL) ENGINE=ARCHIVE;
+INSERT INTO t1 VALUES (NULL), (NULL);
+ERROR 23000: Column 'g' cannot be null
+ALTER TABLE t1 FORCE;
+DROP TABLE t1;
+SET sql_mode=@save_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+# Bug #23023817 ST_SIMPLIFY: INVALID READS IN
+# PROTOCOL_CLASSIC::NET_STORE_DATA
+#
+CREATE TABLE t(a INT);
+INSERT INTO t VALUES(1),(2),(3),(4);
+DO (SELECT DISTINCT SQL_BIG_RESULT ST_SIMPLIFY(POINT(a,1),1) FROM t);
+ERROR 21000: Subquery returns more than 1 row
+DROP TABLE t;

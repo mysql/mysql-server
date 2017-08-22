@@ -1,0 +1,38 @@
+create table t1
+(
+a int, b varchar(30),
+primary key(a)
+) engine = NDB;
+insert into t1 values (1,'one');
+insert into t1 values (2,'two');
+insert into t1 values (3,'three');
+insert into t1 values (4,'four');
+#
+# Group by query 1
+#  - group by
+#
+select sum(a), 'b' from t1 where a > 0
+and b is not null group by substr(b,2)
+having sum(a) <> 2 ;
+sum(a)	b
+1	b
+3	b
+4	b
+#
+# Group by query 2
+#  - union + group by
+select sum(a) + 200 as the_sum, 'City 1' as the_town from t1
+group by b
+union distinct
+select sum(a) + 200, 'City 2' from t1
+group by b ;
+the_sum	the_town
+201	City 1
+201	City 2
+202	City 1
+202	City 2
+203	City 1
+203	City 2
+204	City 1
+204	City 2
+drop table t1;

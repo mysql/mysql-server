@@ -26,13 +26,24 @@
 #endif
 
 #include "my_command.h"
-#include "my_inttypes.h"
+
+/*
+  We need a definition for my_socket. On the client, <mysql.h> already provides
+  it, but on the server side, we need to get it from a header.
+*/
+#ifndef my_socket_defined
 #include "my_io.h"
+#endif
+
+#ifndef MYSQL_ABI_CHECK
+#include <stdbool.h>
+#endif
 
 #define HOSTNAME_LENGTH 60
 #define SYSTEM_CHARSET_MBMAXLEN 3
 #define FILENAME_CHARSET_MBMAXLEN 5
 #define NAME_CHAR_LEN	64              /**< Field/table name length */
+#define PARTITION_EXPR_CHAR_LEN 2048 /**< Maximum expression length in chars */
 #define USERNAME_CHAR_LENGTH 32
 #define USERNAME_CHAR_LENGTH_STR "32"
 #ifndef NAME_LEN
@@ -137,6 +148,8 @@
 #define FIELD_IS_DROPPED (1<< 26)       /**< Intern: Field is being dropped */
 #define EXPLICIT_NULL_FLAG (1<< 27)     /**< Field is explicitly specified as
                                            NULL by the user */
+#define FIELD_IS_MARKED    (1 << 28)    /**< Intern: field is marked,
+                                             general purpose */
 
 #define REFRESH_GRANT		1	/**< Refresh grant tables */
 #define REFRESH_LOG		2	/**< Start on new log file */
@@ -732,8 +745,8 @@ enum SERVER_STATUS_flags_enum
   Server status flags that must be cleared when starting
   execution of a new SQL statement.
   Flags from this set are only added to the
-  current server status by the execution engine, but 
-  never removed -- the execution engine expects them 
+  current server status by the execution engine, but
+  never removed -- the execution engine expects them
   to disappear automagically by the next command.
 */
 #define SERVER_STATUS_CLEAR_SET (SERVER_QUERY_NO_GOOD_INDEX_USED| \
@@ -801,7 +814,7 @@ typedef struct st_net {
   */
   unsigned char *unused;
   unsigned int last_errno;
-  unsigned char error; 
+  unsigned char error;
   /** Client library error message buffer. Actually belongs to struct MYSQL. */
   char last_error[MYSQL_ERRMSG_SIZE];
   /** Client library sqlstate buffer. Set along with the error message. */
@@ -825,7 +838,7 @@ typedef struct st_net {
   @ingroup group_cs
   @{
 */
-#define CLIENT_MULTI_QUERIES    CLIENT_MULTI_STATEMENTS    
+#define CLIENT_MULTI_QUERIES    CLIENT_MULTI_STATEMENTS
 #define FIELD_TYPE_DECIMAL     MYSQL_TYPE_DECIMAL
 #define FIELD_TYPE_NEWDECIMAL  MYSQL_TYPE_NEWDECIMAL
 #define FIELD_TYPE_TINY        MYSQL_TYPE_TINY
@@ -960,9 +973,9 @@ bool	net_write_command(NET *net,unsigned char command,
 bool net_write_packet(NET *net, const unsigned char *packet, size_t length);
 unsigned long my_net_read(NET *net);
 
-void my_net_set_write_timeout(NET *net, uint timeout);
-void my_net_set_read_timeout(NET *net, uint timeout);
-void my_net_set_retry_count(NET *net, uint retry_count);
+void my_net_set_write_timeout(NET *net, unsigned int timeout);
+void my_net_set_read_timeout(NET *net, unsigned int timeout);
+void my_net_set_retry_count(NET *net, unsigned int retry_count);
 
 struct rand_struct {
   unsigned long seed1,seed2,max_value;
@@ -973,39 +986,8 @@ struct rand_struct {
 }
 #endif
 
-/** Used for user defined functions */
-enum Item_result {INVALID_RESULT=-1,
-                  STRING_RESULT=0, REAL_RESULT, INT_RESULT, ROW_RESULT,
-                  DECIMAL_RESULT};
-
-typedef struct st_udf_args
-{
-  unsigned int arg_count;		/**< Number of arguments */
-  enum Item_result *arg_type;		/**< Pointer to item_results */
-  char **args;				/**< Pointer to argument */
-  unsigned long *lengths;		/**< Length of string arguments */
-  char *maybe_null;			/**< Set to 1 for all maybe_null args */
-  char **attributes;                    /**< Pointer to attribute name */
-  unsigned long *attribute_lengths;     /**< Length of attribute arguments */
-  void *extension;
-} UDF_ARGS;
-
-/**
-  Information about the result of a user defined function
-
-  @todo add a notion for determinism of the UDF.
-
-  @sa Item_udf_func::update_used_tables()
-*/
-typedef struct st_udf_init
-{
-  bool maybe_null;             /** 1 if function can return NULL */
-  unsigned int decimals;       /** for real functions */
-  unsigned long max_length;    /** For string functions */
-  char *ptr;                   /** free pointer for function data */
-  bool const_item;             /** 1 if function always returns the same value */
-  void *extension;
-} UDF_INIT;
+/* Include the types here so existing UDFs can keep compiling */
+#include <mysql/udf_registration_types.h>
 
 /**
   @addtogroup group_cs_compresson_constants Constants when using compression
@@ -1059,11 +1041,12 @@ bool my_thread_init(void);
 void my_thread_end(void);
 
 #ifdef STDCALL
-ulong STDCALL net_field_length(uchar **packet);
+unsigned long STDCALL net_field_length(unsigned char **packet);
 #endif
-my_ulonglong net_field_length_ll(uchar **packet);
-uchar *net_store_length(uchar *pkg, ulonglong length);
-unsigned int net_length_size(ulonglong num);
+unsigned long long net_field_length_ll(unsigned char **packet);
+unsigned char *net_store_length(unsigned char *pkg, unsigned long long length);
+unsigned int net_length_size(unsigned long long num);
+unsigned int net_field_length_size(unsigned char *pos);
 
 #ifdef __cplusplus
 }

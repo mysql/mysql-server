@@ -1,7 +1,6 @@
 # Tests for WL#8131
 call mtr.add_suppression(".*Missing system table mysql.global_grants.*");
 
---source include/not_embedded.inc
 --echo #
 --echo # Bug25303916 WL8131:FLUSH DOES NOT UPDATE THE GRANT STATUS IN
 --echo # mysql.global_grants
@@ -431,6 +430,21 @@ START SLAVE;
 --error 1200
 START SLAVE;
 DISCONNECT con_rep_slave_test;
+--echo #
+--echo # Bad privilege- or auth identifiers shouldn't crash the server
+--echo #
+CONNECTION default;
+--error ER_PARSE_ERROR
+REVOKE 'C' @c06 ON c02.`z1` FROM 'C' @c03;
+--error ER_PARSE_ERROR
+GRANT '' @c05 ON TABLE *.* TO ''@'' IDENTIFIED WITH c06 BY '' REQUIRE X509;
+--error ER_PARSE_ERROR
+GRANT '' @c05 ON TABLE * TO CURRENT_USER()IDENTIFIED WITH c07 REQUIRE X509 WITH  MAX_QUERIES_PER_HOUR 0x2e3;
+--error ER_PARSE_ERROR
+GRANT WRAPPER @c04 ON FUNCTION c02.* TO CURRENT_USER IDENTIFIED WITH '' BY '?'  REQUIRE SSL;
+--error ER_PARSE_ERROR
+GRANT '' @c03 ON c05.* TO '' @ '';
+
 --echo # Cleanup
 CONNECTION default;
 DROP USER u1@localhost, u1, r2;
@@ -462,3 +476,45 @@ PRIMARY KEY (USER,HOST,PRIV)
 --source include/restart_mysqld.inc
 DROP USER u1@localhost;
 
+--echo #
+--echo # Test for WL#7194
+--echo # This test checks that a user who granted XA_RECOVER_ADMIN with
+--echo # WITH GRANT OPTION can grant it to other user and a user who is granted
+--echo # XA_RECOVER_ADMIN without WITH GRANT OPTION can not.
+--echo #
+CREATE USER u1;
+CREATE USER u2;
+CREATE USER u3;
+GRANT SYSTEM_VARIABLES_ADMIN, SELECT ON *.* TO u1;
+GRANT SYSTEM_VARIABLES_ADMIN, SELECT ON *.* TO u2;
+--echo # Grant the privilege XA_RECOVER_ADMIN to user u1 with GRANT OPTION
+GRANT XA_RECOVER_ADMIN ON *.* TO u1 WITH GRANT OPTION;
+--connect (con1, localhost, u1,,)
+--echo # And check that the user u1 can grant the privilege XA_RECOVER_ADMIN
+--echo # to the user u2
+GRANT XA_RECOVER_ADMIN ON *.* TO u2;
+SHOW GRANTS FOR u1;
+SHOW GRANTS FOR u2;
+
+--disconnect con1
+--source include/wait_until_disconnected.inc
+
+--echo # Connect as user u2 who was granted the privilege XA_RECOVER_ADMIN
+--echo # without WITH GRANT OPTION and try to grant the privilege
+--echo # XA_RECOVER_ADMIN to user u3.
+
+--connect (con1, localhost, u2,,)
+
+--echo # Since the the privilege XA_RECOVER_ADMIN was granted to the user u2
+--echo # without the clause WITH GRANT OPTION it is expected that attempt
+--echo # to grant the privilege XA_RECOVER_ADMIN to the user u3 be failed.
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+GRANT XA_RECOVER_ADMIN ON *.* TO u3;
+
+--connection default
+DROP USER u1;
+DROP USER u2;
+DROP USER u3;
+
+--echo # End of test for WL#7194

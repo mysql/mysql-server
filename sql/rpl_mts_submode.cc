@@ -24,7 +24,7 @@
 #include "handler.h"
 #include "hash.h"                           // HASH
 #include "lex_string.h"
-#include "log.h"                            // sql_print_information
+#include "log.h"
 #include "log_event.h"                      // Query_log_event
 #include "m_string.h"
 #include "mdl.h"
@@ -300,9 +300,8 @@ Mts_submode_database::get_least_occupied_worker(Relay_log_info*,
   if (DBUG_EVALUATE_IF("mts_distribute_round_robin", 1, 0))
   {
     worker= ws->at(w_rr % ws->size());
-    sql_print_information("Chosing worker id %lu, the following is"
-                          " going to be %lu", worker->id,
-                          static_cast<ulong>(w_rr % ws->size()));
+    LogErr(INFORMATION_LEVEL, ER_RPL_WORKER_ID_IS, worker->id,
+           static_cast<ulong>(w_rr % ws->size()));
     DBUG_ASSERT(worker != NULL);
     DBUG_RETURN(worker);
   }
@@ -426,7 +425,7 @@ longlong Mts_submode_logical_clock::get_lwm_timestamp(Relay_log_info *rli,
   }
   else if (is_stale)
   {
-    my_atomic_store64(&last_lwm_timestamp, lwm_estim);
+    last_lwm_timestamp.store(lwm_estim);
   }
 
   if (!need_lock)
@@ -484,7 +483,7 @@ wait_for_last_committed_trx(Relay_log_info* rli,
 
   DBUG_ASSERT(min_waited_timestamp == SEQ_UNINIT);
 
-  my_atomic_store64(&min_waited_timestamp, last_committed_arg);
+  min_waited_timestamp.store(last_committed_arg);
   /*
     This transaction is a candidate for insertion into the waiting list.
     That fact is descibed by incrementing waited_timestamp_cnt.
@@ -508,15 +507,15 @@ wait_for_last_committed_trx(Relay_log_info* rli,
     }
     while ((!rli->info_thd->killed && !is_error) &&
            !clock_leq(last_committed_arg, estimate_lwm_timestamp()));
-    my_atomic_store64(&min_waited_timestamp, SEQ_UNINIT);  // reset waiting flag
+    min_waited_timestamp.store(SEQ_UNINIT);  // reset waiting flag
     mysql_mutex_unlock(&rli->mts_gaq_LOCK);
     thd->EXIT_COND(&old_stage);
     set_timespec_nsec(&ts[1], 0);
-    my_atomic_add64(&rli->mts_total_wait_overlap, diff_timespec(&ts[1], &ts[0]));
+    rli->mts_total_wait_overlap+= diff_timespec(&ts[1], &ts[0]);
   }
   else
   {
-    my_atomic_store64(&min_waited_timestamp, SEQ_UNINIT);
+    min_waited_timestamp.store(SEQ_UNINIT);
     mysql_mutex_unlock(&rli->mts_gaq_LOCK);
   }
 
@@ -587,20 +586,16 @@ Mts_submode_logical_clock::schedule_next_event(Relay_log_info* rli,
                  last_committed != SEQ_UNINIT))
     {
       /* inconsistent (buggy) timestamps */
-      sql_print_error("Transaction is tagged with inconsistent logical "
-                      "timestamps: "
-                      "sequence_number (%lld) <= last_committed (%lld)",
-                      sequence_number, last_committed);
+      LogErr(ERROR_LEVEL, ER_RPL_INCONSISTENT_TIMESTAMPS_IN_TRX,
+             sequence_number, last_committed);
       DBUG_RETURN(ER_MTS_CANT_PARALLEL);
     }
     if (unlikely(clock_leq(sequence_number, last_sequence_number) &&
                  sequence_number != SEQ_UNINIT))
     {
       /* inconsistent (buggy) timestamps */
-      sql_print_error("Transaction's sequence number is inconsistent with that "
-                      "of a preceding one: "
-                      "sequence_number (%lld) <= previous sequence_number (%lld)",
-                      sequence_number, last_sequence_number);
+      LogErr(ERROR_LEVEL, ER_RPL_INCONSISTENT_SEQUENCE_NO_IN_TRX,
+             sequence_number, last_sequence_number);
       DBUG_RETURN(ER_MTS_CANT_PARALLEL);
     }
     /*
@@ -835,8 +830,8 @@ Mts_submode_logical_clock::detach_temp_tables(THD *thd, const Relay_log_info* rl
 
 Slave_worker *
 Mts_submode_logical_clock::get_least_occupied_worker(Relay_log_info *rli,
-                                                     Slave_worker_array *ws,
-                                                     Log_event * ev)
+                                  Slave_worker_array *ws MY_ATTRIBUTE((unused)),
+                                  Log_event * ev)
 {
   Slave_worker *worker= NULL;
   PSI_stage_info *old_stage= 0;
@@ -847,9 +842,8 @@ Mts_submode_logical_clock::get_least_occupied_worker(Relay_log_info *rli,
   if (DBUG_EVALUATE_IF("mts_distribute_round_robin", 1, 0))
   {
     worker= ws->at(w_rr % ws->size());
-    sql_print_information("Chosing worker id %lu, the following is"
-                          " going to be %lu", worker->id,
-                          static_cast<ulong>(w_rr % ws->size()));
+    LogErr(INFORMATION_LEVEL, ER_RPL_WORKER_ID_IS, worker->id,
+           static_cast<ulong>(w_rr % ws->size()));
     DBUG_ASSERT(worker != NULL);
     DBUG_RETURN(worker);
   }

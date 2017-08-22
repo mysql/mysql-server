@@ -17,60 +17,6 @@
 #define GCS_MEMBER_IDENTIFIER_INCLUDED
 
 #include <string>
-#include <stdint.h>
-
-#include "gcs_types.h"
-
-/*
-  Internal GCS unique identifier.
-*/
-class Gcs_uuid
-{
-public:
-  /*
-    Create a GCS unique identifier.
-  */
-
-  static Gcs_uuid create_uuid();
-
-
-  /*
-    Size of the current identifier when not serialized.
-  */
-  static const unsigned int size;
-
-
-  /*
-    Get a string representation of the uuid that can be put on
-    the wire.
-
-    @param [out] buffer storage buffer
-    @return string representation
-  */
-
-  bool encode(uchar **buffer) const;
-
-
-  /*
-    Transforms a string representation into the current format
-    whatever it is.
-
-    @param [in] buffer storage buffer
-    @return string representation
-  */
-
-  bool decode(uchar *buffer);
-
-
-  /*
-    Unique identifier which currently only accommodates 64 bits but
-    can easily be extended to 128 bits and become a truly UUID in
-    the future.
-  */
-
-  uint64_t value;
-};
-
 
 /**
   @class Gcs_member_identifier
@@ -95,17 +41,6 @@ public:
   explicit Gcs_member_identifier(const std::string &member_id);
 
 
-  /**
-    Gcs_member_identifier constructor.
-
-    @param[in] member_id the member identifier
-    @param[in] uuid the member uuid
-  */
-
-  explicit Gcs_member_identifier(const std::string &member_id,
-                                 const Gcs_uuid &uuid);
-
-
   virtual ~Gcs_member_identifier() {}
 
 
@@ -114,19 +49,6 @@ public:
   */
 
   const std::string& get_member_id() const;
-
-  /**
-    @return the member uuid
-  */
-
-  const Gcs_uuid& get_member_uuid() const;
-
-
-  /**
-    Regenerate the member uuid
-  */
-
-  void regenerate_member_uuid();
 
 
   /**
@@ -155,7 +77,5 @@ public:
 
 private:
   std::string m_member_id;
-  Gcs_uuid m_uuid;
 };
-
 #endif // GCS_MEMBER_IDENTIFIER_INCLUDED

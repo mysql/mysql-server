@@ -2,8 +2,6 @@ include/master-slave.inc
 [connection master]
 include/stop_slave.inc
 RESET SLAVE ALL;
-SET GLOBAL master_info_repository='TABLE';
-SET GLOBAL relay_log_info_repository='TABLE';
 SET GLOBAL slave_parallel_workers = 4;
 include/start_slave.inc
 include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
@@ -117,11 +115,10 @@ select SERVICE_STATE
 from performance_schema.replication_applier_status_by_worker
 where THREAD_ID = @t_id;
 SERVICE_STATE
+#
 OK: handler_read_key incremented
 include/stop_slave.inc [FOR CHANNEL 'channel_1']
 RESET SLAVE ALL;
-SET GLOBAL master_info_repository= "FILE";
-SET GLOBAL relay_log_info_repository= "FILE";
 SET GLOBAL slave_parallel_workers = 0;
 include/start_slave.inc
 include/rpl_end.inc

@@ -147,12 +147,6 @@ public:
   virtual void set_value_null(bool is_null)
   { m_null_value= is_null; }
 
-  // Fix "inherits ... via dominance" warnings
-  virtual Weak_object_impl *impl()
-  { return Weak_object_impl::impl(); }
-  virtual const Weak_object_impl *impl() const
-  { return Weak_object_impl::impl(); }
-
   /////////////////////////////////////////////////////////////////////////
 
 public:
@@ -197,6 +191,24 @@ public:
 
   virtual Weak_object *create_object() const
   { return new (std::nothrow) Partition_value_impl(); }
+};
+
+///////////////////////////////////////////////////////////////////////////
+
+/**
+  Used to sort Partition_value objects for the same partition first
+  according to list number and then according to the column number.
+*/
+
+struct Partition_value_order_comparator
+{
+  bool operator() (const dd::Partition_value* pv1,
+                   const dd::Partition_value* pv2) const
+  {
+    return ((pv1->list_num() < pv2->list_num()) ||
+            (pv1->list_num() == pv2->list_num() &&
+             pv1->column_num() < pv2->column_num()));
+  }
 };
 
 ///////////////////////////////////////////////////////////////////////////

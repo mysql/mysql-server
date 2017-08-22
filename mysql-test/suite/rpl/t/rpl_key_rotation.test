@@ -2,7 +2,6 @@
 # Testing ALTER INSTANCE ROTATE INNODB MASTER KEY with replication
 # and keyring installing/uninstalling scenarios on master/slave.
 
---source include/not_embedded.inc
 --source include/master-slave.inc
 call mtr.add_suppression("\\[Error\\] Function 'keyring_file' already exists");
 call mtr.add_suppression("\\[Error\\] Couldn't load plugin named 'keyring_file' with soname 'keyring_file.so'.");

@@ -1,9 +1,7 @@
 # WL#6936 - Implementation of server-side statement timeout
 
---source include/not_embedded.inc
 --source include/have_statement_timeout.inc
 --source include/have_debug.inc
---source include/not_valgrind.inc
 
 # Save the initial number of concurrent sessions.
 --source include/count_sessions.inc

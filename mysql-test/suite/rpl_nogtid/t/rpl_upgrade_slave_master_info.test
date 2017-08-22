@@ -54,6 +54,8 @@
 --source include/not_group_replication_plugin.inc
 # This test case is binary log format agnostic
 --source include/have_binlog_format_mixed.inc
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
 # Using this unusual topology because of mysql_upgrade
 --let $rpl_topology= 2->1
 --source include/rpl_init.inc
@@ -92,7 +94,7 @@ CREATE TABLE `slave_master_info` (
   `Ssl_crlpath` TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The path used for Certificate Revocation List (CRL) files',
   `Enabled_auto_position` TINYINT(1) NOT NULL COMMENT 'Indicates whether GTIDs will be used to retrieve events from the master.',
   PRIMARY KEY (`Host`,`Port`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Master Information';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Master Information' TABLESPACE=mysql;
 
 --echo # Running mysql_upgrade to update slave_master_info table
 --disable_result_log

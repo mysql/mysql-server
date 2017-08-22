@@ -8,8 +8,6 @@
 # BUG#19774317 GTID_NEXT WITH EMPTY TRANSACTIONS DOES NOT WORK INSIDE STORED PROCEDURES
 # mysql-test/suite/rpl/t/rpl_gtid_empty_transaction.test
 
-# Test is not required to run against embedded server
---source include/not_embedded.inc
 # Should be tested against "binlog disabled" server
 --source include/not_log_bin.inc
 --source include/gtid_utils.inc

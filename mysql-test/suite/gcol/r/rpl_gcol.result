@@ -57,7 +57,7 @@ SHOW CREATE TABLE gtable;
 Table	Create Table
 gtable	CREATE TABLE `gtable` (
   `doc` json DEFAULT NULL,
-  `gtext` text GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_latin1'$.name'))) VIRTUAL,
+  `gtext` text GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$.name'))) VIRTUAL,
   UNIQUE KEY `name_index` (`gtext`(50))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 # Connection:slave - Row with value 3 is expected on slave.

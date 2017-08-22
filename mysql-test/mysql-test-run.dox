@@ -139,8 +139,8 @@
       to the expected result found in the <b>mysql-test/r</b> directory
       (in a file with a <b>.result</b> suffix). If the expected and
       actual results differ, the test case fails. The actual test result
-      is written to a file in the <b>mysql-test/r</b> directory with a
-      <b>.reject</b> suffix, and the difference between the
+      is written to a file in the <b>mysql-test/var/log</b> directory
+      with a <b>.reject</b> suffix, and the difference between the
       <b>.result</b> and <b>.reject</b> files is presented for
       evaluation.
     </li>
@@ -311,6 +311,11 @@
         @ref PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl" will also
         start the server afterwards, with the bootstrap options, and
         other options specified.
+      </li>
+
+      <li>
+        A file name of the form <b><em>test_name</em>-client.opt </b>
+        provides @ref PAGE_MYSQLTEST "mysqltest" client options.
       </li>
 
       <li>
@@ -524,9 +529,9 @@
       PAGE_MYSQLTEST "mysqltest" reads the expected results from the
       given file and compares them with the actual results. If the
       results do not match, @ref PAGE_MYSQLTEST "mysqltest" writes a
-      <b>.reject</b> file in the same directory as the result file and
-      exits with an error. It will also print out a diff of the
-      expected and actual result, provided it can find an appropriate
+      <b>.reject</b> file in the log directory and exits with an
+      error. It will also print out a diff of the expected and actual
+      result, provided it can find an appropriate
       <b>diff</b> tool to use.
     </li>
 
@@ -641,8 +646,8 @@
     <li>
       Make sure to include the output of @ref PAGE_MYSQL_TEST_RUN_PL
       "mysql-test-run.pl", as well as contents of all <b>.reject</b>
-      files in the <b>mysql-test/r</b> directory, or the (often much
-      shorter) diff that @ref PAGE_MYSQL_TEST_RUN_PL
+      files in the <b>mysql-test/var/log</b> directory, or the (often
+      much shorter) diff that @ref PAGE_MYSQL_TEST_RUN_PL
       "mysql-test-run.pl" reported.
     </li>
 
@@ -872,6 +877,7 @@
   - @subpage PAGE_PASSING_OPTIONS
   - @subpage PAGE_TESTCASE_SPECIFIC_SERVER_OPTIONS
   - @subpage PAGE_TESTCASE_SPECIFIC_BOOTSTRAP_OPTIONS
+  - @subpage PAGE_TESTCASE_SPECIFIC_CLIENT_OPTIONS
   - @subpage PAGE_INCLUDE_FILES
   - @subpage PAGE_BINARY_LOG_FORMAT
   - @subpage PAGE_WRITING_REPLICATION_TESTS
@@ -970,13 +976,14 @@
       Assuming that the test case produces output, it should fail
       because the output does not match the result file (which is
       empty at this point). The failure results in creation of a
-      reject file named <b>r/<em>test_name</em>.reject</b>.
+      reject file named
+      <b>mysql-test/var/log/<em>test_name</em>.reject</b>.
       Examine this file. If the reject file appears to contain the
       output that you expect the test case to produce, copy its
       content to the result file:
 
       @verbatim
-  shell> cp r/test_name.reject r/test_name.result
+  shell> cp mysql-test/var/log/test_name.reject r/test_name.result
       @endverbatim
 
       Another way to create the result file is by invoking @ref
@@ -1038,9 +1045,9 @@
 
   Test case file names may use alphanumeric characters (<b>A-Z</b>,
   <b>a-z</b>, <b>0-9</b>), underscore (<b>'_'</b>) or dash
-  (<b>'-'</b>), but should not start with underscore or dash. Other
-  special characters may work but this is not guaranteed so they
-  should be avoided.
+  (<b>'-'</b>), but should not start with underscore or dash. No other
+  special characters are allowed, if used, then an error is thrown and
+  the test run is aborted.
 
   Test names have traditionally used lowercase only, and we recommend
   continuing this for tests added to the common repository, though
@@ -1302,39 +1309,46 @@
   @verbatim
   --disable_warnings
   DROP TABLE IF EXISTS t1;
+  SET @@sql_mode='NO_ENGINE_SUBSTITUTION';
   --enable_warnings
+
   SET SQL_WARNINGS=1;
 
   CREATE TABLE t1 (a INT);
   INSERT INTO t1 VALUES (1);
   INSERT INTO t1 VALUES ("hej");
+
+  DROP TABLE t1;
   @endverbatim
 
   The first few lines try to clean up from possible earlier runs of
   the test case by dropping the <b>t1</b> table. The test case uses
   <b>disable_warnings</b> to prevent warnings from being written to
   the output because it is not of any interest at this point during
-  the test to know whether the table <b>t1</b> was there. After
-  dropping the table, the test case uses <b>enable_warnings</b> so
-  that subsequent warnings will be written to the output. The test
-  case also enables verbose warnings in MySQL using the <b>SET
-  SQL_WARNINGS=1;</b> statement.
+  the test to know whether the table <b>t1</b> was there. The value of
+  <b>sql_mode</b> is changed to <b>NO_ENGINE_SUBSTITUTION</b> to avoid
+  the error thrown by the second insert statement. After this, the
+  test case uses <b>enable_warnings</b> so that subsequent warnings
+  will be written to the output. The test case also enables verbose
+  warnings in MySQL using the <b>SET SQL_WARNINGS=1;</b> statement.
 
   Next, the test case creates the table <b>t1</b> and tries some
   operations. Creating the table and inserting the first row are
   operations that should not generate any warnings. The second insert
   should generate a warning because it inserts a nonnumeric string
-  into a numeric column. The output that results from running the test
-  looks like this:
+  into a numeric column. At the end, it drops the table <b>t1</b>. The
+  output that results from running the test looks like this:
 
   @verbatim
   DROP TABLE IF EXISTS t1;
+  SET @@sql_mode='NO_ENGINE_SUBSTITUTION';
   SET SQL_WARNINGS=1;
   CREATE TABLE t1 (a INT);
   INSERT INTO t1 VALUES (1);
   INSERT INTO t1 VALUES ("hej");
   Warnings:
-  Warning 1265    Data truncated for column 'a' at row 1
+  Warning	1366	Incorrect integer value: 'hej' for column 'a' at row 1
+  DROP TABLE t1;
   @endverbatim
 
   Note that the result includes not only the output from SQL
@@ -1345,7 +1359,8 @@
 
   If there was a test failure, it will be reported to the screen. You
   can see the actual output from the last unsuccessful run of the test
-  case in the reject file <b>r/<em>test_name</em>.reject</b>.
+  case in the reject file
+  <b>mysql-test/var/log/<em>test_name</em>.reject</b>.
 */
 
 ###############################################################################
@@ -1762,7 +1777,7 @@
   @verbatim
   CURRENT_TEST: main.foo
   --- r/foo.result        2009-11-17 16:22:38
-  +++ r/foo.reject        2009-11-17 16:22:47
+  +++ var/log/foo.reject        2009-11-17 16:22:47
   @@ -10,15 +10,15 @@
    SELECT period FROM t1;
    period
@@ -2061,6 +2076,38 @@
   master.opt file containing <b>`--innodb-page-size`=8k</b>, and while
   it is being run, <b>`--innodb-page-size`=4k</b> is passed on the
   command line, the test will run with <b>8k</b> page size.
+*/
+
+###############################################################################
+
+
+
+## Specifying Test Case-Specific Client Options
+
+/**
+  @page PAGE_TESTCASE_SPECIFIC_CLIENT_OPTIONS Specifying Test Case-Specific Client Options
+
+  If a test case needs a specific client option, you can specify such
+  options in a file named <b><em>testname</em>-client.opt</b>. When a
+  test case has its own <b>-client.opt</b> file, @ref
+  PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl" examines it for any
+  additional options that the @ref PAGE_MYSQLTEST "mysqltest" should
+  run with while executing the test case.
+
+  For example, consider a test case <b>example.test</b> needs
+  <tt>latin1</tt> as default character set for client and connection,
+  then that option can be specified in
+  <b><em>example</em>-client.opt</b> file.
+
+  @verbatim
+  --default-character-set=latin1
+  @endverbatim
+
+  You may refer to environment variables in the option file, using the
+  usual <b><em>$VAR_NAME</em></b> syntax. It is also possible to refer
+  to optional variables using the syntax <b><em>$?VAR_NAME</em></b>.
+  This will be replaced with an empty string if the variable is not
+  set.
 */
 
 ###############################################################################
@@ -2889,6 +2936,16 @@
       when the program exits.
     </li>
 
+
+    <li>
+      <tt>`--default-character-set`=<b>charset_name</b></tt>
+
+      Use <b>charset_name</b> as the default character set for the
+      client and connection. For more information, see [Connection
+      Character Sets and Collations]
+      (https://dev.mysql.com/doc/refman/8.0/en/charset-connection.html).
+    </li>
+
     <li>
       <tt>`--explain-protocol`</tt>
 
@@ -3040,9 +3097,9 @@
           @ref PAGE_MYSQLTEST "mysqltest" reads the expected results
           from the given file and compares them with the actual
           results. If the results do not match, @ref PAGE_MYSQLTEST
-          "mysqltest" writes a <b>.reject</b> file in the same
-          directory as the result file, outputs a diff of the two
-          files, and exits with an error.
+          "mysqltest" writes a <b>.reject</b> file in the log
+          directory, outputs a diff of the two files, and exits with
+          an error.
         </li>
 
         <li>
@@ -3420,9 +3477,9 @@
   It is also possible to put a list of test names in a file and have
   @ref PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl" run those tests,
   using the option <b>`--do-test-list`=file</b>. The tests should be
-  listed one per line in the file, using the fully qualified name
-  <b>suite.test</b>. A space may be used in place of the period. A
-  line beginning with "#" indicates a comment and is ignored.
+  listed one per line in the file. A line beginning with <b>#</b>
+  indicates a comment and is ignored. Similary an empty line in the
+  file is also ignored.
 
   @ref PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl" also supports a
   <b>`--do-suite`</b> option, which is similar to <b>`--do-test`</b>
@@ -3919,13 +3976,66 @@
     </li>
 
     <li>
-      <tt>`--do-testlist`=<b>file</b></tt>
+      <tt>`--do-test-list`=<b>file</b></tt>
 
       Run all tests listed in the file <b><em>file</em></b>. In this
-      file, tests should be listed one per line in the form
-      <b><em>suite.test</em></b> or alternatively, with a space instead
-      of the period. A line beginning with # will be ignored and can
-      be used for comments.
+      file, tests should be listed one per line in any of the
+      following forms.
+
+      @verbatim
+  <test_name>
+  <test_name>.test
+  <suite_name>.<test_name>
+  <suite_name>.<test_name>.test
+  path_to_the_test_file
+      @endverbatim
+
+      Path to the test file should either be an absolute path or a
+      relative path from base directory.
+
+      To run a test present in a non-default test suite, either the
+      test name qualified with the suite name i.e
+      <b>suite_name.test_name[.test]</b> or a <b>path</b> to the
+      test file should be mentioned.
+
+      A line beginning with <b>#</b> will be ignored and is considered
+      as a comment. Similarly an empty line in the file is also
+      ignored.
+
+      For example, consider a test list file <b>test_list</b>
+      containing following tests.
+
+      @verbatim
+  # Main suite test '1st.test'
+  1st
+  1st.test
+  main.1st
+  main.1st.test
+  mysql-test/t/1st.test
+
+  # GIS suite test 'geohash_functions.test'
+  gis.geohash_functions
+  mysql-test/suite/gis/t/geohash_functions.test
+
+  # Non-default suite 'test_services'
+  test_services.test_services
+  mysql-test/suite/test_services/t/test_services.test
+
+  # Internal suite test 'i_main.user_var'
+  i_main.user_var
+  internal/mysql-test/suite/i_main/t/user_var.test
+      @endverbatim
+
+      Following command runs the list of tests mentioned in the file.
+
+      @verbatim
+  ./mysql-test-run.pl --do-test-list=test_list
+      @endverbatim
+
+      If both <b>`--suite`</b> and <b>`--do-test-list`</b> are given,
+      and if suite name is <em>not</em> part of the test names listed
+      in the file, then those tests are searched only in the suites
+      mentioned in <b>`--suite`</b> option.
     </li>
 
     <li>
@@ -4010,6 +4120,14 @@
       the same test case. This may be useful e.g. when looking for the
       source of a memory leak, as there will only have been one test
       run before the server exits.
+
+      Enabling this option will cause @ref PAGE_MYSQL_TEST_RUN_PL
+      "mysql-test-run.pl" to restart the server(s) on a newly
+      intialized data directory.
+
+      This option can also be mentioned in
+      <b><em>test-name</em>-master.opt</b> file for a test case to
+      restart the server(s) before it runs.
     </li>
 
     <li>
@@ -4139,14 +4257,15 @@
       also affects placement of temporary files, which are created in
       <b>var/tmp</b>.
 
-      The default list includes <b>/dev/shm</b>. You can also enable
-      this option by setting the environment variable
-      <b>MTR_MEM[=<em>dir_name</em>]</b>. If <b><em>dir_name</em></b>
-      is given, it is added to the beginning of the list of locations
-      to search, so it takes precedence over any built-in locations.
+      The default list includes <b>/dev/shm</b>, <b>/run/shm</b> and
+      <b>/tmp</b>. You can also enable this option by setting the
+      environment variable <b>MTR_MEM[=<em>dir_name</em>]</b>. If
+      <b><em>dir_name</em></b> is given, it is added to the beginning
+      of the list of locations to search, so it takes precedence over
+      any built-in locations.
 
       Once you have run tests with <b>`--mem`</b> within a
-      <b>mysql-test</b>directory, a soflink <b>var</b> will have been
+      <b>mysql-test</b> directory, a soflink <b>var</b> will have been
       set up to the temporary directory, and this will be re-used the
       next time, until the soflink is deleted. Thus, you do not have
       to repeat the <b>`--mem`</b> option next time.
@@ -4256,6 +4375,18 @@
     </li>
 
     <li>
+      <tt>`--opt-trace-protocol`</tt>
+
+      Prints the @ref PAGE_OPT_TRACE "optimizer trace" of SQL statements in a test.
+      Running any MTR test with this option executes the following SQL
+      statement after every <b>DML statement</b> that it encounters:
+
+      @verbatim
+  SELECT trace FROM information_schema.optimizer_trace /* injected by --opt-trace-protocol */;
+      @endverbatim
+    </li>
+
+    <li>
       <tt>`--parallel`={<b>N</b>|auto}</tt>
 
       Run tests using <b><em>N</em></b> parallel threads. By default,
@@ -4349,6 +4480,27 @@
       releases. If the test run is aborted, including if a test fails
       and <b>`--force`</b> is not in use, the time report will not
       be produced.
+    </li>
+
+    <li>
+      <tt>`--report-unstable-tests`</tt>
+
+      The option can be used to distinguish unstable tests which pass
+      on at least one retry attempt from hard failing ones. Unstable
+      tests are reported separately in the end summary in the format:
+      <b>test_name(num_of_failures/num_of_attempts)</b>.
+
+      In case all failures encountered are due to unstable tests, MTR
+      will print the below warning and exit with a zero status code.
+
+      @verbatim
+  mysql-test-run: WARNING: There are failures due to unstable test cases.
+  However, the tests are not hard-failing.
+      @endverbatim
+
+      This option has no effect unless <b>`--force`</b> is used and
+      both <b>`--retry`</b> and <b>`--retry-failure`</b> are set to
+      values greater than 1.
     </li>
 
     <li>
@@ -4594,9 +4746,39 @@
     </li>
 
     <li>
+      <tt>`--test-progress`</tt>
+
+      Print the percentage of tests completed. This option is disabled
+      by default.
+
+      For example, consider a test suite <b>sample_test_suite</b>
+      containing  3 tests.
+
+      @verbatim
+  ./mysql-test-run.pl --suite=sample_test_suite --test-progress
+      @endverbatim
+
+      Running the suite with <b>`--test-progress`</b> option enabled
+      will print the percentage of tests completed.
+
+      @verbatim
+  [ 34%] test_suite.1st                           [ pass ]      1
+  [ 67%] test_suite.2nd                           [ pass ]      1
+  [100%] test_suite.3rd                           [ pass ]      1
+      @endverbatim
+    </li>
+
+    <li>
       <tt>`--testcase-timeout`=<b>minutes</b></tt>
 
       Specify the maximum test case runtime in minutes.
+
+      @note
+      When a test case is run with <b>valgrind</b> option enabled, the
+      test case timeout value becomes 10 times the specified value.
+      For example, running a test case with timeout value
+      <b>1 minute</b> and <b>valgrind</b> enabled will increase the
+      timeout value to <b>10 minutes</b>.
     </li>
 
     <li>
@@ -4685,6 +4867,13 @@
       is reported as failed if any such shutdown warnings were
       produced by valgrind. Pass or failure of this test is also added
       to the total test count reported.
+
+      @note
+      When a test case is run with <b>valgrind</b> option enabled, the
+      test case timeout value becomes 10 times the specified value.
+      For example, running a test case with timeout value
+      <b>1 minute</b> and <b>valgrind</b> enabled will increase the
+      timeout value to <b>10 minutes</b>.
     </li>
 
     <li>
@@ -4779,6 +4968,30 @@
       <tt>`--with-ndbcluster-only`</tt>
 
       Run only test cases that have <b>ndb</b> in their name.
+    </li>
+
+    <li>
+      <tt>`--xml-report`=<b>file_name</b></tt>
+
+      Generate an xml file containing result of the test run and write
+      it to the file named as the option argument. It includes
+      suite-wise and overall statistics like the number of tests run,
+      number of failures, number of disabled and skipped tests along
+      with information about each individual test according to its
+      outcome.
+
+      The xml report's structure can be found below :
+
+      @verbatim
+  <testsuites ... >
+    <testsuite ... >
+       <testcase ... />
+       <testcase ... >
+           <failure ... > ... </failure>
+       </testcase>
+    </testsuite>
+  </testsuites>
+      @endverbatim
     </li>
   </ul>
 
@@ -5633,7 +5846,7 @@
       PAGE_MYSQLTEST "mysqltest" aborts the test when a statement sent
       to the server results in an unexpected error, and does not
       generate the <b>.reject</b> file. For discussion of reasons why
-      it can be useful to disable this behavior, see
+      it can be useful to disable this behavior, see @ref
       PAGE_ERROR_HANDLING.
 
       @verbatim
@@ -6542,6 +6755,34 @@
     </li>
 
     <li>
+      <tt>replace_numeric_round <b>precision</b></tt>
+
+      Rounds off floating point numbers. <b>precision</b> is the
+      number of digits after the decimal point to which the result will
+      be rounded off to. It can only be a number between
+      0 and 16.
+
+      If the precision is 0, then the value is rounded off to the
+      nearest whole number. Trailing zeroes after the decimal point are
+      removed from the numbers.
+
+      Numbers which are <b>greater than <em>1e10</em></b> or <b> lesser
+      than <em> -1e10 </em></b> are represented using the
+      exponential notation after they are rounded off.
+
+     @verbatim
+  --replace_numeric_round 6
+  SELECT 12379.79459775333;
+  12379.794598
+
+  replace_numeric_round 0;
+  SELECT 876.87302;
+  877
+     @endverbatim
+    </li>
+
+
+    <li>
       <tt>replace_regex <b>/pattern/replacement/</b>[i] ...</tt>
 
       In the output from the next statement, find strings within
@@ -6603,19 +6844,6 @@
 
       Reset the connection state by calling [mysql_reset_connection()]
       (https://dev.mysql.com/doc/refman/8.0/en/mysql-reset-connection.html).
-    </li>
-
-    <li>
-      <tt>result <b>file_name</b></tt>
-
-      This command specifies a file to be used for comparison when the
-      test case completes. If the content does not match or there is
-      some other error, write the result to
-      <b>r/<em>file_name</em>.reject</b>.
-
-      If the <b>`--record`</b> command-line option is given, the
-      <b>result</b> command changes the file by writing the new test
-      result to it.
     </li>
 
     <li>
@@ -6740,30 +6968,35 @@
       Skips the rest of the test file after printing the given message
       as the reason. This can be used after checking a condition that
       must be satisfied, as a way of performing an exit that displays
-      a reason. Suppose that the test file <b>mytest</b> has these
-      contents:
+      a reason. References to variables within the message are
+      replaced with the corresponding values. Suppose that the test
+      file <b>mytest.test</b> has these contents:
 
       @verbatim
-  let $v= 0;
-  if (!$v)
+  let $var= 0;
+  if (!$var)
   {
-    skip value is zero, skipping test;
+    skip value of \$var is '$var', skipping test;
   }
   echo This command is never reached;
       @endverbatim
 
-      Executing @ref PAGE_MYSQLTEST "mysqltest-x mytest" yields these
-      results:
+      Executing @ref PAGE_MYSQLTEST "mysqltest" -x mytest.test yields
+      these results:
 
       @verbatim
   The test './mytest' is not supported by this installation
   Detected in file ./mytest at line 4
-  reason: value is zero, skipping test
+  reason: value of $var is '0', skipping test
       @endverbatim
 
-      If the test is run from @ref PAGE_MYSQL_TEST_RUN_PL "mysql-test-
-      run.pl", you will instead see the test result as
+      If the test is run from @ref PAGE_MYSQL_TEST_RUN_PL
+      "mysql-test-run.pl", you will instead see the test result as
       <b>[ skipped ]</b> followed by the message.
+
+      @verbatim
+  main.mytest          [ skipped ]  value of $var is '0', skipping test
+      @endverbatim
     </li>
 
     <li>
@@ -6949,29 +7182,6 @@
     </li>
 
     <li>
-      <tt>system <b>command</b> [<b>arg</b>] ...</tt>
-
-      Execute the shell command using the <tt>system()</tt> library
-      call. References to variables within the command are replaced
-      with the corresponding values. Use “<tt>\$</tt>” to specify a
-      literal “<tt>$</tt>” character.
-
-      @verbatim
-  --system echo '[mysqltest1]' > $MYSQLTEST_VARDIR/tmp/tmp.cnf
-  --system echo 'port=1234' >> $MYSQLTEST_VARDIR/tmp/tmp.cnf
-  system rm $MYSQLTEST_VARDIR/master-data/test/t1.MYI;
-      @endverbatim
-
-      @note
-      <b>exec</b> or <b>system</b> are sometimes used to perform file
-      system operations, but the command for doing so tend to be
-      operating system specific, which reduces test portability. @ref
-      PAGE_MYSQLTEST "mysqltest" now has several commands to perform
-      these operations portably, so they should be used instead:
-      <b>remove_file</b>, <b>chmod</b>, <b>mkdir</b>, and so forth.
-    </li>
-
-    <li>
       <tt>vertical_results</tt>
 
       Set the default query result display format to vertical.
@@ -6990,7 +7200,7 @@
       'Slave_running'</b> statements until the result is <b>OFF</b>.
 
       For information about alternative means of slave server control,
-      see PAGE_WRITING_REPLICATION_TESTS.
+      see @ref PAGE_WRITING_REPLICATION_TESTS.
     </li>
 
     <li>

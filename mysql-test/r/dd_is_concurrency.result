@@ -5,7 +5,7 @@ CREATE VIEW not_system_view AS
 SELECT name as table_name, comment FROM mysql.tables;
 SHOW CREATE VIEW not_system_view;
 View	Create View	character_set_client	collation_connection
-not_system_view	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `not_system_view` AS select `mysql`.`tables`.`name` AS `table_name`,`mysql`.`tables`.`comment` AS `comment` from `mysql`.`tables`	latin1	latin1_swedish_ci
+not_system_view	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `not_system_view` AS select `mysql`.`tables`.`name` AS `table_name`,`mysql`.`tables`.`comment` AS `comment` from `mysql`.`tables`	utf8mb4	utf8mb4_0900_ai_ci
 SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
 START TRANSACTION;
 connect con1,localhost,root,,;

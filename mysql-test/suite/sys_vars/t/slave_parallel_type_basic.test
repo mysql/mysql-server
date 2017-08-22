@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 
 # SAVE INTITIAL VALUES
 --let $saved_value= `SELECT @@global.slave_parallel_type`

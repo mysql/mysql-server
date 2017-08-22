@@ -70,7 +70,7 @@
 /* WSAStartup needs winsock library*/
 #pragma comment(lib, "ws2_32")
 bool have_tcpip=0;
-static void my_win_init();
+static bool my_win_init();
 #endif
 
 #define SCALE_SEC       100
@@ -164,7 +164,8 @@ bool my_init()
     DBUG_ENTER("my_init");
     DBUG_PROCESS((char*) (my_progname ? my_progname : "unknown"));
 #ifdef _WIN32
-    my_win_init();
+    if (my_win_init())
+      DBUG_RETURN(TRUE);
 #endif
     DBUG_PRINT("exit", ("home: '%s'", home_dir));
     DBUG_RETURN(FALSE);
@@ -199,7 +200,6 @@ void my_end(int infoflag)
       my_print_open_files();
     }
   }
-  free_charsets();
   my_error_unregister_all();
   my_once_free();
 
@@ -306,8 +306,18 @@ int handle_rtc_failure(int err_type, const char *file, int line,
 #define OFFSET_TO_EPOC ((__int64) 134774 * 24 * 60 * 60 * 1000 * 1000 * 10)
 #define MS 10000000
 
-static void win_init_time()
+extern bool win_init_get_system_time_as_file_time();
+/**
+Windows specific timing function initialization.
+  @return Initialization result
+    @retval FALSE Success
+    @retval TRUE  Error. Couldn't initialize environment
+
+*/
+static bool win_init_time()
 {
+  if (win_init_get_system_time_as_file_time())
+    return true;
   /* The following is used by time functions */
   FILETIME ft;
   LARGE_INTEGER li, t_cnt;
@@ -317,17 +327,19 @@ static void win_init_time()
   QueryPerformanceFrequency((LARGE_INTEGER *)&query_performance_frequency);
 
   GetSystemTimeAsFileTime(&ft);
-  li.LowPart=  ft.dwLowDateTime;
-  li.HighPart= ft.dwHighDateTime;
-  query_performance_offset= li.QuadPart-OFFSET_TO_EPOC;
+  li.LowPart = ft.dwLowDateTime;
+  li.HighPart = ft.dwHighDateTime;
+  query_performance_offset = li.QuadPart - OFFSET_TO_EPOC;
   QueryPerformanceCounter(&t_cnt);
-  query_performance_offset-= (t_cnt.QuadPart /
-                              query_performance_frequency * MS +
-                              t_cnt.QuadPart %
-                              query_performance_frequency * MS /
-                              query_performance_frequency);
+  query_performance_offset -= (t_cnt.QuadPart /
+    query_performance_frequency * MS +
+    t_cnt.QuadPart %
+    query_performance_frequency * MS /
+    query_performance_frequency);
 
   query_performance_offset_micros = query_performance_offset / 10;
+
+  return false;
 }
 
 
@@ -450,7 +462,14 @@ static bool win32_init_tcp_ip()
 }
 
 
-static void my_win_init()
+/**
+Windows specific initialization of my_sys functions, resources and variables
+
+  @return Initialization result
+    @retval FALSE Success
+    @retval TRUE  Error. Couldn't initialize environment
+*/
+static bool my_win_init()
 {
   DBUG_ENTER("my_win_init");
 
@@ -467,16 +486,21 @@ static void my_win_init()
 
   _tzset();
 
-  win_init_time();
+  if (win_init_time())
+    DBUG_RETURN(TRUE);
+
   win_init_registry();
   win32_init_tcp_ip();
 
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(FALSE);
 }
 #endif /* _WIN32 */
 
 PSI_stage_info stage_waiting_for_table_level_lock=
 {0, "Waiting for table level lock", 0};
+
+PSI_stage_info stage_waiting_for_disk_space=
+{0, "Waiting for disk space", 0};
 
 #ifdef HAVE_PSI_MUTEX_INTERFACE
 PSI_mutex_key key_BITMAP_mutex, key_IO_CACHE_append_buffer_lock,

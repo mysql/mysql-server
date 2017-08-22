@@ -10,8 +10,6 @@
 #               - Create this test as non "--<whatever>-protocol" variant.
 #
 
-# We cannot run on embedded server because we use multiple sessions.
---source include/not_embedded.inc
 
 # The file with expected results fits only to a run without
 # ps-protocol/sp-protocol/cursor-protocol/view-protocol.

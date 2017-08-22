@@ -16,8 +16,7 @@
 # 8. Bring back the servers in to group replication setup
 # 9. Wait for data to recover and validate the data and cleanup
 #######################################################################################
-# This test does crashes servers, thence we skip it on asan and valgrind.
---source include/not_asan.inc
+# This test does crashes servers, thence we skip it on valgrind.
 --source include/not_valgrind.inc
 --source include/big_test.inc
 --source include/force_restart.inc

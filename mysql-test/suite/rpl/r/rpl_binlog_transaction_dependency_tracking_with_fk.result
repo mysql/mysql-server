@@ -148,9 +148,9 @@ COMMIT;
 COMMIT;
 INSERT INTO t1 VALUES (5);
 UPDATE parent1 SET a=5 WHERE a=1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child1`, CONSTRAINT `child1_ibfk_1` FOREIGN KEY (`b`) REFERENCES `parent1` (`a`) ON UPDATE NO ACTION)
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child1`, CONSTRAINT `child1_ibfk_1` FOREIGN KEY (`b`) REFERENCES `parent1` (`a`))
 DELETE FROM parent2 WHERE a=1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child2`, CONSTRAINT `child2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `parent2` (`a`) ON DELETE NO ACTION)
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child2`, CONSTRAINT `child2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `parent2` (`a`))
 # Drop table and flush logs to force binlog to rotate
 DROP TABLE child2, parent2, child1, parent1, t1;
 FLUSH LOGS;
@@ -199,9 +199,9 @@ COMMIT;
 COMMIT;
 INSERT INTO t1 VALUES (5);
 UPDATE parent1 SET a=5 WHERE a=1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child1`, CONSTRAINT `child1_ibfk_1` FOREIGN KEY (`b`) REFERENCES `parent1` (`a`) ON UPDATE NO ACTION)
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child1`, CONSTRAINT `child1_ibfk_1` FOREIGN KEY (`b`) REFERENCES `parent1` (`a`))
 DELETE FROM parent2 WHERE a=1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child2`, CONSTRAINT `child2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `parent2` (`a`) ON DELETE NO ACTION)
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child2`, CONSTRAINT `child2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `parent2` (`a`))
 # Drop table and flush logs to force binlog to rotate
 DROP TABLE child2, parent2, child1, parent1, t1;
 FLUSH LOGS;

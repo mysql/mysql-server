@@ -4,7 +4,6 @@
 #
 
 --source include/have_ngram.inc
---source include/not_embedded.inc
 
 #
 # show the global and session values;

@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights
+ Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -806,7 +806,9 @@ void callback_main(int, NdbTransaction *tx, void *itemptr) {
     wqitem->status = & status_block_idx_insert;
   }
   /* Out of memory */
-  else if(tx->getNdbError().code == 827) {
+  else if(tx->getNdbError().code == 827 ||
+          tx->getNdbError().code == 921)
+  {
     log_ndb_error(tx->getNdbError());
     wqitem->status = & status_block_no_mem;
   }

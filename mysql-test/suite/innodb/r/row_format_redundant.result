@@ -47,7 +47,7 @@ TRUNCATE TABLE t2;
 TRUNCATE TABLE t3;
 # restart: --debug=d,ib_table_invalid_flags
 SELECT * FROM t1;
-ERROR 42S02: Table 'test.t1' doesn't exist
+a	d	b	c
 # restart
 DROP TABLE t1;
 DROP TABLE t2;

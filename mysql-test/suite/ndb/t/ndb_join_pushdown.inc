@@ -4292,7 +4292,7 @@ create table t1 (
   l30 char(255) not null,
   l31 char(255) not null,
   index(c, b)
-) engine=ndb partition by key(a) partitions 8;
+) engine=ndb character set latin1 partition by key(a) partitions 8;
 
 connection spj;
 

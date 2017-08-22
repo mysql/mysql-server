@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,7 +30,7 @@
 #include "gcs_xcom_utils.h"
 #include "gcs_xcom_view_identifier.h"
 #include "gcs_internal_message.h"
-
+#include "gcs_xcom_group_member_information.h"
 #include "xcom_vp.h"
 
 #define WIRE_XCOM_VARIABLE_VIEW_ID_SIZE 8
@@ -321,7 +321,7 @@ public:
                               std::vector<Gcs_message_data *> &exchangeable_data,
                               Gcs_view *current_view,
                               std::string *group,
-                              Gcs_member_identifier *local_info)= 0;
+                              const Gcs_member_identifier& local_info)= 0;
 
 
   /**
@@ -417,7 +417,7 @@ public:
                       std::vector<Gcs_message_data *> &exchangeable_data,
                       Gcs_view *current_view,
                       std::string *group,
-                      Gcs_member_identifier *local_info);
+                      const Gcs_member_identifier &local_info);
 
   bool process_member_state(Xcom_member_state *ms_info,
                             const Gcs_member_identifier &p_id);
@@ -517,7 +517,7 @@ private:
   std::string *m_group_name;
 
   // Local GCS member identification
-  Gcs_member_identifier *m_local_information;
+  Gcs_member_identifier m_local_information;
 
   /* Configuration identifier in use when the state exchange phase started */
   synode_no m_configuration_id;

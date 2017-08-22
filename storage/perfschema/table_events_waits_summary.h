@@ -100,7 +100,7 @@ class table_events_waits_summary_by_instance : public table_all_instr
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table *create();
+  static PFS_engine_table *create(PFS_engine_table_share *);
   static int delete_all_rows();
   int index_init(uint idx, bool sorted);
 
@@ -130,8 +130,8 @@ public:
 private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
-  /** Fields definition. */
-  static TABLE_FIELD_DEF m_field_def;
+  /** Table definition. */
+  static Plugin_table m_table_def;
 
   /** Current row. */
   row_events_waits_summary_by_instance m_row;

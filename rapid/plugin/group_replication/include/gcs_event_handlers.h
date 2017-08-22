@@ -31,6 +31,12 @@
 #include "recovery_message.h"
 #include "read_mode_handler.h"
 
+#include "services/notification/notification.h"
+
+/*
+ The major server version in which member weight was introduced.
+ */
+#define PRIMARY_ELECTION_MEMBER_WEIGHT_VERSION 8
 
 /**
   Group_member_info_pointer_comparator to guarantee uniqueness
@@ -40,7 +46,7 @@ struct Group_member_info_pointer_comparator
   bool operator()(Group_member_info* one,
                   Group_member_info* other) const
   {
-    return *one < *other;
+    return one->has_lower_uuid(other);
   }
 };
 
@@ -62,8 +68,7 @@ public:
   Plugin_gcs_events_handler(Applier_module_interface* applier_module,
                             Recovery_module* recovery_module,
                             Plugin_gcs_view_modification_notifier* vc_notifier,
-                            Compatibility_module* compatibility_manager,
-                            Read_mode_handler* read_mode_handler);
+                            Compatibility_module* compatibility_manager);
   virtual ~Plugin_gcs_events_handler();
 
   /*
@@ -131,6 +136,33 @@ private:
           and sets it on secondary nodes
   */
   void handle_leader_election_if_needed() const;
+
+  /**
+    Sort lower version members based on member weight if member version
+    is greater than equal to PRIMARY_ELECTION_MEMBER_WEIGHT_VERSION or uuid.
+
+    @param all_members_info    the vector with members info
+    @param lowest_version_end  first iterator position where members version
+                               increases.
+   */
+  void sort_members_for_election(
+       std::vector<Group_member_info*>* all_members_info,
+       std::vector<Group_member_info*>::iterator lowest_version_end) const;
+
+  /**
+    Sort members based on member_version and get first iterator position
+    where member version differs.
+
+    @param all_members_info    the vector with members info
+
+    @return  the first iterator position where members version increase.
+
+    @note from the start of the list to the returned iterator, all members have
+          the lowest version in the group.
+   */
+  std::vector<Group_member_info*>::iterator
+  sort_and_get_lowest_version_member_position(
+    std::vector<Group_member_info*>* all_members_info) const;
 
   int
   process_local_exchanged_data(const Exchanged_data &exchanged_data) const;
@@ -239,14 +271,15 @@ private:
 
   Compatibility_module* compatibility_manager;
 
-  Read_mode_handler* read_mode_handler;
-
   /**The status of this member when it joins*/
   st_compatibility_types* joiner_compatibility_status;
 
 #ifndef DBUG_OFF
   bool set_number_of_members_on_view_changed_to_10;
 #endif
+
+  /** The notification context for the GCS delivery thread. */
+  mutable Notification_context m_notification_ctx;
 };
 
 #endif /* GCS_EVENT_HANDLERS_INCLUDE */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,11 +20,18 @@
 extern "C" {
 #endif
 
+#define X_FREE(x) \
+  {               \
+    free(x);      \
+    x = 0;        \
+  }
+#define XCOM_XDR_FREE(proc, ptr)                   \
+  {                                                \
+    xcom_xdr_free((xdrproc_t)proc, (char *)(ptr)); \
+    (ptr) = 0;                                     \
+  }
 
-#define X_FREE(x) { free(x); x = 0; }
-#define XCOM_XDR_FREE(proc,ptr) { xcom_xdr_free((xdrproc_t) proc, (char*) (ptr)); (ptr) = 0; }
-
-void my_xdr_free (xdrproc_t proc, char *objp);
+void my_xdr_free(xdrproc_t proc, char *objp);
 void xcom_xdr_free(xdrproc_t f, char *p);
 
 #ifdef __cplusplus
@@ -32,4 +39,3 @@ void xcom_xdr_free(xdrproc_t f, char *p);
 #endif
 
 #endif
-

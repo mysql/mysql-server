@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@
 #include <mgmapi_internal.h>
 #include "NdbImpl.hpp"
 #include "NdbDictionaryImpl.hpp"
+#include "ProcessInfo.hpp"
 
 #include <NdbMutex.h>
 #ifdef VM_TRACE
@@ -437,7 +438,11 @@ Ndb_cluster_connection_impl(const char * connect_string,
     m_latest_error_msg(),
     m_latest_error(0),
     m_data_node_neighbour(0),
-    m_multi_wait_group(0)
+    m_multi_wait_group(0),
+    m_uri_scheme(NULL),
+    m_uri_host(NULL),
+    m_uri_path(NULL),
+    m_uri_port(0)
 {
   DBUG_ENTER("Ndb_cluster_connection");
   DBUG_PRINT("enter",("Ndb_cluster_connection this=0x%lx", (long) this));
@@ -590,6 +595,10 @@ Ndb_cluster_connection_impl::~Ndb_cluster_connection_impl()
   if(m_multi_wait_group)
     delete m_multi_wait_group;
   m_multi_wait_group = 0;
+
+  m_uri_scheme.clear();
+  m_uri_path.clear();
+  m_uri_host.clear();
 
   DBUG_VOID_RETURN;
 }
@@ -902,6 +911,41 @@ Ndb_cluster_connection_impl::set_name(const char *name)
 }
 
 int
+Ndb_cluster_connection_impl::set_service_uri(const char * scheme,
+                                             const char * host,
+                                             int port, const char * path)
+{
+  if(! ProcessInfo::isValidUri(scheme, path))
+  {
+    return 1;
+  }
+
+  /* Clear out existing values */
+  m_uri_scheme.clear();
+  m_uri_host.clear();
+  m_uri_port = 0;
+  m_uri_path.clear();
+
+  /* If already connected, ClusterMgr will send new ProcessInfo reports.
+     Otherwise save a copy of values until connected.
+  */
+  if(m_transporter_facade->theClusterMgr->getNoOfConnectedNodes())
+  {
+    m_transporter_facade->theClusterMgr->setProcessInfoUri(scheme, host,
+                                                           port, path);
+  }
+  else
+  {
+    m_uri_scheme.assign(scheme);
+    m_uri_host.assign(host);
+    m_uri_port = port;
+    m_uri_path.assign(path);
+  }
+
+  return 0;
+}
+
+int
 Ndb_cluster_connection_impl::init_nodes_vector(Uint32 nodeid,
 					       const ndb_mgm_configuration 
 					       &config)
@@ -1145,6 +1189,13 @@ Ndb_cluster_connection_impl::configure(Uint32 nodeId,
       m_config.m_waitfor_timeout = timeout;
     }
   }
+
+  // System name
+  ndb_mgm_configuration_iterator s_iter(config, CFG_SECTION_SYSTEM);
+  const char * tmp_system_name;
+  s_iter.get(CFG_SYS_NAME, & tmp_system_name);
+  m_system_name.assign(tmp_system_name);
+
   DBUG_RETURN(init_nodes_vector(nodeId, config));
 }
 
@@ -1208,6 +1259,18 @@ void Ndb_cluster_connection::set_data_node_neighbour(Uint32 node)
 void Ndb_cluster_connection::set_name(const char *name)
 {
   m_impl.set_name(name);
+}
+
+int Ndb_cluster_connection::set_service_uri(const char * scheme,
+                                            const char * host, int port,
+                                            const char * path)
+{
+  return m_impl.set_service_uri(scheme, host, port, path);
+}
+
+const char * Ndb_cluster_connection::get_system_name() const
+{
+  return m_impl.m_system_name.c_str();
 }
 
 int Ndb_cluster_connection_impl::connect(int no_retries,
@@ -1275,7 +1338,10 @@ int Ndb_cluster_connection_impl::connect(int no_retries,
       ndb_mgm_destroy_configuration(props);
       DBUG_RETURN(-1);
     }
-
+    m_transporter_facade->theClusterMgr->setProcessInfoUri(m_uri_scheme.c_str(),
+                                                           m_uri_host.c_str(),
+                                                           m_uri_port,
+                                                           m_uri_path.c_str());
     ndb_mgm_destroy_configuration(props);
     m_transporter_facade->connected();
     m_latest_error = 0;

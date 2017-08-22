@@ -15,8 +15,6 @@
 #                                                                                        #
 ##########################################################################################
 
-# Restarting is not supported in embedded
---source include/not_embedded.inc
 
 --let $rpl_skip_start_slave= 1
 --source include/master-slave.inc

@@ -1,7 +1,6 @@
 
 # This test is to verify replication with PS
 
--- source include/not_embedded.inc
 -- source include/have_binlog_format_statement.inc
 
 disable_query_log;

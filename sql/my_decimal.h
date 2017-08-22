@@ -392,13 +392,6 @@ inline int my_decimal2lldiv_t(uint mask, const my_decimal *d, lldiv_t *to)
 }
 
 
-inline int string2decimal(const char *from,
-                          decimal_t *to,
-                          char **end)
-{
-  return internal_str2dec(from, to, end, FALSE);
-}
-
 inline int str2my_decimal(uint mask, const char *str,
                           my_decimal *d, char **end)
 {

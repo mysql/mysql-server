@@ -1,0 +1,42 @@
+# Test of register same UDFs with 2 different components. Must work and give errors.
+# Register myfunc_int.
+INSTALL COMPONENT "file://component_udf_reg_int_same_func";
+
+# Verify, that UDF is working.
+select myfunc_int(5);
+select myfunc_int(5,6,9);
+
+# Check performance_schema.
+SELECT * FROM performance_schema.user_defined_functions
+  WHERE udf_name IN('myfunc_int')
+  ORDER BY udf_name;
+
+# Try to register sam UDF (myfunc_int) with another component: Error.
+--error ER_COMPONENTS_LOAD_CANT_INITIALIZE
+INSTALL COMPONENT "file://component_udf_reg_int_func";
+
+# Verify, that UDF is still working.
+select myfunc_int(5);
+select myfunc_int(5,6,9);
+
+# Check performance_schema has stiil the same contents..
+SELECT * FROM performance_schema.user_defined_functions
+  WHERE udf_name IN('myfunc_int')
+  ORDER BY udf_name;
+
+# Unregister the UDF myfunc_int.
+UNINSTALL COMPONENT "file://component_udf_reg_int_same_func";
+
+# Check performsance_schema.
+SELECT * FROM performance_schema.user_defined_functions
+  WHERE udf_name IN('myfunc_int')
+  ORDER BY udf_name;
+
+# UDF not more registered.
+--error ER_SP_DOES_NOT_EXIST
+select myfunc_int(5);
+
+# Reject to unload a not loaded component.
+--error ER_COMPONENTS_UNLOAD_NOT_LOADED
+UNINSTALL COMPONENT "file://component_udf_reg_int_func";
+

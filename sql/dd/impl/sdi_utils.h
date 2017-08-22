@@ -45,7 +45,7 @@ namespace sdi_utils {
 inline bool checked_return(bool ret)
 {
 #ifndef DBUG_OFF
-  THD *cthd= inline_current_thd();
+  THD *cthd= current_thd;
   DBUG_ASSERT(!ret || cthd->is_error() || cthd->killed);
 #endif /*!DBUG_OFF*/
   return ret;

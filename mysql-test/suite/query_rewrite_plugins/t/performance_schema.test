@@ -32,7 +32,7 @@ SELECT 'original';
 
 SELECT sql_text, digest
 FROM performance_schema.events_statements_history
-WHERE sql_text LIKE 'SELECT %';
+WHERE sql_text LIKE 'SELECT %' order by event_id;
 
 UPDATE performance_schema.setup_consumers
 SET enabled = @original_setting

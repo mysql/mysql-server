@@ -13,6 +13,8 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#define LOG_SUBSYSTEM_TAG "event"
+
 #include "sql/event_queue.h"
 
 #include <stdio.h>
@@ -21,7 +23,7 @@
 #include "event_db_repository.h"  // Event_db_repository
 #include "events.h"               // Events
 #include "lock.h"                 // lock_object_name
-#include "log.h"                  // sql_print_error
+#include "log.h"                  // log_*()
 #include "malloc_allocator.h"
 #include "mdl.h"
 #include "my_dbug.h"
@@ -34,6 +36,7 @@
 #include "sql_lex.h"
 #include "thr_mutex.h"
 #include "tztime.h"               // my_tz_OFFSET0
+#include "sql_table.h"            // write_bin_log
 
 /**
   @addtogroup Event_Scheduler
@@ -107,7 +110,7 @@ Event_queue::init_queue()
 
   if (queue.reserve(EVENT_QUEUE_INITIAL_SIZE))
   {
-    sql_print_error("Event Scheduler: Can't initialize the execution queue");
+    LogErr(ERROR_LEVEL, ER_EVENT_CANT_INIT_QUEUE);
     goto err;
   }
 
@@ -431,6 +434,9 @@ Event_queue::recalculate_activation_times(THD *thd)
     Event_queue_element *element = queue[i - 1];
     if (element->m_status != Event_parse_data::DISABLED)
       break;
+    if (lock_object_name(thd, MDL_key::EVENT,
+                         element->m_schema_name.str, element->m_event_name.str))
+      break;
     /*
       This won't cause queue re-order, because we remove
       always the last element.
@@ -441,12 +447,26 @@ Event_queue::recalculate_activation_times(THD *thd)
     */
     if (element->m_dropped)
     {
-      // Acquire exclusive MDL lock.
-      if (lock_object_name(thd, MDL_key::EVENT, element->m_schema_name.str,
-                           element->m_event_name.str))
-        break;
       db_repository->drop_event(thd, element->m_schema_name,
                                 element->m_event_name, false);
+      String sp_sql;
+      if (construct_drop_event_sql(thd, &sp_sql,
+                                   element->m_schema_name,
+                                   element->m_event_name))
+      {
+        sql_print_warning("Unable to construct DROP EVENT SQL query string");
+      }
+      else
+      {
+        // Write drop event to bin log.
+        thd->add_to_binlog_accessed_dbs(element->m_schema_name.str);
+        if (write_bin_log(thd, true, sp_sql.c_ptr_safe(), sp_sql.length()))
+        {
+          sql_print_warning("Unable to binlog drop event %s.%s.",
+                            element->m_schema_name.str,
+                            element->m_event_name.str);
+        }
+      }
     }
     delete element;
   }
@@ -482,7 +502,7 @@ Event_queue::empty_queue()
   DBUG_ENTER("Event_queue::empty_queue");
   DBUG_PRINT("enter", ("Purging the queue. %u element(s)",
                        static_cast<unsigned>(queue.size())));
-  sql_print_information("Event Scheduler: Purging the queue. %u events",
+  LogErr(INFORMATION_LEVEL, ER_EVENT_PURGING_QUEUE,
                         static_cast<unsigned>(queue.size()));
   /* empty the queue */
   queue.delete_elements();
@@ -500,7 +520,7 @@ Event_queue::empty_queue()
 */
 
 void
-Event_queue::dbug_dump_queue(time_t now)
+Event_queue::dbug_dump_queue(time_t now MY_ATTRIBUTE((unused)))
 {
 #ifndef DBUG_OFF
   DBUG_ENTER("Event_queue::dbug_dump_queue");
@@ -624,10 +644,10 @@ Event_queue::get_top_for_execution_if_time(THD *thd,
     if (top->m_status == Event_parse_data::DISABLED)
     {
       DBUG_PRINT("info", ("removing from the queue"));
-      sql_print_information("Event Scheduler: Last execution of %s.%s. %s",
-                            top->m_schema_name.str,
-                            top->m_event_name.str,
-                            top->m_dropped? "Dropping.":"");
+      LogErr(INFORMATION_LEVEL, ER_EVENT_LAST_EXECUTION,
+             top->m_schema_name.str,
+             top->m_event_name.str,
+             top->m_dropped? "Dropping.":"");
       delete top;
       queue.pop();
       /*

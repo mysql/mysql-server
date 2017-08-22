@@ -294,6 +294,7 @@ static bool fill_routine_parameters_info(THD *thd, sp_head *sp,
   from the sp_head.
 
   @param[in]  thd        Thread handle.
+  @param[in]  schema     Schema where the routine is to be created.
   @param[in]  sp         Stored routine object.
   @param[in]  definer    Definer of the routine.
   @param[out] routine    dd::Routine object to be prepared from the sp_head.
@@ -302,7 +303,8 @@ static bool fill_routine_parameters_info(THD *thd, sp_head *sp,
   @retval true   ON FAILURE
 */
 
-static bool fill_dd_routine_info(THD *thd, sp_head *sp, Routine *routine,
+static bool fill_dd_routine_info(THD *thd, const dd::Schema &schema,
+                                 sp_head *sp, Routine *routine,
                                  const LEX_USER *definer)
 {
   DBUG_ENTER("fill_dd_routine_info");
@@ -382,7 +384,7 @@ static bool fill_dd_routine_info(THD *thd, sp_head *sp, Routine *routine,
 
   // Set schema collation id.
   const CHARSET_INFO *db_cs= NULL;
-  if (get_default_db_collation(thd, sp->m_db.str, &db_cs))
+  if (get_default_db_collation(schema, &db_cs))
   {
     DBUG_ASSERT(thd->is_error());
     DBUG_RETURN(true);
@@ -417,7 +419,7 @@ bool create_routine(THD *thd, const Schema &schema, sp_head *sp,
     fill_dd_function_return_type(thd, sp, func.get());
 
     // Fill routine object.
-    if (fill_dd_routine_info(thd, sp, func.get(), definer))
+    if (fill_dd_routine_info(thd, schema, sp, func.get(), definer))
       DBUG_RETURN(true);
 
     // Store routine metadata in DD table.
@@ -432,7 +434,7 @@ bool create_routine(THD *thd, const Schema &schema, sp_head *sp,
     std::unique_ptr<Procedure> proc(schema.create_procedure(thd));
 
     // Fill routine object.
-    if (fill_dd_routine_info(thd, sp, proc.get(), definer))
+    if (fill_dd_routine_info(thd, schema, sp, proc.get(), definer))
       DBUG_RETURN(true);
 
     // Store routine metadata in DD table.

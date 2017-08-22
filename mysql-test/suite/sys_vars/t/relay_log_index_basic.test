@@ -6,7 +6,6 @@
 #  Variable Scope: Global
 #  Dynamic Variable: No
 
---source include/not_embedded.inc
 --source include/master-slave.inc
 
 --connection slave

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -204,6 +204,50 @@ TEST_F(MessageDataTest, EncodeTest)
 }
 
 
+TEST_F(MessageDataTest, EncodeNullTest)
+{
+  std::string test_header("header");
+  std::string test_payload("payload");
+  Gcs_message_data *message_data=
+    new Gcs_message_data(test_header.length(), test_payload.length());
+
+  message_data->append_to_header((uchar *)test_header.c_str(),
+                                 test_header.length());
+
+  message_data->append_to_payload((uchar *)test_payload.c_str(),
+                                  test_payload.length());
+
+  uchar *buffer= NULL;
+  uint64_t buffer_len= 0;
+
+  EXPECT_TRUE(message_data->encode(
+    static_cast<uchar **>(NULL), static_cast<uint64_t *>(NULL))
+  );
+
+  EXPECT_TRUE(
+    message_data->encode(&buffer, static_cast<uint64_t *>(NULL))
+  );
+
+  EXPECT_TRUE(
+    message_data->encode(static_cast<uchar **>(NULL), &buffer_len)
+  );
+
+  EXPECT_TRUE(message_data->encode(
+    static_cast<uchar *>(NULL), static_cast<uint64_t *>(NULL))
+  );
+
+  buffer= static_cast<uchar *>(malloc(1));
+  EXPECT_TRUE(
+    message_data->encode(buffer, static_cast<uint64_t *>(NULL))
+  );
+
+  EXPECT_TRUE(message_data->encode(buffer, &buffer_len));
+
+  free(buffer);
+  delete message_data;
+}
+
+
 TEST_F(MessageDataTest, DecodeTest)
 {
   std::string test_header("header");
@@ -238,6 +282,34 @@ TEST_F(MessageDataTest, DecodeTest)
 
   std::string returned_payload((const char *)to_decode.get_payload());
   EXPECT_EQ(test_payload, returned_payload);
+
+  free(buffer);
+  delete message_data;
+}
+
+
+TEST_F(MessageDataTest, DecodeNullTest)
+{
+  std::string test_header("header");
+  std::string test_payload("payload");
+  Gcs_message_data *message_data=
+    new Gcs_message_data(test_header.length(), test_payload.length());
+
+  message_data->append_to_header((uchar *)test_header.c_str(),
+                                 test_header.length());
+  message_data->append_to_payload((uchar *)test_payload.c_str(),
+                                  test_payload.length());
+
+  uchar *buffer= NULL;
+  uint64_t buffer_len= 0;
+
+  EXPECT_TRUE(message_data->decode(buffer, buffer_len));
+
+  buffer= static_cast<uchar *>(malloc(1));
+  EXPECT_TRUE(message_data->decode(buffer, buffer_len));
+
+  buffer_len= 1024;
+  EXPECT_TRUE(message_data->decode(buffer, buffer_len));
 
   free(buffer);
   delete message_data;

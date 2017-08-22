@@ -1,5 +1,4 @@
 # this test needs multithreaded mysqltest
--- source include/not_embedded.inc
 
 # Test sleeps for long times
 --source include/big_test.inc

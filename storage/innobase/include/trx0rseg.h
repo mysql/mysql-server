@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -95,16 +95,6 @@ trx_rsegf_undo_find_free(
 	trx_rsegf_t*	rsegf,
 	mtr_t*		mtr);
 
-/** Look for a rollback segment, based on the rollback segment id.
-@param[in]	id		rollback segment id
-@param[in]	is_temp		true if rseg from Temp Tablespace else false.
-@return rollback segment */
-UNIV_INLINE
-trx_rseg_t*
-trx_rseg_get_on_id(
-	ulint	id,
-	bool	is_temp);
-
 /** Creates a rollback segment header.
 This function is called only when a new rollback segment is created in
 the database.
@@ -122,18 +112,26 @@ trx_rseg_header_create(
 	ulint			rseg_slot,
 	mtr_t*			mtr);
 
+/** Add more rsegs to the rseg list in each tablespace until there are
+srv_rollback_segments of them.  If the rollback segments do not exist
+in the file, build them first.
+@param[in]	target_undo_tablespaces		target number of undo
+						tablespaces
+@param[in]	target_rollback_segments	new number of rollback
+						segments per space
+@return true if all necessary rollback segments and trx_rseg_t objects
+were created. */
+bool
+trx_rseg_adjust_rollback_segments(
+	ulong		target_undo_tablespaces,
+	ulong		target_rollback_segments);
+
 /** Create the memory copies for rollback segments and initialize the
 rseg array in trx_sys at a database startup.
 @param[in]	purge_queue	queue of rsegs to purge */
 void
-trx_sys_rsegs_init(
+trx_rsegs_init(
 	purge_pq_t*	purge_queue);
-
-/** Free an instance of the rollback segment in memory.
-@param[in]	rseg	pointer to an rseg to free */
-void
-trx_rseg_mem_free(
-	trx_rseg_t*	rseg);
 
 /** Create and initialize a rollback segment object.  Some of
 the values for the fields are read from the segment header page.
@@ -153,98 +151,58 @@ trx_rseg_mem_create(
 	const page_size_t&	page_size,
 	purge_pq_t*		purge_queue,
 	mtr_t*			mtr);
-	
+
 /** Create a rollback segment in the given tablespace. This could be either
 the system tablespace, the temporary tablespace, or an undo tablespace.
 @param[in]	space_id	tablespace to get the rollback segment
 @param[in]	rseg_id		slot number of the rseg within this tablespace
-@return pointer to new rollback segment if create was successful */
-trx_rseg_t*
+@return page number of the rollback segment header page created */
+page_no_t
 trx_rseg_create(
 	space_id_t	space_id,
 	ulint		rseg_id);
-
-/** Creates a rollback segment in the system temporary tablespace.
-@return pointer to new rollback segment if create was successful */
-trx_rseg_t*
-trx_rseg_create_in_temp_space(ulint slot_no);
 
 /** Build a list of unique undo tablespaces found in the TRX_SYS page.
 Do not count the system tablespace. The vector will be sorted on space id.
 @param[in,out]	spaces_to_open		list of undo tablespaces found. */
 void
-trx_rseg_get_n_undo_tablespaces(Space_Ids& spaces_to_open);
+trx_rseg_get_n_undo_tablespaces(Space_Ids* spaces_to_open);
+
+/** Upgrade the TRX_SYS page so that it no longer tracks rsegs in undo
+tablespaces other than the system tablespace.  Add these tablespaces to
+undo::spaces and put FIL_NULL in the slots in TRX_SYS.*/
+void
+trx_rseg_upgrade_undo_tablespaces();
+
+/** Create the file page for the rollback segment directory in an undo
+tablespace. This function is called just after an undo tablespace is
+created so the next page created here should by FSP_FSEG_DIR_PAGE_NUM.
+@param[in]	space_id	Undo Tablespace ID
+@param[in]	mtr		mtr */
+void
+trx_rseg_array_create(
+	space_id_t	space_id,
+	mtr_t*		mtr);
+
+/** Sets the page number of the nth rollback segment slot in the
+independent undo tablespace.
+@param[in]	rsegs_header	rollback segment array page header
+@param[in]	slot		slot number on page  == rseg id
+@param[in]	page_no		rollback regment header page number
+@param[in]	mtr		mtr */
+UNIV_INLINE
+void
+trx_rsegsf_set_page_no(
+	trx_rsegsf_t*		rsegs_header,
+	ulint			slot,
+	page_no_t		page_no,
+	mtr_t*			mtr);
 
 /* Number of undo log slots in a rollback segment file copy */
 #define TRX_RSEG_N_SLOTS	(UNIV_PAGE_SIZE / 16)
 
 /* Maximum number of transactions supported by a single rollback segment */
 #define TRX_RSEG_MAX_N_TRXS	(TRX_RSEG_N_SLOTS / 2)
-
-/** The rollback segment memory object */
-struct trx_rseg_t {
-	/*--------------------------------------------------------*/
-	/** rollback segment id == the index of its slot in the trx
-	system file copy */
-	ulint				id;
-
-	/** mutex protecting the fields in this struct except id,space,page_no
-	which are constant */
-	RsegMutex			mutex;
-
-	/** space ID where the rollback segment header is placed */
-	space_id_t			space_id;
-
-	/** page number of the rollback segment header */
-	page_no_t			page_no;
-
-	/** page size of the relevant tablespace */
-	page_size_t			page_size;
-
-	/** maximum allowed size in pages */
-	ulint				max_size;
-
-	/** current size in pages */
-	ulint				curr_size;
-
-	/*--------------------------------------------------------*/
-	/* Fields for update undo logs */
-	/** List of update undo logs */
-	UT_LIST_BASE_NODE_T(trx_undo_t)	update_undo_list;
-
-	/** List of update undo log segments cached for fast reuse */
-	UT_LIST_BASE_NODE_T(trx_undo_t)	update_undo_cached;
-
-	/*--------------------------------------------------------*/
-	/* Fields for insert undo logs */
-	/** List of insert undo logs */
-	UT_LIST_BASE_NODE_T(trx_undo_t) insert_undo_list;
-
-	/** List of insert undo log segments cached for fast reuse */
-	UT_LIST_BASE_NODE_T(trx_undo_t) insert_undo_cached;
-
-	/*--------------------------------------------------------*/
-
-	/** Page number of the last not yet purged log header in the history
-	list; FIL_NULL if all list purged */
-	page_no_t			last_page_no;
-
-	/** Byte offset of the last not yet purged log header */
-	ulint				last_offset;
-
-	/** Transaction number of the last not yet purged log */
-	trx_id_t			last_trx_no;
-
-	/** TRUE if the last not yet purged log needs purging */
-	ibool				last_del_marks;
-
-	/** Reference counter to track rseg allocated transactions. */
-	ulint				trx_ref_count;
-
-	/** If true, then skip allocating this rseg as it reside in
-	UNDO-tablespace marked for truncate. */
-	bool				skip_allocation;
-};
 
 /* Undo log segment slot in a rollback segment header */
 /*-------------------------------------------------------------*/
@@ -271,6 +229,39 @@ struct trx_rseg_t {
 #define TRX_RSEG_UNDO_SLOTS	(8 + FLST_BASE_NODE_SIZE + FSEG_HEADER_SIZE)
 					/* Undo log segment slots */
 /*-------------------------------------------------------------*/
+
+/** The offset of the Rollback Segment Directory header on an RSEG_ARRAY page */
+#define	RSEG_ARRAY_HEADER		FSEG_PAGE_DATA
+
+/** Rollback Segment Array Header */
+/*------------------------------------------------------------- */
+/** The RSEG ARRAY base version is a number derived from the string
+'RSEG' [0x 52 53 45 47] for extra validation. Each new version
+increments the base version by 1. */
+#define	RSEG_ARRAY_VERSION		0x52534547 + 1
+
+/** The RSEG ARRAY version offset in the header. */
+#define	RSEG_ARRAY_VERSION_OFFSET	0
+
+/** The current number of rollback segments being tracked in this array */
+#define	RSEG_ARRAY_SIZE_OFFSET		4
+
+/** This is the pointer to the file segment inode that tracks this
+rseg array page. */
+#define RSEG_ARRAY_FSEG_HEADER_OFFSET	8
+
+/** The start of the array of rollback segment header page numbers for this
+undo tablespace. The potential size of this array is limited only by the
+page size minus overhead. The actual size of the array is limited by
+srv_rollback_segments. */
+#define	RSEG_ARRAY_PAGES_OFFSET		(8 + FSEG_HEADER_SIZE)
+
+/** Reserved space at the end of an RSEG_ARRAY page reserved for future use. */
+#define RSEG_ARRAY_RESERVED_BYTES	200
+
+/* Slot size of the array of rollback segment header page numbers */
+#define RSEG_ARRAY_SLOT_SIZE		4
+/*------------------------------------------------------------- */
 
 #include "trx0rseg.ic"
 

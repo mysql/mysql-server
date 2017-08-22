@@ -1,5 +1,0 @@
---source include/is_embedded.inc
-
---error 1193
-set global event_scheduler=ON;
-

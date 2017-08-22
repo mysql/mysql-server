@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@
 
 /* This is a placeholder to make SUN RPC compile */
 
-#if defined(WIN32) || defined(WIN64)
+#if defined(_WIN32)
 #include <winsock2.h>
 #endif
 

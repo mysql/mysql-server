@@ -597,6 +597,9 @@ public:
   Item_temporal_func(const POS &pos, Item *a, Item *b, Item *c, Item *d)
     :Item_func(pos, a, b, c, d)
   {}
+  Item_temporal_func(const POS &pos, PT_item_list *list)
+    : Item_func(pos, list)
+  {}
 
   Item_result result_type() const override { return STRING_RESULT; }
   const CHARSET_INFO *charset_for_protocol() const override
@@ -774,6 +777,9 @@ public:
   { set_data_type(MYSQL_TYPE_DATETIME); }
   Item_datetime_func(const POS &pos, Item *a,Item *b, Item *c, Item *d)
     :Item_temporal_func(pos, a, b, c, d)
+  { set_data_type(MYSQL_TYPE_DATETIME); }
+  Item_datetime_func(const POS &pos, PT_item_list *list)
+    : Item_temporal_func(pos, list)
   { set_data_type(MYSQL_TYPE_DATETIME); }
 
   double val_real() override { return val_real_from_decimal(); }
@@ -1471,6 +1477,7 @@ public:
   bool get_time(MYSQL_TIME *ltime) override;
 };
 
+extern const char *interval_names[];
 
 class Item_date_add_interval final : public Item_temporal_hybrid_func
 {
@@ -1486,6 +1493,13 @@ public:
   Item_date_add_interval(const POS &pos,
                          Item *a, Item *b, interval_type type_arg, bool neg_arg)
     :Item_temporal_hybrid_func(pos, a, b),
+     int_type(type_arg), date_sub_interval(neg_arg) {}
+  /**
+     POS-less ctor for post-parse construction with implicit addition to THD's
+     free_list (see Item::Item() no-argument ctor).
+  */
+  Item_date_add_interval(Item *a, Item *b, interval_type type_arg, bool neg_arg)
+    :Item_temporal_hybrid_func(a, b),
      int_type(type_arg), date_sub_interval(neg_arg) {}
   const char *func_name() const override { return "date_add_interval"; }
   bool resolve_type(THD *) override;
@@ -1795,9 +1809,9 @@ class Item_func_internal_update_time final : public Item_datetime_func
 {
   THD *thd;
 public:
-  Item_func_internal_update_time(const POS &pos,
-                                 Item *a, Item *b, Item *c, Item *d)
-    : Item_datetime_func(pos, a, b, c, d)
+  Item_func_internal_update_time(
+    const POS &pos, PT_item_list *list)
+    : Item_datetime_func(pos, list)
   {}
   const char *func_name() const override { return "internal_update_time"; }
   bool resolve_type(THD *thd) override;
@@ -1808,9 +1822,9 @@ class Item_func_internal_check_time final : public Item_datetime_func
 {
   THD *thd;
 public:
-  Item_func_internal_check_time(const POS &pos,
-                                 Item *a, Item *b, Item *c, Item *d)
-    : Item_datetime_func(pos, a, b, c, d)
+  Item_func_internal_check_time(
+    const POS &pos, PT_item_list *list)
+    : Item_datetime_func(pos, list)
   {}
   const char *func_name() const override { return "internal_check_time"; }
   bool resolve_type(THD *thd) override;

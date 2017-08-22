@@ -3,15 +3,7 @@
 #
 
 --source include/have_debug.inc
-
-########################################
-##### WL#7554 Force schema `test` to character set latin1
-##### This test should be migrated to utf8mb4
---disable_query_log
-let $testdbcs60=`select default_character_set_name from information_schema.schemata where schema_name='test'`;
-alter schema test default character set latin1;
---enable_query_log
-########################################
+--source include/have_debug_sync.inc
 
 --source include/count_sessions.inc
 
@@ -50,9 +42,11 @@ DROP TABLE t1;
 --echo ###################################################################
 --echo #
 
-# InnoDB will complain when trying to drop a table which is not
-# present in the SE.
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Table `test`.`t1` .*");
+# These can be removed after WL#9536 is implemented
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number .* in a file operation");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot open datafile for read-only");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot delete tablespace .* because it is not found in the tablespace memory cache");
 
 --echo # 1. Schemata
 --echo # 1.1 Fail while storing dd object during create.
@@ -250,7 +244,6 @@ SELECT COUNT(*) FROM mysql.tablespaces WHERE name LIKE 'ts1';
 --echo # Note: The statement below fails, but removes entry for
 --echo #       ts1 from mysql.tablespaces.
 --echo # Do it for real.
---error ER_DROP_FILEGROUP_FAILED
 DROP TABLESPACE ts1;
 SELECT COUNT(*) FROM mysql.tablespaces WHERE name LIKE 'ts1';
 SET SESSION debug= '-d,skip_dd_table_access_check';
@@ -313,16 +306,34 @@ SET SESSION debug= '-d,skip_dd_table_access_check';
 
 DROP TABLE t2, t1;
 
+--echo #
+--echo # Bug#25685371: `E->USAGE() == 1' AT DD::CACHE::SHARED_MULTI_MAP<T>::
+--echo #               REMOVE FOR DROP VIEW
+--echo #
+
+--enable_connect_log
+CREATE TABLE t1 (a INT) engine= myisam;
+CREATE VIEW v1 AS SELECT * FROM t1;
+--connect(con1, localhost, root)
+SET debug_sync= 'view_metadata_updater_context_dtor SIGNAL blocked WAIT_FOR next';
+--send ALTER TABLE t1 ADD COLUMN b INT
+--connection default
+SET debug_sync= 'now WAIT_FOR blocked';
+DROP VIEW v1;
+SET debug_sync= 'now SIGNAL next';
+--connection con1
+--reap
+--disconnect con1
+--source include/wait_until_disconnected.inc
+--connection default
+DROP TABLE t1;
+SET DEBUG_SYNC= 'RESET';
+--disable_connect_log
+
+
 --echo ###################################################################
 
 --disable_connect_log
 --source include/wait_until_count_sessions.inc
 
 ###########################################################################
-
-########################################
-##### WL#7554 set schema `test` back to what it was
---disable_query_log
---eval alter schema test default character set $testdbcs60;
---enable_query_log
-########################################

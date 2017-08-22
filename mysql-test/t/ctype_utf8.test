@@ -38,9 +38,12 @@ select _utf8 0xD0B0D0B1D0B2 like concat(_utf8'%',_utf8 0xD0B1,_utf8 '%');
 # characters in case insensitive manner.
 # Case insensitive search LIKE comparison
 # was broken for multibyte characters:
+--character_set latin1
 select convert(_latin1'Günter André' using utf8) like CONVERT(_latin1'GÜNTER%' USING utf8);
+--character_set koi8r
 select CONVERT(_koi8r'×ÁÓÑ' USING utf8) LIKE CONVERT(_koi8r'÷áóñ' USING utf8);
 select CONVERT(_koi8r'÷áóñ' USING utf8) LIKE CONVERT(_koi8r'×ÁÓÑ' USING utf8);
+--character_set utf8mb4
 
 #
 # Check the following:
@@ -120,7 +123,9 @@ set LC_TIME_NAMES='en_US';
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 set names koi8r;
 create table t1 (s1 char(1) character set utf8);
+--character_set koi8r
 insert into t1 values (_koi8r'ÁÂ');
+--character_set utf8mb4
 select s1,hex(s1),char_length(s1),octet_length(s1) from t1;
 drop table t1;
 

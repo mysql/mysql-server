@@ -284,7 +284,6 @@ ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const AQP::Join_plan& plan)
   m_builder(NULL)
 { 
   const uint count= m_plan.get_access_count();
-  (void)ha_ndb_ext; // Prevents compiler warning.
 
   DBUG_ASSERT(count <= MAX_TABLES);
   if (count > 1)

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,12 +20,12 @@
 extern "C" {
 #endif
 
-void deliver_global_view_msg(site_def const * site,  synode_no message_id);
-void deliver_to_app(pax_machine *pma, app_data_ptr app, delivery_status app_status);
+void deliver_global_view_msg(site_def const *site, synode_no message_id);
+void deliver_to_app(pax_machine *pma, app_data_ptr app,
+                    delivery_status app_status);
 
 #ifdef __cplusplus
 }
 #endif
 
 #endif
-

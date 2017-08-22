@@ -1,7 +1,6 @@
 # Crash-safe InnoDB ALTER operations
 
 --source include/not_valgrind.inc
---source include/not_embedded.inc
 --source include/have_debug.inc
 --source include/not_crashrep.inc
 
@@ -170,7 +169,7 @@ DROP TABLE t2;
 --echo # -------------------------
 
 --echo #
---echo # Bug#19330255 WL#7142 - CRASH DURING ALTER TABLE LEADS TO
+--echo # Bug#19330255 CRASH DURING ALTER TABLE LEADS TO
 --echo # DATA DICTIONARY INCONSISTENCY
 --echo #
 

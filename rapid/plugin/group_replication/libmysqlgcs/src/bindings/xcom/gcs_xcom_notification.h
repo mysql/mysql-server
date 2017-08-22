@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
 #include "mysql/gcs/gcs_control_interface.h"
 
 #include "gcs_xcom_utils.h"
-
+#include "gcs_xcom_group_member_information.h"
 #include "xcom_vp.h"
 
 /**

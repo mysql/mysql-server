@@ -18,7 +18,6 @@ typedef ulonglong my_off_t;
 typedef ptrdiff_t my_ptrdiff_t;
 typedef int myf;
 #include "my_io.h"
-#include "my_config.h"
 static inline int is_directory_separator(char c)
 {
   return c == '/';

@@ -3,7 +3,6 @@
 --echo # installation, where all plugins are in the same directory.
 --echo #
 
-source include/not_embedded.inc;
 
 # Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc

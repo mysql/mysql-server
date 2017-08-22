@@ -1,7 +1,4 @@
 --source include/have_ndb.inc
-# test uses mysqldump, hence not in embedded
---source include/not_embedded.inc
-
 #
 # Test restoring of .sql file created with mysqldump
 #  - somewhat more complex schema than ndb_fk_mysqldump.test

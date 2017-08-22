@@ -99,7 +99,7 @@
 #define IGNORE_NONE 0x00 /* no ignore */
 #define IGNORE_DATA 0x01 /* don't dump data for this table */
 
-#define MYSQL_UNIVERSAL_CLIENT_CHARSET "utf8"
+#define MYSQL_UNIVERSAL_CLIENT_CHARSET "utf8mb4"
 
 /* Maximum number of fields per table */
 #define MAX_FIELDS 4000
@@ -131,7 +131,7 @@ static bool  verbose= 0, opt_no_create_info= 0, opt_no_data= 0,
              opt_events= 0, opt_comments_used= 0,
              opt_alltspcs=0, opt_notspcs= 0, opt_drop_trigger= 0,
              opt_secure_auth= TRUE, opt_network_timeout= 0,
-             stats_tables_included= 0;
+             stats_tables_included= 0, column_statistics= false;
 static bool insert_pat_inited= 0, debug_info_flag= 0, debug_check_flag= 0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static MYSQL mysql_connection,*mysql=0;
@@ -269,6 +269,10 @@ static struct my_option my_long_options[] =
   {"character-sets-dir", OPT_CHARSETS_DIR,
    "Directory for character set files.", &charsets_dir,
    &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"column-statistics", 0,
+   "Add a ANALYZE TABLE-statement for any existing column statistics.",
+   &column_statistics, &column_statistics, 0, GET_BOOL,
+   NO_ARG, 1, 0, 0, 0, 0, 0},
   {"comments", 'i', "Write additional information.",
    &opt_comments, &opt_comments, 0, GET_BOOL, NO_ARG,
    1, 0, 0, 0, 0, 0},
@@ -619,6 +623,7 @@ static void print_comment(FILE *sql_file, bool is_error, const char *format,
                           ...);
 static void verbose_msg(const char *fmt, ...)
   MY_ATTRIBUTE((format(printf,1,2)));
+static const char* fix_identifier_with_newline(char*);
 
 
 /*
@@ -726,7 +731,7 @@ static void write_header(FILE *sql_file, char *db_name)
                   MACHINE_TYPE);
     print_comment(sql_file, 0, "-- Host: %s    Database: %s\n",
                   current_host ? current_host : "localhost",
-                  db_name ? db_name : "");
+                  db_name ? fix_identifier_with_newline(db_name) : "");
     print_comment(sql_file, 0,
                   "-- ------------------------------------------------------\n"
                  );
@@ -738,7 +743,7 @@ static void write_header(FILE *sql_file, char *db_name)
 "\n/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;"
 "\n/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;"
 "\n/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;"
-"\n/*!40101 SET NAMES %s */;\n",default_charset);
+"\n SET NAMES %s ;\n",default_charset);
 
     if (opt_tz_utc)
     {
@@ -1038,6 +1043,9 @@ static int get_options(int *argc, char ***argv)
   if (my_hash_insert(&ignore_table,
                      (uchar*) my_strdup(PSI_NOT_INSTRUMENTED,
                                         "mysql.apply_status", MYF(MY_WME))) ||
+      my_hash_insert(&ignore_table,
+                     (uchar*) my_strdup(PSI_NOT_INSTRUMENTED,
+                                        "mysql.gtid_executed", MYF(MY_WME))) ||
       my_hash_insert(&ignore_table,
                      (uchar*) my_strdup(PSI_NOT_INSTRUMENTED,
                                         "mysql.schema", MYF(MY_WME))) ||
@@ -2231,6 +2239,30 @@ static void print_comment(FILE *sql_file, bool is_error, const char *format,
   print_xml_comment(sql_file, strlen(comment_buff), comment_buff);
 }
 
+/*
+ This function accepts object names and prefixes -- wherever \n
+ character is found.
+
+ @param[in]     object_name
+
+ @return
+    @retval fixed object name.
+*/
+
+static const char* fix_identifier_with_newline(char* object_name)
+{
+  static char buff[COMMENT_LENGTH]= {0};
+  char *ptr= buff;
+  memset(buff, 0, 255);
+  while(*object_name)
+  {
+    *ptr++ = *object_name;
+    if (*object_name == '\n')
+      ptr= my_stpcpy(ptr, "-- ");
+    object_name++;
+  }
+  return buff;
+}
 
 /*
  create_delimiter
@@ -2299,7 +2331,8 @@ static uint dump_events_for_db(char *db)
                                  db, (ulong)strlen(db), '\'');
   /* nice comments */
   print_comment(sql_file, 0,
-                "\n--\n-- Dumping events for database '%s'\n--\n", db);
+                "\n--\n-- Dumping events for database '%s'\n--\n",
+                fix_identifier_with_newline(db));
 
   if (mysql_query_with_error_report(mysql, &event_list_res, "show events"))
     DBUG_RETURN(0);
@@ -2503,7 +2536,8 @@ static uint dump_routines_for_db(char *db)
                                  db, (ulong)strlen(db), '\'');
   /* nice comments */
   print_comment(sql_file, 0,
-                "\n--\n-- Dumping routines for database '%s'\n--\n", db);
+                "\n--\n-- Dumping routines for database '%s'\n--\n",
+                fix_identifier_with_newline(db));
 
   /*
     not using "mysql_query_with_error_report" because we may have not
@@ -2562,7 +2596,7 @@ static uint dump_routines_for_db(char *db)
                           query_buff);
             print_comment(sql_file, 1,
                           "-- does %s have permissions on mysql.proc?\n\n",
-                          current_user);
+                          fix_identifier_with_newline(current_user));
             maybe_die(EX_MYSQLERR,"%s has insufficent privileges to %s!", current_user, query_buff);
           }
           else if (strlen(row[2]))
@@ -2667,6 +2701,15 @@ static inline bool general_log_or_slow_log_tables(const char *db,
            !my_strcasecmp(charset_info, table, "slow_log"));
 }
 
+/* slave_master_info and slave_relay_log_info tables under mysql database */
+static inline bool replication_metadata_tables(const char *db,
+                                               const char *table)
+{
+  return (!my_strcasecmp(charset_info, db, "mysql")) &&
+          (!my_strcasecmp(charset_info, table, "slave_master_info") ||
+           !my_strcasecmp(charset_info, table, "slave_relay_log_info"));
+}
+
 /**
   Check if the table is innodb stats table in mysql database.
 
@@ -2681,7 +2724,8 @@ static inline bool innodb_stats_tables(const char *db,
 {
   return (!my_strcasecmp(charset_info, db, "mysql")) &&
           (!my_strcasecmp(charset_info, table, "innodb_table_stats") ||
-           !my_strcasecmp(charset_info, table, "innodb_index_stats"));
+           !my_strcasecmp(charset_info, table, "innodb_index_stats") ||
+           !my_strcasecmp(charset_info, table, "innodb_dynamic_metadata"));
 }
 
 /**
@@ -2760,6 +2804,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
   FILE       *sql_file= md_result_file;
   size_t     len;
   bool    is_log_table;
+  bool    is_replication_metadata_table;
   unsigned int colno;
   MYSQL_RES  *result;
   MYSQL_ROW  row;
@@ -2796,7 +2841,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
                    (opt_quoted || opt_keywords));
   if (!create_options)
     my_stpcpy(query_buff+len,
-           "/*!40102 ,SQL_MODE=concat(@@sql_mode, _utf8 ',NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS') */");
+           " ,SQL_MODE=concat(@@sql_mode, _utf8mb4 ',NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS') ");
 
   result_table=     quote_name(table, table_buff, 1);
   opt_quoted_table= quote_name(table, table_buff2, 0);
@@ -2831,11 +2876,11 @@ static uint get_table_structure(char *table, char *db, char *table_type,
       if (strcmp (table_type, "VIEW") == 0)         /* view */
         print_comment(sql_file, 0,
                       "\n--\n-- Temporary view structure for view %s\n--\n\n",
-                      result_table);
+                      fix_identifier_with_newline(result_table));
       else
         print_comment(sql_file, 0,
                       "\n--\n-- Table structure for table %s\n--\n\n",
-                      result_table);
+                      fix_identifier_with_newline(result_table));
 
       if (opt_drop)
       {
@@ -2844,8 +2889,10 @@ static uint get_table_structure(char *table, char *db, char *table_type,
         view-specific code below fills in the DROP VIEW.
         We will skip the DROP TABLE for general_log and slow_log, since
         those stmts will fail, in case we apply dump by enabling logging.
+        We will skip this for replication metadata tables as well.
        */
-        if (!general_log_or_slow_log_tables(db, table))
+        if (!(general_log_or_slow_log_tables(db, table) ||
+              replication_metadata_tables(db, table)))
           fprintf(sql_file, "DROP TABLE IF EXISTS %s;\n",
                   opt_quoted_table);
         check_io(sql_file);
@@ -2930,7 +2977,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
 
           fprintf(sql_file,
                   "SET @saved_cs_client     = @@character_set_client;\n"
-                  "SET character_set_client = utf8;\n"
+                  "SET character_set_client = utf8mb4;\n"
                   "/*!50001 CREATE VIEW %s AS SELECT \n",
                   result_table);
 
@@ -2975,23 +3022,24 @@ static uint get_table_structure(char *table, char *db, char *table_type,
       row= mysql_fetch_row(result);
 
       is_log_table= general_log_or_slow_log_tables(db, table);
-      if (is_log_table)
+      is_replication_metadata_table= replication_metadata_tables(db, table);
+      if (is_log_table || is_replication_metadata_table)
         row[1]+= 13; /* strlen("CREATE TABLE ")= 13 */
       if (opt_compatible_mode & 3)
       {
         fprintf(sql_file,
-                is_log_table ? "CREATE TABLE IF NOT EXISTS %s;\n" : "%s;\n",
-                row[1]);
+                (is_log_table || is_replication_metadata_table) ?
+                "CREATE TABLE IF NOT EXISTS %s;\n" : "%s;\n", row[1]);
       }
       else
       {
         fprintf(sql_file,
                 "/*!40101 SET @saved_cs_client     = @@character_set_client */;\n"
-                "/*!40101 SET character_set_client = utf8 */;\n"
+                " SET character_set_client = utf8mb4 ;\n"
                 "%s%s;\n"
                 "/*!40101 SET character_set_client = @saved_cs_client */;\n",
-                is_log_table ? "CREATE TABLE IF NOT EXISTS " : "",
-                row[1]);
+                (is_log_table || is_replication_metadata_table) ?
+                "CREATE TABLE IF NOT EXISTS " : "", row[1]);
       }
 
       check_io(sql_file);
@@ -3133,7 +3181,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
 
       print_comment(sql_file, 0,
                     "\n--\n-- Table structure for table %s\n--\n\n",
-                    result_table);
+                    fix_identifier_with_newline(result_table));
       if (opt_drop)
         fprintf(sql_file, "DROP TABLE IF EXISTS %s;\n", result_table);
       if (!opt_xml)
@@ -3623,6 +3671,101 @@ done:
   DBUG_RETURN(ret);
 }
 
+static bool dump_column_statistics_for_table(char *table_name, char *db_name)
+{
+  char       name_buff[NAME_LEN*4+3];
+  char       column_buffer[NAME_LEN*4+3];
+  char       query_buff[QUERY_LENGTH];
+  uint       old_opt_compatible_mode= opt_compatible_mode;
+  char       *quoted_table;
+  MYSQL_RES  *column_statistics_rs;
+  MYSQL_ROW  row;
+  FILE       *sql_file= md_result_file;
+
+  bool        ret= true;
+
+  DBUG_ENTER("dump_column_statistics_for_table");
+  DBUG_PRINT("enter", ("db: %s, table_name: %s", db_name, table_name));
+
+  if (path && !(sql_file= open_sql_file_for_table(table_name,
+                                                  O_WRONLY | O_APPEND)))
+    DBUG_RETURN(true); /* purecov: deadcode */
+
+  if (switch_character_set_results(mysql, "binary"))
+    goto done; /* purecov: deadcode */
+
+
+  char escaped_db[NAME_LEN*4+3];
+  char escaped_table[NAME_LEN*4+3];
+  mysql_real_escape_string_quote(mysql, escaped_table, table_name,
+                                 static_cast<ulong>(strlen(table_name)), '\'');
+  mysql_real_escape_string_quote(mysql, escaped_db, db_name,
+                                 static_cast<ulong>(strlen(db_name)), '\'');
+
+  /* Get list of columns with statistics. */
+  my_snprintf(query_buff, sizeof(query_buff),
+              "SELECT COLUMN_NAME, \
+                      JSON_EXTRACT(HISTOGRAM, '$.\"number-of-buckets-specified\"') \
+               FROM information_schema.COLUMN_STATISTICS \
+               WHERE SCHEMA_NAME = '%s' AND TABLE_NAME = '%s';",
+              escaped_db, escaped_table);
+
+  if (mysql_query_with_error_report(mysql, &column_statistics_rs, query_buff))
+    goto done; /* purecov: deadcode */
+
+  /* Dump column statistics. */
+  if (! mysql_num_rows(column_statistics_rs))
+    goto skip;
+
+  if (opt_xml)
+    print_xml_tag(sql_file, "\t", "\n", "column_statistics", "table_name=",
+                  table_name, nullptr);
+
+  quoted_table= quote_name(table_name, name_buff, false);
+  while ((row= mysql_fetch_row(column_statistics_rs)))
+  {
+    char *quoted_column= quote_name(row[0], column_buffer, false);
+    if (opt_xml)
+    {
+      print_xml_tag(sql_file, "\t\t", "", "field", "name=",
+                    row[0], "num_buckets=", row[1], nullptr);
+      fputs("</field>\n", sql_file);
+    }
+    else
+    {
+      fprintf(sql_file, "/*!80002 ANALYZE TABLE %s UPDATE HISTOGRAM ON %s "
+                        "WITH %s BUCKETS; */;\n",
+              quoted_table, quoted_column, row[1]);
+    }
+  }
+
+  if (opt_xml)
+  {
+    fputs("\t</column_statistics>\n", sql_file);
+    check_io(sql_file);
+  }
+
+skip:
+  mysql_free_result(column_statistics_rs);
+
+  if (switch_character_set_results(mysql, default_charset))
+    goto done; /* purecov: deadcode */
+
+  /*
+    make sure to set back opt_compatible mode to
+    original value
+  */
+  opt_compatible_mode=old_opt_compatible_mode;
+
+  ret= false;
+
+done:
+  if (path)
+    my_fclose(sql_file, MYF(0));
+
+  DBUG_RETURN(ret);
+}
+
 static void add_load_option(DYNAMIC_STRING *str, const char *option,
                              const char *option_value)
 {
@@ -3745,6 +3888,12 @@ static void dump_table(char *table, char *db)
   if (strcmp(table_type, "VIEW") == 0)
     DBUG_VOID_RETURN;
 
+  /*
+    We don't dump data fo`r replication metadata tables.
+  */
+  if (replication_metadata_tables(db, table))
+    DBUG_VOID_RETURN;
+
   /* Check --no-data flag */
   if (opt_no_data)
   {
@@ -3848,21 +3997,23 @@ static void dump_table(char *table, char *db)
   {
     print_comment(md_result_file, 0,
                   "\n--\n-- Dumping data for table %s\n--\n",
-                  result_table);
+                  fix_identifier_with_newline(result_table));
     
     dynstr_append_checked(&query_string, "SELECT /*!40001 SQL_NO_CACHE */ * FROM ");
     dynstr_append_checked(&query_string, result_table);
 
     if (where)
     {
-      print_comment(md_result_file, 0, "-- WHERE:  %s\n", where);
+      print_comment(md_result_file, 0, "-- WHERE:  %s\n",
+        fix_identifier_with_newline(where));
 
       dynstr_append_checked(&query_string, " WHERE ");
       dynstr_append_checked(&query_string, where);
     }
     if (order_by)
     {
-      print_comment(md_result_file, 0, "-- ORDER BY:  %s\n", order_by);
+      print_comment(md_result_file, 0, "-- ORDER BY:  %s\n",
+        fix_identifier_with_newline(order_by));
 
       dynstr_append_checked(&query_string, " ORDER BY ");
       dynstr_append_checked(&query_string, order_by);
@@ -4709,7 +4860,8 @@ static int init_dumping(char *database, int init_func(char*))
       char *qdatabase= quote_name(database,quoted_database_buf,opt_quoted);
 
       print_comment(md_result_file, 0,
-                    "\n--\n-- Current Database: %s\n--\n", qdatabase);
+                    "\n--\n-- Current Database: %s\n--\n",
+                    fix_identifier_with_newline(qdatabase));
 
       /* Call the view or table specific function */
       init_func(qdatabase);
@@ -4800,6 +4952,16 @@ static int dump_all_tables_in_db(char *database)
             my_fclose(md_result_file, MYF(MY_WME));
           maybe_exit(EX_MYSQLERR);
         }
+      }
+
+      if (column_statistics &&
+          dump_column_statistics_for_table(table, database))
+      {
+        /* purecov: begin inspected */
+        if (path)
+          my_fclose(md_result_file, MYF(MY_WME));
+        maybe_exit(EX_MYSQLERR);
+        /* purecov: end */
       }
 
       /**
@@ -5116,6 +5278,15 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
           my_fclose(md_result_file, MYF(MY_WME));
         maybe_exit(EX_MYSQLERR);
       }
+    }
+
+    if (column_statistics && dump_column_statistics_for_table(*pos, db))
+    {
+      /* purecov: begin inspected */
+      if (path)
+        my_fclose(md_result_file, MYF(MY_WME));
+      maybe_exit(EX_MYSQLERR);
+      /* purecov: end */
     }
 
     /**
@@ -5974,7 +6145,7 @@ static bool get_view_structure(char *table, char* db)
 
   print_comment(sql_file, 0,
                 "\n--\n-- Final view structure for view %s\n--\n\n",
-                result_table);
+                fix_identifier_with_newline(result_table));
 
   verbose_msg("-- Dropping the temporary view structure created\n");
   fprintf(sql_file, "/*!50001 DROP VIEW IF EXISTS %s*/;\n", opt_quoted_table);

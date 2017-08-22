@@ -497,8 +497,7 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
     bool reprepare_error=
       error && thd->get_stmt_da()->mysql_errno() == ER_NEED_REPREPARE;
     bool is_create_table_select=
-      thd->lex && thd->lex->m_sql_cmd &&
-      thd->lex->m_sql_cmd->sql_command_code() == SQLCOM_CREATE_TABLE &&
+      thd->lex && thd->lex->sql_command == SQLCOM_CREATE_TABLE &&
       thd->lex->select_lex && thd->lex->select_lex->item_list.elements > 0;
 
     if (reprepare_error || is_create_table_select)
@@ -645,7 +644,7 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp)
            trg_fld;
            trg_fld= trg_fld->next_trg_field)
       {
-        trg_fld->setup_field(sp->m_trg_list->get_trigger_field_support(),
+        trg_fld->setup_field(sp->m_trg_list,
                              t->get_subject_table_grant());
       }
 
@@ -1819,7 +1818,7 @@ bool sp_instr_cfetch::execute(THD *thd, uint *nextp)
 
   sp_cursor *c= thd->sp_runtime_ctx->get_cursor(m_cursor_idx);
 
-  return c ? c->fetch(thd, &m_varlist) : true;
+  return c ? c->fetch(&m_varlist) : true;
 }
 
 

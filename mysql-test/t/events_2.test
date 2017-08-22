@@ -1,8 +1,6 @@
 
 # changes 2008-02-20 hhunger splitted events.test into events_1 and events_2
 #
-# Can't test with embedded server that doesn't support grants
--- source include/not_embedded.inc
 
 --disable_warnings
 drop database if exists events_test;

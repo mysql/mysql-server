@@ -1,7 +1,6 @@
 # Author: Horst Hunger
 # Created: 2010-07-06
 
---source include/not_embedded.inc
 
 let $engine_table= INNODB;
 let $engine_part= INNODB;

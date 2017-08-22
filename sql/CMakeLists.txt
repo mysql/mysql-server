@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2017 Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -72,7 +72,6 @@ SET(DD_SOURCES
   dd/dd_tablespace.cc
   dd/dd_trigger.cc
   dd/dd_view.cc
-  dd/dd_upgrade.cc
 
   dd/impl/bootstrapper.cc
   dd/impl/dd.cc
@@ -99,12 +98,32 @@ SET(DD_SOURCES
   dd/impl/raw/raw_record_set.cc
   dd/impl/raw/raw_table.cc
 
+  dd/impl/system_views/character_sets.cc
+  dd/impl/system_views/collations.cc
+  dd/impl/system_views/collation_charset_applicability.cc
+  dd/impl/system_views/columns.cc
+  dd/impl/system_views/column_statistics.cc
+  dd/impl/system_views/events.cc
+  dd/impl/system_views/key_column_usage.cc
+  dd/impl/system_views/parameters.cc
+  dd/impl/system_views/routines.cc
+  dd/impl/system_views/schemata.cc
+  dd/impl/system_views/statistics.cc
+  dd/impl/system_views/st_spatial_reference_systems.cc
+  dd/impl/system_views/st_geometry_columns.cc
+  dd/impl/system_views/tables.cc
+  dd/impl/system_views/table_constraints.cc
+  dd/impl/system_views/triggers.cc
+  dd/impl/system_views/views.cc
+
   dd/impl/tables/table_stats.cc
   dd/impl/tables/index_stats.cc
   dd/impl/tables/character_sets.cc
   dd/impl/tables/collations.cc
   dd/impl/tables/columns.cc
+  dd/impl/tables/column_statistics.cc
   dd/impl/tables/column_type_elements.cc
+  dd/impl/tables/dd_properties.cc
   dd/impl/tables/events.cc
   dd/impl/tables/foreign_key_column_usage.cc
   dd/impl/tables/foreign_keys.cc
@@ -122,7 +141,6 @@ SET(DD_SOURCES
   dd/impl/tables/tablespace_files.cc
   dd/impl/tables/tablespaces.cc
   dd/impl/tables/triggers.cc
-  dd/impl/tables/version.cc
   dd/impl/tables/view_routine_usage.cc
   dd/impl/tables/view_table_usage.cc
 
@@ -132,8 +150,9 @@ SET(DD_SOURCES
   dd/impl/types/charset_impl.cc
   dd/impl/types/collation_impl.cc
   dd/impl/types/column_impl.cc
+  dd/impl/types/column_statistics_impl.cc
   dd/impl/types/column_type_element_impl.cc
-  dd/impl/types/dictionary_object_table_impl.cc
+  dd/impl/types/entity_object_table_impl.cc
   dd/impl/types/entity_object_impl.cc
   dd/impl/types/event_impl.cc
   dd/impl/types/foreign_key_element_impl.cc
@@ -159,19 +178,41 @@ SET(DD_SOURCES
   dd/impl/types/view_table_impl.cc
   dd/impl/types/weak_object_impl.cc
 
+  dd/info_schema/metadata.cc
   dd/info_schema/show.cc
   dd/info_schema/show_query_builder.cc
   dd/info_schema/stats.cc
+
+  dd/performance_schema/init.cc
+
+  dd/upgrade/event.cc
+  dd/upgrade/global.cc
+  dd/upgrade/routine.cc
+  dd/upgrade/schema.cc
+  dd/upgrade/table.cc
+  dd/upgrade/upgrade.cc
 )
 
 SET(SQL_GIS_SOURCES
   geometry_rtree.cc
+  gis/covered_by.cc
+  gis/crosses.cc
+  gis/difference.cc
+  gis/disjoint.cc
   gis/distance.cc
+  gis/equals.cc
+  gis/gc_utils.cc
   gis/geometries.cc
-  gis/ring_direction.cc
+  gis/intersects.cc
+  gis/mbr_utils.cc
+  gis/overlaps.cc
+  gis/ring_flip_visitor.cc
+  gis/rtree_support.cc
   gis/srs/srs.cc
   gis/srs/wkt_parser.cc
-  gis/srs/rtree_support.cc
+  gis/touches.cc
+  gis/union.cc
+  gis/within.cc
   gis/wkb_parser.cc
   item_geofunc.cc
   item_geofunc_buffer.cc
@@ -180,6 +221,11 @@ SET(SQL_GIS_SOURCES
   item_geofunc_relchecks_bgwrap.cc
   item_geofunc_setops.cc
 )
+
+SET(MYSQL_SERVER_SUB_COMPONENT_SOURCES
+  server_component/mysql_string_service.cc
+  server_component/persistent_dynamic_loader.cc
+  )
 
 SET(SQL_SHARED_SOURCES
   abstract_query_plan.cc
@@ -209,7 +255,6 @@ SET(SQL_SHARED_SOURCES
   debug_sync.cc
   default_values.cc
   derror.cc
-  persistent_dynamic_loader.cc
   error_handler.cc
   field.cc
   field_conv.cc 
@@ -222,6 +267,7 @@ SET(SQL_SHARED_SOURCES
   histograms/equi_height_bucket.cc
   histograms/histogram.cc
   histograms/singleton.cc
+  histograms/value_map.cc
   hostname.cc
   init.cc
   item.cc
@@ -234,11 +280,13 @@ SET(SQL_SHARED_SOURCES
   item_strfunc.cc
   item_subselect.cc
   item_sum.cc
+  window.cc
   item_timefunc.cc 
   item_xmlfunc.cc 
   item_inetfunc.cc
-  json_dom.cc
   json_binary.cc
+  json_diff.cc
+  json_dom.cc
   json_path.cc
   key.cc
   key_spec.cc
@@ -264,7 +312,6 @@ SET(SQL_SHARED_SOURCES
   opt_trace.cc
   opt_trace2server.cc
   options_parser.cc
-  parse_error.cc
   parse_file.cc
   parse_tree_helpers.cc
   parse_tree_hints.cc
@@ -390,13 +437,29 @@ SET(SQL_SHARED_SOURCES
   uniques.cc
   xa.cc
   ${DD_SOURCES}
+  ${MYSQL_SERVER_SUB_COMPONENT_SOURCES}
 )
+
+# Needed so that IDEs (e.g. Xcode) can see all sources when searching
+FILE(GLOB_RECURSE SQL_HEADERS
+  "${CMAKE_SOURCE_DIR}/include/*.h"
+  "${CMAKE_SOURCE_DIR}/sql/*.h"
+  "${CMAKE_SOURCE_DIR}/storage/*.h"
+)
+
+# Needed so that IDEs (e.g. Xcode) can see all sources when searching 
+FILE(GLOB_RECURSE SQL_HEADERS
+  "${CMAKE_SOURCE_DIR}/include/*.h"
+  "${CMAKE_SOURCE_DIR}/sql/*.h"
+  "${CMAKE_SOURCE_DIR}/storage/*.h"
+) 
 
 SET(SQL_SOURCE
   ${GEN_SOURCES}
   ${GEN_DIGEST_SOURCES}
   ${CONF_SOURCES}
   ${SQL_SHARED_SOURCES}
+  ${SQL_HEADERS}
   ../extra/lz4/xxhash.c
   ../libmysql/errmsg.cc
   ../sql-common/client.cc
@@ -454,6 +517,7 @@ SET(SQL_BOOST_SOURCES
   handler.cc
   ${SQL_GIS_SOURCES}
   spatial.cc
+  window.cc
   sql_exception_handler.cc
 )
 SET(SQL_EXPORTED_BOOST_SOURCES ${SQL_BOOST_SOURCES} PARENT_SCOPE)
@@ -510,6 +574,9 @@ ADD_COMPILE_FLAGS(
 # Fixes "C1128: number of sections exceeded object file format limit" in MSVC
 IF(WIN32)
   ADD_COMPILE_FLAGS(
+    gis/difference.cc
+    gis/touches.cc
+    gis/within.cc
     item_geofunc.cc
     item_geofunc_setops.cc
     COMPILE_FLAGS "/bigobj")
@@ -593,7 +660,7 @@ IF (WIN32 AND OPENSSL_APPLINK_C)
   )
 ENDIF()
 
-ADD_CONVENIENCE_LIBRARY(sql_rtree gis/srs/rtree_support.cc)
+ADD_CONVENIENCE_LIBRARY(sql_rtree gis/rtree_support.cc)
 ADD_CONVENIENCE_LIBRARY(sql_main ${SQL_SOURCE})
 ADD_DEPENDENCIES(sql_main GenServerSource)
 ADD_DEPENDENCIES(sql_main GenDigestServerSource)

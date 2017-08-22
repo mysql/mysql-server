@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,11 +28,6 @@
 #include "system_variables.h"
 
 namespace dd {
-
-class Dictionary_object;
-class Object_key;
-class Raw_record;
-
 namespace tables {
 
 const Schemata &Schemata::instance()
@@ -97,7 +92,7 @@ bool Schemata::update_object_key(Item_name_key *key,
 
 ///////////////////////////////////////////////////////////////////////////
 
-Dictionary_object *Schemata::create_dictionary_object(const Raw_record &) const
+Schema *Schemata::create_entity_object(const Raw_record &) const
 {
   return new (std::nothrow) Schema_impl();
 

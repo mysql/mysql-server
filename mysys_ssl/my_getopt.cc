@@ -35,6 +35,7 @@
 #include "my_io.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
+#include "mysql_version.h"             // MYSQL_PERSIST_CONFIG_NAME
 #include "mysql/service_mysql_alloc.h"
 #include "typelib.h"
 
@@ -220,10 +221,11 @@ int my_handle_options(int *argc, char ***argv,
   bool end_of_options= 0, must_be_var, set_maximum_value,
        option_is_loose;
   char **pos, **pos_end, *optend, *opt_str, key_name[FN_REFLEN];
+  char **arg_sep= NULL, **persist_arg_sep= NULL;
   const struct my_option *optp;
   void *value;
   int error, i;
-  bool is_cmdline_arg= 1;
+  bool is_cmdline_arg= 1, is_persist_arg= 1;
   int opt_found;
 
   /* handle_options() assumes arg0 (program name) always exists */
@@ -241,25 +243,57 @@ int my_handle_options(int *argc, char ***argv,
   {
     if (my_getopt_is_args_separator(*pos))
     {
+      arg_sep= pos;
       is_cmdline_arg= 0;
       break;
     }
   }
-  if (pos && *pos)
+  /* search for persist_args_separator */
+  if (arg_sep)
+  {
+    for (pos= arg_sep, pos_end= (*argv + *argc); pos != pos_end ; pos++)
+    {
+      if (my_getopt_is_ro_persist_args_separator(*pos))
+      {
+        persist_arg_sep= pos;
+        is_persist_arg= 0;
+        break;
+      }
+    }
+  }
+  if (arg_sep)
   {
     /*
-      All options which are after args_separator are command line options,
-      thus update the variables_hash with these options with path set
-      to empty string.
+      All options which are between arg_sep and persist_arg_sep are
+      command line options, thus update the variables_hash with these
+      options. If persist_arg_sep is NULL then it means there are no
+      read only persist options, what follows is only command line options.
     */
-    pos+= 1;
-    while (*pos && pos != pos_end)
+    pos= arg_sep + 1;
+    while (*pos && pos != persist_arg_sep)
     {
       update_variable_source((const char*)*pos, NULL);
       ++pos;
     }
   }
-  for (pos= *argv, pos_end=pos+ *argc; pos != pos_end ; pos++)
+  if (persist_arg_sep)
+  {
+    /*
+      All options which are between after persist_arg_sep are
+      read from persistent file, thus update the variables_hash with
+      these options with path set to "$datadir/mysqld-auto.cnf".
+    */
+    pos= persist_arg_sep + 1;
+    char persist_dir[FN_REFLEN]= {0};
+    fn_format(persist_dir, MYSQL_PERSIST_CONFIG_NAME, datadir_buffer,
+              ".cnf", MY_UNPACK_FILENAME | MY_SAFE_PATH | MY_RELATIVE_PATH);
+    while (pos && *pos)
+    {
+      update_variable_source((const char *) *pos, persist_dir);
+      ++pos;
+    }
+  }
+  for (pos= *argv, pos_end= pos+ *argc; pos != pos_end ; pos++)
   {
     char **first= pos;
     char *cur_arg= *pos;
@@ -271,6 +305,16 @@ int my_handle_options(int *argc, char ***argv,
       /* save the separator too if skip unkown options  */
       if (my_getopt_skip_unknown)
         (*argv)[argvpos++]= cur_arg;
+      else
+        (*argc)--;
+      continue;
+    }
+    /* skip persist args separator */
+    if (!is_persist_arg && my_getopt_is_ro_persist_args_separator(cur_arg))
+    {
+      is_persist_arg= 1;
+      if (my_getopt_skip_unknown)
+        (*argv) [argvpos++]= cur_arg;
       else
         (*argc)--;
       continue;

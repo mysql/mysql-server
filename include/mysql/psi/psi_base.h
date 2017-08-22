@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -138,6 +138,15 @@ typedef unsigned int PSI_socket_key;
   be created by a thread and destroyed by another thread.
 */
 #define PSI_FLAG_TRANSFER (1 << 5)
+
+/**
+  User flag.
+  This flag indicate that an instrumented object exists on a
+  user or foreground thread. If not set, then the object
+  exists on a system or background thread.
+*/
+#define PSI_FLAG_USER (1 << 6)
+
 
 #define PSI_VOLATILITY_UNKNOWN 0
 #define PSI_VOLATILITY_PERMANENT 1

@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 --source include/master-slave.inc
 --source include/have_binlog_format_mixed.inc
 

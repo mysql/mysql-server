@@ -58,6 +58,7 @@
 #include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_psi_config.h"
+#include "mysql_version.h"             // MYSQL_PERSIST_CONFIG_NAME
 #include "mysql/psi/mysql_file.h"
 #include "mysql/service_my_snprintf.h"
 #include "typelib.h"
@@ -96,6 +97,7 @@ static std::map<string, my_variable_sources> variables_hash;
   command line options are mapped to enum_variable_source::COMMAND_LINE
 */
 static std::map<string, enum_variable_source> default_paths;
+char datadir_buffer[FN_REFLEN]= {0};
 
 #ifdef HAVE_PSI_INTERFACE
 extern PSI_file_key key_file_cnf;
@@ -133,6 +135,23 @@ inline static void set_args_separator(char** arg)
 {
   DBUG_ASSERT(my_getopt_use_args_separator);
   *arg= (char*)args_separator;
+}
+/*
+  persisted arguments separator
+
+  This argument separator string is used to separate arguments loaded
+  from persisted config file and command line arguments. This string
+  is placed after command line options if there are any read only
+  persisted variables in persisted config file.
+*/
+static const char *persist_args_separator= "----persist-args-separator----";
+void set_persist_args_separator(char** arg)
+{
+  *arg= (char *)persist_args_separator;
+}
+bool my_getopt_is_ro_persist_args_separator(const char* arg)
+{
+  return (arg == persist_args_separator);
 }
 
 /*
@@ -745,7 +764,7 @@ int my_load_defaults(const char *conf_file, const char **groups,
   res= (char**) (ptr+sizeof(alloc));
 
   /* copy name + found arguments + command line arguments to new array */
-  res[0]= argv[0][0];  /* Name MUST be set, even by embedded library */
+  res[0]= argv[0][0];  /* Name MUST be set */
   if (!my_args.empty())
     memcpy((res+1), &my_args[0], my_args.size() * sizeof(char*));
   /* Skip --defaults-xxx options */
@@ -1416,9 +1435,15 @@ void init_variable_default_paths()
 #endif
 #endif
 
-  convert_dirname(datadir, MYSQL_DATADIR, NullS);
-  default_paths[string(datadir) + "mysqld-auto.cnf"]= enum_variable_source::PERSISTED;
-
+  if (datadir_buffer[0])
+    default_paths[string(datadir_buffer) + MYSQL_PERSIST_CONFIG_NAME
+      + ".cnf"]= enum_variable_source::PERSISTED;
+  else
+  {
+    convert_dirname(datadir, MYSQL_DATADIR, NullS);
+    default_paths[string(datadir) + MYSQL_PERSIST_CONFIG_NAME + ".cnf"]=
+      enum_variable_source::PERSISTED;
+  }
   if(extradir.length())
     default_paths[extradir]= enum_variable_source::EXTRA;
   if(explicitdir.length())
@@ -1451,6 +1476,8 @@ void update_variable_source(const char* opt_name, const char* value)
 {
   string var_name= string(opt_name);
   string path= (value ? value : string(""));
+  string prefix[]= {"loose_", "disable_", "enable_", "maximum_", "skip_"};
+  uint prefix_count= sizeof(prefix) / sizeof (prefix[0]);
 
   /* opt_name must be of form --XXXXX which means min length must be 3 */
   if (var_name.length() < 3)
@@ -1469,35 +1496,39 @@ void update_variable_source(const char* opt_name, const char* value)
     var_name.replace(pos, 1, "_");
 
   /*
-    check if variable is appended with 'loose', 'skip', 'disable',
+    check if variable is prefixed with 'loose', 'skip', 'disable',
     'enable', 'maximum'
   */
-  if ((pos= var_name.find("loose_")) != string::npos)
-    var_name= var_name.substr(strlen("loose_")+pos);
-  else if ((pos= var_name.find("disable_")) != string::npos)
-    var_name= var_name.substr(strlen("disable_")+pos);
-  else if ((pos= var_name.find("enable_")) != string::npos)
-    var_name= var_name.substr(strlen("enable_")+pos);
-  else if ((pos= var_name.find("maximum_")) != string::npos)
-    var_name= var_name.substr(strlen("maximum_")+pos);
-  else if ((pos= var_name.find("skip_")) != string::npos)
+  for (uint id= 0; id < prefix_count; id++)
   {
-    bool skip_variable= false;
-    string skip_variables[]= { "skip_name_resolve", "skip_networking",
-      "skip_show_database", "skip_external_locking" };
-    for (uint skip_index= 0;
-         skip_index < (sizeof (skip_variables)/sizeof (skip_variables[0]));
-         ++skip_index)
+    if (!var_name.compare(0, prefix[id].size(), prefix[id]))
     {
-      if (var_name == skip_variables[skip_index])
+      /* check if variables are prefixed with skip_ */
+      if (id == 4)
       {
-        /* do not trim the skip_ prefix for variables which start with skip */
-        skip_variable= true;
-        break;
+        bool skip_variable= false;
+        string skip_variables[]= { "skip_name_resolve", "skip_networking",
+          "skip_show_database", "skip_external_locking" };
+        for (uint skip_index= 0;
+             skip_index < sizeof (skip_variables) / sizeof (skip_variables[0]);
+             ++skip_index)
+        {
+          if (var_name == skip_variables[skip_index])
+          {
+            /*
+             Do not trim the skip_ prefix for variables which
+             start with skip
+            */
+            skip_variable= true;
+            break;
+          }
+        }
+        if (skip_variable == false)
+          var_name= var_name.substr(prefix[4].size());
       }
+      else
+        var_name= var_name.substr(prefix[id].size());
     }
-    if (skip_variable == false)
-     var_name= var_name.substr(strlen("skip_")+pos);
   }
 
   std::map<string, enum_variable_source>::iterator it= default_paths.find(path);
@@ -1542,13 +1573,15 @@ void set_variable_source(const char *opt_name, void* value)
   while ((pos= src_name.find("-")) != string::npos)
     src_name.replace(pos, 1, "_");
 
-  std::map<string, my_variable_sources>::iterator it= variables_hash.find(src_name);
+  std::map<string, my_variable_sources>::iterator it=
+    variables_hash.find(src_name);
   if (it != variables_hash.end())
   {
     if ((get_opt_arg_source*)value)
     {
-      ((get_opt_arg_source*)value)->m_path_name=
-        it->second.m_config_file_name.c_str();
+      memcpy(((get_opt_arg_source*)value)->m_path_name,
+             it->second.m_config_file_name.c_str(),
+             it->second.m_config_file_name.length());
       ((get_opt_arg_source*)value)->m_source= it->second.m_source;
     }
   }

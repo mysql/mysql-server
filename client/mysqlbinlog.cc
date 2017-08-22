@@ -69,21 +69,6 @@ using std::max;
 static
 std::map<std::string, std::string> map_mysqlbinlog_rewrite_db;
 
-/**
-  The function represents Log_event delete wrapper
-  to reset possibly active temp_buf member.
-  It's to be invoked in context where the member is
-  not bound with dynamically allocated memory and therefore can
-  be reset as simple as with plain assignment to NULL.
-
-  @param ev  a pointer to Log_event instance
-*/
-inline void reset_temp_buf_and_delete(Log_event *ev)
-{
-  ev->temp_buf= NULL;
-  delete ev;
-}
-
 static bool
 rewrite_db(char **buf, ulong *buf_size,
            uint offset_db, uint offset_len)
@@ -810,7 +795,6 @@ static bool shall_skip_gtids(Log_event* ev)
       In this case, ROTATE and FD events should be processed and
       outputted.
     */
-    case binary_log::START_EVENT_V3: /* for completion */
     case binary_log::SLAVE_EVENT: /* for completion */
     case binary_log::STOP_EVENT:
     case binary_log::FORMAT_DESCRIPTION_EVENT:
@@ -1006,7 +990,6 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *
 {
   char ll_buff[21];
   Log_event_type ev_type= ev->get_type_code();
-  bool destroy_evt= TRUE;
   DBUG_ENTER("process_event");
   Exit_status retval= OK_CONTINUE;
   IO_CACHE *const head= &print_event_info->head_cache;
@@ -1130,34 +1113,32 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *
       if (head->error == -1)
         goto err;
       break;
-      
-      destroy_evt= TRUE;
     }
           
     case binary_log::INTVAR_EVENT:
     {
-      destroy_evt= FALSE;
       buff_event.event= ev;
       buff_event.event_pos= pos;
       buff_ev->push_back(buff_event);
+      ev= NULL;
       break;
     }
     	
     case binary_log::RAND_EVENT:
     {
-      destroy_evt= FALSE;
       buff_event.event= ev;
       buff_event.event_pos= pos;      
       buff_ev->push_back(buff_event);
+      ev= NULL;
       break;
     }
     
     case binary_log::USER_VAR_EVENT:
     {
-      destroy_evt= FALSE;
       buff_event.event= ev;
       buff_event.event_pos= pos;      
       buff_ev->push_back(buff_event);
+      ev= NULL;
       break; 
     }
     case binary_log::APPEND_BLOCK_EVENT:
@@ -1207,17 +1188,6 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *
 
       if (head->error == -1)
         goto err;
-      if (opt_remote_proto == BINLOG_LOCAL)
-      {
-        ev->free_temp_buf(); // free memory allocated in dump_local_log_entries
-      }
-      else
-      {
-        /*
-          disassociate but not free dump_remote_log_entries time memory
-        */
-        ev->temp_buf= 0;
-      }
       /*
         We don't want this event to be deleted now, so let's hide it (I
         (Guilhem) should later see if this triggers a non-serious Valgrind
@@ -1279,10 +1249,11 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *
       {
         print_event_info->skipped_event_in_transaction= true;
         print_event_info->m_table_map_ignored.set_table(map->get_table_id(), map);
-        destroy_evt= FALSE;
+        ev= NULL;
         goto end;
       }
     }
+    // Fall through
     case binary_log::ROWS_QUERY_LOG_EVENT:
     case binary_log::WRITE_ROWS_EVENT:
     case binary_log::DELETE_ROWS_EVENT:
@@ -1453,16 +1424,9 @@ err:
 end:
   rec_count++;
   /*
-    Destroy the log_event object. If reading from a remote host,
-    set the temp_buf to NULL so that memory isn't freed twice.
+    Destroy the log_event object.
   */
-  if (ev)
-  {
-    if (opt_remote_proto != BINLOG_LOCAL)
-      ev->temp_buf= 0;
-    if (destroy_evt) /* destroy it later if not set (ignored table map) */
-      delete ev;
-  }
+  delete ev;
   DBUG_RETURN(retval);
 }
 
@@ -2199,21 +2163,13 @@ static Exit_status check_master_version()
   }
   delete glob_description_event;
   switch (*version) {
-  case '3':
-    glob_description_event= new Format_description_log_event(1);
-    break;
-  case '4':
-    glob_description_event= new Format_description_log_event(3);
-    break;
   case '5':
   case '8':
     /*
       The server is soon going to send us its Format_description log
-      event, unless it is a 5.0 server with 3.23 or 4.0 binlogs.
-      So we first assume that this is 4.0 (which is enough to read the
-      Format_desc event if one comes).
+      event.
     */
-    glob_description_event= new Format_description_log_event(3);
+    glob_description_event= new Format_description_log_event;
     break;
   default:
     glob_description_event= NULL;
@@ -2265,6 +2221,24 @@ static void fix_gtid_set(MYSQL_RPL *rpl, uchar *packet_gtid_set)
   global_sid_lock->unlock();
 }
 
+/*
+  A RAII class created to handle the memory of Log_event object
+  created in the dump_remote_log_entries method.
+*/
+class Destroy_log_event_guard
+{
+public:
+  Log_event **ev_del;
+  Destroy_log_event_guard(Log_event** ev_arg)
+  {
+    ev_del= ev_arg;
+  }
+  ~Destroy_log_event_guard()
+  {
+    if (*ev_del != NULL)
+      delete *ev_del;
+  }
+};
 
 /**
   Requests binlog dump from a remote server and prints the events it
@@ -2369,6 +2343,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
 
     Log_event_type type= (Log_event_type) rpl.buffer[1 + EVENT_TYPE_OFFSET];
     Log_event *ev= NULL;
+    Destroy_log_event_guard del(&ev);
 
     if (!raw_mode || (type == binary_log::ROTATE_EVENT) ||
         (type == binary_log::FORMAT_DESCRIPTION_EVENT))
@@ -2386,7 +2361,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
         If reading from a remote host, ensure the temp_buf for the
         Log_event class is pointing to the incoming stream.
       */
-      ev->register_temp_buf((char *) rpl.buffer + 1);
+      ev->register_temp_buf((char *) rpl.buffer + 1, false);
     }
 
     {
@@ -2429,7 +2404,6 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
             if ((rev->ident_len != rpl.file_name_length) ||
                 memcmp(rev->new_log_ident, logname, rpl.file_name_length))
             {
-              reset_temp_buf_and_delete(rev);
               DBUG_RETURN(OK_CONTINUE);
             }
             /*
@@ -2438,7 +2412,6 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
               log. If we are running with to_last_remote_log, we print it,
               because it serves as a useful marker between binlogs then.
             */
-            reset_temp_buf_and_delete(rev);
             continue;
           }
           /*
@@ -2467,7 +2440,8 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
             my_fclose(result_file, MYF(0));
           if (!(result_file = my_fopen(log_file_name,
                                        O_WRONLY | MY_FOPEN_BINARY,
-                                       MYF(MY_WME))))
+                                       MYF(MY_WME)))||
+                 DBUG_EVALUATE_IF("simulate_create_log_file_error_for_FD_event", 1, 0))
           {
             error("Could not create log file '%s'", log_file_name);
             DBUG_RETURN(ERROR_STOP);
@@ -2501,12 +2475,16 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
           error("Could not write into log file '%s'", log_file_name);
           retval= ERROR_STOP;
         }
-        if (ev)
-          reset_temp_buf_and_delete(ev);
+
+        /* Flush result_file after every event */
+        fflush(result_file);
       }
       else
       {
         retval= process_event(print_event_info, ev, old_off, logname);
+        // The event's deletion has been handled in process_event. To prevent that
+        // Destroy_log_event_guard deletes it again, we have to set it to NULL
+        ev= NULL;
       }
 
       if (retval != OK_CONTINUE)
@@ -2560,7 +2538,7 @@ static Exit_status check_header(IO_CACHE* file,
   MY_STAT my_file_stat;
 
   delete glob_description_event;
-  if (!(glob_description_event= new Format_description_log_event(3)))
+  if (!(glob_description_event= new Format_description_log_event))
   {
     error("Failed creating Format_description_log_event; out of memory?");
     DBUG_RETURN(ERROR_STOP);
@@ -2632,25 +2610,7 @@ static Exit_status check_header(IO_CACHE* file,
     {
       DBUG_PRINT("info",("buf[EVENT_TYPE_OFFSET=%d]=%d",
                          EVENT_TYPE_OFFSET, buf[EVENT_TYPE_OFFSET]));
-      /* always test for a Start_v3, even if no --start-position */
-      if (buf[EVENT_TYPE_OFFSET] == binary_log::START_EVENT_V3)
-      {
-        /* This is 3.23 or 4.x */
-        if (uint4korr(buf + EVENT_LEN_OFFSET) < 
-            (LOG_EVENT_MINIMAL_HEADER_LEN + Binary_log_event::START_V3_HEADER_LEN))
-        {
-          /* This is 3.23 (format 1) */
-          delete glob_description_event;
-          if (!(glob_description_event= new Format_description_log_event(1)))
-          {
-            error("Failed creating Format_description_log_event; "
-                  "out of memory?");
-            DBUG_RETURN(ERROR_STOP);
-          }
-        }
-        break;
-      }
-      else if (tmp_pos >= start_position)
+      if (tmp_pos >= start_position)
         break;
       else if (buf[EVENT_TYPE_OFFSET] == binary_log::FORMAT_DESCRIPTION_EVENT)
       {

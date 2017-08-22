@@ -30,25 +30,67 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql_time.h"
+#include "sql/histograms/value_map.h"      // Value_map
 
 namespace histograms {
 
 template <class T>
-Singleton<T>::Singleton(MEM_ROOT *mem_root, std::string db_name,
-                        std::string tbl_name, std::string col_name)
+Singleton<T>::Singleton(MEM_ROOT *mem_root, const std::string &db_name,
+                        const std::string &tbl_name,
+                        const std::string &col_name)
   :Histogram(mem_root, db_name, tbl_name, col_name,
              enum_histogram_type::SINGLETON),
-   m_buckets(Histogram_comparator(), value_map_allocator<T>(mem_root))
+   m_buckets(Histogram_comparator(), singleton_buckets_allocator(mem_root))
 {}
 
 
 template <class T>
-bool Singleton<T>::build_histogram(const value_map_type<T> &value_map,
-                                   ha_rows num_null_values)
+Singleton<T>::Singleton(MEM_ROOT *mem_root, const Singleton<T> &other)
+  :Histogram(mem_root, other),
+  m_buckets(other.m_buckets.begin(), other.m_buckets.end(),
+            Histogram_comparator(), value_map_allocator<T>(mem_root))
+{}
+
+
+template <>
+Singleton<String>::Singleton(MEM_ROOT *mem_root, const Singleton<String> &other)
+  :Histogram(mem_root, other),
+  m_buckets(Histogram_comparator(), value_map_allocator<String>(mem_root))
+{
+  /*
+    Copy bucket contents. We need to make duplicates of String data, since they
+    are allocated on a MEM_ROOT that most likely will be freed way too early.
+  */
+  for (const auto &bucket : other.m_buckets)
+  {
+    char *string_data= bucket.first.dup(mem_root);
+    if (string_data == nullptr)
+    {
+      DBUG_ASSERT(false); /* purecov: deadcode */
+      return;   // OOM
+    }
+
+    String string_dup(string_data, bucket.first.length(),
+                      bucket.first.charset());
+    m_buckets.emplace(string_dup, bucket.second);
+  }
+}
+
+
+template <class T>
+bool Singleton<T>::build_histogram(const Value_map<T> &value_map,
+                                   size_t num_buckets)
 {
   // Clear any existing data.
   m_buckets.clear();
   m_null_values_fraction= INVALID_NULL_VALUES_FRACTION;
+  m_sampling_rate= value_map.get_sampling_rate();
+
+  // Set the number of buckets that was specified/requested by the user.
+  m_num_buckets_specified= num_buckets;
+
+  // Set the character set for the histogram data.
+  m_charset= value_map.get_character_set();
 
   // Get total frequency count.
   ha_rows num_non_null_values= 0;
@@ -58,7 +100,7 @@ bool Singleton<T>::build_histogram(const value_map_type<T> &value_map,
   // No values, nothing to do.
   if (num_non_null_values == 0)
   {
-    if (num_null_values > 0)
+    if (value_map.get_num_null_values() > 0)
       m_null_values_fraction= 1.0;
     else
       m_null_values_fraction= 0.0;
@@ -66,10 +108,12 @@ bool Singleton<T>::build_histogram(const value_map_type<T> &value_map,
     return false;
   }
 
-  const ha_rows total_count= num_null_values + num_non_null_values;
+  const ha_rows total_count=
+    value_map.get_num_null_values() + num_non_null_values;
 
   // Set the fractions of NULL values.
-  m_null_values_fraction= num_null_values / static_cast<double>(total_count);
+  m_null_values_fraction=
+    value_map.get_num_null_values() / static_cast<double>(total_count);
 
   // Create buckets with relative frequency, and not absolute frequency.
   double cumulative_frequency= 0.0;
@@ -94,9 +138,6 @@ bool Singleton<T>::build_histogram(const value_map_type<T> &value_map,
     // Out of memory.
     return true;
   }
-
-  DBUG_ASSERT(Float_compare::almost_equal(
-    cumulative_frequency + get_null_values_fraction(), 1.0));
 
   return false;
 }
@@ -125,6 +166,9 @@ bool Singleton<T>::histogram_to_json(Json_object *json_object) const
   }
 
   if (json_object->add_clone(buckets_str(), &json_buckets))
+    return true;                              /* purecov: inspected */
+
+  if (Histogram::histogram_data_type_to_json<T>(json_object))
     return true;                              /* purecov: inspected */
   return false;
 }
@@ -236,6 +280,64 @@ template <class T>
 std::string Singleton<T>::histogram_type_to_str() const
 {
   return singleton_str();
+}
+
+
+template <class T>
+bool Singleton<T>::json_to_histogram(const Json_object &json_object)
+{
+  if (Histogram::json_to_histogram(json_object))
+    return true; /* purecov: deadcode */
+
+  const Json_dom *buckets_dom= json_object.get(buckets_str());
+  if (buckets_dom == nullptr ||
+      buckets_dom->json_type() != enum_json_type::J_ARRAY)
+    return true; /* purecov: deadcode */
+
+  const Json_array *buckets= down_cast<const Json_array*>(buckets_dom);
+  for (size_t i= 0; i < buckets->size(); ++i)
+  {
+    const Json_dom *bucket_dom= (*buckets)[i];
+    if (bucket_dom == nullptr ||
+        bucket_dom->json_type() != enum_json_type::J_ARRAY)
+      return true; /* purecov: deadcode */
+
+    const Json_array *bucket= down_cast<const Json_array*>(bucket_dom);
+    if (bucket->size() != 2)
+      return true; /* purecov: deadcode */
+
+    // First item is the value, second is the cumulative frequency
+    const Json_dom *cumulative_frequency_dom= (*bucket)[1];
+    if (cumulative_frequency_dom->json_type() != enum_json_type::J_DOUBLE)
+      return true; /* purecov: deadcode */
+
+    const Json_double *cumulative_frequency=
+      down_cast<const Json_double*>(cumulative_frequency_dom);
+
+    const Json_dom *value_dom= (*bucket)[0];
+    T value;
+    if (extract_json_dom_value(value_dom, &value))
+      return true; /* purecov: deadcode */
+
+    m_buckets.emplace(value, cumulative_frequency->value());
+  }
+  return false;
+}
+
+
+template <class T>
+Histogram *Singleton<T>::clone(MEM_ROOT *mem_root) const
+{
+  DBUG_EXECUTE_IF("fail_histogram_clone", return nullptr;);
+
+  try
+  {
+    return new (mem_root) Singleton<T>(mem_root, *this);
+  }
+  catch (const std::bad_alloc&)
+  {
+    return nullptr; /* purecov: deadcode */
+  }
 }
 
 

@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 
 if ( !$LOCKING_SERVICE ) {
   skip Locking service plugin requires the environment variable \$LOCKING_SERVICE to be set (normally done by mtr);

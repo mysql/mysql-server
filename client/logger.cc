@@ -23,7 +23,7 @@
 
 using namespace std;
 
-ostream &operator<<(ostream &os, const Datetime &dt)
+ostream &operator<<(ostream &os, const Datetime&)
 {
   const char format[]= "%Y-%m-%d %X";
   time_t t(time(NULL));

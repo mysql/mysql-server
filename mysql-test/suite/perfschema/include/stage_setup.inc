@@ -22,7 +22,6 @@
 # HELPER include/stage_setup.inc
 # ==============================
 
---source include/not_embedded.inc
 # Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
 

@@ -1,5 +1,4 @@
 --source include/have_mysql_no_login_plugin.inc
---source include/not_embedded.inc
 
 --replace_regex /\.dll/.so/
 eval INSTALL PLUGIN mysql_no_login SONAME '$MYSQL_NO_LOGIN';

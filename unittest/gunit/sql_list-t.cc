@@ -61,9 +61,7 @@ protected:
   virtual void SetUp()
   {
     init_sql_alloc(PSI_NOT_INSTRUMENTED, &m_mem_root, 1024, 0);
-    ASSERT_EQ(0, my_set_thread_local(THR_MALLOC, &m_mem_root_p));
-    MEM_ROOT *root= *static_cast<MEM_ROOT**>(my_get_thread_local(THR_MALLOC));
-    ASSERT_EQ(root, m_mem_root_p);
+    THR_MALLOC= &m_mem_root_p;
   }
 
   virtual void TearDown()
@@ -73,18 +71,8 @@ protected:
 
   static void SetUpTestCase()
   {
-    ASSERT_EQ(0, my_create_thread_local_key(&THR_THD, NULL));
-    THR_THD_initialized= true;
-    ASSERT_EQ(0, my_create_thread_local_key(&THR_MALLOC, NULL));
-    THR_MALLOC_initialized= true;
-  }
-
-  static void TearDownTestCase()
-  {
-    my_delete_thread_local_key(THR_THD);
-    THR_THD_initialized= false;
-    my_delete_thread_local_key(THR_MALLOC);
-    THR_MALLOC_initialized= false;
+    current_thd= nullptr;
+    THR_MALLOC= nullptr;
   }
 
   MEM_ROOT m_mem_root;
@@ -102,9 +90,9 @@ private:
 TEST_F(SqlListTest, ConstructAndDestruct)
 {
   EXPECT_TRUE(m_int_list.is_empty());
-  List<int> *p_int_list= new List<int>;
+  List<int> *p_int_list= new (*THR_MALLOC) List<int>;
   EXPECT_TRUE(p_int_list->is_empty());
-  delete p_int_list;
+  destroy(p_int_list);
 }
 
 
@@ -255,5 +243,68 @@ TEST_F(SqlListTest, Sort)
   EXPECT_TRUE(m_int_list.is_empty());
 }
 
+// Tests swap_elts
+TEST_F(SqlListTest, Swap)
+{
+  int values[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+  insert_values(values, &m_int_list);
+  EXPECT_EQ(m_int_list.swap_elts(1, 1), false);
+  // Expect no change
+  for (int i= 0; i < 10 ; i++)
+  {
+    EXPECT_EQ(*m_int_list.pop(), i);
+  }
 
+  insert_values(values, &m_int_list);
+  EXPECT_EQ(m_int_list.swap_elts(9, 10), true /* error */);
+  // Expect no change: 10 out of bounds
+  for (int i= 0; i < 10 ; i++)
+  {
+    EXPECT_EQ(*m_int_list.pop(), i);
+  }
+
+  insert_values(values, &m_int_list);
+  EXPECT_EQ(m_int_list.swap_elts(10, 9), true /* error */);
+  // Expect no change: 10 out of bounds
+  for (int i= 0; i < 10 ; i++)
+  {
+    EXPECT_EQ(*m_int_list.pop(), i);
+  }
+
+  insert_values(values, &m_int_list);
+  EXPECT_EQ(m_int_list.swap_elts(10, 11), true /* error */);
+  // Expect no change: 10, 11 out of bounds
+  for (int i= 0; i < 10 ; i++)
+  {
+    EXPECT_EQ(*m_int_list.pop(), i);
+  }
+
+  insert_values(values, &m_int_list);
+  EXPECT_EQ(m_int_list.swap_elts(0, 1), false);
+
+  for (int i= 0; i < 10 ; i++)
+  {
+    EXPECT_EQ(*m_int_list.pop(), (i == 0 ? 1 :
+                                  (i == 1 ? 0 : i)));
+  }
+
+  insert_values(values, &m_int_list);
+  EXPECT_EQ(m_int_list.swap_elts(0, 9), false);
+
+  for (int i= 0; i < 10 ; i++)
+  {
+    EXPECT_EQ(*m_int_list.pop(), (i == 0 ? 9 :
+                                  (i == 9 ? 0 : i)));
+  }
+
+  insert_values(values, &m_int_list);
+  EXPECT_EQ(m_int_list.swap_elts(9, 0), false);
+
+  for (int i= 0; i < 10 ; i++)
+  {
+    EXPECT_EQ(*m_int_list.pop(), (i == 0 ? 9 :
+                                  (i == 9 ? 0 : i)));
+  }
+}
+  
 }  // namespace

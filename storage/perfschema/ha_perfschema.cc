@@ -17,12 +17,11 @@
   @file storage/perfschema/ha_perfschema.cc
   Performance schema storage engine (implementation).
 */
-
+#include <atomic>
 #include "storage/perfschema/ha_perfschema.h"
 
 #include "hostname.h"
 #include "lex_string.h"
-#include "my_atomic.h"
 #include "my_dbug.h"
 #include "my_thread.h"
 #include "mysql/plugin.h"
@@ -35,6 +34,7 @@
 #include "pfs_instr.h"
 #include "pfs_instr_class.h"
 #include "pfs_prepared_stmt.h"
+#include "pfs_plugin_table.h"
 #include "pfs_program.h"
 #include "pfs_user.h"
 #include "sql_class.h"
@@ -44,6 +44,20 @@ handlerton *pfs_hton = NULL;
 
 #define PFS_ENABLED() \
   (pfs_initialized && (pfs_enabled || m_table_share->m_perpetual))
+
+#define IS_NATIVE_TABLE(X) ((X)->m_st_table.open_table == NULL) ? true : false
+
+static void lock_pfs_external_table_shares()
+{
+  if (!opt_initialize)
+    pfs_external_table_shares.lock_share_list();
+}
+
+static void unlock_pfs_external_table_shares()
+{
+  if (!opt_initialize)
+    pfs_external_table_shares.unlock_share_list();
+}
 
 static handler *
 pfs_create_handler(handlerton *hton,
@@ -1222,6 +1236,18 @@ end:
   DBUG_RETURN(false);
 }
 
+static void
+inc_ref_count(PFS_engine_table_share *share)
+{
+  std::atomic_fetch_add(&share->m_ref_count, 1);
+}
+
+static void
+dec_ref_count(PFS_engine_table_share *share)
+{
+  std::atomic_fetch_sub(&share->m_ref_count, 1);
+}
+
 static int
 compare_database_names(const char *name1, const char *name2)
 {
@@ -1237,7 +1263,7 @@ compare_database_names(const char *name1, const char *name2)
   return strcmp(name1, name2);
 }
 
-static const PFS_engine_table_share *
+static PFS_engine_table_share *
 find_table_share(const char *db, const char *name)
 {
   DBUG_ENTER("find_table_share");
@@ -1247,9 +1273,48 @@ find_table_share(const char *db, const char *name)
     DBUG_RETURN(NULL);
   }
 
-  const PFS_engine_table_share *result;
+  PFS_engine_table_share *result;
   result = PFS_engine_table::find_engine_table_share(name);
   DBUG_RETURN(result);
+}
+
+/**
+  Initialize Performance Schema tables in the Data Dictionary.
+
+  Create strings representing the required performance schema tables,
+  i.e. tables that InnoDB expects to exist in the DD, and add them
+  to the appropriate out parameter.
+
+  @param[in]      dict_init_mode  How to initialize files
+
+  @param[in]      version         Target DD version if a new server
+                                  is being installed.
+                                  0 if restarting an existing server.
+
+  @param[out]     tables          List of SQL DDL statements
+                                  for creating DD tables that
+                                  are needed by the DDSE.
+
+  @param[out]     tablespaces     List of meta data for predefined
+                                  tablespaces created by the DDSE.
+
+  @retval true                    An error occurred.
+  @retval false                   Success - no errors.
+*/
+
+static bool
+pfs_dict_init(dict_init_mode_t dict_init_mode,
+              uint version MY_ATTRIBUTE((unused)),
+              List<const Plugin_table> *tables,
+              List<const Plugin_tablespace> *tablespaces MY_ATTRIBUTE((unused)))
+{
+  if (dict_init_mode != DICT_INIT_CREATE_FILES)
+  {
+    return false;
+  }
+
+  PFS_engine_table_share::get_all_tables(tables);
+  return false;
 }
 
 static int
@@ -1262,6 +1327,8 @@ pfs_init_func(void *p)
   pfs_hton->state = SHOW_OPTION_YES;
   pfs_hton->create = pfs_create_handler;
   pfs_hton->show_status = pfs_show_status;
+  pfs_hton->dict_init = pfs_dict_init;
+
   pfs_hton->flags = HTON_ALTER_NOT_SUPPORTED | HTON_TEMPORARY_NOT_SUPPORTED |
                     HTON_NO_PARTITION | HTON_NO_BINLOG_ROW_OPT;
 
@@ -1453,6 +1520,7 @@ mysql_declare_plugin(perfschema)
   "Performance Schema",
   PLUGIN_LICENSE_GPL,
   pfs_init_func,                                /* Plugin Init */
+  NULL,                                         /* Plugin Check uninstall */
   pfs_done_func,                                /* Plugin Deinit */
   0x0001 /* 0.1 */,
   pfs_status_vars,                              /* status variables */
@@ -1477,17 +1545,26 @@ ha_perfschema::open(const char *, int, uint, const dd::Table *)
 {
   DBUG_ENTER("ha_perfschema::open");
 
+  lock_pfs_external_table_shares();
   if (!m_table_share)
     m_table_share =
       find_table_share(table_share->db.str, table_share->table_name.str);
   if (!m_table_share)
   {
+    unlock_pfs_external_table_shares();
     DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
   }
 
   thr_lock_data_init(m_table_share->m_thr_lock_ptr, &m_thr_lock, NULL);
   ref_length = m_table_share->m_ref_length;
 
+  /* Only for table added by plugin/components */
+  if (!IS_NATIVE_TABLE(m_table_share))
+  {
+    inc_ref_count(m_table_share);
+  }
+
+  unlock_pfs_external_table_shares();
   DBUG_RETURN(0);
 }
 
@@ -1495,6 +1572,13 @@ int
 ha_perfschema::close(void)
 {
   DBUG_ENTER("ha_perfschema::close");
+
+  /* Only for table added by plugin/components */
+  if (!IS_NATIVE_TABLE(m_table_share))
+  {
+    dec_ref_count(m_table_share);
+  }
+
   m_table_share = NULL;
   delete m_table;
   m_table = NULL;
@@ -1514,8 +1598,12 @@ ha_perfschema::write_row(uchar *buf)
   }
 
   DBUG_ASSERT(m_table_share);
+  if (m_table == NULL)
+  {
+    m_table = m_table_share->m_open_table(m_table_share);
+  }
   ha_statistic_increment(&System_status_var::ha_write_count);
-  result = m_table_share->write_row(table, buf, table->field);
+  result = m_table_share->write_row(m_table, table, buf, table->field);
   DBUG_RETURN(result);
 }
 
@@ -1578,7 +1666,7 @@ ha_perfschema::rnd_init(bool scan)
   stats.records = 0;
   if (m_table == NULL)
   {
-    m_table = m_table_share->m_open_table();
+    m_table = m_table_share->m_open_table(m_table_share);
   }
   else
   {
@@ -1743,6 +1831,7 @@ ha_perfschema::create(const char *,
   DBUG_ENTER("ha_perfschema::create");
   DBUG_ASSERT(table_arg);
   DBUG_ASSERT(table_arg->s);
+  lock_pfs_external_table_shares();
   if (find_table_share(table_arg->s->db.str, table_arg->s->table_name.str))
   {
     /*
@@ -1751,12 +1840,15 @@ ha_perfschema::create(const char *,
       for the initial database install, and mysql_upgrade.
       This should fail once .FRM are removed.
     */
+    unlock_pfs_external_table_shares();
     DBUG_RETURN(0);
   }
+
   /*
     This is not a general purpose engine.
     Failure to CREATE TABLE is the expected result.
   */
+  unlock_pfs_external_table_shares();
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 }
 
@@ -1804,6 +1896,7 @@ ha_perfschema::index_flags(uint, uint, bool) const
 {
   const PFS_engine_table_share *tmp;
 
+  lock_pfs_external_table_shares();
   if (m_table_share != NULL)
   {
     tmp = m_table_share;
@@ -1818,9 +1911,11 @@ ha_perfschema::index_flags(uint, uint, bool) const
 
   if (!tmp)
   {
+    unlock_pfs_external_table_shares();
     return 0;
   }
 
+  unlock_pfs_external_table_shares();
   return flags;
 }
 
@@ -1839,7 +1934,7 @@ ha_perfschema::index_init(uint idx, bool sorted)
 
   if (m_table == NULL)
   {
-    m_table = m_table_share->m_open_table();
+    m_table = m_table_share->m_open_table(m_table_share);
   }
   else
   {
@@ -1892,7 +1987,7 @@ ha_perfschema::index_read(uchar *buf,
 
   if (m_table == NULL)
   {
-    m_table = m_table_share->m_open_table();
+    m_table = m_table_share->m_open_table(m_table_share);
   }
   else
   {

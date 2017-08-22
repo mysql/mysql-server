@@ -9,7 +9,6 @@
 #                              time available storage engine
 #                              2006-08 MySQL 5.1 MyISAM and MEMORY only
 # have to be set before sourcing this script.
--- source include/not_embedded.inc
 #
 # test of HANDLER ...
 #

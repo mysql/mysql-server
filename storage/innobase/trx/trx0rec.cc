@@ -1937,19 +1937,12 @@ trx_undo_report_row_operation(
 		trx->mod_tables.insert(index->table);
 	}
 
-	/* If trx is read-only then only temp-tables can be written.
-	If trx is read-write and involves temp-table only then we
-	assign temporary rseg. */
-	if (trx->read_only || is_temp_table) {
+	/* If trx is read-only then only temp-tables can be written. */
+	ut_ad(!trx->read_only || is_temp_table);
 
-		ut_ad(!srv_read_only_mode || is_temp_table);
-
-		/* MySQL should block writes to non-temporary tables. */
-		ut_a(is_temp_table);
-
-		if (trx->rsegs.m_noredo.rseg == 0) {
-			trx_assign_rseg_temp(trx);
-		}
+	/* If this is a temp-table then we assign temporary rseg. */
+	if (is_temp_table && trx->rsegs.m_noredo.rseg == nullptr) {
+		trx_assign_rseg_temp(trx);
 	}
 
 	mtr_start(&mtr);
@@ -1963,7 +1956,6 @@ trx_undo_report_row_operation(
 		mtr.set_log_mode(MTR_LOG_NO_REDO);
 	} else {
 		undo_ptr = &trx->rsegs.m_redo;
-		mtr.set_undo_space(undo_ptr->rseg->space_id);
 	}
 
 	mutex_enter(&trx->undo_mutex);
@@ -2062,9 +2054,6 @@ trx_undo_report_row_operation(
 
 				if (index->table->is_temporary()) {
 					mtr.set_log_mode(MTR_LOG_NO_REDO);
-				} else {
-					mtr.set_undo_space(
-						undo_ptr->rseg->space_id);
 				}
 
 				mutex_enter(&undo_ptr->rseg->mutex);
@@ -2094,7 +2083,8 @@ trx_undo_report_row_operation(
 
 			*roll_ptr = trx_undo_build_roll_ptr(
 				op_type == TRX_UNDO_INSERT_OP,
-				undo_ptr->rseg->id, page_no, offset);
+				undo_ptr->rseg->space_id,
+				page_no, offset);
 			return(DB_SUCCESS);
 		}
 
@@ -2103,11 +2093,11 @@ trx_undo_report_row_operation(
 		/* We have to extend the undo log by one page */
 
 		ut_ad(++loop_count < 2);
+
 		mtr_start(&mtr);
+
 		if (index->table->is_temporary()) {
 			mtr.set_log_mode(MTR_LOG_NO_REDO);
-		} else {
-			mtr.set_undo_space(undo_ptr->rseg->space_id);
 		}
 
 		/* When we add a page to an undo log, this is analogous to
@@ -2156,26 +2146,30 @@ trx_undo_get_undo_rec_low(
 /*======================*/
 	roll_ptr_t	roll_ptr,	/*!< in: roll pointer to record */
 	mem_heap_t*	heap,		/*!< in: memory heap where copied */
-	bool		is_temp)	/*!< in: true if no-redo rseg. */
+	bool		is_temp)	/*!< in: true if temp undo rec. */
 {
 	trx_undo_rec_t*	undo_rec;
 	ulint		rseg_id;
+	space_id_t	space_id;
 	page_no_t	page_no;
 	ulint		offset;
 	const page_t*	undo_page;
-	trx_rseg_t*	rseg;
 	ibool		is_insert;
 	mtr_t		mtr;
 
 	trx_undo_decode_roll_ptr(roll_ptr, &is_insert, &rseg_id, &page_no,
 				 &offset);
-	rseg = trx_rseg_get_on_id(rseg_id, is_temp);
+	space_id = trx_rseg_id_to_space_id(rseg_id, is_temp);
+
+	bool			found;
+	const page_size_t&	page_size
+		= fil_space_get_page_size(space_id, &found);
+	ut_ad(found);
 
 	mtr_start(&mtr);
 
 	undo_page = trx_undo_page_get_s_latched(
-		page_id_t(rseg->space_id, page_no), rseg->page_size,
-		&mtr);
+		page_id_t(space_id, page_no), page_size, &mtr);
 
 	undo_rec = trx_undo_rec_copy(undo_page + offset, heap);
 

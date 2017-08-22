@@ -266,10 +266,12 @@ enum latch_level_t {
 	SYNC_FSP_PAGE,
 	SYNC_FSP,
 	SYNC_EXTERN_STORAGE,
+	SYNC_RSEG_ARRAY_HEADER,
 	SYNC_TRX_UNDO_PAGE,
 	SYNC_RSEG_HEADER,
 	SYNC_RSEG_HEADER_NEW,
 	SYNC_TEMP_SPACE_RSEG,
+	SYNC_UNDO_SPACE_RSEG,
 	SYNC_TRX_SYS_RSEG,
 	SYNC_TRX_UNDO,
 	SYNC_PURGE_LATCH,
@@ -277,8 +279,9 @@ enum latch_level_t {
 	SYNC_TREE_NODE_FROM_HASH,
 	SYNC_TREE_NODE_NEW,
 	SYNC_INDEX_TREE,
+	SYNC_RSEGS,
+	SYNC_UNDO_SPACES,
 
-	SYNC_PERSIST_METADATA_BUFFER,
 	SYNC_PERSIST_DIRTY_TABLES,
 	SYNC_PERSIST_AUTOINC,
 	SYNC_PERSIST_CHECKPOINT,
@@ -352,6 +355,7 @@ enum latch_id_t {
 	LATCH_ID_RECV_SYS,
 	LATCH_ID_RECV_WRITER,
 	LATCH_ID_TEMP_SPACE_RSEG,
+	LATCH_ID_UNDO_SPACE_RSEG,
 	LATCH_ID_TRX_SYS_RSEG,
 	LATCH_ID_RW_LOCK_DEBUG,
 	LATCH_ID_RTR_SSN_MUTEX,
@@ -394,6 +398,8 @@ enum latch_id_t {
 	LATCH_ID_BUF_BLOCK_DEBUG,
 	LATCH_ID_DICT_OPERATION,
 	LATCH_ID_CHECKPOINT,
+	LATCH_ID_RSEGS,
+	LATCH_ID_UNDO_SPACES,
 	LATCH_ID_FIL_SPACE,
 	LATCH_ID_FTS_CACHE,
 	LATCH_ID_FTS_CACHE_INIT,
@@ -406,6 +412,7 @@ enum latch_id_t {
 	LATCH_ID_BUF_CHUNK_MAP_LATCH,
 	LATCH_ID_SYNC_DEBUG_MUTEX,
 	LATCH_ID_MASTER_KEY_ID_MUTEX,
+	LATCH_ID_FILE_OPEN,
 	LATCH_ID_TEST_MUTEX,
 	LATCH_ID_MAX = LATCH_ID_TEST_MUTEX
 };
@@ -1148,7 +1155,7 @@ struct btrsea_sync_check : public sync_check_functor_t {
 
 	/** Called for every latch owned by the calling thread.
 	@param[in]	level		Level of the existing latch
-	@return true if the predicate check is successful */
+	@return true if the predicate check fails */
 	virtual bool operator()(const latch_level_t level)
 	{
 		/* If calling thread doesn't hold search latch then
@@ -1170,6 +1177,8 @@ struct btrsea_sync_check : public sync_check_functor_t {
 		if (!m_has_search_latch
 		    && (level != SYNC_SEARCH_SYS
 			&& level != SYNC_FTS_CACHE
+			&& level != SYNC_DICT
+			&& level != SYNC_DICT_OPERATION
 			&& level != SYNC_TRX_I_S_RWLOCK
 			&& level != SYNC_TRX_I_S_LAST_READ)) {
 
@@ -1195,7 +1204,7 @@ private:
 	const bool	m_has_search_latch;
 };
 
-/** Functor to check for dictionay latching constraints. */
+/** Functor to check for dictionary latching constraints. */
 struct dict_sync_check : public sync_check_functor_t {
 
 	/** Constructor

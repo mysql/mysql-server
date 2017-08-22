@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 --disable_ps_protocol
 
 --echo # Setting general_log content empty.

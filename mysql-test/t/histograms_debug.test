@@ -1,0 +1,129 @@
+--source include/have_debug.inc
+
+--echo # Testing of histogram statistics that uses DEBUG functionality.
+
+--echo #
+--echo # Simulate a failure due to dropping histograms during DROP TABLE
+--echo #
+CREATE TABLE t1 (col1 INT, col2 INT);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1, col2 WITH 10 BUCKETS;
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SELECT COUNT(*) FROM information_schema.TABLES
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1';
+
+SET DEBUG='+d,fail_after_drop_histograms';
+--error ER_UNABLE_TO_DROP_COLUMN_STATISTICS
+DROP TABLE t1;
+
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SELECT COUNT(*) FROM information_schema.TABLES
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1';
+
+SET DEBUG='-d,fail_after_drop_histograms';
+
+--echo #
+--echo # Simulate a failure due to dropping histograms during ALTER TABLE
+--echo #
+
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SELECT COUNT(*) FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1' AND COLUMN_NAME = 'col2';
+
+SET DEBUG='+d,fail_after_drop_histograms';
+--error ER_UNABLE_TO_DROP_COLUMN_STATISTICS
+ALTER TABLE t1 DROP COLUMN col2;
+
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SELECT COUNT(*) FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1' AND COLUMN_NAME = 'col2';
+
+SET DEBUG='-d,fail_after_drop_histograms';
+
+--echo #
+--echo # Simulate a failure due to renaming histograms during ALTER TABLE RENAME
+--echo #
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SELECT COUNT(*) FROM information_schema.TABLES
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1';
+
+SET DEBUG='+d,fail_after_rename_histograms';
+--error ER_UNABLE_TO_UPDATE_COLUMN_STATISTICS
+ALTER TABLE t1 RENAME TO t2;
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SELECT COUNT(*) FROM information_schema.TABLES
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1';
+SET DEBUG='-d,fail_after_rename_histograms';
+
+DROP TABLE t1;
+
+
+--echo #
+--echo # Check that histogram with sampling works as expected
+--echo #
+
+SET DEBUG='+d,histogram_force_sampling';
+
+CREATE TABLE t1 (col1 DOUBLE);
+INSERT INTO t1 SELECT RAND(1);
+INSERT INTO t1 SELECT RAND(2) FROM t1;
+INSERT INTO t1 SELECT RAND(3) FROM t1;
+INSERT INTO t1 SELECT RAND(4) FROM t1;
+INSERT INTO t1 SELECT RAND(5) FROM t1;
+INSERT INTO t1 SELECT RAND(6) FROM t1;
+INSERT INTO t1 SELECT RAND(7) FROM t1;
+INSERT INTO t1 SELECT RAND(8) FROM t1;
+INSERT INTO t1 SELECT RAND(9) FROM t1;
+INSERT INTO t1 SELECT RAND(10) FROM t1;
+
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 4 BUCKETS;
+SELECT schema_name, table_name, column_name,
+       JSON_REMOVE(histogram, '$."last-updated"')
+FROM information_schema.COLUMN_STATISTICS;
+
+SET DEBUG='-d,histogram_force_sampling';
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#26020352 WL8943:ASSERTION `M_THD->GET_TRANSACTION()->IS_EMPTY(
+--echo #              TRANSACTION_CTX::STMT) && M
+--echo #
+CREATE TABLE t1 (col1 INT);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 10 BUCKETS;
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SET DEBUG='+d,histogram_fail_after_open_table';
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 10 BUCKETS;
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SET DEBUG='-d,histogram_fail_after_open_table';
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#26027240 WL8943:VIRTUAL BOOL SQL_CMD_ANALYZE_TABLE::EXECUTE(THD*):
+--echo #              ASSERTION `FALSE' FAIL
+--echo #
+CREATE TABLE t1 (col1 INT);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 10 BUCKETS;
+SET DEBUG='+d,histogram_fail_during_lock_for_write';
+ANALYZE TABLE t1 DROP HISTOGRAM ON col1;
+
+--echo # Since we have simulated a fail, the histogram should still be present.
+--echo # However, since this is a simulation of failure no error is reported.
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SET DEBUG='-d,histogram_fail_during_lock_for_write';
+ANALYZE TABLE t1 DROP HISTOGRAM ON col1;
+
+--echo # The histogram should now be gone.
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+DROP TABLE t1;

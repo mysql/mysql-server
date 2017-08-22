@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,13 +12,11 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+#ifndef PROTO_ENUM_H
+#define PROTO_ENUM_H
 
-enum xcom_proto {
-	x_unknown_proto=0,
-	x_1_0=1,
-	x_1_1=2,
-	x_1_2=3
-};
+enum xcom_proto { x_unknown_proto = 0, x_1_0 = 1, x_1_1 = 2, x_1_2 = 3 };
 
 typedef enum xcom_proto xcom_proto;
 
+#endif

@@ -70,11 +70,10 @@ public:
   virtual bool has_new_primary_key() const override
   { return m_has_new_primary_key; }
 
-  // Fix "inherits ... via dominance" warnings
-  virtual Weak_object_impl *impl() override
-  { return Weak_object_impl::impl(); }
-  virtual const Weak_object_impl *impl() const override
-  { return Weak_object_impl::impl(); }
+  virtual Entity_object_impl *impl() override
+  { return this; }
+  virtual const Entity_object_impl *impl() const override
+  { return this; }
 
 protected:
   virtual void set_primary_key_value(const Raw_new_record &r) override;

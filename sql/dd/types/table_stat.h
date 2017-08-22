@@ -19,7 +19,7 @@
 
 #include "my_inttypes.h"
 
-#include "dd/types/dictionary_object.h"   // dd::Dictionary_object
+#include "dd/types/entity_object.h"   // dd::Entity_object
 
 namespace dd {
 
@@ -30,11 +30,11 @@ class Composite_char_key;
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Table_stat : virtual public Dictionary_object
+class Table_stat : virtual public Entity_object
 {
 public:
   static const Object_type &TYPE();
-  static const Dictionary_object_table &OBJECT_TABLE();
+  static const Entity_object_table &OBJECT_TABLE();
 
   typedef Composite_char_key name_key_type;
 

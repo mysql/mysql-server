@@ -29,7 +29,6 @@
   instead.
 */
 
-#include <my_sys.h>
 #include <mysql.h>
 #include <stdio.h>
 

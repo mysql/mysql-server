@@ -169,7 +169,7 @@ select "foo" = "foo " collate latin1_test;
 # The file ../std-data/Index.xml has a number of collations with high IDs.
 
 # Test that the "ID" column in I_S and SHOW queries can handle two bytes
-select * from information_schema.collations where id>256 order by id;
+select collation_name, character_set_name, id from information_schema.collations where id>256 order by id;
 show collation like '%test%';
 
 # Test that two-byte collation ID is correctly transfered to the client side.
@@ -371,8 +371,6 @@ DROP TABLE t1;
 
 --let $out_file= $MYSQLTEST_VARDIR/tmp/ctype_ldml_log.err
 --let OUTF= $out_file
-# Error messages are not seen in error log in embedded version
---let EMBEDDED=`SELECT version() LIKE '%embedded%'`
 --echo # Search for occurrences of [ERROR] Syntax error at '[strength tertiary]'
 
 perl;
@@ -380,7 +378,6 @@ perl;
   my $outf= $ENV{'OUTF'} or die "OUTF not set";
   open(FILE, "$outf") or die("Unable to open $outf: $!\n");
   my $count_error= grep(/\[ERROR\] Syntax error at '\[strength tertiary\]'/gi,<FILE>);
-  my $count_error= $count_error + $ENV{"EMBEDDED"};
   print "Occurances : $count_error\n";
   close(FILE);
 EOF

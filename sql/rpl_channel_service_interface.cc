@@ -38,7 +38,6 @@
 #include "rpl_gtid.h"
 #include "rpl_info_factory.h"
 #include "rpl_info_handler.h"
-#include "rpl_mi.h"
 #include "rpl_msr.h"         /* Multisource replication */
 #include "rpl_mts_submode.h"
 #include "rpl_rli.h"
@@ -56,16 +55,14 @@ int initialize_channel_service_interface()
   if (opt_mi_repository_id != INFO_REPOSITORY_TABLE ||
       opt_rli_repository_id != INFO_REPOSITORY_TABLE)
   {
-    sql_print_error("For the creation of replication channels the master info"
-                    " and relay log info repositories must be set to TABLE");
+    LogErr(ERROR_LEVEL, ER_RPL_CHANNELS_REQUIRE_TABLES_AS_INFO_REPOSITORIES);
     DBUG_RETURN(1);
   }
 
   //server id must be different from 0
   if (server_id == 0)
   {
-    sql_print_error("For the creation of replication channels the server id"
-                    " must be different from 0");
+    LogErr(ERROR_LEVEL, ER_RPL_CHANNELS_REQUIRE_NON_ZERO_SERVER_ID);
     DBUG_RETURN(1);
   }
 
@@ -75,6 +72,7 @@ int initialize_channel_service_interface()
 
 static void set_mi_settings(Master_info *mi, Channel_creation_info* channel_info)
 {
+  mysql_mutex_lock(mi->rli->relay_log.get_log_lock());
   mysql_mutex_lock(&mi->data_lock);
 
   mi->rli->set_thd_tx_priority(channel_info->thd_tx_priority);
@@ -106,9 +104,10 @@ static void set_mi_settings(Master_info *mi, Channel_creation_info* channel_info
     (channel_info->channel_mts_checkpoint_group == RPL_SERVICE_SERVER_DEFAULT) ?
     opt_mts_checkpoint_group : channel_info->channel_mts_checkpoint_group;
 
-  mi->set_mi_description_event(new Format_description_log_event(BINLOG_VERSION));
+  mi->set_mi_description_event(new Format_description_log_event());
 
   mysql_mutex_unlock(&mi->data_lock);
+  mysql_mutex_unlock(mi->rli->relay_log.get_log_lock());
 }
 
 static bool init_thread_context()
@@ -136,7 +135,7 @@ static void delete_surrogate_thread(THD *thd)
 {
   thd->release_resources();
   delete thd;
-  my_thread_set_THR_THD(NULL);
+  current_thd= nullptr;
 }
 
 void
@@ -881,7 +880,7 @@ end:
 int channel_is_applier_thread_waiting(unsigned long thread_id, bool worker)
 {
   DBUG_ENTER("channel_is_applier_thread_waiting(thread_id, worker)");
-  bool result= -1;
+  int result= -1;
 
   Find_thd_with_id find_thd_with_id(thread_id);
   THD *thd= Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
@@ -1006,4 +1005,48 @@ bool is_partial_transaction_on_channel_relay_log(const char *channel)
   mi->channel_unlock();
   channel_map.unlock();
   DBUG_RETURN(ret);
+}
+
+bool is_any_slave_channel_running(int thread_mask)
+{
+  DBUG_ENTER("is_any_slave_channel_running");
+  Master_info *mi= 0;
+  bool is_running;
+
+  channel_map.rdlock();
+
+  for (mi_map::iterator it= channel_map.begin(); it != channel_map.end(); it++)
+  {
+    mi= it->second;
+
+    if (mi)
+    {
+      if ((thread_mask & SLAVE_IO) != 0)
+      {
+        mysql_mutex_lock(&mi->run_lock);
+        is_running= mi->slave_running;
+        mysql_mutex_unlock(&mi->run_lock);
+        if (is_running)
+        {
+          channel_map.unlock();
+          DBUG_RETURN(true);
+        }
+      }
+
+      if ((thread_mask & SLAVE_SQL) != 0)
+      {
+        mysql_mutex_lock(&mi->rli->run_lock);
+        is_running= mi->rli->slave_running;
+        mysql_mutex_unlock(&mi->rli->run_lock);
+        if (is_running)
+        {
+          channel_map.unlock();
+          DBUG_RETURN(true);
+        }
+      }
+    }
+  }
+
+  channel_map.unlock();
+  DBUG_RETURN(false);
 }

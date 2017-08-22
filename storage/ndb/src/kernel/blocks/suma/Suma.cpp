@@ -4539,6 +4539,10 @@ Suma::execKEYINFO20(Signal* signal)
   ndbrequire(syncPtr.p->m_headersSection != RNIL);
   ndbrequire(syncPtr.p->m_dataSection != RNIL);
 
+  /* SUMA requests a special 'scanInfo only' KeyInfo */
+  ndbassert(data->keyLen == 0);
+  ndbrequire(signal->getNoOfSections() == 0);
+
   sendScanSubTableData(signal, syncPtr, takeOver);
 }
 
@@ -4817,7 +4821,7 @@ Suma::execFIRE_TRIG_ORD_L(Signal* signal)
     len -= msglen;
   }
 
-  m_ctx.m_mm.release_page(RT_DBTUP_PAGE, pageId);
+  m_ctx.m_mm.release_page(RT_SUMA_TRIGGER_BUFFER, pageId);
 }
 
 void
@@ -6477,12 +6481,18 @@ Suma::execSTOP_ME_REQ(Signal* signal)
        i != c_nodes_in_nodegroup_mask.NotFound ;
        i = c_nodes_in_nodegroup_mask.find(i + 1))
   {
+    jam();
+    jamLine(i);
     /**
      * Check that all SUMA nodes support graceful shutdown...
      *   and it's too late to stop it...
      * Shutdown instead...
+     *
+     * Only check live nodes, if version is 0 then the node is
+     * already dead.
      */
-    if (!ndbd_suma_stop_me(getNodeInfo(i).m_version))
+    if (!ndbd_suma_stop_me(getNodeInfo(i).m_version) &&
+        getNodeInfo(i).m_version != 0)
     {
       jam();
       char buf[255];
@@ -6694,7 +6704,7 @@ loop:
     return RNIL;
 
   Uint32 count = Page_chunk::PAGES_PER_CHUNK;
-  m_ctx.m_mm.alloc_pages(RT_DBTUP_PAGE, &ref, &count, 1);
+  m_ctx.m_mm.alloc_pages(RT_SUMA_EVENT_BUFFER, &ref, &count, 1);
   if (count == 0)
     return RNIL;
 

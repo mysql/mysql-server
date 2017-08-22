@@ -24,6 +24,7 @@ namespace dd {
 ///////////////////////////////////////////////////////////////////////////
 
 class Entity_object;
+class Entity_object_impl;
 class Object_key;
 class Object_table;
 class Open_dictionary_tables_ctx;
@@ -41,13 +42,6 @@ public:
 
   virtual ~Weak_object_impl()
   { }
-
-public:
-  virtual Weak_object_impl *impl()
-  { return this; }
-
-  virtual const Weak_object_impl *impl() const
-  { return this; }
 
 public:
   virtual const Object_table &object_table() const = 0;
@@ -120,7 +114,7 @@ protected:
 protected:
 
   // Check if the parent object id matches with this object.
-  bool check_parent_consistency(Entity_object *parent,
+  bool check_parent_consistency(Entity_object_impl *parent,
                                 Object_id parent_id) const;
 };
 

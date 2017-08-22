@@ -143,6 +143,22 @@ static void set_thread_info_noop(const char* info NNN, uint info_len NNN)
   return;
 }
 
+static int set_thread_resource_group_noop(const char *group_name NNN,
+                                          int group_name_len NNN,
+                                          void *user_data NNN)
+{
+  return 0;
+}
+
+static int set_thread_resource_group_by_id_noop(PSI_thread * thread NNN,
+                                                ulonglong thread_id NNN,
+                                                const char *group_name NNN,
+                                                int group_name_len NNN,
+                                                void *user_data NNN)
+{
+  return 0;
+}
+
 static void set_thread_noop(PSI_thread* thread NNN)
 {
   return;
@@ -173,6 +189,44 @@ static void get_thread_event_id_noop(ulonglong *thread_internal_id,
   *event_id= 0;
 }
 
+static int get_thread_system_attrs_noop(PSI_thread_attrs *thread_attrs NNN)
+{
+  return 0;
+}
+
+static int get_thread_system_attrs_by_id_noop(PSI_thread *thread NNN,
+                                      ulonglong thread_id NNN,
+                                      PSI_thread_attrs *thread_attrs NNN)
+{
+  return 0;
+}
+
+static int register_notification_noop(const PSI_notification *callbacks NNN,
+                                      bool with_ref_count NNN)
+{
+  return 0;
+}
+
+static int unregister_notification_noop(int handle NNN)
+{
+  return 0;
+}
+
+static void notify_session_connect_noop(PSI_thread *thread NNN)
+{
+  return;
+}
+
+static void notify_session_disconnect_noop(PSI_thread *thread NNN)
+{
+  return;
+}
+
+static void notify_session_change_user_noop(PSI_thread *thread NNN)
+{
+  return;
+}
+
 static PSI_thread_service_t psi_thread_noop=
 {
   register_thread_noop,
@@ -190,11 +244,20 @@ static PSI_thread_service_t psi_thread_noop=
   set_thread_start_time_noop,
   set_thread_state_noop,
   set_thread_info_noop,
+  set_thread_resource_group_noop,
+  set_thread_resource_group_by_id_noop,
   set_thread_noop,
   delete_current_thread_noop,
   delete_thread_noop,
   set_thread_connect_attrs_noop,
-  get_thread_event_id_noop
+  get_thread_event_id_noop,
+  get_thread_system_attrs_noop,
+  get_thread_system_attrs_by_id_noop,
+  register_notification_noop,
+  unregister_notification_noop,
+  notify_session_connect_noop,
+  notify_session_disconnect_noop,
+  notify_session_change_user_noop
 };
 
 struct PSI_thread_bootstrap *psi_thread_hook= NULL;

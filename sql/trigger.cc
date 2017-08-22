@@ -772,10 +772,26 @@ void Trigger::add_tables_and_routines(THD *thd,
   if (has_parse_error())
     return;
 
-  MDL_key key(MDL_key::TRIGGER, m_sp->m_db.str, m_sp->m_name.str);
-
   if (sp_add_used_routine(prelocking_ctx, thd->stmt_arena,
-                          &key, table_list->belong_to_view))
+                          Sroutine_hash_entry::TRIGGER,
+                          m_sp->m_db.str, m_sp->m_db.length,
+                          m_sp->m_name.str, m_sp->m_name.length,
+                          /*
+                            Lowercase trigger name to ensure that we can use
+                            binary comparison for Sroutine_hash_entry's key.
+
+                            TODO: In 8.0 trigger names are always
+                            case-insensitive. If we decide to return
+                            to 5.7 behavior, where it is dependent on
+                            lower-case-table-name value, then we need
+                            to pass different value below.
+                            Also in 8.0 trigger names are accent-
+                            insensitive which doesn't exactly match
+                            comparison of lowercased names.
+                          */
+                          true,
+                          false, // This is not "own", directly-used routine.
+                          table_list->belong_to_view))
   {
     m_sp->add_used_tables_to_table_list(thd,
                                         &prelocking_ctx->query_tables_last,

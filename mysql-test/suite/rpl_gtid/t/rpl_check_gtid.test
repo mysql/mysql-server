@@ -70,7 +70,6 @@
 # 9. Binary logs with corrupted GTIDs are generated simulating a crash
 #    while writing such information into the binary log.
 ################################################################################
---source include/not_embedded.inc
 --source include/not_windows.inc
 --source include/have_debug.inc
 --source include/master-slave.inc

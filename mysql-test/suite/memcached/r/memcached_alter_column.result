@@ -30,6 +30,7 @@ SELECT SLEEP(10);
 ALTER TABLE test.t1 ADD COLUMN foo varchar(200) AS (j->'$.foo') VIRTUAL;
 END//
 connection con1;
+set session lock_wait_timeout=1;
 call alter_column();;
 connection default;
 Here the memcached results with E:
@@ -37,7 +38,7 @@ Darmstadt
 connection con1;
 SLEEP(10)
 0
-ERROR HY000: Cannot complete the operation because table is referenced by another connection.
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 connection default;
 disconnect con1;
 drop procedure alter_column;

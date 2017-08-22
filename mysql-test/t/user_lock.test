@@ -5,9 +5,6 @@
 --echo # Tests for WL#1159 "Allow multiple locks in GET_LOCK()".
 --echo #
 
-# This test uses send/reap.
---source include/not_embedded.inc
-
 connection default;
 
 --enable_connect_log

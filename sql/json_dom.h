@@ -23,6 +23,7 @@
 #include <string>
 #include <type_traits>          // is_base_of
 #include <utility>
+#include <vector>
 
 #include "binary_log_types.h"   // enum_field_types
 #include "json_binary.h"        // json_binary::Value
@@ -35,6 +36,7 @@
 #include "prealloced_array.h"   // Prealloced_array
 #include "sql_alloc.h"          // Sql_alloc
 
+class Field_json;
 class Json_dom;
 class Json_path;
 class Json_path_leg;
@@ -268,7 +270,7 @@ public:
       Array and object should override this method. Not expected to be
       called on other DOM objects.
     */
-    DBUG_ABORT();
+    DBUG_ASSERT(false);
   }
   /* purecov: end */
 
@@ -412,11 +414,11 @@ public:
   /**
     Remove the child element addressed by key. The removed child is deleted.
 
-    @param[in]  child the child to remove
-
-    @return true If that really was a child of this object.
+    @param key the key of the element to remove
+    @retval true if an element was removed
+    @retval false if there was no element with that key
   */
-  bool remove(const Json_dom *child);
+  bool remove(const std::string &key);
 
   /**
     @return The number of elements in the JSON object.
@@ -459,7 +461,8 @@ public:
 class Json_array : public Json_dom
 {
 private:
-  Json_dom_vector m_v;                     //!< Holds the array values
+  /// Holds the array values.
+  std::vector<Json_dom*, Malloc_allocator<Json_dom*>> m_v;
 public:
   Json_array();
   ~Json_array();
@@ -527,19 +530,10 @@ public:
   /**
     Remove the value at this index. A no-op if index is larger than
     size. Deletes the value.
-    @param[in]  index
-    @return true of a value was removed, false otherwise.
+    @param[in]  index  the index of the value to remove
+    @return true if a value was removed, false otherwise.
   */
   bool remove(size_t index);
-
-  /**
-    Remove the child element addressed by key. Deletes the child.
-
-    @param[in]  child the child to remove
-
-    @return true If that really was a child of this object.
-  */
-  bool remove(const Json_dom *child);
 
   /**
     The cardinality of the array (number of values).
@@ -921,13 +915,16 @@ public:
     An opaque MySQL value.
 
     @param[in] mytype  the MySQL type of the value
-    @param[in] v       the binary value to be stored in the DOM.
-                       A copy is taken.
-    @param[in] size    the size of the binary value in bytes
+    @param[in] args    arguments to construct the binary value to be stored
+                       in the DOM (anything accepted by the std::string
+                       constructors)
     @see #enum_field_types
     @see Class documentation
   */
-  Json_opaque(enum_field_types mytype, const char *v, size_t size);
+  template <typename... Args>
+  explicit Json_opaque(enum_field_types mytype, Args&&... args)
+    : Json_scalar(), m_mytype(mytype), m_val(std::forward<Args>(args)...)
+  {}
   ~Json_opaque() {}
 
   // See base class documentation
@@ -1098,6 +1095,7 @@ private:
   };
   bool m_is_dom;      //!< Wraps a DOM iff true
 
+public:
   /**
     Get the wrapped datetime value in the packed format.
 
@@ -1108,7 +1106,6 @@ private:
   */
   const char *get_datetime_packed(char *buffer) const;
 
-public:
   /**
     Create an empty wrapper. Cf #empty().
   */
@@ -1201,6 +1198,14 @@ public:
     @return true if the wrapper is empty.
   */
   bool empty() const { return m_is_dom && !m_dom_value; }
+
+  /**
+    Does this wrapper contain a DOM?
+
+    @retval true   if the wrapper contains a DOM representation
+    @retval false  if the wrapper contains a binary representation
+  */
+  bool is_dom() const { return m_is_dom; }
 
   /**
     Get the wrapped contents in DOM form. The DOM is (still) owned by the
@@ -1321,12 +1326,11 @@ public:
     not J_OBJECT will give undefined results.
 
     @param[in]     key name for identifying member
-    @param[in]     len length of that member name
 
     @return The member value. If there is no member with the specified
     name, a value with type Json_dom::J_ERROR is returned.
   */
-  Json_wrapper lookup(const char *key, size_t len) const;
+  Json_wrapper lookup(const std::string &key) const;
 
   /**
     Get a pointer to the data of a JSON string or JSON opaque value.
@@ -1458,7 +1462,16 @@ public:
 
     @param[in] path   the (possibly wildcarded) address of the sub-documents
     @param[out] hits  the result of the search
-    @param[in] leg_number  the 0-based index of the current path leg
+    @param[in] current_leg the 0-based index of the first path leg to look at.
+               Should be the same as the depth at which the document in this
+               wrapper is located. Usually called on the root document with the
+               value 0, and then increased by one in recursive calls within the
+               function itself.
+    @param[in] last_leg the 0-based index of the leg just behind the last leg to
+               look at. If equal to the length of the path, the entire path is
+               used. If shorter than the length of the path, the search stops
+               at one of the ancestors of the value pointed to by the full
+               path.
     @param[in] auto_wrap true of we match a final scalar with search for [0]
     @param[in]  only_need_one True if we can stop after finding one match
 
@@ -1466,7 +1479,8 @@ public:
   */
   bool seek_no_ellipsis(const Json_seekable_path &path,
                         Json_wrapper_vector *hits,
-                        const size_t leg_number,
+                        size_t current_leg,
+                        size_t last_leg,
                         bool auto_wrap,
                         bool only_need_one)
     const;
@@ -1586,6 +1600,70 @@ public:
     @param[in]  hash_val  An initial hash value.
   */
   ulonglong make_hash_key(ulonglong *hash_val);
+
+  /**
+    Calculate the amount of unused space inside a JSON binary value.
+
+    @param[out] space  the amount of unused space, or zero if this is a DOM
+    @return false on success
+    @return true if the JSON binary value was invalid
+  */
+  bool get_free_space(size_t *space) const;
+
+  /**
+    Attempt a binary partial update by replacing the value at @a path with @a
+    new_value. On successful completion, the updated document will be available
+    in @a result, and this Json_wrapper will point to @a result instead of the
+    original binary representation. The modifications that have been applied,
+    will also be collected as binary diffs, which can be retrieved via
+    TABLE::get_binary_diffs().
+
+    @param field           the column being updated
+    @param path            the path of the value to update
+    @param new_value       the new value
+    @param replace         true if we use JSON_REPLACE semantics
+    @param[in,out] result  buffer that holds the updated JSON document (is
+                           empty if no partial update has been performed on
+                           this Json_wrapper so far, or contains the binary
+                           representation of the document in this wrapper
+                           otherwise)
+    @param[out] partially_updated gets set to true if partial update was
+                                  successful, also if it was a no-op
+    @param[out] replaced_path     gets set to true if the path was replaced,
+                                  will be false if this update is a no-op
+
+    @retval false     if the update was successful, or if it was determined
+                      that a full update was needed
+    @retval true      if an error occurred
+  */
+  bool attempt_binary_update(const Field_json *field,
+                             const Json_seekable_path &path,
+                             Json_wrapper *new_value, bool replace,
+                             String *result, bool *partially_updated,
+                             bool *replaced_path);
+
+  /**
+    Remove a path from a binary JSON document. On successful completion, the
+    updated document will be available in @a result, and this Json_wrapper will
+    point to @a result instead of the original binary representation. The
+    modifications that have been applied, will also be collected as binary
+    diffs, which can be retrieved via TABLE::get_binary_diffs().
+
+    @param field   the column being updated
+    @param path    the path to remove from the document
+    @param[in,out] result  buffer that holds the updated JSON document (is
+                           empty if no partial update has been performed on
+                           this Json_wrapper so far, or contains the binary
+                           representation of the document in this wrapper
+                           otherwise)
+    @param[out] found_path gets set to true if the path is found in the
+                           document, false otherwise
+
+    @retval false   if the value was successfully updated
+    @retval true    if an error occurred
+  */
+  bool binary_remove(const Field_json *field, const Json_seekable_path &path,
+                     String *result, bool *found_path);
 };
 
 /**

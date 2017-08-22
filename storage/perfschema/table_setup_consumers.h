@@ -69,7 +69,7 @@ class table_setup_consumers : public PFS_engine_table
 public:
   /** Table share. */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table *create();
+  static PFS_engine_table *create(PFS_engine_table_share *);
   static ha_rows get_row_count();
 
   virtual void reset_position(void);
@@ -100,8 +100,8 @@ public:
 private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
-  /** Fields definition. */
-  static TABLE_FIELD_DEF m_field_def;
+  /** Table definition. */
+  static Plugin_table m_table_def;
 
   /** Current row. */
   row_setup_consumers *m_row;

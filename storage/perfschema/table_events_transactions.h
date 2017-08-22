@@ -172,7 +172,7 @@ class table_events_transactions_current
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table *create();
+  static PFS_engine_table *create(PFS_engine_table_share *);
   static int delete_all_rows();
   static ha_rows get_row_count();
 
@@ -199,12 +199,8 @@ private:
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
-  /**
-    Fields definition.
-    Also used by table_events_transactions_history
-    and table_events_transactions_history_long.
-  */
-  static TABLE_FIELD_DEF m_field_def;
+  /** Table definition. */
+  static Plugin_table m_table_def;
 
   /** Current position. */
   PFS_simple_index m_pos;
@@ -221,7 +217,7 @@ class table_events_transactions_history
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table *create();
+  static PFS_engine_table *create(PFS_engine_table_share *);
   static int delete_all_rows();
   static ha_rows get_row_count();
 
@@ -245,6 +241,8 @@ public:
 private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
+  /** Table definition. */
+  static Plugin_table m_table_def;
 
   /** Current position. */
   pos_events_transactions_history m_pos;
@@ -261,7 +259,7 @@ class table_events_transactions_history_long
 public:
   /** Table share */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table *create();
+  static PFS_engine_table *create(PFS_engine_table_share *);
   static int delete_all_rows();
   static ha_rows get_row_count();
 
@@ -281,6 +279,8 @@ public:
 private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
+  /** Table definition. */
+  static Plugin_table m_table_def;
 
   /** Current position. */
   PFS_simple_index m_pos;

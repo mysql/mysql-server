@@ -25,7 +25,6 @@
 #include "plugin.h"
 #include "plugin_log.h"
 #include "sql_service_command.h"
-#include "sql_service_gr_user.h"
 
 const std::string Certifier::GTID_EXTRACTED_NAME= "gtid_extracted";
 
@@ -152,10 +151,14 @@ void Certifier_broadcast_thread::dispatcher()
   {
     broadcast_counter++;
 
-    applier_module->get_pipeline_stats_member_collector()
-        ->send_stats_member_message();
+    // Broadcast Transaction identifiers every 30 seconds
+    if (broadcast_counter % 30 == 0)
+    {
+      applier_module->get_pipeline_stats_member_collector()
+        ->set_send_transaction_identifiers();
+    }
 
-    applier_module->get_flow_control_module()->flow_control_step();
+    applier_module->run_flow_control_step();
 
     if (broadcast_counter % broadcast_gtid_executed_period == 0)
       broadcast_gtid_executed();
@@ -330,7 +333,7 @@ int Certifier::initialize_server_gtid_set(bool get_server_gtid_retrieved)
   DBUG_ENTER("initialize_server_gtid_set");
   mysql_mutex_assert_owner(&LOCK_certification_info);
   int error= 0;
-  Sql_service_command *sql_command_interface= NULL;
+  Sql_service_command_interface *sql_command_interface= NULL;
   std::string gtid_executed;
   std::string applier_retrieved_gtids;
 
@@ -373,8 +376,8 @@ int Certifier::initialize_server_gtid_set(bool get_server_gtid_retrieved)
     goto end; /* purecov: inspected */
   }
 
-  sql_command_interface= new Sql_service_command();
-  if (sql_command_interface->establish_session_connection(false) ||
+  sql_command_interface= new Sql_service_command_interface();
+  if (sql_command_interface->establish_session_connection(PSESSION_USE_THREAD) ||
       sql_command_interface->set_interface_user(GROUPREPL_USER))
   {
     log_message(MY_ERROR_LEVEL,
@@ -782,6 +785,27 @@ rpl_gno Certifier::certify(Gtid_set *snapshot_version,
   else
   {
     /*
+      Check if it is an already used GTID
+    */
+    rpl_sidno sidno_for_group_gtid_sid_map= gle->get_sidno(group_gtid_sid_map);
+    if (sidno_for_group_gtid_sid_map < 1)
+    {
+      log_message(MY_ERROR_LEVEL,
+                  "Error fetching transaction sidno after transaction"
+                  " being positively certified"); /* purecov: inspected */
+      goto end; /* purecov: inspected */
+    }
+    if (group_gtid_executed->contains_gtid(sidno_for_group_gtid_sid_map, gle->get_gno()))
+    {
+      char buf[rpl_sid::TEXT_LENGTH + 1];
+      gle->get_sid()->to_string(buf);
+
+      log_message(MY_ERROR_LEVEL,
+                  "The requested GTID '%s:%lld' was already used, the transaction will rollback"
+                  , buf, gle->get_gno());
+      goto end;
+    }
+    /*
       Add received transaction GTID to transaction snapshot version.
     */
     rpl_sidno sidno= gle->get_sidno(snapshot_version->get_sid_map());
@@ -792,6 +816,7 @@ rpl_gno Certifier::certify(Gtid_set *snapshot_version,
                   " being positively certified"); /* purecov: inspected */
       goto end; /* purecov: inspected */
     }
+
     if (snapshot_version->ensure_sidno(sidno) != RETURN_STATUS_OK)
     {
       log_message(MY_ERROR_LEVEL,
@@ -891,7 +916,7 @@ rpl_gno Certifier::certify(Gtid_set *snapshot_version,
   }
 
 end:
-  update_certified_transaction_count(result>0);
+  update_certified_transaction_count(result>0, local_transaction);
 
   mysql_mutex_unlock(&LOCK_certification_info);
   DBUG_PRINT("info", ("Group replication Certifier: certification result: %llu",
@@ -1601,9 +1626,9 @@ int Certifier::set_certification_info(std::map<std::string, std::string> *cert_i
   DBUG_RETURN(0);
 }
 
-void Certifier::update_certified_transaction_count(bool result)
+void Certifier::update_certified_transaction_count(bool result, bool local_transaction)
 {
-  if(result)
+  if (result)
     positive_cert++;
   else
     negative_cert++;
@@ -1612,6 +1637,16 @@ void Certifier::update_certified_transaction_count(bool result)
   {
     applier_module->get_pipeline_stats_member_collector()
         ->increment_transactions_certified();
+
+    /*
+      If transaction is local and rolledback
+      increment local negative certifier count
+    */
+    if (local_transaction && !result)
+    {
+      applier_module->get_pipeline_stats_member_collector()
+          ->increment_transactions_local_rollback();
+    }
   }
 }
 

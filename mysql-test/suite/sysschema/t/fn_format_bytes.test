@@ -1,4 +1,3 @@
--- source include/not_embedded.inc
 # Tests for sys schema
 # Verify the sys.format_bytes() function perfoms as expected
 

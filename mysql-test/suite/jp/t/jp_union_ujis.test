@@ -1,4 +1,4 @@
-
+--character_set ujis
 --disable_warnings
 drop table if exists `£Ô£±`;
 drop table if exists `£Ô£²`;

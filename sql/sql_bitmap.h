@@ -150,7 +150,7 @@ public:
   void subtract(const Bitmap<64>& map2) { map&= ~map2.map; }
   void merge(const Bitmap<64>& map2) { map|= map2.map; }
   bool is_set(uint n) const
-  { DBUG_ASSERT(n < 64); return MY_TEST(map & (((ulonglong)1) << n)); }
+  { DBUG_ASSERT(n < 64); return (map & (((ulonglong)1) << n)); }
   bool is_prefix(uint n) const
   {
     DBUG_ASSERT(n <= 64);

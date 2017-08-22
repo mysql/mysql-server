@@ -671,8 +671,7 @@ public:
     }
     if (!(*res= get_system_var(pc, var_type, var, component)))
       return true;
-    if (!my_strcasecmp(system_charset_info, var.str, "warning_count") ||
-        !my_strcasecmp(system_charset_info, var.str, "error_count"))
+    if (is_identifier(var, "warning_count") || is_identifier(var, "error_count"))
     {
       /*
         "Diagnostics variable" used in a non-diagnostics statement.
@@ -695,7 +694,7 @@ class PTI_count_sym : public Item_sum_count
   typedef Item_sum_count super;
 
 public:
-  PTI_count_sym(const POS &pos) : super(pos, (Item*)NULL) {}
+  PTI_count_sym(const POS &pos, PT_window *w) : super(pos, (Item*)NULL, w) {}
 
   virtual bool itemize(Parse_context *pc, Item **res)
   {

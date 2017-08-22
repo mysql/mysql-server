@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,20 +23,20 @@ class Test_MDL_context_owner : public MDL_context_owner
 public:
   Test_MDL_context_owner()
   {}
-  virtual void enter_cond(mysql_cond_t *cond,
-                          mysql_mutex_t* mutex,
-                          const PSI_stage_info *stage,
-                          PSI_stage_info *old_stage,
-                          const char *src_function,
-                          const char *src_file,
-                          int src_line)
+  virtual void enter_cond(mysql_cond_t*,
+                          mysql_mutex_t*,
+                          const PSI_stage_info*,
+                          PSI_stage_info*,
+                          const char*,
+                          const char*,
+                          int)
   {
   }
 
-  virtual void exit_cond(const PSI_stage_info *stage,
-                         const char *src_function,
-                         const char *src_file,
-                         int src_line)
+  virtual void exit_cond(const PSI_stage_info*,
+                         const char*,
+                         const char*,
+                         int)
   {
   }
 
@@ -44,10 +44,10 @@ public:
   virtual bool is_connected() { return true; }
   virtual THD* get_thd()   { return NULL; }
 
-  virtual bool notify_hton_pre_acquire_exclusive(const MDL_key *mdl_key,
-                                                 bool *victimized)
+  virtual bool notify_hton_pre_acquire_exclusive(const MDL_key*,
+                                                 bool*)
   { return false; }
-  virtual void notify_hton_post_release_exclusive(const MDL_key *mdl_key)
+  virtual void notify_hton_post_release_exclusive(const MDL_key*)
   { }
 
   virtual uint get_rand_seed() { return 0; }

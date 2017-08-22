@@ -16,7 +16,7 @@
 #ifndef DD__ROUTINE_INCLUDED
 #define DD__ROUTINE_INCLUDED
 
-#include "dd/types/dictionary_object.h"   // dd::Dictionary_object
+#include "dd/types/entity_object.h"       // dd::Entity_object
 #include "dd/types/view.h"                // dd::Column::enum_security_type
 #include "my_inttypes.h"
 
@@ -47,11 +47,11 @@ namespace tables {
         must inherit this class virtually.
 */
 
-class Routine : public Dictionary_object
+class Routine : virtual public Entity_object
 {
 public:
   static const Object_type &TYPE();
-  static const Dictionary_object_table &OBJECT_TABLE();
+  static const Entity_object_table &OBJECT_TABLE();
 
   typedef Routine cache_partition_type;
   typedef tables::Routines cache_partition_table_type;

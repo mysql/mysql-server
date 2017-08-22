@@ -201,6 +201,7 @@ mysql_declare_plugin(test_daemon)
   "Test services with thread",
   PLUGIN_LICENSE_GPL,
   test_services_plugin_init, /* Plugin Init */
+  NULL, /* Plugin Check uninstall */
   test_services_plugin_deinit, /* Plugin Deinit */
   0x0100 /* 1.0 */,
   test_services_status,       /* status variables                */

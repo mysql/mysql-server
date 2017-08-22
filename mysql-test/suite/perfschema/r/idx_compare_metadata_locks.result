@@ -1,3 +1,7 @@
+# Prevent background threads to acquire mdl locks, which
+# the result unstable
+SET GLOBAL innodb_fast_shutdown=0;
+# restart: --debug=d,do_not_meta_lock_in_background
 TABLE: "metadata_locks"
 INDEXES: PK (OBJECT_INSTANCE_BEGIN), KEY (OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME), KEY (OWNER_THREAD_ID, OWNER_EVENT_ID)
 
@@ -259,3 +263,4 @@ DROP USER user1@localhost;
 DROP USER user2@localhost;
 DROP USER user3@localhost;
 UPDATE performance_schema.threads SET INSTRUMENTED = 'YES';
+# restart

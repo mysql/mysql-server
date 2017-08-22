@@ -14,9 +14,6 @@
 #                                                                      #
 ########################################################################
 
-# This test does not make sense on the embedded server because processlist
-# will be empty.
---source include/not_embedded.inc
 
 # The file with expected results fits only to a run with "--ps-protocol".
 --source include/have_ps_protocol.inc

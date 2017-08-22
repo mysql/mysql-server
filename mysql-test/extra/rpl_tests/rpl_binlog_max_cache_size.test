@@ -470,8 +470,8 @@ SHOW VARIABLES LIKE 'BINLOG_CACHE_SIZE';
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
-# t4 exists only if binlog_format!=row, so so a warning is generated
-# if binog_format=row
+# t4 exists only if binlog_format!='row', so so a warning is generated
+# if binog_format='row'
 --disable_warnings
 DROP TABLE IF EXISTS t4;
 --enable_warnings

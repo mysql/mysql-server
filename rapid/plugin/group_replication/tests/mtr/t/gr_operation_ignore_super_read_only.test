@@ -10,6 +10,7 @@
 # 4. Clean up.
 ################################################################################
 
+--source include/big_test.inc
 --source ../inc/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
 --source ../inc/group_replication.inc
@@ -56,6 +57,7 @@ INSERT INTO t1 VALUES (2);
 --echo # Stop group replication. Check all is fine
 --echo #
 
+--let $skip_reset_read_mode= 1
 --source include/stop_group_replication.inc
 
 --let $assert_text= The read mode should still be on

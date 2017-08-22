@@ -1,3 +1,4 @@
+CALL mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
 CREATE TABLE t1(f1 int);
 XA START'','';
 INSERT INTO t1 VALUES(10);

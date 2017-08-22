@@ -3,14 +3,15 @@
 #
 
 --source include/have_innodb_max_16k.inc
---source include/have_undo_tablespaces.inc
 
 # The test is restarting the server to force undo truncation.
---source include/not_embedded.inc
 --source include/big_test.inc
 
---let $restart_parameters="restart: --innodb_undo_tablespaces=2 --innodb_undo_logs=3"
+--let $restart_parameters="restart: --innodb_undo_tablespaces=0 --innodb_rollback_segments=3"
 --source include/restart_mysqld.inc
+SHOW VARIABLES LIKE 'innodb_undo_tablespaces';
+SET GLOBAL innodb_undo_tablespaces=2;
+SHOW VARIABLES LIKE 'innodb_undo_tablespaces';
 
 ################################################################################
 # Test-case will test following scenarios.
@@ -58,9 +59,9 @@ let CHECKFILE = $MYSQLTEST_VARDIR/log/check.txt;
 
 perl;
 ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size1)
-	= stat("$ENV{MYSQLD_DATADIR}/undo001");
+	= stat("$ENV{MYSQLD_DATADIR}/undo_001");
 ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size2)
-	= stat("$ENV{MYSQLD_DATADIR}/undo002");
+	= stat("$ENV{MYSQLD_DATADIR}/undo_002");
 open(OUT, ">$ENV{CHECKFILE}") || die;
 print OUT "let \$size1='$size1,$size2';\n";
 close(OUT);
@@ -70,9 +71,9 @@ SET GLOBAL innodb_fast_shutdown=0;
 --source $CHECKFILE
 perl;
 ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size1)
-	= stat("$ENV{MYSQLD_DATADIR}/undo001");
+	= stat("$ENV{MYSQLD_DATADIR}/undo_001");
 ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size2)
-	= stat("$ENV{MYSQLD_DATADIR}/undo002");
+	= stat("$ENV{MYSQLD_DATADIR}/undo_002");
 open(OUT, ">$ENV{CHECKFILE}") || die;
 print OUT "let \$size2='$size1,$size2';\n";
 close(OUT);

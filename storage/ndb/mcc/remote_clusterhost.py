@@ -1,4 +1,4 @@
-# Copyright (c) 2012, 2013 Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2017 Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -116,17 +116,18 @@ class RemoteClusterHost(ABClusterHost):
         system = None
         processor = None
         try:
-            preamble = self.exec_blocking(['#'])
+            preamble = self.exec_blocking(['uname', '-sp']) #'#'])
         except:
-            _logger.debug('executing # failed - assuming Windows...')
+            _logger.debug('executing uname failed - assuming Windows...')
             (system, processor) = self.exec_blocking(['cmd.exe', '/c', 'echo', '%OS%', '%PROCESSOR_ARCHITECTURE%']).split(' ')
             if 'Windows' in system:
                 system = 'Windows'
         else:
-            _logger.debug('preamble='+preamble)
-            raw_uname = self.exec_blocking(['uname', '-sp'])
-            _logger.debug('raw_uname='+raw_uname)
-            uname = raw_uname.replace(preamble, '', 1)
+            lc = preamble.count('\n')
+            if lc > 1: #There was a prior error which occupies space on top of uname output.
+                preamble = preamble.split('\n')[lc-1]
+                
+            uname = preamble
             _logger.debug('uname='+uname)
             (system, processor) = uname.split(' ')
             if 'CYGWIN' in system:

@@ -25,8 +25,16 @@
 #include <pthread.h>
 #endif
 
+#ifdef __GNUC__
+// YaSSL code has unused parameter warnings, ignore them.
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+#pragma GCC diagnostic push
+#endif
 #include "runtime.hpp"
 #include "yassl_int.hpp"
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
 #include "thread_utils.h"
 
 namespace {

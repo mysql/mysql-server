@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -75,6 +75,12 @@ Creates and initializes the transaction system at the database creation. */
 void
 trx_sys_create_sys_pages(void);
 /*==========================*/
+
+/** Find the page number in the TRX_SYS page for a given slot/rseg_id
+@param[in]	rseg_id		slot number in the TRX_SYS page rseg array
+@return page number from the TRX_SYS page rseg array */
+page_no_t
+trx_sysf_rseg_find_page_no(ulint rseg_id);
 
 /** Look for a free slot for a rollback segment in the trx system file copy.
 @param[in,out]	mtr		mtr
@@ -267,27 +273,6 @@ void
 trx_sys_close(void);
 /*===============*/
 
-/** Create non-redo rollback segments residing in the temp-tablespace.
-Non-redo rollback segments don't perform redo logging and so they are
-used for undo logging of objects/tables that don't need to be recovered
-after a crash. Non-Redo rollback segments are created on every server
-startup.
-@return number of non-redo rollback segments created. */
-ulint
-trx_rsegs_create_in_temp_space();
-
-/** Create any more rollback segments above what was previously built
-in the system tablespace. During create_new_db, only one rollback segment
-was created initially so that the system tablespace would be backward
-compatible in its file segment ordering.
-When opening an existing db, the setting for srv_undo_tablespaces may
-have changed from >0 to =0 and/or the setting for srv_rollback_segments
-may have changed. If the TRX_SYS page does not track enough rollback
-segments, we will create the rest here.
-@return true if successful or not done.  false for failure. */
-bool
-trx_sys_create_additional_rsegs(bool recv_needed_recovery);
-
 /** Determine if there are incomplete transactions in the system.
 @return whether incomplete transactions need rollback */
 UNIV_INLINE
@@ -364,13 +349,6 @@ trx_sys_undo_spaces_deinit();
 					rollback segment specification
 					slots */
 /*------------------------------------------------------------- @} */
-
-/* Max number of rollback segments: the number of segment specification slots
-in the transaction system array; rollback segment id must fit in one (signed)
-byte, therefore 128; each slot is currently 8 bytes in size. If you want
-to raise the level to 256 then you will need to fix some assertions that
-impose the 7 bit restriction. e.g., mach_write_to_3() */
-#define	TRX_SYS_N_RSEGS			128
 
 /* Originally, InnoDB defined TRX_SYS_N_RSEGS as 256 but created only one
 rollback segment.  It initialized some arrays with this number of entries.
@@ -534,11 +512,12 @@ struct trx_sys_t {
 	char		pad3[64];	/*!< To avoid false sharing */
 
 	Rsegs		rsegs;		/*!< Vector of pointers to rollback
-					segments referenced in TRX_SYS page;
-					created and destroyed in
-					single-threaded mode; not protected
-					by any mutex, because it is read-only
-					during multi-threaded operation */
+					segments. These rsegs are iterated
+					and added to the end under a read
+					lock. They are deleted under a write
+					lock while the vector is adjusted.
+					They are created and destroyed in
+					single-threaded mode. */
 
 	Rsegs		tmp_rsegs;	/*!< Vector of pointers to rollback
 					segments within the temp tablespace;
@@ -562,8 +541,9 @@ struct trx_sys_t {
 };
 
 /** A list of undo tablespace IDs found in the TRX_SYS page.
-This cannot be part of the trx_sys_t object because it is initialized
-before that object is created. */
+This cannot be part of the trx_sys_t object because it is initialized before
+that object is created. These are the old type of undo tablespaces that do not
+have space_IDs in the reserved range nor contain an RSEG_ARRAY page. */
 extern	Space_Ids*	trx_sys_undo_spaces;
 
 /** When a trx id which is zero modulo this number (which must be a power of

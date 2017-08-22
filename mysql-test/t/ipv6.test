@@ -4,8 +4,6 @@
 #
 --source include/check_ipv6.inc
 --source include/add_extra_root_users.inc
-# Can't be tested with embedded server
---source include/not_embedded.inc
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc

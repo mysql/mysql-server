@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -188,6 +188,15 @@ static inline int my_getpeername(ndb_socket_t s, struct sockaddr *a,
 {
   if(getpeername(s.s, a, addrlen))
     return my_socket_errno();
+
+  return 0;
+}
+
+static inline int ndb_getsockname(ndb_socket_t s, struct sockaddr *a,
+                                 socket_len_t *addrlen)
+{
+  if(getsockname(s.s, a, addrlen))
+    return 1;
 
   return 0;
 }

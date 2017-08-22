@@ -1,6 +1,5 @@
 --source include/no_valgrind_without_big.inc
 --source include/windows.inc
---source include/not_embedded.inc
 
 let server_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
 let SEARCH_FILE= $server_log;

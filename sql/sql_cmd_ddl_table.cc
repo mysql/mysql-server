@@ -27,6 +27,7 @@
 #include "item.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysqld.h"             // opt_log_slow_admin_statements
 #include "mysqld_error.h"
 #include "partition_info.h"     // check_partition_tablespace_names()
 #include "query_options.h"
@@ -48,6 +49,31 @@
 #include "table.h"
 #include "thr_lock.h"
 
+#ifndef DBUG_OFF
+#include "current_thd.h"
+#endif//DBUG_OFF
+
+
+Sql_cmd_ddl_table::Sql_cmd_ddl_table(Alter_info *alter_info)
+  : m_alter_info(alter_info)
+{
+#ifndef DBUG_OFF
+  LEX *lex= current_thd->lex;
+  DBUG_ASSERT(lex->alter_info == m_alter_info);
+  DBUG_ASSERT(lex->sql_command == SQLCOM_ALTER_TABLE ||
+              lex->sql_command == SQLCOM_ANALYZE ||
+              lex->sql_command == SQLCOM_ASSIGN_TO_KEYCACHE ||
+              lex->sql_command == SQLCOM_CHECK ||
+              lex->sql_command == SQLCOM_CREATE_INDEX ||
+              lex->sql_command == SQLCOM_CREATE_TABLE ||
+              lex->sql_command == SQLCOM_DROP_INDEX ||
+              lex->sql_command == SQLCOM_OPTIMIZE ||
+              lex->sql_command == SQLCOM_PRELOAD_KEYS ||
+              lex->sql_command == SQLCOM_REPAIR);
+#endif//DBUG_OFF
+  DBUG_ASSERT(m_alter_info != nullptr);
+}
+
 
 bool Sql_cmd_create_table::execute(THD *thd)
 {
@@ -59,7 +85,6 @@ bool Sql_cmd_create_table::execute(THD *thd)
 
   bool link_to_local;
   TABLE_LIST *create_table= first_table;
-  TABLE_LIST *select_tables= lex->create_last_non_select_table->next_global;
 
   /*
     Code below (especially in mysql_create_table() and Query_result_create
@@ -74,7 +99,7 @@ bool Sql_cmd_create_table::execute(THD *thd)
     safety, only in case of Alter_info we have to do (almost) a deep
     copy.
   */
-  Alter_info alter_info(lex->alter_info, thd->mem_root);
+  Alter_info alter_info(*m_alter_info, thd->mem_root);
 
   if (thd->is_error())
   {
@@ -90,7 +115,7 @@ bool Sql_cmd_create_table::execute(THD *thd)
     return true;
   }
 
-  if (create_table_precheck(thd, select_tables, create_table))
+  if (create_table_precheck(thd, query_expression_tables, create_table))
     return true;
 
   /* Might have been updated in create_table_precheck */
@@ -154,7 +179,7 @@ bool Sql_cmd_create_table::execute(THD *thd)
     {
       return true;
     }
-    if (part_info && !(part_info= thd->lex->part_info->get_clone(true)))
+    if (part_info && !(part_info= thd->lex->part_info->get_clone(thd, true)))
       return true;
     thd->work_part_info= part_info;
   }
@@ -283,7 +308,7 @@ bool Sql_cmd_create_table::execute(THD *thd)
                                                          &alter_info,
                                                          select_lex->item_list,
                                                          lex->duplicates,
-                                                         select_tables)))
+                                                         query_expression_tables)))
     {
       // For objects acquired during table creation.
       dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
@@ -319,7 +344,7 @@ bool Sql_cmd_create_table::execute(THD *thd)
     if (create_info.options & HA_LEX_CREATE_TABLE_LIKE)
     {
       /* CREATE TABLE ... LIKE ... */
-      res= mysql_create_like_table(thd, create_table, select_tables,
+      res= mysql_create_like_table(thd, create_table, query_expression_tables,
                                    &create_info);
     }
     else
@@ -341,4 +366,79 @@ bool Sql_cmd_create_table::execute(THD *thd)
     }
   }
   return res;
+}
+
+
+bool Sql_cmd_create_or_drop_index_base::execute(THD *thd)
+{
+  /*
+    CREATE INDEX and DROP INDEX are implemented by calling ALTER
+    TABLE with proper arguments.
+
+    In the future ALTER TABLE will notice that the request is to
+    only add indexes and create these one by one for the existing
+    table without having to do a full rebuild.
+  */
+
+  LEX *const lex= thd->lex;
+  SELECT_LEX *const select_lex= lex->select_lex;
+  TABLE_LIST *const first_table= select_lex->get_table_list();
+  TABLE_LIST *const all_tables= first_table;
+
+  /* Prepare stack copies to be re-execution safe */
+  HA_CREATE_INFO create_info;
+  Alter_info alter_info(*m_alter_info, thd->mem_root);
+
+  if (thd->is_fatal_error) /* out of memory creating a copy of alter_info */
+    return true; // OOM
+
+  if (check_one_table_access(thd, INDEX_ACL, all_tables))
+    return true;
+  /*
+    Currently CREATE INDEX or DROP INDEX cause a full table rebuild
+    and thus classify as slow administrative statements just like
+    ALTER TABLE.
+  */
+  thd->enable_slow_log= opt_log_slow_admin_statements;
+
+  create_info.db_type= 0;
+  create_info.row_type= ROW_TYPE_NOT_USED;
+  create_info.default_table_charset= thd->variables.collation_database;
+
+  /* Push Strict_error_handler */
+  Strict_error_handler strict_handler;
+  if (thd->is_strict_mode())
+    thd->push_internal_handler(&strict_handler);
+  DBUG_ASSERT(!select_lex->order_list.elements);
+  const bool res= mysql_alter_table(thd, first_table->db,
+                                    first_table->table_name,
+                                    &create_info, first_table, &alter_info);
+  /* Pop Strict_error_handler */
+  if (thd->is_strict_mode())
+    thd->pop_internal_handler();
+  return res;
+}
+
+
+bool Sql_cmd_cache_index::execute(THD *thd)
+{
+  TABLE_LIST *const first_table= thd->lex->select_lex->get_table_list();
+  if (check_access(thd, INDEX_ACL, first_table->db,
+                   &first_table->grant.privilege,
+                   &first_table->grant.m_internal,
+                   0, 0))
+    return true;
+  return assign_to_keycache(thd, first_table);
+}
+
+
+bool Sql_cmd_load_index::execute(THD *thd)
+{
+  TABLE_LIST *const first_table= thd->lex->select_lex->get_table_list();
+  if (check_access(thd, INDEX_ACL, first_table->db,
+                   &first_table->grant.privilege,
+                   &first_table->grant.m_internal,
+                   0, 0))
+    return true;
+  return preload_keys(thd, first_table);
 }

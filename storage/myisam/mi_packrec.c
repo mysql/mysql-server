@@ -277,11 +277,10 @@ bool _mi_read_pack_info(MI_INFO *info, bool fix_keys)
 	       MYF(MY_HOLD_ON_ERROR));
   /* Fix the table addresses in the tree heads. */
   {
-    my_ptrdiff_t diff=PTR_BYTE_DIFF(decode_table,share->decode_tables);
+    ptrdiff_t diff= decode_table - share->decode_tables;
     share->decode_tables=decode_table;
     for (i=0 ; i < trees ; i++)
-      share->decode_trees[i].table=ADD_TO_PTR(share->decode_trees[i].table,
-                                              diff, uint16*);
+      share->decode_trees[i].table= share->decode_trees[i].table + diff;
   }
 
   /* Fix record-ref-length for keys */

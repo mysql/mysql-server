@@ -37,91 +37,7 @@
 */
 
 
-/*
-  Rewrite of sort_keyuse() to comparison operator for use by std::less<>
-  It is a template argument, so static rather than in unnamed namespace.
-*/
-static inline bool operator<(const Key_use &a, const Key_use &b)
-{
-  if (a.table_ref->tableno() != b.table_ref->tableno())
-    return a.table_ref->tableno() < b.table_ref->tableno();
-  if (a.key != b.key)
-    return a.key < b.key;
-  if (a.keypart != b.keypart)
-    return a.keypart < b.keypart;
-  const bool atab = MY_TEST((a.used_tables & ~OUTER_REF_TABLE_BIT));
-  const bool btab = MY_TEST((b.used_tables & ~OUTER_REF_TABLE_BIT));
-  if (atab != btab)
-    return atab < btab;
-  return
-    ((a.optimize & KEY_OPTIMIZE_REF_OR_NULL) <
-     (b.optimize & KEY_OPTIMIZE_REF_OR_NULL));
-}
-
-
-/*
-  Compare for equality.
-  It is a template argument, so static rather than in unnamed namespace.
-*/
-static inline bool operator==(const Key_use &lhs, const Key_use &rhs)
-{
-  return
-    lhs.table_ref->tableno() == rhs.table_ref->tableno() &&
-    lhs.key            == rhs.key            &&
-    lhs.keypart        == rhs.keypart        &&
-    MY_TEST((lhs.used_tables & ~OUTER_REF_TABLE_BIT))
-    ==
-    MY_TEST((rhs.used_tables & ~OUTER_REF_TABLE_BIT)) &&
-    (lhs.optimize & KEY_OPTIMIZE_REF_OR_NULL)
-    ==
-    (rhs.optimize & KEY_OPTIMIZE_REF_OR_NULL);
-}
-
-
-static inline std::ostream &operator<<(std::ostream &s, const Key_use &v)
-{
-  return s << "{"
-           << v.table_ref->tableno() << ", "
-           << v.key            << ", "
-           << v.keypart        << ", "
-           << v.used_tables    << ", "
-           << v.optimize
-           << "}"
-    ;
-}
-
-
 namespace dynarray_unittest {
-
-// We still want to unit-test this, to compare performance.
-#undef my_init_dynamic_array
-extern "C" 
-bool my_init_dynamic_array(DYNAMIC_ARRAY *array,
-                           PSI_memory_key key,
-                           uint element_size,
-                           void *init_buffer, uint init_alloc,
-                           uint alloc_increment);
-/*
-  Cut'n paste this function from sql_select.cc,
-  to avoid linking in the entire server for this unit test.
-*/
-inline int sort_keyuse(Key_use *a, Key_use *b)
-{
-  int res;
-  if (a->table_ref->tableno() != b->table_ref->tableno())
-    return (int) (a->table_ref->tableno() - b->table_ref->tableno());
-  if (a->key != b->key)
-    return (int) (a->key - b->key);
-  if (a->keypart != b->keypart)
-    return (int) (a->keypart - b->keypart);
-  // Place const values before other ones
-  if ((res= MY_TEST((a->used_tables & ~OUTER_REF_TABLE_BIT)) -
-       MY_TEST((b->used_tables & ~OUTER_REF_TABLE_BIT))))
-    return res;
-  /* Place rows that are not 'OPTIMIZE_REF_OR_NULL' first */
-  return (int) ((a->optimize & KEY_OPTIMIZE_REF_OR_NULL) -
-		(b->optimize & KEY_OPTIMIZE_REF_OR_NULL));
-}
 
 
 // We generate some random data at startup, for testing of sorting.
@@ -149,89 +65,7 @@ void generate_test_data(Key_use *keys, TABLE_LIST *tables, int n)
 }
 
 
-// Play around with these constants to see std::sort speedup vs. my_qsort.
-const int num_elements= 200;
-const int num_iterations= 1000;
-
-/*
-  This class is used for comparing performance of
-    std::vector<> and std::sort()
-  vs
-    DYNAMIC_ARRAY and my_qsort()
- */
-class DynArrayTest : public ::testing::Test
-{
-public:
-  DynArrayTest() {}
-
-  static void SetUpTestCase()
-  {
-    generate_test_data(test_data, table_list, num_elements);
-  }
-
-  virtual void SetUp()
-  {
-    dynarray_unittest::my_init_dynamic_array(&m_keyuse_dyn,
-                          PSI_NOT_INSTRUMENTED,
-                          sizeof(Key_use), NULL,
-                          num_elements, 64);
-    m_keyuse_vec.reserve(num_elements);
-  }
-
-  virtual void TearDown()
-  {
-    delete_dynamic(&m_keyuse_dyn);
-  }
-
-  void insert_and_sort_dynamic()
-  {
-    reset_dynamic(&m_keyuse_dyn);
-    for (int ix= 0; ix < num_elements; ++ix)
-    {
-      insert_dynamic(&m_keyuse_dyn, &test_data[ix]);
-    }
-    my_qsort(m_keyuse_dyn.buffer, m_keyuse_dyn.elements, sizeof(Key_use),
-             reinterpret_cast<qsort_cmp>(sort_keyuse));
-  }
-
-  void insert_and_sort_vector()
-  {
-    m_keyuse_vec.clear();
-    for (int ix= 0; ix < num_elements; ++ix)
-    {
-      m_keyuse_vec.push_back(test_data[ix]);
-    }
-    std::sort(m_keyuse_vec.begin(), m_keyuse_vec.end(), std::less<Key_use>());
-  }
-
-  DYNAMIC_ARRAY           m_keyuse_dyn;
-  std::vector<Key_use>    m_keyuse_vec;
-private:
-  static Key_use test_data[num_elements];
-  static TABLE_LIST table_list[num_elements];
-
-  GTEST_DISALLOW_COPY_AND_ASSIGN_(DynArrayTest);
-};
-
-Key_use DynArrayTest::test_data[num_elements];
-TABLE_LIST DynArrayTest::table_list[num_elements];
-
-
-// Test insert_dynamic() and my_qsort().
-TEST_F(DynArrayTest, DynArray)
-{
-  for (int ix= 0; ix < num_iterations; ++ix)
-    insert_and_sort_dynamic();
-}
-
-
-// Test vector::push_back() and std::sort()
-TEST_F(DynArrayTest, Vector)
-{
-  for (int ix= 0; ix < num_iterations; ++ix)
-    insert_and_sort_vector();
-}
-
+constexpr int num_elements= 200;
 
 /*
   This class is for unit testing of Mem_root_array.
@@ -241,18 +75,14 @@ class MemRootTest : public ::testing::Test
 protected:
   MemRootTest()
     : m_mem_root_p(&m_mem_root),
-      m_array_mysys(m_mem_root_p),
       m_array_std(m_mem_root_p)
   {}
 
   virtual void SetUp()
   {
     init_sql_alloc(PSI_NOT_INSTRUMENTED, &m_mem_root, 1024, 0);
-    ASSERT_EQ(0, my_set_thread_local(THR_MALLOC, &m_mem_root_p));
-    MEM_ROOT *root= *static_cast<MEM_ROOT**>(my_get_thread_local(THR_MALLOC));
-    ASSERT_EQ(root, m_mem_root_p);
+    THR_MALLOC= &m_mem_root_p;
 
-    m_array_mysys.reserve(num_elements);
     m_array_std.reserve(num_elements);
     destroy_counter= 0;
   }
@@ -265,45 +95,16 @@ protected:
   static void SetUpTestCase()
   {
     generate_test_data(test_data, table_list, num_elements);
-    ASSERT_EQ(0, my_create_thread_local_key(&THR_THD, NULL));
-    THR_THD_initialized= true;
-    ASSERT_EQ(0, my_create_thread_local_key(&THR_MALLOC, NULL));
-    THR_MALLOC_initialized= true;
+    THR_MALLOC= nullptr;
   }
 
   static void TearDownTestCase()
   {
-    my_delete_thread_local_key(THR_THD);
-    THR_THD_initialized= false;
-    my_delete_thread_local_key(THR_MALLOC);
-    THR_MALLOC_initialized= false;
-  }
-
-  void insert_and_sort_mysys()
-  {
-    m_array_mysys.clear();
-    for (int ix= 0; ix < num_elements; ++ix)
-    {
-      m_array_mysys.push_back(test_data[ix]);
-    }
-    my_qsort(m_array_mysys.begin(), m_array_mysys.size(),
-             m_array_mysys.element_size(),
-             reinterpret_cast<qsort_cmp>(sort_keyuse));
-  }
-
-  void insert_and_sort_std()
-  {
-    m_array_std.clear();
-    for (int ix= 0; ix < num_elements; ++ix)
-    {
-      m_array_std.push_back(test_data[ix]);
-    }
-    std::sort(m_array_std.begin(), m_array_std.end(), std::less<Key_use>());
+    THR_MALLOC= nullptr;
   }
 
   MEM_ROOT m_mem_root;
   MEM_ROOT *m_mem_root_p;
-  Key_use_array m_array_mysys;
   Key_use_array m_array_std;
 public:
   static size_t  destroy_counter;
@@ -317,36 +118,6 @@ private:
 size_t  MemRootTest::destroy_counter;
 Key_use MemRootTest::test_data[num_elements];
 TABLE_LIST MemRootTest::table_list[num_elements];
-
-
-// Test Mem_root_array::push_back() and my_qsort()
-TEST_F(MemRootTest, KeyUseMysys)
-{
-  for (int ix= 0; ix < num_iterations; ++ix)
-    insert_and_sort_mysys();
-}
-
-
-// Test Mem_root_array::push_back() and std::sort()
-TEST_F(MemRootTest, KeyUseStd)
-{
-  for (int ix= 0; ix < num_iterations; ++ix)
-    insert_and_sort_std();
-}
-
-
-// Test that my_qsort() and std::sort() generate same order.
-TEST_F(MemRootTest, KeyUseCompare)
-{
-  insert_and_sort_mysys();
-  insert_and_sort_std();
-  for (int ix= 0; ix < num_elements; ++ix)
-  {
-    Key_use k1= m_array_mysys.at(ix);
-    Key_use k2= m_array_std.at(ix);
-    EXPECT_EQ(k1, k2);
-  }
-}
 
 
 // Test that Mem_root_array re-expanding works.
@@ -371,20 +142,9 @@ TEST_F(MemRootTest, Reserve)
 }
 
 
-// Verify that we can swap mem-root, without any leaks.
+// Verify that we can move MEM_ROOT without any leaks.
 // Run with 
 // valgrind --leak-check=full <executable> --gtest_filter='-*DeathTest*' > foo
-TEST_F(MemRootTest, CopyMemRoot)
-{
-  Mem_root_array<uint> intarr(m_mem_root_p);
-  // Take a copy, we do *not* free_root(own_root)
-  MEM_ROOT own_root;
-  memcpy(&own_root, m_mem_root_p, sizeof(MEM_ROOT));
-  intarr.set_mem_root(&own_root);
-  intarr.push_back(42);
-  memcpy(m_mem_root_p, &own_root, sizeof(MEM_ROOT));
-}
-
 TEST_F(MemRootTest, MoveMemRoot)
 {
   Mem_root_array<uint> intarr(m_mem_root_p);
@@ -487,5 +247,81 @@ TEST_F(MemRootTest, ResizeShrink)
   EXPECT_EQ(5U, counter);
 }
 
+TEST_F(MemRootTest, Erase)
+{
+  using A= Mem_root_array<DestroyCounter>;
+  size_t counter= 0;
+  DestroyCounter foo(&counter);
+  A array(m_mem_root_p);
+  array.resize(10, foo);
+  EXPECT_EQ(10U, array.size());
+  EXPECT_EQ(0U, counter);
+
+  A::iterator it= array.erase(array.cbegin() + 2, array.cbegin() + 4);
+  EXPECT_EQ(8U, array.size());
+  EXPECT_EQ(array.begin() + 2, it);
+  EXPECT_EQ(2U, counter);
+
+  it= array.erase(array.cend(), array.cend());
+  EXPECT_EQ(8U, array.size());
+  EXPECT_EQ(array.cend(), it);
+  EXPECT_EQ(2U, counter);
+
+  it= array.erase(array.cbegin(), array.cbegin());
+  EXPECT_EQ(8U, array.size());
+  EXPECT_EQ(array.cbegin(), it);
+  EXPECT_EQ(2U, counter);
+
+  it= array.erase(array.cbegin(), array.cend());
+  EXPECT_EQ(0U, array.size());
+  EXPECT_EQ(array.cbegin(), it);
+  EXPECT_EQ(array.cend(), it);
+  EXPECT_EQ(10U, counter);
+}
+
+TEST_F(MemRootTest, Erase2)
+{
+  using A= Mem_root_array<DestroyCounter>;
+  size_t counter= 0;
+  DestroyCounter foo(&counter);
+  A array(m_mem_root_p);
+  array.resize(10, foo);
+  EXPECT_EQ(10U, array.size());
+  EXPECT_EQ(0U, counter);
+
+  A::iterator it= array.erase(5);
+  EXPECT_EQ(9U, array.size());
+  EXPECT_EQ(std::next(array.cbegin(), 5), it);
+  EXPECT_EQ(1U, counter);
+
+  it= array.erase(static_cast<size_t>(0));
+  EXPECT_EQ(8U, array.size());
+  EXPECT_EQ(array.cbegin(), it);
+  EXPECT_EQ(2U, counter);
+
+  it= array.erase(7);
+  EXPECT_EQ(7U, array.size());
+  EXPECT_EQ(array.cend(), it);
+  EXPECT_EQ(3U, counter);
+}
+
+TEST_F(MemRootTest, Insert)
+{
+  using A= Mem_root_array<int>;
+  A array(m_mem_root_p);
+  A::iterator it= array.insert(array.cbegin(), 1);
+  EXPECT_EQ(array.cbegin(), it);
+  it= array.insert(array.cbegin(), 2);
+  EXPECT_EQ(array.cbegin(), it);
+  it= array.insert(array.cbegin() + 1, 3);
+  EXPECT_EQ(array.cbegin() + 1, it);
+  it= array.insert(array.cend(), 4);
+  EXPECT_EQ(array.cend() - 1, it);
+  EXPECT_EQ(4U, array.size());
+  EXPECT_EQ(2, array[0]);
+  EXPECT_EQ(3, array[1]);
+  EXPECT_EQ(1, array[2]);
+  EXPECT_EQ(4, array[3]);
+}
 
 }

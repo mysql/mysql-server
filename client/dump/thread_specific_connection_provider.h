@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -19,10 +19,12 @@
 #define THREAD_SPECIFIC_CONNECTION_PROVIDER_INCLUDED
 
 #include <functional>
+#include <mutex>
+#include <thread>
+#include <unordered_map>
 #include <vector>
 
 #include "abstract_connection_provider.h"
-#include "thread_specific_ptr.h"
 #include "base/mutex.h"
 
 namespace Mysql{
@@ -41,11 +43,9 @@ public:
     message_handler);
 
 private:
-  my_boost::thread_specific_ptr<Mysql::Tools::Base::Mysql_query_runner>
-    m_runner;
-
-  std::vector<Mysql::Tools::Base::Mysql_query_runner*> m_runners_created;
-  my_boost::mutex m_runners_created_lock;
+  std::mutex mu;
+  std::unordered_map<std::thread::id, Mysql::Tools::Base::Mysql_query_runner*>
+     m_runners;
 };
 
 }

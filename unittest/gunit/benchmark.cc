@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -92,6 +92,7 @@ void internal_do_microbenchmark(const char *name, void (*func)(size_t))
       printf(" %8.2f GB/sec", bytes_per_second / (1 << 30));
     else
       printf(" %8.2f MB/sec", bytes_per_second / (1 << 20));
+    bytes_processed = 0;  // Reset for next test.
   }
 
   printf("\n");

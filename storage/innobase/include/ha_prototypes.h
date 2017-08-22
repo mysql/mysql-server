@@ -36,6 +36,7 @@ simple headers.
 /* Forward declarations */
 class ha_innobase;
 class THD;
+class MDL_ticket;
 typedef struct charset_info_st CHARSET_INFO;
 struct dict_table_t;
 

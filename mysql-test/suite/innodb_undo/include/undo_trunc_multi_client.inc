@@ -2,9 +2,6 @@
 # WL#6965: Truncate UNDO logs.
 #
 
-# This test is restarting the server.
---source include/not_embedded.inc
---source include/have_undo_tablespaces.inc
 --source include/big_test.inc
 
 #-----------------------------------------------------------------------------

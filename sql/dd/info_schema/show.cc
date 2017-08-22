@@ -795,45 +795,75 @@ build_show_keys_query(const POS &pos,
 
   // Define field name literal used in query to be built.
 
+  static const LEX_STRING field_database= {
+    C_STRING_WITH_LEN("TABLE_SCHEMA") };
   static const LEX_STRING alias_database= {
     C_STRING_WITH_LEN("Database") };
 
+  static const LEX_STRING field_table= {
+    C_STRING_WITH_LEN("TABLE_NAME") };
   static const LEX_STRING alias_table= { C_STRING_WITH_LEN("Table") };
 
+  static const LEX_STRING field_non_unique= {
+    C_STRING_WITH_LEN("NON_UNIQUE") };
   static const LEX_STRING alias_non_unique= {
     C_STRING_WITH_LEN("Non_unique") };
 
+  static const LEX_STRING field_key= {
+    C_STRING_WITH_LEN("INDEX_NAME") };
   static const LEX_STRING alias_key= { C_STRING_WITH_LEN("Key_name") };
 
+  static const LEX_STRING field_seq_in_index= {
+    C_STRING_WITH_LEN("SEQ_IN_INDEX") };
   static const LEX_STRING alias_seq_in_index= {
     C_STRING_WITH_LEN("Seq_in_index") };
 
+  static const LEX_STRING field_column_name= {
+    C_STRING_WITH_LEN("COLUMN_NAME") };
   static const LEX_STRING alias_column_name= {
     C_STRING_WITH_LEN("Column_name") };
 
+  static const LEX_STRING field_collation= {
+    C_STRING_WITH_LEN("COLLATION") };
   static const LEX_STRING alias_collation= {
     C_STRING_WITH_LEN("Collation") };
 
+  static const LEX_STRING field_cardinality= {
+    C_STRING_WITH_LEN("CARDINALITY") };
   static const LEX_STRING alias_cardinality= {
     C_STRING_WITH_LEN("Cardinality") };
 
+  static const LEX_STRING field_sub_part= {
+    C_STRING_WITH_LEN("SUB_PART") };
   static const LEX_STRING alias_sub_part= {
     C_STRING_WITH_LEN("Sub_part") };
 
+  static const LEX_STRING field_packed= {
+    C_STRING_WITH_LEN("PACKED") };
   static const LEX_STRING alias_packed= {
     C_STRING_WITH_LEN("Packed") };
 
+  static const LEX_STRING field_null= {
+    C_STRING_WITH_LEN("NULLABLE") };
   static const LEX_STRING alias_null= { C_STRING_WITH_LEN("Null") };
 
+  static const LEX_STRING field_type= {
+    C_STRING_WITH_LEN("INDEX_TYPE") };
   static const LEX_STRING alias_type= {
     C_STRING_WITH_LEN("Index_type") };
 
+  static const LEX_STRING field_comment= {
+    C_STRING_WITH_LEN("COMMENT") };
   static const LEX_STRING alias_comment= {
     C_STRING_WITH_LEN("Comment") };
 
+  static const LEX_STRING field_index_comment= {
+    C_STRING_WITH_LEN("INDEX_COMMENT") };
   static const LEX_STRING alias_index_comment= {
     C_STRING_WITH_LEN("Index_comment") };
 
+  static const LEX_STRING field_is_visible= {
+    C_STRING_WITH_LEN("IS_VISIBLE") };
   static const LEX_STRING alias_visible= {
     C_STRING_WITH_LEN("Visible") };
 
@@ -862,21 +892,21 @@ build_show_keys_query(const POS &pos,
      ...
   */
   Select_lex_builder sub_query(&pos, thd);
-  if (sub_query.add_select_item(alias_database, alias_database) ||
-      sub_query.add_select_item(alias_table, alias_table) ||
-      sub_query.add_select_item(alias_non_unique, alias_non_unique) ||
-      sub_query.add_select_item(alias_key, alias_key) ||
-      sub_query.add_select_item(alias_seq_in_index, alias_seq_in_index) ||
-      sub_query.add_select_item(alias_column_name, alias_column_name) ||
-      sub_query.add_select_item(alias_collation, alias_collation) ||
-      sub_query.add_select_item(alias_cardinality, alias_cardinality) ||
-      sub_query.add_select_item(alias_sub_part, alias_sub_part) ||
-      sub_query.add_select_item(alias_packed, alias_packed) ||
-      sub_query.add_select_item(alias_null, alias_null) ||
-      sub_query.add_select_item(alias_type, alias_type) ||
-      sub_query.add_select_item(alias_comment, alias_comment) ||
-      sub_query.add_select_item(alias_index_comment, alias_index_comment) ||
-      sub_query.add_select_item(alias_visible, alias_visible) ||
+  if (sub_query.add_select_item(field_database, alias_database) ||
+      sub_query.add_select_item(field_table, alias_table) ||
+      sub_query.add_select_item(field_non_unique, alias_non_unique) ||
+      sub_query.add_select_item(field_key, alias_key) ||
+      sub_query.add_select_item(field_seq_in_index, alias_seq_in_index) ||
+      sub_query.add_select_item(field_column_name, alias_column_name) ||
+      sub_query.add_select_item(field_collation, alias_collation) ||
+      sub_query.add_select_item(field_cardinality, alias_cardinality) ||
+      sub_query.add_select_item(field_sub_part, alias_sub_part) ||
+      sub_query.add_select_item(field_packed, alias_packed) ||
+      sub_query.add_select_item(field_null, alias_null) ||
+      sub_query.add_select_item(field_type, alias_type) ||
+      sub_query.add_select_item(field_comment, alias_comment) ||
+      sub_query.add_select_item(field_index_comment, alias_index_comment) ||
+      sub_query.add_select_item(field_is_visible, alias_visible) ||
       sub_query.add_select_item(alias_index_pos, alias_index_pos) ||
       sub_query.add_select_item(alias_column_pos, alias_column_pos))
     return nullptr;

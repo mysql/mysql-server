@@ -573,7 +573,7 @@ Reason for being dependent are
 @param[in,out]  foreign foreign key information. */
 void
 dict_mem_foreign_fill_vcol_set(
-        dict_foreign_t* foreign)
+	dict_foreign_t* foreign)
 {
 	ulint	type = foreign->type;
 

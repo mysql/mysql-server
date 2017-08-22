@@ -59,18 +59,23 @@ struct st_row_group_member_stats
   size_t trx_committed_length;
   char last_cert_trx[Gtid::MAX_TEXT_LENGTH + 1];
   int last_cert_trx_length;
+  ulonglong trx_remote_applier_queue;
+  ulonglong trx_remote_applied;
+  ulonglong trx_local_proposed;
+  ulonglong trx_local_rollback;
 };
 
 /** Table PERFORMANCE_SCHEMA.REPLICATION_GROUP_MEMBER_STATS. */
 class table_replication_group_member_stats : public PFS_engine_table
 {
 private:
-  int make_row();
+  int make_row(uint index);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
-  /** Fields definition. */
-  static TABLE_FIELD_DEF m_field_def;
+  /** Table definition. */
+  static Plugin_table m_table_def;
+
   /** Current row */
   st_row_group_member_stats m_row;
   /** Current position. */
@@ -99,7 +104,7 @@ public:
 
   /** Table share. */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table *create();
+  static PFS_engine_table *create(PFS_engine_table_share *);
   static ha_rows get_row_count();
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,32 +20,25 @@
 extern "C" {
 #endif
 
-static inline unsigned int get_32(unsigned char const *p)
-{
-	return ((unsigned int)p[3] | 
-	    (((unsigned int)p[2]) << 8) | 
-	    (((unsigned int)p[1]) << 16) | 
-	    (((unsigned int)p[0]) << 24));
+static inline unsigned int get_32(unsigned char const *p) {
+  return ((unsigned int)p[3] | (((unsigned int)p[2]) << 8) |
+          (((unsigned int)p[1]) << 16) | (((unsigned int)p[0]) << 24));
 }
 
-static inline void put_32(unsigned char *p, unsigned int v)
-{
-	p[3] = (unsigned char)((v) & 0xff);
-	p[2] = (unsigned char)(((v) >> 8) & 0xff);
-	p[1] = (unsigned char)(((v) >> 16) & 0xff);
-	p[0] = (unsigned char)(((v) >> 24) & 0xff);
+static inline void put_32(unsigned char *p, unsigned int v) {
+  p[3] = (unsigned char)((v)&0xff);
+  p[2] = (unsigned char)(((v) >> 8) & 0xff);
+  p[1] = (unsigned char)(((v) >> 16) & 0xff);
+  p[0] = (unsigned char)(((v) >> 24) & 0xff);
 }
 
-static inline unsigned int get_16(unsigned char const *p)
-{
-	return ((unsigned int)p[1] | 
-	    (((unsigned int)p[0]) << 8));
+static inline unsigned int get_16(unsigned char const *p) {
+  return ((unsigned int)p[1] | (((unsigned int)p[0]) << 8));
 }
 
-static inline void put_16(unsigned char *p, unsigned int v)
-{
-	p[1] = (unsigned char)((v) & 0xff);
-	p[0] = (unsigned char)(((v) >> 8) & 0xff);
+static inline void put_16(unsigned char *p, unsigned int v) {
+  p[1] = (unsigned char)((v)&0xff);
+  p[0] = (unsigned char)(((v) >> 8) & 0xff);
 }
 
 #ifdef __cplusplus

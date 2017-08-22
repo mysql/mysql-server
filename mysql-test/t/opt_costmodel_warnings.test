@@ -7,9 +7,6 @@
 # need to suppress warnings from the error log.
 #
 
-# Can not run with embedded server since it requires server restarts
--- source include/not_embedded.inc
-
 # Before starting the test check that the cost constant tables exists and
 # have the expected content.
 #

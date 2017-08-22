@@ -1,5 +1,4 @@
 --source include/windows.inc
---source include/not_embedded.inc
 #
 # only global
 #

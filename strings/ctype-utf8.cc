@@ -5835,7 +5835,8 @@ static
 size_t my_strnxfrmlen_utf8(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                            size_t len)
 {
-  return (len * 2 + 2) / 3;
+  // We really ought to have len % 3 == 0, but not all calling code conforms.
+  return ((len + 2) / 3) * 2;
 }
 } // extern "C"
 
@@ -8065,13 +8066,13 @@ static size_t
 my_strnxfrmlen_utf8mb4(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                        size_t len)
 {
-  /* TODO: fix when working on WL "Unicode new version" */
-  return (len * 2 + 2) / 4;
+  // We really ought to have len % 4 == 0, but not all calling code conforms.
+  return ((len + 3) / 4) * 2;
 }
 } // extern "C"
 
 
-static inline int
+static ALWAYS_INLINE int
 my_valid_mbcharlen_utf8mb4(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                            const uchar *s, const uchar *e)
 {
@@ -8104,27 +8105,46 @@ size_t my_well_formed_len_utf8mb4(const CHARSET_INFO *cs,
   return (size_t) (b - b_start);
 }
 
-
-static uint
-my_ismbchar_utf8mb4(const CHARSET_INFO *cs, const char *b, const char *e)
+static uint ALWAYS_INLINE
+my_ismbchar_utf8mb4_inl(const CHARSET_INFO *cs, const char *b, const char *e)
 {
-  int res= my_valid_mbcharlen_utf8mb4(cs, (const uchar*)b, (const uchar*)e);
+  int res = my_valid_mbcharlen_utf8mb4(cs, (const uchar*)b, (const uchar*)e);
   return (res > 1) ? res : 0;
 }
 
 
-size_t my_charpos_mb4(const CHARSET_INFO *cs,
-                      const char *pos, const char *end, size_t length)
+static uint
+my_ismbchar_utf8mb4(const CHARSET_INFO *cs, const char *b, const char *e)
 {
+  return my_ismbchar_utf8mb4_inl(cs, b, e);
+}
+
+
+size_t my_charpos_mb4(const CHARSET_INFO *cs,
+  const char *pos, const char *end, size_t length)
+{
+  // Fast path as long as we see ASCII characters only.
+  size_t min_length= std::min<size_t>(end - pos, length);
+  const char *safe_end= std::min(end, pos + min_length)
+                        - std::min<size_t>(7, min_length);
   const char *start= pos;
+  while (pos < safe_end)
+  {
+    uint64_t data;
+    memcpy(&data, pos, sizeof(data));
+    if (data & 0x8080808080808080ULL)
+      break;
+    pos+= sizeof(data);
+    length-= sizeof(data);
+  }
 
   while (length && pos < end)
   {
     uint mb_len;
-    pos+= (mb_len= my_ismbchar_utf8mb4(cs, pos, end)) ? mb_len : 1;
+    pos+= (mb_len = my_ismbchar_utf8mb4_inl(cs, pos, end)) ? mb_len : 1;
     length--;
   }
-  return (size_t) (length ? end+2-start : pos-start);
+  return (size_t)(length ? end + 2 - start : pos - start);
 }
 
 

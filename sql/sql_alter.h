@@ -23,14 +23,15 @@
 
 #include "binary_log_types.h" // enum_field_types
 #include "lex_string.h"
+#include "mem_root_array.h" // Mem_root_array
 #include "my_dbug.h"
 #include "my_io.h"
 #include "my_sqlcommand.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/psi/psi_base.h"
-#include "prealloced_array.h" // Prealloced_array
 #include "sql_alloc.h"
 #include "sql_cmd.h"  // Sql_cmd
+#include "sql_cmd_ddl_table.h" // Sql_cmd_ddl_table
 #include "sql_list.h" // List
 #include "thr_malloc.h"
 
@@ -41,10 +42,6 @@ class Key_spec;
 class String;
 class THD;
 struct TABLE_LIST;
-
-namespace dd {
-  class Trigger;
-}
 
 /**
   Class representing DROP COLUMN, DROP KEY and DROP FOREIGN KEY
@@ -137,100 +134,102 @@ public:
     type of index to be added/dropped.
   */
 
-  // Set for ADD [COLUMN]
-  static const uint ALTER_ADD_COLUMN            = 1L <<  0;
+  enum Alter_info_flag : uint {
+    /// Set for ADD [COLUMN]
+    ALTER_ADD_COLUMN            = 1UL <<  0,
 
-  // Set for DROP [COLUMN]
-  static const uint ALTER_DROP_COLUMN           = 1L <<  1;
+    /// Set for DROP [COLUMN]
+    ALTER_DROP_COLUMN           = 1UL <<  1,
 
-  // Set for CHANGE [COLUMN] | MODIFY [CHANGE]
-  // Set by mysql_recreate_table()
-  static const uint ALTER_CHANGE_COLUMN         = 1L <<  2;
+    /// Set for CHANGE [COLUMN] | MODIFY [CHANGE]
+    /// Set by mysql_recreate_table()
+    ALTER_CHANGE_COLUMN         = 1UL <<  2,
 
-  // Set for ADD INDEX | ADD KEY | ADD PRIMARY KEY | ADD UNIQUE KEY |
-  //         ADD UNIQUE INDEX | ALTER ADD [COLUMN]
-  static const uint ALTER_ADD_INDEX             = 1L <<  3;
+    /// Set for ADD INDEX | ADD KEY | ADD PRIMARY KEY | ADD UNIQUE KEY |
+    ///         ADD UNIQUE INDEX | ALTER ADD [COLUMN]
+    ALTER_ADD_INDEX             = 1UL <<  3,
 
-  // Set for DROP PRIMARY KEY | DROP FOREIGN KEY | DROP KEY | DROP INDEX
-  static const uint ALTER_DROP_INDEX            = 1L <<  4;
+    /// Set for DROP PRIMARY KEY | DROP FOREIGN KEY | DROP KEY | DROP INDEX
+    ALTER_DROP_INDEX            = 1UL <<  4,
 
-  // Set for RENAME [TO]
-  static const uint ALTER_RENAME                = 1L <<  5;
+    /// Set for RENAME [TO]
+    ALTER_RENAME                = 1UL <<  5,
 
-  // Set for ORDER BY
-  static const uint ALTER_ORDER                 = 1L <<  6;
+    /// Set for ORDER BY
+    ALTER_ORDER                 = 1UL <<  6,
 
-  // Set for table_options
-  static const uint ALTER_OPTIONS               = 1L <<  7;
+    /// Set for table_options
+    ALTER_OPTIONS               = 1UL <<  7,
 
-  // Set for ALTER [COLUMN] ... SET DEFAULT ... | DROP DEFAULT
-  static const uint ALTER_CHANGE_COLUMN_DEFAULT = 1L <<  8;
+    /// Set for ALTER [COLUMN] ... SET DEFAULT ... | DROP DEFAULT
+    ALTER_CHANGE_COLUMN_DEFAULT = 1UL <<  8,
 
-  // Set for DISABLE KEYS | ENABLE KEYS
-  static const uint ALTER_KEYS_ONOFF            = 1L <<  9;
+    /// Set for DISABLE KEYS | ENABLE KEYS
+    ALTER_KEYS_ONOFF            = 1UL <<  9,
 
-  // Set for FORCE
-  // Set for ENGINE(same engine)
-  // Set by mysql_recreate_table()
-  static const uint ALTER_RECREATE              = 1L << 10;
+    /// Set for FORCE
+    /// Set for ENGINE(same engine)
+    /// Set by mysql_recreate_table()
+    ALTER_RECREATE              = 1UL << 10,
 
-  // Set for ADD PARTITION
-  static const uint ALTER_ADD_PARTITION         = 1L << 11;
+    /// Set for ADD PARTITION
+    ALTER_ADD_PARTITION         = 1UL << 11,
 
-  // Set for DROP PARTITION
-  static const uint ALTER_DROP_PARTITION        = 1L << 12;
+    /// Set for DROP PARTITION
+    ALTER_DROP_PARTITION        = 1UL << 12,
 
-  // Set for COALESCE PARTITION
-  static const uint ALTER_COALESCE_PARTITION    = 1L << 13;
+    /// Set for COALESCE PARTITION
+    ALTER_COALESCE_PARTITION    = 1UL << 13,
 
-  // Set for REORGANIZE PARTITION ... INTO
-  static const uint ALTER_REORGANIZE_PARTITION  = 1L << 14;
+    /// Set for REORGANIZE PARTITION ... INTO
+    ALTER_REORGANIZE_PARTITION  = 1UL << 14,
 
-  // Set for partition_options
-  static const uint ALTER_PARTITION             = 1L << 15;
+    /// Set for partition_options
+    ALTER_PARTITION             = 1UL << 15,
 
-  // Set for LOAD INDEX INTO CACHE ... PARTITION
-  // Set for CACHE INDEX ... PARTITION
-  static const uint ALTER_ADMIN_PARTITION       = 1L << 16;
+    /// Set for LOAD INDEX INTO CACHE ... PARTITION
+    /// Set for CACHE INDEX ... PARTITION
+    ALTER_ADMIN_PARTITION       = 1UL << 16,
 
-  // Set for REORGANIZE PARTITION
-  static const uint ALTER_TABLE_REORG           = 1L << 17;
+    /// Set for REORGANIZE PARTITION
+    ALTER_TABLE_REORG           = 1UL << 17,
 
-  // Set for REBUILD PARTITION
-  static const uint ALTER_REBUILD_PARTITION     = 1L << 18;
+    /// Set for REBUILD PARTITION
+    ALTER_REBUILD_PARTITION     = 1UL << 18,
 
-  // Set for partitioning operations specifying ALL keyword
-  static const uint ALTER_ALL_PARTITION         = 1L << 19;
+    /// Set for partitioning operations specifying ALL keyword
+    ALTER_ALL_PARTITION         = 1UL << 19,
 
-  // Set for REMOVE PARTITIONING
-  static const uint ALTER_REMOVE_PARTITIONING   = 1L << 20;
+    /// Set for REMOVE PARTITIONING
+    ALTER_REMOVE_PARTITIONING   = 1UL << 20,
 
-  // Set for ADD FOREIGN KEY
-  static const uint ADD_FOREIGN_KEY             = 1L << 21;
+    /// Set for ADD FOREIGN KEY
+    ADD_FOREIGN_KEY             = 1UL << 21,
 
-  // Set for DROP FOREIGN KEY
-  static const uint DROP_FOREIGN_KEY            = 1L << 22;
+    /// Set for DROP FOREIGN KEY
+    DROP_FOREIGN_KEY            = 1UL << 22,
 
-  // Set for EXCHANGE PARITION
-  static const uint ALTER_EXCHANGE_PARTITION    = 1L << 23;
+    /// Set for EXCHANGE PARITION
+    ALTER_EXCHANGE_PARTITION    = 1UL << 23,
 
-  // Set by Sql_cmd_alter_table_truncate_partition::execute()
-  static const uint ALTER_TRUNCATE_PARTITION    = 1L << 24;
+    /// Set by Sql_cmd_alter_table_truncate_partition::execute()
+    ALTER_TRUNCATE_PARTITION    = 1UL << 24,
 
-  // Set for ADD [COLUMN] FIRST | AFTER
-  static const uint ALTER_COLUMN_ORDER          = 1L << 25;
+    /// Set for ADD [COLUMN] FIRST | AFTER
+    ALTER_COLUMN_ORDER          = 1UL << 25,
 
-  // Set for RENAME INDEX
-  static const uint ALTER_RENAME_INDEX          = 1L << 26;
+    /// Set for RENAME INDEX
+    ALTER_RENAME_INDEX          = 1UL << 26,
 
-  // Set for discarding the tablespace
-  static const uint ALTER_DISCARD_TABLESPACE    = 1L << 27;
+    /// Set for discarding the tablespace
+    ALTER_DISCARD_TABLESPACE    = 1UL << 27,
 
-  // Set for importing the tablespace
-  static const uint ALTER_IMPORT_TABLESPACE     = 1L << 28;
+    /// Set for importing the tablespace
+    ALTER_IMPORT_TABLESPACE     = 1UL << 28,
 
-  /// Means that the visibility of an index is changed.
-  static const uint ALTER_INDEX_VISIBILITY      = 1L << 29;
+    /// Means that the visibility of an index is changed.
+    ALTER_INDEX_VISIBILITY      = 1UL << 29,
+  };
 
   enum enum_enable_or_disable { LEAVE_AS_IS, ENABLE, DISABLE };
 
@@ -294,18 +293,17 @@ public:
      virtual generated columns to be dropped. This information is necessary
      for the storage engine to do in-place alter.
   */
-  Prealloced_array<const Alter_drop*, 1>       drop_list;
+  Mem_root_array<const Alter_drop*>       drop_list;
   // Columns for ALTER_COLUMN_CHANGE_DEFAULT.
-  Prealloced_array<const Alter_column*, 1>     alter_list;
+  Mem_root_array<const Alter_column*>     alter_list;
   // List of keys, used by both CREATE and ALTER TABLE.
 
-  Prealloced_array<const Key_spec*, 1>         key_list;
+  Mem_root_array<const Key_spec*>         key_list;
   // Keys to be renamed.
-  Prealloced_array<const Alter_rename_key*, 1> alter_rename_key_list;
+  Mem_root_array<const Alter_rename_key*> alter_rename_key_list;
 
   /// Indexes whose visibilities are to be changed.
-  Prealloced_array<const Alter_index_visibility*, 1>
-  alter_index_visibility_list;
+  Mem_root_array<const Alter_index_visibility*> alter_index_visibility_list;
 
   // List of columns, used by both CREATE and ALTER TABLE.
   List<Create_field>            create_list;
@@ -327,37 +325,28 @@ public:
   */
   enum_with_validation          with_validation;
 
-  Alter_info() :
-    drop_list(PSI_INSTRUMENT_ME),
-    alter_list(PSI_INSTRUMENT_ME),
-    key_list(PSI_INSTRUMENT_ME),
-    alter_rename_key_list(PSI_INSTRUMENT_ME),
-    alter_index_visibility_list(PSI_INSTRUMENT_ME),
+  /// "new_db" (if any) or "db" (if any) or default database from
+  /// ALTER TABLE [db.]table [ RENAME [TO|AS|=] [new_db.]new_table ]
+  LEX_CSTRING                   new_db_name;
+
+  /// New table name in the "RENAME [TO] <table_name>" clause or NULL_STR
+  LEX_CSTRING                   new_table_name;
+
+  explicit Alter_info(MEM_ROOT *mem_root) :
+    drop_list(mem_root),
+    alter_list(mem_root),
+    key_list(mem_root),
+    alter_rename_key_list(mem_root),
+    alter_index_visibility_list(mem_root),
     flags(0),
     keys_onoff(LEAVE_AS_IS),
     num_parts(0),
     requested_algorithm(ALTER_TABLE_ALGORITHM_DEFAULT),
     requested_lock(ALTER_TABLE_LOCK_DEFAULT),
-    with_validation(ALTER_VALIDATION_DEFAULT)
+    with_validation(ALTER_VALIDATION_DEFAULT),
+    new_db_name(LEX_CSTRING{nullptr, 0}),
+    new_table_name(LEX_CSTRING{nullptr, 0})
   {}
-
-  void reset()
-  {
-    drop_list.clear();
-    alter_list.clear();
-    key_list.clear();
-    alter_rename_key_list.clear();
-    alter_index_visibility_list.clear();
-    create_list.empty();
-    flags= 0;
-    keys_onoff= LEAVE_AS_IS;
-    num_parts= 0;
-    partition_names.empty();
-    requested_algorithm= ALTER_TABLE_ALGORITHM_DEFAULT;
-    requested_lock= ALTER_TABLE_LOCK_DEFAULT;
-    with_validation= ALTER_VALIDATION_DEFAULT;
-  }
-
 
   /**
     Construct a copy of this object to be used for mysql_alter_table
@@ -375,31 +364,6 @@ public:
     of memory condition after calling this function.
   */
   Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root);
-
-
-  /**
-     Parses the given string and sets requested_algorithm
-     if the string value matches a supported value.
-     Supported values: INPLACE, COPY, DEFAULT
-
-     @param  str    String containing the supplied value
-     @retval false  Supported value found, state updated
-     @retval true   Not supported value, no changes made
-  */
-  bool set_requested_algorithm(const LEX_STRING *str);
-
-
-  /**
-     Parses the given string and sets requested_lock
-     if the string value matches a supported value.
-     Supported values: NONE, SHARED, EXCLUSIVE, DEFAULT
-
-     @param  str    String containing the supplied value
-     @retval false  Supported value found, state updated
-     @retval true   Not supported value, no changes made
-  */
-
-  bool set_requested_lock(const LEX_STRING *str);
 
   bool add_field(THD *thd,
                  const LEX_STRING *field_name,
@@ -484,14 +448,6 @@ public:
   FOREIGN_KEY  *fk_info;
   uint         fk_count;
 
-  /*
-    Used to temporarily store pre-existing triggeres during ALTER TABLE
-    These triggers can't be part of the temporary table as they will then cause
-    the unique name constraint to be violated. The triggers will be added back
-    to the table at the end of ALTER TABLE.
-  */
-  Prealloced_array<dd::Trigger*, 1>  trg_info;
-
 private:
   char new_filename[FN_REFLEN + 1];
   char new_alias_buff[FN_REFLEN + 1];
@@ -510,59 +466,51 @@ private:
 
 
 /**
-  Sql_cmd_common_alter_table represents the common properties of the ALTER TABLE
-  statements.
+  Represents the common properties of the ALTER TABLE statements.
   @todo move Alter_info and other ALTER generic structures from Lex here.
 */
-class Sql_cmd_common_alter_table : public Sql_cmd
+class Sql_cmd_common_alter_table : public Sql_cmd_ddl_table
 {
-protected:
-  /**
-    Constructor.
-  */
-  Sql_cmd_common_alter_table()
-  {}
+public:
+  using Sql_cmd_ddl_table::Sql_cmd_ddl_table;
 
-  virtual ~Sql_cmd_common_alter_table()
-  {}
+  virtual ~Sql_cmd_common_alter_table()= 0; // force abstract class
 
-  virtual enum_sql_command sql_command_code() const
+  enum_sql_command sql_command_code() const override final
   {
     return SQLCOM_ALTER_TABLE;
   }
 };
 
+
+inline Sql_cmd_common_alter_table::~Sql_cmd_common_alter_table() {}
+
+
 /**
-  Sql_cmd_alter_table represents the generic ALTER TABLE statement.
+  Represents the generic ALTER TABLE statement.
   @todo move Alter_info and other ALTER specific structures from Lex here.
 */
 class Sql_cmd_alter_table : public Sql_cmd_common_alter_table
 {
 public:
-  /**
-    Constructor, used to represent a ALTER TABLE statement.
-  */
-  Sql_cmd_alter_table()
-  {}
+  using Sql_cmd_common_alter_table::Sql_cmd_common_alter_table;
 
-  ~Sql_cmd_alter_table()
-  {}
-
-  bool execute(THD *thd);
+  bool execute(THD *thd) override;
 };
 
 
 /**
-  Sql_cmd_alter_table_tablespace represents ALTER TABLE
-  IMPORT/DISCARD TABLESPACE statements.
+  Represents ALTER TABLE IMPORT/DISCARD TABLESPACE statements.
 */
 class Sql_cmd_discard_import_tablespace : public Sql_cmd_common_alter_table
 {
 public:
-  Sql_cmd_discard_import_tablespace()
-  {}
+  using Sql_cmd_common_alter_table::Sql_cmd_common_alter_table;
 
-  bool execute(THD *thd);
+  bool execute(THD *thd) override;
+
+private:
+  bool mysql_discard_or_import_tablespace(THD *thd, TABLE_LIST *table_list);
 };
 
 #endif

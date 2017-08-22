@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
 #include "Transporter.hpp"
 #include "SHM_Buffer.hpp"
 
-#ifdef NDB_WIN32
+#ifdef _WIN32
 typedef Uint32 key_t;
 #endif
 
@@ -137,7 +137,7 @@ private:
   volatile Uint32 * clientStatusFlag;  
   bool setupBuffersDone;
   
-#ifdef NDB_WIN32
+#ifdef _WIN32
   HANDLE hFileMapping;
 #else
   int shmId;

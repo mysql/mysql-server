@@ -45,8 +45,8 @@
 class Item;
 class Item_trigger_field;
 class Table_trigger_field_support;
+class Sroutine_hash_entry;
 class sp_head;
-struct MDL_key;
 struct PSI_sp_share;
 
 /**
@@ -140,8 +140,8 @@ public:
     m_qname.length= 0;
   }
 
-  /** Create temporary sp_name object from MDL key. */
-  sp_name(const MDL_key *key, char *qname_buff);
+  /** Create temporary sp_name object for Sroutine_hash_entry. */
+  sp_name(const Sroutine_hash_entry *rt, char *qname_buff);
 
   // Init. the qualified name from the db and name.
   void init_qname(THD *thd);	// thd for memroot allocation
@@ -843,9 +843,9 @@ public:
     else if (m_flags & HAS_SQLCOM_FLUSH)
       my_error(ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0), "FLUSH");
 
-    return MY_TEST(m_flags &
-                   (CONTAINS_DYNAMIC_SQL|MULTI_RESULTS|HAS_SET_AUTOCOMMIT_STMT|
-                    HAS_COMMIT_OR_ROLLBACK|HAS_SQLCOM_RESET|HAS_SQLCOM_FLUSH));
+    return (m_flags &
+            (CONTAINS_DYNAMIC_SQL|MULTI_RESULTS|HAS_SET_AUTOCOMMIT_STMT|
+             HAS_COMMIT_OR_ROLLBACK|HAS_SQLCOM_RESET|HAS_SQLCOM_FLUSH));
   }
 
 #ifndef DBUG_OFF

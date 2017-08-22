@@ -1,5 +1,5 @@
 eval SET @nip= inet_aton('$IPv6');
-CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int);
+CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int) charset latin1;
 INSERT INTO t1 VALUES (@nip,@nip,@nip,@nip,@nip,@nip);
 SELECT inet_ntoa(c1) FROM t1;
 SELECT inet_ntoa(CAST(c1 AS UNSIGNED)) FROM t1;
@@ -17,7 +17,7 @@ SELECT @nip;
 SELECT inet_ntoa(@nip);
 
 eval SET @nip6= inet6_aton('$IPv6');
-CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int);
+CREATE TABLE t1 (c1 varbinary(16), c2 varchar(16), c3 binary(16), c4 char(16), c5 long, c6 int) charset latin1;
 INSERT IGNORE INTO t1 VALUES (@nip6,@nip6,@nip6,@nip6,@nip6,@nip6);
 SELECT inet6_ntoa(c1) FROM t1;
 SELECT inet6_ntoa(CAST(c1 AS BINARY(16))) FROM t1;

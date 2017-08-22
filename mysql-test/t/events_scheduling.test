@@ -1,7 +1,4 @@
 
-# Can't test with embedded server that doesn't support events
--- source include/not_embedded.inc
-
 CREATE DATABASE IF NOT EXISTS events_test;
 USE events_test;
 

@@ -1,5 +1,4 @@
 --source include/have_openssl_binary.inc
---source include/not_embedded.inc
 --source include/have_openssl.inc
 
 -- echo #

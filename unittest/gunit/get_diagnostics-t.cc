@@ -63,7 +63,7 @@ public:
     : Diagnostics_information_item(target), m_value(value)
   {}
 
-  Item *get_value(THD *thd, const Diagnostics_area *da)
+  Item *get_value(THD *thd, const Diagnostics_area*)
   {
     return new (thd->mem_root) Item_int(m_value);
   }

@@ -1,6 +1,4 @@
 --source include/have_debug_sync.inc
-# The embedded server does not support restarting.
---source include/not_embedded.inc
 
 --echo #
 --echo # Bug #20476395 DICT_LOAD_FOREIGNS() FAILED IN

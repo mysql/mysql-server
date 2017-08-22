@@ -3,7 +3,6 @@
 # testing of purging of binary log files bug#18199/Bug#18453
 #
 source include/have_log_bin.inc;
-source include/not_embedded.inc;
 # Don't test this under valgrind, memory leaks will occur
 --source include/not_valgrind.inc
 source include/have_debug.inc;

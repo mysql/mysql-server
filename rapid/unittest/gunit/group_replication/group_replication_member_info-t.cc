@@ -21,6 +21,7 @@
 
 #include "member_info.h"
 #include "my_inttypes.h"
+#include "services/notification/notification.h"
 
 using std::string;
 using std::vector;
@@ -44,6 +45,7 @@ protected:
     ulonglong gtid_assignment_block_size= 9223372036854775807ULL;
     bool in_primary_mode= false;
     bool has_enforces_update_everywhere_checks= false;
+    uint member_weight= 70;
 
     gcs_member_id= new Gcs_member_identifier("stuff");
 
@@ -58,7 +60,8 @@ protected:
                                       gtid_assignment_block_size,
                                       Group_member_info::MEMBER_ROLE_PRIMARY,
                                       in_primary_mode,
-                                      has_enforces_update_everywhere_checks);
+                                      has_enforces_update_everywhere_checks,
+                                      member_weight);
     local_node->update_gtid_sets(executed_gtid,retrieved_gtid);
   }
 
@@ -102,6 +105,8 @@ TEST_F(ClusterMemberInfoTest, EncodeDecodeIdempotencyTest)
             decoded_local_node.get_gtid_assignment_block_size());
   ASSERT_EQ(local_node->get_role(),
             decoded_local_node.get_role());
+  ASSERT_EQ(local_node->get_member_weight(),
+            decoded_local_node.get_member_weight());
 
   delete encoded;
 }
@@ -122,6 +127,7 @@ protected:
     ulonglong gtid_assignment_block_size= 9223372036854775807ULL;
     bool in_primary_mode= false;
     bool has_enforces_update_everywhere_checks= false;
+    uint member_weight= 80;
 
     Group_member_info::Group_member_status status=
         Group_member_info::MEMBER_OFFLINE;
@@ -134,7 +140,8 @@ protected:
                                       gtid_assignment_block_size,
                                       Group_member_info::MEMBER_ROLE_SECONDARY,
                                       in_primary_mode,
-                                      has_enforces_update_everywhere_checks);
+                                      has_enforces_update_everywhere_checks,
+                                      member_weight);
 
     cluster_member_mgr= new Group_member_info_manager(local_node);
   }
@@ -165,6 +172,7 @@ TEST_F(ClusterMemberInfoManagerTest, GetLocalInfoByUUIDTest)
   ulonglong gtid_assignment_block_size= 9223372036854775807ULL;
   bool in_primary_mode= false;
   bool has_enforces_update_everywhere_checks= false;
+  uint member_weight= 90;
 
   Group_member_info::Group_member_status status=
       Group_member_info::MEMBER_OFFLINE;
@@ -180,7 +188,8 @@ TEST_F(ClusterMemberInfoManagerTest, GetLocalInfoByUUIDTest)
                                                        gtid_assignment_block_size,
                                                        Group_member_info::MEMBER_ROLE_PRIMARY,
                                                        in_primary_mode,
-                                                       has_enforces_update_everywhere_checks);
+                                                       has_enforces_update_everywhere_checks,
+                                                       member_weight);
   new_member->update_gtid_sets(executed_gtid,retrieved_gtid);
 
   cluster_member_mgr->add(new_member);
@@ -199,8 +208,10 @@ TEST_F(ClusterMemberInfoManagerTest, GetLocalInfoByUUIDTest)
 
 TEST_F(ClusterMemberInfoManagerTest, UpdateStatusOfLocalObjectTest)
 {
+  Notification_context ctx;
   cluster_member_mgr->update_member_status(local_node->get_uuid(),
-                                           Group_member_info::MEMBER_ONLINE);
+                                           Group_member_info::MEMBER_ONLINE,
+                                           ctx);
 
   ASSERT_EQ(Group_member_info::MEMBER_ONLINE,
             local_node->get_recovery_status());
@@ -261,12 +272,15 @@ TEST_F(ClusterMemberInfoManagerTest, GetLocalInfoByUUIDAfterEncodingTest)
             retrieved_local_info->get_gtid_assignment_block_size());
   ASSERT_EQ(local_node->get_role(),
             retrieved_local_info->get_role());
+  ASSERT_EQ(local_node->get_member_weight(),
+            retrieved_local_info->get_member_weight());
 
   delete retrieved_local_info;
 }
 
 TEST_F(ClusterMemberInfoManagerTest, UpdateStatusOfLocalObjectAfterExchangeTest)
 {
+  Notification_context ctx;
   vector<uchar>* encoded= new vector<uchar>();
   cluster_member_mgr->encode(encoded);
 
@@ -279,7 +293,8 @@ TEST_F(ClusterMemberInfoManagerTest, UpdateStatusOfLocalObjectAfterExchangeTest)
   delete encoded;
 
   cluster_member_mgr->update_member_status(local_node->get_uuid(),
-                                           Group_member_info::MEMBER_ONLINE);
+                                           Group_member_info::MEMBER_ONLINE,
+                                           ctx);
 
   ASSERT_EQ(Group_member_info::MEMBER_ONLINE,
             local_node->get_recovery_status());
@@ -326,6 +341,7 @@ TEST_F(ClusterMemberInfoManagerTest, EncodeDecodeLargeSets)
   ulonglong gtid_assignment_block_size= 9223372036854775807ULL;
   bool in_primary_mode= false;
   bool has_enforces_update_everywhere_checks= false;
+  uint member_weight= 40;
 
   Group_member_info::Group_member_status status=
       Group_member_info::MEMBER_OFFLINE;
@@ -341,7 +357,8 @@ TEST_F(ClusterMemberInfoManagerTest, EncodeDecodeLargeSets)
                                                        gtid_assignment_block_size,
                                                        Group_member_info::MEMBER_ROLE_PRIMARY,
                                                        in_primary_mode,
-                                                       has_enforces_update_everywhere_checks);
+                                                       has_enforces_update_everywhere_checks,
+                                                       member_weight);
   new_member->update_gtid_sets(executed_gtid,retrieved_gtid);
 
   cluster_member_mgr->add(new_member);
@@ -412,6 +429,8 @@ TEST_F(ClusterMemberInfoManagerTest, EncodeDecodeLargeSets)
             retrieved_local_info->get_gtid_assignment_block_size());
   ASSERT_EQ(local_node->get_role(),
             retrieved_local_info->get_role());
+  ASSERT_EQ(local_node->get_member_weight(),
+            retrieved_local_info->get_member_weight());
 
   delete retrieved_local_info;
 }

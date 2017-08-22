@@ -70,7 +70,7 @@ struct st_row_connect_status
   uint channel_name_length;
   char source_uuid[UUID_LENGTH];
   bool source_uuid_is_null;
-  ulonglong thread_id;
+  ulonglong thread_id{0};
   bool thread_id_is_null;
   enum_rpl_connect_status_service_state service_state;
   ulonglong count_received_heartbeats;
@@ -81,13 +81,13 @@ struct st_row_connect_status
   char last_error_message[MAX_SLAVE_ERRMSG];
   uint last_error_message_length;
   ulonglong last_error_timestamp;
-  char last_queued_trx[Gtid::MAX_TEXT_LENGTH+1];
+  char last_queued_trx[Gtid::MAX_TEXT_LENGTH + 1];
   uint last_queued_trx_length;
   ulonglong last_queued_trx_original_commit_timestamp;
   ulonglong last_queued_trx_immediate_commit_timestamp;
   ulonglong last_queued_trx_start_queue_timestamp;
   ulonglong last_queued_trx_end_queue_timestamp;
-  char queueing_trx[Gtid::MAX_TEXT_LENGTH+1];
+  char queueing_trx[Gtid::MAX_TEXT_LENGTH + 1];
   uint queueing_trx_length;
   ulonglong queueing_trx_original_commit_timestamp;
   ulonglong queueing_trx_immediate_commit_timestamp;
@@ -168,8 +168,9 @@ private:
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
-  /** Fields definition. */
-  static TABLE_FIELD_DEF m_field_def;
+  /** Table definition. */
+  static Plugin_table m_table_def;
+
   /** Current row */
   st_row_connect_status m_row;
   /** Current position. */
@@ -198,7 +199,7 @@ public:
 
   /** Table share. */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table *create();
+  static PFS_engine_table *create(PFS_engine_table_share *);
   static ha_rows get_row_count();
   virtual void reset_position(void);
 

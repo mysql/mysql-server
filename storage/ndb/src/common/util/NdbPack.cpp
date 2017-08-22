@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1145,6 +1145,7 @@ NdbPack::Bound::validate() const
 #define xmin(a, b) ((a) < (b) ? (a) : (b))
 
 #include <ndb_rand.h>
+#include <NdbHost.h>
 
 static uint // random 0..n-1
 getrandom(uint n)
@@ -2029,7 +2030,7 @@ testmain()
     ll0("random seed: loop number");
   else {
     if (seed < 0)
-      seed = getpid();
+      seed = NdbHost_GetProcessId();
     ll0("random seed: " << seed);
     ndb_srand(seed);
   }

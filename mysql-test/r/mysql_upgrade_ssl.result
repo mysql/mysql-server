@@ -4,7 +4,6 @@ call mtr.add_suppression("Column count of mysql.* is wrong. "
 #
 # Bug#55672 mysql_upgrade dies with internal error 
 #
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -18,6 +17,7 @@ mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
 mysql.help_topic                                   OK
+mysql.innodb_dynamic_metadata                      OK
 mysql.innodb_index_stats                           OK
 mysql.innodb_table_stats                           OK
 mysql.plugin                                       OK
@@ -72,7 +72,6 @@ Warning	1805	Column count of mysql.user is wrong. Expected 47, found 43. The tab
 #have 5.7 layout thus no need to restore the dropped columns from
 #the begining of the test
 mysql_upgrade: [Warning] Using a password on the command line interface can be insecure.
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -86,6 +85,7 @@ mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
 mysql.help_topic                                   OK
+mysql.innodb_dynamic_metadata                      OK
 mysql.innodb_index_stats                           OK
 mysql.innodb_table_stats                           OK
 mysql.plugin                                       OK

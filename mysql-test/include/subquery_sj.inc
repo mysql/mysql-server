@@ -450,6 +450,7 @@ drop table t1, t3, t4;
 create table t1 (a int);
 insert into t1 values (0),(0),(0),(1),(1),(1),(2),(2),(2),(3),(3),(3);
 
+set session internal_tmp_mem_storage_engine='memory';
 set @save_max_heap_table_size=@@max_heap_table_size;
 set @@max_heap_table_size= 16384;
 
@@ -468,6 +469,7 @@ where c.a in (select a from t1 d);
 show status like 'Created_tmp_disk_tables';
 
 set @@max_heap_table_size= @save_max_heap_table_size;
+set session internal_tmp_mem_storage_engine=default;
 flush status;
 select count(*) from t0 a, t0 b, t0 c
 where c.a in (select a from t1 d);
@@ -2968,7 +2970,7 @@ INSERT INTO t1 VALUES
 (13,'Apeldoorn','NLD',153491),(14,'Nijmegen','NLD',152463),
 (15,'Enschede','NLD',149544),(16,'Haarlem','NLD',148772),
 (17,'Almere','NLD',142465),(18,'Arnhem','NLD',138020),
-(19,'Zaanstad','NLD',135621),(20,'Â´s-Hertogenbosch','NLD',129170),
+(19,'Zaanstad','NLD',135621),(20,'\'s-Hertogenbosch','NLD',129170),
 (21,'Amersfoort','NLD',126270),(22,'Maastricht','NLD',122087),
 (23,'Dordrecht','NLD',119811),(24,'Leiden','NLD',117196),
 (25,'Haarlemmermeer','NLD',110722),(26,'Zoetermeer','NLD',110214),
@@ -3050,8 +3052,10 @@ CREATE TABLE t2 (
   Population int(11) NOT NULL DEFAULT '0',
   PRIMARY KEY (ID),
   KEY CountryCode (CountryCode)
-) charset utf8mb4;
+);
 
+--character_set latin1
+set names latin1;
 --echo Fill the table with test data
 --disable_query_log
 insert into t2 (ID, Name, CountryCode, Population) values 
@@ -3237,6 +3241,7 @@ insert into t2 (ID, Name, CountryCode, Population) values
 (3528,'Borisov','BLR',151000), (3529,'Pinsk','BLR',130000), (3530,'Orša','BLR',124000),
 (3531,'Mozyr','BLR',110000), (3532,'Novopolotsk','BLR',106000), (3533,'Lida','BLR',101000),
 (3534,'Soligorsk','BLR',101000), (3535,'Molodetšno','BLR',97000);
+
 
 insert into t1 (Code, Name, Continent) values 
 ('AFG','Afghanistan','Asia'), ('ANT','Netherlands Antilles','North America'),

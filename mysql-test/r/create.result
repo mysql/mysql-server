@@ -79,7 +79,7 @@ select 1ea10.1a20,1e+ 1e+10 from 1ea10;
 1a20	1e+ 1e+10
 1	10000000001
 drop table 1ea10;
-create table t1 (t1.index int);
+create table t1 (`index` int);
 drop table t1;
 drop database if exists mysqltest;
 Warnings:
@@ -645,14 +645,15 @@ flush tables with read lock;
 unlock tables;
 drop table t1;
 create table t1(column.name int);
-ERROR 42000: Incorrect table name 'column'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.name int)' at line 1
 create table t1(test.column.name int);
-ERROR 42000: Incorrect table name 'column'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.column.name int)' at line 1
 create table t1(xyz.t1.name int);
-ERROR 42000: Incorrect database name 'xyz'
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.t1.name int)' at line 1
 create table t1(t1.name int);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.name int)' at line 1
 create table t2(test.t2.name int);
-drop table t1,t2;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.t2.name int)' at line 1
 CREATE TABLE t1 (f1 VARCHAR(255) CHARACTER SET utf8);
 CREATE TABLE t2 AS SELECT LEFT(f1,171) AS f2 FROM t1 UNION SELECT LEFT(f1,171) AS f2 FROM t1;
 DESC t2;
@@ -832,7 +833,7 @@ create table t1 select * from t2;
 ERROR 42S02: Table 'test.t2' doesn't exist
 create table t1 select * from t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
-create table t1 select coalesce('a' collate latin1_swedish_ci,'b' collate latin1_bin);
+create table t1 select coalesce(_latin1 'a' collate latin1_swedish_ci,_latin1 'b' collate latin1_bin);
 ERROR HY000: Illegal mix of collations (latin1_swedish_ci,EXPLICIT) and (latin1_bin,EXPLICIT) for operation 'coalesce'
 create table t1 (primary key(a)) select "b" as b;
 ERROR 42000: Key column 'a' doesn't exist in table
@@ -857,7 +858,7 @@ Note	1050	Table 't1' already exists
 select * from t1;
 i
 drop table t1;
-create table t1 select coalesce('a' collate latin1_swedish_ci,'b' collate latin1_bin);
+create table t1 select coalesce(_latin1 'a' collate latin1_swedish_ci,_latin1 'b' collate latin1_bin);
 ERROR HY000: Illegal mix of collations (latin1_swedish_ci,EXPLICIT) and (latin1_bin,EXPLICIT) for operation 'coalesce'
 create temporary table t1 (j int);
 create table if not exists t1 select 1;
@@ -938,7 +939,7 @@ create table t2 select sql_big_result f1,count(f2) from t1 group by f1;
 show status like 'handler_read%';
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	7
+Handler_read_key	17
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
@@ -1164,7 +1165,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `CHARACTER_SET_NAME` varchar(64) CHARACTER SET utf8 NOT NULL,
   `DEFAULT_COLLATE_NAME` varchar(64) CHARACTER SET utf8 NOT NULL,
-  `DESCRIPTION` varchar(2048) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  `DESCRIPTION` varchar(2048) CHARACTER SET utf8 NOT NULL,
   `MAXLEN` int(10) unsigned NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
@@ -1233,9 +1234,6 @@ CREATE TABLE t2(c1 TIMESTAMP, c2 TIMESTAMP DEFAULT 0);
 Warnings:
 Warning	1264	Out of range value for column 'c2' at row 1
 DROP TABLE t2;
-
-CREATE TABLE t2(c1 TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, c2 TIMESTAMP NOT NULL);
-ERROR 42000: Invalid default value for 'c2'
 
 # -- Check that NULL column still can be created.
 CREATE TABLE t2(c1 TIMESTAMP NULL);
@@ -1908,4 +1906,4 @@ ENGINE = InnoDB
 PARTITION BY RANGE (id) (
 PARTITION p0 VALUES LESS THAN (10) INDEX DIRECTORY = 'test'
 );
-Got one of the listed errors
+ERROR HY000: Incorrect path value: 'test'

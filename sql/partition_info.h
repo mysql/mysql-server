@@ -285,10 +285,6 @@ public:
 
   Item *item_free_list;
 
-  struct st_ddl_log_memory_entry *first_log_entry;
-  struct st_ddl_log_memory_entry *exec_log_entry;
-  struct st_ddl_log_memory_entry *frm_log_entry;
-
   /*
     Bitmaps of partitions used by the current query.
     * read_partitions  - partitions to be used for reading.
@@ -342,7 +338,6 @@ public:
    ********************************************/
 
   longlong err_value;
-  char* part_info_string;                //!< Partition clause as string
 
   char *part_func_string;                //!< Partition expression as string
   char *subpart_func_string;             //!< Subpartition expression as string
@@ -362,7 +357,6 @@ public:
   partition_type part_type;
   partition_type subpart_type;
 
-  size_t part_info_len;
   size_t part_func_len;
   size_t subpart_func_len;
 
@@ -420,16 +414,13 @@ public:
     part_field_buffers(NULL), subpart_field_buffers(NULL),
     restore_part_field_ptrs(NULL), restore_subpart_field_ptrs(NULL),
     part_expr(NULL), subpart_expr(NULL), item_free_list(NULL),
-    first_log_entry(NULL), exec_log_entry(NULL), frm_log_entry(NULL),
     bitmaps_are_initialized(FALSE),
     list_array(NULL), err_value(0),
-    part_info_string(NULL),
     part_func_string(NULL), subpart_func_string(NULL),
     num_columns(0), table(NULL),
     default_engine_type(NULL),
     part_type(partition_type::NONE),
     subpart_type(partition_type::NONE),
-    part_info_len(0),
     part_func_len(0), subpart_func_len(0),
     num_parts(0), num_subparts(0),
     num_list_values(0), num_part_fields(0), num_subpart_fields(0),
@@ -450,8 +441,8 @@ public:
   }
   ~partition_info() {}
 
-  partition_info *get_clone(bool reset = false);
-  partition_info *get_full_clone();
+  partition_info *get_clone(THD *thd, bool reset = false);
+  partition_info *get_full_clone(THD *thd);
   bool set_named_partition_bitmap(const char *part_name, size_t length);
   bool set_partition_bitmaps(TABLE_LIST *table_list);
   bool set_read_partitions(List<String> *partition_names);
@@ -490,7 +481,8 @@ public:
   bool fix_parser_data(THD *thd);
   bool set_part_expr(char *start_token, Item *item_ptr,
                      char *end_token, bool is_subpart);
-  static int compare_column_values(const void *a, const void *b);
+  static bool compare_column_values(
+    const part_column_list_val *a, const part_column_list_val *b);
   bool set_up_charset_field_preps();
   bool check_partition_field_length();
   void set_show_version_string(String *packet);

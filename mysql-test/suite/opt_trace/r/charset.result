@@ -326,11 +326,13 @@ select * from v1 where v1.col = 'ÁÂÃÄÅ'	{
             "creating_tmp_table": {
               "tmp_table_info": {
                 "table": "`v1`",
+                "columns": 1,
                 "row_length": 7,
                 "key_length": 0,
                 "unique_constraint": false,
-                "location": "memory (heap)",
-                "row_limit_estimate": 2396745
+                "makes_grouped_rows": false,
+                "cannot_insert_duplicates": false,
+                "location": "TempTable"
               } /* tmp_table_info */
             } /* creating_tmp_table */
           },

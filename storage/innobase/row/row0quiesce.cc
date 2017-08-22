@@ -670,6 +670,8 @@ row_quiesce_write_cfp(
 	this information will be lost in fil_discard_tablespace along
 	with fil_space_free(). */
 	if (table->encryption_key == NULL) {
+		lint old_size = mem_heap_get_size(table->heap);
+
 		table->encryption_key =
 			static_cast<byte*>(mem_heap_alloc(table->heap,
 							  ENCRYPTION_KEY_LEN));
@@ -677,6 +679,9 @@ row_quiesce_write_cfp(
 		table->encryption_iv =
 			static_cast<byte*>(mem_heap_alloc(table->heap,
 							  ENCRYPTION_KEY_LEN));
+
+		lint	new_size = mem_heap_get_size(table->heap);
+		dict_sys->size += new_size - old_size;
 
 		fil_space_t*	space = fil_space_get(table->space);
 		ut_ad(space != NULL && FSP_FLAGS_GET_ENCRYPTION(space->flags));

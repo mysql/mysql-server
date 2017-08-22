@@ -182,7 +182,7 @@ bool Group_check::check_query(THD *thd)
     ++number_in_list;
   }
 
-  // aggregate without GROUP BY has no ORDER BY at this stage.
+  // Aggregate without GROUP BY has no ORDER BY at this stage
   DBUG_ASSERT(!(select->is_implicitly_grouped() && select->is_ordered()));
   // Validate ORDER BY list
   if (order)
@@ -206,6 +206,38 @@ bool Group_check::check_query(THD *thd)
     place= "HAVING clause";
     if (check_expression(thd, select->having_cond(), false))
       goto err;
+  }
+
+  // Validate windows' ORDER BY and PARTITION BY clauses
+  char buff[STRING_BUFFER_USUAL_SIZE];
+  {
+    List_iterator<Window> li(select->m_windows);
+    for (Window *w= li++; w != nullptr; w= li++)
+    {
+      const PT_order_list *li[]= { w->partition(), w->order() };
+      auto constexpr size= sizeof(li) / sizeof(PT_order_list*);
+      number_in_list= 1;
+
+      for (auto it: Bounds_checked_array<const PT_order_list *>(li, size))
+      {
+        if (it != nullptr)
+        {
+          for (ORDER *o= it->value.first; o != nullptr; o= o->next)
+          {
+            Item *expr= *(o->item);
+            if (check_expression(thd, expr, false))
+            {
+              my_snprintf(buff, sizeof(buff),
+                          "PARTITION BY or ORDER BY clause of window '%s'",
+                          w->printable_name());
+              place= buff;
+              goto err;
+            }
+            ++number_in_list;
+          }
+        }
+      }
+    }
   }
 
   return false;
@@ -683,7 +715,7 @@ void Group_check::add_to_source_of_mat_table(Item_field *item_field,
  */
 bool Group_check::is_in_fd(Item *item)
 {
-  if (item->type() == Item::SUM_FUNC_ITEM ||
+  if ((item->type() == Item::SUM_FUNC_ITEM && !item->m_is_window_function) ||
       (item->type() == Item_func::FUNC_ITEM &&
        (((Item_func*)item)->functype() == Item_func::GROUPING_FUNC)))
   {

@@ -15,6 +15,7 @@
 #   5) The joiner (server3) should become online. Validate data.
 #   6) Clean up.
 ################################################################################
+--source include/big_test.inc
 --source ../inc/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
 --let $rpl_server_count= 3

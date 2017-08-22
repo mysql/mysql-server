@@ -479,6 +479,10 @@ typedef struct st_mi_sort_param
 
 extern mysql_mutex_t THR_LOCK_myisam;
 
+#ifdef	__cplusplus
+extern "C" {
+#endif
+
 	/* Some extern variables */
 
 extern LIST *myisam_open_list;
@@ -638,6 +642,10 @@ extern ulonglong mi_safe_mul(ulonglong a,ulonglong b);
 extern int _mi_ft_update(MI_INFO *info, uint keynr, uchar *keybuf,
 			 const uchar *oldrec, const uchar *newrec, my_off_t pos);
 
+#ifdef __cplusplus
+}
+#endif
+
 struct st_sort_info;
 
 
@@ -795,8 +803,8 @@ int _create_index_by_sort(MI_SORT_PARAM *info, bool no_messages, ulonglong);
 extern void mi_set_index_cond_func(MI_INFO *info, index_cond_func_t func,
                                    void *func_arg);
 
-extern thread_local_key_t keycache_tls_key;
 #ifdef __cplusplus
+extern thread_local st_keycache_thread_var *keycache_tls;
 }
 #endif
 

@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 
 if (!`select count(*) FROM INFORMATION_SCHEMA.PLUGINS
       WHERE PLUGIN_NAME='qa_auth_server'

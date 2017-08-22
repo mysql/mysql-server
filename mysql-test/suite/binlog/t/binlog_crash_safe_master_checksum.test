@@ -20,7 +20,6 @@
 --let $prefix = `select CONCAT(IF(LENGTH(@@global.debug) > 0, CONCAT(@@global.debug, ":"), ''), "d,debug,info,enter,return,query,")`
 # Don't test this under valgrind, memory leaks will occur
 -- source include/not_valgrind.inc
--- source include/not_embedded.inc
 -- source include/have_debug.inc
 -- source include/have_myisam.inc
 -- source include/have_binlog_format_row.inc

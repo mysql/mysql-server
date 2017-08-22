@@ -373,7 +373,7 @@ drop table t2;
 --echo #             try to repair it
 --echo #
 CREATE TABLE t1(c1 INT, c2 INT DEFAULT 0, c3 CHAR(255) DEFAULT '',
-KEY(c1), KEY(c2), KEY(c3));
+KEY(c1), KEY(c2), KEY(c3)) charset latin1;
 INSERT INTO t1(c1) VALUES(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),
 (0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0),(0);
 INSERT INTO t1 VALUES(0,0,0);

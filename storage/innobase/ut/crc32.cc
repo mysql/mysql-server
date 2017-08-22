@@ -203,7 +203,7 @@ ut_crc32_8_hw(
 	    /* input operands */
 	    : "rm" ((*data)[0]));
 #elif defined(_WIN32)
-	*crc = _mm_crc32_u8(*crc, (*data)[0]);
+	*crc = _mm_crc32_u8(static_cast<unsigned>(*crc), (*data)[0]);
 #else
 #error Dont know how to handle non-gnuc64 and non-windows platforms.
 #endif

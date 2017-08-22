@@ -1,5 +1,3 @@
-# Embedded server doesn't support external clients
---source include/not_embedded.inc
 
 # Don't run this test if $MYSQL_FIX_PRIVILEGE_TABLES isn't set
 # to the location of mysql_fix_privilege_tables.sql

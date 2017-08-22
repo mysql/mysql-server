@@ -12,6 +12,7 @@
 #    binlog events on M3.
 # 4. Cleanup.
 ################################################################################
+--source include/big_test.inc
 --source ../inc/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
 --let $rpl_server_count= 3

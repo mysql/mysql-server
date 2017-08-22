@@ -2,7 +2,6 @@
 #
 # Auxiliary script to be sourced by
 #    is_tables_mysql.test
-#    is_tables_mysql_embedded.test
 #    is_tables_is.test
 #
 # Author:

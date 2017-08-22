@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,11 +36,6 @@
 #include "template_utils.h"
 
 namespace dd {
-class Dictionary_object;
-class Raw_record;
-}  // namespace dd
-
-namespace dd {
 namespace tables {
 
 const Character_sets &Character_sets::instance()
@@ -66,14 +61,20 @@ Character_sets::Character_sets()
                          "FIELD_DEFAULT_COLLATION_ID",
                          "default_collation_id BIGINT UNSIGNED NOT NULL");
   m_target_def.add_field(FIELD_COMMENT,
-                         "FIELD_COMMENT",
-                         "comment VARCHAR(2048) NOT NULL");
+                 "FIELD_COMMENT",
+                 "comment VARCHAR(2048) COLLATE utf8_general_ci NOT NULL");
   m_target_def.add_field(FIELD_MB_MAX_LENGTH,
                          "FIELD_MB_MAX_LENGTH",
                          "mb_max_length INT UNSIGNED NOT NULL");
 
   m_target_def.add_index("PRIMARY KEY(id)");
   m_target_def.add_index("UNIQUE KEY(name)");
+  /*
+    Create supporting index for foreign key on default_collation_id in advance
+    So later ALTER TABLE which adds this cyclic foreign key is metadata-only
+    change.
+  */
+  m_target_def.add_index("KEY(default_collation_id)");
 
   m_target_def.add_cyclic_foreign_key("FOREIGN KEY (default_collation_id) "
                                       "REFERENCES collations(id)");
@@ -161,7 +162,7 @@ bool Character_sets::populate(THD *thd) const
 ///////////////////////////////////////////////////////////////////////////
 
 /* purecov: begin deadcode */
-Dictionary_object *Character_sets::create_dictionary_object(const Raw_record &) const
+Charset *Character_sets::create_entity_object(const Raw_record &) const
 {
   return new (std::nothrow) Charset_impl();
 }

@@ -16,9 +16,12 @@
 #include <gtest/gtest.h>
 #include <cstring>
 #include <memory>
+#include <string>
 
+#include "error_handler.h"
 #include "json_binary.h"
 #include "json_dom.h"
+#include "sql_string.h"
 #include "my_inttypes.h"
 #include "sql_time.h"
 #include "test_utils.h"
@@ -40,9 +43,17 @@ protected:
 /**
   Get a copy of the string value represented by val.
 */
-std::string get_string(const Value &val)
+static std::string get_string(const Value &val)
 {
   return std::string(val.get_data(), val.get_data_length());
+}
+
+
+static my_decimal create_decimal(double d)
+{
+  my_decimal dec;
+  EXPECT_EQ(E_DEC_OK, double2my_decimal(E_DEC_FATAL_ERROR, d, &dec));
+  return dec;
 }
 
 
@@ -99,6 +110,7 @@ TEST_F(JsonBinaryTest, BasicTest)
   Value val6= parse_binary(buf.ptr(), buf.length());
   EXPECT_TRUE(val6.is_valid());
   EXPECT_EQ(Value::ARRAY, val6.type());
+  EXPECT_FALSE(val6.large_format());
   EXPECT_EQ(3U, val6.element_count());
   for (int i= 0; i < 3; i++)
   {
@@ -148,6 +160,7 @@ TEST_F(JsonBinaryTest, BasicTest)
   Value val8= parse_binary(buf.ptr(), buf.length());
   EXPECT_TRUE(val8.is_valid());
   EXPECT_EQ(Value::OBJECT, val8.type());
+  EXPECT_FALSE(val8.large_format());
   EXPECT_EQ(1U, val8.element_count());
   Value val8_k= val8.key(0);
   EXPECT_TRUE(val8_k.is_valid());
@@ -160,7 +173,7 @@ TEST_F(JsonBinaryTest, BasicTest)
   EXPECT_EQ(Value::ERROR, val8.key(1).type());
   EXPECT_EQ(Value::ERROR, val8.element(1).type());
 
-  Value v8_v1= val8.lookup("key", 3);
+  Value v8_v1= val8.lookup("key");
   EXPECT_EQ(Value::STRING, v8_v1.type());
   EXPECT_TRUE(v8_v1.is_valid());
   EXPECT_EQ("val", get_string(v8_v1));
@@ -188,8 +201,8 @@ TEST_F(JsonBinaryTest, BasicTest)
   EXPECT_EQ(Value::STRING, v9_v2_1.type());
   EXPECT_EQ("d", get_string(v9_v2_1));
 
-  EXPECT_EQ("b", get_string(val9.lookup("a", 1)));
-  Value v9_c= val9.lookup("c", 1);
+  EXPECT_EQ("b", get_string(val9.lookup("a")));
+  Value v9_c= val9.lookup("c");
   EXPECT_EQ(Value::ARRAY, v9_c.type());
   EXPECT_EQ(1U, v9_c.element_count());
   Value v9_c1= v9_c.element(0);
@@ -235,9 +248,9 @@ TEST_F(JsonBinaryTest, BasicTest)
   EXPECT_TRUE(val12.is_valid());
   EXPECT_EQ(Value::OBJECT, val12.type());
   EXPECT_EQ(0U, val12.element_count());
-  EXPECT_EQ(Value::ERROR, val12.lookup("", 0).type());
-  EXPECT_EQ(Value::ERROR, val12.lookup("key", 3).type());
-  EXPECT_FALSE(val12.lookup("no such key", 11).is_valid());
+  EXPECT_EQ(Value::ERROR, val12.lookup("").type());
+  EXPECT_EQ(Value::ERROR, val12.lookup("key").type());
+  EXPECT_FALSE(val12.lookup("no such key").is_valid());
 
   doc= "[]";
   dom.reset(Json_dom::parse(doc, strlen(doc), &msg, &msg_offset));
@@ -269,15 +282,13 @@ TEST_F(JsonBinaryTest, BasicTest)
     EXPECT_EQ(Value::INT, val.type());
     EXPECT_EQ(expected_values[i], val.get_int64());
 
-    Value val_lookup= val14.lookup(expected_keys[i].data(),
-                                   expected_keys[i].length());
+    Value val_lookup= val14.lookup(expected_keys[i]);
     EXPECT_EQ(Value::INT, val_lookup.type());
     EXPECT_EQ(expected_values[i], val_lookup.get_int64());
   }
 
   // Store a decimal.
-  my_decimal md;
-  EXPECT_EQ(E_DEC_OK, double2my_decimal(E_DEC_FATAL_ERROR, 123.45, &md));
+  my_decimal md= create_decimal(123.45);
   EXPECT_EQ(5U, md.precision());
   EXPECT_EQ(2, md.frac);
 
@@ -301,30 +312,49 @@ TEST_F(JsonBinaryTest, BasicTest)
 }
 
 
+static MYSQL_TIME create_time()
+{
+  const char *tstr= "13:14:15.654321";
+  MYSQL_TIME t;
+  MYSQL_TIME_STATUS status;
+  EXPECT_FALSE(str_to_time(&my_charset_utf8mb4_bin, tstr, strlen(tstr),
+                           &t, 0, &status));
+  return t;
+}
+
+
+static MYSQL_TIME create_date()
+{
+  const char *dstr= "20140517";
+  MYSQL_TIME d;
+  MYSQL_TIME_STATUS status;
+  EXPECT_FALSE(str_to_datetime(&my_charset_utf8mb4_bin, dstr, strlen(dstr),
+                               &d, 0, &status));
+  return d;
+}
+
+
+static MYSQL_TIME create_datetime()
+{
+  const char *dtstr= "2015-01-15 15:16:17.123456";
+  MYSQL_TIME dt;
+  MYSQL_TIME_STATUS status;
+  EXPECT_FALSE(str_to_datetime(&my_charset_utf8mb4_bin, dtstr, strlen(dtstr),
+                               &dt, 0, &status));
+  return dt;
+}
+
+
 /*
   Test storing of TIME, DATE and DATETIME.
 */
 TEST_F(JsonBinaryTest, DateAndTimeTest)
 {
-  const char *tstr= "13:14:15.654321";
-  const char *dstr= "20140517";
-  const char *dtstr= "2015-01-15 15:16:17.123456";
-  MYSQL_TIME t;
-  MYSQL_TIME d;
-  MYSQL_TIME dt;
-  MYSQL_TIME_STATUS status;
-  EXPECT_FALSE(str_to_time(&my_charset_utf8mb4_bin, tstr, strlen(tstr),
-                           &t, 0, &status));
-  EXPECT_FALSE(str_to_datetime(&my_charset_utf8mb4_bin, dstr, strlen(dstr),
-                               &d, 0, &status));
-  EXPECT_FALSE(str_to_datetime(&my_charset_utf8mb4_bin, dtstr, strlen(dtstr),
-                               &dt, 0, &status));
-
   // Create an array that contains a TIME, a DATE and a DATETIME.
   Json_array array;
-  Json_datetime tt(t, MYSQL_TYPE_TIME);
-  Json_datetime td(d, MYSQL_TYPE_DATE);
-  Json_datetime tdt(dt, MYSQL_TYPE_DATETIME);
+  Json_datetime tt(create_time(), MYSQL_TYPE_TIME);
+  Json_datetime td(create_date(), MYSQL_TYPE_DATE);
+  Json_datetime tdt(create_datetime(), MYSQL_TYPE_DATETIME);
   array.append_clone(&tt);
   array.append_clone(&td);
   array.append_clone(&tdt);
@@ -441,6 +471,7 @@ TEST_F(JsonBinaryTest, LargeDocumentTest)
   String buf;
   EXPECT_FALSE(serialize(thd(), &array, &buf));
   Value val= parse_binary(buf.ptr(), buf.length());
+  EXPECT_TRUE(val.large_format());
   {
     SCOPED_TRACE("");
     validate_array_contents(val, array.size());
@@ -482,6 +513,7 @@ TEST_F(JsonBinaryTest, LargeDocumentTest)
   EXPECT_FALSE(serialize(thd(), &object, &buf));
   Value val3= parse_binary(buf.ptr(), buf.length());
   EXPECT_TRUE(val3.is_valid());
+  EXPECT_TRUE(val3.large_format());
   EXPECT_EQ(Value::OBJECT, val3.type());
   EXPECT_EQ(2U, val3.element_count());
   EXPECT_EQ("a", get_string(val3.key(0)));
@@ -495,9 +527,9 @@ TEST_F(JsonBinaryTest, LargeDocumentTest)
 
   {
     SCOPED_TRACE("");
-    validate_array_contents(val3.lookup("a", 1), array.size());
+    validate_array_contents(val3.lookup("a"), array.size());
   }
-  EXPECT_EQ("c", get_string(val3.lookup("b", 1)));
+  EXPECT_EQ("c", get_string(val3.lookup("b")));
 
   /*
     Extract the raw binary representation of the large object, and verify
@@ -506,7 +538,7 @@ TEST_F(JsonBinaryTest, LargeDocumentTest)
   EXPECT_FALSE(val3.raw_binary(thd(), &raw));
   {
     SCOPED_TRACE("");
-    Value val_a= parse_binary(raw.ptr(), raw.length()).lookup("a", 1);
+    Value val_a= parse_binary(raw.ptr(), raw.length()).lookup("a");
     validate_array_contents(val_a, array.size());
   }
 
@@ -648,7 +680,7 @@ TEST_F(JsonBinaryTest, RawBinaryTest)
   Value v1_8= parse_binary(raw.ptr(), raw.length());
   EXPECT_EQ(Value::OBJECT, v1_8.type());
   EXPECT_EQ(object.cardinality(), v1_8.element_count());
-  EXPECT_EQ(Value::LITERAL_TRUE, v1_8.lookup("key", 3).type());
+  EXPECT_EQ(Value::LITERAL_TRUE, v1_8.lookup("key").type());
 
   EXPECT_FALSE(v1.element(8).key(0).raw_binary(thd(), &raw));
   Value v1_8_key= parse_binary(raw.ptr(), raw.length());
@@ -681,7 +713,7 @@ void serialize_deserialize_string(const THD *thd, size_t size)
   SCOPED_TRACE(testing::Message() << "size = " << size);
   char *str= new char[size];
   memset(str, 'a', size);
-  Json_string jstr(std::string(str, size));
+  Json_string jstr(str, size);
 
   String buf;
   EXPECT_FALSE(json_binary::serialize(thd, &jstr, &buf));
@@ -719,5 +751,673 @@ TEST_F(JsonBinaryTest, StringLengthTest)
   serialize_deserialize_string(thd, 2097152);
   serialize_deserialize_string(thd, 3000000);
 }
+
+
+/**
+  Error handler which registers if an error has been raised. If an error is
+  raised, it asserts that the error is ER_INVALID_JSON_BINARY_DATA.
+*/
+class Invalid_binary_handler : public Internal_error_handler
+{
+public:
+  Invalid_binary_handler(THD *thd)
+    : m_thd(thd), m_called(false), m_orig_handler(error_handler_hook)
+  {
+    error_handler_hook= my_message_sql;
+    thd->push_internal_handler(this);
+  }
+
+  ~Invalid_binary_handler()
+  {
+    EXPECT_EQ(this, m_thd->pop_internal_handler());
+    error_handler_hook= m_orig_handler;
+  }
+
+  bool handle_condition(THD *, uint err, const char *,
+                        Sql_condition::enum_severity_level *,
+                        const char *)
+    override
+  {
+    uint expected= ER_INVALID_JSON_BINARY_DATA;
+    EXPECT_EQ(expected, err);
+    m_called= true;
+    return true;
+  }
+
+  bool is_called() const { return m_called; }
+private:
+  THD *m_thd;
+  bool m_called;
+  decltype(error_handler_hook) m_orig_handler;
+};
+
+
+/**
+  Run various operations on a corrupted binary value, to see that the
+  json_binary library doesn't fall over when encountering a corrupted value.
+*/
+static void check_corrupted_binary(THD *thd, const char *data, size_t length)
+{
+  /*
+    A corrupted value may still be valid, so we cannot assert on the return
+    value. Just exercise the code to see that nothing very bad happens.
+  */
+  Value val= parse_binary(data, length);
+  val.is_valid();
+
+  {
+    /*
+      Value::get_free_space() may or may not raise an error. If there is an
+      error, we expect it to be ER_INVALID_JSON_BINARY_DATA.
+    */
+    Invalid_binary_handler handler(thd);
+    size_t space;
+    bool err= val.get_free_space(thd, &space);
+    // If it returns true, an error should have been raised.
+    EXPECT_EQ(err, handler.is_called());
+  }
+
+  /*
+    Call Value::has_space() on every element if it is an array or object.
+  */
+  if (val.type() == Value::ARRAY || val.type() == Value::OBJECT)
+  {
+    for (size_t i= 0; i < val.element_count(); ++i)
+    {
+      size_t offset;
+      val.has_space(i, 100, &offset);
+    }
+  }
+}
+
+
+/**
+  Check that a corrupted binary value doesn't upset the parser in any serious
+  way.
+
+  @param thd  THD handle
+  @param dom  a JSON DOM from which corrupted binary values are created
+*/
+static void check_corruption(THD *thd, const Json_dom *dom)
+{
+  // First create a valid binary representation of the DOM.
+  String buf;
+  EXPECT_FALSE(json_binary::serialize(thd, dom, &buf));
+  EXPECT_TRUE(json_binary::parse_binary(buf.ptr(), buf.length()).is_valid());
+
+  // Truncated values should always be detected by is_valid().
+  for (size_t i= 0; i < buf.length() - 1; ++i)
+  {
+    EXPECT_FALSE(json_binary::parse_binary(buf.ptr(), i).is_valid());
+    check_corrupted_binary(thd, buf.ptr(), i);
+  }
+
+  /*
+    Test various 1, 2 and 3 byte data corruptions. is_valid() may return true
+    or false (not all corrupted documents are ill-formed), but we should not
+    have any crashes or valgrind/asan warnings.
+  */
+  for (size_t i= 0; i < buf.length(); ++i)
+  {
+    String copy;
+    copy.append(buf);
+    char *data= copy.c_ptr_safe();
+    for (size_t j= 1; j < 3 && i + j < buf.length(); ++j)
+    {
+      memset(data + i, 0x00, j);
+      check_corrupted_binary(thd, data, copy.length());
+      memset(data + i, 0x80, j);
+      check_corrupted_binary(thd, data, copy.length());
+      memset(data + i, 0xff, j);
+      check_corrupted_binary(thd, data, copy.length());
+    }
+  }
+}
+
+
+/**
+  Test that the parser is well-behaved when a binary value is corrupted.
+*/
+TEST_F(JsonBinaryTest, CorruptedBinaryTest)
+{
+  Json_array a;
+  a.append_alias(new (std::nothrow) Json_null);
+  a.append_alias(new (std::nothrow) Json_boolean(true));
+  a.append_alias(new (std::nothrow) Json_boolean(false));
+  a.append_alias(new (std::nothrow) Json_uint(0));
+  a.append_alias(new (std::nothrow) Json_uint(123));
+  a.append_alias(new (std::nothrow) Json_uint(123000));
+  a.append_alias(new (std::nothrow) Json_uint(123000000));
+  a.append_alias(new (std::nothrow) Json_int(0));
+  a.append_alias(new (std::nothrow) Json_int(123));
+  a.append_alias(new (std::nothrow) Json_int(123000));
+  a.append_alias(new (std::nothrow) Json_int(123000000));
+  a.append_alias(new (std::nothrow) Json_int(-123000000));
+  a.append_alias(new (std::nothrow) Json_string());
+  a.append_alias(new (std::nothrow) Json_string(300, 'a'));
+  a.append_alias(new (std::nothrow) Json_decimal(create_decimal(3.14)));
+  Json_object *o= new (std::nothrow) Json_object;
+  a.append_alias(o);
+  o->add_clone("a1", &a);
+  o->add_alias("s", new (std::nothrow) Json_opaque(MYSQL_TYPE_BLOB, 32, 'x'));
+  o->add_alias("d", new (std::nothrow) Json_double(3.14));
+  a.append_clone(&a);
+  o->add_clone("a2", &a);
+
+  check_corruption(thd(), &a);
+  for (size_t i= 0; i < a.size(); ++i)
+  {
+    SCOPED_TRACE("");
+    check_corruption(thd(), a[i]);
+  }
+}
+
+
+/// How big is the serialized version of a Json_dom?
+static size_t binary_size(const THD *thd, const Json_dom *dom)
+{
+  StringBuffer<256> buf;
+  EXPECT_FALSE(json_binary::serialize(thd, dom, &buf));
+  return buf.length();
+}
+
+
+/// A tuple used by SpaceNeededTest for testing json_binary::space_needed().
+struct SpaceNeededTuple
+{
+  /**
+    Constructor for test case with different space requirements in the
+    large and small storage formats.
+  */
+  SpaceNeededTuple(Json_dom *dom, bool result, size_t needed_small,
+                   size_t needed_large)
+    : m_value(dom), m_result(result), m_needed_small(needed_small),
+      m_needed_large(needed_large)
+  {}
+  /**
+    Constructor for test case with same space requirement in the large
+    and small storage formats.
+  */
+  SpaceNeededTuple(Json_dom *dom, bool result, size_t needed)
+    : SpaceNeededTuple(dom, result, needed, needed)
+  {}
+  /// The value to pass to space_needed().
+  Json_wrapper m_value;
+  /// The expected return value from the function.
+  bool m_result;
+  /// The expected bytes needed to store the value in the small storage format.
+  size_t m_needed_small;
+  /// The expected bytes needed to store the value in the large storage format.
+  size_t m_needed_large;
+};
+
+/// A class used for testing json_binary::space_needed().
+class SpaceNeededTest : public ::testing::TestWithParam<SpaceNeededTuple>
+{
+  my_testing::Server_initializer initializer;
+protected:
+  void SetUp() override { initializer.SetUp(); }
+  void TearDown() override { initializer.TearDown(); }
+  THD *thd() const { return initializer.thd(); }
+};
+
+/*
+  Define our own PrintTo because Google Test's default implementation causes
+  valgrind warnings for reading uninitialized memory. (It reads every byte of
+  the struct, but the struct contains some uninitialized bytes because of
+  alignment.)
+*/
+void PrintTo(SpaceNeededTuple const &tuple, std::ostream *os)
+{
+  *os << '{' << static_cast<uint>(tuple.m_value.type()) << ", "
+      << tuple.m_result << ", " << tuple.m_needed_small << ", "
+      << tuple.m_needed_large << '}';
+}
+
+/// Test json_binary::space_needed() for a given input.
+TEST_P(SpaceNeededTest, SpaceNeeded)
+{
+  SpaceNeededTuple param= GetParam();
+
+  /*
+    If the large and small storage size differ, it must mean that the
+    value can be inlined in the large storage format.
+  */
+  if (param.m_needed_small != param.m_needed_large)
+  {
+    EXPECT_EQ(0U, param.m_needed_large);
+  }
+
+  size_t needed= 0;
+  if (param.m_result)
+  {
+    for (bool large : { true, false })
+    {
+      Invalid_binary_handler handler(thd());
+      EXPECT_TRUE(space_needed(thd(), &param.m_value, large, &needed));
+      EXPECT_TRUE(handler.is_called());
+    }
+    return;
+  }
+
+  needed= 0;
+  EXPECT_FALSE(space_needed(thd(), &param.m_value, false, &needed));
+  EXPECT_EQ(param.m_needed_small, needed);
+
+  needed= 0;
+  EXPECT_FALSE(space_needed(thd(), &param.m_value, true, &needed));
+  EXPECT_EQ(param.m_needed_large, needed);
+
+  const auto dom= param.m_value.to_dom(thd());
+
+  if (param.m_needed_small > 0)
+  {
+    /*
+      Not inlined. The size does not include the type byte, so expect
+      one more byte.
+    */
+    EXPECT_EQ(param.m_needed_small + 1, binary_size(thd(), dom));
+  }
+  else
+  {
+    /*
+      Inlined in the small storage format. Find the difference in size
+      between an empty array and one with the value added. Expect the
+      size of a small value entry, which is 3 bytes (1 byte for the
+      type, 2 bytes for the inlined value).
+    */
+    Json_array a;
+    size_t base_size= binary_size(thd(), &a);
+    a.append_clone(dom);
+    size_t full_size= binary_size(thd(), &a);
+    EXPECT_EQ(base_size + 3, full_size);
+  }
+
+  if (param.m_needed_small > 0 && param.m_needed_large == 0)
+  {
+    /*
+      Inlined in the large storage format only. See how much space is
+      added. Expect the size of a large value entry, which is 5 bytes
+      (1 byte for the type, 4 bytes for the inlined value).
+    */
+    Json_array a;
+    a.append_alias(new (std::nothrow) Json_string(64 * 1024, 'a'));
+    size_t base_size= binary_size(thd(), &a);
+    a.append_clone(dom);
+    size_t full_size= binary_size(thd(), &a);
+    EXPECT_EQ(base_size + 5, full_size);
+  }
+}
+
+static const SpaceNeededTuple space_needed_tuples[]=
+{
+  /*
+    Strings need space for the actual data and a variable length field
+    that holds the length of the string. Each byte in the variable
+    length field holds seven bits of the length value, so testing
+    lengths around 2^(7*N) is important.
+  */
+  {new (std::nothrow) Json_string(""), false, 1},                 // 2^0-1
+  {new (std::nothrow) Json_string("a"), false, 2},                // 2^0
+  {new (std::nothrow) Json_string(127, 'a'), false, 128},         // 2^7-1
+  {new (std::nothrow) Json_string(128, 'a'), false, 130},         // 2^7
+  {new (std::nothrow) Json_string(16383, 'a'), false, 16385},     // 2^14-1
+  {new (std::nothrow) Json_string(16384, 'a'), false, 16387},     // 2^14
+  {new (std::nothrow) Json_string(2097151, 'a'), false, 2097154}, // 2^21-1
+  {new (std::nothrow) Json_string(2097152, 'a'), false, 2097156}, // 2^21
+
+  // Literals are always inlined.
+  {new (std::nothrow) Json_null, false, 0},
+  {new (std::nothrow) Json_boolean(false), false, 0},
+  {new (std::nothrow) Json_boolean(true), false, 0},
+
+  // 16-bit integers are always inlined.
+  {new (std::nothrow) Json_int(0), false, 0},
+  {new (std::nothrow) Json_int(-1), false, 0},
+  {new (std::nothrow) Json_int(1), false, 0},
+  {new (std::nothrow) Json_int(INT_MIN16), false, 0},
+  {new (std::nothrow) Json_int(INT_MAX16), false, 0},
+  {new (std::nothrow) Json_uint(0), false, 0},
+  {new (std::nothrow) Json_uint(1), false, 0},
+  {new (std::nothrow) Json_uint(UINT_MAX16), false, 0},
+
+  // 32-bit integers are inlined only in the large storage format.
+  {new (std::nothrow) Json_int(INT_MIN32), false, 4, 0},
+  {new (std::nothrow) Json_int(INT_MIN16 - 1), false, 4, 0},
+  {new (std::nothrow) Json_int(INT_MAX16 + 1), false, 4, 0},
+  {new (std::nothrow) Json_int(INT_MAX32), false, 4, 0},
+  {new (std::nothrow) Json_uint(UINT_MAX16 + 1), false, 4, 0},
+  {new (std::nothrow) Json_uint(UINT_MAX32), false, 4, 0},
+
+  // Larger integers and doubles require 8 bytes.
+  {new (std::nothrow) Json_int(INT_MIN64), false, 8},
+  {new (std::nothrow) Json_int(static_cast<longlong>(INT_MIN32) - 1), false, 8},
+  {new (std::nothrow) Json_int(static_cast<longlong>(INT_MAX32) + 1), false, 8},
+  {new (std::nothrow) Json_int(INT_MAX64), false, 8},
+  {new (std::nothrow) Json_uint(static_cast<ulonglong>(UINT_MAX32) + 1),
+   false, 8},
+  {new (std::nothrow) Json_uint(0xFFFFFFFFFFFFFFFFULL), false, 8},
+  {new (std::nothrow) Json_double(0), false, 8},
+  {new (std::nothrow) Json_double(3.14), false, 8},
+
+  /*
+    Opaque values need space for type info (one byte), a variable
+    length field, and the actual data.
+  */
+  {new (std::nothrow) Json_opaque(MYSQL_TYPE_BLOB, ""), false, 2},
+  {new (std::nothrow) Json_opaque(MYSQL_TYPE_BLOB, "a"), false, 3},
+  {new (std::nothrow) Json_opaque(MYSQL_TYPE_BLOB, 127, 'a'), false, 129},
+  {new (std::nothrow) Json_opaque(MYSQL_TYPE_BLOB, 128, 'a'), false, 131},
+  {new (std::nothrow) Json_datetime(create_time(), MYSQL_TYPE_TIME),
+   false, Json_datetime::PACKED_SIZE + 2},
+  {new (std::nothrow) Json_datetime(create_date(), MYSQL_TYPE_DATE),
+   false, Json_datetime::PACKED_SIZE + 2},
+  {new (std::nothrow) Json_datetime(create_datetime(), MYSQL_TYPE_DATETIME),
+   false, Json_datetime::PACKED_SIZE + 2},
+  {new (std::nothrow) Json_datetime(create_datetime(), MYSQL_TYPE_TIMESTAMP),
+   false, Json_datetime::PACKED_SIZE + 2},
+  {new (std::nothrow) Json_decimal(create_decimal(12.3)), false, 6},
+
+  // Arrays.
+  {new (std::nothrow) Json_array, false, 4},
+  {new (std::nothrow) Json_array(new (std::nothrow) Json_double(1.5)),
+   false, 15},
+
+  // Objects
+  {new (std::nothrow) Json_object, false, 4},
+  {[](){
+      auto obj= new (std::nothrow) Json_object;
+      obj->add_alias("a", new (std::nothrow) Json_double(1.5));
+      return obj;
+    }(), false, 20},
+
+  // Handle type == ERROR.
+  {nullptr, true, 0},
+};
+
+INSTANTIATE_TEST_CASE_P(JsonBinary, SpaceNeededTest,
+                        ::testing::ValuesIn(space_needed_tuples));
+
+
+/**
+  Helper function for testing Value::has_space(). Serializes a JSON
+  array or JSON object and checks if has_space() reports the correct
+  size and offset for an element in the array or object.
+*/
+static void test_has_space(THD *thd, const Json_dom *container,
+                           Value::enum_type type, size_t size,
+                           size_t element, size_t expected_offset)
+{
+  StringBuffer<100> buf;
+  EXPECT_FALSE(json_binary::serialize(thd, container, &buf));
+  Value v1= parse_binary(buf.ptr(), buf.length());
+  Value v2= v1.element(element);
+  EXPECT_EQ(type, v2.type());
+  size_t offset= 0;
+  if (size > 0)
+  {
+    EXPECT_TRUE(v1.has_space(element, size - 1, &offset));
+    EXPECT_EQ(expected_offset, offset);
+  }
+  offset= 0;
+  EXPECT_TRUE(v1.has_space(element, size, &offset));
+  EXPECT_EQ(expected_offset, offset);
+  offset= 0;
+  EXPECT_FALSE(v1.has_space(element, size + 1, &offset));
+  EXPECT_EQ(0U, offset);
+  offset= 0;
+  EXPECT_TRUE(v1.has_space(element, 0, &offset));
+  EXPECT_EQ(expected_offset, offset);
+}
+
+/**
+  Test Value::has_size() by inserting a value into an array or an
+  object and checking that has_size() returns the correct size and
+  offset.
+*/
+static void test_has_space(THD *thd, const Json_dom *dom,
+                           Value::enum_type type, size_t size)
+{
+  {
+    SCOPED_TRACE("array");
+    Json_array a;
+    a.append_clone(dom);
+
+    /*
+      The array contains the element count (2 bytes), byte size (2
+      bytes) and a value entry (3 bytes) before the value.
+    */
+    size_t expected_offset= 2 + 2 + 3;
+    {
+      SCOPED_TRACE("first element");
+      test_has_space(thd, &a, type, size, 0, expected_offset);
+    }
+
+    /*
+      Insert a literal at the beginning of the array. The offset
+      should increase by 3 (size of the value entry).
+    */
+    expected_offset+= 3;
+    {
+      SCOPED_TRACE("second element");
+      a.insert_alias(0, new (std::nothrow) Json_null);
+      test_has_space(thd, &a, type, size, 1, expected_offset);
+    }
+
+    /*
+      Insert a double at the beginning of the array. Expect the offset
+      to increase by 3 (size of the value entry) + 8 (size of the
+      double).
+    */
+    expected_offset+= 3 + 8;
+    {
+      SCOPED_TRACE("third element");
+      a.insert_alias(0, new (std::nothrow) Json_double(123.0));
+      test_has_space(thd, &a, type, size, 2, expected_offset);
+    }
+
+    /*
+      Insert some values at the end of the array. The offset should
+      increase by 3 (one value entry) per added value.
+    */
+    expected_offset+= 3;
+    {
+      SCOPED_TRACE("append literal");
+      a.append_alias(new (std::nothrow) Json_boolean(true));
+      test_has_space(thd, &a, type, size, 2, expected_offset);
+    }
+    expected_offset+= 3;
+    {
+      SCOPED_TRACE("append double");
+      a.append_alias(new (std::nothrow) Json_double(1.23));
+      test_has_space(thd, &a, type, size, 2, expected_offset);
+    }
+  }
+
+  /*
+    Now test the same with an object.
+  */
+  {
+    SCOPED_TRACE("object");
+    Json_object o;
+    o.add_clone("k", dom);
+
+    /*
+      The object contains the element count (2 bytes), byte size (2
+      bytes), a key entry (4 bytes), a value entry (3 bytes) and a key
+      (1 byte) before the value.
+    */
+    size_t expected_offset= 2 + 2 + 4 + 3 + 1;
+    {
+      SCOPED_TRACE("first element");
+      test_has_space(thd, &o, type, size, 0, expected_offset);
+    }
+
+    /*
+      Add a literal at the beginning of the object. The offset should
+      increase by 4 (size of the key entry) + 3 (size of the value
+      entry) + 1 (size of the key).
+    */
+    expected_offset+= 4 + 3 + 1;
+    {
+      SCOPED_TRACE("second element");
+      o.add_alias("b", new (std::nothrow) Json_null);
+      test_has_space(thd, &o, type, size, 1, expected_offset);
+    }
+
+    /*
+      Add a double at the beginning of the object. Expect the offset
+      to increase by 4 (size of the key entry) + 3 (size of the value
+      entry) + 1 (size of the key) + 8 (size of the double).
+    */
+    expected_offset+= 4 + 3 + 1 + 8;
+    {
+      SCOPED_TRACE("third element");
+      o.add_alias("a", new (std::nothrow) Json_double(123.0));
+      test_has_space(thd, &o, type, size, 2, expected_offset);
+    }
+
+    /*
+      Add some values at the end of the array. The offset should
+      increase by 4 (one key entry) + 3 (one value entry) + 1 (one
+      key) per added member.
+    */
+    expected_offset+= 4 + 3 + 1;
+    {
+      SCOPED_TRACE("add literal");
+      o.add_alias("x", new (std::nothrow) Json_boolean(true));
+      test_has_space(thd, &o, type, size, 2, expected_offset);
+    }
+    expected_offset+= 4 + 3 + 1;
+    {
+      SCOPED_TRACE("add double");
+      o.add_alias("y", new (std::nothrow) Json_double(1.23));
+      test_has_space(thd, &o, type, size, 2, expected_offset);
+    }
+  }
+}
+
+/**
+  Various tests for Value::has_space().
+*/
+TEST_F(JsonBinaryTest, HasSpace)
+{
+  {
+    SCOPED_TRACE("empty string");
+    Json_string jstr;
+    test_has_space(thd(), &jstr, Value::STRING, 1);
+  }
+  {
+    // Test longest possible string with 1-byte length field.
+    SCOPED_TRACE("string(127)");
+    Json_string jstr(127, 'a');
+    test_has_space(thd(), &jstr, Value::STRING, 128);
+  }
+  {
+    // Test shortest possible string with 2-byte length field.
+    SCOPED_TRACE("string(128)");
+    Json_string jstr(128, 'a');
+    test_has_space(thd(), &jstr, Value::STRING, 130);
+  }
+  {
+    SCOPED_TRACE("null literal");
+    Json_null jnull;
+    test_has_space(thd(), &jnull, Value::LITERAL_NULL, 0);
+  }
+  {
+    SCOPED_TRACE("true literal");
+    Json_boolean jtrue(true);
+    test_has_space(thd(), &jtrue, Value::LITERAL_TRUE, 0);
+  }
+  {
+    SCOPED_TRACE("false literal");
+    Json_boolean jfalse(false);
+    test_has_space(thd(), &jfalse, Value::LITERAL_FALSE, 0);
+  }
+  {
+    SCOPED_TRACE("inlined uint");
+    Json_uint u(123);
+    EXPECT_TRUE(u.is_16bit());
+    test_has_space(thd(), &u, Value::UINT, 0);
+  }
+  {
+    SCOPED_TRACE("32-bit uint");
+    Json_uint u(100000);
+    EXPECT_FALSE(u.is_16bit());
+    EXPECT_TRUE(u.is_32bit());
+    test_has_space(thd(), &u, Value::UINT, 4);
+  }
+  {
+    SCOPED_TRACE("64-bit uint");
+    Json_uint u(5000000000ULL);
+    EXPECT_FALSE(u.is_32bit());
+    test_has_space(thd(), &u, Value::UINT, 8);
+  }
+  {
+    SCOPED_TRACE("inlined int");
+    Json_int i(123);
+    EXPECT_TRUE(i.is_16bit());
+    test_has_space(thd(), &i, Value::INT, 0);
+  }
+  {
+    SCOPED_TRACE("32-bit int");
+    Json_int i(100000);
+    EXPECT_FALSE(i.is_16bit());
+    EXPECT_TRUE(i.is_32bit());
+    test_has_space(thd(), &i, Value::INT, 4);
+  }
+  {
+    SCOPED_TRACE("64-bit uint");
+    Json_int i(5000000000LL);
+    EXPECT_FALSE(i.is_32bit());
+    test_has_space(thd(), &i, Value::INT, 8);
+  }
+  {
+    SCOPED_TRACE("double");
+    Json_double d(3.14);
+    test_has_space(thd(), &d, Value::DOUBLE, 8);
+  }
+  {
+    SCOPED_TRACE("opaque");
+    Json_opaque o(MYSQL_TYPE_BLOB, "abc", 3);
+    // 1 byte for type, 1 byte for length, 3 bytes of blob data
+    test_has_space(thd(), &o, Value::OPAQUE, 5);
+  }
+  {
+    SCOPED_TRACE("empty array");
+    Json_array a;
+    /*
+      An empty array has two bytes for element count and two bytes for
+      total size in bytes.
+    */
+    test_has_space(thd(), &a, Value::ARRAY, 4);
+  }
+  {
+    SCOPED_TRACE("non-empty array");
+    Json_array a(new (std::nothrow) Json_null);
+    // Here we have an additional 3 bytes for the value entry.
+    test_has_space(thd(), &a, Value::ARRAY, 4 + 3);
+  }
+  {
+    SCOPED_TRACE("empty object");
+    Json_object o;
+    /*
+      An empty object has two bytes for element count and two bytes for
+      total size in bytes.
+    */
+    test_has_space(thd(), &o, Value::OBJECT, 4);
+  }
+  {
+    SCOPED_TRACE("non-empty object");
+    Json_object o;
+    o.add_alias("a", new (std::nothrow) Json_null);
+    /*
+      Here we have an additional 4 bytes for the key entry, 3 bytes
+      for the value entry, and 1 byte for the key.
+    */
+    test_has_space(thd(), &o, Value::OBJECT, 4 + 4 + 3 + 1);
+  }
+}
+
 
 }

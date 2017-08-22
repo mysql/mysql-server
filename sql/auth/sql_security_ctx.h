@@ -409,6 +409,20 @@ public:
 
   void logout();
   void init();
+  /**
+    Locked account can still be used as routine definers and when they are
+    there shouldn't be any checks for expired passwords.
+  */
+  bool account_is_locked()
+  {
+    return m_is_locked;
+  }
+
+  void lock_account(bool is_locked)
+  {
+    m_is_locked= is_locked;
+  }
+
 private:
   void destroy();
   void copy_security_ctx(const Security_context &src_sctx);
@@ -468,6 +482,10 @@ private:
   List_of_auth_id_refs m_active_roles;
   Acl_map *m_acl_map;
   int m_map_checkout_count;
+  /**
+    True if this account can't be logged into.
+  */
+  bool m_is_locked;
 };
 
 

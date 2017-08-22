@@ -24,7 +24,7 @@
 #include "dd/types/abstract_table.h"
 #include "dd/types/charset.h"
 #include "dd/types/collation.h"
-#include "dd/types/dictionary_object_table.h"
+#include "dd/types/entity_object_table.h"
 #include "dd/types/event.h"
 #include "dd/types/routine.h"
 #include "dd/types/schema.h"

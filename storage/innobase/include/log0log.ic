@@ -319,6 +319,7 @@ log_block_init_in_old_format(
 	ulint	no;
 
 	ut_ad(log_mutex_own());
+	ut_ad(!log_sys->disable_redo_writes);
 
 	no = log_block_convert_lsn_to_no(lsn);
 
@@ -347,23 +348,7 @@ log_reserve_and_write_fast(
 	ut_ad(len > 0);
 
 #ifdef UNIV_LOG_LSN_DEBUG
-	/* Append a MLOG_LSN record after mtr_commit(), except when
-	the last bytes could be a MLOG_CHECKPOINT marker. We have special
-	handling when the log consists of only a single MLOG_CHECKPOINT
-	record since the latest checkpoint, and appending the
-	MLOG_LSN would ruin that.
-
-	Note that a longer redo log record could happen to end in what
-	looks like MLOG_CHECKPOINT, and we could be omitting MLOG_LSN
-	without reason. This is OK, because writing the MLOG_LSN is
-	just a 'best effort', aimed at finding log corruption due to
-	bugs in the redo log writing logic. */
-	const ulint	lsn_len
-		= len >= SIZE_OF_MLOG_CHECKPOINT
-		&& MLOG_CHECKPOINT == static_cast<const char*>(str)[
-			len - SIZE_OF_MLOG_CHECKPOINT]
-		? 0
-		: 1
+	const ulint	lsn_len = 1
 		+ mach_get_compressed_size(log_sys->lsn >> 32)
 		+ mach_get_compressed_size(log_sys->lsn & 0xFFFFFFFFUL);
 #endif /* UNIV_LOG_LSN_DEBUG */

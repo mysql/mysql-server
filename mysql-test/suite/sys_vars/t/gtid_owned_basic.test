@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 
 # the variable is controlled in different ways depending on whether
 # gtid_mode=on or off.  the behavior when gtid_mode=on is tested in

@@ -1,4 +1,3 @@
---source include/not_embedded.inc
 --source include/not_windows.inc
 
 # This test case are added in order to test code that is not covered by

@@ -1146,6 +1146,18 @@ let $values1 = '{}', default;
 let $rows = 1;
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
 
+--echo # JSON_STORAGE_SIZE()
+let $cols = a varchar(1024), b varchar(1024) generated always as (JSON_STORAGE_SIZE(a)) virtual;
+let $values1 = '{}', default;
+let $rows = 1;
+--source suite/gcol/inc/gcol_supported_sql_funcs.inc
+
+--echo # JSON_STORAGE_FREE()
+let $cols = a varchar(1024), b varchar(1024) generated always as (JSON_STORAGE_FREE(a)) virtual;
+let $values1 = '{}', default;
+let $rows = 1;
+--source suite/gcol/inc/gcol_supported_sql_funcs.inc
+
 --echo #
 --echo # OTHER FUNCTIONS
 --echo #
@@ -1203,7 +1215,7 @@ let $rows = 1;
 let $cols = a varchar(1024), b varchar(1024) generated always as (des_encrypt(des_decrypt(a,'adf'),'adf')) virtual;
 let $values1 = 'MySQL',default;
 --disable_warnings
-eval create table t1 ($cols);
+eval create table t1 ($cols) charset latin1;
 show create table t1;
 --enable_warnings
 eval insert into t1 values ($values1);
