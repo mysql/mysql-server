@@ -1629,6 +1629,7 @@ void Dbdih::execNDB_STTOR(Signal* signal)
     clocallqhblockref = calcLqhBlockRef(ownNodeId);
     cdictblockref = calcDictBlockRef(ownNodeId);
     c_lcpState.lcpStallStart = 0;
+    c_lcpState.lcpManualStallStart = false;
     NdbTick_Invalidate(&c_lcpState.m_start_lcp_check_time);
     ndbsttorry10Lab(signal, __LINE__);
     break;
@@ -17865,6 +17866,19 @@ void Dbdih::execTCGETOPSIZECONF(Signal* signal)
       return;
     }
   }
+  
+  if (unlikely(c_lcpState.lcpManualStallStart))
+  {
+    jam();
+    g_eventLogger->warning("LCP start triggered, but manually stalled (Immediate %u, Change %llu / %llu)",
+                           c_lcpState.immediateLcpStart,
+                           Uint64(c_lcpState.ctcCounter),
+                           (Uint64(1) << c_lcpState.clcpDelay));
+    c_lcpState.setLcpStatus(LCP_STATUS_IDLE, __LINE__);
+    checkLcpStart(signal, __LINE__, 3000);
+    return;
+  }
+
   c_lcpState.lcpStart = ZIDLE;
   c_lcpState.immediateLcpStart = false;
   /* ----------------------------------------------------------------------- 
@@ -24220,7 +24234,35 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
       m_gcp_monitor.m_gcp_save.m_max_lag_ms = signal->theData[2];
     }
   }
-      
+
+  if (arg == DumpStateOrd::DihStallLcpStart)
+  {
+    jam();
+
+    if (signal->getLength() != 2)
+    {
+      g_eventLogger->warning("Malformed DihStallLcpStart(%u) received, ignoring",
+                             DumpStateOrd::DihStallLcpStart);
+      return;
+    }
+    const Uint32 key = signal->theData[1];
+    if (key == 91919191)
+    {
+      jam();
+      g_eventLogger->warning("DihStallLcpStart(%u) received, stalling subsequent LCP starts",
+                             DumpStateOrd::DihStallLcpStart);
+      c_lcpState.lcpManualStallStart = true;
+    }
+    else
+    {
+      jam();
+      g_eventLogger->warning("DihStallLcpStart(%u) received, clearing LCP stall state (%u)",
+                             DumpStateOrd::DihStallLcpStart,
+                             c_lcpState.lcpManualStallStart);
+      c_lcpState.lcpManualStallStart = false;
+    }
+    return;
+  }
 
 }//Dbdih::execDUMP_STATE_ORD()
 
