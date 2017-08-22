@@ -643,8 +643,9 @@ Pipeline_member_stats::update_member_stats(Pipeline_stats_member_message &msg,
 bool
 Pipeline_member_stats::is_flow_control_needed()
 {
-  return (m_transactions_waiting_certification > flow_control_certifier_threshold_var
-          || m_transactions_waiting_apply > flow_control_applier_threshold_var);
+  return (m_flow_control_mode == FCM_QUOTA) &&
+    (m_transactions_waiting_certification > flow_control_certifier_threshold_var
+     || m_transactions_waiting_apply > flow_control_applier_threshold_var);
 }
 
 
