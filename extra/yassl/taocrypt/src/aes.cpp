@@ -26,8 +26,158 @@
 #include "runtime.hpp"
 #include "aes.hpp"
 
-
 namespace TaoCrypt {
+
+#if defined(ARMV8_CE)
+
+#ifdef ARMV8_CE_DEBUG
+static void print_uint8 (uint8x16_t data, char* name) {
+    int i;
+    static uint8_t p[16];
+
+    vst1q_u8 (p, data);
+
+    printf ("%s = ", name);
+    for (i = 0; i < 16; i++) {
+        printf ("%02x ", p[i]);
+    }
+    printf ("\n");
+}
+#endif
+
+static void armv8_rk_init(word32* rk_from, word32 keylen) {
+    int i;
+    word32* wd_op = rk_from;
+    word32 wd_to;
+
+    for (i = 0; i < keylen / 4; i ++ ) {
+       wd_to = (*(wd_op + i) & 0xff000000) >> 24
+         |(*(wd_op + i) & 0xff0000) >> 8
+	   |(*(wd_op + i) & 0xff00) << 8
+             |(*(wd_op + i) & 0xff) << 24;
+
+      *(wd_op + i) = wd_to;
+    }
+}
+
+void AES::armv8_aes_blkcrypt(int crypt_mode, uint8x16_t *o_buff, const uint8x16_t *i_buff) {
+
+    int i;
+    uint8x16_t input_vec, rk_vec;
+
+    byte *rk_expnd = (byte*)key_;
+    input_vec = *i_buff;
+
+    if (ENCRYPTION == crypt_mode) {
+      for (i = 0; i < rounds_ - 1; i ++ ) {
+        /* Load expanded Round Key */
+        rk_vec = vld1q_u8(rk_expnd);
+
+        /* AddRoundKey, SubBytes and ShiftRows  */
+        input_vec = vaeseq_u8(input_vec, rk_vec);
+
+        /* Mix Columns */
+        input_vec = vaesmcq_u8(input_vec);
+
+#ifdef ARMV8_CE_DEBUG
+       printf("E-Round %d ",i+1);
+       print_uint8(input_vec, "input_vec");
+#endif
+
+        /* Load next expanded round key */
+        rk_expnd += 16;
+      }
+
+      /* Final round, No Mix columns */
+      rk_vec = vld1q_u8(rk_expnd);
+      input_vec = vaeseq_u8(input_vec, rk_vec);
+    }
+    else {
+      /*DECRYPTION*/
+      for (i = 0; i < rounds_ - 1; i++ ) {
+        /* Load expanded Round Key */
+        rk_vec = vld1q_u8(rk_expnd);
+
+        /* Reverse: AddRoundKey, SubBytes and ShiftRows  */
+        input_vec = vaesdq_u8(input_vec, rk_vec);
+
+        /* Inverse Mix Columns */
+        input_vec = vaesimcq_u8(input_vec);
+
+#ifdef ARMV8_CE_DEBUG
+        printf("D-Round %d ",i+1);
+        print_uint8(input_vec, "input_vec");
+#endif
+        /* Load next expanded round key */
+        rk_expnd += 16;
+      }
+
+      /* Final round, No Mix columns */
+      rk_vec = vld1q_u8(rk_expnd);
+      input_vec = vaesdq_u8(input_vec, rk_vec);
+    }
+
+    /* Final Add-Round-key step */
+    rk_expnd += 16;
+    rk_vec = vld1q_u8(rk_expnd);
+    input_vec = veorq_u8(input_vec, rk_vec);
+
+#ifdef ARMV8_CE_DEBUG
+       print_uint8(input_vec, "Final vec");
+#endif
+
+    *o_buff = input_vec;
+}
+
+void AES::Process(byte* o_buff, const byte* i_buff, word32 crypt_size) {
+
+    word32 crypt_blocks = crypt_size / BLOCK_SIZE;
+    uint8x16_t in_vec, out_vec,iv_vec, tmp_vec;
+
+    if (mode_ == ECB) {
+      while(crypt_blocks --) {
+        in_vec = vld1q_u8(i_buff);
+        armv8_aes_blkcrypt((int)dir_, &out_vec, &in_vec);
+
+        // Write results vec back to output buffer
+        vst1q_u8(o_buff, out_vec);
+
+        o_buff += BLOCK_SIZE;
+        i_buff += BLOCK_SIZE;
+      }
+    } else if (mode_ == CBC) {
+      iv_vec = vld1q_u8((byte*)r_);
+
+      while (crypt_blocks --) {
+        in_vec = vld1q_u8(i_buff);
+
+        if (dir_ == ENCRYPTION) {
+          tmp_vec = veorq_u8(iv_vec, in_vec);
+          armv8_aes_blkcrypt((int)dir_, &out_vec, &tmp_vec);
+          iv_vec = out_vec;
+
+          // Write results back to output buffer
+          vst1q_u8(o_buff, out_vec);
+
+          o_buff += BLOCK_SIZE;
+          i_buff += BLOCK_SIZE;
+
+        } else {
+          armv8_aes_blkcrypt((int)dir_, &tmp_vec, &in_vec);
+          out_vec = veorq_u8(tmp_vec, iv_vec);
+
+          // Write results back to output buffer
+          vst1q_u8(o_buff, out_vec);
+
+          iv_vec = in_vec;
+          o_buff += BLOCK_SIZE;
+          i_buff += BLOCK_SIZE;
+        }
+      }
+    }
+}
+
+#endif/* End if ARMV8_CE */
 
 
 #if defined(DO_AES_ASM)
@@ -212,6 +362,10 @@ void AES::SetKey(const byte* userKey, word32 keylen, CipherDir /*dummy*/)
                 Td3[Te1[GETBYTE(rk[3], 0)] & 0xff];
         }
     }
+
+#if defined(ARMV8_CE)
+    armv8_rk_init(key_, EXPND_R_KEY_MSIZE);
+#endif
 }
 
 
