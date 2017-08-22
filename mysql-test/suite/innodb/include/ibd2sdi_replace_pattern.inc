@@ -32,7 +32,7 @@
 --let $p11=/("se_private_data": ")(discard=[0-1];)*(flags=)([0-9]+)(;id=)[0-9]+;"/\1\3X\5Y;"/
 
 # Remove mysql version id
---let $p12=/("mysqld_version_id": )[0-9]+/\1X/
+--let $p12=/("mysqld?_version_id": )[0-9]+/\1X/
 
 # Remove extra path separator seen on windows and partition names
 --let $p13=/\/\//\// /#P#/#p#/ /#SP#/#sp#/
