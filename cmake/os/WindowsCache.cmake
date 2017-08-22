@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -209,6 +209,7 @@ SET(HAVE_BUILTIN_STPCPY CACHE  INTERNAL "")
 SET(HAVE_GCC_ATOMIC_BUILTINS CACHE  INTERNAL "")
 SET(HAVE_GCC_SYNC_BUILTINS CACHE  INTERNAL "")
 # Derived result HAVE_VALGRIND
+SET(HAVE_PTHREAD_THREADID_NP CACHE INTERNAL "")
 
 # IPV6
 SET(HAVE_NETINET_IN6_H CACHE  INTERNAL "")
