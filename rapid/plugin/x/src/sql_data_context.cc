@@ -332,9 +332,18 @@ ngs::Error_code Sql_data_context::switch_to_user(const char *username,
   m_address = address ? address : "";
   m_db = db ? db : "";
 
-  log_debug("Switching security context to user %s@%s [%s]", username, hostname,
+  // Workaround for a limitation in security_context_lookup
+  // Empty string causes that IP check is not fully done.
+  // nullptr fixes the problem.
+  if (nullptr != hostname && 0 == strlen(hostname))
+    hostname = nullptr;
+
+  log_debug("Switching security context to user %s@%s [%s]",
+            username,
+            hostname,
             address);
-  if (security_context_lookup(scontext, m_username.c_str(), m_hostname.c_str(),
+
+  if (security_context_lookup(scontext, m_username.c_str(), hostname,
                               m_address.c_str(), m_db.c_str())) {
     return ngs::Fatal(ER_X_SERVICE_ERROR, "Unable to switch context to user %s",
                       username);

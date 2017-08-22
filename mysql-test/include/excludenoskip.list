@@ -108,6 +108,7 @@ not_have_innodb_4k.inc
 
 # 4.6 IP versions
 have_ipv4_mapped.inc
+have_lo0_local_scope.inc
 
 # 4.7 System variable which checks whether server has statement_timeout feature or
 # not.The value can be NO if the background thread used by this feature could
