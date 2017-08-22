@@ -1,3 +1,4 @@
+# restart: --performance_schema_events_waits_history_long_size=20000
 create user user1@localhost;
 create user user2@localhost;
 create user user3@localhost;
@@ -220,7 +221,7 @@ idle
 has_waits
 1
 has_waits
-0
+1
 "=========================== Waits user 2"
 EVENT_NAME
 idle
@@ -615,7 +616,7 @@ idle
 has_waits
 1
 has_waits
-0
+1
 "=========================== Waits user 2"
 EVENT_NAME
 idle
