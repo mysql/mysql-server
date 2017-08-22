@@ -2319,6 +2319,8 @@ private:
     Uint32 lcpStopGcp; 
     Uint32 keepGci;      /* USED TO CALCULATE THE GCI TO KEEP AFTER A LCP  */
     Uint32 oldestRestorableGci;
+
+    bool lcpManualStallStart; /* User requested stall of start (testing only) */
     
     NDB_TICKS m_start_time; // When last LCP was started
     Uint64    m_lcp_time;   // How long last LCP took
