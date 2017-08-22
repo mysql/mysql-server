@@ -21,6 +21,11 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}
                     ${CMAKE_SOURCE_DIR}/storage/ndb/include/portlib
                     ${CMAKE_SOURCE_DIR}/storage/ndb/include/logger)
 
+# "system" does not work, ndbzio.c includes private, non-existing headers.
+IF(WITH_ZLIB STREQUAL "bundled")
+  INCLUDE_DIRECTORIES(SYSTEM ${CMAKE_SOURCE_DIR}/extra/zlib)
+ENDIF()
+
 ADD_DEFINITIONS(-DNO_DUMMY_DECL)
 ADD_CONVENIENCE_LIBRARY(ndbgeneral
             ndbzio.c
