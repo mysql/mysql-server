@@ -254,8 +254,7 @@
 /**
   @page PAGE_SECURITY Security
 
-  See #check_access.
-
+  @subpage AUTHORIZATION_PAGE
 */
 
 

@@ -117,8 +117,65 @@
   before the client and server negotiated any capabilities.
   Therefore the ERR packet will not contain the SQL-state.
 
-  See also
+  After initial handshake, server informs client about the method to be used
+  for authentication (unless it was already established during the handshake)
+  and the authentication exchange continues until server either accepts
+  connection by sending an @ref page_protocol_basic_ok_packet or rejects it
+  with @ref page_protocol_basic_err_packet.
+
+  @startuml
+  (*) --> "Initial Handshake Packet"
+
+  "Initial Handshake Packet" --> "Client Response"
+  "Initial Handshake Packet" --> "SSL Exchange"
+  "SSL Exchange" --> "Client Response"
+
+  "Client Response" --> "Authentication method switch"
+  "Client Response" --> "Authentication exchange continuation"
+  "Client Response" --> [ Insufficient client capabilities] ERR
+
+  "Authentication method switch" --> [ Client does not know requested auth method ] DISCONNECT
+  "Authentication method switch" --> "Authentication exchange continuation"
+
+  "Authentication exchange continuation" --> OK
+  "Authentication exchange continuation" --> ERR
+  @enduml
+
+  @section sect_protocol_connection_phase_initial_handshake Initial Handshake
+
+  @section sect_protocol_connection_phase_fast_path Auth Phase Fast Path
+
+  @section sect_protocol_connection_phase_auth_method_mismatch Authentication Method Mismatch
+
+  @section sect_protocol_connection_phase_com_change_user_auth Authentication After COM_CHANGE_USER Command
+
+  @subpage sect_protocol_connection_phase_packets_protocol_handshake
+
+  @sa group_cs_capabilities_flags
+  @subpage page_protocol_connection_phase_packets
   @subpage page_caching_sha2_authentication_exchanges
+*/
+
+/**
+  @page page_protocol_connection_phase_packets Connection Phase Packets
+
+  @section sect_protocol_connection_phase_packets_protocol_handshake Protocol::Handshake
+
+  Initial Handshake %Packet
+
+  When the client connects to the server the server sends a handshake
+  packet to the client. Depending on the server version and configuration
+  options different variants of the initial packet are sent.
+
+  To permit the server to add support for newer protocols, the first byte
+  defines the protocol version.
+
+  Since 3.21.0 the @ref page_protocol_connection_phase_packets_protocol_handshake_v10
+  is sent.
+
+  @subpage page_protocol_connection_phase_packets_protocol_handshake_v10
+  @subpage page_protocol_connection_phase_packets_protocol_ssl_request
+  @subpage page_protocol_connection_phase_packets_protocol_handshake_response
 */
 
 
@@ -563,26 +620,79 @@ static void login_failed_error(THD *thd, MPVIO_EXT *mpvio, int passwd_used)
 
 
 /**
-  sends a server handshake initialization packet, the very first packet
-  after the connection was established
+  @page page_protocol_connection_phase_packets_protocol_handshake_v10 Protocol::HandshakeV10
 
-  Packet format:
+  Initial handshake packet for protocol version 10.
 
-    Bytes       Content
-    -----       ----
-    1           protocol version (always 10)
-    n           server version string, \0-terminated
-    4           thread id
-    8           first 8 bytes of the plugin provided data (scramble)
-    1           \0 byte, terminating the first part of a scramble
-    2           server capabilities (two lower bytes)
-    1           server character set
-    2           server status
-    2           server capabilities (two upper bytes)
-    1           length of the scramble
-    10          reserved, always 0
-    n           rest of the plugin provided data (at least 12 bytes)
-    1           \0 byte, terminating the second part of a scramble
+  <table>
+  <caption>Payload</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+    <td>protocol version</td>
+    <td>Always 10</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_null "string&lt;NUL&gt;"</td>
+      <td>server version</td>
+      <td>human readable status information</td></tr>
+  <tr><td>@ref a_protocol_type_int4 "int&lt;4&gt;"</td>
+    <td>thread id</td>
+    <td>a.k.a. connection id</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_fix "string[8]"</td>
+    <td>auth-plugin-data-part-1</td>
+    <td>first 8 bytes of the plugin provided data (scramble)</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+    <td>filler</td>
+    <td>0x00 byte, terminating the first part of a scramble</td></tr>
+  <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
+    <td>capability_flags_1</td>
+    <td>The lower 2 bytes of the \ref group_cs_capabilities_flags</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+    <td>character_set</td>
+    <td>default server \ref a_protocol_character_set, only the lower 8-bits</td></tr>
+  <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
+    <td>status_flags</td>
+    <td>\ref SERVER_STATUS_flags_enum</td></tr>
+  <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
+    <td>capability_flags_2</td>
+    <td>The upper 2 bytes of the \ref group_cs_capabilities_flags</td></tr>
+  <tr><td colspan="3">if capabilities @& ::CLIENT_PLUGIN_AUTH {</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+    <td>auth_plugin_data_len</td>
+    <td>length of the combined auth_plugin_data (scramble), if auth_plugin_data_len is &gt; 0</td></tr>
+  <tr><td colspan="3">} else {</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+    <td>00</td>
+    <td>constant 0x00</td></tr>
+  <tr><td colspan="3">}</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_fix "string[10]"</td>
+    <td>reserved</td>
+    <td>reserved. All 0s.</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_le "$length"</td>
+    <td>auth-plugin-data-part-2</td>
+    <td>Rest of the plugin provided data (scramble), $len=MAX(13, length of auth-plugin-data - 8)</td></tr>
+  <tr><td colspan="3">if capabilities @& ::CLIENT_PLUGIN_AUTH {</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_null "NULL"</td>
+    <td>auth_plugin_name</td>
+    <td>name of the auth_method that the auth_plugin_data belongs to</td></tr>
+  <tr><td colspan="3">}</td></tr>
+  </table>
+
+  If the client supports SSL (\ref group_cs_capabilities_flags @& ::CLIENT_SSL
+  is on and the \ref mysql_ssl_mode of the client is not ::SSL_MODE_DISABLED)
+  a short package called
+  @ref page_protocol_connection_phase_packets_protocol_ssl_request is sent,
+  causing the server to establish an SSL layer and wait for the next package
+  from the client.
+
+  Client then returns
+  @ref page_protocol_connection_phase_packets_protocol_handshake_response
+
+  At any time, at any error, the client will just disconnect.
+
+  @sa send_server_handshake_packet mysql_real_connect
+*/
+
+/**
+  Sends a server @ref page_protocol_connection_phase_packets_protocol_handshake_v10
 
   @retval 0 ok
   @retval 1 error
