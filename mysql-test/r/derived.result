@@ -4065,35 +4065,35 @@ INSERT INTO t3 VALUES (100,2,'g',NULL);
 EXPLAIN SELECT table1.col_int
 FROM t3 AS table1
 LEFT JOIN (
-SELECT SUBQUERY1_t1.*
-FROM t1 AS SUBQUERY1_t1
-RIGHT JOIN t2 AS SUBQUERY1_t2
-ON (SUBQUERY1_t2.col_varchar_key = SUBQUERY1_t1.col_varchar_key)
+SELECT subquery1_t1.*
+FROM t1 AS subquery1_t1
+RIGHT JOIN t2 AS subquery1_t2
+ON (subquery1_t2.col_varchar_key = subquery1_t1.col_varchar_key)
 ) AS table3
 ON (table3.col_varchar_key = table1.col_varchar_key)
 WHERE table3.col_varchar_key  IN (
-SELECT SUBQUERY2_t3.col_varchar
-FROM t3 AS SUBQUERY2_t3
-WHERE SUBQUERY2_t3.pk  < table3.pk
+SELECT subquery2_t3.col_varchar
+FROM t3 AS subquery2_t3
+WHERE subquery2_t3.pk < table3.pk
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
 Note	1276	Field or reference 'table3.pk' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select '2' AS `col_int` from `test`.`t2` `SUBQUERY1_t2` semi join (`test`.`t3` `SUBQUERY2_t3`) join `test`.`t1` `SUBQUERY1_t1` where ((`test`.`SUBQUERY2_t3`.`pk` < NULL) and multiple equal('g', NULL, `test`.`SUBQUERY2_t3`.`col_varchar`, `test`.`SUBQUERY1_t2`.`col_varchar_key`))
+Note	1003	/* select#1 */ select '2' AS `col_int` from `test`.`t2` `subquery1_t2` semi join (`test`.`t3` `subquery2_t3`) join `test`.`t1` `subquery1_t1` where ((`test`.`subquery2_t3`.`pk` < NULL) and multiple equal('g', NULL, `test`.`subquery2_t3`.`col_varchar`, `test`.`subquery1_t2`.`col_varchar_key`))
 SELECT table1.col_int
 FROM t3 AS table1
 LEFT JOIN (
-SELECT SUBQUERY1_t1.*
-FROM t1 AS SUBQUERY1_t1
-RIGHT JOIN t2 AS SUBQUERY1_t2
-ON (SUBQUERY1_t2.col_varchar_key = SUBQUERY1_t1.col_varchar_key)
+SELECT subquery1_t1.*
+FROM t1 AS subquery1_t1
+RIGHT JOIN t2 AS subquery1_t2
+ON (subquery1_t2.col_varchar_key = subquery1_t1.col_varchar_key)
 ) AS table3
 ON (table3.col_varchar_key = table1.col_varchar_key)
 WHERE table3.col_varchar_key  IN (
-SELECT SUBQUERY2_t3.col_varchar
-FROM t3 AS SUBQUERY2_t3
-WHERE SUBQUERY2_t3.pk  < table3.pk
+SELECT subquery2_t3.col_varchar
+FROM t3 AS subquery2_t3
+WHERE subquery2_t3.pk < table3.pk
 );
 col_int
 DROP TABLE t1, t2, t3;
@@ -4146,44 +4146,44 @@ EXPLAIN SELECT
 table2.col_int_key AS field3
 FROM
 (
-SELECT SUBQUERY2_t2.*
-FROM t1 AS SUBQUERY2_t1
-INNER JOIN t2 AS SUBQUERY2_t2
-ON (SUBQUERY2_t2.pk = SUBQUERY2_t1.col_int)
+SELECT subquery2_t2.*
+FROM t1 AS subquery2_t1
+INNER JOIN t2 AS subquery2_t2
+ON (subquery2_t2.pk = subquery2_t1.col_int)
 ) AS table1
 RIGHT OUTER JOIN (
-SELECT SUBQUERY3_t1.*
-FROM t2 AS SUBQUERY3_t1
+SELECT subquery3_t1.*
+FROM t2 AS subquery3_t1
 ) AS table2
 ON (table1.col_varchar_key = table2.col_varchar_key)
 WHERE table1.col_varchar_key IN (
-SELECT SUBQUERY4_t1.col_varchar AS SUBQUERY4_field1
-FROM t3 AS SUBQUERY4_t1);
+SELECT subquery4_t1.col_varchar AS subquery4_field1
+FROM t3 AS subquery4_t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	SUBQUERY2_t2	NULL	system	PRIMARY,col_varchar_key	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	SUBQUERY3_t1	NULL	system	col_varchar_key	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	subquery2_t2	NULL	system	PRIMARY,col_varchar_key	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	subquery3_t1	NULL	system	col_varchar_key	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	<subquery4>	NULL	eq_ref	<auto_key>	<auto_key>	7	const	1	100.00	Using where
-1	SIMPLE	SUBQUERY2_t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
-4	MATERIALIZED	SUBQUERY4_t1	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+1	SIMPLE	subquery2_t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
+4	MATERIALIZED	subquery4_t1	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select '3' AS `field3` from `test`.`t1` `SUBQUERY2_t1` semi join (`test`.`t3` `SUBQUERY4_t1`) where ((`test`.`SUBQUERY2_t1`.`col_int` = '1') and (`<subquery4>`.`SUBQUERY4_field1` = 'y') and (`test`.`SUBQUERY4_t1`.`col_varchar` = 'y'))
+Note	1003	/* select#1 */ select '3' AS `field3` from `test`.`t1` `subquery2_t1` semi join (`test`.`t3` `subquery4_t1`) where ((`test`.`subquery2_t1`.`col_int` = '1') and (`<subquery4>`.`subquery4_field1` = 'y') and (`test`.`subquery4_t1`.`col_varchar` = 'y'))
 SELECT
 table2.col_int_key AS field3
 FROM
 (
-SELECT SUBQUERY2_t2.*
-FROM t1 AS SUBQUERY2_t1
-INNER JOIN t2 AS SUBQUERY2_t2
-ON (SUBQUERY2_t2.pk = SUBQUERY2_t1.col_int)
+SELECT subquery2_t2.*
+FROM t1 AS subquery2_t1
+INNER JOIN t2 AS subquery2_t2
+ON (subquery2_t2.pk = subquery2_t1.col_int)
 ) AS table1
 RIGHT OUTER JOIN (
-SELECT SUBQUERY3_t1.*
-FROM t2 AS SUBQUERY3_t1
+SELECT subquery3_t1.*
+FROM t2 AS subquery3_t1
 ) AS table2
 ON (table1.col_varchar_key = table2.col_varchar_key)
 WHERE table1.col_varchar_key IN (
-SELECT SUBQUERY4_t1.col_varchar AS SUBQUERY4_field1
-FROM t3 AS SUBQUERY4_t1);
+SELECT subquery4_t1.col_varchar AS subquery4_field1
+FROM t3 AS subquery4_t1);
 field3
 SET optimizer_switch = default;
 DROP TABLE t1, t2, t3, t4;

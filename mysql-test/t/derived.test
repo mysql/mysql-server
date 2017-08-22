@@ -2867,16 +2867,16 @@ let query1=
 SELECT table1.col_int
 FROM t3 AS table1
   LEFT JOIN (
-      SELECT SUBQUERY1_t1.*
-      FROM t1 AS SUBQUERY1_t1
-        RIGHT JOIN t2 AS SUBQUERY1_t2
-        ON (SUBQUERY1_t2.col_varchar_key = SUBQUERY1_t1.col_varchar_key)
+      SELECT subquery1_t1.*
+      FROM t1 AS subquery1_t1
+        RIGHT JOIN t2 AS subquery1_t2
+        ON (subquery1_t2.col_varchar_key = subquery1_t1.col_varchar_key)
     ) AS table3
     ON (table3.col_varchar_key = table1.col_varchar_key)
 WHERE table3.col_varchar_key  IN (
-  SELECT SUBQUERY2_t3.col_varchar
-  FROM t3 AS SUBQUERY2_t3
-  WHERE SUBQUERY2_t3.pk  < table3.pk
+  SELECT subquery2_t3.col_varchar
+  FROM t3 AS subquery2_t3
+  WHERE subquery2_t3.pk < table3.pk
 );
 
 eval EXPLAIN $query1;
@@ -2941,19 +2941,19 @@ SELECT
   table2.col_int_key AS field3
 FROM
   (
-    SELECT SUBQUERY2_t2.*
-    FROM t1 AS SUBQUERY2_t1
-      INNER JOIN t2 AS SUBQUERY2_t2
-      ON (SUBQUERY2_t2.pk = SUBQUERY2_t1.col_int)
+    SELECT subquery2_t2.*
+    FROM t1 AS subquery2_t1
+      INNER JOIN t2 AS subquery2_t2
+      ON (subquery2_t2.pk = subquery2_t1.col_int)
   ) AS table1
     RIGHT OUTER JOIN (
-      SELECT SUBQUERY3_t1.*
-      FROM t2 AS SUBQUERY3_t1
+      SELECT subquery3_t1.*
+      FROM t2 AS subquery3_t1
     ) AS table2
     ON (table1.col_varchar_key = table2.col_varchar_key)
 WHERE table1.col_varchar_key IN (
-  SELECT SUBQUERY4_t1.col_varchar AS SUBQUERY4_field1
-  FROM t3 AS SUBQUERY4_t1);
+  SELECT subquery4_t1.col_varchar AS subquery4_field1
+  FROM t3 AS subquery4_t1);
 
 SET optimizer_switch = 'firstmatch=off';
 eval EXPLAIN $query1;
