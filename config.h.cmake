@@ -198,6 +198,7 @@
 #cmakedefine HAVE_GCC_ATOMIC_BUILTINS 1
 #cmakedefine HAVE_GCC_SYNC_BUILTINS 1
 #cmakedefine HAVE_VALGRIND
+#cmakedefine HAVE_PTHREAD_THREADID_NP 1
 
 /* IPV6 */
 #cmakedefine HAVE_NETINET_IN6_H 1

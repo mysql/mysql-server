@@ -922,6 +922,17 @@ CHECK_STRUCT_HAS_MEMBER("struct sockaddr_in" sin_len
 CHECK_STRUCT_HAS_MEMBER("struct sockaddr_in6" sin6_len
   "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_SOCKADDR_IN6_SIN6_LEN)
 
+# Check for pthread_threadid_np()
+CHECK_C_SOURCE_COMPILES("
+#include <pthread.h>
+int main(int ac, char **av)
+{
+  unsigned long long tid64;
+  pthread_threadid_np(NULL, &tid64);
+  return (tid64 != 0 ? 0 : 1);
+}"
+HAVE_PTHREAD_THREADID_NP)
+
 CHECK_CXX_SOURCE_COMPILES(
   "
   #include <vector>
