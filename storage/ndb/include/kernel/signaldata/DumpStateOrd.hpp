@@ -201,6 +201,7 @@ public:
      * Allows GCP stop thresholds to be set
      */
     DihSetGcpStopVals = 7026,
+    DihStallLcpStart = 7027,
     DihDumpPageRecInfo = 7032,
     DihFragmentsPerNode = 7033,
     DihDisplayPauseState = 7034,
