@@ -185,6 +185,7 @@ public:
      * Allows GCP stop thresholds to be set
      */
     DihSetGcpStopVals = 7026,
+    DihStallLcpStart = 7027,
     DihDumpPageRecInfo = 7032,
     EnableUndoDelayDataWrite = 7080, // DIH+ACC+TUP
     DihSetTimeBetweenGcp = 7090,

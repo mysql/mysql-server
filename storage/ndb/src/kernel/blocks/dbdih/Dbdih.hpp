@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1549,6 +1549,8 @@ private:
     Uint32 lcpStopGcp; 
     Uint32 keepGci;      /* USED TO CALCULATE THE GCI TO KEEP AFTER A LCP  */
     Uint32 oldestRestorableGci;
+
+    bool lcpManualStallStart; /* User requested stall of start (testing only) */
     
     NDB_TICKS m_start_time; // When last LCP was started
     Uint64    m_lcp_time;   // How long last LCP took
