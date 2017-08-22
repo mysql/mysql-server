@@ -81,13 +81,16 @@ class Time {
   static std::string us_to_str(uint32_t val) {
     if (0 == val) return "";
 
-    std::stringstream ss;
-    ss << "." << val;
-    std::string result = ss.str();
+    const uint8_t k_us_length = 6;
+
+    auto val_representation = std::to_string(val);
+    // Add preceding '0's
+    std::string result(k_us_length - val_representation.length(), '0');
+    result += val_representation;
     const size_t last = result.find_last_not_of('0') + 1;
     result.erase(last);
 
-    return result;
+    return "." + result;
   }
 
  private:
