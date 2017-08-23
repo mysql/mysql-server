@@ -3903,6 +3903,9 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
             header(), footer()),
   data_buf(0)
 {
+  DBUG_EXECUTE_IF("debug_lock_before_query_log_event",
+                  DBUG_SYNC_POINT("debug_lock.before_query_log_event", 10););
+
   /* save the original thread id; we already know the server id */
   slave_proxy_id= thd_arg->variables.pseudo_thread_id;
   if (query != 0)
