@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2008 MySQL AB, 2008 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -140,7 +139,8 @@ private:
 		  NodeId remoteNodeID,
 		  NodeId serverNodeId,
 		  bool checksum,  
-		  bool signalId, 
+		  bool signalId,
+		  bool preSendChksm,
 		  Uint32 reportFreq = 4096); 
  
    /** 

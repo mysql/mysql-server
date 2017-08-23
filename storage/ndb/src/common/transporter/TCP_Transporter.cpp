@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -95,7 +95,8 @@ TCP_Transporter::TCP_Transporter(TransporterRegistry &t_reg,
 	      0, false, 
 	      conf->checksum,
 	      conf->signalId,
-	      conf->tcp.sendBufferSize),
+	      conf->tcp.sendBufferSize,
+	      conf->preSendChecksum),
   reportFreq(4096),
   receiveCount(0), receiveSize(0),
   sendCount(0), sendSize(0), 

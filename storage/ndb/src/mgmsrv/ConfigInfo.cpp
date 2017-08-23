@@ -2919,6 +2919,20 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "true" },
 
   {
+    CFG_CONNECTION_PRESEND_CHECKSUM,
+    "PreSendChecksum",
+    "TCP",
+    "If PreSendChecksum AND Checksum are enabled,\n"
+    "pre-send checksum checks are done, and\n"
+    "all signals between nodes are checked for errors",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_BOOL,
+    "false",
+    "false",
+    "true" },
+
+  {
     CFG_CONNECTION_SERVER_PORT,
     "PortNumber",
     "TCP",
@@ -3179,6 +3193,20 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "true",
     "false",
     "true" },
+
+  {
+    CFG_CONNECTION_PRESEND_CHECKSUM,
+    "PreSendChecksum",
+    "SHM",
+    "If PreSendChecksum AND Checksum are enabled,\n"
+    "pre-send checksum checks are done, and\n"
+    "all signals between nodes are checked for errors",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_BOOL,
+    "false",
+    "false",
+    "true" },
   
   {
     CFG_SHM_KEY,
@@ -3399,6 +3427,20 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "SCI",
     "If checksum is enabled, all signals between nodes are checked for errors",
     ConfigInfo::CI_EXPERIMENTAL,
+    false,
+    ConfigInfo::CI_BOOL,
+    "false",
+    "false",
+    "true" },
+
+  {
+    CFG_CONNECTION_PRESEND_CHECKSUM,
+    "PreSendChecksum",
+    "SCI",
+    "If PreSendChecksum AND Checksum are enabled,\n"
+    "pre-send checksum checks are done, and\n"
+    "all signals between nodes are checked for errors",
+    ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_BOOL,
     "false",
