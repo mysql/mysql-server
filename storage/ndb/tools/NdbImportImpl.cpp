@@ -3052,6 +3052,7 @@ NdbImportImpl::DiagTeam::DiagTeam(Job& job,
   m_result_file(m_util, m_error),
   m_reject_file(m_util, m_error),
   m_rowmap_file(m_util, m_error),
+  m_stopt_file(m_util, m_error),
   m_stats_file(m_util, m_error)
 {
 }
@@ -3325,6 +3326,18 @@ NdbImportImpl::DiagTeam::open_new_diags()
     return;
   }
   log1("file: opened: " << m_rowmap_file.get_path());
+  // stats opt
+  if (opt.m_stats)
+  {
+    m_stopt_file.set_path(opt.m_stopt_file);
+    if (m_stopt_file.do_open(openflags) == -1)
+    {
+      require(has_error());
+      m_job.m_fatal = true;
+      return;
+    }
+    log1("file: opened: " << m_stopt_file.get_path());
+  }
   // stats
   if (opt.m_stats)
   {
@@ -3358,6 +3371,14 @@ NdbImportImpl::DiagTeam::do_end()
   {
     require(has_error());
     // continue
+  }
+  if (opt.m_stats)
+  {
+    if (m_stopt_file.do_close() == -1)
+    {
+      require(has_error());
+      // continue
+    }
   }
   if (opt.m_stats)
   {
@@ -3458,6 +3479,31 @@ NdbImportImpl::DiagWorker::do_init()
       }
     }
   }
+  // stats opt
+  if (opt.m_stats)
+  {
+    File& file = static_cast<DiagTeam&>(m_team).m_stopt_file;
+    Buf& buf = m_stopt_buf;
+    const Table& table = m_util.c_stopt_table;
+    uint pagesize = opt.m_pagesize;
+    uint pagecnt = opt.m_pagecnt;
+    m_stopt_buf.alloc(pagesize, pagecnt);
+    m_stopt_csv = new CsvOutput(m_impl.m_csv,
+                                csvspec,
+                                table,
+                                m_stopt_buf);
+    m_stopt_csv->do_init();
+    if (!opt.m_resume)
+    {
+      m_stopt_csv->add_header();
+      if (file.do_write(buf) == -1)
+      {
+        require(has_error());
+        m_team.m_job.m_fatal = true;
+        return;
+      }
+    }
+  }
   // stats
   if (opt.m_stats)
   {
@@ -3508,6 +3554,11 @@ NdbImportImpl::DiagWorker::do_end()
   write_result();
   // rowmap
   write_rowmap();
+  // stats opt
+  if (opt.m_stats)
+  {
+    write_stopt();
+  }
   // stats
   if (opt.m_stats)
   {
@@ -3678,6 +3729,51 @@ NdbImportImpl::DiagWorker::write_rowmap()
     m_util.set_rowmap_row(row, job.m_runno, range);
     buf.reset();
     m_rowmap_csv->add_line(row);
+    if (file.do_write(buf) == -1)
+    {
+      require(has_error());
+      m_team.m_job.m_fatal = true;
+      return;
+    }
+  }
+}
+
+void
+NdbImportImpl::DiagWorker::write_stopt()
+{
+  static const Opt& opt = m_util.c_opt;
+  DiagTeam& team = static_cast<DiagTeam&>(m_team);
+  const Job& job = team.m_job;
+  File& file = team.m_stopt_file;
+  Buf& buf = m_stopt_buf;
+  const Table& table = m_util.c_stopt_table;
+  // write performance related option values
+  const struct ov_st {
+    const char* m_option;
+    uint m_value;
+  } ov_list[] = {
+    { "connections", opt.m_connections },
+    { "input_workers", opt.m_input_workers },
+    { "output_workers", opt.m_output_workers },
+    { "db_workers", opt.m_db_workers },
+    { "no_hint", (uint)opt.m_no_hint },
+    { "pagesize", opt.m_pagesize },
+    { "pagecnt", opt.m_pagecnt },
+    { "rowbatch", opt.m_rowbatch },
+    { "rowbytes", opt.m_rowbytes },
+    { "opbatch", opt.m_opbatch },
+    { "opbytes", opt.m_opbytes },
+    { "idlespin", opt.m_idlespin },
+    { "idlesleep", opt.m_idlesleep }
+  };
+  const uint ov_size = sizeof(ov_list) / sizeof(ov_list[0]);
+  for (uint i = 0; i < ov_size; i++)
+  {
+    const struct ov_st& ov = ov_list[i];
+    Row* row = m_util.alloc_row(table);
+    m_util.set_stopt_row(row, job.m_runno, ov.m_option, ov.m_value);
+    buf.reset();
+    m_stopt_csv->add_line(row);
     if (file.do_write(buf) == -1)
     {
       require(has_error());

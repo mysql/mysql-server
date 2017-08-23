@@ -1368,6 +1368,7 @@ NdbImportUtil::add_pseudo_tables()
   add_result_table();
   add_reject_table();
   add_rowmap_table();
+  add_stopt_table();
   add_stats_table();
 }
 
@@ -1506,6 +1507,21 @@ NdbImportUtil::set_rowmap_row(Row* row,
     id++;
   }
   require(id == attrs.size());
+}
+
+void
+NdbImportUtil::add_stopt_table()
+{
+  Table& table = c_stopt_table;
+  table.m_tabid = g_stopt_tabid;
+  require(table.m_rowsize == 0);
+  table.add_pseudo_attr("runno",
+                        NdbDictionary::Column::Unsigned);
+  table.add_pseudo_attr("option",
+                        NdbDictionary::Column::Varchar,
+                        100);
+  table.add_pseudo_attr("value",
+                        NdbDictionary::Column::Unsigned);
 }
 
 void
@@ -1680,6 +1696,37 @@ NdbImportUtil::set_reject_row(Row* row,
   {
     const Attr& attr = attrs[id];
     attr.set_blob(row, reject, rejectlen);
+    id++;
+  }
+  require(id == attrs.size());
+}
+
+void
+NdbImportUtil::set_stopt_row(Row* row,
+                             uint32 runno,
+                             const char* option,
+                             uint32 value)
+{
+  const Table& table = c_stopt_table;
+  const Attrs& attrs = table.m_attrs;
+  uint id = 0;
+  // runno
+  {
+    const Attr& attr = attrs[id];
+    attr.set_value(row, &runno, sizeof(runno));
+    id++;
+  }
+  // option
+  {
+    const Attr& attr = attrs[id];
+    uint len = strlen(option);
+    attr.set_value(row, option, len);
+    id++;
+  }
+  // value
+  {
+    const Attr& attr = attrs[id];
+    attr.set_value(row, &value, sizeof(value));
     id++;
   }
   require(id == attrs.size());
