@@ -904,6 +904,7 @@ TransporterRegistry::prepareSend(TransporterSendBufferHandle *sendHandle,
 	report_error(nodeId, TE_SIGNAL_LOST_SEND_BUFFER_FULL);
 	return SEND_BUFFER_FULL;
       } else {
+  g_eventLogger->info("Send message too big");
 	return SEND_MESSAGE_TOO_BIG;
       }
     } else {

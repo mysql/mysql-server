@@ -4153,6 +4153,8 @@ trp_callback::get_bytes_to_send_iovec(NodeId node,
 
     if (sb->m_buffer.m_first_page != NULL)
     {
+      // If first page is not NULL, the last page also can't be NULL
+      require(sb->m_buffer.m_last_page != NULL);
       if (sb->m_sending.m_first_page == NULL)
       {
         sb->m_sending = sb->m_buffer;

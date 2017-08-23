@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -312,6 +312,7 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
     dump_and_report_bad_message(__FILE__, __LINE__,
             recvHandle, readPtr, eodPtr - readPtr, remoteNodeId, state,
             errorCode);
+    g_eventLogger->info("Loop count:%u", loop_count);
   }
 
   stopReceiving = doStopReceiving;
