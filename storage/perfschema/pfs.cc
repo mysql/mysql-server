@@ -58,6 +58,8 @@
 #include "pfs_program.h"
 #include "pfs_prepared_stmt.h"
 
+using std::min;
+
 /*
   This is a development tool to investigate memory statistics,
   do not use in production.
@@ -2379,8 +2381,8 @@ void pfs_set_thread_account_v1(const char *user, int user_len,
   DBUG_ASSERT((uint) user_len <= sizeof(pfs->m_username));
   DBUG_ASSERT((host != NULL) || (host_len == 0));
   DBUG_ASSERT(host_len >= 0);
-  DBUG_ASSERT((uint) host_len <= sizeof(pfs->m_hostname));
 
+  host_len= min<size_t>(host_len, sizeof(pfs->m_hostname));
   if (unlikely(pfs == NULL))
     return;
 
