@@ -2805,8 +2805,11 @@ ha_innopart::create(
 				part_elem->partition_name,
 				part_sep,
 				FN_REFLEN - table_name_len);
-		if ((table_name_len + len) >= FN_REFLEN) {
-			ut_ad(0);
+		/* Report error if the partition name with path separator
+		exceeds maximum path length. */
+		if ((table_name_len + len + sizeof "/") >= FN_REFLEN) {
+			error = HA_ERR_INTERNAL_ERROR;
+			my_error(ER_PATH_LENGTH, MYF(0), partition_name);
 			goto cleanup;
 		}
 
@@ -2844,8 +2847,11 @@ ha_innopart::create(
 					sub_elem->partition_name,
 					sub_sep,
 					FN_REFLEN - part_name_len);
-				if ((len + part_name_len) >= FN_REFLEN) {
-					ut_ad(0);
+				/* Report error if the partition name with path separator
+				exceeds maximum path length. */
+				if ((len + part_name_len + sizeof "/") >= FN_REFLEN) {
+					error = HA_ERR_INTERNAL_ERROR;
+					my_error(ER_PATH_LENGTH, MYF(0), partition_name);
 					goto cleanup;
 				}
 				/* Override part level DATA/INDEX DIRECTORY. */
@@ -2896,11 +2902,20 @@ ha_innopart::create(
 	create_info->data_file_name = NULL;
 	create_info->index_file_name = NULL;
 	while ((part_elem = part_it++)) {
-		Ha_innopart_share::append_sep_and_name(
-			table_name_end,
-			part_elem->partition_name,
-			part_sep,
-			FN_REFLEN - table_name_len);
+		len = Ha_innopart_share::append_sep_and_name(
+				table_name_end,
+				part_elem->partition_name,
+				part_sep,
+				FN_REFLEN - table_name_len);
+
+		/* Report error if table name with partition name exceeds
+		maximum length */
+		if ((len + table_name_len) >= NAME_LEN) {
+			my_error(ER_PATH_LENGTH, MYF(0), table_name);
+			error = HA_ERR_INTERNAL_ERROR;
+			goto end;
+		}
+
 		if (!form->part_info->is_sub_partitioned()) {
 			error = info.create_table_update_dict();
 			if (error != 0) {
@@ -2914,12 +2929,21 @@ ha_innopart::create(
 				sub_it(part_elem->subpartitions);
 			partition_element* sub_elem;
 			while ((sub_elem = sub_it++)) {
-				Ha_innopart_share::append_sep_and_name(
-					part_name_end,
-					sub_elem->partition_name,
-					sub_sep,
-					FN_REFLEN - table_name_len
-					- part_name_len);
+				len = Ha_innopart_share::append_sep_and_name(
+						part_name_end,
+						sub_elem->partition_name,
+						sub_sep,
+						FN_REFLEN - table_name_len
+						- part_name_len);
+				/* Report error if table name with partition
+				name exceeds maximum length */
+				if ((len + table_name_len +
+					part_name_len) >= NAME_LEN) {
+					my_error(ER_PATH_LENGTH, MYF(0), table_name);
+					error = HA_ERR_INTERNAL_ERROR;
+					goto end;
+				}
+
 				error = info.create_table_update_dict();
 				if (error != 0) {
 					ut_ad(0);
