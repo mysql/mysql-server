@@ -2727,8 +2727,11 @@ ha_innopart::create(
 			partition_name_start, FN_REFLEN - table_name_len,
 			dd_part);
 
-		if (table_name_len + len >= FN_REFLEN) {
-			ut_ad(0);
+		/* Report error if the partition name with path separator
+		exceeds maximum path length. */
+		if ((table_name_len + len + sizeof "/") >= FN_REFLEN) {
+			error = HA_ERR_INTERNAL_ERROR;
+			my_error(ER_PATH_LENGTH, MYF(0), partition_name);
 			goto cleanup;
 		}
 
@@ -2796,9 +2799,18 @@ ha_innopart::create(
 
 	for (const auto dd_part : *table_def->leaf_partitions()) {
 
-		Ha_innopart_share::create_partition_postfix(
+		size_t len = Ha_innopart_share::create_partition_postfix(
 			table_name_end, FN_REFLEN - table_name_len,
 			dd_part);
+
+		/* Report error if table_name with partition name length
+		exceeds maximum length */
+		if ((len + table_name_len) >  MAX_TABLE_UTF8_LEN)
+		{
+			my_error(ER_PATH_LENGTH, MYF(0), table_name);
+			error = HA_ERR_INTERNAL_ERROR;
+			goto end;
+		}
 
 		if ((error = info.create_table_update_global_dd<dd::Partition>(
 			const_cast<dd::Partition*>(dd_part))) != 0) {
