@@ -310,37 +310,37 @@ NdbImportUtil::List::remove(ListEnt* ent)
 }
 
 void
-NdbImportUtil::List::push_back(List& list2)
+NdbImportUtil::List::push_back_from(List& src)
 {
-  if (list2.m_cnt != 0)
+  if (src.m_cnt != 0)
   {
     if (m_cnt != 0)
     {
       ListEnt* ent1 = m_back;
-      ListEnt* ent2 = list2.m_front;
+      ListEnt* ent2 = src.m_front;
       require(ent1 != 0 && ent2 != 0);
       require(ent1->m_next == 0 && ent2->m_prev == 0);
-      // push list2 to the back
+      // push src to the back
       ent1->m_next = ent2;
       ent2->m_prev = ent1;
-      m_back = list2.m_back;
-      m_cnt += list2.m_cnt;
+      m_back = src.m_back;
+      m_cnt += src.m_cnt;
     }
     else
     {
-      m_front = list2.m_front;
-      m_back = list2.m_back;
-      m_cnt = list2.m_cnt;
+      m_front = src.m_front;
+      m_back = src.m_back;
+      m_cnt = src.m_cnt;
     }
     if (m_maxcnt < m_cnt)
       m_maxcnt = m_cnt;
-    m_totcnt += list2.m_cnt;
+    m_totcnt += src.m_cnt;
   }
   validate();
-  // erase list2 but leave stats alone
-  list2.m_front = 0;
-  list2.m_back = 0;
-  list2.m_cnt = 0;
+  // erase src but leave stats alone
+  src.m_front = 0;
+  src.m_back = 0;
+  src.m_cnt = 0;
 }
 
 #if defined(VM_TRACE) || defined(TEST_NDBIMPORTUTIL)
@@ -363,7 +363,7 @@ NdbImportUtil::List::validate() const
     else
       require(m_front != m_back);
   }
-#if defined(TEST_NDBIMPORTUTIL)
+#if defined(VM_TRACE) && defined(TEST_NDBIMPORTUTIL)
   uint cnt = 0;
   ListEnt* ent1 = m_front;
   ListEnt* ent2 = 0;
@@ -419,7 +419,7 @@ NdbImportUtil::Attr::set_value(Row* row, const void* data, uint len) const
   require(data != 0);
   uint totlen = m_arraytype + len;
   require(totlen <= m_size);
-  require(m_offset + totlen <= row->m_rowsize);
+  require(m_offset + totlen <= row->m_recsize);
   uchar* p = &row->m_data[m_offset];
   switch (m_arraytype) {
   case 0:
@@ -459,6 +459,9 @@ NdbImportUtil::Attr::set_blob(Row* row, const void* data, uint len) const
   blob->m_blobsize = len;
   if (m_nullable)
     set_null(row, false);
+  // add to rowsize which already includes recsize
+  require(row->m_rowsize >= row->m_recsize);
+  row->m_rowsize += len;
 }
 
 void
@@ -621,7 +624,7 @@ NdbImportUtil::Table::Table()
   m_tab = 0;
   m_rec = 0;
   m_keyrec = 0;
-  m_rowsize = 0;
+  m_recsize = 0;
   m_has_hidden_pk = false;
 }
 
@@ -694,7 +697,7 @@ NdbImportUtil::Table::add_pseudo_attr(const char* name,
   }
   attr.m_null_byte = Inval_uint;
   attr.m_null_bit = Inval_uint;
-  m_rowsize += attr.m_size;
+  m_recsize += attr.m_size;
   m_attrs.push_back(attr);
 }
 
@@ -749,7 +752,7 @@ NdbImportUtil::add_table(NdbDictionary::Dictionary* dic,
     table.m_tabid = tabid;
     table.m_tab = tab;
     table.m_rec = rec;
-    table.m_rowsize = NdbDictionary::getRecordRowLength(rec);
+    table.m_recsize = NdbDictionary::getRecordRowLength(rec);
     Attrs& attrs = table.m_attrs;
     const uint attrcnt = tab->getNoOfColumns();
     attrs.reserve(attrcnt);
@@ -928,6 +931,7 @@ NdbImportUtil::get_table(uint tabid)
 NdbImportUtil::Row::Row()
 {
   m_tabid = Inval_uint;
+  m_recsize = 0;
   m_rowsize = 0;
   m_allocsize = 0;
   m_rowid = Inval_uint64;
@@ -946,14 +950,15 @@ void
 NdbImportUtil::Row::init(const Table& table)
 {
   m_tabid = table.m_tabid;
-  uint rowsize = table.m_rowsize;
-  require(rowsize > 0);
-  m_rowsize = rowsize;
-  if (m_allocsize < rowsize)
+  uint recsize = table.m_recsize;
+  require(recsize > 0);
+  m_recsize = recsize;
+  m_rowsize = recsize;  // full main record is always included
+  if (m_allocsize < recsize)
   {
     delete [] m_data;
-    m_data = new uchar [rowsize];
-    m_allocsize = rowsize;
+    m_data = new uchar [recsize];
+    m_allocsize = recsize;
   }
 }
 
@@ -968,6 +973,7 @@ NdbImportUtil::RowList::RowList()
   m_underflow = 0;
   m_stat_overflow = 0;
   m_stat_underflow = 0;
+  m_stat_locks = 0;
 }
 
 NdbImportUtil::RowList::~RowList ()
@@ -987,6 +993,11 @@ NdbImportUtil::RowList::set_stats(Stats& stats, const char* name)
     const Name statname(name, "underflow");
     Stat* stat = stats.create(statname, 0, 0);
     m_stat_underflow = stat;
+  }
+  {
+    const Name statname(name, "locks");
+    Stat* stat = stats.create(statname, 0, 0);
+    m_stat_locks = stat;
   }
 }
 
@@ -1035,6 +1046,13 @@ NdbImportUtil::RowList::push_front(Row* row)
   return ret;
 }
 
+void
+NdbImportUtil::RowList::push_front_force(Row* row)
+{
+  List::push_front(row);
+  m_rowsize += row->m_rowsize;
+}
+
 NdbImportUtil::Row*
 NdbImportUtil::RowList::pop_front()
 {
@@ -1063,13 +1081,135 @@ NdbImportUtil::RowList::remove(Row* row)
   m_rowsize -= row->m_rowsize;
 }
 
+void
+NdbImportUtil::RowList::push_back_from(RowList& src)
+{
+  List::push_back_from(src);
+  m_rowsize += src.m_rowsize;
+  src.m_rowsize = 0;
+  validate();
+  src.validate();
+}
+
+/*
+ * Transfer rows from a shared list src to our list.  If src is
+ * empty, try to wait.  Terminate if our list is full.  If any rows
+ * were transferred, do not wait for more, and signal that src now
+ * has fewer rows.
+ */
+void
+NdbImportUtil::RowList::push_back_from(RowList& src, RowCtl& ctl)
+{
+  uint retries = ctl.m_retries;
+  uint cnt_out = 0;
+  uint bytes_out = 0;
+  if (unlikely(full()))
+    return;
+  while (src.empty() && retries != 0)
+  {
+    if (ctl.m_dowait)
+      src.wait(ctl.m_timeout);
+    retries--;
+  }
+  while (!src.empty())
+  {
+    // pop because row cannot be on 2 lists
+    Row* row = src.pop_front();
+    if (push_back(row))
+    {
+      cnt_out++;
+      bytes_out += row->m_rowsize;
+      continue;
+    }
+    src.push_front_force(row);
+    // our list is full
+    break;
+  }
+  if (cnt_out != 0 && ctl.m_dosignal)
+  {
+    // signal that we removed some rows from src
+    src.signal();
+  }
+  ctl.m_cnt_out += cnt_out;
+  ctl.m_bytes_out += bytes_out;
+}
+
+/*
+ * Transfer rows from our list to a shared list dst.  If dst is
+ * full, try to wait.  Terminate if our list is empty.  If any rows
+ * were transferred, do not wait for more, and signal that dst now
+ * has more rows.
+ */
+void
+NdbImportUtil::RowList::pop_front_to(RowList& dst, RowCtl& ctl)
+{
+  uint retries = ctl.m_retries;
+  uint cnt_out = 0;
+  uint bytes_out = 0;
+  if (unlikely(empty()))
+    return;
+  while (dst.full() && retries != 0)
+  {
+    if (ctl.m_dowait)
+      dst.wait(ctl.m_timeout);
+    retries--;
+  }
+  while (!empty())
+  {
+    // pop because row cannot be on 2 lists
+    Row* row = pop_front();
+    if (dst.push_back(row))
+    {
+      cnt_out++;
+      bytes_out += row->m_rowsize;
+      continue;
+    }
+    push_front_force(row);
+    // dst is full
+    break;
+  }
+  if (cnt_out != 0 && ctl.m_dosignal)
+  {
+    // signal that we added some rows to dst
+    dst.signal();
+  }
+  ctl.m_cnt_out += cnt_out;
+  ctl.m_bytes_out += bytes_out;
+}
+
+#if defined(VM_TRACE) || defined(TEST_NDBIMPORTUTIL)
+void
+NdbImportUtil::RowList::validate() const
+{
+  List::validate();
+  if (m_cnt == 0)
+    require(m_rowsize == 0);
+  if (m_rowsize == 0)
+    require(m_cnt == 0);
+#if defined(VM_TRACE) && defined(TEST_NDBIMPORTUTIL)
+  uint rowsize = 0;
+  const Row* row = static_cast<const Row*>(m_front);
+  while (row != 0)
+  {
+    rowsize += row->m_rowsize;
+    row = static_cast<const Row*>(row->m_next);
+  }
+  require(m_rowsize == rowsize);
+#endif
+}
+#endif
+
+// alloc and free shared rows
+
 NdbImportUtil::Row*
-NdbImportUtil::alloc_row(const Table& table)
+NdbImportUtil::alloc_row(const Table& table, bool dolock)
 {
   RowList& rows = *c_rows_free;
-  rows.lock();
+  if (dolock)
+    rows.lock();
   Row* row = rows.pop_front();
-  rows.unlock();
+  if (dolock)
+    rows.unlock();
   if (row == 0)
   {
     row = new Row;
@@ -1084,11 +1224,33 @@ NdbImportUtil::alloc_row(const Table& table)
 }
 
 void
+NdbImportUtil::alloc_rows(const Table& table, uint cnt, RowList& dst)
+{
+  RowList& rows = *c_rows_free;
+  rows.lock();
+  for (uint i = 0; i < cnt; i++)
+  {
+    Row* row = alloc_row(table, false);
+    dst.push_back_force(row);   // ignore limits
+  }
+  rows.unlock();
+}
+
+void
 NdbImportUtil::free_row(Row* row)
 {
   RowList& rows = *c_rows_free;
   rows.lock();
   rows.push_back(row);
+  rows.unlock();
+}
+ 
+void
+NdbImportUtil::free_rows(RowList& src)
+{
+  RowList& rows = *c_rows_free;
+  rows.lock();
+  rows.push_back_from(src);
   rows.unlock();
 }
 
@@ -1368,6 +1530,7 @@ NdbImportUtil::add_pseudo_tables()
   add_result_table();
   add_reject_table();
   add_rowmap_table();
+  add_stopt_table();
   add_stats_table();
 }
 
@@ -1376,7 +1539,7 @@ NdbImportUtil::add_result_table()
 {
   Table& table = c_result_table;
   table.m_tabid = g_result_tabid;
-  require(table.m_rowsize == 0);
+  require(table.m_recsize == 0);
   table.add_pseudo_attr("runno",
                         NdbDictionary::Column::Unsigned);
   table.add_pseudo_attr("name",
@@ -1405,7 +1568,7 @@ NdbImportUtil::add_reject_table()
 {
   Table& table = c_reject_table;
   table.m_tabid = g_reject_tabid;
-  require(table.m_rowsize == 0);
+  require(table.m_recsize == 0);
   table.add_pseudo_attr("runno",
                         NdbDictionary::Column::Unsigned);
   table.add_pseudo_attr("rowid",
@@ -1428,7 +1591,7 @@ NdbImportUtil::add_rowmap_table()
 {
   Table& table = c_rowmap_table;
   table.m_tabid = g_rowmap_tabid;
-  require(table.m_rowsize == 0);
+  require(table.m_recsize == 0);
   table.add_pseudo_attr("runno",
                         NdbDictionary::Column::Unsigned);
   table.add_pseudo_attr("start",
@@ -1509,11 +1672,26 @@ NdbImportUtil::set_rowmap_row(Row* row,
 }
 
 void
+NdbImportUtil::add_stopt_table()
+{
+  Table& table = c_stopt_table;
+  table.m_tabid = g_stopt_tabid;
+  require(table.m_recsize == 0);
+  table.add_pseudo_attr("runno",
+                        NdbDictionary::Column::Unsigned);
+  table.add_pseudo_attr("option",
+                        NdbDictionary::Column::Varchar,
+                        100);
+  table.add_pseudo_attr("value",
+                        NdbDictionary::Column::Unsigned);
+}
+
+void
 NdbImportUtil::add_stats_table()
 {
   Table& table = c_stats_table;
   table.m_tabid = g_stats_tabid;
-  require(table.m_rowsize == 0);
+  require(table.m_recsize == 0);
   table.add_pseudo_attr("runno",
                         NdbDictionary::Column::Unsigned);
   table.add_pseudo_attr("id",
@@ -1686,12 +1864,46 @@ NdbImportUtil::set_reject_row(Row* row,
 }
 
 void
+NdbImportUtil::set_stopt_row(Row* row,
+                             uint32 runno,
+                             const char* option,
+                             uint32 value)
+{
+  const Table& table = c_stopt_table;
+  const Attrs& attrs = table.m_attrs;
+  uint id = 0;
+  // runno
+  {
+    const Attr& attr = attrs[id];
+    attr.set_value(row, &runno, sizeof(runno));
+    id++;
+  }
+  // option
+  {
+    const Attr& attr = attrs[id];
+    uint len = strlen(option);
+    attr.set_value(row, option, len);
+    id++;
+  }
+  // value
+  {
+    const Attr& attr = attrs[id];
+    attr.set_value(row, &value, sizeof(value));
+    id++;
+  }
+  require(id == attrs.size());
+}
+
+void
 NdbImportUtil::set_stats_row(Row* row,
                              uint32 runno,
-                             const Stat& stat)
+                             const Stat& stat,
+                             bool global)
 {
   const Table& table = c_stats_table;
   const Attrs& attrs = table.m_attrs;
+  const uint g_offset = !global ? 0 : 1000;
+  const char* g_prefix = !global ? 0 : "g";
   // floats
   double obsf = (double)stat.m_obs;
   double sum1 = stat.m_sum1;
@@ -1706,20 +1918,31 @@ NdbImportUtil::set_stats_row(Row* row,
   // id
   {
     const Attr& attr = attrs[id];
-    attr.set_value(row, &stat.m_id, sizeof(stat.m_id));
+    uint idval = stat.m_id + g_offset;
+    attr.set_value(row, &idval, sizeof(idval));
     id++;
   }
   // name
   {
     const Attr& attr = attrs[id];
-    uint namelen = strlen(stat.m_name);
-    attr.set_value(row, stat.m_name, namelen);
+    if (g_prefix == 0)
+    {
+      uint namelen = strlen(stat.m_name);
+      attr.set_value(row, stat.m_name, namelen);
+    }
+    else
+    {
+      Name name(g_prefix, stat.m_name);
+      uint namelen = strlen(name.str());
+      attr.set_value(row, name.str(), namelen);
+    }
     id++;
   }
   // parent
   {
     const Attr& attr = attrs[id];
-    attr.set_value(row, &stat.m_parent, sizeof(stat.m_parent));
+    uint parentval = stat.m_id == 0 ? stat.m_parent : stat.m_parent + g_offset;
+    attr.set_value(row, &parentval, sizeof(parentval));
     id++;
   }
   // obs
@@ -2618,6 +2841,10 @@ NdbImportUtil::fmt_msec_to_hhmmss(char* str, uint64 msec)
 
 typedef NdbImportUtil::ListEnt UtilListEnt;
 typedef NdbImportUtil::List UtilList;
+typedef NdbImportUtil::Table UtilTable;
+typedef NdbImportUtil::RowCtl UtilRowCtl;
+typedef NdbImportUtil::Row UtilRow;
+typedef NdbImportUtil::RowList UtilRowList;
 typedef NdbImportUtil::RowMap UtilRowMap;
 typedef NdbImportUtil::Buf UtilBuf;
 typedef NdbImportUtil::File UtilFile;
@@ -2627,6 +2854,10 @@ typedef NdbImportUtil::Stats UtilStats;
 
 #include <NdbTap.hpp>
 #include <ndb_rand.h>
+#include <NdbEnv.h>
+
+// increase size of some tests if release-compiled
+static bool mybigtest = false;
 
 static uint
 myrandom()
@@ -2724,6 +2955,82 @@ testlist()
   require(recs.m_cnt == 0);
   delete [] recpool;
   ndbout << "max_occup=" << max_occup << endl;
+  return 0;
+}
+
+static int
+testrowlist1()
+{
+  ndbout << "testrowlist1" << endl;
+  NdbImportUtil util;
+  UtilTable table;
+  table.add_pseudo_attr("a", NdbDictionary::Column::Unsigned);
+  table.add_pseudo_attr("b", NdbDictionary::Column::Varchar, 10);
+  const uint loops = !mybigtest ? 100 : 1000;
+  const uint rows = !mybigtest ? 1000 : 10000;
+  for (uint loop = 0; loop < loops; loop++)
+  {
+    UtilRowList list1;
+    UtilRowList list2;
+    while (list1.cnt() < rows)
+    {
+      uint cnt = 1 + myrandom(rows - list1.cnt());
+      util.alloc_rows(table, cnt, list1);
+    }
+    require(list1.cnt() == rows);
+    list2.push_back_from(list1);
+    require(list1.cnt() == 0);
+    require(list2.cnt() == rows);
+    util.free_rows(list2);
+    require(list2.cnt() == 0);
+    require(util.c_rows_free->cnt() == rows);
+  }
+  return 0;
+}
+
+static int
+testrowlist2()
+{
+  ndbout << "testrowlist2" << endl;
+  NdbImportUtil util;
+  UtilTable table;
+  table.add_pseudo_attr("a", NdbDictionary::Column::Unsigned);
+  table.add_pseudo_attr("b", NdbDictionary::Column::Varchar, 10);
+  const uint loops = !mybigtest ? 100 : 1000;
+  const uint rows = !mybigtest ? 1000 : 10000;
+  {
+    UtilRowList list;
+    util.alloc_rows(table, rows, list);
+    util.free_rows(list);
+  }
+  for (uint loop = 0; loop < loops; loop++)
+  {
+    UtilRowList list1;
+    UtilRowList list2;
+    list1.m_rowbatch = 1 + myrandom(rows);
+    list2.m_rowbatch = 1 + myrandom(rows);
+    const uint cnt = myrandom(rows + 1);
+    util.alloc_rows(table, cnt, list1);
+    require(list1.cnt() == cnt);
+    do
+    {
+      uint timeout = myrandom(10) != 0 ? 0 : 10;
+      UtilRowCtl ctl(timeout);
+      list2.push_back_from(list1, ctl);
+      util.free_rows(list2);
+    } while (list1.cnt() != 0);
+    require(util.c_rows_free->cnt() == rows);
+    util.alloc_rows(table, cnt, list1);
+    require(list1.cnt() == cnt);
+    do
+    {
+      uint timeout = myrandom(10) != 0 ? 0 : 10;
+      UtilRowCtl ctl(timeout);
+      list1.pop_front_to(list2, ctl);
+      util.free_rows(list2);
+    } while (list1.cnt() != 0);
+    require(util.c_rows_free->cnt() == rows);
+  }
   return 0;
 }
 
@@ -3065,6 +3372,22 @@ teststat()
   return 0;
 }
 
+static void
+myseed()
+{
+  const char* p = NdbEnv_GetEnv("TEST_NDBIMPORTUTIL_SEED", (char*)0, 0);
+  unsigned seed = p != 0 ? (unsigned)atoi(p) : (uint)NdbHost_GetProcessId();
+  ndbout << "seed=" << seed << endl;
+  ndb_srand(seed);
+}
+
+static bool
+mycase(const char* name)
+{
+  const char* p = NdbEnv_GetEnv("TEST_NDBIMPORTUTIL_CASE", (char*)0, 0);
+  return p == 0 || strcmp(p, name) == 0;
+}
+
 static int
 testmain()
 {
@@ -3073,21 +3396,33 @@ testmain()
   signal(SIGABRT, SIG_DFL);
   signal(SIGSEGV, SIG_DFL);
 #endif
-  uint seed = (uint)NdbHost_GetProcessId();
-  ndbout << "seed=" << seed << endl;
-  ndb_srand(seed);
-  if (testlist() != 0)
+  mybigtest =
+#ifdef VM_TRACE
+    false;
+#else
+    true;
+#endif
+  myseed();
+  if (mycase("testlist") && testlist() != 0)
     return -1;
-  if (testrowmap() != 0)
+  if (mycase("testrowlist1") && testrowlist1() != 0)
     return -1;
-  if (testbuf() != 0)
+  if (mycase("testrowlist2") && testrowlist2() != 0)
     return -1;
-  if (testfile() != 0)
+  if (mycase("testrowmap") && testrowmap() != 0)
     return -1;
-  if (testprint() != 0)
+  if (mycase("testbuf") && testbuf() != 0)
     return -1;
-  if (teststat() != 0)
+  if (mycase("testfile") && testfile() != 0)
     return -1;
+  if (mycase("testprint") && testprint() != 0)
+    return -1;
+  if (mycase("teststat") && teststat() != 0)
+    return -1;
+  struct ndb_rusage ru;
+  require(Ndb_GetRUsage(&ru) == 0);
+  ndbout << "utime=" << ru.ru_utime/1000
+         << " stime=" << ru.ru_stime/1000 << " (ms)" << endl;
   return 0;
 }
 

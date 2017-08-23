@@ -71,6 +71,7 @@ NdbImport::Opt::Opt()
   m_result_file = 0;
   m_reject_file = 0;
   m_rowmap_file = 0;
+  m_stopt_file = 0;
   m_stats_file = 0;
   m_continue = false;
   m_resume = false;
@@ -89,8 +90,10 @@ NdbImport::Opt::Opt()
   m_polltimeout = 1000;
   m_temperrors = 0;
   m_tempdelay = 10;
+  m_rowswait = 1;
   m_idlespin = 0;
   m_idlesleep = 1;
+  m_alloc_chunk = 20;
   m_rejects = 0;
   // character set
   m_charset_name = "binary";
@@ -181,6 +184,12 @@ NdbImport::set_opt(Opt& opt)
   {
     util.set_error_usage(util.c_error, __LINE__,
                          "invalid autoincrement options");
+    return -1;
+  }
+  if (opt.m_alloc_chunk == 0)
+  {
+    util.set_error_usage(util.c_error, __LINE__,
+                         "option --alloc-chunk must be non-zero");
     return -1;
   }
   // character set

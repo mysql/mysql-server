@@ -53,8 +53,10 @@ public:
   typedef NdbImportUtil::Row Row;
   typedef NdbImportUtil::Blob Blob;
   typedef NdbImportUtil::RowList RowList;
+  typedef NdbImportUtil::RowCtl RowCtl;
   typedef NdbImportUtil::RowMap RowMap;
   typedef NdbImportUtil::Buf Buf;
+  typedef NdbImportUtil::Stats Stats;
 
   NdbImportCsv(NdbImportUtil& util);
   ~NdbImportCsv();
@@ -121,8 +123,8 @@ public:
     Data* pop_front() {
       return static_cast<Data*>(List::pop_front());
     }
-    void push_back(DataList& list2) {
-      List::push_back(list2);
+    void push_back_from(DataList& src) {
+      List::push_back_from(src);
     }
     uint cnt() const {
       return m_cnt;
@@ -160,8 +162,8 @@ public:
     Field* pop_front() {
       return static_cast<Field*>(List::pop_front());
     }
-    void push_back(FieldList& list2) {
-      List::push_back(list2);
+    void push_back_from(FieldList& src) {
+      List::push_back_from(src);
     }
     uint cnt() const {
       return m_cnt;
@@ -198,8 +200,8 @@ public:
     Line* pop_front() {
       return static_cast<Line*>(List::pop_front());
     }
-    void push_back(LineList& list2) {
-      List::push_back(list2);
+    void push_back_from(LineList& src) {
+      List::push_back_from(src);
     }
     uint cnt() const {
       return m_cnt;
@@ -272,7 +274,8 @@ public:
           Buf& buf,
           RowList& rows_out,
           RowList& rows_reject,
-          RowMap& rowmap_in);
+          RowMap& rowmap_in,
+          Stats& stats);
     ~Input();
     void do_init();
     void do_resume(RowMap::Range range_in);
@@ -298,7 +301,7 @@ public:
       return m_util.has_error(m_error);
     }
     LineList m_line_list;
-    RowList m_rows_in;
+    RowList m_rows;     // lines eval'd to rows
     Parse* m_parse;
     Eval* m_eval;
     uint64 m_startpos;

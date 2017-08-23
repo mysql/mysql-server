@@ -183,7 +183,7 @@ public:
     void push_front(ListEnt* ent);
     ListEnt* pop_front();
     void remove(ListEnt* ent);
-    void push_back(List& list2);
+    void push_back_from(List& src);
 #if defined(VM_TRACE) || defined(TEST_NDBIMPORTUTIL)
     void validate() const;
 #else
@@ -261,7 +261,7 @@ public:
     const NdbDictionary::Table* m_tab;
     const NdbRecord* m_rec;
     const NdbRecord* m_keyrec;
-    uint m_rowsize;
+    uint m_recsize;     // size of main record
     bool m_has_hidden_pk;
     Attrs m_attrs;
     std::vector<uint> m_blobids;
@@ -286,12 +286,30 @@ public:
 
   struct Blob;
 
+  struct RowCtl {
+    RowCtl(uint timeout) {
+      m_timeout = timeout;
+      m_retries = timeout == 0 ? 0 : 1;
+      m_dosignal = (timeout != 0);
+      m_dowait = (timeout != 0);
+      m_cnt_out = 0;
+      m_bytes_out = 0;
+    };
+    uint m_timeout;
+    uint m_retries;
+    bool m_dosignal;
+    bool m_dowait;
+    uint m_cnt_out;
+    uint m_bytes_out;
+  };
+
   struct Row : ListEnt {
     Row();
     virtual ~Row();
     void init(const Table& table);
     uint m_tabid;
-    uint m_rowsize;
+    uint m_recsize;     // fixed
+    uint m_rowsize;     // includes blobs, used to compute batches
     uint m_allocsize;
     uint64 m_rowid;
     uint64 m_linenr;    // file line number starting at 1
@@ -308,14 +326,38 @@ public:
     bool push_back(Row* row);
     void push_back_force(Row* row);
     bool push_front(Row* row);
+    void push_front_force(Row* row);
     Row* pop_front();
     void remove(Row* row);
+    void push_back_from(RowList& src);
+    // here signal/wait can be used on a locked argument list
+    void push_back_from(RowList& src, RowCtl& ctl);
+    void pop_front_to(RowList& dst, RowCtl& ctl);
     uint cnt() const {
       return m_cnt;
     }
     uint64 totcnt() const {
       return m_totcnt;
     }
+    bool empty() const {
+      return m_cnt == 0;
+    }
+    bool full() const {
+      return m_cnt >= m_rowbatch || m_rowsize >= m_rowbytes;
+    } 
+    void lock() {
+      Lockable::lock();
+      if (m_stat_locks != 0)
+        m_stat_locks->add(1);
+    }
+    void unlock() {
+      Lockable::unlock();
+    }
+#if defined(VM_TRACE) || defined(TEST_NDBIMPORTUTIL)
+    void validate() const;
+#else
+    void validate() const {}
+#endif
     uint m_rowsize;     // sum from row entries
     uint m_rowbatch;    // limit m_cnt
     uint m_rowbytes;    // limit m_rowsize
@@ -325,10 +367,15 @@ public:
     uint64 m_underflow;
     Stat* m_stat_overflow;      // failed to push due to size limit
     Stat* m_stat_underflow;     // failed to pop due to empty
+    Stat* m_stat_locks;         // locks taken
   };
 
-  Row* alloc_row(const Table& Table);
+  // alloc and free shared rows
+
+  Row* alloc_row(const Table& Table, bool dolock = true);
+  void alloc_rows(const Table& table, uint cnt, RowList& dst);
   void free_row(Row* row);
+  void free_rows(RowList& src);
 
   RowList* c_rows_free;
 
@@ -472,16 +519,19 @@ public:
   static const uint g_result_tabid = 0xffff0000;
   static const uint g_reject_tabid = 0xffff0001;
   static const uint g_rowmap_tabid = 0xffff0002;
-  static const uint g_stats_tabid = 0xffff0003;
+  static const uint g_stopt_tabid = 0xffff0003;
+  static const uint g_stats_tabid = 0xffff0004;
   Table c_result_table;
   Table c_reject_table;
   Table c_rowmap_table;
+  Table c_stopt_table;
   Table c_stats_table;
 
   void add_pseudo_tables();
   void add_result_table();
   void add_reject_table();
   void add_rowmap_table();
+  void add_stopt_table();
   void add_stats_table();
 
   void add_error_attrs(Table& table);
@@ -507,9 +557,15 @@ public:
                       uint32 runno,
                       const RowMap::Range& range);
 
+  void set_stopt_row(Row* row,
+                     uint32 runno,
+                     const char* option,
+                     uint32 value);
+
   void set_stats_row(Row* row,
                      uint32 runno,
-                     const Stat& stat);
+                     const Stat& stat,
+                     bool global);
 
   void set_error_attrs(Row* row,
                        const Table& table,

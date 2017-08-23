@@ -48,6 +48,7 @@ public:
   typedef NdbImportUtil::Attrs Attrs;
   typedef NdbImportUtil::Table Table;
   typedef NdbImportUtil::Tables Tables;
+  typedef NdbImportUtil::RowCtl RowCtl;
   typedef NdbImportUtil::Row Row;
   typedef NdbImportUtil::RowList RowList;
   typedef NdbImportUtil::Blob Blob;
@@ -595,6 +596,8 @@ public:
     OpList m_op_free;
     TxList m_tx_free;
     TxList m_tx_open;
+    // rows to free at batch end under single mutex
+    RowList m_rows_free;
   };
 
   // relay op team
@@ -605,6 +608,22 @@ public:
    * send the row to.  It then pipes the row to exec op worker(s)
    * dedicated to that node.
    */
+
+  struct RelayState {
+    enum State {
+      State_null = 0,
+      // receive rows from e.g. CSV input
+      State_receive,
+      // select optimal node
+      State_define,
+      // send rows to each exec op worker
+      State_send,
+      // no more rows
+      State_eof
+    };
+  };
+
+  static const char* g_str_state(RelayState::State state);
 
   struct RelayOpTeam : DbTeam {
     RelayOpTeam(Job& job, uint workercnt);
@@ -620,10 +639,16 @@ public:
     virtual void do_init();
     virtual void do_run();
     virtual void do_end();
+    void state_receive();
+    void state_define();
+    void state_send();
+    virtual void str_state(char* str) const;
+    RelayState::State m_relaystate;
     uchar* m_xfrmalloc;
     uchar* m_xfrmbuf;
     uint m_xfrmbuflen;
-    Row* m_row_save;
+    RowList m_rows;     // rows received
+    RowList* m_rows_exec[g_max_ndb_nodes];      // sorted to per-node
   };
 
   // exec op team
@@ -685,7 +710,8 @@ public:
     ExecState::State m_execstate;
     uint m_nodeindex;   // index into ndb nodes array
     uint m_nodeid;
-    OpList m_ops_in;    // received rows converted to ops
+    RowList m_rows;     // received rows
+    OpList m_ops;       // received rows converted to ops
     bool m_eof;
     ErrorMap m_errormap;// temporary errors in current batch
     uint m_opcnt;       // current batch
@@ -731,6 +757,7 @@ public:
     WorkerFile m_result_file;
     WorkerFile m_reject_file;
     WorkerFile m_rowmap_file;
+    WorkerFile m_stopt_file;
     WorkerFile m_stats_file;
   };
 
@@ -743,14 +770,17 @@ public:
     void write_result();
     void write_reject();
     void write_rowmap();
+    void write_stopt();
     void write_stats();
     Buf m_result_buf;
     Buf m_reject_buf;
     Buf m_rowmap_buf;
+    Buf m_stopt_buf;
     Buf m_stats_buf;
     CsvOutput* m_result_csv;
     CsvOutput* m_reject_csv;
     CsvOutput* m_rowmap_csv;
+    CsvOutput* m_stopt_csv;
     CsvOutput* m_stats_csv;
   };
 

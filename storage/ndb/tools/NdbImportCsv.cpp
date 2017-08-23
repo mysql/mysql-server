@@ -337,7 +337,7 @@ void
 NdbImportCsv::Alloc::free_data_list(DataList& data_list)
 {
   m_free_data_cnt += data_list.cnt();
-  m_data_free.push_back(data_list);
+  m_data_free.push_back_from(data_list);
 }
 
 NdbImportCsv::Field*
@@ -362,7 +362,7 @@ NdbImportCsv::Alloc::free_field_list(FieldList& field_list)
     field = field->next();
   }
   m_free_field_cnt += field_list.cnt();
-  m_field_free.push_back(field_list);
+  m_field_free.push_back_from(field_list);
 }
 
 NdbImportCsv::Line*
@@ -387,7 +387,7 @@ NdbImportCsv::Alloc::free_line_list(LineList& line_list)
     line = line->next();
   }
   m_free_line_cnt += line_list.cnt();
-  m_line_free.push_back(line_list);
+  m_line_free.push_back_from(line_list);
 }
 
 bool
@@ -408,7 +408,8 @@ NdbImportCsv::Input::Input(NdbImportCsv& csv,
                            Buf& buf,
                            RowList& rows_out,
                            RowList& rows_reject,
-                           RowMap& rowmap_in) :
+                           RowMap& rowmap_in,
+                           Stats& stats) :
   m_csv(csv),
   m_util(m_csv.m_util),
   m_name(name),
@@ -421,7 +422,7 @@ NdbImportCsv::Input::Input(NdbImportCsv& csv,
 {
   m_parse = new Parse(*this);
   m_eval = new Eval(*this);
-  m_rows_in.set_stats(m_util.c_stats, Name(m_name, "rows"));
+  m_rows.set_stats(m_util.c_stats, Name(m_name, "rows"));
   m_startpos = 0;
   m_startlineno = 0;
   m_ignore_lines = 0;
@@ -474,21 +475,13 @@ NdbImportCsv::Input::do_eval()
 void
 NdbImportCsv::Input::do_send(uint& curr, uint& left)
 {
-  RowList& rows_in = m_rows_in;         // local
+  const Opt& opt = m_util.c_opt;
   RowList& rows_out = m_rows_out;       // shared
   rows_out.lock();
-  curr = rows_in.cnt();
-  while (rows_in.cnt() != 0)
-  {
-    Row* row = rows_in.pop_front();
-    require(row != 0);
-    if (!rows_out.push_back(row))
-    {
-      rows_in.push_front(row);
-      break;
-    }
-  }
-  left = rows_in.cnt();
+  curr = m_rows.cnt();
+  RowCtl ctl(opt.m_rowswait);
+  m_rows.pop_front_to(rows_out, ctl);
+  left = m_rows.cnt();
   if (rows_out.m_foe)
   {
     log1("consumer has stopped");
@@ -744,7 +737,7 @@ NdbImportCsv::Parse::do_parse()
     if (line != 0)
     {
       buf.m_tail = line->m_end;
-      m_input.m_line_list.push_back(m_line_list);
+      m_input.m_line_list.push_back_from(m_line_list);
       m_input.free_field_list(m_field_list);
       m_input.free_data_list(m_data_list);
     }
@@ -1166,6 +1159,7 @@ NdbImportCsv::Eval::do_eval()
   const Table& table = m_input.m_table;
   LineList& line_list = m_input.m_line_list;
   Line* line = line_list.front();
+  RowList rows_chunk;
   while (line != 0)
   {
     const uint64 ignore_lines = m_input.m_ignore_lines;
@@ -1190,8 +1184,15 @@ NdbImportCsv::Eval::do_eval()
         }
       }
     }
-    // XXX pre-alloc all under one mutex
-    Row* row = m_util.alloc_row(table);
+    if (rows_chunk.cnt() == 0)
+    {
+      require(line->m_lineno < line_list.cnt());
+      uint cnt = line_list.cnt() - line->m_lineno;
+      if (cnt > opt.m_alloc_chunk)
+        cnt = opt.m_alloc_chunk;
+      m_util.alloc_rows(table, cnt, rows_chunk);
+    }
+    Row* row = rows_chunk.pop_front();
     eval_line(row, line);
     // stop loading if error
     if (m_input.has_error())
@@ -1273,9 +1274,8 @@ NdbImportCsv::Eval::eval_line(Row* row, Line* line)
     uint64 val = Inval_uint64;
     attr.set_value(row, &val, 8);
   }
-  RowList& rows_in = m_input.m_rows_in;
   if (!line->m_reject)
-    rows_in.push_back(row);
+    m_input.m_rows.push_back(row);
 }
 
 void
@@ -2575,6 +2575,7 @@ typedef NdbImportUtil::Attrs UtilAttrs;
 typedef NdbImportUtil::Table UtilTable;
 typedef NdbImportUtil::RowList UtilRowList;
 typedef NdbImportUtil::RowMap UtilRowMap;
+typedef NdbImportUtil::Stats UtilStats;
 typedef NdbImportCsv::Spec CsvSpec;
 typedef NdbImportCsv::Input CsvInput;
 typedef NdbImportCsv::Line CsvLine;
@@ -2662,6 +2663,7 @@ testinput1()
   require(csv.set_spec(csvspec, optcsv, OptCsv::ModeInput) == 0);
   UtilTable table;
   maketable(table);
+  UtilStats stats(util);
   for (uint i = 0; i < mycsvcnt; i++)
   {
     out << "case " << i << endl;
@@ -2686,7 +2688,8 @@ testinput1()
                    buf,
                    rows_out,
                    rows_reject,
-                   rowmap_in);
+                   rowmap_in,
+                   stats);
     input.do_init();
     input.do_parse();
     if (!input.has_error())
@@ -2765,11 +2768,12 @@ testinput2()
   UtilRowList rows_out;
   UtilRowList rows_reject;
   UtilRowMap rowmap_in;
+  UtilStats stats(util);
   CsvInput* input[2];
   input[0] = new CsvInput(csv, "csvinput-0", csvspec, table, *buf[0],
-                          rows_out, rows_reject, rowmap_in);
+                          rows_out, rows_reject, rowmap_in, stats);
   input[1] = new CsvInput(csv, "csvinput-1", csvspec, table, *buf[1],
-                          rows_out, rows_reject, rowmap_in);
+                          rows_out, rows_reject, rowmap_in, stats);
   input[0]->do_init();
   input[1]->do_init();
   UtilFile file(util, util.c_error);
