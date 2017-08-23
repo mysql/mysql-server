@@ -305,6 +305,7 @@ bool
 TCP_Transporter::doSend() {
   struct iovec iov[64];
   Uint32 cnt = fetch_send_iovec_data(iov, NDB_ARRAY_SIZE(iov));
+  Uint32 init_cnt = cnt;
 
   if (cnt == 0)
   {
@@ -391,6 +392,7 @@ TCP_Transporter::doSend() {
     else if (nBytesSent > 0)           //Sent some, more pending
     {
       sum_sent += nBytesSent;
+      require(remain >= (Uint32)nBytesSent);
       remain -= nBytesSent;
 
       /**
@@ -402,6 +404,8 @@ TCP_Transporter::doSend() {
         nBytesSent -= iov[pos].iov_len;
         pos++;
         cnt--;
+        require(cnt <= init_cnt); //prevent overflow/ wrap around
+        require(pos < init_cnt); // avoid seg fault
       }
 
       if (nBytesSent > 0)
@@ -466,6 +470,8 @@ TCP_Transporter::doReceive(TransporterReceiveHandle& recvdata)
     if (nBytesRead > 0) {
       receiveBuffer.sizeOfData += nBytesRead;
       receiveBuffer.insertPtr  += nBytesRead;
+      require(receiveBuffer.insertPtr <= (char*)(receiveBuffer.startOfBuffer) +
+                 receiveBuffer.sizeOfBuffer); // prevent buf overflow
       
       if(receiveBuffer.sizeOfData > receiveBuffer.sizeOfBuffer){
 #ifdef DEBUG_TRANSPORTER
