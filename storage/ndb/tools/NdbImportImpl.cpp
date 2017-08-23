@@ -1599,7 +1599,8 @@ NdbImportImpl::CsvInputWorker::do_init()
                             m_buf,
                             rows_out,
                             rows_reject,
-                            rowmap_in);
+                            rowmap_in,
+                            m_team.m_job.m_stats);
   m_csvinput->do_init();
   if (m_firstread)
   {
@@ -3124,7 +3125,8 @@ NdbImportImpl::DiagTeam::read_old_diags(const char* name,
                                *buf[i],
                                rows_out,
                                rows_reject,
-                               rowmap_in);
+                               rowmap_in,
+                               m_job.m_stats);
     csvinput[i]->do_init();
   }
   {
@@ -3788,24 +3790,26 @@ NdbImportImpl::DiagWorker::write_stats()
   File& file = team.m_stats_file;
   Buf& buf = m_stats_buf;
   const Table& table = m_util.c_stats_table;
-  const Stats& stats = job.m_stats;
-  uint id = 0; // stats root (skipped)
-  while (1)
+  // write job and global (accumulating) stats
+  const Stats* stats_list[2] = { &job.m_stats, &m_util.c_stats };
+  for (uint k = 0; k <= 1; k++)
   {
-    const Stat* stat = stats.next(id);
-    if (stat == 0)
-      break;
-    buf.reset();
-    Row* row = m_util.alloc_row(table);
-    m_util.set_stats_row(row, job.m_runno, *stat);
-    m_stats_csv->add_line(row);
-    if (file.do_write(buf) == -1)
+    const Stats& stats = *stats_list[k];
+    const bool global = (k == 1);
+    for (uint id = 0; id < stats.m_stats.size(); id++)
     {
-      require(has_error());
-      m_team.m_job.m_fatal = true;
-      return;
+      const Stat* stat = stats.get(id);
+      buf.reset();
+      Row* row = m_util.alloc_row(table);
+      m_util.set_stats_row(row, job.m_runno, *stat, global);
+      m_stats_csv->add_line(row);
+      if (file.do_write(buf) == -1)
+      {
+        require(has_error());
+        m_team.m_job.m_fatal = true;
+        return;
+      }
     }
-    id = stat->m_id;
   }
 }
 

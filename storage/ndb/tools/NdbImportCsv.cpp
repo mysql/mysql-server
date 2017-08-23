@@ -408,7 +408,8 @@ NdbImportCsv::Input::Input(NdbImportCsv& csv,
                            Buf& buf,
                            RowList& rows_out,
                            RowList& rows_reject,
-                           RowMap& rowmap_in) :
+                           RowMap& rowmap_in,
+                           Stats& stats) :
   m_csv(csv),
   m_util(m_csv.m_util),
   m_name(name),
@@ -2573,6 +2574,7 @@ typedef NdbImportUtil::Attrs UtilAttrs;
 typedef NdbImportUtil::Table UtilTable;
 typedef NdbImportUtil::RowList UtilRowList;
 typedef NdbImportUtil::RowMap UtilRowMap;
+typedef NdbImportUtil::Stats UtilStats;
 typedef NdbImportCsv::Spec CsvSpec;
 typedef NdbImportCsv::Input CsvInput;
 typedef NdbImportCsv::Line CsvLine;
@@ -2660,6 +2662,7 @@ testinput1()
   require(csv.set_spec(csvspec, optcsv, OptCsv::ModeInput) == 0);
   UtilTable table;
   maketable(table);
+  UtilStats stats(util);
   for (uint i = 0; i < mycsvcnt; i++)
   {
     out << "case " << i << endl;
@@ -2684,7 +2687,8 @@ testinput1()
                    buf,
                    rows_out,
                    rows_reject,
-                   rowmap_in);
+                   rowmap_in,
+                   stats);
     input.do_init();
     input.do_parse();
     if (!input.has_error())
@@ -2763,11 +2767,12 @@ testinput2()
   UtilRowList rows_out;
   UtilRowList rows_reject;
   UtilRowMap rowmap_in;
+  UtilStats stats(util);
   CsvInput* input[2];
   input[0] = new CsvInput(csv, "csvinput-0", csvspec, table, *buf[0],
-                          rows_out, rows_reject, rowmap_in);
+                          rows_out, rows_reject, rowmap_in, stats);
   input[1] = new CsvInput(csv, "csvinput-1", csvspec, table, *buf[1],
-                          rows_out, rows_reject, rowmap_in);
+                          rows_out, rows_reject, rowmap_in, stats);
   input[0]->do_init();
   input[1]->do_init();
   UtilFile file(util, util.c_error);
