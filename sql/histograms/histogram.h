@@ -152,8 +152,8 @@ public:
   /// String representation of the JSON field "data-type".
   static constexpr const char *data_type_str() {return "data-type"; }
 
-  /// String representation of the JSON field "charset-id".
-  static constexpr const char *charset_id_str() {return "charset-id"; }
+  /// String representation of the JSON field "collation-id".
+  static constexpr const char *collation_id_str() {return "collation-id"; }
 
   /// String representation of the histogram type SINGLETON.
   static constexpr const char *singleton_str() { return "singleton"; }
