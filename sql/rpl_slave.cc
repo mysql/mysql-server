@@ -4212,8 +4212,6 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   thd->slave_thread = 1;
   thd->enable_slow_log= opt_log_slow_slave_statements;
   set_slave_thread_options(thd);
-  thd->get_protocol_classic()->set_client_capabilities(
-      CLIENT_LOCAL_FILES);
 
   /*
     Replication threads are:
