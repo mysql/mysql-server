@@ -92,6 +92,7 @@ NdbImport::Opt::Opt()
   m_tempdelay = 10;
   m_idlespin = 0;
   m_idlesleep = 1;
+  m_alloc_chunk = 20;
   m_rejects = 0;
   // character set
   m_charset_name = "binary";
@@ -182,6 +183,12 @@ NdbImport::set_opt(Opt& opt)
   {
     util.set_error_usage(util.c_error, __LINE__,
                          "invalid autoincrement options");
+    return -1;
+  }
+  if (opt.m_alloc_chunk == 0)
+  {
+    util.set_error_usage(util.c_error, __LINE__,
+                         "option --alloc-chunk must be non-zero");
     return -1;
   }
   // character set

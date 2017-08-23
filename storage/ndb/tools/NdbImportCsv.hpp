@@ -122,8 +122,8 @@ public:
     Data* pop_front() {
       return static_cast<Data*>(List::pop_front());
     }
-    void push_back(DataList& list2) {
-      List::push_back(list2);
+    void push_back_from(DataList& src) {
+      List::push_back_from(src);
     }
     uint cnt() const {
       return m_cnt;
@@ -161,8 +161,8 @@ public:
     Field* pop_front() {
       return static_cast<Field*>(List::pop_front());
     }
-    void push_back(FieldList& list2) {
-      List::push_back(list2);
+    void push_back_from(FieldList& src) {
+      List::push_back_from(src);
     }
     uint cnt() const {
       return m_cnt;
@@ -199,8 +199,8 @@ public:
     Line* pop_front() {
       return static_cast<Line*>(List::pop_front());
     }
-    void push_back(LineList& list2) {
-      List::push_back(list2);
+    void push_back_from(LineList& src) {
+      List::push_back_from(src);
     }
     uint cnt() const {
       return m_cnt;

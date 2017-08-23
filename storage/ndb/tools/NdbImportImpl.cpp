@@ -2172,7 +2172,7 @@ NdbImportImpl::DbWorker::close_trans(Tx* tx)
     Op* op = tx->m_ops.pop_front();
     require(op != 0);
     require(op->m_row != 0);
-    m_impl.m_util.free_row(op->m_row);
+    m_rows_free.push_back(op->m_row);
     op->m_row = 0;
     op->m_rowop = 0;
     op->m_opcnt = 0;
@@ -2674,6 +2674,7 @@ NdbImportImpl::ExecOpWorkerSynch::state_poll()
   // nothing to poll
   m_opcnt = 0;
   m_opsize = 0;
+  m_util.free_rows(m_rows_free);
   m_execstate = ExecState::State_receive;
 }
 
@@ -2997,6 +2998,7 @@ NdbImportImpl::ExecOpWorkerAsynch::state_poll()
                              temperrors, opt.m_temperrors);
     }
   }
+  m_util.free_rows(m_rows_free);
   m_execstate = ExecState::State_receive;
 }
 
@@ -3763,7 +3765,8 @@ NdbImportImpl::DiagWorker::write_stopt()
     { "opbatch", opt.m_opbatch },
     { "opbytes", opt.m_opbytes },
     { "idlespin", opt.m_idlespin },
-    { "idlesleep", opt.m_idlesleep }
+    { "idlesleep", opt.m_idlesleep },
+    { "alloc_chunk", opt.m_alloc_chunk }
   };
   const uint ov_size = sizeof(ov_list) / sizeof(ov_list[0]);
   for (uint i = 0; i < ov_size; i++)

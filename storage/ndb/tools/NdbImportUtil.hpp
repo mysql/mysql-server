@@ -183,7 +183,7 @@ public:
     void push_front(ListEnt* ent);
     ListEnt* pop_front();
     void remove(ListEnt* ent);
-    void push_back(List& list2);
+    void push_back_from(List& src);
 #if defined(VM_TRACE) || defined(TEST_NDBIMPORTUTIL)
     void validate() const;
 #else
@@ -310,6 +310,7 @@ public:
     bool push_front(Row* row);
     Row* pop_front();
     void remove(Row* row);
+    void push_back_from(RowList& src);
     uint cnt() const {
       return m_cnt;
     }
@@ -324,6 +325,11 @@ public:
     void unlock() {
       Lockable::unlock();
     }
+#if defined(VM_TRACE) || defined(TEST_NDBIMPORTUTIL)
+    void validate() const;
+#else
+    void validate() const {}
+#endif
     uint m_rowsize;     // sum from row entries
     uint m_rowbatch;    // limit m_cnt
     uint m_rowbytes;    // limit m_rowsize
@@ -336,8 +342,12 @@ public:
     Stat* m_stat_locks;         // locks taken
   };
 
-  Row* alloc_row(const Table& Table);
+  // alloc and free shared rows
+
+  Row* alloc_row(const Table& Table, bool dolock = true);
+  void alloc_rows(const Table& table, uint cnt, RowList& dst);
   void free_row(Row* row);
+  void free_rows(RowList& src);
 
   RowList* c_rows_free;
 

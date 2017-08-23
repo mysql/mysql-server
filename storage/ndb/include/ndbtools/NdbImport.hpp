@@ -84,8 +84,9 @@ public:
     uint m_polltimeout;
     uint m_temperrors;
     uint m_tempdelay;
-    uint m_idlesleep;
     uint m_idlespin;
+    uint m_idlesleep;
+    uint m_alloc_chunk;
     uint m_rejects;
     // character set of input file (currently fixed as binary)
     const char* m_charset_name;
