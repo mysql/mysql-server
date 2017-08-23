@@ -570,7 +570,6 @@ static bool dd_upgrade_check_for_autoinc(TABLE* srv_table,
 @param[in,out]	auto_inc_value	auto_inc value */
 static void dd_upgrade_set_auto_inc(const TABLE* srv_table, dd::Table* dd_table,
                                     uint64_t auto_inc_value) {
-  ut_ad(auto_inc_value != UINT64_MAX);
   ulonglong col_max_value;
   const Field* field = *srv_table->s->found_next_number_field;
 
@@ -648,7 +647,7 @@ static bool dd_upgrade_partitions(THD* thd, const char* norm_name,
   bool has_auto_inc = dd_upgrade_check_for_autoinc(
       srv_table, auto_inc_index_name, auto_inc_col_name);
 
-  uint64_t max_auto_inc = UINT64_MAX;
+  uint64_t max_auto_inc = 0;
 
   for (dd::Partition* part_obj : *dd_table->leaf_partitions()) {
 
