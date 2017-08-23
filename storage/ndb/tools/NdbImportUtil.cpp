@@ -419,7 +419,7 @@ NdbImportUtil::Attr::set_value(Row* row, const void* data, uint len) const
   require(data != 0);
   uint totlen = m_arraytype + len;
   require(totlen <= m_size);
-  require(m_offset + totlen <= row->m_rowsize);
+  require(m_offset + totlen <= row->m_recsize);
   uchar* p = &row->m_data[m_offset];
   switch (m_arraytype) {
   case 0:
@@ -459,6 +459,9 @@ NdbImportUtil::Attr::set_blob(Row* row, const void* data, uint len) const
   blob->m_blobsize = len;
   if (m_nullable)
     set_null(row, false);
+  // add to rowsize which already includes recsize
+  require(row->m_rowsize >= row->m_recsize);
+  row->m_rowsize += len;
 }
 
 void
@@ -621,7 +624,7 @@ NdbImportUtil::Table::Table()
   m_tab = 0;
   m_rec = 0;
   m_keyrec = 0;
-  m_rowsize = 0;
+  m_recsize = 0;
   m_has_hidden_pk = false;
 }
 
@@ -694,7 +697,7 @@ NdbImportUtil::Table::add_pseudo_attr(const char* name,
   }
   attr.m_null_byte = Inval_uint;
   attr.m_null_bit = Inval_uint;
-  m_rowsize += attr.m_size;
+  m_recsize += attr.m_size;
   m_attrs.push_back(attr);
 }
 
@@ -749,7 +752,7 @@ NdbImportUtil::add_table(NdbDictionary::Dictionary* dic,
     table.m_tabid = tabid;
     table.m_tab = tab;
     table.m_rec = rec;
-    table.m_rowsize = NdbDictionary::getRecordRowLength(rec);
+    table.m_recsize = NdbDictionary::getRecordRowLength(rec);
     Attrs& attrs = table.m_attrs;
     const uint attrcnt = tab->getNoOfColumns();
     attrs.reserve(attrcnt);
@@ -928,6 +931,7 @@ NdbImportUtil::get_table(uint tabid)
 NdbImportUtil::Row::Row()
 {
   m_tabid = Inval_uint;
+  m_recsize = 0;
   m_rowsize = 0;
   m_allocsize = 0;
   m_rowid = Inval_uint64;
@@ -946,14 +950,15 @@ void
 NdbImportUtil::Row::init(const Table& table)
 {
   m_tabid = table.m_tabid;
-  uint rowsize = table.m_rowsize;
-  require(rowsize > 0);
-  m_rowsize = rowsize;
-  if (m_allocsize < rowsize)
+  uint recsize = table.m_recsize;
+  require(recsize > 0);
+  m_recsize = recsize;
+  m_rowsize = recsize;  // full main record is always included
+  if (m_allocsize < recsize)
   {
     delete [] m_data;
-    m_data = new uchar [rowsize];
-    m_allocsize = rowsize;
+    m_data = new uchar [recsize];
+    m_allocsize = recsize;
   }
 }
 
@@ -1534,7 +1539,7 @@ NdbImportUtil::add_result_table()
 {
   Table& table = c_result_table;
   table.m_tabid = g_result_tabid;
-  require(table.m_rowsize == 0);
+  require(table.m_recsize == 0);
   table.add_pseudo_attr("runno",
                         NdbDictionary::Column::Unsigned);
   table.add_pseudo_attr("name",
@@ -1563,7 +1568,7 @@ NdbImportUtil::add_reject_table()
 {
   Table& table = c_reject_table;
   table.m_tabid = g_reject_tabid;
-  require(table.m_rowsize == 0);
+  require(table.m_recsize == 0);
   table.add_pseudo_attr("runno",
                         NdbDictionary::Column::Unsigned);
   table.add_pseudo_attr("rowid",
@@ -1586,7 +1591,7 @@ NdbImportUtil::add_rowmap_table()
 {
   Table& table = c_rowmap_table;
   table.m_tabid = g_rowmap_tabid;
-  require(table.m_rowsize == 0);
+  require(table.m_recsize == 0);
   table.add_pseudo_attr("runno",
                         NdbDictionary::Column::Unsigned);
   table.add_pseudo_attr("start",
@@ -1671,7 +1676,7 @@ NdbImportUtil::add_stopt_table()
 {
   Table& table = c_stopt_table;
   table.m_tabid = g_stopt_tabid;
-  require(table.m_rowsize == 0);
+  require(table.m_recsize == 0);
   table.add_pseudo_attr("runno",
                         NdbDictionary::Column::Unsigned);
   table.add_pseudo_attr("option",
@@ -1686,7 +1691,7 @@ NdbImportUtil::add_stats_table()
 {
   Table& table = c_stats_table;
   table.m_tabid = g_stats_tabid;
-  require(table.m_rowsize == 0);
+  require(table.m_recsize == 0);
   table.add_pseudo_attr("runno",
                         NdbDictionary::Column::Unsigned);
   table.add_pseudo_attr("id",

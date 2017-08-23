@@ -710,6 +710,7 @@ public:
     ExecState::State m_execstate;
     uint m_nodeindex;   // index into ndb nodes array
     uint m_nodeid;
+    RowList m_rows;     // received rows
     OpList m_ops;       // received rows converted to ops
     bool m_eof;
     ErrorMap m_errormap;// temporary errors in current batch

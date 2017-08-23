@@ -2496,11 +2496,14 @@ NdbImportImpl::ExecOpWorker::do_init()
   m_nodeindex = m_workerno % c.m_nodecnt;
   m_nodeid = c.m_nodes[m_nodeindex].m_nodeid;
   /*
-   * Option opbatch limits number of NDB operations (main, blob) in
-   * a batch.  Therefore it also limits number of transactions.
+   * Option opbatch limits number of received rows and
+   * therefore number of async transactions.  Each row
+   * creates one transaction (this is unlikely to change).
    */
   const Opt& opt = m_util.c_opt;
   require(opt.m_opbatch != 0);
+  m_rows.m_rowbatch = opt.m_opbatch;
+  m_rows.m_rowbytes = opt.m_opbytes != 0 ? opt.m_opbytes : UINT_MAX;
   create_ndb(opt.m_opbatch);
 }
 
@@ -2537,9 +2540,9 @@ NdbImportImpl::ExecOpWorker::do_run()
 }
 
 /*
- * Convert available rows into ops under a single mutex.
- * We come back here until a batch is full or eof is seen.
- * The ops are assigned to transactions in "define" state.
+ * Receive rows until a batch is full or eof is seen.  At the end
+ * convert the rows into ops.  The ops are assigned to transactions
+ * in state_define().
  */
 void
 NdbImportImpl::ExecOpWorker::state_receive()
@@ -2547,64 +2550,43 @@ NdbImportImpl::ExecOpWorker::state_receive()
   log2("state_receive");
   const Opt& opt = m_util.c_opt;
   RowList& rows_in = *m_team.m_job.m_rows_exec[m_nodeindex];
-  if (m_ops.cnt() == 0)
-  {
-    require(m_opcnt == 0);
-    require(m_opsize == 0);
-  }
-  const uint opbatch = opt.m_opbatch != 0 ? opt.m_opbatch : UINT_MAX;
-  const uint opbytes = opt.m_opbytes != 0 ? opt.m_opbytes : UINT_MAX;
   rows_in.lock();
-  while (1)
+  RowCtl ctl(opt.m_rowswait);
+  m_rows.push_back_from(rows_in, ctl);
+  bool eof = rows_in.m_eof;
+  rows_in.unlock();
+  do
   {
-    Row* row = rows_in.pop_front();
-    m_eof = (row == 0 && rows_in.m_eof);
-    log2("eof=" << m_eof << " ops=" << m_ops.cnt());
-    if (m_eof)
+    if (m_rows.full())
     {
-      if (m_ops.cnt() != 0)
-        m_execstate = ExecState::State_define;
-      else
-        m_execstate = ExecState::State_eof;
+      log2("got full batch");
       break;
     }
-    if (row == 0)
+    if (eof)
     {
-      m_idle = true;
-      break;
+      if (m_rows.cnt() != 0)
+      {
+        log2("got partial last batch");
+        break;
+      }
+      log2("no more rows");
+      m_execstate = ExecState::State_eof;
+      return;
     }
-    const Table& table = m_util.get_table(row->m_tabid);
+    log2("wait for more rows");
+    m_idle = true;
+    return;
+  } while (0);
+  // assign op to each row and move the row under the op
+  require(m_ops.cnt() == 0);
+  Row* row;
+  while ((row = m_rows.pop_front()) != 0)
+  {
     Op* op = alloc_op();
     op->m_row = row;
-    op->m_opcnt++;
-    op->m_opsize = table.m_rowsize;
-    for (uint j = 0; j < table.m_blobids.size(); j++)
-    {
-      uint i = table.m_blobids[j];
-      require(i < table.m_attrs.size());
-      const Attr& attr = table.m_attrs[i];
-      require(attr.m_isblob);
-      const Blob* blob = row->m_blobs[attr.m_blobno];
-      op->m_opcnt += attr.get_blob_parts(blob->m_blobsize);
-      op->m_opsize += blob->m_blobsize;
-    }
     m_ops.push_back(op);
-    m_opcnt += op->m_opcnt;
-    m_opsize += op->m_opsize;
-    if (m_opcnt >= opbatch)
-    {
-      log2("hit opbatch " << m_opcnt);
-      m_execstate = ExecState::State_define;
-      break;
-    }
-    if (m_opsize >= opbytes)
-    {
-      log2("hit opbytes " << m_opsize);
-      m_execstate = ExecState::State_define;
-      break;
-    }
   }
-  rows_in.unlock();
+  m_execstate = ExecState::State_define;
 }
 
 void
