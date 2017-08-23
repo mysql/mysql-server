@@ -38,8 +38,11 @@ Transporter::Transporter(TransporterRegistry &t_reg,
 			 NodeId rNodeId,
 			 NodeId serverNodeId,
 			 int _byteorder, 
-			 bool _compression, bool _checksum, bool _signalId,
-                         Uint32 max_send_buffer)
+			 bool _compression,
+			 bool _checksum,
+			 bool _signalId,
+             Uint32 max_send_buffer,
+             bool _presend_checksum)
   : m_s_port(s_port), remoteNodeId(rNodeId), localNodeId(lNodeId),
     isServer(lNodeId==serverNodeId),
     m_packer(_signalId, _checksum), m_max_send_buffer(max_send_buffer),
@@ -75,6 +78,7 @@ Transporter::Transporter(TransporterRegistry &t_reg,
   byteOrder       = _byteorder;
   compressionUsed = _compression;
   checksumUsed    = _checksum;
+  check_send_checksum = _presend_checksum;
   signalIdUsed    = _signalId;
 
   m_timeOutMillis = 3000;
@@ -119,6 +123,7 @@ Transporter::configure(const TransporterConfiguration* conf)
       conf->localNodeId == localNodeId &&
       (conf->serverNodeId == conf->localNodeId) == isServer &&
       conf->checksum == checksumUsed &&
+      conf->preSendChecksum == check_send_checksum &&
       conf->signalId == signalIdUsed &&
       conf->isMgmConnection == isMgmConnection &&
       conf->type == m_type)

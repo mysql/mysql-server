@@ -129,7 +129,8 @@ protected:
 	      bool compression, 
 	      bool checksum, 
 	      bool signalId,
-              Uint32 max_send_buffer);
+        Uint32 max_send_buffer,
+        bool _presend_checksum);
 
   virtual bool configure(const TransporterConfiguration* conf);
   virtual bool configure_derived(const TransporterConfiguration* conf) = 0;

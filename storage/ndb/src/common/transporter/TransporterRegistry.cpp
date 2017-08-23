@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -712,7 +712,8 @@ TransporterRegistry::createSCITransporter(TransporterConfiguration *config) {
 					    config->remoteNodeId,
 					    config->serverNodeId,
 					    config->checksum,
-					    config->signalId);
+					    config->signalId,
+					    config->preSendChecksum);
   
   if (t == NULL) 
     return false;
@@ -764,7 +765,8 @@ TransporterRegistry::createSHMTransporter(TransporterConfiguration *config) {
 					    config->checksum,
 					    config->signalId,
 					    config->shm.shmKey,
-					    config->shm.shmSize
+					    config->shm.shmSize,
+					    config->preSendChecksum
 					    );
   if (t == NULL)
     return false;
