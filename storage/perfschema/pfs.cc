@@ -41,6 +41,7 @@
 #include "sp_head.h"
 #include "pfs_digest.h"
 
+using std::min;
 /**
   @page PAGE_PERFORMANCE_SCHEMA The Performance Schema main page
   MySQL PERFORMANCE_SCHEMA implementation.
@@ -2018,7 +2019,8 @@ static void set_thread_account_v1(const char *user, int user_len,
   DBUG_ASSERT((uint) user_len <= sizeof(pfs->m_username));
   DBUG_ASSERT((host != NULL) || (host_len == 0));
   DBUG_ASSERT(host_len >= 0);
-  DBUG_ASSERT((uint) host_len <= sizeof(pfs->m_hostname));
+
+  host_len= min<size_t>(host_len, sizeof(pfs->m_hostname));
 
   if (unlikely(pfs == NULL))
     return;
