@@ -87,7 +87,7 @@ table_persisted_variables::get_row_count(void)
 {
   Persisted_variables_cache *pv = Persisted_variables_cache::get_instance();
   if (pv)
-    return pv->get_persist_hash()->size();
+    return pv->get_persisted_variables()->size();
   else
     return 0;
 }

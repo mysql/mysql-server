@@ -272,12 +272,12 @@ RESET PERSIST;
 --echo # test reset on readonly persisted variables
 SET @@persist_only.innodb_log_file_size= 4194304;
 SET @@persist_only.slave_type_conversions = ALL_UNSIGNED;
-SELECT * FROM performance_schema.persisted_variables;
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 SET PERSIST auto_increment_increment=10;
 SET PERSIST innodb_checksum_algorithm=strict_crc32;
 SET @@persist_only.innodb_log_file_size= DEFAULT;
 SET PERSIST_ONLY ft_query_expansion_limit= DEFAULT;
-SELECT * FROM performance_schema.persisted_variables;
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 --echo # reset slave_type_conversions
 RESET PERSIST slave_type_conversions;
 --echo # return 0 rows.
@@ -286,10 +286,11 @@ SELECT * FROM performance_schema.persisted_variables
 RESET PERSIST auto_increment_increment;
 RESET PERSIST innodb_log_file_size;
 SELECT * FROM performance_schema.persisted_variables
-  WHERE VARIABLE_NAME IN ('auto_increment_increment', 'innodb_log_file_size');
+  WHERE VARIABLE_NAME IN ('auto_increment_increment', 'innodb_log_file_size')
+  ORDER BY 1;
 RESET PERSIST;
 --echo # return 0 rows.
-SELECT * FROM performance_schema.persisted_variables;
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 
 --echo # Restart server
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect

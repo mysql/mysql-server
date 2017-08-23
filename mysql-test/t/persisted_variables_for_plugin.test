@@ -73,21 +73,21 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 --echo # Test RESET PERSIST for plugin variables.
 --replace_regex /\.dll/.so/
 eval INSTALL PLUGIN validate_password SONAME '$VALIDATE_PASSWORD';
-SELECT * FROM performance_schema.persisted_variables;
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 SET PERSIST validate_password_policy= 2;
 # return 1 row
-SELECT * FROM performance_schema.persisted_variables;
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 SET PERSIST validate_password_length= 13;
 # return 2 rows
-SELECT * FROM performance_schema.persisted_variables;
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 RESET PERSIST validate_password_length;
 # return 1 row
-SELECT * FROM performance_schema.persisted_variables;
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 --echo # uninstall plugin
 UNINSTALL PLUGIN validate_password;
 # return 1 row
-SELECT * FROM performance_schema.persisted_variables;
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 --echo # Test RESET PERSIST after plugin is uninstalled
 RESET PERSIST;
 # return 0 rows
-SELECT * FROM performance_schema.persisted_variables;
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
