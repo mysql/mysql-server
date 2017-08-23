@@ -51,6 +51,7 @@ else
 }
 
 my @mtr_unique_fh;
+my @mtr_unique_ids;
 
 END
 {
@@ -106,7 +107,8 @@ sub mtr_get_unique_id($$$) {
       {
         # Store file handle - we would need it to release the
         # ID (i.e to unlock the file)
-        $mtr_unique_fh[$build_thread] = $fh;
+        $mtr_unique_fh[$build_thread]= $fh;
+        $mtr_unique_ids[$build_thread]= "$dir/$id";
         $build_thread= $build_thread + 1;
       }
       else
@@ -120,6 +122,8 @@ sub mtr_get_unique_id($$$) {
           if (defined $mtr_unique_fh[$build_thread-1])
           {
             close $mtr_unique_fh[$build_thread-1];
+            unlink $mtr_unique_ids[$build_thread-1] or
+              warn "Could not unlink $mtr_unique_ids[$build_thread-1]: $!";
           }
         }
 
@@ -153,6 +157,8 @@ sub mtr_release_unique_id()
     if (defined $mtr_unique_fh[$i])
     {
       close $mtr_unique_fh[$i];
+      unlink $mtr_unique_ids[$i] or
+        warn "Could not unlink $mtr_unique_ids[$i]: $!";
     }
   }
   @mtr_unique_fh= ();
