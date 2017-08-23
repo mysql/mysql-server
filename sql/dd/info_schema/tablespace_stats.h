@@ -16,10 +16,6 @@
 #ifndef DD_INFO_SCHEMA_TABLESPACE_STATS_INCLUDED
 #define DD_INFO_SCHEMA_TABLESPACE_STATS_INCLUDED
 
-#include <sys/types.h>
-#include <string>
-
-#include "my_inttypes.h"
 #include "sql_string.h"                     // String
 #include "sql/handler.h"                    // ha_tablespace_statistics
 

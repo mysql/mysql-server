@@ -366,4 +366,47 @@ public:
 };
 
 
+/**
+  Error handler class to convert ER_LOCK_DEADLOCK error to
+  ER_WARN_I_S_SKIPPED_TABLE/TABLESPACE error.
+
+  Handler is pushed for opening a table or acquiring a MDL lock on
+  tables for INFORMATION_SCHEMA views (system views) operations.
+*/
+class Info_schema_error_handler : public Internal_error_handler
+{
+public:
+  Info_schema_error_handler(THD *thd, const String *schema_name,
+                             const String *table_name);
+
+  Info_schema_error_handler(THD *thd, const String *tablespace_name);
+
+  virtual bool handle_condition(THD*,
+                                uint sql_errno,
+                                const char*,
+                                Sql_condition::enum_severity_level*,
+                                const char*);
+
+  bool is_error_handled() const { return m_error_handled; }
+
+private:
+  bool m_can_deadlock;
+
+  // Schema name
+  const String *m_schema_name;
+
+  // Table name
+  const String *m_table_name;
+
+  // Tablespace name
+  const String *m_tablespace_name;
+
+  enum class Mdl_object_type { TABLE, TABLESPACE };
+  Mdl_object_type m_object_type;
+
+  // Flag to indicate whether deadlock error is handled by the handler or not.
+  bool m_error_handled= false;
+};
+
+
 #endif // ERROR_HANDLER_INCLUDED
