@@ -13,95 +13,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "dd/info_schema/tablespace_stats.h"  // dd::info_schema::Tablespace...
+#include "sql/dd/info_schema/tablespace_stats.h"  // dd::info_schema::Tables...
 
-#include <string.h>
-#include <cmath>
-#include <memory>                             // unique_ptr
-
-#include "auth_common.h"
-#include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
-#include "dd/dd.h"                            // dd::create_object
-#include "dd/types/abstract_table.h"
-#include "dd/types/event.h"
-#include "dd/types/index_stat.h"              // dd::Index_stat
-#include "dd/types/table_stat.h"              // dd::Table_stat
-#include "debug_sync.h"                       // DEBUG_SYNC
-#include "error_handler.h"                    // Internal_error_handler
-#include "field.h"
-#include "key.h"
-#include "m_ctype.h"
-#include "mdl.h"
-#include "my_base.h"
-#include "my_dbug.h"
-#include "my_decimal.h"
-#include "my_sqlcommand.h"
-#include "my_sys.h"
-#include "my_time.h"                          // TIME_to_ulonglong_datetime
-#include "mysqld_error.h"
-#include "partition_info.h"                   // partition_info
-#include "partitioning/partition_handler.h"   // Partition_handler
-#include "session_tracker.h"
-#include "sql_base.h"                         // open_tables_for_query
-#include "sql_class.h"                        // THD
-#include "sql_const.h"
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_security_ctx.h"
-#include "sql_show.h"                         // make_table_list
-#include "system_variables.h"
-#include "table.h"                            // TABLE_LIST
-#include "tztime.h"                           // Time_zone
+#include "sql/error_handler.h"                    // Info_schema_error_handler
+#include "sql/sql_class.h"                        // THD
 
 namespace dd {
 namespace info_schema {
-
-/**
-  Error handler class to convert ER_LOCK_DEADLOCK error to
-  ER_I_S_SKIPPED_TABLESPACE error.
-
-  Handler is pushed for opening a table or acquiring a MDL lock on
-  tables for INFORMATION_SCHEMA views(system views) operations.
-*/
-class MDL_deadlock_error_handler : public Internal_error_handler
-{
-public:
-  MDL_deadlock_error_handler(THD *thd, const String *tablespace_name)
-    : m_can_deadlock(thd->mdl_context.has_locks()),
-      m_tablespace_name(tablespace_name)
-  {}
-
-  virtual bool handle_condition(THD*,
-                                uint sql_errno,
-                                const char*,
-                                Sql_condition::enum_severity_level*,
-                                const char*)
-  {
-    if (sql_errno == ER_LOCK_DEADLOCK && m_can_deadlock)
-    {
-      // Convert error to ER_I_S_SKIPPED_TABLESPACE.
-      my_error(ER_I_S_SKIPPED_TABLESPACE, MYF(0),
-               m_tablespace_name->ptr());
-
-      m_error_handled= true;
-    }
-
-    return false;
-  }
-
-  bool is_error_handled() const { return m_error_handled; }
-
-private:
-  bool m_can_deadlock;
-
-  // Table name
-  const String *m_tablespace_name;
-
-  // Flag to indicate whether deadlock error is handled by the handler or not.
-  bool m_error_handled= false;
-};
-
 
 // Returns the required statistics from the cache.
 void Tablespace_statistics::get_stat(enum_tablespace_stats_type stype,
@@ -299,9 +217,9 @@ bool Tablespace_statistics::read_stat_from_SE(
 
   // Push deadlock error handler
   bool error= false;
-  MDL_deadlock_error_handler mdl_deadlock_error_handler(thd,
-                                                        &tablespace_name_ptr);
-  thd->push_internal_handler(&mdl_deadlock_error_handler);
+  Info_schema_error_handler info_schema_error_handler(thd,
+                                                      &tablespace_name_ptr);
+  thd->push_internal_handler(&info_schema_error_handler);
   error= thd->mdl_context.acquire_lock(&mdl_request,
                                        thd->variables.lock_wait_timeout);
   thd->pop_internal_handler();
