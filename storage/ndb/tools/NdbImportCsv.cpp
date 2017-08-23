@@ -475,19 +475,12 @@ NdbImportCsv::Input::do_eval()
 void
 NdbImportCsv::Input::do_send(uint& curr, uint& left)
 {
+  const Opt& opt = m_util.c_opt;
   RowList& rows_out = m_rows_out;       // shared
   rows_out.lock();
   curr = m_rows.cnt();
-  while (m_rows.cnt() != 0)
-  {
-    Row* row = m_rows.pop_front();
-    require(row != 0);
-    if (!rows_out.push_back(row))
-    {
-      m_rows.push_front(row);
-      break;
-    }
-  }
+  RowCtl ctl(opt.m_rowswait);
+  m_rows.pop_front_to(rows_out, ctl);
   left = m_rows.cnt();
   if (rows_out.m_foe)
   {

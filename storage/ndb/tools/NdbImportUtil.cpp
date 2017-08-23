@@ -1041,6 +1041,13 @@ NdbImportUtil::RowList::push_front(Row* row)
   return ret;
 }
 
+void
+NdbImportUtil::RowList::push_front_force(Row* row)
+{
+  List::push_front(row);
+  m_rowsize += row->m_rowsize;
+}
+
 NdbImportUtil::Row*
 NdbImportUtil::RowList::pop_front()
 {
@@ -1077,6 +1084,92 @@ NdbImportUtil::RowList::push_back_from(RowList& src)
   src.m_rowsize = 0;
   validate();
   src.validate();
+}
+
+/*
+ * Transfer rows from a shared list src to our list.  If src is
+ * empty, try to wait.  Terminate if our list is full.  If any rows
+ * were transferred, do not wait for more, and signal that src now
+ * has fewer rows.
+ */
+void
+NdbImportUtil::RowList::push_back_from(RowList& src, RowCtl& ctl)
+{
+  uint retries = ctl.m_retries;
+  uint cnt_out = 0;
+  uint bytes_out = 0;
+  if (unlikely(full()))
+    return;
+  while (src.empty() && retries != 0)
+  {
+    if (ctl.m_dowait)
+      src.wait(ctl.m_timeout);
+    retries--;
+  }
+  while (!src.empty())
+  {
+    // pop because row cannot be on 2 lists
+    Row* row = src.pop_front();
+    if (push_back(row))
+    {
+      cnt_out++;
+      bytes_out += row->m_rowsize;
+      continue;
+    }
+    src.push_front_force(row);
+    // our list is full
+    break;
+  }
+  if (cnt_out != 0 && ctl.m_dosignal)
+  {
+    // signal that we removed some rows from src
+    src.signal();
+  }
+  ctl.m_cnt_out += cnt_out;
+  ctl.m_bytes_out += bytes_out;
+}
+
+/*
+ * Transfer rows from our list to a shared list dst.  If dst is
+ * full, try to wait.  Terminate if our list is empty.  If any rows
+ * were transferred, do not wait for more, and signal that dst now
+ * has more rows.
+ */
+void
+NdbImportUtil::RowList::pop_front_to(RowList& dst, RowCtl& ctl)
+{
+  uint retries = ctl.m_retries;
+  uint cnt_out = 0;
+  uint bytes_out = 0;
+  if (unlikely(empty()))
+    return;
+  while (dst.full() && retries != 0)
+  {
+    if (ctl.m_dowait)
+      dst.wait(ctl.m_timeout);
+    retries--;
+  }
+  while (!empty())
+  {
+    // pop because row cannot be on 2 lists
+    Row* row = pop_front();
+    if (dst.push_back(row))
+    {
+      cnt_out++;
+      bytes_out += row->m_rowsize;
+      continue;
+    }
+    push_front_force(row);
+    // dst is full
+    break;
+  }
+  if (cnt_out != 0 && ctl.m_dosignal)
+  {
+    // signal that we added some rows to dst
+    dst.signal();
+  }
+  ctl.m_cnt_out += cnt_out;
+  ctl.m_bytes_out += bytes_out;
 }
 
 #if defined(VM_TRACE) || defined(TEST_NDBIMPORTUTIL)
@@ -2744,6 +2837,7 @@ NdbImportUtil::fmt_msec_to_hhmmss(char* str, uint64 msec)
 typedef NdbImportUtil::ListEnt UtilListEnt;
 typedef NdbImportUtil::List UtilList;
 typedef NdbImportUtil::Table UtilTable;
+typedef NdbImportUtil::RowCtl UtilRowCtl;
 typedef NdbImportUtil::Row UtilRow;
 typedef NdbImportUtil::RowList UtilRowList;
 typedef NdbImportUtil::RowMap UtilRowMap;
@@ -2884,6 +2978,52 @@ testrowlist1()
     require(list2.cnt() == rows);
     util.free_rows(list2);
     require(list2.cnt() == 0);
+    require(util.c_rows_free->cnt() == rows);
+  }
+  return 0;
+}
+
+static int
+testrowlist2()
+{
+  ndbout << "testrowlist2" << endl;
+  NdbImportUtil util;
+  UtilTable table;
+  table.add_pseudo_attr("a", NdbDictionary::Column::Unsigned);
+  table.add_pseudo_attr("b", NdbDictionary::Column::Varchar, 10);
+  const uint loops = !mybigtest ? 100 : 1000;
+  const uint rows = !mybigtest ? 1000 : 10000;
+  {
+    UtilRowList list;
+    util.alloc_rows(table, rows, list);
+    util.free_rows(list);
+  }
+  for (uint loop = 0; loop < loops; loop++)
+  {
+    UtilRowList list1;
+    UtilRowList list2;
+    list1.m_rowbatch = 1 + myrandom(rows);
+    list2.m_rowbatch = 1 + myrandom(rows);
+    const uint cnt = myrandom(rows + 1);
+    util.alloc_rows(table, cnt, list1);
+    require(list1.cnt() == cnt);
+    do
+    {
+      uint timeout = myrandom(10) != 0 ? 0 : 10;
+      UtilRowCtl ctl(timeout);
+      list2.push_back_from(list1, ctl);
+      util.free_rows(list2);
+    } while (list1.cnt() != 0);
+    require(util.c_rows_free->cnt() == rows);
+    util.alloc_rows(table, cnt, list1);
+    require(list1.cnt() == cnt);
+    do
+    {
+      uint timeout = myrandom(10) != 0 ? 0 : 10;
+      UtilRowCtl ctl(timeout);
+      list1.pop_front_to(list2, ctl);
+      util.free_rows(list2);
+    } while (list1.cnt() != 0);
     require(util.c_rows_free->cnt() == rows);
   }
   return 0;
@@ -3261,6 +3401,8 @@ testmain()
   if (mycase("testlist") && testlist() != 0)
     return -1;
   if (mycase("testrowlist1") && testrowlist1() != 0)
+    return -1;
+  if (mycase("testrowlist2") && testrowlist2() != 0)
     return -1;
   if (mycase("testrowmap") && testrowmap() != 0)
     return -1;

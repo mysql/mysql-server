@@ -2230,15 +2230,19 @@ NdbImportImpl::RelayOpTeam::do_end()
 NdbImportImpl::RelayOpWorker::RelayOpWorker(Team& team, uint n) :
   DbWorker(team, n)
 {
+  m_relaystate = RelayState::State_null;
   m_xfrmalloc = 0;
   m_xfrmbuf = 0;
   m_xfrmbuflen = 0;
-  m_row_save = 0;
+  for (uint i = 0; i < g_max_ndb_nodes; i++)
+    m_rows_exec[i] = 0;
 }
 
 NdbImportImpl::RelayOpWorker::~RelayOpWorker()
 {
   delete [] m_xfrmalloc;
+  for (uint i = 0; i < g_max_ndb_nodes; i++)
+    delete m_rows_exec[i];
 }
 
 void
@@ -2253,72 +2257,122 @@ NdbImportImpl::RelayOpWorker::do_init()
   UintPtr use = (org + 7) & ~(UintPtr)7;
   m_xfrmbuf = (uchar*)use;
   m_xfrmbuflen = len - uint(use - org);
+  uint nodecnt = m_impl.c_nodes.m_nodecnt;
+  require(nodecnt != 0);
+  for (uint i = 0; i < nodecnt; i++)
+  {
+    m_rows_exec[i] = new RowList;
+  }
 }
 
 void
 NdbImportImpl::RelayOpWorker::do_run()
 {
   log2("do_run");
+  switch (m_relaystate) {
+  case RelayState::State_null:
+    m_relaystate = RelayState::State_receive;
+    break;
+  case RelayState::State_receive:
+    state_receive();
+    break;
+  case RelayState::State_define:
+    state_define();
+    break;
+  case RelayState::State_send:
+    state_send();
+    break;
+  case RelayState::State_eof:
+    m_state = WorkerState::State_stop;
+    break;
+  }
+}
+
+void
+NdbImportImpl::RelayOpWorker::state_receive()
+{
+  log2("state_receive");
   const Opt& opt = m_util.c_opt;
   RowList& rows_in = *m_team.m_job.m_rows_relay;
-  Row* row = 0;
-  bool eof = false;
-  if (m_row_save != 0)
+  rows_in.lock();
+  RowCtl ctl(opt.m_rowswait);
+  m_rows.push_back_from(rows_in, ctl);
+  bool eof = rows_in.m_eof;
+  rows_in.unlock();
+  if (m_rows.empty())
   {
-    row = m_row_save;
-    eof = false;
-    m_row_save = 0;
-  }
-  else
-  {
-    rows_in.lock();
-    row = rows_in.pop_front();
-    eof = (row == 0 && rows_in.m_eof);
-    rows_in.unlock();
-  }
-  if (eof)
-  {
-    m_state = WorkerState::State_stop;
+    if (!eof)
+    {
+      m_idle = true;
+      return;
+    }
+    m_relaystate = RelayState::State_eof;
     return;
   }
-  if (row == 0)
+  m_relaystate = RelayState::State_define;
+}
+
+void
+NdbImportImpl::RelayOpWorker::state_define()
+{
+  log2("state_define");
+  const Opt& opt = m_util.c_opt;
+  Row* row;
+  while ((row = m_rows.pop_front()) != 0)
   {
-    m_idle = true;
+    const Nodes& c = m_impl.c_nodes;
+    const Table& table = m_util.get_table(row->m_tabid);
+    const bool no_hint = opt.m_no_hint;
+    uint nodeid = 0;
+    if (no_hint)
+    {
+      uint i = get_rand() % c.m_nodecnt;
+      nodeid = c.m_nodes[i].m_nodeid;
+    }
+    else
+    {
+      Uint32 hash;
+      m_ndb->computeHash(&hash, table.m_keyrec, (const char*)row->m_data,
+                         m_xfrmbuf, m_xfrmbuflen);
+      uint fragid = (uint)table.m_tab->getPartitionId(hash);
+      nodeid = table.get_nodeid(fragid);
+    }
+    require(nodeid < g_max_nodes);
+    uint nodeindex = c.m_index[nodeid];
+    require(nodeindex < c.m_nodecnt);
+    // move locally to per-node rows
+    RowList& rows_exec = *m_rows_exec[nodeindex];
+    rows_exec.push_back(row);
+  }
+  m_relaystate = RelayState::State_send;
+}
+
+void
+NdbImportImpl::RelayOpWorker::state_send()
+{
+  log2("state_send");
+  const Opt& opt = m_util.c_opt;
+  uint nodecnt = m_impl.c_nodes.m_nodecnt;
+  uint left = 0;
+  for (uint i = 0; i < nodecnt; i++)
+  {
+    RowList& rows_exec = *m_rows_exec[i];
+    RowList& rows_out = *m_team.m_job.m_rows_exec[i];
+    if (rows_exec.cnt() != 0)
+    {
+      rows_out.lock();
+      RowCtl ctl(opt.m_rowswait);
+      rows_exec.pop_front_to(rows_out, ctl);
+      rows_out.unlock();
+      left += rows_exec.cnt();
+    }
+  }
+  if (!left)
+  {
+    m_relaystate = RelayState::State_receive;
     return;
   }
-  const Nodes& c = m_impl.c_nodes;
-  const Table& table = m_util.get_table(row->m_tabid);
-  const bool no_hint = opt.m_no_hint;
-  uint nodeid = 0;
-  if (no_hint)
-  {
-    uint i = get_rand() % c.m_nodecnt;
-    nodeid = c.m_nodes[i].m_nodeid;
-  }
-  else
-  {
-    Uint32 hash;
-    m_ndb->computeHash(&hash, table.m_keyrec, (const char*)row->m_data,
-                       m_xfrmbuf, m_xfrmbuflen);
-    uint fragid = (uint)table.m_tab->getPartitionId(hash);
-    nodeid = table.get_nodeid(fragid);
-  }
-  require(nodeid < g_max_nodes);
-  uint nodeindex = c.m_index[nodeid];
-  require(nodeindex < c.m_nodecnt);
-  RowList& rows_out = *m_team.m_job.m_rows_exec[nodeindex];
-  rows_out.lock();
-  if (!rows_out.push_back(row))
-  {
-    m_row_save = row;
-    m_idle = true;
-  }
-  if (rows_out.m_foe)
-  {
-    log1("consumer has stopped");
-    m_util.set_error_gen(m_error, __LINE__, "consumer has stopped");
-  }
-  rows_out.unlock();
+  m_idle = true;
 }
 
 void
@@ -2335,6 +2389,40 @@ NdbImportImpl::RelayOpWorker::do_end()
     Tx* tx = m_tx_open.front();
     close_trans(tx);
   }
+}
+
+// print
+
+const char*
+NdbImportImpl::g_str_state(RelayState::State state)
+{
+  const char* str = 0;
+  switch (state) {
+  case RelayState::State_null:
+    str = "null";
+    break;
+  case RelayState::State_receive:
+    str = "receive";
+    break;
+  case RelayState::State_define:
+    str = "define";
+    break;
+  case RelayState::State_send:
+    str = "send";
+    break;
+  case RelayState::State_eof:
+    str = "eof";
+    break;
+  }
+  require(str != 0);
+  return str;
+}
+
+void
+NdbImportImpl::RelayOpWorker::str_state(char* str) const
+{
+  sprintf(str, "%s/%s",
+          g_str_state(m_state), g_str_state(m_relaystate));
 }
 
 // exec op team
@@ -3764,6 +3852,7 @@ NdbImportImpl::DiagWorker::write_stopt()
     { "rowbytes", opt.m_rowbytes },
     { "opbatch", opt.m_opbatch },
     { "opbytes", opt.m_opbytes },
+    { "rowswait", opt.m_rowswait },
     { "idlespin", opt.m_idlespin },
     { "idlesleep", opt.m_idlesleep },
     { "alloc_chunk", opt.m_alloc_chunk }

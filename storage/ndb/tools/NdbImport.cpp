@@ -90,6 +90,7 @@ NdbImport::Opt::Opt()
   m_polltimeout = 1000;
   m_temperrors = 0;
   m_tempdelay = 10;
+  m_rowswait = 1;
   m_idlespin = 0;
   m_idlesleep = 1;
   m_alloc_chunk = 20;

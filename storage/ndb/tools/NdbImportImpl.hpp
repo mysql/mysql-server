@@ -48,6 +48,7 @@ public:
   typedef NdbImportUtil::Attrs Attrs;
   typedef NdbImportUtil::Table Table;
   typedef NdbImportUtil::Tables Tables;
+  typedef NdbImportUtil::RowCtl RowCtl;
   typedef NdbImportUtil::Row Row;
   typedef NdbImportUtil::RowList RowList;
   typedef NdbImportUtil::Blob Blob;
@@ -608,6 +609,22 @@ public:
    * dedicated to that node.
    */
 
+  struct RelayState {
+    enum State {
+      State_null = 0,
+      // receive rows from e.g. CSV input
+      State_receive,
+      // select optimal node
+      State_define,
+      // send rows to each exec op worker
+      State_send,
+      // no more rows
+      State_eof
+    };
+  };
+
+  static const char* g_str_state(RelayState::State state);
+
   struct RelayOpTeam : DbTeam {
     RelayOpTeam(Job& job, uint workercnt);
     virtual ~RelayOpTeam();
@@ -622,10 +639,16 @@ public:
     virtual void do_init();
     virtual void do_run();
     virtual void do_end();
+    void state_receive();
+    void state_define();
+    void state_send();
+    virtual void str_state(char* str) const;
+    RelayState::State m_relaystate;
     uchar* m_xfrmalloc;
     uchar* m_xfrmbuf;
     uint m_xfrmbuflen;
-    Row* m_row_save;
+    RowList m_rows;     // rows received
+    RowList* m_rows_exec[g_max_ndb_nodes];      // sorted to per-node
   };
 
   // exec op team
