@@ -33,6 +33,7 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <stdarg.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 #include <algorithm>
@@ -47,7 +48,6 @@
 #include "my_io.h"
 #include "my_macros.h"
 #include "my_time.h"
-#include "mysql/service_my_snprintf.h"
 #include "prealloced_array.h"
 #include "print_version.h"
 #include "sql/log_event.h"
@@ -2383,7 +2383,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
         {
           if (output_file != 0)
           {
-            my_snprintf(log_file_name, sizeof(log_file_name), "%s%s",
+            snprintf(log_file_name, sizeof(log_file_name), "%s%s",
                         output_file, rev->new_log_ident);
           }
           else

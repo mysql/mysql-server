@@ -7776,8 +7776,7 @@
 
     <li>
       The <b>test_services</b> plugin demonstrates how to test the
-      <b>my_snprintf</b> and <b>my_plugin_log_service</b> services
-      in unthreaded context.
+      <b>my_plugin_log_service</b> service in unthreaded context.
     </li>
 
     <li>
@@ -7868,8 +7867,7 @@
         <li>
           If you copied <b>test_services.cc</b> or
           <b>test_services_threaded.cc</b>, the file contains tests
-          for the <b>my_snprintf</b> and
-          <b>my_plugin_log_service</b> services in unthreaded or
+          for the <b>my_plugin_log_service</b> service in unthreaded or
           threaded contexts. Replace or modify those tests with code
           for your own tests.
           those tests with code for your own tests.

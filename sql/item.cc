@@ -26,6 +26,7 @@
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
+#include <stdio.h>
 #include <algorithm>
 #include <cmath>
 #include <utility>
@@ -33,7 +34,6 @@
 #include "decimal.h"
 #include "my_dbug.h"
 #include "mysql.h"           // IS_NUM
-#include "mysql/service_my_snprintf.h"
 #include "mysql_time.h"
 #include "sql/aggregate_check.h" // Distinct_check
 #include "sql/auth/auth_acls.h"
@@ -7160,7 +7160,7 @@ void Item_float::init(const char *str_arg, uint length)
   if (error)
   {
     char tmp[NAME_LEN + 1];
-    my_snprintf(tmp, sizeof(tmp), "%.*s", length, str_arg);
+    snprintf(tmp, sizeof(tmp), "%.*s", length, str_arg);
     my_error(ER_ILLEGAL_VALUE_FOR_TYPE, MYF(0), "double", tmp);
   }
   presentation.copy(str_arg, length);

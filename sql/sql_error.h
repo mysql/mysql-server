@@ -16,6 +16,7 @@
 #ifndef SQL_ERROR_H
 #define SQL_ERROR_H
 
+#include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
 
@@ -25,7 +26,6 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h" /* MYSQL_ERRMSG_SIZE */
 #include "sql/sql_alloc.h"
@@ -248,7 +248,7 @@ public:
 
   ErrConvString(longlong nr)
   {
-    buf_length= my_snprintf(err_buffer, sizeof(err_buffer), "%lld", nr);
+    buf_length= snprintf(err_buffer, sizeof(err_buffer), "%lld", nr);
   }
 
   ErrConvString(longlong nr, bool unsigned_flag)

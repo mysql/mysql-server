@@ -298,8 +298,6 @@ const char *ndbd_exit_status_message(ndbd_exit_status status)
 
 int ndbd_exit_string(int err_no, char *str, unsigned int size)
 {
-  size_t len;
-
   ndbd_exit_classification cl;
   ndbd_exit_status st;
   const char *msg = ndbd_exit_message(err_no, &cl);
@@ -308,10 +306,13 @@ int ndbd_exit_string(int err_no, char *str, unsigned int size)
     const char *cl_msg = ndbd_exit_classification_message(cl, &st);
     const char *st_msg = ndbd_exit_status_message(st);
 
-    len = my_snprintf(str, size-1, "%s: %s: %s", msg, st_msg, cl_msg);
-    str[size-1]= '\0';
+    int len = snprintf(str, size-1, "%s: %s: %s", msg, st_msg, cl_msg);
+    if (len >= 0 && (unsigned)(len) > size-2)
+    {
+      len = size-2;
+    }
 
-    return (int)len;
+    return len;
   }
   return -1;
 }

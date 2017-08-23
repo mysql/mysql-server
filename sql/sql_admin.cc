@@ -16,6 +16,7 @@
 #include "sql/sql_admin.h"
 
 #include <limits.h>
+#include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
 #include <string>
@@ -33,7 +34,6 @@
 #include "myisam.h"                          // TT_USEFRM
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
@@ -202,7 +202,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
   if (!mysql_file_stat(key_file_misc, from, &stat_info, MYF(0)))
     goto end;				// Can't use USE_FRM flag
 
-  my_snprintf(tmp, sizeof(tmp), "%s-%lx_%x",
+  snprintf(tmp, sizeof(tmp), "%s-%lx_%x",
 	      from, current_pid, thd->thread_id());
 
   if (table_list->table)
@@ -753,7 +753,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       protocol->store(table_name, system_charset_info);
       protocol->store(operator_name, system_charset_info);
       protocol->store(STRING_WITH_LEN("error"), system_charset_info);
-      length= my_snprintf(buff, sizeof(buff), ER_THD(thd, ER_OPEN_AS_READONLY),
+      length= snprintf(buff, sizeof(buff), ER_THD(thd, ER_OPEN_AS_READONLY),
                           table_name);
       protocol->store(buff, length, system_charset_info);
       trans_commit_stmt(thd, ignore_grl_on_analyze);
@@ -938,7 +938,7 @@ send_result_message:
     case HA_ADMIN_NOT_IMPLEMENTED:
       {
        char buf[MYSQL_ERRMSG_SIZE];
-       size_t length=my_snprintf(buf, sizeof(buf),
+       size_t length=snprintf(buf, sizeof(buf),
                                  ER_THD(thd, ER_CHECK_NOT_IMPLEMENTED),
                                  operator_name);
 	protocol->store(STRING_WITH_LEN("note"), system_charset_info);
@@ -955,7 +955,7 @@ send_result_message:
         tbl_name.append('.');
         tbl_name.append(String(table_name,system_charset_info));
 
-        size_t length= my_snprintf(buf, sizeof(buf),
+        size_t length= snprintf(buf, sizeof(buf),
                                    ER_THD(thd, ER_BAD_TABLE_ERROR),
                                    tbl_name.c_ptr());
         protocol->store(STRING_WITH_LEN("note"), system_charset_info);
@@ -1148,11 +1148,11 @@ send_result_message:
 
       protocol->store(STRING_WITH_LEN("error"), system_charset_info);
       if (table->table->file->ha_table_flags() & HA_CAN_REPAIR)
-        length= my_snprintf(buf, sizeof(buf),
+        length= snprintf(buf, sizeof(buf),
                             ER_THD(thd, ER_TABLE_NEEDS_UPGRADE),
                             table->table_name);
       else
-        length= my_snprintf(buf, sizeof(buf),
+        length= snprintf(buf, sizeof(buf),
                             ER_THD(thd, ER_TABLE_NEEDS_REBUILD),
                             table->table_name);
       protocol->store(buf, length, system_charset_info);
@@ -1169,7 +1169,7 @@ send_result_message:
     default:				// Probably HA_ADMIN_INTERNAL_ERROR
       {
         char buf[MYSQL_ERRMSG_SIZE];
-        size_t length=my_snprintf(buf, sizeof(buf),
+        size_t length=snprintf(buf, sizeof(buf),
                                 "Unknown - internal error %d during operation",
                                 result_code);
         protocol->store(STRING_WITH_LEN("error"), system_charset_info);

@@ -270,7 +270,7 @@ ndbcluster_connect(int (*connect_callback)(void),
   const char * processinfo_path = processinfo_port ? "" : get_processinfo_path();
   char server_id_string[64];
   if(server_id > 0)
-    my_snprintf(server_id_string, sizeof(server_id_string), "?server-id=%lu",
+    snprintf(server_id_string, sizeof(server_id_string), "?server-id=%lu",
                 server_id);
   else
     server_id_string[0] = '\0';
@@ -307,10 +307,10 @@ ndbcluster_connect(int (*connect_callback)(void),
   }
   {
     char buf[128];
-    my_snprintf(buf, sizeof(buf), "%s --server-id=%lu",
+    snprintf(buf, sizeof(buf), "%s --server-id=%lu",
                 mysqld_name, server_id);
     g_ndb_cluster_connection->set_name(buf);
-    my_snprintf(buf, sizeof(buf), "%s%s", processinfo_path, server_id_string);
+    snprintf(buf, sizeof(buf), "%s%s", processinfo_path, server_id_string);
     g_ndb_cluster_connection->set_service_uri("mysql", processinfo_host,
                                               processinfo_port, buf);
   }
@@ -384,11 +384,11 @@ ndbcluster_connect(int (*connect_callback)(void),
       }
       {
         char buf[128];
-        my_snprintf(buf, sizeof(buf), "%s --server-id=%lu (connection %u)",
+        snprintf(buf, sizeof(buf), "%s --server-id=%lu (connection %u)",
                     mysqld_name, server_id, i+1);
         g_pool[i]->set_name(buf);
         const char * uri_sep = server_id ? ";" : "?";
-        my_snprintf(buf, sizeof(buf), "%s%s%sconnection=%u",
+        snprintf(buf, sizeof(buf), "%s%s%sconnection=%u",
                     processinfo_path, server_id_string, uri_sep, i+1);
         g_pool[i]->set_service_uri("mysql", processinfo_host, processinfo_port, buf);
       }

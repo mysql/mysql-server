@@ -409,7 +409,7 @@ static int parse_vtokens(char *input, enum command type)
 
               if (!thd->get_stmt_da()->is_set())
               {
-                my_snprintf(error_str, sizeof(error_str),
+                snprintf(error_str, sizeof(error_str),
                             ER_THD(thd, ER_VTOKEN_PLUGIN_TOKEN_MISMATCH),
                             (int) token_name.length, token_name.str,
                             (int) it->second.size(),
@@ -426,7 +426,7 @@ static int parse_vtokens(char *input, enum command type)
 	  {
             if (!thd->get_stmt_da()->is_set())
             {
-              my_snprintf(error_str, sizeof(error_str),
+              snprintf(error_str, sizeof(error_str),
                           ER_THD(thd, ER_VTOKEN_PLUGIN_TOKEN_NOT_FOUND),
                           (int) token_name.length, token_name.str);
 

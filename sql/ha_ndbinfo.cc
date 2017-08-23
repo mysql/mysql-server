@@ -19,6 +19,7 @@
 
 #include <mysql/plugin.h>
 
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "sql/current_thd.h"
 #include "sql/derror.h"     // ER_THD
@@ -305,6 +306,11 @@ generate_sql(const NdbInfo::Table* ndb_tab, BaseString& sql)
 static void
 warn_incompatible(const NdbInfo::Table* ndb_tab, bool fatal,
              const char* format, ...)
+  MY_ATTRIBUTE((format(printf, 3, 4)));
+
+static void
+warn_incompatible(const NdbInfo::Table* ndb_tab, bool fatal,
+             const char* format, ...)
 {
   BaseString msg;
   DBUG_ENTER("warn_incompatible");
@@ -314,7 +320,7 @@ warn_incompatible(const NdbInfo::Table* ndb_tab, bool fatal,
   va_list args;
   char explanation[128];
   va_start(args,format);
-  my_vsnprintf(explanation, sizeof(explanation), format, args);
+  vsnprintf(explanation, sizeof(explanation), format, args);
   va_end(args);
 
   msg.assfmt("Table '%s%s' is defined differently in NDB, %s. The "

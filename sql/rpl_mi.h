@@ -320,8 +320,8 @@ public:
      A buffer to hold " for channel <channel_name>
      used in error messages per channel
    */
-  char for_channel_str[CHANNEL_NAME_LENGTH+15];
-  char for_channel_uppercase_str[CHANNEL_NAME_LENGTH+15];
+  char for_channel_str[CHANNEL_NAME_LENGTH+31];
+  char for_channel_uppercase_str[CHANNEL_NAME_LENGTH+31];
 
   /**
     @return The pointer to the Gtid_monitoring_info

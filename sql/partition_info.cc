@@ -35,7 +35,6 @@
 #include "my_sys.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
@@ -693,7 +692,7 @@ char *partition_info::create_default_subpartition_name(uint subpart_no,
 
   if (likely(ptr != NULL))
   {
-    my_snprintf(ptr, size_alloc, "%ssp%u", part_name, subpart_no);
+    snprintf(ptr, size_alloc, "%ssp%u", part_name, subpart_no);
   }
   else
   {

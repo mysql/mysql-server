@@ -255,13 +255,6 @@ int command_service_run_command(MYSQL_SESSION session,
                                 const struct st_command_service_cbs * callbacks,
                                 enum cs_text_or_binary text_or_binary,
                                 void * service_callbacks_ctx);
-#include <mysql/service_my_snprintf.h>
-extern struct my_snprintf_service_st {
-  size_t (*my_snprintf_type)(char*, size_t, const char*, ...);
-  size_t (*my_vsnprintf_type)(char *to, size_t n, const char* fmt, va_list ap);
-} *my_snprintf_service;
-size_t my_snprintf(char* to, size_t n, const char* fmt, ...);
-size_t my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap);
 #include <mysql/service_thd_alloc.h>
 #include <mysql/mysql_lex_string.h>
 struct st_mysql_lex_string

@@ -32,6 +32,7 @@
 #ifndef _WIN32
 #include <netdb.h>
 #endif
+#include <stdio.h>
 #include <stdlib.h>
 
 #include "my_compiler.h"
@@ -39,7 +40,6 @@
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"
-#include "mysql/service_my_snprintf.h"
 #include "vio/vio_priv.h"
 
 #ifdef FIONREAD_IN_SYS_FILIO
@@ -521,7 +521,7 @@ void vio_description(Vio *vio, char *buf)
   switch (vio->type)
   {
   case VIO_TYPE_SOCKET:
-    my_snprintf(buf, VIO_DESCRIPTION_SIZE, "socket (%d)",
+    snprintf(buf, VIO_DESCRIPTION_SIZE, "socket (%d)",
                 mysql_socket_getfd(vio->mysql_socket));
     break;
 #ifdef _WIN32
@@ -533,7 +533,7 @@ void vio_description(Vio *vio, char *buf)
     break;
 #endif
   default:
-    my_snprintf(buf, VIO_DESCRIPTION_SIZE, "TCP/IP (%d)",
+    snprintf(buf, VIO_DESCRIPTION_SIZE, "TCP/IP (%d)",
                 mysql_socket_getfd(vio->mysql_socket));
     break;
   }

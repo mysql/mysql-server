@@ -48,7 +48,6 @@
 #include "my_loglevel.h"
 #include "my_sys.h"
 #include "my_thread.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysqld_error.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/conn_handler/channel_info.h" // Channel_info
@@ -308,7 +307,7 @@ public:
     hints.ai_family= AF_UNSPEC;
 
     char port_buf[NI_MAXSERV];
-    my_snprintf(port_buf, NI_MAXSERV, "%d", m_tcp_port);
+    snprintf(port_buf, NI_MAXSERV, "%d", m_tcp_port);
 
     if (native_strcasecmp(my_bind_addr_str, MY_BIND_ALL_ADDRESSES) == 0)
     {

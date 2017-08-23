@@ -798,12 +798,12 @@ System_variable::init(THD *target_thd, const SHOW_VAR *show_var)
     }
     m_source = system_var->get_source();
   }
-  my_snprintf(m_min_value_str,
+  snprintf(m_min_value_str,
               sizeof(m_min_value_str),
-              "%ld",
+              "%lld",
               system_var->get_min_value());
   m_min_value_length = strlen(m_min_value_str);
-  my_snprintf(m_max_value_str,
+  snprintf(m_max_value_str,
               sizeof(m_max_value_str),
               "%llu",
               system_var->get_max_value());

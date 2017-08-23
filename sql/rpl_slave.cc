@@ -84,7 +84,6 @@
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_thread.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/thread_type.h"
 #include "mysql_com.h"
@@ -3433,7 +3432,7 @@ static int register_slave_on_master(MYSQL* mysql, Master_info *mi,
     else if (!check_io_slave_killed(mi->info_thd, mi, NULL))
     {
       char buf[256];
-      my_snprintf(buf, sizeof(buf), "%s (Errno: %d)", mysql_error(mysql), 
+      snprintf(buf, sizeof(buf), "%s (Errno: %d)", mysql_error(mysql), 
                   mysql_errno(mysql));
       mi->report(ERROR_LEVEL, ER_SLAVE_MASTER_COM_FAILURE,
                  ER_THD(current_thd, ER_SLAVE_MASTER_COM_FAILURE),
@@ -5445,7 +5444,7 @@ static int try_to_reconnect(THD *thd, MYSQL *mysql, Master_info *mi,
   if (!suppress_warnings) 
   {
     char buf[256], llbuff[22];
-    my_snprintf(buf, sizeof(buf), messages[SLAVE_RECON_MSG_FAILED], 
+    snprintf(buf, sizeof(buf), messages[SLAVE_RECON_MSG_FAILED], 
                 mi->get_io_rpl_log_name(), llstr(mi->get_master_log_pos(),
                 llbuff));
     /* 
@@ -6056,7 +6055,8 @@ int check_temp_dir(char* tmp_file, const char *channel_name)
     Check permissions to create a file.
    */
   //append the server UUID to the temp file name.
-  uint size_of_tmp_file_name= FN_REFLEN+TEMP_FILE_MAX_LEN * sizeof(char);
+  constexpr uint size_of_tmp_file_name= 768;
+  static_assert(size_of_tmp_file_name >= FN_REFLEN + TEMP_FILE_MAX_LEN, "");
   char *unique_tmp_file_name= (char*)my_malloc(key_memory_rpl_slave_check_temp_dir,
                                                size_of_tmp_file_name, MYF(0));
   /*
@@ -6067,7 +6067,7 @@ int check_temp_dir(char* tmp_file, const char *channel_name)
   */
 
   /* @TODO: dangerous. Prevent this buffer flow */
-  my_snprintf(unique_tmp_file_name, size_of_tmp_file_name,
+  snprintf(unique_tmp_file_name, size_of_tmp_file_name,
               "%s%s%s", tmp_file, channel_name, server_uuid);
   if ((fd= mysql_file_create(key_file_misc,
                              unique_tmp_file_name, CREATE_MODE,

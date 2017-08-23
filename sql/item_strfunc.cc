@@ -29,6 +29,7 @@
 
 #include "sql/item_strfunc.h"
 
+#include <stdio.h>
 #include <zlib.h>
 #include <algorithm>
 #include <atomic>
@@ -58,7 +59,6 @@
 #include "myisampack.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_password_policy.h"
 #include "mysqld_error.h"
 #include "password.h"                // my_make_scrambled_password
@@ -76,7 +76,7 @@
 #include "sql/handler.h"
 #include "sql/key.h"
 #include "sql/mysqld.h"              // binary_keyword etc
-#include "resourcegroups/resource_group_mgr.h"  // num_vcpus
+#include "sql/resourcegroups/resource_group_mgr.h"  // num_vcpus
 #include "sql/rpl_gtid.h"
 #include "sql/sql_class.h"           // THD
 #include "sql/sql_error.h"
@@ -3759,7 +3759,7 @@ String *Item_char_typecast::val_str(String *str)
     if (res->length() > (length= (uint32) res->charpos(cast_length)))
     {                                           // Safe even if const arg
       char char_type[40];
-      my_snprintf(char_type, sizeof(char_type), "%s(%lu)",
+      snprintf(char_type, sizeof(char_type), "%s(%lu)",
                   cast_cs == &my_charset_bin ? "BINARY" : "CHAR",
                   (ulong) length);
 

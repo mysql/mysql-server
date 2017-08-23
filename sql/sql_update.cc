@@ -21,6 +21,7 @@
 
 #include "sql/sql_update.h"
 
+#include <stdio.h>
 #include <string.h>
 #include <atomic>
 
@@ -34,7 +35,6 @@
 #include "my_sys.h"
 #include "my_table_map.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
@@ -490,7 +490,7 @@ bool Sql_cmd_update::update_single_table(THD *thd)
       }
 
       char buff[MYSQL_ERRMSG_SIZE];
-      my_snprintf(buff, sizeof(buff), ER_THD(thd, ER_UPDATE_INFO), 0, 0,
+      snprintf(buff, sizeof(buff), ER_THD(thd, ER_UPDATE_INFO), 0, 0,
                   (long) thd->get_stmt_da()->current_statement_cond_count());
       my_ok(thd, 0, 0, buff);
 
@@ -1077,7 +1077,7 @@ bool Sql_cmd_update::update_single_table(THD *thd)
   if (error < 0)
   {
     char buff[MYSQL_ERRMSG_SIZE];
-    my_snprintf(buff, sizeof(buff), ER_THD(thd, ER_UPDATE_INFO),
+    snprintf(buff, sizeof(buff), ER_THD(thd, ER_UPDATE_INFO),
                 (long) found_rows, (long) updated_rows,
                 (long) thd->get_stmt_da()->current_statement_cond_count());
     my_ok(thd, thd->get_protocol()->has_client_capability(CLIENT_FOUND_ROWS) ?
@@ -2762,7 +2762,7 @@ bool Query_result_update::send_eof()
     thd->first_successful_insert_id_in_prev_stmt : 0;
   thd->current_changed_rows= updated_rows;
 
-  my_snprintf(buff, sizeof(buff), ER_THD(thd, ER_UPDATE_INFO),
+  snprintf(buff, sizeof(buff), ER_THD(thd, ER_UPDATE_INFO),
               (long) found_rows, (long) updated_rows,
               (long) thd->get_stmt_da()->current_statement_cond_count());
   ::my_ok(thd, thd->get_protocol()->has_client_capability(CLIENT_FOUND_ROWS) ?

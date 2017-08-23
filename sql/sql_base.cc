@@ -19,6 +19,7 @@
 
 #include <fcntl.h>
 #include <limits.h>
+#include <stdio.h>
 #include <string.h>
 #include <time.h>
 #include <atomic>
@@ -57,7 +58,6 @@
 #include "mysql/psi/mysql_table.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_table.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/thread_type.h"
 #include "mysql_com.h"
@@ -10544,7 +10544,7 @@ bool mysql_rm_tmp_tables(void)
       if (strlen(file->name) > tmp_file_prefix_length &&
           !memcmp(file->name, tmp_file_prefix, tmp_file_prefix_length))
       {
-        size_t filePath_len= my_snprintf(filePath, sizeof(filePath),
+        size_t filePath_len= snprintf(filePath, sizeof(filePath),
                                          "%s%c%s", tmpdir, FN_LIBCHAR,
                                          file->name);
         file_str= make_lex_string_root(&files_root, (LEX_STRING *) NULL,

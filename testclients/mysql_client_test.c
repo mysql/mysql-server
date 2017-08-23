@@ -27,6 +27,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdarg.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
 
@@ -36,7 +37,6 @@
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql_client_fw.c"
 
 static void mct_log(const char *format, ...)
@@ -470,10 +470,10 @@ static void mct_start_logging(const char *test_case_name)
     return;
   }
 
-  my_snprintf(mct_log_file_path, FILE_PATH_SIZE,
-              "%s/%s.out.log",
-              (const char *) tmp_dir,
-              (const char *) test_case_name);
+  snprintf(mct_log_file_path, FILE_PATH_SIZE,
+           "%s/%s.out.log",
+           (const char *) tmp_dir,
+           (const char *) test_case_name);
 
   mct_log_file= my_fopen(mct_log_file_path, O_WRONLY | MY_FOPEN_BINARY,
                          MYF(MY_WME));
@@ -16576,8 +16576,8 @@ static bool query_str_variable(MYSQL *con,
 
   bool is_null;
 
-  my_snprintf(query_buffer, sizeof (query_buffer),
-              "SELECT %s", var_name);
+  snprintf(query_buffer, sizeof (query_buffer),
+           "SELECT %s", var_name);
 
   DIE_IF(mysql_query(con, query_buffer));
   DIE_UNLESS(rs= mysql_store_result(con));
@@ -16586,7 +16586,7 @@ static bool query_str_variable(MYSQL *con,
   is_null= row[0] == NULL;
 
   if (!is_null)
-    my_snprintf(str, len, "%s", row[0]);
+    snprintf(str, len, "%s", row[0]);
 
   mysql_free_result(rs);
 
@@ -16724,7 +16724,7 @@ static void test_bug20023()
 
   /* Restore MAX_JOIN_SIZE. */
 
-  my_snprintf(query_buffer,
+  snprintf(query_buffer,
            sizeof (query_buffer),
            "SET @@global.max_join_size = %s",
            max_join_size_orig);
@@ -18701,14 +18701,14 @@ static void test_bug13001491()
 
   myheader("test_bug13001491");
 
-  my_snprintf(query, MAX_TEST_QUERY_LENGTH,
+  snprintf(query, MAX_TEST_QUERY_LENGTH,
            "GRANT ALL PRIVILEGES ON *.* TO mysqltest_u1@%s",
            opt_host ? opt_host : "'localhost'");
            
   rc= mysql_query(mysql, query);
   myquery(rc);
 
-  my_snprintf(query, MAX_TEST_QUERY_LENGTH,
+  snprintf(query, MAX_TEST_QUERY_LENGTH,
            "GRANT RELOAD ON *.* TO mysqltest_u1@%s",
            opt_host ? opt_host : "'localhost'");
            
@@ -18761,7 +18761,7 @@ static void test_bug13001491()
   mysql_close(c);
   c= NULL;
 
-  my_snprintf(query, MAX_TEST_QUERY_LENGTH,
+  snprintf(query, MAX_TEST_QUERY_LENGTH,
            "DROP USER mysqltest_u1@%s",
            opt_host ? opt_host : "'localhost'");
            

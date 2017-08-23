@@ -31,6 +31,7 @@
 */
 
 
+#include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
 #include <algorithm>
@@ -45,7 +46,6 @@
 #include "my_inttypes.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
-#include "mysql/service_my_snprintf.h"
 #include "strings/mb_wc.h"
 #include "strings/str_uca_type.h"
 #include "strings/uca900_data.h"
@@ -2740,7 +2740,7 @@ static void my_coll_lexem_print_error(MY_COLL_LEXEM *lexem,
   size_t len= lexem->end - lexem->prev;
   strmake (tail, lexem->prev, (size_t) MY_MIN(len, sizeof(tail)-1));
   errstr[errsize-1]= '\0';
-  my_snprintf(errstr, errsize - 1,
+  snprintf(errstr, errsize - 1,
               "%s at '%s' for COLLATION : %s", txt[0] ? txt : "Syntax error",
               tail, col_name);
 }
@@ -3199,7 +3199,7 @@ my_coll_parser_init(MY_COLL_RULE_PARSER *p,
 static int
 my_coll_parser_expected_error(MY_COLL_RULE_PARSER *p, my_coll_lexem_num term)
 {
-  my_snprintf(p->errstr, sizeof(p->errstr),
+  snprintf(p->errstr, sizeof(p->errstr),
               "%s expected", my_coll_lexem_num_to_str(term));
   return 0;
 }
@@ -3217,7 +3217,7 @@ my_coll_parser_expected_error(MY_COLL_RULE_PARSER *p, my_coll_lexem_num term)
 static int
 my_coll_parser_too_long_error(MY_COLL_RULE_PARSER *p, const char *name)
 {
-  my_snprintf(p->errstr, sizeof(p->errstr), "%s is too long", name);
+  snprintf(p->errstr, sizeof(p->errstr), "%s is too long", name);
   return 0;
 }
 
@@ -4166,7 +4166,7 @@ apply_primary_shift_900(MY_CHARSET_LOADER *loader, MY_COLL_RULES *rules,
   }
   else
   {
-    my_snprintf(loader->error, sizeof(loader->error),
+    snprintf(loader->error, sizeof(loader->error),
                 "Can't reset before "
                 "a primary ignorable character U+%04lX", r->base[0]);
     return true;
@@ -4204,7 +4204,7 @@ apply_tertiary_shift_900(MY_CHARSET_LOADER *loader, MY_COLL_RULES *rules,
   }
   else
   {
-    my_snprintf(loader->error, sizeof(loader->error),
+    snprintf(loader->error, sizeof(loader->error),
                 "Can't reset before "
                 "a tertiary ignorable character U+%04lX", r->base[0]);
     return true;
@@ -4275,7 +4275,7 @@ apply_shift(MY_CHARSET_LOADER *loader,
       }
       else
       {
-        my_snprintf(loader->error, sizeof(loader->error),
+        snprintf(loader->error, sizeof(loader->error),
                     "Can't reset before "
                     "a primary ignorable character U+%04lX", r->base[0]);
         return TRUE;
@@ -4418,13 +4418,13 @@ check_rules(MY_CHARSET_LOADER *loader,
   {
     if (r->curr[0] > dst->maxchar)
     {
-      my_snprintf(loader->error, sizeof(loader->error),
+      snprintf(loader->error, sizeof(loader->error),
                   "Shift character out of range: u%04X", (uint) r->curr[0]);
       return TRUE;
     }
     else if (r->base[0] > src->maxchar)
     {
-      my_snprintf(loader->error, sizeof(loader->error),
+      snprintf(loader->error, sizeof(loader->error),
                   "Reset character out of range: u%04X", (uint) r->base[0]);
       return TRUE;
     }

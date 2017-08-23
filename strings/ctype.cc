@@ -809,7 +809,6 @@ my_parse_charset_xml(MY_CHARSET_LOADER *loader, const char *buf, size_t len)
     const char *errstr= my_xml_error_string(&p);
     if (sizeof(loader->error) > 32 + strlen(errstr))
     {
-      /* We cannot use my_snprintf() here. See previous comment. */
       sprintf(loader->error, "at line %d pos %d: %s",
                 my_xml_error_lineno(&p)+1,
                 (int) my_xml_error_pos(&p),

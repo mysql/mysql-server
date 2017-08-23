@@ -17,6 +17,7 @@
 
 #include "my_config.h"
 
+#include <stdio.h>
 #include <algorithm>
 #include <atomic>
 #include <new>
@@ -25,7 +26,6 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/current_thd.h"
@@ -76,7 +76,7 @@ bool check_stack_overrun(const THD *thd, long margin,
     */
     char* ebuff= new (std::nothrow) char[MYSQL_ERRMSG_SIZE];
     if (ebuff) {
-      my_snprintf(ebuff, MYSQL_ERRMSG_SIZE,
+      snprintf(ebuff, MYSQL_ERRMSG_SIZE,
                   ER_THD(thd, ER_STACK_OVERRUN_NEED_MORE),
                   stack_used, my_thread_stack_size, margin);
       my_message(ER_STACK_OVERRUN_NEED_MORE, ebuff, MYF(ME_FATALERROR));

@@ -62,6 +62,7 @@
 
 #include "sql/sql_rewrite.h"
 
+#include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
 #include <set>
@@ -72,7 +73,6 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/udf_registration_types.h"
 #include "prealloced_array.h"
 #include "sql/auth/auth_acls.h"
@@ -704,7 +704,7 @@ static void mysql_rewrite_change_master(THD *thd, String *rlb)
     else
     {
       char buf[64];
-      my_snprintf(buf, 64, "%f", lex->mi.heartbeat_period);
+      snprintf(buf, 64, "%f", lex->mi.heartbeat_period);
       rlb->append(buf);
     }
   }

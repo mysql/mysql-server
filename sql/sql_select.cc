@@ -25,6 +25,7 @@
 
 #include "sql/sql_select.h"
 
+#include <stdio.h>
 #include <string.h>
 #include <algorithm>
 #include <atomic>
@@ -34,7 +35,6 @@
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
@@ -2528,7 +2528,7 @@ bool JOIN::setup_semijoin_materialized_table(JOIN_TAB *tab, uint tableno,
   sjm_exec->table_param.bit_fields_as_long= true;
 
   char buffer[NAME_LEN];
-  const size_t len= my_snprintf(buffer, sizeof(buffer) - 1, "<subquery%u>",
+  const size_t len= snprintf(buffer, sizeof(buffer) - 1, "<subquery%u>",
                                 emb_sj_nest->nested_join->query_block_id);
   char *name= (char *)alloc_root(thd->mem_root, len + 1);
   if (name == NULL)

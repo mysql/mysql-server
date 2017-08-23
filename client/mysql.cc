@@ -37,6 +37,7 @@
 #include <math.h>
 #include <signal.h>
 #include <stdarg.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <time.h>
@@ -54,7 +55,6 @@
 #include "my_io.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
-#include "mysql/service_my_snprintf.h"
 #include "prealloced_array.h"
 #include "typelib.h"
 #include "violite.h"
@@ -1358,7 +1358,7 @@ int main(int argc,char *argv[])
 
   put_info("Welcome to the MySQL monitor.  Commands end with ; or \\g.",
 	   INFO_INFO);
-  my_snprintf((char*) glob_buffer.ptr(), glob_buffer.alloced_length(),
+  snprintf((char*) glob_buffer.ptr(), glob_buffer.alloced_length(),
 	   "Your MySQL connection id is %lu\nServer version: %s\n",
 	   mysql_thread_id(&mysql), server_version_string(&mysql));
   put_info((char*) glob_buffer.ptr(),INFO_INFO);
@@ -3226,7 +3226,7 @@ void free_hist_patterns()
 
 void add_syslog(const char *line) {
   char buff[MAX_SYSLOG_MESSAGE_SIZE];
-  my_snprintf(buff, sizeof(buff), "SYSTEM_USER:'%s', MYSQL_USER:'%s', "
+  snprintf(buff, sizeof(buff), "SYSTEM_USER:'%s', MYSQL_USER:'%s', "
               "CONNECTION_ID:%lu, DB_SERVER:'%s', DB:'%s', QUERY:'%s'",
               /* use the cached user/sudo_user value. */
               current_os_sudouser ? current_os_sudouser :
@@ -4775,7 +4775,7 @@ com_use(String *buffer MY_ATTRIBUTE((unused)), char *line)
 
   if (0 < (warnings= mysql_warning_count(&mysql)))
   {
-    my_snprintf(buff, sizeof(buff),
+    snprintf(buff, sizeof(buff),
                 "Database changed, %u warning%s", warnings,
                 warnings > 1 ? "s" : "");
     put_info(buff, INFO_INFO);

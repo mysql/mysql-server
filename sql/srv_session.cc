@@ -17,6 +17,7 @@
 #include "sql/srv_session.h"
 
 #include <stddef.h>
+#include <stdio.h>
 #include <sys/types.h>
 #include <atomic>
 #include <list>
@@ -45,7 +46,6 @@
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql/psi/mysql_statement.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "pfs_thread_provider.h"
@@ -626,7 +626,7 @@ static void err_handle_ok(void * ctx, uint server_status, uint warn_count,
   if (pctx && pctx->handler)
   {
     char buf[256];
-    my_snprintf(buf, sizeof(buf),
+    snprintf(buf, sizeof(buf),
                 "OK status=%u warnings=%u affected=%llu last_id=%llu",
                 server_status, warn_count, affected_rows, last_insert_id);
     pctx->handler(pctx->handler_context, 0, buf);

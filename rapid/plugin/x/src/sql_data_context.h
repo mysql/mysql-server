@@ -20,8 +20,9 @@
 #ifndef XPL_SQL_DATA_CONTEXT_H_
 #define XPL_SQL_DATA_CONTEXT_H_
 
+#include <stdio.h>
+
 #include "mysql/service_command.h"
-#include "mysql/service_my_snprintf.h"
 #include "plugin/x/ngs/include/ngs/interface/protocol_encoder_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/sql_session_interface.h"
 #include "plugin/x/ngs/include/ngs_common/connection_type.h"

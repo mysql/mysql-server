@@ -22,6 +22,7 @@
 
 #include <fcntl.h>
 #include <limits.h>
+#include <stdio.h>
                         // Execute_load_query_log_event,
                         // LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F
 #include <string.h>
@@ -43,7 +44,6 @@
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_file.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/thread_type.h"
 #include "mysql/udf_registration_types.h"
@@ -682,7 +682,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     goto err;
   }
 
-  my_snprintf(name, sizeof(name),
+  snprintf(name, sizeof(name),
               ER_THD(thd, ER_LOAD_INFO),
               (long) info.stats.records, (long) info.stats.deleted,
               (long) (info.stats.records - info.stats.copied),

@@ -246,7 +246,7 @@ public:
   */
   void error(Context *pc, const POS &pos, const char *msg) const
   {
-    pc->thd->syntax_error_at(pos, msg);
+    pc->thd->syntax_error_at(pos, "%s", msg);
   }
 
   /**
@@ -258,13 +258,18 @@ public:
     @param      format  Error message format string with optional argument list.
   */
   void errorf(Context *pc, const POS &pos, const char *format, ...) const
-  {
-    va_list args;
-    va_start(args, format);
-    pc->thd->vsyntax_error_at(pos, format, args);
-    va_end(args);
-  }
+    MY_ATTRIBUTE((format(printf, 4, 5)));
 };
+
+template<typename Context>
+inline void Parse_tree_node_tmpl<Context>::errorf
+  (Context *pc, const POS &pos, const char *format, ...) const
+{
+  va_list args;
+  va_start(args, format);
+  pc->thd->vsyntax_error_at(pos, format, args);
+  va_end(args);
+}
 
 typedef Parse_tree_node_tmpl<Parse_context> Parse_tree_node;
 

@@ -16,6 +16,7 @@
 #include "sql/sql_partition_admin.h"
 
 #include <limits.h>
+#include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
 #include <memory>
@@ -29,7 +30,6 @@
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"           // check_access
@@ -398,7 +398,7 @@ bool Sql_cmd_alter_table_exchange_partition::
                        swap_table_list->table_name,
                        "", 0);
   /* create a unique temp name #sqlx-nnnn_nnnn, x for eXchange */
-  my_snprintf(temp_name, sizeof(temp_name), "%sx-%lx_%x",
+  snprintf(temp_name, sizeof(temp_name), "%sx-%lx_%x",
               tmp_file_prefix, current_pid, thd->thread_id());
   if (lower_case_table_names)
     my_casedn_str(files_charset_info, temp_name);

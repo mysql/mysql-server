@@ -15,6 +15,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
 
@@ -25,7 +26,6 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_shm_defaults.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld_error.h"
 #include "print_version.h"
@@ -624,7 +624,7 @@ static int get_opt_user_password()
       else
       {
         char prompt[128];
-        my_snprintf(prompt, sizeof(prompt) - 1,
+        snprintf(prompt, sizeof(prompt) - 1,
                     "Enter password for user %s: ", opt_user);
         // Request password from user
         password= get_tty_password(prompt);
@@ -977,7 +977,7 @@ int main(int argc,char *argv[])
     if (plugin_set == 1)
       estimate_password_strength(password);
 
-    my_snprintf(prompt, sizeof(prompt) - 1, 
+    snprintf(prompt, sizeof(prompt) - 1, 
                 "Change the password for %s ? ((Press y|Y "
                 "for Yes, any other key for No) : ", opt_user);
     reply= get_response(prompt, 'n');

@@ -44,8 +44,8 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <time.h>
 
 #include "mysql/psi/mysql_cond.h"       /* mysql_cond_t */
@@ -676,14 +676,16 @@ extern void my_printf_error(uint my_err, const char *format,
                             myf MyFlags, ...)
   MY_ATTRIBUTE((format(printf, 2, 4)));
 extern void my_printv_error(uint error, const char *format, myf MyFlags,
-                            va_list ap);
+                            va_list ap)
+  MY_ATTRIBUTE((format(printf, 2, 0)));
 extern int my_error_register(const char* (*get_errmsg) (int),
                              int first, int last);
 extern bool my_error_unregister(int first, int last);
 extern void my_message(uint my_err, const char *str,myf MyFlags);
 extern void my_message_stderr(uint my_err, const char *str, myf MyFlags);
 void my_message_local_stderr(enum loglevel ll,
-                             const char *format, va_list args);
+                             const char *format, va_list args)
+  MY_ATTRIBUTE((format(printf, 2, 0)));
 extern void my_message_local(enum loglevel ll, const char *format, ...);
 extern bool my_init(void);
 extern void my_end(int infoflag);

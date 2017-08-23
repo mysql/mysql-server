@@ -37,7 +37,6 @@
 #include "mysql/components/services/psi_stage_bits.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/service_my_snprintf.h"
 #include "sql/debug_sync.h"          // debug_sync_set_action
 #include "sql/derror.h"              // ER_THD
 #include "sql/item_func.h"           // user_var_entry
@@ -322,7 +321,7 @@ void Binlog_sender::run()
     if (is_fatal_error())
     {
       /* output events range to error message */
-      my_snprintf(error_text, sizeof(error_text),
+      snprintf(error_text, sizeof(error_text),
                   "%s; the first event '%s' at %lld, "
                   "the last event read from '%s' at %lld, "
                   "the last byte read from '%s' at %lld.",

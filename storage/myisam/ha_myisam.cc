@@ -155,6 +155,10 @@ static handler *myisam_create_handler(handlerton *hton,
 
 static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
 			       const char *fmt, va_list args)
+  MY_ATTRIBUTE((format(printf, 3, 0)));
+
+static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
+			       const char *fmt, va_list args)
 {
   THD* thd = (THD*)param->thd;
   Protocol *protocol= thd->get_protocol();
@@ -162,7 +166,7 @@ static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
   char msgbuf[MI_MAX_MSG_BUF];
   char name[NAME_LEN*2+2];
 
-  msg_length= my_vsnprintf(msgbuf, sizeof(msgbuf), fmt, args);
+  msg_length= vsnprintf(msgbuf, sizeof(msgbuf), fmt, args);
   msgbuf[sizeof(msgbuf) - 1] = 0; // healthy paranoia
 
   DBUG_PRINT(msg_type,("message: %s",msgbuf));
@@ -1197,7 +1201,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize)
       {
         char buf[40];
         /* TODO: respect myisam_repair_threads variable */
-        my_snprintf(buf, 40, "Repair with %d threads", my_count_bits(key_map));
+        snprintf(buf, 40, "Repair with %d threads", my_count_bits(key_map));
         thd_proc_info(thd, buf);
         /*
           The new file is created with the right stats, so we can skip
@@ -1331,7 +1335,7 @@ int ha_myisam::assign_to_keycache(THD* thd, HA_CHECK_OPT *check_opt)
   if ((error= mi_assign_to_key_cache(file, map, new_key_cache)))
   { 
     char buf[STRING_BUFFER_USUAL_SIZE];
-    my_snprintf(buf, sizeof(buf),
+    snprintf(buf, sizeof(buf),
 		"Failed to flush to index file (errno: %d)", error);
     errmsg= buf;
     error= HA_ADMIN_CORRUPT;
@@ -1392,7 +1396,7 @@ int ha_myisam::preload_keys(THD* thd, HA_CHECK_OPT*)
       errmsg= "Failed to allocate buffer";
       break;
     default:
-      my_snprintf(buf, sizeof(buf),
+      snprintf(buf, sizeof(buf),
                   "Failed to read from index file (errno: %d)", my_errno());
       errmsg= buf;
     }

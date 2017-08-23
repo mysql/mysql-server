@@ -21,6 +21,7 @@
 
 #include <assert.h>
 #include <errno.h>
+#include <stdio.h>
 #include <string.h>
 #include <atomic>
 #include <map>
@@ -37,7 +38,6 @@
 #include "my_table_map.h"
 #include "my_thread_local.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
@@ -794,12 +794,12 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd)
       thd->get_protocol()->has_client_capability(CLIENT_FOUND_ROWS) ?
         info.stats.touched : info.stats.updated;
     if (lex->is_ignore())
-      my_snprintf(buff, sizeof(buff),
+      snprintf(buff, sizeof(buff),
                   ER_THD(thd, ER_INSERT_INFO), (long) info.stats.records,
                   (long) (info.stats.records - info.stats.copied),
                   (long) thd->get_stmt_da()->current_statement_cond_count());
     else
-      my_snprintf(buff, sizeof(buff),
+      snprintf(buff, sizeof(buff),
                   ER_THD(thd, ER_INSERT_INFO), (long) info.stats.records,
                   (long) (info.stats.deleted + updated),
                   (long) thd->get_stmt_da()->current_statement_cond_count());
@@ -2357,12 +2357,12 @@ bool Query_result_insert::send_eof()
 
   char buff[160];
   if (thd->lex->is_ignore())
-    my_snprintf(buff, sizeof(buff),
+    snprintf(buff, sizeof(buff),
                 ER_THD(thd, ER_INSERT_INFO), (long) info.stats.records,
                 (long) (info.stats.records - info.stats.copied),
                 (long) thd->get_stmt_da()->current_statement_cond_count());
   else
-    my_snprintf(buff, sizeof(buff),
+    snprintf(buff, sizeof(buff),
                 ER_THD(thd, ER_INSERT_INFO), (long) info.stats.records,
                 (long) (info.stats.deleted+info.stats.updated),
                 (long) thd->get_stmt_da()->current_statement_cond_count());

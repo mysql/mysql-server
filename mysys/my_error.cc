@@ -22,6 +22,7 @@
 #ifdef __linux__
 #include <features.h>
 #endif
+#include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
 
@@ -32,11 +33,11 @@
 #include "my_inttypes.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysys/my_handler_errors.h"
 #include "mysys/mysys_priv.h"
 #include "mysys_err.h"
+#include "strings/mb_wc.h"
 
 /* Max length of a error message. Should be kept in sync with MYSQL_ERRMSG_SIZE. */
 #define ERRMSGSIZE      (512)
@@ -128,7 +129,7 @@ char *my_strerror(char *buf, size_t len, int nr)
       {
         char tmp_buff[256] ;
 
-        my_snprintf(tmp_buff, sizeof(tmp_buff), 
+        snprintf(tmp_buff, sizeof(tmp_buff), 
                     " [OS Error Code : 0x%x]", thr_winerr());
 
         strcat_s(buf, len, tmp_buff);
@@ -216,14 +217,37 @@ void my_error(int nr, myf MyFlags, ...)
   DBUG_PRINT("my", ("nr: %d  MyFlags: %d  errno: %d", nr, MyFlags, errno));
 
   if (!(format = my_get_err_msg(nr)))
-    (void) my_snprintf(ebuff, sizeof(ebuff), "Unknown error %d", nr);
+    (void) snprintf(ebuff, sizeof(ebuff), "Unknown error %d", nr);
   else
   {
     va_start(args,MyFlags);
-    (void) my_vsnprintf_ex(&my_charset_utf8_general_ci, ebuff,
-                           sizeof(ebuff), format, args);
+    (void) vsnprintf(ebuff, sizeof(ebuff), format, args);
     va_end(args);
   }
+
+  /*
+    Since this function is an error function, it will frequently be given
+    values that are too long (and thus truncated on byte boundaries,
+    not code point or grapheme boundaries), values that are binary, etc..
+    Go through and replace every malformed UTF-8 byte with a question mark,
+    so that the result is safe to send to the client and makes sense to read
+    for the user.
+  */
+  for (char *ptr= ebuff, *end= ebuff + strlen(ebuff); ptr != end; )
+  {
+    my_wc_t ignored;
+    int len= my_mb_wc_utf8mb4(&ignored, pointer_cast<const uchar *>(ptr),
+                              pointer_cast<const uchar *>(end));
+    if (len > 0)
+    {
+      ptr+= len;
+    }
+    else
+    {
+      *ptr++= '?';
+    }
+  }
+
   (*error_handler_hook)(nr, ebuff, MyFlags);
   DBUG_VOID_RETURN;
 }
@@ -250,8 +274,7 @@ void my_printf_error(uint error, const char *format, myf MyFlags, ...)
 		    error, MyFlags, errno, format));
 
   va_start(args,MyFlags);
-  (void) my_vsnprintf_ex(&my_charset_utf8_general_ci, ebuff,
-                         sizeof(ebuff), format, args);
+  (void) vsnprintf(ebuff, sizeof(ebuff), format, args);
   va_end(args);
   (*error_handler_hook)(error, ebuff, MyFlags);
   DBUG_VOID_RETURN;
@@ -276,7 +299,7 @@ void my_printv_error(uint error, const char *format, myf MyFlags, va_list ap)
   DBUG_PRINT("my", ("nr: %d  MyFlags: %d  errno: %d  format: %s",
 		    error, MyFlags, errno, format));
 
-  (void) my_vsnprintf(ebuff, sizeof(ebuff), format, ap);
+  (void) vsnprintf(ebuff, sizeof(ebuff), format, ap);
   (*error_handler_hook)(error, ebuff, MyFlags);
   DBUG_VOID_RETURN;
 }
@@ -449,10 +472,10 @@ void my_message_local_stderr(enum loglevel ll,
 
   DBUG_ENTER("my_message_local_stderr");
 
-  len= my_snprintf(buff, sizeof(buff), "[%s] ",
+  len= snprintf(buff, sizeof(buff), "[%s] ",
                    (ll == ERROR_LEVEL ? "ERROR" : ll == WARNING_LEVEL ?
                     "Warning" : "Note"));
-  my_vsnprintf(buff + len, sizeof(buff) - len, format, args);
+  vsnprintf(buff + len, sizeof(buff) - len, format, args);
 
   my_message_stderr(0, buff, MYF(0));
 

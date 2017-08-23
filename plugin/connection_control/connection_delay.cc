@@ -681,7 +681,7 @@ namespace connection_control
       {
         char error_buffer[512];
         memset(error_buffer, 0, sizeof(error_buffer));
-        my_snprintf(error_buffer, sizeof(error_buffer)-1,
+        snprintf(error_buffer, sizeof(error_buffer)-1,
                     "Failed to update connection delay hash for account : %s",
                     userhost.c_str());
         error_handler->handle_error(error_buffer);
@@ -698,7 +698,7 @@ namespace connection_control
       {
         char error_buffer[512];
         memset(error_buffer, 0, sizeof(error_buffer));
-        my_snprintf(error_buffer, sizeof(error_buffer) - 1,
+        snprintf(error_buffer, sizeof(error_buffer) - 1,
                     "Failed to delete connection delay hash entry for acount : %s."
                     " It might have been deleted already.",
                     userhost.c_str());
@@ -763,7 +763,7 @@ namespace connection_control
         {
           char error_buffer[512];
           memset(error_buffer, 0, sizeof(error_buffer));
-          my_snprintf(error_buffer, sizeof(error_buffer) - 1,
+          snprintf(error_buffer, sizeof(error_buffer) - 1,
                       "Could not set %s delay for connection delay.",
                       (variable == OPT_MIN_CONNECTION_DELAY) ? "min" : "max");
           error_handler->handle_error(error_buffer);

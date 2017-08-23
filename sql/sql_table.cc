@@ -51,7 +51,6 @@
 #include "mysql/psi/mysql_table.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_table.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysql_time.h"
@@ -803,7 +802,7 @@ size_t build_tmptable_filename(THD* thd, char *buff, size_t bufflen)
 
   char *p= my_stpnmov(buff, mysql_tmpdir, bufflen);
   DBUG_ASSERT(sizeof(my_thread_id) == 4);
-  my_snprintf(p, bufflen - (p - buff), "/%s%lx_%lx_%x",
+  snprintf(p, bufflen - (p - buff), "/%s%lx_%x_%x",
               tmp_file_prefix, current_pid,
               thd->thread_id(), thd->tmp_table++);
 
@@ -6229,7 +6228,7 @@ bool validate_comment_length(THD *thd, const char *comment_str,
       DBUG_RETURN(true);
     }
     char warn_buff[MYSQL_ERRMSG_SIZE];
-    length= my_snprintf(warn_buff, sizeof(warn_buff), ER_THD(thd, err_code),
+    length= snprintf(warn_buff, sizeof(warn_buff), ER_THD(thd, err_code),
                         comment_name, static_cast<ulong>(max_len));
     /* do not push duplicate warnings */
     if (!thd->get_stmt_da()->has_sql_condition(warn_buff, length)) 
@@ -6306,7 +6305,7 @@ static bool prepare_blob_field(THD *thd, Create_field *sql_field)
     }
     sql_field->sql_type= MYSQL_TYPE_BLOB;
     sql_field->flags|= BLOB_FLAG;
-    my_snprintf(warn_buff, sizeof(warn_buff),
+    snprintf(warn_buff, sizeof(warn_buff),
                 ER_THD(thd, ER_AUTO_CONVERT), sql_field->field_name,
             (sql_field->charset == &my_charset_bin) ? "VARBINARY" : "VARCHAR",
             (sql_field->charset == &my_charset_bin) ? "BLOB" : "TEXT");
@@ -13683,7 +13682,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
 
   char backup_name[32];
   DBUG_ASSERT(sizeof(my_thread_id) == 4);
-  my_snprintf(backup_name, sizeof(backup_name), "%s2-%lx-%lx", tmp_file_prefix,
+  snprintf(backup_name, sizeof(backup_name), "%s2-%lx-%x", tmp_file_prefix,
               current_pid, thd->thread_id());
   if (lower_case_table_names)
     my_casedn_str(files_charset_info, backup_name);
@@ -14012,7 +14011,7 @@ end_inplace:
   }
 
 end_temporary:
-  my_snprintf(alter_ctx.tmp_name, sizeof(alter_ctx.tmp_name),
+  snprintf(alter_ctx.tmp_name, sizeof(alter_ctx.tmp_name),
               ER_THD(thd, ER_INSERT_INFO),
 	      (long) (copied + deleted), (long) deleted,
 	      (long) thd->get_stmt_da()->current_statement_cond_count());
@@ -14276,7 +14275,7 @@ copy_data_between_tables(THD * thd,
     if (to->s->primary_key != MAX_KEY && to->file->primary_key_is_clustered())
     {
       char warn_buff[MYSQL_ERRMSG_SIZE];
-      my_snprintf(warn_buff, sizeof(warn_buff), 
+      snprintf(warn_buff, sizeof(warn_buff), 
                   "ORDER BY ignored as there is a user-defined clustered index"
                   " in the table '%-.192s'", from->s->table_name.str);
       push_warning(thd, Sql_condition::SL_WARNING, ER_UNKNOWN_ERROR,

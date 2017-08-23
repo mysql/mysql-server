@@ -23,7 +23,6 @@
 
 #include "my_config.h"
 
-#include <mysql/service_my_snprintf.h>
 #include <stddef.h>
 
 #include "template_utils.h"
@@ -38,7 +37,7 @@ string print_digest(const unsigned char *digest)
   const size_t string_size= PARSER_SERVICE_DIGEST_LENGTH * 2;
   char digest_str[string_size + sizeof('\0')];
   for (int i= 0; i < PARSER_SERVICE_DIGEST_LENGTH; ++i)
-    my_snprintf(digest_str + i * 2, string_size, "%02x", digest[i]);
+    snprintf(digest_str + i * 2, string_size, "%02x", digest[i]);
   return digest_str;
 }
 

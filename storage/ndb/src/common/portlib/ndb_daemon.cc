@@ -18,11 +18,12 @@
 #include <process.h>
 #endif
 #include <BaseString.hpp>
-#include "m_string.h"
-#include "my_sys.h"
-#include <mysql/service_my_snprintf.h>
 #include <ndb_daemon.h>
 #include <portlib/NdbHost.h>
+#include <stdio.h>
+
+#include "m_string.h"
+#include "my_sys.h"
 
 static FILE *dlog_file;
 
@@ -34,7 +35,7 @@ static int ERR1(const char* fmt, ...)
 {
   va_list argptr;
   va_start(argptr, fmt);
-  my_vsnprintf(ndb_daemon_error,sizeof(ndb_daemon_error),fmt,argptr);
+  vsnprintf(ndb_daemon_error,sizeof(ndb_daemon_error),fmt,argptr);
   va_end(argptr);
   return 1;
 }
@@ -315,7 +316,7 @@ do_files(const char *pidfile_name, const char* logfile_name, int pidfd, int logf
                 pidfile_name, errno);
 
   char buf[32];
-  int length = (int)my_snprintf(buf, sizeof(buf), "%ld",
+  int length = (int)snprintf(buf, sizeof(buf), "%ld",
                            (long)NdbHost_GetProcessId());
   if (write(pidfd, buf, length) != length)
     return ERR1("Failed to write pid to pidfile '%s', errno: %d",

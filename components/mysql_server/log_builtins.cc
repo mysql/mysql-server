@@ -39,8 +39,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #ifndef _WIN32
 #include <syslog.h>
 #else
+#include <stdio.h>
+
 #include "my_sys.h"
-#include "mysql/service_my_snprintf.h"
 
 #define MSG_DEFAULT       0xC0000064L
 extern CHARSET_INFO       my_charset_utf16le_bin;
@@ -1583,7 +1584,7 @@ int log_line_submit(log_line *ll)
 int make_iso8601_timestamp(char *buf, ulonglong utime, int mode)
 {
   struct tm  my_tm;
-  char       tzinfo[7]="Z";  // max 6 chars plus \0
+  char       tzinfo[8]="Z";  // max 6 chars plus \0
   size_t     len;
   time_t     seconds;
 
@@ -1614,7 +1615,7 @@ int make_iso8601_timestamp(char *buf, ulonglong utime, int mode)
       dir= '+';
       tim= -tim;
     }
-    my_snprintf(tzinfo, sizeof(tzinfo), "%c%02d:%02d",
+    snprintf(tzinfo, sizeof(tzinfo), "%c%02d:%02d",
                 dir, (int) (tim / (60 * 60)), (int) ((tim / 60) % 60));
   }
   else
@@ -1622,15 +1623,15 @@ int make_iso8601_timestamp(char *buf, ulonglong utime, int mode)
     DBUG_ASSERT(false);
   }
 
-  len= my_snprintf(buf, iso8601_size, "%04d-%02d-%02dT%02d:%02d:%02d.%06lu%s",
-                   my_tm.tm_year + 1900,
-                   my_tm.tm_mon  + 1,
-                   my_tm.tm_mday,
-                   my_tm.tm_hour,
-                   my_tm.tm_min,
-                   my_tm.tm_sec,
-                   (unsigned long) utime,
-                   tzinfo);
+  len= snprintf(buf, iso8601_size, "%04d-%02d-%02dT%02d:%02d:%02d.%06lu%s",
+                my_tm.tm_year + 1900,
+                my_tm.tm_mon  + 1,
+                my_tm.tm_mday,
+                my_tm.tm_hour,
+                my_tm.tm_min,
+                my_tm.tm_sec,
+                (unsigned long) utime,
+                tzinfo);
 
   return std::min<int>((int) len, iso8601_size - 1);
 }
@@ -1680,8 +1681,8 @@ static my_h_service log_service_get_by_name(const char *name, size_t len,
   my_h_service               service= nullptr;
   size_t                     needed;
 
-  needed= my_snprintf(buf, bufsiz, LOG_SERVICES_PREFIX ".%.*s",
-                      (int) len, name);
+  needed= snprintf(buf, bufsiz, LOG_SERVICES_PREFIX ".%.*s",
+                   (int) len, name);
 
   if (needed > bufsiz)
     return service;
@@ -3164,7 +3165,7 @@ DEFINE_METHOD(int,     log_builtins_string_imp::compare,
 
 
 /**
-  Wrapper for my_vsnprintf()
+  Wrapper for vsnprintf()
   Replace all % in format string with variables from list
 
   @param  to    buffer to write the result to
@@ -3179,12 +3180,12 @@ DEFINE_METHOD(size_t, log_builtins_string_imp::substitutev, (char *to,
                                                              const char *fmt,
                                                              va_list ap))
 {
-  return my_vsnprintf(to, n, fmt, ap);
+  return vsnprintf(to, n, fmt, ap);
 }
 
 
 /**
-  Wrapper for my_vsnprintf()
+  Wrapper for vsnprintf()
   Replace all % in format string with variables from list
 */
 DEFINE_METHOD(size_t, log_builtins_string_imp::substitute, (char *to,
@@ -3196,7 +3197,7 @@ DEFINE_METHOD(size_t, log_builtins_string_imp::substitute, (char *to,
   va_list ap;
 
   va_start(ap, fmt);
-  ret= my_vsnprintf(to, n, fmt, ap);
+  ret= vsnprintf(to, n, fmt, ap);
   va_end(ap);
   return ret;
 }
@@ -3261,7 +3262,7 @@ static int log_eventlog_create_registry_entry(const char *key)
   if ((buff= (char *) my_malloc(PSI_NOT_INSTRUMENTED, l, MYF(0))) == NULL)
     return -1;
 
-  my_snprintf(buff, l, "%s%s", log_registry_prefix, key);
+  snprintf(buff, l, "%s%s", log_registry_prefix, key);
 
   // Opens the event source registry key; creates it first if required.
   dwError= RegCreateKey(HKEY_LOCAL_MACHINE, buff, &hRegKey);

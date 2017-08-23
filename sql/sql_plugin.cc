@@ -52,7 +52,6 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
@@ -668,7 +667,7 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
            (ver >> 8) < (list_of_services[i].version >> 8)))
       {
         char buf[MYSQL_ERRMSG_SIZE];
-        my_snprintf(buf, sizeof(buf),
+        snprintf(buf, sizeof(buf),
                     "service '%s' interface version mismatch",
                     list_of_services[i].name);
         report_error(report, ER_CANT_OPEN_LIBRARY, dlpath, 0, buf);

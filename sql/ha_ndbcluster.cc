@@ -1092,7 +1092,7 @@ check_completed_operations_pre_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
       else
       {
         char msg[FN_REFLEN];
-        my_snprintf(msg, sizeof(msg), "Executing extra operations for "
+        snprintf(msg, sizeof(msg), "Executing extra operations for "
                     "conflict handling hit Ndb error %d '%s'",
                     nonMaskedError.code, nonMaskedError.message);
         push_warning_printf(current_thd, Sql_condition::SL_ERROR,
@@ -3933,7 +3933,7 @@ ha_ndbcluster::log_exclusive_read(const NdbRecord *key_rec,
   if (!markingOp)
   {
     char msg[FN_REFLEN];
-    my_snprintf(msg, sizeof(msg), "Error logging exclusive reads, failed creating markingOp, %u, %s\n",
+    snprintf(msg, sizeof(msg), "Error logging exclusive reads, failed creating markingOp, %u, %s\n",
                 m_thd_ndb->trans->getNdbError().code,
                 m_thd_ndb->trans->getNdbError().message);
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
@@ -3972,7 +3972,7 @@ ha_ndbcluster::scan_log_exclusive_read(NdbScanOperation *cursor,
   if (markingOp == NULL)
   {
     char msg[FN_REFLEN];
-    my_snprintf(msg, sizeof(msg), "Error logging exclusive reads during scan, failed creating markingOp, %u, %s\n",
+    snprintf(msg, sizeof(msg), "Error logging exclusive reads during scan, failed creating markingOp, %u, %s\n",
                 m_thd_ndb->trans->getNdbError().code,
                 m_thd_ndb->trans->getNdbError().message);
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
@@ -5991,7 +5991,7 @@ handle_row_conflict(NDB_CONFLICT_FN_SHARE* cfn_share,
       if (table_has_blobs)
       {
         char msg[FN_REFLEN];
-        my_snprintf(msg, sizeof(msg), "%s conflict handling "
+        snprintf(msg, sizeof(msg), "%s conflict handling "
                     "on table %s failed as table has Blobs which cannot be refreshed.",
                     handling_type,
                     table_name);
@@ -6118,7 +6118,7 @@ handle_row_conflict(NDB_CONFLICT_FN_SHARE* cfn_share,
         else
         {
           char msg[FN_REFLEN];
-          my_snprintf(msg, sizeof(msg), "Row conflict handling "
+          snprintf(msg, sizeof(msg), "Row conflict handling "
                       "on table %s hit Ndb error %d '%s'",
                       table_name,
                       err.code,
@@ -6166,7 +6166,7 @@ handle_row_conflict(NDB_CONFLICT_FN_SHARE* cfn_share,
         else
         {
           char msg[FN_REFLEN];
-          my_snprintf(msg, sizeof(msg), "%s conflict handling "
+          snprintf(msg, sizeof(msg), "%s conflict handling "
                       "on table %s hit Ndb error %d '%s'",
                       handling_type,
                       table_name,
@@ -7228,7 +7228,7 @@ void ha_ndbcluster::print_results()
       val.length(0);
       field->sql_type(type);
       field->val_str(&val);
-      my_snprintf(buf, sizeof(buf), "%s %s", type.c_ptr(), val.c_ptr());
+      snprintf(buf, sizeof(buf), "%s %s", type.c_ptr(), val.c_ptr());
     }
     else
     {
@@ -10720,7 +10720,7 @@ void ha_ndbcluster::append_create_info(String *packet)
         if (pbname != NULL)
         {
           char msg[200];
-          my_snprintf(msg,
+          snprintf(msg,
                       sizeof(msg),
                       "Table property is PARTITION_BALANCE=%s but not in comment",
                       pbname);
@@ -14701,7 +14701,7 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share)
       Give the leaked share a new name using a running number
     */
     char leak_name_buf[16]; // strlen("#leak4294967295")
-    my_snprintf(leak_name_buf, sizeof(leak_name_buf),
+    snprintf(leak_name_buf, sizeof(leak_name_buf),
                 "#leak%lu", trailing_share_id++);
     share->key = NDB_SHARE::create_key(leak_name_buf);
     // Note that share->db, share->table_name as well
@@ -16823,7 +16823,7 @@ ndbcluster_show_status(handlerton *hton, THD* thd, stat_print_fn *stat_print,
     update_status_variables(NULL, &ns, g_ndb_cluster_connection);
 
   buflen= (uint)
-    my_snprintf(buf, sizeof(buf),
+    snprintf(buf, sizeof(buf),
                 "cluster_node_id=%ld, "
                 "connected_host=%s, "
                 "connected_port=%ld, "
@@ -16845,8 +16845,8 @@ ndbcluster_show_status(handlerton *hton, THD* thd, stat_print_fn *stat_print,
     if (ns.transaction_hint_count[i] > 0 ||
         ns.transaction_no_hint_count[i] > 0)
     {
-      uint namelen= (uint)my_snprintf(name, sizeof(name), "node[%d]", i);
-      buflen= (uint)my_snprintf(buf, sizeof(buf),
+      uint namelen= (uint)snprintf(name, sizeof(name), "node[%d]", i);
+      buflen= (uint)snprintf(buf, sizeof(buf),
                           "transaction_hint=%ld, transaction_no_hint=%ld",
                           ns.transaction_hint_count[i],
                           ns.transaction_no_hint_count[i]);
@@ -16863,7 +16863,7 @@ ndbcluster_show_status(handlerton *hton, THD* thd, stat_print_fn *stat_print,
     while (ndb->get_free_list_usage(&tmp))
     {
       buflen= (uint)
-        my_snprintf(buf, sizeof(buf),
+        snprintf(buf, sizeof(buf),
                   "created=%u, free=%u, sizeof=%u",
                   tmp.m_created, tmp.m_free, tmp.m_sizeof);
       if (stat_print(thd, ndbcluster_hton_name, ndbcluster_hton_name_length,
@@ -19645,7 +19645,7 @@ static int slave_conflict_role_check_func(THD *thd, struct st_mysql_sys_var *var
                &failure_cause_str))
     {
       char msgbuf[256];
-      my_snprintf(msgbuf, 
+      snprintf(msgbuf, 
                   sizeof(msgbuf), 
                   "Role change from %s to %s failed : %s",
                   get_type(&slave_conflict_role_typelib, opt_ndb_slave_conflict_role),

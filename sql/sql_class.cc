@@ -21,6 +21,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <stdarg.h>
+#include <stdio.h>
 #include <algorithm>
 #include <utility>
 
@@ -35,7 +36,6 @@
 #include "mysql/psi/mysql_ps.h"
 #include "mysql/psi/mysql_stage.h"
 #include "mysql/psi/mysql_statement.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysys_err.h"                       // EE_OUTOFMEMORY
 #include "pfs_statement_provider.h"
@@ -645,7 +645,7 @@ void THD::raise_error_printf(uint sql_errno, ...)
   DBUG_PRINT("my", ("nr: %d  errno: %d", sql_errno, errno));
   const char* format= ER_THD(this, sql_errno);
   va_start(args, sql_errno);
-  my_vsnprintf(ebuff, sizeof(ebuff), format, args);
+  vsnprintf(ebuff, sizeof(ebuff), format, args);
   va_end(args);
   (void) raise_condition(sql_errno,
                          NULL,
@@ -671,7 +671,7 @@ void THD::raise_warning_printf(uint sql_errno, ...)
   DBUG_PRINT("enter", ("warning: %u", sql_errno));
   const char* format= ER_THD(this, sql_errno);
   va_start(args, sql_errno);
-  my_vsnprintf(ebuff, sizeof(ebuff), format, args);
+  vsnprintf(ebuff, sizeof(ebuff), format, args);
   va_end(args);
   (void) raise_condition(sql_errno,
                          NULL,
@@ -704,7 +704,7 @@ void THD::raise_note_printf(uint sql_errno, ...)
     DBUG_VOID_RETURN;
   const char* format= ER_THD(this, sql_errno);
   va_start(args, sql_errno);
-  my_vsnprintf(ebuff, sizeof(ebuff), format, args);
+  vsnprintf(ebuff, sizeof(ebuff), format, args);
   va_end(args);
   (void) raise_condition(sql_errno,
                          NULL,
@@ -2794,7 +2794,7 @@ void THD::vsyntax_error_at(const char *pos_in_lexer_raw_buffer,
     m_parser_state->m_lip.get_lineno(pos_in_lexer_raw_buffer) : 1;
   const char *pos= pos_in_lexer_raw_buffer ? pos_in_lexer_raw_buffer : "";
   ErrConvString err(pos, variables.character_set_client);
-  (void) my_vsnprintf(buff, sizeof(buff), format, args);
+  (void) vsnprintf(buff, sizeof(buff), format, args);
   my_printf_error(ER_PARSE_ERROR, ER_THD(this, ER_PARSE_ERROR), MYF(0), buff,
                   err.ptr(), lineno);
 }

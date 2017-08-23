@@ -32,7 +32,6 @@
 extern "C" {
 #endif
 
-#include <mysql/service_my_snprintf.h>
 #include <mysql/service_thd_alloc.h>
 #include <mysql/service_thd_wait.h>
 #include <mysql/service_thread_scheduler.h>

@@ -22666,7 +22666,7 @@ ib_senderrf(
 		va_end(args);
 		return;	/* Watch for Out-Of-Memory */
 	}
-	my_vsnprintf(str, BUFSIZ, format, args);
+	vsnprintf(str, BUFSIZ, format, args);
 #endif /* _WIN32 */
 
 	Sql_condition::enum_severity_level	l;
@@ -22756,7 +22756,7 @@ ib_errf(
 		va_end(args);
 		return;	/* Watch for Out-Of-Memory */
 	}
-	my_vsnprintf(str, BUFSIZ, format, args);
+	vsnprintf(str, BUFSIZ, format, args);
 #endif /* _WIN32 */
 
 	ib_senderrf(thd, level, code, str);

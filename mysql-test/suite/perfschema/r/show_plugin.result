@@ -55,7 +55,7 @@ INSTALL PLUGIN example SONAME 'ha_example.so';
 
 SHOW GLOBAL STATUS LIKE "example_%";
 Variable_name	Value
-example_func_example	enum_var is 0, ulong_var is 8, double_var is 8.500000, really
+example_func_example	enum_var is 0, ulong_var is 8, double_var is 8.500000
 example_status_array_var1	100
 example_status_array_var2	20.010000
 example_status_var3	three hundred
@@ -65,7 +65,7 @@ example_status_var6	8250
 
 SHOW SESSION STATUS LIKE "example_%";
 Variable_name	Value
-example_func_example	enum_var is 0, ulong_var is 8, double_var is 8.500000, really
+example_func_example	enum_var is 0, ulong_var is 8, double_var is 8.500000
 example_status_array_var1	100
 example_status_array_var2	20.010000
 example_status_var3	three hundred
@@ -93,7 +93,7 @@ example_ulong_var	8
 
 SELECT variable_name, variable_value FROM performance_schema.global_status WHERE variable_name LIKE "example_%";
 variable_name	variable_value
-example_func_example	enum_var is 0, ulong_var is 8, double_var is 8.500000, really
+example_func_example	enum_var is 0, ulong_var is 8, double_var is 8.500000
 example_status_array_var1	100
 example_status_array_var2	20.010000
 example_status_var3	three hundred
@@ -103,7 +103,7 @@ example_status_var6	8250
 
 SELECT variable_name, variable_value FROM performance_schema.session_status WHERE variable_name LIKE "example_%";
 variable_name	variable_value
-example_func_example	enum_var is 0, ulong_var is 8, double_var is 8.500000, really
+example_func_example	enum_var is 0, ulong_var is 8, double_var is 8.500000
 example_status_array_var1	100
 example_status_array_var2	20.010000
 example_status_var3	three hundred
@@ -147,7 +147,7 @@ SET SESSION example_double_thdvar = 102.9992;
 
 SHOW GLOBAL STATUS LIKE "example_%";
 Variable_name	Value
-example_func_example	enum_var is 0, ulong_var is 100, double_var is 100.999000, really
+example_func_example	enum_var is 0, ulong_var is 100, double_var is 100.999000
 example_status_array_var1	100
 example_status_array_var2	20.010000
 example_status_var3	three hundred
@@ -157,7 +157,7 @@ example_status_var6	8250
 
 SHOW SESSION STATUS LIKE "example_%";
 Variable_name	Value
-example_func_example	enum_var is 0, ulong_var is 100, double_var is 100.999000, really
+example_func_example	enum_var is 0, ulong_var is 100, double_var is 100.999000
 example_status_array_var1	100
 example_status_array_var2	20.010000
 example_status_var3	three hundred
@@ -185,7 +185,7 @@ example_ulong_var	100
 
 SELECT variable_name, variable_value FROM performance_schema.global_status WHERE variable_name LIKE "example_%";
 variable_name	variable_value
-example_func_example	enum_var is 0, ulong_var is 100, double_var is 100.999000, really
+example_func_example	enum_var is 0, ulong_var is 100, double_var is 100.999000
 example_status_array_var1	100
 example_status_array_var2	20.010000
 example_status_var3	three hundred
@@ -195,7 +195,7 @@ example_status_var6	8250
 
 SELECT variable_name, variable_value FROM performance_schema.session_status WHERE variable_name LIKE "example_%";
 variable_name	variable_value
-example_func_example	enum_var is 0, ulong_var is 100, double_var is 100.999000, really
+example_func_example	enum_var is 0, ulong_var is 100, double_var is 100.999000
 example_status_array_var1	100
 example_status_array_var2	20.010000
 example_status_var3	three hundred
@@ -277,7 +277,7 @@ SET SESSION example_double_thdvar = 202.8882;
 
 SHOW GLOBAL STATUS LIKE "example_%";
 Variable_name	Value
-example_func_example	enum_var is 1, ulong_var is 200, double_var is 200.888000, really
+example_func_example	enum_var is 1, ulong_var is 200, double_var is 200.888000
 example_status_array_var1	100
 example_status_array_var2	20.010000
 example_status_var3	three hundred
@@ -287,7 +287,7 @@ example_status_var6	8250
 
 SHOW SESSION STATUS LIKE "example_%";
 Variable_name	Value
-example_func_example	enum_var is 1, ulong_var is 200, double_var is 200.888000, really
+example_func_example	enum_var is 1, ulong_var is 200, double_var is 200.888000
 example_status_array_var1	100
 example_status_array_var2	20.010000
 example_status_var3	three hundred
@@ -315,7 +315,7 @@ example_ulong_var	200
 
 SELECT variable_name, variable_value FROM performance_schema.global_status WHERE variable_name LIKE "example_%";
 variable_name	variable_value
-example_func_example	enum_var is 1, ulong_var is 200, double_var is 200.888000, really
+example_func_example	enum_var is 1, ulong_var is 200, double_var is 200.888000
 example_status_array_var1	100
 example_status_array_var2	20.010000
 example_status_var3	three hundred
@@ -325,7 +325,7 @@ example_status_var6	8250
 
 SELECT variable_name, variable_value FROM performance_schema.session_status WHERE variable_name LIKE "example_%";
 variable_name	variable_value
-example_func_example	enum_var is 1, ulong_var is 200, double_var is 200.888000, really
+example_func_example	enum_var is 1, ulong_var is 200, double_var is 200.888000
 example_status_array_var1	100
 example_status_array_var2	20.010000
 example_status_var3	three hundred
@@ -423,7 +423,7 @@ connection default;
 
 SHOW GLOBAL STATUS LIKE "example_%";
 Variable_name	Value
-example_func_example	enum_var is 0, ulong_var is 300, double_var is 301.000000, really
+example_func_example	enum_var is 0, ulong_var is 300, double_var is 301.000000
 example_status_array_var1	100
 example_status_array_var2	20.010000
 example_status_var3	three hundred
@@ -433,7 +433,7 @@ example_status_var6	8250
 
 SHOW SESSION STATUS LIKE "example_%";
 Variable_name	Value
-example_func_example	enum_var is 0, ulong_var is 300, double_var is 301.000000, really
+example_func_example	enum_var is 0, ulong_var is 300, double_var is 301.000000
 example_status_array_var1	100
 example_status_array_var2	20.010000
 example_status_var3	three hundred
@@ -461,7 +461,7 @@ example_ulong_var	300
 
 SELECT variable_name, variable_value FROM performance_schema.global_status WHERE variable_name LIKE "example_%";
 variable_name	variable_value
-example_func_example	enum_var is 0, ulong_var is 300, double_var is 301.000000, really
+example_func_example	enum_var is 0, ulong_var is 300, double_var is 301.000000
 example_status_array_var1	100
 example_status_array_var2	20.010000
 example_status_var3	three hundred
@@ -471,7 +471,7 @@ example_status_var6	8250
 
 SELECT variable_name, variable_value FROM performance_schema.session_status WHERE variable_name LIKE "example_%";
 variable_name	variable_value
-example_func_example	enum_var is 0, ulong_var is 300, double_var is 301.000000, really
+example_func_example	enum_var is 0, ulong_var is 300, double_var is 301.000000
 example_status_array_var1	100
 example_status_array_var2	20.010000
 example_status_var3	three hundred
@@ -531,7 +531,7 @@ connection default;
 
 SHOW GLOBAL STATUS LIKE "example_%";
 Variable_name	Value
-example_func_example	enum_var is 0, ulong_var is 300, double_var is 301.000000, really
+example_func_example	enum_var is 0, ulong_var is 300, double_var is 301.000000
 example_status_array_var1	100
 example_status_array_var2	20.010000
 example_status_var3	three hundred
@@ -541,7 +541,7 @@ example_status_var6	8250
 
 SHOW SESSION STATUS LIKE "example_%";
 Variable_name	Value
-example_func_example	enum_var is 0, ulong_var is 300, double_var is 301.000000, really
+example_func_example	enum_var is 0, ulong_var is 300, double_var is 301.000000
 example_status_array_var1	100
 example_status_array_var2	20.010000
 example_status_var3	three hundred
@@ -569,7 +569,7 @@ example_ulong_var	300
 
 SELECT variable_name, variable_value FROM performance_schema.global_status WHERE variable_name LIKE "example_%";
 variable_name	variable_value
-example_func_example	enum_var is 0, ulong_var is 300, double_var is 301.000000, really
+example_func_example	enum_var is 0, ulong_var is 300, double_var is 301.000000
 example_status_array_var1	100
 example_status_array_var2	20.010000
 example_status_var3	three hundred
@@ -579,7 +579,7 @@ example_status_var6	8250
 
 SELECT variable_name, variable_value FROM performance_schema.session_status WHERE variable_name LIKE "example_%";
 variable_name	variable_value
-example_func_example	enum_var is 0, ulong_var is 300, double_var is 301.000000, really
+example_func_example	enum_var is 0, ulong_var is 300, double_var is 301.000000
 example_status_array_var1	100
 example_status_array_var2	20.010000
 example_status_var3	three hundred
@@ -633,7 +633,7 @@ connection default;
 
 SHOW GLOBAL STATUS LIKE "example_%";
 Variable_name	Value
-example_func_example	enum_var is 0, ulong_var is 300, double_var is 301.000000, really
+example_func_example	enum_var is 0, ulong_var is 300, double_var is 301.000000
 example_status_array_var1	100
 example_status_array_var2	20.010000
 example_status_var3	three hundred
@@ -643,7 +643,7 @@ example_status_var6	8250
 
 SHOW SESSION STATUS LIKE "example_%";
 Variable_name	Value
-example_func_example	enum_var is 0, ulong_var is 300, double_var is 301.000000, really
+example_func_example	enum_var is 0, ulong_var is 300, double_var is 301.000000
 example_status_array_var1	100
 example_status_array_var2	20.010000
 example_status_var3	three hundred
@@ -671,7 +671,7 @@ example_ulong_var	300
 
 SELECT variable_name, variable_value FROM performance_schema.global_status WHERE variable_name LIKE "example_%";
 variable_name	variable_value
-example_func_example	enum_var is 0, ulong_var is 300, double_var is 301.000000, really
+example_func_example	enum_var is 0, ulong_var is 300, double_var is 301.000000
 example_status_array_var1	100
 example_status_array_var2	20.010000
 example_status_var3	three hundred
@@ -681,7 +681,7 @@ example_status_var6	8250
 
 SELECT variable_name, variable_value FROM performance_schema.session_status WHERE variable_name LIKE "example_%";
 variable_name	variable_value
-example_func_example	enum_var is 0, ulong_var is 300, double_var is 301.000000, really
+example_func_example	enum_var is 0, ulong_var is 300, double_var is 301.000000
 example_status_array_var1	100
 example_status_array_var2	20.010000
 example_status_var3	three hundred

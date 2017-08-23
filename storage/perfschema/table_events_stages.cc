@@ -238,7 +238,7 @@ table_events_stages_common::make_row(PFS_events_stages *stage)
   }
 
   base = base_name(safe_source_file);
-  m_row.m_source_length = my_snprintf(m_row.m_source,
+  m_row.m_source_length = snprintf(m_row.m_source,
                                       sizeof(m_row.m_source),
                                       "%s:%d",
                                       base,

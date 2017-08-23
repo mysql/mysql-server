@@ -46,7 +46,6 @@
 #include "mysql/psi/mysql_table.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_table.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysql_version.h"               // MYSQL_VERSION_ID
@@ -3545,7 +3544,7 @@ static void open_table_error(THD *thd, TABLE_SHARE *share,
       my_error(ER_NO_SUCH_TABLE, MYF(0), share->db.str, share->table_name.str);
       break;
     case HA_ERR_TABLESPACE_MISSING:
-      my_snprintf(errbuf, MYSYS_STRERROR_SIZE, "`%s`.`%s`", share->db.str,
+      snprintf(errbuf, MYSYS_STRERROR_SIZE, "`%s`.`%s`", share->db.str,
                   share->table_name.str);
       my_error(ER_TABLESPACE_MISSING, MYF(0), errbuf);
       break;

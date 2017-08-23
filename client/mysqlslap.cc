@@ -97,6 +97,7 @@ TODO:
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
+#include <stdio.h>
 #include <time.h>
 
 #include "client/client_priv.h"
@@ -105,7 +106,6 @@ TODO:
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_systime.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "print_version.h"
 #include "typelib.h"
@@ -1652,7 +1652,7 @@ static void set_sql_mode(MYSQL *mysql)
   {
     char query[512];
     size_t len;
-    len=  my_snprintf(query, HUGE_STRING_LENGTH, "SET sql_mode = `%s`", sql_mode);
+    len=  snprintf(query, sizeof(query), "SET sql_mode = `%s`", sql_mode);
 
     if (run_query(mysql, query, len))
     {

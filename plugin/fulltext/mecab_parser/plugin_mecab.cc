@@ -277,7 +277,7 @@ mecab_parser_parse(
 	if (strcmp(mecab_charset, csname) != 0) {
 		char	error_msg[128];
 
-		my_snprintf(error_msg, 127, "Fulltext index charset '%s'"
+		snprintf(error_msg, 127, "Fulltext index charset '%s'"
 			    " doesn't match mecab charset '%s'.",
 			    param->cs->csname, mecab_charset);
 		my_message(ER_ERROR_ON_WRITE, error_msg, MYF(0));

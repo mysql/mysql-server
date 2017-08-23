@@ -97,8 +97,8 @@ void (*error_handler_hook)(uint error, const char *str, myf MyFlags)=
   my_message_stderr;
 void (*fatal_error_handler_hook)(uint error, const char *str, myf MyFlags)=
   my_message_stderr;
-void (*local_message_hook)(enum loglevel ll, const char *format, va_list args)=
-  my_message_local_stderr;
+void (*local_message_hook)(enum loglevel ll, const char *format, va_list args)
+  MY_ATTRIBUTE((format(printf, 2, 0)))= my_message_local_stderr;
 
 static void enter_cond_dummy(void *a MY_ATTRIBUTE((unused)),
                              mysql_cond_t *b MY_ATTRIBUTE((unused)),

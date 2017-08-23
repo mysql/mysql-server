@@ -30,12 +30,12 @@
 /* purecov: begin inspected */
 static const char *log_filename= "test_sql_stmt";
 
-#define STRING_BUFFER_SIZE 512
+#define STRING_BUFFER_SIZE 1024
 #define LARGE_STRING_BUFFER_SIZE 1024
 
 #define WRITE_STR(format) \
   { \
-    const size_t blen= my_snprintf(buffer, sizeof(buffer), (format)); \
+    const size_t blen= snprintf(buffer, sizeof(buffer), "%s", (format)); \
     my_write(outfile, (uchar*) buffer, blen, MYF(0)); \
     /*pctx->log.append(buffer, blen); */ \
   }
@@ -43,14 +43,14 @@ static const char *log_filename= "test_sql_stmt";
 
 #define WRITE_VAL(format,value) \
   { \
-    const size_t blen= my_snprintf(buffer, sizeof(buffer), (format), (value)); \
+    const size_t blen= snprintf(buffer, sizeof(buffer), (format), (value)); \
     my_write(outfile,(uchar*)buffer, blen, MYF(0)); \
    /* pctx->log.append(buffer, blen); */ \
   }
 
 #define WRITE_VAL2(format,value1, value2) \
   { \
-    const size_t blen= my_snprintf(buffer, sizeof(buffer), (format), (value1), (value2)); \
+    const size_t blen= snprintf(buffer, sizeof(buffer), (format), (value1), (value2)); \
     my_write(outfile,(uchar*) buffer, blen, MYF(0)); \
     /* pctx->log.append(buffer, blen); */ \
   }
@@ -176,7 +176,7 @@ public:
       size_t col= 0;
       for (auto &&column : columns)
       {
-        WRITE_VAL("\t[meta] current col: %u\n", col);
+        WRITE_VAL("\t[meta] current col: %zu\n", col);
         col++;
         column.dump_row(i);
       }
@@ -397,7 +397,7 @@ static int handle_store_integer(void *pctx, longlong value)
   uint col= ctx->current_col;
   ctx->current_col++;
 
-  size_t len= my_snprintf(buffer, sizeof(buffer), "%lld", value);
+  size_t len= snprintf(buffer, sizeof(buffer), "%lld", value);
 
   ctx->tables.back().columns[col].row_values.push_back(
     std::string(buffer, len));
@@ -413,7 +413,7 @@ static int handle_store_longlong(void *pctx, longlong value, uint is_unsigned)
   uint col= ctx->current_col;
   ctx->current_col++;
 
-  size_t len= my_snprintf(buffer, sizeof(buffer),
+  size_t len= snprintf(buffer, sizeof(buffer),
                           is_unsigned? "%llu":"%lld", value);
 
   ctx->tables.back().columns[col].row_values.push_back(
@@ -457,7 +457,7 @@ static int handle_store_double(void *pctx, double value, uint32)
   uint col= ctx->current_col;
   ctx->current_col++;
 
-  size_t len= my_snprintf(buffer, sizeof(buffer), "%3.7g", value);
+  size_t len= snprintf(buffer, sizeof(buffer), "%3.7g", value);
   ctx->tables.back().columns[col].row_values.push_back(
     std::string(buffer, len));
 
@@ -472,7 +472,7 @@ static int handle_store_date(void *pctx, const MYSQL_TIME *value)
   uint col= ctx->current_col;
   ctx->current_col++;
 
-  size_t len= my_snprintf(buffer, sizeof(buffer),
+  size_t len= snprintf(buffer, sizeof(buffer),
                           "%s%4d-%02d-%02d",
                           value->neg? "-":"",
                           value->year, value->month, value->day);
@@ -491,7 +491,7 @@ static int handle_store_time(void *pctx, const MYSQL_TIME *value, uint)
   uint col= ctx->current_col;
   ctx->current_col++;
 
-  size_t len= my_snprintf(buffer, sizeof(buffer),
+  size_t len= snprintf(buffer, sizeof(buffer),
                           "%s%02d:%02d:%02d",
                           value->neg? "-":"",
                           value->day? (value->day*24 + value->hour):value->hour,
@@ -509,7 +509,7 @@ static int handle_store_datetime(void *pctx, const MYSQL_TIME *value, uint)
   uint col= ctx->current_col;
   ctx->current_col++;
 
-  size_t len= my_snprintf(buffer, sizeof(buffer),
+  size_t len= snprintf(buffer, sizeof(buffer),
                           "%s%4d-%02d-%02d %02d:%02d:%02d",
                           value->neg? "-":"",
                           value->year, value->month, value->day,
@@ -743,10 +743,10 @@ static void print_cmd(enum_server_command cmd, COM_DATA *data)
     WRITE_VAL("COM_STMT_PREPARE: query[%s]\n",data->com_stmt_prepare.query);
     break;
   case COM_STMT_EXECUTE:
-    WRITE_VAL("COM_STMT_EXECUTE: stmt_id [%u]\n",data->com_stmt_execute.stmt_id);
+    WRITE_VAL("COM_STMT_EXECUTE: stmt_id [%lu]\n",data->com_stmt_execute.stmt_id);
     break;
   case COM_STMT_SEND_LONG_DATA:
-    WRITE_VAL("COM_STMT_SEND_LONG_DATA: stmt_id [%u]\n",data->com_stmt_send_long_data.stmt_id);
+    WRITE_VAL("COM_STMT_SEND_LONG_DATA: stmt_id [%lu]\n",data->com_stmt_send_long_data.stmt_id);
     break;
   case COM_STMT_CLOSE:
     WRITE_VAL("COM_STMT_CLOSE: stmt_id [%u]\n",data->com_stmt_close.stmt_id);
@@ -755,7 +755,7 @@ static void print_cmd(enum_server_command cmd, COM_DATA *data)
     WRITE_VAL("COM_STMT_RESET: stmt_id [%u]\n",data->com_stmt_reset.stmt_id);
     break;
   case COM_STMT_FETCH:
-    WRITE_VAL("COM_STMT_FETCH: stmt_id [%u]\n",data->com_stmt_fetch.stmt_id);
+    WRITE_VAL("COM_STMT_FETCH: stmt_id [%lu]\n",data->com_stmt_fetch.stmt_id);
     break;
   default:
     WRITE_STR("NOT FOUND: add command to print_cmd\n");

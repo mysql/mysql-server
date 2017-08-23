@@ -16,6 +16,7 @@
 #include "sql/sql_alter.h"
 
 #include <limits.h>
+#include <stdio.h>
 #include <string.h>
 
 #include "m_ctype.h"
@@ -25,7 +26,6 @@
 #include "my_macros.h"
 #include "my_sys.h"
 #include "mysql/plugin.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"            // check_access
@@ -154,7 +154,7 @@ Alter_table_ctx::Alter_table_ctx(THD *thd, TABLE_LIST *table_list,
     new_name= table_name;
   }
 
-  my_snprintf(tmp_name, sizeof(tmp_name), "%s-%lx_%x", tmp_file_prefix,
+  snprintf(tmp_name, sizeof(tmp_name), "%s-%lx_%x", tmp_file_prefix,
               current_pid, thd->thread_id());
   /* Safety fix for InnoDB */
   if (lower_case_table_names)

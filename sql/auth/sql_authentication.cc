@@ -15,6 +15,7 @@
 
 #include "sql/auth/sql_authentication.h"
 
+#include <stdio.h>
 #include <string.h>
 #include <fstream>                     // IWYU pragma: keep
 #include <string>                       /* std::string */
@@ -38,7 +39,6 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_my_plugin_log.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/service_mysql_password_policy.h"
 #include "mysql_com.h"
@@ -997,7 +997,7 @@ static bool find_mpvio_user(THD *thd, MPVIO_EXT *mpvio)
                               native_password_plugin_name.str));
     my_error(ER_NOT_SUPPORTED_AUTH_MODE, MYF(0));
     query_logger.general_log_print(thd, COM_CONNECT,
-                                   ER_DEFAULT(ER_NOT_SUPPORTED_AUTH_MODE));
+                                   "%s", ER_DEFAULT(ER_NOT_SUPPORTED_AUTH_MODE));
     DBUG_RETURN (1);
   }
 
@@ -2534,7 +2534,7 @@ acl_authenticate(THD *thd, enum_server_command command)
         DBUG_RETURN(1);
       }
 
-      my_snprintf(proxy_user_buf, sizeof(proxy_user_buf) - 1,
+      snprintf(proxy_user_buf, sizeof(proxy_user_buf) - 1,
                   "'%s'@'%s'", auth_user,
                   acl_user->host.get_host() ? acl_user->host.get_host() : "");
       sctx->assign_proxy_user(proxy_user_buf, strlen(proxy_user_buf));
@@ -2663,7 +2663,7 @@ acl_authenticate(THD *thd, enum_server_command command)
 
       my_error(ER_MUST_CHANGE_PASSWORD_LOGIN, MYF(0));
       query_logger.general_log_print(thd, COM_CONNECT,
-                                     ER_DEFAULT(ER_MUST_CHANGE_PASSWORD_LOGIN));
+                                     "%s", ER_DEFAULT(ER_MUST_CHANGE_PASSWORD_LOGIN));
       LogErr(INFORMATION_LEVEL, ER_MUST_CHANGE_PASSWORD_LOGIN);
 
       errors.m_authentication= 1;

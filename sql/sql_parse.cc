@@ -20,6 +20,7 @@
 #include "my_config.h"
 
 #include <limits.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -50,7 +51,6 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql/psi/mysql_statement.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
@@ -1980,7 +1980,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     else
       queries_per_second1000= thd->query_id * 1000LL / uptime;
 
-    length= my_snprintf(buff, buff_len - 1,
+    length= snprintf(buff, buff_len - 1,
                         "Uptime: %lu  Threads: %d  Questions: %lu  "
                         "Slow queries: %llu  Opens: %llu  Flush tables: %lu  "
                         "Open tables: %u  Queries per second avg: %u.%03u",

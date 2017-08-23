@@ -725,7 +725,7 @@ protected:
   void unsupported_as_wf()
   {
     char buff[STRING_BUFFER_USUAL_SIZE];
-    my_snprintf(buff, sizeof(buff), "%s as window function", func_name());
+    snprintf(buff, sizeof(buff), "%s as window function", func_name());
     my_error(ER_NOT_SUPPORTED_YET, MYF(0), buff);
   }
 };

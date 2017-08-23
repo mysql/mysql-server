@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@ test_snprintf(const char* res, char* buf, size_t bufsz, const char* fmt, ...)
 
 	EXPECT_STREQ(buf, res);
 	va_start(args,fmt);
-	len= my_vsnprintf(buf, bufsz-1, fmt, args);
+	len= vsnprintf(buf, bufsz-1, fmt, args);
 	va_end(args);
 	EXPECT_EQ(len, strlen(res));
 	EXPECT_STREQ(buf, res);
@@ -53,7 +53,7 @@ TEST(hainnodb, UtMySnprintf)
 
 	bufsz = 25;
 	snprintf(ARGS); EXPECT_STREQ(buf, "foo 1 184467440737095516");
-	my_snprintf(ARGS); EXPECT_STREQ(buf, "foo 1 .");
+	snprintf(ARGS); EXPECT_STREQ(buf, "foo 1 .");
 	bufsz = sizeof buf;
 #undef ARGS
 

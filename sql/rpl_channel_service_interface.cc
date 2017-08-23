@@ -571,7 +571,7 @@ int channel_stop_all(int threads_to_stop, long timeout,
 
   if (error_message)
   {
-    error_length= my_snprintf(ptr, sizeof(buf), "Error stopping channel(s): ");
+    error_length= snprintf(ptr, sizeof(buf), "Error stopping channel(s): ");
     ptr+= (int)error_length;
   }
 
@@ -604,7 +604,7 @@ int channel_stop_all(int threads_to_stop, long timeout,
 
         if (error_message)
         {
-          size_t curr_len= my_snprintf(ptr, sizeof(buf) - error_length, " '%s' [error number: %d],",
+          size_t curr_len= snprintf(ptr, sizeof(buf) - error_length, " '%s' [error number: %d],",
                                        mi->get_channel(), error);
 
           if (error_length + curr_len < sizeof(buf))
@@ -630,15 +630,15 @@ int channel_stop_all(int threads_to_stop, long timeout,
       total_length+=append_len;
       *error_message= (char *)my_malloc(PSI_NOT_INSTRUMENTED,
                                         total_length + 1, MYF(0));
-      my_snprintf(*error_message, total_length + 1, "%.*s.%s",
-                  error_length, buf, append_str);
+      snprintf(*error_message, total_length + 1, "%.*s.%s",
+               int(error_length), buf, append_str);
     }
     else
     {
       *error_message= (char *)my_malloc(PSI_NOT_INSTRUMENTED,
                                         total_length + 1, MYF(0));
-      my_snprintf(*error_message, total_length + 1, "%.*s.",
-                  error_length, buf);
+      snprintf(*error_message, total_length + 1, "%.*s.",
+               int(error_length), buf);
     }
   }
 

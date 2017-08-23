@@ -21,6 +21,7 @@
 #include <mysqld_error.h>
 #include <signal.h>
 #include <stdarg.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
 
@@ -32,7 +33,6 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_sys.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "print_version.h"
 #include "sslopt-vars.h"
@@ -459,7 +459,7 @@ list_dbs(MYSQL *mysql,const char *wild)
             MYSQL_ROW trow;
 	    while ((trow = mysql_fetch_row(tresult)))
 	    {
-              my_snprintf(query, sizeof(query),
+              snprintf(query, sizeof(query),
                           "SELECT COUNT(*) FROM `%s`", trow[0]);
 	      if (!(mysql_query(mysql,query)))
 	      {
@@ -536,11 +536,11 @@ list_tables(MYSQL *mysql,const char *db,const char *table)
     */
     mysql_real_escape_string_quote(mysql, rows, table,
                                    (unsigned long)strlen(table), '\'');
-    my_snprintf(query, sizeof(query), "show%s tables like '%s'",
+    snprintf(query, sizeof(query), "show%s tables like '%s'",
                 opt_table_type ? " full" : "", rows);
   }
   else
-    my_snprintf(query, sizeof(query), "show%s tables",
+    snprintf(query, sizeof(query), "show%s tables",
                 opt_table_type ? " full" : "");
   if (mysql_query(mysql, query) || !(result= mysql_store_result(mysql)))
   {
@@ -603,7 +603,7 @@ list_tables(MYSQL *mysql,const char *db,const char *table)
 	  if (opt_verbose > 1)
 	  {
             /* Print the count of rows for each table */
-            my_snprintf(query, sizeof(query), "SELECT COUNT(*) FROM `%s`",
+            snprintf(query, sizeof(query), "SELECT COUNT(*) FROM `%s`",
                         row[0]);
 	    if (!(mysql_query(mysql,query)))
 	    {
@@ -670,7 +670,7 @@ list_table_status(MYSQL *mysql,const char *db,const char *wild)
   MYSQL_ROW row;
 
   len= sizeof(query);
-  len-= my_snprintf(query, len, "show table status from `%s`", db);
+  len-= snprintf(query, len, "show table status from `%s`", db);
   if (wild && wild[0] && len)
     strxnmov(query + strlen(query), len - 1, " like '", wild, "'", NullS);
   if (mysql_query(mysql,query) || !(result=mysql_store_result(mysql)))
@@ -719,7 +719,7 @@ list_fields(MYSQL *mysql,const char *db,const char *table,
 
   if (opt_count)
   {
-    my_snprintf(query, sizeof(query), "select count(*) from `%s`", table);
+    snprintf(query, sizeof(query), "select count(*) from `%s`", table);
     if (mysql_query(mysql,query) || !(result=mysql_store_result(mysql)))
     {
       fprintf(stderr,"%s: Cannot get record count for db: %s, table: %s: %s\n",
@@ -732,7 +732,7 @@ list_fields(MYSQL *mysql,const char *db,const char *table,
   }
 
   len= sizeof(query);
-  len-= my_snprintf(query, len, "show /*!32332 FULL */ columns from `%s`",
+  len-= snprintf(query, len, "show /*!32332 FULL */ columns from `%s`",
                     table);
   if (wild && wild[0] && len)
     strxnmov(query + strlen(query), len - 1, " like '", wild, "'", NullS);
@@ -757,7 +757,7 @@ list_fields(MYSQL *mysql,const char *db,const char *table,
   mysql_free_result(result);
   if (opt_show_keys)
   {
-    my_snprintf(query, sizeof(query), "show keys from `%s`", table);
+    snprintf(query, sizeof(query), "show keys from `%s`", table);
     if (mysql_query(mysql,query) || !(result=mysql_store_result(mysql)))
     {
       fprintf(stderr,"%s: Cannot list keys in db: %s, table: %s: %s\n",
