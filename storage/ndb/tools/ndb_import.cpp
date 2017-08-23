@@ -209,6 +209,11 @@ my_long_options[] =
     "Number of milliseconds to sleep waiting for more to do",
     &g_opt.m_idlesleep, &g_opt.m_idlesleep, 0,
     GET_UINT, REQUIRED_ARG, g_opt.m_idlesleep, 0, 0, 0, 0, 0 },
+  { "alloc-chunk", NDB_OPT_NOSHORT,
+    "Number of free rows to alloc (seize) at a time."
+    " Higher values reduce mutexing but also may reduce parallelism",
+    &g_opt.m_alloc_chunk, &g_opt.m_alloc_chunk, 0,
+    GET_UINT, REQUIRED_ARG, g_opt.m_alloc_chunk, 0, 0, 0, 0, 0 },
   { "rejects", NDB_OPT_NOSHORT,
     "Limit number of rejected rows (rows with permanent error) in data load."
     " Default is 0 which means that any rejected row causes a fatal error."

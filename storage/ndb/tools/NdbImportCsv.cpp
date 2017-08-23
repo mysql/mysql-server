@@ -337,7 +337,7 @@ void
 NdbImportCsv::Alloc::free_data_list(DataList& data_list)
 {
   m_free_data_cnt += data_list.cnt();
-  m_data_free.push_back(data_list);
+  m_data_free.push_back_from(data_list);
 }
 
 NdbImportCsv::Field*
@@ -362,7 +362,7 @@ NdbImportCsv::Alloc::free_field_list(FieldList& field_list)
     field = field->next();
   }
   m_free_field_cnt += field_list.cnt();
-  m_field_free.push_back(field_list);
+  m_field_free.push_back_from(field_list);
 }
 
 NdbImportCsv::Line*
@@ -387,7 +387,7 @@ NdbImportCsv::Alloc::free_line_list(LineList& line_list)
     line = line->next();
   }
   m_free_line_cnt += line_list.cnt();
-  m_line_free.push_back(line_list);
+  m_line_free.push_back_from(line_list);
 }
 
 bool
@@ -744,7 +744,7 @@ NdbImportCsv::Parse::do_parse()
     if (line != 0)
     {
       buf.m_tail = line->m_end;
-      m_input.m_line_list.push_back(m_line_list);
+      m_input.m_line_list.push_back_from(m_line_list);
       m_input.free_field_list(m_field_list);
       m_input.free_data_list(m_data_list);
     }
@@ -1166,6 +1166,7 @@ NdbImportCsv::Eval::do_eval()
   const Table& table = m_input.m_table;
   LineList& line_list = m_input.m_line_list;
   Line* line = line_list.front();
+  RowList rows_chunk;
   while (line != 0)
   {
     const uint64 ignore_lines = m_input.m_ignore_lines;
@@ -1190,8 +1191,15 @@ NdbImportCsv::Eval::do_eval()
         }
       }
     }
-    // XXX pre-alloc all under one mutex
-    Row* row = m_util.alloc_row(table);
+    if (rows_chunk.cnt() == 0)
+    {
+      require(line->m_lineno < line_list.cnt());
+      uint cnt = line_list.cnt() - line->m_lineno;
+      if (cnt > opt.m_alloc_chunk)
+        cnt = opt.m_alloc_chunk;
+      m_util.alloc_rows(table, cnt, rows_chunk);
+    }
+    Row* row = rows_chunk.pop_front();
     eval_line(row, line);
     // stop loading if error
     if (m_input.has_error())

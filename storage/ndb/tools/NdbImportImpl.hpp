@@ -595,6 +595,8 @@ public:
     OpList m_op_free;
     TxList m_tx_free;
     TxList m_tx_open;
+    // rows to free at batch end under single mutex
+    RowList m_rows_free;
   };
 
   // relay op team
