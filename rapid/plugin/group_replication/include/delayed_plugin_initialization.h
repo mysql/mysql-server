@@ -56,7 +56,17 @@ public:
   /**
     Wait for the initialization thread to do its job.
   */
-  void wait_for_initialization();
+  void wait_for_thread_end();
+
+  /**
+    Signal that the read mode is set on the server.
+  */
+  void signal_read_mode_ready();
+
+  /**
+    Wait for the read mode to be set by the thread process.
+  */
+  void wait_for_read_mode();
 
 private:
 
@@ -67,6 +77,9 @@ private:
 
   /* Is the server ready*/
   bool is_server_ready;
+
+  /* Is the read mode already set*/
+  bool is_super_read_only_set;
 
   /* Thread related structures */
 

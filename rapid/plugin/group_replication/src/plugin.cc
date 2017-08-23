@@ -254,12 +254,35 @@ static int check_flow_control_min_recovery_quota_long(longlong value,
 static int check_flow_control_max_quota_long(longlong value,
                                    bool is_var_update= false);
 
+int configure_group_communication(st_server_ssl_variables *ssl_variables);
+int configure_group_member_manager(char *hostname, char *uuid,
+                                   uint port, unsigned int server_version);
+bool check_async_channel_running_on_secondary();
+int configure_compatibility_manager();
+int initialize_recovery_module();
+int configure_and_start_applier_module();
+void initialize_asynchronous_channels_observer();
+void initialize_group_partition_handler();
+int start_group_communication();
+void declare_plugin_running();
+int leave_group();
+int terminate_plugin_modules();
+int terminate_applier_module();
+int terminate_recovery_module();
+void terminate_asynchronous_channels_observer();
+void set_auto_increment_handler();
+
 /*
   Auxiliary public functions.
 */
 void *get_plugin_pointer()
 {
   return plugin_info_ptr;
+}
+
+mysql_mutex_t* get_plugin_running_lock()
+{
+  return &plugin_running_mutex;
 }
 
 bool plugin_is_group_replication_running()
@@ -367,12 +390,6 @@ int plugin_group_replication_start()
                    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
                  });
 
-  int error= 0;
-  bool enabled_super_read_only= false;
-  bool read_only_mode= false, super_read_only_mode=false;
-  st_server_ssl_variables server_ssl_variables=
-    {false,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL};
-
   if (plugin_is_group_replication_running())
     DBUG_RETURN(GROUP_REPLICATION_ALREADY_RUNNING);
   if (check_if_server_properly_configured())
@@ -439,8 +456,53 @@ int plugin_group_replication_start()
     Instantiate certification latch.
   */
   certification_latch= new Wait_ticket<my_thread_id>();
+
+  // GR delayed initialization.
+  if (!server_engine_initialized())
+  {
+    wait_on_engine_initialization= true;
+    plugin_is_auto_starting= false;
+
+    delayed_initialization_thread= new Delayed_initialization_thread();
+    if (delayed_initialization_thread->launch_initialization_thread())
+    {
+      /* purecov: begin inspected */
+      log_message(MY_ERROR_LEVEL,
+                  "It was not possible to guarantee the initialization of plugin"
+                    " structures on server start");
+      delete delayed_initialization_thread;
+      delayed_initialization_thread= NULL;
+      DBUG_RETURN(GROUP_REPLICATION_CONFIGURATION_ERROR);
+      /* purecov: end */
+    }
+
+    DBUG_RETURN(0); //leave the decision for later
+  }
+
+  DBUG_RETURN(initialize_plugin_and_join(PSESSION_DEDICATED_THREAD,
+                                         NULL));
+}
+
+int initialize_plugin_and_join(enum_plugin_con_isolation sql_api_isolation,
+                               Delayed_initialization_thread *delayed_init_thd)
+{
+  DBUG_ENTER("initialize_plugin_and_join");
+
+  int error= 0;
+
+  //Avoid unnecessary operations
+  bool enabled_super_read_only= false;
+  bool read_only_mode= false, super_read_only_mode=false;
+
+  st_server_ssl_variables server_ssl_variables=
+    {false,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL};
+
+  char *hostname, *uuid;
+  uint port;
+  unsigned int server_version;
+
   Sql_service_command_interface *sql_command_interface=
-      new Sql_service_command_interface();
+    new Sql_service_command_interface();
 
   // Registry module.
   if ((error= initialize_registry_module()))
@@ -450,28 +512,38 @@ int plugin_group_replication_start()
   if ((error= gcs_module->initialize()))
     goto err; /* purecov: inspected */
 
-  // GR delayed initialization.
-  if (!server_engine_initialized())
-  {
-    wait_on_engine_initialization= true;
-    plugin_is_auto_starting= false;
-    delete sql_command_interface;
-
-    DBUG_RETURN(0); //leave the decision for later
-  }
-
   // Setup SQL service interface.
   if (sql_command_interface->
-          establish_session_connection(PSESSION_DEDICATED_THREAD,
+          establish_session_connection(sql_api_isolation,,
                                        GROUPREPL_USER, plugin_info_ptr))
   {
     error =1; /* purecov: inspected */
     goto err; /* purecov: inspected */
   }
 
-  char *hostname, *uuid;
-  uint port;
-  unsigned int server_version;
+  get_read_mode_state(sql_command_interface, &read_only_mode,
+                      &super_read_only_mode);
+
+  /*
+   At this point in the code, set the super_read_only mode here on the
+   server to protect recovery and version module of the Group Replication.
+   This can only be done on START command though, on installs there are
+   deadlock issues.
+  */
+  if (!plugin_is_auto_starting &&
+      enable_super_read_only_mode(sql_command_interface))
+  {
+    /* purecov: begin inspected */
+    error =1;
+    log_message(MY_ERROR_LEVEL,
+                "Could not enable the server read only mode and guarantee a "
+                  "safe recovery execution");
+    goto err;
+    /* purecov: end */
+  }
+  enabled_super_read_only= true;
+  if (delayed_init_thd)
+    delayed_init_thd->signal_read_mode_ready();
 
   get_server_parameters(&hostname, &port, &uuid, &server_version,
                         &server_ssl_variables);
@@ -493,9 +565,9 @@ int plugin_group_replication_start()
   {
     error= 1;
     log_message(MY_ERROR_LEVEL, "Can't start group replication on secondary"
-                                " member with single primary-mode while"
-                                " asynchronous replication channels are"
-                                " running.");
+      " member with single primary-mode while"
+      " asynchronous replication channels are"
+      " running.");
     goto err; /* purecov: inspected */
   }
 
@@ -526,28 +598,6 @@ int plugin_group_replication_start()
                     compatibility_mgr->set_local_version(current_version);
                   };);
 
-  get_read_mode_state(sql_command_interface, &read_only_mode,
-                      &super_read_only_mode);
-
-  /*
-   At this point in the code, set the super_read_only mode here on the
-   server to protect recovery and version module of the Group Replication.
-   This can only be done on START command though, on installs there are
-   deadlock issues.
-  */
-  if (!plugin_is_auto_starting &&
-      enable_super_read_only_mode(sql_command_interface))
-  {
-    /* purecov: begin inspected */
-    error =1;
-    log_message(MY_ERROR_LEVEL,
-                "Could not enable the server read only mode and guarantee a "
-                "safe recovery execution");
-    goto err;
-    /* purecov: end */
-  }
-  enabled_super_read_only= true;
-
   // need to be initialized before applier, is called on kill_pending_transactions
   blocked_transaction_handler= new Blocked_transaction_handler();
 
@@ -564,6 +614,13 @@ int plugin_group_replication_start()
   initialize_asynchronous_channels_observer();
   initialize_group_partition_handler();
   set_auto_increment_handler();
+
+  DBUG_EXECUTE_IF("group_replication_before_joining_the_group",
+                  {
+                    const char act[]= "now wait_for signal.continue_group_join";
+                    DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                       STRING_WITH_LEN(act)));
+                  });
 
   if ((error= start_group_communication()))
   {
@@ -589,6 +646,9 @@ err:
 
   if (error)
   {
+    //Unblock the possible stuck delayed thread
+    if (delayed_init_thd)
+      delayed_init_thd->signal_read_mode_ready();
     leave_group();
     terminate_plugin_modules();
 
@@ -792,6 +852,26 @@ int plugin_group_replication_stop()
 
   Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
 
+  /*
+    We delete the delayed initialization object here because:
+
+    1) It is invoked even if the plugin is stopped as failed starts may still
+    leave the class instantiated. This way, either the stop command or the
+    deinit process that calls this method will always clean this class
+
+    2) Its use is on before_handle_connection, meaning no stop command can be
+    made before that. This makes this delete safe under the plugin running
+    mutex.
+  */
+  if (delayed_initialization_thread != NULL)
+  {
+    wait_on_engine_initialization= false;
+    delayed_initialization_thread->signal_thread_ready();
+    delayed_initialization_thread->wait_for_thread_end();
+    delete delayed_initialization_thread;
+    delayed_initialization_thread= NULL;
+  }
+
   shared_plugin_stop_lock->grab_write_lock();
   if (!plugin_is_group_replication_running())
   {
@@ -990,23 +1070,6 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info)
   //Initialize the compatibility module before starting
   init_compatibility_manager();
 
-  //Create the group replication user and give it grants.
-  if (!server_engine_initialized())
-  {
-    delayed_initialization_thread= new Delayed_initialization_thread();
-    if (delayed_initialization_thread->launch_initialization_thread())
-    {
-      /* purecov: begin inspected */
-      log_message(MY_ERROR_LEVEL,
-                  "It was not possible to guarantee the initialization of plugin"
-                  " structures on server start");
-      delete delayed_initialization_thread;
-      delayed_initialization_thread= NULL;
-      return 1;
-      /* purecov: end */
-    }
-  }
-
   plugin_is_auto_starting= start_group_replication_at_boot_var;
   if (start_group_replication_at_boot_var && plugin_group_replication_start())
   {
@@ -1079,15 +1142,6 @@ int plugin_group_replication_deinit(void *p)
     log_message(MY_INFORMATION_LEVEL,
                 "All Group Replication server observers"
                 " have been successfully unregistered");
-
-  if (delayed_initialization_thread != NULL)
-  {
-    wait_on_engine_initialization= false;
-    delayed_initialization_thread->signal_thread_ready();
-    delayed_initialization_thread->wait_for_initialization();
-    delete delayed_initialization_thread;
-    delayed_initialization_thread= NULL;
-  }
 
   delete gcs_module;
   gcs_module= NULL;
