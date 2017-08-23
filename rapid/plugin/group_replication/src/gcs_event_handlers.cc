@@ -313,9 +313,9 @@ Plugin_gcs_events_handler::on_suspicions(const std::vector<Gcs_member_identifier
       {
         if (!member_info->is_unreachable())
         {
-          member_info->set_unreachable();
           // flag as a member having changed state
           m_notification_ctx.set_member_state_changed();
+          member_info->set_unreachable();
         }
         // remove to not check again against this one
         tmp_unreachable.erase(uit);
@@ -325,9 +325,9 @@ Plugin_gcs_events_handler::on_suspicions(const std::vector<Gcs_member_identifier
         if (member_info->is_unreachable())
         {
           /* purecov: begin inspected */
-          member_info->set_reachable();
           // flag as a member having changed state
           m_notification_ctx.set_member_state_changed();
+          member_info->set_reachable();
           /* purecov: end */
         }
       }
