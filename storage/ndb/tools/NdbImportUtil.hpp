@@ -261,7 +261,7 @@ public:
     const NdbDictionary::Table* m_tab;
     const NdbRecord* m_rec;
     const NdbRecord* m_keyrec;
-    uint m_rowsize;
+    uint m_recsize;     // size of main record
     bool m_has_hidden_pk;
     Attrs m_attrs;
     std::vector<uint> m_blobids;
@@ -308,7 +308,8 @@ public:
     virtual ~Row();
     void init(const Table& table);
     uint m_tabid;
-    uint m_rowsize;
+    uint m_recsize;     // fixed
+    uint m_rowsize;     // includes blobs, used to compute batches
     uint m_allocsize;
     uint64 m_rowid;
     uint64 m_linenr;    // file line number starting at 1
