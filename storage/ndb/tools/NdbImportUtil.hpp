@@ -316,6 +316,14 @@ public:
     uint64 totcnt() const {
       return m_totcnt;
     }
+    void lock() {
+      Lockable::lock();
+      if (m_stat_locks != 0)
+        m_stat_locks->add(1);
+    }
+    void unlock() {
+      Lockable::unlock();
+    }
     uint m_rowsize;     // sum from row entries
     uint m_rowbatch;    // limit m_cnt
     uint m_rowbytes;    // limit m_rowsize
@@ -325,6 +333,7 @@ public:
     uint64 m_underflow;
     Stat* m_stat_overflow;      // failed to push due to size limit
     Stat* m_stat_underflow;     // failed to pop due to empty
+    Stat* m_stat_locks;         // locks taken
   };
 
   Row* alloc_row(const Table& Table);
@@ -517,7 +526,8 @@ public:
 
   void set_stats_row(Row* row,
                      uint32 runno,
-                     const Stat& stat);
+                     const Stat& stat,
+                     bool global);
 
   void set_error_attrs(Row* row,
                        const Table& table,

@@ -55,6 +55,7 @@ public:
   typedef NdbImportUtil::RowList RowList;
   typedef NdbImportUtil::RowMap RowMap;
   typedef NdbImportUtil::Buf Buf;
+  typedef NdbImportUtil::Stats Stats;
 
   NdbImportCsv(NdbImportUtil& util);
   ~NdbImportCsv();
@@ -272,7 +273,8 @@ public:
           Buf& buf,
           RowList& rows_out,
           RowList& rows_reject,
-          RowMap& rowmap_in);
+          RowMap& rowmap_in,
+          Stats& stats);
     ~Input();
     void do_init();
     void do_resume(RowMap::Range range_in);

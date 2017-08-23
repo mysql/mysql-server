@@ -968,6 +968,7 @@ NdbImportUtil::RowList::RowList()
   m_underflow = 0;
   m_stat_overflow = 0;
   m_stat_underflow = 0;
+  m_stat_locks = 0;
 }
 
 NdbImportUtil::RowList::~RowList ()
@@ -987,6 +988,11 @@ NdbImportUtil::RowList::set_stats(Stats& stats, const char* name)
     const Name statname(name, "underflow");
     Stat* stat = stats.create(statname, 0, 0);
     m_stat_underflow = stat;
+  }
+  {
+    const Name statname(name, "locks");
+    Stat* stat = stats.create(statname, 0, 0);
+    m_stat_locks = stat;
   }
 }
 
@@ -1735,10 +1741,13 @@ NdbImportUtil::set_stopt_row(Row* row,
 void
 NdbImportUtil::set_stats_row(Row* row,
                              uint32 runno,
-                             const Stat& stat)
+                             const Stat& stat,
+                             bool global)
 {
   const Table& table = c_stats_table;
   const Attrs& attrs = table.m_attrs;
+  const uint g_offset = !global ? 0 : 1000;
+  const char* g_prefix = !global ? 0 : "g";
   // floats
   double obsf = (double)stat.m_obs;
   double sum1 = stat.m_sum1;
@@ -1753,20 +1762,31 @@ NdbImportUtil::set_stats_row(Row* row,
   // id
   {
     const Attr& attr = attrs[id];
-    attr.set_value(row, &stat.m_id, sizeof(stat.m_id));
+    uint idval = stat.m_id + g_offset;
+    attr.set_value(row, &idval, sizeof(idval));
     id++;
   }
   // name
   {
     const Attr& attr = attrs[id];
-    uint namelen = strlen(stat.m_name);
-    attr.set_value(row, stat.m_name, namelen);
+    if (g_prefix == 0)
+    {
+      uint namelen = strlen(stat.m_name);
+      attr.set_value(row, stat.m_name, namelen);
+    }
+    else
+    {
+      Name name(g_prefix, stat.m_name);
+      uint namelen = strlen(name.str());
+      attr.set_value(row, name.str(), namelen);
+    }
     id++;
   }
   // parent
   {
     const Attr& attr = attrs[id];
-    attr.set_value(row, &stat.m_parent, sizeof(stat.m_parent));
+    uint parentval = stat.m_id == 0 ? stat.m_parent : stat.m_parent + g_offset;
+    attr.set_value(row, &parentval, sizeof(parentval));
     id++;
   }
   // obs
