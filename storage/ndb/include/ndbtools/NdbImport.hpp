@@ -84,6 +84,7 @@ public:
     uint m_polltimeout;
     uint m_temperrors;
     uint m_tempdelay;
+    uint m_rowswait;
     uint m_idlespin;
     uint m_idlesleep;
     uint m_alloc_chunk;

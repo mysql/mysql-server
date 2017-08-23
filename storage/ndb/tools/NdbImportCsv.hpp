@@ -53,6 +53,7 @@ public:
   typedef NdbImportUtil::Row Row;
   typedef NdbImportUtil::Blob Blob;
   typedef NdbImportUtil::RowList RowList;
+  typedef NdbImportUtil::RowCtl RowCtl;
   typedef NdbImportUtil::RowMap RowMap;
   typedef NdbImportUtil::Buf Buf;
   typedef NdbImportUtil::Stats Stats;

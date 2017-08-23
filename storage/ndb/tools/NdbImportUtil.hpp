@@ -286,6 +286,23 @@ public:
 
   struct Blob;
 
+  struct RowCtl {
+    RowCtl(uint timeout) {
+      m_timeout = timeout;
+      m_retries = timeout == 0 ? 0 : 1;
+      m_dosignal = (timeout != 0);
+      m_dowait = (timeout != 0);
+      m_cnt_out = 0;
+      m_bytes_out = 0;
+    };
+    uint m_timeout;
+    uint m_retries;
+    bool m_dosignal;
+    bool m_dowait;
+    uint m_cnt_out;
+    uint m_bytes_out;
+  };
+
   struct Row : ListEnt {
     Row();
     virtual ~Row();
@@ -308,15 +325,25 @@ public:
     bool push_back(Row* row);
     void push_back_force(Row* row);
     bool push_front(Row* row);
+    void push_front_force(Row* row);
     Row* pop_front();
     void remove(Row* row);
     void push_back_from(RowList& src);
+    // here signal/wait can be used on a locked argument list
+    void push_back_from(RowList& src, RowCtl& ctl);
+    void pop_front_to(RowList& dst, RowCtl& ctl);
     uint cnt() const {
       return m_cnt;
     }
     uint64 totcnt() const {
       return m_totcnt;
     }
+    bool empty() const {
+      return m_cnt == 0;
+    }
+    bool full() const {
+      return m_cnt >= m_rowbatch || m_rowsize >= m_rowbytes;
+    } 
     void lock() {
       Lockable::lock();
       if (m_stat_locks != 0)

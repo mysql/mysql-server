@@ -201,12 +201,19 @@ my_long_options[] =
     "Number of milliseconds to sleep between temporary errors",
     &g_opt.m_tempdelay, &g_opt.m_tempdelay, 0,
     GET_UINT, REQUIRED_ARG, g_opt.m_tempdelay, 0, 0, 0, 0, 0 },
+  { "rowswait", NDB_OPT_NOSHORT,
+    "Number of milliseconds a worker waits for a signal that new rows"
+    " can be processed",
+    &g_opt.m_rowswait, &g_opt.m_rowswait, 0,
+    GET_UINT, REQUIRED_ARG, g_opt.m_rowswait, 0, 0, 0, 0, 0 },
   { "idlespin", NDB_OPT_NOSHORT,
     "Number of times to re-try before idlesleep",
     &g_opt.m_idlespin, &g_opt.m_idlespin, 0,
     GET_UINT, REQUIRED_ARG, g_opt.m_idlespin, 0, 0, 0, 0, 0 },
   { "idlesleep", NDB_OPT_NOSHORT,
-    "Number of milliseconds to sleep waiting for more to do",
+    "Number of milliseconds to sleep waiting for more to do."
+    " Cause can be row queues stall (see --rowswait) or"
+    " e.g. passing control between CSV workers",
     &g_opt.m_idlesleep, &g_opt.m_idlesleep, 0,
     GET_UINT, REQUIRED_ARG, g_opt.m_idlesleep, 0, 0, 0, 0, 0 },
   { "alloc-chunk", NDB_OPT_NOSHORT,
