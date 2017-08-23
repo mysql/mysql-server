@@ -731,6 +731,7 @@ public:
     WorkerFile m_result_file;
     WorkerFile m_reject_file;
     WorkerFile m_rowmap_file;
+    WorkerFile m_stopt_file;
     WorkerFile m_stats_file;
   };
 
@@ -743,14 +744,17 @@ public:
     void write_result();
     void write_reject();
     void write_rowmap();
+    void write_stopt();
     void write_stats();
     Buf m_result_buf;
     Buf m_reject_buf;
     Buf m_rowmap_buf;
+    Buf m_stopt_buf;
     Buf m_stats_buf;
     CsvOutput* m_result_csv;
     CsvOutput* m_reject_csv;
     CsvOutput* m_rowmap_csv;
+    CsvOutput* m_stopt_csv;
     CsvOutput* m_stats_csv;
   };
 

@@ -71,6 +71,7 @@ NdbImport::Opt::Opt()
   m_result_file = 0;
   m_reject_file = 0;
   m_rowmap_file = 0;
+  m_stopt_file = 0;
   m_stats_file = 0;
   m_continue = false;
   m_resume = false;

@@ -65,6 +65,7 @@ public:
     const char* m_result_file;
     const char* m_reject_file;
     const char* m_rowmap_file;
+    const char* m_stopt_file;
     const char* m_stats_file;
     bool m_continue;
     bool m_resume;

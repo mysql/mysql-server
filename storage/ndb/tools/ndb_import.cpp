@@ -74,8 +74,9 @@ my_long_options[] =
     &g_opt.m_keep_state, &g_opt.m_keep_state, 0,
     GET_BOOL, NO_ARG, false, 0, 0, 0, 0, 0 },
   { "stats", NDB_OPT_NOSHORT,
-    "Collect internal statistics and write them into an additional"
-    " state file *.stt. The file is kept also on successful completion",
+    "Save performance related options and internal statistics into"
+    " additional state files with suffixes .sto and .stt. The files"
+    " are kept also on successful completion",
     &g_opt.m_stats, &g_opt.m_stats, 0,
     GET_BOOL, NO_ARG, false, 0, 0, 0, 0, 0 },
   { "input-type", NDB_OPT_NOSHORT,
@@ -319,6 +320,7 @@ struct TableArg {
   std::string m_result_file;
   std::string m_reject_file;
   std::string m_rowmap_file;
+  std::string m_stopt_file;
   std::string m_stats_file;
 };
 
@@ -400,6 +402,7 @@ checkarg(TableArg& arg, const char* str)
     arg.m_result_file = path + stem + ".res";
     arg.m_reject_file = path + stem + ".rej";
     arg.m_rowmap_file = path + stem + ".map";
+    arg.m_stopt_file = path + stem + ".sto";
     arg.m_stats_file = path + stem + ".stt";
   } while (0);
   return ret;
@@ -805,6 +808,7 @@ doimp()
       g_opt.m_result_file = arg.m_result_file.c_str();
       g_opt.m_reject_file = arg.m_reject_file.c_str();
       g_opt.m_rowmap_file = arg.m_rowmap_file.c_str();
+      g_opt.m_stopt_file = arg.m_stopt_file.c_str();
       g_opt.m_stats_file = arg.m_stats_file.c_str();
       CHK2(imp.set_opt(g_opt) == 0, "invalid options: "<< imp.get_error());
       NdbImport::Job job(imp);

@@ -472,16 +472,19 @@ public:
   static const uint g_result_tabid = 0xffff0000;
   static const uint g_reject_tabid = 0xffff0001;
   static const uint g_rowmap_tabid = 0xffff0002;
-  static const uint g_stats_tabid = 0xffff0003;
+  static const uint g_stopt_tabid = 0xffff0003;
+  static const uint g_stats_tabid = 0xffff0004;
   Table c_result_table;
   Table c_reject_table;
   Table c_rowmap_table;
+  Table c_stopt_table;
   Table c_stats_table;
 
   void add_pseudo_tables();
   void add_result_table();
   void add_reject_table();
   void add_rowmap_table();
+  void add_stopt_table();
   void add_stats_table();
 
   void add_error_attrs(Table& table);
@@ -506,6 +509,11 @@ public:
   void set_rowmap_row(Row* row,
                       uint32 runno,
                       const RowMap::Range& range);
+
+  void set_stopt_row(Row* row,
+                     uint32 runno,
+                     const char* option,
+                     uint32 value);
 
   void set_stats_row(Row* row,
                      uint32 runno,
