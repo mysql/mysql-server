@@ -421,7 +421,7 @@ NdbImportCsv::Input::Input(NdbImportCsv& csv,
 {
   m_parse = new Parse(*this);
   m_eval = new Eval(*this);
-  m_rows_in.set_stats(m_util.c_stats, Name(m_name, "rows"));
+  m_rows.set_stats(m_util.c_stats, Name(m_name, "rows"));
   m_startpos = 0;
   m_startlineno = 0;
   m_ignore_lines = 0;
@@ -474,21 +474,20 @@ NdbImportCsv::Input::do_eval()
 void
 NdbImportCsv::Input::do_send(uint& curr, uint& left)
 {
-  RowList& rows_in = m_rows_in;         // local
   RowList& rows_out = m_rows_out;       // shared
   rows_out.lock();
-  curr = rows_in.cnt();
-  while (rows_in.cnt() != 0)
+  curr = m_rows.cnt();
+  while (m_rows.cnt() != 0)
   {
-    Row* row = rows_in.pop_front();
+    Row* row = m_rows.pop_front();
     require(row != 0);
     if (!rows_out.push_back(row))
     {
-      rows_in.push_front(row);
+      m_rows.push_front(row);
       break;
     }
   }
-  left = rows_in.cnt();
+  left = m_rows.cnt();
   if (rows_out.m_foe)
   {
     log1("consumer has stopped");
@@ -1273,9 +1272,8 @@ NdbImportCsv::Eval::eval_line(Row* row, Line* line)
     uint64 val = Inval_uint64;
     attr.set_value(row, &val, 8);
   }
-  RowList& rows_in = m_input.m_rows_in;
   if (!line->m_reject)
-    rows_in.push_back(row);
+    m_input.m_rows.push_back(row);
 }
 
 void

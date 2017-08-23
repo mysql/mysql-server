@@ -2458,8 +2458,7 @@ NdbImportImpl::ExecOpWorker::state_receive()
   log2("state_receive");
   const Opt& opt = m_util.c_opt;
   RowList& rows_in = *m_team.m_job.m_rows_exec[m_nodeindex];
-  OpList& ops_in = m_ops_in;
-  if (ops_in.cnt() == 0)
+  if (m_ops.cnt() == 0)
   {
     require(m_opcnt == 0);
     require(m_opsize == 0);
@@ -2471,10 +2470,10 @@ NdbImportImpl::ExecOpWorker::state_receive()
   {
     Row* row = rows_in.pop_front();
     m_eof = (row == 0 && rows_in.m_eof);
-    log2("eof=" << m_eof << " ops_in=" << ops_in.cnt());
+    log2("eof=" << m_eof << " ops=" << m_ops.cnt());
     if (m_eof)
     {
-      if (ops_in.cnt() != 0)
+      if (m_ops.cnt() != 0)
         m_execstate = ExecState::State_define;
       else
         m_execstate = ExecState::State_eof;
@@ -2500,7 +2499,7 @@ NdbImportImpl::ExecOpWorker::state_receive()
       op->m_opcnt += attr.get_blob_parts(blob->m_blobsize);
       op->m_opsize += blob->m_blobsize;
     }
-    ops_in.push_back(op);
+    m_ops.push_back(op);
     m_opcnt += op->m_opcnt;
     m_opsize += op->m_opsize;
     if (m_opcnt >= opbatch)
@@ -2577,7 +2576,6 @@ void
 NdbImportImpl::ExecOpWorkerSynch::state_define()
 {
   log2("state_define/synch");
-  OpList& ops_in = m_ops_in;
   TxList& tx_open = m_tx_open;
   // single trans
   require(tx_open.cnt() == 0);
@@ -2592,9 +2590,9 @@ NdbImportImpl::ExecOpWorkerSynch::state_define()
   }
   NdbTransaction* trans = tx->m_trans;
   require(trans != 0);
-  while (ops_in.cnt() != 0)
+  while (m_ops.cnt() != 0)
   {
-    Op* op = ops_in.pop_front();
+    Op* op = m_ops.pop_front();
     Row* row = op->m_row;
     require(row != 0);
     const Table& table = m_util.get_table(row->m_tabid);
@@ -2794,7 +2792,6 @@ NdbImportImpl::ExecOpWorkerAsynch::state_define()
 {
   log2("state_define/asynch");
   const Opt& opt = m_util.c_opt;
-  OpList& ops_in = m_ops_in;
   TxList& tx_open = m_tx_open;
   // no transes yet
   require(tx_open.cnt() == 0);
@@ -2804,9 +2801,9 @@ NdbImportImpl::ExecOpWorkerAsynch::state_define()
    * don't want to get stuck here on "permanent" temporary errors.
    * So we limit them by opt.m_tmperrors (counted per op).
    */
-  while (ops_in.cnt() != 0)
+  while (m_ops.cnt() != 0)
   {
-    Op* op = ops_in.pop_front();
+    Op* op = m_ops.pop_front();
     Row* row = op->m_row;
     require(row != 0);
     const Table& table = m_util.get_table(row->m_tabid);
@@ -2831,7 +2828,7 @@ NdbImportImpl::ExecOpWorkerAsynch::state_define()
           if (temperrors <= opt.m_temperrors)
           {
             log1("get autoincr try " << temperrors << ": " << ndberror);
-            ops_in.push_front(op);
+            m_ops.push_front(op);
             NdbSleep_MilliSleep(opt.m_tempdelay);
             continue;
           }
@@ -2868,7 +2865,7 @@ NdbImportImpl::ExecOpWorkerAsynch::state_define()
         if (temperrors <= opt.m_temperrors)
         {
           log1("start trans try " << temperrors << ": " << ndberror);
-          ops_in.push_front(op);
+          m_ops.push_front(op);
           NdbSleep_MilliSleep(opt.m_tempdelay);
           continue;
         }

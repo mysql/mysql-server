@@ -298,7 +298,7 @@ public:
       return m_util.has_error(m_error);
     }
     LineList m_line_list;
-    RowList m_rows_in;
+    RowList m_rows;     // lines eval'd to rows
     Parse* m_parse;
     Eval* m_eval;
     uint64 m_startpos;
