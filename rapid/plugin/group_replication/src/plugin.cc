@@ -514,7 +514,7 @@ int initialize_plugin_and_join(enum_plugin_con_isolation sql_api_isolation,
 
   // Setup SQL service interface.
   if (sql_command_interface->
-          establish_session_connection(sql_api_isolation,,
+          establish_session_connection(sql_api_isolation,
                                        GROUPREPL_USER, plugin_info_ptr))
   {
     error =1; /* purecov: inspected */
