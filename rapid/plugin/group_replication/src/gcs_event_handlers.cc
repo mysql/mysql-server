@@ -15,6 +15,7 @@
 
 #include <algorithm>
 #include <string>
+#include <sstream>
 #include <vector>
 
 #include "gcs_event_handlers.h"
