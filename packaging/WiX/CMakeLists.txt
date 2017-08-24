@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,14 +17,42 @@ IF(NOT WIN32)
   RETURN()
 ENDIF()
 
-FIND_PATH(WIX_DIR heat.exe
-  "$ENV{ProgramFiles}/WiX Toolset V3.8/bin"
-)
+# Need an extra indirection to access ENV(ProgramFiles(x86))
+SET(MYENV "ProgramFiles(x86)")
 
+# Look in various paths for 'heat.exe'
+# Different installations have different layouts.
+# Not really necessary to use V3.8 but keep backward compatibility just in case.
+IF(MSVC_VERSION LESS 1900)
+  FOREACH(path
+      "$ENV{ProgramFiles}/WiX Toolset V3.8"
+      "$ENV{ProgramFiles}/WiX Toolset V3.8/bin"
+      "$ENV{${MYENV}}/WiX Toolset V3.8"
+      "$ENV{${MYENV}}/WiX Toolset V3.8/bin")
+    FIND_PATH(WIX_DIR heat.exe "${path}")
+    MESSAGE(STATUS "WIX_DIR ${WIX_DIR} path ${path}")
+    IF(WIX_DIR)
+      BREAK()
+    ENDIF()
+  ENDFOREACH()
+ELSE()
+  FOREACH(path
+      "$ENV{ProgramFiles}/WiX Toolset V3.10"
+      "$ENV{ProgramFiles}/WiX Toolset V3.10/bin"
+      "$ENV{${MYENV}}/WiX Toolset V3.10"
+      "$ENV{${MYENV}}/WiX Toolset V3.10/bin")
+    FIND_PATH(WIX_DIR heat.exe "${path}")
+    MESSAGE(STATUS "WIX_DIR ${WIX_DIR} path ${path}")
+    IF(WIX_DIR)
+      BREAK()
+    ENDIF()
+  ENDFOREACH()
+ENDIF()
+
+# Finally, look in environment
 IF(NOT WIX_DIR)
-  FIND_PATH(WIX_DIR heat.exe
-    "$ENV{ProgramFiles}/WiX Toolset V3.10/bin"
-  )
+  FIND_PATH(WIX_DIR heat.exe "$ENV{WIX}")
+  MESSAGE(STATUS "WIX_DIR ${WIX_DIR} looked at $ENV{WIX}")
 ENDIF()
 
 IF(NOT WIX_DIR)
