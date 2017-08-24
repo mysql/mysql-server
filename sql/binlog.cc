@@ -7364,6 +7364,12 @@ int MYSQL_BIN_LOG::rotate_and_purge(THD* thd, bool force_rotate)
   bool check_purge= false;
 
   /*
+    FLUSH BINARY LOGS command should ignore 'read-only' and 'super_read_only'
+    options so that it can update 'mysql.gtid_executed' replication repository
+    table.
+  */
+  thd->set_skip_readonly_check();
+  /*
     Wait for handlerton to insert any pending information into the binlog.
     For e.g. ha_ndbcluster which updates the binlog asynchronously this is
     needed so that the user see its own commands in the binlog.

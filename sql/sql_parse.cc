@@ -5354,6 +5354,8 @@ void THD::reset_for_next_command()
 
   thd->gtid_executed_warning_issued= false;
 
+  thd->reset_skip_readonly_check();
+
   DBUG_PRINT("debug",
              ("is_current_stmt_binlog_format_row(): %d",
               thd->is_current_stmt_binlog_format_row()));
