@@ -288,8 +288,8 @@ send Mysqlx.Crud.Insert {
 Records: 2  Duplicates: 0  Warnings: 0
 RUN SELECT * FROM xtest.my_datetime
 value
-2011/11/11 03:14:00
-2012/12/12 00:00:00
+2011-11-11 03:14:00
+2012-12-12 00:00:00
 0 rows affected
 RUN CREATE TABLE xtest.my_time (value TIME)
 

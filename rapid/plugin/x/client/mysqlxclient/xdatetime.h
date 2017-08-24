@@ -72,8 +72,9 @@ class Time {
 
     ss.fill('0');
     ss << (is_negate() ? "-" : "") << std::setw(2) << static_cast<int>(hour())
-       << ":" << std::setw(2) << static_cast<int>(minutes()) << ":"
-       << std::setw(2) << static_cast<int>(seconds()) << us_to_str(useconds());
+       << m_time_separator << std::setw(2) << static_cast<int>(minutes())
+       << m_time_separator << std::setw(2) << static_cast<int>(seconds())
+       << us_to_str(useconds());
 
     return ss.str();
   }
@@ -93,6 +94,8 @@ class Time {
     return "." + result;
   }
 
+  void set_time_separator(char separator) { m_time_separator = separator; }
+
  private:
   bool   m_negate;
   uint32_t m_hour;
@@ -100,6 +103,7 @@ class Time {
   uint8_t  m_seconds;
   uint32_t m_useconds;
   bool   m_valid;
+  char m_time_separator = ':';
 };
 
 class DateTime {
@@ -136,14 +140,15 @@ class DateTime {
     std::stringstream ss;
     ss.fill('0');
 
-    ss << std::setw(4) << year() << "/" << std::setw(2)
-       << static_cast<int>(month()) << "/" << std::setw(2)
+    ss << std::setw(4) << year() << m_date_separator << std::setw(2)
+       << static_cast<int>(month()) << m_date_separator << std::setw(2)
        << static_cast<int>(day());
 
     if (has_time()) {
-      ss << " " << std::setw(2) << static_cast<int>(hour()) << ":"
-         << std::setw(2) << static_cast<int>(minutes()) << ":" << std::setw(2)
-         << static_cast<int>(seconds()) << Time::us_to_str(useconds());
+      ss << " " << std::setw(2) << static_cast<int>(hour()) << m_time_separator
+         << std::setw(2) << static_cast<int>(minutes()) << m_time_separator
+         << std::setw(2) << static_cast<int>(seconds())
+         << Time::us_to_str(useconds());
     }
 
     return ss.str();
@@ -161,6 +166,9 @@ class DateTime {
     return Time(false, m_hour, m_minutes, m_seconds, m_useconds);
   }
 
+  void set_time_separator(char separator) { m_time_separator = separator; }
+  void set_date_separator(char separator) { m_date_separator = separator; }
+
  private:
   uint16_t m_year;
   uint8_t m_month;
@@ -172,6 +180,9 @@ class DateTime {
   uint32_t m_useconds;
 
   bool m_valid;
+
+  char m_time_separator = ':';
+  char m_date_separator = '-';
 };
 
 }  // namespace xcl
