@@ -342,6 +342,7 @@ SET(TESTS
   strtoll
   thread_utils
   my_timer
+  template_utils
   timespec
   my_alloc
   pump_object_filter
