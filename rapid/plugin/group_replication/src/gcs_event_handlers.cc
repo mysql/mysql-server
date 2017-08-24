@@ -29,10 +29,12 @@ Plugin_gcs_events_handler::
 Plugin_gcs_events_handler(Applier_module_interface* applier_module,
                           Recovery_module* recovery_module,
                           Plugin_gcs_view_modification_notifier* vc_notifier,
-                          Compatibility_module* compatibility_module)
+                          Compatibility_module* compatibility_module,
+                          ulong components_stop_timeout)
 : applier_module(applier_module), recovery_module(recovery_module),
   view_change_notifier(vc_notifier),
-  compatibility_manager(compatibility_module)
+  compatibility_manager(compatibility_module),
+  stop_wait_timeout(components_stop_timeout)
 {
   this->temporary_states= new std::set<Group_member_info*,
                                        Group_member_info_pointer_comparator>();
@@ -1530,6 +1532,16 @@ void
 Plugin_gcs_events_handler::leave_group_on_error() const
 {
   Gcs_operations::enum_leave_state state= gcs_module->leave();
+  int error= channel_stop_all(CHANNEL_APPLIER_THREAD|CHANNEL_RECEIVER_THREAD,
+                              stop_wait_timeout);
+  if (error)
+  {
+    log_message(MY_ERROR_LEVEL,
+                "Error stopping all replication channels while server was"
+                " leaving the group. Please check the error log for additional"
+                " details. Got error: %d", error);
+  }
+
   std::stringstream ss;
   plugin_log_level log_severity= MY_WARNING_LEVEL;
   switch (state)

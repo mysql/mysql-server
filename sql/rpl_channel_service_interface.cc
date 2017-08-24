@@ -25,6 +25,26 @@
 #include "mysqld_thd_manager.h" // Global_THD_manager
 #include "sql_parse.h"          // Find_thd_with_id
 
+/**
+  Auxiliary function to stop all the running channel threads according to the
+  given mask.
+
+  @note: The caller shall possess channel_map lock before calling this function,
+         and unlock after returning from this function.
+
+  @param mi                   The pointer to Master_info instance
+  @param threads_to_stop      The types of threads to be stopped
+  @param timeout              The expected time in which the thread should stop
+
+  @return the operation status
+    @retval 0      OK
+    @retval !=0    Error
+*/
+int channel_stop(Master_info *mi,
+                 int threads_to_stop,
+                 long timeout);
+
+
 int initialize_channel_service_interface()
 {
   DBUG_ENTER("initialize_channel_service_interface");
@@ -433,19 +453,16 @@ err:
   DBUG_RETURN(error);
 }
 
-int channel_stop(const char* channel,
+int channel_stop(Master_info *mi,
                  int threads_to_stop,
                  long timeout)
 {
-  DBUG_ENTER("channel_stop(channel, stop_receiver, stop_applier, timeout");
+  DBUG_ENTER("channel_stop(master_info, stop_receiver, stop_applier, timeout");
 
-  channel_map.rdlock();
-
-  Master_info *mi= channel_map.get_mi(channel);
+  channel_map.assert_some_lock();
 
   if (mi == NULL)
   {
-    channel_map.unlock();
     DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
   }
 
@@ -482,13 +499,70 @@ int channel_stop(const char* channel,
 end:
   unlock_slave_threads(mi);
   mi->channel_unlock();
-  channel_map.unlock();
 
   if (thd_init)
   {
     clean_thread_context();
   }
 
+  DBUG_RETURN(error);
+}
+
+int channel_stop(const char* channel,
+                 int threads_to_stop,
+                 long timeout)
+{
+  DBUG_ENTER("channel_stop(channel, stop_receiver, stop_applier, timeout");
+
+  channel_map.rdlock();
+
+  Master_info *mi= channel_map.get_mi(channel);
+
+  int error= channel_stop(mi, threads_to_stop, timeout);
+
+  channel_map.unlock();
+
+  DBUG_RETURN(error);
+}
+
+int channel_stop_all(int threads_to_stop,
+                     long timeout)
+{
+  DBUG_ENTER("channel_stop_all");
+
+  int error= 0;
+  Master_info *mi= 0;
+
+  channel_map.rdlock();
+
+  for (mi_map::iterator it= channel_map.begin(); it != channel_map.end(); it++)
+  {
+    mi= it->second;
+
+    if (mi)
+    {
+      DBUG_PRINT("info", ("stopping channel_name: %s",
+                          mi->get_channel()));
+
+      int channel_error= channel_stop(mi, threads_to_stop, timeout);
+
+      DBUG_EXECUTE_IF("group_replication_stop_all_channels_failure",
+                      {
+                        channel_error=1;
+                      });
+
+      if (channel_error &&
+          channel_error != RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR)
+      {
+        error= channel_error;
+        mi->report(ERROR_LEVEL, error,
+                   "Error stopping channel: %s. Got error: %d",
+                   mi->get_channel(), error);
+      }
+    }
+  }
+
+  channel_map.unlock();
   DBUG_RETURN(error);
 }
 
