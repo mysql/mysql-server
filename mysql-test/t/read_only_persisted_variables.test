@@ -5,6 +5,9 @@
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
+# This test is also meant to check read-only persisted value of log-slave-updates,
+# thus, it makes sense to run this test when log-bin and log-slave-updates are enabled.
+-- source include/have_log_bin.inc
 
 --echo # Syntax check for PERSIST_ONLY option
 SET PERSIST_ONLY autocommit=0;
