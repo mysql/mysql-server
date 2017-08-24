@@ -29,6 +29,7 @@
 #include <map>
 #include <set>
 #include <string>
+#include <sstream>
 #include <vector>
 
 #include "my_inttypes.h"

@@ -16,6 +16,7 @@
 #include <stddef.h>
 #include <algorithm>
 #include <string>
+#include <sstream>
 #include <vector>
 
 #include "my_dbug.h"
