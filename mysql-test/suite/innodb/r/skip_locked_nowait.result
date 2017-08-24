@@ -32,13 +32,13 @@ seat_id	state
 SELECT * FROM t1 WHERE state = 0 LIMIT 2 FOR UPDATE;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SELECT * FROM t1 WHERE state = 0 LIMIT 2 FOR UPDATE NOWAIT;
-ERROR HY000: Do not wait for lock.
+ERROR HY000: Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.
 SELECT * FROM t1 WHERE state = 0 LIMIT 2 FOR UPDATE SKIP LOCKED;
 seat_id	state
 3	0
 4	0
 SELECT * FROM t1 WHERE seat_id > 0 LIMIT 2 FOR UPDATE NOWAIT;
-ERROR HY000: Do not wait for lock.
+ERROR HY000: Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.
 SELECT * FROM t1 WHERE seat_id > 0 LIMIT 2 FOR UPDATE SKIP LOCKED;
 seat_id	state
 3	0
@@ -53,7 +53,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SELECT * FROM t1 WHERE state = 0 LIMIT 2 FOR SHARE;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SELECT * FROM t1 WHERE state = 0 LIMIT 2 FOR SHARE NOWAIT;
-ERROR HY000: Do not wait for lock.
+ERROR HY000: Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.
 SELECT * FROM t1 WHERE state = 0 LIMIT 2 FOR SHARE SKIP LOCKED;
 seat_id	state
 3	0
@@ -61,13 +61,13 @@ seat_id	state
 SELECT * FROM t1 WHERE state = 0 LIMIT 2 FOR UPDATE;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SELECT * FROM t1 WHERE state = 0 LIMIT 2 FOR UPDATE NOWAIT;
-ERROR HY000: Do not wait for lock.
+ERROR HY000: Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.
 SELECT * FROM t1 WHERE state = 0 LIMIT 2 FOR UPDATE SKIP LOCKED;
 seat_id	state
 3	0
 4	0
 SELECT * FROM t1 WHERE seat_id > 0 LIMIT 2 FOR UPDATE NOWAIT;
-ERROR HY000: Do not wait for lock.
+ERROR HY000: Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.
 SELECT * FROM t1 WHERE seat_id > 0 LIMIT 2 FOR UPDATE SKIP LOCKED;
 seat_id	state
 3	0
@@ -91,17 +91,17 @@ seat_id	row_id	state
 1	1	0
 BEGIN;
 SELECT * FROM t1 WHERE state = 0 AND row_id = 1 LIMIT 1 FOR UPDATE NOWAIT;
-ERROR HY000: Do not wait for lock.
+ERROR HY000: Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.
 SELECT * FROM t1 WHERE state = 0 AND row_id = 1 LIMIT 1 FOR UPDATE SKIP LOCKED;
 seat_id	row_id	state
 2	1	0
 SELECT * FROM t1 WHERE state = 0 AND row_id > 0 LIMIT 1 FOR UPDATE NOWAIT;
-ERROR HY000: Do not wait for lock.
+ERROR HY000: Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.
 SELECT * FROM t1 WHERE state = 0 AND row_id > 0 LIMIT 1 FOR UPDATE SKIP LOCKED;
 seat_id	row_id	state
 2	1	0
 SELECT * FROM t1 WHERE state = 0 FOR UPDATE NOWAIT;
-ERROR HY000: Do not wait for lock.
+ERROR HY000: Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.
 SELECT * FROM t1 WHERE state = 0 FOR UPDATE SKIP LOCKED;
 seat_id	row_id	state
 2	1	0
@@ -115,12 +115,12 @@ seat_id	row_id	state
 1	1	0
 BEGIN;
 SELECT * FROM t1 WHERE state = 0 AND row_id = 1 LIMIT 1 FOR UPDATE NOWAIT;
-ERROR HY000: Do not wait for lock.
+ERROR HY000: Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.
 SELECT * FROM t1 WHERE state = 0 AND row_id = 1 LIMIT 1 FOR UPDATE SKIP LOCKED;
 seat_id	row_id	state
 2	1	0
 SELECT * FROM t1 WHERE state = 0 FOR UPDATE NOWAIT;
-ERROR HY000: Do not wait for lock.
+ERROR HY000: Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.
 SELECT * FROM t1 WHERE state = 0 FOR UPDATE SKIP LOCKED;
 seat_id	row_id	state
 2	1	0
@@ -132,7 +132,7 @@ DROP TABLE t1;
 # Case 3: Test primary index & spatial index
 CREATE TABLE t1(
 seat_id    INT,
-pos        POINT NOT NULL,
+pos        POINT NOT NULL SRID 0,
 state      INT,
 PRIMARY KEY(seat_id),
 SPATIAL KEY(pos)
@@ -154,14 +154,14 @@ BEGIN;
 SET @g = ST_GeomFromText('POLYGON((0 0,0 4,4 4,0 4,0 0))');
 SELECT seat_id, state, ST_AsText(pos) FROM t1 FORCE INDEX (pos)
 WHERE state = 0 AND MBRWithin(pos, @g) FOR UPDATE NOWAIT;
-ERROR HY000: Do not wait for lock.
+ERROR HY000: Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.
 SELECT seat_id, state, ST_AsText(pos) FROM t1 FORCE INDEX (pos)
 WHERE state = 0 AND MBRWithin(pos, @g)  FOR UPDATE SKIP LOCKED;
 seat_id	state	ST_AsText(pos)
 6	0	POINT(3 1)
 SELECT seat_id, state, ST_AsText(pos) FROM t1
 WHERE state = 0 FOR UPDATE NOWAIT;
-ERROR HY000: Do not wait for lock.
+ERROR HY000: Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.
 SELECT seat_id, state, ST_AsText(pos) FROM t1
 WHERE state = 0 FOR UPDATE SKIP LOCKED;
 seat_id	state	ST_AsText(pos)
@@ -182,14 +182,14 @@ seat_id	state	ST_AsText(pos)
 4	0	POINT(2 1)
 SELECT seat_id, state, ST_AsText(pos) FROM t1 FORCE INDEX (pos)
 WHERE state = 0 AND MBRWithin(pos, @g) FOR UPDATE NOWAIT;
-ERROR HY000: Do not wait for lock.
+ERROR HY000: Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.
 SELECT seat_id, state, ST_AsText(pos) FROM t1 FORCE INDEX (pos)
 WHERE state = 0 AND MBRWithin(pos, @g) FOR UPDATE SKIP LOCKED;
 seat_id	state	ST_AsText(pos)
 2	0	POINT(1 1)
 SELECT seat_id, state, ST_AsText(pos) FROM t1
 WHERE state = 0 FOR UPDATE NOWAIT;
-ERROR HY000: Do not wait for lock.
+ERROR HY000: Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.
 SELECT seat_id, state, ST_AsText(pos) FROM t1
 WHERE state = 0 FOR UPDATE SKIP LOCKED;
 seat_id	state	ST_AsText(pos)
