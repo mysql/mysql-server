@@ -19,6 +19,7 @@
 #include <stddef.h>
 #include <map>
 #include <string>
+#include <vector>
 
 #include "my_inttypes.h"
 #include "my_psi_config.h"
@@ -31,6 +32,19 @@ class sys_var;
 
 using std::string;
 using std::map;
+using std::vector;
+
+struct st_persist_var
+{
+  string key;
+  string value;
+  st_persist_var() {}
+  st_persist_var(const string key, const string value)
+  {
+    this->key= key;
+    this->value= value;
+  }
+};
 
 /**
   CLASS Persisted_variables_cache
@@ -41,8 +55,8 @@ using std::map;
   --------
   When first SET PERSIST statement is executed we instantiate
   Persisted_variables_cache which loads the config file if present into
-  m_persist_hash map. This is a singleton operation. m_persist_hash map is
-  an in-memory copy of config file itself. If the SET statement passes then
+  m_persist_variables vector. This is a singleton operation. m_persist_variables
+  is an in-memory copy of config file itself. If the SET statement passes then
   this in-memory is updated and flushed to file as an atomic operation.
 
   Next SET PERSIST statement would only update the in-memory copy and sync
@@ -83,13 +97,13 @@ public:
   */
   bool reset_persisted_variables(THD *thd, const char* name, bool if_exists);
   /**
-    Get persist hash
+    Get persisted variables
   */
-  map<string, string>* get_persist_hash();
+  vector<st_persist_var>* get_persisted_variables();
   /**
-    Get persist hash for static variables
+    Get persisted static variables
   */
-  map<string, string>* get_persist_ro_hash();
+  map<string, string>* get_persist_ro_variables();
   /**
     append read only persisted variables to command line options with a
     separator.
@@ -112,13 +126,13 @@ private:
 
 private:
   /* In memory copy of persistent config file */
-  map<string, string> m_persist_hash;
+  vector<st_persist_var> m_persist_variables;
   /* copy of plugin variables whose plugin is not yet installed */
-  map<string, string> m_persist_plugin_hash;
+  vector<st_persist_var> m_persist_plugin_variables;
   /* In memory copy of read only persistent variables */
-  map<string, string> m_persist_ro_hash;
+  map<string, string> m_persist_ro_variables;
 
-  mysql_mutex_t m_LOCK_persist_hash;
+  mysql_mutex_t m_LOCK_persist_variables;
   static Persisted_variables_cache* m_instance;
 
   /* file handler members */

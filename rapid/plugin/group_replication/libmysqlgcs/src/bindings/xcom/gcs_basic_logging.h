@@ -13,9 +13,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "mysql/gcs/gcs_logging_system.h"
-#include "mysql/gcs/xplatform/my_xp_util.h"
-#include "gcs_xcom_interface.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_logging_system.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/my_xp_util.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_interface.h"
 
 extern void cb_xcom_logger(const int64_t level, const char *message);
 extern void cb_xcom_debugger(const char *format, ...);

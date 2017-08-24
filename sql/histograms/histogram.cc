@@ -290,7 +290,7 @@ bool Histogram::histogram_to_json(Json_object *json_object) const
 
   // charset-id
   const Json_uint charset_id(get_character_set()->number);
-  if (json_object->add_clone(charset_id_str(), &charset_id))
+  if (json_object->add_clone(collation_id_str(), &charset_id))
     return true;                              /* purecov: inspected */
   return false;
 }
@@ -591,7 +591,7 @@ bool Histogram::json_to_histogram(const Json_object &json_object)
   m_null_values_fraction= null_values->value();
 
   // Character set ID
-  const Json_dom *charset_id_dom= json_object.get(charset_id_str());
+  const Json_dom *charset_id_dom= json_object.get(collation_id_str());
   if (charset_id_dom == nullptr ||
       charset_id_dom->json_type() != enum_json_type::J_UINT)
   {

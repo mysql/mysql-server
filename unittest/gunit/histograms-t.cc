@@ -243,7 +243,7 @@ public:
       * Check that the number of buckets in the JSON array is the same as the
         amount of buckets in the original histogram.
     - All histogram types must have the field "null-values" of type J_DOUBLE.
-    - All histogram types must have the field "charset-id" of type J_UINT.
+    - All histogram types must have the field "collation-id" of type J_UINT.
 */
 void VerifyCommonJSONFields(Json_object *json_histogram,
                             const Histogram &histogram)
@@ -281,10 +281,10 @@ void VerifyCommonJSONFields(Json_object *json_histogram,
   EXPECT_NE(null_values_dom, nullptr);
   EXPECT_EQ(null_values_dom->json_type(), enum_json_type::J_DOUBLE);
 
-  // Character set ID
-  Json_dom *charset_id_dom= json_histogram->get("charset-id");
-  EXPECT_NE(charset_id_dom, nullptr);
-  EXPECT_EQ(charset_id_dom->json_type(), enum_json_type::J_UINT);
+  // Collation ID
+  Json_dom *collation_id_dom= json_histogram->get("collation-id");
+  EXPECT_NE(collation_id_dom, nullptr);
+  EXPECT_EQ(collation_id_dom->json_type(), enum_json_type::J_UINT);
 
   Json_array *buckets= static_cast<Json_array*>(buckets_dom);
   EXPECT_EQ(buckets->size(), histogram.get_num_buckets());

@@ -16,8 +16,8 @@
 #ifndef DD__INDEX_STAT_INCLUDED
 #define DD__INDEX_STAT_INCLUDED
 
-
-#include "my_inttypes.h"
+#include "sql/dd/types/entity_object.h"       // Entity_object
+#include "sql/dd/types/entity_object_table.h" // Entity_object_table
 
 namespace dd {
 

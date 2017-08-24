@@ -45,7 +45,7 @@ SET GLOBAL DEBUG= '+d, skip_purge_check_shutdown';
     "dd_object_type": "Table",
     "dd_object": {
         "name": "t1",
-        "mysql_version_id": 80003,
+        "mysql_version_id": X,
         "created": NNN,
         "last_altered": NNN,
         "hidden": 1,

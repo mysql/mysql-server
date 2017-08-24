@@ -15,45 +15,18 @@
 
 #include "sql/dd/info_schema/table_stats.h"   // dd::info_schema::*
 
-#include <assert.h>
-#include <string.h>
-#include <cmath>
-#include <memory>                             // unique_ptr
-
-#include "m_ctype.h"
-#include "my_base.h"
-#include "my_dbug.h"
-#include "my_sqlcommand.h"
-#include "my_sys.h"
 #include "my_time.h"                          // TIME_to_ulonglong_datetime
-#include "mysql/udf_registration_types.h"
-#include "mysqld_error.h"
-#include "sql/auth/auth_common.h"
-#include "sql/auth/sql_security_ctx.h"
-#include "sql/dd/cache/dictionary_client.h"   // dd::cache::Dictionary_client
 #include "sql/dd/dd.h"                        // dd::create_object
-#include "sql/dd/properties.h"
-#include "sql/dd/types/abstract_table.h"
 #include "sql/dd/types/index_stat.h"          // dd::Index_stat
 #include "sql/dd/types/table_stat.h"          // dd::Table_stat
 #include "sql/debug_sync.h"                   // DEBUG_SYNC
-#include "sql/error_handler.h"                // Internal_error_handler
-#include "sql/field.h"
-#include "sql/histograms/value_map.h"
-#include "sql/key.h"
-#include "sql/mdl.h"
+#include "sql/error_handler.h"                // Info_schema_error_handler
 #include "sql/partition_info.h"               // partition_info
 #include "sql/partitioning/partition_handler.h" // Partition_handler
 #include "sql/sql_base.h"                     // open_tables_for_query
 #include "sql/sql_class.h"                    // THD
-#include "sql/sql_const.h"
-#include "sql/sql_error.h"
-#include "sql/sql_lex.h"
-#include "sql/sql_list.h"
 #include "sql/sql_show.h"                     // make_table_list
-#include "sql/system_variables.h"
-#include "sql/table.h"                        // TABLE_LIST
-#include "sql/tztime.h"                       // Time_zone
+#include "sql/tztime.h"                       // my_tz_OFFSET0
 
 namespace dd {
   namespace info_schema {
@@ -191,57 +164,6 @@ bool convert_table_name_case(char *db, char *table_name)
 
   return false;
 }
-
-
-/**
-  Error handler class to convert ER_LOCK_DEADLOCK error to
-  ER_WARN_I_S_SKIPPED_TABLE error.
-
-  Handler is pushed for opening a table or acquiring a MDL lock on
-  tables for INFORMATION_SCHEMA views(system views) operations.
-*/
-class MDL_deadlock_error_handler : public Internal_error_handler
-{
-public:
-  MDL_deadlock_error_handler(THD *thd, const String *schema_name,
-                             const String *table_name)
-    : m_can_deadlock(thd->mdl_context.has_locks()),
-      m_schema_name(schema_name),
-      m_table_name(table_name)
-  {}
-
-  virtual bool handle_condition(THD*,
-                                uint sql_errno,
-                                const char*,
-                                Sql_condition::enum_severity_level*,
-                                const char*)
-  {
-    if (sql_errno == ER_LOCK_DEADLOCK && m_can_deadlock)
-    {
-      // Convert error to ER_WARN_I_S_SKIPPED_TABLE.
-      my_error(ER_WARN_I_S_SKIPPED_TABLE, MYF(0),
-               m_schema_name->ptr(), m_table_name->ptr());
-
-      m_error_handled= true;
-    }
-
-    return false;
-  }
-
-  bool is_error_handled() const { return m_error_handled; }
-
-private:
-  bool m_can_deadlock;
-
-  // Schema name
-  const String *m_schema_name;
-
-  // Table name
-  const String *m_table_name;
-
-  // Flag to indicate whether deadlock error is handled by the handler or not.
-  bool m_error_handled= false;
-};
 
 
 // Returns the required statistics from the cache.
@@ -479,9 +401,9 @@ ulonglong Table_statistics::read_stat_from_SE(
                    MDL_SHARED_HIGH_PRIO, MDL_EXPLICIT);
 
   // Push deadlock error handler
-  MDL_deadlock_error_handler mdl_deadlock_error_handler(thd, &schema_name_ptr,
-                                                        &table_name_ptr);
-  thd->push_internal_handler(&mdl_deadlock_error_handler);
+  Info_schema_error_handler info_schema_error_handler(thd, &schema_name_ptr,
+                                                      &table_name_ptr);
+  thd->push_internal_handler(&info_schema_error_handler);
 
   if (thd->mdl_context.acquire_lock(&mdl_request,
                                     thd->variables.lock_wait_timeout))
@@ -620,8 +542,8 @@ ulonglong Table_statistics::read_stat_by_open_table(
   // Get statistics by opening the table
   //
 
-  MDL_deadlock_error_handler mdl_deadlock_error_handler(thd, &schema_name_ptr,
-                                                        &table_name_ptr);
+  Info_schema_error_handler info_schema_error_handler(thd, &schema_name_ptr,
+                                                      &table_name_ptr);
   Open_tables_backup open_tables_state_backup;
   thd->reset_n_backup_open_tables_state(&open_tables_state_backup, 0);
 
@@ -673,7 +595,7 @@ ulonglong Table_statistics::read_stat_by_open_table(
                   DBUG_SET("+d,kill_query_on_open_table_from_tz_find"););
 
   // Push deadlock error handler.
-  thd->push_internal_handler(&mdl_deadlock_error_handler);
+  thd->push_internal_handler(&info_schema_error_handler);
 
   bool open_result;
   open_result= open_tables_for_query(thd, table_list,
@@ -893,13 +815,12 @@ end:
     If rollback request is set by other deadlock error handlers then
     reset it here.
   */
-  if (mdl_deadlock_error_handler.is_error_handled() &&
+  if (info_schema_error_handler.is_error_handled() &&
       thd->transaction_rollback_request)
     thd->transaction_rollback_request= false;
 
   DBUG_RETURN(error==0 ? return_value : error);
 }
-
 
 }
 }

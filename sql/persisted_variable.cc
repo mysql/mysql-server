@@ -17,6 +17,7 @@
 
 #include "my_config.h"
 
+#include <algorithm>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
@@ -80,13 +81,13 @@ static PSI_file_info all_persist_files[]=
 };
 #endif /* HAVE_PSI_FILE_INTERFACE */
 
-PSI_mutex_key key_persist_file, key_persist_hash;
+PSI_mutex_key key_persist_file, key_persist_variables;
 
 #ifdef HAVE_PSI_MUTEX_INTERFACE
 static PSI_mutex_info all_persist_mutexes[]=
 {
   { &key_persist_file, "m_LOCK_persist_file", 0, 0, PSI_DOCUMENT_ME},
-  { &key_persist_hash, "m_LOCK_persist_hash", 0, 0, PSI_DOCUMENT_ME}
+  { &key_persist_variables, "m_LOCK_persist_variables", 0, 0, PSI_DOCUMENT_ME}
 };
 #endif /* HAVE_PSI_MUTEX_INTERFACE */
 
@@ -191,8 +192,8 @@ int Persisted_variables_cache::init(int *argc, char ***argv)
   unpack_dirname(datadir_buffer, datadir_buffer);
   m_persist_filename= string(datadir_buffer) + MYSQL_PERSIST_CONFIG_NAME + ".cnf";
 
-  mysql_mutex_init(key_persist_hash,
-    &m_LOCK_persist_hash, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_persist_variables,
+    &m_LOCK_persist_variables, MY_MUTEX_INIT_FAST);
 
   mysql_mutex_init(key_persist_file,
     &m_LOCK_persist_file, MY_MUTEX_INIT_FAST);
@@ -228,11 +229,7 @@ void Persisted_variables_cache::set_variable(THD *thd, set_var *setvar)
   String str(val_buf, sizeof(val_buf), system_charset_info), *res;
   size_t val_length= 0;
 
-  struct st_persist_var_data
-  {
-    string name;
-    string value;
-  } tmp_var;
+  struct st_persist_var tmp_var;
   sys_var *system_var= setvar->var;
 
   const char* var_name=
@@ -250,20 +247,31 @@ void Persisted_variables_cache::set_variable(THD *thd, set_var *setvar)
 
   /* structured variables may have basename if specified */
   string struct_var_name= (setvar->base.str ? setvar->base.str : string());
-  tmp_var.name= var_name;
+  tmp_var.key= var_name;
   tmp_var.value= var_value;
 
   if (struct_var_name.length())
-    tmp_var.name= struct_var_name.append(".").append(tmp_var.name);
+    tmp_var.key= struct_var_name.append(".").append(tmp_var.key);
 
   /* modification to in-memory must be thread safe */
-  mysql_mutex_lock(&m_LOCK_persist_hash);
+  mysql_mutex_lock(&m_LOCK_persist_variables);
   /* if present update variable with new value else insert into hash */
   if (setvar->type == OPT_PERSIST_ONLY && setvar->var->is_readonly())
-    m_persist_ro_hash[tmp_var.name]= tmp_var.value;
+    m_persist_ro_variables[tmp_var.key]= tmp_var.value;
   else
-    m_persist_hash[tmp_var.name]= tmp_var.value;
-  mysql_mutex_unlock(&m_LOCK_persist_hash);
+  {
+    /*
+     if element is present remove from current position and insert
+     at end of vector to restore insertion order.
+    */
+    string str= tmp_var.key;
+    auto it= std::find_if(m_persist_variables.begin(), m_persist_variables.end(),
+      [str](st_persist_var const& s) { return s.key == str; });
+    if (it != m_persist_variables.end())
+      m_persist_variables.erase(it);
+    m_persist_variables.push_back(tmp_var);
+  }
+  mysql_mutex_unlock(&m_LOCK_persist_variables);
 }
 
 /**
@@ -333,17 +341,14 @@ bool Persisted_variables_cache::flush_to_file()
   mysql_mutex_lock(&m_LOCK_persist_file);
   /* construct json formatted string buffer */
   String dest("{ \"mysql_server\": {", &my_charset_utf8mb4_bin);
-  map<string, string>::const_iterator iter, last_iter;
 
-  if (m_persist_hash.size() > 1)
-    last_iter= --(m_persist_hash.end());
-
-  for (iter = m_persist_hash.begin();
-       iter != m_persist_hash.end(); iter++)
+  for (auto iter= m_persist_variables.begin();
+       iter != m_persist_variables.end(); iter++)
   {
     String str;
+    string s(iter->key);
     std::unique_ptr<Json_string> var_name(new (std::nothrow)
-                    Json_string(iter->first));
+                    Json_string(s));
     Json_wrapper vn(var_name.release());
     /*
       Convert variable name to a json quoted string. This function will
@@ -355,26 +360,20 @@ bool Persisted_variables_cache::flush_to_file()
     /* reset str */
     str= String();
     std::unique_ptr<Json_string> var_val(new (std::nothrow)
-                    Json_string(iter->second));
+                    Json_string(iter->value));
     Json_wrapper vv(var_val.release());
     vv.to_string(&str, true, String().ptr());
     dest.append(str);
-    if (m_persist_hash.size() > 1 && iter != last_iter)
-      dest.append(" , ");
+    dest.append(" , ");
   }
 
-  if (m_persist_ro_hash.size())
+  if (m_persist_ro_variables.size())
   {
-    if (m_persist_hash.size())
-      dest.append(" ,");
-    dest.append(" \"mysql_server_static_options\": {");
+    dest.append("\"mysql_server_static_options\": {");
   }
 
-  if (m_persist_ro_hash.size() > 1)
-    last_iter= --(m_persist_ro_hash.end());
-
-  for (iter = m_persist_ro_hash.begin();
-       iter != m_persist_ro_hash.end(); iter++)
+  for (auto iter = m_persist_ro_variables.begin();
+       iter != m_persist_ro_variables.end(); iter++)
   {
     String str;
     std::unique_ptr<Json_string> var_name(new (std::nothrow)
@@ -389,13 +388,19 @@ bool Persisted_variables_cache::flush_to_file()
     Json_wrapper vv(var_val.release());
     vv.to_string(&str, true, String().ptr());
     dest.append(str);
-    if (m_persist_ro_hash.size() > 1 && iter != last_iter)
-      dest.append(" , ");
+    dest.append(" , ");
   }
 
-  if (m_persist_ro_hash.size())
-     dest.append(" }");
-
+  if (m_persist_ro_variables.size())
+  {
+    /* remove last " , " characters */
+    dest.chop(); dest.chop(); dest.chop();
+    dest.append(" }");
+  }
+  if (m_persist_variables.size() && !m_persist_ro_variables.size())
+  {
+    dest.chop(); dest.chop(); dest.chop();
+  }
   dest.append(" } }");
   /*
     If file does not exists create one. When persisted_globals_load is 0
@@ -482,8 +487,7 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options)
   THD *thd;
   LEX lex_tmp, *sav_lex= NULL;
   List<set_var_base> tmp_var_list;
-  map<string, string> *persist_hash= NULL;
-  map<string, string>::const_iterator iter;
+  vector<st_persist_var> *persist_variables= NULL;
   List_iterator_fast<set_var_base> it(tmp_var_list);
   set_var_base *var;
   ulong access= 0;
@@ -535,15 +539,16 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options)
     keep all plugin variables in a map. When the plugin is installed
     plugin variables are read from the map and set.
   */
-  persist_hash= (plugin_options ? &m_persist_plugin_hash : &m_persist_hash);
+  persist_variables= (plugin_options ? &m_persist_plugin_variables:
+                                       &m_persist_variables);
 
-  for (iter = persist_hash->begin();
-       iter != persist_hash->end(); iter++)
+  for (auto iter= persist_variables->begin();
+       iter != persist_variables->end(); iter++)
   {
     Item *res= NULL;
     set_var *var= NULL;
     sys_var *sysvar= NULL;
-    string var_name= iter->first;
+    string var_name= iter->key;
 
     LEX_STRING base_name= { const_cast<char*>(var_name.c_str()),
                             var_name.length() };
@@ -556,7 +561,7 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options)
         keep track of this variable so that it is set when plugin
         is loaded and continue with remaining persisted variables
       */
-      m_persist_plugin_hash[iter->first]= iter->second;
+      m_persist_plugin_variables.push_back(*iter);
       my_message_local(WARNING_LEVEL, "Currently unknown variable '%s'"
                        "was read from the persisted config file",
                        var_name.c_str());
@@ -569,21 +574,21 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options)
     case SHOW_SIGNED_LONG:
     case SHOW_LONGLONG:
     case SHOW_HA_ROWS:
-      res= new (thd->mem_root) Item_uint(iter->second.c_str(),
-                                          iter->second.length());
+      res= new (thd->mem_root) Item_uint(iter->value.c_str(),
+                                          iter->value.length());
     break;
     case SHOW_CHAR:
     case SHOW_CHAR_PTR:
     case SHOW_LEX_STRING:
     case SHOW_BOOL:
     case SHOW_MY_BOOL:
-      res= new (thd->mem_root) Item_string(iter->second.c_str(),
-                                            iter->second.length(),
+      res= new (thd->mem_root) Item_string(iter->value.c_str(),
+                                            iter->value.length(),
                                             &my_charset_utf8mb4_bin);
     break;
     case SHOW_DOUBLE:
-      res= new (thd->mem_root) Item_float(iter->second.c_str(),
-                                          iter->second.length());
+      res= new (thd->mem_root) Item_float(iter->value.c_str(),
+                                          iter->value.length());
     break;
     default:
       my_error(ER_UNKNOWN_SYSTEM_VARIABLE, MYF(0), sysvar->name.str);
@@ -594,30 +599,31 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options)
     var= new (thd->mem_root) set_var(OPT_GLOBAL, sysvar,
                                       &base_name, res);
     tmp_var_list.push_back(var);
-  }
-  if (sql_set_variables(thd, &tmp_var_list, false))
-  {
-    /*
-     If there is a connection and an error occurred during install plugin
-     then report error at sql layer, else log the error in server log.
-    */
-    if (current_thd && plugin_options)
+
+    if (sql_set_variables(thd, &tmp_var_list, false))
     {
-      if (thd->is_error())
-        my_error(ER_CANT_SET_PERSISTED, MYF(0),
-          thd->get_stmt_da()->message_text());
+      /*
+       If there is a connection and an error occurred during install plugin
+       then report error at sql layer, else log the error in server log.
+      */
+      if (current_thd && plugin_options)
+      {
+        if (thd->is_error())
+          my_error(ER_CANT_SET_PERSISTED, MYF(0),
+            thd->get_stmt_da()->message_text());
+        else
+          my_error(ER_CANT_SET_PERSISTED, MYF(0));
+      }
       else
-        my_error(ER_CANT_SET_PERSISTED, MYF(0));
-    }
-    else
-    {
-      if (thd->is_error())
-        sql_print_error("%s", thd->get_stmt_da()->message_text());
-      else
-        LogErr(ERROR_LEVEL, ER_CANT_SET_PERSISTED);
-    }
+      {
+        if (thd->is_error())
+          sql_print_error("%s", thd->get_stmt_da()->message_text());
+        else
+          LogErr(ERROR_LEVEL, ER_CANT_SET_PERSISTED);
+      }
     result= 1;
     goto err;
+    }
   }
   /* Once all persisted options are set update variable source. */
   while ((var= it++))
@@ -710,7 +716,7 @@ int Persisted_variables_cache::read_persist_file()
         {
           const std::string key= ro_iter.elt().first;
           const std::string key_value= ro_iter.elt().second.get_data();
-          m_persist_ro_hash[key]= key_value;
+          m_persist_ro_variables[key]= key_value;
           ro_iter.next();
         }
       }
@@ -718,7 +724,8 @@ int Persisted_variables_cache::read_persist_file()
     else
     {
       const std::string key_value= iter.elt().second.get_data();
-      m_persist_hash[key]= key_value;
+      st_persist_var persist_var(key, key_value);
+      m_persist_variables.push_back(persist_var);
     }
     iter.next();
   }
@@ -726,7 +733,7 @@ int Persisted_variables_cache::read_persist_file()
 }
 
 /**
-  append_read_only_variables() does a lookup into persist_hash for read only
+  append_read_only_variables() does a lookup into persist_variables for read only
   variables and place them after the command line options with a separator
   "----persist-args-separator----"
 
@@ -761,8 +768,8 @@ bool Persisted_variables_cache::append_read_only_variables(int *argc,
   group.name= "defaults";
   group.type_names= &type_name;
 
-  for (iter= m_persist_ro_hash.begin();
-       iter != m_persist_ro_hash.end(); iter++)
+  for (iter= m_persist_ro_variables.begin();
+       iter != m_persist_ro_variables.end(); iter++)
   {
     string persist_option= "--loose_" + iter->first + "=" + iter->second;
     if (find_type((char *) type_name, &group, FIND_TYPE_NO_PREFIX))
@@ -827,7 +834,7 @@ bool Persisted_variables_cache::append_read_only_variables(int *argc,
 }
 
 /**
-  reset_persisted_variables() does a lookup into persist_hash and remove the
+  reset_persisted_variables() does a lookup into persist_variables and remove the
   variable from the hash if present and flush the hash to file.
 
   @param [in] thd                     Pointer to connection handle.
@@ -843,41 +850,47 @@ bool Persisted_variables_cache::append_read_only_variables(int *argc,
 bool Persisted_variables_cache::reset_persisted_variables(THD *thd,
   const char* name, bool if_exists)
 {
-  bool result= 0, flush= 0;
+  bool result= 0, flush= 0, not_present= 1;
   string var_name;
   bool reset_all= (name ? 0 : 1);
   var_name= (name ? name : string());
-  std::map<string, string>::iterator it= m_persist_hash.find(var_name);
-  std::map<string, string>::iterator it_ro= m_persist_ro_hash.find(var_name);
+  auto it_ro= m_persist_ro_variables.find(var_name);
 
   if (reset_all)
   {
-    if (!m_persist_hash.empty())
+    if (!m_persist_variables.empty())
     {
-      m_persist_hash.clear();
+      m_persist_variables.clear();
       flush= 1;
     }
-    if (!m_persist_ro_hash.empty())
+    if (!m_persist_ro_variables.empty())
     {
-      m_persist_ro_hash.clear();
+      m_persist_ro_variables.clear();
       flush= 1;
     }
   }
   else
   {
-    if (it != m_persist_hash.end())
+    if (m_persist_variables.size())
     {
-      /* if variable is present in config file remove it */
-      m_persist_hash.erase(it);
-      flush= 1;
+      auto it= std::find_if(m_persist_variables.begin(), m_persist_variables.end(),
+        [var_name](st_persist_var const & s) { return s.key == var_name; });
+      if (it != m_persist_variables.end())
+      {
+        /* if variable is present in config file remove it */
+        m_persist_variables.erase(it);
+        flush= 1;
+        not_present= 0;
+      }
     }
-    else if (it_ro != m_persist_ro_hash.end())
+    if (it_ro != m_persist_ro_variables.end())
     {
       /* if static variable is present in config file remove it */
-      m_persist_ro_hash.erase(it_ro);
+      m_persist_ro_variables.erase(it_ro);
       flush= 1;
+      not_present = 0;
     }
-    else
+    if (not_present)
     {
       /* if not present and if exists is specified, report warning */
       if (if_exists)
@@ -901,24 +914,26 @@ bool Persisted_variables_cache::reset_persisted_variables(THD *thd,
 }
 
 /**
-  Return in-memory copy persist_hash
+  Return in-memory copy persist_variables_
 */
-map<string, string>* Persisted_variables_cache::get_persist_hash()
+vector<st_persist_var>*
+Persisted_variables_cache::get_persisted_variables()
 {
-  return &m_persist_hash;
+  return &m_persist_variables;
 }
 
 /**
   Return in-memory copy for static persisted variables
 */
-map<string, string>* Persisted_variables_cache::get_persist_ro_hash()
+map<string, string>*
+Persisted_variables_cache::get_persist_ro_variables()
 {
-  return &m_persist_ro_hash;
+  return &m_persist_ro_variables;
 }
 
 void Persisted_variables_cache::cleanup()
 {
-  mysql_mutex_destroy(&m_LOCK_persist_hash);
+  mysql_mutex_destroy(&m_LOCK_persist_variables);
   mysql_mutex_destroy(&m_LOCK_persist_file);
   if (ro_persisted_argv)
   {
