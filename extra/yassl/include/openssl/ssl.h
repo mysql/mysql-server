@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@
 #include "rsa.h"
 
 
-#define YASSL_VERSION "2.4.2"
+#define YASSL_VERSION "2.4.4"
 
 
 #if defined(__cplusplus)
