@@ -264,6 +264,32 @@ private:
   */
   bool was_member_expelled_from_group(const Gcs_view& view) const;
 
+  /**
+    Logs member joining message to error logs from view.
+
+    @param[in]  view        the view delivered by the GCS
+  */
+  void log_members_joining_message(const Gcs_view& new_view) const;
+
+  /**
+    Logs member leaving message to error logs from view.
+
+    @param[in]  view        the view delivered by the GCS
+  */
+  void log_members_leaving_message(const Gcs_view& new_view) const;
+
+  /**
+    This function return all members present in vector of Gcs_member_identifier
+    in HOST:PORT format separated by comma.
+    Function also return PRIMARY member if any in HOST:PORT format.
+
+    @param[in]    joining/leaving members for this view
+    @param[out]   host and port of all members from view
+    @param[out]   primary member hosts and port of all members from view
+  */
+  void get_hosts_from_view(const std::vector<Gcs_member_identifier> &members,
+                           std::string& all_hosts, std::string& primary_host) const;
+
   Applier_module_interface* applier_module;
   Recovery_module* recovery_module;
 
