@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -186,6 +186,16 @@ void Recovery_module::leave_group_on_recovery_failure()
                                          Group_member_info::MEMBER_ERROR);
 
   Gcs_operations::enum_leave_state state= gcs_module->leave();
+
+  int error= channel_stop_all(CHANNEL_APPLIER_THREAD|CHANNEL_RECEIVER_THREAD,
+                              stop_wait_timeout);
+  if (error)
+  {
+    log_message(MY_ERROR_LEVEL,
+                "Error stopping all replication channels while server was"
+                " leaving the group. Please check the error log for additional"
+                " details. Got error: %d", error);
+  }
 
   std::stringstream ss;
   plugin_log_level log_severity= MY_WARNING_LEVEL;

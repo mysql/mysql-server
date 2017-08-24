@@ -234,7 +234,7 @@ void initialize_group_partition_handler();
 int start_group_communication();
 void declare_plugin_running();
 int leave_group();
-int terminate_plugin_modules();
+int terminate_plugin_modules(bool flag_stop_async_channel= false);
 int terminate_applier_module();
 int terminate_recovery_module();
 void terminate_asynchronous_channels_observer();
@@ -813,7 +813,7 @@ int plugin_group_replication_stop()
   /* first leave all joined groups (currently one) */
   leave_group();
 
-  int error= terminate_plugin_modules();
+  int error= terminate_plugin_modules(true);
 
   group_replication_running= false;
   shared_plugin_stop_lock->release_write_lock();
@@ -836,7 +836,7 @@ int plugin_group_replication_stop()
   DBUG_RETURN(error);
 }
 
-int terminate_plugin_modules()
+int terminate_plugin_modules(bool flag_stop_async_channel)
 {
 
   if(terminate_recovery_module())
@@ -866,6 +866,23 @@ int terminate_plugin_modules()
   }
 
   terminate_asynchronous_channels_observer();
+
+  if (flag_stop_async_channel)
+  {
+    int channel_err= channel_stop_all(CHANNEL_APPLIER_THREAD|CHANNEL_RECEIVER_THREAD,
+                            components_stop_timeout_var);
+    if (channel_err)
+    {
+      log_message(MY_ERROR_LEVEL,
+                  "Error stopping all replication channels while server was"
+                  " leaving the group. Please check the error log for "
+                  "additional details. Got error: %d", channel_err);
+      if (!error)
+      {
+        error= GROUP_REPLICATION_CONFIGURATION_ERROR;
+      }
+    }
+  }
 
   delete group_partition_handler;
   group_partition_handler= NULL;
@@ -1357,7 +1374,8 @@ int start_group_communication()
   events_handler= new Plugin_gcs_events_handler(applier_module,
                                                 recovery_module,
                                                 view_change_notifier,
-                                                compatibility_mgr);
+                                                compatibility_mgr,
+                                                components_stop_timeout_var);
 
   view_change_notifier->start_view_modification();
 
@@ -1869,6 +1887,10 @@ static void update_component_timeout(MYSQL_THD thd, SYS_VAR *var,
   if (recovery_module != NULL)
   {
     recovery_module->set_stop_wait_timeout(in_val);
+  }
+  if (events_handler != NULL)
+  {
+    events_handler->set_stop_wait_timeout(in_val);
   }
 
   DBUG_VOID_RETURN;
