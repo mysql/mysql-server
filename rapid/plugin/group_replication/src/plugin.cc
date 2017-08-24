@@ -266,7 +266,8 @@ void initialize_group_partition_handler();
 int start_group_communication();
 void declare_plugin_running();
 int leave_group();
-int terminate_plugin_modules();
+int terminate_plugin_modules(bool flag_stop_async_channel= false,
+                             char **error_message= NULL);
 int terminate_applier_module();
 int terminate_recovery_module();
 void terminate_asynchronous_channels_observer();
@@ -378,7 +379,7 @@ plugin_get_group_member_stats(
                                 gcs_module, channel_name);
 }
 
-int plugin_group_replication_start()
+int plugin_group_replication_start(char **)
 {
   DBUG_ENTER("plugin_group_replication_start");
 
@@ -846,7 +847,7 @@ bypass_message:
   return 0;
 }
 
-int plugin_group_replication_stop()
+int plugin_group_replication_stop(char **error_message)
 {
   DBUG_ENTER("plugin_group_replication_stop");
 
@@ -893,7 +894,7 @@ int plugin_group_replication_stop()
   /* first leave all joined groups (currently one) */
   leave_group();
 
-  int error= terminate_plugin_modules();
+  int error= terminate_plugin_modules(true, error_message);
 
   group_replication_running= false;
 
@@ -922,7 +923,7 @@ int plugin_group_replication_stop()
   DBUG_RETURN(error);
 }
 
-int terminate_plugin_modules()
+int terminate_plugin_modules(bool flag_stop_async_channel, char **error_message)
 {
 
   if(terminate_recovery_module())
@@ -952,6 +953,58 @@ int terminate_plugin_modules()
   }
 
   terminate_asynchronous_channels_observer();
+
+  if (flag_stop_async_channel)
+  {
+    int channel_err= channel_stop_all(CHANNEL_APPLIER_THREAD|CHANNEL_RECEIVER_THREAD,
+                                      components_stop_timeout_var, error_message);
+    if (channel_err)
+    {
+      if (error_message != NULL)
+      {
+        if (*error_message == NULL)
+        {
+          char err_tmp_arr[MYSQL_ERRMSG_SIZE];
+          size_t err_len= my_snprintf(err_tmp_arr, sizeof(err_tmp_arr),
+                            "Error stopping all replication channels while"
+                            " server was leaving the group. Got error: %d."
+                            " Please check the  error log for more details.",
+                            channel_err);
+
+          *error_message= (char *)my_malloc(PSI_NOT_INSTRUMENTED,
+                                            err_len + 1, MYF(0));
+          strncpy(*error_message, err_tmp_arr, err_len);
+        }
+        else
+        {
+          char err_tmp_arr[]= "Error stopping all replication channels while"
+                              " server was leaving the group. ";
+          size_t total_length= strlen(*error_message) + strlen(err_tmp_arr);
+          size_t error_length= strlen(*error_message);
+
+          if (total_length < MYSQL_ERRMSG_SIZE)
+          {
+            log_message(MY_INFORMATION_LEVEL, "error_message: %s", *error_message);
+
+            char *ptr= (char *)my_realloc(PSI_NOT_INSTRUMENTED,
+                                               *error_message,
+                                               total_length + 1, MYF(0));
+
+            memmove(ptr + strlen(err_tmp_arr), ptr, error_length);
+            memcpy(ptr, err_tmp_arr, strlen(err_tmp_arr));
+            ptr[total_length]= '\0';
+            *error_message= ptr;
+          }
+        }
+      }
+
+
+      if (!error)
+      {
+        error= GROUP_REPLICATION_COMMAND_FAILURE;
+      }
+    }
+  }
 
   delete group_partition_handler;
   group_partition_handler= NULL;
@@ -1490,7 +1543,8 @@ int start_group_communication()
   events_handler= new Plugin_gcs_events_handler(applier_module,
                                                 recovery_module,
                                                 view_change_notifier,
-                                                compatibility_mgr);
+                                                compatibility_mgr,
+                                                components_stop_timeout_var);
 
   view_change_notifier->start_view_modification();
 
@@ -2126,6 +2180,10 @@ static void update_component_timeout(MYSQL_THD, SYS_VAR*,
   if (recovery_module != NULL)
   {
     recovery_module->set_stop_wait_timeout(in_val);
+  }
+  if (events_handler != NULL)
+  {
+    events_handler->set_stop_wait_timeout(in_val);
   }
 
   DBUG_VOID_RETURN;

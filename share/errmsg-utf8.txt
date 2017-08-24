@@ -10904,6 +10904,9 @@ ER_RESOURCE_GROUP_BIND_FAILED
 ER_INVALID_USE_OF_FORCE_OPTION
   eng "Option FORCE invalid as DISABLE option is not specified."
 
+ER_GROUP_REPLICATION_COMMAND_FAILURE
+  eng "The %s command encountered a failure. %s"
+
 #
 #  End of 8.0 error messages.
 #

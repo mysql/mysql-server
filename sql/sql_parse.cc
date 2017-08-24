@@ -3211,7 +3211,8 @@ mysql_execute_command(THD *thd, bool first_level)
       goto error;
     }
 
-    res= group_replication_start();
+    char *error_message= NULL;
+    res= group_replication_start(&error_message);
 
     //To reduce server dependency, server errors are not used here
     switch (res)
@@ -3233,6 +3234,20 @@ mysql_execute_command(THD *thd, bool first_level)
         goto error;
       case 7: //GROUP_REPLICATION_MAX_GROUP_SIZE
         my_error(ER_GROUP_REPLICATION_MAX_GROUP_SIZE, MYF(0));
+        goto error;
+      case 8: //GROUP_REPLICATION_COMMAND_FAILURE
+        if (error_message == NULL)
+        {
+          my_error(ER_GROUP_REPLICATION_COMMAND_FAILURE, MYF(0),
+                   "START GROUP_REPLICATION",
+                   "Please check error log for additional details.");
+        }
+        else
+        {
+          my_error(ER_GROUP_REPLICATION_COMMAND_FAILURE, MYF(0),
+                   "START GROUP_REPLICATION", error_message);
+          my_free(error_message);
+        }
         goto error;
     }
     my_ok(thd);
@@ -3262,7 +3277,8 @@ mysql_execute_command(THD *thd, bool first_level)
       goto error;
     }
 
-    res= group_replication_stop();
+    char *error_message= NULL;
+    res= group_replication_stop(&error_message);
     if (res == 1) //GROUP_REPLICATION_CONFIGURATION_ERROR
     {
       my_error(ER_GROUP_REPLICATION_CONFIGURATION, MYF(0));
@@ -3271,6 +3287,22 @@ mysql_execute_command(THD *thd, bool first_level)
     if (res == 6) //GROUP_REPLICATION_APPLIER_THREAD_TIMEOUT
     {
       my_error(ER_GROUP_REPLICATION_STOP_APPLIER_THREAD_TIMEOUT, MYF(0));
+      goto error;
+    }
+    if (res == 8) //GROUP_REPLICATION_COMMAND_FAILURE
+    {
+      if (error_message == NULL)
+      {
+        my_error(ER_GROUP_REPLICATION_COMMAND_FAILURE, MYF(0),
+                 "STOP GROUP_REPLICATION",
+                 "Please check error log for additonal details.");
+      }
+      else
+      {
+        my_error(ER_GROUP_REPLICATION_COMMAND_FAILURE, MYF(0),
+                 "STOP GROUP_REPLICATION", error_message);
+        my_free(error_message);
+      }
       goto error;
     }
     my_ok(thd);

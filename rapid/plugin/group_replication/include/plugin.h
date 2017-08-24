@@ -98,8 +98,8 @@ bool check_async_channel_running_on_secondary();
 //Plugin public methods
 int plugin_group_replication_init(MYSQL_PLUGIN plugin_info);
 int plugin_group_replication_deinit(void *p);
-int plugin_group_replication_start();
-int plugin_group_replication_stop();
+int plugin_group_replication_start(char **error_message= NULL);
+int plugin_group_replication_stop(char **error_message= NULL);
 bool plugin_is_group_replication_running();
 bool plugin_get_connection_status(
     const GROUP_REPLICATION_CONNECTION_STATUS_CALLBACKS& callbacks);

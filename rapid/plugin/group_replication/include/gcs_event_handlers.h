@@ -66,7 +66,8 @@ public:
   Plugin_gcs_events_handler(Applier_module_interface* applier_module,
                             Recovery_module* recovery_module,
                             Plugin_gcs_view_modification_notifier* vc_notifier,
-                            Compatibility_module* compatibility_manager);
+                            Compatibility_module* compatibility_manager,
+                            ulong components_stop_timeout);
   virtual ~Plugin_gcs_events_handler();
 
   /*
@@ -79,6 +80,14 @@ public:
   void on_suspicions(const std::vector<Gcs_member_identifier>& members,
                      const std::vector<Gcs_member_identifier>& unreachable) const;
 
+  /**
+    Sets the component stop timeout.
+
+    @param[in]  timeout      the timeout
+  */
+  void set_stop_wait_timeout (ulong timeout){
+    stop_wait_timeout= timeout;
+  }
 
 private:
   /*
@@ -271,6 +280,9 @@ private:
 
   /**The status of this member when it joins*/
   st_compatibility_types* joiner_compatibility_status;
+
+  /* Component stop timeout on shutdown */
+  ulong stop_wait_timeout;
 
 #ifndef DBUG_OFF
   bool set_number_of_members_on_view_changed_to_10;

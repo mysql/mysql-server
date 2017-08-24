@@ -97,11 +97,11 @@ struct st_mysql_group_replication
   /*
     This function is used to start the group replication.
   */
-  int (*start)();
+  int (*start)(char **error_message);
   /*
     This function is used to stop the group replication.
   */
-  int (*stop)();
+  int (*stop)(char **error_message);
   /*
     This function is used to get the current group replication running status.
   */
