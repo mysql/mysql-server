@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -71,6 +71,12 @@ enum certs
   OPENSSL_RND
 };
 
+enum extfiles
+{
+  CAV3_EXT=0,
+  CERTV3_EXT
+};
+
 Sql_string_t cert_files[] =
 {
   create_string("ca.pem"),
@@ -85,6 +91,12 @@ Sql_string_t cert_files[] =
   create_string("private_key.pem"),
   create_string("public_key.pem"),
   create_string(".rnd")
+};
+
+Sql_string_t ext_files[] =
+{
+  create_string("cav3.ext"),
+  create_string("certv3.ext")
 };
 
 #define MAX_PATH_LEN  (FN_REFLEN - strlen(FN_DIRSEP) \
@@ -314,6 +326,49 @@ private:
   stringstream m_subj_prefix;
 };
 
+class X509v3_ext_writer
+{
+public:
+  X509v3_ext_writer()
+  {
+    m_cav3_ext_options << "basicConstraints=CA:TRUE" << std::endl;
+
+    m_certv3_ext_options << "basicConstraints=CA:FALSE" << std::endl;
+  }
+  ~X509v3_ext_writer() {};
+
+  bool operator()(const Sql_string_t &cav3_ext_file,
+                  const Sql_string_t &certv3_ext_file)
+  {
+    if (!cav3_ext_file.length() ||
+        !certv3_ext_file.length())
+      return true;
+
+    std::ofstream ext_file;
+
+    ext_file.open(cav3_ext_file.c_str(),
+                  std::ios::out|std::ios::trunc);
+    if (!ext_file.is_open())
+      return true;
+    ext_file << m_cav3_ext_options.str();
+    ext_file.close();
+
+    ext_file.open(certv3_ext_file.c_str(),
+                  std::ios::out|std::ios::trunc);
+    if (!ext_file.is_open())
+    {
+      remove_file(cav3_ext_file.c_str(), false);
+      return true;
+    }
+    ext_file << m_certv3_ext_options.str();
+    ext_file.close();
+
+    return false;
+  }
+private:
+  stringstream m_cav3_ext_options;
+  stringstream m_certv3_ext_options;
+};
 
 class X509_cert
 {
@@ -328,15 +383,17 @@ public:
                           uint32_t serial,
                           bool self_signed,
                           const Sql_string_t &sign_key_file,
-                          const Sql_string_t &sign_cert_file)
+                          const Sql_string_t &sign_cert_file,
+                          const Sql_string_t &ext_file)
   {
     stringstream command;
     command << "openssl x509 -sha256 -days " << m_validity;
-    command << " -set_serial " << serial << " -req -in " << req_file << " ";
+    command << " -extfile " << ext_file;
+    command << " -set_serial " << serial << " -req -in " << req_file;
     if (self_signed)
-      command << "-signkey " << sign_key_file;
+      command << " -signkey " << sign_key_file;
     else
-      command << "-CA " << sign_cert_file << " -CAkey " << sign_key_file;
+      command << " -CA " << sign_cert_file << " -CAkey " << sign_key_file;
     command << " -out " << cert_file;
 
     return command.str();
@@ -551,6 +608,7 @@ int main(int argc, char *argv[])
       Sql_string_t empty_string("");
       X509_key x509_key(suffix_string);
       X509_cert x509_cert;
+      X509v3_ext_writer x509v3_ext_writer;
 
       /* Delete existing files if any */
       remove_file(cert_files[CA_REQ], false);
@@ -560,6 +618,14 @@ int main(int argc, char *argv[])
       remove_file(cert_files[CLIENT_KEY], false);
       remove_file(cert_files[OPENSSL_RND], false);
 
+      /* Remove existing v3 extension files */
+      remove_file(ext_files[CAV3_EXT], false);
+      remove_file(ext_files[CERTV3_EXT], false);
+
+      /* Create v3 extension files */
+      if (x509v3_ext_writer(ext_files[CAV3_EXT], ext_files[CERTV3_EXT]))
+        goto end;
+
       /* Generate CA Key and Certificate */
       if ((ret_val= execute_command(x509_key("_Auto_Generated_CA_Certificate",
                                              cert_files[CA_KEY], cert_files[CA_REQ]),
@@ -567,7 +633,8 @@ int main(int argc, char *argv[])
         goto end;
 
       if ((ret_val= execute_command(x509_cert(cert_files[CA_REQ], cert_files[CA_CERT], 1,
-                                              true, cert_files[CA_KEY], empty_string),
+                                              true, cert_files[CA_KEY], empty_string,
+                                              ext_files[CAV3_EXT]),
                                     "Error generating ca_cert.pem")))
         goto end;
 
@@ -578,7 +645,8 @@ int main(int argc, char *argv[])
         goto end;
 
       if ((ret_val= execute_command(x509_cert(cert_files[SERVER_REQ], cert_files[SERVER_CERT], 2,
-                                              false, cert_files[CA_KEY], cert_files[CA_CERT]),
+                                              false, cert_files[CA_KEY], cert_files[CA_CERT],
+                                              ext_files[CERTV3_EXT]),
                                     "Error generating server_cert.pem")))
         goto end;
 
@@ -589,7 +657,8 @@ int main(int argc, char *argv[])
         goto end;
 
       if ((ret_val= execute_command(x509_cert(cert_files[CLIENT_REQ], cert_files[CLIENT_CERT], 3,
-                                              false, cert_files[CA_KEY], cert_files[CA_CERT]),
+                                              false, cert_files[CA_KEY], cert_files[CA_CERT],
+                                              ext_files[CERTV3_EXT]),
                                     "Error generating client_cert.pem")))
         goto end;
 
@@ -622,6 +691,11 @@ int main(int argc, char *argv[])
         goto end;
 
       remove_file(cert_files[OPENSSL_RND], false);
+
+      /* Remove existing v3 extension files */
+      remove_file(ext_files[CAV3_EXT], false);
+      remove_file(ext_files[CERTV3_EXT], false);
+
     }
 
     /*
