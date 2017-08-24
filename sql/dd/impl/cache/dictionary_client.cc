@@ -2210,10 +2210,13 @@ bool Dictionary_client::fetch_referencing_views_object_id(
 bool Dictionary_client::fetch_fk_children_uncached(
     const String_type &parent_schema,
     const String_type &parent_name,
+    const String_type &parent_engine,
+    bool uncommitted,
     std::vector<String_type> *children_schemas,
     std::vector<String_type> *children_names)
 {
-  dd::Transaction_ro trx(m_thd, ISO_READ_COMMITTED);
+  dd::Transaction_ro trx(m_thd, uncommitted ? ISO_READ_UNCOMMITTED :
+                                              ISO_READ_COMMITTED);
 
   trx.otx.register_tables<Foreign_key>();
   Raw_table *foreign_keys_table= trx.otx.get_table<Foreign_key>();
@@ -2251,27 +2254,60 @@ bool Dictionary_client::fetch_fk_children_uncached(
     dd::Table *table= nullptr;
     dd::Schema *schema= nullptr;
     dd::cache::Dictionary_client::Auto_releaser releaser(this);
-    if (acquire_uncached(id, &table))
+    if (uncommitted)
     {
-      DBUG_ASSERT(m_thd->is_system_thread() ||
-                  m_thd->killed ||
-                  m_thd->is_error());
-      return true;
-    }
-
-    if (table)
-    {
-      if (acquire_uncached(table->schema_id(), &schema))
+      if (acquire_uncached_uncommitted(id, &table))
       {
         DBUG_ASSERT(m_thd->is_system_thread() ||
                     m_thd->killed ||
                     m_thd->is_error());
         return true;
       }
-      if (schema)
+    }
+    else
+    {
+      if (acquire_uncached(id, &table))
       {
-        children_schemas->push_back(schema->name());
-        children_names->push_back(table->name());
+        DBUG_ASSERT(m_thd->is_system_thread() ||
+                    m_thd->killed ||
+                    m_thd->is_error());
+        return true;
+      }
+    }
+
+    if (table)
+    {
+      // Filter out children in different SEs. This is not supported.
+      if (my_strcasecmp(system_charset_info,
+                        table->engine().c_str(),
+                        parent_engine.c_str()) == 0)
+      {
+        if (uncommitted)
+        {
+          if (acquire_uncached_uncommitted(table->schema_id(), &schema))
+          {
+            DBUG_ASSERT(m_thd->is_system_thread() ||
+                        m_thd->killed ||
+                        m_thd->is_error());
+            return true;
+          }
+        }
+        else
+        {
+          if (acquire_uncached(table->schema_id(), &schema))
+          {
+            DBUG_ASSERT(m_thd->is_system_thread() ||
+                        m_thd->killed ||
+                        m_thd->is_error());
+            return true;
+          }
+        }
+
+        if (schema)
+        {
+          children_schemas->push_back(schema->name());
+          children_names->push_back(table->name());
+        }
       }
     }
     // If table/schema is not found, it was deleted since we retrieved the ID.
@@ -2290,29 +2326,54 @@ bool Dictionary_client::fetch_fk_children_uncached(
 }
 
 
-// Remove and delete an object from the cache and the dd tables.
+// Invalidate a table entry in the shared cache based on schema qualified name.
+bool Dictionary_client::invalidate(const String_type &schema_name,
+                                   const String_type &table_name)
+{
+  // Verify metadata lock (should hold even for non-existing tables).
+  DBUG_ASSERT(m_thd->mdl_context.owns_equal_or_stronger_lock(
+          MDL_key::TABLE, schema_name.c_str(), table_name.c_str(),
+          MDL_EXCLUSIVE));
+
+  // There should also be an IX lock on the schema name at this point.
+  DBUG_ASSERT(m_thd->mdl_context.owns_equal_or_stronger_lock(
+          MDL_key::SCHEMA, schema_name.c_str(), "",
+          MDL_INTENTION_EXCLUSIVE));
+
+  Auto_releaser releaser(this);
+  const Table *table;
+  if (acquire(schema_name, table_name, &table))
+  {
+    DBUG_ASSERT(m_thd->is_system_thread() ||
+                m_thd->killed ||
+                m_thd->is_error());
+    return true;
+  }
+
+  if (table != nullptr)
+  {
+    invalidate(table);
+  }
+
+  // Invalidation of a non-existing object is not treated as an error.
+  return false;
+}
+
+
+// Invalidate an entry in the shared cache.
 template <typename T>
-bool Dictionary_client::drop(const T *object)
+void Dictionary_client::invalidate(const T *object)
 {
   // Check proper MDL lock.
   DBUG_ASSERT(MDL_checker::is_write_locked(m_thd, object));
 
-  if (Storage_adapter::drop(m_thd, object))
-  {
-    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
-    return true;
-  }
-
-  // Prepare an instance to be added to the dropped registry. This must be done
-  // prior to cleaning up the committed registry since the instance we drop might
-  // be present there (since we are allowed to drop const object coming from
-  // acquire()).
-  T *dropped_object= object->clone();
-
-  // The shared cache is updated right away. This is safe since we have
-  // MDL on the name. Further acquisition from this thread will see
-  // that the object is dropped (by inspecting the dropped registry),
-  // so the shared cache will not be "polluted" by this thread either.
+  // Invalidate the shared cache. This is safe since we have an
+  // exclusive meta data lock on the name.
+  // NOTE: When invalidating directly from the server code, further
+  // acquisition from this thread will pollute the shared cache.
+  // However, when invalidation is done in the context of drop()
+  // (see below), the object will be added to the registry of dropped
+  // objects, preventing subsequent acquisition even from this thread.
 
   // Uncommitted object which was acquired for modification might have
   // corrupted name.... So lookup by id. (see mysql_rename_table()
@@ -2334,6 +2395,30 @@ bool Dictionary_client::drop(const T *object)
     Shared_dictionary_cache::instance()->
       drop_if_present<typename T::id_key_type,
                       typename T::cache_partition_type>(id_key);
+}
+
+
+// Remove and delete an object from the shared cache and the dd tables.
+template <typename T>
+bool Dictionary_client::drop(const T *object)
+{
+  // Check proper MDL lock.
+  DBUG_ASSERT(MDL_checker::is_write_locked(m_thd, object));
+
+  if (Storage_adapter::drop(m_thd, object))
+  {
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
+    return true;
+  }
+
+  // Prepare an instance to be added to the dropped registry. This must be done
+  // prior to cleaning up the committed registry since the instance we drop might
+  // be present there (since we are allowed to drop const object coming from
+  // acquire()).
+  T *dropped_object= object->clone();
+
+  // Invalidate the entry in the shared cache (if present).
+  invalidate(object);
 
   // Finally, add a clone to the dropped registry. Note that we are allowed to
   // drop a const object, e.g. coming from acquire(). This means that the
@@ -2344,7 +2429,6 @@ bool Dictionary_client::drop(const T *object)
 
   return false;
 }
-
 
 // Store a new dictionary object.
 template <typename T>
@@ -2654,60 +2738,49 @@ void Dictionary_client::remove_uncommitted_objects(bool commit_to_shared_cache)
         const_cast<typename T::cache_partition_type*>(it->second->object());
       DBUG_ASSERT(uncommitted_object != nullptr);
 
-      // Check proper MDL lock.
-      DBUG_ASSERT(MDL_checker::is_write_locked(m_thd, uncommitted_object));
+      // Invalidate the entry in the shared cache (if present).
+      invalidate(uncommitted_object);
 
-      // Get a committed version of the object and invalidate it.
-      // Note that we have to access m_registry_committed directly
-      // instead of using acquire() to avoid finding the uncommitted object.
-      const typename T::id_key_type key(uncommitted_object->id());
-      Cache_element<typename T::cache_partition_type> *element= NULL;
-      m_registry_committed.get(key, &element);
-
-      if (element)
-      {
-        DBUG_ASSERT(element->object() != nullptr);
-
-        // Remove the element from the chain of auto releasers.
-        (void) m_current_releaser->remove(element);
-        m_registry_committed.remove(element);
-
-        // Remove the element from the cache, delete the wrapper and the object.
-        Shared_dictionary_cache::instance()->drop(element);
-      }
-      else
-      {
-        Shared_dictionary_cache::instance()->
-          drop_if_present<typename T::id_key_type,
-                          typename T::cache_partition_type>(uncommitted_object->id());
-      }
 #ifndef DBUG_OFF
       // Make sure the uncommitted id is not present in the dropped registry.
+      const typename T::id_key_type key(uncommitted_object->id());
+      Cache_element<typename T::cache_partition_type> *element= NULL;
       m_registry_committed.get(key, &element);
       DBUG_ASSERT(element == nullptr);
 #endif
     }
 
-    // We must do this in two iterations to handle situations where two uncommitted
-    // objects swap names.
-    for (it= m_registry_uncommitted.begin<typename T::cache_partition_type>();
-         it != m_registry_uncommitted.end<typename T::cache_partition_type>();
-         it++)
+    // The modified objects are evicted from the cache above. On the next
+    // acquisition, this will lead to a cache miss, which will make sure
+    // that e.g. the de-normalized FK parent information is corrected.
+
+    // However, if this is a DD system thread, and we are initializing the
+    // DD, the changes must be made visible in the shared cache. Otherwise,
+    // adding the cyclic FKs for the character sets table will fail.
+    if (m_thd->is_dd_system_thread() &&
+        bootstrap::stage() < bootstrap::BOOTSTRAP_FINISHED)
     {
-      typename T::cache_partition_type* uncommitted_object=
-        const_cast<typename T::cache_partition_type*>(it->second->object());
-      DBUG_ASSERT(uncommitted_object != nullptr);
+      // We must do this in two iterations to handle situations where two uncommitted
+      // objects swap names.
+      for (it= m_registry_uncommitted.begin<typename T::cache_partition_type>();
+           it != m_registry_uncommitted.end<typename T::cache_partition_type>();
+           it++)
+      {
+        typename T::cache_partition_type* uncommitted_object=
+          const_cast<typename T::cache_partition_type*>(it->second->object());
+        DBUG_ASSERT(uncommitted_object != nullptr);
 
-      Cache_element<typename T::cache_partition_type> *element= NULL;
+        Cache_element<typename T::cache_partition_type> *element= NULL;
 
-      // In put, the reference counter is stepped up, so this is safe.
-      Shared_dictionary_cache::instance()->put(
-          static_cast<const typename T::cache_partition_type*>(
-            uncommitted_object->clone()), &element);
+        // In put, the reference counter is stepped up, so this is safe.
+        Shared_dictionary_cache::instance()->put(
+            static_cast<const typename T::cache_partition_type*>(
+              uncommitted_object->clone()), &element);
 
-      m_registry_committed.put(element);
-      // Sign up for auto release.
-      m_current_releaser->auto_release(element);
+        m_registry_committed.put(element);
+        // Sign up for auto release.
+        m_current_releaser->auto_release(element);
+      }
     }
   } // commit_to_shared_cache
   m_registry_uncommitted.erase<typename T::cache_partition_type>();

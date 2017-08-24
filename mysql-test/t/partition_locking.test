@@ -1442,7 +1442,7 @@ connection monitor;
 connection default;
 
 
-SHOW CREATE VIEW v1_25;
+SHOW CREATE VIEW v1_25_check;
 FLUSH STATUS;
 INSERT INTO v1_25_check VALUES (31, "Insert in v1_25_check");
 
@@ -1617,9 +1617,20 @@ BEGIN
 END|
 delimiter ;|
 
-
 CREATE PROCEDURE sp_select_range(x INT, y INT)
   SELECT * FROM test.t1 WHERE a between x and y;
+
+--echo # Warm-up data-dictionary cache.
+--disable_result_log
+--disable_query_log
+SHOW CREATE PROCEDURE sp_insert;
+SHOW CREATE PROCEDURE sp_insert_partition;
+SHOW CREATE PROCEDURE sp_select_all;
+SHOW CREATE PROCEDURE sp_select_exact;
+SHOW CREATE PROCEDURE sp_select_partition;
+SHOW CREATE PROCEDURE sp_select_range;
+--enable_query_log
+--enable_result_log
 
 FLUSH STATUS;
 CALL sp_insert(313,"Test313");

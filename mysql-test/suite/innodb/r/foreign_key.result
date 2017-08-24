@@ -121,19 +121,19 @@ INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
 SELECT unique_constraint_name FROM information_schema.referential_constraints
 WHERE table_name = 't2';
-unique_constraint_name
+UNIQUE_CONSTRAINT_NAME
 PRIMARY
 # restart
 SELECT unique_constraint_name FROM information_schema.referential_constraints
 WHERE table_name = 't2';
-unique_constraint_name
+UNIQUE_CONSTRAINT_NAME
 PRIMARY
 SELECT * FROM t1;
 c1
 1
 SELECT unique_constraint_name FROM information_schema.referential_constraints
 WHERE table_name = 't2';
-unique_constraint_name
+UNIQUE_CONSTRAINT_NAME
 PRIMARY
 DROP TABLE t2;
 DROP TABLE t1;

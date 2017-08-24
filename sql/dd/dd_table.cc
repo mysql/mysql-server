@@ -1252,30 +1252,9 @@ static bool fill_dd_foreign_keys_from_create_fields(dd::Table *tab_obj,
 
     fk_obj->set_name(key->name);
 
-    /*
-      TODO: The 'unique_constraint_id' field for Foreign_key is
-      supposed to contain the ID of the index in parent table.
-      However, until WL#6049 we don't have a safe way to keep this
-      field updated. For now, it contains the ID of the index
-      in the child table in order to make it a valid Foreign_key
-      object (unique_constraint_id is NOT NULL).
-      We also plan to make this field nullable or replace it with
-      'unique_constraint_name'.
-    */
-    DBUG_ASSERT(key->unique_index_name);
-    const dd::Index *matching_index= nullptr;
-    for (const dd::Index *index : *tab_obj->indexes())
-    {
-      if (my_strcasecmp(system_charset_info,
-                        index->name().c_str(),
-                        key->unique_index_name) == 0)
-      {
-        matching_index= index;
-        break;
-      }
-    }
-    DBUG_ASSERT(matching_index != nullptr);
-    fk_obj->set_unique_constraint(matching_index);
+    // Note: Setting "" is interpreted as NULL.
+    fk_obj->set_unique_constraint_name(key->unique_index_name ?
+                                       key->unique_index_name : "");
 
     switch (key->match_opt)
     {
@@ -1296,13 +1275,13 @@ static bool fill_dd_foreign_keys_from_create_fields(dd::Table *tab_obj,
 
     fk_obj->set_delete_rule(get_fk_rule(key->delete_opt));
 
-    fk_obj->referenced_table_catalog_name(
+    fk_obj->set_referenced_table_catalog_name(
       Dictionary_impl::instance()->default_catalog_name());
 
-    fk_obj->referenced_table_schema_name(dd::String_type(key->ref_db.str,
+    fk_obj->set_referenced_table_schema_name(dd::String_type(key->ref_db.str,
                                                      key->ref_db.length));
 
-    fk_obj->referenced_table_name(dd::String_type(key->ref_table.str,
+    fk_obj->set_referenced_table_name(dd::String_type(key->ref_table.str,
                                               key->ref_table.length));
 
     for (uint i= 0; i < key->key_parts; i++)

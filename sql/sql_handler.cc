@@ -976,6 +976,36 @@ void mysql_ha_flush_tables(THD *thd, TABLE_LIST *all_tables)
 
 
 /**
+  Close cursors on the table from the HANDLER's hash.
+
+  @param thd        Thread context.
+  @param db_name    Database name for the table.
+  @param table_name Table name.
+*/
+void mysql_ha_flush_table(THD *thd, const char *db_name, const char *table_name)
+{
+  DBUG_ENTER("mysql_ha_flush_table");
+
+  for (const auto &key_and_value : thd->handler_tables_hash)
+  {
+    TABLE_LIST *hash_tables= key_and_value.second.get();
+    if (! my_strcasecmp(&my_charset_latin1,
+                        hash_tables->get_db_name(),
+                        db_name) &&
+        ! my_strcasecmp(&my_charset_latin1,
+                        hash_tables->get_table_name(),
+                        table_name))
+    {
+      if (hash_tables->table)
+        mysql_ha_close_table(thd, hash_tables);
+    }
+  }
+
+  DBUG_VOID_RETURN;
+}
+
+
+/**
   Flush (close and mark for re-open) all tables that should be should
   be reopen.
 

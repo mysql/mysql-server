@@ -299,6 +299,22 @@ public:
   { return &m_foreign_keys; }
 
   /////////////////////////////////////////////////////////////////////////
+  // Foreign key parent collection.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual Foreign_key_parent *add_foreign_key_parent();
+
+private:
+  bool load_foreign_key_parents(Open_dictionary_tables_ctx *otx);
+
+public:
+  virtual bool reload_foreign_key_parents(THD *thd);
+
+  virtual const Foreign_key_parent_collection &foreign_key_parents() const
+  { return m_foreign_key_parents; }
+
+
+  /////////////////////////////////////////////////////////////////////////
   // Partition collection.
   /////////////////////////////////////////////////////////////////////////
 
@@ -452,6 +468,7 @@ private:
 
   Index_collection m_indexes;
   Foreign_key_collection m_foreign_keys;
+  Foreign_key_parent_collection m_foreign_key_parents;
   Partition_collection m_partitions;
   Partition_leaf_vector m_leaf_partitions;
   Trigger_collection m_triggers;

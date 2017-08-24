@@ -26,6 +26,7 @@ INSERT INTO t3 VALUES (1,1,1),(2,2,2),(3,3,3);
 --echo
 
 --enable_info
+--error ER_NOT_SUPPORTED_YET
 ALTER TABLE t1 CHANGE a e INT;
 
 --echo # Ensure that online column rename works.
@@ -46,6 +47,7 @@ ALTER TABLE t2 CHANGE b c INT;
 --echo # Test with self-referential constraints
 --echo
 
+--error ER_NOT_SUPPORTED_YET
 ALTER TABLE t3 CHANGE a f INT;
 
 ALTER TABLE t3 CHANGE b g INT;

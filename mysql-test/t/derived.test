@@ -586,6 +586,14 @@ DROP VIEW v1,v2,v3;
 CREATE VIEW v1 AS SELECT * FROM t1 GROUP BY f1;
 CREATE VIEW v2 AS SELECT * FROM t2 GROUP BY f2;
 CREATE VIEW v3 AS SELECT t1.f1,t1.f11 FROM t1 JOIN t1 AS t11 HAVING t1.f1<100;
+--echo ensure that view definitions are cached in the data-dictionary cache.
+--disable_result_log
+--disable_query_log
+SHOW CREATE VIEW v1;
+SHOW CREATE VIEW v2;
+SHOW CREATE VIEW v3;
+--enable_query_log
+--enable_result_log
 --echo  explain for simple derived
 EXPLAIN SELECT * FROM v1;
 SELECT * FROM v1;

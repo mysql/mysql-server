@@ -184,7 +184,7 @@ const innodb_dd_table_t innodb_dd_table[] = {
 	INNODB_DD_TABLE("indexes", 3),
 	INNODB_DD_TABLE("index_column_usage", 3),
 	INNODB_DD_TABLE("column_type_elements", 1),
-	INNODB_DD_TABLE("foreign_keys", 5),
+	INNODB_DD_TABLE("foreign_keys", 4),
 	INNODB_DD_TABLE("foreign_key_column_usage", 3),
 	INNODB_DD_TABLE("table_partitions", 6),
 	INNODB_DD_TABLE("table_partition_values", 1),

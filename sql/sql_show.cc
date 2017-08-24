@@ -4610,82 +4610,6 @@ static int fill_open_tables(THD *thd, TABLE_LIST *tables, Item*)
 }
 
 
-/*
-  Fill and store records into I_S.referential_constraints table
-
-  SYNOPSIS
-    get_referential_constraints_record()
-    thd                 thread handle
-    tables              table list struct(processed table)
-    table               I_S table
-    res                 1 means the error during opening of the processed table
-                        0 means processed table is opened without error
-    base_name           db name
-    file_name           table name
-
-  RETURN
-    0	ok
-    #   error
-*/
-
-static int
-get_referential_constraints_record(THD *thd, TABLE_LIST *tables,
-                                   TABLE *table, bool res,
-                                   LEX_STRING *db_name, LEX_STRING *table_name)
-{
-  CHARSET_INFO *cs= system_charset_info;
-  DBUG_ENTER("get_referential_constraints_record");
-
-  if (res)
-  {
-    if (thd->is_error())
-      push_warning(thd, Sql_condition::SL_WARNING,
-                   thd->get_stmt_da()->mysql_errno(),
-                   thd->get_stmt_da()->message_text());
-    thd->clear_error();
-    DBUG_RETURN(0);
-  }
-  if (!tables->is_view())
-  {
-    List<FOREIGN_KEY_INFO> f_key_list;
-    TABLE *show_table= tables->table;
-
-    show_table->file->get_foreign_key_list(thd, &f_key_list);
-    FOREIGN_KEY_INFO *f_key_info;
-    List_iterator_fast<FOREIGN_KEY_INFO> it(f_key_list);
-    while ((f_key_info= it++))
-    {
-      restore_record(table, s->default_values);
-      table->field[0]->store(STRING_WITH_LEN("def"), cs);
-      table->field[1]->store(db_name->str, db_name->length, cs);
-      table->field[9]->store(table_name->str, table_name->length, cs);
-      table->field[2]->store(f_key_info->foreign_id->str,
-                             f_key_info->foreign_id->length, cs);
-      table->field[3]->store(STRING_WITH_LEN("def"), cs);
-      table->field[4]->store(f_key_info->referenced_db->str, 
-                             f_key_info->referenced_db->length, cs);
-      table->field[10]->store(f_key_info->referenced_table->str, 
-                             f_key_info->referenced_table->length, cs);
-      if (f_key_info->referenced_key_name)
-      {
-        table->field[5]->store(f_key_info->referenced_key_name->str, 
-                               f_key_info->referenced_key_name->length, cs);
-        table->field[5]->set_notnull();
-      }
-      else
-        table->field[5]->set_null();
-      table->field[6]->store(STRING_WITH_LEN("NONE"), cs);
-      table->field[7]->store(f_key_info->update_method->str, 
-                             f_key_info->update_method->length, cs);
-      table->field[8]->store(f_key_info->delete_method->str, 
-                             f_key_info->delete_method->length, cs);
-      if (schema_table_store_record(thd, table))
-        DBUG_RETURN(1);
-    }
-  }
-  DBUG_RETURN(0);
-}
-
 struct schema_table_ref 
 {
   const char *table_name;
@@ -5543,29 +5467,6 @@ ST_FIELD_INFO plugin_fields_info[]=
 };
 
 
-ST_FIELD_INFO referential_constraints_fields_info[]=
-{
-  {"CONSTRAINT_CATALOG", FN_REFLEN, MYSQL_TYPE_STRING, 0, 0, 0, OPEN_FULL_TABLE},
-  {"CONSTRAINT_SCHEMA", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0,
-   OPEN_FULL_TABLE},
-  {"CONSTRAINT_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0,
-   OPEN_FULL_TABLE},
-  {"UNIQUE_CONSTRAINT_CATALOG", FN_REFLEN, MYSQL_TYPE_STRING, 0, 0, 0,
-   OPEN_FULL_TABLE},
-  {"UNIQUE_CONSTRAINT_SCHEMA", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0,
-   OPEN_FULL_TABLE},
-  {"UNIQUE_CONSTRAINT_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0,
-   MY_I_S_MAYBE_NULL, 0, OPEN_FULL_TABLE},
-  {"MATCH_OPTION", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0, OPEN_FULL_TABLE},
-  {"UPDATE_RULE", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0, OPEN_FULL_TABLE},
-  {"DELETE_RULE", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0, OPEN_FULL_TABLE},
-  {"TABLE_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0, OPEN_FULL_TABLE},
-  {"REFERENCED_TABLE_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0,
-   OPEN_FULL_TABLE},
-  {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
-};
-
-
 ST_FIELD_INFO tablespaces_fields_info[]=
 {
   {"TABLESPACE_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0,
@@ -5642,9 +5543,6 @@ ST_SCHEMA_TABLE schema_tables[]=
   {"PROFILING", query_profile_statistics_info, create_schema_table,
     fill_query_profile_statistics_info, make_profile_table_for_show, 
     NULL, -1, -1, false, 0},
-  {"REFERENTIAL_CONSTRAINTS", referential_constraints_fields_info,
-   create_schema_table, get_all_tables, 0, get_referential_constraints_record,
-   1, 9, 0, OPTIMIZE_I_S_TABLE|OPEN_TABLE_ONLY},
   {"SCHEMA_PRIVILEGES", schema_privileges_fields_info, create_schema_table,
    fill_schema_schema_privileges, 0, 0, -1, -1, 0, 0},
   {"TABLESPACES", tablespaces_fields_info, create_schema_table,
