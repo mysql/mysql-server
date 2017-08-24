@@ -17,7 +17,7 @@
 #include <stddef.h>
 
 #include "sql/item_cmpfunc.h"
-#include "test_utils.h"
+#include "unittest/gunit/test_utils.h"
 
 namespace item_func_case_unittest {
 

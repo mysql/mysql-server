@@ -27,14 +27,14 @@
 
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "pfs_instr.h"
-#include "pfs_instr_class.h"
 #include "sql/rpl_info.h"
 #include "sql/rpl_mi.h"
 #include "sql/rpl_msr.h" /*Multi source replication */
 #include "sql/rpl_rli.h"
 #include "sql/rpl_slave.h"
 #include "sql/sql_parse.h"
+#include "storage/perfschema/pfs_instr.h"
+#include "storage/perfschema/pfs_instr_class.h"
 
 THR_LOCK table_replication_applier_status::m_table_lock;
 

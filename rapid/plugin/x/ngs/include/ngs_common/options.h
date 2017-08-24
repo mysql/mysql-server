@@ -22,7 +22,8 @@
 
 #include <string>
 #include <vector>
-#include "ngs_common/smart_ptr.h"
+
+#include "plugin/x/ngs/include/ngs_common/smart_ptr.h"
 
 
 namespace ngs

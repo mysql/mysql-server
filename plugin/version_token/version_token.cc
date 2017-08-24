@@ -13,8 +13,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <errmsg.h>
-#include <m_string.h>
 #include <mysql/components/my_service.h>
 #include <mysql/components/services/dynamic_privilege.h>
 #include <mysql/plugin_audit.h>
@@ -29,7 +27,9 @@
 #include <utility>
 #include <vector>
 
+#include "errmsg.h"
 #include "lex_string.h"
+#include "m_string.h"
 #include "map_helpers.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -160,12 +160,12 @@ PSI_rwlock_key key_LOCK_vtoken_hash;
 
 static PSI_rwlock_info all_vtoken_rwlocks[]=
 {
-  {&key_LOCK_vtoken_hash, "LOCK_vtoken_hash", 0},
+  {&key_LOCK_vtoken_hash, "LOCK_vtoken_hash", 0, 0, PSI_DOCUMENT_ME},
 };
 
 static PSI_memory_info all_vtoken_memory[]=
 {
-  {&key_memory_vtoken, "vtoken", 0}
+  {&key_memory_vtoken, "vtoken", 0, 0, PSI_DOCUMENT_ME}
 };
 
 // Function to register the lock

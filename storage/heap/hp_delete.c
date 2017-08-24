@@ -18,9 +18,9 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "heapdef.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "storage/heap/heapdef.h"
 
 int heap_delete(HP_INFO *info, const uchar *record)
 {

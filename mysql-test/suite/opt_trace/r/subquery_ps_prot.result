@@ -1424,6 +1424,9 @@ field4,field5,field6	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 3,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 3,
                       "cost": 0.8085,
@@ -1452,6 +1455,9 @@ field4,field5,field6	{
                         },
                         {
                           "rows_to_scan": 3,
+                          "filtering_effect": [
+                          ] /* filtering_effect */,
+                          "final_filtering_effect": 1,
                           "access_type": "scan",
                           "using_join_cache": true,
                           "buffers_needed": 1,
@@ -1483,6 +1489,9 @@ field4,field5,field6	{
                     },
                     {
                       "rows_to_scan": 3,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 3,
                       "cost": 0.8085,
@@ -1848,6 +1857,9 @@ table2.`col_int_nokey` <> any ( select 5 from t2 ) ) and table1.`pk` in
                     },
                     {
                       "rows_to_scan": 2,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "range",
                       "range_details": {
                         "used_index": "PRIMARY"
@@ -1878,6 +1890,9 @@ table2.`col_int_nokey` <> any ( select 5 from t2 ) ) and table1.`pk` in
                         },
                         {
                           "rows_to_scan": 2,
+                          "filtering_effect": [
+                          ] /* filtering_effect */,
+                          "final_filtering_effect": 1,
                           "access_type": "scan",
                           "using_join_cache": true,
                           "buffers_needed": 1,
@@ -2218,6 +2233,9 @@ show_json_object('"recalculate_access_paths_and_cost": {', TRACE)
                                   },
                                   {
                                     "rows_to_scan": 100,
+                                    "filtering_effect": [
+                                    ] /* filtering_effect */,
+                                    "final_filtering_effect": 1,
                                     "access_type": "scan",
                                     "resulting_rows": 100,
                                     "cost": 12.996,
@@ -2245,6 +2263,9 @@ show_json_object('"recalculate_access_paths_and_cost": {', TRACE)
                                 "considered_access_paths": [
                                   {
                                     "rows_to_scan": 100,
+                                    "filtering_effect": [
+                                    ] /* filtering_effect */,
+                                    "final_filtering_effect": 0.1,
                                     "access_type": "scan",
                                     "using_join_cache": true,
                                     "buffers_needed": 1,
@@ -2302,6 +2323,9 @@ show_json_object('"recalculate_access_paths_and_cost": {', TRACE)
                                       },
                                       {
                                         "rows_to_scan": 100,
+                                        "filtering_effect": [
+                                        ] /* filtering_effect */,
+                                        "final_filtering_effect": 1,
                                         "access_type": "scan",
                                         "resulting_rows": 100,
                                         "cost": 1299.6,
@@ -2329,6 +2353,9 @@ show_json_object('"recalculate_access_paths_and_cost": {', TRACE)
                                     "considered_access_paths": [
                                       {
                                         "rows_to_scan": 100,
+                                        "filtering_effect": [
+                                        ] /* filtering_effect */,
+                                        "final_filtering_effect": 1,
                                         "access_type": "scan",
                                         "using_join_cache": true,
                                         "buffers_needed": 16,
@@ -2364,6 +2391,9 @@ show_json_object('"considered_execution_plans": [', TRACE)
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 100,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 100,
                       "cost": 12.996,
@@ -2386,6 +2416,9 @@ show_json_object('"considered_execution_plans": [', TRACE)
                       "considered_access_paths": [
                         {
                           "rows_to_scan": 100,
+                          "filtering_effect": [
+                          ] /* filtering_effect */,
+                          "final_filtering_effect": 1,
                           "access_type": "scan",
                           "using_join_cache": true,
                           "buffers_needed": 1,
@@ -2418,6 +2451,9 @@ show_json_object('"considered_execution_plans": [', TRACE)
                             },
                             {
                               "rows_to_scan": 100,
+                              "filtering_effect": [
+                              ] /* filtering_effect */,
+                              "final_filtering_effect": 1,
                               "access_type": "scan",
                               "using_join_cache": true,
                               "buffers_needed": 32,
@@ -2458,6 +2494,9 @@ show_json_object('"considered_execution_plans": [', TRACE)
                         },
                         {
                           "rows_to_scan": 100,
+                          "filtering_effect": [
+                          ] /* filtering_effect */,
+                          "final_filtering_effect": 1,
                           "access_type": "scan",
                           "using_join_cache": true,
                           "buffers_needed": 1,
@@ -2483,6 +2522,9 @@ show_json_object('"considered_execution_plans": [', TRACE)
                           "considered_access_paths": [
                             {
                               "rows_to_scan": 100,
+                              "filtering_effect": [
+                              ] /* filtering_effect */,
+                              "final_filtering_effect": 1,
                               "access_type": "scan",
                               "using_join_cache": true,
                               "buffers_needed": 16,
@@ -2512,6 +2554,9 @@ show_json_object('"considered_execution_plans": [', TRACE)
                                       },
                                       {
                                         "rows_to_scan": 100,
+                                        "filtering_effect": [
+                                        ] /* filtering_effect */,
+                                        "final_filtering_effect": 1,
                                         "access_type": "scan",
                                         "resulting_rows": 100,
                                         "cost": 1299.6,
@@ -2539,6 +2584,9 @@ show_json_object('"considered_execution_plans": [', TRACE)
                                     "considered_access_paths": [
                                       {
                                         "rows_to_scan": 100,
+                                        "filtering_effect": [
+                                        ] /* filtering_effect */,
+                                        "final_filtering_effect": 1,
                                         "access_type": "scan",
                                         "using_join_cache": true,
                                         "buffers_needed": 16,
@@ -2578,6 +2626,9 @@ show_json_object('"considered_execution_plans": [', TRACE)
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 100,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 100,
                       "cost": 12.996,
@@ -2600,6 +2651,9 @@ show_json_object('"considered_execution_plans": [', TRACE)
                       "considered_access_paths": [
                         {
                           "rows_to_scan": 100,
+                          "filtering_effect": [
+                          ] /* filtering_effect */,
+                          "final_filtering_effect": 1,
                           "access_type": "scan",
                           "using_join_cache": true,
                           "buffers_needed": 1,
@@ -2632,6 +2686,9 @@ show_json_object('"considered_execution_plans": [', TRACE)
                             },
                             {
                               "rows_to_scan": 100,
+                              "filtering_effect": [
+                              ] /* filtering_effect */,
+                              "final_filtering_effect": 1,
                               "access_type": "scan",
                               "using_join_cache": true,
                               "buffers_needed": 32,
@@ -2674,6 +2731,9 @@ show_json_object('"considered_execution_plans": [', TRACE)
                         },
                         {
                           "rows_to_scan": 100,
+                          "filtering_effect": [
+                          ] /* filtering_effect */,
+                          "final_filtering_effect": 1,
                           "access_type": "scan",
                           "using_join_cache": true,
                           "buffers_needed": 1,
@@ -2699,6 +2759,9 @@ show_json_object('"considered_execution_plans": [', TRACE)
                           "considered_access_paths": [
                             {
                               "rows_to_scan": 100,
+                              "filtering_effect": [
+                              ] /* filtering_effect */,
+                              "final_filtering_effect": 1,
                               "access_type": "scan",
                               "using_join_cache": true,
                               "buffers_needed": 1,
@@ -2729,6 +2792,9 @@ show_json_object('"considered_execution_plans": [', TRACE)
                                       },
                                       {
                                         "rows_to_scan": 100,
+                                        "filtering_effect": [
+                                        ] /* filtering_effect */,
+                                        "final_filtering_effect": 1,
                                         "access_type": "scan",
                                         "resulting_rows": 100,
                                         "cost": 1299.6,
@@ -2780,6 +2846,9 @@ show_json_object('"considered_execution_plans": [', TRACE)
                     },
                     {
                       "rows_to_scan": 100,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 100,
                       "cost": 12.996,
@@ -2802,6 +2871,9 @@ show_json_object('"considered_execution_plans": [', TRACE)
                       "considered_access_paths": [
                         {
                           "rows_to_scan": 100,
+                          "filtering_effect": [
+                          ] /* filtering_effect */,
+                          "final_filtering_effect": 1,
                           "access_type": "scan",
                           "using_join_cache": true,
                           "buffers_needed": 1,
@@ -2827,6 +2899,9 @@ show_json_object('"considered_execution_plans": [', TRACE)
                           "considered_access_paths": [
                             {
                               "rows_to_scan": 100,
+                              "filtering_effect": [
+                              ] /* filtering_effect */,
+                              "final_filtering_effect": 1,
                               "access_type": "scan",
                               "using_join_cache": true,
                               "buffers_needed": 16,
@@ -2856,6 +2931,9 @@ show_json_object('"considered_execution_plans": [', TRACE)
                                       },
                                       {
                                         "rows_to_scan": 100,
+                                        "filtering_effect": [
+                                        ] /* filtering_effect */,
+                                        "final_filtering_effect": 1,
                                         "access_type": "scan",
                                         "resulting_rows": 100,
                                         "cost": 12.996,
@@ -2899,6 +2977,9 @@ show_json_object('"considered_execution_plans": [', TRACE)
                       "considered_access_paths": [
                         {
                           "rows_to_scan": 100,
+                          "filtering_effect": [
+                          ] /* filtering_effect */,
+                          "final_filtering_effect": 1,
                           "access_type": "scan",
                           "using_join_cache": true,
                           "buffers_needed": 1,
@@ -2924,6 +3005,9 @@ show_json_object('"considered_execution_plans": [', TRACE)
                           "considered_access_paths": [
                             {
                               "rows_to_scan": 100,
+                              "filtering_effect": [
+                              ] /* filtering_effect */,
+                              "final_filtering_effect": 1,
                               "access_type": "scan",
                               "using_join_cache": true,
                               "buffers_needed": 1,
@@ -2953,6 +3037,9 @@ show_json_object('"considered_execution_plans": [', TRACE)
                                       },
                                       {
                                         "rows_to_scan": 100,
+                                        "filtering_effect": [
+                                        ] /* filtering_effect */,
+                                        "final_filtering_effect": 1,
                                         "access_type": "scan",
                                         "resulting_rows": 100,
                                         "cost": 12.996,
@@ -3006,6 +3093,9 @@ show_json_object('"considered_execution_plans": [', TRACE)
                           },
                           {
                             "rows_to_scan": 100,
+                            "filtering_effect": [
+                            ] /* filtering_effect */,
+                            "final_filtering_effect": 1,
                             "access_type": "scan",
                             "resulting_rows": 100,
                             "cost": 1299.6,
@@ -3033,6 +3123,9 @@ show_json_object('"considered_execution_plans": [', TRACE)
                         "considered_access_paths": [
                           {
                             "rows_to_scan": 100,
+                            "filtering_effect": [
+                            ] /* filtering_effect */,
+                            "final_filtering_effect": 1,
                             "access_type": "scan",
                             "using_join_cache": true,
                             "buffers_needed": 32,

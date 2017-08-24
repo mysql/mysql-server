@@ -1324,7 +1324,7 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
     inited==0 does not imply that they already are empty.
 
     It could be that slave's info initialization partly succeeded: for example
-    if relay-log.info existed but *relay-bin*.* have been manually removed,
+    if relay-log.info existed but all relay logs have been manually removed,
     init_info reads the old relay-log.info and fills rli->master_log_*, then
     init_info checks for the existence of the relay log, this fails and 
     init_info leaves inited to 0.
@@ -1350,8 +1350,9 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
     DBUG_PRINT("info", ("inited == 0"));
     if (error_on_rli_init_info)
     {
-      ln_without_channel_name= relay_log.generate_name(opt_relay_logname,
-                                                       "-relay-bin", buffer);
+      DBUG_ASSERT(relay_log.is_relay_log);
+      ln_without_channel_name= relay_log.generate_name(opt_relay_logname, "",
+                                                       buffer);
 
       ln= add_channel_to_relay_log_name(relay_bin_channel, FN_REFLEN,
                                         ln_without_channel_name);
@@ -1463,19 +1464,6 @@ err:
   DBUG_RETURN(error);
 }
 
-/*
-   When --relay-bin option is not provided, the names of the
-   relay log files are host-relay-bin.0000x or
-   host-relay-bin-CHANNEL.00000x in the case of MSR.
-   However, if that option is provided, then the names of the
-   relay log files are <relay-bin-option>.0000x or
-   <relay-bin-option>-CHANNEL.00000x in the case of MSR.
-
-   The function adds a channel suffix (according to the channel to file name
-   conventions and conversions) to the relay log file.
-
-   @todo: truncate the log file if length exceeds.
-*/
 
 const char*
 Relay_log_info::add_channel_to_relay_log_name(char *buff, uint buff_size,
@@ -1935,7 +1923,6 @@ int Relay_log_info::rli_init_info()
       --relay-log option.
     */
     const char *ln_without_channel_name;
-    static bool name_warning_sent= 0;
 
     /*
       Buffer to add channel name suffix when relay-log option is provided.
@@ -1950,28 +1937,12 @@ int Relay_log_info::rli_init_info()
     const char* log_index_name;
 
 
-    ln_without_channel_name= relay_log.generate_name(opt_relay_logname,
-                                "-relay-bin", buf);
+    relay_log.is_relay_log= true;
+    ln_without_channel_name= relay_log.generate_name(opt_relay_logname, "",
+                                                     buf);
 
     ln= add_channel_to_relay_log_name(relay_bin_channel, FN_REFLEN,
                                       ln_without_channel_name);
-
-    /* We send the warning only at startup, not after every RESET SLAVE */
-    if (!opt_relay_logname && !opt_relaylog_index_name && !name_warning_sent)
-    {
-      /*
-        User didn't give us info to name the relay log index file.
-        Picking `hostname`-relay-bin.index like we do, causes replication to
-        fail if this slave's hostname is changed later. So, we would like to
-        instead require a name. But as we don't want to break many existing
-        setups, we only give warning, not error.
-      */
-      LogErr(WARNING_LEVEL, ER_RPL_PLEASE_USE_OPTION_RELAY_LOG,
-             ln_without_channel_name);
-      name_warning_sent= 1;
-    }
-
-    relay_log.is_relay_log= TRUE;
 
     /*
        If relay log index option is set, convert into channel specific

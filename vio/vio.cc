@@ -31,7 +31,7 @@
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/psi_memory.h"  // IWYU pragma: keep
 #include "mysql/service_mysql_alloc.h"
-#include "vio_priv.h"
+#include "vio/vio_priv.h"
 
 #ifdef HAVE_OPENSSL
 PSI_memory_key key_memory_vio_ssl_fd;

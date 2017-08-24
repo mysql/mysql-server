@@ -21,17 +21,17 @@
 #ifndef XCOM_STANDALONE
 #include "my_compiler.h"
 #endif
-#include "simset.h"
-#include "task_arg.h"
-#include "x_platform.h"
-#include "xcom_common.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/simset.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_arg.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_common.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include "node_connection.h"
-#include "result.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_connection.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/result.h"
 
 /** \file
         Rudimentary task system in portable C, based on Tom Duff's switch-based

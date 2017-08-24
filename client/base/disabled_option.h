@@ -18,9 +18,8 @@
 #ifndef DISABLED_OPTION_INCLUDED
 #define DISABLED_OPTION_INCLUDED
 
-#include <my_getopt.h>
-
 #include "client/base/abstract_option.h"
+#include "my_getopt.h"
 
 namespace Mysql{
 namespace Tools{

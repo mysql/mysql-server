@@ -26,10 +26,11 @@
 #include "my_sys.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "shared_dictionary_cache.h"         // get(), release(), ...
 #include "sql/dd/cache/multi_map_base.h"
 #include "sql/dd/dd_schema.h"                // dd::Schema_MDL_locker
 #include "sql/dd/impl/bootstrapper.h"        // bootstrap_stage
+#include "sql/dd/impl/cache/shared_dictionary_cache.h" // get(), release(), ...
+#include "sql/dd/impl/cache/storage_adapter.h" // store(), drop(), ...
 #include "sql/dd/impl/dictionary_impl.h"
 #include "sql/dd/impl/object_key.h"
 #include "sql/dd/impl/raw/object_keys.h"     // Primary_id_key, ...
@@ -65,6 +66,7 @@
 #include "sql/dd/types/function.h"           // Function
 #include "sql/dd/types/index_stat.h"         // Index_stat
 #include "sql/dd/types/procedure.h"          // Procedure
+#include "sql/dd/types/resource_group.h"     // Resource_group
 #include "sql/dd/types/routine.h"
 #include "sql/dd/types/schema.h"             // Schema
 #include "sql/dd/types/spatial_reference_system.h" // Spatial_reference_system
@@ -82,7 +84,7 @@
 #include "sql/sql_class.h"                   // THD
 #include "sql/sql_plugin_ref.h"
 #include "sql/table.h"
-#include "storage_adapter.h"                 // store(), drop(), ...
+#include "sql/tztime.h"                      // Time_zone, my_tz_OFFSET0
 
 namespace {
 
@@ -595,6 +597,68 @@ public:
     return is_read_locked(thd, routine);
   }
 #endif // EXTRA_DD_DEBUG
+
+
+  /**
+    Private helper function for asserting MDL for resource groups.
+
+    @param   thd              THD context.
+    @param   resource_group   DD Resource group object.
+    @param   lock_type        Weakest lock type accepted.
+
+    @return  true             if we have the required lock, otherwise false.
+  */
+
+  static bool is_locked(THD *thd, const dd::Resource_group *resource_group,
+                        enum_mdl_type lock_type)
+  {
+    if (resource_group == nullptr)
+      return true;
+
+    char lc_name[NAME_CHAR_LEN + 1];
+    my_stpcpy(lc_name, resource_group->name().c_str());
+    lc_name[NAME_CHAR_LEN]= '\0';
+    my_casedn_str(system_charset_info, lc_name);
+
+    return thd->mdl_context.owns_equal_or_stronger_lock(
+      MDL_key::RESOURCE_GROUPS, "", lc_name, lock_type);
+  }
+
+
+  /**
+    Check whether a resource group object holds at least MDL_INTENTION_EXCLUSIVE.
+    IX is acquired when a resource group is being accessed when creating/altering
+    a resource group.
+
+    @param   thd                   THD context.
+    @param   resource_group        Pointer to DD resource group object.
+
+    @return  true if required lock is held else false
+  */
+
+  static bool is_read_locked(THD *thd, const dd::Resource_group *resource_group)
+  {
+    return thd->is_dd_system_thread() ||
+      is_locked(thd, resource_group, MDL_INTENTION_EXCLUSIVE);
+  }
+
+
+  /**
+    Check if MDL_EXCLUSIVE lock is held by DD Resource group object.
+    Writing a resource group object should be governed by MDL_EXCLUSIVE.
+
+    @param    thd                 THD context
+    @param    resource_group      Pointer to DD resource group object.
+
+    @return   true if required lock is held else false.
+  */
+
+  static bool is_write_locked(THD *thd, const dd::Resource_group *resource_group)
+  {
+    return thd->is_dd_system_thread() ||
+      is_locked(thd, resource_group, MDL_EXCLUSIVE);
+  }
+
 };
 
 // Check if the component is hidden.
@@ -677,6 +741,7 @@ Dictionary_client::Auto_releaser::~Auto_releaser()
   m_client->release<Event>(&m_release_registry);
   m_client->release<Routine>(&m_release_registry);
   m_client->release<Spatial_reference_system>(&m_release_registry);
+  m_client->release<Resource_group>(&m_release_registry);
 
   // Restore the client's previous releaser.
   m_client->m_current_releaser= m_prev;
@@ -717,6 +782,39 @@ void Dictionary_client::Auto_releaser::dump() const
 }
 
 
+/**
+  Class to fetch dd::Objects with GMT time.
+
+  When dictionary object is fetched to create  dd::Objects, the timestamp
+  data should be according to GMT and independent of time_zone. Time_zone
+  data should be added to time column before using the data.
+
+  Any timestamp column in dictionary should implement the data retrieval
+  function to return GMT data to dictionary framework but consider time_zone
+  when returning data to server.
+*/
+
+
+class Timestamp_timezone_guard
+{
+public:
+  Timestamp_timezone_guard(THD *thd) : m_thd(thd)
+  {
+    m_tz= m_thd->variables.time_zone;
+    m_thd->variables.time_zone= my_tz_OFFSET0;
+  }
+
+  ~Timestamp_timezone_guard()
+  {
+    m_thd->variables.time_zone= m_tz;
+  }
+
+private:
+  ::Time_zone *m_tz;
+  THD *m_thd;
+};
+
+
 // Get a dictionary object.
 template <typename K, typename T>
 bool Dictionary_client::acquire(const K &key, const T **object,
@@ -727,6 +825,8 @@ bool Dictionary_client::acquire(const K &key, const T **object,
   DBUG_ASSERT(local_uncommitted);
   *object= NULL;
 
+  // Cache dictionary objects with UTC time
+  Timestamp_timezone_guard ts(m_thd);
   DBUG_EXECUTE_IF("fail_while_acquiring_dd_object",
   {
     my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
@@ -924,6 +1024,7 @@ size_t Dictionary_client::release(Object_registry *registry)
           release<Charset>(registry) +
           release<Collation>(registry) +
           release<Event>(registry) +
+          release<Resource_group>(registry) +
           release<Routine>(registry) +
           release<Spatial_reference_system>(registry) +
           release<Column_statistics>(registry);
@@ -984,6 +1085,8 @@ bool Dictionary_client::acquire(Object_id id, const T** object)
 
   // We must be sure the object is released correctly if dynamic cast fails.
   Auto_releaser releaser(this);
+  // Cache dictionary objects with UTC time
+  Timestamp_timezone_guard ts(m_thd);
 
   bool local_committed= false;
   bool local_uncommitted= false;
@@ -1016,6 +1119,8 @@ bool Dictionary_client::acquire_for_modification(Object_id id, T** object)
 
   // We must be sure the object is released correctly if dynamic cast fails.
   Auto_releaser releaser(this);
+  // Cache dictionary objects with UTC time
+  Timestamp_timezone_guard ts(m_thd);
 
   bool local_committed= false;
   bool local_uncommitted= false;
@@ -1151,6 +1256,8 @@ bool Dictionary_client::acquire(const String_type &object_name,
 
   // We must be sure the object is released correctly if dynamic cast fails.
   Auto_releaser releaser(this);
+  // Cache dictionary objects with UTC time
+  Timestamp_timezone_guard ts(m_thd);
   const typename T::cache_partition_type *cached_object= NULL;
 
   bool local_committed= false;
@@ -1191,6 +1298,8 @@ bool Dictionary_client::acquire_for_modification(const String_type &object_name,
 
   // We must be sure the object is released correctly if dynamic cast fails.
   Auto_releaser releaser(this);
+  // Cache dictionary objects with UTC time
+  Timestamp_timezone_guard ts(m_thd);
   const typename T::cache_partition_type *cached_object= NULL;
 
   bool local_committed= false;
@@ -1257,6 +1366,8 @@ bool Dictionary_client::acquire(const String_type &schema_name,
 
   // Acquire the dictionary object.
   const typename T::cache_partition_type *cached_object= NULL;
+  // Cache dictionary objects with UTC time
+  Timestamp_timezone_guard ts(m_thd);
 
   bool local_committed= false;
   bool local_uncommitted= false;
@@ -1315,6 +1426,8 @@ bool Dictionary_client::acquire_for_modification(const String_type &schema_name,
 
   // Acquire the dictionary object.
   const typename T::cache_partition_type *cached_object= NULL;
+  // Cache dictionary objects with UTC time
+  Timestamp_timezone_guard ts(m_thd);
 
   bool local_committed= false;
   bool local_uncommitted= false;
@@ -1378,6 +1491,8 @@ bool Dictionary_client::acquire(const String_type &schema_name,
   // Create the name key for the object.
   typename T::name_key_type key;
   T::update_name_key(&key, schema->id(), object_name);
+  // Cache dictionary objects with UTC time
+  Timestamp_timezone_guard ts(m_thd);
 
   // Acquire the dictionary object.
   bool local_committed= false;
@@ -1430,6 +1545,8 @@ bool Dictionary_client::acquire_for_modification(const String_type &schema_name,
   // Create the name key for the object.
   typename T::name_key_type key;
   T::update_name_key(&key, schema->id(), object_name);
+  // Cache dictionary objects with UTC time
+  Timestamp_timezone_guard ts(m_thd);
 
   // Acquire the dictionary object.
   const typename T::cache_partition_type *cached_object= NULL;
@@ -2242,6 +2359,9 @@ bool Dictionary_client::store(T* object)
   DBUG_ASSERT(!element);
 #endif
 
+  // Store dictionary objects with UTC time
+  Timestamp_timezone_guard ts(m_thd);
+
   // Make sure the object has an invalid object id.
   DBUG_ASSERT(object->id() == INVALID_OBJECT_ID);
 
@@ -2258,12 +2378,19 @@ bool Dictionary_client::store(T* object)
 // Store a new dictionary object.
 template <>
 bool Dictionary_client::store(Table_stat* object)
-{ return Storage_adapter::store<Table_stat>(m_thd, object); }
+{
+  // Store dictionary objects with UTC time
+  Timestamp_timezone_guard ts(m_thd);
+  return Storage_adapter::store<Table_stat>(m_thd, object);
+}
 
 template <>
 bool Dictionary_client::store(Index_stat* object)
-{ return Storage_adapter::store<Index_stat>(m_thd, object); }
-
+{
+  // Store dictionary objects with UTC time
+  Timestamp_timezone_guard ts(m_thd);
+  return Storage_adapter::store<Index_stat>(m_thd, object);
+}
 
 // Update a persisted dictionary object, but keep the shared cache unchanged.
 template <typename T>
@@ -2283,6 +2410,9 @@ bool Dictionary_client::update(T* new_object)
     &element);
   DBUG_ASSERT(!element);
 #endif
+
+  // Store dictionary objects with UTC time
+  Timestamp_timezone_guard ts(m_thd);
 
   // new_object->id() may or may not be reflected in the uncommitted registry.
   const typename T::id_key_type id_key(new_object->id());
@@ -2596,6 +2726,7 @@ void Dictionary_client::rollback_modified_objects()
   remove_uncommitted_objects<Event>(false);
   remove_uncommitted_objects<Routine>(false);
   remove_uncommitted_objects<Spatial_reference_system>(false);
+  remove_uncommitted_objects<Resource_group>(false);
 }
 
 
@@ -2610,6 +2741,7 @@ void Dictionary_client::commit_modified_objects()
   remove_uncommitted_objects<Event>(true);
   remove_uncommitted_objects<Routine>(true);
   remove_uncommitted_objects<Spatial_reference_system>(true);
+  remove_uncommitted_objects<Resource_group>(true);
 }
 
 
@@ -2687,6 +2819,9 @@ template bool Dictionary_client::fetch_global_components(
 
 template bool Dictionary_client::fetch_global_components(
     std::vector<const Table*>*) const;
+
+template bool Dictionary_client::fetch_global_components(
+    std::vector<const Resource_group*>*) const;
 
 template bool Dictionary_client::fetch_schema_component_names<Abstract_table>(
     const Schema*,
@@ -2917,6 +3052,14 @@ template bool Dictionary_client::acquire_uncached(Object_id,
                                                   Routine**);
 template bool Dictionary_client::acquire_for_modification(Object_id,
                                                           Routine**);
+template bool Dictionary_client::acquire(const String_type&,
+                                         const Resource_group**);
+template bool Dictionary_client::acquire_for_modification(const String_type&,
+                                                          Resource_group**);
+template bool Dictionary_client::drop(const Resource_group*);
+template bool Dictionary_client::store(Resource_group*);
+template void Dictionary_client::remove_uncommitted_objects<Resource_group>(bool);
+template bool Dictionary_client::update(Resource_group*);
 /**
  @endcond
 */

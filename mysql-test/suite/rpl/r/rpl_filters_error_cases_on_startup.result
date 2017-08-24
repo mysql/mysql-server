@@ -6,7 +6,7 @@ Occurrences of 'Could not add do table rule ''!' in the input file: 1
 Occurrences of 'Could not add ignore table rule ''!' in the input file: 1
 Occurrences of 'Could not add wild do table rule ''!' in the input file: 1
 Occurrences of 'Could not add wild ignore table rule ''!' in the input file: 1
-Occurrences of '\[ERROR\] Aborting' in the input file: 4
+Occurrences of '\[ERROR\] \[[^]]*\] Aborting' in the input file: 4
 #
 # 2. Test per channel replicate-do-table, replicate-ignore-table,
 #    replicate-wild-do-table, replicate-wild-ignore-table filter rules.
@@ -15,19 +15,19 @@ Occurrences of 'Could not add do table rule ''!' in the input file: 1
 Occurrences of 'Could not add ignore table rule ''!' in the input file: 1
 Occurrences of 'Could not add wild do table rule ''!' in the input file: 1
 Occurrences of 'Could not add wild ignore table rule ''!' in the input file: 1
-Occurrences of '\[ERROR\] Aborting' in the input file: 4
+Occurrences of '\[ERROR\] \[[^]]*\] Aborting' in the input file: 4
 #
 # 3. Test global replicate-rewrite-db rule.
 #
 Occurrences of 'Bad syntax in replicate-rewrite-db - missing '->'!' in the input file: 1
 Occurrences of 'Bad syntax in replicate-rewrite-db - empty FROM db!' in the input file: 1
 Occurrences of 'Bad syntax in replicate-rewrite-db - empty TO db!' in the input file: 1
-Occurrences of '\[ERROR\] Aborting' in the input file: 3
+Occurrences of '\[ERROR\] \[[^]]*\] Aborting' in the input file: 3
 #
 # 4. Test per channel replicate-rewrite-db rule.
 #
 Occurrences of 'Bad syntax in replicate-rewrite-db - missing '->'!' in the input file: 1
 Occurrences of 'Bad syntax in replicate-rewrite-db - empty FROM db!' in the input file: 1
 Occurrences of 'Bad syntax in replicate-rewrite-db - empty TO db!' in the input file: 1
-Occurrences of '\[ERROR\] Aborting' in the input file: 3
+Occurrences of '\[ERROR\] \[[^]]*\] Aborting' in the input file: 3
 # restart

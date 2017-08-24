@@ -19,8 +19,6 @@
 #include <stdio.h>
 #include <vector>                            // std::vector
 
-#include "cache_element.h"                   // Cache_element
-#include "free_list.h"                       // Free_list
 #include "my_psi_config.h"
 #include "mysql/components/services/mysql_cond_bits.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
@@ -31,6 +29,8 @@
 #include "mysql/psi/mysql_thread.h"          // mysql_mutex_t, mysql_cond_t
 #include "mysql/psi/psi_base.h"
 #include "sql/dd/cache/multi_map_base.h"     // Multi_map_base
+#include "sql/dd/impl/cache/cache_element.h" // Cache_element
+#include "sql/dd/impl/cache/free_list.h"     // Free_list
 #include "sql/dd/types/abstract_table.h"
 #include "sql/dd/types/charset.h"
 #include "sql/dd/types/collation.h"

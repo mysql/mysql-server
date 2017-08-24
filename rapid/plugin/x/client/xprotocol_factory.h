@@ -25,10 +25,10 @@
 
 #include <memory>
 
-#include "mysqlxclient/xconnection.h"
-#include "mysqlxclient/xprotocol.h"
-#include "xcontext.h"
-#include "xquery_instances.h"
+#include "plugin/x/client/mysqlxclient/xconnection.h"
+#include "plugin/x/client/mysqlxclient/xprotocol.h"
+#include "plugin/x/client/xcontext.h"
+#include "plugin/x/client/xquery_instances.h"
 
 
 namespace xcl {

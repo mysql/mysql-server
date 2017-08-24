@@ -21,10 +21,10 @@
 #include "my_bitmap.h"
 #include "mysql/plugin.h"    // SHOW_VAR
 #include "mysql_com.h"       // NAME_CHAR_LEN
-#include "ndb_conflict_trans.h"
-#include "ndbapi/NdbDictionary.hpp"
-#include "ndbapi/NdbTransaction.hpp"
-#include "sql_const.h"       // MAX_REF_PARTS
+#include "sql/ndb_conflict_trans.h"
+#include "sql/sql_const.h"   // MAX_REF_PARTS
+#include "storage/ndb/include/ndbapi/NdbDictionary.hpp"
+#include "storage/ndb/include/ndbapi/NdbTransaction.hpp"
 
 enum enum_conflict_fn_type
 {

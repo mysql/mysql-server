@@ -23,10 +23,10 @@
 #include <mysql.h>
 #include <sys/types.h>
 
-#include "handler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "prealloced_array.h"
+#include "sql/handler.h"
 #include "thr_lock.h"
 
 /* 

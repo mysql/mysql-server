@@ -935,7 +935,7 @@ table_def::table_def(unsigned char *types, ulong size,
                      uchar *null_bitmap, uint16 flags)
   : m_size(size), m_type(0), m_field_metadata_size(metadata_size),
     m_field_metadata(0), m_null_bits(0), m_flags(flags),
-    m_memory(NULL)
+    m_memory(NULL), m_json_column_count(-1)
 {
   m_memory= (uchar *)my_multi_malloc(key_memory_table_def_memory,
                                      MYF(MY_WME),
@@ -1048,7 +1048,7 @@ table_def::~table_def()
 
 void hash_slave_rows_free_entry::operator() (HASH_ROW_ENTRY *entry) const
 {
-  DBUG_ENTER("free_entry");
+  DBUG_ENTER("hash_slave_rows_free_entry::operator()");
   if (entry)
   {
     if (entry->preamble)
@@ -1079,8 +1079,9 @@ bool Hash_slave_rows::init(void)
 
 bool Hash_slave_rows::deinit(void)
 {
+  DBUG_ENTER("Hash_slave_rows::deinit");
   m_hash.clear();
-  return 0;
+  DBUG_RETURN(0);
 }
 
 int Hash_slave_rows::size()
@@ -1130,6 +1131,7 @@ HASH_ROW_ENTRY* Hash_slave_rows::make_entry(const uchar* bi_start, const uchar* 
   DBUG_RETURN(entry);
 
 err:
+  DBUG_PRINT("info", ("Hash_slave_rows::make_entry - malloc error"));
   if (entry)
     my_free(entry);
   if (preamble)

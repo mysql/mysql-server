@@ -1635,8 +1635,8 @@ row_upd_changes_ord_field_binary_func(
 
 			uint32_t srid;
 
-			get_mbr_from_store(dptr, static_cast<uint>(dlen),
-				SPDIMS, mbr1, &srid);
+			get_mbr_from_store(index->rtr_srs.get(), dptr,
+				static_cast<uint>(dlen), SPDIMS, mbr1, &srid);
 			old_mbr = reinterpret_cast<rtr_mbr_t*>(mbr1);
 
 			/* Get the new mbr. */
@@ -1676,8 +1676,9 @@ row_upd_changes_ord_field_binary_func(
 			}
 
 			uint32_t new_srid;
-			get_mbr_from_store(dptr, static_cast<uint>(dlen),
-				SPDIMS, mbr2, &new_srid);
+			get_mbr_from_store(index->rtr_srs.get(), dptr,
+				static_cast<uint>(dlen), SPDIMS, mbr2,
+				&new_srid);
 
 			new_mbr = reinterpret_cast<rtr_mbr_t*>(mbr2);
 
@@ -1689,7 +1690,8 @@ row_upd_changes_ord_field_binary_func(
 				mem_heap_free(temp_heap);
 			}
 
-			if (!mbr_equal_cmp(old_mbr, new_mbr, 0)) {
+			if (!mbr_equal_cmp(index->rtr_srs.get(), old_mbr,
+					   new_mbr)) {
 				return(TRUE);
 			} else {
 				continue;

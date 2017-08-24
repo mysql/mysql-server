@@ -15,12 +15,12 @@
  * 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "update_statement_builder.h"
+#include "plugin/x/src/update_statement_builder.h"
 
 #include <string>
 
-#include "ngs_common/protocol_protobuf.h"
-#include "xpl_error.h"
+#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "plugin/x/src/xpl_error.h"
 
 namespace xpl {
 

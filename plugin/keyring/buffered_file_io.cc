@@ -13,13 +13,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "plugin/keyring/buffered_file_io.h"
+
 #include <fcntl.h>
 #include <mysql/psi/mysql_file.h>
 #include <stdio.h>
 #include <algorithm>
 #include <memory>
 
-#include "buffered_file_io.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 
@@ -32,8 +33,8 @@ PSI_file_key keyring_backup_file_data_key;
 
 static PSI_file_info all_keyring_files[]=
 {
-  { &keyring_file_data_key, "keyring_file_data", 0},
-  { &keyring_backup_file_data_key, "keyring_backup_file_data", 0}
+  { &keyring_file_data_key, "keyring_file_data", 0, 0, PSI_DOCUMENT_ME},
+  { &keyring_backup_file_data_key, "keyring_backup_file_data", 0, 0, PSI_DOCUMENT_ME}
 };
 
 void keyring_init_psi_file_keys(void)

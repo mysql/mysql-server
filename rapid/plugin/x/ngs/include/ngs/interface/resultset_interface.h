@@ -20,7 +20,7 @@
 #ifndef NGS_RESULTSET_INTERFACE_H_
 #define NGS_RESULTSET_INTERFACE_H_
 
-#include "ngs/command_delegate.h"
+#include "plugin/x/ngs/include/ngs/command_delegate.h"
 
 namespace ngs {
 

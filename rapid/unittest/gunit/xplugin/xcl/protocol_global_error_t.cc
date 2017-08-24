@@ -15,7 +15,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "protocol_t.h"
+#include "unittest/gunit/xplugin/xcl/protocol_t.h"
 
 
 namespace xcl {

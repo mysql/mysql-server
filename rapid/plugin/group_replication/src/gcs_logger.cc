@@ -13,10 +13,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "gcs_logger.h"
+#include "plugin/group_replication/include/gcs_logger.h"
 
 #include "my_dbug.h"
-#include "plugin_log.h"
+#include "plugin/group_replication/include/plugin_log.h"
 
 enum_gcs_error Gcs_gr_logger_impl::initialize()
 {

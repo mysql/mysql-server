@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 #include "my_inttypes.h"
-#include "myrg_def.h"
+#include "storage/myisammrg/myrg_def.h"
 
 int myrg_rsame(MYRG_INFO *info,uchar *record,int inx)
 {

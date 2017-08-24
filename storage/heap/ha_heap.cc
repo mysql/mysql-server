@@ -21,7 +21,6 @@
 #include <errno.h>
 #include <limits.h>
 
-#include "heapdef.h"
 #include "my_dbug.h"
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
@@ -30,6 +29,7 @@
 #include "sql/sql_base.h"                // enum_tdc_remove_table_type
 #include "sql/sql_class.h"
 #include "sql/sql_plugin.h"
+#include "storage/heap/heapdef.h"
 
 static handler *heap_create_handler(handlerton *hton,
                                     TABLE_SHARE *table,

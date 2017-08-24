@@ -24,10 +24,10 @@
 #include <sys/types.h>
 
 #include "my_inttypes.h"
-#include "pfs_column_types.h"
-#include "pfs_engine_table.h"
-#include "pfs_events_waits.h"
-#include "table_helper.h"
+#include "storage/perfschema/pfs_column_types.h"
+#include "storage/perfschema/pfs_engine_table.h"
+#include "storage/perfschema/pfs_events_waits.h"
+#include "storage/perfschema/table_helper.h"
 
 struct PFS_thread;
 

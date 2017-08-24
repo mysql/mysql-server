@@ -20,9 +20,9 @@
 
 #include <set>
 
-#include "formatters/console.h"
-#include "mysqlxclient/xerror.h"
-#include "processor/script_stack.h"
+#include "plugin/x/client/mysqlxclient/xerror.h"
+#include "plugin/x/tests/driver/formatters/console.h"
+#include "plugin/x/tests/driver/processor/script_stack.h"
 
 
 class Expected_error {

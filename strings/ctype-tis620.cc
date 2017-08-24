@@ -55,7 +55,7 @@
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
-#include "t_ctype.h"
+#include "strings/t_ctype.h"
 
 
 #define M  L_MIDDLE

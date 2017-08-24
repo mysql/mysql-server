@@ -18,8 +18,8 @@
  */
 
 
-#include "ngs/capabilities/configurator.h"
-#include "ngs/capabilities/handler.h"
+#include "plugin/x/ngs/include/ngs/capabilities/configurator.h"
+#include "plugin/x/ngs/include/ngs/capabilities/handler.h"
 
 namespace ngs
 {

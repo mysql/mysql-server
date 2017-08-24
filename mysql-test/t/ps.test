@@ -3449,7 +3449,7 @@ INSERT INTO bug19894382 SELECT * FROM client_test_db.bug19894382;
 
 --echo # Replay binlog events
 let $MYSQLD_DATADIR= `select @@datadir`;
---exec $MYSQL_BINLOG --force-if-open -d client_test_db $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug19894382.binlog
+--exec $MYSQL_BINLOG --force-if-open -d client_test_db $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug19894382.binlog
 --exec $MYSQL -e "source $MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug19894382.binlog"
 
 --echo # Insert tuples from the client_test_db.bug19894382 to the test.bug19894382.

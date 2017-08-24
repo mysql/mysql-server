@@ -23,18 +23,17 @@
 
 #include <stddef.h>
 #include <sys/types.h>
-
 #include <atomic>
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "pfs_builtin_memory.h"
-#include "pfs_instr.h"
-#include "pfs_lock.h"
-#include "pfs_prepared_stmt.h"
-#include "pfs_program.h"
-#include "pfs_setup_actor.h"
-#include "pfs_setup_object.h"
+#include "storage/perfschema/pfs_builtin_memory.h"
+#include "storage/perfschema/pfs_instr.h"
+#include "storage/perfschema/pfs_lock.h"
+#include "storage/perfschema/pfs_prepared_stmt.h"
+#include "storage/perfschema/pfs_program.h"
+#include "storage/perfschema/pfs_setup_actor.h"
+#include "storage/perfschema/pfs_setup_object.h"
 
 #define USE_SCALABLE
 

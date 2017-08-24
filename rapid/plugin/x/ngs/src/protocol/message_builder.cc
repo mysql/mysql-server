@@ -17,11 +17,11 @@
 * 02110-1301  USA
 */
 
-#include "ngs/protocol/message_builder.h"
+#include "plugin/x/ngs/include/ngs/protocol/message_builder.h"
 
 #include "my_dbug.h"
-#include "ngs/protocol/output_buffer.h"
-#include "ngs_common/protocol_protobuf.h"
+#include "plugin/x/ngs/include/ngs/protocol/output_buffer.h"
+#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
 
 using namespace ngs;
 

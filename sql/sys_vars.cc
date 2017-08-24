@@ -85,7 +85,7 @@
 #include "sql/conn_handler/connection_handler_impl.h" // Per_thread_connection_handler
 #include "sql/conn_handler/connection_handler_manager.h" // Connection_handler_manager
 #include "sql/conn_handler/socket_connection.h" // MY_BIND_ALL_ADDRESSES
-#include "sql/dd/info_schema/stats.h"
+#include "sql/dd/info_schema/table_stats.h"
 #include "sql/derror.h"                  // read_texts
 #include "sql/discrete_interval.h"
 #include "sql/events.h"                  // Events
@@ -125,7 +125,7 @@
 #include "thr_lock.h"
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
-#include "../storage/perfschema/pfs_server.h"
+#include "storage/perfschema/pfs_server.h"
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
 TYPELIB bool_typelib={ array_elements(bool_values)-1, "", bool_values, 0 };
@@ -678,6 +678,17 @@ static Sys_var_long Sys_pfs_max_digest_length(
        DEFAULT(1024),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
+static Sys_var_ulong Sys_pfs_max_digest_sample_age(
+       "performance_schema_max_digest_sample_age",
+       "The time in seconds after which a previous query sample is considered old."
+         " When the value is 0, queries are sampled once."
+         " When the value is greater than zero, queries are re sampled if the"
+         " last sample is more than performance_schema_max_digest_sample_age seconds old.",
+       GLOBAL_VAR(pfs_param.m_max_digest_sample_age),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024 * 1024),
+       DEFAULT(60),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
 static Sys_var_long Sys_pfs_connect_attrs_size(
        "performance_schema_session_connect_attrs_size",
        "Size of session attribute string buffer per thread."
@@ -972,44 +983,62 @@ static bool binlog_format_check(sys_var *self, THD *thd, set_var *var)
   if (check_has_super(self, thd, var))
     return true;
 
-  if (var->is_global_persist())
-    return false;
-
-  /*
-     If RBR and open temporary tables, their CREATE TABLE may not be in the
-     binlog, so we can't toggle to SBR in this connection.
-
-     If binlog_format=MIXED, there are open temporary tables, and an unsafe
-     statement is executed, then subsequent statements are logged in row
-     format and hence changes to temporary tables may be lost. So we forbid
-     switching @@SESSION.binlog_format from MIXED to STATEMENT when there are
-     open temp tables and we are logging in row format.
-  */
-  if (thd->temporary_tables &&
-      var->save_result.ulonglong_value == BINLOG_FORMAT_STMT &&
-      ((thd->variables.binlog_format == BINLOG_FORMAT_MIXED &&
-        thd->is_current_stmt_binlog_format_row()) ||
-       thd->variables.binlog_format == BINLOG_FORMAT_ROW))
+  if (!var->is_global_persist())
   {
-    my_error(ER_TEMP_TABLE_PREVENTS_SWITCH_OUT_OF_RBR, MYF(0));
-    return true;
+    /*
+      If RBR and open temporary tables, their CREATE TABLE may not be in the
+      binlog, so we can't toggle to SBR in this connection.
+
+      If binlog_format=MIXED, there are open temporary tables, and an unsafe
+      statement is executed, then subsequent statements are logged in row
+      format and hence changes to temporary tables may be lost. So we forbid
+      switching @@SESSION.binlog_format from MIXED to STATEMENT when there are
+      open temp tables and we are logging in row format.
+    */
+    if (thd->temporary_tables &&
+        var->save_result.ulonglong_value == BINLOG_FORMAT_STMT &&
+        ((thd->variables.binlog_format == BINLOG_FORMAT_MIXED &&
+          thd->is_current_stmt_binlog_format_row()) ||
+         thd->variables.binlog_format == BINLOG_FORMAT_ROW))
+    {
+      my_error(ER_TEMP_TABLE_PREVENTS_SWITCH_OUT_OF_RBR, MYF(0));
+      return true;
+    }
+
+    /*
+      if in a stored function/trigger, it's too late to change mode
+    */
+    if (thd->in_sub_stmt)
+    {
+      my_error(ER_STORED_FUNCTION_PREVENTS_SWITCH_BINLOG_FORMAT, MYF(0));
+      return true;
+    }
+    /*
+      Make the session variable 'binlog_format' read-only inside a transaction.
+    */
+    if (thd->in_active_multi_stmt_transaction())
+    {
+      my_error(ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_BINLOG_FORMAT, MYF(0));
+      return true;
+    }
   }
 
   /*
-    if in a stored function/trigger, it's too late to change mode
+    If moving to statement format, and binlog_row_value_options is set,
+    generate a warning.
   */
-  if (thd->in_sub_stmt)
+  if (var->save_result.ulonglong_value == BINLOG_FORMAT_STMT)
   {
-    my_error(ER_STORED_FUNCTION_PREVENTS_SWITCH_BINLOG_FORMAT, MYF(0));
-    return true;
-  }
-  /*
-    Make the session variable 'binlog_format' read-only inside a transaction.
-  */
-  if (thd->in_active_multi_stmt_transaction())
-  {
-    my_error(ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_BINLOG_FORMAT, MYF(0));
-    return true;
+    if ((var->is_global_persist() &&
+         global_system_variables.binlog_row_value_options != 0) ||
+        (!var->is_global_persist() &&
+         thd->variables.binlog_row_value_options != 0))
+    {
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_WARN_BINLOG_PARTIAL_UPDATES_DISABLED,
+                          ER_THD(thd, ER_WARN_BINLOG_PARTIAL_UPDATES_DISABLED),
+                          "binlog_format=STATEMENT", "PARTIAL_JSON");
+    }
   }
 
   return false;
@@ -1067,6 +1096,29 @@ static Sys_var_enum rbr_exec_mode(
        ON_CHECK(prevent_global_rbr_exec_mode_idempotent),
        ON_UPDATE(NULL));
 
+
+static bool check_binlog_row_image(sys_var *self MY_ATTRIBUTE((unused)),
+                                   THD *thd, set_var *var)
+{
+  DBUG_ENTER("check_binlog_row_image");
+  if (check_has_super(self, thd, var))
+    DBUG_RETURN(true);
+  if (var->save_result.ulonglong_value == BINLOG_ROW_IMAGE_FULL)
+  {
+    if ((var->is_global_persist() &&
+         global_system_variables.binlog_row_value_options != 0) ||
+        (!var->is_global_persist() &&
+         thd->variables.binlog_row_value_options != 0))
+    {
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_WARN_BINLOG_PARTIAL_UPDATES_SUGGESTS_PARTIAL_IMAGES,
+                          ER_THD(thd, ER_WARN_BINLOG_PARTIAL_UPDATES_SUGGESTS_PARTIAL_IMAGES),
+                          "binlog_row_image=FULL", "PARTIAL_JSON");
+    }
+  }
+  DBUG_RETURN(false);
+}
+
 static const char *binlog_row_image_names[]= {"MINIMAL", "NOBLOB", "FULL", NullS};
 static Sys_var_enum Sys_binlog_row_image(
        "binlog_row_image",
@@ -1080,7 +1132,7 @@ static Sys_var_enum Sys_binlog_row_image(
        "(Default: FULL).",
        SESSION_VAR(binlog_row_image), CMD_LINE(REQUIRED_ARG),
        binlog_row_image_names, DEFAULT(BINLOG_ROW_IMAGE_FULL),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_has_super),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_binlog_row_image),
        ON_UPDATE(NULL));
 
 static const char *binlog_row_metadata_names[]= {"MINIMAL", "FULL", NullS};
@@ -1968,7 +2020,7 @@ static Sys_var_bool Sys_locked_in_memory(
 static Sys_var_bool Sys_log_bin(
        "log_bin", "Whether the binary log is enabled",
        READ_ONLY NON_PERSIST GLOBAL_VAR(opt_bin_log), NO_CMD_LINE,
-       DEFAULT(FALSE));
+       DEFAULT(TRUE));
 
 static bool transaction_write_set_check(sys_var*, THD *thd, set_var *var)
 {
@@ -2094,14 +2146,26 @@ static Sys_var_bool Sys_sha256_password_proxy_users(
 	GLOBAL_VAR(sha256_password_proxy_users),
 	CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
-static Sys_var_bool Sys_use_v1_row_events(
+static bool check_log_bin_use_v1_row_events(sys_var*, THD *thd, set_var *var)
+{
+  if (var->save_result.ulonglong_value == 1 &&
+      global_system_variables.binlog_row_value_options != 0)
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_WARN_BINLOG_V1_ROW_EVENTS_DISABLED,
+                        ER_THD(thd, ER_WARN_BINLOG_V1_ROW_EVENTS_DISABLED),
+                        "binlog_row_value_options=PARTIAL_JSON");
+  return false;
+}
+
+static Sys_var_bool Sys_log_bin_use_v1_row_events(
        "log_bin_use_v1_row_events",
        "If equal to 1 then version 1 row events are written to a row based "
        "binary log.  If equal to 0, then the latest version of events are "
        "written.  "
        "This option is useful during some upgrades.",
        NON_PERSIST GLOBAL_VAR(log_bin_use_v1_row_events),
-       CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE), NO_MUTEX_GUARD,
+       NOT_IN_BINLOG, ON_CHECK(check_log_bin_use_v1_row_events));
 
 static Sys_var_charptr Sys_log_error(
        "log_error", "Error log file",
@@ -2159,9 +2223,12 @@ static Sys_var_charptr Sys_log_error_filter_rules(
 static bool check_log_error_services(sys_var *self, THD *thd, set_var *var)
 {
   int i;
-  if ((var->save_result.string_value.str != NULL) &&
-      ((i = log_builtins_error_stack(var->save_result.string_value.str,
-                                     true)) < 0))
+
+  if (var->save_result.string_value.str == nullptr)
+    return true;
+
+  if ((i = log_builtins_error_stack(var->save_result.string_value.str,
+                                    true)) < 0)
   {
     push_warning_printf(thd, Sql_condition::SL_WARNING,
                         ER_WRONG_VALUE_FOR_VAR,
@@ -2169,6 +2236,13 @@ static bool check_log_error_services(sys_var *self, THD *thd, set_var *var)
                         self->name.str,
                         &((char *) var->save_result.string_value.str)[-(i+1)]);
     return true;
+  }
+  else if (strlen(var->save_result.string_value.str) < 1)
+  {
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_WRONG_VALUE_FOR_VAR,
+                        "Setting an empty %s pipeline disables error logging!",
+                        self->name.str);
   }
 
   return false;
@@ -3520,7 +3594,7 @@ static Sys_var_ulong Sys_server_id(
        "Uniquely identifies the server instance in the community of "
        "replication partners",
        GLOBAL_VAR(server_id), CMD_LINE(REQUIRED_ARG, OPT_SERVER_ID),
-       VALID_RANGE(0, UINT_MAX32), DEFAULT(0), BLOCK_SIZE(1), NO_MUTEX_GUARD,
+       VALID_RANGE(0, UINT_MAX32), DEFAULT(1), BLOCK_SIZE(1), NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(fix_server_id));
 
 static Sys_var_charptr Sys_server_uuid(
@@ -3641,10 +3715,10 @@ static Sys_var_enum Mts_parallel_type(
        "slave_parallel_type",
        "Specifies if the slave will use database partitioning "
        "or information from master to parallelize transactions."
-       "(Default: DATABASE).",
+       "(Default: LOGICAL_CLOCK).",
        GLOBAL_VAR(mts_parallel_option), CMD_LINE(REQUIRED_ARG),
        mts_parallel_type_names,
-       DEFAULT(MTS_PARALLEL_TYPE_DB_NAME),  NO_MUTEX_GUARD,
+       DEFAULT(MTS_PARALLEL_TYPE_LOGICAL_CLOCK),  NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(check_slave_stopped),
        ON_UPDATE(NULL));
 
@@ -3713,9 +3787,9 @@ static Sys_var_ulong Binlog_transaction_dependency_history_size(
 static Sys_var_bool Sys_slave_preserve_commit_order(
        "slave_preserve_commit_order",
        "Force slave workers to make commits in the same order as on the master. "
-       "Disabled by default.",
+       "Enabled by default.",
        GLOBAL_VAR(opt_slave_preserve_commit_order), CMD_LINE(OPT_ARG),
-       DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       DEFAULT(TRUE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_slave_stopped),
        ON_UPDATE(NULL));
 
@@ -4090,7 +4164,7 @@ bool Sys_var_gtid_mode::global_update(THD* thd, set_var *var)
   // Generate note in log
   LogErr(INFORMATION_LEVEL, ER_CHANGED_GTID_MODE,
          gtid_mode_names[old_gtid_mode],
-         gtid_mode_names[new_gtid_mode]);
+         gtid_mode_names[new_gtid_mode]).force_print();
 
   // Rotate
   {
@@ -5519,10 +5593,9 @@ static Sys_var_set Sys_log_output(
 
 static Sys_var_bool Sys_log_slave_updates(
        "log_slave_updates", "Tells the slave to log the updates from "
-       "the slave thread to the binary log. You will need to turn it on if "
-       "you plan to daisy-chain the slaves",
+       "the slave thread to the binary log.",
        READ_ONLY GLOBAL_VAR(opt_log_slave_updates), CMD_LINE(OPT_ARG),
-       DEFAULT(0));
+       DEFAULT(1));
 
 static Sys_var_charptr Sys_relay_log(
        "relay_log", "The location and name to use for relay logs",
@@ -5748,7 +5821,7 @@ static Sys_var_ulong Sys_slave_parallel_workers(
        "slave_parallel_workers",
        "Number of worker threads for executing events in parallel ",
        GLOBAL_VAR(opt_mts_slave_parallel_workers), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, MTS_MAX_WORKERS), DEFAULT(0), BLOCK_SIZE(1));
+       VALID_RANGE(0, MTS_MAX_WORKERS), DEFAULT(4), BLOCK_SIZE(1));
 
 static Sys_var_ulonglong Sys_mts_pending_jobs_size_max(
        "slave_pending_jobs_size_max",
@@ -6090,9 +6163,9 @@ bool Sys_var_gtid_purged::global_update(THD *thd, set_var *var)
 
   // Log messages saying that GTID_PURGED and GTID_EXECUTED were changed.
   LogErr(INFORMATION_LEVEL, ER_GTID_PURGED_WAS_CHANGED,
-         previous_gtid_purged, current_gtid_purged);
+         previous_gtid_purged, current_gtid_purged).force_print();
   LogErr(INFORMATION_LEVEL, ER_GTID_EXECUTED_WAS_CHANGED,
-         previous_gtid_executed, current_gtid_executed);
+         previous_gtid_executed, current_gtid_executed).force_print();
 
 end:
   global_sid_lock->unlock();
@@ -6411,3 +6484,82 @@ static Sys_var_enum Sys_resultset_metadata(
        NOT_IN_BINLOG,
        ON_CHECK(check_resultset_metadata),
        ON_UPDATE(0));
+
+static bool check_binlog_row_value_options(sys_var *self, THD *thd, set_var *var)
+{
+  DBUG_ENTER("check_binlog_row_value_options");
+  if (check_super_outside_trx_outside_sf_outside_sp(self, thd, var))
+    DBUG_RETURN(true);
+  if (var->save_result.ulonglong_value != 0)
+  {
+    const char *msg= NULL;
+    int code= ER_WARN_BINLOG_PARTIAL_UPDATES_DISABLED;
+    if (!mysql_bin_log.is_open())
+      msg= "the binary log is closed";
+    else if (!var->is_global_persist())
+    {
+      if (!thd->variables.sql_log_bin)
+        msg= "the binary log is disabled";
+      else if (thd->variables.binlog_format == BINLOG_FORMAT_STMT)
+        msg= "binlog_format=STATEMENT";
+      else if (log_bin_use_v1_row_events)
+      {
+        msg= "binlog_row_value_options=PARTIAL_JSON";
+        code= ER_WARN_BINLOG_V1_ROW_EVENTS_DISABLED;
+      }
+      else if (thd->variables.binlog_row_image == BINLOG_ROW_IMAGE_FULL)
+      {
+        msg= "binlog_row_image=FULL";
+        code= ER_WARN_BINLOG_PARTIAL_UPDATES_SUGGESTS_PARTIAL_IMAGES;
+      }
+    }
+    else
+    {
+      if (global_system_variables.binlog_format == BINLOG_FORMAT_STMT)
+        msg= "binlog_format=STATEMENT";
+      else if (log_bin_use_v1_row_events)
+      {
+        msg= "binlog_row_value_options=PARTIAL_JSON";
+        code= ER_WARN_BINLOG_V1_ROW_EVENTS_DISABLED;
+      }
+      else if (global_system_variables.binlog_row_image ==
+               BINLOG_ROW_IMAGE_FULL)
+      {
+        msg= "binlog_row_image=FULL";
+        code= ER_WARN_BINLOG_PARTIAL_UPDATES_SUGGESTS_PARTIAL_IMAGES;
+      }
+    }
+    if (msg)
+    {
+      switch (code)
+      {
+      case ER_WARN_BINLOG_PARTIAL_UPDATES_DISABLED:
+      case ER_WARN_BINLOG_PARTIAL_UPDATES_SUGGESTS_PARTIAL_IMAGES:
+        push_warning_printf(thd, Sql_condition::SL_WARNING, code,
+                            ER_THD(thd, code), msg, "PARTIAL_JSON");
+        break;
+      case ER_WARN_BINLOG_V1_ROW_EVENTS_DISABLED:
+        push_warning_printf(thd, Sql_condition::SL_WARNING, code,
+                            ER_THD(thd, code), msg);
+        break;
+      default:
+        DBUG_ASSERT(0); /* purecov: deadcode */
+      }
+    }
+  }
+
+  DBUG_RETURN(false);
+}
+
+const char *binlog_row_value_options_names[]= {"PARTIAL_JSON", 0};
+static Sys_var_set Sys_binlog_row_value_options(
+       "binlog_row_value_options",
+       "When set to PARTIAL_JSON, this option enables a space-efficient "
+       "row-based binary log format for UPDATE statements that modify a "
+       "JSON value using only the functions JSON_SET, JSON_REPLACE, and "
+       "JSON_REMOVE. For such updates, only the modified parts of the "
+       "JSON document are included in the binary log, so small changes of "
+       "big documents may need significantly less space.",
+       SESSION_VAR(binlog_row_value_options), CMD_LINE(REQUIRED_ARG),
+       binlog_row_value_options_names, DEFAULT(0),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_binlog_row_value_options));

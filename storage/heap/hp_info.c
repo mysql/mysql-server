@@ -15,9 +15,9 @@
 
 /* Returns info about database status */
 
-#include "heapdef.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "storage/heap/heapdef.h"
 
 void heap_position(HP_INFO *info, HP_HEAP_POSITION *pos)
 {

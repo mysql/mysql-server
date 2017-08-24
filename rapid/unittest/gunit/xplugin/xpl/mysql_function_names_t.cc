@@ -14,7 +14,8 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include <gtest/gtest.h>
-#include "mysql_function_names.h"
+
+#include "plugin/x/src/mysql_function_names.h"
 
 namespace xpl {
 namespace test {

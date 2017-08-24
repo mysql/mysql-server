@@ -13,13 +13,13 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "handlers/certification_handler.h"
+#include "plugin/group_replication/include/handlers/certification_handler.h"
 
-#include "handlers/pipeline_handlers.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "plugin.h"
-#include "plugin_log.h"
+#include "plugin/group_replication/include/handlers/pipeline_handlers.h"
+#include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/plugin_log.h"
 
 using std::string;
 const int GTID_WAIT_TIMEOUT= 30; //30 seconds
@@ -542,8 +542,8 @@ int Certification_handler::wait_for_local_transaction_execution()
   Sql_service_command_interface *sql_command_interface=
       new Sql_service_command_interface();
 
-  if (sql_command_interface->establish_session_connection(PSESSION_USE_THREAD) ||
-      sql_command_interface->set_interface_user(GROUPREPL_USER)
+  if (sql_command_interface->establish_session_connection(PSESSION_USE_THREAD,
+                                                          GROUPREPL_USER)
     )
   {
     /* purecov: begin inspected */

@@ -89,7 +89,10 @@ subpartition by hash (a+b)
 subpartition x12 tablespace tbsp2 nodegroup 1),
 partition x2 values less than (5)
 ( subpartition x21 tablespace tbsp1 nodegroup 0,
-subpartition x22 tablespace tbsp2 nodegroup 1)
+subpartition x22 tablespace tbsp2 nodegroup 1),
+partition x3 values less than (10)
+( subpartition x31 tablespace tbsp1 max_rows=50,
+subpartition x32 tablespace tbsp2 nodegroup 1)
 );
 select * from information_schema.partitions where table_schema="test";
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PARTITION_NAME	SUBPARTITION_NAME	PARTITION_ORDINAL_POSITION	SUBPARTITION_ORDINAL_POSITION	PARTITION_METHOD	SUBPARTITION_METHOD	PARTITION_EXPRESSION	SUBPARTITION_EXPRESSION	PARTITION_DESCRIPTION	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	CREATE_TIME	UPDATE_TIME	CHECK_TIME	CHECKSUM	PARTITION_COMMENT	NODEGROUP	TABLESPACE_NAME
@@ -97,6 +100,8 @@ def	test	t1	x1	x11	1	1	RANGE	HASH	`a`	(`a` + `b`)	1	0	0	16384	#	0	0	#	#	NULL	NUL
 def	test	t1	x1	x12	1	2	RANGE	HASH	`a`	(`a` + `b`)	1	0	0	16384	#	0	0	#	#	NULL	NULL		1	tbsp2
 def	test	t1	x2	x21	2	1	RANGE	HASH	`a`	(`a` + `b`)	5	0	0	16384	#	0	0	#	#	NULL	NULL		0	tbsp1
 def	test	t1	x2	x22	2	2	RANGE	HASH	`a`	(`a` + `b`)	5	0	0	16384	#	0	0	#	#	NULL	NULL		1	tbsp2
+def	test	t1	x3	x31	3	1	RANGE	HASH	`a`	(`a` + `b`)	10	0	0	16384	#	0	0	#	#	NULL	NULL		default	tbsp1
+def	test	t1	x3	x32	3	2	RANGE	HASH	`a`	(`a` + `b`)	10	0	0	16384	#	0	0	#	#	NULL	NULL		1	tbsp2
 show tables;
 Tables_in_test
 t1

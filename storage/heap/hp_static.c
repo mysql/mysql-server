@@ -19,7 +19,7 @@
 */
 
 #ifndef MY_GLOBAL_INCLUDED
-#include "heapdef.h"
+#include "storage/heap/heapdef.h"
 #endif
 #include "my_macros.h"
 #include "my_psi_config.h"

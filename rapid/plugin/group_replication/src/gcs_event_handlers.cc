@@ -18,12 +18,11 @@
 #include <string>
 #include <vector>
 
-#include "gcs_event_handlers.h"
 #include "my_dbug.h"
-#include "plugin.h"
-#include "pipeline_stats.h"
-#include "plugin.h"
-#include "single_primary_message.h"
+#include "plugin/group_replication/include/gcs_event_handlers.h"
+#include "plugin/group_replication/include/pipeline_stats.h"
+#include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/single_primary_message.h"
 
 using std::vector;
 
@@ -170,25 +169,6 @@ Plugin_gcs_events_handler::handle_recovery_message(const Gcs_message& message) c
     log_message(MY_INFORMATION_LEVEL,
                 "This server was declared online within the replication group");
 
-    /**
-    Disable the read mode in the server if the member is:
-    - joining
-    - doesn't have a higher possible incompatible version
-    - We are not on Primary mode.
-    */
-    if (*joiner_compatibility_status != READ_COMPATIBLE &&
-        (local_member_info->get_role() == Group_member_info::MEMBER_ROLE_PRIMARY ||
-         !local_member_info->in_primary_mode()))
-    {
-      if (disable_server_read_mode(PSESSION_INIT_THREAD))
-      {
-        log_message(MY_WARNING_LEVEL,
-                    "When declaring the plugin online it was not possible to "
-                    "disable the server read mode settings. "
-                    "Try to disable it manually."); /* purecov: inspected */
-      }
-    }
-
     /*
      The member is declared as online upon receiving this message
 
@@ -199,6 +179,26 @@ Plugin_gcs_events_handler::handle_recovery_message(const Gcs_message& message) c
       member_uuid,
       Group_member_info::MEMBER_ONLINE,
       m_notification_ctx);
+
+    /**
+      Disable the read mode in the server if the member is:
+      - joining
+      - doesn't have a higher possible incompatible version
+      - We are not on Primary mode.
+    */
+    if (*joiner_compatibility_status != READ_COMPATIBLE &&
+        (local_member_info->get_role() == Group_member_info::MEMBER_ROLE_PRIMARY ||
+         !local_member_info->in_primary_mode()))
+    {
+      if (disable_server_read_mode(PSESSION_DEDICATED_THREAD))
+      {
+        log_message(MY_WARNING_LEVEL,
+                    "When declaring the plugin online it was not possible to "
+                      "disable the server read mode settings. "
+                      "Try to disable it manually."); /* purecov: inspected */
+      }
+    }
+
   }
   else
   {
@@ -687,9 +687,9 @@ void Plugin_gcs_events_handler::handle_leader_election_if_needed() const
     bool skip_set_super_readonly= false;
     if (sql_command_interface == NULL ||
         sql_command_interface->
-            establish_session_connection(PSESSION_INIT_THREAD,
-                                         get_plugin_pointer()) ||
-        sql_command_interface->set_interface_user(GROUPREPL_USER))
+            establish_session_connection(PSESSION_DEDICATED_THREAD,
+                                         GROUPREPL_USER,
+                                         get_plugin_pointer()))
     {
       log_message(MY_WARNING_LEVEL,
                   "Unable to open session to (re)set read only mode. Skipping."); /* purecov: inspected */
@@ -902,7 +902,7 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view& new_view,
     /**
       Set the read mode if not set during start (auto-start)
     */
-    if (enable_server_read_mode(PSESSION_INIT_THREAD))
+    if (enable_server_read_mode(PSESSION_DEDICATED_THREAD))
     {
       log_message(MY_ERROR_LEVEL,
                   "Error when activating super_read_only mode on start. "
@@ -1154,9 +1154,9 @@ Plugin_gcs_events_handler::get_exchangeable_data() const
       new Sql_service_command_interface();
 
   if (sql_command_interface->
-          establish_session_connection(PSESSION_INIT_THREAD,
-                                       get_plugin_pointer()) ||
-      sql_command_interface->set_interface_user(GROUPREPL_USER)
+          establish_session_connection(PSESSION_DEDICATED_THREAD,
+                                       GROUPREPL_USER,
+                                       get_plugin_pointer())
      )
   {
     log_message(MY_WARNING_LEVEL,

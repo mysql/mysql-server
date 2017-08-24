@@ -13,13 +13,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_address.h"
+
 #include <rpc/rpc.h>
 
-#include "task_debug.h"
-#include "xcom_common.h"
-#include "xcom_profile.h"
-
-#include "node_address.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_debug.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_common.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_profile.h"
 
 /**
    Debug a node address.

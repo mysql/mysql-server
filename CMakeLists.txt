@@ -642,9 +642,10 @@ ADD_DEFINITIONS(-D_USE_MATH_DEFINES)       # Get access to M_PI, M_E, etc. in ma
 INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_BINARY_DIR}
   ${CMAKE_CURRENT_BINARY_DIR}/include
+  ${CMAKE_CURRENT_BINARY_DIR}/rapid
   ${CMAKE_SOURCE_DIR}
-  ${CMAKE_SOURCE_DIR}/extra/regex
-  ${CMAKE_SOURCE_DIR}/extra/rapidjson/include
+  ${CMAKE_SOURCE_DIR}/include
+  ${CMAKE_SOURCE_DIR}/rapid
   ${CMAKE_CURRENT_BINARY_DIR}/libbinlogevents/include
   ${CMAKE_SOURCE_DIR}/libbinlogevents/export)
 # Add bundled or system zlib.
@@ -668,11 +669,15 @@ IF(NOT WITHOUT_SERVER)
 ENDIF()
 # Try and set CURL_LIBRARY
 MYSQL_CHECK_CURL()
+# Add RapidJSON library.
+# TODO: Support -DWITH_RAPIDJSON=system.
+INCLUDE_DIRECTORIES(SYSTEM ${CMAKE_SOURCE_DIR}/extra/rapidjson/include)
 
 IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
   # Check for pthread_setname_np
   CHECK_C_SOURCE_COMPILES("
   #include <pthread.h>
+
   int main(int ac, char **av)
   {
     const char *thread_name= 0;

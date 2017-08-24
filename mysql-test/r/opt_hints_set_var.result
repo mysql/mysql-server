@@ -504,7 +504,7 @@ f1	f2	f3
 SHOW STATUS LIKE 'handler_read%';
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	3
+Handler_read_key	6
 Handler_read_last	0
 Handler_read_next	2
 Handler_read_prev	0

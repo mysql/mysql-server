@@ -20,7 +20,7 @@
 #include <memory>
 #include <vector>
 
-#include "mysqlxclient/xprotocol.h"
+#include "plugin/x/client/mysqlxclient/xprotocol.h"
 
 
 namespace xcl {

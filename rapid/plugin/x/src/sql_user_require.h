@@ -20,7 +20,7 @@
 #ifndef _SQL_USER_REQUIRE_H_
 #define _SQL_USER_REQUIRE_H_
 
-#include "sql_data_context.h"
+#include "plugin/x/src/sql_data_context.h"
 
 namespace ngs
 {

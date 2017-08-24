@@ -108,7 +108,6 @@
 #include <stddef.h>
 #include <string.h>
 #include <sys/types.h>
-
 #include <algorithm>
 
 #include "keycache.h"
@@ -125,8 +124,8 @@
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysys/mysys_priv.h"
 #include "mysys_err.h"
-#include "mysys_priv.h"
 #include "template_utils.h"
 #include "thr_mutex.h"
 

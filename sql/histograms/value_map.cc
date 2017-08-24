@@ -31,6 +31,7 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_time.h"     // MYSQL_TIME
 #include "sql/histograms/histogram.h"
+#include "sql/item.h"
 #include "sql/my_decimal.h" // my_decimal_cmp
 #include "sql/psi_memory_key.h" // key_memory_histograms
 #include "sql_string.h"     // String
@@ -43,7 +44,7 @@ template <>
 bool Histogram_comparator::operator()(const String &lhs,
                                       const String &rhs) const
 {
-  // Ensure that both strings have the same character set/collation.
+  // The collation MUST be the same
   DBUG_ASSERT(lhs.charset()->number == rhs.charset()->number);
 
   // The number of characters should already be limited.
@@ -73,8 +74,9 @@ bool Histogram_comparator::operator()(const my_decimal &lhs,
 
 
 Value_map_base::Value_map_base(const CHARSET_INFO *charset,
-                               double sampling_rate)
-  :m_sampling_rate(sampling_rate), m_charset(charset), m_num_null_values(0)
+                               double sampling_rate, Value_map_type data_type)
+  :m_sampling_rate(sampling_rate), m_charset(charset), m_num_null_values(0),
+   m_data_type(data_type)
 {
   init_alloc_root(key_memory_histograms, &m_mem_root, 256, 0);
 }

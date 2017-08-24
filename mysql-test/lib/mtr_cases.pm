@@ -988,11 +988,20 @@ sub collect_one_test_case {
     # should fail by default
     $tinfo->{result_file}= $result_file;
   }
-  else {
-    # No .result file exist
-    # Remember the path  where it should be
-    # saved in case of --record
-    $tinfo->{record_file}= $result_file;
+  else
+  {
+    # Result file doesn't exist
+    if ($::opt_check_testcases and !$::opt_record)
+    {
+      # Set 'no_result_file' flag if check-testcases is enabled.
+      $tinfo->{'no_result_file'}= $result_file;
+    }
+    else
+    {
+      # No .result file exist, remember the path where it should
+      # be saved in case of --record.
+      $tinfo->{record_file}= $result_file;
+    }
   }
 
   # ----------------------------------------------------------------------
@@ -1222,8 +1231,8 @@ sub collect_one_test_case {
   {
     # Test does not need binlog, add --skip-binlog to
     # the options used when starting
-    push(@{$tinfo->{'master_opt'}}, "--loose-skip-log-bin");
-    push(@{$tinfo->{'slave_opt'}}, "--loose-skip-log-bin");
+    # push(@{$tinfo->{'master_opt'}}, "--loose-skip-log-bin");
+    # push(@{$tinfo->{'slave_opt'}}, "--loose-skip-log-bin");
   }
 
   if ( $tinfo->{'rpl_test'} or $tinfo->{'grp_rpl_test'} )

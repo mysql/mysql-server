@@ -16,6 +16,11 @@
 #ifndef XCOM_STATISTICS_H
 #define XCOM_STATISTICS_H
 
+#include <stdint.h>
+
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_arg.h"
+#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif

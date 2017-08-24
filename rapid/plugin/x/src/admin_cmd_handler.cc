@@ -17,16 +17,16 @@
  * 02110-1301  USA
  */
 
-#include "admin_cmd_handler.h"
+#include "plugin/x/src/admin_cmd_handler.h"
 
 #include <algorithm>
 
-#include "admin_cmd_index.h"
-#include "query_string_builder.h"
-#include "sql_data_result.h"
-#include "xpl_error.h"
-#include "xpl_log.h"
-#include "xpl_server.h"
+#include "plugin/x/src/admin_cmd_index.h"
+#include "plugin/x/src/query_string_builder.h"
+#include "plugin/x/src/sql_data_result.h"
+#include "plugin/x/src/xpl_error.h"
+#include "plugin/x/src/xpl_log.h"
+#include "plugin/x/src/xpl_server.h"
 
 namespace xpl {
 

@@ -14,16 +14,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 INCLUDE_DIRECTORIES(
-  ${CMAKE_SOURCE_DIR}/include
-  ${CMAKE_SOURCE_DIR}/mysys_ssl
-  ${LZ4_INCLUDE_DIR}
-  ${SSL_INCLUDE_DIRS}
-  ${CMAKE_SOURCE_DIR}/libmysql
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include
-  ${CMAKE_SOURCE_DIR}/extra/regex
-  ${CMAKE_SOURCE_DIR}/strings
-  ${EDITLINE_INCLUDE_DIR}
-  ${CMAKE_CURRENT_BINARY_DIR}
 )
 
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
@@ -72,6 +63,10 @@ TARGET_LINK_LIBRARIES(mysqlshow mysqlclient)
 MYSQL_ADD_EXECUTABLE(mysqlbinlog mysqlbinlog.cc)
 SET(MYSQLBINLOG_LIB_SOURCES
   ${CMAKE_SOURCE_DIR}/strings/decimal.cc
+  ${CMAKE_SOURCE_DIR}/sql/json_binary.cc
+  ${CMAKE_SOURCE_DIR}/sql/json_dom.cc
+  ${CMAKE_SOURCE_DIR}/sql-common/sql_string.cc
+  ${CMAKE_SOURCE_DIR}/sql/sql_time.cc
   ${CMAKE_SOURCE_DIR}/sql/log_event.cc
   ${CMAKE_SOURCE_DIR}/sql/rpl_utility.cc
   ${CMAKE_SOURCE_DIR}/sql/rpl_gtid_sid_map.cc

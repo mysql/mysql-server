@@ -38,7 +38,7 @@
 #include <signaldata/CreateFilegroupImpl.hpp>
 #include <AttributeDescriptor.hpp>
 #include "AttributeOffset.hpp"
-#include <my_sys.h>
+#include "my_sys.h"
 #include <signaldata/LqhFrag.hpp>
 #include <signaldata/AttrInfo.hpp>
 #include "../dblqh/Dblqh.hpp"

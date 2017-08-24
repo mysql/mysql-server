@@ -35,8 +35,6 @@
 #include "typelib.h"
 
 #ifdef MYSQL_SERVER
-#include <storage/perfschema/pfs_instr_class.h> // gtid_monitoring_getsystime
-
 #include "mysql/thread_type.h"
 #include "mysqld_error.h"     // ER_*
 #include "sql/binlog.h"
@@ -44,6 +42,7 @@
 #include "sql/rpl_msr.h"
 #include "sql/sql_class.h"    // THD
 #include "sql/sql_error.h"
+#include "storage/perfschema/pfs_instr_class.h" // gtid_monitoring_getsystime
 #endif // ifdef MYSQL_SERVER
 
 #ifndef MYSQL_SERVER

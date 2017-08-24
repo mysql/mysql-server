@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,8 +20,7 @@
 
 #include "Restore.hpp"
 #include "ndb_nodegroup_map.h"
-
-#include "../../../../sql/ha_ndbcluster_tables.h"
+#include "sql/ha_ndbcluster_tables.h"
 
 class BackupConsumer {
 public:

@@ -13,15 +13,15 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "pipeline_stats.h"
+#include "plugin/group_replication/include/pipeline_stats.h"
 
 #include <time.h>
 
 #include "my_dbug.h"
 #include "my_systime.h"
-#include "plugin.h"
-#include "plugin_log.h"
-#include "plugin_server_include.h"
+#include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/plugin_log.h"
+#include "plugin/group_replication/include/plugin_server_include.h"
 
 /*
   The QUOTA based flow control tries to calculate how many
@@ -643,8 +643,9 @@ Pipeline_member_stats::update_member_stats(Pipeline_stats_member_message &msg,
 bool
 Pipeline_member_stats::is_flow_control_needed()
 {
-  return (m_transactions_waiting_certification > flow_control_certifier_threshold_var
-          || m_transactions_waiting_apply > flow_control_applier_threshold_var);
+  return (m_flow_control_mode == FCM_QUOTA) &&
+    (m_transactions_waiting_certification > flow_control_certifier_threshold_var
+     || m_transactions_waiting_apply > flow_control_applier_threshold_var);
 }
 
 

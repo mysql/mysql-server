@@ -23,7 +23,7 @@
 #include <vector>
 
 #include "sql/gis/srid.h"
-#include "srs.h"
+#include "sql/gis/srs/srs.h"
 
 namespace gis { namespace srs { namespace wkt_parser {
 

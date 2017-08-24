@@ -18,14 +18,14 @@
 
 #include <sys/types.h>
 
-#include "i_keyring_io.h"
-#include "i_keys_container.h"
-#include "keyring_key.h"
-#include "keyring_memory.h"
-#include "logger.h"
 #include "map_helpers.h"
 #include "my_inttypes.h"
 #include "my_sharedlib.h"
+#include "plugin/keyring/common/i_keyring_io.h"
+#include "plugin/keyring/common/i_keys_container.h"
+#include "plugin/keyring/common/keyring_key.h"
+#include "plugin/keyring/common/keyring_memory.h"
+#include "plugin/keyring/common/logger.h"
 #include "sql/sys_vars_shared.h" //For PolyLock, AutoWLock, AutoRLock
 
 namespace keyring {

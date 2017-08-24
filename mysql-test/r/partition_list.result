@@ -188,7 +188,7 @@ partition pnull values in (null, 2),
 partition p3 values in (3));
 select partition_method, partition_expression, partition_description
 from information_schema.partitions where table_name = "t1";
-partition_method	partition_expression	partition_description
+PARTITION_METHOD	PARTITION_EXPRESSION	PARTITION_DESCRIPTION
 LIST	`a`	0
 LIST	`a`	0
 LIST	`a`	1

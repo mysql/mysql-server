@@ -19,14 +19,14 @@
 
 #include "my_base.h"   // HA_ERR_ROWS_EVENT_APPLY
 #include "my_dbug.h"
-#include "mysqld.h"   // lower_case_table_names
-#include "ndb_binlog_extra_row_info.h"
-#include "ndb_table_guard.h"
-#include "ndb_log.h"
+#include "sql/mysqld.h" // lower_case_table_names
+#include "sql/ndb_binlog_extra_row_info.h"
+#include "sql/ndb_log.h"
+#include "sql/ndb_table_guard.h"
 
 extern st_ndb_slave_state g_ndb_slave_state;
 
-#include "ndb_mi.h"
+#include "sql/ndb_mi.h"
 
 extern ulong opt_ndb_slave_conflict_role;
 

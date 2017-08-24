@@ -64,6 +64,11 @@
 #include "thr_lock.h"
 #include "typelib.h"
 
+namespace histograms
+{
+  class Histogram;
+};
+
 class ACL_internal_schema_access;
 class ACL_internal_table_access;
 class COND_EQUAL;
@@ -76,6 +81,7 @@ class Index_hint;
 class Item;
 class Item_field;
 class Json_diff;
+class Json_diff_vector;
 class Json_seekable_path;
 class Json_wrapper;
 class Query_result_union;
@@ -113,7 +119,6 @@ typedef Mem_root_array_YY<LEX_CSTRING> Create_col_name_list;
 typedef int64 query_id_t;
 
 enum class enum_json_diff_operation;
-using Json_diff_vector= std::vector<Json_diff, Memroot_allocator<Json_diff>>;
 
 #define store_record(A,B) memcpy((A)->B,(A)->record[0],(size_t) (A)->s->reclength)
 #define restore_record(A,B) memcpy((A)->record[0],(A)->B,(size_t) (A)->s->reclength)
@@ -630,6 +635,23 @@ typedef I_P_List <Wait_for_flush,
 struct TABLE_SHARE
 {
   TABLE_SHARE() {}                    /* Remove gcc warning */
+
+  /*
+    A map of [uint, Histogram] values, where the key is the field index. The
+    map is populated with any histogram statistics when it is loaded/created.
+  */
+  malloc_unordered_map<uint, const histograms::Histogram*> *m_histograms
+  { nullptr };
+
+  /**
+    Find the histogram for the given field index.
+
+    @param field_index the index of the field we want to find a histogram for
+
+    @retval nullptr if no histogram is found
+    @retval a pointer to a histogram if one is found
+  */
+  const histograms::Histogram* find_histogram(uint field_index);
 
   /** Category of this table. */
   TABLE_CATEGORY table_category;
@@ -1877,6 +1899,17 @@ public:
     @retval true   on out-of-memory
   */
   bool setup_partial_update(bool logical_diffs);
+
+  /**
+    @see setup_partial_update(bool)
+
+    This is a wrapper that auto-computes the value of the parameter
+    logical_diffs.
+
+    @retval false  on success
+    @retval true   on out-of-memory
+  */
+  bool setup_partial_update();
 
   /**
     Add a binary diff for a column that is updated using partial update.
@@ -3615,9 +3648,6 @@ void dbug_tmp_restore_column_maps(MY_BITMAP *read_set MY_ATTRIBUTE((unused)),
   tmp_restore_column_map(write_set, old[1]);
 #endif
 }
-
-
-size_t max_row_length(TABLE *table, const uchar *data);
 
 
 void init_mdl_requests(TABLE_LIST *table_list);

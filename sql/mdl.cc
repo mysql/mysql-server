@@ -124,7 +124,9 @@ PSI_stage_info MDL_key::m_namespace_to_wait_state_name[NAMESPACE_END]=
   {0, "Waiting for locking service lock", 0, PSI_DOCUMENT_ME},
   {0, "Waiting for spatial reference system lock", 0, PSI_DOCUMENT_ME},
   {0, "Waiting for acl cache lock", 0, PSI_DOCUMENT_ME},
-  {0, "Waiting for column statistics lock", 0, PSI_DOCUMENT_ME}
+  {0, "Waiting for column statistics lock", 0, PSI_DOCUMENT_ME},
+  {0, "Waiting for backup lock", 0, PSI_DOCUMENT_ME},
+  {0, "Waiting for resource groups metadata lock", 0, PSI_DOCUMENT_ME}
 };
 
 #ifdef HAVE_PSI_INTERFACE
@@ -243,7 +245,8 @@ public:
   {
     return (mdl_key->mdl_namespace() == MDL_key::GLOBAL ||
             mdl_key->mdl_namespace() == MDL_key::COMMIT ||
-            mdl_key->mdl_namespace() == MDL_key::ACL_CACHE);
+            mdl_key->mdl_namespace() == MDL_key::ACL_CACHE ||
+            mdl_key->mdl_namespace() == MDL_key::BACKUP_LOCK);
   }
 
 private:
@@ -258,6 +261,9 @@ private:
   MDL_lock *m_commit_lock;
   /** Pre-allocated MDL_lock object for ACL_CACHE namespace. */
   MDL_lock *m_acl_cache_lock;
+  /** Pre-allocated MDL_lock object for BACKUP_LOCK namespace. */
+  MDL_lock *m_backup_lock;
+
   /**
     Number of unused MDL_lock objects in the server.
 
@@ -1175,10 +1181,12 @@ void MDL_map::init()
   MDL_key global_lock_key(MDL_key::GLOBAL, "", "");
   MDL_key commit_lock_key(MDL_key::COMMIT, "", "");
   MDL_key acl_cache_lock_key(MDL_key::ACL_CACHE, "", "");
+  MDL_key backup_lock_key(MDL_key::BACKUP_LOCK, "", "");
 
   m_global_lock= MDL_lock::create(&global_lock_key);
   m_commit_lock= MDL_lock::create(&commit_lock_key);
   m_acl_cache_lock= MDL_lock::create(&acl_cache_lock_key);
+  m_backup_lock= MDL_lock::create(&backup_lock_key);
 
   m_unused_lock_objects= 0;
 
@@ -1198,6 +1206,7 @@ void MDL_map::destroy()
   MDL_lock::destroy(m_global_lock);
   MDL_lock::destroy(m_commit_lock);
   MDL_lock::destroy(m_acl_cache_lock);
+  MDL_lock::destroy(m_backup_lock);
 
   lf_hash_destroy(&m_locks);
 }
@@ -1246,6 +1255,9 @@ MDL_lock* MDL_map::find(LF_PINS *pins, const MDL_key *mdl_key, bool *pinned)
       break;
     case MDL_key::ACL_CACHE:
       lock= m_acl_cache_lock;
+      break;
+    case MDL_key::BACKUP_LOCK:
+      lock= m_backup_lock;
       break;
     default:
       DBUG_ASSERT(false);
@@ -1693,6 +1705,8 @@ inline void MDL_lock::reinit(const MDL_key *mdl_key)
     case MDL_key::TABLESPACE:
     case MDL_key::SCHEMA:
     case MDL_key::COMMIT:
+    case MDL_key::BACKUP_LOCK:
+    case MDL_key::RESOURCE_GROUPS:
       m_strategy= &m_scoped_lock_strategy;
       break;
     default:
@@ -1730,6 +1744,7 @@ MDL_lock::get_unobtrusive_lock_increment(const MDL_request *request)
     case MDL_key::TABLESPACE:
     case MDL_key::SCHEMA:
     case MDL_key::COMMIT:
+    case MDL_key::BACKUP_LOCK:
       return m_scoped_lock_strategy.m_unobtrusive_lock_increment[request->type];
     default:
       return m_object_lock_strategy.m_unobtrusive_lock_increment[request->type];
@@ -2213,7 +2228,7 @@ void MDL_lock::reschedule_waiters()
 
 /**
   Strategy instances to be used with scoped metadata locks (i.e. locks
-  from GLOBAL, COMMIT, TABLESPACE and SCHEMA namespaces).
+  from GLOBAL, COMMIT, TABLESPACE, BACKUP_LOCK and SCHEMA namespaces).
   The only locking modes which are supported at the moment are SHARED and
   INTENTION EXCLUSIVE and EXCLUSIVE.
 */

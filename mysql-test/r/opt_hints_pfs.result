@@ -33,7 +33,7 @@ SUBQUERY(t1)
 */ * FROM t1, t2;
 SELECT digest, digest_text FROM performance_schema.events_statements_history ORDER BY timer_start DESC LIMIT 2;
 digest	digest_text
-7644ea668183c5e0966124fac5ebb000	SELECT /*+ BKA ( `t1`@`qb1` ) BNL ( @`qb1` `t1` ) DUPSWEEDOUT FIRSTMATCH INTOEXISTS LOOSESCAN MATERIALIZATION MRR ( `t1` ) NO_BKA ( `t2` ) NO_BNL ( `t2` ) NO_ICP ( `t2` ) NO_MRR ( `t2` ) NO_RANGE_OPTIMIZATION ( `t2` ) NO_SEMIJOIN ( `t2` ) QB_NAME ( `qb1` ) SEMIJOIN ( `t1` ) SUBQUERY ( `t1` ) */ * FROM `t1` , `t2` 
+d0a871b9001c79b2cc82d4a7a8b46976	SELECT /*+ BKA ( `t1`@`qb1` ) BNL ( @`qb1` `t1` ) DUPSWEEDOUT FIRSTMATCH INTOEXISTS LOOSESCAN MATERIALIZATION MRR ( `t1` ) NO_BKA ( `t2` ) NO_BNL ( `t2` ) NO_ICP ( `t2` ) NO_MRR ( `t2` ) NO_RANGE_OPTIMIZATION ( `t2` ) NO_SEMIJOIN ( `t2` ) QB_NAME ( `qb1` ) SEMIJOIN ( `t1` ) SUBQUERY ( `t1` ) */ * FROM `t1` , `t2` 
 6d05afa5bad50f5e5fbf57e75df1fc3d	SELECT * FROM `t1` , `t2` 
 SELECT * FROM t2, t1;
 SELECT /*+ MAX_EXECUTION_TIME(4294967295) */ * FROM t2, t1;
@@ -55,11 +55,11 @@ SELECT 1;
 SELECT /*+ SET_VAR(foo = 1K) */ 1;
 SELECT digest, digest_text FROM performance_schema.events_statements_history ORDER BY timer_start DESC LIMIT 2;
 digest	digest_text
-6e8c0d72ec7436ecefae76c55fe2a8e2	SELECT /*+ SET_VAR ( `foo` = ? ) */ ? 
+b58aae8e93b1f5bee1dc10aed8c36ed8	SELECT /*+ SET_VAR ( `foo` = ? ) */ ? 
 a532c6f3e890282b7eee77f35ee85ae9	SELECT ? 
 SELECT 1;
 SELECT /*+ SET_VAR(bar = 'baz') */ 1;
 SELECT digest, digest_text FROM performance_schema.events_statements_history ORDER BY timer_start DESC LIMIT 2;
 digest	digest_text
-c81a997c1d34f6912b9772403e2c31f4	SELECT /*+ SET_VAR ( `bar` = ? ) */ ? 
+f08104a2def4b8d9a97f33106d9c71b0	SELECT /*+ SET_VAR ( `bar` = ? ) */ ? 
 a532c6f3e890282b7eee77f35ee85ae9	SELECT ? 

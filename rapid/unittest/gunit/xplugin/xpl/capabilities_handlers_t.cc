@@ -19,13 +19,13 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "account_verification_handler.h"
-#include "mock/capabilities.h"
-#include "mock/ngs_general.h"
-#include "mock/session.h"
-#include "ngs/capabilities/handler_auth_mech.h"
-#include "ngs/capabilities/handler_tls.h"
-#include "rapid/plugin/x/src/sql_user_require.h"
+#include "plugin/x/ngs/include/ngs/capabilities/handler_auth_mech.h"
+#include "plugin/x/ngs/include/ngs/capabilities/handler_tls.h"
+#include "plugin/x/src/account_verification_handler.h"
+#include "plugin/x/src/sql_user_require.h"
+#include "unittest/gunit/xplugin/xpl/mock/capabilities.h"
+#include "unittest/gunit/xplugin/xpl/mock/ngs_general.h"
+#include "unittest/gunit/xplugin/xpl/mock/session.h"
 
 namespace ngs
 {

@@ -3764,7 +3764,12 @@ bool SELECT_LEX::resolve_rollup(THD *thd)
 
     for (ORDER *group= group_list.first; group; group= group->next)
     {
-      if (*group->item == item)
+      /*
+        If this item is present in GROUP BY clause, set maybe_null
+        to true as ROLLUP will generate NULL's for this column.
+      */
+      if (*group->item == item ||
+          item->eq(*group->item, false))
       {
         item->maybe_null= true;
         found_in_group= true;

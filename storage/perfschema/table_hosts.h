@@ -23,9 +23,9 @@
 
 #include <sys/types.h>
 
-#include "cursor_by_host.h"
-#include "pfs_column_types.h"
-#include "table_helper.h"
+#include "storage/perfschema/cursor_by_host.h"
+#include "storage/perfschema/pfs_column_types.h"
+#include "storage/perfschema/table_helper.h"
 
 struct PFS_host;
 

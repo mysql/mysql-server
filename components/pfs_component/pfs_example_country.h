@@ -18,8 +18,9 @@
 
 #include <mysql/components/service_implementation.h>
 #include <mysql/components/services/pfs_plugin_table_service.h>
-#include <thr_mutex.h>
+
 #include "pfs_example_component_population.h"
+#include "thr_mutex.h"
 
 /* Global share pointer for pfs_example_country table */
 extern PFS_engine_table_share_proxy country_st_share;

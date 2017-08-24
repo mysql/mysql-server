@@ -26,18 +26,18 @@
 #include <vector>
 
 #include "my_inttypes.h"
-#include "ngs_common/bind.h"
-#include "ngs_common/chrono.h"
-#include "ngs_common/connection_vio.h"
-#include "ngs/client_list.h"
-#include "ngs/interface/authentication_interface.h"
-#include "ngs/interface/server_delegate.h"
-#include "ngs/interface/server_interface.h"
-#include "ngs/interface/protocol_encoder_interface.h"
-#include "ngs/protocol_encoder.h"
-#include "ngs/protocol/protocol_config.h"
-#include "ngs/thread.h"
-#include "socket_events.h"
+#include "plugin/x/ngs/include/ngs/client_list.h"
+#include "plugin/x/ngs/include/ngs/interface/authentication_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/protocol_encoder_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/server_delegate.h"
+#include "plugin/x/ngs/include/ngs/interface/server_interface.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_config.h"
+#include "plugin/x/ngs/include/ngs/protocol_encoder.h"
+#include "plugin/x/ngs/include/ngs/socket_events.h"
+#include "plugin/x/ngs/include/ngs/thread.h"
+#include "plugin/x/ngs/include/ngs_common/bind.h"
+#include "plugin/x/ngs/include/ngs_common/chrono.h"
+#include "plugin/x/ngs/include/ngs_common/connection_vio.h"
 
 
 namespace ngs

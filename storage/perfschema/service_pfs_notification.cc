@@ -18,15 +18,15 @@
   The performance schema implementation of the notification service.
 */
 
-#include <atomic>
-#include <string.h>
-#include <mysql/plugin.h>
-#include <mysql/components/service_implementation.h>
 #include <mysql/components/my_service.h>
+#include <mysql/components/service_implementation.h>
 #include <mysql/components/services/pfs_notification.h>
+#include <mysql/plugin.h>
+#include <string.h>
+#include <atomic>
 
 #include "pfs_thread_provider.h"
-#include "pfs_server.h"
+#include "storage/perfschema/pfs_server.h"
 
 extern "C" int pfs_get_thread_system_attrs_by_id_v1(
   PSI_thread *thread, ulonglong thread_id, PSI_thread_attrs *thread_attrs);

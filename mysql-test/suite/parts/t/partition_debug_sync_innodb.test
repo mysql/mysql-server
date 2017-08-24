@@ -47,6 +47,17 @@ DROP TABLE t1;
 --echo #
 --echo # Bug#50561: ALTER PARTITIONS does not have adequate lock, breaks with
 --echo #            concurrent I_S query
+--echo #
+--echo # This test is modified after WL#9814. The test case now cannot show
+--echo # the partitions that are altered after I_S query execution is started.
+--echo # That is because, the I_S system view execution sees snapshot (MVCC) of
+--echo # DD metadata at the time the I_S system view select started processing.
+--echo #
+--echo # The test is updated to verify a case when a partition is removed after
+--echo # I_S query starts executing. It is expected that I_S query report a
+--echo # error and continue processing more rows.
+--echo #
+
 create table t1 (a int)
 engine = innodb stats_persistent=0
 partition by range (a)
@@ -57,7 +68,7 @@ SHOW CREATE TABLE t1;
 --replace_result #p# #P# #sp# #SP#
 --list_files $MYSQLD_DATADIR/test
 
-SET DEBUG_SYNC='before_open_in_get_all_tables SIGNAL parked WAIT_FOR open';
+SET DEBUG_SYNC='before_open_in_IS_query SIGNAL parked WAIT_FOR open';
 send
 SELECT TABLE_SCHEMA, TABLE_NAME, PARTITION_NAME, PARTITION_ORDINAL_POSITION,
        PARTITION_DESCRIPTION, TABLE_ROWS
@@ -72,7 +83,7 @@ SET DEBUG_SYNC = 'alter_table_inplace_before_commit SIGNAL open WAIT_FOR alter';
 --error 0,ER_TABLE_EXISTS_ERROR
 send
 ALTER TABLE t1 REORGANIZE PARTITION p0 INTO
-(PARTITION p0 VALUES LESS THAN (10),
+(PARTITION p1 VALUES LESS THAN (10),
  PARTITION p10 VALUES LESS THAN MAXVALUE);
 
 connect (con2, localhost, root,,);

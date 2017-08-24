@@ -23,12 +23,12 @@
 #include "base64.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "observer_trans.h"
-#include "plugin_log.h"
-#include "plugin.h"
-#include "sql_command_test.h"
-#include "sql_service_command.h"
-#include "sql_service_interface.h"
+#include "plugin/group_replication/include/observer_trans.h"
+#include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/plugin_log.h"
+#include "plugin/group_replication/include/sql_service/sql_command_test.h"
+#include "plugin/group_replication/include/sql_service/sql_service_command.h"
+#include "plugin/group_replication/include/sql_service/sql_service_interface.h"
 
 /*
   Buffer to read the write_set value as a string.

@@ -18,10 +18,10 @@
 #ifndef SIMPLE_OPTION_INCLUDED
 #define SIMPLE_OPTION_INCLUDED
 
-#include <my_getopt.h>
 #include <string>
 
 #include "client/base/abstract_option.h"
+#include "my_getopt.h"
 
 namespace Mysql{
 namespace Tools{

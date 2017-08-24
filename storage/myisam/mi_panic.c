@@ -15,8 +15,8 @@
 
 #include <fcntl.h>
 
-#include "fulltext.h"
 #include "my_dbug.h"
+#include "storage/myisam/fulltext.h"
 
 	/* if flag == HA_PANIC_CLOSE then all misam files are closed */
 	/* if flag == HA_PANIC_WRITE then all misam files are unlocked and

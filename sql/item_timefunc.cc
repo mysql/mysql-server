@@ -48,7 +48,7 @@
 #include "mysqld_error.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"
-#include "sql/dd/info_schema/stats.h"
+#include "sql/dd/info_schema/table_stats.h"
 #include "sql/dd/object_id.h" // dd::Object_id
 #include "sql/derror.h"      // ER_THD
 #include "sql/sql_class.h"   // THD
@@ -3506,15 +3506,16 @@ bool Item_func_internal_update_time::get_date(MYSQL_TIME *ltime,
     table_name_ptr->c_ptr_safe();
     engine_name_ptr->c_ptr_safe();
 
-    unixtime= thd->lex->m_IS_dyn_stat_cache.read_stat(thd,
+    unixtime= thd->lex->m_IS_table_stats.read_stat(thd,
                 *schema_name_ptr,
                 *table_name_ptr,
                 *engine_name_ptr,
+                nullptr,
                 se_private_id,
                 (ts_se_private_data_ptr ?
                  ts_se_private_data_ptr->c_ptr_safe() : nullptr),
                 nullptr,
-                dd::info_schema::enum_statistics_type::TABLE_UPDATE_TIME);
+                dd::info_schema::enum_table_stats_type::TABLE_UPDATE_TIME);
     if (unixtime)
     {
       null_value= 0;
@@ -3567,15 +3568,16 @@ bool Item_func_internal_check_time::get_date(MYSQL_TIME *ltime,
     table_name_ptr->c_ptr_safe();
     engine_name_ptr->c_ptr_safe();
 
-    unixtime= thd->lex->m_IS_dyn_stat_cache.read_stat(thd,
+    unixtime= thd->lex->m_IS_table_stats.read_stat(thd,
                 *schema_name_ptr,
                 *table_name_ptr,
                 *engine_name_ptr,
+                nullptr,
                 se_private_id,
                 (ts_se_private_data_ptr ?
                  ts_se_private_data_ptr->c_ptr_safe() : nullptr),
                 nullptr,
-                dd::info_schema::enum_statistics_type::CHECK_TIME);
+                dd::info_schema::enum_table_stats_type::CHECK_TIME);
     if (unixtime)
     {
       null_value= 0;

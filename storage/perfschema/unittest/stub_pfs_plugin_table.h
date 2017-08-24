@@ -14,7 +14,8 @@
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include <mysql/components/services/pfs_plugin_table_service.h>
-#include "pfs_plugin_table.h"
+
+#include "storage/perfschema/pfs_plugin_table.h"
 
 static int
 pfs_add_tables_v1(PFS_engine_table_share_proxy **, uint)

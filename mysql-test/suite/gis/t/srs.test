@@ -4,9 +4,9 @@
 # Use all defined SRSs and thereby verify that they are parseable and
 # contain all mandatory parameters.
 #
-# We currently have 4906 SRSs.
+# We currently have 4907 SRSs.
 
-SELECT SUM(ST_ISSIMPLE(ST_GEOMFROMTEXT('POINT(0 0)', srs_id))) AS should_be_4906
+SELECT SUM(ST_ISSIMPLE(ST_GEOMFROMTEXT('POINT(0 0)', srs_id))) AS should_be_4907
 FROM information_schema.ST_SPATIAL_REFERENCE_SYSTEMS;
 
 # Check that I_S contains the correct information for at least one SRS

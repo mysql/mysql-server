@@ -18,10 +18,10 @@
 
 #include <gtest/gtest.h>
 
-#include "parsertest.h"
 #include "sql/sql_lex.h"
-#include "test_utils.h"
 #include "thr_lock.h"
+#include "unittest/gunit/parsertest.h"
+#include "unittest/gunit/test_utils.h"
 
 namespace insert_delayed_unittest {
 

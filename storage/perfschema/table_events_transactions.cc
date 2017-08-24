@@ -25,14 +25,14 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_thread.h"
-#include "pfs_buffer_container.h"
-#include "pfs_events_transactions.h"
-#include "pfs_instr.h"
-#include "pfs_instr_class.h"
-#include "pfs_timer.h"
 #include "sql/field.h"
 #include "sql/xa.h"
-#include "table_helper.h"
+#include "storage/perfschema/pfs_buffer_container.h"
+#include "storage/perfschema/pfs_events_transactions.h"
+#include "storage/perfschema/pfs_instr.h"
+#include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/pfs_timer.h"
+#include "storage/perfschema/table_helper.h"
 
 THR_LOCK table_events_transactions_current::m_table_lock;
 

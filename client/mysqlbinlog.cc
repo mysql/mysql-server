@@ -1262,6 +1262,7 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *
     case binary_log::WRITE_ROWS_EVENT_V1:
     case binary_log::UPDATE_ROWS_EVENT_V1:
     case binary_log::DELETE_ROWS_EVENT_V1:
+    case binary_log::PARTIAL_UPDATE_ROWS_EVENT:
     {
       bool stmt_end= FALSE;
       Table_map_log_event *ignored_map= NULL;
@@ -1270,7 +1271,8 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *
           ev_type == binary_log::UPDATE_ROWS_EVENT ||
           ev_type == binary_log::WRITE_ROWS_EVENT_V1 ||
           ev_type == binary_log::DELETE_ROWS_EVENT_V1 ||
-          ev_type == binary_log::UPDATE_ROWS_EVENT_V1)
+          ev_type == binary_log::UPDATE_ROWS_EVENT_V1 ||
+          ev_type == binary_log::PARTIAL_UPDATE_ROWS_EVENT)
       {
         Rows_log_event *new_ev= (Rows_log_event*) ev;
         if (new_ev->get_flags(Rows_log_event::STMT_END_F))
@@ -1577,8 +1579,8 @@ static struct my_option my_long_options[] =
   {"socket", 'S', "The socket file to use for connection.",
    &sock, &sock, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0,
    0, 0},
-#include <caching_sha2_passwordopt-longopts.h>
-#include <sslopt-longopts.h>
+#include "caching_sha2_passwordopt-longopts.h"
+#include "sslopt-longopts.h"
 
   {"start-datetime", OPT_START_DATETIME,
    "Start reading the binlog at first event having a datetime equal or "
@@ -1812,7 +1814,7 @@ get_one_option(int optid, const struct my_option *opt,
     DBUG_PUSH(argument ? argument : default_dbug_option);
     break;
 #endif
-#include <sslopt-case.h>
+#include "sslopt-case.h"
 
   case 'd':
     one_database = 1;

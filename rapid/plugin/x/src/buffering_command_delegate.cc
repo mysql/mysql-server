@@ -17,9 +17,9 @@
  * 02110-1301  USA
  */
 
-#include "buffering_command_delegate.h"
+#include "plugin/x/src/buffering_command_delegate.h"
 
-#include "ngs_common/bind.h"
+#include "plugin/x/ngs/include/ngs_common/bind.h"
 
 namespace xpl {
 

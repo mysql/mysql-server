@@ -50,7 +50,7 @@ perl;
   use strict;
   my $log= $ENV{'MYSQLD_LOG'} or die;
   open(FILE, "$log") or die;
-  my $c_w= grep(/.ERROR. Data Dictionary initialization failed./gi,<FILE>);
+  my $c_w= grep(/\[ERROR\] \[[^]]*\] Data Dictionary initialization failed./gi,<FILE>);
   print "#     Data Dictionary initialization error found $c_w times.\n";
   close(FILE);
 EOF

@@ -513,6 +513,9 @@ EXPLAIN SELECT * FROM t1 WHERE f1 + 1 > 7	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 3,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "range",
                       "range_details": {
                         "used_index": "PRIMARY"
@@ -673,6 +676,9 @@ EXPLAIN SELECT * FROM t1 ORDER BY f1 + 1	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 10,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 10,
                       "cost": 1.25,
@@ -857,6 +863,9 @@ EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 10,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 10,
                       "cost": 1.25,
@@ -1237,7 +1246,7 @@ INSERT INTO t VALUES (14, 0, "ss");
 ALTER TABLE t ADD c INT GENERATED ALWAYS AS (a/b) VIRTUAL;
 CREATE INDEX idx ON t(c);
 ERROR 22012: Division by 0
-CALL mtr.add_suppression("\\[Warning\\] InnoDB: Compute virtual column values failed");
+CALL mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Compute virtual column values failed");
 DROP TABLE t;
 #
 # Bug#21770798 OPTIMIZER DOES NOT USE INDEX FOR GENERATED EXPRESSIONS

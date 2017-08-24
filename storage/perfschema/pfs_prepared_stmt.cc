@@ -27,10 +27,10 @@
 #include <string.h>
 
 #include "my_sys.h"
-#include "pfs_buffer_container.h"
-#include "pfs_global.h"
-#include "pfs_instr.h"
 #include "sql_string.h"
+#include "storage/perfschema/pfs_buffer_container.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_instr.h"
 
 /**
   Initialize table PREPARED_STATEMENTS_INSTANCE.

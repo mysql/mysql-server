@@ -18,7 +18,7 @@
 
 #include "my_dbug.h"
 #include "myisam.h"
-#include "myisamdef.h"
+#include "storage/myisam/myisamdef.h"
 
        /* Return 0 if table isn't changed */
 

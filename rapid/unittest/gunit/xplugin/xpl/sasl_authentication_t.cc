@@ -19,11 +19,11 @@
 #include <gtest/gtest.h>
 #include <stdexcept>
 
-#include "auth_plain.h"
-#include "mock/ngs_general.h"
-#include "mock/session.h"
-#include "ngs/memory.h"
-#include "rapid/plugin/x/src/sql_user_require.h"
+#include "plugin/x/ngs/include/ngs/memory.h"
+#include "plugin/x/src/auth_plain.h"
+#include "plugin/x/src/sql_user_require.h"
+#include "unittest/gunit/xplugin/xpl/mock/ngs_general.h"
+#include "unittest/gunit/xplugin/xpl/mock/session.h"
 
 namespace xpl
 {

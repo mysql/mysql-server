@@ -73,14 +73,14 @@ public:
   // created
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong created() const = 0;
+  virtual ulonglong created(bool convert_time) const = 0;
   virtual void set_created(ulonglong created) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // last_altered
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong last_altered() const = 0;
+  virtual ulonglong last_altered(bool convert_time) const = 0;
   virtual void set_last_altered(ulonglong last_altered) = 0;
 
   /////////////////////////////////////////////////////////////////////////
@@ -122,6 +122,7 @@ public:
   virtual double prime_meridian() const = 0;
   virtual bool positive_east() const = 0;
   virtual bool positive_north() const = 0;
+  virtual double to_radians(double d) const = 0;
   virtual double from_radians(double d) const = 0;
 
   /////////////////////////////////////////////////////////////////////////

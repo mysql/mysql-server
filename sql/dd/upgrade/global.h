@@ -81,7 +81,7 @@ class Routine_event_context_guard
 {
   THD *m_thd;
   sql_mode_t m_sql_mode;
-  Time_zone *m_saved_time_zone;
+  ::Time_zone *m_saved_time_zone;
   const CHARSET_INFO *m_client_cs;
   const CHARSET_INFO *m_connection_cl;
 

@@ -26,17 +26,17 @@
 #define _heap_h
 
 #ifndef _my_base_h
-#include <my_base.h>
+#include "my_base.h"
 #endif
 
 #include <sys/types.h>
-#include <thr_lock.h>
 #include <time.h>
 
 #include "my_compare.h"
 #include "my_inttypes.h"
 #include "my_list.h"
 #include "my_tree.h"
+#include "thr_lock.h"
 
 #ifdef	__cplusplus
 extern "C" {

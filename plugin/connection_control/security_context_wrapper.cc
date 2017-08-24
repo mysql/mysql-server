@@ -14,9 +14,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
+#include "plugin/connection_control/security_context_wrapper.h"
+
 #include <mysql/service_security_context.h> /* Security context service */
 
-#include "security_context_wrapper.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/sql_acl.h"               /* SUPER_ACL */
 #include "sql/sql_class.h"                  /* THD, Security context */

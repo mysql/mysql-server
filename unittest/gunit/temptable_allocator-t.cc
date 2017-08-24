@@ -19,8 +19,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <array> /* std::array */
 #include <new>   /* std::bad_alloc */
 
-#include "temptable/allocator.h" /* temptable::Allocator */
-#include "temptable/constants.h" /* temptable::ALLOCATOR_MAX_BLOCK_BYTES */
+#include "storage/temptable/include/temptable/allocator.h" /* temptable::Allocator */
+#include "storage/temptable/include/temptable/constants.h" /* temptable::ALLOCATOR_MAX_BLOCK_BYTES */
 
 namespace temptable_allocator_unittest {
 

@@ -27,7 +27,7 @@
 #include "sql/mysqld.h"
 #include "sql/mysqld_thd_manager.h" // Global_THD_manager
 #include "sql/sql_class.h"
-#include "thread_utils.h"
+#include "unittest/gunit/thread_utils.h"
 
 using thread::Thread;
 using thread::Notification;

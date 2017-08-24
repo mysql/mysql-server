@@ -71,8 +71,8 @@ COMMIT;
 
 FLUSH LOGS;
 
--- let $log_file1= $MYSQLD_DATADIR/master-bin.000001
--- let $log_file2= $MYSQLD_DATADIR/master-bin.000002
+-- let $log_file1= $MYSQLD_DATADIR/binlog.000001
+-- let $log_file2= $MYSQLD_DATADIR/binlog.000002
 -- let $outfile= $MYSQLTEST_VARDIR/tmp/b42941-mysqlbinlog
 -- let $cmd= $MYSQL_BINLOG
 

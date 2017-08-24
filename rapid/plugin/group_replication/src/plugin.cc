@@ -19,15 +19,15 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
-#include "observer_server_actions.h"
-#include "observer_server_state.h"
-#include "observer_trans.h"
-#include "pipeline_stats.h"
-#include "plugin.h"
-#include "plugin_log.h"
+#include "plugin/group_replication/include/observer_server_actions.h"
+#include "plugin/group_replication/include/observer_server_state.h"
+#include "plugin/group_replication/include/observer_trans.h"
+#include "plugin/group_replication/include/pipeline_stats.h"
+#include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/plugin_log.h"
 
 #ifndef DBUG_OFF
-#include "services/notification/impl/gms_listener_test.h"
+#include "plugin/group_replication/include/services/notification/impl/gms_listener_test.h"
 #endif
 
 using std::string;
@@ -462,13 +462,8 @@ int plugin_group_replication_start()
 
   // Setup SQL service interface.
   if (sql_command_interface->
-          establish_session_connection(PSESSION_DEDICATED_THREAD,plugin_info_ptr))
-  {
-    error =1; /* purecov: inspected */
-    goto err; /* purecov: inspected */
-  }
-
-  if (sql_command_interface->set_interface_user(GROUPREPL_USER))
+          establish_session_connection(PSESSION_DEDICATED_THREAD,
+                                       GROUPREPL_USER, plugin_info_ptr))
   {
     error =1; /* purecov: inspected */
     goto err; /* purecov: inspected */

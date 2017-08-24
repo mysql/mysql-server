@@ -19,12 +19,12 @@
 #include <stddef.h>
 
 #include "my_inttypes.h"
-#include "parsertest.h"
 #include "sql/current_thd.h"
 #include "sql/select_lex_visitor.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_optimizer.h"
-#include "test_utils.h"
+#include "unittest/gunit/parsertest.h"
+#include "unittest/gunit/test_utils.h"
 
 namespace select_lex_visitor_unittest {
 

@@ -289,6 +289,7 @@ bool str_to_time(const CHARSET_INFO *cs, const char *str, size_t length,
 
 
 /* Character set-aware version of str_to_datetime() */
+#ifdef MYSQL_SERVER
 bool str_to_datetime(const CHARSET_INFO *cs,
                      const char *str, size_t length,
                      MYSQL_TIME *l_time, my_time_flags_t flags,
@@ -324,6 +325,7 @@ bool datetime_add_nanoseconds_adjust_frac(MYSQL_TIME *ltime, uint nanoseconds,
   else
     return datetime_add_nanoseconds_with_round(ltime, nanoseconds, warnings);
 }
+#endif // ifdef MYSQL_SERVER
 
 /**
   @param [in,out] ltime        MYSQL_TIME variable to add to.
@@ -445,6 +447,7 @@ ret:
   @param [in,out] warnings     Warning flag vector.
   @retval                      False on success, true on error.
 */
+#ifdef MYSQL_SERVER
 bool datetime_add_nanoseconds_with_round(MYSQL_TIME *ltime,
                                          uint nanoseconds, int *warnings)
 {
@@ -954,6 +957,7 @@ void time_to_datetime(THD *thd, const MYSQL_TIME *ltime, MYSQL_TIME *ltime2)
   ltime2->time_type= MYSQL_TIMESTAMP_DATE;
   mix_date_and_time(ltime2, ltime);
 }
+#endif // ifdef MYSQL_SERVER
 
 
 /*
@@ -1328,6 +1332,7 @@ bool my_TIME_to_str(const MYSQL_TIME *ltime, String *str, uint dec)
 }
 
 
+#ifdef MYSQL_SERVER
 bool make_truncated_value_warning(THD *thd,
                                   Sql_condition::enum_severity_level level,
                                   ErrConvString val, timestamp_type time_type,
@@ -1482,6 +1487,7 @@ invalid_date:
 null_date:
   return 1;
 }
+#endif // ifdef MYSQL_SERVER
 
 
 /*
@@ -1659,6 +1665,7 @@ bool my_time_adjust_frac(MYSQL_TIME *ltime, uint dec,
                             truncated/rounded.
   @return                   False on success, true on error.
 */
+#ifdef MYSQL_SERVER
 bool my_datetime_adjust_frac(MYSQL_TIME *ltime, uint dec, int *warnings,
                              bool truncate)
 {
@@ -1670,6 +1677,7 @@ bool my_datetime_adjust_frac(MYSQL_TIME *ltime, uint dec, int *warnings,
   my_time_trunc(ltime, dec);
   return rc;
 }
+#endif // ifdef MYSQL_SERVER
 
 
 /**
@@ -1813,6 +1821,7 @@ void TIME_from_longlong_packed(MYSQL_TIME *ltime,
   @return     A decimal value in on of the following formats, depending
               on type: YYYYMMDD, hhmmss.ffffff or YYMMDDhhmmss.ffffff.
 */
+#ifdef MYSQL_SERVER
 my_decimal *my_decimal_from_datetime_packed(my_decimal *dec,
                                             enum enum_field_types type,
                                             longlong packed_value)
@@ -1837,6 +1846,7 @@ my_decimal *my_decimal_from_datetime_packed(my_decimal *dec,
       return dec;
   }
 }
+#endif // ifdef MYSQL_SERVER
 
 
 /**
@@ -1877,7 +1887,7 @@ longlong longlong_from_datetime_packed(enum enum_field_types type,
   @param packed_value   Numeric packed temporal representation.
   @return               A double value in on of the following formats,
                         depending  on type:
-                        YYYYMMDD, hhmmss.ffffff or YYMMDDhhmmss.ffffff.                        
+                        YYYYMMDD, hhmmss.ffffff or YYMMDDhhmmss.ffffff.
 */
 double double_from_datetime_packed(enum enum_field_types type,
                                    longlong packed_value)
@@ -1886,3 +1896,35 @@ double double_from_datetime_packed(enum enum_field_types type,
   return result +
         ((double) MY_PACKED_TIME_GET_FRAC_PART(packed_value)) / 1000000;
 }
+
+/**
+  This function gets GMT time and adds value of time_zone to get
+  the local time. This function is used when server wants a timestamp
+  value from dictionary system.
+
+  @param  gmt_time     GMT time value.
+*/
+
+#ifdef MYSQL_SERVER
+ulonglong gmt_time_to_local_time(ulonglong gmt_time)
+{
+  MYSQL_TIME time;
+  bool not_used;
+
+  THD *thd= current_thd;
+  Time_zone *tz= thd->variables.time_zone;
+
+  // Convert longlong time to MYSQL_TIME format
+  my_longlong_to_datetime_with_warn(gmt_time, &time, MYF(0));
+
+  // Convert MYSQL_TIME to epoc second according to GMT time_zone.
+  my_time_t timestamp;
+  timestamp= my_tz_OFFSET0->TIME_to_gmt_sec(&time, &not_used);
+
+  // Convert epoc seconds to local time
+  tz->gmt_sec_to_TIME(&time, timestamp);
+
+  // Return ulonglong value from MYSQL_TIME
+  return TIME_to_ulonglong_datetime(&time);
+}
+#endif // ifdef MYSQL_SERVER

@@ -19,13 +19,13 @@
 #include <signal.h>
 #include <time.h>
 
-#include "applier.h"
 #include "my_dbug.h"
 #include "my_systime.h"
-#include "plugin.h"
-#include "plugin_log.h"
-#include "single_primary_message.h"
-#include "services/notification/notification.h"
+#include "plugin/group_replication/include/applier.h"
+#include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/plugin_log.h"
+#include "plugin/group_replication/include/services/notification/notification.h"
+#include "plugin/group_replication/include/single_primary_message.h"
 
 char applier_module_channel_name[] = "group_replication_applier";
 bool applier_thread_is_exiting= false;

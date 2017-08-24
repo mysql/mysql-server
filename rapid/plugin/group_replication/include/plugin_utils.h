@@ -26,7 +26,7 @@
 
 #include "my_dbug.h"
 #include "my_systime.h"
-#include "plugin_psi.h"
+#include "plugin/group_replication/include/plugin_psi.h"
 
 class Blocked_transaction_handler
 {

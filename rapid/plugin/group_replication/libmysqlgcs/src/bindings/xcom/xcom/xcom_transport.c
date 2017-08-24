@@ -13,8 +13,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "xcom_profile.h"
-
 #include <assert.h>
 #include <errno.h>
 #include <limits.h>
@@ -22,39 +20,45 @@
 #include <rpc/rpc.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_profile.h"
 #ifndef XCOM_STANDALONE
 #include "my_compiler.h"
 #endif
-#include "node_connection.h"
-#include "node_list.h"
-#include "node_no.h"
-#include "server_struct.h"
-#include "simset.h"
-#include "site_def.h"
-#include "site_struct.h"
-#include "synode_no.h"
-#include "task.h"
-#include "task_debug.h"
-#include "task_os.h"
-#include "x_platform.h"
-#include "xcom_base.h"
-#include "xcom_common.h"
-#include "xcom_detector.h"
-#include "xcom_memory.h"
-#include "xcom_msg_queue.h"
-#include "xcom_statistics.h"
-#include "xcom_transport.h"
-#include "xcom_vp.h"
-#include "xcom_vp_str.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_connection.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_list.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_no.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/retry.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/server_struct.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/simset.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/site_def.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/site_struct.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/sock_probe.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/synode_no.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_debug.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_os.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_base.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_common.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_detector.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_memory.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_msg_queue.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_statistics.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_transport.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_vp_str.h"
+#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
 
 #ifdef XCOM_HAVE_OPENSSL
-#include "openssl/err.h"
-#include "openssl/ssl.h"
+#ifdef WIN32
+// In OpenSSL before 1.1.0, we need this first.
+#include <winsock2.h>
+#endif  // WIN32
+#include <openssl/err.h>
+#include <openssl/ssl.h>
 #endif
-#include "retry.h"
-#include "sock_probe.h"
 #ifdef XCOM_HAVE_OPENSSL
-#include "xcom_ssl_transport.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_ssl_transport.h"
 #endif
 
 #define MY_XCOM_PROTO x_1_2

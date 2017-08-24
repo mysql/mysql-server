@@ -20,11 +20,11 @@ TempTable Index declarations. */
 
 #include "my_dbug.h"              /* DBUG_ASSERT() */
 #include "sql/key.h"              /* KEY */
-#include "temptable/allocator.h"     /* temptable::Allocator */
-#include "temptable/containers.h"    /* temptable::*container */
-#include "temptable/cursor.h"        /* temptable::Cursor */
-#include "temptable/indexed_cells.h" /* temptable::Indexed_cells */
-#include "temptable/result.h"        /* temptable::Result */
+#include "storage/temptable/include/temptable/allocator.h" /* temptable::Allocator */
+#include "storage/temptable/include/temptable/containers.h" /* temptable::*container */
+#include "storage/temptable/include/temptable/cursor.h" /* temptable::Cursor */
+#include "storage/temptable/include/temptable/indexed_cells.h" /* temptable::Indexed_cells */
+#include "storage/temptable/include/temptable/result.h" /* temptable::Result */
 
 namespace temptable {
 

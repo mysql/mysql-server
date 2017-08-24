@@ -19,11 +19,11 @@
 */
 
 %{
-#include "sql_class.h"
-#include "parse_tree_hints.h"
-#include "sql_lex_hints.h"
-#include "sql_const.h"
-#include "derror.h"
+#include "sql/derror.h"
+#include "sql/parse_tree_hints.h"
+#include "sql/sql_class.h"
+#include "sql/sql_const.h"
+#include "sql/sql_lex_hints.h"
 
 #define NEW_PTN new (thd->mem_root)
 
@@ -52,6 +52,7 @@ static bool parse_int(longlong *to, const char *from, size_t from_length)
 /* Hint keyword tokens */
 
 %token MAX_EXECUTION_TIME_HINT
+%token RESOURCE_GROUP_HINT
 
 %token BKA_HINT
 %token BNL_HINT
@@ -106,6 +107,7 @@ static bool parse_int(longlong *to, const char *from, size_t from_length)
   qb_level_hint
   qb_name_hint
   set_var_hint
+  resource_group_hint
 
 %type <hint_list> hint_list
 
@@ -177,6 +179,7 @@ hint:
         | qb_name_hint
         | max_execution_time_hint
         | set_var_hint
+        | resource_group_hint
         ;
 
 
@@ -515,6 +518,15 @@ set_var_hint:
               YYABORT; // OOM
           }
         ;
+
+resource_group_hint:
+         RESOURCE_GROUP_HINT '(' HINT_ARG_IDENT ')'
+         {
+           $$= NEW_PTN PT_hint_resource_group($3);
+           if ($$ == nullptr)
+              YYABORT; // OOM
+         }
+       ;
 
 set_var_ident:
           HINT_ARG_IDENT

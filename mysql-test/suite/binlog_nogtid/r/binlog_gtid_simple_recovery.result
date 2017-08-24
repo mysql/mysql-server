@@ -2,19 +2,19 @@ RESET MASTER;
 CREATE TABLE t1 (
 c1 INT NOT NULL PRIMARY KEY
 );
-# Generate master-bin.000002
+# Generate binlog.000002
 FLUSH LOGS;
 INSERT INTO t1 VALUES (1);
-# Generate master-bin.000003
+# Generate binlog.000003
 FLUSH LOGS;
 INSERT INTO t1 VALUES (2);
-# Generate master-bin.000004
+# Generate binlog.000004
 FLUSH LOGS;
 INSERT INTO t1 VALUES (3);
-# Move master-bin.000002 to master-bin.000002.bkp and
-# master-bin.000003 to master-bin.000003.bkp
+# Move binlog.000002 to binlog.000002.bkp and
+# binlog.000003 to binlog.000003.bkp
 #
-# Only master-bin.000001 and master-bin.000004 remain, others are moved
+# Only binlog.000001 and binlog.000004 remain, others are moved
 # , restart the server with enabled binlog-gtid-simple-recovery
 # and gtid_mode on. If the server scans more than one binary log in
 # every iteration, it will cause read error on the 2nd and 3rd files.
@@ -27,12 +27,12 @@ INSERT INTO t1 VALUES (3);
 include/assert.inc [GLOBAL.GTID_EXECUTED must be empty.]
 include/assert.inc [GLOBAL.GTID_PURGED must be empty.]
 #
-# Write one gtid event into master-bin.000004
+# Write one gtid event into binlog.000004
 #
 DROP TABLE t1;
-# Move master-bin.000004 to master-bin.000004.bkp
+# Move binlog.000004 to binlog.000004.bkp
 #
-# Only master-bin.000001 and master-bin.000005 remain, others are moved
+# Only binlog.000001 and binlog.000005 remain, others are moved
 # , restart the server with enabled binlog-gtid-simple-recovery
 # and gtid_mode on again. If the server scans more than one binary
 # log in every iteration, it will cause read error on the 2nd and
@@ -49,7 +49,7 @@ include/assert.inc [GLOBAL.GTID_PURGED is empty]
 # Move binary logs back.
 #
 #
-# PURGE BINARY LOGS TO master-bin.000006
+# PURGE BINARY LOGS TO binlog.000006
 #
-PURGE BINARY LOGS TO 'master-bin.000006';
+PURGE BINARY LOGS TO 'binlog.000006';
 include/assert.inc [purged gtids MASTER_UUID:1]

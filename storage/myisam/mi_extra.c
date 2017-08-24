@@ -22,7 +22,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
-#include "myisamdef.h"
+#include "storage/myisam/myisamdef.h"
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif

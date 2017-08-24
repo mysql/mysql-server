@@ -20,7 +20,7 @@
 extern "C" {
 #endif
 
-#include "x_platform.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
 
 /* Combined return value and error code */
 struct result {

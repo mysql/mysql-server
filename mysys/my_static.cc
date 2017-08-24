@@ -19,21 +19,21 @@
   a shared library.
 */
 
+#include "mysys/my_static.h"
+
 #include "my_config.h"
 
-#include <stdarg.h>
 #include <stdarg.h>
 #include <stddef.h>
 
 #include "my_compiler.h"
 #include "my_loglevel.h"
-#include "my_static.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_memory.h"
 #include "mysql/psi/psi_stage.h"
-#include "mysys_priv.h"  // IWYU pragma: keep
+#include "mysys/mysys_priv.h" // IWYU pragma: keep
 
 /* get memory in hunks */
 constexpr uint ONCE_ALLOC_INIT= 4096 - MALLOC_OVERHEAD;

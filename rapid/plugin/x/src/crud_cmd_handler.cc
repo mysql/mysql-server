@@ -17,21 +17,20 @@
  * 02110-1301  USA
  */
 
-#include "crud_cmd_handler.h"
+#include "plugin/x/src/crud_cmd_handler.h"
 
-#include "ngs_common/protocol_protobuf.h"
-
-#include "xpl_log.h"
-#include "expr_generator.h"
-#include "xpl_error.h"
-#include "update_statement_builder.h"
-#include "find_statement_builder.h"
-#include "delete_statement_builder.h"
-#include "insert_statement_builder.h"
-#include "view_statement_builder.h"
-#include "notices.h"
-#include "xpl_session.h"
-#include "xpl_resultset.h"
+#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "plugin/x/src/delete_statement_builder.h"
+#include "plugin/x/src/expr_generator.h"
+#include "plugin/x/src/find_statement_builder.h"
+#include "plugin/x/src/insert_statement_builder.h"
+#include "plugin/x/src/notices.h"
+#include "plugin/x/src/update_statement_builder.h"
+#include "plugin/x/src/view_statement_builder.h"
+#include "plugin/x/src/xpl_error.h"
+#include "plugin/x/src/xpl_log.h"
+#include "plugin/x/src/xpl_resultset.h"
+#include "plugin/x/src/xpl_session.h"
 
 namespace xpl {
 

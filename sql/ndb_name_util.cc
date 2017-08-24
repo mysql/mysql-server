@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,10 +16,10 @@
 */
 
 
-#include "ndb_name_util.h"
+#include "sql/ndb_name_util.h"
 
-#include "sql_table.h"      // filename_to_table_name()
 #include "m_string.h"       // strend()
+#include "sql/sql_table.h"  // filename_to_table_name()
 
 /**
   Set a given location from full pathname to database name.

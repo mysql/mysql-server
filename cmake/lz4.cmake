@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,16 +21,16 @@ MACRO (FIND_SYSTEM_LZ4)
   FIND_LIBRARY(LZ4_SYSTEM_LIBRARY NAMES lz4)
   IF (PATH_TO_LZ4 AND LZ4_SYSTEM_LIBRARY)
     SET(SYSTEM_LZ4_FOUND 1)
-    SET(LZ4_INCLUDE_DIR ${PATH_TO_LZ4})
+    INCLUDE_DIRECTORIES(SYSTEM ${PATH_TO_LZ4})
     SET(LZ4_LIBRARY ${LZ4_SYSTEM_LIBRARY})
-    MESSAGE(STATUS "LZ4_INCLUDE_DIR ${LZ4_INCLUDE_DIR}")
+    MESSAGE(STATUS "PATH_TO_LZ4 ${PATH_TO_LZ4}")
     MESSAGE(STATUS "LZ4_LIBRARY ${LZ4_LIBRARY}")
   ENDIF()
 ENDMACRO()
 
 MACRO (MYSQL_USE_BUNDLED_LZ4)
   SET(BUILD_BUNDLED_LZ4 1)
-  SET(LZ4_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/extra/lz4)
+  INCLUDE_DIRECTORIES(SYSTEM ${CMAKE_SOURCE_DIR}/extra/lz4)
   SET(LZ4_LIBRARY lz4_lib)
 ENDMACRO()
 

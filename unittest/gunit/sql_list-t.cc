@@ -29,7 +29,7 @@
 #include "sql/sql_list.h"
 #include "sql/thr_malloc.h"
 #include "sql_string.h"
-#include "test_utils.h"
+#include "unittest/gunit/test_utils.h"
 
 namespace sql_list_unittest {
 

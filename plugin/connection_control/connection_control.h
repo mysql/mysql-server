@@ -19,7 +19,7 @@
 #include <mysql/psi/mysql_rwlock.h>
 #include <mysql/psi/mysql_thread.h>     /* mysql_rwlock_t */
 
-#include "connection_control_data.h"
+#include "plugin/connection_control/connection_control_data.h"
 
 namespace connection_control
 {

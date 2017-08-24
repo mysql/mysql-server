@@ -33,7 +33,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include "mysql/service_plugin_registry.h"
 #include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
-#include "records.h"
 #include "sql/auth/auth_common.h"
 #include "sql/auth/auth_internal.h"
 #include "sql/auth/sql_auth_cache.h"

@@ -18,13 +18,13 @@
   into other programs
 */
 
+#include "my_config.h"
+
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../include/my_compiler.h"
-#include "../include/my_config.h"
-#include "../sql/sql_bootstrap.h"
+#include "my_compiler.h"
 /*
   This is an internal tool used during the build process only,
   - do not make a library just for this,
@@ -33,7 +33,8 @@
   - do not duplicate the code either.
  so just add the sql_bootstrap.cc code as is.
 */
-#include "../sql/sql_bootstrap.cc"
+#include "sql/sql_bootstrap.cc"
+#include "sql/sql_bootstrap.h"
 
 FILE *in;
 FILE *out;

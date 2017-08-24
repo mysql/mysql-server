@@ -19,14 +19,14 @@
   This file defines the NDB Cluster handler engine_condition_pushdown
 */
 
-#include "ha_ndbcluster_cond.h"
+#include "sql/ha_ndbcluster_cond.h"
 
 #include "my_dbug.h"
-#include "item.h"           // Item
-#include "item_func.h"      // Item_func
-#include "item_cmpfunc.h"   // Item_func_like etc.
-#include "current_thd.h"
-#include "ndb_log.h"
+#include "sql/current_thd.h"
+#include "sql/item.h"       // Item
+#include "sql/item_cmpfunc.h" // Item_func_like etc.
+#include "sql/item_func.h"  // Item_func
+#include "sql/ndb_log.h"
 
 // Typedefs for long names 
 typedef NdbDictionary::Column NDBCOL;

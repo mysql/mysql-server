@@ -1,0 +1,530 @@
+CREATE TABLE t1 (
+pk_col1 INT NOT NULL,
+a1 CHAR(64),
+a2 CHAR(64),
+PRIMARY KEY(pk_col1),
+KEY t1_a1_idx (a1),
+KEY t1_a1_a2_idx (a1, a2)
+) ENGINE=INNODB;
+INSERT INTO t1 (pk_col1, a1, a2) VALUES (1,'a','b'), (2,'a','b'), (3,'d','c'),
+(4,'b','c'), (5,'c','d'), (6,'a','b');
+CREATE TABLE t2 (
+pk_col1 INT NOT NULL,
+pk_col2 INT NOT NULL,
+a1 CHAR(64),
+a2 CHAR(64),
+PRIMARY KEY(pk_col1, pk_col2),
+KEY t2_a1_idx (a1),
+KEY t2_a1_a2_idx (a1, a2)
+) ENGINE=INNODB;
+INSERT INTO t2 (pk_col1, pk_col2, a1, a2) VALUES (1,1,'a','b'),(1,2,'a','b'),
+(1,3,'d','c'),(1,4,'b','c'),
+(2,1,'c','d'),(3,1,'a','b');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+SET optimizer_trace="enabled=on";
+SELECT a1 FROM t1 WHERE a1 > 'b';
+a1
+c
+d
+SELECT TRACE INTO @trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+SELECT @trace RLIKE "skipped_due_to_force_index";
+@trace RLIKE "skipped_due_to_force_index"
+0
+SET optimizer_trace="enabled=off";
+EXPLAIN FORMAT=TRADITIONAL FOR QUERY 'SELECT a1 FROM t1 WHERE a1 > 'b''
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	t1_a1_idx,t1_a1_a2_idx	t1_a1_idx	257	NULL	2	100.00	Using where; Using index
+EXPLAIN FORMAT=JSON FOR QUERY 'SELECT a1 FROM t1 WHERE a1 > 'b''
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "0.67"
+    },
+    "table": {
+      "table_name": "t1",
+      "access_type": "range",
+      "possible_keys": [
+        "t1_a1_idx",
+        "t1_a1_a2_idx"
+      ],
+      "key": "t1_a1_idx",
+      "used_key_parts": [
+        "a1"
+      ],
+      "key_length": "257",
+      "rows_examined_per_scan": 2,
+      "rows_produced_per_join": 2,
+      "filtered": "100.00",
+      "using_where": true,
+      "using_index": true,
+      "cost_info": {
+        "read_cost": "0.47",
+        "eval_cost": "0.20",
+        "prefix_cost": "0.67",
+        "data_read_per_join": "1K"
+      },
+      "used_columns": [
+        "a1"
+      ]
+    }
+  }
+}
+SET optimizer_trace="enabled=on";
+SELECT a1 FROM t1 FORCE INDEX(t1_a1_a2_idx) WHERE a1 > 'b';
+a1
+c
+d
+SELECT TRACE INTO @trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+SELECT @trace RLIKE "skipped_due_to_force_index";
+@trace RLIKE "skipped_due_to_force_index"
+1
+SET optimizer_trace="enabled=off";
+EXPLAIN FORMAT=TRADITIONAL FOR QUERY 'SELECT a1 FROM t1 FORCE INDEX(t1_a1_a2_idx) WHERE a1 > 'b''
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	t1_a1_a2_idx	t1_a1_a2_idx	257	NULL	NULL	NULL	Using where; Using index
+EXPLAIN FORMAT=JSON FOR QUERY 'SELECT a1 FROM t1 FORCE INDEX(t1_a1_a2_idx) WHERE a1 > 'b''
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "0.46"
+    },
+    "table": {
+      "table_name": "t1",
+      "access_type": "range",
+      "possible_keys": [
+        "t1_a1_a2_idx"
+      ],
+      "key": "t1_a1_a2_idx",
+      "used_key_parts": [
+        "a1"
+      ],
+      "key_length": "257",
+      "using_where": true,
+      "skip_records_in_range_due_to_force": true,
+      "using_index": true,
+      "cost_info": {
+        "read_cost": "0.00",
+        "eval_cost": "0.00",
+        "prefix_cost": "0.00",
+        "data_read_per_join": ""
+      },
+      "used_columns": [
+        "a1"
+      ]
+    }
+  }
+}
+SET optimizer_trace="enabled=on";
+SELECT a1 FROM t1 WHERE a1 = 'a';
+a1
+a
+a
+a
+SELECT TRACE INTO @trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+SELECT @trace RLIKE "skipped_due_to_force_index";
+@trace RLIKE "skipped_due_to_force_index"
+0
+SET optimizer_trace="enabled=off";
+EXPLAIN FORMAT=TRADITIONAL FOR QUERY 'SELECT a1 FROM t1 WHERE a1 = 'a''
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	t1_a1_idx,t1_a1_a2_idx	t1_a1_idx	257	const	3	100.00	Using index
+EXPLAIN FORMAT=JSON FOR QUERY 'SELECT a1 FROM t1 WHERE a1 = 'a''
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "0.56"
+    },
+    "table": {
+      "table_name": "t1",
+      "access_type": "ref",
+      "possible_keys": [
+        "t1_a1_idx",
+        "t1_a1_a2_idx"
+      ],
+      "key": "t1_a1_idx",
+      "used_key_parts": [
+        "a1"
+      ],
+      "key_length": "257",
+      "ref": [
+        "const"
+      ],
+      "rows_examined_per_scan": 3,
+      "rows_produced_per_join": 3,
+      "filtered": "100.00",
+      "using_index": true,
+      "cost_info": {
+        "read_cost": "0.27",
+        "eval_cost": "0.30",
+        "prefix_cost": "0.57",
+        "data_read_per_join": "1K"
+      },
+      "used_columns": [
+        "a1"
+      ]
+    }
+  }
+}
+SET optimizer_trace="enabled=on";
+SELECT a1 FROM t1 FORCE INDEX(t1_a1_a2_idx) WHERE a1 = 'a';
+a1
+a
+a
+a
+SELECT TRACE INTO @trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+SELECT @trace RLIKE "skipped_due_to_force_index";
+@trace RLIKE "skipped_due_to_force_index"
+1
+SET optimizer_trace="enabled=off";
+EXPLAIN FORMAT=TRADITIONAL FOR QUERY 'SELECT a1 FROM t1 FORCE INDEX(t1_a1_a2_idx) WHERE a1 = 'a''
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	t1_a1_a2_idx	t1_a1_a2_idx	257	const	NULL	NULL	Using index
+EXPLAIN FORMAT=JSON FOR QUERY 'SELECT a1 FROM t1 FORCE INDEX(t1_a1_a2_idx) WHERE a1 = 'a''
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "0.35"
+    },
+    "table": {
+      "table_name": "t1",
+      "access_type": "ref",
+      "possible_keys": [
+        "t1_a1_a2_idx"
+      ],
+      "key": "t1_a1_a2_idx",
+      "used_key_parts": [
+        "a1"
+      ],
+      "key_length": "257",
+      "ref": [
+        "const"
+      ],
+      "skip_records_in_range_due_to_force": true,
+      "using_index": true,
+      "cost_info": {
+        "read_cost": "0.00",
+        "eval_cost": "0.00",
+        "prefix_cost": "0.00",
+        "data_read_per_join": ""
+      },
+      "used_columns": [
+        "a1"
+      ]
+    }
+  }
+}
+SET optimizer_trace="enabled=on";
+SELECT a1 FROM t1;
+a1
+a
+a
+a
+b
+c
+d
+SELECT TRACE INTO @trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+SELECT @trace RLIKE "skipped_due_to_force_index";
+@trace RLIKE "skipped_due_to_force_index"
+0
+SET optimizer_trace="enabled=off";
+EXPLAIN FORMAT=TRADITIONAL FOR QUERY 'SELECT a1 FROM t1'
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	t1_a1_idx	257	NULL	6	100.00	Using index
+EXPLAIN FORMAT=JSON FOR QUERY 'SELECT a1 FROM t1'
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "0.85"
+    },
+    "table": {
+      "table_name": "t1",
+      "access_type": "index",
+      "key": "t1_a1_idx",
+      "used_key_parts": [
+        "a1"
+      ],
+      "key_length": "257",
+      "rows_examined_per_scan": 6,
+      "rows_produced_per_join": 6,
+      "filtered": "100.00",
+      "using_index": true,
+      "cost_info": {
+        "read_cost": "0.25",
+        "eval_cost": "0.60",
+        "prefix_cost": "0.85",
+        "data_read_per_join": "3K"
+      },
+      "used_columns": [
+        "a1"
+      ]
+    }
+  }
+}
+SET optimizer_trace="enabled=on";
+SELECT a1 FROM t1 FORCE INDEX(t1_a1_a2_idx);
+a1
+a
+a
+a
+b
+c
+d
+SELECT TRACE INTO @trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+SELECT @trace RLIKE "skipped_due_to_force_index";
+@trace RLIKE "skipped_due_to_force_index"
+0
+SET optimizer_trace="enabled=off";
+EXPLAIN FORMAT=TRADITIONAL FOR QUERY 'SELECT a1 FROM t1 FORCE INDEX(t1_a1_a2_idx)'
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	t1_a1_a2_idx	514	NULL	6	100.00	Using index
+EXPLAIN FORMAT=JSON FOR QUERY 'SELECT a1 FROM t1 FORCE INDEX(t1_a1_a2_idx)'
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "2.35"
+    },
+    "table": {
+      "table_name": "t1",
+      "access_type": "index",
+      "key": "t1_a1_a2_idx",
+      "used_key_parts": [
+        "a1",
+        "a2"
+      ],
+      "key_length": "514",
+      "rows_examined_per_scan": 6,
+      "rows_produced_per_join": 6,
+      "filtered": "100.00",
+      "using_index": true,
+      "cost_info": {
+        "read_cost": "1.75",
+        "eval_cost": "0.60",
+        "prefix_cost": "2.35",
+        "data_read_per_join": "3K"
+      },
+      "used_columns": [
+        "a1"
+      ]
+    }
+  }
+}
+SET optimizer_trace="enabled=on";
+SELECT a1 FROM t1 FORCE INDEX(t1_a1_a2_idx) WHERE a1 >= 'a';
+a1
+a
+a
+a
+b
+c
+d
+SELECT TRACE INTO @trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+SELECT @trace RLIKE "skipped_due_to_force_index";
+@trace RLIKE "skipped_due_to_force_index"
+1
+SET optimizer_trace="enabled=off";
+EXPLAIN FORMAT=TRADITIONAL FOR QUERY 'SELECT a1 FROM t1 FORCE INDEX(t1_a1_a2_idx) WHERE a1 >= 'a''
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	t1_a1_a2_idx	t1_a1_a2_idx	257	NULL	NULL	NULL	Using where; Using index
+EXPLAIN FORMAT=JSON FOR QUERY 'SELECT a1 FROM t1 FORCE INDEX(t1_a1_a2_idx) WHERE a1 >= 'a''
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "0.46"
+    },
+    "table": {
+      "table_name": "t1",
+      "access_type": "range",
+      "possible_keys": [
+        "t1_a1_a2_idx"
+      ],
+      "key": "t1_a1_a2_idx",
+      "used_key_parts": [
+        "a1"
+      ],
+      "key_length": "257",
+      "using_where": true,
+      "skip_records_in_range_due_to_force": true,
+      "using_index": true,
+      "cost_info": {
+        "read_cost": "0.00",
+        "eval_cost": "0.00",
+        "prefix_cost": "0.00",
+        "data_read_per_join": ""
+      },
+      "used_columns": [
+        "a1"
+      ]
+    }
+  }
+}
+SET optimizer_trace="enabled=on";
+SELECT a1 FROM t1 FORCE INDEX(t1_a1_idx) WHERE a2 > 'a';
+a1
+a
+a
+d
+b
+c
+a
+SELECT TRACE INTO @trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+SELECT @trace RLIKE "skipped_due_to_force_index";
+@trace RLIKE "skipped_due_to_force_index"
+0
+SET optimizer_trace="enabled=off";
+EXPLAIN FORMAT=TRADITIONAL FOR QUERY 'SELECT a1 FROM t1 FORCE INDEX(t1_a1_idx) WHERE a2 > 'a''
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
+EXPLAIN FORMAT=JSON FOR QUERY 'SELECT a1 FROM t1 FORCE INDEX(t1_a1_idx) WHERE a2 > 'a''
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "2.35"
+    },
+    "table": {
+      "table_name": "t1",
+      "access_type": "ALL",
+      "rows_examined_per_scan": 6,
+      "rows_produced_per_join": 6,
+      "filtered": "100.00",
+      "using_where": true,
+      "cost_info": {
+        "read_cost": "1.75",
+        "eval_cost": "0.60",
+        "prefix_cost": "2.35",
+        "data_read_per_join": "3K"
+      },
+      "used_columns": [
+        "a1",
+        "a2"
+      ]
+    }
+  }
+}
+SET optimizer_trace="enabled=on";
+SELECT t2.a1, t2.a2
+FROM t1 FORCE INDEX(t1_a1_a2_idx) JOIN t2 ON (t1.pk_col1 = t2.pk_col2)
+WHERE t1.a1 > 'a';
+a1	a2
+b	c
+d	c
+SELECT TRACE INTO @trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+SELECT @trace RLIKE "skipped_due_to_force_index";
+@trace RLIKE "skipped_due_to_force_index"
+0
+SET optimizer_trace="enabled=off";
+EXPLAIN FORMAT=TRADITIONAL FOR QUERY 'SELECT t2.a1, t2.a2
+FROM t1 FORCE INDEX(t1_a1_a2_idx) JOIN t2 ON (t1.pk_col1 = t2.pk_col2)
+WHERE t1.a1 > 'a''
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	t1_a1_a2_idx	t1_a1_a2_idx	257	NULL	3	100.00	Using where; Using index
+1	SIMPLE	t2	NULL	index	NULL	t2_a1_a2_idx	514	NULL	6	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+EXPLAIN FORMAT=JSON FOR QUERY 'SELECT t2.a1, t2.a2
+FROM t1 FORCE INDEX(t1_a1_a2_idx) JOIN t2 ON (t1.pk_col1 = t2.pk_col2)
+WHERE t1.a1 > 'a''
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "2.94"
+    },
+    "nested_loop": [
+      {
+        "table": {
+          "table_name": "t1",
+          "access_type": "range",
+          "possible_keys": [
+            "t1_a1_a2_idx"
+          ],
+          "key": "t1_a1_a2_idx",
+          "used_key_parts": [
+            "a1"
+          ],
+          "key_length": "257",
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 3,
+          "filtered": "100.00",
+          "using_where": true,
+          "using_index": true,
+          "cost_info": {
+            "read_cost": "0.59",
+            "eval_cost": "0.30",
+            "prefix_cost": "0.89",
+            "data_read_per_join": "1K"
+          },
+          "used_columns": [
+            "pk_col1",
+            "a1"
+          ]
+        }
+      },
+      {
+        "table": {
+          "table_name": "t2",
+          "access_type": "index",
+          "key": "t2_a1_a2_idx",
+          "used_key_parts": [
+            "a1",
+            "a2"
+          ],
+          "key_length": "514",
+          "rows_examined_per_scan": 6,
+          "rows_produced_per_join": 18,
+          "filtered": "100.00",
+          "using_where": true,
+          "using_index": true,
+          "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "0.25",
+            "eval_cost": "1.80",
+            "prefix_cost": "2.94",
+            "data_read_per_join": "9K"
+          },
+          "used_columns": [
+            "pk_col2",
+            "a1",
+            "a2"
+          ]
+        }
+      }
+    ]
+  }
+}
+DROP TABLE t1, t2;
+#
+# Bug #26627136: WL#6526: ASSERTION
+#               `!ALL_SELECTS_LIST->NEXT_SELECT_IN_LIST()' FAILED.
+#
+CREATE TABLE t1 (v3 INT, KEY(v3));
+CREATE view v1 AS SELECT v3  FROM t1 FORCE KEY (v3) GROUP BY v3;
+EXPLAIN select * from v1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DERIVED	t1	NULL	index	v3	v3	5	NULL	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `v1`.`v3` AS `v3` from `test`.`v1`
+select * from v1;
+v3
+DROP VIEW v1;
+DROP TABLE t1;

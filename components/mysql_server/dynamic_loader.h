@@ -16,15 +16,16 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #ifndef MYSQL_SERVER_DYNAMIC_LOADER_H
 #define MYSQL_SERVER_DYNAMIC_LOADER_H
 
-#include <map>
-#include <memory>
-#include <set>
-#include <c_string_less.h>
 #include <mysql/components/my_service.h>
 #include <mysql/components/service_implementation.h>
 #include <mysql/components/services/dynamic_loader.h>
-#include <rwlock_scoped_lock.h>
+#include <map>
+#include <memory>
+#include <set>
+
+#include "c_string_less.h"
 #include "mysql_component.h"
+#include "rwlock_scoped_lock.h"
 
 typedef std::map<const char *, std::unique_ptr<mysql_component>, c_string_less>
   my_component_registry;

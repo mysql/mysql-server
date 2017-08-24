@@ -1729,8 +1729,11 @@ dict_table_rename_in_cache(
 
 		clone_mark_abort(true);
 
+		std::string	new_tablespace_name;
+		dd_filename_to_spacename(new_name, &new_tablespace_name);
+
 		bool	success = fil_rename_tablespace(
-			table->space, old_path, new_name, new_path);
+			table->space, old_path, new_tablespace_name.c_str(), new_path);
 
 		clone_mark_active();
 
@@ -2186,9 +2189,9 @@ dict_partitioned_table_remove_from_cache(
 
 			if ((strncmp(name, prev_table->name.m_name, name_len)
 			     == 0)
-			    && (strncmp(prev_table->name.m_name + name_len,
-					PARTITION_SEPARATOR,
-					sizeof(PARTITION_SEPARATOR)) == 0)) {
+			    && strncmp(prev_table->name.m_name + name_len,
+					PARTN_SEPARATOR,
+					PARTN_SEPARATOR_LEN) == 0) {
 
 				btr_drop_ahi_for_table(prev_table);
 				dict_table_remove_from_cache(prev_table);
@@ -2585,6 +2588,13 @@ dict_index_add_to_cache_w_vcol(
 	new_index->allow_duplicates = index->allow_duplicates;
 	new_index->nulls_equal = index->nulls_equal;
 	new_index->disable_ahi = index->disable_ahi;
+	new_index->srid_is_valid = index->srid_is_valid;
+	new_index->srid = index->srid;
+
+	new_index->srid = index->srid;
+	new_index->srid_is_valid = index->srid_is_valid;
+	if (index->rtr_srs.get() != nullptr)
+		new_index->rtr_srs.reset(index->rtr_srs->clone());
 
 	if (dict_index_too_big_for_tree(table, new_index, strict)) {
 

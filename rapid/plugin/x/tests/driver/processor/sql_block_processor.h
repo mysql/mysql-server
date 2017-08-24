@@ -21,11 +21,11 @@
 #include <list>
 #include <string>
 
-#include "connector/result_fetcher.h"
-#include "processor/block_processor.h"
-#include "processor/commands/expected_error.h"
-#include "processor/execution_context.h"
-#include "script_stack.h"
+#include "plugin/x/tests/driver/connector/result_fetcher.h"
+#include "plugin/x/tests/driver/processor/block_processor.h"
+#include "plugin/x/tests/driver/processor/commands/expected_error.h"
+#include "plugin/x/tests/driver/processor/execution_context.h"
+#include "plugin/x/tests/driver/processor/script_stack.h"
 
 
 class Sql_block_processor : public Block_processor {

@@ -16,8 +16,8 @@
 #ifndef IKEYRINGIO_INCLUDED
 #define IKEYRINGIO_INCLUDED
 
-#include "keyring_key.h"
-#include "i_serializer.h"
+#include "plugin/keyring/common/i_serializer.h"
+#include "plugin/keyring/common/keyring_key.h"
 
 namespace keyring {
 

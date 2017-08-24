@@ -17,8 +17,8 @@
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "myisamdef.h"
-#include "rt_index.h"
+#include "storage/myisam/myisamdef.h"
+#include "storage/myisam/rt_index.h"
 
 	/*
 	   Read next row with the same key as previous read

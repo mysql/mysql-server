@@ -20,7 +20,9 @@
 extern "C" {
 #endif
 #include <string.h>
-#include "result.h"
+
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/gcs_debug.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/result.h"
 
 static inline void task_dump_err(int err) {
   if (err) {

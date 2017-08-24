@@ -13,17 +13,17 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include <c_string_less.h>
 #include <mysql/components/my_service.h>
 #include <mysql/components/service_implementation.h>
 #include <mysql/components/services/registry.h>
-#include <rwlock_scoped_lock.h>
 #include <map>
 #include <memory>
 
+#include "c_string_less.h"
 #include "my_psi_config.h"
 #include "mysql_service_implementation.h"
 #include "registry.h"
+#include "rwlock_scoped_lock.h"
 #include "server_component.h"
 
 /**

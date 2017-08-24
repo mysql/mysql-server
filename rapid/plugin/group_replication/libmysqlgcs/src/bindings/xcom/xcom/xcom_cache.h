@@ -17,6 +17,10 @@
 #define XCOM_CACHE_H
 
 #include <stddef.h>
+
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/simset.h"
+#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif

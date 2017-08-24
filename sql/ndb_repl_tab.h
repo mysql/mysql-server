@@ -22,7 +22,7 @@
 
 #include "my_inttypes.h"
 #include "mysql_com.h"  /* NAME_CHAR_LEN */
-#include "ndbapi/NdbApi.hpp"
+#include "storage/ndb/include/ndbapi/NdbApi.hpp"
 
 /*
   Ndb_rep_tab_key

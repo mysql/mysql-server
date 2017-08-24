@@ -15,9 +15,9 @@
 
 #include <sys/types.h>
 
-#include "handler.h"                            /* handler */
 #include "my_inttypes.h"
-#include "table.h"                              /* TABLE_SHARE */
+#include "sql/handler.h"                        /* handler */
+#include "sql/table.h"                          /* TABLE_SHARE */
 #include "thr_lock.h"                           /* THR_LOCK */
 
 /*

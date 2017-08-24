@@ -1850,6 +1850,8 @@ SELECT ST_CONTAINS(a.g, b.g) FROM t1 AS a JOIN t1 AS b;
 SELECT MBRCONTAINS(a.g, b.g) FROM t1 AS a JOIN t1 AS b;
 SELECT ST_CONTAINS(ST_SRID(a.g, 4326), ST_SRID(b.g, 4326))
 FROM t1 AS a JOIN t1 AS b;
+SELECT MBRCONTAINS(ST_SRID(a.g, 4326), ST_SRID(b.g, 4326))
+FROM t1 AS a JOIN t1 AS b;
 # clean up
 DROP TABLE t1;
 DROP TABLE gis_geometrycollection;
@@ -1940,3 +1942,160 @@ ST_GEOMFROMTEXT('POINT(0 0)', 8000001)
 );
 ERROR SR002: Can't parse the spatial reference system definition of SRID 8000001.
 DELETE FROM mysql.st_spatial_reference_systems WHERE id = 8000001;
+#
+# WL#10827 Ellipsoidal R-tree support functions
+#
+SET @pt = ST_GeomFromText('POINT(0 0)', 4326);
+SELECT ST_Contains(ST_SRID(ST_GeomFromText('POINT(0 -91)'), 4326), @pt);
+ERROR 22S03: Latitude -91.000000 is out of range in function st_contains. It must be within [-90.000000, 90.000000].
+SELECT ST_Contains(ST_SRID(ST_GeomFromText('POINT(0 91)'), 4326), @pt);
+ERROR 22S03: Latitude 91.000000 is out of range in function st_contains. It must be within [-90.000000, 90.000000].
+SELECT ST_Contains(ST_SRID(ST_GeomFromText('POINT(-181 0)'), 4326), @pt);
+ERROR 22S02: Longitude -181.000000 is out of range in function st_contains. It must be within (-180.000000, 180.000000].
+SELECT ST_Contains(ST_SRID(ST_GeomFromText('POINT(181 0)'), 4326), @pt);
+ERROR 22S02: Longitude 181.000000 is out of range in function st_contains. It must be within (-180.000000, 180.000000].
+SELECT MBRContains(ST_SRID(ST_GeomFromText('POINT(0 -91)'), 4326), @pt);
+ERROR 22S03: Latitude -91.000000 is out of range in function mbrcontains. It must be within [-90.000000, 90.000000].
+SELECT MBRContains(ST_SRID(ST_GeomFromText('POINT(0 91)'), 4326), @pt);
+ERROR 22S03: Latitude 91.000000 is out of range in function mbrcontains. It must be within [-90.000000, 90.000000].
+SELECT MBRContains(ST_SRID(ST_GeomFromText('POINT(-181 0)'), 4326), @pt);
+ERROR 22S02: Longitude -181.000000 is out of range in function mbrcontains. It must be within (-180.000000, 180.000000].
+SELECT MBRContains(ST_SRID(ST_GeomFromText('POINT(181 0)'), 4326), @pt);
+ERROR 22S02: Longitude 181.000000 is out of range in function mbrcontains. It must be within (-180.000000, 180.000000].
+CREATE TABLE t1 (
+id INT,
+c GEOMETRY NOT NULL,
+g GEOMETRY AS (ST_SRID(c, 4326)) STORED NOT NULL,
+SPATIAL INDEX c_idx (c),
+SPATIAL INDEX g_idx (g)
+);
+INSERT INTO t1 (id, c) VALUES
+(0, ST_GeomFromText('POINT(0 0)')),
+(1, ST_GeomFromText('POINT(1 1)')),
+(2, ST_GeomFromText('POINT(2 2)')),
+(3, ST_GeomFromText('POINT(3 3)')),
+(4, ST_GeomFromText('POINT(4 4)')),
+(5, ST_GeomFromText('POINT(5 5.00001)')),
+(6, ST_GeomFromText('POINT(6 6)')),
+(7, ST_GeomFromText('POINT(7 7)'));
+SET @py = 'POLYGON((0 0, 10 0, 10 5, 0 5, 0 0))';
+SET @cart_py = ST_GeomFromText(@py);
+SET @geo_py = ST_GeomFromText(@py, 4326, 'axis-order=long-lat');
+SET @mpt = 'MULTIPOINT((0 0), (10 5))';
+SET @cart_mpt = ST_GeomFromText(@mpt);
+SET @geo_mpt = ST_GeomFromText(@mpt, 4326, 'axis-order=long-lat');
+# Cartesian ST_Contains
+SELECT id, ST_AsText(c)
+FROM t1 IGNORE INDEX(c_idx)
+WHERE ST_Contains(@cart_py, c)
+ORDER BY id;
+id	ST_AsText(c)
+1	POINT(1 1)
+2	POINT(2 2)
+3	POINT(3 3)
+4	POINT(4 4)
+SELECT id, ST_AsText(c)
+FROM t1 FORCE INDEX(c_idx)
+WHERE ST_Contains(@cart_py, c)
+ORDER BY id;
+id	ST_AsText(c)
+1	POINT(1 1)
+2	POINT(2 2)
+3	POINT(3 3)
+4	POINT(4 4)
+# Geographic ST_Contains
+SELECT id, ST_AsText(g)
+FROM t1 IGNORE INDEX(g_idx)
+WHERE ST_Contains(@geo_py, g)
+ORDER BY id;
+id	ST_AsText(g)
+1	POINT(1 1)
+2	POINT(2 2)
+3	POINT(3 3)
+4	POINT(4 4)
+5	POINT(5.00001 5)
+SELECT id, ST_AsText(g)
+FROM t1 FORCE INDEX(g_idx)
+WHERE ST_Contains(@geo_py, g)
+ORDER BY id;
+id	ST_AsText(g)
+1	POINT(1 1)
+2	POINT(2 2)
+3	POINT(3 3)
+4	POINT(4 4)
+5	POINT(5.00001 5)
+# Cartesian MBRContains
+SELECT id, ST_AsText(c)
+FROM t1 IGNORE INDEX(c_idx)
+WHERE MBRContains(@cart_py, c)
+ORDER BY id;
+id	ST_AsText(c)
+1	POINT(1 1)
+2	POINT(2 2)
+3	POINT(3 3)
+4	POINT(4 4)
+SELECT id, ST_AsText(c)
+FROM t1 FORCE INDEX(c_idx)
+WHERE MBRContains(@cart_py, c)
+ORDER BY id;
+id	ST_AsText(c)
+1	POINT(1 1)
+2	POINT(2 2)
+3	POINT(3 3)
+4	POINT(4 4)
+SELECT id, ST_AsText(c)
+FROM t1 IGNORE INDEX(c_idx)
+WHERE MBRContains(@cart_mpt, c)
+ORDER BY id;
+id	ST_AsText(c)
+1	POINT(1 1)
+2	POINT(2 2)
+3	POINT(3 3)
+4	POINT(4 4)
+SELECT id, ST_AsText(c)
+FROM t1 FORCE INDEX(c_idx)
+WHERE MBRContains(@cart_mpt, c)
+ORDER BY id;
+id	ST_AsText(c)
+1	POINT(1 1)
+2	POINT(2 2)
+3	POINT(3 3)
+4	POINT(4 4)
+# Geographic MBRContains
+SELECT id, ST_AsText(g)
+FROM t1 IGNORE INDEX(g_idx)
+WHERE MBRContains(@geo_py, g)
+ORDER BY id;
+id	ST_AsText(g)
+1	POINT(1 1)
+2	POINT(2 2)
+3	POINT(3 3)
+4	POINT(4 4)
+SELECT id, ST_AsText(g)
+FROM t1 FORCE INDEX(g_idx)
+WHERE MBRContains(@geo_py, g)
+ORDER BY id;
+id	ST_AsText(g)
+1	POINT(1 1)
+2	POINT(2 2)
+3	POINT(3 3)
+4	POINT(4 4)
+SELECT id, ST_AsText(g)
+FROM t1 IGNORE INDEX(g_idx)
+WHERE MBRContains(@geo_mpt, g)
+ORDER BY id;
+id	ST_AsText(g)
+1	POINT(1 1)
+2	POINT(2 2)
+3	POINT(3 3)
+4	POINT(4 4)
+SELECT id, ST_AsText(g)
+FROM t1 FORCE INDEX(g_idx)
+WHERE MBRContains(@geo_mpt, g)
+ORDER BY id;
+id	ST_AsText(g)
+1	POINT(1 1)
+2	POINT(2 2)
+3	POINT(3 3)
+4	POINT(4 4)
+DROP TABLE t1;

@@ -19,7 +19,7 @@ TempTable custom allocator implementation. */
 #include <cstddef> /* size_t */
 #include <cstdint> /* uint8_t */
 
-#include "temptable/allocator.h"
+#include "storage/temptable/include/temptable/allocator.h"
 
 namespace temptable {
 

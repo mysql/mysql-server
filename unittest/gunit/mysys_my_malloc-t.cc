@@ -14,11 +14,11 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <gtest/gtest.h>
-#include <my_sys.h>
 #include <mysql/service_mysql_alloc.h>
 #include <stddef.h>
 
 #include "my_inttypes.h"
+#include "my_sys.h"
 
 namespace mysys_my_malloc_unittest {
 

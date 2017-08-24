@@ -16,8 +16,14 @@
 #ifndef NODE_CONNECTION_H
 #define NODE_CONNECTION_H
 
+#include <stdlib.h>
+
 #ifdef XCOM_HAVE_OPENSSL
-#include "openssl/ssl.h"
+#ifdef WIN32
+// In OpenSSL before 1.1.0, we need this first.
+#include <winsock2.h>
+#endif  // WIN32
+#include <openssl/ssl.h>
 #endif
 
 /* YaSSL does not have ERR_clear_error() */
@@ -25,8 +31,8 @@
 #define ERR_clear_error()
 #endif
 
-#include "xcom_proto.h"
-#include "xcom_vp.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_proto.h"
+#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
 
 #ifdef __cplusplus
 extern "C" {

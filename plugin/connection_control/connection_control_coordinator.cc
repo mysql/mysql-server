@@ -13,15 +13,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "connection_control_coordinator.h"
+#include "plugin/connection_control/connection_control_coordinator.h"
 
 #include <sys/types.h>
-
 #include <atomic>
 
-#include "connection_control.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "plugin/connection_control/connection_control.h"
 
 namespace connection_control
 {

@@ -16,27 +16,26 @@
 #ifndef PLUGIN_INCLUDE
 #define PLUGIN_INCLUDE
 
-#include "applier.h"
-#include "recovery.h"
-#include "channel_observation_manager.h"
-#include "ps_information.h"
-
-#include <mysql/gcs/gcs_interface.h>
-#include "gcs_event_handlers.h"
-#include "gcs_view_modification_notifier.h"
-#include "compatibility_module.h"
-#include "auto_increment.h"
-#include "read_mode_handler.h"
-#include "delayed_plugin_initialization.h"
-#include "gcs_operations.h"
-#include "asynchronous_channels_state_observer.h"
-#include "group_partition_handling.h"
-
-#include "plugin_constants.h"
-#include "plugin_server_include.h"
 #include <mysql/plugin.h>
 #include <mysql/plugin_group_replication.h>
-#include "services/registry.h"
+
+#include "plugin/group_replication/include/applier.h"
+#include "plugin/group_replication/include/asynchronous_channels_state_observer.h"
+#include "plugin/group_replication/include/auto_increment.h"
+#include "plugin/group_replication/include/channel_observation_manager.h"
+#include "plugin/group_replication/include/compatibility_module.h"
+#include "plugin/group_replication/include/delayed_plugin_initialization.h"
+#include "plugin/group_replication/include/gcs_event_handlers.h"
+#include "plugin/group_replication/include/gcs_operations.h"
+#include "plugin/group_replication/include/gcs_view_modification_notifier.h"
+#include "plugin/group_replication/include/group_partition_handling.h"
+#include "plugin/group_replication/include/plugin_constants.h"
+#include "plugin/group_replication/include/plugin_server_include.h"
+#include "plugin/group_replication/include/ps_information.h"
+#include "plugin/group_replication/include/read_mode_handler.h"
+#include "plugin/group_replication/include/recovery.h"
+#include "plugin/group_replication/include/services/registry.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_interface.h"
 
 //Definition of system var structures
 

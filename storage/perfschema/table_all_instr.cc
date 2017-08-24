@@ -23,8 +23,8 @@
 #include <stddef.h>
 
 #include "my_thread.h"
-#include "pfs_buffer_container.h"
-#include "pfs_global.h"
+#include "storage/perfschema/pfs_buffer_container.h"
+#include "storage/perfschema/pfs_global.h"
 
 ha_rows
 table_all_instr::get_row_count(void)

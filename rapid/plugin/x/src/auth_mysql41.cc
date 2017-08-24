@@ -17,8 +17,9 @@
  * 02110-1301  USA
  */
 
-#include "auth_mysql41.h"
-#include "native_verification.h"
+#include "plugin/x/src/auth_mysql41.h"
+
+#include "plugin/x/src/native_verification.h"
 
 // C -> S: authenticationStart(MYSQL41)
 // S -> C: authenticationContinue(20 byte salt/scramble)

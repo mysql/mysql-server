@@ -179,6 +179,13 @@ struct PSI_statement_locker_state_v1
   uint m_schema_name_length;
   /** Statement character set number. */
   uint m_cs_number;
+  /** Statement query sample. */
+  const char *m_query_sample;
+  /** Length in bytes of @c m_query_sample. */
+  uint m_query_sample_length;
+  /** True if @c m_query_sample was truncated. */
+  bool m_query_sample_truncated;
+
   PSI_sp_share *m_parent_sp_share;
   PSI_prepared_stmt *m_parent_prepared_stmt;
 };
@@ -248,6 +255,8 @@ typedef void (*start_statement_v1_t)(struct PSI_statement_locker *locker,
 
 /**
   Set the statement text for a statement event.
+  Note that the statement text pointer must remain valid until end statement
+  is called.
   @param locker the current statement locker
   @param text the statement text
   @param text_len the statement text length

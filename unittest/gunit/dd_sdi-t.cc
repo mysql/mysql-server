@@ -13,14 +13,14 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "my_rapidjson_size_t.h"  // IWYU pragma: keep
 #include <gtest/gtest.h>
-#include <m_string.h>
+#include "my_rapidjson_size_t.h"  // IWYU pragma: keep
 #include <rapidjson/document.h>
 #include <rapidjson/prettywriter.h>
 #include <rapidjson/stringbuffer.h>
 #include <stddef.h>
 
+#include "m_string.h"
 #include "my_inttypes.h"
 #include "sql/dd/dd.h"
 #include "sql/dd/impl/sdi.h"
@@ -110,6 +110,7 @@ static void mock_dd_obj(dd::Column *c)
   c->set_default_option("mocked default option");
   c->set_update_option("mocked update option");
   c->set_comment("mocked column comment");
+  c->set_srs_id({4326});
   mock_properties(c->se_private_data(), FANOUT);
 
   for (int i= 0; i < FANOUT; ++i)
@@ -130,12 +131,14 @@ static void mock_column_statistics_obj(dd::Column_statistics *c,
   c->set_table_name("my_table");
   c->set_column_name("my_column");
 
-  histograms::Value_map<longlong> int_values(&my_charset_latin1);
+  histograms::Value_map<longlong> int_values(&my_charset_latin1,
+                                             histograms::Value_map_type::INT);
   int_values.add_values(0LL, 10);
 
   histograms::Equi_height<longlong> *equi_height=
     new (mem_root) histograms::Equi_height<longlong>(mem_root, "my_schema",
-                                                     "my_table", "my_column");
+                                                     "my_table", "my_column",
+                                               histograms::Value_map_type::INT);
 
   EXPECT_FALSE(equi_height->build_histogram(int_values, 1024));
   c->set_histogram(equi_height);

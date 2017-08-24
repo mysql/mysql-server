@@ -49,7 +49,8 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "prealloced_array.h"         // Prealloced_array
-#include "sql/dd/info_schema/stats.h" // dd::info_schema::Statistics_cache
+#include "sql/dd/info_schema/table_stats.h"  // dd::info_schema::Table_stati...
+#include "sql/dd/info_schema/tablespace_stats.h" // dd::info_schema::Tablesp...
 #include "sql/enum_query_type.h"
 #include "sql/field.h"
 #include "sql/handler.h"
@@ -65,6 +66,8 @@
 #include "sql/parse_tree_hints.h"
 #include "sql/parse_tree_node_base.h" // enum_parsing_context
 #include "sql/query_options.h"        // OPTION_NO_CONST_TABLES
+#include "sql/resourcegroups/platform/thread_attrs_api.h" // cpu_id_t
+#include "sql/resourcegroups/resource_group_basic_types.h" // Type, Range
 #include "sql/set_var.h"
 #include "sql/sql_admin.h"
 #include "sql/sql_alloc.h"            // Sql_alloc
@@ -116,6 +119,9 @@ class Select_lex_visitor;
 class THD;
 class Window;
 
+typedef Parse_tree_node_tmpl<struct Alter_tablespace_parse_context>
+    PT_alter_tablespace_option_base;
+
 /* YACC and LEX Definitions */
 
 class Event_parse_data;
@@ -130,6 +136,9 @@ class sp_name;
 class sp_pcontext;
 class sql_exchange;
 struct sql_digest_state;
+class Sql_cmd_tablespace;
+class Sql_cmd_logfile_group;
+struct Tablespace_options;
 
 const size_t INITIAL_LEX_PLUGIN_LIST_SIZE = 16;
 
@@ -189,7 +198,6 @@ enum enum_yes_no_unknown
 enum class enum_ha_read_modes;
 
 enum enum_filetype { FILETYPE_CSV, FILETYPE_XML };
-
 
 /**
   used by the parser to store internal variable name
@@ -1274,6 +1282,19 @@ public:
   SELECT_LEX *outer_select() const { return master->outer_select(); }
   SELECT_LEX *next_select() const { return next; }
 
+  /**
+    @return true  If STRAIGHT_JOIN applies to all tables.
+    @return false Else.
+  */
+  bool is_straight_join()
+  {
+    bool straight_join= true;
+    /// false for exmaple in t1 STRAIGHT_JOIN t2 JOIN t3.
+    for (TABLE_LIST *tbl= leaf_tables->next_leaf; tbl ; tbl=tbl->next_leaf)
+      straight_join&= tbl->straight;
+    return straight_join || (active_options() & SELECT_STRAIGHT_JOIN);
+  }
+
   SELECT_LEX* last_select()
   {
     SELECT_LEX* mylast= this;
@@ -1898,6 +1919,14 @@ private:
 };
 
 
+template<typename T>
+struct Value_or_default
+{
+  bool is_default;
+  T value; ///< undefined if is_default is true
+};
+
+
 union YYSTYPE {
   /*
     Hint parser section (sql_hints.yy)
@@ -2204,6 +2233,18 @@ union YYSTYPE {
   class PT_adm_partition *adm_partition;
   class PT_preload_keys *preload_keys;
   Trivial_array<PT_preload_keys *> *preload_list;
+  PT_alter_tablespace_option_base *ts_option;
+  Trivial_array<PT_alter_tablespace_option_base *> *ts_options;
+  struct {
+    resourcegroups::platform::cpu_id_t start;
+    resourcegroups::platform::cpu_id_t end;
+  } vcpu_range_type;
+  Trivial_array<resourcegroups::Range> *resource_group_vcpu_list_type;
+  Value_or_default<int> resource_group_priority_type;
+  Value_or_default<bool> resource_group_state_type;
+  bool resource_group_flag_type;
+  resourcegroups::Type resource_group_type;
+  Trivial_array<ulonglong> *thread_id_list_type;
 };
 
 static_assert(sizeof(YYSTYPE) <= 32, "YYSTYPE is too big");
@@ -3811,12 +3852,6 @@ public:
   */
   bool use_only_table_context;
 
-  /*
-    Reference to a struct that contains information in various commands
-    to add/create/drop/change table spaces.
-  */
-  st_alter_tablespace *alter_tablespace_info;
-  
   bool is_lex_started; /* If lex_start() did run. For debugging. */
   /// Set to true while resolving values in ON DUPLICATE KEY UPDATE clause
   bool in_update_value_clause;
@@ -3994,7 +4029,8 @@ public:
     These statistics are cached, to avoid opening of table more
     than once while preparing a single output record buffer.
   */
-  dd::info_schema::Statistics_cache m_IS_dyn_stat_cache;
+  dd::info_schema::Table_statistics m_IS_table_stats;
+  dd::info_schema::Tablespace_statistics m_IS_tablespace_stats;
 
   bool accept(Select_lex_visitor *visitor);
 
@@ -4263,5 +4299,36 @@ void print_derived_column_names(THD *thd, String *str,
 /**
   @} (End of group GROUP_PARSER)
 */
+
+
+/**
+   Check if the given string is invalid using the system charset.
+
+   @param string_val       Reference to the string.
+   @param charset_info     Pointer to charset info.
+
+   @return true if the string has an invalid encoding using
+                the system charset else false.
+*/
+
+inline bool is_invalid_string(const LEX_CSTRING &string_val,
+                              const CHARSET_INFO *charset_info)
+{
+  size_t valid_len;
+  bool len_error;
+
+  if (validate_string(charset_info, string_val.str, string_val.length,
+                      &valid_len, &len_error))
+  {
+    char hexbuf[7];
+    octet2hex(hexbuf, string_val.str + valid_len,
+              std::min<size_t>(string_val.length - valid_len, 3));
+    my_error(ER_INVALID_CHARACTER_STRING, MYF(0), charset_info->csname,
+             hexbuf);
+    return true;
+  }
+  return false;
+}
+
 
 #endif /* SQL_LEX_INCLUDED */

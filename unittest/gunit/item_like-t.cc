@@ -23,7 +23,7 @@
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"
 #include "sql/sql_class.h"
-#include "test_utils.h"
+#include "unittest/gunit/test_utils.h"
 
 namespace item_like_unittest {
 

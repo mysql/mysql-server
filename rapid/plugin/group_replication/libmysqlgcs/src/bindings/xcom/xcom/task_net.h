@@ -20,7 +20,7 @@
 extern "C" {
 #endif
 
-#include "result.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/result.h"
 
 result xcom_checked_socket(int domain, int type, int protocol);
 struct addrinfo *xcom_caching_getaddrinfo(char const *server);

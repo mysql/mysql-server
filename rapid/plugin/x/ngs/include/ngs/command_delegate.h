@@ -20,12 +20,11 @@
 #ifndef _NGS_COMMAND_DELEGATE_H_
 #define _NGS_COMMAND_DELEGATE_H_
 
-#include "ngs/protocol_encoder.h"
-
-#include "my_compiler.h"
-#include "m_ctype.h"
 #include "decimal.h"
+#include "m_ctype.h"
+#include "my_compiler.h"
 #include "mysql/service_command.h"
+#include "plugin/x/ngs/include/ngs/protocol_encoder.h"
 
 namespace ngs {
 class Command_delegate {

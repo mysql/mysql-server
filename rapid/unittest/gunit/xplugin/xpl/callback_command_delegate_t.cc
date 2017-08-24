@@ -15,13 +15,13 @@
  * 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "ngs_common/smart_ptr.h"
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <sys/types.h>
 
-#include "callback_command_delegate.h"
 #include "my_inttypes.h"
+#include "plugin/x/ngs/include/ngs_common/smart_ptr.h"
+#include "plugin/x/src/callback_command_delegate.h"
 
 
 namespace ngs

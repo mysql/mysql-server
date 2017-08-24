@@ -19,8 +19,8 @@
 #include "my_sys.h"
 #include "my_thread.h"
 #include "my_timer.h"
-#include "thr_template.cc"
-#include "thread_utils.h"
+#include "unittest/gunit/thr_template.cc"
+#include "unittest/gunit/thread_utils.h"
 
 #ifdef HAVE_PSI_INTERFACE
 PSI_mutex_key key_thd_timer_mutex= PSI_NOT_INSTRUMENTED;

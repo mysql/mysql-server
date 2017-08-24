@@ -14,15 +14,15 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include <mysql/components/service_implementation.h>
-#include <mysql/components/services/group_membership_listener.h>
 #include <mysql/components/services/group_member_status_listener.h>
-#include "plugin_log.h"
-#include "plugin.h"
-#include "sql_service/sql_service_command.h"
-#include "sql_service/sql_service_interface.h"
-#include "services/notification/notification.h"
+#include <mysql/components/services/group_membership_listener.h>
 
-#include "services/notification/impl/gms_listener_test.h"
+#include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/plugin_log.h"
+#include "plugin/group_replication/include/services/notification/impl/gms_listener_test.h"
+#include "plugin/group_replication/include/services/notification/notification.h"
+#include "plugin/group_replication/include/sql_service/sql_service_command.h"
+#include "plugin/group_replication/include/sql_service/sql_service_interface.h"
 
 #define UNREGISTER 1
 #define REGISTER 0
@@ -56,8 +56,8 @@ log_notification_to_test_table(std::string msg)
   ss.str("");
   ss.clear();
   ss << "Openning session.";
-  if (sql_cmd->establish_session_connection(trx_iso, get_plugin_pointer()) ||
-      sql_cmd->set_interface_user(GROUPREPL_USER))
+  if (sql_cmd->establish_session_connection(trx_iso, GROUPREPL_USER,
+                                            get_plugin_pointer()))
   {
     res= 1;    /* purecov: inspected */
     goto end;  /* purecov: inspected */

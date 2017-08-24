@@ -16,8 +16,8 @@
 #ifndef GROUP_PARTITION_HANDLING_INCLUDE
 #define GROUP_PARTITION_HANDLING_INCLUDE
 
-#include "read_mode_handler.h"
-#include "plugin_utils.h"
+#include "plugin/group_replication/include/plugin_utils.h"
+#include "plugin/group_replication/include/read_mode_handler.h"
 
 class Group_partition_handling
 {

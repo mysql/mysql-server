@@ -15,12 +15,15 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#ifndef SQL_HA_NDBCLUSTER_INCLUDED
+#define SQL_HA_NDBCLUSTER_INCLUDED
+
 /*
   This file defines the NDB Cluster handler: the interface between MySQL and
   NDB Cluster
 */
 
-#include "sql_base.h"
+#include "sql/sql_base.h"
 
 /* DDL names have to fit in system table ndb_schema */
 #define NDB_MAX_DDL_NAME_BYTESIZE 63
@@ -29,14 +32,13 @@
 /* Blob tables and events are internal to NDB and must never be accessed */
 #define IS_NDB_BLOB_PREFIX(A) is_prefix(A, "NDB$BLOB")
 
-#include <kernel/ndb_limits.h>
-#include <ndbapi/NdbApi.hpp>
-#include <ndbapi/ndbapi_limits.h>
-
-#include "ndb_conflict.h"
-#include "ndb_table_map.h"
-#include "partitioning/partition_handler.h"
-#include "table.h"
+#include "sql/ndb_conflict.h"
+#include "sql/ndb_table_map.h"
+#include "sql/partitioning/partition_handler.h"
+#include "sql/table.h"
+#include "storage/ndb/include/kernel/ndb_limits.h"
+#include "storage/ndb/include/ndbapi/NdbApi.hpp"
+#include "storage/ndb/include/ndbapi/ndbapi_limits.h"
 
 #define NDB_IGNORE_VALUE(x) (void)x
 
@@ -100,8 +102,8 @@ public:
 };
 
 
-#include "ndb_ndbapi_util.h"
-#include "ndb_share.h"
+#include "sql/ndb_ndbapi_util.h"
+#include "sql/ndb_share.h"
 
 struct Ndb_local_table_statistics {
   int no_uncommitted_rows_count;
@@ -109,7 +111,7 @@ struct Ndb_local_table_statistics {
   ha_rows records;
 };
 
-#include "ndb_thd_ndb.h"
+#include "sql/ndb_thd_ndb.h"
 
 struct st_ndb_status {
   st_ndb_status() { memset(this, 0, sizeof(struct st_ndb_status)); }
@@ -764,3 +766,5 @@ extern int ndb_setup_complete;
 
 
 int ndb_to_mysql_error(const NdbError *ndberr);
+
+#endif

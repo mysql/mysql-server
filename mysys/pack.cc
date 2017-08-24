@@ -24,7 +24,7 @@
 /* Get the length of next field. Change parameter to point at fieldstart */
 ulong STDCALL net_field_length(uchar **packet)
 {
-  uchar *pos= (uchar *)*packet;
+  const uchar *pos= *packet;
   if (*pos < 251)
   {
     (*packet)++;
@@ -52,7 +52,7 @@ ulong STDCALL net_field_length(uchar **packet)
 /* The same as above but returns longlong */
 my_ulonglong net_field_length_ll(uchar **packet)
 {
-  uchar *pos= *packet;
+  const uchar *pos= *packet;
   if (*pos < 251)
   {
     (*packet)++;
@@ -153,7 +153,7 @@ uint net_length_size(ulonglong num)
   @return length of buffer needed to store this number [1, 3, 4, 9].
 */
 
-uint net_field_length_size(uchar *pos)
+uint net_field_length_size(const uchar *pos)
 {
   if (*pos <= 251)
     return 1;

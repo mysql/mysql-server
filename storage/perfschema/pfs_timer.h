@@ -16,15 +16,14 @@
 #ifndef PFS_TIMER_H
 #define PFS_TIMER_H
 
+#include "my_inttypes.h"
 /**
   @file storage/perfschema/pfs_timer.h
   Performance schema timers (declarations).
 */
-#include <my_rdtsc.h>
-
-#include "my_inttypes.h"
-#include "pfs_column_types.h"
-#include "pfs_histogram.h"
+#include "my_rdtsc.h"
+#include "storage/perfschema/pfs_column_types.h"
+#include "storage/perfschema/pfs_histogram.h"
 
 /** Conversion factor, from micro seconds to pico seconds. */
 #define MICROSEC_TO_PICOSEC 1000000

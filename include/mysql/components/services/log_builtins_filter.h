@@ -20,7 +20,8 @@
 #include <mysql/components/my_service.h>
 #include <mysql/components/service_implementation.h>
 #include <mysql/components/services/log_shared.h>
-#include <rwlock_scoped_lock.h>
+
+#include "rwlock_scoped_lock.h"
 
 
 /*

@@ -1,4 +1,4 @@
-/* Copyright (c) 2009 Sun Microsystems, Inc.
+/* Copyright (c) 2009, 2017, Sun Microsystems, Inc.
    Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -14,5 +14,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <service_versions.h>
+#include "service_versions.h"
+
 SERVICE_VERSION my_snprintf_service= (void*)VERSION_my_snprintf;

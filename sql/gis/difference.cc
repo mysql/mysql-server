@@ -17,15 +17,13 @@
 ///
 /// This file implements the difference functor and function.
 
-#include "difference_functor.h"
-
+#include <boost/geometry.hpp>
 #include <memory>  // std::unique_ptr
 
-#include <boost/geometry.hpp>
-
-#include "disjoint_functor.h"
-#include "geometries.h"
-#include "geometries_traits.h"
+#include "sql/gis/difference_functor.h"
+#include "sql/gis/disjoint_functor.h"
+#include "sql/gis/geometries.h"
+#include "sql/gis/geometries_traits.h"
 
 namespace bg = boost::geometry;
 

@@ -138,7 +138,9 @@ Columns::Columns()
   m_target_def.add_field(FIELD_COLUMN_TYPE_UTF8,
                          "FIELD_COLUMN_TYPE_UTF8",
                          "column_type_utf8 MEDIUMTEXT NOT NULL");
-
+  m_target_def.add_field(FIELD_SRS_ID,
+                         "FIELD_SRS_ID",
+                         "srs_id INT UNSIGNED DEFAULT NULL");
 
   m_target_def.add_index("PRIMARY KEY(id)");
   m_target_def.add_index("UNIQUE KEY(table_id, name)");
@@ -147,6 +149,8 @@ Columns::Columns()
   m_target_def.add_foreign_key("FOREIGN KEY (table_id) REFERENCES tables(id)");
   m_target_def.add_foreign_key("FOREIGN KEY (collation_id) "
                                "REFERENCES collations(id)");
+  m_target_def.add_foreign_key("FOREIGN KEY (srs_id) "
+                               "REFERENCES st_spatial_reference_systems(id)");
 }
 
 ///////////////////////////////////////////////////////////////////////////

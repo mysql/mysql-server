@@ -163,7 +163,7 @@ public:
 						     i < dtuple_get_n_fields(cp_tuple);
 						     i++) {
 							dfield_dup(&cp_tuple->fields[i],
-								   row_heap);
+								   m_heap);
 						}
 					}
 					btr_pcur_move_to_prev_on_page(pcur);
@@ -3848,6 +3848,12 @@ row_merge_create_index(
 			field->name = add_v->v_col_name[
 				ifield->col_no - table->n_v_def];
 		}
+	}
+
+	if (dict_index_is_spatial(index)) {
+		index->fill_srid_value(
+			index_def->srid, index_def->srid_is_valid);
+		index->rtr_srs.reset(fetch_srs(index->srid));
 	}
 
 	index->parser = index_def->parser;

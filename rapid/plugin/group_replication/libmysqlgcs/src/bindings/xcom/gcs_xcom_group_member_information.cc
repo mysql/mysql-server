@@ -13,16 +13,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_group_member_information.h"
+
+#include <assert.h>
 #include <cstdlib>
 #include <cstring>
-#include <assert.h>
 #include <sstream>
 
-#include "mysql/gcs/xplatform/my_xp_util.h"
-#include "mysql/gcs/xplatform/byteorder.h"
-#include "mysql/gcs/gcs_logging_system.h"
-#include "gcs_xcom_group_member_information.h"
-#include "gcs_xcom_utils.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_logging_system.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/byteorder.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/my_xp_util.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_utils.h"
 
 Gcs_xcom_node_address::
 Gcs_xcom_node_address(std::string member_address)

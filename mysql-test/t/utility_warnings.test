@@ -46,7 +46,7 @@ INSERT INTO t_25380000 VALUES(1);
 --source include/search_pattern.inc
 
 --echo #MYSQLBINLOG
---exec $MYSQL_BINLOG --ssl-mode=DISABLED --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem --read-from-remote-server master-bin.000001 > $MYSQLTEST_VARDIR/tmp/25380000_mysqlbinlog_result 2> $MYSQLTEST_VARDIR/tmp/25380000_stderr
+--exec $MYSQL_BINLOG --ssl-mode=DISABLED --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem --read-from-remote-server binlog.000001 > $MYSQLTEST_VARDIR/tmp/25380000_mysqlbinlog_result 2> $MYSQLTEST_VARDIR/tmp/25380000_stderr
 --cat_file $MYSQLTEST_VARDIR/tmp/25380000_stderr
 
 # Search for warning message in the result file

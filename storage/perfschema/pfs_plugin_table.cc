@@ -18,16 +18,17 @@
   The performance schema implementation of plugin table.
 */
 
+#include "storage/perfschema/pfs_plugin_table.h"
+
 #include <mysql/components/services/pfs_plugin_table_service.h>
 #include <list>
 #include <string>
 
-#include "pfs_column_values.h"
-#include "pfs_plugin_table.h"
 #include "sql/handler.h"
 #include "sql/pfs_priv_util.h"
-#include "table_helper.h"
-#include "table_plugin_table.h"
+#include "storage/perfschema/pfs_column_values.h"
+#include "storage/perfschema/table_helper.h"
+#include "storage/perfschema/table_plugin_table.h"
 
 /* clang-format off */
 /**

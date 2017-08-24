@@ -22,8 +22,8 @@
 #include "sql/locking_service.h"
 #include "sql/mdl.h"
 #include "sql/sql_base.h"
-#include "test_utils.h"
-#include "thread_utils.h"
+#include "unittest/gunit/test_utils.h"
+#include "unittest/gunit/thread_utils.h"
 
 /*
   Putting everything in a namespace prevents any (unintentional)

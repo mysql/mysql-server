@@ -23,13 +23,13 @@
 #include <string>
 #include <utility>
 
-#include "connector/connection_manager.h"
-#include "formatters/console.h"
 #include "my_io.h"
-#include "processor/commands/expected_error.h"
-#include "processor/commands/macro.h"
-#include "processor/script_stack.h"
-#include "processor/variable_container.h"
+#include "plugin/x/tests/driver/connector/connection_manager.h"
+#include "plugin/x/tests/driver/formatters/console.h"
+#include "plugin/x/tests/driver/processor/commands/expected_error.h"
+#include "plugin/x/tests/driver/processor/commands/macro.h"
+#include "plugin/x/tests/driver/processor/script_stack.h"
+#include "plugin/x/tests/driver/processor/variable_container.h"
 
 
 class Execution_context {

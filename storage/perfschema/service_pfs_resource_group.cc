@@ -18,11 +18,12 @@
   The performance schema implementation of the resource group service.
 */
 
-#include <mysql/plugin.h>
-#include <mysql/components/service_implementation.h>
 #include <mysql/components/my_service.h>
+#include <mysql/components/service_implementation.h>
 #include <mysql/components/services/pfs_resource_group.h>
-#include "pfs_server.h"
+#include <mysql/plugin.h>
+
+#include "storage/perfschema/pfs_server.h"
 
 extern int pfs_set_thread_resource_group_v1(const char *group_name,
                                             int group_name_len,

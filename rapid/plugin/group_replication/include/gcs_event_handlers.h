@@ -19,19 +19,17 @@
 #include <set>
 #include <vector>
 
-#include <mysql/gcs/gcs_control_event_listener.h>
-#include <mysql/gcs/gcs_communication_event_listener.h>
-
-#include "applier.h"
-#include "compatibility_module.h"
-#include "gcs_plugin_messages.h"
-#include "gcs_view_modification_notifier.h"
-#include "plugin_constants.h"
-#include "recovery.h"
-#include "recovery_message.h"
-#include "read_mode_handler.h"
-
-#include "services/notification/notification.h"
+#include "plugin/group_replication/include/applier.h"
+#include "plugin/group_replication/include/compatibility_module.h"
+#include "plugin/group_replication/include/gcs_plugin_messages.h"
+#include "plugin/group_replication/include/gcs_view_modification_notifier.h"
+#include "plugin/group_replication/include/plugin_constants.h"
+#include "plugin/group_replication/include/read_mode_handler.h"
+#include "plugin/group_replication/include/recovery.h"
+#include "plugin/group_replication/include/recovery_message.h"
+#include "plugin/group_replication/include/services/notification/notification.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_communication_event_listener.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_control_event_listener.h"
 
 /*
  The server version in which member weight was introduced.

@@ -15,12 +15,12 @@
  * 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "dump_message_block_processor.h"
+#include "plugin/x/tests/driver/processor/dump_message_block_processor.h"
 
 #include <string>
 #include <vector>
 
-#include "common/utils_string_parsing.h"
+#include "plugin/x/tests/driver/common/utils_string_parsing.h"
 
 
 std::string Dump_message_block_processor::get_message_name(

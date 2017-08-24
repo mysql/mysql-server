@@ -27,11 +27,11 @@
 #include <string>
 #include <vector>
 
-#include "mysqlxclient/xprotocol.h"
-#include "mysqlxclient/xquery_result.h"
-#include "xcontext.h"
-#include "xquery_instances.h"
-#include "xrow_impl.h"
+#include "plugin/x/client/mysqlxclient/xprotocol.h"
+#include "plugin/x/client/mysqlxclient/xquery_result.h"
+#include "plugin/x/client/xcontext.h"
+#include "plugin/x/client/xquery_instances.h"
+#include "plugin/x/client/xrow_impl.h"
 
 
 namespace xcl {

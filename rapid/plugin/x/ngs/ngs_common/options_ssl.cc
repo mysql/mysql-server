@@ -17,12 +17,12 @@
  * 02110-1301  USA
  */
 
-#include "ngs_common/options_ssl.h"
+#include "plugin/x/ngs/include/ngs_common/options_ssl.h"
 
 #include <iterator>
 
 #include "mysql/service_ssl_wrapper.h"
-#include "ngs/memory.h"
+#include "plugin/x/ngs/include/ngs/memory.h"
 
 using namespace ngs;
 

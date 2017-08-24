@@ -28,13 +28,13 @@ TempTable Table implementation. */
 #include "sql/field.h"            /* Field */
 #include "sql/key.h"              /* KEY */
 #include "sql/table.h"            /* TABLE, TABLE_SHARE */
-#include "temptable/allocator.h"     /* temptable::Allocator */
-#include "temptable/cursor.h"        /* temptable::Cursor */
-#include "temptable/index.h"         /* temptable::Index */
-#include "temptable/indexed_cells.h" /* temptable::Indexed_cells */
-#include "temptable/result.h"        /* temptable::Result */
-#include "temptable/row.h"           /* temptable::Row */
-#include "temptable/table.h"         /* temptable::Table */
+#include "storage/temptable/include/temptable/allocator.h" /* temptable::Allocator */
+#include "storage/temptable/include/temptable/cursor.h" /* temptable::Cursor */
+#include "storage/temptable/include/temptable/index.h" /* temptable::Index */
+#include "storage/temptable/include/temptable/indexed_cells.h" /* temptable::Indexed_cells */
+#include "storage/temptable/include/temptable/result.h" /* temptable::Result */
+#include "storage/temptable/include/temptable/row.h" /* temptable::Row */
+#include "storage/temptable/include/temptable/table.h" /* temptable::Table */
 
 namespace temptable {
 

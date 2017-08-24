@@ -13,26 +13,26 @@
   along with this program; if not, write to the Free Software Foundation,
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include <my_thread.h>
-#include <pfs.h>
-#include <pfs_account.h>
-#include <pfs_buffer_container.h>
-#include <pfs_global.h>
-#include <pfs_host.h>
-#include <pfs_instr.h>
-#include <pfs_instr_class.h>
-#include <pfs_stat.h>
-#include <pfs_user.h>
 #include <string.h> /* memset */
-#include <tap.h>
 
-#include "stub_pfs_global.h"
-#include "stub_pfs_plugin_table.h"
+#include "my_thread.h"
+#include "storage/perfschema/pfs.h"
+#include "storage/perfschema/pfs_account.h"
+#include "storage/perfschema/pfs_buffer_container.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_host.h"
+#include "storage/perfschema/pfs_instr.h"
+#include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/pfs_stat.h"
+#include "storage/perfschema/pfs_user.h"
+#include "storage/perfschema/unittest/stub_pfs_global.h"
+#include "storage/perfschema/unittest/stub_pfs_plugin_table.h"
+#include "unittest/mytap/tap.h"
 
 PSI_thread_key thread_key_1;
 PSI_thread_info all_thread[]=
 {
-  {&thread_key_1, "T-1", 0}
+  {&thread_key_1, "T-1", 0, 0, ""}
 };
 
 /** Simulate initialize_performance_schema(). */

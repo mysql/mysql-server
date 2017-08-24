@@ -13,10 +13,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-INCLUDE_DIRECTORIES(
-${CMAKE_SOURCE_DIR}/include 
-${LZ4_INCLUDE_DIR})
-
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 
 # Default install component for the files is Server here
@@ -124,9 +120,8 @@ ENDIF()
 
 IF(WITH_INNOBASE_STORAGE_ENGINE)
 
-  IF(LZ4_INCLUDE_DIR AND LZ4_LIBRARY)
+  IF(LZ4_LIBRARY)
     ADD_DEFINITIONS(-DHAVE_LZ4=1)
-    INCLUDE_DIRECTORIES(${LZ4_INCLUDE_DIR})
   ENDIF()
 
   IF(NOT MSVC)

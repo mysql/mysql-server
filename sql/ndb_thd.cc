@@ -15,12 +15,12 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "my_dbug.h"
-#include "ndb_thd.h"
-#include "ndb_thd_ndb.h"
+#include "sql/ndb_thd.h"
 
-#include <sql_class.h>
-#include "mysqld.h"         // opt_server_id_mask
+#include "my_dbug.h"
+#include "sql/mysqld.h"     // opt_server_id_mask
+#include "sql/ndb_thd_ndb.h"
+#include "sql/sql_class.h"
 
 /*
   Make sure THD has a Thd_ndb struct allocated and associated

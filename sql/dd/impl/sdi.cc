@@ -19,6 +19,7 @@
 #include <rapidjson/document.h>     // rapidjson::GenericValue
 #include <rapidjson/error/en.h>     // rapidjson::GetParseError_En
 #include <rapidjson/prettywriter.h> // rapidjson::PrettyWrite
+#include <rapidjson/stringbuffer.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/types.h>
@@ -35,7 +36,6 @@
 #include "mysql_version.h"        // MYSQL_VERSION_ID
 #include "mysqld_error.h"
 #include "prealloced_array.h"
-#include "rapidjson/stringbuffer.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/dd/cache/dictionary_client.h" // dd::Dictionary_client
 #include "sql/dd/impl/dictionary_impl.h" // dd::Dictionary_impl::get_target_dd_version

@@ -414,7 +414,7 @@ db_find_routine(THD *thd, enum_sp_type type, sp_name *name, sp_head **sphp)
                        return_type_str.c_str(), routine->definition().c_str(),
                        &sp_chistics, routine->definer_user().c_str(),
                        routine->definer_host().c_str(),
-                       routine->created(), routine->last_altered(),
+                       routine->created(true), routine->last_altered(true),
                        creation_ctx);
   DBUG_RETURN(ret);
 }
@@ -754,35 +754,18 @@ static bool create_routine_precheck(THD *thd, sp_head *sp)
   }
 
   // Validate body definition to avoid invalid UTF8 characters.
-  size_t valid_length;
-  bool not_used;
-  if (validate_string(system_charset_info, sp->m_body_utf8.str,
-                      sp->m_body_utf8.length, &valid_length, &not_used))
-  {
-    char hexbuf[7];
-    octet2hex(hexbuf, sp->m_body_utf8.str + valid_length,
-              std::min<size_t>(sp->m_body_utf8.length - valid_length, 3));
-    my_error(ER_INVALID_CHARACTER_STRING, MYF(0), system_charset_info->csname,
-             hexbuf);
+  if (is_invalid_string(to_lex_cstring(sp->m_body_utf8),
+                        system_charset_info))
     return true;
-  }
 
   // Validate routine comment.
   if (sp->m_chistics->comment.length)
   {
     // validate comment string to avoid invalid utf8 characters.
-    if (validate_string(system_charset_info, sp->m_chistics->comment.str,
-                        sp->m_chistics->comment.length, &valid_length,
-                        &not_used))
-    {
-      char hexbuf[7];
-      octet2hex(hexbuf, sp->m_chistics->comment.str + valid_length,
-                std::min<size_t>(sp->m_chistics->comment.length - valid_length,
-                                 3));
-      my_error(ER_INVALID_CHARACTER_STRING, MYF(0), system_charset_info->csname,
-               hexbuf);
+    if (is_invalid_string(LEX_CSTRING{sp->m_chistics->comment.str,
+                                      sp->m_chistics->comment.length},
+                          system_charset_info))
       return true;
-    }
 
     // Check comment string length.
     if (check_string_char_length({ sp->m_chistics->comment.str,
@@ -1163,22 +1146,10 @@ bool sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
   // Validate routine comment.
   if (chistics->comment.str)
   {
-    size_t valid_length;
-    bool not_used;
-
     // validate comment string to invalid utf8 characters.
-    if (validate_string(system_charset_info, chistics->comment.str,
-                        chistics->comment.length, &valid_length,
-                        &not_used))
-    {
-      char hexbuf[7];
-      octet2hex(hexbuf, chistics->comment.str + valid_length,
-                std::min<size_t>(chistics->comment.length - valid_length,
-                                 3));
-      my_error(ER_INVALID_CHARACTER_STRING, MYF(0), system_charset_info->csname,
-               hexbuf);
+    if (is_invalid_string(chistics->comment,
+                          system_charset_info))
       DBUG_RETURN(true);
-    }
 
     // Check comment string length.
     if (check_string_char_length({ chistics->comment.str,

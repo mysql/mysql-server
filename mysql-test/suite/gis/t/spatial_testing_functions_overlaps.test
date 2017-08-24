@@ -1836,6 +1836,8 @@ SELECT MBROVERLAPS(a.g, b.g) FROM t1 AS a JOIN t1 AS b;
 
 SELECT ST_OVERLAPS(ST_SRID(a.g, 4326), ST_SRID(b.g, 4326))
 FROM t1 AS a JOIN t1 AS b;
+SELECT MBROVERLAPS(ST_SRID(a.g, 4326), ST_SRID(b.g, 4326))
+FROM t1 AS a JOIN t1 AS b;
 --enable_result_log
 
 --echo # clean up
@@ -1906,3 +1908,109 @@ SELECT MBROVERLAPS(
   ST_GEOMFROMTEXT('POINT(0 0)', 20000001)
 );
 DELETE FROM mysql.st_spatial_reference_systems WHERE id = 20000001;
+
+--echo #
+--echo # WL#10827 Ellipsoidal R-tree support functions
+--echo #
+
+SET @pt = ST_GeomFromText('POINT(0 0)', 4326);
+--error ER_LATITUDE_OUT_OF_RANGE
+SELECT ST_Overlaps(ST_SRID(ST_GeomFromText('POINT(0 -91)'), 4326), @pt);
+--error ER_LATITUDE_OUT_OF_RANGE
+SELECT ST_Overlaps(ST_SRID(ST_GeomFromText('POINT(0 91)'), 4326), @pt);
+--error ER_LONGITUDE_OUT_OF_RANGE
+SELECT ST_Overlaps(ST_SRID(ST_GeomFromText('POINT(-181 0)'), 4326), @pt);
+--error ER_LONGITUDE_OUT_OF_RANGE
+SELECT ST_Overlaps(ST_SRID(ST_GeomFromText('POINT(181 0)'), 4326), @pt);
+--error ER_LATITUDE_OUT_OF_RANGE
+SELECT MBROverlaps(ST_SRID(ST_GeomFromText('POINT(0 -91)'), 4326), @pt);
+--error ER_LATITUDE_OUT_OF_RANGE
+SELECT MBROverlaps(ST_SRID(ST_GeomFromText('POINT(0 91)'), 4326), @pt);
+--error ER_LONGITUDE_OUT_OF_RANGE
+SELECT MBROverlaps(ST_SRID(ST_GeomFromText('POINT(-181 0)'), 4326), @pt);
+--error ER_LONGITUDE_OUT_OF_RANGE
+SELECT MBROverlaps(ST_SRID(ST_GeomFromText('POINT(181 0)'), 4326), @pt);
+
+CREATE TABLE t1 (
+  id INT,
+  c GEOMETRY NOT NULL,
+  g GEOMETRY AS (ST_SRID(c, 4326)) STORED NOT NULL,
+  SPATIAL INDEX c_idx (c),
+  SPATIAL INDEX g_idx (g)
+);
+
+INSERT INTO t1 (id, c) VALUES
+  (0, ST_GeomFromText('POLYGON((0 0, 1 0, 1 1, 0 1, 0 0))')),
+  (1, ST_GeomFromText('POLYGON((1 1, 2 1, 2 2, 1 2, 1 1))')),
+  (2, ST_GeomFromText('POLYGON((2 2, 3 2, 3 3, 2 3, 2 2))')),
+  (3, ST_GeomFromText('POLYGON((3 3, 4 3, 4 4, 3 4, 3 3))')),
+  (4, ST_GeomFromText('POLYGON((4 4, 5 4, 5 5, 4 5, 4 4))')),
+  (5, ST_GeomFromText('POLYGON((5 5.00001, 6 5.00001, 6 10, 5 10, 5 5.00001))')),
+  (6, ST_GeomFromText('POLYGON((6 6, 7 6, 7 7, 6 7, 6 6))')),
+  (7, ST_GeomFromText('POLYGON((7 7, 8 7, 8 8, 7 8, 7 7))'));
+
+SET @py = 'POLYGON((0 0, 10 0, 10 5, 0 5, 0 0))';
+SET @cart_py = ST_GeomFromText(@py);
+SET @geo_py = ST_GeomFromText(@py, 4326, 'axis-order=long-lat');
+
+SET @mpt = 'MULTIPOINT((0 0), (10 5))';
+SET @cart_mpt = ST_GeomFromText(@mpt);
+SET @geo_mpt = ST_GeomFromText(@mpt, 4326, 'axis-order=long-lat');
+
+--echo # Cartesian ST_Overlaps
+SELECT id, ST_AsText(c)
+  FROM t1 IGNORE INDEX(c_idx)
+  WHERE ST_Overlaps(c, @cart_py)
+  ORDER BY id;
+SELECT id, ST_AsText(c)
+  FROM t1 FORCE INDEX(c_idx)
+  WHERE ST_Overlaps(c, @cart_py)
+  ORDER BY id;
+
+--echo # Geographic ST_Overlaps
+SELECT id, ST_AsText(g)
+  FROM t1 IGNORE INDEX(g_idx)
+  WHERE ST_Overlaps(g, @geo_py)
+  ORDER BY id;
+SELECT id, ST_AsText(g)
+  FROM t1 FORCE INDEX(g_idx)
+  WHERE ST_Overlaps(g, @geo_py)
+  ORDER BY id;
+
+--echo # Cartesian MBROverlaps
+SELECT id, ST_AsText(c)
+  FROM t1 IGNORE INDEX(c_idx)
+  WHERE MBROverlaps(c, @cart_py)
+  ORDER BY id;
+SELECT id, ST_AsText(c)
+  FROM t1 FORCE INDEX(c_idx)
+  WHERE MBROverlaps(c, @cart_py)
+  ORDER BY id;
+SELECT id, ST_AsText(c)
+  FROM t1 IGNORE INDEX(c_idx)
+  WHERE MBROverlaps(c, @cart_mpt)
+  ORDER BY id;
+SELECT id, ST_AsText(c)
+  FROM t1 FORCE INDEX(c_idx)
+  WHERE MBROverlaps(c, @cart_mpt)
+  ORDER BY id;
+
+--echo # Geographic MBROverlaps
+SELECT id, ST_AsText(g)
+  FROM t1 IGNORE INDEX(g_idx)
+  WHERE MBROverlaps(g, @geo_py)
+  ORDER BY id;
+SELECT id, ST_AsText(g)
+  FROM t1 FORCE INDEX(g_idx)
+  WHERE MBROverlaps(g, @geo_py)
+  ORDER BY id;
+SELECT id, ST_AsText(g)
+  FROM t1 IGNORE INDEX(g_idx)
+  WHERE MBROverlaps(g, @geo_mpt)
+  ORDER BY id;
+SELECT id, ST_AsText(g)
+  FROM t1 FORCE INDEX(g_idx)
+  WHERE MBROverlaps(g, @geo_mpt)
+  ORDER BY id;
+
+DROP TABLE t1;

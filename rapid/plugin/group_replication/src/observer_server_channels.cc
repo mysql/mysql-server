@@ -14,11 +14,11 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
-#include "observer_server_channels.h"
+#include "plugin/group_replication/include/observer_server_channels.h"
 
 #include <stddef.h>
 
-#include "plugin.h"
+#include "plugin/group_replication/include/plugin.h"
 
 
 int group_replication_thread_start(Binlog_relay_IO_param *param)

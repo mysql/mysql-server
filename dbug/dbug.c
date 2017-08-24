@@ -84,13 +84,13 @@
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
-#include <m_string.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <time.h>
 
+#include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"

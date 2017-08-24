@@ -30,17 +30,18 @@
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma GCC diagnostic push
 #endif
-#include "runtime.hpp"
-#include "yassl_int.hpp"
+#include <runtime.hpp>
+#include <yassl_int.hpp>
 #ifdef __GNUC__
 #pragma GCC diagnostic pop
 #endif
-#include "thread_utils.h"
-#include "rsa.hpp"
-#include "buffer.hpp"
-#include "cert_wrapper.hpp"
-#include "yassl_types.hpp"
-#include "openssl/ssl.h"
+#include <buffer.hpp>
+#include <cert_wrapper.hpp>
+#include <openssl/ssl.h>
+#include <rsa.hpp>
+#include <yassl_types.hpp>
+
+#include "unittest/gunit/thread_utils.h"
 
 namespace {
 

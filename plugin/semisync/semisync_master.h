@@ -24,7 +24,7 @@
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_psi_config.h"
-#include "semisync.h"
+#include "plugin/semisync/semisync.h"
 
 extern PSI_memory_key key_ss_memory_TranxNodeAllocator_block;
 

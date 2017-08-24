@@ -19,14 +19,14 @@
 #include <mysql/group_replication_priv.h>
 #include <vector>
 
-#include "applier_channel_state_observer.h"
-#include "handlers/applier_handler.h"
-#include "handlers/certification_handler.h"
-#include "handlers/pipeline_handlers.h"
 #include "my_inttypes.h"
-#include "pipeline_factory.h"
-#include "pipeline_stats.h"
-#include "plugin_utils.h"
+#include "plugin/group_replication/include/applier_channel_state_observer.h"
+#include "plugin/group_replication/include/handlers/applier_handler.h"
+#include "plugin/group_replication/include/handlers/certification_handler.h"
+#include "plugin/group_replication/include/handlers/pipeline_handlers.h"
+#include "plugin/group_replication/include/pipeline_factory.h"
+#include "plugin/group_replication/include/pipeline_stats.h"
+#include "plugin/group_replication/include/plugin_utils.h"
 
 
 //Define the applier packet types

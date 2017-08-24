@@ -759,6 +759,8 @@ dict_mem_index_free(
 		UT_DELETE(index->rtr_track->rtr_active);
 	}
 
+	index->rtr_srs.reset();
+
 	mem_heap_free(index->heap);
 }
 

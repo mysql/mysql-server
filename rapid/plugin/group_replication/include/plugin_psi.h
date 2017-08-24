@@ -16,7 +16,7 @@
 #ifndef PLUGIN_PSI_INCLUDED
 #define PLUGIN_PSI_INCLUDED
 
-#include "plugin_server_include.h"
+#include "plugin/group_replication/include/plugin_server_include.h"
 
 #ifdef HAVE_PSI_INTERFACE
 

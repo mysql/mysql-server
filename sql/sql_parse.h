@@ -297,6 +297,14 @@ bool set_default_collation(HA_CREATE_INFO *create_info,
 #define CF_SKIP_QUESTIONS       (1U << 1)
 
 /**
+  Identifies statement that must acquire Backup Lock before
+  start its execution. It allows all kind of DML on InnoDB tables,
+  and blocks all operations, that could cause an inconsistent
+  backup, if done during a backup operation.
+*/
+#define CF_ACQUIRE_BACKUP_LOCK  (1U << 20)
+
+/**
   1U << 16 is reserved for Protocol Plugin statements and commands
 */
 

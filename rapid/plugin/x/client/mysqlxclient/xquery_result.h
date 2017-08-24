@@ -27,8 +27,8 @@
 #include <string>
 #include <vector>
 
-#include "mysqlxclient/xerror.h"
-#include "mysqlxclient/xrow.h"
+#include "plugin/x/client/mysqlxclient/xerror.h"
+#include "plugin/x/client/mysqlxclient/xrow.h"
 
 
 namespace xcl {

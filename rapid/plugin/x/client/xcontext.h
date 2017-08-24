@@ -26,10 +26,10 @@
 #include <cstring>
 #include <string>
 
-#include "mysqlxclient/xerror.h"
-#include "mysqlxclient/xprotocol.h"
-#include "xconnection_config.h"
-#include "xssl_config.h"
+#include "plugin/x/client/mysqlxclient/xerror.h"
+#include "plugin/x/client/mysqlxclient/xprotocol.h"
+#include "plugin/x/client/xconnection_config.h"
+#include "plugin/x/client/xssl_config.h"
 
 
 namespace xcl {

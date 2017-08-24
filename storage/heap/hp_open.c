@@ -18,11 +18,11 @@
 #include <errno.h>
 #include <sys/types.h>
 
-#include "heapdef.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
+#include "storage/heap/heapdef.h"
 
 /*
   Open heap table based on HP_SHARE structure

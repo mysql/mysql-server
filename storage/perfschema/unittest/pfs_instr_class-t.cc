@@ -13,14 +13,14 @@
   along with this program; if not, write to the Free Software Foundation,
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include <my_thread.h>
-#include <pfs_global.h>
-#include <pfs_instr.h>
-#include <pfs_instr_class.h>
 #include <string.h>                             // strncpy
-#include <tap.h>
 
-#include "stub_pfs_plugin_table.h"
+#include "my_thread.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_instr.h"
+#include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/unittest/stub_pfs_plugin_table.h"
+#include "unittest/mytap/tap.h"
 
 static void test_no_registration()
 {

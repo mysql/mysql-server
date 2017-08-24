@@ -15,16 +15,12 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <my_config.h>
-#include <my_default.h>
-#include <my_dir.h>
-#include <my_getopt.h>
-#include <my_sys.h>
+#include "my_config.h"
+
 #include <mysql_version.h>
 #include <stdint.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <welcome_copyright_notice.h>   /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
@@ -37,11 +33,16 @@
 #include "client/path.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_default.h"
+#include "my_dir.h"
+#include "my_getopt.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"
+#include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
 #include "print_version.h"
+#include "welcome_copyright_notice.h"   /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 #if HAVE_CHOWN
 #include <pwd.h>

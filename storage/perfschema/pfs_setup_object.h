@@ -24,10 +24,10 @@
 #include <sys/types.h>
 
 #include "lf.h"
-#include "pfs_column_types.h"
-#include "pfs_global.h"
-#include "pfs_instr.h"
-#include "pfs_lock.h"
+#include "storage/perfschema/pfs_column_types.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_instr.h"
+#include "storage/perfschema/pfs_lock.h"
 
 class String;
 struct PFS_global_param;

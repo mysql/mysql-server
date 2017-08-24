@@ -21,11 +21,12 @@
 */
 
 #include <math.h>
-#include "fulltext.h"
-#include <m_ctype.h>
-#include <my_tree.h>
-#include "queues.h"
 #include <mysql/plugin.h>
+
+#include "m_ctype.h"
+#include "my_tree.h"
+#include "storage/myisam/fulltext.h"
+#include "storage/myisam/queues.h"
 
 #define true_word_char(ctype, character) \
                       ((ctype) & (_MY_U | _MY_L | _MY_NMR) || \

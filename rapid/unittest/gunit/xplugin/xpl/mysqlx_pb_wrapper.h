@@ -17,14 +17,13 @@
 #define XPLUGIN_MYSQLX_PB_WRAPPER_H_
 
 #include <cstddef>
-
 #include <initializer_list>
 #include <map>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "ngs_common/protocol_protobuf.h"
+#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
 
 namespace xpl {
 namespace test {

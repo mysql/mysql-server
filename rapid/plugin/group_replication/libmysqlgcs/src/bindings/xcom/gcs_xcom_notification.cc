@@ -13,12 +13,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_notification.h"
+
 #include <assert.h>
 #include <stddef.h>
 
-#include "mysql/gcs/gcs_logging_system.h"
-#include "gcs_xcom_notification.h"
 #include "my_compiler.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_logging_system.h"
 
 Finalize_notification::Finalize_notification(
   Gcs_xcom_engine *gcs_engine, xcom_finalize_functor *functor)
@@ -178,7 +179,8 @@ void Gcs_xcom_engine::initialize(
 {
   assert(m_notification_queue.empty());
   assert(m_schedule);
-  m_engine_thread.create(NULL, process_notification_thread, (void *) this);
+  m_engine_thread.create(key_GCS_THD_Gcs_xcom_engine_m_engine_thread,
+                         NULL, process_notification_thread, (void *) this);
 }
 
 

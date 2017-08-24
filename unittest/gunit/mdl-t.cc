@@ -32,8 +32,8 @@
 #include "sql/mdl.h"
 #include "sql/mysqld.h"
 #include "sql/thr_malloc.h"
-#include "test_mdl_context_owner.h"
-#include "thread_utils.h"
+#include "unittest/gunit/test_mdl_context_owner.h"
+#include "unittest/gunit/thread_utils.h"
 
 /*
   Mock thd_wait_begin/end functions

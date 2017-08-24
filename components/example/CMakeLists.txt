@@ -13,9 +13,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-INCLUDE_DIRECTORIES(
-  ${CMAKE_SOURCE_DIR}/components/example)
-
 REMOVE_DEFINITIONS(-DMYSQL_SERVER)
 
 MYSQL_ADD_COMPONENT(example_component1
@@ -44,4 +41,8 @@ MYSQL_ADD_COMPONENT(test_string_service_long
 
 MYSQL_ADD_COMPONENT(test_string_service_charset
   test_string_service_charset.cc
+  TEST MODULE)
+
+MYSQL_ADD_COMPONENT(test_backup_lock_service
+  test_backup_lock_service.cc
   TEST MODULE)

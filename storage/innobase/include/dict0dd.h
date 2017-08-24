@@ -56,6 +56,12 @@ static constexpr char handler_name[] = "InnoDB";
 
 static const char innobase_hton_name[]= "InnoDB";
 
+static constexpr size_t MAX_SPACE_NAME_LEN =
+	(4 * NAME_LEN)
+	 + PARTN_SEPARATOR_LEN
+	 + SUB_PARTN_SEPARATOR_LEN
+	 + 4; // 4 == strlen("#tmp"))
+
 /** InnoDB private keys for dd::Table */
 enum dd_table_keys {
 	/** Auto-increment counter */
@@ -177,7 +183,7 @@ const innodb_dd_table_t innodb_dd_table[] = {
 	INNODB_DD_TABLE("tables", 6),
 	INNODB_DD_TABLE("view_table_usage", 2),
 	INNODB_DD_TABLE("view_routine_usage", 2),
-	INNODB_DD_TABLE("columns", 4),
+	INNODB_DD_TABLE("columns", 5),
 	INNODB_DD_TABLE("indexes", 3),
 	INNODB_DD_TABLE("index_column_usage", 3),
 	INNODB_DD_TABLE("column_type_elements", 1),
@@ -193,6 +199,7 @@ const innodb_dd_table_t innodb_dd_table[] = {
 	INNODB_DD_TABLE("parameters", 3),
 	INNODB_DD_TABLE("parameter_type_elements", 1),
 	INNODB_DD_TABLE("triggers", 6),
+        INNODB_DD_TABLE("resource_groups", 2),
 	INNODB_DD_TABLE("innodb_table_stats", 1),
 	INNODB_DD_TABLE("innodb_index_stats", 1),
 	INNODB_DD_TABLE("innodb_ddl_log", 2),
@@ -782,14 +789,26 @@ dd_open_fk_tables(
 	bool				dict_locked,
 	THD*				thd);
 
-/** Update filename of dd::Tablespace
+/** Update the tablespace name and file name for rename
+operation.
 @param[in]	dd_space_id	dd tablespace id
+@param[in]	new_space_name	dd_tablespace name
 @param[in]	new_path	new data file path
 @retval DB_SUCCESS on success. */
 dberr_t
-dd_tablespace_update_filename(
-	dd::Object_id		dd_space_id,
-	const char*		new_path);
+dd_rename_tablespace(
+	dd::Object_id	dd_space_id,
+	const char*	new_space_name,
+	const char*	new_path);
+
+/** Parse the tablespace name from filename charset to table name charset
+@param[in]      space_name      tablespace name
+@param[in,out]	tablespace_name	tablespace name which is in table name
+				charset. */
+void
+dd_filename_to_spacename(
+	const char*		space_name,
+	std::string*		tablespace_name);
 
 /* Create metadata for specified tablespace, acquiring exlcusive MDL first
 @param[in,out]	dd_client	data dictionary client
@@ -816,7 +835,9 @@ create_dd_tablespace(
 /** Create metadata for implicit tablespace
 @param[in,out]	dd_client	data dictionary client
 @param[in,out]	thd		THD
-@param[in]	space		InnoDB tablespace ID
+@param[in]	space_id	InnoDB tablespace ID
+@param[in]	tablespace_name	tablespace name to be set for the
+				newly created tablespace
 @param[in]	filename	tablespace filename
 @param[in]	discarded	true if this tablespace was discarded
 @param[in,out]	dd_space_id	dd tablespace id
@@ -826,7 +847,8 @@ bool
 dd_create_implicit_tablespace(
 	dd::cache::Dictionary_client*	dd_client,
 	THD*				thd,
-	space_id_t			space,
+	space_id_t			space_id,
+	const char*			tablespace_name,
 	const char*			filename,
 	bool				discarded,
 	dd::Object_id&			dd_space_id);
@@ -857,6 +879,8 @@ thd_to_innodb_session(
 @param[in,out]	dd_tbl_name	table name buffer to be filled
 @param[in,out]	dd_part_name	partition name to be filled if not nullptr
 @param[in,out]	dd_sub_name	sub-partition name to be filled it not nullptr
+@param[in,out]	is_temp_part	true if it is a temporary partition name which
+				ends with "#tmp".
 @return	true if table name is parsed properly, false if the table name
 is invalid */
 UNIV_INLINE
@@ -866,7 +890,8 @@ dd_parse_tbl_name(
 	char*		dd_db_name,
 	char*		dd_tbl_name,
 	char*		dd_part_name,
-	char*		dd_sub_name);
+	char*		dd_sub_name,
+	bool*		is_temp_part);
 
 /** Look up a column in a table using the system_charset_info collation.
 @param[in]	dd_table	data dictionary table

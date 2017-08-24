@@ -13,13 +13,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
-                    ${CMAKE_SOURCE_DIR}/include/mysql
-                    ${CMAKE_SOURCE_DIR}/extra/regex
-                    ${SSL_INCLUDE_DIRS}
-                    ${CMAKE_SOURCE_DIR}/unittest/mytap
-                    ${CMAKE_SOURCE_DIR}/storage/perfschema)
-
 ADD_DEFINITIONS(-DMYSQL_SERVER ${SSL_DEFINES})
 
 ADD_CONVENIENCE_LIBRARY(pfs_server_stubs pfs_server_stubs.cc)
@@ -28,7 +21,7 @@ ADD_DEPENDENCIES(pfs_server_stubs GenError)
 
 MACRO (PFS_ADD_TEST name)
   MYSQL_ADD_EXECUTABLE(${name}-t ${name}-t.cc ADD_TEST ${name})
-  TARGET_LINK_LIBRARIES(${name}-t mytap perfschema mysys pfs_server_stubs)
+  TARGET_LINK_LIBRARIES(${name}-t mytap perfschema mysys pfs_server_stubs strings)
 ENDMACRO()
 
 SET(tests

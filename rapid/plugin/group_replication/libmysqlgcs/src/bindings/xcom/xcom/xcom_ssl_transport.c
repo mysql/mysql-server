@@ -15,17 +15,17 @@
 */
 
 #ifdef XCOM_HAVE_OPENSSL
-#include "xcom_profile.h"
-
 #include <assert.h>
 #include <stdlib.h>
+
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_profile.h"
 #ifndef XCOM_STANDALONE
 #include "my_compiler.h"
 #endif
 #include "openssl/engine.h"
-#include "task_debug.h"
-#include "x_platform.h"
-#include "xcom_ssl_transport.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_debug.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_ssl_transport.h"
 
 static const char *ssl_mode_options[] = {
     "DISABLED", "PREFERRED", "REQUIRED", "VERIFY_CA", "VERIFY_IDENTITY",

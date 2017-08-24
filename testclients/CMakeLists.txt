@@ -13,8 +13,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include)
-
 MYSQL_ADD_EXECUTABLE(mysql_client_test mysql_client_test.c COMPONENT Test)
 TARGET_LINK_LIBRARIES(mysql_client_test mysqlclient)
 SET_TARGET_PROPERTIES(mysql_client_test PROPERTIES LINKER_LANGUAGE CXX)

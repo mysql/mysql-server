@@ -14,6 +14,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_communication_interface.h"
+
 #include <assert.h>
 #include <errno.h>
 #include <stdio.h>
@@ -22,24 +24,23 @@
 #include <sys/types.h>
 #include <iostream>
 
-#include "gcs_xcom_communication_interface.h"
-#include "app_data.h"
-#include "mysql/gcs/gcs_logging_system.h"
-#include "gcs_message_stages.h"
-#include "node_list.h"
-#include "node_no.h"
-#include "node_set.h"
-#include "pax_msg.h"
-#include "server_struct.h"
-#include "simset.h"
-#include "site_struct.h"
-#include "synode_no.h"
-#include "task.h"
-#include "xcom_base.h"
-#include "xcom_common.h"
-#include "xcom_detector.h"
-#include "xcom_transport.h"
-#include "xcom_vp.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_logging_system.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_message_stages.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/app_data.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_list.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_no.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_set.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/pax_msg.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/server_struct.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/simset.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/site_struct.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/synode_no.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_base.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_common.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_detector.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_transport.h"
+#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
 
 #define NUMBER_OF_XCOM_SOCKET_RETRIES 1000
 

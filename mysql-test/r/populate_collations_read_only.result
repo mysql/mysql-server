@@ -17,6 +17,7 @@ Pattern "Skip updating information_schema metadata in read-only mode." found
 CALL mtr.add_suppression("Skip updating information_schema metadata in read-only mode.");
 Pattern "Skip updating information_schema metadata in InnoDB read-only mode." found
 CALL mtr.add_suppression("Skip updating information_schema metadata in InnoDB read-only mode.");
+CALL mtr.add_suppression("Skipped updating resource group metadata in InnoDB read only mode.");
 # 3. Clean server restart.
 # 3.1 Request shutdown and wait for disconnect.
 # 3.2 Restart the server with no additional options.

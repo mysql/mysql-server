@@ -16,8 +16,8 @@
 */
 
 #include <ndb_global.h>
-#include <my_sys.h>
-#include <my_thread.h>
+#include "my_sys.h"
+#include "my_thread.h"
 
 #ifdef HAVE_XFS_XFS_H
 #include <xfs/xfs.h>

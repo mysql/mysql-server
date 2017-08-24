@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,11 +16,13 @@
 #ifndef GCS_MSG_FILTER_H
 #define GCS_MSG_FILTER_H
 
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_message_stages.h"
+
+#include <iterator>
 #include <map>
 #include <vector>
-#include <iterator>
-#include "gcs_internal_message.h"
-#include "gcs_message_stages.h"
+
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_internal_message.h"
 
 /**
  This is a stage in the pipeline that processes messages when they are

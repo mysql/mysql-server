@@ -23,8 +23,8 @@
 #include <string>
 #include <utility>
 
-#include "mysqlxclient/xerror.h"
-#include "mysqlxclient/xprotocol.h"
+#include "plugin/x/client/mysqlxclient/xerror.h"
+#include "plugin/x/client/mysqlxclient/xprotocol.h"
 
 
 std::ostream &operator<<(std::ostream &os, const xcl::XError &err);

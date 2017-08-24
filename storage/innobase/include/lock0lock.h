@@ -935,7 +935,7 @@ typedef ib_mutex_t LockMutex;
 
 /** The lock system struct */
 struct lock_sys_t {
-	char		pad1[CACHE_LINE_SIZE];
+	char		pad1[INNOBASE_CACHE_LINE_SIZE];
 						/*!< padding to prevent other
 						memory update hotspots from
 						residing on the same memory
@@ -949,7 +949,7 @@ struct lock_sys_t {
 	hash_table_t*	prdt_page_hash;		/*!< hash table of the page
 						lock */
 
-	char		pad2[CACHE_LINE_SIZE];	/*!< Padding */
+	char		pad2[INNOBASE_CACHE_LINE_SIZE];	/*!< Padding */
 	LockMutex	wait_mutex;		/*!< Mutex protecting the
 						next two fields */
 	srv_slot_t*	waiting_threads;	/*!< Array  of user threads

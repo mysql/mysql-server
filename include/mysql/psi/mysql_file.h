@@ -32,14 +32,14 @@
 #ifndef MYSQL_FILE_H
 #define MYSQL_FILE_H
 
-/* For MY_STAT */
-#include <my_dir.h>
-/* For my_chsize */
-#include <my_sys.h>
 /* For strlen() */
 #include <string.h>
 
 #include "my_dbug.h"
+/* For MY_STAT */
+#include "my_dir.h"
+/* For my_chsize */
+#include "my_sys.h"
 #include "mysql/psi/psi_file.h"
 #include "mysql/service_mysql_alloc.h"
 #include "pfs_file_provider.h"

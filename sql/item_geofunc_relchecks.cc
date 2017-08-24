@@ -1391,10 +1391,8 @@ longlong Item_func_spatial_relation::val_int()
   std::unique_ptr<gis::Geometry> g2;
   dd::cache::Dictionary_client::Auto_releaser
     m_releaser(current_thd->dd_client());
-  // Set force_cartesian to false in call to gis::parse_geometry to enable
-  // geography.
-  if (gis::parse_geometry(current_thd, func_name(), res1, &srs1, &g1, true) ||
-      gis::parse_geometry(current_thd, func_name(), res2, &srs2, &g2, true))
+  if (gis::parse_geometry(current_thd, func_name(), res1, &srs1, &g1) ||
+      gis::parse_geometry(current_thd, func_name(), res2, &srs2, &g2))
   {
     DBUG_RETURN(error_int());
   }
@@ -1408,8 +1406,7 @@ longlong Item_func_spatial_relation::val_int()
   }
 
   bool result;
-  // Replace nullptr with srs1 to enable geography.
-  bool error= eval(nullptr, g1.get(), g2.get(), &result, &null_value);
+  bool error= eval(srs1, g1.get(), g2.get(), &result, &null_value);
 
   if (error)
     DBUG_RETURN(error_int());

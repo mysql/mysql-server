@@ -16,7 +16,7 @@
 #include <gtest/gtest.h>
 #include <mysql/service_my_snprintf.h>
 
-#include "mysqlxclient/xdatetime.h"
+#include "plugin/x/client/mysqlxclient/xdatetime.h"
 
 namespace xpl {
 
@@ -59,6 +59,23 @@ TEST(xdatetime, time) {
   EXPECT_EQ("-821:00:00.33", xcl::Time(true, 821, 0, 0, 330000).to_string());
 
   EXPECT_FALSE(xcl::Time(false, 24, 60, 60));
+}
+
+TEST(xdatetime, useconds_representation) {
+  EXPECT_EQ("00:00:00", xcl::Time(false, 0, 0, 0, 0).to_string());
+  EXPECT_EQ("00:00:00.000001", xcl::Time(false, 0, 0, 0, 1).to_string());
+  EXPECT_EQ("00:00:00.001234", xcl::Time(false, 0, 0, 0, 1234).to_string());
+  EXPECT_EQ("00:00:00.999999",
+            xcl::Time(false, 00, 00, 00, 999999).to_string());
+
+  EXPECT_EQ("00:00:00",
+            xcl::DateTime(0000, 00, 00, 00, 00, 00, 0).time().to_string());
+  EXPECT_EQ("00:00:00.000001",
+            xcl::DateTime(0000, 00, 00, 00, 00, 00, 1).time().to_string());
+  EXPECT_EQ("00:00:00.001234",
+            xcl::DateTime(0000, 00, 00, 00, 00, 00, 1234).time().to_string());
+  EXPECT_EQ("00:00:00.999999",
+            xcl::DateTime(0000, 00, 00, 00, 00, 00, 999999).time().to_string());
 }
 
 }  // namespace test

@@ -23,16 +23,16 @@
 #include <string>
 #include <vector>
 
-#include "mysql_show_variable_wrapper.h"
 #include "mysql/plugin.h"
-#include "ngs_common/atomic.h"
-#include "ngs_common/connection_vio.h"
-#include "ngs/memory.h"
-#include "ngs/scheduler.h"
-#include "ngs/server.h"
-#include "xpl_client.h"
-#include "xpl_global_status_variables.h"
-#include "xpl_session.h"
+#include "plugin/x/ngs/include/ngs/memory.h"
+#include "plugin/x/ngs/include/ngs/scheduler.h"
+#include "plugin/x/ngs/include/ngs/server.h"
+#include "plugin/x/ngs/include/ngs_common/atomic.h"
+#include "plugin/x/ngs/include/ngs_common/connection_vio.h"
+#include "plugin/x/src/mysql_show_variable_wrapper.h"
+#include "plugin/x/src/xpl_client.h"
+#include "plugin/x/src/xpl_global_status_variables.h"
+#include "plugin/x/src/xpl_session.h"
 
 
 namespace xpl

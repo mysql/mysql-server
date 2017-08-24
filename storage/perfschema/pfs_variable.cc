@@ -24,9 +24,6 @@
 #include "my_dbug.h"
 #include "my_macros.h"
 #include "my_sys.h"
-#include "pfs.h"
-#include "pfs_global.h"
-#include "pfs_visitor.h"
 #include "sql/current_thd.h"
 #include "sql/debug_sync.h"
 #include "sql/derror.h"
@@ -34,6 +31,9 @@
 #include "sql/persisted_variable.h"
 #include "sql/sql_audit.h" // audit_global_variable_get
 #include "sql/sql_class.h"
+#include "storage/perfschema/pfs.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_visitor.h"
 
 bool
 Find_THD_variable::operator()(THD *thd)

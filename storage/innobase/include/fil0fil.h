@@ -1136,6 +1136,7 @@ The fil_node_t::handle will not be left open.
 @param[in]	flags		tablespace flags
 @param[in]	space_name	tablespace name of the datafile
 If file-per-table, it is the table name in the databasename/tablename format
+@param[in]	table_name	table name in case need to build filename from it
 @param[in]	path_in		expected filepath, usually read from dictionary
 @param[in]	strict		whether to report error when open ibd failed
 @return DB_SUCCESS or error code */
@@ -1146,6 +1147,7 @@ fil_ibd_open(
 	space_id_t	space_id,
 	ulint		flags,
 	const char*	space_name,
+	const char*	table_name,
 	const char*	path_in,
 	bool		strict)
 	MY_ATTRIBUTE((warn_unused_result));
@@ -1678,6 +1680,7 @@ is ignored when testing for equality. Only the path up to the file name is
 considered for matching: e.g. ./test/a.ibd == ./test/b.ibd.
 @param[in]	dd_object_id	Server DD tablespace ID
 @param[in]	space_id	Tablespace ID to lookup
+@param[in]	space_name	Tablespace name
 @param[in]	old_path	Path in the data dictionary
 @param[out]	new_path	New path if scanned path not equal to path
 @return status of the match. */
@@ -1685,6 +1688,7 @@ Fil_state
 fil_tablespace_path_equals(
 	dd::Object_id	dd_object_id,
 	space_id_t	space_id,
+	const char*	space_name,
 	const char*	old_path,
 	std::string*	new_path)
 	MY_ATTRIBUTE((warn_unused_result));
@@ -1770,5 +1774,15 @@ fil_node_fetch(
 @param[in]	space_id	Tablespace ID to release. */
 void
 fil_node_release(space_id_t space_id);
+
+/* Rename a tablespace by its name only
+@param[in]	old_name	old tablespace name
+@param[in]	new_name	new tablespace name
+@return DB_SUCCESS on success */
+dberr_t
+fil_rename_tablespace_by_name(
+        const char*	old_name,
+        const char*     new_name)
+	MY_ATTRIBUTE((warn_unused_result));
 
 #endif /* fil0fil_h */

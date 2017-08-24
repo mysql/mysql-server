@@ -20,9 +20,8 @@
 #ifndef _NGS_OPTIONS_SSL_H_
 #define _NGS_OPTIONS_SSL_H_
 
-#include <violite.h>
-
-#include "ngs_common/options.h"
+#include "plugin/x/ngs/include/ngs_common/options.h"
+#include "violite.h"
 
 namespace ngs
 {

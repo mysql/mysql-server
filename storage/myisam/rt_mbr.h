@@ -22,7 +22,9 @@
 
 #include <sys/types.h>
 
+#include "my_compare.h"
 #include "my_inttypes.h"
+#include "myisam.h"
 
 int rtree_key_cmp(HA_KEYSEG *keyseg, uchar *a, uchar *b, uint key_length,
                   uint nextflag);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,8 +16,8 @@
 #ifndef GCS_COMMUNICATION_INTERFACE_INCLUDED
 #define GCS_COMMUNICATION_INTERFACE_INCLUDED
 
-#include "gcs_communication_event_listener.h"
-#include "gcs_message.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_communication_event_listener.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_message.h"
 
 /**
   @class Gcs_communication_interface

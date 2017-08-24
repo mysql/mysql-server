@@ -25,15 +25,15 @@
 
 #include "my_dbug.h"
 #include "my_thread.h"
-#include "pfs_account.h"
-#include "pfs_column_types.h"
-#include "pfs_column_values.h"
-#include "pfs_global.h"
-#include "pfs_instr_class.h"
 #include "sql/current_thd.h"
 #include "sql/field.h"
 #include "sql/mysqld.h"
 #include "sql/sql_class.h"
+#include "storage/perfschema/pfs_account.h"
+#include "storage/perfschema/pfs_column_types.h"
+#include "storage/perfschema/pfs_column_values.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_instr_class.h"
 
 THR_LOCK table_status_by_account::m_table_lock;
 

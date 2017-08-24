@@ -2202,7 +2202,7 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
                        cdef->maybe_null, cdef->is_zerofill,
                        cdef->is_unsigned, cdef->decimals,
                        cdef->treat_bit_as_char,
-                       cdef->pack_length_override);
+                       cdef->pack_length_override, cdef->m_srid);
     if (!*field)
       goto error;
     (*field)->init(table);

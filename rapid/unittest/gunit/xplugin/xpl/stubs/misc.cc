@@ -19,8 +19,8 @@
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "plugin/x/src/xpl_performance_schema.h"
 #include "sql/replication.h"
-#include "xpl_performance_schema.h"
 #ifdef HAVE_ARPA_INET_H
 #include <arpa/inet.h>
 #endif

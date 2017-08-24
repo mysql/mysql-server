@@ -14,16 +14,17 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
-#include <m_ctype.h>                    /* my_charset_bin */
+#include "plugin/connection_control/connection_delay.h"
+
 #include <mysql/psi/mysql_thread.h>
 #include <time.h>
 
-#include "connection_control.h"
-#include "connection_delay.h"
+#include "m_ctype.h"                    /* my_charset_bin */
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_systime.h"
-#include "security_context_wrapper.h"
+#include "plugin/connection_control/connection_control.h"
+#include "plugin/connection_control/security_context_wrapper.h"
 #include "sql/current_thd.h"            /* current_thd */
 #include "sql/item_cmpfunc.h"
 #include "sql/sql_class.h"              /* THD, Security context */
@@ -74,7 +75,7 @@ namespace connection_control
   static PSI_rwlock_key key_connection_event_delay_lock;
   static PSI_rwlock_info all_rwlocks[]=
   {
-    {&key_connection_event_delay_lock, "connection_event_delay_lock", 0}
+    {&key_connection_event_delay_lock, "connection_event_delay_lock", 0, 0, PSI_DOCUMENT_ME}
   };
 
   static opt_connection_control opt_enums[]=

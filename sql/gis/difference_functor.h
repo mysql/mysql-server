@@ -27,9 +27,9 @@
 
 #include <boost/geometry.hpp>
 
-#include "functor.h"
-#include "geometries.h"
-#include "geometries_traits.h"
+#include "sql/gis/functor.h"
+#include "sql/gis/geometries.h"
+#include "sql/gis/geometries_traits.h"
 
 namespace gis {
 

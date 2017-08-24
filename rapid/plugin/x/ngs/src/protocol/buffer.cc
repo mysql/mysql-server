@@ -24,8 +24,8 @@
 #include <utility>
 
 #include "my_dbug.h"
-#include "ngs/log.h"
-#include "ngs/protocol/buffer.h"
+#include "plugin/x/ngs/include/ngs/log.h"
+#include "plugin/x/ngs/include/ngs/protocol/buffer.h"
 
 
 using namespace ngs;

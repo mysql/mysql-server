@@ -17,7 +17,7 @@
  * 02110-1301  USA
  */
 
-#include "ngs_common/operations_factory.h"
+#include "plugin/x/ngs/include/ngs_common/operations_factory.h"
 
 #include "my_config.h"
 
@@ -29,14 +29,14 @@
 
 #include "my_inttypes.h"
 #include "my_io.h"
-#include "ngs/memory.h"
+#include "plugin/x/ngs/include/ngs/memory.h"
 
 #ifdef HAVE_SYS_UN_H
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/un.h>
 #endif
-#include "ngs_common/config.h"
+#include "plugin/x/ngs/include/ngs_common/config.h"
 
 
 namespace ngs {

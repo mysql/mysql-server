@@ -13,10 +13,11 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include <ngs/scheduler.h>
 #include <gtest/gtest.h>
-#include <vector>
 #include <algorithm>
+#include <vector>
+
+#include "plugin/x/ngs/include/ngs/scheduler.h"
 
 
 namespace xpl

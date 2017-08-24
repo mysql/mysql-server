@@ -2308,20 +2308,36 @@ innobase_create_index_def(
 	index->name = mem_heap_strdup(heap, key->name);
 	index->rebuild = new_clustered;
 
+	/* If this is a spatial index, we need to fetch the SRID */
+	if (key->flags & HA_SPATIAL) {
+		ulint	dd_key_num = key_number + (
+			(altered_table->s->primary_key == MAX_KEY) ? 1 : 0);
 
-	const auto* dd_index_auto =
-		(index->key_number != ULINT_UNDEFINED)
-		? const_cast<const Table*>(new_dd_tab)->indexes()
-		[index->key_number]
-	: nullptr;
+		const auto* dd_index_auto =
+			(index->key_number != ULINT_UNDEFINED)
+			? const_cast<const Table*>(
+				new_dd_tab)->indexes()[dd_key_num]
+		: nullptr;
 
-	const dd::Index* dd_index = get_dd_index(dd_index_auto);
+		const dd::Index* dd_index = get_dd_index(dd_index_auto);
 
-	if (dd_index != nullptr) {
-		const dd::Column& col = dd_index->elements()[0]->column();
-		bool has_value = col.srs_id().has_value();
-		index->srid_is_valid = has_value;
-		index->srid = has_value ? col.srs_id().value() : 0;
+		if (dd_index != nullptr) {
+			ut_ad(dd_index->name() == key->name);
+			/* Spatial index indexes on only one column */
+			size_t geom_col_idx;
+			for (
+				geom_col_idx = 0;
+				geom_col_idx < dd_index->elements().size();
+				++geom_col_idx) {
+				if (!dd_index->elements()[geom_col_idx]->column().is_hidden())
+					break;
+			}
+			const dd::Column& col =
+				dd_index->elements()[geom_col_idx]->column();
+			bool has_value = col.srs_id().has_value();
+			index->srid_is_valid = has_value;
+			index->srid = has_value ? col.srs_id().value() : 0;
+		}
 	}
 
 	if (key_clustered) {
@@ -4045,9 +4061,11 @@ dd_prepare_inplace_alter_table(
 		}
 
 		dd::Object_id	dd_space_id;
+
 		if (dd_create_implicit_tablespace(
 			client, thd, new_table->space,
-			filename, discarded, dd_space_id)) {
+			old_table->name.m_name, filename,
+			discarded, dd_space_id)) {
 			my_error(ER_INTERNAL_ERROR, MYF(0),
 				 " InnoDB can't create tablespace object"
 				 " for ", new_table->name);
@@ -6469,7 +6487,6 @@ rollback_inplace_alter_table(
 		if (ctx->new_table != nullptr) {
 			dberr_t	err = DB_SUCCESS;
 			ulint	flags	= ctx->new_table->flags;
-
 			/* DML threads can access ctx->new_table via the
 			online rebuild log. Free it first. */
 			innobase_online_rebuild_log_free(prebuilt->table);
@@ -7645,7 +7662,7 @@ ha_innobase::commit_inplace_alter_table_impl(
 
 			/* Acquire mdl lock on the temporary table name. */
 			dd_parse_tbl_name(ctx->tmp_name, db_buf,
-					  tbl_buf, nullptr, nullptr);
+					  tbl_buf, nullptr, nullptr, nullptr);
 
 			if (dd::acquire_exclusive_table_mdl(thd, db_buf,
 				tbl_buf, false, &mdl_ticket)) {
@@ -9294,7 +9311,8 @@ public:
 
 			/* Acquire mdl lock on the temporary table name. */
 			dd_parse_tbl_name(
-				temp_name, db_buf, tbl_buf, nullptr, nullptr);
+				temp_name, db_buf, tbl_buf,
+				nullptr, nullptr, nullptr);
 
 			if (dd::acquire_exclusive_table_mdl(
 				thd, db_buf, tbl_buf, false, &mdl_ticket)) {
@@ -9499,7 +9517,8 @@ alter_part_change::try_commit(
 	dd_table_close(m_old, nullptr, nullptr, false);
 
 	/* Acquire mdl lock on the temporary table name. */
-	dd_parse_tbl_name(temp_old_name, db_buf, tbl_buf, nullptr, nullptr);
+	dd_parse_tbl_name(temp_old_name, db_buf, tbl_buf,
+			  nullptr, nullptr, nullptr);
 
 	MDL_ticket*	mdl_ticket = nullptr;
 	if (dd::acquire_exclusive_table_mdl(thd, db_buf, tbl_buf,

@@ -20,12 +20,12 @@
 #ifndef _XPL_CRUD_CMD_HANDLER_H_
 #define _XPL_CRUD_CMD_HANDLER_H_
 
-#include "ngs/error_code.h"
-#include "ngs/interface/resultset_interface.h"
-#include "ngs/protocol_fwd.h"
-#include "query_string_builder.h"
-#include "sql_data_context.h"
-#include "xpl_session_status_variables.h"
+#include "plugin/x/ngs/include/ngs/error_code.h"
+#include "plugin/x/ngs/include/ngs/interface/resultset_interface.h"
+#include "plugin/x/ngs/include/ngs/protocol_fwd.h"
+#include "plugin/x/src/query_string_builder.h"
+#include "plugin/x/src/sql_data_context.h"
+#include "plugin/x/src/xpl_session_status_variables.h"
 
 
 namespace xpl

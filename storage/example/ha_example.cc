@@ -87,7 +87,7 @@
     -Brian
 */
 
-#include "ha_example.h"
+#include "storage/example/ha_example.h"
 
 #include "my_dbug.h"
 #include "sql/sql_class.h"       // MYSQL_HANDLERTON_INTERFACE_VERSION

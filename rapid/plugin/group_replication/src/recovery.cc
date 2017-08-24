@@ -18,15 +18,15 @@
 #include <signal.h>
 #include <time.h>
 
-#include "member_info.h"
 #include "my_dbug.h"
 #include "my_systime.h"
-#include "plugin.h"
-#include "plugin_log.h"
-#include "recovery.h"
-#include "recovery_channel_state_observer.h"
-#include "recovery_message.h"
-#include "services/notification/notification.h"
+#include "plugin/group_replication/include/member_info.h"
+#include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/plugin_log.h"
+#include "plugin/group_replication/include/recovery.h"
+#include "plugin/group_replication/include/recovery_channel_state_observer.h"
+#include "plugin/group_replication/include/recovery_message.h"
+#include "plugin/group_replication/include/services/notification/notification.h"
 
 using std::list;
 using std::string;

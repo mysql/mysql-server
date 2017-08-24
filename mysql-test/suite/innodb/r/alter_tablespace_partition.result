@@ -2,21 +2,21 @@ CREATE TABLESPACE s1 ADD DATAFILE 's1.ibd' ENGINE InnoDB;
 CREATE TABLE t1 (col1 INT, col2 INT) ENGINE = InnoDB TABLESPACE innodb_file_per_table PARTITION BY KEY(col1) PARTITIONS 3;
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t1#p#p0	innodb_file_per_table.##	33	5	Dynamic	0	Single
-test/t1#p#p1	innodb_file_per_table.##	33	5	Dynamic	0	Single
-test/t1#p#p2	innodb_file_per_table.##	33	5	Dynamic	0	Single
+test/t1#p#p0	test/t1#p#p0	33	5	Dynamic	0	Single
+test/t1#p#p1	test/t1#p#p1	33	5	Dynamic	0	Single
+test/t1#p#p2	test/t1#p#p2	33	5	Dynamic	0	Single
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 s1	General	DEFAULT	0	Any	s1.ibd
-innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t1#p#p0.ibd
-innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t1#p#p1.ibd
-innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t1#p#p2.ibd
+test/t1#p#p0	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t1#p#p0.ibd
+test/t1#p#p1	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t1#p#p1.ibd
+test/t1#p#p2	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t1#p#p2.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s1	TABLESPACE	InnoDB	NORMAL	s1	MYSQLD_DATADIR/s1.ibd
-innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#p0.ibd
-innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#p1.ibd
-innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#p2.ibd
+test/t1#p#p0	TABLESPACE	InnoDB	NORMAL	test/t1#p#p0	MYSQLD_DATADIR/test/t1#p#p0.ibd
+test/t1#p#p1	TABLESPACE	InnoDB	NORMAL	test/t1#p#p1	MYSQLD_DATADIR/test/t1#p#p1.ibd
+test/t1#p#p2	TABLESPACE	InnoDB	NORMAL	test/t1#p#p2	MYSQLD_DATADIR/test/t1#p#p2.ibd
 ALTER TABLE t1 ENGINE = InnoDB TABLESPACE s1;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -28,21 +28,21 @@ t1	CREATE TABLE `t1` (
 PARTITIONS 3 */
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t1#p#p0	innodb_file_per_table.##	33	5	Dynamic	0	Single
-test/t1#p#p1	innodb_file_per_table.##	33	5	Dynamic	0	Single
-test/t1#p#p2	innodb_file_per_table.##	33	5	Dynamic	0	Single
+test/t1#p#p0	test/t1#p#p0	33	5	Dynamic	0	Single
+test/t1#p#p1	test/t1#p#p1	33	5	Dynamic	0	Single
+test/t1#p#p2	test/t1#p#p2	33	5	Dynamic	0	Single
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 s1	General	DEFAULT	0	Any	s1.ibd
-innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t1#p#p0.ibd
-innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t1#p#p1.ibd
-innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t1#p#p2.ibd
+test/t1#p#p0	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t1#p#p0.ibd
+test/t1#p#p1	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t1#p#p1.ibd
+test/t1#p#p2	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t1#p#p2.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s1	TABLESPACE	InnoDB	NORMAL	s1	MYSQLD_DATADIR/s1.ibd
-innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#p0.ibd
-innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#p1.ibd
-innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#p2.ibd
+test/t1#p#p0	TABLESPACE	InnoDB	NORMAL	test/t1#p#p0	MYSQLD_DATADIR/test/t1#p#p0.ibd
+test/t1#p#p1	TABLESPACE	InnoDB	NORMAL	test/t1#p#p1	MYSQLD_DATADIR/test/t1#p#p1.ibd
+test/t1#p#p2	TABLESPACE	InnoDB	NORMAL	test/t1#p#p2	MYSQLD_DATADIR/test/t1#p#p2.ibd
 ALTER TABLE t1 ENGINE = InnoDB TABLESPACE innodb_file_per_table;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -54,21 +54,21 @@ t1	CREATE TABLE `t1` (
 PARTITIONS 3 */
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t1#p#p0	innodb_file_per_table.##	33	5	Dynamic	0	Single
-test/t1#p#p1	innodb_file_per_table.##	33	5	Dynamic	0	Single
-test/t1#p#p2	innodb_file_per_table.##	33	5	Dynamic	0	Single
+test/t1#p#p0	test/t1#p#p0	33	5	Dynamic	0	Single
+test/t1#p#p1	test/t1#p#p1	33	5	Dynamic	0	Single
+test/t1#p#p2	test/t1#p#p2	33	5	Dynamic	0	Single
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 s1	General	DEFAULT	0	Any	s1.ibd
-innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t1#p#p0.ibd
-innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t1#p#p1.ibd
-innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t1#p#p2.ibd
+test/t1#p#p0	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t1#p#p0.ibd
+test/t1#p#p1	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t1#p#p1.ibd
+test/t1#p#p2	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t1#p#p2.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s1	TABLESPACE	InnoDB	NORMAL	s1	MYSQLD_DATADIR/s1.ibd
-innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#p0.ibd
-innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#p1.ibd
-innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#p2.ibd
+test/t1#p#p0	TABLESPACE	InnoDB	NORMAL	test/t1#p#p0	MYSQLD_DATADIR/test/t1#p#p0.ibd
+test/t1#p#p1	TABLESPACE	InnoDB	NORMAL	test/t1#p#p1	MYSQLD_DATADIR/test/t1#p#p1.ibd
+test/t1#p#p2	TABLESPACE	InnoDB	NORMAL	test/t1#p#p2	MYSQLD_DATADIR/test/t1#p#p2.ibd
 DROP TABLE t1;
 CREATE TABLE t1 (col1 INT, col2 INT) ENGINE = InnoDB TABLESPACE innodb_system PARTITION BY KEY(col1) PARTITIONS 3;
 === information_schema.innodb_tables  and innodb_tablespaces ===

@@ -15,10 +15,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <gtest/gtest.h>
-#include <m_ctype.h>
-#include <mf_wcomp.h>     // wild_compare_full, wild_one, wild_any
 #include <string>
 
+#include "m_ctype.h"
+#include "mf_wcomp.h"     // wild_compare_full, wild_one, wild_any
 #include "my_inttypes.h"
 #include "sql/sql_class.h"
 #include "sql/strfunc.h"  // casedn

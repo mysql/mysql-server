@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,11 +17,10 @@
 #define CONNECTION_CONTROL_INTERFACES_H
 
 #include <mysql/plugin_audit.h>         /* mysql_event_connection */
-
-#include "connection_control_data.h"    /* Variables and Status */
-
-#include <vector>                       /* std::vector */
 #include <string>                       /* std::string */
+#include <vector>                       /* std::vector */
+
+#include "plugin/connection_control/connection_control_data.h" /* Variables and Status */
 
 namespace connection_control
 {

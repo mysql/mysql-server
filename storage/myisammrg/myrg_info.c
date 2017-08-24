@@ -18,7 +18,7 @@
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "myrg_def.h"
+#include "storage/myisammrg/myrg_def.h"
 
 ulonglong myrg_position(MYRG_INFO *info)
 {

@@ -17,7 +17,6 @@
 
 #include "client/base/mysql_connection_options.h"
 
-#include <mysys_err.h>
 #include <stdlib.h>
 #include <functional>
 #include <sstream>

@@ -19,7 +19,7 @@
 #include <gtest/gtest.h>
 
 #include "my_dbug.h"
-#include "thread_utils.h"
+#include "unittest/gunit/thread_utils.h"
 
 using thread::Notification;
 using thread::Thread;

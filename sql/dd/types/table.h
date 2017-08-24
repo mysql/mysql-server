@@ -180,6 +180,10 @@ public:
   virtual void set_partition_expression(
     const String_type &partition_expression) = 0;
 
+  virtual const String_type &partition_expression_utf8() const = 0;
+  virtual void set_partition_expression_utf8(
+    const String_type &partition_expression) = 0;
+
   virtual enum_subpartition_type subpartition_type() const = 0;
   virtual void set_subpartition_type(
     enum_subpartition_type subpartition_type) = 0;
@@ -190,6 +194,10 @@ public:
 
   virtual const String_type &subpartition_expression() const = 0;
   virtual void set_subpartition_expression(
+    const String_type &subpartition_expression) = 0;
+
+  virtual const String_type &subpartition_expression_utf8() const = 0;
+  virtual void set_subpartition_expression_utf8(
     const String_type &subpartition_expression) = 0;
 
   /** Dummy method to be able to use Partition and Table interchangeably

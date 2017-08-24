@@ -17,13 +17,14 @@
 
 #include <fcntl.h>
 #include <limits.h>
-#include <m_ctype.h>
-#include <m_string.h>
 #include <math.h>
-#include <my_sys.h>
-#include <my_time.h>
-#include <mysys_err.h>
 #include <sys/types.h>
+
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_sys.h"
+#include "my_time.h"
+#include "mysys_err.h"
 #ifndef _WIN32
 #include <netdb.h>
 #endif
@@ -32,7 +33,6 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <time.h>
-#include <violite.h>
 
 #include "errmsg.h"
 #include "my_compiler.h"
@@ -50,6 +50,7 @@
 #include "mysql_version.h"
 #include "mysqld_error.h"
 #include "template_utils.h"
+#include "violite.h"
 
 #ifdef	 HAVE_PWD_H
 #include <pwd.h>
@@ -64,7 +65,7 @@
 #include <sys/un.h>
 #endif
 #if !defined(_WIN32)
-#include <my_thread.h>				/* because of signal()	*/
+#include "my_thread.h"				/* because of signal()	*/
 #endif
 #ifndef INADDR_NONE
 #define INADDR_NONE	-1

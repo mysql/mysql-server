@@ -29,6 +29,7 @@
 #include "sql/key.h"
 #include "sql/mem_root_array.h"
 #include "sql/opt_hints.h"
+#include "sql/parse_tree_helpers.h"
 #include "sql/parse_tree_node_base.h"
 #include "sql/sql_show.h"
 #include "sql/thr_malloc.h"
@@ -321,5 +322,47 @@ public:
   virtual bool contextualize(Parse_context *pc);
 };
 
+/**
+  Parse tree hint object for RESOURCE_GROUP hint.
+*/
+
+class PT_hint_resource_group : public PT_hint
+{
+  const LEX_CSTRING m_resource_group_name;
+
+  typedef PT_hint super;
+public:
+  PT_hint_resource_group(const LEX_CSTRING &name)
+    : PT_hint(RESOURCE_GROUP_HINT_ENUM, true), m_resource_group_name(name)
+  {}
+
+
+  /**
+    Function initializes resource group name and checks for presence of
+    resource group. Also it checks for invocation of hint from stored
+    routines or sub query.
+
+     @param pc Pointer to Parse_context object
+
+     @return true in case of error,
+             false otherwise
+  */
+
+  virtual bool contextualize(Parse_context *pc);
+
+
+  /**
+    Append hint arguments to given string.
+
+    @param thd      Pointer to THD object.
+    @param str      Pointer to String object.
+  */
+  
+  virtual void append_args(THD *thd, String *str) const
+  {
+    append_identifier(thd, str, m_resource_group_name.str,
+                      m_resource_group_name.length);
+  }
+};
 
 #endif /* PARSE_TREE_HINTS_INCLUDED */

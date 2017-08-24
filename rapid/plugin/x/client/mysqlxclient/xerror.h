@@ -25,7 +25,7 @@
 
 #include <string>
 
-#include "mysqlxclient_error.h"
+#include "plugin/x/client/mysqlxclient/mysqlxclient_error.h"
 
 
 namespace xcl {

@@ -19,7 +19,7 @@
 #include <gtest/gtest.h>
 
 #include "sql/field.h"
-#include "test_utils.h"
+#include "unittest/gunit/test_utils.h"
 
 namespace {
 

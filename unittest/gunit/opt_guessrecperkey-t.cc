@@ -20,11 +20,11 @@
 #include <gtest/gtest.h>
 #include <sys/types.h>
 
-#include "fake_key.h"                             // Fake_KEY
-#include "fake_table.h"                           // Fake_TABLE
 #include "sql/key.h"                              // KEY
 #include "sql/opt_statistics.h"                   // guess_rec_per_key
-#include "test_utils.h"
+#include "unittest/gunit/fake_key.h"              // Fake_KEY
+#include "unittest/gunit/fake_table.h"            // Fake_TABLE
+#include "unittest/gunit/test_utils.h"
 
 namespace guessrecperkey_unittest {
 

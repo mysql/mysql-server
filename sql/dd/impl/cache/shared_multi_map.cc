@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "shared_multi_map.h"
+#include "sql/dd/impl/cache/shared_multi_map.h"
 
 #include <new>
 
@@ -22,9 +22,10 @@
 #include "mysqld_error.h"
 #include "sql/dd/cache/dictionary_client.h"
 #include "sql/dd/impl/cache/cache_element.h"
+#include "sql/dd/types/resource_group.h"
 #include "sql/mdl.h"                         // MDL_request
 #include "sql/log.h"                         // sql_print_warning()
-#include "sql_class.h"                       // THD
+#include "sql/sql_class.h"                   // THD
 
 namespace dd {
 namespace cache {
@@ -781,6 +782,34 @@ template void Shared_multi_map<Tablespace>::
       Cache_element<Tablespace> **);
 template void Shared_multi_map<Tablespace>::
   drop_if_present<Tablespace::id_key_type>(const Tablespace::id_key_type&);
+
+template class Shared_multi_map<Resource_group>;
+template bool Shared_multi_map<Resource_group>::
+  get<const Resource_group*>
+    (const Resource_group* const&, Cache_element<Resource_group> **);
+template bool Shared_multi_map<Resource_group>::
+  get<Resource_group::id_key_type>
+    (const Resource_group::id_key_type&, Cache_element<Resource_group> **);
+template bool Shared_multi_map<Resource_group>::
+  get<Resource_group::name_key_type>
+    (const Resource_group::name_key_type&, Cache_element<Resource_group> **);
+template bool Shared_multi_map<Resource_group>::
+  get<Resource_group::aux_key_type>
+    (const Resource_group::aux_key_type&, Cache_element<Resource_group> **);
+template void Shared_multi_map<Resource_group>::
+  put<Resource_group::id_key_type>
+    (const Resource_group::id_key_type*, const Resource_group*,
+      Cache_element<Resource_group> **);
+template void Shared_multi_map<Resource_group>::
+  put<Resource_group::name_key_type>
+    (const Resource_group::name_key_type*, const Resource_group*,
+      Cache_element<Resource_group> **);
+template void Shared_multi_map<Resource_group>::
+  put<Resource_group::aux_key_type>
+    (const Resource_group::aux_key_type*, const Resource_group*,
+      Cache_element<Resource_group> **);
+template void Shared_multi_map<Resource_group>::
+  drop_if_present<Resource_group::id_key_type>(const Resource_group::id_key_type&);
 
 } // namespace cache
 } // namespace dd

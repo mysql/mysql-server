@@ -18,7 +18,7 @@
 
 #include <stdio.h>
 
-#include "shared_multi_map.h"               // Shared_multi_map
+#include "sql/dd/impl/cache/shared_multi_map.h" // Shared_multi_map
 #include "sql/dd/types/abstract_table.h"
 #include "sql/dd/types/charset.h"           // Charset
 #include "sql/dd/types/collation.h"         // Collation
@@ -63,12 +63,19 @@ private:
   static const size_t charset_capacity= 64;
   static const size_t event_capacity= 256;
   static const size_t spatial_reference_system_capacity= 256;
+  /**
+    Maximum number of DD resource group objects to be kept in
+    cache. We use value of 32 which is a fairly reasonable upper limit
+    of resource group configurations that may be in use.
+  */
+  static const size_t resource_group_capacity= 32;
 
   Shared_multi_map<Abstract_table> m_abstract_table_map;
   Shared_multi_map<Charset>        m_charset_map;
   Shared_multi_map<Collation>      m_collation_map;
   Shared_multi_map<Column_statistics> m_column_stat_map;
   Shared_multi_map<Event>          m_event_map;
+  Shared_multi_map<Resource_group> m_resource_group_map;
   Shared_multi_map<Routine>        m_routine_map;
   Shared_multi_map<Schema>         m_schema_map;
   Shared_multi_map<Spatial_reference_system> m_spatial_reference_system_map;
@@ -92,6 +99,8 @@ private:
   { return &m_column_stat_map; }
   Shared_multi_map<Event>        *m_map(Type_selector<Event>)
   { return &m_event_map; }
+  Shared_multi_map<Resource_group> *m_map(Type_selector<Resource_group>)
+  { return &m_resource_group_map; }
   Shared_multi_map<Routine>        *m_map(Type_selector<Routine>)
   { return &m_routine_map; }
   Shared_multi_map<Schema>         *m_map(Type_selector<Schema>)
@@ -119,7 +128,9 @@ private:
   { return &m_spatial_reference_system_map; }
   const Shared_multi_map<Tablespace>     *m_map(Type_selector<Tablespace>) const
   { return &m_tablespace_map; }
-
+  const Shared_multi_map<Resource_group> *m_map(
+    Type_selector<Resource_group>) const
+  { return &m_resource_group_map; }
 
   /**
     Template function to get a map instance.

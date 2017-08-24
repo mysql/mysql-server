@@ -6,22 +6,18 @@
 # instances when MTR runs rpl tests with parallel 4 or more.
 
 [mysqld.1]
-log-slave-updates
 log-bin=server1-bin
 
 [mysqld.2]
-log-slave-updates
 log-bin=server2-bin
 
 [mysqld.3]
-log-slave-updates
 log-bin=server3-bin
 innodb_write_io_threads=    2
 innodb_read_io_threads=     2
 
 [mysqld.4]
 relay-log=msr-relaylog
-log-slave-updates
 log-bin=server4-bin
 innodb_write_io_threads=    2
 innodb_read_io_threads=     2

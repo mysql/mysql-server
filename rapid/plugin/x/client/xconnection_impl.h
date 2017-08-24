@@ -23,13 +23,13 @@
 #ifndef X_CLIENT_CONNECTION_IMPL_H_
 #define X_CLIENT_CONNECTION_IMPL_H_
 
-#include <my_io.h>
-#include <violite.h>
 #include <memory>
 
-#include "mysqlxclient/xconnection.h"
-#include "mysqlxclient/xerror.h"
-#include "xcontext.h"
+#include "my_io.h"
+#include "plugin/x/client/mysqlxclient/xconnection.h"
+#include "plugin/x/client/mysqlxclient/xerror.h"
+#include "plugin/x/client/xcontext.h"
+#include "violite.h"
 
 
 struct sockaddr_un;

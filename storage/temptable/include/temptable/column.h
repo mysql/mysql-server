@@ -22,7 +22,7 @@ TempTable Column declaration. */
 #include <vector>  /* std::vector */
 
 #include "sql/field.h"        /* Field */
-#include "temptable/allocator.h" /* temptable::Allocator */
+#include "storage/temptable/include/temptable/allocator.h" /* temptable::Allocator */
 
 namespace temptable {
 

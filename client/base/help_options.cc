@@ -18,7 +18,6 @@
 #include "client/base/help_options.h"
 
 #include <stdlib.h>
-#include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 #include <functional>
 #include <sstream>
 
@@ -26,6 +25,7 @@
 #include "client/client_priv.h"
 #include "my_default.h"
 #include "print_version.h"
+#include "welcome_copyright_notice.h" /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 using namespace Mysql::Tools::Base::Options;
 using std::placeholders::_1;

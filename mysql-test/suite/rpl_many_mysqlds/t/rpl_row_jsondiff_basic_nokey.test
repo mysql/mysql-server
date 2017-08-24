@@ -1,0 +1,18 @@
+# See rpl_row_jsondiff_init.inc for overview.
+# See rpl_row_jsondiff_basic.inc for test scenarios.
+#
+# This script runs without any key.
+# It runs in only two mtr combinations, using TABLE_SCAN or HASH_SCAN
+# for slave_rows_search_algorithms.
+
+--source include/have_binlog_format_mixed_or_row.inc
+--source include/not_parallel.inc
+
+--let $replace_combination_from= BOTH.BINLOG_FORMAT=ROW,MIXED
+--let $replace_combination_to= GLOBAL.SLAVE_ROWS_SEARCH_ALGORITHMS=TABLE_SCAN,HASH_SCAN
+
+--let $key=
+
+--source extra/rpl_tests/rpl_row_jsondiff_init.inc
+--source extra/rpl_tests/rpl_row_jsondiff_basic.inc
+--source extra/rpl_tests/rpl_row_jsondiff_exit.inc

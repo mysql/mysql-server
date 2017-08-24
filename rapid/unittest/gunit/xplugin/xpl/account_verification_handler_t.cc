@@ -17,12 +17,12 @@
 #include <gtest/gtest.h>
 #include <string>
 
-#include "account_verification_handler.h"
-#include "mock/ngs_general.h"
-#include "mock/session.h"
-#include "one_row_resultset.h"
-#include "rapid/plugin/x/src/sql_user_require.h"
-#include "xpl_resultset.h"
+#include "plugin/x/src/account_verification_handler.h"
+#include "plugin/x/src/sql_user_require.h"
+#include "plugin/x/src/xpl_resultset.h"
+#include "unittest/gunit/xplugin/xpl/mock/ngs_general.h"
+#include "unittest/gunit/xplugin/xpl/mock/session.h"
+#include "unittest/gunit/xplugin/xpl/one_row_resultset.h"
 
 
 namespace xpl {

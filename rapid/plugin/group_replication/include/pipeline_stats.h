@@ -20,9 +20,9 @@
 #include <string>
 #include <vector>
 
-#include "gcs_plugin_messages.h"
 #include "my_inttypes.h"
-#include "plugin_psi.h"
+#include "plugin/group_replication/include/gcs_plugin_messages.h"
+#include "plugin/group_replication/include/plugin_psi.h"
 
 
 /**

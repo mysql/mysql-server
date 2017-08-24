@@ -1,23 +1,16 @@
 !include ../my.cnf
 
 [mysqld.1]
-log-bin
-log-slave-updates
 enforce-gtid-consistency
 gtid-mode=on
 
 [mysqld.2]
-log-slave-updates
-log-bin
 enforce-gtid-consistency
 gtid-mode=on
 
 [mysqld.3]
-log-bin
-log-slave-updates
 enforce-gtid-consistency
 gtid-mode=on
-
 
 [ENV]
 SERVER_MYPORT_3=                @mysqld.3.port

@@ -66,7 +66,13 @@ using Char_stringstream_template=
 */
 typedef Char_stringstream_template<String_type_allocator>
 Stringstream_type;
+
+template <typename LEX_STRING_TYPE>
+String_type make_string_type(const LEX_STRING_TYPE &lst)
+{
+  return { lst.str, lst.length };
 }
+} // namespace dd
 
 namespace std {
 
@@ -84,5 +90,5 @@ struct hash<dd::String_type>
 
   size_t operator()(const dd::String_type &s) const;
 };
-}
+} // namespace std
 #endif /* DD__STRING_TYPE */

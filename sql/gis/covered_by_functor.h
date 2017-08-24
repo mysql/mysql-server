@@ -22,14 +22,13 @@
 ///
 /// The functor is not intended for use directly by MySQL code.
 
+#include <boost/geometry.hpp>
 #include <memory>  // std::unique_ptr
 
-#include <boost/geometry.hpp>
-
-#include "box.h"
-#include "functor.h"
-#include "geometries.h"
-#include "geometries_traits.h"
+#include "sql/gis/box.h"
+#include "sql/gis/functor.h"
+#include "sql/gis/geometries.h"
+#include "sql/gis/geometries_traits.h"
 
 namespace gis {
 

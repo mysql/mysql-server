@@ -424,7 +424,16 @@ IF ($key_group == 11)
 IF ($key_group == 12)
 {
   eval CALL index_test($table, "WHERE object_instance_begin = @object_instance_begin", TRUE);
-  eval CALL index_test($table, "WHERE object_instance_begin != @object_instance_begin", TRUE);
+
+  # NOTE: The following test is disabled for metadata locks because it will give
+  # a different number of locks for indexed and non-indexed access. The
+  # non-indexed access will try to use histogram statistics, and will thus use
+  # one more metadata lock.
+  IF ($table != "metadata_locks")
+  {
+    eval CALL index_test($table, "WHERE object_instance_begin != @object_instance_begin", TRUE);
+  }
+
   eval CALL index_test($table, "WHERE object_instance_begin = '9999999999'", FALSE);
 }
 

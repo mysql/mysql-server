@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "mysql/gcs/xplatform/my_xp_thread.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/my_xp_thread.h"
 
 #include <errno.h>
 
@@ -36,26 +36,37 @@ native_thread_t *My_xp_thread_server::get_native_thread()
 }
 
 
-int My_xp_thread_server::create(const native_thread_attr_t *attr,
-                                native_start_routine func,
-                                void *arg)
+int My_xp_thread_server::create(PSI_thread_key key,
+                              const native_thread_attr_t *attr,
+                              native_start_routine func,
+                              void *arg)
 {
-  return my_thread_create(m_thread_handle, attr, func, arg);
+  return mysql_thread_create(key, m_thread_handle, attr, func, arg);
 };
 
 
-int My_xp_thread_server::create_detached(native_start_routine func,
+int My_xp_thread_server::create_detached(PSI_thread_key key,
+                                         native_thread_attr_t *attr,
+                                         native_start_routine func,
                                          void *arg)
 {
   native_thread_attr_t my_attr;
+  bool using_my_attr;
 
-  My_xp_thread_util::attr_init(&my_attr);
-  My_xp_thread_util::attr_setdetachstate(&my_attr,
+  if(attr == NULL)
+  {
+    My_xp_thread_util::attr_init(&my_attr);
+    attr = &my_attr;
+    using_my_attr = true;
+  }
+
+  My_xp_thread_util::attr_setdetachstate(attr,
                                          NATIVE_THREAD_CREATE_DETACHED);
 
-  int ret_status = create(&my_attr, func, arg);
+  int ret_status = create(key, attr, func, arg);
 
-  My_xp_thread_util::attr_destroy(&my_attr);
+  if(using_my_attr)
+    My_xp_thread_util::attr_destroy(&my_attr);
 
   return ret_status;
 };

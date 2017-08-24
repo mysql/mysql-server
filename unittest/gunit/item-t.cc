@@ -19,9 +19,7 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "fake_table.h"
 #include "lex_string.h"
-#include "mock_field_timestamp.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_table_map.h"
@@ -32,7 +30,9 @@
 #include "sql/item_timefunc.h"
 #include "sql/sql_class.h"
 #include "sql/tztime.h"
-#include "test_utils.h"
+#include "unittest/gunit/fake_table.h"
+#include "unittest/gunit/mock_field_timestamp.h"
+#include "unittest/gunit/test_utils.h"
 
 namespace item_unittest {
 

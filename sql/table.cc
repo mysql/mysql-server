@@ -65,6 +65,7 @@
 #include "sql/derror.h"                  // ER_THD
 #include "sql/error_handler.h"           // Strict_error_handler
 #include "sql/field.h"
+#include "sql/histograms/histogram.h"
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"            // and_conds
 #include "sql/item_create.h"
@@ -80,6 +81,7 @@
 #include "sql/partition_info.h"          // partition_info
 #include "sql/psi_memory_key.h"
 #include "sql/query_result.h"            // Query_result
+#include "sql/rpl_record.h"              // PARTIAL_JSON_UPDATES
 #include "sql/sql_base.h"
 #include "sql/sql_class.h"               // THD
 #include "sql/sql_error.h"
@@ -560,6 +562,9 @@ void TABLE_SHARE::destroy()
     mysql_mutex_destroy(&LOCK_ha_data);
   delete name_hash;
   name_hash= nullptr;
+
+  delete m_histograms;
+  m_histograms= nullptr;
 
   plugin_unlock(NULL, db_plugin);
   db_plugin= NULL;
@@ -1464,7 +1469,7 @@ static int make_field_from_frm(THD *thd,
              f_is_dec(pack_flag) == 0,
              f_decimals(pack_flag),
              f_bit_as_char(pack_flag),
-             0);
+             0, {});
   if (!reg_field)
   {
     // Not supported field type
@@ -4147,6 +4152,18 @@ end:
   }
 
   return result;
+}
+
+const histograms::Histogram* TABLE_SHARE::find_histogram(uint field_index)
+{
+  if (m_histograms == nullptr)
+    return nullptr;
+
+  const auto found= m_histograms->find(field_index);
+  if (found == m_histograms->end())
+    return nullptr;
+
+  return found->second;
 }
 
 
@@ -6869,22 +6886,6 @@ bool TABLE_LIST::process_index_hints(const THD *thd, TABLE *tbl)
 }
 
 
-size_t max_row_length(TABLE *table, const uchar *data)
-{
-  TABLE_SHARE *table_s= table->s;
-  size_t length= table_s->reclength + 2 * table_s->fields;
-  uint *const beg= table_s->blob_field;
-  uint *const end= beg + table_s->blob_fields;
-
-  for (uint *ptr= beg ; ptr != end ; ++ptr)
-  {
-    Field_blob* const blob= (Field_blob*) table->field[*ptr];
-    length+= blob->get_length((data + blob->offset(table->record[0]))) +
-      HA_KEY_BLOB_LENGTH;
-  }
-  return length;
-}
-
 /**
    Helper function which allows to allocate metadata lock request
    objects for all elements of table list.
@@ -7890,7 +7891,8 @@ bool TABLE::mark_column_for_partial_update(const Field *field)
 
 void TABLE::disable_binary_diffs_for_current_row(const Field *field)
 {
-  DBUG_ASSERT(field->table == this && is_binary_diff_enabled(field));
+  DBUG_ASSERT(field->table == this);
+  DBUG_ASSERT(is_binary_diff_enabled(field));
 
   // Remove the diffs collected for the column.
   m_partial_update_info->m_binary_diff_vectors[field->field_index]->clear();
@@ -7920,10 +7922,11 @@ bool TABLE::has_binary_diff_columns() const
 
 bool TABLE::setup_partial_update(bool logical_diffs)
 {
+  DBUG_ENTER("TABLE::setup_partial_update(bool)");
   DBUG_ASSERT(m_partial_update_info == nullptr);
 
   if (!has_columns_marked_for_partial_update())
-    return false;
+    DBUG_RETURN(false);
 
   Opt_trace_context *trace= &in_use->opt_trace;
   if (trace->is_started())
@@ -7943,7 +7946,29 @@ bool TABLE::setup_partial_update(bool logical_diffs)
   m_partial_update_info=
     new (in_use->mem_root) Partial_update_info(this, m_partial_update_columns,
                                                logical_diffs);
-  return in_use->is_error();
+  DBUG_RETURN(in_use->is_error());
+}
+
+
+bool TABLE::setup_partial_update()
+{
+  bool logical_diffs=
+    (in_use->variables.binlog_row_value_options & PARTIAL_JSON_UPDATES) != 0 &&
+    mysql_bin_log.is_open() &&
+    (in_use->variables.option_bits & OPTION_BIN_LOG) != 0 &&
+    log_bin_use_v1_row_events == 0 &&
+    in_use->is_current_stmt_binlog_format_row();
+  DBUG_PRINT("info", ("TABLE::setup_partial_update(): logical_diffs=%d "
+                      "because binlog_row_value_options=%d binlog.is_open=%d "
+                      "sql_log_bin=%d use_v1_row_events=%d rbr=%d",
+                      logical_diffs,
+                      (in_use->variables.binlog_row_value_options &
+                       PARTIAL_JSON_UPDATES) != 0,
+                      mysql_bin_log.is_open(),
+                      (in_use->variables.option_bits & OPTION_BIN_LOG) != 0,
+                      log_bin_use_v1_row_events,
+                      in_use->is_current_stmt_binlog_format_row()));
+  return setup_partial_update(logical_diffs);
 }
 
 
@@ -7961,8 +7986,10 @@ bool TABLE::has_columns_marked_for_partial_update() const
 
 void TABLE::cleanup_partial_update()
 {
+  DBUG_ENTER("TABLE::cleanup_partial_update");
   destroy(m_partial_update_info);
   m_partial_update_info= nullptr;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -7975,6 +8002,7 @@ String *TABLE::get_partial_update_buffer()
 
 void TABLE::clear_partial_update_diffs()
 {
+  DBUG_ENTER("TABLE::clear_partial_update_diffs");
   if (m_partial_update_info != nullptr)
   {
     for (auto v : m_partial_update_info->m_binary_diff_vectors)
@@ -7994,6 +8022,7 @@ void TABLE::clear_partial_update_diffs()
                   m_partial_update_columns);
     }
   }
+  DBUG_VOID_RETURN;
 }
 
 
@@ -8087,9 +8116,30 @@ void TABLE::add_logical_diff(const Field_json *field,
   DBUG_ASSERT(is_logical_diff_enabled(field));
   Json_diff_vector *diffs=
     m_partial_update_info->m_logical_diff_vectors[field->field_index];
-  diffs->emplace_back(path, operation,
-                      new_value == nullptr ? nullptr :
-                      new_value->clone_dom(field->table->in_use));
+  if (new_value == nullptr)
+    diffs->add_diff(path, operation);
+  else
+  {
+    Json_dom_ptr dom= new_value->clone_dom(field->table->in_use);
+    diffs->add_diff(path, operation, dom);
+  }
+#ifndef DBUG_OFF
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> path_str;
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> value_str;
+  if (diffs->at(diffs->size() - 1).path().to_string(&path_str))
+    path_str.length(0); /* purecov: inspected */
+  if (new_value == nullptr || new_value->type() == enum_json_type::J_ERROR)
+    value_str.set_ascii("<none>", 6);
+  else
+  {
+    if (new_value->to_string(&value_str, false, "add_logical_diff"))
+      value_str.length(0); /* purecov: inspected */
+  }
+  DBUG_PRINT("info", ("add_logical_diff(operation=%d, path=%.*s, value=%.*s)",
+                      (int)operation,
+                      (int)path_str.length(), path_str.ptr(),
+                      (int)value_str.length(), value_str.ptr()));
+#endif
 }
 
 
@@ -8111,15 +8161,30 @@ bool TABLE::is_binary_diff_enabled(const Field *field) const
 
 bool TABLE::is_logical_diff_enabled(const Field *field) const
 {
-  return m_partial_update_info != nullptr &&
-         bitmap_is_set(&m_partial_update_info->m_enabled_logical_diff_columns,
-                       field->field_index);
+  DBUG_ENTER("TABLE::is_logical_diff_enabled");
+  bool ret=
+    m_partial_update_info != nullptr &&
+    bitmap_is_set(&m_partial_update_info->m_enabled_logical_diff_columns,
+                  field->field_index);
+  DBUG_PRINT("info", (
+    "field=%s "
+    "is_logical_diff_enabled returns=%d "
+    "(m_partial_update_info!=NULL)=%d "
+    "m_enabled_logical_diff_columns[column]=%s",
+    field->field_name,
+    ret,
+    m_partial_update_info != nullptr,
+    m_partial_update_info != nullptr ?
+    (bitmap_is_set(&m_partial_update_info->m_enabled_logical_diff_columns,
+                   field->field_index) ? "1" : "0") : "unknown"));
+  DBUG_RETURN(ret);
 }
 
 
 void TABLE::disable_logical_diffs_for_current_row(const Field *field) const
 {
-  DBUG_ASSERT(field->table == this && is_logical_diff_enabled(field));
+  DBUG_ASSERT(field->table == this);
+  DBUG_ASSERT(is_logical_diff_enabled(field));
 
   // Remove the diffs collected for the column.
   m_partial_update_info->m_logical_diff_vectors[field->field_index]->clear();

@@ -18,7 +18,7 @@
 #ifndef NDB_BITMAP_H
 #define NDB_BITMAP_H
 
-#include <my_bitmap.h>
+#include "my_bitmap.h"
 
 
 /**

@@ -21,11 +21,11 @@
 #include <gtest/gtest.h>
 #include <stddef.h>
 
-#include "mem0mem.h"
 #include "sql/handler.h"
-#include "srv0conc.h"
-#include "srv0srv.h"
-#include "univ.i"
+#include "storage/innobase/include/mem0mem.h"
+#include "storage/innobase/include/srv0conc.h"
+#include "storage/innobase/include/srv0srv.h"
+#include "storage/innobase/include/univ.i"
 
 namespace innodb_mem0mem_unittest {
 

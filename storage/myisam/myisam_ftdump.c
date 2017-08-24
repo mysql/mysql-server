@@ -17,14 +17,14 @@
    added support for long options (my_getopt) 22.5.2002 by Jani Tolonen */
 
 #include <fcntl.h>
-#include <my_getopt.h>
 #include <stdlib.h>
 #include <sys/types.h>
 
-#include "ftdefs.h"
 #include "my_compiler.h"
+#include "my_getopt.h"
 #include "my_inttypes.h"
 #include "print_version.h"
+#include "storage/myisam/ftdefs.h"
 #include "welcome_copyright_notice.h"
 
 static void usage() MY_ATTRIBUTE((noreturn));
@@ -291,4 +291,4 @@ static void complain(int val) /* Kinda assert :-)  */
   }
 }
 
-#include "mi_extrafunc.h"
+#include "storage/myisam/mi_extrafunc.h"

@@ -26,8 +26,8 @@
 #include <string>
 #include <vector>
 
-#include "message_holder.h"
-#include "mysqlxclient/xrow.h"
+#include "plugin/x/client/message_holder.h"
+#include "plugin/x/client/mysqlxclient/xrow.h"
 
 
 namespace xcl {

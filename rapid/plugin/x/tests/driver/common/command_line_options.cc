@@ -17,7 +17,7 @@
  * 02110-1301  USA
  */
 
-#include "command_line_options.h"
+#include "plugin/x/tests/driver/common/command_line_options.h"
 
 #include <cstdlib>
 #include <cstring>

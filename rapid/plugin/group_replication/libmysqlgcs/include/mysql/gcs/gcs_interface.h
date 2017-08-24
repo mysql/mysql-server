@@ -18,12 +18,12 @@
 
 #include <string>
 
-#include "gcs_logging.h"
-#include "gcs_communication_interface.h"
-#include "gcs_control_interface.h"
-#include "gcs_group_identifier.h"
-#include "gcs_statistics_interface.h"
-#include "gcs_group_management_interface.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_communication_interface.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_control_interface.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_group_identifier.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_group_management_interface.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_logging.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_statistics_interface.h"
 
 
 /**

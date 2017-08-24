@@ -17,7 +17,7 @@
 * 02110-1301  USA
 */
 
-#include "ngs/protocol/row_builder.h"
+#include "plugin/x/ngs/include/ngs/protocol/row_builder.h"
 
 #include <algorithm>
 #include <cstring>
@@ -29,10 +29,10 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_macros.h"
-#include "mysqlxclient/xdatetime.h"
-#include "mysqlxclient/xdecimal.h"
-#include "ngs/protocol/output_buffer.h"
-#include "ngs_common/protocol_protobuf.h"
+#include "plugin/x/client/mysqlxclient/xdatetime.h"
+#include "plugin/x/client/mysqlxclient/xdecimal.h"
+#include "plugin/x/ngs/include/ngs/protocol/output_buffer.h"
+#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
 
 using namespace ngs;
 

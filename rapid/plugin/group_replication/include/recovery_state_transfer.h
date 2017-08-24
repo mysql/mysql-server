@@ -20,10 +20,10 @@
 #include <string>
 #include <vector>
 
-#include "channel_observation_manager.h"
-#include "member_info.h"
 #include "my_io.h"
-#include "replication_threads_api.h"
+#include "plugin/group_replication/include/channel_observation_manager.h"
+#include "plugin/group_replication/include/member_info.h"
+#include "plugin/group_replication/include/replication_threads_api.h"
 
 
 class Recovery_state_transfer

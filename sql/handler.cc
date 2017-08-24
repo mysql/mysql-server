@@ -6444,7 +6444,7 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
   ha_rows rows, total_rows= 0;
   uint n_ranges=0;
   THD *thd= current_thd;
-  
+
   /* Default MRR implementation doesn't need buffer */
   *bufsz= 0;
 
@@ -6472,35 +6472,46 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
       Get the number of rows in the range. This is done by calling
       records_in_range() unless:
 
-        1) The range is an equality range and the index is unique.
+        1) The index is unique.
            There cannot be more than one matching row, so 1 is
            assumed. Note that it is possible that the correct number
            is actually 0, so the row estimate may be too high in this
            case. Also note: ranges of the form "x IS NULL" may have more
            than 1 mathing row so records_in_range() is called for these.
-        2) a) The range is an equality range but the index is either 
-              not unique or all of the keyparts are not used. 
-           b) The user has requested that index statistics should be used
-              for equality ranges to avoid the incurred overhead of 
-              index dives in records_in_range().
-           c) Index statistics is available.
-           Ranges of the form "x IS NULL" will not use index statistics 
-           because the number of rows with this value are likely to be 
+        2) SKIP_RECORDS_IN_RANGE will be set when skip_records_in_range or
+           use_index_statistics are true.
+           Ranges of the form "x IS NULL" will not use index statistics
+           because the number of rows with this value are likely to be
            very different than the values in the index statistics.
+
+      Note: With SKIP_RECORDS_IN_RANGE, use Index statistics if:
+            a) Index statistics is available.
+            b) The range is an equality range but the index is either not
+               unique or all of the keyparts are not used.
     */
     int keyparts_used= 0;
     if ((range.range_flag & UNIQUE_RANGE) &&                        // 1)
         !(range.range_flag & NULL_RANGE))
       rows= 1; /* there can be at most one row */
-    else if ((range.range_flag & EQ_RANGE) &&                       // 2a)
-             (range.range_flag & USE_INDEX_STATISTICS) &&           // 2b)
-             (keyparts_used= my_count_bits(range.start_key.keypart_map)) &&
-             table->
-               key_info[keyno].has_records_per_key(keyparts_used-1) && // 2c)
+    else if (range.range_flag & SKIP_RECORDS_IN_RANGE &&            // 2)
              !(range.range_flag & NULL_RANGE))
     {
-      rows= static_cast<ha_rows>(
-        table->key_info[keyno].records_per_key(keyparts_used - 1));
+      if ((range.range_flag & EQ_RANGE) &&
+          (keyparts_used= my_count_bits(range.start_key.keypart_map)) &&
+          table->key_info[keyno].has_records_per_key(keyparts_used-1))
+      {
+        rows=
+          static_cast<ha_rows>(table->key_info[keyno].
+                               records_per_key(keyparts_used - 1));
+      }
+      else
+      {
+        /*
+          Since records_in_range has not been called, set the rows to 1.
+          FORCE INDEX has been used, cost model values will be ignored anyway.
+        */
+        rows= 1;
+      }
     }
     else
     {
@@ -6516,14 +6527,13 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
     }
     total_rows += rows;
   }
-  
+
   if (total_rows != HA_POS_ERROR)
   {
     const Cost_model_table *const cost_model= table->cost_model();
 
     /* The following calculation is the same as in multi_range_read_info(): */
-    *flags|= HA_MRR_USE_DEFAULT_IMPL;
-    *flags|= HA_MRR_SUPPORT_SORTED;
+    *flags|= (HA_MRR_USE_DEFAULT_IMPL | HA_MRR_SUPPORT_SORTED);
 
     DBUG_ASSERT(cost->is_zero());
     if (*flags & HA_MRR_INDEX_ONLY)
@@ -8827,7 +8837,6 @@ bool handler::my_eval_gcolumn_expr_with_open(THD *thd,
                                              uchar *record)
 {
   bool retval= true;
-  lex_start(thd);
 
   char path[FN_REFLEN + 1];
   bool was_truncated;
@@ -8836,8 +8845,8 @@ bool handler::my_eval_gcolumn_expr_with_open(THD *thd,
   DBUG_ASSERT(!was_truncated);
 
   MDL_ticket *mdl_ticket= NULL;
-  if (dd::acquire_shared_table_mdl(
-                                   thd, db_name, table_name, false, &mdl_ticket))
+  if (dd::acquire_shared_table_mdl(thd, db_name, table_name, false,
+                                   &mdl_ticket))
     return true;
 
   TABLE *table= nullptr;
@@ -8860,7 +8869,6 @@ bool handler::my_eval_gcolumn_expr_with_open(THD *thd,
     intern_close_table(table);
   }
 
-  lex_end(thd->lex);
   return retval;
 }
 

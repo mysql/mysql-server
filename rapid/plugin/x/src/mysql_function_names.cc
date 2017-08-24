@@ -17,8 +17,9 @@
  * 02110-1301  USA
  */
 
+#include "plugin/x/src/mysql_function_names.h"
+
 #include <algorithm>
-#include "mysql_function_names.h"
 
 namespace xpl {
 

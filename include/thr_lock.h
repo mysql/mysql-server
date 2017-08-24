@@ -22,10 +22,10 @@
 #ifndef _thr_lock_h
 #define _thr_lock_h
 
-#include <my_list.h>
 #include <sys/types.h>
 
 #include "my_inttypes.h"
+#include "my_list.h"
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"

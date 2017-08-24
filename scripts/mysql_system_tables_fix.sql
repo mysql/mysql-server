@@ -642,6 +642,13 @@ INSERT INTO global_grants SELECT user, host, 'XA_RECOVER_ADMIN', 'Y' FROM mysql.
 WHERE super_priv = 'Y' AND @hadXARecoverAdminPriv = 0;
 COMMIT;
 
+-- Add the privilege BACKUP_ADMIN for every user who has the privilege RELOAD
+-- provided that there isn't a user who already has the privilige BACKUP_ADMIN.
+SET @hadBackupAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'BACKUP_ADMIN');
+INSERT INTO global_grants SELECT user, host, 'BACKUP_ADMIN', 'Y' FROM mysql.user
+WHERE Reload_priv = 'Y' AND @hadBackupAdminPriv = 0;
+COMMIT;
+
 # Activate the new, possible modified privilege tables
 # This should not be needed, but gives us some extra testing that the above
 # changes was correct

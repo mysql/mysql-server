@@ -26,15 +26,15 @@
 #include <unistd.h>
 #endif
 
-#include "map_helpers.h"
 #include "m_string.h"
+#include "map_helpers.h"
 #include "my_dbug.h"
+#include "my_dir.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysys_err.h"
-#include <my_dir.h>
 #ifndef _WIN32
 #include <sys/stat.h>
 #endif

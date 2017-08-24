@@ -15,13 +15,14 @@
 
 /* This file is included in all heap-files */
 
-#include <my_base.h>			/* This includes global */
-#include <my_thread.h>
-#include "my_thread_local.h"
 #include "heap.h"			/* Structs & some defines */
-#include "my_tree.h"
 #include "m_string.h"
+#include "my_base.h"			/* This includes global */
 #include "my_sys.h"
+#include "my_thread.h"
+#include "my_thread_local.h"
+#include "my_tree.h"
+
 C_MODE_START
 
 /*

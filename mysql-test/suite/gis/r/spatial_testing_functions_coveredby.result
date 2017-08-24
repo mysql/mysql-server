@@ -1203,448 +1203,8 @@ GEOMETRYCOLLECTION(POLYGON(LINESTRING(POINT(1,1), POINT(10,1), POINT(10,10),
 POINT(1,10), POINT(1,1)), LINESTRING(POINT(4,4),POINT(6,4),POINT(6,6),
 POINT(4,6),POINT(4,4))))));
 SELECT MBRCOVEREDBY(a.g, b.g) FROM t1 AS a JOIN t1 AS b;
-MBRCOVEREDBY(a.g, b.g)
-1
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-1
-0
-0
-1
-0
-0
-0
-0
-1
-1
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-1
-0
-1
-0
-0
-0
-0
-0
-0
-1
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-0
-0
-1
-0
-0
-0
-0
-1
-1
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-1
-1
-0
-0
-1
-1
-0
-0
-0
-1
-1
-0
-0
-1
-1
-0
-0
-0
-0
-0
-0
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-1
-0
-0
-1
-0
-0
-0
-0
-1
-1
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-1
-0
-1
-0
-0
-0
-0
-0
-0
-1
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-0
-0
-1
-0
-0
-0
-0
-1
-1
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-1
-1
-0
-0
-1
-1
-0
-0
-0
-1
-1
-0
-0
-1
-1
-0
-0
-0
-0
-0
-0
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-0
-0
-1
-1
-0
-0
-0
-1
-1
-0
-0
-1
-1
-0
-0
-0
-0
-0
-1
+SELECT MBRCOVEREDBY(ST_SRID(a.g, 4326), ST_SRID(b.g, 4326))
+FROM t1 AS a JOIN t1 AS b;
 # clean up
 DROP TABLE t1;
 DROP TABLE gis_geometrycollection;
@@ -1698,3 +1258,120 @@ ST_GEOMFROMTEXT('POINT(0 0)', 26000001)
 );
 ERROR SR002: Can't parse the spatial reference system definition of SRID 26000001.
 DELETE FROM mysql.st_spatial_reference_systems WHERE id = 26000001;
+#
+# WL#10827 Ellipsoidal R-tree support functions
+#
+SET @pt = ST_GeomFromText('POINT(0 0)', 4326);
+SELECT MBRCoveredBy(ST_SRID(ST_GeomFromText('POINT(0 -91)'), 4326), @pt);
+ERROR 22S03: Latitude -91.000000 is out of range in function mbrcoveredby. It must be within [-90.000000, 90.000000].
+SELECT MBRCoveredBy(ST_SRID(ST_GeomFromText('POINT(0 91)'), 4326), @pt);
+ERROR 22S03: Latitude 91.000000 is out of range in function mbrcoveredby. It must be within [-90.000000, 90.000000].
+SELECT MBRCoveredBy(ST_SRID(ST_GeomFromText('POINT(-181 0)'), 4326), @pt);
+ERROR 22S02: Longitude -181.000000 is out of range in function mbrcoveredby. It must be within (-180.000000, 180.000000].
+SELECT MBRCoveredBy(ST_SRID(ST_GeomFromText('POINT(181 0)'), 4326), @pt);
+ERROR 22S02: Longitude 181.000000 is out of range in function mbrcoveredby. It must be within (-180.000000, 180.000000].
+CREATE TABLE t1 (
+id INT,
+c GEOMETRY NOT NULL,
+g GEOMETRY AS (ST_SRID(c, 4326)) STORED NOT NULL,
+SPATIAL INDEX c_idx (c),
+SPATIAL INDEX g_idx (g)
+);
+INSERT INTO t1 (id, c) VALUES
+(0, ST_GeomFromText('POINT(0 0)')),
+(1, ST_GeomFromText('POINT(1 1)')),
+(2, ST_GeomFromText('POINT(2 2)')),
+(3, ST_GeomFromText('POINT(3 3)')),
+(4, ST_GeomFromText('POINT(4 4)')),
+(5, ST_GeomFromText('POINT(5 5.00001)')),
+(6, ST_GeomFromText('POINT(6 6)')),
+(7, ST_GeomFromText('POINT(7 7)'));
+SET @py = 'POLYGON((0 0, 10 0, 10 5, 0 5, 0 0))';
+SET @cart_py = ST_GeomFromText(@py);
+SET @geo_py = ST_GeomFromText(@py, 4326, 'axis-order=long-lat');
+SET @mpt = 'MULTIPOINT((0 0), (10 5))';
+SET @cart_mpt = ST_GeomFromText(@mpt);
+SET @geo_mpt = ST_GeomFromText(@mpt, 4326, 'axis-order=long-lat');
+# Cartesian MBRCoveredBy
+SELECT id, ST_AsText(c)
+FROM t1 IGNORE INDEX(c_idx)
+WHERE MBRCoveredBy(c, @cart_py)
+ORDER BY id;
+id	ST_AsText(c)
+0	POINT(0 0)
+1	POINT(1 1)
+2	POINT(2 2)
+3	POINT(3 3)
+4	POINT(4 4)
+SELECT id, ST_AsText(c)
+FROM t1 FORCE INDEX(c_idx)
+WHERE MBRCoveredBy(c, @cart_py)
+ORDER BY id;
+id	ST_AsText(c)
+0	POINT(0 0)
+1	POINT(1 1)
+2	POINT(2 2)
+3	POINT(3 3)
+4	POINT(4 4)
+SELECT id, ST_AsText(c)
+FROM t1 IGNORE INDEX(c_idx)
+WHERE MBRCoveredBy(c, @cart_mpt)
+ORDER BY id;
+id	ST_AsText(c)
+0	POINT(0 0)
+1	POINT(1 1)
+2	POINT(2 2)
+3	POINT(3 3)
+4	POINT(4 4)
+SELECT id, ST_AsText(c)
+FROM t1 FORCE INDEX(c_idx)
+WHERE MBRCoveredBy(c, @cart_mpt)
+ORDER BY id;
+id	ST_AsText(c)
+0	POINT(0 0)
+1	POINT(1 1)
+2	POINT(2 2)
+3	POINT(3 3)
+4	POINT(4 4)
+# Geographic MBRCoveredBy
+SELECT id, ST_AsText(g)
+FROM t1 IGNORE INDEX(g_idx)
+WHERE MBRCoveredBy(g, @geo_py)
+ORDER BY id;
+id	ST_AsText(g)
+0	POINT(0 0)
+1	POINT(1 1)
+2	POINT(2 2)
+3	POINT(3 3)
+4	POINT(4 4)
+SELECT id, ST_AsText(g)
+FROM t1 FORCE INDEX(g_idx)
+WHERE MBRCoveredBy(g, @geo_py)
+ORDER BY id;
+id	ST_AsText(g)
+0	POINT(0 0)
+1	POINT(1 1)
+2	POINT(2 2)
+3	POINT(3 3)
+4	POINT(4 4)
+SELECT id, ST_AsText(g)
+FROM t1 IGNORE INDEX(g_idx)
+WHERE MBRCoveredBy(g, @geo_mpt)
+ORDER BY id;
+id	ST_AsText(g)
+0	POINT(0 0)
+1	POINT(1 1)
+2	POINT(2 2)
+3	POINT(3 3)
+4	POINT(4 4)
+SELECT id, ST_AsText(g)
+FROM t1 FORCE INDEX(g_idx)
+WHERE MBRCoveredBy(g, @geo_mpt)
+ORDER BY id;
+id	ST_AsText(g)
+0	POINT(0 0)
+1	POINT(1 1)
+2	POINT(2 2)
+3	POINT(3 3)
+4	POINT(4 4)
+DROP TABLE t1;

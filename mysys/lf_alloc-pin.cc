@@ -16,7 +16,6 @@
 
 #include <stddef.h>
 #include <sys/types.h>
-
 #include <atomic>
 
 static_assert(
@@ -114,7 +113,7 @@ static_assert(
 #include "my_sys.h"
 #include "my_thread.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysys_priv.h" /* key_memory_lf_node */
+#include "mysys/mysys_priv.h" /* key_memory_lf_node */
 
 #define LF_PINBOX_MAX_PINS 65536
 

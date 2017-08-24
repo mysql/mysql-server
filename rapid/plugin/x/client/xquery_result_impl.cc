@@ -17,6 +17,8 @@
  * 02110-1301  USA
  */
 
+#include "plugin/x/client/xquery_result_impl.h"
+
 #include <set>
 #include <string>
 #include <utility>
@@ -24,9 +26,8 @@
 
 #include "errmsg.h"
 #include "my_compiler.h"
-#include "mysqlxclient/xrow.h"
-#include "mysqlxclient/mysqlxclient_error.h"
-#include "xquery_result_impl.h"
+#include "plugin/x/client/mysqlxclient/mysqlxclient_error.h"
+#include "plugin/x/client/mysqlxclient/xrow.h"
 
 
 namespace details {

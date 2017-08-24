@@ -227,7 +227,7 @@ for p in auth.so auth_test_plugin.so authentication_ldap_sasl.so \
          pfs_example_plugin_employee.so qa_auth_client.so qa_auth_interface.so \
          qa_auth_server.so replication_observers_example_plugin.so \
          test_security_context.so test_services_plugin_registry.so \
-         test_udf_services.so ; do
+         test_udf_services.so component_test_backup_lock_service.so ; do
     rm -f %{buildroot}%{_libdir}/mysql/plugin/$p
 done
 
@@ -277,6 +277,7 @@ rm -r $(readlink var) var
 /bin/touch /var/log/mysqld.log >/dev/null 2>&1 || :
 /bin/chmod 0640 /var/log/mysqld.log >/dev/null 2>&1 || :
 /bin/chown mysql:mysql /var/log/mysqld.log >/dev/null 2>&1 || :
+%{_sbindir}/setcap cap_sys_nice+ep %{_sbindir}/mysqld >/dev/null 2>&1 || :
 
 %files -n mysql%{?cluster:-cluster}-%{product_suffix}-server-minimal
 %defattr(-, root, root, -)

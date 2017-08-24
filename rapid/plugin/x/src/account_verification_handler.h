@@ -22,11 +22,11 @@
 
 #include <map>
 
-#include "ngs/error_code.h"
-#include "ngs/interface/account_verification_interface.h"
-#include "ngs/interface/authentication_interface.h"
-#include "ngs/interface/session_interface.h"
-#include "sql_user_require.h"
+#include "plugin/x/ngs/include/ngs/error_code.h"
+#include "plugin/x/ngs/include/ngs/interface/account_verification_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/authentication_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/session_interface.h"
+#include "plugin/x/src/sql_user_require.h"
 
 namespace xpl {
 

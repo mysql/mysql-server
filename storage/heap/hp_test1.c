@@ -19,12 +19,12 @@
    raderas.
 */
 
-#include <m_string.h>
-#include <my_sys.h>
 #include <sys/types.h>
 
 #include "heap.h"
+#include "m_string.h"
 #include "my_inttypes.h"
+#include "my_sys.h"
 #include "my_thread_local.h"
 
 static int get_options(int argc, char *argv[]);

@@ -34,7 +34,7 @@ CALL mtr.add_suppression("InnoDB:");
   open(FILE, "$log") or die;
   while (my $row = <FILE>)
   {
-    if ($row =~ m/.*\[Note\] A temporary password is generated for root.localhost: ([^ \n][^ \n]*)/)
+    if ($row =~ m/.*\[Note\] \[[^]]*\] A temporary password is generated for root.localhost: ([^ \n][^ \n]*)/)
     {
       my $passwd=$1;
       print "password found\n";

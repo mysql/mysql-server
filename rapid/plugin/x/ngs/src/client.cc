@@ -17,11 +17,10 @@
  * 02110-1301  USA
  */
 
-#include "ngs/client.h"
-#include "ngs/protocol_encoder.h"
+#include "plugin/x/ngs/include/ngs/client.h"
 
-
-#include "ngs/interface/protocol_monitor_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/protocol_monitor_interface.h"
+#include "plugin/x/ngs/include/ngs/protocol_encoder.h"
 #ifndef WIN32
 #include <arpa/inet.h>
 #endif
@@ -31,20 +30,19 @@
 #include <algorithm>
 #include <functional>
 
-#include "ngs/capabilities/handler_auth_mech.h"
-#include "ngs/capabilities/handler_readonly_value.h"
-#include "ngs/capabilities/handler_tls.h"
-#include "ngs/interface/server_interface.h"
-#include "ngs/interface/session_interface.h"
-#include "ngs/interface/protocol_monitor_interface.h"
-#include "ngs/log.h"
-#include "ngs/ngs_error.h"
-#include "ngs/protocol/protocol_config.h"
-#include "ngs/scheduler.h"
-#include "ngs_common/operations_factory.h"
+#include "plugin/x/ngs/include/ngs/capabilities/handler_auth_mech.h"
+#include "plugin/x/ngs/include/ngs/capabilities/handler_readonly_value.h"
+#include "plugin/x/ngs/include/ngs/capabilities/handler_tls.h"
+#include "plugin/x/ngs/include/ngs/interface/server_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/session_interface.h"
+#include "plugin/x/ngs/include/ngs/log.h"
+#include "plugin/x/ngs/include/ngs/ngs_error.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_config.h"
+#include "plugin/x/ngs/include/ngs/scheduler.h"
+#include "plugin/x/ngs/include/ngs_common/operations_factory.h"
 
 #undef ERROR // Needed to avoid conflict with ERROR in mysqlx.pb.h
-#include "ngs_common/protocol_protobuf.h"
+#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
 
 
 using namespace ngs;

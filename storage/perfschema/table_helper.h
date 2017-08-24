@@ -28,14 +28,14 @@
 #include "lex_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "pfs_column_types.h"
-#include "pfs_digest.h"
-#include "pfs_engine_table.h"
-#include "pfs_events.h"
-#include "pfs_instr_class.h"
-#include "pfs_setup_actor.h"
-#include "pfs_stat.h"
-#include "pfs_timer.h"
+#include "storage/perfschema/pfs_column_types.h"
+#include "storage/perfschema/pfs_digest.h"
+#include "storage/perfschema/pfs_engine_table.h"
+#include "storage/perfschema/pfs_events.h"
+#include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/pfs_setup_actor.h"
+#include "storage/perfschema/pfs_stat.h"
+#include "storage/perfschema/pfs_timer.h"
 
 /*
   Write MD5 hash value in a string to be used
@@ -326,8 +326,19 @@ void set_field_varchar_utf8mb4(Field *f, const char *str, uint len);
   @param val the value to assign
   @param len the length of the string to assign
 */
-void set_field_blob(Field *f, const char *val, uint len);
+void set_field_blob(Field *f, const char *val, size_t len);
 
+/**
+  Helper, assign a value to a text field.
+  @param f the field to set
+  @param val the value to assign
+  @param len the length of the string to assign
+  @param cs the charset of the string
+*/
+void set_field_text(Field *f,
+                    const char *val,
+                    size_t len,
+                    const CHARSET_INFO *cs);
 /**
   Helper, read a value from a @c blob field.
   @param f the field to read
@@ -453,6 +464,21 @@ void set_field_year(Field *f, ulong value);
   @return the field value
 */
 ulong get_field_year(Field *f);
+
+/**
+  Helper, format sql text for output.
+
+  @param source_sqltext  raw sqltext, possibly truncated
+  @param source_length  length of source_sqltext
+  @param source_cs  character set of source_sqltext
+  @param truncated true if source_sqltext was truncated
+  @param sqltext sqltext formatted for output
+ */
+void format_sqltext(const char *source_sqltext,
+                    size_t source_length,
+                    const CHARSET_INFO *source_cs,
+                    bool truncated,
+                    String &sqltext);
 
 /** Name space, internal views used within table setup_instruments. */
 struct PFS_instrument_view_constants

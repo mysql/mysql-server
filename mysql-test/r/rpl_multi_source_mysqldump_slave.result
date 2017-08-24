@@ -5,22 +5,22 @@ SET GLOBAL relay_log_info_repository='TABLE';
 # 1. Without having a default channel configured
 #
 # Create two additional replication channels
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_LOG_FILE='master-bin-ch1.000001', MASTER_LOG_POS=4 FOR CHANNEL 'ch1';
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_LOG_FILE='master-bin-ch2.000001', MASTER_LOG_POS=4 FOR CHANNEL 'ch2';
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_LOG_FILE='binlog-ch1.000001', MASTER_LOG_POS=4 FOR CHANNEL 'ch1';
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_LOG_FILE='binlog-ch2.000001', MASTER_LOG_POS=4 FOR CHANNEL 'ch2';
 # Execute mysqldump with --dump-slave
-CHANGE MASTER TO MASTER_LOG_FILE='master-bin-ch1.000001', MASTER_LOG_POS=4 FOR CHANNEL 'ch1';
-CHANGE MASTER TO MASTER_LOG_FILE='master-bin-ch2.000001', MASTER_LOG_POS=4 FOR CHANNEL 'ch2';
+CHANGE MASTER TO MASTER_LOG_FILE='binlog-ch1.000001', MASTER_LOG_POS=4 FOR CHANNEL 'ch1';
+CHANGE MASTER TO MASTER_LOG_FILE='binlog-ch2.000001', MASTER_LOG_POS=4 FOR CHANNEL 'ch2';
 # Execute mysql using the dump as input
 include/stop_slave.inc
 #
 # 2. With a default channel configured
 #
 # Setup the default replication channel
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_LOG_FILE="master-bin-default.000001", MASTER_LOG_POS=4 FOR CHANNEL '';
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_LOG_FILE="binlog-default.000001", MASTER_LOG_POS=4 FOR CHANNEL '';
 # Execute mysqldump with --dump-slave
-CHANGE MASTER TO MASTER_LOG_FILE='master-bin-default.000001', MASTER_LOG_POS=4 FOR CHANNEL '';
-CHANGE MASTER TO MASTER_LOG_FILE='master-bin-ch1.000001', MASTER_LOG_POS=4 FOR CHANNEL 'ch1';
-CHANGE MASTER TO MASTER_LOG_FILE='master-bin-ch2.000001', MASTER_LOG_POS=4 FOR CHANNEL 'ch2';
+CHANGE MASTER TO MASTER_LOG_FILE='binlog-default.000001', MASTER_LOG_POS=4 FOR CHANNEL '';
+CHANGE MASTER TO MASTER_LOG_FILE='binlog-ch1.000001', MASTER_LOG_POS=4 FOR CHANNEL 'ch1';
+CHANGE MASTER TO MASTER_LOG_FILE='binlog-ch2.000001', MASTER_LOG_POS=4 FOR CHANNEL 'ch2';
 # Execute mysql using the dump as input
 include/stop_slave.inc
 RESET SLAVE ALL;

@@ -15,12 +15,12 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "ndb_mi.h"
+#include "sql/ndb_mi.h"
 
 #include "my_dbug.h"
-#include "rpl_mi.h"
-#include "rpl_msr.h"
-#include "rpl_rli.h"
+#include "sql/rpl_mi.h"
+#include "sql/rpl_msr.h"
+#include "sql/rpl_rli.h"
 
 
 /*

@@ -17,8 +17,9 @@
 * 02110-1301  USA
 */
 
-#include "ngs/protocol/notice_builder.h"
-#include "ngs_common/protocol_protobuf.h"
+#include "plugin/x/ngs/include/ngs/protocol/notice_builder.h"
+
+#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
 
 using namespace ngs;
 

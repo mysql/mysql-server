@@ -140,6 +140,16 @@ public:
   { m_number= number; }
 
   /////////////////////////////////////////////////////////////////////////
+  // description_utf8.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual const String_type &description_utf8() const
+  { return m_description_utf8; }
+
+  virtual void set_description_utf8(const String_type &description_utf8)
+  { m_description_utf8= description_utf8; }
+
+  /////////////////////////////////////////////////////////////////////////
   // engine.
   /////////////////////////////////////////////////////////////////////////
 
@@ -293,6 +303,7 @@ private:
   uint m_number;
   Object_id m_se_private_id;
 
+  String_type m_description_utf8;
   String_type m_engine;
   String_type m_comment;
   std::unique_ptr<Properties> m_options;

@@ -13,13 +13,13 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "gcs_view_modification_notifier.h"
+#include "plugin/group_replication/include/gcs_view_modification_notifier.h"
 
 #include <time.h>
 
 #include "my_dbug.h"
 #include "my_systime.h"
-#include "plugin_psi.h"
+#include "plugin/group_replication/include/plugin_psi.h"
 
 
 Plugin_gcs_view_modification_notifier::Plugin_gcs_view_modification_notifier()

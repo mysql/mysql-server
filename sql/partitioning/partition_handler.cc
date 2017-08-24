@@ -16,6 +16,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "sql/partitioning/partition_handler.h"
+
 #include <fcntl.h>
 #include <limits.h>
 #include <stdarg.h>
@@ -42,7 +44,6 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "partition_handler.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/derror.h"
 #include "sql/discrete_interval.h"

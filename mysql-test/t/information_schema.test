@@ -1517,8 +1517,6 @@ drop tables t1, t3;
 #
 # Bug#39270 I_S optimization algorithm does not work properly in some cases
 #
---replace_result partitions PARTITIONS
-EXPLAIN SELECT * FROM information_schema.PARTITIONS WHERE TABLE_NAME='t1';
 --replace_result referential_constraints REFERENTIAL_CONSTRAINTS
 EXPLAIN SELECT * FROM information_schema.REFERENTIAL_CONSTRAINTS
   WHERE CONSTRAINT_SCHEMA='test';

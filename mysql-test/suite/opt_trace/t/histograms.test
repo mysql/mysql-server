@@ -1,0 +1,79 @@
+
+--source include/have_optimizer_trace.inc
+
+SET optimizer_trace_max_mem_size = 1000000;
+SET optimizer_trace="enabled=on";
+
+CREATE TABLE t1 (col1 INT, col2 INT);
+
+INSERT INTO t1 VALUES (1, 10), (2, 20), (3, 30), (4, 40), (5, 50), (NULL, NULL);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1, col2 WITH 2 BUCKETS;
+UPDATE mysql.innodb_table_stats SET n_rows = 6
+WHERE database_name = "test" AND table_name = "t1";
+
+EXPLAIN SELECT * FROM t1 WHERE col1 < 4;
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+
+EXPLAIN SELECT * FROM t1 WHERE col1 > 4;
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+
+EXPLAIN SELECT * FROM t1 WHERE col1 >= 4;
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+
+EXPLAIN SELECT * FROM t1 WHERE col1 <= 4;
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+
+EXPLAIN SELECT * FROM t1 WHERE col1 = 4;
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+
+EXPLAIN SELECT * FROM t1 WHERE col1 != 4;
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+
+EXPLAIN SELECT * FROM t1 WHERE col1 <> 4;
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+
+EXPLAIN SELECT * FROM t1 WHERE col1 BETWEEN 4 AND 6;
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+
+EXPLAIN SELECT * FROM t1 WHERE col1 NOT BETWEEN 4 AND 6;
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+
+EXPLAIN SELECT * FROM t1 WHERE col1 IS NULL;
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+
+EXPLAIN SELECT * FROM t1 WHERE col1 IS NOT NULL;
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Show that histogram selecitivty estimation is printed for other acecss
+--echo # methods as well.
+--echo #
+
+--echo # Access method: RANGE
+CREATE TABLE t1 (col1 INT, col2 INT);
+INSERT INTO t1 VALUES (15, 84), (19, 51), (70, 52), (54, 82), (33, 93), (80, 0),
+(51, 82), (50, 14), (22, 27), (96, 82), (96, 3), (86, 61), (4, 58), (95, 20),
+(28, 56), (64, 99), (10, 85), (30, 81), (13, 85), (28, 94);
+CREATE INDEX ON t1 (col1, col2);
+ANALYZE TABLE t1;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1, col2 WITH 8 BUCKETS;
+
+EXPLAIN SELECT * FROM t1 WHERE col1 > 10 AND col2 < 88;
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+DROP TABLE t1;
+
+--echo #
+--echo # Show the difference between the calculated selectivity estimation for
+--echo # each predicate and the total calculated selectivity estimation
+--echo #
+
+CREATE TABLE t1 (col1 INT);
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8);
+ANALYZE TABLE t1;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 2 BUCKETS;
+
+EXPLAIN SELECT * FROM t1 WHERE col1 > 2 AND col1 <= 7;
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+DROP TABLE t1;

@@ -8561,6 +8561,7 @@ ER_NEED_LOG_BIN
 ER_NEED_FILE_INSTEAD_OF_DIR
   eng "Path '%s' is a directory name, please specify a file name for %s option"
 
+# Unused since MySQL 8.0.3
 ER_LOG_BIN_BETTER_WITH_NAME
   eng "No argument was provided to --log-bin, and --log-bin-index was not used; so replication may break when this MySQL server acts as a master and has his hostname changed!! Please use '--log-bin=%s' to avoid this problem."
 
@@ -10828,6 +10829,80 @@ ER_WARNING_PASSWORD_HISTORY_CLAUSES_VOID
 
 ER_CLIENT_DOES_NOT_SUPPORT
   eng "The client doesn't support %s"
+
+ER_I_S_SKIPPED_TABLESPACE
+  eng "Tablespace '%s' was skipped since its definition is being modified by concurrent DDL statement"
+
+ER_TABLESPACE_ENGINE_MISMATCH
+  eng "Engine '%.192s' does not match stored engine '%.192s' for tablespace '%.192s'"
+
+
+ER_RPL_CANT_HAVE_SAME_BASENAME
+  eng "Cannot have same base name '%s' for both binary and relay logs. Please check %s (default '%s') and %s (default '%s') options to ensure they do not conflict"
+
+ER_WARN_NO_SERVERID_SPECIFIED
+  eng "You have not provided a mandatory server-id. Servers in a replication topology must have unique server-ids. Please refer to the proper server start-up parameters documentation."
+
+
+ER_WRONG_SRID_FOR_COLUMN
+  eng "The SRID of the geometry does not match the SRID of the column '%.64s'. The SRID of the geometry is %lu, but the SRID of the column is %lu. Consider changing the SRID of the geometry or the SRID property of the column."
+
+ER_CANNOT_ALTER_SRID_DUE_TO_INDEX
+  eng "The SRID specification on the column '%.64s' cannot be changed because there is a spatial index on the column. Please remove the spatial index before altering the SRID specification."
+
+ER_WARN_BINLOG_PARTIAL_UPDATES_DISABLED
+  eng "When %.192s, the option binlog_row_value_options=%.192s will be ignored and updates will be written in full format to binary log."
+
+ER_WARN_BINLOG_V1_ROW_EVENTS_DISABLED
+  eng "When %.192s, the option log_bin_use_v1_row_events=1 will be ignored and row events will be written in new format to binary log."
+
+ER_WARN_BINLOG_PARTIAL_UPDATES_SUGGESTS_PARTIAL_IMAGES
+  eng "When %.192s, the option binlog_row_value_options=%.192s will be used only for the after-image. Full values will be written in the before-image, so the saving in disk space due to binlog_row_value_options is limited to less than 50%%."
+
+ER_COULD_NOT_APPLY_JSON_DIFF
+  eng "Could not apply JSON diff in table %.*s, column %s."
+
+ER_CORRUPTED_JSON_DIFF
+  eng "Corrupted JSON diff for table %.*s, column %s."
+
+ER_RESOURCE_GROUP_EXISTS
+  eng "Resource Group '%-.192s' exists"
+
+ER_RESOURCE_GROUP_NOT_EXISTS
+  eng "Resource Group '%-.192s' does not exist."
+
+ER_INVALID_VCPU_ID
+  eng "Invalid cpu id %u"
+
+ER_INVALID_VCPU_RANGE
+  eng "Invalid VCPU range %u-%u"
+
+ER_INVALID_THREAD_PRIORITY
+  eng "Invalid thread priority value %d for %s resource group %s. Allowed range is [%d, %d]."
+
+ER_DISALLOWED_OPERATION
+  eng "%s operation is disallowed on %s "
+
+ER_RESOURCE_GROUP_BUSY
+  eng "Resource group %s is busy."
+
+ER_RESOURCE_GROUP_DISABLED
+  eng "Resource group %s is disabled."
+
+ER_FEATURE_UNSUPPORTED
+  eng "Feature %s is unsupported (%s)."
+
+ER_ATTRIBUTE_IGNORED
+  eng "Attribute %s is ignored (%s)."
+
+ER_INVALID_THREAD_ID
+  eng "Invalid thread id (%llu)."
+
+ER_RESOURCE_GROUP_BIND_FAILED
+  eng "Unable to bind resource group %s with thread id (%llu).(%s)."
+
+ER_INVALID_USE_OF_FORCE_OPTION
+  eng "Option FORCE invalid as DISABLE option is not specified."
 
 #
 #  End of 8.0 error messages.

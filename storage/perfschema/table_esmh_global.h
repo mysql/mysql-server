@@ -22,7 +22,7 @@
   Table EVENTS_STATEMENTS_HISTOGRAM_GLOBAL (declarations).
 */
 
-#include "table_helper.h"
+#include "storage/perfschema/table_helper.h"
 
 /**
   @addtogroup performance_schema_tables

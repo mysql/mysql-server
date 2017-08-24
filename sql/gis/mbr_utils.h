@@ -23,9 +23,9 @@
 
 #include <boost/geometry.hpp>
 
-#include "box.h"
-#include "geometries.h"
-#include "geometries_cs.h"
+#include "sql/gis/box.h"
+#include "sql/gis/geometries.h"
+#include "sql/gis/geometries_cs.h"
 
 namespace dd {
 class Spatial_reference_system;

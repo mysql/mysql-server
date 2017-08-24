@@ -20,8 +20,8 @@ Glue code for registering the TempTable plugin at MySQL. */
 #include "mem_root_fwd.h"
 #include "sql/handler.h"
 #include "sql/table.h"
-#include "temptable/allocator.h"
-#include "temptable/handler.h"
+#include "storage/temptable/include/temptable/allocator.h"
+#include "storage/temptable/include/temptable/handler.h"
 
 static handler* create_handler(handlerton* hton, TABLE_SHARE* table_share, bool,
                                MEM_ROOT* mem_root) {

@@ -22,12 +22,12 @@
 extern "C" {
 #endif
 
-#include "task_debug.h"
-#include "x_platform.h"
-#include "xcom_os_layer.h"
-#include "xcom_os_layer.h"
-#include "xdr_utils.h"
-#include "xdr_utils.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_debug.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_os_layer.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_os_layer.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xdr_utils.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xdr_utils.h"
 
 #define XCOM_THREAD_DEBUG 1
 

@@ -17,16 +17,15 @@
  * 02110-1301  USA
  */
 
-#include "mysqlxtest_error_names.h"
+#include "plugin/x/tests/driver/processor/commands/mysqlxtest_error_names.h"
 
 #include <stdlib.h>
 #include <sstream>
 #include <stdexcept>
 
 #include "errmsg.h"
-#include "mysqlxclient/mysqlxclient_error.h"
-#include "ngs_common/to_string.h"
-#include "mysqlxtest_error_names.h"
+#include "plugin/x/client/mysqlxclient/mysqlxclient_error.h"
+#include "plugin/x/ngs/include/ngs_common/to_string.h"
 
 
 namespace mysqlxtest {
@@ -36,7 +35,8 @@ static Error_entry global_error_names[] = {
     {"ER_SUCCESS", static_cast<int>(0), "Success", NULL, NULL, 0},
 #ifndef IN_DOXYGEN
 #include <mysqld_ername.h>
-#include "mysqlx_ername.h"
+
+#include "plugin/x/generated/mysqlx_ername.h"
 #endif /* IN_DOXYGEN */
     {0, 0, 0, NULL, NULL, 0}};
 

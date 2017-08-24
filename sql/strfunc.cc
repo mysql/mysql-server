@@ -48,7 +48,7 @@
 
 static const char field_separator=',';
 
-ulonglong find_set(TYPELIB *lib, const char *str, size_t length,
+ulonglong find_set(const TYPELIB *lib, const char *str, size_t length,
                    const CHARSET_INFO *cs,
                    char **err_pos, uint *err_len, bool *set_warning)
 {

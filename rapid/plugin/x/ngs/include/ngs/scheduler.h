@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -20,12 +20,13 @@
 #ifndef _NGS_SCHEDULER_H_
 #define _NGS_SCHEDULER_H_
 
-#include "ngs/thread.h"
-#include "ngs/memory.h"
-#include "ngs_common/atomic.h"
+#include <list>
 #include <string>
 #include <vector>
-#include <list>
+
+#include "plugin/x/ngs/include/ngs/memory.h"
+#include "plugin/x/ngs/include/ngs/thread.h"
+#include "plugin/x/ngs/include/ngs_common/atomic.h"
 
 
 namespace ngs

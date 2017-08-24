@@ -53,7 +53,7 @@
 
 #include <util/ndbzio.h>
 
-#include <my_sys.h>
+#include "my_sys.h"
 
 #ifdef HAVE_VALGRIND
 #include <valgrind/memcheck.h>
@@ -1054,7 +1054,7 @@ int ndbzclose (ndbzio_stream *s)
   return destroy(s);
 }
 
-#include <my_dir.h>  // MY_STAT, my_fstat
+#include "my_dir.h"  // MY_STAT, my_fstat
 
 int ndbz_file_size(ndbzio_stream *s, size_t *size)
 {

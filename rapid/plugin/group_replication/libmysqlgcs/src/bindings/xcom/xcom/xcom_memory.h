@@ -16,6 +16,9 @@
 #ifndef XCOM_MEMORY_H
 #define XCOM_MEMORY_H
 
+#include <rpc/types.h>
+#include <rpc/xdr.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif

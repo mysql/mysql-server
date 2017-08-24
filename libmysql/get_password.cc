@@ -22,12 +22,11 @@
 ** Ask for a password from tty
 ** This is an own file to avoid conflicts with curses
 */
-#include <m_ctype.h>
-#include <m_string.h>
-#include <my_sys.h>
-
+#include "m_ctype.h"
+#include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_sys.h"
 #include "mysql.h"
 #include "mysql/service_mysql_alloc.h"
 

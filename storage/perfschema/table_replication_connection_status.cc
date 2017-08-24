@@ -25,8 +25,6 @@
 
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "pfs_instr.h"
-#include "pfs_instr_class.h"
 #include "sql/log.h"
 #include "sql/rpl_group_replication.h"
 #include "sql/rpl_info.h"
@@ -35,6 +33,8 @@
 #include "sql/rpl_rli.h"
 #include "sql/rpl_slave.h"
 #include "sql/sql_parse.h"
+#include "storage/perfschema/pfs_instr.h"
+#include "storage/perfschema/pfs_instr_class.h"
 
 /*
   Callbacks implementation for GROUP_REPLICATION_CONNECTION_STATUS_CALLBACKS.

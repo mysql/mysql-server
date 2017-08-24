@@ -20,9 +20,9 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "heapdef.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "storage/heap/heapdef.h"
 #ifdef _WIN32
 #include <fcntl.h>
 #endif

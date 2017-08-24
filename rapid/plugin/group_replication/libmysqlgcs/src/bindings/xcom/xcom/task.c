@@ -31,12 +31,16 @@
 #define _GNU_SOURCE
 #endif
 
-#include "x_platform.h"
-#include "xcom_profile.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_profile.h"
 
 #ifdef XCOM_HAVE_OPENSSL
-#include "openssl/err.h"
-#include "openssl/ssl.h"
+#ifdef WIN32
+// In OpenSSL before 1.1.0, we need this first.
+#include <winsock2.h>
+#endif  // WIN32
+#include <openssl/err.h>
+#include <openssl/ssl.h>
 #endif
 
 #include <limits.h>
@@ -46,35 +50,36 @@
 #include <netdb.h>
 #endif
 
-#include <stdlib.h>
-#include "node_connection.h"
-#include "xcom_vp.h"
-
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
 #include <sys/types.h>
+
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_connection.h"
+#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
 #ifdef __sun
 #include <procfs.h>
 #endif
 
-#include "simset.h"
-#include "task.h"
-#include "task_debug.h"
-#include "task_net.h"
-#include "task_os.h"
-#include "xcom_cfg.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/simset.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_debug.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_net.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_os.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_cfg.h"
+
 #ifndef _WIN32
 #ifndef USE_SELECT
 #include <poll.h>
 #endif
 #endif
 
-#include "retry.h"
-#include "xdr_utils.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/retry.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xdr_utils.h"
 
 extern char *pax_op_to_str(int x);
 

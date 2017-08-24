@@ -125,9 +125,9 @@ Also called "key", "field", "subkey", "key part", "key segment" elsewhere.
 
 #include "sql/handler.h"    /* handler */
 #include "sql/table.h"      /* TABLE, TABLE_SHARE */
-#include "temptable/storage.h" /* temptable::Storage::Iterator */
-#include "temptable/table.h"   /* temptable::Table */
-#include "temptable/test.h"    /* TEMPTABLE_CPP_HOOKED_TESTS */
+#include "storage/temptable/include/temptable/storage.h" /* temptable::Storage::Iterator */
+#include "storage/temptable/include/temptable/table.h" /* temptable::Table */
+#include "storage/temptable/include/temptable/test.h" /* TEMPTABLE_CPP_HOOKED_TESTS */
 
 namespace temptable {
 

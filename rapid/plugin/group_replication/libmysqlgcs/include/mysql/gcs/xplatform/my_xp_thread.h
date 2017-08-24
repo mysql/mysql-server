@@ -18,8 +18,9 @@
 
 #ifndef XCOM_STANDALONE
 
-#include <my_thread.h>
-#include <my_sys.h>
+#include "my_thread.h"
+#include "mysql/psi/psi_thread.h"
+#include "my_sys.h"
 
 typedef my_thread_t        native_thread_t;
 typedef my_thread_handle   native_thread_handle;
@@ -30,7 +31,7 @@ typedef my_start_routine   native_start_routine;
 #define NATIVE_THREAD_CREATE_JOINABLE MY_THREAD_CREATE_JOINABLE
 #endif
 
-#include "mysql/gcs/xplatform/my_xp_cond.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/my_xp_cond.h"
 
 /**
   @class My_xp_thread
@@ -42,7 +43,7 @@ typedef my_start_routine   native_start_routine;
   @code{.cpp}
 
   My_xp_thread *thread= new My_xp_thread_impl();
-  thread->create(NULL, &function, &args);
+  thread->create(key, NULL, &function, &args);
 
   void *result;
   thread->join(&result);
@@ -55,25 +56,30 @@ public:
   /**
     Creates thread.
 
+    @param key thread instrumentation key
     @param attr thread attributes
     @param func routine function
     @param arg function parameters
     @return success status
   */
 
-  virtual int create(const native_thread_attr_t *attr,
+  virtual int create(PSI_thread_key key, const native_thread_attr_t *attr,
                      native_start_routine func, void *arg)= 0;
 
 
   /**
     Creates a detached thread.
 
+    @param key thread instrumentation key
+    @param attr thread attributes
     @param func routine function
     @param arg function parameters
     @return success status
   */
 
-  virtual int create_detached(native_start_routine func,
+  virtual int create_detached(PSI_thread_key key,
+                              native_thread_attr_t *attr,
+                              native_start_routine func,
                               void *arg)= 0;
 
 
@@ -115,9 +121,10 @@ public:
   explicit My_xp_thread_server();
   virtual ~My_xp_thread_server();
 
-  int create(const native_thread_attr_t *attr,
+  int create(PSI_thread_key key, const native_thread_attr_t *attr,
              native_start_routine func, void *arg);
-  int create_detached(native_start_routine func, void *arg);
+  int create_detached(PSI_thread_key key, native_thread_attr_t *attr,
+                      native_start_routine func, void *arg);
   int join(void **value_ptr);
   int cancel();
   native_thread_t *get_native_thread();
@@ -233,7 +240,7 @@ public:
 
   /**
     Causes the calling thread to relinquish the CPU, and to be moved to the
-    end of the queue for its static priority and another thread gets to run.
+    end of the queue and another thread gets to run.
   */
 
   static void yield();

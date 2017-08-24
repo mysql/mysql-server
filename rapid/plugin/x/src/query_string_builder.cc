@@ -18,7 +18,7 @@
  */
 
 
-#include "query_string_builder.h"
+#include "plugin/x/src/query_string_builder.h"
 
 #include <mutex>
 

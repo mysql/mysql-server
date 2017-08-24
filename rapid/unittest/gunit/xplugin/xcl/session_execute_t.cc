@@ -15,10 +15,10 @@
  * 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "message_helpers.h"
-#include "mock/query_result.h"
 #include "my_compiler.h"
-#include "session_t.h"
+#include "unittest/gunit/xplugin/xcl/message_helpers.h"
+#include "unittest/gunit/xplugin/xcl/mock/query_result.h"
+#include "unittest/gunit/xplugin/xcl/session_t.h"
 
 
 namespace xcl {

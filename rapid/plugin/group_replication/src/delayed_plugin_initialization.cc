@@ -13,14 +13,14 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "delayed_plugin_initialization.h"
+#include "plugin/group_replication/include/delayed_plugin_initialization.h"
 
 #include <mysql/group_replication_priv.h>
 #include <stddef.h>
 
 #include "my_dbug.h"
-#include "plugin.h"
-#include "plugin_psi.h"
+#include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/plugin_psi.h"
 
 using std::string;
 
@@ -165,8 +165,8 @@ int Delayed_initialization_thread::initialization_thread_handler()
     sql_command_interface= new Sql_service_command_interface();
     if (sql_command_interface->
             establish_session_connection(PSESSION_INIT_THREAD,
-                                         get_plugin_pointer()) ||
-        sql_command_interface->set_interface_user(GROUPREPL_USER))
+                                         GROUPREPL_USER,
+                                         get_plugin_pointer()))
     {
       /* purecov: begin inspected */
       log_message(MY_ERROR_LEVEL,

@@ -18,38 +18,37 @@
 
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
-#include <gtest/gtest.h>
-#include <gmock/gmock.h>
 
-#include "base_mock_handler.h"
-#include "base_mock_field.h"
-#include "fake_table.h"
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #include "sql/dd/types/charset.h"
 #include "sql/dd/types/collation.h"
 #include "sql/dd/types/column.h"
 #include "sql/dd/types/column_statistics.h"
 #include "sql/dd/types/column_type_element.h"
+#include "sql/dd/types/event.h"
 #include "sql/dd/types/foreign_key.h"
 #include "sql/dd/types/foreign_key_element.h"
 #include "sql/dd/types/index.h"
 #include "sql/dd/types/index_element.h"
+#include "sql/dd/types/parameter.h"
 #include "sql/dd/types/partition.h"
-#include "sql/dd/types/partition_value.h"
 #include "sql/dd/types/partition_index.h"
-
+#include "sql/dd/types/partition_value.h"
+#include "sql/dd/types/procedure.h"
 #include "sql/dd/types/schema.h"
 #include "sql/dd/types/table.h"
 #include "sql/dd/types/tablespace.h"
 #include "sql/dd/types/tablespace_file.h"
+#include "sql/dd/types/trigger.h"
 #include "sql/dd/types/view.h"
 #include "sql/dd/types/view_table.h"
-#include "sql/dd/types/event.h"
-#include "sql/dd/types/procedure.h"
-#include "sql/dd/types/parameter.h"
-#include "sql/dd/types/trigger.h"
-
 #include "sql/histograms/histogram.h"
+#include "sql/histograms/value_map.h"
+#include "unittest/gunit/base_mock_field.h"
+#include "unittest/gunit/base_mock_handler.h"
+#include "unittest/gunit/fake_table.h"
 
 class Json_wrapper;
 
@@ -436,7 +435,8 @@ inline void set_attributes(dd::Column_statistics *obj,
   obj->set_table_name("table");
   obj->set_column_name("column");
 
-  histograms::Value_map<longlong> value_map(&my_charset_numeric);
+  histograms::Value_map<longlong> value_map(&my_charset_numeric,
+                                            histograms::Value_map_type::INT);
   value_map.add_values(100, 10);
   value_map.add_values(-1, 10);
   value_map.add_values(1, 10);

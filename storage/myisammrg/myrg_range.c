@@ -1,5 +1,4 @@
-/* Copyright (c) 2002, 2004-2006 MySQL AB
-   Use is subject to license terms
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,7 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
-#include "myrg_def.h"
+#include "storage/myisammrg/myrg_def.h"
 
 ha_rows myrg_records_in_range(MYRG_INFO *info, int inx,
                               key_range *min_key, key_range *max_key)

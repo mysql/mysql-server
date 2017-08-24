@@ -27,8 +27,7 @@ ADD_DEFINITIONS(-DSTANDALONE_BINLOG)
 #  INCLUDE_DIRECTORIES(${GTEST_INCLUDE_DIRS})
 #ENDIF()
 
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
-                    ${CMAKE_SOURCE_DIR}/libbinlogevents/include
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/libbinlogevents/include
                     ${CMAKE_CURRENT_BINARY_DIR}/../libbinlogevents/include
                     ${CMAKE_SOURCE_DIR}/libbinlogevents/export)
 

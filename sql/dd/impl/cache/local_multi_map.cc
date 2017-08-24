@@ -15,9 +15,9 @@
 
 #include "sql/dd/cache/local_multi_map.h"
 
-#include "cache_element.h"                    // Cache_element
 #include "my_dbug.h"
 #include "sql/dd/cache/multi_map_base.h"
+#include "sql/dd/impl/cache/cache_element.h"  // Cache_element
 
 namespace dd {
 class Abstract_table;
@@ -25,6 +25,7 @@ class Charset;
 class Collation;
 class Column_statistics;
 class Event;
+class Resource_group;
 class Routine;
 class Schema;
 class Spatial_reference_system;
@@ -121,6 +122,7 @@ template class Local_multi_map<Charset>;
 template class Local_multi_map<Collation>;
 template class Local_multi_map<Column_statistics>;
 template class Local_multi_map<Event>;
+template class Local_multi_map<Resource_group>;
 template class Local_multi_map<Routine>;
 template class Local_multi_map<Schema>;
 template class Local_multi_map<Spatial_reference_system>;

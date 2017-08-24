@@ -489,8 +489,8 @@ Event_timed::fill_event_info(THD *thd, const dd::Event &event_obj,
   m_definer_user= make_lex_cstring(&mem_root, event_obj.definer_user());
   m_definer_host= make_lex_cstring(&mem_root, event_obj.definer_host());
 
-  m_created= event_obj.created();
-  m_modified= event_obj.last_altered();
+  m_created= event_obj.created(true);
+  m_modified= event_obj.last_altered(true);
 
   m_comment=make_lex_string(&mem_root, event_obj.comment());
   m_sql_mode= event_obj.sql_mode();

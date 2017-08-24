@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
 #ifndef GCS_GROUP_MANAGEMENT_INTERFACE_INCLUDED
 #define GCS_GROUP_MANAGEMENT_INTERFACE_INCLUDED
 
-#include "gcs_types.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_types.h"
 
 class Gcs_group_management_interface
 {

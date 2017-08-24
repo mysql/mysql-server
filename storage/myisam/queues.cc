@@ -23,7 +23,7 @@
   of queue_fix was implemented.
 */
 
-#include "queues.h"
+#include "storage/myisam/queues.h"
 
 #include <stddef.h>
 #include <stdio.h>
@@ -34,7 +34,7 @@
 #include "my_sys.h"
 #include "my_systime.h"
 #include "mysql/service_mysql_alloc.h"
-#include "myisamdef.h"
+#include "storage/myisam/myisamdef.h"
 
 static int resize_queue(QUEUE *queue, PSI_memory_key key, uint max_elements);
 

@@ -1483,6 +1483,9 @@ public:
   bool index_merge_union_allowed;
   bool index_merge_sort_union_allowed;
   bool index_merge_intersect_allowed;
+
+  /// Same value as JOIN_TAB::skip_records_in_range().
+  bool skip_records_in_range;
 };
 
 class TABLE_READ_PLAN;
@@ -3396,6 +3399,8 @@ int test_quick_select(THD *thd, Key_map keys_to_use,
     param.index_merge_intersect_allowed=
       param.index_merge_allowed &&
       thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT);
+
+    param.skip_records_in_range= tab->skip_records_in_range();
 
     init_sql_alloc(key_memory_test_quick_select_exec,
                    &alloc, thd->variables.range_alloc_block_size, 0);
@@ -6436,12 +6441,28 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
                                   key, key_part, false);
         trace_range.end(); // NOTE: ends the tracing scope
 
-        trace_idx.add("index_dives_for_eq_ranges", !param->use_index_statistics).
-          add("rowid_ordered", param->is_ror_scan).
+        /// No cost calculation when index dive is skipped.
+        if (param->skip_records_in_range)
+          trace_idx.add_alnum("index_dives_for_range_access",
+                              "skipped_due_to_force_index");
+        else
+          trace_idx.add("index_dives_for_eq_ranges",
+                        !param->use_index_statistics);
+
+        trace_idx.add("rowid_ordered", param->is_ror_scan).
           add("using_mrr", !(mrr_flags & HA_MRR_USE_DEFAULT_IMPL)).
-          add("index_only", read_index_only).
-          add("rows", found_records).
-          add("cost", cost);
+          add("index_only", read_index_only);
+
+        if (param->skip_records_in_range)
+        {
+          trace_idx.add_alnum("rows", "not applicable").
+            add_alnum("cost", "not applicable");
+        }
+        else
+        {
+          trace_idx.add("rows", found_records).
+            add("cost", cost);
+        }
       }
 #endif
 
@@ -10692,7 +10713,7 @@ static uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
         this range if the user requested it
       */
       if (param->use_index_statistics)
-        range->range_flag|= USE_INDEX_STATISTICS;
+        range->range_flag|= SKIP_RECORDS_IN_RANGE;
 
       /* 
         An equality range is a unique range (0 or 1 rows in the range)
@@ -10730,6 +10751,9 @@ static uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
 
   seq->param->range_count++;
   seq->param->max_key_part=max<uint>(seq->param->max_key_part,key_tree->part);
+
+  if (seq->param->skip_records_in_range)
+    range->range_flag|= SKIP_RECORDS_IN_RANGE;
 
   return 0;
 }

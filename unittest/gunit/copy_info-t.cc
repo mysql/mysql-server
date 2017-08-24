@@ -17,11 +17,11 @@
 #include <gtest/gtest.h>
 #include <stddef.h>
 
-#include "fake_table.h"
-#include "mock_field_timestamp.h"
 #include "my_inttypes.h"
 #include "sql/sql_data_change.h"
-#include "test_utils.h"
+#include "unittest/gunit/fake_table.h"
+#include "unittest/gunit/mock_field_timestamp.h"
+#include "unittest/gunit/test_utils.h"
 
 namespace copy_info_unittest {
 

@@ -20,9 +20,9 @@
 #ifndef _NGS_LISTENER_FACTORY_INTERFACE_H_
 #define _NGS_LISTENER_FACTORY_INTERFACE_H_
 
-#include "ngs/interface/listener_interface.h"
-#include "ngs/interface/socket_events_interface.h"
-#include "ngs/memory.h"
+#include "plugin/x/ngs/include/ngs/interface/listener_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/socket_events_interface.h"
+#include "plugin/x/ngs/include/ngs/memory.h"
 
 
 namespace ngs

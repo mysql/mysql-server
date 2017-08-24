@@ -68,7 +68,7 @@
 #include "sql/auth/auth_common.h"    // check_password_policy
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"         // current_thd
-#include "sql/dd/info_schema/stats.h"
+#include "sql/dd/info_schema/table_stats.h"
 #include "sql/dd/properties.h"       // dd::Properties
 #include "sql/dd/string_type.h"
 #include "sql/dd_sql_view.h"         // push_view_warning_or_error
@@ -76,6 +76,7 @@
 #include "sql/handler.h"
 #include "sql/key.h"
 #include "sql/mysqld.h"              // binary_keyword etc
+#include "resourcegroups/resource_group_mgr.h"  // num_vcpus
 #include "sql/rpl_gtid.h"
 #include "sql/sql_class.h"           // THD
 #include "sql/sql_error.h"
@@ -4803,6 +4804,18 @@ String *Item_func_get_dd_create_options::val_str(String *str)
       }
     }
 
+    if (p->exists("encrypt_type"))
+    {
+      dd::String_type opt_value;
+      p->get("encrypt_type", opt_value);
+      if (!opt_value.empty())
+      {
+        ptr=my_stpcpy(ptr, " ENCRYPTION=\"");
+        ptr=my_stpcpy(ptr, opt_value.c_str());
+        ptr=my_stpcpy(ptr, "\"");
+      }
+    }
+
     if (p->exists("stats_persistent"))
     {
       p->get_uint32("stats_persistent", &opt_value);
@@ -4900,14 +4913,14 @@ String *Item_func_internal_get_comment_or_error::val_str(String *str)
     else
       oss << "VIEW";
   }
-  else if (!thd->lex->m_IS_dyn_stat_cache.error().empty())
+  else if (!thd->lex->m_IS_table_stats.error().empty())
   {
     /*
       There could be error generated due to INTERNAL_*() UDF calls
       in I_S query. If there was a error found, we show that as
       part of COMMENT field.
     */
-    oss << thd->lex->m_IS_dyn_stat_cache.error();
+    oss << thd->lex->m_IS_table_stats.error();
   }
   else
   {
@@ -4917,6 +4930,92 @@ String *Item_func_internal_get_comment_or_error::val_str(String *str)
 
   DBUG_RETURN(str);
 }
+
+
+/*
+  The function return 'default' in case the dd::Properties string passed as
+  the argument 'str' does not contain 'nodegroup_id' key stored OR even
+  when the option string is empty.
+*/
+String *Item_func_get_partition_nodegroup::val_str(String *str)
+{
+  DBUG_ENTER("Item_func_get_partition_nodegroup::val_str");
+  null_value= FALSE;
+
+  String options;
+  String *options_ptr= args[0]->val_str(&options);
+  std::ostringstream oss("");
+
+  // If we have a option string.
+  if (options_ptr != nullptr)
+  {
+    // Prepare dd::Properties
+    std::unique_ptr<dd::Properties>
+      view_options(dd::Properties::parse_properties(options_ptr->c_ptr_safe()));
+
+    // Do we have nodegroup id ?
+    if (view_options->exists("nodegroup_id"))
+    {
+      uint32 value;
+
+      // Fetch nodegroup id.
+      view_options->get_uint32("nodegroup_id", &value);
+      oss << value;
+    }
+    else
+      oss << "default";
+  }
+  else
+    oss << "default";
+
+  // Copy the value to output string.
+  str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
+
+  DBUG_RETURN(str);
+}
+
+
+String *Item_func_internal_tablespace_type::val_str(String *str)
+{
+  DBUG_ENTER("Item_func_internal_tablespace_type::val_str");
+  dd::String_type result;
+
+  THD *thd= current_thd;
+  retrieve_tablespace_statistics(thd, args, &null_value);
+  if (null_value == false)
+  {
+    thd->lex->m_IS_tablespace_stats.get_stat(
+                dd::info_schema::enum_tablespace_stats_type::TS_TYPE,
+                &result);
+    str->copy(result.c_str(), result.length(), system_charset_info);
+
+    DBUG_RETURN(str);
+  }
+
+  DBUG_RETURN(nullptr);
+}
+
+
+String *Item_func_internal_tablespace_status::val_str(String *str)
+{
+  DBUG_ENTER("Item_func_internal_tablespace_status::val_str");
+  dd::String_type result;
+
+  THD *thd= current_thd;
+  retrieve_tablespace_statistics(thd, args, &null_value);
+  if (null_value == false)
+  {
+    thd->lex->m_IS_tablespace_stats.get_stat(
+                dd::info_schema::enum_tablespace_stats_type::TS_STATUS,
+                &result);
+    str->copy(result.c_str(), result.length(), system_charset_info);
+
+    DBUG_RETURN(str);
+  }
+
+  DBUG_RETURN(nullptr);
+}
+
 
 /**
   @brief
@@ -5073,4 +5172,53 @@ mysqld_collation_get_by_name(const char *name, CHARSET_INFO *name_cs)
   return cs;
 }
 
+
+String *Item_func_convert_cpu_id_mask::val_str(String *str)
+{
+  DBUG_ENTER("Item_func_convert_cpu_id_mask::val_str");
+  null_value= FALSE;
+
+  String  cpu_mask;
+  String *cpu_mask_str= args[0]->val_str(&cpu_mask);
+
+  if (cpu_mask_str == nullptr || cpu_mask_str->length() == 0)
+  {
+    null_value= TRUE;
+    DBUG_RETURN(nullptr);
+  }
+
+  std::ostringstream oss("");
+  cpu_mask_str->set_charset(&my_charset_bin);
+
+
+  int bit_start= -1, bit_end= -1;
+  int start_pos= cpu_mask_str->length() - 1;
+  bool first= true;
+  for (int i= start_pos; i >= 0; i--)
+  {
+    if (cpu_mask_str->ptr()[i] == '1')
+      bit_start == -1 ? (bit_start= bit_end= start_pos - i) : bit_end++;
+    else
+      if (bit_start != -1)
+      {
+        if (first)
+          first= false;
+        else
+          oss << ",";
+
+        if (bit_start == bit_end)
+          oss << bit_start;
+        else
+          oss << bit_start << "-" << bit_end;
+        bit_start= bit_end= -1;
+      }
+  }
+  if (oss.str().length() == 0)
+    oss << "0-"<<
+      resourcegroups::Resource_group_mgr::instance()->num_vcpus() - 1;
+
+  str->copy(oss.str().c_str(), oss.str().length(), &my_charset_bin);
+
+  DBUG_RETURN(str);
+}
 

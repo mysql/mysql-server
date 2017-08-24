@@ -8393,6 +8393,27 @@ static bool is_inplace_alter_impossible(TABLE *table,
     }
   }
 
+  /*
+    If we are changing the SRID modifier of a column, we must do a COPY.
+    But not if we are changing to the NULL SRID. In that case, we can do it
+    inplace (only metadata change, and no verification needed).
+  */
+  Alter_info *alter_info_nonconst= const_cast<Alter_info*>(alter_info);
+  List_iterator<Create_field> create_it(alter_info_nonconst->create_list);
+  Create_field *new_field_def;
+  while ((new_field_def= create_it++))
+  {
+    if (new_field_def->field != nullptr &&
+        new_field_def->field->type() == MYSQL_TYPE_GEOMETRY)
+    {
+      const Field_geom *field_geom=
+        down_cast<const Field_geom*>(new_field_def->field);
+
+      if (field_geom->get_srid() != new_field_def->m_srid &&
+          new_field_def->m_srid.has_value())
+        DBUG_RETURN(true);
+    }
+  }
   DBUG_RETURN(false);
 }
 
@@ -9116,7 +9137,7 @@ upgrade_old_temporal_types(THD *thd, Alter_info *alter_info)
         temporal_field->init(thd, def->field_name, sql_type, NULL, NULL,
                              (def->flags & NOT_NULL_FLAG), default_value,
                              update_value, &def->comment, def->change, NULL,
-                             NULL, 0, NULL))
+                             NULL, 0, NULL, def->m_srid))
       DBUG_RETURN(true);
 
     temporal_field->field= def->field;
@@ -10607,6 +10628,55 @@ private:
 
 
 /**
+  Check if we are changing the SRID specification on a geometry column that
+  has a spatial index. If that is the case, reject the change since allowing
+  geometries with different SRIDs in a spatial index will make the index
+  useless.
+
+  @param alter_info Structure describing the changes to be carried out.
+
+  @retval true if all of the geometry columns can be altered/changed as
+               requested
+  @retval false if the change is considered invalid
+*/
+static bool is_alter_geometry_column_valid(Alter_info *alter_info)
+{
+  Create_field *create_field;
+  List_iterator<Create_field> list_it(alter_info->create_list);
+
+  while ((create_field= list_it++))
+  {
+    if (create_field->change != nullptr &&
+        create_field->sql_type == MYSQL_TYPE_GEOMETRY &&
+        create_field->field->type() == MYSQL_TYPE_GEOMETRY)
+    {
+      const Field_geom *geom_field=
+        down_cast<const Field_geom*>(create_field->field);
+      const TABLE_SHARE *share= geom_field->table->s;
+      if (geom_field->get_srid() != create_field->m_srid)
+      {
+        /*
+          Check if there is a spatial index on this column. If that is the
+          case, reject the change.
+        */
+        for (uint i= 0; i < share->keys; ++i)
+        {
+          if (geom_field->key_start.is_set(i) &&
+              share->key_info[i].flags & HA_SPATIAL)
+          {
+            my_error(ER_CANNOT_ALTER_SRID_DUE_TO_INDEX, MYF(0),
+                     geom_field->field_name);
+            return false;
+          }
+        }
+      }
+    }
+  }
+  return true;
+}
+
+
+/**
   Alter table
 
   @param thd              Thread handle
@@ -11104,6 +11174,15 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   {
     DBUG_RETURN(true);
   }
+
+  /*
+    Check if we are changing the SRID specification on a geometry column that
+    has a spatial index. If that is the case, reject the change since allowing
+    geometries with different SRIDs in a spatial index will make the index
+    useless.
+  */
+  if (!is_alter_geometry_column_valid(alter_info))
+    DBUG_RETURN(true);
 
   if (set_table_default_charset(thd, create_info, *schema))
     DBUG_RETURN(true);

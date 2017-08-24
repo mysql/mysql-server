@@ -1,1 +1,2 @@
 --max-relay-log-size=4096
+--slave-preserve-commit-order=OFF

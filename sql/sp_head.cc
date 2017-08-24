@@ -1979,7 +1979,8 @@ Field *sp_head::create_result_field(size_t field_max_length,
                  m_return_field_def.is_unsigned,
                  m_return_field_def.decimals,
                  m_return_field_def.treat_bit_as_char,
-                 m_return_field_def.pack_length_override);
+                 m_return_field_def.pack_length_override,
+                 m_return_field_def.m_srid);
 
   field->gcol_info= m_return_field_def.gcol_info;
   field->stored_in_db= m_return_field_def.stored_in_db;

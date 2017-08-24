@@ -1447,4 +1447,96 @@ public:
   String *val_str(String *) override;
 };
 
+class Item_func_get_partition_nodegroup final : public Item_str_func
+{
+public:
+  Item_func_get_partition_nodegroup(const POS &pos, Item *a)
+    :Item_str_func(pos, a)
+  {}
+
+  bool resolve_type(THD *) override
+  {
+    // maximum string length of all options is expected
+    // to be less than 256 characters.
+    set_data_type_string(256, default_charset());
+    maybe_null= 1;
+
+    return false;
+  }
+
+  const char *func_name() const override
+  { return "internal_get_partition_nodegroup"; }
+
+  String *val_str(String *) override;
+};
+
+
+class Item_func_internal_tablespace_type : public Item_str_func
+{
+public:
+  Item_func_internal_tablespace_type(const POS &pos, Item *a, Item *b,
+                                     Item *c, Item *d)
+    :Item_str_func(pos, a, b, c, d)
+  {}
+
+  bool resolve_type(THD *) override
+  {
+    // maximum string length of all options is expected
+    // to be less than 256 characters.
+    set_data_type_string(256, default_charset());
+    maybe_null= 1;
+
+    return false;
+  }
+
+  const char *func_name() const override { return "internal_tablespace_type"; }
+  String *val_str(String *) override;
+};
+
+
+class Item_func_internal_tablespace_status : public Item_str_func
+{
+public:
+  Item_func_internal_tablespace_status(const POS &pos, Item *a, Item *b,
+                                       Item *c, Item *d)
+    :Item_str_func(pos, a, b, c, d)
+  {}
+
+  bool resolve_type(THD *) override
+  {
+    // maximum string length of all options is expected
+    // to be less than 256 characters.
+    set_data_type_string(256, default_charset());
+    maybe_null= 1;
+
+    return false;
+  }
+
+  const char *func_name() const override
+  { return "internal_tablespace_status"; }
+  String *val_str(String *) override;
+};
+
+
+class Item_func_convert_cpu_id_mask final : public Item_str_func
+{
+public:
+  Item_func_convert_cpu_id_mask(const POS &pos, Item *list)
+    :Item_str_func(pos, list)
+  {}
+
+  bool resolve_type(THD *) override
+  {
+    max_length= 1024;
+    maybe_null= false;
+    set_data_type_string(1024, &my_charset_bin);
+    return false;
+  }
+
+  const char *func_name() const override
+  {  return "convert_cpu_id_mask"; }
+
+  String *val_str(String *) override;
+};
+
 #endif /* ITEM_STRFUNC_INCLUDED */

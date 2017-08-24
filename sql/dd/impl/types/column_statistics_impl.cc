@@ -21,8 +21,8 @@
 #include <rapidjson/document.h>
 #include <rapidjson/prettywriter.h>
 
-#include "include/my_md5.h"                // array_to_hex
-#include "include/sha1.h"                  // compute_sha1_hash
+#include "my_md5.h"                // array_to_hex
+#include "sha1.h"                  // compute_sha1_hash
 #include "m_ctype.h"
 #include "m_string.h"                      // STRING_WITH_LEN
 #include "my_dbug.h"

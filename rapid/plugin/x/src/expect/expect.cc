@@ -17,16 +17,16 @@
  * 02110-1301  USA
  */
 
-#include "expect/expect.h"
+#include "plugin/x/src/expect/expect.h"
 
 #include <algorithm>
-#include <utility>
 #include <string>
+#include <utility>
 
-#include "expect/expect_condition.h"
-#include "expect/expect_condition_field.h"
-#include "ngs_common/protocol_protobuf.h"
-#include "xpl_error.h"
+#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "plugin/x/src/expect/expect_condition.h"
+#include "plugin/x/src/expect/expect_condition_field.h"
+#include "plugin/x/src/xpl_error.h"
 
 
 namespace xpl {

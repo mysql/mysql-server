@@ -16,11 +16,11 @@
 */
 
 #include <gtest/gtest.h>
-#include <my_bitmap.h>
-#include <my_thread.h>
 #include <sys/types.h>
 
+#include "my_bitmap.h"
 #include "my_inttypes.h"
+#include "my_thread.h"
 
 namespace my_bitmap_unittest {
 

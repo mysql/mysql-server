@@ -18,9 +18,9 @@
 
 #include <stddef.h>
 
-#include "i_serialized_object.h"
-#include "keyring_memory.h"
 #include "my_inttypes.h"
+#include "plugin/keyring/common/i_serialized_object.h"
+#include "plugin/keyring/common/keyring_memory.h"
 
 namespace keyring
 {

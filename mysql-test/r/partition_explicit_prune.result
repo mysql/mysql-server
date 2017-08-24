@@ -1020,10 +1020,10 @@ TRUNCATE TABLE t2;
 FLUSH STATUS;
 INSERT INTO t2 SELECT * FROM t1 PARTITION (subp3, `p10-99`, `p100-99999`);
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
-Handler_external_lock	4
+Handler_commit	3
+Handler_external_lock	8
 Handler_read_first	5
-Handler_read_key	5
+Handler_read_key	7
 Handler_read_next	5
 Handler_write	5
 FLUSH STATUS;

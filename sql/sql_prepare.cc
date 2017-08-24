@@ -133,6 +133,7 @@ When one supplies long data for a placeholder:
 #include "sql/opt_trace.h"      // Opt_trace_array
 #include "sql/protocol.h"
 #include "sql/psi_memory_key.h"
+#include "sql/resourcegroups/resource_group_mgr.h"
 #include "sql/session_tracker.h"
 #include "sql/set_var.h"        // set_var_base
 #include "sql/sp_cache.h"       // sp_cache_enforce_limit
@@ -3314,7 +3315,26 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
       rewrite_query_if_needed(thd);
       log_execute_line(thd);
       thd->binlog_need_explicit_defaults_ts= lex->binlog_need_explicit_defaults_ts;
+      resourcegroups::Resource_group *src_res_grp= nullptr;
+      resourcegroups::Resource_group *dest_res_grp= nullptr;
+      MDL_ticket *ticket= nullptr;
+      MDL_ticket *cur_ticket= nullptr;
+      auto mgr_ptr= resourcegroups::Resource_group_mgr::instance();
+      bool switched= mgr_ptr->switch_resource_group_if_needed(thd, &src_res_grp,
+                                                              &dest_res_grp,
+                                                              &ticket,
+                                                              &cur_ticket);
+
       error= mysql_execute_command(thd, true);
+
+      if (switched)
+        mgr_ptr->restore_original_resource_group(thd, src_res_grp,
+                                                 dest_res_grp);
+      thd->resource_group_ctx()->m_switch_resource_group_str[0]= '\0';
+      if (ticket != nullptr)
+        mgr_ptr->release_shared_mdl_for_resource_group(thd, ticket);
+      if (cur_ticket != nullptr)
+        mgr_ptr->release_shared_mdl_for_resource_group(thd, cur_ticket);
     }
   }
 

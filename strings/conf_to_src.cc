@@ -14,11 +14,12 @@
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 #include <fcntl.h>
-#include <m_ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
+
+#include "m_ctype.h"
 
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>

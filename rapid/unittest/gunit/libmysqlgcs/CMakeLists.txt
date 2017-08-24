@@ -24,7 +24,6 @@ ENDIF()
 INCLUDE_DIRECTORIES(
   SYSTEM
   ${GMOCK_INCLUDE_DIRS}
-  ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/rapid/plugin/group_replication/libmysqlgcs/include
   ${CMAKE_BINARY_DIR}/rapid/plugin/group_replication/libmysqlgcs/include
   ${CMAKE_BINARY_DIR}/rapid/plugin/group_replication/libmysqlgcs/xdr_gen

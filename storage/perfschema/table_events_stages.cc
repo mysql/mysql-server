@@ -25,12 +25,12 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_thread.h"
-#include "pfs_buffer_container.h"
-#include "pfs_events_stages.h"
-#include "pfs_instr.h"
-#include "pfs_instr_class.h"
-#include "pfs_timer.h"
 #include "sql/field.h"
+#include "storage/perfschema/pfs_buffer_container.h"
+#include "storage/perfschema/pfs_events_stages.h"
+#include "storage/perfschema/pfs_instr.h"
+#include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/pfs_timer.h"
 
 THR_LOCK table_events_stages_current::m_table_lock;
 

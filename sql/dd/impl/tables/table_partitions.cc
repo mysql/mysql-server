@@ -62,6 +62,9 @@ Table_partitions::Table_partitions()
   m_target_def.add_field(FIELD_ENGINE,
                          "FIELD_ENGINE",
                          "engine VARCHAR(64) NOT NULL");
+  m_target_def.add_field(FIELD_DESCRIPTION_UTF8,
+                         "FIELD_DESCRIPTION_UTF8",
+                         "description_utf8 TEXT");
   m_target_def.add_field(FIELD_COMMENT,
                          "FIELD_COMMENT",
                          "comment VARCHAR(2048) NOT NULL");
@@ -127,15 +130,13 @@ Object_key *Table_partitions::create_se_private_key(
   Object_id se_private_id)
 {
   const int SE_PRIVATE_ID_INDEX_ID= 3;
-  const int ENGINE_COLUMN_NO=5;
-  const int SE_PRIVATE_ID_COLUMN_NO= 9;
 
   return
     new (std::nothrow) Se_private_id_key(
       SE_PRIVATE_ID_INDEX_ID,
-      ENGINE_COLUMN_NO,
+      FIELD_ENGINE,
       engine,
-      SE_PRIVATE_ID_COLUMN_NO,
+      FIELD_SE_PRIVATE_ID,
       se_private_id);
 }
 /* purecov: end */

@@ -22,11 +22,11 @@
 
 #include <assert.h>
 
-#include "interface/authentication_interface.h"
-#include "interface/session_interface.h"
-#include "interface/protocol_encoder_interface.h"
 #include "my_inttypes.h"
-#include "ngs/thread.h"
+#include "plugin/x/ngs/include/ngs/interface/authentication_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/protocol_encoder_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/session_interface.h"
+#include "plugin/x/ngs/include/ngs/thread.h"
 
 namespace ngs
 {

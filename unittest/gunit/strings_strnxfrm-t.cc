@@ -45,11 +45,11 @@
 #include <utility>
 #include <vector>
 
-#include "benchmark.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "strnxfrm.h"
 #include "template_utils.h"
+#include "unittest/gunit/benchmark.h"
+#include "unittest/gunit/strnxfrm.h"
 
 using std::make_pair;
 using std::max;

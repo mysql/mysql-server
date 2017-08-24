@@ -20,7 +20,7 @@
 #ifndef _XPL_COMMON_STATUS_VARIABLES_H_
 #define _XPL_COMMON_STATUS_VARIABLES_H_
 
-#include "ngs_common/atomic.h"
+#include "plugin/x/ngs/include/ngs_common/atomic.h"
 
 
 namespace xpl

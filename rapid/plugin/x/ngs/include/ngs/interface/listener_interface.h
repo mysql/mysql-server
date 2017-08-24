@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -20,9 +20,10 @@
 #ifndef NGS_LISTENER_INTERFACE_H_
 #define NGS_LISTENER_INTERFACE_H_
 
-#include "violite.h"
-#include "ngs/thread.h"
 #include <vector>
+
+#include "plugin/x/ngs/include/ngs/thread.h"
+#include "violite.h"
 
 
 namespace ngs {

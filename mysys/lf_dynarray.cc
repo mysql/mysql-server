@@ -45,7 +45,7 @@
 #include "my_macros.h"
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysys_priv.h"
+#include "mysys/mysys_priv.h"
 
 void lf_dynarray_init(LF_DYNARRAY *array, uint element_size)
 {

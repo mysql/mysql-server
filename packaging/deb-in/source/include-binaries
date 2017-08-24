@@ -30,6 +30,7 @@ debian/extra/component_log_sink_json-plugin
 debian/extra/component_test_string_service_charset-plugin
 debian/extra/component_test_string_service_long-plugin
 debian/extra/component_test_string_service-plugin
+debian/extra/component_test_backup_lock_service-plugin
 debian/extra/component_pfs_example-plugin
 debian/extra/component_pfs_example_component_population-plugin
 debian/extra/pfs_example_plugin_employee-plugin

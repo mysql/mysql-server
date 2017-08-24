@@ -13,14 +13,13 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include "log_service_imp.h"
-
-#include "mysqld_error.h"  // so we can throw ER_LOG_SYSLOG_*
-
-#include <m_string.h>      // native_strncasecmp()/native_strcasecmp()
-#include "my_compiler.h"
-#include <my_sys.h>
 #include <mysql/components/services/log_builtins.h>
+
+#include "log_service_imp.h"
+#include "m_string.h"      // native_strncasecmp()/native_strcasecmp()
+#include "my_compiler.h"
+#include "my_sys.h"
+#include "mysqld_error.h"  // so we can throw ER_LOG_SYSLOG_*
 #ifndef _WIN32
 #  include <syslog.h>      // LOG_DAEMON etc. -- facility names
 

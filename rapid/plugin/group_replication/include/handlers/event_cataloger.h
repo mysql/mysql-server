@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,8 +16,9 @@
 #ifndef EVENT_CATALOGER_INCLUDE
 #define EVENT_CATALOGER_INCLUDE
 
-#include "applier.h"
 #include <mysql/group_replication_priv.h>
+
+#include "plugin/group_replication/include/applier.h"
 
 class Event_cataloger : public Event_handler
 {

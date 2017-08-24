@@ -22,8 +22,8 @@
 
 #include <sys/types.h>
 
-#include "ngs/command_delegate.h"
-#include "ngs/protocol_encoder.h"
+#include "plugin/x/ngs/include/ngs/command_delegate.h"
+#include "plugin/x/ngs/include/ngs/protocol_encoder.h"
 
 namespace xpl {
 class Callback_command_delegate : public ngs::Command_delegate {

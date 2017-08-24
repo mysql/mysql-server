@@ -3793,7 +3793,7 @@ DROP TABLE t1;
 --echo # Bug#47019: Assertion failed: 0, file .\rt_mbr.c, line 138 when 
 --echo # forcing a spatial index
 --echo #
-CREATE TABLE t1(a LINESTRING NOT NULL, SPATIAL KEY(a));
+CREATE TABLE t1(a LINESTRING NOT NULL SRID 0, SPATIAL KEY(a));
 INSERT INTO t1 VALUES
   (ST_GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)')),
   (ST_GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'));

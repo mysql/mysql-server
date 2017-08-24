@@ -41,7 +41,7 @@
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/clone_handler.h"
 #include "sql/dd/dd_table.h"                 // dd::recreate_table
-#include "sql/dd/info_schema/stats.h"        // dd::info_schema::update_*
+#include "sql/dd/info_schema/table_stats.h"  // dd::info_schema::update_*
 #include "sql/dd/types/abstract_table.h"     // dd::enum_table_type
 #include "sql/debug_sync.h"                  // DEBUG_SYNC
 #include "sql/derror.h"                      // ER_THD
@@ -1402,6 +1402,19 @@ bool Sql_cmd_analyze_table::handle_histogram_command(THD *thd,
         case Histogram_command::NONE:
           DBUG_ASSERT(false); /* purecov: deadcode */
           break;
+      }
+
+      if (!res)
+      {
+        /*
+          If a histogram was added, updated or removed, we will request the old
+          TABLE_SHARE to go away from the table definition cache. This is
+          beacuse histogram data is cached in the TABLE_SHARE, so we want new
+          transactions to fetch the updated data into the TABLE_SHARE before
+          using it again.
+        */
+        tdc_remove_table(thd, TDC_RT_REMOVE_UNUSED, table->db,
+                         table->table_name, false);
       }
     }
   }

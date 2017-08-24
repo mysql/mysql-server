@@ -6119,6 +6119,36 @@ void semijoin_types_allow_materialization(TABLE_LIST *sj_nest)
   DBUG_VOID_RETURN;
 }
 
+/**
+  Index dive can be skipped if the following conditions are satisfied:
+  F1) For a single table query:
+     a) FORCE INDEX applies to a single index.
+     b) No subquery is present.
+     c) Fulltext Index is not involved.
+     d) No GROUP-BY or DISTINCT clause.
+     e) No ORDER-BY clause.
+
+  F2) Not applicable to multi-table query.
+
+  F3) This optimization is not applicable to EXPLAIN queries.
+
+  @param tab   JOIN_TAB object.
+  @param thd   THD object.
+*/
+static bool check_skip_records_in_range_qualification(JOIN_TAB *tab, THD *thd)
+{
+    SELECT_LEX *select= thd->lex->current_select();
+    TABLE *table= tab->table();
+    return ((table->force_index &&
+             table->pos_in_table_list->index_hints->elements == 1) && // F1.a
+            select->parent_lex->is_single_level_stmt() &&             // F1.b
+            !select->has_ft_funcs() &&                                // F1.c
+            (!select->is_grouped() && !select->is_distinct()) &&      // F1.d
+            !select->is_ordered() &&                                  // F1.e
+            select->join_list->elements == 1 &&                       // F2
+            !thd->lex->describe);                                     // F3
+}
+
 
 /*****************************************************************************
   Create JOIN_TABS, make a guess about the table types,
@@ -6163,6 +6193,8 @@ static ha_rows get_quick_record_count(THD *thd, JOIN_TAB *tab, ha_rows limit)
     DBUG_RETURN(0);                           // Fatal error flag is set
 
   TABLE_LIST *const tl= tab->table_ref;
+  tab->set_skip_records_in_range(check_skip_records_in_range_qualification(tab,
+                                                                           thd));
 
   // Derived tables aren't filled yet, so no stats are available.
   if (!tl->uses_materialization())

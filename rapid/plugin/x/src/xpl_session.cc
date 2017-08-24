@@ -17,18 +17,18 @@
  * 02110-1301  USA
  */
 
-#include "xpl_session.h"
+#include "plugin/x/src/xpl_session.h"
 
-#include "crud_cmd_handler.h"
-#include "ngs_common/protocol_protobuf.h"
-#include "ngs/interface/client_interface.h"
-#include "ngs/ngs_error.h"
-#include "ngs/scheduler.h"
-#include "notices.h"
-#include "sql_data_context.h"
-#include "xpl_dispatcher.h"
-#include "xpl_log.h"
-#include "xpl_server.h"
+#include "plugin/x/ngs/include/ngs/interface/client_interface.h"
+#include "plugin/x/ngs/include/ngs/ngs_error.h"
+#include "plugin/x/ngs/include/ngs/scheduler.h"
+#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "plugin/x/src/crud_cmd_handler.h"
+#include "plugin/x/src/notices.h"
+#include "plugin/x/src/sql_data_context.h"
+#include "plugin/x/src/xpl_dispatcher.h"
+#include "plugin/x/src/xpl_log.h"
+#include "plugin/x/src/xpl_server.h"
 
 
 xpl::Session::Session(ngs::Client_interface &client, ngs::Protocol_encoder_interface *proto, const Session_id session_id)

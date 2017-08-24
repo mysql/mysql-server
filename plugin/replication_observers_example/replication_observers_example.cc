@@ -21,7 +21,6 @@
  */
 
 #include <assert.h>
-#include <current_thd.h>
 #include <mysql/group_replication_priv.h>
 #include <mysql/plugin.h>
 #include <mysql/service_my_plugin_log.h>
@@ -30,6 +29,7 @@
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "sql/current_thd.h"
 
 static MYSQL_PLUGIN plugin_info_ptr;
 

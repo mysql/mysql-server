@@ -13,10 +13,10 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include <sstream>
 #include <ios>
+#include <sstream>
 
-#include "member_version.h"
+#include "plugin/group_replication/include/member_version.h"
 
 Member_version::Member_version(unsigned int version)
 {

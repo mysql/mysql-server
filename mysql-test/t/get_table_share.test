@@ -590,6 +590,7 @@ SET DEBUG_SYNC= 'now SIGNAL cont_retry_TB1';
 --echo # and we know it's stopped at 'open_table_share_found'.
 --echo # The only issue left then is to make sure TB1 drops by the
 --echo # 'found_share' sync point, then signal TB2 to finish, and we're done:
+SET DEBUG_SYNC= 'now SIGNAL finish_TB2';
 SET DEBUG_SYNC= 'now WAIT_FOR found_TB1';
 SET DEBUG_SYNC= 'now SIGNAL finish_TB2';
 

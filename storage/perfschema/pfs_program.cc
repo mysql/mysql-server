@@ -30,12 +30,12 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "pfs_buffer_container.h"
-#include "pfs_global.h"
-#include "pfs_instr.h"
-#include "pfs_setup_object.h"
 #include "sql/mysqld.h" //system_charset_info
 #include "sql_string.h"
+#include "storage/perfschema/pfs_buffer_container.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_instr.h"
+#include "storage/perfschema/pfs_setup_object.h"
 
 LF_HASH program_hash;
 static bool program_hash_inited = false;

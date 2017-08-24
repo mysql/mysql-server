@@ -25,13 +25,13 @@
 
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "pfs_instr.h"
-#include "pfs_instr_class.h"
 #include "sql/field.h"
 #include "sql/log.h"
 #include "sql/rpl_group_replication.h"
 #include "sql/table.h"
-#include "table_helper.h"
+#include "storage/perfschema/pfs_instr.h"
+#include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/table_helper.h"
 #include "thr_lock.h"
 
 /*

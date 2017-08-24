@@ -15,10 +15,11 @@
 
 #include <mysql/plugin.h>
 #include <mysql_version.h>
-#include "pfs_example_employee_name.h"
-#include "pfs_example_employee_salary.h"
-#include "pfs_example_machine.h"
-#include "pfs_example_machines_by_emp_by_mtype.h"
+
+#include "plugin/pfs_table_plugin/pfs_example_employee_name.h"
+#include "plugin/pfs_table_plugin/pfs_example_employee_salary.h"
+#include "plugin/pfs_table_plugin/pfs_example_machine.h"
+#include "plugin/pfs_table_plugin/pfs_example_machines_by_emp_by_mtype.h"
 
 /**
   @page EXAMPLE_PLUGIN An example plugin

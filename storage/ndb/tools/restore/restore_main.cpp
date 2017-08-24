@@ -15,20 +15,20 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <ndb_global.h>
-#include <ndb_opts.h>
-#include <Vector.hpp>
-#include <Properties.hpp>
-#include <ndb_limits.h>
-#include <NdbTCP.h>
-#include <NdbOut.hpp>
-#include <OutputStream.hpp>
-#include <NDBT_ReturnCodes.h>
 #include <Logger.hpp>
+#include <NDBT_ReturnCodes.h>
+#include <NdbOut.hpp>
+#include <NdbTCP.h>
+#include <OutputStream.hpp>
+#include <Properties.hpp>
+#include <Vector.hpp>
+#include <ndb_global.h>
+#include <ndb_limits.h>
+#include <ndb_opts.h>
 
-#include "consumer_restore.hpp"
-#include "consumer_printer.hpp"
 #include "../src/ndbapi/NdbDictionaryImpl.hpp"
+#include "consumer_printer.hpp"
+#include "consumer_restore.hpp"
 
 #define TMP_TABLE_PREFIX "#sql"
 #define TMP_TABLE_PREFIX_LEN 4
@@ -562,7 +562,7 @@ makeExternalTableName(const BaseString &internalName)
   return externalName;
 }
 
-#include "../../../../sql/ndb_dist_priv_util.h"
+#include "sql/ndb_dist_priv_util.h"
 
 // Exclude privilege tables unless explicitely included
 void

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,9 +16,9 @@
 #ifndef COMPATIBILITY_MODULE_INCLUDED
 #define	COMPATIBILITY_MODULE_INCLUDED
 
-#include "member_version.h"
-
 #include <map>
+
+#include "plugin/group_replication/include/member_version.h"
 
 /* Possible outcomes when checking inter version compatibility */
 typedef enum st_compatibility_types

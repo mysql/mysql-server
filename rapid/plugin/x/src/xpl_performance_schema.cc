@@ -17,8 +17,9 @@
 * 02110-1301  USA
 */
 
-#include "xpl_performance_schema.h"
-#include "ngs/memory.h"
+#include "plugin/x/src/xpl_performance_schema.h"
+
+#include "plugin/x/ngs/include/ngs/memory.h"
 
 
 #ifdef HAVE_PSI_INTERFACE
@@ -53,7 +54,7 @@ static PSI_cond_info all_x_conds[] = {
 PSI_rwlock_key KEY_rwlock_x_client_list_clients = PSI_NOT_INSTRUMENTED;
 
 static PSI_rwlock_info all_x_rwlocks[] = {
-  { &KEY_rwlock_x_client_list_clients, "client_list_clients", 0 },
+  { &KEY_rwlock_x_client_list_clients, "client_list_clients", 0, 0, PSI_DOCUMENT_ME},
 };
 
 

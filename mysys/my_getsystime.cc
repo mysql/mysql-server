@@ -20,16 +20,17 @@
   with the highest possible resolution
 */
 
+#include "my_config.h"
+
 #include <time.h>
 
-#include "my_config.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #if HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
 #if defined(_WIN32)
-#include "my_static.h"
+#include "mysys/my_static.h"
 #endif
 
 #if defined(_WIN32)

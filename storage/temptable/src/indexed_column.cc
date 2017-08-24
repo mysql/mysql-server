@@ -20,7 +20,7 @@ TempTable Indexed Column implementation. */
 #include "my_dbug.h"               /* DBUG_ASSERT() */
 #include "sql/field.h"             /* Field */
 #include "sql/key.h"               /* KEY */
-#include "temptable/indexed_column.h" /* temptable::Indexed_column */
+#include "storage/temptable/include/temptable/indexed_column.h" /* temptable::Indexed_column */
 
 namespace temptable {
 

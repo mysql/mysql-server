@@ -17,10 +17,10 @@
 
 #include <gtest/gtest.h>
 
-#include "admin_cmd_arguments.h"
-#include "mysqlx_pb_wrapper.h"
-#include "xpl_error.h"
-#include "assert_error_code.h"
+#include "plugin/x/src/admin_cmd_arguments.h"
+#include "plugin/x/src/xpl_error.h"
+#include "unittest/gunit/xplugin/xpl/assert_error_code.h"
+#include "unittest/gunit/xplugin/xpl/mysqlx_pb_wrapper.h"
 
 namespace xpl {
 namespace test {

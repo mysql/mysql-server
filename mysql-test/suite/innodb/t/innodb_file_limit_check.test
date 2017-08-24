@@ -10,7 +10,7 @@ let $restart_parameters = restart: --innodb_open_files=1000000;
 -- source include/restart_mysqld.inc
 
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err;
-let SEARCH_PATTERN= \[Warning\] InnoDB: innodb_open_files should not be greater than the open_files_limit.;
+let SEARCH_PATTERN= \[Warning\] \[[^]]*\] InnoDB: innodb_open_files should not be greater than the open_files_limit.;
 --source include/search_pattern.inc
 
 SELECT 1 UNION SELECT * FROM t1  UNION SELECT * FROM t1  UNION

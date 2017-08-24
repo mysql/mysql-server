@@ -16,10 +16,10 @@
 #ifndef MYSQL_CHECKER_VER_2_0_H
 #define MYSQL_CHECKER_VER_2_0_H
 
-#include "checker.h"
-#include "digest.h"
 #include "my_inttypes.h"
 #include "my_io.h"
+#include "plugin/keyring/checker/checker.h"
+#include "plugin/keyring/digest.h"
 
 namespace keyring {
 

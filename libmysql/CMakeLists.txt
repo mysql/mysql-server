@@ -14,14 +14,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 INCLUDE_DIRECTORIES(
-  ${CMAKE_SOURCE_DIR}/include
-  ${CMAKE_BINARY_DIR}/include
-  ${CMAKE_SOURCE_DIR}/libmysql
-  ${CMAKE_SOURCE_DIR}/extra/regex
-  ${CMAKE_SOURCE_DIR}/strings
-  ${CMAKE_SOURCE_DIR}/libbinlogevents/include
-  ${SSL_INCLUDE_DIRS}
-  ${SSL_INTERNAL_INCLUDE_DIRS})
+  ${CMAKE_SOURCE_DIR}/libbinlogevents/include)
 ADD_DEFINITIONS(${SSL_DEFINES})
 
 SET(CLIENT_API_FUNCTIONS

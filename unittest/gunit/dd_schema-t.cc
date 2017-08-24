@@ -16,7 +16,6 @@
 #include <gtest/gtest.h>
 #include <stddef.h>
 
-#include "dd.h"
 #include "my_inttypes.h"
 #include "sql/dd/impl/dictionary_impl.h"
 #include "sql/dd/impl/raw/object_keys.h"
@@ -25,7 +24,8 @@
 #include "sql/dd/impl/transaction_impl.h"
 #include "sql/dd/impl/types/schema_impl.h"
 #include "sql/dd/types/object_type.h"
-#include "test_utils.h"
+#include "unittest/gunit/dd.h"
+#include "unittest/gunit/test_utils.h"
 
 
 /*
@@ -489,8 +489,8 @@ TEST_F(SchemaTest, GetSchema)
   // Catalog id not exposed in dd api yet
   EXPECT_TRUE(schema->name() == real_name);
   EXPECT_TRUE(schema->default_collation_id() == real_collation_id);
-  EXPECT_TRUE(schema->created() == real_created);
-  EXPECT_TRUE(schema->last_altered() == real_last_altered);
+  EXPECT_TRUE(schema->created(false) == real_created);
+  EXPECT_TRUE(schema->last_altered(false) == real_last_altered);
 
   // Commit transaction and cleanup.
   commit_transaction(ctx, schemata_table);

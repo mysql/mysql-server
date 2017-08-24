@@ -14,11 +14,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "i_sha2_password.h"            /* Internal classes */
-#include "mysql_com.h"                  /* generate_sha256_scramble */
-#include "sha2_password_common.h"       /* validate_sha256_scramble */
-#include "my_inttypes.h"                /* typedefs */
+#include "sql/auth/sha2_password_common.h" /* validate_sha256_scramble */
+
 #include "my_dbug.h"                    /* DBUG instrumentation */
+#include "my_inttypes.h"                /* typedefs */
+#include "mysql_com.h"                  /* generate_sha256_scramble */
+#include "sql/auth/i_sha2_password.h"   /* Internal classes */
 
 namespace sha2_password
 {

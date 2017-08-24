@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "replication_threads_api.h"
+#include "plugin/group_replication/include/replication_threads_api.h"
 
 #include "my_dbug.h"
 

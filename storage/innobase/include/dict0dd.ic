@@ -71,6 +71,8 @@ dd_get_space_id(const dd::Partition& partition)
 @param[in,out]	dd_tbl_name	table name buffer to be filled
 @param[in,out]	dd_part_name	partition name to be filled if not nullptr
 @param[in,out]	dd_sub_name	sub-partition name to be filled if not nullptr
+@param[in,out]	is_temp_part	true if it is a temporary partition name which
+				ends with "#tmp".
 @return true if table name is parsed properly, false if the table name
 is invalid */
 inline
@@ -80,7 +82,8 @@ dd_parse_tbl_name(
 	char*		dd_db_name,
 	char*		dd_tbl_name,
 	char*		dd_part_name,
-	char*		dd_sub_name)
+	char*		dd_sub_name,
+	bool*		is_temp_part)
 {
 	char	db_buf[MAX_DATABASE_NAME_LEN + 1];
 	char	tbl_buf[MAX_TABLE_NAME_LEN + 1];
@@ -94,13 +97,13 @@ dd_parse_tbl_name(
 	ut_ad(db_len <= MAX_DATABASE_NAME_LEN);
 	memcpy(db_buf, tbl_name, db_len);
 	db_buf[db_len] = 0;
-	memcpy(tbl_buf, tbl_name + db_len + 1,
-	       strlen(tbl_name) - db_len - 1);
+
+	memcpy(tbl_buf, tbl_name + db_len + 1, strlen(tbl_name) - db_len - 1);
 	tbl_buf[strlen(tbl_name) - db_len - 1] = 0;
 
 	path_to_tablename(db_buf, dd_db_name, MAX_DATABASE_NAME_LEN + 1, true);
 
-	auto	is_part = strstr(tbl_buf, PARTITION_SEPARATOR);
+	auto	is_part = strstr(tbl_buf, PARTN_SEPARATOR);
 
 	if (is_part != nullptr) {
 		*is_part = '\0';
@@ -113,32 +116,34 @@ dd_parse_tbl_name(
 	}
 
 	auto	is_sub = strstr(
-		is_part + sizeof(PARTITION_SEPARATOR),
-		SUB_PARTITION_SEPARATOR);
+		is_part + PARTN_SEPARATOR_LEN, SUB_PARTN_SEPARATOR);
 
 	if (is_sub == nullptr) {
-		trailing_sharp = strchr(
-			is_part + sizeof(PARTITION_SEPARATOR), '#');
+		trailing_sharp = strchr(is_part + PARTN_SEPARATOR_LEN, '#');
 	} else {
 		*is_sub = '\0';
-		trailing_sharp = strchr(
-			is_sub + sizeof(SUB_PARTITION_SEPARATOR), '#');
+		trailing_sharp = strchr(is_sub + SUB_PARTN_SEPARATOR_LEN, '#');
 	}
 
 	if (trailing_sharp != nullptr) {
+		ut_ad(strcmp(trailing_sharp, "#tmp") == 0);
 		*trailing_sharp = '\0';
+
+		if (is_temp_part != nullptr) {
+			*is_temp_part = true;
+		}
 	}
 
-	if (is_part != nullptr && dd_part_name!= nullptr ) {
+	if (is_part != nullptr && dd_part_name != nullptr ) {
 
 		filename_to_tablename(
-			is_part + sizeof(PARTITION_SEPARATOR),
+			is_part + PARTN_SEPARATOR_LEN,
 			dd_part_name, MAX_TABLE_NAME_LEN + 1);
 
-		if (is_sub != nullptr && dd_sub_name!= nullptr ) {
+		if (is_sub != nullptr && dd_sub_name != nullptr ) {
 
 			filename_to_tablename(
-				is_sub + sizeof(SUB_PARTITION_SEPARATOR),
+				is_sub + SUB_PARTN_SEPARATOR_LEN,
 				dd_sub_name, MAX_TABLE_NAME_LEN + 1);
 		}
 	}

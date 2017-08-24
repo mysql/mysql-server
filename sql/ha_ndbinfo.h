@@ -16,7 +16,7 @@
 #ifndef HA_NDBINFO_H
 #define HA_NDBINFO_H
 
-#include "handler.h"
+#include "sql/handler.h"
 
 class ha_ndbinfo: public handler
 {

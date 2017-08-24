@@ -2501,6 +2501,7 @@ files_checked:
 						dict_sys_t::s_space_id,
 						predefined_flags,
 						dict_sys_t::s_dd_space_name,
+						dict_sys_t::s_dd_space_name,
 						dict_sys_t::s_dd_space_file_name,
 						true);
 					if (error != DB_SUCCESS) {

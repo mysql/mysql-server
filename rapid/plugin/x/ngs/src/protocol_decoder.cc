@@ -15,14 +15,14 @@
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 // 02110-1301  USA
 
-#include "ngs/protocol_decoder.h"
+#include "plugin/x/ngs/include/ngs/protocol_decoder.h"
 
 #include <stddef.h>
 #include <new>
 
-#include "ngs/log.h"
-#include "ngs/ngs_error.h"
-#include "ngs_common/protocol_protobuf.h"
+#include "plugin/x/ngs/include/ngs/log.h"
+#include "plugin/x/ngs/include/ngs/ngs_error.h"
+#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
 
 
 using namespace ngs;

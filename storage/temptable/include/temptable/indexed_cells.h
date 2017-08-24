@@ -24,10 +24,10 @@ TempTable Indexed Cells declaration. */
 
 #include "sql/key.h"        /* KEY */
 #include "sql/sql_const.h"  /* MAX_REF_PARTS */
-#include "temptable/cell.h"    /* temptable::Cell */
-#include "temptable/column.h"  /* temptable::Columns */
-#include "temptable/row.h"     /* temptable::Row */
-#include "temptable/storage.h" /* temptable::Storage::Element */
+#include "storage/temptable/include/temptable/cell.h" /* temptable::Cell */
+#include "storage/temptable/include/temptable/column.h" /* temptable::Columns */
+#include "storage/temptable/include/temptable/row.h" /* temptable::Row */
+#include "storage/temptable/include/temptable/storage.h" /* temptable::Storage::Element */
 
 namespace temptable {
 

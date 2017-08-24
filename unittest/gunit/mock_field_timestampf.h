@@ -16,8 +16,8 @@
 #ifndef MOCK_FIELD_TIMESTAMPF_H
 #define MOCK_FIELD_TIMESTAMPF_H
 
-#include "fake_table.h"
 #include "sql/field.h"
+#include "unittest/gunit/fake_table.h"
 
 class Mock_field_timestampf : public Field_timestampf
 {

@@ -40,7 +40,7 @@
 #include "my_io.h"
 #include "my_macros.h"
 #include "mysql/service_my_snprintf.h"
-#include "vio_priv.h"
+#include "vio/vio_priv.h"
 
 #ifdef FIONREAD_IN_SYS_FILIO
 # include <sys/filio.h>

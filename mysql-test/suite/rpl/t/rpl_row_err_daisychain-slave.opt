@@ -1,1 +1,1 @@
---binlog-format=statement --log-slave-updates
+--binlog-format=statement

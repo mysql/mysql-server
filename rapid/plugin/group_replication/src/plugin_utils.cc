@@ -13,10 +13,10 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "plugin_utils.h"
+#include "plugin/group_replication/include/plugin_utils.h"
 
 #include "my_inttypes.h"
-#include "plugin.h"
+#include "plugin/group_replication/include/plugin.h"
 
 using std::vector;
 

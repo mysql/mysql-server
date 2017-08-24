@@ -79,12 +79,26 @@ using Space_id_set = std::set<space_id_t>;
 /** Used for collecting the data in boot_tablespaces() */
 namespace dd_fil {
 
-	static const size_t OBJECT_ID = 0;
-	static const size_t OLD_PATH = 2;
-	static const size_t NEW_PATH = 3;
+	enum {
+		/** DD Object ID */
+		OBJECT_ID,
+
+		/** InnoDB tablspace ID */
+		SPACE_ID,
+
+		/** DD/InnoDB tablespace name */
+		SPACE_NAME,
+
+		/** Path in DD tablespace */
+		OLD_PATH,
+
+		/** Path where it was found during the scan. */
+		NEW_PATH
+	};
 
 	using Moved = std::tuple<
-		dd::Object_id, space_id_t, std::string, std::string>;
+		dd::Object_id, space_id_t,
+		std::string, std::string, std::string>;
 
 	using Tablespaces = std::vector<Moved>;
 }
@@ -1226,16 +1240,18 @@ public:
 	/** Note that a file has been relocated.
 	@param[in]	object_id	Server DD tablespace ID
 	@param[in]	space_id	InnoDB tablespace ID
+	@param[in]	space_name	Tablespace name
 	@param[in]	old_path	Path to the old location
 	@param[in]	new_path	Path scanned from disk */
 	void moved(
 		dd::Object_id		object_id,
 		space_id_t		space_id,
+		const char*		space_name,
 		const std::string&	old_path,
 		const std::string&	new_path)
 	{
 		auto	tuple = std::make_tuple(
-			object_id, space_id, old_path, new_path);
+			object_id, space_id, space_name, old_path, new_path);
 
 		m_moved.push_back(tuple);
 	}
@@ -1391,6 +1407,14 @@ public:
 	void extend_tablespaes_to_stored_len();
 #endif /* !UNIV_HOTBACKUP */
 
+	/** Rename a tablespace by its name only
+	@param[in]	old_name	old tablespace name
+	@param[in]	new_name	new tablespace name
+	@return DB_SUCCESS on success */
+	dberr_t rename_tablespace_name(
+		const char*	old_name,
+		const char*	new_name)
+		MY_ATTRIBUTE((warn_unused_result));
 private:
 	/** Fil_shards managed */
 	Fil_shards		m_shards;
@@ -4918,6 +4942,97 @@ fil_rename_tablespace(
 	return(success);
 }
 
+/** Rename a tablespace by its name only
+@param[in]	old_name	old tablespace name
+@param[in]	new_name	new tablespace name
+@return DB_SUCCESS on success */
+dberr_t
+Fil_system::rename_tablespace_name(const char* old_name, const char* new_name)
+{
+	mutex_acquire_all();
+
+	Fil_shard*	old_shard = nullptr;
+	fil_space_t*	old_space = nullptr;
+
+	for (auto shard : m_shards) {
+
+		old_space = shard->get_space_by_name(old_name);
+
+		if (old_space != nullptr) {
+			old_shard = shard;
+			break;
+		}
+	}
+
+	if (old_space == nullptr) {
+
+		mutex_release_all();
+
+		ib::error()
+			<< "Cannot find tablespace for '" << old_name << "'"
+			<< " in tablespace memory cache";
+
+		return(DB_ERROR);
+	}
+
+	Fil_shard*	new_shard = nullptr;
+	fil_space_t*	new_space = nullptr;
+
+	for (auto shard : m_shards) {
+
+		new_space = shard->get_space_by_name(new_name);
+
+		if (new_space != nullptr) {
+			new_shard = shard;
+			break;
+		}
+	}
+
+	if (new_space != nullptr) {
+
+		mutex_release_all();
+
+		if (new_space->id != old_space->id) {
+
+			ib::error()
+				<< "'" << new_name << "'"
+				<< " is already in the tablespace"
+				<< " memory cache";
+
+			return(DB_ERROR);
+		} else {
+			ut_a(new_shard == old_shard);
+		}
+
+		return(DB_SUCCESS);
+	}
+
+	auto	new_space_name = mem_strdup(new_name);
+	auto	old_space_name = old_space->name;
+
+	old_shard->update_space_name_map(old_space, new_space_name);
+
+	old_space->name = new_space_name;
+
+	mutex_release_all();
+
+	ut_free(old_space_name);
+
+	return(DB_SUCCESS);
+}
+
+/** Rename a tablespace by its name only
+@param[in]	old_name	old tablespace name
+@param[in]	new_name	new tablespace name
+@return DB_SUCCESS on success */
+dberr_t
+fil_rename_tablespace_by_name(
+	const char*     old_name,
+	const char*	new_name)
+{
+	return(fil_system->rename_tablespace_name(old_name, new_name));
+}
+
 /** Create a tablespace file.
 @param[in]	space_id	Tablespace ID
 @param[in]	name		Tablespace name in dbname/tablename format.
@@ -5222,6 +5337,8 @@ The fil_node_t::handle will not be left open.
 @param[in]	space_name	tablespace name of the datafile
 				If file-per-table, it is the table name in
 				the databasename/tablename format
+@param[in]	table_name	table name in case if need to construct
+				file path
 @param[in]	path_in		expected filepath, usually read from dictionary
 @param[in]	strict		whether to report error when open ibd failed
 @return DB_SUCCESS or error code */
@@ -5232,6 +5349,7 @@ fil_ibd_open(
 	space_id_t	space_id,
 	ulint		flags,
 	const char*	space_name,
+	const char*	table_name,
 	const char*	path_in,
 	bool		strict)
 {
@@ -5246,10 +5364,11 @@ fil_ibd_open(
 	}
 
 	df.init(space_name, flags);
-	df.make_filepath(nullptr, space_name, IBD);
 
 	if (path_in) {
 		df.set_filepath(path_in);
+	} else {
+		df.make_filepath(NULL, table_name, IBD);
 	}
 
 	/* Attempt to open the tablespace at the dictionary filepath. */
@@ -8337,6 +8456,7 @@ is ignored when testing for equality. Only the path up to the file name is
 considered for matching: e.g. ./test/a.ibd == ./test/b.ibd.
 @param[in]	dd_object_id	Server DD tablespace ID
 @param[in]	space_id	Tablespace ID to lookup
+@param[in]	space_name	Tablespace name
 @param[in]	old_path	Path in the data dictionary
 @param[out]	new_path	New path if scanned path not equal to path
 @return status of the match. */
@@ -8344,6 +8464,7 @@ Fil_state
 fil_tablespace_path_equals(
 	dd::Object_id	dd_object_id,
 	space_id_t	space_id,
+	const char*	space_name,
 	const char*	old_path,
 	std::string*	new_path)
 {
@@ -8413,7 +8534,8 @@ fil_tablespace_path_equals(
 			*new_path = result.first + result.second->front();
 
 			fil_system->moved(
-				dd_object_id, space_id, old_path, *new_path);
+				dd_object_id, space_id, space_name,
+				old_path, *new_path);
 
 			return(Fil_state::MOVED);
 		} else{
@@ -9959,11 +10081,12 @@ Fil_system::prepare_open_for_business(bool read_only_mode)
 		dberr_t	err;
 
 		auto	old_path = std::get<dd_fil::OLD_PATH>(tablespace);
+		auto	space_name = std::get<dd_fil::SPACE_NAME>(tablespace);
 		auto	new_path = std::get<dd_fil::NEW_PATH>(tablespace);
 		auto	object_id = std::get<dd_fil::OBJECT_ID>(tablespace);
 
-		err = dd_tablespace_update_filename(
-			object_id, new_path.c_str());
+		err = dd_rename_tablespace(
+			object_id, space_name.c_str(), new_path.c_str());
 
 		if (err != DB_SUCCESS) {
 

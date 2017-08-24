@@ -17,14 +17,12 @@
 ///
 /// This file implements the union functor and function.
 
-#include "union_functor.h"
-
+#include <boost/geometry.hpp>
 #include <memory>  // std::unique_ptr
 
-#include <boost/geometry.hpp>
-
-#include "geometries.h"
-#include "geometries_traits.h"
+#include "sql/gis/geometries.h"
+#include "sql/gis/geometries_traits.h"
+#include "sql/gis/union_functor.h"
 
 namespace bg = boost::geometry;
 

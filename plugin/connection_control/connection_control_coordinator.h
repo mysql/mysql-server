@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,8 +16,8 @@
 #ifndef CONNECTION_CONTROL_COORDINATOR_H
 #define CONNECTION_CONTROL_COORDINATOR_H
 
-#include "connection_control_interfaces.h" /* Connection_event_coordinator_services */
-#include "connection_control_memory.h"  /* Connection_control_alloc */
+#include "plugin/connection_control/connection_control_interfaces.h" /* Connection_event_coordinator_services */
+#include "plugin/connection_control/connection_control_memory.h" /* Connection_control_alloc */
 
 namespace connection_control
 {

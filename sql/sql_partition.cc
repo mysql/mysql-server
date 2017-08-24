@@ -2420,7 +2420,7 @@ int expr_to_string(String *val_conv,
   if (get_cs_converted_part_value_from_string(current_thd,
                                               item_expr, res,
                                               val_conv, field_cs,
-                                              (bool)(create_fields != NULL)))
+                                              false))
   {
       return 1;
   }

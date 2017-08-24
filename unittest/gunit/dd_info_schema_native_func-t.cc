@@ -21,7 +21,7 @@
 #include "sql/item_func.h"
 #include "sql/item_timefunc.h"
 #include "sql/parse_tree_helpers.h"
-#include "test_utils.h"
+#include "unittest/gunit/test_utils.h"
 
 namespace dd_info_schema_native_func {
 using my_testing::Server_initializer;
@@ -207,5 +207,57 @@ TEST_F(ISNativeFuncTest, AllNullArguments)
   CREATE_ITEM(Item_func_get_dd_create_options, TWO_NULL_ARGS);
   // Empty string value is returned in this case.
   EXPECT_EQ(static_cast<size_t>(0), (item->val_str(&str))->length());
+
+  // INTERNAL_GET_PARTITION_NODEGROUP()
+  CREATE_ITEM(Item_func_get_partition_nodegroup, NULL_ARG);
+  EXPECT_EQ(0, strcmp((item->val_str(&str))->ptr(), "default"));
+
+  // INTERNAL_TABLESPACE_ID()
+  CREATE_ITEM(Item_func_internal_tablespace_id, FOUR_NULL_ARGS);
+  item->val_int();
+  EXPECT_EQ(1, item->null_value);
+
+  // INTERNAL_TABLESPACE_TYPE()
+  CREATE_ITEM(Item_func_internal_tablespace_type, FOUR_NULL_ARGS);
+  EXPECT_EQ(nullptr, item->val_str(&str));
+
+  // INTERNAL_TABLESPACE_FREE_EXTENTS()
+  CREATE_ITEM(Item_func_internal_tablespace_free_extents, FOUR_NULL_ARGS);
+  item->val_int();
+  EXPECT_EQ(1, item->null_value);
+
+  // INTERNAL_TABLESPACE_TOTAL_EXTENTS()
+  CREATE_ITEM(Item_func_internal_tablespace_total_extents, FOUR_NULL_ARGS);
+  item->val_int();
+  EXPECT_EQ(1, item->null_value);
+
+  // INTERNAL_TABLESPACE_EXTENT_SIZE()
+  CREATE_ITEM(Item_func_internal_tablespace_extent_size, FOUR_NULL_ARGS);
+  item->val_int();
+  EXPECT_EQ(1, item->null_value);
+
+  // INTERNAL_TABLESPACE_INITIAL_SIZE()
+  CREATE_ITEM(Item_func_internal_tablespace_initial_size, FOUR_NULL_ARGS);
+  item->val_int();
+  EXPECT_EQ(1, item->null_value);
+
+  // INTERNAL_TABLESPACE_MAXIMUM_SIZE()
+  CREATE_ITEM(Item_func_internal_tablespace_maximum_size, FOUR_NULL_ARGS);
+  item->val_int();
+  EXPECT_EQ(1, item->null_value);
+
+  // INTERNAL_TABLESPACE_AUTOEXTEND_SIZE()
+  CREATE_ITEM(Item_func_internal_tablespace_autoextend_size, FOUR_NULL_ARGS);
+  item->val_int();
+  EXPECT_EQ(1, item->null_value);
+
+  // INTERNAL_TABLESPACE_DATA_FREE()
+  CREATE_ITEM(Item_func_internal_tablespace_data_free, FOUR_NULL_ARGS);
+  item->val_int();
+  EXPECT_EQ(1, item->null_value);
+
+  // INTERNAL_TABLESPACE_STATUS()
+  CREATE_ITEM(Item_func_internal_tablespace_status, FOUR_NULL_ARGS);
+  EXPECT_EQ(nullptr, item->val_str(&str));
 }
 } //namespace

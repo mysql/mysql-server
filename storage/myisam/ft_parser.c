@@ -19,10 +19,10 @@
 #include <sys/types.h>
 
 #include "ctype.h"
-#include "ftdefs.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "storage/myisam/ftdefs.h"
 
 typedef struct st_ft_docstat {
   FT_WORD *list;

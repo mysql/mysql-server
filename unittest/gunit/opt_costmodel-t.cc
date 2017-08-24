@@ -20,11 +20,11 @@
 #include <gtest/gtest.h>
 #include <sys/types.h>
 
-#include "fake_table.h"
 #include "lex_string.h"
 #include "sql/opt_costconstantcache.h"
 #include "sql/opt_costmodel.h"
-#include "test_utils.h"
+#include "unittest/gunit/fake_table.h"
+#include "unittest/gunit/test_utils.h"
 
 
 namespace costmodel_unittest {

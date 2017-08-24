@@ -21,7 +21,7 @@
 #include <sys/types.h>
 
 #include "sql/log.h"
-#include "test_utils.h"
+#include "unittest/gunit/test_utils.h"
 
 namespace log_throttle_unittest {
 

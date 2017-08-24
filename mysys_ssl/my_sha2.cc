@@ -20,7 +20,7 @@
   oft-used external library, OpenSSL.
 */
 
-#include <sha2.h>
+#include "sha2.h"
 
 #ifdef HAVE_YASSL
 

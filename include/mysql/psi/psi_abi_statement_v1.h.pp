@@ -78,6 +78,9 @@ struct PSI_statement_locker_state_v1
   char m_schema_name[(64 * 3)];
   uint m_schema_name_length;
   uint m_cs_number;
+  const char *m_query_sample;
+  uint m_query_sample_length;
+  bool m_query_sample_truncated;
   PSI_sp_share *m_parent_sp_share;
   PSI_prepared_stmt *m_parent_prepared_stmt;
 };

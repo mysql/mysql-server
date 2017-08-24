@@ -181,8 +181,7 @@ Event *Schema_impl::create_event(THD *thd) const
 
   // Get statement start time.
   MYSQL_TIME curtime;
-  thd->variables.time_zone->gmt_sec_to_TIME(&curtime,
-                                            thd->query_start_in_secs());
+  my_tz_OFFSET0->gmt_sec_to_TIME(&curtime, thd->query_start_in_secs());
   ulonglong ull_curtime= TIME_to_ulonglong_datetime(&curtime);
 
   f->set_created(ull_curtime);
@@ -200,8 +199,7 @@ Function *Schema_impl::create_function(THD *thd) const
 
   // Get statement start time.
   MYSQL_TIME curtime;
-  thd->variables.time_zone->gmt_sec_to_TIME(&curtime,
-                                            thd->query_start_in_secs());
+  my_tz_OFFSET0->gmt_sec_to_TIME(&curtime, thd->query_start_in_secs());
   ulonglong ull_curtime= TIME_to_ulonglong_datetime(&curtime);
 
   f->set_created(ull_curtime);
@@ -219,8 +217,7 @@ Procedure *Schema_impl::create_procedure(THD *thd) const
 
   // Get statement start time.
   MYSQL_TIME curtime;
-  thd->variables.time_zone->gmt_sec_to_TIME(&curtime,
-                                            thd->query_start_in_secs());
+  my_tz_OFFSET0->gmt_sec_to_TIME(&curtime, thd->query_start_in_secs());
   ulonglong ull_curtime= TIME_to_ulonglong_datetime(&curtime);
 
   p->set_created(ull_curtime);
@@ -250,8 +247,7 @@ Table *Schema_impl::create_table(THD *thd) const
 
   // Get statement start time.
   MYSQL_TIME curtime;
-  thd->variables.time_zone->gmt_sec_to_TIME(&curtime,
-                                            thd->query_start_in_secs());
+  my_tz_OFFSET0->gmt_sec_to_TIME(&curtime, thd->query_start_in_secs());
   ulonglong ull_curtime= TIME_to_ulonglong_datetime(&curtime);
 
   // Set new table start time.
@@ -281,8 +277,7 @@ View *Schema_impl::create_view(THD *thd) const
 
   // Get statement start time.
   MYSQL_TIME curtime;
-  thd->variables.time_zone->gmt_sec_to_TIME(&curtime,
-                                            thd->query_start_in_secs());
+  my_tz_OFFSET0->gmt_sec_to_TIME(&curtime, thd->query_start_in_secs());
   ulonglong ull_curtime= TIME_to_ulonglong_datetime(&curtime);
 
   v->set_created(ull_curtime);
@@ -312,8 +307,7 @@ View *Schema_impl::create_system_view(THD *thd MY_ATTRIBUTE((unused))) const
 
   // Get statement start time.
   MYSQL_TIME curtime;
-  thd->variables.time_zone->gmt_sec_to_TIME(&curtime,
-                                            thd->query_start_in_secs());
+  my_tz_OFFSET0->gmt_sec_to_TIME(&curtime, thd->query_start_in_secs());
   ulonglong ull_curtime= TIME_to_ulonglong_datetime(&curtime);
 
   v->set_created(ull_curtime);

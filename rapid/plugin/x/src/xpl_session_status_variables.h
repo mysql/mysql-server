@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -20,7 +20,7 @@
 #ifndef _XPL_SESSION_STATUS_VARIABLES_H_
 #define _XPL_SESSION_STATUS_VARIABLES_H_
 
-#include "xpl_common_status_variables.h"
+#include "plugin/x/src/xpl_common_status_variables.h"
 
 
 namespace xpl

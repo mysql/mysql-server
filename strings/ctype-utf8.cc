@@ -26,13 +26,13 @@
 #include <type_traits>
 
 #include "m_ctype.h"
-#include "mb_wc.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_uctype.h"  // IWYU pragma: keep
+#include "strings/mb_wc.h"
 
 #ifndef EILSEQ
 #define EILSEQ ENOENT

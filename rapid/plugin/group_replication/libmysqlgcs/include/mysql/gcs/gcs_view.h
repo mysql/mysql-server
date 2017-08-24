@@ -16,12 +16,12 @@
 #ifndef GCS_VIEW_INCLUDED
 #define GCS_VIEW_INCLUDED
 
-#include "gcs_group_identifier.h"
-#include "gcs_view_identifier.h"
-#include "gcs_member_identifier.h"
-
-#include <vector>
 #include <string>
+#include <vector>
+
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_group_identifier.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_member_identifier.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_view_identifier.h"
 
 /**
   @class Gcs_view

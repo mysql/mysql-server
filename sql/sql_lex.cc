@@ -507,7 +507,6 @@ void LEX::reset()
   is_lex_started= true;
   used_tables= 0;
   reset_slave_info.all= false;
-  alter_tablespace_info= NULL;
   mi.channel= NULL;
 
   wild= NULL;
@@ -547,7 +546,8 @@ bool lex_start(THD *thd)
   DBUG_ASSERT(lex->current_select() == NULL);
   lex->m_current_select= lex->select_lex;
 
-  lex->m_IS_dyn_stat_cache.invalidate_cache();
+  lex->m_IS_table_stats.invalidate_cache();
+  lex->m_IS_tablespace_stats.invalidate_cache();
 
   DBUG_RETURN(status);
 }

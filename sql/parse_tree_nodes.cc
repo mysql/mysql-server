@@ -1651,7 +1651,8 @@ bool PT_column_def::contextualize(Table_ddl_parse_context *pc)
                                    field_def->charset,
                                    field_def->uint_geom_type,
                                    field_def->gcol_info,
-                                   opt_place);
+                                   opt_place,
+                                   field_def->m_srid);
 }
 
 
@@ -1951,7 +1952,8 @@ bool PT_alter_table_change_column::contextualize(Table_ddl_parse_context *pc)
                                    m_field_def->charset,
                                    m_field_def->uint_geom_type,
                                    m_field_def->gcol_info,
-                                            m_opt_place);
+                                   m_opt_place,
+                                   m_field_def->m_srid);
 }
 
 

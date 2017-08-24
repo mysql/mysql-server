@@ -15,10 +15,11 @@
  * 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "message_field_chain.h"
+#include "plugin/x/protocol/plugin/message_field_chain.h"
 
 #include <string>
-#include "protobuf/mysqlx.pb.h"
+
+#include "plugin/x/generated/protobuf/mysqlx.pb.h"
 
 
 void Message_field_chain::chain_message_and_its_children(

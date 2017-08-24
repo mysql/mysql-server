@@ -154,6 +154,7 @@ usr/lib/mysql/plugin/debug/component_test_sys_var_service_int.so
 usr/lib/mysql/plugin/debug/component_test_sys_var_service_same.so
 usr/lib/mysql/plugin/debug/component_pfs_example_component_population.so
 usr/lib/mysql/plugin/debug/component_test_sys_var_service_str.so
+usr/lib/mysql/plugin/debug/component_test_backup_lock_service.so
 usr/lib/mysql/plugin/debug/pfs_example_plugin_employee.so
 usr/lib/mysql/plugin/debug/component_pfs_example.so
 ")

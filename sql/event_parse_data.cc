@@ -45,42 +45,6 @@
 #include "sql_string.h"                         // validate_string
 
 
-/**
-   Check if the given string is invalid using the system charset.
-
-   @param string_val Reference to the string.
-
-   @return true if the string has an invalid encoding using
-                the system charset else false.
-*/
-
-static bool is_invalid_string(const LEX_STRING &string_val)
-{
-  size_t valid_len;
-  bool len_error;
-
-  if (validate_string(system_charset_info, string_val.str, string_val.length,
-                      &valid_len, &len_error))
-  {
-    char hexbuf[7];
-    octet2hex(hexbuf, string_val.str + valid_len,
-              std::min<size_t>(string_val.length - valid_len, 3));
-    my_error(ER_INVALID_CHARACTER_STRING, MYF(0), system_charset_info->csname,
-             hexbuf);
-    return true;
-  }
-  return false;
-}
-
-
-/*
-  Constructor
-
-  SYNOPSIS
-    Event_parse_data::Event_parse_data()
-*/
-
-
 
 /*
   Set a name of the event
@@ -520,7 +484,8 @@ Event_parse_data::check_parse_data(THD *thd)
                       item_execute_at, item_expression,
                       item_starts, item_ends));
 
-  if (is_invalid_string(comment))
+  if (is_invalid_string(to_lex_cstring(comment),
+                        system_charset_info))
     DBUG_RETURN(true);
 
   init_name(thd, identifier);

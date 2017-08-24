@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -20,8 +20,8 @@
 #ifndef NGS_OPERATIONS_FACTORY_H_
 #define NGS_OPERATIONS_FACTORY_H_
 
-#include "ngs_common/operations_factory_interface.h"
-#include "ngs_common/smart_ptr.h"
+#include "plugin/x/ngs/include/ngs_common/operations_factory_interface.h"
+#include "plugin/x/ngs/include/ngs_common/smart_ptr.h"
 
 
 namespace ngs {

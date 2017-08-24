@@ -13,10 +13,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "checker.h"
+#include "plugin/keyring/checker/checker.h"
 
-#include <memory>
 #include <mysql/psi/mysql_file.h>
+#include <memory>
 
 #include "my_compiler.h"
 

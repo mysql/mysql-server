@@ -22,7 +22,7 @@
 #include <map>
 #include <string>
 
-#include "common/utils_string_parsing.h"
+#include "plugin/x/tests/driver/common/utils_string_parsing.h"
 
 class Variable_container {
  public:

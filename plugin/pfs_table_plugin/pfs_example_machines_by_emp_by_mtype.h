@@ -16,11 +16,12 @@
 #ifndef PLUGIN_PFS_TABLE_MACHINES_BY_EMP_BY_MTYPE_H_
 #define PLUGIN_PFS_TABLE_MACHINES_BY_EMP_BY_MTYPE_H_
 
-#include <mysql/plugin.h>
 #include <mysql/components/service_implementation.h>
 #include <mysql/components/services/pfs_plugin_table_service.h>
-#include "pfs_example_machine.h"
-#include "pfs_example_employee_name.h"
+#include <mysql/plugin.h>
+
+#include "plugin/pfs_table_plugin/pfs_example_employee_name.h"
+#include "plugin/pfs_table_plugin/pfs_example_machine.h"
 
 /* Service handle */
 extern SERVICE_TYPE(pfs_plugin_table) * table_svc;

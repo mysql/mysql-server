@@ -2038,7 +2038,7 @@ bool start_slave_thread(
     while (start_id == *slave_run_id && thd != NULL)
     {
       DBUG_PRINT("sleep",("Waiting for slave thread to start"));
-      PSI_stage_info saved_stage= {0, "", 0};
+      PSI_stage_info saved_stage= {0, "", 0, ""};
       thd->ENTER_COND(start_cond, cond_lock,
                       & stage_waiting_for_slave_thread_to_start,
                       & saved_stage);
@@ -4212,8 +4212,6 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   thd->slave_thread = 1;
   thd->enable_slow_log= opt_log_slow_slave_statements;
   set_slave_thread_options(thd);
-  thd->get_protocol_classic()->set_client_capabilities(
-      CLIENT_LOCAL_FILES);
 
   /*
     Replication threads are:
@@ -4463,7 +4461,7 @@ static ulong read_event(MYSQL *mysql, MYSQL_RPL *rpl, Master_info *mi,
     LogErr(INFORMATION_LEVEL, ER_RPL_SLAVE_DUMP_THREAD_KILLED_BY_MASTER,
            mi->get_for_channel_str(),
            ::server_uuid,
-           mysql_error(mysql));
+           mysql_error(mysql)).force_print();
      DBUG_RETURN(packet_error);
   }
 
@@ -5574,7 +5572,7 @@ extern "C" void *handle_slave_io(void *arg)
            mi->get_for_channel_str(),
            mi->get_user(), mi->host, mi->port,
            mi->get_io_rpl_log_name(),
-           llstr(mi->get_master_log_pos(), llbuff));
+           llstr(mi->get_master_log_pos(), llbuff)).force_print();
   }
   else
   {
@@ -8567,7 +8565,7 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
                mi->get_for_channel_str(), mi->get_user(),
                mi->host, mi->port,
                mi->get_io_rpl_log_name(),
-               llstr(mi->get_master_log_pos(),llbuff));
+               llstr(mi->get_master_log_pos(),llbuff)).force_print();
     }
     else
     {
@@ -10608,7 +10606,7 @@ int change_master(THD* thd, Master_info* mi, LEX_MASTER_INFO* lex_mi,
            mi->get_for_channel_str(true),
            saved_host, saved_port, saved_log_name, (ulong) saved_log_pos,
            saved_bind_addr, mi->host, mi->port, mi->get_master_log_name(),
-           (ulong) mi->get_master_log_pos(), mi->bind_addr);
+           (ulong) mi->get_master_log_pos(), mi->bind_addr).force_print();
 
   if (have_execute_option)
     change_execute_options(lex_mi, mi);

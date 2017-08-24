@@ -77,14 +77,14 @@ Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t1	s1	161	4	Dynamic	0	General
 test/t2	s1	161	4	Dynamic	0	General
 test/t3	innodb_system	161	4	Dynamic	0	System
-test/t4	innodb_file_per_table.##	33	4	Dynamic	0	Single
+test/t4	test/t4	33	4	Dynamic	0	Single
 # Kill and restart
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t1	s1	161	4	Dynamic	0	General
 test/t2	s1	161	4	Dynamic	0	General
 test/t3	innodb_system	161	4	Dynamic	0	System
-test/t4	innodb_file_per_table.##	33	4	Dynamic	0	Single
+test/t4	test/t4	33	4	Dynamic	0	Single
 select * from t1;
 a
 11
@@ -131,14 +131,14 @@ Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/tr1	s1	161	4	Dynamic	0	General
 test/tr2	s1	161	4	Dynamic	0	General
 test/tr3	innodb_system	161	4	Dynamic	0	System
-test/tr4	innodb_file_per_table.##	33	4	Dynamic	0	Single
+test/tr4	test/tr4	33	4	Dynamic	0	Single
 # Kill and restart
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/tr1	s1	161	4	Dynamic	0	General
 test/tr2	s1	161	4	Dynamic	0	General
 test/tr3	innodb_system	161	4	Dynamic	0	System
-test/tr4	innodb_file_per_table.##	33	4	Dynamic	0	Single
+test/tr4	test/tr4	33	4	Dynamic	0	Single
 select * from tr1;
 a
 11

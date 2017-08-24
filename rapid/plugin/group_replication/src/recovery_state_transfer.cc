@@ -19,12 +19,12 @@
 
 #include "my_dbug.h"
 #include "my_systime.h"
-#include "plugin.h"
-#include "plugin_log.h"
-#include "plugin_psi.h"
-#include "plugin_server_include.h"
-#include "recovery_channel_state_observer.h"
-#include "recovery_state_transfer.h"
+#include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/plugin_log.h"
+#include "plugin/group_replication/include/plugin_psi.h"
+#include "plugin/group_replication/include/plugin_server_include.h"
+#include "plugin/group_replication/include/recovery_channel_state_observer.h"
+#include "plugin/group_replication/include/recovery_state_transfer.h"
 
 using std::string;
 

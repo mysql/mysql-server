@@ -25,13 +25,13 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_thread.h"
-#include "pfs_buffer_container.h"
-#include "pfs_events_waits.h"
-#include "pfs_global.h"
-#include "pfs_instr.h"
-#include "pfs_instr_class.h"
-#include "pfs_timer.h"
 #include "sql/field.h"
+#include "storage/perfschema/pfs_buffer_container.h"
+#include "storage/perfschema/pfs_events_waits.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_instr.h"
+#include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/pfs_timer.h"
 
 bool
 PFS_index_events_waits::match(PFS_thread *pfs)
@@ -496,6 +496,18 @@ table_events_waits_common::make_metadata_lock_object_columns(
       m_row.m_object_type_length = 9;
       m_row.m_object_schema_length = mdl->db_name_length();
       m_row.m_object_name_length = mdl->name_length();
+      break;
+    case MDL_key::BACKUP_LOCK:
+      m_row.m_object_type = "BACKUP_LOCK";
+      m_row.m_object_type_length = sizeof("BACKUP_LOCK") - 1;
+      m_row.m_object_schema_length = 0;
+      m_row.m_object_name_length = 0;
+      break;
+    case MDL_key::RESOURCE_GROUPS:
+      m_row.m_object_type= "RESOURCE_GROUPS";
+      m_row.m_object_type_length= 15;
+      m_row.m_object_schema_length= mdl->db_name_length();
+      m_row.m_object_name_length= mdl->name_length();
       break;
     case MDL_key::NAMESPACE_END:
     default:

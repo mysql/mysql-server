@@ -15,12 +15,12 @@
 
 #include <fcntl.h>
 #include <gtest/gtest.h>
-#include <m_string.h>
-#include <my_sys.h>
 #include <stddef.h>
 
+#include "m_string.h"
 #include "my_inttypes.h"
 #include "my_io.h"
+#include "my_sys.h"
 
 namespace mysys_my_symlink {
 

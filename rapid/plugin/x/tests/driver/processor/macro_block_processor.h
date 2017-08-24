@@ -21,9 +21,9 @@
 #include <memory>
 #include <string>
 
-#include "processor/block_processor.h"
-#include "processor/commands/macro.h"
-#include "processor/execution_context.h"
+#include "plugin/x/tests/driver/processor/block_processor.h"
+#include "plugin/x/tests/driver/processor/commands/macro.h"
+#include "plugin/x/tests/driver/processor/execution_context.h"
 
 
 class Macro_block_processor : public Block_processor {

@@ -20,13 +20,13 @@
 #ifndef XPL_SQL_DATA_CONTEXT_H_
 #define XPL_SQL_DATA_CONTEXT_H_
 
-#include "buffering_command_delegate.h"
 #include "mysql/service_command.h"
 #include "mysql/service_my_snprintf.h"
-#include "ngs_common/connection_type.h"
-#include "ngs/interface/sql_session_interface.h"
-#include "ngs/interface/protocol_encoder_interface.h"
-#include "streaming_command_delegate.h"
+#include "plugin/x/ngs/include/ngs/interface/protocol_encoder_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/sql_session_interface.h"
+#include "plugin/x/ngs/include/ngs_common/connection_type.h"
+#include "plugin/x/src/buffering_command_delegate.h"
+#include "plugin/x/src/streaming_command_delegate.h"
 
 // Use an internal MySQL server user
 #define MYSQL_SESSION_USER "mysql.session"

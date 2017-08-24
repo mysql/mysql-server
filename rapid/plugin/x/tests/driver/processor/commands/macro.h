@@ -23,9 +23,9 @@
 #include <string>
 #include <vector>
 
-#include "formatters/console.h"
-#include "processor/block_processor.h"
-#include "processor/script_stack.h"
+#include "plugin/x/tests/driver/formatters/console.h"
+#include "plugin/x/tests/driver/processor/block_processor.h"
+#include "plugin/x/tests/driver/processor/script_stack.h"
 
 
 class Execution_context;

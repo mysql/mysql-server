@@ -19,8 +19,8 @@
 #include <mysql/group_replication_priv.h>
 
 #include "my_inttypes.h"
-#include "pipeline_handlers.h"
-#include "replication_threads_api.h"
+#include "plugin/group_replication/include/handlers/pipeline_handlers.h"
+#include "plugin/group_replication/include/replication_threads_api.h"
 
 
 class Applier_handler : public Event_handler

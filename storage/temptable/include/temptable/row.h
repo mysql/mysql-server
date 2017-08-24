@@ -374,10 +374,10 @@ f7  | .   | from above (8/8)
 
 #include "my_dbug.h"          /* DBUG_ASSERT() */
 #include "sql/field.h"        /* Field */
-#include "temptable/allocator.h" /* temptable::Allocator */
-#include "temptable/cell.h"      /* temptable::Cell */
-#include "temptable/column.h"    /* temptable::Column, temptable::Columns */
-#include "temptable/result.h"    /* temptable::Result */
+#include "storage/temptable/include/temptable/allocator.h" /* temptable::Allocator */
+#include "storage/temptable/include/temptable/cell.h" /* temptable::Cell */
+#include "storage/temptable/include/temptable/column.h" /* temptable::Column, temptable::Columns */
+#include "storage/temptable/include/temptable/result.h" /* temptable::Result */
 
 namespace temptable {
 

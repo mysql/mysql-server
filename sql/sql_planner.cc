@@ -811,7 +811,7 @@ Optimize_table_order::calculate_scan_cost(const JOIN_TAB *tab,
     const float const_cond_filter=
       calculate_condition_filter(tab, NULL, 0,
                                  static_cast<double>(tab->found_records),
-                                 !disable_jbuf);
+                                 !disable_jbuf, true, *trace_access_scan);
 
     /*
       For high found_records values, multiplication by float may
@@ -1157,7 +1157,7 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
           calculate_condition_filter(tab, NULL,
                                      ~remaining_tables & ~excluded_tables,
                                      static_cast<double>(tab->found_records),
-                                     false);
+                                     false, false, trace_access_scan);
         filter_effect=
           static_cast<float>(std::min(1.0,
                                       tab->found_records * full_filter /
@@ -1193,7 +1193,7 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
     filter_effect=
       calculate_condition_filter(tab, best_ref,
                                  ~remaining_tables & ~excluded_tables,
-                                 rows_fetched, false);
+                                 rows_fetched, false, false, trace_access_scan);
 
   pos->filter_effect=   filter_effect;
   pos->rows_fetched=    rows_fetched;
@@ -1220,7 +1220,9 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
                                  const Key_use *const keyuse,
                                  table_map used_tables,
                                  double fanout,
-                                 bool is_join_buffering)
+                                 bool is_join_buffering,
+                                 bool write_to_trace,
+                                 Opt_trace_object &parent_trace)
 {
   /*
     Because calculating condition filtering has a cost, it should only
@@ -1296,6 +1298,12 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
   DBUG_ASSERT(bitmap_is_clear_all(&table->tmp_set));
 
   float filter= COND_FILTER_ALLPASS;
+
+  Opt_trace_context * const trace= &tab->join()->thd->opt_trace;
+
+  Opt_trace_disable_I_S disable_trace(trace, !write_to_trace);
+  Opt_trace_array filtering_effect_trace(trace, "filtering_effect");
+
 
   /*
     If ref/range access, the condition is already included in the
@@ -1444,7 +1452,8 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
       based on index statistics and guesstimates.
     */
     filter*=
-      tab->join()->where_cond->get_filtering_effect(tab->table_ref->map(),
+      tab->join()->where_cond->get_filtering_effect(tab->join()->thd,
+                                                    tab->table_ref->map(),
                                                     used_tables,
                                                     &table->tmp_set,
                                           static_cast<double>(tab->records()));
@@ -1474,6 +1483,9 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
     filter= 0.05f/static_cast<float>(fanout);
 
 cleanup:
+  filtering_effect_trace.end();
+  parent_trace.add("final_filtering_effect", filter);
+
   // Clear tmp_set so it can be used elsewhere
   bitmap_clear_all(&table->tmp_set);
   DBUG_ASSERT(filter >= 0.0f && filter <= 1.0f);
@@ -1840,7 +1852,7 @@ semijoin_loosescan_fill_driving_table_position(const JOIN_TAB  *tab,
       calculate_condition_filter(tab, pos->key,
                                 ~remaining_tables & ~excluded_tables,
                                 pos->rows_fetched,
-                                false);
+                                false, false, trace_ls);
     return true;
   }
 

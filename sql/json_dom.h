@@ -236,7 +236,9 @@ public:
 
     @return the depth of the document
   */
+#ifdef MYSQL_SERVER
   virtual uint32 depth() const= 0;
+#endif
 
   /**
     Make a deep clone. The ownership of the returned object is
@@ -297,6 +299,7 @@ public:
     @param[in] newv the new value to put in the container
   */
   /* purecov: begin deadcode */
+#ifdef MYSQL_SERVER
   virtual void
   replace_dom_in_container(const Json_dom *oldv MY_ATTRIBUTE((unused)),
                            Json_dom_ptr newv MY_ATTRIBUTE((unused)))
@@ -307,6 +310,7 @@ public:
     */
     DBUG_ASSERT(false);
   }
+#endif // ifdef MYSQL_SERVER
   /* purecov: end */
 
   /**
@@ -464,13 +468,17 @@ public:
   size_t cardinality() const;
 
   // See base class documentation.
+#ifdef MYSQL_SERVER
   uint32 depth() const;
+#endif
 
   // See base class documentation.
   Json_dom_ptr clone() const;
 
   // See base class documentation.
+#ifdef MYSQL_SERVER
   void replace_dom_in_container(const Json_dom *oldv, Json_dom_ptr newv);
+#endif
 
   /**
     Remove all elements in the object.
@@ -630,7 +638,9 @@ public:
   }
 
   // See base class documentation.
+#ifdef MYSQL_SERVER
   uint32 depth() const;
+#endif
 
   // See base class documentation.
   Json_dom_ptr clone() const;
@@ -657,8 +667,6 @@ public:
   */
   void clear() { m_v.clear(); }
 
-  void replace_dom_in_container(const Json_dom *oldv, Json_dom_ptr newv);
-
   /// Constant iterator over the elements in the JSON array.
   using const_iterator= decltype(m_v)::const_iterator;
 
@@ -667,6 +675,10 @@ public:
 
   /// Returns a const_iterator that refers past the last element.
   const_iterator end() const { return m_v.end(); }
+
+#ifdef MYSQL_SERVER
+  void replace_dom_in_container(const Json_dom *oldv, Json_dom_ptr newv);
+#endif
 };
 
 
@@ -676,7 +688,9 @@ public:
 class Json_scalar : public Json_dom {
 public:
   // See base class documentation.
+#ifdef MYSQL_SERVER
   uint32 depth() const { return 1; }
+#endif
 
   // See base class documentation.
   bool is_scalar() const { return true; }
@@ -1317,7 +1331,9 @@ public:
     @param thd current session
     @return pointer to a DOM object, or NULL if the DOM could not be allocated
   */
+#ifdef MYSQL_SERVER
   Json_dom_ptr clone_dom(const THD *thd) const;
+#endif
 
   /**
     Get the wrapped contents in binary value form.
@@ -1327,7 +1343,9 @@ public:
     @retval false on success
     @retval true  on error
   */
+#ifdef MYSQL_SERVER
   bool to_binary(const THD *thd, String *str) const;
+#endif
 
   /**
     Check if the wrapped JSON document is a binary value (a
@@ -1361,6 +1379,14 @@ public:
     @return false formatting went well, else true
   */
   bool to_string(String *buffer, bool json_quoted, const char *func_name) const;
+
+  /**
+    Print this JSON document to the debug trace.
+
+    @param[in] message If given, the JSON document is prefixed with
+    this message.
+  */
+  void dbug_print(const char *message MY_ATTRIBUTE((unused))= "") const;
 
   /**
     Format the JSON value to an external JSON string in buffer in the format of

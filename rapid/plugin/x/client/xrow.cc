@@ -17,7 +17,7 @@
  * 02110-1301  USA
  */
 
-#include "mysqlxclient/xrow.h"
+#include "plugin/x/client/mysqlxclient/xrow.h"
 
 #include <algorithm>
 #include <cassert>

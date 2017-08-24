@@ -18,7 +18,7 @@
   @file mysys_ssl/my_rnd.cc
 */
 
-#include <my_rnd.h>
+#include "my_rnd.h"
 
 #if defined(HAVE_YASSL)
 
@@ -29,8 +29,8 @@
 #include <openssl/ssl.h>
 
 #elif defined(HAVE_OPENSSL)
-#include <openssl/rand.h>
 #include <openssl/err.h>
+#include <openssl/rand.h>
 #endif /* HAVE_YASSL */
 
 

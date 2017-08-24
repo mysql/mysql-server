@@ -105,6 +105,7 @@ Columns::Columns()
                         "IFNULL(col.comment, '')");
   m_target_def.add_field(FIELD_GENERATION_EXPRESSION, "GENERATION_EXPRESSION",
                         "IFNULL(col.generation_expression_utf8, '')");
+  m_target_def.add_field(FIELD_SRS_ID, "SRS_ID", "col.srs_id");
 
   m_target_def.add_from("mysql.columns col");
   m_target_def.add_from("JOIN mysql.tables tbl ON col.table_id=tbl.id");

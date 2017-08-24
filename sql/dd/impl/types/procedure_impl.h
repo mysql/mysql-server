@@ -124,12 +124,12 @@ public:
   { return Routine_impl::schema_collation_id(); }
   virtual void set_schema_collation_id(Object_id schema_collation_id)
   { Routine_impl::set_schema_collation_id(schema_collation_id); }
-  virtual ulonglong created() const
-  { return Routine_impl::created(); }
+  virtual ulonglong created(bool convert_time) const
+  { return Routine_impl::created(convert_time); }
   virtual void set_created(ulonglong created)
   { Routine_impl::set_created(created); }
-  virtual ulonglong last_altered() const
-  { return Routine_impl::last_altered(); }
+  virtual ulonglong last_altered(bool convert_time) const
+  { return Routine_impl::last_altered(convert_time); }
   virtual void set_last_altered(ulonglong last_altered)
   { Routine_impl::set_last_altered(last_altered); }
   virtual const String_type &comment() const

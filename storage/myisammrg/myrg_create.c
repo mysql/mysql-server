@@ -21,7 +21,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
-#include "myrg_def.h"
+#include "storage/myisammrg/myrg_def.h"
 #include "typelib.h"
 
 	/* create file named 'name' and save filenames in it

@@ -17,22 +17,22 @@
  * 02110-1301  USA
  */
 
-#include "xpl_dispatcher.h"
+#include "plugin/x/src/xpl_dispatcher.h"
 
-#include "admin_cmd_handler.h"
-#include "admin_cmd_arguments.h"
-#include "crud_cmd_handler.h"
-#include "expect/expect_stack.h"
-#include "expr_generator.h"
-#include "ngs_common/protocol_protobuf.h"
-#include "ngs/mysqlx/getter_any.h"
-#include "notices.h"
-#include "sql_data_context.h"
-#include "xpl_error.h"
-#include "xpl_log.h"
-#include "xpl_resultset.h"
-#include "xpl_server.h"
-#include "xpl_session.h"
+#include "plugin/x/ngs/include/ngs/mysqlx/getter_any.h"
+#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "plugin/x/src/admin_cmd_arguments.h"
+#include "plugin/x/src/admin_cmd_handler.h"
+#include "plugin/x/src/crud_cmd_handler.h"
+#include "plugin/x/src/expect/expect_stack.h"
+#include "plugin/x/src/expr_generator.h"
+#include "plugin/x/src/notices.h"
+#include "plugin/x/src/sql_data_context.h"
+#include "plugin/x/src/xpl_error.h"
+#include "plugin/x/src/xpl_log.h"
+#include "plugin/x/src/xpl_resultset.h"
+#include "plugin/x/src/xpl_server.h"
+#include "plugin/x/src/xpl_session.h"
 
 namespace {
 

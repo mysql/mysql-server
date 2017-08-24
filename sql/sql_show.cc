@@ -1479,6 +1479,16 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(STRING_WITH_LEN(" NULL"));
     }
 
+    if (field->type() == MYSQL_TYPE_GEOMETRY)
+    {
+      const Field_geom *field_geom= down_cast<const Field_geom*>(field);
+      if (field_geom->get_srid().has_value())
+      {
+        packet->append(STRING_WITH_LEN(" /*!80003 SRID "));
+        packet->append_ulonglong(field_geom->get_srid().value());
+        packet->append(STRING_WITH_LEN(" */"));
+      }
+    }
     switch(field->field_storage_type()){
     case HA_SM_DEFAULT:
       break;
@@ -4524,23 +4534,6 @@ static int get_schema_tmp_table_keys_record(THD *thd, TABLE_LIST *tables,
 }
 
 
-static void collect_partition_expr(THD *thd, List<char> &field_list,
-                                   String *str)
-{
-  List_iterator<char> part_it(field_list);
-  ulong no_fields= field_list.elements;
-  const char *field_str;
-  str->length(0);
-  while ((field_str= part_it++))
-  {
-    append_identifier(thd, str, field_str, strlen(field_str));
-    if (--no_fields != 0)
-      str->append(",");
-  }
-  return;
-}
-
-
 /*
   Convert a string in a given character set to a string which can be
   used for FRM file storage in which case use_hex is TRUE and we store
@@ -4589,387 +4582,6 @@ int get_cs_converted_part_value_from_string(THD *thd,
                                 cs,
                                 use_hex);
   return FALSE;
-}
-
-
-static void store_schema_partitions_record(THD *thd, TABLE *schema_table,
-                                           TABLE *showing_table,
-                                           partition_element *part_elem,
-                                           handler *file, uint part_id)
-{
-  TABLE* table= schema_table;
-  CHARSET_INFO *cs= system_charset_info;
-  ha_statistics stat_info;
-  ha_checksum check_sum = 0;
-  MYSQL_TIME time;
-  Partition_handler *part_handler= file->get_partition_handler();
-
-
-  if (!part_handler)
-  {
-    /* Not a partitioned table, get the stats from the full table! */
-    file->info(HA_STATUS_CONST | HA_STATUS_TIME | HA_STATUS_VARIABLE |
-               HA_STATUS_NO_LOCK);
-    stat_info.records=              file->stats.records;
-    stat_info.mean_rec_length=      file->stats.mean_rec_length;
-    stat_info.data_file_length=     file->stats.data_file_length;
-    stat_info.max_data_file_length= file->stats.max_data_file_length;
-    stat_info.index_file_length=    file->stats.index_file_length;
-    stat_info.delete_length=        file->stats.delete_length;
-    stat_info.create_time=          file->stats.create_time;
-    stat_info.update_time=          file->stats.update_time;
-    stat_info.check_time=           file->stats.check_time;
-    if (file->ha_table_flags() & (ulong) HA_HAS_CHECKSUM)
-      check_sum= file->checksum();
-  }
-  else
-    part_handler->get_dynamic_partition_info(&stat_info, &check_sum, part_id);
-
-  table->field[0]->store(STRING_WITH_LEN("def"), cs);
-  table->field[12]->store((longlong) stat_info.records, TRUE);
-  table->field[13]->store((longlong) stat_info.mean_rec_length, TRUE);
-  table->field[14]->store((longlong) stat_info.data_file_length, TRUE);
-  if (stat_info.max_data_file_length)
-  {
-    table->field[15]->store((longlong) stat_info.max_data_file_length, TRUE);
-    table->field[15]->set_notnull();
-  }
-  table->field[16]->store((longlong) stat_info.index_file_length, TRUE);
-  table->field[17]->store((longlong) stat_info.delete_length, TRUE);
-  if (stat_info.create_time)
-  {
-    thd->variables.time_zone->gmt_sec_to_TIME(&time,
-                                              (my_time_t)stat_info.create_time);
-    table->field[18]->store_time(&time);
-    table->field[18]->set_notnull();
-  }
-  if (stat_info.update_time)
-  {
-    thd->variables.time_zone->gmt_sec_to_TIME(&time,
-                                              (my_time_t)stat_info.update_time);
-    table->field[19]->store_time(&time);
-    table->field[19]->set_notnull();
-  }
-  if (stat_info.check_time)
-  {
-    thd->variables.time_zone->gmt_sec_to_TIME(&time,
-                                              (my_time_t)stat_info.check_time);
-    table->field[20]->store_time(&time);
-    table->field[20]->set_notnull();
-  }
-  if (file->ha_table_flags() & (ulong) HA_HAS_CHECKSUM)
-  {
-    table->field[21]->store((longlong) check_sum, TRUE);
-    table->field[21]->set_notnull();
-  }
-  if (part_elem)
-  {
-    if (part_elem->part_comment)
-      table->field[22]->store(part_elem->part_comment,
-                              strlen(part_elem->part_comment), cs);
-    else
-      table->field[22]->store(STRING_WITH_LEN(""), cs);
-    if (part_elem->nodegroup_id != UNDEF_NODEGROUP)
-      table->field[23]->store((longlong) part_elem->nodegroup_id, TRUE);
-    else
-      table->field[23]->store(STRING_WITH_LEN("default"), cs);
-
-    table->field[24]->set_notnull();
-    if (part_elem->tablespace_name)
-      table->field[24]->store(part_elem->tablespace_name,
-                              strlen(part_elem->tablespace_name), cs);
-    else
-    {
-      char *ts= showing_table->s->tablespace;
-      if(ts)
-        table->field[24]->store(ts, strlen(ts), cs);
-      else
-        table->field[24]->set_null();
-    }
-  }
-  return;
-}
-
-static int
-get_partition_column_description(THD *thd,
-                                 partition_info *part_info,
-                                 part_elem_value *list_value,
-                                 String &tmp_str)
-{
-  uint num_elements= part_info->part_field_list.elements;
-  uint i;
-  DBUG_ENTER("get_partition_column_description");
-
-  for (i= 0; i < num_elements; i++)
-  {
-    part_column_list_val *col_val= &list_value->col_val_array[i];
-    if (col_val->max_value)
-      tmp_str.append(partition_keywords[PKW_MAXVALUE].str);
-    else if (col_val->null_value)
-      tmp_str.append("NULL");
-    else
-    {
-      char buffer[MAX_KEY_LENGTH];
-      String str(buffer, sizeof(buffer), &my_charset_bin);
-      String val_conv;
-      Item *item= col_val->item_expression;
-
-      if (!(item= part_info->get_column_item(item,
-                              part_info->part_field_array[i])))
-      {
-        DBUG_RETURN(1);
-      }
-      String *res= item->val_str(&str);
-      if (get_cs_converted_part_value_from_string(thd, item, res, &val_conv,
-                              part_info->part_field_array[i]->charset(),
-                              FALSE))
-      {
-        DBUG_RETURN(1);
-      }
-      tmp_str.append(val_conv);
-    }
-    if (i != num_elements - 1)
-      tmp_str.append(",");
-  }
-  DBUG_RETURN(0);
-}
-
-static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
-                                        TABLE *table, bool res,
-                                        LEX_STRING *db_name,
-                                        LEX_STRING *table_name)
-{
-  CHARSET_INFO *cs= system_charset_info;
-  char buff[61];
-  String tmp_res(buff, sizeof(buff), cs);
-  String tmp_str;
-  TABLE *show_table= tables->table;
-  handler *file;
-  partition_info *part_info;
-  DBUG_ENTER("get_schema_partitions_record");
-
-  if (res)
-  {
-    if (thd->is_error())
-      push_warning(thd, Sql_condition::SL_WARNING,
-                   thd->get_stmt_da()->mysql_errno(),
-                   thd->get_stmt_da()->message_text());
-    thd->clear_error();
-    DBUG_RETURN(0);
-  }
-  file= show_table->file;
-  part_info= show_table->part_info;
-  if (part_info)
-  {
-    partition_element *part_elem;
-    List_iterator<partition_element> part_it(part_info->partitions);
-    uint part_pos= 0, part_id= 0;
-
-    restore_record(table, s->default_values);
-    table->field[0]->store(STRING_WITH_LEN("def"), cs);
-    table->field[1]->store(db_name->str, db_name->length, cs);
-    table->field[2]->store(table_name->str, table_name->length, cs);
-
-
-    /* Partition method*/
-    switch (part_info->part_type) {
-    case partition_type::RANGE:
-    case partition_type::LIST:
-      tmp_res.length(0);
-      if (part_info->part_type == partition_type::RANGE)
-        tmp_res.append(partition_keywords[PKW_RANGE].str,
-                       partition_keywords[PKW_RANGE].length);
-      else
-        tmp_res.append(partition_keywords[PKW_LIST].str,
-                       partition_keywords[PKW_LIST].length);
-      if (part_info->column_list)
-        tmp_res.append(partition_keywords[PKW_COLUMNS].str,
-                       partition_keywords[PKW_COLUMNS].length);
-      table->field[7]->store(tmp_res.ptr(), tmp_res.length(), cs);
-      break;
-    case partition_type::HASH:
-      tmp_res.length(0);
-      if (part_info->linear_hash_ind)
-        tmp_res.append(partition_keywords[PKW_LINEAR].str,
-                       partition_keywords[PKW_LINEAR].length);
-      if (part_info->list_of_part_fields)
-        tmp_res.append(partition_keywords[PKW_KEY].str,
-                       partition_keywords[PKW_KEY].length);
-      else
-        tmp_res.append(partition_keywords[PKW_HASH].str, 
-                       partition_keywords[PKW_HASH].length);
-      table->field[7]->store(tmp_res.ptr(), tmp_res.length(), cs);
-      break;
-    default:
-      DBUG_ASSERT(0);
-      my_error(ER_OUT_OF_RESOURCES, MYF(ME_FATALERROR));
-      DBUG_RETURN(1);
-    }
-    table->field[7]->set_notnull();
-
-    /* Partition expression */
-    if (part_info->part_expr)
-    {
-      table->field[9]->store(part_info->part_func_string,
-                             part_info->part_func_len, cs);
-    }
-    else if (part_info->list_of_part_fields)
-    {
-      collect_partition_expr(thd, part_info->part_field_list, &tmp_str);
-      table->field[9]->store(tmp_str.ptr(), tmp_str.length(), cs);
-    }
-    table->field[9]->set_notnull();
-
-    if (part_info->is_sub_partitioned())
-    {
-      /* Subpartition method */
-      tmp_res.length(0);
-      if (part_info->linear_hash_ind)
-        tmp_res.append(partition_keywords[PKW_LINEAR].str,
-                       partition_keywords[PKW_LINEAR].length);
-      if (part_info->list_of_subpart_fields)
-        tmp_res.append(partition_keywords[PKW_KEY].str,
-                       partition_keywords[PKW_KEY].length);
-      else
-        tmp_res.append(partition_keywords[PKW_HASH].str, 
-                       partition_keywords[PKW_HASH].length);
-      table->field[8]->store(tmp_res.ptr(), tmp_res.length(), cs);
-      table->field[8]->set_notnull();
-
-      /* Subpartition expression */
-      if (part_info->subpart_expr)
-      {
-        table->field[10]->store(part_info->subpart_func_string,
-                                part_info->subpart_func_len, cs);
-      }
-      else if (part_info->list_of_subpart_fields)
-      {
-        collect_partition_expr(thd, part_info->subpart_field_list, &tmp_str);
-        table->field[10]->store(tmp_str.ptr(), tmp_str.length(), cs);
-      }
-      table->field[10]->set_notnull();
-    }
-
-    while ((part_elem= part_it++))
-    {
-      table->field[3]->store(part_elem->partition_name,
-                             strlen(part_elem->partition_name), cs);
-      table->field[3]->set_notnull();
-      /* PARTITION_ORDINAL_POSITION */
-      table->field[5]->store((longlong) ++part_pos, TRUE);
-      table->field[5]->set_notnull();
-
-      /* Partition description */
-      if (part_info->part_type == partition_type::RANGE)
-      {
-        if (part_info->column_list)
-        {
-          List_iterator<part_elem_value> list_val_it(part_elem->list_val_list);
-          part_elem_value *list_value= list_val_it++;
-          tmp_str.length(0);
-          if (get_partition_column_description(thd,
-                                               part_info,
-                                               list_value,
-                                               tmp_str))
-          {
-            DBUG_RETURN(1);
-          }
-          table->field[11]->store(tmp_str.ptr(), tmp_str.length(), cs);
-        }
-        else
-        {
-          if (part_elem->range_value != LLONG_MAX)
-            table->field[11]->store(part_elem->range_value, FALSE);
-          else
-            table->field[11]->store(partition_keywords[PKW_MAXVALUE].str,
-                                 partition_keywords[PKW_MAXVALUE].length, cs);
-        }
-        table->field[11]->set_notnull();
-      }
-      else if (part_info->part_type == partition_type::LIST)
-      {
-        List_iterator<part_elem_value> list_val_it(part_elem->list_val_list);
-        part_elem_value *list_value;
-        uint num_items= part_elem->list_val_list.elements;
-        tmp_str.length(0);
-        tmp_res.length(0);
-        if (part_elem->has_null_value)
-        {
-          tmp_str.append("NULL");
-          if (num_items > 0)
-            tmp_str.append(",");
-        }
-        while ((list_value= list_val_it++))
-        {
-          if (part_info->column_list)
-          {
-            if (part_info->part_field_list.elements > 1U)
-              tmp_str.append("(");
-            if (get_partition_column_description(thd,
-                                                 part_info,
-                                                 list_value,
-                                                 tmp_str))
-            {
-              DBUG_RETURN(1);
-            }
-            if (part_info->part_field_list.elements > 1U)
-              tmp_str.append(")");
-          }
-          else
-          {
-            if (!list_value->unsigned_flag)
-              tmp_res.set(list_value->value, cs);
-            else
-              tmp_res.set((ulonglong)list_value->value, cs);
-            tmp_str.append(tmp_res);
-          }
-          if (--num_items != 0)
-            tmp_str.append(",");
-        }
-        table->field[11]->store(tmp_str.ptr(), tmp_str.length(), cs);
-        table->field[11]->set_notnull();
-      }
-
-      if (part_elem->subpartitions.elements)
-      {
-        List_iterator<partition_element> sub_it(part_elem->subpartitions);
-        partition_element *subpart_elem;
-        uint subpart_pos= 0;
-
-        while ((subpart_elem= sub_it++))
-        {
-          table->field[4]->store(subpart_elem->partition_name,
-                                 strlen(subpart_elem->partition_name), cs);
-          table->field[4]->set_notnull();
-          /* SUBPARTITION_ORDINAL_POSITION */
-          table->field[6]->store((longlong) ++subpart_pos, TRUE);
-          table->field[6]->set_notnull();
-          
-          store_schema_partitions_record(thd, table, show_table, subpart_elem,
-                                         file, part_id);
-          part_id++;
-          if(schema_table_store_record(thd, table))
-            DBUG_RETURN(1);
-        }
-      }
-      else
-      {
-        store_schema_partitions_record(thd, table, show_table, part_elem,
-                                       file, part_id);
-        part_id++;
-        if(schema_table_store_record(thd, table))
-          DBUG_RETURN(1);
-      }
-    }
-    DBUG_RETURN(0);
-  }
-  else
-  {
-    store_schema_partitions_record(thd, table, show_table, 0, file, 0);
-    if(schema_table_store_record(thd, table))
-      DBUG_RETURN(1);
-  }
-  DBUG_RETURN(0);
 }
 
 
@@ -5930,71 +5542,6 @@ ST_FIELD_INFO plugin_fields_info[]=
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
 };
 
-ST_FIELD_INFO files_fields_info[]=
-{
-  {"FILE_ID", 4, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
-  {"FILE_NAME", FN_REFLEN_SE, MYSQL_TYPE_STRING, 0, 1, 0, SKIP_OPEN_TABLE},
-  {"FILE_TYPE", 20, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE},
-  {"TABLESPACE_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 1, 0,
-   SKIP_OPEN_TABLE},
-  {"TABLE_CATALOG", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE},
-  {"TABLE_SCHEMA", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 1, 0, SKIP_OPEN_TABLE},
-  {"TABLE_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 1, 0, SKIP_OPEN_TABLE},
-  {"LOGFILE_GROUP_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 1, 0,
-   SKIP_OPEN_TABLE},
-  {"LOGFILE_GROUP_NUMBER", 4, MYSQL_TYPE_LONGLONG, 0, 1, 0, SKIP_OPEN_TABLE},
-  {"ENGINE", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE},
-  {"FULLTEXT_KEYS", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 1, 0, SKIP_OPEN_TABLE},
-  {"DELETED_ROWS", 4, MYSQL_TYPE_LONGLONG, 0, 1, 0, SKIP_OPEN_TABLE},
-  {"UPDATE_COUNT", 4, MYSQL_TYPE_LONGLONG, 0, 1, 0, SKIP_OPEN_TABLE},
-  {"FREE_EXTENTS", 4, MYSQL_TYPE_LONGLONG, 0, 1, 0, SKIP_OPEN_TABLE},
-  {"TOTAL_EXTENTS", 4, MYSQL_TYPE_LONGLONG, 0, 1, 0, SKIP_OPEN_TABLE},
-  {"EXTENT_SIZE", 4, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
-  {"INITIAL_SIZE", 21, MYSQL_TYPE_LONGLONG, 0,
-   (MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED), 0, SKIP_OPEN_TABLE},
-  {"MAXIMUM_SIZE", 21, MYSQL_TYPE_LONGLONG, 0, 
-   (MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED), 0, SKIP_OPEN_TABLE},
-  {"AUTOEXTEND_SIZE", 21, MYSQL_TYPE_LONGLONG, 0, 
-   (MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED), 0, SKIP_OPEN_TABLE},
-  {"CREATION_TIME", 0, MYSQL_TYPE_DATETIME, 0, 1, 0, SKIP_OPEN_TABLE},
-  {"LAST_UPDATE_TIME", 0, MYSQL_TYPE_DATETIME, 0, 1, 0, SKIP_OPEN_TABLE},
-  {"LAST_ACCESS_TIME", 0, MYSQL_TYPE_DATETIME, 0, 1, 0, SKIP_OPEN_TABLE},
-  {"RECOVER_TIME", 4, MYSQL_TYPE_LONGLONG, 0, 1, 0, SKIP_OPEN_TABLE},
-  {"TRANSACTION_COUNTER", 4, MYSQL_TYPE_LONGLONG, 0, 1, 0, SKIP_OPEN_TABLE},
-  {"VERSION", 21 , MYSQL_TYPE_LONGLONG, 0,
-   (MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED), "Version", SKIP_OPEN_TABLE},
-  {"ROW_FORMAT", 10, MYSQL_TYPE_STRING, 0, 1, "Row_format", SKIP_OPEN_TABLE},
-  {"TABLE_ROWS", 21 , MYSQL_TYPE_LONGLONG, 0,
-   (MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED), "Rows", SKIP_OPEN_TABLE},
-  {"AVG_ROW_LENGTH", 21 , MYSQL_TYPE_LONGLONG, 0, 
-   (MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED), "Avg_row_length", SKIP_OPEN_TABLE},
-  {"DATA_LENGTH", 21 , MYSQL_TYPE_LONGLONG, 0, 
-   (MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED), "Data_length", SKIP_OPEN_TABLE},
-  {"MAX_DATA_LENGTH", 21 , MYSQL_TYPE_LONGLONG, 0, 
-   (MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED), "Max_data_length", SKIP_OPEN_TABLE},
-  {"INDEX_LENGTH", 21 , MYSQL_TYPE_LONGLONG, 0, 
-   (MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED), "Index_length", SKIP_OPEN_TABLE},
-  {"DATA_FREE", 21 , MYSQL_TYPE_LONGLONG, 0, 
-   (MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED), "Data_free", SKIP_OPEN_TABLE},
-  {"CREATE_TIME", 0, MYSQL_TYPE_DATETIME, 0, 1, "Create_time", SKIP_OPEN_TABLE},
-  {"UPDATE_TIME", 0, MYSQL_TYPE_DATETIME, 0, 1, "Update_time", SKIP_OPEN_TABLE},
-  {"CHECK_TIME", 0, MYSQL_TYPE_DATETIME, 0, 1, "Check_time", SKIP_OPEN_TABLE},
-  {"CHECKSUM", 21 , MYSQL_TYPE_LONGLONG, 0, 
-   (MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED), "Checksum", SKIP_OPEN_TABLE},
-  {"STATUS", 20, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE},
-  {"EXTRA", 255, MYSQL_TYPE_STRING, 0, 1, 0, SKIP_OPEN_TABLE},
-  {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
-};
-
-void init_fill_schema_files_row(TABLE* table)
-{
-  int i;
-  for(i=0; files_fields_info[i].field_name!=NULL; i++)
-    table->field[i]->set_null();
-
-  table->field[IS_FILES_STATUS]->set_notnull();
-  table->field[IS_FILES_STATUS]->store("NORMAL", 6, system_charset_info);
-}
 
 ST_FIELD_INFO referential_constraints_fields_info[]=
 {
@@ -6079,8 +5626,6 @@ ST_SCHEMA_TABLE schema_tables[]=
    fill_schema_column_privileges, 0, 0, -1, -1, 0, 0},
   {"ENGINES", engines_fields_info, create_schema_table,
    fill_schema_engines, make_old_format, 0, -1, -1, 0, 0},
-  {"FILES", files_fields_info, create_schema_table,
-   hton_fill_schema_table, 0, 0, -1, -1, 0, 0},
   {"OPEN_TABLES", open_tables_fields_info, create_schema_table,
    fill_open_tables, make_old_format, 0, -1, -1, 1, 0},
 #ifdef OPTIMIZER_TRACE
@@ -6090,9 +5635,6 @@ ST_SCHEMA_TABLE schema_tables[]=
   {"OPTIMIZER_TRACE", optimizer_trace_info, create_schema_table,
    NULL, NULL, NULL, -1, -1, false, 0},
 #endif
-  {"PARTITIONS", partitions_fields_info, create_schema_table,
-   get_all_tables, 0, get_schema_partitions_record, 1, 2, 0,
-   OPTIMIZE_I_S_TABLE|OPEN_TABLE_ONLY},
   {"PLUGINS", plugin_fields_info, create_schema_table,
    fill_plugins, make_old_format, 0, -1, -1, 0, 0},
   {"PROCESSLIST", processlist_fields_info, create_schema_table,

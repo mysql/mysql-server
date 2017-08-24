@@ -20,24 +20,23 @@
 #ifndef _NGS_PROTOCOL_ENCODER_H_
 #define _NGS_PROTOCOL_ENCODER_H_
 
-#include <vector>
 #include <map>
+#include <vector>
 
-#include "ngs/protocol/message.h"
-#include "ngs/protocol/page_pool.h"
-#include "ngs/protocol/output_buffer.h"
-#include "ngs/interface/protocol_encoder_interface.h"
-#include "ngs/error_code.h"
-#include "ngs/memory.h"
-
-#include "ngs/protocol_fwd.h"
-#include "ngs_common/smart_ptr.h"
-#include "ngs_common/chrono.h"
-#include "ngs/protocol/message_builder.h"
-#include "ngs/protocol/notice_builder.h"
-#include "ngs/protocol/row_builder.h"
-#include "ngs/protocol/metadata_builder.h"
-#include "ngs/interface/protocol_monitor_interface.h"
+#include "plugin/x/ngs/include/ngs/error_code.h"
+#include "plugin/x/ngs/include/ngs/interface/protocol_encoder_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/protocol_monitor_interface.h"
+#include "plugin/x/ngs/include/ngs/memory.h"
+#include "plugin/x/ngs/include/ngs/protocol/message.h"
+#include "plugin/x/ngs/include/ngs/protocol/message_builder.h"
+#include "plugin/x/ngs/include/ngs/protocol/metadata_builder.h"
+#include "plugin/x/ngs/include/ngs/protocol/notice_builder.h"
+#include "plugin/x/ngs/include/ngs/protocol/output_buffer.h"
+#include "plugin/x/ngs/include/ngs/protocol/page_pool.h"
+#include "plugin/x/ngs/include/ngs/protocol/row_builder.h"
+#include "plugin/x/ngs/include/ngs/protocol_fwd.h"
+#include "plugin/x/ngs/include/ngs_common/chrono.h"
+#include "plugin/x/ngs/include/ngs_common/smart_ptr.h"
 
 
 namespace ngs

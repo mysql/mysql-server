@@ -165,7 +165,9 @@ public:
   /////////////////////////////////////////////////////////////////////////
 
   virtual timeval created() const override
-  { return m_created; }
+  {
+    return m_created;
+  }
 
   virtual void set_created(timeval created) override
   { m_created= created; }

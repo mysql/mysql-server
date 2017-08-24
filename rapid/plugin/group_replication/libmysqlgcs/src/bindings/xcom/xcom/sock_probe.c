@@ -18,20 +18,20 @@
 #endif
 #include <stdlib.h>
 
-#include "node_no.h"
-#include "server_struct.h"
-#include "simset.h"
-#include "site_struct.h"
-#include "task.h"
-#include "x_platform.h"
-#include "xcom_detector.h"
-#include "xcom_profile.h"
-#include "xcom_vp.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_no.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/server_struct.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/simset.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/site_struct.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_detector.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_profile.h"
+#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
 
 #ifdef _WIN32
-#include "sock_probe_win32.c"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/sock_probe_win32.c"
 #else
-#include "sock_probe_ix.c"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/sock_probe_ix.c"
 #endif
 
 /*

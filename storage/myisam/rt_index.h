@@ -23,6 +23,7 @@
 #include <sys/types.h>
 
 #include "my_inttypes.h"
+#include "myisam.h"
 
 #define rt_PAGE_FIRST_KEY(page, nod_flag) (page + 2 + nod_flag)
 #define rt_PAGE_NEXT_KEY(key, key_length, nod_flag) (key + key_length + \

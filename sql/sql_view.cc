@@ -1029,18 +1029,9 @@ bool mysql_register_view(THD *thd, TABLE_LIST *view,
     This is a temporary workaround to be removed once we stop accepting
     invalid UTF8 in literals and fix bugs in view body printing.
   */
-  size_t valid_length;
-  bool not_used;
-  if (validate_string(system_charset_info, is_query.ptr(), is_query.length(),
-                      &valid_length, &not_used))
-  {
-    char hexbuf[7];
-    octet2hex(hexbuf, is_query.ptr() + valid_length,
-              std::min<size_t>(is_query.length() - valid_length, 3));
-    my_error(ER_INVALID_CHARACTER_STRING, MYF(0),
-             system_charset_info->csname,  hexbuf);
+  if (is_invalid_string(LEX_CSTRING{is_query.ptr(), is_query.length()},
+                        system_charset_info))
     DBUG_RETURN(true);
-  }
 
   if (!thd->make_lex_string(&view->view_body_utf8, is_query.ptr(),
                             is_query.length(), false))
@@ -1250,6 +1241,20 @@ public:
     return (sql_errno == ER_NO_SYSTEM_TABLE_ACCESS);
   }
 };
+
+/**
+  parse_view_definition creates a dummy lex object. Restore the parent_lex for
+  all the selects.
+
+  @param view_lex  View's LEX object.
+  @param old_lex   Original LEX object.
+*/
+void restore_parent_lex(LEX *view_lex, LEX *old_lex)
+{
+  for (SELECT_LEX *select= view_lex->all_selects_list;
+       select != nullptr; select= select->next_select_in_list())
+    select->parent_lex= old_lex;
+}
 
 
 /**
@@ -1707,6 +1712,8 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
     sl->context.view_error_handler= true;
     sl->context.view_error_handler_arg= view_ref;
   }
+
+  restore_parent_lex(thd->lex, old_lex);
 
   view_select->linkage= DERIVED_TABLE_TYPE;
 

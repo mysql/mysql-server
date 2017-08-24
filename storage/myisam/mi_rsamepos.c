@@ -20,7 +20,7 @@
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "myisamdef.h"
+#include "storage/myisam/myisamdef.h"
 
 
 	/*

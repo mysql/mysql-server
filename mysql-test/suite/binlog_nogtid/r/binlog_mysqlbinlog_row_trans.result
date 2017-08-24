@@ -566,7 +566,7 @@ SET TIMESTAMP=#/*!*/;
 TRUNCATE TABLE t2
 /*!*/;
 # at #
-# # server id #  end_log_pos # CRC32 # 	Rotate to master-bin.000002  pos: 4
+# # server id #  end_log_pos # CRC32 # 	Rotate to binlog.000002  pos: 4
 SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file

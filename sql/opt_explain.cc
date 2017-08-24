@@ -1194,6 +1194,14 @@ bool Explain_table_base::explain_extra_common(int quick_type,
 
   }
 
+  /*
+    EXPLAIN FORMAT=JSON FOR CONNECTION will mention clearly that index dive has
+    been skipped.
+  */
+  if (thd->lex->sql_command == SQLCOM_EXPLAIN_OTHER &&
+      tab && fmt->is_hierarchical() && tab->skip_records_in_range())
+    push_extra(ET_SKIP_RECORDS_IN_RANGE);
+
   return false;
 }
 
@@ -1604,26 +1612,36 @@ bool Explain_join::explain_rows_and_filtered()
 
   POSITION *const pos= tab->position();
 
-  fmt->entry()->col_rows.set(static_cast<ulonglong>(pos->rows_fetched));
-  fmt->entry()->col_filtered.
-    set(pos->rows_fetched ?
-        static_cast<float>(100.0 * tab->position()->filter_effect) :
-        0.0f);
-  // Print cost-related info
-  double prefix_rows= pos->prefix_rowcount;
-  fmt->entry()->col_prefix_rows.set(static_cast<ulonglong>(prefix_rows));
-  double const cond_cost= join->cost_model()->row_evaluate_cost(prefix_rows);
-  fmt->entry()->col_cond_cost.set(cond_cost < 0 ? 0 : cond_cost);
+  if(thd->lex->sql_command == SQLCOM_EXPLAIN_OTHER &&
+     tab->skip_records_in_range())
+  {
+    // Skipping col_rows, col_filtered, col_prefix_rows will set them to NULL.
+    fmt->entry()->col_cond_cost.set(0);
+    fmt->entry()->col_read_cost.set(0.0);
+    fmt->entry()->col_prefix_cost.set(0);
+    fmt->entry()->col_data_size_query.set('0');
+  }
+  else
+  {
+    fmt->entry()->col_rows.set(static_cast<ulonglong>(pos->rows_fetched));
+    fmt->entry()->col_filtered.
+      set(pos->rows_fetched ?
+          static_cast<float>(100.0 * tab->position()->filter_effect) : 0.0f);
 
-  fmt->entry()->col_read_cost.set(pos->read_cost < 0.0 ?
-                                  0.0 : pos->read_cost);
-  fmt->entry()->col_prefix_cost.set(pos->prefix_cost);
-
-  // Calculate amount of data from this table per query
-  char data_size_str[32];
-  double data_size= prefix_rows * tab->table()->s->rec_buff_length;
-  human_readable_size(data_size_str, sizeof(data_size_str), data_size);
-  fmt->entry()->col_data_size_query.set(data_size_str);
+    // Print cost-related info
+    double prefix_rows= pos->prefix_rowcount;
+    fmt->entry()->col_prefix_rows.set(static_cast<ulonglong>(prefix_rows));
+    double const cond_cost= join->cost_model()->row_evaluate_cost(prefix_rows);
+    fmt->entry()->col_cond_cost.set(cond_cost < 0 ? 0 : cond_cost);
+    fmt->entry()->col_read_cost.set(pos->read_cost < 0.0 ?
+                                    0.0 : pos->read_cost);
+    fmt->entry()->col_prefix_cost.set(pos->prefix_cost);
+    // Calculate amount of data from this table per query
+    char data_size_str[32];
+    double data_size= prefix_rows * tab->table()->s->rec_buff_length;
+    human_readable_size(data_size_str, sizeof(data_size_str), data_size);
+    fmt->entry()->col_data_size_query.set(data_size_str);
+  }
 
   return false;
 }

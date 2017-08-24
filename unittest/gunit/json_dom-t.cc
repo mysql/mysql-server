@@ -18,9 +18,6 @@
 #include <memory>
 
 #include "base64.h"
-#include "base_mock_field.h"
-#include "benchmark.h"
-#include "fake_table.h"
 #include "my_inttypes.h"
 #include "sql/json_binary.h"
 #include "sql/json_diff.h"
@@ -30,7 +27,10 @@
 #include "sql/sql_time.h"
 #include "sql_string.h"
 #include "template_utils.h"     // down_cast
-#include "test_utils.h"
+#include "unittest/gunit/base_mock_field.h"
+#include "unittest/gunit/benchmark.h"
+#include "unittest/gunit/fake_table.h"
+#include "unittest/gunit/test_utils.h"
 
 /**
  Test Json_dom class hierarchy API, cf. json_dom.h
@@ -1185,20 +1185,25 @@ static void do_apply_json_diffs_tests(Field_json *field)
   {
     SCOPED_TRACE("");
     diffs.clear();
-    diffs.emplace_back(parse_path("$.a"), enum_json_diff_operation::REPLACE,
-                       parse_json("3"));
+    Json_int *int_ptr= new (std::nothrow) Json_int(3);
+    Json_dom_ptr dom_ptr= int_ptr->clone();
+    diffs.add_diff(parse_path("$.a"), enum_json_diff_operation::REPLACE,
+                   dom_ptr);
     expect_success("{\"a\": 1, \"b\": 2}", "{\"a\": 3, \"b\": 2}");
     expect_rejected("{\"b\": 2}");
     expect_rejected("[1,2,3]");
     expect_rejected("123");
     expect_rejected(nullptr);
+    delete int_ptr;
   }
 
   {
     SCOPED_TRACE("");
     diffs.clear();
-    diffs.emplace_back(parse_path("$.a[1]"), enum_json_diff_operation::REPLACE,
-                       parse_json("3"));
+    Json_int *int_ptr= new (std::nothrow) Json_int(3);
+    Json_dom_ptr dom_ptr= int_ptr->clone();
+    diffs.add_diff(parse_path("$.a[1]"), enum_json_diff_operation::REPLACE,
+                   dom_ptr);
     expect_success("{\"a\": [1,2], \"b\": 2}", "{\"a\":[1,3], \"b\": 2}");
     expect_rejected("{\"a\": 2}");
     expect_rejected("{\"b\": 2}");
@@ -1206,13 +1211,16 @@ static void do_apply_json_diffs_tests(Field_json *field)
     expect_rejected("[1,2,3]");
     expect_rejected("123");
     expect_rejected(nullptr);
+    delete int_ptr;
   }
 
   {
     SCOPED_TRACE("");
     diffs.clear();
-    diffs.emplace_back(parse_path("$.a[2]"), enum_json_diff_operation::INSERT,
-                       parse_json("3"));
+    Json_int *int_ptr= new (std::nothrow) Json_int(3);
+    Json_dom_ptr dom_ptr= int_ptr->clone();
+    diffs.add_diff(parse_path("$.a[2]"), enum_json_diff_operation::INSERT,
+                   dom_ptr);
     expect_success("{\"a\":[]}", "{\"a\":[3]}");
     expect_success("{\"a\":[1]}", "{\"a\":[1,3]}");
     expect_success("{\"a\":[1,2]}", "{\"a\":[1,2,3]}");
@@ -1220,25 +1228,29 @@ static void do_apply_json_diffs_tests(Field_json *field)
     expect_rejected("{\"a\": 1, \"b\": 2}");
     expect_rejected("[]");
     expect_rejected(nullptr);
+    delete int_ptr;
   }
 
   {
     SCOPED_TRACE("");
     diffs.clear();
-    diffs.emplace_back(parse_path("$.a.b"), enum_json_diff_operation::INSERT,
-                       parse_json("3"));
+    Json_int *int_ptr= new (std::nothrow) Json_int(3);
+    Json_dom_ptr dom_ptr= int_ptr->clone();
+    diffs.add_diff(parse_path("$.a.b"), enum_json_diff_operation::INSERT,
+                   dom_ptr);
     expect_success("{\"a\":{\"c\":1}}", "{\"a\":{\"b\":3,\"c\":1}}");
     expect_rejected("{}");
     expect_rejected("[]");
     expect_rejected("{\"a\":{\"b\":1}}");
     expect_rejected(nullptr);
+    delete int_ptr;
   }
 
   {
     SCOPED_TRACE("");
     diffs.clear();
-    diffs.emplace_back(parse_path("$.a.b"),
-                       enum_json_diff_operation::REMOVE, nullptr);
+    diffs.add_diff(parse_path("$.a.b"),
+                   enum_json_diff_operation::REMOVE);
     expect_success("{\"a\":{\"b\":3,\"c\":1}}", "{\"a\":{\"c\":1}}");
     expect_rejected("{}");
     expect_rejected("[]");
@@ -1248,8 +1260,8 @@ static void do_apply_json_diffs_tests(Field_json *field)
   {
     SCOPED_TRACE("");
     diffs.clear();
-    diffs.emplace_back(parse_path("$[2]"),
-                       enum_json_diff_operation::REMOVE, nullptr);
+    diffs.add_diff(parse_path("$[2]"),
+                   enum_json_diff_operation::REMOVE);
     expect_success("[1,2,3,4]", "[1,2,4]");
     expect_success("[1,2,3]", "[1,2]");
     expect_rejected("[1,2]");
@@ -1261,10 +1273,10 @@ static void do_apply_json_diffs_tests(Field_json *field)
   {
     SCOPED_TRACE("");
     diffs.clear();
-    diffs.emplace_back(parse_path("$[2]"),
-                       enum_json_diff_operation::REMOVE, nullptr);
-    diffs.emplace_back(parse_path("$[3]"),
-                       enum_json_diff_operation::REMOVE, nullptr);
+    diffs.add_diff(parse_path("$[2]"),
+                   enum_json_diff_operation::REMOVE);
+    diffs.add_diff(parse_path("$[3]"),
+                   enum_json_diff_operation::REMOVE);
     expect_success("[1,2,3,4,5,6]", "[1,2,4,6]");
     expect_rejected("[1,2,3,4]");
     expect_rejected("[]");
@@ -1274,8 +1286,8 @@ static void do_apply_json_diffs_tests(Field_json *field)
   {
     SCOPED_TRACE("");
     diffs.clear();
-    diffs.emplace_back(parse_path("$[2][3]"),
-                       enum_json_diff_operation::REMOVE, nullptr);
+    diffs.add_diff(parse_path("$[2][3]"),
+                   enum_json_diff_operation::REMOVE);
     expect_success("[1,2,[3,4,5,6,7]]", "[1,2,[3,4,5,7]]");
     expect_rejected("[]");
     expect_rejected("[1,2,3,4,5,6]");
@@ -1285,8 +1297,8 @@ static void do_apply_json_diffs_tests(Field_json *field)
   {
     SCOPED_TRACE("");
     diffs.clear();
-    diffs.emplace_back(parse_path("$[0][0]"),
-                       enum_json_diff_operation::REMOVE, nullptr);
+    diffs.add_diff(parse_path("$[0][0]"),
+                   enum_json_diff_operation::REMOVE);
     expect_success("[[1]]", "[[]]");
     expect_success("[[1,2,3],4,5]", "[[2,3],4,5]");
     expect_rejected("[1]");
@@ -1302,9 +1314,12 @@ static void do_apply_json_diffs_tests(Field_json *field)
                      enum_json_diff_operation::REMOVE })
     {
       diffs.clear();
-      diffs.emplace_back(parse_path("$"), op, parse_json("1"));
+      Json_int *int_ptr= new (std::nothrow) Json_int(1);
+      Json_dom_ptr dom_ptr= int_ptr->clone();
+      diffs.add_diff(parse_path("$"), op, dom_ptr);
       expect_rejected("[1,2,3]");
       expect_rejected(nullptr);
+      delete int_ptr;
     }
   }
 }

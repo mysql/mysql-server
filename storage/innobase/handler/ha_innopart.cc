@@ -152,20 +152,19 @@ Ha_innopart_share::create_partition_postfix(
 
 	part_name_len = append_sep_and_name(
 		partition_name, part->name().c_str(),
-		PARTITION_SEPARATOR, size);
+		PARTN_SEPARATOR, size);
 
 	if (part_name_len < size && part != dd_part) {
 		char*	part_name_end = partition_name + part_name_len;
 
 		subpart_name_len = append_sep_and_name(
 			part_name_end, dd_part->name().c_str(),
-			SUB_PARTITION_SEPARATOR, size - part_name_len);
+			SUB_PARTN_SEPARATOR, size - part_name_len);
 
-		if (subpart_name_len >= sizeof(SUB_PARTITION_SEPARATOR) - 1) {
+		if (subpart_name_len >= SUB_PARTN_SEPARATOR_LEN) {
 
 			partition_name_casedn_str(
-				part_name_end
-                                + sizeof(SUB_PARTITION_SEPARATOR) - 1);
+				part_name_end + SUB_PARTN_SEPARATOR_LEN);
 		}
 	}
 
@@ -3015,12 +3014,12 @@ ha_innopart::set_dd_discard_attribute(
 		dd::cache::Dictionary_client::Auto_releaser	releaser(client);
 
 		dd::Object_id   dd_space_id = (*dd_part->indexes()->begin())->tablespace_id();
+		std::string	space_name;
 
-		char    name[FN_REFLEN];
-		snprintf(name, sizeof name, "%s.%u", dict_sys_t::s_file_per_table_name,
-			 table->space);
+		dd_filename_to_spacename(table->name.m_name, &space_name);
 
-		if (dd::acquire_exclusive_tablespace_mdl(thd, name, false)) {
+		if (dd::acquire_exclusive_tablespace_mdl(thd, space_name.c_str(),
+							 false)) {
 			ut_a(false);
 		}
 

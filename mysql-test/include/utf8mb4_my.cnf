@@ -7,8 +7,6 @@
 # Run the master.sh script before starting this process
 #!run-master-sh
 
-log-bin=                 master-bin
-
 # Run tests with the performance schema instrumentation
 loose-enable-performance-schema
 

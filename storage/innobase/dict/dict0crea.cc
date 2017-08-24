@@ -67,7 +67,7 @@ dict_build_table_def(
 		char	tbl_buf[NAME_LEN + 1];
 
 		dd_parse_tbl_name(table->name.m_name, db_buf, tbl_buf,
-				  NULL, NULL);
+				  nullptr, nullptr, nullptr);
 #endif /* UNIV_DEBUG */
 
 	} else {
@@ -210,6 +210,7 @@ dict_build_tablespace_for_table(
 		bool	is_encrypted = dict_table_is_encrypted(table);
 		ulint	fsp_flags = dict_tf_to_fsp_flags(table->flags,
 							 is_encrypted);
+		std::string	tablespace_name;
 
 		/* Determine the full filepath */
 		if (has_data_dir) {
@@ -236,8 +237,10 @@ dict_build_tablespace_for_table(
 		- page 3 will contain the root of the clustered index of
 		the table we create here. */
 
+		dd_filename_to_spacename(table->name.m_name, &tablespace_name);
+
 		err = fil_ibd_create(
-			space, table->name.m_name, filepath, fsp_flags,
+			space, tablespace_name.c_str(), filepath, fsp_flags,
 			FIL_IBD_FILE_INITIAL_SIZE);
 
 		ut_free(filepath);

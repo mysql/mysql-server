@@ -14,15 +14,15 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
-#include <errmsg.h>
 #include <fcntl.h>
-#include <m_string.h>
-#include <my_getopt.h>
-#include <my_sys.h>
 #include <stdio.h>
 #include <sys/types.h>
 
+#include "errmsg.h"
+#include "m_string.h"
 #include "my_compiler.h"
+#include "my_getopt.h"
+#include "my_sys.h"
 #include "print_version.h"
 #include "welcome_copyright_notice.h"
 

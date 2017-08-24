@@ -28,7 +28,7 @@
 #include <BlockNumbers.h>
 #include <mgmapi.h>
 #include "trp_buffer.hpp"
-#include <my_thread.h>
+#include "my_thread.h"
 
 class ClusterMgr;
 class ArbitMgr;

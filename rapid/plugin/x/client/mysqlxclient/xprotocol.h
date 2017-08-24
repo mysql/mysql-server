@@ -28,11 +28,11 @@
 #include <string>
 #include <utility>
 
-#include "mysqlxclient/xargument.h"
-#include "mysqlxclient/xconnection.h"
-#include "mysqlxclient/xerror.h"
-#include "mysqlxclient/xmessage.h"
-#include "mysqlxclient/xquery_result.h"
+#include "plugin/x/client/mysqlxclient/xargument.h"
+#include "plugin/x/client/mysqlxclient/xconnection.h"
+#include "plugin/x/client/mysqlxclient/xerror.h"
+#include "plugin/x/client/mysqlxclient/xmessage.h"
+#include "plugin/x/client/mysqlxclient/xquery_result.h"
 
 #ifdef USE_MYSQLX_FULL_PROTO
 #define HAVE_MYSQLX_FULL_PROTO(Y, N) Y

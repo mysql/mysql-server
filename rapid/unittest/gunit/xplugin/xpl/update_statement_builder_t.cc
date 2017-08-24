@@ -17,9 +17,9 @@
 
 #include <gtest/gtest.h>
 
-#include "update_statement_builder.h"
 #include "mysqld_error.h"
-#include "mysqlx_pb_wrapper.h"
+#include "plugin/x/src/update_statement_builder.h"
+#include "unittest/gunit/xplugin/xpl/mysqlx_pb_wrapper.h"
 
 namespace xpl {
 namespace test {

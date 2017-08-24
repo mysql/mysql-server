@@ -62,6 +62,7 @@
 #include "sql/rpl_transaction_write_set_ctx.h"
 #include "sql/sp_cache.h"                    // sp_cache_clear
 #include "sql/sql_audit.h"                   // mysql_audit_free_thd
+#include "sql/sql_backup_lock.h"             // release_backup_lock
 #include "sql/sql_base.h"                    // close_temporary_tables
 #include "sql/sql_callback.h"                // MYSQL_CALLBACK
 #include "sql/sql_handler.h"                 // mysql_ha_cleanup
@@ -472,6 +473,9 @@ THD::THD(bool enable_plugins)
   m_release_resources_done= false;
   peer_port= 0;					// For SHOW PROCESSLIST
   get_transaction()->m_flags.enabled= true;
+  m_resource_group_ctx.m_cur_resource_group= nullptr;
+  m_resource_group_ctx.m_switch_resource_group_str[0]= '\0';
+  m_resource_group_ctx.m_warn= 0;
 
   mysql_mutex_init(key_LOCK_thd_data, &LOCK_thd_data, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_thd_query, &LOCK_thd_query, MY_MUTEX_INIT_FAST);
@@ -982,6 +986,11 @@ void THD::cleanup(void)
     All locking service locks must be released on disconnect.
   */
   release_all_locking_service_locks(this);
+
+  /*
+    If Backup Lock was acquired it must be released on disconnect.
+  */
+  release_backup_lock(this);
 
   /* All metadata locks must have been released by now. */
   DBUG_ASSERT(!mdl_context.has_locks());

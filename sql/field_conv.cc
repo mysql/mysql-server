@@ -788,8 +788,13 @@ Copy_field::get_copy_func(Field *to,Field *from)
         to->maybe_null() != from->maybe_null())
       return do_conv_blob;
 
-    Field_geom *to_geom= down_cast<Field_geom*>(to);
-    Field_geom *from_geom= down_cast<Field_geom*>(from);
+    const Field_geom *to_geom= down_cast<const Field_geom*>(to);
+    const Field_geom *from_geom= down_cast<const Field_geom*>(from);
+
+    // If changing the SRID property of the field, we must do a full conversion.
+    if (to_geom->get_srid() != from_geom->get_srid() &&
+        to_geom->get_srid().has_value())
+      return do_conv_blob;
 
     // to is same as or a wider type than from
     if (to_geom->get_geometry_type() == from_geom->get_geometry_type() ||

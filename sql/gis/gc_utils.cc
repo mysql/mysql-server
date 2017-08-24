@@ -17,17 +17,17 @@
 ///
 /// This file implements utility functions for working with geometrycollections.
 
-#include "gc_utils.h"
+#include "sql/gis/gc_utils.h"
 
 #include <boost/geometry.hpp>  // boost::geometry::difference
 
-#include "difference_functor.h"
-#include "geometries.h"
-#include "geometries_cs.h"
-#include "geometries_traits.h"
 #include "my_dbug.h"         // DBUG_ASSERT
+#include "sql/gis/difference_functor.h"
+#include "sql/gis/geometries.h"
+#include "sql/gis/geometries_cs.h"
+#include "sql/gis/geometries_traits.h"
+#include "sql/gis/union_functor.h"
 #include "template_utils.h"  // down_cast
-#include "union_functor.h"
 
 namespace bg = boost::geometry;
 

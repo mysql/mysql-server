@@ -16,13 +16,13 @@
 #ifndef GCS_DEBUG_H
 #define GCS_DEBUG_H
 
-#include "xcom_common.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_common.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include "x_platform.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
 
 #ifdef TASK_DBUG_ON
 #error "TASK_DBUG_ON already defined"
@@ -42,7 +42,7 @@ double task_now();
 #error "DBGOUT defined"
 #endif
 
-#include "xcom_logger.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_logger.h"
 
 #ifndef XCOM_STANDALONE
 #include "my_compiler.h"

@@ -21,12 +21,12 @@
 #include <string>
 #include <utility>
 
-#include "client/xsession_impl.h"
 #include "errmsg.h"
-#include "mock/factory.h"
-#include "mock/protocol.h"
-#include "mock/connection.h"
-#include "mock/connection_state.h"
+#include "plugin/x/client/xsession_impl.h"
+#include "unittest/gunit/xplugin/xcl/mock/connection.h"
+#include "unittest/gunit/xplugin/xcl/mock/connection_state.h"
+#include "unittest/gunit/xplugin/xcl/mock/factory.h"
+#include "unittest/gunit/xplugin/xcl/mock/protocol.h"
 
 
 namespace xcl {

@@ -13,14 +13,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "mysql/gcs/gcs_logging_system.h"
-#include "gcs_xcom_communication_interface.h"
-#include "gcs_xcom_control_interface.h"
-#include "gcs_xcom_group_member_information.h"
-#include "gcs_xcom_notification.h"
-#include "gcs_xcom_utils.h"
-#include "gcs_xcom_view_identifier.h"
-#include "node_no.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_control_interface.h"
+
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_logging_system.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_communication_interface.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_group_member_information.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_notification.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_utils.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_view_identifier.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_no.h"
 
 using std::map;
 using std::set;
@@ -341,7 +342,8 @@ enum_gcs_error Gcs_xcom_control::retry_do_join()
   /* Spawn XCom's main loop thread. */
   if (local_port != 0)
   {
-    m_xcom_thread.create(NULL, xcom_taskmain_startup, (void *) this);
+    m_xcom_thread.create(key_GCS_THD_Gcs_xcom_control_m_xcom_thread,
+                         NULL, xcom_taskmain_startup, (void *) this);
   }
   else
   {
@@ -496,9 +498,10 @@ enum_gcs_error Gcs_xcom_control::retry_do_join()
   set_terminate_suspicion_thread(false);
 
   // Initialize thread to deal with suspicions
-  m_suspicions_processing_thread.create(NULL,
-                                        suspicions_processing_thread,
-                                        (void *) this);
+  m_suspicions_processing_thread.create(
+    key_GCS_THD_Gcs_xcom_control_m_suspicions_processing_thread, NULL,
+    suspicions_processing_thread,
+    (void *) this);
   MYSQL_GCS_LOG_TRACE("Started the suspicions processing thread...");
   m_view_control->end_join();
 

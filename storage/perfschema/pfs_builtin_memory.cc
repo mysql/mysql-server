@@ -21,7 +21,7 @@
 #include "storage/perfschema/pfs_builtin_memory.h"
 
 #include "my_dbug.h"
-#include "pfs_global.h"
+#include "storage/perfschema/pfs_global.h"
 
 PFS_builtin_memory_class builtin_memory_mutex;
 PFS_builtin_memory_class builtin_memory_rwlock;
@@ -94,6 +94,7 @@ PFS_builtin_memory_class builtin_memory_setup_object;
 
 PFS_builtin_memory_class builtin_memory_digest;
 PFS_builtin_memory_class builtin_memory_digest_tokens;
+PFS_builtin_memory_class builtin_memory_digest_sample_sqltext;
 
 PFS_builtin_memory_class builtin_memory_stages_history_long;
 PFS_builtin_memory_class builtin_memory_statements_history_long;
@@ -125,7 +126,7 @@ init_builtin_memory_class(PFS_builtin_memory_class* klass,
   klass->m_class.m_documentation = (char*)documentation;
   klass->m_class.m_event_name_index = 0;
   strncpy(klass->m_class.m_name, name, sizeof(klass->m_class.m_name));
-  klass->m_class.m_name_length = strlen(name);
+  klass->m_class.m_name_length = (uint)strlen(name);
   DBUG_ASSERT(klass->m_class.m_name_length < sizeof(klass->m_class.m_name));
   klass->m_class.m_timer = NULL;
 

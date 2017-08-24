@@ -26,6 +26,7 @@
 #include "sql/item_subselect.h"
 #include "sql/mysqld.h"    // table_alias_charset
 #include "sql/query_options.h"
+#include "sql/resourcegroups/resource_group_mgr.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
@@ -596,3 +597,28 @@ bool PT_hint_sys_var::contextualize(Parse_context *pc)
 }
 
 
+bool PT_hint_resource_group::contextualize(Parse_context *pc)
+{
+  if (super::contextualize(pc))
+    return true;
+
+  auto res_grp_mgr= resourcegroups::Resource_group_mgr::instance();
+  if (!res_grp_mgr->resource_group_support())
+  {
+    pc->thd->resource_group_ctx()->m_warn= WARN_RESOURCE_GROUP_UNSUPPORTED;
+    return false;
+  }
+
+  if (pc->thd->lex->sphead ||
+      pc->select != pc->thd->lex->select_lex)
+  {
+    pc->thd->resource_group_ctx()->m_warn= WARN_RESOURCE_GROUP_UNSUPPORTED_HINT;
+    return false;
+  }
+
+  memcpy(pc->thd->resource_group_ctx()->m_switch_resource_group_str,
+         m_resource_group_name.str, m_resource_group_name.length);
+  pc->thd->resource_group_ctx()->
+    m_switch_resource_group_str[m_resource_group_name.length]= '\0';
+  return false;
+}

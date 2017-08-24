@@ -15,22 +15,21 @@
  * 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "command.h"
+#include "plugin/x/tests/driver/processor/commands/command.h"
 
 #include <algorithm>
 #include <fstream>
 #include <iostream>
-#include "ngs_common/to_string.h"
 
-#include "connector/mysqlx_all_msgs.h"
-#include "formatters/message_formatter.h"
-#include "json_to_any_handler.h"
-#include "processor/commands/mysqlxtest_error_names.h"
-#include "processor/comment_processor.h"
-#include "processor/macro_block_processor.h"
-#include "processor/indigestion_processor.h"
-#include "processor/stream_processor.h"
-
+#include "plugin/x/ngs/include/ngs_common/to_string.h"
+#include "plugin/x/tests/driver/connector/mysqlx_all_msgs.h"
+#include "plugin/x/tests/driver/formatters/message_formatter.h"
+#include "plugin/x/tests/driver/json_to_any_handler.h"
+#include "plugin/x/tests/driver/processor/commands/mysqlxtest_error_names.h"
+#include "plugin/x/tests/driver/processor/comment_processor.h"
+#include "plugin/x/tests/driver/processor/indigestion_processor.h"
+#include "plugin/x/tests/driver/processor/macro_block_processor.h"
+#include "plugin/x/tests/driver/processor/stream_processor.h"
 
 namespace {
 

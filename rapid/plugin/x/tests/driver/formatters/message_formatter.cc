@@ -17,12 +17,12 @@
  * 02110-1301  USA
  */
 
-#include "message_formatter.h"
+#include "plugin/x/tests/driver/formatters/message_formatter.h"
 
 #include <algorithm>
 #include <vector>
 
-#include "ngs_common/to_string.h"
+#include "plugin/x/ngs/include/ngs_common/to_string.h"
 
 
 #ifdef GetMessage

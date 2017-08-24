@@ -42,7 +42,8 @@ public:
 
 TEST_F(ValueMapTest, LongLongValueMap)
 {
-  histograms::Value_map<longlong> value_map(&my_charset_numeric);
+  histograms::Value_map<longlong> value_map(&my_charset_numeric,
+                                            histograms::Value_map_type::INT);
 
   EXPECT_EQ(value_map.size(), 0U);
 
@@ -75,7 +76,8 @@ TEST_F(ValueMapTest, LongLongValueMap)
 
 TEST_F(ValueMapTest, ULongLongValueMap)
 {
-  histograms::Value_map<ulonglong> value_map(&my_charset_numeric);
+  histograms::Value_map<ulonglong> value_map(&my_charset_numeric,
+                                             histograms::Value_map_type::UINT);
 
   EXPECT_EQ(value_map.size(), 0U);
 
@@ -99,7 +101,8 @@ TEST_F(ValueMapTest, ULongLongValueMap)
 
 TEST_F(ValueMapTest, DoubleValueMap)
 {
-  histograms::Value_map<double> value_map(&my_charset_numeric);
+  histograms::Value_map<double> value_map(&my_charset_numeric,
+                                          histograms::Value_map_type::DOUBLE);
 
   EXPECT_EQ(value_map.size(), 0U);
 
@@ -127,7 +130,8 @@ TEST_F(ValueMapTest, DoubleValueMap)
 
 TEST_F(ValueMapTest, DecimalValueMap)
 {
-  histograms::Value_map<my_decimal> value_map(&my_charset_numeric);
+  histograms::Value_map<my_decimal> value_map(&my_charset_numeric,
+                                              histograms::Value_map_type::DECIMAL);
 
   EXPECT_EQ(value_map.size(), 0U);
 
@@ -171,7 +175,8 @@ TEST_F(ValueMapTest, DecimalValueMap)
 
 TEST_F(ValueMapTest, MysqlTimeValueMap)
 {
-  histograms::Value_map<MYSQL_TIME> value_map(&my_charset_numeric);
+  histograms::Value_map<MYSQL_TIME> value_map(&my_charset_numeric,
+                                              histograms::Value_map_type::DATETIME);
 
   EXPECT_EQ(value_map.size(), 0U);
 
@@ -244,7 +249,8 @@ TEST_F(ValueMapTest, MysqlTimeValueMap)
 
 TEST_F(ValueMapTest, StringValueMap)
 {
-  histograms::Value_map<String> value_map(&my_charset_latin1);
+  histograms::Value_map<String> value_map(&my_charset_latin1,
+                                          histograms::Value_map_type::STRING);
 
   EXPECT_EQ(value_map.size(), 0U);
 
@@ -272,7 +278,8 @@ TEST_F(ValueMapTest, StringValueMap)
 
 TEST_F(ValueMapTest, ValueMapWithLongStrings)
 {
-  histograms::Value_map<String> value_map(&my_charset_latin1);
+  histograms::Value_map<String> value_map(&my_charset_latin1,
+                                          histograms::Value_map_type::STRING);
 
   EXPECT_EQ(value_map.size(), 0U);
 
@@ -315,7 +322,8 @@ TEST_F(ValueMapTest, ValueMapWithLongStrings)
 
 TEST_F(ValueMapTest, LongLongValueMapExtended)
 {
-  histograms::Value_map<longlong> value_map(&my_charset_latin1);
+  histograms::Value_map<longlong> value_map(&my_charset_latin1,
+                                            histograms::Value_map_type::INT);
 
   EXPECT_EQ(value_map.size(), 0U);
 

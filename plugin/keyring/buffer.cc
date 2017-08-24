@@ -13,11 +13,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "plugin/keyring/buffer.h"
+
 #include <memory>
 
-#include "buffer.h"
-#include "keyring_key.h"
 #include "my_dbug.h"
+#include "plugin/keyring/common/keyring_key.h"
 
 namespace keyring
 {
