@@ -1328,14 +1328,9 @@ fi
 %endif # cluster
 
 %changelog
-* Fri Jul 28 2017 Horst Hunger <horst.hunger@oracle.com> - 8.0.3-0.1
-- Add component_test_status_var_service plugin
-
-* Tue Jul 19 2017 V S Murthy Sidagam <venkata.sidagam@oracle.com> - 8.0.3-0.1
-- Add component_test_status_var_service plugin
-
-* Thu Jun 08 2017 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 8.0.3-0.1
+* Wed Jul 19 2017 V S Murthy Sidagam <venkata.sidagam@oracle.com> - 8.0.3-0.1
 - Updated for 8.0.3 release
+- Add component_test_status_var_service plugin
 
 * Fri May 26 2017 Harin Vadodaria <harin.vadodaria@oracle.com> - 8.0.2-0.1
 - Add keyring_aws plugin and UDF components
