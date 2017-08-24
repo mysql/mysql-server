@@ -72,6 +72,10 @@ call mtr.add_suppression("Due to a plugin error, some transactions can't be cert
 call mtr.add_suppression("The member lost contact with a majority of the members in the group. Until the network is restored.*");
 set session sql_log_bin=1;
 
+# Wait for INSERT to be blocked
+--let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist WHERE state='query end' AND info='INSERT INTO test.t1 VALUES(11)'
+--source include/wait_condition.inc
+
 --echo
 --echo # 4. Uninstall plugin will return error due plugin being in use
 --error ER_PLUGIN_CANNOT_BE_UNINSTALLED
