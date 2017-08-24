@@ -505,6 +505,10 @@ SET AUTOCOMMIT=ON;
 --echo # Test ALTER TABLESPACE RENAME with partition tables
 CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' Engine=InnoDB;
 
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+let $restart_parameters = restart: --innodb-directories=$MYSQL_TMP_DIR;
+--source include/restart_mysqld.inc
+
 --disable_query_log
 --eval CREATE TABLESPACE ts2 ADD DATAFILE '$MYSQL_TMP_DIR/ts2.ibd' ENGINE=InnoDB;
 --enable_query_log
