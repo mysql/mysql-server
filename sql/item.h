@@ -1,7 +1,7 @@
 #ifndef ITEM_INCLUDED
 #define ITEM_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1550,6 +1550,12 @@ public:
   bool const_item() const
   {
     return TRUE;
+  }
+
+  virtual bool cache_const_expr_analyzer(uchar **arg)
+  {
+    // Item_name_const always wraps a literal, so there is no need to cache it.
+    return false;
   }
 
   int save_in_field(Field *field, bool no_conversions)
