@@ -6123,6 +6123,12 @@ bool Sys_var_gtid_purged::global_update(THD *thd, set_var *var)
   */
   thd->lex->autocommit= true;
 
+  /*
+    SET GITD_PURGED command should ignore 'read-only' and 'super_read_only'
+    options so that it can update 'mysql.gtid_executed' replication repository
+    table.
+  */
+  thd->set_skip_readonly_check();
   char *previous_gtid_executed= NULL, *previous_gtid_purged= NULL,
     *current_gtid_executed= NULL, *current_gtid_purged= NULL;
   gtid_state->get_executed_gtids()->to_string(&previous_gtid_executed);

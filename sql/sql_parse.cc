@@ -5209,6 +5209,8 @@ void THD::reset_for_next_command()
   // Need explicit setting, else demand all privileges to a table.
   thd->want_privilege= ~NO_ACCESS;
 
+  thd->reset_skip_readonly_check();
+
   DBUG_PRINT("debug",
              ("is_current_stmt_binlog_format_row(): %d",
               thd->is_current_stmt_binlog_format_row()));

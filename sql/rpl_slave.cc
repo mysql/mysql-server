@@ -9430,6 +9430,12 @@ bool start_slave(THD* thd,
 
   DBUG_ENTER("start_slave(THD, lex, lex, int, Master_info, bool");
 
+  /*
+    START SLAVE command should ignore 'read-only' and 'super_read_only'
+    options so that it can update 'mysql.slave_master_info' and
+    'mysql.slave_relay_log_info' replication repository tables.
+  */
+  thd->set_skip_readonly_check();
   Security_context *sctx= thd->security_context();
   if (!sctx->check_access(SUPER_ACL) &&
       !sctx->has_global_grant(STRING_WITH_LEN("REPLICATION_SLAVE_ADMIN")).first)
@@ -9619,6 +9625,13 @@ int stop_slave(THD* thd, Master_info* mi, bool net_report, bool for_one_channel,
   if (!thd)
     thd = current_thd;
 
+  /*
+    STOP SLAVE command should ignore 'read-only' and 'super_read_only'
+    options so that it can update 'mysql.slave_master_info' and
+    'mysql.slave_relay_log_info' replication repository tables.
+  */
+  thd->set_skip_readonly_check();
+
   Security_context *sctx= thd->security_context();
   if (!sctx->check_access(SUPER_ACL) &&
       !sctx->has_global_grant(STRING_WITH_LEN("REPLICATION_SLAVE_ADMIN")).first)
@@ -9786,6 +9799,12 @@ int reset_slave(THD *thd, Master_info* mi, bool reset_all)
 
   bool no_init_after_delete= false;
 
+  /*
+    RESET SLAVE command should ignore 'read-only' and 'super_read_only'
+    options so that it can update 'mysql.slave_master_info' and
+    'mysql.slave_relay_log_info' replication repository tables.
+  */
+  thd->set_skip_readonly_check();
   mi->channel_wrlock();
 
   lock_slave_threads(mi);
@@ -10353,6 +10372,12 @@ int change_master(THD* thd, Master_info* mi, LEX_MASTER_INFO* lex_mi,
 
   DBUG_ENTER("change_master");
 
+  /*
+    CHANGE MASTER command should ignore 'read-only' and 'super_read_only'
+    options so that it can update 'mysql.slave_master_info' replication
+    repository tables.
+  */
+  thd->set_skip_readonly_check();
   mi->channel_wrlock();
   /*
     When we change master, we first decide which thread is running and
