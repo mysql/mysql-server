@@ -1515,13 +1515,6 @@ disconnect con3726_2;
 drop tables t1, t3;
 
 #
-# Bug#39270 I_S optimization algorithm does not work properly in some cases
-#
---replace_result referential_constraints REFERENTIAL_CONSTRAINTS
-EXPLAIN SELECT * FROM information_schema.REFERENTIAL_CONSTRAINTS
-  WHERE CONSTRAINT_SCHEMA='test';
-
-#
 # Bug#24062 Incorrect error msg after execute DROP TABLE IF EXISTS on information_schema
 #
 --error ER_DBACCESS_DENIED_ERROR

@@ -1017,6 +1017,7 @@ Handler_read_key	5
 Handler_read_next	5
 Handler_write	2
 TRUNCATE TABLE t2;
+# Warm-up data-dictionary cache
 FLUSH STATUS;
 INSERT INTO t2 SELECT * FROM t1 PARTITION (subp3, `p10-99`, `p100-99999`);
 VARIABLE_NAME	VARIABLE_VALUE
@@ -1134,6 +1135,7 @@ Handler_read_rnd_next	8
 #             + 2 innodb_get_index in index_init in t1)
 # 3 read rnd next (3 rnd next in t2, 2 rows + 1 empty) 
 # Multi table delete matching all rows in subp3 (2 rows in per table)
+# Pull-in all objects in Table and DD caches first.
 FLUSH STATUS;
 DELETE FROM t2, t3 USING t2 PARTITION (`p0-9`), t3, t1 PARTITION (subp3)
 WHERE t1.a = t3.a AND t3.b = 'subp3' AND t2.a = t1.a;

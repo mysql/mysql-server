@@ -145,7 +145,7 @@ flush status;
 
 # With new data dictionary (DD) introduced, the size of table definition cache
 # is bit more than expected. 
-set @dd_definitions = 13;
+set @dd_definitions = 14;
 
 --disable_warnings
 set @Open_table_definitions = (select variable_value from performance_schema.session_status where variable_name ='Open_table_definitions') + @dd_definitions;

@@ -777,6 +777,11 @@ void Trigger::add_tables_and_routines(THD *thd,
                           m_sp->m_db.str, m_sp->m_db.length,
                           m_sp->m_name.str, m_sp->m_name.length,
                           /*
+                            Db name should be already in lower case if
+                            lower_case_table_name > 0.
+                          */
+                          false,
+                          /*
                             Lowercase trigger name to ensure that we can use
                             binary comparison for Sroutine_hash_entry's key.
 

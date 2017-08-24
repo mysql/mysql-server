@@ -183,7 +183,7 @@ static void mock_dd_obj(dd::Foreign_key *fk)
   fk->set_match_option(Foreign_key::OPTION_PARTIAL);
   fk->set_update_rule(Foreign_key::RULE_CASCADE);
   fk->set_delete_rule(Foreign_key::RULE_CASCADE);
-  fk->referenced_table_name("mocked referenced table name");
+  fk->set_referenced_table_name("mocked referenced table name");
   for (int i= 0; i < FANOUT; ++i)
   {
     mock_dd_obj(fk->add_element());

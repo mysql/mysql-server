@@ -30,6 +30,7 @@
 #include "sql/dd/impl/system_views/key_column_usage.h"   // key_column_usage
 #include "sql/dd/impl/system_views/parameters.h"         // Parameters
 #include "sql/dd/impl/system_views/partitions.h"         // Partitions
+#include "sql/dd/impl/system_views/referential_constraints.h" // Referential_con...
 #include "sql/dd/impl/system_views/routines.h"           // Routines
 #include "sql/dd/impl/system_views/resource_groups.h"    // Resource_groups
 #include "sql/dd/impl/system_views/schemata.h"           // Schemata
@@ -182,6 +183,7 @@ void System_views::init()
   register_view<dd::system_views::Key_column_usage>(is);
   register_view<dd::system_views::Parameters>(is);
   register_view<dd::system_views::Partitions>(is);
+  register_view<dd::system_views::Referential_constraints>(is);
   register_view<dd::system_views::Resource_groups>(is);
   register_view<dd::system_views::Routines>(is);
   register_view<dd::system_views::Schemata>(is);

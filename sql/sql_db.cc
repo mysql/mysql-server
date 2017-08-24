@@ -547,6 +547,7 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
   Drop_table_error_handler err_handler;
   bool dropped_non_atomic= false;
   std::set<handlerton*> post_ddl_htons;
+  Foreign_key_parents_invalidator fk_invalidator;
 
   DBUG_ENTER("mysql_rm_db");
 
@@ -622,6 +623,7 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
 
     /* Lock all tables and stored routines about to be dropped. */
     if (lock_table_names(thd, tables, NULL, thd->variables.lock_wait_timeout, 0)
+        || rm_table_do_discovery_and_lock_fk_tables(thd, tables)
         || Events::lock_schema_events(thd, *schema)
         || lock_db_routines(thd, *schema)
         || lock_trigger_names(thd, tables))
@@ -642,7 +644,8 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
     thd->push_internal_handler(&err_handler);
     if (tables)
       error= mysql_rm_table_no_locks(thd, tables, true, false, true,
-                                     &dropped_non_atomic, &post_ddl_htons);
+                                     &dropped_non_atomic, &post_ddl_htons,
+                                     &fk_invalidator, nullptr);
 
     DBUG_EXECUTE_IF("rm_db_fail_after_dropping_tables",
                     {
@@ -715,6 +718,8 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
     */
     for (handlerton *hton: post_ddl_htons)
       hton->post_ddl(thd);
+
+    fk_invalidator.invalidate(thd);
 
     /*
       Now we can try removing database directory.

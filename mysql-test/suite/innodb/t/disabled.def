@@ -17,3 +17,4 @@ analyze_table           @solaris  : Bug#22607584 2016-03-01 Shaohua Failing too 
 innodb.innodb_tsof_use_2  @windows : Bug#25716110 2017-03-14 Anitha Fails consistently on windows
 innodb.skip_locked_nowait  : Bug#25886814 2017-04-13 Allen Failing sporadically on PB2
 innodb.innodb_tsof_use_1  : Bug#26161492  2017-05-29 Erlend Fails sporadically
+virtual_fk_restart        : Bug#25817660 2017-04-01 dlenev Debug assertion due virtual column support code

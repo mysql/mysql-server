@@ -30,9 +30,12 @@
 #include "sql/current_thd.h"                         // current_thd
 #include "sql/dd/impl/properties_impl.h"             // Properties_impl
 #include "sql/dd/impl/raw/raw_record.h"              // Raw_record
+#include "sql/dd/impl/raw/raw_record_set.h"          // Raw_record_set
+#include  "sql/dd/impl/raw/raw_table.h"              // Raw_table
 #include "sql/dd/impl/sdi_impl.h"                    // sdi read/write functions
 #include "sql/dd/impl/tables/foreign_keys.h"         // Foreign_keys
 #include "sql/dd/impl/tables/indexes.h"              // Indexes
+#include "sql/dd/impl/tables/schemata.h"             // Schemata
 #include "sql/dd/impl/tables/table_partitions.h"     // Table_partitions
 #include "sql/dd/impl/tables/tables.h"               // Tables
 #include "sql/dd/impl/tables/triggers.h"             // Triggers
@@ -93,7 +96,9 @@ Table_impl::Table_impl()
 }
 
 Table_impl::~Table_impl()
-{ }
+{
+  delete_container_pointers(m_foreign_key_parents);
+}
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -144,6 +149,143 @@ bool Table_impl::validate() const
 
 ///////////////////////////////////////////////////////////////////////////
 
+bool Table_impl::load_foreign_key_parents(Open_dictionary_tables_ctx *otx)
+{
+  /*
+    Read information about FKs where this table is the parent.
+    The relevant tables are already opened.
+  */
+
+  // 1. Read the parent's schema name based on schema_id.
+  Raw_table *schema_table= otx->get_table<dd::Schema>();
+  DBUG_ASSERT(schema_table);
+  Primary_id_key schema_pk(schema_id());
+
+  std::unique_ptr<Raw_record_set> schema_rs;
+  if (schema_table->open_record_set(&schema_pk, schema_rs))
+    return true;
+
+  Raw_record *schema_rec= schema_rs->current_record();
+  DBUG_ASSERT(schema_rec);
+  if (schema_rec == nullptr)
+    return true;
+
+  // 2. Build a key for searching the FK table.
+  const int index_no= 3; // Key on tables::Foreign_keys.
+  Table_reference_range_key parent_ref_key(index_no,
+      tables::Foreign_keys::FIELD_REFERENCED_CATALOG,
+      String_type(Dictionary_impl::default_catalog_name()),
+      tables::Foreign_keys::FIELD_REFERENCED_SCHEMA,
+      schema_rec->read_str(tables::Schemata::FIELD_NAME),
+      tables::Foreign_keys::FIELD_REFERENCED_TABLE,
+      name());
+
+  // 3. Get the FK record set where this table is parent.
+  Raw_table *foreign_key_table= otx->get_table<dd::Foreign_key>();
+  DBUG_ASSERT(foreign_key_table);
+
+  std::unique_ptr<Raw_record_set> child_fk_rs;
+  if (foreign_key_table->open_record_set(&parent_ref_key, child_fk_rs))
+    return true;
+
+  Raw_record *child_fk_rec= child_fk_rs->current_record();
+  while (child_fk_rec)
+  {
+    // 4.1 Get the child table record based on the child table id.
+    Primary_id_key child_pk(child_fk_rec->read_int(
+      tables::Foreign_keys::FIELD_TABLE_ID));
+    Raw_table *tables_table= otx->get_table<dd::Table>();
+    DBUG_ASSERT(tables_table);
+
+    std::unique_ptr<Raw_record_set> child_table_rs;
+    if (tables_table->open_record_set(&child_pk, child_table_rs))
+      return true;
+
+    Raw_record *child_table= child_table_rs->current_record();
+    DBUG_ASSERT(child_table);
+    if (child_table == nullptr)
+      return true;
+
+    /*
+       4.2 Filter out child tables belonging to different SEs.
+           This is not supported at the moment and we don't want
+           such FKs to show up as Foreign_key_parent objects.
+    */
+    if (my_strcasecmp(system_charset_info,
+          child_table->read_str(tables::Tables::FIELD_ENGINE).c_str(),
+          m_engine.c_str()) != 0)
+    {
+      if (child_fk_rs->next(child_fk_rec))
+        return true;
+      continue;
+    }
+
+    // 5. Get the child schema record based on schema id from the table record.
+    schema_pk.update(child_table->read_int(tables::Tables::FIELD_SCHEMA_ID));
+    schema_rs.reset(nullptr); // Must end index read to allow new index read.
+    if (schema_table->open_record_set(&schema_pk, schema_rs))
+      return true;
+
+    schema_rec= schema_rs->current_record();
+    DBUG_ASSERT(schema_rec);
+    if (schema_rec == nullptr)
+      return true;
+
+    // 6. Collect the relevant information.
+    Foreign_key_parent *fk_parent= add_foreign_key_parent();
+    fk_parent->set_child_schema_name(
+      schema_rec->read_str(tables::Schemata::FIELD_NAME));
+    fk_parent->set_child_table_name(
+      child_table->read_str(tables::Tables::FIELD_NAME));
+    fk_parent->set_fk_name(child_fk_rec->read_str(
+      tables::Foreign_keys::FIELD_NAME));
+
+    Foreign_key::enum_rule update_rule= static_cast<Foreign_key::enum_rule>
+      (child_fk_rec->read_int(tables::Foreign_keys::FIELD_UPDATE_RULE));
+
+    fk_parent->set_update_rule(update_rule);
+
+    Foreign_key::enum_rule delete_rule= static_cast<Foreign_key::enum_rule>
+      (child_fk_rec->read_int(tables::Foreign_keys::FIELD_DELETE_RULE));
+
+    fk_parent->set_delete_rule(delete_rule);
+
+    // 7. Get next child record.
+    if (child_fk_rs->next(child_fk_rec))
+      return true;
+  }
+
+  return false;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+bool Table_impl::reload_foreign_key_parents(THD *thd)
+{
+ /*
+    Use READ UNCOMMITTED isolation, so this method works correctly when
+    called from the middle of atomic DDL statements.
+  */
+  dd::Transaction_ro trx(thd, ISO_READ_UNCOMMITTED);
+
+  // Register and open tables.
+  trx.otx.register_tables<dd::Table>();
+  if (trx.otx.open_tables())
+  {
+    DBUG_ASSERT(thd->is_system_thread() ||
+                thd->killed ||
+                thd->is_error());
+    return true;
+  }
+
+  // Delete and reload the foreign key parents.
+  delete_container_pointers(m_foreign_key_parents);
+
+  return load_foreign_key_parents(&trx.otx);
+}
+
+///////////////////////////////////////////////////////////////////////////
+
 bool Table_impl::restore_children(Open_dictionary_tables_ctx *otx)
 {
   // NOTE: the order of restoring collections is important because:
@@ -154,8 +296,8 @@ bool Table_impl::restore_children(Open_dictionary_tables_ctx *otx)
   //   - Partitions should be loaded at the end, as it refers to
   //     indexes.
 
-  bool ret=
-    Abstract_table_impl::restore_children(otx)
+  return
+    (Abstract_table_impl::restore_children(otx)
     ||
     m_indexes.restore_items(
       this,
@@ -184,9 +326,9 @@ bool Table_impl::restore_children(Open_dictionary_tables_ctx *otx)
       otx,
       otx->get_table<Trigger>(),
       Triggers::create_key_by_table_id(this->id()),
-      Trigger_order_comparator());
-
-  return ret;
+      Trigger_order_comparator())
+    ||
+    load_foreign_key_parents(otx));
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -614,6 +756,17 @@ Foreign_key *Table_impl::add_foreign_key()
 }
 
 ///////////////////////////////////////////////////////////////////////////
+// Foreign key parent collection.
+///////////////////////////////////////////////////////////////////////////
+
+Foreign_key_parent *Table_impl::add_foreign_key_parent()
+{
+  Foreign_key_parent *fk_parent= new (std::nothrow) Foreign_key_parent();
+  m_foreign_key_parents.push_back(fk_parent);
+  return fk_parent;
+}
+
+///////////////////////////////////////////////////////////////////////////
 // Partition collection.
 ///////////////////////////////////////////////////////////////////////////
 
@@ -877,6 +1030,7 @@ void Table_type::register_tables(Open_dictionary_tables_ctx *otx) const
 {
   otx->add_table<Tables>();
 
+  otx->register_tables<Schema>();
   otx->register_tables<Column>();
   otx->register_tables<Index>();
   otx->register_tables<Foreign_key>();
@@ -910,6 +1064,9 @@ Table_impl::Table_impl(const Table_impl &src)
 {
   m_indexes.deep_copy(src.m_indexes, this);
   m_foreign_keys.deep_copy(src.m_foreign_keys, this);
+  for (auto fk_parent : src.m_foreign_key_parents)
+    m_foreign_key_parents.push_back(
+            new (std::nothrow) Foreign_key_parent(*fk_parent));
   m_partitions.deep_copy(src.m_partitions, this);
   m_triggers.deep_copy(src.m_triggers, this);
 }

@@ -280,6 +280,7 @@ mysql	general_log	0	0
 mysql	index_column_usage	0	0
 mysql	index_partitions	0	0
 mysql	indexes	0	0
+mysql	schemata	0	0
 mysql	table_partition_values	0	0
 mysql	table_partitions	0	0
 mysql	tables	0	0

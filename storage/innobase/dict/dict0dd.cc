@@ -3001,7 +3001,8 @@ dd_table_check_for_child(
 				  nullptr, nullptr, nullptr);
 
 		if (client->fetch_fk_children_uncached(
-			name_buf1, name_buf2, &child_schema, &child_name)) {
+			name_buf1, name_buf2, "InnoDB", false,
+			&child_schema, &child_name)) {
 			return(DB_ERROR);
 		}
 

@@ -986,14 +986,16 @@ let $wait_condition= SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
 --source include/wait_condition.inc
 SET DEBUG_SYNC= 'now SIGNAL delete_child';
 
+connection default;
+--reap
+
+UNLOCK TABLES;
+
 connection con1;
 --reap
 
 connection default;
---reap
-
 --echo # Without the patch, there will be an orphaned row in table 't2'.
-UNLOCK TABLES;
 SELECT * FROM t1;
 SELECT * FROM t2;
 
@@ -1029,13 +1031,15 @@ let $wait_condition= SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
 --source include/wait_condition.inc
 SET DEBUG_SYNC='now signal alter_child';
 
-connection con1;
---reap
-
---echo # Cleanup
 connection default;
 --reap
 UNLOCK TABLES;
+
+connection con1;
+--reap
+
+connection default;
+--echo # Cleanup
 DROP TABLE t2, t1;
 SET DEBUG_SYNC= 'RESET';
 disconnect con1;

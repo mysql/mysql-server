@@ -104,6 +104,7 @@ SET(DD_SOURCES
   dd/impl/system_views/key_column_usage.cc
   dd/impl/system_views/parameters.cc
   dd/impl/system_views/partitions.cc
+  dd/impl/system_views/referential_constraints.cc
   dd/impl/system_views/resource_groups.cc
   dd/impl/system_views/routines.cc
   dd/impl/system_views/schemata.cc
