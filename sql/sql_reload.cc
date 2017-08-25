@@ -219,6 +219,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
               !thd->handler_tables_hash.empty() ||
               thd->mdl_context.has_locks(MDL_key::USER_LEVEL_LOCK) ||
               thd->mdl_context.has_locks(MDL_key::LOCKING_SERVICE) ||
+              thd->mdl_context.has_locks(MDL_key::BACKUP_LOCK) ||
               thd->global_read_lock.is_acquired());
 
   /*
