@@ -455,6 +455,27 @@ public:
 	bool is_valid() const
 		MY_ATTRIBUTE((warn_unused_result));
 
+	/** Remove quotes e.g., 'a;b' or "a;b" -> a;b.
+	Assumes matching quotes.
+	@return pathspec with the quotes stripped */
+	static std::string parse(const char* pathspec)
+	{
+		std::string	path(pathspec);
+
+		ut_ad(!path.empty());
+
+		if (path.size() >= 2
+		    && (path.front() == '\'' || path.back() == '"')) {
+
+			ut_ad(path.back() == '\'' || path.back() == '"');
+
+			path.erase(0, 1);
+			path.erase(path.size() - 1);
+		}
+
+		return(path);
+	}
+
 	/** Convert the paths into absolute paths and compare them. The
 	paths to compare must be valid paths, otherwise the result is
 	undefined.

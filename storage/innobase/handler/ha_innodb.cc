@@ -5101,7 +5101,7 @@ innobase_init_files(
 
 	if (innobase_directories != nullptr && *innobase_directories != 0) {
 
-		directories.append(innobase_directories);
+		directories.append(Fil_path::parse(innobase_directories));
 		directories.push_back(FIL_PATH_SEPARATOR);
 	}
 
