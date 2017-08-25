@@ -963,6 +963,45 @@ os_aio_windows_handler(
 	IORequest*	type);
 #endif /* WIN_ASYNC_IO */
 
+/** Check the file type and determine if it can be deleted.
+@param[in]	name		Filename/Path to check
+@return true if it's a file or a symlink and can be deleted */
+static
+bool
+os_file_can_delete(const char* name)
+{
+	switch (Fil_path::get_file_type(name)) {
+	case OS_FILE_TYPE_FILE:
+	case OS_FILE_TYPE_LINK:
+		return(true);
+
+	case OS_FILE_TYPE_DIR:
+
+		ib::warn() << name << " is a directory, can't delete!";
+		break;
+
+	case OS_FILE_TYPE_BLOCK:
+
+		ib::warn() << name << " is a block device, can't delete!";
+		break;
+
+	case OS_FILE_TYPE_FAILED:
+
+		ib::warn() << name << " get file type failed, won't delete!";
+		break;
+
+	case OS_FILE_TYPE_UNKNOWN:
+
+		ib::warn() << name << " unknown file type, won't delete!";
+		break;
+
+	case OS_FILE_TYPE_MISSING:
+		break;
+	}
+
+	return(false);
+}
+
 /** Allocate a page for sync IO
 @return pointer to page */
 static
@@ -3275,6 +3314,11 @@ os_file_status_posix(
 		/* file exists, everything OK */
 
 	} else if (errno == ENOENT || errno == ENOTDIR) {
+
+		if (exists != nullptr) {
+			*exists = false;
+		}
+
 		/* file does not exist */
 		*type = OS_FILE_TYPE_MISSING;
 		return(true);
@@ -3286,6 +3330,10 @@ os_file_status_posix(
 		/* file exists, but stat call failed */
 		os_file_handle_error_no_exit(path, "stat", false);
 		return(false);
+	}
+
+	if (exists != nullptr) {
+		*exists = true;
 	}
 
 	if (S_ISDIR(statinfo.st_mode)) {
@@ -3813,17 +3861,24 @@ os_file_delete_if_exists_func(
 	const char*	name,
 	bool*		exist)
 {
-	if (exist != NULL) {
+	if (!os_file_can_delete(name)) {
+		return(false);
+	}
+
+	if (exist != nullptr) {
 		*exist = true;
 	}
 
 	int	ret = unlink(name);
 
 	if (ret != 0 && errno == ENOENT) {
-		if (exist != NULL) {
+
+		if (exist != nullptr) {
 			*exist = false;
 		}
+
 	} else if (ret != 0 && errno != ENOENT) {
+
 		os_file_handle_error_no_exit(name, "delete", false);
 
 		return(false);
@@ -4285,30 +4340,45 @@ os_file_status_win32(
 	bool*		exists,
 	os_file_type_t* type)
 {
-	int		ret;
 	struct _stat64	statinfo;
 
-	ret = _stat64(path, &statinfo);
+	int	ret = _stat64(path, &statinfo);
 
-	*exists = !ret;
+	if (ret == 0) {
 
-	if (!ret) {
 		/* file exists, everything OK */
 
 	} else if (errno == ENOENT || errno == ENOTDIR) {
+
+		*type = OS_FILE_TYPE_MISSING;
+
 		/* file does not exist */
+
+		if (exists != nullptr) {
+			*exists = false;
+		}
+
 		return(true);
 
 	} else {
+
+		*type = OS_FILE_TYPE_FAILED;
+
 		/* file exists, but stat call failed */
 		os_file_handle_error_no_exit(path, "stat", false);
 		return(false);
 	}
 
+	if (exists != nullptr) {
+		*exists = true;
+	}
+
 	if (_S_IFDIR & statinfo.st_mode) {
+
 		*type = OS_FILE_TYPE_DIR;
 
 	} else if (_S_IFREG & statinfo.st_mode) {
+
 		*type = OS_FILE_TYPE_FILE;
 
 	} else {
@@ -5000,15 +5070,17 @@ os_file_create_simple_no_error_handling_func(
 @param[out]	exist		indicate if file pre-exist
 @return true if success */
 bool
-os_file_delete_if_exists_func(
-	const char*	name,
-	bool*		exist)
+os_file_delete_if_exists_func(const char* name, bool* exist)
 {
-	ulint	count	= 0;
+	if (!os_file_can_delete(name)) {
+		return(false);
+	}
 
-	if (exist != NULL) {
+	if (exist != nullptr) {
 		*exist = true;
 	}
+
+	ulint	count = 0;
 
 	for (;;) {
 		/* In Windows, deleting an .ibd file may fail if ibbackup
@@ -5025,17 +5097,13 @@ os_file_delete_if_exists_func(
 		if (lasterr == ERROR_FILE_NOT_FOUND
 		    || lasterr == ERROR_PATH_NOT_FOUND) {
 
-			/* the file does not exist, this not an error */
+			/* The file does not exist, this not an error */
 			if (exist != NULL) {
 				*exist = false;
 			}
 
 			return(true);
 
-		} else if (!Fil_path::is_file_and_exists(name)
-			   && Fil_path::is_directory_and_exists(name)) {
-
-			return(false)
 		}
 
 		++count;

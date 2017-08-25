@@ -8263,9 +8263,9 @@ Fil_path::get_file_type(const std::string& path)
 	ptr = &path;
 #endif /* WIN32 */
 
-	bool	ret = os_file_status(ptr->c_str(), &exists, &type);
+	os_file_status(ptr->c_str(), &exists, &type);
 
-	return(exists && ret ? type : OS_FILE_TYPE_UNKNOWN);
+	return(type);
 }
 
 /** @return true if the path exists and is a file . */
