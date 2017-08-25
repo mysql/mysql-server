@@ -509,9 +509,7 @@ public:
 
 #ifdef _WIN32
 		/* FIXME: What about \\Host\share paths? */
-		if (isalpha(path[0])
-		    && path[1] == ':'
-		    && path[2] == OS_SEPARATOR) {
+		if (isalpha(path[0]) && path[1] == ':' && path[2] == '\\') {
 
 			return(true);
 		}

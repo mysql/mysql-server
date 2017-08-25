@@ -4491,16 +4491,19 @@ Fil_path::make(
 	std::string	name;
 
 	if (name_in != nullptr) {
-		name.append(name_in);
+		name.assign(name_in);
 	}
 
 	std::string	path(path_in);
 
-	/* If the name is a relative path like './', do not prepend "./". */
-	if (!is_absolute_path(name.c_str())
-	    && name.length() >= 2
-	    && name.at(0) == '.'
-	    && (name.at(1) == '.' || is_separator(name.at(1)))) {
+	/* If the name is a relative path like './', '../' or an absolute path,
+	do not prepend "./". */
+	if (is_absolute_path(name.c_str())
+	    || (name.length() >= 2
+		&& ((name.at(0) == '.' && is_separator(name.at(1)))
+		    || (name.at(0) == '.'
+			&& name.at(1) == '.'
+			&& is_separator(name.at(1)))))) {
 
 		path.clear();
 	}
