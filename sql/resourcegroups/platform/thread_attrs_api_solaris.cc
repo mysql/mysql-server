@@ -163,7 +163,7 @@ bool set_thread_priority(int priority)
 }
 
 
-bool set_thread_priority(int priority, my_thread_os_id_t thread_id)
+bool set_thread_priority(int, my_thread_os_id_t)
 {
   DBUG_ENTER("set_thread_priority");
   // Setting thread priority on solaris is not supported.

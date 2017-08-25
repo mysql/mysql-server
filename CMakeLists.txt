@@ -459,7 +459,7 @@ IF (USE_LD_GOLD)
   # as the flag not existing).
   MY_CHECK_C_COMPILER_FLAG("-fuse-ld=gold" C_LD_GOLD_RESULT)
   MY_CHECK_CXX_COMPILER_FLAG("-fuse-ld=gold" CXX_LD_GOLD_RESULT)
-  IF (C_LD_GOLD_RESULT AND CXX_LD_GOLD_RESULT)
+  IF (C_LD_GOLD_RESULT AND CXX_LD_GOLD_RESULT AND NOT SOLARIS)
     SET(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -fuse-ld=gold -Wl,--gc-sections -Wl,--icf=safe")
     SET(CMAKE_CXX_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS} -fuse-ld=gold -Wl,--gc-sections -Wl,--icf=safe")
   ENDIF()
@@ -704,15 +704,6 @@ IF(WITH_UNIT_TESTS)
  ENABLE_TESTING()
 ENDIF()
 
-IF(NOT WITHOUT_SERVER)
-  SET (MYSQLD_STATIC_PLUGIN_LIBS "" CACHE INTERNAL "")
-  # Add storage engines and plugins.
-  CONFIGURE_PLUGINS()
-ELSE()
-  # We may still want Cluster client libraries, use -DWITH_NDBCLUSTER=1
-  ADD_SUBDIRECTORY(storage/ndb)
-ENDIF()
-
 ADD_SUBDIRECTORY(include)
 ADD_SUBDIRECTORY(dbug)
 ADD_SUBDIRECTORY(strings)
@@ -723,6 +714,15 @@ ADD_SUBDIRECTORY(extra/regex)
 ADD_SUBDIRECTORY(libmysql)
 ADD_SUBDIRECTORY(libbinlogevents)
 ADD_SUBDIRECTORY(libbinlogstandalone)
+
+IF(NOT WITHOUT_SERVER)
+  SET (MYSQLD_STATIC_PLUGIN_LIBS "" CACHE INTERNAL "")
+  # Add storage engines and plugins.
+  CONFIGURE_PLUGINS()
+ELSE()
+  # We may still want Cluster client libraries, use -DWITH_NDBCLUSTER=1
+  ADD_SUBDIRECTORY(storage/ndb)
+ENDIF()
 
 IF(NOT WITHOUT_SERVER)
   SET (MYSQLD_STATIC_COMPONENT_LIBS "" CACHE INTERNAL "")

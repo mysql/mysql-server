@@ -139,3 +139,20 @@ LOCK INSTANCE FOR BACKUP;
 --connection default
 DROP USER u1;
 DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug26665851 - USING FLUSH TABLES WITH READ LOCK AND LOCK INSTANCE LEADS TO A CRASH
+--echo #
+
+LOCK INSTANCE FOR BACKUP;
+
+CREATE TABLE t1 (a INT);
+
+--echo # Without the patch the following statement leads to a crash for debug build
+FLUSH TABLES WITH READ LOCK;
+
+UNLOCK TABLES;
+
+DROP TABLE t1;
+
+UNLOCK INSTANCE;
