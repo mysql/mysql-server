@@ -423,7 +423,7 @@ Plugin_gcs_events_handler::get_hosts_from_view(const std::vector<Gcs_member_iden
     if (member_info->in_primary_mode() &&
         member_info->get_role() == Group_member_info::MEMBER_ROLE_PRIMARY)
     {
-      if (primary_string.tellp() != 0)
+      if (primary_string.rdbuf()->in_avail() != 0)
         primary_string << ", ";
       primary_string << member_info->get_hostname() << ":" << member_info->get_port();
     }
