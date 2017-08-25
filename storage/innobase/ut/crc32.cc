@@ -88,10 +88,30 @@ external tools. */
 
 #if defined(_WIN32)
 #include <intrin.h>
+/* x86-specific CRC32 support may be available */
+#define UNIV_CRC32_CPU
 #endif
 
 #include "univ.i"
 #include "ut0crc32.h"
+
+#if defined(__GNUC__) && defined(__x86_64__)
+/* x86-specific CRC32 support may be available */
+# define UNIV_CRC32_CPU
+#endif /* __GNUC__ && __x86_64__ */
+
+#if defined(__GNUC__) && defined(UNIV_LINUX) && defined(__aarch64__)
+/* include defs for Linux auxiliary vector */
+# include <sys/auxv.h>
+# include <asm/hwcap.h>
+# ifndef HWCAP_CRC32
+#  define HWCAP_CRC32 (1<<7)
+# endif
+/* ARMv8-specific CRC32 support may be available */
+# define UNIV_CRC32_CPU
+/* assembler directive to enable CRC32 instructions */
+  asm(".cpu generic+crc");
+#endif /* __GNUC__ && UNIV_LINUX && __aarch64__ */
 
 /** Pointer to CRC32 calculation function. */
 ut_crc32_func_t	ut_crc32;
@@ -124,17 +144,11 @@ ut_crc32_swap_byteorder(
 
 /* CRC32 hardware implementation. */
 
-/** Flag that tells whether the CPU supports CRC32 or not.
-The CRC32 instructions are part of the SSE4.2 instruction set. */
+/* Flag that tells whether the CPU supports CRC32 or not. */
 bool	ut_crc32_cpu_enabled = false;
 
-#if defined(__GNUC__) && defined(__x86_64__)
-#define gnuc64
-#endif
-
-#if defined(gnuc64) || defined(_WIN32)
-/** Checks whether the CPU has the CRC32 instructions (part of the SSE4.2
-instruction set).
+#ifdef UNIV_CRC32_CPU
+/** Performs a run-time check whether the CPU has the CRC32 instructions.
 @return true if CRC32 is available */
 static
 bool
@@ -160,26 +174,27 @@ ut_crc32_check_cpu()
 	return false;
 #else
 
-	uint32_t	features_ecx;
-
-#if defined(gnuc64)
+#if defined(__GNUC__) && defined(__x86_64__)
 	uint32_t	sig;
+	uint32_t	features_ecx;
 	uint32_t	features_edx;
 
 	asm("cpuid" : "=a" (sig), "=c" (features_ecx), "=d" (features_edx)
 	    : "a" (1)
 	    : "ebx");
+	return features_ecx & (1 << 20);  // SSE4.2
+#elif defined(__GNUC__) && defined(__aarch64__) && defined(UNIV_LINUX)
+	return getauxval(AT_HWCAP) & HWCAP_CRC32;
 #elif defined(_WIN32)
-	int	cpu_info[4] = {-1, -1, -1, -1};
+	uint32_t	features_ecx;
+	int		cpu_info[4] = {-1, -1, -1, -1};
 
 	__cpuid(cpu_info, 1 /* function 1 */);
 
 	features_ecx = static_cast<uint32_t>(cpu_info[2]);
 #else
-#error Dont know how to handle non-gnuc64 and non-windows platforms.
+#error Dont know how to check CRC32 instructions availability on this platform.
 #endif
-
-	return features_ecx & (1 << 20);  // SSE4.2
 #endif /* UNIV_DEBUG_VALGRIND */
 }
 
@@ -196,16 +211,22 @@ ut_crc32_8_hw(
 	const byte**	data,
 	ulint*		len)
 {
-#if defined(gnuc64)
+#if defined(__GNUC__) && defined (__x86_64__)
 	asm("crc32b %1, %0"
 	    /* output operands */
 	    : "+r" (*crc)
 	    /* input operands */
 	    : "rm" ((*data)[0]));
+#elif defined(__GNUC__) && defined(__aarch64__)
+	asm("crc32cb %w[c], %w[c], %w[v]"
+	    /* output operands */
+	    : [c]"+r"(*crc)
+	    /* input operands */
+	    : [v]"r"((*data)[0]));
 #elif defined(_WIN32)
 	*crc = _mm_crc32_u8(static_cast<unsigned>(*crc), (*data)[0]);
 #else
-#error Dont know how to handle non-gnuc64 and non-windows platforms.
+#error Dont know how to use CRC32 CPU instructions on this platform.
 #endif
 
 	(*data)++;
@@ -222,21 +243,25 @@ ut_crc32_64_low_hw(
 	uint64_t	crc,
 	uint64_t	data)
 {
-	uint64_t	crc_64bit = crc;
-
-#if defined(gnuc64)
+#if defined(__GNUC__) && defined (__x86_64__)
 	asm("crc32q %1, %0"
 	    /* output operands */
-	    : "+r" (crc_64bit)
+	    : "+r" (crc)
 	    /* input operands */
 	    : "rm" (data));
+#elif defined(__GNUC__) && defined(__aarch64__)
+	asm("crc32cx %w[c], %w[c], %x[v]"
+	    /* output operands */
+	    : [c]"+r"(crc)
+	    /* input operands */
+	    : [v]"r"(data));
 #elif defined(_WIN32)
-	crc_64bit = _mm_crc32_u64(crc_64bit, data);
+	crc = _mm_crc32_u64(crc, data);
 #else
-#error Dont know how to handle non-gnuc64 and non-windows platforms.
+#error Dont know how to use CRC32 CPU instructions on this platform.
 #endif
 
-	return(crc_64bit);
+	return(crc);
 }
 
 /** Calculate CRC32 over 64-bit byte string using a hardware/CPU instruction.
@@ -255,9 +280,9 @@ ut_crc32_64_hw(
 	uint64_t	data_int = *reinterpret_cast<const uint64_t*>(*data);
 
 #ifdef WORDS_BIGENDIAN
-	/* Currently we only support x86_64 (little endian) CPUs. In case
-	some big endian CPU supports a CRC32 instruction, then maybe we will
-	need a byte order swap here. */
+	/* Currently we only support little endian CPUs. In case some big endian
+	CPU supports a CRC32 instruction, then maybe we will need a byte order
+	swap here. */
 #error Dont know how to handle big endian CPUs
 	/*
 	data_int = ut_crc32_swap_byteorder(data_int);
@@ -289,9 +314,9 @@ ut_crc32_64_legacy_big_endian_hw(
 #ifndef WORDS_BIGENDIAN
 	data_int = ut_crc32_swap_byteorder(data_int);
 #else
-	/* Currently we only support x86_64 (little endian) CPUs. In case
-	some big endian CPU supports a CRC32 instruction, then maybe we will
-	NOT need a byte order swap here. */
+	/* Currently we only support little endian CPUs. In case some big endian
+	CPU supports a CRC32 instruction, then maybe we will NOT need a byte
+	order swap here. */
 #error Dont know how to handle big endian CPUs
 #endif /* WORDS_BIGENDIAN */
 
@@ -299,6 +324,92 @@ ut_crc32_64_legacy_big_endian_hw(
 
 	*data += 8;
 	*len -= 8;
+}
+
+/** Calculate CRC32 over 2 64-bit byte string using a hardware/CPU instruction.
+@param[in,out]	crc	crc32 checksum so far when this function is called,
+when the function ends it will contain the new checksum
+@param[in,out]	data	data to be checksummed, the pointer will be advanced
+with 16 bytes
+@param[in,out]	len	remaining bytes, it will be decremented with 16 */
+inline
+void
+ut_crc32_128_hw(
+	uint64_t*	crc,
+	const byte**	data,
+	ulint*		len)
+{
+#ifdef WORDS_BIGENDIAN
+	/* Currently we only support little endian CPUs. In case some big endian
+	CPU supports a CRC32 instruction, then maybe we will need a byte order
+	swap here. */
+#error Dont know how to handle big endian CPUs
+	/*
+	data_int = ut_crc32_swap_byteorder(data_int);
+	*/
+#endif /* WORDS_BIGENDIAN */
+#if defined(__GNUC__) && defined(__aarch64__)
+	uint64_t v0, v1;
+
+	/* Load a pair of registers with one instruction to spare some cycles.
+	Note that post-index addressing also increments the source address
+	automatically. */
+	asm("ldp %x[a], %x[b], [%x[c]], #16"
+	    /* output operands */
+	    : [a]"=r"(v0), [b]"=r"(v1), [c]"+r"(*data));
+
+	*crc = ut_crc32_64_low_hw(*crc, v0);
+	*crc = ut_crc32_64_low_hw(*crc, v1);
+
+	*len -= 16;
+#else
+	ut_crc32_64_hw(crc, data, len);
+	ut_crc32_64_hw(crc, data, len);
+#endif
+}
+
+/** Calculate CRC32 over 2 64-bit byte string using a hardware/CPU instruction.
+The byte strings are converted to 64-bit integers using big endian byte order.
+@param[in,out]	crc	crc32 checksum so far when this function is called,
+when the function ends it will contain the new checksum
+@param[in,out]	data	data to be checksummed, the pointer will be advanced
+with 16 bytes
+@param[in,out]	len	remaining bytes, it will be decremented with 16 */
+inline
+void
+ut_crc32_128_legacy_big_endian_hw(
+	uint64_t*	crc,
+	const byte**	data,
+	ulint*		len)
+{
+#if defined(__GNUC__) && defined(__aarch64__)
+	uint64_t v0, v1;
+
+	/* Load a pair of registers with one instruction to spare some cycles.
+	Note that post-index addressing also increments the source address
+	automatically. */
+	asm("ldp %x[a], %x[b], [%x[c]], #16"
+	    /* output operands */
+	    : [a]"=r"(v0), [b]"=r"(v1), [c]"+r"(*data));
+
+#ifndef WORDS_BIGENDIAN
+	v0 = ut_crc32_swap_byteorder(v0);
+	v1 = ut_crc32_swap_byteorder(v1);
+#else
+	/* Currently we only support little endian CPUs. In case some big endian
+	CPU supports a CRC32 instruction, then maybe we will NOT need a byte
+	order swap here. */
+#error Dont know how to handle big endian CPUs
+#endif /* WORDS_BIGENDIAN */
+
+	*crc = ut_crc32_64_low_hw(*crc, v0);
+	*crc = ut_crc32_64_low_hw(*crc, v1);
+
+	*len -= 16;
+#else
+	ut_crc32_64_legacy_big_endian_hw(crc, data, len);
+	ut_crc32_64_legacy_big_endian_hw(crc, data, len);
+#endif
 }
 
 /** Calculates CRC32 using hardware/CPU instructions.
@@ -361,23 +472,15 @@ ut_crc32_hw(
 	(4.51% slowdown over N=256)
 	*/
 	while (len >= 128) {
-		/* This call is repeated 16 times. 16 * 8 = 128. */
-		ut_crc32_64_hw(&crc, &buf, &len);
-		ut_crc32_64_hw(&crc, &buf, &len);
-		ut_crc32_64_hw(&crc, &buf, &len);
-		ut_crc32_64_hw(&crc, &buf, &len);
-		ut_crc32_64_hw(&crc, &buf, &len);
-		ut_crc32_64_hw(&crc, &buf, &len);
-		ut_crc32_64_hw(&crc, &buf, &len);
-		ut_crc32_64_hw(&crc, &buf, &len);
-		ut_crc32_64_hw(&crc, &buf, &len);
-		ut_crc32_64_hw(&crc, &buf, &len);
-		ut_crc32_64_hw(&crc, &buf, &len);
-		ut_crc32_64_hw(&crc, &buf, &len);
-		ut_crc32_64_hw(&crc, &buf, &len);
-		ut_crc32_64_hw(&crc, &buf, &len);
-		ut_crc32_64_hw(&crc, &buf, &len);
-		ut_crc32_64_hw(&crc, &buf, &len);
+		/* This call is repeated 8 times. 128 bits * 8 = 128 bytes */
+		ut_crc32_128_hw(&crc, &buf, &len);
+		ut_crc32_128_hw(&crc, &buf, &len);
+		ut_crc32_128_hw(&crc, &buf, &len);
+		ut_crc32_128_hw(&crc, &buf, &len);
+		ut_crc32_128_hw(&crc, &buf, &len);
+		ut_crc32_128_hw(&crc, &buf, &len);
+		ut_crc32_128_hw(&crc, &buf, &len);
+		ut_crc32_128_hw(&crc, &buf, &len);
 	}
 
 	while (len >= 8) {
@@ -414,23 +517,15 @@ ut_crc32_legacy_big_endian_hw(
 	}
 
 	while (len >= 128) {
-		/* This call is repeated 16 times. 16 * 8 = 128. */
-		ut_crc32_64_legacy_big_endian_hw(&crc, &buf, &len);
-		ut_crc32_64_legacy_big_endian_hw(&crc, &buf, &len);
-		ut_crc32_64_legacy_big_endian_hw(&crc, &buf, &len);
-		ut_crc32_64_legacy_big_endian_hw(&crc, &buf, &len);
-		ut_crc32_64_legacy_big_endian_hw(&crc, &buf, &len);
-		ut_crc32_64_legacy_big_endian_hw(&crc, &buf, &len);
-		ut_crc32_64_legacy_big_endian_hw(&crc, &buf, &len);
-		ut_crc32_64_legacy_big_endian_hw(&crc, &buf, &len);
-		ut_crc32_64_legacy_big_endian_hw(&crc, &buf, &len);
-		ut_crc32_64_legacy_big_endian_hw(&crc, &buf, &len);
-		ut_crc32_64_legacy_big_endian_hw(&crc, &buf, &len);
-		ut_crc32_64_legacy_big_endian_hw(&crc, &buf, &len);
-		ut_crc32_64_legacy_big_endian_hw(&crc, &buf, &len);
-		ut_crc32_64_legacy_big_endian_hw(&crc, &buf, &len);
-		ut_crc32_64_legacy_big_endian_hw(&crc, &buf, &len);
-		ut_crc32_64_legacy_big_endian_hw(&crc, &buf, &len);
+		/* This call is repeated 8 times. 128 bits * 8 = 128 bytes */
+		ut_crc32_128_legacy_big_endian_hw(&crc, &buf, &len);
+		ut_crc32_128_legacy_big_endian_hw(&crc, &buf, &len);
+		ut_crc32_128_legacy_big_endian_hw(&crc, &buf, &len);
+		ut_crc32_128_legacy_big_endian_hw(&crc, &buf, &len);
+		ut_crc32_128_legacy_big_endian_hw(&crc, &buf, &len);
+		ut_crc32_128_legacy_big_endian_hw(&crc, &buf, &len);
+		ut_crc32_128_legacy_big_endian_hw(&crc, &buf, &len);
+		ut_crc32_128_legacy_big_endian_hw(&crc, &buf, &len);
 	}
 
 	while (len >= 8) {
@@ -466,7 +561,7 @@ ut_crc32_byte_by_byte_hw(
 
 	return(~static_cast<uint32_t>(crc));
 }
-#endif /* defined(gnuc64) || defined(_WIN32) */
+#endif /* UNIV_CRC32_CPU */
 
 /* CRC32 software implementation. */
 
@@ -738,7 +833,7 @@ void
 ut_crc32_init()
 /*===========*/
 {
-#if defined(gnuc64) || defined(_WIN32)
+#if defined(UNIV_CRC32_CPU)
 	ut_crc32_cpu_enabled = ut_crc32_check_cpu();
 
 	if (ut_crc32_cpu_enabled) {
@@ -746,7 +841,7 @@ ut_crc32_init()
 		ut_crc32_legacy_big_endian = ut_crc32_legacy_big_endian_hw;
 		ut_crc32_byte_by_byte = ut_crc32_byte_by_byte_hw;
 	}
-#endif /* defined(gnuc64) || defined(_WIN32) */
+#endif /* UNIV_CRC32_CPU */
 
 	if (!ut_crc32_cpu_enabled) {
 		ut_crc32_slice8_table_init();
