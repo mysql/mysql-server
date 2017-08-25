@@ -86,7 +86,7 @@ SHOW CREATE TABLE tab3;
 --echo ## Start with new --datadir and --innodb-directories options
 --replace_result $MYSQLD_NEW_DATADIR NEW_DATADIR
 --replace_result $MYSQL_TMP_DIR data_directory2
---let $restart_parameters="restart: --datadir=$MYSQLD_NEW_DATADIR --innodb-directories='$MYSQLD_NEW_DATADIR;$MYSQL_TMP_DIR/data_directory2/test'"
+--let $restart_parameters="restart: --datadir=$MYSQLD_NEW_DATADIR --innodb-directories=$MYSQLD_NEW_DATADIR\\;$MYSQL_TMP_DIR/data_directory2/test"
 --source include/start_mysqld.inc
 
 --echo ## Check while passing new datadir and new absolute path
@@ -154,7 +154,7 @@ DROP TABLESPACE ts1;
 --echo ## Test with relative paths of --datadir and absolute path
 --replace_result $MYSQLD_NEW_DATADIR data_directory2
 --replace_result $MYSQL_TMP_DIR NEW_DATADIR
---let $restart_parameters="restart: --datadir=$MYSQL_TMP_DIR/data_directory2/test/../../new_datadir/data --innodb-directories='$MYSQLD_NEW_DATADIR/../../data_directory2/test'"
+--let $restart_parameters="restart: --datadir=$MYSQL_TMP_DIR/data_directory2/test/../../new_datadir/data --innodb-directories=$MYSQLD_NEW_DATADIR/../../data_directory2/test"
 --source include/start_mysqld.inc
 
 --echo ## Check relative path while passing as new datadir and new absolute path
