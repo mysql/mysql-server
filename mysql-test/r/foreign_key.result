@@ -533,6 +533,17 @@ fld1
 SELECT * FROM t2;
 fld1	fld2
 2	2
+# The same test but with server restart before UPDATE.
+# Triggers different code path in InnoDB which was not
+# covered by original fix for the bug.
+# restart
+UPDATE t1 SET fld1= 3;
+SELECT * FROM t1;
+fld1
+3
+SELECT * FROM t2;
+fld1	fld2
+3	3
 DROP TABLE t2;
 DROP TABLE t1;
 #

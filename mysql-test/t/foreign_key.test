@@ -516,6 +516,16 @@ UPDATE t1 SET fld1= 2;
 SELECT * FROM t1;
 SELECT * FROM t2;
 
+--echo # The same test but with server restart before UPDATE.
+--echo # Triggers different code path in InnoDB which was not
+--echo # covered by original fix for the bug.
+
+--source include/restart_mysqld.inc
+UPDATE t1 SET fld1= 3;
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
 DROP TABLE t2;
 DROP TABLE t1;
 

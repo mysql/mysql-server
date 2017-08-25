@@ -8773,7 +8773,6 @@ bool handler::my_prepare_gcolumn_template(THD *thd,
   build_table_filename(path, sizeof(path) - 1 - reg_ext_length,
                        db_name, table_name, "", 0, &was_truncated);
   DBUG_ASSERT(!was_truncated);
-  lex_start(thd);
   bool rc= true;
 
   MDL_ticket *mdl_ticket= NULL;
@@ -8805,7 +8804,6 @@ bool handler::my_prepare_gcolumn_template(THD *thd,
     intern_close_table(table);
     rc= false;
   }
-  lex_end(thd->lex);
   return rc;
 }
 
