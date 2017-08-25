@@ -4158,17 +4158,22 @@ row_drop_single_table_tablespace(
 
 		} else {
 			ib::info()
-				<< "Remove of datafile " << filepath
-				<< " failed";
+				<< "Failed to delete the datafile '"
+				<< filepath << "'!";
 		}
 
-	} else if (fil_delete_tablespace(space_id, BUF_REMOVE_FLUSH_NO_WRITE)
-		   != DB_SUCCESS) {
+	} else {
 
-		ib::error() << "We are not able to delete the tablespace "
-			<< space_id << " file " << filepath << "!";
+		err = fil_delete_tablespace(
+			space_id, BUF_REMOVE_FLUSH_NO_WRITE);
 
-		err = DB_ERROR;
+		if (err != DB_SUCCESS && err != DB_TABLESPACE_NOT_FOUND) {
+
+			ib::error()
+				<< "Failed to delete the datafile of"
+				<< " tablespace " << space_id
+				<< ", file '" << filepath << "'!";
+		}
 	}
 
 	return(err);

@@ -977,22 +977,43 @@ os_file_can_delete(const char* name)
 
 	case OS_FILE_TYPE_DIR:
 
-		ib::warn() << name << " is a directory, can't delete!";
+		ib::warn()
+			<< "'" << name << "'"
+			<< " is a directory, can't delete!";
 		break;
 
 	case OS_FILE_TYPE_BLOCK:
 
-		ib::warn() << name << " is a block device, can't delete!";
+		ib::warn()
+			<< "'" << name << "'"
+			<< " is a block device, can't delete!";
 		break;
 
 	case OS_FILE_TYPE_FAILED:
 
-		ib::warn() << name << " get file type failed, won't delete!";
+		ib::warn()
+			<< "'" << name << "'"
+			<< " get file type failed, won't delete!";
 		break;
 
 	case OS_FILE_TYPE_UNKNOWN:
 
-		ib::warn() << name << " unknown file type, won't delete!";
+		ib::warn()
+			<< "'" << name << "'"
+			<< " unknown file type, won't delete!";
+		break;
+
+	case OS_FILE_TYPE_NAME_TOO_LONG:
+
+		ib::warn()
+			<< "'" << name << "'"
+			<< " name too long, can't delete!";
+		break;
+
+	case OS_FILE_PERMISSION_ERROR:
+		ib::warn()
+			<< "'" << name << "'"
+			<< " permission error, can't delete!";
 		break;
 
 	case OS_FILE_TYPE_MISSING:
@@ -3214,6 +3235,8 @@ os_file_get_last_error_low(
 		break;
 	case EACCES:
 		return(OS_FILE_ACCESS_VIOLATION);
+	case ENAMETOOLONG:
+		return(OS_FILE_NAME_TOO_LONG);
 	}
 	return(OS_FILE_ERROR_MAX + err);
 }
@@ -3323,6 +3346,12 @@ os_file_status_posix(
 		*type = OS_FILE_TYPE_MISSING;
 		return(true);
 
+	} else if (errno == ENAMETOOLONG) {
+		*type = OS_FILE_TYPE_NAME_TOO_LONG;
+		return(false);
+	} else if (errno == EACCES) {
+		*type = OS_FILE_PERMISSION_ERROR;
+		return(false);
 	} else {
 
 		*type = OS_FILE_TYPE_FAILED;
@@ -4359,6 +4388,11 @@ os_file_status_win32(
 		}
 
 		return(true);
+
+	} else if (errno == EACCES) {
+
+		*type = OS_FILE_PERMISSION_ERROR;
+		return(false);
 
 	} else {
 
@@ -6067,6 +6101,9 @@ os_file_handle_error_cond_exit(
 
 		os_thread_sleep(100000);	/* 100 ms */
 		return(true);
+
+	case OS_FILE_NAME_TOO_LONG:
+		return(false);
 
 	default:
 

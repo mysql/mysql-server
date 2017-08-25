@@ -195,6 +195,7 @@ static const ulint OS_FILE_INSUFFICIENT_RESOURCE = 78;
 static const ulint OS_FILE_AIO_INTERRUPTED = 79;
 static const ulint OS_FILE_OPERATION_ABORTED = 80;
 static const ulint OS_FILE_ACCESS_VIOLATION = 81;
+static const ulint OS_FILE_NAME_TOO_LONG = 82;
 static const ulint OS_FILE_ERROR_MAX = 100;
 /* @} */
 
@@ -871,6 +872,12 @@ extern ulint	os_n_fsyncs;
 enum os_file_type_t {
 	/** Get status failed. */
 	OS_FILE_TYPE_FAILED,
+
+	/** stat() failed, with ENAMETOOLONG */
+	OS_FILE_TYPE_NAME_TOO_LONG,
+
+	/** stat() failed with EACCESS */
+	OS_FILE_PERMISSION_ERROR,
 
 	/** File doesn't exist. */
 	OS_FILE_TYPE_MISSING,
