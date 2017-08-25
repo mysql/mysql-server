@@ -1894,13 +1894,11 @@ fil_write(
 }
 
 #ifndef UNIV_HOTBACKUP
-/** Look up a tablespace.
-The caller should hold an InnoDB table lock or a MDL that prevents
-the tablespace from being dropped during the operation,
-or the caller should be in single-threaded crash recovery mode
-(no user connections that could drop tablespaces).
-If this is not the case, fil_space_acquire() and fil_space_release()
-should be used instead.
+/** Look up a tablespace. The caller should hold an InnoDB table lock or
+a MDL that prevents the tablespace from being dropped during the operation,
+or the caller should be in single-threaded crash recovery mode (no user
+connections that could drop tablespaces). If this is not the case,
+fil_space_acquire() and fil_space_release() should be used instead.
 @param[in]	space_id	Tablespace ID
 @return tablespace, or nullptr if not found */
 fil_space_t*
@@ -9608,18 +9606,15 @@ fil_op_replay_rename_for_ddl(
 	space_id_t	space_id = page_id.space();
 	fil_space_t*	space = fil_space_get(space_id);
 
-	if (space == nullptr) {
+	if (space == nullptr && !fil_tablespace_open_for_recovery(space_id)) {
 
-		if (!fil_space_get(space_id)) {
+		ib::info()
+			<< "Can not find space with space ID "
+			<< space_id << " when replaying the DDL log "
+			<< "rename from '"  << old_name
+			<< "' to '" << new_name << "'";
 
-			ib::info()
-				<< "Can not find space with space ID "
-				<< space_id << " when replaying ddl log "
-				<< "rename from '"  << old_name
-				<< "' to '" << new_name << "'";
-
-			return(true);
-		}
+		return(true);
 	}
 
 	return(fil_op_replay_rename(page_id, old_name, new_name));
