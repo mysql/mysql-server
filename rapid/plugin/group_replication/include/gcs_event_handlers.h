@@ -270,14 +270,14 @@ private:
   /**
     Logs member joining message to error logs from view.
 
-    @param[in]  view        the view delivered by the GCS
+    @param[in]  new_view        the view delivered by the GCS
   */
   void log_members_joining_message(const Gcs_view& new_view) const;
 
   /**
     Logs member leaving message to error logs from view.
 
-    @param[in]  view        the view delivered by the GCS
+    @param[in]  new_view        the view delivered by the GCS
   */
   void log_members_leaving_message(const Gcs_view& new_view) const;
 
@@ -286,9 +286,9 @@ private:
     in HOST:PORT format separated by comma.
     Function also return PRIMARY member if any in HOST:PORT format.
 
-    @param[in]    joining/leaving members for this view
-    @param[out]   host and port of all members from view
-    @param[out]   primary member hosts and port of all members from view
+    @param[in]    members      joining or leaving members for this view
+    @param[out]   all_hosts    host and port of all members from view
+    @param[out]   primary_host primary member hosts and port of all members from view
   */
   void get_hosts_from_view(const std::vector<Gcs_member_identifier> &members,
                            std::string& all_hosts, std::string& primary_host) const;
