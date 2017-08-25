@@ -8278,6 +8278,38 @@ Fil_path::is_directory_and_exists() const
 	return(get_file_type(m_abs_path) == OS_FILE_TYPE_DIR);
 }
 
+/** This validation is only for ':'.
+@return true if the path is valid. */
+bool
+Fil_path::is_valid() const
+{
+	auto	count = std::count(m_path.begin(), m_path.end(), ':');
+
+	if (count == 0) {
+		return(true);
+	}
+
+#ifdef _WIN32
+	/* Do not allow names like "C:name.ibd" because it
+	specifies the "C:" drive but allows a relative location.
+	It should be like "c:\". If a single colon is used it
+	must be the second byte and the third byte must be a
+	separator. */
+
+	/* 8 == strlen("c:\a,ibd") */
+	if (count == 1
+	    && m_path.length() >= 8
+	    && isalpha(m_path.at(0))
+	    && m_path.at(1) == ':'
+	    && (m_path.at(2) == '\\' || m_path.at(2) == '/')) {
+
+		return(true);
+	}
+#endif /* _WIN32 */
+
+	return(false);
+}
+
 /** Sets the flags of the tablespace. The tablespace must be locked
 in MDL_EXCLUSIVE MODE.
 @param[in]	space	tablespace in-memory struct

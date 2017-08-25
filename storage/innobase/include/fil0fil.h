@@ -361,7 +361,7 @@ public:
 		return(m_path.c_str());
 	}
 
-	/** @return the length of m_path */
+	/** @return the value of m_path */
 	const std::string& path() const
 		MY_ATTRIBUTE((warn_unused_result))
 	{
@@ -449,6 +449,11 @@ public:
 
 		return(is_absolute_path(m_path.c_str()));
 	}
+
+	/** This validation is only for ':'.
+	@return true if the path is valid. */
+	bool is_valid() const
+		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Convert the paths into absolute paths and compare them. The
 	paths to compare must be valid paths, otherwise the result is

@@ -14816,36 +14816,21 @@ validate_create_tablespace_info(
 		return(HA_WRONG_CREATE_OPTION);
 	}
 
-	/* Do not allow an invalid colon in the file name. */
-	const char*	colon = strchr(filepath, ':');
+        if (!filepath.is_valid()) {
 
-	if (colon != NULL) {
-#ifdef _WIN32
-		/* Do not allow names like "C:name.ibd" because it
-		specifies the "C:" drive but allows a relative location.
-		It should be like "c:\". If a single colon is used it must
-		be the second byte the the third byte must be a separator. */
-		if (*colon != *filepath.path().begin()
-		    || colon[1] != OS_PATH_SEPARATOR
-		    || NULL != strchr(&colon[1], ':')) {
-#endif /* _WIN32 */
-			my_error(ER_WRONG_FILE_NAME,
-				 MYF(0), filepath.path().c_str());
+                my_error(ER_WRONG_FILE_NAME, MYF(0), filepath.path().c_str());
 
-			my_printf_error(ER_WRONG_FILE_NAME,
-					"Invalid use of ':'.", MYF(0));
+                my_printf_error(
+                        ER_WRONG_FILE_NAME, "Invalid use of ':'.", MYF(0));
 
-			return(HA_WRONG_CREATE_OPTION);
-#ifdef _WIN32
-		}
-#endif /* _WIN32 */
+                return(HA_WRONG_CREATE_OPTION);
 	}
 
 #ifndef _WIN32
 	/* On Non-Windows platforms, '\\' is a valid file name character.
 	But for InnoDB datafiles, we always assume it is a directory
 	separator and convert these to '/' */
-	if (strchr(filepath, '\\') != NULL) {
+	if (strchr(filepath, '\\') != nullptr) {
 
 		ib::warn()
 			<< "Converting backslash to forward slash in"
