@@ -54,8 +54,7 @@ extern ut_crc32_func_t	ut_crc32_legacy_big_endian;
 but very slow). */
 extern ut_crc32_func_t	ut_crc32_byte_by_byte;
 
-/** Flag that tells whether the CPU supports CRC32 or not.
-The CRC32 instructions are part of the SSE4.2 instruction set. */
+/** Flag that tells whether the CPU supports CRC32 instructions or not. */
 extern bool		ut_crc32_cpu_enabled;
 
 #endif /* ut0crc32_h */
