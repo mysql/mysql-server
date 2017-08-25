@@ -7755,6 +7755,12 @@ int MYSQL_BIN_LOG::rotate_and_purge(THD* thd, bool force_rotate)
   bool check_purge= false;
 
   /*
+    FLUSH BINARY LOGS command should ignore 'read-only' and 'super_read_only'
+    options so that it can update 'mysql.gtid_executed' replication repository
+    table.
+  */
+  thd->set_skip_readonly_check();
+  /*
     Wait for handlerton to insert any pending information into the binlog.
     For e.g. ha_ndbcluster which updates the binlog asynchronously this is
     needed so that the user see its own commands in the binlog.
@@ -9541,6 +9547,7 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
   int flush_error= 0, sync_error= 0;
   my_off_t total_bytes= 0;
   bool do_rotate= false;
+  unsigned int current_sync_period;
 
   DBUG_EXECUTE_IF("crash_commit_before_log", DBUG_SUICIDE(););
   /*
@@ -9687,7 +9694,8 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
     in this ongoing SYNC stage. The "+1" used below in the
     if condition is to count the ongoing sync stage.
   */
-  if (!flush_error && (sync_counter + 1 >= get_sync_period()))
+  current_sync_period= get_sync_period();
+  if (!flush_error && current_sync_period && (sync_counter + 1 >= current_sync_period))
     stage_manager.wait_count_or_timeout(opt_binlog_group_commit_sync_no_delay_count,
                                         opt_binlog_group_commit_sync_delay,
                                         Stage_manager::SYNC_STAGE);

@@ -16,6 +16,7 @@
 #include <stddef.h>
 #include <algorithm>
 #include <string>
+#include <sstream>
 #include <vector>
 
 #include "my_dbug.h"
@@ -30,10 +31,12 @@ Plugin_gcs_events_handler::
 Plugin_gcs_events_handler(Applier_module_interface* applier_module,
                           Recovery_module* recovery_module,
                           Plugin_gcs_view_modification_notifier* vc_notifier,
-                          Compatibility_module* compatibility_module)
+                          Compatibility_module* compatibility_module,
+                          ulong components_stop_timeout)
 : applier_module(applier_module), recovery_module(recovery_module),
   view_change_notifier(vc_notifier),
-  compatibility_manager(compatibility_module)
+  compatibility_manager(compatibility_module),
+  stop_wait_timeout(components_stop_timeout)
 {
   this->temporary_states= new std::set<Group_member_info*,
                                        Group_member_info_pointer_comparator>();
@@ -313,6 +316,9 @@ Plugin_gcs_events_handler::on_suspicions(const std::vector<Gcs_member_identifier
       {
         if (!member_info->is_unreachable())
         {
+          log_message(MY_WARNING_LEVEL,
+                      "Member with address %s:%u has become unreachable.",
+                      member_info->get_hostname().c_str(), member_info->get_port());
           // flag as a member having changed state
           m_notification_ctx.set_member_state_changed();
           member_info->set_unreachable();
@@ -324,6 +330,9 @@ Plugin_gcs_events_handler::on_suspicions(const std::vector<Gcs_member_identifier
       {
         if (member_info->is_unreachable())
         {
+          log_message(MY_WARNING_LEVEL,
+                      "Member with address %s:%u is reachable again.",
+                      member_info->get_hostname().c_str(), member_info->get_port());
           /* purecov: begin inspected */
           // flag as a member having changed state
           m_notification_ctx.set_member_state_changed();
@@ -337,19 +346,23 @@ Plugin_gcs_events_handler::on_suspicions(const std::vector<Gcs_member_identifier
   if ((members.size() - unreachable.size()) <= (members.size() / 2))
   {
     if (!group_partition_handler->get_timeout_on_unreachable())
-      log_message(MY_WARNING_LEVEL,
-                  "The member lost contact with a majority of the members in the"
-                  " group. Until the network is restored transactions will block."
-                  " As the value of group_replication_unreachable_majority_timeout"
-                  " is 0 the plugin will wait indefinitely for the network to be"
-                  " restored.");
+      log_message(MY_ERROR_LEVEL,
+                  "This server is not able to reach a majority of members "
+                  "in the group. This server will now block all updates. "
+                  "The server will remain blocked until contact with the "
+                  "majority is restored. "
+                  "It is possible to use group_replication_force_members "
+                  "to force a new group membership.");
     else
-      log_message(MY_WARNING_LEVEL,
-                  "The member lost contact with a majority of the members in the"
-                  " group. Until the network is restored transactions will block."
-                  " The plugin will wait for a network restore or timeout after"
-                  " the period defined on"
-                  " group_replication_unreachable_majority_timeout.");
+      log_message(MY_ERROR_LEVEL,
+                  "This server is not able to reach a majority of members "
+                  "in the group. This server will now block all updates. "
+                  "The server will remain blocked for the next %lu seconds. "
+                  "Unless contact with the majority is restored, after this "
+                  "time the member will error out and leave the group. "
+                  "It is possible to use group_replication_force_members "
+                  "to force a new group membership.",
+                  group_partition_handler->get_timeout_on_unreachable());
 
     if (!group_partition_handler->is_partition_handler_running() &&
         !group_partition_handler->is_partition_handling_terminated())
@@ -377,12 +390,85 @@ Plugin_gcs_events_handler::on_suspicions(const std::vector<Gcs_member_identifier
       {
         /* If it was not running or we canceled it in time */
         log_message(MY_WARNING_LEVEL,
-                    "The member resumed contact with a majority of the members"
-                    " in the group. Regular operation is re-established.");
+                    "The member has resumed contact with a majority of the "
+                    "members in the group. Regular operation is restored and "
+                    "transactions are unblocked.");
       }
     }
   }
   notify_and_reset_ctx(m_notification_ctx);
+}
+
+void
+Plugin_gcs_events_handler::log_members_leaving_message(const Gcs_view& new_view) const
+{
+  std::string members_leaving;
+  std::string primary_member_host;
+
+  get_hosts_from_view(new_view.get_leaving_members(), members_leaving, primary_member_host);
+
+  log_message(MY_WARNING_LEVEL,
+              "Members removed from the group: %s",
+              members_leaving.c_str());
+
+  if (!primary_member_host.empty())
+    log_message(MY_INFORMATION_LEVEL,
+                "Primary server with address %s left the group. "
+                "Electing new Primary.",
+                primary_member_host.c_str());
+}
+
+void
+Plugin_gcs_events_handler::log_members_joining_message(const Gcs_view& new_view) const
+{
+  std::string members_joining;
+  std::string primary_member_host;
+
+  get_hosts_from_view(new_view.get_joined_members(), members_joining, primary_member_host);
+
+  log_message(MY_INFORMATION_LEVEL,
+              "Members joined the group: %s",
+              members_joining.c_str());
+}
+
+void
+Plugin_gcs_events_handler::get_hosts_from_view(const std::vector<Gcs_member_identifier> &members,
+                         std::string& all_hosts, std::string& primary_host) const
+{
+  std::stringstream hosts_string;
+  std::stringstream primary_string;
+  std::vector<Gcs_member_identifier>::const_iterator all_members_it= members.begin();
+
+  while (all_members_it != members.end())
+  {
+    Group_member_info* member_info= group_member_mgr->
+                                     get_group_member_info_by_member_id((*all_members_it));
+    all_members_it++;
+
+    if (member_info == NULL)
+      continue;
+
+    hosts_string << member_info->get_hostname() << ":" << member_info->get_port();
+
+    /**
+     Check in_primary_mode has been added for safety.
+     Since primary role is in single-primary mode.
+    */
+    if (member_info->in_primary_mode() &&
+        member_info->get_role() == Group_member_info::MEMBER_ROLE_PRIMARY)
+    {
+      if (primary_string.tellp() != 0)
+        primary_string << ", ";
+      primary_string << member_info->get_hostname() << ":" << member_info->get_port();
+    }
+
+    if (all_members_it != members.end())
+    {
+      hosts_string << ", ";
+    }
+  }
+  all_hosts.assign (hosts_string.str());
+  primary_host.assign (primary_string.str());
 }
 
 void
@@ -436,8 +522,9 @@ Plugin_gcs_events_handler::on_view_changed(const Gcs_view& new_view,
       {
         /* If it was not running or we canceled it in time */
         log_message(MY_WARNING_LEVEL,
-                    "The member resumed contact with a majority of the members"
-                    " in the group. Regular operation is re-established.");
+                    "The member has resumed contact with a majority of the "
+                    "members in the group. Regular operation is restored and "
+                    "transactions are unblocked.");
       }
     }
 
@@ -449,8 +536,14 @@ Plugin_gcs_events_handler::on_view_changed(const Gcs_view& new_view,
         group_partition_handler->is_partition_handling_terminated())
       goto end;
 
+    if (!is_leaving && new_view.get_leaving_members().size() > 0)
+      log_members_leaving_message(new_view);
+
     //update the Group Manager with all the received states
     this->update_group_info_manager(new_view, exchanged_data, is_leaving);
+
+    if (!is_joining && new_view.get_joined_members().size() > 0)
+      log_members_joining_message(new_view);
 
     //enable conflict detection if someone on group have it enabled
     if (local_member_info->in_primary_mode() &&
@@ -483,6 +576,19 @@ Plugin_gcs_events_handler::on_view_changed(const Gcs_view& new_view,
     //Signal that the injected view was delivered
     if (view_change_notifier->is_injected_view_modification())
       view_change_notifier->end_view_modification();
+  }
+
+  if (!is_leaving)
+  {
+    log_message(MY_INFORMATION_LEVEL,
+                "Group membership changed to %s on view %s.",
+                group_member_mgr->get_string_current_view_active_hosts().c_str(),
+                gcs_module->get_current_view()->get_view_id().get_representation().c_str());
+  }
+  else
+  {
+    log_message(MY_INFORMATION_LEVEL,
+                "Group membership changed: This member has left the group.");
   }
 
 end:
@@ -752,12 +858,17 @@ void Plugin_gcs_events_handler::handle_leader_election_if_needed() const
           Group_member_info::MEMBER_ROLE_PRIMARY,
           m_notification_ctx);
 
+        log_message(MY_INFORMATION_LEVEL, "A new primary with address %s:%u "
+                    "was elected, enabling conflict detection until the new "
+                    "primary applies all relay logs.",
+                    the_primary->get_hostname().c_str(),
+                    the_primary->get_port());
+
         // Check if the session was established, it can (re)set read only mode.
         if (!skip_set_super_readonly)
         {
           if (is_primary_local)
           {
-            log_message(MY_INFORMATION_LEVEL, "Unsetting super_read_only.");
             if (disable_super_read_only_mode(sql_command_interface))
             {
               log_message(MY_WARNING_LEVEL,
@@ -767,7 +878,6 @@ void Plugin_gcs_events_handler::handle_leader_election_if_needed() const
           }
           else
           {
-            log_message(MY_INFORMATION_LEVEL, "Setting super_read_only.");
             if (enable_super_read_only_mode(sql_command_interface))
             {
               log_message(MY_WARNING_LEVEL,
@@ -776,6 +886,16 @@ void Plugin_gcs_events_handler::handle_leader_election_if_needed() const
             }
           }
         }
+        /* code position limits messaging to primary change */
+        if (is_primary_local)
+          log_message(MY_INFORMATION_LEVEL,
+                      "This server is working as primary member.");
+        else
+          log_message(MY_INFORMATION_LEVEL,
+                      "This server is working as secondary member with primary "
+                      "member address %s:%u.",
+                      the_primary->get_hostname().c_str(),
+                      the_primary->get_port());
       }
     }
     else if (!skip_set_super_readonly)
@@ -894,11 +1014,6 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view& new_view,
                          Group_member_info::MEMBER_IN_RECOVERY,
                          Group_member_info::MEMBER_OFFLINE,
                          Group_member_info::MEMBER_END);
-
-    log_message(MY_INFORMATION_LEVEL,
-                "Starting group replication recovery with view_id %s",
-                new_view.get_view_id().get_representation().c_str());
-
     /**
       Set the read mode if not set during start (auto-start)
     */
@@ -999,10 +1114,6 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view& new_view,
                          Group_member_info::MEMBER_IN_RECOVERY,
                          Group_member_info::MEMBER_OFFLINE,
                          Group_member_info::MEMBER_END);
-
-    log_message(MY_INFORMATION_LEVEL,
-                "Marking group replication view change with view_id %s",
-                new_view.get_view_id().get_representation().c_str());
     /**
      If not a joining member, all members should record on their own binlogs a
      marking event that identifies the frontier between the data the joining
@@ -1628,6 +1739,28 @@ void
 Plugin_gcs_events_handler::leave_group_on_error() const
 {
   Gcs_operations::enum_leave_state state= gcs_module->leave();
+  char **error_message= NULL;
+
+  int error= channel_stop_all(CHANNEL_APPLIER_THREAD|CHANNEL_RECEIVER_THREAD,
+                              stop_wait_timeout, error_message);
+  if (error)
+  {
+    if (error_message != NULL && *error_message != NULL)
+    {
+      log_message(MY_ERROR_LEVEL,
+                  "Error stopping all replication channels while server was"
+                  " leaving the group. %s", *error_message);
+      my_free(error_message);
+    }
+    else
+    {
+      log_message(MY_ERROR_LEVEL,
+                  "Error stopping all replication channels while server was"
+                  " leaving the group. Got error: %d. Please check the error"
+                  " log for more details.", error);
+    }
+  }
+
   std::stringstream ss;
   plugin_log_level log_severity= MY_WARNING_LEVEL;
   switch (state)

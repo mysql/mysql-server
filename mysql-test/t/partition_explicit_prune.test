@@ -809,6 +809,12 @@ connection monitor;
 connection default;
 
 TRUNCATE TABLE t2;
+--echo # Warm-up data-dictionary cache
+--disable_query_log
+--disable_result_log
+SHOW CREATE TABLE t2;
+--enable_result_log
+--enable_query_log
 FLUSH STATUS;
 INSERT INTO t2 SELECT * FROM t1 PARTITION (subp3, `p10-99`, `p100-99999`);
 
@@ -859,6 +865,10 @@ connection default;
 --echo #             + 2 innodb_get_index in index_init in t1)
 --echo # 3 read rnd next (3 rnd next in t2, 2 rows + 1 empty) 
 --echo # Multi table delete matching all rows in subp3 (2 rows in per table)
+--echo # Pull-in all objects in Table and DD caches first.
+--disable_query_log
+DELETE FROM t2, t3 USING t2, t3, t1 WHERE 0;
+--enable_query_log
 FLUSH STATUS;
 DELETE FROM t2, t3 USING t2 PARTITION (`p0-9`), t3, t1 PARTITION (subp3)
 WHERE t1.a = t3.a AND t3.b = 'subp3' AND t2.a = t1.a;

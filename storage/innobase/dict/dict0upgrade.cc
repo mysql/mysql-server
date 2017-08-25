@@ -41,29 +41,32 @@ uint	dd_upgrade_tables_num = 1;
 /** Fill foreign key information from InnoDB table to
 server table
 @param[in]	ib_table	InnoDB table object
-@param[in,out]	dd_table	DD table object */
-static void dd_upgrade_table_fk(dict_table_t* ib_table, dd::Table* dd_table) {
+@param[in,out]	dd_table	DD table object
+@return false on success, otherwise true */
+static bool dd_upgrade_table_fk(dict_table_t* ib_table, dd::Table* dd_table) {
   for (dict_foreign_set::iterator it = ib_table->foreign_set.begin();
        it != ib_table->foreign_set.end(); ++it) {
     dict_foreign_t* foreign = *it;
 
     /* Set the foreign_key name. */
     dd::Foreign_key* fk_obj = dd_table->add_foreign_key();
-    fk_obj->set_name(foreign->id);
 
-    /* From the index_name. Get dd::Index* object */
-    const dd::Index* dd_index = NULL;
-    for (const dd::Index* idx : *dd_table->indexes()) {
-      if (strcmp(foreign->foreign_index->name, idx->name().c_str()) == 0) {
-        DBUG_EXECUTE_IF("dd_upgrade",
-                        ib::info() << "Found matching FK index for: "
-                                   << foreign->foreign_index->name;);
-        dd_index = idx;
-        break;
-      }
+    /* Check if the foreign key name is valid */
+    if (innobase_check_identifier_length(strchr(foreign->id,'/') + 1)) {
+      ib::error() << "Foreign key name:" << foreign->id <<
+        " is too long, for the table:" << dd_table->name() <<
+        ". Please ALTER the foreign key name to use less"
+        " than 64 characters and try upgrade again.\n";
+      return true;
     }
-    ut_ad(dd_index != NULL);
-    fk_obj->set_unique_constraint(dd_index);
+
+    /* Ignore the schema name prefixed with the foreign_key name */
+    if (strchr(foreign->id, '/'))
+      fk_obj->set_name(strchr(foreign->id, '/')+1);
+    else
+      fk_obj->set_name(foreign->id);
+
+    /* Don't set unique constraint name, it will be set by SQL-layer later. */
 
     /* Set match option. Unused for InnoDB */
     fk_obj->set_match_option(dd::Foreign_key::OPTION_NONE);
@@ -76,7 +79,7 @@ static void dd_upgrade_table_fk(dict_table_t* ib_table, dd::Table* dd_table) {
     } else if (foreign->type & DICT_FOREIGN_ON_UPDATE_NO_ACTION) {
       fk_obj->set_update_rule(dd::Foreign_key::RULE_NO_ACTION);
     } else {
-      fk_obj->set_update_rule(dd::Foreign_key::RULE_NO_ACTION);
+      fk_obj->set_update_rule(dd::Foreign_key::RULE_RESTRICT);
     }
 
     /* Set delete rule */
@@ -87,11 +90,11 @@ static void dd_upgrade_table_fk(dict_table_t* ib_table, dd::Table* dd_table) {
     } else if (foreign->type & DICT_FOREIGN_ON_DELETE_NO_ACTION) {
       fk_obj->set_delete_rule(dd::Foreign_key::RULE_NO_ACTION);
     } else {
-      fk_obj->set_delete_rule(dd::Foreign_key::RULE_NO_ACTION);
+      fk_obj->set_delete_rule(dd::Foreign_key::RULE_RESTRICT);
     }
 
     /* Set catalog name */
-    fk_obj->referenced_table_catalog_name("def");
+    fk_obj->set_referenced_table_catalog_name("def");
 
     /* Set refernced table schema name */
     char db_buf[MAX_FULL_NAME_LEN + 1];
@@ -100,8 +103,8 @@ static void dd_upgrade_table_fk(dict_table_t* ib_table, dd::Table* dd_table) {
     dd_parse_tbl_name(foreign->referenced_table_name, db_buf, tbl_buf,
 		      nullptr, nullptr, nullptr);
 
-    fk_obj->referenced_table_schema_name(db_buf);
-    fk_obj->referenced_table_name(tbl_buf);
+    fk_obj->set_referenced_table_schema_name(db_buf);
+    fk_obj->set_referenced_table_name(tbl_buf);
 
     /* Set referencing columns */
     for (uint32_t i = 0; i < foreign->n_fields; i++) {
@@ -138,6 +141,8 @@ static void dd_upgrade_table_fk(dict_table_t* ib_table, dd::Table* dd_table) {
         ib::info() << " foreign table: "
                    << foreign->foreign_index->table->name;);
   }
+
+  return false;
 }
 
 /** Get Server Tablespace object for a InnoDB table. The tablespace is
@@ -955,7 +960,7 @@ bool dd_upgrade_table(THD* thd, const char* db_name, const char* table_name,
     }
   }
 
-  dd_upgrade_table_fk(ib_table, dd_table);
+  failure= failure || dd_upgrade_table_fk(ib_table, dd_table);
 
   dict_table_close(ib_table, false, false);
   return (failure);

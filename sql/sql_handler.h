@@ -126,6 +126,7 @@ public:
 
 void mysql_ha_flush(THD *thd);
 void mysql_ha_flush_tables(THD *thd, TABLE_LIST *all_tables);
+void mysql_ha_flush_table(THD *thd, const char *db_name, const char *table_name);
 void mysql_ha_rm_tables(THD *thd, TABLE_LIST *tables);
 void mysql_ha_rm_temporary_tables(THD *thd);
 void mysql_ha_cleanup(THD *thd);

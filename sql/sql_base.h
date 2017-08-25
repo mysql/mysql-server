@@ -306,9 +306,50 @@ void close_log_table(THD *thd, Open_tables_backup *backup);
 
 bool close_cached_tables(THD *thd, TABLE_LIST *tables,
                          bool wait_for_refresh, ulong timeout);
+
+
+/**
+  Close all open instances of the table but keep the MDL lock.
+
+  Works both under LOCK TABLES and in the normal mode.
+  Removes all closed instances of the table from the table cache.
+
+  @param  thd         Thread context.
+  @param  share       Table share, but is just a handy way to
+                      access the table cache key.
+  @param  remove_from_locked_tables
+                      True if the table is being dropped or renamed.
+                      In that case the documented behaviour is to
+                      implicitly remove the table from LOCK TABLES list.
+  @param  skip_table  TABLE instance that should be kept open.
+
+  @pre Must be called with an X MDL lock on the table.
+*/
 void close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
                                bool remove_from_locked_tables,
                                TABLE *skip_table);
+
+
+/**
+  Close all open instances of the table but keep the MDL lock.
+
+  Works both under LOCK TABLES and in the normal mode.
+  Removes all closed instances of the table from the table cache.
+
+  @param  thd         Thread context.
+  @param  db          Database name.
+  @param  table_name  Table name.
+  @param  remove_from_locked_tables
+                      True if the table is being dropped or renamed.
+                      In that case the documented behaviour is to
+                      implicitly remove the table from LOCK TABLES list.
+
+  @pre Must be called with an X MDL lock on the table.
+*/
+void
+close_all_tables_for_name(THD *thd, const char *db, const char *table_name,
+                          bool remove_from_locked_tables);
+
 OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild);
 void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
                       const char *db, const char *table_name,

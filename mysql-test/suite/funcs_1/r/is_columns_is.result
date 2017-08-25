@@ -198,17 +198,17 @@ def	information_schema	PROCESSLIST	COMMAND	5		NO	varchar	5	16	NULL	NULL	NULL	utf
 def	information_schema	PROCESSLIST	TIME	6		NO	int	NULL	NULL	NULL	NULL	NULL	NULL	NULL	int(7)			select			NULL
 def	information_schema	PROCESSLIST	STATE	7		YES	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	PROCESSLIST	INFO	8		YES	varchar	21845	65535	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(65535)			select			NULL
-def	information_schema	REFERENTIAL_CONSTRAINTS	CONSTRAINT_CATALOG	1		NO	varchar	170	512	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(512)			select			NULL
-def	information_schema	REFERENTIAL_CONSTRAINTS	CONSTRAINT_SCHEMA	2		NO	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
-def	information_schema	REFERENTIAL_CONSTRAINTS	CONSTRAINT_NAME	3		NO	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
-def	information_schema	REFERENTIAL_CONSTRAINTS	UNIQUE_CONSTRAINT_CATALOG	4		NO	varchar	170	512	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(512)			select			NULL
-def	information_schema	REFERENTIAL_CONSTRAINTS	UNIQUE_CONSTRAINT_SCHEMA	5		NO	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
-def	information_schema	REFERENTIAL_CONSTRAINTS	UNIQUE_CONSTRAINT_NAME	6		YES	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
-def	information_schema	REFERENTIAL_CONSTRAINTS	MATCH_OPTION	7		NO	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
-def	information_schema	REFERENTIAL_CONSTRAINTS	UPDATE_RULE	8		NO	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
-def	information_schema	REFERENTIAL_CONSTRAINTS	DELETE_RULE	9		NO	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
-def	information_schema	REFERENTIAL_CONSTRAINTS	TABLE_NAME	10		NO	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
-def	information_schema	REFERENTIAL_CONSTRAINTS	REFERENCED_TABLE_NAME	11		NO	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
+def	information_schema	REFERENTIAL_CONSTRAINTS	CONSTRAINT_CATALOG	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
+def	information_schema	REFERENTIAL_CONSTRAINTS	CONSTRAINT_SCHEMA	2	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
+def	information_schema	REFERENTIAL_CONSTRAINTS	CONSTRAINT_NAME	3	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
+def	information_schema	REFERENTIAL_CONSTRAINTS	UNIQUE_CONSTRAINT_CATALOG	4	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
+def	information_schema	REFERENTIAL_CONSTRAINTS	UNIQUE_CONSTRAINT_SCHEMA	5	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
+def	information_schema	REFERENTIAL_CONSTRAINTS	UNIQUE_CONSTRAINT_NAME	6	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
+def	information_schema	REFERENTIAL_CONSTRAINTS	MATCH_OPTION	7	NULL	NO	enum	7	21	NULL	NULL	NULL	utf8	utf8_bin	enum('NONE','PARTIAL','FULL')			select			NULL
+def	information_schema	REFERENTIAL_CONSTRAINTS	UPDATE_RULE	8	NULL	NO	enum	11	33	NULL	NULL	NULL	utf8	utf8_bin	enum('NO ACTION','RESTRICT','CASCADE','SET NULL','SET DEFAULT')			select			NULL
+def	information_schema	REFERENTIAL_CONSTRAINTS	DELETE_RULE	9	NULL	NO	enum	11	33	NULL	NULL	NULL	utf8	utf8_bin	enum('NO ACTION','RESTRICT','CASCADE','SET NULL','SET DEFAULT')			select			NULL
+def	information_schema	REFERENTIAL_CONSTRAINTS	TABLE_NAME	10	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
+def	information_schema	REFERENTIAL_CONSTRAINTS	REFERENCED_TABLE_NAME	11	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	RESOURCE_GROUPS	RESOURCE_GROUP_NAME	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	RESOURCE_GROUPS	RESOURCE_GROUP_TYPE	2	NULL	NO	enum	6	18	NULL	NULL	NULL	utf8	utf8_bin	enum('SYSTEM','USER')			select			NULL
 def	information_schema	RESOURCE_GROUPS	RESOURCE_GROUP_ENABLED	3	NULL	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(1)			select			NULL
@@ -630,17 +630,17 @@ NULL	information_schema	PROCESSLIST	ID	bigint	NULL	NULL	NULL	NULL	bigint(21) uns
 NULL	information_schema	PROCESSLIST	TIME	int	NULL	NULL	NULL	NULL	int(7)
 3.0476	information_schema	PROCESSLIST	STATE	varchar	21	64	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	PROCESSLIST	INFO	varchar	21845	65535	utf8	utf8_general_ci	varchar(65535)
-3.0118	information_schema	REFERENTIAL_CONSTRAINTS	CONSTRAINT_CATALOG	varchar	170	512	utf8	utf8_general_ci	varchar(512)
-3.0476	information_schema	REFERENTIAL_CONSTRAINTS	CONSTRAINT_SCHEMA	varchar	21	64	utf8	utf8_general_ci	varchar(64)
-3.0476	information_schema	REFERENTIAL_CONSTRAINTS	CONSTRAINT_NAME	varchar	21	64	utf8	utf8_general_ci	varchar(64)
-3.0118	information_schema	REFERENTIAL_CONSTRAINTS	UNIQUE_CONSTRAINT_CATALOG	varchar	170	512	utf8	utf8_general_ci	varchar(512)
-3.0476	information_schema	REFERENTIAL_CONSTRAINTS	UNIQUE_CONSTRAINT_SCHEMA	varchar	21	64	utf8	utf8_general_ci	varchar(64)
-3.0476	information_schema	REFERENTIAL_CONSTRAINTS	UNIQUE_CONSTRAINT_NAME	varchar	21	64	utf8	utf8_general_ci	varchar(64)
-3.0476	information_schema	REFERENTIAL_CONSTRAINTS	MATCH_OPTION	varchar	21	64	utf8	utf8_general_ci	varchar(64)
-3.0476	information_schema	REFERENTIAL_CONSTRAINTS	UPDATE_RULE	varchar	21	64	utf8	utf8_general_ci	varchar(64)
-3.0476	information_schema	REFERENTIAL_CONSTRAINTS	DELETE_RULE	varchar	21	64	utf8	utf8_general_ci	varchar(64)
-3.0476	information_schema	REFERENTIAL_CONSTRAINTS	TABLE_NAME	varchar	21	64	utf8	utf8_general_ci	varchar(64)
-3.0476	information_schema	REFERENTIAL_CONSTRAINTS	REFERENCED_TABLE_NAME	varchar	21	64	utf8	utf8_general_ci	varchar(64)
+3.0000	information_schema	REFERENTIAL_CONSTRAINTS	CONSTRAINT_CATALOG	varchar	64	192	utf8	utf8_bin	varchar(64)
+3.0000	information_schema	REFERENTIAL_CONSTRAINTS	CONSTRAINT_SCHEMA	varchar	64	192	utf8	utf8_bin	varchar(64)
+3.0000	information_schema	REFERENTIAL_CONSTRAINTS	CONSTRAINT_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
+3.0000	information_schema	REFERENTIAL_CONSTRAINTS	UNIQUE_CONSTRAINT_CATALOG	varchar	64	192	utf8	utf8_bin	varchar(64)
+3.0000	information_schema	REFERENTIAL_CONSTRAINTS	UNIQUE_CONSTRAINT_SCHEMA	varchar	64	192	utf8	utf8_bin	varchar(64)
+3.0000	information_schema	REFERENTIAL_CONSTRAINTS	UNIQUE_CONSTRAINT_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)
+3.0000	information_schema	REFERENTIAL_CONSTRAINTS	MATCH_OPTION	enum	7	21	utf8	utf8_bin	enum('NONE','PARTIAL','FULL')
+3.0000	information_schema	REFERENTIAL_CONSTRAINTS	UPDATE_RULE	enum	11	33	utf8	utf8_bin	enum('NO ACTION','RESTRICT','CASCADE','SET NULL','SET DEFAULT')
+3.0000	information_schema	REFERENTIAL_CONSTRAINTS	DELETE_RULE	enum	11	33	utf8	utf8_bin	enum('NO ACTION','RESTRICT','CASCADE','SET NULL','SET DEFAULT')
+3.0000	information_schema	REFERENTIAL_CONSTRAINTS	TABLE_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)
+3.0000	information_schema	REFERENTIAL_CONSTRAINTS	REFERENCED_TABLE_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	RESOURCE_GROUPS	RESOURCE_GROUP_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	RESOURCE_GROUPS	RESOURCE_GROUP_TYPE	enum	6	18	utf8	utf8_bin	enum('SYSTEM','USER')
 NULL	information_schema	RESOURCE_GROUPS	RESOURCE_GROUP_ENABLED	tinyint	NULL	NULL	NULL	NULL	tinyint(1)

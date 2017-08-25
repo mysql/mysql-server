@@ -82,7 +82,7 @@ bool is_group_replication_plugin_loaded()
 }
 
 
-int group_replication_start()
+int group_replication_start(char **error_message)
 {
   int result= 1;
 
@@ -107,7 +107,7 @@ int group_replication_start()
     gtid_mode_lock->rdlock();
     st_mysql_group_replication *plugin_handle=
         (st_mysql_group_replication*) plugin_decl(plugin)->info;
-    result= plugin_handle->start();
+    result= plugin_handle->start(error_message);
     gtid_mode_lock->unlock();
 
     plugin_unlock(0, plugin);
@@ -121,7 +121,7 @@ int group_replication_start()
 }
 
 
-int group_replication_stop()
+int group_replication_stop(char **error_message)
 {
   int result= 1;
 
@@ -132,7 +132,7 @@ int group_replication_stop()
   {
     st_mysql_group_replication *plugin_handle=
         (st_mysql_group_replication*) plugin_decl(plugin)->info;
-    result= plugin_handle->stop();
+    result= plugin_handle->stop(error_message);
 
     plugin_unlock(0, plugin);
   }

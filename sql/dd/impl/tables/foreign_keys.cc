@@ -49,9 +49,9 @@ Foreign_keys::Foreign_keys()
   m_target_def.add_field(FIELD_NAME,
                          "FIELD_NAME",
                          "name VARCHAR(64) NOT NULL COLLATE utf8_general_ci");
-  m_target_def.add_field(FIELD_UNIQUE_CONSTRAINT_ID,
-                         "FIELD_UNIQUE_CONSTRAINT_ID",
-                         "unique_constraint_id BIGINT UNSIGNED NOT NULL");
+  m_target_def.add_field(FIELD_UNIQUE_CONSTRAINT_NAME,
+                         "FIELD_UNIQUE_CONSTRAINT_NAME",
+                         "unique_constraint_name VARCHAR(64) COLLATE utf8_tolower_ci");
   m_target_def.add_field(FIELD_MATCH_OPTION,
                          "FIELD_MATCH_OPTION",
                          "match_option ENUM('NONE', 'PARTIAL', 'FULL') "
@@ -97,8 +97,6 @@ Foreign_keys::Foreign_keys()
 
   m_target_def.add_foreign_key("FOREIGN KEY (schema_id) REFERENCES "
                                "schemata(id)");
-  m_target_def.add_foreign_key("FOREIGN KEY (unique_constraint_id) "
-                               "REFERENCES indexes(id)");
 }
 
 ///////////////////////////////////////////////////////////////////////////

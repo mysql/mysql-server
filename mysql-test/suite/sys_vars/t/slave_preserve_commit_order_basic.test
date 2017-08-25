@@ -1,3 +1,4 @@
+--source include/have_log_bin.inc
 
 # Save initial value
 SET @saved_value= @@GLOBAL.slave_preserve_commit_order;

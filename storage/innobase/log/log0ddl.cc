@@ -1772,6 +1772,8 @@ Log_DDL::post_ddl(THD*	thd)
 		return(DB_SUCCESS);
 	}
 
+	DEBUG_SYNC(thd, "innodb_ddl_log_before_enter");
+
 	DBUG_EXECUTE_IF("ddl_log_before_post_ddl",
 			DBUG_SUICIDE(););
 

@@ -1788,7 +1788,7 @@ sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
     prelocking_ctx->sroutines->emplace(key_str, rn);
     prelocking_ctx->sroutines_list.link_in_list(rn, &rn->next);
     rn->belong_to_view= belong_to_view;
-    rn->m_sp_cache_version= 0;
+    rn->m_cache_version= 0;
     return TRUE;
   }
   return FALSE;
@@ -1810,6 +1810,8 @@ sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
   @param db_length       Database name length
   @param name            Routine name
   @param name_length     Routine name length
+  @param lowercase_db    Indicates whether db needs to be lowercased when
+                         constructing key.
   @param lowercase_name  Indicates whether name needs to be lowercased when
                          constructing key.
   @param own_routine     Indicates whether routine is explicitly or implicitly
@@ -1830,7 +1832,8 @@ bool sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
                          Sroutine_hash_entry::entry_type type,
                          const char *db, size_t db_length,
                          const char *name, size_t name_length,
-                         bool lowercase_name, bool own_routine,
+                         bool lowercase_db, bool lowercase_name,
+                         bool own_routine,
                          TABLE_LIST *belong_to_view)
 {
   // Length of routine name components needs to be checked earlier.
@@ -1841,9 +1844,22 @@ bool sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
 
   key[key_length++]= static_cast<uchar>(type);
   memcpy(key + key_length, db, db_length + 1);
-  key_length+= db_length + 1;
-  memcpy(key + key_length, name, name_length + 1);
+  if (lowercase_db)
+  {
+    /*
+      In lower-case-table-names > 0 modes db name will be already in
+      lower case here in most cases. However db names associated with
+      FKs come here in original form in lower-case-table-names == 2
+      mode. So for the proper hash key comparison db name needs to be
+      converted to lower case while preparing the key.
+    */
+    key_length+= my_casedn_str(system_charset_info,
+                               (char*)(key) + key_length) + 1;
+  }
+  else
+    key_length+= db_length + 1;
 
+  memcpy(key + key_length, name, name_length + 1);
   if (lowercase_name)
   {
     /*

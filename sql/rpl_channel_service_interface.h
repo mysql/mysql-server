@@ -191,6 +191,20 @@ int channel_stop(const char* channel,
                  long timeout);
 
 /**
+  Stops all the running channel threads according to the given options.
+
+  @param threads_to_stop      The types of threads to be stopped
+  @param timeout              The expected time in which the thread should stop
+  @param error_message        The returned error_message
+
+  @return the operation status
+    @retval 0      OK
+    @retval !=0    Error
+*/
+int channel_stop_all(int threads_to_stop, long timeout,
+                     char **error_message);
+
+/**
   Purges the channel logs
 
   @param channel    The channel name

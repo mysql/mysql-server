@@ -1504,6 +1504,11 @@ public:
   struct st_thd_timer_info *timer_cache;
 
 private:
+  /*
+    Indicates that the command which is under execution should ignore the
+    'read_only' and 'super_read_only' options.
+  */
+  bool skip_readonly_check;
   /**
     Indicate if the current statement should be discarded
     instead of written to the binlog.
@@ -1566,6 +1571,22 @@ private:
   NET     net;                          // client connection descriptor
   String  packet;                       // dynamic buffer for network I/O
 public:
+  void set_skip_readonly_check()
+  {
+    skip_readonly_check= true;
+  }
+
+  bool is_cmd_skip_readonly()
+  {
+    return skip_readonly_check;
+  }
+
+  void reset_skip_readonly_check()
+  {
+    if (skip_readonly_check)
+      skip_readonly_check= false;
+  }
+
   void issue_unsafe_warnings();
 
   uint get_binlog_table_maps() const {

@@ -99,7 +99,7 @@ DELETE FROM newt;
 DROP TABLE newt;
 --replace_regex /[1-9][0-9]*/>0/
 SHOW STATUS like 'Table_open_cache_hits';
---replace_regex /0/=0/ /[1-9][0-9]*/>0/
+--replace_regex /[1-9][0-9]*/>0/
 SHOW STATUS like 'Opened_tables';
 --reset_connection
 --echo resetconnection;

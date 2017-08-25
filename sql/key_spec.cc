@@ -29,6 +29,7 @@
 #include "sql/derror.h"  // ER_THD
 #include "sql/field.h"   // Create_field
 #include "sql/sql_class.h" // THD
+#include "sql/sql_parse.h" // check_string_char_length
 
 KEY_CREATE_INFO default_key_create_info;
 
@@ -158,6 +159,23 @@ bool Foreign_key_spec::validate(THD *thd, const char *table_name,
       }
     }
   }
+
+  if (name.str &&
+      check_string_char_length(name, "", NAME_CHAR_LEN, system_charset_info, 1))
+  {
+    my_error(ER_TOO_LONG_IDENT, MYF(0), name.str);
+    DBUG_RETURN(true);
+  }
+
+  for (const Key_part_spec *fk_col : ref_columns)
+  {
+    if (check_column_name(fk_col->field_name.str))
+    {
+      my_error(ER_WRONG_COLUMN_NAME, MYF(0), fk_col->field_name.str);
+      DBUG_RETURN(true);
+    }
+  }
+
   DBUG_RETURN(false);
 }
 

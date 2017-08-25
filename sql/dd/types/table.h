@@ -38,6 +38,7 @@ public:
   static const Object_type &TYPE();
   typedef Collection<Index*> Index_collection;
   typedef Collection<Foreign_key*> Foreign_key_collection;
+  typedef std::vector<Foreign_key_parent*> Foreign_key_parent_collection;
   typedef Collection<Partition*> Partition_collection;
   typedef Collection<Trigger*> Trigger_collection;
 
@@ -228,6 +229,19 @@ public:
   virtual const Foreign_key_collection &foreign_keys() const = 0;
 
   virtual Foreign_key_collection *foreign_keys() = 0;
+
+  /////////////////////////////////////////////////////////////////////////
+  // Foreign key parent collection.
+  /////////////////////////////////////////////////////////////////////////
+
+  // The Foreign_key_parent_collection represents a list of tables that
+  // have a foreign key referencing this table. It is constructed when
+  // the dd::Table object is fetched from disk, and it can be reloaded
+  // from the DD tables on demand using 'reload_foreign_key_parents()'.
+
+  virtual const Foreign_key_parent_collection &foreign_key_parents() const = 0;
+
+  virtual bool reload_foreign_key_parents(THD *thd) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // Partition collection.

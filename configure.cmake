@@ -586,18 +586,6 @@ IF(WITH_VALGRIND)
   ENDIF()
 ENDIF()
 
-# Check for SYS_thread_selfid system call
-CHECK_C_SOURCE_COMPILES("
-#include <sys/types.h>
-#include <sys/syscall.h>
-#include <unistd.h>
-int main(int ac, char **av)
-{
-  unsigned long long tid = syscall(SYS_thread_selfid);
-  return (tid != 0 ? 0 : 1);
-}"
-HAVE_SYS_THREAD_SELFID)
-
 # Check for gettid() system call
 CHECK_C_SOURCE_COMPILES("
 #include <sys/types.h>
@@ -619,6 +607,17 @@ int main(int ac, char **av)
   return (tid != 0 ? 0 : 1);
 }"
 HAVE_PTHREAD_GETTHREADID_NP)
+
+# Check for pthread_threadid_np()
+CHECK_C_SOURCE_COMPILES("
+#include <pthread.h>
+int main(int ac, char **av)
+{
+  unsigned long long tid64;
+  pthread_threadid_np(NULL, &tid64);
+  return (tid64 != 0 ? 0 : 1);
+}"
+HAVE_PTHREAD_THREADID_NP)
 
 # Check for pthread_self() returning an integer type
 CHECK_C_SOURCE_COMPILES("

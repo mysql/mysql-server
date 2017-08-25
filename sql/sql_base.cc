@@ -72,6 +72,7 @@
 #include "sql/dd/dd_table.h"          // dd::table_exists
 #include "sql/dd/dd_tablespace.h"     // dd::fill_table_and_parts_tablespace_name
 #include "sql/dd/types/abstract_table.h"
+#include "sql/dd/types/foreign_key.h" // dd::Foreign_key
 #include "sql/dd/types/table.h"       // dd::Table
 #include "sql/dd/types/view.h"
 #include "sql/dd_table_share.h"       // open_table_def
@@ -1483,33 +1484,26 @@ static void close_open_tables(THD *thd)
   Works both under LOCK TABLES and in the normal mode.
   Removes all closed instances of the table from the table cache.
 
-  @param     thd     thread handle
-  @param[in] share   table share, but is just a handy way to
-                     access the table cache key
-
-  @param[in] remove_from_locked_tables
-                     TRUE if the table is being dropped or renamed.
-                     In that case the documented behaviour is to
-                     implicitly remove the table from LOCK TABLES
-                     list.
-  @param[in] skip_table
-                     TABLE instance that should be kept open.
+  @param  thd         Thread context.
+  @param  key         TC/TDC key identifying the table.
+  @param  key_length  Length of TC/TDC key identifying the table.
+  @param  db          Database name.
+  @param  table_name  Table name.
+  @param  remove_from_locked_tables
+                      True if the table is being dropped or renamed.
+                      In that case the documented behaviour is to
+                      implicitly remove the table from LOCK TABLES list.
+  @param  skip_table  TABLE instance that should be kept open.
 
   @pre Must be called with an X MDL lock on the table.
 */
-
-void
-close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
+static void
+close_all_tables_for_name(THD *thd,
+                          const char *key, size_t key_length,
+                          const char *db, const char *table_name,
                           bool remove_from_locked_tables,
                           TABLE *skip_table)
 {
-  char key[MAX_DBKEY_LENGTH];
-  size_t key_length= share->table_cache_key.length;
-  const char *db= key;
-  const char *table_name= db + share->db.length + 1;
-
-  memcpy(key, share->table_cache_key.str, key_length);
-
   mysql_mutex_assert_not_owner(&LOCK_open);
   for (TABLE **prev= &thd->open_tables; *prev; )
   {
@@ -1547,6 +1541,36 @@ close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
     tdc_remove_table(thd, TDC_RT_REMOVE_ALL, db, table_name,
                      FALSE);
   }
+}
+
+
+void
+close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
+                          bool remove_from_locked_tables,
+                          TABLE *skip_table)
+{
+  char key[MAX_DBKEY_LENGTH];
+  size_t key_length= share->table_cache_key.length;
+
+  memcpy(key, share->table_cache_key.str, key_length);
+
+  close_all_tables_for_name(thd, key, key_length,
+                            key,                        // db
+                            key + share->db.length + 1, // table_name
+                            remove_from_locked_tables,
+                            skip_table);
+}
+
+
+void
+close_all_tables_for_name(THD *thd, const char *db, const char *table_name,
+                          bool remove_from_locked_tables)
+{
+  char key[MAX_DBKEY_LENGTH];
+  size_t key_length= create_table_def_key(thd, key, db, table_name, 0);
+
+  close_all_tables_for_name(thd, key, key_length, db, table_name,
+                            remove_from_locked_tables, nullptr);
 }
 
 
@@ -4281,7 +4305,7 @@ check_and_update_routine_version(THD *thd, Sroutine_hash_entry *rt,
     we need to reprepare.
     Sic: version != spc_version <--> sp is not NULL.
   */
-  if (rt->m_sp_cache_version != version ||
+  if (rt->m_cache_version != version ||
       (version != spc_version && !sp->is_invoked()))
   {
     Reprepare_observer *reprepare_observer= thd->get_reprepare_observer();
@@ -4298,7 +4322,7 @@ check_and_update_routine_version(THD *thd, Sroutine_hash_entry *rt,
       return TRUE;
     }
     /* Always maintain the latest cache version. */
-    rt->m_sp_cache_version= version;
+    rt->m_cache_version= version;
   }
   return FALSE;
 }
@@ -5022,6 +5046,143 @@ thr_lock_type read_lock_type_for_table(THD *thd,
 
 
 /**
+  Process table's foreign keys (if any) by prelocking algorithm.
+
+  @param  thd                   Thread context.
+  @param  prelocking_ctx        Prelocking context of the statement.
+  @param  db                    Table schema name.
+  @param  table_name            Table name.
+  @param  is_insert             Indicates whether statement is going to INSERT
+                                into the table.
+  @param  is_update             Indicates whether statement is going to UPDATE
+                                the table.
+  @param  is_delete             Indicates whether statement is going to DELETE
+                                from the table.
+  @param  belong_to_view        Uppermost view which uses this table element
+                                (nullptr - if it is not used by a view).
+  @param[out] need_prelocking   Set to true if method detects that prelocking
+                                required, not changed otherwise.
+
+  @retval False on success, True on failure.
+*/
+static bool
+process_table_fks(THD *thd, Query_tables_list *prelocking_ctx,
+                  const char *db, const char *table_name,
+                  bool is_insert, bool is_update, bool is_delete,
+                  TABLE_LIST *belong_to_view, bool *need_prelocking)
+{
+  const dd::Table *table_def= nullptr;
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
+  DBUG_EXECUTE_IF("fail_while_processing_table_fks",
+  {
+    my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
+    return true;
+  });
+
+  /*
+    TODO: Study impact on the scalability from the below call. It is
+          likely to be significant in some scenarios so we will have
+          to do something about this.
+  */
+  if (thd->dd_client()->acquire(db, table_name, &table_def))
+    return true;
+
+  DBUG_ASSERT(table_def);
+
+  if (table_def->foreign_keys().empty() &&
+      table_def->foreign_key_parents().empty())
+  {
+    /*
+      This table doesn't participate in any foreign keys, so nothing to
+      process.
+    */
+    return false;
+  }
+
+  *need_prelocking= true;
+
+  /*
+    In lower-case-table-names == 2 mode we store original versions of db
+    and table names for tables participating in FK relationship, even
+    though their comparison is performed in case insensitive fashion.
+    Therefore we need to normalize/lowercase these names while prelocking
+    set key is constructing from them.
+  */
+  bool normalize_names= (lower_case_table_names == 2);
+
+  if (is_insert || is_update)
+  {
+    for (const dd::Foreign_key *fk : table_def->foreign_keys())
+    {
+      dd::String_type parent_tab_db(fk->referenced_table_schema_name()),
+                      parent_tab_name(fk->referenced_table_name());
+
+      (void) sp_add_used_routine(prelocking_ctx, thd->stmt_arena,
+                Sroutine_hash_entry::FK_TABLE_ROLE_PARENT_CHECK,
+                parent_tab_db.c_str(), parent_tab_db.length(),
+                parent_tab_name.c_str(), parent_tab_name.length(),
+                normalize_names, normalize_names,
+                false, belong_to_view);
+    }
+  }
+
+  if (is_update || is_delete)
+  {
+    for (const dd::Foreign_key_parent *fk_parent: table_def->foreign_key_parents())
+    {
+      dd::String_type child_schema_name(fk_parent->child_schema_name()),
+                      child_table_name(fk_parent->child_table_name());
+
+      if ((is_update &&
+           (fk_parent->update_rule() == dd::Foreign_key::RULE_NO_ACTION ||
+            fk_parent->update_rule() == dd::Foreign_key::RULE_RESTRICT)) ||
+          (is_delete &&
+           (fk_parent->delete_rule() == dd::Foreign_key::RULE_NO_ACTION ||
+            fk_parent->delete_rule() == dd::Foreign_key::RULE_RESTRICT)))
+      {
+        (void) sp_add_used_routine(prelocking_ctx, thd->stmt_arena,
+                  Sroutine_hash_entry::FK_TABLE_ROLE_CHILD_CHECK,
+                  child_schema_name.c_str(), child_schema_name.length(),
+                  child_table_name.c_str(), child_table_name.length(),
+                  normalize_names, normalize_names,
+                  false, belong_to_view);
+      }
+
+      if ((is_update &&
+           (fk_parent->update_rule() == dd::Foreign_key::RULE_CASCADE ||
+            fk_parent->update_rule() == dd::Foreign_key::RULE_SET_NULL ||
+            fk_parent->update_rule() == dd::Foreign_key::RULE_SET_DEFAULT)) ||
+          (is_delete &&
+           (fk_parent->delete_rule() == dd::Foreign_key::RULE_SET_NULL ||
+            fk_parent->delete_rule() == dd::Foreign_key::RULE_SET_DEFAULT)))
+      {
+        (void) sp_add_used_routine(prelocking_ctx, thd->stmt_arena,
+                  Sroutine_hash_entry::FK_TABLE_ROLE_CHILD_UPDATE,
+                  child_schema_name.c_str(), child_schema_name.length(),
+                  child_table_name.c_str(), child_table_name.length(),
+                  normalize_names, normalize_names,
+                  false, belong_to_view);
+      }
+
+      if (is_delete &&
+          fk_parent->delete_rule() == dd::Foreign_key::RULE_CASCADE)
+      {
+         (void) sp_add_used_routine(prelocking_ctx, thd->stmt_arena,
+                   Sroutine_hash_entry::FK_TABLE_ROLE_CHILD_DELETE,
+                   child_schema_name.c_str(), child_schema_name.length(),
+                   child_table_name.c_str(), child_table_name.length(),
+                   normalize_names, normalize_names,
+                   false, belong_to_view);
+      }
+    }
+  }
+
+  return false;
+}
+
+
+/**
   Handle element of prelocking set other than table. E.g. cache routine
   and, if prelocking strategy prescribes so, extend the prelocking set
   with tables and routines used by it.
@@ -5164,6 +5325,101 @@ open_and_process_routine(THD *thd, Query_tables_list *prelocking_ctx,
       DML we always use triggers together with their tables, and thus don't
       need to take separate metadata locks on them.
     */
+    break;
+  case Sroutine_hash_entry::FK_TABLE_ROLE_PARENT_CHECK:
+  case Sroutine_hash_entry::FK_TABLE_ROLE_CHILD_CHECK:
+  case Sroutine_hash_entry::FK_TABLE_ROLE_CHILD_UPDATE:
+  case Sroutine_hash_entry::FK_TABLE_ROLE_CHILD_DELETE:
+    {
+      MDL_request mdl_request;
+
+      /*
+        Adjust metadata lock type according to the table's role in the
+        FK relationship. Also acquire stronger locks when we are locking
+        on behalf of LOCK TABLES.
+      */
+      enum_mdl_type mdl_lock_type;
+      bool executing_LT= (prelocking_ctx->sql_command == SQLCOM_LOCK_TABLES);
+
+      if (rt->type() == Sroutine_hash_entry::FK_TABLE_ROLE_PARENT_CHECK ||
+          rt->type() == Sroutine_hash_entry::FK_TABLE_ROLE_CHILD_CHECK)
+      {
+        mdl_lock_type= (executing_LT? MDL_SHARED_READ_ONLY :
+                                      MDL_SHARED_READ);
+      }
+      else
+      {
+        mdl_lock_type= (executing_LT? MDL_SHARED_NO_READ_WRITE :
+                                      MDL_SHARED_WRITE);
+      }
+
+      MDL_REQUEST_INIT_BY_PART_KEY(&mdl_request, MDL_key::TABLE,
+          rt->part_mdl_key(), rt->part_mdl_key_length(), rt->db_length(),
+          mdl_lock_type, MDL_TRANSACTION);
+
+      MDL_deadlock_handler mdl_deadlock_handler(ot_ctx);
+
+      thd->push_internal_handler(&mdl_deadlock_handler);
+      bool result= thd->mdl_context.acquire_lock(&mdl_request,
+                                                 ot_ctx->get_timeout());
+      thd->pop_internal_handler();
+
+      if (result)
+        DBUG_RETURN(TRUE);
+
+
+      if (rt->type() == Sroutine_hash_entry::FK_TABLE_ROLE_CHILD_UPDATE ||
+          rt->type() == Sroutine_hash_entry::FK_TABLE_ROLE_CHILD_DELETE)
+      {
+        /*
+          We need to maintain versioning of the prelocked tables since this
+          is needed for correct handling of prepared statements to catch
+          situations where a prelocked table (which is added to the prelocked
+          set during PREPARE) is changed between repeated executions of the
+          prepared statement.
+         */
+        int64 cached_version= 0;
+        /*
+          TODO: Avoid using lock_all_and_tdc() as it is likely to have huge
+                negative impact on scalability, find another way to get
+                hold of the table share version.
+        */
+        table_cache_manager.lock_all_and_tdc();
+        TABLE_SHARE *share= get_cached_table_share(rt->db(), rt->name());
+        if (share != nullptr)
+          cached_version= share->get_table_ref_version();
+        table_cache_manager.unlock_all_and_tdc();
+
+        if (rt->m_cache_version != cached_version)
+        {
+          Reprepare_observer *reprepare_observer= thd->get_reprepare_observer();
+
+          if (reprepare_observer &&
+              reprepare_observer->report_error(thd))
+          {
+            /*
+              Version of the cached table share is different from the
+              previous execution of the prepared statement, and it is
+              unacceptable for this SQLCOM. Error has been reported.
+            */
+            DBUG_ASSERT(thd->is_error());
+            DBUG_RETURN(TRUE);
+          }
+          /* Always maintain the latest cache version. */
+          rt->m_cache_version= cached_version;
+        }
+
+        bool is_update=
+          (rt->type() == Sroutine_hash_entry::FK_TABLE_ROLE_CHILD_UPDATE);
+        bool is_delete=
+          (rt->type() == Sroutine_hash_entry::FK_TABLE_ROLE_CHILD_DELETE);
+
+        if (process_table_fks(thd, prelocking_ctx, rt->db(), rt->name(),
+                              false, is_update, is_delete,
+                              rt->belong_to_view, need_prelocking))
+          DBUG_RETURN(TRUE);
+      }
+    }
     break;
   default:
     /* Impossible type value. */
@@ -6296,6 +6552,9 @@ handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
   elements:
   - If table has triggers we should add all tables and routines
     used by them to the prelocking set.
+  - If table participates in a foreign key we should add another
+    table from it to the prelocking set with an appropriate metadata
+    lock.
 
   We do not need to acquire metadata locks on trigger names
   in DML statements, since all DDL statements
@@ -6329,8 +6588,39 @@ handle_table(THD *thd, Query_tables_list *prelocking_ctx,
           add_tables_and_routines_for_triggers(thd, prelocking_ctx, table_list))
         return TRUE;
     }
-  }
 
+    /*
+      When FOREIGN_KEY_CHECKS is 0 we are not going to do any foreign key checks
+      so we don't need to add child and parent tables to the prelocking list.
+
+      However, since trigger or stored function might change this variable for
+      their duration (it is, actually, advisable to do so in some scenarios),
+      we can apply this optimization only to tables which are directly used by
+      the top-level statement.
+
+      While processing LOCK TABLES, we must disregard F_K_C too, since the
+      prelocking set will be used while in LTM mode, and F_K_C may be turned
+      on later, after the set has been established.
+    */
+    if ((!(thd->variables.option_bits & OPTION_NO_FOREIGN_KEY_CHECKS) ||
+         prelocking_ctx->sql_command == SQLCOM_LOCK_TABLES ||
+         table_list->prelocking_placeholder) &&
+        !(table_list->table->s->tmp_table))
+    {
+      bool is_insert= (table_list->trg_event_map &
+            static_cast<uint8>(1 << static_cast<int>(TRG_EVENT_INSERT)));
+      bool is_update= (table_list->trg_event_map &
+            static_cast<uint8>(1 << static_cast<int>(TRG_EVENT_UPDATE)));
+      bool is_delete= (table_list->trg_event_map &
+            static_cast<uint8>(1 << static_cast<int>(TRG_EVENT_DELETE)));
+
+      if (process_table_fks(thd, prelocking_ctx,
+                            table_list->db, table_list->table_name,
+                            is_insert, is_update, is_delete,
+                            table_list->belong_to_view, need_prelocking))
+        return TRUE;
+    }
+  }
   return FALSE;
 }
 

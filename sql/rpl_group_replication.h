@@ -26,8 +26,8 @@ class View_change_log_event;
 */
 bool is_group_replication_plugin_loaded();
 
-int group_replication_start();
-int group_replication_stop();
+int group_replication_start(char **error_message);
+int group_replication_stop(char **error_message);
 bool is_group_replication_running();
 int set_group_replication_retrieved_certification_info(View_change_log_event *view_change_event);
 

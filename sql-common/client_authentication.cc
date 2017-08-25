@@ -33,6 +33,10 @@
 #include <openssl/err.h>
 #include <openssl/pem.h>
 #include <openssl/rsa.h>
+#if defined(_WIN32) && !defined(_OPENSSL_Applink) && defined(HAVE_OPENSSL_APPLINK_C)
+#include <openssl/applink.c>
+#endif
+
 #else
 #include <openssl/ssl.h>
 using yaSSL::PEM_read_RSAPrivateKey;

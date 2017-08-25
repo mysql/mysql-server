@@ -212,6 +212,10 @@ static bool compare_table_with_partition(THD *thd, TABLE *table,
   /* mark all columns used, since they are used when preparing the new table */
   part_table->use_all_columns();
   table->use_all_columns();
+
+  /* db_type is not set in prepare_alter_table */
+  part_create_info.db_type= part_table->part_info->default_engine_type;
+
   if (mysql_prepare_alter_table(thd, part_table_def,
                                 part_table, &part_create_info,
                                 &part_alter_info, &part_alter_ctx))
@@ -219,8 +223,7 @@ static bool compare_table_with_partition(THD *thd, TABLE *table,
     my_error(ER_TABLES_DIFFERENT_METADATA, MYF(0));
     DBUG_RETURN(TRUE);
   }
-  /* db_type is not set in prepare_alter_table */
-  part_create_info.db_type= part_table->part_info->default_engine_type;
+
   /*
     Since we exchange the partition with the table, allow exchanging
     auto_increment value as well.

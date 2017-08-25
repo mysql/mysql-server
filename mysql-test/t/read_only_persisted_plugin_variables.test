@@ -10,6 +10,10 @@
 # Test Author: Mohit Joshi  #
 #############################
 
+# This test is also meant to check read-only persisted value of log-slave-updates,
+# thus, it makes sense to run this test when log-bin and log-slave-updates are enabled.
+-- source include/have_log_bin.inc
+
 --echo # Check there are no existing persistent variables
 --echo # Must return 0 rows.
 SELECT * FROM performance_schema.persisted_variables;

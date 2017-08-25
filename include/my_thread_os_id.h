@@ -33,6 +33,10 @@
 #include <pthread_np.h>             /* pthread_getthreadid_np() */
 #endif /* HAVE_PTHREAD_GETTHREADID_NP */
 
+#ifdef HAVE_PTHREAD_THREADID_NP
+#include <pthread.h>
+#endif /* HAVE_PTHREAD_THREADID_NP */
+
 C_MODE_START
 
 typedef unsigned long long my_thread_os_id_t;
@@ -47,14 +51,16 @@ typedef unsigned long long my_thread_os_id_t;
 */
 static inline my_thread_os_id_t my_thread_os_id()
 {
-#ifdef HAVE_SYS_THREAD_SELFID
+#ifdef HAVE_PTHREAD_THREADID_NP
   /*
-    Mac OSX.
-    Be careful to use SYS_thread_selfid first,
-    and to not use SYS_gettid on Mac OSX,
+    macOS.
+
+    Be careful to use this version first, and to not use SYS_gettid on macOS,
     as SYS_gettid has a different meaning compared to linux gettid().
   */
-  return syscall(SYS_thread_selfid);
+  uint64_t tid64;
+  pthread_threadid_np(nullptr, &tid64);
+  return (pid_t)tid64;
 #else
 #ifdef HAVE_SYS_GETTID
   /*

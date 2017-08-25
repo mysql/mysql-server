@@ -46,6 +46,10 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"     // check_grant_all_columns
 #include "sql/binlog.h"
+#include "sql/dd/cache/dictionary_client.h"
+#include "sql/dd/dd_schema.h"         // dd::Schema_MDL_locker
+#include "sql/dd/dd.h"                // dd::get_dictionary
+#include "sql/dd/dictionary.h"        // dd::Dictionary
 #include "sql/dd_sql_view.h"          // update_referencing_views_metadata
 #include "sql/debug_sync.h"           // DEBUG_SYNC
 #include "sql/derror.h"               // ER_THD
@@ -2578,6 +2582,40 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     alter_info->create_list.push_back(cr_field);
   }
 
+  /*
+    Acquire SU meta data locks for the tables referenced
+    in the FK constraints.
+  */
+  if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
+      (create_info->db_type->flags & HTON_SUPPORTS_FOREIGN_KEYS))
+  {
+    /*
+      CREATE TABLE SELECT fails under LOCK TABLES at open_tables() time
+      if target table doesn't exist already. So we don't need to handle
+      LOCK TABLES case here by checking that parent tables for new FKs
+      are properly locked and there are no orphan child tables for which
+      table being created will become parent.
+    */
+    DBUG_ASSERT(thd->locked_tables_mode != LTM_LOCK_TABLES &&
+                thd->locked_tables_mode != LTM_PRELOCKED_UNDER_LOCK_TABLES);
+
+    MDL_request_list mdl_requests;
+
+    if (collect_fk_parents_for_new_fks(thd, create_table->db,
+                                       create_table->table_name,
+                                       alter_info,
+                                       MDL_SHARED_UPGRADABLE,
+                                       nullptr,
+                                       &mdl_requests,
+                                       nullptr))
+      DBUG_RETURN(NULL);
+
+    if (!mdl_requests.is_empty() &&
+        thd->mdl_context.acquire_locks(&mdl_requests,
+                                       thd->variables.lock_wait_timeout))
+      DBUG_RETURN(NULL);
+  }
+
   DEBUG_SYNC(thd,"create_table_select_before_create");
 
   /*
@@ -2600,8 +2638,9 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     if (!mysql_create_table_no_lock(thd, create_table->db,
                                     create_table->table_name,
                                     create_info, alter_info,
-                                    select_field_count, NULL,
-                                    post_ddl_ht))
+                                    select_field_count,
+                                    true,
+                                    NULL, post_ddl_ht))
     {
       DEBUG_SYNC(thd,"create_table_select_before_open");
 
@@ -2954,20 +2993,79 @@ bool Query_result_create::send_eof()
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
     thd->get_transaction()->mark_created_temp_table(Transaction_ctx::STMT);
 
-  bool tmp;
+  bool error= false;
+
+  /*
+    For non-temporary tables, we update the unique_constraint_name for
+    the FKs of referencing tables, after acquiring exclusive metadata locks.
+    We also need to upgrade the SU locks on referenced tables to be exclusive
+    before invalidating the referenced tables.
+  */
+  Foreign_key_parents_invalidator fk_invalidator;
+
+  if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
+      (create_info->db_type->flags & HTON_SUPPORTS_FOREIGN_KEYS))
+  {
+    MDL_request_list mdl_requests;
+
+    if ((!dd::get_dictionary()->is_dd_table_name(create_table->db,
+                                                 create_table->table_name) &&
+         collect_fk_children(thd, create_table->db, create_table->table_name,
+                             create_info->db_type, &mdl_requests)) ||
+         collect_fk_parents_for_new_fks(thd, create_table->db,
+                                       create_table->table_name,
+                                       alter_info,
+                                       MDL_EXCLUSIVE,
+                                       create_info->db_type,
+                                       &mdl_requests,
+                                       &fk_invalidator) ||
+        (!mdl_requests.is_empty() &&
+         thd->mdl_context.acquire_locks(&mdl_requests,
+                                        thd->variables.lock_wait_timeout)))
+      error= true;
+    else
+    {
+      dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+      const dd::Table *new_table= nullptr;
+      if (thd->dd_client()->acquire(create_table->db,
+                                    create_table->table_name,
+                                    &new_table))
+        error= true;
+      else
+      {
+        DBUG_ASSERT(new_table != nullptr);
+        /*
+          If we are to support FKs for storage engines which don't support
+          atomic DDL we need to decide what to do for such SEs in case of
+          failure to update children definitions and adjust code accordingly.
+        */
+        DBUG_ASSERT(create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL);
+
+        if (adjust_fk_children_after_parent_def_change(thd,
+                                                       create_table->db,
+                                                       create_table->table_name,
+                                                       create_info->db_type,
+                                                       new_table) ||
+            adjust_fk_parents(thd, create_table->db, create_table->table_name,
+                              true, nullptr))
+          error= true;
+      }
+    }
+  }
 
   {
     Uncommitted_tables_guard uncommitted_tables(thd);
 
-    tmp= update_referencing_views_metadata(thd, create_table,
-                                           !(table->s->db_type()->flags &
-                                             HTON_SUPPORTS_ATOMIC_DDL),
-                                           &uncommitted_tables);
+    if (!error)
+      error= update_referencing_views_metadata(thd, create_table,
+                                               !(table->s->db_type()->flags &
+                                                 HTON_SUPPORTS_ATOMIC_DDL),
+                                               &uncommitted_tables);
   }
 
-  if (!tmp)
-    tmp= Query_result_insert::send_eof();
-  if (tmp)
+  if (!error)
+    error= Query_result_insert::send_eof();
+  if (error)
     abort_result_set();
   else
   {
@@ -3010,8 +3108,10 @@ bool Query_result_create::send_eof()
 
     if (m_post_ddl_ht)
       m_post_ddl_ht->post_ddl(thd);
+
+    fk_invalidator.invalidate(thd);
   }
-  return tmp;
+  return error;
 }
 
 

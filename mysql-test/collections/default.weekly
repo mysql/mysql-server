@@ -94,8 +94,9 @@ perl mysql-test-run.pl --debug-server --timer --force  --parallel=auto --comment
 ## Running default suites other than rpl and binlog with binlog-format mixed
 perl mysql-test-run.pl --comment=all-binlogformat-mix --vardir=var-binlogformat-mix --force --timer --debug-server --parallel=auto --suite=main,perfschema,sys_vars,federated,gis,funcs_1,opt_trace,parts,auth_sec,query_rewrite_plugins,gcol,sysschema,test_service_sql_api,innodb,innodb_fts,innodb_gis,innodb_zip,innodb_undo,json,x --mysqld=--binlog_format=mixed
 
-## Running default suites other than rpl and binlog with skip-log-bin and skip-log-slave-updates
-perl mysql-test-run.pl --comment=all-skiplogbin --vardir=var-skiplogbin --force --timer --debug-server --parallel=auto --suite=main,sys_vars,federated,gis,innodb,innodb_gis,innodb_fts,innodb_zip,innodb_undo,perfschema,funcs_1,opt_trace,parts,auth_sec,query_rewrite_plugins,gcol,sysschema,test_service_sql_api,json,connection_control,test_services,collations,service_udf_registration,service_sys_var_registration,service_status_var_registration,x --mysqld=--skip-log-bin --mysqld=--skip-log-slave-updates
+## Running default suites other than rpl and binlog with skip-log-bin,
+## skip-log-slave-updates and skip-slave-preserve-commit-order
+perl mysql-test-run.pl --comment=all-skiplogbin --vardir=var-skiplogbin --force --timer --debug-server --parallel=auto --suite=main,sys_vars,federated,gis,innodb,innodb_gis,innodb_fts,innodb_zip,innodb_undo,perfschema,funcs_1,opt_trace,parts,auth_sec,query_rewrite_plugins,gcol,sysschema,test_service_sql_api,json,connection_control,test_services,collations,service_udf_registration,service_sys_var_registration,service_status_var_registration,x --mysqld=--skip-log-bin --mysqld=--skip-log-slave-updates --mysqld=--skip-slave-preserve-commit-order
 
 # Run default suites with innodb_undo_tablespace set to > 0
 perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server  --parallel=auto --comment=innodb_undo-2-debug  --vardir=var-tablespace-2 --experimental=collections/default.experimental --mysqld=--innodb_undo_tablespaces=2 --bootstrap --innodb_undo_tablespaces=2 --no-skip

@@ -2241,6 +2241,15 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
     mysql_bin_log.stop_union_events(this);
 
   /*
+    The below assert mostly serves as reminder that optimization in
+    DML_prelocking_strategy::handle_table() relies on the fact
+    that stored function/trigger can't change FOREIGN_KEY_CHECKS
+    value for the top-level statement which invokes them.
+  */
+  DBUG_ASSERT((variables.option_bits & OPTION_NO_FOREIGN_KEY_CHECKS) ==
+              (backup->option_bits & OPTION_NO_FOREIGN_KEY_CHECKS));
+
+  /*
     The following is added to the old values as we are interested in the
     total complexity of the query
   */

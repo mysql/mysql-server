@@ -203,8 +203,8 @@ public:
   }
 
   /**
-    Check if the foreign key options are compatible with columns
-    on which the FK is created.
+    Check if the foreign key name has valid length and its options
+    are compatible with columns on which the FK is created.
 
     @param thd                  Thread handle
     @param table_name           Table name (for error reporting)

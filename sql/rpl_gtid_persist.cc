@@ -893,6 +893,12 @@ static void *compress_gtid_table(void *p_thd)
   DBUG_ENTER("compress_gtid_table");
 
   init_thd(&thd);
+  /*
+    Gtid table compression thread should ignore 'read-only' and
+    'super_read_only' options so that it can update 'mysql.gtid_executed'
+    replication repository tables.
+  */
+  thd->set_skip_readonly_check();
   for (;;)
   {
     mysql_mutex_lock(&LOCK_compress_gtid_table);
@@ -928,6 +934,7 @@ static void *compress_gtid_table(void *p_thd)
   }
 
   mysql_mutex_unlock(&LOCK_compress_gtid_table);
+  thd->reset_skip_readonly_check();
   deinit_thd(thd);
   DBUG_LEAVE;
   my_thread_end();

@@ -3529,6 +3529,11 @@ dict_foreign_find_index(
 		    && !(index->type & DICT_FTS)
 		    && !dict_index_is_spatial(index)
 		    && !index->to_be_dropped
+		    && (!(index->uncommitted
+		          && ((index->online_status
+			       == ONLINE_INDEX_ABORTED_DROPPED)
+			      || (index->online_status
+				  == ONLINE_INDEX_ABORTED))))
 		    && dict_foreign_qualify_index(
 			    table, col_names, columns, n_cols,
 			    index, types_idx,
@@ -3609,7 +3614,6 @@ dict_foreign_add_to_cache(
 	dict_index_t*	index;
 	ibool		added_to_referenced_list= FALSE;
 	FILE*		ef			= dict_foreign_err_file;
-	ulint		found_in_cache		= false;
 
 	DBUG_ENTER("dict_foreign_add_to_cache");
 	DBUG_PRINT("dict_foreign_add_to_cache", ("id: %s", foreign->id));
@@ -3625,7 +3629,6 @@ dict_foreign_add_to_cache(
 
 	if (for_table) {
 		for_in_cache = dict_foreign_find(for_table, foreign);
-		found_in_cache = true;
 	}
 
 	if (!for_in_cache && ref_table) {
@@ -3699,7 +3702,7 @@ dict_foreign_add_to_cache(
 				"or one of the ON ... SET NULL columns"
 				" is declared NOT NULL.");
 
-			if (for_in_cache == foreign && !found_in_cache) {
+			if (for_in_cache == foreign) {
 				if (added_to_referenced_list) {
 					const dict_foreign_set::size_type
 						n = ref_table->referenced_set

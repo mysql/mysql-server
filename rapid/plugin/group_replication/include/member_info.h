@@ -29,6 +29,7 @@
 #include <map>
 #include <set>
 #include <string>
+#include <sstream>
 #include <vector>
 
 #include "my_inttypes.h"
@@ -538,6 +539,14 @@ public:
   @return true if majority of the group is unreachable
   */
   virtual bool is_majority_unreachable()= 0;
+
+  /**
+    This method returns all ONLINE and RECOVERING members comma separated
+    host and port in string format.
+
+    @return hosts and port of all ONLINE and RECOVERING members
+  */
+  virtual std::string get_string_current_view_active_hosts() const = 0;
 };
 
 
@@ -591,6 +600,8 @@ public:
   void get_primary_member_uuid(std::string &primary_member_uuid);
 
   bool is_majority_unreachable();
+
+  std::string get_string_current_view_active_hosts() const;
 
 private:
   void clear_members();

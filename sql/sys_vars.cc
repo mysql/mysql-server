@@ -6123,6 +6123,12 @@ bool Sys_var_gtid_purged::global_update(THD *thd, set_var *var)
   */
   thd->lex->autocommit= true;
 
+  /*
+    SET GITD_PURGED command should ignore 'read-only' and 'super_read_only'
+    options so that it can update 'mysql.gtid_executed' replication repository
+    table.
+  */
+  thd->set_skip_readonly_check();
   char *previous_gtid_executed= NULL, *previous_gtid_purged= NULL,
     *current_gtid_executed= NULL, *current_gtid_purged= NULL;
   gtid_state->get_executed_gtids()->to_string(&previous_gtid_executed);
@@ -6400,17 +6406,33 @@ static Sys_var_bool Sys_persisted_globals_load(
        ON_CHECK(0),
        ON_UPDATE(0));
 
-static bool check_authid_string(sys_var*, THD*, set_var *var)
+static bool sysvar_check_authid_string(sys_var*, THD *thd, set_var *var)
 {
+  /*
+    Since mandatory_roles is similar to a GRANT role statement without a
+    GRANT ADMIN privilege, setting this variable requires both the
+    ROLE_ADMIN and the SYSTEM_VARIABLES_ADMIN.
+  */
+  Security_context *sctx= thd->security_context();
+  DBUG_ASSERT(sctx != 0);
+  if (sctx && !sctx->has_global_grant(STRING_WITH_LEN("ROLE_ADMIN")).first)
+  {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+             "ROLE_ADMIN, SUPER or SYSTEM_VARIABLES_ADMIN");
+    /* No privilege access error */
+    return true;
+  }
   if (var->save_result.string_value.str == 0)
   {
     var->save_result.string_value.str= const_cast<char*>("");
     var->save_result.string_value.length= 0;
   }
-  return false;
+  return check_authorization_id_string(var->save_result.string_value.str,
+                                       var->save_result.string_value.length);
 }
 
-static bool sysvar_update_mandatory_roles(sys_var*, THD*, enum_var_type)
+static bool sysvar_update_mandatory_roles(sys_var *, THD *,
+                                          enum_var_type)
 {
   update_mandatory_roles();
   return false;
@@ -6424,7 +6446,7 @@ static Sys_var_lexstring Sys_mandatory_roles(
   "default roles. The granted roles will not be visible in the mysql.role_edges"
   " table.", GLOBAL_VAR(opt_mandatory_roles), CMD_LINE(REQUIRED_ARG),
   IN_SYSTEM_CHARSET, DEFAULT(""), &PLock_sys_mandatory_roles, NOT_IN_BINLOG,
-  ON_CHECK(check_authid_string), ON_UPDATE(sysvar_update_mandatory_roles));
+  ON_CHECK(sysvar_check_authid_string), ON_UPDATE(sysvar_update_mandatory_roles));
 
 static Sys_var_bool Sys_always_activate_granted_roles(
        "activate_all_roles_on_login",

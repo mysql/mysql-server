@@ -7,9 +7,6 @@
 #
 # Outcome: T1 must abort, T2 must commit.
 
-# Remove this work around after Bug#26629790
---source include/restart_mysqld.inc
-
 --source include/count_sessions.inc
 --source include/have_debug.inc
 

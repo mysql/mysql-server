@@ -17,14 +17,28 @@ IF(NOT WIN32)
   RETURN()
 ENDIF()
 
-# Installed directory layout
-FIND_PATH(WIX_DIR heat.exe "$ENV{ProgramFiles}/WiX Toolset V3.10/bin")
+# Need an extra indirection to access ENV(ProgramFiles(x86))
+SET(MYENV "ProgramFiles(x86)")
 
-# Unzipped directory layout
-FIND_PATH(WIX_DIR heat.exe "$ENV{ProgramFiles}/WiX Toolset V3.10")
+# Look in various paths for 'heat.exe'
+# Different installations have different layouts.
+FOREACH(path
+    "$ENV{ProgramFiles}/WiX Toolset V3.10"
+    "$ENV{ProgramFiles}/WiX Toolset V3.10/bin"
+    "$ENV{${MYENV}}/WiX Toolset V3.10"
+    "$ENV{${MYENV}}/WiX Toolset V3.10/bin")
+  FIND_PATH(WIX_DIR heat.exe "${path}")
+  MESSAGE(STATUS "WIX_DIR ${WIX_DIR} path ${path}")
+  IF(WIX_DIR)
+    BREAK()
+  ENDIF()
+ENDFOREACH()
 
-# Directly from environment
-FIND_PATH(WIX_DIR heat.exe "$ENV{WIX}")
+# Finally, look in environment
+IF(NOT WIX_DIR)
+  FIND_PATH(WIX_DIR heat.exe "$ENV{WIX}")
+  MESSAGE(STATUS "WIX_DIR ${WIX_DIR} looked at $ENV{WIX}\n")
+ENDIF()
 
 IF(NOT WIX_DIR)
   IF(NOT _WIX_DIR_CHECKED)

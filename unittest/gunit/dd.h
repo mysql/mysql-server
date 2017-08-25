@@ -407,8 +407,8 @@ inline void set_attributes(dd::Foreign_key *obj, const dd::String_type &name)
   obj->set_match_option(dd::Foreign_key::OPTION_FULL);
   obj->set_update_rule(dd::Foreign_key::RULE_SET_DEFAULT);
   obj->set_delete_rule(dd::Foreign_key::RULE_CASCADE);
-  obj->referenced_table_schema_name("mysql");
-  obj->referenced_table_name("dual");
+  obj->set_referenced_table_schema_name("mysql");
+  obj->set_referenced_table_name("dual");
 
   // Create Foreign key column
   dd::Foreign_key_element *fke= obj->add_element();
