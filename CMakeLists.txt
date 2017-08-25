@@ -459,7 +459,7 @@ IF (USE_LD_GOLD)
   # as the flag not existing).
   MY_CHECK_C_COMPILER_FLAG("-fuse-ld=gold" C_LD_GOLD_RESULT)
   MY_CHECK_CXX_COMPILER_FLAG("-fuse-ld=gold" CXX_LD_GOLD_RESULT)
-  IF (C_LD_GOLD_RESULT AND CXX_LD_GOLD_RESULT)
+  IF (C_LD_GOLD_RESULT AND CXX_LD_GOLD_RESULT AND NOT SOLARIS)
     SET(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -fuse-ld=gold -Wl,--gc-sections -Wl,--icf=safe")
     SET(CMAKE_CXX_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS} -fuse-ld=gold -Wl,--gc-sections -Wl,--icf=safe")
   ENDIF()

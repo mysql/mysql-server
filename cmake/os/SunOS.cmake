@@ -18,6 +18,8 @@ INCLUDE(CheckCSourceRuns)
 INCLUDE(CheckCSourceCompiles) 
 INCLUDE(CheckCXXSourceCompiles)
 
+SET(SOLARIS 1)
+
 IF (NOT "${CMAKE_C_FLAGS}${CMAKE_CXX_FLAGS}" MATCHES "-m32|-m64")
   IF(NOT FORCE_UNSUPPORTED_COMPILER)
     MESSAGE("Adding -m64")
