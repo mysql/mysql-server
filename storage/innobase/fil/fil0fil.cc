@@ -9868,8 +9868,12 @@ Tablespace_dirs::print_duplicates(const Space_id_set&  duplicates)
 @param[in]	directories	Directories to scan
 @return DB_SUCCESS if all goes well */
 dberr_t
-Tablespace_dirs::scan(const std::string& directories)
+Tablespace_dirs::scan(const std::string& in_directories)
 {
+	std::string	directories(in_directories);
+
+	Fil_path::normalize(directories);
+
 	ib::info() << "Directories to scan '" << directories << "'";
 
 	Scanned_files	ibd_files;
