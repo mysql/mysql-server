@@ -4152,9 +4152,15 @@ row_drop_single_table_tablespace(
 		space_id, tablename, true, false, NULL, 0)) {
 
 		/* Force a delete of any discarded or temporary files. */
-		fil_delete_file(filepath);
+		if (fil_delete_file(filepath)) {
 
-		ib::info() << "Removed datafile " << filepath;
+			ib::info() << "Removed datafile " << filepath;
+
+		} else {
+			ib::info()
+				<< "Remove of datafile " << filepath
+				<< " failed";
+		}
 
 	} else if (fil_delete_tablespace(space_id, BUF_REMOVE_FLUSH_NO_WRITE)
 		   != DB_SUCCESS) {

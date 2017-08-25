@@ -7827,21 +7827,23 @@ fil_tablespace_iterate(
 /** Set the tablespace table size.
 @param[in]	page	a page belonging to the tablespace */
 void
-PageCallback::set_page_size(
-	const buf_frame_t*	page) UNIV_NOTHROW
+PageCallback::set_page_size(const buf_frame_t* page) UNIV_NOTHROW
 {
 	m_page_size.copy_from(fsp_header_get_page_size(page));
 }
 
 /** Delete the tablespace file and any related files like .cfg.
 This should not be called for temporary tables.
-@param[in]	path		File path of the IBD tablespace */
-void
+@param[in]	path		File path of the IBD tablespace
+@return true on success */
+bool
 fil_delete_file(const char* path)
 {
+	bool	success;
+
 	/* Force a delete of any stale .ibd files that are lying around. */
 
-	os_file_delete_if_exists(innodb_data_file_key, path, nullptr);
+	success = os_file_delete_if_exists(innodb_data_file_key, path, nullptr);
 
 	char*	cfg_filepath = Fil_path::make(path, nullptr, CFG, false);
 
@@ -7862,6 +7864,8 @@ fil_delete_file(const char* path)
 
 		ut_free(cfp_filepath);
 	}
+
+	return(success);
 }
 
 /** Check if swapping two .ibd files can be done without failure 

@@ -1415,14 +1415,17 @@ fil_space_dec_redo_skipped_count(space_id_t space_id);
 @param[in]	space_id	Tablespace ID
 @return true if redo skipped */
 bool
-fil_space_is_redo_skipped(space_id_t space_id);
+fil_space_is_redo_skipped(space_id_t space_id)
+	MY_ATTRIBUTE((warn_unused_result));
 #endif /* UNIV_DEBUG */
 
 /** Delete the tablespace file and any related files like .cfg.
 This should not be called for temporary tables.
-@param[in]	path		File path of the tablespace */
-void
-fil_delete_file(const char* path);
+@param[in]	path		File path of the tablespace
+@return true on success */
+bool
+fil_delete_file(const char* path)
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** Callback functor. */
 struct PageCallback {
@@ -1441,7 +1444,9 @@ struct PageCallback {
 	@retval DB_SUCCESS or error code. */
 	virtual dberr_t init(
 		os_offset_t		file_size,
-		const buf_block_t*	block) UNIV_NOTHROW = 0;
+		const buf_block_t*	block)
+		MY_ATTRIBUTE((warn_unused_result))
+		UNIV_NOTHROW = 0;
 
 	/** Called for every page in the tablespace. If the page was not
 	updated then its state must be set to BUF_PAGE_NOT_USED. For
@@ -1452,7 +1457,9 @@ struct PageCallback {
 	@retval DB_SUCCESS or error code. */
 	virtual dberr_t operator()(
 		os_offset_t	offset,
-		buf_block_t*	block) UNIV_NOTHROW = 0;
+		buf_block_t*	block)
+		MY_ATTRIBUTE((warn_unused_result))
+		UNIV_NOTHROW = 0;
 
 	/** Set the name of the physical file and the file handle that is used
 	to open it for the file that is being iterated over.
@@ -1464,13 +1471,16 @@ struct PageCallback {
 		m_filepath = filename;
 	}
 
-	/**
-	@return the space id of the tablespace */
-	virtual space_id_t get_space_id() const UNIV_NOTHROW = 0;
+	/** @return the space id of the tablespace */
+	virtual space_id_t get_space_id() const
+		MY_ATTRIBUTE((warn_unused_result))
+		UNIV_NOTHROW = 0;
 
 	/**
 	@retval the space flags of the tablespace being iterated over */
-	virtual ulint get_space_flags() const UNIV_NOTHROW = 0;
+	virtual ulint get_space_flags() const
+		MY_ATTRIBUTE((warn_unused_result))
+		UNIV_NOTHROW = 0;
 
 	/** Set the tablespace table size.
 	@param[in] page a page belonging to the tablespace */
@@ -1479,6 +1489,7 @@ struct PageCallback {
 	/** The compressed page size
 	@return the compressed page size */
 	const page_size_t& get_page_size() const
+		MY_ATTRIBUTE((warn_unused_result))
 	{
 		return(m_page_size);
 	}
@@ -1493,6 +1504,7 @@ struct PageCallback {
 	const char*		m_filepath;
 
 	// Disable copying
+	PageCallback(PageCallback&&) = delete;
 	PageCallback(const PageCallback&) = delete;
 	PageCallback& operator=(const PageCallback&) = delete;
 };

@@ -5031,6 +5031,11 @@ os_file_delete_if_exists_func(
 			}
 
 			return(true);
+
+		} else if (!Fil_path::is_file_and_exists(name)
+			   && Fil_path::is_directory_and_exists(name)) {
+
+			return(false)
 		}
 
 		++count;
@@ -5370,7 +5375,9 @@ os_file_truncate_win32(
 	LARGE_INTEGER	length;
 
 	length.QuadPart = size;
-	BOOL	success = SetFilePointerEx(file.m_file, length, NULL, FILE_BEGIN);
+
+	BOOL	success = SetFilePointerEx(
+		file.m_file, length, NULL, FILE_BEGIN);
 
 	if (!success) {
 		os_file_handle_error_no_exit(
