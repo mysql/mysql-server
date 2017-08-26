@@ -78,6 +78,8 @@ using Space_id_set = std::set<space_id_t>;
 
 #if defined(__SUNPRO_C) || defined(__SUNPRO_CC)
 char*	Fil_path::SEPARATOR = "\\/";
+char*	Fil_path::DOT_SLASH = "./";
+char*	Fil_path::DOT_DOT_SLASH = "../";
 #endif /* __SUNPRO_C || __SUNPRO_CC */
 
 /** Used for collecting the data in boot_tablespaces() */
@@ -4535,13 +4537,10 @@ Fil_path::make(
 	std::string	path(path_in);
 
 	/* If the name is a relative path like './', '../' or an absolute path,
-	do not prepend "./". */
+	do not prepend the datadir path.  */
 	if (is_absolute_path(name.c_str())
-	    || (name.length() >= 2
-		&& ((name.at(0) == '.' && is_separator(name.at(1)))
-		    || (name.at(0) == '.'
-			&& name.at(1) == '.'
-			&& is_separator(name.at(1)))))) {
+	    || has_prefix(name, DOT_SLASH)
+	    || has_prefix(name, DOT_DOT_SLASH)) {
 
 		path.clear();
 	}

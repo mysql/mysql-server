@@ -328,8 +328,18 @@ public:
 	/** Directory separators that are supported. */
 #if defined(__SUNPRO_C) || defined(__SUNPRO_CC)
 	static char*		SEPARATOR;
+	static char*		DOT_SLASH;
+	static char*		DOT_DOT_SLASH;
 #else
 	static constexpr auto	SEPARATOR = "\\/";
+#ifdef _WIN32
+	static constexpr auto	DOT_SLASH = ".\\";
+	static constexpr auto	DOT_DOT_SLASH = "..\\";
+#else
+	static constexpr auto	DOT_SLASH = "./";
+	static constexpr auto	DOT_DOT_SLASH = "../";
+#endif /* _WIN32 */
+
 #endif /* __SUNPRO_C || __SUNPRO_CC */
 
 	/** Default constructor. Defaults to MySQL_datadir_path.  */
@@ -438,14 +448,6 @@ public:
 		if (m_path.empty()) {
 			return(false);
 		}
-#ifdef _WIN32
-		/* Windows minimum absolute path length is 'A:\' */
-		if (m_path.length() < 2) {
-			return(false);
-		}
-#endif /* _WIN32 */
-
-		ut_a(m_path.length() >= 1);
 
 		return(is_absolute_path(m_path.c_str()));
 	}
@@ -501,21 +503,31 @@ public:
 		if (path[0] == 0) {
 
 			return(false);
-
-		} else if (path[0] == OS_SEPARATOR) {
-
-			return(true);
 		}
 
 #ifdef _WIN32
-		/* FIXME: What about \\Host\share paths? */
-		if (isalpha(path[0]) && path[1] == ':' && path[2] == '\\') {
-
-			return(true);
+		/* Windows minimum absolute path length is 'A:\' */
+		if (m_path.length() < 3) {
+			return(false);
 		}
-#endif /* _WIN32 */
 
-		return(false);
+		/* FIXME: What about \\Host\share paths? */
+		return(isalpha(path[0]) && path[1] == ':' && path[2] == '\\');
+#else
+		return(path[0] == OS_SEPARATOR);
+#endif /* _WIN32 */
+	}
+
+	/* Check if the path is prefixed with pattern.
+	@return true if prefix matches */
+	static bool has_prefix(
+		const std::string&	path,
+		const std::string	prefix)
+		MY_ATTRIBUTE((warn_unused_result))
+	{
+		return(path.size() >= prefix.size()
+		       && std::equal(
+			       prefix.begin(), prefix.end(), path.begin()));
 	}
 
 	/** Normalizes a directory path for the current OS:
