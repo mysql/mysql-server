@@ -8651,7 +8651,7 @@ fil_tablespace_lookup_for_recovery(space_id_t space_id)
 bool
 Fil_system::open_for_recovery(space_id_t space_id)
 {
-	ut_ad(recv_recovery_is_on());
+	ut_ad(recv_recovery_is_on() || Log_DDL::is_in_recovery());
 
 	if (!lookup_for_recovery(space_id)) {
 		return(false);
