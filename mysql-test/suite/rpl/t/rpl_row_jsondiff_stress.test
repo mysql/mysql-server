@@ -446,7 +446,10 @@ while (!$done)
       eval INSERT INTO t(i) VALUES ($row_i);
       --inc $row_i
     }
-    --eval $fix
+    if ($fix)
+    {
+      --eval $fix
+    }
     COMMIT;
 
     if ($verb>=1) { SELECT * FROM t; }

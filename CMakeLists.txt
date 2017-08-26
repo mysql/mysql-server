@@ -14,8 +14,8 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 IF(WIN32)
-  # CMake 3.2.3 is needed for Visual Studio 2015 due to CMake bug 15552.
-  CMAKE_MINIMUM_REQUIRED(VERSION 3.2.3)
+  # CMake 3.8.0 is needed for Visual Studio 2017 and x64 toolset.
+  CMAKE_MINIMUM_REQUIRED(VERSION 3.8.0)
 ELSEIF(UNIX)
   # CMake 3.4.0 is needed for Solaris due to CMake bug 15673.
   # Cannot use CMAKE_SYSTEM_NAME until after PROJECT(), use uname directly.
@@ -119,15 +119,11 @@ ELSEIF(NOT HAVE_CMAKE_BUILD_TYPE OR OLD_WITH_DEBUG)
   SET(OLD_WITH_DEBUG 0 CACHE INTERNAL "" FORCE)
 ENDIF()
 
-IF(CMAKE_GENERATOR MATCHES "Visual Studio 14.*")
-# Switch to 64 bit toolset on Windows (32 bit is default).
-# This is recommended as the 32 bit linker can run into address space issues.
-# Sadly there is no clean way to do it from CMake yet, so therefore this
-# slightly hackish way of doing it.
-  IF(WIN32)
-    SET(CMAKE_GENERATOR_TOOLSET
-        "v140</PlatformToolset><PreferredToolArchitecture>x64</PreferredToolArchitecture><PlatformToolset>v140")
-  ENDIF()
+IF(CMAKE_GENERATOR MATCHES "Visual Studio [1-9][0-9].*")
+  # Switch to 64 bit toolset on Windows (32 bit is default).
+  # This is recommended as the 32 bit linker will run into address space issues
+  # and not exit for long time.
+  SET(CMAKE_GENERATOR_TOOLSET "host=x64")
 ENDIF()
 
 # On Linux el6/el7 the default gcc is too old, see if devtoolset is installed.
