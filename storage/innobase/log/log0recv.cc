@@ -1000,6 +1000,7 @@ recv_find_max_checkpoint(
 		return(DB_ERROR);
 
 	case LOG_HEADER_FORMAT_5_7_9:
+	case LOG_HEADER_FORMAT_8_0_1:
 
 		/* The checkpoint page format is identical upto v3. */
 
@@ -3730,6 +3731,7 @@ recv_recovery_from_checkpoint_start(lsn_t flush_lsn)
 		break;
 
 	case LOG_HEADER_FORMAT_5_7_9:
+	case LOG_HEADER_FORMAT_8_0_1:
 
 		ib::info()
 			<< "Redo log is from an earlier version,"
