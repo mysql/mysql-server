@@ -8648,35 +8648,40 @@ fil_tablespace_path_equals(
 	return(Fil_state::MATCHES);
 }
 
-/** Lookup the tablespace ID.
+/** Lookup the tablespace ID for recovery and DDL log apply.
 @param[in]	space_id		Tablespace ID to lookup
 @return true if the space ID is known. */
 bool
 Fil_system::lookup_for_recovery(space_id_t space_id)
 {
-	ut_ad(recv_recovery_is_on());
+	ut_ad(recv_recovery_is_on() || Log_DDL::is_in_recovery());
 
 	/* Single threaded code, no need to acquire mutex. */
-	const auto&	end = recv_sys->deleted.end();
 	const auto	result = get_scanned_files(space_id);
-	const auto&	it = recv_sys->deleted.find(space_id);
 
-	if (result.second == nullptr) {
+	if (recv_recovery_is_on()) {
+		const auto&	end = recv_sys->deleted.end();
+		const auto&	it = recv_sys->deleted.find(space_id);
 
-		/* If it wasn't deleted after finding it on disk then
-		we tag it as missing. */
+		if (result.second == nullptr) {
 
-		if (it == end) {
+			/* If it wasn't deleted after finding it on disk then
+			we tag it as missing. */
 
-			recv_sys->missing_ids.insert(space_id);
+			if (it == end) {
+
+				recv_sys->missing_ids.insert(space_id);
+			}
+
+			return(false);
 		}
 
-		return(false);
+		/* Check that it wasn't deleted. */
+
+		return(it == end);
 	}
 
-	/* Check that it wasn't deleted. */
-
-	return(it == end);
+	return(result.second != nullptr);
 }
 
 /** Lookup the tablespace ID.
