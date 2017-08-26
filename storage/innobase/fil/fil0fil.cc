@@ -4911,8 +4911,6 @@ Fil_shard::space_rename(
 	ut_ad(space == get_space_by_name(old_space_name));
 	ut_ad(get_space_by_name(new_space_name) == nullptr);
 
-	ut_ad(file->name == old_file_name);
-
 	bool	success;
 
 	DBUG_EXECUTE_IF("fil_rename_tablespace_failure_2", goto skip_rename; );
@@ -4926,12 +4924,8 @@ Fil_shard::space_rename(
 	DBUG_EXECUTE_IF("fil_rename_tablespace_failure_2",
 			skip_rename: success = false; );
 
-	ut_ad(file->name == old_file_name);
-
 	DBUG_INJECT_CRASH("ddl_crash_after_rename_tablespace",
 			  crash_injection_rename_tablespace_counter++);
-
-	ut_ad(file->name == old_file_name);
 
 	if (success) {
 		file->name = new_file_name;

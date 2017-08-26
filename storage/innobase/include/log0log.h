@@ -596,13 +596,9 @@ enum log_header_format_t
 	from this format if the redo log is clean (logically empty). */
 	LOG_HEADER_FORMAT_5_7_9 = 1,
 
-	/** Remove MLOG_FILE_NAME and MLOG_CHECKPOINT, introduce MLOG_FILE_OPEN
-	redo log record. */
-	LOG_HEADER_FORMAT_8_0_1 = 2,
-
 	/** Remove MLOG_FILE_OPEN, MLOG_FILE_CREATE2 and MLOG_FILE_RENAME2
 	Resurrect MLOG_FILE_CREATE and MLOG_FILE_RENAME. */
-	LOG_HEADER_FORMAT_8_0_3 = 3,
+	LOG_HEADER_FORMAT_8_0_3 = 2,
 
 	/** The redo log format identifier
 	corresponding to the current format version. */

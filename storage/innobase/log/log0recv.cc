@@ -871,7 +871,7 @@ static char log_header_creator[LOG_HEADER_CREATOR_END - LOG_HEADER_CREATOR + 1];
 @retval DB_ERROR	if the redo log is corrupted or dirty */
 static
 dberr_t
-recv_log_recover_pre_8_0_3(lsn_t lsn)
+recv_log_recover_pre_8_0_4(lsn_t lsn)
 {
        ut_ad(log_mutex_own());
 
@@ -1000,7 +1000,6 @@ recv_find_max_checkpoint(
 		return(DB_ERROR);
 
 	case LOG_HEADER_FORMAT_5_7_9:
-	case LOG_HEADER_FORMAT_8_0_1:
 
 		/* The checkpoint page format is identical upto v3. */
 
@@ -3731,7 +3730,6 @@ recv_recovery_from_checkpoint_start(lsn_t flush_lsn)
 		break;
 
 	case LOG_HEADER_FORMAT_5_7_9:
-	case LOG_HEADER_FORMAT_8_0_1:
 
 		ib::info()
 			<< "Redo log is from an earlier version,"
@@ -3739,7 +3737,7 @@ recv_recovery_from_checkpoint_start(lsn_t flush_lsn)
 
 		/* Check if the redo log from an older known redo log
 		version is from a clean shutdown. */
-		err = recv_log_recover_pre_8_0_3(checkpoint_lsn);
+		err = recv_log_recover_pre_8_0_4(checkpoint_lsn);
 
 		if (err != DB_SUCCESS) {
 			log_mutex_exit();
