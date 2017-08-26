@@ -911,6 +911,25 @@ public:
 	dberr_t iterate(bool include_log, Fil_iterator::Function& f)
 		MY_ATTRIBUTE((warn_unused_result));
 
+	/** Open an ibd tablespace and add it to the InnoDB data structures.
+	This is similar to fil_ibd_open() except that it is used while
+	processing the redo and DDL log, so the data dictionary is not
+	available and very little validation is done. The tablespace name
+	is extracted from the dbname/tablename.ibd portion of the filename,
+	which assumes that the file is a file-per-table tablespace. Any name
+	will do for now. General tablespace names will be read from the
+	dictionary after it has been recovered. The tablespace flags are read
+	at this time from the first page of the file in validate_for_recovery().
+	@param[in]	space_id	tablespace ID
+	@param[in]	path		path/to/databasename/tablename.ibd
+	@param[out]	space		the tablespace, or nullptr on error
+	@return status of the operation */
+	fil_load_status ibd_open_for_recovery(
+		space_id_t		space_id,
+		const std::string&	path,
+		fil_space_t*&		space)
+		MY_ATTRIBUTE((warn_unused_result));
+
 	/** Free a tablespace object on which fil_space_detach() was invoked.
 	There must not be any pending i/o's or flushes on the files.
 	@param[in,out]	space		tablespace */
@@ -4784,8 +4803,11 @@ Fil_shard::space_rename(
 
 			char*   old_file_name = file->name;
 
-			ut_ad(strchr(old_file_name, OS_PATH_SEPARATOR) != NULL);
-		       	ut_ad(strchr(new_file_name, OS_PATH_SEPARATOR) != NULL);
+			ut_ad(strchr(old_file_name, OS_PATH_SEPARATOR)
+			      != nullptr);
+
+			ut_ad(strchr(new_file_name, OS_PATH_SEPARATOR)
+			      != nullptr);
 
 			mutex_release();
 			
@@ -5392,7 +5414,7 @@ fil_ibd_open(
 	if (path_in) {
 		df.set_filepath(path_in);
 	} else {
-		df.make_filepath(NULL, table_name, IBD);
+		df.make_filepath(nullptr, table_name, IBD);
 	}
 
 	/* Attempt to open the tablespace at the dictionary filepath. */
@@ -5579,7 +5601,7 @@ fil_path_to_space_name(const char* filename)
 
 /** Open an ibd tablespace and add it to the InnoDB data structures.
 This is similar to fil_ibd_open() except that it is used while processing
-the redo log, so the data dictionary is not available and very little
+the redo and DDL log, so the data dictionary is not available and very little
 validation is done. The tablespace name is extracted from the
 dbname/tablename.ibd portion of the filename, which assumes that the file
 is a file-per-table tablespace.  Any name will do for now.  General
@@ -5591,30 +5613,23 @@ of the file in validate_for_recovery().
 @param[out]	space		the tablespace, or nullptr on error
 @return status of the operation */
 fil_load_status
-Fil_system::ibd_open_for_recovery(
+Fil_shard::ibd_open_for_recovery(
 	space_id_t		space_id,
 	const std::string&	path,
 	fil_space_t*&		space)
 {
-	const char*	filename = path.c_str();
-
-	/* System tablespace open should never come here. It should be
-	opened explicitly using the config path. */
-
-	ut_a(space_id != TRX_SYS_SPACE);
-
 	/* If the a space is already in the file system cache with this
 	space ID, then there is nothing to do. */
 
-	auto	shard = fil_system->shard_by_id(space_id);
+	mutex_acquire();
 
-	shard->mutex_acquire();
+	space = get_space_by_id(space_id);
 
-	space = shard->get_space_by_id(space_id);
-
-	shard->mutex_release();
+	mutex_release();
 
 	/* Only TRX_SYS_SPACE may contain multiple nodes. */
+
+	const char*	filename = path.c_str();
 
 	if (space != nullptr) {
 
@@ -5648,50 +5663,42 @@ Fil_system::ibd_open_for_recovery(
 
 	ut_ad(file.is_open());
 
-	os_offset_t	size;
-
 	/* Read and validate the first page of the tablespace.
 	Assign a tablespace name based on the tablespace type. */
 	dberr_t	err = file.validate_for_recovery(space_id);
 
 	ut_a(err == DB_SUCCESS);
+	ut_a(file.space_id() == space_id);
 
-	if (err == DB_SUCCESS) {
+	/* Get and test the file size. */
+	os_offset_t	size = os_file_get_size(file.handle());
 
-		ut_a(file.space_id() == space_id);
+	/* Every .ibd file is created >= 4 pages in size.
+	Smaller files cannot be OK. */
+	os_offset_t	minimum_size;
 
-		/* Get and test the file size. */
-		size = os_file_get_size(file.handle());
+	minimum_size = FIL_IBD_FILE_INITIAL_SIZE * UNIV_PAGE_SIZE;
 
-		/* Every .ibd file is created >= 4 pages in size.
-		Smaller files cannot be OK. */
-		os_offset_t	minimum_size;
+	if (size == static_cast<os_offset_t>(-1)) {
+		/* The following call prints an error message */
+		os_file_get_last_error(true);
+		ib::error()
+			<< "Could not measure the size of"
+			" single-table tablespace file '"
+			<< file.filepath() << "'";
 
-		minimum_size = FIL_IBD_FILE_INITIAL_SIZE * UNIV_PAGE_SIZE;
-
-		if (size == static_cast<os_offset_t>(-1)) {
-
-			/* The following call prints an error message */
-			os_file_get_last_error(true);
-
-			ib::error()
-				<< "Could not measure the size of"
-				" single-table tablespace file '"
-				<< file.filepath() << "'";
-
-		} else if (size < minimum_size) {
+	} else if (size < minimum_size) {
 #ifndef UNIV_HOTBACKUP
-			ib::error()
-				<< "The size of tablespace file '"
-				<< file.filepath() << "' is only " << size
-				<< ", should be at least " << minimum_size
-				<< "!";
+		ib::error()
+			<< "The size of tablespace file '"
+			<< file.filepath() << "' is only " << size
+			<< ", should be at least " << minimum_size
+			<< "!";
 #else
-			/* In MEB, we work around this error. */
-			file.set_space_id(SPACE_UNKNOWN);
-			file.set_flags(0);
+		/* In MEB, we work around this error. */
+		file.set_space_id(SPACE_UNKNOWN);
+		file.set_flags(0);
 #endif /* !UNIV_HOTBACKUP */
-		}
 	}
 
 	ut_ad(space == nullptr);
@@ -5729,11 +5736,11 @@ Fil_system::ibd_open_for_recovery(
 	file than delete it, because if there is a bug, we do not want to
 	destroy valuable data. */
 
-	shard->mutex_acquire();
+	mutex_acquire();
 
-	space = shard->get_space_by_id(space_id);
+	space = get_space_by_id(space_id);
 
-	shard->mutex_release();
+	mutex_release();
 
 	if (space != nullptr) {
 
@@ -5760,8 +5767,12 @@ Fil_system::ibd_open_for_recovery(
 	}
 #endif /* UNIV_HOTBACKUP */
 
-	space = fil_space_create(
+	fil_system->mutex_acquire_all();
+
+	space = space_create(
 		file.name(), space_id, file.flags(), FIL_TYPE_TABLESPACE);
+
+	fil_system->mutex_release_all();
 
 	if (space == nullptr) {
 		return(FIL_LOAD_INVALID);
@@ -5789,13 +5800,45 @@ Fil_system::ibd_open_for_recovery(
 			file.m_encryption_key, file.m_encryption_iv);
 
 		if (err != DB_SUCCESS) {
-			ib::error() << "Can't set encryption information for"
+
+			ib::error()
+				<< "Can't set encryption information for"
 				" tablespace " << space->name << "!";
 		}
 	}
 
 
 	return(FIL_LOAD_OK);
+}
+
+/** Open an ibd tablespace and add it to the InnoDB data structures.
+This is similar to fil_ibd_open() except that it is used while processing
+the redo log, so the data dictionary is not available and very little
+validation is done. The tablespace name is extracted from the
+dbname/tablename.ibd portion of the filename, which assumes that the file
+is a file-per-table tablespace.  Any name will do for now.  General
+tablespace names will be read from the dictionary after it has been
+recovered.  The tablespace flags are read at this time from the first page
+of the file in validate_for_recovery().
+@param[in]	space_id	tablespace ID
+@param[in]	path		path/to/databasename/tablename.ibd
+@param[out]	space		the tablespace, or nullptr on error
+@return status of the operation */
+fil_load_status
+Fil_system::ibd_open_for_recovery(
+	space_id_t		space_id,
+	const std::string&	path,
+	fil_space_t*&		space)
+{
+	/* System tablespace open should never come here. It should be
+	opened explicitly using the config path. */
+
+	ut_a(space_id != TRX_SYS_SPACE);
+
+	auto	shard = shard_by_id(space_id);
+
+	return(shard->ibd_open_for_recovery(space_id, path, space));
+
 }
 
 /** Report that a tablespace for a table was not found.
@@ -5843,7 +5886,7 @@ Fil_shard::space_check_exists(
 
 	fil_space_t*	space = get_space_by_id(space_id);
 
-	/* name is NULL when replay DELETE ddl log. */
+	/* name is nullptr when replay DELETE ddl log. */
 	if (name == nullptr) {
 
 		mutex_release();
@@ -7687,7 +7730,7 @@ fil_tablespace_iterate(
 			return(DB_CORRUPTION););
 
 	/* Make sure the data_dir_path is set. */
-	dd_get_and_save_data_dir_path<dd::Table>(table, NULL, false);
+	dd_get_and_save_data_dir_path<dd::Table>(table, nullptr, false);
 
 	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
 		ut_a(table->data_dir_path);
