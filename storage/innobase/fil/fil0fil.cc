@@ -9759,8 +9759,14 @@ Fil_system::get_tablespace_id(std::ifstream* ifs, const std::string& filename)
 		}
 	}
 
-	/* Try the more heavy duty method, as a last resort. */
 	if (err != DB_SUCCESS) {
+
+		/* Try the more heavy duty method, as a last resort. The
+		ifstream will work for all file formats compressed or
+		otherwise because the header of the page is not compressed.
+		Where it will fail is if the first page is corrupt. Then for
+		compressed tablespaces we don't know where the page boundary
+		starts because we don't know the page size. */
 
 		ifs->close();
 
