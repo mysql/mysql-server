@@ -222,34 +222,36 @@ Tablespace::add_datafile(
 	ut_d(const char* dot = strrchr(datafile_added, '.'));
 	ut_ad(dot != NULL && Fil_path::has_ibd_suffix(dot));
 
-	char* filepath = mem_strdup(datafile_added);
-	if (filepath == NULL) {
-		return(DB_OUT_OF_MEMORY);
-	}
+	std::string	filepath{datafile_added};
+
 	Fil_path::normalize(filepath);
 
 	/* If the path is an absolute path, separate it onto m_path and a
 	basename. For relative paths, make the whole thing a basename so that
 	it can be appended to the datadir. */
 	bool	is_abs_path = Fil_path::is_absolute_path(filepath);
-	size_t	dirlen = (is_abs_path ? dirname_length(filepath) : 0);
-	const char* basename = filepath + dirlen;
+	size_t	dirlen = (is_abs_path ? dirname_length(filepath.c_str()) : 0);
 
 	/* If the pathname contains a directory separator, fill the
 	m_path member which is the default directory for files in this
 	tablespace. Leave it null otherwise. */
 	if (dirlen > 0) {
-		set_path(filepath, dirlen);
+		set_path(filepath.c_str(), dirlen);
 	}
 
-	/* Now add a new Datafile and set the filepath
-	using the m_path created above. */
-	m_files.push_back(Datafile(m_name, m_flags,
-				   FIL_IBD_FILE_INITIAL_SIZE, 0));
-	Datafile* datafile = &m_files.back();
-	datafile->make_filepath(m_path, basename, IBD);
+	Datafile	value(m_name, m_flags, FIL_IBD_FILE_INITIAL_SIZE, 0);
 
-	ut_free(filepath);
+	/* Now add a new Datafile and set the filepath using the m_path
+	created above. */
+	m_files.push_back(value);
+
+	Datafile*	datafile = &m_files.back();
+
+	if (dirlen > 0) {
+		filepath.erase(0, dirlen);
+	}
+
+	datafile->make_filepath(m_path, filepath.c_str(), IBD);
 
 	return(DB_SUCCESS);
 }

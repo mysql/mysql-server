@@ -449,7 +449,7 @@ public:
 			return(false);
 		}
 
-		return(is_absolute_path(m_path.c_str()));
+		return(is_absolute_path(m_path));
 	}
 
 	/** This validation is only for ':'.
@@ -497,24 +497,26 @@ public:
 	@param[in]	path		OS directory or file path to evaluate
 	@retval true if an absolute path
 	@retval false if a relative path */
-	static bool is_absolute_path(const char* path)
+	static bool is_absolute_path(const std::string& path)
 		MY_ATTRIBUTE((warn_unused_result))
 	{
-		if (path[0] == 0) {
+		if (path.empty()) {
 
 			return(false);
 		}
 
 #ifdef _WIN32
 		/* Windows minimum absolute path length is 'A:\' */
-		if (m_path.length() < 3) {
+		if (path.length() < 3) {
 			return(false);
 		}
 
 		/* FIXME: What about \\Host\share paths? */
-		return(isalpha(path[0]) && path[1] == ':' && path[2] == '\\');
+		return(isalpha(path.at(0))
+		       && path.at(1) == ':'
+		       && (path.at(2) == '\\' || path.at(2) == '/'));
 #else
-		return(path[0] == OS_SEPARATOR);
+		return(*path.begin() == OS_SEPARATOR);
 #endif /* _WIN32 */
 	}
 

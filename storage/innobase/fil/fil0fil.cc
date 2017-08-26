@@ -4538,7 +4538,7 @@ Fil_path::make(
 
 	/* If the name is a relative path like './', '../' or an absolute path,
 	do not prepend the datadir path.  */
-	if (is_absolute_path(name.c_str())
+	if (is_absolute_path(name)
 	    || has_prefix(name, DOT_SLASH)
 	    || has_prefix(name, DOT_DOT_SLASH)) {
 
