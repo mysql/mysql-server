@@ -1420,6 +1420,25 @@ public:
 		const char*	new_name)
 		MY_ATTRIBUTE((warn_unused_result));
 private:
+	/** Open an ibd tablespace and add it to the InnoDB data structures.
+	This is similar to fil_ibd_open() except that it is used while
+	processing the redo log, so the data dictionary is not available
+	and very little validation is done. The tablespace name is extracted
+	from the dbname/tablename.ibd portion of the filename, which assumes
+	that the file is a file-per-table tablespace.  Any name will do for
+	now.  General tablespace names will be read from the dictionary after
+	it has been recovered.  The tablespace flags are read at this time
+	from the first page of the file in validate_for_recovery().
+	@param[in]	space_id	tablespace ID
+	@param[in]	path		path/to/databasename/tablename.ibd
+	@param[out]	space		the tablespace, or nullptr on error
+	@return status of the operation */
+	fil_load_status ibd_open_for_recovery(
+		space_id_t		space_id,
+		const std::string&	path,
+		fil_space_t*&		space)
+		MY_ATTRIBUTE((warn_unused_result));
+private:
 	/** Fil_shards managed */
 	Fil_shards		m_shards;
 
@@ -5571,9 +5590,8 @@ of the file in validate_for_recovery().
 @param[in]	path		path/to/databasename/tablename.ibd
 @param[out]	space		the tablespace, or nullptr on error
 @return status of the operation */
-static
 fil_load_status
-fil_ibd_open_for_recovery(
+Fil_system::ibd_open_for_recovery(
 	space_id_t		space_id,
 	const std::string&	path,
 	fil_space_t*&		space)
@@ -8627,7 +8645,7 @@ fil_tablespace_lookup_for_recovery(space_id_t space_id)
 	return(fil_system->lookup_for_recovery(space_id));
 }
 
-/** Open a tablespace that has a redo log record to apply.
+/** Open a tablespace that has a redo/DDL log record to apply.
 @param[in]	space_id		Tablespace ID
 @return true if the open was successful */
 bool
@@ -8635,7 +8653,7 @@ Fil_system::open_for_recovery(space_id_t space_id)
 {
 	ut_ad(recv_recovery_is_on());
 
-	if (!fil_tablespace_lookup_for_recovery(space_id)) {
+	if (!lookup_for_recovery(space_id)) {
 		return(false);
 	}
 
@@ -8649,7 +8667,7 @@ Fil_system::open_for_recovery(space_id_t space_id)
 
 	fil_space_t*	space;
 
-	auto	status = fil_ibd_open_for_recovery(space_id, path, space);
+	auto	status = ibd_open_for_recovery(space_id, path, space);
 
 	if (status == FIL_LOAD_OK) {
 
@@ -9609,7 +9627,7 @@ fil_op_replay_rename_for_ddl(
 	space_id_t	space_id = page_id.space();
 	fil_space_t*	space = fil_space_get(space_id);
 
-	if (space == nullptr && !fil_tablespace_open_for_recovery(space_id)) {
+	if (space == nullptr && !fil_system->open_for_recovery(space_id)) {
 
 		ib::info()
 			<< "Can not find space with space ID "
