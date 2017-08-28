@@ -52,17 +52,17 @@ void Driver_command_line_options::print_help() {
             << MYSQLX_TCP_PORT << ")\n";
   std::cout << "--ipv=<mode>          Force internet protocol (default:4):\n";
   std::cout << "                      0 - allow system to resolve IPv6 and "
-               "IPv4, for example";
+               "IPv4, for example\n";
   std::cout << "                          resolving of 'localhost' can "
-               "return both '::1' and '127.0.0.1'";
+               "return both '::1' and '127.0.0.1'\n";
   std::cout << "                      4 - allow system to resolve only IPv4, "
                "for example\n";
   std::cout << "                          resolving of 'localhost' is going "
-               "to return '127.0.0.1'";
+               "to return '127.0.0.1'\n";
   std::cout << "                      6 - allow system to resolve only IPv6, "
                "for example\n";
   std::cout << "                          resolving of 'localhost' is going "
-               "to return '::1'";
+               "to return '::1'\n";
   std::cout << "-t, --timeout=<ms>    I/O timeouts in milliseconds\n";
   std::cout << "--close-no-sync       Do not wait for connection to be "
                "closed by server(disconnect first)\n";

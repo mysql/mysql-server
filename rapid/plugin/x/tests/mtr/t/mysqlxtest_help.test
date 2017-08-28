@@ -1,0 +1,18 @@
+## XPLUGIN: Following test cases validates the help printouts
+
+--echo
+--echo ############################################################
+--echo ## Test mysqlxtest executable help printout
+--echo ##
+replace_regex /.*mysqlxtest.* Ver .*//,
+              /Copyright .{0,4}[0-9, ]+ Oracle/Copyright DATE Oracle/
+              /using default file name '.*'/using default file name 'SOCK'/;
+error 1;
+exec $MYSQLXTEST --help  2>&1;
+
+--echo
+--echo ############################################################
+--echo ## Test mysqlxtest executable help-command printout
+--echo ##
+error 1;
+exec $MYSQLXTEST --help-commands  2>&1;
