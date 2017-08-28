@@ -98,8 +98,6 @@ void Session::on_kill()
 // If message is handled, ownership of the object is passed on (and should be deleted by the callee)
 bool Session::handle_message(ngs::Request &command)
 {
-  log_message_recv(command);
-
   if (m_state == Authenticating)
   {
     return handle_auth_message(command);

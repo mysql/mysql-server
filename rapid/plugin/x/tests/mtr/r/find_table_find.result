@@ -158,8 +158,6 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: "city"
   schema: "xtest"
   catalog: "def"
-  collation: 0
-  fractional_digits: 0
   length: 11
   flags: 304
 }
@@ -173,7 +171,6 @@ Mysqlx.Resultset.ColumnMetaData {
   schema: "xtest"
   catalog: "def"
   collation: 255
-  fractional_digits: 0
   length: 140
   flags: 17
 }
@@ -187,7 +184,6 @@ Mysqlx.Resultset.ColumnMetaData {
   schema: "xtest"
   catalog: "def"
   collation: 255
-  fractional_digits: 0
   length: 12
   flags: 17
 }
@@ -201,7 +197,6 @@ Mysqlx.Resultset.ColumnMetaData {
   schema: "xtest"
   catalog: "def"
   collation: 255
-  fractional_digits: 0
   length: 80
   flags: 17
 }
@@ -214,8 +209,6 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: "city"
   schema: "xtest"
   catalog: "def"
-  collation: 0
-  fractional_digits: 0
   length: 11
   flags: 16
 }

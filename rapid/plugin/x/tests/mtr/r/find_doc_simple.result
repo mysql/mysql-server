@@ -140,9 +140,7 @@ Mysqlx.Resultset.ColumnMetaData {
   schema: "xtest"
   catalog: "def"
   collation: 63
-  fractional_digits: 0
   length: 4294967295
-  flags: 0
   content_type: 2
 }
 
