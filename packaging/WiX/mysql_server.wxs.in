@@ -78,8 +78,9 @@
       <?if "@Platform@"="x64"?>
         <Property Id="VS10REDISTX64">
           <RegistrySearch Id="FindRedistVS10"
+              Win64="no"
               Root="HKLM"
-              Key="SOFTWARE\WOW6432Node\Microsoft\VisualStudio\10.0\VC\VCRedist\x64"
+              Key="SOFTWARE\Microsoft\VisualStudio\10.0\VC\VCRedist\x64"
               Name="Version"
               Type="raw" />
         </Property>
@@ -89,8 +90,9 @@
       <?elseif "@Platform@"="x86" ?>
         <Property Id="VS10REDISTX86">
           <RegistrySearch Id="FindRedistVS10"
+              Win64="no"
               Root="HKLM"
-              Key="SOFTWARE\WOW6432Node\Microsoft\VisualStudio\10.0\VC\VCRedist\x86"
+              Key="SOFTWARE\Microsoft\VisualStudio\10.0\VC\VCRedist\x86"
               Name="Version"
               Type="raw" />
         </Property>
