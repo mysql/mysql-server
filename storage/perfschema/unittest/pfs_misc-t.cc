@@ -81,5 +81,6 @@ int main(int, char **)
   plan(3);
   MY_INIT("pfs_misc-t");
   do_all_tests();
+  my_end(0);
   return (exit_status());
 }

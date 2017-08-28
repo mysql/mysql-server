@@ -2245,6 +2245,7 @@ int main(int, char **)
 
   MY_INIT("pfs-t");
   do_all_tests();
+  my_end(0);
   return (exit_status());
 }
 

@@ -92,5 +92,8 @@ int main(int argc, char **argv)
     printf("\n\nTest options: [--[enable-]tap-output] output TAP "
            "rather than googletest format\n");
 
-  return RUN_ALL_TESTS();
+  const int retval= RUN_ALL_TESTS();
+  mysql_mutex_destroy(&LOCK_open);
+  my_end(0);
+  return retval;
 }

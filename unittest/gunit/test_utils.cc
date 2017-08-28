@@ -90,6 +90,7 @@ void teardown_server_for_unit_tests()
   query_logger.cleanup();
   delete_optimizer_cost_module();
   DD_initializer::TearDown();
+  my_end(0);
 }
 
 void Server_initializer::set_expected_error(uint val)

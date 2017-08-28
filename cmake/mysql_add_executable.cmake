@@ -83,7 +83,7 @@ FUNCTION (MYSQL_ADD_EXECUTABLE)
   # Add unit test, do not install it.
   IF (ARG_ADD_TEST)
     ADD_TEST(${ARG_ADD_TEST}
-      ${CMAKE_BINARY_DIR}/runtime_output_directory/${target})
+      ${TARGET_RUNTIME_OUTPUT_DIRECTORY}/${target})
     SET(ARG_SKIP_INSTALL TRUE)
   ENDIF()
 

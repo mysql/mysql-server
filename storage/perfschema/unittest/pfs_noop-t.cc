@@ -232,6 +232,7 @@ int main(int, char **)
 
   MY_INIT("pfs_noop-t");
   test_noop();
+  my_end(0);
   return (exit_status());
 }
 
