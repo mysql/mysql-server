@@ -6343,11 +6343,11 @@ bool Item_lead_lag::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
     return true;
 
   compute();
-
+  DBUG_ASSERT(m_has_value || null_value);
   return (m_has_value ?
           (m_use_default ? m_default->get_date(ltime, fuzzydate) :
            m_value->get_date(ltime, fuzzydate)) :
-          false);
+          null_value);
 }
 
 
@@ -6357,10 +6357,10 @@ bool Item_lead_lag::get_time(MYSQL_TIME *ltime)
     return true;
 
   compute();
-
+  DBUG_ASSERT(m_has_value || null_value);
   return (m_has_value ?
           (m_use_default ? m_default->get_time(ltime) : m_value->get_time(ltime)) :
-          false);
+          null_value);
 }
 
 void Item_lead_lag::compute()
