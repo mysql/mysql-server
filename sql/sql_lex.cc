@@ -2438,15 +2438,16 @@ bool SELECT_LEX::add_tables(THD *thd,
 void SELECT_LEX_UNIT::exclude_level()
 {
   /*
-    Changing unit tree should be done only when LOCK_query_plan mutex is
-    taken. This is needed to provide stable tree for EXPLAIN FOR CONNECTION.
+    This change to the unit tree is done only during statement resolution
+    so doesn't need LOCK_query_plan
   */
-  thd->lock_query_plan();
   SELECT_LEX_UNIT *units= NULL;
   SELECT_LEX_UNIT **units_last= &units;
   SELECT_LEX *sl= first_select();
   while (sl)
   {
+    // Exclusion can only be done prior to optimization.
+    DBUG_ASSERT(sl->join == nullptr);
     SELECT_LEX *next_select= sl->next_select();
 
     // unlink current level from global SELECTs list
@@ -2504,7 +2505,6 @@ void SELECT_LEX_UNIT::exclude_level()
   }
 
   invalidate();
-  thd->unlock_query_plan();
 }
 
 
@@ -2528,6 +2528,11 @@ void SELECT_LEX_UNIT::exclude_tree()
       u->exclude_level();
     }
 
+    /*
+      Reference to this query block is lost after it's excluded. Cleanup must
+      be done at this point to free memory.
+    */
+    sl->cleanup(true);
     sl->invalidate();
     sl= next_select;
   }

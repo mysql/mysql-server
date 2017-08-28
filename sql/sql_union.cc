@@ -559,11 +559,7 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
   // global parameters.
   if (saved_fake_select_lex == NULL && // Don't overwrite on PS second prepare
       fake_select_lex != NULL)
-  {
-    thd->lock_query_plan();
     saved_fake_select_lex= fake_select_lex;
-    thd->unlock_query_plan();
-  }
 
   const bool simple_query_expression= is_simple();
 
@@ -576,11 +572,7 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
             new (*THR_MALLOC) Query_result_union_direct(thd, sel_result, last_select)))
         goto err; /* purecov: inspected */
       if (fake_select_lex != NULL)
-      {
-        thd->lock_query_plan();
         fake_select_lex= NULL;
-        thd->unlock_query_plan();
-      }
       instantiate_tmp_table= false;
     }
     else
