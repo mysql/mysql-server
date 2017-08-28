@@ -155,7 +155,6 @@ my_h_service h_ret_sysvar_source_svc = nullptr;
 SERVICE_TYPE(system_variable_source) *sysvar_source_svc = nullptr;
 
 /* -------------------- SYSTEM MEMORY ----------------------------- */
-static const uint64_t KB = 1024;
 static const uint64_t MB = 1048576;    //1024 * 1024
 static const uint64_t GB = 1073741824; //1024 * 1024 * 1024
 

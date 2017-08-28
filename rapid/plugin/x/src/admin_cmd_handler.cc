@@ -626,9 +626,9 @@ bool is_collection(ngs::Sql_session_interface *da, const std::string &schema,
     result.query(qb.get());
     if (result.size() != 1) {
       log_debug(
-          "Unable to recognize '%s' as a collection; query result size: %lu",
+          "Unable to recognize '%s' as a collection; query result size: %llu",
           std::string(schema.empty() ? name : schema + "." + name).c_str(),
-          static_cast<uint64_t>(result.size()));
+          static_cast<unsigned long long>(result.size()));
       return false;
     }
     long cnt = 0, doc = 0, id = 0, gen = 0;

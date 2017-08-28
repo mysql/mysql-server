@@ -397,8 +397,8 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name)
     get_default_roles(create_authid_from(acl_user), &default_roles);
     if (default_roles.size() > 0)
     {
-      LEX_STRING *tmp_user;
-      LEX_STRING *tmp_host;
+      LEX_STRING *tmp_user= nullptr;
+      LEX_STRING *tmp_host= nullptr;
       /*
         Make sure we reallocate the default_roles list when using it outside of
         parser code so it has the same mem root as its items.
@@ -2508,7 +2508,7 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
     ACL_USER *acl_user;
     ulong what_to_alter= 0;
     bool history_check_done= false;
-    TABLE *history_tbl;
+    TABLE *history_tbl= nullptr;
     bool dummy_row_existed= false;
 
 
