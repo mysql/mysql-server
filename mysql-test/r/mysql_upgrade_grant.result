@@ -558,7 +558,7 @@ GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 SHOW GRANTS FOR u1;
 Grants for u1@%
 GRANT SUPER ON *.* TO `u1`@`%`
-GRANT XA_RECOVER_ADMIN ON *.* TO `u1`@`%` WITH GRANT OPTION
+GRANT XA_RECOVER_ADMIN ON *.* TO `u1`@`%`
 # Now run upgrade against database where there is a user with granted
 # privilege XA_RECOVER_ADMIN and check that for those users who have
 # the privilege SUPER assigned the privilege XA_RECOVER_ADMIN won't be
@@ -621,5 +621,83 @@ GRANT SUPER ON *.* TO `u1`@`%`
 # Cleaning up
 DROP USER u1;
 # End of tests for WL#7194
+#
+# Bug#26667007 - MYSQL UPGRADE TO 8.0.3 USER WITH RELOAD GRANTED BACKUP_ADMIN WITH GRANT OPTION
+#
+# Revoke privileges BACKUP_ADMIN and XA_RECOVER_ADMIN in order to simulate
+# the case when upgrade is run against a database that was created by
+# mysql server without support for BACKUP_ADMIN/XA_RECOVER_ADMIN.
+REVOKE BACKUP_ADMIN ON *.* FROM root@localhost;
+REVOKE XA_RECOVER_ADMIN ON *.* FROM root@localhost;
+REVOKE XA_RECOVER_ADMIN ON *.* FROM `mysql.session`@localhost;
+CREATE USER u1;
+CREATE USER u2;
+GRANT RELOAD ON *.* TO u1;
+GRANT RELOAD ON *.* TO u2 WITH GRANT OPTION;
+GRANT SUPER ON *.* TO u1;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
+GRANT SUPER ON *.* TO u2 WITH GRANT OPTION;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
+SHOW GRANTS FOR u1;
+Grants for u1@%
+GRANT RELOAD, SUPER ON *.* TO `u1`@`%`
+SHOW GRANTS FOR u2;
+Grants for u2@%
+GRANT RELOAD, SUPER ON *.* TO `u2`@`%` WITH GRANT OPTION
+# Start upgrade
+mysql.columns_priv                                 OK
+mysql.component                                    OK
+mysql.db                                           OK
+mysql.default_roles                                OK
+mysql.engine_cost                                  OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.global_grants                                OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_ddl_log                               OK
+mysql.innodb_dynamic_metadata                      OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.password_history                             OK
+mysql.plugin                                       OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.role_edges                                   OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+sys.sys_config                                     OK
+# Check that the user u1 has privileges BACKUP_ADMIN and XA_RECOVER_ADMIN granted
+SHOW GRANTS FOR u1;
+Grants for u1@%
+GRANT RELOAD, SUPER ON *.* TO `u1`@`%`
+GRANT BACKUP_ADMIN,XA_RECOVER_ADMIN ON *.* TO `u1`@`%`
+# Check that the user u2 has privileges BACKUP_ADMIN and XA_RECOVER_ADMIN granted with grant option
+# since originally RELOAD privilege and SUPER privilege were granted to user u2 with grant option
+SHOW GRANTS FOR u2;
+Grants for u2@%
+GRANT RELOAD, SUPER ON *.* TO `u2`@`%` WITH GRANT OPTION
+GRANT BACKUP_ADMIN,XA_RECOVER_ADMIN ON *.* TO `u2`@`%` WITH GRANT OPTION
+DROP USER u1;
+DROP USER u2;
+REVOKE XA_RECOVER_ADMIN ON *.* FROM `mysql.session`@localhost;
 
 End of tests
