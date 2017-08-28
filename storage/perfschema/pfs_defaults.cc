@@ -39,7 +39,8 @@ install_default_setup(PSI_thread_bootstrap *thread_boot)
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
   static PSI_thread_key thread_key;
-  static PSI_thread_info thread_info = {&thread_key, "setup", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME};
+  static PSI_thread_info thread_info = {
+    &thread_key, "setup", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME};
 
   const char *pfs_category = "performance_schema";
 

@@ -496,7 +496,10 @@ struct PFS_instrument_view_constants
   static const uint VIEW_METADATA = 8;
   static const uint LAST_VIEW = 8;
 
-  /* THREAD are displayed in table setup_threads instead of setup_instruments. */
+  /*
+    THREAD are displayed in table setup_threads
+    instead of setup_instruments.
+  */
 
   static const uint VIEW_STAGE = 9;
   static const uint VIEW_STATEMENT = 10;

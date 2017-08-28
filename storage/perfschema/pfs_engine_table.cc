@@ -26,10 +26,10 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/current_thd.h"
 #include "sql/derror.h"
-#include "sql/lock.h" // MYSQL_LOCK_IGNORE_TIMEOUT
+#include "sql/lock.h"  // MYSQL_LOCK_IGNORE_TIMEOUT
 #include "sql/log.h"
-#include "sql/mysqld.h" /* lower_case_table_names */
-#include "sql/sql_base.h" // close_thread_tables
+#include "sql/mysqld.h"    /* lower_case_table_names */
+#include "sql/sql_base.h"  // close_thread_tables
 #include "sql/sql_class.h"
 #include "storage/perfschema/pfs_buffer_container.h"
 /* For show status */
@@ -682,8 +682,7 @@ static PSI_mutex_info info_LOCK_pfs_share_list = {
   PSI_FLAG_SINGLETON,
   /* Doc */
   "Components can provide their own performance_schema tables. "
-     "This lock protects the list of such tables definitions."
-};
+  "This lock protects the list of such tables definitions."};
 
 void
 PFS_dynamic_table_shares::init_mutex()
@@ -691,7 +690,8 @@ PFS_dynamic_table_shares::init_mutex()
   /* This is called once at startup, ok to register here. */
   /* FIXME: Category "performance_schema" leads to a name too long. */
   mysql_mutex_register("pfs", &info_LOCK_pfs_share_list, 1);
-  mysql_mutex_init(key_LOCK_pfs_share_list, &LOCK_pfs_share_list, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(
+    key_LOCK_pfs_share_list, &LOCK_pfs_share_list, MY_MUTEX_INIT_FAST);
 }
 
 void

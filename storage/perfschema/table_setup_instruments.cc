@@ -44,7 +44,8 @@ Plugin_table table_setup_instruments::m_table_def(
   "  NAME VARCHAR(128) not null,\n"
   "  ENABLED ENUM ('YES', 'NO') not null,\n"
   "  TIMED ENUM ('YES', 'NO'),\n"
-  "  PROPERTIES SET('singleton', 'progress', 'user', 'global_statistics', 'mutable') not null,\n"
+  "  PROPERTIES SET('singleton', 'progress', 'user', 'global_statistics', "
+  "'mutable') not null,\n"
   "  VOLATILITY int not null,\n"
   "  DOCUMENTATION LONGTEXT,\n"
   "  PRIMARY KEY (NAME) USING HASH\n",
@@ -387,8 +388,7 @@ table_setup_instruments::index_next(void)
 }
 
 int
-table_setup_instruments::make_row(PFS_instr_class *klass,
-                                  bool update_enabled)
+table_setup_instruments::make_row(PFS_instr_class *klass, bool update_enabled)
 {
   m_row.m_instr_class = klass;
   m_row.m_update_enabled = update_enabled;

@@ -29,7 +29,7 @@
 #include "sql/derror.h"
 #include "sql/mysqld.h"
 #include "sql/persisted_variable.h"
-#include "sql/sql_audit.h" // audit_global_variable_get
+#include "sql/sql_audit.h"  // audit_global_variable_get
 #include "sql/sql_class.h"
 #include "storage/perfschema/pfs.h"
 #include "storage/perfschema/pfs_global.h"
@@ -538,9 +538,10 @@ PFS_system_persisted_variables_cache::do_materialize_all(THD *unsafe_thd)
     Persisted_variables_cache *pv = Persisted_variables_cache::get_instance();
     if (pv)
     {
-      vector<st_persist_var> *persist_variables= pv->get_persisted_variables();
+      vector<st_persist_var> *persist_variables = pv->get_persisted_variables();
       for (auto iter = persist_variables->begin();
-           iter != persist_variables->end(); iter++)
+           iter != persist_variables->end();
+           iter++)
       {
         System_variable system_var;
         system_var.m_charset = system_charset_info;
@@ -555,7 +556,8 @@ PFS_system_persisted_variables_cache::do_materialize_all(THD *unsafe_thd)
 
         m_cache.push_back(system_var);
       }
-      map<string, string> *persist_ro_variables= pv->get_persist_ro_variables();
+      map<string, string> *persist_ro_variables =
+        pv->get_persist_ro_variables();
       map<string, string>::const_iterator ro_iter;
       for (ro_iter = persist_ro_variables->begin();
            ro_iter != persist_ro_variables->end();

@@ -27,7 +27,7 @@
 #include "my_dbug.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
-#include "sql/mysqld.h" // get_thd_status_var
+#include "sql/mysqld.h"  // get_thd_status_var
 #include "storage/perfschema/pfs.h"
 #include "storage/perfschema/pfs_account.h"
 #include "storage/perfschema/pfs_buffer_container.h"

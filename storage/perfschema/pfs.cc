@@ -3219,7 +3219,7 @@ pfs_set_thread_account_v1(const char *user,
   DBUG_ASSERT((host != NULL) || (host_len == 0));
   DBUG_ASSERT(host_len >= 0);
 
-  host_len= min<size_t>(host_len, sizeof(pfs->m_hostname));
+  host_len = min<size_t>(host_len, sizeof(pfs->m_hostname));
 
   if (unlikely(pfs == NULL))
   {
@@ -6980,11 +6980,13 @@ pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
         {
           digest_stat->set_sample_timer_wait(wait_time);
           DBUG_ASSERT(digest_stat->m_query_sample != NULL);
-          memcpy(digest_stat->m_query_sample, state->m_query_sample,
+          memcpy(digest_stat->m_query_sample,
+                 state->m_query_sample,
                  state->m_query_sample_length);
           digest_stat->m_query_sample_length = state->m_query_sample_length;
           digest_stat->m_query_sample_cs_number = state->m_cs_number;
-          digest_stat->m_query_sample_truncated = state->m_query_sample_truncated;
+          digest_stat->m_query_sample_truncated =
+            state->m_query_sample_truncated;
           digest_stat->m_query_sample_seen = digest_stat->m_last_seen;
         }
         digest_stat->dec_sample_ref();

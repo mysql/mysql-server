@@ -30,7 +30,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "sql/mysqld.h" //system_charset_info
+#include "sql/mysqld.h"  //system_charset_info
 #include "sql_string.h"
 #include "storage/perfschema/pfs_buffer_container.h"
 #include "storage/perfschema/pfs_global.h"
