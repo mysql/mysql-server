@@ -37,33 +37,35 @@ class Collations : public Entity_object_table_impl
 public:
   static const Collations &instance();
 
-  static const String_type &table_name()
-  {
-    static String_type s_table_name("collations");
-    return s_table_name;
-  }
-public:
   enum enum_fields
   {
-    FIELD_ID,
+    FIELD_ID= static_cast<uint>(Common_field::ID),
     FIELD_NAME,
     FIELD_CHARACTER_SET_ID,
     FIELD_IS_COMPILED,
     FIELD_SORT_LENGTH,
-    FIELD_PAD_ATTRIBUTE
+    FIELD_PAD_ATTRIBUTE,
+    FIELD_OPTIONS
   };
 
-public:
+  enum enum_indexes
+  {
+    INDEX_PK_ID= static_cast<uint>(Common_index::PK_ID),
+    INDEX_UK_NAME= static_cast<uint>(Common_index::UK_NAME),
+    INDEX_K_CHARACTER_SET_ID
+  };
+
+  enum enum_foreign_keys
+  {
+    FK_CHARACTER_SET_ID
+  };
+
   Collations();
 
   virtual bool populate(THD *thd) const;
 
-  virtual const String_type &name() const
-  { return Collations::table_name(); }
-
   virtual Collation *create_entity_object(const Raw_record &) const;
 
-public:
   static bool update_object_key(Global_name_key *key,
                                 const String_type &collation_name);
 };

@@ -27,6 +27,7 @@ namespace dd {
 
 class Object_type;
 class Primary_id_key;
+class Resource_group_impl;
 class Global_name_key;
 class Void_key;
 
@@ -38,28 +39,26 @@ static constexpr int CPU_MASK_SIZE= 1024;
 class Resource_group : virtual public Entity_object
 {
 public:
-  static const Object_type &TYPE();
-  static const Entity_object_table &OBJECT_TABLE();
-
-  typedef Resource_group cache_partition_type;
-  typedef tables::Resource_groups cache_partition_table_type;
-  typedef Primary_id_key id_key_type;
-  typedef Global_name_key name_key_type;
-  typedef Void_key aux_key_type;
+  typedef Resource_group_impl Impl;
+  typedef Resource_group Cache_partition;
+  typedef tables::Resource_groups DD_table;
+  typedef Primary_id_key Id_key;
+  typedef Global_name_key Name_key;
+  typedef Void_key Aux_key;
 
 public:
   ~Resource_group() override {}
 
-  virtual bool update_id_key(id_key_type *key) const
+  virtual bool update_id_key(Id_key *key) const
   { return update_id_key(key, id()); }
-  static bool update_id_key(id_key_type *key, Object_id id);
+  static bool update_id_key(Id_key *key, Object_id id);
 
-  virtual bool update_name_key(name_key_type *key) const
+  virtual bool update_name_key(Name_key *key) const
   { return update_name_key(key, name()); }
-  static bool update_name_key(name_key_type *key,
+  static bool update_name_key(Name_key *key,
                               const String_type &name);
 
-  virtual bool update_aux_key(aux_key_type *) const
+  virtual bool update_aux_key(Aux_key *) const
   { return true; }
 
   virtual const resourcegroups::Type &resource_group_type() const = 0;

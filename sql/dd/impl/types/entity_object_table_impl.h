@@ -31,6 +31,7 @@ namespace dd {
 class Entity_object;
 class Object_table_definition;
 class Open_dictionary_tables_ctx;
+class Properties;
 class Raw_record;
 
 class Entity_object_table_impl : public Object_table_impl,
@@ -46,21 +47,36 @@ public:
     Entity_object **o) const;
 
   // Fix "inherits ... via dominance" warnings
-  virtual const Object_table_definition *table_definition(
-                  uint version MY_ATTRIBUTE((unused))) const
-  { return Object_table_impl::table_definition(version); }
+  virtual Object_table_definition_impl *target_table_definition()
+  { return Object_table_impl::target_table_definition(); }
 
-  virtual const Object_table_definition *table_definition(
-                  THD *thd MY_ATTRIBUTE((unused))) const
-  { return Object_table_impl::table_definition(thd); }
-  virtual uint default_dd_version(THD *thd) const
-  { return Object_table_impl::default_dd_version(thd); }
+  virtual const Object_table_definition_impl *target_table_definition() const
+  { return Object_table_impl::target_table_definition(); }
+
+  virtual void set_abandoned(uint last_dd_version) const
+  { return Object_table_impl::set_abandoned(last_dd_version); }
+
+  virtual bool is_abandoned() const
+  { return Object_table_impl::is_abandoned(); }
+
+  virtual const Object_table_definition_impl *actual_table_definition() const
+  { return Object_table_impl::actual_table_definition(); }
+
+  virtual bool set_actual_table_definition(
+    const Properties &table_def_properties) const
+  {
+    return Object_table_impl::set_actual_table_definition(
+            table_def_properties);
+  }
 
   virtual bool populate(THD *thd) const
   { return Object_table_impl::populate(thd); }
 
-  virtual bool hidden() const
-  { return Object_table_impl::hidden(); }
+  virtual bool is_hidden() const
+  { return Object_table_impl::is_hidden(); }
+
+  virtual void set_hidden(bool hidden)
+  { return Object_table_impl::set_hidden(hidden); }
 };
 
 ///////////////////////////////////////////////////////////////////////////

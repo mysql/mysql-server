@@ -32,27 +32,25 @@ class Column_type_elements : public Object_table_impl
 public:
   static const Column_type_elements &instance();
 
-  static const String_type &table_name()
-  {
-    static String_type s_table_name("column_type_elements");
-    return s_table_name;
-  }
-
-public:
   enum enum_fields
   {
     FIELD_COLUMN_ID,
-    FIELD_INDEX,
+    FIELD_ELEMENT_INDEX,
     FIELD_NAME
   };
 
-public:
+  enum enum_indexes
+  {
+    INDEX_PK_COLUMN_ID_ELEMENT_INDEX
+  };
+
+  enum enum_foreign_keys
+  {
+    FK_COLUMN_ID
+  };
+
   Column_type_elements();
 
-  virtual const String_type &name() const
-  { return Column_type_elements::table_name(); }
-
-public:
   static Object_key *create_key_by_column_id(Object_id column_id);
 
   static Object_key *create_primary_key(Object_id column_id, int index);

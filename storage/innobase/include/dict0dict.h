@@ -27,6 +27,8 @@ Created 1/8/1996 Heikki Tuuri
 #ifndef dict0dict_h
 #define dict0dict_h
 
+#include <set>
+
 #include "univ.i"
 #include "sql/dd/object_id.h"
 #include "data0data.h"
@@ -1537,22 +1539,19 @@ struct dict_sys_t{
 		return(space >= dict_sys_t::s_reserved_space_id);
 	}
 
+	/** Set of ids of DD tables */
+	static std::set<dd::Object_id> s_dd_table_ids;
+
 	/** Check if a table is hardcoded. it only includes the dd tables
 	@param[in]	id	table ID
 	@retval true	if the table is a persistent hard-coded table
 			(dict_table_t::is_temporary() will not hold)
 	@retval false	if the table is not hard-coded
 			(it can be persistent or temporary) */
-	static bool is_hardcoded(table_id_t id)
+	static bool is_dd_table_id(table_id_t id)
 	{
-		return(id <= s_num_hard_coded_tables);
+		return(s_dd_table_ids.find(id) != s_dd_table_ids.end());
 	}
-
-	/** Number of hard coded new dd tables */
-	static constexpr table_id_t	s_num_hard_coded_tables = 33;
-
-	/** Max table id for DD table */
-	static constexpr uint	INNODB_DD_TABLE_ID_MAX = 60;
 
 	/** The first ID of the redo log pseudo-tablespace */
 	static constexpr space_id_t	s_log_space_first_id = 0xFFFFFFF0UL;
@@ -1606,10 +1605,10 @@ struct dict_sys_t{
 	static const char*		s_file_per_table_name;
 
 	/** The table ID of mysql.innodb_dynamic_metadata */
-	static constexpr table_id_t	s_dynamic_meta_table_id = 33;
+	static constexpr table_id_t	s_dynamic_meta_table_id = 2;
 
 	/** The clustered index ID of mysql.innodb_dynamic_metadata */
-        static constexpr space_index_t	s_dynamic_meta_index_id = 91;
+        static constexpr space_index_t	s_dynamic_meta_index_id = 2;
 };
 
 /** Structure for persisting dynamic metadata of data dictionary */

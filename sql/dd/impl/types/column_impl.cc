@@ -53,23 +53,6 @@ class Sdi_rcontext;
 class Sdi_wcontext;
 
 ///////////////////////////////////////////////////////////////////////////
-// Column implementation.
-///////////////////////////////////////////////////////////////////////////
-
-const Object_table &Column::OBJECT_TABLE()
-{
-  return Columns::instance();
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-const Object_type &Column::TYPE()
-{
-  static Column_type s_instance;
-  return s_instance;
-}
-
-///////////////////////////////////////////////////////////////////////////
 // Column_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
 
@@ -176,7 +159,7 @@ bool Column_impl::validate() const
   {
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),
-             Column_impl::OBJECT_TABLE().name().c_str(),
+             DD_table::instance().name().c_str(),
              "Column does not belong to any table.");
     return true;
   }
@@ -185,7 +168,7 @@ bool Column_impl::validate() const
   {
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),
-             Column_impl::OBJECT_TABLE().name().c_str(),
+             DD_table::instance().name().c_str(),
              "Collation ID is not set");
     return true;
   }
@@ -196,7 +179,7 @@ bool Column_impl::validate() const
   {
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),
-             Column_impl::OBJECT_TABLE().name().c_str(),
+             DD_table::instance().name().c_str(),
              "There are no elements supplied.");
     return true;
   }
@@ -580,10 +563,15 @@ Column_impl::Column_impl(const Column_impl &src, Abstract_table_impl *parent)
 }
 
 ///////////////////////////////////////////////////////////////////////////
-// Column_type implementation.
+
+const Object_table &Column_impl::object_table() const
+{
+  return DD_table::instance();
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
-void Column_type::register_tables(Open_dictionary_tables_ctx *otx) const
+void Column_impl::register_tables(Open_dictionary_tables_ctx *otx)
 {
   otx->add_table<Columns>();
 

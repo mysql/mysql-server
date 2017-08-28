@@ -19,6 +19,7 @@
 
 #include "sql/dd/impl/raw/object_keys.h"   // dd::Global_name_key
 #include "sql/dd/impl/raw/raw_record.h"
+#include "sql/dd/impl/tables/dd_properties.h"     // TARGET_DD_VERSION
 #include "sql/dd/impl/types/object_table_definition_impl.h"
 #include "sql/dd/impl/types/tablespace_impl.h" // dd::Tablespace_impl
 
@@ -35,7 +36,7 @@ const Tablespaces &Tablespaces::instance()
 
 Tablespaces::Tablespaces()
 {
-  m_target_def.table_name(table_name());
+  m_target_def.set_table_name("tablespaces");
 
   m_target_def.add_field(FIELD_ID,
                          "FIELD_ID",
@@ -58,8 +59,12 @@ Tablespaces::Tablespaces()
                          "FIELD_ENGINE",
                          "engine VARCHAR(64) NOT NULL");
 
-  m_target_def.add_index("PRIMARY KEY(id)");
-  m_target_def.add_index("UNIQUE KEY(name)");
+  m_target_def.add_index(INDEX_PK_ID,
+                         "INDEX_PK_ID",
+                         "PRIMARY KEY(id)");
+  m_target_def.add_index(INDEX_UK_NAME,
+                         "INDEX_UK_NAME",
+                         "UNIQUE KEY(name)");
 }
 
 ///////////////////////////////////////////////////////////////////////////

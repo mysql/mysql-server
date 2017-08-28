@@ -1660,7 +1660,7 @@ row_insert_for_mysql_using_ins_graph(
 
 	} else if (srv_force_recovery
 		   && !(srv_force_recovery < SRV_FORCE_NO_UNDO_LOG_SCAN
-			&& dict_sys_t::is_hardcoded(prebuilt->table->id))) {
+			&& dict_sys_t::is_dd_table_id(prebuilt->table->id))) {
 		/* Allow to modify hardcoded DD tables in some scenario to
 		make DDL work */
 
@@ -2429,7 +2429,7 @@ row_update_for_mysql_using_upd_graph(
 	make DDL work */
 	if (srv_force_recovery > 0
 	    && !(srv_force_recovery < SRV_FORCE_NO_UNDO_LOG_SCAN
-		 && dict_sys_t::is_hardcoded(prebuilt->table->id))) {
+		 && dict_sys_t::is_dd_table_id(prebuilt->table->id))) {
 		ib::error() << MODIFICATIONS_NOT_ALLOWED_MSG_FORCE_RECOVERY;
 		DBUG_RETURN(DB_READ_ONLY);
 	}

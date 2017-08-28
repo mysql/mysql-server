@@ -27,21 +27,6 @@ using dd::tables::Character_sets;
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
-// Charset implementation.
-///////////////////////////////////////////////////////////////////////////
-
-const Entity_object_table &Charset::OBJECT_TABLE()
-{
-  return Character_sets::instance();
-}
-
-const Object_type &Charset::TYPE()
-{
-  static Charset_type s_instance;
-  return s_instance;
-}
-
-///////////////////////////////////////////////////////////////////////////
 // Charset_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
 
@@ -51,7 +36,7 @@ bool Charset_impl::validate() const
   {
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),
-             Charset_impl::OBJECT_TABLE().name().c_str(),
+             DD_table::instance().name().c_str(),
              "Collation ID is not set");
     return true;
   }
@@ -90,7 +75,7 @@ bool Charset_impl::store_attributes(Raw_record *r)
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Charset::update_id_key(id_key_type *key, Object_id id)
+bool Charset::update_id_key(Id_key *key, Object_id id)
 {
   key->update(id);
   return false;
@@ -98,14 +83,19 @@ bool Charset::update_id_key(id_key_type *key, Object_id id)
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Charset::update_name_key(name_key_type *key, const String_type &name)
+bool Charset::update_name_key(Name_key *key, const String_type &name)
 { return Character_sets::update_object_key(key, name); }
 
 ///////////////////////////////////////////////////////////////////////////
-// Charset_type implementation.
+
+const Object_table &Charset_impl::object_table() const
+{
+  return DD_table::instance();
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
-void Charset_type::register_tables(Open_dictionary_tables_ctx *otx) const
+void Charset_impl::register_tables(Open_dictionary_tables_ctx *otx)
 {
   otx->add_table<Character_sets>();
 }

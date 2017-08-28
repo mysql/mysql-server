@@ -18,6 +18,7 @@
 #include <new>
 
 #include "sql/dd/impl/raw/object_keys.h" // dd::Parent_id_range_key
+#include "sql/dd/impl/tables/dd_properties.h"     // TARGET_DD_VERSION
 #include "sql/dd/impl/types/object_table_definition_impl.h"
 
 namespace dd {
@@ -31,7 +32,7 @@ const Indexes &Indexes::instance()
 
 Indexes::Indexes()
 {
-  m_target_def.table_name(table_name());
+  m_target_def.set_table_name("indexes");
 
   m_target_def.add_field(FIELD_ID,
                          "FIELD_ID",
@@ -91,12 +92,23 @@ Indexes::Indexes()
                          "FIELD_ENGINE",
                          "engine VARCHAR(64) NOT NULL");
 
-  m_target_def.add_index("PRIMARY KEY(id)");
-  m_target_def.add_index("UNIQUE KEY(table_id, name)");
+  m_target_def.add_index(INDEX_PK_ID,
+                         "INDEX_PK_ID",
+                         "PRIMARY KEY(id)");
+  m_target_def.add_index(INDEX_UK_TABLE_ID_NAME,
+                         "INDEX_UK_TABLE_ID_NAME",
+                         "UNIQUE KEY(table_id, name)");
+  m_target_def.add_index(INDEX_K_TABLESPACE_ID,
+                         "INDEX_K_TABLESPACE_ID",
+                         "KEY(tablespace_id)");
 
-  m_target_def.add_foreign_key("FOREIGN KEY (table_id) REFERENCES "
+  m_target_def.add_foreign_key(FK_TABLE_ID,
+                               "FK_TABLE_ID",
+                               "FOREIGN KEY (table_id) REFERENCES "
                                "tables(id)");
-  m_target_def.add_foreign_key("FOREIGN KEY (tablespace_id) REFERENCES "
+  m_target_def.add_foreign_key(FK_TABLESPACE_ID,
+                               "FK_TABLESPACE_ID",
+                               "FOREIGN KEY (tablespace_id) REFERENCES "
                                "tablespaces(id)");
 }
 
@@ -105,7 +117,8 @@ Indexes::Indexes()
 
 Object_key *Indexes::create_key_by_table_id(Object_id table_id)
 {
-  return new (std::nothrow) Parent_id_range_key(1, FIELD_TABLE_ID, table_id);
+  return new (std::nothrow) Parent_id_range_key(
+          INDEX_UK_TABLE_ID_NAME, FIELD_TABLE_ID, table_id);
 }
 
 ///////////////////////////////////////////////////////////////////////////

@@ -31,7 +31,7 @@ class Time_zone;
 using sql_mode_t= ulonglong;
 
 namespace dd {
-namespace upgrade {
+namespace upgrade_57 {
 
 const String_type ISL_EXT= ".isl";
 const String_type PAR_EXT= ".par";

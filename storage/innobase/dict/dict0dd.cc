@@ -2530,8 +2530,7 @@ dd_fill_dict_table(
 	}
 
 	bool	is_temp = !dd_tab->is_persistent()
-		&& (dd_tab->se_private_id()
-		    >= dict_sys_t::s_num_hard_coded_tables);
+		&& !dict_sys_t::is_dd_table_id(dd_tab->se_private_id());
 	if (is_temp) {
 		m_table->flags2 |= DICT_TF2_TEMPORARY;
 	}
@@ -3149,7 +3148,7 @@ dd_table_check_for_child(
 
 	/* TODO: NewDD: Temporary ignore DD system table until
 	WL#6049 inplace */
-	if (!dict_sys_t::is_hardcoded(m_table->id) && fk_tables != nullptr) {
+	if (!dict_sys_t::is_dd_table_id(m_table->id) && fk_tables != nullptr) {
 		std::vector<dd::String_type>	child_schema;
 		std::vector<dd::String_type>	child_name;
 
@@ -4172,7 +4171,7 @@ dd_getnext_system_rec(
 @param[in,out]	mdl		mdl lock
 @param[in,out]	pcur		persistent cursor
 @param[in,out]	mtr		the mini-transaction
-@param[in]	system_id	which dd system table to open
+@param[in]	system_table_name	which dd system table to open
 @param[in,out]	table		dict_table_t obj of dd system table
 @retval the first rec of the dd system table */
 const rec_t*
@@ -4181,15 +4180,14 @@ dd_startscan_system(
 	MDL_ticket**		mdl,
 	btr_pcur_t*		pcur,
 	mtr_t*			mtr,
-	dd_system_id_t		system_id,
+	const char*		system_table_name,
 	dict_table_t**		table)
 {
 	dict_index_t*	clust_index;
 	const rec_t*	rec = nullptr;
 
-	ut_a(system_id < DD_LAST_ID);
-
-	*table = dd_table_open_on_id(system_id, thd, mdl, true, true);
+	*table = dd_table_open_on_name(thd, mdl, system_table_name,
+					true, false);
 	mtr_commit(mtr);
 
 	clust_index = UT_LIST_GET_FIRST((*table)->indexes);
@@ -4253,7 +4251,7 @@ dd_process_dd_tables_rec_and_mtr_commit(
 	table_id = mach_read_from_8(field);
 
 	/* Skip mysql.* tables. */
-	if (table_id <= dict_sys_t::INNODB_DD_TABLE_ID_MAX) {
+	if (dict_sys_t::is_dd_table_id(table_id)) {
 		*table = NULL;
 		mtr_commit(mtr);
 		return(err_msg);
@@ -4323,7 +4321,7 @@ dd_process_dd_partitions_rec_and_mtr_commit(
 	table_id = mach_read_from_8(field);
 
 	/* Skip mysql.* tables. */
-	if (table_id <= dict_sys_t::INNODB_DD_TABLE_ID_MAX) {
+	if (dict_sys_t::is_dd_table_id(table_id)) {
 		*table = NULL;
 		mtr_commit(mtr);
 		return(err_msg);

@@ -13,6 +13,101 @@ use mysql;
 
 SET GLOBAL debug= '+d,skip_dd_table_access_check';
 
+--echo #
+--echo # List the CREATE TABLE statements for the DD tables.
+--echo # Hide the AUTO INCREMENT counter, which is not
+--echo # deterministic when running mtr.
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE catalogs;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE character_sets;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE collations;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE column_statistics;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE column_type_elements;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE columns;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE dd_properties;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE events;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE foreign_key_column_usage;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE foreign_keys;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE index_column_usage;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE index_partitions;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE index_stats;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE indexes;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE innodb_ddl_log;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE innodb_dynamic_metadata;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE innodb_index_stats;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE innodb_table_stats;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE parameter_type_elements;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE parameters;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE resource_groups;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE routines;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE schemata;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE st_spatial_reference_systems;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE table_partition_values;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE table_partitions;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE table_stats;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE tables;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE tablespace_files;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE tablespaces;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE triggers;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE view_routine_usage;
+--replace_regex / AUTO_INCREMENT=[0-9]+//
+SHOW CREATE TABLE view_table_usage;
+
+# The ids of the dd_properties table must be fixed.
+SELECT id = 1 FROM tables WHERE name LIKE 'dd_properties';
+SELECT se_private_id = 1 FROM tables WHERE name LIKE 'dd_properties';
+SELECT id = 1 FROM indexes WHERE table_id = (SELECT id FROM tables WHERE name LIKE 'dd_properties');
+
+# The ids of the innodb_dynamic_metadata table must be fixed.
+SELECT id = 2 FROM tables WHERE name LIKE 'innodb_dynamic_metadata';
+SELECT se_private_id = 2 FROM tables WHERE name LIKE 'innodb_dynamic_metadata';
+SELECT id = 2 FROM indexes WHERE table_id = (SELECT id FROM tables WHERE name LIKE 'innodb_dynamic_metadata');
+
+# The DD database id must be fixed.
+SELECT id = 1 FROM schemata WHERE name LIKE 'mysql';
+
+# The DD tablespace id must be fixed.
+SELECT id = 1 FROM tablespaces WHERE name LIKE 'mysql';
+
+# The DD tablespace se private id must be fixed.
+SELECT SUBSTRING_INDEX(
+         SUBSTRING(se_private_data,
+                   LOCATE('id', se_private_data),
+                   30),
+         ';', 1) = 'id=4294967294'
+  FROM tablespaces WHERE name LIKE 'mysql';
+
 # The DD database id
 let $dd_schema_id= `SELECT id FROM schemata
   WHERE name= 'mysql'`;
@@ -21,27 +116,39 @@ let $dd_schema_id= `SELECT id FROM schemata
 let $dd_table_ids=
   SELECT id FROM tables
   WHERE schema_id= $dd_schema_id
-  AND name IN ('innodb_table_stats',
-               'innodb_index_stats',
+  AND name IN ('catalogs',
                'character_sets',
                'collations',
-               'tablespaces',
-               'tablespace_files',
-               'catalogs',
-               'schemata',
-               'tables',
-               'view_table_usage',
-               'columns',
                'column_statistics',
-               'indexes',
-               'index_column_usage',
                'column_type_elements',
-               'foreign_keys',
+               'columns',
+               'dd_properties',
+               'events',
                'foreign_key_column_usage',
-               'table_partitions',
-               'table_partition_values',
+               'foreign_keys',
+               'index_column_usage',
                'index_partitions',
-               'dd_properties');
+               'index_stats',
+               'indexes',
+               'innodb_ddl_log',
+               'innodb_dynamic_metadata',
+               'innodb_index_stats',
+               'innodb_table_stats',
+               'parameter_type_elements',
+               'parameters',
+               'resource_groups',
+               'routines',
+               'schemata',
+               'st_spatial_reference_systems',
+               'table_partition_values',
+               'table_partitions',
+               'table_stats',
+               'tables',
+               'tablespace_files',
+               'tablespaces',
+               'triggers',
+               'view_routine_usage',
+               'view_table_usage');
 
 # Expression representing the DD index ids
 let $dd_index_ids= SELECT id FROM indexes

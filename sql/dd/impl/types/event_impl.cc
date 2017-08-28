@@ -34,21 +34,8 @@ using dd::tables::Events;
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
-// Event implementation.
+// Event_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
-
-const Entity_object_table &Event::OBJECT_TABLE()
-{
-  return Events::instance();
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-const Object_type &Event::TYPE()
-{
-  static Event_type s_instance;
-  return s_instance;
-}
 
 Event_impl::Event_impl()
  :m_interval_field(IF_YEAR),
@@ -84,7 +71,7 @@ bool Event_impl::validate() const
   {
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),
-             Event_impl::OBJECT_TABLE().name().c_str(),
+             DD_table::instance().name().c_str(),
              "Schema ID is not set");
     return true;
   }
@@ -218,7 +205,7 @@ bool Event_impl::store_attributes(Raw_record *r)
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Event::update_id_key(id_key_type *key, Object_id id)
+bool Event::update_id_key(Id_key *key, Object_id id)
 {
   key->update(id);
   return false;
@@ -226,7 +213,7 @@ bool Event::update_id_key(id_key_type *key, Object_id id)
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Event::update_name_key(name_key_type *key,
+bool Event::update_name_key(Name_key *key,
                             Object_id schema_id,
                             const String_type &name)
 { return Events::update_object_key(key, schema_id, name); }
@@ -273,10 +260,15 @@ void Event_impl::debug_print(String_type &outb) const
 }
 
 ///////////////////////////////////////////////////////////////////////////
-// Event_type implementation.
+
+const Object_table &Event_impl::object_table() const
+{
+  return DD_table::instance();
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
-void Event_type::register_tables(Open_dictionary_tables_ctx *otx) const
+void Event_impl::register_tables(Open_dictionary_tables_ctx *otx)
 {
   otx->add_table<Events>();
 }

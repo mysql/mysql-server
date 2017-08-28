@@ -118,6 +118,11 @@ extern uint	ibuf_debug;
 /** the dictionary system */
 dict_sys_t*	dict_sys	= NULL;
 
+/** The set of SE private IDs of DD tables. Used to tell whether a table is
+a DD table. Since the DD tables can be rebuilt with new SE private IDs,
+this set replaces checks based on ranges of IDs. */
+std::set<dd::Object_id> dict_sys_t::s_dd_table_ids = {};
+
 /** The name of the data dictionary tablespace. */
 const char*	dict_sys_t::s_dd_space_name = "mysql";
 

@@ -12,7 +12,8 @@ drop procedure if exists test.pfs_check_proc;
 --echo "Checking the data dictionary properties ..."
 
 SET SESSION debug= '+d,skip_dd_table_access_check';
-SELECT * from mysql.dd_properties;
+SELECT SUBSTRING_INDEX(SUBSTRING(properties, LOCATE('PS_VERSION', properties), 30), ';', 1)
+  FROM mysql.dd_properties;
 SET SESSION debug= '-d,skip_dd_table_access_check';
 
 SET @old_group_concat_max_len = @@group_concat_max_len;

@@ -19,7 +19,7 @@
 class THD;
 
 namespace dd {
-namespace upgrade {
+namespace upgrade_57 {
 
 /**
   Migrate all events from mysql.event to mysql.events table.

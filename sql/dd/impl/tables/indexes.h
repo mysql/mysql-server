@@ -32,13 +32,6 @@ class Indexes : public Object_table_impl
 public:
   static const Indexes &instance();
 
-  static const String_type &table_name()
-  {
-    static String_type s_table_name("indexes");
-    return s_table_name;
-  }
-
-public:
   enum enum_fields
   {
     FIELD_ID,
@@ -58,15 +51,22 @@ public:
     FIELD_ENGINE
   };
 
-public:
+  enum enum_indexes
+  {
+    INDEX_PK_ID= static_cast<uint>(Common_index::PK_ID),
+    INDEX_UK_TABLE_ID_NAME= static_cast<uint>(Common_index::UK_NAME),
+    INDEX_K_TABLESPACE_ID
+  };
+
+  enum enum_foreign_keys
+  {
+    FK_TABLE_ID,
+    FK_TABLESPACE_ID
+  };
+
   Indexes();
 
-  virtual const String_type &name() const
-  { return Indexes::table_name(); }
-
-public:
   static Object_key *create_key_by_table_id(Object_id table_id);
-
 };
 
 ///////////////////////////////////////////////////////////////////////////

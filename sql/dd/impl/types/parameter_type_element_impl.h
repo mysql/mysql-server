@@ -21,7 +21,6 @@
 
 #include "sql/dd/impl/types/weak_object_impl.h" // dd::Weak_object_impl
 #include "sql/dd/string_type.h"
-#include "sql/dd/types/object_type.h"         // dd::Object_type
 #include "sql/dd/types/parameter_type_element.h" // dd::Parameter_type_element
 
 namespace dd {
@@ -58,8 +57,9 @@ public:
   { }
 
 public:
-  virtual const Object_table &object_table() const
-  { return Parameter_type_element::OBJECT_TABLE(); }
+  static void register_tables(Open_dictionary_tables_ctx *otx);
+
+  virtual const Object_table &object_table() const;
 
   virtual bool validate() const;
 
@@ -124,17 +124,6 @@ protected:
 
   // References to other objects
   Parameter_impl *m_parameter;
-};
-
-///////////////////////////////////////////////////////////////////////////
-
-class Parameter_type_element_type : public Object_type
-{
-public:
-  virtual void register_tables(Open_dictionary_tables_ctx *otx) const;
-
-  virtual Weak_object *create_object() const
-  { return new (std::nothrow) Parameter_type_element_impl(); }
 };
 
 ///////////////////////////////////////////////////////////////////////////

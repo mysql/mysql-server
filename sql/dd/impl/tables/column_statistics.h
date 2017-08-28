@@ -37,27 +37,31 @@ class Column_statistics final : public Entity_object_table_impl
 public:
   static const Column_statistics &instance();
 
-  static const String_type &table_name()
-  {
-    static String_type s_table_name("column_statistics");
-    return s_table_name;
-  }
-
   enum enum_fields
   {
-    FIELD_ID,
+    FIELD_ID= static_cast<uint>(Common_field::ID),
     FIELD_CATALOG_ID,
     FIELD_NAME,
     FIELD_SCHEMA_NAME,
     FIELD_TABLE_NAME,
     FIELD_COLUMN_NAME,
-    FIELD_HISTOGRAM
+    FIELD_HISTOGRAM,
+    FIELD_OPTIONS
+  };
+
+  enum enum_indexes
+  {
+    INDEX_PK_ID= static_cast<uint>(Common_index::PK_ID),
+    INDEX_UK_CATALOG_ID_NAME= static_cast<uint>(Common_index::UK_NAME),
+    INDEX_UK_CATALOG_ID_SCHEMA_NAME_TABLE_NAME_COLUMN_NAME
+  };
+
+  enum enum_foreign_keys
+  {
+    FK_CATALOG_ID
   };
 
   Column_statistics();
-
-  const String_type &name() const override
-  { return Column_statistics::table_name(); }
 
   dd::Column_statistics *
   create_entity_object(const Raw_record &) const override;

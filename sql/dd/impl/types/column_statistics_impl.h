@@ -29,8 +29,6 @@
 #include "sql/dd/sdi_fwd.h"
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/column_statistics.h"    // dd::Column_statistics
-#include "sql/dd/types/entity_object_table.h" // dd::Entity_object_table
-#include "sql/dd/types/object_type.h"         // dd::Object_type
 #include "sql/histograms/histogram.h"
 #include "sql/psi_memory_key.h"               // key_memory_DD_column_statistics
 
@@ -82,8 +80,9 @@ private:
   }
 
 public:
-  const Object_table &object_table() const override
-  { return Column_statistics::OBJECT_TABLE(); }
+  virtual const Object_table &object_table() const override;
+
+  static void register_tables(Open_dictionary_tables_ctx *otx);
 
   bool validate() const override { return m_histogram == nullptr; }
 
@@ -164,17 +163,6 @@ private:
   {
     return new Column_statistics_impl(*this);
   }
-};
-
-///////////////////////////////////////////////////////////////////////////
-
-class Column_statistics_type final : public Object_type
-{
-public:
-  void register_tables(Open_dictionary_tables_ctx *otx) const override;
-
-  Weak_object *create_object() const override
-  { return new (std::nothrow) Column_statistics_impl(); }
 };
 
 ///////////////////////////////////////////////////////////////////////////

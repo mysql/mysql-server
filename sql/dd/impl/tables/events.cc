@@ -22,6 +22,7 @@
 #include "mysql_com.h"
 #include "sql/dd/impl/raw/object_keys.h" // dd::Global_name_key
 #include "sql/dd/impl/raw/raw_record.h" // dd::Raw_record
+#include "sql/dd/impl/tables/dd_properties.h" // TARGET_DD_VERSION
 #include "sql/dd/impl/types/event_impl.h" // dd::Event_impl
 #include "sql/dd/impl/types/object_table_definition_impl.h"
 
@@ -36,7 +37,7 @@ const Events &Events::instance()
 
 Events::Events()
 {
-  m_target_def.table_name(table_name());
+  m_target_def.set_table_name("events");
 
   m_target_def.add_field(FIELD_ID,
                          "FIELD_ID",
@@ -140,17 +141,41 @@ Events::Events()
   m_target_def.add_field(FIELD_SCHEMA_COLLATION_ID,
                          "FIELD_SCHEMA_COLLATION_ID",
                          "schema_collation_id BIGINT UNSIGNED NOT NULL");
+  m_target_def.add_field(FIELD_OPTIONS,
+                         "FIELD_OPTIONS",
+                         "options MEDIUMTEXT");
 
-  m_target_def.add_index("PRIMARY KEY(id)");
-  m_target_def.add_index("UNIQUE KEY(schema_id, name)");
+  m_target_def.add_index(INDEX_PK_ID,
+                         "INDEX_PK_ID",
+                         "PRIMARY KEY(id)");
+  m_target_def.add_index(INDEX_UK_SCHEMA_ID_NAME,
+                         "INDEX_UK_SCHEMA_ID_NAME",
+                         "UNIQUE KEY(schema_id, name)");
+  m_target_def.add_index(INDEX_K_CLIENT_COLLATION_ID,
+                         "INDEX_K_CLIENT_COLLATION_ID",
+                         "KEY(client_collation_id)");
+  m_target_def.add_index(INDEX_K_CONNECTION_COLLATION_ID,
+                         "INDEX_K_CONNECTION_COLLATION_ID",
+                         "KEY(connection_collation_id)");
+  m_target_def.add_index(INDEX_K_SCHEMA_COLLATION_ID,
+                         "INDEX_K_SCHEMA_COLLATION_ID",
+                         "KEY(schema_collation_id)");
 
-  m_target_def.add_foreign_key("FOREIGN KEY (schema_id) "
+  m_target_def.add_foreign_key(FK_SCHEMA_ID,
+                               "FK_SCHEMA_ID",
+                               "FOREIGN KEY (schema_id) "
                                "REFERENCES schemata(id)");
-  m_target_def.add_foreign_key("FOREIGN KEY (client_collation_id) "
+  m_target_def.add_foreign_key(FK_CLIENT_COLLATION_ID,
+                               "FK_CLIENT_COLLATION_ID",
+                               "FOREIGN KEY (client_collation_id) "
                                "REFERENCES collations(id)");
-  m_target_def.add_foreign_key("FOREIGN KEY (connection_collation_id) "
+  m_target_def.add_foreign_key(FK_CONNECTION_COLLATION_ID,
+                               "FK_CONNECTION_COLLATION_ID",
+                               "FOREIGN KEY (connection_collation_id) "
                                "REFERENCES collations(id)");
-  m_target_def.add_foreign_key("FOREIGN KEY (schema_collation_id) "
+  m_target_def.add_foreign_key(FK_SCHEMA_COLLATION_ID,
+                               "FK_SCHEMA_COLLATION_ID",
+                               "FOREIGN KEY (schema_collation_id) "
                                "REFERENCES collations(id)");
 }
 
@@ -181,7 +206,8 @@ Event *Events::create_entity_object(const Raw_record &) const
 
 Object_key *Events::create_key_by_schema_id(Object_id schema_id)
 {
-  return new (std::nothrow) Parent_id_range_key(1, FIELD_SCHEMA_ID, schema_id);
+  return new (std::nothrow) Parent_id_range_key(
+          INDEX_UK_SCHEMA_ID_NAME, FIELD_SCHEMA_ID, schema_id);
 }
 
 ///////////////////////////////////////////////////////////////////////////

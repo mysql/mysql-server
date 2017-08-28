@@ -38,30 +38,13 @@ namespace dd {
 // Table_stat implementation.
 ///////////////////////////////////////////////////////////////////////////
 
-const Entity_object_table &Table_stat::OBJECT_TABLE()
-{
-  return Table_stats::instance();
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-const Object_type &Table_stat::TYPE()
-{
-  static Table_stat_type s_instance;
-  return s_instance;
-}
-
-///////////////////////////////////////////////////////////////////////////
-// Table_stat_impl implementation.
-///////////////////////////////////////////////////////////////////////////
-
 bool Table_stat_impl::validate() const
 {
   if (schema_name().empty() || table_name().empty())
   {
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),
-             Table_stat_impl::OBJECT_TABLE().name().c_str(),
+             DD_table::instance().name().c_str(),
              "schema name or table name not supplied.");
     return true;
   }
@@ -175,10 +158,15 @@ bool Table_stat_impl::has_new_primary_key() const
 }
 
 ///////////////////////////////////////////////////////////////////////////
-// Table_stat_type implementation.
+
+const Object_table &Table_stat_impl::object_table() const
+{
+  return DD_table::instance();
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
-void Table_stat_type::register_tables(Open_dictionary_tables_ctx *otx) const
+void Table_stat_impl::register_tables(Open_dictionary_tables_ctx *otx)
 {
   /**
     The requirement is that we should be able to update

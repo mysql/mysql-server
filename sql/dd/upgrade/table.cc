@@ -96,7 +96,7 @@ class Table;
 }  // namespace dd
 
 namespace dd {
-namespace upgrade {
+namespace upgrade_57 {
 
 /*
   Custom version of standard offsetof() macro which can be used to get

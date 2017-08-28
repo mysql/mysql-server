@@ -25,18 +25,20 @@ namespace dd {
 ///////////////////////////////////////////////////////////////////////////
 
 class Column;
-class Object_type;
 class Partition;
 class Partition_value_impl;
+
+namespace tables {
+  class Table_partition_values;
+};
 
 ///////////////////////////////////////////////////////////////////////////
 
 class Partition_value : virtual public Weak_object
 {
 public:
-  static const Object_type &TYPE();
-  static const Object_table &OBJECT_TABLE();
   typedef Partition_value_impl Impl;
+  typedef tables::Table_partition_values DD_table;
 
 public:
   virtual ~Partition_value()

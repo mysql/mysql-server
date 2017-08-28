@@ -241,7 +241,7 @@ private:
     transparently by the shared cache.
 
     @note This function must be called with type T being the same as
-          T::cache_partition_type. Dynamic casting to the actual subtype
+          T::Cache_partition. Dynamic casting to the actual subtype
           must be done at an outer level.
 
     @tparam      K       Key type.
@@ -335,15 +335,15 @@ private:
   {
 #ifndef DBUG_OFF
     // Make sure we do not sign up a shared object for auto delete.
-    Cache_element<typename T::cache_partition_type> *element= nullptr;
+    Cache_element<typename T::Cache_partition> *element= nullptr;
     m_registry_committed.get(
-      static_cast<const typename T::cache_partition_type*>(object),
+      static_cast<const typename T::Cache_partition*>(object),
       &element);
     DBUG_ASSERT(element == nullptr);
 
     // Make sure we do not sign up an uncommitted object for auto delete.
     m_registry_uncommitted.get(
-      static_cast<const typename T::cache_partition_type*>(object),
+      static_cast<const typename T::Cache_partition*>(object),
       &element);
     DBUG_ASSERT(element == nullptr);
 #endif
@@ -364,9 +364,9 @@ private:
   {
 #ifndef DBUG_OFF
     // Make sure the object has been registered as uncommitted.
-    Cache_element<typename T::cache_partition_type> *element= nullptr;
+    Cache_element<typename T::Cache_partition> *element= nullptr;
     m_registry_uncommitted.get(
-      static_cast<const typename T::cache_partition_type*>(object),
+      static_cast<const typename T::Cache_partition*>(object),
       &element);
     DBUG_ASSERT(element != nullptr);
 #endif
@@ -639,7 +639,7 @@ public:
     @note This is a variant of the method above asking for an object of type
           T, and hence using T's functions for updating name keys etc.
           This function, however, returns the instance pointed to as type
-          T::cache_partition_type to ease handling of various subtypes
+          T::Cache_partition to ease handling of various subtypes
           of the same base type.
 
     @todo TODO: We should change the MDL acquisition (see above) for a more
@@ -657,7 +657,7 @@ public:
 
   template <typename T>
   bool acquire(const String_type &schema_name, const String_type &object_name,
-               const typename T::cache_partition_type** object)
+               const typename T::Cache_partition** object)
     MY_ATTRIBUTE((warn_unused_result));
 
 
@@ -675,7 +675,7 @@ public:
     @note This is a variant of the method above asking for an object of type
           T, and hence using T's functions for updating name keys etc.
           This function, however, returns the instance pointed to as type
-          T::cache_partition_type to ease handling of various subtypes
+          T::Cache_partition to ease handling of various subtypes
           of the same base type.
 
     @todo TODO: We should change the MDL acquisition (see above) for a more
@@ -694,7 +694,7 @@ public:
   template <typename T>
   bool acquire_for_modification(const String_type &schema_name,
                                 const String_type &object_name,
-                                typename T::cache_partition_type** object)
+                                typename T::Cache_partition** object)
     MY_ATTRIBUTE((warn_unused_result));
 
 

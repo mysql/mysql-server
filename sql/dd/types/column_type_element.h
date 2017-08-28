@@ -26,16 +26,18 @@ namespace dd {
 
 class Column;
 class Column_type_element_impl;
-class Object_type;
+
+namespace tables {
+  class Column_type_elements;
+};
 
 ///////////////////////////////////////////////////////////////////////////
 
 class Column_type_element : virtual public Weak_object
 {
 public:
-  static const Object_type &TYPE();
-  static const Object_table &OBJECT_TABLE();
   typedef Column_type_element_impl Impl;
+  typedef tables::Column_type_elements DD_table;
 
 public:
   virtual ~Column_type_element()

@@ -30,19 +30,21 @@ class Column;
 class Index_impl;
 class Index_element;
 class Object_table;
-class Object_type;
 class Properties;
 class Table;
+
+namespace tables {
+  class Indexes;
+};
 
 ///////////////////////////////////////////////////////////////////////////
 
 class Index : virtual public Entity_object
 {
 public:
-  static const Object_type &TYPE();
-  static const Object_table &OBJECT_TABLE();
   typedef Collection<Index_element*> Index_elements;
   typedef Index_impl Impl;
+  typedef tables::Indexes DD_table;
 
 public:
   enum enum_index_type // similar to Keytype in sql_class.h but w/o FOREIGN_KEY

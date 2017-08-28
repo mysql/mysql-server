@@ -59,11 +59,11 @@ class Multi_map_base
 private:
   Element_map<const T*, Cache_element<T> > m_rev_map;   // Reverse element map.
 
-  Element_map<typename T::id_key_type, Cache_element<T> >
+  Element_map<typename T::Id_key, Cache_element<T> >
                                           m_id_map;     // Id map instance.
-  Element_map<typename T::name_key_type, Cache_element<T> >
-                                           m_name_map;  // Name map instance.
-  Element_map<typename T::aux_key_type, Cache_element<T> >
+  Element_map<typename T::Name_key, Cache_element<T> >
+                                          m_name_map;   // Name map instance.
+  Element_map<typename T::Aux_key, Cache_element<T> >
                                           m_aux_map;    // Aux map instance.
 
   template <typename K> struct Type_selector { }; // Dummy type to use for
@@ -83,28 +83,28 @@ private:
     *m_map(Type_selector<const T*>) const
   { return &m_rev_map; }
 
-  Element_map<typename T::id_key_type, Cache_element<T> >
-    *m_map(Type_selector<typename T::id_key_type>)
+  Element_map<typename T::Id_key, Cache_element<T> >
+    *m_map(Type_selector<typename T::Id_key>)
   { return &m_id_map; }
 
-  const Element_map<typename T::id_key_type, Cache_element<T> >
-    *m_map(Type_selector<typename T::id_key_type>) const
+  const Element_map<typename T::Id_key, Cache_element<T> >
+    *m_map(Type_selector<typename T::Id_key>) const
   { return &m_id_map; }
 
-  Element_map<typename T::name_key_type, Cache_element<T> >
-    *m_map(Type_selector<typename T::name_key_type>)
+  Element_map<typename T::Name_key, Cache_element<T> >
+    *m_map(Type_selector<typename T::Name_key>)
   { return &m_name_map; }
 
-  const Element_map<typename T::name_key_type, Cache_element<T> >
-    *m_map(Type_selector<typename T::name_key_type>) const
+  const Element_map<typename T::Name_key, Cache_element<T> >
+    *m_map(Type_selector<typename T::Name_key>) const
   { return &m_name_map; }
 
-  Element_map<typename T::aux_key_type, Cache_element<T> >
-    *m_map(Type_selector<typename T::aux_key_type>)
+  Element_map<typename T::Aux_key, Cache_element<T> >
+    *m_map(Type_selector<typename T::Aux_key>)
   { return &m_aux_map; }
 
-  const Element_map<typename T::aux_key_type, Cache_element<T> >
-    *m_map(Type_selector<typename T::aux_key_type>) const
+  const Element_map<typename T::Aux_key, Cache_element<T> >
+    *m_map(Type_selector<typename T::Aux_key>) const
   { return &m_aux_map; }
 
   public:
@@ -176,11 +176,11 @@ protected:
     fprintf(stderr, "    Reverse element map:\n");
     m_map<const T*>()->dump();
     fprintf(stderr, "    Id map:\n");
-    m_map<typename T::id_key_type>()->dump();
+    m_map<typename T::Id_key>()->dump();
     fprintf(stderr, "    Name map:\n");
-    m_map<typename T::name_key_type>()->dump();
+    m_map<typename T::Name_key>()->dump();
     fprintf(stderr, "    Aux map:\n");
-    m_map<typename T::aux_key_type>()->dump();
+    m_map<typename T::Aux_key>()->dump();
 #endif
   }
   /* purecov: end */

@@ -20,8 +20,6 @@
 #define LOG_SUBSYSTEM_TAG "data_dictionary"
 #endif
 
-#include "sql/dd/types/object_type.h" // IWYU pragma: keep
-
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
@@ -79,8 +77,7 @@ class Dictionary *get_dictionary();
   @returns Pointer to the newly allocated dictionary object.
 */
 template <typename X>
-inline X *create_object()
-{ return dynamic_cast<X *> (X::TYPE().create_object()); }
+X *create_object();
 
 ///////////////////////////////////////////////////////////////////////////
 

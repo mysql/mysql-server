@@ -37,6 +37,7 @@
 #include "sql/dd/types/column_statistics.h"
 #include "sql/dd/types/entity_object_table.h"
 #include "sql/dd/types/event.h"
+#include "sql/dd/types/resource_group.h"
 #include "sql/dd/types/routine.h"
 #include "sql/dd/types/schema.h"
 #include "sql/dd/types/spatial_reference_system.h"
@@ -494,7 +495,7 @@ public:
 #ifndef DBUG_OFF
     fprintf(stderr, "  --------------------------------\n");
     fprintf(stderr, "  Shared multi map for '%s'\n",
-            T::OBJECT_TABLE().name().c_str());
+            T::DD_table::instance().name().c_str());
     Multi_map_base<T>::dump();
     fprintf(stderr, "    Free list:\n");
     m_free_list.dump();

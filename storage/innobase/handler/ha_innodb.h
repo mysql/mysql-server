@@ -243,12 +243,12 @@ public:
 
 	/** Get storage-engine private data for a data dictionary table.
 	@param[in,out]	dd_table	data dictionary table definition
-	@param[in]	dd_version	data dictionary version
+	@param		reset		reset counters
 	@retval		true		an error occurred
 	@retval		false		success */
 	bool get_se_private_data(
 		dd::Table*	dd_table,
-		uint		dd_version);
+		bool		reset);
 
 	/** Add hidden columns and indexes to an InnoDB table definition.
 	@param[in,out]	dd_table	data dictionary cache object

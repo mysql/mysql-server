@@ -28,7 +28,7 @@
 #include "mysqld_error.h"
 #include "sql/dd/cache/multi_map_base.h"
 #include "sql/dd/dd_schema.h"                // dd::Schema_MDL_locker
-#include "sql/dd/impl/bootstrapper.h"        // bootstrap_stage
+#include "sql/dd/impl/bootstrap_ctx.h"       // bootstrap_stage
 #include "sql/dd/impl/cache/shared_dictionary_cache.h" // get(), release(), ...
 #include "sql/dd/impl/cache/storage_adapter.h" // store(), drop(), ...
 #include "sql/dd/impl/dictionary_impl.h"
@@ -44,6 +44,7 @@
 #include "sql/dd/impl/tables/events.h"       // create_name_key()
 #include "sql/dd/impl/tables/foreign_keys.h"
 #include "sql/dd/impl/tables/index_stats.h"  // dd::Index_stats
+#include "sql/dd/impl/tables/resource_groups.h" // create_name_key()
 #include "sql/dd/impl/tables/routines.h"     // create_name_key()
 #include "sql/dd/impl/tables/schemata.h"     // create_name_key()
 #include "sql/dd/impl/tables/spatial_reference_systems.h" // create_name_key()
@@ -853,7 +854,7 @@ bool Dictionary_client::acquire(const K &key, const T **object,
     // Check if an uncommitted object with the same id exists.
     // If so, the object has been renamed or dropped, and we should
     // return nothing.
-    const typename T::id_key_type id_key(element->object()->id());
+    const typename T::Id_key id_key(element->object()->id());
     acquire_uncommitted(id_key, &uncommitted_object, &dropped);
     DBUG_ASSERT(!dropped);
     if (uncommitted_object || dropped)
@@ -881,7 +882,7 @@ bool Dictionary_client::acquire(const K &key, const T **object,
   if (element)
   {
     // Recheck that we haven't renamed or dropped this object.
-    const typename T::id_key_type id_key(element->object()->id());
+    const typename T::Id_key id_key(element->object()->id());
     acquire_uncommitted(id_key, &uncommitted_object, &dropped);
     if (uncommitted_object || dropped)
     {
@@ -1079,11 +1080,12 @@ Dictionary_client::~Dictionary_client()
 template <typename T>
 bool Dictionary_client::acquire(Object_id id, const T** object)
 {
-  const typename T::id_key_type key(id);
-  const typename T::cache_partition_type *cached_object= NULL;
+  const typename T::Id_key key(id);
+  const typename T::Cache_partition *cached_object= NULL;
 
   // We must be sure the object is released correctly if dynamic cast fails.
   Auto_releaser releaser(this);
+
   // Cache dictionary objects with UTC time
   Timestamp_timezone_guard ts(m_thd);
 
@@ -1113,11 +1115,12 @@ bool Dictionary_client::acquire(Object_id id, const T** object)
 template <typename T>
 bool Dictionary_client::acquire_for_modification(Object_id id, T** object)
 {
-  const typename T::id_key_type key(id);
-  const typename T::cache_partition_type *cached_object= NULL;
+  const typename T::Id_key key(id);
+  const typename T::Cache_partition *cached_object= NULL;
 
   // We must be sure the object is released correctly if dynamic cast fails.
   Auto_releaser releaser(this);
+
   // Cache dictionary objects with UTC time
   Timestamp_timezone_guard ts(m_thd);
 
@@ -1152,8 +1155,8 @@ bool Dictionary_client::acquire_for_modification(Object_id id, T** object)
 template <typename T>
 bool Dictionary_client::acquire_uncached(Object_id id, T** object)
 {
-  const typename T::id_key_type key(id);
-  const typename T::cache_partition_type *stored_object= NULL;
+  const typename T::Id_key key(id);
+  const typename T::Cache_partition *stored_object= NULL;
 
   // Read the uncached dictionary object.
   bool error= Shared_dictionary_cache::instance()->
@@ -1187,12 +1190,12 @@ template <typename T>
 bool Dictionary_client::acquire_uncached_uncommitted(Object_id id,
                                                      T** object)
 {
-  const typename T::id_key_type key(id);
+  const typename T::Id_key key(id);
   DBUG_ASSERT(object);
 
   // First get the object from acquire_uncommitted. This should be safe
   // even without MDL, since the object is only available to this thread.
-  typename T::cache_partition_type *uncommitted_object= nullptr;
+  typename T::Cache_partition *uncommitted_object= nullptr;
   bool dropped= false;
   acquire_uncommitted(key, &uncommitted_object, &dropped);
 
@@ -1219,7 +1222,7 @@ bool Dictionary_client::acquire_uncached_uncommitted(Object_id id,
 
   // Read the uncached dictionary object using ISO_READ_UNCOMMITTED
   // isolation level.
-  const typename T::cache_partition_type *stored_object= nullptr;
+  const typename T::Cache_partition *stored_object= nullptr;
   bool error= Shared_dictionary_cache::instance()->
                 get_uncached(m_thd, key, ISO_READ_UNCOMMITTED, &stored_object);
   if (!error)
@@ -1245,7 +1248,7 @@ bool Dictionary_client::acquire(const String_type &object_name,
                                 const T** object)
 {
   // Create the name key for the object.
-  typename T::name_key_type key;
+  typename T::Name_key key;
   bool error= T::update_name_key(&key, object_name);
   if (error)
   {
@@ -1255,9 +1258,10 @@ bool Dictionary_client::acquire(const String_type &object_name,
 
   // We must be sure the object is released correctly if dynamic cast fails.
   Auto_releaser releaser(this);
+
   // Cache dictionary objects with UTC time
   Timestamp_timezone_guard ts(m_thd);
-  const typename T::cache_partition_type *cached_object= NULL;
+  const typename T::Cache_partition *cached_object= NULL;
 
   bool local_committed= false;
   bool local_uncommitted = false;
@@ -1287,7 +1291,7 @@ bool Dictionary_client::acquire_for_modification(const String_type &object_name,
                                                  T** object)
 {
   // Create the name key for the object.
-  typename T::name_key_type key;
+  typename T::Name_key key;
   bool error= T::update_name_key(&key, object_name);
   if (error)
   {
@@ -1297,9 +1301,10 @@ bool Dictionary_client::acquire_for_modification(const String_type &object_name,
 
   // We must be sure the object is released correctly if dynamic cast fails.
   Auto_releaser releaser(this);
+
   // Cache dictionary objects with UTC time
   Timestamp_timezone_guard ts(m_thd);
-  const typename T::cache_partition_type *cached_object= NULL;
+  const typename T::Cache_partition *cached_object= NULL;
 
   bool local_committed= false;
   bool local_uncommitted= false;
@@ -1360,13 +1365,14 @@ bool Dictionary_client::acquire(const String_type &schema_name,
   DEBUG_SYNC(m_thd, "acquired_schema_while_acquiring_table");
 
   // Create the name key for the object.
-  typename T::name_key_type key;
+  typename T::Name_key key;
   T::update_name_key(&key, schema->id(), object_name);
 
   // Acquire the dictionary object.
-  const typename T::cache_partition_type *cached_object= NULL;
+
   // Cache dictionary objects with UTC time
   Timestamp_timezone_guard ts(m_thd);
+  const typename T::Cache_partition *cached_object= NULL;
 
   bool local_committed= false;
   bool local_uncommitted= false;
@@ -1420,11 +1426,12 @@ bool Dictionary_client::acquire_for_modification(const String_type &schema_name,
     return false;
 
   // Create the name key for the object.
-  typename T::name_key_type key;
+  typename T::Name_key key;
   T::update_name_key(&key, schema->id(), object_name);
 
   // Acquire the dictionary object.
-  const typename T::cache_partition_type *cached_object= NULL;
+  const typename T::Cache_partition *cached_object= NULL;
+
   // Cache dictionary objects with UTC time
   Timestamp_timezone_guard ts(m_thd);
 
@@ -1460,7 +1467,7 @@ bool Dictionary_client::acquire_for_modification(const String_type &schema_name,
 template <typename T>
 bool Dictionary_client::acquire(const String_type &schema_name,
                                 const String_type &object_name,
-                                const typename T::cache_partition_type** object)
+                                const typename T::Cache_partition** object)
 {
   // We must make sure the schema is released and unlocked in the right order.
   Schema_MDL_locker mdl_locker(m_thd);
@@ -1488,8 +1495,9 @@ bool Dictionary_client::acquire(const String_type &schema_name,
   DEBUG_SYNC(m_thd, "acquired_schema_while_acquiring_table");
 
   // Create the name key for the object.
-  typename T::name_key_type key;
+  typename T::Name_key key;
   T::update_name_key(&key, schema->id(), object_name);
+
   // Cache dictionary objects with UTC time
   Timestamp_timezone_guard ts(m_thd);
 
@@ -1516,7 +1524,7 @@ bool Dictionary_client::acquire(const String_type &schema_name,
 template <typename T>
 bool Dictionary_client::acquire_for_modification(const String_type &schema_name,
                                                  const String_type &object_name,
-                                                 typename T::cache_partition_type** object)
+                                                 typename T::Cache_partition** object)
 {
   // We must make sure the schema is released and unlocked in the right order.
   Schema_MDL_locker mdl_locker(m_thd);
@@ -1542,13 +1550,14 @@ bool Dictionary_client::acquire_for_modification(const String_type &schema_name,
     return false;
 
   // Create the name key for the object.
-  typename T::name_key_type key;
+  typename T::Name_key key;
   T::update_name_key(&key, schema->id(), object_name);
+
   // Cache dictionary objects with UTC time
   Timestamp_timezone_guard ts(m_thd);
 
   // Acquire the dictionary object.
-  const typename T::cache_partition_type *cached_object= NULL;
+  const typename T::Cache_partition *cached_object= NULL;
 
   bool local_committed= false;
   bool local_uncommitted= false;
@@ -1557,7 +1566,7 @@ bool Dictionary_client::acquire_for_modification(const String_type &schema_name,
 
   if (!error)
   {
-    // Cast not necessary here since we return the T::cache_partition_type.
+    // Cast not necessary here since we return the T::Cache_partition.
     if (cached_object != nullptr)
     {
       *object= cached_object->clone();
@@ -1581,10 +1590,10 @@ bool Dictionary_client::acquire_uncached_table_by_se_private_id(
   *table= NULL;
 
   // Create se private key.
-  Table::aux_key_type key;
+  Table::Aux_key key;
   Table::update_aux_key(&key, engine, se_private_id);
 
-  const Table::cache_partition_type *stored_object= NULL;
+  const Table::Cache_partition *stored_object= NULL;
 
   // Read the uncached dictionary object.
   if (Shared_dictionary_cache::instance()->
@@ -1607,7 +1616,7 @@ bool Dictionary_client::acquire_uncached_table_by_se_private_id(
   if (!*table)
   {
     my_error(ER_INVALID_DD_OBJECT, MYF(0),
-             Table::OBJECT_TABLE().name().c_str(),
+             Table::DD_table::instance().name().c_str(),
              "Not a table object.");
     delete stored_object;
     return true;
@@ -1747,7 +1756,7 @@ bool Dictionary_client::remove_table_dynamic_statistics(
     while(it_idxs != index_names.end())
     {
       // Fetch the entry.
-      std::unique_ptr<Index_stat::name_key_type> key(
+      std::unique_ptr<Index_stat::Name_key> key(
         tables::Index_stats::create_object_key(schema_name,
                                                table_name,
                                                *it_idxs,
@@ -1757,7 +1766,8 @@ bool Dictionary_client::remove_table_dynamic_statistics(
         Use READ UNCOMMITTED isolation, so this method works correctly when
         called from the middle of atomic ALTER TABLE statement.
       */
-      if (Storage_adapter::get(m_thd, *key, ISO_READ_UNCOMMITTED, &idx_stat))
+      if (Storage_adapter::get(m_thd, *key, ISO_READ_UNCOMMITTED, false,
+              &idx_stat))
       {
         DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
         return true;
@@ -1785,7 +1795,7 @@ bool Dictionary_client::remove_table_dynamic_statistics(
   //
 
   // Fetch the entry.
-  std::unique_ptr<Table_stat::name_key_type> key(
+  std::unique_ptr<Table_stat::Name_key> key(
     tables::Table_stats::create_object_key(schema_name, table_name));
 
   /*
@@ -1793,7 +1803,7 @@ bool Dictionary_client::remove_table_dynamic_statistics(
     called from the middle of atomic ALTER TABLE statement.
   */
   const Table_stat *tab_stat= nullptr;
-  if (Storage_adapter::get(m_thd, *key, ISO_READ_UNCOMMITTED, &tab_stat))
+  if (Storage_adapter::get(m_thd, *key, ISO_READ_UNCOMMITTED, false, &tab_stat))
   {
     DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
     return true;
@@ -1929,8 +1939,8 @@ bool Dictionary_client::get_table_name_by_trigger_name(
     return true;
   }
 
-  const Table::id_key_type key(table_id);
-  const Table::cache_partition_type *stored_object= nullptr;
+  const Table::Id_key key(table_id);
+  const Table::Cache_partition *stored_object= nullptr;
 
   bool error= Shared_dictionary_cache::instance()->
                 get_uncached(m_thd, key, ISO_READ_COMMITTED, &stored_object);
@@ -1945,7 +1955,7 @@ bool Dictionary_client::get_table_name_by_trigger_name(
     if (stored_object != nullptr && table == nullptr)
     {
       my_error(ER_INVALID_DD_OBJECT, MYF(0),
-                Table::OBJECT_TABLE().name().c_str(),
+                Table::DD_table::instance().name().c_str(),
                 "Not a table object.");
       delete stored_object;
       return true;
@@ -1975,7 +1985,7 @@ bool Dictionary_client::fetch_schema_component_names(
 
   // Create the key based on the schema id.
   std::unique_ptr<Object_key> object_key(
-    T::cache_partition_table_type::create_key_by_schema_id(schema->id()));
+    T::DD_table::create_key_by_schema_id(schema->id()));
 
   // Retrieve a set of the schema components, and add the component names
   // to the vector output parameter.
@@ -2004,7 +2014,7 @@ bool Dictionary_client::fetch_schema_component_names(
   {
     // Get the table name, but only unless the object is hidden.
     if (!is_component_hidden<T>(r))
-      names->push_back(r->read_str(T::cache_partition_table_type::FIELD_NAME));
+      names->push_back(r->read_str(T::DD_table::FIELD_NAME));
 
     if (rs->next(r))
     {
@@ -2115,7 +2125,7 @@ bool Dictionary_client::fetch_schema_components(
     std::vector<const T*> *coll) const
 {
   std::unique_ptr<Object_key> k(
-    T::cache_partition_table_type::create_key_by_schema_id(schema->id()));
+    T::DD_table::create_key_by_schema_id(schema->id()));
 
   if (fetch(m_thd, coll, k.get()))
   {
@@ -2173,7 +2183,7 @@ bool Dictionary_client::fetch_referencing_views_object_id(
 
   // Create the key based on the base table/ view/ stored function name.
   std::unique_ptr<Object_key> object_key(
-    T::cache_partition_table_type::create_key_by_name(
+    T::DD_table::create_key_by_name(
       String_type(Dictionary_impl::default_catalog_name()),
       String_type(schema),
       String_type(tbl_or_sf_name)));
@@ -2190,7 +2200,7 @@ bool Dictionary_client::fetch_referencing_views_object_id(
   while (vtr)
   {
     /* READ VIEW ID */
-    Object_id id= vtr->read_int(T::cache_partition_table_type::FIELD_VIEW_ID);
+    Object_id id= vtr->read_int(T::DD_table::FIELD_VIEW_ID);
     view_ids->push_back(id);
 
     if (rs->next(vtr))
@@ -2377,8 +2387,8 @@ void Dictionary_client::invalidate(const T *object)
   // Uncommitted object which was acquired for modification might have
   // corrupted name.... So lookup by id. (see mysql_rename_table()
   // problem)
-  Cache_element<typename T::cache_partition_type> *element= nullptr;
-  const typename T::id_key_type id_key(object->id());
+  Cache_element<typename T::Cache_partition> *element= nullptr;
+  const typename T::Id_key id_key(object->id());
   m_registry_committed.get(id_key, &element);
 
   if (element)
@@ -2392,8 +2402,8 @@ void Dictionary_client::invalidate(const T *object)
   }
   else
     Shared_dictionary_cache::instance()->
-      drop_if_present<typename T::id_key_type,
-                      typename T::cache_partition_type>(id_key);
+      drop_if_present<typename T::Id_key,
+                      typename T::Cache_partition>(id_key);
 }
 
 
@@ -2429,15 +2439,16 @@ bool Dictionary_client::drop(const T *object)
   return false;
 }
 
+
 // Store a new dictionary object.
 template <typename T>
 bool Dictionary_client::store(T* object)
 {
 #ifndef DBUG_OFF
   // Make sure the object is not being used by this client.
-  Cache_element<typename T::cache_partition_type> *element= NULL;
+  Cache_element<typename T::Cache_partition> *element= NULL;
   m_registry_committed.get(
-    static_cast<const typename T::cache_partition_type*>(object),
+    static_cast<const typename T::Cache_partition*>(object),
     &element);
   DBUG_ASSERT(!element);
 #endif
@@ -2492,11 +2503,11 @@ bool Dictionary_client::update(T* new_object)
   DBUG_ASSERT(new_object->id() != INVALID_OBJECT_ID);
 
   // The new_object instance should not be present in the committed registry.
-  Cache_element<typename T::cache_partition_type> *element= NULL;
+  Cache_element<typename T::Cache_partition> *element= NULL;
 
 #ifndef DBUG_OFF
   m_registry_committed.get(
-    static_cast<const typename T::cache_partition_type*>(new_object),
+    static_cast<const typename T::Cache_partition*>(new_object),
     &element);
   DBUG_ASSERT(!element);
 #endif
@@ -2505,7 +2516,7 @@ bool Dictionary_client::update(T* new_object)
   Timestamp_timezone_guard ts(m_thd);
 
   // new_object->id() may or may not be reflected in the uncommitted registry.
-  const typename T::id_key_type id_key(new_object->id());
+  const typename T::Id_key id_key(new_object->id());
   const T* old_object= nullptr;
   m_registry_uncommitted.get(id_key, &element);
 
@@ -2581,11 +2592,11 @@ bool Dictionary_client::update(T* new_object)
 template <typename T>
 void Dictionary_client::register_uncommitted_object(T* object)
 {
-  Cache_element<typename T::cache_partition_type> *element= nullptr;
+  Cache_element<typename T::Cache_partition> *element= nullptr;
 #ifndef DBUG_OFF
   // Make sure we do not sign up a shared object for auto delete.
   m_registry_committed.get(
-    static_cast<const typename T::cache_partition_type*>(object),
+    static_cast<const typename T::Cache_partition*>(object),
     &element);
   DBUG_ASSERT(element == nullptr);
 
@@ -2600,12 +2611,12 @@ void Dictionary_client::register_uncommitted_object(T* object)
   DBUG_ASSERT(object->id() != INVALID_OBJECT_ID);
 
   // Make sure the same id is not present in the dropped registry.
-  const typename T::id_key_type id_key(object->id());
+  const typename T::Id_key id_key(object->id());
   m_registry_dropped.get(id_key, &element);
   DBUG_ASSERT(element == nullptr);
 #endif
 
-  element= new Cache_element<typename T::cache_partition_type>();
+  element= new Cache_element<typename T::Cache_partition>();
   element->set_object(object);
   element->recreate_keys();
   m_registry_uncommitted.put(element);
@@ -2615,11 +2626,11 @@ void Dictionary_client::register_uncommitted_object(T* object)
 template <typename T>
 void Dictionary_client::register_dropped_object(T* object)
 {
-  Cache_element<typename T::cache_partition_type> *element= nullptr;
+  Cache_element<typename T::Cache_partition> *element= nullptr;
 #ifndef DBUG_OFF
   // Make sure we do not sign up a shared object for auto delete.
   m_registry_committed.get(
-    static_cast<const typename T::cache_partition_type*>(object),
+    static_cast<const typename T::Cache_partition*>(object),
     &element);
   DBUG_ASSERT(element == nullptr);
 
@@ -2635,15 +2646,15 @@ void Dictionary_client::register_dropped_object(T* object)
 #endif
 
   // Could be in the uncommitted registry, remove and delete.
-  const typename T::id_key_type id_key(object->id());
-  typename T::cache_partition_type *modified= nullptr;
+  const typename T::Id_key id_key(object->id());
+  typename T::Cache_partition *modified= nullptr;
   bool dropped= false;
   acquire_uncommitted(id_key, &modified, &dropped);
   DBUG_ASSERT(!dropped);
   if (modified != nullptr)
   {
     m_registry_uncommitted.get(
-      static_cast<const typename T::cache_partition_type*>(modified),
+      static_cast<const typename T::Cache_partition*>(modified),
       &element);
     DBUG_ASSERT(element != nullptr);
     m_registry_uncommitted.remove(element);
@@ -2653,7 +2664,7 @@ void Dictionary_client::register_dropped_object(T* object)
   }
 
   if (element == nullptr)
-    element= new Cache_element<typename T::cache_partition_type>();
+    element= new Cache_element<typename T::Cache_partition>();
 
   element->set_object(object);
   element->recreate_keys();
@@ -2663,7 +2674,7 @@ void Dictionary_client::register_dropped_object(T* object)
   // this is possible when updating view metadata since alter view
   // is implemented as drop+create. We have to look up on name since
   // the ID has changed.
-  Cache_element<typename T::cache_partition_type> *dropped_ele= nullptr;
+  Cache_element<typename T::Cache_partition> *dropped_ele= nullptr;
   m_registry_dropped.get(*element->name_key(), &dropped_ele);
   if (dropped_ele != nullptr)
   {
@@ -2687,12 +2698,12 @@ void Dictionary_client::remove_uncommitted_objects(bool commit_to_shared_cache)
 #ifndef DBUG_OFF
   // Note: The ifdef'ed block below is only for consistency checks in
   // debug builds.
-  typename Multi_map_base<typename T::cache_partition_type>::Const_iterator it;
-  for (it= m_registry_dropped.begin<typename T::cache_partition_type>();
-       it != m_registry_dropped.end<typename T::cache_partition_type>();
+  typename Multi_map_base<typename T::Cache_partition>::Const_iterator it;
+  for (it= m_registry_dropped.begin<typename T::Cache_partition>();
+       it != m_registry_dropped.end<typename T::Cache_partition>();
        it++)
   {
-    const typename T::cache_partition_type* dropped_object= it->second->object();
+    const typename T::Cache_partition* dropped_object= it->second->object();
     DBUG_ASSERT(dropped_object != nullptr);
 
     // Checking proper MDL lock is skipped here because when dropping a
@@ -2700,7 +2711,7 @@ void Dictionary_client::remove_uncommitted_objects(bool commit_to_shared_cache)
 
     // Make sure that dropped object ids are not present persistently with
     // isolation level READ UNCOMMITTED.
-    const typename T::id_key_type id_key(dropped_object->id());
+    const typename T::Id_key id_key(dropped_object->id());
 
     // Fetch the dictionary object by PK from the DD tables, and verify that
     // it's not available, but only if:
@@ -2710,7 +2721,7 @@ void Dictionary_client::remove_uncommitted_objects(bool commit_to_shared_cache)
     if (!m_thd->is_dd_system_thread() && commit_to_shared_cache &&
         DBUG_EVALUATE_IF("skip_dd_table_access_check", false, true))
     {
-      const typename T::cache_partition_type *stored_object= nullptr;
+      const typename T::Cache_partition *stored_object= nullptr;
       if (!Shared_dictionary_cache::instance()->
             get_uncached(m_thd, id_key, ISO_READ_UNCOMMITTED, &stored_object))
         DBUG_ASSERT(stored_object == nullptr);
@@ -2718,12 +2729,12 @@ void Dictionary_client::remove_uncommitted_objects(bool commit_to_shared_cache)
 
     // Make sure that dropped object ids are not present in the shared cache.
     DBUG_ASSERT(!(Shared_dictionary_cache::instance()->
-                   available<typename T::id_key_type,
-                             typename T::cache_partition_type>(id_key)));
+                   available<typename T::Id_key,
+                             typename T::Cache_partition>(id_key)));
 
     // Make sure that dropped object ids are not present in the uncommitted
     // registry.
-    Cache_element<typename T::cache_partition_type> *element= nullptr;
+    Cache_element<typename T::Cache_partition> *element= nullptr;
     m_registry_uncommitted.get(id_key, &element);
     DBUG_ASSERT(element == nullptr);
 
@@ -2735,13 +2746,13 @@ void Dictionary_client::remove_uncommitted_objects(bool commit_to_shared_cache)
 #endif
   if (commit_to_shared_cache)
   {
-    typename Multi_map_base<typename T::cache_partition_type>::Const_iterator it;
-    for (it= m_registry_uncommitted.begin<typename T::cache_partition_type>();
-         it != m_registry_uncommitted.end<typename T::cache_partition_type>();
+    typename Multi_map_base<typename T::Cache_partition>::Const_iterator it;
+    for (it= m_registry_uncommitted.begin<typename T::Cache_partition>();
+         it != m_registry_uncommitted.end<typename T::Cache_partition>();
          it++)
     {
-      typename T::cache_partition_type* uncommitted_object=
-        const_cast<typename T::cache_partition_type*>(it->second->object());
+      typename T::Cache_partition* uncommitted_object=
+        const_cast<typename T::Cache_partition*>(it->second->object());
       DBUG_ASSERT(uncommitted_object != nullptr);
 
       // Invalidate the entry in the shared cache (if present).
@@ -2749,8 +2760,8 @@ void Dictionary_client::remove_uncommitted_objects(bool commit_to_shared_cache)
 
 #ifndef DBUG_OFF
       // Make sure the uncommitted id is not present in the dropped registry.
-      const typename T::id_key_type key(uncommitted_object->id());
-      Cache_element<typename T::cache_partition_type> *element= NULL;
+      const typename T::Id_key key(uncommitted_object->id());
+      Cache_element<typename T::Cache_partition> *element= NULL;
       m_registry_committed.get(key, &element);
       DBUG_ASSERT(element == nullptr);
 #endif
@@ -2764,23 +2775,24 @@ void Dictionary_client::remove_uncommitted_objects(bool commit_to_shared_cache)
     // DD, the changes must be made visible in the shared cache. Otherwise,
     // adding the cyclic FKs for the character sets table will fail.
     if (m_thd->is_dd_system_thread() &&
-        bootstrap::stage() < bootstrap::BOOTSTRAP_FINISHED)
+        bootstrap::DD_bootstrap_ctx::instance().get_stage() <
+            bootstrap::Stage::FINISHED)
     {
       // We must do this in two iterations to handle situations where two uncommitted
       // objects swap names.
-      for (it= m_registry_uncommitted.begin<typename T::cache_partition_type>();
-           it != m_registry_uncommitted.end<typename T::cache_partition_type>();
+      for (it= m_registry_uncommitted.begin<typename T::Cache_partition>();
+           it != m_registry_uncommitted.end<typename T::Cache_partition>();
            it++)
       {
-        typename T::cache_partition_type* uncommitted_object=
-          const_cast<typename T::cache_partition_type*>(it->second->object());
+        typename T::Cache_partition* uncommitted_object=
+          const_cast<typename T::Cache_partition*>(it->second->object());
         DBUG_ASSERT(uncommitted_object != nullptr);
 
-        Cache_element<typename T::cache_partition_type> *element= NULL;
+        Cache_element<typename T::Cache_partition> *element= NULL;
 
         // In put, the reference counter is stepped up, so this is safe.
         Shared_dictionary_cache::instance()->put(
-            static_cast<const typename T::cache_partition_type*>(
+            static_cast<const typename T::Cache_partition*>(
               uncommitted_object->clone()), &element);
 
         m_registry_committed.put(element);
@@ -2789,8 +2801,8 @@ void Dictionary_client::remove_uncommitted_objects(bool commit_to_shared_cache)
       }
     }
   } // commit_to_shared_cache
-  m_registry_uncommitted.erase<typename T::cache_partition_type>();
-  m_registry_dropped.erase<typename T::cache_partition_type>();
+  m_registry_uncommitted.erase<typename T::Cache_partition>();
+  m_registry_dropped.erase<typename T::Cache_partition>();
 }
 
 
@@ -3115,19 +3127,19 @@ template bool Dictionary_client::update(Routine*);
 template bool Dictionary_client::acquire<Function>(
   const String_type&,
   const String_type&,
-  const Function::cache_partition_type**);
+  const Function::Cache_partition**);
 template bool Dictionary_client::acquire<Procedure>(
   const String_type&,
   const String_type&,
-  const Procedure::cache_partition_type**);
+  const Procedure::Cache_partition**);
 template bool Dictionary_client::acquire_for_modification<Function>(
   const String_type&,
   const String_type&,
-  Function::cache_partition_type**);
+  Function::Cache_partition**);
 template bool Dictionary_client::acquire_for_modification<Procedure>(
   const String_type&,
   const String_type&,
-  Procedure::cache_partition_type**);
+  Procedure::Cache_partition**);
 
 template bool Dictionary_client::acquire_uncached(Object_id,
                                                   Routine**);

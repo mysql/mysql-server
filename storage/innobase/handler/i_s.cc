@@ -6073,7 +6073,8 @@ i_s_innodb_tables_fill_table(
 	mutex_enter(&dict_sys->mutex);
 	mtr_start(&mtr);
 
-	rec = dd_startscan_system(thd, &mdl, &pcur, &mtr, DD_TABLES, &dd_tables);
+	rec = dd_startscan_system(thd, &mdl, &pcur, &mtr,
+				  dd_tables_name.c_str(), &dd_tables);
 
 	while (rec) {
 		dict_table_t*	table_rec;
@@ -6109,7 +6110,8 @@ i_s_innodb_tables_fill_table(
 	mem_heap_empty(heap);
 	mtr_start(&mtr);
 
-	rec = dd_startscan_system(thd, &mdl, &pcur, &mtr, DD_PARTITIONS, &dd_tables);
+	rec = dd_startscan_system(thd, &mdl, &pcur, &mtr,
+				  dd_partitions_name.c_str(), &dd_tables);
 
 	while (rec) {
 		dict_table_t*	table_rec;
@@ -6411,7 +6413,8 @@ i_s_innodb_tables_fill_table_stats(
 	/* Prevent DDL to drop tables. */
 	mutex_enter(&dict_sys->mutex);
 	mtr_start(&mtr);
-	rec = dd_startscan_system(thd, &mdl, &pcur, &mtr, DD_TABLES, &dd_tables);
+	rec = dd_startscan_system(thd, &mdl, &pcur, &mtr, dd_tables_name.c_str(),
+				  &dd_tables);
 
 	while (rec) {
 		dict_table_t*	table_rec;
@@ -6696,7 +6699,8 @@ i_s_innodb_indexes_fill_table(
 	mtr_start(&mtr);
 
 	/* Start scan the mysql.indexes */
-	rec = dd_startscan_system(thd, &mdl, &pcur, &mtr, DD_INDEXES, &dd_indexes);
+	rec = dd_startscan_system(thd, &mdl, &pcur, &mtr,
+				  dd_indexes_name.c_str(), &dd_indexes);
 
 	/* Process each record in the table */
 	while (rec) {
@@ -6962,7 +6966,7 @@ i_s_innodb_columns_fill_table(
 
 	/* Start scan the mysql.columns */
 	rec = dd_startscan_system(thd, &mdl, &pcur, &mtr,
-				  DD_COLUMNS, &dd_columns);
+				  dd_columns_name.c_str(), &dd_columns);
 
 	while (rec) {
 		dict_col_t	column_rec;
@@ -7177,7 +7181,7 @@ i_s_innodb_virtual_fill_table(
 
 	/* Start scan the mysql.columns */
 	rec = dd_startscan_system(thd, &mdl, &pcur, &mtr,
-				  DD_COLUMNS, &dd_columns);
+				  dd_columns_name.c_str(), &dd_columns);
 
 	while (rec) {
 		table_id_t	table_id;
@@ -7600,7 +7604,7 @@ i_s_innodb_tablespaces_fill_table(
 	mtr_start(&mtr);
 
 	for (rec = dd_startscan_system(thd, &mdl, &pcur, &mtr,
-				       DD_TABLESPACES, &dd_spaces);
+				       dd_tablespaces_name.c_str(), &dd_spaces);
 	     rec != NULL;
 	     rec = dd_getnext_system_rec(&pcur, &mtr)) {
 
@@ -7822,7 +7826,8 @@ i_s_innodb_cached_indexes_fill_table(
 	/* Start the scan of INNODB_INDEXES. */
 	btr_pcur_t	pcur;
 	const rec_t* rec = dd_startscan_system(thd, &mdl, &pcur, &mtr,
-		DD_INDEXES, &dd_indexes);
+					       dd_indexes_name.c_str(),
+					       &dd_indexes);
 
 	/* Process each record in the table. */
 	while (rec != NULL) {

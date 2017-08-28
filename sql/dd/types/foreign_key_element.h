@@ -27,16 +27,18 @@ namespace dd {
 class Column;
 class Foreign_key;
 class Foreign_key_element_impl;
-class Object_type;
+
+namespace tables {
+  class Foreign_key_column_usage;
+};
 
 ///////////////////////////////////////////////////////////////////////////
 
 class Foreign_key_element : virtual public Weak_object
 {
 public:
-  static const Object_type &TYPE();
-  static const Object_table &OBJECT_TABLE();
   typedef Foreign_key_element_impl Impl;
+  typedef tables::Foreign_key_column_usage DD_table;
 
 public:
   virtual ~Foreign_key_element()

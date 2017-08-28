@@ -23,18 +23,21 @@ namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Object_type;
 class Composite_char_key;
+class Table_stat_impl;
+
+namespace tables {
+  class Table_stats;
+}
 
 ///////////////////////////////////////////////////////////////////////////
 
 class Table_stat : virtual public Entity_object
 {
 public:
-  static const Object_type &TYPE();
-  static const Entity_object_table &OBJECT_TABLE();
-
-  typedef Composite_char_key name_key_type;
+  typedef Table_stat_impl Impl;
+  typedef tables::Table_stats DD_table;
+  typedef Composite_char_key Name_key;
 
 public:
   /////////////////////////////////////////////////////////////////////////

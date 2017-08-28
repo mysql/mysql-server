@@ -22,19 +22,19 @@
 
 namespace dd {
 
-class Object_type;
+class Function_impl;
 
 ///////////////////////////////////////////////////////////////////////////
 
 class Function : virtual public Routine
 {
 public:
-  static const Object_type &TYPE();
+  typedef Function_impl Impl;
 
-  virtual bool update_name_key(name_key_type *key) const
+  virtual bool update_name_key(Name_key *key) const
   { return update_routine_name_key(key, schema_id(), name()); }
 
-  static bool update_name_key(name_key_type *key,
+  static bool update_name_key(Name_key *key,
                               Object_id schema_id,
                               const String_type &name);
 

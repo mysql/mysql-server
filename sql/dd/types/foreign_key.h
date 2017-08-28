@@ -29,18 +29,20 @@ namespace dd {
 class Foreign_key_element;
 class Foreign_key_impl;
 class Index;
-class Object_type;
 class Table;
+
+namespace tables {
+  class Foreign_keys;
+};
 
 ///////////////////////////////////////////////////////////////////////////
 
 class Foreign_key : virtual public Entity_object
 {
 public:
-  static const Object_type &TYPE();
-  static const Object_table &OBJECT_TABLE();
   typedef Collection<Foreign_key_element*> Foreign_key_elements;
   typedef Foreign_key_impl Impl;
+  typedef tables::Foreign_keys DD_table;
 
 public:
   enum enum_rule

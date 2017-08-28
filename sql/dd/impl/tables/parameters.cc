@@ -18,6 +18,7 @@
 #include <new>
 
 #include "sql/dd/impl/raw/object_keys.h"  // dd::Parent_id_range_key
+#include "sql/dd/impl/tables/dd_properties.h"     // TARGET_DD_VERSION
 #include "sql/dd/impl/types/object_table_definition_impl.h"
 
 namespace dd {
@@ -31,7 +32,7 @@ const Parameters &Parameters::instance()
 
 Parameters::Parameters()
 {
-  m_target_def.table_name(table_name());
+  m_target_def.set_table_name("parameters");
 
   m_target_def.add_field(FIELD_ID,
                          "FIELD_ID",
@@ -97,12 +98,23 @@ Parameters::Parameters()
                          "FIELD_OPTIONS",
                          "options MEDIUMTEXT");
 
-  m_target_def.add_index("PRIMARY KEY(id)");
-  m_target_def.add_index("UNIQUE KEY (routine_id, ordinal_position)");
+  m_target_def.add_index(INDEX_PK_ID,
+                         "INDEX_PK_ID",
+                         "PRIMARY KEY(id)");
+  m_target_def.add_index(INDEX_UK_ROUTINE_ID_ORDINAL_POSITION,
+                         "INDEX_UK_ROUTINE_ID_ORDINAL_POSITION",
+                         "UNIQUE KEY (routine_id, ordinal_position)");
+  m_target_def.add_index(INDEX_K_COLLATION_ID,
+                         "INDEX_K_COLLATION_ID",
+                         "KEY (collation_id)");
 
-  m_target_def.add_foreign_key("FOREIGN KEY (routine_id) REFERENCES "
+  m_target_def.add_foreign_key(FK_ROUTINE_ID,
+                               "FK_ROUTINE_ID",
+                               "FOREIGN KEY (routine_id) REFERENCES "
                                "routines(id)");
-  m_target_def.add_foreign_key("FOREIGN KEY (collation_id) REFERENCES "
+  m_target_def.add_foreign_key(FK_COLLATION_ID,
+                               "FK_COLLATION_ID",
+                               "FOREIGN KEY (collation_id) REFERENCES "
                                "collations(id)");
 }
 
@@ -112,7 +124,7 @@ Object_key *Parameters::create_key_by_routine_id(
   Object_id routine_id)
 {
   return new (std::nothrow) Parent_id_range_key(
-                              1, FIELD_ROUTINE_ID, routine_id);
+          INDEX_UK_ROUTINE_ID_ORDINAL_POSITION, FIELD_ROUTINE_ID, routine_id);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -122,10 +134,8 @@ Object_key *Parameters::create_primary_key(
   Object_id routine_id,
   int ordinal_position)
 {
-  const int INDEX_NO= 1;
-
   return new (std::nothrow) Composite_pk(
-                              INDEX_NO,
+                              INDEX_UK_ROUTINE_ID_ORDINAL_POSITION,
                               FIELD_ROUTINE_ID, routine_id,
                               FIELD_ORDINAL_POSITION, ordinal_position);
 }

@@ -88,11 +88,11 @@ private:
     { }
   };
 
-  Key_wrapper<typename T::id_key_type>
+  Key_wrapper<typename T::Id_key>
                          m_id_key;     // The id key for the object.
-  Key_wrapper<typename T::name_key_type>
+  Key_wrapper<typename T::Name_key>
                          m_name_key;   // The name key for the object.
-  Key_wrapper<typename T::aux_key_type>
+  Key_wrapper<typename T::Aux_key>
                          m_aux_key;    // The aux key for the object.
 
 
@@ -102,16 +102,16 @@ private:
   const T* const* get_key(Type_selector<const T*>) const
   { return m_object ? &m_object : NULL; }
 
-  const typename T::id_key_type *get_key(
-                    Type_selector<typename T::id_key_type>) const
+  const typename T::Id_key *get_key(
+                    Type_selector<typename T::Id_key>) const
   { return id_key(); }
 
-  const typename T::name_key_type *get_key(
-                    Type_selector<typename T::name_key_type>) const
+  const typename T::Name_key *get_key(
+                    Type_selector<typename T::Name_key>) const
   { return name_key(); }
 
-  const typename T::aux_key_type *get_key(
-                    Type_selector<typename T::aux_key_type>) const
+  const typename T::Aux_key *get_key(
+                    Type_selector<typename T::Aux_key>) const
   { return aux_key(); }
 
 
@@ -185,17 +185,17 @@ public:
 
 
   // Get the id key.
-  const typename T::id_key_type *id_key() const
+  const typename T::Id_key *id_key() const
   { return m_id_key.is_null ? NULL : &m_id_key.key; }
 
 
   // Get the name key.
-  const typename T::name_key_type *name_key() const
+  const typename T::Name_key *name_key() const
   { return m_name_key.is_null ? NULL : &m_name_key.key; }
 
 
   // Get the aux key.
-  const typename T::aux_key_type *aux_key() const
+  const typename T::Aux_key *aux_key() const
   { return m_aux_key.is_null ? NULL : &m_aux_key.key; }
 
 

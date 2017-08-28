@@ -24,19 +24,6 @@ using dd::tables::Resource_groups;
 
 namespace dd {
 
-// Resource_group implementation
-
-const Entity_object_table &Resource_group::OBJECT_TABLE()
-{
-  return Resource_groups::instance();
-}
-
-const Object_type &Resource_group::TYPE()
-{
-  static Resource_group_type s_instance;
-  return s_instance;
-}
-
 // Resource_group_impl implementation
 
 Resource_group_impl::Resource_group_impl()
@@ -126,19 +113,23 @@ void Resource_group_impl::debug_print(String_type &outb) const
   outb= ss.str();
 }
 
-// Resource group type implementation
-void Resource_group_type::register_tables(Open_dictionary_tables_ctx *otx) const
+ const Object_table &Resource_group_impl::object_table() const
+{
+   return DD_table::instance();
+}
+
+ void Resource_group_impl::register_tables(Open_dictionary_tables_ctx *otx)
 {
   otx->add_table<Resource_groups>();
 }
 
-bool Resource_group::update_id_key(id_key_type *key, Object_id id)
+bool Resource_group::update_id_key(Id_key *key, Object_id id)
 {
   key->update(id);
   return false;
 }
 
-bool Resource_group::update_name_key(name_key_type *key, const String_type &name)
+bool Resource_group::update_name_key(Name_key *key, const String_type &name)
 {
   // Resource group names are case insensitive
   char lc_name[NAME_LEN + 1];

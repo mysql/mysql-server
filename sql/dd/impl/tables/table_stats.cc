@@ -16,6 +16,7 @@
 #include "sql/dd/impl/tables/table_stats.h"
 
 #include "sql/dd/impl/raw/object_keys.h" // Composite_char_key
+#include "sql/dd/impl/tables/dd_properties.h"     // TARGET_DD_VERSION
 #include "sql/dd/impl/types/object_table_definition_impl.h"
 
 namespace dd {
@@ -25,7 +26,7 @@ namespace tables {
 
 Table_stats::Table_stats()
 {
-  m_target_def.table_name(table_name());
+  m_target_def.set_table_name("table_stats");
 
   m_target_def.add_field(FIELD_SCHEMA_NAME, "FIELD_SCHEMA_NAME",
           "schema_name VARCHAR(64) NOT NULL");
@@ -54,7 +55,9 @@ Table_stats::Table_stats()
   m_target_def.add_field(FIELD_CACHED_TIME, "FIELD_CACHED_TIME",
           "cached_time TIMESTAMP NOT NULL");
 
-  m_target_def.add_index("PRIMARY KEY (schema_name, table_name)");
+  m_target_def.add_index(INDEX_PK_SCHEMA_ID_TABLE_NAME,
+                         "INDEX_PK_SCHEMA_ID_TABLE_NAME",
+                         "PRIMARY KEY (schema_name, table_name)");
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -67,13 +70,11 @@ const Table_stats &Table_stats::instance()
 
 ///////////////////////////////////////////////////////////////////////////
 
-Table_stat::name_key_type *Table_stats::create_object_key(
+Table_stat::Name_key *Table_stats::create_object_key(
   const String_type &schema_name,
   const String_type &table_name)
 {
-  const int INDEX_NO= 0;
-
-  return new (std::nothrow) Composite_char_key(INDEX_NO,
+  return new (std::nothrow) Composite_char_key(INDEX_PK_SCHEMA_ID_TABLE_NAME,
                                                FIELD_SCHEMA_NAME, schema_name,
                                                FIELD_TABLE_NAME, table_name);
 }

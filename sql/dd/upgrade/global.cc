@@ -28,7 +28,7 @@
 #include "sql/table.h"
 
 namespace dd {
-namespace upgrade {
+namespace upgrade_57 {
 
 const char *TRN_EXT= ".TRN";
 const char *TRG_EXT= ".TRG";

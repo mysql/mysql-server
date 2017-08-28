@@ -25,7 +25,8 @@ namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Object_type;
+class Routine_impl;
+class Primary_id_key;
 class Void_key;
 class Parameter;
 class Properties;
@@ -50,30 +51,28 @@ namespace tables {
 class Routine : virtual public Entity_object
 {
 public:
-  static const Object_type &TYPE();
-  static const Entity_object_table &OBJECT_TABLE();
-
-  typedef Routine cache_partition_type;
-  typedef tables::Routines cache_partition_table_type;
-  typedef Primary_id_key id_key_type;
-  typedef Routine_name_key name_key_type;
-  typedef Void_key aux_key_type;
+  typedef Routine_impl Impl;
+  typedef Routine Cache_partition;
+  typedef tables::Routines DD_table;
+  typedef Primary_id_key Id_key;
+  typedef Routine_name_key Name_key;
+  typedef Void_key Aux_key;
   typedef Collection<Parameter *> Parameter_collection;
 
   // We need a set of functions to update a preallocated key.
-  virtual bool update_id_key(id_key_type *key) const
+  virtual bool update_id_key(Id_key *key) const
   { return update_id_key(key, id()); }
 
-  static bool update_id_key(id_key_type *key, Object_id id);
+  static bool update_id_key(Id_key *key, Object_id id);
 
-  virtual bool update_name_key(name_key_type *key) const
+  virtual bool update_name_key(Name_key *key) const
   { return update_routine_name_key(key, schema_id(), name()); }
 
-  virtual bool update_routine_name_key(name_key_type *key,
+  virtual bool update_routine_name_key(Name_key *key,
                                        Object_id schema_id,
                                        const String_type &name) const = 0;
 
-  virtual bool update_aux_key(aux_key_type*) const
+  virtual bool update_aux_key(Aux_key*) const
   { return true; }
 
 public:

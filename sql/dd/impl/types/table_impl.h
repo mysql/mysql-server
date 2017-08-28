@@ -31,10 +31,8 @@
 #include "sql/dd/sdi_fwd.h"
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/abstract_table.h"
-#include "sql/dd/types/entity_object_table.h"  // dd::Entity_object_table
 #include "sql/dd/types/foreign_key.h"          // dd::Foreign_key
 #include "sql/dd/types/index.h"                // dd::Index
-#include "sql/dd/types/object_type.h"
 #include "sql/dd/types/partition.h"            // dd::Partition
 #include "sql/dd/types/table.h"                // dd:Table
 #include "sql/dd/types/trigger.h"              // dd::Trigger
@@ -46,6 +44,7 @@ namespace dd {
 class Column;
 class Foreign_key;
 class Index;
+class Object_table;
 class Open_dictionary_tables_ctx;
 class Partition;
 class Properties;
@@ -72,8 +71,7 @@ public:
   { return enum_table_type::BASE_TABLE; }
 
 public:
-  virtual const Object_table &object_table() const
-  { return Table::OBJECT_TABLE(); }
+  static void register_tables(Open_dictionary_tables_ctx *otx);
 
   virtual bool validate() const;
 
@@ -399,7 +397,7 @@ public:
   { return Abstract_table_impl::get_column(name); }
   Column *get_column(const String_type name)
   { return Abstract_table_impl::get_column(name); }
-  virtual bool update_aux_key(aux_key_type *key) const
+  virtual bool update_aux_key(Aux_key *key) const
   { return Table::update_aux_key(key); }
   virtual enum_hidden_type hidden() const
   { return Abstract_table_impl::hidden(); }
@@ -491,17 +489,6 @@ private:
   {
     return new Table_impl(*this);
   }
-};
-
-///////////////////////////////////////////////////////////////////////////
-
-class Table_type : public Object_type
-{
-public:
-  virtual void register_tables(Open_dictionary_tables_ctx *otx) const;
-
-  virtual Weak_object *create_object() const
-  { return new (std::nothrow) Table_impl(); }
 };
 
 ///////////////////////////////////////////////////////////////////////////

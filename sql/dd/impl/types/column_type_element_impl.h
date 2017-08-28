@@ -23,7 +23,6 @@
 #include "sql/dd/sdi_fwd.h"
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/column_type_element.h" // dd::Column_type_element
-#include "sql/dd/types/object_type.h"         // dd::Object_type
 
 namespace dd {
 
@@ -61,8 +60,9 @@ public:
   { }
 
 public:
-  virtual const Object_table &object_table() const
-  { return Column_type_element::OBJECT_TABLE(); }
+  virtual const Object_table &object_table() const;
+
+  static void register_tables(Open_dictionary_tables_ctx *otx);
 
   virtual bool validate() const;
 
@@ -130,17 +130,6 @@ protected:
 
   // References to other objects
   Column_impl *m_column;
-};
-
-///////////////////////////////////////////////////////////////////////////
-
-class Column_type_element_type : public Object_type
-{
-public:
-  virtual void register_tables(Open_dictionary_tables_ctx *otx) const;
-
-  virtual Weak_object *create_object() const
-  { return new (std::nothrow) Column_type_element_impl(); }
 };
 
 ///////////////////////////////////////////////////////////////////////////

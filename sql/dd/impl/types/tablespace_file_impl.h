@@ -25,7 +25,6 @@
 #include "sql/dd/properties.h"
 #include "sql/dd/sdi_fwd.h"
 #include "sql/dd/string_type.h"
-#include "sql/dd/types/object_type.h"       // dd::Object_type
 #include "sql/dd/types/tablespace_file.h"   // dd::Tablespace_file
 
 namespace dd {
@@ -58,8 +57,7 @@ public:
   { }
 
 public:
-  virtual const Object_table &object_table() const
-  { return Tablespace_file::OBJECT_TABLE(); }
+  virtual const Object_table &object_table() const;
 
   virtual bool store(Open_dictionary_tables_ctx *otx);
 
@@ -79,6 +77,8 @@ public:
   { m_ordinal_position= ordinal_position; }
 
 public:
+  static void register_tables(Open_dictionary_tables_ctx *otx);
+
   /////////////////////////////////////////////////////////////////////////
   // ordinal_position.
   /////////////////////////////////////////////////////////////////////////
@@ -142,17 +142,6 @@ private:
 
   // References to other objects
   Tablespace_impl *m_tablespace;
-};
-
-///////////////////////////////////////////////////////////////////////////
-
-class Tablespace_file_type : public Object_type
-{
-public:
-  virtual void register_tables(Open_dictionary_tables_ctx *otx) const;
-
-  virtual Weak_object *create_object() const
-  { return new (std::nothrow) Tablespace_file_impl(); }
 };
 
 ///////////////////////////////////////////////////////////////////////////

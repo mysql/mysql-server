@@ -31,9 +31,9 @@ namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Entity_object_table;
 class Item_name_key;
-class Object_type;
+class Primary_id_key;
+class Spatial_reference_system_impl;
 class Void_key;
 
 namespace tables {
@@ -45,27 +45,25 @@ namespace tables {
 class Spatial_reference_system : virtual public Entity_object
 {
 public:
-  static const Object_type &TYPE();
-  static const Entity_object_table &OBJECT_TABLE();
-
-  typedef Spatial_reference_system cache_partition_type;
-  typedef tables::Spatial_reference_systems cache_partition_table_type;
-  typedef Primary_id_key id_key_type;
-  typedef Item_name_key name_key_type;
-  typedef Void_key aux_key_type;
+  typedef Spatial_reference_system_impl Impl;
+  typedef Spatial_reference_system Cache_partition;
+  typedef tables::Spatial_reference_systems DD_table;
+  typedef Primary_id_key Id_key;
+  typedef Item_name_key Name_key;
+  typedef Void_key Aux_key;
 
   // We need a set of functions to update a preallocated key.
-  virtual bool update_id_key(id_key_type *key) const
+  virtual bool update_id_key(Id_key *key) const
   { return update_id_key(key, id()); }
 
-  static bool update_id_key(id_key_type *key, Object_id id);
+  static bool update_id_key(Id_key *key, Object_id id);
 
-  virtual bool update_name_key(name_key_type *key) const
+  virtual bool update_name_key(Name_key *key) const
   { return update_name_key(key, name()); }
 
-  static bool update_name_key(name_key_type *key, const String_type &name);
+  static bool update_name_key(Name_key *key, const String_type &name);
 
-  virtual bool update_aux_key(aux_key_type*) const
+  virtual bool update_aux_key(Aux_key*) const
   { return true; }
 
 public:

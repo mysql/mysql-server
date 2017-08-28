@@ -23,7 +23,6 @@
 #include "sql/dd/impl/types/weak_object_impl.h" // dd::Weak_object_impl
 #include "sql/dd/sdi_fwd.h"
 #include "sql/dd/string_type.h"
-#include "sql/dd/types/object_type.h"        // dd::Object_type
 #include "sql/dd/types/partition_value.h"    // dd::Partition_value
 
 namespace dd {
@@ -69,8 +68,7 @@ public:
   { }
 
 public:
-  virtual const Object_table &object_table() const
-  { return Partition_value::OBJECT_TABLE(); }
+  virtual const Object_table &object_table() const;
 
   virtual bool validate() const;
 
@@ -89,6 +87,8 @@ public:
   { return -1; }
 
 public:
+  static void register_tables(Open_dictionary_tables_ctx *otx);
+
   /////////////////////////////////////////////////////////////////////////
   // index.
   /////////////////////////////////////////////////////////////////////////
@@ -180,17 +180,6 @@ private:
 
   // References to other objects
   Partition_impl *m_partition;
-};
-
-///////////////////////////////////////////////////////////////////////////
-
-class Partition_value_type : public Object_type
-{
-public:
-  virtual void register_tables(Open_dictionary_tables_ctx *otx) const;
-
-  virtual Weak_object *create_object() const
-  { return new (std::nothrow) Partition_value_impl(); }
 };
 
 ///////////////////////////////////////////////////////////////////////////

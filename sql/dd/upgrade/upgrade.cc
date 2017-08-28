@@ -70,7 +70,7 @@ class Table;
 }  // namespace dd
 
 namespace dd {
-namespace upgrade{
+namespace upgrade_57{
 
 /*
   The variable is used to differentiate between a normal server restart
@@ -348,7 +348,7 @@ bool check_for_dd_tables()
       find_type(schema_name, table_name);
 
     bool is_innodb_stats_table= (table_type != nullptr) &&
-                                (*table_type == System_tables::Types::SUPPORT);
+                                (*table_type == System_tables::Types::DDSE);
     is_innodb_stats_table &= ((table_name == "innodb_table_stats") ||
                               (table_name == "innodb_index_stats"));
 
@@ -1003,7 +1003,7 @@ bool do_pre_checks_and_initialize_dd(THD *thd)
   }
   else
   {
-    if (bootstrap::DDSE_dict_init(thd, DICT_INIT_UPGRADE_FILES,
+    if (bootstrap::DDSE_dict_init(thd, DICT_INIT_UPGRADE_57_FILES,
                                   d->get_target_dd_version()))
     {
       LogErr(ERROR_LEVEL, ER_DD_UPGRADE_FAILED_INIT_DD_SE);

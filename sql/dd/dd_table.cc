@@ -33,11 +33,13 @@
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/dd/cache/dictionary_client.h"   // dd::cache::Dictionary_client
+#include "sql/dd/collection.h"                // dd::Collection
 #include "sql/dd/dd.h"                        // dd::get_dictionary
 #include "sql/dd/dictionary.h"                // dd::Dictionary
 // TODO: Avoid exposing dd/impl headers in public files.
 #include "sql/dd/impl/dictionary_impl.h"      // default_catalog_name
 #include "sql/dd/impl/system_registry.h"      // dd::System_tables
+#include "sql/dd/impl/tables/dd_properties.h"      // dd::tables:.DD_properties
 #include "sql/dd/impl/utils.h"                // dd::escape
 #include "sql/dd/performance_schema/init.h"   // performance_schema::
                                               //   set_PS_version_for_table
@@ -56,6 +58,7 @@
 #include "sql/dd/types/table.h"               // dd::Table
 #include "sql/dd/types/tablespace.h"          // dd::Tablespace
 #include "sql/dd_table_share.h"               // is_suitable_for_primary_key
+#include "sql/dd/dd_version.h"                // DD_VERSION
 #include "sql/debug_sync.h"                   // DEBUG_SYNC
 #include "sql/default_values.h"               // max_pack_length
 #include "sql/enum_query_type.h"
@@ -2310,6 +2313,89 @@ static bool fill_dd_table_from_create_info(THD *thd,
   return false;
 }
 
+/**
+  Get the SE private data from the dd_properties table.
+
+  @note During restart, when the scaffolding is created, we assign the
+  DD tablespace id (==1) even though this is different that the scaffolding
+  DD tablespace id. This is because both server code and innodb code has
+  hard coded expectations regarding the DD tablespace id.
+
+  @param [in]     thd        Thread context.
+  @param [in,out] tab_obj    Table object to which SE private
+                             data should be added.
+
+  @returns true if error, false otherwise.
+*/
+static bool get_se_private_data(THD *thd, dd::Table *tab_obj)
+{
+  using dd::tables::DD_properties;
+  std::unique_ptr<dd::Properties> sys_tbl_props;
+  bool exists= false;
+  String_type tbl_prop_str;
+  if (dd::tables::DD_properties::instance().get(thd,
+          "SYSTEM_TABLES", &sys_tbl_props, &exists) ||
+      !exists ||
+      sys_tbl_props->get(tab_obj->name(), tbl_prop_str))
+  {
+    my_error(ER_DD_METADATA_NOT_FOUND, MYF(0), tab_obj->name().c_str());
+    return true;
+  }
+
+  std::unique_ptr<dd::Properties> tbl_props(
+    Properties::parse_properties(tbl_prop_str));
+  Object_id se_id= INVALID_OBJECT_ID;
+  Object_id space_id= INVALID_OBJECT_ID;
+  String_type se_data;
+
+  if (tbl_props->get_uint64(DD_properties::dd_key(
+        DD_properties::DD_property::ID), &se_id) ||
+      tbl_props->get_uint64(DD_properties::dd_key(
+        DD_properties::DD_property::SPACE_ID), &space_id) ||
+      tbl_props->get(DD_properties::dd_key(
+        DD_properties::DD_property::DATA), se_data))
+  {
+    my_error(ER_DD_METADATA_NOT_FOUND, MYF(0), tab_obj->name().c_str());
+    return true;
+  }
+
+  tab_obj->set_se_private_id(se_id);
+  tab_obj->set_tablespace_id(space_id);
+  tab_obj->set_se_private_data_raw(se_data);
+
+  // Assign SE private data for indexes.
+  int count= 0;
+  for (auto idx: *tab_obj->indexes())
+  {
+    std::stringstream ss;
+    ss << DD_properties::dd_key(
+            DD_properties::DD_property::IDX) << count++;
+    if (tbl_props->get(ss.str().c_str(), se_data))
+    {
+      my_error(ER_DD_METADATA_NOT_FOUND, MYF(0), tab_obj->name().c_str());
+      return true;
+    }
+    idx->set_se_private_data_raw(se_data);
+    // Assign the same tablespace id for the indexes as for the table.
+    idx->set_tablespace_id(space_id);
+  }
+
+  // Assign SE private data for columns.
+  count= 0;
+  for (auto col: *tab_obj->columns())
+  {
+    std::stringstream ss;
+    ss << DD_properties::dd_key(
+            DD_properties::DD_property::COL) << count++;
+    if (tbl_props->get(ss.str().c_str(), se_data))
+    {
+      my_error(ER_DD_METADATA_NOT_FOUND, MYF(0), tab_obj->name().c_str());
+      return true;
+    }
+    col->set_se_private_data_raw(se_data);
+  }
+  return false;
+}
 
 static bool create_dd_system_table(THD *thd,
                                    const dd::Schema &system_schema,
@@ -2327,7 +2413,7 @@ static bool create_dd_system_table(THD *thd,
   std::unique_ptr<dd::Table> tab_obj(system_schema.create_table(thd));
 
   // Set to be hidden if appropriate.
-  tab_obj->set_hidden(dd_table.hidden() ?
+  tab_obj->set_hidden(dd_table.is_hidden() ?
                       dd::Abstract_table::HT_HIDDEN_SYSTEM :
                       dd::Abstract_table::HT_VISIBLE);
 
@@ -2337,9 +2423,32 @@ static bool create_dd_system_table(THD *thd,
                                      fk_keyinfo, fk_keys, file))
     return true;
 
-  if (file->ha_get_se_private_data(tab_obj.get(),
-                                   dd_table.default_dd_version(thd)))
+  /*
+    During --initialize, and for inert tables, get the SE private data
+    from the SE, and store it in the dd_properties table at a later stage.
+    Otherwise, get the SE private data from the 'dd_properties' table.
+  */
+  const System_tables::Types *table_type= System_tables::instance()->
+          find_type(system_schema.name(), table_name);
+  if (opt_initialize || (table_type != nullptr &&
+                         *table_type  == System_tables::Types::INERT))
+  {
+    if (file->ha_get_se_private_data(tab_obj.get(),
+              (table_type != nullptr &&
+               *table_type  == System_tables::Types::INERT)))
+      return true;
+  }
+  else
+  {
+    if (get_se_private_data(thd, tab_obj.get()))
+      return true;
+  }
+
+  // Register the se private id with the DDSE.
+  handlerton *ddse= ha_resolve_by_legacy_type(thd, DB_TYPE_INNODB);
+  if (ddse->dict_register_dd_table_id == nullptr)
     return true;
+  ddse->dict_register_dd_table_id(tab_obj->se_private_id());
 
   return thd->dd_client()->store(tab_obj.get());
 }

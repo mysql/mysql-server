@@ -38,7 +38,6 @@
 #include "sql/dd/types/foreign_key_element.h"
 #include "sql/dd/types/index.h"
 #include "sql/dd/types/index_element.h"
-#include "sql/dd/types/object_type.h"
 #include "sql/dd/types/partition.h"
 #include "sql/dd/types/partition_index.h"
 #include "sql/dd/types/partition_value.h"

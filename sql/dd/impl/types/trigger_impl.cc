@@ -37,23 +37,6 @@ namespace dd {
 class Table;
 
 ///////////////////////////////////////////////////////////////////////////
-// Trigger implementation.
-///////////////////////////////////////////////////////////////////////////
-
-const Object_table &Trigger::OBJECT_TABLE()
-{
-  return Triggers::instance();
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-const Object_type &Trigger::TYPE()
-{
-  static Trigger_type s_instance;
-  return s_instance;
-}
-
-///////////////////////////////////////////////////////////////////////////
 // Trigger_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
 
@@ -100,7 +83,7 @@ bool Trigger_impl::validate() const
   {
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),
-             Trigger_impl::OBJECT_TABLE().name().c_str(),
+             DD_table::instance().name().c_str(),
              "Table object for trigger is not set");
     return true;
   }
@@ -244,10 +227,15 @@ Trigger_impl::Trigger_impl(const Trigger_impl &src, Table_impl *parent)
 { }
 
 ///////////////////////////////////////////////////////////////////////////
-// Trigger_type implementation.
+
+const Object_table &Trigger_impl::object_table() const
+{
+  return DD_table::instance();
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
-void Trigger_type::register_tables(Open_dictionary_tables_ctx *otx) const
+void Trigger_impl::register_tables(Open_dictionary_tables_ctx *otx)
 {
   otx->add_table<Triggers>();
 }

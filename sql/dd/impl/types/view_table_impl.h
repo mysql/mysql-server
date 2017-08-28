@@ -22,7 +22,6 @@
 #include "sql/dd/impl/raw/raw_record.h"
 #include "sql/dd/impl/types/weak_object_impl.h" // dd::Weak_object_impl
 #include "sql/dd/string_type.h"
-#include "sql/dd/types/object_type.h"        // dd::Object_type
 #include "sql/dd/types/view_table.h"         // dd::View_table
 
 namespace dd {
@@ -52,8 +51,9 @@ public:
   { }
 
 public:
-  virtual const Object_table &object_table() const
-  { return View_table::OBJECT_TABLE(); }
+  static void register_tables(Open_dictionary_tables_ctx *otx);
+
+  virtual const Object_table &object_table() const;
 
   virtual bool validate() const;
 
@@ -131,17 +131,6 @@ private:
 
   // References to other objects
   View_impl *m_view;
-};
-
-///////////////////////////////////////////////////////////////////////////
-
-class View_table_type : public Object_type
-{
-public:
-  virtual void register_tables(Open_dictionary_tables_ctx *otx) const;
-
-  virtual Weak_object *create_object() const
-  { return new (std::nothrow) View_table_impl(); }
 };
 
 ///////////////////////////////////////////////////////////////////////////

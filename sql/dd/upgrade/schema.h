@@ -23,7 +23,7 @@
 class THD;
 
 namespace dd {
-namespace upgrade {
+namespace upgrade_57 {
 
 /**
   Create entry in mysql.schemata for all the folders found in data directory.

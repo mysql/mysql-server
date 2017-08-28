@@ -32,13 +32,6 @@ class View_routine_usage : virtual public Object_table_impl
 public:
   static const View_routine_usage &instance();
 
-  static const String_type &table_name()
-  {
-    static String_type s_table_name("view_routine_usage");
-    return s_table_name;
-  }
-
-public:
   enum enum_fields
   {
     FIELD_VIEW_ID,
@@ -47,13 +40,19 @@ public:
     FIELD_ROUTINE_NAME
   };
 
-public:
+  enum enum_indexes
+  {
+    INDEX_PK_VIEW_ID_ROUTINE_CATALOG,
+    INDEX_K_ROUTINE_CATALOG_ROUTINE_SCHEMA_ROUTINE_NAME
+  };
+
+  enum enum_foreign_keys
+  {
+    FK_VIEW_ID
+  };
+
   View_routine_usage();
 
-  virtual const String_type &name() const
-  { return View_routine_usage::table_name(); }
-
-public:
   static Object_key *create_key_by_view_id(Object_id view_id);
 
   static Object_key *create_primary_key(Object_id view_id,

@@ -27,17 +27,19 @@ namespace dd {
 class Routine;
 class Parameter_impl;
 class Parameter_type_element;
-class Object_type;
+
+namespace tables {
+  class Parameters;
+};
 
 ///////////////////////////////////////////////////////////////////////////
 
 class Parameter : virtual public Entity_object
 {
 public:
-  static const Object_type &TYPE();
-  static const Object_table &OBJECT_TABLE();
   typedef Collection<Parameter_type_element*> Parameter_type_element_collection;
   typedef Parameter_impl Impl;
+  typedef tables::Parameters DD_table;
 
 public:
   virtual ~Parameter()

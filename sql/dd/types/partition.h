@@ -26,8 +26,6 @@ namespace dd {
 ///////////////////////////////////////////////////////////////////////////
 
 class Index;
-class Object_table;
-class Object_type;
 class Partition_impl;
 class Partition_index;
 class Partition_value;
@@ -35,16 +33,19 @@ class Properties;
 class Table;
 template <typename T> class Collection;
 
+namespace tables {
+  class Table_partitions;
+};
+
 ///////////////////////////////////////////////////////////////////////////
 
 class Partition : virtual public Entity_object
 {
 public:
-  static const Object_type &TYPE();
-  static const Object_table &OBJECT_TABLE();
   typedef Collection<Partition_index*> Partition_indexes;
   typedef Collection<Partition_value*> Partition_values;
   typedef Partition_impl Impl;
+  typedef tables::Table_partitions DD_table;
 
 public:
   virtual ~Partition()

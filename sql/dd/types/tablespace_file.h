@@ -24,20 +24,21 @@ namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Object_type;
-class Object_table;
 class Properties;
 class Tablespace;
 class Tablespace_file_impl;
+
+namespace tables {
+  class Tablespace_files;
+};
 
 ///////////////////////////////////////////////////////////////////////////
 
 class Tablespace_file : virtual public Weak_object
 {
 public:
-  static const Object_type &TYPE();
-  static const Object_table &OBJECT_TABLE();
   typedef Tablespace_file_impl Impl;
+  typedef tables::Tablespace_files DD_table;
 
 public:
   virtual ~Tablespace_file()

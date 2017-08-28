@@ -20,6 +20,7 @@
 #include "sql/dd/dd.h"                   // dd::create_object
 #include "sql/dd/impl/raw/object_keys.h" // dd::Routine_name_key
 #include "sql/dd/impl/raw/raw_record.h"  // dd::Raw_record
+#include "sql/dd/impl/tables/dd_properties.h"     // TARGET_DD_VERSION
 #include "sql/dd/impl/types/object_table_definition_impl.h"
 #include "sql/dd/types/function.h"       // dd::Function
 #include "sql/dd/types/procedure.h"      // dd::Procedure
@@ -35,7 +36,7 @@ const Routines &Routines::instance()
 
 Routines::Routines()
 {
-  m_target_def.table_name(table_name());
+  m_target_def.set_table_name("routines");
 
   m_target_def.add_field(FIELD_ID,
                          "FIELD_ID",
@@ -172,19 +173,48 @@ Routines::Routines()
   m_target_def.add_field(FIELD_COMMENT,
                          "FIELD_COMMENT",
                          "comment TEXT NOT NULL");
+  m_target_def.add_field(FIELD_OPTIONS,
+                         "FIELD_OPTIONS",
+                         "options MEDIUMTEXT");
 
-  m_target_def.add_index("PRIMARY KEY(id)");
-  m_target_def.add_index("UNIQUE KEY(schema_id, type, name)");
+  m_target_def.add_index(INDEX_PK_ID,
+                         "INDEX_PK_ID",
+                         "PRIMARY KEY(id)");
+  m_target_def.add_index(INDEX_UK_SCHEMA_ID_TYPE_NAME,
+                         "INDEX_UK_SCHEMA_ID_TYPE_NAME",
+                         "UNIQUE KEY(schema_id, type, name)");
+  m_target_def.add_index(INDEX_K_RESULT_COLLATION_ID,
+                         "INDEX_K_RESULT_COLLATION_ID",
+                         "KEY(result_collation_id)");
+  m_target_def.add_index(INDEX_K_CLIENT_COLLATION_ID,
+                         "INDEX_K_CLIENT_COLLATION_ID",
+                         "KEY(client_collation_id)");
+  m_target_def.add_index(INDEX_K_CONNECTION_COLLATION_ID,
+                         "INDEX_K_CONNECTION_COLLATION_ID",
+                         "KEY(connection_collation_id)");
+  m_target_def.add_index(INDEX_K_SCHEMA_COLLATION_ID,
+                         "INDEX_K_SCHEMA_COLLATION_ID",
+                         "KEY(schema_collation_id)");
 
-  m_target_def.add_foreign_key("FOREIGN KEY (schema_id) "
+  m_target_def.add_foreign_key(FK_SCHEMA_ID,
+                               "FK_SCHEMA_ID",
+                               "FOREIGN KEY (schema_id) "
                                "REFERENCES schemata(id)");
-  m_target_def.add_foreign_key("FOREIGN KEY (result_collation_id) "
+  m_target_def.add_foreign_key(FK_RESULT_COLLATION_ID,
+                               "FK_RESULT_COLLATION_ID",
+                               "FOREIGN KEY (result_collation_id) "
                                "REFERENCES collations(id)");
-  m_target_def.add_foreign_key("FOREIGN KEY (client_collation_id) "
+  m_target_def.add_foreign_key(FK_CLIENT_COLLATION_ID,
+                               "FK_CLIENT_COLLATION_ID",
+                               "FOREIGN KEY (client_collation_id) "
                                "REFERENCES collations(id)");
-  m_target_def.add_foreign_key("FOREIGN KEY (connection_collation_id) "
+  m_target_def.add_foreign_key(FK_CONNECTION_COLLATION_ID,
+                               "FK_CONNECTION_COLLATION_ID",
+                               "FOREIGN KEY (connection_collation_id) "
                                "REFERENCES collations(id)");
-  m_target_def.add_foreign_key("FOREIGN KEY (schema_collation_id) "
+  m_target_def.add_foreign_key(FK_SCHEMA_COLLATION_ID,
+                               "FK_SCHEMA_COLLATION_ID",
+                               "FOREIGN KEY (schema_collation_id) "
                                "REFERENCES collations(id)");
 }
 
@@ -209,7 +239,8 @@ bool Routines::update_object_key(Routine_name_key *key,
                                  Routine::enum_routine_type type,
                                  const String_type &routine_name)
 {
-  key->update(FIELD_SCHEMA_ID, schema_id,
+  key->update(INDEX_UK_SCHEMA_ID_TYPE_NAME,
+              FIELD_SCHEMA_ID, schema_id,
               FIELD_TYPE, type,
               FIELD_NAME, routine_name.c_str());
   return false;
@@ -219,7 +250,8 @@ bool Routines::update_object_key(Routine_name_key *key,
 
 Object_key *Routines::create_key_by_schema_id(Object_id schema_id)
 {
-  return new (std::nothrow) Parent_id_range_key(1, FIELD_SCHEMA_ID, schema_id);
+  return new (std::nothrow) Parent_id_range_key(
+          INDEX_UK_SCHEMA_ID_TYPE_NAME, FIELD_SCHEMA_ID, schema_id);
 }
 
 ///////////////////////////////////////////////////////////////////////////

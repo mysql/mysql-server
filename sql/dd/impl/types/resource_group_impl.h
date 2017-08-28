@@ -27,7 +27,6 @@
 #include "sql/dd/impl/types/weak_object_impl.h"
 #include "sql/dd/object_id.h"
 #include "sql/dd/types/resource_group.h"           // dd::Resource_group
-#include "sql/dd/types/object_type.h"              // dd::Object_type
 #include "sql/resourcegroups/resource_group_sql_cmd.h" // resourcegroups::Type
 
 
@@ -48,8 +47,8 @@ public:
   {}
 
 public:
-  const Object_table &object_table() const override
-  { return Resource_group::OBJECT_TABLE(); }
+  const Object_table &object_table() const override;
+  static void register_tables(Open_dictionary_tables_ctx *otx);
 
   bool validate() const override;
   bool restore_attributes(const Raw_record &r) override;
@@ -100,13 +99,5 @@ private:
   }
 };
 
-class Resource_group_type : public Object_type
-{
-public:
-  void register_tables(Open_dictionary_tables_ctx *otx) const override;
-
-  Weak_object *create_object() const override
-  { return new (std::nothrow) Resource_group_impl(); }
-};
 } // dd
 #endif // DD__RESOURCE_GROUP_IMPL_INCLUDED

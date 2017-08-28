@@ -52,23 +52,6 @@ using dd::tables::Column_type_elements;
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
-// Column_type_element implementation.
-///////////////////////////////////////////////////////////////////////////
-
-const Object_table &Column_type_element::OBJECT_TABLE()
-{
-  return Column_type_elements::instance();
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-const Object_type &Column_type_element::TYPE()
-{
-  static Column_type_element_type s_instance;
-  return s_instance;
-}
-
-///////////////////////////////////////////////////////////////////////////
 // Column_type_element_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
 
@@ -83,7 +66,7 @@ bool Column_type_element_impl::validate() const
   {
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),
-             Column_type_element_impl::OBJECT_TABLE().name().c_str(),
+             DD_table::instance().name().c_str(),
              "No column associated with this object.");
     return true;
   }
@@ -112,7 +95,7 @@ bool Column_type_element_impl::restore_attributes(const Raw_record &r)
         r.read_ref_id(Column_type_elements::FIELD_COLUMN_ID)))
     return true;
 
-  m_index= r.read_uint(Column_type_elements::FIELD_INDEX);
+  m_index= r.read_uint(Column_type_elements::FIELD_ELEMENT_INDEX);
   m_name= r.read_str(Column_type_elements::FIELD_NAME);
 
   return false;
@@ -123,7 +106,7 @@ bool Column_type_element_impl::restore_attributes(const Raw_record &r)
 bool Column_type_element_impl::store_attributes(Raw_record *r)
 {
   return r->store(Column_type_elements::FIELD_COLUMN_ID, m_column->id()) ||
-         r->store(Column_type_elements::FIELD_INDEX, m_index) ||
+         r->store(Column_type_elements::FIELD_ELEMENT_INDEX, m_index) ||
          r->store(Column_type_elements::FIELD_NAME, m_name);
 }
 
@@ -185,10 +168,15 @@ Column_type_element_impl(const Column_type_element_impl &src,
 {}
 
 ///////////////////////////////////////////////////////////////////////////
-// Column_type_element_type implementation.
+
+const Object_table &Column_type_element_impl::object_table() const
+{
+  return DD_table::instance();
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
-void Column_type_element_type::register_tables(Open_dictionary_tables_ctx *otx) const
+void Column_type_element_impl::register_tables(Open_dictionary_tables_ctx *otx)
 {
   otx->add_table<Column_type_elements>();
 }

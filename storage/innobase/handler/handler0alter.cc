@@ -47,7 +47,6 @@ Smart ALTER TABLE
 #include "dd/types/index_element.h"
 #include "dd/types/partition.h"
 #include "dd/types/partition_index.h"
-#include "dd/types/object_type.h"
 #include "dd/types/tablespace_file.h"
 #include "dd_table_share.h"
 
@@ -1043,7 +1042,7 @@ ha_innobase::prepare_inplace_alter_table(
 	ut_ad(old_dd_tab != NULL);
 	ut_ad(new_dd_tab != NULL);
 
-	if (dict_sys_t::is_hardcoded(m_prebuilt->table->id)
+	if (dict_sys_t::is_dd_table_id(m_prebuilt->table->id)
 	    && innobase_need_rebuild(ha_alter_info)) {
 		ut_ad(!m_prebuilt->table->is_temporary());
 		my_error(ER_NOT_ALLOWED_COMMAND, MYF(0));

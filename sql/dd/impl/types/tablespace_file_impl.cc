@@ -48,23 +48,6 @@ class Sdi_rcontext;
 class Sdi_wcontext;
 
 ///////////////////////////////////////////////////////////////////////////
-// Tablespace_file implementation.
-///////////////////////////////////////////////////////////////////////////
-
-const Object_table &Tablespace_file::OBJECT_TABLE()
-{
-  return Tablespace_files::instance();
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-const Object_type &Tablespace_file::TYPE()
-{
-  static Tablespace_file_type s_instance;
-  return s_instance;
-}
-
-///////////////////////////////////////////////////////////////////////////
 // Tablespace_file_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
 
@@ -154,7 +137,7 @@ bool Tablespace_file_impl::validate() const
   {
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),
-             Tablespace_file_impl::OBJECT_TABLE().name().c_str(),
+             DD_table::instance().name().c_str(),
              "No tablespace associated with this file.");
     return true;
   }
@@ -257,10 +240,15 @@ Tablespace_file_impl(const Tablespace_file_impl &src,
 {}
 
 ///////////////////////////////////////////////////////////////////////////
-// Tablespace_file_type implementation.
+
+const Object_table &Tablespace_file_impl::object_table() const
+{
+  return DD_table::instance();
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
-void Tablespace_file_type::register_tables(Open_dictionary_tables_ctx *otx) const
+void Tablespace_file_impl::register_tables(Open_dictionary_tables_ctx *otx)
 {
   otx->add_table<Tablespace_files>();
 }

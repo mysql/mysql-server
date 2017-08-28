@@ -105,8 +105,7 @@ public:
   { return (schema_name == MYSQL_SCHEMA_NAME.str); }
 
   virtual bool is_dd_table_name(const String_type &schema_name,
-                               const String_type &table_name) const
-  { return (get_dd_table(schema_name, table_name) != NULL); }
+                               const String_type &table_name) const;
 
   virtual int table_type_error_code(const String_type &schema_name,
                                     const String_type &table_name) const;

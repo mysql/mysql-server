@@ -21,9 +21,9 @@
 #include "sql/dd/impl/raw/object_keys.h"
 #include "sql/dd/impl/raw/raw_record.h"
 #include "sql/dd/impl/raw/raw_table.h"
+#include "sql/dd/impl/tables/schemata.h"
 #include "sql/dd/impl/transaction_impl.h"
 #include "sql/dd/impl/types/schema_impl.h"
-#include "sql/dd/types/object_type.h"
 #include "unittest/gunit/dd.h"
 #include "unittest/gunit/test_utils.h"
 
@@ -479,8 +479,8 @@ TEST_F(SchemaTest, GetSchema)
 
   // Restore the object from the record.
   Entity_object *new_object= NULL;
-  EXPECT_FALSE(Schema::OBJECT_TABLE().restore_object_from_record(&ctx->otx, *r.get(),
-                                                                 &new_object));
+  EXPECT_FALSE(Schema::DD_table::instance().
+          restore_object_from_record(&ctx->otx, *r.get(), &new_object));
   schema= dynamic_cast<const Schema_impl*>(new_object);
 
   // Verify values stored into faked fields are read into schema object.

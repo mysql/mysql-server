@@ -32,27 +32,25 @@ class Parameter_type_elements : public Object_table_impl
 public:
   static const Parameter_type_elements &instance();
 
-  static const String_type &table_name()
-  {
-    static String_type s_table_name("parameter_type_elements");
-    return s_table_name;
-  }
-
-public:
   enum enum_fields
   {
     FIELD_PARAMETER_ID,
-    FIELD_INDEX,
+    FIELD_ELEMENT_INDEX,
     FIELD_NAME
   };
 
-public:
+  enum enum_indexes
+  {
+    INDEX_PK_PARAMETER_ID_ELEMENT_INDEX
+  };
+
+  enum enum_foreign_keys
+  {
+    FK_PARAMETER_ID
+  };
+
   Parameter_type_elements();
 
-  virtual const String_type &name() const
-  { return Parameter_type_elements::table_name(); }
-
-public:
   static Object_key *create_key_by_parameter_id(Object_id parameter_id);
 
   static Object_key *create_primary_key(Object_id parameter_id, int index);

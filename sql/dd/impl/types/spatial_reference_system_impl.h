@@ -31,8 +31,6 @@
 #include "sql/dd/object_id.h"
 #include "sql/dd/sdi_fwd.h"
 #include "sql/dd/string_type.h"
-#include "sql/dd/types/entity_object_table.h" // dd::Entity_object_table
-#include "sql/dd/types/object_type.h"         // dd::Object_type
 #include "sql/dd/types/spatial_reference_system.h"// dd:Spatial_reference_system
 #include "sql/dd/types/weak_object.h"
 #include "sql/gis/srid.h"
@@ -84,8 +82,7 @@ private:
   { }
 
 public:
-  virtual const Object_table &object_table() const override
-  { return Spatial_reference_system::OBJECT_TABLE(); }
+  virtual const Object_table &object_table() const override;
 
   virtual bool validate() const override;
 
@@ -103,6 +100,8 @@ public:
   bool parse_definition();
 
 public:
+  static void register_tables(Open_dictionary_tables_ctx *otx);
+
   /////////////////////////////////////////////////////////////////////////
   // created
   /////////////////////////////////////////////////////////////////////////
@@ -313,17 +312,6 @@ private:
   {
     return new Spatial_reference_system_impl(*this);
   }
-};
-
-///////////////////////////////////////////////////////////////////////////
-
-class Spatial_reference_system_type : public Object_type
-{
-public:
-  virtual void register_tables(Open_dictionary_tables_ctx *otx) const;
-
-  virtual Weak_object *create_object() const
-  { return new (std::nothrow) Spatial_reference_system_impl(); }
 };
 
 ///////////////////////////////////////////////////////////////////////////

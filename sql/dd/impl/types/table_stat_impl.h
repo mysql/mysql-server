@@ -26,7 +26,6 @@
 #include "sql/dd/object_id.h"
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/entity_object_table.h"
-#include "sql/dd/types/object_type.h"         // dd::Object_type
 #include "sql/dd/types/table_stat.h"          // dd::Table_stat
 
 namespace dd {
@@ -35,6 +34,7 @@ namespace dd {
 
 class Charset;
 class Object_key;
+class Object_table;
 class Open_dictionary_tables_ctx;
 class Raw_table;
 class Transaction;
@@ -64,8 +64,7 @@ public:
 public:
   virtual void debug_print(String_type &outb) const;
 
-  virtual const Object_table &object_table() const
-  { return Table_stat::OBJECT_TABLE(); }
+  virtual const Object_table &object_table() const;
 
   virtual bool validate() const;
 
@@ -73,6 +72,7 @@ public:
   virtual bool store_attributes(Raw_record *r);
 
 public:
+  static void register_tables(Open_dictionary_tables_ctx *otx);
 
   /////////////////////////////////////////////////////////////////////////
   // schema name.
@@ -240,17 +240,6 @@ private:
   ulonglong m_check_time;
   ulonglong m_cached_time;
 
-};
-
-///////////////////////////////////////////////////////////////////////////
-
-class Table_stat_type : public Object_type
-{
-public:
-  virtual Weak_object *create_object() const
-  { return new (std::nothrow) Table_stat_impl(); }
-
-  virtual void register_tables(Open_dictionary_tables_ctx *otx) const;
 };
 
 ///////////////////////////////////////////////////////////////////////////

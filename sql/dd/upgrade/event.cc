@@ -63,7 +63,7 @@ class Schema;
 }  // namespace dd
 
 namespace dd {
-namespace upgrade {
+namespace upgrade_57 {
 
 static Check_table_intact table_intact;
 

@@ -39,23 +39,6 @@ using dd::tables::Parameters;
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
-// Routine implementation.
-///////////////////////////////////////////////////////////////////////////
-
-const Entity_object_table &Routine::OBJECT_TABLE()
-{
-  return Routines::instance();
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-const Object_type &Routine::TYPE()
-{
-  static Routine_type s_instance;
-  return s_instance;
-}
-
-///////////////////////////////////////////////////////////////////////////
 // Routine_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
 
@@ -85,7 +68,7 @@ bool Routine_impl::validate() const
   {
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),
-             Routine_impl::OBJECT_TABLE().name().c_str(),
+             DD_table::instance().name().c_str(),
              "Schema ID is not set");
     return true;
   }
@@ -212,7 +195,7 @@ bool Routine_impl::store_attributes(Raw_record *r)
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Routine::update_id_key(id_key_type *key, Object_id id)
+bool Routine::update_id_key(Id_key *key, Object_id id)
 {
   key->update(id);
   return false;
@@ -267,10 +250,15 @@ Parameter *Routine_impl::add_parameter()
 }
 
 ///////////////////////////////////////////////////////////////////////////
-// Routine_type implementation.
+
+const Object_table &Routine_impl::object_table() const
+{
+  return DD_table::instance();
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
-void Routine_type::register_tables(Open_dictionary_tables_ctx *otx) const
+void Routine_impl::register_tables(Open_dictionary_tables_ctx *otx)
 {
   otx->add_table<Routines>();
 

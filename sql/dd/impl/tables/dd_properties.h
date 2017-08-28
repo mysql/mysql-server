@@ -18,30 +18,16 @@
 
 #include <sys/types.h>
 #include <string>
+#include <map>
 
 #include "sql/dd/impl/properties_impl.h"            // dd::Properties_impl
 #include "sql/dd/impl/types/object_table_impl.h"
-#include "sql/dd/types/object_table_definition.h"   // DD_VERSION
-#include "sql/dd/info_schema/metadata.h"            // IS_DD_VERSION
 #include "sql/dd/string_type.h"
-#include "storage/perfschema/pfs_dd_version.h"
 
 class THD;
 
 namespace dd {
 namespace tables {
-
-// The version of the current DD schema
-static const uint TARGET_DD_VERSION= dd::DD_VERSION;
-
-// The version of the current server IS schema
-static const uint TARGET_I_S_VERSION= dd::info_schema::IS_DD_VERSION;
-
-// The version of the current server PS schema
-static const uint TARGET_P_S_VERSION= PFS_DD_VERSION;
-
-// Unknown version of the current server PS schema. It is used for tests.
-static const uint UNKNOWN_P_S_VERSION= -1;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -55,133 +41,236 @@ public:
     FIELD_PROPERTIES
   };
 
-  static const DD_properties &instance();
+  static DD_properties &instance();
 
-  static const String_type &table_name()
+
+  /**
+    The 'mysql.dd_properties' table will store key=value pairs. The valid
+    keys are predefined, and represented in an internal map as pairs of
+    'key name','type'. This is used in get() and set() to verify that the
+    key is valid, and that the type of the value we are getting or setting
+    is correct.
+
+    One of the keys is 'SYSTEM_TABLES'. This is itself a property object
+    where the keys are names of DD tables, and the values are property
+    objects containing information about each table. These property objects
+    will also have a set of predefined keys. These are defined by an
+    enumeration, and there is a function that returns keys for each
+    enumeration value. The purpose of this is to avoid directly entering
+    keys in the source code, which is prone to mistyping etc.
+
+    The two structures of valid keys are separate because they are used for
+    different purposes. The top level keys defined in the internal map are
+    used when properties at the top level are being looked up. The keys for
+    the DD tables are used to lookup in the property object which is associated
+    with a table DD name.
+  */
+
+  /**
+    Enumeration used to lookup the valid keys for the DD table properties.
+  */
+  enum class DD_property
   {
-    static String_type s_table_name("dd_properties");
-    return s_table_name;
-  }
+    ID,
+    DATA,
+    SPACE_ID,
+    IDX,
+    COL,
+    DEF
+  };
 
-  virtual const String_type &name() const
-  { return DD_properties::table_name(); }
-
-
-public:
-
-  /*
-    Methods that relate to store 'DD_version' perperty
-    in DD_properties table.
-  */
 
   /**
-    The DD version is always 0 for DD_properties table.
+    Property key names for DD table properties.
 
-    @returns 0 always
+    @param label   Enumeration label of the key.
+
+    @return Key character string.
   */
-  uint default_dd_version(THD*) const
-  { return 0; }
+  static const char* dd_key(DD_property label)
+  {
+    switch (label)
+    {
+    case DD_property::ID:       return "id";
+    case DD_property::DATA:     return "data";
+    case DD_property::SPACE_ID: return "space_id";
+    case DD_property::IDX:      return "idx";
+    case DD_property::COL:      return "col";
+    case DD_property::DEF:      return "def";
+    default:
+      DBUG_ASSERT(false);
+      return "";
+    }
+  };
+
 
   /**
-    The DD version required by the current server binaries.
+    Get the integer value of the property key.
 
-    @returns TARGET_DD_VERSION
-  */
-  static uint get_target_dd_version()
-  { return TARGET_DD_VERSION; }
+    Will validate the key before retrieving the value.
 
-  /**
-    The DD version stored in mysql.dd_properties.
-
-    @param thd         - Thread context.
-
-    @returns TARGET_DD_VERSION
-  */
-  uint get_actual_dd_version(THD *thd) const;
-
-
-  /*
-    Following are methods that relate to store 'DD_version'
-    property in DD_properties table.
-  */
-
-  /**
-    The IS version required by the current server binaries.
-
-    @returns TARGET_I_S_VERSION
-  */
-  static uint get_target_I_S_version()
-  { return TARGET_I_S_VERSION; }
-
-  /**
-    The IS version stored in mysql.dd_properties.
-
-    @param thd - Thread context.
-
-    @returns TARGET_I_S_VERSION
-  */
-  uint get_actual_I_S_version(THD *thd) const;
-
-  /**
-    The PS version required by the current server binaries.
-
-    @returns TARGET_P_S_VERSION
-  */
-  static uint get_target_P_S_version()
-  { return TARGET_P_S_VERSION; }
-
-  /**
-    The PS version stored in mysql.dd_properties.
-
-    @param thd - Thread context.
-
-    @returns actual PS version
-  */
-  uint get_actual_P_S_version(THD *thd) const;
-
-  /**
-    Store IS version in mysql.dd_properties.
-
-    @param thd     - Thread context.
-    @param version - The version number to stored.
+    @param       thd     Thread context.
+    @param       key     The key representing the property.
+    @param [out] value   Corresponding value, if it exists, otherwise
+                         undefined.
+    @param [out] exists  Will be 'false' if key is not present.
 
     @returns false on success otherwise true.
   */
-  bool set_I_S_version(THD *thd, uint version);
+  bool get(THD *thd, const String_type &key, uint *value, bool *exists);
+
 
   /**
-    Store PS version in mysql.dd_properties.
+    Set the integer value of the property key.
 
-    @param thd     - Thread context.
-    @param version - The version number to stored.
+    Will validate the key before setting the value.
+
+    @param thd    Thread context.
+    @param key    The key representing the property.
+    @param value  The value to be stored for 'key'.
 
     @returns false on success otherwise true.
   */
-  bool set_P_S_version(THD *thd, uint version);
+  bool set(THD *thd, const String_type &key, uint value);
+
+
+  /**
+    Get the character string value of the property key.
+
+    Will validate the key before retrieving the value.
+
+    @param       thd     Thread context.
+    @param       key     The key representing the property.
+    @param [out] value   Corresponding value, if it exists, otherwise
+                         undefined.
+    @param [out] exists  Will be 'false' if key is not present.
+
+    @returns false on success otherwise true.
+  */
+  bool get(THD *thd, const String_type &key, String_type *value, bool *exists);
+
+
+  /**
+    Set the character string value of the property key.
+
+    Will validate the key before setting the value.
+
+    @param thd    Thread context.
+    @param key    The key representing the property.
+    @param value  The value to be stored for 'key'.
+
+    @returns false on success otherwise true.
+  */
+  bool set(THD *thd, const String_type &key, const String_type &value);
+
+
+  /**
+    Get the properties object associated with a key.
+
+    Will validate the key before retrieving the properties. Used to
+    get hold of SE private data for the DD tables.
+
+    @param       thd        Thread context.
+    @param       key        Key name.
+    @param [out] properties Properties object associated with the key.
+    @param [out] exists     Will be 'false' if key is not present.
+
+    @returns false on success otherwise true.
+  */
+  bool get(THD *thd,
+           const String_type &key,
+           std::unique_ptr<Properties> *properties,
+           bool *exists);
+
+
+  /**
+    Set the properties object associated with a key.
+
+    Will validate the key before setting the properties. Used to
+    store SE private data for the DD tables.
+
+    @param thd        Thread context.
+    @param key        Key name.
+    @param properties Properties object associated with the key.
+
+    @returns false on success otherwise true.
+  */
+  bool set(THD *thd,
+           const String_type &key,
+           const dd::Properties &properties);
+
 
 private:
+  // A cache of the table contents.
+  std::unique_ptr<Properties> m_properties;
+
+  // Definitions of the valid property types. Used for internal validation.
+  enum class Property_type
+  {
+    UNSIGNED_INT_32,
+    CHARACTER_STRING,
+    PROPERTIES
+  };
+
+  // Map from valid property keys to types. Used for internal validation.
+  std::map<String_type, Property_type> m_property_desc;
+
 
   /**
-    Get the value of given property key stored in dd_properties
-    table.
+    Initialize the cached properties by reading from disk.
 
-    @param thd         - Thread context.
-    @param key         - The key representing property stored.
-
-    @returns uint value stored for the key.
-  */
-  uint get_property(THD *thd, String_type key) const;
-
-  /**
-    Set the value of property key in dd_properties table.
-
-    @param thd    - Thread context.
-    @param key    - The key representing property.
-    @param value  - The value to be stored for 'key'.
+    @param thd         Thread context.
 
     @returns false on success otherwise true.
   */
-  bool set_property(THD *thd, String_type key, uint value);
+  bool init_cached_properties(THD *thd);
+
+
+  /**
+    Flush the cached properties to disk.
+
+    @param thd         Thread context.
+
+    @returns false on success otherwise true.
+  */
+  bool flush_cached_properties(THD *thd);
+
+
+  /**
+    Get the value of the property key.
+
+    Will initialize the cached properties stored in the DD_properties instance
+    if not already done. No key validation is done, this is expected to be
+    done before this function is called.
+
+    @param       thd     Thread context.
+    @param       key     The key representing the property.
+    @param [out] value   Corresponding value, if it exists, otherwise
+                         undefined.
+    @param [out] exists  Will be 'false' if key is not present.
+
+    @returns false on success otherwise true.
+  */
+  bool unchecked_get(THD *thd, const String_type &key, String_type *value,
+                     bool *exists);
+
+
+  /**
+    Set the value of the property key.
+
+    Will initialize the cached properties stored in the DD_properties instance
+    if not already done. No key validation is done, this is expected to be
+    done before this function is called. Properties are flushed to disk after
+    the cache is updated.
+
+    @param thd    Thread context.
+    @param key    The key representing the property.
+    @param value  The value to be stored for 'key'.
+
+    @returns false on success otherwise true.
+  */
+  bool unchecked_set(THD *thd, const String_type &key,
+                     const String_type &value);
 
 };
 

@@ -31,8 +31,10 @@ namespace dd {
 ///////////////////////////////////////////////////////////////////////////
 
 class Trigger_impl;
-class Object_type;
-class Object_table;
+
+namespace tables {
+  class Triggers;
+};
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -40,9 +42,8 @@ class Object_table;
 class Trigger : virtual public Entity_object
 {
 public:
-  static const Object_type &TYPE();
-  static const Object_table &OBJECT_TABLE();
   typedef Trigger_impl Impl;
+  typedef tables::Triggers DD_table;
 
 public:
   enum class enum_event_type

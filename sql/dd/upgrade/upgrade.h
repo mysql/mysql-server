@@ -23,7 +23,7 @@
 class THD;
 
 namespace dd {
-namespace upgrade {
+namespace upgrade_57 {
 
 /**
   Check if the server is starting on a data directory without dictionary

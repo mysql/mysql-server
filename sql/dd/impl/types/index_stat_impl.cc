@@ -34,14 +34,7 @@ using dd::tables::Index_stats;
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
-// Index_stat implementation.
-///////////////////////////////////////////////////////////////////////////
-
-const Entity_object_table &Index_stat::OBJECT_TABLE()
-{
-  return Index_stats::instance();
-}
-
+// Index_stat_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
 
 bool Index_stat_impl::has_new_primary_key() const
@@ -68,14 +61,6 @@ bool Index_stat_impl::has_new_primary_key() const
 }
 
 ///////////////////////////////////////////////////////////////////////////
-
-const Object_type &Index_stat::TYPE()
-{
-  static Index_stat_type s_instance;
-  return s_instance;
-}
-
-///////////////////////////////////////////////////////////////////////////
 // Index_stat_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
 
@@ -85,7 +70,7 @@ bool Index_stat_impl::validate() const
   {
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),
-             Index_stat_impl::OBJECT_TABLE().name().c_str(),
+             Index_stat_impl::DD_table::instance().name().c_str(),
              "schema name or table name not supplied.");
     return true;
   }
@@ -152,10 +137,15 @@ Object_key *Index_stat_impl::create_primary_key() const
 
 
 ///////////////////////////////////////////////////////////////////////////
-// Index_stat_type implementation.
+
+ const Object_table &Index_stat_impl::object_table() const
+{
+   return DD_table::instance();
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
-void Index_stat_type::register_tables(Open_dictionary_tables_ctx *otx) const
+void Index_stat_impl::register_tables(Open_dictionary_tables_ctx *otx)
 {
   /**
     The requirement is that we should be able to update
@@ -165,5 +155,7 @@ void Index_stat_type::register_tables(Open_dictionary_tables_ctx *otx) const
   otx->mark_ignore_global_read_lock();
   otx->add_table<Index_stats>();
 }
+
+///////////////////////////////////////////////////////////////////////////
 
 }
