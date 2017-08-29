@@ -1996,3 +1996,55 @@ eval $query2;
 eval $query3;
 
 DROP TABLE t1, t2;
+
+--echo # Bug #18898433: EXTREMELY SLOW PERFORMANCE WITH OUTER JOINS AND JOIN
+--echo #                BUFFER.
+--echo #
+
+CREATE TABLE t1 (i INT NOT NULL);
+INSERT INTO t1 VALUES (0),(2),(3),(4);
+CREATE TABLE t2 (i INT NOT NULL);
+INSERT INTO t2 VALUES (0),(1),(3),(4);
+CREATE TABLE t3 (i INT NOT NULL);
+INSERT INTO t3 VALUES (0),(1),(2),(4);
+CREATE TABLE t4 (i INT NOT NULL);
+INSERT INTO t4 VALUES (0),(1),(2),(3);
+let query1=
+SELECT *
+FROM t1 LEFT JOIN
+     (
+       (t2 LEFT JOIN t3 ON t3.i= t2.i)
+       LEFT JOIN t4 ON t3.i= t4.i
+     )ON t2.i= t1.i;
+
+let query2=
+SELECT *
+FROM t1 LEFT JOIN
+     (
+       (t2 INNER JOIN t3 ON t3.i= t2.i)
+       LEFT JOIN t4 ON t3.i= t4.i
+     )ON t2.i= t1.i;
+
+let query3=
+SELECT *
+FROM t1 LEFT JOIN t2 ON t2.i= t1.i
+        LEFT JOIN t3 ON t3.i= t2.i
+        LEFT JOIN t4 ON t3.i= t4.i;
+
+eval EXPLAIN $query1;
+eval EXPLAIN $query2;
+eval EXPLAIN $query3;
+
+flush status;
+eval $query1;
+SHOW STATUS LIKE 'HANDLER_%';
+
+flush status;
+eval $query2;
+SHOW STATUS LIKE 'HANDLER_%';
+
+flush status;
+eval $query3;
+SHOW STATUS LIKE 'HANDLER_%';
+
+DROP TABLE t1, t2, t3, t4;
