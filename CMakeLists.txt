@@ -119,7 +119,8 @@ ELSEIF(NOT HAVE_CMAKE_BUILD_TYPE OR OLD_WITH_DEBUG)
   SET(OLD_WITH_DEBUG 0 CACHE INTERNAL "" FORCE)
 ENDIF()
 
-IF(CMAKE_GENERATOR MATCHES "Visual Studio [1-9][0-9].*")
+IF(CMAKE_GENERATOR MATCHES "Visual Studio [1-9][0-9].*" AND
+   CMAKE_GENERATOR_TOOLSET STREQUAL "")
   # Switch to 64 bit toolset on Windows (32 bit is default).
   # This is recommended as the 32 bit linker will run into address space issues
   # and not exit for long time.

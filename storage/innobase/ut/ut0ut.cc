@@ -30,7 +30,7 @@ Created 5/11/1994 Heikki Tuuri
 
 #include "ha_prototypes.h"
 
-#if HAVE_SYS_TIME_H
+#ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
 

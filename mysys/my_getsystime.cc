@@ -26,7 +26,7 @@
 
 #include "my_inttypes.h"
 #include "my_sys.h"
-#if HAVE_SYS_TIME_H
+#ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
 #if defined(_WIN32)

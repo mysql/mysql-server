@@ -121,10 +121,12 @@ IF(MSVC)
     SET(CMAKE_${type}_LINKER_FLAGS_RELWITHDEBINFO
 	    "${CMAKE_${type}_LINKER_FLAGS_RELWITHDEBINFO} /INCREMENTAL:NO")
   ENDFOREACH()
-  
-  # Speed up multiprocessor build
-  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /MP")
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
+
+  IF(NOT CMAKE_C_COMPILER_ID MATCHES "Clang")
+    # Speed up multiprocessor build (not supported by the Clang driver)
+    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /MP")
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
+  ENDIF()
   
   #TODO: update the code and remove the disabled warnings
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4800 /wd4805 /wd4996")

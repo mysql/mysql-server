@@ -69,8 +69,8 @@ extern native_mutexattr_t my_errorcheck_mutexattr;
 #define MY_MUTEX_INIT_ERRCHK   NULL
 #endif
 
-static inline int native_mutex_init(native_mutex_t *mutex,
-                                    const native_mutexattr_t *attr)
+static inline int native_mutex_init
+  (native_mutex_t *mutex, const native_mutexattr_t *attr MY_ATTRIBUTE((unused)))
 {
 #ifdef _WIN32
   InitializeCriticalSection(mutex);
