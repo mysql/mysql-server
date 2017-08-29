@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,8 +19,10 @@ ELSE()
   SET(WIX_ARCH "x86")
 ENDIF()
 
-IF(MSVC_VERSION EQUAL 1900)
+IF(MSVC_VERSION LESS 1910)
   SET(WIX_MSVC_DIR "VS2015")
+ELSE()
+  SET(WIX_MSVC_DIR "VS2017")
 ELSE()
   # When next VS is out, add the correct version here
   MESSAGE(FATAL_ERROR "Unknown VS version")

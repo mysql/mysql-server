@@ -17,22 +17,35 @@ IF(NOT WIN32)
   RETURN()
 ENDIF()
 
+IF(MSVC_VERSION LESS 1910)
+  SET(WIX_REQUIRED_VERSION "V3.10")
+ELSE()
+  SET(WIX_REQUIRED_VERSION "V3.11")
+ENDIF()
+
 # Need an extra indirection to access ENV(ProgramFiles(x86))
 SET(MYENV "ProgramFiles(x86)")
 
 # Look in various paths for 'heat.exe'
 # Different installations have different layouts.
-FOREACH(path
-    "$ENV{ProgramFiles}/WiX Toolset V3.10"
-    "$ENV{ProgramFiles}/WiX Toolset V3.10/bin"
-    "$ENV{${MYENV}}/WiX Toolset V3.10"
-    "$ENV{${MYENV}}/WiX Toolset V3.10/bin")
-  FIND_PATH(WIX_DIR heat.exe "${path}")
-  MESSAGE(STATUS "WIX_DIR ${WIX_DIR} path ${path}")
-  IF(WIX_DIR)
-    BREAK()
-  ENDIF()
-ENDFOREACH()
+MACRO(FIND_WIX_PATH VERSION)
+  FOREACH(path
+      "$ENV{ProgramFiles}/WiX Toolset ${VERSION}"
+      "$ENV{ProgramFiles}/WiX Toolset ${VERSION}/bin"
+      "$ENV{${MYENV}}/WiX Toolset ${VERSION}"
+      "$ENV{${MYENV}}/WiX Toolset ${VERSION}/bin")
+    FIND_PATH(WIX_DIR heat.exe "${path}")
+    MESSAGE(STATUS "WIX_DIR ${WIX_DIR} path ${path}")
+    IF(WIX_DIR)
+      BREAK()
+    ENDIF()
+  ENDFOREACH()
+ENDMACRO()
+
+FIND_WIX_PATH(${WIX_REQUIRED_VERSION})
+IF(MSVC_VERSION EQUAL 1900 AND NOT WIX_DIR)
+  FIND_WIX_PATH(${"V3.11"})
+ENDIF()
 
 # Finally, look in environment
 IF(NOT WIX_DIR)
