@@ -8,6 +8,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 #
 [On Master]
 # No users exist:
+call mtr.add_suppression('Corresponding entry in binary log used default authentication.*');
 DROP USER IF EXISTS wl8540@nohost1, wl8540@nohost2;
 Warnings:
 Note	3162	User 'wl8540'@'nohost1' does not exist.
@@ -96,4 +97,5 @@ Warnings:
 Note	3162	User 'slave_user2'@'localhost' does not exist.
 FLUSH PRIVILEGES;
 include/sync_slave_sql_with_master.inc
+# Search warnings in the server log
 include/rpl_end.inc

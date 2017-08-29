@@ -601,7 +601,7 @@ bool acl_check_host(const char *host, const char *ip);
 
 /* rewrite CREATE/ALTER/GRANT user */
 void mysql_rewrite_create_alter_user(THD *thd, String *rlb,
-                                     std::set<LEX_USER *> *users_not_to_log= NULL);
+                                     std::set<LEX_USER *> *extra_users= NULL);
 void mysql_rewrite_grant(THD *thd, String *rlb);
 
 /* sql_user */
