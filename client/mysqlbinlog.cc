@@ -2150,6 +2150,7 @@ static Exit_status check_master_version()
   switch (*version) {
   case '5':
   case '8':
+  case '9':
     /*
       The server is soon going to send us its Format_description log
       event.
