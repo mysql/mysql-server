@@ -271,11 +271,13 @@ XError Connection_impl::connect_to_localhost(
 
   auto error = connect(reinterpret_cast<sockaddr *>(&addr), sizeof(addr));
 
-  if (error)
-    return error;
+  if (error) {
+    return XError(
+        CR_CONNECTION_ERROR,
+        std::string(error.what()) + ", while connecting to " + unix_socket);
+  }
 
   m_connected = true;
-
   return {};
 #else
   return XError(CR_SOCKET_CREATE_ERROR,
@@ -428,7 +430,6 @@ XError Connection_impl::get_socket_error(const int error_id) {
     case SOCKET_ECONNRESET:
     case SOCKET_EPIPE:
       return XError(CR_SERVER_GONE_ERROR, ER_TEXT_SERVER_GONE);
-
     default:
       return XError(CR_UNKNOWN_ERROR, get_socket_error_description(error_id));
   }
