@@ -14,7 +14,7 @@
 # Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston
 # MA  02110-1301  USA.
 
-%global milestone       rc
+%global milestone       dmr
 
 %global mysql_vendor    Oracle and/or its affiliates
 %global mysqldatadir    /var/lib/mysql
@@ -1193,6 +1193,9 @@ fi
 %endif # cluster
 
 %changelog
+* Tue Aug 29 2017 Erlend Dahl <erlend.dahl@oracle.com> - 9.0.0-0.1
+- Change the global milestone to 'dmr'
+
 * Wed Jul 19 2017 V S Murthy Sidagam <venkata.sidagam@oracle.com> - 8.0.3-0.1
 - Updated for 8.0.3 release
 - Add component_test_status_var_service plugin
