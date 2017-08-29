@@ -515,6 +515,8 @@ public:
   { return m_qs->is_inner_table_of_outer_join(); }
   bool is_first_inner_for_outer_join() const
   { return m_qs->is_first_inner_for_outer_join(); }
+  bool is_single_inner_for_outer_join() const
+  { return m_qs->is_single_inner_of_outer_join(); }
 
   bool has_guarded_conds() const
   { return ref().has_guarded_conds(); }
