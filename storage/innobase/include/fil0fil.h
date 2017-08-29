@@ -1811,24 +1811,6 @@ std::string
 fil_get_dirs()
 	MY_ATTRIBUTE((warn_unused_result));
 
-/** Get the space IDs active in the system.
-@param[out]	space_ids	All the registered tablespace IDs */
-void
-fil_space_ids_get(Space_ids* space_ids);
-
-/** Get the filenames for a tablespace ID and increment pending ops.
-@param[in]	space_id	Tablespace ID
-@param[out]	files		Files for a tablespace ID */
-void
-fil_node_fetch(
-	space_id_t		space_id,
-	fil_space_t::Files*	files);
-
-/** Releases the tablespace instance by decrementing pending ops.
-@param[in]	space_id	Tablespace ID to release. */
-void
-fil_node_release(space_id_t space_id);
-
 /* Rename a tablespace by its name only
 @param[in]	old_name	old tablespace name
 @param[in]	new_name	new tablespace name

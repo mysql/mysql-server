@@ -4048,11 +4048,11 @@ fil_close_tablespace(trx_t* trx, space_id_t space_id)
 
 /** Write a log record about an operation on a tablespace file.
 @param[in]	type		MLOG_FILE_OPEN or MLOG_FILE_DELETE
-				or MLOG_FILE_CREATE2 or MLOG_FILE_RENAME2
+				or MLOG_FILE_CREATE or MLOG_FILE_RENAME
 @param[in]	space_id	tablespace identifier
 @param[in]	path		file path
-@param[in]	new_path	if type is MLOG_FILE_RENAME2, the new name
-@param[in]	flags		if type is MLOG_FILE_CREATE2, the space flags
+@param[in]	new_path	if type is MLOG_FILE_RENAME, the new name
+@param[in]	flags		if type is MLOG_FILE_CREATE, the space flags
 @param[in,out]	mtr		mini-transaction */
 static
 void
@@ -4094,8 +4094,7 @@ fil_op_write_log(
 
 	mlog_close(mtr, log_ptr);
 
-	mlog_catenate_string(
-		mtr, reinterpret_cast<const byte*>(path), len);
+	mlog_catenate_string(mtr, reinterpret_cast<const byte*>(path), len);
 
 	switch (type) {
 	case MLOG_FILE_RENAME:
@@ -8845,7 +8844,7 @@ fil_tablespace_redo_create(
 
 	ut_a(parsed_bytes != ULINT_UNDEFINED);
 
-	/* Where 6 = flags (uint32_t) + len (uint16_t). */
+	/* Where 6 = flags (uint32_t) + name len (uint16_t). */
 	if (end <= ptr + 6) {
 		return(nullptr);
 	}
@@ -10277,66 +10276,3 @@ fil_get_dirs()
 {
 	return(fil_system->get_dirs());
 }
-
-/** Get the space IDs active in the system.
-@param[out]	space_ids	All the registered tablespace IDs */
-void
-fil_space_ids_get(Space_ids* space_ids)
-{
-	ut_a(space_ids->empty());
-
-	fil_system->get_space_ids(space_ids);
-}
-
-/** Get the filenames for a tablespace ID and increment pending ops.
-@param[in]	space_id	Tablespace ID
-@param[out]	files		Files for a tablespace ID */
-void
-fil_node_fetch(
-	space_id_t		space_id,
-	fil_space_t::Files*	files)
-{
-	ut_a(files->empty());
-
-	auto	shard = fil_system->shard_by_id(space_id);
-
-	shard->mutex_acquire();
-
-	auto	space = shard->get_space_by_id(space_id);
-
-	/* Skip spaces that are being dropped. */
-	if (space != nullptr && !space->stop_new_ops) {
-
-		++space->n_pending_ops;
-
-		for (const auto& file : space->files) {
-			files->push_back(file);
-		}
-	}
-
-	shard->mutex_release();
-}
-
-/** Releases the tablespace instance by decrementing pending ops.
-@param[in]	space_id	Tablespace ID to release. */
-void
-fil_node_release(space_id_t space_id)
-{
-	auto	shard = fil_system->shard_by_id(space_id);
-
-	shard->mutex_acquire();
-
-	auto	space = shard->get_space_by_id(space_id);
-
-	/* Tablespace could have been dropped before fil_node_fetch() call. */
-	if (space != nullptr) {
-		ut_a(!space->stop_new_ops);
-
-		ut_a(space->n_pending_ops > 0);
-
-		--space->n_pending_ops;
-	}
-
-	shard->mutex_release();
-}
-
