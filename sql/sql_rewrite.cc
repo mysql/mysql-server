@@ -38,7 +38,7 @@
 #include "sp_head.h"    // struct set_var_base
 #include "rpl_slave.h"  // SLAVE_SQL, SLAVE_IO
 #include "mysqld.h"     // opt_log_builtin_as_identified_by_password
-
+#include "log.h"
 
 /**
   Append a key/value pair to a string, with an optional preceding comma.
@@ -355,7 +355,7 @@ static void mysql_rewrite_set(THD *thd, String *rlb)
 */
 
 void mysql_rewrite_create_alter_user(THD *thd, String *rlb,
-                                     std::set<LEX_USER *> *users_not_to_log)
+                                     std::set<LEX_USER *> *extra_users)
 {
   LEX                      *lex= thd->lex;
   LEX_USER                 *user_name, *tmp_user_name;
@@ -377,9 +377,6 @@ void mysql_rewrite_create_alter_user(THD *thd, String *rlb,
 
   while ((tmp_user_name= user_list++))
   {
-    if (users_not_to_log &&
-        users_not_to_log->find(tmp_user_name) != users_not_to_log->end())
-      continue;
     if ((user_name= get_current_user(thd, tmp_user_name)))
     {
       if (opt_log_builtin_as_identified_by_password &&
@@ -420,6 +417,57 @@ void mysql_rewrite_create_alter_user(THD *thd, String *rlb,
   if (lex->alter_password.update_account_locked_column)
   {
     rewrite_account_lock(lex, rlb);
+  }
+
+  if ((lex->sql_command == SQLCOM_CREATE_USER ||
+      lex->sql_command == SQLCOM_ALTER_USER) &&
+      extra_users && extra_users->size())
+  {
+    String warn_user;
+    bool comma= false;
+    bool log_warning= false;
+    std::set<LEX_USER *>::iterator it;
+    for (it = extra_users->begin(); it != extra_users->end(); it++)
+    {
+      /*
+        Consider for warning if one of the following is true:
+        1. If SQLCOM_CREATE_USER and IF NOT EXISTS clause is used and
+           IDENTIFIED WITH clause is not used
+        2. If SQLCOM_ALTER_USER and IF EXISTS clause is used and
+           IDENTIFIED WITH clause is not used
+      */
+      LEX_USER* extra_user= *it;
+      if (!extra_user->uses_identified_with_clause &&
+          (lex->sql_command == SQLCOM_CREATE_USER ||
+          extra_user->uses_identified_by_clause))
+      {
+        append_user(thd, &warn_user, extra_user, comma, false);
+        comma= true;
+        log_warning= true;
+      }
+    }
+    if (log_warning)
+    {
+      if (lex->sql_command == SQLCOM_CREATE_USER)
+      {
+        sql_print_warning("Following users were specified in CREATE USER "
+                          "IF NOT EXISTS but they already exist. "
+                          "Corresponding entry in binary log used default "
+                          "authentication plugin '%s' to rewrite "
+                          "authentication information(if any) for them: %s\n",
+                          default_auth_plugin, warn_user.c_ptr_safe());
+      }
+      else if (lex->sql_command == SQLCOM_ALTER_USER)
+      {
+        sql_print_warning("Following users were specified in ALTER USER "
+                          "IF EXISTS but they do not exist. "
+                          "Corresponding entry in binary log used default "
+                          "authentication plugin '%s' to rewrite "
+                          "authentication information(if any) for them: %s\n",
+                          default_auth_plugin, warn_user.c_ptr_safe());
+      }
+    }
+    warn_user.mem_free();
   }
 }
 
