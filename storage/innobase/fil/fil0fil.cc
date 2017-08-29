@@ -805,8 +805,7 @@ public:
 	The tablespace must exist in the memory cache.
 	@param[in]	space_id	Tablespace ID
 	@param[in]	old_path	Old file name
-	@param[in]	new_name	New table name in the
-					Databasename/tablename format
+	@param[in]	new_name	New tablespace  name in the schema/space
 	@param[in]	new_path_in	New file name, or nullptr if it
 					is located in the normal data directory
 	@return true if success */
@@ -1505,6 +1504,20 @@ std::atomic_size_t	Fil_shard::s_open_slot;
 static ulint	srv_data_read;
 static ulint	srv_data_written;
 #endif /* UNIV_HOTBACKUP */
+
+/** Replay a file rename operation if possible.
+@param[in]	page_id		Space ID and first page number in the file
+@param[in]	old_name	old file name
+@param[in]	new_name	new file name
+@return	whether the operation was successfully applied (the name did not exist,
+or new_name did not exist and name was successfully renamed to new_name)  */
+static
+bool
+fil_op_replay_rename(
+	const page_id_t&	page_id,
+	const std::string&	old_name,
+	const std::string&	new_name)
+	MY_ATTRIBUTE((warn_unused_result));
 
 #ifdef UNIV_DEBUG
 /** Try fil_validate() every this many times */
@@ -4679,8 +4692,7 @@ fil_rename_tablespace_check(
 The tablespace must exist in the memory cache.
 @param[in]	space_id	Tablespace ID
 @param[in]	old_path	Old file name
-@param[in]	new_name	New table name in the
-				Databasename/tablename format
+@param[in]	new_name	New tablespace  name in the schema/space
 @param[in]	new_path_in	New file name, or nullptr if it is located
 				in the normal data directory
 @return true if success */
@@ -4960,8 +4972,7 @@ Fil_shard::space_rename(
 The tablespace must exist in the memory cache.
 @param[in]	space_id	Tablespace ID
 @param[in]	old_path	Old file name
-@param[in]	new_name	New table name in the
-				Databasename/tablename format
+@param[in]	new_name	New tablespace name in the schema/name format
 @param[in]	new_path_in	New file name, or nullptr if it is located
 				in the normal data directory
 @return true if success */
@@ -9059,9 +9070,12 @@ fil_tablespace_redo_rename(
 
 	ut_a(result.second->size() == 1);
 
-	auto&	path = result.second->front();
+	std::string	abs_path = Fil_path::get_real_path(
+		result.first.c_str(), result.second->front());
 
-	if (path.compare(abs_to_name) == 0) {
+	ib::info() << "RENAME " << from_name << " TO " << to_name;
+
+	if (abs_path.compare(abs_to_name) == 0) {
 
 		/* Rename must have succeeded, open the file. */
 
@@ -9071,89 +9085,13 @@ fil_tablespace_redo_rename(
 
 		ut_a(success);
 
-	} else if (path.compare(abs_from_name) == 0) {
+	} else if (abs_path.compare(abs_from_name) == 0
+		   && !fil_op_replay_rename(page_id, from_name, to_name)) {
 
-		/* Replay the rename. */
-
-#ifdef UNIV_HOTBACKUP
-		ut_ad(recv_replay_file_ops);
-#endif /* UNIV_HOTBACKUP */
-
-		/* In order to replay the rename, the following must hold:
-		1. The to name is not already used.
-		2. A tablespace exists with the from name.
-		3. The space ID for that tablepace matches this log entry.
-		This will prevent unintended renames during recovery. */
-
-		space_id_t	space_id = page_id.space();
-		fil_space_t*	space = fil_space_get(space_id);
-
-		if (space == nullptr) {
-			return(ptr);
-		}
-
-		/* If the file is opened then it must match the from name. */
-
-		const auto&	file = space->files.front();
-
-		ut_a(abs_from_name.compare(file.name) == 0);
-
-		/* Create the database directory for the new name, if
-		it does not exist yet. */
-
-		const char*	namend = strrchr(to_name, OS_PATH_SEPARATOR);
-		ut_a(namend != nullptr);
-
-		char*	dir = static_cast<char*>(
-			ut_malloc_nokey(namend - to_name + 1));
-
-		memcpy(dir, to_name, namend - to_name);
-		dir[namend - to_name] = '\0';
-
-		bool	success = os_file_create_directory(dir, false);
-		ut_a(success);
-
-		ulint	dirlen;
-
-		if (const char* dirend = strrchr(dir, OS_PATH_SEPARATOR)) {
-			dirlen = dirend - dir + 1;
-		} else {
-			dirlen = 0;
-		}
-
-		ut_free(dir);
-
-		char*	new_table = mem_strdupl(
-			to_name + dirlen, strlen(to_name + dirlen)
-			- 4 /* Remove ".ibd" */);
-
-		ut_ad(Fil_path::is_separator(
-			new_table[namend - to_name - dirlen]));
-
-#if OS_PATH_SEPARATOR != '/'
-		new_table[namend - to_name - dirlen] = '/';
-#endif /* OS_PATH_SEPARATOR != '/' */
-
-		clone_mark_abort(true);
-
-		if (!fil_rename_tablespace(
-				space_id, from_name, new_table, to_name)) {
-
-			ut_error;
-		}
-
-		clone_mark_active();
-
-		ut_free(new_table);
-
-		/* Update the name in the space ID to file name mapping. */
-		path.assign(abs_to_name);
-
-		success = fil_tablespace_open_for_recovery(page_id.space());
-
-		ut_a(success);
-
-		ib::info() << "RENAME " << from_name << " TO " << to_name;
+		ib::info()
+			<< "Redo rename tablespace ID " << page_id.space()
+			<< ": From '" << from_name << "'"
+			<< " to '" << to_name << "' failed!";
 	}
 
 	return(ptr);
@@ -9492,16 +9430,16 @@ Tablespace_dirs::tokenize_paths(
 @return DB_SUCCESS if all OK */
 static
 dberr_t
-fil_rename_validate(fil_space_t* space, const char* name, Datafile& df)
+fil_rename_validate(fil_space_t* space, const std::string& name, Datafile& df)
 {
 	dberr_t	err = df.validate_for_recovery(space->id);
 
 	if (err == DB_TABLESPACE_NOT_FOUND) {
 
 		/* Tablespace header doesn't contain the expected
-		tablespace ID. */
+		tablespace ID. This is can happen during truncate. */
 
-		return(DB_ERROR);
+		return(err);
 
 	} else if (err != DB_SUCCESS) {
 
@@ -9511,7 +9449,7 @@ fil_rename_validate(fil_space_t* space, const char* name, Datafile& df)
 			<< " You will need to verify and move the"
 			<< " file out of the way retry recovery.";
 
-		return(DB_ERROR);
+		return(err);
 	}
 
 	auto	file = &space->files.front();
@@ -9568,15 +9506,15 @@ static
 bool
 fil_op_replay_rename(
 	const page_id_t&	page_id,
-	const char*		old_name,
-	const char*		new_name)
+	const std::string&	old_name,
+	const std::string&	new_name)
 {
 #ifdef UNIV_HOTBACKUP
 	ut_ad(recv_replay_file_ops);
 #endif /* UNIV_HOTBACKUP */
 
 	ut_ad(page_id.page_no() == 0);
-	ut_ad(strcmp(old_name, new_name) != 0);
+	ut_ad(old_name.compare(new_name) != 0);
 	ut_ad(Fil_path::has_ibd_suffix(new_name));
 	ut_ad(page_id.space() != TRX_SYS_SPACE);
 
@@ -9602,6 +9540,13 @@ fil_op_replay_rename(
 
 		dberr_t	err = fil_rename_validate(space, old_name, df);
 
+		if (err == DB_TABLESPACE_NOT_FOUND) {
+
+			/* This can happend during truncate. */
+			ib::info()
+				<< "Tablespace ID mismatch in '" << name << "'";
+		}
+
 		df.close();
 
 		return(err == DB_SUCCESS);
@@ -9610,9 +9555,6 @@ fil_op_replay_rename(
 	auto	path_sep_pos = name.find_last_of(Fil_path::SEPARATOR);
 
 	ut_a(path_sep_pos != std::string::npos);
-
-	/* We want to strip the .ibd suffix too. */
-	size_t	name_len = name.length() - (path_sep_pos + 1 + 4);
 
 	/* Create the database directory for the new name, if
 	it does not exist yet */
@@ -9634,7 +9576,7 @@ fil_op_replay_rename(
 	name.push_back('/');
 
 	/* Strip the '.ibd' suffix. */
-	name.append(new_name + path_sep_pos + 1, name_len);
+	name.append(new_name.begin() + path_sep_pos + 1, new_name.end() - 4);
 
 	ut_ad(!Fil_path::has_ibd_suffix(name));
 
@@ -9642,7 +9584,8 @@ fil_op_replay_rename(
 
 	const auto	ptr = name.c_str();
 
-	success = fil_rename_tablespace(space_id, old_name, ptr, new_name);
+	success = fil_rename_tablespace(
+		space_id, old_name.c_str(), ptr, new_name.c_str());
 
 	ut_a(success);
 

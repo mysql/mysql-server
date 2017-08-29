@@ -1127,8 +1127,7 @@ fil_rename_tablespace_check(
 The tablespace must exist in the memory cache.
 @param[in]	space_id	Tablespace ID
 @param[in]	old_path	Old file name
-@param[in]	new_name	New table name in the databasename/tablename
-				format
+@param[in]	new_name	New tablespace name in the schema/name format
 @param[in]	new_path_in	New file name, or nullptr if it is located in
 				The normal data directory
 @return true if success */
