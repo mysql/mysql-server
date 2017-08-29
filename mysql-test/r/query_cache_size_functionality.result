@@ -9,17 +9,25 @@ SELECT COUNT(@@GLOBAL.query_cache_size)
 SELECT @@GLOBAL.query_cache_size;
 @@GLOBAL.query_cache_size
 1048576
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 1048576 Expected
 '#---------------------WL6372_VAR_2_02----------------------#'
 # Restart server with query_cache_size 51200;
 SELECT @@GLOBAL.query_cache_size;
 @@GLOBAL.query_cache_size
 51200
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 51200 Expected
 SET @@GLOBAL.query_cache_size=DEFAULT;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 SELECT @@GLOBAL.query_cache_size;
 @@GLOBAL.query_cache_size
 1048576
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 1048576 Expected
 '#---------------------WL6372_VAR_2_03----------------------#'
 SET @@local.query_cache_size=1;
@@ -30,9 +38,13 @@ ERROR HY000: Variable 'query_cache_size' is a GLOBAL variable and should be set 
 Expected error 'Global variable'
 SET @@GLOBAL.query_cache_size=1;
 SET @@GLOBAL.query_cache_size=DEFAULT;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 SELECT @@GLOBAL.query_cache_size;
 @@GLOBAL.query_cache_size
 1048576
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 1048576 Expected
 '#---------------------WL6372_VAR_2_04----------------------#'
 SELECT @@GLOBAL.query_cache_size = VARIABLE_VALUE
@@ -44,6 +56,8 @@ WHERE VARIABLE_NAME='query_cache_size';
 SELECT COUNT(@@GLOBAL.query_cache_size);
 COUNT(@@GLOBAL.query_cache_size)
 1
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 1 Expected
 SELECT COUNT(VARIABLE_VALUE)
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
@@ -55,6 +69,9 @@ COUNT(VARIABLE_VALUE)
 SELECT @@query_cache_size = @@GLOBAL.query_cache_size;
 @@query_cache_size = @@GLOBAL.query_cache_size
 1
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 1 Expected
 SELECT COUNT(@@local.query_cache_size);
 ERROR HY000: Variable 'query_cache_size' is a GLOBAL variable
@@ -65,6 +82,8 @@ Expected error 'Variable is a GLOBAL variable'
 SELECT COUNT(@@GLOBAL.query_cache_size);
 COUNT(@@GLOBAL.query_cache_size)
 1
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 1 Expected
 SELECT query_cache_size = @@SESSION.query_cache_size;
 ERROR 42S22: Unknown column 'query_cache_size' in 'field list'
@@ -94,6 +113,8 @@ INSERT INTO tab1
 VALUES (@col_1);
 commit;
 set @@GLOBAL.query_cache_size=DEFAULT;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 select 1 from tab1 limit 1;
 1
 1

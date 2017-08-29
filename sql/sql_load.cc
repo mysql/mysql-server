@@ -1644,6 +1644,7 @@ int READ_INFO::read_field()
 
   for (;;)
   {
+    bool escaped_mb= false;
     while ( to < end_of_buff)
     {
       chr = GET;
@@ -1665,7 +1666,23 @@ int READ_INFO::read_field()
          */
         if (escape_char != enclosed_char || chr == escape_char)
         {
-          *to++ = (uchar) unescape((char) chr);
+          uint ml;
+          GET_MBCHARLEN(read_charset, chr, ml);
+          /*
+            For escaped multibyte character, push back the first byte,
+            and will handle it below.
+            Because multibyte character's second byte is possible to be
+            0x5C, per Query_result_export::send_data, both head byte and
+            tail byte are escaped for such characters. So mark it if the
+            head byte is escaped and will handle it below.
+          */
+          if (ml == 1)
+            *to++= (uchar) unescape((char) chr);
+          else
+          {
+            escaped_mb= true;
+            PUSH(chr);
+          }
           continue;
         }
         PUSH(chr);
@@ -1757,8 +1774,16 @@ int READ_INFO::read_field()
             to-= i;
             goto found_eof;
           }
+          else if (chr == escape_char && escaped_mb)
+          {
+            // Unescape the second byte if it is escaped.
+            chr= GET;
+            chr= (uchar) unescape((char) chr);
+          }
           *to++ = chr;
         }
+        if (escaped_mb)
+          escaped_mb= false;
         if (my_ismbchar(read_charset,
                         (const char *)p,
                         (const char *)to))

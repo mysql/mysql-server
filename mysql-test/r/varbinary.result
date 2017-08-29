@@ -274,6 +274,8 @@ Warning	1287	Bitwise operations on BINARY will change behavior in a future versi
 Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 RESET QUERY CACHE;
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 CALL test_bin_op();
 b & c	b & 0x31393838	b & NULL	b & 0b1011	0x31393838 & b	NULL & b	0b1011 & b	b | c	b | 0x31393838	b | NULL	b | 0b1011	0x31393838 | b	NULL | b	0b1011 | b	b ^ c	b ^ 0x31393838	b ^ NULL	b ^ 0b1011	0x31393838 ^ b	NULL ^ b	0b1011 ^ b	BIT_COUNT(b)	~b	b << 1	b >> 1
 941	56	NULL	9	56	NULL	9	2047	825835453	NULL	1983	825835453	NULL	1983	1106	825835397	NULL	1974	825835397	NULL	1974	9	18446744073709549634	3962	990
@@ -323,6 +325,8 @@ Warning	1287	Bitwise operations on BINARY will change behavior in a future versi
 Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 RESET QUERY CACHE;
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 CALL test_bin_op();
 BIT_AND(b)	BIT_OR(b)	BIT_XOR(b)
 1981	1981	1981
@@ -345,6 +349,8 @@ Warning	1287	Bitwise operations on BINARY will change behavior in a future versi
 Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 RESET QUERY CACHE;
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 CALL test_bin_op();
 BIT_AND(b)	BIT_OR(b)	BIT_XOR(b)
 1920	2047	127
@@ -427,6 +433,8 @@ Warning	1287	Bitwise operations on BINARY will change behavior in a future versi
 Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 RESET QUERY CACHE;
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 EXECUTE s1;
 b & c	b & 0x31393838	b & NULL	b & 0b1011	0x31393838 & b	NULL & b	0b1011 & b	b | c	b | 0x31393838	b | NULL	b | 0b1011	0x31393838 | b	NULL | b	0b1011 | b	b ^ c	b ^ 0x31393838	b ^ NULL	b ^ 0b1011	0x31393838 ^ b	NULL ^ b	0b1011 ^ b	BIT_COUNT(b)	~b	b << 1	b >> 1
 941	56	NULL	9	56	NULL	9	2047	825835453	NULL	1983	825835453	NULL	1983	1106	825835397	NULL	1974	825835397	NULL	1974	9	18446744073709549634	3962	990
@@ -478,6 +486,8 @@ Warning	1287	Bitwise operations on BINARY will change behavior in a future versi
 Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 RESET QUERY CACHE;
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 EXECUTE s2;
 BIT_AND(b)	BIT_OR(b)	BIT_XOR(b)
 1981	1981	1981
@@ -502,6 +512,8 @@ Warning	1287	Bitwise operations on BINARY will change behavior in a future versi
 Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 RESET QUERY CACHE;
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 EXECUTE s2;
 BIT_AND(b)	BIT_OR(b)	BIT_XOR(b)
 1920	2047	127
@@ -583,6 +595,8 @@ Warning	1287	Bitwise operations on BINARY will change behavior in a future versi
 Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 RESET QUERY CACHE;
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 SELECT * from v1;
 b & c	b & 0x31393838	b & NULL	b & 0b1011	0x31393838 & b	NULL & b	0b1011 & b	b | c	b | 0x31393838	b | NULL	b | 0b1011	0x31393838 | b	NULL | b	0b1011 | b	b ^ c	b ^ 0x31393838	b ^ NULL	b ^ 0b1011	0x31393838 ^ b	NULL ^ b	0b1011 ^ b	BIT_COUNT(b)	~b	b << 1	b >> 1
 941	56	NULL	9	56	NULL	9	2047	825835453	NULL	1983	825835453	NULL	1983	1106	825835397	NULL	1974	825835397	NULL	1974	9	18446744073709549634	3962	990
@@ -635,6 +649,8 @@ Warning	1287	Bitwise operations on BINARY will change behavior in a future versi
 Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 RESET QUERY CACHE;
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 SELECT * from v2;
 BIT_AND(b)	BIT_OR(b)	BIT_XOR(b)
 1981	1981	1981
@@ -660,6 +676,8 @@ Warning	1287	Bitwise operations on BINARY will change behavior in a future versi
 Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 RESET QUERY CACHE;
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 SELECT * from v3;
 BIT_AND(b)	BIT_OR(b)	BIT_XOR(b)
 1920	2047	127

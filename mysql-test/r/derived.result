@@ -3977,3 +3977,155 @@ EXECUTE yy;
 alias2
 1
 DROP TABLE t1;
+#
+# Bug#26596977: ASSERT `!(USED_TABS & (~READ_TABLES & ~FILTER_FOR_TABLE))'
+#               FAILED IN ITEM_FUNC
+#
+CREATE TABLE t1 (
+col_varchar_key varchar(1) ,
+pk int(11) NOT NULL AUTO_INCREMENT,
+PRIMARY KEY (pk),
+KEY col_varchar_key (col_varchar_key)
+) ENGINE=MyISAM;
+CREATE TABLE t2 (
+col_int int(11) ,
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_varchar varchar(1) ,
+col_varchar_key varchar(1) ,
+PRIMARY KEY (pk)
+) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (4,1,'s','r'), (9,19,'p','a');
+CREATE TABLE t3 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_int int(11) ,
+col_varchar_key varchar(1) ,
+col_varchar varchar(1) ,
+PRIMARY KEY (pk),
+KEY col_varchar_key (col_varchar_key)
+) ENGINE=MyISAM;
+INSERT INTO t3 VALUES (100,2,'g',NULL);
+EXPLAIN SELECT table1.col_int
+FROM t3 AS table1
+LEFT JOIN (
+SELECT subquery1_t1.*
+FROM t1 AS subquery1_t1
+RIGHT JOIN t2 AS subquery1_t2
+ON (subquery1_t2.col_varchar_key = subquery1_t1.col_varchar_key)
+) AS table3
+ON (table3.col_varchar_key = table1.col_varchar_key)
+WHERE table3.col_varchar_key  IN (
+SELECT subquery2_t3.col_varchar
+FROM t3 AS subquery2_t3
+WHERE subquery2_t3.pk < table3.pk
+);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1276	Field or reference 'table3.pk' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '2' AS `col_int` from `test`.`t2` `subquery1_t2` semi join (`test`.`t3` `subquery2_t3`) join `test`.`t1` `subquery1_t1` where ((`test`.`subquery2_t3`.`pk` < NULL) and multiple equal('g', NULL, `test`.`subquery2_t3`.`col_varchar`, `test`.`subquery1_t2`.`col_varchar_key`))
+SELECT table1.col_int
+FROM t3 AS table1
+LEFT JOIN (
+SELECT subquery1_t1.*
+FROM t1 AS subquery1_t1
+RIGHT JOIN t2 AS subquery1_t2
+ON (subquery1_t2.col_varchar_key = subquery1_t1.col_varchar_key)
+) AS table3
+ON (table3.col_varchar_key = table1.col_varchar_key)
+WHERE table3.col_varchar_key  IN (
+SELECT subquery2_t3.col_varchar
+FROM t3 AS subquery2_t3
+WHERE subquery2_t3.pk < table3.pk
+);
+col_int
+DROP TABLE t1, t2, t3;
+#
+# Bug #26618455: ASSERT 'KEYPARTS > 0' IN CALC_LENGTH_AND_KEYPARTS()
+#                WITHOUT FIRSTMATCH
+#
+CREATE TABLE t1 (
+col_int int(11) DEFAULT NULL,
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_varchar_key varchar(1) DEFAULT NULL,
+col_varchar varchar(1) DEFAULT NULL,
+col_int_key int(11) DEFAULT NULL,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key)
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (0,1,'i','n',125);
+INSERT INTO t1 VALUES (3,20,'b','o',0);
+CREATE TABLE t2 (
+col_int_key int(11) DEFAULT NULL,
+col_varchar_key varchar(1) DEFAULT NULL,
+col_varchar varchar(1) DEFAULT NULL,
+col_int int(11) DEFAULT NULL,
+pk int(11) NOT NULL AUTO_INCREMENT,
+PRIMARY KEY (pk),
+KEY col_varchar_key (col_varchar_key)
+) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (3,'y','p',4,1);
+CREATE TABLE t3 (
+col_int int(11) DEFAULT NULL,
+col_varchar varchar(1) DEFAULT NULL,
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_varchar_key varchar(1) DEFAULT NULL,
+col_int_key int(11) DEFAULT NULL,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key)
+) ENGINE=MyISAM;
+CREATE TABLE t4 (  col_int int(11) DEFAULT NULL,
+col_varchar varchar(1) DEFAULT NULL,
+col_int_key int(11) DEFAULT NULL,
+col_varchar_key varchar(1) DEFAULT NULL,
+pk int(11) NOT NULL AUTO_INCREMENT,
+PRIMARY KEY (pk),
+KEY col_varchar_key (col_varchar_key)
+) ENGINE=MyISAM
+;
+INSERT INTO t4 VALUES (7,'k',9,'z',20);
+SET optimizer_switch = 'firstmatch=off';
+EXPLAIN SELECT
+table2.col_int_key AS field3
+FROM
+(
+SELECT subquery2_t2.*
+FROM t1 AS subquery2_t1
+INNER JOIN t2 AS subquery2_t2
+ON (subquery2_t2.pk = subquery2_t1.col_int)
+) AS table1
+RIGHT OUTER JOIN (
+SELECT subquery3_t1.*
+FROM t2 AS subquery3_t1
+) AS table2
+ON (table1.col_varchar_key = table2.col_varchar_key)
+WHERE table1.col_varchar_key IN (
+SELECT subquery4_t1.col_varchar AS subquery4_field1
+FROM t3 AS subquery4_t1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	subquery2_t2	NULL	system	PRIMARY,col_varchar_key	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	subquery3_t1	NULL	system	col_varchar_key	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	<subquery4>	NULL	const	<auto_key>	<auto_key>	4	const	1	100.00	Using where
+1	SIMPLE	subquery2_t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
+4	MATERIALIZED	subquery4_t1	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select '3' AS `field3` from `test`.`t1` `subquery2_t1` semi join (`test`.`t3` `subquery4_t1`) where ((`test`.`subquery2_t1`.`col_int` = '1') and (`<subquery4>`.`subquery4_field1` = 'y') and (`test`.`subquery4_t1`.`col_varchar` = 'y'))
+SELECT
+table2.col_int_key AS field3
+FROM
+(
+SELECT subquery2_t2.*
+FROM t1 AS subquery2_t1
+INNER JOIN t2 AS subquery2_t2
+ON (subquery2_t2.pk = subquery2_t1.col_int)
+) AS table1
+RIGHT OUTER JOIN (
+SELECT subquery3_t1.*
+FROM t2 AS subquery3_t1
+) AS table2
+ON (table1.col_varchar_key = table2.col_varchar_key)
+WHERE table1.col_varchar_key IN (
+SELECT subquery4_t1.col_varchar AS subquery4_field1
+FROM t3 AS subquery4_t1);
+field3
+SET optimizer_switch = default;
+DROP TABLE t1, t2, t3, t4;

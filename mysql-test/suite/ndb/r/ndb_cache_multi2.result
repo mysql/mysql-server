@@ -1,15 +1,31 @@
 drop table if exists t1, t2;
 == Connected to server1 ==
 set GLOBAL query_cache_type=on;
+Warnings:
+Warning	1287	'@@query_cache_type' is deprecated and will be removed in a future release.
 set GLOBAL query_cache_size=1355776;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 set GLOBAL ndb_cache_check_time=1;
+Warnings:
+Warning	1681	'@@ndb_cache_check_time' is deprecated and will be removed in a future release.
 reset query cache;
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 flush status;
 == Connected to server2 ==
 set GLOBAL query_cache_type=on;
+Warnings:
+Warning	1287	'@@query_cache_type' is deprecated and will be removed in a future release.
 set GLOBAL query_cache_size=1355776;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 set GLOBAL ndb_cache_check_time=1;
+Warnings:
+Warning	1681	'@@ndb_cache_check_time' is deprecated and will be removed in a future release.
 reset query cache;
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 flush status;
 == Connected to server1 ==
 create table t1 (a int) engine=ndbcluster;
@@ -66,10 +82,22 @@ Variable_name	Value
 Qcache_queries_in_cache	3
 drop table t1, t2;
 set GLOBAL query_cache_size=0;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 set GLOBAL ndb_cache_check_time=0;
+Warnings:
+Warning	1681	'@@ndb_cache_check_time' is deprecated and will be removed in a future release.
 reset query cache;
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 flush status;
 set GLOBAL query_cache_size=0;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 set GLOBAL ndb_cache_check_time=0;
+Warnings:
+Warning	1681	'@@ndb_cache_check_time' is deprecated and will be removed in a future release.
 reset query cache;
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 flush status;

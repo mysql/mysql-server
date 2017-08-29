@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -565,6 +565,15 @@ bool reset_master(THD* thd)
 {
   bool ret= false;
 
+  /*
+    RESET MASTER command should ignore 'read-only' and 'super_read_only'
+    options so that it can update 'mysql.gtid_executed' replication repository
+    table.
+
+    Please note that skip_readonly_check flag should be set even when binary log
+    is not enabled, as RESET MASTER command will clear 'gtid_executed' table.
+  */
+  thd->set_skip_readonly_check();
   if (is_group_replication_running())
   {
     my_error(ER_CANT_RESET_MASTER, MYF(0), "Group Replication is running");

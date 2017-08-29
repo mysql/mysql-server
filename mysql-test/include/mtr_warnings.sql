@@ -1,4 +1,4 @@
--- Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -280,6 +280,11 @@ INSERT INTO global_suppressions VALUES
  ("\\[GCS\\] Error pushing message into group communication engine."),
  ("\\[GCS\\] Message cannot be sent because the member does not belong to a group."),
  ("Slave SQL for channel 'group_replication_recovery': ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*"),
+ ("Member with address .* has become unreachable."),
+ ("This server is not able to reach a majority of members in the group.*"),
+ ("Member with address .* is reachable again."),
+ ("The member has resumed contact with a majority of the members in the group.*"),
+ ("Members removed from the group.*"),
 
  ("THE_LAST_SUPPRESSION")||
 

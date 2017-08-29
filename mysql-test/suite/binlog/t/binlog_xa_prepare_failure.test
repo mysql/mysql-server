@@ -14,6 +14,7 @@
 ###############################################################################
 --source include/have_debug.inc
 --source include/have_log_bin.inc
+CALL mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
 
 # Initial setup
 SET @save_session_debug= @@SESSION.debug;
@@ -25,7 +26,9 @@ while ($iter <= 3)
 {
   # Step-1: Start A XA transaction.
   XA START 'xa1';
+  --disable_warnings
   INSERT INTO t1 VALUES (1);
+  --enable_warnings
   XA END 'xa1';
 
   # Step-2: Inject a failure point for 'XA PREPARE'

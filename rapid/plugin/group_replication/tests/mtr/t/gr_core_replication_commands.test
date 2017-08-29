@@ -106,6 +106,11 @@ STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
 
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Error while sending message for group replication recovery");
+SET SESSION sql_log_bin= 1;
+
 --replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
 --source include/start_group_replication_command.inc

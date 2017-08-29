@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -85,6 +85,9 @@ public:
     @param[in] need_commit Need to commit current transaction
                            if it is true.
 
+    @return
+      @retval  true   failed
+      @retval  false  success
     If there is an error, rolls back the current statement. Otherwise,
     commits it. However, if a new thread was created and there is an
     error, the transaction must be rolled back. Otherwise, it must be
@@ -92,7 +95,7 @@ public:
     any user transaction and if not finished, there would be pending
     changes.
   */
-  void close_table(THD *thd, TABLE* table, Open_tables_backup *backup,
+  bool close_table(THD *thd, TABLE* table, Open_tables_backup *backup,
                    bool error, bool need_commit);
   /**
     Creates a new thread in the bootstrap process or in the mysqld startup,

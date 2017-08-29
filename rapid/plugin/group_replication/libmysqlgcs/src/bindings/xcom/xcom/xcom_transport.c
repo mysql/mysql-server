@@ -53,7 +53,7 @@
 #include "xcom_ssl_transport.h"
 #endif
 
-#define MY_XCOM_PROTO x_1_1
+#define MY_XCOM_PROTO x_1_2
 
 xcom_proto const my_min_xcom_version = x_1_0; /* The minimum protocol version I am able to understand */
 xcom_proto const my_xcom_version = MY_XCOM_PROTO; /* The maximun protocol version I am able to understand */
@@ -892,41 +892,43 @@ int	srv_unref(server *s)
 /* }}} */
 
 /* Listen for connections on socket and create a handler task */
-int	tcp_server(task_arg arg)
-{
-	DECL_ENV
-	    int	fd;
-	int	cfd;
-	int refused;
-	END_ENV;
-	TASK_BEGIN
-	    ep->fd = get_int_arg(arg);
-	ep->refused= 0;
-	unblock_fd(ep->fd);
-	DBGOUT(FN; NDBG(ep->fd, d); );
-        G_MESSAGE("Ready to accept incoming connections on %s:%d "
-                  "(socket=%d)!",
-                  "0.0.0.0",
-                  xcom_listen_port, ep->fd);
-	do {
-		TASK_CALL(accept_tcp(ep->fd, &ep->cfd));
-                /* Callback to check that the file descriptor is accepted. */
-                if (xcom_socket_accept_callback && !xcom_socket_accept_callback(ep->cfd))
-                {
-                  shut_close_socket(&ep->cfd);
-                  ep->cfd= -1;
-                  ep->refused= 1;
-                  TASK_YIELD;
-                  continue;
-                }
-                ep->refused= 0;
-		DBGOUT(FN; NDBG(ep->cfd, d); );
-		task_new(acceptor_learner_task, int_arg(ep->cfd), "acceptor_learner_task", XCOM_THREAD_DEBUG);
-	} while (!xcom_shutdown && (ep->cfd >= 0 || ep->refused));
-	FINALLY
-	assert(ep->fd >= 0);
-	shut_close_socket(&ep->fd);
-	TASK_END;
+int tcp_server(task_arg arg) {
+  DECL_ENV
+  int fd;
+  int cfd;
+  int refused;
+  END_ENV;
+  TASK_BEGIN
+  ep->fd = get_int_arg(arg);
+  ep->refused = 0;
+  unblock_fd(ep->fd);
+  DBGOUT(FN; NDBG(ep->fd, d););
+  G_MESSAGE(
+      "Ready to accept incoming connections on %s:%d "
+      "(socket=%d)!",
+      "0.0.0.0", xcom_listen_port, ep->fd);
+  do {
+    TASK_CALL(accept_tcp(ep->fd, &ep->cfd));
+    /* Callback to check that the file descriptor is accepted. */
+    if (xcom_socket_accept_callback && !xcom_socket_accept_callback(ep->cfd)) {
+      shut_close_socket(&ep->cfd);
+      ep->cfd = -1;
+    }
+    if(ep->cfd == -1){
+      G_MESSAGE("accept failed");
+      ep->refused = 1;
+      TASK_DELAY(0.1);
+    } else {
+      ep->refused = 0;
+      DBGOUT(FN; NDBG(ep->cfd, d););
+      task_new(acceptor_learner_task, int_arg(ep->cfd), "acceptor_learner_task",
+               XCOM_THREAD_DEBUG);
+    }
+  } while (!xcom_shutdown && (ep->cfd >= 0 || ep->refused));
+  FINALLY
+  assert(ep->fd >= 0);
+  shut_close_socket(&ep->fd);
+  TASK_END;
 }
 
 #ifdef XCOM_HAVE_OPENSSL
@@ -1026,7 +1028,8 @@ int	send_msg(server *s, node_no from, node_no to, uint32_t group_id, pax_msg *p)
 		p->to = to;
 		p->group_id = group_id;
 		p->max_synode = get_max_synode();
- 		MAY_DBG(FN; PTREXP(p); STREXP(s->srv); NDBG(p->from, d); NDBG(p->to, d); NDBG(p->group_id, u));
+		p->delivered_msg = get_delivered_msg();
+		MAY_DBG(FN; PTREXP(p); STREXP(s->srv); NDBG(p->from, d); NDBG(p->to, d); NDBG(p->group_id, u));
 		channel_put(&s->outgoing, &link->l);
 	}
 	return 0;
@@ -1610,20 +1613,11 @@ int	sender_task(task_arg arg)
 
 				/* If ep->link->p is 0, it is a protocol (re)negotiation request */
 				if(ep->link->p){
-					if(ep->s->con.x_proto != get_latest_common_proto()){ /* See if we need renegotiation */
-					ADD_EVENTS(
-						add_event(string_arg("renegotiate get_latest_common_proto()"));
-						add_event(string_arg( xcom_proto_to_str(get_latest_common_proto())));
-						add_event(string_arg( xcom_proto_to_str(ep->s->con.x_proto)));
-					);
-						channel_put_front(&ep->s->outgoing, &ep->link->l); /* Push message back in queue, will be handled after negotiation */
-						start_protocol_negotiation(&ep->s->outgoing);
-					}else{
 						ADD_EVENTS(
 							add_event(string_arg("sending ep->link->p->synode"));
 							add_synode_event(ep->link->p->synode);
 							add_event(string_arg("to"));
-							add_event(int_arg(ep->link->p->to));
+							add_event(uint_arg(ep->link->p->to));
 							add_event(string_arg(pax_op_to_str(ep->link->p->op)));
 						);
 						TASK_CALL(_send_msg(ep->s, ep->link->p, ep->link->to, &ret));
@@ -1634,10 +1628,9 @@ int	sender_task(task_arg arg)
 							add_event(string_arg("sent ep->link->p->synode"));
 							add_synode_event(ep->link->p->synode);
 							add_event(string_arg("to"));
-							add_event(int_arg(ep->link->p->to));
+							add_event(uint_arg(ep->link->p->to));
 							add_event(string_arg(pax_op_to_str(ep->link->p->op)));
 						);
-					}
 				} else {
 					set_connected(&ep->s->con, CON_FD);
 					/* Send protocol negotiation request */
@@ -2116,6 +2109,7 @@ bool_t xdr_node_list_1_1(XDR *xdrs, node_list_1_1 *objp)
 		return xdr_array (xdrs, (char **)&objp->node_list_val, (u_int *) &objp->node_list_len, NSERVERS,
 		sizeof (node_address), (xdrproc_t) xdr_node_address_with_1_0);
 	case x_1_1:
+	case x_1_2:
 		return xdr_array (xdrs, (char **)&objp->node_list_val, (u_int *) &objp->node_list_len, NSERVERS,
 		sizeof (node_address), (xdrproc_t) xdr_node_address);
 	default:
@@ -2134,3 +2128,24 @@ bool_t xdr_checked_data(XDR *xdrs, checked_data *objp)
 		return FALSE;
 	return xdr_bytes(xdrs, (char **)&objp->data_val, (u_int *) &objp->data_len, 0xffffffff);
 }
+
+bool_t xdr_pax_msg(XDR *xdrs, pax_msg *objp)
+{
+	xcom_proto vx = *((xcom_proto * )xdrs->x_public);
+	/* Select protocol encode/decode based on the x_public field of the xdr struct */
+	switch (vx) {
+	case x_1_0:
+	case x_1_1:
+		if (!xdr_pax_msg_1_1(xdrs, (pax_msg_1_1*)objp))
+			return FALSE;
+		if (xdrs->x_op == XDR_DECODE)
+			objp->delivered_msg = get_delivered_msg(); /* Use our own minimum */
+		return TRUE;
+	case x_1_2:
+		return xdr_pax_msg_1_2(xdrs, objp);
+	default:
+		return FALSE;
+	}
+}
+
+

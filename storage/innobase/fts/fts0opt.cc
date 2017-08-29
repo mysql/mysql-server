@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -2953,13 +2953,6 @@ fts_optimize_sync_table(
 {
 	dict_table_t*   table = NULL;
 
-	/* Prevent DROP INDEX etc. from running when we are syncing
-	cache in background. */
-	if (!rw_lock_s_lock_nowait(dict_operation_lock, __FILE__, __LINE__)) {
-		/* Exit when fail to get dict operation lock. */
-		return;
-	}
-
 	table = dict_table_open_on_id(table_id, FALSE, DICT_TABLE_OP_NORMAL);
 
 	if (table) {
@@ -2969,8 +2962,6 @@ fts_optimize_sync_table(
 
 		dict_table_close(table, FALSE, FALSE);
 	}
-
-	rw_lock_s_unlock(dict_operation_lock);
 }
 
 /**********************************************************************//**

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -875,7 +875,21 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
           goto update_hidden;
         }
       }
-      if (item->const_item() && (int) hidden_field_count <= 0)
+
+      /*
+        Consider field as constant only if:
+        1) The item is constant and
+           1a) Isn't part of a derived table (or view). OR
+           1b) The item belongs to a derived table (or view) and it doesn't
+               belong to an inner table of an outer join.
+      */
+      bool is_const= item->const_item() &&
+        ((item->type() == Item::REF_ITEM &&
+          (down_cast<Item_ref *>(item))->ref_type() == Item_ref::VIEW_REF) ?
+         !(down_cast<Item_direct_view_ref *>(item))->cached_table->
+         is_inner_table_of_outer_join() : true);
+
+      if (is_const && (int)hidden_field_count <= 0)
         continue; // We don't have to store this
     }
     if (type == Item::SUM_FUNC_ITEM && !group && !save_sum_fields)
@@ -1494,7 +1508,7 @@ update_hidden:
     hash_key->actual_key_parts= hash_key->usable_key_parts= 1;
     hash_key->user_defined_key_parts= 1;
     hash_key->set_rec_per_key_array(NULL, NULL);
-    keyinfo->set_in_memory_estimate(IN_MEMORY_ESTIMATE_UNKNOWN);
+    hash_key->set_in_memory_estimate(IN_MEMORY_ESTIMATE_UNKNOWN);
     hash_key->algorithm= HA_KEY_ALG_UNDEF;
     if (distinct)
       hash_key->name= (char*) "<hash_distinct_key>";

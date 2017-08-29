@@ -7988,9 +7988,13 @@ commit_cache_norebuild(
 		? dict_table_get_index_on_name(
 			ctx->new_table, FTS_DOC_ID_INDEX_NAME)
 		: NULL;
-	DBUG_ASSERT((ctx->new_table->fts == NULL)
-		    == (ctx->new_table->fts_doc_id_index == NULL));
-
+#ifdef UNIV_DEBUG
+	if (!(ctx->new_table->fts != NULL
+	   && ctx->new_table->fts->cache->sync->in_progress)) {
+		DBUG_ASSERT((ctx->new_table->fts == NULL)
+			== (ctx->new_table->fts_doc_id_index == NULL));
+	}
+#endif
 	DBUG_RETURN(found);
 }
 
@@ -8343,7 +8347,7 @@ ha_innobase::commit_inplace_alter_table(
 			break;
 		}
 
-		DICT_STATS_BG_YIELD(trx);
+		DICT_BG_YIELD(trx);
 	}
 
 	/* Apply the changes to the data dictionary tables, for all
@@ -8526,6 +8530,48 @@ ha_innobase::commit_inplace_alter_table(
 
 			continue;
 		}
+
+	/* Make a concurrent Drop fts Index to wait until sync of that
+	fts index is happening in the background */
+	for (;;) {
+                bool    retry = false;
+
+                for (inplace_alter_handler_ctx** pctx = ctx_array;
+                     *pctx; pctx++) {
+			int count =0;
+                        ha_innobase_inplace_ctx*        ctx
+                                = static_cast<ha_innobase_inplace_ctx*>(*pctx);
+
+                        DBUG_ASSERT(new_clustered == ctx->need_rebuild());
+			if (dict_fts_index_syncing(ctx->old_table)) {
+				count++;
+				if (count == 100) {
+					ib::info() <<
+					 "Drop index waiting for background sync"
+					 "to finish\n";
+				}
+				retry = true;
+			}
+
+			if (new_clustered && dict_fts_index_syncing(ctx->new_table)) {
+				count++;
+				if (count == 100) {
+                                        ib::info() <<
+                                         "Drop index waiting for background sync"
+                                         "to finish\n";
+                                }
+
+                                retry = true;
+                        }
+
+		}
+
+                if (!retry) {
+                        break;
+                }
+
+                DICT_BG_YIELD(trx);
+        }
 
 		innobase_copy_frm_flags_from_table_share(
 			ctx->new_table, altered_table->s);
@@ -8729,8 +8775,12 @@ foreign_fail:
 
 		ut_d(dict_table_check_for_dup_indexes(
 			     ctx->new_table, CHECK_ABORTED_OK));
-		ut_a(fts_check_cached_index(ctx->new_table));
-
+#ifdef UNIV_DEBUG
+		if (!(ctx->new_table->fts != NULL
+		   && ctx->new_table->fts->cache->sync->in_progress)) {
+			ut_a(fts_check_cached_index(ctx->new_table));
+		}
+#endif
 		if (new_clustered) {
 			/* Since the table has been rebuilt, we remove
 			all persistent statistics corresponding to the

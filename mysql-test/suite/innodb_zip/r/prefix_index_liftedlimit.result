@@ -797,6 +797,8 @@ col_1_text = REPEAT("a", 200)	col_2_text  = REPEAT("o", 200)
 select @@session.tx_isolation;
 @@session.tx_isolation
 REPEATABLE-READ
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 SELECT col_1_text = REPEAT("b", 200) , col_2_text = REPEAT("o", 200) FROM
 worklog5743;
 col_1_text = REPEAT("b", 200)	col_2_text = REPEAT("o", 200)
@@ -805,6 +807,8 @@ SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 select @@session.tx_isolation;
 @@session.tx_isolation
 READ-UNCOMMITTED
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 SELECT col_1_text = REPEAT("b", 200) , col_2_text = REPEAT("o", 200) FROM
 worklog5743;
 col_1_text = REPEAT("b", 200)	col_2_text = REPEAT("o", 200)
@@ -867,6 +871,8 @@ SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 select @@session.tx_isolation;
 @@session.tx_isolation
 READ-UNCOMMITTED
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 SELECT col_1_text = REPEAT("b", 200) , col_2_text = REPEAT("o", 200) FROM
 worklog5743;
 col_1_text = REPEAT("b", 200)	col_2_text = REPEAT("o", 200)

@@ -19,7 +19,11 @@ INSERT INTO temp1 VALUE (1);
 
 ## 2. Change Isolation level to SERIALIZABLE.
 SET @tx_isolation_orig = @@session.tx_isolation;
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 SET SESSION tx_isolation='SERIALIZABLE';
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 
 ## 3. DDLs are allowed irrespective of transaction isolation value
 CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
@@ -52,12 +56,16 @@ SELECT dml_function();
 ERROR HY000: The table does not comply with the requirements by an external plugin.
 START TRANSACTION;
 SET SESSION tx_isolation='REPEATABLE-READ';
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 INSERT INTO t1 VALUES (2);
 ERROR HY000: The table does not comply with the requirements by an external plugin.
 COMMIT;
 include/assert.inc ['tx_isolation should be REPEATABLE-READ']
 START TRANSACTION;
 SET SESSION tx_isolation='SERIALIZABLE';
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 
 ## 5. Isolation value change is effective only from the next transaction.
 ##    So this insert should be allowed as the current transaction's
@@ -72,4 +80,6 @@ DROP TABLE temp1;
 DROP PROCEDURE dml_procedure;
 DROP FUNCTION dml_function;
 SET SESSION tx_isolation=@tx_isolation_orig;
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 include/group_replication_end.inc

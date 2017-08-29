@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -456,7 +456,6 @@ void import_config(gcs_snapshot *gcs_snap)
 		if (cp) {
 			site_def * site = new_site_def();
 			DBGOUT(FN; SYCEXP(cp->start); SYCEXP(cp->boot_key));
-			DBGOUT(FN; SYCEXP(cp->start); SYCEXP(cp->boot_key));
 			init_site_def(cp->nodes.node_list_len,
 			    cp->nodes.node_list_val, site);
 			site->start = cp->start;
@@ -492,4 +491,35 @@ gcs_snapshot *export_config()
 }
 
 
+/* Return the global minimum delivered message number, based on incoming gossip */
+synode_no get_min_delivered_msg(site_def const *s)
+{
+	u_int i;
+	synode_no retval = null_synode;
+	int	init = 1;
 
+	for (i = 0; i < s->nodes.node_list_len; i++) {
+		if (s->servers[i]->detected + DETECTOR_LIVE_TIMEOUT > task_now()) {
+			if (init) {
+				init = 0;
+				retval = s->delivered_msg[i];
+			} else {
+				if (synode_lt(s->delivered_msg[i], retval)) {
+					retval = s->delivered_msg[i];
+				}
+			}
+		}
+	}
+	DBGOUT(FN; SYCEXP(retval));
+	return retval;
+}
+
+
+/* Track the minimum delivered message numbers based on incoming messages */
+void update_delivered(site_def *s, node_no node, synode_no msgno)
+{
+	if(node < s->nodes.node_list_len){
+		s->delivered_msg[node] = msgno;
+		DBGOUT(FN; SYCEXP(s->delivered_msg[node]); NDBG(node,u));
+	}
+}

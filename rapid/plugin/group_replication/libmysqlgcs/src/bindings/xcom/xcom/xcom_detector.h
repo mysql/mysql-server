@@ -20,6 +20,7 @@
 extern "C" {
 #endif
 
+#define DETECTOR_LIVE_TIMEOUT 5.0
 
 typedef double	detector_state[NSERVERS];
 struct site_def;

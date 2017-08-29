@@ -53,6 +53,8 @@ site_def *end_site_def(synode_no start);
 void import_config(gcs_snapshot *gcs_snap);
 gcs_snapshot *export_config();
 void	get_all_site_defs(site_def ***s, uint32_t *n);
+synode_no get_min_delivered_msg(site_def const *s);
+void update_delivered(site_def *s, node_no node, synode_no msgno);
 
 static inline bool_t node_no_exists(node_no n, site_def const *site)
 {

@@ -65,3 +65,24 @@ void Blocked_transaction_handler::unblock_waiting_transactions()
   mysql_mutex_unlock(&unblocking_process_lock);
 }
 
+void log_primary_member_details()
+{
+  // Special case to display Primary member details in secondary member logs.
+  if (local_member_info->in_primary_mode() &&
+      (local_member_info->get_role() == Group_member_info::MEMBER_ROLE_SECONDARY))
+  {
+    std::string primary_member_uuid;
+    group_member_mgr->get_primary_member_uuid(primary_member_uuid);
+    Group_member_info* primary_member_info=
+                 group_member_mgr->get_group_member_info(primary_member_uuid);
+    if (primary_member_info != NULL)
+    {
+      log_message(MY_INFORMATION_LEVEL,
+                  "This server is working as secondary member with primary "
+                  "member address %s:%u.",
+                  primary_member_info->get_hostname().c_str(),
+                  primary_member_info->get_port());
+      delete primary_member_info;
+    }
+  }
+}

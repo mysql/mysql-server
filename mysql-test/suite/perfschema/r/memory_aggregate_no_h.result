@@ -199,6 +199,8 @@ user1	1	1
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 set GLOBAL query_cache_size=1000*1024;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 select get_lock("marker_1", 10);
 get_lock("marker_1", 10)
 1
@@ -543,6 +545,8 @@ user2	1	1
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 set GLOBAL query_cache_size=2000*1024;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 select get_lock("marker_2", 10);
 get_lock("marker_2", 10)
 1
@@ -1240,6 +1244,8 @@ user3	1	1
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 set GLOBAL query_cache_size=500*1024;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 select get_lock("marker_3", 10);
 get_lock("marker_3", 10)
 1
@@ -1880,6 +1886,8 @@ user4	2	2
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 set GLOBAL query_cache_size=4000*1024;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 select get_lock("marker_4", 10);
 get_lock("marker_4", 10)
 1
@@ -5034,3 +5042,5 @@ USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 root	1	1
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.

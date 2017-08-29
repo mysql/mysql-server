@@ -14,10 +14,10 @@
 # Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston
 # MA  02110-1301  USA.
 
-# Rebuild on OL5/RHEL5 needs following rpmbuild options:
-#  rpmbuild --define 'dist .el5' --define 'rhel 5' --define 'el5 1' mysql.spec
+# Package redhat-rpm-config will define some required macros.
+# With redhat-rpm-config install, rebuild is just: 'rpmbuild mysql.spec'
 
-# Install cmake28 from EPEL when building on OL5/RHEL5 and OL6/RHEL6.
+# Install cmake28 from EPEL when building on OL6/RHEL6.
 
 # NOTE: "vendor" is used in upgrade/downgrade check, so you can't
 # change these, has to be exactly as is.
@@ -95,7 +95,7 @@
 %endif
 
 %if 0%{?commercial}
-%global license_files_server  %{src_dir}/LICENSE.mysql
+%global license_files_server  %{src_dir}/LICENSE.mysql %{src_dir}/README
 %global license_type          Commercial
 %else
 %global license_files_server  %{src_dir}/COPYING %{src_dir}/README

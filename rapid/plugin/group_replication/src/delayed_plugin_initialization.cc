@@ -29,7 +29,7 @@ static void *launch_handler_thread(void* arg)
 }
 
 Delayed_initialization_thread::Delayed_initialization_thread()
-  : thread_running(false), is_server_ready(false)
+  : thread_running(false), is_server_ready(false), is_super_read_only_set(false)
 {
   mysql_mutex_init(key_GR_LOCK_delayed_init_run, &run_lock, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_GR_LOCK_delayed_init_server_ready,
@@ -61,20 +61,47 @@ void Delayed_initialization_thread::signal_thread_ready()
   DBUG_VOID_RETURN;
 }
 
-void Delayed_initialization_thread::wait_for_initialization()
+void Delayed_initialization_thread::wait_for_thread_end()
 {
-  DBUG_ENTER("Delayed_initialization_thread::wait_for_initialization");
+  DBUG_ENTER("Delayed_initialization_thread::wait_for_thread_end");
 
   mysql_mutex_lock(&run_lock);
   while (thread_running)
   {
-    DBUG_PRINT("sleep",("Waiting for the Delayed initialization thread to end"));
+    DBUG_PRINT("sleep",("Waiting for the Delayed initialization thread to finish"));
     mysql_cond_wait(&run_cond, &run_lock);
   }
   mysql_mutex_unlock(&run_lock);
 
   //give extra time for the thread to terminate
   my_sleep(1);
+
+  DBUG_VOID_RETURN;
+}
+
+void Delayed_initialization_thread::signal_read_mode_ready()
+{
+  DBUG_ENTER("Delayed_initialization_thread::signal_read_mode_ready");
+
+  mysql_mutex_lock(&run_lock);
+  is_super_read_only_set= true;
+  mysql_cond_broadcast(&run_cond);
+  mysql_mutex_unlock(&run_lock);
+
+  DBUG_VOID_RETURN;
+}
+
+void Delayed_initialization_thread::wait_for_read_mode()
+{
+  DBUG_ENTER("Delayed_initialization_thread::wait_for_read_mode");
+
+  mysql_mutex_lock(&run_lock);
+  while (!is_super_read_only_set)
+  {
+    DBUG_PRINT("sleep",("Waiting for the Delayed initialization thread to set super_read_only"));
+    mysql_cond_wait(&run_cond, &run_lock);
+  }
+  mysql_mutex_unlock(&run_lock);
 
   DBUG_VOID_RETURN;
 }
@@ -97,6 +124,7 @@ int Delayed_initialization_thread::launch_initialization_thread()
                           launch_handler_thread,
                           (void*)this))
   {
+    mysql_mutex_unlock(&run_lock); /* purecov: inspected */
     DBUG_RETURN(1); /* purecov: inspected */
   }
 
@@ -127,142 +155,12 @@ int Delayed_initialization_thread::initialization_thread_handler()
   }
   mysql_mutex_unlock(&server_ready_lock);
 
-  //delayed initialization code starts here
+  DBUG_ASSERT(server_engine_initialized());
 
-  int error= 0;
-  Sql_service_command_interface *sql_command_interface= NULL;
+  //Protect this delayed start against other start/stop requests
+  Mutex_autolock auto_lock_mutex(get_plugin_running_lock());
 
-  //Just terminate it
-  if (!wait_on_engine_initialization ||
-      get_plugin_pointer() == NULL)
-  {
-    goto end;
-  }
-
-  /*
-    The plugin was initialized on server start
-    so only now we can start the applier
-  */
-  if (wait_on_engine_initialization)
-  {
-    DBUG_ASSERT(server_engine_initialized());
-    wait_on_engine_initialization= false;
-
-    //Avoid unnecessary operations
-    bool enabled_super_read_only= false;
-
-    char *hostname, *uuid;
-    uint port;
-    unsigned int server_version;
-    st_server_ssl_variables server_ssl_variables=
-      {false,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL};
-
-    get_server_parameters(&hostname, &port, &uuid, &server_version,
-                          &server_ssl_variables);
-
-    sql_command_interface= new Sql_service_command_interface();
-    if (sql_command_interface->
-            establish_session_connection(PSESSION_INIT_THREAD,
-                                         get_plugin_pointer()) ||
-        sql_command_interface->set_interface_user(GROUPREPL_USER))
-    {
-      /* purecov: begin inspected */
-      log_message(MY_ERROR_LEVEL,
-                  "It was not possible to establish a connection to "
-                    "server SQL service");
-      error= 1;
-      goto err;
-      /* purecov: end */
-    }
-
-    if ((error= configure_group_communication(&server_ssl_variables)))
-      goto err; /* purecov: inspected */
-
-    if ((error=  configure_group_member_manager(hostname, uuid, port,
-                                                server_version)))
-      goto err; /* purecov: inspected */
-
-    if (check_async_channel_running_on_secondary())
-    {
-      error= 1;
-      log_message(MY_ERROR_LEVEL, "Can't start group replication on secondary"
-                                  " member with single primary-mode while"
-                                  " asynchronous replication channels are"
-                                  " running.");
-      goto err; /* purecov: inspected */
-    }
-
-    configure_compatibility_manager();
-
-    if ((error= initialize_recovery_module()))
-      goto err; /* purecov: inspected */
-
-    if (configure_and_start_applier_module())
-    {
-      error= GROUP_REPLICATION_REPLICATION_APPLIER_INIT_ERROR;
-      goto err;
-    }
-
-    initialize_asynchronous_channels_observer();
-    initialize_group_partition_handler();
-    blocked_transaction_handler= new Blocked_transaction_handler();
-
-    /*
-     At this point in the code, set the super_read_only mode here on the
-     server to protect recovery and version module of the Group Replication.
-    */
-
-    if (read_mode_handler->set_super_read_only_mode(sql_command_interface))
-    {
-      error =1; /* purecov: inspected */
-      log_message(MY_ERROR_LEVEL,
-                  "Could not enable the server read only mode and guarantee a "
-                  "safe recovery execution"); /* purecov: inspected */
-      goto err; /* purecov: inspected */
-    }
-    enabled_super_read_only= true;
-
-    if ((error= start_group_communication()))
-    {
-      //terminate the before created pipeline
-      log_message(MY_ERROR_LEVEL,
-                  "Error on group communication initialization methods, "
-                  "killing the Group Replication applier"); /* purecov: inspected */
-      applier_module->terminate_applier_thread(); /* purecov: inspected */
-      goto err; /* purecov: inspected */
-    }
-
-    if (view_change_notifier->wait_for_view_modification())
-    {
-      /* purecov: begin inspected */
-      if (!view_change_notifier->is_cancelled())
-      {
-        //Only log a error when a view modification was not canceled.
-        log_message(MY_ERROR_LEVEL,
-                    "Timeout on wait for view after joining group");
-      }
-      error= view_change_notifier->get_error();
-      goto err;
-      /* purecov: end */
-    }
-    declare_plugin_running(); //All is OK
-
-  err:
-    if (error)
-    {
-      leave_group();
-      terminate_plugin_modules(enabled_super_read_only);
-      if (certification_latch != NULL)
-      {
-        delete certification_latch; /* purecov: inspected */
-        certification_latch= NULL;  /* purecov: inspected */
-      }
-    }
-  }
-
-end:
-
-  delete sql_command_interface;
+  int error= initialize_plugin_and_join(PSESSION_INIT_THREAD, this);
 
   mysql_mutex_lock(&run_lock);
   thread_running= false;

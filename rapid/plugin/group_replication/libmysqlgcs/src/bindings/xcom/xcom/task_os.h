@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -52,6 +52,17 @@ extern "C" {
   }
 
 
+
+#if(_WIN32_WINNT < 0x0600)
+#error "Need _WIN32_WINNT >= 0x0600"
+#endif
+
+typedef ULONG nfds_t;
+typedef struct pollfd pollfd;
+static inline int poll(pollfd * fds, nfds_t nfds, int timeout) {
+  return WSAPoll(fds, nfds, timeout);
+}
+
 #else
 #include <unistd.h>
 #include <sys/socket.h>
@@ -86,6 +97,8 @@ extern "C" {
   {
 	  return from_errno(err) != 0 && from_errno(err) != EINTR;
   }
+
+typedef struct pollfd pollfd;
 
 #endif
 
