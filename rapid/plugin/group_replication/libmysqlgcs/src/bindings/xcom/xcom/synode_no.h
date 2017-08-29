@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,8 +27,6 @@ extern "C" {
 #define SY_FMT "{" SY_FMT_DEF "}"
 #define SY_FMT_DEF "%x %llu %u"
 #define SY_MEM(s) (s).group_id, (long long unsigned int)(s).msgno, (s).node
-
-d_xdr_funcs(synode_no)
 
 int	synode_eq(synode_no x, synode_no y);
 int	synode_gt(synode_no x, synode_no y);

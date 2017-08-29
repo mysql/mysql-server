@@ -289,6 +289,8 @@ SET(TESTS
   mysys_base64
   mysys_lf
   mysys_my_atomic
+  mysys_my_b_vprintf
+  mysys_my_freopen
   mysys_my_loadpath
   mysys_my_malloc
   mysys_my_pwrite

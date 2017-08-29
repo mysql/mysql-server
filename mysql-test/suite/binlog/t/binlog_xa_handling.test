@@ -9,12 +9,15 @@
 # Execution should be successful.
 ###############################################################################
 --source include/have_log_bin.inc
+CALL mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
 
 --connection default
 CREATE TABLE t1(f1 int);
 
 XA START'','';
+--disable_warnings
 INSERT INTO t1 VALUES(10);
+--enable_warnings
 BINLOG '
 SOgWTg8BAAAAbgAAAHIAAAAAAAQANS42LjMtbTUtZGVidWctbG9nAAAAAAAAAAAAAAAAAAAAAAAA
 AAAAAAAAAAAAAAAAAABI6BZOEzgNAAgAEgAEBAQEEgAAVgAEGggAAAAICAgCAAAAAAVAYI8=';
@@ -48,7 +51,9 @@ AAAAAAAAAAAAAAAAAABI6BZOEzgNAAgAEgAEBAQEEgAAVgAEGggAAAAICAgCAAAAAAVAYI8=';
 COMMIT;
 
 XA START 'xa_rollback';
+--disable_warnings
 INSERT INTO t1 VALUES(10);
+--enable_warnings
 XA END 'xa_rollback';
 XA ROLLBACK 'xa_rollback';
 
@@ -64,12 +69,16 @@ AAAAAAAAAAAAAAAAAABI6BZOEzgNAAgAEgAEBAQEEgAAVgAEGggAAAAICAgCAAAAAAVAYI8=';
 COMMIT;
 
 XA START 'xa_disconnect';
+--disable_warnings
 INSERT INTO t1 VALUES(10);
+--enable_warnings
 --disconnect con1
 
 --connection default
 XA START 'xa_commit';
+--disable_warnings
 INSERT INTO t1 VALUES(10);
+--enable_warnings
 XA END 'xa_commit';
 XA PREPARE 'xa_commit';
 XA COMMIT 'xa_commit';
@@ -100,7 +109,9 @@ RESET MASTER;
 
 CREATE TABLE t1 (c1 INT);
 XA BEGIN 'xa1';
+--disable_warnings
 INSERT INTO t1 VALUES (1);
+--enable_warnings
 XA END 'xa1';
 XA COMMIT 'xa1' ONE PHASE;
 

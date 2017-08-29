@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -29,6 +29,25 @@ INSTALL(
   PATTERN "*.am" EXCLUDE
   PATTERN "*.in" EXCLUDE
 )
+  IF(NOT INSTALL_LAYOUT MATCHES "RPM")
+    INSTALL(FILES ${CMAKE_SOURCE_DIR}/COPYING
+      DESTINATION ${INSTALL_DOCREADMEDIR}
+      COMPONENT TestReadme
+      RENAME COPYING-test
+      OPTIONAL
+      )
+    INSTALL(FILES ${CMAKE_SOURCE_DIR}/LICENSE.mysql
+      DESTINATION ${INSTALL_DOCREADMEDIR}
+      COMPONENT TestReadme
+      RENAME LICENSE.mysql-test
+      OPTIONAL
+      )
+    INSTALL(FILES ${CMAKE_SOURCE_DIR}/README
+      DESTINATION ${INSTALL_DOCREADMEDIR}
+      COMPONENT TestReadme
+      RENAME README-test
+      )
+  ENDIF()
 ENDIF()
 
 

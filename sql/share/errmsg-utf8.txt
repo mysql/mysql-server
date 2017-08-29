@@ -7681,6 +7681,9 @@ ER_XA_RETRY
 ER_KEYRING_AWS_UDF_AWS_KMS_ERROR
   eng "Function %s failed due to: %s."
 
+ER_BINLOG_UNSAFE_XA
+  eng "Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements."
+
 #
 #  End of 5.7 error messages.
 #

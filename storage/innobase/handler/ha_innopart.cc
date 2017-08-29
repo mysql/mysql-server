@@ -2805,8 +2805,11 @@ ha_innopart::create(
 				part_elem->partition_name,
 				part_sep,
 				FN_REFLEN - table_name_len);
-		if ((table_name_len + len) >= FN_REFLEN) {
-			ut_ad(0);
+		/* Report error if the partition name with path separator
+		exceeds maximum path length. */
+		if ((table_name_len + len + sizeof "/") >= FN_REFLEN) {
+			error = HA_ERR_INTERNAL_ERROR;
+			my_error(ER_PATH_LENGTH, MYF(0), partition_name);
 			goto cleanup;
 		}
 
@@ -2844,8 +2847,11 @@ ha_innopart::create(
 					sub_elem->partition_name,
 					sub_sep,
 					FN_REFLEN - part_name_len);
-				if ((len + part_name_len) >= FN_REFLEN) {
-					ut_ad(0);
+				/* Report error if the partition name with path separator
+				exceeds maximum path length. */
+				if ((len + part_name_len + sizeof "/") >= FN_REFLEN) {
+					error = HA_ERR_INTERNAL_ERROR;
+					my_error(ER_PATH_LENGTH, MYF(0), partition_name);
 					goto cleanup;
 				}
 				/* Override part level DATA/INDEX DIRECTORY. */
@@ -2896,11 +2902,20 @@ ha_innopart::create(
 	create_info->data_file_name = NULL;
 	create_info->index_file_name = NULL;
 	while ((part_elem = part_it++)) {
-		Ha_innopart_share::append_sep_and_name(
-			table_name_end,
-			part_elem->partition_name,
-			part_sep,
-			FN_REFLEN - table_name_len);
+		len = Ha_innopart_share::append_sep_and_name(
+				table_name_end,
+				part_elem->partition_name,
+				part_sep,
+				FN_REFLEN - table_name_len);
+
+		/* Report error if table name with partition name exceeds
+		maximum length */
+		if ((len + table_name_len) >= NAME_LEN) {
+			my_error(ER_PATH_LENGTH, MYF(0), table_name);
+			error = HA_ERR_INTERNAL_ERROR;
+			goto end;
+		}
+
 		if (!form->part_info->is_sub_partitioned()) {
 			error = info.create_table_update_dict();
 			if (error != 0) {
@@ -2914,12 +2929,21 @@ ha_innopart::create(
 				sub_it(part_elem->subpartitions);
 			partition_element* sub_elem;
 			while ((sub_elem = sub_it++)) {
-				Ha_innopart_share::append_sep_and_name(
-					part_name_end,
-					sub_elem->partition_name,
-					sub_sep,
-					FN_REFLEN - table_name_len
-					- part_name_len);
+				len = Ha_innopart_share::append_sep_and_name(
+						part_name_end,
+						sub_elem->partition_name,
+						sub_sep,
+						FN_REFLEN - table_name_len
+						- part_name_len);
+				/* Report error if table name with partition
+				name exceeds maximum length */
+				if ((len + table_name_len +
+					part_name_len) >= NAME_LEN) {
+					my_error(ER_PATH_LENGTH, MYF(0), table_name);
+					error = HA_ERR_INTERNAL_ERROR;
+					goto end;
+				}
+
 				error = info.create_table_update_dict();
 				if (error != 0) {
 					ut_ad(0);
@@ -3211,14 +3235,11 @@ ha_innopart::records_in_range(
 	set_partition(part_id);
 	index = m_prebuilt->index;
 
-	/* Only validate the first partition, to avoid too much overhead. */
-
 	/* There exists possibility of not being able to find requested
 	index due to inconsistency between MySQL and InoDB dictionary info.
 	Necessary message should have been printed in innopart_get_index(). */
 	if (index == NULL
 	    || dict_table_is_discarded(m_prebuilt->table)
-	    || dict_index_is_corrupted(index)
 	    || !row_merge_is_index_usable(m_prebuilt->trx, index)) {
 
 		n_rows = HA_POS_ERROR;
@@ -3277,6 +3298,17 @@ ha_innopart::records_in_range(
 		     part_id = m_part_info->get_next_used_partition(part_id)) {
 
 			index = m_part_share->get_index(part_id, keynr);
+			/* Individual partitions can be discarded
+			we need to check each partition */
+			if (index == NULL
+			    || dict_table_is_discarded(index->table)
+			    || !row_merge_is_index_usable(m_prebuilt->trx,index))
+			{
+
+				n_rows = HA_POS_ERROR;
+				mem_heap_free(heap);
+				goto func_exit;
+			}
 			int64_t n = btr_estimate_n_rows_in_range(index,
 							       range_start,
 							       mode1,
@@ -4456,6 +4488,45 @@ ha_innopart::reset()
 	clear_blob_heaps();
 
 	DBUG_RETURN(ha_innobase::reset());
+}
+
+/**
+ Read row using position using given record to find.
+
+This works as position()+rnd_pos() functions, but does some
+extra work,calculating m_last_part - the partition to where
+the 'record' should go.	Only useful when position is based
+on primary key (HA_PRIMARY_KEY_REQUIRED_FOR_POSITION).
+
+@param[in]	record	Current record in MySQL Row Format.
+@return	0 for success else error code. */
+int
+ha_innopart::rnd_pos_by_record(uchar*  record)
+{
+	int error;
+	DBUG_ENTER("ha_innopart::rnd_pos_by_record");
+	DBUG_ASSERT(ha_table_flags() &
+		HA_PRIMARY_KEY_REQUIRED_FOR_POSITION);
+	/* TODO: Support HA_READ_BEFORE_WRITE_REMOVAL */
+	/* Set m_last_part correctly. */
+	if (unlikely(get_part_for_delete(record,
+					 m_table->record[0],
+					 m_part_info,
+					 &m_last_part))) {
+		DBUG_RETURN(HA_ERR_INTERNAL_ERROR);
+	}
+
+	/* Init only the partition in which row resides */
+	error = rnd_init_in_part(m_last_part, false);
+	if (error != 0) {
+		goto err;
+	}
+
+	position(record);
+	error = handler::ha_rnd_pos(record, ref);
+err:
+	rnd_end_in_part(m_last_part,FALSE);
+	DBUG_RETURN(error);
 }
 
 /****************************************************************************

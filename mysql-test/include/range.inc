@@ -984,6 +984,8 @@ CREATE TABLE t1 (f1 TINYINT(11) UNSIGNED NOT NULL, PRIMARY KEY (f1));
 
 INSERT INTO t1 VALUES (127),(254),(0),(1),(255);
 
+--disable_ps_protocol
+
 # test upper bound
 # count 5
 SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < 256;
@@ -1018,6 +1020,8 @@ SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 > -129;
 SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 > -129.0;
 # count 4
 SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 > -128;
+
+--enable_ps_protocol
 
 DROP TABLE t1;
 

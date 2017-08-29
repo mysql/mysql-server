@@ -8,7 +8,6 @@
 # 2. Wait until server becomes ONLINE and assert
 #    super_read_only value.
 # 3. Leave group and assert super_read_only value.
-# 4. Clean up.
 ################################################################################
 
 --source ../inc/have_group_replication_plugin.inc
@@ -48,18 +47,3 @@
 --echo ############################################################
 --echo # 3. Leave group and assert super_read_only value.
 --source include/stop_group_replication.inc
-
---let $assert_text= The super_read_only mode must be 1
---let $assert_cond= "[SELECT @@GLOBAL.super_read_only]" = 1;
---source include/assert.inc
-
---let $assert_text= The read_only mode must be 1
---let $assert_cond= "[SELECT @@GLOBAL.read_only]" = 1;
---source include/assert.inc
-
-
---echo
---echo ############################################################
---echo # 4. Clean up.
-# Allow MTR check-warnings to run.
-SET @@GLOBAL.read_only= 0;

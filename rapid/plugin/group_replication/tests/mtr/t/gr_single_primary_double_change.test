@@ -34,6 +34,7 @@
 
 set session sql_log_bin=0;
 call mtr.add_suppression("There was an error when connecting to the donor*");
+call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
 set session sql_log_bin=1;
 
 --let $member1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
@@ -43,6 +44,9 @@ set session sql_log_bin=1;
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
+# next primary should be server2 in step3, so setting member weight as 70
+# higher then default member_weight value of 50.
+--eval SET GLOBAL group_replication_member_weight= 70
 --let $member2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 --source include/start_group_replication.inc
@@ -102,13 +106,15 @@ INSERT INTO t1 VALUES(1,1);
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
-# Making sure this is the primary server
---let $primary_uuid= `SELECT variable_value FROM performance_schema.global_status WHERE variable_name='group_replication_primary_member'`
-if ($primary_uuid != $member2_uuid)
-{
-  --source include/force_restart_if_skipped.inc
-  --skip Test depends that primary is server 2
-}
+# server1 is stopped, so only server2 and 3 should be in the group
+--let $group_replication_number_of_members= 2
+--source ../inc/gr_wait_for_number_of_members.inc
+
+# Make sure server2 is the primary now
+--let $assert_text= Verify group_replication_primary_member is SERVER_UUID
+--let $assert_cond= "[SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME= \'group_replication_primary_member\', VARIABLE_VALUE, 1]" = "$member2_uuid"
+--source include/assert.inc
+
 
 --echo
 --echo ###########################################################
@@ -169,6 +175,10 @@ SET SESSION sql_log_bin= 1;
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
+
 DROP TABLE t1;
+
+SET GLOBAL group_replication_member_weight= DEFAULT;
+
 --source ../inc/group_replication_end.inc
 

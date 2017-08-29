@@ -21,6 +21,7 @@ include/start_group_replication.inc
 #
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("There was an error when connecting to the donor*");
+call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
 SET SESSION sql_log_bin= 1;
 SET @debug_save_rec_int= @@GLOBAL.group_replication_recovery_reconnect_interval;
 SET @debug_save_retries= @@GLOBAL.group_replication_recovery_retry_count;

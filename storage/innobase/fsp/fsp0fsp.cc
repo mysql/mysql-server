@@ -1005,6 +1005,9 @@ fsp_header_rotate_encryption(
 
 	const page_size_t	page_size(space->flags);
 
+	DBUG_EXECUTE_IF("fsp_header_rotate_encryption_failure",
+			return(false););
+
 	/* Fill encryption info. */
 	if (!fsp_header_fill_encryption_info(space,
 					     encrypt_info)) {

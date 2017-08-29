@@ -1219,3 +1219,17 @@ LOCK=EXCLUSIVE, WITHOUT VALIDATION, ALGORITHM=INPLACE;
 ERROR HY000: Incorrect usage of ALTER and WITH VALIDATION
 DROP TABLE t1;
 #
+# WL#8662: Deprecate "Delphi style" column and table syntax
+#
+CREATE TABLE t1 (.i INT);
+Warnings:
+Warning	1287	'.<column>' is deprecated and will be removed in a future release. Please use the column name without a dot prefix instead
+CREATE TABLE .t2 (i INT);
+Warnings:
+Warning	1287	'.<table>' is deprecated and will be removed in a future release. Please use the table name without a dot prefix instead
+SELECT .t1.i FROM t1;
+i
+Warnings:
+Warning	1287	'.<table>.<column>' is deprecated and will be removed in a future release. Please use the table.column name without a dot prefix instead
+DROP TABLE t1, t2;
+#

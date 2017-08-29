@@ -1075,6 +1075,9 @@ SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
 SELECT @@tx_isolation,@@global.tx_isolation;
 @@tx_isolation	@@global.tx_isolation
 SERIALIZABLE	REPEATABLE-READ
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 insert into t1 (code, name) values (1, 'Tim'), (1, 'Monty'), (2, 'David');
 select id, code, name from t1 order by id;
 id	code	name
@@ -3283,6 +3286,8 @@ id
 DROP TABLE t1;
 SET binlog_format='MIXED';
 SET TX_ISOLATION='read-committed';
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 SET AUTOCOMMIT=0;
 DROP TABLE IF EXISTS t1, t2;
 Warnings:
@@ -3294,6 +3299,8 @@ SELECT * FROM t2;
 a
 SET binlog_format='MIXED';
 SET TX_ISOLATION='read-committed';
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 SET AUTOCOMMIT=0;
 INSERT INTO t1 VALUES (1);
 COMMIT;
@@ -3302,11 +3309,15 @@ a
 1
 SET binlog_format='MIXED';
 SET TX_ISOLATION='read-committed';
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 SET AUTOCOMMIT=0;
 SELECT * FROM t2;
 a
 SET binlog_format='MIXED';
 SET TX_ISOLATION='read-committed';
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 SET AUTOCOMMIT=0;
 INSERT INTO t1 VALUES (2);
 COMMIT;

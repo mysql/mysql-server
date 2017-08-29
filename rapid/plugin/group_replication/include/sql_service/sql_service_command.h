@@ -269,11 +269,7 @@ public:
   long kill_session(uint32_t session_id, MYSQL_SESSION session);
 
   /**
-    Method to set the super_read_only variable "ON" on the server at two
-    possible places :
-
-    1. During server compatibility check in the versioning module.
-    2. During server recovery handling in the recovery module.
+    Method to set the super_read_only variable "ON".
 
     @return error code during execution of the sql query.
        @retval 0  - success

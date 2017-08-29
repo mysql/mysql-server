@@ -1491,26 +1491,31 @@ SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < 256;
 COUNT(*)
 5
 Warnings:
+Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
 Warning	3170	Memory capacity of 50 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < 256.0;
 COUNT(*)
 5
 Warnings:
+Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
 Warning	3170	Memory capacity of 50 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < 255;
 COUNT(*)
 4
 Warnings:
+Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
 Warning	3170	Memory capacity of 50 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < -1;
 COUNT(*)
 0
 Warnings:
+Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
 Warning	3170	Memory capacity of 50 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 > -1;
 COUNT(*)
 5
 Warnings:
+Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
 Warning	3170	Memory capacity of 50 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 DROP TABLE t1;
 CREATE TABLE t1 ( f1 TINYINT(11) NOT NULL, PRIMARY KEY (f1));
@@ -1519,31 +1524,37 @@ SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < 128;
 COUNT(*)
 5
 Warnings:
+Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
 Warning	3170	Memory capacity of 50 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < 128.0;
 COUNT(*)
 5
 Warnings:
+Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
 Warning	3170	Memory capacity of 50 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < 127;
 COUNT(*)
 4
 Warnings:
+Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
 Warning	3170	Memory capacity of 50 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 > -129;
 COUNT(*)
 5
 Warnings:
+Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
 Warning	3170	Memory capacity of 50 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 > -129.0;
 COUNT(*)
 5
 Warnings:
+Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
 Warning	3170	Memory capacity of 50 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 > -128;
 COUNT(*)
 4
 Warnings:
+Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
 Warning	3170	Memory capacity of 50 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 DROP TABLE t1;
 create table t1 (a int);

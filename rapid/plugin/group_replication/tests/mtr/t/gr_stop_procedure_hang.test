@@ -28,6 +28,11 @@
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Transaction cannot be executed while Group Replication is stopping.");
+call mtr.add_suppression("Run function 'before_commit' in plugin 'group_replication' failed");
+SET SESSION sql_log_bin= 1;
+
 # Create a stored procedure to insert rows in the table created.
 CREATE TABLE test.t1 (a INT PRIMARY KEY);
 USE test;
@@ -42,6 +47,7 @@ CREATE PROCEDURE insert_into_t1()
      END WHILE;
      end$$
 delimiter ;$$
+--source include/rpl_sync.inc
 --echo
 
 # Call the procedure and simultaneously executed STOP GROUP_REPLICATION from a
@@ -59,35 +65,47 @@ SET @@GLOBAL.DEBUG='d,group_replication_before_commit_hook_wait';
 --let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now'
 --source include/wait_condition.inc
 
---source include/stop_group_replication.inc
+# Leave group
+--send STOP GROUP_REPLICATION
+
+--let $rpl_connection_name= server_1_1
+--source include/rpl_connection.inc
+--let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Waiting for global read lock'
+--source include/wait_condition.inc
 
 SET DEBUG_SYNC='now SIGNAL continue_commit';
 SET @@GLOBAL.DEBUG= @debug_save;
 
-# Prior to the fix of the BUG#21649247, the member used to hang here during
-# the reap. Now it passes successfully.
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
+--error ER_RUN_HOOK_ERROR
 --reap
 
---let $wait_condition= SELECT COUNT(*) = 199 from test.t1;
---source include/wait_condition.inc
+# Wait for STOP GROUP_REPLICATION completion
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--reap
+--let $group_replication_member_state= OFFLINE
+--source ../inc/gr_wait_for_member_state.inc
+--source include/assert_and_disable_read_only.inc
 
-# Asserting that the stored procedure was executed only on server1 binary log
-# and was logged with the the server1's UUID. It never reached the binary log
-# of server2.
+--source include/rpl_sync.inc
 
---let $master_uuid= `SELECT @@GLOBAL.SERVER_UUID`
---let $assert_text= Stored procedure is executed on server1 with server1 UUID.
---let $assert_cond= GTID_IS_EQUAL("[SELECT @@GLOBAL.GTID_EXECUTED]", "$master_uuid:1-199,$group_replication_group_name:1-4")
+# Asserting that the stored procedure was executed only on the group.
+--let $rows= `SELECT COUNT(*) AS count FROM t1`
+--let $last_gno= `SELECT $rows + 4`
+--let $assert_text= There are no local transactions.
+--let $assert_cond= GTID_IS_EQUAL("[SELECT @@GLOBAL.GTID_EXECUTED]", "$group_replication_group_name:1-$last_gno")
 --source include/assert.inc
 
-# On server 2 only 5 transaction are logged with group gtid.
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
---let $assert_text= Stored procedure is not replicated here. It has only group transactions.
---let $assert_cond= GTID_IS_EQUAL("[SELECT @@GLOBAL.GTID_EXECUTED]", "$group_replication_group_name:1-4")
+--let $assert_text= There are no local transactions.
+--let $assert_cond= GTID_IS_EQUAL("[SELECT @@GLOBAL.GTID_EXECUTED]", "$group_replication_group_name:1-$last_gno")
 --source include/assert.inc
+
+--let $diff_tables=server1:t1, server2:t1
+--source include/diff_tables.inc
 
 # Cleanup
 --let $rpl_connection_name= server1

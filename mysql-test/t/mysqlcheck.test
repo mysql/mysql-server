@@ -117,7 +117,7 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 --copy_file $MYSQLD_DATADIR/test/v1.frm $MYSQLD_DATADIR/test/v-1.frm
 show tables;
 --exec $MYSQL_CHECK --check-upgrade --databases test
---exec $MYSQL_CHECK --fix-table-names --databases test
+--exec $MYSQL_CHECK --fix-table-names --databases test 2>&1
 show tables;
 drop view v1, `v-1`;
 drop table t1;
@@ -133,7 +133,7 @@ CREATE TABLE `#mysql50#@` (a INT) engine=myisam;
 SHOW TABLES;
 SET NAMES DEFAULT;
 --echo mysqlcheck --fix-table-names --databases test
---exec $MYSQL_CHECK --fix-table-names --databases test
+--exec $MYSQL_CHECK --fix-table-names --databases test 2>&1
 SET NAMES utf8;
 SHOW TABLES;
 DROP TABLE `@`;
@@ -183,7 +183,7 @@ SELECT * FROM INFORMATION_SCHEMA.TRIGGERS
   WHERE TRIGGER_SCHEMA="#mysql50#a@b" ORDER BY trigger_name;
 
 --echo mysqlcheck --fix-db-names --fix-table-names --all-databases
---exec $MYSQL_CHECK --default-character-set=utf8 --fix-db-names --fix-table-names --all-databases
+--exec $MYSQL_CHECK --default-character-set=utf8 --fix-db-names --fix-table-names --all-databases 2>&1
 
 USE `a@b`;
 SELECT * FROM INFORMATION_SCHEMA.TRIGGERS
@@ -207,12 +207,12 @@ drop table if exists `#mysql50#t1-1`;
 --enable_warnings
 
 create table `#mysql50#t1-1` (a int) engine=myisam;
---exec $MYSQL_CHECK --all-in-1 --fix-table-names --databases test
+--exec $MYSQL_CHECK --all-in-1 --fix-table-names --databases test 2>&1
 show tables like 't1-1';
 drop table `t1-1`;
 
 create table `#mysql50#t1-1` (a int) engine=myisam;
---exec $MYSQL_CHECK --all-in-1 --fix-table-names test "#mysql50#t1-1"
+--exec $MYSQL_CHECK --all-in-1 --fix-table-names test "#mysql50#t1-1" 2>&1
 show tables like 't1-1';
 drop table `t1-1`;
 
@@ -228,8 +228,9 @@ drop table `t1-1`;
 --echo # Bug #35269: mysqlcheck behaves different depending on order of parameters
 --echo #
 
+--replace_regex /.*mysqlcheck(\.exe)*/mysqlcheck/
 --error 13
---exec $MYSQL_CHECK -a --fix-table-names test "#mysql50#t1-1"
+--exec $MYSQL_CHECK -a --fix-table-names test "#mysql50#t1-1" 2>&1
 --error 1
 --exec $MYSQL_CHECK -aoc test "#mysql50#t1-1"
 

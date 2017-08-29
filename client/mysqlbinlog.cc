@@ -218,6 +218,7 @@ Query_log_event::rewrite_db_in_buffer(char **buf, ulong *event_len,
   char* ptr= *buf;
   uint sv_len= 0;
 
+  DBUG_EXECUTE_IF("simulate_corrupt_event_len", *event_len=0;);
   /* Error if the event content is too small */
   if (*event_len < (common_header_len + query_header_len))
     return true;
@@ -2532,7 +2533,8 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
   char log_file_name[FN_REFLEN + 1];
   Exit_status retval= OK_CONTINUE;
   enum enum_server_command command= COM_END;
-
+  char *event_buf= NULL;
+  ulong event_len;
   DBUG_ENTER("dump_remote_log_entries");
 
   fname[0]= log_file_name[0]= 0;
@@ -2691,12 +2693,19 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     */
     if (type == binary_log::HEARTBEAT_LOG_EVENT)
       continue;
+    event_buf= (char *) net->read_pos + 1;
+    event_len= len - 1;
+    if (rewrite_db_filter(&event_buf, &event_len, glob_description_event))
+    {
+      error("Got a fatal error while applying rewrite db filter.");
+      DBUG_RETURN(ERROR_STOP);
+    }
 
     if (!raw_mode || (type == binary_log::ROTATE_EVENT) ||
         (type == binary_log::FORMAT_DESCRIPTION_EVENT))
     {
-      if (!(ev= Log_event::read_log_event((const char*) net->read_pos + 1 ,
-                                          len - 1, &error_msg,
+      if (!(ev= Log_event::read_log_event((const char*) event_buf,
+                                          event_len, &error_msg,
                                           glob_description_event,
                                           opt_verify_binlog_checksum)))
       {

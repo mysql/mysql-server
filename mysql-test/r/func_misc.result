@@ -105,6 +105,8 @@ SET @row_count = 4;
 SET @sleep_time_per_result_row = 1;
 SET @max_acceptable_delay = 2;
 SET @@global.query_cache_size = 1024 * 64;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 DROP TEMPORARY TABLE IF EXISTS t_history;
 DROP TABLE IF EXISTS t1;
 CREATE TEMPORARY TABLE t_history (attempt SMALLINT,
@@ -192,6 +194,8 @@ Expect 1
 DROP TABLE t1;
 DROP TEMPORARY TABLE t_history;
 SET @@global.query_cache_size = default;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 create table t1 select INET_ATON('255.255.0.1') as `a`;
 show create table t1;
 Table	Create Table

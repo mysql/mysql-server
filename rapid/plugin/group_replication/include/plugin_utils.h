@@ -24,6 +24,8 @@
 #include "plugin_psi.h"
 #include <mysql/group_replication_priv.h>
 
+void log_primary_member_details();
+
 class Blocked_transaction_handler
 {
 public:

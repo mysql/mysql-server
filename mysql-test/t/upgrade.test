@@ -24,7 +24,7 @@ show create database `#mysql50#mysqltest-1`;
 show tables in `mysqltest1`;
 show tables in `#mysql50#mysqltest-1`;
 
---exec $MYSQL_CHECK --all-databases --fix-db-names --fix-table-names
+--exec $MYSQL_CHECK --all-databases --fix-db-names --fix-table-names 2>&1
 
 show create database `mysqltest1`;
 show create database `mysqltest-1`;

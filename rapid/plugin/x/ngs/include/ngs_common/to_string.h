@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -45,35 +45,39 @@ inline std::string to_string(const my_gcvt_arg_type arg_type, T value) {
 
 }  // namespace detail
 
-inline std::string to_string(int value) {
+inline std::string to_string(const bool value) {
+  return detail::to_string("%s", value ? "true" : "false");
+}
+
+inline std::string to_string(const int value) {
   return detail::to_string("%d", value);
 }
 
-inline std::string to_string(unsigned value) {
+inline std::string to_string(const unsigned value) {
   return detail::to_string("%u", value);
 }
 
-inline std::string to_string(long value) {
+inline std::string to_string(const long value) {
   return detail::to_string("%ld", value);
 }
 
-inline std::string to_string(long long value) {
+inline std::string to_string(const long long value) {
   return detail::to_string("%lld", value);
 }
 
-inline std::string to_string(unsigned long value) {
+inline std::string to_string(const unsigned long value) {
   return detail::to_string("%lu", value);
 }
 
-inline std::string to_string(unsigned long long value) {
+inline std::string to_string(const unsigned long long value) {
   return detail::to_string("%llu", value);
 }
 
-inline std::string to_string(float value) {
+inline std::string to_string(const float value) {
   return detail::to_string(MY_GCVT_ARG_FLOAT, value);
 }
 
-inline std::string to_string(double value) {
+inline std::string to_string(const double value) {
   return detail::to_string(MY_GCVT_ARG_DOUBLE, value);
 }
 

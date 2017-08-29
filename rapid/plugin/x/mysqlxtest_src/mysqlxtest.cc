@@ -23,6 +23,7 @@
 #include <rapidjson/writer.h>
 #include <string.h>
 #include <algorithm>
+#include <cctype>
 #include <fstream>
 #include <ios>
 #include <iostream>
@@ -46,6 +47,7 @@
 #include "ngs_common/protocol_protobuf.h"
 #include "ngs_common/to_string.h"
 #include "utils_mysql_parsing.h"
+#include "message_formatter.h"
 #include "violite.h"
 
 #ifdef HAVE_SYS_UN_H
@@ -189,8 +191,6 @@ static void print_columndata(const std::vector<mysqlx::ColumnMetadata> &meta);
 static void print_result_set(mysqlx::Result &result);
 static void print_result_set(mysqlx::Result &result, const std::vector<std::string> &columns,
                              Value_callback value_callback = Value_callback(), bool quiet = false);
-
-static std::string message_to_text(const mysqlx::Message &message);
 
 //---------------------------------------------------------------------------------------------------------
 
@@ -443,7 +443,7 @@ public:
           active_connection->set_closed();
           int msgid;
           Message_ptr msg(active_connection->recv_raw(msgid));
-          std::cout << message_to_text(*msg);
+          std::cout << formatter::message_to_text(*msg);
           if (Mysqlx::ServerMessages::OK != msgid)
             throw mysqlx::Error(CR_COMMANDS_OUT_OF_SYNC,
                                 "Disconnect was expecting Mysqlx.Ok(bye!), but got the one above (one or more calls to -->recv are probably missing)");
@@ -459,7 +459,7 @@ public:
             {
               Message_ptr msg(active_connection->recv_raw(msgid));
 
-              std::cout << message_to_text(*msg);
+              std::cout << formatter::message_to_text(*msg);
 
               throw mysqlx::Error(CR_COMMANDS_OUT_OF_SYNC,
                   "Was expecting closure but got the one above message");
@@ -596,56 +596,6 @@ static std::string bindump_to_data(const std::string &bindump)
       res.push_back(bindump[i]);
   }
   return res;
-}
-
-static std::string message_to_text(const mysqlx::Message &message)
-{
-  std::string output;
-  std::string name;
-
-  google::protobuf::TextFormat::Printer printer;
-
-  // special handling for nested messages (at least for Notices)
-  if (message.GetDescriptor()->full_name() == "Mysqlx.Notice.Frame")
-  {
-    Mysqlx::Notice::Frame frame = *static_cast<const Mysqlx::Notice::Frame*>(&message);
-    switch (frame.type())
-    {
-    case 1: // warning
-    {
-      Mysqlx::Notice::Warning subm;
-      subm.ParseFromString(frame.payload());
-      printer.PrintToString(subm, &output);
-      frame.set_payload(subm.GetDescriptor()->full_name() + " { " + output + " }");
-      break;
-    }
-    case 2: // session variable
-    {
-      Mysqlx::Notice::SessionVariableChanged subm;
-      subm.ParseFromString(frame.payload());
-      printer.PrintToString(subm, &output);
-      frame.set_payload(subm.GetDescriptor()->full_name() + " { " + output + " }");
-      break;
-    }
-    case 3: // session state
-    {
-      Mysqlx::Notice::SessionStateChanged subm;
-      subm.ParseFromString(frame.payload());
-      printer.PrintToString(subm, &output);
-      frame.set_payload(subm.GetDescriptor()->full_name() + " { " + output + " }");
-      break;
-    }
-    }
-    printer.SetInitialIndentLevel(1);
-    printer.PrintToString(frame, &output);
-  }
-  else
-  {
-    printer.SetInitialIndentLevel(1);
-    printer.PrintToString(message, &output);
-  }
-
-  return message.GetDescriptor()->full_name() + " {\n" + output + "}\n";
 }
 
 static std::string message_to_bindump(const mysqlx::Message &message)
@@ -1025,7 +975,7 @@ private:
 
     try
     {
-      const std::string message_in_text = unreplace_variables(message_to_text(*msg), true);
+      const std::string message_in_text = unreplace_variables(formatter::message_to_text(*msg), true);
 
       if (msg->GetDescriptor()->full_name() != vargs[0])
       {
@@ -1071,7 +1021,7 @@ private:
           std::cout << "Got expected error:\n";
         }
 
-        std::cout << message_to_text(*msg) << "\n";
+        std::cout << formatter::message_to_text(*msg) << "\n";
         if (failed && OPT_fatal_errors)
           return Stop_with_success;
       }
@@ -1236,7 +1186,7 @@ private:
         try
         {
           if (show)
-            std::cout << message_to_text(*msg) << "\n";
+            std::cout << formatter::message_to_text(*msg) << "\n";
         }
         catch (std::exception &e)
         {
@@ -1606,7 +1556,7 @@ private:
       if (msg.get())
       {
         std::cerr << "ERROR: Received unexpected message.\n";
-        std::cerr << message_to_text(*msg) << "\n";
+        std::cerr << formatter::message_to_text(*msg) << "\n";
       }
       else
       {
@@ -1649,12 +1599,9 @@ private:
     std::string args_copy(args);
 
     aux::trim(args_copy);
-    if (args_copy == "quiet")
+    if (args_copy == "quiet") {
       quiet = true;
-    else if (!args_copy.empty())
-    {
-      std::cerr << "ERROR: Unknown command argument: " << args_copy << "\n";
-      return Stop_with_failure;
+      args_copy = "";
     }
 
     try
@@ -1664,7 +1611,7 @@ private:
       std::ostream &out = get_stream_for_results(quiet);
 
       if (msg.get())
-        out << unreplace_variables(message_to_text(*msg), true) << "\n";
+        out << unreplace_variables(formatter::message_to_text(*msg, args_copy), true) << "\n";
       if (!OPT_expect_error->check_ok())
         return Stop_with_failure;
     }
@@ -2295,7 +2242,7 @@ ngs::chrono::time_point Command::m_start_measure;
 static int process_client_message(mysqlx::XProtocol *connection, int8_t msg_id, const mysqlx::Message &msg)
 {
   if (!OPT_quiet)
-    std::cout << "send " << message_to_text(msg) << "\n";
+    std::cout << "send " << formatter::message_to_text(msg) << "\n";
 
   if (OPT_bindump)
     std::cout << message_to_bindump(msg) << "\n";
@@ -3102,8 +3049,12 @@ public:
     std::cout << "  Enables ssl on current connection\n";
     std::cout << "<protomsg>\n";
     std::cout << "  Encodes the text format protobuf message and sends it to the server (allows variables).\n";
-    std::cout << "-->recv [quiet]\n";
-    std::cout << "  Read and print (if not quiet) one message from the server\n";
+    std::cout << "-->recv [quiet|<FIELD PATH>]\n";
+    std::cout << "  quiet        - received message isn't printed\n";
+    std::cout << "  <FIELD PATH> - print only selected part of the message using \"field-path\" filter:\n";
+    std::cout << "                 field_name1\n";
+    std::cout << "                 field_name1.field_name2\n";
+    std::cout << "                 repeated_field_name1[1].field_name1.field_name2\n";
     std::cout << "-->recvresult [print-columnsinfo] [" << CMD_ARG_BE_QUIET << "]\n";
     std::cout << "  Read and print one resultset from the server; if print-columnsinfo is present also print short columns status\n";
     std::cout << "-->recvtovar <varname> [COLUMN_NAME]\n";

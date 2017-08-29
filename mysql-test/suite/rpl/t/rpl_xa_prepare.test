@@ -53,8 +53,10 @@ CALL mtr.add_suppression("The slave coordinator and worker threads are stopped")
 
 --source include/rpl_connection_master.inc
 XA START 'trx1';
+--disable_warnings
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
+--enable_warnings
 XA END 'trx1';
 XA PREPARE 'trx1';
 XA COMMIT 'trx1';
@@ -67,11 +69,11 @@ XA COMMIT 'trx1';
 --source include/rpl_connection_slave.inc
 --let $rpl_after_received_events_action= flush
 --let $rpl_skip_event_count_print_in_result_log= 1
-if (`SELECT @@BINLOG_FORMAT = 'ROW'`)
+if (`SELECT @@BINLOG_FORMAT != 'STATEMENT'`)
 {
   --let $rpl_event_count= 7
 }
-if (`SELECT @@BINLOG_FORMAT != 'ROW'`)
+if (`SELECT @@BINLOG_FORMAT = 'STATEMENT'`)
 {
   --let $rpl_event_count= 5
 }
@@ -180,4 +182,5 @@ CHANGE MASTER TO RELAY_LOG_FILE='slave-relay-bin.000004', RELAY_LOG_POS=4;
 --source include/start_slave_io.inc
 --source include/rpl_connection_master.inc
 DROP TABLE t1, t2;
+CALL mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
 --source include/rpl_end.inc

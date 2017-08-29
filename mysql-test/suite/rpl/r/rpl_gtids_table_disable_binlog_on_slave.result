@@ -183,6 +183,8 @@ MASTER_UUID	21	21
 include/assert.inc [committed gtids MASTER_UUID:1-14:16-21]
 include/assert.inc [Table t3 must not contain 1]
 DROP TABLE t3;
+CALL mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
 DROP TABLE t3;
+CALL mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
 RESET SLAVE;
 include/rpl_end.inc

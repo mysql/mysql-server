@@ -21,6 +21,7 @@
 
 --let $member1_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 --let $group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $member1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
@@ -61,6 +62,11 @@ SAVEPOINT s2;
 # unblock group
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
+
+--let $group_replication_member_state= UNREACHABLE
+--let $group_replication_member_id= $member1_uuid
+--source ../inc/gr_wait_for_member_state.inc
+
 --replace_result $member2_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS1
 eval SET GLOBAL group_replication_force_members= "$member2_group_replication_local_address";
 
@@ -80,5 +86,13 @@ let $wait_condition= SELECT COUNT(*)=2 FROM performance_schema.replication_group
 
 --echo 3. Clean-up
 DROP TABLE table1;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+set session sql_log_bin=0;
+call mtr.add_suppression("The member lost contact with a majority of the members in the group. Until the network is restored.*");
+call mtr.add_suppression("The member resumed contact with a majority of the members in the group.*");
+set session sql_log_bin=1;
 
 --source ../inc/group_replication_end.inc
