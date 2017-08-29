@@ -4139,7 +4139,7 @@ dd_commit_inplace_alter_table(
 		dd_space_id = dd_first_index(old_dd_tab)->tablespace_id();
 	}
 
-	dd_set_table_options(&(new_dd_tab->table()), new_table);
+	dd_set_table_options(new_dd_tab, new_table);
 
 	new_table->dd_space_id = dd_space_id;
 
@@ -10480,6 +10480,10 @@ ha_innopart::prepare_inplace_alter_table(
 {
 	DBUG_ENTER("ha_innopart::prepare_inplace_alter_table");
 	DBUG_ASSERT(ha_alter_info->handler_ctx == nullptr);
+
+	/* The row format in new table may differ from the old one,
+	which is set by server earlier. So keep them the same */
+	new_table_def->set_row_format(old_table_def->row_format());
 
 	if (altered_table->found_next_number_field != nullptr) {
 		dd_copy_autoinc(old_table_def->se_private_data(),

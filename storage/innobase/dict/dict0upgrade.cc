@@ -717,7 +717,7 @@ static bool dd_upgrade_partitions(THD* thd, const char* norm_name,
       }
     }
 
-    dd_set_table_options(&part_obj->table(), part_table);
+    dd_set_table_options(part_obj, part_table);
 
     uint32_t processed_indexes_num = 0;
     for (dd::Partition_index* part_index : *part_obj->indexes()) {

@@ -1043,8 +1043,9 @@ dd_rename_tablespace(
 }
 
 /** Validate the table format options.
-@param[in]	m_thd		THD instance
-@param[in]	m_form		MySQL table definition
+@param[in]	thd		THD instance
+@param[in]	form		MySQL table definition
+@param[in]	real_type	real row type if it's not ROW_TYPE_NOT_USED
 @param[in]	zip_allowed	whether ROW_FORMAT=COMPRESSED is OK
 @param[in]	strict		whether innodb_strict_mode=ON
 @param[out]	is_redundant	whether ROW_FORMAT=REDUNDANT
@@ -1058,8 +1059,9 @@ dd_rename_tablespace(
 static
 bool
 format_validate(
-	THD*			m_thd,
-	const TABLE*		m_form,
+	THD*			thd,
+	const TABLE*		form,
+	row_type		real_type,
 	bool			zip_allowed,
 	bool			strict,
 	bool*			is_redundant,
@@ -1068,7 +1070,7 @@ format_validate(
 	bool			is_implicit)
 {
 	bool	is_temporary = false;
-	ut_ad(m_thd != nullptr);
+	ut_ad(thd != nullptr);
 	ut_ad(!zip_allowed || srv_page_size <= UNIV_ZIP_SIZE_MAX);
 
 	/* 1+log2(compressed_page_size), or 0 if not compressed */
@@ -1082,7 +1084,11 @@ format_validate(
 		: "innodb_page_size>16k";
 	bool		invalid		= false;
 
-	if (auto key_block_size = m_form->s->key_block_size) {
+	if (real_type == ROW_TYPE_NOT_USED) {
+		real_type = form->s->real_row_type;
+	}
+
+	if (auto key_block_size = form->s->key_block_size) {
 		unsigned	valid_zssize = 0;
 		char		kbs[MY_INT32_NUM_DECIMAL_DIGITS
 				    + sizeof "KEY_BLOCK_SIZE=" + 1];
@@ -1105,7 +1111,7 @@ format_validate(
 				invalid = true;
 			} else {
 				push_warning_printf(
-					m_thd, Sql_condition::SL_WARNING,
+					thd, Sql_condition::SL_WARNING,
 					ER_WRONG_VALUE,
 					ER_DEFAULT(ER_WRONG_VALUE),
 					"KEY_BLOCK_SIZE",
@@ -1122,22 +1128,26 @@ format_validate(
 				invalid = true;
 			} else {
 				push_warning_printf(
-					m_thd, Sql_condition::SL_WARNING,
+					thd, Sql_condition::SL_WARNING,
 					error,
 					ER_DEFAULT(error),
 					innobase_hton_name,
 					kbs, zip_refused);
 			}
-		} else if (m_form->s->row_type == ROW_TYPE_DEFAULT
-			   || m_form->s->row_type == ROW_TYPE_COMPRESSED) {
-			ut_ad(m_form->s->real_row_type == ROW_TYPE_COMPRESSED);
+		} else if (real_type != ROW_TYPE_COMPRESSED) {
+			/* This is only possible for partitioned table,
+			real_type should be considered as priority. */
+			ut_ad(form->s->real_row_type == ROW_TYPE_COMPRESSED);
+		} else if (form->s->row_type == ROW_TYPE_DEFAULT
+			   || form->s->row_type == ROW_TYPE_COMPRESSED) {
+			ut_ad(real_type == ROW_TYPE_COMPRESSED);
 			*zip_ssize = valid_zssize;
 		} else {
 			int	error = is_temporary
 				? ER_UNSUPPORT_COMPRESSED_TEMPORARY_TABLE
 				: ER_ILLEGAL_HA_CREATE_OPTION;
 			const char* conflict = get_row_format_name(
-				m_form->s->row_type);
+				form->s->row_type);
 
 			if (strict) {
 				my_error(error, MYF(0),innobase_hton_name,
@@ -1145,13 +1155,13 @@ format_validate(
 				invalid = true;
 			} else {
 				push_warning_printf(
-					m_thd, Sql_condition::SL_WARNING,
+					thd, Sql_condition::SL_WARNING,
 					error,
 					ER_DEFAULT(error),
 					innobase_hton_name, kbs, conflict);
 			}
 		}
-	} else if (m_form->s->row_type != ROW_TYPE_COMPRESSED
+	} else if (form->s->row_type != ROW_TYPE_COMPRESSED
 		   || !is_temporary) {
 		/* not ROW_FORMAT=COMPRESSED (nor KEY_BLOCK_SIZE),
 		or not TEMPORARY TABLE */
@@ -1159,9 +1169,9 @@ format_validate(
 		my_error(ER_UNSUPPORT_COMPRESSED_TEMPORARY_TABLE, MYF(0));
 		invalid = true;
 	} else {
-		push_warning(m_thd, Sql_condition::SL_WARNING,
+		push_warning(thd, Sql_condition::SL_WARNING,
 			     ER_UNSUPPORT_COMPRESSED_TEMPORARY_TABLE,
-			     ER_THD(m_thd,
+			     ER_THD(thd,
 				    ER_UNSUPPORT_COMPRESSED_TEMPORARY_TABLE));
 	}
 
@@ -1169,22 +1179,22 @@ format_validate(
 	other incompatibilities. */
 	rec_format_t	innodb_row_format = REC_FORMAT_DYNAMIC;
 
-	switch (m_form->s->row_type) {
+	switch (form->s->row_type) {
 	case ROW_TYPE_DYNAMIC:
 		ut_ad(*zip_ssize == 0);
 		/* If non strict_mode, row type can be converted between
 		COMPRESSED and DYNAMIC */
-		ut_ad(m_form->s->real_row_type == ROW_TYPE_DYNAMIC
-		      || m_form->s->real_row_type == ROW_TYPE_COMPRESSED);
+		ut_ad(real_type == ROW_TYPE_DYNAMIC
+		      || real_type == ROW_TYPE_COMPRESSED);
 		break;
 	case ROW_TYPE_COMPACT:
 		ut_ad(*zip_ssize == 0);
-		ut_ad(m_form->s->real_row_type == ROW_TYPE_COMPACT);
+		ut_ad(real_type == ROW_TYPE_COMPACT);
 		innodb_row_format = REC_FORMAT_COMPACT;
 		break;
 	case ROW_TYPE_REDUNDANT:
 		ut_ad(*zip_ssize == 0);
-		ut_ad(m_form->s->real_row_type == ROW_TYPE_REDUNDANT);
+		ut_ad(real_type == ROW_TYPE_REDUNDANT);
 		innodb_row_format = REC_FORMAT_REDUNDANT;
 		break;
 	case ROW_TYPE_FIXED:
@@ -1192,14 +1202,14 @@ format_validate(
 	case ROW_TYPE_NOT_USED:
 		{
 			const char* name = get_row_format_name(
-				m_form->s->row_type);
+				form->s->row_type);
 			if (strict) {
 				my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
 					 innobase_hton_name, name);
 				invalid = true;
 			} else {
 				push_warning_printf(
-					m_thd, Sql_condition::SL_WARNING,
+					thd, Sql_condition::SL_WARNING,
 					ER_ILLEGAL_HA_CREATE_OPTION,
 					ER_DEFAULT(ER_ILLEGAL_HA_CREATE_OPTION),
 					innobase_hton_name, name);
@@ -1207,7 +1217,7 @@ format_validate(
 		}
 		/* fall through */
 	case ROW_TYPE_DEFAULT:
-		switch (m_form->s->real_row_type) {
+		switch (real_type) {
 		case ROW_TYPE_FIXED:
 		case ROW_TYPE_PAGED:
 		case ROW_TYPE_NOT_USED:
@@ -1247,15 +1257,14 @@ format_validate(
 			}
 			/* ER_UNSUPPORT_COMPRESSED_TEMPORARY_TABLE
 			was already reported. */
-			ut_ad(m_form->s->real_row_type == ROW_TYPE_DYNAMIC);
+			ut_ad(real_type == ROW_TYPE_DYNAMIC);
 			break;
-		} else if (zip_allowed) {
+		} else if (zip_allowed && real_type == ROW_TYPE_COMPRESSED) {
 			/* ROW_FORMAT=COMPRESSED without KEY_BLOCK_SIZE
 			implies half the maximum compressed page size. */
 			if (*zip_ssize == 0) {
 				*zip_ssize = zip_ssize_max - 1;
 			}
-			ut_ad(m_form->s->real_row_type == ROW_TYPE_COMPRESSED);
 			innodb_row_format = REC_FORMAT_COMPRESSED;
 			break;
 		}
@@ -1268,8 +1277,8 @@ format_validate(
 		}
 	}
 
-	if (const char* algorithm = m_form->s->compress.length > 0
-	    ? m_form->s->compress.str : nullptr) {
+	if (const char* algorithm = form->s->compress.length > 0
+	    ? form->s->compress.str : nullptr) {
 		Compression	compression;
 		dberr_t		err = Compression::check(algorithm,
 							 &compression);
@@ -1285,7 +1294,7 @@ format_validate(
 						 MYF(0),
 						 innobase_hton_name,
 						 "COMPRESSION",
-						 m_form->s->key_block_size
+						 form->s->key_block_size
 						 ? "KEY_BLOCK_SIZE"
 						 : "ROW_FORMAT=COMPRESSED");
 					invalid = true;
@@ -1307,8 +1316,8 @@ format_validate(
 	}
 
 	/* Check if there are any FTS indexes defined on this table. */
-	for (uint i = 0; i < m_form->s->keys; i++) {
-		const KEY*	key = &m_form->key_info[i];
+	for (uint i = 0; i < form->s->keys; i++) {
+		const KEY*	key = &form->key_info[i];
 
 		if ((key->flags & HA_FULLTEXT) && is_temporary) {
 			/* We don't support FTS indexes in temporary
@@ -1514,7 +1523,7 @@ template void dd_write_index<dd::Partition_index>(
 /** Write metadata of a table to dd::Table
 @tparam		Table		dd::Table or dd::Partition
 @param[in]	dd_space_id	Tablespace id, which server allocates
-@param[in,out]	dd_table	dd::Table
+@param[in,out]	dd_table	dd::Table or dd::Partition
 @param[in]	table		InnoDB table object */
 template<typename Table>
 void
@@ -1558,36 +1567,19 @@ template void dd_write_table<dd::Partition>(
 	dd::Object_id, dd::Partition*, const dict_table_t*);
 
 /** Set options of dd::Table according to InnoDB table object
-@param[in,out]	dd_table	dd::Table
+@tparam		Table		dd::Table or dd::Partition
+@param[in,out]	dd_table	dd::Table or dd::Partition
 @param[in]	table		InnoDB table object */
+template<typename Table>
 void
 dd_set_table_options(
-	dd::Table*		dd_table,
+	Table*			dd_table,
 	const dict_table_t*	table)
 {
-	enum row_type	type;
+	dd::Table*			dd_table_def = &(dd_table->table());
+	enum row_type			type;
 	dd::Table::enum_row_format	format;
-	dd::Properties& options = dd_table->options();
-
-	if (auto zip_ssize = DICT_TF_GET_ZIP_SSIZE(table->flags)) {
-		uint32	old_size;
-		if (!options.get_uint32("key_block_size", &old_size)
-		    && old_size != 0) {
-			options.set_uint32("key_block_size",
-					   1 << (zip_ssize - 1));
-		}
-	} else {
-		options.set_uint32("key_block_size", 0);
-		/* It's possible that InnoDB ignores the specified
-		key_block_size, so check the block_size for every index.
-		Server assumes if block_size = 0, there should be no
-		option found, so remove it when found */
-		for (auto dd_index : *dd_table->indexes()) {
-			if (dd_index->options().exists("block_size")) {
-				dd_index->options().remove("block_size");
-			}
-		}
-	}
+	dd::Properties& options = dd_table_def->options();
 
 	switch (dict_tf_get_rec_format(table->flags)) {
 	case REC_FORMAT_REDUNDANT:
@@ -1610,11 +1602,43 @@ dd_set_table_options(
 		ut_ad(0);
 	}
 
-	dd_table->set_row_format(format);
-	if (options.exists("row_type")) {
-		options.set_uint32("row_type", type);
+	if (!dd_table_is_partitioned(*dd_table_def)) {
+		if (auto zip_ssize = DICT_TF_GET_ZIP_SSIZE(table->flags)) {
+			uint32	old_size;
+			if (!options.get_uint32("key_block_size", &old_size)
+			    && old_size != 0) {
+				options.set_uint32("key_block_size",
+						   1 << (zip_ssize - 1));
+			}
+		} else {
+			options.set_uint32("key_block_size", 0);
+			/* It's possible that InnoDB ignores the specified
+			key_block_size, so check the block_size for every index.
+			Server assumes if block_size = 0, there should be no
+			option found, so remove it when found */
+			for (auto dd_index : *dd_table_def->indexes()) {
+				if (dd_index->options().exists("block_size")) {
+					dd_index->options().remove(
+						"block_size");
+				}
+			}
+		}
+
+		dd_table_def->set_row_format(format);
+		if (options.exists("row_type")) {
+			options.set_uint32("row_type", type);
+		}
+	} else if (dd_table_def->row_format() != format) {
+		dd_table->se_private_data().set_uint32(
+			dd_partition_key_strings[DD_PARTITION_ROW_FORMAT],
+			format);
 	}
 }
+
+template void dd_set_table_options<dd::Table>(
+	dd::Table* , const dict_table_t*);
+template void dd_set_table_options<dd::Partition>(
+	dd::Partition* , const dict_table_t*);
 
 /** Write metadata of a tablespace to dd::Tablespace
 @param[in,out]	dd_space	dd::Tablespace
@@ -2297,12 +2321,41 @@ dd_fill_dict_table(
 
 	const unsigned	n_cols = n_mysql_cols + add_doc_id;
 
-	bool	is_redundant;
-	bool	blob_prefix;
-	ulint	zip_ssize;
+	bool		is_redundant;
+	bool		blob_prefix;
+	ulint		zip_ssize;
+	row_type	real_type = ROW_TYPE_NOT_USED;
+
+	if (dd_table_is_partitioned(dd_tab->table())) {
+		const dd::Properties& part_p = dd_tab->se_private_data();
+		if (part_p.exists(
+			dd_partition_key_strings[DD_PARTITION_ROW_FORMAT])) {
+			dd::Table::enum_row_format	format;
+			part_p.get_uint32(
+				dd_partition_key_strings[
+					DD_PARTITION_ROW_FORMAT],
+				reinterpret_cast<uint32*>(&format));
+			switch (format) {
+			case dd::Table::RF_REDUNDANT:
+				real_type = ROW_TYPE_REDUNDANT;
+				break;
+			case dd::Table::RF_COMPACT:
+				real_type = ROW_TYPE_COMPACT;
+				break;
+			case dd::Table::RF_COMPRESSED:
+				real_type = ROW_TYPE_COMPRESSED;
+				break;
+			case dd::Table::RF_DYNAMIC:
+				real_type = ROW_TYPE_DYNAMIC;
+				break;
+			default:
+				ut_ad(0);
+			}
+		}
+	}
 
 	/* Validate the table format options */
-	if (format_validate(m_thd, m_form, zip_allowed, strict,
+	if (format_validate(m_thd, m_form, real_type, zip_allowed, strict,
 			    &is_redundant, &blob_prefix, &zip_ssize,
 			    is_implicit)) {
 		return(nullptr);
