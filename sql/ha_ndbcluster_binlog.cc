@@ -1102,10 +1102,10 @@ ndb_create_table_from_engine(THD *thd,
 
 
   // Found table, now install it in DD
-  const bool install_res = ndb_dd_install_table(thd,
-                                                schema_name,
-                                                table_name,
-                                                sdi, force_overwrite);
+  const bool install_res =
+      ndb_dd_install_table(thd, schema_name, table_name, sdi,
+                           tab->getObjectId(), tab->getObjectVersion(),
+                           force_overwrite);
   if (!install_res)
   {
     DBUG_RETURN(12);
@@ -1406,23 +1406,22 @@ class Ndb_binlog_setup {
         /* finalize construction of path */
         end+= tablename_to_filename(elmt.name, end,
                                     (uint)(sizeof(key)-(end-key)));
-        dd::sdi_t sdi;
         bool need_install = false;
         bool need_overwrite = false;
-        if (!ndb_dd_serialize_table(thd,
-                                    elmt.database, elmt.name,
-                                    ndbtab->getTablespaceName(),
-                                    sdi))
+        int table_id, table_version;
+        if (!ndb_dd_does_table_exist(thd, elmt.database, elmt.name,
+                                     table_id, table_version))
         {
           need_install = true;
           ndb_log_info("Table %s.%s does not exist in DD, installing...",
                        elmt.database, elmt.name);
         }
-        else if (cmp_unpacked_frm(ndbtab, sdi.c_str(), sdi.length()))
+        else if (ndbtab->getObjectId() != table_id ||
+                 ndbtab->getObjectVersion() != table_version)
         {
           need_install = true;
           need_overwrite = true;
-          ndb_log_info("Table %s.%s have different defintion in DD, installing",
+          ndb_log_info("Table %s.%s have different version in DD, installing",
                        elmt.database, elmt.name);
         }
 

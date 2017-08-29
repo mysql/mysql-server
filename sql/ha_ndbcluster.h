@@ -452,8 +452,7 @@ private:
   static int recreate_fk_for_truncate(THD*, Ndb*, const char*,
                                       Ndb_fk_list&);
   int check_default_values(const NdbDictionary::Table* ndbtab);
-  int get_metadata(THD *thd, const char* tablespace_name,
-                   const dd::Table* table_def);
+  int get_metadata(THD *thd, const dd::Table* table_def);
   void release_metadata(THD *thd, Ndb *ndb);
   NDB_INDEX_TYPE get_index_type(uint idx_no) const;
   NDB_INDEX_TYPE get_index_type_from_table(uint index_no) const;
@@ -742,7 +741,7 @@ private:
   int add_handler_to_open_tables(THD*, Thd_ndb*, ha_ndbcluster* handler);
   int rename_table_impl(THD* thd, Ndb* ndb,
                         const NdbDictionary::Table* orig_tab,
-                        const dd::Table* to_table_def,
+                        dd::Table* to_table_def,
                         const char* from, const char* to,
                         const char* old_dbname, const char* old_tabname,
                         const char* new_dbname, const char* new_tabname,

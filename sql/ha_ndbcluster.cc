@@ -2264,8 +2264,7 @@ int ha_ndbcluster::check_default_values(const NDBTAB* ndbtab)
 }
 
 
-int ha_ndbcluster::get_metadata(THD *thd, const char* tablespace_name,
-                                const dd::Table* table_def)
+int ha_ndbcluster::get_metadata(THD *thd, const dd::Table* table_def)
 {
   Ndb *ndb= get_thd_ndb(thd)->ndb;
   NDBDICT *dict= ndb->getDictionary();
@@ -2276,9 +2275,12 @@ int ha_ndbcluster::get_metadata(THD *thd, const char* tablespace_name,
   DBUG_ASSERT(m_table == NULL);
   DBUG_ASSERT(m_table_info == NULL);
 
-  dd::sdi_t sdi;
-  if (!ndb_sdi_serialize(thd, table_def, m_dbname, tablespace_name, sdi))
+  int object_id, object_version;
+  if (!ndb_dd_table_get_object_id_and_version(table_def,
+                                              object_id, object_version))
   {
+    DBUG_PRINT("error", ("Could not extract object_id and object_version "
+                         "from table definition"));
     DBUG_RETURN(1);
   }
 
@@ -2289,11 +2291,16 @@ int ha_ndbcluster::get_metadata(THD *thd, const char* tablespace_name,
     ERR_RETURN(dict->getNdbError());
   }
 
-  // Check that the serialized table definition from DD
-  // matches the serialized table definition in NDB
-  if (cmp_unpacked_frm(tab, sdi.c_str(), sdi.length()))
+  // Check that the id and version from DD
+  // matches the id and version of the NDB table
+  if (tab->getObjectId() != object_id ||
+      tab->getObjectVersion() != object_version)
   {
-    DBUG_PRINT("error", ("extra metadata differs"));
+    DBUG_PRINT("error", ("Table id or version mismatch"));
+    DBUG_PRINT("error", ("NDB table id: %u, version: %u",
+                         tab->getObjectId(), tab->getObjectVersion()));
+    DBUG_PRINT("error", ("DD table id: %u, version: %u",
+                         object_id, object_version));
 
     // This failure should hardly ever happen, it indicates that
     // schema distribution has failed somehow and the data dictionary is
@@ -10774,8 +10781,7 @@ int ha_ndbcluster::create(const char *name,
     */
 
     dd::sdi_t sdi;
-    if (!ndb_sdi_serialize(thd, table_def, m_dbname,
-                           create_info->tablespace, sdi))
+    if (!ndb_sdi_serialize(thd, table_def, m_dbname, sdi))
     {
       result= 1;
       goto abort_return;
@@ -11095,11 +11101,11 @@ int ha_ndbcluster::create(const char *name,
                       tab.getObjectId(),
                       tab.getObjectVersion()));
 
-#ifdef DISABLED_UNTIL_OPEN_WITHOUT_SDI_COMPARE
-  // Update table definition with the table id of the newly created table
-  // the caller will then save this information in the DD
-  ndb_dd_table_set_se_private_id(table_def, tab.getObjectId());
-#endif
+  // Update table definition with the table id and version of the newly
+  // created table, the caller will then save this information in the DD
+  ndb_dd_table_set_object_id_and_version(table_def,
+                                         tab.getObjectId(),
+                                         tab.getObjectVersion());
 
   m_table= &tab;
 
@@ -11641,7 +11647,7 @@ extern void ndb_fk_util_resolve_mock_tables(THD* thd,
 int
 ha_ndbcluster::rename_table_impl(THD* thd, Ndb* ndb,
                                  const NdbDictionary::Table* orig_tab,
-                                 const dd::Table* to_table_def,
+                                 dd::Table* to_table_def,
                                  const char* from, const char* to,
                                  const char* old_dbname,
                                  const char* old_tabname,
@@ -11726,9 +11732,7 @@ ha_ndbcluster::rename_table_impl(THD* thd, Ndb* ndb,
   // renamed since it contains the table name
   {
     dd::sdi_t sdi;
-    if (!ndb_sdi_serialize(thd, to_table_def, new_dbname,
-                           orig_tab->getTablespaceName(),
-                           sdi))
+    if (!ndb_sdi_serialize(thd, to_table_def, new_dbname, sdi))
     {
       my_error(ER_INTERNAL_ERROR, MYF(0), "Table def. serialization failed");
       DBUG_RETURN(HA_ERR_INTERNAL_ERROR);
@@ -11758,6 +11762,22 @@ ha_ndbcluster::rename_table_impl(THD* thd, Ndb* ndb,
   }
   // Release the unused old_key
   NDB_SHARE::free_key(old_key);
+
+  // Fetch the new table version and write it to the table definition,
+  // the caller will then save it into DD
+  {
+    Ndb_table_guard ndbtab_g(dict, new_tabname);
+    const NDBTAB *ndbtab= ndbtab_g.get_table();
+
+    // The id should still be the same as before the rename
+    DBUG_ASSERT(ndbtab->getObjectId() == ndb_table_id);
+    // The version should have been changed by the rename
+    DBUG_ASSERT(ndbtab->getObjectVersion() != ndb_table_version);
+
+    ndb_dd_table_set_object_id_and_version(to_table_def,
+                                           ndb_table_id,
+                                           ndbtab->getObjectVersion());
+  }
 
   ndb_fk_util_resolve_mock_tables(thd, ndb->getDictionary(),
                                   new_dbname, new_tabname);
@@ -11874,24 +11894,28 @@ ha_ndbcluster::rename_table_impl(THD* thd, Ndb* ndb,
 #ifndef DBUG_OFF
 static
 bool
-check_table_def_match(THD* thd,
-                      const char* schema_name,
-                      const char* tablespace_name,
-                      const dd::Table* table_def,
-                      const NdbDictionary::Table* ndbtab)
+check_table_id_and_version(const dd::Table* table_def,
+                           const NdbDictionary::Table* ndbtab)
 {
-  dd::sdi_t sdi;
-  if (!ndb_sdi_serialize(thd, table_def, schema_name, tablespace_name, sdi))
+  DBUG_ENTER("check_table_id_and_version");
+
+  int object_id, object_version;
+  if (!ndb_dd_table_get_object_id_and_version(table_def,
+                                              object_id, object_version))
   {
-    return false;
+    DBUG_RETURN(false);
   }
 
-  if (cmp_unpacked_frm(ndbtab, sdi.c_str(), sdi.length()) != 0)
+  // Check that the id and version from DD
+  // matches the id and version of the NDB table
+  if (ndbtab->getObjectId() != object_id ||
+      ndbtab->getObjectVersion() != object_version)
   {
-    return false;
+    DBUG_RETURN(false);
   }
 
-  return true;
+  DBUG_RETURN(true);
+
 }
 #endif
 
@@ -11953,12 +11977,10 @@ int ha_ndbcluster::rename_table(const char *from, const char *to,
     ERR_RETURN(dict->getNdbError());
   DBUG_PRINT("info", ("NDB table name: '%s'", orig_tab->getName()));
 
-  // Check that serialized table definition of the table to be renamed
-  // matches the serialized table definition stored in NDB's dictionary
-  DBUG_ASSERT(check_table_def_match(thd, old_dbname,
-                                    orig_tab->getTablespaceName(),
-                                    from_table_def,
-                                    orig_tab));
+  // Check that id and version of the table to be renamed
+  // matches the id and version of the NDB table
+  DBUG_ASSERT(check_table_id_and_version(from_table_def,
+                                         orig_tab));
 
   // Magically detect if this is a rename or some form of alter
   // and decide which actions need to be performed
@@ -12731,7 +12753,7 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked,
   // Init table lock structure
   thr_lock_data_init(&m_share->lock,&m_lock,(void*) 0);
 
-  if ((res= get_metadata(thd, table_share->tablespace, table_def)))
+  if ((res= get_metadata(thd, table_def)))
   {
     local_close(thd, FALSE);
     DBUG_RETURN(res);
@@ -13162,7 +13184,9 @@ int ndbcluster_discover(handlerton*, THD* thd,
     // Install the table into DD, don't use force_overwrite since
     // this funcion would never have been called unless
     // the table didn't exist
-    if (!ndb_dd_install_table(thd, db, name, sdi, false))
+    if (!ndb_dd_install_table(thd, db, name, sdi,
+                              tab->getObjectId(), tab->getObjectVersion(),
+                              false))
     {
       // Table existed in NDB but it could not be inserted into DD
       DBUG_ASSERT(false);
@@ -17877,9 +17901,7 @@ inplace__set_sdi_and_alter_in_ndb(THD *thd,
                                      alter_data->old_table->getName());
 
   dd::sdi_t sdi;
-  if (!ndb_sdi_serialize(thd, new_table_def, schema_name,
-                         alter_data->old_table->getTablespaceName(),
-                         sdi))
+  if (!ndb_sdi_serialize(thd, new_table_def, schema_name, sdi))
   {
     DBUG_RETURN(1);
   }
@@ -18027,7 +18049,6 @@ ha_ndbcluster::commit_inplace_alter_table(TABLE *altered_table,
   const char *db= table->s->db.str;
   const char *name= table->s->table_name.str;
   NDB_ALTER_DATA *alter_data= (NDB_ALTER_DATA *) ha_alter_info->handler_ctx;
-  DBUG_ASSERT(alter_data != 0);
   const Uint32 table_id= alter_data->table_id;
   const Uint32 table_version= alter_data->old_table_version;
 
@@ -18043,6 +18064,22 @@ ha_ndbcluster::commit_inplace_alter_table(TABLE *altered_table,
 
   // The pointer to new table_def is not valid anymore
   m_share->inplace_alter_new_table_def = nullptr;
+
+  // Fetch the new table version and write it to the table definition,
+  // the caller will then save it into DD
+  {
+    Ndb_table_guard ndbtab_g(alter_data->dictionary, name);
+    const NDBTAB *ndbtab= ndbtab_g.get_table();
+
+    // The id should still be the same as before the alter
+    DBUG_ASSERT((Uint32)ndbtab->getObjectId() == table_id);
+    // The version should have been changed by the alter
+    DBUG_ASSERT((Uint32)ndbtab->getObjectVersion() != table_version);
+
+    ndb_dd_table_set_object_id_and_version(new_table_def,
+                                           table_id,
+                                           ndbtab->getObjectVersion());
+  }
 
   delete alter_data;
   ha_alter_info->handler_ctx= 0;

@@ -28,25 +28,25 @@ namespace dd {
 bool ndb_sdi_serialize(class THD *thd,
                        const dd::Table *table_def,
                        const char* schema_name,
-                       const char* tablespace_name,
                        dd::sdi_t& sdi);
 
 
 void ndb_dd_fix_inplace_alter_table_def(dd::Table *table_def,
                                         const char* proper_table_name);
 
-bool ndb_dd_serialize_table(class THD *thd,
-                            const char* schema_name,
-                            const char* table_name,
-                            const char* tablespace_name,
-                            dd::sdi_t& sdi);
-
+bool ndb_dd_does_table_exist(class THD *thd,
+                             const char* schema_name,
+                             const char* table_name,
+                             int &table_id,
+                             int &table_version);
 
 
 bool ndb_dd_install_table(class THD *thd,
                           const char *schema_name,
                           const char *table_name,
-                          const dd::sdi_t& sdi, bool force_overwrite);
+                          const dd::sdi_t& sdi,
+                          int ndb_table_id, int ndb_table_version,
+                          bool force_overwrite);
 
 bool ndb_dd_drop_table(class THD* thd,
                        const char* schema_name,
@@ -67,8 +67,16 @@ bool ndb_dd_table_get_engine(THD *thd,
 /* Functions operating on dd::Table*, prefixed with ndb_dd_table_ */
 
 /*
-   Set the se_private_id property in table definition
+   Save the tables object id and version in table definition
 */
-void ndb_dd_table_set_se_private_id(dd::Table* table_def, int private_id);
+void ndb_dd_table_set_object_id_and_version(dd::Table* table_def,
+                                            int object_id, int object_version);
+
+/*
+  Return table definitions object id and version
+*/
+bool
+ndb_dd_table_get_object_id_and_version(const dd::Table* table_def,
+                                       int& object_id, int& object_version);
 
 #endif

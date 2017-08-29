@@ -31,45 +31,27 @@
 bool ndb_sdi_serialize(THD *thd,
                        const dd::Table *table_def,
                        const char* schema_name,
-                       const char* tablespace_name,
                        dd::sdi_t& sdi)
 {
   // Require the table to be visible or else have temporary name
   DBUG_ASSERT(table_def->hidden() == dd::Abstract_table::HT_VISIBLE ||
               is_prefix(table_def->name().c_str(), tmp_file_prefix));
 
-  MDL_ticket *mdl_ticket = NULL;
-  if (tablespace_name &&
-      !thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLESPACE,
-                                                    "", tablespace_name,
-                                                    MDL_INTENTION_EXCLUSIVE))
-  {
-    // Acquire mdl lock on the tables tablespace name since the DD is
-    // acessed when serializing the table and everything which is aqcuired
-    // need to be mdl locked.
-    // NOTE! A normal handler::open() are called without any lock on the
-    // tablespace name
-    MDL_request mdl_request;
-    MDL_REQUEST_INIT(&mdl_request,
-                     MDL_key::TABLESPACE,
-                     "", tablespace_name,
-                     MDL_INTENTION_EXCLUSIVE, MDL_EXPLICIT);
+  // Make a copy of the table definition to allow it to
+  // be modified before serialization
+  std::unique_ptr<dd::Table> table_def_clone(
+        dynamic_cast<dd::Table*>(table_def->clone()));
 
-    if (thd->mdl_context.acquire_lock(&mdl_request,
-                                      thd->variables.lock_wait_timeout))
-    {
-      return false; // Failed to acquire MDL lock for the tablespace
-    }
-    // Save the ticket to allow only this lock be released
-    mdl_ticket= mdl_request.ticket;
-  }
+  // Don't include the se_private_id in the serialized table def.
+  table_def_clone->set_se_private_id(dd::INVALID_OBJECT_ID);
 
-  sdi = dd::serialize(thd, *table_def, dd::String_type(schema_name));
+  // Don't include any se_private_data properties in the
+  // serialized table def.
+  table_def_clone->se_private_data().clear();
+
+  sdi = dd::serialize(thd, *table_def_clone, dd::String_type(schema_name));
   if (sdi.empty())
     return false; // Failed to serialize
-
-  if (mdl_ticket)
-    thd->mdl_context.release_lock(mdl_ticket);
 
   return true; // OK
 }
@@ -105,21 +87,20 @@ void ndb_dd_fix_inplace_alter_table_def(dd::Table* table_def,
 }
 
 
-bool ndb_dd_serialize_table(class THD *thd,
-                            const char* schema_name,
-                            const char* table_name,
-                            const char* tablespace_name,
-                            dd::sdi_t& sdi)
+bool ndb_dd_does_table_exist(class THD *thd,
+                             const char* schema_name,
+                             const char* table_name,
+                             int& table_id,
+                             int& table_version)
 
 {
-  DBUG_ENTER("ndb_dd_serialize_table");
+  DBUG_ENTER("ndb_dd_does_table_exist");
 
   // First aquire MDL locks
   {
     MDL_request_list mdl_requests;
     MDL_request schema_request;
     MDL_request mdl_request;
-
     MDL_REQUEST_INIT(&schema_request,
                      MDL_key::SCHEMA, schema_name, "", MDL_INTENTION_EXCLUSIVE,
                      MDL_TRANSACTION);
@@ -182,18 +163,7 @@ bool ndb_dd_serialize_table(class THD *thd,
       DBUG_RETURN(false);
     }
 
-    const bool serialize_res =
-        ndb_sdi_serialize(thd,
-                          existing,
-                          schema_name,
-                          tablespace_name,
-                          sdi);
-    if (!serialize_res)
-    {
-      // Failed to serialize table
-      DBUG_ASSERT(false); // Should not happen
-      DBUG_RETURN(false);
-    }
+    ndb_dd_table_get_object_id_and_version(existing, table_id, table_version);
 
     trans_commit_stmt(thd);
     trans_commit(thd);
@@ -210,7 +180,9 @@ bool
 ndb_dd_install_table(class THD *thd,
                      const char* schema_name,
                      const char* table_name,
-                     const dd::sdi_t &sdi, bool force_overwrite)
+                     const dd::sdi_t &sdi,
+                     int ndb_table_id, int ndb_table_version,
+                     bool force_overwrite)
 {
 
   DBUG_ENTER("ndb_dd_install_table");
@@ -285,9 +257,18 @@ ndb_dd_install_table(class THD *thd,
       DBUG_RETURN(false);
     }
 
+    // Verfiy that table defintion unpacked from NDB
+    // does not have any se_private fields set, those will be set
+    // from the NDB table metadata
+    DBUG_ASSERT(table_object->se_private_id() == dd::INVALID_OBJECT_ID);
+    DBUG_ASSERT(table_object->se_private_data().raw_string() == "");
+
     // Assign the id of the schema to the table_object
     table_object->set_schema_id(schema->id());
 
+    // Asign NDB id and version of the table
+    ndb_dd_table_set_object_id_and_version(table_object.get(),
+                                           ndb_table_id, ndb_table_version);
 
     const dd::Table *existing= nullptr;
     if (client->acquire(schema->name(), table_object->name(), &existing))
@@ -491,9 +472,56 @@ ndb_dd_table_get_engine(THD *thd,
   DBUG_RETURN(true); // Table exist
 }
 
+// The key used to store the NDB tables object version in the
+// se_private_data field of DD
+static const char* object_version_key = "object_version";
 
 void
-ndb_dd_table_set_se_private_id(dd::Table* table_def, int private_id)
+ndb_dd_table_set_object_id_and_version(dd::Table* table_def,
+                                       int object_id, int object_version)
 {
-  table_def->set_se_private_id(private_id);
+  DBUG_ENTER("ndb_dd_table_set_object_id_and_version");
+  DBUG_PRINT("enter", ("object_id: %d, object_version: %d",
+                       object_id, object_version));
+
+  table_def->set_se_private_id(object_id);
+  table_def->se_private_data().set_int32(object_version_key,
+                                         object_version);
+  DBUG_VOID_RETURN;
 }
+
+
+bool
+ndb_dd_table_get_object_id_and_version(const dd::Table* table_def,
+                                       int& object_id, int& object_version)
+{
+  DBUG_ENTER("ndb_dd_table_get_object_id_and_version");
+
+  if (table_def->se_private_id() == dd::INVALID_OBJECT_ID)
+  {
+    DBUG_PRINT("error", ("Table definition contained an invalid object id"));
+    DBUG_RETURN(false);
+  }
+  object_id = table_def->se_private_id();
+
+  if (!table_def->se_private_data().exists(object_version_key))
+  {
+    DBUG_PRINT("error", ("Table definition didn't contain property '%s'",
+                         object_version_key));
+    DBUG_RETURN(false);
+  }
+
+  if (table_def->se_private_data().get_int32(object_version_key,
+                                             &object_version))
+  {
+    DBUG_PRINT("error", ("Table definition didn't have a valid number for '%s'",
+                         object_version_key));
+    DBUG_RETURN(false);
+  }
+
+  DBUG_PRINT("exit", ("object_id: %d, object_version: %d",
+                      object_id, object_version));
+
+  DBUG_RETURN(true);
+}
+
