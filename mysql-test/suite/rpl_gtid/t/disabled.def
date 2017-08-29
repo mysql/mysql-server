@@ -9,3 +9,4 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
+rpl_gtid_delete_memory_table_after_start_server : BUG#26449109 29/8/2017 Ivo Roylev
