@@ -52,7 +52,7 @@
 extern "C" {
 
 extern void free_root(MEM_ROOT *root, myf MyFLAGS);
-extern void *alloc_root(MEM_ROOT *mem_root, size_t Size);
+extern void *alloc_root(MEM_ROOT *mem_root, size_t Size) MY_ATTRIBUTE((malloc));
 extern void init_alloc_root(PSI_memory_key key,
                             MEM_ROOT *mem_root, size_t block_size,
                             size_t pre_alloc_size);
