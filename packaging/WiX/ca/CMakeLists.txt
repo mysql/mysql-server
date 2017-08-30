@@ -21,7 +21,7 @@ ENDIF()
 
 IF(MSVC_VERSION LESS 1910)
   SET(WIX_MSVC_DIR "VS2015")
-ELSE()
+ELSEIF(MSVC_VERSION LESS 1920)
   SET(WIX_MSVC_DIR "VS2017")
 ELSE()
   # When next VS is out, add the correct version here
