@@ -12,15 +12,17 @@ CREATE TABLE t1 (
 --disable_query_log ONCE
 SET SESSION debug= '+d,skip_dd_table_access_check';
 
-let $t1_private_id =
-  `SELECT se_private_id FROM mysql.tables
-    WHERE NAME = 't1'`;
-#echo t1_private_id: $t1_private_id;
-
-if (!$t1_private_id)
-{
-  die No se_private_id set on table t1;
-}
+# Temporary disable this check until problem with storing
+# the NDB table id in se_private_id is fixed
+#let $t1_private_id =
+#  `SELECT se_private_id FROM mysql.tables
+#    WHERE NAME = 't1'`;
+##echo t1_private_id: $t1_private_id;
+#
+#if (!$t1_private_id)
+#{
+#  die No se_private_id set on table t1;
+#}
 
 let $t1_private_data =
   `SELECT se_private_data FROM mysql.tables
@@ -31,9 +33,19 @@ if (!$t1_private_data)
 {
   die No se_private_data set on table t1;
 }
+
+# Check that t1.se_private_data contains object_version=
 if (!`select '$t1_private_data' regexp '.*object_version=[0-9]+.*'`)
 {
   die No object_version property found in t1.se_private_data;
+}
+
+# Table id stored in se_private_data as temporary workaround
+# for problem storing the table id in se_private_id
+# Check that t1.se_private_data contains object_id=
+if (!`select '$t1_private_data' regexp '.*object_id=[0-9]+.*'`)
+{
+  die No object_id property found in t1.se_private_data;
 }
 
 

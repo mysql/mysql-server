@@ -472,6 +472,12 @@ ndb_dd_table_get_engine(THD *thd,
   DBUG_RETURN(true); // Table exist
 }
 
+#ifndef FIXED_BUG26723442
+// The key used to _temporarily_ store the NDB tables object version in the
+// se_private_data field of DD
+static const char* object_id_key = "object_id";
+#endif
+
 // The key used to store the NDB tables object version in the
 // se_private_data field of DD
 static const char* object_version_key = "object_version";
@@ -484,7 +490,13 @@ ndb_dd_table_set_object_id_and_version(dd::Table* table_def,
   DBUG_PRINT("enter", ("object_id: %d, object_version: %d",
                        object_id, object_version));
 
+#ifndef FIXED_BUG26723442
+  // Temporarily save the object id in se_private_data
+  table_def->se_private_data().set_int32(object_id_key,
+                                         object_id);
+#else
   table_def->set_se_private_id(object_id);
+#endif
   table_def->se_private_data().set_int32(object_version_key,
                                          object_version);
   DBUG_VOID_RETURN;
@@ -497,12 +509,31 @@ ndb_dd_table_get_object_id_and_version(const dd::Table* table_def,
 {
   DBUG_ENTER("ndb_dd_table_get_object_id_and_version");
 
+#ifndef FIXED_BUG26723442
+  // Temporarily read the object id from se_private_data
+  if (!table_def->se_private_data().exists(object_id_key))
+  {
+    DBUG_PRINT("error", ("Table definition didn't contain "
+                         "property '%s'", object_id_key));
+    DBUG_RETURN(false);
+  }
+
+  if (table_def->se_private_data().get_int32(object_id_key,
+                                             &object_id))
+  {
+    DBUG_PRINT("error", ("Table definition didn't have a valid number "
+                         "for '%s'", object_id_key));
+    DBUG_RETURN(false);
+  }
+
+#else
   if (table_def->se_private_id() == dd::INVALID_OBJECT_ID)
   {
     DBUG_PRINT("error", ("Table definition contained an invalid object id"));
     DBUG_RETURN(false);
   }
   object_id = table_def->se_private_id();
+#endif
 
   if (!table_def->se_private_data().exists(object_version_key))
   {
