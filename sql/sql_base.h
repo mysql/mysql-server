@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -238,7 +238,7 @@ void update_non_unique_table_error(TABLE_LIST *update,
 int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
 		Item **conds);
 int setup_ftfuncs(SELECT_LEX* select);
-int init_ftfuncs(THD *thd, SELECT_LEX* select, bool no_order);
+bool init_ftfuncs(THD *thd, SELECT_LEX* select, bool no_order);
 bool lock_table_names(THD *thd, TABLE_LIST *table_list,
                       TABLE_LIST *table_list_end, ulong lock_wait_timeout,
                       uint flags);

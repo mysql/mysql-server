@@ -195,7 +195,7 @@ dict_stats_wait_bg_to_stop_using_table(
 				unlocking/locking the data dict */
 {
 	while (!dict_stats_stop_bg(table)) {
-		DICT_STATS_BG_YIELD(trx);
+		DICT_BG_YIELD(trx);
 	}
 }
 

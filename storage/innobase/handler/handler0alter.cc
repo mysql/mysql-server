@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -5607,7 +5607,47 @@ ha_innobase::commit_inplace_alter_table(
 			break;
 		}
 
-		DICT_STATS_BG_YIELD(trx);
+		DICT_BG_YIELD(trx);
+	}
+
+	/* Make a concurrent Drop fts Index to wait until sync of that
+	fts index is happening in the background */
+	for (;;) {
+		bool    retry = false;
+
+		for (inplace_alter_handler_ctx** pctx = ctx_array;
+		    *pctx; pctx++) {
+			int count =0;
+			ha_innobase_inplace_ctx*        ctx
+				= static_cast<ha_innobase_inplace_ctx*>(*pctx);
+			DBUG_ASSERT(new_clustered == ctx->need_rebuild());
+
+			if (dict_fts_index_syncing(ctx->old_table)) {
+				count++;
+				if (count == 100) {
+					fprintf(stderr,
+					"Drop index waiting for background sync"
+					"to finish\n");
+				}
+				retry = true;
+			}
+
+			if (new_clustered && dict_fts_index_syncing(ctx->new_table)) {
+				count++;
+				if (count == 100) {
+					fprintf(stderr,
+                                        "Drop index waiting for background sync"
+                                        "to finish\n");
+				}
+				retry = true;
+			}
+		}
+
+		 if (!retry) {
+			 break;
+		}
+
+		DICT_BG_YIELD(trx);
 	}
 
 	/* Apply the changes to the data dictionary tables, for all
@@ -5923,8 +5963,13 @@ foreign_fail:
 
 		ut_d(dict_table_check_for_dup_indexes(
 			     ctx->new_table, CHECK_ABORTED_OK));
-		ut_a(fts_check_cached_index(ctx->new_table));
 
+#ifdef UNIV_DEBUG
+		if (!(ctx->new_table->fts != NULL
+			&& ctx->new_table->fts->cache->sync->in_progress)) {
+			ut_a(fts_check_cached_index(ctx->new_table));
+		}
+#endif
 		if (new_clustered) {
 			/* Since the table has been rebuilt, we remove
 			all persistent statistics corresponding to the

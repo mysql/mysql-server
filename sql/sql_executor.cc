@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -116,7 +116,7 @@ JOIN::exec()
   if (prepare_result(&columns_list))
     DBUG_VOID_RETURN;
 
-  if (select_lex->materialized_table_count)
+  if (select_lex->materialized_table_count && select_lex->has_ft_funcs())
     init_ftfuncs(thd, select_lex, order);
 
   if (!tables_list && (tables || !select_lex->with_sum_func))
