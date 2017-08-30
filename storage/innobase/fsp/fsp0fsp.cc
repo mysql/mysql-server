@@ -1244,19 +1244,18 @@ fsp_try_extend_data_file_with_pages(
 	fsp_header_t*	header,
 	mtr_t*		mtr)
 {
-	bool		success;
-	ulint	size;
 	DBUG_ENTER("fsp_try_extend_data_file_with_pages");
 
 	ut_a(!fsp_is_system_or_temp_tablespace(space->id));
 	ut_d(fsp_space_modify_check(space->id, mtr));
 
-	size = mach_read_from_4(header + FSP_SIZE);
+	page_no_t	size = mach_read_from_4(header + FSP_SIZE);
 	ut_ad(size == space->size_in_header);
 
 	ut_a(page_no >= size);
 
-	success = fil_space_extend(space, page_no + 1);
+	bool	success = fil_space_extend(space, page_no + 1);
+
 	/* The size may be less than we wanted if we ran out of disk space. */
 	fsp_header_size_update(header, space->size, mtr);
 	space->size_in_header = space->size;

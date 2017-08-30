@@ -6734,8 +6734,7 @@ os_file_get_status(
 	return(ret);
 }
 
-/**
-Waits for an AIO operation to complete. This function is used to wait the
+/** Waits for an AIO operation to complete. This function is used to wait
 for completed requests. The aio array of pending requests is divided
 into segments. The thread specifies which segment or slot it wants to wait
 for. NOTE: this function will also take care of freeing the aio slot,
@@ -7986,11 +7985,13 @@ os_aio_func(
 		and os_file_write_func() */
 
 		if (type.is_read()) {
-			return(os_file_read_func(type, file.m_file, buf, offset, n));
+			return(os_file_read_func(
+				type, file.m_file, buf, offset, n));
 		}
 
 		ut_ad(type.is_write());
-		return(os_file_write_func(type, name, file.m_file, buf, offset, n));
+		return(os_file_write_func(
+			type, name, file.m_file, buf, offset, n));
 	}
 
 try_again:
@@ -8001,7 +8002,7 @@ try_again:
 
 	Slot*	slot;
 
-	 slot = array->reserve_slot(type, m1, m2, file, name, buf, offset, n);
+	slot = array->reserve_slot(type, m1, m2, file, name, buf, offset, n);
 
 	if (type.is_read()) {
 

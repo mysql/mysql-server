@@ -175,12 +175,12 @@ log_downgrade()
 
         dberr_t err;
 
-	err = fil_io(
-                IORequestLogWrite, true,
+	err = fil_redo_io(
+                IORequestLogWrite,
                 page_id_t(group->space_id, page_no),
                 univ_page_size,
                 (ulint) (dest_offset % univ_page_size.physical()),
-                OS_FILE_LOG_BLOCK_SIZE, buf, group);
+                OS_FILE_LOG_BLOCK_SIZE, buf);
 
         ut_a(err == DB_SUCCESS);
 
@@ -917,34 +917,31 @@ log_group_init(
 void
 log_io_complete(log_group_t* group)
 {
-	if ((ulint) group & 0x1UL) {
-		/* It was a checkpoint write */
-		group = (log_group_t*)((ulint) group - 1);
+	ut_a((ulint) group & 0x1UL);
+
+	/* It was a checkpoint write */
+	group = (log_group_t*)((ulint) group - 1);
 
 #ifdef _WIN32
-		fil_flush(group->space_id);
+	fil_flush(group->space_id);
 #else
-		switch (srv_unix_file_flush_method) {
-		case SRV_UNIX_O_DSYNC:
-		case SRV_UNIX_NOSYNC:
-			break;
-		case SRV_UNIX_FSYNC:
-		case SRV_UNIX_LITTLESYNC:
-		case SRV_UNIX_O_DIRECT:
-		case SRV_UNIX_O_DIRECT_NO_FSYNC:
-			fil_flush(group->space_id);
-		}
+	switch (srv_unix_file_flush_method) {
+	case SRV_UNIX_O_DSYNC:
+	case SRV_UNIX_NOSYNC:
+		break;
+	case SRV_UNIX_FSYNC:
+	case SRV_UNIX_LITTLESYNC:
+	case SRV_UNIX_O_DIRECT:
+	case SRV_UNIX_O_DIRECT_NO_FSYNC:
+		fil_flush(group->space_id);
+	}
 #endif /* _WIN32 */
 
-		DBUG_PRINT("ib_log", ("checkpoint info written to group %u",
-				      unsigned(group->id)));
-		log_io_complete_checkpoint();
+	DBUG_PRINT("ib_log", ("checkpoint info written to group %u",
+				unsigned(group->id)));
 
-		return;
-	}
+	log_io_complete_checkpoint();
 
-	ut_error;	/*!< We currently use synchronous writing of the
-			logs and cannot end up here! */
 }
 
 /** Fill redo log header
@@ -1011,12 +1008,12 @@ log_group_file_header_flush(
 
         dberr_t err;
 
-	err = fil_io(
-                IORequestLogWrite, true,
+	err = fil_redo_io(
+                IORequestLogWrite,
                 page_id_t(group->space_id, page_no),
                 univ_page_size,
                 (ulint) (dest_offset % univ_page_size.physical()),
-                OS_FILE_LOG_BLOCK_SIZE, buf, group);
+                OS_FILE_LOG_BLOCK_SIZE, buf);
 
         ut_a(err == DB_SUCCESS);
 
@@ -1044,10 +1041,10 @@ log_read_encryption()
 	log_block_buf = static_cast<byte*>(
 		ut_align(log_block_buf_ptr, OS_FILE_LOG_BLOCK_SIZE));
 
-	err = fil_io(
-                IORequestLogRead, true, page_id, univ_page_size,
+	err = fil_redo_io(
+                IORequestLogRead, page_id, univ_page_size,
                 LOG_CHECKPOINT_1 + OS_FILE_LOG_BLOCK_SIZE,
-                OS_FILE_LOG_BLOCK_SIZE, log_block_buf, NULL);
+                OS_FILE_LOG_BLOCK_SIZE, log_block_buf);
 
         ut_a(err == DB_SUCCESS);
 
@@ -1181,12 +1178,11 @@ log_write_encryption(
 
         dberr_t err;
 
-	err = fil_io(
-                IORequestLogWrite, true,
-                page_id,
-                univ_page_size,
+	err = fil_redo_io(
+                IORequestLogWrite,
+                page_id, univ_page_size,
                 LOG_CHECKPOINT_1 + OS_FILE_LOG_BLOCK_SIZE,
-                OS_FILE_LOG_BLOCK_SIZE, log_block_buf, NULL);
+                OS_FILE_LOG_BLOCK_SIZE, log_block_buf);
 
         ut_a(err == DB_SUCCESS);
 
@@ -1397,12 +1393,11 @@ loop:
 
         dberr_t err;
 
-	err = fil_io(
-                IORequestLogWrite, true,
+	err = fil_redo_io(
+                IORequestLogWrite,
                 page_id_t(group->space_id, page_no),
                 univ_page_size,
-                (ulint) (next_offset % UNIV_PAGE_SIZE), write_len, buf,
-                group);
+                (ulint) (next_offset % UNIV_PAGE_SIZE), write_len, buf);
 
         ut_a(err == DB_SUCCESS);
 
@@ -2025,13 +2020,13 @@ log_group_header_read(
 
         dberr_t err;
 
-	err = fil_io(
-                IORequestLogRead, true,
+	err = fil_redo_io(
+                IORequestLogRead,
                 page_id_t(group->space_id, static_cast<page_no_t>(
                                 header / univ_page_size.physical())),
                 univ_page_size,
                 static_cast<page_no_t>(header % univ_page_size.physical()),
-		OS_FILE_LOG_BLOCK_SIZE, log_sys->checkpoint_buf, NULL);
+		OS_FILE_LOG_BLOCK_SIZE, log_sys->checkpoint_buf);
 
         ut_a(err == DB_SUCCESS);
 }

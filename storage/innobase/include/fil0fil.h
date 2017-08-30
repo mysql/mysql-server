@@ -1267,6 +1267,26 @@ ulint
 fil_space_get_n_reserved_extents(space_id_t space_id)
 	MY_ATTRIBUTE((warn_unused_result));
 
+/** Read or write redo log data (synchronous buffered IO).
+@param[in,out]	type		IO context
+@param[in]	sync		whether synchronous AIO is desired
+@param[in]	page_id		where to read or write
+@param[in]	page_size	page size
+@param[in]	byte_offset	remainder of offset in bytes
+@param[in]	len		this must not cross a file boundary;
+@param[in,out]	buf		buffer where to store read data or from where
+				to write
+@retval DB_SUCCESS if all OK */
+dberr_t
+fil_redo_io(
+	const IORequest&	type,
+	const page_id_t&	page_id,
+	const page_size_t&	page_size,
+	ulint			byte_offset,
+	ulint			len,
+	void*			buf)
+	MY_ATTRIBUTE((warn_unused_result));
+
 /** Read or write data. This operation could be asynchronous (aio).
 @param[in,out]	type		IO context
 @param[in]	sync		whether synchronous aio is desired

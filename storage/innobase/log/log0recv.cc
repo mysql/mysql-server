@@ -894,12 +894,12 @@ recv_log_recover_pre_8_0_4(lsn_t lsn)
 
 	dberr_t err;
 
-	err = fil_io(
-		IORequestLogRead, true,
+	err = fil_redo_io(
+		IORequestLogRead,
                 page_id_t(group->space_id, page_no), univ_page_size,
                 (ulint) ((source_offset & ~(OS_FILE_LOG_BLOCK_SIZE - 1))
                          % univ_page_size.physical()),
-                OS_FILE_LOG_BLOCK_SIZE, buf, nullptr);
+                OS_FILE_LOG_BLOCK_SIZE, buf);
 
 	ut_a(err == DB_SUCCESS);
 
@@ -2599,8 +2599,7 @@ recv_apply_log_rec_for_backup(recv_addr_t* recv_addr)
 			<< recv_addr->page_no << " pages";
 	}
 
-	/* Read the page from the tablespace file using the
-	fil0fil.cc routines */
+	/* Read the page from the tablespace file. */
 
 	const page_id_t	page_id(recv_addr->space, recv_addr->page_no);
 
@@ -2612,7 +2611,7 @@ recv_apply_log_rec_for_backup(recv_addr_t* recv_addr)
 			IORequestRead, true,
 			page_id,
 			page_size, 0, page_size.physical(),
-			block->page.zip.data, NULL);
+			block->page.zip.data, nullptr);
 
 		if (err == DB_SUCCESS && !buf_zip_decompress(block, TRUE)) {
 
@@ -2622,9 +2621,8 @@ recv_apply_log_rec_for_backup(recv_addr_t* recv_addr)
 
 		err = fil_io(
 			IORequestRead, true,
-			page_id, page_size, 0,
-			page_size.logical(),
-			block->frame, NULL);
+			page_id, page_size, 0, page_size.logical(),
+			block->frame, nullptr);
 	}
 
 	if (err != DB_SUCCESS) {
@@ -2651,12 +2649,12 @@ recv_apply_log_rec_for_backup(recv_addr_t* recv_addr)
 		err = fil_io(
 			IORequestWrite, true, page_id,
 			page_size, 0, page_size.physical(),
-			block->page.zip.data, NULL);
+			block->page.zip.data, nullptr);
 	} else {
 		err = fil_io(
 			IORequestWrite, true, page_id,
 			page_size, 0, page_size.logical(),
-			block->frame, NULL);
+			block->frame, nullptr);
 	}
 
         ut_a(err == DB_SUCCESS);
@@ -3485,12 +3483,12 @@ recv_read_log_seg(
 
                 dberr_t
 
-		err = fil_io(
-                        IORequestLogRead, true,
+		err = fil_redo_io(
+                        IORequestLogRead,
                         page_id_t(group->space_id, page_no),
                         univ_page_size,
                         (ulint) (source_offset % univ_page_size.physical()),
-                        len, buf, NULL);
+                        len, buf);
 
                 ut_a(err == DB_SUCCESS);
 
@@ -3653,9 +3651,9 @@ recv_recovery_from_checkpoint_start(lsn_t flush_lsn)
 	byte		log_hdr_buf[LOG_FILE_HDR_SIZE];
 	const page_id_t	page_id(max_cp_group->space_id, 0);
 
-	err = fil_io(
-                IORequestLogRead, true, page_id, univ_page_size, 0,
-                LOG_FILE_HDR_SIZE, log_hdr_buf, max_cp_group);
+	err = fil_redo_io(
+                IORequestLogRead, page_id, univ_page_size, 0,
+                LOG_FILE_HDR_SIZE, log_hdr_buf);
 
         ut_a(err == DB_SUCCESS);
 
@@ -3693,10 +3691,10 @@ recv_recovery_from_checkpoint_start(lsn_t flush_lsn)
 		       + LOG_HEADER_CREATOR, LOG_HEADER_CREATOR_CURRENT);
 
 		/* Write to the log file to wipe over the label */
-		err = fil_io(
-                        IORequestLogWrite, true, page_id,
-                        univ_page_size, 0, OS_FILE_LOG_BLOCK_SIZE, log_hdr_buf,
-                        max_cp_group);
+		err = fil_redo_io(
+                        IORequestLogWrite, page_id,
+                        univ_page_size, 0, OS_FILE_LOG_BLOCK_SIZE,
+			log_hdr_buf);
 
                 ut_a(err == DB_SUCCESS);
 

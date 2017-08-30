@@ -234,6 +234,15 @@ static const size_t	MAX_SCAN_THREADS = 8;
 /** Maximum number of shards supported. */
 static const size_t	MAX_SHARDS = 32;
 
+/** The redo log is in its own shard. */
+static const size_t	REDO_SHARD = MAX_SHARDS - 1;
+
+/** The UNDO logs have their own shard. */
+static const size_t	UNDO_SHARD = REDO_SHARD - 1;
+
+/** Number of reserved shards */
+static const size_t	SYS_SHARDS = 2;
+
 /** Maximum pages to check for valid space ID during start up. */
 static const size_t	MAX_PAGES_TO_CHECK = 4;
 
@@ -593,7 +602,7 @@ public:
 	fil_space_t* get_space_by_id(space_id_t space_id) const
 		MY_ATTRIBUTE((warn_unused_result))
 	{
-		ut_ad(mutex_owned());
+		ut_ad(m_id == REDO_SHARD || mutex_owned());
 
 		auto	it = m_spaces.find(space_id);
 
@@ -880,6 +889,29 @@ public:
 		table_id_t	table_id)
 		MY_ATTRIBUTE((warn_unused_result));
 
+	/** Read or write log file data synchronously..
+	@param[in,out]	type		IO context
+	@param[in]	page_id		page id
+	@param[in]	page_size	page size
+	@param[in]	byte_offset	remainder of offset in bytes; in AIO
+					this must be divisible by the OS block
+					size
+	@param[in]	len		how many bytes to read or write; this
+					must not cross a file boundary; in AIO
+					this must be a block size multiple
+	@param[in,out]	buf		buffer where to store read data or
+					from where to write; in AIO this must
+					be appropriately aligned
+	@retval DB_SUCCESS on success */
+	dberr_t do_redo_io(
+		const IORequest&	type,
+		const page_id_t&	page_id,
+		const page_size_t&	page_size,
+		ulint			byte_offset,
+		ulint			len,
+		void*			buf)
+		MY_ATTRIBUTE((warn_unused_result));
+
 	/** Read or write data. This operation could be asynchronous (aio).
 	@param[in,out]	type		IO context
 	@param[in]	sync		whether synchronous aio is desired
@@ -938,6 +970,33 @@ public:
 		fil_space_t*&		space)
 		MY_ATTRIBUTE((warn_unused_result));
 
+	/** Attach a file to a tablespace
+	@param[in]	name		file name of a file that is not open
+	@param[in]	size		file size in entire database blocks
+	@param[in,out]	space		tablespace from fil_space_create()
+	@param[in]	is_raw		true if this is a raw device
+					or partition
+	@param[in]	punch_hole	true if supported for this file
+	@param[in]	atomic_write	true if the file has atomic write
+					enabled
+	@param[in]	max_pages	maximum number of pages in file
+	@return pointer to the file name
+	@retval nullptr if error */
+	fil_node_t* create_node(
+		const char*	name,
+		page_no_t	size,
+		fil_space_t*	space,
+		bool		is_raw,
+		bool		punch_hole,
+		bool		atomic_write,
+		page_no_t	max_pages = PAGE_NO_MAX)
+		MY_ATTRIBUTE((warn_unused_result));
+
+#ifdef UNIV_DEBUG
+	/** Validate a shard. */
+	void validate() const;
+#endif /* UNIV_DEBUG */
+
 	/** Free a tablespace object on which fil_space_detach() was invoked.
 	There must not be any pending i/o's or flushes on the files.
 	@param[in,out]	space		tablespace */
@@ -959,6 +1018,16 @@ public:
 	static void wait_for_io_to_stop(fil_space_t* space);
 
 private:
+
+	/** We keep log files and system tablespace files always open; this is
+	important in preventing deadlocks in this module, as a page read
+	completion often performs another read from the insert buffer. The
+	insert buffer is in tablespace TRX_SYS_SPACE, and we cannot end up
+	waiting in this function.
+	@param[in]	space_id	Tablespace ID to look up
+	@return tablespace instance */
+	fil_space_t* get_reserved_space(space_id_t space_id)
+		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Prepare for truncating a single-table tablespace.
 	1) Check pending operations on a tablespace;
@@ -1348,27 +1417,7 @@ public:
 		const std::string&	filename)
 		MY_ATTRIBUTE((warn_unused_result));
 
-	/** Get the space IDs active in the system.
-	@param[out]	space_ids	All the registered tablespace IDs */
-	void get_space_ids(Space_ids* space_ids)
-	{
-		for (auto shard : m_shards) {
-	
-			shard->mutex_acquire();
-	
-			for (auto& elem : shard->m_spaces) {
-				space_ids->push_back(elem.first);
-			}
-	
-			shard->mutex_release();
-		}
-	}
-
 #ifdef UNIV_DEBUG
-	/** Validate a shard
-	@param[in]	shard	shard to validate */
-	void validate_shard(const Fil_shard* shard) const;
-
 	/** Checks the consistency of the tablespace cache.
 	@return true if ok */
 	bool validate() const
@@ -1383,7 +1432,16 @@ public:
 	Fil_shard*	shard_by_id(space_id_t space_id) const
 		MY_ATTRIBUTE((warn_unused_result))
 	{
-		return(m_shards[space_id % m_shards.size()]);
+		if (space_id == dict_sys_t::s_log_space_first_id) {
+
+			return(m_shards[REDO_SHARD]);
+
+		} else if (fsp_is_undo_tablespace(space_id)) {
+
+			return(m_shards[UNDO_SHARD]);
+		}
+
+		return(m_shards[space_id % (m_shards.size() - SYS_SHARDS)]);
 	}
 
 	/** Acquire mutex by space ID.
@@ -1572,19 +1630,18 @@ fil_validate_skip()
 	return(fil_validate());
 }
 
-/** Validate a shard
-@param[in]	shard	shard to validate */
+/** Validate a shard */
 void
-Fil_system::validate_shard(const Fil_shard* shard) const
+Fil_shard::validate() const
 {
-	ut_ad(shard->mutex_owned());
+	mutex_acquire();
 
 	size_t	n_open = 0;
 
-	for (auto elem : shard->m_spaces) {
+	for (auto elem : m_spaces) {
 
-		ulint	size = 0;
-		auto	space = elem.second;
+		page_no_t	size = 0;
+		auto		space = elem.second;
 
 		for (const auto& file : space->files) {
 
@@ -1600,16 +1657,18 @@ Fil_system::validate_shard(const Fil_shard* shard) const
 		ut_a(space->size == size);
 	}
 
-	UT_LIST_CHECK(shard->m_LRU);
+	UT_LIST_CHECK(m_LRU);
 
-	for (auto file  = UT_LIST_GET_FIRST(shard->m_LRU);
+	for (auto file  = UT_LIST_GET_FIRST(m_LRU);
 	     file != nullptr;
 	     file = UT_LIST_GET_NEXT(LRU, file)) {
 
 		ut_a(file->is_open);
 		ut_a(file->n_pending == 0);
-		ut_a(space_belongs_in_LRU(file->space));
+		ut_a(fil_system->space_belongs_in_LRU(file->space));
 	}
+
+	mutex_release();
 }
 
 /** Checks the consistency of the tablespace cache.
@@ -1619,11 +1678,7 @@ Fil_system::validate() const
 {
 	for (const auto shard : m_shards) {
 
-		shard->mutex_acquire();
-
-		validate_shard(shard);
-
-		shard->mutex_release();
+		shard->validate();
 	}
 
 	return(true);
@@ -1770,7 +1825,7 @@ Fil_shard::space_add(fil_space_t* space)
 void
 Fil_shard::open_file(fil_node_t* file)
 {
-	ut_ad(mutex_owned());
+	ut_ad(m_id == REDO_SHARD || mutex_owned());
 
 	if (Fil_system::space_belongs_in_LRU(file->space)) {
 
@@ -2122,16 +2177,15 @@ fil_fusionio_enable_atomic_write(pfs_os_file_t file)
 @param[in]	max_pages	maximum number of pages in file
 @return pointer to the file name
 @retval nullptr if error */
-static
 fil_node_t*
-fil_node_create_low(
+Fil_shard::create_node(
 	const char*	name,
 	page_no_t	size,
 	fil_space_t*	space,
 	bool		is_raw,
 	bool		punch_hole,
 	bool		atomic_write,
-	page_no_t	max_pages = PAGE_NO_MAX)
+	page_no_t	max_pages)
 {
 	ut_ad(name != nullptr);
 	ut_ad(fil_system != nullptr);
@@ -2159,10 +2213,6 @@ fil_node_create_low(
 	file.init_size = size;
 
 	file.max_size = max_pages;
-
-	fil_system->mutex_acquire_by_id(space->id);
-
-	space->size += size;
 
 	file.space = space;
 
@@ -2203,14 +2253,18 @@ fil_node_create_low(
 
 	file.atomic_write = atomic_write;
 
+	mutex_acquire();
+
+	space->size += size;
+
 	space->files.push_back(file);
+
+	mutex_release();
 
 	ut_a(space->id == TRX_SYS_SPACE
 	     || space->id == dict_sys_t::s_log_space_first_id
 	     || space->purpose == FIL_TYPE_TEMPORARY
 	     || space->files.size() == 1);
-
-	fil_system->mutex_release_by_id(space->id);
 
 	return(&space->files.front());
 }
@@ -2234,9 +2288,11 @@ fil_node_create(
 	bool		atomic_write,
 	page_no_t	max_pages)
 {
+	auto	shard = fil_system->shard_by_id(space->id);
+
 	fil_node_t*	file;
 
-	file = fil_node_create_low(
+	file = shard->create_node(
 		name, size, space, is_raw, IORequest::is_punch_hole_supported(),
 		atomic_write, max_pages);
 
@@ -2254,7 +2310,7 @@ Fil_shard::open_file(fil_node_t* file, bool extend)
 	bool		success;
 	fil_space_t*	space = file->space;
 
-	ut_ad(mutex_owned());
+	ut_ad(m_id == REDO_SHARD || mutex_owned());
 
 	ut_a(!file->is_open);
 	ut_a(file->n_pending == 0);
@@ -2678,6 +2734,30 @@ Fil_shard::wait_for_io_to_stop(fil_space_t* space)
 	}
 }
 
+/** We keep log files and system tablespace files always open; this is
+important in preventing deadlocks in this module, as a page read
+completion often performs another read from the insert buffer. The
+insert buffer is in tablespace TRX_SYS_SPACE, and we cannot end up
+waiting in this function.
+@param[in]	space_id	Tablespace ID to look up
+@return tablespace instance */
+fil_space_t*
+Fil_shard::get_reserved_space(space_id_t space_id)
+{
+	if (space_id == TRX_SYS_SPACE) {
+
+		return(fil_space_t::s_sys_space);
+
+	} else if (space_id == dict_sys_t::s_log_space_first_id
+		   && fil_space_t::s_redo_space != nullptr) {
+
+		return(fil_space_t::s_redo_space);
+
+	}
+
+	return(get_space_by_id(space_id));
+}
+
 /** Reserves the mutex and tries to make sure we can open at least
 one file while holding it. This should be called before calling
 prepare_file_for_io(), because that function may need to open a file.
@@ -2689,31 +2769,11 @@ Fil_shard::mutex_acquire_and_get_space(
 	space_id_t		space_id,
 	fil_space_t*&		space)
 {
-	space = nullptr;
-
 	mutex_acquire();
 
 	if (space_id == TRX_SYS_SPACE || dict_sys_t::is_reserved(space_id)) {
 
-		/* We keep log files and system tablespace files
-		always open; this is important in preventing deadlocks
-		in this module, as a page read completion often performs
-		another read from the insert buffer. The insert buffer
-		is in tablespace TRX_SYS_SPACE, and we cannot end up
-		waiting in this function. */
-
-		if (space_id == TRX_SYS_SPACE) {
-
-			space = fil_space_t::s_sys_space;
-
-		} else if (space_id == dict_sys_t::s_log_space_first_id
-			   && fil_space_t::s_redo_space != nullptr) {
-
-			space = fil_space_t::s_redo_space;
-
-		} else {
-			space = get_space_by_id(space_id);
-		}
+		space = get_reserved_space(space_id);
 
 		return(false);
 	}
@@ -3410,6 +3470,14 @@ fil_space_get_page_size(space_id_t space_id, bool* found)
 void
 fil_init(ulint max_n_open)
 {
+	static_assert(
+		(1 << UNIV_PAGE_SIZE_SHIFT_MAX) == UNIV_PAGE_SIZE_MAX,
+		"(1 << UNIV_PAGE_SIZE_SHIFT_MAX) != UNIV_PAGE_SIZE_MAX");
+
+	static_assert(
+		(1 << UNIV_PAGE_SIZE_SHIFT_MIN) == UNIV_PAGE_SIZE_MIN,
+		"(1 << UNIV_PAGE_SIZE_SHIFT_MIN) != UNIV_PAGE_SIZE_MIN");
+
 	ut_a(fil_system == nullptr);
 
 	ut_a(max_n_open > 0);
@@ -5371,10 +5439,12 @@ fil_ibd_create(
 
 	DEBUG_SYNC_C("fil_ibd_created_space");
 
-	err = fil_node_create_low(
-		path, size, space, false, punch_hole, atomic_write)
-		? DB_SUCCESS
-		: DB_ERROR;
+	auto	shard = fil_system->shard_by_id(space_id);
+
+	fil_node_t*	file_node = shard->create_node(
+		path, size, space, false, punch_hole, atomic_write);
+
+	err = (file_node == nullptr) ? DB_ERROR : DB_SUCCESS;
 
 #ifndef UNIV_HOTBACKUP
 	if (err == DB_SUCCESS) {
@@ -5515,9 +5585,12 @@ fil_ibd_open(
 	/* We do not measure the size of the file, that is why
 	we pass the 0 below */
 
-	if (nullptr == fil_node_create_low(
-		    df.filepath(), 0, space, false, true, atomic_write)) {
+	auto	shard = fil_system->shard_by_id(space_id);
 
+	const fil_node_t*	file = shard->create_node(
+		df.filepath(), 0, space, false, true, atomic_write);
+
+	if (file == nullptr) {
 		return(DB_ERROR);
 	}
 
@@ -5703,25 +5776,25 @@ Fil_shard::ibd_open_for_recovery(
 		return(FIL_LOAD_ID_CHANGED);
 	}
 
-	Datafile	file;
+	Datafile	df;
 
-	file.set_filepath(filename);
+	df.set_filepath(filename);
 
-	if (file.open_read_only(false) != DB_SUCCESS) {
+	if (df.open_read_only(false) != DB_SUCCESS) {
 		return(FIL_LOAD_NOT_FOUND);
 	}
 
-	ut_ad(file.is_open());
+	ut_ad(df.is_open());
 
 	/* Read and validate the first page of the tablespace.
 	Assign a tablespace name based on the tablespace type. */
-	dberr_t	err = file.validate_for_recovery(space_id);
+	dberr_t	err = df.validate_for_recovery(space_id);
 
 	ut_a(err == DB_SUCCESS);
-	ut_a(file.space_id() == space_id);
+	ut_a(df.space_id() == space_id);
 
 	/* Get and test the file size. */
-	os_offset_t	size = os_file_get_size(file.handle());
+	os_offset_t	size = os_file_get_size(df.handle());
 
 	/* Every .ibd file is created >= 4 pages in size.
 	Smaller files cannot be OK. */
@@ -5735,42 +5808,42 @@ Fil_shard::ibd_open_for_recovery(
 		ib::error()
 			<< "Could not measure the size of"
 			" single-table tablespace file '"
-			<< file.filepath() << "'";
+			<< df.filepath() << "'";
 
 	} else if (size < minimum_size) {
 #ifndef UNIV_HOTBACKUP
 		ib::error()
 			<< "The size of tablespace file '"
-			<< file.filepath() << "' is only " << size
+			<< df.filepath() << "' is only " << size
 			<< ", should be at least " << minimum_size
 			<< "!";
 #else
 		/* In MEB, we work around this error. */
-		file.set_space_id(SPACE_UNKNOWN);
-		file.set_flags(0);
+		df.set_space_id(SPACE_UNKNOWN);
+		df.set_flags(0);
 #endif /* !UNIV_HOTBACKUP */
 	}
 
 	ut_ad(space == nullptr);
 
 #ifdef UNIV_HOTBACKUP
-	if (file.space_id() == SPACE_UNKNOWN || file.space_id() == 0) {
+	if (df.space_id() == SPACE_UNKNOWN || df.space_id() == 0) {
 		char*	new_path;
 
 		ib::info()
-			<< "Renaming tablespace file '" << file.filepath()
+			<< "Renaming tablespace file '" << df.filepath()
 			<< "' with space ID " << file.space_id() << " to "
-			<< file.name() << "_ibbackup_old_vers_<timestamp>"
+			<< df.name() << "_ibbackup_old_vers_<timestamp>"
 			" because its size " << size() << " is too small"
 			" (< 4 pages 16 kB each), or the space id in the"
 			" file header is not sensible. This can happen in"
 			" an mysqlbackup run, and is not dangerous.";
-		file.close();
+		df.close();
 
-		new_path = fil_make_ibbackup_old_name(file.filepath());
+		new_path = fil_make_ibbackup_old_name(df.filepath());
 
 		bool	success = os_file_rename(
-			innodb_data_file_key, file.filepath(), new_path);
+			innodb_data_file_key, df.filepath(), new_path);
 
 		ut_a(success);
 
@@ -5795,20 +5868,20 @@ Fil_shard::ibd_open_for_recovery(
 	if (space != nullptr) {
 
 		ib::info()
-			<< "Renaming data file '" << file.filepath()
+			<< "Renaming data file '" << df.filepath()
 			<< "' with space ID " << space_id << " to "
-			<< file.name()
+			<< df.name()
 			<< "_ibbackup_old_vers_<timestamp> because space "
 			<< space->name << " with the same id was scanned"
 			" earlier. This can happen if you have renamed tables"
 			" during an mysqlbackup run.";
 
-		file.close();
+		df.close();
 
-		char*	new_path = fil_make_ibbackup_old_name(file.filepath());
+		char*	new_path = fil_make_ibbackup_old_name(df.filepath());
 
 		bool	success = os_file_rename(
-			innodb_data_file_key, file.filepath(), new_path);
+			innodb_data_file_key, df.filepath(), new_path);
 
 		ut_a(success);
 
@@ -5820,7 +5893,7 @@ Fil_shard::ibd_open_for_recovery(
 	fil_system->mutex_acquire_all();
 
 	space = space_create(
-		file.name(), space_id, file.flags(), FIL_TYPE_TABLESPACE);
+		df.name(), space_id, df.flags(), FIL_TYPE_TABLESPACE);
 
 	fil_system->mutex_release_all();
 
@@ -5828,26 +5901,26 @@ Fil_shard::ibd_open_for_recovery(
 		return(FIL_LOAD_INVALID);
 	}
 
-	ut_ad(space->id == file.space_id());
+	ut_ad(space->id == df.space_id());
 	ut_ad(space->id == space_id);
 
 	/* We do not use the size information we have about the file, because
 	the rounding formula for extents and pages is somewhat complex; we
 	let fil_node_open() do that task. */
 
-	if (!fil_node_create_low(
-		file.filepath(), 0, space, false, true, false)) {
+	const fil_node_t*	file;
 
-		ut_error;
-	}
+	file = create_node(df.filepath(), 0, space, false, true, false);
+
+	ut_a(file != nullptr);
 
 	/* For encryption tablespace, initial encryption information. */
 	if (FSP_FLAGS_GET_ENCRYPTION(space->flags)
-	    && file.m_encryption_key != nullptr) {
+	    && df.m_encryption_key != nullptr) {
 
 		dberr_t err = fil_set_encryption(
 			space->id, Encryption::AES,
-			file.m_encryption_key, file.m_encryption_iv);
+			df.m_encryption_key, df.m_encryption_iv);
 
 		if (err != DB_SUCCESS) {
 
@@ -6605,7 +6678,7 @@ Fil_shard::prepare_file_for_io(fil_node_t* file, bool extend)
 void
 Fil_shard::add_to_unflushed_list(fil_space_t* space)
 {
-	ut_ad(mutex_owned());
+	ut_ad(m_id == REDO_SHARD || mutex_owned());
 
 	if (!space->is_in_unflushed_spaces) {
 
@@ -6838,6 +6911,101 @@ Fil_shard::get_file_for_io(
 	return(DB_ERROR);
 }
 
+/** Read or write log file data synchronously..
+@param[in,out]	type		IO context
+@param[in]	page_id		page id
+@param[in]	page_size	page size
+@param[in]	byte_offset	remainder of offset in bytes; in aio this
+				must be divisible by the OS block size
+@param[in]	len		how many bytes to read or write; this must
+				not cross a file boundary; in AIO this must
+				be a block size multiple
+@param[in,out]	buf		buffer where to store read data or from where
+				to write; in aio this must be appropriately
+				aligned
+@return error code
+@retval DB_SUCCESS on success */
+dberr_t
+Fil_shard::do_redo_io(
+	const IORequest&	type,
+	const page_id_t&	page_id,
+	const page_size_t&	page_size,
+	ulint			byte_offset,
+	ulint			len,
+	void*			buf)
+{
+	IORequest		req_type(type);
+
+	ut_ad(len > 0);
+	ut_ad(req_type.is_log());
+	ut_ad(req_type.validate());
+	ut_ad(fil_validate_skip());
+	ut_ad(byte_offset < UNIV_PAGE_SIZE);
+	ut_ad(UNIV_PAGE_SIZE == (ulong)(1 << UNIV_PAGE_SIZE_SHIFT));
+
+	if (req_type.is_read()) {
+
+		srv_stats.data_read.add(len);
+
+	} else if (req_type.is_write()) {
+
+		ut_ad(!srv_read_only_mode);
+		srv_stats.data_written.add(len);
+	}
+
+	fil_space_t*	space = get_space_by_id(page_id.space());
+
+	fil_node_t*	file;
+	page_no_t	page_no = page_id.page_no();
+	dberr_t		err = get_file_for_io(req_type, space, &page_no, file);
+
+	ut_a(page_size.physical() == page_size.logical());
+
+	os_offset_t	offset = (os_offset_t) page_no * page_size.physical();
+
+	offset += byte_offset;
+
+	ut_a(file->size - page_no
+	     >= (byte_offset + len + (page_size.physical() - 1))
+	     / page_size.physical());
+
+	ut_a((len % OS_FILE_LOG_BLOCK_SIZE) == 0);
+	ut_a(byte_offset % OS_FILE_LOG_BLOCK_SIZE == 0);
+
+	/* Set encryption information. */
+	fil_io_set_encryption(req_type, page_id, space);
+
+	req_type.block_size(file->block_size);
+
+	if (!file->is_open) {
+
+		ut_a(file->n_pending == 0);
+
+		bool	success = open_file(file, false);
+
+		ut_a(success);
+	}
+
+	if (req_type.is_read()) {
+
+		err = os_file_read(req_type, file->handle, buf, offset, len);
+
+	} else {
+
+		ut_ad(!srv_read_only_mode);
+
+		err = os_file_write(
+			req_type, file->name, file->handle, buf, offset, len);
+	}
+
+	if (type.is_write()) {
+
+		write_completed(file);
+	}
+
+	return(err);
+}
+
 /** Read or write data. This operation could be asynchronous (aio).
 @param[in,out]	type		IO context
 @param[in]	sync		whether synchronous aio is desired
@@ -6874,14 +7042,6 @@ Fil_shard::do_io(
 	ut_ad(byte_offset < UNIV_PAGE_SIZE);
 	ut_ad(!page_size.is_compressed() || byte_offset == 0);
 	ut_ad(UNIV_PAGE_SIZE == (ulong)(1 << UNIV_PAGE_SIZE_SHIFT));
-
-	static_assert(
-		(1 << UNIV_PAGE_SIZE_SHIFT_MAX) == UNIV_PAGE_SIZE_MAX,
-		"(1 << UNIV_PAGE_SIZE_SHIFT_MAX) != UNIV_PAGE_SIZE_MAX");
-
-	static_assert(
-		(1 << UNIV_PAGE_SIZE_SHIFT_MIN) == UNIV_PAGE_SIZE_MIN,
-		"(1 << UNIV_PAGE_SIZE_SHIFT_MIN) != UNIV_PAGE_SIZE_MIN");
 
 	ut_ad(fil_validate_skip());
 
@@ -7151,7 +7311,7 @@ Fil_shard::do_io(
 		/* The i/o operation is already completed when we return from
 		os_aio: */
 
-		fil_system->mutex_acquire_by_id(page_id.space());
+		mutex_acquire();
 
 		complete_io(file, req_type);
 
@@ -7163,18 +7323,47 @@ Fil_shard::do_io(
 	return(err);
 }
 
-/** Read or write data. This operation could be asynchronous (aio).
+/** Read or write redo log data (synchronous buffered IO).
 @param[in,out]	type		IO context
-@param[in]	sync		whether synchronous aio is desired
+@param[in]	sync		whether synchronous AIO is desired
+@param[in]	page_id		where to read or write
+@param[in]	page_size	page size
+@param[in]	byte_offset	remainder of offset in bytes
+@param[in]	len		this must not cross a file boundary;
+@param[in,out]	buf		buffer where to store read data or from where
+				to write
+@retval DB_SUCCESS if all OK */
+dberr_t
+fil_redo_io(
+	const IORequest&	type,
+	const page_id_t&	page_id,
+	const page_size_t&	page_size,
+	ulint			byte_offset,
+	ulint			len,
+	void*			buf)
+{
+	ut_ad(type.is_log());
+
+	auto	shard = fil_system->shard_by_id(page_id.space());
+
+	return(shard->do_redo_io(
+		type, page_id, page_size, byte_offset, len, buf));
+
+}
+
+/** Read or write redo data. This operation is currently synchronous (AIO).
+@param[in,out]	type		IO context
 @param[in]	page_id		page id
 @param[in]	page_size	page size
 @param[in]	byte_offset	remainder of offset in bytes; in aio this
-must be divisible by the OS block size
+				must be divisible by the OS block size
 @param[in]	len		how many bytes to read or write; this must
-not cross a file boundary; in aio this must be a block size multiple
+				not cross a file boundary; in AIO this must
+				be a block size multiple
 @param[in,out]	buf		buffer where to store read data or from where
-to write; in aio this must be appropriately aligned
-@param[in]	message		message for aio handler if !sync, else ignored
+				to write; in AIO this must be appropriately
+				aligned
+@param[in]	message		message for AIO handler if !sync, else ignored
 @return error code
 @retval DB_SUCCESS on success
 @retval DB_TABLESPACE_DELETED if the tablespace does not exist */
@@ -7253,7 +7442,7 @@ fil_aio_wait(ulint segment)
 		}
 		return;
 	case FIL_TYPE_LOG:
-		srv_set_io_thread_op_info(segment, "complete io for log");
+		srv_set_io_thread_op_info(segment, "complete checkpoint io");
 		log_io_complete(static_cast<log_group_t*>(message));
 		return;
 	}
