@@ -24,6 +24,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <mutex>
+#include <unordered_map>
 
 #include "m_ctype.h"
 #include "m_string.h"
@@ -67,19 +68,36 @@ bool my_charset_same(const CHARSET_INFO *cs1, const CHARSET_INFO *cs2)
 }
 
 
+std::unordered_map<std::string, int> *coll_name_num_map= nullptr;
+std::unordered_map<std::string, int> *cs_name_pri_num_map= nullptr;
+std::unordered_map<std::string, int> *cs_name_bin_num_map= nullptr;
+
+static void map_coll_name_to_number(const char *name, int num)
+{
+  char lower_case_name[256];
+  strncpy(lower_case_name, name, 256);
+  my_casedn_str(&my_charset_latin1, lower_case_name);
+  (*coll_name_num_map)[lower_case_name]= num;
+}
+
+static void map_cs_name_to_number(const char *name, int num, int state)
+{
+  char lower_case_name[256];
+  strncpy(lower_case_name, name, 256);
+  my_casedn_str(&my_charset_latin1, lower_case_name);
+  if ((state & MY_CS_PRIMARY))
+    (*cs_name_pri_num_map)[lower_case_name]= num;
+  if ((state & MY_CS_BINSORT))
+    (*cs_name_bin_num_map)[lower_case_name]= num;
+}
+
 static uint
 get_collation_number_internal(const char *name)
 {
-  CHARSET_INFO **cs;
-  for (cs= all_charsets;
-       cs < all_charsets + array_elements(all_charsets);
-       cs++)
-  {
-    if ( cs[0] && cs[0]->name && 
-         !my_strcasecmp(&my_charset_latin1, cs[0]->name, name))
-      return cs[0]->number;
-  }  
-  return 0;
+  char lower_case_name[256];
+  strncpy(lower_case_name, name, 256);
+  my_casedn_str(&my_charset_latin1, lower_case_name);
+  return (*coll_name_num_map)[lower_case_name];
 }
 
 
@@ -206,6 +224,8 @@ static int add_collation(CHARSET_INFO *cs)
       cs->state |= MY_CS_BINSORT;
     
     all_charsets[cs->number]->state|= cs->state;
+    map_coll_name_to_number(cs->name, cs->number);
+    map_cs_name_to_number(cs->csname, cs->number, cs->state);
     
     if (!(all_charsets[cs->number]->state & MY_CS_COMPILED))
     {
@@ -408,7 +428,6 @@ error:
   return TRUE;
 }
 
-
 char *get_charsets_dir(char *buf)
 {
   const char *sharedir= SHAREDIR;
@@ -438,6 +457,8 @@ void add_compiled_collation(CHARSET_INFO *cs)
 {
   DBUG_ASSERT(cs->number < array_elements(all_charsets));
   all_charsets[cs->number]= cs;
+  map_coll_name_to_number(cs->name, cs->number);
+  map_cs_name_to_number(cs->csname, cs->number, cs->state);
   cs->state|= MY_CS_AVAILABLE;
 }
 
@@ -451,6 +472,9 @@ static void init_available_charsets(void)
   MY_CHARSET_LOADER loader;
 
   memset(&all_charsets, 0, sizeof(all_charsets));
+  coll_name_num_map= new std::unordered_map<std::string, int>(0);
+  cs_name_pri_num_map= new std::unordered_map<std::string, int>(0);
+  cs_name_bin_num_map= new std::unordered_map<std::string, int>(0);
   init_compiled_charsets(MYF(0));
 
   /* Copy compiled charsets */
@@ -495,16 +519,19 @@ uint get_collation_number(const char *name)
 static uint
 get_charset_number_internal(const char *charset_name, uint cs_flags)
 {
-  CHARSET_INFO **cs;
-  
-  for (cs= all_charsets;
-       cs < all_charsets + array_elements(all_charsets);
-       cs++)
-  {
-    if ( cs[0] && cs[0]->csname && (cs[0]->state & cs_flags) &&
-         !my_strcasecmp(&my_charset_latin1, cs[0]->csname, charset_name))
-      return cs[0]->number;
-  }  
+  char lower_case_name[256];
+  strncpy(lower_case_name, charset_name, 256);
+  my_casedn_str(&my_charset_latin1, lower_case_name);
+  /*
+    So far, all our calls to get the collation number by its charset name
+    and flags is to get the PRIMARY / BIN collation of this charset.
+  */
+  if ((cs_flags & MY_CS_PRIMARY))
+    return (*cs_name_pri_num_map)[lower_case_name];
+  if ((cs_flags & MY_CS_BINSORT))
+    return (*cs_name_bin_num_map)[lower_case_name];
+
+  DBUG_ASSERT(false);
   return 0;
 }
 
@@ -983,4 +1010,18 @@ size_t escape_quotes_for_mysql(CHARSET_INFO *charset_info,
   }
   *to= 0;
   return overflow ? (ulong)~0 : (ulong) (to - to_start);
+}
+
+void charset_uninit()
+{
+  for (CHARSET_INFO *cs : all_charsets)
+  {
+    if (cs && cs->coll->uninit)
+    {
+      cs->coll->uninit(cs);
+    }
+  }
+  delete coll_name_num_map;
+  delete cs_name_pri_num_map;
+  delete cs_name_bin_num_map;
 }

@@ -345,6 +345,7 @@ SET(TESTS
   pump_object_filter
   val_int_compare
   varlen_sort
+  collation_loader
   )
  
 IF(WIN32)
