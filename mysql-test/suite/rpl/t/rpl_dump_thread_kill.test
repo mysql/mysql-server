@@ -19,6 +19,12 @@
 --let $rpl_skip_start_slave=1
 --source include/master-slave.inc
 
+# When this test script is running in combination with other tests,
+# it is possible that dump threads from those tests are not killed.
+# (rpl_end.inc does not kill dump threads).
+# Hence doing the cleanup here as this test depends dump threads.
+--source include/stop_dump_threads.inc
+
 #  1) Create a binary log with some events
 CREATE TABLE t1(i INT) engine=innodb;
 INSERT INTO t1 VALUES (1);

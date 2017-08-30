@@ -2249,10 +2249,19 @@ public:
   */
   virtual int rnd_pos_by_record(uchar *record)
     {
+      int error;
       DBUG_ASSERT(table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION);
+
+      error = ha_rnd_init(false);
+      if (error != 0)
+          return error;
+
       position(record);
-      return ha_rnd_pos(record, ref);
+      error = ha_rnd_pos(record, ref);
+      ha_rnd_end();
+      return error;
     }
+
   virtual int read_first_row(uchar *buf, uint primary_key);
   /**
     The following function is only needed for tables that may be temporary

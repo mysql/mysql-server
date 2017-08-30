@@ -50,13 +50,13 @@
 #         --source $resultFile
 #         if (!$dbidbd) {
 #             --skip Test needs Perl modules DBI and DBD::mysql
-#         } 
+#         }
 #
 #       The calling script is also responsible for cleaning up after use:
 #
 #         --remove_file $resultFile
 #
-# Windows notes: 
+# Windows notes:
 #   - shebangs may work differently - call this script with "perl " in front.
 #
 # See mysql-test/include/have_dbi_dbd-mysql.inc for example use of this script.
@@ -80,8 +80,8 @@ BEGIN {
 };
 
 # Open a file to be used for transfer of result back to mysql-test.
-# The file must be created whether we write to it or not, otherwise mysql-test 
-# will complain if trying to source it. 
+# The file must be created whether we write to it or not, otherwise mysql-test
+# will complain if trying to source it.
 # An empty file indicates failure to load modules.
 open(FILE, ">", $ENV{'MYSQL_TMP_DIR'}.'/dbidbd-mysql.txt');
 
