@@ -1528,7 +1528,9 @@ struct dict_sys_t{
 	@param[in]	space	tablespace id to check
 	@return true if a reserved tablespace id, otherwise false */
 	static bool is_reserved(space_id_t space)
-	{ return(space >= dict_sys_t::s_reserved_space_id); }
+	{
+		return(space >= dict_sys_t::s_reserved_space_id);
+	}
 
 	/** Check if a table is hardcoded. it only includes the dd tables
 	@param[in]	id	table ID

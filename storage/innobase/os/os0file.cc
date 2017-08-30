@@ -645,14 +645,14 @@ public:
 		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Select the IO slot array
-	@param[in]	type		Type of IO, READ or WRITE
+	@param[in,out]	type		Type of IO, READ or WRITE
 	@param[in]	read_only	true if running in read-only mode
 	@param[in]	mode		IO mode
 	@return slot array or NULL if invalid mode specified */
 	static AIO* select_slot_array(
 		IORequest&	type,
 		bool		read_only,
-		ulint		mode)
+		AIO_mode	aio_mode)
 		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Calculates segment number for a slot.
@@ -6272,13 +6272,13 @@ os_file_set_size(
 		err = os_file_write(
 			request, name, file, buf, current_size, n_bytes);
 #else
-		/* Using OS_AIO_SYNC mode on POSIX systems will result in
+		/* Using AIO_mode::SYNC mode on POSIX systems will result in
 		fall back to os_file_write/read. On Windows it will use
 		special mechanism to wait before it returns back. */
 
 		err = os_aio(
 			request,
-			OS_AIO_SYNC, name,
+			AIO_mode::SYNC, name,
 			file, buf, current_size, n_bytes,
 			read_only, NULL, NULL);
 #endif /* UNIV_HOTBACKUP */
@@ -7704,24 +7704,24 @@ os_aio_simulated_wake_handler_threads()
 }
 
 /** Select the IO slot array
-@param[in]	type		Type of IO, READ or WRITE
+@param[in,out]	type		Type of IO, READ or WRITE
 @param[in]	read_only	true if running in read-only mode
-@param[in]	mode		IO mode
+@param[in]	aio_mode	IO mode
 @return slot array or NULL if invalid mode specified */
 AIO*
-AIO::select_slot_array(IORequest& type, bool read_only, ulint mode)
+AIO::select_slot_array(IORequest& type, bool read_only, AIO_mode aio_mode)
 {
 	AIO*	array;
 
 	ut_ad(type.validate());
 
-	switch (mode) {
-	case OS_AIO_NORMAL:
+	switch (aio_mode) {
+	case AIO_mode::NORMAL:
 
 		array = type.is_read() ? AIO::s_reads : AIO::s_writes;
 		break;
 
-	case OS_AIO_IBUF:
+	case AIO_mode::IBUF:
 		ut_ad(type.is_read());
 
 		/* Reduce probability of deadlock bugs in connection with ibuf:
@@ -7732,12 +7732,12 @@ AIO::select_slot_array(IORequest& type, bool read_only, ulint mode)
 		array = read_only ? AIO::s_reads : AIO::s_ibuf;
 		break;
 
-	case OS_AIO_LOG:
+	case AIO_mode::LOG:
 
 		array = read_only ? AIO::s_reads : AIO::s_log;
 		break;
 
-	case OS_AIO_SYNC:
+	case AIO_mode::SYNC:
 
 		array = AIO::s_sync;
 #if defined(LINUX_NATIVE_AIO)
@@ -7926,7 +7926,7 @@ os_aio_windows_handler(
 NOTE! Use the corresponding macro os_aio(), not directly this function!
 Requests an asynchronous i/o operation.
 @param[in]	type		IO request context
-@param[in]	mode		IO mode
+@param[in]	aio_mode	IO mode
 @param[in]	name		Name of the file or path as NUL terminated
 				string
 @param[in]	file		Open file handle
@@ -7936,15 +7936,15 @@ Requests an asynchronous i/o operation.
 @param[in]	read_only	if true read only mode checks are enforced
 @param[in,out]	m1		Message for the AIO handler, (can be used to
 				identify a completed AIO operation); ignored
-				if mode is OS_AIO_SYNC
+				if mode is AIO_mode::SYNC
 @param[in,out]	m2		message for the AIO handler (can be used to
 				identify a completed AIO operation); ignored
-				if mode is OS_AIO_SYNC
+				if mode is AIO_mode::SYNC
 @return DB_SUCCESS or error code */
 dberr_t
 os_aio_func(
 	IORequest&	type,
-	ulint		mode,
+	AIO_mode	aio_mode,
 	const char*	name,
 	pfs_os_file_t	file,
 	void*		buf,
@@ -7967,7 +7967,7 @@ os_aio_func(
 	ut_ad((n & 0xFFFFFFFFUL) == n);
 #endif /* WIN_ASYNC_IO */
 
-	if (mode == OS_AIO_SYNC
+	if (aio_mode == AIO_mode::SYNC
 #ifdef WIN_ASYNC_IO
 	    && !srv_use_native_aio
 #endif /* WIN_ASYNC_IO */
@@ -7997,7 +7997,7 @@ try_again:
 
 	AIO*	array;
 
-	array = AIO::select_slot_array(type, read_only, mode);
+	array = AIO::select_slot_array(type, read_only, aio_mode);
 
 	Slot*	slot;
 
@@ -8050,9 +8050,9 @@ try_again:
 	if (srv_use_native_aio) {
 		if ((ret && slot->len == slot->n_bytes)
 		     || (!ret && GetLastError() == ERROR_IO_PENDING)) {
-			/* aio was queued successfully! */
+			/* AIO was queued successfully! */
 
-			if (mode == OS_AIO_SYNC) {
+			if (aio_mode == AIO_mode::SYNC) {
 				IORequest	dummy_type;
 				void*		dummy_mess2;
 				struct fil_node_t* dummy_mess1;

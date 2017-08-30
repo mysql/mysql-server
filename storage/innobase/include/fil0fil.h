@@ -275,6 +275,9 @@ struct fil_space_t {
 	/** System tablespace */
 	static fil_space_t*	s_sys_space;
 
+	/** Redo log tablespace */
+	static fil_space_t*	s_redo_space;
+
 #ifdef UNIV_DEBUG
 	/** Print the extent descriptor pages of this tablespace into
 	the given output stream.

@@ -2310,17 +2310,16 @@ srv_start(bool create_new_db, const std::string& scan_directories)
 
 		/* Read the first log file header to get the encryption
 		information if it exist. */
-		if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
-		    if (!log_read_encryption()) {
+		if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO
+		    && !log_read_encryption()) {
+
 			return(srv_init_abort(DB_ERROR));
-		    }
 		}
 	}
 
 files_checked:
 	/* Open all log files and data files in the system
-	tablespace: we keep them open until database
-	shutdown */
+	tablespace: we keep them open until database shutdown */
 
 	fil_open_log_and_system_tablespace_files();
 

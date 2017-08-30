@@ -845,22 +845,24 @@ struct os_file_size_t {
 static const ulint OS_AIO_N_PENDING_IOS_PER_THREAD = 32;
 
 /** Modes for aio operations @{ */
-/** Normal asynchronous i/o not for ibuf pages or ibuf bitmap pages */
-static const ulint OS_AIO_NORMAL = 21;
+enum class AIO_mode : size_t {
+	/** Normal asynchronous i/o not for ibuf pages or ibuf bitmap pages */
+	NORMAL = 21,
 
-/**  Asynchronous i/o for ibuf pages or ibuf bitmap pages */
-static const ulint OS_AIO_IBUF = 22;
+	/**  Asynchronous i/o for ibuf pages or ibuf bitmap pages */
+	IBUF = 22,
 
-/** Asynchronous i/o for the log */
-static const ulint OS_AIO_LOG = 23;
+	/** Asynchronous i/o for the log */
+	LOG = 23,
 
-/** Asynchronous i/o where the calling thread will itself wait for
-the i/o to complete, doing also the job of the i/o-handler thread;
-can be used for any pages, ibuf or non-ibuf.  This is used to save
-CPU time, as we can do with fewer thread switches. Plain synchronous
-I/O is not as good, because it must serialize the file seek and read
-or write, causing a bottleneck for parallelism. */
-static const ulint OS_AIO_SYNC = 24;
+	/** Asynchronous i/o where the calling thread will itself wait for
+	the i/o to complete, doing also the job of the i/o-handler thread;
+	can be used for any pages, ibuf or non-ibuf.  This is used to save
+	CPU time, as we can do with fewer thread switches. Plain synchronous
+	I/O is not as good, because it must serialize the file seek and read
+	or write, causing a bottleneck for parallelism. */
+	SYNC = 24
+};
 /* @} */
 
 extern ulint	os_n_file_reads;
@@ -1986,7 +1988,7 @@ os_aio_free();
 NOTE! Use the corresponding macro os_aio(), not directly this function!
 Requests an asynchronous i/o operation.
 @param[in]	type		IO request context
-@param[in]	mode		IO mode
+@param[in]	aio_mode	IO mode
 @param[in]	name		Name of the file or path as NUL terminated
 				string
 @param[in]	file		Open file handle
@@ -2004,7 +2006,7 @@ Requests an asynchronous i/o operation.
 dberr_t
 os_aio_func(
 	IORequest&	type,
-	ulint		mode,
+	AIO_mode	aio_mode,
 	const char*	name,
 	pfs_os_file_t	file,
 	void*		buf,
