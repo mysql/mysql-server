@@ -47,9 +47,9 @@ class Expression_generator {
   // source: ``Mysqlx.Resultset.ColumnMetadata`` for list of known values
   enum Octets_content_type {
     CT_PLAIN = 0x0000,     //   default value; general use of octets
-    CT_GEOMETRY = 0x0001,  //   BYTES  0x0001 GEOMETRY (WKB encoding)
-    CT_JSON = 0x0002,      //   BYTES  0x0002 JSON (text encoding)
-    CT_XML = 0x0003        //   BYTES  0x0003 XML (text encoding)
+    CT_GEOMETRY = Mysqlx::Resultset::GEOMETRY,
+    CT_JSON     = Mysqlx::Resultset::JSON,
+    CT_XML      = Mysqlx::Resultset::XML
   };
 
   Expression_generator(Query_string_builder *qb, const Args &args,
