@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -261,7 +261,7 @@ does not support recusive x-locks: they should be handled by the caller and
 need not be atomic since they are performed by the current lock holder.
 Returns true if the decrement was made, false if not.
 @return true if decr occurs */
-UNIV_INLINE
+ALWAYS_INLINE
 bool
 rw_lock_lock_word_decr(
 /*===================*/
@@ -370,7 +370,7 @@ rw_lock_set_writer_id_and_recursion_flag(
 Low-level function which tries to lock an rw-lock in s-mode. Performs no
 spinning.
 @return TRUE if success */
-UNIV_INLINE
+ALWAYS_INLINE
 ibool
 rw_lock_s_lock_low(
 /*===============*/
@@ -772,7 +772,7 @@ pfs_rw_lock_free_func(
 Performance schema instrumented wrap function for rw_lock_s_lock_func()
 NOTE! Please use the corresponding macro rw_lock_s_lock(), not
 directly this function! */
-UNIV_INLINE
+ALWAYS_INLINE
 void
 pfs_rw_lock_s_lock_func(
 /*====================*/
@@ -974,7 +974,7 @@ pfs_rw_lock_sx_unlock_func(
 Performance schema instrumented wrap function for rw_lock_s_unlock_func()
 NOTE! Please use the corresponding macro pfs_rw_lock_s_unlock(), not
 directly this function! */
-UNIV_INLINE
+ALWAYS_INLINE
 void
 pfs_rw_lock_s_unlock_func(
 /*======================*/
