@@ -40,5 +40,7 @@ public class Ndb_cluster_connection extends Wrapper implements Ndb_cluster_conne
     public final native void unlock_ndb_objects();
     public final native int set_recv_thread_activation_threshold(int threshold);
     public final native int get_recv_thread_activation_threshold();
+    public final native int set_recv_thread_cpu(short cpuid);
+    public final native int unset_recv_thread_cpu();
     public final native NdbConst/*_const Ndb *_*/ get_next_ndb_object(NdbConst/*_const Ndb *_*/ p);
 }
