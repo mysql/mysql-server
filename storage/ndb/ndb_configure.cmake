@@ -1,5 +1,5 @@
 
-# Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -148,7 +148,7 @@ return 0;
 HAVE_MAC_OS_X_THREAD_INFO)
 
 # Linux scheduling and locking support
-CHECK_C_SOURCE_COMPILES("
+CHECK_C_SOURCE_RUNS("
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
@@ -156,15 +156,23 @@ CHECK_C_SOURCE_COMPILES("
 #include <unistd.h>
 #include <sched.h>
 #include <sys/syscall.h>
+#include <stdlib.h>
 int main()
 {
   const cpu_set_t *p= (const cpu_set_t*)0;
   struct sched_param loc_sched_param;
-  int policy = 0;
+  int policy = 0, ret;
   pid_t tid = (unsigned)syscall(SYS_gettid);
+  if (__GLIBC__ < 2 || ( __GLIBC__ == 2 && __GLIBC_MINOR__ < 23 ) )
+  {
+    /* sched_setaffinity has a bug due to which it fails
+     * when an all-ones CPU mask is set. It is fixed in v2.23  */
+    exit(EXIT_FAILURE);
+  }
   tid = getpid();
-  int ret = sched_setaffinity(tid, sizeof(* p), p);
+  ret = sched_setaffinity(tid, sizeof(* p), p);
   ret = sched_setscheduler(tid, policy, &loc_sched_param);
+  return 0;
 }"
 HAVE_LINUX_SCHEDULING)
 
@@ -190,7 +198,7 @@ CHECK_C_SOURCE_COMPILES("
 #include <sys/types.h>
 #include <unistd.h>
 #include <errno.h>
-#include <sys/syscall.h>]
+#include <sys/syscall.h>
 #define FUTEX_WAIT        0
 #define FUTEX_WAKE        1
 #define FUTEX_FD          2
