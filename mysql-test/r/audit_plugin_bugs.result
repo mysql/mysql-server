@@ -30,18 +30,6 @@ SELECT @@null_audit_event_order_check_consume_ignore_count;
 SET @@GLOBAL.null_audit_event_order_check= NULL;
 SET @@GLOBAL.null_audit_abort_message= NULL;
 SET @@GLOBAL.null_audit_event_order_check_consume_ignore_count= 0;
-# test
-SET @@null_audit_event_order_check= "MYSQL_AUDIT_GENERAL_ERROR;;ABORT_RET";
-SET @@null_audit_abort_message= "Abort message.";
-# Try to enter error state infinitely. my_message calls will overrun the stack frame.
-SET @@null_audit_event_order_check_consume_ignore_count= 10000;
-# Must not crash
-SELECT 1 FROM mysql.fictional_table;
-ERROR 42S02: Table 'mysql.fictional_table' doesn't exist
-SELECT @@null_audit_event_order_check_consume_ignore_count;
-@@null_audit_event_order_check_consume_ignore_count
-9998
-# Clean up
 End of 5.7 tests
 # cleanup
 UNINSTALL PLUGIN null_audit;
