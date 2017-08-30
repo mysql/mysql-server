@@ -84,11 +84,9 @@ SHOW CREATE TABLE tab3;
 --remove_files_wildcard $MYSQL_TMP_DIR/data_directory1/test/ *.ibd
 
 --echo ## Start with new --datadir and --innodb-directories options
---replace_result $MYSQLD_NEW_DATADIR NEW_DATADIR
---replace_result $MYSQL_TMP_DIR data_directory2
-let $innodb_dirs="$MYSQLD_NEW_DATADIR;$MYSQL_TMP_DIR/data_directory2/test";
+let $innodb_dirs='$MYSQLD_NEW_DATADIR;$MYSQL_TMP_DIR/data_directory2/test';
 --let $restart_parameters="restart: --datadir=$MYSQLD_NEW_DATADIR --innodb-directories=$innodb_dirs"
---source include/start_mysqld.inc
+--source include/start_mysqld_no_echo.inc
 
 --echo ## Check while passing new datadir and new absolute path
 --replace_result $MYSQLD_NEW_DATADIR NEW_DATADIR
