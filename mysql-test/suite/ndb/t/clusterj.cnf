@@ -7,5 +7,5 @@
 #
 DataMemory=25M
 IndexMemory=16M
-MaxNoOfOrderedIndexes = 140
+MaxNoOfOrderedIndexes = 150
 #

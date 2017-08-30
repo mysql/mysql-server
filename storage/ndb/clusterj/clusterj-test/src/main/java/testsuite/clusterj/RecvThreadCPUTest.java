@@ -212,15 +212,6 @@ public class RecvThreadCPUTest extends AbstractClusterJTest {
                 caughtException, "The activation threshold .* is not valid.*");
     }
 
-    private void verifyException(String message, Exception ex, String exceptionPattern) {
-        if(ex == null) {
-            error(message + ", didn't fail.");
-        } else if(!ex.getMessage().matches(exceptionPattern)) {
-            error(message + ", failed with wrong exception :");
-            error(ex.getMessage());
-        }
-    }
-
     private void errorIfNotEqual(String message, short[] expected, short[] actual) {
         if (expected.length == 0 && actual.length == 0) {
             return;
