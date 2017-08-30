@@ -792,6 +792,14 @@ CONFIGURE_FILE(
     ${CMAKE_SOURCE_DIR}/cmake/info_macros.cmake.in
     ${CMAKE_BINARY_DIR}/info_macros.cmake @ONLY)
 
+SET(KNOWN_CONVENIENCE_LIBRARIES "" CACHE INTERNAL "")
+# Add to the 'make clean' target.
+# With this you need to do 'cmake .' before doing 'make' again.
+GET_PROPERTY(CLEAN_FILES DIRECTORY PROPERTY ADDITIONAL_MAKE_CLEAN_FILES)
+SET_PROPERTY(DIRECTORY PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
+  "${CLEAN_FILES}" "${CMAKE_BINARY_DIR}/archive_output_directory"
+)
+
 # Handle the "INFO_*" files.
 INCLUDE(${CMAKE_BINARY_DIR}/info_macros.cmake)
 # Source: This can be done during the cmake phase, all information is

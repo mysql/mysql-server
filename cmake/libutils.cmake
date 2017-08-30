@@ -29,23 +29,6 @@
 # libraries (we need it for mysqlclient) and to create shared library out of 
 # convenience libraries(again, for mysqlclient)
 
-# Following macros are exported
-# - ADD_CONVENIENCE_LIBRARY(target source1...sourceN)
-# This macro creates convenience library. The functionality is similar to 
-# ADD_LIBRARY(target STATIC source1...sourceN), the difference is that resulting 
-# library can always be linked to shared library
-# 
-# - MERGE_LIBRARIES(target [STATIC|SHARED|MODULE]  [linklib1 .... linklibN]
-#  [EXPORTS exported_func1 .... exported_func_N]
-#  [OUTPUT_NAME output_name]
-# This macro merges several static libraries into a single one or creates a shared
-# library from several convenience libraries
-
-# Important global flags 
-#
-# - DISABLE_SHARED: If set, it is assumed that shared libraries are not produced
-# during the build. ADD_CONVENIENCE_LIBRARY does not add anything to compile flags
-
 
 GET_FILENAME_COMPONENT(MYSQL_CMAKE_SCRIPT_DIR ${CMAKE_CURRENT_LIST_FILE} PATH)
 IF(WIN32 OR APPLE OR DISABLE_SHARED)
@@ -74,17 +57,55 @@ MACRO(CREATE_EXPORT_FILE VAR TARGET API_FUNCTIONS)
 ENDMACRO()
 
 
-# MYSQL_ADD_CONVENIENCE_LIBRARY(name source1...sourceN)
-# Create static library that can be linked to shared library.
-# On systems that force position-independent code, adds -fPIC or 
-# equivalent flag to compile flags.
+# ADD_CONVENIENCE_LIBRARY(name source1...sourceN)
+# Create static library that can be merged with other libraries.
 MACRO(ADD_CONVENIENCE_LIBRARY)
   SET(TARGET ${ARGV0})
   SET(SOURCES ${ARGN})
   LIST(REMOVE_AT SOURCES 0)
   ADD_LIBRARY(${TARGET} STATIC ${SOURCES})
+
+  # Collect all static libraries in the same directory
+  SET_TARGET_PROPERTIES(${TARGET} PROPERTIES
+    ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/archive_output_directory)
+
+  # Keep track of known convenience libraries, in a global scope.
+  SET(KNOWN_CONVENIENCE_LIBRARIES
+    ${KNOWN_CONVENIENCE_LIBRARIES} ${TARGET} CACHE INTERNAL "" FORCE)
+
+  # Generate a cmake file which will save the name of the library.
+  CONFIGURE_FILE(
+    ${MYSQL_CMAKE_SCRIPT_DIR}/save_archive_location.cmake.in
+    ${CMAKE_BINARY_DIR}/archive_output_directory/lib_location_${TARGET}.cmake
+    @ONLY)
+  ADD_CUSTOM_COMMAND(TARGET ${TARGET} POST_BUILD
+    COMMAND ${CMAKE_COMMAND}
+    -DTARGET_NAME=${TARGET}
+    -DTARGET_LOC=$<TARGET_FILE:${TARGET}>
+    -DCFG_INTDIR=${CMAKE_CFG_INTDIR}
+    -P ${CMAKE_BINARY_DIR}/archive_output_directory/lib_location_${TARGET}.cmake
+    )
 ENDMACRO()
 
+
+# An IMPORTED library can also be merged.
+MACRO(ADD_IMPORTED_LIBRARY TARGET LOC)
+  ADD_LIBRARY(${TARGET} STATIC IMPORTED)
+  SET_TARGET_PROPERTIES(${TARGET} PROPERTIES IMPORTED_LOCATION ${LOC})
+  SET(KNOWN_CONVENIENCE_LIBRARIES
+    ${KNOWN_CONVENIENCE_LIBRARIES} ${TARGET} CACHE INTERNAL "" FORCE)
+  CONFIGURE_FILE(
+    ${MYSQL_CMAKE_SCRIPT_DIR}/save_archive_location.cmake.in
+    ${CMAKE_BINARY_DIR}/archive_output_directory/lib_location_${TARGET}.cmake
+    @ONLY)
+  ADD_CUSTOM_TARGET(${TARGET}_location
+    COMMAND ${CMAKE_COMMAND}
+    -DTARGET_NAME=${TARGET}
+    -DTARGET_LOC=$<TARGET_FILE:${TARGET}>
+    -DCFG_INTDIR=${CMAKE_CFG_INTDIR}
+    -P ${CMAKE_BINARY_DIR}/archive_output_directory/lib_location_${TARGET}.cmake
+    )
+ENDMACRO()
 
 # Write content to file, using CONFIGURE_FILE
 # The advantage compared to FILE(WRITE) is that timestamp
@@ -98,124 +119,19 @@ MACRO(CONFIGURE_FILE_CONTENT content file)
   @ONLY)
 ENDMACRO()
 
-# Merge static libraries into a big static lib. The resulting library 
-# should not not have dependencies on other static libraries.
-# We use it in MySQL to merge mysys,dbug,vio etc into mysqlclient
-
-MACRO(MERGE_STATIC_LIBS TARGET OUTPUT_NAME LIBS_TO_MERGE)
-  # To produce a library we need at least one source file.
-  # It is created by ADD_CUSTOM_COMMAND below and will
-  # also help to track dependencies.
-  SET(SOURCE_FILE ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}_depends.c)
-  ADD_LIBRARY(${TARGET} STATIC ${SOURCE_FILE})
-  SET_TARGET_PROPERTIES(${TARGET} PROPERTIES OUTPUT_NAME ${OUTPUT_NAME})
-
-  SET(OSLIBS)
-  FOREACH(LIB ${LIBS_TO_MERGE})
-    GET_TARGET_PROPERTY(LIB_LOCATION ${LIB} LOCATION)
-    GET_TARGET_PROPERTY(LIB_TYPE ${LIB} TYPE)
-    IF(NOT LIB_LOCATION)
-       # 3rd party library like libz.so. Make sure that everything
-       # that links to our library links to this one as well.
-       LIST(APPEND OSLIBS ${LIB})
-    ELSE()
-      # This is a target in current project
-      # (can be a static or shared lib)
-      IF(LIB_TYPE STREQUAL "STATIC_LIBRARY")
-        SET(STATIC_LIBS ${STATIC_LIBS} ${LIB_LOCATION})
-        ADD_DEPENDENCIES(${TARGET} ${LIB})
-        # Extract dependend OS libraries
-        GET_DEPENDEND_OS_LIBS(${LIB} LIB_OSLIBS)
-        LIST(APPEND OSLIBS ${LIB_OSLIBS})
-      ELSE()
-        # This is a shared library our static lib depends on.
-        LIST(APPEND OSLIBS ${LIB})
-      ENDIF()
-    ENDIF()
-  ENDFOREACH()
-
-  IF(OSLIBS)
-    LIST(REMOVE_DUPLICATES OSLIBS)
-    TARGET_LINK_LIBRARIES(${TARGET} ${OSLIBS})
-    MESSAGE(STATUS "Library ${TARGET} depends on OSLIBS ${OSLIBS}")
-  ENDIF()
-
-  IF(STATIC_LIBS)
-    LIST(REMOVE_DUPLICATES STATIC_LIBS)
-  ENDIF()
-
-  # Make the generated dummy source file depended on all static input
-  # libs. If input lib changes,the source file is touched
-  # which causes the desired effect (relink).
-  ADD_CUSTOM_COMMAND( 
-    OUTPUT  ${SOURCE_FILE}
-    COMMAND ${CMAKE_COMMAND}  -E touch ${SOURCE_FILE}
-    DEPENDS ${STATIC_LIBS})
-
-  IF(MSVC)
-    # To merge libs, just pass them to lib.exe command line.
-    SET(LINKER_EXTRA_FLAGS "")
-    FOREACH(LIB ${STATIC_LIBS})
-      SET(LINKER_EXTRA_FLAGS "${LINKER_EXTRA_FLAGS} ${LIB}")
-    ENDFOREACH()
-    SET_TARGET_PROPERTIES(${TARGET} PROPERTIES STATIC_LIBRARY_FLAGS 
-      "${LINKER_EXTRA_FLAGS}")
-  ELSE()
-    GET_TARGET_PROPERTY(TARGET_LOCATION ${TARGET} LOCATION)  
-    IF(APPLE)
-      # Use OSX's libtool to merge archives (ihandles universal 
-      # binaries properly)
-      ADD_CUSTOM_COMMAND(TARGET ${TARGET} POST_BUILD
-        COMMAND rm ${TARGET_LOCATION}
-        COMMAND /usr/bin/libtool -static -o ${TARGET_LOCATION} 
-        ${STATIC_LIBS}
-      )  
-    ELSE()
-      # Generic Unix or MinGW. In post-build step, call
-      # script, that extracts objects from archives with "ar x" 
-      # and repacks them with "ar r"
-      SET(TARGET ${TARGET})
-      CONFIGURE_FILE(
-        ${MYSQL_CMAKE_SCRIPT_DIR}/merge_archives_unix.cmake.in
-        ${CMAKE_CURRENT_BINARY_DIR}/merge_archives_${TARGET}.cmake 
-        @ONLY
-      )
-      ADD_CUSTOM_COMMAND(TARGET ${TARGET} POST_BUILD
-        COMMAND rm ${TARGET_LOCATION}
-        COMMAND ${CMAKE_COMMAND} -P 
-        ${CMAKE_CURRENT_BINARY_DIR}/merge_archives_${TARGET}.cmake
-      )
-    ENDIF()
-  ENDIF()
-ENDMACRO()
-
 # Create libs from libs.
 # Merges static libraries, creates shared libraries out of convenience libraries.
-# MERGE_LIBRARIES(target [STATIC|SHARED|MODULE] 
-#  [linklib1 .... linklibN]
-#  [EXPORTS exported_func1 .... exportedFuncN]
-#  [OUTPUT_NAME output_name]
-#)
-MACRO(MERGE_LIBRARIES)
+MACRO(MERGE_LIBRARIES_SHARED)
   MYSQL_PARSE_ARGUMENTS(ARG
     "EXPORTS;OUTPUT_NAME;COMPONENT"
-    "STATIC;SHARED;MODULE;SKIP_INSTALL"
+    "SKIP_INSTALL"
     ${ARGN}
   )
   LIST(GET ARG_DEFAULT_ARGS 0 TARGET) 
   SET(LIBS ${ARG_DEFAULT_ARGS})
   LIST(REMOVE_AT LIBS 0)
-  IF(ARG_STATIC)
-    IF (NOT ARG_OUTPUT_NAME)
-      SET(ARG_OUTPUT_NAME ${TARGET})
-    ENDIF()
-    MERGE_STATIC_LIBS(${TARGET} ${ARG_OUTPUT_NAME} "${LIBS}") 
-  ELSEIF(ARG_SHARED OR ARG_MODULE)
-    IF(ARG_SHARED)
-      SET(LIBTYPE SHARED)
-    ELSE()
-      SET(LIBTYPE MODULE)
-    ENDIF()
+  
+    SET(LIBTYPE SHARED)
     # check for non-PIC libraries
     IF(NOT _SKIP_PIC)
       FOREACH(LIB ${LIBS})
@@ -282,30 +198,31 @@ MACRO(MERGE_LIBRARIES)
           )
       ENDIF()
     ENDIF()
-  ELSE()
-    MESSAGE(FATAL_ERROR "Unknown library type")
-  ENDIF()
+
   IF(NOT ARG_SKIP_INSTALL)
     IF(ARG_COMPONENT)
       SET(COMP COMPONENT ${ARG_COMPONENT}) 
     ENDIF()
-    IF(LINUX_INSTALL_RPATH_ORIGIN AND (ARG_SHARED OR ARG_MODULE))
+    IF(LINUX_INSTALL_RPATH_ORIGIN)
       SET_PROPERTY(TARGET ${TARGET} PROPERTY INSTALL_RPATH "\$ORIGIN/")
     ENDIF()
-    IF(ARG_SHARED OR ARG_MODULE OR INSTALL_STATIC_LIBRARIES)
-      MYSQL_INSTALL_TARGETS(${TARGET} DESTINATION "${INSTALL_LIBDIR}" ${COMP})
-    ENDIF()
+
+    MYSQL_INSTALL_TARGETS(${TARGET} DESTINATION "${INSTALL_LIBDIR}" ${COMP})
+
   ENDIF()
 ENDMACRO()
+
 
 FUNCTION(GET_DEPENDEND_OS_LIBS target result)
   SET(deps ${${target}_LIB_DEPENDS})
   IF(deps)
    FOREACH(lib ${deps})
-    # Filter out keywords for used for debug vs optimized builds
-    IF(NOT lib MATCHES "general" AND NOT lib MATCHES "debug" AND NOT lib MATCHES "optimized")
-      GET_TARGET_PROPERTY(lib_location ${lib} LOCATION)
-      IF(NOT lib_location)
+     # Filter out keywords for used for debug vs optimized builds
+     IF(NOT lib MATCHES "general" AND
+        NOT lib MATCHES "debug" AND
+        NOT lib MATCHES "optimized")
+      LIST(FIND KNOWN_CONVENIENCE_LIBRARIES ${lib} FOUNDIT)
+      IF(FOUNDIT LESS 0)
         SET(ret ${ret} ${lib})
       ENDIF()
     ENDIF()
@@ -313,3 +230,95 @@ FUNCTION(GET_DEPENDEND_OS_LIBS target result)
   ENDIF()
   SET(${result} ${ret} PARENT_SCOPE)
 ENDFUNCTION()
+
+
+MACRO(MERGE_CONVENIENCE_LIBRARIES)
+  MYSQL_PARSE_ARGUMENTS(ARG
+    "OUTPUT_NAME;COMPONENT"
+    "SKIP_INSTALL"
+    ${ARGN}
+    )
+  LIST(GET ARG_DEFAULT_ARGS 0 TARGET)
+  SET(LIBS ${ARG_DEFAULT_ARGS})
+  LIST(REMOVE_AT LIBS 0)
+
+  SET(SOURCE_FILE
+    ${CMAKE_BINARY_DIR}/archive_output_directory/${TARGET}_depends.c)
+  ADD_LIBRARY(${TARGET} STATIC ${SOURCE_FILE})
+
+  # Collect all static libraries in the same directory
+  SET_TARGET_PROPERTIES(${TARGET} PROPERTIES
+    ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/archive_output_directory)
+
+  ADD_CUSTOM_COMMAND(
+    OUTPUT  ${SOURCE_FILE}
+    COMMAND ${CMAKE_COMMAND}  -E touch ${SOURCE_FILE}
+    )
+
+  # Go though the list of libraries.
+  # Known convenience libraries should have type "STATIC_LIBRARY"
+  # We assume that that unknown libraries (type "LIB_TYPE-NOTFOUND")
+  # are operating system libraries, to be linked with TARGET
+  SET(OSLIBS)
+  SET(MYLIBS)
+  FOREACH(LIB ${LIBS})
+    GET_TARGET_PROPERTY(LIB_TYPE ${LIB} TYPE)
+    IF(LIB_TYPE STREQUAL "STATIC_LIBRARY")
+      LIST(FIND KNOWN_CONVENIENCE_LIBRARIES ${LIB} FOUNDIT)
+      IF(FOUNDIT LESS 0)
+        MESSAGE(FATAL_ERROR "Unknown static library ${LIB} FOUNDIT ${FOUNDIT}")
+        MESSAGE(STATUS "Known libs : ${KNOWN_CONVENIENCE_LIBRARIES}")
+      ELSE()
+        ADD_DEPENDENCIES(${TARGET} ${LIB})
+        GET_TARGET_PROPERTY(loc ${LIB} IMPORTED_LOCATION)
+        IF(loc)
+          ADD_DEPENDENCIES(${TARGET} ${LIB}_location)
+        ENDIF()
+        LIST(APPEND MYLIBS ${LIB})
+        GET_DEPENDEND_OS_LIBS(${LIB} LIB_OSLIBS)
+        IF(LIB_OSLIBS)
+          # MESSAGE(STATUS "GET_DEPENDEND_OS_LIBS ${LIB} : ${LIB_OSLIBS}")
+          LIST(APPEND OSLIBS ${LIB_OSLIBS})
+        ENDIF()
+      ENDIF()
+    ELSE()
+      # 3rd party library like libz.so. Make sure that everything
+      # that links to our library links to this one as well.
+      LIST(APPEND OSLIBS ${LIB})
+    ENDIF()
+    # MESSAGE(STATUS "LIB ${LIB} LIB_TYPE ${LIB_TYPE}")
+  ENDFOREACH()
+
+  IF(OSLIBS)
+    LIST(REMOVE_DUPLICATES OSLIBS)
+    TARGET_LINK_LIBRARIES(${TARGET} ${OSLIBS})
+    MESSAGE(STATUS "Library ${TARGET} depends on OSLIBS ${OSLIBS}")
+  ENDIF()
+
+  MESSAGE(STATUS "MERGE_CONVENIENCE_LIBRARIES TARGET ${TARGET}")
+  MESSAGE(STATUS "MERGE_CONVENIENCE_LIBRARIES LIBS ${LIBS}")
+# MESSAGE(STATUS "MERGE_CONVENIENCE_LIBRARIES MYLIBS ${MYLIBS}")
+
+  CONFIGURE_FILE(
+    ${MYSQL_CMAKE_SCRIPT_DIR}/merge_archives.cmake.in
+    ${CMAKE_BINARY_DIR}/archive_output_directory/lib_merge_${TARGET}.cmake
+    @ONLY)
+  ADD_CUSTOM_COMMAND(TARGET ${TARGET} POST_BUILD
+#    COMMAND echo hello
+    COMMAND ${CMAKE_COMMAND}
+    -DTARGET_NAME=${TARGET}
+    -DTARGET_LOC=$<TARGET_FILE:${TARGET}>
+    -DTARGET_LINK_FLAGS=$<TARGET_PROPERTY:${TARGET},LINK_FLAGS>
+    -DCFG_INTDIR=${CMAKE_CFG_INTDIR}
+    -P ${CMAKE_BINARY_DIR}/archive_output_directory/lib_merge_${TARGET}.cmake
+    )
+
+  IF(NOT ARG_SKIP_INSTALL)
+    IF(ARG_COMPONENT)
+      SET(COMP COMPONENT ${ARG_COMPONENT})
+    ENDIF()
+    IF(INSTALL_STATIC_LIBRARIES)
+      MYSQL_INSTALL_TARGETS(${TARGET} DESTINATION "${INSTALL_LIBDIR}" ${COMP})
+    ENDIF()
+  ENDIF()
+ENDMACRO()
