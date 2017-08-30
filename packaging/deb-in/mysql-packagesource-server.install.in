@@ -36,8 +36,6 @@ usr/bin/replace
 usr/bin/resolveip
 usr/bin/resolve_stack_dump
 usr/sbin/mysqld
-# debug binary
-usr/sbin/mysqld-debug
 # man pages
 usr/share/man/man1/innochecksum.1
 usr/share/man/man1/msql2mysql.1
@@ -63,6 +61,7 @@ usr/share/man/man1/replace.1
 usr/share/man/man1/resolveip.1
 usr/share/man/man1/resolve_stack_dump.1
 usr/share/man/man8/mysqld.8
+@DEB_INSTALL_DEBUG_SERVER@
 # confguration files
 usr/share/mysql/my-default.cnf
 debian/extra/mysql.cnf  etc/mysql/
@@ -82,16 +81,7 @@ usr/lib/mysql/plugin/mysql_no_login.so
 usr/lib/mysql/plugin/semisync_master.so
 usr/lib/mysql/plugin/semisync_slave.so
 usr/lib/mysql/plugin/validate_password.so
-usr/lib/mysql/plugin/debug/adt_null.so
-usr/lib/mysql/plugin/debug/auth_socket.so
-usr/lib/mysql/plugin/debug/connection_control.so
-usr/lib/mysql/plugin/debug/innodb_engine.so
-usr/lib/mysql/plugin/debug/libmemcached.so
-usr/lib/mysql/plugin/debug/mypluglib.so
-usr/lib/mysql/plugin/debug/mysql_no_login.so
-usr/lib/mysql/plugin/debug/semisync_master.so
-usr/lib/mysql/plugin/debug/semisync_slave.so
-usr/lib/mysql/plugin/debug/validate_password.so
+@DEB_INSTALL_DEBUG_SERVER_PLUGINS@
 @DEB_INSTALL_SERVER_PLUGINS@
 # support files
 usr/share/mysql/dictionary.txt

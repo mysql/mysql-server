@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
                                                 // sql_print_information
 #include "violite.h"                            // vio_getnameinfo,
                                                 // vio_get_normalized_ip_string
+#include <string>
 #ifdef	__cplusplus
 extern "C" {					// Because of SCO 3.2V4.2
 #endif
@@ -547,6 +548,14 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage,
   DBUG_EXECUTE_IF("getnameinfo_format_ipv6",
                   {
                     strcpy(hostname_buffer, "12:DEAD:BEEF:0");
+                    err_code= 0;
+                  }
+                  );
+
+  DBUG_EXECUTE_IF ("getnameinfo_fake_max_length",
+                  {
+                    std::string s(NI_MAXHOST-1, 'a');
+                    strcpy(hostname_buffer, s.c_str());
                     err_code= 0;
                   }
                   );

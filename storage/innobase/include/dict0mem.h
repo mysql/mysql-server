@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -606,6 +606,8 @@ struct dict_index_t{
 				dict_sys->mutex. Other changes are
 				protected by index->lock. */
 	dict_field_t*	fields;	/*!< array of field descriptions */
+	bool            index_fts_syncing;/*!< Whether the fts index is
+					still syncing in the background */
 #ifndef UNIV_HOTBACKUP
 	UT_LIST_NODE_T(dict_index_t)
 			indexes;/*!< list of indexes of the table */
