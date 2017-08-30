@@ -304,6 +304,22 @@ bool Sql_cmd_xa_commit::trans_xa_commit(THD *thd)
     */
     res= xs->xa_trans_rolled_back();
 
+#ifdef HAVE_PSI_TRANSACTION_INTERFACE
+    /*
+      If the original transaction is not rolled back then initiate a new PSI
+      transaction to update performance schema related information.
+     */
+    if (!res)
+    {
+      thd->m_transaction_psi= MYSQL_START_TRANSACTION(&thd->m_transaction_state,
+                                                      NULL, NULL, thd->tx_isolation,
+                                                      thd->tx_read_only, false);
+      gtid_set_performance_schema_values(thd);
+      MYSQL_SET_TRANSACTION_XID(thd->m_transaction_psi,
+                                (const void *)xs->get_xid(),
+                                (int)xs->get_state());
+    }
+#endif
     /*
       xs' is_binlogged() is passed through xid_state's member to low-level
       logging routines for deciding how to log.  The same applies to
@@ -347,6 +363,21 @@ bool Sql_cmd_xa_commit::trans_xa_commit(THD *thd)
     // todo xa framework: return an error
     ha_commit_or_rollback_by_xid(thd, m_xid, !res);
     xid_state->unset_binlogged();
+
+#ifdef HAVE_PSI_TRANSACTION_INTERFACE
+    if (!res)
+    {
+      if (thd->m_transaction_psi)
+      {
+        /*
+          Set the COMMITTED state in PSI context at the end of committing the
+          XA transaction.
+        */
+        MYSQL_COMMIT_TRANSACTION(thd->m_transaction_psi);
+        thd->m_transaction_psi= NULL;
+      }
+    }
+#endif
 
     transaction_cache_delete(transaction);
     gtid_state_commit_or_rollback(thd, need_clear_owned_gtid, !gtid_error);
@@ -1302,7 +1333,6 @@ bool applier_reset_xa_trans(THD *thd)
   trn_ctx->set_no_2pc(Transaction_ctx::SESSION, false);
   trn_ctx->cleanup();
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
-  MYSQL_COMMIT_TRANSACTION(thd->m_transaction_psi);
   thd->m_transaction_psi= NULL;
 #endif
   thd->mdl_context.release_transactional_locks();
