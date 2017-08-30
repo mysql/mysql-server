@@ -1,4 +1,5 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights
+   reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -39,3 +40,7 @@ void reset_status_vars()
 {
 }
 
+void sql_print_warning(const char *format, ...)
+{
+  /* Do not pollute the unit test output with annoying messages. */
+}
