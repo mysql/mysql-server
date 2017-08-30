@@ -1,0 +1,16 @@
+SET @save_ndb_cache_check_time=@@ndb_cache_check_time;
+SELECT @@ndb_cache_check_time;
+@@ndb_cache_check_time
+0
+SET GLOBAL ndb_cache_check_time=1;
+Warnings:
+Warning	1681	'@@ndb_cache_check_time' is deprecated and will be removed in a future release.
+SELECT @@ndb_cache_check_time;
+@@ndb_cache_check_time
+1
+SET GLOBAL ndb_cache_check_time=@save_ndb_cache_check_time;
+Warnings:
+Warning	1681	'@@ndb_cache_check_time' is deprecated and will be removed in a future release.
+SELECT @@ndb_cache_check_time;
+@@ndb_cache_check_time
+0

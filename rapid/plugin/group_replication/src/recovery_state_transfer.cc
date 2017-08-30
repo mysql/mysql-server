@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -629,7 +629,15 @@ int Recovery_state_transfer::start_recovery_donor_threads()
     {
       log_message(MY_ERROR_LEVEL,
                   "There was an error when connecting to the donor server. "
-                  "Check group replication recovery's connection credentials.");
+                  "Please check that group_replication_recovery channel "
+                  "credentials and all MEMBER_HOST column values of "
+                  "performance_schema.replication_group_members table are "
+                  "correct and DNS resolvable.");
+      log_message(MY_ERROR_LEVEL,
+                  "For details please check "
+                  "performance_schema.replication_connection_status table "
+                  "and error log messages of Slave I/O for channel "
+                  "group_replication_recovery.");
     }
     else
     {

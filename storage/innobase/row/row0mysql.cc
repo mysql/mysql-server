@@ -60,6 +60,7 @@ Created 9/17/2000 Heikki Tuuri
 #include "row0row.h"
 #include "row0sel.h"
 #include "row0upd.h"
+#include "srv0srv.h"
 #include "trx0purge.h"
 #include "trx0rec.h"
 #include "trx0roll.h"
@@ -4346,6 +4347,17 @@ row_drop_table_for_mysql(
 		if (table->fts) {
 			ut_ad(!table->fts->add_wq);
 			ut_ad(lock_trx_has_sys_table_locks(trx) == 0);
+
+			for (;;) {
+				bool retry = false;
+				if (dict_fts_index_syncing(table)) {
+					retry = true;
+				}
+				if (!retry) {
+			        break;
+				}
+				DICT_BG_YIELD(trx);
+			}
 
 			row_mysql_unlock_data_dictionary(trx);
 			fts_optimize_remove_table(table);

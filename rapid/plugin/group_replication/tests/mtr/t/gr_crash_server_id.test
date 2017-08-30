@@ -28,6 +28,7 @@ SET GLOBAL server_id=0;
 --error ER_BAD_SLAVE, ER_GROUP_REPLICATION_APPLIER_INIT_ERROR
 START GROUP_REPLICATION;
 
+--let $skip_assert_read_only= 1
 --source include/stop_group_replication.inc
 
 SET GLOBAL server_id=1;

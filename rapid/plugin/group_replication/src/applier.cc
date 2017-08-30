@@ -680,6 +680,16 @@ void Applier_module::leave_group_on_failure()
   bool set_read_mode= false;
   Gcs_operations::enum_leave_state state= gcs_module->leave();
 
+  int error= channel_stop_all(CHANNEL_APPLIER_THREAD|CHANNEL_RECEIVER_THREAD,
+                              stop_wait_timeout);
+  if (error)
+  {
+    log_message(MY_ERROR_LEVEL,
+                "Error stopping all replication channels while server was"
+                " leaving the group. Please check the error log for additional"
+                " details. Got error: %d", error);
+  }
+
   std::stringstream ss;
   plugin_log_level log_severity= MY_WARNING_LEVEL;
   switch (state)
@@ -725,9 +735,9 @@ void Applier_module::kill_pending_transactions(bool set_read_mode,
   if (set_read_mode)
   {
     if (threaded_sql_session)
-      set_server_read_mode(PSESSION_INIT_THREAD);
+      enable_server_read_mode(PSESSION_INIT_THREAD);
     else
-      set_server_read_mode(PSESSION_USE_THREAD);
+      enable_server_read_mode(PSESSION_USE_THREAD);
   }
 
   DBUG_VOID_RETURN;

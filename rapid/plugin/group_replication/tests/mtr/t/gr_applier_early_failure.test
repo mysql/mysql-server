@@ -90,6 +90,7 @@ START GROUP_REPLICATION;
 --echo # 5. Verify that member is offline after stop
 --echo #
 
+--let $skip_assert_read_only= 1
 --source include/stop_group_replication.inc
 --let $group_replication_member_state= OFFLINE
 --source ../inc/gr_wait_for_member_state.inc
@@ -97,6 +98,11 @@ START GROUP_REPLICATION;
 --echo #
 --echo # 6. Clean up
 --echo #
+
+# if START GROUP_REPLICATION succeeds the super read only will be enabled and
+# we skip the disable on STOP. To prevent errors dropping table lets disable
+# read_only (that will disable super read only)
+SET GLOBAL read_only= 0;
 
 DROP TABLE t1;
 

@@ -340,7 +340,8 @@ sub start_mysqlds()
         if (! -d $datadir."/mysql") {
           if (-w $datadir) {
             print "\n\nInstalling new database in $datadir\n\n";
-            $install_cmd="@bindir@/mysql_install_db ";
+            $install_cmd="@bindir@/mysqld ";
+            $install_cmd.="--initialize ";
             $install_cmd.="--user=mysql ";
             $install_cmd.="--datadir=$datadir";
             system($install_cmd);

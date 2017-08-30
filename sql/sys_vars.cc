@@ -3313,17 +3313,21 @@ static bool fix_query_cache_size(sys_var *self, THD *thd, enum_var_type type)
 }
 static Sys_var_ulong Sys_query_cache_size(
        "query_cache_size",
-       "The memory allocated to store results from old queries",
+       "The memory allocated to store results from old queries. "
+       "This variable is deprecated and will be removed in a future release.",
        GLOBAL_VAR(query_cache_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, ULONG_MAX), DEFAULT(1024U*1024U), BLOCK_SIZE(1024),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-       ON_UPDATE(fix_query_cache_size));
+       ON_UPDATE(fix_query_cache_size), DEPRECATED(""));
 
 static Sys_var_ulong Sys_query_cache_limit(
        "query_cache_limit",
-       "Don't cache results that are bigger than this",
+       "Don't cache results that are bigger than this. "
+       "This variable is deprecated and will be removed in a future release.",
        GLOBAL_VAR(query_cache.query_cache_limit), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, ULONG_MAX), DEFAULT(1024*1024), BLOCK_SIZE(1));
+       VALID_RANGE(0, ULONG_MAX), DEFAULT(1024*1024), BLOCK_SIZE(1),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL), ON_UPDATE(NULL),
+       DEPRECATED(""));
 
 static bool fix_qcache_min_res_unit(sys_var *self, THD *thd, enum_var_type type)
 {
@@ -3333,11 +3337,12 @@ static bool fix_qcache_min_res_unit(sys_var *self, THD *thd, enum_var_type type)
 }
 static Sys_var_ulong Sys_query_cache_min_res_unit(
        "query_cache_min_res_unit",
-       "The minimum size for blocks allocated by the query cache",
+       "The minimum size for blocks allocated by the query cache. "
+       "This variable is deprecated and will be removed in a future release.",
        GLOBAL_VAR(query_cache_min_res_unit), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, ULONG_MAX), DEFAULT(QUERY_CACHE_MIN_RESULT_DATA_SIZE),
        BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-       ON_UPDATE(fix_qcache_min_res_unit));
+       ON_UPDATE(fix_qcache_min_res_unit), DEPRECATED(""));
 
 static const char *query_cache_type_names[]= { "OFF", "ON", "DEMAND", 0 };
 static bool check_query_cache_type(sys_var *self, THD *thd, set_var *var)
@@ -3359,16 +3364,19 @@ static Sys_var_enum Sys_query_cache_type(
        "query_cache_type",
        "OFF = Don't cache or retrieve results. ON = Cache all results "
        "except SELECT SQL_NO_CACHE ... queries. DEMAND = Cache only "
-       "SELECT SQL_CACHE ... queries",
+       "SELECT SQL_CACHE ... queries. "
+       "This variable is deprecated and will be removed in a future release.",
        SESSION_VAR(query_cache_type), CMD_LINE(REQUIRED_ARG),
        query_cache_type_names, DEFAULT(0), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(check_query_cache_type));
+       ON_CHECK(check_query_cache_type), ON_UPDATE(NULL), DEPRECATED(""));
 
 static Sys_var_mybool Sys_query_cache_wlock_invalidate(
        "query_cache_wlock_invalidate",
-       "Invalidate queries in query cache on LOCK for write",
+       "Invalidate queries in query cache on LOCK for write. "
+       "This variable is deprecated and will be removed in a future release.",
        SESSION_VAR(query_cache_wlock_invalidate), CMD_LINE(OPT_ARG),
-       DEFAULT(FALSE));
+       DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
+       ON_UPDATE(NULL), DEPRECATED(""));
 
 static bool
 on_check_opt_secure_auth(sys_var *self, THD *thd, set_var *var)
@@ -3587,7 +3595,7 @@ static Sys_var_enum_binlog_checksum Binlog_checksum_enum(
        "default is CRC32.",
        GLOBAL_VAR(binlog_checksum_options), CMD_LINE(REQUIRED_ARG),
        binlog_checksum_type_names, DEFAULT(binary_log::BINLOG_CHECKSUM_ALG_CRC32),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG);
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_outside_trx));
 
 static Sys_var_mybool Sys_master_verify_checksum(
        "master_verify_checksum",
@@ -3941,28 +3949,52 @@ static Sys_var_ulong Sys_thread_cache_size(
        VALID_RANGE(0, 16384), DEFAULT(0), BLOCK_SIZE(1));
 #endif // !EMBEDDED_LIBRARY
 
-/**
-  Can't change the 'next' tx_isolation if we are already in a
-  transaction.
-*/
 
-static bool check_tx_isolation(sys_var *self, THD *thd, set_var *var)
+/**
+  Function to check if the 'next' transaction isolation level
+  ('tx_isolation'/ its alternative 'transaction_isolation')
+  can be changed.
+
+  @param[in] self   A pointer to the sys_var.
+  @param[in] thd    Thread handler.
+  @param[in] var    A pointer to set_var holding the specified list of
+                    system variable names.
+
+  @retval   FALSE   Success.
+  @retval   TRUE    Error.
+*/
+static bool check_transaction_isolation(sys_var *self, THD *thd, set_var *var)
 {
   if (var->type == OPT_DEFAULT && (thd->in_active_multi_stmt_transaction() ||
                                    thd->in_sub_stmt))
   {
     DBUG_ASSERT(thd->in_multi_stmt_transaction_mode() || thd->in_sub_stmt);
     my_error(ER_CANT_CHANGE_TX_CHARACTERISTICS, MYF(0));
-    return TRUE;
+    return true;
   }
-  return FALSE;
+  return false;
 }
 
+
+/**
+  This function sets the session variable thd->variables.tx_isolation/
+  thd->variables.transaction_isolation to reflect changes
+  to @@session.tx_isolation/@@session.transaction_isolation.
+  'tx_isolation' is deprecated and 'transaction_isolation' is its
+  alternative.
+
+  @param[in] thd    Thread handler.
+  @param[in] var    A pointer to the set_var.
+
+  @retval   FALSE   Success.
+  @retval   TRUE    Error.
+*/
 
 bool Sys_var_tx_isolation::session_update(THD *thd, set_var *var)
 {
   if (var->type == OPT_SESSION && Sys_var_enum::session_update(thd, var))
     return TRUE;
+
   if (var->type == OPT_DEFAULT || !(thd->in_active_multi_stmt_transaction() ||
                                     thd->in_sub_stmt))
   {
@@ -3994,20 +4026,83 @@ bool Sys_var_tx_isolation::session_update(THD *thd, set_var *var)
 }
 
 
-// NO_CMD_LINE - different name of the option
-static Sys_var_tx_isolation Sys_tx_isolation(
-       "tx_isolation", "Default transaction isolation level",
-       UNTRACKED_DEFAULT SESSION_VAR(tx_isolation), NO_CMD_LINE,
-       tx_isolation_names, DEFAULT(ISO_REPEATABLE_READ),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_tx_isolation));
+/**
+  This function updates the thd->variables.transaction_isolation
+  to reflect the changes made to @@session.tx_isolation. 'tx_isolation' is
+  deprecated and 'transaction_isolation' is its alternative.
+
+  @param[in] self   A pointer to the sys_var.
+  @param[in] thd    Thread handler.
+  @param[in] type   The type SESSION, GLOBAL or DEFAULT.
+
+  @retval   FALSE   Success.
+  @retval   TRUE    Error.
+*/
+static bool update_transaction_isolation(sys_var *self, THD *thd,
+                                         enum_var_type type)
+{
+  SV *sv= type == OPT_GLOBAL ? &global_system_variables : &thd->variables;
+  sv->transaction_isolation= sv->tx_isolation;
+  return false;
+}
 
 
 /**
-  Can't change the tx_read_only state if we are already in a
-  transaction.
+  This function updates thd->variables.tx_isolation to reflect the
+  changes to @@session.transaction_isolation. 'tx_isolation' is
+  deprecated and 'transaction_isolation' is its alternative.
+
+  @param[in] self   A pointer to the sys_var.
+  @param[in] thd    Thread handler.
+  @param[in] type   The type SESSION, GLOBAL or DEFAULT.
+
+  @retval   FALSE   Success.
+  @retval   TRUE    Error.
+*/
+static bool update_tx_isolation(sys_var *self, THD *thd,
+                                enum_var_type type)
+{
+  SV *sv= type == OPT_GLOBAL ? &global_system_variables : &thd->variables;
+  sv->tx_isolation= sv->transaction_isolation;
+  return false;
+}
+
+
+// NO_CMD_LINE - different name of the option
+static Sys_var_tx_isolation Sys_tx_isolation(
+       "tx_isolation", "Default transaction isolation level."
+       "This variable is deprecated and will be removed in a future release.",
+       UNTRACKED_DEFAULT SESSION_VAR(tx_isolation), NO_CMD_LINE,
+       tx_isolation_names, DEFAULT(ISO_REPEATABLE_READ),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_transaction_isolation),
+       ON_UPDATE(update_transaction_isolation),
+       DEPRECATED("'@@transaction_isolation'"));
+
+
+// NO_CMD_LINE
+static Sys_var_tx_isolation Sys_transaction_isolation(
+       "transaction_isolation", "Default transaction isolation level",
+       UNTRACKED_DEFAULT SESSION_VAR(transaction_isolation), NO_CMD_LINE,
+       tx_isolation_names, DEFAULT(ISO_REPEATABLE_READ),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_transaction_isolation),
+       ON_UPDATE(update_tx_isolation));
+
+
+/**
+  Function to check if the state of deprecated variable 'tx_read_only'/
+  its alternative 'transaction_read_only' can be changed. The state cannot
+  be changed if there is already a transaction in progress.
+
+  @param[in] self   A pointer to the sys_var.
+  @param[in] thd    Thread handler
+  @param[in] var    A pointer to set_var holding the specified list of
+                    system variable names.
+
+  @retval   FALSE   Success.
+  @retval   TRUE    Error.
 */
 
-static bool check_tx_read_only(sys_var *self, THD *thd, set_var *var)
+static bool check_transaction_read_only(sys_var *self, THD *thd, set_var *var)
 {
   if (var->type == OPT_DEFAULT && (thd->in_active_multi_stmt_transaction() ||
                                    thd->in_sub_stmt))
@@ -4020,10 +4115,22 @@ static bool check_tx_read_only(sys_var *self, THD *thd, set_var *var)
 }
 
 
+/**
+  This function sets the session variable thd->variables.tx_read_only/
+  thd->variables.transaction_read_only to reflect changes to
+  @@session.tx_read_only/@@session.transaction_read_only. 'tx_read_only'
+  is deprecated and 'transaction_read_only' is its alternative.
+
+  @param[in] thd    Thread handler.
+  @param[in] var    A pointer to the set_var.
+
+  @retval   FALSE   Success.
+*/
 bool Sys_var_tx_read_only::session_update(THD *thd, set_var *var)
 {
   if (var->type == OPT_SESSION && Sys_var_mybool::session_update(thd, var))
     return true;
+
   if (var->type == OPT_DEFAULT || !(thd->in_active_multi_stmt_transaction() ||
                                     thd->in_sub_stmt))
   {
@@ -4046,10 +4153,64 @@ bool Sys_var_tx_read_only::session_update(THD *thd, set_var *var)
 }
 
 
+/**
+  This function updates the session variable thd->variables.tx_read_only
+  to reflect changes made to  @@session.transaction_read_only. The variable
+  'tx_read_only' is deprecated and 'transaction_read_only' is its alternative.
+
+  @param[in] self   A pointer to the sys_var.
+  @param[in] thd    Thread handler.
+  @param[in] type   The type SESSION, GLOBAL or DEFAULT.
+
+  @retval   FALSE   Success.
+*/
+static bool update_tx_read_only(sys_var *self, THD *thd,
+                                enum_var_type type)
+{
+  SV *sv= type == OPT_GLOBAL ? &global_system_variables : &thd->variables;
+  sv->tx_read_only= sv->transaction_read_only;
+  return false;
+}
+
+
+/**
+  This function updates the session variable
+  thd->variables.transaction_read_only to reflect changes made to
+  @@session.tx_read_only. 'tx_read_only' is deprecated and
+  'transaction_read_only' is its alternative.
+
+  @param[in] self   A pointer to the sys_var.
+  @param[in] thd    Thread handler.
+  @param[in] type   The type SESSION, GLOBAL or DEFAULT.
+
+  @retval   FALSE   Success.
+*/
+static bool update_transaction_read_only(sys_var *self, THD *thd,
+                                         enum_var_type type)
+{
+  SV *sv= type == OPT_GLOBAL ? &global_system_variables : &thd->variables;
+  sv->transaction_read_only= sv->tx_read_only;
+  return false;
+}
+
+
 static Sys_var_tx_read_only Sys_tx_read_only(
-       "tx_read_only", "Set default transaction access mode to read only.",
+       "tx_read_only", "Set default transaction access mode to read only."
+       "This variable is deprecated and will be removed in a future release.",
        UNTRACKED_DEFAULT SESSION_VAR(tx_read_only), NO_CMD_LINE, DEFAULT(0),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_tx_read_only));
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_transaction_read_only),
+       ON_UPDATE(update_transaction_read_only),
+       DEPRECATED("'@@transaction_read_only'"));
+
+
+static Sys_var_tx_read_only Sys_transaction_read_only(
+       "transaction_read_only",
+       "Set default transaction access mode to read only.",
+       UNTRACKED_DEFAULT SESSION_VAR(transaction_read_only), NO_CMD_LINE,
+       DEFAULT(0), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(check_transaction_read_only),
+       ON_UPDATE(update_tx_read_only));
+
 
 static Sys_var_ulonglong Sys_tmp_table_size(
        "tmp_table_size",
@@ -4766,8 +4927,12 @@ static Sys_var_have Sys_have_profiling(
        NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0), DEPRECATED(""));
 
 static Sys_var_have Sys_have_query_cache(
-       "have_query_cache", "have_query_cache",
-       READ_ONLY GLOBAL_VAR(have_query_cache), NO_CMD_LINE);
+       "have_query_cache",
+       "have_query_cache. "
+       "This variable is deprecated and will be removed in a future release.",
+       READ_ONLY GLOBAL_VAR(have_query_cache), NO_CMD_LINE,
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL), ON_UPDATE(NULL),
+       DEPRECATED(""));
 
 static Sys_var_have Sys_have_rtree_keys(
        "have_rtree_keys", "have_rtree_keys",
@@ -5251,6 +5416,8 @@ static Sys_var_ulong Sys_sp_cache_size(
 
 static bool check_pseudo_slave_mode(sys_var *self, THD *thd, set_var *var)
 {
+  if (check_outside_trx(self, thd, var))
+    return true;
   longlong previous_val= thd->variables.pseudo_slave_mode;
   longlong val= (longlong) var->save_result.ulonglong_value;
   bool rli_fake= false;
@@ -5392,7 +5559,12 @@ bool Sys_var_gtid_purged::global_update(THD *thd, set_var *var)
     purged gtid set in the table
   */
   thd->lex->autocommit= true;
-
+  /*
+    SET GITD_PURGED command should ignore 'read-only' and 'super_read_only'
+    options so that it can update 'mysql.gtid_executed' replication repository
+    table.
+  */
+  thd->set_skip_readonly_check();
   char *previous_gtid_executed= NULL, *previous_gtid_purged= NULL,
     *current_gtid_executed= NULL, *current_gtid_purged= NULL;
   gtid_state->get_executed_gtids()->to_string(&previous_gtid_executed);

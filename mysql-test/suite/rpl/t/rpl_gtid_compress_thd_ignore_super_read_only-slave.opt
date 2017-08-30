@@ -1,0 +1,1 @@
+--skip-log-bin --gtid_executed_compression_period=5 --log-slave-updates=false

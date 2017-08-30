@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1997,7 +1997,13 @@ bool open_error_log(const char *filename)
   while (retries-- && errors);
 
   if (errors)
+  {
+    char errbuf[MYSYS_STRERROR_SIZE];
+    sql_print_error("Could not open file '%s' for error logging: %s",
+                    filename,  my_strerror(errbuf, sizeof(errbuf), errno));
+    flush_error_log_messages();
     return true;
+  }
 
   /* The error stream must be unbuffered. */
   setbuf(stderr, NULL);

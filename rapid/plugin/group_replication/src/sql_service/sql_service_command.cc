@@ -154,8 +154,7 @@ internal_set_super_read_only(Sql_service_interface *sql_interface)
 #ifndef DBUG_OFF
     sql_interface->execute_query("SELECT @@GLOBAL.super_read_only;", &rset);
     DBUG_ASSERT(rset.getLong(0) == 1);
-    log_message(MY_INFORMATION_LEVEL, "Setting super_read_only mode on the "
-      "server");
+    log_message(MY_INFORMATION_LEVEL, "Setting super_read_only=ON.");
 #endif
   }
   else
@@ -181,8 +180,7 @@ internal_set_read_only(Sql_service_interface *sql_interface)
 #ifndef DBUG_OFF
     sql_interface->execute_query("SELECT @@GLOBAL.read_only;", &rset);
     DBUG_ASSERT(rset.getLong(0) == 1);
-    log_message(MY_INFORMATION_LEVEL, "Setting read_only mode on the "
-      "server");
+    log_message(MY_INFORMATION_LEVEL, "Setting read_only=ON.");
 #endif
   }
   else
@@ -238,8 +236,7 @@ internal_reset_super_read_only(Sql_service_interface *sql_interface)
     sql_interface->execute_query(query, &rset);
     DBUG_ASSERT(rset.getLong(0) == 0);
 
-    log_message(MY_INFORMATION_LEVEL, "Resetting super_read_only mode on the"
-      " server ");
+    log_message(MY_INFORMATION_LEVEL, "Setting super_read_only=OFF.");
   }
 #endif
   DBUG_RETURN(srv_err);
@@ -288,7 +285,7 @@ internal_reset_read_only(Sql_service_interface *sql_interface)
     query= "SELECT @@GLOBAL.read_only";
     sql_interface->execute_query(query, &rset);
     DBUG_ASSERT(rset.getLong(0) == 0);
-    log_message(MY_INFORMATION_LEVEL, "Resetting read_only mode on the server ");
+    log_message(MY_INFORMATION_LEVEL, "Setting read_only=OFF.");
   }
 #endif
 
@@ -701,6 +698,7 @@ Session_plugin_thread::session_thread_handler()
 
   end:
   delete m_server_interface;
+  m_server_interface = NULL;
 
   mysql_mutex_lock(&m_run_lock);
   m_session_thread_running= false;

@@ -2769,3 +2769,133 @@ EXECUTE yy;
 EXECUTE yy;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#26596977: ASSERT `!(USED_TABS & (~READ_TABLES & ~FILTER_FOR_TABLE))'
+--echo #               FAILED IN ITEM_FUNC
+--echo #
+
+CREATE TABLE t1 (
+  col_varchar_key varchar(1) ,
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (pk),
+  KEY col_varchar_key (col_varchar_key)
+) ENGINE=MyISAM;
+
+CREATE TABLE t2 (
+  col_int int(11) ,
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_varchar varchar(1) ,
+  col_varchar_key varchar(1) ,
+  PRIMARY KEY (pk)
+) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (4,1,'s','r'), (9,19,'p','a');
+
+CREATE TABLE t3 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_int int(11) ,
+  col_varchar_key varchar(1) ,
+  col_varchar varchar(1) ,
+  PRIMARY KEY (pk),
+  KEY col_varchar_key (col_varchar_key)
+) ENGINE=MyISAM;
+INSERT INTO t3 VALUES (100,2,'g',NULL);
+
+let query1=
+SELECT table1.col_int
+FROM t3 AS table1
+  LEFT JOIN (
+      SELECT subquery1_t1.*
+      FROM t1 AS subquery1_t1
+        RIGHT JOIN t2 AS subquery1_t2
+        ON (subquery1_t2.col_varchar_key = subquery1_t1.col_varchar_key)
+    ) AS table3
+    ON (table3.col_varchar_key = table1.col_varchar_key)
+WHERE table3.col_varchar_key  IN (
+  SELECT subquery2_t3.col_varchar
+  FROM t3 AS subquery2_t3
+  WHERE subquery2_t3.pk < table3.pk
+);
+
+eval EXPLAIN $query1;
+eval $query1;
+
+DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug #26618455: ASSERT 'KEYPARTS > 0' IN CALC_LENGTH_AND_KEYPARTS()
+--echo #                WITHOUT FIRSTMATCH
+--echo #
+
+
+CREATE TABLE t1 (
+  col_int int(11) DEFAULT NULL,
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  col_varchar varchar(1) DEFAULT NULL,
+  col_int_key int(11) DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key)
+) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES (0,1,'i','n',125);
+INSERT INTO t1 VALUES (3,20,'b','o',0);
+
+CREATE TABLE t2 (
+  col_int_key int(11) DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  col_varchar varchar(1) DEFAULT NULL,
+  col_int int(11) DEFAULT NULL,
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (pk),
+  KEY col_varchar_key (col_varchar_key)
+) ENGINE=MyISAM;
+
+INSERT INTO t2 VALUES (3,'y','p',4,1);
+
+CREATE TABLE t3 (
+  col_int int(11) DEFAULT NULL,
+  col_varchar varchar(1) DEFAULT NULL,
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  col_int_key int(11) DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key)
+) ENGINE=MyISAM;
+
+CREATE TABLE t4 (  col_int int(11) DEFAULT NULL,
+  col_varchar varchar(1) DEFAULT NULL,
+  col_int_key int(11) DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (pk),
+  KEY col_varchar_key (col_varchar_key)
+) ENGINE=MyISAM
+;
+INSERT INTO t4 VALUES (7,'k',9,'z',20);
+
+let query1=
+SELECT
+  table2.col_int_key AS field3
+FROM
+  (
+    SELECT subquery2_t2.*
+    FROM t1 AS subquery2_t1
+      INNER JOIN t2 AS subquery2_t2
+      ON (subquery2_t2.pk = subquery2_t1.col_int)
+  ) AS table1
+    RIGHT OUTER JOIN (
+      SELECT subquery3_t1.*
+      FROM t2 AS subquery3_t1
+    ) AS table2
+    ON (table1.col_varchar_key = table2.col_varchar_key)
+WHERE table1.col_varchar_key IN (
+  SELECT subquery4_t1.col_varchar AS subquery4_field1
+  FROM t3 AS subquery4_t1);
+
+SET optimizer_switch = 'firstmatch=off';
+eval EXPLAIN $query1;
+eval $query1;
+SET optimizer_switch = default;
+
+DROP TABLE t1, t2, t3, t4;

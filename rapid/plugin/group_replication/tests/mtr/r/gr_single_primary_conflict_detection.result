@@ -10,6 +10,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection server1]
 include/start_and_bootstrap_group_replication.inc
 [connection server2]
+SET GLOBAL group_replication_member_weight= 70;
 include/start_group_replication.inc
 [connection server3]
 include/start_group_replication.inc
@@ -42,6 +43,8 @@ INSERT INTO t1 VALUES (1,1);
 [connection server1]
 include/stop_group_replication.inc
 [connection server2]
+include/rpl_gr_wait_for_number_of_members.inc
+include/assert.inc [Verify group_replication_primary_member is SERVER_UUID]
 
 ############################################################
 # 6. Since the new primary is server2 and it has relay logs
@@ -137,4 +140,5 @@ include/diff_tables.inc [server1:test.t2, server2:test.t2, server3:test.t2]
 # 20. Clean up.
 DROP TABLE t2;
 DROP TABLE t1;
+SET GLOBAL group_replication_member_weight= DEFAULT;
 include/group_replication_end.inc

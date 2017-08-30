@@ -909,6 +909,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	index	b	b	2	NULL	10	100.00	Using where; Using index
 1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	1	test.t2.b	1	100.00	NULL
 Warnings:
+Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select straight_join sql_no_cache `test`.`t1`.`a` AS `a`,concat(`test`.`t1`.`b`,'') AS `b`,`test`.`t1`.`b` AS `real_b` from `test`.`t2` join `test`.`t1` where (`test`.`t1`.`a` = `test`.`t2`.`b`) group by `test`.`t2`.`b`
 SELECT straight_join sql_no_cache v1.a, v1.b, v1.real_b from t2, v1
 where t2.b=v1.a GROUP BY t2.b;
@@ -920,6 +921,8 @@ a	b	real_b
 54	Danemark	Danemark
 62	Espagne	Espagne
 68	France	France
+Warnings:
+Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
 DROP VIEW v1;
 DROP TABLE t1,t2;
 CREATE TABLE t1 (a INT PRIMARY KEY, b INT, key (b));

@@ -201,7 +201,7 @@ INSERT INTO tn VALUES ('hash');
 --echo # It will be a single table simpler test just to assess that the
 --echo # hook is not longer active.
 --echo #
-STOP GROUP_REPLICATION;
+--source include/stop_group_replication.inc
 
 #Wrong table without Primary Key
 CREATE TABLE t1 (c1 char(50)) ENGINE=InnoDB;

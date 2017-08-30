@@ -70,7 +70,8 @@
 SET autocommit=1;
 --echo # if we track CHARACTERISTICS, we must also track the tx_* sysvars!
 SELECT @@session.session_track_system_variables INTO @old_track_list;
-SET @track_list= CONCAT(@old_track_list, ",tx_isolation,tx_read_only");
+SET @track_list= CONCAT(@old_track_list,
+                        ",transaction_read_only,transaction_isolation ");
 SET SESSION session_track_system_variables=@track_list;
 
 SELECT @@session.session_track_state_change INTO @old_track_enable;

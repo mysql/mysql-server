@@ -119,7 +119,7 @@ private:
   {
   public:
     Authentication_key(const std::string &key_name, const bool key_should_be_tls_active)
-    : name(key_name), should_be_tls_active(key_should_be_tls_active)
+    : name(key_name), must_be_secure_connection(key_should_be_tls_active)
     {
     }
 
@@ -132,11 +132,11 @@ private:
         return result < 0;
       }
 
-      return should_be_tls_active < key.should_be_tls_active;
+      return must_be_secure_connection < key.must_be_secure_connection;
     }
 
     const std::string name;
-    const bool should_be_tls_active;
+    const bool must_be_secure_connection;
   };
 
   typedef std::map<Authentication_key, Authentication_handler::create> Auth_handler_map;

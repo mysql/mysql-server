@@ -217,6 +217,7 @@ private:
   int64 m_transactions_certified;
   int64 m_transactions_applied;
   int64 m_transactions_local;
+  mysql_mutex_t m_transactions_waiting_apply_lock;
 };
 
 

@@ -712,6 +712,8 @@ execute stmt;
 @@time_zone
 Japan
 prepare stmt from "select @@tx_isolation";
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 execute stmt;
 @@tx_isolation
 REPEATABLE-READ
@@ -724,6 +726,8 @@ execute stmt;
 @@tx_isolation
 REPEATABLE-READ
 set @@tx_isolation=default;
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 execute stmt;
 @@tx_isolation
 REPEATABLE-READ
@@ -1986,7 +1990,11 @@ DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 End of 5.0 tests.
 create procedure proc_1() reset query cache;
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 call proc_1();
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 call proc_1();
 call proc_1();
 create function func_1() returns int deterministic begin reset query cache; return 1; end|
@@ -1997,6 +2005,8 @@ ERROR 0A000: RESET is not allowed in stored function or trigger
 drop function func_1;
 drop procedure proc_1;
 prepare abc from "reset query cache";
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 execute abc;
 execute abc;
 execute abc;

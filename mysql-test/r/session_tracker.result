@@ -286,6 +286,8 @@ CALL my_proc;
 -- time_zone
 -- -06:00
 
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 CALL my_proc;
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- tx_isolation
@@ -295,6 +297,8 @@ CALL my_proc;
 -- time_zone
 -- -06:00
 
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 DROP PROCEDURE my_proc;
 # Testing with unknown/invalid system variables.
 SHOW VARIABLES LIKE 'var1';
@@ -775,6 +779,8 @@ SET @@session.tx_isolation='READ-COMMITTED';
 -- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 # expect 1 as well in OK packet
 SET @var2= 20;
 -- Tracker : SESSION_TRACK_STATE_CHANGE

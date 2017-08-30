@@ -1068,6 +1068,7 @@ THD::THD(bool enable_plugins)
    fill_status_recursion_level(0),
    fill_variables_recursion_level(0),
    binlog_row_event_extra_data(NULL),
+   skip_readonly_check(false),
    binlog_unsafe_warning_flags(0),
    binlog_table_maps(0),
    binlog_accessed_db_names(NULL),

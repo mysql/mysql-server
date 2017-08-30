@@ -1904,6 +1904,7 @@ done:
   thd->reset_query();
   thd->set_command(COM_SLEEP);
   thd->proc_info= 0;
+  thd->lex->sql_command= SQLCOM_END;
 
   /* Performance Schema Interface instrumentation, end */
   MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
@@ -5352,6 +5353,8 @@ void THD::reset_for_next_command()
   thd->want_privilege= ~NO_ACCESS;
 
   thd->gtid_executed_warning_issued= false;
+
+  thd->reset_skip_readonly_check();
 
   DBUG_PRINT("debug",
              ("is_current_stmt_binlog_format_row(): %d",

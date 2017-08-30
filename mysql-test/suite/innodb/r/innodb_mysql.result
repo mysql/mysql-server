@@ -79,6 +79,8 @@ ORDER BY t1.b LIMIT 2;
 b	a
 1	1
 2	2
+Warnings:
+Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
 SELECT STRAIGHT_JOIN SQL_NO_CACHE t1.b, t1.a FROM t1, t3, t2 WHERE
 t3.a = t2.a AND t2.b = t1.a AND t3.b = 1 AND t3.c IN (1, 2)
 ORDER BY t1.b LIMIT 5;
@@ -88,6 +90,8 @@ b	a
 2	2
 3	3
 3	3
+Warnings:
+Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
 DROP TABLE t1, t2, t3;
 CREATE TABLE `t1` (`id1` INT) ;
 INSERT INTO `t1` (`id1`) VALUES (1),(5),(2);
@@ -456,9 +460,17 @@ a
 5
 drop table t1;
 set @save_qcache_size=@@global.query_cache_size;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 set @save_qcache_type=@@global.query_cache_type;
+Warnings:
+Warning	1287	'@@query_cache_type' is deprecated and will be removed in a future release.
 set global query_cache_size=10*1024*1024;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 set global query_cache_type=1;
+Warnings:
+Warning	1287	'@@query_cache_type' is deprecated and will be removed in a future release.
 drop table if exists `test`;
 Warnings:
 Note	1051	Unknown table 'test.test'
@@ -480,7 +492,11 @@ test1	test2
 tes	1234
 drop table test;
 set global query_cache_type=@save_qcache_type;
+Warnings:
+Warning	1287	'@@query_cache_type' is deprecated and will be removed in a future release.
 set global query_cache_size=@save_qcache_size;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 drop table if exists t1;
 show variables like 'innodb_rollback_on_timeout';
 Variable_name	Value
@@ -2019,6 +2035,10 @@ select @@session.sql_log_bin, @@session.binlog_format, @@session.tx_isolation;
 @@session.sql_log_bin	1
 @@session.binlog_format	STATEMENT
 @@session.tx_isolation	READ-COMMITTED
+Warnings:
+Level	Warning
+Code	1287
+Message	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 CREATE TABLE t1 ( a INT ) ENGINE=InnoDB;
 INSERT INTO t1 VALUES(1);
 DROP TABLE t1;

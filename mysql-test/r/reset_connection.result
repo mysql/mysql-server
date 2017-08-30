@@ -61,6 +61,8 @@ Variable_name	Value
 max_join_size	18446744073709551615
 set autocommit=0;
 set tx_isolation='SERIALIZABLE';
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 set names 'big5';
 set max_join_size=100;
 SHOW SESSION VARIABLES like 'autocommit';
