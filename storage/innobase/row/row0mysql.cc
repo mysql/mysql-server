@@ -4791,8 +4791,6 @@ row_rename_table_for_mysql(
 		dd::cache::Dictionary_client*	client = dd::get_dd_client(thd);
 		dd::cache::Dictionary_client::Auto_releaser	releaser(client);
 
-		/* TODO: NewDD: WL#6049 server did not properly changed the
-		foreign->id for the table rename */
 		if (old_is_tmp || new_is_tmp) {
 			if (dict_locked) {
 				ut_ad(mutex_own(&dict_sys->mutex));
@@ -4807,40 +4805,6 @@ row_rename_table_for_mysql(
 
 			if (dict_locked) {
 				mutex_enter(&dict_sys->mutex);
-			}
-		}
-
-		/* TODO: remove following chunk of code once Bug#24666169
-		(NEWDD: RENAME TABLE DID NOT CHANGE FOREIGN KEY NAME
-		ACCORDINGLY) is fixed */
-
-		if (err == DB_SUCCESS && !old_is_tmp && !new_is_tmp) {
-			for (dict_foreign_set::iterator it
-			     = table->foreign_set.begin();
-			     it != table->foreign_set.end();) {
-				dict_foreign_t*	foreign = *it;
-				char	buf[MAX_TABLE_NAME_LEN + 1];
-				ulint   db_len = dict_get_db_name_len(
-					old_name);
-
-				filename_to_tablename(
-					old_name + db_len + 1,
-					buf, MAX_TABLE_NAME_LEN + 1);
-
-				if (strstr(foreign->id, buf)) {
-					dict_table_t*	ref_table
-					= dict_table_check_if_in_cache_low(
-					foreign->referenced_table_name_lookup);
-
-					dict_foreign_set::iterator	rit
-					= ref_table->referenced_set.find(
-						foreign);
-
-					table->foreign_set.erase(it++);
-					ref_table->referenced_set.erase(rit);
-				} else {
-					++it;
-				}
 			}
 		}
 
