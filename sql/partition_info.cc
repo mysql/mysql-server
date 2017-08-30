@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -912,10 +912,11 @@ partition_element *partition_info::get_part_elem(const char *partition_name,
                            sub_part_elem->partition_name, partition_name))
         {
           if (file_name)
-            create_subpartition_name(file_name, "",
-                                     part_elem->partition_name,
-                                     partition_name,
-                                     NORMAL_PART_NAME);
+            if (create_subpartition_name(file_name, "",
+                                         part_elem->partition_name,
+                                         partition_name,
+                                         NORMAL_PART_NAME))
+              DBUG_RETURN(NULL);
           *part_id= j + (i * num_subparts);
           DBUG_RETURN(sub_part_elem);
         }
@@ -930,8 +931,9 @@ partition_element *partition_info::get_part_elem(const char *partition_name,
                             part_elem->partition_name, partition_name))
     {
       if (file_name)
-        create_partition_name(file_name, "", partition_name,
-                              NORMAL_PART_NAME, TRUE);
+        if (create_partition_name(file_name, "", partition_name,
+                                  NORMAL_PART_NAME, TRUE))
+          DBUG_RETURN(NULL);
       *part_id= i;
       DBUG_RETURN(part_elem);
     }

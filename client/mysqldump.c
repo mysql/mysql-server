@@ -5620,7 +5620,10 @@ static my_bool get_view_structure(char *table, char* db)
   if (path)
   {
     if (!(sql_file= open_sql_file_for_table(table, O_WRONLY)))
+    {
+      mysql_free_result(table_res);
       DBUG_RETURN(1);
+    }
 
     write_header(sql_file, db);
   }

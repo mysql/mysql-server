@@ -8,6 +8,10 @@
 --source include/have_log_bin.inc
 --source include/count_sessions.inc
 
+--disable_query_log
+CALL mtr.add_suppression("InnoDB: Warning: MySQL is trying to drop table *.*");
+--enable_query_log
+
 SET @old_log_output = @@global.log_output;
 SET @old_slow_query_log = @@global.slow_query_log;
 SET @old_general_log = @@global.general_log;
@@ -25,6 +29,7 @@ connect (con2,localhost,root,,);
 connection default;
 
 --echo # Case 1: Sync blocks DML(insert) on the same table.
+--sleep 2
 CREATE TABLE t1 (
         FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
         title VARCHAR(200),

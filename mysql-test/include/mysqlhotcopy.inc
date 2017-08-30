@@ -107,7 +107,7 @@ DROP DATABASE hotcopy_save;
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
 --list_files $MYSQLD_DATADIR/hotcopy_save
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK
---error 9,11,110,2304
+--error 9,11,110,255,2304
 --exec $MYSQLHOTCOPY --quiet -S $MASTER_MYSOCK -u root hotcopy_test hotcopy_save
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK
 --exec $MYSQLHOTCOPY --quiet --allowold -S $MASTER_MYSOCK -u root hotcopy_test hotcopy_save

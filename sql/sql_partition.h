@@ -1,7 +1,7 @@
 #ifndef SQL_PARTITION_INCLUDED
 #define SQL_PARTITION_INCLUDED
 
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -271,10 +271,10 @@ bool compare_partition_options(HA_CREATE_INFO *table_create_info,
                                partition_element *part_elem);
 #endif
 
-void create_partition_name(char *out, const char *in1,
+bool create_partition_name(char *out, const char *in1,
                            const char *in2, uint name_variant,
                            bool translate);
-void create_subpartition_name(char *out, const char *in1,
+bool create_subpartition_name(char *out, const char *in1,
                               const char *in2, const char *in3,
                               uint name_variant);
 

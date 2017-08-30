@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -59,7 +59,7 @@ dict_stats_recalc_pool_del(
 /** Yield the data dictionary latch when waiting
 for the background thread to stop accessing a table.
 @param trx	transaction holding the data dictionary locks */
-#define DICT_STATS_BG_YIELD(trx)	do {	\
+#define DICT_BG_YIELD(trx)	do {	\
 	row_mysql_unlock_data_dictionary(trx);	\
 	os_thread_sleep(250000);		\
 	row_mysql_lock_data_dictionary(trx);	\

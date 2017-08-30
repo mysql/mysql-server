@@ -113,3 +113,21 @@ let $wait_condition =
 -- source include/wait_condition.inc
 
 DROP TABLE ib_bp_test;
+
+
+# Write file to make mysql-test-run.pl wait for the server to stop
+-- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+# Request shutdown
+-- send_shutdown
+# Call script that will poll the server waiting for it to disapear
+-- source include/wait_until_disconnected.inc
+
+# Write file to make mysql-test-run.pl start up the server with
+# read only mode.
+
+--exec echo "restart:--innodb-read-only=1" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+# Load
+SET GLOBAL innodb_buffer_pool_load_now = ON;
