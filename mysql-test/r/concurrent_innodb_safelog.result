@@ -2,6 +2,8 @@ SET GLOBAL TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 SELECT @@global.tx_isolation;
 @@global.tx_isolation
 REPEATABLE-READ
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 SELECT @@global.innodb_locks_unsafe_for_binlog;
 @@global.innodb_locks_unsafe_for_binlog
 0

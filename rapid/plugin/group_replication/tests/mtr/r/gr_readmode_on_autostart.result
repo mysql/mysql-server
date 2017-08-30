@@ -20,6 +20,7 @@ call mtr.add_suppression("Run function 'before_commit' in plugin 'group_replicat
 call mtr.add_suppression("The member is leaving a group without being on one");
 call mtr.add_suppression("The group replication user is not present in the server. The user will be recreated, please do not remove it");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression("On plugin shutdown it was not possible to enable the server read only mode.*");
 set session sql_log_bin=1;
 SET @debug_save= @@GLOBAL.DEBUG;
 # restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_start_on_boot=1

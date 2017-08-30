@@ -849,17 +849,26 @@ The following options may be given as the first argument:
  --query-alloc-block-size=# 
  Allocation block size for query parsing and execution
  --query-cache-limit=# 
- Don't cache results that are bigger than this
+ Don't cache results that are bigger than this. This
+ variable is deprecated and will be removed in a future
+ release.
  --query-cache-min-res-unit=# 
- The minimum size for blocks allocated by the query cache
+ The minimum size for blocks allocated by the query cache.
+ This variable is deprecated and will be removed in a
+ future release.
  --query-cache-size=# 
- The memory allocated to store results from old queries
+ The memory allocated to store results from old queries.
+ This variable is deprecated and will be removed in a
+ future release.
  --query-cache-type=name 
  OFF = Don't cache or retrieve results. ON = Cache all
  results except SELECT SQL_NO_CACHE ... queries. DEMAND =
- Cache only SELECT SQL_CACHE ... queries
+ Cache only SELECT SQL_CACHE ... queries. This variable is
+ deprecated and will be removed in a future release.
  --query-cache-wlock-invalidate 
- Invalidate queries in query cache on LOCK for write
+ Invalidate queries in query cache on LOCK for write. This
+ variable is deprecated and will be removed in a future
+ release.
  --query-prealloc-size=# 
  Persistent buffer for query parsing and execution
  --range-alloc-block-size=# 

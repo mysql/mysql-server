@@ -1,0 +1,41 @@
+--echo #
+--echo # WL#9636: Rename tx_{isolation,isolation} variables to transaction_*
+--echo #
+
+SET @saved_global_isolation= @@global.transaction_isolation;
+
+--echo # Case 1: Check the influence of --transaction_isolation on
+--echo # @@session.transaction_isolation and @@global.transaction_isolation,
+--echo # @@session.tx_isolation, @@global.tx_isolation.
+
+SELECT @@session.transaction_isolation, @@global.transaction_isolation,
+       @@session.tx_isolation, @@global.tx_isolation;
+
+--echo # Case 2: Check that the change to tx_isolation is reflected
+--echo # to transaction_isolation.
+
+SET tx_isolation= 'REPEATABLE-READ';
+SET @@global.tx_isolation= 'SERIALIZABLE';
+SELECT @@session.tx_isolation, @@global.tx_isolation,
+@@session.transaction_isolation, @@global.transaction_isolation;
+
+SET tx_isolation= DEFAULT;
+SET @@global.tx_isolation= DEFAULT;
+SELECT @@session.tx_isolation, @@global.tx_isolation,
+@@session.transaction_isolation, @@global.transaction_isolation;
+
+--echo # Case 3: Check that the change to transaction_isolation is reflected
+--echo # to tx_isolation.
+
+SET transaction_isolation= 'SERIALIZABLE';
+SET @@global.transaction_isolation= 'REPEATABLE-READ';
+SELECT @@session.tx_isolation, @@global.tx_isolation,
+@@session.transaction_isolation, @@global.transaction_isolation;
+
+SET transaction_isolation= DEFAULT;
+SET  @@global.transaction_isolation= DEFAULT;
+SELECT @@session.tx_isolation, @@global.tx_isolation,
+@@session.transaction_isolation, @@global.transaction_isolation;
+
+SET @@global.tx_isolation= @saved_global_isolation;
+SET @@global.transaction_isolation= @saved_global_isolation;

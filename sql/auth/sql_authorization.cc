@@ -494,8 +494,11 @@ bool check_readonly(THD *thd, bool err_if_readonly)
   if (!opt_readonly)
     DBUG_RETURN(FALSE);
 
-  /* thread is replication slave, do not prohibit operation: */
-  if (thd->slave_thread)
+  /*
+    Thread is replication slave or skip_read_only check is enabled for the
+    command, do not prohibit operation.
+  */
+  if (thd->slave_thread || thd->is_cmd_skip_readonly())
     DBUG_RETURN(FALSE);
 
   bool is_super = thd->security_context()->check_access(SUPER_ACL);

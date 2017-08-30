@@ -28,7 +28,12 @@
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
+
 --let $server2_uuid= `SELECT @@server_uuid`
+
+# next primary should be server2 in step5, so setting member weight as 70
+# higher then default member_weight value of 50.
+--eval SET GLOBAL group_replication_member_weight= 70
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server3
@@ -92,13 +97,15 @@ INSERT INTO t1 VALUES (1,1);
 # If that requirement is not met, the test skips it self.
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
---let $primary_uuid= `SELECT variable_value FROM performance_schema.global_status WHERE variable_name='group_replication_primary_member'`
-if ($primary_uuid != $server2_uuid)
-{
-  --source include/force_restart_if_skipped.inc
-  --skip Test depends that primary is server 2
-}
 
+# server1 is stopped, so only server2 and 3 should be in the group
+--let $group_replication_number_of_members= 2
+--source ../inc/gr_wait_for_number_of_members.inc
+
+# Make sure server2 is the primary now
+--let $assert_text= Verify group_replication_primary_member is SERVER_UUID
+--let $assert_cond= "[SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME= \'group_replication_primary_member\', VARIABLE_VALUE, 1]" = "$server2_uuid"
+--source include/assert.inc
 
 --echo
 --echo ############################################################
@@ -279,6 +286,10 @@ SET @@GLOBAL.DEBUG= @debug_save;
 --echo
 --echo ############################################################
 --echo # 20. Clean up.
+
 DROP TABLE t2;
 DROP TABLE t1;
+
+SET GLOBAL group_replication_member_weight= DEFAULT;
+
 --source ../inc/group_replication_end.inc

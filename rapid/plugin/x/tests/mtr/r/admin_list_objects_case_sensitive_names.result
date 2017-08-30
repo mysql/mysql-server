@@ -1,36 +1,74 @@
 install plugin mysqlx soname "mysqlx.so";
 call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
 call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
-CREATE SCHEMA xtest DEFAULT CHARSET 'utf8mb4';
 
-Creating collections with similar names
----------------------------------------
-
-command ok
-
-command ok
-name	type
-Fruit	COLLECTION
-fruit	COLLECTION
-command ok
-
-Creating collection in another schema with similar name
--------------------------------------------------------
+Creating collection in XTEST
+----------------------------
 
 1 rows affected
+Got expected error (code 0)
 
 command ok
+Got expected error (code 0)
+
+command ok
+Got expected error (code 0)
+
+command ok
+Got expected error (code 0)
 name	type
-Fruit	COLLECTION
+FRUIT	COLLECTION
+FrUiT	COLLECTION
 fruit	COLLECTION
 command ok
-name	type
-fruiT	COLLECTION
+
+Creating collection in xtest
+----------------------------
+
+1 rows affected
+Got expected error (code 0)
+
 command ok
+Got expected error (code 0)
+
+command ok
+Got expected error (code 0)
+
+command ok
+Got expected error (code 0)
+name	type
+FRUIT	COLLECTION
+FrUiT	COLLECTION
+fruit	COLLECTION
+command ok
+
+Creating collection in xTeSt
+----------------------------
+
+1 rows affected
+Got expected error (code 0)
+
+command ok
+Got expected error (code 0)
+
+command ok
+Got expected error (code 0)
+
+command ok
+Got expected error (code 0)
+name	type
+FRUIT	COLLECTION
+FrUiT	COLLECTION
+fruit	COLLECTION
+command ok
+
+3 rows affected
+
+3 rows affected
+
+3 rows affected
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-DROP SCHEMA IF EXISTS xtest;
-DROP SCHEMA IF EXISTS Xtest;
 UNINSTALL PLUGIN mysqlx;

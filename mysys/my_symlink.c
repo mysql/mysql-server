@@ -19,6 +19,7 @@
 #include <m_string.h>
 #include <errno.h>
 #include "my_thread_local.h"
+#include "my_dir.h"
 #ifdef HAVE_REALPATH
 #include <sys/param.h>
 #include <sys/stat.h>

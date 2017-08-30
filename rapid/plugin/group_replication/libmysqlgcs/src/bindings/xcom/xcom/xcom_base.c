@@ -299,6 +299,7 @@
 #include "xcom_interface.h"
 #include "xcom_memory.h"
 #include "site_def.h"
+#include "xcom_cfg.h"
 
 #ifdef XCOM_HAVE_OPENSSL
 #include "openssl/ssl.h"
@@ -500,14 +501,8 @@ static bool_t is_dead_site(uint32_t id)
 	return FALSE;
 }
 
-d_xdr_funcs(node_no)
 define_xdr_funcs(node_no)
 
-extern void	init_recovery_sema();
-extern void	end_xcom_recovery();
-extern void	end_recovery();
-extern void	send_instance_info();
-extern void	send_end_recover();
 
 extern node_set *init_node_set(node_set *set, u_int n);
 extern node_set *alloc_node_set(node_set *set, u_int n);
@@ -1457,9 +1452,10 @@ void site_install_action(site_def *site)
 	if(get_maxnodes(get_site_def())){
 		update_servers(site);
 	}
+	site->install_time = task_now();
 	DBGOUT(FN; SYCEXP(site->start); SYCEXP(site->boot_key));
 	DBGOUT(FN; NDBG(get_nodeno(site), u));
-	DBGOUT(SYCEXP(site->start); SYCEXP(site->boot_key));
+	DBGOUT(SYCEXP(site->start); SYCEXP(site->boot_key); NDBG(site->install_time,f));
 	DBGOUT(NDBG(get_nodeno(site), u));
 }
 
@@ -1489,8 +1485,8 @@ static site_def * install_ng_with_start(app_data_ptr a, synode_no start)
 site_def *install_node_group(app_data_ptr a)
 {
 	ADD_EVENTS(
-	    add_event(string_arg("a->app_key")); 
-	    add_synode_event(a->app_key); 
+	    add_event(string_arg("a->app_key"));
+	    add_synode_event(a->app_key);
 	    );
 	if (a)
 		return install_ng_with_start(a, getstart(a));
@@ -1599,10 +1595,10 @@ static inline int is_view(cargo_type x)
 
 static inline int is_config(cargo_type x)
 {
-	return x == unified_boot_type || 
-	    x == add_node_type || 
-	    x == remove_node_type || 
-	    x == force_config_type; 
+	return x == unified_boot_type ||
+	    x == add_node_type ||
+	    x == remove_node_type ||
+	    x == force_config_type;
 }
 
 
@@ -2206,8 +2202,8 @@ site_def *handle_add_node(app_data_ptr a)
 	DBGOUT(FN; COPY_AND_FREE_GOUT(dbg_list(&a->body.app_u_u.nodes)); );
 	MAY_DBG(FN; COPY_AND_FREE_GOUT(dbg_list(&a->body.app_u_u.nodes)); );
 	ADD_EVENTS(
-	    add_event(string_arg("a->app_key")); 
-	    add_synode_event(a->app_key); 
+	    add_event(string_arg("a->app_key"));
+	    add_synode_event(a->app_key);
 	    );
 	assert(get_site_def());
 	assert(site);
@@ -2255,7 +2251,7 @@ site_def *handle_remove_node(app_data_ptr a)
 	site_def * site = clone_site_def(get_site_def());
 	DBGOUT(FN; COPY_AND_FREE_GOUT(dbg_list(&a->body.app_u_u.nodes)));
 	ADD_EVENTS(
-	    add_event(string_arg("a->app_key")); 
+	    add_event(string_arg("a->app_key"));
 	    add_synode_event(a->app_key);
 	    add_event(string_arg("nodeno"));
 	    add_event(uint_arg(get_nodeno(site)));
@@ -2583,8 +2579,8 @@ static int	executor_task(task_arg arg MY_ATTRIBUTE((unused)))
 					SYCEXP(ep->exit_synode); NDBG(ep->exit_type, d));
 				ep->p = get_cache(delivered_msg);
 				ADD_EVENTS(
-					add_event(string_arg("executing message")); 
-					add_synode_event(ep->p->synode); 
+					add_event(string_arg("executing message"));
+					add_synode_event(ep->p->synode);
 				);
 				if (LOSER(delivered_msg, x_site)) {
 #ifdef IGNORE_LOSERS
@@ -2650,20 +2646,20 @@ static int	sweeper_task(task_arg arg MY_ATTRIBUTE((unused)))
 		}
 #endif
 		ADD_EVENTS(
-			add_event(string_arg("sweeper ready")); 
-			add_synode_event(executed_msg); 
+			add_event(string_arg("sweeper ready"));
+			add_synode_event(executed_msg);
 		);
-/* 		 DBGOUT(FN; STRLIT("ready to run ");   */
-/*                         SYCEXP(executed_msg); SYCEXP(max_synode); SYCEXP(ep->find));  */
+/*		DBGOUT(FN; STRLIT("ready to run ");   */
+/*			SYCEXP(executed_msg); SYCEXP(max_synode); SYCEXP(ep->find));  */
 		 {
 			while (synode_lt(ep->find, max_synode) && ! too_far(ep->find)) {
 				/* pax_machine * pm = hash_get(ep->find); */
 				pax_machine * pm = 0;
 				ADD_EVENTS(
-					add_event(string_arg("sweeper examining")); 
-					add_synode_event(ep->find); 
+					add_event(string_arg("sweeper examining"));
+					add_synode_event(ep->find);
 				);
- 				DBGOUT(FN; STRLIT("examining "); SYCEXP(ep->find));
+				DBGOUT(FN; STRLIT("examining "); SYCEXP(ep->find));
 				if (ep->find.node == VOID_NODE_NO) {
 					if(synode_gt(executed_msg, ep->find)){
 						ep->find = get_sweep_start();
@@ -2677,12 +2673,12 @@ static int	sweeper_task(task_arg arg MY_ATTRIBUTE((unused)))
 					if (!is_busy_machine(pm) && pm->acceptor.promise.cnt == 0 && ! pm->acceptor.msg && !finished(pm)) {
 						pm->op = skip_op;
 						ADD_EVENTS(
-							add_event(string_arg("sweeper skipping")); 
+							add_event(string_arg("sweeper skipping"));
 							add_synode_event(ep->find);
 							add_event(string_arg(pax_op_to_str(pm->op)));
 						);
 						skip_msg(pax_msg_new(ep->find, find_site_def(ep->find)));
- 						MAY_DBG(FN; STRLIT("skipping "); SYCEXP(ep->find));
+						MAY_DBG(FN; STRLIT("skipping "); SYCEXP(ep->find));
 /* 						MAY_DBG(FN; dbg_pax_machine(pm)); */
 					}
 				}
@@ -2787,7 +2783,7 @@ static int	ok_to_propose(pax_machine *p)
 {
 #if 0
 	site_def const *s = find_site_def(p->synode.group_id);
-	int	retval = (p->synode.node == get_nodeno(s) || task_now() -p->last_modified > 5.0 || may_be_dead(s->detected, p->synode.node, task_now()))
+	int	retval = (p->synode.node == get_nodeno(s) || task_now() -p->last_modified > DETECTOR_LIVE_TIMEOUT || may_be_dead(s->detected, p->synode.node, task_now()))
 	 && !recently_active(p) && !finished(p) && !is_busy_machine(p);
 #else
 	int	retval = !recently_active(p) && !finished(p) && !is_busy_machine(p);
@@ -2803,15 +2799,25 @@ static void	read_missing_values(int n)
 	synode_no end = max_synode;
 	int	i = 0;
 
-  	MAY_DBG(FN; SYCEXP(find); SYCEXP(end));
-	if (
-	    synode_gt(executed_msg, max_synode) ||
+	MAY_DBG(FN; SYCEXP(find); SYCEXP(end));
+	if (synode_gt(executed_msg, max_synode) ||
 	    synode_eq(executed_msg, null_synode))
 		return;
 
 	while (!synode_gt(find, end) && i < n && ! too_far(find)) {
 		pax_machine * p = get_cache(find);
-  		MAY_DBG(FN; SYCEXP(find); SYCEXP(end); NDBG(recently_active(p),d);  NDBG(finished(p),d); NDBG(is_busy_machine(p),d));
+		ADD_EVENTS(
+			add_synode_event(find);
+			add_synode_event(end);
+			add_event(string_arg("active "));
+			add_event(int_arg(recently_active(p)));
+			add_event(string_arg("finished  "));
+			add_event(int_arg(finished(p)));
+			add_event(string_arg("busy "));
+			add_event(int_arg(is_busy_machine(p)));
+		);
+		MAY_DBG(FN; SYCEXP(find); SYCEXP(end); NDBG(recently_active(p), d); NDBG(finished(p), d); NDBG(is_busy_machine(p), d));
+
 
 		if (!recently_active(p) && !finished(p) && !is_busy_machine(p)) {
 			send_read(find);
@@ -3073,7 +3079,15 @@ static void	do_learn(site_def const * site MY_ATTRIBUTE((unused)), pax_machine *
 		m->a->chosen = TRUE;
 	replace_pax_msg(&p->acceptor.msg, m);
 	replace_pax_msg(&p->learner.msg, m);
-	/* if(m->msg_type == no_op)lru_touch(p); */ /* Move to no_op lru if no_op */
+	/*
+	   Track memory used by client data in the cache.
+	   If we do not care about instances that are being decided,
+	   it is only necessary to compute the added memory when we
+	   record the outcome of a consensus round.
+	*/
+	add_cache_size(pax_machine_size(p));
+	/* Shrink the cache size if necessary */
+	shrink_cache();
 }
 
 
@@ -3415,8 +3429,8 @@ static void activate_sweeper()
 {
 	if (sweeper) {
 		ADD_EVENTS(
-			add_event(string_arg("sweeper activated max_synode")); 
-			add_synode_event(max_synode); 
+			add_event(string_arg("sweeper activated max_synode"));
+			add_synode_event(max_synode);
 		);
 		task_activate(sweeper);
 	}
@@ -3433,8 +3447,10 @@ pax_msg *dispatch_op(site_def const *site, pax_msg *p, linkage *reply_queue)
 		in_front = 0;
 	}
 
-	if (dsite && p->op != client_msg)
+	if (dsite && p->op != client_msg){
 		note_detected(dsite, p->from);
+		update_delivered(dsite, p->from, p->delivered_msg);
+	}
 
 	MAY_DBG(FN; STRLIT("incoming message ");
 			COPY_AND_FREE_GOUT(dbg_pax_msg(p));
@@ -3463,6 +3479,19 @@ pax_msg *dispatch_op(site_def const *site, pax_msg *p, linkage *reply_queue)
 			ARBITRATOR_HACK = 0;
 			reply->op = xcom_client_reply;
 			reply->cli_err = REQUEST_OK;
+			SEND_REPLY;
+			break;
+		}
+		if (p->a && (p->a->body.c_t == set_cache_limit)) {
+			CREATE_REPLY(p);
+			DBGOUT(FN; STRLIT("Got set_cache_limit from client"); SYCEXP(p->synode); );
+			if(the_app_xcom_cfg){
+				set_max_cache_size(p->a->body.app_u_u.cache_limit);
+				reply->cli_err = REQUEST_OK;
+			}else{
+				reply->cli_err = REQUEST_FAIL;
+			}
+			reply->op = xcom_client_reply;
 			SEND_REPLY;
 			break;
 		}
@@ -3663,13 +3692,37 @@ learnop:
 		 {
 			GET_GOUT;
 			FN;
+			STRLIT("die_op ");
 			SYCEXP(executed_msg);
+			SYCEXP(delivered_msg);
+			SYCEXP(p->synode);
+			SYCEXP(p->delivered_msg);
+			SYCEXP(p->max_synode);
 			PRINT_GOUT;
 			FREE_GOUT;
 		}
-		g_critical("Node %u unable to get message, process will now exit. Please ensure that the process is restarted",
-		    get_nodeno(site));
-		exit(1);
+		/*
+		If the message with the number in  the  incoming  die_op  message
+		already  has  been  executed  (delivered),  then it means that we
+		actually got consensus on it, since otherwise we would  not  have
+		delivered it.Such a situation could arise if one of the nodes has
+		expelled the message from its cache, but others have not. So when
+		sending  out  a  request, we might get two different answers, one
+		indicating that we are too far behind  and  should  restart,  and
+		another  with  the  actual  consensus value. If the value arrives
+		first, we will deliver it, and then the die_op may arrive  later.
+		But  it this case it does not matter, since we got what we needed
+		anyway. It is only a partial guard against exiting without really
+		needing  it  of course, since the die_op may arrive first, and we
+		do not wait for a die_op from all the other nodes.  We  could  do
+		that  with  some extra housekeeping in the pax_machine (a new bit
+		vector), but I am not convinced that it is worth the effort.
+		*/
+		if(!synode_lt(p->synode, executed_msg)){
+			 g_critical("Node %u unable to get message, process will now exit. Please ensure that the process is restarted",
+						get_nodeno(site));
+			 exit(1);
+		 }
 	default:
 		break;
 	}
@@ -3681,24 +3734,6 @@ learnop:
 /* }}} */
 
 /* {{{ Acceptor-learner task */
-/* purecov: begin deadcode */
-static void	send_die(site_def const * site, pax_msg *p)
-{
-	if (get_maxnodes(site) > 0) {
-		pax_msg * np = NULL;
-		synode_no synode = null_synode;
-		synode.group_id = get_group_id(site);
-		np = pax_msg_new(synode, site);
-		ref_msg(np);
-		np->op = die_op;
-		DBGOUT(FN; STRLIT("sending die_op to node "); NDBG(p->from, d); SYCEXP(executed_msg); SYCEXP(max_synode));
-
-		send_server_msg(site, p->from, np);
-		unref_msg(&np);
-	}
-}
-/* purecov: end */
-
 int	acceptor_learner_task(task_arg arg)
 {
 	DECL_ENV
@@ -3819,9 +3854,15 @@ int	acceptor_learner_task(task_arg arg)
 		{
 			gboolean behind = FALSE;
 			if (get_maxnodes(site) > 0) {
-				behind = ep->p->synode.msgno + (CACHED / get_maxnodes(site)) <= max_synode.msgno;
-				/* behind = synode_lt(ep->p->synode, executed_msg); */
+				behind = ep->p->synode.msgno < delivered_msg.msgno;
 			}
+			ADD_EVENTS(
+				add_event(string_arg("before dispatch "));
+				add_synode_event(ep->p->synode);
+				add_event(string_arg("ep->p->from"));
+				add_event(int_arg(ep->p->from));
+				add_event(string_arg(pax_op_to_str(ep->p->op)));
+			);
 			if (ep->p->msg_type == normal ||
 			    ep->p->synode.msgno == 0 || /* Used by i-am-alive and so on */
 				is_cached(ep->p->synode) || /* Already in cache */
@@ -3840,6 +3881,8 @@ int	acceptor_learner_task(task_arg arg)
 					assert(reply->p->refcnt > 0);
 					reply->p->to = ep->p->from;
 					reply->p->from = ep->p->to;
+					reply->p->delivered_msg = get_delivered_msg();
+					reply->p->max_synode = get_max_synode();
 					serialize_msg(reply->p, ep->rfd.x_proto, &ep->buflen, &ep->buf);
 					MAY_DBG(FN; COPY_AND_FREE_GOUT(dbg_msg_link(reply));
 							COPY_AND_FREE_GOUT(dbg_pax_msg(reply->p)));
@@ -3867,13 +3910,35 @@ int	acceptor_learner_task(task_arg arg)
 						miss_accept(ep->p, &ep->reply_queue);
 					}
 #else
-					if (ep->p->op == prepare_op) {
+					if (/*ep->p->op == prepare_op && */ was_removed_from_cache(ep->p->synode)) {
 						DBGOUT(FN; STRLIT("send_die ");
 							   STRLIT(pax_op_to_str(ep->p->op));
 							   NDBG(ep->p->from, d); NDBG(ep->p->to, d);
 							   SYCEXP(ep->p->synode);
 							   BALCEXP(ep->p->proposal));
-						send_die(site, ep->p); /* Missed the window */
+						if (get_maxnodes(site) > 0) {
+							pax_msg * np = NULL;
+							np = pax_msg_new(ep->p->synode, site);
+							ref_msg(np);
+							np->op = die_op;
+							np->to = ep->p->from;
+							np->from = ep->p->to;
+							np->delivered_msg = get_delivered_msg();
+							np->max_synode = get_max_synode();
+							DBGOUT(FN; STRLIT("sending die_op to node "); NDBG(np->to, d);
+								SYCEXP(executed_msg); SYCEXP(max_synode); SYCEXP(np->synode));
+							serialize_msg(np, ep->rfd.x_proto, &ep->buflen, &ep->buf);
+							if(ep->buflen){
+								int64_t	sent;
+								TASK_CALL(task_write(&ep->rfd , ep->buf, ep->buflen, &sent));
+								send_count[ep->p->op]++;
+								send_bytes[ep->p->op] += ep->buflen;
+								X_FREE(ep->buf);
+							}
+							ep->buf = NULL;
+							unref_msg(&np);
+						}
+
 					}
 #endif
 				}
@@ -4220,8 +4285,8 @@ xcom_state xcom_fsm(xcom_actions action, task_arg fsmargs)
 	default:
 		assert(state == 0);
 	case 0:
-                /* Initialize basic xcom data */
-                xcom_thread_init();
+		/* Initialize basic xcom data */
+		xcom_thread_init();
 start:
 		for (; ; ) {
 			if (action == xa_init) {
@@ -5144,6 +5209,18 @@ int	xcom_client_terminate_and_exit(connection_descriptor *fd)
 	int retval = 0;
 	init_app_data(&a);
 	a.body.c_t = x_terminate_and_exit;
+	retval = xcom_send_app_wait(fd, &a, 0);
+	my_xdr_free((xdrproc_t) xdr_app_data, (char*)&a);
+	return retval;
+}
+
+int	xcom_client_set_cache_limit(connection_descriptor *fd, uint64_t cache_limit)
+{
+	app_data a;
+	int retval = 0;
+	init_app_data(&a);
+	a.body.c_t = set_cache_limit;
+	a.body.app_u_u.cache_limit = cache_limit;
 	retval = xcom_send_app_wait(fd, &a, 0);
 	my_xdr_free((xdrproc_t) xdr_app_data, (char*)&a);
 	return retval;

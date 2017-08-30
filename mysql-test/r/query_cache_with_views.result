@@ -1,9 +1,13 @@
 drop table if exists t1,t2,v1,v2,v3;
 drop view if exists t1,t2,v1,v2,v3;
 set GLOBAL query_cache_size=1355776;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 flush status;
 create table t1 (a int, b int);
 create view v1 (c,d) as select sql_no_cache a,b from t1;
+Warnings:
+Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
 create view v2 (c,d) as select a+rand(),b from t1;
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
@@ -16,6 +20,8 @@ Variable_name	Value
 Qcache_hits	0
 select * from v1;
 c	d
+Warnings:
+Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
 select * from v2;
 c	d
 show status like "Qcache_queries_in_cache";
@@ -29,6 +35,8 @@ Variable_name	Value
 Qcache_hits	0
 select * from v1;
 c	d
+Warnings:
+Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
 select * from v2;
 c	d
 show status like "Qcache_queries_in_cache";
@@ -42,8 +50,12 @@ Variable_name	Value
 Qcache_hits	0
 drop view v1,v2;
 set query_cache_type=demand;
+Warnings:
+Warning	1287	'@@query_cache_type' is deprecated and will be removed in a future release.
 flush status;
 create view v1 (c,d) as select sql_cache a,b from t1;
+Warnings:
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	0
@@ -55,6 +67,8 @@ Variable_name	Value
 Qcache_hits	0
 select * from v1;
 c	d
+Warnings:
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	1
@@ -77,6 +91,7 @@ Variable_name	Value
 Qcache_hits	0
 select * from v1;
 c	d
+Warnings:
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	1
@@ -99,6 +114,8 @@ Variable_name	Value
 Qcache_hits	1
 drop view v1;
 set query_cache_type=default;
+Warnings:
+Warning	1287	'@@query_cache_type' is deprecated and will be removed in a future release.
 drop table t1;
 create table t1 (a int);
 insert into t1 values (1), (2), (3);
@@ -127,9 +144,13 @@ create table t1(f1 int);
 insert into t1 values(1),(2),(3);
 create view v1 as select * from t1;
 set query_cache_wlock_invalidate=1;
+Warnings:
+Warning	1287	'@@query_cache_wlock_invalidate' is deprecated and will be removed in a future release.
 lock tables v1 read /*!32311 local */;
 unlock tables;
 set query_cache_wlock_invalidate=default;
+Warnings:
+Warning	1287	'@@query_cache_wlock_invalidate' is deprecated and will be removed in a future release.
 drop view v1;
 drop table t1;
 flush status;
@@ -207,3 +228,5 @@ DROP TABLE t2;
 DROP VIEW t1_view;
 SET AUTOCOMMIT=DEFAULT;
 set GLOBAL query_cache_size=default;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.

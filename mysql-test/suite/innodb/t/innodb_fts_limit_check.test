@@ -1,0 +1,19 @@
+--source include/have_innodb.inc
+--source include/have_debug.inc
+
+create table t (
+    FTS_DOC_ID bigint unsigned not null,
+    contents text collate utf8mb4_bin,
+    primary key (FTS_DOC_ID),
+    fulltext key fx_contents (contents) with parser ngram
+) engine=innodb default charset=utf8mb4 collate=utf8mb4_bin;
+
+insert into t values (1, 'xyz mnt'), (2, 'xyz mnt'), (3, 'xyz');
+select * from t where match(contents) against ('xyz mnt' in boolean mode) limit 1;
+select * from t where match(contents) against ('xyz mnt' in boolean mode) limit 2;
+select * from t where match(contents) against ('xyz mnt' in boolean mode) limit 3;
+select * from t where match(contents) against ('xyz mnt' in boolean mode) limit 4;
+select * from t where match(contents) against ('xyz mnt' in boolean mode) limit 5;
+select * from t WHERE match(contents) against ('xyz mnt' in boolean mode) limit 6;
+
+DROP TABLE t;

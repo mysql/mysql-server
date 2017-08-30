@@ -18,10 +18,16 @@ FROM performance_schema.events_statements_history
 WHERE sql_text = "SELECT 'original'";
 sql_text	digest
 SELECT 'original'	NULL
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 # Query rewrite plugin was installed.
 INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
 VALUES ( 'SELECT "original"', 'SELECT "rewritten"' );
 CALL query_rewrite.flush_rewrite_rules();
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 SELECT 'original';
 rewritten
 rewritten

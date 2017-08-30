@@ -47,13 +47,21 @@ SHOW STATUS LIKE "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	2
 FLUSH STATUS;
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 # Query rewrite plugin was installed.
 INSERT INTO query_rewrite.rewrite_rules( pattern, replacement )
 VALUES( 'SELECT * FROM test.t1', 'SELECT * FROM test.t2' );
 CALL query_rewrite.flush_rewrite_rules();
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 SELECT @@query_cache_size;
 @@query_cache_size
 1048576
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 # No matter what we do, this query should not get cached.
 SELECT * FROM test.t1;
 a
@@ -104,10 +112,14 @@ Qcache_hits	1
 # syntax error. The query cache should still be cleared even if
 # flush_rewrite_rules() exits with an error.
 RESET QUERY CACHE;
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 DELETE FROM query_rewrite.rewrite_rules;
 SELECT @@query_cache_size;
 @@query_cache_size
 1048576
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 SELECT * FROM test.t1;
 a
 1
@@ -171,6 +183,8 @@ Variable_name	Value
 Qcache_hits	1
 DROP TABLE t1, t2;
 SET GLOBAL query_cache_size = DEFAULT;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 #
 # Reinstalls the plugin while keeping the rules table.
 #
@@ -178,12 +192,18 @@ CREATE TABLE t1 ( c1 VARCHAR(10), c2 VARCHAR(10) );
 INSERT INTO t1 VALUES ( 'abc', 'def' ), ( 'ghi', 'klm' ), ( 'nop', 'qrs' );
 CREATE TABLE t2 ( c1 VARCHAR(10) );
 INSERT INTO t2 VALUES ( 'abc' ), ( 'klm' );
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 # Query rewrite plugin was installed.
 # Insert some rewrite rules in the plugin
 INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
 VALUES ( 'SELECT * FROM test.t2',
 'SELECT * FROM test.t1 JOIN test.t2 ON test.t1.c1 = test.t2.c1' );
 CALL query_rewrite.flush_rewrite_rules();
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 # Check a query that doesn't have a rewrite rule doesn't get rewritten.
 SELECT c2 FROM test.t1;
 c2
@@ -216,6 +236,10 @@ Warnings:
 Note	1007	Can't create database 'query_rewrite'; database exists
 Warnings:
 Note	1050	Table 'rewrite_rules' already exists
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 # Query rewrite plugin was installed.
 # Check that a query that doesn't have a rewrite rule doesn't get
 # rewritten.

@@ -6471,17 +6471,6 @@ int MYSQL_BIN_LOG::purge_logs_before_date(time_t purge_time, bool auto_purge)
 
   while (!(log_is_active= is_active(log_info.log_file_name)))
   {
-    if ((no_of_threads_locking_log= log_in_use(log_info.log_file_name)))
-    {
-      if (!auto_purge)
-      {
-        log_is_in_use= true;
-        strcpy(copy_log_in_use, log_info.log_file_name);
-      }
-      break;
-    }
-    no_of_log_files_purged++;
-
     if (!mysql_file_stat(m_key_file_log,
                          log_info.log_file_name, &stat_area, MYF(0)))
     {
@@ -6516,15 +6505,28 @@ int MYSQL_BIN_LOG::purge_logs_before_date(time_t purge_time, bool auto_purge)
         goto err;
       }
     }
-    else
+    /* check if the binary log file is older than the purge_time
+       if yes check if it is in use, if not in use then add
+       it in the list of binary log files to be purged.
+    */
+    else if (stat_area.st_mtime < purge_time)
     {
-      if (stat_area.st_mtime < purge_time) 
-        strmake(to_log, 
-                log_info.log_file_name, 
-                sizeof(log_info.log_file_name) - 1);
-      else
+      if ((no_of_threads_locking_log= log_in_use(log_info.log_file_name)))
+      {
+        if (!auto_purge)
+        {
+          log_is_in_use= true;
+          strcpy(copy_log_in_use, log_info.log_file_name);
+        }
         break;
+      }
+      strmake(to_log,
+              log_info.log_file_name,
+              sizeof(log_info.log_file_name) - 1);
+      no_of_log_files_purged++;
     }
+    else
+      break;
     if (find_next_log(&log_info, false/*need_lock_index=false*/))
       break;
   }
@@ -6680,7 +6682,7 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
 {
   int error= 0;
   bool close_on_error= false;
-  char new_name[FN_REFLEN], *new_name_ptr, *old_name, *file_to_open;
+  char new_name[FN_REFLEN], *new_name_ptr= NULL, *old_name, *file_to_open;
 
   DBUG_ENTER("MYSQL_BIN_LOG::new_file_impl");
   if (!is_open())
@@ -7361,6 +7363,12 @@ int MYSQL_BIN_LOG::rotate_and_purge(THD* thd, bool force_rotate)
   DBUG_ENTER("MYSQL_BIN_LOG::rotate_and_purge");
   bool check_purge= false;
 
+  /*
+    FLUSH BINARY LOGS command should ignore 'read-only' and 'super_read_only'
+    options so that it can update 'mysql.gtid_executed' replication repository
+    table.
+  */
+  thd->set_skip_readonly_check();
   /*
     Wait for handlerton to insert any pending information into the binlog.
     For e.g. ha_ndbcluster which updates the binlog asynchronously this is
@@ -9149,6 +9157,7 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
   int flush_error= 0, sync_error= 0;
   my_off_t total_bytes= 0;
   bool do_rotate= false;
+  unsigned int current_sync_period;
 
   /*
     These values are used while flushing a transaction, so clear
@@ -9296,7 +9305,8 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
     in this ongoing SYNC stage. The "+1" used below in the
     if condition is to count the ongoing sync stage.
   */
-  if (!flush_error && (sync_counter + 1 >= get_sync_period()))
+  current_sync_period= get_sync_period();
+  if (!flush_error && current_sync_period && (sync_counter + 1 >= current_sync_period))
     stage_manager.wait_count_or_timeout(opt_binlog_group_commit_sync_no_delay_count,
                                         opt_binlog_group_commit_sync_delay,
                                         Stage_manager::SYNC_STAGE);
@@ -10506,6 +10516,11 @@ int THD::decide_logging_format(TABLE_LIST *tables)
                MYF(0));
     else if (multi_access_engine && flags_access_some_set & HA_HAS_OWN_BINLOGGING)
       lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE);
+
+    /* XA is unsafe for statements */
+    if (is_write &&
+        !get_transaction()->xid_state()->has_state(XID_STATE::XA_NOTR))
+      lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_XA);
 
     /* both statement-only and row-only engines involved */
     if ((flags_write_all_set & (HA_BINLOG_STMT_CAPABLE | HA_BINLOG_ROW_CAPABLE)) == 0)

@@ -60,8 +60,12 @@ public:
     @param table       Table to be closed
     @param error       If there was an error while updating the table
     @param need_commit Need to commit current transaction if it is true
+
+    @return
+      @retval true  failed
+      @retval false success
   */
-  void deinit(THD *thd, TABLE *table, bool error, bool need_commit);
+  bool deinit(THD *thd, TABLE *table, bool error, bool need_commit);
   /**
     Prepares before opening table.
     - set flags

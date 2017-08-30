@@ -134,6 +134,7 @@ while ($transactions <= $max_transactions)
         --let $assert_cond= [SELECT @@GLOBAL.auto_increment_offset] = 1
         --source include/assert.inc
 
+        --source include/assert_and_disable_read_only.inc
       }
 
       if (!$is_rpl_stop_server)

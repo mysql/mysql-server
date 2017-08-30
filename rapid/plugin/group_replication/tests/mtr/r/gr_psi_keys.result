@@ -27,7 +27,6 @@ wait/synch/mutex/group_rpl/LOCK_pipeline_continuation	YES	YES
 wait/synch/mutex/group_rpl/LOCK_synchronized_queue	YES	YES
 wait/synch/mutex/group_rpl/LOCK_count_down_latch	YES	YES
 wait/synch/mutex/group_rpl/LOCK_wait_ticket	YES	YES
-wait/synch/mutex/group_rpl/LOCK_read_mode	YES	YES
 wait/synch/mutex/group_rpl/LOCK_recovery_module_run	YES	YES
 wait/synch/mutex/group_rpl/LOCK_recovery	YES	YES
 wait/synch/mutex/group_rpl/LOCK_recovery_donor_selection	YES	YES
@@ -37,6 +36,7 @@ wait/synch/mutex/group_rpl/LOCK_plugin_running	YES	YES
 wait/synch/mutex/group_rpl/LOCK_force_members_running	YES	YES
 wait/synch/mutex/group_rpl/LOCK_write_lock_protection	YES	YES
 wait/synch/mutex/group_rpl/LOCK_pipeline_stats_flow_control	YES	YES
+wait/synch/mutex/group_rpl/LOCK_pipeline_stats_transactions_waiting_apply	YES	YES
 wait/synch/mutex/group_rpl/LOCK_transaction_unblocking	YES	YES
 wait/synch/rwlock/group_rpl/RWLOCK_certifier_stable_gtid_set	YES	YES
 wait/synch/rwlock/group_rpl/RWLOCK_io_cache_unused_list	YES	YES

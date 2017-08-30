@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -292,10 +292,15 @@ my_off_t my_b_filelength(IO_CACHE *info)
 }
 
 
-/*
-  Simple printf version.  Supports '%s', '%d', '%u', "%ld", "%lu" and "%llu"
-  Used for logging in MySQL
-  returns number of written character, or (size_t) -1 on error
+/**
+  Simple printf version. Used for logging in MySQL.
+  Supports '%c', '%s', '%b', '%d', '%u', '%ld', '%lu' and '%llu'.
+  Returns number of written characters, or (size_t) -1 on error.
+
+  @param info           The IO_CACHE to write to
+  @param fmt            format string
+  @param ...            variable list of arguments
+  @return               number of bytes written, -1 if an error occurred
 */
 
 size_t my_b_printf(IO_CACHE *info, const char* fmt, ...)
@@ -308,6 +313,15 @@ size_t my_b_printf(IO_CACHE *info, const char* fmt, ...)
   return result;
 }
 
+
+/**
+  Implementation of my_b_printf.
+
+  @param info           The IO_CACHE to write to
+  @param fmt            format string
+  @param args           variable list of arguments
+  @return               number of bytes written, -1 if an error occurred
+*/
 
 size_t my_b_vprintf(IO_CACHE *info, const char* fmt, va_list args)
 {
@@ -372,7 +386,7 @@ process_flags:
 
     if (*fmt == '*')
     {
-      precision= (int) va_arg(args, int);
+      minimum_width= (int) va_arg(args, int);
       fmt++;
     }
     else
@@ -413,6 +427,7 @@ process_flags:
     {
       char par[2];
       par[0] = va_arg(args, int);
+      out_length++;
       if (my_b_write(info, (uchar*) par, 1))
         goto err;
     }

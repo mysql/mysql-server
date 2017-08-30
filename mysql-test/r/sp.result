@@ -3015,7 +3015,11 @@ set @x = @x + 1;
 return @x;
 end|
 set @qcs1 = @@query_cache_size|
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 set global query_cache_size = 102400|
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 set @x = 1|
 insert into t1 values ("qc", 42)|
 select bug9902() from t1|
@@ -3028,6 +3032,8 @@ select @x|
 @x
 3
 set global query_cache_size = @qcs1|
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 delete from t1|
 drop function bug9902|
 drop function if exists bug9102|

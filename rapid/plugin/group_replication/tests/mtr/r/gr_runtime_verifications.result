@@ -191,7 +191,7 @@ INSERT INTO tn VALUES ('hash');
 # It will be a single table simpler test just to assess that the
 # hook is not longer active.
 #
-STOP GROUP_REPLICATION;
+include/stop_group_replication.inc
 CREATE TABLE t1 (c1 char(50)) ENGINE=InnoDB;
 UPDATE t1 SET c1 = 'a';
 INSERT INTO t1 VALUES('a');
