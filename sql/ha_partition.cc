@@ -5415,9 +5415,16 @@ int ha_partition::index_first(uchar * buf)
 int ha_partition::index_last(uchar * buf)
 {
   DBUG_ENTER("ha_partition::index_last");
-
+  int error = HA_ERR_END_OF_FILE;
+  uint part_id = bitmap_get_first_set(&(m_part_info->read_partitions));
+  if (part_id == MY_BIT_NONE)
+  {
+	/* No partition to scan. */
+	DBUG_RETURN(error);
+  }
   m_index_scan_type= partition_index_last;
   DBUG_RETURN(common_first_last(buf));
+
 }
 
 /*
