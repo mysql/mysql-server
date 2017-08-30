@@ -178,7 +178,7 @@ for f in msql2mysql mysqlaccess mysqlaccess.conf mysqlbug mysql_convert_table_fo
 done
 
 for f in innochecksum myisamchk myisam_ftdump myisamlog myisampack \
-         mysqlbinlog mysqlcheck mysql_client_test mysql_config_editor \
+         mysqlbinlog mysql_client_test mysql_config_editor \
          mysqld_multi mysqld_safe mysqldumpslow mysql_embedded mysqlimport \
          mysql_plugin mysql_secure_installation mysqlshow mysqlslap  mysqltest \
          perror replace  resolveip  resolve_stack_dump; do
@@ -232,6 +232,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_sbindir}/mysqld
 %attr(755, root, root) %{_bindir}/mysql
 %attr(755, root, root) %{_bindir}/mysqladmin
+%attr(755, root, root) %{_bindir}/mysqlcheck
 %attr(755, root, root) %{_bindir}/mysqldump
 %attr(755, root, root) %{_bindir}/mysql_config
 %attr(755, root, root) %{_bindir}/mysql_install_db
