@@ -2751,7 +2751,15 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
   name_buffer_ptr= m_name_buffer_ptr;
   m_start_key.length= 0;
   m_rec0= table->record[0];
-  m_rec_length= table_share->reclength;
+  legacy_db_type db_type = ha_legacy_type(m_part_info->default_engine_type);
+  if (db_type == DB_TYPE_HEAP)
+  {
+   m_rec_length= table_share->rec_buff_length;
+  } else {
+   m_rec_length= table_share->reclength;
+  }
+  DBUG_ASSERT(db_type != DB_TYPE_UNKNOWN);
+
   if (!m_part_ids_sorted_by_num_of_records)
   {
     if (!(m_part_ids_sorted_by_num_of_records=
