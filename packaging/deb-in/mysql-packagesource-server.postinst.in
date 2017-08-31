@@ -32,9 +32,7 @@ invoke() {
 	fi
 }
 
-if which setcap > /dev/null; then
-    setcap cap_sys_nice+ep mysqld
-fi
+[ -x /sbin/setcap ] && /sbin/setcap cap_sys_nice+ep /usr/sbin/mysqld
 
 case "$1" in
 	configure)
