@@ -89,6 +89,7 @@ SET(NDBCLUSTER_SOURCES
   ../../sql/ndb_bitmap.cc
   ../../sql/ndb_table_map.cc
   ../../sql/ndb_dd.cc
+  ../../sql/ndb_modifiers.cc
 )
 
 # Include directories used when building ha_ndbcluster
