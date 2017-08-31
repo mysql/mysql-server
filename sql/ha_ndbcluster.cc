@@ -9525,6 +9525,10 @@ NDB_Modifiers::parse(THD *thd,
       }
       my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0), ndbcluster_hton_name,
                "Syntax error in COMMENT modifier");
+      if (source != _source)
+      {
+        delete [] source;
+      }
       return -1;
     }
 
