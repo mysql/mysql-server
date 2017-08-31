@@ -60,6 +60,7 @@
 #include "ndb_log.h"
 #include "ndb_name_util.h"
 #include "ndb_bitmap.h"
+#include "ndb_modifiers.h"
 #include <mysql/psi/mysql_thread.h>
 #include "mysqld_thd_manager.h"  // Global_THD_manager
 #include "../storage/ndb/src/common/util/parse_mask.hpp"
@@ -9294,28 +9295,10 @@ static int ndbcluster_rollback(handlerton *hton, THD *thd, bool all)
   DBUG_RETURN(res);
 }
 
-/**
- * Support for create table/column modifiers
- *   by exploiting the comment field
- */
-struct NDB_Modifier
-{
-  enum { M_BOOL, M_STRING } m_type;
-  const char * m_name;
-  size_t m_name_len;
-  bool m_found;
-  union {
-    bool m_val_bool;
-    struct {
-      const char * str;
-      size_t len;
-    } m_val_str;
-#ifdef TODO__
-    int m_val_int;
-#endif
-  };
-};
 
+static const char* ndb_table_modifier_prefix = "NDB_TABLE=";
+
+/* Modifiers that we support currently */
 static const
 struct NDB_Modifier ndb_table_modifiers[] =
 {
@@ -9326,6 +9309,8 @@ struct NDB_Modifier ndb_table_modifiers[] =
   { NDB_Modifier::M_BOOL, 0, 0, 0, {0} }
 };
 
+static const char* ndb_column_modifier_prefix = "NDB_COLUMN=";
+
 static const
 struct NDB_Modifier ndb_column_modifiers[] =
 {
@@ -9333,327 +9318,6 @@ struct NDB_Modifier ndb_column_modifiers[] =
   { NDB_Modifier::M_BOOL, 0, 0, 0, {0} }
 };
 
-/**
- * NDB_Modifiers
- *
- * This class implements a simple parser for getting modifiers out
- *   of a string (e.g a comment field)
- */
-class NDB_Modifiers
-{
-public:
-  NDB_Modifiers(const NDB_Modifier modifiers[]);
-  ~NDB_Modifiers();
-
-  /**
-   * parse string-with length (not necessarily NULL terminated)
-   */
-  int parse(THD* thd,
-            const char * prefix,
-            const char * str,
-            size_t strlen,
-            Uint32 *end_parse_pos = NULL);
-
-  /**
-   * Get modifier...returns NULL if unknown
-   */
-  const NDB_Modifier * get(const char * name) const;
-
-  /**
-   * return a modifier which has m_found == false
-   */
-  const NDB_Modifier * notfound() const;
-private:
-  uint m_len;
-  struct NDB_Modifier * m_modifiers;
-
-  int parse_modifier(THD *thd, const char * prefix,
-                     struct NDB_Modifier* m, const char * str);
-};
-
-static
-bool
-end_of_token(const char * str)
-{
-  return str[0] == 0 || str[0] == ' ' || str[0] == ',';
-}
-
-NDB_Modifiers::NDB_Modifiers(const NDB_Modifier modifiers[])
-{
-  for (m_len = 0; modifiers[m_len].m_name != 0; m_len++)
-  {}
-  m_modifiers = new NDB_Modifier[m_len + 1];
-  memcpy(m_modifiers, modifiers, (m_len + 1) * sizeof(NDB_Modifier));
-}
-
-NDB_Modifiers::~NDB_Modifiers()
-{
-  for (Uint32 i = 0; i < m_len; i++)
-  {
-    if (m_modifiers[i].m_type == NDB_Modifier::M_STRING &&
-        m_modifiers[i].m_val_str.str != NULL)
-    {
-      delete [] m_modifiers[i].m_val_str.str;
-      m_modifiers[i].m_val_str.str = NULL;
-    }
-  }
-  delete [] m_modifiers;
-}
-
-int
-NDB_Modifiers::parse_modifier(THD *thd,
-                              const char * prefix,
-                              struct NDB_Modifier* m,
-                              const char * str)
-{
-  if (m->m_found)
-  {
-    push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_ILLEGAL_HA_CREATE_OPTION,
-                        "%s : modifier %s specified twice",
-                        prefix, m->m_name);
-    my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0), ndbcluster_hton_name,
-             "Syntax error in COMMENT modifier");
-    return -1;
-  }
-
-  switch(m->m_type){
-  case NDB_Modifier::M_BOOL:
-    if (end_of_token(str))
-    {
-      m->m_val_bool = true;
-      goto found;
-    }
-    if (str[0] != '=')
-      break;
-
-    str++;
-    if (str[0] == '1' && end_of_token(str+1))
-    {
-      m->m_val_bool = true;
-      goto found;
-    }
-
-    if (str[0] == '0' && end_of_token(str+1))
-    {
-      m->m_val_bool = false;
-      goto found;
-    }
-  break;
-  case NDB_Modifier::M_STRING:{
-    if (end_of_token(str))
-    {
-      m->m_val_str.str = "";
-      m->m_val_str.len = 0;
-      goto found;
-    }
-
-    if (str[0] != '=')
-      break;
-
-    str++;
-    const char *start_str = str;
-    while (!end_of_token(str))
-      str++;
-
-    Uint32 len = str - start_str;
-    char * tmp = new char[len+1];
-    if (tmp == 0)
-    {
-      mem_alloc_error(len+1);
-      return -1;
-    }
-    memcpy(tmp, start_str, len);
-    tmp[len] = 0; // Null terminate for safe printing
-    m->m_val_str.len = len;
-    m->m_val_str.str = tmp;
-    goto found;
-  }
-  }
-
-
-  {
-    const char * end = strpbrk(str, " ,");
-    if (end)
-    {
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_ILLEGAL_HA_CREATE_OPTION,
-                          "%s : invalid value '%.*s' for %s",
-                          prefix, (int)(end - str), str, m->m_name);
-    }
-    else
-    {
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_ILLEGAL_HA_CREATE_OPTION,
-                          "%s : invalid value '%s' for %s",
-                          prefix, str, m->m_name);
-    }
-    my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0), ndbcluster_hton_name,
-             "Syntax error in COMMENT modifier");
-  }
-  return -1;
-found:
-  m->m_found = true;
-  return 0;
-}
-
-int
-NDB_Modifiers::parse(THD *thd,
-                     const char * prefix,
-                     const char * _source,
-                     size_t _source_len,
-                     Uint32 *end_parse_pos)
-{
-  if (_source == 0 || _source_len == 0)
-  {
-    if (end_parse_pos != NULL)
-    {
-      *end_parse_pos = 0;
-    }
-    return 0;
-  }
-
-  const char * source = 0;
-
-  /**
-   * Check if _source is NULL-terminated
-   */
-  for (size_t i = 0; i<_source_len; i++)
-  {
-    if (_source[i] == 0)
-    {
-      source = _source;
-      break;
-    }
-  }
-
-  if (source == 0)
-  {
-    /**
-     * Make NULL terminated string so that strXXX-functions are safe
-     */
-    char * tmp = new char[_source_len+1];
-    if (tmp == 0)
-    {
-      mem_alloc_error(_source_len+1);
-      if (end_parse_pos != NULL)
-      {
-        *end_parse_pos = 0;
-      }
-      return -1;
-    }
-    memcpy(tmp, _source, _source_len);
-    tmp[_source_len] = 0;
-    source = tmp;
-  }
-
-  const char * pos = source;
-  if ((pos = strstr(pos, prefix)) == 0)
-  {
-    if (source != _source)
-      delete [] source;
-    if (end_parse_pos != NULL)
-    {
-      *end_parse_pos = 0;
-    }
-    return 0;
-  }
-
-  pos += strlen(prefix);
-
-  while (pos && pos[0] != 0 && pos[0] != ' ')
-  {
-    const char * end = strpbrk(pos, " ,"); // end of current modifier
-
-    for (uint i = 0; i < m_len; i++)
-    {
-      size_t l = m_modifiers[i].m_name_len;
-      if (native_strncasecmp(pos, m_modifiers[i].m_name, l) == 0)
-      {
-        /**
-         * Found modifier...
-         */
-
-        if (! (end_of_token(pos + l) || pos[l] == '='))
-          goto unknown;
-
-        pos += l;
-        int res = parse_modifier(thd, prefix, m_modifiers+i, pos);
-
-        if (res == -1)
-        {
-          return -1;
-        }
-
-        goto next;
-      }
-    }
-
-    {
-  unknown:
-      if (end)
-      {
-        push_warning_printf(thd, Sql_condition::SL_WARNING,
-                            ER_ILLEGAL_HA_CREATE_OPTION,
-                            "%s : unknown modifier: %.*s",
-                            prefix, (int)(end - pos), pos);
-      }
-      else
-      {
-        push_warning_printf(thd, Sql_condition::SL_WARNING,
-                            ER_ILLEGAL_HA_CREATE_OPTION,
-                            "%s : unknown modifier: %s",
-                            prefix, pos);
-      }
-      my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0), ndbcluster_hton_name,
-               "Syntax error in COMMENT modifier");
-      return -1;
-    }
-
-next:
-    pos = end;
-    if (pos && pos[0] == ',')
-      pos++;
-  }
-
-  if (end_parse_pos != NULL)
-  {
-    if (pos)
-    {
-      *end_parse_pos = pos - source;
-    }
-    else
-    {
-      *end_parse_pos = _source_len;
-    }
-  }
-
-  if (source != _source)
-    delete [] source;
-
-  return 0;
-}
-
-const NDB_Modifier *
-NDB_Modifiers::get(const char * name) const
-{
-  for (uint i = 0; i < m_len; i++)
-  {
-    if (native_strncasecmp(name, m_modifiers[i].m_name, m_modifiers[i].m_name_len) == 0)
-    {
-      return m_modifiers + i;
-    }
-  }
-  return 0;
-}
-
-const NDB_Modifier *
-NDB_Modifiers::notfound() const
-{
-  const NDB_Modifier * last = m_modifiers + m_len;
-  assert(last->m_found == false);
-  return last; // last has m_found == false
-}
 
 /**
   Define NDB column based on Field.
@@ -9793,11 +9457,18 @@ create_ndb_column(THD *thd,
   // Set type and sizes
   const enum enum_field_types mysql_type= field->real_type();
 
-  NDB_Modifiers column_modifiers(ndb_column_modifiers);
-  if (column_modifiers.parse(thd, "NDB_COLUMN=",
-                             field->comment.str,
-                             field->comment.length) == -1)
+  NDB_Modifiers column_modifiers(ndb_column_modifier_prefix,
+                                 ndb_column_modifiers);
+  if (column_modifiers.loadComment(field->comment.str,
+                                   field->comment.length) == -1)
   {
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_ILLEGAL_HA_CREATE_OPTION,
+                        "%s",
+                        column_modifiers.getErrMsg());
+    my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0), ndbcluster_hton_name,
+             "Syntax error in COMMENT modifier");
+
     DBUG_RETURN(HA_WRONG_CREATE_OPTION);
   }
 
@@ -10287,9 +9958,8 @@ ha_ndbcluster::update_comment_info(HA_CREATE_INFO *create_info,
 {
   DBUG_ENTER("ha_ndbcluster::update_comment_info");
   THD *thd= current_thd;
-  NDB_Modifiers table_modifiers(ndb_table_modifiers);
-  const char *ndb_table_str= "NDB_TABLE=";
-  Uint32 end_parse_comment_pos = 0;
+  NDB_Modifiers table_modifiers(ndb_table_modifier_prefix,
+                                ndb_table_modifiers);
   char *comment_str = create_info == NULL ?
                       table->s->comment.str :
                       create_info->comment.str;
@@ -10297,12 +9967,15 @@ ha_ndbcluster::update_comment_info(HA_CREATE_INFO *create_info,
                       table->s->comment.length :
                       create_info->comment.length;
 
-  if (table_modifiers.parse(thd,
-                            ndb_table_str,
-                            comment_str,
-                            comment_len,
-                            &end_parse_comment_pos) == -1)
+  if (table_modifiers.loadComment(comment_str,
+                                  comment_len) == -1)
   {
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_ILLEGAL_HA_CREATE_OPTION,
+                        "%s",
+                        table_modifiers.getErrMsg());
+    my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0), ndbcluster_hton_name,
+             "Syntax error in COMMENT modifier");
     DBUG_VOID_RETURN;
   }
   const NDB_Modifier *mod_nologging = table_modifiers.get("NOLOGGING");
@@ -10310,11 +9983,10 @@ ha_ndbcluster::update_comment_info(HA_CREATE_INFO *create_info,
   const NDB_Modifier *mod_fully_replicated =
     table_modifiers.get("FULLY_REPLICATED");
   const NDB_Modifier *mod_frags = table_modifiers.get("PARTITION_BALANCE");
-  DBUG_PRINT("info", ("Before: comment_len: %u, comment: %s end_parse_pos: %u",
+  DBUG_PRINT("info", ("Before: comment_len: %u, comment: %s",
                       (unsigned int)comment_len,
-                      comment_str,
-                      end_parse_comment_pos));
-
+                      comment_str));
+  
   bool old_nologging = !ndbtab->getLogging();
   bool old_read_backup = ndbtab->getReadBackupFlag();
   bool old_fully_replicated = ndbtab->getFullyReplicated();
@@ -10325,33 +9997,11 @@ ha_ndbcluster::update_comment_info(HA_CREATE_INFO *create_info,
    * We start by calculating how much more space we need in the comment
    * string.
    */
-  Uint32 extra_len = 0;
-  bool add_ndb_table = false;
   bool add_nologging = false;
   bool add_read_backup = false;
   bool add_fully_replicated = false;
   bool add_part_bal = false;
-  bool add_space_at_end = false;
-  const char *nologging_str = "NOLOGGING=1";
-  const char *read_backup_str = "READ_BACKUP=1";
-  const char *fully_replicated_str = "FULLY_REPLICATED=1";
-  const char *part_bal_str = "PARTITION_BALANCE=";
-  if (end_parse_comment_pos == 0)
-  {
-    /**
-     * There were no comment parts in string, so we also need to add
-     * the NDB_TABLE= string. We decrement by one since we also add
-     * one for the extra comma and the first comment part doesn't need
-     * any comma in this case.
-     */
-    extra_len += (strlen(ndb_table_str) - 1);
-    if (comment_len > 0)
-    {
-      extra_len++; //Add a space after added stuff if there is a comment
-      add_space_at_end = true;
-    }
-    add_ndb_table = true;
-  }
+
   bool is_fully_replicated = false;
   if ((mod_fully_replicated->m_found &&
        mod_fully_replicated->m_val_bool) ||
@@ -10363,37 +10013,32 @@ ha_ndbcluster::update_comment_info(HA_CREATE_INFO *create_info,
   if (old_nologging && !mod_nologging->m_found)
   {
     add_nologging = true;
-    extra_len += (strlen(nologging_str) + 1);
-    DBUG_PRINT("info", ("added nologging: extra_len: %u", extra_len));
+    table_modifiers.set("NOLOGGING", true);
+    DBUG_PRINT("info", ("added nologging"));
   }
   if (!is_fully_replicated &&
       old_read_backup &&
       !mod_read_backup->m_found)
   {
     add_read_backup = true;
-    extra_len += (strlen(read_backup_str) + 1);
-    DBUG_PRINT("info", ("added read_backup: extra_len: %u", extra_len));
+    table_modifiers.set("READ_BACKUP", true);
+    DBUG_PRINT("info", ("added read_backup"));
   }
   if (old_fully_replicated && !mod_fully_replicated->m_found)
   {
     add_fully_replicated = true;
-    extra_len += (strlen(fully_replicated_str) + 1);
-    DBUG_PRINT("info", ("added fully_replicated: extra_len: %u", extra_len));
+    table_modifiers.set("FULLY_REPLICATED", true);
+    DBUG_PRINT("info", ("added fully_replicated"));
   }
   if (!mod_frags->m_found &&
       (old_part_bal != g_default_partition_balance) &&
       (old_part_bal != NdbDictionary::Object::PartitionBalance_Specific))
   {
     add_part_bal = true;
-    extra_len += (strlen(part_bal_str) + 1);
-    DBUG_PRINT("info", ("added part_bal_str: extra_len: %u", extra_len));
     const char *old_part_bal_str =
       NdbDictionary::Table::getPartitionBalanceString(old_part_bal);
-    assert(old_part_bal_str != NULL);
-    extra_len += strlen(old_part_bal_str);
-    DBUG_PRINT("info", ("added old_part_bal_str: extra_len: %u, %s",
-                       extra_len,
-                       old_part_bal_str));
+    table_modifiers.set("PARTITION_BALANCE", old_part_bal_str);
+    DBUG_PRINT("info", ("added part_bal_str"));
   }
   if (!(add_nologging ||
         add_read_backup ||
@@ -10403,138 +10048,40 @@ ha_ndbcluster::update_comment_info(HA_CREATE_INFO *create_info,
     /* No change of comment is needed. */
     DBUG_VOID_RETURN;
   }
+
   /**
-   * We have now calculated the extra length needed, so this value
-   * summed with the old comment string length plus one for the
-   * null byte will give us the new size of the comment string.
-   * We derived the position to start the introduction of added
-   * parameters from the parse call above.
-   *
-   * So the new string will be
-   * 1) The old comment string up to the position where we add stuff
-   * 2) The added stuff
-   * 3) The comment string remaining after the point where we added stuff
+   * All necessary modifiers are set, now regenerate the comment
    */
-  char *new_str;
-  Uint32 new_len = comment_len + extra_len + 1;
+  const char *updated_str = table_modifiers.generateCommentString();
+  if (updated_str == NULL)
+  {
+    mem_alloc_error(0);
+    DBUG_VOID_RETURN;
+  }
+  Uint32 new_len = strlen(updated_str);
+  char* new_str;
   new_str = (char*)alloc_root(&table->s->mem_root, (size_t)new_len);
   if (new_str == NULL)
   {
-    mem_alloc_error(new_len);
+    mem_alloc_error(0);
     DBUG_VOID_RETURN;
   }
-  memset(new_str, 0, new_len);
-  DBUG_PRINT("info", ("new_len: %u", new_len));
-  memcpy(new_str, comment_str, end_parse_comment_pos);
+  memcpy(new_str, updated_str, new_len);
   DBUG_PRINT("info", ("new_str: %s", new_str));
-  memcpy(new_str + end_parse_comment_pos + extra_len,
-         comment_str + end_parse_comment_pos,
-         comment_len - end_parse_comment_pos);
-  char *add_str = &new_str[end_parse_comment_pos];
-  if (add_ndb_table)
-  {
-    Uint32 ndb_table_str_len = strlen(ndb_table_str);
-    memcpy(add_str, ndb_table_str, ndb_table_str_len);
-    add_str += ndb_table_str_len;
-    DBUG_PRINT("info", ("added NDB_TABLE=, new_str: %s", new_str));
-  }
-  if (add_nologging)
-  {
-    Uint32 nologging_str_len = strlen(nologging_str);
-    if (!add_ndb_table)
-    {
-      add_str[0] = ',';
-      add_str++;
-    }
-    else
-    {
-      add_ndb_table = false;
-    }
-    memcpy(add_str, nologging_str, nologging_str_len);
-    add_str += nologging_str_len;
-  }
-  if (add_read_backup)
-  {
-    if (!add_ndb_table)
-    {
-      add_str[0] = ',';
-      add_str++;
-    }
-    else
-    {
-      add_ndb_table = false;
-    }
-    Uint32 read_backup_str_len = strlen(read_backup_str);
-    memcpy(add_str, read_backup_str, read_backup_str_len);
-    add_str += read_backup_str_len;
-  }
-  if (add_fully_replicated)
-  {
-    DBUG_PRINT("info", ("add_fully_replicated"));
-    if (!add_ndb_table)
-    {
-      add_str[0] = ',';
-      add_str++;
-      DBUG_PRINT("info", ("new_str: %s", new_str));
-    }
-    else
-    {
-      add_ndb_table = false;
-      DBUG_PRINT("info", ("add_fully_replicated true"));
-    }
-    Uint32 fully_replicated_str_len = strlen(fully_replicated_str);
-    memcpy(add_str, fully_replicated_str, fully_replicated_str_len);
-    add_str += fully_replicated_str_len;
-  }
-  if (add_part_bal)
-  {
-    DBUG_PRINT("info", ("add_part_bal"));
-    if (!add_ndb_table)
-    {
-      add_str[0] = ',';
-      add_str++;
-      DBUG_PRINT("info", ("new_str: %s", new_str));
-    }
-    else
-    {
-      add_ndb_table = false;
-      DBUG_PRINT("info", ("add_part_bal true"));
-    }
-    Uint32 part_bal_str_len = strlen(part_bal_str);
-    memcpy(add_str, part_bal_str, part_bal_str_len);
-    DBUG_PRINT("info", ("new_str: %s", new_str));
-    add_str += part_bal_str_len;
 
-    const char *old_part_bal_str =
-      NdbDictionary::Table::getPartitionBalanceString(old_part_bal);
-    Uint32 old_part_bal_str_len = strlen(old_part_bal_str);
-    memcpy(add_str, old_part_bal_str, old_part_bal_str_len);
-    DBUG_PRINT("info", ("new_str: %s", new_str));
-    add_str += old_part_bal_str_len;
-  }
-  if (add_space_at_end)
-  {
-    DBUG_PRINT("info", ("added space at end"));
-    add_str[0] = ' ';
-    add_str++;
-  }
-  assert(!add_ndb_table);
-  assert(Uint32(add_str - new_str) == (extra_len + end_parse_comment_pos));
-  unsigned new_length;
+  /* Update structures */
   if (create_info != NULL)
   {
     create_info->comment.str = new_str;
-    create_info->comment.length += extra_len;
-    new_length = create_info->comment.length;
+    create_info->comment.length = new_len;
   }
   else
   {
     table->s->comment.str = new_str;
-    table->s->comment.length += extra_len;
-    new_length = table->s->comment.length;
+    table->s->comment.length = new_len;
   }
   DBUG_PRINT("info", ("After: comment_len: %u, comment: %s",
-                      new_length,
+                      new_len,
                       new_str));
   DBUG_VOID_RETURN;
 }
@@ -10743,10 +10290,17 @@ void ha_ndbcluster::append_create_info(String *packet)
   if (table_share->comment.length)
   {
     /* Parse the current comment string */
-    NDB_Modifiers table_modifiers(ndb_table_modifiers);
-    if (table_modifiers.parse(thd, "NDB_TABLE=", table_share->comment.str,
-                          table_share->comment.length) == -1)
+    NDB_Modifiers table_modifiers(ndb_table_modifier_prefix,
+                                  ndb_table_modifiers);
+    if (table_modifiers.loadComment(table_share->comment.str,
+                                    table_share->comment.length) == -1)
     {
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_ILLEGAL_HA_CREATE_OPTION,
+                          "%s",
+                          table_modifiers.getErrMsg());
+      my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0), ndbcluster_hton_name,
+               "Syntax error in COMMENT modifier");
       return;
     }
     const NDB_Modifier *mod_nologging = table_modifiers.get("NOLOGGING");
@@ -11156,10 +10710,17 @@ int ha_ndbcluster::create(const char *name,
 
   DBUG_PRINT("info", ("Start parse of table modifiers, comment = %s",
                       create_info->comment.str));
-  NDB_Modifiers table_modifiers(ndb_table_modifiers);
-  if (table_modifiers.parse(thd, "NDB_TABLE=", create_info->comment.str,
-                        create_info->comment.length) == -1)
+  NDB_Modifiers table_modifiers(ndb_table_modifier_prefix,
+                                ndb_table_modifiers);
+  if (table_modifiers.loadComment(create_info->comment.str,
+                                  create_info->comment.length) == -1)
   {
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_ILLEGAL_HA_CREATE_OPTION,
+                        "%s",
+                        table_modifiers.getErrMsg());
+    my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0), ndbcluster_hton_name,
+             "Syntax error in COMMENT modifier");
     DBUG_RETURN(HA_WRONG_CREATE_OPTION);
   }
   const NDB_Modifier * mod_nologging = table_modifiers.get("NOLOGGING");
@@ -18938,10 +18499,17 @@ ha_ndbcluster::parse_comment_changes(NdbDictionary::Table *new_tab,
                                      bool & max_rows_changed) const
 {
   DBUG_ENTER("ha_ndbcluster::parse_comment_changes");
-  NDB_Modifiers table_modifiers(ndb_table_modifiers);
-  if (table_modifiers.parse(thd, "NDB_TABLE=", create_info->comment.str,
-                        create_info->comment.length) == -1)
+  NDB_Modifiers table_modifiers(ndb_table_modifier_prefix,
+                                ndb_table_modifiers);
+  if (table_modifiers.loadComment(create_info->comment.str,
+                                  create_info->comment.length) == -1)
   {
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_ILLEGAL_HA_CREATE_OPTION,
+                        "%s",
+                        table_modifiers.getErrMsg());
+    my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0), ndbcluster_hton_name,
+             "Syntax error in COMMENT modifier");
     DBUG_RETURN(true);
   }
   const NDB_Modifier* mod_nologging = table_modifiers.get("NOLOGGING");
