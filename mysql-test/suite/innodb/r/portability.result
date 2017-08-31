@@ -43,7 +43,6 @@ tab3	CREATE TABLE `tab3` (
 ## Copy absolute path *.ibd files into new location
 ## Remove the old absolute path *.ibd files
 ## Start with new --datadir and --innodb-directories options
-# restart: --datadir=data_directory2/new_datadir/data --innodb-directories=data_directory2/new_datadir/data;data_directory2/data_directory2/test
 ## Check while passing new datadir and new absolute path
 SELECT @@datadir;
 @@datadir
