@@ -442,9 +442,8 @@ Expecting tablespace is full error
 ALTER TABLE test.t1 TABLESPACE ts2 STORAGE DISK ENGINE NDB;
 Got one of the listed errors
 ALTER TABLESPACE ts2
-DROP DATAFILE './table_space/datafile2.dat'
- ENGINE NDB;
-DROP TABLESPACE ts2 ENGINE NDB;
+DROP DATAFILE './table_space/datafile2.dat';
+DROP TABLESPACE ts2;
 ALTER TABLE test.t1 ALGORITHM=INPLACE, ADD INDEX a2_i (a2), ADD INDEX a3_i (a3);
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Only one index can be added online. Try ALGORITHM=COPY.
 ALTER TABLE test.t1 ALGORITHM=COPY, ADD INDEX a2_i (a2), ADD INDEX a3_i (a3);
@@ -595,7 +594,6 @@ alter table t1 algorithm=inplace, add index b (b);
 alter table t1 algorithm=inplace, drop index b;
 drop table t1;
 ALTER TABLESPACE ts
-DROP DATAFILE './table_space/datafile.dat'
- ENGINE NDB;
-DROP TABLESPACE ts ENGINE NDB;
+DROP DATAFILE './table_space/datafile.dat';
+DROP TABLESPACE ts;
 DROP LOGFILE GROUP lg ENGINE=NDB;

@@ -82,9 +82,7 @@ t1	CREATE TABLE `t1` (
 ) /*!50100 TABLESPACE `ts` */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
 drop table t1;
 ALTER TABLESPACE ts
-DROP DATAFILE 'datafile.dat'
-ENGINE NDB;
-drop tablespace ts
-engine ndb;
+DROP DATAFILE 'datafile.dat';
+drop tablespace ts;
 drop logfile group lg
 engine ndb;

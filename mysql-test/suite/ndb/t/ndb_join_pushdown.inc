@@ -2813,11 +2813,9 @@ drop table t1;
 drop table t2;
 
 alter tablespace ts1
-drop datafile 'datafile.dat'
-engine ndb;
+drop datafile 'datafile.dat';
 
-drop tablespace ts1
-engine ndb;
+drop tablespace ts1;
 
 drop logfile group lg1
 engine ndb;

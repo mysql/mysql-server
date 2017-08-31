@@ -39,25 +39,21 @@ USE LOGFILE GROUP lg1
 INITIAL_SIZE 12M
 ENGINE NDB;
 ALTER TABLESPACE ts1
-DROP DATAFILE 'datafile.dat'
-ENGINE NDB;
+DROP DATAFILE 'datafile.dat';
 ERROR HY000: Failed to alter:  DROP DATAFILE
 show warnings;
 Level	Code	Message
 Warning	1296	Got error 299 'Operation not allowed or aborted due to single user mode' from NDB
 Error	1533	Failed to alter:  DROP DATAFILE
 ALTER TABLESPACE ts1
-DROP DATAFILE 'datafile.dat'
-ENGINE NDB;
-DROP TABLESPACE ts1
-ENGINE NDB;
+DROP DATAFILE 'datafile.dat';
+DROP TABLESPACE ts1;
 ERROR HY000: Failed to drop TABLESPACE
 show warnings;
 Level	Code	Message
 Warning	1296	Got error 299 'Operation not allowed or aborted due to single user mode' from NDB
 Error	1529	Failed to drop TABLESPACE
-DROP TABLESPACE ts1
-ENGINE NDB;
+DROP TABLESPACE ts1;
 DROP LOGFILE GROUP lg1 
 ENGINE =NDB;
 insert into t1 values (1,1,0),(2,2,0),(3,3,0),(4,4,0),(5,5,0),(6,6,0),(7,7,0),(8,8,0),(9,9,0),(10,10,0);

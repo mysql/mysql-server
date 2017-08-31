@@ -544,10 +544,8 @@ ENGINE = ndb;
 ALTER TABLE t1 TABLESPACE ts1, MODIFY c CHAR(20) STORAGE DISK;
 DROP TABLE t1;
 ALTER TABLESPACE ts1
-DROP DATAFILE 'datafile.dat'
-ENGINE = ndb;
-DROP TABLESPACE ts1
-ENGINE ndb;
+DROP DATAFILE 'datafile.dat';
+DROP TABLESPACE ts1;
 DROP LOGFILE GROUP lg1
 ENGINE = ndb;
 #test alter table add column with partion by and comment clause

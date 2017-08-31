@@ -10,28 +10,15 @@ INITIAL_SIZE 1M
 ENGINE NDB;
 ALTER TABLESPACE ts1
 ADD DATAFILE 'ts1_datafile2.dat'
-  INITIAL_SIZE = 4M
-ENGINE=NDB;
-Warnings:
-Warning	1681	'ENGINE tablespace option' is deprecated and will be removed in a future release.
+  INITIAL_SIZE = 4M;
 ALTER TABLESPACE ts1
-DROP DATAFILE 'ts1_datafile.dat'
-  ENGINE=NDB;
-Warnings:
-Warning	1681	'ENGINE tablespace option' is deprecated and will be removed in a future release.
+DROP DATAFILE 'ts1_datafile.dat';
 ALTER TABLESPACE ts1
-DROP DATAFILE 'ts1_datafile2.dat'
-  ENGINE=NDB;
-Warnings:
-Warning	1681	'ENGINE tablespace option' is deprecated and will be removed in a future release.
+DROP DATAFILE 'ts1_datafile2.dat';
 ALTER TABLESPACE ts1
-DROP DATAFILE 'ts1_datafile2.dat'
-  ENGINE=NDB;
+DROP DATAFILE 'ts1_datafile2.dat';
 ERROR HY000: Tablespace 'ts1' does not have a file named 'ts1_datafile2.dat'
-DROP TABLESPACE ts1
-ENGINE=NDB;
-Warnings:
-Warning	1681	'ENGINE tablespace option' is deprecated and will be removed in a future release.
+DROP TABLESPACE ts1;
 CREATE TABLESPACE ts1 ADD DATAFILE 'MYSQLTEST_VARDIR/tmp/t1.dat' USE LOGFILE GROUP lg1 INITIAL_SIZE 1M ENGINE NDB;
 ERROR HY000: Failed to create DATAFILE
 CREATE TABLESPACE ts1
@@ -40,13 +27,7 @@ ADD DATAFILE 'ts1_datafile.dat'
 INITIAL_SIZE 1M
 ENGINE NDB;
 ALTER TABLESPACE ts1
-DROP DATAFILE 'ts1_datafile.dat'
-  ENGINE=NDB;
-Warnings:
-Warning	1681	'ENGINE tablespace option' is deprecated and will be removed in a future release.
-DROP TABLESPACE ts1
-ENGINE=NDB;
-Warnings:
-Warning	1681	'ENGINE tablespace option' is deprecated and will be removed in a future release.
+DROP DATAFILE 'ts1_datafile.dat';
+DROP TABLESPACE ts1;
 DROP LOGFILE GROUP lg1
 ENGINE=NDB;

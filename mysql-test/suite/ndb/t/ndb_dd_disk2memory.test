@@ -435,11 +435,9 @@ drop table t1;
 #################
 
 ALTER TABLESPACE table_space1
-DROP DATAFILE './table_space1/datafile.dat'
-ENGINE = NDB;
+DROP DATAFILE './table_space1/datafile.dat';
 
-DROP TABLESPACE table_space1
-ENGINE = NDB;
+DROP TABLESPACE table_space1;
 
 DROP LOGFILE GROUP log_group1
 ENGINE =NDB;

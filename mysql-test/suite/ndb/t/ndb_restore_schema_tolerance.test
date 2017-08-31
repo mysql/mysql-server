@@ -165,8 +165,8 @@ alter table t1 change c c int column_format dynamic;
 select * from t1 order by a;
 
 drop table t1;
-alter tablespace ts1 drop datafile 'datafile.dat' engine=ndb;
-drop tablespace ts1 engine=ndb;
+alter tablespace ts1 drop datafile 'datafile.dat';
+drop tablespace ts1;
 drop logfile group lg1 engine=ndb;
 
 --echo Different PK columns, should fail

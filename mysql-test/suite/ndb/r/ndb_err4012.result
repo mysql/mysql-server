@@ -108,7 +108,7 @@ create tablespace ts1 add datafile 'data1.dat' use logfile group lg1 engine=ndb;
 # mysqld gets timeout error 4008 on GET_TABINFOREQ for file
 set @save_debug = @@session.debug;
 SET SESSION debug="+d,ndb_dictsignal_timeout";
-alter tablespace ts1 drop datafile 'data1.dat' engine=ndb;
+alter tablespace ts1 drop datafile 'data1.dat';
 ERROR HY000: Failed to alter:  NO SUCH FILE
 show warnings;
 Level	Code	Message
@@ -125,8 +125,8 @@ Level	Code	Message
 Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
 Error	1533	Failed to alter: CREATE UNDOFILE
 SET SESSION debug=@save_debug;
-alter tablespace ts1 drop datafile 'data1.dat' engine=ndb;
-drop tablespace ts1 engine=ndb;
+alter tablespace ts1 drop datafile 'data1.dat';
+drop tablespace ts1;
 drop logfile group lg1 engine=ndb;
 # mysqld gets timeout error 4008 on CREATE_TABLE_REQ
 set @save_debug = @@session.debug;
@@ -240,30 +240,30 @@ create logfile group lg1 add undofile 'undo1.dat' engine=ndb;
 create tablespace ts1 add datafile 'data1.dat' use logfile group lg1 engine=ndb;
 set @save_debug = @@session.debug;
 SET SESSION debug="+d,ndb_dictsignal_timeout";
-alter tablespace ts1 add datafile 'data2.dat' engine=ndb;
+alter tablespace ts1 add datafile 'data2.dat';
 ERROR HY000: Failed to alter:  CREATE DATAFILE
 show warnings;
 Level	Code	Message
 Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
 Error	1533	Failed to alter:  CREATE DATAFILE
 SET SESSION debug=@save_debug;
-alter tablespace ts1 drop datafile 'data1.dat' engine=ndb;
-drop tablespace ts1 engine=ndb;
+alter tablespace ts1 drop datafile 'data1.dat';
+drop tablespace ts1;
 drop logfile group lg1 engine=ndb;
 # mysqld gets timeout error 4008 on DROP_FILE_REQ
 create logfile group lg1 add undofile 'undo1.dat' engine=ndb;
 create tablespace ts1 add datafile 'data1.dat' use logfile group lg1 engine=ndb;
 set @save_debug = @@session.debug;
 SET SESSION debug="+d,ndb_dictsignal_timeout";
-alter tablespace ts1 drop datafile 'data1.dat' engine=ndb;
+alter tablespace ts1 drop datafile 'data1.dat';
 ERROR HY000: Failed to alter:  DROP DATAFILE
 show warnings;
 Level	Code	Message
 Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
 Error	1533	Failed to alter:  DROP DATAFILE
 SET SESSION debug=@save_debug;
-alter tablespace ts1 drop datafile 'data1.dat' engine=ndb;
-drop tablespace ts1 engine=ndb;
+alter tablespace ts1 drop datafile 'data1.dat';
+drop tablespace ts1;
 drop logfile group lg1 engine=ndb;
 # mysqld gets timeout error 4008 on CREATE_HASH_MAP_REQ
 set @save_debug = @@session.debug;

@@ -737,8 +737,8 @@ insert into t1 values
 (15,15,repeat('B', 500));
 alter table t1 add unique(un);
 drop table t1;
-alter tablespace ts1 drop datafile 'datafile.dat' engine=ndb;
-drop tablespace ts1 engine=ndb;
+alter tablespace ts1 drop datafile 'datafile.dat';
+drop tablespace ts1;
 drop logfile group lg1 engine=ndb;
 # bug#57032
 create table t1 (

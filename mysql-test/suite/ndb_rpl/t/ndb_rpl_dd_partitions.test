@@ -43,8 +43,7 @@ ENGINE NDB;
 
 ALTER TABLESPACE ts1
 ADD DATAFILE 'datafile02.dat'
-INITIAL_SIZE = 4M
-ENGINE=NDB;
+INITIAL_SIZE = 4M;
 
 #################################################################
 
@@ -298,12 +297,10 @@ SHOW CREATE TABLE t1;
 
 DROP TABLE IF EXISTS t1;
 alter tablespace ts1
-drop datafile 'datafile.dat'
-engine=ndb;
+drop datafile 'datafile.dat';
 alter tablespace ts1
-drop datafile 'datafile02.dat'
-engine=ndb;
-DROP TABLESPACE ts1 ENGINE=NDB;
+drop datafile 'datafile02.dat';
+DROP TABLESPACE ts1;
 DROP LOGFILE GROUP lg1 ENGINE=NDB;
 --sync_slave_with_master
 
