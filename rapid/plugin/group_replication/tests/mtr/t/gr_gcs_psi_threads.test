@@ -27,6 +27,7 @@
 --echo #    table immediately after plugin installation
 --echo #    (before starting the GR).
 --connection server1
+--sorted_result
 SELECT * FROM performance_schema.threads WHERE NAME LIKE '%THD_Gcs_%';
 --let $assert_text= 'There should be no GCS instrumented threads entries in the threads table before starting the GR'
 --let $assert_cond= COUNT(*) = 0 FROM performance_schema.threads WHERE NAME LIKE "%THD_Gcs_%"
@@ -42,6 +43,7 @@ SELECT * FROM performance_schema.threads WHERE NAME LIKE '%THD_Gcs_%';
 --echo # 3. Verify that the entries corresponding to the
 --echo #    instrumented GCS threads are in the threads table
 --echo #    after starting the GR.
+--sorted_result
 SELECT NAME,TYPE FROM performance_schema.threads WHERE NAME LIKE '%THD_Gcs_%';
 --let $assert_text= 'There should be 4 GCS instrumented thread entries in the threads table after starting the GR'
 --let $assert_cond= COUNT(*) = 4 FROM performance_schema.threads WHERE NAME LIKE "%THD_Gcs_%"
@@ -57,6 +59,7 @@ SELECT NAME,TYPE FROM performance_schema.threads WHERE NAME LIKE '%THD_Gcs_%';
 --echo # 5. Verify that no entries corresponding to the
 --echo #    instrumented GCS threads remain in the threads table
 --echo #    after stopping the GR.
+--sorted_result
 SELECT * FROM performance_schema.threads WHERE NAME LIKE '%THD_Gcs_%';
 --let $assert_text= 'There should be no extra psi keys added after starting the GR'
 --let $assert_cond= COUNT(*) = 0 FROM performance_schema.threads WHERE NAME LIKE "%THD_Gcs_%"
