@@ -159,13 +159,13 @@ int Streaming_command_delegate::field_metadata(struct st_send_field *field,
 
     case MYSQL_TYPE_JSON:
       xtype = Mysqlx::Resultset::ColumnMetaData::BYTES;
-      ctype = MYSQLX_COLUMN_BYTES_CONTENT_TYPE_JSON;
+      ctype = Mysqlx::Resultset::JSON;
       xcollation = charset ? charset->number : (m_resultcs ? m_resultcs->number : 0);
       break;
 
     case MYSQL_TYPE_GEOMETRY:
       xtype = Mysqlx::Resultset::ColumnMetaData::BYTES;
-      ctype = MYSQLX_COLUMN_BYTES_CONTENT_TYPE_GEOMETRY;
+      ctype = Mysqlx::Resultset::GEOMETRY;
       break;
 
     case MYSQL_TYPE_TIME:
