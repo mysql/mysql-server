@@ -226,14 +226,8 @@ extern void (*debug_sync_C_callback_ptr)(const char *, size_t);
 
 #ifdef HAVE_LINUX_LARGE_PAGES
 extern uint my_get_large_page_size(void);
-extern uchar * my_large_malloc(PSI_memory_key key, size_t size, myf my_flags);
-extern void my_large_free(uchar *ptr);
-extern bool my_use_large_pages;
-extern uint    my_large_page_size;
 #else
 #define my_get_large_page_size() (0)
-#define my_large_malloc(A,B,C) my_malloc((A),(B),(C))
-#define my_large_free(A) my_free((A))
 #endif /* HAVE_LINUX_LARGE_PAGES */
 
 #define my_alloca(SZ) alloca((size_t) (SZ))

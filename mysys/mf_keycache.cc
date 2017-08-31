@@ -325,7 +325,7 @@ int init_key_cache(KEY_CACHE *keycache, ulonglong key_cache_block_size,
         blocks--;
       /* Allocate memory for cache page buffers */
       if ((keycache->block_mem=
-	   static_cast<uchar*>(my_large_malloc(key_memory_KEY_CACHE,
+	   static_cast<uchar*>(my_malloc(key_memory_KEY_CACHE,
                            (size_t) blocks * keycache->key_cache_block_size,
                                                MYF(0)))))
       {
@@ -337,7 +337,7 @@ int init_key_cache(KEY_CACHE *keycache, ulonglong key_cache_block_size,
                                                            length,
                                                            MYF(0))))
           break;
-        my_large_free(keycache->block_mem);
+        my_free(keycache->block_mem);
         keycache->block_mem= 0;
       }
       if (blocks < 8)
@@ -413,7 +413,7 @@ err:
   keycache->blocks=  0;
   if (keycache->block_mem)
   {
-    my_large_free((uchar*) keycache->block_mem);
+    my_free((uchar*) keycache->block_mem);
     keycache->block_mem= NULL;
   }
   if (keycache->block_root)
@@ -639,7 +639,7 @@ void end_key_cache(KEY_CACHE *keycache, bool cleanup)
   {
     if (keycache->block_mem)
     {
-      my_large_free((uchar*) keycache->block_mem);
+      my_free((uchar*) keycache->block_mem);
       keycache->block_mem= NULL;
       my_free(keycache->block_root);
       keycache->block_root= NULL;

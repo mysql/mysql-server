@@ -85,12 +85,6 @@ ulong my_default_record_cache_size=RECORD_CACHE_SIZE;
 USED_MEM* my_once_root_block=0;			/* pointer to first block */
 uint	  my_once_extra=ONCE_ALLOC_INIT;	/* Memory to alloc / block */
 
-	/* from my_largepage.c */
-#ifdef HAVE_LINUX_LARGE_PAGES
-bool my_use_large_pages= 0;
-uint my_large_page_size= 0;
-#endif
-
 	/* from errors.c */
 extern "C" {
 void (*error_handler_hook)(uint error, const char *str, myf MyFlags)=

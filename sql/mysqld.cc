@@ -3481,8 +3481,6 @@ int init_common_variables()
   {
       DBUG_PRINT("info", ("Large page set, large_page_size = %d",
                  opt_large_page_size));
-      my_use_large_pages= 1;
-      my_large_page_size= opt_large_page_size;
   }
   else
   {

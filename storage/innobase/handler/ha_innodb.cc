@@ -4204,7 +4204,7 @@ innodb_init_params()
 	innodb_log_checksums_func_update(innodb_log_checksums);
 
 #ifdef HAVE_LINUX_LARGE_PAGES
-	if ((os_use_large_pages = my_use_large_pages)) {
+	if ((os_use_large_pages = opt_large_pages)) {
 		os_large_page_size = opt_large_page_size;
 	}
 #endif
