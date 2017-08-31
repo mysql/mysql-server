@@ -10907,6 +10907,7 @@ ER_INVALID_USE_OF_FORCE_OPTION
 ER_GROUP_REPLICATION_COMMAND_FAILURE
   eng "The %s command encountered a failure. %s"
 
+<<<<<<< HEAD
 ER_SDI_OPERATION_FAILED
   eng "Failed to %s SDI '%.192s.%.192s' in tablespace '%.192s'."
 
@@ -10952,6 +10953,10 @@ ER_PARSE_ERROR_IN_DIGEST_FN
 
 ER_UNDISCLOSED_PARSE_ERROR_IN_DIGEST_FN
   eng "Could not parse argument to digest function."
+=======
+ER_CANT_START_ERROR_LOG_SERVICE
+  eng "Failed to set %s at or around \"%s\" -- service is valid, but can not be initialized; please check its configuration and make sure it can read its input(s) and write to its output(s)."
+>>>>>>> e7d448f4911... Bug#26286871: LOG_SINK_JSON SERVICE DOESN'T WORK WITH RPM DEFAULT INSTALLATION
 
 #
 #  End of 8.0 error messages.

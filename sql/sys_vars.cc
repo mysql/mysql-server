@@ -2223,6 +2223,7 @@ static Sys_var_charptr Sys_log_error_filter_rules(
 
 static bool check_log_error_services(sys_var *self, THD *thd, set_var *var)
 {
+  // test whether syntax is OK and services exist
   int i;
 
   if (var->save_result.string_value.str == nullptr)
@@ -2251,10 +2252,23 @@ static bool check_log_error_services(sys_var *self, THD *thd, set_var *var)
 
 
 static bool fix_log_error_services(sys_var *self MY_ATTRIBUTE((unused)),
-                                   THD *thd MY_ATTRIBUTE((unused)),
+                                   THD *thd,
                                    enum_var_type type MY_ATTRIBUTE((unused)))
 {
-  return (log_builtins_error_stack(opt_log_error_services, false) < 0);
+  // syntax is OK and services exist; try to initialize them!
+  int rr= log_builtins_error_stack(opt_log_error_services, false);
+  if (rr < 0)
+  {
+    rr= -(rr + 1);
+    if (((size_t) rr) < strlen(opt_log_error_services))
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_CANT_START_ERROR_LOG_SERVICE,
+                          ER_THD(thd, ER_CANT_START_ERROR_LOG_SERVICE),
+                          self->name.str,
+                          &((char *) opt_log_error_services)[rr]);
+    return true;
+  }
+  return false;
 }
 
 static Sys_var_charptr Sys_log_error_services(

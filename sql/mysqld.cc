@@ -5947,10 +5947,62 @@ int mysqld_main(int argc, char **argv)
   }
 
   /*
-    activate loadable error logging components, if any
+    Activate loadable error logging components, if any.
   */
   if (log_builtins_error_stack(opt_log_error_services, true) >= 0)
-    log_builtins_error_stack(opt_log_error_services, false);
+  {
+    // Syntax is OK and services exist; let's try to initialize them:
+    int rr= log_builtins_error_stack(opt_log_error_services, false);
+
+    // Well, that didn't work. Print diagnostics and bail.
+    if (rr < 0)
+    {
+      char       *problem=  opt_log_error_services;
+      const char *var_name= "log_error_services";
+
+      rr= -(rr + 1);
+
+      if (((size_t) rr) < strlen(opt_log_error_services))
+        problem= &((char *) opt_log_error_services)[rr];
+
+      /*
+        Try to fall back to default error logging stack.
+        If that's possible, print diagnostics there, then exit.
+      */
+      sys_var *var= intern_find_sys_var(var_name, strlen(var_name));
+
+      if (var != nullptr)
+      {
+        opt_log_error_services= (char *) var->get_default();
+        if (log_builtins_error_stack(opt_log_error_services, false) >= 0)
+        {
+          LogErr(ERROR_LEVEL, ER_CANT_START_ERROR_LOG_SERVICE,
+                 var_name, problem);
+          unireg_abort(MYSQLD_ABORT_EXIT);
+        }
+      }
+
+      /*
+        We failed to set the default error logging stack. At this point,
+        we don't know whether ANY of the requested sinks work,
+        so our best bet is to write directly to the error stream.
+        Then, we abort.
+      */
+      {
+        char        buff[512];
+        size_t      len;
+
+        len= my_snprintf(buff, sizeof(buff) - 1,
+                         ER_DEFAULT(ER_CANT_START_ERROR_LOG_SERVICE),
+                         var_name, problem);
+        buff[sizeof(buff) - 1]= '\0';
+
+        log_write_errstream(buff, len);
+
+        unireg_abort(MYSQLD_ABORT_EXIT);
+      }
+    }
+  }
   else
   {
     sql_print_information("Cannot set services \"%s\" requested in "
