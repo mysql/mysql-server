@@ -337,6 +337,8 @@ bool modify_role_edges_in_table(THD *thd, TABLE *table,
                                 bool with_admin_option,
                                 bool delete_option);
 Auth_id_ref create_authid_from(const Role_id &user);
+Auth_id_ref create_authid_from(const LEX_CSTRING &user,
+                               const LEX_CSTRING &host);
 bool roles_rename_authid(THD *thd, TABLE *edge_table, TABLE *defaults_table,
                          LEX_USER *user_from, LEX_USER *user_to);
 bool set_and_validate_user_attributes(THD *thd,

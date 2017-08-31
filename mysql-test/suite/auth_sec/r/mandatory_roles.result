@@ -243,4 +243,39 @@ GRANT ''@'localhost' TO u1@localhost;
 ERROR HY000: Failed to grant ``@`localhost`` to `u1`@`localhost`
 SET GLOBAL mandatory_roles='';
 DROP USER u1@localhost, ''@'localhost';
+# SET ROLE DEFAULT ALL should include mandatory roles
+CREATE ROLE r1, r2, r3;
+GRANT SELECT ON *.* TO r1;
+CREATE USER paul@localhost IDENTIFIED BY 'foo';
+GRANT r3 TO paul@localhost;
+GRANT INSERT ON test.* TO r3;
+SET GLOBAL mandatory_roles='r1,r2,r3';
+SET DEFAULT ROLE ALL TO paul@localhost;
+# Should show roles r1,r2,r3
+SELECT CURRENT_ROLE();
+CURRENT_ROLE()
+`r1`@`%`,`r2`@`%`,`r3`@`%`
+SET ROLE ALL;
+# Should still show all mandatory roles
+SELECT CURRENT_ROLE();
+CURRENT_ROLE()
+`r1`@`%`,`r2`@`%`,`r3`@`%`
+ALTER USER paul@localhost DEFAULT ROLE ALL;
+SET ROLE DEFAULT;
+# Should show mandatory roles
+SELECT CURRENT_ROLE();
+CURRENT_ROLE()
+`r1`@`%`,`r2`@`%`,`r3`@`%`
+SET ROLE ALL;
+# Should show roles r1,r2,r3
+SELECT CURRENT_ROLE();
+CURRENT_ROLE()
+`r1`@`%`,`r2`@`%`,`r3`@`%`
+# no duplicates
+SET ROLE r1,r1,r1,r1,r1,r2,r2,r2,r2,r3,r3,r3,r3;
+SELECT CURRENT_ROLE();
+CURRENT_ROLE()
+`r1`@`%`,`r2`@`%`,`r3`@`%`
 SET GLOBAL mandatory_roles="PUBLIC";
+DROP USER paul@localhost;
+DROP ROLE r1,r2,r3;
