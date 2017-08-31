@@ -433,7 +433,6 @@ extern struct mysql_password_policy_service_st {
 int my_validate_password_policy(const char *, unsigned int);
 int my_calculate_password_strength(const char *, unsigned int);
 #include <mysql/service_parser.h>
-#include "my_md5_size.h"
 #include <mysql/mysql_lex_string.h>
 typedef void* MYSQL_ITEM;
 typedef

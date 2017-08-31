@@ -24,7 +24,6 @@
 
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_md5.h"
 #include "my_thread.h"
 #include "sql/sp_head.h" /* TYPE_ENUM_FUNCTION, ... */
 #include "storage/perfschema/pfs_buffer_container.h"
@@ -52,7 +51,7 @@ Plugin_table table_events_statements_current::m_table_def(
   "  TIMER_WAIT BIGINT unsigned,\n"
   "  LOCK_TIME BIGINT unsigned not null,\n"
   "  SQL_TEXT LONGTEXT,\n"
-  "  DIGEST VARCHAR(32),\n"
+  "  DIGEST VARCHAR(64),\n"
   "  DIGEST_TEXT LONGTEXT,\n"
   "  CURRENT_SCHEMA VARCHAR(64),\n"
   "  OBJECT_TYPE VARCHAR(64),\n"
@@ -122,7 +121,7 @@ Plugin_table table_events_statements_history::m_table_def(
   "  TIMER_WAIT BIGINT unsigned,\n"
   "  LOCK_TIME BIGINT unsigned not null,\n"
   "  SQL_TEXT LONGTEXT,\n"
-  "  DIGEST VARCHAR(32),\n"
+  "  DIGEST VARCHAR(64),\n"
   "  DIGEST_TEXT LONGTEXT,\n"
   "  CURRENT_SCHEMA VARCHAR(64),\n"
   "  OBJECT_TYPE VARCHAR(64),\n"
@@ -192,7 +191,7 @@ Plugin_table table_events_statements_history_long::m_table_def(
   "  TIMER_WAIT BIGINT unsigned,\n"
   "  LOCK_TIME BIGINT unsigned not null,\n"
   "  SQL_TEXT LONGTEXT,\n"
-  "  DIGEST VARCHAR(32),\n"
+  "  DIGEST VARCHAR(64),\n"
   "  DIGEST_TEXT LONGTEXT,\n"
   "  CURRENT_SCHEMA VARCHAR(64),\n"
   "  OBJECT_TYPE VARCHAR(64),\n"
@@ -418,9 +417,9 @@ table_events_statements_common::make_row_part_2(
   size_t safe_byte_count = digest->m_byte_count;
   if (safe_byte_count > 0 && safe_byte_count <= pfs_max_digest_length)
   {
-    /* Generate the DIGEST string from the MD5 digest  */
-    MD5_HASH_TO_STRING(digest->m_md5, m_row.m_digest.m_digest);
-    m_row.m_digest.m_digest_length = MD5_HASH_TO_STRING_LENGTH;
+    /* Generate the DIGEST string from the digest */
+    DIGEST_HASH_TO_STRING(digest->m_hash, m_row.m_digest.m_digest);
+    m_row.m_digest.m_digest_length = DIGEST_HASH_TO_STRING_LENGTH;
 
     /* Generate the DIGEST_TEXT string from the token array */
     compute_digest_text(digest, &m_row.m_digest.m_digest_text);

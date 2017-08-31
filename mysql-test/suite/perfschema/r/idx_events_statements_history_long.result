@@ -11,7 +11,7 @@ events_statements_history_long	CREATE TABLE `events_statements_history_long` (
   `TIMER_WAIT` bigint(20) unsigned DEFAULT NULL,
   `LOCK_TIME` bigint(20) unsigned NOT NULL,
   `SQL_TEXT` longtext,
-  `DIGEST` varchar(32) DEFAULT NULL,
+  `DIGEST` varchar(64) DEFAULT NULL,
   `DIGEST_TEXT` longtext,
   `CURRENT_SCHEMA` varchar(64) DEFAULT NULL,
   `OBJECT_TYPE` varchar(64) DEFAULT NULL,

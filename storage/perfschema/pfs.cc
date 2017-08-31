@@ -7924,8 +7924,8 @@ pfs_digest_end_v1(PSI_digest_locker *locker, const sql_digest_storage *digest)
     sql_digest_storage *update_digest =
       const_cast<sql_digest_storage *>(digest);
 
-    /* Compute MD5 Hash of the tokens received. */
-    compute_digest_md5(digest, update_digest->m_md5);
+    /* Compute digest hash of the tokens received. */
+    compute_digest_hash(digest, update_digest->m_hash);
 
     state->m_digest = digest;
 

@@ -41,7 +41,7 @@ Plugin_table table_esmh_by_digest::m_table_def(
   "events_statements_histogram_by_digest",
   /* Definition */
   "  SCHEMA_NAME VARCHAR(64),\n"
-  "  DIGEST VARCHAR(32),\n"
+  "  DIGEST VARCHAR(64),\n"
   "  BUCKET_NUMBER INTEGER unsigned not null,\n"
   "  BUCKET_TIMER_LOW BIGINT unsigned not null,\n "
   "  BUCKET_TIMER_HIGH BIGINT unsigned not null,\n"
