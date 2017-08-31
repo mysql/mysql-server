@@ -429,16 +429,31 @@ static ulonglong my_timer_init_frequency(MY_TIMER_INFO *mti)
 {
   int i;
   ulonglong time1, time2, time3, time4;
+  ulonglong time_limit;
   time1= my_timer_cycles();
   time2= my_timer_microseconds();
   time3= time2; /* Avoids a Microsoft/IBM compiler warning */
+  time_limit= time2 + 200;
   for (i= 0; i < MY_TIMER_ITERATIONS; ++i)
   {
     time3= my_timer_microseconds();
-    if (time3 - time2 > 200) break;
+    if (time3 > time_limit) break;
   }
   time4= my_timer_cycles() - mti->cycles.overhead;
   time4-= mti->microseconds.overhead;
+
+  if (time3 <= time2)
+  {
+    /*
+      Seen happening with ASAN / UBSAN builds.
+      my_timer_microseconds()
+      - either is not supported, always returns 0
+      - or is not monotonic, and can jump back.
+      Avoid division by 0 in such cases.
+    */
+    return 0;
+  }
+
   return (mti->microseconds.frequency * (time4 - time1)) / (time3 - time2);
 }
 
@@ -672,12 +687,22 @@ extern "C" void my_timer_init(MY_TIMER_INFO *mti)
       mti->cycles.frequency= mti->microseconds.frequency;
     else
     {
-      ulonglong time1, time2;
+      ulonglong time1, time2, lowest;
       time1= my_timer_init_frequency(mti);
       /* Repeat once in case there was an interruption. */
       time2= my_timer_init_frequency(mti);
-      if (time1 < time2) mti->cycles.frequency= time1;
-      else mti->cycles.frequency= time2;
+
+      lowest = 0;
+      if (time1 != 0)
+      {
+        lowest = time1;
+      }
+      if ((time2 != 0) && (time2 < lowest))
+      {
+        lowest = time2;
+      }
+
+      mti->cycles.frequency= lowest;
     }
   }
 
