@@ -82,6 +82,7 @@
                             // tablename_to_filename
 #include "sql/sql_class.h"
 #include "sql/sql_table.h"  // build_table_filename,
+#include "sql/ndb_dummy_ts.h"
 
 using std::string;
 using std::unique_ptr;
@@ -13622,6 +13623,17 @@ int ndbcluster_init(void* p)
     h->make_pushed_join= ndbcluster_make_pushed_join;
     h->is_supported_system_table = is_supported_system_table;
 
+    {
+      // Install dummy callbacks to avoid writing <tablename>_<id>.SDI files
+      // in the data directory, those are just cumbersome having to delete
+      // and or rename on the other MySQL servers
+      h->sdi_create = ndb_dummy_ts::sdi_create;
+      h->sdi_drop = ndb_dummy_ts::sdi_drop;
+      h->sdi_get_keys = ndb_dummy_ts::sdi_get_keys;
+      h->sdi_get = ndb_dummy_ts::sdi_get;
+      h->sdi_set = ndb_dummy_ts::sdi_set;
+      h->sdi_delete = ndb_dummy_ts::sdi_delete;
+    }
   }
 
   // Initialize NdbApi
