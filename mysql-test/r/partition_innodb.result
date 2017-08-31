@@ -888,12 +888,4 @@ Warning	1478	InnoDB: ROW_FORMAT=DYNAMIC requires innodb_file_format > Antelope.
 Warning	1478	InnoDB: assuming ROW_FORMAT=COMPACT.
 SELECT * FROM t WHERE dttm > '2017-01-19' ORDER BY id DESC;
 id	dttm	msg
-CREATE TABLE t2(a INT,KEY USING btree(a)) ENGINE=HEAP;
-ALTER TABLE t2 ENGINE=HEAP PARTITION BY key(a)(partition p0,partition p1);
-INSERT INTO t2 VALUES(0x38),(0x39),(0x3A),(0x3B),(0x3C),(0x3D),(0x3E),(0x3F);
-SELECT * FROM t2 ORDER BY a DESC LIMIT 3;
-a
-63
-62
-61
-DROP TABLE t,t1,t2;
+DROP TABLE t,t1;
