@@ -284,6 +284,11 @@ int Security_context::activate_role(LEX_CSTRING role,
                                     LEX_CSTRING role_host,
                                     bool validate_access)
 {
+  auto res= std::find(m_active_roles.begin(), m_active_roles.end(),
+                      create_authid_from(role, role_host));
+  /* silently ignore requests of activating an already active role */
+  if (res != m_active_roles.end())
+    return 0;
   LEX_CSTRING dup_role= {my_strdup(PSI_NOT_INSTRUMENTED, role.str, MYF(MY_WME)),
                          role.length};
   LEX_CSTRING dup_role_host= {my_strdup(PSI_NOT_INSTRUMENTED, role_host.str,
