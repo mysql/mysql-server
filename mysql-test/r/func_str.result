@@ -4968,3 +4968,13 @@ Warning	1301	Result of export_set() was larger than max_allowed_packet (2048) - 
 disconnect con1;
 connection default;
 set global max_allowed_packet=@max_allowed_packet;
+#
+# Bug#26524721 ASSERTION MAYBE_NULL FAILED IN ITEM_FUNC_CONCAT::VAL_STR
+#
+CREATE TABLE t(x VARCHAR(10) NOT NULL);
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+SELECT COUNT(*), CONCAT(x, 'x') FROM (SELECT * FROM t) AS tt;
+COUNT(*)	CONCAT(x, 'x')
+0	NULL
+DROP TABLE t;

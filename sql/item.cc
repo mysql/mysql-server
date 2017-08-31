@@ -5899,6 +5899,33 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
 
 
 /**
+  Check if the column reference that is currently being resolved, will be NULL
+  if there are no qualifying rows.
+
+  This is true for non-aggregated (1) column references in the SELECT list (2),
+  if the query block uses aggregation (3) without grouping (4). For example:
+
+      SELECT COUNT(*), col FROM t WHERE some_condition
+
+  Here, if the table `t` is empty, or `some_condition` doesn't match any rows
+  in `t`, the query returns one row where `col` is NULL, even if `col` is a
+  not-nullable column.
+
+  Such column references are rejected if the ONLY_FULL_GROUP_BY SQL mode is
+  enabled.
+*/
+static bool is_null_on_empty_table(const LEX *lex)
+{
+  const SELECT_LEX *current_select= lex->current_select();
+  return
+    lex->in_sum_func == nullptr &&                                       // 1
+    current_select->resolve_place == SELECT_LEX::RESOLVE_SELECT_LIST &&  // 2
+    current_select->with_sum_func &&                                     // 3
+    current_select->group_list.elements == 0;                            // 4
+}
+
+
+/**
   Resolve the name of a column reference.
 
   The method resolves the column reference represented by 'this' as a column
@@ -6092,7 +6119,11 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
 
     // If view column reference, Item in *reference is completely resolved:
     if (from_field == view_ref_found)
+    {
+      if (!outer_fixed && is_null_on_empty_table(thd->lex))
+        (*reference)->maybe_null= true;
       return false;
+    }
 
     // Not view reference, not outer reference; need to set properties:
     set_field(from_field);
@@ -6132,20 +6163,8 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
     }
   }
   fixed= 1;
-  if (!outer_fixed && !thd->lex->in_sum_func &&
-      thd->lex->current_select()->resolve_place ==
-      SELECT_LEX::RESOLVE_SELECT_LIST)
-  {
-    /*
-      If (1) aggregation (2) without grouping, we may have to return a result
-      row even if the nested loop finds nothing; in this result row,
-      non-aggregated table columns present in the SELECT list will show a NULL
-      value even if the table column itself is not nullable.
-    */
-    if (thd->lex->current_select()->with_sum_func &&      // (1)
-        !thd->lex->current_select()->group_list.elements) // (2)
-      maybe_null= true;
-  }
+  if (!outer_fixed && is_null_on_empty_table(thd->lex))
+    maybe_null= true;
   return false;
 
 error:

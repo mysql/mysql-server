@@ -3509,7 +3509,7 @@ private:
   SELECT_LEX *m_current_select;
 
 public:
-  inline SELECT_LEX *current_select() { return m_current_select; }
+  inline SELECT_LEX *current_select() const { return m_current_select; }
 
   /*
     We want to keep current_thd out of header files, so the debug assert 
