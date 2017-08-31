@@ -430,7 +430,14 @@ bool Partition_helper::open_partitioning(Partition_share *part_share)
   m_curr_key_info[2]= NULL;
   m_top_entry= NO_CURRENT_PART_ID;
   m_ref_usage= REF_NOT_USED;
-  m_rec_length= m_table->s->reclength;
+  legacy_db_type db_type = ha_legacy_type(m_part_info->default_engine_type);
+  if(db_type == DB_TYPE_HEAP)
+  {
+    m_rec_length= m_table->s->rec_buff_length;
+  } else {
+    m_rec_length= m_table->s->reclength;
+  }
+  DBUG_ASSERT(db_type !=  DB_TYPE_UNKNOWN);
   return false;
 }
 
