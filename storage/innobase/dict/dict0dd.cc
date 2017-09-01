@@ -3828,7 +3828,6 @@ dd_open_table_one(
 }
 
 /** Open single table with name
-@param[in,out]	client		data dictionary client
 @param[in]	name		table name
 @param[in]	dict_locked	dict_sys mutex is held or not
 @param[in,out]	fk_list		foreign key name list
@@ -3836,7 +3835,6 @@ dd_open_table_one(
 static
 void
 dd_open_table_one_on_name(
-	dd::cache::Dictionary_client*	client,
 	const char*			name,
 	bool				dict_locked,
 	dict_names_t&			fk_list,
@@ -3844,6 +3842,7 @@ dd_open_table_one_on_name(
 {
 	dict_table_t*		table = nullptr;
 	const dd::Table*	dd_table = nullptr;
+	MDL_ticket*		mdl = nullptr;
 
 	if (!dict_locked) {
 		mutex_enter(&dict_sys->mutex);
@@ -3855,7 +3854,6 @@ dd_open_table_one_on_name(
 	mutex_exit(&dict_sys->mutex);
 
 	if (!table) {
-		MDL_ticket*     mdl = nullptr;
 		char		db_buf[MAX_DATABASE_NAME_LEN + 1];
 		char		tbl_buf[MAX_TABLE_NAME_LEN + 1];
 
@@ -3869,9 +3867,13 @@ dd_open_table_one_on_name(
 			goto func_exit;
 		}
 
+		dd::cache::Dictionary_client*	client
+			= dd::get_dd_client(thd);
+		dd::cache::Dictionary_client::Auto_releaser
+			releaser(client);
+
 		if (client->acquire(db_buf, tbl_buf, &dd_table)
 		    || dd_table == nullptr) {
-			dd_mdl_release(thd, &mdl);
 			goto func_exit;
 		}
 
@@ -3889,7 +3891,6 @@ dd_open_table_one_on_name(
 				thd, &ts, *dd_table);
 
 		if (error != 0) {
-			dd_mdl_release(thd, &mdl);
 			goto func_exit;
 		}
 
@@ -3902,7 +3903,6 @@ dd_open_table_one_on_name(
 
 		if (error != 0) {
 			free_table_share(&ts);
-			dd_mdl_release(thd, &mdl);
 			goto func_exit;
 		}
 
@@ -3911,14 +3911,14 @@ dd_open_table_one_on_name(
 
 		closefrm(&td, false);
 		free_table_share(&ts);
-		if (table != NULL) {
-			dd_table_close(table, thd, &mdl, false);
-		} else {
-			dd_mdl_release(thd, &mdl);
-		}
 	}
 
 func_exit:
+	if (table != NULL) {
+		dd_table_close(table, thd, &mdl, false);
+	} else {
+		dd_mdl_release(thd, &mdl);
+	}
 
 	if (dict_locked) {
 		mutex_enter(&dict_sys->mutex);
@@ -3926,13 +3926,11 @@ func_exit:
 }
 
 /** Open foreign tables reference a table.
-@param[in,out]	client		data dictionary client
 @param[in]	fk_list		foreign key name list
 @param[in]	dict_locked	dict_sys mutex is locked or not
 @param[in]	thd		thread THD */
 void
 dd_open_fk_tables(
-	dd::cache::Dictionary_client*	client,
 	dict_names_t&			fk_list,
 	bool				dict_locked,
 	THD*				thd)
@@ -3950,66 +3948,9 @@ dd_open_fk_tables(
 #endif /* !_WIN32 */
 		}
 
-		dd_open_table_one_on_name(client, name, dict_locked,
-					  fk_list, thd);
+		dd_open_table_one_on_name(name, dict_locked, fk_list, thd);
 
 		fk_list.pop_front();
-	}
-}
-
-extern const char* fts_common_tables[];
-
-/** Open FTS AUX tables
-@param[in,out]	client		data dictionary client
-@param[in]	table		fts table
-@param[in]	dict_locked	dict_sys mutex id held or not
-@param[in]	thd		thread THD */
-static
-void
-dd_open_fts_aux_tables(
-	dd::cache::Dictionary_client*	client,
-	const dict_table_t*		table,
-	bool				dict_locked,
-	THD*				thd)
-{
-	ulint		i;
-	fts_table_t	fts_table;
-	dict_names_t	fk_list;
-
-	FTS_INIT_FTS_TABLE(&fts_table, NULL, FTS_COMMON_TABLE, table);
-
-	/* Rename common auxiliary tables */
-	for (i = 0; fts_common_tables[i] != nullptr; ++i) {
-		char    table_name[MAX_FULL_NAME_LEN + 1];
-
-		fts_table.suffix = fts_common_tables[i];
-
-		fts_get_table_name(&fts_table, table_name);
-		dd_open_table_one_on_name(client, table_name,
-					  dict_locked, fk_list, thd);
-	}
-
-	fts_t* fts = table->fts;
-
-	/* Rename index specific auxiliary tables */
-	for (i = 0; fts->indexes != 0 && i < ib_vector_size(fts->indexes);
-	     ++i) {
-		dict_index_t* index;
-
-		index = static_cast<dict_index_t*>(
-			ib_vector_getp(fts->indexes, i));
-
-		FTS_INIT_INDEX_TABLE(&fts_table, NULL, FTS_INDEX_TABLE, index);
-
-		for (ulint j = 0; j < FTS_NUM_AUX_INDEX; ++j) {
-			char table_name[MAX_FULL_NAME_LEN + 1];
-
-			fts_table.suffix = fts_get_suffix(j);
-
-			fts_get_table_name(&fts_table, table_name);
-			dd_open_table_one_on_name(client, table_name,
-						  dict_locked, fk_list, thd);
-		}
 	}
 }
 
@@ -4039,16 +3980,7 @@ dd_open_table(
 	/* If there is foreign table references to this table, we will
 	try to open them */
 	if (m_table != nullptr && !fk_list.empty()) {
-		dd::cache::Dictionary_client*	client
-			= dd::get_dd_client(thd);
-		dd::cache::Dictionary_client::Auto_releaser
-			releaser(client);
-
-		dd_open_fk_tables(client, fk_list, false, thd);
-	}
-
-	if (m_table && m_table->fts) {
-		dd_open_fts_aux_tables(client, m_table, false, thd);
+		dd_open_fk_tables(fk_list, false, thd);
 	}
 
 	return(m_table);
