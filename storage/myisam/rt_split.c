@@ -30,6 +30,8 @@
 
 #if defined _WIN32
   #define my_isfinite(X) _finite(X)
+#elif defined HAVE_LLVM_LIBCPP
+  #define my_isfinite(X) isfinite(X)
 #else
   #define my_isfinite(X) finite(X)
 #endif

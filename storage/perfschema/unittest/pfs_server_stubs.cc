@@ -64,3 +64,9 @@ int mysql_plugin_registry_release(SERVICE_TYPE(registry) *reg MY_ATTRIBUTE((unus
 {
   return 0;
 }
+
+int log_message(int, ...)
+{
+  /* Do not pollute the unit test output with annoying messages. */
+  return 0;
+}

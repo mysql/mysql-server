@@ -27,7 +27,7 @@
 
 #include "mysql_com.h"
 #include "sql/rpl_info.h"
-#include "sql/sql_const.h" // UUID_LENGTH
+#include "sql/sql_const.h"  // UUID_LENGTH
 #include "storage/perfschema/pfs_column_types.h"
 #include "storage/perfschema/pfs_engine_table.h"
 

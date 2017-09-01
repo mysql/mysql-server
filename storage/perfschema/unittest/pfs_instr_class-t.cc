@@ -787,6 +787,7 @@ int main(int, char **)
   plan(209);
   MY_INIT("pfs_instr_info-t");
   do_all_tests();
+  my_end(0);
   return (exit_status());
 }
 

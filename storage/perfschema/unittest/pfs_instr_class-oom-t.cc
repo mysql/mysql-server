@@ -100,6 +100,7 @@ int main(int, char **)
   plan(11);
   MY_INIT("pfs_instr_info-oom-t");
   do_all_tests();
+  my_end(0);
   return (exit_status());
 }
 

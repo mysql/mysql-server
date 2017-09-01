@@ -758,6 +758,9 @@ public:
 	@param[in]	new_name	New tablespace name */
 	void update_space_name_map(fil_space_t* space, const char* new_name);
 
+	/** Flush the redo log writes to disk, possibly cached by the OS. */
+	void flush_file_redo();
+
 	/** Collect the tablespace IDs of unflushed tablespaces in space_ids.
 	@param[in]	purpose		FIL_TYPE_TABLESPACE or FIL_TYPE_LOG,
 					can be ORred */
@@ -1071,6 +1074,9 @@ private:
 		ulint		count) const
 		MY_ATTRIBUTE((warn_unused_result));
 
+	/** Flushes to disk possible writes cached by the OS. */
+	void redo_space_flush();
+
 	/** Get the AIO mode.
 	@param[in]	req_type	IO request type
 	@param[in]	sync		true if Synchronous IO
@@ -1204,6 +1210,9 @@ public:
 	@return DB_SUCCESS if all OK */
 	dberr_t prepare_open_for_business(bool read_only_mode)
 		MY_ATTRIBUTE((warn_unused_result));
+
+	/** Flush the redo log writes to disk, possibly cached by the OS. */
+	void flush_file_redo();
 
 	/** Flush to disk the writes in file spaces of the given type
 	possibly cached by the OS.
@@ -6715,6 +6724,8 @@ Fil_shard::add_to_unflushed_list(fil_space_t* space)
 void
 Fil_shard::write_completed(fil_node_t* file)
 {
+	ut_ad(m_id == REDO_SHARD || mutex_owned());
+
 	++m_modification_counter;
 
 	file->modification_counter = m_modification_counter;
@@ -6740,7 +6751,7 @@ pending i/o's field in the file appropriately.
 void
 Fil_shard::complete_io(fil_node_t* file, const IORequest& type)
 {
-	ut_ad(mutex_owned());
+	ut_ad(m_id == REDO_SHARD || mutex_owned());
 
 	ut_a(file->n_pending > 0);
 
@@ -6845,12 +6856,17 @@ fil_io_set_encryption(
 	clone_mark_abort(true);
 	clone_mark_active();
 
-	req_type.encryption_key(space->encryption_key,
-				space->encryption_klen,
-				space->encryption_iv);
+	req_type.encryption_key(
+		space->encryption_key, space->encryption_klen,
+		space->encryption_iv);
+
 	req_type.encryption_algorithm(Encryption::AES);
 }
 
+/** Get the AIO mode.
+@param[in]	req_type	IO request type
+@param[in]	sync		true if Synchronous IO
+return the AIO mode */
 AIO_mode
 Fil_shard::get_AIO_mode(const IORequest& req_type, bool sync)
 {
@@ -6981,6 +6997,8 @@ Fil_shard::do_redo_io(
 	page_no_t	page_no = page_id.page_no();
 	dberr_t		err = get_file_for_io(req_type, space, &page_no, file);
 
+	ut_a(file != nullptr);
+	ut_a(err == DB_SUCCESS);
 	ut_a(page_size.physical() == page_size.logical());
 
 	os_offset_t	offset = (os_offset_t) page_no * page_size.physical();
@@ -7022,7 +7040,11 @@ Fil_shard::do_redo_io(
 
 	if (type.is_write()) {
 
-		write_completed(file);
+		++m_modification_counter;
+
+		file->modification_counter = m_modification_counter;
+
+		add_to_unflushed_list(file->space);
 	}
 
 	return(err);
@@ -7490,6 +7512,97 @@ Fil_shard::remove_from_unflushed_list(fil_space_t* space)
 	}
 }
 
+/** Flushes to disk possible writes cached by the OS. */
+void
+Fil_shard::redo_space_flush()
+{
+	ut_ad(mutex_owned());
+	ut_ad(m_id == REDO_SHARD);
+
+	fil_space_t*	space;
+
+	space = get_space_by_id(dict_sys_t::s_log_space_first_id);
+
+	ut_a(!space->stop_new_ops);
+	ut_a(space->purpose == FIL_TYPE_LOG);
+
+	if (space->stop_new_ops) {
+		return;
+	}
+
+	/* Prevent dropping of the space while we are flushing */
+	++space->n_pending_flushes;
+
+	for (auto& file : space->files) {
+
+		int64_t	old_mod_counter = file.modification_counter;
+
+		if (old_mod_counter <= file.flush_counter) {
+			continue;
+		}
+
+		ut_a(file.is_open);
+		ut_a(file.space == space);
+
+		++fil_n_log_flushes;
+		++fil_n_pending_log_flushes;
+
+		bool	skip_flush = false;
+#ifdef _WIN32
+		if (file.is_raw_disk) {
+
+			skip_flush = true;;
+		}
+#endif /* _WIN32 */
+
+		/* Wait for some other thread that is flushing. */
+		while (file.n_pending_flushes > 0 && !skip_flush) {
+
+			/* Release the mutex to avoid deadlock with
+			the flushing thread. */
+
+			mutex_release();
+
+			os_thread_yield();
+
+			mutex_acquire();
+
+			if (file.flush_counter >= old_mod_counter) {
+
+				skip_flush = true;
+			}
+		}
+
+		if (!skip_flush) {
+
+			ut_a(file.is_open);
+
+			++file.n_pending_flushes;
+
+			mutex_release();
+
+			os_file_flush(file.handle);
+
+			mutex_acquire();
+
+			os_event_set(file.sync_event);
+
+			--file.n_pending_flushes;
+		}
+
+		if (file.flush_counter < old_mod_counter) {
+
+			file.flush_counter = old_mod_counter;
+
+			remove_from_unflushed_list(space);
+		}
+
+		--fil_n_pending_log_flushes;
+	}
+
+	--space->n_pending_flushes;
+}
+
 /** Flushes to disk possible writes cached by the OS. If the space does
 not exist or is being dropped, does not do anything.
 @param[in]	space_id	File space ID (this can be a group of log files
@@ -7498,6 +7611,11 @@ void
 Fil_shard::space_flush(space_id_t space_id)
 {
 	ut_ad(mutex_owned());
+
+	if (space_id == dict_sys_t::s_log_space_first_id) {
+		redo_space_flush();
+		return;
+	}
 
 	fil_space_t*	space = get_space_by_id(space_id);
 
@@ -7549,8 +7667,7 @@ Fil_shard::space_flush(space_id_t space_id)
 			break;
 
 		case FIL_TYPE_LOG:
-			++fil_n_log_flushes;
-			++fil_n_pending_log_flushes;
+			ut_error;
 			break;
 		}
 
@@ -7617,8 +7734,7 @@ Fil_shard::space_flush(space_id_t space_id)
 			continue;
 
 		case FIL_TYPE_LOG:
-			--fil_n_pending_log_flushes;
-			continue;
+			ut_error;
 		}
 
 		ut_ad(0);
@@ -7642,6 +7758,20 @@ fil_flush(space_id_t space_id)
 	shard->space_flush(space_id);
 
 	shard->mutex_release();
+}
+
+/** Flush any pending writes to disk for the redo log. */
+void
+Fil_shard::flush_file_redo()
+{
+	/* We never evict the redo log tablespace. It's for all
+	practical purposes a read-only data structure. */
+
+	mutex_acquire();
+
+	redo_space_flush();
+
+	mutex_release();
 }
 
 /** Collect the tablespace IDs of unflushed tablespaces in space_ids.
@@ -7673,8 +7803,15 @@ Fil_shard::flush_file_spaces(uint8_t purpose)
 	a non-existing space id. */
 	for (auto space_id : space_ids) {
 
-		fil_flush(space_id);
+		space_flush(space_id);
 	}
+}
+
+/** Flush the redo log writes to disk, possibly cached by the OS. */
+void
+Fil_system::flush_file_redo()
+{
+	m_shards[REDO_SHARD]->flush_file_redo();
 }
 
 /** Flush to disk the writes in file spaces of the given type
@@ -7697,6 +7834,14 @@ void
 fil_flush_file_spaces(uint8_t purpose)
 {
 	fil_system->flush_file_spaces(purpose);
+}
+
+/** Flush to disk the writes in file spaces of the given type
+possibly cached by the OS. */
+void
+fil_flush_file_redo()
+{
+	fil_system->flush_file_redo();
 }
 
 /** Returns true if file address is undefined.

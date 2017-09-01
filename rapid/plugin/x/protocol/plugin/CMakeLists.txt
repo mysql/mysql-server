@@ -22,6 +22,16 @@ INCLUDE_DIRECTORIES(
   ${MYSQLX_GENERATE_DIR}
 )
 
+INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
+
+# Protoc version 2.6.1 generates calls to
+# OSAtomicCompareAndSwap64 and others which are deprecated.
+IF(APPLE)
+  ADD_COMPILE_FLAGS(
+    "${CMAKE_CURRENT_SOURCE_DIR}/message_field_chain.cc"
+    COMPILE_FLAGS "-Wno-deprecated-declarations")
+ENDIF()
+
 ADD_COMPILE_FLAGS(${protoc_plugin_SRC}
   COMPILE_FLAGS "${PUBLIC_XPROTOCOL_FLAGS}"
 )

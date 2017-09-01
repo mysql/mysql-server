@@ -95,7 +95,7 @@
 #include "sql_string.h"
 #include "typelib.h"
 
-static const size_t MAX_DROP_TABLE_Q_LEN= 1024;
+
 
 /*
   .frm is left in this list so that any orphan files can be removed on upgrade.
@@ -117,23 +117,6 @@ static void mysql_change_db_impl(THD *thd,
                                  const LEX_CSTRING &new_db_name,
                                  ulong new_db_access,
                                  const CHARSET_INFO *new_db_charset);
-
-
-/*
-  Helper function to write a query to binlog used by mysql_rm_db()
-*/
-
-static inline int write_to_binlog(THD *thd, char *query, size_t q_len,
-                                  const char *db, size_t db_len)
-{
-  Query_log_event qinfo(thd, query, q_len, FALSE, TRUE, FALSE, 0);
-  qinfo.db= db;
-  qinfo.db_len= db_len;
-  int error= mysql_bin_log.write_event(&qinfo);
-  if (!error)
-    error= mysql_bin_log.commit(thd, false);
-  return error;
-} 
 
 
 bool get_default_db_collation(const dd::Schema &schema,

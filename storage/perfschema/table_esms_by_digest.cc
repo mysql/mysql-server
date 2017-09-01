@@ -325,7 +325,7 @@ table_esms_by_digest::make_row(PFS_statements_digest_stat *digest_stat)
 
   m_row.m_query_sample_seen = digest_stat->m_query_sample_seen;
   m_row.m_query_sample_timer_wait =
-               normalizer->wait_to_pico(digest_stat->m_query_sample_timer_wait);
+    normalizer->wait_to_pico(digest_stat->m_query_sample_timer_wait);
   return 0;
 }
 

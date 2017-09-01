@@ -304,9 +304,9 @@ static void my_string_ptr_sort(Test_key **base, uint items, size_t size)
   if (size && items)
   {
     std::sort(base, base + items,
-      [size](const Test_key *a, const Test_key *b)
+      [](const Test_key *a, const Test_key *b)
       {
-        return memcmp(a, b, size) < 0;
+        return memcmp(&a->key, &b->key, sizeof(a->key)) < 0;
       });
   }
 }

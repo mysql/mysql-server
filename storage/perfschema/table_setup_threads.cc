@@ -111,7 +111,7 @@ table_setup_threads::rnd_next(void)
     return HA_ERR_END_OF_FILE;
   }
 
-  for (m_pos.set_at(&m_next_pos); ; m_pos.next())
+  for (m_pos.set_at(&m_next_pos);; m_pos.next())
   {
     instr_class = find_thread_class(m_pos.m_index);
 
@@ -174,7 +174,7 @@ table_setup_threads::index_next(void)
     return HA_ERR_END_OF_FILE;
   }
 
-  for (m_pos.set_at(&m_next_pos); ; m_pos.next())
+  for (m_pos.set_at(&m_next_pos);; m_pos.next())
   {
     instr_class = find_thread_class(m_pos.m_index);
 
@@ -208,9 +208,9 @@ table_setup_threads::make_row(PFS_thread_class *klass)
 
 int
 table_setup_threads::read_row_values(TABLE *table,
-                                         unsigned char *buf,
-                                         Field **fields,
-                                         bool read_all)
+                                     unsigned char *buf,
+                                     Field **fields,
+                                     bool read_all)
 {
   Field *f;
   const char *doc;
@@ -278,9 +278,9 @@ table_setup_threads::read_row_values(TABLE *table,
 
 int
 table_setup_threads::update_row_values(TABLE *table,
-                                           const unsigned char *,
-                                           unsigned char *,
-                                           Field **fields)
+                                       const unsigned char *,
+                                       unsigned char *,
+                                       Field **fields)
 {
   Field *f;
   enum_yes_no value;

@@ -458,7 +458,7 @@ bool flush_meta_data(THD *thd)
 
   /*
     Use a scoped auto releaser to make sure the objects cached for SDI
-    writing are released.
+    writing and FK parent information reload are released.
   */
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
@@ -480,13 +480,27 @@ bool flush_meta_data(THD *thd)
     return dd::end_transaction(thd, true);
   }
 
-  // Acquire the DD table objects and write SDI for them
+  // Acquire the DD table objects and write SDI for them. Also sync from
+  // the DD tables in order to get the FK parent informnation reloaded.
   for (System_tables::Const_iterator it= System_tables::instance()->begin();
        it != System_tables::instance()->end(); ++it)
   {
     const dd::Table *dd_table= nullptr;
     if (thd->dd_client()->acquire(MYSQL_SCHEMA_NAME.str,
-                                  (*it)->entity()->name(), &dd_table) ||
+                                  (*it)->entity()->name(), &dd_table))
+    {
+      return dd::end_transaction(thd, true);
+    }
+
+    // Make sure the registry of the core DD objects is updated with an
+    // object read from the DD tables, with updated FK parent information.
+    // Store the object to make sure SDI is written.
+    Abstract_table::name_key_type table_key;
+    Abstract_table::update_name_key(&table_key, dd_schema->id(),
+                                    dd_table->name());
+    if (((*it)->property() == System_tables::Types::CORE &&
+         dd::cache::Storage_adapter::instance()->core_sync(thd, table_key,
+                                                           dd_table)) ||
         dd::sdi::store(thd, dd_table))
     {
       return dd::end_transaction(thd, true);

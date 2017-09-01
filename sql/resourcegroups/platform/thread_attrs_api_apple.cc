@@ -33,26 +33,26 @@ bool is_platform_supported()
   return false;
 }
 
-bool bind_to_cpu(cpu_id_t cpu_id)
+bool bind_to_cpu(cpu_id_t)
 {
   DBUG_ASSERT(0);
   return true;
 }
 
-bool bind_to_cpu(cpu_id_t cpu_id, my_thread_os_id_t thread_id)
+bool bind_to_cpu(cpu_id_t, my_thread_os_id_t)
 {
   DBUG_ASSERT(0);
   return true;
 }
 
-bool bind_to_cpus(const std::vector<cpu_id_t> &cpu_ids)
+bool bind_to_cpus(const std::vector<cpu_id_t> &)
 {
   DBUG_ASSERT(0);
   return true;
 }
 
-bool bind_to_cpus(const std::vector<cpu_id_t> &cpu_ids,
-                  my_thread_os_id_t thread_id)
+bool bind_to_cpus(const std::vector<cpu_id_t> &,
+                  my_thread_os_id_t)
 {
   DBUG_ASSERT(0);
   return true;
@@ -64,25 +64,25 @@ bool unbind_thread()
   return true;
 }
 
-bool unbind_thread(my_thread_os_id_t thread_id)
+bool unbind_thread(my_thread_os_id_t)
 {
   DBUG_ASSERT(0);
   return true;
 }
 
-int thread_priority(my_thread_os_id_t thread_id)
+int thread_priority(my_thread_os_id_t)
 {
   DBUG_ASSERT(0);
   return 0;
 }
 
-bool set_thread_priority(int priority)
+bool set_thread_priority(int)
 {
   DBUG_ASSERT(0);
   return true;
 }
 
-bool set_thread_priority(int priority, my_thread_os_id_t thread_id)
+bool set_thread_priority(int, my_thread_os_id_t)
 {
   DBUG_ASSERT(0);
   return true;

@@ -166,7 +166,7 @@ end:
 static int test_udf_registration_deinit(MYSQL_PLUGIN /* p */)
 {
   SERVICE_TYPE(registry) *reg;
-  SERVICE_TYPE(udf_registration) *udf;
+  SERVICE_TYPE(udf_registration) *udf= nullptr;
   bool ret= false;
   int was_present;
 

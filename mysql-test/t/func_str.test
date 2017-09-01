@@ -2006,3 +2006,17 @@ disconnect con1;
 connection default;
 set global max_allowed_packet=@max_allowed_packet;
 --disable_connect_log
+
+--echo #
+--echo # Bug#26524721 ASSERTION MAYBE_NULL FAILED IN ITEM_FUNC_CONCAT::VAL_STR
+--echo #
+CREATE TABLE t(x VARCHAR(10) NOT NULL);
+# Disable ONLY_FULL_GROUP_BY to allow the query.
+--source include/turn_off_only_full_group_by.inc
+# Disable strict mode to trigger the assert (strict mode affects the
+# nullability of the CONCAT function).
+--source include/turn_off_strict_mode.inc
+SELECT COUNT(*), CONCAT(x, 'x') FROM (SELECT * FROM t) AS tt;
+--source include/restore_strict_mode.inc
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
+DROP TABLE t;

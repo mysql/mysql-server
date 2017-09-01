@@ -155,6 +155,7 @@ int main(int, char **)
   plan(7);
   MY_INIT("pfs_host-oom-t");
   do_all_tests();
+  my_end(0);
   return (exit_status());
 }
 

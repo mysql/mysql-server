@@ -482,6 +482,14 @@ static int binlog_relay_after_reset_slave(Binlog_relay_IO_param*)
   return 0;
 }
 
+static int binlog_relay_applier_log_event(Binlog_relay_IO_param*,
+                                          Trans_param*,
+                                          int&)
+{
+  return 0;
+}
+
+
 Binlog_relay_IO_observer relay_io_observer = {
   sizeof(Binlog_relay_IO_observer),
 
@@ -493,6 +501,7 @@ Binlog_relay_IO_observer relay_io_observer = {
   binlog_relay_after_read_event,
   binlog_relay_after_queue_event,
   binlog_relay_after_reset_slave,
+  binlog_relay_applier_log_event
 };
 
 

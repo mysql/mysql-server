@@ -24,7 +24,7 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_sys.h"
-#include "sql/mysqld.h" // global_status_var
+#include "sql/mysqld.h"  // global_status_var
 #include "storage/perfschema/pfs.h"
 #include "storage/perfschema/pfs_buffer_container.h"
 #include "storage/perfschema/pfs_global.h"

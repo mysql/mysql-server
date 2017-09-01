@@ -497,7 +497,7 @@ create_log_files_rename(
 {
 	/* If innodb_flush_method=O_DSYNC,
 	we need to explicitly flush the log buffers. */
-	fil_flush(dict_sys_t::s_log_space_first_id);
+	fil_flush_file_redo();
 	/* Close the log files, so that we can rename
 	the first one. */
 	fil_close_log_files(false);
@@ -1770,9 +1770,9 @@ srv_prepare_to_delete_redo_log_files(
 
 		log_write_up_to(flushed_lsn, true);
 
-		/* If innodb_flush_method=O_DSYNC,
-		we need to explicitly flush the log buffers. */
-		fil_flush(dict_sys_t::s_log_space_first_id);
+		/* If innodb_flush_method=O_DSYNC, we need to explicitly
+		flush the log buffers. */
+		fil_flush_file_redo();
 
 		ut_ad(flushed_lsn == log_get_lsn());
 

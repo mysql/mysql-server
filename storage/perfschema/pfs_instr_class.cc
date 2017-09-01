@@ -29,7 +29,7 @@
 #include "my_macros.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_thread.h"
-#include "sql/mysqld.h" // lower_case_table_names
+#include "sql/mysqld.h"  // lower_case_table_names
 #include "sql/table.h"
 #include "storage/perfschema/pfs_buffer_container.h"
 #include "storage/perfschema/pfs_builtin_memory.h"
@@ -388,7 +388,7 @@ cleanup_sync_class(void)
 
   if (mutex_class_array != NULL)
   {
-    for (i=0; i<mutex_class_max; i++)
+    for (i = 0; i < mutex_class_max; i++)
     {
       my_free(mutex_class_array[i].m_documentation);
     }
@@ -403,7 +403,7 @@ cleanup_sync_class(void)
 
   if (rwlock_class_array != NULL)
   {
-    for (i=0; i<rwlock_class_max; i++)
+    for (i = 0; i < rwlock_class_max; i++)
     {
       my_free(rwlock_class_array[i].m_documentation);
     }
@@ -419,7 +419,7 @@ cleanup_sync_class(void)
 
   if (cond_class_array != NULL)
   {
-    for (i=0; i<cond_class_max; i++)
+    for (i = 0; i < cond_class_max; i++)
     {
       my_free(cond_class_array[i].m_documentation);
     }
@@ -474,7 +474,7 @@ cleanup_thread_class(void)
 
   if (thread_class_array != NULL)
   {
-    for (i=0; i<thread_class_max; i++)
+    for (i = 0; i < thread_class_max; i++)
     {
       my_free(thread_class_array[i].m_documentation);
     }
@@ -929,7 +929,7 @@ cleanup_file_class(void)
 
   if (file_class_array != NULL)
   {
-    for (i=0; i<file_class_max; i++)
+    for (i = 0; i < file_class_max; i++)
     {
       my_free(file_class_array[i].m_documentation);
     }
@@ -985,7 +985,7 @@ cleanup_stage_class(void)
 
   if (stage_class_array != NULL)
   {
-    for (i=0; i<stage_class_max; i++)
+    for (i = 0; i < stage_class_max; i++)
     {
       my_free(stage_class_array[i].m_documentation);
     }
@@ -1041,7 +1041,7 @@ cleanup_statement_class(void)
 
   if (statement_class_array != NULL)
   {
-    for (i=0; i<statement_class_max; i++)
+    for (i = 0; i < statement_class_max; i++)
     {
       my_free(statement_class_array[i].m_documentation);
     }
@@ -1097,7 +1097,7 @@ cleanup_socket_class(void)
 
   if (socket_class_array != NULL)
   {
-    for (i=0; i<socket_class_max; i++)
+    for (i = 0; i < socket_class_max; i++)
     {
       my_free(socket_class_array[i].m_documentation);
     }
@@ -1153,7 +1153,7 @@ cleanup_memory_class(void)
 
   if (memory_class_array.load() != nullptr)
   {
-    for (i=0; i<memory_class_max; i++)
+    for (i = 0; i < memory_class_max; i++)
     {
       my_free(memory_class_array[i].m_documentation);
     }
@@ -1194,7 +1194,8 @@ init_instr_class(PFS_instr_class *klass,
     /* PSI_DOCUMENT_ME is an empty string. */
     if (documentation[0] != '\0')
     {
-      klass->m_documentation = my_strdup(PSI_NOT_INSTRUMENTED, documentation, 0);
+      klass->m_documentation =
+        my_strdup(PSI_NOT_INSTRUMENTED, documentation, 0);
     }
   }
 }

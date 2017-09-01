@@ -51,7 +51,7 @@ int My_xp_thread_server::create_detached(PSI_thread_key key,
                                          void *arg)
 {
   native_thread_attr_t my_attr;
-  bool using_my_attr;
+  bool using_my_attr= false;
 
   if(attr == NULL)
   {

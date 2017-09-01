@@ -6587,6 +6587,19 @@ bool mysql_alter_user_set_default_roles_all(THD *thd, LEX_USER *user)
     Auth_id_ref authid= create_authid_from(role.first);
     new_default_role_ref.push_back(authid);
   }
+  std::vector<Role_id> mandatory_roles;
+  get_mandatory_roles(&mandatory_roles);
+  for (auto &role : mandatory_roles)
+  {
+    Auth_id_ref authid= create_authid_from(role);
+    auto res= std::find(new_default_role_ref.begin(),
+                        new_default_role_ref.end(),
+                        authid);
+    if (res == new_default_role_ref.end())
+    {
+      new_default_role_ref.push_back(authid);
+    }
+  }
   bool errors= alter_user_set_default_roles(thd, table, user,
                                             new_default_role_ref);
   if (errors)
@@ -6738,6 +6751,11 @@ Auth_id_ref create_authid_from(const Role_id &user)
   lex_host.length= user.host().length();
   id= std::make_pair(lex_user, lex_host);
   return id;
+}
+
+Auth_id_ref create_authid_from(const LEX_CSTRING &user, const LEX_CSTRING &host)
+{
+  return std::make_pair(user,host);
 }
 
 /**
@@ -7499,4 +7517,9 @@ bool operator==(std::pair<const Role_id, std::pair<std::string, bool> > &a,
                 const std::string &b)
 {
   return a.second.first == b;
+}
+
+bool operator==(const LEX_CSTRING &a, const LEX_CSTRING &b)
+{
+  return (a.length == b.length && memcmp(a.str, b.str, a.length) == 0);
 }

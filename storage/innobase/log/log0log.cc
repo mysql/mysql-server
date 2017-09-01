@@ -923,7 +923,7 @@ log_io_complete(log_group_t* group)
 	group = (log_group_t*)((ulint) group - 1);
 
 #ifdef _WIN32
-	fil_flush(group->space_id);
+	fil_flush_file_redo();
 #else
 	switch (srv_unix_file_flush_method) {
 	case SRV_UNIX_O_DSYNC:
@@ -933,7 +933,7 @@ log_io_complete(log_group_t* group)
 	case SRV_UNIX_LITTLESYNC:
 	case SRV_UNIX_O_DIRECT:
 	case SRV_UNIX_O_DIRECT_NO_FSYNC:
-		fil_flush(group->space_id);
+		fil_flush_file_redo();
 	}
 #endif /* _WIN32 */
 
@@ -941,7 +941,6 @@ log_io_complete(log_group_t* group)
 				unsigned(group->id)));
 
 	log_io_complete_checkpoint();
-
 }
 
 /** Fill redo log header
@@ -1430,8 +1429,7 @@ log_write_flush_to_disk_low()
 	bool	do_flush = true;
 #endif
 	if (do_flush) {
-		log_group_t*	group = UT_LIST_GET_FIRST(log_sys->log_groups);
-		fil_flush(group->space_id);
+		fil_flush_file_redo();
 		log_sys->flushed_to_disk_lsn = log_sys->current_flush_lsn;
 	}
 
@@ -1530,7 +1528,8 @@ loop:
 	}
 
 #ifdef _WIN32
-	/* write requests during fil_flush() might not be good for Windows */
+	/* write requests during fil_flush_file_redo() might not be good
+	for Windows */
 	if (log_sys->n_pending_flushes > 0
 	    || !os_event_is_set(log_sys->flush_event)) {
 		log_write_mutex_exit();
@@ -2570,7 +2569,7 @@ loop:
 	if (srv_downgrade_logs) {
 		ut_ad(!srv_read_only_mode);
 		log_downgrade();
-		fil_flush_file_spaces(FIL_TYPE_LOG);
+		fil_flush_file_redo();
 	}
 
 	if (!srv_read_only_mode) {

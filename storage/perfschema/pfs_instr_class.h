@@ -297,7 +297,7 @@ struct PFS_ALIGNED PFS_thread_class : public PFS_instr_class
   /** Singleton instance. */
   PFS_thread *m_singleton;
   /** Thread history instrumentation flag. */
-  bool m_history;
+  bool m_history{false};
 };
 
 /** Key identifying a table share. */

@@ -2029,6 +2029,11 @@ int log_builtins_error_stack(const char *conf, bool check_only)
 
         lsi= lsi_new;
       }
+      else
+      {
+        rr= (int) -(start - conf + 1);
+        goto done;
+      }
     }
 
     start= end;

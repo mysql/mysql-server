@@ -24,7 +24,7 @@ explain select * from performance_schema.threads
 explain select * from performance_schema.threads
   where thread_id < 1;
 
-select processlist_id - @conid, name, processlist_info
+select processlist_id = @conid, name, processlist_info
   from performance_schema.threads
   where thread_id = @tid;
 
@@ -42,7 +42,7 @@ explain select * from performance_schema.threads
 explain select * from performance_schema.threads
   where processlist_id < 99999;
 
-select thread_id - @tid, name, processlist_info
+select thread_id = @tid, name, processlist_info
   from performance_schema.threads
   where processlist_id = @conid;
 
@@ -102,7 +102,7 @@ explain select * from performance_schema.threads
 explain select * from performance_schema.threads
   where PROCESSLIST_USER like "ro%";
 
-select thread_id - @tid, name, processlist_state, processlist_info
+select thread_id = @tid, name, processlist_state, processlist_info
   from performance_schema.threads
   where PROCESSLIST_USER = "root";
 
@@ -121,7 +121,7 @@ explain select * from performance_schema.threads
 explain select * from performance_schema.threads
   where PROCESSLIST_USER = "foo" and PROCESSLIST_HOST like "bar%";
 
-select thread_id - @tid, name, processlist_state, processlist_info
+select thread_id = @tid, name, processlist_state, processlist_info
   from performance_schema.threads
   where PROCESSLIST_USER = "root" and PROCESSLIST_HOST = "localhost";
 
@@ -142,6 +142,6 @@ explain select * from performance_schema.threads
 explain select * from performance_schema.threads
   where PROCESSLIST_HOST like "local%";
 
-select thread_id - @tid, name, processlist_state, processlist_info
+select thread_id = @tid, name, processlist_state, processlist_info
   from performance_schema.threads
   where PROCESSLIST_HOST = "localhost";

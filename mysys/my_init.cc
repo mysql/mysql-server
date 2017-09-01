@@ -29,6 +29,7 @@
 #include <sys/time.h>
 #endif
 #include <sys/types.h>
+#include <unordered_map>
 
 #include "m_ctype.h"
 #include "m_string.h"
@@ -174,18 +175,6 @@ bool my_init()
 
 
 	/* End my_sys */
-
-void charset_uninit()
-{
-  for (CHARSET_INFO *cs : all_charsets)
-  {
-    if (cs && cs->coll->uninit)
-    {
-      cs->coll->uninit(cs);
-    }
-  }
-}
-
 void my_end(int infoflag)
 {
   /*

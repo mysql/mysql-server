@@ -439,6 +439,7 @@ int main(int, char **)
   plan(32);
   MY_INIT("pfs_instr-oom-t");
   do_all_tests();
+  my_end(0);
   return (exit_status());
 }
 

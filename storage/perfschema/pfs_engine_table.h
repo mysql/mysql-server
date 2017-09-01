@@ -496,11 +496,9 @@ public:
   {
   }
 
-  void
-  init_mutex();
+  void init_mutex();
 
-  void
-  destroy_mutex();
+  void destroy_mutex();
 
   void
   lock_share_list()

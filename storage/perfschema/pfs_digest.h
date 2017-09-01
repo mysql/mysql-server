@@ -85,7 +85,8 @@ struct PFS_ALIGNED PFS_statements_digest_stat
   PFS_histogram m_histogram;
 
   /** Reset data for this record. */
-  void reset_data(unsigned char *token_array, size_t token_array_length,
+  void reset_data(unsigned char *token_array,
+                  size_t token_array_length,
                   char *query_sample_array);
   /** Reset data and remove index for this record. */
   void reset_index(PFS_thread *thread);

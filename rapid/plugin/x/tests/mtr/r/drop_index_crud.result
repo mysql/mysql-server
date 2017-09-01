@@ -4352,7 +4352,7 @@ RUN INSERT INTO xplugintest.table1(doc) VALUES('{"col":"2038-01-19 03:14:07.1234
 1 rows affected
 RUN SELECT * FROM xplugintest.table1
 doc	_id	$ix_ds6_r_193639E0029FB71DA5916BDF64B75D481FD4CF70
-{"_id": 1, "col": "2038-01-19 03:14:07.123456"}	1	2038/01/19 03:14:07.123456
+{"_id": 1, "col": "2038-01-19 03:14:07.123456"}	1	2038-01-19 03:14:07.123456
 0 rows affected
 RUN DELETE FROM xplugintest.table1
 

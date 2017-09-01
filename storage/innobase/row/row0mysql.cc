@@ -3371,7 +3371,7 @@ row_table_add_foreign_constraints(
 		dict_mem_table_free_foreign_vcol_set(table);
 		dict_mem_table_fill_foreign_vcol_set(table);
 
-		dd_open_fk_tables(client, fk_tables, true, thd);
+		dd_open_fk_tables(fk_tables, true, thd);
 		dd_table_close(table, NULL, NULL, true);
 	}
 
@@ -4802,8 +4802,6 @@ row_rename_table_for_mysql(
 		dd::cache::Dictionary_client*	client = dd::get_dd_client(thd);
 		dd::cache::Dictionary_client::Auto_releaser	releaser(client);
 
-		/* TODO: NewDD: WL#6049 server did not properly changed the
-		foreign->id for the table rename */
 		if (old_is_tmp || new_is_tmp) {
 			if (dict_locked) {
 				ut_ad(mutex_own(&dict_sys->mutex));
@@ -4818,40 +4816,6 @@ row_rename_table_for_mysql(
 
 			if (dict_locked) {
 				mutex_enter(&dict_sys->mutex);
-			}
-		}
-
-		/* TODO: remove following chunk of code once Bug#24666169
-		(NEWDD: RENAME TABLE DID NOT CHANGE FOREIGN KEY NAME
-		ACCORDINGLY) is fixed */
-
-		if (err == DB_SUCCESS && !old_is_tmp && !new_is_tmp) {
-			for (dict_foreign_set::iterator it
-			     = table->foreign_set.begin();
-			     it != table->foreign_set.end();) {
-				dict_foreign_t*	foreign = *it;
-				char	buf[MAX_TABLE_NAME_LEN + 1];
-				ulint   db_len = dict_get_db_name_len(
-					old_name);
-
-				filename_to_tablename(
-					old_name + db_len + 1,
-					buf, MAX_TABLE_NAME_LEN + 1);
-
-				if (strstr(foreign->id, buf)) {
-					dict_table_t*	ref_table
-					= dict_table_check_if_in_cache_low(
-					foreign->referenced_table_name_lookup);
-
-					dict_foreign_set::iterator	rit
-					= ref_table->referenced_set.find(
-						foreign);
-
-					table->foreign_set.erase(it++);
-					ref_table->referenced_set.erase(rit);
-				} else {
-					++it;
-				}
 			}
 		}
 
@@ -4897,24 +4861,7 @@ row_rename_table_for_mysql(
 		dict_mem_table_free_foreign_vcol_set(table);
 		dict_mem_table_fill_foreign_vcol_set(table);
 
-		/* WL#6049 TODO: Remove this workaround, which checks
-		if a child table name is the same with the old name.
-		If it is, just ignore this one for self referencing. */
-		fk_tables.erase(std::remove_if(
-			fk_tables.begin(), fk_tables.end(),
-			[&old_name](const char* name) {
-				char	db_buf[NAME_LEN + 1];
-				char	tbl_buf[NAME_LEN + 1];
-				dd_parse_tbl_name(
-					name, db_buf, tbl_buf,
-					nullptr, nullptr, nullptr);
-				char	fullname[2 * (NAME_LEN + 1)];
-				snprintf(fullname, sizeof fullname,
-					 "%s/%s", db_buf, tbl_buf);
-				return(strcmp(old_name, fullname) == 0);}),
-			fk_tables.end());
-
-		dd_open_fk_tables(client, fk_tables, dict_locked, thd);
+		dd_open_fk_tables(fk_tables, dict_locked, thd);
 	}
 
 funct_exit:

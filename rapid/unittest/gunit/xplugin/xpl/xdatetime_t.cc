@@ -24,21 +24,21 @@ namespace test {
 
 TEST(xdatetime, date) {
   EXPECT_TRUE(xcl::DateTime(2015, 12, 5));
-  EXPECT_EQ("2015/12/05", xcl::DateTime(2015, 12, 5).to_string());
-  EXPECT_EQ("2015/12/05", xcl::DateTime(2015, 12, 5).to_string());
-  EXPECT_EQ("0001/01/01", xcl::DateTime(1, 1, 1).to_string());
-  EXPECT_EQ("0000/00/00", xcl::DateTime(0, 0, 0).to_string());
-  EXPECT_EQ("9999/12/31", xcl::DateTime(9999, 12, 31).to_string());
+  EXPECT_EQ("2015-12-05", xcl::DateTime(2015, 12, 5).to_string());
+  EXPECT_EQ("2015-12-05", xcl::DateTime(2015, 12, 5).to_string());
+  EXPECT_EQ("0001-01-01", xcl::DateTime(1, 1, 1).to_string());
+  EXPECT_EQ("0000-00-00", xcl::DateTime(0, 0, 0).to_string());
+  EXPECT_EQ("9999-12-31", xcl::DateTime(9999, 12, 31).to_string());
   EXPECT_FALSE(xcl::DateTime(0, 50, 60));
 }
 
 TEST(xdatetime, datetime) {
-  EXPECT_EQ("2015/12/05 00:00:00.123456",
+  EXPECT_EQ("2015-12-05 00:00:00.123456",
             xcl::DateTime(2015, 12, 5, 0, 0, 0, 123456).to_string());
-  EXPECT_EQ("0001/01/01 23:45:59.99",
+  EXPECT_EQ("0001-01-01 23:45:59.99",
             xcl::DateTime(1, 1, 1, 23, 45, 59, 990000).to_string());
-  EXPECT_EQ("0000/00/00 00:00:00", xcl::DateTime(0, 0, 0, 0, 0, 0).to_string());
-  EXPECT_EQ("9999/12/31 23:59:59.999999",
+  EXPECT_EQ("0000-00-00 00:00:00", xcl::DateTime(0, 0, 0, 0, 0, 0).to_string());
+  EXPECT_EQ("9999-12-31 23:59:59.999999",
             xcl::DateTime(9999, 12, 31, 23, 59, 59, 999999).to_string());
 
   EXPECT_EQ("23:59:59.999999",

@@ -1460,7 +1460,7 @@ void JOIN::test_skip_sort()
   ASSERT_BEST_REF_IN_JOIN_ORDER(this);
   JOIN_TAB *const tab= best_ref[const_tables];
 
-  DBUG_ASSERT(ordered_index_usage == ordered_index_void);
+  DBUG_ASSERT(m_ordered_index_usage == ORDERED_INDEX_VOID);
 
   if (group_list)   // GROUP BY honoured first
                     // (DISTINCT was rewritten to GROUP BY if skippable)
@@ -1493,7 +1493,7 @@ void JOIN::test_skip_sort()
                                     &tab->table()->keys_in_use_for_group_by,
                                     &dummy))
         {
-          ordered_index_usage= ordered_index_group_by;
+          m_ordered_index_usage= ORDERED_INDEX_GROUP_BY;
         }
       }
 
@@ -1504,7 +1504,7 @@ void JOIN::test_skip_sort()
         table.  In order to avoid this, force use of temporary table.
         TODO: Explain the quick_group part of the test below.
        */
-      if ((ordered_index_usage != ordered_index_group_by) &&
+      if ((m_ordered_index_usage != ORDERED_INDEX_GROUP_BY) &&
           (tmp_table_param.quick_group ||
            (tab->emb_sj_nest &&
             tab->position()->sj_strategy == SJ_OPT_LOOSE_SCAN)))
@@ -1519,11 +1519,12 @@ void JOIN::test_skip_sort()
            !m_windows_sort) // and WFs will not shuffle rows
   {
     int dummy;
-    if (test_if_skip_sort_order(tab, order, m_select_limit, false,
-                                &tab->table()->keys_in_use_for_order_by,
-                                &dummy))
+    if ((skip_sort_order=
+         test_if_skip_sort_order(tab, order, m_select_limit, false,
+                                 &tab->table()->keys_in_use_for_order_by,
+                                 &dummy)))
     {
-      ordered_index_usage= ordered_index_order_by;
+      m_ordered_index_usage= ORDERED_INDEX_ORDER_BY;
     }
   }
   DBUG_VOID_RETURN;
@@ -11136,7 +11137,7 @@ bool JOIN::fts_index_access(JOIN_TAB *tab)
   /*
     This optimization does not work with filesort nor GROUP BY
   */
-  if (grouped || (order && ordered_index_usage != ordered_index_order_by))
+  if (grouped || (order && m_ordered_index_usage != ORDERED_INDEX_ORDER_BY))
     return false;
 
   /*

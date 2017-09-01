@@ -198,10 +198,12 @@ static bool add_if_missing(Json_dom *candidate,
 
   @return true if only one result is needed and a result has been found
 */
+#ifdef MYSQL_SERVER
 static inline bool is_seek_done(const Json_dom_vector *hits, bool only_need_one)
 {
   return only_need_one && hits->size() > 0;
 }
+#endif // ifdef MYSQL_SERVER
 
 
 /**
@@ -3579,6 +3581,7 @@ private:
   before types with higher identifiers.
   See also note for Json_dom::enum_json_type.
 */
+#ifdef MYSQL_SERVER
 constexpr uchar JSON_KEY_NULL=        '\x00';
 constexpr uchar JSON_KEY_NUMBER_NEG=  '\x01';
 constexpr uchar JSON_KEY_NUMBER_ZERO= '\x02';
@@ -3592,6 +3595,7 @@ constexpr uchar JSON_KEY_DATE=        '\x09';
 constexpr uchar JSON_KEY_TIME=        '\x0A';
 constexpr uchar JSON_KEY_DATETIME=    '\x0B';
 constexpr uchar JSON_KEY_OPAQUE=      '\x0C';
+#endif // ifdef MYSQL_SERVER
 
 } // namespace
 

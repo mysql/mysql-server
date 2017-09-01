@@ -869,5 +869,7 @@ bool check_authorization_id_string(const char *buffer, size_t length);
 String *func_current_role(THD *thd, String *str, String *active_role);
 
 extern volatile uint32 global_password_history, global_password_reuse_interval;
+
+bool operator==(const LEX_CSTRING &a, const LEX_CSTRING &b);
 #endif /* AUTH_COMMON_INCLUDED */
 

@@ -1338,6 +1338,11 @@ void
 fil_flush(space_id_t space_id);
 
 /** Flush to disk the writes in file spaces of the given type
+possibly cached by the OS. */
+void
+fil_flush_file_redo();
+
+/** Flush to disk the writes in file spaces of the given type
 possibly cached by the OS.
 @param[in]	purpose		FIL_TYPE_TABLESPACE or FIL_TYPE_LOG, can
 				be ORred. */
