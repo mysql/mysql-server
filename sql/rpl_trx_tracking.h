@@ -102,6 +102,14 @@ private:
 
   /* "Prepared" transactions timestamp */
   Logical_clock m_transaction_counter;
+
+  /*
+    Stores the last sequence_number of the transaction which breaks the rule of
+    lock based logical clock. commit_parent of the following transactions
+    will be set to m_last_blocking_transaction if their last_committed is
+    smaller than m_last_blocking_transaction.
+  */
+  int64 m_last_blocking_transaction= SEQ_UNINIT;
 };
 
 /**
