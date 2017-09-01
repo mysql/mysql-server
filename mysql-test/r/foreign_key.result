@@ -1958,3 +1958,33 @@ SET FOREIGN_KEY_CHECKS=0;
 DROP TABLE t4;
 DROP TABLES t2, t3;
 SET FOREIGN_KEY_CHECKS=1;
+#
+# Additional test coverage for foreign keys and prepared statement
+# validation.
+#
+CREATE TABLE t1 (i INT PRIMARY KEY);
+CREATE TABLE t2 (j INT, FOREIGN KEY (j) REFERENCES t1 (i) ON DELETE CASCADE);
+CREATE TABLE t3 (k INT);
+CREATE TRIGGER bi_t3 BEFORE INSERT ON t3 FOR EACH ROW
+BEGIN
+IF @a = 1234567890 THEN
+DELETE FROM t1;
+END IF;
+END|
+PREPARE stmt FROM 'INSERT INTO t3 VALUES (1)';
+EXECUTE stmt;
+DROP TABLES t2, t1;
+# Statement should succeed even though we won't be able check
+# prelocked set element for child table.
+EXECUTE stmt;
+CREATE TABLE t1 (i INT PRIMARY KEY);
+CREATE TABLE t2 (j INT, FOREIGN KEY (j) REFERENCES t1 (i) ON DELETE CASCADE);
+EXECUTE stmt;
+DROP TABLES t2, t1;
+CREATE VIEW t2 AS SELECT 1 AS j;
+# Again statement should succeed, even though we have view instead
+# of child table.
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+DROP TABLE t3;
+DROP VIEW t2;
