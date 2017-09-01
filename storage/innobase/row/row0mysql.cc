@@ -3371,7 +3371,7 @@ row_table_add_foreign_constraints(
 		dict_mem_table_free_foreign_vcol_set(table);
 		dict_mem_table_fill_foreign_vcol_set(table);
 
-		dd_open_fk_tables(client, fk_tables, true, thd);
+		dd_open_fk_tables(fk_tables, true, thd);
 		dd_table_close(table, NULL, NULL, true);
 	}
 
@@ -4850,24 +4850,7 @@ row_rename_table_for_mysql(
 		dict_mem_table_free_foreign_vcol_set(table);
 		dict_mem_table_fill_foreign_vcol_set(table);
 
-		/* WL#6049 TODO: Remove this workaround, which checks
-		if a child table name is the same with the old name.
-		If it is, just ignore this one for self referencing. */
-		fk_tables.erase(std::remove_if(
-			fk_tables.begin(), fk_tables.end(),
-			[&old_name](const char* name) {
-				char	db_buf[NAME_LEN + 1];
-				char	tbl_buf[NAME_LEN + 1];
-				dd_parse_tbl_name(
-					name, db_buf, tbl_buf,
-					nullptr, nullptr, nullptr);
-				char	fullname[2 * (NAME_LEN + 1)];
-				snprintf(fullname, sizeof fullname,
-					 "%s/%s", db_buf, tbl_buf);
-				return(strcmp(old_name, fullname) == 0);}),
-			fk_tables.end());
-
-		dd_open_fk_tables(client, fk_tables, dict_locked, thd);
+		dd_open_fk_tables(fk_tables, dict_locked, thd);
 	}
 
 funct_exit:

@@ -6903,7 +6903,7 @@ innobase_update_foreign_cache(
 			releaser(client);
 
 
-		dd_open_fk_tables(client, fk_tables, false, user_thd);
+		dd_open_fk_tables(fk_tables, false, user_thd);
 		mutex_enter(&dict_sys->mutex);
 	}
 
