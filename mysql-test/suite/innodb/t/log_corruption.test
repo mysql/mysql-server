@@ -36,7 +36,7 @@ let SEARCH_PATTERN=InnoDB: Invalid redo log header checksum;
 --exec unzip $MYSQL_TEST_DIR/suite/innodb/t/log_corruption2.zip -d $newdir > $SEARCH_FILE
 --error 1,42
 --exec $MYSQLD $args
-let SEARCH_PATTERN=InnoDB: Unsupported redo log format. The redo log was created with malicious intentions, or perhaps\\. Please follow the instructions at http://dev.mysql.com/doc/refman/8.0/en/upgrading-downgrading.html;
+let SEARCH_PATTERN=InnoDB: Unsupported redo log format. The redo log was created with malicious intentions, or perhaps\\. Please follow the instructions at http://dev.mysql.com/doc/refman/.*/en/upgrading-downgrading.html;
 --source include/search_pattern.inc
 
 --echo # redo log from MySQL 5.7.9, with corrupted log checkpoint

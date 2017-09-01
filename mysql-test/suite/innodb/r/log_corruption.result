@@ -5,7 +5,7 @@ Pattern "InnoDB: Upgrade after a crash is not supported. This redo log was creat
 # redo log from "after" MySQL 5.7.9, but with invalid header checksum
 Pattern "InnoDB: Invalid redo log header checksum" found
 # distant future redo log format, with valid header checksum
-Pattern "InnoDB: Unsupported redo log format. The redo log was created with malicious intentions, or perhaps\. Please follow the instructions at http://dev.mysql.com/doc/refman/8.0/en/upgrading-downgrading.html" found
+Pattern "InnoDB: Unsupported redo log format. The redo log was created with malicious intentions, or perhaps\. Please follow the instructions at http://dev.mysql.com/doc/refman/.*/en/upgrading-downgrading.html" found
 # redo log from MySQL 5.7.9, with corrupted log checkpoint
 Pattern "InnoDB: No valid checkpoint found .corrupted redo log" found
 # valid 5.7.9 header, valid checkpoint 1, all-zero (invalid) checkpoint 2,
