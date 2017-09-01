@@ -1,0 +1,12 @@
+CREATE TABLE test.t1 (a int primary key, b int) engine=ndb;
+INSERT INTO test.t1 values (101,101), (102,102);
+BEGIN;
+SELECT * FROM test.t1 where a=101 FOR UPDATE;
+a	b
+101	101
+DELETE FROM test.t1 where a=101;
+INSERT INTO test.t1 values (101,102);
+UPDATE test.t1 SET b=101 where a=101;
+DELETE FROM test.t1 where a=101;
+COMMIT;
+drop table test.t1;

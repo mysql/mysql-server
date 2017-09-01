@@ -8799,6 +8799,17 @@ void Dblqh::execCOMMIT(Signal* signal)
       SET_ERROR_INSERT_VALUE(5048);
     }
     
+    if (ERROR_INSERTED(5092))
+    {
+      if (tcConnectptr.p->operation == ZREAD)
+      {
+        jam();
+        CLEAR_ERROR_INSERT_VALUE;
+        g_eventLogger->info("Delaying COMMIT for READ");
+        sendSignalWithDelay(cownref, GSN_COMMIT, signal, 3000, 5);
+        return;
+      }
+    }
     commitReqLab(signal, gci_hi, gci_lo);
     return;
   }//if
@@ -8946,6 +8957,20 @@ void Dblqh::execCOMPLETE(Signal* signal)
       (tcConnectptr.p->transid[1] == transid2)) {
 
     TcConnectionrec * const regTcPtr = tcConnectptr.p;
+
+    if (ERROR_INSERTED(5092))
+    {
+      if ((tcConnectptr.p->seqNoReplica != 0) &&
+          (tcConnectptr.p->operation == ZDELETE))
+      {
+        jam();
+        CLEAR_ERROR_INSERT_VALUE;
+        g_eventLogger->info("Delaying COMPLETE for DELETE at Backup replica");
+        sendSignalWithDelay(cownref, GSN_COMPLETE, signal, 1000, 3);
+        return;
+      }
+    }
+
     TRACE_OP(regTcPtr, "COMPLETE");
 
     if (tcConnectptr.p->seqNoReplica != 0 && 

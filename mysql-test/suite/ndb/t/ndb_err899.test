@@ -1,0 +1,27 @@
+--source include/have_ndb.inc
+
+CREATE TABLE test.t1 (a int primary key, b int) engine=ndb;
+INSERT INTO test.t1 values (101,101), (102,102);
+
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 5092" >> $NDB_TOOLS_OUTPUT
+
+BEGIN;
+SELECT * FROM test.t1 where a=101 FOR UPDATE; # READ-EX
+DELETE FROM test.t1 where a=101; # DELETE
+INSERT INTO test.t1 values (101,102); # INSERT
+UPDATE test.t1 SET b=101 where a=101; # DELETE
+DELETE FROM test.t1 where a=101; # DELETE
+COMMIT; # Delayed due to error inserts
+
+--disable_query_log
+let $i= 100;
+while ($i)
+{
+  eval INSERT INTO test.t1 values ($i, $i);
+  dec $i;
+}
+--enable_query_log
+
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
+
+drop table test.t1;
