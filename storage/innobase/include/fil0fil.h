@@ -524,7 +524,7 @@ public:
 		if (path.length() >= 3
 		    && isalpha(path.at(0))
 		    && path.at(1) == ':'
-		    && (path.at(2) == '\\' || patb.at(2) == '/')) {
+		    && (path.at(2) == '\\' || path.at(2) == '/')) {
 
 			return(true);
 		}
