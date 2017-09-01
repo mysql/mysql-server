@@ -40,6 +40,7 @@
 #include "mysql/udf_registration_types.h"
 #include "sql/auth/auth_common.h"
 #include "sql/dd/properties.h"
+#include "sql/dd/types/foreign_key.h" // dd::Foreign_key::enum_rule
 #include "sql/enum_query_type.h" // enum_query_type
 #include "sql/handler.h"   // row_type
 #include "sql/json_diff.h"
@@ -627,6 +628,21 @@ typedef I_P_List <Wait_for_flush,
                  Wait_for_flush_list;
 
 
+typedef struct Table_share_foreign_key_info
+{
+  LEX_CSTRING referenced_table_db;
+  LEX_CSTRING referenced_table_name;
+} TABLE_SHARE_FOREIGN_KEY_INFO;
+
+
+typedef struct Table_share_foreign_key_parent_info
+{
+  LEX_CSTRING referencing_table_db;
+  LEX_CSTRING referencing_table_name;
+  dd::Foreign_key::enum_rule update_rule, delete_rule;
+} TABLE_SHARE_FOREIGN_KEY_PARENT_INFO;
+
+
 /**
   This structure is shared between different table objects. There is one
   instance of table share per one table in the database.
@@ -908,6 +924,16 @@ struct TABLE_SHARE
 
   /// For materialized derived tables; @see add_derived_key().
   SELECT_LEX *owner_of_possible_tmp_keys;
+
+  /**
+    Arrays with descriptions of foreign keys in which this table participates
+    as child or parent. We only cache in them information from dd::Table object
+    which is sufficient for use by prelocking algorithm.
+  */
+  uint foreign_keys;
+  TABLE_SHARE_FOREIGN_KEY_INFO *foreign_key;
+  uint foreign_key_parents;
+  TABLE_SHARE_FOREIGN_KEY_PARENT_INFO *foreign_key_parent;
 
   /**
     Set share's table cache key and update its db and table name appropriately.
