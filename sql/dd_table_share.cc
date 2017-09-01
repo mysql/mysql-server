@@ -2286,6 +2286,82 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
 }
 
 
+/**
+  Fill TABLE_SHARE with information about foreign keys from dd::Table.
+*/
+
+static bool fill_foreign_keys_from_dd(TABLE_SHARE *share,
+                                      const dd::Table *tab_obj)
+{
+  DBUG_ASSERT(share->foreign_keys == 0 &&
+              share->foreign_key_parents == 0);
+
+
+  share->foreign_keys= tab_obj->foreign_keys().size();
+  share->foreign_key_parents= tab_obj->foreign_key_parents().size();
+
+
+  if (share->foreign_keys)
+  {
+    if (!(share->foreign_key= (TABLE_SHARE_FOREIGN_KEY_INFO*)
+            alloc_root(&share->mem_root,
+                       share->foreign_keys *
+                       sizeof(TABLE_SHARE_FOREIGN_KEY_INFO))))
+      return true;
+
+    uint i= 0;
+
+    for (const dd::Foreign_key *fk : tab_obj->foreign_keys())
+    {
+      if (!make_lex_string_root(&share->mem_root,
+                                &share->foreign_key[i].referenced_table_db,
+                                fk->referenced_table_schema_name().c_str(),
+                                fk->referenced_table_schema_name().length(),
+                                false))
+        return true;
+      if (!make_lex_string_root(&share->mem_root,
+                                &share->foreign_key[i].referenced_table_name,
+                                fk->referenced_table_name().c_str(),
+                                fk->referenced_table_name().length(),
+                                false))
+        return true;
+      ++i;
+    }
+  }
+
+  if (share->foreign_key_parents)
+  {
+    if (!(share->foreign_key_parent= (TABLE_SHARE_FOREIGN_KEY_PARENT_INFO*)
+            alloc_root(&share->mem_root,
+                       share->foreign_key_parents *
+                       sizeof(TABLE_SHARE_FOREIGN_KEY_PARENT_INFO))))
+      return true;
+
+    uint i= 0;
+
+    for (const dd::Foreign_key_parent *fk_p : tab_obj->foreign_key_parents())
+    {
+      if (!make_lex_string_root(&share->mem_root,
+              &share->foreign_key_parent[i].referencing_table_db,
+              fk_p->child_schema_name().c_str(),
+              fk_p->child_schema_name().length(),
+              false))
+        return true;
+      if (!make_lex_string_root(&share->mem_root,
+              &share->foreign_key_parent[i].referencing_table_name,
+              fk_p->child_table_name().c_str(),
+              fk_p->child_table_name().length(),
+              false))
+        return true;
+      share->foreign_key_parent[i].update_rule= fk_p->update_rule();
+      share->foreign_key_parent[i].delete_rule= fk_p->delete_rule();
+      ++i;
+    }
+  }
+  return false;
+}
+
+
 bool open_table_def(THD *thd, TABLE_SHARE *share, const dd::Table &table_def)
 {
   DBUG_ENTER("open_table_def");
@@ -2298,7 +2374,8 @@ bool open_table_def(THD *thd, TABLE_SHARE *share, const dd::Table &table_def)
   bool error=  (fill_share_from_dd(thd, share, &table_def) ||
                 fill_columns_from_dd(thd, share, &table_def) ||
                 fill_indexes_from_dd(thd, share, &table_def) ||
-                fill_partitioning_from_dd(thd, share, &table_def));
+                fill_partitioning_from_dd(thd, share, &table_def) ||
+                fill_foreign_keys_from_dd(share, &table_def));
 
   thd->mem_root= old_root;
 

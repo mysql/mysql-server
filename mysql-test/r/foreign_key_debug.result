@@ -647,18 +647,6 @@ child_ibfk_1	parent_i_key	test	parent
 DROP SCHEMA s1;
 DROP TABLE parent;
 #
-# Trigger an error in process_table_fks().
-#
-CREATE TABLE t(pk INTEGER PRIMARY KEY, fk_pk INTEGER,
-FOREIGN KEY (fk_pk) REFERENCES t(pk) ON UPDATE CASCADE);
-SET @@foreign_key_checks= 1;
-SET @@session.debug= '+d,fail_while_processing_table_fks';
-LOCK TABLE t WRITE;
-ERROR HY000: Lock wait timeout exceeded; try restarting transaction
-UNLOCK TABLE;
-SET @@session.debug= '-d,fail_while_processing_table_fks';
-DROP TABLE t;
-#
 # Trigger an error in Foreign_key_parents_invalidator::invalidate().
 #
 CREATE TABLE parent(pk INTEGER PRIMARY KEY, i INTEGER,
