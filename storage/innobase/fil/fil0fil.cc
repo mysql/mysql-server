@@ -9043,8 +9043,6 @@ fil_tablespace_path_equals(
 		old_dir = Fil_path::get_real_path(old_dir);
 		new_dir = Fil_path::get_real_path(new_dir);
 
-		ib::info() << old_dir << " - " << new_dir;
-
 		if (old_dir.compare(new_dir) != 0) {
 
 			*new_path = result.first + result.second->front();
