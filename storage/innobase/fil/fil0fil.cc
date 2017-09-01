@@ -1412,11 +1412,9 @@ public:
 	If the ID is == 0 on the first page then check for at least
 	MAX_PAGES_TO_CHECK  pages with the same tablespace ID. Do a Light
 	weight check before trying with DataFile::find_space_id().
-	@param[in,out]	ifs		Input file stream
 	@param[in]	filename	File name to check
 	@return ULINT32_UNDEFINED if not found, otherwise the space ID */
 	static space_id_t get_tablespace_id(
-		std::ifstream*		ifs,
 		const std::string&	filename)
 		MY_ATTRIBUTE((warn_unused_result));
 
@@ -9891,16 +9889,21 @@ fil_op_replay_rename_for_ddl(
 is == 0 on the first page then check for at least MAX_PAGES_TO_CHECK  pages
 with the same tablespace ID. Do a Light weight check before trying with
 DataFile::find_space_id().
-@param[in,out]	ifs		Input file stream
 @param[in]	filename	File name to check
 @return ULINT32_UNDEFINED if not found, otherwise the space ID */
 space_id_t
-Fil_system::get_tablespace_id(std::ifstream* ifs, const std::string& filename)
+Fil_system::get_tablespace_id(const std::string& filename)
 {
 	dberr_t		err = DB_CORRUPTION;
 	char		buf[sizeof(space_id_t)];
 	space_id_t	space_id = ULINT32_UNDEFINED;
 	space_id_t	prev_space_id = ULINT32_UNDEFINED;
+	std::ifstream	ifs(filename, std::ios::binary);
+
+	if (!ifs) {
+		ib::warn() << "Unable to open '" << filename << "'";
+		return(ULINT32_UNDEFINED);
+	}
 
 	for (page_no_t page_no = 0; page_no < MAX_PAGES_TO_CHECK; ++page_no) {
 
@@ -9908,29 +9911,33 @@ Fil_system::get_tablespace_id(std::ifstream* ifs, const std::string& filename)
 
 		off = page_no * srv_page_size + FIL_PAGE_SPACE_ID;
 
-		ifs->seekg(off,  ifs->beg);
+		ifs.seekg(off,  ifs.beg);
 
-		if ((ifs->rdstate() & std::ifstream::eofbit) != 0
-		    || (ifs->rdstate() & std::ifstream::failbit) != 0
-		    || (ifs->rdstate() & std::ifstream::badbit) != 0) {
+		if ((ifs.rdstate() & std::ifstream::eofbit) != 0
+		    || (ifs.rdstate() & std::ifstream::failbit) != 0
+		    || (ifs.rdstate() & std::ifstream::badbit) != 0) {
 
 			ib::error()
 				<< "'" << filename << "' seek to"
 				<< " " << off << " failed!";
 
+			ifs.close();
+
 			return(ULINT32_UNDEFINED);
 		}
 
-		ifs->read(buf, sizeof(buf));
+		ifs.read(buf, sizeof(buf));
 
-		if (!ifs->good() || (size_t) ifs->gcount() < sizeof(buf)) {
+		if (!ifs.good() || (size_t) ifs.gcount() < sizeof(buf)) {
 
 			ib::error()
 				<< "'" << filename
 				<< "' read failed! - attempted to read"
 				<< " " << sizeof(buf) << " bytes, read only"
-				<< " " << ifs->gcount() << " bytes @offset "
+				<< " " << ifs.gcount() << " bytes @offset "
 				<< off;
+
+			ifs.close();
 
 			return(ULINT32_UNDEFINED);
 		}
@@ -9964,6 +9971,8 @@ Fil_system::get_tablespace_id(std::ifstream* ifs, const std::string& filename)
 		}
 	}
 
+	ifs.close();
+
 	if (err != DB_SUCCESS) {
 
 		/* Try the more heavy duty method, as a last resort. The
@@ -9973,7 +9982,6 @@ Fil_system::get_tablespace_id(std::ifstream* ifs, const std::string& filename)
 		compressed tablespaces we don't know where the page boundary
 		starts because we don't know the page size. */
 
-		ifs->close();
 
 		Datafile	file;
 
@@ -9993,19 +10001,9 @@ Fil_system::get_tablespace_id(std::ifstream* ifs, const std::string& filename)
 		}
 
 		file.close();
-
-		ifs->open(filename, std::ios::binary);
-
-		if (!*ifs) {
-			ib::fatal() << "'" << filename << "' failed to open!";
-		}
 	}
 
-	if (err != DB_SUCCESS) {
-		return(ULINT32_UNDEFINED);
-	}
-
-	return(space_id);
+	return(err != DB_SUCCESS) ? ULINT32_UNDEFINED : space_id;
 }
 
 /** Check for duplicate tablespace IDs.
@@ -10034,16 +10032,9 @@ Tablespace_dirs::duplicate_check(
 		auto&			files = m_dirs[it->first];
 		const std::string	phy_filename = files.path() + filename;
 
-		std::ifstream	ifs(phy_filename, std::ios::binary);
-
-		if (!ifs) {
-			ib::warn() << "Unable to open '" << phy_filename << "'";
-			continue;
-		}
-
 		space_id_t	space_id;
 
-		space_id = Fil_system::get_tablespace_id(&ifs, phy_filename);
+		space_id = Fil_system::get_tablespace_id(phy_filename);
 
 		ut_a(space_id != 0);
 
@@ -10067,8 +10058,6 @@ Tablespace_dirs::duplicate_check(
 				<< "Ignoring '" << phy_filename << "' invalid"
 				<< " tablespace ID in the header";
 		}
-
-		ifs.close();
 
 		++count;
 
