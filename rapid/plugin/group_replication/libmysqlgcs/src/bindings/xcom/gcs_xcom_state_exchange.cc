@@ -719,10 +719,14 @@ Gcs_xcom_view_change_control::Gcs_xcom_view_change_control()
    m_wait_for_view_mutex(), m_joining_leaving_mutex(), m_current_view(NULL),
    m_current_view_mutex(), m_belongs_to_group(false)
 {
-  m_wait_for_view_cond.init();
-  m_wait_for_view_mutex.init(NULL);
-  m_joining_leaving_mutex.init(NULL);
-  m_current_view_mutex.init(NULL);
+  m_wait_for_view_cond.init(
+    key_GCS_COND_Gcs_xcom_view_change_control_m_wait_for_view_cond);
+  m_wait_for_view_mutex.init(
+    key_GCS_MUTEX_Gcs_xcom_view_change_control_m_wait_for_view_mutex, NULL);
+  m_joining_leaving_mutex.init(
+    key_GCS_MUTEX_Gcs_xcom_view_change_control_m_joining_leaving_mutex, NULL);
+  m_current_view_mutex.init(
+    key_GCS_MUTEX_Gcs_xcom_view_change_control_m_current_view_mutex, NULL);
 }
 
 

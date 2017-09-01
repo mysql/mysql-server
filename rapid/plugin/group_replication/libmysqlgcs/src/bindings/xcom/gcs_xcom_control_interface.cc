@@ -1686,7 +1686,8 @@ Gcs_suspicions_manager::Gcs_suspicions_manager(Gcs_xcom_proxy *proxy)
   m_suspicions(),
   m_suspicions_mutex()
 {
-  m_suspicions_mutex.init(NULL);
+  m_suspicions_mutex.init(
+    key_GCS_MUTEX_Gcs_suspicions_manager_m_suspicions_mutex, NULL);
 }
 
 
