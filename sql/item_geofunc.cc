@@ -3357,16 +3357,13 @@ String *Item_func_as_wkt::val_str_ascii(String *str)
     return nullptr;
   }
 
-  // Even if args[0]->val_str didn't return swkb_tmp, it may still
-  // have modified it, so clean it up first.
-  if (swkb != &swkb_tmp)
-  {
-    swkb_tmp.set(static_cast<const char *>(nullptr), 0, swkb_tmp.charset());
-  }
-  swkb_tmp.copy(*swkb);
-  swkb= &swkb_tmp;
+  // args[0]->val_str() may have returned a string that we shouldn't modify, and
+  // it may have modified swkb_tmp in the process. We need a local copy of the
+  // string, with its own buffer, since we may have to flip coordinate order.
+  String modifiable_swkb;
+  modifiable_swkb.copy(*swkb);
 
-  if (!(g= Geometry::construct(&buffer, swkb)))
+  if (!(g= Geometry::construct(&buffer, &modifiable_swkb)))
   {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_str();
@@ -3506,13 +3503,13 @@ String *Item_func_as_wkb::val_str(String *str)
     return nullptr;
   }
 
-  // swkb may not point to swkb_tmp, but to another string that shouldn't be
-  // modified, so the following procedure is necessary to be sure to have a
-  // string that can be altered.
-  swkb_tmp.copy(*swkb);
-  swkb= &swkb_tmp;
+  // args[0]->val_str() may have returned a string that we shouldn't modify, and
+  // it may have modified swkb_tmp in the process. We need a local copy of the
+  // string, with its own buffer, since we may have to flip coordinate order.
+  String modifiable_swkb;
+  modifiable_swkb.copy(*swkb);
 
-  if (!(g= Geometry::construct(&buffer, swkb)))
+  if (!(g= Geometry::construct(&buffer, &modifiable_swkb)))
   {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_str();
@@ -3611,9 +3608,8 @@ String *Item_func_as_wkb::val_str(String *str)
     }
   }
 
-  str->copy(swkb->ptr() + SRID_SIZE, swkb->length() - SRID_SIZE,
-            &my_charset_bin);
-
+  str->copy(modifiable_swkb.ptr() + SRID_SIZE,
+            modifiable_swkb.length() - SRID_SIZE, &my_charset_bin);
 
   return str;
 }
