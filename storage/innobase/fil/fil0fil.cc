@@ -4971,14 +4971,14 @@ Fil_shard::space_rename(
 			      != nullptr);
 
 			mutex_release();
-			
+
 			/* Rename ddl log is for rollback, so we exchange
 			old file name with new file name. */
 			log_ddl->write_rename_space_log(
 				space_id, new_file_name, old_file_name);
 
 			ut_free(new_file_name);
-			
+
 			write_ddl_log = false;
 			continue;
 		}

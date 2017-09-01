@@ -1486,7 +1486,7 @@ UNIV_INLINE
 dberr_t
 pfs_os_aio_func(
 	IORequest&	type,
-	ulint		mode,
+	AIO_mode	mode,
 	const char*	name,
 	pfs_os_file_t	file,
 	void*		buf,
