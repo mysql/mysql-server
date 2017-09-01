@@ -1774,7 +1774,7 @@ Fil_shard::Fil_shard(size_t shard_id)
 	latch_id = static_cast<latch_id_t>(to_int(latch_id) + m_id);
 
 	ut_ad(latch_id >= LATCH_ID_FIL_SHARD_1
-	      && latch_id <= LATCH_ID_FIL_SHARD_32);
+	      && latch_id <= LATCH_ID_FIL_SHARD_REDO);
 
 	mutex_create(latch_id, &m_mutex);
 
