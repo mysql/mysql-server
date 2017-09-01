@@ -280,6 +280,11 @@ public:
   int set_num_recv_threads(Uint32 num_recv_threads);
   int get_num_recv_threads() const;
   int unset_recv_thread_cpu(Uint32 recv_thread_id);
+  int set_recv_thread_cpu(Uint16 cpuid)
+  {
+    Uint16 cpuid2 = cpuid;
+    return set_recv_thread_cpu(&cpuid2, 1U);
+  }
   int set_recv_thread_cpu(Uint16 *cpuid_array,
                           Uint32 array_len,
                           Uint32 recv_thread_id = 0);

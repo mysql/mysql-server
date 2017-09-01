@@ -647,6 +647,53 @@ create table bigintegertypes (
 
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
 
+drop table if exists mediumintegertypes;
+create table mediumintegertypes (
+ id int not null primary key,
+
+ medium_null_hash mediumint,
+ medium_null_btree mediumint,
+ medium_null_both mediumint,
+ medium_null_none mediumint,
+
+ medium_not_null_hash mediumint not null,
+ medium_not_null_btree mediumint not null,
+ medium_not_null_both mediumint not null,
+ medium_not_null_none mediumint not null,
+
+ unique key idx_medium_null_hash (medium_null_hash) using hash,
+ key idx_medium_null_btree (medium_null_btree),
+ unique key idx_medium_null_both (medium_null_both),
+
+ unique key idx_medium_not_null_hash (medium_not_null_hash) using hash,
+ key idx_medium_not_null_btree (medium_not_null_btree),
+ unique key idx_medium_not_null_both (medium_not_null_both)
+
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
+drop table if exists mediumunsignedtypes;
+create table mediumunsignedtypes (
+ id int not null primary key,
+
+ medium_unsigned_null_hash mediumint unsigned,
+ medium_unsigned_null_btree mediumint unsigned,
+ medium_unsigned_null_both mediumint unsigned,
+ medium_unsigned_null_none mediumint unsigned,
+
+ medium_unsigned_not_null_hash mediumint unsigned not null,
+ medium_unsigned_not_null_btree mediumint unsigned not null,
+ medium_unsigned_not_null_both mediumint unsigned not null,
+ medium_unsigned_not_null_none mediumint unsigned not null,
+
+ unique key idx_medium_unsigned_null_hash (medium_unsigned_null_hash) using hash,
+ key idx_medium_unsigned_null_btree (medium_unsigned_null_btree),
+ unique key idx_medium_unsigned_null_both (medium_unsigned_null_both),
+
+ unique key idx_medium_unsigned_not_null_hash (medium_unsigned_not_null_hash) using hash,
+ key idx_medium_unsigned_not_null_btree (medium_unsigned_not_null_btree),
+ unique key idx_medium_unsigned_not_null_both (medium_unsigned_not_null_both)
+
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
 drop table if exists timestamptypes;
 create table timestamptypes (
  id int not null primary key,
@@ -792,6 +839,12 @@ drop table if exists autopkbigint;
 create table autopkbigint (
   id bigint primary key auto_increment,
   val bigint
+) ENGINE=ndb;
+
+drop table if exists autopkmediumint;
+create table autopkmediumint (
+  id mediumint primary key auto_increment,
+  val mediumint
 ) ENGINE=ndb;
 
 drop table if exists autopkint;
