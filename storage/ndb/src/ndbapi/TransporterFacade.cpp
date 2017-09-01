@@ -863,9 +863,10 @@ TransporterFacade::unset_recv_thread_cpu(Uint32 recv_thread_id)
   {
     return -1;
   }
-  if (unlock_recv_thread_cpu())
+  int ret;
+  if ((ret = unlock_recv_thread_cpu()))
   {
-    return -1;
+    return ret;
   }
   recv_thread_cpu_id = NO_RECV_THREAD_CPU_ID;
   return 0;
@@ -888,9 +889,10 @@ TransporterFacade::set_recv_thread_cpu(Uint16 *cpuid_array,
   if (theTransporterRegistry)
   {
     /* Receiver thread already started, lock cpu now */
-    if (lock_recv_thread_cpu())
+    int ret;
+    if ((ret = lock_recv_thread_cpu()))
     {
-      return -1;
+      return ret;
     }
   }
   return 0;

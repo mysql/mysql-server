@@ -133,6 +133,22 @@ public interface Constants {
     /** The default value of the connection timeout after property */
     static final int DEFAULT_PROPERTY_CLUSTER_CONNECT_TIMEOUT_AFTER = 20;
 
+    /** The cpu binding of the receive threads for the connections in the
+     * connection pool. The default is no cpu binding for receive threads.
+     * If this property is specified and connection pool size is not the
+     * default (1), the number of cpuids of the list must match the
+     * connection pool size.
+     */
+    static final String PROPERTY_CONNECTION_POOL_RECV_THREAD_CPUIDS = "com.mysql.clusterj.connection.pool.recv.thread.cpuids";
+
+    /** The receive thread activation threshold for all connections in the
+     * connection pool. The default is no activation threshold.
+     */
+    static final String PROPERTY_CONNECTION_POOL_RECV_THREAD_ACTIVATION_THRESHOLD = "com.mysql.clusterj.connection.pool.recv.thread.activation.threshold";
+
+    /** The default value of the receive thread activation threshold */
+    static final int DEFAULT_PROPERTY_CONNECTION_POOL_RECV_THREAD_ACTIVATION_THRESHOLD = 8;
+
     /** The name of the database property. For details, see the catalogName parameter in the Ndb constructor.
      * <a href="http://dev.mysql.com/doc/ndbapi/en/ndb-ndb-methods.html#ndb-ndb-constructor">Ndb constructor</a>
      */
