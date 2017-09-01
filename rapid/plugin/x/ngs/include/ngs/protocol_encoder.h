@@ -77,15 +77,7 @@ public:
   bool send_result_fetch_done() override;
   bool send_result_fetch_done_more_results() override;
 
-  bool send_column_metadata(const std::string &catalog,
-                            const std::string &db_name,
-                            const std::string &table_name, const std::string &org_table_name,
-                            const std::string &col_name, const std::string &org_col_name,
-                            uint64_t collation, int type, int decimals,
-                            uint32_t flags, uint32_t length, uint32_t content_type = 0) override;
-
-  bool send_column_metadata(uint64_t collation, int type, int decimals,
-                            uint32_t flags, uint32_t length, uint32_t content_type = 0) override;
+  bool send_column_metadata(const Encode_column_info *column_info) override;
 
   Row_builder& row_builder() override { return m_row_builder; }
   void start_row() override;

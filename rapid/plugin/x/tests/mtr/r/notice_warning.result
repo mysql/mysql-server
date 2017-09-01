@@ -25,10 +25,8 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: ""
   schema: ""
   catalog: "def"
-  collation: 0
   fractional_digits: 4
   length: 7
-  flags: 0
 }
 
 Mysqlx.Resultset.ColumnMetaData {
@@ -39,10 +37,8 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: ""
   schema: ""
   catalog: "def"
-  collation: 0
   fractional_digits: 4
   length: 7
-  flags: 0
 }
 
 Mysqlx.Resultset.Row {
@@ -103,10 +99,8 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: ""
   schema: ""
   catalog: "def"
-  collation: 0
   fractional_digits: 4
   length: 7
-  flags: 0
 }
 
 Mysqlx.Resultset.Row {
@@ -154,10 +148,8 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: ""
   schema: ""
   catalog: "def"
-  collation: 0
   fractional_digits: 4
   length: 7
-  flags: 0
 }
 
 Mysqlx.Resultset.Row {
@@ -262,9 +254,7 @@ Mysqlx.Resultset.ColumnMetaData {
   schema: "test"
   catalog: "def"
   collation: 255
-  fractional_digits: 0
   length: 4
-  flags: 0
 }
 
 Mysqlx.Resultset.FetchDone {
@@ -336,10 +326,6 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: ""
   schema: ""
   catalog: ""
-  collation: 0
-  fractional_digits: 0
-  length: 0
-  flags: 0
 }
 
 Mysqlx.Resultset.ColumnMetaData {
@@ -350,10 +336,6 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: ""
   schema: ""
   catalog: ""
-  collation: 0
-  fractional_digits: 0
-  length: 0
-  flags: 0
 }
 
 Mysqlx.Resultset.Row {
