@@ -3850,12 +3850,20 @@ dd_open_table_one_on_name(
 
 	table = dict_table_check_if_in_cache_low(name);
 
-	/* Exit sys mutex to access server info */
-	mutex_exit(&dict_sys->mutex);
+	if (table != NULL) {
+		/* If the table is in cached already, do nothing. */
+		if (!dict_locked) {
+			mutex_exit(&dict_sys->mutex);
+		}
 
-	if (!table) {
+		return;
+	} else {
+		/* Otherwise, open it by dd obj. */
 		char		db_buf[MAX_DATABASE_NAME_LEN + 1];
 		char		tbl_buf[MAX_TABLE_NAME_LEN + 1];
+
+		/* Exit sys mutex to access server info */
+		mutex_exit(&dict_sys->mutex);
 
 		if (!dd_parse_tbl_name(
 			name, db_buf, tbl_buf,
