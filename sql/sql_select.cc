@@ -4280,7 +4280,7 @@ bool JOIN::make_tmp_tables_info()
       sorted access even if final result is not to be sorted.
     */
     DBUG_ASSERT(
-      !(ordered_index_usage == ordered_index_void &&
+      !(m_ordered_index_usage == ORDERED_INDEX_VOID &&
         !plan_is_const() && 
         qep_tab[const_tables].position()->sj_strategy != SJ_OPT_LOOSE_SCAN &&
         qep_tab[const_tables].use_order()));
@@ -4664,8 +4664,8 @@ bool JOIN::make_tmp_tables_info()
     DBUG_PRINT("info",("Sorting for order by/group by"));
     ORDER_with_src order_arg= group_list ?  group_list : order;
     if (qep_tab &&
-        ordered_index_usage !=
-        (group_list ? ordered_index_group_by : ordered_index_order_by) &&
+        m_ordered_index_usage !=
+        (group_list ? ORDERED_INDEX_GROUP_BY : ORDERED_INDEX_ORDER_BY) &&
         // Windowing will change order, so it's too early to sort here
         !m_windowing_steps)
     {
@@ -4824,7 +4824,7 @@ bool JOIN::make_tmp_tables_info()
       }
 
       if (order != nullptr &&
-          ordered_index_usage != ordered_index_order_by &&
+          m_ordered_index_usage != ORDERED_INDEX_ORDER_BY &&
           m_windows[wno]->is_last())
       {
         if (add_sorting_to_table(curr_tmp_table, &order))
