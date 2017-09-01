@@ -63,20 +63,4 @@ bool ndb_dd_table_get_engine(THD *thd,
                              const char *table_name,
                              dd::String_type* engine);
 
-
-/* Functions operating on dd::Table*, prefixed with ndb_dd_table_ */
-
-/*
-   Save the tables object id and version in table definition
-*/
-void ndb_dd_table_set_object_id_and_version(dd::Table* table_def,
-                                            int object_id, int object_version);
-
-/*
-  Return table definitions object id and version
-*/
-bool
-ndb_dd_table_get_object_id_and_version(const dd::Table* table_def,
-                                       int& object_id, int& object_version);
-
 #endif

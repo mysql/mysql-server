@@ -82,6 +82,8 @@
                             // tablename_to_filename
 #include "sql/sql_class.h"
 #include "sql/sql_table.h"  // build_table_filename,
+#include "sql/ndb_dd.h"
+#include "sql/ndb_dd_table.h"
 #include "sql/ndb_dummy_ts.h"
 
 using std::string;

@@ -18,7 +18,16 @@
 #ifndef NDB_DD_CLIENT_H
 #define NDB_DD_CLIENT_H
 
+
 #include "my_inttypes.h"
+#include "dd/string_type.h"
+
+namespace dd {
+  typedef String_type sdi_t;
+  namespace cache {
+    class Dictionary_client;
+  }
+}
 
 
 /*
@@ -28,22 +37,22 @@
   Handles:
    - locking and releasing MDL(metadata locks)
    - disabling and restoring autocommit
+   - transaction commit and rollback, will automatically
+     rollback in case commit has not been called
 */
+
 class Ndb_dd_client {
   class THD* const m_thd;
+  dd::cache::Dictionary_client* m_client;
+  void* m_auto_releaser; // Opaque pointer
   bool m_mdl_locks_acquired;
   ulonglong m_save_option_bits;
+  bool m_comitted;
 
   void disable_autocommit();
 
 public:
-  Ndb_dd_client(class THD* thd) :
-    m_thd(thd),
-    m_mdl_locks_acquired(false),
-    m_save_option_bits(0)
-  {
-    disable_autocommit();
-  }
+  Ndb_dd_client(class THD* thd);
 
   ~Ndb_dd_client();
 
@@ -53,7 +62,22 @@ public:
                                    const char* table_name);
   void mdl_locks_release();
 
+  // Transaction handling functions
+  void commit();
+  void rollback();
 
+  bool check_table_exists(const char* schema_name, const char* table_name,
+                          int& table_id, int& table_version);
+  bool get_engine(const char* schema_name, const char* table_name,
+                  dd::String_type* engine);
+
+  bool rename_table(const char *old_schema_name, const char *old_table_name,
+                    const char *new_schema_name, const char *new_table_name);
+  bool drop_table(const char* schema_name, const char* table_name);
+  bool install_table(const char* schema_name, const char* table_name,
+                     const dd::sdi_t &sdi,
+                     int ndb_table_id, int ndb_table_version,
+                     bool force_overwrite);
 };
 
 
