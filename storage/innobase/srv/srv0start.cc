@@ -819,14 +819,15 @@ srv_undo_tablespace_open(space_id_t space_id)
 		    && !Fil_path::equal(file_name, scanned_name)) {
 
 			/* Make sure that this space_id is used by the
-			correctly named undo tablespace. */
-			ib::error()
+			correctly named undo tablespace. Assume that the
+			undo files have been relocated. */
+			ib::info()
 				<< "Cannot create " << file_name
-				<< " because " << scanned_name.c_str()
+				<< " because " << scanned_name
 				<< " already uses Space ID=" << space_id
 				<< "!  Did you change innodb_undo_directory?";
 
-			return(DB_WRONG_FILE_NAME);
+			return(DB_SUCCESS);
 		}
 	} else {
 
@@ -2442,6 +2443,8 @@ files_checked:
 		    && fil_check_missing_tablespaces()) {
 
 			ib::error()
+				<< "Use --innodb-directories to find the"
+				<< " tablespace files. If that fails then use"
 				<< " --innodb-force-recvovery=1 to ignore"
 				<< " this and to permanently lose all changes"
 				<< " to the missing tablespace(s)";

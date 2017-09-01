@@ -2559,12 +2559,12 @@ dd_filename_to_spacename(
 	tablespace_name->append(tbl_buf);
 
 	if (part_buf[0] != '\0') {
-		tablespace_name->append(PARTN_SEPARATOR);
+		tablespace_name->append(PART_SEPARATOR);
 		tablespace_name->append(part_buf);
 	}
 
 	if (sub_buf[0] != '\0') {
-		tablespace_name->append(SUB_PARTN_SEPARATOR);
+		tablespace_name->append(SUB_PART_SEPARATOR);
 		tablespace_name->append(sub_buf);
 	}
 
@@ -5438,7 +5438,7 @@ dd_get_referenced_table(
 	const char*	db_name;
 	bool		is_part;
 
-	is_part = (strstr(name, PARTN_SEPARATOR) != nullptr);
+	is_part = (strstr(name, PART_SEPARATOR) != nullptr);
 
 	*table = nullptr;
 

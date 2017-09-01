@@ -3660,6 +3660,7 @@ Validate_files::check(
 						<< " messages";
 				}
 
+			case Fil_state::RENAMED:
 				break;
 			}
 		}
@@ -3991,7 +3992,9 @@ innobase_dict_recover(
 
 	srv_start_threads(dict_recovery_mode != DICT_RECOVERY_RESTART_SERVER);
 
-	/* We have to wait for rollback of any DD transactions. */
+	/* We have to wait for rollback of any DD transactions if any of the
+        files were moved to a different location before we can update the
+        DD tables in fil_open_for_business(). */
 
 	auto	start_time = ut_time();
 
@@ -6979,7 +6982,7 @@ ha_innobase::open(
 
 	/* We look for pattern #P# to see if the table is partitioned
 	MySQL table. */
-	is_part = strstr(norm_name, PARTN_SEPARATOR);
+	is_part = strstr(norm_name, PART_SEPARATOR);
 
 	/* Get pointer to a table object in InnoDB dictionary cache.
 	For intrinsic table, get it from session private data */

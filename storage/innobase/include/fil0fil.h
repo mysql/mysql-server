@@ -76,7 +76,11 @@ enum class Fil_state  {
 	DELETED,
 
 	/** Space ID matches but the paths don't match. */
-	MOVED
+	MOVED,
+
+	/** Tablespace and/or filename was renamed. The DDL log will handle
+	this case. */
+	RENAMED
 };
 
 /** Check if fil_type is any of FIL_TYPE_TEMPORARY, FIL_TYPE_IMPORT
@@ -506,21 +510,27 @@ public:
 		if (path.empty()) {
 
 			return(false);
-		}
 
+		} else if (path.at(0) == '\\' || path.at(0) == '/') {
+
+			/* Any string that starts with an OS_SEPARATOR is
+			an absolute path. This includes any OS and even
+			paths like "\\Host\share" on Windows. */
+
+			return(true);
+		}
 #ifdef _WIN32
-		/* Windows minimum absolute path length is 'A:\' */
-		if (path.length() < 3) {
-			return(false);
-		}
+		/* Windows may have an absolute path like 'A:\' */
+		if (path.length() >= 3
+		    && isalpha(path.at(0))
+		    && path.at(1) == ':'
+		    && (path.at(2) == '\\' || patb.at(2) == '/')) {
 
-		/* FIXME: What about \\Host\share paths? */
-		return(isalpha(path.at(0))
-		       && path.at(1) == ':'
-		       && (path.at(2) == '\\' || path.at(2) == '/'));
-#else
-		return(*path.begin() == OS_SEPARATOR);
+			return(true);
+		}
 #endif /* _WIN32 */
+
+		return(false);
 	}
 
 	/* Check if the path is prefixed with pattern.
@@ -564,15 +574,11 @@ public:
 	static os_file_type_t get_file_type(const std::string& path)
 		MY_ATTRIBUTE((warn_unused_result));
 
-	/** Get the real path for a file name, useful for comparing
-	symlinked files.
+	/** Get the real path for a directory or a file name, useful for
+	comparing symlinked files.
 	@param[in]	path		Directory or filename
-	@param[in]	filename	Filename without directory prefix,
-					path must be a directory
 	@return the absolute path of dir + filename, or "" on error.  */
-	static std::string get_real_path(
-		const char*		path,
-		const std::string&	filename = "")
+	static std::string get_real_path(const std::string&path)
 		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Check if lhs is the ancestor of rhs. If the two paths are the
@@ -595,9 +601,8 @@ public:
 
 	/** Check if the name is an undo tablespace name.
 	@param[in]	name		Tablespace name
-	@param[in]	len		Tablespace name length in bytes
 	@return true if it is an undo tablespace name */
-	static bool is_undo_tablespace_name(const char* name, size_t len)
+	static bool is_undo_tablespace_name(const std::string& name)
 		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Check if the file has the .ibd suffix

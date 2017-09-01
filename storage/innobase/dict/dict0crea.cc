@@ -110,9 +110,6 @@ dict_build_tablespace(
 	log_ddl->write_delete_space_log(
 		trx, NULL, space, datafile->filepath(), false, true);
 
-	log_ddl->write_delete_space_log(
-		trx, NULL, space, datafile->filepath(), false, true);
-
 	/* We create a new generic empty tablespace.
 	We initially let it be 4 pages:
 	- page 0 is the fsp header and an extent descriptor page,

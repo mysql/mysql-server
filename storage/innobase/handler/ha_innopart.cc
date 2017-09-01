@@ -152,19 +152,19 @@ Ha_innopart_share::create_partition_postfix(
 
 	part_name_len = append_sep_and_name(
 		partition_name, part->name().c_str(),
-		PARTN_SEPARATOR, size);
+		PART_SEPARATOR, size);
 
 	if (part_name_len < size && part != dd_part) {
 		char*	part_name_end = partition_name + part_name_len;
 
 		subpart_name_len = append_sep_and_name(
 			part_name_end, dd_part->name().c_str(),
-			SUB_PARTN_SEPARATOR, size - part_name_len);
+			SUB_PART_SEPARATOR, size - part_name_len);
 
-		if (subpart_name_len >= SUB_PARTN_SEPARATOR_LEN) {
+		if (subpart_name_len >= SUB_PART_SEPARATOR_LEN) {
 
 			partition_name_casedn_str(
-				part_name_end + SUB_PARTN_SEPARATOR_LEN);
+				part_name_end + SUB_PART_SEPARATOR_LEN);
 		}
 	}
 

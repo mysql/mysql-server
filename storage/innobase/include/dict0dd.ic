@@ -103,7 +103,7 @@ dd_parse_tbl_name(
 
 	path_to_tablename(db_buf, dd_db_name, MAX_DATABASE_NAME_LEN + 1, true);
 
-	auto	is_part = strstr(tbl_buf, PARTN_SEPARATOR);
+	auto	is_part = strstr(tbl_buf, PART_SEPARATOR);
 
 	if (is_part != nullptr) {
 		*is_part = '\0';
@@ -116,13 +116,13 @@ dd_parse_tbl_name(
 	}
 
 	auto	is_sub = strstr(
-		is_part + PARTN_SEPARATOR_LEN, SUB_PARTN_SEPARATOR);
+		is_part + PART_SEPARATOR_LEN, SUB_PART_SEPARATOR);
 
 	if (is_sub == nullptr) {
-		trailing_sharp = strchr(is_part + PARTN_SEPARATOR_LEN, '#');
+		trailing_sharp = strchr(is_part + PART_SEPARATOR_LEN, '#');
 	} else {
 		*is_sub = '\0';
-		trailing_sharp = strchr(is_sub + SUB_PARTN_SEPARATOR_LEN, '#');
+		trailing_sharp = strchr(is_sub + SUB_PART_SEPARATOR_LEN, '#');
 	}
 
 	if (trailing_sharp != nullptr) {
@@ -137,13 +137,13 @@ dd_parse_tbl_name(
 	if (is_part != nullptr && dd_part_name != nullptr ) {
 
 		filename_to_tablename(
-			is_part + PARTN_SEPARATOR_LEN,
+			is_part + PART_SEPARATOR_LEN,
 			dd_part_name, MAX_TABLE_NAME_LEN + 1);
 
 		if (is_sub != nullptr && dd_sub_name != nullptr ) {
 
 			filename_to_tablename(
-				is_sub + SUB_PARTN_SEPARATOR_LEN,
+				is_sub + SUB_PART_SEPARATOR_LEN,
 				dd_sub_name, MAX_TABLE_NAME_LEN + 1);
 		}
 	}

@@ -58,8 +58,8 @@ static const char innobase_hton_name[]= "InnoDB";
 
 static constexpr size_t MAX_SPACE_NAME_LEN =
 	(4 * NAME_LEN)
-	 + PARTN_SEPARATOR_LEN
-	 + SUB_PARTN_SEPARATOR_LEN
+	 + PART_SEPARATOR_LEN
+	 + SUB_PART_SEPARATOR_LEN
 	 + 4; // 4 == strlen("#tmp"))
 
 /** InnoDB private keys for dd::Table */
