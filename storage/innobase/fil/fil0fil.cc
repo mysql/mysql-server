@@ -7040,11 +7040,15 @@ Fil_shard::do_redo_io(
 
 	if (type.is_write()) {
 
+		mutex_acquire();
+
 		++m_modification_counter;
 
 		file->modification_counter = m_modification_counter;
 
 		add_to_unflushed_list(file->space);
+
+		mutex_release();
 	}
 
 	return(err);
