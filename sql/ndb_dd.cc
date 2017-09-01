@@ -15,18 +15,22 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+// Implements the functions defined in ndb_dd.h
 #include "sql/ndb_dd.h"
 
-#include "sql/dd/cache/dictionary_client.h" // dd::Dictionary_client
-#include "sql/dd/dd.h"
-#include "sql/dd/dd_table.h"
-#include "sql/dd/impl/sdi.h"       // dd::deserialize
-#include "sql/dd/types/schema.h"
-#include "sql/dd/types/table.h"
-#include "sql/mdl.h"        // MDL_*
+// Using ndb_dd_client
+#include "sql/ndb_dd_client.h"
+
 #include "sql/sql_class.h"
 #include "sql/transaction.h"
 
+
+#include "sql/dd/dd.h"
+#include "sql/dd/types/schema.h"
+#include "sql/dd/types/table.h"
+#include "sql/dd/cache/dictionary_client.h" // dd::Dictionary_client
+#include "sql/dd/impl/sdi.h"           // dd::deserialize
+#include "sql/dd/dd_table.h"
 
 bool ndb_sdi_serialize(THD *thd,
                        const dd::Table *table_def,
@@ -96,44 +100,12 @@ bool ndb_dd_does_table_exist(class THD *thd,
 {
   DBUG_ENTER("ndb_dd_does_table_exist");
 
-  // First aquire MDL locks
+  Ndb_dd_client dd_client(thd);
+
+  // First acquire MDL locks on schema and table
+  if (!dd_client.mdl_locks_acquire(schema_name, table_name))
   {
-    MDL_request_list mdl_requests;
-    MDL_request schema_request;
-    MDL_request mdl_request;
-    MDL_REQUEST_INIT(&schema_request,
-                     MDL_key::SCHEMA, schema_name, "", MDL_INTENTION_EXCLUSIVE,
-                     MDL_TRANSACTION);
-    MDL_REQUEST_INIT(&mdl_request,
-                     MDL_key::TABLE, schema_name, table_name, MDL_EXCLUSIVE,
-                     MDL_TRANSACTION);
-
-    mdl_requests.push_front(&schema_request);
-    mdl_requests.push_front(&mdl_request);
-
-    if (thd->mdl_context.acquire_locks(&mdl_requests,
-                                       thd->variables.lock_wait_timeout))
-    {
-      DBUG_RETURN(false);
-    }
-
-    // Acquired MDL on the schema and table involved
-  }
-
-  {
-    /*
-       Implementation details from which storage the DD uses leaks out
-       and the user of these functions magically need to turn auto commit
-       off.
-       I.e as in sql_table.cc, execute_ddl_log_recovery()
-           'Prevent InnoDB from automatically committing InnoDB transaction
-            each time data-dictionary tables are closed after being updated.'
-
-      Need to check how it can be hidden or if the THD settings need to be
-      restored
-    */
-    thd->variables.option_bits&= ~OPTION_AUTOCOMMIT;
-    thd->variables.option_bits|= OPTION_NOT_AUTOCOMMIT;
+    DBUG_RETURN(false);
   }
 
   {
@@ -169,9 +141,6 @@ bool ndb_dd_does_table_exist(class THD *thd,
     trans_commit(thd);
   }
 
-  // TODO Must be done in _all_ return paths
-  thd->mdl_context.release_transactional_locks();
-
   DBUG_RETURN(true); // OK!
 }
 
@@ -187,50 +156,13 @@ ndb_dd_install_table(class THD *thd,
 
   DBUG_ENTER("ndb_dd_install_table");
 
-  // First aquire MDL locks
-  // NOTE! Consider using the dd::Schema_MDL_locker here
+  Ndb_dd_client dd_client(thd);
+
+  // First acquire exclusive MDL locks on schema and table
+  if (!dd_client.mdl_locks_acquire_exclusive(schema_name, table_name))
   {
-    MDL_request_list mdl_requests;
-    MDL_request schema_request;
-    MDL_request mdl_request;
-
-    MDL_REQUEST_INIT(&schema_request,
-                     MDL_key::SCHEMA, schema_name, "", MDL_INTENTION_EXCLUSIVE,
-                     MDL_TRANSACTION);
-    MDL_REQUEST_INIT(&mdl_request,
-                     MDL_key::TABLE, schema_name, table_name, MDL_EXCLUSIVE,
-                     MDL_TRANSACTION);
-
-    mdl_requests.push_front(&schema_request);
-    mdl_requests.push_front(&mdl_request);
-
-    if (thd->mdl_context.acquire_locks(&mdl_requests,
-                                       thd->variables.lock_wait_timeout))
-    {
-      DBUG_RETURN(false);
-    }
-
-    // Acquired MDL on the schema and table involved
+    DBUG_RETURN(false);
   }
-
-  /*
-     Implementation details from which storage the DD uses leaks out
-     and the user of these functions magically need to turn auto commit
-     off by fiddeling with bits in the THD.
-     I.e as in sql_table.cc, execute_ddl_log_recovery()
-         'Prevent InnoDB from automatically committing InnoDB transaction
-          each time data-dictionary tables are closed after being updated.'
-
-     Turn off autocommit
-
-     NOTE! Raw implementation since usage of the Disable_autocommit_guard
-     class detects how the "ndb binlog injector thread loop" is holding a
-     transaction open. It's not a good idea to flip these bits while
-     transaction is open, but that is another problem.
-  */
-  ulonglong save_option_bits = thd->variables.option_bits;
-  thd->variables.option_bits&= ~OPTION_AUTOCOMMIT;
-  thd->variables.option_bits|= OPTION_NOT_AUTOCOMMIT;
 
   {
     dd::cache::Dictionary_client* client= thd->dd_client();
@@ -240,20 +172,17 @@ ndb_dd_install_table(class THD *thd,
 
     if (client->acquire(schema_name, &schema))
     {
-      thd->variables.option_bits = save_option_bits;
       DBUG_RETURN(false);
     }
     if (schema == nullptr)
     {
       DBUG_ASSERT(false); // Database does not exist
-      thd->variables.option_bits = save_option_bits;
       DBUG_RETURN(false);
     }
 
     std::unique_ptr<dd::Table> table_object{dd::create_object<dd::Table>()};
     if (dd::deserialize(thd, sdi, table_object.get()))
     {
-      thd->variables.option_bits = save_option_bits;
       DBUG_RETURN(false);
     }
 
@@ -273,7 +202,6 @@ ndb_dd_install_table(class THD *thd,
     const dd::Table *existing= nullptr;
     if (client->acquire(schema->name(), table_object->name(), &existing))
     {
-      thd->variables.option_bits = save_option_bits;
       DBUG_RETURN(false);
     }
 
@@ -284,7 +212,6 @@ ndb_dd_install_table(class THD *thd,
       {
         // Don't overwrite existing table
         DBUG_ASSERT(false);
-        thd->variables.option_bits = save_option_bits;
         DBUG_RETURN(false);
       }
 
@@ -295,7 +222,6 @@ ndb_dd_install_table(class THD *thd,
       {
         // Failed to drop existing
         DBUG_ASSERT(false); // Catch in debug, unexpected error
-        thd->variables.option_bits = save_option_bits;
         DBUG_RETURN(false);
       }
 
@@ -305,18 +231,12 @@ ndb_dd_install_table(class THD *thd,
     {
       // trans_rollback...
       DBUG_ASSERT(false); // Failed to store
-      thd->variables.option_bits = save_option_bits;
       DBUG_RETURN(false);
     }
 
     trans_commit_stmt(thd);
     trans_commit(thd);
   }
-
-  thd->variables.option_bits = save_option_bits;
-
-  // TODO Must be done in _all_ return paths
-  thd->mdl_context.release_transactional_locks();
 
   DBUG_RETURN(true); // OK!
 }
@@ -328,9 +248,7 @@ ndb_dd_drop_table(THD *thd,
 {
   DBUG_ENTER("ndb_dd_drop_table");
 
-  ulonglong save_option_bits = thd->variables.option_bits;
-  thd->variables.option_bits&= ~OPTION_AUTOCOMMIT;
-  thd->variables.option_bits|= OPTION_NOT_AUTOCOMMIT;
+  Ndb_dd_client dd_client(thd);
 
   {
     dd::cache::Dictionary_client* client= thd->dd_client();
@@ -339,14 +257,12 @@ ndb_dd_drop_table(THD *thd,
     const dd::Table *existing= nullptr;
     if (client->acquire(schema_name, table_name, &existing))
     {
-      thd->variables.option_bits = save_option_bits;
       DBUG_RETURN(false);
     }
 
     if (existing == nullptr)
     {
       // Table does not exist
-      thd->variables.option_bits = save_option_bits;
       DBUG_RETURN(false);
     }
 
@@ -355,15 +271,12 @@ ndb_dd_drop_table(THD *thd,
     {
       // Failed to drop existing
       DBUG_ASSERT(false); // Catch in debug, unexpected error
-      thd->variables.option_bits = save_option_bits;
       DBUG_RETURN(false);
     }
 
     trans_commit_stmt(thd);
     trans_commit(thd);
   }
-
-  thd->variables.option_bits = save_option_bits;
 
   DBUG_RETURN(true); // OK
 }
@@ -378,6 +291,8 @@ ndb_dd_rename_table(THD *thd,
   DBUG_PRINT("enter", ("old: '%s'.'%s'  new: '%s'.'%s'",
                        old_schema_name, old_table_name,
                        new_schema_name, new_table_name));
+
+  Ndb_dd_client dd_client(thd);
 
   dd::cache::Dictionary_client* client= thd->dd_client();
   dd::cache::Dictionary_client::Auto_releaser releaser(client);
@@ -437,9 +352,7 @@ ndb_dd_table_get_engine(THD *thd,
 {
   DBUG_ENTER("ndb_dd_table_get_engine");
 
-  ulonglong save_option_bits = thd->variables.option_bits;
-  thd->variables.option_bits&= ~OPTION_AUTOCOMMIT;
-  thd->variables.option_bits|= OPTION_NOT_AUTOCOMMIT;
+  Ndb_dd_client dd_client(thd);
 
   {
     dd::cache::Dictionary_client* client= thd->dd_client();
@@ -448,14 +361,12 @@ ndb_dd_table_get_engine(THD *thd,
     const dd::Table *existing= nullptr;
     if (client->acquire(schema_name, table_name, &existing))
     {
-      thd->variables.option_bits = save_option_bits;
       DBUG_RETURN(false);
     }
 
     if (existing == nullptr)
     {
       // Table does not exist
-      thd->variables.option_bits = save_option_bits;
       DBUG_RETURN(false);
     }
 
@@ -466,8 +377,6 @@ ndb_dd_table_get_engine(THD *thd,
     trans_commit_stmt(thd);
     trans_commit(thd);
   }
-
-  thd->variables.option_bits = save_option_bits;
 
   DBUG_RETURN(true); // Table exist
 }
