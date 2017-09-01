@@ -1946,7 +1946,7 @@ Fil_path::is_undo_tablespace_name(const std::string& name)
 		return(false);
 	}
 
-	auto	end = basename.end();
+	const auto	end = basename.end();
 
 	/* We had two formats: undo_000 and undo000. Check for both. */
 	size_t	u = (*(end - 4) == '_') ? 1 : 0;
