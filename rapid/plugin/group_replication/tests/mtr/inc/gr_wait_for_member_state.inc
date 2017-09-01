@@ -56,7 +56,21 @@ if ($group_replication_member_id != "")
 let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_members
   WHERE member_id="$_member_id" AND
   member_state="$group_replication_member_state";
---source include/wait_condition.inc
+--source include/wait_condition_or_abort.inc
+
+# Due to notify first the change to state ONLINE and after disable super read only
+# when the lowest version servers are online we have two cases that need to
+# wait for super read only= 0:
+#   - when we are starting the primary in the single primary mode
+#   - when we are starting a server on multiple primary
+
+--let $_group_member_lowest_version= `SELECT member_version FROM performance_schema.replication_group_members ORDER BY member_version ASC LIMIT 1`
+
+if (`SELECT COUNT(*)=1 FROM performance_schema.replication_group_members group_members WHERE group_members.member_id= "$_member_id" AND group_members.member_state="ONLINE" AND group_members.member_role = "PRIMARY" AND group_members.member_version = "$_group_member_lowest_version"`)
+{
+     --let $wait_condition= SELECT @@GLOBAL.read_only = '0'
+     --source include/wait_condition_or_abort.inc
+}
 
 --let $include_filename= gr_wait_for_member_state.inc
 --source include/end_include_file.inc
