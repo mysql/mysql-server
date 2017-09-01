@@ -380,7 +380,7 @@ JOIN::create_intermediate_table(QEP_TAB *const tab,
     DBUG_PRINT("info",("Sorting for group"));
     THD_STAGE_INFO(thd, stage_sorting_for_group);
 
-    if (ordered_index_usage != ordered_index_group_by &&
+    if (m_ordered_index_usage != ORDERED_INDEX_GROUP_BY &&
         add_sorting_to_table(const_tables, &group_list))
       goto err;
 
@@ -413,7 +413,7 @@ JOIN::create_intermediate_table(QEP_TAB *const tab,
       DBUG_PRINT("info",("Sorting for order"));
       THD_STAGE_INFO(thd, stage_sorting_for_order);
 
-      if (ordered_index_usage != ordered_index_order_by &&
+      if (m_ordered_index_usage != ORDERED_INDEX_ORDER_BY &&
           add_sorting_to_table(const_tables, &order))
         goto err;
       order= NULL;
@@ -534,8 +534,8 @@ JOIN::optimize_distinct()
   if (order && skip_sort_order)
   {
     /* Should already have been optimized away */
-    DBUG_ASSERT(ordered_index_usage == ordered_index_order_by);
-    if (ordered_index_usage == ordered_index_order_by)
+    DBUG_ASSERT(m_ordered_index_usage == ORDERED_INDEX_ORDER_BY);
+    if (m_ordered_index_usage == ORDERED_INDEX_ORDER_BY)
     {
       order= NULL;
     }
@@ -3058,7 +3058,7 @@ QEP_TAB::use_order() const
     if ORDER or GROUP BY use ordered index. 
   */
   if ((uint)idx() == join()->const_tables &&
-      join()->ordered_index_usage != JOIN::ordered_index_void)
+      join()->m_ordered_index_usage != JOIN::ORDERED_INDEX_VOID)
     return true;
 
   /*
@@ -3082,9 +3082,9 @@ QEP_TAB::sort_table()
   DBUG_ENTER("QEP_TAB::sort_table");
   DBUG_PRINT("info",("Sorting for index"));
   THD_STAGE_INFO(join()->thd, stage_creating_sort_index);
-  DBUG_ASSERT(join()->ordered_index_usage != (filesort->order == join()->order ?
-                                              JOIN::ordered_index_order_by :
-                                              JOIN::ordered_index_group_by));
+  DBUG_ASSERT(join()->m_ordered_index_usage != (filesort->order == join()->order ?
+                                              JOIN::ORDERED_INDEX_ORDER_BY :
+                                              JOIN::ORDERED_INDEX_GROUP_BY));
   const bool rc= create_sort_index(join()->thd, join(), this) != 0;
   /*
     Filesort has filtered rows already (see skip_record() in

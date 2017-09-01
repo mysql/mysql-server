@@ -489,9 +489,9 @@ namespace AQP
       if (join->need_tmp_before_win)
         return false;
       else if (join->group_list && join->simple_group)
-        return (join->ordered_index_usage!=JOIN::ordered_index_group_by);
+        return (join->m_ordered_index_usage!=JOIN::ORDERED_INDEX_GROUP_BY);
       else if (join->order && join->simple_order)
-        return (join->ordered_index_usage!=JOIN::ordered_index_order_by);
+        return (join->m_ordered_index_usage!=JOIN::ORDERED_INDEX_ORDER_BY);
       else
         return false;
     }
