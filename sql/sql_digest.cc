@@ -24,7 +24,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
-#include "my_md5.h"                 // compute_md5_hash
+#include "sha2.h"                   // SHA256
 #include "my_sys.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
@@ -165,11 +165,14 @@ inline void store_token_identifier(sql_digest_storage* digest_storage,
   }
 }
 
-void compute_digest_md5(const sql_digest_storage *digest_storage, unsigned char *md5)
+void compute_digest_hash(const sql_digest_storage *digest_storage, unsigned char *hash)
 {
-  compute_md5_hash((char *) md5,
-                   (const char *) digest_storage->m_token_array,
-                   digest_storage->m_byte_count);
+  static_assert(DIGEST_HASH_SIZE == SHA256_DIGEST_LENGTH,
+                "DIGEST is no longer SHA256, fix compute_digest_hash()");
+
+  SHA256(digest_storage->m_token_array,
+         digest_storage->m_byte_count,
+         hash);
 }
 
 /*

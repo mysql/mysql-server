@@ -38,11 +38,11 @@ extern ulong digest_lost;
 struct PFS_thread;
 
 /**
-  Structure to store a MD5 hash value (digest) for a statement.
+  Structure to store a hash value (digest) for a statement.
 */
 struct PFS_digest_key
 {
-  unsigned char m_md5[MD5_HASH_SIZE];
+  unsigned char m_hash[DIGEST_HASH_SIZE];
   char m_schema_name[NAME_LEN];
   uint m_schema_name_length;
 };
@@ -53,7 +53,7 @@ struct PFS_ALIGNED PFS_statements_digest_stat
   /** Internal lock. */
   pfs_lock m_lock;
 
-  /** Digest Schema + MD5 Hash. */
+  /** Digest Schema + Digest Hash. */
   PFS_digest_key m_digest_key;
 
   /** Digest Storage. */

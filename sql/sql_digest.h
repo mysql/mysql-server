@@ -20,12 +20,47 @@
 #include <sys/types.h>
 
 #include "my_inttypes.h"       // IWYU pragma: keep
-#include "my_md5_size.h"       // MD5_HASH_SIZE
 
 class String;
 
 
 #define MAX_DIGEST_STORAGE_SIZE (1024*1024)
+
+/*
+  Various hashes considered for digests.
+
+  MD5:
+  - 128 bits
+  - used up to MySQL 5.7
+  - abandoned in MySQL 8.0, non FIPS compliant.
+
+  SHA1:
+  - 160 bits
+  - non FIPS compliant in strict mode
+  - not used
+
+  SHA2-224
+  - 224 bits
+  - non FIPS compliant in strict mode
+  - not used
+
+  SHA2-256
+  - 256 bits
+  - FIPS compliant
+  - Used starting with MySQL 8.0
+
+  SHA2-384
+  - 384 bits
+
+  SHA2-512
+  - 512 bits
+*/
+
+/**
+  DIGEST hash size, in bytes.
+  256 bits, for SHA256.
+*/
+#define DIGEST_HASH_SIZE 32
 
 ulong get_max_digest_length();
 
@@ -37,7 +72,7 @@ struct sql_digest_storage
 {
   bool m_full;
   size_t m_byte_count;
-  unsigned char m_md5[MD5_HASH_SIZE];
+  unsigned char m_hash[DIGEST_HASH_SIZE];
   /** Character set number. */
   uint m_charset_number;
   /**
@@ -73,7 +108,7 @@ struct sql_digest_storage
     m_full= false;
     m_byte_count= 0;
     m_charset_number= 0;
-    memset(m_md5, 0, MD5_HASH_SIZE);
+    memset(m_hash, 0, DIGEST_HASH_SIZE);
   }
 
   inline bool is_empty()
@@ -97,7 +132,7 @@ struct sql_digest_storage
       m_byte_count= byte_count_copy;
       m_charset_number= from->m_charset_number;
       memcpy(m_token_array, from->m_token_array, m_byte_count);
-      memcpy(m_md5, from->m_md5, MD5_HASH_SIZE);
+      memcpy(m_hash, from->m_hash, DIGEST_HASH_SIZE);
     }
     else
     {
@@ -112,9 +147,9 @@ typedef struct sql_digest_storage sql_digest_storage;
 /**
   Compute a digest hash.
   @param digest_storage The digest
-  @param [out] md5 The computed digest hash. This parameter is a buffer of size @c MD5_HASH_SIZE.
+  @param [out] hash The computed digest hash. This parameter is a buffer of size @c DIGEST_HASH_SIZE.
 */
-void compute_digest_md5(const sql_digest_storage *digest_storage, unsigned char *md5);
+void compute_digest_hash(const sql_digest_storage *digest_storage, unsigned char *hash);
 
 /**
   Compute a digest text.

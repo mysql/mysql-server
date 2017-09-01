@@ -331,9 +331,12 @@ int mysql_parser_get_statement_type(MYSQL_THD thd)
 extern "C"
 int mysql_parser_get_statement_digest(MYSQL_THD thd, uchar *digest)
 {
+  static_assert(PARSER_SERVICE_DIGEST_LENGTH == DIGEST_HASH_SIZE,
+                "If you change the digest hash, PARSER_SERVICE_DIGEST_LENGTH needs to adjust");
+
   if (thd->m_digest == NULL)
     return true;
-  compute_digest_md5(&thd->m_digest->m_digest_storage, digest);
+  compute_digest_hash(&thd->m_digest->m_digest_storage, digest);
   return false;
 }
 
