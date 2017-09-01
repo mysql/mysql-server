@@ -7803,7 +7803,11 @@ Fil_shard::flush_file_spaces(uint8_t purpose)
 	a non-existing space id. */
 	for (auto space_id : space_ids) {
 
+		mutex_acquire();
+
 		space_flush(space_id);
+
+		mutex_release();
 	}
 }
 
