@@ -1,6 +1,5 @@
 /*
-  Copyright 2010 Sun Microsystems, Inc.
-  All rights reserved. Use is subject to license terms.
+  Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -29,4 +28,5 @@ public interface Ndb_cluster_connectionConst
 {
     int get_latest_error() /*_const_*/;
     String/*_const char *_*/ get_latest_error_msg() /*_const_*/;
+    int get_recv_thread_activation_threshold() /*_const_*/;
 }
