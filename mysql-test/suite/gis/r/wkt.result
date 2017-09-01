@@ -1152,3 +1152,13 @@ ST_ASTEXT(ST_POINTFROMTEXT(NULL, NULL, NULL))
 NULL
 DELETE FROM mysql.st_spatial_reference_systems
 WHERE id >= 30000000 AND id <= 31000000;
+#
+# Bug #25818451 ASAN HEAP-USE-AFTER-FREE WITH GEOMETRY + STRING
+#
+SET @c:=REPEAT('a',128);
+SET @f:=0x336f;
+SET @s:=REPLACE("DO ST_ASTEXT(LEFT(@c,@f));","'",'"');
+PREPARE s FROM @s;
+EXECUTE s;
+ERROR 22023: Invalid GIS data provided to function st_astext.
+DROP PREPARE s;

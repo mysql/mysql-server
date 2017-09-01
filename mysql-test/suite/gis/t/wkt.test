@@ -1003,3 +1003,15 @@ SELECT ST_ASTEXT(ST_POINTFROMTEXT(NULL, NULL, NULL));
 # Cleanup.
 DELETE FROM mysql.st_spatial_reference_systems
 WHERE id >= 30000000 AND id <= 31000000;
+
+--echo #
+--echo # Bug #25818451 ASAN HEAP-USE-AFTER-FREE WITH GEOMETRY + STRING
+--echo #
+
+SET @c:=REPEAT('a',128);
+SET @f:=0x336f;
+SET @s:=REPLACE("DO ST_ASTEXT(LEFT(@c,@f));","'",'"');
+PREPARE s FROM @s;
+--error ER_GIS_INVALID_DATA
+EXECUTE s;
+DROP PREPARE s;
