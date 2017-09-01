@@ -2160,14 +2160,10 @@ loop_end:
     tmp_param->field_count=temp_fields.elements;
     tmp_param->group_parts=1;
     tmp_param->group_length= table->file->ref_length;
-    /* small table, ignore SQL_BIG_TABLES */
-    bool save_big_tables= thd->variables.big_tables; 
-    thd->variables.big_tables= FALSE;
     tmp_tables[cnt]=create_tmp_table(thd, tmp_param, temp_fields,
                                      &group, 0, 0,
                                      TMP_TABLE_ALL_COLUMNS, HA_POS_ERROR, "",
                                      TMP_WIN_NONE);
-    thd->variables.big_tables= save_big_tables;
     if (!tmp_tables[cnt])
       DBUG_RETURN(1);
 

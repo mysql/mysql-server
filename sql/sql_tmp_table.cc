@@ -2459,6 +2459,23 @@ static bool create_tmp_table_with_fallback(TABLE *table)
   create_info.options|= HA_LEX_CREATE_TMP_TABLE |
                         HA_LEX_CREATE_INTERNAL_TMP_TABLE;
 
+  /*
+    INNODB's fixed length column size is restricted to 1024. Exceeding this can
+    result in incorrect behavior.
+  */
+  if (table->s->db_type() == innodb_hton)
+  {
+    for (Field **field= table->field; *field; ++field)
+    {
+      if ((*field)->type() == MYSQL_TYPE_STRING &&
+          (*field)->key_length() > 1024)
+      {
+        my_error(ER_TOO_LONG_KEY, MYF(0), 1024);
+        DBUG_RETURN(true);
+      }
+    }
+  }
+
   int error= table->file->create(share->table_name.str, table, &create_info,
                                  nullptr);
   if (error == HA_ERR_RECORD_FILE_FULL && table->s->db_type() == temptable_hton)
