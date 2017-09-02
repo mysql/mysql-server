@@ -4093,9 +4093,14 @@ std::string
 Fil_path::get_real_path(const std::string& path)
 {
 	char	abspath[FN_REFLEN + 2];
+	int	ret = my_realpath(abspath, path.c_str(), MYF(0));
 
-	/* FIXME: Why don't we check for error here? */
-	my_realpath(abspath, path.c_str(), MYF(0));
+	if (ret == -1) {
+
+		ib::warn() << "my_realpath(" << path << ") failed!";
+
+		return(path);
+	}
 
 	std::string	real_path(abspath);
 
