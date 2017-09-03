@@ -873,8 +873,6 @@ static
 dberr_t
 recv_log_recover_pre_8_0_4(lsn_t lsn)
 {
-       ut_ad(log_mutex_own());
-
 	log_group_t*	group = UT_LIST_GET_FIRST(log_sys->log_groups);
 	lsn_t	source_offset = log_group_calc_lsn_offset(lsn, group);
 
@@ -951,13 +949,12 @@ recv_log_recover_pre_8_0_4(lsn_t lsn)
 static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 recv_find_max_checkpoint(
-	log_group_t**	max_group,
+	log_group_t*&	max_group,
 	ulint*		max_field)
 {
-	uint64_t	max_no = 0;
 
 	*max_field = 0;
-	*max_group = nullptr;
+	max_group = nullptr;
 
 	/* We've never supported more than one group. */
 	ut_a(UT_LIST_GET_LEN(log_sys->log_groups) == 1);
@@ -988,9 +985,6 @@ recv_find_max_checkpoint(
 	log_header_creator[sizeof(log_header_creator) - 1] = 0;
 
 	switch (group->format) {
-	case LOG_HEADER_FORMAT_CURRENT:
-		break;
-
 	case 0:
 		ib::error()
 			<< "Unsupported redo log format ("
@@ -1002,12 +996,13 @@ recv_find_max_checkpoint(
 	case LOG_HEADER_FORMAT_5_7_9:
 	case LOG_HEADER_FORMAT_8_0_1:
 
-		/* The checkpoint page format is identical upto v3. */
-
 		ib::info()
 			<< "Redo log format is v" << group->format
 			<< ". The redo log was created before"
 			<< " MySQL 8.0.3.";
+
+	case LOG_HEADER_FORMAT_CURRENT:
+		/* The checkpoint page format is identical upto v3. */
 		break;
 
 	default:
@@ -1020,8 +1015,9 @@ recv_find_max_checkpoint(
 		return(DB_ERROR);
 	}
 
-	constexpr auto CKP1 = LOG_CHECKPOINT_1;
-	constexpr auto CKP2 = LOG_CHECKPOINT_2;
+	uint64_t	max_no = 0;
+	constexpr ulint	CKP1 = LOG_CHECKPOINT_1;
+	constexpr ulint	CKP2 = LOG_CHECKPOINT_2;
 
 	for (auto i = CKP1; i <= CKP2; i += CKP2 - CKP1) {
 
@@ -1032,7 +1028,7 @@ recv_find_max_checkpoint(
 				   ("invalid checkpoint,"
 				    " group " ULINTPF " at %d"
 				    ", checksum %x",
-				    group->id, i,
+				    group->id, (int) i,
 				    (unsigned) log_block_get_checksum(buf)));
 			continue;
 		}
@@ -1056,12 +1052,12 @@ recv_find_max_checkpoint(
 
 		if (checkpoint_no >= max_no) {
 			*max_field = i;
-			*max_group = group;
+			max_group = group;
 			max_no = checkpoint_no;
 		}
 	}
 
-	if (*max_group == nullptr) {
+	if (max_group == nullptr) {
 
 		/* Before 5.7.9, we could get here during database
 		initialization if we created an ib_logfile0 file that
@@ -3520,6 +3516,7 @@ recv_recovery_begin(
 	recv_sys->parse_start_lsn = *contiguous_lsn;
 	recv_sys->scanned_lsn = *contiguous_lsn;
 	recv_sys->recovered_lsn = *contiguous_lsn;
+
 	recv_sys->scanned_checkpoint_no = 0;
 	recv_previous_parsed_rec_type = MLOG_SINGLE_REC_FLAG;
 	recv_previous_parsed_rec_offset	= 0;
@@ -3622,7 +3619,7 @@ recv_recovery_from_checkpoint_start(lsn_t flush_lsn)
 	log_group_t*	max_cp_group;
 	ulint		max_cp_field;
 
-	err = recv_find_max_checkpoint(&max_cp_group, &max_cp_field);
+	err = recv_find_max_checkpoint(max_cp_group, &max_cp_field);
 
 	if (err != DB_SUCCESS) {
 
@@ -3739,12 +3736,9 @@ recv_recovery_from_checkpoint_start(lsn_t flush_lsn)
 		version is from a clean shutdown. */
 		err = recv_log_recover_pre_8_0_4(checkpoint_lsn);
 
-		if (err != DB_SUCCESS) {
-			log_mutex_exit();
-			return(err);
-		}
+		log_mutex_exit();
 
-		break;
+		return(err);
 
 	default:
 		ib::error()
