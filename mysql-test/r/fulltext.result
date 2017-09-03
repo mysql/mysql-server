@@ -738,3 +738,23 @@ explain format=json SELECT 1 FROM q
 WHERE (SELECT MATCH(b) AGAINST ('*') FROM z);
 ERROR HY000: Incorrect arguments to MATCH
 DROP TABLE z, q;
+#
+# Bug#26271244: ASSERT FAILS WHEN SHOW CREATE TABLE CALLED ON A FILE
+# CREATED FOR FULLTEXT INDEX
+#
+# Create Innodb table with full text index
+CREATE TABLE t1(id INT, c CHAR(100) , FULLTEXT KEY `msg_idx` (`c`))
+ENGINE INNODB;
+# Find name of first FTS index "table"
+# SHOW CREATE TABLE on an FTS index table should give error
+# (not crash). Query log and error message suppressed as the name of
+# FTS index table is not stable.
+Got one of the listed errors
+# Msg_type Error ER_NO_SUCH_TABLE,ER_NO_SUCH_TABLE
+# Msg_type Error ER_NO_SUCH_TABLE,ER_NO_SUCH_TABLE
+Got one of the listed errors
+Got one of the listed errors
+Got one of the listed errors
+Got one of the listed errors
+Got one of the listed errors
+DROP TABLE t1;
