@@ -1351,8 +1351,8 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
     if (error_on_rli_init_info)
     {
       DBUG_ASSERT(relay_log.is_relay_log);
-      ln_without_channel_name= relay_log.generate_name(opt_relay_logname, "",
-                                                       buffer);
+      ln_without_channel_name= relay_log.generate_name(opt_relay_logname,
+                                                       "-relay-bin", buffer);
 
       ln= add_channel_to_relay_log_name(relay_bin_channel, FN_REFLEN,
                                         ln_without_channel_name);
@@ -1923,6 +1923,7 @@ int Relay_log_info::rli_init_info()
       --relay-log option.
     */
     const char *ln_without_channel_name;
+    static bool name_warning_sent= 0;
 
     /*
       Buffer to add channel name suffix when relay-log option is provided.
@@ -1938,11 +1939,26 @@ int Relay_log_info::rli_init_info()
 
 
     relay_log.is_relay_log= true;
-    ln_without_channel_name= relay_log.generate_name(opt_relay_logname, "",
-                                                     buf);
+    ln_without_channel_name= relay_log.generate_name(opt_relay_logname,
+                                                     "-relay-bin", buf);
 
     ln= add_channel_to_relay_log_name(relay_bin_channel, FN_REFLEN,
                                       ln_without_channel_name);
+
+    /* We send the warning only at startup, not after every RESET SLAVE */
+    if (!opt_relay_logname && !opt_relaylog_index_name && !name_warning_sent)
+    {
+      /*
+        User didn't give us info to name the relay log index file.
+        Picking `hostname`-relay-bin.index like we do, causes replication to
+        fail if this slave's hostname is changed later. So, we would like to
+        instead require a name. But as we don't want to break many existing
+        setups, we only give warning, not error.
+      */
+      LogErr(WARNING_LEVEL, ER_RPL_PLEASE_USE_OPTION_RELAY_LOG,
+             ln_without_channel_name);
+      name_warning_sent= 1;
+    }
 
     /*
        If relay log index option is set, convert into channel specific

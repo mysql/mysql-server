@@ -7,9 +7,7 @@
 #
 # 1. Shutdown mysql server.
 # 2. Start mysql server with options that generate conflicts:
-# 2.1 --log-bin=same_base_file_name --relay-log=same_base_file_name
-# 2.2 --log-bin=relaylog
-# 2.3 --log-bin --relay-log=binlog
+#    --log-bin=same_base_file_name --relay-log=same_base_file_name
 # 3. Verify that mysql server reports the errors
 #    (ER_RPL_CANT_HAVE_SAME_BASENAME) and aborts
 # 4. Clean up.
@@ -39,34 +37,6 @@ let $mysqld=$MYSQLD_CMD --core-file --console > $error_log 2>&1 $server_filter_p
 --exec $mysqld
 --let $grep_file=$error_log
 --let $grep_pattern=Cannot have same base name '.*same_base_file_name'
---let $grep_output= print_count
---source include/grep_pattern.inc
-
---echo #
---echo # Verify that mysql server reports an error and aborts, if the binlog
---echo # base name conflicts with relay log default.
---echo #
---let $server_filter_params= --log-bin=relaylog
-let $mysqld=$MYSQLD_CMD --core-file --console > $error_log 2>&1 $server_filter_params;
-
---error 1
---exec $mysqld
---let $grep_file=$error_log
---let $grep_pattern=Cannot have same base name '.*relaylog'
---let $grep_output= print_count
---source include/grep_pattern.inc
-
---echo #
---echo # Verify that mysql server reports an error and aborts, if the relay log
---echo # base name conflicts with binary log defaults.
---echo #
---let $server_filter_params= --log-bin --relay-log=binlog
-let $mysqld=$MYSQLD_CMD --core-file --console > $error_log 2>&1 $server_filter_params;
-
---error 1
---exec $mysqld
---let $grep_file=$error_log
---let $grep_pattern=Cannot have same base name '.*binlog'
 --let $grep_output= print_count
 --source include/grep_pattern.inc
 

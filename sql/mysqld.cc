@@ -1029,8 +1029,6 @@ char server_uuid[UUID_LENGTH+1];
 const char *server_uuid_ptr;
 char mysql_home[FN_REFLEN], pidfile_name[FN_REFLEN], system_time_zone[30];
 char default_logfile_name[FN_REFLEN];
-char default_binlogfile_name[FN_REFLEN];
-char default_relaylogfile_name[FN_REFLEN];
 char *default_tz_name;
 static char errorlog_filename_buff[FN_REFLEN];
 const char *log_error_dest;
@@ -3389,15 +3387,6 @@ int init_common_variables()
     strmake(default_logfile_name, glob_hostname,
       sizeof(default_logfile_name)-5);
 
-  /*
-    Binary log basename defaults to "binlog" name prefix
-    if no configuration and argument were provided to --log-bin and
-    --loose-log-bin, and no one of --(loose-)skip-log-bin and
-    --(loose-)disable-log-bin is set explicitly.
-  */
-  strmake(default_binlogfile_name, STRING_WITH_LEN("binlog"));
-  strmake(default_relaylogfile_name, STRING_WITH_LEN("relaylog"));
-
   if (opt_initialize || opt_initialize_insecure)
   {
     /*
@@ -4519,7 +4508,24 @@ static int init_server_components()
 
     char buf[FN_REFLEN];
     const char *ln;
-    ln= mysql_bin_log.generate_name(opt_bin_logname, "", buf);
+    /*
+      Binary log basename defaults to "`hostname`-bin" name prefix
+      if no configuration and argument were provided to --log-bin
+      and --loose-log-bin, and no one of --(loose-)skip-log-bin
+      and --(loose-)disable-log-bin is set explicitly.
+    */
+    ln= mysql_bin_log.generate_name(opt_bin_logname, "-bin", buf);
+    if (!opt_bin_logname && !opt_binlog_index_name)
+    {
+      /*
+        User didn't give us info to name the binlog index file.
+        Picking `hostname`-bin.index like did in 4.x, causes replication to
+        fail if the hostname is changed later. So, we would like to instead
+        require a name. But as we don't want to break many existing setups, we
+        only give warning, not error.
+      */
+      LogErr(WARNING_LEVEL, ER_LOG_BIN_BETTER_WITH_NAME, ln);
+    }
     if (ln == buf)
     {
       my_free(opt_bin_logname);
@@ -4547,7 +4553,8 @@ static int init_server_components()
      */
     log_bin_basename=
       rpl_make_log_name(key_memory_MYSQL_BIN_LOG_basename,
-                        opt_bin_logname, default_binlogfile_name, "");
+                        opt_bin_logname, default_logfile_name,
+                        (opt_bin_logname && opt_bin_logname[0]) ? "" : "-bin");
     log_bin_index=
       rpl_make_log_name(key_memory_MYSQL_BIN_LOG_index,
                         opt_binlog_index_name, log_bin_basename, ".index");
@@ -4569,7 +4576,8 @@ static int init_server_components()
    */
   relay_log_basename=
     rpl_make_log_name(key_memory_MYSQL_RELAY_LOG_basename,
-                      opt_relay_logname, default_relaylogfile_name, "");
+                      opt_relay_logname, default_logfile_name,
+                      (opt_relay_logname && opt_relay_logname[0]) ? "" : "-relay-bin");
 
   if (relay_log_basename != NULL)
     relay_log_index=
@@ -4585,6 +4593,16 @@ static int init_server_components()
 
   if (log_bin_basename != NULL && !strcmp(log_bin_basename, relay_log_basename))
   {
+    const int relay_ext_length= 10;
+    const int bin_ext_length= 4;
+    char default_binlogfile_name[FN_REFLEN+bin_ext_length];
+    char default_relaylogfile_name[FN_REFLEN+relay_ext_length];
+    /* Generate default bin log file name. */
+    strmake(default_binlogfile_name, default_logfile_name, FN_REFLEN - 1);
+    strcat(default_binlogfile_name, "-bin");
+    /* Generate default relay log file name. */
+    strmake(default_relaylogfile_name, default_logfile_name, FN_REFLEN - 1);
+    strcat(default_relaylogfile_name, "-relay-bin");
     /*
       Reports an error and aborts, if the same base name is specified
       for both binary and relay logs.
