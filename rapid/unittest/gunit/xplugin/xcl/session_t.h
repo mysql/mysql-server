@@ -82,10 +82,7 @@ class Xcl_session_impl_tests : public Test {
   }
 
   void expect_connection_close() {
-    EXPECT_CALL(*m_mock_protocol,
-        send(An<const ::Mysqlx::Connection::Close &>())).
-            WillOnce(Return(XError{}));
-    EXPECT_CALL(*m_mock_protocol, recv_ok()).WillOnce(Return(XError{}));
+    EXPECT_CALL(m_mock_connection, close());
   }
 
   bool encode_session_state_change(
