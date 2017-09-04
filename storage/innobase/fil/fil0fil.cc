@@ -4097,7 +4097,7 @@ Fil_path::get_real_path(const std::string& path)
 
 	if (ret == -1) {
 
-		ib::warn() << "my_realpath(" << path << ") failed!";
+		ib::info() << "my_realpath(" << path << ") failed!";
 
 		return(path);
 	}

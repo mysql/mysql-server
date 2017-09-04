@@ -135,7 +135,7 @@ Clone_Snapshot::add_file_from_desc(
 
 		} else if (Fil_path::has_prefix(name, Fil_path::DOT_SLASH)) {
 
-			name.erase(0, 2); 
+			name.erase(0, 2);
 		}
 	} else {
 
