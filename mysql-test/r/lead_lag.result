@@ -1868,9 +1868,9 @@ LAG(ROUND(((UTC_TIME()) OR
 OR(MAKEDATE(-3030,19)))))))))),
 140) OVER());
 DO LAST_DAY(SQRT(CAST((LAG(REPEAT('B',64),91)OVER())AS DATETIME)));
+We Must disable warning for next statement because we get two instead of
+one with -ps protocol vs plain protocol.
 DO CAST((LAG(CHAR(PASSWORD('* $')USING SJIS),223)OVER())AS DATETIME);
-Warnings:
-Warning	1681	'PASSWORD' is deprecated and will be removed in a future release.
 DO CAST((LEAD(-197994311,60)OVER())AS DATETIME);
 DO IFNULL((NULL ),(UNIX_TIMESTAMP(LEAD(NULL,12)RESPECT NULLS OVER())));
 Assertion used to fail: !check_datetime_range(ltime)
