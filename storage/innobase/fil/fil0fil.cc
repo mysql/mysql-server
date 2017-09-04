@@ -4136,7 +4136,8 @@ from the file map.
 std::string
 fil_system_open_fetch(space_id_t space_id)
 {
-	ut_a(dict_sys_t::is_reserved(space_id));
+	ut_a(dict_sys_t::is_reserved(space_id)
+	     || srv_is_upgrade_mode);
 
 	return(fil_system->find(space_id));
 }
