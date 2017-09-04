@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -48,12 +48,38 @@ Created 5/11/1994 Heikki Tuuri
 UNIV_INTERN ibool	ut_always_false	= FALSE;
 
 #ifdef __WIN__
+#include <mysql/innodb_priv.h> /* For sql_print_error */
+typedef VOID(WINAPI *time_fn)(LPFILETIME);
+static time_fn ut_get_system_time_as_file_time = GetSystemTimeAsFileTime;
+
 /*****************************************************************//**
 NOTE: The Windows epoch starts from 1601/01/01 whereas the Unix
 epoch starts from 1970/1/1. For selection of constant see:
 http://support.microsoft.com/kb/167296/ */
 #define WIN_TO_UNIX_DELTA_USEC  ((ib_int64_t) 11644473600000000ULL)
 
+
+/**
+Initialise highest available time resolution API on Windows
+@return 0 if all OK else -1 */
+int
+ut_win_init_time()
+{
+	HMODULE h = LoadLibrary("kernel32.dll");
+	if (h != NULL)
+	{
+		time_fn pfn = (time_fn)GetProcAddress(h, "GetSystemTimePreciseAsFileTime");
+		if (pfn != NULL)
+		{
+			ut_get_system_time_as_file_time = pfn;
+		}
+		return false;
+	}
+	DWORD error = GetLastError();
+  sql_print_error(
+		"LoadLibrary(\"kernel32.dll\") failed: GetLastError returns %lu", error);
+	return(-1);
+}
 
 /*****************************************************************//**
 This is the Windows version of gettimeofday(2).
@@ -73,7 +99,7 @@ ut_gettimeofday(
 		return(-1);
 	}
 
-	GetSystemTimeAsFileTime(&ft);
+	ut_get_system_time_as_file_time(&ft);
 
 	tm = (ib_int64_t) ft.dwHighDateTime << 32;
 	tm |= ft.dwLowDateTime;
