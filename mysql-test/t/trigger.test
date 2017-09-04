@@ -782,7 +782,7 @@ end|
 
 create trigger tr1 before insert on t1 for each row 
 begin 
-  call bug11587();
+  call bug11587(new.c2);
   set new.c2= '2004-04-02';
 end|
 delimiter ;|

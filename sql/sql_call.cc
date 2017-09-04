@@ -77,6 +77,18 @@ bool Sql_cmd_call::prepare_inner(THD *thd)
     return true;
   }
 
+  sp_pcontext *root_parsing_context= sp->get_root_parsing_context();
+
+  uint arg_count= proc_args != NULL ? proc_args->elements : 0;
+
+  if (root_parsing_context->context_var_count() != arg_count)
+  {
+    my_error(ER_SP_WRONG_NO_OF_ARGS, MYF(0),
+             "PROCEDURE", proc_name->m_qname.str,
+             root_parsing_context->context_var_count(), arg_count);
+    return true;
+  }
+
   if (proc_args == NULL)
     return false;
 
@@ -88,7 +100,7 @@ bool Sql_cmd_call::prepare_inner(THD *thd)
     if (item->type() == Item::TRIGGER_FIELD_ITEM)
     {
       Item_trigger_field *itf= down_cast<Item_trigger_field *>(item);
-      sp_variable *spvar= sp->get_root_parsing_context()->find_variable(arg_no);
+      sp_variable *spvar= root_parsing_context->find_variable(arg_no);
       if (spvar->mode != sp_variable::MODE_IN)
         itf->set_required_privilege(spvar->mode == sp_variable::MODE_INOUT);
     }

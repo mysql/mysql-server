@@ -2813,14 +2813,8 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args)
   DBUG_ENTER("sp_head::execute_procedure");
   DBUG_PRINT("info", ("procedure %s", m_name.str));
 
-  uint arg_count= args != NULL ? args->elements : 0;
-
-  if (arg_count != params)
-  {
-    my_error(ER_SP_WRONG_NO_OF_ARGS, MYF(0), "PROCEDURE",
-             m_qname.str, params, arg_count);
-    DBUG_RETURN(true);
-  }
+  // Argument count has been validated in prepare function.
+  DBUG_ASSERT((args != NULL ? args->elements : 0) == params);
 
   if (!parent_sp_runtime_ctx)
   {
