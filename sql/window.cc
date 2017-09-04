@@ -1068,8 +1068,6 @@ bool Window::setup_windows(THD* thd,
     Window *w;
     while ((w= w_it++))
     {
-      const PT_frame *f= w->frame();
-      const PT_order_list *o= w->order();
       /*
         We can encounter aggregate functions in the ORDER BY and PARTITION clauses
         of window function, so make sure we allow it:
@@ -1090,7 +1088,13 @@ bool Window::setup_windows(THD* thd,
         return true;
 
       thd->lex->allow_sum_func= save_allow_sum_func;
+    }
 
+    w_it.rewind();
+    while ((w= w_it++))
+    {
+      const PT_frame *f= w->frame();
+      const PT_order_list *o= w->order();
       if (w->setup_ordering_cached_items(thd, select, o, false))
         return true;
 

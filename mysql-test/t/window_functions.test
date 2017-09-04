@@ -3624,6 +3624,15 @@ DROP TABLE t;
 
 --echo #End of test for Bug#26497247
 
+--echo #
+--echo # Bug#26730020 REEXECUTE PREPARED STATEMENT CRASH WITH WINDOW FUNCTIONS
+--echo #
+CREATE TABLE t(a INT);
+PREPARE s FROM 'DO (SELECT a FROM t WINDOW w2 AS (w1), w1 AS (ORDER BY a, a));';
+EXECUTE s;
+EXECUTE s;
+DROP TABLE t;
+
 # Local Variables:
 # mode: sql
 # sql-product: mysql
