@@ -420,7 +420,8 @@ TEST(row_builder, date_field) {
 
   buffer = row->mutable_field(idx++);
   xcl::DateTime xtime;
-  ASSERT_TRUE(xcl::row_decoder::buffer_to_datetime(*buffer, &xtime));
+  bool has_time = false;
+  ASSERT_TRUE(xcl::row_decoder::buffer_to_datetime(*buffer, &xtime, has_time));
   ASSERT_EQ(time.year, xtime.year());
   ASSERT_EQ(time.month, xtime.month());
   ASSERT_EQ(time.day, xtime.day());
@@ -521,7 +522,8 @@ TEST(row_builder, datetime_field) {
 
   buffer = row->mutable_field(idx++);
   xcl::DateTime xtime;
-  ASSERT_TRUE(xcl::row_decoder::buffer_to_datetime(*buffer, &xtime));
+  bool has_time = true;
+  ASSERT_TRUE(xcl::row_decoder::buffer_to_datetime(*buffer, &xtime, has_time));
   ASSERT_EQ(time.year, xtime.year());
   ASSERT_EQ(time.month, xtime.month());
   ASSERT_EQ(time.day, xtime.day());
@@ -531,7 +533,7 @@ TEST(row_builder, datetime_field) {
   ASSERT_EQ(time.second_part, xtime.useconds());
 
   buffer = row->mutable_field(idx++);
-  ASSERT_TRUE(xcl::row_decoder::buffer_to_datetime(*buffer, &xtime));
+  ASSERT_TRUE(xcl::row_decoder::buffer_to_datetime(*buffer, &xtime, has_time));
   ASSERT_EQ(time2.year, xtime.year());
   ASSERT_EQ(time2.month, xtime.month());
   ASSERT_EQ(time2.day, xtime.day());

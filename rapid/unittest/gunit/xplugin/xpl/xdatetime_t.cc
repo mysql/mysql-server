@@ -37,14 +37,15 @@ TEST(xdatetime, datetime) {
             xcl::DateTime(2015, 12, 5, 0, 0, 0, 123456).to_string());
   EXPECT_EQ("0001-01-01 23:45:59.99",
             xcl::DateTime(1, 1, 1, 23, 45, 59, 990000).to_string());
-  EXPECT_EQ("0000-00-00 00:00:00", xcl::DateTime(0, 0, 0, 0, 0, 0).to_string());
+  EXPECT_EQ("0000-00-00 00:00:00",
+            xcl::DateTime(0, 0, 0, 0, 0, 0, 0).to_string());
   EXPECT_EQ("9999-12-31 23:59:59.999999",
             xcl::DateTime(9999, 12, 31, 23, 59, 59, 999999).to_string());
 
   EXPECT_EQ("23:59:59.999999",
             xcl::DateTime(9999, 12, 31, 23, 59, 59, 999999).time().to_string());
 
-  EXPECT_FALSE(xcl::DateTime(0, 50, 60, 24, 60, 60));
+  EXPECT_FALSE(xcl::DateTime(0, 50, 60, 24, 60, 60, 0));
 }
 
 TEST(xdatetime, time) {

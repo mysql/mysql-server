@@ -523,3 +523,16 @@ enum ContentType_BYTES {
   JSON = 2;
   XML = 3;
 };
+
+// a hint about the higher-level encoding of a DATETIME field
+//
+// ======   ====== ===========
+// type     value  description
+// ======== ====== ===========
+// DATE     0x0001 DATETIME contains only date part
+// DATETIME 0x0002 DATETIME contains both date and time parts
+// ======   ====== ===========
+enum ContentType_DATETIME {
+  DATE = 1;
+  DATETIME = 2;
+};
