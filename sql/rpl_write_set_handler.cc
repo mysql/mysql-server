@@ -420,31 +420,15 @@ void add_pke(TABLE *table, THD *thd)
         if (table->field[index-1]->is_null())
           break;
 
-        char *pk_value;
-        /* Handle key normalization for case/accent insensitive collations */
-        if (table->field[index-1]->has_charset())
-        {
-          const CHARSET_INFO* cs= table->field[index-1]->charset();
-          int max_length= cs->coll->strnxfrmlen(cs, row_data.length());
-          pk_value= (char*) my_malloc(key_memory_write_set_extraction,
-                                      max_length+1, MYF(MY_ZEROFILL));
-          int length= cs->coll->strnxfrm(cs, (uchar*)pk_value, max_length,
-                                         row_data.length(),
-                                         (uchar*) row_data.c_ptr_safe(),
-                                         row_data.length(),
-                                         0);
-          pk_value[length]= 0;
-        }
-        else
-        {
-          pk_value= (char*) my_malloc(key_memory_write_set_extraction,
-                                      row_data.length()+1, MYF(0));
-          strmake(pk_value, row_data.c_ptr_safe(), row_data.length());
-        }
-
+        char* pk_value= (char*) my_malloc(
+                                key_memory_write_set_extraction,
+                                row_data.length()+1, MYF(0));
         // buffer to be used for my_safe_itoa.
-        char *buf= (char*) my_malloc(key_memory_write_set_extraction,
-                                     row_data.length(), MYF(0));
+        char *buf= (char*) my_malloc(
+                                key_memory_write_set_extraction,
+                                row_data.length(), MYF(0));
+
+        strmake(pk_value, row_data.c_ptr_safe(), row_data.length());
         const char *lenStr = my_safe_itoa(10, (row_data.length()),
                                           &buf[row_data.length()-1]);
         unhashed_string.append(pk_value);
@@ -487,32 +471,15 @@ void add_pke(TABLE *table, THD *thd)
         if (table->field[i]->is_null())
           continue;
 
-        char *pk_value;
-        /* Handle key normalization for case/accent insensitive collations */
-        if (table->field[i]->has_charset())
-        {
-          const CHARSET_INFO* cs= table->field[i]->charset();
-          int max_length= cs->coll->strnxfrmlen(cs, row_data.length());
-          pk_value= (char*) my_malloc(key_memory_write_set_extraction,
-                                      max_length+1, MYF(MY_ZEROFILL));
-          int length= cs->coll->strnxfrm(cs, (uchar*)pk_value, max_length,
-                                         row_data.length(),
-                                         (uchar*) row_data.c_ptr_safe(),
-                                         row_data.length(),
-                                         0);
-          pk_value[length]= 0;
-        }
-        else
-        {
-          pk_value= (char*) my_malloc(key_memory_write_set_extraction,
-                                      row_data.length()+1, MYF(0));
-          strmake(pk_value, row_data.c_ptr_safe(), row_data.length());
-        }
-
+        char* pk_value= (char*) my_malloc(
+                                key_memory_write_set_extraction,
+                                row_data.length()+1, MYF(0));
         // buffer to be used for my_safe_itoa.
         char *buf= (char*) my_malloc(
                                 key_memory_write_set_extraction,
                                 row_data.length(), MYF(0));
+
+        strmake(pk_value, row_data.c_ptr_safe(), row_data.length());
         const char *lenStr = my_safe_itoa(10, (row_data.length()),
                                           &buf[row_data.length()-1]);
         referenced_FQTN.append(pk_value);
