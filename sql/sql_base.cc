@@ -3570,7 +3570,7 @@ share_found:
     {
       my_error(ER_NO_SUCH_TABLE, MYF(0), table_list->db,
                table_list->table_name);
-      DBUG_RETURN(true);
+      goto err_lock;
     }
 
     /* make a new table */

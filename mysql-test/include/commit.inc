@@ -828,7 +828,7 @@ if (`SELECT $PS_PROTOCOL = 0`)
 if (`SELECT $PS_PROTOCOL > 0`)
 {
   --replace_regex /(call p_verify_status_increment.*)12(.*6)/\1<commit_count>\2/
-  call p_verify_status_increment(12, 4, 6, 0);
+  call p_verify_status_increment(13, 4, 6, 0);
 }
 --echo # One extra transaction to load table 't2' into data-dictionary cache.
 do (select f1() from t1 where a=2);
@@ -882,7 +882,7 @@ create table t3 select a from t2;
 # COM_PREPARE.
 if (`SELECT $PS_PROTOCOL = 0`)
 {
- --replace_regex /12/<commit_count>/
+ --replace_regex /13/<commit_count>/
   call p_verify_status_increment(13, 4, 4, 4);
 }
 if (`SELECT $PS_PROTOCOL > 0`)
