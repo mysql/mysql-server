@@ -5576,7 +5576,7 @@ fil_ibd_open(
 		ut_ad(df.is_open());
 	} else {
 		ut_ad(!df.is_open());
-		return(DB_CORRUPTION);
+		return(DB_CANNOT_OPEN_FILE);
 	}
 
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)

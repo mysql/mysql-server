@@ -3633,14 +3633,30 @@ dict_stats_evict_tablespaces()
                 dberr_t err;
 
 		err = fil_close_tablespace(trx, space_id_index_stats);
-                ut_a(err == DB_SUCCESS);
+
+                if (err != DB_SUCCESS) {
+
+			ib::info()
+				<< "dict_stats_evict_tablespace: "
+				<< " fil_close_tablespace("
+				<< space_id_index_stats << ") failed! "
+				<< ut_strerr(err);
+		}
 	}
 
 	if (space_id_table_stats != SPACE_UNKNOWN) {
                 dberr_t err;
 
 		err = fil_close_tablespace(trx, space_id_table_stats);
-                ut_a(err == DB_SUCCESS);
+
+                if (err != DB_SUCCESS) {
+
+			ib::info()
+				<< "dict_stats_evict_tablespace: "
+				<< " fil_close_tablespace("
+				<< space_id_index_stats << ") failed! "
+				<< ut_strerr(err);
+		}
 	}
 
 	trx_commit_for_mysql(trx);

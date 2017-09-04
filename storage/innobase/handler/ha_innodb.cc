@@ -3676,7 +3676,7 @@ Validate_files::check(
 			break;
 
 		default:
-			ib::error()
+			ib::info()
 				<< prefix
 				<< "Tablespace " << space_id << ","
 				<< " name '" << space_name << "',"

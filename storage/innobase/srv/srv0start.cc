@@ -2733,8 +2733,10 @@ files_checked:
             && !create_new_db
 	    && srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
 
-		bool    success = fil_encryption_rotate();
-                ut_a(success);
+		if (!fil_encryption_rotate()) {
+
+			ib::info() << "fil_encryption_rotate() failed!";
+		}
 	}
 
 	srv_is_being_started = false;
