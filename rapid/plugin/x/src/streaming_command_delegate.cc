@@ -192,12 +192,14 @@ int Streaming_command_delegate::field_metadata(struct st_send_field *field,
     case MYSQL_TYPE_DATE:
       column_info.set_length(field->length);
       column_info.set_type(Mysqlx::Resultset::ColumnMetaData::DATETIME);
+      column_info.set_content_type(Mysqlx::Resultset::DATE);
       break;
 
     case MYSQL_TYPE_DATETIME:
     case MYSQL_TYPE_DATETIME2:
       column_info.set_length(field->length);
       column_info.set_type(Mysqlx::Resultset::ColumnMetaData::DATETIME);
+      column_info.set_content_type(Mysqlx::Resultset::DATETIME);
       break;
 
     case MYSQL_TYPE_YEAR:
@@ -210,6 +212,7 @@ int Streaming_command_delegate::field_metadata(struct st_send_field *field,
       flags |= MYSQLX_COLUMN_FLAGS_DATETIME_TIMESTAMP;
       column_info.set_length(field->length);
       column_info.set_type(Mysqlx::Resultset::ColumnMetaData::DATETIME);
+      column_info.set_content_type(Mysqlx::Resultset::DATETIME);
       break;
 
     case MYSQL_TYPE_ENUM:

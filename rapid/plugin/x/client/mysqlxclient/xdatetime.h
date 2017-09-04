@@ -108,31 +108,32 @@ class Time {
 
 class DateTime {
  public:
-  DateTime(const uint16_t year_, const uint8_t month_, const uint8_t day_,
-           const uint8_t hour_ = 0xff, const uint8_t minutes_ = 0,
-           const uint8_t seconds_ = 0, const uint32_t useconds_ = 0)
-      : m_year(year_),
-        m_month(month_),
-        m_day(day_),
-        m_hour(hour_),
-        m_minutes(minutes_),
-        m_seconds(seconds_),
-        m_useconds(useconds_),
-        m_valid(true) {
-    if (year_ > 9999 || month_ > 12 || day_ > 31) m_valid = false;
-    if (hour_ != 0xff) {
-      if (hour_ > 23 || minutes_ > 59 || seconds_ > 59 || useconds_ >= 1000000)
-        m_valid = false;
-    }
+  DateTime() = default;
+
+  DateTime(const uint16_t year_, const uint8_t month_, const uint8_t day_)
+    : DateTime(year_, month_, day_, 0xFF, 0xFF, 0xFF, 0xFFFFFF) {
+        m_has_time_part = false;
   }
 
-  DateTime() = default;
+  DateTime(const uint16_t year_, const uint8_t month_, const uint8_t day_,
+           const uint8_t hour_, const uint8_t minutes_,
+           const uint8_t seconds_, const uint32_t useconds_)
+    :  m_year(year_),
+       m_month(month_),
+       m_day(day_),
+       m_hour(hour_),
+       m_minutes(minutes_),
+       m_seconds(seconds_),
+       m_useconds(useconds_),
+       m_valid((year_ > 9999 || month_ > 12 || day_ > 31) ? false : true),
+       m_has_time_part((hour_ > 23 || minutes_ > 59 || seconds_ > 59 ||
+                       useconds_ >= 1000000) ? false : true) {}
 
   bool valid() const { return m_valid; }
 
   explicit operator bool() const { return m_valid; }
 
-  bool has_time() const { return m_hour != 0xff; }
+  bool has_time() const { return m_has_time_part; }
 
   std::string to_string() const {
     if (!valid()) return "";
@@ -174,15 +175,16 @@ class DateTime {
   uint8_t m_month;
   uint8_t m_day;
 
-  uint8_t m_hour;
-  uint8_t m_minutes;
-  uint8_t m_seconds;
-  uint32_t m_useconds;
+  uint8_t m_hour = 0xFF;
+  uint8_t m_minutes = 0xFF;
+  uint8_t m_seconds = 0xFF;
+  uint32_t m_useconds = 0xFFFFFF;
 
   bool m_valid;
 
   char m_time_separator = ':';
   char m_date_separator = '-';
+  bool m_has_time_part;
 };
 
 }  // namespace xcl
