@@ -4093,6 +4093,12 @@ std::string
 Fil_path::get_real_path(const std::string& path)
 {
 	char	abspath[FN_REFLEN + 2];
+
+	/* FIXME: This should be an assertion eventually. */
+	if (path.empty()) {
+		return(path);
+	}
+
 	int	ret = my_realpath(abspath, path.c_str(), MYF(0));
 
 	if (ret == -1) {
