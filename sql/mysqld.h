@@ -609,8 +609,6 @@ extern MYSQL_PLUGIN_IMPORT char mysql_real_data_home[];
 extern char mysql_unpacked_real_data_home[];
 extern MYSQL_PLUGIN_IMPORT struct System_variables global_system_variables;
 extern char default_logfile_name[FN_REFLEN];
-extern char default_binlogfile_name[FN_REFLEN];
-extern char default_relaylogfile_name[FN_REFLEN];
 
 #define mysql_tmpdir (my_tmpdir(&mysql_tmpdir_list))
 
