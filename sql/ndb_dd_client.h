@@ -18,9 +18,12 @@
 #ifndef NDB_DD_CLIENT_H
 #define NDB_DD_CLIENT_H
 
+#include <vector>
+#include <unordered_set>
 
 #include "my_inttypes.h"
 #include "dd/string_type.h"
+
 
 namespace dd {
   typedef String_type sdi_t;
@@ -57,7 +60,8 @@ public:
   ~Ndb_dd_client();
 
   // Metadata lock functions
-  bool mdl_locks_acquire(const char* schema_name, const char* table_name);
+  bool mdl_lock_schema(const char* schema_name);
+  bool mdl_lock_table(const char* schema_name, const char* table_name);
   bool mdl_locks_acquire_exclusive(const char* schema_name,
                                    const char* table_name);
   void mdl_locks_release();
@@ -67,7 +71,8 @@ public:
   void rollback();
 
   bool check_table_exists(const char* schema_name, const char* table_name,
-                          int& table_id, int& table_version);
+                          int& table_id, int& table_version,
+                          dd::String_type* engine);
   bool get_engine(const char* schema_name, const char* table_name,
                   dd::String_type* engine);
 
@@ -78,7 +83,13 @@ public:
                      const dd::sdi_t &sdi,
                      int ndb_table_id, int ndb_table_version,
                      bool force_overwrite);
+
+  bool fetch_schema_names(class std::vector<std::string>*);
+  bool get_ndb_table_names_in_schema(const char* schema_name,
+                                     std::unordered_set<std::string> *names);
 };
+
+
 
 
 #endif

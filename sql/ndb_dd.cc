@@ -92,7 +92,8 @@ bool ndb_dd_does_table_exist(class THD *thd,
                              const char* schema_name,
                              const char* table_name,
                              int& table_id,
-                             int& table_version)
+                             int& table_version,
+                             dd::String_type* engine)
 
 {
   DBUG_ENTER("ndb_dd_does_table_exist");
@@ -100,13 +101,13 @@ bool ndb_dd_does_table_exist(class THD *thd,
   Ndb_dd_client dd_client(thd);
 
   // First acquire MDL locks on schema and table
-  if (!dd_client.mdl_locks_acquire(schema_name, table_name))
+  if (!dd_client.mdl_lock_table(schema_name, table_name))
   {
     DBUG_RETURN(false);
   }
 
   if (!dd_client.check_table_exists(schema_name, table_name,
-                                    table_id, table_version))
+                                    table_id, table_version, engine))
   {
     DBUG_RETURN(false);
   }

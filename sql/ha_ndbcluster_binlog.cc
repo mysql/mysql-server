@@ -20,10 +20,7 @@
 #include <mysql/psi/mysql_thread.h>
 
 #include "my_dbug.h"
-#include "my_thread.h"
 #include "sql/binlog.h"
-#include "sql/dd/cache/dictionary_client.h"
-#include "sql/dd/types/abstract_table.h"
 #include "sql/dd_table_share.h"
 #include "sql/derror.h"     // ER_THD
 #include "sql/ha_ndbcluster.h"
@@ -34,6 +31,7 @@
 #include "sql/mysqld_thd_manager.h" // Global_THD_manager
 #include "sql/ndb_bitmap.h"
 #include "sql/ndb_dd.h"
+#include "sql/ndb_dd_client.h"
 #include "sql/ndb_global_schema_lock.h"
 #include "sql/ndb_global_schema_lock_guard.h"
 #include "sql/ndb_local_connection.h"
@@ -1150,11 +1148,8 @@ class Ndb_binlog_setup {
   THD* const m_thd;
   Thd_ndb* const m_thd_ndb;
 
-
-
-
   /*
-    Ndb has no representation of the database schema objects, but
+    NDB has no representation of the database schema objects, but
     the mysql.ndb_schema table contains the latest schema operations
     done via a mysqld, and thus reflects databases created/dropped/altered.
     This function tries to restore the correct state w.r.t created databases
@@ -1331,125 +1326,385 @@ class Ndb_binlog_setup {
   }
 
 
-  /*
-    find all tables in ndb and discover those needed
-  */
-  static
-  int find_all_files(THD *thd, Ndb* ndb)
+  bool
+  get_ndb_table_names_in_schema(const char* schema_name,
+                                std::unordered_set<std::string>* names)
   {
-    char key[FN_REFLEN + 1];
-    int unhandled= 0, retries= 5, skipped= 0;
-    DBUG_ENTER("Ndb_binlog_setup::find_all_files");
-
+    Ndb* ndb = get_thd_ndb(m_thd)->ndb;
     NDBDICT* dict= ndb->getDictionary();
 
-    do
+    NdbDictionary::Dictionary::List list;
+    if (dict->listObjects(list, NdbDictionary::Object::UserTable) != 0)
+      return false;
+
+    for (uint i= 0 ; i < list.count ; i++)
     {
-      NdbDictionary::Dictionary::List list;
-      if (dict->listObjects(list, NdbDictionary::Object::UserTable) != 0)
-        DBUG_RETURN(1);
-      unhandled= 0;
-      skipped= 0;
-      retries--;
-      for (uint i= 0 ; i < list.count ; i++)
+      NDBDICT::List::Element& elmt= list.elements[i];
+
+      if (strcmp(schema_name, elmt.database) != 0)
       {
-        NDBDICT::List::Element& elmt= list.elements[i];
-        if (IS_TMP_PREFIX(elmt.name) || IS_NDB_BLOB_PREFIX(elmt.name))
-        {
-          DBUG_PRINT("info", ("Skipping %s.%s in NDB", elmt.database, elmt.name));
-          continue;
-        }
-        DBUG_PRINT("info", ("Found %s.%s in NDB", elmt.database, elmt.name));
-        if (elmt.state != NDBOBJ::StateOnline &&
-            elmt.state != NDBOBJ::StateBackup &&
-            elmt.state != NDBOBJ::StateBuilding)
-        {
-          ndb_log_info("skipping setup table %s.%s, in state %d",
-                        elmt.database, elmt.name, elmt.state);
-          skipped++;
-          continue;
-        }
+        DBUG_PRINT("info", ("Skipping %s.%s table, not in schema %s",
+                            elmt.database, elmt.name, schema_name));
+        continue;
+      }
 
-        ndb->setDatabaseName(elmt.database);
-        Ndb_table_guard ndbtab_g(dict, elmt.name);
-        const NDBTAB *ndbtab= ndbtab_g.get_table();
-        if (!ndbtab)
-        {
-          if (retries == 0)
-            ndb_log_error("failed to setup table %s.%s, error: %d, %s",
-                          elmt.database, elmt.name,
-                          dict->getNdbError().code,
-                          dict->getNdbError().message);
-          unhandled++;
-          continue;
-        }
+      if (IS_TMP_PREFIX(elmt.name) || IS_NDB_BLOB_PREFIX(elmt.name))
+      {
+        DBUG_PRINT("info", ("Skipping %s.%s in NDB", elmt.database, elmt.name));
+        continue;
+      }
 
-        if (ndbtab->getFrmLength() == 0)
-          continue;
+      DBUG_PRINT("info", ("Found %s.%s in NDB", elmt.database, elmt.name));
+      if (elmt.state != NDBOBJ::StateOnline &&
+          elmt.state != NDBOBJ::StateBackup &&
+          elmt.state != NDBOBJ::StateBuilding)
+      {
+        ndb_log_info("Skipping setup of table '%s.%s', in state %d",
+                     elmt.database, elmt.name, elmt.state);
+        continue;
+      }
 
-        if (ndb_get_extra_metadata_version(ndbtab) != 2)
-        {
-          // Skip install of table which have unsupported extra metadata versions
-          ndb_log_info("Skipping install of table %s.%s which have unsupported "
-                       "extra metadata version.", elmt.database, elmt.name);
-          continue;
-        }
+      names->insert(elmt.name);
+    }
 
-        /* check if database exists */
-        char *end= key +
-                   build_table_filename(key, sizeof(key) - 1, elmt.database, "", "", 0);
-        if (my_access(key, F_OK))
-        {
-          /* no such database defined, skip table */
-          continue;
-        }
-        /* finalize construction of path */
-        end+= tablename_to_filename(elmt.name, end,
-                                    (uint)(sizeof(key)-(end-key)));
-        bool need_install = false;
-        bool need_overwrite = false;
-        int table_id, table_version;
-        if (!ndb_dd_does_table_exist(thd, elmt.database, elmt.name,
-                                     table_id, table_version))
-        {
-          need_install = true;
-          ndb_log_info("Table %s.%s does not exist in DD, installing...",
-                       elmt.database, elmt.name);
-        }
-        else if (ndbtab->getObjectId() != table_id ||
-                 ndbtab->getObjectVersion() != table_version)
+    return true;
+  }
+
+
+  bool
+  remove_table_from_dd(const char* schema_name,
+                       const char* table_name)
+  {
+    Ndb_dd_client dd_client(m_thd);
+
+    if (!dd_client.mdl_locks_acquire_exclusive(schema_name, table_name))
+    {
+      return false;
+    }
+
+    if (!dd_client.drop_table(schema_name, table_name))
+    {
+      return false;
+    }
+
+    dd_client.commit();
+
+    return true; // OK
+  }
+
+
+  bool
+  synchronize_table(const char* schema_name,
+                    const char* table_name)
+  {
+
+
+    Ndb* ndb = get_thd_ndb(m_thd)->ndb;
+    NDBDICT* dict= ndb->getDictionary();
+
+    ndb_log_verbose(1,
+                    "    Synchronizing table '%s.%s'",
+                    schema_name, table_name);
+
+    ndb->setDatabaseName(schema_name);
+    Ndb_table_guard ndbtab_g(dict, table_name);
+    const NDBTAB *ndbtab= ndbtab_g.get_table();
+    if (!ndbtab)
+    {
+      // Failed to open the table from NDB
+      ndb_log_error("Failed to setup table '%s.%s', error: %d, %s",
+                    schema_name, table_name,
+                    dict->getNdbError().code,
+                    dict->getNdbError().message);
+
+       // Failed, table was listed but could not be opened, retry
+      return false;
+    }
+
+    if (ndbtab->getFrmLength() == 0)
+    {
+      ndb_log_verbose(1,
+                      "Skipping setup of table '%s.%s', no extra "
+                      "metadata", schema_name, table_name);
+      return true; // Ok, table skipped
+    }
+
+    {
+      Uint32 version;
+      void* unpacked_data;
+      Uint32 unpacked_length;
+      const int get_result =
+          ndbtab->getExtraMetadata(version,
+                                   &unpacked_data, &unpacked_length);
+      free(unpacked_data);
+
+      if (get_result != 0)
+      {
+        // Header corrupt or failed to unpack
+        ndb_log_error("Failed to setup table '%s.%s', could not "
+                      "unpack extra metadata, error: %d",
+                      schema_name, table_name, get_result);
+        return false;
+      }
+
+
+      if (version != 2)
+      {
+        // Skip install of table which have unsupported extra metadata
+        // versions
+        ndb_log_info("Skipping setup of table '%s.%s', it has "
+                     "unsupported extra metadata version %d.",
+                     schema_name, table_name, version);
+        return true; // Skipped
+      }
+    }
+
+    bool need_install = false;
+    bool need_overwrite = false;
+    int table_id, table_version;
+    dd::String_type engine;
+    if (!ndb_dd_does_table_exist(m_thd, schema_name, table_name,
+                                 table_id, table_version, &engine))
+    {
+      need_install = true;
+      ndb_log_info("Table %s.%s does not exist in DD, installing...",
+                   schema_name, table_name);
+    }
+    else
+    {
+      if (engine != "ndbcluster")
+      {
+        ndb_log_info("Skipping table %s.%s with same name which is in "
+                     "different engine '%s'",
+                     schema_name, table_name, engine.c_str());
+      }
+      else
+      {
+        if (ndbtab->getObjectId() != table_id ||
+            ndbtab->getObjectVersion() != table_version)
         {
           need_install = true;
           need_overwrite = true;
           ndb_log_info("Table %s.%s have different version in DD, installing",
-                       elmt.database, elmt.name);
-        }
-
-        if (need_install)
-        {
-          if (ndb_create_table_from_engine(thd, elmt.database, elmt.name,
-                                           need_overwrite))
-          {
-            // Failed to create table from NDB
-            ndb_log_error("Failed to install table %s.%s from NDB",
-                          elmt.database, elmt.name);
-          }
-        }
-        else
-        {
-          /* set up replication for this table */
-          if (ndbcluster_create_binlog_setup(thd, ndb, key,
-                                             elmt.database, elmt.name, NULL))
-          {
-            unhandled++;
-            continue;
-          }
+                   schema_name, table_name);
         }
       }
     }
-    while (unhandled && retries);
 
-    DBUG_RETURN(-(skipped + unhandled));
+    if (need_install)
+    {
+      if (ndb_create_table_from_engine(m_thd, schema_name, table_name,
+                                       need_overwrite))
+      {
+        // Failed to create table from NDB
+        ndb_log_error("Failed to install table %s.%s from NDB",
+                      schema_name, table_name);
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+
+  bool
+  synchronize_schema(const char* schema_name)
+  {
+    Ndb_dd_client dd_client(m_thd);
+
+    ndb_log_info("  Synchronizing schema '%s'", schema_name);
+
+    // Lock the schema in DD
+    if (!dd_client.mdl_lock_schema(schema_name))
+    {
+      ndb_log_info("Failed to MDL lock schema");
+      return false;
+    }
+
+    // Fetch list of NDB tables in DD, also acquire MDL lock on
+    // table names
+    std::unordered_set<std::string> ndb_tables_in_DD;
+    if (!dd_client.get_ndb_table_names_in_schema(schema_name,
+                                                 &ndb_tables_in_DD))
+    {
+      ndb_log_info("Failed to get list of NDB tables in DD");
+      return false;
+    }
+
+    // Fetch list of NDB tables in NDB
+    std::unordered_set<std::string> ndb_tables_in_NDB;
+    if (!get_ndb_table_names_in_schema(schema_name, &ndb_tables_in_NDB))
+    {
+      ndb_log_info("Failed to get list of NDB tables in NDB");
+      return false;
+    }
+
+    // Iterate over each table in NDB and synchronize them to DD
+    for (const auto ndb_table_name : ndb_tables_in_NDB)
+    {
+      if (!synchronize_table(schema_name, ndb_table_name.c_str()))
+      {
+        ndb_log_info("Failed to synchronize table '%s.%s'",
+                      schema_name, ndb_table_name.c_str());
+        continue;
+      }
+
+      // Sucessfully installed the NDB tables metadata into DD
+
+      // Remove the table name from list of NDB tables in DD
+      ndb_tables_in_DD.erase(ndb_table_name.c_str());
+
+    }
+
+    // Iterate over remaining NDB tables found in DD, they
+    // dojn't exists in NDB anymore as they haven't
+    // been removed
+
+    for (const auto ndb_table_name : ndb_tables_in_DD)
+    {
+      ndb_log_info("Removing table '%s.%s'",
+                   schema_name, ndb_table_name.c_str());
+      remove_table_from_dd(schema_name, ndb_table_name.c_str());
+    }
+
+    return true;
+  }
+
+
+  bool
+  synchronize_dd(void)
+  {
+    // Current assumption is that databases already has been
+    // synched by 'find_all_databases"
+
+    Ndb_dd_client dd_client(m_thd);
+
+    ndb_log_info("Starting metadata synchronization...");
+
+    // Fetch list of schemas in DD
+    std::vector<std::string> schema_names;
+    if (!dd_client.fetch_schema_names(&schema_names))
+    {
+      ndb_log_verbose(19,
+                      "Failed to synchronize metadata, could not "
+                      "fetch schema names");
+      return false;
+    }
+
+    // Iterate over each schema and synchronize it one by one,
+    // the assumption is that even large deployments have
+    // a manageable number of tables in each schema
+    for (const auto name : schema_names)
+    {
+      if (!synchronize_schema(name.c_str()))
+      {
+        ndb_log_info("Failed to synchronize metadata, schema: '%s'",
+                     name.c_str());
+        return false;
+      }
+    }
+
+    ndb_log_info("Completed metadata synchronization");
+
+    return true;
+  }
+
+  bool
+  setup_binlogging_for_table(const char* schema_name, const char* table_name)
+  {
+    Ndb* ndb = get_thd_ndb(m_thd)->ndb;
+
+    /* set up replication for this table */
+    char key[FN_REFLEN + 1];
+    char *end= key +
+               build_table_filename(key, sizeof(key) - 1, schema_name, "", "", 0);
+    /* finalize construction of path */
+    end+= tablename_to_filename(table_name, end,
+                                (uint)(sizeof(key)-(end-key)));
+    if (ndbcluster_create_binlog_setup(m_thd, ndb, key,
+                                       schema_name, table_name, NULL))
+    {
+      return false;
+    }
+
+    return true;
+  }
+
+
+  bool
+  setup_binlogging_for_schema(const char* schema_name)
+  {
+
+    Ndb_dd_client dd_client(m_thd);
+
+    ndb_log_info("  Setting up schema '%s'", schema_name);
+
+    // Lock the schema in DD
+    if (!dd_client.mdl_lock_schema(schema_name))
+    {
+      ndb_log_info("Failed to MDL lock schema");
+      return false;
+    }
+
+    // Fetch list of NDB tables in DD, also acquire MDL lock on
+    // table names
+    std::unordered_set<std::string> ndb_tables_in_DD;
+    if (!dd_client.get_ndb_table_names_in_schema(schema_name,
+                                                 &ndb_tables_in_DD))
+    {
+      ndb_log_info("Failed to get list of NDB tables in DD");
+      return false;
+    }
+
+    // Iterate over each table in NDB and setup for binlogging
+    for (const auto ndb_table_name : ndb_tables_in_DD)
+    {
+      if (!setup_binlogging_for_table(schema_name, ndb_table_name.c_str()))
+      {
+        ndb_log_info("Failed to setup binlogging for table '%s.%s'",
+                     schema_name, ndb_table_name.c_str());
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+
+  bool
+  setup_binlogging(void)
+  {
+
+    Ndb_dd_client dd_client(m_thd);
+
+    ndb_log_info("Setting up binlogging...");
+
+    // Fetch list of schemas in DD
+    std::vector<std::string> schema_names;
+    if (!dd_client.fetch_schema_names(&schema_names))
+    {
+      ndb_log_verbose(19,
+                      "Failed to synchronize metadata, could not "
+                      "fetch schema names");
+      return false;
+    }
+
+    // Iterate over each schema and synchronize it one by one,
+    // the assumption is that even large deployments have
+    // a manageable number of tables in each schema
+    for (const auto name : schema_names)
+    {
+      if (!setup_binlogging_for_schema(name.c_str()))
+      {
+        ndb_log_info("Failed to setup binlogging, schema: '%s'",
+                     name.c_str());
+        return false;
+      }
+    }
+
+    ndb_log_info("Completed setup of binlogging");
+
+    return true;
   }
 
   static bool
@@ -1649,8 +1904,17 @@ public:
        if (find_all_databases(m_thd, m_thd_ndb))
          break;
 
-       if (find_all_files(m_thd, m_thd_ndb->ndb))
+       if (!synchronize_dd())
+       {
+         ndb_log_verbose(9, "Failed to synchronize DD with NDB");
          break;
+       }
+
+       if (!setup_binlogging())
+       {
+         ndb_log_verbose(9, "Failed to setup binlogging");
+         break;
+       }
 
        /* Shares w/ eventOp subscr. for NDB_SCHEMA_TABLE and
           NDB_APPLY_TABLE created? */

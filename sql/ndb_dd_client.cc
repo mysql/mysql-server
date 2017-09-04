@@ -70,8 +70,8 @@ Ndb_dd_client::~Ndb_dd_client()
 
 
 bool
-Ndb_dd_client::mdl_locks_acquire(const char* schema_name,
-                           const char* table_name)
+Ndb_dd_client::mdl_lock_table(const char* schema_name,
+                                 const char* table_name)
 {
   MDL_request_list mdl_requests;
   MDL_request schema_request;
@@ -98,6 +98,28 @@ Ndb_dd_client::mdl_locks_acquire(const char* schema_name,
   return true;
 }
 
+
+bool
+Ndb_dd_client::mdl_lock_schema(const char* schema_name)
+{
+  MDL_request_list mdl_requests;
+  MDL_request schema_request;
+  MDL_REQUEST_INIT(&schema_request,
+                   MDL_key::SCHEMA, schema_name, "", MDL_INTENTION_EXCLUSIVE,
+                   MDL_TRANSACTION);
+  mdl_requests.push_front(&schema_request);
+
+  if (m_thd->mdl_context.acquire_locks(&mdl_requests,
+                                       m_thd->variables.lock_wait_timeout))
+  {
+    return false;
+  }
+
+  // Remember that MDL locks where acquired
+  m_mdl_locks_acquired = true;
+
+  return true;
+}
 
 bool
 Ndb_dd_client::mdl_locks_acquire_exclusive(const char* schema_name,
@@ -178,7 +200,8 @@ void Ndb_dd_client::rollback()
 bool
 Ndb_dd_client::check_table_exists(const char* schema_name,
                                   const char* table_name,
-                                  int& table_id, int& table_version)
+                                  int& table_id, int& table_version,
+                                  dd::String_type* engine)
 {
 
 
@@ -195,6 +218,7 @@ Ndb_dd_client::check_table_exists(const char* schema_name,
   }
 
   ndb_dd_table_get_object_id_and_version(existing, table_id, table_version);
+  *engine = existing->engine();
 
   return true;
 
@@ -381,4 +405,63 @@ Ndb_dd_client::install_table(const char* schema_name, const char* table_name,
   }
 
   return true;
+}
+
+
+bool
+Ndb_dd_client::fetch_schema_names(std::vector<std::string>* names)
+{
+  DBUG_ENTER("Ndb_dd_client::fetch_schema_names");
+
+  std::vector<const dd::Schema*> schemas;
+  if (m_client->fetch_global_components(&schemas))
+  {
+    DBUG_RETURN(false);
+  }
+
+  for (const dd::Schema* schema : schemas)
+  {
+    names->push_back(schema->name().c_str());
+  }
+  DBUG_RETURN(true);
+}
+
+
+bool
+Ndb_dd_client::get_ndb_table_names_in_schema(const char* schema_name,
+                                           std::unordered_set<std::string>* names)
+{
+  DBUG_ENTER("Ndb_dd_client::get_ndb_table_names_in_schema");
+
+  const dd::Schema* schema;
+  if (m_client->acquire(schema_name, &schema))
+  {
+    // Failed to open the requested Schema object
+    DBUG_RETURN(false);
+  }
+
+  std::vector<const dd::Table*> tables;
+  if (m_client->fetch_schema_components(schema, &tables))
+  {
+    DBUG_RETURN(false);
+  }
+
+  for (const dd::Table* table: tables)
+  {
+    if (table->engine() != "ndbcluster")
+    {
+      // Skip non NDB tables
+      continue;
+    }
+
+    // Lock the table in DD
+    if (!mdl_lock_table(schema_name, table->name().c_str()))
+    {
+      // Failed to MDL lock table
+      DBUG_RETURN(false);
+    }
+
+    names->insert(table->name().c_str());
+  }
+  DBUG_RETURN(true);
 }

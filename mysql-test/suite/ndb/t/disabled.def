@@ -52,10 +52,6 @@ ndb_index_stat_restart: Need WL#9185 MySQL Cluster support for new DD
 ndb_tools_connect: Need WL#9185 MySQL Cluster support for new DD
 ndb_restore_schema_tolerance: Bug#25860404 CREATE TABLE DOES NOT CHECK EXISTENCE OF TABLESPACE IN NDB
 
-# Problem with sync during reconnect, table not in NDB are not deleted from DD 
-ndb_reconnect: Need WL#9185 MySQL Cluster support for new DD
-
-
 # Test which timeout most likley due to mismatches in shares etc.
 ndb.ndb_spj_dict: Need WL#9185 MySQL Cluster support for new DD
 
