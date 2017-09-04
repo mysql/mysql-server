@@ -651,7 +651,7 @@ public:
 
 	/** Add the file node to the LRU list if required.
 	@param[in,out]	file		File for the tablespace */
-	void open_file(fil_node_t* file);
+	void file_opened(fil_node_t* file);
 
 	/** Open all the system files.
 	@param[in]	max_n_open	Max files that can be opened.
@@ -1833,7 +1833,7 @@ Fil_shard::space_add(fil_space_t* space)
 /** Add the file node to the LRU list if required.
 @param[in,out]	file		File for the tablespace */
 void
-Fil_shard::open_file(fil_node_t* file)
+Fil_shard::file_opened(fil_node_t* file)
 {
 	ut_ad(m_id == REDO_SHARD || mutex_owned());
 
@@ -2591,7 +2591,7 @@ add_size:
 
 	/* The file is ready for IO. */
 
-	open_file(file);
+	file_opened(file);
 
 	return(true);
 }
@@ -2618,6 +2618,8 @@ Fil_shard::close_file(fil_node_t* file, bool LRU_close)
 	bool	ret = os_file_close(file->handle);
 
 	ut_a(ret);
+
+	file->handle.m_file = (os_file_t) -1;
 
 	file->is_open = false;
 
@@ -7405,10 +7407,20 @@ fil_redo_io(
 	ut_ad(type.is_log());
 
 	auto	shard = fil_system->shard_by_id(page_id.space());
-
+#ifdef _WIN32
+	/* On Windows we always open the redo log file in AIO mode. ie. we
+	use the AIO API for the read/write even for sync IO. */
+#ifndef WIN_ASYNC_IO
 	return(shard->do_redo_io(
 		type, page_id, page_size, byte_offset, len, buf));
-
+#else
+	return(shard->do_io(
+		type, true, page_id, page_size, byte_offset, len, buf, nullptr));
+#endif /* !WIN_ASYNC_IO */
+#else
+	return(shard->do_redo_io(
+		type, page_id, page_size, byte_offset, len, buf));
+#endif /* _WIN32 */
 }
 
 /** Read or write redo data. This operation is currently synchronous (AIO).

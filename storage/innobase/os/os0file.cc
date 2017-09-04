@@ -5722,10 +5722,8 @@ os_file_io(
 		} else {
 			/* Skip encrypt log file header */
 			if (offset >= LOG_FILE_HDR_SIZE) {
-				block = os_file_encrypt_log(type,
-							    buf,
-							    encrypt_log_buf,
-							    &n);
+				block = os_file_encrypt_log(
+					type, buf, encrypt_log_buf, &n);
 			}
 		}
         }
@@ -7904,7 +7902,9 @@ os_aio_windows_handler(
 
 			BOOL	ret;
 			ret = GetOverlappedResult(
-				slot->file.m_file, &slot->control, &slot->n_bytes, TRUE);
+				slot->file.m_file, &slot->control,
+				&slot->n_bytes, TRUE);
+
 			n_bytes = ret ? slot->n_bytes : -1;
 		}
 
