@@ -150,13 +150,8 @@ class Mock_protocol_encoder : public ngs::Protocol_encoder_interface {
   MOCK_METHOD0(send_result_fetch_done, bool());
   MOCK_METHOD0(send_result_fetch_done_more_results, bool());
 
-  bool send_column_metadata(const std::string &, const std::string &,
-                            const std::string &, const std::string &,
-                            const std::string &, const std::string &, uint64_t,
-                            int, int, uint32_t, uint32_t, uint32_t) override {
-    throw "Method 'send_column_metadata' has 12 parameters - unable to mock";
-    return false;
-  }
+  MOCK_METHOD1(send_column_metadata ,
+               bool (const ::ngs::Encode_column_info *column_info));
 
   MOCK_METHOD6(send_column_metadata,
                bool(uint64_t, int, int, uint32_t, uint32_t, uint32_t));

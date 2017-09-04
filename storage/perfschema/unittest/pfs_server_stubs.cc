@@ -37,7 +37,7 @@ uint lower_case_table_names= 0;
 CHARSET_INFO *files_charset_info= NULL;
 CHARSET_INFO *system_charset_info= NULL;
 
-void compute_digest_md5(const sql_digest_storage *, unsigned char *)
+void compute_digest_hash(const sql_digest_storage *, unsigned char *)
 {
 }
 

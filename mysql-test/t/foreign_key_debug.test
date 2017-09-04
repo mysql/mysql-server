@@ -641,22 +641,6 @@ DROP SCHEMA s1;
 
 DROP TABLE parent;
 
---echo #
---echo # Trigger an error in process_table_fks().
---echo #
-
-CREATE TABLE t(pk INTEGER PRIMARY KEY, fk_pk INTEGER,
-  FOREIGN KEY (fk_pk) REFERENCES t(pk) ON UPDATE CASCADE);
-
-SET @@foreign_key_checks= 1;
-SET @@session.debug= '+d,fail_while_processing_table_fks';
---error ER_LOCK_WAIT_TIMEOUT
-LOCK TABLE t WRITE;
-UNLOCK TABLE;
-SET @@session.debug= '-d,fail_while_processing_table_fks';
-
-DROP TABLE t;
-
 
 --echo #
 --echo # Trigger an error in Foreign_key_parents_invalidator::invalidate().

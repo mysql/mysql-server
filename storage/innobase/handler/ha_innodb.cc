@@ -13503,7 +13503,7 @@ create_table_info_t::create_table_update_global_dd(
 
 	table->dd_space_id = dd_space_id;
 
-	dd_set_table_options(&(dd_table->table()), table);
+	dd_set_table_options(dd_table, table);
 
 	dd_write_table(dd_space_id, dd_table, table);
 

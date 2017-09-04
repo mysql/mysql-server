@@ -38,11 +38,13 @@
 #include "storage/perfschema/pfs_timer.h"
 
 /*
-  Write MD5 hash value in a string to be used
+  Write SHA-256 hash value in a string to be used
   as DIGEST for the statement.
 */
-#define MD5_HASH_TO_STRING(_hash, _str)       \
+#define DIGEST_HASH_TO_STRING(_hash, _str)    \
   sprintf(_str,                               \
+          "%02x%02x%02x%02x%02x%02x%02x%02x"  \
+          "%02x%02x%02x%02x%02x%02x%02x%02x"  \
           "%02x%02x%02x%02x%02x%02x%02x%02x"  \
           "%02x%02x%02x%02x%02x%02x%02x%02x", \
           _hash[0],                           \
@@ -60,9 +62,26 @@
           _hash[12],                          \
           _hash[13],                          \
           _hash[14],                          \
-          _hash[15])
+          _hash[15],                          \
+          _hash[16],                          \
+          _hash[17],                          \
+          _hash[18],                          \
+          _hash[19],                          \
+          _hash[20],                          \
+          _hash[21],                          \
+          _hash[22],                          \
+          _hash[23],                          \
+          _hash[24],                          \
+          _hash[25],                          \
+          _hash[26],                          \
+          _hash[27],                          \
+          _hash[28],                          \
+          _hash[29],                          \
+          _hash[30],                          \
+          _hash[31])
 
-#define MD5_HASH_TO_STRING_LENGTH 32
+/* SHA-256 = 32 bytes of binary = 64 printable characters */
+#define DIGEST_HASH_TO_STRING_LENGTH 64
 
 struct PFS_host;
 struct PFS_user;
@@ -574,7 +593,7 @@ struct PFS_digest_row
   /** Length in bytes of @c m_schema_name. */
   uint m_schema_name_length;
   /** Column DIGEST. */
-  char m_digest[COL_DIGEST_SIZE];
+  char m_digest[DIGEST_HASH_TO_STRING_LENGTH + 1];
   /** Length in bytes of @c m_digest. */
   uint m_digest_length;
   /** Column DIGEST_TEXT. */

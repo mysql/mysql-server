@@ -44,7 +44,7 @@ Plugin_table table_esms_by_digest::m_table_def(
   "events_statements_summary_by_digest",
   /* Definition */
   "  SCHEMA_NAME VARCHAR(64),\n"
-  "  DIGEST VARCHAR(32),\n"
+  "  DIGEST VARCHAR(64),\n"
   "  DIGEST_TEXT LONGTEXT,\n"
   "  COUNT_STAR BIGINT unsigned not null,\n"
   "  SUM_TIMER_WAIT BIGINT unsigned not null,\n"

@@ -23,12 +23,15 @@ EOF
 --write_file $MYSQL_TMP_DIR/mysqlx.custom.lock
 EOF
 
+--let UNIX_SOCKET_REGEX= / \/.*\.(custom|socket) / SOCKET /
+
 call mtr.add_suppression("Plugin mysqlx reported: .Setup of UNIX socket ..+/mysqlx.custom. failed, lock file is empty");
 --replace_regex /loose-mysqlx-socket=.*custom/loose-mysqlx-socket=SOCKET/
 let $restart_parameters = restart: --loose-mysqlx-socket=$MYSQL_TMP_DIR/mysqlx.custom;
 --let $wait_for_unixsocket_status = undefined_value
 --source ../include/restart_mysqld_and_wait_for_xplugin.inc
 
+--replace_regex $UNIX_SOCKET_REGEX
 --error 1
 --exec $MYSQLXTEST --socket=$MYSQL_TMP_DIR/mysqlx.custom -uroot --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.tmp 2>&1
 
@@ -41,6 +44,7 @@ let $restart_parameters = restart: --loose-mysqlx-socket=$MYSQL_TMP_DIR/mysqlx.d
 --let $wait_for_unixsocket_status = undefined_value
 --source ../include/restart_mysqld_and_wait_for_xplugin.inc
 
+--replace_regex $UNIX_SOCKET_REGEX
 --error 1
 --exec $MYSQLXTEST --socket=$MYSQL_TMP_DIR/mysqlx.dir.socket -uroot --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.tmp 2>&1
 
@@ -56,6 +60,7 @@ let $restart_parameters = restart: --loose-mysqlx-socket=$MYSQL_TMP_DIR/mysqlx.c
 --let $wait_for_unixsocket_status = undefined_value
 --source ../include/restart_mysqld_and_wait_for_xplugin.inc
 
+--replace_regex $UNIX_SOCKET_REGEX
 --error 1
 --exec $MYSQLXTEST --socket=$MYSQL_TMP_DIR/mysqlx.custom -uroot --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.tmp 2>&1
 

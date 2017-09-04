@@ -21,6 +21,7 @@
 
 #include <algorithm>
 
+#include "plugin/x/ngs/include/ngs/protocol/column_info_builder.h"
 #include "plugin/x/src/admin_cmd_index.h"
 #include "plugin/x/src/query_string_builder.h"
 #include "plugin/x/src/sql_data_result.h"
@@ -185,14 +186,17 @@ ngs::Error_code Admin_command_handler::list_clients(
 
   auto &proto = m_session->proto();
 
-  proto.send_column_metadata("", "", "", "", "client_id", "", 0,
-                             Mysqlx::Resultset::ColumnMetaData::UINT, 0, 0, 0);
-  proto.send_column_metadata("", "", "", "", "user", "", 0,
-                             Mysqlx::Resultset::ColumnMetaData::BYTES, 0, 0, 0);
-  proto.send_column_metadata("", "", "", "", "host", "", 0,
-                             Mysqlx::Resultset::ColumnMetaData::BYTES, 0, 0, 0);
-  proto.send_column_metadata("", "", "", "", "sql_session", "", 0,
-                             Mysqlx::Resultset::ColumnMetaData::UINT, 0, 0, 0);
+  ngs::Column_info_builder column[4]{
+    {Mysqlx::Resultset::ColumnMetaData::UINT, "client_id"},
+    {Mysqlx::Resultset::ColumnMetaData::BYTES, "user"},
+    {Mysqlx::Resultset::ColumnMetaData::BYTES, "host"},
+    {Mysqlx::Resultset::ColumnMetaData::UINT, "sql_session"}
+  };
+
+  proto.send_column_metadata(&column[0].get());
+  proto.send_column_metadata(&column[1].get());
+  proto.send_column_metadata(&column[2].get());
+  proto.send_column_metadata(&column[3].get());
 
   for (std::vector<Client_data_>::const_iterator it = clients.begin();
        it != clients.end(); ++it) {
@@ -467,10 +471,13 @@ ngs::Error_code Admin_command_handler::list_notices(
   // notice | enabled
   // <name> | <1/0>
   auto &proto = m_session->proto();
-  proto.send_column_metadata("", "", "", "", "notice", "", 0,
-                             Mysqlx::Resultset::ColumnMetaData::BYTES, 0, 0, 0);
-  proto.send_column_metadata("", "", "", "", "enabled", "", 0,
-                             Mysqlx::Resultset::ColumnMetaData::SINT, 0, 0, 0);
+  ngs::Column_info_builder column[2] {
+    { Mysqlx::Resultset::ColumnMetaData::BYTES, "notice" },
+    { Mysqlx::Resultset::ColumnMetaData::SINT, "enabled" }
+  };
+
+  proto.send_column_metadata(&column[0].get());
+  proto.send_column_metadata(&column[1].get());
 
   add_notice_row(&proto, "warnings",
                  m_session->options().get_send_warnings() ? 1 : 0);

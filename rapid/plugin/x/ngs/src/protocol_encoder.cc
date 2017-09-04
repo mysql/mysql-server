@@ -288,31 +288,12 @@ void Protocol_encoder::send_rows_affected(uint64_t value)
   enqueue_buffer(Mysqlx::ServerMessages::NOTICE);
 }
 
-bool Protocol_encoder::send_column_metadata(const std::string &catalog,
-                                            const std::string &db_name,
-                                            const std::string &table_name, const std::string &org_table_name,
-                                            const std::string &col_name, const std::string &org_col_name,
-                                            uint64_t collation, int type, int decimals,
-                                            uint32_t flags, uint32_t length, uint32_t content_type)
+bool Protocol_encoder::send_column_metadata(const Encode_column_info *column_info)
 {
-  m_metadata_builder.encode_metadata(m_buffer.get(),
-    catalog, db_name, table_name, org_table_name,
-    col_name, org_col_name, collation, type, decimals,
-    flags, length, content_type);
+  m_metadata_builder.encode_metadata(m_buffer.get(), column_info);
 
   return send_raw_buffer(Mysqlx::ServerMessages::RESULTSET_COLUMN_META_DATA);
 }
-
-bool Protocol_encoder::send_column_metadata(uint64_t collation, int type, int decimals,
-  uint32_t flags, uint32_t length, uint32_t content_type)
-{
-  m_metadata_builder.encode_metadata(m_buffer.get(),
-    collation, type, decimals,
-    flags, length, content_type);
-
-  return send_raw_buffer(Mysqlx::ServerMessages::RESULTSET_COLUMN_META_DATA);
-}
-
 
 bool Protocol_encoder::flush_buffer()
 {
