@@ -2880,6 +2880,8 @@ join_init_quick_read_record(QEP_TAB *tab)
                                   false,      // don't force quick range
                                   ORDER_NOT_RELEVANT, tab,
                                   tab->condition(), &needed_reg_dummy, &qck);
+  if (thd->is_error()) // @todo consolidate error reporting of test_quick_select
+    return 1;
   DBUG_ASSERT(old_qck == NULL || old_qck != qck) ;
   tab->set_quick(qck);
 
