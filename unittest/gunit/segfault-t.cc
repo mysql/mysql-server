@@ -183,7 +183,7 @@ TEST(PrintUtilities, Printf)
 
   void *p= this;
   my_safe_snprintf(buff, sizeof(buff), "hello 0x%p hello", p);
-  snprintf(sprintfbuff, sizeof(sprintfbuff), "hello 0x%lx hello", (long)p);
+  snprintf(sprintfbuff, sizeof(sprintfbuff), "hello 0x%llx hello", (long long)p);
   EXPECT_STREQ(sprintfbuff, buff) << "my_safe_snprintf:" << buff;
 }
 
