@@ -843,7 +843,7 @@ call p_verify_status_increment(0, 0, 0, 0);
 SUCCESS
 
 create table t3 select a from t2;
-call p_verify_status_increment(13, 4, 4, 4);
+call p_verify_status_increment(<commit_count>, 4, 4, 4);
 SUCCESS
 
 alter table t3 add column (b int);
