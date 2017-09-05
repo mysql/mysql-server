@@ -118,7 +118,7 @@ syntax = "proto2";
 
 
 package Mysqlx.Resultset;
-option java_package = "com.mysql.cj.mysqlx.protobuf";
+option java_package = "com.mysql.cj.x.protobuf";
 
 // resultsets are finished, OUT paramset is next
 message FetchDoneMoreOutParams {
