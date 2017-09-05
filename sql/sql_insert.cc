@@ -3045,7 +3045,7 @@ bool Query_result_create::send_eof()
                                                        create_table->db,
                                                        create_table->table_name,
                                                        create_info->db_type,
-                                                       new_table) ||
+                                                       new_table, nullptr) ||
             adjust_fk_parents(thd, create_table->db, create_table->table_name,
                               true, nullptr))
           error= true;

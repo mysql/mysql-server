@@ -2784,16 +2784,10 @@ SELECT * FROM t1;
 CREATE TABLE t3(a int, b int, KEY(b)) ENGINE=InnoDB;
 ALTER TABLE t3 ADD CONSTRAINT FOREIGN KEY(b) REFERENCES t1(bb);
 SHOW CREATE TABLE t3;
---error ER_NOT_SUPPORTED_YET
 ALTER TABLE t1 RENAME COLUMN bb TO b;
 SHOW CREATE TABLE t1;
 ALTER TABLE t3 RENAME COLUMN b TO c;
 SHOW CREATE TABLE t3;
-
-# Workaround until SQL-layer code properly supports renaming of columns in FKs
-# I.e. until bug #26659110 is fixed.
-ALTER TABLE t3 DROP FOREIGN KEY t3_ibfk_1;
-ALTER TABLE t1 RENAME COLUMN bb TO b;
 
 # Different Algorithm
 CREATE TABLE t4(a int);

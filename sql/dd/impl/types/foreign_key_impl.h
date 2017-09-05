@@ -187,6 +187,9 @@ public:
   virtual const Foreign_key_elements &elements() const
   { return m_elements; }
 
+  virtual Foreign_key_elements *elements()
+  { return &m_elements; }
+
   // Fix "inherits ... via dominance" warnings
   virtual Entity_object_impl *impl()
   { return Entity_object_impl::impl(); }

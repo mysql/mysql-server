@@ -317,6 +317,8 @@ template Column_type_element*&
 Collection<Column_type_element*>::Collection_iterator::operator*();
 template Foreign_key*&
 Collection<Foreign_key*>::Collection_iterator::operator*();
+template Foreign_key_element*&
+Collection<Foreign_key_element*>::Collection_iterator::operator*();
 template Index*&
 Collection<Index*>::Collection_iterator::operator*();
 template Index_element*&

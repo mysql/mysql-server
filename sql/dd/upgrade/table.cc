@@ -1518,6 +1518,7 @@ static bool fix_fk_parent_key_names(THD *thd,
                                                  table_name.c_str(),
                                                  hton,
                                                  table_def,
+                                                 nullptr,
                                                  false) || // Don't invalidate
                                                            // TDC we don't have
                                                            // proper MDL.

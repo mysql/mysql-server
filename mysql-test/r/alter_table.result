@@ -3412,13 +3412,12 @@ t3	CREATE TABLE `t3` (
   CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`bb`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ALTER TABLE t1 RENAME COLUMN bb TO b;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE which renames columns in parent table of foreign key'
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `d` varchar(30) DEFAULT NULL,
-  `bb` int(11) DEFAULT '5',
-  KEY `b` (`bb`)
+  `b` int(11) DEFAULT '5',
+  KEY `b` (`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ALTER TABLE t3 RENAME COLUMN b TO c;
 SHOW CREATE TABLE t3;
@@ -3427,10 +3426,8 @@ t3	CREATE TABLE `t3` (
   `a` int(11) DEFAULT NULL,
   `c` int(11) DEFAULT NULL,
   KEY `b` (`c`),
-  CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t1` (`bb`)
+  CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t1` (`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-ALTER TABLE t3 DROP FOREIGN KEY t3_ibfk_1;
-ALTER TABLE t1 RENAME COLUMN bb TO b;
 CREATE TABLE t4(a int);
 ALTER TABLE t4 RENAME COLUMN a TO aa, ALGORITHM = INPLACE;
 SHOW CREATE TABLE t4;

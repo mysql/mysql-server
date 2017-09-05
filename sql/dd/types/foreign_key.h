@@ -133,6 +133,8 @@ public:
 
   virtual const Foreign_key_elements &elements() const = 0;
 
+  virtual Foreign_key_elements *elements() = 0;
+
 
   /**
     Converts *this into json.

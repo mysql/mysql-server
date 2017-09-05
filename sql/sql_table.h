@@ -163,6 +163,9 @@ adjust_fk_parents(THD *thd, const char *db, const char *name, bool reload_self,
   @param parent_table_name    Parent table name.
   @param hton                 Handlerton for table's storage engine.
   @param parent_table_def     Table object representing the referenced table.
+  @param parent_alter_info    Alter_info containing information about renames
+                              of parent columns. Can be nullptr if there are
+                              no such renames.
   @param invalidate_tdc       Indicates whether we need to invalidate TDC for
                               referencing tables after updating their
                               definitions.
@@ -175,6 +178,7 @@ adjust_fk_children_after_parent_def_change(THD *thd,
                                            const char *parent_table_name,
                                            handlerton *hton,
                                            const dd::Table *parent_table_def,
+                                           Alter_info *parent_alter_info,
                                            bool invalidate_tdc)
                                            MY_ATTRIBUTE((warn_unused_result));
 
@@ -188,12 +192,15 @@ adjust_fk_children_after_parent_def_change(THD *thd,
                                            const char *parent_table_db,
                                            const char *parent_table_name,
                                            handlerton *hton,
-                                           const dd::Table *parent_table_def)
+                                           const dd::Table *parent_table_def,
+                                           Alter_info *parent_alter_info)
 {
   return adjust_fk_children_after_parent_def_change(thd,
                                                     parent_table_db,
                                                     parent_table_name,
-                                                    hton, parent_table_def,
+                                                    hton,
+                                                    parent_table_def,
+                                                    parent_alter_info,
                                                     true);
 }
 
