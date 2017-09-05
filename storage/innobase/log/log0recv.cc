@@ -34,6 +34,7 @@ Created 9/20/1997 Heikki Tuuri
 #include <new>
 #include <string>
 #include <vector>
+#include <iomanip>
 
 #include "log0recv.h"
 #include "btr0btr.h"
@@ -2480,8 +2481,9 @@ recv_apply_hashed_log_recs(bool allow_ibuf)
 				start_time = ut_time();
 
 				ib::info()
-					<< "Applied: "
-					<< applied << "/" << batch_size;
+					<< std::setprecision(2)
+					<< ((double) applied * 100)
+					   / (double) batch_size << "%";
 			}
 		}
 	}
