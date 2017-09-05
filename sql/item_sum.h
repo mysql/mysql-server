@@ -2226,15 +2226,18 @@ class Item_percent_rank : public Item_non_framing_wf
   typedef Item_non_framing_wf super;
   // Execution state variables
   ulonglong m_rank_ctr;    ///< Increment when window order columns change
-  ulonglong m_duplicates;  ///< Needed to make PERCENT_RANK same for peers
-  List<Cached_item> m_previous; ///< Values of previous row's ORDER BY items
+  ulonglong m_peers;       ///< Needed to make PERCENT_RANK same for peers
+  /**
+    Set when the last peer has been visited. Needed to increment m_rank_ctr.
+  */
+  bool m_last_peer_visited;
 
 public:
   Item_percent_rank(const POS &pos, PT_window *w) :
     Item_non_framing_wf(pos, w),
     m_rank_ctr(0),
-    m_duplicates(0),
-    m_previous()
+    m_peers(0),
+    m_last_peer_visited(false)
   {}
 
   const char *func_name() const override { return "percent_rank"; }

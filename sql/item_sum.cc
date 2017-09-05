@@ -5496,32 +5496,18 @@ bool Item_percent_rank::fix_fields(THD *thd, Item **items)
 }
 
 
-bool Item_percent_rank::check_wf_semantics(THD *thd, SELECT_LEX *select,
+bool Item_percent_rank::check_wf_semantics(THD *thd MY_ATTRIBUTE((unused)),
+                                           SELECT_LEX *select MY_ATTRIBUTE((unused)),
                                            Window::Evaluation_requirements *r)
 {
   r->needs_buffer= true; // we need to know partition cardinality, so two passes
+  r->needs_peerset= true; //we need to know the number of peers
 
   const PT_order_list *order= m_window->order();
   // SQL2015 6.10 <window function> SR 6.g+6.a: require ORDER BY; we don't.
   if (!order)
     return false; // all rows in partition are peers
 
-  for (ORDER *o= order->value.first; o != NULL; o= o->next)
-  {
-    /*
-      We need to access the value of the ORDER expression when evaluating
-      RANK to determine equality or not, so we need a handle.
-    */
-
-    Item_ref *ir= new Item_ref(&select->context,
-                               o->item,
-                               (char *)"<no matter>",
-                               (char *)"<partition order>");
-    if (ir == nullptr)
-      return true;
-
-    m_previous.push_back(new_Cached_item(thd, ir));
-  }
   return false;
 }
 
@@ -5533,26 +5519,19 @@ double Item_percent_rank::val_real()
     DBUG_RETURN(0.0); // degenerate case, no real windowing
   // FIXME replace the above test with !m_window->has_windowing_steps()
 
-  List_iterator<Cached_item> li(m_previous);
-  Cached_item *item;
-  bool change= false;
-
   if (m_window->rowno_being_visited() == m_window->rowno_in_partition())
   {
-    /*
-      Check if any of the ORDER BY expressions have changed. If so, we
-      need to update the rank, considering any duplicates.
-    */
-    while((item=li++))
-      change|= item->cmp();
-
-    if (change)
+    if (m_last_peer_visited)
     {
-      m_rank_ctr+= 1 + m_duplicates;
-      m_duplicates= 0;
+      m_rank_ctr+= m_peers;
+      m_peers= 0;
+      m_last_peer_visited= false;
     }
-    else
-      m_duplicates+= 1;
+
+    m_peers++;
+
+    if (m_window->rowno_being_visited() == m_window->last_rowno_in_peerset())
+      m_last_peer_visited= true;
 
     if (m_rank_ctr == 1)
       DBUG_RETURN(0);
@@ -5585,29 +5564,14 @@ my_decimal *Item_percent_rank::val_decimal(my_decimal *buffer)
 
 void Item_percent_rank::clear()
 {
-  if (m_window->has_windowing_steps())
-  {
-    List_iterator<Cached_item> li(m_previous);
-    Cached_item *item;
-    while((item=li++))
-    {
-      item->cmp(); // set baseline
-    }
-  }
   m_rank_ctr= 1;
-  m_duplicates= -1;
+  m_peers= 0;
+  m_last_peer_visited= false;
 }
 
 void Item_percent_rank::cleanup()
 {
   super::cleanup();
-  List_iterator<Cached_item> li(m_previous);
-  Cached_item *ci;
-  while ((ci= li++))
-  {
-    ci->~Cached_item();
-  }
-  m_previous.empty();
 }
 
 
