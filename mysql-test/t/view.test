@@ -6218,3 +6218,22 @@ SELECT * FROM t1;
 
 DROP TABLE t1;
 DROP VIEW v1, v2, v3, v4, v5;
+
+--echo # Bug#26659699 Assertion !(thd->lex->context_analysis_only & 2) failed
+
+CREATE TABLE t1(pk INTEGER, cik INTEGER, UNIQUE KEY(cik))
+PARTITION BY KEY(cik) PARTITIONS 10;
+
+CREATE TABLE t2(pk INTEGER, cvk VARCHAR(20), cik INTEGER, UNIQUE KEY(cik))
+PARTITION BY KEY(cik) PARTITIONS 10;
+
+CREATE VIEW v1 AS
+SELECT MAX(t2.pk) AS field1
+FROM t1, t2
+WHERE (SELECT 7 FROM DUAL) IS NOT NULL AND
+      t1.pk BETWEEN 123 AND (123 + 128) AND
+      t2.cvk <= 'p'
+ORDER BY t1.pk DESC;
+
+DROP VIEW v1;
+DROP TABLE t1, t2;

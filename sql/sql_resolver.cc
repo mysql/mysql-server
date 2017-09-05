@@ -481,13 +481,15 @@ bool SELECT_LEX::apply_local_transforms(THD *thd, bool prune)
 {
   DBUG_ENTER("SELECT_LEX::apply_local_transforms");
 
+  // No transformations required when creating a view only
+  if (thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW)
+    DBUG_RETURN(false);
+
   /*
     If query block contains one or more merged derived tables/views,
     walk through lists of columns in select lists and remove unused columns.
   */
-  if (derived_table_count &&
-      first_execution &&
-      !(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW))
+  if (derived_table_count && first_execution)
     delete_unused_merged_columns(&top_join_list);
 
   for (SELECT_LEX_UNIT *unit= first_inner_unit();
@@ -507,8 +509,7 @@ bool SELECT_LEX::apply_local_transforms(THD *thd, bool prune)
       DBUG_RETURN(true);
   }
 
-  if (first_execution &&
-      !(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW))
+  if (first_execution)
   {
     /*
       The following code will allocate the new items in a permanent
