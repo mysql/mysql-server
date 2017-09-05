@@ -29,7 +29,7 @@ syntax = "proto2";
 // * is sent from the server to the client
 // * may be global or relate to the current message sequence
 package Mysqlx.Notice;
-option java_package = "com.mysql.cj.mysqlx.protobuf";
+option java_package = "com.mysql.cj.x.protobuf";
 
 import "mysqlx_datatypes.proto";
 

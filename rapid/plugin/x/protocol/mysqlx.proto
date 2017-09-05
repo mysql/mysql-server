@@ -23,7 +23,7 @@ syntax = "proto2";
 // ifdef PROTOBUF_LITE: option optimize_for = LITE_RUNTIME;
 
 package Mysqlx;
-option java_package = "com.mysql.cj.mysqlx.protobuf";
+option java_package = "com.mysql.cj.x.protobuf";
 
 
 // style-guide:
