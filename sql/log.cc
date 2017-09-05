@@ -1321,6 +1321,8 @@ bool Query_logger::general_log_print(THD *thd, enum_server_command command,
     message_buff_len= vsnprintf(message_buff, sizeof(message_buff),
                                    format, args);
     va_end(args);
+
+    message_buff_len= std::min(message_buff_len, sizeof(message_buff) - 1);
   }
   else
     message_buff[0]= '\0';
