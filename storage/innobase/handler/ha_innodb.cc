@@ -21281,7 +21281,7 @@ static MYSQL_SYSVAR_BOOL(dedicated_server, srv_dedicated_server,
   "Automatically scale innodb_buffer_pool_size and innodb_log_file_size "
   "based on system memory. Also set innodb_flush_method=O_DIRECT_NO_FSYNC, "
   "if supported",
-  NULL, NULL, TRUE);
+  NULL, NULL, FALSE);
 
 /* If the default value of innodb_buffer_pool_size is increased to be more than
 BUF_POOL_SIZE_THRESHOLD (srv/srv0start.cc), then srv_buf_pool_instances_default
