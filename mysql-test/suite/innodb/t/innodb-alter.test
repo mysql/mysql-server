@@ -41,10 +41,6 @@ ALTER TABLE t1 CHANGE c1 c1 INT FIRST;
 
 -- source suite/innodb/include/innodb_dict.inc
 
-# Workaround until SQL-layer code properly supports renaming of columns in FKs
-# I.e. until bug #26659110 is fixed.
-ALTER TABLE t1c DROP FOREIGN KEY t1c2;
-
 ALTER TABLE t1 CHANGE C2 c3 INT;
 
 -- source suite/innodb/include/innodb_dict.inc
@@ -119,14 +115,6 @@ FROM sys_tables st INNER JOIN INFORMATION_SCHEMA.INNODB_TABLES i
 ON i.TABLE_ID=st.TABLE_ID;
 
 -- source suite/innodb/include/innodb_dict.inc
-
-# Workaround until SQL-layer code properly supports renaming of columns in FKs
-# I.e. until bug #26659110 is fixed.
-DROP TABLE t1c;
-CREATE TABLE t1c (c1 INT PRIMARY KEY, c2 INT, c3 INT, INDEX(c2), INDEX(c3),
-                  CONSTRAINT t1c2 FOREIGN KEY (c2) REFERENCES t1(c3),
-		  CONSTRAINT t1c3 FOREIGN KEY (c3) REFERENCES t1p(c2))
-ENGINE=InnoDB;
 
 --error ER_DROP_INDEX_FK
 ALTER TABLE t1 DROP INDEX c2;
@@ -427,7 +415,6 @@ SHOW CREATE TABLE t2;
 ALTER TABLE t1 CHANGE COLUMN c1 C1 INT;
 SHOW CREATE TABLE t1;
 SHOW CREATE TABLE t2;
---error ER_NOT_SUPPORTED_YET
 ALTER TABLE t1 CHANGE COLUMN C1 c5 INT;
 SHOW CREATE TABLE t1;
 SHOW CREATE TABLE t2;

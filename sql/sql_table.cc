@@ -7056,6 +7056,7 @@ adjust_fk_children_after_parent_def_change(THD *thd,
                                            const char *parent_table_name,
                                            handlerton *hton,
                                            const dd::Table *parent_table_def,
+                                           Alter_info *parent_alter_info,
                                            bool invalidate_tdc)
 {
   Normalized_fk_children fk_children;
@@ -7106,6 +7107,33 @@ adjust_fk_children_after_parent_def_change(THD *thd,
           interpreted as NULL when it is stored to the DD tables.
         */
         fk->set_unique_constraint_name(parent_key_name);
+
+        /*
+          If foreign key columns in parent table were renamed we need
+          to update foreign key definition to reflect that.
+        */
+        if (parent_alter_info)
+        {
+          List_iterator<Create_field> find_it(parent_alter_info->create_list);
+
+          for (dd::Foreign_key_element *fk_el : *(fk->elements()))
+          {
+            find_it.rewind();
+            const Create_field *find;
+            while ((find= find_it++))
+            {
+              if (find->change &&
+                  my_strcasecmp(system_charset_info,
+                                fk_el->referenced_column_name().c_str(),
+                                find->change) == 0)
+              {
+                // Use new name
+                fk_el->referenced_column_name(find->field_name);
+                break;
+              }
+            }
+          }
+        }
       }
     }
 
@@ -7417,8 +7445,7 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
 
           if (adjust_fk_children_after_parent_def_change(thd,
                 create_table->db, create_table->table_name,
-                create_info->db_type, new_table,
-                false) ||
+                create_info->db_type, new_table, nullptr) ||
               adjust_fk_parents(thd, create_table->db,
                 create_table->table_name, true, nullptr))
             result= true;
@@ -8257,7 +8284,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
 
         if (adjust_fk_children_after_parent_def_change(thd,
               table->db, table->table_name, local_create_info.db_type,
-              new_table) ||
+              new_table, nullptr) ||
             adjust_fk_parents(thd, table->db, table->table_name, true, nullptr))
           goto err;
       }
@@ -9845,6 +9872,8 @@ collect_and_lock_fk_tables_for_complex_alter_table(THD *thd,
   @param  thd             Thread handle.
   @param  table_list      Table list element for table being ALTERed.
   @param  alter_ctx       ALTER TABLE operation context.
+  @param  alter_info      Alter_info describing ALTER TABLE, specifically
+                          containing informaton about columns being renamed.
   @param  old_hton        Table's old SE.
   @param  new_hton        Table's new SE.
   @param  fk_invalidator  Object keeping track of which dd::Table
@@ -9857,6 +9886,7 @@ collect_and_lock_fk_tables_for_complex_alter_table(THD *thd,
 static bool
 adjust_fks_for_complex_alter_table(THD *thd, TABLE_LIST *table_list,
                          Alter_table_ctx *alter_ctx,
+                         Alter_info *alter_info,
                          handlerton *old_hton,
                          handlerton *new_hton,
                          const Foreign_key_parents_invalidator *fk_invalidator)
@@ -9876,7 +9906,8 @@ adjust_fks_for_complex_alter_table(THD *thd, TABLE_LIST *table_list,
                                                  table_list->db,
                                                  table_list->table_name,
                                                  old_hton,
-                                                 new_table))
+                                                 new_table,
+                                                 alter_info))
     return true;
 
   if (alter_ctx->is_table_renamed())
@@ -9909,7 +9940,8 @@ adjust_fks_for_complex_alter_table(THD *thd, TABLE_LIST *table_list,
                                                    alter_ctx->new_db,
                                                    alter_ctx->new_alias,
                                                    new_hton,
-                                                   new_table))
+                                                   new_table,
+                                                   nullptr))
       return true;
   }
 
@@ -9972,7 +10004,7 @@ static bool mysql_inplace_alter_table(THD *thd,
 {
   handlerton *db_type= table->s->db_type();
   MDL_ticket *mdl_ticket= table->mdl_ticket;
-  const Alter_info *alter_info= ha_alter_info->alter_info;
+  Alter_info *alter_info= ha_alter_info->alter_info;
   bool reopen_tables= false;
   bool rollback_needs_dict_cache_reset= false;
 
@@ -10355,7 +10387,8 @@ static bool mysql_inplace_alter_table(THD *thd,
               (db_type->flags & HTON_SUPPORTS_ATOMIC_DDL));
 
   if (adjust_fks_for_complex_alter_table(thd, table_list, alter_ctx,
-                                         db_type, db_type, fk_invalidator))
+                                         alter_info, db_type, db_type,
+                                         fk_invalidator))
     goto cleanup2;
 
   THD_STAGE_INFO(thd, stage_end);
@@ -10709,6 +10742,8 @@ static void to_lex_cstring(MEM_ROOT *mem_root,
 
   @param      thd              Thread handle.
   @param      src_table        The source table.
+  @param      src_db_name      Original database name of table.
+  @param      src_table_name   Original table name of table.
   @param      alter_info       Info about ALTER TABLE statement.
   @param      alter_ctx        Runtime context for ALTER TABLE.
   @param      new_create_list  List of new columns, used for rename check.
@@ -10717,6 +10752,8 @@ static void to_lex_cstring(MEM_ROOT *mem_root,
 static bool transfer_preexisting_foreign_keys(
               THD *thd,
               const dd::Table *src_table,
+              const char *src_db_name,
+              const char *src_table_name,
               Alter_info *alter_info,
               Alter_table_ctx *alter_ctx,
               List<Create_field> *new_create_list)
@@ -10749,6 +10786,15 @@ static bool transfer_preexisting_foreign_keys(
     }
     if (is_dropped)
       continue;
+
+    // Self-referencing foreign keys will need additional handling later.
+    bool is_self_referencing=
+      my_strcasecmp(table_alias_charset,
+                    dd_fk->referenced_table_schema_name().c_str(),
+                    src_db_name) == 0 &&
+      my_strcasecmp(table_alias_charset,
+                    dd_fk->referenced_table_name().c_str(),
+                    src_table_name) == 0;
 
     FOREIGN_KEY *sql_fk= &alter_ctx->fk_info[alter_ctx->fk_count++];
 
@@ -10791,12 +10837,14 @@ static bool transfer_preexisting_foreign_keys(
       const dd::Foreign_key_element *dd_fk_ele= dd_fk->elements()[j];
 
       // Check if the column was renamed by the same statement.
-      bool renamed= false;
+      bool col_renamed= false;
+      bool ref_col_renamed= false;
+
       if (alter_info->flags & Alter_info::ALTER_CHANGE_COLUMN)
       {
         find_it.rewind();
         const Create_field *find;
-        while ((find= find_it++) && !renamed)
+        while ((find= find_it++) && !col_renamed)
         {
           if (find->change && my_strcasecmp(system_charset_info,
                                             dd_fk_ele->column().name().c_str(),
@@ -10805,16 +10853,38 @@ static bool transfer_preexisting_foreign_keys(
             // Use new name
             sql_fk->key_part[j].str= find->field_name;
             sql_fk->key_part[j].length= strlen(find->field_name);
-            renamed= true;
+            col_renamed= true;
+          }
+        }
+
+        /*
+          If foreign key has the same table as child and parent we also
+          need to update names of referenced columns if they are renamed.
+        */
+        if (is_self_referencing)
+        {
+          find_it.rewind();
+          while ((find= find_it++) && !ref_col_renamed)
+          {
+            if (find->change && my_strcasecmp(system_charset_info,
+                                  dd_fk_ele->referenced_column_name().c_str(),
+                                  find->change) == 0)
+            {
+              // Use new name
+              sql_fk->fk_key_part[j].str= find->field_name;
+              sql_fk->fk_key_part[j].length= strlen(find->field_name);
+              ref_col_renamed= true;
+            }
           }
         }
       }
-      if (!renamed) // Use old name
+      if (!col_renamed) // Use old name
         to_lex_cstring(thd->mem_root, &sql_fk->key_part[j],
                        dd_fk_ele->column().name());
 
-      to_lex_cstring(thd->mem_root, &sql_fk->fk_key_part[j],
-                     dd_fk_ele->referenced_column_name());
+      if (!ref_col_renamed)
+        to_lex_cstring(thd->mem_root, &sql_fk->fk_key_part[j],
+                       dd_fk_ele->referenced_column_name());
     }
   }
   return false;
@@ -11493,7 +11563,10 @@ bool prepare_fields_and_keys(THD *thd,
   */
   if (create_info->db_type->flags & HTON_SUPPORTS_FOREIGN_KEYS)
   {
-    if (transfer_preexisting_foreign_keys(thd, src_table, alter_info,
+    if (transfer_preexisting_foreign_keys(thd, src_table,
+                                          table->s->db.str,
+                                          table->s->table_name.str,
+                                          alter_info,
                                           alter_ctx, &new_create_list))
       DBUG_RETURN(true);
   }
@@ -11925,90 +11998,6 @@ static bool fk_check_copy_alter_table(THD *thd, TABLE *table,
 }
 
 
-/**
-  Check if ALTER TABLE we are about to execute using INPLACE algorithm
-  is not supported.
-
-  @note This is temporary workaround for the problem that SQL-layer
-        can't correctly update foreign key definitions after
-        columns in parent key are renamed.
-
-  @param[in]  thd          Thread context.
-  @param[in]  table        Table to be altered.
-  @param[in]  alter_info   Lists of fields, keys to be changed, added
-                           or dropped.
-
-  @retval false  Success.
-  @retval true   Error, ALTER - tries to do change which is not supported.
-*/
-static bool fk_check_inplace_alter_table(THD *thd, TABLE *table,
-                                         Alter_info *alter_info)
-{
-  List <FOREIGN_KEY_INFO> fk_parent_key_list;
-  FOREIGN_KEY_INFO *f_key;
-
-  DBUG_ENTER("fk_check_inplace_alter_table");
-
-  table->file->get_parent_foreign_key_list(thd, &fk_parent_key_list);
-
-  /* OOM when building list. */
-  if (thd->is_error())
-    DBUG_RETURN(true);
-
-  /*
-    Remove from the list all foreign keys in which table participates as
-    parent which are to be dropped by this ALTER TABLE. This is possible
-    when a foreign key has the same table as child and parent.
-  */
-  List_iterator<FOREIGN_KEY_INFO> fk_parent_key_it(fk_parent_key_list);
-
-  while ((f_key= fk_parent_key_it++))
-  {
-    for (const Alter_drop *drop : alter_info->drop_list)
-    {
-      /*
-        InnoDB treats foreign key names in case-insensitive fashion.
-        So we do it here too. For database and table name type of
-        comparison used depends on lower-case-table-names setting.
-        For l_c_t_n = 0 we use case-sensitive comparison, for
-        l_c_t_n > 0 modes case-insensitive comparison is used.
-      */
-      if ((drop->type == Alter_drop::FOREIGN_KEY) &&
-          (my_strcasecmp(system_charset_info, f_key->foreign_id->str,
-                         drop->name) == 0) &&
-          (my_strcasecmp(table_alias_charset, f_key->foreign_db->str,
-                         table->s->db.str) == 0) &&
-          (my_strcasecmp(table_alias_charset, f_key->foreign_table->str,
-                         table->s->table_name.str) == 0))
-        fk_parent_key_it.remove();
-    }
-  }
-
-  fk_parent_key_it.rewind();
-  while ((f_key= fk_parent_key_it++))
-  {
-    enum fk_column_change_type changes;
-    const char *bad_column_name;
-
-    changes= fk_check_column_changes(thd, alter_info,
-                                     f_key->referenced_fields,
-                                     &bad_column_name);
-
-    switch(changes)
-    {
-    case FK_COLUMN_RENAMED:
-      my_error(ER_NOT_SUPPORTED_YET, MYF(0),
-               "ALTER TABLE which renames columns in parent table of foreign key");
-      DBUG_RETURN(true);
-    default:
-      break;
-    }
-  }
-
-  DBUG_RETURN(false);
-}
-
-
 bool
 collect_and_lock_fk_tables_for_rename_table(THD *thd,
       const char *db, const char *table_name,
@@ -12073,7 +12062,8 @@ adjust_fks_for_rename_table(THD *thd,
   if (adjust_fk_children_after_parent_def_change(thd, new_db,
                                                  new_table_name,
                                                  hton,
-                                                 new_table))
+                                                 new_table,
+                                                 nullptr))
     return true;
 
   if (adjust_fk_parents(thd, new_db, new_table_name, true, nullptr))
@@ -13379,13 +13369,6 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
 
     if (use_inplace)
     {
-      /* Check temporary limitation on renaming columns in parent table. */
-      if (fk_check_inplace_alter_table(thd, table, alter_info))
-      {
-        close_temporary_table(thd, altered_table, true, false);
-        goto err_new_table_cleanup;
-      }
-
       if (mysql_inplace_alter_table(thd, *new_schema, old_table_def,
                                     table_def, table_list, table,
                                     altered_table, &ha_alter_info,
@@ -13787,7 +13770,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                            NO_DD_COMMIT : 0))) ||
       ((new_db_type->flags & HTON_SUPPORTS_FOREIGN_KEYS) &&
        adjust_fks_for_complex_alter_table(thd, table_list, &alter_ctx,
-                                          old_db_type, new_db_type,
+                                          alter_info, old_db_type, new_db_type,
                                           &fk_invalidator)) ||
       /*
         Try commit changes if ALTER TABLE as whole is not atomic and we have
