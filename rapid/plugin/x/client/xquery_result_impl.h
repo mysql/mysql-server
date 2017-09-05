@@ -85,7 +85,7 @@ class Query_result: public XQuery_result {
 
   void check_error(const XError &error);
   bool verify_current_instance(XError *out_error);
-  void set_result_fetch_done();
+  bool check_if_fetch_done();
 
   template<typename Type>
   class Optional_value {
