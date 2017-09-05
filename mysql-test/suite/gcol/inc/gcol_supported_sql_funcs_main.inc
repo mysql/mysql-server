@@ -1216,12 +1216,6 @@ let $values1 = 'testing',default;
 let $rows = 1;
 --source suite/gcol/inc/gcol_supported_sql_funcs.inc
 
---echo # PASSWORD()
-let $cols = a varchar(1024), b varchar(1024) generated always as (password(a)) virtual;
-let $values1 = 'badpwd',default;
-let $rows = 1;
---source suite/gcol/inc/gcol_supported_sql_funcs.inc
-
 --echo # SHA1()
 let $cols = a varchar(1024), b varchar(1024) generated always as (sha1(a)) virtual;
 let $values1 = 'abc',default;

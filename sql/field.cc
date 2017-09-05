@@ -10870,12 +10870,15 @@ bool Create_field::init(THD *thd, const char *fld_name,
     */
     switch (gcol_info->expr_item->type()) {
     case Item::FUNC_ITEM:
-      if (((Item_func *)gcol_info->expr_item)->functype() ==
-          Item_func::FUNC_SP)
       {
-        my_error(ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED, MYF(0),
-                 field_name);
-        DBUG_RETURN(TRUE);
+        Item_func *func_item= static_cast<Item_func *>(gcol_info->expr_item);
+        if (func_item->functype() == Item_func::FUNC_SP ||
+            func_item->is_deprecated())
+        {
+          my_error(ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED, MYF(0),
+                   field_name);
+          DBUG_RETURN(TRUE);
+        }
       }
       break;
     case Item::COPY_STR_ITEM:

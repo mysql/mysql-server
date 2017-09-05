@@ -590,6 +590,7 @@ public:
   String *val_str_ascii(String *str) override;
   bool resolve_type(THD *thd) override;
   const char *func_name() const override { return "password"; }
+  bool is_deprecated() const override { return true; }
 };
 
 

@@ -222,6 +222,15 @@ drop table t1;
 # Constant expression
 create table t1 (a int generated always as (PI()) virtual);
 drop table t1;
+#
+# Bug#26279884 : VIRTUAL COLUMNS ALLOW DEPRECATED FUNCTION TO BE USED
+#
+# PASSWORD()
+create table t2(a varchar(50), b varchar(50)  generated always as  (password(a)));
+ERROR HY000: Expression of generated column 'b' contains a disallowed function.
+# JSON_MERGE()
+CREATE TABLE t2(a JSON, b JSON, c JSON  GENERATED ALWAYS AS  (JSON_MERGE(a,b)));
+ERROR HY000: Expression of generated column 'c' contains a disallowed function.
 DROP VIEW  IF EXISTS v1,v2;
 DROP TABLE IF EXISTS t1,t2,t3;
 DROP PROCEDURE IF EXISTS p1;

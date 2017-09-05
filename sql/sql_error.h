@@ -737,6 +737,10 @@ void push_warning_printf(THD *thd, Sql_condition::enum_severity_level severity,
     "The syntax 'BAD' is deprecated and will be removed in a
      future release. Please use 'GOOD' instead"
 
+  If a function is deprecated, it should implement
+  Item_func::is_deprecated() to return true to prevent the
+  usage of the function in the generated column expression.
+
   @param thd         Thread context. If NULL, warning is written
                      to the error log, otherwise the warning is
                      sent to the client.
@@ -754,6 +758,10 @@ void push_deprecated_warn(THD *thd, const char *old_syntax,
   Will result in a warning:
     "The syntax 'old' is deprecated and will be removed in a
      future release.
+
+  If a function is deprecated, it should implement
+  Item_func::is_deprecated() to return true to prevent the
+  usage of the function in the generated column expression.
 
   @param thd         Thread context. If NULL, warning is written
                      to the error log, otherwise the warning is

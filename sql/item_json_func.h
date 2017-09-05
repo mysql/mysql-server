@@ -717,6 +717,8 @@ class Item_func_json_merge :public Item_func_json_merge_preserve
 {
 public:
   Item_func_json_merge(THD *thd, const POS &pos, PT_item_list *a);
+
+  bool is_deprecated() const override { return true; }
 };
 
 
