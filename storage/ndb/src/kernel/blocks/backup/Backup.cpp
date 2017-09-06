@@ -7189,7 +7189,8 @@ Backup::fragmentCompleted(Signal* signal,
       tabPtr.p->fragments.getPtr(fragPtr, 0);
       DEB_LCP_STAT(("(%u)LCP tab(%u,%u): inserts: %llu, writes: %llu"
                     ", delete_by_row: %llu, delete_by_page: %llu"
-                    ", bytes written: %llu",
+                    ", bytes written: %llu, num_files: %u"
+                    ", first data file: %u",
                instance(),
                tabPtr.p->tableId,
                fragPtr.p->fragmentId,
@@ -7197,7 +7198,9 @@ Backup::fragmentCompleted(Signal* signal,
                filePtr.p->m_lcp_writes,
                filePtr.p->m_lcp_delete_by_rowids,
                filePtr.p->m_lcp_delete_by_pageids,
-               ptr.p->noOfBytes));
+               ptr.p->noOfBytes,
+               ptr.p->m_num_lcp_files,
+               ptr.p->m_first_data_file_number));
       c_tup->stop_lcp_scan(tabPtr.p->tableId, fragPtr.p->fragmentId);
     }
     ptr.p->slaveState.setState(STOPPING);
@@ -11881,6 +11884,26 @@ Backup::calculate_number_of_parts(BackupRecordPtr ptr)
                      MAX(min_parts_rule3,
                      MAX(min_parts_rule4, min_parts_rule5)));
 
+#ifdef DEBUG_LCP_STAT
+  TablePtr debTabPtr;
+  FragmentPtr fragPtr;
+  ptr.p->tables.first(debTabPtr);
+  debTabPtr.p->fragments.getPtr(fragPtr, 0);
+  DEB_LCP_STAT(("(%u)tab(%u,%u), row_count: %llu, row_change_count: %llu, "
+                "memory_used: %llu, total_memory: %llu, "
+                "parts: %u, min_parts_rule1: %u, "
+                "min_parts_rule3: %u",
+                instance(),
+                debTabPtr.p->tableId,
+                fragPtr.p->fragmentId,
+                row_count,
+                row_change_count,
+                memory_used,
+                total_memory,
+                parts,
+                min_parts_rule1,
+                min_parts_rule3));
+#endif
   /**
    * We have now calculated the parts to use in this LCP.
    * Now we need to calculate how many LCP files to use for this

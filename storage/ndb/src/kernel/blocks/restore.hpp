@@ -138,6 +138,7 @@ private:
     Uint64 m_rows_restored_delete_page;
     Uint64 m_rows_restored_write;
     Uint64 m_rows_restored_delete_failed;
+    Uint64 m_ignored_rows;
 
     Uint64 m_restore_start_time;
     Uint32 m_restored_gcp_id;
@@ -258,6 +259,7 @@ private:
   File_pool m_file_pool;
 
   Uint64 m_rows_restored;
+  Uint64 m_rows_restored_total;
   Uint64 m_millis_spent;
   Uint32 m_frags_restored;
   
