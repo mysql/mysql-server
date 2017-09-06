@@ -88,6 +88,13 @@ static NDB_TICKS startTime;
 #define DEB_LCP(arglist) do { } while (0)
 #endif
 
+#define DEBUG_LCP_STAT 1
+#ifdef DEBUG_LCP_STAT
+#define DEB_LCP_STAT(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LCP_STAT(arglist) do { } while (0)
+#endif
+
 //#define DEBUG_EXTRA_LCP 1
 #ifdef DEBUG_EXTRA_LCP
 #define DEB_EXTRA_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
@@ -6265,6 +6272,8 @@ Backup::record_deleted_pageid(Uint32 pageNo, Uint32 record_size)
   zeroFilePtr.p->m_lcp_delete_by_pageids++;
   zero_op.finished(dataLen);
   current_op.newRecord(dst + dataLen + 1);
+  ptr.p->noOfRecords++;
+  ptr.p->noOfBytes += (4*(dataLen + 1));
   /**
    * LCP keep pages are handled out of order, so here we have prepared before
    * calling NEXT_SCANCONF by temporarily changing the current data file used.
@@ -6299,6 +6308,8 @@ Backup::record_deleted_rowid(Uint32 pageNo, Uint32 pageIndex, Uint32 gci)
   zeroFilePtr.p->m_lcp_delete_by_rowids++;
   zero_op.finished(dataLen);
   current_op.newRecord(dst + dataLen + 1);
+  ptr.p->noOfRecords++;
+  ptr.p->noOfBytes += (4*(dataLen + 1));
   restore_current_page(ptr);
 }
 
@@ -6340,6 +6351,8 @@ Backup::execTRANSID_AI(Signal* signal)
       header = dataLen + (BackupFormat::INSERT_TYPE << 16);
       filePtr.p->m_lcp_inserts++;
     }
+    ptr.p->noOfRecords++;
+    ptr.p->noOfBytes += (4*(dataLen + 1));
 #ifdef VM_TRACE
     Uint32 th = signal->theData[4];
     ndbassert(! (th & 0x00400000)); /* Is MM_GROWN set */
@@ -7168,24 +7181,23 @@ Backup::fragmentCompleted(Signal* signal,
                               ptr.p->dataFilePtr[i]);
       loopFilePtr.p->operation.dataBuffer.eof();
     }
-    /* Maintain LCP totals */
-    ptr.p->noOfRecords+= op.noOfRecords;
-    ptr.p->noOfBytes+= op.noOfBytes;
     {
       jam();
       TablePtr tabPtr;
       FragmentPtr fragPtr;
       ptr.p->tables.first(tabPtr);
       tabPtr.p->fragments.getPtr(fragPtr, 0);
-      DEB_LCP(("(%u)LCP tab(%u,%u): inserts: %llu, writes: %llu"
-               ", delete_by_row: %llu, delete_by_page: %llu",
+      DEB_LCP_STAT(("(%u)LCP tab(%u,%u): inserts: %llu, writes: %llu"
+                    ", delete_by_row: %llu, delete_by_page: %llu"
+                    ", bytes written: %llu",
                instance(),
                tabPtr.p->tableId,
                fragPtr.p->fragmentId,
                filePtr.p->m_lcp_inserts,
                filePtr.p->m_lcp_writes,
                filePtr.p->m_lcp_delete_by_rowids,
-               filePtr.p->m_lcp_delete_by_pageids));
+               filePtr.p->m_lcp_delete_by_pageids,
+               ptr.p->noOfBytes));
       c_tup->stop_lcp_scan(tabPtr.p->tableId, fragPtr.p->fragmentId);
     }
     ptr.p->slaveState.setState(STOPPING);
@@ -12705,7 +12717,6 @@ Backup::finalize_lcp_processing(Signal *signal, BackupRecordPtr ptr)
     }
   }
  
-  OperationRecord & op = filePtr.p->operation;
   ptr.p->errorCode = 0;
   ptr.p->slaveState.forceState(DEFINED);
 
@@ -12714,12 +12725,27 @@ Backup::finalize_lcp_processing(Signal *signal, BackupRecordPtr ptr)
   conf->backupPtr = ptr.i;
   conf->tableId = tableId;
   conf->fragmentNo = fragmentId;
-  conf->noOfRecordsLow = (op.noOfRecords & 0xFFFFFFFF);
-  conf->noOfRecordsHigh = (op.noOfRecords >> 32);
-  conf->noOfBytesLow = (op.noOfBytes & 0xFFFFFFFF);
-  conf->noOfBytesHigh = (op.noOfBytes >> 32);
-  sendSignal(ptr.p->masterRef, GSN_BACKUP_FRAGMENT_CONF, signal,
-	     BackupFragmentConf::SignalLength, JBA);
+  conf->noOfRecordsLow = (ptr.p->noOfRecords & 0xFFFFFFFF);
+  conf->noOfRecordsHigh = (ptr.p->noOfRecords >> 32);
+  conf->noOfBytesLow = (ptr.p->noOfBytes & 0xFFFFFFFF);
+  conf->noOfBytesHigh = (ptr.p->noOfBytes >> 32);
+  if (ptr.p->m_empty_lcp)
+  {
+    jam();
+    /**
+     * Slow down things a bit for empty LCPs to avoid that we use too much
+     * CPU for idle LCP processing. This tends to get a bit bursty and can
+     * affect traffic performance for short times.
+     */
+    sendSignalWithDelay(ptr.p->masterRef, GSN_BACKUP_FRAGMENT_CONF, signal,
+	                1, BackupFragmentConf::SignalLength);
+  }
+  else
+  {
+    jam();
+    sendSignal(ptr.p->masterRef, GSN_BACKUP_FRAGMENT_CONF, signal,
+	       BackupFragmentConf::SignalLength, JBA);
+  }
 }
 
 void

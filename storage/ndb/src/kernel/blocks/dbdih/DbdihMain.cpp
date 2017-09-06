@@ -95,14 +95,14 @@ static const Uint32 WaitTableStateChangeMillis = 10;
 
 extern EventLogger * g_eventLogger;
 
-#define DEBUG_LCP 1
+//#define DEBUG_LCP 1
 #ifdef DEBUG_LCP
 #define DEB_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP(arglist) do { } while (0)
 #endif
 
-#define DEBUG_LCP_COMP 1
+//#define DEBUG_LCP_COMP 1
 #ifdef DEBUG_LCP_COMP
 #define DEB_LCP_COMP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
@@ -21686,7 +21686,7 @@ void Dbdih::execLCP_COMPLETE_REP(Signal* signal)
 
   CRASH_INSERTION(7191);
 
-#if 1
+#if 0
   g_eventLogger->info("LCP_COMPLETE_REP"); 
   printLCP_COMPLETE_REP(stdout, 
 			signal->getDataPtr(),
