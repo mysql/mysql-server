@@ -1754,22 +1754,6 @@ private:
     Attachable_trx_rw &operator =(const Attachable_trx_rw &);
   };
 
-  /*
-    Forward declaration of a read-write attachable transaction class.
-    Its exact definition is located in the gtid module that proves its
-    safe usage. Any potential customer to the class must beware of a danger
-    of screwing the global transaction state through ha_commit_{stmt,trans}.
-  */
-  class Attachable_trx_rw;
-
-  /*
-    Forward declaration of a read-write transaction class.
-    Its exact definition is located in the stats writing module. Any
-    potential     customer to the class must beware of a danger of
-    screwing the global transaction state through ha_commit_{stmt,trans}.
-  */
-  class Attachable_trx_rw_i_s;
-
   Attachable_trx *m_attachable_trx;
 
 public:
