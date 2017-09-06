@@ -17622,10 +17622,10 @@ Dblqh::lcp_complete_scan(Uint32 & newestGci)
 #if defined VM_TRACE || defined ERROR_INSERT
   if (fragptr.p->newestGci != fragptr.p->maxGciInLcp)
   {
-    ndbout_c("tab(%u,%u) increasing maxGciInLcp from %u to %u",
+    DEB_LCP(("tab(%u,%u) increasing maxGciInLcp from %u to %u",
              fragptr.p->tabRef,
              fragptr.p->fragId,
-             fragptr.p->maxGciInLcp, fragptr.p->newestGci);
+             fragptr.p->maxGciInLcp, fragptr.p->newestGci));
   }
 #endif
   newestGci = fragptr.p->newestGci;

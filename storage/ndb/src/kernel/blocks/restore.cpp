@@ -48,6 +48,13 @@ extern EventLogger * g_eventLogger;
 #define DEB_RES(arglist) do { } while (0)
 #endif
 
+#define DEBUG_RES_STAT 1
+#ifdef DEBUG_RES_STAT
+#define DEB_RES_STAT(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_RES_STAT(arglist) do { } while (0)
+#endif
+
 //#define DEBUG_RES_DEL 1
 #ifdef DEBUG_RES_DEL
 #define DEB_RES_DEL(arglist) do { g_eventLogger->info arglist ; } while (0)
@@ -1789,6 +1796,7 @@ Restore::init_file(const RestoreLcpReq* req, FilePtr file_ptr)
   file_ptr.p->m_rows_restored_delete_failed = 0;
   file_ptr.p->m_rows_restored_delete_page = 0;
   file_ptr.p->m_rows_restored_write = 0;
+  file_ptr.p->m_ignored_rows = 0;
 
   file_ptr.p->m_file_id = Uint32(~0);
   file_ptr.p->m_ctl_file_no = Uint32(~0);
@@ -1876,6 +1884,7 @@ Restore::release_file(FilePtr file_ptr, bool statistics)
       millis = 1;
     Uint64 rows_per_sec = file_ptr.p->m_rows_restored * 1000 / millis;
 
+
     g_eventLogger->info("LDM instance %u: Restored T%dF%u LCP %llu rows, "
                         "%llu millis, %llu rows/s)", 
                         instance(),
@@ -1885,25 +1894,29 @@ Restore::release_file(FilePtr file_ptr, bool statistics)
                         millis,
                         rows_per_sec);
 
-    m_rows_restored+= file_ptr.p->m_rows_restored;
 
     m_millis_spent+= millis;
+    m_rows_restored+= file_ptr.p->m_rows_restored;
     m_frags_restored++;
-  }
 
-  DEB_RES(("(%u)Restore tab(%u,%u): file_index: %u, "
-           "inserts: %llu, writes: %llu"
-           ", deletes: %llu, delete_pages: %llu"
-           ", delete_failed: %llu",
-           instance(),
-           file_ptr.p->m_table_id,
-           file_ptr.p->m_fragment_id,
-           file_ptr.p->m_current_file_index - 1,
-           file_ptr.p->m_rows_restored_insert,
-           file_ptr.p->m_rows_restored_write,
-           file_ptr.p->m_rows_restored_delete,
-           file_ptr.p->m_rows_restored_delete_page,
-           file_ptr.p->m_rows_restored_delete_failed));
+    DEB_RES_STAT(("(%u)Restore tab(%u,%u): file_index: %u, "
+                  "rows restored: %llu"
+                  ", inserts: %llu, writes: %llu"
+                  ", deletes: %llu, delete_pages: %llu"
+                  ", delete_failed: %llu"
+                  ", ignored rows: %llu",
+                  instance(),
+                  file_ptr.p->m_table_id,
+                  file_ptr.p->m_fragment_id,
+                  file_ptr.p->m_current_file_index - 1,
+                  file_ptr.p->m_rows_restored,
+                  file_ptr.p->m_rows_restored_insert,
+                  file_ptr.p->m_rows_restored_write,
+                  file_ptr.p->m_rows_restored_delete,
+                  file_ptr.p->m_rows_restored_delete_page,
+                  file_ptr.p->m_rows_restored_delete_failed,
+                  file_ptr.p->m_ignored_rows));
+  }
 
   pages.release();
   if (statistics)
@@ -2766,6 +2779,7 @@ Restore::parse_record(Signal* signal,
        * The row is a perfectly ok row, but we will ignore since
        * this part is handled by a later LCP data file.
        */
+      file_ptr.p->m_ignored_rows++;
       return;
     }
     case File::PART_ALL_ROWS:
@@ -3274,6 +3288,7 @@ Restore::restore_lcp_conf_after_execute(Signal* signal, FilePtr file_ptr)
     file_ptr.p->m_current_file_page = 0;
     ndbrequire(file_ptr.p->m_outstanding_reads == 0);
     ndbrequire(file_ptr.p->m_outstanding_operations == 0);
+    ndbrequire(file_ptr.p->m_bytes_left == 0);
     release_file(file_ptr, false);
     ndbrequire(seize_file(file_ptr) == 0);
     open_data_file(signal, file_ptr);
