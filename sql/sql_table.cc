@@ -12652,6 +12652,19 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   if (lock_trigger_names(thd, table_list))
     DBUG_RETURN(true);
 
+  /*
+    If we're in LOCK TABLE mode, we must lock the target tablespace name
+    as well as the currently used tablesapces (since these may have been
+    introduced by a previous ALTER while already in LOCK TABLE mode).
+  */
+  if (thd->locked_tables_mode &&
+      get_and_lock_tablespace_names(thd, table_list, NULL,
+                                    thd->variables.lock_wait_timeout,
+                                    MYF(0)))
+  {
+    DBUG_RETURN(true);
+  }
+
   // Check if ALTER TABLE ... ENGINE is disallowed by the storage engine.
   if (table_list->table->s->db_type() != create_info->db_type &&
       (alter_info->flags & Alter_info::ALTER_OPTIONS) &&

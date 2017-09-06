@@ -267,6 +267,11 @@ void update_non_unique_table_error(TABLE_LIST *update,
 int setup_ftfuncs(const THD *thd, SELECT_LEX* select);
 bool init_ftfuncs(THD *thd, SELECT_LEX* select);
 int run_before_dml_hook(THD *thd);
+bool get_and_lock_tablespace_names(THD *thd,
+                                   TABLE_LIST *tables_start,
+                                   TABLE_LIST *tables_end,
+                                   ulong lock_wait_timeout,
+                                   uint flags);
 bool lock_table_names(THD *thd, TABLE_LIST *table_list,
                       TABLE_LIST *table_list_end, ulong lock_wait_timeout,
                       uint flags);
