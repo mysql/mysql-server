@@ -7332,6 +7332,7 @@ bool MYSQL_BIN_LOG::after_write_to_relay_log(Master_info *mi)
   lock_binlog_end_pos();
   mi->rli->ign_master_log_name_end[0]= 0;
   update_binlog_end_pos(false /*need_lock*/);
+  harvest_bytes_written(&mi->rli->log_space_total);
   unlock_binlog_end_pos();
 
   DBUG_RETURN(error);
