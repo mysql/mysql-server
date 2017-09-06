@@ -7955,7 +7955,7 @@ DROP FUNCTION f1;
 --disable_warnings ONCE
 drop procedure if exists p;
 set @old_mode= @@sql_mode;
-set @@sql_mode= cast(pow(2,33)-1 as unsigned integer);
+set @@sql_mode= cast(pow(2,33)-1 as unsigned integer) & ~0x3ef00;
 select @@sql_mode into @full_mode;
 create procedure p() begin end;
 call p();

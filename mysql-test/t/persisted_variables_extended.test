@@ -39,7 +39,7 @@ SELECT VARIABLE_NAME, VARIABLE_SOURCE
 # Variable type 'enumeration'
 SET PERSIST innodb_checksum_algorithm=strict_crc32,
     PERSIST innodb_default_row_format=COMPACT,
-    PERSIST sql_mode=NO_KEY_OPTIONS,PERSIST innodb_fast_shutdown=0;
+    PERSIST sql_mode=ANSI_QUOTES,PERSIST innodb_fast_shutdown=0;
 SET PERSIST innodb_flush_log_at_trx_commit=0,join_buffer_size=262144;
 
 --echo # SET PERSIST invalid case for multiple variable set.

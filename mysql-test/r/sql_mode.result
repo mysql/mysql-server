@@ -35,92 +35,6 @@ t1	CREATE TABLE "t1" (
   PRIMARY KEY ("a"),
   UNIQUE KEY "email" ("email") USING BTREE
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
-set @@sql_mode="no_table_options";
-show variables like 'sql_mode';
-Variable_name	Value
-sql_mode	NO_TABLE_OPTIONS
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `pseudo` varchar(35) CHARACTER SET latin2 NOT NULL DEFAULT '',
-  `email` varchar(60) CHARACTER SET latin2 NOT NULL DEFAULT '',
-  PRIMARY KEY (`a`),
-  UNIQUE KEY `email` (`email`) USING BTREE
-)
-set @@sql_mode="no_key_options";
-show variables like 'sql_mode';
-Variable_name	Value
-sql_mode	NO_KEY_OPTIONS
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `pseudo` varchar(35) CHARACTER SET latin2 NOT NULL DEFAULT '',
-  `email` varchar(60) CHARACTER SET latin2 NOT NULL DEFAULT '',
-  PRIMARY KEY (`a`),
-  UNIQUE KEY `email` (`email`)
-) ENGINE=MEMORY DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
-set @@sql_mode="no_field_options,mysql323,mysql40";
-show variables like 'sql_mode';
-Variable_name	Value
-sql_mode	NO_FIELD_OPTIONS,MYSQL323,MYSQL40,HIGH_NOT_PRECEDENCE
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `pseudo` varchar(35) NOT NULL DEFAULT '',
-  `email` varchar(60) NOT NULL DEFAULT '',
-  PRIMARY KEY (`a`),
-  UNIQUE KEY `email` (`email`)
-) TYPE=HEAP ROW_FORMAT=DYNAMIC
-set sql_mode="postgresql,oracle,mssql,db2,maxdb";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-select @@sql_mode;
-@@sql_mode
-PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,POSTGRESQL,ORACLE,MSSQL,DB2,MAXDB,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS,NO_AUTO_CREATE_USER
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE "t1" (
-  "a" int(11) NOT NULL,
-  "pseudo" varchar(35) CHARACTER SET latin2 NOT NULL DEFAULT '',
-  "email" varchar(60) CHARACTER SET latin2 NOT NULL DEFAULT '',
-  PRIMARY KEY ("a"),
-  UNIQUE KEY "email" ("email")
-)
-drop table t1;
-CREATE TABLE t1 (
-a char(10),
-b char(10) collate latin1_bin,
-c binary(10)
-) character set latin1;
-set @@sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` char(10) DEFAULT NULL,
-  `b` char(10) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL,
-  `c` binary(10) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=latin1
-set @@sql_mode="mysql323";
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` char(10) DEFAULT NULL,
-  `b` char(10) binary DEFAULT NULL,
-  `c` binary(10) DEFAULT NULL
-) TYPE=ENGINE
-set @@sql_mode="mysql40";
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` char(10) DEFAULT NULL,
-  `b` char(10) binary DEFAULT NULL,
-  `c` binary(10) DEFAULT NULL
-) TYPE=ENGINE
 drop table t1;
 set session sql_mode = '';
 create table t1 ( min_num   dec(6,6)     default .000001);
@@ -158,14 +72,6 @@ t1	CREATE TABLE "t1" (
   "f2" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY ("f1")
 )
-set session sql_mode=no_field_options;
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
-  `f2` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`f1`)
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
 drop table t1;
 SET @OLD_SQL_MODE=@@SQL_MODE, @@SQL_MODE='';
 show local variables like 'SQL_MODE';
@@ -481,15 +387,15 @@ Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' 
 select @@sql_mode;
 @@sql_mode
 STRICT_ALL_TABLES
-set sql_mode=16384+(65536*4);
+set sql_mode=32+(65536*4);
 select @@sql_mode;
 @@sql_mode
-REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,NO_TABLE_OPTIONS,ANSI
+REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI
 set sql_mode=4294967296*2;
 ERROR 42000: Variable 'sql_mode' can't be set to the value of '8589934592'
 select @@sql_mode;
 @@sql_mode
-REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,NO_TABLE_OPTIONS,ANSI
+REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI
 set sql_mode=PAD_CHAR_TO_FULL_LENGTH;
 create table t1 (a int auto_increment primary key, b char(5));
 insert into t1 (b) values('a'),('b\t'),('c ');

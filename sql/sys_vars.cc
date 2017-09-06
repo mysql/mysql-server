@@ -4364,35 +4364,9 @@ export sql_mode_t expand_sql_mode(sql_mode_t sql_mode, THD *thd)
     sql_mode|= (MODE_REAL_AS_FLOAT | MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
                 MODE_IGNORE_SPACE | MODE_ONLY_FULL_GROUP_BY);
   }
-  if (sql_mode & MODE_ORACLE)
-    sql_mode|= (MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
-                MODE_IGNORE_SPACE |
-                MODE_NO_KEY_OPTIONS | MODE_NO_TABLE_OPTIONS |
-                MODE_NO_FIELD_OPTIONS | MODE_NO_AUTO_CREATE_USER);
-  if (sql_mode & MODE_MSSQL)
-    sql_mode|= (MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
-                MODE_IGNORE_SPACE |
-                MODE_NO_KEY_OPTIONS | MODE_NO_TABLE_OPTIONS |
-                MODE_NO_FIELD_OPTIONS);
-  if (sql_mode & MODE_POSTGRESQL)
-    sql_mode|= (MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
-                MODE_IGNORE_SPACE |
-                MODE_NO_KEY_OPTIONS | MODE_NO_TABLE_OPTIONS |
-                MODE_NO_FIELD_OPTIONS);
-  if (sql_mode & MODE_DB2)
-    sql_mode|= (MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
-                MODE_IGNORE_SPACE |
-                MODE_NO_KEY_OPTIONS | MODE_NO_TABLE_OPTIONS |
-                MODE_NO_FIELD_OPTIONS);
   if (sql_mode & MODE_MAXDB)
     sql_mode|= (MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
-                MODE_IGNORE_SPACE |
-                MODE_NO_KEY_OPTIONS | MODE_NO_TABLE_OPTIONS |
-                MODE_NO_FIELD_OPTIONS | MODE_NO_AUTO_CREATE_USER);
-  if (sql_mode & MODE_MYSQL40)
-    sql_mode|= MODE_HIGH_NOT_PRECEDENCE;
-  if (sql_mode & MODE_MYSQL323)
-    sql_mode|= MODE_HIGH_NOT_PRECEDENCE;
+                MODE_IGNORE_SPACE | MODE_NO_AUTO_CREATE_USER);
   if (sql_mode & MODE_TRADITIONAL)
     sql_mode|= (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES |
                 MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
@@ -4404,14 +4378,15 @@ export sql_mode_t expand_sql_mode(sql_mode_t sql_mode, THD *thd)
 }
 static bool check_sql_mode(sys_var*, THD *thd, set_var *var)
 {
-  var->save_result.ulonglong_value=
+  const sql_mode_t candidate_mode=
     expand_sql_mode(var->save_result.ulonglong_value, thd);
+  var->save_result.ulonglong_value= candidate_mode;
 
   /* Warning displayed only if the non default sql_mode is specified. */
   if (var->value)
   {
     /* Check if the NO_AUTO_CREATE_USER flag has been swapped. */
-    if ((thd->variables.sql_mode ^ var->save_result.ulonglong_value) &
+    if ((thd->variables.sql_mode ^ candidate_mode) &
         MODE_NO_AUTO_CREATE_USER)
     {
       push_warning_printf(thd, Sql_condition::SL_WARNING,
@@ -4419,6 +4394,15 @@ static bool check_sql_mode(sys_var*, THD *thd, set_var *var)
                           ER_THD(thd, ER_WARN_DEPRECATED_SQLMODE),
                           "NO_AUTO_CREATE_USER");
     }
+  }
+
+  if (candidate_mode & ~MODE_ALLOWED_MASK)
+  {
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_WARN_DEPRECATED_SQLMODE,
+                        ER_THD(thd, ER_WARN_DEPRECATED_SQLMODE),
+                        "HEI HEI");
+    return true;
   }
 
   return false;

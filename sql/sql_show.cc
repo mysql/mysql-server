@@ -1241,8 +1241,7 @@ static bool print_on_update_clause(Field *field, String *val, bool lcase)
 }
 
 
-static bool print_default_clause(THD *thd, Field *field, String *def_value,
-                                 bool quoted)
+static bool print_default_clause(Field *field, String *def_value, bool quoted)
 {
   enum enum_field_types field_type= field->type();
 
@@ -1250,9 +1249,7 @@ static bool print_default_clause(THD *thd, Field *field, String *def_value,
   const bool has_default=
     (field_type != FIELD_TYPE_BLOB &&
      !(field->flags & NO_DEFAULT_VALUE_FLAG) &&
-     !(field->auto_flags & Field::NEXT_NUMBER) &&
-     !((thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40))
-       && has_now_default));
+     !(field->auto_flags & Field::NEXT_NUMBER));
 
   if (field->gcol_info)
     return false;
@@ -1347,15 +1344,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   TABLE_SHARE *share= table->s;
   HA_CREATE_INFO create_info;
   bool show_table_options= false;
-  bool foreign_db_mode=  (thd->variables.sql_mode & (MODE_POSTGRESQL |
-                                                     MODE_ORACLE |
-                                                     MODE_MSSQL |
-                                                     MODE_DB2 |
-                                                     MODE_MAXDB |
-                                                     MODE_ANSI)) != 0;
-  bool limited_mysql_mode= (thd->variables.sql_mode & (MODE_NO_FIELD_OPTIONS |
-                                                       MODE_MYSQL323 |
-                                                       MODE_MYSQL40)) != 0;
+  bool foreign_db_mode=  (thd->variables.sql_mode & (MODE_MAXDB | MODE_ANSI)) != 0;
   my_bitmap_map *old_map;
   int error= 0;
   DBUG_ENTER("store_create_info");
@@ -1438,8 +1427,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       type.append(" /* 5.5 binary format */");
     packet->append(type.ptr(), type.length(), system_charset_info);
 
-    if (field->has_charset() && 
-        !(thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40)))
+    if (field->has_charset())
     {
       if (field->charset() != share->table_charset)
       {
@@ -1521,21 +1509,19 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       break;
     }
 
-    if (print_default_clause(thd, field, &def_value, true))
+    if (print_default_clause(field, &def_value, true))
     {
       packet->append(STRING_WITH_LEN(" DEFAULT "));
       packet->append(def_value.ptr(), def_value.length(), system_charset_info);
     }
 
-    if (!limited_mysql_mode &&
-        print_on_update_clause(field, &def_value, false))
+    if (print_on_update_clause(field, &def_value, false))
     {
       packet->append(STRING_WITH_LEN(" "));
       packet->append(def_value);
     }
 
-    if ((field->auto_flags & Field::NEXT_NUMBER) &&
-        !(thd->variables.sql_mode & MODE_NO_FIELD_OPTIONS))
+    if (field->auto_flags & Field::NEXT_NUMBER)
       packet->append(STRING_WITH_LEN(" AUTO_INCREMENT"));
 
     if (field->comment.length)
@@ -1622,7 +1608,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   }
 
   packet->append(STRING_WITH_LEN("\n)"));
-  if (!(thd->variables.sql_mode & MODE_NO_TABLE_OPTIONS) && !foreign_db_mode)
+  if (!foreign_db_mode)
   {
     show_table_options= true;
 
@@ -1674,10 +1660,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     if (!create_info_arg ||
         (create_info_arg->used_fields & HA_CREATE_USED_ENGINE))
     {
-      if (thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40))
-        packet->append(STRING_WITH_LEN(" TYPE="));
-      else
-        packet->append(STRING_WITH_LEN(" ENGINE="));
+      packet->append(STRING_WITH_LEN(" ENGINE="));
       /*
         TODO: Replace this if with the else branch. Not done yet since
         NDB handlerton says "ndbcluster" and ha_ndbcluster says "NDBCLUSTER".
@@ -1712,9 +1695,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(buff, (uint) (end - buff));
     }
     
-    if (share->table_charset &&
-	!(thd->variables.sql_mode & MODE_MYSQL323) &&
-	!(thd->variables.sql_mode & MODE_MYSQL40))
+    if (share->table_charset)
     {
       /*
         IF   check_create_info
@@ -1853,19 +1834,10 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
 static void store_key_options(THD *thd, String *packet, TABLE *table,
                               KEY *key_info)
 {
-  bool limited_mysql_mode= (thd->variables.sql_mode &
-                            (MODE_NO_FIELD_OPTIONS | MODE_MYSQL323 |
-                             MODE_MYSQL40)) != 0;
-  bool foreign_db_mode=  (thd->variables.sql_mode & (MODE_POSTGRESQL |
-                                                     MODE_ORACLE |
-                                                     MODE_MSSQL |
-                                                     MODE_DB2 |
-                                                     MODE_MAXDB |
-                                                     MODE_ANSI)) != 0;
+  bool foreign_db_mode=  (thd->variables.sql_mode & (MODE_MAXDB | MODE_ANSI)) != 0;
   char *end, buff[32];
 
-  if (!(thd->variables.sql_mode & MODE_NO_KEY_OPTIONS) &&
-      !limited_mysql_mode && !foreign_db_mode)
+  if (!foreign_db_mode)
   {
 
     /*
@@ -1970,12 +1942,7 @@ void append_definer(THD *thd, String *buffer, const LEX_CSTRING &definer_user,
 static int
 view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
 {
-  bool foreign_db_mode= (thd->variables.sql_mode & (MODE_POSTGRESQL |
-                                                    MODE_ORACLE |
-                                                    MODE_MSSQL |
-                                                    MODE_DB2 |
-                                                    MODE_MAXDB |
-                                                    MODE_ANSI)) != 0;
+  bool foreign_db_mode= (thd->variables.sql_mode & (MODE_MAXDB | MODE_ANSI)) != 0;
 
   // Print compact view name if the view belongs to the current database
   bool compact_view_name= thd->db().str != NULL &&
@@ -4253,7 +4220,7 @@ static int get_schema_tmp_table_columns_record(THD *thd, TABLE_LIST *tables,
       (const char*) pos, strlen((const char*) pos), cs);
 
     // COLUMN_DEFAULT
-    if (print_default_clause(thd, field, &type, false))
+    if (print_default_clause(field, &type, false))
     {
       table->field[TMP_TABLE_COLUMNS_COLUMN_DEFAULT]->store(type.ptr(),
                                                             type.length(), cs);
