@@ -847,7 +847,7 @@ private:
   void execDBINFO_SCANREQ(Signal *signal);
 
   // Statement blocks
-  void commitDeleteCheck(Signal *signal);
+  void commitDeleteCheck() const;
   void report_dealloc(Signal* signal, const Operationrec* opPtrP);
   
   typedef void * RootfragmentrecPtr;

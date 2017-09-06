@@ -1906,100 +1906,6 @@ Dbtup::prepare_initial_insert(KeyReqStruct *req_struct,
 	 4*regTabPtr->m_offsets[DD].m_null_words);
 }
 
-#include <NdbEnv.h>
-
-void
-Dbtup::dump899Info(Tablerec* regTabPtr,
-                   Fragrecord* regFragPtr,
-                   Local_key rowId)
-{
-  Local_key key = rowId;
-  /* Convert logical to phys page id */
-  key.m_page_no = getRealpidCheck(regFragPtr,
-                                  key.m_page_no);
-  /* Get page and record ptr */
-  PagePtr page_ptr;
-  Uint32* ptr = get_ptr(&page_ptr, &key, regTabPtr);
-  Tuple_header* tuple = (Tuple_header*) ptr;
-
-  g_eventLogger->
-    info("TUP %u : 899 : Tab : %u Frag : %u m_lcp_scan_op : %x\n"
-         "  m_lcp_keep_list_head : %u:%u\n"
-         "  Slot @ %u:%u Frag page id : %u\n"
-         "  phys page id : %u  Page free space : %u\n"
-         "  page state : %u\n"
-         "  tuple h-sz : %u bits : %x, op ptr : %x",
-         instance(),
-         regFragPtr->fragTableId,
-         regFragPtr->fragmentId,
-         regFragPtr->m_lcp_scan_op,
-         regFragPtr->m_lcp_keep_list_head.m_page_no,
-         regFragPtr->m_lcp_keep_list_head.m_page_idx,
-         rowId.m_page_no,
-         rowId.m_page_idx,
-         page_ptr.p->frag_page_id,
-         page_ptr.p->physical_page_id,
-         page_ptr.p->free_space,
-         page_ptr.p->page_state,
-         regTabPtr->m_offsets[MM].m_fix_header_size,
-         tuple->m_header_bits,
-         tuple->m_operation_ptr_i);
-
-
-  {
-    /* Throw together quick KRS to dump tuple */
-    KeyReqStruct rs(this);
-
-    rs.m_tuple_ptr = tuple;
-    rs.is_expanded = false;
-    dump_tuple(&rs, regTabPtr);
-  }
-
-  if (tuple->m_operation_ptr_i != RNIL)
-  {
-    g_eventLogger->info("TUP %u : 899 : tuple operation(s) latest->first",
-                        instance());
-    OperationrecPtr opPtr;
-    opPtr.i = tuple->m_operation_ptr_i;
-    do
-    {
-      c_operation_pool.getPtr(opPtr);
-
-      g_eventLogger->
-        info("TUP %u : 899 : Operation flags\n"
-             "  trans_state : %u\n"
-             "  tuple_state : %u\n"
-             "  in_active_list : %u\n"
-             "  op_type : %u\n"
-             "  delete_insert_flag : %u\n"
-             "  triggers : %u\n"
-             "  m_reorg : %u\n"
-             "  m_disk_preallocated : %u\n"
-             "  m_load_diskpage_on_commit : %u\n"
-             "  m_wait_log_buffer : %u\n"
-             "  m_gci_written : %u\n"
-             "  tuple location @ %u:%u",
-             instance(),
-             opPtr.p->trans_state,
-             opPtr.p->tuple_state,
-             opPtr.p->op_struct.bit_field.in_active_list,
-             opPtr.p->op_type,
-             opPtr.p->op_struct.bit_field.delete_insert_flag,
-             opPtr.p->op_struct.bit_field.m_triggers,
-             opPtr.p->op_struct.bit_field.m_reorg,
-             opPtr.p->op_struct.bit_field.m_disk_preallocated,
-             opPtr.p->op_struct.bit_field.m_load_diskpage_on_commit,
-             opPtr.p->op_struct.bit_field.m_wait_log_buffer,
-             opPtr.p->op_struct.bit_field.m_gci_written,
-             opPtr.p->m_tuple_location.m_page_no,
-             opPtr.p->m_tuple_location.m_page_idx);
-
-      opPtr.i = opPtr.p->prevActiveOp;
-    } while (opPtr.i != RNIL);
-    g_eventLogger->info("TUP %u : operation dump complete", instance());
-  }
-}
-
 int Dbtup::handleInsertReq(Signal* signal,
                            Ptr<Operationrec> regOperPtr,
                            Ptr<Fragrecord> fragPtr,
@@ -2274,13 +2180,6 @@ int Dbtup::handleInsertReq(Signal* signal,
       if (unlikely(ptr == 0))
       {
 	jam();
-
-        if (terrorCode == 899)
-        {
-          /* 899 - rowid is already in use... who's using it? */
-          dump899Info(regTabPtr, regFragPtr, req_struct->m_row_id);
-        }
-
 	goto alloc_rowid_error;
       }
     }
