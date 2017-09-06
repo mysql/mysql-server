@@ -33,6 +33,7 @@ struct BackupFormat {
     NDB_MAX_LCP_PARTS / NDB_MAX_FILES_PER_LCP;
   static const Uint32 NDB_MAX_LCP_FILES = 2064;
   static const Uint32 NDB_LCP_CTL_FILE_SIZE = 4096;
+  static const Uint32 NDB_LCP_CTL_FILE_SIZE_BIG = 8192;
 
   enum RecordType
   {

@@ -12475,6 +12475,33 @@ Backup::lcp_write_ctl_file_to_disk(Signal *signal,
                                    BackupFilePtr filePtr,
                                    Page32Ptr pagePtr)
 {
+  /**
+   * If file size becomes bigger than 4096 bytes we need to write
+   * 8192 bytes instead. Currently the header parts are 108 bytes,
+   * each part consumes 3 bytes, this means that we can fit
+   * (4096 - 108) / 3 parts in 4096 bytes == 1329 parts.
+   * Maximum number of parts is currently 2048, thus we can
+   * always fit in 8192 bytes. We use multiples of 4096 bytes
+   * to fit well with disk devices, no need to complicate
+   * file management with lots of different file sizes.
+   */
+  struct BackupFormat::LCPCtlFile *lcpCtlFilePtr =
+    (struct BackupFormat::LCPCtlFile*)pagePtr.p;
+  Uint32 num_parts = lcpCtlFilePtr->NumPartPairs;
+  Uint32 size_written = (sizeof(BackupFormat::LCPCtlFile) -
+                         sizeof(BackupFormat::PartPair)) +
+                        (3 * num_parts + 3);
+  if (size_written > BackupFormat::NDB_LCP_CTL_FILE_SIZE)
+  {
+    jam();
+    DEB_LCP(("(%u)Writing 8192 byte control file", instance()));
+    size_written = BackupFormat::NDB_LCP_CTL_FILE_SIZE_BIG;
+  }
+  else
+  {
+    jam();
+    size_written = BackupFormat::NDB_LCP_CTL_FILE_SIZE;
+  }
   convert_ctl_page_to_network((Uint32*)pagePtr.p);
   filePtr.p->m_flags |= BackupFile::BF_WRITING;
   FsReadWriteReq* req = (FsReadWriteReq*)signal->getDataPtrSend();
@@ -12491,7 +12518,7 @@ Backup::lcp_write_ctl_file_to_disk(Signal *signal,
   Uint32 mem_offset = Uint32((char*)pagePtr.p - (char*)c_startOfPages);
   req->data.memoryAddress.memoryOffset = mem_offset;
   req->data.memoryAddress.fileOffset = 0;
-  req->data.memoryAddress.size = BackupFormat::NDB_LCP_CTL_FILE_SIZE;
+  req->data.memoryAddress.size = size_written;
 
   sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal,
              FsReadWriteReq::FixedLength + 3, JBA);

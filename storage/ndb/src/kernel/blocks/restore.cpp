@@ -152,7 +152,7 @@ Restore::execREAD_CONFIG_REQ(Signal* signal)
    */
   NewVARIABLE *bat = allocateBat(1);
   bat[0].WA = &m_lcp_ctl_file_data[0][0];
-  bat[0].nrr = 2 * BackupFormat::NDB_LCP_CTL_FILE_SIZE;
+  bat[0].nrr = 2 * BackupFormat::NDB_LCP_CTL_FILE_SIZE_BIG;
 
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
@@ -1293,9 +1293,9 @@ Restore::open_ctl_file_done_conf(Signal *signal, FilePtr file_ptr)
   /**
    * Data will be written from m_lcp_ctl_file_data as prepared by Bat */
   req->data.memoryAddress.memoryOffset =
-    file_ptr.p->m_ctl_file_no * BackupFormat::NDB_LCP_CTL_FILE_SIZE;
+    file_ptr.p->m_ctl_file_no * BackupFormat::NDB_LCP_CTL_FILE_SIZE_BIG;
   req->data.memoryAddress.fileOffset = 0;
-  req->data.memoryAddress.size = BackupFormat::NDB_LCP_CTL_FILE_SIZE;
+  req->data.memoryAddress.size = BackupFormat::NDB_LCP_CTL_FILE_SIZE_BIG;
 
   sendSignal(NDBFS_REF, GSN_FSREADREQ, signal,
              FsReadWriteReq::FixedLength + 3, JBA);
@@ -1333,7 +1333,8 @@ Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
   BackupFormat::LCPCtlFile *lcpCtlFilePtr = (BackupFormat::LCPCtlFile*)
     &m_lcp_ctl_file_data[file_ptr.p->m_ctl_file_no];
 
-  if (bytesRead != BackupFormat::NDB_LCP_CTL_FILE_SIZE)
+  if (bytesRead != BackupFormat::NDB_LCP_CTL_FILE_SIZE &&
+      bytesRead != BackupFormat::NDB_LCP_CTL_FILE_SIZE_BIG)
   {
     /**
      * Invalid file, probably still no data written. We will remove it
