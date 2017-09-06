@@ -10,7 +10,7 @@ drop database if exists mysqltest;
 
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION,NO_AUTO_CREATE_USER';
 
-SET SESSION information_schema_stats=latest;
+SET SESSION information_schema_stats_expiry=0;
 
 create table t1 (
 col1 int not null auto_increment primary key,
@@ -2887,3 +2887,4 @@ SELECT * FROM t1;
 # Cleanup
 DROP VIEW v1;
 DROP TABLE t3,t1,t2;
+SET SESSION information_schema_stats_expiry=default;

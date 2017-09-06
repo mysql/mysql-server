@@ -48,7 +48,8 @@ class Index_stat_impl : public Entity_object_impl,
 {
 public:
   Index_stat_impl()
-   :m_cardinality(0)
+   :m_cardinality(0),
+    m_cached_time(0)
   { }
 
 public:
@@ -114,6 +115,16 @@ public:
   virtual void set_cardinality(ulonglong cardinality)
   { m_cardinality= cardinality; }
 
+  /////////////////////////////////////////////////////////////////////////
+  // cached_time.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual ulonglong cached_time() const
+  { return m_cached_time; }
+
+  virtual void set_cached_time(ulonglong cached_time)
+  { m_cached_time= cached_time; }
+
 public:
   virtual Object_key *create_primary_key() const;
   virtual bool has_new_primary_key() const;
@@ -140,7 +151,7 @@ private:
   String_type m_column_name;
 
   ulonglong m_cardinality;
-
+  ulonglong m_cached_time;
 };
 
 ///////////////////////////////////////////////////////////////////////////

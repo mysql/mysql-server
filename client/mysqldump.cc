@@ -1745,13 +1745,13 @@ static int connect_to_db(char *host, char *user,char *passwd)
     underlying tables during execution of SHOW command. However
     the first option might read old statistics, so we feel second
     option is preferred here to get statistics dynamically from
-    SE by setting information_schema_stats=latest for this
-    session.
+    SE by setting information_schema_stats_expiry=0.
   */
   snprintf(buff, sizeof(buff),
-              "/*!80000 SET SESSION INFORMATION_SCHEMA_STATS=latest */");
+           "/*!80000 SET SESSION information_schema_stats_expiry=0 */");
   if (mysql_query_with_error_report(mysql, 0, buff))
     DBUG_RETURN(1);
+
   /*
     set network read/write timeout value to a larger value to allow tables with
     large data to be sent on network without causing connection lost error due

@@ -166,7 +166,7 @@ INSERT INTO t1 VALUES
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 501
-set information_schema_stats=LATEST;
+SET SESSION information_schema_stats_expiry=0;
 SELECT table_name, 
 SUM(table_rows),
 SUM(data_length),
@@ -719,3 +719,4 @@ SHOW WARNINGS;
 Level	Code	Message
 Warning	1296	Got error 1504 'Out of logbuffer memory(specify smaller undo_buffer_size or increase SharedGlobalMemory)' from NDB
 Error	1528	Failed to create LOGFILE GROUP
+SET SESSION information_schema_stats_expiry=default;
