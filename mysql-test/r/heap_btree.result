@@ -2,9 +2,6 @@ drop table if exists t1;
 create table t1 (a int not null,b int not null, primary key using BTREE (a)) engine=heap comment="testing heaps" avg_row_length=100 min_rows=1 max_rows=100;
 insert into t1 values(1,1),(2,2),(3,3),(4,4);
 delete from t1 where a=1 or a=0;
-analyze table t1;
-Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
 show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t1	0	PRIMARY	1	a	A	NULL	NULL	NULL		BTREE			YES
@@ -348,16 +345,10 @@ DROP TABLE t1;
 End of 4.1 tests
 CREATE TABLE t1(val INT, KEY USING BTREE(val)) ENGINE=memory;
 INSERT INTO t1 VALUES(0);
-ANALYZE TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
 SELECT INDEX_LENGTH FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='t1';
 INDEX_LENGTH
 21
 UPDATE t1 SET val=1;
-ANALYZE TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	analyze	note	The storage engine for the table doesn't support analyze
 SELECT INDEX_LENGTH FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='t1';
 INDEX_LENGTH
 21

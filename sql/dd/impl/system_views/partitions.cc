@@ -82,7 +82,7 @@ Partitions::Partitions()
     "  tbl.se_private_id, tbl.hidden != 'Visible', "
     "  IF(sub_part.name IS NULL, "
     "     IF(part.name IS NULL, tbl.se_private_data, part_ts.se_private_data),"
-    "     sub_part_ts.se_private_data),"
+    "     sub_part_ts.se_private_data), 0, 0,"
     "  IFNULL(sub_part.name, part.name))");
   m_target_def.add_field(FIELD_AVG_ROW_LENGTH, "AVG_ROW_LENGTH",
     "INTERNAL_AVG_ROW_LENGTH(sch.name, tbl.name,"
@@ -90,7 +90,7 @@ Partitions::Partitions()
     "  tbl.se_private_id, tbl.hidden != 'Visible', "
     "  IF(sub_part.name IS NULL, "
     "     IF(part.name IS NULL, tbl.se_private_data, part_ts.se_private_data),"
-    "     sub_part_ts.se_private_data),"
+    "     sub_part_ts.se_private_data), 0, 0,"
     "  IFNULL(sub_part.name, part.name))");
   m_target_def.add_field(FIELD_DATA_LENGTH, "DATA_LENGTH",
     "INTERNAL_DATA_LENGTH(sch.name, tbl.name,"
@@ -98,7 +98,7 @@ Partitions::Partitions()
     "  tbl.se_private_id, tbl.hidden != 'Visible', "
     "  IF(sub_part.name IS NULL, "
     "     IF(part.name IS NULL, tbl.se_private_data, part_ts.se_private_data),"
-    "     sub_part_ts.se_private_data),"
+    "     sub_part_ts.se_private_data), 0, 0,"
     "  IFNULL(sub_part.name, part.name))");
   m_target_def.add_field(FIELD_MAX_DATA_LENGTH, "MAX_DATA_LENGTH",
     "INTERNAL_MAX_DATA_LENGTH(sch.name, tbl.name,"
@@ -106,7 +106,7 @@ Partitions::Partitions()
     "  tbl.se_private_id, tbl.hidden != 'Visible', "
     "  IF(sub_part.name IS NULL, "
     "     IF(part.name IS NULL, tbl.se_private_data, part_ts.se_private_data),"
-    "     sub_part_ts.se_private_data),"
+    "     sub_part_ts.se_private_data), 0, 0,"
     "  IFNULL(sub_part.name, part.name))");
   m_target_def.add_field(FIELD_INDEX_LENGTH, "INDEX_LENGTH",
     "INTERNAL_INDEX_LENGTH(sch.name, tbl.name,"
@@ -114,7 +114,7 @@ Partitions::Partitions()
     "  tbl.se_private_id, tbl.hidden != 'Visible', "
     "  IF(sub_part.name IS NULL, "
     "     IF(part.name IS NULL, tbl.se_private_data, part_ts.se_private_data),"
-    "     sub_part_ts.se_private_data),"
+    "     sub_part_ts.se_private_data), 0, 0,"
     "  IFNULL(sub_part.name, part.name))");
   m_target_def.add_field(FIELD_DATA_FREE, "DATA_FREE",
     "INTERNAL_DATA_FREE(sch.name, tbl.name,"
@@ -122,7 +122,7 @@ Partitions::Partitions()
     "  tbl.se_private_id, tbl.hidden != 'Visible', "
     "  IF(sub_part.name IS NULL, "
     "     IF(part.name IS NULL, tbl.se_private_data, part_ts.se_private_data),"
-    "     sub_part_ts.se_private_data),"
+    "     sub_part_ts.se_private_data), 0, 0,"
     "  IFNULL(sub_part.name, part.name))");
   m_target_def.add_field(FIELD_CREATE_TIME, "CREATE_TIME", "tbl.created");
   m_target_def.add_field(FIELD_UPDATE_TIME, "UPDATE_TIME",
@@ -131,7 +131,7 @@ Partitions::Partitions()
     "  tbl.se_private_id, tbl.hidden != 'Visible', "
     "  IF(sub_part.name IS NULL, "
     "     IF(part.name IS NULL, tbl.se_private_data, part_ts.se_private_data),"
-    "     sub_part_ts.se_private_data),"
+    "     sub_part_ts.se_private_data), 0, 0,"
     "  IFNULL(sub_part.name, part.name))");
   m_target_def.add_field(FIELD_CHECK_TIME, "CHECK_TIME",
     "INTERNAL_CHECK_TIME(sch.name, tbl.name,"
@@ -139,7 +139,7 @@ Partitions::Partitions()
     "  tbl.se_private_id, tbl.hidden != 'Visible', "
     "  IF(sub_part.name IS NULL, "
     "     IF(part.name IS NULL, tbl.se_private_data, part_ts.se_private_data),"
-    "     sub_part_ts.se_private_data),"
+    "     sub_part_ts.se_private_data), 0, 0,"
     "  IFNULL(sub_part.name, part.name))");
   m_target_def.add_field(FIELD_CHECKSUM, "CHECKSUM",
     "INTERNAL_CHECKSUM(sch.name, tbl.name,"
@@ -147,7 +147,7 @@ Partitions::Partitions()
     "  tbl.se_private_id, tbl.hidden != 'Visible', "
     "  IF(sub_part.name IS NULL, "
     "     IF(part.name IS NULL, tbl.se_private_data, part_ts.se_private_data),"
-    "     sub_part_ts.se_private_data),"
+    "     sub_part_ts.se_private_data), 0, 0,"
     "  IFNULL(sub_part.name, part.name))");
   m_target_def.add_field(FIELD_PARTITION_COMMENT, "PARTITION_COMMENT",
     "IF(sub_part.name IS NULL,"

@@ -1691,6 +1691,48 @@ private:
     Attachable_trx &operator =(const Attachable_trx &);
   };
 
+  /**
+    A derived from THD::Attachable_trx class allows updates in
+    the attachable transaction. Callers of the class methods must
+    make sure the attachable_rw won't cause deadlock with the main transaction.
+    The destructor does not invoke ha_commit_{stmt,trans} nor ha_rollback_trans
+    on purpose.
+    Burden to terminate the read-write instance also lies on the caller!
+    In order to use this interface it *MUST* prove that no side effect to
+    the global transaction state can be inflicted by a chosen method.
+
+    This class is being used only by class Gtid_table_access_context by
+    replication and by dd::info_schema::Table_statistics.
+  */
+
+  class Attachable_trx_rw : public Attachable_trx
+  {
+  public:
+    bool is_read_only() const { return false; }
+    Attachable_trx_rw(THD *thd, Attachable_trx *prev_trx= NULL)
+      : Attachable_trx(thd, prev_trx)
+    {
+      m_thd->tx_read_only= false;
+      m_thd->lex->sql_command= SQLCOM_END;
+      m_xa_state_saved= m_thd->get_transaction()->xid_state()->get_state();
+      thd->get_transaction()->xid_state()->set_state(XID_STATE::XA_NOTR);
+    }
+    ~Attachable_trx_rw()
+    {
+      /* The attachable transaction has been already committed */
+      DBUG_ASSERT(!m_thd->get_transaction()->is_active(Transaction_ctx::STMT)
+                  && !m_thd->get_transaction()->is_active(Transaction_ctx::SESSION));
+
+      m_thd->get_transaction()->xid_state()->set_state(m_xa_state_saved);
+      m_thd->tx_read_only= true;
+    }
+
+  private:
+    XID_STATE::xa_states m_xa_state_saved;
+    Attachable_trx_rw(const Attachable_trx_rw &);
+    Attachable_trx_rw &operator =(const Attachable_trx_rw &);
+  };
+
   /*
     Forward declaration of a read-write attachable transaction class.
     Its exact definition is located in the gtid module that proves its
@@ -1698,6 +1740,14 @@ private:
     of screwing the global transaction state through ha_commit_{stmt,trans}.
   */
   class Attachable_trx_rw;
+
+  /*
+    Forward declaration of a read-write transaction class.
+    Its exact definition is located in the stats writing module. Any
+    potential     customer to the class must beware of a danger of
+    screwing the global transaction state through ha_commit_{stmt,trans}.
+  */
+  class Attachable_trx_rw_i_s;
 
   Attachable_trx *m_attachable_trx;
 
@@ -3043,6 +3093,15 @@ public:
   void begin_attachable_rw_transaction();
 
   /**
+    Start a read-write attachable transaction to write
+    to  mysql.table_stats and mysql.index_stats. All the
+    requirements and restrictions to Attachable_trx apply.
+    Additional requirements are documented along the class
+    declaration.
+  */
+  void begin_attachable_rw_i_s_transaction();
+
+  /**
     End an active attachable transaction. Applies to both the read-only
     and the read-write versions.
     Note, that the read-write attachable transaction won't be terminated
@@ -3061,6 +3120,11 @@ public:
     @return true if there is an active rw attachable transaction.
   */
   bool is_attachable_rw_transaction_active() const;
+
+  /**
+    @return true if there is an active rw attachable transaction.
+  */
+  bool is_attachable_rw_i_s_transaction_active() const;
 
 public:
   /*

@@ -15438,11 +15438,13 @@ innodb_rec_per_key(
 /** Read the auto_increment counter of a table, using the AUTOINC lock
 irrespective of innodb_autoinc_lock_mode.
 @param[in,out]	innodb_table	InnoDB table object
+@param[in]      print_note      Print note if not an I_S query.
 @return the autoinc value */
 static
 ulonglong
 innobase_peek_autoinc(
-	dict_table_t*	innodb_table)
+	dict_table_t*	innodb_table,
+	bool		print_note)
 {
 	ulonglong	auto_inc;
 
@@ -15452,7 +15454,7 @@ innobase_peek_autoinc(
 
 	auto_inc = dict_table_autoinc_read(innodb_table);
 
-	if (auto_inc == 0) {
+	if (auto_inc == 0 && print_note) {
 		ib::info() << "AUTOINC next value generation is disabled for "
 			<< innodb_table->name;
 	}
@@ -15905,7 +15907,7 @@ ha_innobase::info_low(
 	}
 
 	if ((flag & HA_STATUS_AUTO) && table->found_next_number_field) {
-		ulonglong auto_inc_val = innobase_peek_autoinc(ib_table);
+		ulonglong auto_inc_val = innobase_peek_autoinc(ib_table, true);
 		/* Initialize autoinc value if not set. */
 		if (auto_inc_val == 0) {
 
@@ -15913,7 +15915,7 @@ ha_innobase::info_low(
 			innobase_initialize_autoinc();
 			dict_table_autoinc_unlock(m_prebuilt->table);
 
-			auto_inc_val = innobase_peek_autoinc(ib_table);
+			auto_inc_val = innobase_peek_autoinc(ib_table, true);
 		}
 		stats.auto_increment_value = auto_inc_val;
 	}
@@ -16150,7 +16152,7 @@ innobase_get_table_statistics(
 
 	if (flags & HA_STATUS_AUTO) {
 		stats->auto_increment_value =
-			innobase_peek_autoinc(ib_table);
+			innobase_peek_autoinc(ib_table, false);
 	}
 
 	if (flags & HA_STATUS_TIME) {

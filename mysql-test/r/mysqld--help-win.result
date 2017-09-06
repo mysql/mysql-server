@@ -354,11 +354,10 @@ The following options may be given as the first argument:
  Maximum amount of memory available for generating
  histograms
  --host-cache-size=# How many host names should be cached to avoid resolving.
- --information-schema-stats=name 
- If this flag is set to CACHED, INFORMATON_SCHEMA
- retrieves dynamic column statistics stored in dedicated
- tables. If set to LATEST, the dynamic statistics will be
- read directly from the storage engine.
+ --information-schema-stats-expiry=# 
+ The number of seconds after which mysqld server will
+ fetch data from storage engine and replace the data in
+ cache.
  --init-connect=name Command(s) that are executed for each new connection
  --init-file=name    Read SQL commands from this file at startup
  --init-slave=name   Command(s) that are executed by a slave server each time
@@ -1372,7 +1371,7 @@ gtid-mode OFF
 help TRUE
 histogram-generation-max-mem-size 20000000
 host-cache-size 279
-information-schema-stats CACHED
+information-schema-stats-expiry 86400
 init-connect 
 init-file (No default value)
 init-slave 

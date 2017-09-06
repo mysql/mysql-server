@@ -6105,27 +6105,6 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
           my_error(ER_NO_SYSTEM_VIEW_ACCESS, MYF(0), ptr->table_name);
           DBUG_RETURN(0);
         }
-
-        /*
-          Pick the right IS system view definition based on session
-          variable information_schema_stats.
-        */
-        if (thd->variables.information_schema_stats ==
-            static_cast<ulong>(dd::info_schema::enum_stats::LATEST))
-        {
-          if(is_identifier(ptr->table_name, "TABLES"))
-          {
-            ptr->table_name= thd->mem_strdup("TABLES_DYNAMIC");
-          }
-          else if (is_identifier(ptr->table_name, "STATISTICS"))
-          {
-            ptr->table_name= thd->mem_strdup("STATISTICS_DYNAMIC");
-          }
-          else if (is_identifier(ptr->table_name, "SHOW_STATISTICS"))
-          {
-            ptr->table_name= thd->mem_strdup("SHOW_STATISTICS_DYNAMIC");
-          }
-        }
       }
     }
     else

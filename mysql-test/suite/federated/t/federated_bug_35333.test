@@ -35,7 +35,7 @@ CREATE TABLE federated.t0 (a text, b text) ENGINE=FEDERATED
 --echo # Trigger a federated system error during a INFORMATION_SCHEMA.TABLES query
 --echo #
 # Remove O/S-specific socket error
-SET information_schema_stats=latest;
+SET SESSION information_schema_stats_expiry=0;
 --replace_regex /\(.*\)/(socket errno)/
 SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, ENGINE, ROW_FORMAT, TABLE_ROWS, DATA_LENGTH, TABLE_COMMENT
   FROM INFORMATION_SCHEMA.TABLES
@@ -72,7 +72,7 @@ SHOW WARNINGS;
 DROP TABLE IF EXISTS realdb.t0;
 DROP TABLE IF EXISTS federated.t0;
 DROP DATABASE realdb;
-SET information_schema_stats=default;
+SET SESSION information_schema_stats_expiry=default;
 --enable_warnings
 
 --source suite/federated/include/federated_cleanup.inc

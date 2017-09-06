@@ -2388,6 +2388,7 @@ public:
   {
     max_length= 21;
     maybe_null= true;
+    unsigned_flag= true;
     return false;
   }
 };
@@ -2405,6 +2406,7 @@ public:
   {
     max_length= 21;
     maybe_null= true;
+    unsigned_flag= true;
     return false;
   }
 };
@@ -2422,6 +2424,7 @@ public:
   {
     max_length= 21;
     maybe_null= true;
+    unsigned_flag= true;
     return false;
   }
 };
@@ -2439,6 +2442,7 @@ public:
   {
     max_length= 21;
     maybe_null= true;
+    unsigned_flag= true;
     return false;
   }
 };
@@ -2456,6 +2460,7 @@ public:
   {
     max_length= 21;
     maybe_null= true;
+    unsigned_flag= true;
     return false;
   }
 };
@@ -2473,6 +2478,7 @@ public:
   {
     max_length= 21;
     maybe_null= true;
+    unsigned_flag= true;
     return false;
   }
 };
@@ -2490,6 +2496,7 @@ public:
   {
     max_length= 21;
     maybe_null= true;
+    unsigned_flag= true;
     return false;
   }
 };

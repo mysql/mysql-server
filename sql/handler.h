@@ -1575,7 +1575,6 @@ typedef SE_cost_constants *(*get_cost_constants_t)(uint storage_category);
 typedef void (*replace_native_transaction_in_thd_t)(THD *thd, void *new_trx_arg,
                                                     void **ptr_trx_arg);
 
-
 /** Mode for initializing the data dictionary. */
 enum dict_init_mode_t
 {

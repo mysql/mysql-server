@@ -52,6 +52,8 @@ Table_stats::Table_stats()
           "update_time TIMESTAMP NULL");
   m_target_def.add_field(FIELD_CHECK_TIME, "FIELD_CHECK_TIME",
           "check_time TIMESTAMP NULL");
+  m_target_def.add_field(FIELD_CACHED_TIME, "FIELD_CACHED_TIME",
+          "cached_time TIMESTAMP NOT NULL");
 
   m_target_def.add_index("PRIMARY KEY (schema_name, table_name)");
 }

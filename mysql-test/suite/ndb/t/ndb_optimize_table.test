@@ -42,7 +42,7 @@ select count(*) from t1;
 # Turn off caching for information_schema, otherwise values like
 # the 'data_length' value will be cached and only updated
 # after ANALYZE TABLE
-set information_schema_stats=LATEST;
+SET SESSION information_schema_stats_expiry=0;
 
 # Read data lenght before deletes
 let $data_length0= `select data_length from information_schema.tables
@@ -88,3 +88,4 @@ if (`select $opt_level < 30`)
 echo optimize worked ok!;
 
 drop table t1;
+SET SESSION information_schema_stats_expiry=default;
