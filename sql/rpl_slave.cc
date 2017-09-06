@@ -3305,7 +3305,6 @@ static int write_rotate_to_master_pos_into_relay_log(THD *thd,
                  "failed to write a Rotate event"
                  " to the relay log, SHOW SLAVE STATUS may be"
                  " inaccurate");
-    rli->relay_log.harvest_bytes_written(&rli->log_space_total);
     if (flush_master_info(mi, true, false, false))
     {
       error= 1;
@@ -8259,7 +8258,6 @@ QUEUE_EVENT_RESULT queue_event(Master_info* mi,
       lock_count= 2;
       mi->set_master_log_pos(mi->get_master_log_pos() + inc_pos);
       DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->get_master_log_pos()));
-      rli->relay_log.harvest_bytes_written(&rli->log_space_total);
 
       /*
         If we are starting an anonymous transaction, we will discard
