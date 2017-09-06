@@ -4,7 +4,7 @@ Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP TABLE IF EXISTS t0,t1,t2,t3,t4,t5;
 DROP VIEW IF EXISTS v1;
-SET SESSION information_schema_stats=latest;
+SET SESSION information_schema_stats_expiry=0;
 #
 # Bug#11763174 INFORMATION_SCHEMA.PARAMETERS.NUMERIC_PRECISION SHOULD BE BIGINT 
 #
@@ -782,6 +782,8 @@ EVENTS	LAST_EXECUTED	datetime
 EVENTS	STARTS	datetime
 PARTITIONS	CHECK_TIME	datetime
 PARTITIONS	UPDATE_TIME	datetime
+TABLES	CHECK_TIME	datetime
+TABLES	UPDATE_TIME	datetime
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES A
 WHERE NOT EXISTS
 (SELECT * FROM INFORMATION_SCHEMA.COLUMNS B
@@ -1853,7 +1855,7 @@ rename table t1 to t3, t2 to t1, t3 to t2;
 # Switching to connection 'con12828477_2'. 
 #
 # Wait while the above RENAME is blocked.
-SET SESSION information_schema_stats=latest;
+SET SESSION information_schema_stats_expiry=0;
 # Without WL9494, issuing a query to I_S will open 't0' and get
 # blocked on 't1' because of RENAME. With WL9494, I_S query is just
 # a scan over dictionary tables and do not really open the table,
@@ -2052,7 +2054,7 @@ user	db
 DROP USER user_name_len_22_01234@localhost;
 DROP USER очень_очень_очень_длинный_юзер__@localhost;
 set names default;
-SET SESSION information_schema_stats=cached;
+SET SESSION information_schema_stats_expiry=default;
 set sql_mode= @orig_sql_mode;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
@@ -2323,11 +2325,12 @@ DROP TABLE t1;
 # The test case crashes if server requests for cardinality for
 # InnoDB SE even for hidden index.
 #
-set information_schema_stats=latest;
+SET SESSION information_schema_stats_expiry= 0;
 SELECT INDEX_NAME FROM INFORMATION_SCHEMA.`STATISTICS` WHERE `TABLE_NAME` = 'innodb_table_stats' AND Cardinality ;
 INDEX_NAME
 PRIMARY
 PRIMARY
+SET SESSION information_schema_stats_expiry= default;
 #
 # Bug#25188540 FIELD_TINY::VAL_INT(): ASSERTION `!TABLE || (!TABLE->READ_SET |......)' FAILED
 #
@@ -2355,17 +2358,10 @@ eucjpms	eucjpms_japanese_ci	UJIS for Windows Japanese	3
 #
 # Make sure user does not access following
 # INFORMATION_SCHEMA tables:
-#   TABLES_DYNAMIC, STATISTICS_DYNAMIC
-#   SHOW_STATISTICS, SHOW_STATISTICS_DYNAMIC,
+#   SHOW_STATISTICS,
 #
-SELECT * FROM INFORMATION_SCHEMA.TABLES_DYNAMIC;
-ERROR HY000: Access to system view INFORMATION_SCHEMA.'TABLES_DYNAMIC' is rejected.
-SELECT * FROM INFORMATION_SCHEMA.STATISTICS_DYNAMIC;
-ERROR HY000: Access to system view INFORMATION_SCHEMA.'STATISTICS_DYNAMIC' is rejected.
 SELECT * FROM INFORMATION_SCHEMA.SHOW_STATISTICS;
 ERROR HY000: Access to system view INFORMATION_SCHEMA.'SHOW_STATISTICS' is rejected.
-SELECT * FROM INFORMATION_SCHEMA.SHOW_STATISTICS_DYNAMIC;
-ERROR HY000: Access to system view INFORMATION_SCHEMA.'SHOW_STATISTICS_DYNAMIC' is rejected.
 #
 # Bug#25793429 CAN'T RETURN
 # INFORMATION_SCHEMA.TABLES.CREATE_OPTION IN UPPERCASE

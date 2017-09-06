@@ -24,20 +24,7 @@ namespace dd {
 namespace system_views {
 
 /*
-  The class representing INFORMATION_SCHEMA.TABLES system view definition
-  common to both modes of setting 'information_schema_stats=latest|cached'.
-
-  There are two definitions of information_schema.tables.
-  1. INFORMATION_SCHEMA.TABLES view which picks dynamic column
-     statistics from mysql.table_stats which gets populated when
-     we execute 'anaylze table' command.
-
-  2. INFORMATION_SCHEMA.TABLES_DYNAMIC view which retrieves dynamic
-     column statistics using a internal UDF which opens the user
-     table and reads dynamic table statistics.
-
-  MySQL server uses definition 1) by default. The session variable
-  information_schema_stats=latest would enable use of definition 2).
+  The class representing INFORMATION_SCHEMA.TABLES system view definition.
 */
 class Tables_base : public System_view_impl<System_view_select_definition_impl>
 {
@@ -74,8 +61,7 @@ public:
 
 
 /*
- The class representing INFORMATION_SCHEMA.TABLES system view definition
- used when setting is 'information_schema_stats=cached'.
+ The class representing INFORMATION_SCHEMA.TABLES system view definition.
 */
 class Tables : public Tables_base
 {
@@ -94,31 +80,6 @@ public:
   { return Tables::view_name(); }
 };
 
-
-/*
- The class representing INFORMATION_SCHEMA.TABLES system view definition
- used when setting is 'information_schema_stats=latest'.
-*/
-class Tables_dynamic : public Tables_base
-{
-public:
-  Tables_dynamic();
-
-  static const Tables_base &instance();
-
-  static const String_type &view_name()
-  {
-    static String_type s_view_name("TABLES_DYNAMIC");
-    return s_view_name;
-  }
-
-  virtual const String_type &name() const
-  { return Tables_dynamic::view_name(); }
-
-  // This view definition is hidden from user.
-  virtual bool hidden() const
-  { return true; }
-};
 
 }
 }

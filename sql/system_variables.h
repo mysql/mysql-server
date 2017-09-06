@@ -296,7 +296,11 @@ struct System_variables
   bool session_track_state_change;
   ulong   session_track_transaction_info;
 
-  ulong information_schema_stats; // see dd::info_schema::enum_information_...
+  /*
+    Time in seconds, after which the statistics in mysql.table/index_stats
+    get invalid
+  */
+  ulong information_schema_stats_expiry;
 
   /**
     Compatibility option to mark the pre MySQL-5.6.4 temporals columns using

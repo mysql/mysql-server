@@ -166,12 +166,12 @@ def	information_schema	PARTITIONS	SUBPARTITION_METHOD	9	NULL	YES	varchar	13	39	N
 def	information_schema	PARTITIONS	PARTITION_EXPRESSION	10	NULL	YES	varchar	2048	6144	NULL	NULL	NULL	utf8	utf8_bin	varchar(2048)			select			NULL
 def	information_schema	PARTITIONS	SUBPARTITION_EXPRESSION	11	NULL	YES	varchar	2048	6144	NULL	NULL	NULL	utf8	utf8_bin	varchar(2048)			select			NULL
 def	information_schema	PARTITIONS	PARTITION_DESCRIPTION	12	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select			NULL
-def	information_schema	PARTITIONS	TABLE_ROWS	13	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select			NULL
-def	information_schema	PARTITIONS	AVG_ROW_LENGTH	14	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select			NULL
-def	information_schema	PARTITIONS	DATA_LENGTH	15	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select			NULL
-def	information_schema	PARTITIONS	MAX_DATA_LENGTH	16	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select			NULL
-def	information_schema	PARTITIONS	INDEX_LENGTH	17	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select			NULL
-def	information_schema	PARTITIONS	DATA_FREE	18	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select			NULL
+def	information_schema	PARTITIONS	TABLE_ROWS	13	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select			NULL
+def	information_schema	PARTITIONS	AVG_ROW_LENGTH	14	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select			NULL
+def	information_schema	PARTITIONS	DATA_LENGTH	15	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select			NULL
+def	information_schema	PARTITIONS	MAX_DATA_LENGTH	16	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select			NULL
+def	information_schema	PARTITIONS	INDEX_LENGTH	17	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select			NULL
+def	information_schema	PARTITIONS	DATA_FREE	18	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select			NULL
 def	information_schema	PARTITIONS	CREATE_TIME	19	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select			NULL
 def	information_schema	PARTITIONS	UPDATE_TIME	20	NULL	YES	datetime	NULL	NULL	NULL	NULL	0	NULL	NULL	datetime			select			NULL
 def	information_schema	PARTITIONS	CHECK_TIME	21	NULL	YES	datetime	NULL	NULL	NULL	NULL	0	NULL	NULL	datetime			select			NULL
@@ -264,7 +264,7 @@ def	information_schema	STATISTICS	INDEX_NAME	6	NULL	YES	varchar	64	192	NULL	NULL
 def	information_schema	STATISTICS	SEQ_IN_INDEX	7	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select			NULL
 def	information_schema	STATISTICS	COLUMN_NAME	8	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	STATISTICS	COLLATION	9	NULL	YES	varchar	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(1)			select			NULL
-def	information_schema	STATISTICS	CARDINALITY	10	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select			NULL
+def	information_schema	STATISTICS	CARDINALITY	10	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select			NULL
 def	information_schema	STATISTICS	SUB_PART	11	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select			NULL
 def	information_schema	STATISTICS	PACKED	12	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
 def	information_schema	STATISTICS	NULLABLE	13		NO	varchar	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select			NULL
@@ -292,18 +292,18 @@ def	information_schema	TABLES	TABLE_TYPE	4	NULL	NO	enum	11	33	NULL	NULL	NULL	utf
 def	information_schema	TABLES	ENGINE	5	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	TABLES	VERSION	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(2)			select			NULL
 def	information_schema	TABLES	ROW_FORMAT	7	NULL	YES	enum	10	30	NULL	NULL	NULL	utf8	utf8_bin	enum('Fixed','Dynamic','Compressed','Redundant','Compact','Paged')			select			NULL
-def	information_schema	TABLES	TABLE_ROWS	8	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select			NULL
-def	information_schema	TABLES	AVG_ROW_LENGTH	9	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select			NULL
-def	information_schema	TABLES	DATA_LENGTH	10	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select			NULL
-def	information_schema	TABLES	MAX_DATA_LENGTH	11	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select			NULL
-def	information_schema	TABLES	INDEX_LENGTH	12	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select			NULL
-def	information_schema	TABLES	DATA_FREE	13	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select			NULL
-def	information_schema	TABLES	AUTO_INCREMENT	14	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select			NULL
+def	information_schema	TABLES	TABLE_ROWS	8	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select			NULL
+def	information_schema	TABLES	AVG_ROW_LENGTH	9	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select			NULL
+def	information_schema	TABLES	DATA_LENGTH	10	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select			NULL
+def	information_schema	TABLES	MAX_DATA_LENGTH	11	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select			NULL
+def	information_schema	TABLES	INDEX_LENGTH	12	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select			NULL
+def	information_schema	TABLES	DATA_FREE	13	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select			NULL
+def	information_schema	TABLES	AUTO_INCREMENT	14	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select			NULL
 def	information_schema	TABLES	CREATE_TIME	15	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select			NULL
-def	information_schema	TABLES	UPDATE_TIME	16	NULL	YES	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select			NULL
-def	information_schema	TABLES	CHECK_TIME	17	NULL	YES	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select			NULL
+def	information_schema	TABLES	UPDATE_TIME	16	NULL	YES	datetime	NULL	NULL	NULL	NULL	0	NULL	NULL	datetime			select			NULL
+def	information_schema	TABLES	CHECK_TIME	17	NULL	YES	datetime	NULL	NULL	NULL	NULL	0	NULL	NULL	datetime			select			NULL
 def	information_schema	TABLES	TABLE_COLLATION	18	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
-def	information_schema	TABLES	CHECKSUM	19	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select			NULL
+def	information_schema	TABLES	CHECKSUM	19	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select			NULL
 def	information_schema	TABLES	CREATE_OPTIONS	20	NULL	YES	varchar	256	768	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select			NULL
 def	information_schema	TABLES	TABLE_COMMENT	21	NULL	YES	varchar	256	768	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select			NULL
 def	information_schema	TABLESPACES	TABLESPACE_NAME	1		NO	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
@@ -598,12 +598,12 @@ NULL	information_schema	PARTITIONS	SUBPARTITION_ORDINAL_POSITION	int	NULL	NULL	N
 3.0000	information_schema	PARTITIONS	PARTITION_EXPRESSION	varchar	2048	6144	utf8	utf8_bin	varchar(2048)
 3.0000	information_schema	PARTITIONS	SUBPARTITION_EXPRESSION	varchar	2048	6144	utf8	utf8_bin	varchar(2048)
 1.0000	information_schema	PARTITIONS	PARTITION_DESCRIPTION	text	65535	65535	utf8	utf8_bin	text
-NULL	information_schema	PARTITIONS	TABLE_ROWS	bigint	NULL	NULL	NULL	NULL	bigint(21)
-NULL	information_schema	PARTITIONS	AVG_ROW_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint(21)
-NULL	information_schema	PARTITIONS	DATA_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint(21)
-NULL	information_schema	PARTITIONS	MAX_DATA_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint(21)
-NULL	information_schema	PARTITIONS	INDEX_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint(21)
-NULL	information_schema	PARTITIONS	DATA_FREE	bigint	NULL	NULL	NULL	NULL	bigint(21)
+NULL	information_schema	PARTITIONS	TABLE_ROWS	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	PARTITIONS	AVG_ROW_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	PARTITIONS	DATA_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	PARTITIONS	MAX_DATA_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	PARTITIONS	INDEX_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	PARTITIONS	DATA_FREE	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
 NULL	information_schema	PARTITIONS	CREATE_TIME	timestamp	NULL	NULL	NULL	NULL	timestamp
 NULL	information_schema	PARTITIONS	UPDATE_TIME	datetime	NULL	NULL	NULL	NULL	datetime
 NULL	information_schema	PARTITIONS	CHECK_TIME	datetime	NULL	NULL	NULL	NULL	datetime
@@ -696,7 +696,7 @@ NULL	information_schema	SCHEMATA	SQL_PATH	binary	0	0	NULL	NULL	binary(0)
 NULL	information_schema	STATISTICS	SEQ_IN_INDEX	int	NULL	NULL	NULL	NULL	int(10) unsigned
 3.0000	information_schema	STATISTICS	COLUMN_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	STATISTICS	COLLATION	varchar	1	3	utf8	utf8_general_ci	varchar(1)
-NULL	information_schema	STATISTICS	CARDINALITY	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
+NULL	information_schema	STATISTICS	CARDINALITY	bigint	NULL	NULL	NULL	NULL	bigint(21)
 NULL	information_schema	STATISTICS	SUB_PART	bigint	NULL	NULL	NULL	NULL	bigint(21)
 NULL	information_schema	STATISTICS	PACKED	binary	0	0	NULL	NULL	binary(0)
 3.0000	information_schema	STATISTICS	NULLABLE	varchar	3	9	utf8	utf8_general_ci	varchar(3)
@@ -724,18 +724,18 @@ NULL	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	ORGANIZATION_COORDSYS_ID	in
 3.0000	information_schema	TABLES	ENGINE	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 NULL	information_schema	TABLES	VERSION	int	NULL	NULL	NULL	NULL	int(2)
 3.0000	information_schema	TABLES	ROW_FORMAT	enum	10	30	utf8	utf8_bin	enum('Fixed','Dynamic','Compressed','Redundant','Compact','Paged')
-NULL	information_schema	TABLES	TABLE_ROWS	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
-NULL	information_schema	TABLES	AVG_ROW_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
-NULL	information_schema	TABLES	DATA_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
-NULL	information_schema	TABLES	MAX_DATA_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
-NULL	information_schema	TABLES	INDEX_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
-NULL	information_schema	TABLES	DATA_FREE	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
-NULL	information_schema	TABLES	AUTO_INCREMENT	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
+NULL	information_schema	TABLES	TABLE_ROWS	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	TABLES	AVG_ROW_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	TABLES	DATA_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	TABLES	MAX_DATA_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	TABLES	INDEX_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	TABLES	DATA_FREE	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	TABLES	AUTO_INCREMENT	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
 NULL	information_schema	TABLES	CREATE_TIME	timestamp	NULL	NULL	NULL	NULL	timestamp
-NULL	information_schema	TABLES	UPDATE_TIME	timestamp	NULL	NULL	NULL	NULL	timestamp
-NULL	information_schema	TABLES	CHECK_TIME	timestamp	NULL	NULL	NULL	NULL	timestamp
+NULL	information_schema	TABLES	UPDATE_TIME	datetime	NULL	NULL	NULL	NULL	datetime
+NULL	information_schema	TABLES	CHECK_TIME	datetime	NULL	NULL	NULL	NULL	datetime
 3.0000	information_schema	TABLES	TABLE_COLLATION	varchar	64	192	utf8	utf8_general_ci	varchar(64)
-NULL	information_schema	TABLES	CHECKSUM	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
+NULL	information_schema	TABLES	CHECKSUM	bigint	NULL	NULL	NULL	NULL	bigint(21)
 3.0000	information_schema	TABLES	CREATE_OPTIONS	varchar	256	768	utf8	utf8_general_ci	varchar(256)
 3.0000	information_schema	TABLES	TABLE_COMMENT	varchar	256	768	utf8	utf8_general_ci	varchar(256)
 3.0476	information_schema	TABLESPACES	TABLESPACE_NAME	varchar	21	64	utf8	utf8_general_ci	varchar(64)

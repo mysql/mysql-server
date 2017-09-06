@@ -71,60 +71,6 @@ const LEX_STRING Gtid_table_access_context::TABLE_NAME= {C_STRING_WITH_LEN("gtid
 const LEX_STRING Gtid_table_access_context::DB_NAME= {C_STRING_WITH_LEN("mysql")};
 
 /**
-  A derived from THD::Attachable_trx class allows updates in
-  the attachable transaction. Callers of the class methods must
-  make sure the attachable_rw won't cause deadlock with the main transaction.
-  The destructor does not invoke ha_commit_{stmt,trans} nor ha_rollback_trans
-  on purpose.
-  Burden to terminate the read-write instance also lies on the caller!
-  In order to use this interface it *MUST* prove that no side effect to
-  the global transaction state can be inflicted by a chosen method.
-*/
-
-class THD::Attachable_trx_rw : public THD::Attachable_trx
-{
-public:
-  bool is_read_only() const { return false; }
-  Attachable_trx_rw(THD *thd, Attachable_trx *prev_trx= NULL)
-    : THD::Attachable_trx(thd, prev_trx)
-  {
-    m_thd->tx_read_only= false;
-    m_thd->lex->sql_command= SQLCOM_END;
-    m_xa_state_saved= m_thd->get_transaction()->xid_state()->get_state();
-    thd->get_transaction()->xid_state()->set_state(XID_STATE::XA_NOTR);
-  }
-  ~Attachable_trx_rw()
-  {
-    /* The attachable transaction has been already committed */
-    DBUG_ASSERT(!m_thd->get_transaction()->is_active(Transaction_ctx::STMT)
-                && !m_thd->get_transaction()->is_active(Transaction_ctx::SESSION));
-
-    m_thd->get_transaction()->xid_state()->set_state(m_xa_state_saved);
-    m_thd->tx_read_only= true;
-  }
-
-private:
-  XID_STATE::xa_states m_xa_state_saved;
-  Attachable_trx_rw(const Attachable_trx_rw &);
-  Attachable_trx_rw &operator =(const Attachable_trx_rw &);
-};
-
-
-bool THD::is_attachable_rw_transaction_active() const
-{
-  return m_attachable_trx != NULL && !m_attachable_trx->is_read_only();
-}
-
-
-void THD::begin_attachable_rw_transaction()
-{
-  DBUG_ASSERT(!m_attachable_trx);
-
-  m_attachable_trx= new Attachable_trx_rw(this);
-}
-
-
-/**
   Initialize a new THD.
 
   @param p_thd  Pointer to pointer to thread structure

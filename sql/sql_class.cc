@@ -2094,6 +2094,20 @@ void THD::end_attachable_transaction()
 }
 
 
+bool THD::is_attachable_rw_transaction_active() const
+{
+  return m_attachable_trx != NULL && !m_attachable_trx->is_read_only();
+}
+
+
+void THD::begin_attachable_rw_transaction()
+{
+  DBUG_ASSERT(!m_attachable_trx);
+
+  m_attachable_trx= new Attachable_trx_rw(this);
+}
+
+
 /****************************************************************************
   Handling of statement states in functions and triggers.
 

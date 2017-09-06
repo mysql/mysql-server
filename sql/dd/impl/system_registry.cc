@@ -188,14 +188,11 @@ void System_views::init()
   register_view<dd::system_views::Routines>(is);
   register_view<dd::system_views::Schemata>(is);
   register_view<dd::system_views::Show_statistics>(is);
-  register_view<dd::system_views::Show_statistics_dynamic>(is);
   register_view<dd::system_views::St_spatial_reference_systems>(is);
   register_view<dd::system_views::St_geometry_columns>(is);
   register_view<dd::system_views::Statistics>(is);
-  register_view<dd::system_views::Statistics_dynamic>(is);
   register_view<dd::system_views::Table_constraints>(is);
   register_view<dd::system_views::Tables>(is);
-  register_view<dd::system_views::Tables_dynamic>(is);
   register_view<dd::system_views::Triggers>(is);
   register_view<dd::system_views::Views>(is);
 }

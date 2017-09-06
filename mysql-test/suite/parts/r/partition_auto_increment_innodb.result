@@ -1,5 +1,5 @@
 DROP TABLE IF EXISTS t1;
-SET SESSION information_schema_stats=latest;
+SET SESSION information_schema_stats_expiry=0;
 # test without partitioning for reference
 CREATE TABLE t1 (
 c1 INT NOT NULL AUTO_INCREMENT,
@@ -1391,9 +1391,9 @@ a	b
 18446744073709551613	2
 5	non-generated number
 DROP TABLE t1;
-SET SESSION information_schema_stats=default;
+SET SESSION information_schema_stats_expiry=default;
 # test auto increment with export import
-SET SESSION information_schema_stats=latest;
+SET SESSION information_schema_stats_expiry=0;
 CREATE TABLE t1 (
 col_1_int int AUTO_INCREMENT,
 col_2_varchar VARCHAR (20),

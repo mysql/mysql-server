@@ -28,7 +28,7 @@ SELECT COUNT(*) FROM t3;
 COUNT(*)
 32
 Case 1: IS query uses mysql.table_stats to read dynamic table statistics
-SET SESSION information_schema_stats=cached;
+SET SESSION information_schema_stats_expiry=default;
 SELECT table_rows, avg_row_length, data_length, max_data_length, index_length,
 data_free, auto_increment, checksum, update_time, check_time
 FROM information_schema.tables WHERE table_name in ('t1', 't2');
@@ -44,7 +44,7 @@ def	test	t3	1	test	f1_2	1	f1	A	4	NULL	NULL	YES	BTREE			YES
 def	test	t3	1	test	f1_2	2	f2	A	4	NULL	NULL	YES	BTREE			YES
 def	test	t3	0	test	PRIMARY	1	f0	A	32	NULL	NULL		BTREE			YES
 Case 2: IS query uses UDF's to read dynamic table statistics
-SET SESSION information_schema_stats=latest;
+SET SESSION information_schema_stats_expiry=0;
 SELECT table_rows, avg_row_length, data_length, max_data_length, index_length,
 data_free, auto_increment, checksum, update_time, check_time
 FROM information_schema.tables WHERE table_name in ('t1', 't2');
@@ -59,7 +59,7 @@ def	test	t3	1	test	f1	1	f1	A	4	NULL	NULL	YES	BTREE			YES
 def	test	t3	1	test	f1_2	1	f1	A	4	NULL	NULL	YES	BTREE			YES
 def	test	t3	1	test	f1_2	2	f2	A	4	NULL	NULL	YES	BTREE			YES
 def	test	t3	0	test	PRIMARY	1	f0	A	32	NULL	NULL		BTREE			YES
-SET SESSION information_schema_stats=cached;
+SET SESSION information_schema_stats_expiry=default;
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;

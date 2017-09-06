@@ -88,14 +88,6 @@ enum class enum_table_stats_type
 };
 
 
-// This enum is used to set the SESSION variable 'information_schema_stats'
-enum class enum_stats
-{
-  LATEST= 0,
-  CACHED
-};
-
-
 /**
   The class hold dynamic table statistics for a table.
   This cache is used by internal UDF's defined for the purpose
@@ -122,15 +114,15 @@ public:
 
     @return true if stats are cached, else false.
   */
-  bool is_stat_cached(const String &db_name,
-                      const String &table_name,
-                      const char *partition_name)
+  bool is_stat_cached_in_mem(const String &db_name,
+                             const String &table_name,
+                             const char *partition_name)
   {
     return (m_key == form_key(db_name, table_name, partition_name));
   }
 
-  bool is_stat_cached(const String &db_name, const String &table_name)
-  { return is_stat_cached(db_name, table_name, nullptr); }
+  bool is_stat_cached_in_mem(const String &db_name, const String &table_name)
+  { return is_stat_cached_in_mem(db_name, table_name, nullptr); }
 
 
   /**
@@ -143,10 +135,10 @@ public:
 
     @return void
   */
-  void cache_stats(const String &db_name,
-                   const String &table_name,
-                   const char *partition_name,
-                   handler *file)
+  void cache_stats_in_mem(const String &db_name,
+                          const String &table_name,
+                          const char *partition_name,
+                          handler *file)
   {
     m_stats= file->stats;
     m_checksum= file->checksum();
@@ -154,10 +146,10 @@ public:
     set_stat_cached(db_name, table_name, partition_name);
   }
 
-  void cache_stats(const String &db_name,
-                   const String &table_name,
-                   handler *file)
-  { cache_stats(db_name, table_name, nullptr, file); }
+  void cache_stats_in_mem(const String &db_name,
+                          const String &table_name,
+                          handler *file)
+  { cache_stats_in_mem(db_name, table_name, nullptr, file); }
 
 
   /**
@@ -170,10 +162,10 @@ public:
 
     @return void
   */
-  void cache_stats(const String &db_name,
-                   const String &table_name,
-                   const char *partition_name,
-                   ha_statistics &stats)
+  void cache_stats_in_mem(const String &db_name,
+                          const String &table_name,
+                          const char *partition_name,
+                          ha_statistics &stats)
   {
     m_stats= stats;
     m_checksum= 0;
@@ -181,10 +173,10 @@ public:
     set_stat_cached(db_name, table_name, partition_name);
   }
 
-  void cache_stats(const String &db_name,
-                   const String &table_name,
-                   ha_statistics &stats)
-  { cache_stats(db_name, table_name, nullptr, stats); }
+  void cache_stats_in_mem(const String &db_name,
+                          const String &table_name,
+                          ha_statistics &stats)
+  { cache_stats_in_mem(db_name, table_name, nullptr, stats); }
 
 
   /**
@@ -196,13 +188,17 @@ public:
     @param schema_name_ptr         - Schema name of table.
     @param table_name_ptr          - Table name of which we need stats.
     @param index_name_ptr          - Index name of which we need stats.
+    @param partition_name          - Partition name.
+    @param column_name_ptr         - Column name for index.
     @param index_ordinal_position  - Ordinal position of index in table.
     @param column_ordinal_position - Ordinal position of column in table.
     @param engine_name_ptr         - Engine of the table.
     @param se_private_id           - se_private_id of the table.
     @param ts_se_private_data      - Tablespace SE private data.
     @param tbl_se_private_data     - Table SE private data.
-    @param partition_name          - Partition name.
+    @param table_stat_data         - Cached data from mysql.table_stats /
+                                       mysql.index_stats table
+    @param cached_time             - Timestamp value when data was cached.
     @param stype                   - Enum specifying the stat we are
                                      interested to read.
 
@@ -213,12 +209,15 @@ public:
                       const String &table_name_ptr,
                       const String &index_name_ptr,
                       const char* partition_name,
+                      const String &column_name_ptr,
                       uint index_ordinal_position,
                       uint column_ordinal_position,
                       const String &engine_name_ptr,
                       dd::Object_id se_private_id,
                       const char* ts_se_private_data,
                       const char* tbl_se_private_data,
+                      const ulonglong &table_stat_data,
+                      const ulonglong &cached_time,
                       enum_table_stats_type stype);
 
 
@@ -231,6 +230,8 @@ public:
                       dd::Object_id se_private_id,
                       const char* ts_se_private_data,
                       const char* tbl_se_private_data,
+                      const ulonglong &table_stat_data,
+                      const ulonglong &cached_time,
                       enum_table_stats_type stype)
   {
     const String tmp;
@@ -239,11 +240,13 @@ public:
                      table_name_ptr,
                      tmp,
                      partition_name,
-                     0, 0,
+                     tmp, 0, 0,
                      engine_name_ptr,
                      se_private_id,
                      ts_se_private_data,
                      tbl_se_private_data,
+                     table_stat_data,
+                     cached_time,
                      stype);
   }
 
@@ -271,6 +274,7 @@ private:
     @param schema_name_ptr         - Schema name of table.
     @param table_name_ptr          - Table name of which we need stats.
     @param index_name_ptr          - Index name of which we need stats.
+    @param column_name_ptr         - Column name for index.
     @param index_ordinal_position  - Ordinal position of index in table.
     @param column_ordinal_position - Ordinal position of column in table.
     @param se_private_id           - se_private_id of the table.
@@ -285,6 +289,7 @@ private:
                               const String &schema_name_ptr,
                               const String &table_name_ptr,
                               const String &index_name_ptr,
+                              const String &column_name_ptr,
                               uint index_ordinal_position,
                               uint column_ordinal_position,
                               dd::Object_id se_private_id,
@@ -301,6 +306,7 @@ private:
     @param schema_name_ptr         - Schema name of table.
     @param table_name_ptr          - Table name of which we need stats.
     @param index_name_ptr          - Index name of which we need stats.
+    @param column_name_ptr         - Column name for index.
     @param column_ordinal_position - Ordinal position of column in table.
     @param partition_name          - Partition name.
     @param stype                   - Enum specifying the stat we are
@@ -313,6 +319,7 @@ private:
                                     const String &table_name_ptr,
                                     const String &index_name_ptr,
                                     const char* partition_name,
+                                    const String &column_name_ptr,
                                     uint column_ordinal_position,
                                     enum_table_stats_type stype);
 
@@ -380,7 +387,7 @@ private:
   inline bool check_error_for_key(const String &db_name,
                                   const String &table_name)
   {
-    if (is_stat_cached(db_name, table_name) && !m_error.empty())
+    if (is_stat_cached_in_mem(db_name, table_name) && !m_error.empty())
       return true;
 
     return false;
