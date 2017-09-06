@@ -191,7 +191,7 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
     closeTransaction(pNdb);
 
     g_info << rows << " rows have been read" << endl;
-    if (records != 0 && rows != records){
+    if (rows != records){
       g_err << "Check expected number of records failed" << endl 
 	    << "  expected=" << records <<", " << endl
 	    << "  read=" << rows << endl;
@@ -1551,10 +1551,12 @@ HugoTransactions::pkDelRecords(Ndb* pNdb,
 			       int records,
 			       int batch,
 			       bool allowConstraintViolation,
-			       int doSleep){
+			       int doSleep,
+                               int start_record)
+{
   // TODO Batch is not implemented
   int deleted = 0;
-  int                  r = 0;
+  int                  r = start_record;
   int                  retryAttempt = 0;
   int                  check;
 
