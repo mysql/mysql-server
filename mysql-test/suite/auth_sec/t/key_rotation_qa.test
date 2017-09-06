@@ -232,4 +232,7 @@ SELECT * FROM t5;
 
 # Cleanup
 DROP TABLE t1,t2,t3,t5,t12,t10;
+
+--source include/force_restart.inc
 --echo #End:
+
