@@ -1292,12 +1292,12 @@ ST_ISVALID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(0 0)))')
 SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 1)', 4236),
 ST_GEOMFROMTEXT('POINT(0 0)', 0)));
 ERROR HY000: Binary geometry function st_makeenvelope given two geometries of different srids: 4236 and 0, which should have been identical.
-SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 1)', 1),
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 1)', 4145),
 ST_GEOMFROMTEXT('POINT(0 0)', 0)));
-ERROR HY000: Binary geometry function st_makeenvelope given two geometries of different srids: 1 and 0, which should have been identical.
+ERROR HY000: Binary geometry function st_makeenvelope given two geometries of different srids: 4145 and 0, which should have been identical.
 SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 1)', 0),
-ST_GEOMFROMTEXT('POINT(0 0)', 100)));
-ERROR HY000: Binary geometry function st_makeenvelope given two geometries of different srids: 0 and 100, which should have been identical.
+ST_GEOMFROMTEXT('POINT(0 0)', 2000)));
+ERROR HY000: Binary geometry function st_makeenvelope given two geometries of different srids: 0 and 2000, which should have been identical.
 #
 # Bug #20085563  ASSERTION `!NULL_VALUE && OPDONE && STR_VALUE_ARG->LENGTH() > 0' FAILED
 #
@@ -1571,9 +1571,9 @@ result
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', -1));
 ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', 1));
-ERROR SR001: Function st_isvalid is only defined for Cartesian spatial reference systems, but one of its arguments is in SRID 1, which has not been defined.
+ERROR SR001: There's no spatial reference system with SRID 1.
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', 1000));
-ERROR SR001: Function st_isvalid is only defined for Cartesian spatial reference systems, but one of its arguments is in SRID 1000, which has not been defined.
+ERROR SR001: There's no spatial reference system with SRID 1000.
 #
 # Bug#20406850 WL#8034 : CRASH WITH ST_ISVAID() IN ITEM_FUNC_ISVALID::VAL_INT FUNCTION
 #

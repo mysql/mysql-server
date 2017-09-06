@@ -152,16 +152,6 @@ ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 4326), 100, 2)
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 4326), 100, 4);
 ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 4326), 100, 4)
 {"crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:EPSG::4326"}}, "type": "Point", "coordinates": [11, 10]}
-SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 12), 100, 2);
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 12), 100, 2)
-{"crs": {"type": "name", "properties": {"name": "EPSG:12"}}, "type": "Point", "coordinates": [10, 11]}
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 12. The axis order is unknown.
-SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 13), 100, 4);
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 13), 100, 4)
-{"crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:EPSG::13"}}, "type": "Point", "coordinates": [10, 11]}
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 13. The axis order is unknown.
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 4326), 100, 6);
 ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 4326), 100, 6)
 {"crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:EPSG::4326"}}, "type": "Point", "coordinates": [11, 10]}
@@ -175,100 +165,61 @@ SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", -1), 100, 4);
 ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", -1000), 100, 6);
 ERROR 22003: SRID value is out of range in 'st_geomfromtext'
-SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 4294967295), 100, 6);
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 4294967295), 100, 6)
-{"crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:EPSG::4294967295"}}, "type": "Point", "coordinates": [10, 11]}
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 4294967296), 100, 6);
 ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 4294967295123), 100, 7);
 ERROR 22003: SRID value is out of range in 'st_geomfromtext'
-SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 12), 0, 0);
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 12), 0, 0)
+SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 0), 0, 0);
+ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 0), 0, 0)
 {"type": "Point", "coordinates": [10, 11]}
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 12. The axis order is unknown.
-SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 13), 4, 7);
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 13), 4, 7)
-{"crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:EPSG::13"}}, "bbox": [10.1235, 11.1235, 10.1235, 11.1235], "type": "Point", "coordinates": [10.1235, 11.1235]}
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 13. The axis order is unknown.
-SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 13), 10, 0);
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 13), 10, 0)
+SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 0), 4, 7);
+ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 0), 4, 7)
+{"bbox": [10.1235, 11.1235, 10.1235, 11.1235], "type": "Point", "coordinates": [10.1235, 11.1235]}
+SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 0), 10, 0);
+ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 0), 10, 0)
 {"type": "Point", "coordinates": [10.123456789, 11.123456789]}
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 13. The axis order is unknown.
-SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 12), 0);
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 12), 0)
+SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 0), 0);
+ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 0), 0)
 {"type": "Point", "coordinates": [10, 11]}
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 12. The axis order is unknown.
-SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 13), 4);
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 13), 4)
+SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 0), 4);
+ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 0), 4)
 {"type": "Point", "coordinates": [10.1235, 11.1235]}
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 13. The axis order is unknown.
-SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 13), 10);
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 13), 10)
+SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 0), 10);
+ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 0), 10)
 {"type": "Point", "coordinates": [10.123456789, 11.123456789]}
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 13. The axis order is unknown.
-SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.123456789)", 13), 10000);
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.123456789)", 13), 10000)
+SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.123456789)", 0), 10000);
+ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.123456789)", 0), 10000)
 {"type": "Point", "coordinates": [10.123456789012346, 11.123456789]}
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 13. The axis order is unknown.
-SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.123456789)", 13), 1000000);
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.123456789)", 13), 1000000)
+SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.123456789)", 0), 1000000);
+ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.123456789)", 0), 1000000)
 {"type": "Point", "coordinates": [10.123456789012346, 11.123456789]}
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 13. The axis order is unknown.
-SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.123456789)", 13), 2147483647);
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.123456789)", 13), 2147483647)
+SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.123456789)", 0), 2147483647);
+ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.123456789)", 0), 2147483647)
 {"type": "Point", "coordinates": [10.123456789012346, 11.123456789]}
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 13. The axis order is unknown.
-SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 1), 10, 0);
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 1), 10, 0)
+SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 0), 10, 0);
+ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 0), 10, 0)
 {"type": "Point", "coordinates": [10.123456789, 11.123456789]}
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
-SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 1), 10, 1);
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 1), 10, 1)
+SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 0), 10, 1);
+ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 0), 10, 1)
 {"bbox": [10.123456789, 11.123456789, 10.123456789, 11.123456789], "type": "Point", "coordinates": [10.123456789, 11.123456789]}
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
-SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 1), 10, 2);
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 1), 10, 2)
-{"crs": {"type": "name", "properties": {"name": "EPSG:1"}}, "type": "Point", "coordinates": [10.123456789, 11.123456789]}
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
-SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 1), 10, 3);
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 1), 10, 3)
-{"crs": {"type": "name", "properties": {"name": "EPSG:1"}}, "bbox": [10.123456789, 11.123456789, 10.123456789, 11.123456789], "type": "Point", "coordinates": [10.123456789, 11.123456789]}
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
-SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 1), 10, 4);
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 1), 10, 4)
-{"crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:EPSG::1"}}, "type": "Point", "coordinates": [10.123456789, 11.123456789]}
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
-SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 1), 10, 5);
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 1), 10, 5)
-{"crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:EPSG::1"}}, "bbox": [10.123456789, 11.123456789, 10.123456789, 11.123456789], "type": "Point", "coordinates": [10.123456789, 11.123456789]}
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
-SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 1), 10, 6);
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 1), 10, 6)
-{"crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:EPSG::1"}}, "type": "Point", "coordinates": [10.123456789, 11.123456789]}
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
-SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 1), 10, 7);
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 1), 10, 7)
-{"crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:EPSG::1"}}, "bbox": [10.123456789, 11.123456789, 10.123456789, 11.123456789], "type": "Point", "coordinates": [10.123456789, 11.123456789]}
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
+SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 0), 10, 2);
+ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 0), 10, 2)
+{"type": "Point", "coordinates": [10.123456789, 11.123456789]}
+SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 0), 10, 3);
+ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 0), 10, 3)
+{"bbox": [10.123456789, 11.123456789, 10.123456789, 11.123456789], "type": "Point", "coordinates": [10.123456789, 11.123456789]}
+SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 0), 10, 4);
+ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 0), 10, 4)
+{"type": "Point", "coordinates": [10.123456789, 11.123456789]}
+SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 0), 10, 5);
+ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 0), 10, 5)
+{"bbox": [10.123456789, 11.123456789, 10.123456789, 11.123456789], "type": "Point", "coordinates": [10.123456789, 11.123456789]}
+SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 0), 10, 6);
+ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 0), 10, 6)
+{"type": "Point", "coordinates": [10.123456789, 11.123456789]}
+SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 0), 10, 7);
+ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 0), 10, 7)
+{"bbox": [10.123456789, 11.123456789, 10.123456789, 11.123456789], "type": "Point", "coordinates": [10.123456789, 11.123456789]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", "0"), 100, 1);
 ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", "0"), 100, 1)
 {"bbox": [10, 11, 10, 11], "type": "Point", "coordinates": [10, 11]}
@@ -276,129 +227,67 @@ SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", "-1"), 100, 2);
 ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", "-1000"), 100, 3);
 ERROR 22003: SRID value is out of range in 'st_geomfromtext'
-SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", "4294967295"), 100, 4);
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", "4294967295"), 100, 4)
-{"crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:EPSG::4294967295"}}, "type": "Point", "coordinates": [10, 11]}
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", "4294967296"), 100, 5);
 ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", "4294967295123"), 100, 6);
 ERROR 22003: SRID value is out of range in 'st_geomfromtext'
-SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", (CAST(10 AS CHAR))), 100, 7);
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", (CAST(10 AS CHAR))), 100, 7)
-{"crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:EPSG::10"}}, "bbox": [10, 11, 10, 11], "type": "Point", "coordinates": [10, 11]}
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 10. The axis order is unknown.
-SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 12), "0", 1);
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 12), "0", 1)
+SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", (CAST(4326 AS CHAR))), 100, 7);
+ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", (CAST(4326 AS CHAR))), 100, 7)
+{"crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:EPSG::4326"}}, "bbox": [11, 10, 11, 10], "type": "Point", "coordinates": [11, 10]}
+SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 0), "0", 1);
+ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 0), "0", 1)
 {"bbox": [10, 11, 10, 11], "type": "Point", "coordinates": [10, 11]}
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 12. The axis order is unknown.
-SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 13), "4", 2);
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 13), "4", 2)
-{"crs": {"type": "name", "properties": {"name": "EPSG:13"}}, "type": "Point", "coordinates": [10.1235, 11.1235]}
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 13. The axis order is unknown.
-SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 13), "10", 3);
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 13), "10", 3)
-{"crs": {"type": "name", "properties": {"name": "EPSG:13"}}, "bbox": [10.123456789, 11.123456789, 10.123456789, 11.123456789], "type": "Point", "coordinates": [10.123456789, 11.123456789]}
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 13. The axis order is unknown.
-SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 13), "10000", 4);
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 13), "10000", 4)
-{"crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:EPSG::13"}}, "type": "Point", "coordinates": [10.123456789012346, 11.123456789012346]}
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 13. The axis order is unknown.
-SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 13), "1000000", 5);
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 13), "1000000", 5)
-{"crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:EPSG::13"}}, "bbox": [10.123456789012346, 11.123456789012346, 10.123456789012346, 11.123456789012346], "type": "Point", "coordinates": [10.123456789012346, 11.123456789012346]}
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 13. The axis order is unknown.
-SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 13), "2147483647", 6);
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 13), "2147483647", 6)
-{"crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:EPSG::13"}}, "type": "Point", "coordinates": [10.123456789012346, 11.123456789012346]}
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 13. The axis order is unknown.
-SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 13), (CAST(20 AS CHAR)), 7);
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 13), (CAST(20 AS CHAR)), 7)
-{"crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:EPSG::13"}}, "bbox": [10.123456789012346, 11.123456789012346, 10.123456789012346, 11.123456789012346], "type": "Point", "coordinates": [10.123456789012346, 11.123456789012346]}
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 13. The axis order is unknown.
-SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 1), 10, "0");
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 1), 10, "0")
-{"type": "Point", "coordinates": [10.123456789, 11.123456789]}
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
-SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 10), 10, "1");
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 10), 10, "1")
+SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 0), "4", 2);
+ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 0), "4", 2)
+{"type": "Point", "coordinates": [10.1235, 11.1235]}
+SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 0), "10", 3);
+ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 0), "10", 3)
 {"bbox": [10.123456789, 11.123456789, 10.123456789, 11.123456789], "type": "Point", "coordinates": [10.123456789, 11.123456789]}
+SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 0), "10000", 4);
+ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 0), "10000", 4)
+{"type": "Point", "coordinates": [10.123456789012346, 11.123456789012346]}
+SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 0), "1000000", 5);
+ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 0), "1000000", 5)
+{"bbox": [10.123456789012346, 11.123456789012346, 10.123456789012346, 11.123456789012346], "type": "Point", "coordinates": [10.123456789012346, 11.123456789012346]}
+SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 0), "2147483647", 6);
+ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 0), "2147483647", 6)
+{"type": "Point", "coordinates": [10.123456789012346, 11.123456789012346]}
+SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 0), (CAST(20 AS CHAR)), 7);
+ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 0), (CAST(20 AS CHAR)), 7)
+{"bbox": [10.123456789012346, 11.123456789012346, 10.123456789012346, 11.123456789012346], "type": "Point", "coordinates": [10.123456789012346, 11.123456789012346]}
+SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 0), 10, (CAST(7 AS CHAR)));
+ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 0), 10, (CAST(7 AS CHAR)))
+{"bbox": [10.123456789, 11.123456789, 10.123456789, 11.123456789], "type": "Point", "coordinates": [10.123456789, 11.123456789]}
+SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", " 4326.34 "), 100, 1);
+ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", " 4326.34 "), 100, 1)
+{"bbox": [11, 10, 11, 10], "type": "Point", "coordinates": [11, 10]}
 Warnings:
-Warning	3565	There's no spatial reference system with SRID 10. The axis order is unknown.
-SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 100), 10, "2");
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 100), 10, "2")
-{"crs": {"type": "name", "properties": {"name": "EPSG:100"}}, "type": "Point", "coordinates": [10.123456789, 11.123456789]}
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 100. The axis order is unknown.
-SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 1000), 10, "3");
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 1000), 10, "3")
-{"crs": {"type": "name", "properties": {"name": "EPSG:1000"}}, "bbox": [10.123456789, 11.123456789, 10.123456789, 11.123456789], "type": "Point", "coordinates": [10.123456789, 11.123456789]}
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1000. The axis order is unknown.
-SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 10000), 10, "4");
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 10000), 10, "4")
-{"crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:EPSG::10000"}}, "type": "Point", "coordinates": [10.123456789, 11.123456789]}
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 10000. The axis order is unknown.
-SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 100000), 10, "5");
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 100000), 10, "5")
-{"crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:EPSG::100000"}}, "bbox": [10.123456789, 11.123456789, 10.123456789, 11.123456789], "type": "Point", "coordinates": [10.123456789, 11.123456789]}
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 100000. The axis order is unknown.
-SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 1000000), 10, "6");
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 1000000), 10, "6")
-{"crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:EPSG::1000000"}}, "type": "Point", "coordinates": [10.123456789, 11.123456789]}
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1000000. The axis order is unknown.
-SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 10000000), 10, (CAST(7 AS CHAR)));
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.1234567890123456789 11.1234567890123456789)", 10000000), 10, (CAST(7 AS CHAR)))
-{"crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:EPSG::10000000"}}, "bbox": [10.123456789, 11.123456789, 10.123456789, 11.123456789], "type": "Point", "coordinates": [10.123456789, 11.123456789]}
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 10000000. The axis order is unknown.
-SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", " 12.34 "), 100, 1);
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", " 12.34 "), 100, 1)
-{"bbox": [10, 11, 10, 11], "type": "Point", "coordinates": [10, 11]}
-Warnings:
-Warning	1292	Truncated incorrect INTEGER value: ' 12.34 '
-Warning	3565	There's no spatial reference system with SRID 12. The axis order is unknown.
-SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", "*&$%123"), 100, 2);
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", "*&$%123"), 100, 2)
+Warning	1292	Truncated incorrect INTEGER value: ' 4326.34 '
+SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", "*&$%4326"), 100, 2);
+ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", "*&$%4326"), 100, 2)
 {"type": "Point", "coordinates": [10, 11]}
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '*&$%123'
-SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 10), "12.34", 3);
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 10), "12.34", 3)
-{"crs": {"type": "name", "properties": {"name": "EPSG:10"}}, "bbox": [10, 11, 10, 11], "type": "Point", "coordinates": [10, 11]}
+Warning	1292	Truncated incorrect INTEGER value: '*&$%4326'
+SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 0), "12.34", 3);
+ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 0), "12.34", 3)
+{"bbox": [10, 11, 10, 11], "type": "Point", "coordinates": [10, 11]}
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: '12.34'
-Warning	3565	There's no spatial reference system with SRID 10. The axis order is unknown.
-SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 100), "*&$%$123", 4);
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 100), "*&$%$123", 4)
-{"crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:EPSG::100"}}, "type": "Point", "coordinates": [10, 11]}
+SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 4326), "*&$%$123", 4);
+ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 4326), "*&$%$123", 4)
+{"crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:EPSG::4326"}}, "type": "Point", "coordinates": [11, 10]}
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: '*&$%$123'
-Warning	3565	There's no spatial reference system with SRID 100. The axis order is unknown.
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 4236), 10, "06.34");
 ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 4236), 10, "06.34")
 {"crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:EPSG::4236"}}, "type": "Point", "coordinates": [11, 10]}
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: '06.34'
-SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 10000), 10, "*&$%$123");
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 10000), 10, "*&$%$123")
-{"type": "Point", "coordinates": [10, 11]}
+SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 4326), 10, "*&$%$123");
+ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 4326), 10, "*&$%$123")
+{"type": "Point", "coordinates": [11, 10]}
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: '*&$%$123'
-Warning	3565	There's no spatial reference system with SRID 10000. The axis order is unknown.
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("MULTIPOLYGON(((40 40, 20 45, 45 30, 40 40)),"
                                     "((20 35, 10 30, 10 10, 30 5, 45 20, 20 35),"
                                     "(30 20, 20 15, 20 25, 30 20)))"), 10, 1);
@@ -1252,12 +1141,7 @@ SELECT ST_GEOMFROMGEOJSON(
 "          { \"NAME\": \"urn:ogc:def:crs:EPSG::1234\" }   "
 "        }                                                "
 "  }");
-ST_GEOMFROMGEOJSON(
-"  { \"type\": \"Point\", \"coordinates\": [10, 20],      "
-"      \"CRS\":                                           "
-"        { \"TYPE\": \"name\", \"PROPERTIES\":            "
-"          { \"NAME\": \"urn:ogc:def:crs:EPSG::1234\" } 
-Ò           $@      4@
+ERROR SR001: There's no spatial reference system with SRID 1234.
 SELECT ST_SRID(ST_GEOMFROMGEOJSON(
 "  { \"type\": \"Point\", \"coordinates\": [10, 20],               "
 "      \"crs\":                                                    "
@@ -1271,6 +1155,14 @@ ST_SRID(ST_GEOMFROMGEOJSON(
 "        { \"type\": \"name\", \"properties\":                     "
 "          { \"name\"
 4326
+SELECT ST_SRID(ST_GEOMFROMGEOJSON(
+"  { \"type\": \"Point\", \"coordinates\": [10, 20],               "
+"      \"crs\":                                                    "
+"        { \"type\": \"name\", \"properties\":                     "
+"          { \"name\": \"urn:ogc:def:crs:OGC:1.3:crs84\" }         "
+"        }                                                         "
+"  }", 1, 10));
+ERROR SR001: There's no spatial reference system with SRID 10.
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"point\", \"coordinates\": [102.0, 0.0]}"));
 ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson
@@ -1539,52 +1431,25 @@ ST_ASTEXT(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"Point\", \"coordinates\": [10, 15] }", 1, 0))
 POINT(10 15)
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
-"{ \"type\": \"Point\", \"coordinates\": [10, 15, 20] }", 2, 10000));
+"{ \"type\": \"Point\", \"coordinates\": [10, 15, 20] }", 2, 0));
 ST_ASTEXT(ST_GEOMFROMGEOJSON(
-"{ \"type\": \"Point\", \"coordinates\": [10, 15, 20] }", 2, 10000))
+"{ \"type\": \"Point\", \"coordinates\": [10, 15, 20] }", 2, 0))
 POINT(10 15)
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 10000. The axis order is unknown.
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
-"{ \"type\": \"Point\", \"coordinates\": [10, 15, 20] }", 3, 10000000));
+"{ \"type\": \"Point\", \"coordinates\": [10, 15, 20] }", 3, 0));
 ST_ASTEXT(ST_GEOMFROMGEOJSON(
-"{ \"type\": \"Point\", \"coordinates\": [10, 15, 20] }", 3, 10000000))
+"{ \"type\": \"Point\", \"coordinates\": [10, 15, 20] }", 3, 0))
 POINT(10 15)
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 10000000. The axis order is unknown.
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
-"{ \"type\": \"Point\", \"coordinates\": [10, 15, 20, 25] }", 4, 4294967295));
+"{ \"type\": \"Point\", \"coordinates\": [10, 15, 20, 25] }", 4, 0));
 ST_ASTEXT(ST_GEOMFROMGEOJSON(
-"{ \"type\": \"Point\", \"coordinates\": [10, 15, 20, 25] }", 4, 4294967295))
+"{ \"type\": \"Point\", \"coordinates\": [10, 15, 20, 25] }", 4, 0))
 POINT(10 15)
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"Point\", \"coordinates\": [10, 15] }", 1, "0"));
 ST_ASTEXT(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"Point\", \"coordinates\": [10, 15] }", 1, "0"))
 POINT(10 15)
-SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
-"{ \"type\": \"Point\", \"coordinates\": [10, 15, 20] }", 2, "10000"));
-ST_ASTEXT(ST_GEOMFROMGEOJSON(
-"{ \"type\": \"Point\", \"coordinates\": [10, 15, 20] }", 2, "10000"))
-POINT(10 15)
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 10000. The axis order is unknown.
-SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
-"{ \"type\": \"Point\", \"coordinates\": [10, 15, 20] }", 3, "10000000"));
-ST_ASTEXT(ST_GEOMFROMGEOJSON(
-"{ \"type\": \"Point\", \"coordinates\": [10, 15, 20] }", 3, "10000000"))
-POINT(10 15)
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 10000000. The axis order is unknown.
-SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
-"{ \"type\": \"Point\", \"coordinates\": [10, 15, 20, 25] }", 4, "4294967295"));
-ST_ASTEXT(ST_GEOMFROMGEOJSON(
-"{ \"type\": \"Point\", \"coordinates\": [10, 15, 20, 25] }", 4, "4294967295"))
-POINT(10 15)
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"Point\", \"coordinates\": [102.0, 0.0]}", SUM(1), SUM(4326)));
 ERROR HY000: Incorrect type for argument SRID in function st_geomfromgeojson.
@@ -1911,12 +1776,7 @@ SELECT ST_SRID(ST_GEOMFROMGEOJSON(
 "          { \"name\": \"urn:ogc:def:crs:EPSG::1234\" }   "
 "        }                                                "
 "  }"));
-ST_SRID(ST_GEOMFROMGEOJSON(
-"  { \"type\": \"Point\", \"coordinates\": [10, 20],      "
-"      \"crs\":                                           "
-"        { \"type\": \"name\", \"properties\":            "
-"          { \"name\": \"urn:ogc:def:crs:EPSG::1
-1234
+ERROR SR001: There's no spatial reference system with SRID 1234.
 SELECT ST_SRID(ST_GEOMFROMGEOJSON(
 "  { \"type\": \"Point\", \"coordinates\": [10, 20],      "
 "      \"crs\":                                           "
@@ -1924,12 +1784,7 @@ SELECT ST_SRID(ST_GEOMFROMGEOJSON(
 "          { \"name\": \"urn:ogc:def:crs:EPSG::1\" }      "
 "        }                                                "
 "  }"));
-ST_SRID(ST_GEOMFROMGEOJSON(
-"  { \"type\": \"Point\", \"coordinates\": [10, 20],      "
-"      \"crs\":                                           "
-"        { \"type\": \"name\", \"properties\":            "
-"          { \"name\": \"urn:ogc:def:crs:EPSG::1
-1
+ERROR SR001: There's no spatial reference system with SRID 1.
 SELECT ST_SRID(ST_GEOMFROMGEOJSON(
 "  { \"type\": \"Point\", \"coordinates\": [10, 20],            "
 "      \"crs\":                                                 "
@@ -1937,12 +1792,7 @@ SELECT ST_SRID(ST_GEOMFROMGEOJSON(
 "          { \"name\": \"urn:ogc:def:crs:EPSG::4294967295\" }   "
 "        }                                                      "
 "  }"));
-ST_SRID(ST_GEOMFROMGEOJSON(
-"  { \"type\": \"Point\", \"coordinates\": [10, 20],            "
-"      \"crs\":                                                 "
-"        { \"type\": \"name\", \"properties\":                  "
-"          { \"name\": \"urn:o
-4294967295
+ERROR SR001: There's no spatial reference system with SRID 4294967295.
 SELECT ST_SRID(ST_GEOMFROMGEOJSON(
 "  { \"type\": \"Point\", \"coordinates\": [10, 20],      "
 "      \"crs\":                                           "
@@ -1950,12 +1800,7 @@ SELECT ST_SRID(ST_GEOMFROMGEOJSON(
 "          { \"name\": \"EPSG:234\" }                     "
 "        }                                                "
 "  }"));
-ST_SRID(ST_GEOMFROMGEOJSON(
-"  { \"type\": \"Point\", \"coordinates\": [10, 20],      "
-"      \"crs\":                                           "
-"        { \"type\": \"name\", \"properties\":            "
-"          { \"name\": \"EPSG:234\" }           
-234
+ERROR SR001: There's no spatial reference system with SRID 234.
 SELECT ST_SRID(ST_GEOMFROMGEOJSON(
 "  { \"type\": \"Point\", \"coordinates\": [10, 20],      "
 "      \"crs\":                                           "
@@ -1963,12 +1808,7 @@ SELECT ST_SRID(ST_GEOMFROMGEOJSON(
 "          { \"name\": \"EPSG:1\" }                       "
 "        }                                                "
 "  }"));
-ST_SRID(ST_GEOMFROMGEOJSON(
-"  { \"type\": \"Point\", \"coordinates\": [10, 20],      "
-"      \"crs\":                                           "
-"        { \"type\": \"name\", \"properties\":            "
-"          { \"name\": \"EPSG:1\" }             
-1
+ERROR SR001: There's no spatial reference system with SRID 1.
 SELECT ST_SRID(ST_GEOMFROMGEOJSON(
 "  { \"type\": \"Point\", \"coordinates\": [10, 20],      "
 "      \"crs\":                                           "
@@ -1976,12 +1816,7 @@ SELECT ST_SRID(ST_GEOMFROMGEOJSON(
 "          { \"name\": \"EPSG:4294967295\" }              "
 "        }                                                "
 "  }"));
-ST_SRID(ST_GEOMFROMGEOJSON(
-"  { \"type\": \"Point\", \"coordinates\": [10, 20],      "
-"      \"crs\":                                           "
-"        { \"type\": \"name\", \"properties\":            "
-"          { \"name\": \"EPSG:4294967295\" }    
-4294967295
+ERROR SR001: There's no spatial reference system with SRID 4294967295.
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
 "  { \"type\": \"Point\", \"coordinates\": [10, 20],      "
 "      \"crs\": null                                      "
@@ -2153,64 +1988,12 @@ SELECT ST_SRID(ST_GEOMFROMGEOJSON(
 "        { \"type\": \"name\", \"properties\":                  "
 "          { \"name\": \"urn:ogc:def:crs:EPSG::0\" }            "
 "        }                                                      "
-"  }", 1, 10));
+"  }", 1, 4326));
 ST_SRID(ST_GEOMFROMGEOJSON(
 "  { \"type\": \"Point\", \"coordinates\": [10, 20],            "
 "      \"crs\":                                                 "
 "        { \"type\": \"name\", \"properties\":                  "
 "          { \"name\": \"urn:o
-10
-SELECT ST_SRID(ST_GEOMFROMGEOJSON(
-"  { \"type\": \"Point\", \"coordinates\": [10, 20],            "
-"      \"crs\":                                                 "
-"        { \"type\": \"name\", \"properties\":                  "
-"          { \"name\": \"urn:ogc:def:crs:EPSG::-1\" }           "
-"        }                                                      "
-"  }", 1, 10000));
-ST_SRID(ST_GEOMFROMGEOJSON(
-"  { \"type\": \"Point\", \"coordinates\": [10, 20],            "
-"      \"crs\":                                                 "
-"        { \"type\": \"name\", \"properties\":                  "
-"          { \"name\": \"urn:o
-10000
-SELECT ST_SRID(ST_GEOMFROMGEOJSON(
-"  { \"type\": \"Point\", \"coordinates\": [10, 20],            "
-"      \"crs\":                                                 "
-"        { \"type\": \"name\", \"properties\":                  "
-"          { \"name\": \"urn:ogc:def:crs:EPSG::4294967296\" }   "
-"        }                                                      "
-"  }", 1, 1000000));
-ST_SRID(ST_GEOMFROMGEOJSON(
-"  { \"type\": \"Point\", \"coordinates\": [10, 20],            "
-"      \"crs\":                                                 "
-"        { \"type\": \"name\", \"properties\":                  "
-"          { \"name\": \"urn:o
-1000000
-SELECT ST_SRID(ST_GEOMFROMGEOJSON(
-"  { \"type\": \"Point\", \"coordinates\": [10, 20],               "
-"      \"crs\":                                                    "
-"        { \"type\": \"name\", \"properties\":                     "
-"          { \"name\": \"urn:ogc:def:crs:EPSG::4294967295000\" }   "
-"        }                                                         "
-"  }", 1, 100000000));
-ST_SRID(ST_GEOMFROMGEOJSON(
-"  { \"type\": \"Point\", \"coordinates\": [10, 20],               "
-"      \"crs\":                                                    "
-"        { \"type\": \"name\", \"properties\":                     "
-"          { \"name\"
-100000000
-SELECT ST_SRID(ST_GEOMFROMGEOJSON(
-"  { \"type\": \"Point\", \"coordinates\": [10, 20],               "
-"      \"crs\":                                                    "
-"        { \"type\": \"name\", \"properties\":                     "
-"          { \"name\": \"urn:ogc:def:crs:OGC:1.3:CRS84\" }         "
-"        }                                                         "
-"  }", 1));
-ST_SRID(ST_GEOMFROMGEOJSON(
-"  { \"type\": \"Point\", \"coordinates\": [10, 20],               "
-"      \"crs\":                                                    "
-"        { \"type\": \"name\", \"properties\":                     "
-"          { \"name\"
 4326
 SELECT ST_SRID(ST_GEOMFROMGEOJSON(
 "  { \"type\": \"Point\", \"coordinates\": [10, 20],               "
@@ -3887,12 +3670,7 @@ SELECT ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "          { \"name\": \"urn:ogc:def:crs:EPSG::1234\" }   "
 "        }                                                "
 "  }"), 5, 0);
-ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
-"  { \"type\": \"Point\", \"coordinates\": [10, 20],      "
-"      \"crs\":                                           "
-"        { \"type\": \"name\", \"properties\":            "
-"          { \"name\": \"urn:ogc:def:crs:EP
-{"type": "Point", "coordinates": [10, 20]}
+ERROR SR001: There's no spatial reference system with SRID 1234.
 SELECT ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "  { \"type\": \"Point\", \"coordinates\": [10, 20],      "
 "      \"crs\":                                           "
@@ -3900,12 +3678,7 @@ SELECT ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "          { \"name\": \"urn:ogc:def:crs:EPSG::1\" }      "
 "        }                                                "
 "  }"), 5, 1);
-ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
-"  { \"type\": \"Point\", \"coordinates\": [10, 20],      "
-"      \"crs\":                                           "
-"        { \"type\": \"name\", \"properties\":            "
-"          { \"name\": \"urn:ogc:def:crs:EP
-{"bbox": [10, 20, 10, 20], "type": "Point", "coordinates": [10, 20]}
+ERROR SR001: There's no spatial reference system with SRID 1.
 SELECT ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "  { \"type\": \"Point\", \"coordinates\": [10, 20],            "
 "      \"crs\":                                                 "
@@ -3913,12 +3686,7 @@ SELECT ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "          { \"name\": \"urn:ogc:def:crs:EPSG::4294967295\" }   "
 "        }                                                      "
 "  }"), 5, 2);
-ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
-"  { \"type\": \"Point\", \"coordinates\": [10, 20],            "
-"      \"crs\":                                                 "
-"        { \"type\": \"name\", \"properties\":                  "
-"          { \"name\": \"
-{"crs": {"type": "name", "properties": {"name": "EPSG:4294967295"}}, "type": "Point", "coordinates": [10, 20]}
+ERROR SR001: There's no spatial reference system with SRID 4294967295.
 SELECT ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "  { \"type\": \"Point\", \"coordinates\": [10, 20],      "
 "      \"crs\":                                           "
@@ -3926,12 +3694,7 @@ SELECT ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "          { \"name\": \"EPSG:234\" }                     "
 "        }                                                "
 "  }"), 5, 3);
-ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
-"  { \"type\": \"Point\", \"coordinates\": [10, 20],      "
-"      \"crs\":                                           "
-"        { \"type\": \"name\", \"properties\":            "
-"          { \"name\": \"EPSG:234\" }      
-{"crs": {"type": "name", "properties": {"name": "EPSG:234"}}, "bbox": [10, 20, 10, 20], "type": "Point", "coordinates": [10, 20]}
+ERROR SR001: There's no spatial reference system with SRID 234.
 SELECT ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "  { \"type\": \"Point\", \"coordinates\": [10, 20],      "
 "      \"crs\":                                           "
@@ -3939,12 +3702,7 @@ SELECT ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "          { \"name\": \"EPSG:1\" }                       "
 "        }                                                "
 "  }"), 5, 5);
-ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
-"  { \"type\": \"Point\", \"coordinates\": [10, 20],      "
-"      \"crs\":                                           "
-"        { \"type\": \"name\", \"properties\":            "
-"          { \"name\": \"EPSG:1\" }        
-{"crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:EPSG::1"}}, "bbox": [10, 20, 10, 20], "type": "Point", "coordinates": [10, 20]}
+ERROR SR001: There's no spatial reference system with SRID 1.
 SELECT ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "  { \"type\": \"Point\", \"coordinates\": [10, 20],      "
 "      \"crs\":                                           "
@@ -3952,12 +3710,7 @@ SELECT ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "          { \"name\": \"EPSG:4294967295\" }              "
 "        }                                                "
 "  }"), 5, 7);
-ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
-"  { \"type\": \"Point\", \"coordinates\": [10, 20],      "
-"      \"crs\":                                           "
-"        { \"type\": \"name\", \"properties\":            "
-"          { \"name\": \"EPSG:4294967295\" 
-{"crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:EPSG::4294967295"}}, "bbox": [10, 20, 10, 20], "type": "Point", "coordinates": [10, 20]}
+ERROR SR001: There's no spatial reference system with SRID 4294967295.
 SELECT ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "  { \"type\": \"Point\", \"coordinates\": [10, 20],      "
 "      \"crs\": null                                      "
@@ -4221,29 +3974,21 @@ PRIMARY KEY (`gid`)
 );
 INSERT INTO geojson (geojson_value) VALUES
 (ST_AsGeoJSON(ST_GeomFromText('POINT(10 11)', 4326), 100, 2)),
-(ST_AsGeoJSON(ST_GeomFromText('POINT(-1.324 66.231)', 5423), 100, 2)),
-(ST_AsGeoJSON(ST_GeomFromText('POINT(98.344 -123.001)', 1), 100, 2)),
-(ST_AsGeoJSON(ST_GeomFromText('POINT(0.0 0.0)', 200004), 100, 2));
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 5423. The axis order is unknown.
-Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
-Warning	3565	There's no spatial reference system with SRID 200004. The axis order is unknown.
+(ST_AsGeoJSON(ST_GeomFromText('POINT(-1.324 66.231)', 0), 100, 2)),
+(ST_AsGeoJSON(ST_GeomFromText('POINT(98.344 -123.001)', 0), 100, 2)),
+(ST_AsGeoJSON(ST_GeomFromText('POINT(0.0 0.0)', 0), 100, 2));
 SELECT ST_AsText(ST_GeomFromGeoJSON(geojson_value)) FROM geojson;
 ST_AsText(ST_GeomFromGeoJSON(geojson_value))
 POINT(10 11)
-POINT(-1.324 66.231)
-POINT(98.344 -123.001)
+POINT(66.231 -1.324)
+POINT(-123.001 98.344)
 POINT(0 0)
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 5423. The axis order is unknown.
-Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
-Warning	3565	There's no spatial reference system with SRID 200004. The axis order is unknown.
 SELECT ST_SRID(ST_GeomFromGeoJSON(geojson_value)) FROM geojson;
 ST_SRID(ST_GeomFromGeoJSON(geojson_value))
 4326
-5423
-1
-200004
+4326
+4326
+4326
 DROP TABLE geojson;
 #
 # Bug#21384048 ASSERTION FAILED: N >= 0 && N <= 308
@@ -4367,42 +4112,10 @@ ST_SRID(ST_GEOMFROMGEOJSON(
 "        { \"type\": \"name\", \"properties\":                     "
 "          { \"name\"
 4326
-# Undefined SRS (should pass)
-SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT('POINT(0 0)', 19000000));
-ST_ASGEOJSON(ST_GEOMFROMTEXT('POINT(0 0)', 19000000))
-{"type": "Point", "coordinates": [0, 0]}
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 19000000. The axis order is unknown.
-SELECT ST_SRID(ST_GEOMFROMGEOJSON(
-"  { \"type\": \"Point\", \"coordinates\": [10, 20],               "
-"      \"crs\":                                                    "
-"        { \"type\": \"name\", \"properties\":                     "
-"          { \"name\": \"urn:ogc:def:crs:OGC:1.3:crs84\" }         "
-"        }                                                         "
-"  }", 1, 19000000));
-ST_SRID(ST_GEOMFROMGEOJSON(
-"  { \"type\": \"Point\", \"coordinates\": [10, 20],               "
-"      \"crs\":                                                    "
-"        { \"type\": \"name\", \"properties\":                     "
-"          { \"name\"
-19000000
-# Unparseable SRS definition (should pass)
+# Unparseable SRS definition (should fail)
 INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
 organization, organization_coordsys_id, definition, description)
 VALUES (22222222, 1, 'TEST22222222', 'Foo', 22222222, 'FOOBAR', '');
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT('POINT(0 0)', 22222222));
 ERROR SR002: Can't parse the spatial reference system definition of SRID 22222222.
-SELECT ST_SRID(ST_GEOMFROMGEOJSON(
-"  { \"type\": \"Point\", \"coordinates\": [10, 20],               "
-"      \"crs\":                                                    "
-"        { \"type\": \"name\", \"properties\":                     "
-"          { \"name\": \"urn:ogc:def:crs:OGC:1.3:crs84\" }         "
-"        }                                                         "
-"  }", 1, 22222222));
-ST_SRID(ST_GEOMFROMGEOJSON(
-"  { \"type\": \"Point\", \"coordinates\": [10, 20],               "
-"      \"crs\":                                                    "
-"        { \"type\": \"name\", \"properties\":                     "
-"          { \"name\"
-22222222
 DELETE FROM mysql.st_spatial_reference_systems WHERE id = 22222222;

@@ -288,8 +288,7 @@ CALL gis_wkb_funcs(2000);
 CALL gis_wkb_funcs(4326);
 # Undefined SRS (should pass)
 CALL gis_wkb_funcs(19000000);
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 19000000. The axis order is unknown.
+ERROR SR001: There's no spatial reference system with SRID 19000000.
 # Unparseable SRS definition (should fail)
 INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
 organization, organization_coordsys_id, definition, description)
@@ -784,15 +783,6 @@ ERROR 22023: The options argument in function st_geomcollfromwkb ends with the i
 SELECT ST_ASTEXT(ST_GEOMCOLLFROMWKB(@wkb_gc,
 31000000,'axis-order== srid-defined'));
 ERROR 22023: The options argument in function st_geomcollfromwkb contains the invalid character sequence '=='.
-# Undefined spatial reference system
-SELECT ST_ASTEXT(ST_MULTIPOLYGONFROMWKB(@wkb_mpy,
-313000, 'axis-order=srid-defined'));
-ST_ASTEXT(ST_MULTIPOLYGONFROMWKB(@wkb_mpy,
-313000, 'axis-order=srid-defined'))
-MULTIPOLYGON(((0 1,0 10,10 11,10 0,0 1),(4 5,4 6,6 7,6 4,4 5)),((10 11,10 12,12 13,12 10,10 11)))
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 313000. The axis order is unknown.
-Warning	3565	There's no spatial reference system with SRID 313000. The axis order is unknown.
 # ######################################################################
 # Empty string and white space testing
 # ######################################################################

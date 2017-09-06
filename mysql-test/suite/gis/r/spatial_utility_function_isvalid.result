@@ -381,10 +381,6 @@ SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_all_points,-1));
 ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_lines_near_vertical,4236));
 ERROR 22S00: Function st_isvalid is only defined for Cartesian spatial reference systems, but one of its arguments is in SRID 4236, which is not Cartesian.
-SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star,123456789));
-ERROR SR001: Function st_isvalid is only defined for Cartesian spatial reference systems, but one of its arguments is in SRID 123456789, which has not been defined.
-SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_elem_vertical,4294967295));
-ERROR SR001: Function st_isvalid is only defined for Cartesian spatial reference systems, but one of its arguments is in SRID 4294967295, which has not been defined.
 SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_of_elems,4294967297));
 ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_collection_elems,4294967295000));
@@ -437,9 +433,6 @@ ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', 2000))
 # Geographic SRS (should fail)
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', 4326));
 ERROR 22S00: Function st_isvalid is only defined for Cartesian spatial reference systems, but one of its arguments is in SRID 4326, which is not Cartesian.
-# Undefined SRS (should fail)
-SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', 2000000));
-ERROR SR001: Function st_isvalid is only defined for Cartesian spatial reference systems, but one of its arguments is in SRID 2000000, which has not been defined.
 # Unparseable SRS definition (should fail)
 INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
 organization, organization_coordsys_id, definition, description)
