@@ -18,7 +18,7 @@ Next NDBCNTR 1007
 Next NDBFS 2002
 Next DBACC 3006
 Next DBTUP 4039
-Next DBLQH 5093
+Next DBLQH 5092
 Next DBDICT 6223
 Next DBDIH 7249
 Next DBTC 8117
@@ -105,8 +105,6 @@ Delay GCP_SAVEREQ by 10 secs
 
 5090:
 Delay opening next redo log file.
-
-5092: Delay COMMIT of READ-EX and COMPLETE of DELETE
 
 7165: Delay INCL_NODE_REQ in starting node yeilding error in GCP_PREPARE
 
