@@ -3147,10 +3147,6 @@ private:
                         Uint32*);
   void free_fix_rec(Fragrecord*, Tablerec*, Local_key*, Fix_page*);
   
-  void dump899Info(Tablerec* regTabPtr,
-                   Fragrecord* regFragPtr,
-                   Local_key rowId);
-
   Uint32* alloc_fix_rowid(Uint32 * err,
                           Fragrecord*, Tablerec*, Local_key*, Uint32 *);
   Uint32* alloc_var_rowid(Uint32 * err,

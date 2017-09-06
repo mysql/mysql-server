@@ -3736,6 +3736,7 @@ void Dbacc::commitdelete(Signal* signal)
   Uint32 lastBucketConidx;
 
   jam();
+  report_dealloc(signal, operationRecPtr.p);
   
   getdirindex(lastBucketPageptr, lastBucketConidx);
   lastPageptr = lastBucketPageptr;
@@ -4638,26 +4639,6 @@ void Dbacc::abortOperation(Signal* signal)
     if (queue)
     {
       jam();
-      /* -------------------------------------------------------------------
-       * One or more operations from a transaction are being aborted. If a
-       * row is deleted (OP_ELEMENT_DISAPPEARED), one of the operations must
-       * dealloc the rowID. The op which dealloc's the rowID has m_dealloc=1.
-       * An op will be marked with m_dealloc=1 if:
-       * - no other ops are queued on same row (nextParallelQue = RNIL)
-       * - other ops are queued on same row + op is in OP_STATE_RUNNING
-       * ------------------------------------------------------------------ */
-      bool noMoreParallelOps = operationRecPtr.p->nextParallelQue == RNIL;
-      Uint32 opstate = opbits & Operationrec::OP_STATE_MASK;
-      if (noMoreParallelOps || opstate == Operationrec::OP_STATE_RUNNING)
-      {
-        ndbassert(!noMoreParallelOps ||
-                  (opstate == Operationrec::OP_STATE_EXECUTED));
-        if (opbits & Operationrec::OP_ELEMENT_DISAPPEARED)
-        {
-          jam();
-          report_dealloc(signal, operationRecPtr.p); // set m_dealloc = 1
-        }
-      }
       release_lockowner(signal, operationRecPtr, false);
     } 
     else 
@@ -4689,12 +4670,6 @@ void Dbacc::abortOperation(Signal* signal)
       else 
       {
         jam();
-        /* -------------------------------------------------------------------
-         * No other ops are queued, either on the same row (nextParallelQue)
-         * or on a different row (nextSerialQue). Set m_dealloc = 1 for this
-         * op so that it deallocates the rowId during COMPLETE.
-         * ------------------------------------------------------------------ */
-        report_dealloc(signal, operationRecPtr.p); // set m_dealloc = 1
         commitdelete(signal);
       }//if
     }//if
@@ -4710,7 +4685,7 @@ void Dbacc::abortOperation(Signal* signal)
 }
 
 void
-Dbacc::commitDeleteCheck(Signal *signal)
+Dbacc::commitDeleteCheck()const
 {
   OperationrecPtr opPtr;
   OperationrecPtr lastOpPtr;
@@ -4745,29 +4720,6 @@ Dbacc::commitDeleteCheck(Signal *signal)
        * ----------------------------------------------------------------- */
       hashValue = deleteOpPtr.p->hashValue;
       elementDeleted = Operationrec::OP_ELEMENT_DISAPPEARED;
-      /* -------------------------------------------------------------------
-       * While committing, the queue of operations to be committed is stable
-       * throughout the commit/complete process because no ops are added or
-       * deleted. So it is safe to select the dealloc op before committing
-       * all the ops. This is done ONLY for commits, since aborts do not have
-       * stable oplists and cannot have their dealloc ops selected in advance.
-       *
-       * REQUIREMENT: The sequence of dealloc@backup -> dealloc@primary must be
-       * followed so that a rowId is never available on the primary before it
-       * is available on the backup replica. If a rowId is available on the
-       * primary and not on the backup, it can be seized by an INSERT op, which
-       * will cause an 899 error (rowID already allocated on backup replica).
-       *
-       * Read ops, namely READ-EX and READ, do not fulfil this requirement
-       * because they do not COMPLETE on the backup replica. Write ops are
-       * suitable because they COMPLETE first on the backup and then on the
-       * primary.
-       *
-       * Here, if OP_ELEMENT_DISAPPEARED is set, the last write op = the last
-       * DELETE op. So the last DELETE op is set with m_dealloc = 1 to dealloc
-       * the rowID when it COMPLETEs.
-       * ----------------------------------------------------------------- */
-      report_dealloc(signal, deleteOpPtr.p); // set m_dealloc = 1
       deleteCheckOngoing = false;
     } else if (op == ZREAD || op == ZSCAN_OP) {
       /* -------------------------------------------------------------------
@@ -4840,7 +4792,7 @@ void Dbacc::commitOperation(Signal* signal)
         a scan operation only means that the scan is continuing and the scan
         lock is released.
     */
-    commitDeleteCheck(signal);
+    commitDeleteCheck();
     opbits = operationRecPtr.p->m_op_bits;
   }//if
 
@@ -5086,6 +5038,7 @@ Dbacc::release_lockowner(Signal* signal, OperationrecPtr opPtr, bool commit)
 	if (opbits & Operationrec::OP_ELEMENT_DISAPPEARED)
 	{
 	  jam();
+	  report_dealloc(signal, opPtr.p);
 	  newOwner.p->localdata.setInvalid();
 	}
 	else
@@ -5132,6 +5085,7 @@ Dbacc::release_lockowner(Signal* signal, OperationrecPtr opPtr, bool commit)
     
     if (opbits & Operationrec::OP_ELEMENT_DISAPPEARED)
     {
+      report_dealloc(signal, opPtr.p);
       newOwner.p->localdata.setInvalid();
     }
     else
