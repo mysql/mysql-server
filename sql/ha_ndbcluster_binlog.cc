@@ -2591,7 +2591,7 @@ ndb_handle_schema_change(THD *thd, Ndb *is_ndb, NdbEventOperation *pOp,
 
   /* ndb_share reference binlog free */
   DBUG_PRINT("NDB_SHARE", ("%s binlog free  use_count: %u",
-                           share->key_string(), share->use_count));
+                           share->key_string(), share->use_count()));
   free_share(&share, TRUE);
   mysql_mutex_unlock(&ndbcluster_mutex);
 
@@ -3294,7 +3294,7 @@ class Ndb_schema_event_handler {
     if (share)
     {
       DBUG_PRINT("NDB_SHARE", ("%s temporary  use_count: %u",
-                               share->key_string(), share->use_count));
+                               share->key_string(), share->use_count()));
     }
     DBUG_RETURN(share);
   }
@@ -5528,11 +5528,11 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
     assert(event_data->share == share);
     assert(share->event_data == 0);
 
-    DBUG_ASSERT(share->use_count > 1);
+    DBUG_ASSERT(share->use_count() > 1);
     ndb_log_error("NDB Binlog: discover reusing old ev op");
     /* ndb_share reference ToDo free */
     DBUG_PRINT("NDB_SHARE", ("%s ToDo free  use_count: %u",
-                             share->key_string(), share->use_count));
+                             share->key_string(), share->use_count()));
     free_share(&share); // old event op already has reference
     assert(false);   //OJA, possibly ndbcluster_mark_share_dropped()?
     DBUG_RETURN(0);
@@ -5708,13 +5708,13 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
   /* ndb_share reference binlog */
   get_share(share);
   DBUG_PRINT("NDB_SHARE", ("%s binlog  use_count: %u",
-                           share->key_string(), share->use_count));
+                           share->key_string(), share->use_count()));
   if (do_ndb_apply_status_share)
   {
     /* ndb_share reference binlog extra */
     ndb_apply_status_share= get_share(share);
     DBUG_PRINT("NDB_SHARE", ("%s binlog extra  use_count: %u",
-                             share->key_string(), share->use_count));
+                             share->key_string(), share->use_count()));
     DBUG_ASSERT(get_thd_ndb(thd)->check_option(Thd_ndb::ALLOW_BINLOG_SETUP));
   }
   else if (do_ndb_schema_share)
@@ -5723,13 +5723,13 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
     Mutex_guard ndb_schema_share_g(injector_data_mutex);
     ndb_schema_share= get_share(share);
     DBUG_PRINT("NDB_SHARE", ("%s binlog extra  use_count: %u",
-                             share->key_string(), share->use_count));
+                             share->key_string(), share->use_count()));
     DBUG_ASSERT(get_thd_ndb(thd)->check_option(Thd_ndb::ALLOW_BINLOG_SETUP));
   }
 
   DBUG_PRINT("info",("%s share->op: 0x%lx  share->use_count: %u",
                      share->key_string(), (long) share->op,
-                     share->use_count));
+                     share->use_count()));
 
   ndb_log_verbose(1, "NDB Binlog: logging %s (%s,%s)",
                   share->key_string(),
@@ -6639,7 +6639,7 @@ remove_event_operations(Ndb* ndb)
     mysql_mutex_unlock(&share->mutex);
 
     DBUG_PRINT("NDB_SHARE", ("%s binlog free  use_count: %u",
-                             share->key_string(), share->use_count));
+                             share->key_string(), share->use_count()));
     free_share(&share);
 
     ndb->dropEventOperation(op);
@@ -6660,7 +6660,7 @@ static void remove_all_event_operations(Ndb *s_ndb, Ndb *i_ndb)
     {
       DBUG_PRINT("NDB_SHARE", ("%s binlog extra free  use_count: %u",
                                ndb_apply_status_share->key_string(),
-                               ndb_apply_status_share->use_count));
+                               ndb_apply_status_share->use_count()));
     }
     free_share(&ndb_schema_share);
     ndb_schema_share= NULL;
@@ -6677,7 +6677,7 @@ static void remove_all_event_operations(Ndb *s_ndb, Ndb *i_ndb)
     /* ndb_share reference binlog extra free */
     DBUG_PRINT("NDB_SHARE", ("%s binlog extra free  use_count: %u",
                              ndb_apply_status_share->key_string(),
-                             ndb_apply_status_share->use_count));
+                             ndb_apply_status_share->use_count()));
     free_share(&ndb_apply_status_share);
     ndb_apply_status_share= NULL;
   }
@@ -6700,7 +6700,7 @@ static void remove_all_event_operations(Ndb *s_ndb, Ndb *i_ndb)
         ndb_log_info("  %s.%s, use_count: %u",
                               share->db,
                               share->table_name,
-                              share->use_count);
+                              share->use_count());
       }
     }
     mysql_mutex_unlock(&ndbcluster_mutex);
@@ -7905,7 +7905,7 @@ restart_cluster_failure:
         The share kept by the server has not been freed, free it
         Will also take it out of _open_tables list
       */
-      DBUG_ASSERT(share->use_count > 0);
+      DBUG_ASSERT(share->use_count() > 0);
       DBUG_ASSERT(share->state != NSS_DROPPED);
       ndbcluster_mark_share_dropped(&share);
     }
@@ -7923,7 +7923,7 @@ restart_cluster_failure:
       NDB_SHARE* share = key_and_value.second;
       log_info("  %s.%s state: %u use_count: %u",
                share->db, share->table_name,
-               (uint)share->state, share->use_count);
+               (uint)share->state, share->use_count());
     }
     mysql_mutex_unlock(&ndbcluster_mutex);
   }

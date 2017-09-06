@@ -65,7 +65,9 @@ struct NDB_SHARE {
   THR_LOCK lock;
   mysql_mutex_t mutex;
   struct NDB_SHARE_KEY* key;
-  uint use_count;
+  uint use_count() const { return m_use_count; }
+  uint increment_use_count() { return ++m_use_count; }
+  uint decrement_use_count() { return --m_use_count; }
   char *db;
   char *table_name;
   Ndb::TupleIdRange tuple_id_range;
@@ -108,6 +110,8 @@ struct NDB_SHARE {
   const char* key_string() const;
 
   const char* share_state_string() const;
+private:
+  uint m_use_count;
 };
 
 
@@ -238,10 +242,10 @@ public:
      // Should always exist
     assert(m_share);
      // already existed + this temp ref
-    assert(m_share->use_count >= 2);
+    assert(m_share->use_count() >= 2);
 
     DBUG_PRINT("NDB_SHARE", ("%s temporary  use_count: %u",
-                             m_share->key_string(), m_share->use_count));
+                             m_share->key_string(), m_share->use_count()));
   }
 
   ~Ndb_share_temp_ref()
@@ -249,11 +253,11 @@ public:
     /* release the temporary reference */
     assert(m_share);
     // at least  this temp ref
-    assert(m_share->use_count > 0);
+    assert(m_share->use_count() > 0);
 
     /* ndb_share reference temporary free */
     DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
-                             m_share->key_string(), m_share->use_count));
+                             m_share->key_string(), m_share->use_count()));
 
     free_share(&m_share);
   }

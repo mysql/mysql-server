@@ -291,7 +291,7 @@ void NDB_SHARE::set_binlog_flags_for_table(TABLE* table)
 void NDB_SHARE::print(const char* where, FILE* file) const
 {
   fprintf(file, "%s %s.%s: use_count: %u\n",
-          where, db, table_name, use_count);
+          where, db, table_name, m_use_count);
   fprintf(file, "  - key: '%s', key_length: %lu\n",
           key_string(), (unsigned long)key_length());
   if (event_data)
