@@ -82,6 +82,7 @@ documentation and the manual for more information.
 %package -n     mysql-%{product_suffix}-server-minimal
 Summary:        A very fast and reliable SQL database server
 Group:          Applications/Databases
+Requires:       hostname
 Requires:       shadow-utils
 Provides:       mysql-server = %{version}-%{release}
 Provides:       mysql-server%{?_isa} = %{version}-%{release}
