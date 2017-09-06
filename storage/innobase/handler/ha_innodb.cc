@@ -3987,27 +3987,7 @@ innobase_dict_recover(
 
 	}
 
-	trx_rollback_or_clean_is_active = true;
-
 	srv_start_threads(dict_recovery_mode != DICT_RECOVERY_RESTART_SERVER);
-
-	/* We have to wait for rollback of any DD transactions if any of the
-        files were moved to a different location before we can update the
-        DD tables in fil_open_for_business(). */
-
-	auto	start_time = ut_time();
-
-	while (trx_rollback_or_clean_is_active && moved_count > 0) {
-
-		if (ut_time() - start_time >= PRINT_INTERVAL_SECS) {
-
-			ib::info() << "Waiting for rollback of transactions";
-
-			start_time = ut_time();
-		}
-
-		os_thread_sleep(10000000);
-	}
 
 	return(fil_open_for_business(srv_read_only_mode) != DB_SUCCESS);
 }

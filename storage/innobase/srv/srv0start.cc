@@ -2917,7 +2917,6 @@ srv_start_threads(
 
 	if (srv_read_only_mode) {
 		purge_sys->state = PURGE_STATE_DISABLED;
-		trx_rollback_or_clean_is_active = false;
 		return;
 	}
 
@@ -2931,8 +2930,6 @@ srv_start_threads(
 		os_thread_create(
 			trx_recovery_rollback_thread_key,
 			trx_recovery_rollback_thread);
-	} else {
-		trx_rollback_or_clean_is_active = false;
 	}
 
 	/* Create the master thread which does purge and other utility
@@ -3018,7 +3015,7 @@ srv_pre_dd_shutdown()
 	/* On slow shutdown, we have to wait for background thread
 	doing the rollback to finish first because it can add undo to
 	purge. So exit this thread before initiating purge shutdown. */
-	while (srv_fast_shutdown == 0 && trx_rollback_or_clean_is_active) {
+	while (srv_fast_shutdown == 0) {
 		/* we should wait until rollback after recovery end
 		for slow shutdown */
 		os_thread_sleep(100000);

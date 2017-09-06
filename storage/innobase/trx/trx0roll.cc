@@ -55,9 +55,6 @@ Created 3/26/1996 Heikki Tuuri
 rollback */
 static const ulint TRX_ROLL_TRUNC_THRESHOLD = 1;
 
-/** true if trx_rollback_or_clean_all_recovered() thread is active */
-bool			trx_rollback_or_clean_is_active;
-
 /** In crash recovery, the current trx to be rolled back; NULL otherwise */
 static const trx_t*	trx_roll_crash_recv_trx	= NULL;
 
@@ -830,8 +827,6 @@ trx_recovery_rollback_thread()
 	ut_ad(!srv_read_only_mode);
 
 	trx_rollback_or_clean_recovered(TRUE);
-
-	trx_rollback_or_clean_is_active = false;
 
 	destroy_thd(thd);
 
