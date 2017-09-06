@@ -41,7 +41,7 @@ extern EventLogger * g_eventLogger;
 
 #define JAM_FILE_ID 453
 
-#define DEBUG_RES 1
+//#define DEBUG_RES 1
 #ifdef DEBUG_RES
 #define DEB_RES(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
