@@ -5856,13 +5856,6 @@ sub mysqld_arguments ($$$) {
     }
   }
 
-  # On some old linux kernels, aio on tmpfs is not supported
-  # Remove this if/when Bug #58421 fixes this in the server
-  if ($^O eq "linux" && $opt_mem)
-  {
-    mtr_add_arg($args, "--loose-skip-innodb-use-native-aio");
-  }
-
   if ( $mysql_version_id >= 50106 && !$opt_user_args)
   {
     # Turn on logging to file
