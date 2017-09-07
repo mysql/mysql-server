@@ -81,6 +81,7 @@ public class Utility {
     static final int ooooffoo = 0x0000ff00;
     static final int ooffoooo = 0x00ff0000;
     static final int ooffffff = 0x00ffffff;
+    static final int ffoooooo = 0xff000000;
 
     static final char[] SPACE_PAD = new char[255];
     static {
@@ -327,19 +328,33 @@ public class Utility {
         }
 
         public int getInt(Column storeColumn, int value) {
+            int result = 0;
             switch (storeColumn.getType()) {
                 case Bit:
                 case Int:
                 case Timestamp:
                     return value;
                 case Date:
-                case Mediumunsigned:
                     // the unsigned value is stored in the top 3 bytes
                     return value >>> 8;
                 case Time:
-                case Mediumint:
                     // the signed value is stored in the top 3 bytes
                     return value >> 8;
+                case Mediumint:
+                    // the three high order bytes are the little endian representation
+                    // the original is zzyyax00 and the result is aaaxyyzz
+                    result |= (value & ffoooooo) >>> 24;
+                    result |= (value & ooffoooo) >>> 8;
+                    // the ax byte is signed, so shift left 16 and arithmetic shift right 8
+                    result |= ((value & ooooffoo) << 16) >> 8;
+                    return result;
+                case Mediumunsigned:
+                    // the three high order bytes are the little endian representation
+                    // the original is zzyyxx00 and the result is 00xxyyzz
+                    result |= (value & ffoooooo) >>> 24;
+                    result |= (value & ooffoooo) >>> 8;
+                    result |= (value & ooooffoo) << 8;
+                    return result;
                 default:
                     throw new ClusterJUserException(
                             local.message("ERR_Unsupported_Mapping", storeColumn.getType(), "int"));
