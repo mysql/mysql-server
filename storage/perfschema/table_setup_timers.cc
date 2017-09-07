@@ -28,6 +28,7 @@
 #include "sql/field.h"
 #include "storage/perfschema/pfs_column_values.h"
 #include "storage/perfschema/pfs_timer.h"
+#include "sql/derror.h" /* ER_THD */
 
 #define COUNT_SETUP_TIMERS 5
 
@@ -87,6 +88,13 @@ PFS_index_setup_timers::match(row_setup_timers *row)
 PFS_engine_table *
 table_setup_timers::create(PFS_engine_table_share *)
 {
+  THD *thd = current_thd;
+  push_warning_printf(thd,
+                      Sql_condition::SL_WARNING,
+                      ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
+                      ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
+                      "performance_schema.setup_timers");
+
   return new table_setup_timers();
 }
 

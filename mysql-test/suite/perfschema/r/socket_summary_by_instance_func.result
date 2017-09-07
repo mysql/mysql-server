@@ -7,6 +7,8 @@
 # - the test might abort
 #
 # 0. Check, build or set prequisites
+Warnings:
+Warning	1681	'performance_schema.setup_timers' is deprecated and will be removed in a future release.
 UPDATE performance_schema.threads
 SET INSTRUMENTED='NO' WHERE PROCESSLIST_ID = CONNECTION_ID();
 # 1. Basic checks
@@ -223,3 +225,5 @@ col2
 #    It must reset all counters.
 TRUNCATE TABLE performance_schema.socket_summary_by_instance;
 # 6. Cleanup
+Warnings:
+Warning	1681	'performance_schema.setup_timers' is deprecated and will be removed in a future release.
