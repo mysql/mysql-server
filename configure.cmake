@@ -415,7 +415,7 @@ IF(NOT STACK_DIRECTION)
   ELSE()
     TRY_RUN(STACKDIR_RUN_RESULT STACKDIR_COMPILE_RESULT    
      ${CMAKE_BINARY_DIR} 
-     ${CMAKE_SOURCE_DIR}/cmake/stack_direction.c
+     ${CMAKE_SOURCE_DIR}/cmake/stack_direction.cc
      )
      # Test program returns 0 (down) or 1 (up).
      # Convert to -1 or 1

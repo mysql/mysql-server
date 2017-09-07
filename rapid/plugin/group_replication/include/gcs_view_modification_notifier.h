@@ -63,7 +63,7 @@ public:
     @param[in]  error  error that did cause the view modification to
                        be cancelled
   */
-  void cancel_view_modification(int error= GROUP_REPLICATION_CONFIGURATION_ERROR);
+  void cancel_view_modification(int err= GROUP_REPLICATION_CONFIGURATION_ERROR);
 
   /**
     Check if view modification was cancelled.

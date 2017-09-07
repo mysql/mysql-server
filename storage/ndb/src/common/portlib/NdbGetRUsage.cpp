@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -48,7 +48,6 @@ micros(struct timeval val)
 #endif
 #endif
 
-extern "C"
 void NdbGetRUsage_Init(void)
 {
 #ifdef HAVE_MAC_OS_X_THREAD_INFO
@@ -56,7 +55,6 @@ void NdbGetRUsage_Init(void)
 #endif
 }
 
-extern "C"
 void NdbGetRUsage_End(void)
 {
 #ifdef HAVE_MAC_OS_X_THREAD_INFO
@@ -67,7 +65,6 @@ void NdbGetRUsage_End(void)
 #endif
 }
 
-extern "C"
 int
 Ndb_GetRUsage(ndb_rusage* dst)
 {

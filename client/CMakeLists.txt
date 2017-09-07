@@ -106,5 +106,5 @@ SET_TARGET_PROPERTIES(mysql_ssl_rsa_setup PROPERTIES LINKER_LANGUAGE CXX)
 
 # "WIN32" also covers 64 bit. "echo" is used in some files below "mysql-test/".
 IF(WIN32)
-  MYSQL_ADD_EXECUTABLE(echo echo.c)
+  MYSQL_ADD_EXECUTABLE(echo echo.cc)
 ENDIF(WIN32)

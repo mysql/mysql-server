@@ -16,4 +16,4 @@
 
 #include "service_versions.h"
 
-SERVICE_VERSION *mysql_string_service= (void*)VERSION_mysql_string;
+SERVICE_VERSION *mysql_string_service= (void**)VERSION_mysql_string;
