@@ -2926,6 +2926,7 @@ srv_start_threads(
 
 		/* Rollback all recovered transactions that are
 		not in committed nor in XA PREPARE state. */
+                trx_rollback_or_clean_is_active = true;
 
 		os_thread_create(
 			trx_recovery_rollback_thread_key,
@@ -3015,7 +3016,7 @@ srv_pre_dd_shutdown()
 	/* On slow shutdown, we have to wait for background thread
 	doing the rollback to finish first because it can add undo to
 	purge. So exit this thread before initiating purge shutdown. */
-	while (srv_fast_shutdown == 0) {
+	while (srv_fast_shutdown == 0 && trx_rollback_or_clean_is_active) {
 		/* we should wait until rollback after recovery end
 		for slow shutdown */
 		os_thread_sleep(100000);

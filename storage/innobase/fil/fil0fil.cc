@@ -232,16 +232,16 @@ fil_addr_t	fil_addr_null = {FIL_NULL, 0};
 static const size_t	MAX_SCAN_THREADS = 8;
 
 /** Maximum number of shards supported. */
-static const size_t	MAX_SHARDS = 32;
+static const size_t	MAX_SHARDS = 64;
 
 /** The redo log is in its own shard. */
 static const size_t	REDO_SHARD = MAX_SHARDS - 1;
 
-/** The UNDO logs have their own shard. */
-static const size_t	UNDO_SHARD = REDO_SHARD - 1;
+/** Number of undo shards to reserve. */
+static const size_t	UNDO_SHARDS = 4;
 
-/** Number of reserved shards */
-static const size_t	SYS_SHARDS = 2;
+/** The UNDO logs have their own shards (4). */
+static const size_t	UNDO_SHARDS_START = REDO_SHARD - (UNDO_SHARDS + 1);
 
 /** Maximum pages to check for valid space ID during start up. */
 static const size_t	MAX_PAGES_TO_CHECK = 4;
@@ -1448,10 +1448,14 @@ public:
 
 		} else if (fsp_is_undo_tablespace(space_id)) {
 
-			return(m_shards[UNDO_SHARD]);
+			const size_t	limit = space_id % UNDO_SHARDS;
+
+			return(m_shards[UNDO_SHARDS_START + limit]);
 		}
 
-		return(m_shards[space_id % (m_shards.size() - SYS_SHARDS)]);
+		ut_ad(m_shards.size() == MAX_SHARDS);
+
+		return(m_shards[space_id % UNDO_SHARDS_START]);
 	}
 
 	/** Acquire mutex by space ID.
@@ -1769,14 +1773,7 @@ Fil_shard::Fil_shard(size_t shard_id)
 	m_names(),
 	m_modification_counter()
 {
-	latch_id_t	latch_id = LATCH_ID_FIL_SHARD_1;
-
-	latch_id = static_cast<latch_id_t>(to_int(latch_id) + m_id);
-
-	ut_ad(latch_id >= LATCH_ID_FIL_SHARD_1
-	      && latch_id <= LATCH_ID_FIL_SHARD_REDO);
-
-	mutex_create(latch_id, &m_mutex);
+	mutex_create(LATCH_ID_FIL_SHARD, &m_mutex);
 
 	UT_LIST_INIT(m_LRU, &fil_node_t::LRU);
 
