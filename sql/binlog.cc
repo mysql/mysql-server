@@ -1734,6 +1734,8 @@ inline int do_binlog_xa_commit_rollback(THD *thd, XID *xid, bool commit)
     return 0;
   if (!xid_state->is_binlogged())
     return 0; // nothing was really logged at prepare
+  if (thd->is_error() && DBUG_EVALUATE_IF("simulate_xa_rm_error", 0, 1))
+    return 0; // don't binlog if there are some errors.
 
   DBUG_ASSERT(!xid->is_null() ||
               !(thd->variables.option_bits & OPTION_BIN_LOG));
