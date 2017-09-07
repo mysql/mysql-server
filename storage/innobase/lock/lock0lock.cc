@@ -1457,6 +1457,11 @@ lock_update_trx_age(
 
 	const auto	wait_lock = trx->lock.wait_lock;
 
+	/* could be table level lock like autoinc */
+	if (!wait_lock->is_record_lock()) {
+		return;
+	}
+
 	auto	heap_no = lock_rec_find_set_bit(wait_lock);
 	auto	space = wait_lock->rec_lock.space;
 	auto	page_no = wait_lock->rec_lock.page_no;
