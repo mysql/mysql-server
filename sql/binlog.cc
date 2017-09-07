@@ -9263,7 +9263,6 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
   int flush_error= 0, sync_error= 0;
   my_off_t total_bytes= 0;
   bool do_rotate= false;
-  unsigned int current_sync_period;
 
   /*
     These values are used while flushing a transaction, so clear
@@ -9410,9 +9409,11 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
     Shall introduce a delay only if it is going to do sync
     in this ongoing SYNC stage. The "+1" used below in the
     if condition is to count the ongoing sync stage.
+    When sync_binlog=0 (where we never do sync in BGC group),
+    it is considered as a special case and delay will be executed
+    for every group just like how it is done when sync_binlog= 1.
   */
-  current_sync_period= get_sync_period();
-  if (!flush_error && current_sync_period && (sync_counter + 1 >= current_sync_period))
+  if (!flush_error && (sync_counter + 1 >= get_sync_period()))
     stage_manager.wait_count_or_timeout(opt_binlog_group_commit_sync_no_delay_count,
                                         opt_binlog_group_commit_sync_delay,
                                         Stage_manager::SYNC_STAGE);
