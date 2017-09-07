@@ -54,43 +54,6 @@ MACRO (INSTALL_DEBUG_SYMBOLS targets)
   ENDIF()
 ENDMACRO()
 
-# Installs manpage for given file (either script or executable)
-# 
-FUNCTION(INSTALL_MANPAGE file)
-  IF(NOT UNIX)
-    RETURN()
-  ENDIF()
-  GET_FILENAME_COMPONENT(file_name "${file}" NAME)
-  SET(GLOB_EXPR 
-    ${CMAKE_SOURCE_DIR}/man/*${file}man.1*
-    ${CMAKE_SOURCE_DIR}/man/*${file}man.8*
-    ${CMAKE_BINARY_DIR}/man/*${file}man.1*
-    ${CMAKE_BINARY_DIR}/man/*${file}man.8*
-   )
-  IF(MYSQL_DOC_DIR)
-    SET(GLOB_EXPR 
-      ${MYSQL_DOC_DIR}/man/*${file}man.1*
-      ${MYSQL_DOC_DIR}/man/*${file}man.8*
-      ${MYSQL_DOC_DIR}/man/*${file}.1*
-      ${MYSQL_DOC_DIR}/man/*${file}.8*
-      ${GLOB_EXPR}
-      )
-   ENDIF()
-    
-  FILE(GLOB_RECURSE MANPAGES ${GLOB_EXPR})
-  IF(MANPAGES)
-    LIST(GET MANPAGES 0 MANPAGE)
-    STRING(REPLACE "${file}man.1" "${file}.1" MANPAGE "${MANPAGE}")
-    STRING(REPLACE "${file}man.8" "${file}.8" MANPAGE "${MANPAGE}")
-    IF(MANPAGE MATCHES "${file}.1")
-      SET(SECTION man1)
-    ELSE()
-      SET(SECTION man8)
-    ENDIF()
-    INSTALL(FILES "${MANPAGE}" DESTINATION "${INSTALL_MANDIR}/${SECTION}"
-      COMPONENT ManPages)
-  ENDIF()
-ENDFUNCTION()
 
 FUNCTION(INSTALL_SCRIPT)
  MYSQL_PARSE_ARGUMENTS(ARG
@@ -116,7 +79,6 @@ FUNCTION(INSTALL_SCRIPT)
     OWNER_EXECUTE GROUP_READ GROUP_EXECUTE
     WORLD_READ WORLD_EXECUTE  ${COMP}
   )
-  INSTALL_MANPAGE(${script})
 ENDFUNCTION()
 
 
@@ -197,11 +159,6 @@ FUNCTION(MYSQL_INSTALL_TARGETS)
     # If signing is required, sign executables before installing
      IF(SIGNCODE AND SIGNCODE_ENABLED)
       SIGN_TARGET(${target})
-    ENDIF()
-    # Install man pages on Unix
-    IF(UNIX)
-      GET_TARGET_PROPERTY(target_location ${target} LOCATION)
-      INSTALL_MANPAGE(${target_location})
     ENDIF()
   ENDFOREACH()
   IF(ARG_COMPONENT)
