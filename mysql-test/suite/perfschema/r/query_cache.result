@@ -45,6 +45,8 @@ NULL
 select * from performance_schema.setup_timers where name='wait';
 NAME	TIMER_NAME
 wait	{CYCLE_OR_NANOSECOND}
+Warnings:
+Warning	1681	'performance_schema.setup_timers' is deprecated and will be removed in a future release.
 show global status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	1
@@ -60,6 +62,8 @@ NULL
 select * from performance_schema.setup_timers where name='wait';
 NAME	TIMER_NAME
 wait	{CYCLE_OR_NANOSECOND}
+Warnings:
+Warning	1681	'performance_schema.setup_timers' is deprecated and will be removed in a future release.
 show global status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	1
