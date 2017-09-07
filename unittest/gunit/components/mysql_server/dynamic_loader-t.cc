@@ -520,5 +520,19 @@ namespace dynamic_loader_unittest {
 int main(int argc, char **argv)
 {
   ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+
+  MY_INIT(argv[0]);
+
+  char realpath_buf[FN_REFLEN];
+  char basedir_buf[FN_REFLEN];
+  my_realpath(realpath_buf, my_progname, 0);
+  size_t res_length;
+  dirname_part(basedir_buf, realpath_buf, &res_length);
+  if (res_length > 0)
+    basedir_buf[res_length - 1] = '\0';
+  my_setwd(basedir_buf, 0);
+
+  int retval= RUN_ALL_TESTS();
+  my_end(0);
+  return retval;
 }
