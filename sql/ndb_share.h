@@ -199,7 +199,7 @@ NDB_SHARE *ndbcluster_get_share(const char *key,
                                 bool create_if_not_exists,
                                 bool have_lock);
 NDB_SHARE *ndbcluster_get_share(NDB_SHARE *share);
-void ndbcluster_free_share(NDB_SHARE **share, bool have_lock);
+void ndbcluster_free_share(NDB_SHARE **share, bool have_lock = false);
 void ndbcluster_real_free_share(NDB_SHARE **share);
 int ndbcluster_rename_share(THD *thd,
                             NDB_SHARE *share,
@@ -218,10 +218,6 @@ inline NDB_SHARE *get_share(NDB_SHARE *share)
   return ndbcluster_get_share(share);
 }
 
-inline void free_share(NDB_SHARE **share, bool have_lock= FALSE)
-{
-  ndbcluster_free_share(share, have_lock);
-}
 
 /**
    @brief Utility class for working with a temporary
@@ -259,7 +255,7 @@ public:
     DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
                              m_share->key_string(), m_share->use_count()));
 
-    free_share(&m_share);
+    ndbcluster_free_share(&m_share);
   }
 
   // Return the NDB_SHARE* by type conversion operator

@@ -2592,7 +2592,7 @@ ndb_handle_schema_change(THD *thd, Ndb *is_ndb, NdbEventOperation *pOp,
   /* ndb_share reference binlog free */
   DBUG_PRINT("NDB_SHARE", ("%s binlog free  use_count: %u",
                            share->key_string(), share->use_count()));
-  free_share(&share, TRUE);
+  ndbcluster_free_share(&share, true);
   mysql_mutex_unlock(&ndbcluster_mutex);
 
   // Remove pointer to event_data from the EventOperation
@@ -3487,7 +3487,7 @@ class Ndb_schema_event_handler {
           injector_ndb->dropEventOperation(share->op);
         }
         share->op= 0;
-        free_share(&share);   // Free binlog ref, 2)
+        ndbcluster_free_share(&share);   // Free binlog ref, 2)
         DBUG_ASSERT(share);   // Still ref'ed by 1) & 3)
       }
       mysql_mutex_unlock(&share->mutex);
@@ -3495,7 +3495,7 @@ class Ndb_schema_event_handler {
       mysql_mutex_lock(&ndbcluster_mutex);
       ndbcluster_mark_share_dropped(&share); // Unref. from dictionary, 1)
       DBUG_ASSERT(share);                    // Still ref'ed by temp, 3)
-      free_share(&share,TRUE);               // Free temporary ref, 3)
+      ndbcluster_free_share(&share, true);   // Free temporary ref, 3)
       /**
        * If this was the last share ref, it is now deleted.
        * If there are more (trailing) references, the share will remain as an
@@ -3581,7 +3581,7 @@ class Ndb_schema_event_handler {
       }
       mysql_mutex_unlock(&share->mutex);
 
-      free_share(&share);     // temporary ref.
+      ndbcluster_free_share(&share);     // temporary ref.
     }
   }
 
@@ -3691,12 +3691,12 @@ class Ndb_schema_event_handler {
         }
         share->op= share->new_op;
         share->new_op= 0;
-        free_share(&share);
+        ndbcluster_free_share(&share);
         DBUG_ASSERT(share);   // Should still be ref'ed
       }
       mysql_mutex_unlock(&share->mutex);
 
-      free_share(&share);     // temporary ref.
+      ndbcluster_free_share(&share);     // temporary ref.
     }
   }
 
@@ -3745,7 +3745,7 @@ class Ndb_schema_event_handler {
       mysql_mutex_lock(&ndbcluster_mutex);
       ndbcluster_mark_share_dropped(&share); // server ref.
       DBUG_ASSERT(share);                    // Should still be ref'ed
-      free_share(&share, TRUE);              // temporary ref.
+      ndbcluster_free_share(&share, true);   // temporary ref.
       mysql_mutex_unlock(&ndbcluster_mutex);
     }
 
@@ -3827,7 +3827,7 @@ class Ndb_schema_event_handler {
       ndb_tdc_close_cached_table(m_thd, schema->db, schema->name);
     }
     if (share)
-      free_share(&share);      // temporary ref.
+      ndbcluster_free_share(&share);      // temporary ref.
 
     share= get_share(schema);  // temporary ref.
     if (!share)
@@ -3862,7 +3862,7 @@ class Ndb_schema_event_handler {
     m_schema_dist_data.save_prepared_rename_key(NULL);
     NDB_SHARE::free_key(old_key);
 
-    free_share(&share);  // temporary ref.
+    ndbcluster_free_share(&share);  // temporary ref.
 
     ndbapi_invalidate_table(schema->db, schema->name);
     ndb_tdc_close_cached_table(m_thd, schema->db, schema->name);
@@ -3931,7 +3931,7 @@ class Ndb_schema_event_handler {
       ndb_tdc_close_cached_table(m_thd, schema->db, schema->name);
     }
     if (share)
-      free_share(&share); // temporary ref.
+      ndbcluster_free_share(&share); // temporary ref.
 
     if (is_local_table(schema->db, schema->name))
     {
@@ -4297,7 +4297,7 @@ public:
 
       /* release the ndb_schema_share */
       mysql_mutex_lock(&injector_data_mutex);
-      free_share(&ndb_schema_share);
+      ndbcluster_free_share(&ndb_schema_share);
       ndb_schema_share= NULL;
 
       ndb_binlog_tables_inited= FALSE;
@@ -5288,7 +5288,7 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
   {
     ret= ndbcluster_create_binlog_setup(thd, ndb, share);
   }
-  free_share(&share); // temporary ref.
+  ndbcluster_free_share(&share); // temporary ref.
   DBUG_RETURN(ret);
 }
 
@@ -5533,7 +5533,7 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
     /* ndb_share reference ToDo free */
     DBUG_PRINT("NDB_SHARE", ("%s ToDo free  use_count: %u",
                              share->key_string(), share->use_count()));
-    free_share(&share); // old event op already has reference
+    ndbcluster_free_share(&share); // old event op already has reference
     assert(false);   //OJA, possibly ndbcluster_mark_share_dropped()?
     DBUG_RETURN(0);
   }
@@ -6083,7 +6083,7 @@ handle_non_data_event(THD *thd,
                         "readonly on reconnect.");
 
       /* release the ndb_apply_status_share */
-      free_share(&ndb_apply_status_share);
+      ndbcluster_free_share(&ndb_apply_status_share);
       ndb_apply_status_share= NULL;
 
       Mutex_guard injector_g(injector_data_mutex);
@@ -6640,7 +6640,7 @@ remove_event_operations(Ndb* ndb)
 
     DBUG_PRINT("NDB_SHARE", ("%s binlog free  use_count: %u",
                              share->key_string(), share->use_count()));
-    free_share(&share);
+    ndbcluster_free_share(&share);
 
     ndb->dropEventOperation(op);
   }
@@ -6662,7 +6662,7 @@ static void remove_all_event_operations(Ndb *s_ndb, Ndb *i_ndb)
                                ndb_apply_status_share->key_string(),
                                ndb_apply_status_share->use_count()));
     }
-    free_share(&ndb_schema_share);
+    ndbcluster_free_share(&ndb_schema_share);
     ndb_schema_share= NULL;
   }
   mysql_mutex_unlock(&injector_data_mutex);
@@ -6678,7 +6678,7 @@ static void remove_all_event_operations(Ndb *s_ndb, Ndb *i_ndb)
     DBUG_PRINT("NDB_SHARE", ("%s binlog extra free  use_count: %u",
                              ndb_apply_status_share->key_string(),
                              ndb_apply_status_share->use_count()));
-    free_share(&ndb_apply_status_share);
+    ndbcluster_free_share(&ndb_apply_status_share);
     ndb_apply_status_share= NULL;
   }
 

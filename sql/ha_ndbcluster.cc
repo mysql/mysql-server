@@ -11364,7 +11364,7 @@ cleanup_failed:
       break;
     }
     if (share)
-      free_share(&share); // temporary ref.
+      ndbcluster_free_share(&share); // temporary ref.
   }
 
   m_table= 0;
@@ -12180,7 +12180,7 @@ delete_table_drop_share_do_drop(NDB_SHARE* share)
     ndbcluster_mark_share_dropped(&share);
   }
 
-  free_share(&share, true /* have_lock */);
+  ndbcluster_free_share(&share, true /* have_lock */);
 
   DBUG_VOID_RETURN;
 }
@@ -12600,7 +12600,7 @@ ha_ndbcluster::~ha_ndbcluster()
     /* ndb_share reference handler free */
     DBUG_PRINT("NDB_SHARE", ("%s handler free  use_count: %u",
                              m_share->key_string(), m_share->use_count()));
-    free_share(&m_share);
+    ndbcluster_free_share(&m_share);
   }
   release_metadata(thd, ndb);
   release_blobs_buffer();
@@ -13007,7 +13007,7 @@ void ha_ndbcluster::local_close(THD *thd, bool release_metadata_flag)
     /* ndb_share reference handler free */
     DBUG_PRINT("NDB_SHARE", ("%s handler free  use_count: %u",
                              m_share->key_string(), m_share->use_count()));
-    free_share(&m_share);
+    ndbcluster_free_share(&m_share);
   }
   m_share= 0;
   if (release_metadata_flag)
@@ -14584,22 +14584,18 @@ void ndbcluster_free_share(NDB_SHARE **share, bool have_lock)
 {
   if (!have_lock)
     mysql_mutex_lock(&ndbcluster_mutex);
+  mysql_mutex_assert_owner(&ndbcluster_mutex);
+
   if (!(*share)->decrement_use_count())
   {
-    ndb_log_verbose(9, "ndbcluster_free_share: %s use_count: %u",
-                    (*share)->key_string(), (*share)->use_count());
+    // Noone is using the NDB_SHARE anymore, release it
     ndbcluster_real_free_share(share);
   }
-  else
-  {
-    ndb_log_verbose(9, "ndbcluster_free_share: %s use_count: %u",
-                    (*share)->key_string(), (*share)->use_count());
-    dbug_print_open_tables();
-    dbug_print_share("ndbcluster_free_share:", *share);
-  }
+
   if (!have_lock)
     mysql_mutex_unlock(&ndbcluster_mutex);
 }
+
 
 /**
  * ndbcluster_mark_share_dropped(): Set the share state to NSS_DROPPED.
@@ -18087,7 +18083,7 @@ ha_ndbcluster::commit_inplace_alter_table(TABLE *altered_table,
   ha_alter_info->handler_ctx= 0;
 
   set_ndb_share_state(m_share, NSS_INITIAL);
-  free_share(&m_share); // Decrease ref_count
+  ndbcluster_free_share(&m_share); // Decrease ref_count
 
   DBUG_RETURN(false); // OK
 }
@@ -18117,7 +18113,7 @@ ha_ndbcluster::abort_inplace_alter_table(TABLE *altered_table,
   delete alter_data;
   ha_alter_info->handler_ctx= 0;
   set_ndb_share_state(m_share, NSS_INITIAL);
-  free_share(&m_share); // Decrease ref_count
+  ndbcluster_free_share(&m_share); // Decrease ref_count
   DBUG_RETURN(false);
 }
 
