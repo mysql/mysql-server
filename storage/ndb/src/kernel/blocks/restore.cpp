@@ -1797,6 +1797,7 @@ Restore::init_file(const RestoreLcpReq* req, FilePtr file_ptr)
   file_ptr.p->m_rows_restored_delete_page = 0;
   file_ptr.p->m_rows_restored_write = 0;
   file_ptr.p->m_ignored_rows = 0;
+  file_ptr.p->m_row_operations = 0;
 
   file_ptr.p->m_file_id = Uint32(~0);
   file_ptr.p->m_ctl_file_no = Uint32(~0);
@@ -1882,15 +1883,18 @@ Restore::release_file(FilePtr file_ptr, bool statistics)
                    file_ptr.p->m_restore_start_time;
     if (millis == 0)
       millis = 1;
-    Uint64 rows_per_sec = file_ptr.p->m_rows_restored * 1000 / millis;
+    Uint64 rows_per_sec = (file_ptr.p->m_row_operations *
+                           Uint64(1000)) / millis;
 
 
     g_eventLogger->info("LDM instance %u: Restored T%dF%u LCP %llu rows, "
-                        "%llu millis, %llu rows/s)", 
+                        "%llu row operations, "
+                        "%llu millis, %llu row operations/sec)", 
                         instance(),
                         file_ptr.p->m_table_id,
                         file_ptr.p->m_fragment_id,
                         file_ptr.p->m_rows_restored,
+                        file_ptr.p->m_row_operations,
                         millis,
                         rows_per_sec);
 
@@ -1900,7 +1904,6 @@ Restore::release_file(FilePtr file_ptr, bool statistics)
     m_frags_restored++;
 
     DEB_RES_STAT(("(%u)Restore tab(%u,%u): file_index: %u, "
-                  "rows restored: %llu"
                   ", inserts: %llu, writes: %llu"
                   ", deletes: %llu, delete_pages: %llu"
                   ", delete_failed: %llu"
@@ -1909,7 +1912,6 @@ Restore::release_file(FilePtr file_ptr, bool statistics)
                   file_ptr.p->m_table_id,
                   file_ptr.p->m_fragment_id,
                   file_ptr.p->m_current_file_index - 1,
-                  file_ptr.p->m_rows_restored,
                   file_ptr.p->m_rows_restored_insert,
                   file_ptr.p->m_rows_restored_write,
                   file_ptr.p->m_rows_restored_delete,
@@ -3175,6 +3177,7 @@ Restore::execLQHKEYREF(Signal* signal)
     }
   }
   file_ptr.p->m_rows_restored_delete_failed++;
+  file_ptr.p->m_row_operations++;
   check_restore_ready(signal, file_ptr);
 }
 
@@ -3243,15 +3246,18 @@ Restore::execLQHKEYCONF(Signal* signal)
     case BackupFormat::INSERT_TYPE:
       jam();
       file_ptr.p->m_rows_restored++;
+      file_ptr.p->m_row_operations++;
       break;
     case BackupFormat::WRITE_TYPE:
       jam();
       file_ptr.p->m_rows_restored++;
+      file_ptr.p->m_row_operations++;
       break;
     case BackupFormat::DELETE_BY_ROWID_TYPE:
     case BackupFormat::DELETE_BY_PAGEID_TYPE:
     case BackupFormat::DELETE_BY_ROWID_WRITE_TYPE:
       jam();
+      file_ptr.p->m_row_operations++;
       break;
     default:
       ndbrequire(false);

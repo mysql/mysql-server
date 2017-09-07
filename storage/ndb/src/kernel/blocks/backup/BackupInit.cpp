@@ -227,6 +227,9 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   ndb_mgm_get_int_parameter(p, CFG_DB_ENABLE_PARTIAL_LCP,
                             &m_enable_partial_lcp);
 
+  m_recovery_work = 50; /* Default to 50% */
+  ndb_mgm_get_int_parameter(p, CFG_DB_RECOVERY_WORK, &m_recovery_work);
+
   calculate_real_disk_write_speed_parameters();
 
   jam();
