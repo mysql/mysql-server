@@ -8759,7 +8759,10 @@ bool Item_ref::is_null()
 
 bool Item_ref::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
 {
-  return (null_value= (*ref)->get_date_result(ltime,fuzzydate));
+  DBUG_ASSERT(fixed);
+  bool result= (*ref)->get_date_result(ltime, fuzzydate);
+  null_value= (*ref)->null_value;
+  return result;
 }
 
 
