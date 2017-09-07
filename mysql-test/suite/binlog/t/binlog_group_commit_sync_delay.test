@@ -29,37 +29,23 @@ SET @elapsed = TIMESTAMPDIFF(MICROSECOND, @clock_in, SYSDATE());
 # But with fix, it should not take more than few seconds (that depends
 # on Pb2 machine speed and also depends on various build options too.
 #
-# Do above experiment with two iterations
-#  1) When sync_binlog > 1 (i.e., with 1000)
-#  2) When sync_binlog = 0
-#
 --let $group_count=1000
---let $iter=1
-while ($iter <= 2)
+--eval SET GLOBAL sync_binlog=$group_count
+--let $i=0
+
+SET @clock_in = SYSDATE();
+--disable_query_log
+while ($i <= $group_count)
 {
-  if ($iter == 1)
-  {
-    --eval SET GLOBAL sync_binlog=$group_count
-  }
-  if ($iter == 2)
-  {
-    --eval SET GLOBAL sync_binlog=0
-  }
-  --let $i=0
-  SET @clock_in = SYSDATE();
-  --disable_query_log
-  while ($i <= $group_count)
-  {
-    --eval INSERT INTO t1 VALUES ($i)
-    --inc $i
-  }
-  --enable_query_log
-  SET @elapsed = TIMESTAMPDIFF(MICROSECOND, @clock_in, SYSDATE());
-  --let $assert_text="Assert that the above statements should not take more than 1000 seconds"
-  --let $assert_cond= [SELECT @elapsed < 1000 * @@GLOBAL.binlog_group_commit_sync_delay]
-  --source include/assert.inc
-  --inc $iter
+  --eval INSERT INTO t1 VALUES ($i)
+  --inc $i
 }
+--enable_query_log
+SET @elapsed = TIMESTAMPDIFF(MICROSECOND, @clock_in, SYSDATE());
+--let $assert_text="Assert that the above statements should not take more than 1000 seconds"
+--let $assert_cond= [SELECT @elapsed < 1000 * @@GLOBAL.binlog_group_commit_sync_delay]
+--source include/assert.inc
+
 # End of Bug#21420180 test
 
 # Cleanup
