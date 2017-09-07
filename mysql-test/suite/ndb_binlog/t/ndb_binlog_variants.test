@@ -127,7 +127,7 @@ show variables like 'ndb_log_update%';
 
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir;`;
---exec $MYSQL_BINLOG $MYSQLD_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
 --exec $MYSQL -uroot < $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
 
 --enable_query_log
@@ -143,7 +143,7 @@ show variables like 'ndb_log_update%';
 
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir;`;
---exec $MYSQL_BINLOG $MYSQLD_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
 --exec $MYSQL -uroot < $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
 
 --enable_query_log
@@ -159,7 +159,7 @@ show variables like 'ndb_log_update%';
 
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir;`;
---exec $MYSQL_BINLOG $MYSQLD_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
 --exec $MYSQL -uroot < $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
 
 --enable_query_log
@@ -175,7 +175,7 @@ show variables like 'ndb_log_update%';
 
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir;`;
---exec $MYSQL_BINLOG $MYSQLD_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
 --exec $MYSQL -uroot < $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
 
 --enable_query_log
@@ -191,7 +191,7 @@ show variables like 'ndb_log_update%';
 
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir;`;
---exec $MYSQL_BINLOG $MYSQLD_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
 --exec $MYSQL -uroot < $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
 
 --enable_query_log
@@ -207,7 +207,7 @@ show variables like 'ndb_log_update%';
 
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir;`;
---exec $MYSQL_BINLOG $MYSQLD_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
 --exec $MYSQL -uroot < $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
 
 --enable_query_log
@@ -282,7 +282,7 @@ delete from t4;
 
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir;`;
---exec $MYSQL_BINLOG $MYSQLD_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
 --exec $MYSQL -uroot < $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
 
 --enable_query_log
@@ -345,7 +345,7 @@ drop table bah;
 --echo Manually applying captured binlog
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir;`;
---exec $MYSQL_BINLOG $MYSQLD_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
 --exec $MYSQL -uroot < $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
 
 --enable_query_log
@@ -392,7 +392,7 @@ drop table stream_marker;
 --enable_query_log
 
 # Wait until the UPDATE statement is confirmed to have made it into the current binary log
---let $wait_binlog_file=mysqld-bin.000002
+--let $wait_binlog_file=binlog.000002
 --source include/wait_for_binlog_event.inc
 FLUSH LOGS;
 
@@ -406,7 +406,7 @@ drop table stream_marker;
 --enable_query_log
 
 # Wait until the DELETE statement is confirmed to have made it into the current binary log
---let $wait_binlog_file=mysqld-bin.000003
+--let $wait_binlog_file=binlog.000003
 --source include/wait_for_binlog_event.inc
 FLUSH LOGS;
 
@@ -415,7 +415,7 @@ FLUSH LOGS;
 --echo Manually applying captured binlog
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir;`;
---exec $MYSQL_BINLOG $MYSQLD_DATADIR/mysqld-bin.000002 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/binlog.000002 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
 --exec $MYSQL -uroot < $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
 
 --enable_query_log
@@ -443,7 +443,7 @@ drop table stream_marker;
 --enable_query_log
 
 # Wait until all statements are confirmed to have made it into the current binary log
---let $wait_binlog_file=mysqld-bin.000001
+--let $wait_binlog_file=binlog.000001
 --source include/wait_for_binlog_event.inc
 FLUSH LOGS;
 
@@ -465,7 +465,7 @@ drop table stream_marker;
 --enable_query_log
 
 # Wait until all statements are confirmed to have made it into the current binary log
---let $wait_binlog_file=mysqld-bin.000002
+--let $wait_binlog_file=binlog.000002
 --source include/wait_for_binlog_event.inc
 FLUSH LOGS;
 
@@ -481,7 +481,7 @@ drop table stream_marker;
 --enable_query_log
 
 # Wait until all statements are confirmed to have made it into the current binary log
---let $wait_binlog_file=mysqld-bin.000003
+--let $wait_binlog_file=binlog.000003
 --source include/wait_for_binlog_event.inc
 FLUSH LOGS;
 
@@ -490,7 +490,7 @@ FLUSH LOGS;
 --echo Manually applying captured binlog
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir;`;
---exec $MYSQL_BINLOG $MYSQLD_DATADIR/mysqld-bin.000002 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/binlog.000002 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
 --exec $MYSQL -uroot < $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
 
 --enable_query_log

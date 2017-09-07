@@ -65,7 +65,7 @@ create table test.t1 (a int primary key, b int) engine=ndb;
 create table test.notes (a varchar(1000)) engine=ndb;
 
 let $MYSQLD_DATADIR= `select @@datadir;`;
---exec $MYSQL_BINLOG $MYSQLD_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
 --exec $MYSQL -uroot < $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
 
 --sorted_result
