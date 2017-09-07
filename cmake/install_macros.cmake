@@ -19,7 +19,6 @@ INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/cmake_parse_arguments.cmake)
 MACRO (INSTALL_DEBUG_SYMBOLS targets)
   IF(MSVC)
   FOREACH(target ${targets})
-    GET_TARGET_PROPERTY(location ${target} LOCATION)
     GET_TARGET_PROPERTY(type ${target} TYPE)
     IF(NOT INSTALL_LOCATION)
       IF(type MATCHES "STATIC_LIBRARY"
@@ -33,22 +32,16 @@ MACRO (INSTALL_DEBUG_SYMBOLS targets)
           "cannot determine type of ${target}. Don't now where to install")
      ENDIF()
     ENDIF()
-    STRING(REPLACE ".exe" ".pdb" pdb_location ${location})
-    STRING(REPLACE ".dll" ".pdb" pdb_location ${pdb_location})
-    STRING(REPLACE ".lib" ".pdb" pdb_location ${pdb_location})
-    IF(CMAKE_GENERATOR MATCHES "Visual Studio")
-      STRING(REPLACE
-        "${CMAKE_CFG_INTDIR}" "\${CMAKE_INSTALL_CONFIG_NAME}"
-        pdb_location ${pdb_location})
-    ENDIF()
+
     IF(target STREQUAL "mysqld")
-	  SET(comp Server)
+      SET(comp Server)
     ELSE()
       SET(comp Debuginfo)
     ENDIF()
+
     # No .pdb file for static libraries.
     IF(NOT type MATCHES "STATIC_LIBRARY")
-      INSTALL(FILES ${pdb_location}
+      INSTALL(FILES $<TARGET_PDB_FILE:${target}>
         DESTINATION ${INSTALL_LOCATION} COMPONENT ${comp})
     ENDIF()
   ENDFOREACH()
