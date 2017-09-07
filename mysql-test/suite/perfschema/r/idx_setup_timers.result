@@ -1,3 +1,13 @@
+Warnings:
+Warning	1681	'performance_schema.setup_timers' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	'performance_schema.setup_timers' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	'performance_schema.setup_timers' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	'performance_schema.setup_timers' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	'performance_schema.setup_timers' is deprecated and will be removed in a future release.
 
 ====================================================================
 Testing index for columns NAME
@@ -33,4 +43,16 @@ from performance_schema.setup_timers
 where NAME = "statement";
 TIMER_NAME
 #
+Warnings:
+#	1681	'performance_schema.setup_timers' is deprecated and will be removed in a future release.
 OK: handler_read_key incremented
+Warnings:
+Warning	1681	'performance_schema.setup_timers' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	'performance_schema.setup_timers' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	'performance_schema.setup_timers' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	'performance_schema.setup_timers' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	'performance_schema.setup_timers' is deprecated and will be removed in a future release.
