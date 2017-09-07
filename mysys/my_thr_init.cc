@@ -55,12 +55,9 @@ static thread_local int THR_myerrno= 0;
 static thread_local int THR_winerrno= 0;
 #endif
 
-C_MODE_START
 mysql_mutex_t THR_LOCK_myisam_mmap;
 mysql_mutex_t THR_LOCK_myisam;
 mysql_mutex_t THR_LOCK_heap;
-C_MODE_END
-
 mysql_mutex_t THR_LOCK_malloc;
 mysql_mutex_t THR_LOCK_open;
 mysql_mutex_t THR_LOCK_lock;

@@ -15,4 +15,4 @@
 
 #include "service_versions.h"
 
-SERVICE_VERSION *rpl_transaction_ctx_service= (void*)VERSION_rpl_transaction_ctx_service;
+SERVICE_VERSION *rpl_transaction_ctx_service= (void**)VERSION_rpl_transaction_ctx_service;
