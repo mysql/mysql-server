@@ -16,6 +16,7 @@
 #ifndef SQL_ERROR_H
 #define SQL_ERROR_H
 
+#include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
 
@@ -25,7 +26,6 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h" /* MYSQL_ERRMSG_SIZE */
 #include "sql/sql_alloc.h"
@@ -248,7 +248,7 @@ public:
 
   ErrConvString(longlong nr)
   {
-    buf_length= my_snprintf(err_buffer, sizeof(err_buffer), "%lld", nr);
+    buf_length= snprintf(err_buffer, sizeof(err_buffer), "%lld", nr);
   }
 
   ErrConvString(longlong nr, bool unsigned_flag)
@@ -737,6 +737,10 @@ void push_warning_printf(THD *thd, Sql_condition::enum_severity_level severity,
     "The syntax 'BAD' is deprecated and will be removed in a
      future release. Please use 'GOOD' instead"
 
+  If a function is deprecated, it should implement
+  Item_func::is_deprecated() to return true to prevent the
+  usage of the function in the generated column expression.
+
   @param thd         Thread context. If NULL, warning is written
                      to the error log, otherwise the warning is
                      sent to the client.
@@ -754,6 +758,10 @@ void push_deprecated_warn(THD *thd, const char *old_syntax,
   Will result in a warning:
     "The syntax 'old' is deprecated and will be removed in a
      future release.
+
+  If a function is deprecated, it should implement
+  Item_func::is_deprecated() to return true to prevent the
+  usage of the function in the generated column expression.
 
   @param thd         Thread context. If NULL, warning is written
                      to the error log, otherwise the warning is

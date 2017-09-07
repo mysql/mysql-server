@@ -17,6 +17,7 @@
 #include "sql/log_event.h"
 
 #include <assert.h>
+#include <stdio.h>
 #include <stdlib.h>
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
@@ -47,7 +48,6 @@
 #include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/psi_statement_bits.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/service_my_snprintf.h" // my_snprintf
 #include "mysql_time.h"
 #include "sql/my_decimal.h"    // my_decimal
 #include "sql/rpl_handler.h"   // RUN_HOOK
@@ -64,8 +64,8 @@
 #include "sql/json_binary.h"
 #endif
 
-#include "json_dom.h"          // Json_dom
 #include "json_diff.h"         // Json_diff_vector
+#include "json_dom.h"          // Json_dom
 
 #ifdef MYSQL_SERVER
 
@@ -144,8 +144,8 @@ slave_ignored_err_throttle(window_size,
                            " replicate-*-table rules\" got suppressed.");
 #endif /* MYSQL_SERVER */
 
-#include "sql/rpl_record.h"        // enum_row_image_type, Bit_reader
 #include "sql/rpl_gtid.h"
+#include "sql/rpl_record.h"        // enum_row_image_type, Bit_reader
 #include "sql/rpl_utility.h"
 #include "sql/xa_aux.h"
 
@@ -290,7 +290,7 @@ static void inline slave_rows_error_report(enum loglevel level, int ha_error,
   for (err= it++, slider= buff; err && slider < buff_end - 1;
        slider += len, err= it++)
   {
-    len= my_snprintf(slider, buff_end - slider,
+    len= snprintf(slider, buff_end - slider,
                      " %s, Error_code: %d;", err->message_text(),
                      err->mysql_errno());
   }
@@ -1894,7 +1894,7 @@ void Log_event::print_header(IO_CACHE* file,
   {
     char checksum_buf[BINLOG_CHECKSUM_LEN * 2 + 4]; // to fit to "0x%lx "
     size_t const bytes_written=
-      my_snprintf(checksum_buf, sizeof(checksum_buf), "0x%08lx ", (ulong) crc);
+      snprintf(checksum_buf, sizeof(checksum_buf), "0x%08lx ", (ulong) crc);
     my_b_printf(file, "%s ", get_type(&binlog_checksum_typelib,
                                       common_footer->checksum_alg));
     my_b_printf(file, checksum_buf, bytes_written);
@@ -1920,7 +1920,7 @@ void Log_event::print_header(IO_CACHE* file,
       my_b_printf(file, "# Position  Timestamp   Type   Master ID        "
                   "Size      Master Pos    Flags \n");
       size_t const bytes_written=
-        my_snprintf(emit_buf, sizeof(emit_buf),
+        snprintf(emit_buf, sizeof(emit_buf),
                     "# %8.8lx %02x %02x %02x %02x   %02x   "
                     "%02x %02x %02x %02x   %02x %02x %02x %02x   "
                     "%02x %02x %02x %02x   %02x %02x\n",
@@ -1939,7 +1939,7 @@ void Log_event::print_header(IO_CACHE* file,
 	 i < size;
 	 i++, ptr++)
     {
-      my_snprintf(h, 4, (i % 16 <= 7) ? "%02x " : " %02x", *ptr);
+      snprintf(h, 4, (i % 16 <= 7) ? "%02x " : " %02x", *ptr);
       h += 3;
 
       *c++= my_isalnum(&my_charset_bin, *ptr) ? *ptr : '.';
@@ -1954,7 +1954,7 @@ void Log_event::print_header(IO_CACHE* file,
          */
         char emit_buf[256];
         size_t const bytes_written=
-          my_snprintf(emit_buf, sizeof(emit_buf),
+          snprintf(emit_buf, sizeof(emit_buf),
                       "# %8.8lx %-48.48s |%16s|\n",
                       (unsigned long) (hexdump_from + (i & 0xfffffff0)),
                       hex_string, char_string);
@@ -1975,7 +1975,7 @@ void Log_event::print_header(IO_CACHE* file,
       // Right-pad hex_string with spaces, up to 48 characters.
       memset(h, ' ', (sizeof(hex_string) -1) - (h - hex_string));
       size_t const bytes_written=
-        my_snprintf(emit_buf, sizeof(emit_buf),
+        snprintf(emit_buf, sizeof(emit_buf),
                     "# %8.8lx %-48.48s |%s|\n",
                     (unsigned long) (hexdump_from + (i & 0xfffffff0)),
                     hex_string, char_string);
@@ -2015,7 +2015,7 @@ static const uchar *get_quote_table()
   static uchar buf[256][5];
   for (int i= 0; i < 256; i++)
   {
-    char str[5];
+    char str[6];
     switch (i)
     {
     case '\b': strcpy(str, "\\b"); break;
@@ -2393,7 +2393,7 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
   switch (type) {
   case MYSQL_TYPE_LONG:
     {
-      my_snprintf(typestr, typestr_length, "INT");
+      snprintf(typestr, typestr_length, "INT");
       if(!ptr)
         return my_b_printf(file, "NULL");
       int32 si= sint4korr(ptr);
@@ -2404,7 +2404,7 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
 
   case MYSQL_TYPE_TINY:
     {
-      my_snprintf(typestr, typestr_length, "TINYINT");
+      snprintf(typestr, typestr_length, "TINYINT");
       if(!ptr)
         return my_b_printf(file, "NULL");
       my_b_write_sint32_and_uint32(file, (int) (signed char) *ptr,
@@ -2414,7 +2414,7 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
 
   case MYSQL_TYPE_SHORT:
     {
-      my_snprintf(typestr, typestr_length, "SHORTINT");
+      snprintf(typestr, typestr_length, "SHORTINT");
       if(!ptr)
         return my_b_printf(file, "NULL");
       int32 si= (int32) sint2korr(ptr);
@@ -2425,7 +2425,7 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
   
   case MYSQL_TYPE_INT24:
     {
-      my_snprintf(typestr, typestr_length, "MEDIUMINT");
+      snprintf(typestr, typestr_length, "MEDIUMINT");
       if(!ptr)
         return my_b_printf(file, "NULL");
       int32 si= sint3korr(ptr);
@@ -2436,7 +2436,7 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
 
   case MYSQL_TYPE_LONGLONG:
     {
-      my_snprintf(typestr, typestr_length, "LONGINT");
+      snprintf(typestr, typestr_length, "LONGINT");
       if(!ptr)
         return my_b_printf(file, "NULL");
       char tmp[64];
@@ -2456,7 +2456,7 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
     {
       uint precision= meta >> 8;
       uint decimals= meta & 0xFF;
-      my_snprintf(typestr, typestr_length, "DECIMAL(%d,%d)",
+      snprintf(typestr, typestr_length, "DECIMAL(%d,%d)",
                   precision, decimals);
       if(!ptr)
         return my_b_printf(file, "NULL");
@@ -2473,14 +2473,14 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
 
   case MYSQL_TYPE_FLOAT:
     {
-      my_snprintf(typestr, typestr_length, "FLOAT");
+      snprintf(typestr, typestr_length, "FLOAT");
       if(!ptr)
         return my_b_printf(file, "NULL");
       float fl;
       float4get(&fl, ptr);
       char tmp[320];
       sprintf(tmp, "%-20g", (double) fl);
-      my_b_printf(file, "%s", tmp); /* my_snprintf doesn't support %-20g */
+      my_b_printf(file, "%s", tmp); /* my_b_printf doesn't support %-20g */
       return 4;
     }
 
@@ -2492,7 +2492,7 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
       double dbl;
       float8get(&dbl, ptr);
       char tmp[320];
-      sprintf(tmp, "%-.20g", dbl); /* my_snprintf doesn't support %-20g */
+      sprintf(tmp, "%-.20g", dbl); /* my_b_printf doesn't support %-20g */
       my_b_printf(file, "%s", tmp);
       return 8;
     }
@@ -2501,7 +2501,7 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
     {
       /* Meta-data: bit_len, bytes_in_rec, 2 bytes */
       uint nbits= ((meta >> 8) * 8) + (meta & 0xFF);
-      my_snprintf(typestr, typestr_length, "BIT(%d)", nbits);
+      snprintf(typestr, typestr_length, "BIT(%d)", nbits);
       if(!ptr)
         return my_b_printf(file, "NULL");
       length= (nbits + 7) / 8;
@@ -2511,7 +2511,7 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
 
   case MYSQL_TYPE_TIMESTAMP:
     {
-      my_snprintf(typestr, typestr_length, "TIMESTAMP");
+      snprintf(typestr, typestr_length, "TIMESTAMP");
       if(!ptr)
         return my_b_printf(file, "NULL");
       uint32 i32= uint4korr(ptr);
@@ -2521,7 +2521,7 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
 
   case MYSQL_TYPE_TIMESTAMP2:
     {
-      my_snprintf(typestr, typestr_length, "TIMESTAMP(%d)", meta);
+      snprintf(typestr, typestr_length, "TIMESTAMP(%d)", meta);
       if(!ptr)
         return my_b_printf(file, "NULL");
       char buf[MAX_DATE_STRING_REP_LENGTH];
@@ -2534,7 +2534,7 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
 
   case MYSQL_TYPE_DATETIME:
     {
-      my_snprintf(typestr, typestr_length, "DATETIME");
+      snprintf(typestr, typestr_length, "DATETIME");
       if(!ptr)
         return my_b_printf(file, "NULL");
       size_t d, t;
@@ -2553,7 +2553,7 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
 
   case MYSQL_TYPE_DATETIME2:
     {
-      my_snprintf(typestr, typestr_length, "DATETIME(%d)", meta);
+      snprintf(typestr, typestr_length, "DATETIME(%d)", meta);
       if(!ptr)
         return my_b_printf(file, "NULL");
       char buf[MAX_DATE_STRING_REP_LENGTH];
@@ -2567,7 +2567,7 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
 
   case MYSQL_TYPE_TIME:
     {
-      my_snprintf(typestr, typestr_length, "TIME");
+      snprintf(typestr, typestr_length, "TIME");
       if(!ptr)
         return my_b_printf(file, "NULL");
       uint32 i32= uint3korr(ptr);
@@ -2578,7 +2578,7 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
 
   case MYSQL_TYPE_TIME2:
     {
-      my_snprintf(typestr, typestr_length, "TIME(%d)", meta);
+      snprintf(typestr, typestr_length, "TIME(%d)", meta);
       if(!ptr)
         return my_b_printf(file, "NULL");
       char buf[MAX_DATE_STRING_REP_LENGTH];
@@ -2592,7 +2592,7 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
 
   case MYSQL_TYPE_NEWDATE:
     {
-      my_snprintf(typestr, typestr_length, "DATE");
+      snprintf(typestr, typestr_length, "DATE");
       if(!ptr)
         return my_b_printf(file, "NULL");
       uint32 tmp= uint3korr(ptr);
@@ -2621,7 +2621,7 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
 
   case MYSQL_TYPE_YEAR:
     {
-      my_snprintf(typestr, typestr_length, "YEAR");
+      snprintf(typestr, typestr_length, "YEAR");
       if(!ptr)
         return my_b_printf(file, "NULL");
       uint32 i32= *ptr;
@@ -2632,14 +2632,14 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
   case MYSQL_TYPE_ENUM:
     switch (meta & 0xFF) {
     case 1:
-      my_snprintf(typestr, typestr_length, "ENUM(1 byte)");
+      snprintf(typestr, typestr_length, "ENUM(1 byte)");
       if(!ptr)
         return my_b_printf(file, "NULL");
       my_b_printf(file, "%d", (int) *ptr);
       return 1;
     case 2:
       {
-        my_snprintf(typestr, typestr_length, "ENUM(2 bytes)");
+        snprintf(typestr, typestr_length, "ENUM(2 bytes)");
         if(!ptr)
           return my_b_printf(file, "NULL");
         int32 i32= uint2korr(ptr);
@@ -2653,7 +2653,7 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
     break;
     
   case MYSQL_TYPE_SET:
-    my_snprintf(typestr, typestr_length, "SET(%d bytes)", meta & 0xFF);
+    snprintf(typestr, typestr_length, "SET(%d bytes)", meta & 0xFF);
     if(!ptr)
       return my_b_printf(file, "NULL");
     my_b_write_bit(file, ptr , (meta & 0xFF) * 8);
@@ -2662,28 +2662,28 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
   case MYSQL_TYPE_BLOB:
     switch (meta) {
     case 1:
-      my_snprintf(typestr, typestr_length, "TINYBLOB/TINYTEXT");
+      snprintf(typestr, typestr_length, "TINYBLOB/TINYTEXT");
       if(!ptr)
         return my_b_printf(file, "NULL");
       length= *ptr;
       my_b_write_quoted(file, ptr + 1, length);
       return length + 1;
     case 2:
-      my_snprintf(typestr, typestr_length, "BLOB/TEXT");
+      snprintf(typestr, typestr_length, "BLOB/TEXT");
       if(!ptr)
         return my_b_printf(file, "NULL");
       length= uint2korr(ptr);
       my_b_write_quoted(file, ptr + 2, length);
       return length + 2;
     case 3:
-      my_snprintf(typestr, typestr_length, "MEDIUMBLOB/MEDIUMTEXT");
+      snprintf(typestr, typestr_length, "MEDIUMBLOB/MEDIUMTEXT");
       if(!ptr)
         return my_b_printf(file, "NULL");
       length= uint3korr(ptr);
       my_b_write_quoted(file, ptr + 3, length);
       return length + 3;
     case 4:
-      my_snprintf(typestr, typestr_length, "LONGBLOB/LONGTEXT");
+      snprintf(typestr, typestr_length, "LONGBLOB/LONGTEXT");
       if(!ptr)
         return my_b_printf(file, "NULL");
       length= uint4korr(ptr);
@@ -2697,20 +2697,20 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
   case MYSQL_TYPE_VARCHAR:
   case MYSQL_TYPE_VAR_STRING:
     length= meta;
-    my_snprintf(typestr, typestr_length, "VARSTRING(%d)", length);
+    snprintf(typestr, typestr_length, "VARSTRING(%d)", length);
     if(!ptr) 
       return my_b_printf(file, "NULL");
     return my_b_write_quoted_with_length(file, ptr, length);
 
   case MYSQL_TYPE_STRING:
-    my_snprintf(typestr, typestr_length, "STRING(%d)", length);
+    snprintf(typestr, typestr_length, "STRING(%d)", length);
     if(!ptr)
       return my_b_printf(file, "NULL");
     return my_b_write_quoted_with_length(file, ptr, length);
 
   case MYSQL_TYPE_JSON:
   {
-    my_snprintf(typestr, typestr_length, "JSON");
+    snprintf(typestr, typestr_length, "JSON");
     if (!ptr)
       return my_b_printf(file, "NULL");
     length= uint4korr(ptr);
@@ -2743,7 +2743,7 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
   default:
     {
       char tmp[5];
-      my_snprintf(tmp, sizeof(tmp), "%04x", meta);
+      snprintf(tmp, sizeof(tmp), "%04x", meta);
       my_b_printf(file,
                   "!! Don't know how to handle column type=%d meta=%d (%s)\n",
                   type, meta, tmp);
@@ -7631,7 +7631,7 @@ int Append_block_log_event::pack_info(Protocol *protocol)
 {
   char buf[256];
   size_t length;
-  length= my_snprintf(buf, sizeof(buf), ";file_id=%u;block_len=%u",
+  length= snprintf(buf, sizeof(buf), ";file_id=%u;block_len=%u",
                       file_id, block_len);
   protocol->store(buf, length, &my_charset_bin);
   return 0;
@@ -7798,7 +7798,7 @@ int Delete_file_log_event::pack_info(Protocol *protocol)
 {
   char buf[64];
   size_t length;
-  length= my_snprintf(buf, sizeof(buf), ";file_id=%u", (uint) file_id);
+  length= snprintf(buf, sizeof(buf), ";file_id=%u", (uint) file_id);
   protocol->store(buf, length, &my_charset_bin);
   return 0;
 }
@@ -10953,7 +10953,7 @@ int Rows_log_event::pack_info(Protocol *protocol)
   char buf[256];
   char const *const flagstr=
     get_flags(STMT_END_F) ? " flags: STMT_END_F" : "";
-  size_t bytes= my_snprintf(buf, sizeof(buf),
+  size_t bytes= snprintf(buf, sizeof(buf),
                             "table_id: %llu%s", m_table_id.id(), flagstr);
   protocol->store(buf, bytes, &my_charset_bin);
   return 0;
@@ -11417,7 +11417,7 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
 
       char buf[256];
 
-      my_snprintf(buf, sizeof(buf), 
+      snprintf(buf, sizeof(buf), 
                   "Found table map event mapping table id %llu which "
                   "was already mapped but with different settings.",
                   table_list->table_id.id());
@@ -11946,7 +11946,7 @@ bool Table_map_log_event::init_primary_key_field()
 int Table_map_log_event::pack_info(Protocol *protocol)
 {
   char buf[256];
-  size_t bytes= my_snprintf(buf, sizeof(buf),
+  size_t bytes= snprintf(buf, sizeof(buf),
                             "table_id: %llu (%s.%s)",
                             m_table_id.id(), m_dbnam.c_str(), m_tblnam.c_str());
   protocol->store(buf, bytes, &my_charset_bin);
@@ -11996,72 +11996,72 @@ static void get_type_name(uint type, unsigned char** meta_ptr,
 {
   switch (type) {
   case MYSQL_TYPE_LONG:
-    my_snprintf(typestr, typestr_length, "%s", "INT");
+    snprintf(typestr, typestr_length, "%s", "INT");
     break;
   case MYSQL_TYPE_TINY:
-    my_snprintf(typestr, typestr_length, "TINYINT");
+    snprintf(typestr, typestr_length, "TINYINT");
     break;
   case MYSQL_TYPE_SHORT:
-    my_snprintf(typestr, typestr_length, "SMALLINT");
+    snprintf(typestr, typestr_length, "SMALLINT");
     break;
   case MYSQL_TYPE_INT24:
-    my_snprintf(typestr, typestr_length, "MEDIUMINT");
+    snprintf(typestr, typestr_length, "MEDIUMINT");
     break;
   case MYSQL_TYPE_LONGLONG:
-    my_snprintf(typestr, typestr_length, "BIGINT");
+    snprintf(typestr, typestr_length, "BIGINT");
     break;
   case MYSQL_TYPE_NEWDECIMAL:
-      my_snprintf(typestr, typestr_length, "DECIMAL(%d,%d)",
+      snprintf(typestr, typestr_length, "DECIMAL(%d,%d)",
                   (*meta_ptr)[0], (*meta_ptr)[1]);
       (*meta_ptr)+= 2;
       break;
   case MYSQL_TYPE_FLOAT:
-    my_snprintf(typestr, typestr_length, "FLOAT");
+    snprintf(typestr, typestr_length, "FLOAT");
     (*meta_ptr)++;
     break;
   case MYSQL_TYPE_DOUBLE:
-    my_snprintf(typestr, typestr_length, "DOUBLE");
+    snprintf(typestr, typestr_length, "DOUBLE");
     (*meta_ptr)++;
     break;
   case MYSQL_TYPE_BIT:
-    my_snprintf(typestr, typestr_length, "BIT(%d)",
+    snprintf(typestr, typestr_length, "BIT(%d)",
                 (((*meta_ptr)[0])) + (*meta_ptr)[1]*8);
     (*meta_ptr)+= 2;
     break;
   case MYSQL_TYPE_TIMESTAMP2:
     if (**meta_ptr != 0)
-      my_snprintf(typestr, typestr_length, "TIMESTAMP(%d)", **meta_ptr);
+      snprintf(typestr, typestr_length, "TIMESTAMP(%d)", **meta_ptr);
     else
-      my_snprintf(typestr, typestr_length, "TIMESTAMP");
+      snprintf(typestr, typestr_length, "TIMESTAMP");
     (*meta_ptr)++;
     break;
   case MYSQL_TYPE_DATETIME2:
     if (**meta_ptr != 0)
-      my_snprintf(typestr, typestr_length, "DATETIME(%d)", **meta_ptr);
+      snprintf(typestr, typestr_length, "DATETIME(%d)", **meta_ptr);
     else
-      my_snprintf(typestr, typestr_length, "DATETIME");
+      snprintf(typestr, typestr_length, "DATETIME");
     (*meta_ptr)++;
     break;
   case MYSQL_TYPE_TIME2:
     if (**meta_ptr != 0)
-      my_snprintf(typestr, typestr_length, "TIME(%d)", **meta_ptr);
+      snprintf(typestr, typestr_length, "TIME(%d)", **meta_ptr);
     else
-      my_snprintf(typestr, typestr_length, "TIME");
+      snprintf(typestr, typestr_length, "TIME");
     (*meta_ptr)++;
     break;
   case MYSQL_TYPE_NEWDATE:
   case MYSQL_TYPE_DATE:
-    my_snprintf(typestr, typestr_length, "DATE");
+    snprintf(typestr, typestr_length, "DATE");
     break;
   case MYSQL_TYPE_YEAR:
-    my_snprintf(typestr, typestr_length, "YEAR");
+    snprintf(typestr, typestr_length, "YEAR");
     break;
   case MYSQL_TYPE_ENUM:
-    my_snprintf(typestr, typestr_length, "ENUM");
+    snprintf(typestr, typestr_length, "ENUM");
     (*meta_ptr)+= 2;
     break;
   case MYSQL_TYPE_SET:
-    my_snprintf(typestr, typestr_length, "SET");
+    snprintf(typestr, typestr_length, "SET");
     (*meta_ptr)+= 2;
     break;
   case MYSQL_TYPE_BLOB:
@@ -12077,9 +12077,9 @@ static void get_type_name(uint type, unsigned char** meta_ptr,
       unsigned char size= **meta_ptr;
 
       if (size == 0 || size > 4)
-        my_snprintf(typestr, typestr_length, names[0][is_text], size);
+        snprintf(typestr, typestr_length, names[0][is_text], size);
       else
-        my_snprintf(typestr, typestr_length, names[**meta_ptr][is_text]);
+        snprintf(typestr, typestr_length, "%s", names[**meta_ptr][is_text]);
 
       (*meta_ptr)++;
     }
@@ -12087,10 +12087,10 @@ static void get_type_name(uint type, unsigned char** meta_ptr,
   case MYSQL_TYPE_VARCHAR:
   case MYSQL_TYPE_VAR_STRING:
     if (cs && cs->number != my_charset_bin.number)
-      my_snprintf(typestr, typestr_length, "VARCHAR(%d)",
+      snprintf(typestr, typestr_length, "VARCHAR(%d)",
                   uint2korr(*meta_ptr)/cs->mbmaxlen);
     else
-      my_snprintf(typestr, typestr_length, "VARBINARY(%d)",
+      snprintf(typestr, typestr_length, "VARBINARY(%d)",
                   uint2korr(*meta_ptr));
 
     (*meta_ptr)+= 2;
@@ -12102,15 +12102,15 @@ static void get_type_name(uint type, unsigned char** meta_ptr,
       uint len= (((byte0 & 0x30) ^ 0x30) << 4) | byte1;
 
       if (cs && cs->number != my_charset_bin.number)
-        my_snprintf(typestr, typestr_length, "CHAR(%d)", len/cs->mbmaxlen);
+        snprintf(typestr, typestr_length, "CHAR(%d)", len/cs->mbmaxlen);
       else
-        my_snprintf(typestr, typestr_length, "BINARY(%d)", len);
+        snprintf(typestr, typestr_length, "BINARY(%d)", len);
 
       (*meta_ptr)+= 2;
     }
     break;
   case MYSQL_TYPE_JSON:
-    my_snprintf(typestr, typestr_length, "JSON");
+    snprintf(typestr, typestr_length, "JSON");
     (*meta_ptr)++;
     break;
   case MYSQL_TYPE_GEOMETRY:
@@ -12120,9 +12120,9 @@ static void get_type_name(uint type, unsigned char** meta_ptr,
         "MULTILINESTRING", "MULTIPOLYGON", "GEOMETRYCOLLECTION"
       };
       if (geometry_type < 8)
-        my_snprintf(typestr, typestr_length, names[geometry_type]);
+        snprintf(typestr, typestr_length, "%s", names[geometry_type]);
       else
-        my_snprintf(typestr, typestr_length, "INVALID_GEOMETRY_TYPE(%u)",
+        snprintf(typestr, typestr_length, "INVALID_GEOMETRY_TYPE(%u)",
                     geometry_type);
       (*meta_ptr)++;
     }
@@ -13125,10 +13125,10 @@ int Incident_log_event::pack_info(Protocol *protocol)
   char buf[256];
   size_t bytes;
   if (message_length > 0)
-    bytes= my_snprintf(buf, sizeof(buf), "#%d (%s)",
+    bytes= snprintf(buf, sizeof(buf), "#%d (%s)",
                        incident, description());
   else
-    bytes= my_snprintf(buf, sizeof(buf), "#%d (%s): %s",
+    bytes= snprintf(buf, sizeof(buf), "#%d (%s): %s",
                        incident, description(), message);
   protocol->store(buf, bytes, &my_charset_bin);
   return 0;
@@ -13253,7 +13253,7 @@ int Ignorable_log_event::pack_info(Protocol *protocol)
 {
   char buf[256];
   size_t bytes;
-  bytes= my_snprintf(buf, sizeof(buf), "# Unrecognized ignorable event");
+  bytes= snprintf(buf, sizeof(buf), "# Unrecognized ignorable event");
   protocol->store(buf, bytes, &my_charset_bin);
   return 0;
 }
@@ -13294,7 +13294,7 @@ int Rows_query_log_event::pack_info(Protocol *protocol)
   if (!(buf= (char*) my_malloc(key_memory_log_event,
                                len, MYF(MY_WME))))
     return 1;
-  bytes= my_snprintf(buf, len, "# %s", m_rows_query);
+  bytes= snprintf(buf, len, "# %s", m_rows_query);
   protocol->store(buf, bytes, &my_charset_bin);
   my_free(buf);
   return 0;
@@ -14069,8 +14069,8 @@ Transaction_context_log_event::~Transaction_context_log_event()
 size_t Transaction_context_log_event::to_string(char *buf, ulong len) const
 {
   DBUG_ENTER("Transaction_context_log_event::to_string");
-  DBUG_RETURN(my_snprintf(buf, len,
-                          "server_uuid=%s\tthread_id=%lu",
+  DBUG_RETURN(snprintf(buf, len,
+                          "server_uuid=%s\tthread_id=%u",
                           server_uuid, thread_id));
 }
 
@@ -14324,7 +14324,7 @@ View_change_log_event::get_size_data_map(std::map<std::string, std::string> *map
 size_t View_change_log_event::to_string(char *buf, ulong len) const
 {
   DBUG_ENTER("View_change_log_event::to_string");
-  DBUG_RETURN(my_snprintf(buf, len, "view_id=%s", view_id));
+  DBUG_RETURN(snprintf(buf, len, "view_id=%s", view_id));
 }
 
 #ifdef MYSQL_SERVER

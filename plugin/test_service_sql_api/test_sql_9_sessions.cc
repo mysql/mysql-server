@@ -13,17 +13,18 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include <stdlib.h>
-#include "my_sys.h"                             // my_write, my_malloc
 #include <mysql/plugin.h>
+#include <stdlib.h>
+
+#include "my_sys.h"                             // my_write, my_malloc
 
 #define STRING_BUFFER 256
 
-#define WRITE_STR(format) my_snprintf(buffer,sizeof(buffer),format); \
+#define WRITE_STR(format) snprintf(buffer,sizeof(buffer),"%s",format); \
                                  my_write(outfile,(uchar*)buffer,strlen(buffer),MYF(0))
-#define WRITE_VAL(format,value) my_snprintf(buffer,sizeof(buffer),format,value); \
+#define WRITE_VAL(format,value) snprintf(buffer,sizeof(buffer),format,value); \
                                  my_write(outfile,(uchar*)buffer,strlen(buffer),MYF(0))
-#define WRITE_VAL_2(format,value1,value2) my_snprintf(buffer,sizeof(buffer),format,value1,value2); \
+#define WRITE_VAL_2(format,value1,value2) snprintf(buffer,sizeof(buffer),format,value1,value2); \
                                  my_write(outfile,(uchar*)buffer,strlen(buffer),MYF(0))
 
 File outfile;

@@ -25,7 +25,6 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_systime.h"
-#include <mysql/service_my_snprintf.h>
 #include <mysql/service_mysql_alloc.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>

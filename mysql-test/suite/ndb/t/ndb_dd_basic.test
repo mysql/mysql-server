@@ -204,9 +204,9 @@ SELECT COUNT(*) FROM t1;
 
 # Turn off caching for information_schema, otherwise values
 # will be cached and only updated after ANALYZE TABLE
-set information_schema_stats=LATEST;
+SET SESSION information_schema_stats_expiry=0;
 
-SELECT table_name, 
+SELECT table_name,
        SUM(table_rows),
        SUM(data_length),
        MAX(max_data_length),
@@ -705,3 +705,4 @@ INITIAL_SIZE 16M
 UNDO_BUFFER_SIZE = 128M
 ENGINE=NDB;
 SHOW WARNINGS;
+SET SESSION information_schema_stats_expiry=default;

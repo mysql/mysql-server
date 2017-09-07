@@ -68,7 +68,8 @@ public:
 class Check_table_intact : public Table_check_intact
 {
 protected:
-  void report_error(uint, const char *fmt, ...);
+  void report_error(uint, const char *fmt, ...)
+    MY_ATTRIBUTE((format(printf, 3, 4)));
 };
 
 

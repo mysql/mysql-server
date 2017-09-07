@@ -15,12 +15,12 @@
 
 #include "sql/opt_hints.h"
 
+#include <stdio.h>
 #include <string.h>
 
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_table_map.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "sql/auth/sql_security_ctx.h"
@@ -227,7 +227,7 @@ Opt_hints_qb::Opt_hints_qb(Opt_hints *opt_hints_arg,
     join_order_hints(mem_root_arg), join_order_hints_ignored(0)
 {
   sys_name.str= buff;
-  sys_name.length= my_snprintf(buff, sizeof(buff), "%s%lx",
+  sys_name.length= snprintf(buff, sizeof(buff), "%s%x",
                                sys_qb_prefix.str, select_number);
 }
 

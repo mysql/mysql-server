@@ -97,7 +97,7 @@ class Session_impl : public XSession {
       const Arguments &args,
       XError *out_error) override;
 
-  void close();
+  void close() override;
 
  private:
   using Context_ptr          = std::shared_ptr<Context>;

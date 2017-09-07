@@ -20,6 +20,7 @@
 #include "my_config.h"
 
 #include <fcntl.h>
+#include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -40,7 +41,6 @@
 #include "my_xml.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysys/mysys_priv.h"
 #include "mysys_err.h"
@@ -490,13 +490,13 @@ get_collation_name_alias(const char *name, char *buf, size_t bufsize)
 {
   if (!native_strncasecmp(name, "utf8mb3_", 8))
   {
-    my_snprintf(buf, bufsize, "utf8_%s", name + 8);
+    snprintf(buf, bufsize, "utf8_%s", name + 8);
     return buf;
   }
   /* CLDR's tailoring data for Norwegian is same as Danish */
   if (!native_strncasecmp(name, "utf8mb4_no_0900_", 16))
   {
-    my_snprintf(buf, bufsize, "utf8mb4_da_0900_%s", name + 16);
+    snprintf(buf, bufsize, "utf8mb4_da_0900_%s", name + 16);
     return buf;
   }
   return NULL;

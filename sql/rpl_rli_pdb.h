@@ -834,7 +834,8 @@ public:
 protected:
 
   virtual void do_report(loglevel level, int err_code,
-                         const char *msg, va_list v_args) const;
+                         const char *msg, va_list v_args) const
+    MY_ATTRIBUTE((format(printf, 4, 0)));
 
 private:
   ulong gaq_index;          // GAQ index of the current assignment 

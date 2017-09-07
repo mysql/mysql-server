@@ -177,11 +177,12 @@ public:
 };
 
 template <typename DISABLE_ROLLBACK>
-bool complete_stmt(THD *thd, handlerton *hton, DISABLE_ROLLBACK &&dr)
+bool complete_stmt(THD *thd, handlerton *hton, DISABLE_ROLLBACK &&dr,
+                   bool using_trans = true)
 {
 
   if (write_bin_log(thd, false, thd->query().str, thd->query().length,
-                    ddl_is_atomic(hton)))
+                    using_trans && ddl_is_atomic(hton)))
   {
     return true;
   }
@@ -1131,7 +1132,12 @@ bool Sql_cmd_logfile_group::execute(THD *thd)
     return true;
   }
 
-  if (complete_stmt(thd, hton, [&]() { rollback_on_return.disable(); }))
+  // The CREATE/ALTER/DROP LOGFILE GROUP command is atomic in the SE
+  // but does not modify the DD and thus there is no active transaction
+  // -> turn off "using_trans"
+  const bool using_trans = false;
+  if (complete_stmt(thd, hton, [&]() { rollback_on_return.disable(); },
+      using_trans))
   {
     return true;
   }

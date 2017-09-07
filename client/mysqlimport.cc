@@ -20,6 +20,7 @@
 **			    into a table(s).
 */
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <time.h>
@@ -31,7 +32,6 @@
 #include "my_io.h"
 #include "my_macros.h"
 #include "my_systime.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_version.h"
 #include "print_version.h"
@@ -338,7 +338,7 @@ static int write_to_table(char *filename, MYSQL *mysql)
   {
     if (verbose)
       fprintf(stdout, "Deleting the old data from table %s\n", tablename);
-    my_snprintf(sql_statement, FN_REFLEN*16+256, "DELETE FROM %s", tablename);
+    snprintf(sql_statement, FN_REFLEN*16+256, "DELETE FROM %s", tablename);
     if (mysql_query(mysql, sql_statement))
     {
       db_error_with_table(mysql, tablename);

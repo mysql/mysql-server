@@ -1,3 +1,4 @@
+/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved. */
 
   struct Free_list_usage
   {
@@ -18,7 +19,7 @@
     while (ndb->get_free_list_usage(&tmp))
     {
       buflen=
-        my_snprintf(buf, sizeof(buf),
+        snprintf(buf, sizeof(buf),
                   "created=%u, free=%u, sizeof=%u",
                   tmp.m_created, tmp.m_free, tmp.m_sizeof);
       if (stat_print(thd, ndbcluster_hton_name, ndbcluster_hton_name_length,

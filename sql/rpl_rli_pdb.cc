@@ -21,6 +21,7 @@
 #include <sys/time.h>
 #endif
 
+#include <stdio.h>
 #include <algorithm>
 #include <atomic>
 #include <memory>
@@ -43,7 +44,6 @@
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/thread_type.h"
 #include "mysqld_error.h"
 #include "sql/binlog.h"
@@ -1663,7 +1663,7 @@ void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
   {
     char coordinator_errmsg[MAX_SLAVE_ERRMSG];
 
-    my_snprintf(coordinator_errmsg, MAX_SLAVE_ERRMSG,
+    snprintf(coordinator_errmsg, MAX_SLAVE_ERRMSG,
                 "Coordinator stopped because there were error(s) in the "
                 "worker(s). "
                 "The most recent failure being: Worker %u failed executing "
@@ -1685,7 +1685,7 @@ void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
     c_rli->fill_coord_err_buf(level, err_code, coordinator_errmsg);
   }
 
-  my_snprintf(buff_coord, sizeof(buff_coord),
+  snprintf(buff_coord, sizeof(buff_coord),
               "Worker %u failed executing transaction '%s' at "
               "master log %s, end_log_pos %llu",
               internal_id, buff_gtid, log_name, log_pos);

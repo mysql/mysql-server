@@ -15,6 +15,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
 #include <algorithm>
@@ -33,7 +34,6 @@
 #include "mysql/mysql_lex_string.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "sql/auth/sql_security_ctx.h"
@@ -569,7 +569,7 @@ char *thd_security_context(MYSQL_THD thd, char *buffer, size_t length,
   */
   const char *proc_info= thd->proc_info;
 
-  len= my_snprintf(header, sizeof(header),
+  len= snprintf(header, sizeof(header),
                    "MySQL thread id %u, OS thread handle %lu, query id %lu",
                    thd->thread_id(), (ulong)thd->real_id, (ulong)thd->query_id);
   str.length(0);

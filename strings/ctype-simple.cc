@@ -16,6 +16,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <stdarg.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
@@ -27,7 +28,6 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_sys.h"  /* Needed for MY_ERRNO_ERANGE */
-#include "mysql/service_my_snprintf.h"
 #include "stdarg.h"
 
 /*
@@ -302,7 +302,7 @@ size_t my_snprintf_8bit(const CHARSET_INFO *cs  MY_ATTRIBUTE((unused)),
   va_list args;
   size_t result;
   va_start(args,fmt);
-  result= my_vsnprintf(to, n, fmt, args);
+  result= vsnprintf(to, n, fmt, args);
   va_end(args);
   return result;
 }

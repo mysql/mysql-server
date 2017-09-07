@@ -62,7 +62,6 @@
 #include "mysql/client_authentication.h"
 #include "mysql/plugin_auth_common.h"
 #include "mysql/psi/mysql_memory.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
@@ -342,7 +341,7 @@ void set_mysql_extended_error(MYSQL *mysql, int errcode,
   net= &mysql->net;
   net->last_errno= errcode;
   va_start(args, format);
-  my_vsnprintf(net->last_error, sizeof(net->last_error)-1,
+  vsnprintf(net->last_error, sizeof(net->last_error)-1,
                format, args);
   va_end(args);
   my_stpcpy(net->sqlstate, sqlstate);
@@ -3156,7 +3155,7 @@ mysql_autodetect_character_set(MYSQL *mysql)
 #ifdef _WIN32
   char cpbuf[64];
   {
-    my_snprintf(cpbuf, sizeof(cpbuf), "cp%d", (int) GetConsoleCP());
+    snprintf(cpbuf, sizeof(cpbuf), "cp%d", (int) GetConsoleCP());
     csname= my_os_charset_to_mysql_charset(cpbuf);
   }
 #elif defined(HAVE_NL_LANGINFO)
@@ -4495,14 +4494,14 @@ set_connect_attributes(MYSQL *mysql, char *buff, size_t buf_len)
   rc+= mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
                       "_platform", MACHINE_TYPE);
 #ifdef _WIN32
-  my_snprintf(buff, buf_len, "%lu", (ulong) GetCurrentProcessId());
+  snprintf(buff, buf_len, "%lu", (ulong) GetCurrentProcessId());
 #else
-  my_snprintf(buff, buf_len, "%lu", (ulong) getpid());
+  snprintf(buff, buf_len, "%lu", (ulong) getpid());
 #endif
   rc+= mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "_pid", buff);
 
 #ifdef _WIN32
-  my_snprintf(buff, buf_len, "%lu", (ulong) GetCurrentThreadId());
+  snprintf(buff, buf_len, "%lu", (ulong) GetCurrentThreadId());
   rc+= mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "_thread", buff);
 #endif
 
@@ -4632,7 +4631,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
       mysql->options.protocol=MYSQL_PROTOCOL_MEMORY;
       unix_socket = 0;
       host=mysql->options.shared_memory_base_name;
-      my_snprintf(host_info=buff, sizeof(buff)-1,
+      snprintf(host_info=buff, sizeof(buff)-1,
                   ER_CLIENT(CR_SHARED_MEMORY_CONNECTION), host);
     }
   }
@@ -4718,7 +4717,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     else
     {
       net->vio= vio_new_win32pipe(hPipe);
-      my_snprintf(host_info=buff, sizeof(buff)-1,
+      snprintf(host_info=buff, sizeof(buff)-1,
                   ER_CLIENT(CR_NAMEDPIPE_CONNECTION), unix_socket);
     }
   }
@@ -4743,7 +4742,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     if (!host)
       host= LOCAL_HOST;
 
-    my_snprintf(host_info=buff, sizeof(buff)-1, ER_CLIENT(CR_TCP_CONNECTION), host);
+    snprintf(host_info=buff, sizeof(buff)-1, ER_CLIENT(CR_TCP_CONNECTION), host);
     DBUG_PRINT("info",("Server name: '%s'.  TCP sock: %d", host, port));
 
     memset(&hints, 0, sizeof(hints));
@@ -4752,7 +4751,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     hints.ai_family= AF_UNSPEC;
 
     DBUG_PRINT("info",("IPV6 getaddrinfo %s", host));
-    my_snprintf(port_buf, NI_MAXSERV, "%d", port);
+    snprintf(port_buf, NI_MAXSERV, "%d", port);
     gai_errno= getaddrinfo(host, port_buf, &hints, &res_lst);
 
     if (gai_errno != 0) 
@@ -5682,7 +5681,7 @@ void mysql_detach_stmt_list(LIST **stmt_list MY_ATTRIBUTE((unused)),
   char buff[MYSQL_ERRMSG_SIZE];
   DBUG_ENTER("mysql_detach_stmt_list");
 
-  my_snprintf(buff, sizeof(buff)-1, ER_CLIENT(CR_STMT_CLOSED), func_name);
+  snprintf(buff, sizeof(buff)-1, ER_CLIENT(CR_STMT_CLOSED), func_name);
   for (; element; element= element->next)
   {
     MYSQL_STMT *stmt= (MYSQL_STMT *) element->data;

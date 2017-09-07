@@ -66,19 +66,20 @@ endif()
 check_include_file(unistd.h Z_HAVE_UNISTD_H)
 
 
-configure_file(	${CMAKE_CURRENT_SOURCE_DIR}/zconf.h.cmakein
-		${CMAKE_CURRENT_BINARY_DIR}/zconf.hh @ONLY)
-include_directories(${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_SOURCE_DIR})
-
-configure_file( ${CMAKE_CURRENT_BINARY_DIR}/zconf.hh
-                ${CMAKE_CURRENT_BINARY_DIR}/bundled_zconf.h )
+configure_file(
+  ${CMAKE_CURRENT_SOURCE_DIR}/zconf.h.cmakein
+  ${CMAKE_CURRENT_BINARY_DIR}/zconf.h @ONLY
+  )
+include_directories(
+  SYSTEM ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}
+  )
 
 #============================================================================
 # zlib
 #============================================================================
 
 set(ZLIB_PUBLIC_HDRS
-    ${CMAKE_CURRENT_BINARY_DIR}/bundled_zconf.h
+    ${CMAKE_CURRENT_BINARY_DIR}/zconf.h
     zlib.h
 )
 set(ZLIB_PRIVATE_HDRS

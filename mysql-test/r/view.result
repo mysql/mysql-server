@@ -167,12 +167,12 @@ v6	VIEW
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	InnoDB	10	Dynamic	#	#	#	#	0	0	NULL	#	#	NULL	utf8mb4_0900_ai_ci	NULL		
-v1	NULL	NULL	NULL	#	#	#	#	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	VIEW
-v2	NULL	NULL	NULL	#	#	#	#	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	VIEW
-v3	NULL	NULL	NULL	#	#	#	#	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	VIEW
-v4	NULL	NULL	NULL	#	#	#	#	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	VIEW
-v5	NULL	NULL	NULL	#	#	#	#	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	VIEW
-v6	NULL	NULL	NULL	#	#	#	#	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	VIEW
+v1	NULL	NULL	NULL	#	#	#	#	0	0	NULL	#	#	NULL	NULL	NULL	NULL	VIEW
+v2	NULL	NULL	NULL	#	#	#	#	0	0	NULL	#	#	NULL	NULL	NULL	NULL	VIEW
+v3	NULL	NULL	NULL	#	#	#	#	0	0	NULL	#	#	NULL	NULL	NULL	NULL	VIEW
+v4	NULL	NULL	NULL	#	#	#	#	0	0	NULL	#	#	NULL	NULL	NULL	NULL	VIEW
+v5	NULL	NULL	NULL	#	#	#	#	0	0	NULL	#	#	NULL	NULL	NULL	NULL	VIEW
+v6	NULL	NULL	NULL	#	#	#	#	0	0	NULL	#	#	NULL	NULL	NULL	NULL	VIEW
 drop view v1,v2,v3,v4,v5,v6;
 create view v1 (c,d,e,f) as select a,b,
 a in (select a+2 from t1), a = all (select a from t1) from t1;
@@ -871,8 +871,8 @@ select * from v1;
 ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	InnoDB	10	Dynamic	#	#	#	#	NULL	NULL	NULL	#	#	NULL	utf8mb4_0900_ai_ci	NULL		
-v1	NULL	NULL	NULL	#	#	#	#	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+t1	InnoDB	10	Dynamic	#	#	#	#	0	0	NULL	#	#	NULL	utf8mb4_0900_ai_ci	NULL		
+v1	NULL	NULL	NULL	#	#	#	#	0	0	NULL	#	#	NULL	NULL	NULL	NULL	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 Warnings:
 Warning	1356	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 drop view v1;
@@ -6743,3 +6743,17 @@ a
 10
 DROP TABLE t1;
 DROP VIEW v1, v2, v3, v4, v5;
+# Bug#26659699 Assertion !(thd->lex->context_analysis_only & 2) failed
+CREATE TABLE t1(pk INTEGER, cik INTEGER, UNIQUE KEY(cik))
+PARTITION BY KEY(cik) PARTITIONS 10;
+CREATE TABLE t2(pk INTEGER, cvk VARCHAR(20), cik INTEGER, UNIQUE KEY(cik))
+PARTITION BY KEY(cik) PARTITIONS 10;
+CREATE VIEW v1 AS
+SELECT MAX(t2.pk) AS field1
+FROM t1, t2
+WHERE (SELECT 7 FROM DUAL) IS NOT NULL AND
+t1.pk BETWEEN 123 AND (123 + 128) AND
+t2.cvk <= 'p'
+ORDER BY t1.pk DESC;
+DROP VIEW v1;
+DROP TABLE t1, t2;

@@ -93,8 +93,7 @@ let $restart_parameters = restart: --loose-mysqlx-socket=$MYSQL_TMP_DIR/$DIR_NAM
 --let $wait_for_unixsocket_status = undefined_value
 --source ../include/restart_mysqld_and_wait_for_xplugin.inc
 
---replace_regex /ERROR: (Connection refused|Socket operation on non-socket)/ERROR: Connection refused/
---replace_regex $UNIX_SOCKET_REGEX
+--replace_regex /ERROR: (Connection refused|Socket operation on non-socket), while connecting to \/.*\.(sock|socket)/ERROR: Connection refused, while connecting to  SOCKET/
 --error 1
 --exec $MYSQLXTEST --socket=$MYSQL_TMP_DIR/$DIR_NAME -uroot --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.tmp 2>&1
 

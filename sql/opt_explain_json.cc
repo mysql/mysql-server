@@ -18,12 +18,12 @@
 #include "my_config.h"
 
 #include <limits.h>
+#include <stdio.h>
 #include <sys/types.h>
 
 #include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "mysql/service_my_snprintf.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"        // current_thd
 #include "sql/enum_query_type.h"
@@ -656,14 +656,14 @@ static void add_string_array(Opt_trace_context *json, const char *list_name,
 static void print_cost(char *buf, uint buf_len, double cost)
 {
   if (cost < 100000000000000.0)
-    my_snprintf(buf, buf_len, "%.2f", cost);
+    snprintf(buf, buf_len, "%.2f", cost);
   else
-    my_snprintf(buf, buf_len, "%.14g", cost);
+    snprintf(buf, buf_len, "%.14g", cost);
 }
 
 static void print_filtered(char *buf, uint buf_len, double filtered)
 {
-  my_snprintf(buf, buf_len, "%.2f", filtered);
+  snprintf(buf, buf_len, "%.2f", filtered);
 }
 
 

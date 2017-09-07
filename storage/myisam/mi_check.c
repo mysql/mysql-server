@@ -339,7 +339,6 @@ int chk_size(MI_CHECK *param, MI_INFO *info)
 {
   int error=0;
   my_off_t skr,size;
-  char buff[22],buff2[22];
   DBUG_ENTER("chk_size");
 
   if (!(param->testflag & T_SILENT)) puts("- check file-size");
@@ -356,21 +355,21 @@ int chk_size(MI_CHECK *param, MI_INFO *info)
     {
       error=1;
       mi_check_print_error(param,
-			   "Size of indexfile is: %-8s        Should be: %s",
-			   llstr(size,buff), llstr(skr,buff2));
+			   "Size of indexfile is: %lld        Should be: %lld",
+			   size, skr);
     }
     else
       mi_check_print_warning(param,
-			     "Size of indexfile is: %-8s      Should be: %s",
-			     llstr(size,buff), llstr(skr,buff2));
+			     "Size of indexfile is: %lld      Should be: %lld",
+			     size, skr);
   }
   if (!(param->testflag & T_VERY_SILENT) &&
       ! (info->s->options & HA_OPTION_COMPRESS_RECORD) &&
       ulonglong2double(info->state->key_file_length) >
       ulonglong2double(info->s->base.margin_key_file_length)*0.9)
-    mi_check_print_warning(param,"Keyfile is almost full, %10s of %10s used",
-			   llstr(info->state->key_file_length,buff),
-			   llstr(info->s->base.max_key_file_length-1,buff));
+    mi_check_print_warning(param,"Keyfile is almost full, %lld of %lld used",
+			   info->state->key_file_length,
+			   info->s->base.max_key_file_length-1);
 
   size= mysql_file_seek(info->dfile, 0L, MY_SEEK_END, MYF(0));
   skr=(my_off_t) info->state->data_file_length;
@@ -382,24 +381,24 @@ int chk_size(MI_CHECK *param, MI_INFO *info)
     if (skr > size && skr != size + MEMMAP_EXTRA_MARGIN)
     {
       error=1;
-      mi_check_print_error(param,"Size of datafile is: %-9s         Should be: %s",
-		    llstr(size,buff), llstr(skr,buff2));
+      mi_check_print_error(param,"Size of datafile is: %lld         Should be: %lld",
+		    size, skr);
       param->testflag|=T_RETRY_WITHOUT_QUICK;
     }
     else
     {
       mi_check_print_warning(param,
-			     "Size of datafile is: %-9s       Should be: %s",
-			     llstr(size,buff), llstr(skr,buff2));
+			     "Size of datafile is: %lld       Should be: %lld",
+			     size, skr);
     }
   }
   if (!(param->testflag & T_VERY_SILENT) &&
       !(info->s->options & HA_OPTION_COMPRESS_RECORD) &&
       ulonglong2double(info->state->data_file_length) >
       (ulonglong2double(info->s->base.max_data_file_length)*0.9))
-    mi_check_print_warning(param, "Datafile is almost full, %10s of %10s used",
-			   llstr(info->state->data_file_length,buff),
-			   llstr(info->s->base.max_data_file_length-1,buff2));
+    mi_check_print_warning(param, "Datafile is almost full, %lld of %lld used",
+			   info->state->data_file_length,
+			   info->s->base.max_data_file_length-1);
   DBUG_RETURN(error);
 } /* chk_size */
 
@@ -1293,8 +1292,8 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
   }
   if (records != info->state->records)
   {
-    mi_check_print_error(param,"Record-count is not ok; is %-10s   Should be: %s",
-		llstr(records,llbuff), llstr(info->state->records,llbuff2));
+    mi_check_print_error(param,"Record-count is not ok; is %lld   Should be: %lld",
+		records, info->state->records);
     error=1;
   }
   else if (param->record_checksum &&
@@ -1354,9 +1353,9 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
   if (splits != info->s->state.split)
   {
     mi_check_print_warning(param,
-			   "Found %10s key parts. Should be: %s",
-			   llstr(splits,llbuff),
-			   llstr(info->s->state.split,llbuff2));
+			   "Found %lld key parts. Should be: %lld",
+			   splits,
+			   info->s->state.split);
   }
   if (param->testflag & T_INFO)
   {

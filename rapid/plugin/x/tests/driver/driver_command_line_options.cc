@@ -41,6 +41,7 @@ void Driver_command_line_options::print_help() {
                "by -->import\n";
   std::cout << "--sql=<SQL>           Use SQL as input and execute it like "
                "in -->sql block\n";
+  std::cout << "-e=<SQL>, --execute=<SQL> Aliases for \"--sql\" option\n";
   std::cout << "-n, --no-auth         Skip authentication which is required "
                "by -->sql block (run mode)\n";
   std::cout
@@ -135,6 +136,8 @@ Driver_command_line_options::Driver_command_line_options(
     } else if (check_arg(argv, i, "--plain-auth", NULL)) {
       m_use_plain_auth = true;
     } else if (check_arg_with_value(argv, i, "--sql", NULL, value)) {
+      m_sql = value;
+    } else if (check_arg_with_value(argv, i, "--execute", "-e", value)) {
       m_sql = value;
     } else if (check_arg_with_value(argv, i, "--password", "-p", value)) {
       m_connection_options.password = value;

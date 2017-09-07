@@ -9657,6 +9657,9 @@ static ulonglong get_table_statistics(
   String *engine_name_ptr=args[2]->val_str(&engine_name);
   bool skip_hidden_table= args[4]->val_int();
   String *ts_se_private_data_ptr= args[5]->val_str(&ts_se_private_data);
+  ulonglong stat_data= args[6]->val_uint();
+  ulonglong cached_timestamp= args[7]->val_uint();
+
   String *tbl_se_private_data_ptr= nullptr;
 
   /*
@@ -9667,12 +9670,12 @@ static ulonglong get_table_statistics(
   */
   if (stype == dd::info_schema::enum_table_stats_type::AUTO_INCREMENT)
   {
-    tbl_se_private_data_ptr= args[6]->val_str(&tbl_se_private_data);
-    if (arg_count == 8)
-      partition_name_ptr= args[7]->val_str(&partition_name);
+    tbl_se_private_data_ptr= args[8]->val_str(&tbl_se_private_data);
+    if (arg_count == 10)
+      partition_name_ptr= args[9]->val_str(&partition_name);
   }
-  else if (arg_count == 7)
-    partition_name_ptr= args[6]->val_str(&partition_name);
+  else if (arg_count == 9)
+    partition_name_ptr= args[8]->val_str(&partition_name);
 
   if (schema_name_ptr == nullptr || table_name_ptr == nullptr ||
       engine_name_ptr == nullptr || skip_hidden_table)
@@ -9705,6 +9708,7 @@ static ulonglong get_table_statistics(
                  ts_se_private_data_ptr->c_ptr_safe() : nullptr),
                 (tbl_se_private_data_ptr ?
                  tbl_se_private_data_ptr->c_ptr_safe() : nullptr),
+                stat_data, cached_timestamp,
                 stype);
 
   DBUG_RETURN(result);
@@ -9862,19 +9866,21 @@ longlong Item_func_internal_keys_disabled::val_int()
 /**
   @brief
     INFORMATION_SCHEMA picks metadata from DD using system views.
-    INFORMATION_SCHEMA.STATISTICS.CARDINALITY is can be read from SE when
-    information_schema_stats is set to 'latest'.
+    INFORMATION_SCHEMA.STATISTICS.CARDINALITY reads data from SE.
 
   Syntax:
     int INTERNAL_INDEX_COLUMN_CARDINALITY(
           schema_name,
           table_name,
           index_name,
+          column_name,
           index_ordinal_position,
           column_ordinal_position,
           engine,
           se_private_id,
-          is_hidden);
+          is_hidden,
+          stat_cardinality,
+          cached_timestamp);
 
   @returns Cardinatily. Or sets null_value to true if cardinality is -1.
 */
@@ -9887,19 +9893,27 @@ longlong Item_func_internal_index_column_cardinality::val_int()
   String schema_name;
   String table_name;
   String index_name;
+  String column_name;
   String engine_name;
   String *schema_name_ptr= args[0]->val_str(&schema_name);
   String *table_name_ptr= args[1]->val_str(&table_name);
   String *index_name_ptr= args[2]->val_str(&index_name);
-  String *engine_name_ptr= args[5]->val_str(&engine_name);
-  uint index_ordinal_position= args[3]->val_uint();
-  uint column_ordinal_position= args[4]->val_uint();
-  dd::Object_id se_private_id= (dd::Object_id) args[6]->val_uint();
-  bool hidden_index= args[7]->val_int();
+  String *column_name_ptr= args[3]->val_str(&column_name);
+  uint index_ordinal_position= args[4]->val_uint();
+  uint column_ordinal_position= args[5]->val_uint();
+  String *engine_name_ptr= args[6]->val_str(&engine_name);
+  dd::Object_id se_private_id= (dd::Object_id) args[7]->val_uint();
+  bool hidden_index= args[8]->val_int();
+  ulonglong stat_cardinality= args[9]->val_uint();
+  ulonglong cached_timestamp= args[10]->val_uint();
+
+  // stat_cardinality and cached_timestamp from mysql.index_stats can be null
+  // when stat is fetched for 1st time without executing ANALYZE command.
   if (schema_name_ptr == nullptr || table_name_ptr == nullptr ||
       index_name_ptr == nullptr || engine_name_ptr == nullptr ||
-      args[3]->null_value || args[4]->null_value ||
-      args[7]->null_value || hidden_index)
+      column_name_ptr == nullptr ||
+      args[4]->null_value || args[5]->null_value ||
+      args[8]->null_value || hidden_index)
   {
     null_value= TRUE;
     DBUG_RETURN(0);
@@ -9909,6 +9923,7 @@ longlong Item_func_internal_index_column_cardinality::val_int()
   schema_name_ptr->c_ptr_safe();
   table_name_ptr->c_ptr_safe();
   index_name_ptr->c_ptr_safe();
+  column_name_ptr->c_ptr_safe();
   engine_name_ptr->c_ptr_safe();
 
   ulonglong result= 0;
@@ -9918,12 +9933,15 @@ longlong Item_func_internal_index_column_cardinality::val_int()
             *table_name_ptr,
             *index_name_ptr,
             nullptr,
+            *column_name_ptr,
             index_ordinal_position - 1,
             column_ordinal_position - 1,
             *engine_name_ptr,
             se_private_id,
             nullptr,
             nullptr,
+            stat_cardinality,
+            cached_timestamp,
             dd::info_schema::enum_table_stats_type::INDEX_COLUMN_CARDINALITY);
 
   if (result == (ulonglong) -1)

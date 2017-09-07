@@ -44,8 +44,8 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <time.h>
 
 #include "mysql/psi/mysql_cond.h"       /* mysql_cond_t */
@@ -226,14 +226,8 @@ extern void (*debug_sync_C_callback_ptr)(const char *, size_t);
 
 #ifdef HAVE_LINUX_LARGE_PAGES
 extern uint my_get_large_page_size(void);
-extern uchar * my_large_malloc(PSI_memory_key key, size_t size, myf my_flags);
-extern void my_large_free(uchar *ptr);
-extern bool my_use_large_pages;
-extern uint    my_large_page_size;
 #else
 #define my_get_large_page_size() (0)
-#define my_large_malloc(A,B,C) my_malloc((A),(B),(C))
-#define my_large_free(A) my_free((A))
 #endif /* HAVE_LINUX_LARGE_PAGES */
 
 #define my_alloca(SZ) alloca((size_t) (SZ))
@@ -676,14 +670,16 @@ extern void my_printf_error(uint my_err, const char *format,
                             myf MyFlags, ...)
   MY_ATTRIBUTE((format(printf, 2, 4)));
 extern void my_printv_error(uint error, const char *format, myf MyFlags,
-                            va_list ap);
+                            va_list ap)
+  MY_ATTRIBUTE((format(printf, 2, 0)));
 extern int my_error_register(const char* (*get_errmsg) (int),
                              int first, int last);
 extern bool my_error_unregister(int first, int last);
 extern void my_message(uint my_err, const char *str,myf MyFlags);
 extern void my_message_stderr(uint my_err, const char *str, myf MyFlags);
 void my_message_local_stderr(enum loglevel ll,
-                             const char *format, va_list args);
+                             const char *format, va_list args)
+  MY_ATTRIBUTE((format(printf, 2, 0)));
 extern void my_message_local(enum loglevel ll, const char *format, ...);
 extern bool my_init(void);
 extern void my_end(int infoflag);

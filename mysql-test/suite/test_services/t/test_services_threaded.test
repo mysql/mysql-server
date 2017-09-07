@@ -22,11 +22,6 @@ UNINSTALL PLUGIN test_services_threaded;
 
 --disable_warnings
 
---echo ------ Service: my_snprintf --------------------------------------
-let $MYSQLD_DATADIR= `select @@datadir`;
-cat_file $MYSQLD_DATADIR/test_services.log;
-remove_file $MYSQLD_DATADIR/test_services.log;
-
 --echo ------ Service: my_plugin_log_service ----------------------------
 CREATE TABLE t1 (c1 varchar(30), c2 TEXT, c3 TEXT);
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR

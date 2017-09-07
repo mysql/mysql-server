@@ -75,7 +75,7 @@ public:
     // Make a slightly randomized name for the file,
     // to avoid recovery from other runs.
     char namebuff[FN_REFLEN];
-    my_snprintf(namebuff, FN_REFLEN,
+    snprintf(namebuff, FN_REFLEN,
                 "tc_log_mmap_test_%d", static_cast<int>(getpid()));
     ASSERT_EQ(0, tc_log_mmap->open(namebuff));
   }

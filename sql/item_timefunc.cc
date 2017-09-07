@@ -3490,6 +3490,8 @@ bool Item_func_internal_update_time::get_date(MYSQL_TIME *ltime,
   bool skip_hidden_table= args[4]->val_int();
   String ts_se_private_data;
   String *ts_se_private_data_ptr= args[5]->val_str(&ts_se_private_data);
+  ulonglong stat_data= args[6]->val_uint();
+  ulonglong cached_timestamp= args[7]->val_uint();
   ulonglong unixtime= 0;
 
   if ((schema_name_ptr=args[0]->val_str(&schema_name)) != nullptr &&
@@ -3500,6 +3502,16 @@ bool Item_func_internal_update_time::get_date(MYSQL_TIME *ltime,
   {
     dd::Object_id se_private_id= (dd::Object_id) args[3]->val_uint();
     THD *thd= current_thd;
+
+    MYSQL_TIME time;
+    bool not_used;
+    // Convert longlong time to MYSQL_TIME format
+    my_longlong_to_datetime_with_warn(stat_data, &time, MYF(0));
+
+    // Convert MYSQL_TIME to epoc second according to local time_zone as
+    // cached_timestamp value is with local time_zone
+    my_time_t timestamp;
+    timestamp= thd->variables.time_zone->TIME_to_gmt_sec(&time, &not_used);
 
     // Make sure we have safe string to access.
     schema_name_ptr->c_ptr_safe();
@@ -3515,6 +3527,7 @@ bool Item_func_internal_update_time::get_date(MYSQL_TIME *ltime,
                 (ts_se_private_data_ptr ?
                  ts_se_private_data_ptr->c_ptr_safe() : nullptr),
                 nullptr,
+                static_cast<ulonglong>(timestamp), cached_timestamp,
                 dd::info_schema::enum_table_stats_type::TABLE_UPDATE_TIME);
     if (unixtime)
     {
@@ -3552,6 +3565,8 @@ bool Item_func_internal_check_time::get_date(MYSQL_TIME *ltime,
   bool skip_hidden_table= args[4]->val_int();
   String ts_se_private_data;
   String *ts_se_private_data_ptr= args[5]->val_str(&ts_se_private_data);
+  ulonglong stat_data= args[6]->val_uint();
+  ulonglong cached_timestamp= args[7]->val_uint();
   ulonglong unixtime= 0;
 
   if ((schema_name_ptr=args[0]->val_str(&schema_name)) != nullptr &&
@@ -3577,7 +3592,9 @@ bool Item_func_internal_check_time::get_date(MYSQL_TIME *ltime,
                 (ts_se_private_data_ptr ?
                  ts_se_private_data_ptr->c_ptr_safe() : nullptr),
                 nullptr,
+                stat_data, cached_timestamp,
                 dd::info_schema::enum_table_stats_type::CHECK_TIME);
+
     if (unixtime)
     {
       null_value= 0;

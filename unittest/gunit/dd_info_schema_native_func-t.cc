@@ -66,64 +66,64 @@ TEST_F(ISNativeFuncTest, AllNullArguments)
 #define FIVE_NULL_ARGS  FOUR_NULL_ARGS, NULL_ARG
 #define CREATE_ITEM(X, ARGS) item= new (thd()->mem_root)X(POS(), ARGS)
 
-  // INTERNAL_TABLE_ROWS(NULL, NULL, NULL, NULL, NULL, NULL);
+  // INTERNAL_TABLE_ROWS(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
   CREATE_ITEM(Item_func_internal_table_rows,
-              prepare_null_list(null_list, null, 6));
+              prepare_null_list(null_list, null, 8));
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
-  // INTERNAL_AVG_ROW_LENGTH(NULL, NULL, NULL, NULL, NULL, NULL)
+  // INTERNAL_AVG_ROW_LENGTH(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
   CREATE_ITEM(Item_func_internal_avg_row_length,
-              prepare_null_list(null_list, null, 6));
+              prepare_null_list(null_list, null, 8));
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
-  // INTERNAL_DATA_LENGTH(NULL, NULL, NULL, NULL, NULL, NULL)
+  // INTERNAL_DATA_LENGTH(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
   CREATE_ITEM(Item_func_internal_data_length,
-              prepare_null_list(null_list, null, 6));
+              prepare_null_list(null_list, null, 8));
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
-  // INTERNAL_MAX_DATA_LENGTH(NULL, NULL, NULL, NULL, NULL, NULL)
+  // INTERNAL_MAX_DATA_LENGTH(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
   CREATE_ITEM(Item_func_internal_max_data_length,
-              prepare_null_list(null_list, null, 6));
+              prepare_null_list(null_list, null, 8));
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
-  // INTERNAL_INDEX_LENGTH(NULL, NULL, NULL, NULL, NULL, NULL)
+  // INTERNAL_INDEX_LENGTH(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
   CREATE_ITEM(Item_func_internal_index_length,
-              prepare_null_list(null_list, null, 6));
+              prepare_null_list(null_list, null, 8));
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
-  // INTERNAL_DATA_FREE(NULL, NULL, NULL, NULL, NULL, NULL)
+  // INTERNAL_DATA_FREE(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
   CREATE_ITEM(Item_func_internal_data_free,
-              prepare_null_list(null_list, null, 6));
+              prepare_null_list(null_list, null, 8));
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
-  // INTERNAL_AUTO_INCREMENT(NULL, NULL, NULL, NULL, NULL, NULL, NULL)
+  // INTERNAL_AUTO_INCREMENT(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
   CREATE_ITEM(Item_func_internal_auto_increment,
-              prepare_null_list(null_list, null, 7));
+              prepare_null_list(null_list, null, 9));
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
-  // INTERNAL_UPDATE_TIME(NULL, NULL, NULL, NULL, NULL, NULL)
+  // INTERNAL_UPDATE_TIME(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
   CREATE_ITEM(Item_func_internal_update_time,
-              prepare_null_list(null_list, null, 6));
+              prepare_null_list(null_list, null, 8));
   MYSQL_TIME ldate;
   item->get_date(&ldate, 0);
   EXPECT_EQ(1, item->null_value);
 
-  // INTERNAL_CHECK_TIME(NULL, NULL, NULL, NULL, NULL, NULL)
+  // INTERNAL_CHECK_TIME(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
   CREATE_ITEM(Item_func_internal_check_time,
-              prepare_null_list(null_list, null, 6));
+              prepare_null_list(null_list, null, 8));
   item->get_date(&ldate, 0);
   EXPECT_EQ(1, item->null_value);
 
-  // INTERNAL_CHECKSUM(NULL, NULL, NULL, NULL, NULL, NULL)
+  // INTERNAL_CHECKSUM(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
   CREATE_ITEM(Item_func_internal_checksum,
-              prepare_null_list(null_list, null, 6));
+              prepare_null_list(null_list, null, 8));
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
@@ -146,9 +146,10 @@ TEST_F(ISNativeFuncTest, AllNullArguments)
   item->val_str(&str);
   EXPECT_EQ(1, item->null_value);
 
-  // INTERNAL_INDEX_COLUMN_CARDINALITY(NULL, NULL, NULL, NULL, NULL, NULL, NULL)
+  // INTERNAL_INDEX_COLUMN_CARDINALITY(NULL, NULL, NULL, NULL, NULL,
+  //                                   NULL, NULL, NULL, NULL, NULL, NULL)
   CREATE_ITEM(Item_func_internal_index_column_cardinality,
-              prepare_null_list(null_list, null, 8));
+              prepare_null_list(null_list, null, 11));
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 

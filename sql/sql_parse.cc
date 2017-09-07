@@ -20,6 +20,7 @@
 #include "my_config.h"
 
 #include <limits.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -50,7 +51,6 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql/psi/mysql_statement.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
@@ -1980,7 +1980,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     else
       queries_per_second1000= thd->query_id * 1000LL / uptime;
 
-    length= my_snprintf(buff, buff_len - 1,
+    length= snprintf(buff, buff_len - 1,
                         "Uptime: %lu  Threads: %d  Questions: %lu  "
                         "Slow queries: %llu  Opens: %llu  Flush tables: %lu  "
                         "Open tables: %u  Queries per second avg: %u.%03u",
@@ -6138,27 +6138,6 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
         {
           my_error(ER_NO_SYSTEM_VIEW_ACCESS, MYF(0), ptr->table_name);
           DBUG_RETURN(0);
-        }
-
-        /*
-          Pick the right IS system view definition based on session
-          variable information_schema_stats.
-        */
-        if (thd->variables.information_schema_stats ==
-            static_cast<ulong>(dd::info_schema::enum_stats::LATEST))
-        {
-          if(is_identifier(ptr->table_name, "TABLES"))
-          {
-            ptr->table_name= thd->mem_strdup("TABLES_DYNAMIC");
-          }
-          else if (is_identifier(ptr->table_name, "STATISTICS"))
-          {
-            ptr->table_name= thd->mem_strdup("STATISTICS_DYNAMIC");
-          }
-          else if (is_identifier(ptr->table_name, "SHOW_STATISTICS"))
-          {
-            ptr->table_name= thd->mem_strdup("SHOW_STATISTICS_DYNAMIC");
-          }
         }
       }
     }

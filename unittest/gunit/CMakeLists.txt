@@ -320,7 +320,6 @@ SET(TESTS
   mysys_my_pwrite
   mysys_my_rdtsc
   mysys_my_symlink
-  mysys_my_vsnprintf
   mysys_my_write
   nullable
   opt_recperkey

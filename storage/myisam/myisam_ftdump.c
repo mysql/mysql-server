@@ -134,7 +134,7 @@ int main(int argc,char *argv[])
     if (subkeys >= 0)
       ft_floatXget(weight, info->lastkey+keylen+1);
 
-    my_snprintf(buf,MAX_LEN,"%.*s",(int) keylen,info->lastkey+1);
+    snprintf(buf,MAX_LEN,"%.*s",(int) keylen,info->lastkey+1);
     my_casedn_str(default_charset_info,buf);
     total++;
     lengths[keylen]++;

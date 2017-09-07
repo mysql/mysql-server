@@ -235,8 +235,7 @@ void File_io::my_warning(int nr, ...)
     char warning[MYSQL_ERRMSG_SIZE];
 
     va_start(args, nr);
-    my_vsnprintf_ex(&my_charset_utf8_general_ci, warning,
-                  sizeof(warning), format, args);
+    vsnprintf(warning, sizeof(warning), format, args);
     va_end(args);
     if (current_thd != NULL && is_super_user())
       push_warning(current_thd, Sql_condition::SL_WARNING, nr, warning);

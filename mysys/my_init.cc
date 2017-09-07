@@ -55,7 +55,6 @@
 #include "mysql/psi/psi_rwlock.h"
 #include "mysql/psi/psi_stage.h"
 #include "mysql/psi/psi_thread.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysys/my_static.h"
 #include "mysys/mysys_priv.h"
 #include "mysys_err.h"
@@ -193,7 +192,7 @@ void my_end(int infoflag)
     if (my_file_opened | my_stream_opened)
     {
       char ebuff[512];
-      my_snprintf(ebuff, sizeof(ebuff), EE(EE_OPEN_WARNING),
+      snprintf(ebuff, sizeof(ebuff), EE(EE_OPEN_WARNING),
                   my_file_opened, my_stream_opened);
       my_message_stderr(EE_OPEN_WARNING, ebuff, MYF(0));
       DBUG_PRINT("error", ("%s", ebuff));
@@ -291,7 +290,7 @@ int handle_rtc_failure(int err_type, const char *file, int line,
   char   buff[2048];
   size_t len;
 
-  len= my_snprintf(buff, sizeof(buff), "At %s:%d: ", file, line);
+  len= snprintf(buff, sizeof(buff), "At %s:%d: ", file, line);
 
   va_start(args, format);
   vsnprintf(buff + len, sizeof(buff) - len, format, args);

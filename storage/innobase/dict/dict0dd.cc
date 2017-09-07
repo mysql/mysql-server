@@ -316,9 +316,16 @@ dd_table_open_on_dd_obj(
 			if (tbl_name) {
 				tab_namep = tbl_name;
 			} else {
+				char	tmp_schema[MAX_DATABASE_NAME_LEN + 1];
+				char	tmp_tablename[MAX_TABLE_NAME_LEN + 1];
+				tablename_to_filename(
+					schema->name().c_str(), tmp_schema,
+					MAX_DATABASE_NAME_LEN + 1);
+				tablename_to_filename(
+					dd_table.name().c_str(), tmp_tablename,
+					MAX_TABLE_NAME_LEN + 1);
 				snprintf(tmp_name, sizeof tmp_name,
-					 "%s/%s", schema->name().c_str(),
-					 dd_table.name().c_str());
+					 "%s/%s", tmp_schema, tmp_tablename);
 				tab_namep = tmp_name;
 			}
 
@@ -451,10 +458,17 @@ dd_table_open_on_id_low(
 				ut_ad(dd_part_is_stored(dd_part));
 				/* For partition, we need to compose the
 				name. */
+				char	tmp_schema[MAX_DATABASE_NAME_LEN + 1];
+				char	tmp_tablename[MAX_TABLE_NAME_LEN + 1];
+				tablename_to_filename(
+					schema.c_str(), tmp_schema,
+					MAX_DATABASE_NAME_LEN + 1);
+				tablename_to_filename(
+					tablename.c_str(), tmp_tablename,
+					MAX_TABLE_NAME_LEN + 1);
 				snprintf(part_name, sizeof part_name,
-					 "%s/%s", schema.c_str(),
-					 tablename.c_str());
-					name_len = strlen(part_name);
+					 "%s/%s", tmp_schema, tmp_tablename);
+				name_len = strlen(part_name);
 				Ha_innopart_share::create_partition_postfix(
 					part_name + name_len,
 					FN_REFLEN - name_len, dd_part);

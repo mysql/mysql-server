@@ -121,6 +121,12 @@ public:
   virtual ulonglong check_time() const = 0;
   virtual void set_check_time(ulonglong check_time) = 0;
 
+  /////////////////////////////////////////////////////////////////////////
+  // cached_time.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual ulonglong cached_time() const = 0;
+  virtual void set_cached_time(ulonglong cached_time) = 0;
 
 };
 

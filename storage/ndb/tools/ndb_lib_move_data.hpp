@@ -15,6 +15,8 @@
 
 #include <NdbDictionary.hpp>
 
+#include "my_compiler.h"
+
 /*
  * Move data between "compatible" tables.
  *
@@ -178,7 +180,8 @@ private:
   Stat m_stat;
   Error m_error;
   void set_error_line(int line);
-  void set_error_code(int code, const char* fmt, ...);
+  void set_error_code(int code, const char* fmt, ...)
+    MY_ATTRIBUTE((format(printf, 3, 4)));
   void set_error_code(const NdbError& ndberror);
   void reset_error();
   friend class NdbOut& operator<<(NdbOut&, const Error&);

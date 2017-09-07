@@ -122,13 +122,13 @@ test_udf_services_udf(UDF_INIT *initid MY_ATTRIBUTE((unused)),
   *is_null= 0;
   *error= 0;
   /* use a plugin service function */
-  my_snprintf(buffer, sizeof(buffer), "test");
+  snprintf(buffer, sizeof(buffer), "test");
   return 0;
 }
 
-#include <mysql/service_plugin_registry.h>
 #include <mysql/components/my_service.h>
 #include <mysql/components/services/udf_registration.h>
+#include <mysql/service_plugin_registry.h>
 
 /** Sample plugin init function that registers a UDF */
 static int test_udf_registration_init(MYSQL_PLUGIN /*p */)

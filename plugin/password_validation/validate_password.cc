@@ -16,6 +16,7 @@
 #include <mysql/plugin_validate_password.h>
 #include <mysql/service_my_plugin_log.h>
 #include <mysql/service_mysql_string.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
@@ -35,7 +36,6 @@
 #include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_rwlock.h"
 #include "mysql/service_locking.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/service_security_context.h"
 #include "typelib.h"
@@ -131,7 +131,7 @@ static void dictionary_activate(set_type *dict_words)
   /* fetch the start time */
   start_time= my_time(MYF(0));
   localtime_r(&start_time, &tm);
-  my_snprintf(timebuf, sizeof(timebuf), "%04d-%02d-%02d %02d:%02d:%02d",
+  snprintf(timebuf, sizeof(timebuf), "%04d-%02d-%02d %02d:%02d:%02d",
               tm.tm_year + 1900,
               tm.tm_mon + 1,
               tm.tm_mday,

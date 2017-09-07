@@ -36,6 +36,7 @@
 #include <mysql_version.h>
 #include <mysqld_error.h>
 #include <stdarg.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <cmath> // std::isinf
@@ -54,7 +55,6 @@
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_thread_local.h"
-#include "mysql/service_my_snprintf.h"
 #include "sql_common.h"
 #include "typelib.h"
 #include "violite.h"
@@ -1233,7 +1233,7 @@ end:
   {
     const char var_name[]= "__error";
     char buf[10];
-    size_t err_len= my_snprintf(buf, 10, "%u", error);
+    size_t err_len= snprintf(buf, 10, "%u", error);
     buf[err_len > 9 ? 9 : err_len]= '0';
     var_set(var_name, var_name + 7, buf, buf + err_len);
   }
@@ -1488,7 +1488,7 @@ void log_msg(const char *fmt, ...)
   DBUG_ENTER("log_msg");
 
   va_start(args, fmt);
-  len= my_vsnprintf(buff, sizeof(buff)-1, fmt, args);
+  len= vsnprintf(buff, sizeof(buff)-1, fmt, args);
   va_end(args);
 
   dynstr_append_mem(&ds_res, buff, len);
@@ -1668,7 +1668,7 @@ static int diff_check(const char *diff_name)
   char buf[128];
   int have_diff= 0;
 
-  my_snprintf(buf, sizeof(buf), "%s -v", diff_name);
+  snprintf(buf, sizeof(buf), "%s -v", diff_name);
 
   if (!(res_file= popen(buf, "r")))
     die("popen(\"%s\", \"r\") failed", buf);
@@ -2222,7 +2222,7 @@ static void var_set_string(const char* name, const char* value)
 static void var_set_int(const char* name, int value)
 {
   char buf[21];
-  my_snprintf(buf, sizeof(buf), "%d", value);
+  snprintf(buf, sizeof(buf), "%d", value);
   var_set_string(name, buf);
 }
 
@@ -3193,7 +3193,7 @@ static void do_exec(struct st_command *command)
   {
     const char var_name[]= "__error";
     char buf[10];
-    size_t err_len= my_snprintf(buf, 10, "%u", error);
+    size_t err_len= snprintf(buf, 10, "%u", error);
     buf[err_len > 9 ? 9 : err_len]= '0';
     var_set(var_name, var_name + 7, buf, buf + err_len);
   }
@@ -4664,7 +4664,7 @@ static void do_perl(struct st_command *command)
     str_to_file(temp_file_path, &script[0], script.size());
 
     /* Format the "perl <filename>" command */
-    my_snprintf(buf, sizeof(buf), "perl %s", temp_file_path);
+    snprintf(buf, sizeof(buf), "perl %s", temp_file_path);
 
     if (!(res_file= popen(buf, "r")) && command->abort_on_error)
      die("popen(\"%s\", \"r\") failed", buf);
@@ -5552,7 +5552,7 @@ static void abort_process(int pid, const char *path MY_ATTRIBUTE((unused)))
           end[0]= FN_LIBCHAR2;   // datadir path normally uses '/'.
           end++;
         }
-        my_snprintf(end, sizeof(name) + name - end - 1, "mysqld.%d.dmp", pid);
+        snprintf(end, sizeof(name) + name - end - 1, "mysqld.%d.dmp", pid);
 
         verbose_msg("Creating minidump.\n");
         my_create_minidump(name, proc, pid);

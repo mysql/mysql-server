@@ -17,6 +17,7 @@
 
 #include "my_config.h"
 
+#include <stdio.h>
 #include <limits.h>
 #include <string.h>
 #include <sys/types.h>
@@ -39,7 +40,6 @@
 #include "my_stacktrace.h"             // my_safe_printf_stderr
 #include "my_sys.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/service_my_snprintf.h" // my_snprintf
 #include "mysql/service_mysql_alloc.h"
 #include "prealloced_array.h"
 #include "sql/rpl_gtid.h"
@@ -1032,7 +1032,7 @@ static size_t get_string_length(rpl_gno gno)
   } while (tmp_gno != 0);
 #ifndef DBUG_OFF
   char buf[22];
-  DBUG_ASSERT(my_snprintf(buf, 22, "%lld", gno) == len);
+  DBUG_ASSERT(snprintf(buf, 22, "%lld", gno) == ssize_t(len));
 #endif
   return len;
 }

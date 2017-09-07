@@ -66,7 +66,6 @@
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/service_my_plugin_log.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
@@ -478,7 +477,7 @@ bool File_query_log::open()
 
   {
     char *end;
-    size_t len=my_snprintf(buff, sizeof(buff), "%s, Version: %s (%s). "
+    size_t len=snprintf(buff, sizeof(buff), "%s, Version: %s (%s). "
 #if defined(_WIN32)
                         "started with:\nTCP Port: %d, Named Pipe: %s\n",
                         my_progname, server_version, MYSQL_COMPILATION_COMMENT,
@@ -595,7 +594,7 @@ bool File_query_log::write_general(ulonglong event_utime,
   if (my_b_write(&log_file, (uchar*) "\t", 1))
     goto err;
 
-  length= my_snprintf(buff, 32, "%5u ", thread_id);
+  length= snprintf(buff, 32, "%5u ", thread_id);
 
   if (my_b_write(&log_file, (uchar*) buff, length))
     goto err;
@@ -644,14 +643,14 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
 
     make_iso8601_timestamp(my_timestamp, current_utime, opt_log_timestamps);
 
-    buff_len= my_snprintf(buff, sizeof buff,
+    buff_len= snprintf(buff, sizeof buff,
                           "# Time: %s\n", my_timestamp);
 
     /* Note that my_b_write() assumes it knows the length for this */
     if (my_b_write(&log_file, (uchar*) buff, buff_len))
       goto err;
 
-    buff_len= my_snprintf(buff, 32, "%5u", thd->thread_id());
+    buff_len= snprintf(buff, 32, "%5u", thd->thread_id());
     if (my_b_printf(&log_file, "# User@Host: %s  Id: %s\n", user_host, buff)
         == (uint) -1)
       goto err;
@@ -1319,9 +1318,11 @@ bool Query_logger::general_log_print(THD *thd, enum_server_command command,
   {
     va_list args;
     va_start(args, format);
-    message_buff_len= my_vsnprintf(message_buff, sizeof(message_buff),
+    message_buff_len= vsnprintf(message_buff, sizeof(message_buff),
                                    format, args);
     va_end(args);
+
+    message_buff_len= std::min(message_buff_len, sizeof(message_buff) - 1);
   }
   else
     message_buff[0]= '\0';
@@ -1594,7 +1595,7 @@ void Slow_log_throttle::print_summary(THD *thd, ulong suppressed,
 
   char buf[128];
 
-  my_snprintf(buf, sizeof(buf), summary_template, suppressed);
+  snprintf(buf, sizeof(buf), summary_template, suppressed);
 
   mysql_mutex_lock(&thd->LOCK_thd_data);
   thd->start_utime=                my_micro_time() - print_exec_time;
@@ -2176,7 +2177,7 @@ int log_vmessage(int log_type MY_ATTRIBUTE((unused)), va_list fili)
     // message is a format string optionally followed by args
     if (ll.item[ll.count].type == LOG_ITEM_LOG_MESSAGE)
     {
-      size_t msg_len= my_vsnprintf(buff, sizeof(buff),
+      size_t msg_len= vsnprintf(buff, sizeof(buff),
                                    ll.item[ll.count].data.data_string.str,
                                    fili);
 
@@ -2258,7 +2259,7 @@ void error_log_printf(enum loglevel level, const char *format, va_list args)
   char   buff[LOG_BUFF_MAX];
   DBUG_ENTER("error_log_print");
 
-  my_vsnprintf(buff, sizeof(buff), format, args);
+  vsnprintf(buff, sizeof(buff), format, args);
   LogEvent().type(LOG_TYPE_ERROR)
             .prio(level)
             .verbatim(buff);
@@ -2318,11 +2319,11 @@ int my_plugin_log_message(MYSQL_PLUGIN *plugin_ptr, plugin_log_level level,
   default:                   return 1;
   }
 
-  my_snprintf(format2, sizeof (format2) - 1, "Plugin %.*s reported: '%s'",
+  snprintf(format2, sizeof (format2) - 1, "Plugin %.*s reported: '%s'",
               (int) plugin->name.length, plugin->name.str, format);
 
   va_start(args, format);
-  my_vsnprintf(msg, sizeof (msg) - 1, format2, args);
+  vsnprintf(msg, sizeof (msg) - 1, format2, args);
   va_end(args);
 
   LogEvent().type(LOG_TYPE_ERROR)

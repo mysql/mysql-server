@@ -72,13 +72,14 @@ class Table_id;
 enum class enum_row_image_type;
 
 #ifdef MYSQL_SERVER
+#include <stdio.h>
+
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_statement.h"
 #include "mysql/psi/psi_stage.h"
-#include "mysql/service_my_snprintf.h"
 #include "sql/field.h"
 #include "sql/key.h"
 #include "sql/rpl_filter.h"          // rpl_filter
@@ -3751,7 +3752,7 @@ public:
     if (!(m_rows_query= (char*) my_malloc(key_memory_Rows_query_log_event_rows_query,
                                           query_len + 1, MYF(MY_WME))))
       return;
-    my_snprintf(m_rows_query, query_len + 1, "%s", query);
+    snprintf(m_rows_query, query_len + 1, "%s", query);
     DBUG_PRINT("enter", ("%s", m_rows_query));
     DBUG_VOID_RETURN;
   }

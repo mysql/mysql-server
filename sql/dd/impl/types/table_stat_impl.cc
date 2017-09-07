@@ -86,6 +86,7 @@ bool Table_stat_impl::restore_attributes(const Raw_record &r)
   m_checksum=       r.read_int(Table_stats::FIELD_CHECKSUM);
   m_update_time=    r.read_int(Table_stats::FIELD_UPDATE_TIME);
   m_check_time=     r.read_int(Table_stats::FIELD_CHECK_TIME);
+  m_cached_time=    r.read_int(Table_stats::FIELD_CACHED_TIME);
 
   return false;
 }
@@ -111,7 +112,9 @@ bool Table_stat_impl::store_attributes(Raw_record *r)
                     m_update_time == 0) ||
            r->store(Table_stats::FIELD_CHECK_TIME,
                     m_check_time,
-                    m_check_time == 0);
+                    m_check_time == 0) ||
+           r->store(Table_stats::FIELD_CACHED_TIME,
+                    m_cached_time);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -132,7 +135,8 @@ void Table_stat_impl::debug_print(String_type &outb) const
     << "m_auto_increment: " <<  m_auto_increment << "; "
     << "m_checksum: " <<  m_checksum << "; "
     << "m_update_time: " <<  m_update_time << "; "
-    << "m_check_time: " <<  m_check_time;
+    << "m_check_time: " <<  m_check_time << "; "
+    << "m_cached_time: " <<  m_cached_time;
 
   ss << " }";
   outb= ss.str();

@@ -41,7 +41,6 @@
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "myisam.h"               // MI_COLUMNDEF
-#include "mysql/service_my_snprintf.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_common.h"
@@ -652,7 +651,7 @@ void get_max_key_and_part_length(uint *max_key_length,
 static const char *create_tmp_table_field_tmp_name(THD *thd, int field_index)
 {
   char buf[64];
-  my_snprintf(buf, 64, "tmp_field_%d", field_index);
+  snprintf(buf, 64, "tmp_field_%d", field_index);
   return thd->mem_strdup(buf);
 }
 

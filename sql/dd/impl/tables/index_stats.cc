@@ -38,6 +38,8 @@ Index_stats::Index_stats()
                          "column_name VARCHAR(64) NOT NULL");
   m_target_def.add_field(FIELD_CARDINALITY, "FIELD_CARDINALITY",
                          "cardinality BIGINT UNSIGNED");
+  m_target_def.add_field(FIELD_CACHED_TIME, "FIELD_CACHED_TIME",
+                         "cached_time TIMESTAMP NOT NULL");
 
   m_target_def.add_index("UNIQUE KEY (schema_name, table_name, " \
                          "index_name, column_name)");

@@ -77,7 +77,7 @@ void Ndb_local_schema::Base::log_warning(const char* fmt, ...) const
   char buf[1024];
   va_list args;
   va_start(args, fmt);
-  my_vsnprintf(buf, sizeof(buf), fmt, args);
+  vsnprintf(buf, sizeof(buf), fmt, args);
   va_end(args);
 
   if (m_push_warnings)

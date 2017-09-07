@@ -1125,10 +1125,9 @@ int ndb_error_string(int err_no, char *str, int size)
   error.code = err_no;
   ndberror_update(&error);
 
-  len = (int)my_snprintf(str, size-1, "%s: %s: %s", error.message,
+  len = (int)snprintf(str, size-1, "%s: %s: %s", error.message,
 		ndberror_status_message(error.status),
 		ndberror_classification_message(error.classification));
-  str[size-1]= '\0';
 
   if (error.classification != UE)
     return len;

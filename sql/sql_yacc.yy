@@ -37,6 +37,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #define Select Lex->current_select()
 
 #include <limits>
+#include <type_traits>                       // for std::remove_reference
 
 #include "my_dbug.h"
 #include "myisam.h"
@@ -49,6 +50,8 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "sql/dd/types/abstract_table.h"         // TT_BASE_TABLE
 #include "sql/derror.h"
 #include "sql/event_parse_data.h"
+                                             // used in RESET_MASTER parsing check
+#include "sql/gis/srid.h"                    // gis::srid_t
 #include "sql/item_cmpfunc.h"
 #include "sql/item_create.h"
 #include "sql/item_geofunc.h"
@@ -90,15 +93,11 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "sql/sql_servers.h"
 #include "sql/sql_show_status.h"                 // build_show_session_status, ...
 #include "sql/sql_signal.h"
-#include "sql/sql_tablespace.h"                  // Sql_cmd_alter_tablespace
 #include "sql/sql_table.h"                        /* primary_key_name */
+#include "sql/sql_tablespace.h"                  // Sql_cmd_alter_tablespace
 #include "sql/sql_trigger.h"                     // Sql_cmd_create_trigger,
                                              // Sql_cmd_create_trigger
 #include "sql/sql_truncate.h"                      // Sql_cmd_truncate_table
-                                             // used in RESET_MASTER parsing check
-#include "sql/gis/srid.h"                    // gis::srid_t
-
-#include <type_traits>                       // for std::remove_reference
 
 /* this is to get the bison compilation windows warnings out */
 #ifdef _MSC_VER
@@ -233,7 +232,7 @@ static void MYSQLerror(YYLTYPE *, THD *thd, const char *s)
   /* "parse error" changed into "syntax error" between bison 1.75 and 1.875 */
   if (strcmp(s,"parse error") == 0 || strcmp(s,"syntax error") == 0)
     s= ER_THD(thd, ER_SYNTAX_ERROR);
-  thd->syntax_error(s);
+  thd->syntax_error("%s", s);
 }
 
 
@@ -7251,7 +7250,7 @@ opt_account_lock_password_expire_option:
             if ($4 == 0 || $4 > UINT_MAX16)
             {
               char buf[MAX_BIGINT_WIDTH + 1];
-              my_snprintf(buf, sizeof(buf), "%lu", $4);
+              snprintf(buf, sizeof(buf), "%lu", $4);
               my_error(ER_WRONG_VALUE, MYF(0), "DAY", buf);
               MYSQL_YYABORT;
             }

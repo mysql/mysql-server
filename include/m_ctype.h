@@ -22,9 +22,9 @@
 #define _m_ctype_h
 
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <sys/types.h>
-#include <stdbool.h>
 
 #include "my_byteorder.h"
 #include "my_compiler.h"
@@ -174,7 +174,7 @@ struct charset_info_st;
 
 typedef struct my_charset_loader_st
 {
-  char error[128];
+  char error[192];
   void *(*once_alloc)(size_t);
   void *(*mem_malloc)(size_t);
   void *(*mem_realloc)(void *, size_t);
@@ -684,9 +684,6 @@ size_t my_strxfrm_pad(const CHARSET_INFO *cs,
                       uint nweights, uint flags);
 
 bool my_charset_is_ascii_compatible(const CHARSET_INFO *cs);
-
-extern size_t my_vsnprintf_ex(const CHARSET_INFO *cs, char *to, size_t n,
-                              const char* fmt, va_list ap);
 
 size_t my_convert(char *to, size_t to_length, const CHARSET_INFO *to_cs,
                   const char *from, size_t from_length,

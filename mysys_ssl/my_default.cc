@@ -40,6 +40,7 @@
 #include "my_config.h"
 
 #include <fcntl.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
 
@@ -57,7 +58,6 @@
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_file.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql_version.h"             // MYSQL_PERSIST_CONFIG_NAME
 #include "mysys/mysys_priv.h"
 #include "mysys_ssl/my_default_priv.h"
@@ -1759,15 +1759,15 @@ int my_default_get_login_file(char *file_name, size_t file_name_size)
   size_t rc;
 
   if (getenv("MYSQL_TEST_LOGIN_FILE"))
-    rc= my_snprintf(file_name, file_name_size, "%s",
+    rc= snprintf(file_name, file_name_size, "%s",
                     getenv("MYSQL_TEST_LOGIN_FILE"));
 #ifdef _WIN32
   else if (getenv("APPDATA"))
-    rc= my_snprintf(file_name, file_name_size, "%s\\MySQL\\.mylogin.cnf",
+    rc= snprintf(file_name, file_name_size, "%s\\MySQL\\.mylogin.cnf",
                     getenv("APPDATA"));
 #else
   else if (getenv("HOME"))
-    rc= my_snprintf(file_name, file_name_size, "%s/.mylogin.cnf",
+    rc= snprintf(file_name, file_name_size, "%s/.mylogin.cnf",
                     getenv("HOME"));
 #endif
   else

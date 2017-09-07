@@ -4052,7 +4052,7 @@ ha_innopart::info_low(
 		os_file_stat_t	stat_info;
 		/* Use the first partition for create time until new DD. */
 		ib_table = m_part_share->get_table_part(0);
-		my_snprintf(path, sizeof(path), "%s/%s%s",
+		snprintf(path, sizeof(path), "%s/%s%s",
 			    mysql_data_home,
 			    table->s->normalized_path.str,
 			    reg_ext);

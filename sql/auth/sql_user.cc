@@ -12,6 +12,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
 #include <algorithm>
@@ -36,7 +37,6 @@
 #include "mysql/plugin.h"
 #include "mysql/plugin_auth.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
@@ -1132,7 +1132,7 @@ bool set_and_validate_user_attributes(THD *thd,
           hence does not support SET PASSWORD
         */
         char warning_buffer[MYSQL_ERRMSG_SIZE];
-        my_snprintf(warning_buffer, sizeof(warning_buffer),
+        snprintf(warning_buffer, sizeof(warning_buffer),
                     "SET PASSWORD has no significance for user '%s'@'%s' as "
                     "authentication plugin does not support it.",
                     Str->user.str, Str->host.str);

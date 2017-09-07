@@ -60,7 +60,6 @@
 #include "mysql/psi/mysql_transaction.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_table.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysql_version.h"            // MYSQL_VERSION_ID
@@ -4471,7 +4470,7 @@ void handler::print_error(int error, myf errflag)
   case HA_ERR_TABLESPACE_MISSING:
   {
     char errbuf[MYSYS_STRERROR_SIZE];
-    my_snprintf(errbuf, MYSYS_STRERROR_SIZE, "`%s`.`%s`", table_share->db.str,
+    snprintf(errbuf, MYSYS_STRERROR_SIZE, "`%s`.`%s`", table_share->db.str,
     table_share->table_name.str);
     my_error(ER_TABLESPACE_MISSING, errflag, errbuf, error);
     DBUG_VOID_RETURN;

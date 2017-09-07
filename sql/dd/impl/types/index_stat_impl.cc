@@ -102,6 +102,7 @@ bool Index_stat_impl::restore_attributes(const Raw_record &r)
   m_index_name= r.read_str(Index_stats::FIELD_INDEX_NAME);
   m_column_name= r.read_str(Index_stats::FIELD_COLUMN_NAME);
   m_cardinality= r.read_int(Index_stats::FIELD_CARDINALITY);
+  m_cached_time= r.read_int(Index_stats::FIELD_CACHED_TIME);
 
   return false;
 }
@@ -115,7 +116,9 @@ bool Index_stat_impl::store_attributes(Raw_record *r)
            r->store(Index_stats::FIELD_INDEX_NAME, m_index_name) ||
            r->store(Index_stats::FIELD_COLUMN_NAME, m_column_name) ||
            r->store(Index_stats::FIELD_CARDINALITY, m_cardinality,
-                    m_cardinality == (ulonglong) -1);
+                    m_cardinality == (ulonglong) -1) ||
+           r->store(Index_stats::FIELD_CACHED_TIME,
+                    m_cached_time);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -129,7 +132,8 @@ void Index_stat_impl::debug_print(String_type &outb) const
     << "m_table_name: " << m_table_name << "; "
     << "m_index_name: " << m_index_name << "; "
     << "m_column_name: " << m_column_name << "; "
-    << "m_cardinality: " << m_cardinality << "; ";
+    << "m_cardinality: " << m_cardinality << "; "
+    << "m_cached_time: " << m_cached_time;
 
   ss << " }";
   outb= ss.str();

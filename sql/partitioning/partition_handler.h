@@ -736,7 +736,9 @@ protected:
                        const char *table_name,
                        const char *op_name,
                        const char *fmt,
-                       ...);
+                       ...)
+    MY_ATTRIBUTE((format(printf, 8, 9)));
+
   /**
     Check/fix misplaced rows.
 

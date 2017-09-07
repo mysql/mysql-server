@@ -351,6 +351,7 @@
 #include <boost/concept/usage.hpp>
 #include <boost/iterator/iterator_facade.hpp>
 #include <boost/type_index/type_index_facade.hpp>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -376,7 +377,6 @@
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld_error.h"
 #include "sql/psi_memory_key.h"
@@ -839,17 +839,17 @@ static void debug_sync_action_string(char *result, uint size,
 
       if (action->timeout != opt_debug_sync_timeout)
       {
-        wtxt+= my_snprintf(wtxt, wend - wtxt, " TIMEOUT %lu", action->timeout);
+        wtxt+= snprintf(wtxt, wend - wtxt, " TIMEOUT %lu", action->timeout);
       }
     }
     if (action->execute != 1)
     {
-      wtxt+= my_snprintf(wtxt, wend - wtxt, " EXECUTE %lu", action->execute);
+      wtxt+= snprintf(wtxt, wend - wtxt, " EXECUTE %lu", action->execute);
     }
   }
   if (action->hit_limit)
   {
-    wtxt+= my_snprintf(wtxt, wend - wtxt, "%sHIT_LIMIT %lu",
+    wtxt+= snprintf(wtxt, wend - wtxt, "%sHIT_LIMIT %lu",
                        (wtxt == result) ? "" : " ", action->hit_limit);
   }
 

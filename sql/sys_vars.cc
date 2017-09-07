@@ -1684,6 +1684,13 @@ static Sys_var_ulong Sys_connect_timeout(
        GLOBAL_VAR(connect_timeout), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(2, LONG_TIMEOUT), DEFAULT(CONNECT_TIMEOUT), BLOCK_SIZE(1));
 
+static Sys_var_ulong Sys_information_schema_stats_expiry(
+       "information_schema_stats_expiry",
+       "The number of seconds after which mysqld server will fetch "
+       "data from storage engine and replace the data in cache.",
+       SESSION_VAR(information_schema_stats_expiry), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, LONG_TIMEOUT), DEFAULT(24*60*60), BLOCK_SIZE(1));
+
 static Sys_var_charptr Sys_datadir(
        "datadir", "Path to the database root directory",
        READ_ONLY NON_PERSIST GLOBAL_VAR(mysql_real_data_home_ptr),
@@ -6359,17 +6366,6 @@ static Sys_var_bool Sys_offline_mode(
        GLOBAL_VAR(offline_mode), CMD_LINE(OPT_ARG), DEFAULT(FALSE),
        &PLock_offline_mode, NOT_IN_BINLOG,
        ON_CHECK(0), ON_UPDATE(handle_offline_mode));
-
-static const char *information_schema_stats_names[]= {"LATEST", "CACHED", NullS};
-static Sys_var_enum Sys_information_schema_stats(
-       "information_schema_stats",
-       "If this flag is set to CACHED, INFORMATON_SCHEMA retrieves "
-       "dynamic column statistics stored in dedicated tables. "
-       "If set to LATEST, the dynamic statistics will be read directly "
-       "from the storage engine.",
-       SESSION_VAR(information_schema_stats), CMD_LINE(REQUIRED_ARG),
-       information_schema_stats_names,
-       DEFAULT(static_cast<ulong>(dd::info_schema::enum_stats::CACHED)));
 
 static Sys_var_bool Sys_log_builtin_as_identified_by_password(
        "log_builtin_as_identified_by_password",

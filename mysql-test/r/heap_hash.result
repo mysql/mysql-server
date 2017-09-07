@@ -417,9 +417,6 @@ b varchar(20) not null,
 key (a,b)
 ) charset latin1 engine=heap;
 insert into t3 select name, name from t1;
-analyze table t3;
-Table	Op	Msg_type	Msg_text
-test.t3	analyze	note	The storage engine for the table doesn't support analyze
 show index from t3;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 t3	1	a	1	a	NULL	NULL	NULL	NULL		HASH			YES

@@ -788,8 +788,7 @@ void push_warning_printf(THD *thd, Sql_condition::enum_severity_level severity,
   DBUG_ASSERT(format != NULL);
 
   va_start(args,format);
-  my_vsnprintf_ex(&my_charset_utf8_general_ci, warning,
-                  sizeof(warning), format, args);
+  vsnprintf(warning, sizeof(warning), format, args);
   va_end(args);
   push_warning(thd, severity, code, warning);
   DBUG_VOID_RETURN;
@@ -1002,7 +1001,7 @@ size_t err_conv(char *buff, size_t to_length, const char *from,
           *to= 0;
           break;
         }
-        res+= my_snprintf(to, 5, "\\x%02X", (uint) char_code);
+        res+= snprintf(to, 5, "\\x%02X", (uint) char_code);
         to+=4;
         from++;
       }
@@ -1087,7 +1086,7 @@ size_t convert_error_message(char *to, size_t to_length,
       length= (wc <= 0xFFFF) ? 6/* '\1234' format*/ : 9 /* '\+123456' format*/;
       if ((uchar*)(to + length) >= to_end)
         break;
-      cnvres= my_snprintf(to, 9,
+      cnvres= snprintf(to, 9,
                           (wc <= 0xFFFF) ? "\\%04X" : "\\+%06X", (uint) wc);
       to+= cnvres;
     }

@@ -414,12 +414,8 @@ String *Item_func_geometry_from_text::val_str(String *str)
 
     if (srs == nullptr)
     {
-      push_warning_printf(current_thd,
-                          Sql_condition::SL_WARNING,
-                          ER_WARN_SRS_NOT_FOUND_AXIS_ORDER,
-                          ER_THD(current_thd, ER_WARN_SRS_NOT_FOUND_AXIS_ORDER),
-                          srid,
-                          func_name());
+      my_error(ER_SRS_NOT_FOUND, MYF(0), srid);
+      return error_str();
     }
     else if (srs->is_geographic())
     {
@@ -669,12 +665,8 @@ String *Item_func_geometry_from_wkb::val_str(String *str)
 
     if (srs == nullptr)
     {
-      push_warning_printf(current_thd,
-                          Sql_condition::SL_WARNING,
-                          ER_WARN_SRS_NOT_FOUND_AXIS_ORDER,
-                          ER_THD(current_thd, ER_WARN_SRS_NOT_FOUND_AXIS_ORDER),
-                          srid,
-                          func_name());
+      my_error(ER_SRS_NOT_FOUND, MYF(0), srid);
+      return error_str();
     }
     else if (srs->is_geographic())
     {
@@ -884,6 +876,24 @@ String *Item_func_geomfromgeojson::val_str(String *buf)
     }
 
     m_user_provided_srid= true;
+
+    if (m_user_srid != 0)
+    {
+      Srs_fetcher fetcher(current_thd);
+      const dd::Spatial_reference_system *srs= nullptr;
+      dd::cache::Dictionary_client
+               ::Auto_releaser releaser(current_thd->dd_client());
+      if (fetcher.acquire(m_user_srid, &srs))
+      {
+        return error_str(); /* purecov: inspected */
+      }
+
+      if (srs == nullptr)
+      {
+        my_error(ER_SRS_NOT_FOUND, MYF(0), m_user_srid);
+        return error_str();
+      }
+    }
   }
 
   Json_wrapper wr;
@@ -973,9 +983,29 @@ String *Item_func_geomfromgeojson::val_str(String *buf)
 
   // Set the correct SRID for the geometry data.
   if (m_user_provided_srid)
+  {
     buf->write_at_position(0, m_user_srid);
+  }
   else if (m_srid_found_in_document > -1)
+  {
+    Srs_fetcher fetcher(current_thd);
+    const dd::Spatial_reference_system *srs= nullptr;
+    dd::cache::Dictionary_client
+      ::Auto_releaser releaser(current_thd->dd_client());
+    if (fetcher.acquire(m_srid_found_in_document, &srs))
+    {
+      return error_str(); /* purecov: inspected */
+    }
+
+    if (srs == nullptr)
+    {
+      delete result_geometry;
+      my_error(ER_SRS_NOT_FOUND, MYF(0), m_srid_found_in_document);
+      return error_str();
+    }
+
     buf->write_at_position(0, static_cast<uint32>(m_srid_found_in_document));
+  }
 
   bool return_result= result_geometry->as_wkb(buf, false);
 
@@ -4895,6 +4925,23 @@ String *Item_func_pointfromgeohash::val_str(String *str)
   // Return null if one or more of the input arguments is null.
   if ((null_value= (args[0]->null_value || args[1]->null_value)))
     return NULL;
+
+  if (srid != 0)
+  {
+    Srs_fetcher fetcher(current_thd);
+    const dd::Spatial_reference_system *srs= nullptr;
+    dd::cache::Dictionary_client::Auto_releaser releaser(current_thd->dd_client());
+    if (fetcher.acquire(srid, &srs))
+    {
+      return error_str();
+    }
+
+    if (srs == nullptr)
+    {
+      my_error(ER_SRS_NOT_FOUND, MYF(0), srid);
+      return error_str();
+    }
+  }
 
   if (str->mem_realloc(GEOM_HEADER_SIZE + POINT_DATA_SIZE))
     return make_empty_result();

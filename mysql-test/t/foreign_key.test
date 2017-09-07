@@ -2399,19 +2399,115 @@ DROP TABLES child, parent;
 
 
 --echo #
---echo # Temporary limitation on ALTER TABLE ... INPLACE renaming parent
---echo # columns participating in FK.
+--echo # Bug #25722221 "RENAME COLUMN DID NOT UPDATE FOREIGN_KEY_COLUMN_USAGE
+--echo #                FOR FK CONSTRAINT".
+--echo # Bug #26659110 "LIFT LIMITATION ON RENAMING PARENT COLUMNS WHICH ARE
+--echo #                REFERENCED BY FOREIGN KEYS".
 --echo #
-CREATE TABLE parent (pk INT PRIMARY KEY);
-CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
---error ER_NOT_SUPPORTED_YET
-ALTER TABLE parent RENAME COLUMN pk TO pk2, ALGORITHM=INPLACE;
-DROP TABLES child, parent;
---echo # Works if FK is dropped at the same time however.
-CREATE TABLE self (pk INT PRIMARY KEY, fk INT,
-                   CONSTRAINT fk FOREIGN KEY (fk) REFERENCES self(pk));
-ALTER TABLE self RENAME COLUMN fk TO b, DROP FOREIGN KEY fk, ALGORITHM=INPLACE;
-DROP TABLE self;
+
+CREATE TABLE t1 (pk INT PRIMARY KEY, fk INT,
+                 FOREIGN KEY (fk) REFERENCES t1 (pk));
+SELECT constraint_name, table_name, column_name, referenced_column_name
+  FROM information_schema.key_column_usage
+  WHERE table_schema='test' AND table_name='t1';
+ALTER TABLE t1 CHANGE pk id INT;
+SELECT constraint_name, table_name, column_name, referenced_column_name
+  FROM information_schema.key_column_usage
+  WHERE table_schema='test' AND table_name='t1';
+--echo # Renaming of parent columns using COPY algorithm is not supported.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 CHANGE id pk INT, ALGORITHM=COPY;
+SELECT constraint_name, table_name, column_name, referenced_column_name
+  FROM information_schema.key_column_usage
+  WHERE table_schema='test' AND table_name='t1';
+ALTER TABLE t1 CHANGE id pk INT, ALGORITHM=INPLACE;
+SELECT constraint_name, table_name, column_name, referenced_column_name
+  FROM information_schema.key_column_usage
+  WHERE table_schema='test' AND table_name='t1';
+ALTER TABLE t1 RENAME COLUMN pk TO id;
+SELECT constraint_name, table_name, column_name, referenced_column_name
+  FROM information_schema.key_column_usage
+  WHERE table_schema='test' AND table_name='t1';
+--echo # Renaming of parent columns using COPY algorithm is not supported.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 RENAME COLUMN id TO pk, ALGORITHM=COPY;
+SELECT constraint_name, table_name, column_name, referenced_column_name
+  FROM information_schema.key_column_usage
+  WHERE table_schema='test' AND table_name='t1';
+ALTER TABLE t1 RENAME COLUMN id TO pk, ALGORITHM=INPLACE;
+SELECT constraint_name, table_name, column_name, referenced_column_name
+  FROM information_schema.key_column_usage
+  WHERE table_schema='test' AND table_name='t1';
+DROP TABLE t1;
+
+CREATE TABLE t1 (pk INT PRIMARY KEY);
+CREATE TABLE t2 (fk INT, FOREIGN KEY (fk) REFERENCES t1 (pk));
+SELECT constraint_name, table_name, column_name, referenced_column_name
+  FROM information_schema.key_column_usage
+  WHERE table_schema='test' AND table_name='t2';
+ALTER TABLE t1 CHANGE pk id INT;
+SELECT constraint_name, table_name, column_name, referenced_column_name
+  FROM information_schema.key_column_usage
+  WHERE table_schema='test' AND table_name='t2';
+--echo # Renaming of parent columns using COPY algorithm is not supported.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 CHANGE id pk INT, ALGORITHM=COPY;
+SELECT constraint_name, table_name, column_name, referenced_column_name
+  FROM information_schema.key_column_usage
+  WHERE table_schema='test' AND table_name='t2';
+ALTER TABLE t1 CHANGE id pk INT, ALGORITHM=INPLACE;
+SELECT constraint_name, table_name, column_name, referenced_column_name
+  FROM information_schema.key_column_usage
+  WHERE table_schema='test' AND table_name='t2';
+ALTER TABLE t1 RENAME COLUMN pk TO id;
+SELECT constraint_name, table_name, column_name, referenced_column_name
+  FROM information_schema.key_column_usage
+  WHERE table_schema='test' AND table_name='t2';
+--echo # Renaming of parent columns using COPY algorithm is not supported.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 RENAME COLUMN id TO pk, ALGORITHM=COPY;
+SELECT constraint_name, table_name, column_name, referenced_column_name
+  FROM information_schema.key_column_usage
+  WHERE table_schema='test' AND table_name='t2';
+ALTER TABLE t1 RENAME COLUMN id TO pk, ALGORITHM=INPLACE;
+SELECT constraint_name, table_name, column_name, referenced_column_name
+  FROM information_schema.key_column_usage
+  WHERE table_schema='test' AND table_name='t2';
+DROP TABLES t2, t1;
+
+--echo # Coverage for cases with multiple foreign keys.
+CREATE TABLE t1 (pk INT PRIMARY KEY, u1 INT, u2 INT, fk1 INT, fk2 INT,
+                 UNIQUE (u1), UNIQUE (u2),
+                 FOREIGN KEY (fk1) REFERENCES t1 (u1),
+                 FOREIGN KEY (fk2) REFERENCES t1 (u2));
+SELECT constraint_name, table_name, column_name, referenced_column_name
+  FROM information_schema.key_column_usage
+  WHERE table_schema='test' AND table_name='t1';
+ALTER TABLE t1 RENAME COLUMN u1 TO u3;
+SELECT constraint_name, table_name, column_name, referenced_column_name
+  FROM information_schema.key_column_usage
+  WHERE table_schema='test' AND table_name='t1';
+ALTER TABLE t1 RENAME COLUMN u3 TO u4, RENAME COLUMN u2 TO u5;
+SELECT constraint_name, table_name, column_name, referenced_column_name
+  FROM information_schema.key_column_usage
+  WHERE table_schema='test' AND table_name='t1';
+DROP TABLE t1;
+CREATE TABLE t1 (pk INT PRIMARY KEY, u1 INT, u2 INT, UNIQUE (u1), UNIQUE (u2));
+CREATE TABLE t2 (fk1 INT, fk2 INT,
+                FOREIGN KEY (fk1) REFERENCES t1 (u1),
+                FOREIGN KEY (fk2) REFERENCES t1 (u2));
+SELECT constraint_name, table_name, column_name, referenced_column_name
+  FROM information_schema.key_column_usage
+  WHERE table_schema='test' AND table_name='t2';
+ALTER TABLE t1 RENAME COLUMN u1 TO u3;
+SELECT constraint_name, table_name, column_name, referenced_column_name
+  FROM information_schema.key_column_usage
+  WHERE table_schema='test' AND table_name='t2';
+ALTER TABLE t1 RENAME COLUMN u3 TO u4, RENAME COLUMN u2 TO u5;
+SELECT constraint_name, table_name, column_name, referenced_column_name
+  FROM information_schema.key_column_usage
+  WHERE table_schema='test' AND table_name='t2';
+DROP TABLES t2, t1;
 
 
 --echo #

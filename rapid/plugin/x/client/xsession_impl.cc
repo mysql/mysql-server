@@ -243,8 +243,7 @@ Session_impl::~Session_impl() {
   auto &connection = get_protocol().get_connection();
 
   if (connection.state().is_connected()) {
-    get_protocol().send(::Mysqlx::Connection::Close());
-    get_protocol().recv_ok();
+    connection.close();
   }
 }
 

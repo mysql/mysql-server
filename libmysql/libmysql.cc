@@ -44,7 +44,6 @@
 #include "my_pointer_arithmetic.h"
 #include "my_thread_local.h"
 #include "mysql.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysql_version.h"
@@ -538,7 +537,7 @@ static int default_local_infile_init(void **ptr, const char *filename,
   {
     char errbuf[MYSYS_STRERROR_SIZE];
     data->error_num= my_errno();
-    my_snprintf(data->error_msg, sizeof(data->error_msg)-1,
+    snprintf(data->error_msg, sizeof(data->error_msg)-1,
                 EE(EE_FILENOTFOUND), tmp_name, data->error_num,
                 my_strerror(errbuf, sizeof(errbuf), data->error_num));
     return 1;
@@ -571,7 +570,7 @@ static int default_local_infile_read(void *ptr, char *buf, uint buf_len)
   {
     char errbuf[MYSYS_STRERROR_SIZE];
     data->error_num= EE_READ; /* the errmsg for not entire file read */
-    my_snprintf(data->error_msg, sizeof(data->error_msg)-1,
+    snprintf(data->error_msg, sizeof(data->error_msg)-1,
                 EE(EE_READ), data->filename,
                 my_errno(), my_strerror(errbuf, sizeof(errbuf), my_errno()));
   }

@@ -98,7 +98,6 @@
 #include "my_macros.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
-#include "mysql/service_my_snprintf.h"
 #include "thr_mutex.h"
 #include "thr_rwlock.h"
 
@@ -1252,7 +1251,7 @@ void _db_return_(uint _line_, struct _db_stack_frame_ *_stack_frame_)
   if (cs->framep != _stack_frame_)
   {
     char buf[512];
-    my_snprintf(buf, sizeof(buf), ERR_MISSING_RETURN, cs->func);
+    snprintf(buf, sizeof(buf), ERR_MISSING_RETURN, cs->func);
     DbugExit(buf);
   }
 

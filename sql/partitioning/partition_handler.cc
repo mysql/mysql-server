@@ -21,6 +21,7 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <stdarg.h>
+#include <stdio.h>
 #include <utility>
 
 #include "binary_log_types.h"
@@ -40,7 +41,6 @@
 #include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_memory.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
@@ -1560,7 +1560,7 @@ bool Partition_helper::print_admin_msg(THD* thd,
   if (!(msgbuf= (char*) my_malloc(key_memory_Partition_admin, len, MYF(0))))
     return true;
   va_start(args, fmt);
-  msg_length= my_vsnprintf(msgbuf, len, fmt, args);
+  msg_length= vsnprintf(msgbuf, len, fmt, args);
   va_end(args);
   if (msg_length >= (len - 1))
     goto err;

@@ -16,6 +16,7 @@
 
 #include "sql/trigger.h"
 
+#include <stdio.h>
 #include <atomic>
 
 #include "lex_string.h"
@@ -25,7 +26,6 @@
 #include "mysql/components/services/psi_statement_bits.h"
 #include "mysql/psi/mysql_sp.h"
 #include "mysql/psi/mysql_statement.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysqld_error.h"
 #include "mysys_err.h"            // EE_OUTOFMEMORY
 #include "sql/auth/sql_security_ctx.h"
@@ -81,11 +81,11 @@ public:
       if (thd->lex->spname)
         m_trigger_name= &thd->lex->spname->m_name;
       if (m_trigger_name)
-        my_snprintf(m_message, sizeof(m_message),
+        snprintf(m_message, sizeof(m_message),
                     ER_THD(thd, ER_ERROR_IN_TRIGGER_BODY),
                     m_trigger_name->str, message);
       else
-        my_snprintf(m_message, sizeof(m_message),
+        snprintf(m_message, sizeof(m_message),
                     ER_THD(thd, ER_ERROR_IN_UNKNOWN_TRIGGER_BODY), message);
       return true;
     }

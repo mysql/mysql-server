@@ -120,6 +120,7 @@ Mysqlx.Resultset.ColumnMetaData {
   schema: "xtest"
   catalog: "def"
   length: 19
+  content_type: 2
 }
 
 Mysqlx.Resultset.ColumnMetaData {
@@ -132,6 +133,7 @@ Mysqlx.Resultset.ColumnMetaData {
   catalog: "def"
   length: 19
   flags: 1
+  content_type: 2
 }
 
 Mysqlx.Resultset.FetchDone {

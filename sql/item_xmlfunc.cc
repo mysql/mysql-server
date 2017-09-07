@@ -15,6 +15,7 @@
 
 #include "sql/item_xmlfunc.h"
 
+#include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
 
@@ -25,7 +26,6 @@
 #include "my_macros.h"
 #include "my_sys.h"
 #include "my_xml.h"             // my_xml_node_type
-#include "mysql/service_my_snprintf.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/check_stack.h"
@@ -2878,7 +2878,7 @@ String *Item_xml_str_func::parse_xml(String *raw_xml, String *parsed_xml_buf)
   if ((rc= my_xml_parse(&p, raw_xml->ptr(), raw_xml->length())) != MY_XML_OK)
   {
     char buf[128];
-    my_snprintf(buf, sizeof(buf)-1, "parse error at line %d pos %lu: %s",
+    snprintf(buf, sizeof(buf)-1, "parse error at line %d pos %lu: %s",
                 my_xml_error_lineno(&p) + 1,
                 (ulong) my_xml_error_pos(&p) + 1,
                 my_xml_error_string(&p));

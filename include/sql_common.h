@@ -29,6 +29,7 @@
 #include "errmsg.h"
 #include "mem_root_fwd.h"
 #include "my_command.h"
+#include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_list.h"
 #include "mysql_com.h"
@@ -193,7 +194,8 @@ void set_stmt_error(MYSQL_STMT *stmt, int errcode, const char *sqlstate,
                     const char *err);
 void set_mysql_error(MYSQL *mysql, int errcode, const char *sqlstate);
 void set_mysql_extended_error(MYSQL *mysql, int errcode, const char *sqlstate,
-                              const char *format, ...);
+                              const char *format, ...)
+  MY_ATTRIBUTE((format(printf, 4, 5)));
 
 /* client side of the pluggable authentication */
 struct st_plugin_vio_info;

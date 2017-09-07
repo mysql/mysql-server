@@ -24,12 +24,12 @@
 
 #include "my_config.h"
 
+#include <stdio.h>
 #include <utility>
 
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_sys.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysqld_error.h"
 #include "sql/derror.h"
 #include "sql/field.h"
@@ -232,7 +232,7 @@ bool Group_check::check_query(THD *thd)
             Item *expr= *(o->item);
             if (check_expression(thd, expr, false))
             {
-              my_snprintf(buff, sizeof(buff),
+              snprintf(buff, sizeof(buff),
                           "PARTITION BY or ORDER BY clause of window '%s'",
                           w->printable_name());
               place= buff;

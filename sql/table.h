@@ -43,7 +43,6 @@
 #include "sql/dd/types/foreign_key.h" // dd::Foreign_key::enum_rule
 #include "sql/enum_query_type.h" // enum_query_type
 #include "sql/handler.h"   // row_type
-#include "sql/json_diff.h"
 #include "sql/key.h"
 #include "sql/key_spec.h"
 #include "sql/mdl.h"       // MDL_wait_for_subgraph
@@ -81,7 +80,6 @@ class GRANT_TABLE;
 class Index_hint;
 class Item;
 class Item_field;
-class Json_diff;
 class Json_diff_vector;
 class Json_seekable_path;
 class Json_wrapper;

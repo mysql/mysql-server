@@ -1046,9 +1046,11 @@ INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8);
 
 ANALYZE TABLE t1;
 
+# Remove workaround of "OR FALSE" from the end of WHERE clause after fix
+# of Bug#26389402 for I_S views definitions.
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE
 CREATE_TIME IS NOT NULL AND UPDATE_TIME IS NOT NULL
-AND TABLE_NAME='t1';
+AND TABLE_NAME='t1' OR FALSE;
 
 DROP TABLE t1;
 

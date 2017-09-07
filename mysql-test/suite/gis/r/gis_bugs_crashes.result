@@ -149,11 +149,9 @@ ST_LONGFROMGEOHASH(ST_GEOHASH(ST_GEOMFROMTEXT('POINT(10 10)'),10))
 SELECT ST_LATFROMGEOHASH(ST_GEOHASH(ST_GEOMFROMTEXT('POINT(10 10)'),10));
 ST_LATFROMGEOHASH(ST_GEOHASH(ST_GEOMFROMTEXT('POINT(10 10)'),10))
 10
-SELECT ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(ST_GEOMFROMTEXT('POINT(10 10)'),10),10));
-ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(ST_GEOMFROMTEXT('POINT(10 10)'),10),10))
+SELECT ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(ST_GEOMFROMTEXT('POINT(10 10)'),10),0));
+ST_ASTEXT(ST_POINTFROMGEOHASH(ST_GEOHASH(ST_GEOMFROMTEXT('POINT(10 10)'),10),0))
 POINT(10 10)
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 10. The axis order is unknown.
 ######################################################################################################
 # BUG#19204199 : DISTANCE() AND ENVELOPE() FUNCTIONS RETURN WRONG RESULT
 ######################################################################################################
@@ -272,8 +270,10 @@ POINT(11 102)
 ######################################################################################################
 # BUG#19549099 : VIRTUAL CONST CHAR* ITEM_FUNC_SPATIAL_MBR_REL::FUNC_NAME() CONST: ASSERTION `0'
 ######################################################################################################
-SELECT MBRCOVERS(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)',100));
-ERROR SR001: There's no spatial reference system with SRID 100.
+SELECT MBRCOVERS(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)',4326));
+ERROR HY000: Binary geometry function mbrcovers given two geometries of different srids: 0 and 4326, which should have been identical.
+SELECT MBRCOVERS(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)',4326));
+ERROR HY000: Binary geometry function mbrcovers given two geometries of different srids: 0 and 4326, which should have been identical.
 ######################################################################################################
 # BUG#19552241 : MBRTOUCHES() FUNCTION RETURNS INCORRECT RESULT
 ######################################################################################################
@@ -1111,17 +1111,6 @@ ST_CONTAINS(ST_GEOMFROMTEXT('MULTILINESTRING((5 0,5 5,5 10),(0 0,10 10))'), ST_G
 ######################################################################################################
 # More GIS crashes/assertion failure test cases
 ######################################################################################################
-SELECT MBRCONTAINS(ST_UNION(
-ST_GEOMFROMTEXT(
-'GEOMETRYCOLLECTION('
-                               'POLYGON((1 7,4 5,7 -.1,7 2,5 4,2 2,4 +.7,-1.9 2,4 1,1 7)),'
-                               'MULTIPOINT(+.6 +.0,6 -1,6 -1032.34324,0 -2.9,6 0),'
-                               'MULTILINESTRING((7 3,-5.8 3,4 7,4 2.232432)))',10),
-ST_GEOMFROMTEXT(
-'MULTIPOINT(7.0 5,2 -9.2,9 8,6 -0,3 5,1 7,3 7)',10)),
-ST_UNION(ST_GEOMFROMWKB(ST_ASWKB(ST_GEOMFROMTEXT('POINT(0 2.232432)')),10),
-ST_GEOMFROMTEXT('POINT(4 +.5)',10)));
-ERROR SR001: There's no spatial reference system with SRID 10.
 SELECT ST_INTERSECTS(ST_SYMDIFFERENCE(
 ST_GEOMFROMTEXT(
 'MULTIPOINT(1 0,8.5 0,5 1,8.3 4,7 -5.0)'),
@@ -1158,17 +1147,6 @@ ST_GEOMFROMTEXT(
                                   '(0 6,5 9,-.0 0,7 4,2 -3,2 7,9 2,0 6))'),
 ST_GEOMF
 NULL
-SELECT MBRCONTAINS(ST_UNION(
-ST_GEOMFROMTEXT(
-'GEOMETRYCOLLECTION('
-                               'POLYGON((1 7,4 5,7 -.1,7 2,5 4,2 2,4 +.7,-1.9 2,4 1,1 7)),'
-                               'MULTIPOINT(+.6 +.0,6 -1,6 -1032.34324,0 -2.9,6 0),'
-                               'MULTILINESTRING((7 3,-5.8 3,4 7,4 2.232432)))',10),
-ST_GEOMFROMTEXT('MULTIPOINT(7.0 5,2 -9.2,9 8,6 -0,3 5,1 7,3 7)',10)),
-ST_UNION(
-ST_GEOMFROMWKB(
-ST_ASWKB(ST_GEOMFROMTEXT('POINT(0 2.232432)')),10),ST_GEOMFROMTEXT('POINT(4 +.5)',10)));
-ERROR SR001: There's no spatial reference system with SRID 10.
 SELECT ST_CONTAINS(ST_UNION(
 ST_GEOMFROMWKB(ST_ASWKB(
 GEOMETRYCOLLECTION(
@@ -1225,7 +1203,7 @@ ST_GEOMFROMTEXT(
 'MULTIPOLYGON(((6 4,3 3,-8.4 6,-.0 4,6 4)))')))),
 ST_DIFFERENCE(
 ST_GEOMFROMTEXT('LINESTRING(3.2 2)'),
-ST_GEOMFROMTEXT('LINESTRING(7 3,-2 10.0002,1 6,3 7)',10)));
+ST_GEOMFROMTEXT('LINESTRING(7 3,-2 10.0002,1 6,3 7)',0)));
 ERROR 22023: Invalid GIS data provided to function linestring.
 # Invalid geometry in input
 SELECT ST_ASTEXT(ST_INTERSECTION(
@@ -1235,16 +1213,6 @@ ST_ASTEXT(ST_INTERSECTION(
 ST_GEOMFROMTEXT('POLYGON((6 8, 4 1, 6 8, -0.2 2,6 6.3, 3 7, 4 7.1, 6 8))'),
 ST_GEOMFROMTEXT('MULTIPOLYGON(((6 4,3 3,-8.4 6,-.0 4,6 4)))')))
 GEOMETRYCOLLECTION(MULTIPOLYGON(((1.7254659689012 3.335403817141154,2.6837209693283324 4,1.8666664746665438 4,1.2965517524471035 3.448275889464939,1.7254659689012 3.335403817141154))),MULTIPOINT((1.2965517524471029 3.448275889464939),(4.7368421052631575 3.5789473684210527),(4.857142857142858 4)))
-SELECT MBRWITHIN(ST_SYMDIFFERENCE(
-ST_GEOMFROMWKB(ST_ASWKB(POINT(3,8)),10),
-ST_GEOMFROMWKB(
-ST_ASWKB(
-ST_GEOMFROMTEXT(
-'MULTILINESTRING((10.0002 6,6 9,1 2,2 -6),(-2 -1032.34324,6 189.7654,6 -.6,-.0 -.6,5 0),(0.6 1,5 0,1 -6,6 1))')),10)),
-ST_INTERSECTION(
-ST_GEOMFROMTEXT('MULTIPOINT(+.8 4,5 -2,6 10.0002,4 9,1 3)'),
-ST_GEOMFROMWKB(ST_ASWKB(MULTIPOINT(POINT(8,5),POINT(9,4),POINT(-0.5,-.9))))));
-ERROR SR001: There's no spatial reference system with SRID 10.
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(
 'MULTIPOINT(189.7654 2)'),
 ST_GEOMFROMWKB(ST_ASWKB(
@@ -1566,24 +1534,24 @@ ST_GEOMFROMWKB(ST_ASWKB(ST_GEOMFROMTEXT('MULTIPOLYGON(((7 0,-0.7654 0,-.3 -0.765
 ERROR 22023: Invalid GIS data provided to function polygon.
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMWKB(ST_ASWKB(MULTIPOLYGON(
 POLYGON(LINESTRING(POINT(5,3), POINT(+.5,7), POINT(5,3))),
-POLYGON(LINESTRING(POINT(2,4), POINT(-.0,0), POINT(1,2), POINT(2,+.2),POINT(1,4),POINT(2,4)))),10)),
-ST_GEOMFROMWKB(ST_ASWKB(POINT(5,8),10))));
+POLYGON(LINESTRING(POINT(2,4), POINT(-.0,0), POINT(1,2), POINT(2,+.2),POINT(1,4),POINT(2,4)))),0)),
+ST_GEOMFROMWKB(ST_ASWKB(POINT(5,8),0))));
 ERROR 22023: Invalid GIS data provided to function polygon.
-SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMWKB(ST_ASWKB(POINT(5,8)),10),
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMWKB(ST_ASWKB(POINT(5,8)),0),
 ST_GEOMFROMWKB(ST_ASWKB(MULTIPOLYGON(
 POLYGON(LINESTRING(POINT(5,3), POINT(+.5,7), POINT(5,3))),
-POLYGON(LINESTRING(POINT(2,4),POINT(-.0,0), POINT(1,2), POINT(2,+.2), POINT(1,4), POINT(2,4)))),10))));
+POLYGON(LINESTRING(POINT(2,4),POINT(-.0,0), POINT(1,2), POINT(2,+.2), POINT(1,4), POINT(2,4)))),0))));
 ERROR 22023: Invalid GIS data provided to function polygon.
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMWKB(ST_ASWKB(MULTIPOLYGON(
 POLYGON(LINESTRING(POINT(5,3), POINT(+.5,7), POINT(5,3))),
-POLYGON(LINESTRING(POINT(2,4), POINT(-.0,0), POINT(1,2), POINT(2,+.2),POINT(1,4),POINT(2,4)))),10)),
-ST_GEOMFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(POINT(5,8),10)))));
-ERROR 22007: Illegal non geometric '10' value found during parsing
-SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(POINT(5,8),10))),
+POLYGON(LINESTRING(POINT(2,4), POINT(-.0,0), POINT(1,2), POINT(2,+.2),POINT(1,4),POINT(2,4)))),0)),
+ST_GEOMFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(POINT(5,8),0)))));
+ERROR 22007: Illegal non geometric '0' value found during parsing
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(POINT(5,8),0))),
 ST_GEOMFROMWKB(ST_ASWKB(MULTIPOLYGON(
 POLYGON(LINESTRING(POINT(5,3), POINT(+.5,7), POINT(5,3))),
-POLYGON(LINESTRING(POINT(2,4), POINT(-.0,0), POINT(1,2), POINT(2,+.2),POINT(1,4),POINT(2,4)))),10))));
-ERROR 22007: Illegal non geometric '10' value found during parsing
+POLYGON(LINESTRING(POINT(2,4), POINT(-.0,0), POINT(1,2), POINT(2,+.2),POINT(1,4),POINT(2,4)))),0))));
+ERROR 22007: Illegal non geometric '0' value found during parsing
 SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT('MULTILINESTRING((9 2,8 -7,1 -7))'), ST_GEOMFROMTEXT('POINT(-6 8)')));
 ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT('MULTILINESTRING((9 2,8 -7,1 -7))'), ST_GEOMFROMTEXT('POINT(-6 8)')))
 GEOMETRYCOLLECTION(MULTILINESTRING((9 2,8 -7,1 -7)),POINT(-6 8))
@@ -1720,7 +1688,7 @@ ST_GEOMFROMTEXT('POLYGON((5 2,+.1 0,5 2))')));
 ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(
 ST_INTERSECTION(
-ST_GEOMFROMTEXT('POLYGON((5 3,6 7,-2.0 4,0 1,7 -0,5 3),(5 6,9 5,5 6))',10),ST_GEOMFROMTEXT('POINT(8 9)',10)));
+ST_GEOMFROMTEXT('POLYGON((5 3,6 7,-2.0 4,0 1,7 -0,5 3),(5 6,9 5,5 6))',0),ST_GEOMFROMTEXT('POINT(8 9)',0)));
 ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(
 ST_UNION(
@@ -1738,7 +1706,7 @@ POLYGON(
 LINESTRING(POINT(1,5),POINT(-.1,6),POINT(6.9,2),POINT(1,5),POINT(9,-8.8),POINT(4,9),POINT(7,8),POINT(1,5)),
 LINESTRING(POINT(2,2),POINT(0,-.3),POINT(2,2)),
 LINESTRING(POINT(6,1),POINT(4,0.4),POINT(4,9),POINT(2,8),POINT(8,4),POINT(-9.8,-2.4),POINT(9.9,6),
-POINT(1,7),POINT(7,6),POINT(6,0),POINT(6,1))))),10),
+POINT(1,7),POINT(7,6),POINT(6,0),POINT(6,1))))),0),
 ST_GEOMFROMWKB(ST_ASWKB(
 MULTILINESTRING(
 LINESTRING(POINT(1,2),POINT(3,8),POINT(2,9),POINT(7,+.5)),
@@ -1748,7 +1716,7 @@ POINT(8.8,7),POINT(.9,8),POINT(3,1),POINT(1,9),POINT(5,4),POINT(4,0),POINT(4,9),
 LINESTRING(POINT(8,8),POINT(+.8,+.1),POINT(+.6,-3.1),POINT(8,0),POINT(5,8),POINT(4,9),POINT(9,6)),
 LINESTRING(POINT(1,7),POINT(7,7),POINT(0,4),POINT(5,8)),
 LINESTRING(POINT(-.6,6)),
-LINESTRING(POINT(7,3),POINT(3,0),POINT(2,8),POINT(7,3),POINT(7,2),POINT(0,5),POINT(9,0)))),10)));
+LINESTRING(POINT(7,3),POINT(3,0),POINT(2,8),POINT(7,3),POINT(7,2),POINT(0,5),POINT(9,0)))),0)));
 ERROR 22023: Invalid GIS data provided to function polygon.
 SELECT ST_ASTEXT(ST_INTERSECTION(
 ST_GEOMFROMWKB(ST_ASWKB(
@@ -1758,8 +1726,8 @@ LINESTRING(POINT(9,3),POINT(0,-.1),POINT(8,2),POINT(2.4,1),POINT(9,2),POINT(8,1.
 POINT(5,9),POINT(8.1,-.5),POINT(0,-4.3),POINT(8,3),POINT(9,3))))),
 ST_GEOMFROMTEXT('POINT(0 +.3)')));
 ERROR 22023: Invalid GIS data provided to function polygon.
-SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(2,8),POINT(2,5),POINT(2,8))),10)),
-ST_GEOMFROMTEXT('LINESTRING(6 6,-8 9,-4 4,1 2)',10)));
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMWKB(ST_ASWKB(POLYGON(LINESTRING(POINT(2,8),POINT(2,5),POINT(2,8))),0)),
+ST_GEOMFROMTEXT('LINESTRING(6 6,-8 9,-4 4,1 2)',0)));
 ERROR 22023: Invalid GIS data provided to function polygon.
 SELECT ST_ASTEXT(ST_INTERSECTION(
 ST_GEOMFROMWKB(ST_ASWKB(
@@ -1796,10 +1764,10 @@ ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
 ERROR 22023: Invalid GIS data provided to function st_union.
 SELECT ST_ASTEXT(
 ST_INTERSECTION(
-ST_GEOMFROMWKB(ST_ASWKB(ST_GEOMFROMTEXT('POLYGON((1 3,+.5 -1032.34324,1 3))')),10),
+ST_GEOMFROMWKB(ST_ASWKB(ST_GEOMFROMTEXT('POLYGON((1 3,+.5 -1032.34324,1 3))')),0),
 ST_GEOMFROMWKB(ST_ASWKB(GEOMETRYCOLLECTION(POINT(2,.1),
 LINESTRING(POINT(4,7),POINT(3,5),POINT(-5.1,7),POINT(5,-3.6)),
-LINESTRING(POINT(6,3),POINT(5,3),POINT(0,1),POINT(8,7))),10))));
+LINESTRING(POINT(6,3),POINT(5,3),POINT(0,1),POINT(8,7))),0))));
 ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_ASTEXT(
 ST_INTERSECTION(
@@ -1809,8 +1777,8 @@ LINESTRING(POINT(4,6),POINT(9,9),POINT(2,0),POINT(4,4),POINT(4,6)),
 LINESTRING(POINT(7,5),POINT(4,2),POINT(4,5),POINT(-.8,5),POINT(7,5)),
 LINESTRING(POINT(4,1),POINT(6,0),POINT(3,3),POINT(-1.8,4),POINT(4,1)),
 LINESTRING(POINT(6,7),POINT(2,7),POINT(2,-.0),POINT(.1,-.4),POINT(4,5),POINT(6,7)),
-LINESTRING(POINT(2,5),POINT(2,.6),POINT(4,3),POINT(3,8),POINT(2,5))),10),
-ST_GEOMFROMTEXT('LINESTRING(-.7 -.3,0 5,8 0,9 7)',10)));
+LINESTRING(POINT(2,5),POINT(2,.6),POINT(4,3),POINT(3,8),POINT(2,5))),0),
+ST_GEOMFROMTEXT('LINESTRING(-.7 -.3,0 5,8 0,9 7)',0)));
 ERROR 22023: Invalid GIS data provided to function st_geomfromwkb.
 SELECT ST_ASTEXT(
 ST_INTERSECTION(
@@ -1818,7 +1786,7 @@ ST_GEOMFROMTEXT(
 'GEOMETRYCOLLECTION('
                         'POLYGON((3 1,5 2,3 1),(8 5,4 9,-4.6 6,2.0 0,4 -1032.34324,8 5)),'
                         'LINESTRING(0 +.6),'
-                        'LINESTRING(4 189.7654,9 5,0 +.8,3 9))',10),
+                        'LINESTRING(4 189.7654,9 5,0 +.8,3 9))',0),
 ST_GEOMFROMWKB(
 MULTIPOLYGON(
 POLYGON(
@@ -1834,7 +1802,7 @@ LINESTRING(POINT(1,0),POINT(8,3),POINT(3,7),POINT(4,3),POINT(9,5),POINT(1,0))),
 POLYGON(
 LINESTRING(POINT(6,4),POINT(-3.0,1),POINT(5,8),POINT(8,4),POINT(3,7),POINT(8,9),POINT(5,6),POINT(6,4)),
 LINESTRING(POINT(5,5),POINT(2,0),POINT(1.3,9),POINT(+.2,9),POINT(6,6),POINT(.5,9),POINT(7,0),
-POINT(9,-.9),POINT(9,4),POINT(3,1),POINT(4,7),POINT(9,0),POINT(-.5,4),POINT(3,1),POINT(5,5)))),10)));
+POINT(9,-.9),POINT(9,4),POINT(3,1),POINT(4,7),POINT(9,0),POINT(-.5,4),POINT(3,1),POINT(5,5)))),0)));
 ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 ######################################################################################################
 # BUG#20445979 : ASSERTION `RESULT->LENGTH() == 0' FAILED
@@ -2364,19 +2332,15 @@ ST_ISVALID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0))'))
 ######################################################################################################
 SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 1)', 4236), ST_GEOMFROMTEXT('POINT(0 0)', 0)));
 ERROR HY000: Binary geometry function st_makeenvelope given two geometries of different srids: 4236 and 0, which should have been identical.
-SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 1)', 1), ST_GEOMFROMTEXT('POINT(0 0)', 0)));
-ERROR HY000: Binary geometry function st_makeenvelope given two geometries of different srids: 1 and 0, which should have been identical.
-SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 1)', 0), ST_GEOMFROMTEXT('POINT(0 0)', 100)));
-ERROR HY000: Binary geometry function st_makeenvelope given two geometries of different srids: 0 and 100, which should have been identical.
 ######################################################################################################
 # BUG#20406722 : ST_ISVALID() DOES NOT PRINT THE FUNCTION NAME IN THE ERROR MESSAGE
 ######################################################################################################
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', -1));
 ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', 1));
-ERROR SR001: Function st_isvalid is only defined for Cartesian spatial reference systems, but one of its arguments is in SRID 1, which has not been defined.
+ERROR SR001: There's no spatial reference system with SRID 1.
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', 1000));
-ERROR SR001: Function st_isvalid is only defined for Cartesian spatial reference systems, but one of its arguments is in SRID 1000, which has not been defined.
+ERROR SR001: There's no spatial reference system with SRID 1000.
 ######################################################################################################
 # BUG#20406850 : WL#8034 : CRASH WITH ST_ISVAID() IN ITEM_FUNC_ISVALID::VAL_INT FUNCTION
 ######################################################################################################

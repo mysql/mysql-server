@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -21,24 +21,17 @@
 #ifndef _NGS_ERROR_CODE_H_
 #define _NGS_ERROR_CODE_H_
 
+#include <stdio.h>
 #include <string>
 
 #ifndef NGS_STANDALONE
 #include "mysqld_error.h"
-#include "mysql/service_my_snprintf.h"
-#else
-#include <cstdio>
-#define my_vsnprintf vsnprintf
 #endif
 
-#include <string>
 #include <cstdarg>
+#include <string>
 
-#ifdef __GNUC__
-#define MY_PRINTF_FORMAT(a1, a2) __attribute__ ((format (printf, a1, a2)))
-#else
-#define MY_PRINTF_FORMAT(a1, a2)
-#endif
+#include "my_compiler.h"
 
 namespace ngs
 {
@@ -61,12 +54,7 @@ namespace ngs
     : error(e), message(m), sql_state(state), severity(sev) {}
 
     Error_code(int e, const std::string &state, Severity sev, const char *fmt, va_list args)
-    : error(e), sql_state(state), severity(sev)
-    {
-      char buffer[MAX_MESSAGE_LENGTH];
-      my_vsnprintf(buffer, sizeof(buffer), fmt, args);
-      message = buffer;
-    }
+      MY_ATTRIBUTE((format(printf, 5, 0)));
 
     Error_code(const Error_code &o)
     {
@@ -91,10 +79,23 @@ namespace ngs
     }
   };
 
-  inline Error_code Success(const char *msg, ...) MY_PRINTF_FORMAT(1, 2);
-  inline Error_code SQLError(int e, const std::string &sqlstate, const char *msg, ...) MY_PRINTF_FORMAT(3, 4);
-  inline Error_code Error(int e, const char *msg, ...) MY_PRINTF_FORMAT(2, 3);
-  inline Error_code Fatal(int e, const char *msg, ...) MY_PRINTF_FORMAT(2, 3);
+  inline Error_code::Error_code(int e, const std::string &state, Severity sev,
+                                const char *fmt, va_list args)
+    : error(e), sql_state(state), severity(sev)
+  {
+    char buffer[MAX_MESSAGE_LENGTH];
+    vsnprintf(buffer, sizeof(buffer), fmt, args);
+    message = buffer;
+  }
+
+  inline Error_code Success(const char *msg, ...)
+    MY_ATTRIBUTE((format(printf, 1, 2)));
+  inline Error_code SQLError(int e, const std::string &sqlstate, const char *msg, ...)
+    MY_ATTRIBUTE((format(printf, 3, 4)));
+  inline Error_code Error(int e, const char *msg, ...)
+    MY_ATTRIBUTE((format(printf, 2, 3)));
+  inline Error_code Fatal(int e, const char *msg, ...)
+    MY_ATTRIBUTE((format(printf, 2, 3)));
 
   inline Error_code Success(const char *msg, ...)
   {

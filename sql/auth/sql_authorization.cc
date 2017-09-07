@@ -34,6 +34,7 @@
 #include <boost/smart_ptr/shared_ptr.hpp>
 #include <boost/tuple/tuple.hpp>
 #include <limits.h>
+#include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
 #include <algorithm>
@@ -67,7 +68,6 @@
 #include "mysql/components/services/log_shared.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
@@ -6179,7 +6179,7 @@ bool check_fk_parent_table_access(THD *thd,
           (parent_table.grant.privilege & REFERENCES_ACL) == 0)
       {
         char fqtn_buff[NAME_LEN + 1 + NAME_LEN + 1];
-        my_snprintf(fqtn_buff, sizeof(fqtn_buff), "%s.%s",
+        snprintf(fqtn_buff, sizeof(fqtn_buff), "%s.%s",
                     fk_key->ref_db.str, fk_key->ref_table.str);
         my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0),
                  "REFERENCES",

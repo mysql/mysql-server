@@ -56,7 +56,6 @@
 #include "mysql/components/services/log_shared.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
@@ -192,7 +191,7 @@ static int view_store_create_info(THD *thd, TABLE_LIST *table, String *buff);
 
 static size_t make_version_string(char *buf, size_t buf_length, uint version)
 {
-  return my_snprintf(buf, buf_length, "%d.%d", version>>8,version&0xff);
+  return snprintf(buf, buf_length, "%d.%d", version>>8,version&0xff);
 }
 
 static bool show_plugins(THD *thd, plugin_ref plugin,
@@ -616,7 +615,7 @@ private:
     if (!m_view_access_denied_message_ptr)
     {
       m_view_access_denied_message_ptr= m_view_access_denied_message;
-      my_snprintf(m_view_access_denied_message, MYSQL_ERRMSG_SIZE,
+      snprintf(m_view_access_denied_message, MYSQL_ERRMSG_SIZE,
                   ER_THD(thd, ER_TABLEACCESS_DENIED_ERROR), "SHOW VIEW",
                   m_sctx->priv_user().str,
                   m_sctx->host_or_ip().str, m_top_view->get_table_name());
@@ -2104,7 +2103,7 @@ public:
     {
       if ((thd_info->host=
            (char*) m_client_thd->alloc(LIST_PROCESS_HOST_LEN+1)))
-        my_snprintf((char *) thd_info->host, LIST_PROCESS_HOST_LEN, "%s:%u",
+        snprintf((char *) thd_info->host, LIST_PROCESS_HOST_LEN, "%s:%u",
                     inspect_sctx_host_or_ip.str, inspect_thd->peer_port);
     }
     else
@@ -2294,7 +2293,7 @@ public:
         m_client_thd->security_context()->host_or_ip().str[0])
     {
       char host[LIST_PROCESS_HOST_LEN + 1];
-      my_snprintf(host, LIST_PROCESS_HOST_LEN, "%s:%u",
+      snprintf(host, LIST_PROCESS_HOST_LEN, "%s:%u",
                   inspect_sctx_host_or_ip.str, inspect_thd->peer_port);
       table->field[2]->store(host, strlen(host), system_charset_info);
     }

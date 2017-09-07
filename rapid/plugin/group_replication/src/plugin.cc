@@ -297,12 +297,15 @@ int plugin_group_replication_set_retrieved_certification_info(void* info)
 }
 
 int log_message(enum plugin_log_level level, const char *format, ...)
+  MY_ATTRIBUTE((format(printf, 2, 3)));
+
+int log_message(enum plugin_log_level level, const char *format, ...)
 {
   va_list args;
   char buff[1024];
 
   va_start(args, format);
-  my_vsnprintf(buff, sizeof(buff), format, args);
+  vsnprintf(buff, sizeof(buff), format, args);
   va_end(args);
   return my_plugin_log_message(&plugin_info_ptr, level, "%s", buff);
 }
@@ -815,7 +818,7 @@ int leave_group()
       case Gcs_operations::NOW_LEAVING:
         goto bypass_message;
     }
-    log_message(log_severity, ss.str().c_str());
+    log_message(log_severity, "%s", ss.str().c_str());
 bypass_message:
     //Wait anyway
     log_message(MY_INFORMATION_LEVEL, "Going to wait for view modification");
@@ -981,7 +984,7 @@ int terminate_plugin_modules(bool flag_stop_async_channel, char **error_message)
         if (*error_message == NULL)
         {
           char err_tmp_arr[MYSQL_ERRMSG_SIZE];
-          size_t err_len= my_snprintf(err_tmp_arr, sizeof(err_tmp_arr),
+          size_t err_len= snprintf(err_tmp_arr, sizeof(err_tmp_arr),
                             "Error stopping all replication channels while"
                             " server was leaving the group. Got error: %d."
                             " Please check the  error log for more details.",

@@ -298,10 +298,9 @@ CALL gis_wkt_funcs(0);
 CALL gis_wkt_funcs(2000);
 # Geographic SRS (should pass)
 CALL gis_wkt_funcs(4326);
-# Undefined SRS (should pass)
+# Undefined SRS (should fail)
 CALL gis_wkt_funcs(19000000);
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 19000000. The axis order is unknown.
+ERROR SR001: There's no spatial reference system with SRID 19000000.
 # Unparseable SRS definition (should fail)
 INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
 organization, organization_coordsys_id, definition, description)

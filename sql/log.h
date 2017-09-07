@@ -31,9 +31,9 @@
 #define LOG_H
 
 #include <mysql/components/services/log_shared.h>
-#include <mysql/service_my_snprintf.h>   // my_vsnprintf
 #include <stdarg.h>
 #include <stddef.h>
+#include <stdio.h>
 #include <sys/types.h>
 
 #include "lex_string.h"
@@ -529,7 +529,8 @@ public:
      @return true if error, false otherwise.
   */
   bool general_log_print(THD *thd, enum_server_command command,
-                         const char *format, ...);
+                         const char *format, ...)
+    MY_ATTRIBUTE((format(printf, 4, 5)));
 
   /**
      Write query to general query log.

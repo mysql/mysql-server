@@ -832,7 +832,7 @@ int ha_example::create(const char *name, TABLE*,
   THD *thd = ha_thd();
   char *buf = (char *) my_malloc(PSI_NOT_INSTRUMENTED, SHOW_VAR_FUNC_BUFF_SIZE,
                                  MYF(MY_FAE));
-  my_snprintf(buf, SHOW_VAR_FUNC_BUFF_SIZE, "Last creation '%s'", name);
+  snprintf(buf, SHOW_VAR_FUNC_BUFF_SIZE, "Last creation '%s'", name);
   THDVAR_SET(thd, last_create_thdvar, buf);
   my_free(buf);
 
@@ -916,16 +916,16 @@ static struct st_mysql_sys_var* example_system_variables[]= {
   NULL
 };
 
-// this is an example of SHOW_FUNC and of my_snprintf() service
+// this is an example of SHOW_FUNC
 static int show_func_example(MYSQL_THD, struct st_mysql_show_var *var,
                              char *buf)
 {
   var->type= SHOW_CHAR;
   var->value= buf; // it's of SHOW_VAR_FUNC_BUFF_SIZE bytes
-  my_snprintf(buf, SHOW_VAR_FUNC_BUFF_SIZE,
+  snprintf(buf, SHOW_VAR_FUNC_BUFF_SIZE,
               "enum_var is %lu, ulong_var is %lu, "
-              "double_var is %f, %.6b", // %b is a MySQL extension
-              srv_enum_var, srv_ulong_var, srv_double_var, "really");
+              "double_var is %f",
+              srv_enum_var, srv_ulong_var, srv_double_var);
   return 0;
 }
 

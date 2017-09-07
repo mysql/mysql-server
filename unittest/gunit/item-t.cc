@@ -172,7 +172,7 @@ TEST_F(ItemTest, ItemInt)
 {
   const int32 val= 42;
   char stringbuf[10];
-  (void) my_snprintf(stringbuf, sizeof(stringbuf), "%d", val);
+  (void) snprintf(stringbuf, sizeof(stringbuf), "%d", val);
 
   // An Item expects to be owned by current_thd->free_list,
   // so allocate with new, and do not delete it.
@@ -840,7 +840,7 @@ TEST_F(ItemTest, ItemDecimalTypecast)
 
   {
     char buff[20];
-    my_snprintf(buff, sizeof(buff) - 1, "%d", DECIMAL_MAX_PRECISION + 1);
+    snprintf(buff, sizeof(buff) - 1, "%d", DECIMAL_MAX_PRECISION + 1);
     type.length= buff;
     type.dec= NULL;
     initializer.set_expected_error(ER_TOO_BIG_PRECISION);
@@ -856,7 +856,7 @@ TEST_F(ItemTest, ItemDecimalTypecast)
 
   {
     char buff[20];
-    my_snprintf(buff, sizeof(buff) - 1, "%d", DECIMAL_MAX_SCALE + 1);
+    snprintf(buff, sizeof(buff) - 1, "%d", DECIMAL_MAX_SCALE + 1);
     type.length= buff;
     type.dec= buff;
     initializer.set_expected_error(ER_TOO_BIG_SCALE);

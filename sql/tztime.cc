@@ -58,7 +58,6 @@
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "sql/dd/types/event.h"
@@ -1394,7 +1393,7 @@ Time_zone_offset::Time_zone_offset(long tz_offset_arg):
 {
   uint hours= abs((int)(offset / SECS_PER_HOUR));
   uint minutes= abs((int)(offset % SECS_PER_HOUR / SECS_PER_MIN));
-  size_t length= my_snprintf(name_buff, sizeof(name_buff), "%s%02d:%02d",
+  size_t length= snprintf(name_buff, sizeof(name_buff), "%s%02d:%02d",
                              (offset>=0) ? "+" : "-", hours, minutes);
   name.set(name_buff, length, &my_charset_latin1);
 }

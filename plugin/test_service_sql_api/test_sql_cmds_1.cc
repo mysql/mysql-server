@@ -36,7 +36,7 @@ static File outfile;
 static void WRITE_STR(const char *format)
 {
   char buffer[STRING_BUFFER];
-  my_snprintf(buffer,sizeof(buffer),format);
+  snprintf(buffer,sizeof(buffer),"%s",format);
   my_write(outfile,(uchar*)buffer,strlen(buffer),MYF(0));
 }
 
@@ -44,7 +44,7 @@ template<typename T>
 void WRITE_VAL(const char *format, T value)
 {
   char buffer[STRING_BUFFER];
-  my_snprintf(buffer,sizeof(buffer),format,value);
+  snprintf(buffer,sizeof(buffer),format,value);
   my_write(outfile,(uchar*)buffer,strlen(buffer),MYF(0));
 }
 
@@ -52,7 +52,7 @@ template<typename T1, typename T2>
 void WRITE_VAL(const char *format, T1 value1, T2 value2)
 {
   char buffer[STRING_BUFFER];
-  my_snprintf(buffer,sizeof(buffer),format,value1,value2);
+  snprintf(buffer,sizeof(buffer),format,value1,value2);
   my_write(outfile,(uchar*)buffer,strlen(buffer),MYF(0));
 }
 
@@ -675,7 +675,7 @@ static int test_query_kill(void *p)
 
   sleep(1);
   char buffer[200];
-  my_snprintf(buffer, sizeof(buffer), "kill query %i", srv_session_info_get_session_id(st_session_victim));
+  snprintf(buffer, sizeof(buffer), "kill query %i", srv_session_info_get_session_id(st_session_victim));
   WRITE_STR("run KILL QUERY\n");
   cmd.com_query.query = buffer;
   cmd.com_query.length = strlen(buffer);

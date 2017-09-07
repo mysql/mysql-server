@@ -4500,7 +4500,7 @@ innodb_init_params()
 	innodb_log_checksums_func_update(innodb_log_checksums);
 
 #ifdef HAVE_LINUX_LARGE_PAGES
-	if ((os_use_large_pages = my_use_large_pages)) {
+	if ((os_use_large_pages = opt_large_pages)) {
 		os_large_page_size = opt_large_page_size;
 	}
 #endif
@@ -15770,11 +15770,13 @@ innodb_rec_per_key(
 /** Read the auto_increment counter of a table, using the AUTOINC lock
 irrespective of innodb_autoinc_lock_mode.
 @param[in,out]	innodb_table	InnoDB table object
+@param[in]      print_note      Print note if not an I_S query.
 @return the autoinc value */
 static
 ulonglong
 innobase_peek_autoinc(
-	dict_table_t*	innodb_table)
+	dict_table_t*	innodb_table,
+	bool		print_note)
 {
 	ulonglong	auto_inc;
 
@@ -15784,7 +15786,7 @@ innobase_peek_autoinc(
 
 	auto_inc = dict_table_autoinc_read(innodb_table);
 
-	if (auto_inc == 0) {
+	if (auto_inc == 0 && print_note) {
 		ib::info() << "AUTOINC next value generation is disabled for "
 			<< innodb_table->name;
 	}
@@ -16237,7 +16239,7 @@ ha_innobase::info_low(
 	}
 
 	if ((flag & HA_STATUS_AUTO) && table->found_next_number_field) {
-		ulonglong auto_inc_val = innobase_peek_autoinc(ib_table);
+		ulonglong auto_inc_val = innobase_peek_autoinc(ib_table, true);
 		/* Initialize autoinc value if not set. */
 		if (auto_inc_val == 0) {
 
@@ -16245,7 +16247,7 @@ ha_innobase::info_low(
 			innobase_initialize_autoinc();
 			dict_table_autoinc_unlock(m_prebuilt->table);
 
-			auto_inc_val = innobase_peek_autoinc(ib_table);
+			auto_inc_val = innobase_peek_autoinc(ib_table, true);
 		}
 		stats.auto_increment_value = auto_inc_val;
 	}
@@ -16482,7 +16484,7 @@ innobase_get_table_statistics(
 
 	if (flags & HA_STATUS_AUTO) {
 		stats->auto_increment_value =
-			innobase_peek_autoinc(ib_table);
+			innobase_peek_autoinc(ib_table, false);
 	}
 
 	if (flags & HA_STATUS_TIME) {
@@ -21606,7 +21608,7 @@ static MYSQL_SYSVAR_BOOL(dedicated_server, srv_dedicated_server,
   "Automatically scale innodb_buffer_pool_size and innodb_log_file_size "
   "based on system memory. Also set innodb_flush_method=O_DIRECT_NO_FSYNC, "
   "if supported",
-  NULL, NULL, TRUE);
+  NULL, NULL, FALSE);
 
 /* If the default value of innodb_buffer_pool_size is increased to be more than
 BUF_POOL_SIZE_THRESHOLD (srv/srv0start.cc), then srv_buf_pool_instances_default
@@ -22991,7 +22993,7 @@ ib_senderrf(
 		va_end(args);
 		return;	/* Watch for Out-Of-Memory */
 	}
-	my_vsnprintf(str, BUFSIZ, format, args);
+	vsnprintf(str, BUFSIZ, format, args);
 #endif /* _WIN32 */
 
 	Sql_condition::enum_severity_level	l;
@@ -23081,7 +23083,7 @@ ib_errf(
 		va_end(args);
 		return;	/* Watch for Out-Of-Memory */
 	}
-	my_vsnprintf(str, BUFSIZ, format, args);
+	vsnprintf(str, BUFSIZ, format, args);
 #endif /* _WIN32 */
 
 	ib_senderrf(thd, level, code, str);

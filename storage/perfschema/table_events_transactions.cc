@@ -272,7 +272,7 @@ table_events_transactions_common::make_row(PFS_events_transactions *transaction)
   }
 
   base = base_name(safe_source_file);
-  m_row.m_source_length = (uint)my_snprintf(m_row.m_source,
+  m_row.m_source_length = (uint)snprintf(m_row.m_source,
                                             sizeof(m_row.m_source),
                                             "%s:%d",
                                             base,

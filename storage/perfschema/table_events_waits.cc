@@ -685,7 +685,7 @@ table_events_waits_common::make_row(PFS_events_waits *wait)
   }
 
   base = base_name(wait->m_source_file);
-  m_row.m_source_length = my_snprintf(
+  m_row.m_source_length = snprintf(
     m_row.m_source, sizeof(m_row.m_source), "%s:%d", base, wait->m_source_line);
   if (m_row.m_source_length > sizeof(m_row.m_source))
   {

@@ -18,11 +18,10 @@
 #ifndef X_TESTS_DRIVER_PROCESSOR_SCRIPT_STACK_H_
 #define X_TESTS_DRIVER_PROCESSOR_SCRIPT_STACK_H_
 
+#include <stdio.h>
 #include <list>
 #include <ostream>
 #include <string>
-
-#include "mysql/service_my_snprintf.h"
 
 class Script_stack {
  public:
@@ -51,8 +50,8 @@ inline std::ostream &operator<<(std::ostream &os, const Script_stack& stack) {
        it != stack.rend();
        ++it) {
     char tmp[1024];
-    my_snprintf(tmp, sizeof(tmp), "in %s, line %i:", it->m_context.c_str(),
-                it->m_line_number);
+    snprintf(tmp, sizeof(tmp), "in %s, line %i:", it->m_context.c_str(),
+             it->m_line_number);
     context.append(tmp);
   }
   return os << context << "ERROR: ";

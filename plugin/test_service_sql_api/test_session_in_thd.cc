@@ -33,9 +33,9 @@ static const char *log_filename= "test_session_in_thd";
 
 #define STRING_BUFFER_SIZE 512
 
-#define WRITE_STR(format) my_snprintf(buffer,sizeof(buffer),format); \
+#define WRITE_STR(format) snprintf(buffer,sizeof(buffer),"%s",format); \
                                       my_write(outfile,(uchar*)buffer,strlen(buffer),MYF(0))
-#define WRITE_VAL(format,value) my_snprintf(buffer,sizeof(buffer),format,value); \
+#define WRITE_VAL(format,value) snprintf(buffer,sizeof(buffer),format,value); \
                                             my_write(outfile,(uchar*)buffer,strlen(buffer),MYF(0))
 static const char *sep = "============================================================================================\n";
 

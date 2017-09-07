@@ -15,6 +15,7 @@
 
 #include "sql/rpl_mi.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <algorithm>
@@ -23,7 +24,6 @@
 #include "my_loglevel.h"
 #include "my_sys.h"
 #include "mysql/components/services/psi_stage_bits.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"
@@ -161,9 +161,9 @@ Master_info::Master_info(
   gtid_monitoring_info= new Gtid_monitoring_info(&data_lock);
 
   /*channel is set in base class, rpl_info.cc*/
-  my_snprintf(for_channel_str, sizeof(for_channel_str)-1,
+  snprintf(for_channel_str, sizeof(for_channel_str)-1,
              " for channel '%s'", channel);
-  my_snprintf(for_channel_uppercase_str, sizeof(for_channel_uppercase_str)-1,
+  snprintf(for_channel_uppercase_str, sizeof(for_channel_uppercase_str)-1,
              " FOR CHANNEL '%s'", channel);
 
   m_channel_lock= new Checkable_rwlock(

@@ -17,6 +17,7 @@
 #include "sql/rpl_master.h"
 
 #include <fcntl.h>
+#include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
 #include <memory>
@@ -40,7 +41,6 @@
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
@@ -550,7 +550,7 @@ void kill_zombie_dump_threads(THD *thd)
       else
       {
         char numbuf[32];
-        my_snprintf(numbuf, sizeof(numbuf), "%u", thd->server_id);
+        snprintf(numbuf, sizeof(numbuf), "%u", thd->server_id);
         LogErr(INFORMATION_LEVEL, ER_RPL_ZOMBIE_ENCOUNTERED,
                "server_id", numbuf, "server_id", tmp->thread_id());
       }
