@@ -2250,6 +2250,20 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "false",
     "true"
   },
+  {
+    CFG_DB_RECOVERY_WORK,
+    "RecoveryWork",
+    DB_TOKEN,
+    "Percentage of storage overhead for LCP files, increasing the value"
+    " means less work in normal operation and more at recovery, decreasing"
+    " it means more work in normal operation and less work in recovery",
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_INT,
+    "50",
+    "25",
+    "100"
+  },
 
   {
     CFG_DB_AT_RESTART_SKIP_INDEXES,

@@ -11595,43 +11595,41 @@ Backup::calculate_min_parts(Uint64 row_count,
 {
   /**
    * Calculates
-   *   min_parts  = (((row_change_count / row_count) * 
-   *       (1 + 0.5 * (mem_used /total_mem)) / 1.25) *
-   *       NDB_MAX_LCP_PARTS) + 1
+   *   min_parts = 1 + (2048 * k) / (k + p)
+   * let y = row_change_count / row_count
+   * let z = y * (mem_used / total_mem)
+   * let k = y + z * 0.5
+   * where k = (row_change_count / row_count) +
+   *           0.5 * (mem_used / total_mem)
+   * let p = RecoveryWork configuration parameter
+   *
    * as explained below.
    *
-   * ((4/5) * row_change_count * NDB_MAX_LCP_PARTS / row_count) +
-   * ((2/5) * (mem_used * NDB_MAX_LCP_PARTS / total_mem) *
-   *  row_change_count / row_count)
-   * + 1
-   * => 
-   * (((4/5) * row_change_count * NDB_MAX_LCP_PARTS +
-   *   (2/5) * mem_used * row_change_count * NDB_MAX_LCP_PARTS / total_mem)
-   * / row_count)
-   * + 1
    * Broken down to:
    * memory_used = memory_used / (1024 * 1024)
    * total_memory = total_memory / (1024 * 1024)
    * This means we are ignoring anything not in the range of MBytes to ensure
    * we don't overflow the 64 bits.
-   * min_parts = row_change_count * NDB_MAX_LCP_PARTS * (4/5)
-   * extra_parts = memory_used * (2/5) * row_change_count
-   * extra_parts = extra_parts / total_memory
    */
-  if (!is_partial_lcp_enabled())
+
+  Uint32 recovery_work = get_recovery_work();
+
+  if (!is_partial_lcp_enabled() || row_count == 0)
   {
     jam();
     /**
      * We have configured the defaults to be that we always execute a full LCP.
      * The LCP can still be a multi-file one, but we will never have to handle
      * anything related to CHANGE ROWS pages.
+     *
+     * If no rows exists in table we might as well run a full LCP.
      */
     return BackupFormat::NDB_MAX_LCP_PARTS;
   }
-  if (row_count == 0)
+  if (row_count < row_change_count)
   {
     jam();
-    row_count = 1;
+    row_change_count = row_count;
   }
   mem_used /= Uint64(1024 * 1024);
   total_mem /= Uint64(1024 * 1024);
@@ -11641,26 +11639,26 @@ Backup::calculate_min_parts(Uint64 row_count,
     total_mem = 1;
   }
 
-  Uint64 min_parts = Uint64(BackupFormat::NDB_MAX_LCP_PARTS) *
-                     row_change_count;
-  min_parts /= Uint64(5);
-  min_parts *= Uint64(4);
+  double y = double(row_change_count);
+  y = y / double(row_count);
 
-  Uint64 extra_parts = row_change_count * mem_used;
-  extra_parts /= Uint64(total_mem);
-  extra_parts *= Uint64(2);
-  extra_parts /= Uint64(5);
-  extra_parts *= Uint64(BackupFormat::NDB_MAX_LCP_PARTS);
+  double z = double(mem_used);
+  z = z / double(total_mem);
+  z = z * y;
 
-  min_parts += extra_parts;
-  min_parts /= row_count;
-  min_parts++;
-  if (min_parts > Uint64(BackupFormat::NDB_MAX_LCP_PARTS))
-  {
-    jam();
-    min_parts = BackupFormat::NDB_MAX_LCP_PARTS;
-  }
-  return Uint32(min_parts);
+  double k = y + (z / double(2));
+
+  double parts = double(2048) * k;
+
+  double p = double(recovery_work) / double(100);
+  double parts_divisor = p + k;
+
+  parts = parts / parts_divisor;
+  parts = parts + double(1);
+
+  Uint32 min_parts = Uint32(parts);
+  ndbrequire(min_parts < Uint32(BackupFormat::NDB_MAX_LCP_PARTS));
+  return min_parts;
 }
 
 void
@@ -11712,22 +11710,39 @@ Backup::calculate_number_of_parts(BackupRecordPtr ptr)
    *   most we can get 12.5% overhead due to extra parts being written.
    *
    *   We will try to ensure that x is chosen such that overhead is
-   *   smaller than 25%. This means that we should at most require
-   *   40% overhead compared to the data memory size. This number
+   *   smaller than p where p is the overhead percentage. p is
+   *   configurable in the RecoveryWork parameter and can be set between
+   *   25 and 100%. It defaults to 50%.
+   *
+   *   This means that we should at most require
+   *   60% overhead compared to the data memory size. This number
    *   is based on that we don't have an extreme amount of small
    *   fragments with very small memory sizes. In this case the
    *   overhead of writing table meta data as well will make the
    *   overhead. So with most applications we can guarantee that the
-   *   overhead stays below 40% and actually in most cases we will
-   *   probably even have an overhead of around 20%.
+   *   overhead stays below 60% and actually in most cases we will
+   *   probably even have an overhead of around 40%.
    *
    *   So we want to select an x such that:
-   *   (1 - x) (y + z*0.5) / x < 0.25
+   *   (1 - x) (y + z*0.5) / x < p
+   *
+   *   Now at start of an LCP for a fragment we can treat both y and z
+   *   as constants, so let us call (y + 0.5*z) k.
    *   =>
-   *   (1 - x) (y + z*0.5) < 0.25 * x
+   *   (1 - x) * k < p * x
    *   =>
-   *   (y + 0.5 * z) < 1.25 * x
-   *   x > (y + 0.5 * z) / 1.25
+   *   k - k * x < p * x
+   *   =>
+   *   k < (k + p) * x
+   *   =>
+   *   x > k / (k + p)
+   *   where k = y + 0.5 * z
+   *
+   *   Now x is the percentage of parts we should use, when x = 1 we have
+   *   2048 parts. So replacing x by parts we get.
+   *
+   *   parts > 2048 * k / (k + p)
+   *   We will select min_parts = 1 + (2048 * k) / (k + p)
    *
    *   Now we know the following:
    *   row_count, row_change_count, memory_used_in_fragment, total_memory_used
@@ -11739,13 +11754,73 @@ Backup::calculate_number_of_parts(BackupRecordPtr ptr)
    *   The calculation of z is a prediction based on history, so a sort of
    *   Bayesian average.
    *
-   *   Thus
-   *   x > (row_change_count / row_count) * 
-   *       (1 + 0.5 * (memory_used_in_fragment /total_memory_used)) / 1.25
+   *   Now if we assume that the LCP have entered a steady state with a steady
+   *   flow of writes going on.
    *
-   *   So we calculate the right part of this equation, multiply by the max
-   *   number of parts and finally add one to get the number of parts we
-   *   should use in this LCP at a minimum.
+   *   When the k-value above is large we certainly benefits most from writing
+   *   entire set. If for example 70% of the data set was changed the execution
+   *   overhead of writing everything is only 50% and this certainly pays off
+   *   in order to make restart faster by writing the entire data set in this
+   *   case.
+   *
+   *   At the other end of the spectrum we have small k-values (around 1% or
+   *   even smaller), in this the above equation can be simplified to
+   *   parts = k / p
+   *   Thus p = 25% => parts = 4 * k
+   *   p = 50% => parts = 2 * k
+   *   p = 100% => parts = k
+   *
+   *   Now k is more or less the percentage of data changing between LCPs.
+   *   So if we have a 1 TByte database and k is 1% we will write 10 GByte
+   *   per LCP to the database. This means 10 GByte will be written to the
+   *   REDO log (can be smaller or larger since REDO log have a 4 byte overhead
+   *   per column, but the REDO log only writes changed columns), almost
+   *   10 GByte will be written to the CHANGE pages in the partial LCP
+   *
+   *   Thus with p = 25% we will write 60 GByte to disk, with p = 50% we will
+   *   write 40 GByte to disk and with p = 100% we will write 30 GByte to
+   *   disk to handle 10 Gbytes of writes.
+   *
+   *   The other side of the picture is that increasing p means that more
+   *   storage space is needed for LCP files. We need (1 + p) * DataMemory
+   *   of storage space for LCP files (unless we use compression when
+   *   this should be divided by at least 2).
+   *
+   *   The third side of the picture is that higher p means longer time to
+   *   read in the LCP at restart. If we assume in the above example that
+   *   we use p = 25%, thus x = 40GByte of parts, thus 25 LCPs are needed
+   *   to restore data. In each such LCP there will be 10 GByte of updated
+   *   rows extra, but only half of those need to be applied (mean value).
+   *   Thus the extra processing during restart is p/2%. So with p = 25%
+   *   we will execute 12.5% more rows compared to if all rows fitted in
+   *   one LCP. We will have to read all LCP files from disk though, so
+   *   we need to read 25% more from disk during restart.
+   *
+   *   So thus it becomes natural to think of the p value as the
+   *   work we are willing to put into recovery during normal operation.
+   *   The more work we do during normal operation, the less work we need
+   *   to do during recovery.
+   *
+   *   Thus we call the config parameter RecoveryWork where small values
+   *   means lots of work done and higher values means smaller amount of
+   *   work done.
+   *
+   *   Given that decreasing p beyond 25% increases the load of LCPs
+   *   exponentially we set the minimum p to be 25%. Increasing
+   *   p beyond 100% means exponentially smaller benefits with
+   *   linearly increasing recovery, we set the upper limit at 100%
+   *   for p.
+   *
+   *   It is still possible to use the old algorithm where we always
+   *   write everything in each LCP. This is kept for better backwards
+   *   compatability and for risk averse users. It also works very well
+   *   still for smaller database sizes that updates most of the data
+   *   all the time.
+   *
+   *   Independent of all these settings we will never write any new LCP
+   *   data files (only LCP control files will be updated) when no changes
+   *   have been made to a table. This will be a great benefit to all
+   *   database tables that are read-only most of the time.
    *
    * 3) Total memory size used for memory part of rows
    * => Memory size needed to log changed rows
@@ -11802,33 +11877,28 @@ Backup::calculate_number_of_parts(BackupRecordPtr ptr)
   /**
    * There are four rules that apply for choosing the number of parts to
    * write all rows in.
-   * 1) Make sure that overhead doesn't exceed 25% for partial LCPs
+   * 1) Make sure that overhead doesn't exceed p% for partial LCPs
    *    So we call this rule 1, rule 1 says that we will select the number
-   *    of parts that gives 25% overhead.
+   *    of parts that gives p% overhead.
    *
    * 2) Avoid overhead when it doesn't provide any value, if e.g. we
    *    have 80% of the rows that have been changed then the calculation
    *    means that we're going to use actually less than 80% (about 78%)
-   *    since that brings about 25% overhead. Obviously there is no sense
+   *    since that brings about p% overhead. Obviously there is no sense
    *    in creating overhead in this case since we will write 78% of the
    *    rows + 80% of the remaining 22%. Thus we get an overhead of 25%
    *    to save 4.4% of the row writes which doesn't make a lot of sense.
    *
-   *    The formula to get 25% overhead gives that
-   *    percentage_of_parts = 1 / (1 + percentage_rows_changed * 0.25)
-   *    The save is:
-   *    (1 - percentage_rows_changed) * percentage_of_parts
-   *    This gives that when percentage of rows changed is higher than
-   *    70.5% we will save less in writing than the extra overhead we
-   *    we get from writing partial LCPs. In addition we have up to
-   *    12.5% extra overhead to cover for.
-   *
-   *    So rule 2 says that we will select all parts if we have changed
-   *    more than 60% of the rows. Otherwise rule 2 selects 0 parts.
+   *    Rule 2 says that we will select all parts if we have changed
+   *    more than 70% of the rows. Otherwise rule 2 selects 0 parts.
    *
    *    An observation here is that during heavy deletes patterns we will
    *    very often fall back to full LCPs since the number of rows is
    *    getting smaller whereas the number of changed rows is increasing.
+   *
+   *    In a sense this is positive since it means that we will quickly
+   *    remove LCP files that contain deleted rows, this space might be
+   *    needed by other tables that at the same time gets many inserts.
    *
    * 3) The number of pages sets a limit on how small the number of parts
    *    can be. So with 1 page we can only perform full LCPs, with 2 pages
@@ -11855,8 +11925,8 @@ Backup::calculate_number_of_parts(BackupRecordPtr ptr)
                                                total_memory);
 
   Uint32 min_parts_rule2 = 0;
-  if ((Uint64(6) * row_change_count) >
-      (Uint64(10) * row_count))
+  if ((Uint64(10) * row_change_count) >
+      (Uint64(7) * row_count))
   {
     jam();
     min_parts_rule2 = BackupFormat::NDB_MAX_LCP_PARTS;
@@ -11915,8 +11985,10 @@ Backup::calculate_number_of_parts(BackupRecordPtr ptr)
    * goes into.
    */
   Uint32 min_file_rule_1 =
-    BackupFormat::NDB_MAX_FILES_PER_LCP * parts /
-      BackupFormat::NDB_MAX_LCP_PARTS;
+    (BackupFormat::NDB_MAX_FILES_PER_LCP * parts +
+    ((BackupFormat::NDB_MAX_LCP_PARTS / BackupFormat::NDB_MAX_FILES_PER_LCP) -
+      1)) /
+    BackupFormat::NDB_MAX_LCP_PARTS;
   Uint32 min_file_rule = MAX(1, min_file_rule_1);
   Uint32 max_file_rule_1 = ptr.p->m_lcp_max_page_cnt;
   Uint32 max_file_rule_2 = BackupFormat::NDB_MAX_FILES_PER_LCP;

@@ -217,6 +217,11 @@ public:
     return m_enable_partial_lcp != 0;
   }
 
+  Uint32 get_recovery_work()
+  {
+    return m_recovery_work;
+  }
+
   void init_lcp_scan(Uint32 & scanGCI,
                      bool & skip_page,
                      bool & changed_row_page_flag);
@@ -282,6 +287,7 @@ public:
   Uint32 m_lcp_ptr_i;
   bool m_delete_lcp_files_ongoing;
   Uint32 m_enable_partial_lcp;
+  Uint32 m_recovery_work;
 
   struct Table {
     Table(Fragment_pool &);
