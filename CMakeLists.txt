@@ -15,7 +15,8 @@
 
 IF(WIN32)
   # CMake 2.8.12 is needed for Visual Studio 2013
-  CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12)
+  # CMake 3.1.0 is needed for $<TARGET_PDB_FILE:${target}>
+  CMAKE_MINIMUM_REQUIRED(VERSION 3.1.0)
 ELSE()
   # There's a bug in unzipping prior to 2.8.2
   # Debian 7 has the oldest cmake we need to support
