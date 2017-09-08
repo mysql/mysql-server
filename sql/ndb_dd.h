@@ -58,9 +58,9 @@ bool ndb_dd_rename_table(class THD* thd,
                          const char* new_schema_name,
                          const char* new_table_name);
 
-bool ndb_dd_table_get_engine(THD *thd,
-                             const char *schema_name,
-                             const char *table_name,
-                             dd::String_type* engine);
+bool ndb_dd_get_engine_for_table(THD *thd,
+                                 const char *schema_name,
+                                 const char *table_name,
+                                 dd::String_type* engine);
 
 #endif

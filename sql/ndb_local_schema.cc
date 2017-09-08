@@ -142,7 +142,7 @@ bool
 Ndb_local_schema::Table::is_local_table(void) const
 {
   dd::String_type engine;
-  if (!ndb_dd_table_get_engine(m_thd, m_db, m_name, &engine))
+  if (!ndb_dd_get_engine_for_table(m_thd, m_db, m_name, &engine))
   {
     // Can't fetch engine for table, table does not exist
     // and thus not local table

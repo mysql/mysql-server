@@ -194,12 +194,12 @@ ndb_dd_rename_table(THD *thd,
 
 
 bool
-ndb_dd_table_get_engine(THD *thd,
-                        const char *schema_name,
-                        const char *table_name,
-                        dd::String_type* engine)
+ndb_dd_get_engine_for_table(THD *thd,
+                            const char *schema_name,
+                            const char *table_name,
+                            dd::String_type* engine)
 {
-  DBUG_ENTER("ndb_dd_table_get_engine");
+  DBUG_ENTER("ndb_dd_get_engine_for_table");
 
   Ndb_dd_client dd_client(thd);
 
