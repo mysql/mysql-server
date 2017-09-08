@@ -1,5 +1,5 @@
 # For advice on how to change settings please see
-# http://dev.mysql.com/doc/refman/5.7/en/server-configuration-defaults.html
+# http://dev.mysql.com/doc/refman/@MYSQL_BASE_VERSION@/en/server-configuration-defaults.html
 
 [mysqld]
 #
@@ -19,14 +19,13 @@
 # read_rnd_buffer_size = 2M
 skip-host-cache
 skip-name-resolve
-datadir=/var/lib/mysql
-socket=/var/lib/mysql/mysql.sock
+datadir=@INSTALL_MYSQLDATADIR@
+socket=@MYSQL_UNIX_ADDR@
 secure-file-priv=/var/lib/mysql-files
 user=mysql
 
 # Disabling symbolic-links is recommended to prevent assorted security risks
 symbolic-links=0
 
-log-error=/var/log/mysqld.log
-pid-file=/var/run/mysqld/mysqld.pid
-
+log-error=@LOGFILE_RPM@
+pid-file=@PIDFILE_RPM@
