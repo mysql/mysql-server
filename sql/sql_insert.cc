@@ -924,6 +924,7 @@ bool Sql_cmd_insert::mysql_insert(THD *thd,TABLE_LIST *table_list)
   DBUG_RETURN(FALSE);
 
 exit_without_my_ok:
+  thd->lex->clear_values_map();
   if (!joins_freed)
     free_underlaid_joins(thd, select_lex);
   DBUG_RETURN(err);
