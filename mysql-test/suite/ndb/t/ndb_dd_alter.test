@@ -41,11 +41,6 @@
 
 -- source include/have_ndb.inc
 
---disable_warnings
-DROP TABLE IF EXISTS test.t1;
-DROP TABLE IF EXISTS test.t2;
---enable_warnings
-
 ############ Test Setup Section #############
 -- echo **** Test Setup Section ****
 ################## ALTER Tests (Meta data testing) ####################
@@ -341,7 +336,3 @@ drop table t1;
  DROP DATAFILE './table_space/datafile.dat';
  DROP TABLESPACE ts;
  DROP LOGFILE GROUP lg ENGINE=NDB;
-
-####################### End section 4 #########################
-#End 5.1 test case
-

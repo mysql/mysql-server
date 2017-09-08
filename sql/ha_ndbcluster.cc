@@ -12418,6 +12418,47 @@ drop_table_impl(THD *thd, Ndb *ndb,
                              SOT_DROP_TABLE, NULL, NULL);
   }
 
+
+  /*
+    Detect the special case which occurs when a table is altered
+    to another engine. In such case the altered table has been
+    renamed to a temporary name in the same engine before copying
+    the data to the new table in the other engine. When copying is
+    successful, the original table(which now has a temporary name)
+    is then dropped. However the participants has not yet been informed
+    about the alter. Since this is the last call that ndbcluster get
+    for this alter and it's time to inform the participants that the
+    original table is no longer in NDB. Unfortunately the original
+    table name is not available in this function, but it's possible
+    to look that up via THD.
+  */
+  if (thd_sql_command(thd) == SQLCOM_ALTER_TABLE)
+  {
+    const HA_CREATE_INFO* create_info = thd->lex->create_info;
+    if (create_info->used_fields & HA_CREATE_USED_ENGINE &&
+        create_info->db_type != ndbcluster_hton)
+    {
+      DBUG_PRINT("info",
+                 ("ALTER to different engine = '%s' detected",
+                  ha_resolve_storage_engine_name(create_info->db_type)));
+
+      // Assumption is that this is the drop of original table
+      // which now has a temporary name
+      DBUG_ASSERT(IS_TMP_PREFIX(table_name));
+
+      const char* orig_db = thd->lex->select_lex->table_list.first->db;
+      const char* orig_name =
+          thd->lex->select_lex->table_list.first->table_name;
+      DBUG_PRINT("info", ("original table name: '%s.%s'", orig_db, orig_name));
+
+      ndbcluster_log_schema_op(thd,
+                               thd->query().str, thd->query().length,
+                               orig_db, orig_name,
+                               ndb_table_id, ndb_table_version,
+                               SOT_DROP_TABLE, NULL, NULL);
+    }
+  }
+
   delete_table_drop_share(share);
   DBUG_RETURN(0);
 }

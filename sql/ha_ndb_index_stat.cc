@@ -2494,7 +2494,6 @@ Ndb_index_stat_thread::is_setup_complete()
 }
 
 extern Ndb_cluster_connection* g_ndb_cluster_connection;
-extern handlerton *ndbcluster_hton;
 
 void
 Ndb_index_stat_thread::do_run()
