@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -263,6 +263,12 @@ void Ack_receiver::run()
 
         net_clear(&net, 0);
         net.vio= &m_slaves[i].vio;
+        /*
+          Set compress flag. This is needed to support
+          Slave_compress_protocol flag enabled Slaves
+        */
+        net.compress=
+          m_slaves[i].thd->get_protocol_classic()->get_compression();
 
         len= my_net_read(&net);
         if (likely(len != packet_error))
