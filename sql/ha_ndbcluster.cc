@@ -13193,7 +13193,8 @@ int ndbcluster_table_exists_in_engine(handlerton*, THD* thd,
   NdbDictionary::Dictionary::List list;
   if (dict->listObjects(list, NdbDictionary::Object::UserTable) != 0)
   {
-    ERR_RETURN(dict->getNdbError());
+    ndb_to_mysql_error(&dict->getNdbError());
+    DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
   }
   for (uint i= 0 ; i < list.count ; i++)
   {
