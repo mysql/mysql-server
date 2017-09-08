@@ -1074,7 +1074,7 @@ public:
     avoid crashes in following functions:
       explain_single_table_modification
       explain_query
-      mysql_explain_other
+      Sql_cmd_explain_other_thread::execute
     When doing EXPLAIN CONNECTION:
       all explain code assumes that this mutex is already taken.
     When doing ordinary EXPLAIN:

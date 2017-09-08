@@ -408,7 +408,7 @@ bool Sql_cmd_update::update_single_table(THD *thd)
     if (result == Item::COND_FALSE)
     {
       no_rows= true;                               // Impossible WHERE
-      if (thd->lex->describe)
+      if (thd->lex->is_explain())
       {
         Modification_plan plan(thd, MT_UPDATE, table,
                                "Impossible WHERE", true, 0);
@@ -438,7 +438,7 @@ bool Sql_cmd_update::update_single_table(THD *thd)
     {
       no_rows= true;
 
-      if (thd->lex->describe)
+      if (thd->lex->is_explain())
       {
         Modification_plan plan(thd, MT_UPDATE, table,
                                "No matching rows after partition pruning",
@@ -481,7 +481,7 @@ bool Sql_cmd_update::update_single_table(THD *thd)
     }
     if (no_rows)
     {
-      if (thd->lex->describe)
+      if (thd->lex->is_explain())
       {
         Modification_plan plan(thd, MT_UPDATE, table,
                                "Impossible WHERE", true, 0);
@@ -577,7 +577,7 @@ bool Sql_cmd_update::update_single_table(THD *thd)
                            (!using_filesort && (used_key_is_modified || order)),
                            using_filesort, used_key_is_modified, rows);
     DEBUG_SYNC(thd, "planned_single_update");
-    if (thd->lex->describe)
+    if (thd->lex->is_explain())
     {
       bool err= explain_single_table_modification(thd, &plan, select_lex);
       DBUG_RETURN(err);

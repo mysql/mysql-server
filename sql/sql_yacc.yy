@@ -185,12 +185,13 @@ int yylex(void *yylval, void *yythd);
 
   @note x may be NULL because of OOM error.
 */
-#define MAKE_CMD(x)                                     \
-  do                                                    \
-  {                                                     \
-    if (YYTHD->is_error() ||                            \
-        (Lex->m_sql_cmd= (x)->make_cmd(YYTHD)) == NULL) \
-      MYSQL_YYABORT;                                    \
+#define MAKE_CMD(x)                                                      \
+  do                                                                     \
+  {                                                                      \
+    if (YYTHD->is_error() ||                                             \
+        (Lex->m_sql_cmd= (x)->make_cmd(YYTHD)) == NULL)                  \
+      MYSQL_YYABORT;                                                     \
+    DBUG_ASSERT(Lex->m_sql_cmd->sql_command_code() == Lex->sql_command); \
   } while(0)
 
 
@@ -1563,8 +1564,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 
 %type <derived_table> derived_table
 
-%type <select_stmt> select_stmt do_stmt select_stmt_with_into
-
 %type <param_marker> param_marker
 
 %type <text_literal> text_literal
@@ -1578,19 +1577,24 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         create_index_stmt
         create_table_stmt
         delete_stmt
+        do_stmt
         drop_index_stmt
         drop_role_stmt
+        explainable_stmt
+        explain_stmt
         insert_stmt
         keycache_stmt
         optimize_table_stmt
         preload_stmt
         repair_table_stmt
         replace_stmt
+        select_stmt
+        select_stmt_with_into
+        set_resource_group_stmt
         set_role_stmt
         shutdown_stmt
         truncate_stmt
         update_stmt
-        set_resource_group_stmt
 
 %type <table_ident> table_ident_opt_wild
 
@@ -1800,6 +1804,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         ts_option_undo_buffer_size
         ts_option_wait
 
+%type <explain_format_type> opt_explain_format_type
+
 %%
 
 /*
@@ -1959,6 +1965,7 @@ simple_statement:
         | drop_user_stmt
         | drop_view_stmt
         | execute
+        | explain_stmt          { MAKE_CMD($1); }
         | flush
         | get_diagnostics
         | group_replication
@@ -11784,12 +11791,13 @@ profile_def:
 opt_profile_args:
   /* empty */
     {
-      Lex->query_id= 0;
+      Lex->show_profile_query_id= 0;
     }
   | FOR_SYM QUERY_SYM NUM
     {
       int error;
-      Lex->query_id= static_cast<my_thread_id>(my_strtoll10($3.str, NULL, &error));
+      Lex->show_profile_query_id=
+        static_cast<my_thread_id>(my_strtoll10($3.str, NULL, &error));
       if (error != 0)
         MYSQL_YYABORT;
     }
@@ -12084,17 +12092,17 @@ show_param:
           }
         | GRANTS
           {
-            auto *tmp= NEW_PTN PT_show_privileges(0, 0);
+            auto *tmp= NEW_PTN PT_show_grants(0, 0);
             MAKE_CMD(tmp);
           }
         | GRANTS FOR_SYM user
           {
-            auto *tmp= NEW_PTN PT_show_privileges($3, 0);
+            auto *tmp= NEW_PTN PT_show_grants($3, 0);
             MAKE_CMD(tmp);
           }
         | GRANTS FOR_SYM user USING user_list
           {
-            auto *tmp= NEW_PTN PT_show_privileges($3, $5);
+            auto *tmp= NEW_PTN PT_show_grants($3, $5);
             MAKE_CMD(tmp);
           }
         | CREATE DATABASE opt_if_not_exists ident
@@ -12287,29 +12295,24 @@ describe:
             // prepare_schema_dd_view instead of execution stage
             Select->parsing_place= CTX_NONE;
           }
-        | describe_command opt_extended_describe
-          {
-            Lex->describe|= DESCRIBE_NORMAL;
-          }
-          explainable_command
         ;
 
-explainable_command:
-          select_stmt                           { MAKE_CMD($1); }
-        | insert_stmt                           { MAKE_CMD($1); }
-        | replace_stmt                          { MAKE_CMD($1); }
-        | update_stmt                           { MAKE_CMD($1); }
-        | delete_stmt                           { MAKE_CMD($1); }
+explain_stmt:
+          describe_command opt_explain_format_type explainable_stmt
+          {
+            $$= NEW_PTN PT_explain($2, $3);
+          }
+        ;
+
+explainable_stmt:
+          select_stmt
+        | insert_stmt
+        | replace_stmt
+        | update_stmt
+        | delete_stmt
         | FOR_SYM CONNECTION_SYM real_ulong_num
           {
-            Lex->sql_command= SQLCOM_EXPLAIN_OTHER;
-            if (Lex->sphead)
-            {
-              my_error(ER_NOT_SUPPORTED_YET, MYF(0),
-                       "non-standalone EXPLAIN FOR CONNECTION");
-              MYSQL_YYABORT;
-            }
-            Lex->query_id= (my_thread_id)($3);
+            $$= NEW_PTN PT_explain_for_connection(static_cast<my_thread_id>($3));
           }
         ;
 
@@ -12318,24 +12321,17 @@ describe_command:
         | DESCRIBE
         ;
 
-opt_extended_describe:
+opt_explain_format_type:
           /* empty */
           {
-            if ((Lex->explain_format= new (*THR_MALLOC) Explain_format_traditional) == NULL)
-              MYSQL_YYABORT;
+            $$= Explain_format_type::TRADITIONAL;
           }
         | FORMAT_SYM EQ ident_or_text
           {
             if (is_identifier($3, "JSON"))
-            {
-              if ((Lex->explain_format= new (*THR_MALLOC) Explain_format_JSON) == NULL)
-                MYSQL_YYABORT;
-            }
+              $$= Explain_format_type::JSON;
             else if (is_identifier($3, "TRADITIONAL"))
-            {
-              if ((Lex->explain_format= new (*THR_MALLOC) Explain_format_traditional) == NULL)
-                MYSQL_YYABORT;
-            }
+              $$= Explain_format_type::TRADITIONAL;
             else
             {
               my_error(ER_UNKNOWN_EXPLAIN_FORMAT, MYF(0), $3.str);

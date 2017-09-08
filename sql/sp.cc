@@ -2534,7 +2534,7 @@ uint sp_get_flags_for_command(LEX *lex)
     flags= sp_head::HAS_COMMIT_OR_ROLLBACK;
     break;
   default:
-    flags= lex->describe ? sp_head::MULTI_RESULTS : 0;
+    flags= lex->is_explain() ? sp_head::MULTI_RESULTS : 0;
     break;
   }
   return flags;

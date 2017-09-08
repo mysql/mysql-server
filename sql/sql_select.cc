@@ -2930,7 +2930,7 @@ make_join_readinfo(JOIN *join, uint no_jbuf_after)
         for a query.
       */
       tab->position()->filter_effect=
-        join->thd->lex->describe ?
+        join->thd->lex->is_explain() ?
         calculate_condition_filter(tab,
                                    (tab->ref().key != -1) ? tab->position()->key : NULL,
                                    tab->prefix_tables() & ~tab->table_ref->map(),
@@ -3157,7 +3157,7 @@ void JOIN::join_free()
     Optimization: if not EXPLAIN and we are done with the JOIN,
     free all tables.
   */
-  bool full= (!select_lex->uncacheable && !thd->lex->describe);
+  bool full= (!select_lex->uncacheable && !thd->lex->is_explain());
   bool can_unlock= full;
   DBUG_ENTER("JOIN::join_free");
 

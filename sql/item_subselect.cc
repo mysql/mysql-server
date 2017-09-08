@@ -1344,7 +1344,7 @@ Item_singlerow_subselect::select_transformer(SELECT_LEX *select)
   {
 
     have_to_be_excluded= 1;
-    if (thd->lex->describe)
+    if (thd->lex->is_explain())
     {
       char warn_buff[MYSQL_ERRMSG_SIZE];
       sprintf(warn_buff, ER_THD(thd, ER_SELECT_REDUCED), select->select_number);
@@ -2394,7 +2394,7 @@ Item_in_subselect::single_value_in_to_exists_transformer(SELECT_LEX *select,
          */
 	substitution= func->create(left_expr->substitutional_item(), orig_item);
 	have_to_be_excluded= 1;
-	if (thd->lex->describe)
+	if (thd->lex->is_explain())
 	{
 	  char warn_buff[MYSQL_ERRMSG_SIZE];
 	  sprintf(warn_buff, ER_THD(thd, ER_SELECT_REDUCED), select->select_number);

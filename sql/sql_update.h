@@ -139,7 +139,7 @@ public:
   : multitable(multitable_arg), update_value_list(update_values) {}
 
   enum_sql_command sql_command_code() const override
-  { return lex->sql_command; }
+  { return multitable ? SQLCOM_UPDATE_MULTI : SQLCOM_UPDATE; }
 
   bool is_single_table_plan() const override { return !multitable; }
 

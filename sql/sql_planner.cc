@@ -1275,7 +1275,7 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
         !tab->join()->select_lex->sj_nests.is_empty() ||                   // 2d
         ((tab->join()->order || tab->join()->group_list) &&
          tab->join()->unit->select_limit_cnt != HA_POS_ERROR) ||           // 2e
-        thd->lex->describe)))                                              // 2f
+        thd->lex->is_explain())))                                          // 2f
     return COND_FILTER_ALLPASS;
 
   // No filtering is calculated if we expect less than one row to be fetched

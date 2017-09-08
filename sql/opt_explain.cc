@@ -2381,8 +2381,8 @@ bool mysql_explain_unit(THD *ethd, SELECT_LEX_UNIT *unit)
 }
 
 /**
-  Callback function used by mysql_explain_other() to find thd based
-  on the thread id.
+  Callback function used by Sql_cmd_explain_other_thread::execute() to find thd
+  based on the thread id.
 
   @note It acquires LOCK_thd_data mutex and LOCK_query_plan mutex,
   when it finds matching thd.
@@ -2422,7 +2422,7 @@ private:
    proper locks, explains its current statement, releases locks.
    @param  thd THD executing this function (== the explainer)
 */
-void mysql_explain_other(THD *thd)
+bool Sql_cmd_explain_other_thread::execute(THD *thd)
 {
   bool res= false;
   THD *query_thd= NULL;
@@ -2455,7 +2455,7 @@ void mysql_explain_other(THD *thd)
   }
 
   // Pick thread
-  Find_thd_query_lock find_thd_query_lock(thd->lex->query_id);
+  Find_thd_query_lock find_thd_query_lock(m_thread_id);
   if (!thd->killed)
   {
     query_thd= Global_THD_manager::
@@ -2466,7 +2466,7 @@ void mysql_explain_other(THD *thd)
 
   if (!query_thd)
   {
-    my_error(ER_NO_SUCH_THREAD, MYF(0), thd->lex->query_id);
+    my_error(ER_NO_SUCH_THREAD, MYF(0), m_thread_id);
     goto err;
   }
 
@@ -2495,7 +2495,7 @@ void mysql_explain_other(THD *thd)
     */
     if (!qp->is_ps_query() &&                                        // (1)
         is_explainable_query(qp->get_command()) &&
-        !qp->get_lex()->describe &&                                  // (2)
+        !qp->get_lex()->is_explain() &&                              // (2)
         qp->get_lex()->sphead == NULL &&                             // (3)
         (!qp->get_lex()->m_sql_cmd ||
          qp->get_lex()->m_sql_cmd->is_prepared()))                   // (4)
@@ -2546,6 +2546,8 @@ err:
   DEBUG_SYNC(thd, "after_explain_other");
   if (!res && send_ok)
     my_ok(thd, 0);
+
+  return false; // Always return "success".
 }
 
 

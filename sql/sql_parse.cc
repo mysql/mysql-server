@@ -87,7 +87,6 @@
 #include "sql/mem_root_array.h"
 #include "sql/mysqld.h"       // stage_execution_of_init_command
 #include "sql/mysqld_thd_manager.h" // Find_thd_with_id
-#include "sql/opt_explain.h"  // mysql_explain_other
 #include "sql/opt_trace.h"    // Opt_trace_start
 #include "sql/parse_location.h"
 #include "sql/parse_tree_helpers.h" // is_identifier
@@ -2591,7 +2590,7 @@ mysql_execute_command(THD *thd, bool first_level)
   DBUG_ASSERT(select_lex->master_unit() == lex->unit);
   DBUG_ENTER("mysql_execute_command");
   /* EXPLAIN OTHER isn't explainable command, but can have describe flag. */
-  DBUG_ASSERT(!lex->describe || is_explainable_query(lex->sql_command) ||
+  DBUG_ASSERT(!lex->is_explain() || is_explainable_query(lex->sql_command) ||
               lex->sql_command == SQLCOM_EXPLAIN_OTHER);
 
   thd->work_part_info= 0;
@@ -4598,12 +4597,6 @@ mysql_execute_command(THD *thd, bool first_level)
     mysql_client_binlog_statement(thd);
     break;
   }
-  case SQLCOM_EXPLAIN_OTHER:
-  {
-    /* EXPLAIN FOR CONNECTION <id> */
-    mysql_explain_other(thd);
-    break;
-  }
   case SQLCOM_ANALYZE:
   case SQLCOM_CHECK:
   case SQLCOM_OPTIMIZE:
@@ -4655,6 +4648,7 @@ mysql_execute_command(THD *thd, bool first_level)
   case SQLCOM_LOCK_INSTANCE:
   case SQLCOM_UNLOCK_INSTANCE:
   case SQLCOM_ALTER_TABLESPACE:
+  case SQLCOM_EXPLAIN_OTHER:
 
     DBUG_ASSERT(lex->m_sql_cmd != nullptr);
     res= lex->m_sql_cmd->execute(thd);

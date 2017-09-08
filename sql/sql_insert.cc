@@ -515,7 +515,7 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd)
   DEBUG_SYNC(thd, "planned_single_insert");
 
  
-  if (lex->describe)
+  if (lex->is_explain())
   {
     bool err= explain_single_table_modification(thd, &plan, select_lex);
     DBUG_RETURN(err);
@@ -2172,7 +2172,7 @@ bool Query_result_insert::start_execution()
 {
   DBUG_ENTER("Query_result_insert::start_execution");
   if (thd->locked_tables_mode <= LTM_LOCK_TABLES &&
-      !thd->lex->describe)
+      !thd->lex->is_explain())
   {
     DBUG_ASSERT(!bulk_insert_started);
     // TODO: Is there no better estimation than 0 == Unknown number of rows?
