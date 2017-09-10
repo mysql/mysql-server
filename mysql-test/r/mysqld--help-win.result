@@ -454,8 +454,8 @@ The following options may be given as the first argument:
  --log-short-format  Don't log extra information to update and slow-query
  logs.
  --log-slave-updates Tells the slave to log the updates from the slave thread
- to the binary log.
- (Defaults to on; use --skip-log-slave-updates to disable.)
+ to the binary log. You will need to turn it on if you
+ plan to daisy-chain the slaves
  --log-slow-admin-statements 
  Log slow OPTIMIZE, ANALYZE, ALTER and other
  administrative statements to the slow log if it is open.
@@ -1125,7 +1125,7 @@ The following options may be given as the first argument:
  --slave-parallel-type=name 
  Specifies if the slave will use database partitioning or
  information from master to parallelize
- transactions.(Default: LOGICAL_CLOCK).
+ transactions.(Default: DATABASE).
  --slave-parallel-workers=# 
  Number of worker threads for executing events in parallel
  --slave-pending-jobs-size-max=# 
@@ -1134,8 +1134,7 @@ The following options may be given as the first argument:
  master side max_allowed_packet.
  --slave-preserve-commit-order 
  Force slave workers to make commits in the same order as
- on the master. Enabled by default.
- (Defaults to on; use --skip-slave-preserve-commit-order to disable.)
+ on the master. Disabled by default.
  --slave-rows-search-algorithms=name 
  Set of searching algorithms that the slave will use while
  searching for records from the storage engine to either
@@ -1404,7 +1403,7 @@ log-output FILE
 log-queries-not-using-indexes FALSE
 log-raw FALSE
 log-short-format FALSE
-log-slave-updates TRUE
+log-slave-updates FALSE
 log-slow-admin-statements FALSE
 log-slow-slave-statements FALSE
 log-statements-unsafe-for-binlog TRUE
@@ -1592,10 +1591,10 @@ slave-compressed-protocol FALSE
 slave-exec-mode STRICT
 slave-max-allowed-packet 1073741824
 slave-net-timeout 60
-slave-parallel-type LOGICAL_CLOCK
-slave-parallel-workers 4
+slave-parallel-type DATABASE
+slave-parallel-workers 0
 slave-pending-jobs-size-max 16777216
-slave-preserve-commit-order TRUE
+slave-preserve-commit-order FALSE
 slave-rows-search-algorithms INDEX_SCAN,HASH_SCAN
 slave-skip-errors (No default value)
 slave-sql-verify-checksum TRUE

@@ -1,2 +1,1 @@
 --disable-log-slave-updates --replicate-same-server-id
---slave-preserve-commit-order=OFF

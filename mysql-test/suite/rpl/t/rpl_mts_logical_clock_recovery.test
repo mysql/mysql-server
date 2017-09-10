@@ -3,8 +3,6 @@
 --source include/not_group_replication_plugin.inc
 -- source include/have_debug.inc
 -- source include/not_valgrind.inc
---source include/only_mts_slave_parallel_workers.inc
---source include/only_mts_slave_parallel_type_logical_clock.inc
 -- source include/master-slave.inc
 
 --let $debug_point=set_commit_parent_100
