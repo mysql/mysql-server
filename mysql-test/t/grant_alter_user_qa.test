@@ -16,7 +16,7 @@
 --echo # WL#6409: CREATE/ALTER USER
 --echo #
 
-call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] Server shutdown in progress");
+call mtr.add_suppression("\\[Warning\\] Server shutdown in progress");
 
 # Official builds include separate debug enabled plugins to be used by
 # the debug enabled server. But the non-debug *client* should not use them.

@@ -1,7 +1,7 @@
 #
 # WL#6409: CREATE/ALTER USER
 #
-call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] Server shutdown in progress");
+call mtr.add_suppression("\\[Warning\\] Server shutdown in progress");
 # CREATE USER
 
 CREATE USER user1;

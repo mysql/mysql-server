@@ -102,12 +102,12 @@ DROP TABLE tr1,tr2,tr3,tr4;
 DROP TABLESPACE s1;
 
 --disable_query_log
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Operating system error number .* in a file operation");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: The error means that another program is using InnoDB's files");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: The error means the system cannot find the path specified.");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Cannot open datafile for read-only");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Could not find a valid tablespace file for");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: File .*s_def.ibd: 'delete' returned OS error [0-9]*");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Attempted to open a previously opened tablespace. Previous tablespace innodb_general_[0-9]* at filepath: .*s1.ibd uses space ID: [0-9]*. Cannot open filepath: .*s1.ibd which uses the same space ID.");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number .* in a file operation");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means that another program is using InnoDB's files");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot open datafile for read-only");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Could not find a valid tablespace file for");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: File .*s_def.ibd: 'delete' returned OS error [0-9]*");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Attempted to open a previously opened tablespace. Previous tablespace innodb_general_[0-9]* at filepath: .*s1.ibd uses space ID: [0-9]*. Cannot open filepath: .*s1.ibd which uses the same space ID.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
 --enable_query_log
