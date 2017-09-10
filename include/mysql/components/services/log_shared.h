@@ -145,8 +145,8 @@ typedef enum enum_log_item_type
   LOG_ITEM_SRV_THREAD       = 8192,     /**< connection ID */
   LOG_ITEM_SQL_QUERY_ID     = 16384,    /**< query ID */
   LOG_ITEM_SQL_TABLE_NAME   = 32768,    /**< table name */
-  LOG_ITEM_LOG_PRIO         = 65536,    /**< log priority (error, warn, ...) */
-  LOG_ITEM_LOG_LABEL        = 131072,   /**< label, unless auto-derived */
+  LOG_ITEM_LOG_PRIO         = 65536,    /**< log prority (error, warn, ...) */
+  LOG_ITEM_LOG_LABEL        = 131072,   /**< label, if unequal priority */
   LOG_ITEM_LOG_VERBATIM     = 262144,   /**< the message, no % substitutions */
   LOG_ITEM_LOG_MESSAGE      = 524288,   /**< the message, format string */
   LOG_ITEM_LOG_LOOKUP       = 1048576,  /**< insert message by error-code */
@@ -155,8 +155,7 @@ typedef enum enum_log_item_type
   LOG_ITEM_GEN_FLOAT        = 8388608,  /**< float not otherwise specified */
   LOG_ITEM_GEN_INTEGER      = 16777216, /**< integer not otherwise specified */
   LOG_ITEM_GEN_LEX_STRING   = 33554432, /**< lex string not otherwise specified */
-  LOG_ITEM_GEN_CSTRING      = 67108864, /**< C-string not otherwise specified */
-  LOG_ITEM_LOG_EPRIO        = 134217728 /**< effective prio / "force print" */
+  LOG_ITEM_GEN_CSTRING      = 67108864  /**< C-string not otherwise specified */
 } log_item_type;
 
 /* some suggested keys for generic items */

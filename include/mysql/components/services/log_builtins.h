@@ -1032,18 +1032,7 @@ public:
   }
 
   /**
-    Set error message priority.
-    Assign one of ERROR_LEVEL, WARNING_LEVEL, INFORMATION_LEVEL.
-    log-writers and other sinks should use this value (rather
-    than that of LOG_ITEM_LOG_EPRIO):
-
-    - file writers should use the value to determine
-      what label to write (perhaps by submitting it to label_from_prio())
-
-    - sinks that submit the event data to a sub-system outside of
-      the MySQL server (such as syslog, EventLog, systemd journal, etc.)
-      should translate this value into a priority/log level understood
-      by that target subsystem.
+    Set error severity / message priority
 
     @param  val   The priority for this LogEvent.
 
@@ -1052,51 +1041,6 @@ public:
   LogEvent &prio(longlong val)
   {
     log_set_int(log_line_item_set(this->ll, LOG_ITEM_LOG_PRIO), val);
-    return *this;
-  }
-
-
-  /**
-    Force a message to be printed.
-
-    When a log event is submitted, the caller can suggest a
-    log-level (or "priority") such as ERROR_LEVEL, WARNING_LEVEL,
-    or INFORMATION_LEVEL using the above prio().
-    That value will be used by log-sinks to generate log-labels,
-    determine what log-level to use when forwarding the event
-    to syslog/Eventlog/etc, and so on.
-
-    In 99 % of all cases, this is also the value used by the
-    filters for verbosity-filtering (e.g. "show only errors
-    and warnings, but not notes/information").
-
-    There is rare exception though: there is a low number of
-    messages that should always be printed (for diagnostic
-    purposes), such as "init completed, listening on port x"
-    even though they are not really warnings or errors.
-
-    We therefore need to filter them with a a high priority
-    like we do errors, without using the ill-suited label of
-    "error".
-
-    For these cases, we use the optional field,
-    LOG_ITEM_LOG_EPRIO. If it is present, log-filter
-    services are advised to filter on this value, rather than
-    LOG_ITEM_LOG_PRIO's, while log-sinks (anything that writes
-    to a file or forwards information to a system that is not
-    part of the MySQL server, such as syslog/Eventlog)
-    should always use LOG_ITEM_LOG_PRIO regardless of the
-    presence of LOG_ITEM_LOG_EPRIO. (Both may be used in
-    sinks that support tagged/free-form logging, such as the
-    JSON writer, but severity should not be used to derive
-    labels (for file-writers) or sub-system severities (for
-    forwarders).)
-
-    @retval       the LogEvent, for easy fluent-style chaining.
-  */
-  LogEvent &force_print()
-  {
-    log_set_int(log_line_item_set(this->ll, LOG_ITEM_LOG_EPRIO), ERROR_LEVEL);
     return *this;
   }
 

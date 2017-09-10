@@ -275,9 +275,7 @@ static const log_item_wellknown_key log_item_wellknown_keys[] =
   { C_STRING_WITH_LEN("misc_integer"), LOG_INTEGER,    LOG_ITEM_GEN_INTEGER },
   { C_STRING_WITH_LEN("misc_string"),  LOG_LEX_STRING,
                                        LOG_ITEM_GEN_LEX_STRING },
-  { C_STRING_WITH_LEN("misc_cstring"), LOG_CSTRING,    LOG_ITEM_GEN_CSTRING },
-  { C_STRING_WITH_LEN("effective_prio"),
-                                       LOG_INTEGER,    LOG_ITEM_LOG_EPRIO }
+  { C_STRING_WITH_LEN("misc_cstring"), LOG_CSTRING,    LOG_ITEM_GEN_CSTRING }
 };
 
 static uint log_item_wellknown_keys_count=
@@ -1052,14 +1050,14 @@ bool log_item_set_cstring(log_item_data *lid, const char *s)
   @param   prio       the severity/prio in question
 
   @return             a label corresponding to that priority.
-  @retval  "Error"    for prio of ERROR_LEVEL or higher
+  @retval  "ERROR"    for prio of ERROR_LEVEL or higher
   @retval  "Warning"  for prio of WARNING_LEVEL
   @retval  "Note"     otherwise
 */
 const char *log_label_from_prio(int prio)
 {
   return ((prio <= ERROR_LEVEL)
-          ? "Error"
+          ? "ERROR"
           : (prio == WARNING_LEVEL)
             ? "Warning"
             : "Note");
@@ -1086,7 +1084,7 @@ static int log_sink_trad(void *instance MY_ATTRIBUTE((unused)), log_line *ll)
   size_t              msg_len=       0,
                       ts_len=        0,
                       label_len=     0;
-  enum loglevel       prio=          ERROR_LEVEL;
+  enum loglevel       level=         ERROR_LEVEL;
   log_item_type       item_type=     LOG_ITEM_END;
   log_item_type_mask  out_types=     0;
   const char         *iso_timestamp= "";
@@ -1106,7 +1104,7 @@ static int log_sink_trad(void *instance MY_ATTRIBUTE((unused)), log_line *ll)
       switch (item_type)
       {
       case LOG_ITEM_LOG_PRIO:
-        prio=  (enum loglevel) ll->item[c].data.data_integer;
+        level= (enum loglevel) ll->item[c].data.data_integer;
         break;
       case LOG_ITEM_LOG_MESSAGE:
         msg=           ll->item[c].data.data_string.str;
@@ -1135,56 +1133,32 @@ static int log_sink_trad(void *instance MY_ATTRIBUTE((unused)), log_line *ll)
            "This is almost certainly a bug!";
       msg_len= strlen(msg);
 
-      prio= ERROR_LEVEL;                // force severity
-      out_types&= ~(LOG_ITEM_LOG_LABEL|LOG_ITEM_LOG_EPRIO); // regenerate label
+      level= ERROR_LEVEL;               // force severity
+      out_types&= ~LOG_ITEM_LOG_LABEL;  // regenerate label
       out_types|= LOG_ITEM_LOG_MESSAGE; // we added a message
     }
 
     {
-      char          buff_line[LOG_BUFF_MAX];
-      char          buff_label[16];
+      char          buff[LOG_BUFF_MAX];
       size_t        len;
 
       if (!(out_types & LOG_ITEM_LOG_LABEL))
       {
-        label=     log_label_from_prio(prio);
+        label= log_label_from_prio(level);
         label_len= strlen(label);
-
-        if ((out_types & LOG_ITEM_LOG_EPRIO) ||
-            (prio == ERROR_LEVEL))
-        {
-          /*
-            Special feature of this log-writer:
-            for diagnostics,
-            - if we have an override (force-print etc.), lowercase the
-              label as it doesn't coincide with the actual filtering.
-              -
-          */
-
-          const char *label_read=  label;
-          char       *label_write= buff_label;
-
-          DBUG_ASSERT(label_len < sizeof(buff_label));
-
-          while (*label_read)
-            *(label_write++)= toupper(*(label_read++));
-          *label_write= '\0';
-
-          label= buff_label;
-        }
       }
 
       if (!(out_types & LOG_ITEM_LOG_TIMESTAMP))
       {
-        char             buff_local_time[iso8601_size];
+        char             local_time_buff[iso8601_size];
 
-        make_iso8601_timestamp(buff_local_time, my_micro_time(),
+        make_iso8601_timestamp(local_time_buff, my_micro_time(),
                                opt_log_timestamps);
-        iso_timestamp= buff_local_time;
-        ts_len=        strlen(buff_local_time);
+        iso_timestamp= local_time_buff;
+        ts_len=        strlen(local_time_buff);
       }
 
-      len= snprintf(buff_line, sizeof(buff_line), "%.*s %u [%.*s] %.*s",
+      len= snprintf(buff, sizeof(buff), "%.*s %u [%.*s] %.*s",
                     (int) ts_len,    iso_timestamp,
                     thread_id,
                     (int) label_len, label,
@@ -1197,12 +1171,12 @@ static int log_sink_trad(void *instance MY_ATTRIBUTE((unused)), log_line *ll)
       */
       for (c= 0; c < len; c++)
       {
-        if (buff_line[c] == '\n')
-          buff_line[c]= ' ';
+        if (buff[c] == '\n')
+          buff[c]= ' ';
       }
 #endif
 
-      log_write_errstream(buff_line, len);
+      log_write_errstream(buff, len);
 
       return out_fields;  // returning number of processed items
     }
@@ -2832,7 +2806,7 @@ DEFINE_METHOD(longlong,     log_builtins_imp::errcode_by_errsymbol,
   @param   prio       the severity/prio in question
 
   @return             a label corresponding to that priority.
-  @retval  "Error"    for prio of ERROR_LEVEL or higher
+  @retval  "ERROR"    for prio of ERROR_LEVEL or higher
   @retval  "Warning"  for prio of WARNING_LEVEL
   @retval  "Note"     otherwise
 */

@@ -238,7 +238,7 @@ int ha_recover(const memroot_unordered_set<my_xid> *commit_list)
     DBUG_RETURN(0);
 
   if (info.commit_list)
-    LogErr(INFORMATION_LEVEL, ER_XA_STARTING_RECOVERY).force_print();
+    LogErr(INFORMATION_LEVEL, ER_XA_STARTING_RECOVERY);
 
   if (total_ha_2pc > (ulong)opt_bin_log + 1)
   {
@@ -285,7 +285,7 @@ int ha_recover(const memroot_unordered_set<my_xid> *commit_list)
     DBUG_RETURN(1);
   }
   if (info.commit_list)
-    LogErr(INFORMATION_LEVEL, ER_XA_RECOVERY_DONE).force_print();
+    LogErr(INFORMATION_LEVEL, ER_XA_RECOVERY_DONE);
   DBUG_RETURN(0);
 }
 
