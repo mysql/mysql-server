@@ -11885,9 +11885,11 @@ Field_temporal::set_datetime_warning(Sql_condition::enum_severity_level level,
   return false;
 }
 
-bool Field::is_part_of_actual_key(THD *thd, uint cur_index)
+bool Field::is_part_of_actual_key(THD *thd, uint cur_index, KEY *cur_index_info)
 {
-  return thd->optimizer_switch_flag(OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS) ?
+  return
+    thd->optimizer_switch_flag(OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS) &&
+    !(cur_index_info->flags & HA_NOSAME) ?
     part_of_key.is_set(cur_index) :
     part_of_key_not_extended.is_set(cur_index);
 }

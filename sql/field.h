@@ -1697,16 +1697,18 @@ public:
 
   /**
     Check whether field is part of the index taking the index extensions flag
-    into account.
+    into account. Index extensions are also not applicable to UNIQUE indexes
+    for loose index scans.
 
     @param[in]     thd             THD object
     @param[in]     cur_index       Index of the key
+    @param[in]     cur_index_info  key_info object
 
     @retval true  Field is part of the key
     @retval false otherwise
 
   */
-  bool is_part_of_actual_key(THD *thd, uint cur_index);
+  bool is_part_of_actual_key(THD *thd, uint cur_index, KEY *cur_index_info);
 
   friend class Copy_field;
   friend class Item_avg_field;
