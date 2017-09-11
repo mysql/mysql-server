@@ -12203,7 +12203,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, const Cost_estimate *cost_e
           part of 'cur_index'
         */
         if (bitmap_is_set(table->read_set, cur_field->field_index) &&
-            !cur_field->is_part_of_actual_key(thd, cur_index))
+            !cur_field->is_part_of_actual_key(thd, cur_index, cur_index_info))
         {
           cause= "not_covering";
           goto next_index;                  // Field was not part of key
