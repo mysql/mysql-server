@@ -169,13 +169,6 @@ Json_path::Json_path()
 {}
 
 
-void Json_path::pop()
-{
-  DBUG_ASSERT(m_path_legs.size() > 0);
-  m_path_legs.back()->~Json_path_leg();
-  m_path_legs.pop_back();
-}
-
 bool Json_path::to_string(String *buf) const
 {
   /*

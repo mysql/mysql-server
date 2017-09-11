@@ -5255,7 +5255,7 @@ bool
 os_file_close_func(
 	os_file_t	file)
 {
-	ut_a(file > 0);
+	ut_a(file != INVALID_HANDLE_VALUE);
 
 	if (CloseHandle(file)) {
 		return(true);

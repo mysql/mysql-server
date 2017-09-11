@@ -511,14 +511,6 @@ public:
   }
 
   /**
-    Pop the last leg element.
-
-    This effectively lets the path point at the container of the original,
-    i.e. an array or an object.
-  */
-  void pop();
-
-  /**
     Resets this to an empty path with no legs.
   */
   void clear()

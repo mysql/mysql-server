@@ -10,8 +10,5 @@
 #
 ##############################################################################
 # For more details on tags WL6378_* refer sql/dd/mtr_readme.txt
-innodb.bootstrap        @windows  : Bug#22680868 2016-02-08 Erlend Failing too often on PB2
-innodb.log_corruption   @windows  : Bug#22680868 2016-02-08 Erlend Failing too often on PB2
-innodb.log_corruption_1 @windows  : Bug#22680868 2016-02-08 Erlend Failing too often on PB2
 analyze_table           @solaris  : Bug#22607584 2016-03-01 Shaohua Failing too often on PB2 due to timeout
 innodb.skip_locked_nowait  : Bug#25886814 2017-04-13 Allen Failing sporadically on PB2

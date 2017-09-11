@@ -114,7 +114,7 @@ public:
 
     @returns the already parsed path, possibly NULL
   */
-  Json_path *get_path(uint arg_idx);
+  const Json_path *get_path(uint arg_idx) const;
 
   /**
     Reset the cache for re-use when a statement is re-executed.
@@ -346,7 +346,6 @@ class Item_func_json_contains final : public Item_int_func
 class Item_func_json_contains_path final : public Item_int_func
 {
   String m_doc_value;
-  String m_one_or_all_value;
   enum_one_or_all_type m_cached_ooa;
 
   // Cache for constant path expressions
@@ -640,28 +639,21 @@ public:
 class Item_func_json_search :public Item_json_func
 {
   String m_doc_value;
-  String m_one_or_all_value;
   enum_one_or_all_type m_cached_ooa;
-  String m_escape;
 
   // LIKE machinery
   Item_string *m_source_string_item;
   Item_func_like *m_like_node;
 public:
   /**
-   Construct a JSON_SEARCH() node.
+    Construct a JSON_SEARCH() node.
 
-   @param     thd Current session.
-   @param[in] pos Parser position
-   @param[in] a   Nodes which must be fixed (i.e. bound/resolved)
-
-   @returns a JSON_SEARCH() node.
+    @param args arguments to pass to Item_json_func's constructor
   */
-  Item_func_json_search(THD *thd, const POS &pos, PT_item_list *a)
-    : Item_json_func(thd, pos, a),
+  template <typename... Args> Item_func_json_search(Args&&... args)
+    : Item_json_func(std::forward<Args>(args)...),
     m_cached_ooa(ooa_uninitialized)
   {}
-
 
   const char *func_name() const override { return "json_search"; }
 
