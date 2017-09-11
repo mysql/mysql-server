@@ -3623,6 +3623,23 @@ SELECT LEAD(a,1) OVER() FROM t GROUP BY a WITH ROLLUP;
 DROP TABLE t;
 
 --echo #End of test for Bug#26497247
+--echo #
+--echo # Bug #26496880: CRASH IN FIELD_BLOB::GET_KEY_IMAGE
+--echo #
+
+CREATE TABLE t(
+ a INTEGER,
+ b BLOB,
+ PRIMARY KEY (b(1))
+);
+
+INSERT INTO t(b) VALUES('a'),('b'),('c'),('d');
+FLUSH TABLES;
+SELECT LEAD(1,1,1) OVER(PARTITION BY a) FROM t;
+
+DROP TABLE t;
+
+--echo #End of test for Bug#26496880
 
 --echo #
 --echo # Bug#26730020 REEXECUTE PREPARED STATEMENT CRASH WITH WINDOW FUNCTIONS
