@@ -792,7 +792,8 @@ EXPLAIN
           "data_read_per_join": "216"
         },
         "used_columns": [
-          "id"
+          "id",
+          "n"
         ]
       }
     }
@@ -842,7 +843,8 @@ EXPLAIN
           "data_read_per_join": "216"
         },
         "used_columns": [
-          "d"
+          "d",
+          "n"
         ]
       }
     }

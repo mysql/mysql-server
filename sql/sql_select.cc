@@ -2763,7 +2763,8 @@ make_join_readinfo(JOIN *join, uint no_jbuf_after)
 {
   const bool statistics= !join->thd->lex->is_explain();
   const bool prep_for_pos= join->need_tmp_before_win || join->select_distinct ||
-                           join->group_list || join->order;
+                           join->group_list || join->order ||
+                           join->m_windows.elements > 0;
 
   DBUG_ENTER("make_join_readinfo");
   ASSERT_BEST_REF_IN_JOIN_ORDER(join);
