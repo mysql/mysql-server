@@ -359,7 +359,12 @@ struct st_vio
   int (*io_wait)(MYSQL_VIO, enum enum_vio_io_event, int)= { nullptr };
   bool (*connect)(MYSQL_VIO, struct sockaddr *, socklen_t, int)= { nullptr };
 #ifdef _WIN32
+#ifdef __clang__
+  OVERLAPPED overlapped = { 0, 0, {{ 0, 0 }}, nullptr };
+#else
+  // MSVC, at least up to 2015, gives an internal error on the above.
   OVERLAPPED overlapped = { 0 };
+#endif
   HANDLE hPipe { nullptr };
 #endif
 #ifdef HAVE_OPENSSL
