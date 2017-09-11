@@ -19513,6 +19513,11 @@ innodb_internal_table_validate(
 		return(0);
 	}
 
+	/* If name is longer than NAME_LEN, no need to try to open it */
+	if (len >= NAME_LEN) {
+		return(1);
+	}
+
 	user_table = dd_table_open_on_name(
 		thd, &mdl, table_name, false, DICT_ERR_IGNORE_NONE);
 
