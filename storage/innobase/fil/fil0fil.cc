@@ -7275,10 +7275,7 @@ Fil_shard::do_io(
 			space->name, byte_offset, len, req_type.is_read());
 	}
 
-	/* Now we have made the changes in the data structures of fil_system */
 	mutex_release();
-
-	/* Calculate the low 32 bits and the high 32 bits of the file offset */
 
 	ut_a(page_size.is_compressed()
 	     || page_size.physical() == page_size.logical());
@@ -7293,8 +7290,6 @@ Fil_shard::do_io(
 
 	ut_a((len % OS_FILE_LOG_BLOCK_SIZE) == 0);
 	ut_a(byte_offset % OS_FILE_LOG_BLOCK_SIZE == 0);
-
-	/* Do AIO */
 
 	/* Don't compress the log, page 0 of all tablespaces, tables
 	compresssed with the old compression scheme and all pages from
@@ -7404,20 +7399,15 @@ fil_redo_io(
 	ut_ad(type.is_log());
 
 	auto	shard = fil_system->shard_by_id(page_id.space());
-#ifdef _WIN32
+#if defined(_WIN32) && defined(WIN_ASYNC_IO)
 	/* On Windows we always open the redo log file in AIO mode. ie. we
 	use the AIO API for the read/write even for sync IO. */
-#ifndef WIN_ASYNC_IO
-	return(shard->do_redo_io(
-		type, page_id, page_size, byte_offset, len, buf));
-#else
 	return(shard->do_io(
 		type, true, page_id, page_size, byte_offset, len, buf, nullptr));
-#endif /* !WIN_ASYNC_IO */
 #else
 	return(shard->do_redo_io(
 		type, page_id, page_size, byte_offset, len, buf));
-#endif /* _WIN32 */
+#endif /* _WIN32  || WIN_ASYNC_IO*/
 }
 
 /** Read or write redo data. This operation is currently synchronous (AIO).
@@ -9357,7 +9347,9 @@ fil_tablespace_redo_create(
 
 		success = fil_tablespace_open_for_recovery(page_id.space());
 
-		ut_a(success);
+		if (!success) {
+			ib::info() << "Create '" << abs_name << "' failed!";
+		}
 	}
 
 	return(ptr);
@@ -9517,7 +9509,12 @@ fil_tablespace_redo_rename(
 
 		success = fil_tablespace_open_for_recovery(page_id.space());
 
-		ut_a(success);
+		if (!success) {
+
+			ib::info()
+				<< "Rename '" << from_name << "' to '"
+				<< to_name << "' failed!";
+		}
 
 	} else if (abs_path.compare(abs_from_name) == 0
 		   && !fil_op_replay_rename(page_id, from_name, to_name)) {
