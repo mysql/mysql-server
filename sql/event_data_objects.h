@@ -25,7 +25,6 @@
 #include <sys/types.h>
 
 #include "lex_string.h"
-#include "mem_root_fwd.h"
 #include "my_alloc.h"                   // MEM_ROOT
 #include "my_inttypes.h"
 #include "my_psi_config.h"

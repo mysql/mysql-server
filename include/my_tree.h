@@ -23,7 +23,6 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "mem_root_fwd.h"
 #include "my_alloc.h"           /* MEM_ROOT */
 #include "my_base.h"		/* get 'enum ha_rkey_function' */
 #include "my_inttypes.h"

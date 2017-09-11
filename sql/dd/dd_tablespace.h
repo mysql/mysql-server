@@ -16,10 +16,10 @@
 #ifndef DD_TABLESPACE_INCLUDED
 #define DD_TABLESPACE_INCLUDED
 
-#include "mem_root_fwd.h"
 #include "sql/lock.h"                // Tablespace_hash_set
 #include "sql/thr_malloc.h"
 
+struct MEM_ROOT;
 class THD;
 class st_alter_tablespace;
 struct handlerton;

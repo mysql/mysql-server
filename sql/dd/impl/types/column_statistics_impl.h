@@ -20,7 +20,6 @@
 #include <algorithm>
 #include <new>
 
-#include "mem_root_fwd.h"
 #include "my_alloc.h"
 #include "my_inttypes.h"
 #include "my_sys.h"

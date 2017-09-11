@@ -24,9 +24,9 @@
   MAINTAINER:
   Note that this file is part of the public API,
   because mysql.h exports
-    struct st_mem_root
+    struct MEM_ROOT
   See
-    - PSI_memory_key st_mem_root::m_psi_key
+    - PSI_memory_key MEM_ROOT::m_psi_key
     - include/mysql.h.pp
 */
 

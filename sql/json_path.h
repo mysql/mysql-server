@@ -30,7 +30,6 @@
 #include <string>
 #include <utility>                              // std::move
 
-#include "mem_root_fwd.h"
 #include "my_alloc.h"                           // MEM_ROOT
 #include "my_dbug.h"                            // DBUG_ASSERT
 #include "my_inttypes.h"

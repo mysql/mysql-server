@@ -23,7 +23,7 @@
 #include "my_dbug.h"
 #include "sql/dd/string_type.h" // String_type, Stringstream_type
 
-typedef struct st_mem_root MEM_ROOT;
+struct MEM_ROOT;
 
 namespace dd {
 

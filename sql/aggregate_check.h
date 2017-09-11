@@ -465,7 +465,6 @@ class Opt_trace_object;
 class SELECT_LEX;
 class THD;
 struct TABLE_LIST;
-struct st_mem_root;
 template <class T> class List;
 
 /**
@@ -577,7 +576,7 @@ class Group_check: public Item_tree_walker, public Sql_alloc
 {
 public:
 
-  Group_check(SELECT_LEX *select_arg, st_mem_root *root)
+  Group_check(SELECT_LEX *select_arg, MEM_ROOT *root)
     : select(select_arg), search_in_underlying(false),
     non_null_in_source(false),
     table(NULL), group_in_fd(~0ULL), m_root(root), fd(root),
@@ -639,7 +638,7 @@ private:
   ulonglong group_in_fd;
 
   /// Memory for allocations (like of 'fd')
-  st_mem_root *const m_root;
+  MEM_ROOT *const m_root;
 
   /**
      Columns which are local to 'select' and functionally dependent on an
@@ -660,7 +659,7 @@ private:
   bool is_child() const { return table != NULL; }
 
   /// Private ctor, for a Group_check to build a child Group_check
-  Group_check(SELECT_LEX *select_arg, st_mem_root *root,
+  Group_check(SELECT_LEX *select_arg, MEM_ROOT *root,
               TABLE_LIST *table_arg)
     : select(select_arg), search_in_underlying(false),
     non_null_in_source(false), table(table_arg),

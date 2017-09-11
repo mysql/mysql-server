@@ -32,7 +32,6 @@
 #include "lf.h"
 #include "m_ctype.h"
 #include "map_helpers.h"
-#include "mem_root_fwd.h"
 #include "mf_wcomp.h"                   // wild_many, wild_one, wild_prefix
 #include "my_alloc.h"
 #include "my_inttypes.h"
@@ -60,8 +59,8 @@
 #include "typelib.h"
 #include "violite.h"                    // SSL_type
 
+struct MEM_ROOT;
 class Security_context;
-/* Forward Declarations */
 class String;
 class THD;
 struct TABLE;

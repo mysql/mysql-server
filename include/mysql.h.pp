@@ -26,9 +26,6 @@ typedef enum enum_field_types {
   MYSQL_TYPE_STRING=254,
   MYSQL_TYPE_GEOMETRY=255
 } enum_field_types;
-#include "mem_root_fwd.h"
-struct st_mem_root;
-typedef struct st_mem_root MEM_ROOT;
 #include "my_list.h"
 typedef struct st_list {
   struct st_list *prev,*next;
@@ -348,11 +345,12 @@ typedef struct st_mysql_rows {
   unsigned long length;
 } MYSQL_ROWS;
 typedef MYSQL_ROWS *MYSQL_ROW_OFFSET;
+struct MEM_ROOT;
 typedef struct embedded_query_result EMBEDDED_QUERY_RESULT;
 typedef struct st_mysql_data {
   MYSQL_ROWS *data;
   struct embedded_query_result *embedded_info;
-  MEM_ROOT *alloc;
+  struct MEM_ROOT *alloc;
   my_ulonglong rows;
   unsigned int fields;
   void *extension;
@@ -455,7 +453,7 @@ typedef struct st_mysql
   char *info, *db;
   struct charset_info_st *charset;
   MYSQL_FIELD *fields;
-  MEM_ROOT *field_alloc;
+  struct MEM_ROOT *field_alloc;
   my_ulonglong affected_rows;
   my_ulonglong insert_id;
   my_ulonglong extra_info;
@@ -493,7 +491,7 @@ typedef struct st_mysql_res {
   const struct st_mysql_methods *methods;
   MYSQL_ROW row;
   MYSQL_ROW current_row;
-  MEM_ROOT *field_alloc;
+  struct MEM_ROOT *field_alloc;
   unsigned int field_count, current_field;
   bool eof;
   bool unbuffered_fetch_cancelled;
@@ -670,7 +668,7 @@ typedef struct st_mysql_bind
 struct st_mysql_stmt_extension;
 typedef struct st_mysql_stmt
 {
-  MEM_ROOT *mem_root;
+  struct MEM_ROOT *mem_root;
   LIST list;
   MYSQL *mysql;
   MYSQL_BIND *params;
