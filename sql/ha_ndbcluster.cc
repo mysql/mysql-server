@@ -13575,13 +13575,6 @@ int ndbcluster_init(void* p)
 
   }
 
-  if (opt_mts_slave_parallel_workers)
-  {
-    ndb_log_info("Changed global value of --slave-parallel-workers "
-                 "from %lu to 0", opt_mts_slave_parallel_workers);
-    opt_mts_slave_parallel_workers = 0;
-  }
-
   if (ndb_index_stat_thread.init() ||
       DBUG_EVALUATE_IF("ndbcluster_init_fail1", true, false))
   {
