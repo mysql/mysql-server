@@ -1023,12 +1023,16 @@ const double log_10[] = {
   1e300, 1e301, 1e302, 1e303, 1e304, 1e305, 1e306, 1e307, 1e308
 };
 
+/* Index extention. */
+const char *index_ext= ".index";
+#define INDEX_EXT_LENGTH 6
 time_t server_start_time, flush_status_time;
 
 char server_uuid[UUID_LENGTH+1];
 const char *server_uuid_ptr;
 char mysql_home[FN_REFLEN], pidfile_name[FN_REFLEN], system_time_zone[30];
 char default_logfile_name[FN_REFLEN];
+char default_binlog_index_name[FN_REFLEN+INDEX_EXT_LENGTH];
 char *default_tz_name;
 static char errorlog_filename_buff[FN_REFLEN];
 const char *log_error_dest;
@@ -4531,6 +4535,12 @@ static int init_server_components()
       my_free(opt_bin_logname);
       opt_bin_logname=my_strdup(key_memory_opt_bin_logname,
                                 buf, MYF(0));
+    }
+
+    if (!opt_binlog_index_name || !opt_binlog_index_name[0])
+    {
+      strmake(default_binlog_index_name, opt_bin_logname, FN_REFLEN - 1);
+      opt_binlog_index_name= strcat(default_binlog_index_name, index_ext);
     }
 
     /*
