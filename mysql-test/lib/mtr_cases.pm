@@ -1119,6 +1119,13 @@ sub collect_one_test_case {
 
   tags_from_test_file($tinfo,"$testdir/${tname}.test");
 
+  # Disable the result file check for NDB tests not having its
+  # corresponding result file.
+  if ($tinfo->{'ndb_test'} and $tinfo->{'ndb_no_result_file_test'})
+  {
+    delete $tinfo->{'no_result_file'} if $tinfo->{'no_result_file'};
+  }
+
   if ( defined $default_storage_engine )
   {
     # Different default engine is used
@@ -1128,7 +1135,6 @@ sub collect_one_test_case {
 
     $tinfo->{'mysiam_test'}= 1
       if ( $default_storage_engine =~ /^mysiam/i );
-
   }
 
   if ( ! $tinfo->{'not_parallel'} and $::opt_run_non_parallel_tests )
@@ -1372,6 +1378,10 @@ my @tags=
  ["include/have_debug.inc", "need_debug", 1],
  ["include/have_ndb.inc", "ndb_test", 1],
  ["include/have_multi_ndb.inc", "ndb_test", 1],
+
+ # Any test sourcing the below inc file is considered to be an NDB
+ # test not having its corresponding result file.
+ ["include/ndb_no_result_file.inc", "ndb_no_result_file_test", 1],
 
  # The tests with below four .inc files are considered to be rpl tests.
  ["include/rpl_init.inc", "rpl_test", 1],
