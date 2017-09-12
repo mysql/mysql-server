@@ -14669,6 +14669,15 @@ innobase_drop_tablespace(
 
 	trx_start_if_not_started(trx, true);
 
+	/* Acquire Exclusive MDL on SDI table of tablespace.
+	This is to prevent concurrent purge on SDI table */
+	MDL_ticket*	sdi_mdl = nullptr;
+	dberr_t	err = dd_sdi_acquire_exclusive_mdl(thd, space_id, &sdi_mdl);
+	if (err != DB_SUCCESS) {
+		error = convert_error_code_to_mysql(err, 0, NULL);
+		DBUG_RETURN(error);
+	}
+
 	++trx->will_lock;
 
 	log_ddl->write_delete_space_log(
