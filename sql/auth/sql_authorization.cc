@@ -5194,8 +5194,8 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
     }
 
     Update_dynamic_privilege_table update_table(thd, dynpriv_table);
-    if ((result= revoke_all_dynamic_privileges(tmp_lex_user->user,
-                                               tmp_lex_user->host,
+    if ((result= revoke_all_dynamic_privileges(lex_user->user,
+                                               lex_user->host,
                                                update_table)))
     {
       break;

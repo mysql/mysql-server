@@ -520,5 +520,17 @@ GRANT XA_RECOVER_ADMIN ON *.* TO u3;
 DROP USER u1;
 DROP USER u2;
 DROP USER u3;
-
 --echo # End of test for WL#7194
+
+--echo # REVOKE ALL IS NOT REVOKING ALL PRIVILEGE WHEN CURRENT_USER() IS USED
+CREATE USER u1@localhost IDENTIFIED BY 'foo';
+GRANT ALL ON *.* TO u1@localhost;
+connect (con2,localhost,u1,foo,,);
+connection con2;
+SHOW GRANTS;
+REVOKE ALL ON *.* FROM CURRENT_USER();
+SHOW GRANTS;
+connection default;
+disconnect con2;
+DROP USER u1@localhost;
+
