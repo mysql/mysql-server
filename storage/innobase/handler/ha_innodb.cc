@@ -3409,11 +3409,13 @@ public:
 	/** Constructor */
 	Validate_files()
 		:
-		m_n_errors(),
 		m_mutex(),
 		m_space_max_id(),
-		m_checked(),
-		m_n_threads() {}
+		m_n_threads()
+	{
+		m_checked = ATOMIC_VAR_INIT(0);
+		m_n_errors = ATOMIC_VAR_INIT(0);
+	}
 
 	/** Validate the tablespaces against the DD.
 	@param[in]	tablespaces	Tablespace files read from the DD
