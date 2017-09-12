@@ -73,6 +73,14 @@ enum dd_table_keys {
 	DD_TABLE__LAST
 };
 
+/** InnoDB private keys for dd::Partition */
+enum dd_partition_keys {
+	/** Row format for this partition */
+	DD_PARTITION_ROW_FORMAT,
+	/** Sentinel */
+	DD_PARTITION__LAST
+};
+
 /** InnoDB private keys for dd::Tablespace */
 enum dd_space_keys {
 	/** Tablespace flags */
@@ -118,6 +126,11 @@ const char* const dd_table_key_strings[DD_TABLE__LAST] = {
 	"data_directory",
 	"version",
 	"discard"
+};
+
+/** InnoDB private key strings for dd::Partition. @see dd_partition_keys */
+const char* const dd_partition_key_strings[DD_PARTITION__LAST] = {
+	"format"
 };
 
 /** InnoDB private keys for dd::Index or dd::Partition_index */
@@ -328,7 +341,7 @@ dd_copy_private(
 /** Write metadata of a table to dd::Table
 @tparam		Table		dd::Table or dd::Partition
 @param[in]	dd_space_id	Tablespace id, which server allocates
-@param[in,out]	dd_table	dd::Table
+@param[in,out]	dd_table	dd::Table or dd::Partition
 @param[in]	table		InnoDB table object */
 template<typename Table>
 void
@@ -338,11 +351,13 @@ dd_write_table(
 	const dict_table_t*	table);
 
 /** Set options of dd::Table according to InnoDB table object
-@param[in,out]	dd_table	dd::Table
+@tparam		Table		dd::Table or dd::Partition
+@param[in,out]	dd_table	dd::Table or dd::Partition
 @param[in]	table		InnoDB table object */
+template<typename Table>
 void
 dd_set_table_options(
-	dd::Table*		dd_table,
+	Table*			dd_table,
 	const dict_table_t*	table);
 
 /** Write metadata of a tablespace to dd::Tablespace
