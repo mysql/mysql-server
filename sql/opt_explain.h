@@ -183,7 +183,7 @@ public:
   bool execute(THD *thd) override;
 
 private:
-  /// connection_id in EXPLAIN FOR CONNECTION <connection_id>
+  /// connection_id in EXPLAIN FOR CONNECTION \<connection_id\>
   my_thread_id m_thread_id;
 };
 
