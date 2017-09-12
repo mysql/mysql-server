@@ -647,7 +647,7 @@ public:
 	/** Select the IO slot array
 	@param[in,out]	type		Type of IO, READ or WRITE
 	@param[in]	read_only	true if running in read-only mode
-	@param[in]	mode		IO mode
+	@param[in]	aio_mode	IO mode
 	@return slot array or NULL if invalid mode specified */
 	static AIO* select_slot_array(
 		IORequest&	type,

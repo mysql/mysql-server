@@ -619,7 +619,7 @@ public:
 
 	/** Check if a character is a path separator ('\' or '/')
 	@param[in]	c		Character to check
-	@reurn true if it is a separator */
+	@return true if it is a separator */
 	static bool is_separator(char c)
 	{
 		return(c == '\\' || c == '/');
@@ -1275,7 +1275,6 @@ fil_space_get_n_reserved_extents(space_id_t space_id)
 
 /** Read or write redo log data (synchronous buffered IO).
 @param[in,out]	type		IO context
-@param[in]	sync		whether synchronous AIO is desired
 @param[in]	page_id		where to read or write
 @param[in]	page_size	page size
 @param[in]	byte_offset	remainder of offset in bytes
@@ -1293,9 +1292,9 @@ fil_redo_io(
 	void*			buf)
 	MY_ATTRIBUTE((warn_unused_result));
 
-/** Read or write data. This operation could be asynchronous (aio).
+/** Read or write data.
 @param[in,out]	type		IO context
-@param[in]	sync		whether synchronous aio is desired
+@param[in]	sync		If true then do synchronous IO
 @param[in]	page_id		page id
 @param[in]	page_size	page size
 @param[in]	byte_offset	remainder of offset in bytes; in aio this

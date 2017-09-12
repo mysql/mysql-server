@@ -394,9 +394,9 @@ public:
 	Tablespace_dirs() : m_dirs(), m_checked() { }
 
 	/** Discover tablespaces by reading the header from .ibd files.
-	@param[in]	directories	Directories to scan
+	@param[in]	in_directories	Directories to scan
 	@return DB_SUCCESS if all goes well */
-	dberr_t scan(const std::string& directories)
+	dberr_t scan(const std::string& in_directories)
 		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Clear all the tablespace data. */
@@ -1349,7 +1349,7 @@ public:
 	}
 
 	/** Lookup the tablespace ID.
-	@param[in]	space_i		Tablespace ID to lookup
+	@param[in]	space_id	Tablespace ID to lookup
 	@return true if the space ID is known. */
 	bool lookup_for_recovery(space_id_t space_id)
 		MY_ATTRIBUTE((warn_unused_result));
@@ -7379,7 +7379,6 @@ Fil_shard::do_io(
 
 /** Read or write redo log data (synchronous buffered IO).
 @param[in,out]	type		IO context
-@param[in]	sync		whether synchronous AIO is desired
 @param[in]	page_id		where to read or write
 @param[in]	page_size	page size
 @param[in]	byte_offset	remainder of offset in bytes
@@ -7410,8 +7409,9 @@ fil_redo_io(
 #endif /* _WIN32  || WIN_ASYNC_IO*/
 }
 
-/** Read or write redo data. This operation is currently synchronous (AIO).
+/** Read or write data from a file.
 @param[in,out]	type		IO context
+@param[in]	sync		If true then do synchronous IO
 @param[in]	page_id		page id
 @param[in]	page_size	page size
 @param[in]	byte_offset	remainder of offset in bytes; in aio this
@@ -8696,8 +8696,7 @@ fil_encryption_rotate()
 }
 
 /** Constructor
-@param[in]	path	pathname (may also include the file basename)
-@param[in]	len	length of the path, in bytes */
+@param[in]	path	pathname (may also include the file basename) */
 Fil_path::Fil_path(const std::string& path)
 	:
 	m_path(path)
@@ -9854,9 +9853,9 @@ Tablespace_dirs::tokenize_paths(
 }
 
 /** Check whether we can rename the file
-@param[in]	space			Tablespace for which to rename
-@param[in]	name			Source file name
-@param[in]	file			Target file that exists on disk
+@param[in]	space		Tablespace for which to rename
+@param[in]	name		Source file name
+@param[in]	df		Target file that exists on disk
 @return DB_SUCCESS if all OK */
 static
 dberr_t
@@ -10026,7 +10025,7 @@ fil_op_replay_rename(
 
 /** Replay a file rename operation for ddl replay.
 @param[in]	page_id		Space ID and first page number in the file
-@param[in]	name		old file name
+@param[in]	old_name	old file name
 @param[in]	new_name	new file name
 @return	whether the operation was successfully applied (the name did not
 exist, or new_name did not exist and name was successfully renamed to
@@ -10295,7 +10294,7 @@ Tablespace_dirs::print_duplicates(const Space_id_set&  duplicates)
 }
 
 /** Discover tablespaces by reading the header from .ibd files.
-@param[in]	directories	Directories to scan
+@param[in]	in_directories	Directories to scan
 @return DB_SUCCESS if all goes well */
 dberr_t
 Tablespace_dirs::scan(const std::string& in_directories)

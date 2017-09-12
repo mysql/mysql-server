@@ -3419,6 +3419,7 @@ public:
 
 	/** Validate the tablespaces against the DD.
 	@param[in]	tablespaces	Tablespace files read from the DD
+	@param[out]	moved_count	Number of tablespaces that have moved
 	@return DB_SUCCESS if all OK */
 	dberr_t validate(const Tablespaces& tablespaces, size_t* moved_count)
 		MY_ATTRIBUTE((warn_unused_result));
