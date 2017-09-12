@@ -3328,12 +3328,6 @@ class Ndb_schema_event_handler {
   }
 
 
-  bool is_local_table(const char* db_name, const char* table_name) const
-  {
-    return ndbcluster_check_if_local_table(db_name, table_name);
-  }
-
-
   void handle_clear_slock(const Ndb_schema_op* schema)
   {
     DBUG_ENTER("handle_clear_slock");
@@ -3504,7 +3498,8 @@ class Ndb_schema_event_handler {
       mysql_mutex_unlock(&ndbcluster_mutex);
     } // if (share)
 
-    if (is_local_table(schema->db, schema->name) &&
+    Ndb_local_schema::Table tab(m_thd, schema->db, schema->name);
+    if (tab.is_local_table() &&
        !Ndb_dist_priv_util::is_distributed_priv_table(schema->db,
                                                       schema->name))
     {
@@ -3539,7 +3534,9 @@ class Ndb_schema_event_handler {
     if (schema->node_id != own_nodeid())
     {
       write_schema_op_to_binlog(m_thd, schema);
-      if (!is_local_table(schema->db, schema->name))
+
+      Ndb_local_schema::Table tab(m_thd, schema->db, schema->name);
+      if (!tab.is_local_table())
       {
         // Install table from NDB, overwrite the existing table
         if (ndb_create_table_from_engine(m_thd,
@@ -3933,7 +3930,8 @@ class Ndb_schema_event_handler {
     if (share)
       ndbcluster_free_share(&share); // temporary ref.
 
-    if (is_local_table(schema->db, schema->name))
+    Ndb_local_schema::Table tab(m_thd, schema->db, schema->name);
+    if (tab.is_local_table())
     {
       ndb_log_warning("NDB Binlog: Skipping locally defined table "
                       "'%s.%s' from binlog schema event '%s' from node %d. ",
@@ -3966,7 +3964,8 @@ class Ndb_schema_event_handler {
 
     write_schema_op_to_binlog(m_thd, schema);
 
-    if (is_local_table(schema->db, schema->name))
+    Ndb_local_schema::Table tab(m_thd, schema->db, schema->name);
+    if (tab.is_local_table())
     {
       ndb_log_warning("NDB Binlog: Skipping locally defined table '%s.%s' from "
                       "binlog schema event '%s' from node %d. ",
@@ -5121,33 +5120,6 @@ ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
   }
 
   DBUG_RETURN(0);
-}
-
-
-bool
-ndbcluster_check_if_local_table(const char *dbname, const char *tabname)
-{
-  char key[FN_REFLEN + 1];
-  char ndb_file[FN_REFLEN + 1];
-
-  // This function need to be rewritten to check for "local table"
-  // by using Ndb_local_schema which will then access the DD
-
-  DBUG_ENTER("ndbcluster_check_if_local_table");
-  build_table_filename(key, sizeof(key)-1, dbname, tabname, reg_ext, 0);
-  build_table_filename(ndb_file, sizeof(ndb_file)-1,
-                       dbname, tabname, ".ndb", 0);
-  /* Check that any defined table is an ndb table */
-  DBUG_PRINT("info", ("Looking for file %s and %s", key, ndb_file));
-  if ((! my_access(key, F_OK)) && my_access(ndb_file, F_OK))
-  {
-    DBUG_PRINT("info", ("table file %s not on disk, local table", ndb_file));   
-  
-  
-    DBUG_RETURN(true);
-  }
-
-  DBUG_RETURN(false);
 }
 
 

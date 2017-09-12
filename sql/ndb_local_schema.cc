@@ -42,7 +42,7 @@ bool Ndb_local_schema::Base::mdl_try_lock(void) const
                    MDL_key::SCHEMA, m_db, "", MDL_INTENTION_EXCLUSIVE,
                    MDL_TRANSACTION);
   MDL_REQUEST_INIT(&mdl_request,
-                   MDL_key::TABLE, m_db, m_name, MDL_EXCLUSIVE,
+                   MDL_key::TABLE, m_db, m_name, MDL_SHARED,
                    MDL_TRANSACTION);
 
   mdl_requests.push_front(&mdl_request);
@@ -126,7 +126,7 @@ Ndb_local_schema::Table::Table(THD* thd,
   Ndb_local_schema::Base(thd, db, name),
   m_has_triggers(false)
 {
-  DBUG_ENTER("Ndb_local_table");
+  DBUG_ENTER("Ndb_local_schema::Table");
   DBUG_PRINT("enter", ("name: '%s.%s'", db, name));
 
   // Check if there are trigger files
@@ -160,9 +160,37 @@ Ndb_local_schema::Table::is_local_table(void) const
 }
 
 
+bool
+Ndb_local_schema::Table::mdl_try_lock_exclusive(void) const
+{
+  DBUG_ENTER("mdl_try_lock_exclusive");
+
+  // Upgrade lock on the table from shared to exclusive
+  MDL_request mdl_request;
+  MDL_REQUEST_INIT(&mdl_request,
+                   MDL_key::TABLE, m_db, m_name, MDL_EXCLUSIVE,
+                   MDL_TRANSACTION);
+
+  if (m_thd->mdl_context.acquire_lock(&mdl_request,
+                                      0 /* don't wait for lock */))
+  {
+    log_warning("Failed to acquire exclusive metadata lock");
+    DBUG_RETURN(false);
+  }
+
+  DBUG_RETURN(true);
+}
+
+
 void
 Ndb_local_schema::Table::remove_table(void) const
 {
+  // Acquire exclusive MDL lock on the table
+  if (!mdl_try_lock_exclusive())
+  {
+    return;
+  }
+
   // Remove the table from DD
   if (!ndb_dd_drop_table(m_thd, m_db, m_name))
   {
@@ -231,6 +259,12 @@ void
 Ndb_local_schema::Table::rename_table(const char* new_db,
                                       const char* new_name) const
 {
+  // Acquire exclusive MDL lock on the table
+  if (!mdl_try_lock_exclusive())
+  {
+    return;
+  }
+
   // Take write lock for the new table name
   if (!mdl_try_lock_for_rename(new_db, new_name))
   {

@@ -10381,7 +10381,6 @@ int ha_ndbcluster::create(const char *name,
     DBUG_RETURN(HA_WRONG_CREATE_OPTION);
   }
 
-  DBUG_ASSERT(*fn_rext((char*)name) == 0);
   set_dbname(name);
   set_tabname(name);
   

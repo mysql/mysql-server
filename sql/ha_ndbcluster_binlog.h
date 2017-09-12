@@ -115,11 +115,5 @@ extern bool ndb_binlog_running;
 /* Prints ndb binlog status string in buf */
 size_t ndbcluster_show_status_binlog(char* buf, size_t buf_size);
 
-/*
-  Helper functions
-*/
-bool
-ndbcluster_check_if_local_table(const char *dbname, const char *tabname);
-
 
 
