@@ -1571,7 +1571,7 @@ bool double_quote(const char *cptr, size_t length, String *buf)
         return true;                          /* purecov: inspected */
     }
     else if (((cptr[i] & ~0x7f) == 0) && // bit 8 not set
-             (cptr[i] < 0x1f))
+             (cptr[i] <= 0x1f))
     {
       /*
         Unprintable control character, use hex a hexadecimal number.
