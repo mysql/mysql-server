@@ -323,6 +323,7 @@ SET(SQL_SHARED_SOURCES
   opt_trace2server.cc
   options_parser.cc
   parse_file.cc
+  parse_tree_handler.cc
   parse_tree_helpers.cc
   parse_tree_hints.cc
   parse_tree_items.cc

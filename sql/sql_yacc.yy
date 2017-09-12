@@ -406,6 +406,7 @@ static void init_index_hints(List<Index_hint> *hints, index_hint_type type,
 bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 
 #include "sql/parse_tree_column_attrs.h"
+#include "sql/parse_tree_handler.h"
 #include "sql/parse_tree_items.h"
 #include "sql/parse_tree_nodes.h"
 #include "sql/parse_tree_partitions.h"
@@ -1229,13 +1230,13 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         opt_constraint
         ts_datafile lg_undofile /*lg_redofile*/ opt_logfile_group_name
 
-%type <lex_str_list> TEXT_STRING_sys_list
-
-%type <lex_str_ptr>
+%type <lex_cstr>
         opt_table_alias
 
+%type <lex_str_list> TEXT_STRING_sys_list
+
 %type <table>
-        table_ident table_ident_nodb
+        table_ident
 
 %type <simple_string>
         opt_db password
@@ -1376,7 +1377,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 
 %type <ha_rkey_mode> handler_rkey_mode
 
-%type <ha_read_mode> handler_read_or_scan handler_scan_function
+%type <ha_read_mode> handler_scan_function
         handler_rkey_function
 
 %type <cast_type> cast_type
@@ -1580,8 +1581,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         do_stmt
         drop_index_stmt
         drop_role_stmt
-        explainable_stmt
         explain_stmt
+        explainable_stmt
+        handler_stmt
         insert_stmt
         keycache_stmt
         optimize_table_stmt
@@ -1970,7 +1972,7 @@ simple_statement:
         | get_diagnostics
         | group_replication
         | grant
-        | handler
+        | handler_stmt          { MAKE_CMD($1); }
         | help
         | import_stmt
         | insert_stmt           { MAKE_CMD($1); }
@@ -10477,7 +10479,7 @@ derived_table:
               are friendly and give an informative error message instead of
               just 'syntax error'.
             */
-            if ($2 == NULL)
+            if ($2.str == nullptr)
               my_message(ER_DERIVED_MUST_HAVE_ALIAS,
                          ER_THD(YYTHD, ER_DERIVED_MUST_HAVE_ALIAS), MYF(0));
 
@@ -10639,13 +10641,8 @@ opt_as_or_eq:
         ;
 
 opt_table_alias:
-          /* empty */ { $$=0; }
-        | opt_as_or_eq ident
-          {
-            $$= (LEX_STRING*) sql_memdup(&$2,sizeof(LEX_STRING));
-            if ($$ == NULL)
-              MYSQL_YYABORT;
-          }
+          /* empty */        { $$= NULL_CSTR; }
+        | opt_as_or_eq ident { $$= to_lex_cstring($2); }
         ;
 
 opt_all:
@@ -13070,16 +13067,6 @@ table_ident_opt_wild:
           }
         ;
 
-table_ident_nodb:
-          ident
-          {
-            LEX_CSTRING db= { any_db, strlen(any_db) };
-            $$= NEW_PTN Table_ident(YYTHD->get_protocol(), db, to_lex_cstring($1), 0);
-            if ($$ == NULL)
-              MYSQL_YYABORT;
-          }
-        ;
-
 IDENT_sys:
           IDENT { $$= $1; }
         | IDENT_QUOTED
@@ -14117,7 +14104,7 @@ table_lock:
               mdl_lock_type= MDL_SHARED_READ_ONLY;
             }
 
-            if (!Select->add_table_to_list(YYTHD, $1, $2, 0, lock_type,
+            if (!Select->add_table_to_list(YYTHD, $1, $2.str, 0, lock_type,
                                            mdl_lock_type))
               MYSQL_YYABORT;
           }
@@ -14192,91 +14179,48 @@ alter_instance_action:
 ** Handler: direct access to ISAM functions
 */
 
-handler:
+handler_stmt:
           HANDLER_SYM table_ident OPEN_SYM opt_table_alias
           {
-            THD *thd= YYTHD;
-            LEX *lex= Lex;
-            if (lex->sphead)
-            {
-              my_error(ER_SP_BADSTATEMENT, MYF(0), "HANDLER");
-              MYSQL_YYABORT;
-            }
-            lex->sql_command = SQLCOM_HA_OPEN;
-            if (!lex->current_select()->add_table_to_list(thd, $2, $4, 0))
-              MYSQL_YYABORT;
-            lex->m_sql_cmd= NEW_PTN Sql_cmd_handler_open();
-            if (lex->m_sql_cmd == NULL)
-              MYSQL_YYABORT;
+            $$= NEW_PTN PT_handler_open($2, $4);
           }
-        | HANDLER_SYM table_ident_nodb CLOSE_SYM
+        | HANDLER_SYM ident CLOSE_SYM
           {
-            THD *thd= YYTHD;
-            LEX *lex= Lex;
-            if (lex->sphead)
-            {
-              my_error(ER_SP_BADSTATEMENT, MYF(0), "HANDLER");
-              MYSQL_YYABORT;
-            }
-            lex->sql_command = SQLCOM_HA_CLOSE;
-            if (!lex->current_select()->add_table_to_list(thd, $2, 0, 0))
-              MYSQL_YYABORT;
-            lex->m_sql_cmd= NEW_PTN Sql_cmd_handler_close();
-            if (lex->m_sql_cmd == NULL)
-              MYSQL_YYABORT;
+            $$= NEW_PTN PT_handler_close(to_lex_cstring($2));
           }
         | HANDLER_SYM           /* #1 */
-          table_ident_nodb      /* #2 */
+          ident                 /* #2 */
           READ_SYM              /* #3 */
-          {                     /* #4 */
-            LEX *lex=Lex;
-            if (lex->sphead)
-            {
-              my_error(ER_SP_BADSTATEMENT, MYF(0), "HANDLER");
-              MYSQL_YYABORT;
-            }
-            lex->expr_allows_subselect= FALSE;
-            lex->sql_command = SQLCOM_HA_READ;
-            Item *one= NEW_PTN Item_int((int32) 1);
-            if (one == NULL)
-              MYSQL_YYABORT;
-            lex->current_select()->select_limit= one;
-            lex->current_select()->offset_limit= 0;
-            if (!lex->current_select()->add_table_to_list(lex->thd, $2, 0, 0))
-              MYSQL_YYABORT;
+          handler_scan_function /* #4 */
+          opt_where_clause      /* #5 */
+          opt_limit_clause      /* #6 */
+          {
+            $$= NEW_PTN PT_handler_table_scan(to_lex_cstring($2), $4, $5, $6);
           }
-          handler_read_or_scan  /* #5 */
+        | HANDLER_SYM           /* #1 */
+          ident                 /* #2 */
+          READ_SYM              /* #3 */
+          ident                 /* #4 */
+          handler_rkey_function /* #5 */
           opt_where_clause      /* #6 */
           opt_limit_clause      /* #7 */
           {
-            if ($6 != NULL)
-              ITEMIZE($6, &$6);
-            Select->set_where_cond($6);
-
-            if ($7 != NULL)
-              CONTEXTUALIZE($7);
-
-            THD *thd= YYTHD;
-            LEX *lex= Lex;
-            Lex->expr_allows_subselect= TRUE;
-            /* Stored functions are not supported for HANDLER READ. */
-            if (lex->uses_stored_routines())
-            {
-              my_error(ER_NOT_SUPPORTED_YET, MYF(0),
-                       "stored functions in HANDLER ... READ");
-              MYSQL_YYABORT;
-            }
-            lex->m_sql_cmd= NEW_PTN Sql_cmd_handler_read($5,
-                                  lex->ident.str, lex->handler_insert_list,
-                                  thd->m_parser_state->m_yacc.m_ha_rkey_mode);
-            if (lex->m_sql_cmd == NULL)
-              MYSQL_YYABORT;
+            $$= NEW_PTN PT_handler_index_scan(to_lex_cstring($2),
+                                              to_lex_cstring($4), $5, $6, $7);
           }
-        ;
-
-handler_read_or_scan:
-          handler_scan_function       { Lex->ident= null_lex_str; $$=$1; }
-        | ident handler_rkey_function { Lex->ident= $1; $$=$2; }
+        | HANDLER_SYM           /* #1 */
+          ident                 /* #2 */
+          READ_SYM              /* #3 */
+          ident                 /* #4 */
+          handler_rkey_mode     /* #5 */
+          '(' values ')'        /* #6,#7,#8 */
+          opt_where_clause      /* #9 */
+          opt_limit_clause      /* #10 */
+          {
+            $$= NEW_PTN PT_handler_index_range_scan(to_lex_cstring($2),
+                                                    to_lex_cstring($4),
+                                                    $5, $7, $9, $10);
+          }
         ;
 
 handler_scan_function:
@@ -14289,16 +14233,6 @@ handler_rkey_function:
         | NEXT_SYM  { $$= enum_ha_read_modes::RNEXT;  }
         | PREV_SYM  { $$= enum_ha_read_modes::RPREV;  }
         | LAST_SYM  { $$= enum_ha_read_modes::RLAST;  }
-        | handler_rkey_mode
-          {
-            YYTHD->m_parser_state->m_yacc.m_ha_rkey_mode= $1;
-          }
-          '(' values ')'
-          {
-            CONTEXTUALIZE($4);
-            Lex->handler_insert_list= &$4->value;
-            $$= enum_ha_read_modes::RKEY;
-          }
         ;
 
 handler_rkey_mode:
@@ -15219,7 +15153,7 @@ trigger_tail:
               lex->query_tables can be wiped out.
             */
             if (!lex->select_lex->add_table_to_list(thd, $6,
-                                                    (LEX_STRING*) 0,
+                                                    nullptr,
                                                     TL_OPTION_UPDATING,
                                                     TL_READ_NO_INSERT,
                                                     MDL_SHARED_NO_WRITE))

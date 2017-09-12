@@ -6011,7 +6011,7 @@ bool PT_common_table_expr::match_table_ref(TABLE_LIST *tl, bool in_self,
 
 TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
                                           Table_ident *table_name,
-                                          LEX_STRING *alias,
+                                          const char *alias,
                                           ulong table_options,
                                           thr_lock_type lock_type,
                                           enum_mdl_type mdl_type,
@@ -6046,7 +6046,7 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
       (check_and_convert_db_name(&db, false) != Ident_name_check::OK))
     DBUG_RETURN(0);
 
-  const char *alias_str= alias ? alias->str : table_name->table.str;
+  const char *alias_str= alias ? alias : table_name->table.str;
   if (!alias)					/* Alias is case sensitive */
   {
     if (table_name->sel)

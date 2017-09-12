@@ -1053,10 +1053,10 @@ bool PT_query_specification::contextualize(Parse_context *pc)
 
 
 PT_derived_table::PT_derived_table(PT_subquery *subquery,
-                                   LEX_STRING *table_alias,
+                                   const LEX_CSTRING &table_alias,
                                    Create_col_name_list *column_names)
   : m_subquery(subquery),
-    m_table_alias(table_alias),
+    m_table_alias(table_alias.str),
     column_names(*column_names)
 {
   m_subquery->m_is_derived_table= true;

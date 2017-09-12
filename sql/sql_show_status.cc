@@ -161,7 +161,7 @@ build_query(const POS &pos,
 
   /* ... FROM performance_schema.<table_name> ... */
   PT_table_factor_table_ident *table_factor;
-  table_factor= new (thd->mem_root) PT_table_factor_table_ident(table_ident, NULL, NULL, NULL);
+  table_factor= new (thd->mem_root) PT_table_factor_table_ident(table_ident, NULL, NULL_CSTR, NULL);
   if (table_factor == NULL)
     return NULL;
 
@@ -195,14 +195,11 @@ build_query(const POS &pos,
   if (sub_query == NULL)
     return NULL;
 
-  LEX_STRING derived_table_name;
-  if (!thd->make_lex_string(&derived_table_name, table_name.str, table_name.length, false))
-    return NULL;
   Create_col_name_list column_names;
   column_names.init(thd->mem_root);
   PT_derived_table *derived_table;
   derived_table= new (thd->mem_root) PT_derived_table(sub_query,
-                                                      &derived_table_name,
+                                                      to_lex_cstring(table_name),
                                                       &column_names);
   if (derived_table == NULL)
    return NULL;
