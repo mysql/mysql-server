@@ -1374,7 +1374,7 @@ public:
   bool add_ftfunc_to_list(Item_func_match *func);
   void add_order_to_list(ORDER *order);
   TABLE_LIST* add_table_to_list(THD *thd, Table_ident *table,
-				LEX_STRING *alias,
+				const char *alias,
 				ulong table_options,
 				thr_lock_type flags= TL_UNLOCK,
                                 enum_mdl_type mdl_type= MDL_SHARED_READ,
@@ -1945,6 +1945,7 @@ union YYSTYPE {
   int  num;
   ulong ulong_num;
   ulonglong ulonglong_number;
+  LEX_CSTRING lex_cstr;
   LEX_STRING lex_str;
   LEX_STRING *lex_str_ptr;
   LEX_SYMBOL symbol;
@@ -3590,9 +3591,6 @@ public:
   // KILL statement-specific fields:
   List<Item>          kill_value_list;
 
-  // HANDLER statement-specific fields:
-  List<Item>          *handler_insert_list;
-
   // other stuff:
   List<set_var_base>  var_list;
   List<Item_func_set_user_var> set_var_list; // in-query assignment list
@@ -4058,7 +4056,6 @@ public:
     yacc_yyls= NULL;
     m_lock_type= TL_READ_DEFAULT;
     m_mdl_type= MDL_SHARED_READ;
-    m_ha_rkey_mode= HA_READ_KEY_EXACT;
   }
 
   ~Yacc_state();
@@ -4071,7 +4068,6 @@ public:
   {
     m_lock_type= TL_READ_DEFAULT;
     m_mdl_type= MDL_SHARED_READ;
-    m_ha_rkey_mode= HA_READ_KEY_EXACT; /* Let us be future-proof. */
   }
 
   /**
@@ -4116,9 +4112,6 @@ public:
     the statement table list.
   */
   enum_mdl_type m_mdl_type;
-
-  /** Type of condition for key in HANDLER READ statement. */
-  enum ha_rkey_function m_ha_rkey_mode;
 
   /*
     TODO: move more attributes from the LEX structure here.

@@ -544,17 +544,17 @@ class PT_table_factor_table_ident : public PT_table_reference
 
   Table_ident *table_ident;
   List<String> *opt_use_partition;
-  LEX_STRING *opt_table_alias;
+  const char * const opt_table_alias;
   List<Index_hint> *opt_key_definition;
 
 public:
   PT_table_factor_table_ident(Table_ident *table_ident_arg,
                               List<String> *opt_use_partition_arg,
-                              LEX_STRING *opt_table_alias_arg,
+                              const LEX_CSTRING &opt_table_alias_arg,
                               List<Index_hint> *opt_key_definition_arg)
   : table_ident(table_ident_arg),
     opt_use_partition(opt_use_partition_arg),
-    opt_table_alias(opt_table_alias_arg),
+    opt_table_alias(opt_table_alias_arg.str),
     opt_key_definition(opt_key_definition_arg)
   {}
 
@@ -609,14 +609,14 @@ class PT_derived_table : public PT_table_reference
   typedef PT_table_reference super;
 
 public:
-  PT_derived_table(PT_subquery *subquery, LEX_STRING *table_alias,
+  PT_derived_table(PT_subquery *subquery, const LEX_CSTRING &table_alias,
                    Create_col_name_list *column_names);
 
   virtual bool contextualize(Parse_context *pc);
 
 private:
   PT_subquery *m_subquery;
-  LEX_STRING *m_table_alias;
+  const char * const m_table_alias;
   /// List of explicitely specified column names; if empty, no list.
   const Create_col_name_list column_names;
 };
