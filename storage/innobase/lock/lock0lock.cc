@@ -1619,15 +1619,17 @@ RecLock::create(
 	/* GAP lock shouldn't be taken on DD tables with some exceptions */
 	if (m_index->table->is_dd_table
 	    && strstr(m_index->table->name.m_name,
-		      "mysql/st_spatial_reference_systems") != 0
+		      "mysql/st_spatial_reference_systems") == nullptr
 	    && strstr(m_index->table->name.m_name,
-		      "mysql/innodb_table_stats") != 0
+		      "mysql/innodb_table_stats") == nullptr
 	    && strstr(m_index->table->name.m_name,
-		      "mysql/innodb_index_stats") != 0) {
+		      "mysql/innodb_index_stats") == nullptr
+	    && strstr(m_index->table->name.m_name,
+		      "mysql/table_stats") == nullptr
+	    && strstr(m_index->table->name.m_name,
+		      "mysql/index_stats") == nullptr) {
 
-		ut_ad(((m_mode - (LOCK_MODE_MASK & m_mode))
-		       - (LOCK_TYPE_MASK & m_mode)
-		       - (LOCK_WAIT & m_mode)) == LOCK_REC_NOT_GAP);
+		ut_ad(lock_rec_get_rec_not_gap(lock));
 	}
 #endif /* UNIV_DEBUG */
 
@@ -7841,10 +7843,18 @@ DeadlockChecker::search()
 
 			if ((lock->is_record_lock()
 			     && lock->index != nullptr
-			     && lock->index->table->skip_gap_locks())
+			     && lock->index->table->skip_gap_locks()
+			     && strstr(lock->index->table->name.m_name,
+				       "mysql/table_stats") == nullptr
+			     && strstr(lock->index->table->name.m_name,
+				       "mysql/index_stats") == nullptr)
 			    || (m_wait_lock->is_record_lock()
 				&& wait_index != nullptr
-				&& wait_index->table->skip_gap_locks())) {
+				&& wait_index->table->skip_gap_locks()
+				&& strstr(wait_index->table->name.m_name,
+					  "mysql/table_stats") == nullptr
+				&& strstr(wait_index->table->name.m_name,
+					  "mysql/index_stats") == nullptr)) {
 
 				ut_error;
 			}
