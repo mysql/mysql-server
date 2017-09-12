@@ -68,6 +68,12 @@ Pool_context::release_page(Uint32 type_id, Uint32 i)
   m_block->m_ctx.m_mm.release_page(type_id, i);
 }
 
+Ndbd_mem_manager*
+Pool_context::get_mem_manager() const
+{
+  return &m_block->m_ctx.m_mm;
+}
+
 void*
 Pool_context::get_memroot() const
 {

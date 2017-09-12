@@ -76,6 +76,7 @@ struct Resource_limit
   Uint32 m_spare_pct;
 };
 
+class Ndbd_mem_manager;
 struct Pool_context
 {
   Pool_context() {}
@@ -85,6 +86,7 @@ struct Pool_context
    * Get mem root
    */
   void* get_memroot() const;
+  Ndbd_mem_manager* get_mem_manager() const;
   
   /**
    * Alloc consekutive pages
