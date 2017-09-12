@@ -1100,15 +1100,15 @@ private:
 
 	/** Fil_shard ID */
 
-	const size_t	m_id;
+	const size_t		m_id;
 
 	/** Tablespace instances hashed on the space id */
 
-	Spaces		m_spaces;
+	Spaces			m_spaces;
 
 	/** Tablespace instances hashed on the space name */
 
-	Names		m_names;
+	Names			m_names;
 
 	/** Base node for the LRU list of the most recently used open
 	files with no pending I/O's; if we start an I/O on the file,
@@ -1117,17 +1117,17 @@ private:
 	tablespace are not put to this list: they are opened after
 	the startup, and kept open until shutdown */
 
-	File_list	m_LRU;
+	File_list		m_LRU;
 
 	/** Base node for the list of those tablespaces whose files
 	contain unflushed writes; those spaces have at least one file
 	where modification_counter > flush_counter */
 
-	Space_list	m_unflushed_spaces;
+	Space_list		m_unflushed_spaces;
 
 	/** When we write to a file we increment this by one */
 
-	int64_t		m_modification_counter;
+	int64_t			m_modification_counter;
 
 	/** Number of files currently open */
 
