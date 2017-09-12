@@ -28,6 +28,8 @@
 #include "sql/key_spec.h"
 #include "sql/mdl.h"
 #include "sql/mysqld.h"     // global_system_variables
+#include "sql/opt_explain_json.h"        // Explain_format_JSON
+#include "sql/opt_explain_traditional.h" // Explain_format_traditional
 #include "sql/parse_tree_column_attrs.h" // PT_field_def_base
 #include "sql/parse_tree_hints.h"
 #include "sql/parse_tree_partitions.h" // PT_partition
@@ -549,8 +551,11 @@ bool PT_select_sp_var::contextualize(Parse_context *pc)
 Sql_cmd *PT_select_stmt::make_cmd(THD *thd)
 {
   Parse_context pc(thd, thd->lex->current_select());
-  if (contextualize(&pc))
-    return NULL;
+
+  thd->lex->sql_command= m_sql_command;
+
+  if (m_qe->contextualize(&pc) || contextualize_safe(&pc, m_into))
+    return nullptr;
 
   if (thd->lex->sql_command == SQLCOM_SELECT)
     return new (thd->mem_root) Sql_cmd_select(thd->lex->result);
@@ -1048,10 +1053,10 @@ bool PT_query_specification::contextualize(Parse_context *pc)
 
 
 PT_derived_table::PT_derived_table(PT_subquery *subquery,
-                                   LEX_STRING *table_alias,
+                                   const LEX_CSTRING &table_alias,
                                    Create_col_name_list *column_names)
   : m_subquery(subquery),
-    m_table_alias(table_alias),
+    m_table_alias(table_alias.str),
     column_names(*column_names)
 {
   m_subquery->m_is_derived_table= true;
@@ -2552,3 +2557,45 @@ Sql_cmd *PT_show_tables::make_cmd(THD *thd)
 }
 
 
+Sql_cmd *PT_explain_for_connection::make_cmd(THD *thd)
+{
+  thd->lex->sql_command= SQLCOM_EXPLAIN_OTHER;
+
+  if (thd->lex->sphead)
+  {
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+             "non-standalone EXPLAIN FOR CONNECTION");
+    return nullptr;
+  }
+  return &m_cmd;
+}
+
+
+Sql_cmd *PT_explain::make_cmd(THD *thd)
+{
+  LEX * const lex= thd->lex;
+  switch (m_format) {
+  case Explain_format_type::TRADITIONAL:
+    lex->explain_format= new (thd->mem_root) Explain_format_traditional;
+    break;
+  case Explain_format_type::JSON:
+    lex->explain_format= new (thd->mem_root) Explain_format_JSON;
+    break;
+  }
+  if (lex->explain_format == nullptr)
+    return nullptr; // OOM
+
+  Sql_cmd *ret= m_explainable_stmt->make_cmd(thd);
+  if (ret == nullptr)
+    return nullptr; // OOM
+
+  auto code= ret->sql_command_code();
+  if (!is_explainable_query(code) && code != SQLCOM_EXPLAIN_OTHER)
+  {
+    DBUG_ASSERT(!"Should not happen!");
+    my_error(ER_WRONG_USAGE, MYF(0), "EXPLAIN", "non-explainable query");
+    return nullptr;
+  }
+
+  return ret;
+}

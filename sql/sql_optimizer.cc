@@ -403,7 +403,7 @@ JOIN::optimize()
         conjunctions.
         Preserve conditions for EXPLAIN.
       */
-      if (where_cond && !thd->lex->describe)
+      if (where_cond && !thd->lex->is_explain())
       {
         Item *table_independent_conds=
           make_cond_for_table(thd, where_cond, PSEUDO_TABLE_BITS, 0, 0);
@@ -6147,7 +6147,7 @@ static bool check_skip_records_in_range_qualification(JOIN_TAB *tab, THD *thd)
             (!select->is_grouped() && !select->is_distinct()) &&      // F1.d
             !select->is_ordered() &&                                  // F1.e
             select->join_list->elements == 1 &&                       // F2
-            !thd->lex->describe);                                     // F3
+            !thd->lex->is_explain());                                 // F3
 }
 
 
@@ -7113,7 +7113,7 @@ static void
 warn_index_not_applicable(THD *thd, const Field *field,
                           const Key_map cant_use_index)
 {
-  if (thd->lex->describe)
+  if (thd->lex->is_explain())
     for (uint j=0 ; j < field->table->s->keys ; j++)
       if (cant_use_index.is_set(j))
         push_warning_printf(thd,

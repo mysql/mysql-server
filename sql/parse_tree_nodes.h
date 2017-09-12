@@ -43,6 +43,7 @@
 #include "sql/mdl.h"
 #include "sql/mem_root_array.h"
 #include "sql/mysqld.h"              // table_alias_charset
+#include "sql/opt_explain.h"         // Sql_cmd_explain_other_thread
 #include "sql/parse_location.h"
 #include "sql/parse_tree_helpers.h"  // PT_item_list
 #include "sql/parse_tree_node_base.h"
@@ -543,17 +544,17 @@ class PT_table_factor_table_ident : public PT_table_reference
 
   Table_ident *table_ident;
   List<String> *opt_use_partition;
-  LEX_STRING *opt_table_alias;
+  const char * const opt_table_alias;
   List<Index_hint> *opt_key_definition;
 
 public:
   PT_table_factor_table_ident(Table_ident *table_ident_arg,
                               List<String> *opt_use_partition_arg,
-                              LEX_STRING *opt_table_alias_arg,
+                              const LEX_CSTRING &opt_table_alias_arg,
                               List<Index_hint> *opt_key_definition_arg)
   : table_ident(table_ident_arg),
     opt_use_partition(opt_use_partition_arg),
-    opt_table_alias(opt_table_alias_arg),
+    opt_table_alias(opt_table_alias_arg.str),
     opt_key_definition(opt_key_definition_arg)
   {}
 
@@ -608,14 +609,14 @@ class PT_derived_table : public PT_table_reference
   typedef PT_table_reference super;
 
 public:
-  PT_derived_table(PT_subquery *subquery, LEX_STRING *table_alias,
+  PT_derived_table(PT_subquery *subquery, const LEX_CSTRING &table_alias,
                    Create_col_name_list *column_names);
 
   virtual bool contextualize(Parse_context *pc);
 
 private:
   PT_subquery *m_subquery;
-  LEX_STRING *m_table_alias;
+  const char * const m_table_alias;
   /// List of explicitely specified column names; if empty, no list.
   const Create_col_name_list column_names;
 };
@@ -1826,7 +1827,7 @@ public:
       return true;
 
     LEX *lex= pc->thd->lex;
-    if (!lex->describe)
+    if (!lex->is_explain())
     {
       lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
       if (!(lex->exchange= new (*THR_MALLOC) sql_exchange(file_name, 1)))
@@ -1898,7 +1899,7 @@ public:
     }
 
     LEX * const lex= pc->thd->lex;
-    if (lex->describe)
+    if (lex->is_explain())
       return false;
 
     Query_dumpvar *dumpvar= new (pc->mem_root) Query_dumpvar(pc->thd);
@@ -2436,9 +2437,9 @@ private:
 };
 
 
-class PT_select_stmt : public Parse_tree_node
+class PT_select_stmt : public Parse_tree_root
 {
-  typedef Parse_tree_node super;
+  typedef Parse_tree_root super;
 
 public:
   /**
@@ -2465,18 +2466,7 @@ public:
 
   PT_select_stmt(PT_query_expression *qe) : PT_select_stmt(qe, NULL) {}
 
-  virtual bool contextualize(Parse_context *pc)
-  {
-    if (super::contextualize(pc))
-      return true;
-
-    pc->thd->lex->sql_command= m_sql_command;
-
-    return m_qe->contextualize(pc) ||
-      contextualize_safe(pc, m_into);
-  }
-
-  virtual Sql_cmd *make_cmd(THD *thd);
+  Sql_cmd *make_cmd(THD *thd) override;
 
 private:
   enum_sql_command m_sql_command;
@@ -3783,12 +3773,12 @@ public:
 };
 
 
-class PT_show_privileges final : public Parse_tree_root
+class PT_show_grants final : public Parse_tree_root
 {
-  Sql_cmd_show_privileges sql_cmd;
+  Sql_cmd_show_grants sql_cmd;
 
 public:
-   PT_show_privileges(const LEX_USER *opt_for_user,
+   PT_show_grants(const LEX_USER *opt_for_user,
                       const List<LEX_USER> *opt_using_users)
   : sql_cmd(opt_for_user, opt_using_users)
   {
@@ -5592,6 +5582,34 @@ public:
 
 
   virtual ~PT_set_resource_group() {}
+};
+
+
+class PT_explain_for_connection final : public Parse_tree_root
+{
+public:
+  explicit
+  PT_explain_for_connection(my_thread_id thread_id) : m_cmd(thread_id) {}
+
+  Sql_cmd *make_cmd(THD *thd) override;
+
+private:
+  Sql_cmd_explain_other_thread m_cmd;
+};
+
+
+class PT_explain final : public Parse_tree_root
+{
+public:
+  PT_explain(Explain_format_type format, Parse_tree_root *explainable_stmt)
+    : m_format(format), m_explainable_stmt(explainable_stmt)
+  {}
+
+  Sql_cmd *make_cmd(THD *thd) override;
+
+private:
+  const Explain_format_type m_format;
+  Parse_tree_root * const m_explainable_stmt;
 };
 
 #endif /* PARSE_TREE_NODES_INCLUDED */

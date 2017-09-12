@@ -175,7 +175,8 @@ class Logger {
 public:
   Logger(): connection_id(0), end(buffer) {}
   Logger(MYSQL *conn);
-  void log(const char *format, ...);
+  void log(const char *format, ...)
+    MY_ATTRIBUTE((format(printf, 2, 3)));
   void dump(const char *key, const void *data, size_t len);
 };
 
@@ -195,7 +196,7 @@ size_t Logger::header()
 
   if (connection_id)
   {
-    len+= snprintf(end, sizeof(buffer)-len, "%03d: ", connection_id);
+    len+= snprintf(end, sizeof(buffer)-len, "%03zu: ", connection_id);
     end= buffer + len;
   }
 
@@ -561,7 +562,7 @@ trace_event(struct st_mysql_client_plugin_TRACE*,
     break;
 
   case TRACE_EVENT_PACKET_SENT:
-    LOG(("packet sent: %d bytes", args.pkt_len));
+    LOG(("packet sent: %zu bytes", args.pkt_len));
 
   case TRACE_EVENT_INIT_PACKET_RECEIVED:
     // TODO: Parse init packet and show info.
@@ -577,12 +578,12 @@ trace_event(struct st_mysql_client_plugin_TRACE*,
       if ('#' == *pkt)
       {
         LOG(("Server error %d (%.5s): %.*s",
-             err_code, pkt+1, args.pkt_len - 9, pkt+6));
+             err_code, pkt+1, int(args.pkt_len - 9), pkt+6));
       }
       else
       {
         LOG(("Server error %d: %.*s",
-             err_code, args.pkt_len - 3, pkt));
+             err_code, int(args.pkt_len - 3), pkt));
       }
     }
     else
@@ -1050,7 +1051,7 @@ int check_event_WAIT_FOR_RESULT(MYSQL *conn,
       */
       /* update col_count so that it is used in next stage */
       data->col_count   = net_field_length(&pkt);
-      LOG(("Expecting result set with %lu columns", data->col_count));
+      LOG(("Expecting result set with %u columns", data->col_count));
       NEXT_STAGE(WAIT_FOR_FIELD_DEF);
       return 0;
     }

@@ -15004,6 +15004,15 @@ innobase_drop_tablespace(
 
 	trx_start_if_not_started(trx, true);
 
+	/* Acquire Exclusive MDL on SDI table of tablespace.
+	This is to prevent concurrent purge on SDI table */
+	MDL_ticket*	sdi_mdl = nullptr;
+	dberr_t	err = dd_sdi_acquire_exclusive_mdl(thd, space_id, &sdi_mdl);
+	if (err != DB_SUCCESS) {
+		error = convert_error_code_to_mysql(err, 0, NULL);
+		DBUG_RETURN(error);
+	}
+
 	++trx->will_lock;
 
 	log_ddl->write_delete_space_log(
@@ -19836,6 +19845,11 @@ innodb_internal_table_validate(
 	if (!table_name) {
 		*static_cast<const char**>(save) = NULL;
 		return(0);
+	}
+
+	/* If name is longer than NAME_LEN, no need to try to open it */
+	if (len >= NAME_LEN) {
+		return(1);
 	}
 
 	user_table = dd_table_open_on_name(

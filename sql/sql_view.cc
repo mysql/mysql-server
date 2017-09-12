@@ -1356,7 +1356,7 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
   view_lex->unit->explain_marker= CTX_DERIVED;
 
   // Needed for correct units markup for EXPLAIN
-  view_lex->describe= old_lex->describe;
+  view_lex->explain_format= old_lex->explain_format;
 
   if (thd->m_digest != NULL)
     thd->m_digest->reset(thd->m_token_array, max_digest_length);
@@ -1464,7 +1464,7 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
                            false, UINT_MAX, true))
       view_ref->view_no_explain= true;
 
-    if (old_lex->describe && is_explainable_query(old_lex->sql_command))
+    if (old_lex->is_explain() && is_explainable_query(old_lex->sql_command))
     {
       // EXPLAIN statement should be allowed on views created in
       // information_schema

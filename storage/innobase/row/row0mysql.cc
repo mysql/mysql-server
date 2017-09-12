@@ -4272,6 +4272,22 @@ row_drop_table_for_mysql(
 
 	file_per_table = dict_table_is_file_per_table(table);
 
+	/* Acquire MDL on SDI table of tablespace. This is to prevent
+	concurrent DROP while purge is happening on SDI table */
+	if (file_per_table) {
+
+		MDL_ticket*	sdi_mdl = nullptr;
+		mutex_exit(&dict_sys->mutex);
+		err = dd_sdi_acquire_exclusive_mdl(
+			thd, table->space, &sdi_mdl);
+		mutex_enter(&dict_sys->mutex);
+
+		if (err != DB_SUCCESS) {
+			dd_table_close(table, nullptr, nullptr, true);
+			goto funct_exit;
+		}
+	}
+
 	/* This function is called recursively via fts_drop_tables(). */
 	if (!trx_is_started(trx)) {
 		if (!table->is_temporary()) {

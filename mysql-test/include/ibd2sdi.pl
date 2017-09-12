@@ -1,6 +1,5 @@
 use strict;
 use warnings;
-use LWP::Simple;
 use File::Copy;
 
 my $json_file_path = $ENV{'JSON_FILE_PATH'} or die;

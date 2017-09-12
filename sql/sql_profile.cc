@@ -603,14 +603,14 @@ int PROFILING::fill_statistics_info(THD *thd_arg, TABLE_LIST *tables)
           struct where and having conditions at the SQL layer, then this
           condition should be ripped out.
         */
-        if (thd_arg->lex->query_id == 0) /* 0 == show final query */
+        if (thd_arg->lex->show_profile_query_id == 0) /* 0 == show final query */
         {
           if (query != last)
             continue;
         }
         else
         {
-          if (thd_arg->lex->query_id != query->profiling_query_id)
+          if (thd_arg->lex->show_profile_query_id != query->profiling_query_id)
             continue;
         }
       }

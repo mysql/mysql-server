@@ -51,6 +51,7 @@ SELECT_LEX), by calling explain_unit() for each of them.
 #include "sql/opt_explain_format.h"
 #include "sql/parse_tree_node_base.h"
 #include "sql/query_result.h"            // Query_result_send
+#include "sql/sql_cmd.h"                 // Sql_cmd
 #include "sql/sql_lex.h"
 #include "sys/types.h"
 
@@ -165,6 +166,25 @@ bool explain_single_table_modification(THD *ethd,
 bool explain_query(THD *thd, SELECT_LEX_UNIT *unit);
 bool explain_query_specification(THD *ethd, SELECT_LEX *select_lex,
                                  enum_parsing_context ctx);
-void mysql_explain_other(THD *thd);
+
+
+class Sql_cmd_explain_other_thread final : public Sql_cmd
+{
+public:
+  explicit Sql_cmd_explain_other_thread(my_thread_id thread_id)
+    : m_thread_id(thread_id)
+  {}
+
+  enum_sql_command sql_command_code() const override
+  {
+    return SQLCOM_EXPLAIN_OTHER;
+  }
+
+  bool execute(THD *thd) override;
+
+private:
+  /// connection_id in EXPLAIN FOR CONNECTION \<connection_id\>
+  my_thread_id m_thread_id;
+};
 
 #endif /* OPT_EXPLAIN_INCLUDED */

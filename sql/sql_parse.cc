@@ -87,7 +87,6 @@
 #include "sql/mem_root_array.h"
 #include "sql/mysqld.h"       // stage_execution_of_init_command
 #include "sql/mysqld_thd_manager.h" // Find_thd_with_id
-#include "sql/opt_explain.h"  // mysql_explain_other
 #include "sql/opt_trace.h"    // Opt_trace_start
 #include "sql/parse_location.h"
 #include "sql/parse_tree_helpers.h" // is_identifier
@@ -2591,7 +2590,7 @@ mysql_execute_command(THD *thd, bool first_level)
   DBUG_ASSERT(select_lex->master_unit() == lex->unit);
   DBUG_ENTER("mysql_execute_command");
   /* EXPLAIN OTHER isn't explainable command, but can have describe flag. */
-  DBUG_ASSERT(!lex->describe || is_explainable_query(lex->sql_command) ||
+  DBUG_ASSERT(!lex->is_explain() || is_explainable_query(lex->sql_command) ||
               lex->sql_command == SQLCOM_EXPLAIN_OTHER);
 
   thd->work_part_info= 0;
@@ -4598,12 +4597,6 @@ mysql_execute_command(THD *thd, bool first_level)
     mysql_client_binlog_statement(thd);
     break;
   }
-  case SQLCOM_EXPLAIN_OTHER:
-  {
-    /* EXPLAIN FOR CONNECTION <id> */
-    mysql_explain_other(thd);
-    break;
-  }
   case SQLCOM_ANALYZE:
   case SQLCOM_CHECK:
   case SQLCOM_OPTIMIZE:
@@ -4655,6 +4648,7 @@ mysql_execute_command(THD *thd, bool first_level)
   case SQLCOM_LOCK_INSTANCE:
   case SQLCOM_UNLOCK_INSTANCE:
   case SQLCOM_ALTER_TABLESPACE:
+  case SQLCOM_EXPLAIN_OTHER:
 
     DBUG_ASSERT(lex->m_sql_cmd != nullptr);
     res= lex->m_sql_cmd->execute(thd);
@@ -6017,7 +6011,7 @@ bool PT_common_table_expr::match_table_ref(TABLE_LIST *tl, bool in_self,
 
 TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
                                           Table_ident *table_name,
-                                          LEX_STRING *alias,
+                                          const char *alias,
                                           ulong table_options,
                                           thr_lock_type lock_type,
                                           enum_mdl_type mdl_type,
@@ -6052,7 +6046,7 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
       (check_and_convert_db_name(&db, false) != Ident_name_check::OK))
     DBUG_RETURN(0);
 
-  const char *alias_str= alias ? alias->str : table_name->table.str;
+  const char *alias_str= alias ? alias : table_name->table.str;
   if (!alias)					/* Alias is case sensitive */
   {
     if (table_name->sel)

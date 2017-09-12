@@ -214,10 +214,6 @@ union YYSTYPE;
 
 typedef YYSTYPE *LEX_YYSTYPE;
 
-// describe/explain types
-#define DESCRIBE_NONE		0 // Not explain query
-#define DESCRIBE_NORMAL		1
-
 /*
   If we encounter a diagnostics statement (GET DIAGNOSTICS, or e.g.
   the old SHOW WARNINGS|ERRORS, or "diagnostics variables" such as
@@ -1378,7 +1374,7 @@ public:
   bool add_ftfunc_to_list(Item_func_match *func);
   void add_order_to_list(ORDER *order);
   TABLE_LIST* add_table_to_list(THD *thd, Table_ident *table,
-				LEX_STRING *alias,
+				const char *alias,
 				ulong table_options,
 				thr_lock_type flags= TL_UNLOCK,
                                 enum_mdl_type mdl_type= MDL_SHARED_READ,
@@ -1928,6 +1924,9 @@ struct Value_or_default
 };
 
 
+enum class Explain_format_type { TRADITIONAL, JSON };
+
+
 union YYSTYPE {
   /*
     Hint parser section (sql_hints.yy)
@@ -1946,6 +1945,7 @@ union YYSTYPE {
   int  num;
   ulong ulong_num;
   ulonglong ulonglong_number;
+  LEX_CSTRING lex_cstr;
   LEX_STRING lex_str;
   LEX_STRING *lex_str_ptr;
   LEX_SYMBOL symbol;
@@ -2056,7 +2056,6 @@ union YYSTYPE {
   class PT_select_var *select_var_ident;
   class PT_select_var_list *select_var_list;
   Mem_root_array_YY<PT_table_reference *> table_reference_list;
-  class PT_select_stmt *select_stmt;
   class Item_param *param_marker;
   class PTI_text_literal *text_literal;
   class PT_query_expression *query_expression;
@@ -2246,6 +2245,7 @@ union YYSTYPE {
   bool resource_group_flag_type;
   resourcegroups::Type resource_group_type;
   Trivial_array<ulonglong> *thread_id_list_type;
+  Explain_format_type explain_format_type;
 };
 
 static_assert(sizeof(YYSTYPE) <= 32, "YYSTYPE is too big");
@@ -3524,7 +3524,7 @@ public:
     m_current_select= select;
   }
   /// @return true if this is an EXPLAIN statement
-  bool is_explain() const { return (describe & DESCRIBE_NORMAL); }
+  bool is_explain() const { return explain_format != nullptr; }
   LEX_STRING name;
   char *help_arg;
   char* to_log;                                 /* For PURGE MASTER LOGS TO */
@@ -3590,9 +3590,6 @@ public:
 
   // KILL statement-specific fields:
   List<Item>          kill_value_list;
-
-  // HANDLER statement-specific fields:
-  List<Item>          *handler_insert_list;
 
   // other stuff:
   List<set_var_base>  var_list;
@@ -3715,13 +3712,12 @@ public:
   enum enum_var_type option_type;
   enum_view_create_mode create_view_mode;
 
-  /// QUERY ID for SHOW PROFILE and EXPLAIN CONNECTION
-  my_thread_id query_id;
+  /// QUERY ID for SHOW PROFILE
+  my_thread_id show_profile_query_id;
   uint profile_options;
   uint grant, grant_tot_col;
   uint slave_thd_opt, start_transaction_opt;
   int select_number;                     ///< Number of query block (by EXPLAIN)
-  uint8 describe;
   uint8 create_view_algorithm;
   uint8 create_view_check;
   /**
@@ -4060,7 +4056,6 @@ public:
     yacc_yyls= NULL;
     m_lock_type= TL_READ_DEFAULT;
     m_mdl_type= MDL_SHARED_READ;
-    m_ha_rkey_mode= HA_READ_KEY_EXACT;
   }
 
   ~Yacc_state();
@@ -4073,7 +4068,6 @@ public:
   {
     m_lock_type= TL_READ_DEFAULT;
     m_mdl_type= MDL_SHARED_READ;
-    m_ha_rkey_mode= HA_READ_KEY_EXACT; /* Let us be future-proof. */
   }
 
   /**
@@ -4118,9 +4112,6 @@ public:
     the statement table list.
   */
   enum_mdl_type m_mdl_type;
-
-  /** Type of condition for key in HANDLER READ statement. */
-  enum ha_rkey_function m_ha_rkey_mode;
 
   /*
     TODO: move more attributes from the LEX structure here.

@@ -184,12 +184,13 @@ int yylex(void *yylval, void *yythd);
 
   @note x may be NULL because of OOM error.
 */
-#define MAKE_CMD(x)                                     \
-  do                                                    \
-  {                                                     \
-    if (YYTHD->is_error() ||                            \
-        (Lex->m_sql_cmd= (x)->make_cmd(YYTHD)) == NULL) \
-      MYSQL_YYABORT;                                    \
+#define MAKE_CMD(x)                                                      \
+  do                                                                     \
+  {                                                                      \
+    if (YYTHD->is_error() ||                                             \
+        (Lex->m_sql_cmd= (x)->make_cmd(YYTHD)) == NULL)                  \
+      MYSQL_YYABORT;                                                     \
+    DBUG_ASSERT(Lex->m_sql_cmd->sql_command_code() == Lex->sql_command); \
   } while(0)
 
 
@@ -404,6 +405,7 @@ static void init_index_hints(List<Index_hint> *hints, index_hint_type type,
 bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 
 #include "sql/parse_tree_column_attrs.h"
+#include "sql/parse_tree_handler.h"
 #include "sql/parse_tree_items.h"
 #include "sql/parse_tree_nodes.h"
 #include "sql/parse_tree_partitions.h"
@@ -1227,13 +1229,13 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         opt_constraint
         ts_datafile lg_undofile /*lg_redofile*/ opt_logfile_group_name
 
-%type <lex_str_list> TEXT_STRING_sys_list
-
-%type <lex_str_ptr>
+%type <lex_cstr>
         opt_table_alias
 
+%type <lex_str_list> TEXT_STRING_sys_list
+
 %type <table>
-        table_ident table_ident_nodb
+        table_ident
 
 %type <simple_string>
         opt_db password
@@ -1374,7 +1376,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 
 %type <ha_rkey_mode> handler_rkey_mode
 
-%type <ha_read_mode> handler_read_or_scan handler_scan_function
+%type <ha_read_mode> handler_scan_function
         handler_rkey_function
 
 %type <cast_type> cast_type
@@ -1562,8 +1564,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 
 %type <derived_table> derived_table
 
-%type <select_stmt> select_stmt do_stmt select_stmt_with_into
-
 %type <param_marker> param_marker
 
 %type <text_literal> text_literal
@@ -1577,19 +1577,25 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         create_index_stmt
         create_table_stmt
         delete_stmt
+        do_stmt
         drop_index_stmt
         drop_role_stmt
+        explain_stmt
+        explainable_stmt
+        handler_stmt
         insert_stmt
         keycache_stmt
         optimize_table_stmt
         preload_stmt
         repair_table_stmt
         replace_stmt
+        select_stmt
+        select_stmt_with_into
+        set_resource_group_stmt
         set_role_stmt
         shutdown_stmt
         truncate_stmt
         update_stmt
-        set_resource_group_stmt
 
 %type <table_ident> table_ident_opt_wild
 
@@ -1799,6 +1805,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         ts_option_undo_buffer_size
         ts_option_wait
 
+%type <explain_format_type> opt_explain_format_type
+
 %%
 
 /*
@@ -1958,11 +1966,12 @@ simple_statement:
         | drop_user_stmt
         | drop_view_stmt
         | execute
+        | explain_stmt          { MAKE_CMD($1); }
         | flush
         | get_diagnostics
         | group_replication
         | grant
-        | handler
+        | handler_stmt          { MAKE_CMD($1); }
         | help
         | import_stmt
         | insert_stmt           { MAKE_CMD($1); }
@@ -10469,7 +10478,7 @@ derived_table:
               are friendly and give an informative error message instead of
               just 'syntax error'.
             */
-            if ($2 == NULL)
+            if ($2.str == nullptr)
               my_message(ER_DERIVED_MUST_HAVE_ALIAS,
                          ER_THD(YYTHD, ER_DERIVED_MUST_HAVE_ALIAS), MYF(0));
 
@@ -10631,13 +10640,8 @@ opt_as_or_eq:
         ;
 
 opt_table_alias:
-          /* empty */ { $$=0; }
-        | opt_as_or_eq ident
-          {
-            $$= (LEX_STRING*) sql_memdup(&$2,sizeof(LEX_STRING));
-            if ($$ == NULL)
-              MYSQL_YYABORT;
-          }
+          /* empty */        { $$= NULL_CSTR; }
+        | opt_as_or_eq ident { $$= to_lex_cstring($2); }
         ;
 
 opt_all:
@@ -11783,12 +11787,13 @@ profile_def:
 opt_profile_args:
   /* empty */
     {
-      Lex->query_id= 0;
+      Lex->show_profile_query_id= 0;
     }
   | FOR_SYM QUERY_SYM NUM
     {
       int error;
-      Lex->query_id= static_cast<my_thread_id>(my_strtoll10($3.str, NULL, &error));
+      Lex->show_profile_query_id=
+        static_cast<my_thread_id>(my_strtoll10($3.str, NULL, &error));
       if (error != 0)
         MYSQL_YYABORT;
     }
@@ -12083,17 +12088,17 @@ show_param:
           }
         | GRANTS
           {
-            auto *tmp= NEW_PTN PT_show_privileges(0, 0);
+            auto *tmp= NEW_PTN PT_show_grants(0, 0);
             MAKE_CMD(tmp);
           }
         | GRANTS FOR_SYM user
           {
-            auto *tmp= NEW_PTN PT_show_privileges($3, 0);
+            auto *tmp= NEW_PTN PT_show_grants($3, 0);
             MAKE_CMD(tmp);
           }
         | GRANTS FOR_SYM user USING user_list
           {
-            auto *tmp= NEW_PTN PT_show_privileges($3, $5);
+            auto *tmp= NEW_PTN PT_show_grants($3, $5);
             MAKE_CMD(tmp);
           }
         | CREATE DATABASE opt_if_not_exists ident
@@ -12286,29 +12291,24 @@ describe:
             // prepare_schema_dd_view instead of execution stage
             Select->parsing_place= CTX_NONE;
           }
-        | describe_command opt_extended_describe
-          {
-            Lex->describe|= DESCRIBE_NORMAL;
-          }
-          explainable_command
         ;
 
-explainable_command:
-          select_stmt                           { MAKE_CMD($1); }
-        | insert_stmt                           { MAKE_CMD($1); }
-        | replace_stmt                          { MAKE_CMD($1); }
-        | update_stmt                           { MAKE_CMD($1); }
-        | delete_stmt                           { MAKE_CMD($1); }
+explain_stmt:
+          describe_command opt_explain_format_type explainable_stmt
+          {
+            $$= NEW_PTN PT_explain($2, $3);
+          }
+        ;
+
+explainable_stmt:
+          select_stmt
+        | insert_stmt
+        | replace_stmt
+        | update_stmt
+        | delete_stmt
         | FOR_SYM CONNECTION_SYM real_ulong_num
           {
-            Lex->sql_command= SQLCOM_EXPLAIN_OTHER;
-            if (Lex->sphead)
-            {
-              my_error(ER_NOT_SUPPORTED_YET, MYF(0),
-                       "non-standalone EXPLAIN FOR CONNECTION");
-              MYSQL_YYABORT;
-            }
-            Lex->query_id= (my_thread_id)($3);
+            $$= NEW_PTN PT_explain_for_connection(static_cast<my_thread_id>($3));
           }
         ;
 
@@ -12317,24 +12317,17 @@ describe_command:
         | DESCRIBE
         ;
 
-opt_extended_describe:
+opt_explain_format_type:
           /* empty */
           {
-            if ((Lex->explain_format= new (*THR_MALLOC) Explain_format_traditional) == NULL)
-              MYSQL_YYABORT;
+            $$= Explain_format_type::TRADITIONAL;
           }
         | FORMAT_SYM EQ ident_or_text
           {
             if (is_identifier($3, "JSON"))
-            {
-              if ((Lex->explain_format= new (*THR_MALLOC) Explain_format_JSON) == NULL)
-                MYSQL_YYABORT;
-            }
+              $$= Explain_format_type::JSON;
             else if (is_identifier($3, "TRADITIONAL"))
-            {
-              if ((Lex->explain_format= new (*THR_MALLOC) Explain_format_traditional) == NULL)
-                MYSQL_YYABORT;
-            }
+              $$= Explain_format_type::TRADITIONAL;
             else
             {
               my_error(ER_UNKNOWN_EXPLAIN_FORMAT, MYF(0), $3.str);
@@ -13068,16 +13061,6 @@ table_ident_opt_wild:
             $$= NEW_PTN Table_ident(YYTHD->get_protocol(),
                                     to_lex_cstring($1),
                                     to_lex_cstring($3), 0);
-            if ($$ == NULL)
-              MYSQL_YYABORT;
-          }
-        ;
-
-table_ident_nodb:
-          ident
-          {
-            LEX_CSTRING db= { any_db, strlen(any_db) };
-            $$= NEW_PTN Table_ident(YYTHD->get_protocol(), db, to_lex_cstring($1), 0);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
@@ -14120,7 +14103,7 @@ table_lock:
               mdl_lock_type= MDL_SHARED_READ_ONLY;
             }
 
-            if (!Select->add_table_to_list(YYTHD, $1, $2, 0, lock_type,
+            if (!Select->add_table_to_list(YYTHD, $1, $2.str, 0, lock_type,
                                            mdl_lock_type))
               MYSQL_YYABORT;
           }
@@ -14195,91 +14178,48 @@ alter_instance_action:
 ** Handler: direct access to ISAM functions
 */
 
-handler:
+handler_stmt:
           HANDLER_SYM table_ident OPEN_SYM opt_table_alias
           {
-            THD *thd= YYTHD;
-            LEX *lex= Lex;
-            if (lex->sphead)
-            {
-              my_error(ER_SP_BADSTATEMENT, MYF(0), "HANDLER");
-              MYSQL_YYABORT;
-            }
-            lex->sql_command = SQLCOM_HA_OPEN;
-            if (!lex->current_select()->add_table_to_list(thd, $2, $4, 0))
-              MYSQL_YYABORT;
-            lex->m_sql_cmd= NEW_PTN Sql_cmd_handler_open();
-            if (lex->m_sql_cmd == NULL)
-              MYSQL_YYABORT;
+            $$= NEW_PTN PT_handler_open($2, $4);
           }
-        | HANDLER_SYM table_ident_nodb CLOSE_SYM
+        | HANDLER_SYM ident CLOSE_SYM
           {
-            THD *thd= YYTHD;
-            LEX *lex= Lex;
-            if (lex->sphead)
-            {
-              my_error(ER_SP_BADSTATEMENT, MYF(0), "HANDLER");
-              MYSQL_YYABORT;
-            }
-            lex->sql_command = SQLCOM_HA_CLOSE;
-            if (!lex->current_select()->add_table_to_list(thd, $2, 0, 0))
-              MYSQL_YYABORT;
-            lex->m_sql_cmd= NEW_PTN Sql_cmd_handler_close();
-            if (lex->m_sql_cmd == NULL)
-              MYSQL_YYABORT;
+            $$= NEW_PTN PT_handler_close(to_lex_cstring($2));
           }
         | HANDLER_SYM           /* #1 */
-          table_ident_nodb      /* #2 */
+          ident                 /* #2 */
           READ_SYM              /* #3 */
-          {                     /* #4 */
-            LEX *lex=Lex;
-            if (lex->sphead)
-            {
-              my_error(ER_SP_BADSTATEMENT, MYF(0), "HANDLER");
-              MYSQL_YYABORT;
-            }
-            lex->expr_allows_subselect= FALSE;
-            lex->sql_command = SQLCOM_HA_READ;
-            Item *one= NEW_PTN Item_int((int32) 1);
-            if (one == NULL)
-              MYSQL_YYABORT;
-            lex->current_select()->select_limit= one;
-            lex->current_select()->offset_limit= 0;
-            if (!lex->current_select()->add_table_to_list(lex->thd, $2, 0, 0))
-              MYSQL_YYABORT;
+          handler_scan_function /* #4 */
+          opt_where_clause      /* #5 */
+          opt_limit_clause      /* #6 */
+          {
+            $$= NEW_PTN PT_handler_table_scan(to_lex_cstring($2), $4, $5, $6);
           }
-          handler_read_or_scan  /* #5 */
+        | HANDLER_SYM           /* #1 */
+          ident                 /* #2 */
+          READ_SYM              /* #3 */
+          ident                 /* #4 */
+          handler_rkey_function /* #5 */
           opt_where_clause      /* #6 */
           opt_limit_clause      /* #7 */
           {
-            if ($6 != NULL)
-              ITEMIZE($6, &$6);
-            Select->set_where_cond($6);
-
-            if ($7 != NULL)
-              CONTEXTUALIZE($7);
-
-            THD *thd= YYTHD;
-            LEX *lex= Lex;
-            Lex->expr_allows_subselect= TRUE;
-            /* Stored functions are not supported for HANDLER READ. */
-            if (lex->uses_stored_routines())
-            {
-              my_error(ER_NOT_SUPPORTED_YET, MYF(0),
-                       "stored functions in HANDLER ... READ");
-              MYSQL_YYABORT;
-            }
-            lex->m_sql_cmd= NEW_PTN Sql_cmd_handler_read($5,
-                                  lex->ident.str, lex->handler_insert_list,
-                                  thd->m_parser_state->m_yacc.m_ha_rkey_mode);
-            if (lex->m_sql_cmd == NULL)
-              MYSQL_YYABORT;
+            $$= NEW_PTN PT_handler_index_scan(to_lex_cstring($2),
+                                              to_lex_cstring($4), $5, $6, $7);
           }
-        ;
-
-handler_read_or_scan:
-          handler_scan_function       { Lex->ident= null_lex_str; $$=$1; }
-        | ident handler_rkey_function { Lex->ident= $1; $$=$2; }
+        | HANDLER_SYM           /* #1 */
+          ident                 /* #2 */
+          READ_SYM              /* #3 */
+          ident                 /* #4 */
+          handler_rkey_mode     /* #5 */
+          '(' values ')'        /* #6,#7,#8 */
+          opt_where_clause      /* #9 */
+          opt_limit_clause      /* #10 */
+          {
+            $$= NEW_PTN PT_handler_index_range_scan(to_lex_cstring($2),
+                                                    to_lex_cstring($4),
+                                                    $5, $7, $9, $10);
+          }
         ;
 
 handler_scan_function:
@@ -14292,16 +14232,6 @@ handler_rkey_function:
         | NEXT_SYM  { $$= enum_ha_read_modes::RNEXT;  }
         | PREV_SYM  { $$= enum_ha_read_modes::RPREV;  }
         | LAST_SYM  { $$= enum_ha_read_modes::RLAST;  }
-        | handler_rkey_mode
-          {
-            YYTHD->m_parser_state->m_yacc.m_ha_rkey_mode= $1;
-          }
-          '(' values ')'
-          {
-            CONTEXTUALIZE($4);
-            Lex->handler_insert_list= &$4->value;
-            $$= enum_ha_read_modes::RKEY;
-          }
         ;
 
 handler_rkey_mode:
@@ -15222,7 +15152,7 @@ trigger_tail:
               lex->query_tables can be wiped out.
             */
             if (!lex->select_lex->add_table_to_list(thd, $6,
-                                                    (LEX_STRING*) 0,
+                                                    nullptr,
                                                     TL_OPTION_UPDATING,
                                                     TL_READ_NO_INSERT,
                                                     MDL_SHARED_NO_WRITE))

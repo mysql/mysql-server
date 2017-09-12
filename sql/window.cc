@@ -156,7 +156,7 @@ bool Window::check_window_functions(THD *thd, SELECT_LEX *select)
     if (reqs.opt_ll_row.m_rowno != INT_MIN64)
       m_opt_lead_lag.m_offsets.push_back(reqs.opt_ll_row);
 
-    if (thd->lex->describe && m_frame != nullptr && !wfs->framing())
+    if (thd->lex->is_explain() && m_frame != nullptr && !wfs->framing())
     {
       /*
         SQL2014 <window clause> SR6b: functions which do not respect frames

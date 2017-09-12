@@ -106,7 +106,7 @@ public:
   {}
 
   enum_sql_command sql_command_code() const override
-  { return lex->sql_command; }
+  { return multitable ? SQLCOM_DELETE_MULTI : SQLCOM_DELETE; }
 
   bool is_single_table_plan() const override { return !multitable; }
 
