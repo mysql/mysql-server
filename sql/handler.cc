@@ -5773,7 +5773,7 @@ bool default_rm_tmp_tables(handlerton *hton, THD *thd, List<LEX_STRING> *files)
 }
 
 
-void st_ha_check_opt::init()
+void HA_CHECK_OPT::init()
 {
   flags= sql_flags= 0;
 }

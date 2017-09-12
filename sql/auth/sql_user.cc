@@ -1348,7 +1348,7 @@ bool change_password(THD *thd, const char *host, const char *user,
   DBUG_ASSERT(acl_user->plugin.length != 0);
   is_role= acl_user->is_role;
 
-  if (!(combo=(LEX_USER*) thd->alloc(sizeof(st_lex_user))))
+  if (!(combo=(LEX_USER*) thd->alloc(sizeof(LEX_USER))))
     DBUG_RETURN(true);
 
   combo->user.str= user;

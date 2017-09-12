@@ -405,7 +405,7 @@ enum enum_base64_output_mode {
   2. Other information on how to print the events, e.g. short_form,
      hexdump_from.  These are not dependent on the last event.
 */
-typedef struct st_print_event_info
+struct PRINT_EVENT_INFO
 {
   /*
     Settings for database, sql_mode etc that comes from the last event
@@ -427,9 +427,9 @@ typedef struct st_print_event_info
   my_thread_id thread_id;
   bool thread_id_printed;
 
-  st_print_event_info();
+  PRINT_EVENT_INFO();
 
-  ~st_print_event_info() {
+  ~PRINT_EVENT_INFO() {
     close_cached_file(&head_cache);
     close_cached_file(&body_cache);
     close_cached_file(&footer_cache);
@@ -485,7 +485,7 @@ typedef struct st_print_event_info
   bool skipped_event_in_transaction;
 
   bool print_table_metadata;
-} PRINT_EVENT_INFO;
+};
 #endif
 
 /*

@@ -49,7 +49,7 @@ class Opt_trace_context;
 class Opt_trace_object;
 class QEP_TAB;
 class QUICK_SELECT_I;
-struct st_cache_field;
+struct CACHE_FIELD;
 struct st_join_table;
 template <class T> class List;
 
@@ -644,7 +644,7 @@ public:
     we cannot bind to the rowid buffer before the table has been opened.
   */
   bool keep_current_rowid;
-  st_cache_field *copy_current_rowid;
+  CACHE_FIELD *copy_current_rowid;
 
   /** TRUE <=> remove duplicates on this table. */
   bool distinct;

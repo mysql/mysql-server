@@ -58,7 +58,8 @@ class Opt_trace_context;
 class THD;
 class Unique;
 
-typedef struct st_key_part {
+struct KEY_PART
+{
   uint16           key,part;
   /* See KEY_PART_INFO for meaning of the next two: */
   uint16           store_length, length;
@@ -70,7 +71,7 @@ typedef struct st_key_part {
   uint16 flag;
   Field            *field;
   Field::imagetype image_type;
-} KEY_PART;
+};
 
 
 class QUICK_RANGE :public Sql_alloc {
@@ -438,12 +439,12 @@ typedef Prealloced_array<QUICK_RANGE*, 16> Quick_ranges;
   MRR range sequence, array<QUICK_RANGE> implementation: sequence traversal
   context.
 */
-typedef struct st_quick_range_seq_ctx
+struct QUICK_RANGE_SEQ_CTX
 {
   Quick_ranges::const_iterator first;
   Quick_ranges::const_iterator cur;
   Quick_ranges::const_iterator last;
-} QUICK_RANGE_SEQ_CTX;
+};
 
 range_seq_t quick_range_seq_init(void *init_param, uint n_ranges, uint flags);
 uint quick_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range);

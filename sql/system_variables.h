@@ -32,7 +32,7 @@ class MY_LOCALE;
 class Time_zone;
 
 typedef ulonglong sql_mode_t;
-typedef struct st_list LIST;
+struct LIST;
 typedef struct charset_info_st CHARSET_INFO;
 
 // Values for binlog_format sysvar

@@ -29,7 +29,7 @@
 class MYSQL_BIN_LOG;
 class THD;
 
-typedef struct st_bitmap MY_BITMAP;
+struct MY_BITMAP;
 
 
 /*

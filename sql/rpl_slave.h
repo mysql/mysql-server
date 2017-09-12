@@ -41,11 +41,11 @@ class Master_info;
 class Relay_log_info;
 class THD;
 
-typedef struct st_bitmap MY_BITMAP;
-typedef struct st_lex_master_info LEX_MASTER_INFO;
-typedef struct st_list LIST;
-typedef struct st_mysql MYSQL;
-typedef struct st_net NET;
+struct MY_BITMAP;
+struct LEX_MASTER_INFO;
+struct LIST;
+struct MYSQL;
+struct NET;
 typedef struct struct_slave_connection LEX_SLAVE_CONNECTION;
 
 typedef enum { SLAVE_THD_IO, SLAVE_THD_SQL, SLAVE_THD_WORKER } SLAVE_THD_TYPE;

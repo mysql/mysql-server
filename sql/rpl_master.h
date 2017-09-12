@@ -33,7 +33,7 @@ extern int max_binlog_dump_events;
 extern bool opt_sporadic_binlog_dump_fail;
 extern bool opt_show_slave_auth_info;
 
-typedef struct st_slave_info
+struct SLAVE_INFO
 {
   uint32 server_id;
   uint32 rpl_recovery_rank, master_id;
@@ -42,7 +42,7 @@ typedef struct st_slave_info
   char password[MAX_PASSWORD_LENGTH+1];
   uint16 port;
   THD* thd;
-} SLAVE_INFO;
+};
 
 void init_slave_list();
 void end_slave_list();

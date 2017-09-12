@@ -320,14 +320,14 @@ C_MODE_START
 static int print_key_cache_status(const char *name, KEY_CACHE *key_cache);
 C_MODE_END
 
-typedef struct st_debug_lock
+struct TABLE_LOCK_INFO
 {
   my_thread_id thread_id;
   char table_name[FN_REFLEN];
   bool waiting;
   const char *lock_text;
   enum thr_lock_type type;
-} TABLE_LOCK_INFO;
+};
 
 typedef Prealloced_array<TABLE_LOCK_INFO, 20> Saved_locks_array;
 

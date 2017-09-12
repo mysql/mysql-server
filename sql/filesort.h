@@ -30,7 +30,7 @@ class Field;
 class QEP_TAB;
 class THD;
 struct TABLE;
-struct st_order;
+struct ORDER;
 struct st_sort_field;
 
 enum class Addon_fields_status;
@@ -44,7 +44,7 @@ public:
   /// The QEP entry for the table to be sorted
   QEP_TAB *const tab;
   /// List of expressions to order the table by
-  st_order *order;
+  ORDER *order;
   /// Maximum number of rows to return
   ha_rows limit;
   /// ORDER BY list with some precalculated info for filesort
@@ -56,11 +56,11 @@ public:
   /// Addon fields descriptor
   Addon_fields *addon_fields;
 
-  Filesort(QEP_TAB *tab_arg, st_order *order_arg, ha_rows limit_arg):
+  Filesort(QEP_TAB *tab_arg, ORDER *order_arg, ha_rows limit_arg):
     Filesort(tab_arg, order_arg, limit_arg, false)
   {}
 
-  Filesort(QEP_TAB *tab_arg, st_order *order_arg, ha_rows limit_arg,
+  Filesort(QEP_TAB *tab_arg, ORDER *order_arg, ha_rows limit_arg,
            bool force_stable_sort):
     tab(tab_arg),
     order(order_arg),

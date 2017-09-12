@@ -3613,7 +3613,7 @@ protected:
 public:
   explicit PT_role_or_privilege(const POS &pos) : pos(pos) {}
 
-  virtual st_lex_user *get_user(THD *thd)
+  virtual LEX_USER *get_user(THD *thd)
   {
     thd->syntax_error_at(pos, "Illegal authorization identifier");
     return NULL;
@@ -3637,8 +3637,8 @@ public:
   : PT_role_or_privilege(pos), role(role), host(host)
   {}
 
-  st_lex_user *get_user(THD *thd) override
-  { return st_lex_user::alloc(thd, &role, &host); }
+  LEX_USER *get_user(THD *thd) override
+  { return LEX_USER::alloc(thd, &role, &host); }
 };
 
 
@@ -3651,8 +3651,8 @@ public:
   : PT_role_or_privilege(pos), ident(ident)
   {}
 
-  st_lex_user *get_user(THD *thd) override
-  { return st_lex_user::alloc(thd, &ident, NULL); }
+  LEX_USER *get_user(THD *thd) override
+  { return LEX_USER::alloc(thd, &ident, NULL); }
 
   Privilege *get_privilege(THD *thd) override
   { return new(thd->mem_root) Dynamic_privilege(ident, NULL); }
@@ -3713,7 +3713,7 @@ public:
       return NULL; // OOM
     for (PT_role_or_privilege *r : *roles)
     {
-      st_lex_user *user= r->get_user(thd);
+      LEX_USER *user= r->get_user(thd);
       if (r == NULL || role_objects->push_back(user))
         return NULL;
     }
@@ -3744,7 +3744,7 @@ public:
       return NULL; // OOM
     for (PT_role_or_privilege *r : *roles)
     {
-      st_lex_user *user= r->get_user(thd);
+      LEX_USER *user= r->get_user(thd);
       if (r == NULL || role_objects->push_back(user))
         return NULL;
     }

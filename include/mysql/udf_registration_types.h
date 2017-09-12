@@ -33,7 +33,7 @@ enum Item_result
   DECIMAL_RESULT      /** char *, to be converted to/from a decimal */
 };
 
-typedef struct st_udf_args
+typedef struct UDF_ARGS
 {
   unsigned int arg_count;		/**< Number of arguments */
   enum Item_result *arg_type;	        /**< Pointer to item_results */
@@ -52,7 +52,7 @@ Information about the result of a user defined function
 
 @sa Item_udf_func::update_used_tables()
 */
-typedef struct st_udf_init
+typedef struct UDF_INIT
 {
   bool maybe_null;             /** 1 if function can return NULL */
   unsigned int decimals;       /** for real functions */

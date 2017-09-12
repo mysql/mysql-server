@@ -43,7 +43,7 @@ template <class T> class List;
 typedef struct st_columndef MI_COLUMNDEF;
 class KEY;
 
-typedef struct st_order ORDER;
+struct ORDER;
 
 
 /*

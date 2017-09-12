@@ -384,13 +384,13 @@ typedef Mem_root_array<ORDER*> Group_list_ptrs;
   would better be renamed to st_lex_replication_info).  Some fields,
   e.g., delay, are saved in Relay_log_info, not in Master_info.
 */
-typedef struct st_lex_master_info
+struct LEX_MASTER_INFO
 {
   /*
     The array of IGNORE_SERVER_IDS has a preallocation, and is not expected
     to grow to any significant size, so no instrumentation.
   */
-  st_lex_master_info()
+  LEX_MASTER_INFO()
     : repl_ignore_server_ids(PSI_NOT_INSTRUMENTED)
   {
     initialize();
@@ -428,14 +428,14 @@ typedef struct st_lex_master_info
   void set_unspecified();
 private:
   // Not copyable or assignable.
-  st_lex_master_info(const st_lex_master_info&);
-  st_lex_master_info &operator=(const st_lex_master_info&);
-} LEX_MASTER_INFO;
+  LEX_MASTER_INFO(const LEX_MASTER_INFO&);
+  LEX_MASTER_INFO &operator=(const LEX_MASTER_INFO&);
+};
 
-typedef struct st_lex_reset_slave
+struct LEX_RESET_SLAVE
 {
   bool all;
-} LEX_RESET_SLAVE;
+};
 
 enum sub_select_type
 {

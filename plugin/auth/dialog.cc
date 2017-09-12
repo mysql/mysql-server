@@ -252,7 +252,7 @@ mysql_declare_plugin_end;
                         In all other cases it is assumed to be an allocated
                         string, and the "dialog" plugin will free() it.
 */
-typedef char *(*mysql_authentication_dialog_ask_t)(struct st_mysql *mysql,
+typedef char *(*mysql_authentication_dialog_ask_t)(MYSQL *mysql,
                       int type, const char *prompt, char *buf, int buf_len);
 
 static mysql_authentication_dialog_ask_t ask;

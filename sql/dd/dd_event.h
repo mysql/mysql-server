@@ -24,7 +24,7 @@
 class Event_parse_data;
 class THD;
 
-typedef struct st_lex_user LEX_USER;
+struct LEX_USER;
 
 using sql_mode_t= ulonglong;
 

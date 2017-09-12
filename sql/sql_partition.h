@@ -42,8 +42,8 @@ struct TABLE_LIST;
 struct TABLE_SHARE;
 
 typedef struct charset_info_st CHARSET_INFO;
-typedef struct st_bitmap MY_BITMAP;
-typedef struct st_ha_create_information HA_CREATE_INFO;
+struct MY_BITMAP;
+struct HA_CREATE_INFO;
 class KEY;
 
 typedef struct st_key_range key_range;

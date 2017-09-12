@@ -95,7 +95,7 @@ struct st_mysql_client_plugin
   MYSQL_CLIENT_PLUGIN_HEADER
 };
 
-struct st_mysql;
+struct MYSQL;
 
 /******** authentication plugin specific declarations *********/
 #include "plugin_auth_common.h"
@@ -103,7 +103,7 @@ struct st_mysql;
 struct st_mysql_client_plugin_AUTHENTICATION
 {
   MYSQL_CLIENT_PLUGIN_HEADER
-  int (*authenticate_user)(MYSQL_PLUGIN_VIO *vio, struct st_mysql *mysql);
+  int (*authenticate_user)(MYSQL_PLUGIN_VIO *vio, struct MYSQL *mysql);
 };
 
 /******** using plugins ************/
@@ -122,7 +122,7 @@ struct st_mysql_client_plugin_AUTHENTICATION
   a pointer to the loaded plugin, or NULL in case of a failure
 */
 struct st_mysql_client_plugin *
-mysql_load_plugin(struct st_mysql *mysql, const char *name, int type,
+mysql_load_plugin(struct MYSQL *mysql, const char *name, int type,
                   int argc, ...);
 
 /**
@@ -142,7 +142,7 @@ mysql_load_plugin(struct st_mysql *mysql, const char *name, int type,
   a pointer to the loaded plugin, or NULL in case of a failure
 */
 struct st_mysql_client_plugin *
-mysql_load_plugin_v(struct st_mysql *mysql, const char *name, int type,
+mysql_load_plugin_v(struct MYSQL *mysql, const char *name, int type,
                     int argc, va_list args);
 
 /**
@@ -156,7 +156,7 @@ mysql_load_plugin_v(struct st_mysql *mysql, const char *name, int type,
   a pointer to the plugin, or NULL in case of a failure
 */
 struct st_mysql_client_plugin *
-mysql_client_find_plugin(struct st_mysql *mysql, const char *name, int type);
+mysql_client_find_plugin(struct MYSQL *mysql, const char *name, int type);
 
 /**
   adds a plugin structure to the list of loaded plugins
@@ -173,7 +173,7 @@ mysql_client_find_plugin(struct st_mysql *mysql, const char *name, int type);
   a pointer to the plugin, or NULL in case of a failure
 */
 struct st_mysql_client_plugin *
-mysql_client_register_plugin(struct st_mysql *mysql,
+mysql_client_register_plugin(struct MYSQL *mysql,
                              struct st_mysql_client_plugin *plugin);
 
 /**

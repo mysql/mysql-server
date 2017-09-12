@@ -27,10 +27,10 @@
 #include "my_inttypes.h"
 
 typedef void (*before_header_callback_fn)
-  (struct st_net *net, void *user_data, size_t count);
+  (NET *net, void *user_data, size_t count);
 
 typedef void (*after_header_callback_fn)
-  (struct st_net *net, void *user_data, size_t count, bool rc);
+  (NET *net, void *user_data, size_t count, bool rc);
 
 struct st_net_server
 {

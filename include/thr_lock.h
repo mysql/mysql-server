@@ -36,7 +36,7 @@ extern mysql_mutex_t THR_LOCK_lock;
 extern "C" {
 #endif
 
-struct st_thr_lock;
+struct THR_LOCK;
 
 extern ulong locks_immediate,locks_waited ;
 
@@ -108,29 +108,31 @@ extern enum thr_lock_type thr_upgraded_concurrent_insert_lock;
   of an instance of this structure is used to uniquely identify the thread.
 */
 
-typedef struct st_thr_lock_info
+struct THR_LOCK_INFO
 {
   my_thread_id thread_id;
   mysql_cond_t *suspend;
-} THR_LOCK_INFO;
+};
 
 
-typedef struct st_thr_lock_data {
+struct THR_LOCK_DATA
+{
   THR_LOCK_INFO *owner;
-  struct st_thr_lock_data *next,**prev;
-  struct st_thr_lock *lock;
+  THR_LOCK_DATA *next,**prev;
+  THR_LOCK *lock;
   mysql_cond_t *cond;
   enum thr_lock_type type;
   void *status_param;			/* Param to status functions */
   void *debug_print_param;
   struct PSI_table *m_psi;
-} THR_LOCK_DATA;
+};
 
 struct st_lock_list {
   THR_LOCK_DATA *data,**last;
 };
 
-typedef struct st_thr_lock {
+struct THR_LOCK
+{
   LIST list;
   mysql_mutex_t mutex;
   struct st_lock_list read_wait;
@@ -145,7 +147,7 @@ typedef struct st_thr_lock {
   void (*update_status)(void*);		/* Before release of write */
   void (*restore_status)(void*);         /* Before release of read */
   bool (*check_status)(void *);
-} THR_LOCK;
+};
 
 
 extern LIST *thr_lock_thread_list;

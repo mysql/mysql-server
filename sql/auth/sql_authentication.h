@@ -38,7 +38,7 @@ typedef struct st_mysql_show_var SHOW_VAR;
 class ACL_USER;
 class Protocol_classic;
 
-typedef struct st_net NET;
+struct NET;
 
 /* Classes */
 

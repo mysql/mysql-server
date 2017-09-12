@@ -119,7 +119,7 @@ struct st_ftb_expr
   uint      yweaks;               /* number of "yes" words for scan only */
 };
 
-typedef struct st_ftb_word
+struct FTB_WORD
 {
   FTB_EXPR  *up;
   uint       flags;
@@ -128,13 +128,13 @@ typedef struct st_ftb_word
   my_off_t   key_root;
   FTB_EXPR  *max_docid_expr;
   MI_KEYDEF *keyinfo;
-  struct st_ftb_word *prev;
+  FTB_WORD *prev;
   float      weight;
   uint       ndepth;
   uint       len;
   uchar      off;
   uchar      word[1];
-} FTB_WORD;
+};
 
 struct FTB : public FT_INFO
 {
@@ -167,13 +167,13 @@ static int FTB_WORD_cmp(my_off_t *v, FTB_WORD *a, FTB_WORD *b)
   return i;
 }
 
-typedef struct st_my_ftb_param
+struct MY_FTB_PARAM
 {
   FTB *ftb;
   FTB_EXPR *ftbe;
   uchar *up_quot;
   uint depth;
-} MY_FTB_PARAM;
+};
 
 
 static int ftb_query_add_word(MYSQL_FTPARSER_PARAM *param,
@@ -635,7 +635,7 @@ err:
 }
 
 
-typedef struct st_my_ftb_phrase_param
+struct MY_FTB_PHRASE_PARAM
 {
   LIST *phrase;
   LIST *document;
@@ -643,7 +643,7 @@ typedef struct st_my_ftb_phrase_param
   uint phrase_length;
   uint document_length;
   uint match;
-} MY_FTB_PHRASE_PARAM;
+};
 
 
 static int ftb_phrase_add_word(MYSQL_FTPARSER_PARAM *param,
@@ -904,11 +904,11 @@ err:
 }
 
 
-typedef struct st_my_ftb_find_param
+struct MY_FTB_FIND_PARAM
 {
   FTB *ftb;
   FT_SEG_ITERATOR *ftsi;
-} MY_FTB_FIND_PARAM;
+};
 
 
 static int ftb_find_relevance_add_word(MYSQL_FTPARSER_PARAM *param,

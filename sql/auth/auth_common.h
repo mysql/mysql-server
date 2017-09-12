@@ -43,8 +43,8 @@ class THD;
 template <class T> class List;
 
 typedef struct st_grant_internal_info GRANT_INTERNAL_INFO;
-typedef struct st_lex_user LEX_USER;
-typedef struct st_ha_create_information HA_CREATE_INFO;
+struct LEX_USER;
+struct HA_CREATE_INFO;
 class Item;
 struct GRANT_INFO;
 

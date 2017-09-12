@@ -138,7 +138,7 @@ enum enum_ft_token_type
   FT_TOKEN_RIGHT_PAREN= 3,
   FT_TOKEN_STOPWORD= 4
 };
-typedef struct st_mysql_ftparser_boolean_info
+struct MYSQL_FTPARSER_BOOLEAN_INFO
 {
   enum enum_ft_token_type type;
   int yesno;
@@ -148,12 +148,12 @@ typedef struct st_mysql_ftparser_boolean_info
   int position;
   char prev;
   char *quot;
-} MYSQL_FTPARSER_BOOLEAN_INFO;
-typedef struct st_mysql_ftparser_param
+};
+struct MYSQL_FTPARSER_PARAM
 {
-  int (*mysql_parse)(struct st_mysql_ftparser_param *,
+  int (*mysql_parse)(MYSQL_FTPARSER_PARAM *,
                      char *doc, int doc_len);
-  int (*mysql_add_word)(struct st_mysql_ftparser_param *,
+  int (*mysql_add_word)(MYSQL_FTPARSER_PARAM *,
                         char *word, int word_len,
                         MYSQL_FTPARSER_BOOLEAN_INFO *boolean_info);
   void *ftparser_state;
@@ -163,7 +163,7 @@ typedef struct st_mysql_ftparser_param
   int length;
   int flags;
   enum enum_ftparser_mode mode;
-} MYSQL_FTPARSER_PARAM;
+};
 struct st_mysql_ftparser
 {
   int interface_version;

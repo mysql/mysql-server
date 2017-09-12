@@ -2869,7 +2869,7 @@ extern ST_SCHEMA_TABLE schema_tables[];
   When the query contain a TABLE_SCHEMA or TABLE_NAME clause,
   narrow the search for data based on the constraints given.
 */
-typedef struct st_lookup_field_values
+struct LOOKUP_FIELD_VALUES
 {
   /**
     Value of a TABLE_SCHEMA clause.
@@ -2893,7 +2893,7 @@ typedef struct st_lookup_field_values
     false when @c table_value is an '=' clause.
   */
   bool wild_table_value;
-} LOOKUP_FIELD_VALUES;
+};
 
 /*
   Store record to I_S table, convert HEAP table

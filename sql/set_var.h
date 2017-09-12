@@ -52,7 +52,7 @@ class Time_zone;
 class set_var;
 class sys_var;
 class sys_var_pluginvar;
-struct st_lex_user;
+struct LEX_USER;
 template <class Key, class Value> class collation_unordered_map;
 
 typedef ulonglong sql_mode_t;
@@ -395,10 +395,10 @@ public:
 
 class set_var_password: public set_var_base
 {
-  st_lex_user *user;
+  LEX_USER *user;
   char *password;
 public:
-  set_var_password(st_lex_user *user_arg,char *password_arg)
+  set_var_password(LEX_USER *user_arg,char *password_arg)
     :user(user_arg), password(password_arg)
   {}
   int resolve(THD*) { return 0; }

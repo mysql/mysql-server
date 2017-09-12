@@ -106,7 +106,8 @@ extern char *mysql_unix_port;
 #define IS_LONGDATA(t) ((t) >= MYSQL_TYPE_TINY_BLOB && (t) <= MYSQL_TYPE_STRING)
 
 
-typedef struct st_mysql_field {
+typedef struct MYSQL_FIELD
+{
   char *name;                 /* Name of column */
   char *org_name;             /* Original column name, if an alias */
   char *table;                /* Table of column if column was a field */
@@ -138,8 +139,9 @@ typedef unsigned int MYSQL_FIELD_OFFSET; /* offset to current field */
 /* backward compatibility define - to be removed eventually */
 #define ER_WARN_DATA_TRUNCATED WARN_DATA_TRUNCATED
 
-typedef struct st_mysql_rows {
-  struct st_mysql_rows *next;		/* list of rows */
+typedef struct MYSQL_ROWS
+{
+  struct MYSQL_ROWS *next;		/* list of rows */
   MYSQL_ROW data;
   unsigned long length;
 } MYSQL_ROWS;
@@ -149,7 +151,8 @@ typedef MYSQL_ROWS *MYSQL_ROW_OFFSET;	/* offset to current row */
 struct MEM_ROOT;
 
 typedef struct embedded_query_result EMBEDDED_QUERY_RESULT;
-typedef struct st_mysql_data {
+typedef struct MYSQL_DATA
+{
   MYSQL_ROWS *data;
   struct embedded_query_result *embedded_info;
   struct MEM_ROOT *alloc;
@@ -271,10 +274,10 @@ typedef struct character_set
   unsigned int      mbmaxlen;   /* max. length for multibyte strings */
 } MY_CHARSET_INFO;
 
-struct st_mysql_methods;
-struct st_mysql_stmt;
+struct MYSQL_METHODS;
+struct MYSQL_STMT;
 
-typedef struct st_mysql
+typedef struct MYSQL
 {
   NET		net;			/* Communication parameters */
   unsigned char	*connector_fd;		/* ConnectorFd for SSL */
@@ -307,7 +310,7 @@ typedef struct st_mysql
   void *unused2, *unused3, *unused4, *unused5;
 
   LIST  *stmts;                     /* list of all statements */
-  const struct st_mysql_methods *methods;
+  const struct MYSQL_METHODS *methods;
   void *thd;
   /*
     Points to boolean flag in MYSQL_RES  or MYSQL_STMT. We set this flag 
@@ -320,14 +323,15 @@ typedef struct st_mysql
 } MYSQL;
 
 
-typedef struct st_mysql_res {
+typedef struct MYSQL_RES
+{
   my_ulonglong  row_count;
   MYSQL_FIELD	*fields;
-  MYSQL_DATA	*data;
+  struct MYSQL_DATA	*data;
   MYSQL_ROWS	*data_cursor;
   unsigned long *lengths;		/* column lengths of current row */
   MYSQL		*handle;		/* for unbuffered reads */
-  const struct st_mysql_methods *methods;
+  const struct MYSQL_METHODS *methods;
   MYSQL_ROW	row;			/* If unbuffered read */
   MYSQL_ROW	current_row;		/* buffer to current row */
   struct MEM_ROOT *field_alloc;
@@ -356,7 +360,8 @@ typedef struct st_mysql_res {
   @sa mysql_binlog_fetch()
   @sa mysql_binlog_close()
 */
-typedef struct st_mysql_rpl {
+typedef struct MYSQL_RPL
+{
   size_t              file_name_length;  /** Length of the 'file_name' or 0     */
   const char          *file_name;        /** Filename of the binary log to read */
   my_ulonglong        start_position;    /** Position in the binary log to      */
@@ -370,7 +375,7 @@ typedef struct st_mysql_rpl {
                                           /** Callback function which is called  */
                                          /*  from @sa mysql_binlog_open() to    */
                                          /*  fill command packet gtid set       */
-  void                (*fix_gtid_set)(struct st_mysql_rpl *rpl,
+  void                (*fix_gtid_set)(struct MYSQL_RPL *rpl,
                                       unsigned char *packet_gtid_set);
   void                *gtid_set_arg;     /** GTID set data or an argument for   */
                                          /*  fix_gtid_set() callback function   */
@@ -623,7 +628,7 @@ enum enum_mysql_stmt_state
   Please note that MYSQL_BIND also has internals members.
 */
 
-typedef struct st_mysql_bind
+typedef struct MYSQL_BIND
 {
   unsigned long	*length;          /* output length pointer */
   bool          *is_null;	  /* Pointer to null indicator */
@@ -631,10 +636,10 @@ typedef struct st_mysql_bind
   /* set this if you want to track data truncations happened during fetch */
   bool          *error;
   unsigned char *row_ptr;         /* for the current data position */
-  void (*store_param_func)(NET *net, struct st_mysql_bind *param);
-  void (*fetch_result)(struct st_mysql_bind *, MYSQL_FIELD *,
+  void (*store_param_func)(NET *net, struct MYSQL_BIND *param);
+  void (*fetch_result)(struct MYSQL_BIND *, MYSQL_FIELD *,
                        unsigned char **row);
-  void (*skip_result)(struct st_mysql_bind *, MYSQL_FIELD *,
+  void (*skip_result)(struct MYSQL_BIND *, MYSQL_FIELD *,
 		      unsigned char **row);
   /* output buffer length, must be set when fetching str/binary */
   unsigned long buffer_length;
@@ -651,10 +656,10 @@ typedef struct st_mysql_bind
 } MYSQL_BIND;
 
 
-struct st_mysql_stmt_extension;
+struct MYSQL_STMT_EXT;
 
 /* statement handler */
-typedef struct st_mysql_stmt
+typedef struct MYSQL_STMT
 {
   struct MEM_ROOT *mem_root;             /* root allocations */
   LIST           list;                 /* list to keep track of all stmts */
@@ -668,7 +673,7 @@ typedef struct st_mysql_stmt
     mysql_stmt_fetch() calls this function to fetch one row (it's different
     for buffered, unbuffered and cursor fetch).
   */
-  int            (*read_row_func)(struct st_mysql_stmt *stmt, 
+  int            (*read_row_func)(struct MYSQL_STMT *stmt, 
                                   unsigned char **row);
   /* copy of mysql->affected_rows after statement execution */
   my_ulonglong   affected_rows;
@@ -698,7 +703,7 @@ typedef struct st_mysql_stmt
     metadata fields when doing mysql_stmt_store_result.
   */
   bool           update_max_length;     
-  struct st_mysql_stmt_extension *extension;
+  struct MYSQL_STMT_EXT *extension;
 } MYSQL_STMT;
 
 enum enum_stmt_attr_type

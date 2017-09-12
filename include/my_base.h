@@ -1114,13 +1114,13 @@ typedef struct st_key_range
   enum ha_rkey_function flag;
 } key_range;
 
-typedef struct st_key_multi_range
+struct KEY_MULTI_RANGE
 {
   key_range start_key;
   key_range end_key;
   char  *ptr;                 /* Free to use by caller (ptr to row etc) */
   uint  range_flag;           /* key range flags see above */
-} KEY_MULTI_RANGE;
+};
 
 
 /* For number of records */

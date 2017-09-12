@@ -50,15 +50,17 @@ typedef int (*tree_walk_action)(void *,element_count,void *);
 typedef enum { free_init, free_free, free_end } TREE_FREE;
 typedef void (*tree_element_free)(void*, TREE_FREE, const void *);
 
-typedef struct st_tree_element {
-  struct st_tree_element *left,*right;
+struct TREE_ELEMENT
+{
+  TREE_ELEMENT *left,*right;
   uint32 count:31,
 	 colour:1;			/* black is marked as 1 */
-} TREE_ELEMENT;
+};
 
 #define ELEMENT_CHILD(element, offs) (*(TREE_ELEMENT**)((char*)element + offs))
 
-typedef struct st_tree {
+struct TREE
+{
   TREE_ELEMENT *root,null_element;
   TREE_ELEMENT **parents[MAX_TREE_HEIGHT];
   uint offset_to_key,elements_in_tree,size_of_element;
@@ -69,7 +71,7 @@ typedef struct st_tree {
   bool with_delete;
   tree_element_free free;
   uint flag;
-} TREE;
+};
 
 	/* Functions on whole tree */
 void init_tree(TREE *tree, size_t default_alloc_size, ulong memory_limit,

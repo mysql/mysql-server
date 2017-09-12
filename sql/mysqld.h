@@ -72,7 +72,7 @@ class Time_zone;
 struct handlerton;
 
 typedef struct st_mysql_show_var SHOW_VAR;
-typedef struct st_bitmap MY_BITMAP;
+struct MY_BITMAP;
 typedef struct charset_info_st CHARSET_INFO;
 
 #if MAX_INDEXES <= 64

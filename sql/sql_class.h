@@ -151,9 +151,9 @@ class Time_zone;
 class sp_cache;
 struct Binlog_user_var_event;
 
-typedef struct st_log_info LOG_INFO;
+struct LOG_INFO;
 typedef struct user_conn USER_CONN;
-typedef struct st_mysql_lock MYSQL_LOCK;
+struct MYSQL_LOCK;
 
 #define thd_proc_info(thd, msg) \
   set_thd_proc_info(thd, msg, __func__, __FILE__, __LINE__)

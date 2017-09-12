@@ -71,7 +71,7 @@ struct st_mysql_client_plugin_TRACE *trace_plugin= NULL;
   structure which is then attached to the connection handle.
 */
 
-void mysql_trace_start(struct st_mysql *m)
+void mysql_trace_start(MYSQL *m)
 {
   struct st_mysql_trace_info *trace_info;
 
@@ -132,7 +132,7 @@ void mysql_trace_start(struct st_mysql *m)
   @param args     trace event arguments
 */
 
-void mysql_trace_trace(struct st_mysql  *m,
+void mysql_trace_trace(MYSQL  *m,
                        enum trace_event ev,
                        struct st_trace_event_args args)
 {

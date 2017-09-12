@@ -5348,7 +5348,7 @@ fts_get_token_size(
 
 /*************************************************************//**
 FTS plugin parser 'myql_parser' callback function for document tokenize.
-Refer to 'st_mysql_ftparser_param' for more detail.
+Refer to 'MYSQL_FTPARSER_PARAM' for more detail.
 @return always returns 0 */
 int
 fts_tokenize_document_internal(
@@ -5394,7 +5394,7 @@ fts_tokenize_document_internal(
 
 /******************************************************************//**
 FTS plugin parser 'myql_add_word' callback function for document tokenize.
-Refer to 'st_mysql_ftparser_param' for more detail.
+Refer to 'MYSQL_FTPARSER_PARAM' for more detail.
 @return always returns 0 */
 static
 int

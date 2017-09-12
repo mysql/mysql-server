@@ -37,7 +37,7 @@
 #undef my_write
 #endif
 
-typedef struct st_mi_status_info
+struct MI_STATUS_INFO
 {
   ha_rows records;			/* Rows in table */
   ha_rows del;				/* Removed rows */
@@ -47,9 +47,9 @@ typedef struct st_mi_status_info
   my_off_t data_file_length;
   ha_checksum checksum;
   bool uncacheable;                  /* Active concurrent insert */
-} MI_STATUS_INFO;
+};
 
-typedef struct st_mi_state_info
+struct MI_STATE_INFO
 {
   struct {				/* Fileheader */
     uchar file_version[4];
@@ -97,7 +97,7 @@ typedef struct st_mi_state_info
   uint state_diff_length;		/* Should be 0 */
   uint	state_length;			/* Length of state header in file */
   ulong *key_info;
-} MI_STATE_INFO;
+};
 
 #define MI_STATE_INFO_SIZE	(24+14*8+7*4+2*2+8)
 #define MI_STATE_KEY_SIZE	8
@@ -111,7 +111,7 @@ typedef struct st_mi_state_info
 #define MI_BASE_INFO_SIZE	(5*8 + 8*4 + 4 + 4*2 + 16)
 #define MI_INDEX_BLOCK_MARGIN	16	/* Safety margin for .MYI tables */
 
-typedef struct st_mi_base_info
+struct MI_BASE_INFO
 {
   my_off_t keystart;			/* Start of keys */
   my_off_t max_data_file_length;
@@ -139,7 +139,7 @@ typedef struct st_mi_base_info
   uint extra_alloc_procent;
   /* The following are from the header */
   uint key_parts,all_key_parts;
-} MI_BASE_INFO;
+};
 
 
 	/* Structs used intern in database */
@@ -152,15 +152,17 @@ typedef struct st_mi_blob		/* Info of record */
 } MI_BLOB;
 
 
-typedef struct st_mi_isam_pack {
+struct MI_PACK
+{
   ulong header_length;
   uint ref_length;
   uchar version;
-} MI_PACK;
+};
 
 #define MAX_NONMAPPED_INSERTS 1000      
 
-typedef struct st_mi_isam_share {	/* Shared between opens */
+struct MYISAM_SHARE
+{	/* Shared between opens */
   MI_STATE_INFO state;
   MI_BASE_INFO base;
   MI_KEYDEF  ft2_keyinfo;		/* Second-level ft-key definition */
@@ -225,16 +227,17 @@ typedef struct st_mi_isam_share {	/* Shared between opens */
   uint     nonmmaped_inserts;           /* counter of writing in non-mmaped
                                            area */
   mysql_rwlock_t mmap_lock;
-} MYISAM_SHARE;
+};
 
 typedef uint mi_bit_type;
 
-typedef struct st_mi_bit_buff {		/* Used for packing of record */
+struct MI_BIT_BUFF
+{		/* Used for packing of record */
   mi_bit_type current_byte;
   uint bits;
   uchar *pos,*end,*blob_pos,*blob_end;
   uint error;
-} MI_BIT_BUFF;
+};
 
 C_MODE_START
 typedef ICP_RESULT (*index_cond_func_t)(void *param);
@@ -319,15 +322,16 @@ struct st_myisam_info {
   int     rtree_recursion_depth;
 };
 
-typedef struct st_buffpek {
+struct BUFFPEK
+{
   my_off_t file_pos;                    /* Where we are in the sort file */
   uchar *base,*key;                     /* Key pointers */
   ha_rows count;                        /* Number of rows in table */
   ulong mem_count;                      /* numbers of keys in memory */
   ulong max_keys;                       /* Max keys in buffert */
-} BUFFPEK;
+};
 
-typedef struct st_mi_sort_param
+struct MI_SORT_PARAM
 {
   my_thread_handle thr;
   IO_CACHE read_cache, tempfile, tempfile_for_exceptions;
@@ -357,14 +361,14 @@ typedef struct st_mi_sort_param
   uchar *record;
   MY_TMPDIR *tmpdir;
   int (*key_cmp)(const void *, const void *, const void *);
-  int (*key_read)(struct st_mi_sort_param *,void *);
-  int (*key_write)(struct st_mi_sort_param *, const void *);
-  int (*write_keys)(struct st_mi_sort_param *, uchar **,
-                    uint , struct st_buffpek *, IO_CACHE *);
-  uint (*read_to_buffer)(IO_CACHE *,struct st_buffpek *, uint);
-  int (*write_key)(struct st_mi_sort_param *, IO_CACHE *,uchar *,
+  int (*key_read)(MI_SORT_PARAM *,void *);
+  int (*key_write)(MI_SORT_PARAM *, const void *);
+  int (*write_keys)(MI_SORT_PARAM *, uchar **,
+                    uint , BUFFPEK *, IO_CACHE *);
+  uint (*read_to_buffer)(IO_CACHE *,BUFFPEK *, uint);
+  int (*write_key)(MI_SORT_PARAM *, IO_CACHE *,uchar *,
                    uint, uint);
-} MI_SORT_PARAM;
+};
 
 	/* Some defines used by isam-funktions */
 
@@ -492,7 +496,7 @@ extern ulong myisam_pid;
 
 	/* This is used by _mi_calc_xxx_key_length och _mi_store_key */
 
-typedef struct st_mi_s_param
+struct MI_KEY_PARAM
 {
   uint	ref_length,key_length,
 	n_ref_length,
@@ -501,7 +505,7 @@ typedef struct st_mi_s_param
 	part_of_prev_key,prev_length,pack_marker;
   uchar *key, *prev_key,*next_key_pos;
   bool store_not_null;
-} MI_KEY_PARAM;
+};
 
 	/* Prototypes for intern functions */
 
@@ -644,10 +648,11 @@ extern int _mi_ft_update(MI_INFO *info, uint keynr, uchar *keybuf,
 }
 #endif
 
-struct st_sort_info;
+struct SORT_INFO;
 
 
-typedef struct st_mi_block_info {	/* Parameter to _mi_get_block_info */
+struct MI_BLOCK_INFO
+{	/* Parameter to _mi_get_block_info */
   uchar header[MI_BLOCK_INFO_HEADER_LENGTH];
   ulong rec_len;
   ulong data_len;
@@ -658,7 +663,7 @@ typedef struct st_mi_block_info {	/* Parameter to _mi_get_block_info */
   my_off_t prev_filepos;
   uint second_read;
   uint offset;
-} MI_BLOCK_INFO;
+};
 
 	/* bits in return from _mi_get_block_info */
 

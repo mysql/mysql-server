@@ -791,7 +791,8 @@ typedef struct st_vio Vio;
 #define MAX_CHAR_WIDTH		255	/**< Max length for a CHAR colum */
 #define MAX_BLOB_WIDTH		16777216	/**< Default width for blob */
 
-typedef struct st_net {
+typedef struct NET
+{
   MYSQL_VIO vio;
   unsigned char *buff,*buff_end,*write_pos,*read_pos;
   my_socket fd;					/* For Perl DBI/dbd */
@@ -964,23 +965,23 @@ enum enum_session_state_type
 extern "C" {
 #endif
 
-bool	my_net_init(NET *net, MYSQL_VIO vio);
-void my_net_local_init(NET *net);
-void net_end(NET *net);
-void net_clear(NET *net, bool check_buffer);
-void net_claim_memory_ownership(NET *net);
-bool net_realloc(NET *net, size_t length);
-bool	net_flush(NET *net);
-bool	my_net_write(NET *net,const unsigned char *packet, size_t len);
-bool	net_write_command(NET *net,unsigned char command,
+bool	my_net_init(struct NET *net, MYSQL_VIO vio);
+void my_net_local_init(struct NET *net);
+void net_end(struct NET *net);
+void net_clear(struct NET *net, bool check_buffer);
+void net_claim_memory_ownership(struct NET *net);
+bool net_realloc(struct NET *net, size_t length);
+bool	net_flush(struct NET *net);
+bool	my_net_write(struct NET *net,const unsigned char *packet, size_t len);
+bool	net_write_command(struct NET *net,unsigned char command,
 			  const unsigned char *header, size_t head_len,
 			  const unsigned char *packet, size_t len);
-bool net_write_packet(NET *net, const unsigned char *packet, size_t length);
-unsigned long my_net_read(NET *net);
+bool net_write_packet(struct NET *net, const unsigned char *packet, size_t length);
+unsigned long my_net_read(struct NET *net);
 
-void my_net_set_write_timeout(NET *net, unsigned int timeout);
-void my_net_set_read_timeout(NET *net, unsigned int timeout);
-void my_net_set_retry_count(NET *net, unsigned int retry_count);
+void my_net_set_write_timeout(struct NET *net, unsigned int timeout);
+void my_net_set_read_timeout(struct NET *net, unsigned int timeout);
+void my_net_set_retry_count(struct NET *net, unsigned int retry_count);
 
 struct rand_struct {
   unsigned long seed1,seed2,max_value;

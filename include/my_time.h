@@ -103,12 +103,12 @@ static const my_time_flags_t TIME_INVALID_DATES=     64;
   Structure to return status from
     str_to_datetime(), str_to_time(), number_to_datetime(), number_to_time()
 */
-typedef struct st_mysql_time_status
+struct MYSQL_TIME_STATUS
 {
   int warnings;
   uint fractional_digits;
   uint nanoseconds;
-} MYSQL_TIME_STATUS;
+};
 
 static inline void my_time_status_init(MYSQL_TIME_STATUS *status)
 {
@@ -160,7 +160,7 @@ bool str_to_time(const char *str, size_t length, MYSQL_TIME *l_time,
 bool check_time_mmssff_range(const MYSQL_TIME *ltime);
 bool check_time_range_quick(const MYSQL_TIME *ltime);
 bool check_datetime_range(const MYSQL_TIME *ltime);
-void adjust_time_range(struct st_mysql_time *, int *warning);
+void adjust_time_range(MYSQL_TIME *, int *warning);
 
 long calc_daynr(uint year,uint month,uint day);
 uint calc_days_in_year(uint year);

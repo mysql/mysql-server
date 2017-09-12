@@ -23,7 +23,7 @@ class THD;
 struct TABLE;
 struct TABLE_LIST;
 
-typedef struct st_order ORDER;
+struct ORDER;
 template <typename Element_type> class Bounds_checked_array;
 
 typedef Bounds_checked_array<Item*> Ref_item_array;

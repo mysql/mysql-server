@@ -23,7 +23,7 @@
 #include "my_inttypes.h"
 #include "my_io.h"
 
-typedef struct st_line_buffer
+struct LINE_BUFFER
 {
   File file;
   char *buffer;			/* The buffer itself, grown as needed. */
@@ -35,7 +35,7 @@ typedef struct st_line_buffer
   ulong read_length;		/* Length of last read string */
   int error;
   bool truncated;
-} LINE_BUFFER;
+};
 
 extern LINE_BUFFER *batch_readline_init(ulong max_size,FILE *file);
 extern LINE_BUFFER *batch_readline_command(LINE_BUFFER *buffer, char * str);

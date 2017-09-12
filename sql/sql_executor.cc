@@ -81,7 +81,7 @@
 #include "sql/sql_base.h"     // fill_record
 #include "sql/sql_bitmap.h"
 #include "sql/sql_error.h"
-#include "sql/sql_join_buffer.h" // st_cache_field
+#include "sql/sql_join_buffer.h" // CACHE_FIELD
 #include "sql/sql_list.h"
 #include "sql/sql_optimizer.h" // JOIN
 #include "sql/sql_servers.h"

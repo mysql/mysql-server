@@ -31,8 +31,8 @@
 class Item;
 class THD;
 
-typedef struct st_field_info ST_FIELD_INFO;
-typedef struct st_schema_table ST_SCHEMA_TABLE;
+struct ST_FIELD_INFO;
+struct ST_SCHEMA_TABLE;
 typedef int64 query_id_t;
 
 extern ST_FIELD_INFO query_profile_statistics_info[];

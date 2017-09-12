@@ -131,14 +131,14 @@ static char *server_version= NULL;
 
 #define MAX_BATCH_BUFFER_SIZE (1024L * 1024L * 1024L)
 
-typedef struct st_status
+struct STATUS
 {
   int exit_status;
   ulong query_start_line;
   char *file_name;
   LINE_BUFFER *line_buff;
   bool batch,add_to_history;
-} STATUS;
+};
 
 
 static HashTable ht;

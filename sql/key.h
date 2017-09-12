@@ -31,7 +31,7 @@ class Field;
 class String;
 struct TABLE;
 
-typedef struct st_bitmap MY_BITMAP;
+struct MY_BITMAP;
 typedef struct st_mysql_const_lex_string LEX_CSTRING;
 
 

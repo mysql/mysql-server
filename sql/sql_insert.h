@@ -36,7 +36,7 @@ class SELECT_LEX_UNIT;
 class THD;
 
 typedef List<Item> List_item;
-typedef struct st_mysql_lock MYSQL_LOCK;
+struct MYSQL_LOCK;
 
 bool check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
                                             TABLE_LIST *table_list);

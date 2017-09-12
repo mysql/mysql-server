@@ -155,7 +155,7 @@ typedef struct st_mi_isaminfo		/* Struct from h_info */
 } MI_ISAMINFO;
 
 
-typedef struct st_mi_create_info
+struct MI_CREATE_INFO
 {
   const char *index_file_name, *data_file_name;	/* If using symlinks */
   ha_rows max_rows;
@@ -166,16 +166,16 @@ typedef struct st_mi_create_info
   uint old_options;
   uint16 language;
   bool with_auto_increment;
-} MI_CREATE_INFO;
+};
 
 struct st_myisam_info;			/* For referense */
-struct st_mi_isam_share;
+struct MYISAM_SHARE;
 typedef struct st_myisam_info MI_INFO;
-struct st_mi_s_param;
+struct MI_KEY_PARAM;
 
 typedef struct st_mi_keydef		/* Key definition with open & info */
 {
-  struct st_mi_isam_share *share;       /* Pointer to base (set in mi_open) */
+  MYISAM_SHARE *share;       /* Pointer to base (set in mi_open) */
   uint16 keysegs;			/* Number of key-segment */
   uint16 flag;				/* NOSAME, PACK_USED */
 
@@ -199,9 +199,9 @@ typedef struct st_mi_keydef		/* Key definition with open & info */
 		  uchar *key);
   int (*pack_key)(struct st_mi_keydef *keyinfo,uint nod_flag,uchar *next_key,
 		  uchar *org_key, uchar *prev_key, uchar *key,
-		  struct st_mi_s_param *s_temp);
+		  MI_KEY_PARAM *s_temp);
   void (*store_key)(struct st_mi_keydef *keyinfo, uchar *key_pos,
-		    struct st_mi_s_param *s_temp);
+		    MI_KEY_PARAM *s_temp);
   int (*ck_insert)(struct st_myisam_info *inf, uint k_nr, uchar *k, uint klen);
   int (*ck_delete)(struct st_myisam_info *inf, uint k_nr, uchar *k, uint klen);
 } MI_KEYDEF;
@@ -225,7 +225,7 @@ typedef struct st_mi_decode_tree	/* Decode huff-table */
 } MI_DECODE_TREE;
 
 
-struct st_mi_bit_buff;
+struct MI_BIT_BUFF;
 
 /*
   Note that null markers should always be first in a row !
@@ -241,7 +241,7 @@ typedef struct st_columndef		/* column information */
   uint8  null_bit;			/* If column may be 0 */
   uint16 null_pos;			/* position for null marker */
 
-  void (*unpack)(struct st_columndef *rec,struct st_mi_bit_buff *buff,
+  void (*unpack)(struct st_columndef *rec,MI_BIT_BUFF *buff,
 		 uchar *start,uchar *end);
   enum en_fieldtype base_type;
   uint space_length_bits,pack_type;
@@ -268,7 +268,7 @@ extern int mi_close_share(struct st_myisam_info *file, bool *closed_share);
 #define mi_close(file) mi_close_share(file, NULL)
 extern int mi_delete(struct st_myisam_info *file,const uchar *buff);
 extern struct st_myisam_info *mi_open_share(const char *name,
-                                            struct st_mi_isam_share *old_share,
+                                            MYISAM_SHARE *old_share,
                                             int mode,
                                             uint wait_if_locked);
 #define mi_open(name, mode, wait_if_locked) \
@@ -356,7 +356,7 @@ typedef enum
   MI_STATS_METHOD_IGNORE_NULLS
 } enum_mi_stats_method;
 
-typedef struct st_mi_check_param
+struct MI_CHECK
 {
   ulonglong auto_increment_value;
   ulonglong max_data_file_length;
@@ -397,16 +397,16 @@ typedef struct st_mi_check_param
   enum_mi_stats_method stats_method;
   mysql_mutex_t print_msg_mutex;
   bool need_print_msg_lock;
-} MI_CHECK;
+};
 
-typedef struct st_sort_ft_buf
+struct SORT_FT_BUF
 {
   uchar *buf, *end;
   int   count;
   uchar lastkey[MI_MAX_KEY_BUFF];
-} SORT_FT_BUF;
+};
 
-typedef struct st_sort_info
+struct SORT_INFO
 {
   my_off_t filelength,dupp,buff_length;
   ha_rows max_records;
@@ -422,7 +422,7 @@ typedef struct st_sort_info
   uint got_error, threads_running;
   mysql_mutex_t mutex;
   mysql_cond_t  cond;
-} SORT_INFO;
+};
 
 /* functions in mi_check */
 void myisamchk_init(MI_CHECK *param);

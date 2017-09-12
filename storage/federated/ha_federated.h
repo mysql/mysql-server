@@ -45,7 +45,8 @@
   FEDERATED_SHARE is a structure that will be shared amoung all open handlers
   The example implements the minimum of what you will probably need.
 */
-typedef struct st_federated_share {
+struct FEDERATED_SHARE
+{
   MEM_ROOT mem_root;
 
   bool parsed;
@@ -76,7 +77,7 @@ typedef struct st_federated_share {
   size_t table_name_length, server_name_length, connect_string_length, use_count;
   mysql_mutex_t mutex;
   THR_LOCK lock;
-} FEDERATED_SHARE;
+};
 
 /*
   Class definition for the storage engine

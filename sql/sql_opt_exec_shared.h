@@ -160,7 +160,7 @@ typedef struct st_table_ref : public Sql_alloc
 } TABLE_REF;
 
 
-struct st_cache_field;
+struct CACHE_FIELD;
 class QEP_operation;
 class Filesort;
 typedef struct st_position POSITION;

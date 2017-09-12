@@ -35,7 +35,7 @@ struct handlerton;
 struct st_savepoint;
 
 typedef struct st_savepoint SAVEPOINT;
-typedef struct st_changed_table_list CHANGED_TABLE_LIST;
+struct CHANGED_TABLE_LIST;
 
 
 struct st_savepoint

@@ -47,8 +47,8 @@ struct Parse_context;
 struct TABLE_LIST;
 union COM_DATA;
 
-typedef struct st_lex_user LEX_USER;
-typedef struct st_order ORDER;
+struct LEX_USER;
+struct ORDER;
 
 
 extern "C" int test_if_data_home_dir(const char *dir);

@@ -295,7 +295,7 @@ int channel_create(const char* channel,
         goto err;
   }
 
-  lex_mi= new st_lex_master_info();
+  lex_mi= new LEX_MASTER_INFO();
   lex_mi->channel= channel;
   lex_mi->host= channel_info->hostname;
   /*

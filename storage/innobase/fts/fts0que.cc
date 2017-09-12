@@ -1752,7 +1752,7 @@ fts_proximity_is_word_in_range(
 
 /*****************************************************************//**
 FTS plugin parser 'myql_add_word' callback function for phrase match
-Refer to 'st_mysql_ftparser_param' for more detail.
+Refer to 'MYSQL_FTPARSER_PARAM' for more detail.
 @return 0 if match, or return non-zero */
 static
 int

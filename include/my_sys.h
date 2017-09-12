@@ -335,32 +335,32 @@ struct st_my_file_info
 
 extern struct st_my_file_info *my_file_info;
 
-typedef struct st_dynamic_array
+struct DYNAMIC_ARRAY
 {
   uchar *buffer;
   uint elements,max_element;
   uint alloc_increment;
   uint size_of_element;
   PSI_memory_key m_psi_key;
-} DYNAMIC_ARRAY;
+};
 
-typedef struct st_my_tmpdir
+struct MY_TMPDIR
 {
   char **list;
   uint cur, max;
   mysql_mutex_t mutex;
-} MY_TMPDIR;
+};
 
-typedef struct st_dynamic_string
+struct DYNAMIC_STRING
 {
   char *str;
   size_t length,max_length,alloc_increment;
-} DYNAMIC_STRING;
+};
 
 struct st_io_cache;
 typedef int (*IO_CACHE_CALLBACK)(struct st_io_cache*);
 
-typedef struct st_io_cache_share
+struct IO_CACHE_SHARE
 {
   mysql_mutex_t       mutex;           /* To sync on reads into buffer. */
   mysql_cond_t        cond;            /* To wait for signals. */
@@ -374,7 +374,7 @@ typedef struct st_io_cache_share
   int                   running_threads; /* threads not in lock. */
   int                   total_threads;   /* threads sharing the cache. */
   int                   error;           /* Last error. */
-} IO_CACHE_SHARE;
+};
 
 typedef struct st_io_cache		/* Used when cacheing files */
 {
@@ -502,11 +502,11 @@ typedef int (*qsort2_cmp)(const void *, const void *, const void *);
   Subset of struct stat fields filled by stat/lstat/fstat that uniquely
   identify a file
 */
-typedef struct st_file_id
+struct ST_FILE_ID
 {
   dev_t st_dev;
   ino_t st_ino;
-} ST_FILE_ID;
+};
 
 typedef void (*my_error_reporter)(enum loglevel level, const char *format, ...)
   MY_ATTRIBUTE((format(printf, 2, 3)));
@@ -611,7 +611,8 @@ extern my_off_t my_ftell(FILE *stream);
 /* Platform-independent SysLog support */
 
 /* facilities on unixoid syslog. harmless on systemd / Win platforms. */
-typedef struct st_syslog_facility { int id; const char *name; } SYSLOG_FACILITY;
+struct SYSLOG_FACILITY
+{ int id; const char *name; };
 extern SYSLOG_FACILITY syslog_facility[];
 
 enum my_syslog_options { MY_SYSLOG_PIDS= 1 };

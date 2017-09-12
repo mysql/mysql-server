@@ -136,7 +136,7 @@ private:
   Key_type          *m_sort_keys;
   size_t             m_compare_length;
   Key_generator     *m_sort_param;
-  st_queue           m_queue;
+  QUEUE           m_queue;
 };
 
 

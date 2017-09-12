@@ -444,7 +444,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
   <div style="margin-left:30px">
   <table style="background-color:#E0E0E0"><tr><td style="width:670px"><pre>
-  struct st_mysql_stmt
+  MYSQL_STMT
   {
   ...
     MYSQL_ROWS     *data_cursor;         /<em>**</em>< current row in cached result <em>*</em>/
@@ -455,7 +455,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
       mysql_stmt_fetch() calls this function to fetch one row (it's different
       for buffered, unbuffered and cursor fetch).
     <em>*</em>/
-    int            (*read_row_func)(struct st_mysql_stmt *stmt,
+    int            (*read_row_func)(MYSQL_STMT *stmt,
   ...
   };</pre>
   </td></tr></table></div>

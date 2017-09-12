@@ -47,7 +47,7 @@ class MDL_ticket;
 class THD;
 struct MDL_key;
 
-typedef struct st_lf_pins LF_PINS;
+struct LF_PINS;
 
 /**
   @def ENTER_COND(C, M, S, O)
