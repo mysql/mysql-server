@@ -59,6 +59,9 @@ static const char innobase_hton_name[]= "InnoDB";
 #define	MAX_SPACE_NAME_LEN	((4 * NAME_LEN) + strlen(part_sep)	\
 				 + strlen(sub_sep) + strlen("#tmp"))
 
+/* Maximum hardcoded data dictionary tables. */
+#define DICT_MAX_DD_TABLES	1024
+
 /** InnoDB private keys for dd::Table */
 enum dd_table_keys {
 	/** Auto-increment counter */
