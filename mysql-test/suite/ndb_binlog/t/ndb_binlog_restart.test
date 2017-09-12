@@ -57,7 +57,7 @@ reset master;
 # already completed.
 #############################################################
 --echo Wait for binlog rotate to indicate disconnect
---let $wait_binlog_event= mysqld-bin.000002
+--let $wait_binlog_event= binlog.000002
 --source include/wait_for_binlog_event.inc
 
 #############################################################
@@ -70,11 +70,11 @@ reset master;
 
 #############################################################
 # During the restart a 'Gap event' should be written to the
-# binlog and the log rotated to 'mysqld-bin.000002'.
+# binlog and the log rotated to 'binlog.000002'.
 #############################################################
 --echo
 --echo Check that the binlog was rotated:
---echo There should be a 'LOST EVENT', then 'Rotate ... mysqld-bin.000002'
+--echo There should be a 'LOST EVENT', then 'Rotate ... binlog.000002'
 --source include/show_binlog_events.inc
 
 
@@ -115,7 +115,7 @@ reset master;
 --exec $NDB_MGM --no-defaults -e "ALL DUMP 900 $node_id" > $NDB_TOOLS_OUTPUT
 
 --echo Wait for binlog rotate to indicate disconnect
---let $wait_binlog_event= mysqld-bin.000002
+--let $wait_binlog_event= binlog.000002
 --source include/wait_for_binlog_event.inc
 
 --echo Wait to get out of read-only mode
@@ -123,7 +123,7 @@ reset master;
 
 --echo
 --echo Check that the binlog was rotated:
---echo There should be a 'LOST EVENT', then 'Rotate ... mysqld-bin.000002'
+--echo There should be a 'LOST EVENT', then 'Rotate ... binlog.000002'
 --source include/show_binlog_events.inc
 
 disable_query_log;
@@ -177,12 +177,12 @@ enable_query_log;
 
 connection server1;
 --echo Wait for 'server1' binlog rotate to indicate disconnect
---let $wait_binlog_event= mysqld-bin.000002
+--let $wait_binlog_event= binlog.000002
 --source include/wait_for_binlog_event.inc
 
 connection server2;
 --echo Wait for 'server2' binlog rotate to indicate disconnect
---let $wait_binlog_event= mysqld-bin.000002
+--let $wait_binlog_event= binlog.000002
 --source include/wait_for_binlog_event.inc
 
 connection server1;
@@ -235,12 +235,12 @@ enable_query_log;
 
 connection server1;
 --echo Wait for 'server1' binlog rotate to indicate disconnect
---let $wait_binlog_event= mysqld-bin.000002
+--let $wait_binlog_event= binlog.000002
 --source include/wait_for_binlog_event.inc
 
 connection server2;
 --echo Wait for 'server2' binlog rotate to indicate disconnect
---let $wait_binlog_event= mysqld-bin.000002
+--let $wait_binlog_event= binlog.000002
 --source include/wait_for_binlog_event.inc
 
 connection server1;
