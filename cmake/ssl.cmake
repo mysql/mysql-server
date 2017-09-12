@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -269,7 +269,9 @@ MACRO (COPY_OPENSSL_DLLS target_name)
     GET_FILENAME_COMPONENT(OPENSSL_NAME "${OPENSSL_LIBRARY}" NAME_WE)
     FILE(GLOB HAVE_CRYPTO_DLL "${WITH_SSL_PATH}/bin/${CRYPTO_NAME}.dll")
     FILE(GLOB HAVE_OPENSSL_DLL "${WITH_SSL_PATH}/bin/${OPENSSL_NAME}.dll")
-    IF (HAVE_CRYPTO_DLL AND HAVE_OPENSSL_DLL)
+    MESSAGE(STATUS "HAVE_CRYPTO_DLL ${HAVE_CRYPTO_DLL}")
+    MESSAGE(STATUS "HAVE_OPENSSL_DLL ${HAVE_OPENSSL_DLL}")
+    IF(HAVE_CRYPTO_DLL AND HAVE_OPENSSL_DLL)
       ADD_CUSTOM_COMMAND(OUTPUT ${target_name}
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
           "${WITH_SSL_PATH}/bin/${CRYPTO_NAME}.dll"
