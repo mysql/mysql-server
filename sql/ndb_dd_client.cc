@@ -465,3 +465,85 @@ Ndb_dd_client::get_ndb_table_names_in_schema(const char* schema_name,
   }
   DBUG_RETURN(true);
 }
+
+
+/*
+  Check given schema for local tables(i.e not in NDB)
+
+  @param        schema_name          Name of the schema to check for tables
+  @param [out]  found_local_tables   Return parameter indicating if the schema
+                                     contained local tables or not.
+
+  @return       false  Failure
+  @return       true   Success.
+*/
+
+bool
+Ndb_dd_client::have_local_tables_in_schema(const char* schema_name,
+                                           bool* found_local_tables)
+{
+  DBUG_ENTER("Ndb_dd_client::have_local_tables_in_schema");
+
+  const dd::Schema* schema;
+  if (m_client->acquire(schema_name, &schema))
+  {
+    // Failed to open the requested schema
+    DBUG_RETURN(false);
+  }
+
+  if (schema == nullptr)
+  {
+    // The schema didn't exist, thus it can't have any local tables
+    *found_local_tables = false;
+    DBUG_RETURN(true);
+  }
+
+  std::vector<const dd::Table*> tables;
+  if (m_client->fetch_schema_components(schema, &tables))
+  {
+    DBUG_RETURN(false);
+  }
+
+  // Assume no local table will be found, the loop below will
+  // return on first table not in NDB
+  *found_local_tables = false;
+
+  for (const dd::Table* table: tables)
+  {
+    if (table->engine() != "ndbcluster")
+    {
+      // Found local table
+      *found_local_tables = true;
+      break;
+    }
+  }
+
+  DBUG_RETURN(true);
+}
+
+
+bool
+Ndb_dd_client::schema_exists(const char* schema_name,
+                                  bool* schema_exists)
+{
+  DBUG_ENTER("Ndb_dd_client::schema_exists");
+
+  const dd::Schema* schema;
+  if (m_client->acquire(schema_name, &schema))
+  {
+    // Failed to open the requested schema
+    DBUG_RETURN(false);
+  }
+
+  if (schema == nullptr)
+  {
+    // The schema didn't exist
+    *schema_exists = false;
+    DBUG_RETURN(true);
+  }
+
+  // The schema exists
+  *schema_exists = true;
+  DBUG_RETURN(true);
+}
+

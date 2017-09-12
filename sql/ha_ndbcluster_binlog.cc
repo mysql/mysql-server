@@ -75,7 +75,6 @@ void ndb_index_stat_restart();
 #include "sql/ndb_binlog_thread.h"
 #include "sql/ndb_dist_priv_util.h"
 #include "sql/ndb_event_data.h"
-#include "sql/ndb_find_files_list.h"
 #include "sql/ndb_repl_tab.h"
 #include "sql/ndb_schema_dist.h"
 #include "sql/ndb_schema_object.h"
@@ -3300,34 +3299,6 @@ class Ndb_schema_event_handler {
   }
 
 
-  bool
-  check_if_local_tables_in_db(const char *dbname) const
-  {
-    DBUG_ENTER("check_if_local_tables_in_db");
-    DBUG_PRINT("info", ("Looking for files in directory %s", dbname));
-    Ndb_find_files_list files(m_thd);
-    char path[FN_REFLEN + 1];
-    build_table_filename(path, sizeof(path) - 1, dbname, "", "", 0);
-    if (!files.find_tables(dbname, path))
-    {
-      m_thd->clear_error();
-      DBUG_PRINT("info", ("Failed to find files"));
-      DBUG_RETURN(true);
-    }
-    DBUG_PRINT("info",("found: %d files", files.found_files()));
-
-    LEX_STRING *tabname;
-    while ((tabname= files.next()))
-    {
-      DBUG_PRINT("info", ("Found table %s", tabname->str));
-      if (ndbcluster_check_if_local_table(dbname, tabname->str))
-        DBUG_RETURN(true);
-    }
-
-    DBUG_RETURN(false);
-  }
-
-
   void handle_clear_slock(const Ndb_schema_op* schema)
   {
     DBUG_ENTER("handle_clear_slock");
@@ -3883,12 +3854,45 @@ class Ndb_schema_event_handler {
     // Participant never takes GSL
     assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT));
 
-    if (check_if_local_tables_in_db(schema->db) ||
-        // Refuse to drop the performance_schema database
-        // on the participant, this should be protectd by the check
-        // for "local tables" but since that check is currently broken
-        // it can be hardcoded for now.
-        strcmp(schema->db,  "performance_schema") == 0)
+    Ndb_dd_client dd_client(m_thd);
+
+    // Lock the schema in DD
+    if (!dd_client.mdl_lock_schema(schema->db))
+    {
+      DBUG_PRINT("info", ("Failed to acquire MDL for db '%s'", schema->db));
+      // Failed to lock the DD, skip dropping the database
+      DBUG_VOID_RETURN;
+    }
+
+    bool schema_exists;
+    if (!dd_client.schema_exists(schema->db, &schema_exists))
+    {
+        DBUG_PRINT("info", ("Failed to determine if schema '%s' exists",
+                            schema->db));
+        // Failed to check if schema existed, skip dropping the database
+        DBUG_VOID_RETURN;
+    }
+
+    if (!schema_exists)
+    {
+      DBUG_PRINT("info", ("Schema '%s' does not exist",
+                          schema->db));
+      // Nothing to do
+      DBUG_VOID_RETURN;
+    }
+
+    bool found_local_tables;
+    if (!dd_client.have_local_tables_in_schema(schema->db, &found_local_tables))
+    {
+      DBUG_PRINT("info", ("Failed to check if db contained local tables"));
+      // Failed to access the DD to check if non NDB tables existed, assume
+      // the worst and skip dropping this database
+      DBUG_VOID_RETURN;
+    }
+
+    DBUG_PRINT("exit",("found_local_tables: %d", found_local_tables));
+
+    if (found_local_tables)
     {
       /* Tables exists as a local table, print error and leave it */
       ndb_log_warning("NDB Binlog: Skipping drop database '%s' since "

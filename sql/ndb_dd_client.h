@@ -87,6 +87,9 @@ public:
   bool fetch_schema_names(class std::vector<std::string>*);
   bool get_ndb_table_names_in_schema(const char* schema_name,
                                      std::unordered_set<std::string> *names);
+  bool have_local_tables_in_schema(const char* schema_name,
+                                   bool* found_local_tables);
+  bool schema_exists(const char* schema_name, bool* schema_exists);
 };
 
 

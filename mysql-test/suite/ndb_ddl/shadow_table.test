@@ -109,4 +109,52 @@ drop table ndb_ddl_test.shadow1;
 # Check that all mysqlds have identical DD
 --source verify_mysql_dd.inc
 
+
+# #######################################################
+# Testing that also "drop database" is ignored if there
+# are shadow table(s) in a database
+# #######################################################
+
+--connection mysqld1
+# Create "shadow table" in other engine on first mysqld,
+# using the second empty test database
+create table ndb_ddl_test2.shadow_in_db (
+  in_other_engine int primary key
+) engine = InnoDB;
+
+--connection mysqld2
+
+# Check that table does not exist on second mysqld(as it was not
+# created in NDB)
+--error ER_NO_SUCH_TABLE
+show create table ndb_ddl_test2.shadow_in_db;
+
+# Drop the database on the second mysqld, the database should then be dropped
+# on all mysqlds except the first
+drop database ndb_ddl_test2;
+
+# Check that the database does not exist on second mysqld
+--error ER_BAD_DB_ERROR
+use ndb_ddl_test2;
+
+--connection mysqld1
+
+# Check that the database still exist on first mysqld
+use ndb_ddl_test2;
+
+# Drop the "shadow table" from other engine
+drop table ndb_ddl_test2.shadow_in_db;
+
+# Drop the database which now exists only on the first mysqld
+drop database ndb_ddl_test2;
+
+--connection mysqld2
+
+# Create the ndb_ddl_test2 database again, thus checking it can be created
+# and also allowing cleanup to drop it
+create database ndb_ddl_test2;
+
+# Check that all mysqlds have identical DD
+--source verify_mysql_dd.inc
+
 --source cleanup.inc
