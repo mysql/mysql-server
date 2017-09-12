@@ -399,19 +399,15 @@ SELECT_LEX* Select_lex_builder::prepare_select_lex()
   if (query_expression2 == nullptr)
     return nullptr;
 
-  PT_select_stmt *select2;
-  select2= new (m_thd->mem_root) PT_select_stmt(query_expression2);
-  if (select2 == nullptr)
-    return nullptr;
-
   LEX *lex= m_thd->lex;
   SELECT_LEX *current_select= lex->current_select();
 
+  lex->sql_command= SQLCOM_SELECT;
   Parse_context pc(m_thd, current_select);
   if (m_thd->is_error())
     return nullptr;
 
-  if (select2->contextualize(&pc))
+  if (query_expression2->contextualize(&pc))
     return nullptr;
 
   return current_select;

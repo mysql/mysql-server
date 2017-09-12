@@ -6656,7 +6656,7 @@ if_explain_warn_index_not_applicable(const RANGE_OPT_PARAM *param,
                                               const Field *field)
 {
   if (param->using_real_indexes &&
-      param->thd->lex->describe)
+      param->thd->lex->is_explain())
     push_warning_printf(
             param->thd,
             Sql_condition::SL_WARNING,

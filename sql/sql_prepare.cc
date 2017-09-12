@@ -953,7 +953,7 @@ bool mysql_test_show(Prepared_statement *stmt, TABLE_LIST *tables)
 
   DBUG_ASSERT(lex->result == NULL);
   DBUG_ASSERT(lex->sql_command != SQLCOM_DO);
-  DBUG_ASSERT(!lex->describe);
+  DBUG_ASSERT(!lex->is_explain());
 
   if (!lex->result)
   {
@@ -1386,7 +1386,7 @@ static bool check_prepared_statement(Prepared_statement *stmt)
   uint no_columns= 0;
 
   if ((sql_command_flags[lex->sql_command] & CF_HAS_RESULT_SET) &&
-      !lex->describe)
+      !lex->is_explain())
   {
     SELECT_LEX_UNIT *unit = lex->unit;
     result= unit->query_result();
@@ -2451,7 +2451,7 @@ void Prepared_statement::setup_set_params()
       opt_general_log || opt_slow_log ||
       (lex->sql_command == SQLCOM_SELECT &&
        lex->safe_to_cache_query &&
-       !lex->describe))
+       !lex->is_explain()))
   {
     with_log= true;
   }
@@ -3075,7 +3075,7 @@ bool Prepared_statement::validate_metadata(Prepared_statement *copy)
     return FALSE -- the metadata of the original SELECT,
     if any, has not been sent to the client.
   */
-  if (is_sql_prepare() || lex->describe)
+  if (is_sql_prepare() || lex->is_explain())
     return FALSE;
 
   if (lex->select_lex->item_list.elements !=

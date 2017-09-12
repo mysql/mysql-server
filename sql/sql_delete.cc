@@ -200,7 +200,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd)
     */
     no_rows= true;
 
-    if (lex->describe)
+    if (lex->is_explain())
     {
       Modification_plan plan(thd, MT_DELETE, table,
                              "No matching rows after partition pruning",
@@ -257,7 +257,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd)
 
     Modification_plan plan(thd, MT_DELETE, table,
                            "Deleting all rows", false, maybe_deleted);
-    if (lex->describe)
+    if (lex->is_explain())
     {
       bool err= explain_single_table_modification(thd, &plan, select_lex);
       DBUG_RETURN(err);
@@ -297,7 +297,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd)
     {
       no_rows= true;
 
-      if (lex->describe)
+      if (lex->is_explain())
       {
         Modification_plan plan(thd, MT_DELETE, table,
                                "Impossible WHERE", true, 0);
@@ -333,7 +333,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd)
   if (table->all_partitions_pruned_away)
   {
     /* No matching records */
-    if (lex->describe)
+    if (lex->is_explain())
     {
       Modification_plan plan(thd, MT_DELETE, table,
                              "No matching rows after partition pruning",
@@ -366,7 +366,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd)
 
     if (no_rows)
     {
-      if (lex->describe)
+      if (lex->is_explain())
       {
         Modification_plan plan(thd, MT_DELETE, table,
                                "Impossible WHERE", true, 0);
@@ -421,7 +421,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd)
                            false, rows);
     DEBUG_SYNC(thd, "planned_single_delete");
 
-    if (lex->describe)
+    if (lex->is_explain())
     {
       bool err= explain_single_table_modification(thd, &plan, select_lex);
       DBUG_RETURN(err);
@@ -597,7 +597,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd)
   } // End of scope for Modification_plan
 
 cleanup:
-  DBUG_ASSERT(!lex->describe);
+  DBUG_ASSERT(!lex->is_explain());
 
   if (!transactional_table && deleted_rows > 0)
     thd->get_transaction()->mark_modified_non_trans_table(

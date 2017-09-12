@@ -4062,7 +4062,7 @@ static int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
   else
     partial_cond= make_cond_for_info_schema(cond, tables);
 
-  if (lex->describe)
+  if (lex->is_explain())
   {
     /* EXPLAIN SELECT */
     error= 0;
@@ -5186,7 +5186,7 @@ bool get_schema_tables_result(JOIN *join,
         continue;
 
       /* skip I_S optimizations specific to get_all_tables */
-      if (thd->lex->describe &&
+      if (thd->lex->is_explain() &&
           (table_list->schema_table->fill_table != get_all_tables))
         continue;
 

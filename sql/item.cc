@@ -5236,7 +5236,7 @@ static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
   DBUG_ASSERT(resolved_item->context->select_lex == current);
 
   current->mark_as_dependent(last, false);
-  if (thd->lex->describe)
+  if (thd->lex->is_explain())
   {
     /*
       UNION's result has select_number == INT_MAX which is printed as -1 and

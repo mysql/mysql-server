@@ -1884,9 +1884,9 @@ bool Sql_cmd_alter_user_default_role::execute(THD *thd)
 }
 
 
-bool Sql_cmd_show_privileges::execute(THD *thd)
+bool Sql_cmd_show_grants::execute(THD *thd)
 {
-  DBUG_ENTER("Sql_cmd_show_privileges::execute");
+  DBUG_ENTER("Sql_cmd_show_grants::execute");
   bool show_mandatory_roles= false;
   if (for_user == 0)
     show_mandatory_roles= true;

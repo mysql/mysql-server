@@ -46,7 +46,7 @@
 #define EXPLAIN_NO_PUSH(msgfmt, ...)                              \
 do                                                                \
 {                                                                 \
-  if (unlikely(current_thd->lex->describe))                       \
+  if (unlikely(current_thd->lex->is_explain()))                   \
   {                                                               \
     push_warning_printf(current_thd,                              \
                         Sql_condition::SL_NOTE, ER_YES,           \

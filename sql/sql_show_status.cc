@@ -286,18 +286,14 @@ build_query(const POS &pos,
   if (query_expression2 == NULL)
     return NULL;
 
-  PT_select_stmt *select2;
-  select2= new (thd->mem_root) PT_select_stmt(query_expression2);
-  if (select2 == NULL)
-    return NULL;
-
   LEX *lex= thd->lex;
   SELECT_LEX *current_select= lex->current_select();
   Parse_context pc(thd, current_select);
   if (thd->is_error())
     return NULL;
 
-  if (select2->contextualize(&pc))
+  lex->sql_command= SQLCOM_SELECT;
+  if (query_expression2->contextualize(&pc))
     return NULL;
 
   /* contextualize sets to COM_SELECT */

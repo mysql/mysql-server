@@ -214,10 +214,6 @@ union YYSTYPE;
 
 typedef YYSTYPE *LEX_YYSTYPE;
 
-// describe/explain types
-#define DESCRIBE_NONE		0 // Not explain query
-#define DESCRIBE_NORMAL		1
-
 /*
   If we encounter a diagnostics statement (GET DIAGNOSTICS, or e.g.
   the old SHOW WARNINGS|ERRORS, or "diagnostics variables" such as
@@ -1928,6 +1924,9 @@ struct Value_or_default
 };
 
 
+enum class Explain_format_type { TRADITIONAL, JSON };
+
+
 union YYSTYPE {
   /*
     Hint parser section (sql_hints.yy)
@@ -2056,7 +2055,6 @@ union YYSTYPE {
   class PT_select_var *select_var_ident;
   class PT_select_var_list *select_var_list;
   Mem_root_array_YY<PT_table_reference *> table_reference_list;
-  class PT_select_stmt *select_stmt;
   class Item_param *param_marker;
   class PTI_text_literal *text_literal;
   class PT_query_expression *query_expression;
@@ -2246,6 +2244,7 @@ union YYSTYPE {
   bool resource_group_flag_type;
   resourcegroups::Type resource_group_type;
   Trivial_array<ulonglong> *thread_id_list_type;
+  Explain_format_type explain_format_type;
 };
 
 static_assert(sizeof(YYSTYPE) <= 32, "YYSTYPE is too big");
@@ -3524,7 +3523,7 @@ public:
     m_current_select= select;
   }
   /// @return true if this is an EXPLAIN statement
-  bool is_explain() const { return (describe & DESCRIBE_NORMAL); }
+  bool is_explain() const { return explain_format != nullptr; }
   LEX_STRING name;
   char *help_arg;
   char* to_log;                                 /* For PURGE MASTER LOGS TO */
@@ -3715,13 +3714,12 @@ public:
   enum enum_var_type option_type;
   enum_view_create_mode create_view_mode;
 
-  /// QUERY ID for SHOW PROFILE and EXPLAIN CONNECTION
-  my_thread_id query_id;
+  /// QUERY ID for SHOW PROFILE
+  my_thread_id show_profile_query_id;
   uint profile_options;
   uint grant, grant_tot_col;
   uint slave_thd_opt, start_transaction_opt;
   int select_number;                     ///< Number of query block (by EXPLAIN)
-  uint8 describe;
   uint8 create_view_algorithm;
   uint8 create_view_check;
   /**

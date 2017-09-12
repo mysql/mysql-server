@@ -470,7 +470,6 @@ void LEX::reset()
   set_var_list.empty();
   param_list.empty();
   prepared_stmt_params.empty();
-  describe= DESCRIBE_NONE;
   subqueries= false;
   context_analysis_only= 0;
   safe_to_cache_query= true;

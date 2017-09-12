@@ -378,7 +378,7 @@ int opt_sum_query(THD *thd,
               done in this function from showing in EXPLAIN, that's ok as
               real query will be executed faster than one shown by EXPLAIN.
             */
-            if (!thd->lex->describe &&
+            if (!thd->lex->is_explain() &&
                 (count= get_exact_record_count(tables)) == ULLONG_MAX)
             {
               /* Error from handler in counting rows. Don't optimize count() */
@@ -417,7 +417,8 @@ int opt_sum_query(THD *thd,
           const_result= 0;
 
         // See comment above for get_exact_record_count()
-        if (!thd->lex->describe && const_result == 1) {
+        if (!thd->lex->is_explain() && const_result == 1)
+        {
           ((Item_sum_count*) item)->make_const((longlong) count);
           recalc_const_item= true;
         }
