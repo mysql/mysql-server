@@ -24,9 +24,9 @@ include/stop_group_replication.inc
 #
 # Test Unit#1
 # Set global group replication variables to default.
-# Curently there are 43 group replication variables.
+# Curently there are 42 group replication variables.
 #
-include/assert.inc [There are 43 GR variables at present.]
+include/assert.inc [There are 42 GR variables at present.]
 SET @@GLOBAL.group_replication_auto_increment_increment= default;
 ERROR 42000: Variable 'group_replication_auto_increment_increment' can't be set to the value of 'DEFAULT'
 SET @@GLOBAL.group_replication_compression_threshold= default;
@@ -41,7 +41,6 @@ SET @@GLOBAL.group_replication_gtid_assignment_block_size= default;
 ERROR 42000: Variable 'group_replication_gtid_assignment_block_size' can't be set to the value of 'DEFAULT'
 SET @@GLOBAL.group_replication_ip_whitelist= default;
 ERROR 42000: Variable 'group_replication_ip_whitelist' can't be set to the value of 'DEFAULT'
-SET @@GLOBAL.group_replication_allow_local_disjoint_gtids_join= default;
 SET @@GLOBAL.group_replication_allow_local_lower_version_join= default;
 SET @@GLOBAL.group_replication_bootstrap_group= default;
 SET @@GLOBAL.group_replication_components_stop_timeout= default;
@@ -71,7 +70,6 @@ SET @@GLOBAL.group_replication_member_weight= default;
 # Test Unit#2
 # Verify default values of the group replication variables.
 #
-include/assert.inc [Default group_replication_allow_local_disjoint_gtids_join is OFF/0]
 include/assert.inc [Default group_replication_allow_local_lower_version_join is OFF/0]
 include/assert.inc [Default group_replication_auto_increment_increment is 7]
 include/assert.inc [Default group_replication_bootstrap_group is OFF/0]
