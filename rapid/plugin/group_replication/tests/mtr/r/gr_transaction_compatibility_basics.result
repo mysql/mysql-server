@@ -45,6 +45,8 @@ ERROR 42000: Variable 'group_replication_allow_local_disjoint_gtids_join' can't 
 SET GLOBAL group_replication_allow_local_disjoint_gtids_join= 1.2;
 ERROR 42000: Incorrect argument type to variable 'group_replication_allow_local_disjoint_gtids_join'
 SET GLOBAL group_replication_allow_local_disjoint_gtids_join= 1;
+Warnings:
+Warning	1681	'group_replication_allow_local_disjoint_gtids_join' is deprecated and will be removed in a future release.
 include/assert.inc [The value of allow_local_disjoint_gtids_join should now be 1/ON]
 #
 # Test that server 2 can now join
@@ -53,6 +55,8 @@ include/assert.inc [The value of allow_local_disjoint_gtids_join should now be 1
 include/rpl_gr_wait_for_number_of_members.inc
 [connection server2]
 include/start_group_replication.inc
+Warnings:
+Warning	1681	'group_replication_allow_local_disjoint_gtids_join' is deprecated and will be removed in a future release.
 #
 # Verify all is fine
 #
@@ -68,6 +72,8 @@ include/stop_group_replication.inc
 include/start_group_replication.inc
 [connection server2]
 SET GLOBAL group_replication_allow_local_disjoint_gtids_join= 0;
+Warnings:
+Warning	1681	'group_replication_allow_local_disjoint_gtids_join' is deprecated and will be removed in a future release.
 DROP TABLE t1;
 DROP TABLE t2;
 include/group_replication_end.inc

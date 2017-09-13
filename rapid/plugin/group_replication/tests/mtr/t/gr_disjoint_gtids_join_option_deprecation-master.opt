@@ -1,0 +1,3 @@
+--no-console
+--log-error=$MYSQLTEST_VARDIR/tmp/gr_disjoint_gtids_join_option_deprecation.1.err
+--loose-group_replication_allow_local_disjoint_gtids_join=1
