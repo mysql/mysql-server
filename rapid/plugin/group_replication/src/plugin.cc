@@ -273,6 +273,23 @@ int log_message(enum plugin_log_level level, const char *format, ...)
   return my_plugin_log_message(&plugin_info_ptr, level, buff);
 }
 
+static void option_deprecation_warning(MYSQL_THD thd, const char* name)
+{
+  if (thd != NULL)
+  {
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
+                        ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
+                        name);
+  }
+  else
+  {
+    log_message(MY_WARNING_LEVEL,
+                ER_DEFAULT(ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
+                name);
+  }
+}
+
 /*
   Plugin interface.
 */
@@ -369,6 +386,12 @@ int plugin_group_replication_start()
   }
   if (init_group_sidno())
     DBUG_RETURN(GROUP_REPLICATION_CONFIGURATION_ERROR); /* purecov: inspected */
+
+  if (allow_local_disjoint_gtids_join_var)
+  {
+    option_deprecation_warning(current_thd,
+                               "group_replication_allow_local_disjoint_gtids_join");
+  }
 
   /*
     Instantiate certification latch.
@@ -2238,6 +2261,20 @@ check_enforce_update_everywhere_checks(MYSQL_THD thd, SYS_VAR *var,
   DBUG_RETURN(0);
 }
 
+static void
+update_allow_local_disjoint_gtids_join(MYSQL_THD thd, SYS_VAR *var,
+                                       void *var_ptr, const void *save)
+{
+  DBUG_ENTER("update_allow_local_disjoint_gtids_join");
+
+  (*(my_bool *) var_ptr)= (*(my_bool *) save);
+
+  option_deprecation_warning(thd,
+                             "group_replication_allow_local_disjoint_gtids_join");
+
+  DBUG_VOID_RETURN;
+}
+
 static void update_unreachable_timeout(MYSQL_THD thd, SYS_VAR *var,
                                        void *var_ptr, const void *save)
 {
@@ -2536,7 +2573,7 @@ static MYSQL_SYSVAR_BOOL(
   PLUGIN_VAR_OPCMDARG,                   /* optional var */
   "Allow this server to join the group even if it has transactions not present in the group",
   NULL,                                  /* check func. */
-  NULL,                                  /* update func*/
+  update_allow_local_disjoint_gtids_join,/* update func*/
   0                                      /* default */
 );
 
