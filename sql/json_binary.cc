@@ -1202,9 +1202,16 @@ static Value parse_value(uint8 type, const char *data, size_t len)
 Value parse_binary(const char *data, size_t len)
 {
   DBUG_ENTER("json_binary::parse_binary");
-  // Each document should start with a one-byte type specifier.
-  if (len < 1)
-    DBUG_RETURN(err());                             /* purecov: inspected */
+  /*
+    Each document should start with a one-byte type specifier, so an
+    empty document is invalid according to the format specification.
+    Empty documents may appear due to inserts using the IGNORE keyword
+    or with non-strict SQL mode, which will insert an empty string if
+    the value NULL is inserted into a NOT NULL column. We choose to
+    interpret empty values as the JSON null literal.
+  */
+  if (len == 0)
+    DBUG_RETURN(Value(Value::LITERAL_NULL));
 
   Value ret= parse_value(data[0], data + 1, len - 1);
   DBUG_RETURN(ret);

@@ -8930,19 +8930,8 @@ type_conversion_status Field_json::store_binary(const char *ptr, size_t length)
   /*
     We expect that a valid binary representation of a JSON document is
     passed to us.
-
-    We make an exception for the case of an empty binary string. Even
-    though an empty binary string is not a valid representation of a
-    JSON document, we might be served one as a result of inserting
-    NULL or DEFAULT into a not nullable JSON column using INSERT
-    IGNORE, or inserting DEFAULT into a not nullable JSON column in
-    non-strict SQL mode.
-
-    We accept an empty binary string in those cases. Such values will
-    be converted to the JSON null literal when they are read with
-    Field_json::val_json().
   */
-  DBUG_ASSERT(length == 0 || json_binary::parse_binary(ptr, length).is_valid());
+  DBUG_ASSERT(json_binary::parse_binary(ptr, length).is_valid());
 
   if (length > UINT_MAX32)
   {
@@ -9047,25 +9036,6 @@ bool Field_json::val_json(Json_wrapper *wr)
 
   String tmp;
   String *s= Field_blob::val_str(&tmp, &tmp);
-
-  /*
-    The empty string is not a valid JSON binary representation, so we
-    should have returned an error. However, sometimes an empty
-    Field_json object is created in order to retrieve meta-data.
-    Return a dummy value instead of raising an error. Bug#21104470.
-
-    The field could also contain an empty string after forcing NULL or
-    DEFAULT into a not nullable JSON column using lax error checking
-    (such as INSERT IGNORE or non-strict SQL mode). The JSON null
-    literal is used to represent the empty value in this case.
-    Bug#21437989.
-  */
-  if (s->length() == 0)
-  {
-    using namespace json_binary;
-    *wr= Json_wrapper(Value(Value::LITERAL_NULL));
-    DBUG_RETURN(false);
-  }
 
   json_binary::Value v(json_binary::parse_binary(s->ptr(), s->length()));
   if (v.type() == json_binary::Value::ERROR)
@@ -9364,15 +9334,8 @@ int Field_json::cmp_binary(const uchar *a_ptr, const uchar *b_ptr,
   memcpy(&b, b_ptr + packlength, sizeof(b));
   uint32 a_length= get_length(a_ptr);
   uint32 b_length= get_length(b_ptr);
-  using namespace json_binary;
-  /*
-    The length is 0 if NULL has been inserted into a NOT NULL column
-    using INSERT IGNORE or similar. If so, interpret the value as the
-    JSON null literal.
-  */
-  Value null_literal(Value::LITERAL_NULL);
-  Json_wrapper aw(a_length == 0 ? null_literal : parse_binary(a, a_length));
-  Json_wrapper bw(b_length == 0 ? null_literal : parse_binary(b, b_length));
+  Json_wrapper aw(json_binary::parse_binary(a, a_length));
+  Json_wrapper bw(json_binary::parse_binary(b, b_length));
   return aw.compare(bw);
 }
 
