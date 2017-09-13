@@ -2453,3 +2453,18 @@ WHERE MBROverlaps(g, @geo_mpt)
 ORDER BY id;
 id	ST_AsText(g)
 DROP TABLE t1;
+#
+# Bug #26188118 MBROVERLAPS(LS, LS) INCORRECT FOR PERPENDICULAR LINES
+#
+SELECT MBROverlaps(
+ST_GeomFromText('LINESTRING(0 0, 0 2)'),
+ST_GeomFromText('LINESTRING(-1 1, 1 1)')
+) AS should_be_true;
+should_be_true
+1
+SELECT MBROverlaps(
+ST_GeomFromText('LINESTRING(-1 0, 1 0)', 4326),
+ST_GeomFromText('LINESTRING(0 -1, 0 1)', 4326)
+) AS should_be_true;
+should_be_true
+1
