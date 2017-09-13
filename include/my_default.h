@@ -60,7 +60,7 @@ void my_print_default_files(const char *conf_file);
 void print_defaults(const char *conf_file, const char **groups);
 void init_variable_default_paths();
 void update_variable_source(const char* opt_name, const char* config_file);
-void set_variable_source(const char *opt_name, struct get_opt_arg_source* value);
+void set_variable_source(const char *opt_name, void* value);
 
 C_MODE_END
 

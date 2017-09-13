@@ -48,7 +48,7 @@ Plugin_table table_variables_info::m_table_def(
   "  VARIABLE_PATH varchar(1024),\n"
   "  MIN_VALUE varchar(64),\n"
   "  MAX_VALUE varchar(64),\n"
-  "  SET_TIME TIMESTAMP(0) default null,\n"
+  "  SET_TIME TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP,\n"
   "  SET_USER CHAR(32) collate utf8_bin default null,\n"
   "  SET_HOST CHAR(60) collate utf8_bin default null\n",
   /* Options */
@@ -214,43 +214,23 @@ table_variables_info::read_row_values(TABLE *table,
         set_field_varchar_utf8(
           f, m_row.m_variable_path, m_row.m_variable_path_length);
         break;
-      case 3: /* MIN_VALUE */
+      case 3: /* VARIABLE_MIN_VALUE */
         set_field_varchar_utf8(f, m_row.m_min_value, m_row.m_min_value_length);
         break;
-      case 4: /* MAX_VALUE */
+      case 4: /* VARIABLE_MAX_VALUE */
         set_field_varchar_utf8(f, m_row.m_max_value, m_row.m_max_value_length);
         break;
-      case 5: /* SET_TIME */
+      case 5: /* VARIABLE_SET_TIME */
         if (m_row.m_set_time != 0)
-        {
           set_field_timestamp(f, m_row.m_set_time);
-        }
-        else
-        {
-          f->set_null();
-        }
         break;
-      case 6: /* SET_USER */
-        if (m_row.m_set_user_str_length != 0)
-        {
-          set_field_char_utf8(
-            f, m_row.m_set_user_str, m_row.m_set_user_str_length);
-        }
-        else
-        {
-          f->set_null();
-        }
+      case 6: /* VARIABLE_SET_USER */
+        set_field_char_utf8(
+          f, m_row.m_set_user_str, m_row.m_set_user_str_length);
         break;
-      case 7: /* SET_HOST */
-        if (m_row.m_set_host_str_length != 0)
-        {
-          set_field_char_utf8(
-            f, m_row.m_set_host_str, m_row.m_set_host_str_length);
-        }
-        else
-        {
-          f->set_null();
-        }
+      case 7: /* VARIABLE_SET_HOST */
+        set_field_char_utf8(
+          f, m_row.m_set_host_str, m_row.m_set_host_str_length);
         break;
 
       default:
