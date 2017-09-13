@@ -4309,7 +4309,8 @@ inline bool is_invalid_string(const LEX_CSTRING &string_val,
   size_t valid_len;
   bool len_error;
 
-  if (validate_string(charset_info, string_val.str, string_val.length,
+  if (validate_string(charset_info, string_val.str,
+                      static_cast<uint32>(string_val.length),
                       &valid_len, &len_error))
   {
     char hexbuf[7];
