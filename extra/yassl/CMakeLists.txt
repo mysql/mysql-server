@@ -39,7 +39,3 @@ SET(YASSL_SOURCES  src/buffer.cpp src/cert_wrapper.cpp src/crypto_wrapper.cpp sr
                                 ../../client/get_password.c )
 
 ADD_CONVENIENCE_LIBRARY(yassl ${YASSL_SOURCES})
-
-IF(MSVC)
-   INSTALL_DEBUG_TARGET(yassl DESTINATION ${INSTALL_LIBDIR}/debug)
-ENDIF()

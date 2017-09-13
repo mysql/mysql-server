@@ -837,18 +837,12 @@ IF(WITH_MYSQLD_LDFLAGS)
      "${MYSQLD_LINK_FLAGS} ${WITH_MYSQLD_LDFLAGS}")
 ENDIF()
 
-IF(DEBUG_EXTNAME)
-  INSTALL_DEBUG_TARGET(mysqld 
-    DESTINATION ${INSTALL_SBINDIR} 
-    PDB_DESTINATION ${INSTALL_SBINDIR}
-    SUFFIX "-debug")
-ELSE()
-  INSTALL_DEBUG_TARGET(mysqld 
-    DESTINATION ${INSTALL_SBINDIR} 
-    PDB_DESTINATION ${INSTALL_SBINDIR}/debug
-    RENAME mysqld-debug)
-ENDIF()
-
+# See DEBUG_EXTNAME above: mysqld may already have name mysqld-debug,
+# and the rename is a no-op. If it is called 'mysqld' we rename it.
+INSTALL_DEBUG_TARGET(mysqld
+  DESTINATION ${INSTALL_SBINDIR}
+  RENAME mysqld-debug${CMAKE_EXECUTABLE_SUFFIX}
+)
 
 # Handle out-of-source build from source package with possibly broken 
 # bison. Copy bison output to from source to build directory, if not already 
