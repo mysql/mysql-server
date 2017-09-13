@@ -55,6 +55,7 @@ class Item;
 class Item_sum;
 class JOIN;
 class Opt_trace_context;
+struct TABLE_REF;
 class THD;
 class Unique;
 
@@ -467,7 +468,7 @@ protected:
   friend class TRP_ROR_INTERSECT;
   friend
   QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
-                                               struct st_table_ref *ref,
+                                               TABLE_REF *ref,
                                                ha_rows records);
   friend bool get_quick_keys(PARAM *param,
                              QUICK_RANGE_SELECT *quick,KEY_PART *key,
@@ -1069,7 +1070,7 @@ public:
 
 FT_SELECT *get_ft_select(THD *thd, TABLE *table, uint key);
 QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
-                                             struct st_table_ref *ref,
+                                             TABLE_REF *ref,
                                              ha_rows records);
 bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond);
 void store_key_image_to_rec(Field *field, uchar *ptr, uint len);

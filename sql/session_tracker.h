@@ -26,7 +26,7 @@ class String;
 class THD;
 class set_var;
 
-typedef struct charset_info_st CHARSET_INFO;
+struct CHARSET_INFO;
 
 
 enum enum_session_tracker

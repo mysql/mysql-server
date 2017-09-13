@@ -3423,7 +3423,7 @@ static MYSQL_SYSVAR_BOOL(auto_generate_rsa_keys, auth_rsa_auto_generate_rsa_keys
         "at the default location.",
         NULL, NULL, TRUE);
 
-static struct st_mysql_sys_var* sha256_password_sysvars[]= {
+static SYS_VAR* sha256_password_sysvars[]= {
   MYSQL_SYSVAR(private_key_path),
   MYSQL_SYSVAR(public_key_path),
   MYSQL_SYSVAR(auto_generate_rsa_keys),

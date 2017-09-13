@@ -95,11 +95,10 @@ enum SERVER_STATUS_flags_enum
   SERVER_STATUS_IN_TRANS_READONLY= 8192,
   SERVER_SESSION_STATE_CHANGED= (1UL << 14)
 };
-struct st_vio;
-typedef struct st_vio Vio;
+struct Vio;
 typedef struct NET
 {
-  Vio* vio;
+  struct Vio* vio;
   unsigned char *buff,*buff_end,*write_pos,*read_pos;
   my_socket fd;
   unsigned long remain_in_buf,length, buf_length, where_b;
@@ -152,7 +151,7 @@ enum enum_session_state_type
   SESSION_TRACK_TRANSACTION_CHARACTERISTICS,
   SESSION_TRACK_TRANSACTION_STATE
 };
-bool my_net_init(struct NET *net, Vio* vio);
+bool my_net_init(struct NET *net, struct Vio* vio);
 void my_net_local_init(struct NET *net);
 void net_end(struct NET *net);
 void net_clear(struct NET *net, bool check_buffer);
@@ -273,11 +272,12 @@ typedef struct MYSQL_PLUGIN_VIO
   void (*info)(struct MYSQL_PLUGIN_VIO *vio,
                struct MYSQL_PLUGIN_VIO_INFO *info);
 } MYSQL_PLUGIN_VIO;
-struct st_mysql_client_plugin_AUTHENTICATION
+struct auth_plugin_t
 {
   int type; unsigned int interface_version; const char *name; const char *author; const char *desc; unsigned int version[3]; const char *license; void *mysql_api; int (*init)(char *, size_t, int, va_list); int (*deinit)(void); int (*options)(const char *option, const void *);
   int (*authenticate_user)(MYSQL_PLUGIN_VIO *vio, struct MYSQL *mysql);
 };
+typedef struct auth_plugin_t st_mysql_client_plugin_AUTHENTICATION;
 struct st_mysql_client_plugin *
 mysql_load_plugin(struct MYSQL *mysql, const char *name, int type,
                   int argc, ...);
@@ -457,7 +457,7 @@ typedef struct MYSQL
   unsigned char *connector_fd;
   char *host,*user,*passwd,*unix_socket,*server_version,*host_info;
   char *info, *db;
-  struct charset_info_st *charset;
+  struct CHARSET_INFO *charset;
   MYSQL_FIELD *fields;
   struct MEM_ROOT *field_alloc;
   my_ulonglong affected_rows;

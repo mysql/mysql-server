@@ -136,8 +136,8 @@ public:
 
 class String;
 
-typedef struct charset_info_st CHARSET_INFO;
-typedef struct st_io_cache IO_CACHE;
+struct CHARSET_INFO;
+struct IO_CACHE;
 
 int sortcmp(const String *a,const String *b, const CHARSET_INFO *cs);
 String *copy_if_not_alloced(String *to, String *from, size_t from_length);

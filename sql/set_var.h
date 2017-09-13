@@ -58,7 +58,7 @@ template <class Key, class Value> class collation_unordered_map;
 typedef ulonglong sql_mode_t;
 typedef enum enum_mysql_show_type SHOW_TYPE;
 typedef enum enum_mysql_show_scope SHOW_SCOPE;
-typedef struct st_mysql_show_var SHOW_VAR;
+struct SHOW_VAR;
 template <class T> class List;
 
 extern TYPELIB bool_typelib;

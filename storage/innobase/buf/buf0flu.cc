@@ -3102,7 +3102,7 @@ It's used by: SET GLOBAL innodb_page_cleaner_disabled_debug = 1 (0).
 void
 buf_flush_page_cleaner_disabled_debug_update(
 	THD*				thd,
-	struct st_mysql_sys_var*	var,
+	SYS_VAR*	var,
 	void*				var_ptr,
 	const void*			save)
 {

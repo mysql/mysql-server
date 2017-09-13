@@ -54,7 +54,7 @@ namespace dd {
   class Schema;
 }
 
-typedef struct charset_info_st CHARSET_INFO;
+struct CHARSET_INFO;
 
 #ifdef HAVE_PSI_INTERFACE
 extern PSI_mutex_key key_event_scheduler_LOCK_scheduler_state;

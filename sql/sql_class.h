@@ -1499,12 +1499,12 @@ public:
   }
 
   /** Holds active timer object */
-  struct st_thd_timer_info *timer;
+  struct THD_timer_info *timer;
   /**
     After resetting(cancelling) timer, current timer object is cached
     with timer_cache timer to reuse.
   */
-  struct st_thd_timer_info *timer_cache;
+  struct THD_timer_info *timer_cache;
 
 private:
   /*

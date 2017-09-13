@@ -43,7 +43,7 @@ void mysql_comp_status_var_services_init()
   to know how to construct status varables for different variable types.
 */
 DEFINE_BOOL_METHOD(mysql_status_variable_registration_imp::register_variable,
-  (STATUS_VAR *status_var))
+  (SHOW_VAR *status_var))
 {
   try
   {
@@ -61,14 +61,14 @@ DEFINE_BOOL_METHOD(mysql_status_variable_registration_imp::register_variable,
 
 /**
   Unregister's status variable.
-  @param  status_var STATUS_VAR object with only the name of the variable,
+  @param  status_var SHOW_VAR object with only the name of the variable,
                      which has to be removed from the global list.
   @return Status of performed operation
   @retval false success
   @retval true failure
 */
 DEFINE_BOOL_METHOD(mysql_status_variable_registration_imp::unregister_variable,
-  (STATUS_VAR *status_var))
+  (SHOW_VAR *status_var))
 {
   try
   {

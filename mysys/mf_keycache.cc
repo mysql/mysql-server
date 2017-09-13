@@ -139,18 +139,17 @@
 typedef mysql_cond_t KEYCACHE_CONDVAR;
 
 /* descriptor of the page in the key cache block buffer */
-struct st_keycache_page
+struct KEYCACHE_PAGE
 {
   int file;               /* file to which the page belongs to  */
   my_off_t filepos;       /* position of the page in the file   */
 };
-typedef struct st_keycache_page KEYCACHE_PAGE;
 
 /* element in the chain of a hash table bucket */
-struct st_hash_link
+struct HASH_LINK
 {
-  struct st_hash_link *next, **prev; /* to connect links in the same bucket  */
-  struct st_block_link *block;       /* reference to the block for the page: */
+  HASH_LINK *next, **prev; /* to connect links in the same bucket  */
+  BLOCK_LINK *block;       /* reference to the block for the page: */
   File file;                         /* from such a file                     */
   my_off_t diskpos;                  /* with such an offset                  */
   uint requests;                     /* number of requests for the page      */
@@ -177,13 +176,13 @@ struct st_hash_link
 enum BLOCK_TEMPERATURE { BLOCK_COLD /*free*/ , BLOCK_WARM , BLOCK_HOT };
 
 /* key cache block */
-struct st_block_link
+struct BLOCK_LINK
 {
-  struct st_block_link
+  BLOCK_LINK
     *next_used, **prev_used;   /* to connect links in the LRU chain (ring)   */
-  struct st_block_link
+  BLOCK_LINK
     *next_changed, **prev_changed; /* for lists of file dirty/clean blocks   */
-  struct st_hash_link *hash_link; /* backward ptr to referring hash_link     */
+  HASH_LINK *hash_link; /* backward ptr to referring hash_link     */
   KEYCACHE_WQUEUE wqueue[2]; /* queues on waiting requests for new/old pages */
   uint requests;          /* number of requests for the block                */
   uchar *buffer;           /* buffer for the block page                       */
@@ -3628,7 +3627,7 @@ restart:
             if (!(block->status & (BLOCK_IN_EVICTION | BLOCK_IN_SWITCH |
                                    BLOCK_REASSIGNED)))
             {
-              struct st_hash_link *next_hash_link= NULL;
+              HASH_LINK *next_hash_link= NULL;
               my_off_t next_diskpos= 0;
               File next_file= 0;
               uint next_status= 0;

@@ -35,20 +35,16 @@ C_MODE_START
 
 /* declare structures that is used by KEY_CACHE */
 
-struct st_block_link;
-
-typedef struct st_block_link BLOCK_LINK;
-struct st_hash_link;
-
-typedef struct st_hash_link HASH_LINK;
+struct BLOCK_LINK;
+struct HASH_LINK;
 
 /* Thread specific variables */
-typedef struct st_keycache_thread_var
+struct st_keycache_thread_var
 {
   mysql_cond_t suspend;
   struct st_keycache_thread_var *next,**prev;
   void *opt_info;
-} st_keycache_thread_var;
+};
 
 /* info about requests in a waiting queue */
 struct KEYCACHE_WQUEUE

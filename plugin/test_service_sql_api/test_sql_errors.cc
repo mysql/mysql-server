@@ -710,7 +710,7 @@ int nb_sessions;
 static MYSQL_SYSVAR_INT  (nb_sessions, nb_sessions, PLUGIN_VAR_RQCMDARG,
                           "number of sessions", NULL, NULL, 1, 1, 500, 0);
 
-static struct st_mysql_sys_var *test_services_sysvars[]=
+static SYS_VAR *test_services_sysvars[]=
 {
   MYSQL_SYSVAR(nb_sessions),
   NULL

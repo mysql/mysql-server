@@ -84,7 +84,7 @@ class PT_query_expression;
 class PT_subquery;
 class Sql_cmd;
 class String;
-struct st_mysql_lex_string;
+struct MYSQL_LEX_STRING;
 
 /**
   @defgroup ptn  Parse tree nodes

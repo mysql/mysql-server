@@ -21,8 +21,7 @@
 #include <ndb_types.h>
 
 class Ndb;
-struct charset_info_st;
-typedef struct charset_info_st CHARSET_INFO;
+struct CHARSET_INFO;
 
 /* Forward declaration only. */
 class NdbRecord;

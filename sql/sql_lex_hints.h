@@ -44,7 +44,7 @@
 
 class PT_hint_list;
 
-void hint_lex_init_maps(charset_info_st *cs, hint_lex_char_classes *hint_map);
+void hint_lex_init_maps(CHARSET_INFO *cs, hint_lex_char_classes *hint_map);
 
 /// Lexical scanner for hint comments.
 ///

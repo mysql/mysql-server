@@ -68,7 +68,7 @@
 
 
 /* Structure to store a parsed XML tree */
-typedef struct my_xml_node_st
+struct MY_XML_NODE
 {
   uint level;                 /* level in XML tree, 0 means root node   */
   enum my_xml_node_type type; /* node type: node, or attribute, or text */
@@ -76,40 +76,41 @@ typedef struct my_xml_node_st
   const char *beg;            /* beginning of the name or text          */
   const char *end;            /* end of the name or text                */
   const char *tagend;         /* where this tag ends                    */
-} MY_XML_NODE;
+};
 
 
 /* Lexical analizer token */
-typedef struct my_xpath_lex_st
+struct MY_XPATH_LEX
 {
   int        term;  /* token type, see MY_XPATH_LEX_XXXXX below */
   const char *beg;  /* beginnign of the token                   */
   const char *end;  /* end of the token                         */
-} MY_XPATH_LEX;
+};
 
 
 /* Structure to store nodesets */
-typedef struct my_xpath_flt_st
+struct MY_XPATH_FLT
 {
   uint num;     /* absolute position in MY_XML_NODE array */
   uint pos;     /* relative position in context           */
   uint size;    /* context size                           */
-} MY_XPATH_FLT;
+};
 
+struct MY_XPATH;
 
 /* XPath function creator */
-typedef struct my_xpath_function_names_st
+struct MY_XPATH_FUNC
 {
   const char *name;  /* function name           */
   size_t length;     /* function name length    */
   size_t minargs;    /* min number of arguments */
   size_t maxargs;    /* max number of arguments */
-  Item *(*create)(struct my_xpath_st *xpath, Item **args, uint nargs);
-} MY_XPATH_FUNC;
+  Item *(*create)(MY_XPATH *xpath, Item **args, uint nargs);
+};
 
 
 /* XPath query parser */
-typedef struct my_xpath_st
+struct MY_XPATH
 {
   int debug;
   MY_XPATH_LEX query;    /* Whole query                               */
@@ -125,7 +126,7 @@ typedef struct my_xpath_st
   String *pxml;          /* Parsed XML, an array of MY_XML_NODE       */
   const CHARSET_INFO *cs;/* character set/collation string comparison */
   int error;
-} MY_XPATH;
+};
 
 
 /* Dynamic array of MY_XPATH_FLT */

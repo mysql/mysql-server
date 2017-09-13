@@ -172,7 +172,7 @@ private:
 };
 
 
-Query_formatter::Query_formatter(ngs::PFS_string &query, charset_info_st &charset)
+Query_formatter::Query_formatter(ngs::PFS_string &query, CHARSET_INFO &charset)
 : m_query(query), m_charset(charset), m_last_tag_position(0)
 {
 }

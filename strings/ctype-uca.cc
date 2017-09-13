@@ -2659,7 +2659,7 @@ my_coll_lexem_num_to_str(my_coll_lexem_num term)
 }
 
 
-typedef struct my_coll_lexem_st
+struct MY_COLL_LEXEM
 {
   my_coll_lexem_num term;
   const char *beg;
@@ -2667,7 +2667,7 @@ typedef struct my_coll_lexem_st
   const char *prev;
   int   diff;
   int   code;
-} MY_COLL_LEXEM;
+};
 
 
 /*
@@ -2922,14 +2922,14 @@ ex:
 
 #define MY_UCA_MAX_EXPANSION  6  /* Maximum expansion length   */
 
-typedef struct my_coll_rule_item_st
+struct MY_COLL_RULE
 {
   my_wc_t base[MY_UCA_MAX_EXPANSION];    /* Base character                  */
   my_wc_t curr[MY_UCA_MAX_CONTRACTION];  /* Current character               */
   int diff[4];      /* Primary, Secondary, Tertiary, Quaternary difference  */
   size_t before_level;                   /* "reset before" indicator        */
   bool with_context;
-} MY_COLL_RULE;
+};
 
 
 /**
@@ -3013,7 +3013,7 @@ typedef enum
 } my_coll_shift_method;
 
 
-typedef struct my_coll_rules_st
+struct MY_COLL_RULES
 {
   MY_UCA_INFO *uca;          /* Unicode weight data               */
   size_t nrules;             /* Number of rules in the rule array */
@@ -3021,7 +3021,7 @@ typedef struct my_coll_rules_st
   MY_COLL_RULE *rule;        /* Rule array                        */
   MY_CHARSET_LOADER *loader;
   my_coll_shift_method shift_after_method;
-} MY_COLL_RULES;
+};
 
 
 /**
@@ -3104,13 +3104,13 @@ my_coll_rule_shift_at_level(MY_COLL_RULE *r, int level)
 }
 
 
-typedef struct my_coll_rule_parser_st
+struct MY_COLL_RULE_PARSER
 {
   MY_COLL_LEXEM tok[2]; /* Current token and next token for look-ahead */
   MY_COLL_RULE rule;    /* Currently parsed rule */
   MY_COLL_RULES *rules; /* Rule list pointer     */
   char errstr[128];     /* Error message         */
-} MY_COLL_RULE_PARSER;
+};
 
 
 /**

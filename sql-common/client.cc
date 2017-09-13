@@ -748,7 +748,7 @@ void read_ok_ex(MYSQL *mysql, ulong length)
   my_ulonglong affected_rows, insert_id;
   char *db;
 
-  struct charset_info_st *saved_cs;
+  CHARSET_INFO *saved_cs;
   char charset_name[64];
   bool is_charset;
 
@@ -2947,12 +2947,12 @@ typedef enum my_cs_match_type_enum
 } my_cs_match_type;
 
 
-typedef struct str2str_st
+struct MY_CSET_OS_NAME
 {
   const char *os_name;
   const char *my_name;
   my_cs_match_type param;
-} MY_CSET_OS_NAME;
+};
 
 const MY_CSET_OS_NAME charsets[]=
 {
@@ -3253,7 +3253,6 @@ C_MODE_END
 
 /*********** client side authentication support **************************/
 
-typedef struct st_mysql_client_plugin_AUTHENTICATION auth_plugin_t;
 static int client_mpvio_write_packet(MYSQL_PLUGIN_VIO*, const uchar*, int);
 static int native_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql);
 static int clear_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql);
@@ -3425,7 +3424,7 @@ static size_t get_length_store_length(size_t length)
 
 
 /* this is a "superset" of MYSQL_PLUGIN_VIO, in C++ I use inheritance */
-typedef struct {
+struct MCPVIO_EXT {
   int (*read_packet)(MYSQL_PLUGIN_VIO *vio, uchar **buf);
   int (*write_packet)(MYSQL_PLUGIN_VIO *vio, const uchar *pkt, int pkt_len);
   void (*info)(MYSQL_PLUGIN_VIO *vio, MYSQL_PLUGIN_VIO_INFO *info);
@@ -3440,7 +3439,7 @@ typedef struct {
   int packets_read, packets_written; /**< counters for send/received packets */
   int mysql_change_user;            /**< if it's mysql_change_user() */
   int last_read_packet_len;         /**< the length of the last *read* packet */
-} MCPVIO_EXT;
+};
 
 
 /*
@@ -6707,7 +6706,7 @@ mysql_get_server_version(MYSQL *mysql)
 */
 int STDCALL mysql_set_character_set(MYSQL *mysql, const char *cs_name)
 {
-  struct charset_info_st *cs;
+  CHARSET_INFO *cs;
   const char *save_csdir= charsets_dir;
 
   if (mysql->options.charset_dir)

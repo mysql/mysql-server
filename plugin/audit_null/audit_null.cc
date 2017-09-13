@@ -110,7 +110,7 @@ static volatile int number_of_calls;
   Plugin status variables for SHOW STATUS
 */
 
-static struct st_mysql_show_var simple_status[] =
+static SHOW_VAR simple_status[] =
 {
   { "Audit_null_called",
     (char *)&number_of_calls,
@@ -182,7 +182,7 @@ static MYSQL_THDVAR_STR(event_record,
 
 static int audit_null_plugin_init(void *arg MY_ATTRIBUTE((unused)))
 {
-  struct st_mysql_show_var *var;
+  SHOW_VAR *var;
 
   for (var= simple_status; var->value != 0; var++)
   {
@@ -775,7 +775,7 @@ static struct st_mysql_audit audit_null_descriptor=
     (unsigned long) MYSQL_AUDIT_AUTHENTICATION_ALL }
 };
 
-static struct st_mysql_sys_var* system_variables[] = {
+static SYS_VAR* system_variables[] = {
 
   MYSQL_SYSVAR(abort_message),
   MYSQL_SYSVAR(abort_value),

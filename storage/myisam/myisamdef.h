@@ -144,12 +144,12 @@ struct MI_BASE_INFO
 
 	/* Structs used intern in database */
 
-typedef struct st_mi_blob		/* Info of record */
+struct MI_BLOB		/* Info of record */
 {
   ulong offset;				/* Offset to blob in record */
   uint pack_length;			/* Type of packed length */
   ulong length;				/* Calc:ed for each record */
-} MI_BLOB;
+};
 
 
 struct MI_PACK
@@ -180,15 +180,15 @@ struct MYISAM_SHARE
   KEY_CACHE *key_cache;			/* ref to the current key cache */
   MI_DECODE_TREE *decode_trees;
   uint16 *decode_tables;
-  int (*read_record)(struct st_myisam_info*, my_off_t, uchar*);
-  int (*write_record)(struct st_myisam_info*, const uchar*);
-  int (*update_record)(struct st_myisam_info*, my_off_t, const uchar*);
-  int (*delete_record)(struct st_myisam_info*);
-  int (*read_rnd)(struct st_myisam_info*, uchar*, my_off_t, bool);
-  int (*compare_record)(struct st_myisam_info*, const uchar *);
+  int (*read_record)(MI_INFO*, my_off_t, uchar*);
+  int (*write_record)(MI_INFO*, const uchar*);
+  int (*update_record)(MI_INFO*, my_off_t, const uchar*);
+  int (*delete_record)(MI_INFO*);
+  int (*read_rnd)(MI_INFO*, uchar*, my_off_t, bool);
+  int (*compare_record)(MI_INFO*, const uchar *);
   /* Function to use for a row checksum. */
-  ha_checksum (*calc_checksum)(struct st_myisam_info*, const uchar *);
-  int (*compare_unique)(struct st_myisam_info*, MI_UNIQUEDEF *,
+  ha_checksum (*calc_checksum)(MI_INFO*, const uchar *);
+  int (*compare_unique)(MI_INFO*, MI_UNIQUEDEF *,
 			const uchar *record, my_off_t pos);
   size_t (*file_read)(MI_INFO *, uchar *, size_t, my_off_t, myf);
   size_t (*file_write)(MI_INFO *, const uchar *, size_t, my_off_t, myf);
@@ -243,7 +243,7 @@ C_MODE_START
 typedef ICP_RESULT (*index_cond_func_t)(void *param);
 C_MODE_END
 
-struct st_myisam_info {
+struct MI_INFO {
   MYISAM_SHARE *s;			/* Shared between open:s */
   MI_STATUS_INFO *state,save_state;
   MI_BLOB     *blobs;			/* Pointer to blobs */
@@ -266,7 +266,7 @@ struct st_myisam_info {
         *int_maxpos;			/*  -""-  */
   uint  int_nod_flag;			/*  -""-  */
   uint32 int_keytree_version;		/*  -""-  */
-  int (*read_record)(struct st_myisam_info*, my_off_t, uchar*);
+  int (*read_record)(MI_INFO*, my_off_t, uchar*);
   ulong this_unique;			/* uniq filenumber or thread */
   ulong last_unique;			/* last unique number */
   ulong this_loop;			/* counter for this open */
@@ -569,7 +569,7 @@ extern int _mi_decrement_open_count(MI_INFO *info);
 extern int _mi_check_index(MI_INFO *info,int inx);
 extern int _mi_search(MI_INFO *info,MI_KEYDEF *keyinfo,uchar *key,uint key_len,
 		      uint nextflag,my_off_t pos);
-extern int _mi_bin_search(struct st_myisam_info *info,MI_KEYDEF *keyinfo,
+extern int _mi_bin_search(MI_INFO *info,MI_KEYDEF *keyinfo,
 			  uchar *page,uchar *key,uint key_len,uint comp_flag,
 			  uchar * *ret_pos,uchar *buff, bool *was_last_key);
 extern int _mi_seq_search(MI_INFO *info,MI_KEYDEF *keyinfo,uchar *page,

@@ -33,7 +33,7 @@ class Time_zone;
 
 typedef ulonglong sql_mode_t;
 struct LIST;
-typedef struct charset_info_st CHARSET_INFO;
+struct CHARSET_INFO;
 
 // Values for binlog_format sysvar
 enum enum_binlog_format {

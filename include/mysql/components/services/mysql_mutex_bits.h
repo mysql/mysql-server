@@ -31,9 +31,15 @@
 
 /**
   An instrumented mutex structure.
-  @sa mysql_mutex_t
+  @c mysql_mutex_t is a drop-in replacement for @c my_mutex_t.
+  @sa mysql_mutex_assert_owner
+  @sa mysql_mutex_assert_not_owner
+  @sa mysql_mutex_init
+  @sa mysql_mutex_lock
+  @sa mysql_mutex_unlock
+  @sa mysql_mutex_destroy
 */
-struct st_mysql_mutex
+struct mysql_mutex_t
 {
   /** The real mutex. */
   my_mutex_t m_mutex;
@@ -44,18 +50,6 @@ struct st_mysql_mutex
   */
   struct PSI_mutex *m_psi;
 };
-
-/**
-  Type of an instrumented mutex.
-  @c mysql_mutex_t is a drop-in replacement for @c my_mutex_t.
-  @sa mysql_mutex_assert_owner
-  @sa mysql_mutex_assert_not_owner
-  @sa mysql_mutex_init
-  @sa mysql_mutex_lock
-  @sa mysql_mutex_unlock
-  @sa mysql_mutex_destroy
-*/
-typedef struct st_mysql_mutex mysql_mutex_t;
 
 /** @} (end of group psi_api_mutex) */
 

@@ -84,6 +84,7 @@ class Json_diff_vector;
 class Json_seekable_path;
 class Json_wrapper;
 struct NESTED_JOIN;
+struct POSITION;
 class Query_result_union;
 class SELECT_LEX_UNIT;
 class Security_context;
@@ -309,7 +310,7 @@ struct ORDER
   during the ACL check process.
   @sa GRANT_INFO
 */
-struct st_grant_internal_info
+struct GRANT_INTERNAL_INFO
 {
   /** True if the internal lookup by schema name was done. */
   bool m_schema_lookup_done;
@@ -320,7 +321,6 @@ struct st_grant_internal_info
   /** Cached internal table access. */
   const ACL_internal_table_access *m_table_access;
 };
-typedef struct st_grant_internal_info GRANT_INTERNAL_INFO;
 
 /**
    @brief The current state of the privilege checking process for the current
@@ -3516,7 +3516,7 @@ typedef Table_list_adapter<Global_tables_iterator> Global_tables_list;
 struct Semijoin_mat_optimize
 {
   /// Optimal join order calculated for inner tables of this semijoin op.
-  struct st_position *positions;
+  POSITION *positions;
   /// True if data types allow the MaterializeLookup semijoin strategy
   bool lookup_allowed;
   /// True if data types allow the MaterializeScan semijoin strategy

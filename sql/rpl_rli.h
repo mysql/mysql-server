@@ -81,7 +81,7 @@ class Rpl_info_handler;
 class Slave_committed_queue;
 class Slave_worker;
 
-typedef struct st_db_worker_hash_entry db_worker_hash_entry;
+struct db_worker_hash_entry;
 extern uint sql_slave_skip_counter;
 
 typedef Prealloced_array<Slave_worker*, 4> Slave_worker_array;

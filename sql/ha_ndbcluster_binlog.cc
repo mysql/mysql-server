@@ -6711,7 +6711,7 @@ Ndb_binlog_thread::do_run()
   thd->get_protocol_classic()->set_client_capabilities(0);
   thd->security_context()->skip_grants();
   // Create thd->net vithout vio
-  thd->get_protocol_classic()->init_net((st_vio *) 0);
+  thd->get_protocol_classic()->init_net((Vio *) 0);
 
   // Ndb binlog thread always use row format
   thd->set_current_stmt_binlog_format_row();

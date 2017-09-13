@@ -51,7 +51,8 @@ void set_thr_winerr(int winerr);
 
 #ifndef DBUG_OFF
 /* Return pointer to DBUG for holding current state */
-struct _db_code_state_ **my_thread_var_dbug();
+struct CODE_STATE;
+CODE_STATE **my_thread_var_dbug();
 
 my_thread_id my_thread_var_id();
 

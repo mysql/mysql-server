@@ -95,7 +95,7 @@ static bool has_no_data(Vio *vio MY_ATTRIBUTE((unused)))
 }
 } // extern "C"
 
-st_vio::st_vio(uint flags)
+Vio::Vio(uint flags)
 {
   mysql_socket= MYSQL_INVALID_SOCKET;
   local= sockaddr_storage();
@@ -111,7 +111,7 @@ st_vio::st_vio(uint flags)
 }
 
 
-st_vio::~st_vio()
+Vio::~Vio()
 {
   my_free(read_buffer);
   read_buffer= nullptr;
@@ -303,7 +303,7 @@ bool vio_reset(Vio* vio, enum enum_vio_type type,
       TODO: consider having a separate function for this,
             and consider memberwise assignment rather than memcpy!
     */
-    vio->~st_vio();
+    vio->~Vio();
     memcpy(vio, &new_vio, sizeof(*vio));
     // Disable DTOR actions.
     new_vio.read_buffer= nullptr;
@@ -318,10 +318,10 @@ bool vio_reset(Vio* vio, enum enum_vio_type type,
 
 Vio *internal_vio_create(uint flags)
 {
-  void *rawmem= my_malloc(key_memory_vio, sizeof(st_vio), MYF(MY_WME));
+  void *rawmem= my_malloc(key_memory_vio, sizeof(Vio), MYF(MY_WME));
   if (rawmem == nullptr)
     return nullptr;
-  return new (rawmem) st_vio(flags);
+  return new (rawmem) Vio(flags);
 }
 
 /* Create a new VIO for socket or TCP/IP connection. */
@@ -466,7 +466,7 @@ void internal_vio_delete(Vio *vio)
     return; /* It must be safe to delete null pointers. */
   if (vio->inactive == false)
     vio->vioshutdown(vio);
-  vio->~st_vio();
+  vio->~Vio();
   my_free(vio);
 }
 
@@ -495,7 +495,6 @@ struct vio_string
   const char * m_str;
   int m_len;
 };
-typedef struct vio_string vio_string;
 
 /**
   Names for each VIO TYPE.

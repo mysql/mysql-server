@@ -2781,19 +2781,19 @@ static MYSQL_SYSVAR_BOOL(
 static void initialize_ssl_option_map()
 {
   recovery_ssl_opt_map.clear();
-  st_mysql_sys_var* ssl_ca_var= MYSQL_SYSVAR(recovery_ssl_ca);
+  SYS_VAR* ssl_ca_var= MYSQL_SYSVAR(recovery_ssl_ca);
   recovery_ssl_opt_map[ssl_ca_var->name]= RECOVERY_SSL_CA_OPT;
-  st_mysql_sys_var* ssl_capath_var= MYSQL_SYSVAR(recovery_ssl_capath);
+  SYS_VAR* ssl_capath_var= MYSQL_SYSVAR(recovery_ssl_capath);
   recovery_ssl_opt_map[ssl_capath_var->name]= RECOVERY_SSL_CAPATH_OPT;
-  st_mysql_sys_var* ssl_cert_var= MYSQL_SYSVAR(recovery_ssl_cert);
+  SYS_VAR* ssl_cert_var= MYSQL_SYSVAR(recovery_ssl_cert);
   recovery_ssl_opt_map[ssl_cert_var->name]= RECOVERY_SSL_CERT_OPT;
-  st_mysql_sys_var* ssl_cipher_var= MYSQL_SYSVAR(recovery_ssl_cipher);
+  SYS_VAR* ssl_cipher_var= MYSQL_SYSVAR(recovery_ssl_cipher);
   recovery_ssl_opt_map[ssl_cipher_var->name]= RECOVERY_SSL_CIPHER_OPT;
-  st_mysql_sys_var* ssl_key_var= MYSQL_SYSVAR(recovery_ssl_key);
+  SYS_VAR* ssl_key_var= MYSQL_SYSVAR(recovery_ssl_key);
   recovery_ssl_opt_map[ssl_key_var->name]= RECOVERY_SSL_KEY_OPT;
-  st_mysql_sys_var* ssl_crl_var=MYSQL_SYSVAR(recovery_ssl_crl);
+  SYS_VAR* ssl_crl_var=MYSQL_SYSVAR(recovery_ssl_crl);
   recovery_ssl_opt_map[ssl_crl_var->name]= RECOVERY_SSL_CRL_OPT;
-  st_mysql_sys_var* ssl_crlpath_var=MYSQL_SYSVAR(recovery_ssl_crlpath);
+  SYS_VAR* ssl_crlpath_var=MYSQL_SYSVAR(recovery_ssl_crlpath);
   recovery_ssl_opt_map[ssl_crlpath_var->name]= RECOVERY_SSL_CRLPATH_OPT;
 }
 

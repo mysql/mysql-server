@@ -136,7 +136,7 @@ static struct st_mysql_audit test_security_context_descriptor=
 
 
 
-static struct st_mysql_sys_var* system_variables[] = {
+static SYS_VAR* system_variables[] = {
 
   MYSQL_SYSVAR(get_field),
   MYSQL_SYSVAR(get_value),

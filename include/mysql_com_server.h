@@ -32,13 +32,11 @@ typedef void (*before_header_callback_fn)
 typedef void (*after_header_callback_fn)
   (NET *net, void *user_data, size_t count, bool rc);
 
-struct st_net_server
+typedef struct NET_SERVER
 {
   before_header_callback_fn m_before_header;
   after_header_callback_fn m_after_header;
   void *m_user_data;
-};
-
-typedef struct st_net_server NET_SERVER;
+} NET_SERVER;
 
 #endif

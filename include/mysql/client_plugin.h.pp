@@ -20,11 +20,12 @@ typedef struct MYSQL_PLUGIN_VIO
   void (*info)(struct MYSQL_PLUGIN_VIO *vio,
                struct MYSQL_PLUGIN_VIO_INFO *info);
 } MYSQL_PLUGIN_VIO;
-struct st_mysql_client_plugin_AUTHENTICATION
+struct auth_plugin_t
 {
   int type; unsigned int interface_version; const char *name; const char *author; const char *desc; unsigned int version[3]; const char *license; void *mysql_api; int (*init)(char *, size_t, int, va_list); int (*deinit)(void); int (*options)(const char *option, const void *);
   int (*authenticate_user)(MYSQL_PLUGIN_VIO *vio, struct MYSQL *mysql);
 };
+typedef struct auth_plugin_t st_mysql_client_plugin_AUTHENTICATION;
 struct st_mysql_client_plugin *
 mysql_load_plugin(struct MYSQL *mysql, const char *name, int type,
                   int argc, ...);

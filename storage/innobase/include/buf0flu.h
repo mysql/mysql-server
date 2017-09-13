@@ -214,6 +214,8 @@ buf_flush_ready_for_replace(
 	buf_page_t*	bpage);
 
 #ifdef UNIV_DEBUG
+struct SYS_VAR;
+
 /** Disables page cleaner threads (coordinator and workers).
 It's used by: SET GLOBAL innodb_page_cleaner_disabled_debug = 1 (0).
 @param[in]	thd		thread handle
@@ -223,7 +225,7 @@ It's used by: SET GLOBAL innodb_page_cleaner_disabled_debug = 1 (0).
 void
 buf_flush_page_cleaner_disabled_debug_update(
 	THD*				thd,
-	struct st_mysql_sys_var*	var,
+	SYS_VAR*	var,
 	void*				var_ptr,
 	const void*			save);
 #endif /* UNIV_DEBUG */

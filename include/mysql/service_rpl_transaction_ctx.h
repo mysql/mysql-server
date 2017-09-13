@@ -35,7 +35,7 @@
 extern "C" {
 #endif
 
-struct st_transaction_termination_ctx
+struct Transaction_termination_ctx
 {
   unsigned long m_thread_id;
   unsigned int m_flags; // reserved
@@ -54,7 +54,6 @@ struct st_transaction_termination_ctx
   int m_sidno;
   long long int m_gno;
 };
-typedef struct st_transaction_termination_ctx Transaction_termination_ctx;
 
 extern struct rpl_transaction_ctx_service_st {
   int (*set_transaction_ctx)(Transaction_termination_ctx transaction_termination_ctx);

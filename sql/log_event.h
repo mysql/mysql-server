@@ -131,7 +131,7 @@ using binary_log::Binary_log_event;
 using binary_log::Format_description_event;
 
 typedef ulonglong sql_mode_t;
-typedef struct st_db_worker_hash_entry db_worker_hash_entry;
+struct db_worker_hash_entry;
 extern "C" MYSQL_PLUGIN_IMPORT char server_version[SERVER_VERSION_LENGTH];
 #if defined(MYSQL_SERVER)
 int ignored_error_code(int err_code);
@@ -491,11 +491,11 @@ struct PRINT_EVENT_INFO
 /*
   A specific to the database-scheduled MTS type.
 */
-typedef struct st_mts_db_names
+struct Mts_db_names
 {
   const char *name[MAX_DBS_IN_EVENT_MTS];
   int  num;
-} Mts_db_names;
+};
 
 /**
   @class Log_event

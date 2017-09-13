@@ -74,7 +74,7 @@ typedef struct fileinfo
   MY_STAT		*mystat;
 } FILEINFO;
 
-typedef struct st_my_dir	/* Struct returned from my_dir */
+struct MY_DIR	/* Struct returned from my_dir */
 {
   /*
     These members are just copies of parts of Prealloced_array structure, 
@@ -84,7 +84,7 @@ typedef struct st_my_dir	/* Struct returned from my_dir */
   */
   struct fileinfo	*dir_entry;
   uint			number_off_files;
-} MY_DIR;
+};
 
 extern MY_DIR *my_dir(const char *path,myf MyFlags);
 extern void my_dirend(MY_DIR *buffer);

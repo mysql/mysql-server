@@ -2402,19 +2402,19 @@ static inline int show_var_cmp(const SHOW_VAR *var1, const SHOW_VAR *var2)
 }
 
 class Show_var_cmp :
-  public std::binary_function<const st_mysql_show_var &,
-                              const st_mysql_show_var &, bool>
+  public std::binary_function<const SHOW_VAR &,
+                              const SHOW_VAR &, bool>
 {
 public:
-  bool operator()(const st_mysql_show_var &var1,
-                  const st_mysql_show_var &var2)
+  bool operator()(const SHOW_VAR &var1,
+                  const SHOW_VAR &var2)
   {
     return show_var_cmp(&var1, &var2) < 0;
   }
 };
 
 
-static inline bool is_show_undef(const st_mysql_show_var &var)
+static inline bool is_show_undef(const SHOW_VAR &var)
 {
   return var.type == SHOW_UNDEF;
 }

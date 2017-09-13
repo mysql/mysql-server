@@ -31,7 +31,7 @@
 #include "plugin/x/ngs/include/ngs_common/to_string.h"
 
 
-struct charset_info_st;
+struct CHARSET_INFO;
 
 namespace xpl
 {
@@ -39,7 +39,7 @@ namespace xpl
   class Query_formatter
   {
   public:
-    Query_formatter(ngs::PFS_string &query, charset_info_st &charser);
+    Query_formatter(ngs::PFS_string &query, CHARSET_INFO &charser);
 
     template <typename Value_type>
     class No_escape
@@ -93,7 +93,7 @@ namespace xpl
     void validate_next_tag();
 
     ngs::PFS_string      &m_query;
-    charset_info_st &m_charset;
+    CHARSET_INFO &m_charset;
     std::size_t      m_last_tag_position;
   };
 

@@ -33,7 +33,7 @@
 
 #include <atomic>
 
-typedef struct st_vio Vio;
+typedef Vio Vio;
 
 PSI_thread_key KEY_thread_x_worker = PSI_NOT_INSTRUMENTED;
 PSI_thread_key KEY_thread_x_acceptor = PSI_NOT_INSTRUMENTED;

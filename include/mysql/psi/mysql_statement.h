@@ -29,7 +29,7 @@
 #include "pfs_statement_provider.h"  // IWYU pragma: keep
 
 class Diagnostics_area;
-typedef struct charset_info_st CHARSET_INFO;
+struct CHARSET_INFO;
 
 #ifndef PSI_STATEMENT_CALL
 #define PSI_STATEMENT_CALL(M) psi_statement_service->M

@@ -24,18 +24,18 @@
 #define PICK_BY_AREA
 /*#define PICK_BY_PERIMETER*/
 
-typedef struct st_page_level
+struct stPageLevel
 {
   uint level;
   my_off_t offs;
-} stPageLevel;
+};
 
-typedef struct st_page_list
+struct stPageList
 {   
   ulong n_pages;
   ulong m_pages;
   stPageLevel *pages;
-} stPageList;
+};
 
 
 /* 

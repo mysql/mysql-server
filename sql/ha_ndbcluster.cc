@@ -19123,7 +19123,7 @@ static const int MAX_ACTIVATION_THRESHOLD = 16;
 static
 int
 ndb_recv_thread_activation_threshold_check(MYSQL_THD thd,
-                                           struct st_mysql_sys_var *var,
+                                           SYS_VAR *var,
                                            void *save,
                                            struct st_mysql_value *value)
 {
@@ -19144,7 +19144,7 @@ ndb_recv_thread_activation_threshold_check(MYSQL_THD thd,
 static
 void
 ndb_recv_thread_activation_threshold_update(MYSQL_THD,
-                                            struct st_mysql_sys_var *var,
+                                            SYS_VAR *var,
                                             void *var_ptr,
                                             const void *save)
 {
@@ -19176,7 +19176,7 @@ Uint16 recv_thread_cpuid_array[1 * MAX_CLUSTER_CONNECTIONS];
 static
 int
 ndb_recv_thread_cpu_mask_check(MYSQL_THD thd,
-                               struct st_mysql_sys_var *var,
+                               SYS_VAR *var,
                                void *save,
                                struct st_mysql_value *value)
 {
@@ -19238,7 +19238,7 @@ ndb_recv_thread_cpu_mask_update()
 static
 void
 ndb_recv_thread_cpu_mask_update_func(MYSQL_THD,
-                                     struct st_mysql_sys_var *var,
+                                     SYS_VAR *var,
                                      void *var_ptr,
                                      const void *save)
 {
@@ -19260,12 +19260,12 @@ static MYSQL_SYSVAR_STR(
 
 extern int
 ndb_index_stat_option_check(MYSQL_THD,
-                            struct st_mysql_sys_var *var,
+                            SYS_VAR *var,
                             void *save,
                             struct st_mysql_value *value);
 extern void
 ndb_index_stat_option_update(MYSQL_THD,
-                             struct st_mysql_sys_var *var,
+                             SYS_VAR *var,
                              void *var_ptr,
                              const void *save);
 
@@ -19378,7 +19378,7 @@ static MYSQL_SYSVAR_BOOL(
 static
 void
 ndb_data_node_neighbour_update_func(MYSQL_THD,
-                                    struct st_mysql_sys_var *var,
+                                    SYS_VAR *var,
                                     void *var_ptr,
                                     const void *save)
 {
@@ -19609,7 +19609,7 @@ static TYPELIB slave_conflict_role_typelib =
  * Perform most validation of a role change request.
  * Inspired by sql_plugin.cc::check_func_enum()
  */
-static int slave_conflict_role_check_func(THD *thd, struct st_mysql_sys_var *var,
+static int slave_conflict_role_check_func(THD *thd, SYS_VAR *var,
                                           void *save, st_mysql_value *value)
 {
   char buff[STRING_BUFFER_USUAL_SIZE];
@@ -19675,7 +19675,7 @@ static int slave_conflict_role_check_func(THD *thd, struct st_mysql_sys_var *var
  *
  * Inspired by sql_plugin.cc::update_func_long()
  */
-static void slave_conflict_role_update_func(THD *thd, struct st_mysql_sys_var *var,
+static void slave_conflict_role_update_func(THD *thd, SYS_VAR *var,
                                             void *tgt, const void *save)
 {
   *(long *)tgt= *(long *) save;
@@ -19696,7 +19696,7 @@ static MYSQL_SYSVAR_ENUM(
 
 static
 void
-dbg_check_shares_update(THD*, st_mysql_sys_var*, void*, const void*)
+dbg_check_shares_update(THD*, SYS_VAR*, void*, const void*)
 {
   ndb_log_info("dbug_check_shares open:");
   for (const auto &key_and_value : *ndbcluster_open_tables)
@@ -19755,7 +19755,7 @@ static MYSQL_THDVAR_UINT(
 
 #endif
 
-static struct st_mysql_sys_var* system_variables[]= {
+static SYS_VAR* system_variables[]= {
   MYSQL_SYSVAR(extra_logging),
   MYSQL_SYSVAR(wait_connected),
   MYSQL_SYSVAR(wait_setup),

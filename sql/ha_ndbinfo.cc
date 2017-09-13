@@ -102,7 +102,7 @@ static bool opt_ndbinfo_offline;
 
 static
 void
-offline_update(THD* thd, struct st_mysql_sys_var* var,
+offline_update(THD* thd, SYS_VAR* var,
                void* var_ptr, const void* save)
 {
   DBUG_ENTER("offline_update");
@@ -860,7 +860,7 @@ ndbinfo_deinit(void *plugin)
   DBUG_RETURN(0);
 }
 
-struct st_mysql_sys_var* ndbinfo_system_variables[]= {
+SYS_VAR* ndbinfo_system_variables[]= {
   MYSQL_SYSVAR(max_rows),
   MYSQL_SYSVAR(max_bytes),
   MYSQL_SYSVAR(show_hidden),

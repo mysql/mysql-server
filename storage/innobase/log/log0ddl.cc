@@ -110,7 +110,7 @@ static uint32_t	crash_after_replay_counter = 1;
 void
 ddl_log_crash_reset(
 	THD*				thd,
-	struct st_mysql_sys_var*	var,
+	SYS_VAR*	var,
 	void*				var_ptr,
 	const void*			save)
 {

@@ -63,8 +63,8 @@ struct st_file_buffer {
   ulonglong bitbucket;
 };
 
+struct HUFF_ELEMENT;
 struct HUFF_TREE;
-struct st_huff_element;
 
 struct HUFF_COUNTS
 {
@@ -83,13 +83,11 @@ struct HUFF_COUNTS
   uchar *tree_pos;       /* Points to end of column values in 'tree_buff'. */
 };
 
-typedef struct st_huff_element HUFF_ELEMENT;
-
 /*
   WARNING: It is crucial for the optimizations in calc_packed_length()
   that 'count' is the first element of 'HUFF_ELEMENT'.
 */
-struct st_huff_element {
+struct HUFF_ELEMENT {
   my_off_t count;
   union un_element {
     struct st_nod {

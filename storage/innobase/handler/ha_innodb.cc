@@ -811,7 +811,7 @@ int
 innodb_stopword_table_validate(
 /*===========================*/
 	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: pointer to system
+	SYS_VAR*	var,	/*!< in: pointer to system
 						variable */
 	void*				save,	/*!< out: immediate result
 						for update function */
@@ -828,7 +828,7 @@ static
 int
 innodb_tmpdir_validate(
 	THD*				thd,
-	struct st_mysql_sys_var*	var,
+	SYS_VAR*	var,
 	void*				save,
 	struct st_mysql_value*		value)
 {
@@ -1552,7 +1552,7 @@ int
 innobase_commit_concurrency_validate(
 /*=================================*/
 	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: pointer to system
+	SYS_VAR*	var,	/*!< in: pointer to system
 						variable */
 	void*				save,	/*!< out: immediate result
 						for update function */
@@ -19314,7 +19314,7 @@ void
 innodb_io_capacity_max_update(
 /*===========================*/
 	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+	SYS_VAR*	var,	/*!< in: pointer to
 						system variable */
 	void*				var_ptr,/*!< out: where the
 						formal string goes */
@@ -19346,7 +19346,7 @@ void
 innodb_io_capacity_update(
 /*======================*/
 	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+	SYS_VAR*	var,	/*!< in: pointer to
 						system variable */
 	void*				var_ptr,/*!< out: where the
 						formal string goes */
@@ -19377,7 +19377,7 @@ void
 innodb_max_dirty_pages_pct_update(
 /*==============================*/
 	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+	SYS_VAR*	var,	/*!< in: pointer to
 						system variable */
 	void*				var_ptr,/*!< out: where the
 						formal string goes */
@@ -19411,7 +19411,7 @@ void
 innodb_max_dirty_pages_pct_lwm_update(
 /*==================================*/
 	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+	SYS_VAR*	var,	/*!< in: pointer to
 						system variable */
 	void*				var_ptr,/*!< out: where the
 						formal string goes */
@@ -19445,7 +19445,7 @@ int
 innodb_stopword_table_validate(
 /*===========================*/
 	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: pointer to system
+	SYS_VAR*	var,	/*!< in: pointer to system
 						variable */
 	void*				save,	/*!< out: immediate result
 						for update function */
@@ -19482,7 +19482,7 @@ static
 void
 innodb_buffer_pool_size_update(
 	THD*				thd,
-	struct st_mysql_sys_var*	var,
+	SYS_VAR*	var,
 	void*				var_ptr,
 	const void*			save)
 {
@@ -19509,7 +19509,7 @@ int
 innodb_internal_table_validate(
 /*===========================*/
 	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: pointer to system
+	SYS_VAR*	var,	/*!< in: pointer to system
 						variable */
 	void*				save,	/*!< out: immediate result
 						for update function */
@@ -19567,7 +19567,7 @@ void
 innodb_internal_table_update(
 /*=========================*/
 	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+	SYS_VAR*	var,	/*!< in: pointer to
 						system variable */
 	void*				var_ptr,/*!< out: where the
 						formal string goes */
@@ -19610,7 +19610,7 @@ void
 innodb_adaptive_hash_index_update(
 /*==============================*/
 	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+	SYS_VAR*	var,	/*!< in: pointer to
 						system variable */
 	void*				var_ptr,/*!< out: where the
 						formal string goes */
@@ -19632,7 +19632,7 @@ void
 innodb_cmp_per_index_update(
 /*========================*/
 	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+	SYS_VAR*	var,	/*!< in: pointer to
 						system variable */
 	void*				var_ptr,/*!< out: where the
 						formal string goes */
@@ -19656,7 +19656,7 @@ void
 innodb_old_blocks_pct_update(
 /*=========================*/
 	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+	SYS_VAR*	var,	/*!< in: pointer to
 						system variable */
 	void*				var_ptr,/*!< out: where the
 						formal string goes */
@@ -19676,7 +19676,7 @@ void
 innodb_change_buffer_max_size_update(
 /*=================================*/
 	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+	SYS_VAR*	var,	/*!< in: pointer to
 						system variable */
 	void*				var_ptr,/*!< out: where the
 						formal string goes */
@@ -19699,7 +19699,7 @@ void
 innodb_save_page_no(
 /*================*/
 	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+	SYS_VAR*	var,	/*!< in: pointer to
 						system variable */
 	void*				var_ptr,/*!< out: where the
 						formal string goes */
@@ -19719,7 +19719,7 @@ void
 innodb_make_page_dirty(
 /*===================*/
 	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+	SYS_VAR*	var,	/*!< in: pointer to
 						system variable */
 	void*				var_ptr,/*!< out: where the
 						formal string goes */
@@ -20018,7 +20018,7 @@ int
 innodb_monitor_validate(
 /*====================*/
 	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: pointer to system
+	SYS_VAR*	var,	/*!< in: pointer to system
 						variable */
 	void*				save,	/*!< out: immediate result
 						for update function */
@@ -20190,7 +20190,7 @@ int
 innodb_srv_buf_dump_filename_validate(
 /*==================================*/
 	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: pointer to system
+	SYS_VAR*	var,	/*!< in: pointer to system
 						variable */
 	void*				save,	/*!< out: immediate result
 						for update function */
@@ -20292,7 +20292,7 @@ void
 innodb_buffer_pool_evict_update(
 /*============================*/
 	THD*			thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*var,	/*!< in: pointer to system variable */
+	SYS_VAR*var,	/*!< in: pointer to system variable */
 	void*			var_ptr,/*!< out: ignored */
 	const void*		save)	/*!< in: immediate result
 					from check function */
@@ -20323,7 +20323,7 @@ void
 innodb_enable_monitor_update(
 /*=========================*/
 	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+	SYS_VAR*	var,	/*!< in: pointer to
 						system variable */
 	void*				var_ptr,/*!< out: where the
 						formal string goes */
@@ -20341,7 +20341,7 @@ void
 innodb_disable_monitor_update(
 /*==========================*/
 	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+	SYS_VAR*	var,	/*!< in: pointer to
 						system variable */
 	void*				var_ptr,/*!< out: where the
 						formal string goes */
@@ -20360,7 +20360,7 @@ void
 innodb_reset_monitor_update(
 /*========================*/
 	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+	SYS_VAR*	var,	/*!< in: pointer to
 						system variable */
 	void*				var_ptr,/*!< out: where the
 						formal string goes */
@@ -20379,7 +20379,7 @@ void
 innodb_reset_all_monitor_update(
 /*============================*/
 	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+	SYS_VAR*	var,	/*!< in: pointer to
 						system variable */
 	void*				var_ptr,/*!< out: where the
 						formal string goes */
@@ -20401,7 +20401,7 @@ static
 void
 innodb_undo_tablespaces_update(
 	THD*				thd,
-	struct st_mysql_sys_var*	var,
+	SYS_VAR*	var,
 	void*				var_ptr,
 	const void*			save)
 {
@@ -20443,7 +20443,7 @@ static
 void
 innodb_rollback_segments_update(
 	THD*				thd,
-	struct st_mysql_sys_var*	var,
+	SYS_VAR*	var,
 	void*				var_ptr,
 	const void*			save)
 {
@@ -20650,7 +20650,7 @@ void
 wait_background_drop_list_empty(
 	THD*				thd	/*!< in: thread handle */
 					MY_ATTRIBUTE((unused)),
-	struct st_mysql_sys_var*	var	/*!< in: pointer to system
+	SYS_VAR*	var	/*!< in: pointer to system
 						variable */
 					MY_ATTRIBUTE((unused)),
 	void*				var_ptr	/*!< out: where the formal
@@ -20672,7 +20672,7 @@ purge_run_now_set(
 /*==============*/
 	THD*				thd	/*!< in: thread handle */
 					MY_ATTRIBUTE((unused)),
-	struct st_mysql_sys_var*	var	/*!< in: pointer to system
+	SYS_VAR*	var	/*!< in: pointer to system
 						variable */
 					MY_ATTRIBUTE((unused)),
 	void*				var_ptr	/*!< out: where the formal
@@ -20695,7 +20695,7 @@ purge_stop_now_set(
 /*===============*/
 	THD*				thd	/*!< in: thread handle */
 					MY_ATTRIBUTE((unused)),
-	struct st_mysql_sys_var*	var	/*!< in: pointer to system
+	SYS_VAR*	var	/*!< in: pointer to system
 						variable */
 					MY_ATTRIBUTE((unused)),
 	void*				var_ptr	/*!< out: where the formal
@@ -20717,7 +20717,7 @@ checkpoint_now_set(
 /*===============*/
 	THD*				thd	/*!< in: thread handle */
 					MY_ATTRIBUTE((unused)),
-	struct st_mysql_sys_var*	var	/*!< in: pointer to system
+	SYS_VAR*	var	/*!< in: pointer to system
 						variable */
 					MY_ATTRIBUTE((unused)),
 	void*				var_ptr	/*!< out: where the formal
@@ -20747,7 +20747,7 @@ buf_flush_list_now_set(
 /*===================*/
 	THD*				thd	/*!< in: thread handle */
 					MY_ATTRIBUTE((unused)),
-	struct st_mysql_sys_var*	var	/*!< in: pointer to system
+	SYS_VAR*	var	/*!< in: pointer to system
 						variable */
 					MY_ATTRIBUTE((unused)),
 	void*				var_ptr	/*!< out: where the formal
@@ -20771,7 +20771,7 @@ static
 void
 innodb_merge_threshold_set_all_debug_update(
 	THD*				thd,
-	struct st_mysql_sys_var*	var,
+	SYS_VAR*	var,
 	void*				var_ptr,
 	const void*			save)
 {
@@ -20832,7 +20832,7 @@ buffer_pool_dump_now(
 /*=================*/
 	THD*				thd	/*!< in: thread handle */
 					MY_ATTRIBUTE((unused)),
-	struct st_mysql_sys_var*	var	/*!< in: pointer to system
+	SYS_VAR*	var	/*!< in: pointer to system
 						variable */
 					MY_ATTRIBUTE((unused)),
 	void*				var_ptr	/*!< out: where the formal
@@ -20855,7 +20855,7 @@ buffer_pool_load_now(
 /*=================*/
 	THD*				thd	/*!< in: thread handle */
 					MY_ATTRIBUTE((unused)),
-	struct st_mysql_sys_var*	var	/*!< in: pointer to system
+	SYS_VAR*	var	/*!< in: pointer to system
 						variable */
 					MY_ATTRIBUTE((unused)),
 	void*				var_ptr	/*!< out: where the formal
@@ -20878,7 +20878,7 @@ buffer_pool_load_abort(
 /*===================*/
 	THD*				thd	/*!< in: thread handle */
 					MY_ATTRIBUTE((unused)),
-	struct st_mysql_sys_var*	var	/*!< in: pointer to system
+	SYS_VAR*	var	/*!< in: pointer to system
 						variable */
 					MY_ATTRIBUTE((unused)),
 	void*				var_ptr	/*!< out: where the formal
@@ -20900,7 +20900,7 @@ void
 innodb_log_write_ahead_size_update(
 /*===============================*/
 	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+	SYS_VAR*	var,	/*!< in: pointer to
 						system variable */
 	void*				var_ptr,/*!< out: where the
 						formal string goes */
@@ -20948,7 +20948,7 @@ static
 void
 innodb_status_output_update(
 	THD*,
-	struct st_mysql_sys_var*,
+	SYS_VAR*,
 	void*				var_ptr,
 	const void*			save)
 {
@@ -20967,7 +20967,7 @@ static
 void
 innodb_log_checksums_update(
 	THD*				thd,
-	struct st_mysql_sys_var*	var,
+	SYS_VAR*	var,
 	void*				var_ptr,
 	const void*			save)
 {
@@ -21306,7 +21306,7 @@ static
 int
 innodb_buffer_pool_size_validate(
 	THD*				thd,
-	struct st_mysql_sys_var*	var,
+	SYS_VAR*	var,
 	void*				save,
 	struct st_mysql_value*		value);
 
@@ -21917,7 +21917,7 @@ static MYSQL_SYSVAR_STR(scan_directories, innobase_scan_directories,
   "List of directories to scan for missing tablespace files.",
   NULL, NULL, "");
 
-static struct st_mysql_sys_var* innobase_system_variables[]= {
+static SYS_VAR* innobase_system_variables[]= {
   MYSQL_SYSVAR(api_trx_level),
   MYSQL_SYSVAR(api_bk_commit_interval),
   MYSQL_SYSVAR(autoextend_increment),
@@ -22902,7 +22902,7 @@ static
 int
 innodb_buffer_pool_size_validate(
 	THD*				thd,
-	struct st_mysql_sys_var*	var,
+	SYS_VAR*	var,
 	void*				save,
 	struct st_mysql_value*		value)
 {

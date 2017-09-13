@@ -169,7 +169,7 @@ struct MYSQL_METHODS
                                            0, arg, length, 1, stmt) \
     : (set_mysql_error(mysql, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate), 1))
 
-extern struct charset_info_st *default_client_charset_info;
+extern CHARSET_INFO *default_client_charset_info;
 MYSQL_FIELD *unpack_fields(MYSQL *mysql, MYSQL_ROWS *data,MEM_ROOT *alloc,
                            uint fields, bool default_value,
                            uint server_capabilities);

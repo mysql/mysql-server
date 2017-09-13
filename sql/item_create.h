@@ -39,9 +39,9 @@ class Item;
 class PT_item_list;
 class THD;
 
-typedef struct charset_info_st CHARSET_INFO;
-typedef struct st_udf_func udf_func;
+struct CHARSET_INFO;
 struct Cast_type;
+struct udf_func;
 
 /* For type casts */
 

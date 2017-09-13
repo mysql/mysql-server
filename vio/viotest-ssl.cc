@@ -97,10 +97,10 @@ int main(int argc, char **argv)
   ssl_connector = new_VioSSLConnectorFd(client_key, client_cert, ca_file,
 					ca_path, &ssl_init_error);
 
-  client_vio = (Vio*)my_malloc(sizeof(struct st_vio),MYF(0));
+  client_vio = (Vio*)my_malloc(sizeof(Vio),MYF(0));
   client_vio->sd = sv[0];
   sslconnect(ssl_connector,client_vio,&ssl_error);
-  server_vio = (Vio*)my_malloc(sizeof(struct st_vio),MYF(0));
+  server_vio = (Vio*)my_malloc(sizeof(Vio),MYF(0));
   server_vio->sd = sv[1];
   sslaccept(ssl_acceptor,server_vio,&ssl_error);
 

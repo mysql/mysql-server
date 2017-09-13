@@ -33,7 +33,7 @@ enum t_test_status { BUSY= 0, READY= 1 };
 static volatile t_test_status test_status;
 
 /* declaration of status variable for plugin */
-static struct st_mysql_show_var test_services_status[]=
+static SHOW_VAR test_services_status[]=
 {
   { "test_services_status",
     (char *) &test_status,
@@ -54,7 +54,7 @@ static MYSQL_SYSVAR_INT(non_default_variable, non_default_variable_value,
                         "A variable that won't accept SET DEFAULT", NULL, NULL,
                         1, 0, 100, 0);
 
-static struct st_mysql_sys_var *test_services_sysvars[]= {
+static SYS_VAR *test_services_sysvars[]= {
   MYSQL_SYSVAR(with_log_message),
   MYSQL_SYSVAR(non_default_variable),
   NULL

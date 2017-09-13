@@ -52,8 +52,8 @@ namespace dd {
 
 struct HA_CHECK_OPT;
 struct HA_CREATE_INFO;
-typedef struct charset_info_st CHARSET_INFO;
-typedef struct st_mysql_mutex mysql_mutex_t;
+struct CHARSET_INFO;
+typedef mysql_mutex_t mysql_mutex_t;
 template<typename T> class List;
 
 

@@ -70,7 +70,7 @@ extern "C" {
 #define MYSQL_CLIENT_MAX_PLUGINS             4
 
 #define mysql_declare_client_plugin(X)          \
-     MYSQL_PLUGIN_EXPORT struct st_mysql_client_plugin_ ## X        \
+     MYSQL_PLUGIN_EXPORT st_mysql_client_plugin_ ## X \
         _mysql_client_plugin_declaration_ = {   \
           MYSQL_CLIENT_ ## X ## _PLUGIN,        \
           MYSQL_CLIENT_ ## X ## _PLUGIN_INTERFACE_VERSION,
@@ -100,11 +100,14 @@ struct MYSQL;
 /******** authentication plugin specific declarations *********/
 #include "plugin_auth_common.h"
 
-struct st_mysql_client_plugin_AUTHENTICATION
+struct auth_plugin_t
 {
   MYSQL_CLIENT_PLUGIN_HEADER
   int (*authenticate_user)(MYSQL_PLUGIN_VIO *vio, struct MYSQL *mysql);
 };
+
+// Needed for the mysql_declare_client_plugin() macro. Do not use elsewhere.
+typedef struct auth_plugin_t st_mysql_client_plugin_AUTHENTICATION;
 
 /******** using plugins ************/
 

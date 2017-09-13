@@ -47,15 +47,15 @@ class Item_sum;
 class JOIN;
 class Opt_trace_context;
 class Opt_trace_object;
+struct POSITION;
 class QEP_TAB;
 class QUICK_SELECT_I;
 struct CACHE_FIELD;
 struct st_join_table;
 template <class T> class List;
 
-typedef struct st_columndef MI_COLUMNDEF;
-typedef struct st_table_ref TABLE_REF;
-typedef struct st_position POSITION;
+struct MI_COLUMNDEF;
+struct TABLE_REF;
 
 /**
    Possible status of a "nested loop" operation (Next_select_func family of

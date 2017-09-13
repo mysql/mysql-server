@@ -954,7 +954,7 @@ See fetch_n for for the only use case.
 
 enum { MAX_COLUMN_LENGTH= 255 };
 
-typedef struct st_stmt_fetch
+struct Stmt_fetch
 {
 const char *query;
 unsigned stmt_no;
@@ -965,7 +965,7 @@ char **out_data;
 unsigned long *out_data_length;
 unsigned column_count;
 unsigned row_count;
-} Stmt_fetch;
+};
 
 
 /*

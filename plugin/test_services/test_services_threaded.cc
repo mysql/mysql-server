@@ -39,7 +39,7 @@ enum t_test_status { BUSY= 0, READY= 1 };
 static t_test_status test_status;
 
 /* declaration of status variable for plugin */
-static struct st_mysql_show_var test_services_status[]=
+static SHOW_VAR test_services_status[]=
 {
   { "test_services_status",
     (char *) &test_status,
@@ -54,7 +54,7 @@ static int     with_log_message_val= 0;
 static MYSQL_SYSVAR_INT  (with_log_message, with_log_message_val, PLUGIN_VAR_RQCMDARG, 
 		"Switch on/off test of log message service", NULL, NULL, 1, 0, 1, 0);
 
-static struct st_mysql_sys_var *test_services_sysvars[]= {
+static SYS_VAR *test_services_sysvars[]= {
   MYSQL_SYSVAR(with_log_message),
   NULL
 };

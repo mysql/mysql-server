@@ -167,11 +167,11 @@ typedef enum
 {TRUNCATE=0, HALF_EVEN, HALF_UP, CEILING, FLOOR}
   decimal_round_mode;
 typedef int32 decimal_digit_t;
-typedef struct st_decimal_t {
+struct decimal_t {
   int intg, frac, len;
   bool sign;
   decimal_digit_t *buf;
-} decimal_t;
+};
 struct st_send_field
 {
   const char *db_name;
@@ -257,18 +257,16 @@ int command_service_run_command(MYSQL_SESSION session,
                                 void * service_callbacks_ctx);
 #include <mysql/service_thd_alloc.h>
 #include <mysql/mysql_lex_string.h>
-struct st_mysql_lex_string
+struct MYSQL_LEX_STRING
 {
   char *str;
   size_t length;
 };
-typedef struct st_mysql_lex_string MYSQL_LEX_STRING;
-struct st_mysql_const_lex_string
+struct MYSQL_LEX_CSTRING
 {
   const char *str;
   size_t length;
 };
-typedef struct st_mysql_const_lex_string MYSQL_LEX_CSTRING;
 extern struct thd_alloc_service_st {
   void *(*thd_alloc_func)(void*, size_t);
   void *(*thd_calloc_func)(void*, size_t);
@@ -435,14 +433,14 @@ int (*sql_condition_handler_function)(int sql_errno,
                                       const char* sqlstate,
                                       const char* msg,
                                       void *state);
-struct st_my_thread_handle;
+struct my_thread_handle;
 typedef void* (*mysql_current_session_t)();
 typedef void* (*mysql_open_session_t)();
 typedef void (*mysql_start_thread_t)(void* thd,
                                      void *(*callback_fun)(void*),
                                      void *arg,
-                                     struct st_my_thread_handle *thread_handle);
-typedef void (*mysql_join_thread_t)(struct st_my_thread_handle *thread_handle);
+                                     struct my_thread_handle *thread_handle);
+typedef void (*mysql_join_thread_t)(struct my_thread_handle *thread_handle);
 typedef void (*mysql_set_current_database_t)(void* thd, const MYSQL_LEX_STRING db);
 typedef int (*mysql_parse_t)(void* thd, const MYSQL_LEX_STRING query,
                              unsigned char is_prepared,
@@ -480,8 +478,8 @@ typedef void *(*callback_function)(void*);
 void* mysql_parser_current_session();
 void* mysql_parser_open_session();
 void mysql_parser_start_thread(void* thd, callback_function fun, void *arg,
-                               struct st_my_thread_handle *thread_handle);
-void mysql_parser_join_thread(struct st_my_thread_handle *thread_handle);
+                               struct my_thread_handle *thread_handle);
+void mysql_parser_join_thread(struct my_thread_handle *thread_handle);
 void mysql_parser_set_current_database(void* thd,
                                        const MYSQL_LEX_STRING db);
 int mysql_parser_parse(void* thd, const MYSQL_LEX_STRING query,
@@ -499,7 +497,7 @@ void mysql_parser_free_string(MYSQL_LEX_STRING string);
 MYSQL_LEX_STRING mysql_parser_get_query(void* thd);
 MYSQL_LEX_STRING mysql_parser_get_normalized_query(void* thd);
 #include <mysql/service_rpl_transaction_ctx.h>
-struct st_transaction_termination_ctx
+struct Transaction_termination_ctx
 {
   unsigned long m_thread_id;
   unsigned int m_flags;
@@ -508,19 +506,17 @@ struct st_transaction_termination_ctx
   int m_sidno;
   long long int m_gno;
 };
-typedef struct st_transaction_termination_ctx Transaction_termination_ctx;
 extern struct rpl_transaction_ctx_service_st {
   int (*set_transaction_ctx)(Transaction_termination_ctx transaction_termination_ctx);
 } *rpl_transaction_ctx_service;
 int set_transaction_ctx(Transaction_termination_ctx transaction_termination_ctx);
 #include <mysql/service_rpl_transaction_write_set.h>
-struct st_trans_write_set
+struct Transaction_write_set
 {
   unsigned int m_flags;
   unsigned long write_set_size;
   unsigned long long* write_set;
 };
-typedef struct st_trans_write_set Transaction_write_set;
 extern struct transaction_write_set_service_st {
   Transaction_write_set* (*get_transaction_write_set)(unsigned long m_thread_id);
 } *transaction_write_set_service;
@@ -556,29 +552,28 @@ enum enum_mysql_show_scope
   SHOW_SCOPE_SESSION,
   SHOW_SCOPE_ALL
 };
-struct st_mysql_show_var
+struct SHOW_VAR
 {
   const char *name;
   char *value;
   enum enum_mysql_show_type type;
   enum enum_mysql_show_scope scope;
 };
-typedef int (*mysql_show_var_func)(void*, struct st_mysql_show_var*, char *);
+typedef int (*mysql_show_var_func)(void*, SHOW_VAR*, char *);
 typedef void * MYSQL_PLUGIN;
-struct st_mysql_xid {
+struct MYSQL_XID {
   long formatID;
   long gtrid_length;
   long bqual_length;
   char data[128];
 };
-typedef struct st_mysql_xid MYSQL_XID;
-struct st_mysql_sys_var;
+struct SYS_VAR;
 struct st_mysql_value;
 typedef int (*mysql_var_check_func)(void* thd,
-                                    struct st_mysql_sys_var *var,
+                                    SYS_VAR *var,
                                     void *save, struct st_mysql_value *value);
 typedef void (*mysql_var_update_func)(void* thd,
-                                      struct st_mysql_sys_var *var,
+                                      SYS_VAR *var,
                                       void *var_ptr, const void *save);
 struct st_mysql_plugin
 {
@@ -592,8 +587,8 @@ struct st_mysql_plugin
   int (*check_uninstall)(MYSQL_PLUGIN);
   int (*deinit)(MYSQL_PLUGIN);
   unsigned int version;
-  struct st_mysql_show_var *status_vars;
-  struct st_mysql_sys_var **system_vars;
+  SHOW_VAR *status_vars;
+  SYS_VAR **system_vars;
   void * __reserved1;
   unsigned long flags;
 };

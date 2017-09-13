@@ -602,13 +602,12 @@ class XA_prepare_event: public Binary_log_event
   */
   static const int MY_XIDDATASIZE= 128;
 
-  struct st_mysql_xid {
+  struct MY_XID {
     long formatID;
     long gtrid_length;
     long bqual_length;
     char data[MY_XIDDATASIZE];  /* Not \0-terminated */
   };
-  typedef struct st_mysql_xid MY_XID;
 
 protected:
   /* size of serialization buffer is explained in $MYSQL/sql/xa.h. */

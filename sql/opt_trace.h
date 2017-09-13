@@ -37,7 +37,7 @@ class sp_head;
 class sp_printable;
 struct TABLE_LIST;
 
-typedef struct charset_info_st CHARSET_INFO;
+struct CHARSET_INFO;
 template <class T> class List;
 
 

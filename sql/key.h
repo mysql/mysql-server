@@ -32,7 +32,7 @@ class String;
 struct TABLE;
 
 struct MY_BITMAP;
-typedef struct st_mysql_const_lex_string LEX_CSTRING;
+typedef MYSQL_LEX_CSTRING LEX_CSTRING;
 
 
 class FOREIGN_KEY

@@ -39,7 +39,7 @@ using keyring::Logger;
 mysql_rwlock_t LOCK_keyring;
 
 int check_keyring_file_data(MYSQL_THD thd  MY_ATTRIBUTE((unused)),
-                            struct st_mysql_sys_var *var  MY_ATTRIBUTE((unused)),
+                            SYS_VAR *var  MY_ATTRIBUTE((unused)),
                             void *save, st_mysql_value *value)
 {
   char            buff[FN_REFLEN+1];
@@ -88,7 +88,7 @@ static MYSQL_SYSVAR_STR(
   MYSQL_DEFAULT_KEYRINGFILE                                    /* default    */
 );
 
-static struct st_mysql_sys_var *keyring_file_system_variables[]= {
+static SYS_VAR *keyring_file_system_variables[]= {
   MYSQL_SYSVAR(data),
   NULL
 };

@@ -332,7 +332,7 @@ enum quick_type { QS_NONE, QS_RANGE, QS_DYNAMIC_RANGE};
   This class has to stay a POD, because it is memcpy'd in many places.
 */
 
-typedef struct st_position : public Sql_alloc
+struct POSITION : public Sql_alloc
 {
   /**
     The number of rows that will be fetched by the chosen access
@@ -558,7 +558,7 @@ typedef struct st_position : public Sql_alloc
     }
     prefix_rowcount*= filter_effect;
   }
-} POSITION;
+};
 
 /**
    Use this in a function which depends on best_ref listing tables in the

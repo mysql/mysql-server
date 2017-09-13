@@ -201,7 +201,7 @@ enum_tx_isolation thd_get_trx_isolation(const THD *thd)
 }
 
 
-const struct charset_info_st *thd_charset(THD *thd)
+const CHARSET_INFO *thd_charset(THD *thd)
 {
   return(thd->charset());
 }

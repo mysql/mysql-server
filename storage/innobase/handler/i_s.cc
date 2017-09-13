@@ -776,10 +776,10 @@ struct st_mysql_plugin	i_s_innodb_trx =
 	/* unsigned int */
 	STRUCT_FLD(version, INNODB_VERSION_SHORT),
 
-	/* struct st_mysql_show_var* */
+	/* SHOW_VAR* */
 	STRUCT_FLD(status_vars, NULL),
 
-	/* struct st_mysql_sys_var** */
+	/* SYS_VAR** */
 	STRUCT_FLD(system_vars, NULL),
 
 	/* reserved for dependency checking */
@@ -1088,10 +1088,10 @@ struct st_mysql_plugin	i_s_innodb_cmp =
 	/* unsigned int */
 	STRUCT_FLD(version, INNODB_VERSION_SHORT),
 
-	/* struct st_mysql_show_var* */
+	/* SHOW_VAR* */
 	STRUCT_FLD(status_vars, NULL),
 
-	/* struct st_mysql_sys_var** */
+	/* SYS_VAR** */
 	STRUCT_FLD(system_vars, NULL),
 
 	/* reserved for dependency checking */
@@ -1146,10 +1146,10 @@ struct st_mysql_plugin	i_s_innodb_cmp_reset =
 	/* unsigned int */
 	STRUCT_FLD(version, INNODB_VERSION_SHORT),
 
-	/* struct st_mysql_show_var* */
+	/* SHOW_VAR* */
 	STRUCT_FLD(status_vars, NULL),
 
-	/* struct st_mysql_sys_var** */
+	/* SYS_VAR** */
 	STRUCT_FLD(system_vars, NULL),
 
 	/* reserved for dependency checking */
@@ -1462,10 +1462,10 @@ struct st_mysql_plugin	i_s_innodb_cmp_per_index =
 	/* unsigned int */
 	STRUCT_FLD(version, INNODB_VERSION_SHORT),
 
-	/* struct st_mysql_show_var* */
+	/* SHOW_VAR* */
 	STRUCT_FLD(status_vars, NULL),
 
-	/* struct st_mysql_sys_var** */
+	/* SYS_VAR** */
 	STRUCT_FLD(system_vars, NULL),
 
 	/* reserved for dependency checking */
@@ -1520,10 +1520,10 @@ struct st_mysql_plugin	i_s_innodb_cmp_per_index_reset =
 	/* unsigned int */
 	STRUCT_FLD(version, INNODB_VERSION_SHORT),
 
-	/* struct st_mysql_show_var* */
+	/* SHOW_VAR* */
 	STRUCT_FLD(status_vars, NULL),
 
-	/* struct st_mysql_sys_var** */
+	/* SYS_VAR** */
 	STRUCT_FLD(system_vars, NULL),
 
 	/* reserved for dependency checking */
@@ -1778,10 +1778,10 @@ struct st_mysql_plugin	i_s_innodb_cmpmem =
 	/* unsigned int */
 	STRUCT_FLD(version, INNODB_VERSION_SHORT),
 
-	/* struct st_mysql_show_var* */
+	/* SHOW_VAR* */
 	STRUCT_FLD(status_vars, NULL),
 
-	/* struct st_mysql_sys_var** */
+	/* SYS_VAR** */
 	STRUCT_FLD(system_vars, NULL),
 
 	/* reserved for dependency checking */
@@ -1836,10 +1836,10 @@ struct st_mysql_plugin	i_s_innodb_cmpmem_reset =
 	/* unsigned int */
 	STRUCT_FLD(version, INNODB_VERSION_SHORT),
 
-	/* struct st_mysql_show_var* */
+	/* SHOW_VAR* */
 	STRUCT_FLD(status_vars, NULL),
 
-	/* struct st_mysql_sys_var** */
+	/* SYS_VAR** */
 	STRUCT_FLD(system_vars, NULL),
 
 	/* reserved for dependency checking */
@@ -2368,10 +2368,10 @@ struct st_mysql_plugin	i_s_innodb_metrics =
 	/* unsigned int */
 	STRUCT_FLD(version, INNODB_VERSION_SHORT),
 
-	/* struct st_mysql_show_var* */
+	/* SHOW_VAR* */
 	STRUCT_FLD(status_vars, NULL),
 
-	/* struct st_mysql_sys_var** */
+	/* SYS_VAR** */
 	STRUCT_FLD(system_vars, NULL),
 
 	/* reserved for dependency checking */
@@ -2489,10 +2489,10 @@ struct st_mysql_plugin	i_s_innodb_ft_default_stopword =
 	/* unsigned int */
 	STRUCT_FLD(version, INNODB_VERSION_SHORT),
 
-	/* struct st_mysql_show_var* */
+	/* SHOW_VAR* */
 	STRUCT_FLD(status_vars, NULL),
 
-	/* struct st_mysql_sys_var** */
+	/* SYS_VAR** */
 	STRUCT_FLD(system_vars, NULL),
 
 	/* reserved for dependency checking */
@@ -2684,10 +2684,10 @@ struct st_mysql_plugin	i_s_innodb_ft_deleted =
 	/* unsigned int */
 	STRUCT_FLD(version, INNODB_VERSION_SHORT),
 
-	/* struct st_mysql_show_var* */
+	/* SHOW_VAR* */
 	STRUCT_FLD(status_vars, NULL),
 
-	/* struct st_mysql_sys_var** */
+	/* SYS_VAR** */
 	STRUCT_FLD(system_vars, NULL),
 
 	/* reserved for dependency checking */
@@ -2775,10 +2775,10 @@ struct st_mysql_plugin	i_s_innodb_ft_being_deleted =
 	/* unsigned int */
 	STRUCT_FLD(version, INNODB_VERSION_SHORT),
 
-	/* struct st_mysql_show_var* */
+	/* SHOW_VAR* */
 	STRUCT_FLD(status_vars, NULL),
 
-	/* struct st_mysql_sys_var** */
+	/* SYS_VAR** */
 	STRUCT_FLD(system_vars, NULL),
 
 	/* reserved for dependency checking */
@@ -3082,10 +3082,10 @@ struct st_mysql_plugin	i_s_innodb_ft_index_cache =
 	/* unsigned int */
 	STRUCT_FLD(version, INNODB_VERSION_SHORT),
 
-	/* struct st_mysql_show_var* */
+	/* SHOW_VAR* */
 	STRUCT_FLD(status_vars, NULL),
 
-	/* struct st_mysql_sys_var** */
+	/* SYS_VAR** */
 	STRUCT_FLD(system_vars, NULL),
 
 	/* reserved for dependency checking */
@@ -3532,10 +3532,10 @@ struct st_mysql_plugin	i_s_innodb_ft_index_table =
 	/* unsigned int */
 	STRUCT_FLD(version, INNODB_VERSION_SHORT),
 
-	/* struct st_mysql_show_var* */
+	/* SHOW_VAR* */
 	STRUCT_FLD(status_vars, NULL),
 
-	/* struct st_mysql_sys_var** */
+	/* SYS_VAR** */
 	STRUCT_FLD(system_vars, NULL),
 
 	/* reserved for dependency checking */
@@ -3758,10 +3758,10 @@ struct st_mysql_plugin	i_s_innodb_ft_config =
 	/* unsigned int */
 	STRUCT_FLD(version, INNODB_VERSION_SHORT),
 
-	/* struct st_mysql_show_var* */
+	/* SHOW_VAR* */
 	STRUCT_FLD(status_vars, NULL),
 
-	/* struct st_mysql_sys_var** */
+	/* SYS_VAR** */
 	STRUCT_FLD(system_vars, NULL),
 
 	/* reserved for dependency checking */
@@ -4009,10 +4009,10 @@ struct st_mysql_plugin	i_s_innodb_temp_table_info =
 	/* unsigned int */
 	STRUCT_FLD(version, INNODB_VERSION_SHORT),
 
-	/* struct st_mysql_show_var* */
+	/* SHOW_VAR* */
 	STRUCT_FLD(status_vars, NULL),
 
-	/* struct st_mysql_sys_var** */
+	/* SYS_VAR** */
 	STRUCT_FLD(system_vars, NULL),
 
 	/* reserved for dependency checking */
@@ -4558,10 +4558,10 @@ struct st_mysql_plugin	i_s_innodb_buffer_stats =
 	/* unsigned int */
 	STRUCT_FLD(version, INNODB_VERSION_SHORT),
 
-	/* struct st_mysql_show_var* */
+	/* SHOW_VAR* */
 	STRUCT_FLD(status_vars, NULL),
 
-	/* struct st_mysql_sys_var** */
+	/* SYS_VAR** */
 	STRUCT_FLD(system_vars, NULL),
 
 	/* reserved for dependency checking */
@@ -5295,10 +5295,10 @@ struct st_mysql_plugin	i_s_innodb_buffer_page =
 	/* unsigned int */
 	STRUCT_FLD(version, INNODB_VERSION_SHORT),
 
-	/* struct st_mysql_show_var* */
+	/* SHOW_VAR* */
 	STRUCT_FLD(status_vars, NULL),
 
-	/* struct st_mysql_sys_var** */
+	/* SYS_VAR** */
 	STRUCT_FLD(system_vars, NULL),
 
 	/* reserved for dependency checking */
@@ -5852,10 +5852,10 @@ struct st_mysql_plugin	i_s_innodb_buffer_page_lru =
 	/* unsigned int */
 	STRUCT_FLD(version, INNODB_VERSION_SHORT),
 
-	/* struct st_mysql_show_var* */
+	/* SHOW_VAR* */
 	STRUCT_FLD(status_vars, NULL),
 
-	/* struct st_mysql_sys_var** */
+	/* SYS_VAR** */
 	STRUCT_FLD(system_vars, NULL),
 
 	/* reserved for dependency checking */
@@ -6194,10 +6194,10 @@ struct st_mysql_plugin	i_s_innodb_tables =
 	/* unsigned int */
 	STRUCT_FLD(version, INNODB_VERSION_SHORT),
 
-	/* struct st_mysql_show_var* */
+	/* SHOW_VAR* */
 	STRUCT_FLD(status_vars, NULL),
 
-	/* struct st_mysql_sys_var** */
+	/* SYS_VAR** */
 	STRUCT_FLD(system_vars, NULL),
 
 	/* reserved for dependency checking */
@@ -6510,10 +6510,10 @@ struct st_mysql_plugin	i_s_innodb_tablestats =
 	/* unsigned int */
 	STRUCT_FLD(version, INNODB_VERSION_SHORT),
 
-	/* struct st_mysql_show_var* */
+	/* SHOW_VAR* */
 	STRUCT_FLD(status_vars, NULL),
 
-	/* struct st_mysql_sys_var** */
+	/* SYS_VAR** */
 	STRUCT_FLD(system_vars, NULL),
 
 	/* reserved for dependency checking */
@@ -6790,10 +6790,10 @@ struct st_mysql_plugin	i_s_innodb_indexes =
 	/* unsigned int */
 	STRUCT_FLD(version, INNODB_VERSION_SHORT),
 
-	/* struct st_mysql_show_var* */
+	/* SHOW_VAR* */
 	STRUCT_FLD(status_vars, NULL),
 
-	/* struct st_mysql_sys_var** */
+	/* SYS_VAR** */
 	STRUCT_FLD(system_vars, NULL),
 
 	/* reserved for dependency checking */
@@ -7045,10 +7045,10 @@ struct st_mysql_plugin	i_s_innodb_columns =
 	/* unsigned int */
 	STRUCT_FLD(version, INNODB_VERSION_SHORT),
 
-	/* struct st_mysql_show_var* */
+	/* SHOW_VAR* */
 	STRUCT_FLD(status_vars, NULL),
 
-	/* struct st_mysql_sys_var** */
+	/* SYS_VAR** */
 	STRUCT_FLD(system_vars, NULL),
 
 	/* reserved for dependency checking */
@@ -7265,10 +7265,10 @@ struct st_mysql_plugin	i_s_innodb_virtual =
 	/* unsigned int */
 	STRUCT_FLD(version, INNODB_VERSION_SHORT),
 
-	/* struct st_mysql_show_var* */
+	/* SHOW_VAR* */
 	STRUCT_FLD(status_vars, NULL),
 
-	/* struct st_mysql_sys_var** */
+	/* SYS_VAR** */
 	STRUCT_FLD(system_vars, NULL),
 
 	/* reserved for dependency checking */
@@ -7645,10 +7645,10 @@ struct st_mysql_plugin	i_s_innodb_tablespaces =
 	/* unsigned int */
 	STRUCT_FLD(version, INNODB_VERSION_SHORT),
 
-	/* struct st_mysql_show_var* */
+	/* SHOW_VAR* */
 	STRUCT_FLD(status_vars, NULL),
 
-	/* struct st_mysql_sys_var** */
+	/* SYS_VAR** */
 	STRUCT_FLD(system_vars, NULL),
 
 	/* reserved for dependency checking */
@@ -7868,10 +7868,10 @@ struct st_mysql_plugin	i_s_innodb_cached_indexes =
 	/* unsigned int */
 	STRUCT_FLD(version, INNODB_VERSION_SHORT),
 
-	/* struct st_mysql_show_var* */
+	/* SHOW_VAR* */
 	STRUCT_FLD(status_vars, NULL),
 
-	/* struct st_mysql_sys_var** */
+	/* SYS_VAR** */
 	STRUCT_FLD(system_vars, NULL),
 
 	/* reserved for dependency checking */

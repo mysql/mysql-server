@@ -190,7 +190,7 @@ struct MYSQL_FTPARSER_PARAM
                         MYSQL_FTPARSER_BOOLEAN_INFO *boolean_info);
   void *ftparser_state;
   void *mysql_ftparam;
-  const struct charset_info_st *cs;
+  const CHARSET_INFO *cs;
   char *doc;
   int length;
   int flags;

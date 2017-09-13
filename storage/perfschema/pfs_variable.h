@@ -140,7 +140,7 @@
 
 using std::string;
 
-typedef std::vector<st_mysql_show_var> Status_var_array;
+typedef std::vector<SHOW_VAR> Status_var_array;
 
 /* Global array of all server and plugin-defined status variables. */
 extern Status_var_array all_status_vars;

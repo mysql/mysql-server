@@ -71,20 +71,19 @@ typedef void * MYSQL_PLUGIN;
 
 #define MYSQL_XIDDATASIZE 128
 /**
-  struct st_mysql_xid is binary compatible with the XID structure as
+  MYSQL_XID is binary compatible with the XID structure as
   in the X/Open CAE Specification, Distributed Transaction Processing:
   The XA Specification, X/Open Company Ltd., 1991.
   http://www.opengroup.org/bookstore/catalog/c193.htm
 
   @see XID in sql/handler.h
 */
-struct st_mysql_xid {
+struct MYSQL_XID {
   long formatID;
   long gtrid_length;
   long bqual_length;
   char data[MYSQL_XIDDATASIZE];  /* Not \0-terminated */
 };
-typedef struct st_mysql_xid MYSQL_XID;
 
 /*************************************************************************
   Plugin API. Common for all plugin types.
@@ -180,7 +179,7 @@ __MYSQL_DECLARE_PLUGIN(NAME, \
 #define PLUGIN_VAR_NOPERSIST    0x10000 /* SET PERSIST_ONLY is prohibited
                                            for read only variables */
 
-struct st_mysql_sys_var;
+struct SYS_VAR;
 struct st_mysql_value;
 
 /*
@@ -203,7 +202,7 @@ struct st_mysql_value;
 */
 
 typedef int (*mysql_var_check_func)(MYSQL_THD thd,
-                                    struct st_mysql_sys_var *var,
+                                    SYS_VAR *var,
                                     void *save, struct st_mysql_value *value);
 
 /*
@@ -221,7 +220,7 @@ typedef int (*mysql_var_check_func)(MYSQL_THD thd,
    For example, strings may require memory to be allocated.
 */
 typedef void (*mysql_var_update_func)(MYSQL_THD thd,
-                                      struct st_mysql_sys_var *var,
+                                      SYS_VAR *var,
                                       void *var_ptr, const void *save);
 
 
@@ -243,7 +242,7 @@ typedef void (*mysql_var_update_func)(MYSQL_THD thd,
 
 #define MYSQL_SYSVAR_NAME(name) mysql_sysvar_ ## name
 #define MYSQL_SYSVAR(name) \
-  ((struct st_mysql_sys_var *)&(MYSQL_SYSVAR_NAME(name)))
+  ((SYS_VAR *)&(MYSQL_SYSVAR_NAME(name)))
 
 /*
   for global variables, the value pointer is the first
@@ -446,8 +445,8 @@ struct st_mysql_plugin
   /** Function to invoke when plugin is unloaded. */
   int (*deinit)(MYSQL_PLUGIN);
   unsigned int version; /* plugin version (for I_S.PLUGINS)             */
-  struct st_mysql_show_var *status_vars;
-  struct st_mysql_sys_var **system_vars;
+  SHOW_VAR *status_vars;
+  SYS_VAR **system_vars;
   void * __reserved1;   /* reserved for dependency checking             */
   unsigned long flags;  /* flags for plugin */
 };

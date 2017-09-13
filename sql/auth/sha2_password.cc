@@ -1344,7 +1344,7 @@ static MYSQL_SYSVAR_STR(public_key_path, caching_sha2_rsa_public_key_path,
   "A fully qualified path to the public RSA key used for authentication.",
   NULL, NULL, AUTH_DEFAULT_RSA_PUBLIC_KEY);
 
-static struct st_mysql_sys_var* caching_sha2_password_sysvars[]= {
+static SYS_VAR* caching_sha2_password_sysvars[]= {
   MYSQL_SYSVAR(private_key_path),
   MYSQL_SYSVAR(public_key_path),
   0

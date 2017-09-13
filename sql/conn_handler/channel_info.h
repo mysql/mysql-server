@@ -26,7 +26,7 @@
 
 class THD;
 
-typedef struct st_vio Vio;
+typedef Vio Vio;
 
 
 /**

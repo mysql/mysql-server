@@ -490,13 +490,13 @@ err:
   Default handlers for LOAD LOCAL INFILE
 ****************************************************************************/
 
-typedef struct st_default_local_infile
+struct default_local_infile_data
 {
   int fd;
   int error_num;
   const char *filename;
   char error_msg[LOCAL_INFILE_ERROR_LEN];
-} default_local_infile_data;
+};
 
 
 /*

@@ -29,7 +29,7 @@
 #endif // max_allowed_packet
 
 
-struct st_mysql_sys_var;
+struct SYS_VAR;
 class THD;
 
 namespace xpl
@@ -77,7 +77,7 @@ public:
   static void registry_callback(Value_changed_callback callcback);
 
   template<typename Copy_type>
-  static void update_func(THD *thd, st_mysql_sys_var *var,
+  static void update_func(THD *thd, SYS_VAR *var,
                           void *tgt, const void *save);
 
   static void setup_system_variable_from_env_or_compile_opt(char *&cnf_option, const char *env_variable, const char *compile_option);
@@ -94,7 +94,7 @@ private:
 };
 
 template<typename Copy_type>
-void Plugin_system_variables::update_func(THD*, st_mysql_sys_var*, void *tgt, const void *save)
+void Plugin_system_variables::update_func(THD*, SYS_VAR*, void *tgt, const void *save)
 {
   *(Copy_type*)tgt = *(Copy_type*) save;
 

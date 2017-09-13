@@ -22,7 +22,7 @@
 #include "sql/sql_list.h"
 
 
-struct st_columndef;
+struct MI_COLUMNDEF;
 class KEY;
 class Copy_field;
 class Item;
@@ -43,7 +43,7 @@ public:
   Copy_field *copy_field, *copy_field_end;
   uchar	    *group_buff;
   Func_ptr_array *items_to_copy;             /* Fields in tmp table */
-  st_columndef *recinfo,*start_recinfo;
+  MI_COLUMNDEF *recinfo,*start_recinfo;
 
   /**
     After temporary table creation, points to an index on the table

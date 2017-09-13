@@ -42,7 +42,7 @@ class String;
 class THD;
 template <class T> class List;
 
-typedef struct st_grant_internal_info GRANT_INTERNAL_INFO;
+struct GRANT_INTERNAL_INFO;
 struct LEX_USER;
 struct HA_CREATE_INFO;
 class Item;

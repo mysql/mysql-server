@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -53,7 +53,7 @@ enum my_xml_node_type
   MY_XML_NODE_TEXT   /* cannot have children                 */
 };
 
-typedef struct xml_stack_st
+struct MY_XML_PARSER
 {
   int flags;
   enum my_xml_node_type current_node_type;
@@ -71,10 +71,10 @@ typedef struct xml_stack_st
   const char *cur;
   const char *end;
   void *user_data;
-  int  (*enter)(struct xml_stack_st *st,const char *val, size_t len);
-  int  (*value)(struct xml_stack_st *st,const char *val, size_t len);
-  int  (*leave_xml)(struct xml_stack_st *st,const char *val, size_t len);
-} MY_XML_PARSER;
+  int  (*enter)(MY_XML_PARSER *st,const char *val, size_t len);
+  int  (*value)(MY_XML_PARSER *st,const char *val, size_t len);
+  int  (*leave_xml)(MY_XML_PARSER *st,const char *val, size_t len);
+};
 
 void my_xml_parser_create(MY_XML_PARSER *st);
 void my_xml_parser_free(MY_XML_PARSER *st);

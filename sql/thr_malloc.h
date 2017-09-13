@@ -18,7 +18,7 @@
 
 #include <stddef.h>
 
-typedef struct charset_info_st CHARSET_INFO;
+struct CHARSET_INFO;
 struct MEM_ROOT;
 typedef unsigned int PSI_memory_key;
 extern thread_local MEM_ROOT **THR_MALLOC;

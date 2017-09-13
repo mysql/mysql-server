@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -21,8 +21,8 @@
 #ifndef _XPL_MYSQL_VARIABLE_H_
 #define _XPL_MYSQL_VARIABLE_H_
 
-struct charset_info_st;
-typedef struct charset_info_st CHARSET_INFO;
+struct CHARSET_INFO;
+struct CHARSET_INFO;
 
 namespace mysqld
 {

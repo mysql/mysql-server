@@ -805,9 +805,9 @@ static bool net_read_packet_header(NET *net)
     count+= COMP_HEADER_SIZE;
 
 #ifdef MYSQL_SERVER
-  struct st_net_server *server_extension;
+  NET_SERVER *server_extension;
 
-  server_extension= static_cast<st_net_server*> (net->extension);
+  server_extension= static_cast<NET_SERVER*> (net->extension);
 
   if (server_extension != NULL)
   {

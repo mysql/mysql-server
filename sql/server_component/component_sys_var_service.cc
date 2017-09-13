@@ -137,7 +137,7 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
     sys_var *sysvar MY_ATTRIBUTE((unused));
     char *com_sys_var_name, *optname;
     int com_sys_var_len;
-    st_mysql_sys_var *opt= NULL;
+    SYS_VAR *opt= NULL;
     my_option *opts= NULL;
     bool ret= true;
     int opt_error;
@@ -189,7 +189,7 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
       bool_arg= (bool_check_arg_s *) check_arg;
       sysvar_bool->def_val= bool_arg->def_val;
 
-      opt= (st_mysql_sys_var *) sysvar_bool;
+      opt= (SYS_VAR *) sysvar_bool;
 
       break;
     case PLUGIN_VAR_INT:
@@ -204,7 +204,7 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
       int_arg= (int_check_arg_s *) check_arg;
       COPY_MYSQL_PLUGIN_VAR_REMAINING(sysvar_int, int_arg)
 
-      opt= (st_mysql_sys_var *) sysvar_int;
+      opt= (SYS_VAR *) sysvar_int;
       break;
     case PLUGIN_VAR_INT | PLUGIN_VAR_UNSIGNED:
       SYSVAR_INTEGRAL_TYPE(uint) *sysvar_uint;
@@ -218,7 +218,7 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
       uint_arg= (uint_check_arg_s *) check_arg;
       COPY_MYSQL_PLUGIN_VAR_REMAINING(sysvar_uint, uint_arg)
 
-      opt= (st_mysql_sys_var *) sysvar_uint;
+      opt= (SYS_VAR *) sysvar_uint;
       break;
     case PLUGIN_VAR_LONG:
       SYSVAR_INTEGRAL_TYPE(long) *sysvar_long;
@@ -232,7 +232,7 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
       long_arg= (long_check_arg_s *) check_arg;
       COPY_MYSQL_PLUGIN_VAR_REMAINING(sysvar_long, long_arg)
 
-      opt= (st_mysql_sys_var *) sysvar_long;
+      opt= (SYS_VAR *) sysvar_long;
       break;
     case PLUGIN_VAR_LONG | PLUGIN_VAR_UNSIGNED:
       SYSVAR_INTEGRAL_TYPE(ulong) *sysvar_ulong;
@@ -246,7 +246,7 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
       ulong_arg= (ulong_check_arg_s *) check_arg;
       COPY_MYSQL_PLUGIN_VAR_REMAINING(sysvar_ulong, ulong_arg)
 
-      opt= (st_mysql_sys_var *) sysvar_ulong;
+      opt= (SYS_VAR *) sysvar_ulong;
       break;
     case PLUGIN_VAR_LONGLONG:
       SYSVAR_INTEGRAL_TYPE(longlong) *sysvar_longlong;
@@ -261,7 +261,7 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
       longlong_arg= (longlong_check_arg_s *) check_arg;
       COPY_MYSQL_PLUGIN_VAR_REMAINING(sysvar_longlong, longlong_arg)
 
-      opt= (st_mysql_sys_var *) sysvar_longlong;
+      opt= (SYS_VAR *) sysvar_longlong;
       break;
     case PLUGIN_VAR_LONGLONG | PLUGIN_VAR_UNSIGNED:
       SYSVAR_INTEGRAL_TYPE(ulonglong) *sysvar_ulonglong;
@@ -276,7 +276,7 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
       ulonglong_arg= (ulonglong_check_arg_s *) check_arg;
       COPY_MYSQL_PLUGIN_VAR_REMAINING(sysvar_ulonglong, ulonglong_arg)
 
-      opt= (st_mysql_sys_var *) sysvar_ulonglong;
+      opt= (SYS_VAR *) sysvar_ulonglong;
       break;
     case PLUGIN_VAR_STR:
       SYSVAR_STR_TYPE(str) *sysvar_str;
@@ -301,7 +301,7 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
       str_arg= (str_check_arg_s *) check_arg;
       sysvar_str->def_val= str_arg->def_val;
 
-      opt= (st_mysql_sys_var *) sysvar_str;
+      opt= (SYS_VAR *) sysvar_str;
       break;
     case PLUGIN_VAR_ENUM:
       SYSVAR_ENUM_TYPE(enum) *sysvar_enum;
@@ -316,7 +316,7 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
       sysvar_enum->def_val= enum_arg->def_val;
       sysvar_enum->typelib= enum_arg->typelib;
 
-      opt= (st_mysql_sys_var *) sysvar_enum;
+      opt= (SYS_VAR *) sysvar_enum;
       break;
     default:
       sql_print_error("Unknown variable type code 0x%x in component '%s'.",

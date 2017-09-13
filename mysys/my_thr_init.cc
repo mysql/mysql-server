@@ -82,7 +82,7 @@ static void install_sigabrt_handler();
 struct st_my_thread_var
 {
   my_thread_id id;
-  struct _db_code_state_ *dbug;
+  struct CODE_STATE *dbug;
 };
 
 static struct st_my_thread_var *mysys_thread_var()
@@ -393,7 +393,7 @@ void set_my_thread_var_id(my_thread_id id)
 }
 
 
-struct _db_code_state_ **my_thread_var_dbug()
+CODE_STATE **my_thread_var_dbug()
 {
   struct st_my_thread_var *tmp= THR_mysys;
   return tmp ? &tmp->dbug : NULL;

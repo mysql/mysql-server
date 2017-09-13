@@ -51,7 +51,7 @@ bool init_keyring_locks();
 bool create_keyring_dir_if_does_not_exist(const char *keyring_file_path);
 
 void update_keyring_file_data(MYSQL_THD thd  MY_ATTRIBUTE((unused)),
-                              struct st_mysql_sys_var *var  MY_ATTRIBUTE((unused)),
+                              SYS_VAR *var  MY_ATTRIBUTE((unused)),
                               void *var_ptr MY_ATTRIBUTE((unused)),
                               const void *save_ptr);
 

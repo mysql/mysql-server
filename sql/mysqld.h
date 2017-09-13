@@ -71,9 +71,9 @@ class THD;
 class Time_zone;
 struct handlerton;
 
-typedef struct st_mysql_show_var SHOW_VAR;
 struct MY_BITMAP;
-typedef struct charset_info_st CHARSET_INFO;
+struct SHOW_VAR;
+struct CHARSET_INFO;
 
 #if MAX_INDEXES <= 64
 typedef Bitmap<64>  Key_map;          /* Used for finding keys */

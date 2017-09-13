@@ -40,7 +40,7 @@ class THD;
 class Temp_table_param;
 template <class T> class List;
 
-typedef struct st_columndef MI_COLUMNDEF;
+struct MI_COLUMNDEF;
 class KEY;
 
 struct ORDER;

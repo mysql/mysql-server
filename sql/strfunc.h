@@ -25,7 +25,7 @@
 #include "my_inttypes.h"
 #include "mysql/mysql_lex_string.h"             // MYSQL_LEX_CSTRING
 
-typedef struct charset_info_st CHARSET_INFO;
+struct CHARSET_INFO;
 struct TYPELIB;
 class THD;
 

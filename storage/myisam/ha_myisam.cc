@@ -2402,7 +2402,7 @@ Item *ha_myisam::idx_cond_push(uint keyno_arg, Item* idx_cond_arg)
 }
 
 
-static struct st_mysql_sys_var* myisam_sysvars[]= {
+static SYS_VAR* myisam_sysvars[]= {
   MYSQL_SYSVAR(block_size),
   MYSQL_SYSVAR(data_pointer_size),
   MYSQL_SYSVAR(max_sort_file_size),

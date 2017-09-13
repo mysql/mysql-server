@@ -1377,7 +1377,7 @@ show_func_mutex_instances_lost(THD *, SHOW_VAR *var, char *buff)
   return 0;
 }
 
-static struct st_mysql_show_var pfs_status_vars[] = {
+static SHOW_VAR pfs_status_vars[] = {
   {"Performance_schema_mutex_classes_lost",
    (char *)&mutex_class_lost,
    SHOW_LONG_NOFLUSH,

@@ -85,9 +85,8 @@ struct Tablespace_options;
 
 struct MY_BITMAP;
 struct FOREIGN_KEY_INFO;
-typedef struct st_hash HASH;
 struct KEY_CACHE;
-typedef struct st_savepoint SAVEPOINT;
+struct SAVEPOINT;
 typedef struct xid_t XID;
 struct MDL_key;
 

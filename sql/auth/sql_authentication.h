@@ -33,8 +33,8 @@
 
 class THD;
 
-typedef struct charset_info_st CHARSET_INFO;
-typedef struct st_mysql_show_var SHOW_VAR;
+struct CHARSET_INFO;
+struct SHOW_VAR;
 class ACL_USER;
 class Protocol_classic;
 

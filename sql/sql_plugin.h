@@ -36,10 +36,9 @@ class THD;
 class i_string;
 struct my_option;
 struct st_bookmark;
-struct st_mysql_sys_var;
+struct SHOW_VAR;
+struct SYS_VAR;
 template <class T> class I_List;
-
-typedef struct st_mysql_show_var SHOW_VAR;
 
 
 extern const char *global_plugin_typelib_names[];
@@ -179,7 +178,7 @@ extern void plugin_unlock(THD *thd, plugin_ref plugin);
 extern void plugin_unlock_list(THD *thd, plugin_ref *list, size_t count);
 extern void plugin_thdvar_init(THD *thd, bool enable_plugins);
 extern void plugin_thdvar_cleanup(THD *thd, bool enable_plugins);
-extern void plugin_thdvar_safe_update(THD *thd, st_mysql_sys_var *var,
+extern void plugin_thdvar_safe_update(THD *thd, SYS_VAR *var,
                                       char **dest, const char *value);
 extern bool check_valid_path(const char *path, size_t length);
 extern void alloc_and_copy_thd_dynamic_variables(THD *thd, bool global_lock);

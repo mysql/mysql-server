@@ -362,7 +362,7 @@ static struct st_mysql_ftparser mecab_parser_descriptor =
 };
 
 /* MeCab plugin status variables */
-static struct st_mysql_show_var mecab_status[] =
+static SHOW_VAR mecab_status[] =
 {
 	{"mecab_charset", mecab_charset, SHOW_CHAR, SHOW_SCOPE_GLOBAL},
 	{0, 0, enum_mysql_show_type(0), SHOW_SCOPE_GLOBAL}
@@ -374,7 +374,7 @@ static MYSQL_SYSVAR_STR(rc_file, mecab_rc_file,
   NULL, NULL, NULL);
 
 /* MeCab plugin system variables */
-static struct st_mysql_sys_var* mecab_system_variables[]= {
+static SYS_VAR* mecab_system_variables[]= {
 	MYSQL_SYSVAR(rc_file),
 	NULL
 };

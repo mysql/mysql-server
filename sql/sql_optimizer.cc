@@ -6602,11 +6602,11 @@ static bool optimize_semijoin_nests_for_materialization(JOIN *join)
         plan:
       */
       if (!(sj_nest->nested_join->sjm.positions=
-            (st_position*)join->thd->alloc(sizeof(st_position)*n_tables)))
+            (POSITION*)join->thd->alloc(sizeof(POSITION)*n_tables)))
         DBUG_RETURN(true);
       memcpy(sj_nest->nested_join->sjm.positions,
              join->best_positions + join->const_tables,
-             sizeof(st_position) * n_tables);
+             sizeof(POSITION) * n_tables);
     }
   }
   DBUG_RETURN(false);

@@ -49,7 +49,7 @@ extern "C" {
 
 	/* struct used with heap_funktions */
 
-typedef struct st_heapinfo		/* Struct from heap_info */
+struct HEAPINFO		/* Struct from heap_info */
 {
   ulong records;			/* Records in database */
   ulong deleted;			/* Deleted records in database */
@@ -60,7 +60,7 @@ typedef struct st_heapinfo		/* Struct from heap_info */
   int errkey;
   ulonglong auto_increment;
   time_t create_time;
-} HEAPINFO;
+};
 
 
 	/* Structs used by heap-database-handler */
@@ -118,7 +118,7 @@ struct HP_BLOCK
 
 struct HP_INFO;			/* For referense */
 
-typedef struct st_hp_keydef		/* Key definition with open */
+struct HP_KEYDEF		/* Key definition with open */
 {
   uint flag;				/* HA_NOSAME | HA_NULL_PART_KEY */
   uint keysegs;				/* Number of key-segment */
@@ -132,12 +132,12 @@ typedef struct st_hp_keydef		/* Key definition with open */
   */
   ha_rows hash_buckets; 
   TREE rb_tree;
-  int (*write_key)(HP_INFO *info, struct st_hp_keydef *keyinfo,
+  int (*write_key)(HP_INFO *info, HP_KEYDEF *keyinfo,
 		   const uchar *record, uchar *recpos);
-  int (*delete_key)(HP_INFO *info, struct st_hp_keydef *keyinfo,
+  int (*delete_key)(HP_INFO *info, HP_KEYDEF *keyinfo,
 		   const uchar *record, uchar *recpos, int flag);
-  uint (*get_key_length)(struct st_hp_keydef *keydef, const uchar *key);
-} HP_KEYDEF;
+  uint (*get_key_length)(HP_KEYDEF *keydef, const uchar *key);
+};
 
 struct HP_SHARE
 {

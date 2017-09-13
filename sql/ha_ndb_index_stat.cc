@@ -511,7 +511,7 @@ static char ndb_index_stat_option_tmp[ndb_index_stat_option_sz];
  
 int
 ndb_index_stat_option_check(MYSQL_THD,
-                            struct st_mysql_sys_var *var,
+                            SYS_VAR *var,
                             void *save,
                             struct st_mysql_value *value)
 {
@@ -538,7 +538,7 @@ ndb_index_stat_option_check(MYSQL_THD,
 
 void
 ndb_index_stat_option_update(MYSQL_THD,
-                             struct st_mysql_sys_var *var,
+                             SYS_VAR *var,
                              void *var_ptr,
                              const void *save)
 {
@@ -3083,7 +3083,7 @@ static SHOW_VAR ndb_status_vars_index_stat[]=
 };
 
 int
-show_ndb_status_index_stat(THD*, struct st_mysql_show_var* var, char*)
+show_ndb_status_index_stat(THD*, SHOW_VAR* var, char*)
 {
   /* Just a function to allow moving array into this file */
   var->type = SHOW_ARRAY;

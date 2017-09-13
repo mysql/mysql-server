@@ -357,8 +357,8 @@ struct DYNAMIC_STRING
   size_t length,max_length,alloc_increment;
 };
 
-struct st_io_cache;
-typedef int (*IO_CACHE_CALLBACK)(struct st_io_cache*);
+struct IO_CACHE;
+typedef int (*IO_CACHE_CALLBACK)(IO_CACHE*);
 
 struct IO_CACHE_SHARE
 {
@@ -368,7 +368,7 @@ struct IO_CACHE_SHARE
   /* Offset in file corresponding to the first byte of buffer. */
   my_off_t              pos_in_file;
   /* If a synchronized write cache is the source of the data. */
-  struct st_io_cache    *source_cache;
+  IO_CACHE    *source_cache;
   uchar                 *buffer;         /* The read buffer. */
   uchar                 *read_end;       /* Behind last valid byte of buffer. */
   int                   running_threads; /* threads not in lock. */
@@ -376,7 +376,7 @@ struct IO_CACHE_SHARE
   int                   error;           /* Last error. */
 };
 
-typedef struct st_io_cache		/* Used when cacheing files */
+struct IO_CACHE		/* Used when cacheing files */
 {
   /* Offset in file corresponding to the first byte of uchar* buffer. */
   my_off_t pos_in_file;
@@ -438,12 +438,12 @@ typedef struct st_io_cache		/* Used when cacheing files */
     my_b_read() will call read_function to fetch the data. read_function
     must never be invoked directly.
   */
-  int (*read_function)(struct st_io_cache *,uchar *,size_t);
+  int (*read_function)(IO_CACHE *,uchar *,size_t);
   /*
     Same idea as in the case of read_function, except my_b_write() needs to
     be replaced with my_b_append() for a SEQ_READ_APPEND cache
   */
-  int (*write_function)(struct st_io_cache *,const uchar *,size_t);
+  int (*write_function)(IO_CACHE *,const uchar *,size_t);
   /*
     Specifies the type of the cache. Depending on the type of the cache
     certain operations might not be available and yield unpredicatable
@@ -493,7 +493,7 @@ typedef struct st_io_cache		/* Used when cacheing files */
     somewhere else
   */
   bool alloced_buffer;
-} IO_CACHE;
+};
 
 typedef int (*qsort_cmp)(const void *,const void *);
 typedef int (*qsort2_cmp)(const void *, const void *, const void *);
@@ -998,8 +998,8 @@ extern MYSQL_PLUGIN_IMPORT PSI_data_lock_bootstrap *psi_data_lock_hook;
 extern void set_psi_data_lock_service(void *psi);
 #endif /* HAVE_PSI_INTERFACE */
 
-struct st_mysql_file;
-extern struct st_mysql_file *mysql_stdin;
+struct MYSQL_FILE;
+extern MYSQL_FILE *mysql_stdin;
 
 C_MODE_END
 #endif /* _my_sys_h */

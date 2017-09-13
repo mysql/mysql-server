@@ -1106,13 +1106,13 @@ enum key_range_flags {
 };
 
 
-typedef struct st_key_range
+struct  key_range
 {
   const uchar *key;
   uint length;
   key_part_map keypart_map;
   enum ha_rkey_function flag;
-} key_range;
+};
 
 struct KEY_MULTI_RANGE
 {

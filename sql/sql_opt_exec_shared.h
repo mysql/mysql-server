@@ -28,6 +28,7 @@
 class JOIN;
 class Item_func_match;
 class store_key;
+struct POSITION;
 class QUICK_SELECT_I;
 
 /**
@@ -48,7 +49,7 @@ typedef int8 plan_idx;
 #define PRE_FIRST_PLAN_IDX (-1) ///< right before the first (first's index is 0)
 
 
-typedef struct st_table_ref : public Sql_alloc
+struct TABLE_REF : public Sql_alloc
 {
   bool		key_err;
   /** True if something was read into buffer in join_read_key.  */
@@ -102,7 +103,7 @@ typedef struct st_table_ref : public Sql_alloc
   */
   bool          disable_cache;
 
-  st_table_ref()
+  TABLE_REF()
     : key_err(TRUE),
       key_parts(0),
       key_length(0),
@@ -157,13 +158,12 @@ typedef struct st_table_ref : public Sql_alloc
     }
     return false;
   }
-} TABLE_REF;
+};
 
 
 struct CACHE_FIELD;
 class QEP_operation;
 class Filesort;
-typedef struct st_position POSITION;
 class Semijoin_mat_exec;
 
 /*
