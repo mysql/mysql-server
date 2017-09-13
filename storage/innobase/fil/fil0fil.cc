@@ -895,7 +895,7 @@ public:
 		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Read or write log file data synchronously..
-	@param[in,out]	type		IO context
+	@param[in]	type		IO context
 	@param[in]	page_id		page id
 	@param[in]	page_size	page size
 	@param[in]	byte_offset	remainder of offset in bytes; in AIO
@@ -6975,8 +6975,8 @@ Fil_shard::get_file_for_io(
 	return(DB_ERROR);
 }
 
-/** Read or write log file data synchronously..
-@param[in,out]	type		IO context
+/** Read or write log file data synchronously.
+@param[in]	type		IO context
 @param[in]	page_id		page id
 @param[in]	page_size	page size
 @param[in]	byte_offset	remainder of offset in bytes; in aio this
@@ -7393,7 +7393,7 @@ Fil_shard::do_io(
 }
 
 /** Read or write redo log data (synchronous buffered IO).
-@param[in,out]	type		IO context
+@param[in]	type		IO context
 @param[in]	page_id		where to read or write
 @param[in]	page_size	page size
 @param[in]	byte_offset	remainder of offset in bytes
@@ -10121,7 +10121,7 @@ Fil_system::get_tablespace_id(const std::string& filename)
 				<< "'" << filename
 				<< "' read failed! - attempted to read"
 				<< " " << sizeof(buf) << " bytes, read only"
-				<< " " << ifs.gcount() << " bytes @offset "
+				<< " " << ifs.gcount() << " bytes at offset "
 				<< off;
 
 			ifs.close();

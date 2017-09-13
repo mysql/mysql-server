@@ -1278,7 +1278,7 @@ fil_space_get_n_reserved_extents(space_id_t space_id)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /** Read or write redo log data (synchronous buffered IO).
-@param[in,out]	type		IO context
+@param[in]	type		IO context
 @param[in]	page_id		where to read or write
 @param[in]	page_size	page size
 @param[in]	byte_offset	remainder of offset in bytes
