@@ -53,7 +53,7 @@ static void init_variables(const struct my_option *, init_func_p);
 static void init_one_value(const struct my_option *, void *, longlong);
 static void fini_one_value(const struct my_option *, void *, longlong);
 static int setval(const struct my_option *, void *, char *, bool);
-static void setval_source(const struct my_option *, void *);
+static void setval_source(const struct my_option *, struct get_opt_arg_source *);
 static char *check_struct_option(char *cur_arg, char *key_name);
 static bool get_bool_argument(const char *argument,
                               bool *error);
@@ -533,7 +533,7 @@ int my_handle_options(int *argc, char ***argv,
                                enabled_my_option : disabled_my_option))
               return EXIT_ARGUMENT_INVALID;
             /* set variables source */
-            setval_source(optp, (void*)optp->arg_source);
+            setval_source(optp, optp->arg_source);
 	    continue;
 	  }
 	  argument= optend;
@@ -809,7 +809,7 @@ static bool get_bool_argument(const char *argument,
   Will set the source and file name from where this options is set in
   my_option struct.
 */
-static void setval_source(const struct my_option *opts, void *value)
+static void setval_source(const struct my_option *opts, struct get_opt_arg_source *value)
 {
   set_variable_source(opts->name, value);
 }
@@ -985,7 +985,7 @@ static int setval(const struct my_option *opts, void *value, char *argument,
       goto ret;
     };
   }
-  setval_source(opts, (void*)opts->arg_source);
+  setval_source(opts, opts->arg_source);
   return 0;
 
 ret:

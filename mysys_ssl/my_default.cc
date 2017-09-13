@@ -1580,10 +1580,8 @@ void update_variable_source(const char* opt_name, const char* value)
    @param [in] opt_name       Pointer to option name.
    @param [out] value         Pointer to struct holding config file path
                               and variable source
-
-   @return void
 */
-void set_variable_source(const char *opt_name, void* value)
+void set_variable_source(const char *opt_name, struct get_opt_arg_source *value)
 {
   string src_name= opt_name;
   std::size_t pos;
@@ -1596,12 +1594,12 @@ void set_variable_source(const char *opt_name, void* value)
     variables_hash.find(src_name);
   if (it != variables_hash.end())
   {
-    if ((get_opt_arg_source*)value)
+    if (value)
     {
-      memcpy(((get_opt_arg_source*)value)->m_path_name,
+      memcpy((value)->m_path_name,
              it->second.m_config_file_name.c_str(),
              it->second.m_config_file_name.length());
-      ((get_opt_arg_source*)value)->m_source= it->second.m_source;
+      value->m_source= it->second.m_source;
     }
   }
 }

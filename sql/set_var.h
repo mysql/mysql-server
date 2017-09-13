@@ -180,15 +180,19 @@ public:
   }
   const char* get_user() { return user; }
   const char* get_host() { return host; }
-  ulonglong get_timestamp();
+  ulonglong get_timestamp() const { return timestamp; }
   void set_user_host(THD* thd);
   my_option* get_option() { return &option; }
-  /**
-    THD::query_start_timeval_trunc() is used to measure query execution time
-    We dont need this as this is not about elapsed time for query, we only
-    need current  timestamp, thus using this function.
-  */
-  void set_timestamp() { timestamp= my_getsystime() / 10ULL; }
+  void set_timestamp()
+  {
+    timestamp= my_micro_time();
+  }
+  void clear_user_host_timestamp()
+  {
+    user[0] = '\0';
+    host[0] = '\0';
+    timestamp = 0;
+  }
   virtual bool is_non_persistent() {return flags & NOTPERSIST; }
 
   /**
