@@ -152,7 +152,7 @@ return 0;
 HAVE_MAC_OS_X_THREAD_INFO)
 
 # Linux scheduling and locking support
-CHECK_C_SOURCE_RUNS("
+CHECK_C_SOURCE_COMPILES("
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
@@ -167,12 +167,6 @@ int main()
   struct sched_param loc_sched_param;
   int policy = 0, ret;
   pid_t tid = (unsigned)syscall(SYS_gettid);
-  if (__GLIBC__ < 2 || ( __GLIBC__ == 2 && __GLIBC_MINOR__ < 23 ) )
-  {
-    /* sched_setaffinity has a bug due to which it fails
-     * when an all-ones CPU mask is set. It is fixed in v2.23  */
-    exit(EXIT_FAILURE);
-  }
   tid = getpid();
   ret = sched_setaffinity(tid, sizeof(* p), p);
   ret = sched_setscheduler(tid, policy, &loc_sched_param);
