@@ -52,19 +52,12 @@ Created 1/8/1996 Heikki Tuuri
 
 #define	DICT_HEAP_SIZE		100	/*!< initial memory heap size when
 					creating a table or index object */
-/* Maximum hardcoded dictionary tables. */
-#define DICT_MAX_DD_TABLES	1024
 
 /** SDI version. Written on Page 1 & 2 at FIL_PAGE_FILE_FLUSH_LSN offset. */
 const uint32_t	SDI_VERSION = 1;
 
 /** Space id of system tablespace */
 const space_id_t	SYSTEM_TABLE_SPACE = TRX_SYS_SPACE;
-
-/* Maximum table id for InnoDB system tables */
-#define INNODB_SYS_TABLE_ID_MAX		16
-/* Maximum index id for InnoDB system tables */
-#define INNODB_SYS_INDEX_ID_MAX		18
 
 /********************************************************************//**
 Get the database name length in a table name.
