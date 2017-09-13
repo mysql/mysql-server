@@ -671,6 +671,7 @@ let DATADIR= `SELECT @@datadir`;
 --echo # Create Innodb table with full text index
 CREATE TABLE t1(id INT, c CHAR(100) , FULLTEXT KEY `msg_idx` (`c`))
 ENGINE INNODB;
+CREATE TABLE t2 (a int, b2 char(10), FULLTEXT KEY b2 (b2));
 --echo # Find name of first FTS index "table"
 let INCFILE= $MYSQL_TMP_DIR/tmp.inc;
 --perl
@@ -727,4 +728,4 @@ EOF
 
 --enable_query_log
 
-DROP TABLE t1;
+DROP TABLE t1, t2;
