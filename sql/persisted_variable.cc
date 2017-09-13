@@ -631,6 +631,7 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options)
     set_var* setvar= dynamic_cast<set_var*>(var);
     setvar->var->set_source(enum_variable_source::PERSISTED);
     setvar->var->set_source_name(m_persist_filename.c_str());
+    setvar->var->clear_user_host_timestamp();
   }
 
 err:
