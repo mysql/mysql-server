@@ -4869,6 +4869,7 @@ Fil_shard::space_rename(
 	ulint		count = 0;
 	fil_node_t*	file = nullptr;
 	bool		write_ddl_log = true;
+	auto		start_time = ut_time();
 
 #ifdef UNIV_DEBUG
 	static uint32_t	crash_injection_rename_tablespace_counter = 1;
@@ -4913,9 +4914,24 @@ Fil_shard::space_rename(
 
 			return(false);
 
-		} else if (count > 25000) {
+		} else if (space->stop_ios) {
 
-			space->stop_ios = false;
+			/* Some other thread has stopped the IO. We need to
+			 wait for the other thread to complete its operation. */
+			mutex_release();
+
+			if (ut_time() - start_time >= PRINT_INTERVAL_SECS) {
+
+				ib::warn() << "Rename waiting for IO to resume";
+
+				start_time = ut_time();
+			}
+
+			os_thread_sleep(1000000);
+
+			continue;
+
+		} else if (count > 25000) {
 
 			mutex_release();
 
@@ -4926,8 +4942,6 @@ Fil_shard::space_rename(
 			ib::error()
 				<< "Cannot find " << space->name
 				<< " in tablespace memory cache";
-
-			space->stop_ios = false;
 
 			mutex_release();
 
@@ -4960,10 +4974,10 @@ Fil_shard::space_rename(
 			/* Write ddl log when space->stop_ios is true
 			can cause deadlock:
 			a. buffer flush thread waits for rename thread to set
-			stop_ios to false;
+			   stop_ios to false;
 			b. rename thread waits for buffer flush thread to flush
-			a page and release page lock. The page is ready for
-			flush in double write buffer. */
+			   a page and release page lock. The page is ready for
+			   flush in double write buffer. */
 
 			ut_ad(!space->stop_ios);
 
@@ -5013,15 +5027,17 @@ Fil_shard::space_rename(
 
 			retry = true;
 
+			space->stop_ios = false;
+
 		} else if (file->modification_counter > file->flush_counter) {
 
 			/* Flush the space */
 
 			retry = flush = true;
 
-		} else if (file->is_open) {
+			space->stop_ios = false;
 
-			/* Close the file */
+		} else if (file->is_open) {
 
 			close_file(file, false);
 		}
@@ -5029,10 +5045,11 @@ Fil_shard::space_rename(
 		mutex_release();
 
 		if (!retry) {
+			ut_ad(space->stop_ios);
 			break;
 		}
 
-		os_thread_sleep(20000);
+		os_thread_sleep(100000);
 
 		if (flush) {
 
