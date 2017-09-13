@@ -2,6 +2,8 @@ call mtr.add_suppression("When binlog_format=STATEMENT, the option binlog_row_va
 call mtr.add_suppression("When binlog_row_image=FULL, the option binlog_row_value_options=PARTIAL_JSON");
 call mtr.add_suppression("When binlog_row_value_options=PARTIAL_JSON, the option log_bin_use_v1_row_events=1");
 call mtr.add_suppression("When the binary log is disabled, the option binlog_row_value_options=PARTIAL_JSON");
+call mtr.add_suppression("No argument was provided to --log-bin, and --log-bin-index was not used; so replication may break when this MySQL server acts as a master and has his hostname changed!! Please use '--log-bin=.* to avoid this problem.");
+call mtr.add_suppression("You need to use --log-bin to make --binlog-format work.");
 # binlog-format=stmt is not compatible with partial json
 # restart: --log-bin --binlog-format=statement --binlog-row-value-options=PARTIAL_JSON --binlog-row-image=MINIMAL
 include/assert_grep.inc [There shall be a warning when binlog_format=STATEMENT]
@@ -13,7 +15,7 @@ Warning	4547	When binlog_format=STATEMENT, the option binlog_row_value_options=P
 include/assert_grep.inc [There shall be a warning when binlog_row_image=FULL]
 # log-bin-use-v1-row-events is not compatible with partial json
 # restart: --log-bin --log-bin-use-v1-row-events=TRUE --binlog-row-value-options=PARTIAL_JSON --binlog-row-image=MINIMAL
-include/assert_grep.inc [There shall be a warning when binlog_row_value_options=PARTIAL_JSON]
+include/assert_grep.inc [There shall be a warning when log_bin_use_v1_row_events=1]
 SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= PARTIAL_JSON;
 Warnings:
 Warning	4548	When binlog_row_value_options=PARTIAL_JSON, the option log_bin_use_v1_row_events=1 will be ignored and row events will be written in new format to binary log.
