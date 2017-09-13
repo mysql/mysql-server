@@ -6202,36 +6202,8 @@ lock_table_names(THD *thd,
     dictionary to get hold of the tablespace name, and in order
     to do this, we must have acquired a lock on the table.
   */
-  if (get_and_lock_tablespace_names(
-    thd, tables_start, tables_end, lock_wait_timeout, flags))
-    return true;
-
-  const dd::Table *table_def= nullptr;
-  for (table= tables_start; table && table != tables_end;
-       table= table->next_local)
-  {
-    if (table->table_name == NULL)
-      continue;
-
-    if (!thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE, table->db,
-                                                      table->table_name,
-                                                      MDL_INTENTION_EXCLUSIVE))
-      continue;
-
-    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-    if (thd->dd_client()->acquire(table->db,
-                                  table->table_name, &table_def))
-    {
-      return true;
-    }
-    if (table_def && table_def->hidden() == dd::Abstract_table::HT_HIDDEN_SE)
-    {
-      my_error(ER_NO_SUCH_TABLE, MYF(0),
-               table->db, table->table_name);
-      return true;
-    }
-  }
-  return false;
+  return get_and_lock_tablespace_names(
+    thd, tables_start, tables_end, lock_wait_timeout, flags);
 }
 
 
