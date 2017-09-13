@@ -176,6 +176,7 @@ public:
     NDB_ZONE_LE_32 = 3,
   };
 
+  void* get_page(Uint32 i) const; /* Note, no checks, i must be valid. */
   void* get_valid_page(Uint32 i) const; /* DO NOT USE see why at definition */
 
   void* alloc_page(Uint32 type, Uint32* i, enum AllocZone, bool locked = false);
@@ -613,6 +614,15 @@ void Resource_limits::post_alloc_resource_spare(Uint32 id, Uint32 cnt)
  * Ndbd_mem_manager
  */
 
+inline
+void*
+Ndbd_mem_manager::get_page(Uint32 page_num) const
+{
+#ifdef NDBD_RANDOM_START_PAGE
+  page_num -= g_random_start_page_id;
+#endif
+  return (void*)(m_base_page + page_num);
+}
 /**
  * get_valid_page returns page pointer if requested page is handled by
  * Ndbd_mem_manager, otherwise it returns NULL.
