@@ -227,7 +227,7 @@ public:
                     Object_id private_id)
    :m_index_no(index_no),
     m_engine_column_no(engine_column_no),
-    m_engine(&engine),
+    m_engine(engine),
     m_private_id_column_no(private_id_column_no),
     m_private_id(private_id)
   { }
@@ -242,7 +242,7 @@ public:
   {
     m_index_no= index_no;
     m_engine_column_no= engine_column_no;
-    m_engine= &engine;
+    m_engine= engine;
     m_private_id_column_no= private_id_column_no;
     m_private_id= private_id;
   }
@@ -253,13 +253,15 @@ public:
   virtual String_type str() const;
 
   bool operator <(const Se_private_id_key &rhs) const
-  { return m_private_id < rhs.m_private_id; }
+  { return m_private_id < rhs.m_private_id ? true :
+      rhs.m_private_id < m_private_id ? false :
+      m_engine < rhs.m_engine; }
 
 private:
   int m_index_no;
 
   int m_engine_column_no;
-  const String_type *m_engine;
+  String_type m_engine;
 
   int m_private_id_column_no;
   Object_id m_private_id;

@@ -1069,6 +1069,41 @@ TEST_F(CacheStorageTest, DoubleUpdate)
 }
 
 
+TEST_F(CacheStorageTest, DuplicateSePrivateId)
+{
+  dd::cache::Dictionary_client *dc= thd()->dd_client();
+  dd::cache::Dictionary_client::Auto_releaser releaser(dc);
+
+  std::unique_ptr<dd::Table> ibd_tab(dd::create_object<dd::Table>());
+  dd_unittest::set_attributes(ibd_tab.get(), "innodb_table_object", *mysql);
+  ibd_tab->set_engine("innodb");
+  ibd_tab->set_se_private_id(123);
+  lock_object(ibd_tab->name());
+
+  std::unique_ptr<dd::Table> ndb_tab(dd::create_object<dd::Table>());
+  dd_unittest::set_attributes(ndb_tab.get(), "ndb_table_object", *mysql);
+  ndb_tab->set_engine("ndb");
+  ndb_tab->set_se_private_id(123);
+  lock_object(ndb_tab->name());
+
+  EXPECT_FALSE(dc->store(ibd_tab.get()));
+  EXPECT_FALSE(dc->store(ndb_tab.get()));
+
+  // Acquire and drop the objects
+  const dd::Table *ibd_tab_ptr= NULL;
+  EXPECT_FALSE(dc->acquire<dd::Table>("mysql", "innodb_table_object", &ibd_tab_ptr));
+  EXPECT_NE(nullp<const dd::Table>(), ibd_tab_ptr);
+  EXPECT_FALSE(dc->drop(ibd_tab_ptr));
+
+  const dd::Table *ndb_tab_ptr= NULL;
+  EXPECT_FALSE(dc->acquire<dd::Table>("mysql", "ndb_table_object", &ndb_tab_ptr));
+  EXPECT_NE(nullp<const dd::Table>(), ndb_tab_ptr);
+  EXPECT_FALSE(dc->drop(ndb_tab_ptr));
+
+  dc->commit_modified_objects();
+}
+
+
 TEST_F(CacheStorageTest, GetTableBySePrivateId)
 {
   dd::cache::Dictionary_client *dc= thd()->dd_client();
