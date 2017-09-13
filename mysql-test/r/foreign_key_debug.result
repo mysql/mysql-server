@@ -873,3 +873,36 @@ DROP TABLES child, parent;
 connection con1;
 disconnect con1;
 connection default;
+#
+# Additional test coverage for case when ALTER TABLE is non-atomic but
+# still adds foreign keys and fails at the late stage (after foreign
+# keys are added to the data-dictionary).
+#
+connect  con1, localhost, root,,;
+SET @old_lock_wait_timeout= @@lock_wait_timeout;
+connection default;
+CREATE TABLE t1 (pk INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t2 (fk INT) ENGINE=MyISAM;
+SET @@debug='+d,injecting_fault_writing';
+ALTER TABLE t2 ADD FOREIGN KEY (fk) REFERENCES t1(pk), ENGINE=InnoDB;
+ERROR HY000: Error writing file 'binlog' ((errno: #)
+SET @@debug='-d,injecting_fault_writing';
+# Even though the above ALTER TABLE has failed it has updated
+# data-dictionary. So cached object for parent table should
+# be updated to reflect this new foreign key.
+# The below LOCK TABLES should implicitly lock t2 too.
+LOCK TABLES t1 WRITE;
+connection con1;
+# So concurrent inserts into child are blocked.
+SET @@lock_wait_timeout= 1;
+INSERT INTO t1 VALUES (NULL);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection default;
+# And delete from parent table is possible and doesn't cause asserts.
+DELETE FROM t1;
+UNLOCK TABLES;
+DROP TABLES t2, t1;
+connection con1;
+disconnect con1;
+connection default;

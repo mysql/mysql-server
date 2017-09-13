@@ -1490,7 +1490,7 @@ static void close_open_tables(THD *thd)
   @param  db          Database name.
   @param  table_name  Table name.
   @param  remove_from_locked_tables
-                      True if the table is being dropped or renamed.
+                      True if the table is being dropped.
                       In that case the documented behaviour is to
                       implicitly remove the table from LOCK TABLES list.
   @param  skip_table  TABLE instance that should be kept open.
@@ -4153,6 +4153,85 @@ Locked_tables_list::reopen_tables(THD *thd)
     thd->lock= merged_lock;
   }
   return FALSE;
+}
+
+
+/**
+  Update database and table names of table locked with LOCK TABLES after
+  table rename.
+
+  @param old_table_list     Table list element representing old db/table name.
+  @param new_db             Table's new database.
+  @param new_table_name     Table's new name.
+  @param target_mdl_ticket  Ticket representing metadata lock acquired on new
+                            table name.
+
+  @note This function is a no-op if we're not under LOCK TABLES.
+*/
+
+void
+Locked_tables_list::rename_locked_table(TABLE_LIST *old_table_list,
+                                        const char *new_db,
+                                        const char *new_table_name,
+                                        MDL_ticket *target_mdl_ticket)
+{
+  for (TABLE_LIST *table_list= m_locked_tables;
+       table_list; table_list= table_list->next_global)
+  {
+    if (my_strcasecmp(table_alias_charset,
+                      table_list->db, old_table_list->db) == 0 &&
+        my_strcasecmp(table_alias_charset,
+                      table_list->table_name, old_table_list->table_name) == 0)
+    {
+      DBUG_ASSERT(table_list->table == nullptr);
+
+      /*
+        Update TABLE_LIST element with new db and name. Allocate
+        them on Locked_tables_list private memory root.
+      */
+      size_t new_db_len= strlen(new_db);
+      size_t new_table_name_len= strlen(new_table_name);
+      const char *new_db_root=  strmake_root(&m_locked_tables_root,
+                                             new_db, new_db_len);
+      const char *new_table_name_root= strmake_root(&m_locked_tables_root,
+                                                    new_table_name,
+                                                    new_table_name_len);
+
+      if (new_db_root != nullptr && new_table_name_root != nullptr)
+      {
+        TABLE_LIST *save_next_global= table_list->next_global;
+        TABLE_LIST **save_prev_global= table_list->prev_global;
+
+        /*
+          If explicit alias was used in LOCK TABLES then it makes sense
+          to preserve it after rename. We might have several instances of
+          the same table locked in different modes, so alias is useful to
+          differentiate between them.
+        */
+        bool real_alias = my_strcasecmp(table_alias_charset,
+                                        table_list->table_name,
+                                        table_list->alias) != 0;
+
+        table_list->init_one_table(new_db_root, new_db_len,
+                                   new_table_name_root, new_table_name_len,
+                                   real_alias ? table_list->alias :
+                                                new_table_name_root,
+                                   table_list->lock_descriptor().type);
+        table_list->mdl_request.ticket= target_mdl_ticket;
+        table_list->next_global= save_next_global;
+        table_list->prev_global= save_prev_global;
+      }
+      else
+      {
+        // OOM. We just unlink table from the list of locked tables.
+        *table_list->prev_global= table_list->next_global;
+        if (table_list->next_global == nullptr)
+          m_locked_tables_last= table_list->prev_global;
+        else
+          table_list->next_global->prev_global= table_list->prev_global;
+      }
+    }
+  }
 }
 
 

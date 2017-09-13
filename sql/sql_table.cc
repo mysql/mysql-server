@@ -10036,8 +10036,7 @@ static bool mysql_inplace_alter_table(THD *thd,
 
       This is mostly needed to satisfy InnoDB assumptions/asserts.
     */
-    close_all_tables_for_name(thd, table->s, alter_ctx->is_table_renamed(),
-                              table);
+    close_all_tables_for_name(thd, table->s, false, table);
     /*
       If we are under LOCK TABLES we will need to reopen tables which we
       just have closed in case of error.
@@ -10253,7 +10252,7 @@ static bool mysql_inplace_alter_table(THD *thd,
 
     thd->check_for_truncated_fields= CHECK_FIELD_IGNORE;
 
-    close_all_tables_for_name(thd, table->s, alter_ctx->is_table_renamed(), NULL);
+    close_all_tables_for_name(thd, table->s, false, NULL);
     table_list->table= table= NULL;
     reopen_tables= true;
     close_temporary_table(thd, altered_table, true, false);
@@ -10523,10 +10522,26 @@ cleanup2:
   {
     /* Close the only table instance which might be still around. */
     if (table)
-      close_all_tables_for_name(thd, table->s, alter_ctx->is_table_renamed(), NULL);
-    if (thd->locked_tables_list.reopen_tables(thd))
+      close_all_tables_for_name(thd, table->s, false, NULL);
+
+    /*
+      For engines which support atomic DDL all changes were reverted
+      by this point, so we can safely reopen them using old name.
+
+      For engines which do not support atomic DDL we can't be sure
+      that rename step was reverted, so we simply remove table from
+      the list of locked tables. We also downgrade/release metadata
+      locks later. This  won't mess up FK-related invariants for LOCK
+      TABLES as such engines do not support FKs.
+    */
+    if (!(db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
+        alter_ctx->is_table_renamed())
+    {
+      DBUG_ASSERT(!(db_type->flags & HTON_SUPPORTS_FOREIGN_KEYS));
       thd->locked_tables_list.unlink_all_closed_tables(thd, NULL, 0);
-    /* QQ; do something about metadata locks ? */
+    }
+
+    (void) thd->locked_tables_list.reopen_tables(thd);
   }
 
   if (!(db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
@@ -10541,6 +10556,10 @@ cleanup2:
       (void)trans_intermediate_ddl_commit(thd, result);
     }
   }
+
+  if (thd->locked_tables_mode == LTM_LOCK_TABLES ||
+      thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES)
+    mdl_ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
 
   DBUG_RETURN(true);
 }
@@ -12076,11 +12095,12 @@ adjust_fks_for_rename_table(THD *thd,
 /**
   Rename table and/or turn indexes on/off without touching .FRM
 
-  @param thd            Thread handler
-  @param new_schema     Target schema.
-  @param table_list     TABLE_LIST for the table to change
-  @param keys_onoff     ENABLE or DISABLE KEYS?
-  @param alter_ctx      ALTER TABLE runtime context.
+  @param thd                Thread handler
+  @param new_schema         Target schema.
+  @param table_list         TABLE_LIST for the table to change
+  @param target_mdl_request Metadata request/lock on the target table name.
+  @param keys_onoff         ENABLE or DISABLE KEYS?
+  @param alter_ctx          ALTER TABLE runtime context.
 
   @return Operation status
     @retval false           Success
@@ -12090,6 +12110,7 @@ adjust_fks_for_rename_table(THD *thd,
 static bool
 simple_rename_or_index_change(THD *thd, const dd::Schema &new_schema,
                               TABLE_LIST *table_list,
+                              MDL_request *target_mdl_request,
                               Alter_info::enum_enable_or_disable keys_onoff,
                               Alter_table_ctx *alter_ctx)
 {
@@ -12197,7 +12218,7 @@ simple_rename_or_index_change(THD *thd, const dd::Schema &new_schema,
         DBUG_RETURN(true);
     }
 
-    close_all_tables_for_name(thd, table->s, true, NULL);
+    close_all_tables_for_name(thd, table->s, false, NULL);
 
     if (mysql_rename_table(thd, old_db_type,
                            alter_ctx->db, alter_ctx->table_name,
@@ -12257,9 +12278,6 @@ simple_rename_or_index_change(THD *thd, const dd::Schema &new_schema,
 
     if (!error)
       fk_invalidator.invalidate(thd);
-
-    if (!error)
-      my_ok(thd);
   }
 
   if (error)
@@ -12279,6 +12297,46 @@ simple_rename_or_index_change(THD *thd, const dd::Schema &new_schema,
   if (atomic_ddl && old_db_type->post_ddl)
     old_db_type->post_ddl(thd);
 
+  if (!error)
+  {
+    if (alter_ctx->is_table_renamed())
+      thd->locked_tables_list.rename_locked_table(table_list,
+                                                  alter_ctx->new_db,
+                                                  alter_ctx->new_name,
+                                                  target_mdl_request->ticket);
+  }
+  else
+  {
+    if (atomic_ddl)
+    {
+      /*
+        Engines that support atomic DDL restore status-quo on error.
+        So we can safely try to reopen table under old name.
+      */
+    }
+    else
+    {
+      /*
+        For engines which don't support atomic DDL we simply close
+        the table and later downgrade/release metadata lock, as we
+        don't track at which step error has occurred exactly.
+
+        Since such engines do not support FKs downgrading/releasing
+        the metadata locks should not cause problems with violating
+        FK invariants for LOCK TABLES. For the same reason, the below
+        call won't unlink any parent tables which might have been
+        closed by FK invalidator.
+      */
+      DBUG_ASSERT(!(old_db_type->flags & HTON_SUPPORTS_FOREIGN_KEYS));
+      thd->locked_tables_list.unlink_all_closed_tables(thd, NULL, 0);
+    }
+  }
+
+  bool reopen_error= thd->locked_tables_list.reopen_tables(thd);
+
+  if (!error && !reopen_error)
+    my_ok(thd);
+
   if ((thd->locked_tables_mode == LTM_LOCK_TABLES ||
        thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES))
   {
@@ -12287,12 +12345,22 @@ simple_rename_or_index_change(THD *thd, const dd::Schema &new_schema,
       statement. Otherwise we can rely on them being released
       along with the implicit commit.
     */
-    if (alter_ctx->is_table_renamed())
+    if (!error && alter_ctx->is_table_renamed())
+    {
+      /*
+        Note that we ignore reopen_error value here as not keeping target
+        metadata locks in this case can lead to breaking foreign key
+        invariants for LOCK TABLES.
+      */
       thd->mdl_context.release_all_locks_for_name(mdl_ticket);
+      thd->mdl_context.set_lock_duration(target_mdl_request->ticket,
+                                         MDL_EXPLICIT);
+      target_mdl_request->ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
+    }
     else
       mdl_ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
   }
-  DBUG_RETURN(error != 0);
+  DBUG_RETURN(error != 0 || reopen_error);
 }
 
 
@@ -12815,35 +12883,48 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                                        thd->variables.lock_wait_timeout))
       DBUG_RETURN(true);
 
+    /*
+      If we are executing ALTER TABLE RENAME under LOCK TABLES we also need
+      to check that all previously orphan tables which reference new table
+      name through foreign keys are locked for write. Otherwise this ALTER
+      will leave after itself parent table locked for WRITE without child
+      tables locked for WRITE. This will break FK LOCK TABLES invariants if
+      some of previously orphan FKs have referential actions which update
+      child table.
+
+      In theory, we can reduce chance of MDL deadlocks by also checking at
+      this stage that all child and parent tables for FKs in which this
+      table participates are locked for WRITE (as we will have to acquire
+      to exclusive MDLs on these tables later). But this is, probably, too
+      severe restriction since many 3rd-party online ALTER tools use ALTER
+      TABLE RENAME under LOCK TABLES and are unaware of it.
+    */
+
     if ((thd->locked_tables_mode == LTM_LOCK_TABLES ||
          thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES) &&
         alter_ctx.is_table_renamed())
     {
-      /*
-        ALTER TABLE RENAME under LOCK TABLES releases lock on the table.
-        So it can easily break prelocking invariants for FKs. We will
-        prohibit renaming under LOCK TABLES in cases when FKs are involved
-        for now.
-
-        TODO: This is rather severe restriction since many 3rd-party online
-              ALTER tools use ALTER TABLE RENAME under LOCK TABLES.
-              We plan to reduce restriction scope by keeping table locked
-              in this case.
-      */
-
       MDL_request_list orphans_mdl_requests;
       if (collect_fk_children(thd, alter_ctx.new_db, alter_ctx.new_alias,
                               create_info->db_type, &orphans_mdl_requests))
         DBUG_RETURN(true);
 
-      if (!old_table_def->foreign_keys().empty() ||
-          !old_table_def->foreign_key_parents().empty() ||
-          (alter_info->flags & Alter_info::ADD_FOREIGN_KEY) ||
-          !orphans_mdl_requests.is_empty())
+      MDL_request_list::Iterator it(orphans_mdl_requests);
+      MDL_request *mdl_request;
+
+      while ((mdl_request= it++) != nullptr)
       {
-        my_error(ER_NOT_SUPPORTED_YET, MYF(0),
-                 "ALTER TABLE RENAME under LOCK TABLES for tables with foreign keys");
-        DBUG_RETURN(true);
+        if (mdl_request->key.mdl_namespace() != MDL_key::TABLE)
+          continue;
+
+        if (!thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+                                mdl_request->key.db_name(),
+                                mdl_request->key.name(),
+                                MDL_SHARED_NO_READ_WRITE))
+        {
+          my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0), mdl_request->key.name());
+          DBUG_RETURN(true);
+        }
       }
     }
   }
@@ -12892,6 +12973,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     }
     DBUG_RETURN(simple_rename_or_index_change(thd, *new_schema,
                                               table_list,
+                                              &target_mdl_request,
                                               alter_info->keys_onoff,
                                               &alter_ctx));
   }
@@ -13195,6 +13277,13 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
 
   /* Indicates special case when we do ALTER TABLE which is really no-op. */
   bool is_noop= false;
+
+  /*
+    Indicates special case involving non-atomic ALTER TABLE which adds
+    foreign keys and then fails at the late stage. Such ALTER TABLE still
+    requires FK parent invalidation even despite of error.
+  */
+  bool invalidate_fk_parents_on_error= false;
 
   dd::Table *table_def= tmp_table_def;
   if (!table_def)
@@ -13671,7 +13760,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   if (lower_case_table_names)
     my_casedn_str(files_charset_info, backup_name);
 
-  close_all_tables_for_name(thd, table->s, alter_ctx.is_table_renamed(), NULL);
+  close_all_tables_for_name(thd, table->s, false, NULL);
   table_list->table= table= NULL;                  /* Safety */
 
   /*
@@ -13815,6 +13904,14 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     }
     goto err_with_mdl;
   }
+
+  /*
+    If ALTER TABLE is non-atomic and fails after this point it can add
+    foreign keys and such addition won't be reverted. So we need to
+    invalidate table objects for foreign key parents even on error.
+  */
+  if (!atomic_replace)
+    invalidate_fk_parents_on_error= true;
 
   /*
     Since trigger names have to be unique per schema, we cannot
@@ -13982,16 +14079,36 @@ end_inplace:
 
   fk_invalidator.invalidate(thd);
 
-  if (thd->locked_tables_list.reopen_tables(thd))
-    goto err_with_mdl;
+  if (alter_ctx.is_table_renamed())
+    thd->locked_tables_list.rename_locked_table(table_list,
+                                                alter_ctx.new_db,
+                                                alter_ctx.new_name,
+                                                target_mdl_request.ticket);
 
-  if (thd->locked_tables_mode == LTM_LOCK_TABLES ||
-      thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES)
   {
-    if (alter_ctx.is_table_renamed())
-      thd->mdl_context.release_all_locks_for_name(mdl_ticket);
-    else
-      mdl_ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
+    bool reopen_error= thd->locked_tables_list.reopen_tables(thd);
+
+    if (thd->locked_tables_mode == LTM_LOCK_TABLES ||
+        thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES)
+    {
+      if (alter_ctx.is_table_renamed())
+      {
+        /*
+          Release metadata lock on old table name and keep the lock
+          on the new one. We have to ignore reopen_error in this case
+          as we will mess up FK invariants for LOCK TABLES otherwise.
+        */
+        thd->mdl_context.release_all_locks_for_name(mdl_ticket);
+        thd->mdl_context.set_lock_duration(target_mdl_request.ticket,
+                                           MDL_EXPLICIT);
+        target_mdl_request.ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
+      }
+      else
+        mdl_ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
+    }
+
+    if (reopen_error)
+      DBUG_RETURN(true);
   }
 
 end_temporary:
@@ -14077,14 +14194,12 @@ err_new_table_cleanup:
 err_with_mdl:
   /*
     An error happened while we were holding exclusive name metadata lock
-    on table being altered. To be safe under LOCK TABLES we should
-    remove all references to the altered table from the list of locked
-    tables and release the exclusive metadata lock. Before releasing locks
-    we need to rollback changes to the data-dictionary, storage angine
-    and binary log (if they were not committed earlier) and execute
-    post DDL hooks.
+    on table being altered. Before releasing locks we need to rollback
+    changes to the data-dictionary, storage angine and binary log (if
+    they were not committed earlier) and execute post DDL hooks.
+    We also try to reopen old version of the table under LOCK TABLES
+    if possible.
   */
-  thd->locked_tables_list.unlink_all_closed_tables(thd, NULL, 0);
 
   trans_rollback_stmt(thd);
   /*
@@ -14100,7 +14215,56 @@ err_with_mdl:
       old_db_type->post_ddl)
     old_db_type->post_ddl(thd);
 
-  thd->mdl_context.release_all_locks_for_name(mdl_ticket);
+  if (atomic_replace)
+  {
+    /*
+      If both old and new storage engines support atomic DDL all changes
+      were reverted at this point. So we can safely try to reopen table
+      under old name.
+    */
+  }
+  else
+  {
+    /*
+      If ALTER TABLE ... RENAME ... ALGORITHM=COPY is non-atomic we can't
+      be sure that rename step was reverted, so we simply remove table
+      from the list of locked tables.
+    */
+    if (alter_ctx.is_table_renamed())
+      thd->locked_tables_list.unlink_all_closed_tables(thd, NULL, 0);
+  }
+
+  /*
+    ALTER TABLE which changes table storage engine from MyISAM to InnoDB
+    and adds foreign keys at the same time can fail after installing
+    new table version. In this case we still need to invalidate table
+    objects for parent tables to avoid creating discrepancy between
+    data-dictionary and cache contents.
+  */
+  if (invalidate_fk_parents_on_error)
+    fk_invalidator.invalidate(thd);
+
+  (void) thd->locked_tables_list.reopen_tables(thd);
+
+  if ((thd->locked_tables_mode == LTM_LOCK_TABLES ||
+       thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES))
+  {
+    /*
+      Non-atomic ALTER TABLE ... RENAME ... ALGORITHM=COPY can add
+      foreign keys if at the same time SE is changed from, e.g.,
+      MyISAM to InnoDB. Since releasing metadata locks on old or new
+      table name can break FK invariants for LOCK TABLES in various
+      scenarios we keep both of them.
+    */
+    if (!atomic_replace && alter_ctx.is_table_renamed())
+    {
+      thd->mdl_context.set_lock_duration(target_mdl_request.ticket,
+                                         MDL_EXPLICIT);
+      target_mdl_request.ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
+    }
+    mdl_ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
+  }
+
   DBUG_RETURN(true);
 }
 /* mysql_alter_table */
