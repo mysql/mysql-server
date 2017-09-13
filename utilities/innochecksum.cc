@@ -359,8 +359,7 @@ open_file(
 	return (fil_in);
 }
 
- /** Read the contents of file. If a page is compressed, the page
-is decompressed.
+ /** Read the contents of file.
 @param[in,out]	buf			read the file in buffer
 @param[in]	partial_page_read	enable when to read the
 					remaining buffer for first page
@@ -389,12 +388,12 @@ ulong read_file(
 		bytes = UNIV_ZIP_SIZE_MIN;
 	}
 
-	bytes += ulong(fread(buf, 1, physical_page_size, fil_in));
-
-	if (!page_size.is_compressed()
-	    || mach_read_from_4(buf + FIL_PAGE_OFFSET) < 3) {
+	/* Nothing to read from file, just return */
+	if (physical_page_size == 0) {
 		return(bytes);
 	}
+
+	bytes += ulong(fread(buf, 1, physical_page_size, fil_in));
 
 	return(bytes);
 }
