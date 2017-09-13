@@ -1933,7 +1933,7 @@ Fil_path::is_undo_tablespace_name(const std::string& name)
 
 	std::string	basename(name);
 
-	auto	pos = basename.find_last_of(OS_SEPARATOR);
+	auto	pos = basename.find_last_of(SEPARATOR);
 
 	if (pos != std::string::npos) {
 		basename.erase(basename.begin(), basename.begin() + pos);
@@ -8696,7 +8696,9 @@ fil_encryption_rotate()
 }
 
 /** Constructor
-@param[in]	path	pathname (may also include the file basename) */
+@param[in]	path		pathname (may also include the file basename)
+				It's the callers responsibility to ensure that
+				the path is normalized. */
 Fil_path::Fil_path(const std::string& path)
 	:
 	m_path(path)
@@ -8705,7 +8707,9 @@ Fil_path::Fil_path(const std::string& path)
 }
 
 /** Constructor
-@param[in]	path	pathname (may also include the file basename)
+@param[in]	path		pathname (may also include the file basename)
+				It's the callers responsibility to ensure that
+				the path is normalized.
 @param[in]	len	length of the path, in bytes */
 Fil_path::Fil_path(const char* path, size_t len)
 	:
@@ -8726,6 +8730,7 @@ Fil_path::Fil_path()
 /** Destructor */
 Fil_path::~Fil_path()
 {
+	/* No op */
 }
 
 /** @return true if the path exists and is a file . */

@@ -354,11 +354,15 @@ public:
 
 	/** Constructor
 	@param[in]	path		Path, not necessarily NUL terminated
+					It's the callers responsibility to
+					ensure that the path is normalized.
 	@param[in]	len		Length of path */
 	Fil_path(const char* path, size_t len);
 
 	/** Constructor
-	@param[in]	path	pathname */
+	@param[in]	path	pathname (may also include the file basename)
+					It's the callers responsibility to
+					ensure that the path is normalized.
 	explicit Fil_path(const std::string& path);
 
 	/** Destructor */
