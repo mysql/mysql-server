@@ -894,7 +894,7 @@ public:
 		table_id_t	table_id)
 		MY_ATTRIBUTE((warn_unused_result));
 
-	/** Read or write log file data synchronously..
+	/** Read or write log file data synchronously.
 	@param[in]	type		IO context
 	@param[in]	page_id		page id
 	@param[in]	page_size	page size
@@ -905,8 +905,8 @@ public:
 					must not cross a file boundary; in AIO
 					this must be a block size multiple
 	@param[in,out]	buf		buffer where to store read data or
-					from where to write; in AIO this must
-					be appropriately aligned
+					from where to write
+	@return error code
 	@retval DB_SUCCESS on success */
 	dberr_t do_redo_io(
 		const IORequest&	type,
@@ -918,7 +918,7 @@ public:
 		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Read or write data. This operation could be asynchronous (aio).
-	@param[in,out]	type		IO context
+	@param[in]	type		IO context
 	@param[in]	sync		whether synchronous aio is desired
 	@param[in]	page_id		page id
 	@param[in]	page_size	page size
@@ -6979,14 +6979,14 @@ Fil_shard::get_file_for_io(
 @param[in]	type		IO context
 @param[in]	page_id		page id
 @param[in]	page_size	page size
-@param[in]	byte_offset	remainder of offset in bytes; in aio this
-				must be divisible by the OS block size
-@param[in]	len		how many bytes to read or write; this must
-				not cross a file boundary; in AIO this must
-				be a block size multiple
-@param[in,out]	buf		buffer where to store read data or from where
-				to write; in aio this must be appropriately
-				aligned
+@param[in]	byte_offset	remainder of offset in bytes; in AIO
+				this must be divisible by the OS block
+				size
+@param[in]	len		how many bytes to read or write; this
+				must not cross a file boundary; in AIO
+				this must be a block size multiple
+@param[in,out]	buf		buffer where to store read data or
+				from where to write
 @return error code
 @retval DB_SUCCESS on success */
 dberr_t
@@ -7081,7 +7081,7 @@ Fil_shard::do_redo_io(
 }
 
 /** Read or write data. This operation could be asynchronous (aio).
-@param[in,out]	type		IO context
+@param[in]	type		IO context
 @param[in]	sync		whether synchronous aio is desired
 @param[in]	page_id		page id
 @param[in]	page_size	page size
@@ -7425,7 +7425,7 @@ fil_redo_io(
 }
 
 /** Read or write data from a file.
-@param[in,out]	type		IO context
+@param[in]	type		IO context
 @param[in]	sync		If true then do synchronous IO
 @param[in]	page_id		page id
 @param[in]	page_size	page size

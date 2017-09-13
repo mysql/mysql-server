@@ -1297,7 +1297,7 @@ fil_redo_io(
 	MY_ATTRIBUTE((warn_unused_result));
 
 /** Read or write data.
-@param[in,out]	type		IO context
+@param[in]	type		IO context
 @param[in]	sync		If true then do synchronous IO
 @param[in]	page_id		page id
 @param[in]	page_size	page size
