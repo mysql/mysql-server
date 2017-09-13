@@ -362,7 +362,7 @@ public:
 	/** Constructor
 	@param[in]	path	pathname (may also include the file basename)
 					It's the callers responsibility to
-					ensure that the path is normalized.
+					ensure that the path is normalized. */
 	explicit Fil_path(const std::string& path);
 
 	/** Destructor */
