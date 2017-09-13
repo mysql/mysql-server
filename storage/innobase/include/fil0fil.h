@@ -563,7 +563,7 @@ public:
 
 	/** Normalizes a directory path for the current OS:
 	On Windows, we convert '/' to '\', else we convert '\' to '/'.
-	@param[in,out] str A null-terminated directory and file path */
+	@param[in,out]	path	A NUL terminated path */
 	static void normalize(char* path)
 	{
 		for (auto ptr = path; *ptr; ++ptr) {
@@ -1816,7 +1816,7 @@ fil_check_extend_space(fil_node_t* file)
 
 /** Replay a file rename operation for ddl replay.
 @param[in]	page_id		Space ID and first page number in the file
-@param[in]	name		old file name
+@param[in]	old_name	old file name
 @param[in]	new_name	new file name
 @return	whether the operation was successfully applied
 (the name did not exist, or new_name did not exist and
@@ -1824,7 +1824,7 @@ name was successfully renamed to new_name)  */
 bool
 fil_op_replay_rename_for_ddl(
 	const page_id_t&	page_id,
-	const char*		name,
+	const char*		old_name,
 	const char*		new_name);
 
 /** Free the Tablespace_files instance.

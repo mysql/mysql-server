@@ -499,7 +499,6 @@ private:
 	invalid or unreadable directories.  Sort and filter out duplicates
 	from dirs.
 	@param[in]	str		Path specification to tokenize
-	@param[out]	dirs		Parsed directory paths
 	@param[in]	delimiters	Delimiters */
 	void tokenize_paths(
 		const std::string&	str,
@@ -508,14 +507,14 @@ private:
 	using Const_iter = Scanned_files::const_iterator;
 
 	/** Check for duplicate tablespace IDs.
-	@param[in]	begin		Start of slice
+	@param[in]	start		Start of slice
 	@param[in]	end		End of slice
 	@param[in]	thread_id	Thread ID
 	@param[in,out]	mutex		Mutex protecting the global state
 	@param[in,out]	unique		To check for duplciates
 	@param[in,out]	duplicates	Duplicate space IDs found */
 	void duplicate_check(
-		const Const_iter&	begin,
+		const Const_iter&	start,
 		const Const_iter&	end,
 		size_t			thread_id,
 		std::mutex*		mutex,
@@ -1905,7 +1904,7 @@ Fil_shard::close_file(space_id_t space_id)
 
 /** Remap the tablespace to the new name.
 @param[in]	space		Tablespace instance, with old name.
-@param[in]	name		New tablespace name */
+@param[in]	new_name	New tablespace name */
 void
 Fil_shard::update_space_name_map(fil_space_t* space, const char* new_name)
 {
@@ -1921,8 +1920,7 @@ Fil_shard::update_space_name_map(fil_space_t* space, const char* new_name)
 }
 
 /** Check if the name is an undo tablespace name.
-@param[in]	name	Tablespace name
-@param[in]	len	Tablespace name length in bytes
+@param[in]	name	Tablespace name 
 @return true if it is an undo tablespace name */
 bool
 Fil_path::is_undo_tablespace_name(const std::string& name)
@@ -8894,7 +8892,6 @@ test_make_filepath()
 	path = MF(long_path, "tablespacename", IBD, true); DISPLAY;
 }
 #endif /* UNIV_ENABLE_UNIT_TEST_MAKE_FILEPATH */
-/* @} */
 
 /** Release the reserved free extents.
 @param[in]	n_reserved	number of reserved extents */
