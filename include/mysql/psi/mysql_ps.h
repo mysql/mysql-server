@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -36,6 +36,8 @@
     inline_mysql_destroy_prepared_stmt(PREPARED_STMT)
   #define MYSQL_REPREPARE_PS(PREPARED_STMT) \
     inline_mysql_reprepare_prepared_stmt(PREPARED_STMT)
+  #define MYSQL_SET_PS_TEXT(PREPARED_STMT, SQLTEXT, SQLTEXT_LENGTH) \
+    inline_mysql_set_prepared_stmt_text(PREPARED_STMT, SQLTEXT, SQLTEXT_LENGTH)
 #else
   #define MYSQL_CREATE_PS(IDENTITY, ID, LOCKER, NAME, NAME_LENGTH, SQLTEXT, SQLTEXT_LENGTH) \
     NULL
@@ -44,6 +46,8 @@
   #define MYSQL_DESTROY_PS(PREPARED_STMT) \
     do {} while (0)
   #define MYSQL_REPREPARE_PS(PREPARED_STMT) \
+    do {} while (0)
+  #define MYSQL_SET_PS_TEXT(PREPARED_STMT, SQLTEXT, SQLTEXT_LENGTH) \
     do {} while (0)
 #endif
 
@@ -82,6 +86,17 @@ inline_mysql_reprepare_prepared_stmt(PSI_prepared_stmt *prepared_stmt)
 {
   if (prepared_stmt != NULL)
     PSI_PS_CALL(reprepare_prepared_stmt)(prepared_stmt);
+}
+
+static inline void
+inline_mysql_set_prepared_stmt_text(PSI_prepared_stmt *prepared_stmt,
+                                    const char *text,
+                                    uint text_len)
+{
+  if (prepared_stmt != NULL)
+  {
+    PSI_PS_CALL(set_prepared_stmt_text)(prepared_stmt, text, text_len);
+  }
 }
 #endif
 
