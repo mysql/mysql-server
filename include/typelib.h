@@ -21,8 +21,9 @@
   @file include/typelib.h
 */
 
-#include "mem_root_fwd.h"
 #include "my_inttypes.h"
+
+struct MEM_ROOT;
 
 #ifdef __cplusplus
 extern "C" {

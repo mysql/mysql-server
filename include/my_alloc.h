@@ -21,8 +21,6 @@
 #ifndef _my_alloc_h
 #define _my_alloc_h
 
-#include <stdbool.h>
-
 /*
   How much overhead does malloc have. The code often allocates
   something like 1024-MALLOC_OVERHEAD bytes
@@ -35,19 +33,18 @@
 #define ALLOC_MAX_BLOCK_TO_DROP			4096
 #define ALLOC_MAX_BLOCK_USAGE_BEFORE_DROP	10
 
+#include <stdbool.h>
 #include <string.h>
 #include <sys/types.h>
+
+#include <memory>
+#include <new>
 
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "mysql/psi/psi_memory.h"
 
-#include "mem_root_fwd.h"  // Contains the typedef to MEM_ROOT. IWYU pragma: keep
-
-#ifdef __cplusplus
-
-#include <memory>
-#include <new>
+struct MEM_ROOT;
 
 extern "C" {
 
@@ -59,8 +56,6 @@ extern void init_alloc_root(PSI_memory_key key,
 
 }
 
-#endif
-
 typedef struct st_used_mem
 {				   /* struct for once_alloc (block) */
   struct st_used_mem *next;	   /* Next block in use */
@@ -69,29 +64,28 @@ typedef struct st_used_mem
 } USED_MEM;
 
 
-struct st_mem_root
+struct MEM_ROOT
 {
-#ifdef __cplusplus
-  st_mem_root() :
+  MEM_ROOT() :
     free(nullptr), used(nullptr), pre_alloc(nullptr),
     min_malloc(0) // for alloc_root_inited()
   {}
 
-  st_mem_root(PSI_memory_key key, size_t block_size, size_t pre_alloc_size)
+  MEM_ROOT(PSI_memory_key key, size_t block_size, size_t pre_alloc_size)
   {
     init_alloc_root(key, this, block_size, pre_alloc_size);
   }
 
   // Make the class movable but not copyable.
-  st_mem_root(const st_mem_root &) = delete;
-  st_mem_root(st_mem_root &&other) noexcept {
+  MEM_ROOT(const MEM_ROOT &) = delete;
+  MEM_ROOT(MEM_ROOT &&other) noexcept {
     memcpy(this, &other, sizeof(*this));
     other.free= other.used= other.pre_alloc= nullptr;
     other.min_malloc= 0;
   }
 
-  st_mem_root& operator= (const st_mem_root &) = delete;
-  st_mem_root& operator= (st_mem_root &&other) noexcept {
+  MEM_ROOT& operator= (const MEM_ROOT &) = delete;
+  MEM_ROOT& operator= (MEM_ROOT &&other) noexcept {
     memcpy(this, &other, sizeof(*this));
     other.free= other.used= other.pre_alloc= nullptr;
     other.min_malloc= 0;
@@ -103,12 +97,10 @@ struct st_mem_root
     It's harmless to call free_root() multiple times, and thus also to call
     free_root() on a to-be-destructed object.
   */
-  ~st_mem_root()
+  ~MEM_ROOT()
   {
     free_root(this, MYF(0));
   }
-
-#endif
 
   USED_MEM *free;                  /* blocks with free memory in it */
   USED_MEM *used;                  /* blocks almost without free memory */
@@ -141,7 +133,6 @@ struct st_mem_root
   PSI_memory_key m_psi_key;
 };
 
-#ifdef __cplusplus
 /**
   Allocate an object of the given type. Use like this:
 
@@ -199,7 +190,5 @@ public:
 /** std::unique_ptr, but only destroying. */
 template<class T>
 using unique_ptr_destroy_only = std::unique_ptr<T, Destroy_only<T>>;
-
-#endif  // __cplusplus
 
 #endif

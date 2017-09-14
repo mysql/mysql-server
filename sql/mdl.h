@@ -21,7 +21,6 @@
 #include <new>
 
 #include "m_string.h"
-#include "mem_root_fwd.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -41,6 +40,7 @@
 #include "mysql_com.h"
 #include "sql/sql_plist.h"
 
+struct MEM_ROOT;
 class MDL_context;
 class MDL_lock;
 class MDL_ticket;

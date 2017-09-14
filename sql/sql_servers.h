@@ -24,10 +24,9 @@
 #include "sql/sql_alloc.h"          // Sql_alloc
 #include "sql/sql_cmd.h"            // Sql_cmd
 
+struct MEM_ROOT;
 class THD;
 struct TABLE;
-
-typedef struct st_mem_root MEM_ROOT;
 
 class FOREIGN_SERVER : public Sql_alloc
 {

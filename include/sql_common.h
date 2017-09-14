@@ -27,12 +27,13 @@
 #include <sys/types.h>
 
 #include "errmsg.h"
-#include "mem_root_fwd.h"
 #include "my_command.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_list.h"
 #include "mysql_com.h"
+
+struct MEM_ROOT;
 
 #ifdef	__cplusplus
 extern "C" {

@@ -58,7 +58,7 @@ struct TABLE_SHARE;
 
 /* forward declarations */
 typedef struct st_ha_create_information HA_CREATE_INFO;
-typedef struct st_mem_root MEM_ROOT;
+struct MEM_ROOT;
 
 static const uint NO_CURRENT_PART_ID= UINT_MAX32;
 

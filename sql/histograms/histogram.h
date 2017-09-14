@@ -64,10 +64,8 @@ namespace histograms {
 struct Histogram_comparator;
 template <class T> class Value_map;
 }  // namespace histograms
+struct MEM_ROOT;
 struct TABLE_LIST;
-struct st_mem_root;
-
-typedef struct st_mem_root MEM_ROOT;
 
 namespace histograms {
 

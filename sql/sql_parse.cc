@@ -2661,8 +2661,15 @@ mysql_execute_command(THD *thd, bool first_level)
       case WARN_RESOURCE_GROUP_TYPE_MISMATCH:
       {
         ulonglong pfs_thread_id= 0;
+        /*
+	  Resource group is unsupported with DISABLE_PSI_THREAD.
+	  The below #ifdef is required for compilation when DISABLE_PSI_THREAD is
+	  enabled.
+	*/
+#ifdef HAVE_PSI_THREAD_INTERFACE
         ulonglong unused_event_id MY_ATTRIBUTE((unused));
         PSI_THREAD_CALL(get_thread_event_id)(&pfs_thread_id, &unused_event_id);
+#endif // HAVE_PSI_THREAD_INTERFACE
         push_warning_printf(thd, Sql_condition::SL_WARNING,
                             ER_RESOURCE_GROUP_BIND_FAILED,
                             ER_THD(thd, ER_RESOURCE_GROUP_BIND_FAILED),

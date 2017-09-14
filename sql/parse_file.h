@@ -25,7 +25,7 @@
 #include "mysql/udf_registration_types.h"
 #include "sql/sql_alloc.h"              // Sql_alloc
 
-typedef struct st_mem_root MEM_ROOT;
+struct MEM_ROOT;
 
 #define PARSE_FILE_TIMESTAMPLENGTH 19
 
