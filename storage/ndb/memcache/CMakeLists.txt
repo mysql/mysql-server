@@ -113,9 +113,9 @@ set(NDB_MEMCACHE_SOURCE_FILES
     src/Record.cc
     src/TabSeparatedValues.cc
     src/TableSpec.cc
-    src/atomics.c
-    src/debug.c
-    src/hash_item_util.c
+    src/atomics.cc
+    src/debug.cc
+    src/hash_item_util.cc
     src/ndb_configuration.cc
     src/ndb_engine_errors.cc
     src/ndb_engine_private.h
@@ -124,10 +124,10 @@ set(NDB_MEMCACHE_SOURCE_FILES
     src/ndb_pipeline.cc
     src/ndb_worker.cc
     src/schedulers
-    src/thread_identifier.c
-    src/timing.c
-    src/workitem.c
-    src/workqueue.c
+    src/thread_identifier.cc
+    src/timing.cc
+    src/workitem.cc
+    src/workqueue.cc
     src/Scheduler.cc
     src/GlobalConfigManager.cc
     src/SchedulerConfigManager.cc
@@ -245,7 +245,7 @@ target_link_libraries(ndbmemcache
                       ${MEMCACHED_UTILITIES_LIBRARY})
 
 ### Build the module
-add_library(ndb_engine MODULE src/ndb_engine.c src/stub.cc)
+add_library(ndb_engine MODULE src/ndb_engine.cc src/stub.cc)
 
 target_link_libraries(ndb_engine ndbmemcache ndbclient_static)
 

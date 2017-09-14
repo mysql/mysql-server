@@ -344,7 +344,7 @@ bool stmt_causes_implicit_commit(const THD *thd, uint mask)
 uint sql_command_flags[SQLCOM_END+1];
 uint server_command_flags[COM_END+1];
 
-void init_update_queries(void)
+void init_sql_command_flags(void)
 {
   /* Initialize the server command flags array. */
   memset(server_command_flags, 0, sizeof(server_command_flags));

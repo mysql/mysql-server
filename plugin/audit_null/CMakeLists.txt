@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,7 +13,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-MYSQL_ADD_PLUGIN(audit_null audit_null.c
+MYSQL_ADD_PLUGIN(audit_null audit_null.cc
   MODULE_ONLY MODULE_OUTPUT_NAME "adt_null")
 
 MYSQL_ADD_PLUGIN(test_security_context test_security_context.cc

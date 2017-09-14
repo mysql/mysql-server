@@ -113,7 +113,7 @@ void add_join_on(TABLE_LIST *b,Item *expr);
 bool push_new_name_resolution_context(Parse_context *pc,
                                       TABLE_LIST *left_op,
                                       TABLE_LIST *right_op);
-void init_update_queries(void);
+void init_sql_command_flags(void);
 Item *negate_expression(Parse_context *pc, Item *expr);
 const CHARSET_INFO *get_bin_collation(const CHARSET_INFO *cs);
 void killall_non_super_threads(THD *thd);

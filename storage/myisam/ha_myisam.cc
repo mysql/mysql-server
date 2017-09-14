@@ -2229,7 +2229,7 @@ static int myisam_panic(handlerton*, ha_panic_function flag)
 }
 
 
-extern "C" st_keycache_thread_var *keycache_thread_var()
+st_keycache_thread_var *keycache_thread_var()
 {
   THD *thd= current_thd;
   if (thd == NULL)

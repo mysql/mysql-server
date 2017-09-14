@@ -37,10 +37,6 @@
 #include "my_io.h"
 #include "my_macros.h"
 
-#ifdef	__cplusplus
-extern "C" {
-#endif
-
 /*
   Limit max keys according to HA_MAX_POSSIBLE_KEY
 */
@@ -476,7 +472,4 @@ int mi_preload(MI_INFO *info, ulonglong key_map, bool ignore_leaves);
 
 extern st_keycache_thread_var main_thread_keycache_var;
 st_keycache_thread_var *keycache_thread_var();
-#ifdef	__cplusplus
-}
-#endif
 #endif
