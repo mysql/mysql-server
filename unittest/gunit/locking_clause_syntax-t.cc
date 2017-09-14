@@ -163,6 +163,8 @@ TEST_F(LockingClauseSyntaxTest, SafeToCacheQuery)
   parse("SELECT * FROM t1, t2 FOR SHARE OF t1");
   EXPECT_FALSE(thd()->lex->safe_to_cache_query);
 
+  init_sql_command_flags();
+
   // The locking clause should not get contextualized for EXPLAIN.
   parse("EXPLAIN SELECT * FROM t1 FOR UPDATE");
   EXPECT_TRUE(thd()->lex->safe_to_cache_query);

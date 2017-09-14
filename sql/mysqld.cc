@@ -4708,7 +4708,7 @@ static int init_server_components()
     Needs to be done before dd::init() which runs DDL commands (for real)
     during instance initialization.
   */
-  init_update_queries();
+  init_sql_command_flags();
 
   /*
     plugin_register_dynamic_and_init_all() needs DD initialized.
