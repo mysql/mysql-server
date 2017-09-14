@@ -456,12 +456,8 @@ void LEX::reset()
   select_lex= NULL;
   m_current_select= NULL;
   all_selects_list= NULL;
-  load_set_str_list.empty();
 
   bulk_insert_row_cnt= 0;
-
-  load_update_list.empty();
-  load_value_list.empty();
 
   purge_value_list.empty();
 
@@ -509,7 +505,6 @@ void LEX::reset()
   mi.channel= NULL;
 
   wild= NULL;
-  exchange= NULL;
   mark_broken(false);
   max_execution_time= 0;
   reparse_common_table_expr_at= 0;

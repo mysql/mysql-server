@@ -134,7 +134,6 @@ class partition_info;
 class sp_head;
 class sp_name;
 class sp_pcontext;
-class sql_exchange;
 struct sql_digest_state;
 class Sql_cmd_tablespace;
 class Sql_cmd_logfile_group;
@@ -2246,6 +2245,16 @@ union YYSTYPE {
   resourcegroups::Type resource_group_type;
   Trivial_array<ulonglong> *thread_id_list_type;
   Explain_format_type explain_format_type;
+  struct {
+    Item *set_var;
+    Item *set_expr;
+    String *set_expr_str;
+  } load_set_element;
+  struct {
+    PT_item_list *set_var_list;
+    PT_item_list *set_expr_list;
+    List<String> *set_expr_str_list;
+  } load_set_list;
 };
 
 static_assert(sizeof(YYSTYPE) <= 32, "YYSTYPE is too big");
@@ -3531,7 +3540,6 @@ public:
   char* x509_subject,*x509_issuer,*ssl_cipher;
   // Widcard from SHOW ... LIKE <wildcard> statements.
   String *wild;
-  sql_exchange *exchange;
   Query_result *result;
   LEX_STRING binlog_stmt_arg; ///< Argument of the BINLOG event statement.
   LEX_STRING ident;
@@ -3571,19 +3579,6 @@ public:
   List<LEX_USER>      *default_roles;
 
   ulonglong           bulk_insert_row_cnt;
-
-  // LOAD statement-specific fields:
-
-  List<Item>          load_field_list;
-  List<Item>          load_update_list;
-  List<Item>          load_value_list;
-  /*
-    A list of strings is maintained to store the SET clause command user strings
-    which are specified in load data operation.  This list will be used
-    during the reconstruction of "load data" statement at the time of writing
-    to binary log.
-  */
-  List<String>        load_set_str_list;
 
   // PURGE statement-specific fields:
   List<Item>          purge_value_list;
@@ -3725,7 +3720,8 @@ public:
           code, so we can fully rely on this field.
   */
   uint8 context_analysis_only;
-  bool drop_if_exists, drop_temporary, local_file;
+  bool drop_if_exists;
+  bool drop_temporary;
   bool autocommit;
   bool verbose, no_write_to_binlog;
   // For show commands to show hidden columns and indexes.

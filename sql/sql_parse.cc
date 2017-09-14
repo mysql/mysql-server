@@ -129,7 +129,6 @@
 #include "sql/sql_help.h"     // mysqld_help
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
-#include "sql/sql_load.h"     // mysql_load
 #include "sql/sql_prepare.h"  // mysql_stmt_execute
 #include "sql/sql_profile.h"
 #include "sql/sql_query_rewrite.h" // invoke_pre_parse_rewrite_plugins
@@ -3465,6 +3464,7 @@ mysql_execute_command(THD *thd, bool first_level)
   case SQLCOM_DROP_INDEX:
   case SQLCOM_ASSIGN_TO_KEYCACHE:
   case SQLCOM_PRELOAD_KEYS:
+  case SQLCOM_LOAD:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     DBUG_ASSERT(lex->m_sql_cmd != NULL);
@@ -3516,45 +3516,6 @@ mysql_execute_command(THD *thd, bool first_level)
 
     if (!mysql_change_db(thd, db_str, FALSE))
       my_ok(thd);
-
-    break;
-  }
-
-  case SQLCOM_LOAD:
-  {
-    DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    uint privilege= (lex->duplicates == DUP_REPLACE ?
-		     INSERT_ACL | DELETE_ACL : INSERT_ACL) |
-                    (lex->local_file ? 0 : FILE_ACL);
-
-    if (lex->local_file)
-    {
-      if (!thd->get_protocol()->has_client_capability(CLIENT_LOCAL_FILES) ||
-          !opt_local_infile)
-      {
-	my_error(ER_NOT_ALLOWED_COMMAND, MYF(0));
-	goto error;
-      }
-    }
-
-    if (check_one_table_access(thd, privilege, all_tables))
-      goto error;
-
-    /* Push strict / ignore error handler */
-    Ignore_error_handler ignore_handler;
-    Strict_error_handler strict_handler;
-    if (thd->lex->is_ignore())
-      thd->push_internal_handler(&ignore_handler);
-    else if (thd->is_strict_mode())
-      thd->push_internal_handler(&strict_handler);
-
-    res= mysql_load(thd, lex->exchange, first_table, lex->load_field_list,
-                    lex->load_update_list, lex->load_value_list, lex->duplicates,
-                    lex->local_file);
-
-    /* Pop ignore / strict error handler */
-    if (thd->lex->is_ignore() || thd->is_strict_mode())
-      thd->pop_internal_handler();
 
     break;
   }

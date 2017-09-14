@@ -3170,7 +3170,7 @@ class Item_user_var_as_out_param :public Item
   Name_string name;
   user_var_entry *entry;
 public:
-  Item_user_var_as_out_param(Name_string a) :name(a)
+  Item_user_var_as_out_param(const POS &pos, Name_string a) : Item(pos), name(a)
   { item_name.copy(a); }
   /* We should return something different from FIELD_ITEM here */
   enum Type type() const override { return STRING_ITEM;}

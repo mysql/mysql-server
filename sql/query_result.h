@@ -59,6 +59,8 @@ public:
   {}
   virtual ~Query_result() {}
 
+  virtual bool needs_file_privilege() const { return false; }
+
   /**
     Change wrapped Query_result.
 
@@ -228,6 +230,9 @@ public:
   {
     DBUG_ASSERT(file < 0);
   }
+
+  bool needs_file_privilege() const override { return true; }
+
   void send_error(uint errcode, const char *err) override;
   bool send_eof() override;
   void cleanup() override;
