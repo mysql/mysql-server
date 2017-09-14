@@ -9358,8 +9358,6 @@ fil_tablespace_redo_create(
 
 	/* It's possible that the tablespace file was renamed later. */
 
-	ib::info() << "REDO CREATE: " << page_id.space() << ", " << abs_name;
-
 	if (result.second->front().compare(abs_name) == 0) {
 		bool	success;
 
@@ -9517,8 +9515,6 @@ fil_tablespace_redo_rename(
 	std::string	abs_path = Fil_path::get_real_path(
 		result.first + result.second->front());
 
-	ib::info() << "RENAME " << from_name << " TO " << to_name;
-
 	if (abs_path.compare(abs_to_name) == 0) {
 
 		/* Rename must have succeeded, open the file. */
@@ -9629,8 +9625,6 @@ fil_tablespace_redo_delete(
 	auto	abs_name = Fil_path::get_real_path(name);
 
 	ut_ad(!Fil_path::is_separator(abs_name.back()));
-
-	ib::info() << "REDO DELETE: " << page_id.space() << ", " << abs_name;
 
 	fil_space_free(page_id.space(), false);
 
