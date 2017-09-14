@@ -76,11 +76,11 @@ The tablespace memory cache */
 using Dirs = std::vector<std::string>;
 using Space_id_set = std::set<space_id_t>;
 
-#if defined(__SUNPRO_C)
+#if defined(__SUNPRO_CC)
 char*	Fil_path::SEPARATOR = "\\/";
 char*	Fil_path::DOT_SLASH = "./";
 char*	Fil_path::DOT_DOT_SLASH = "../";
-#endif /* __SUNPRO_C */
+#endif /* defined(__SUNPRO_CC) */
 
 /** Used for collecting the data in boot_tablespaces() */
 namespace dd_fil {

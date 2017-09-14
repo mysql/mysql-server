@@ -333,21 +333,21 @@ public:
 	static constexpr auto	OS_SEPARATOR = OS_PATH_SEPARATOR;
 
 	/** Directory separators that are supported. */
-#if defined(__SUNPRO_C)
+#if defined(__SUNPRO_CC)
 	static char*		SEPARATOR;
 	static char*		DOT_SLASH;
 	static char*		DOT_DOT_SLASH;
 #else
 	static constexpr auto	SEPARATOR = "\\/";
-#ifdef _WIN32
+# ifdef _WIN32
 	static constexpr auto	DOT_SLASH = ".\\";
 	static constexpr auto	DOT_DOT_SLASH = "..\\";
-#else
+# else
 	static constexpr auto	DOT_SLASH = "./";
 	static constexpr auto	DOT_DOT_SLASH = "../";
-#endif /* _WIN32 */
+# endif /* _WIN32 */
 
-#endif /* __SUNPRO_C */
+#endif /* __SUNPRO_CC */
 
 	/** Default constructor. Defaults to MySQL_datadir_path.  */
 	Fil_path();

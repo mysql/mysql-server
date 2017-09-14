@@ -3412,15 +3412,15 @@ public:
 		m_mutex(),
 		m_space_max_id(),
 		m_n_threads()
-#if !defined(__SUNPRO_C)
+#if !defined(__SUNPRO_CC)
 		,m_checked()
 		,m_n_errors()
-#endif /* !__SUNPRO_C */
+#endif /* !__SUNPRO_CC */
 	{
-#if defined(__SUNPRO_C)
+#if defined(__SUNPRO_CC)
 		m_checked = ATOMIC_VAR_INIT(0);
 		m_n_errors = ATOMIC_VAR_INIT(0);
-#endif /* __SUNPRO_C */
+#endif /* __SUNPRO_CC */
 	}
 
 	/** Validate the tablespaces against the DD.
