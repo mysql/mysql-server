@@ -7307,8 +7307,9 @@ restart_cluster_failure:
           Uint32 iter= 0;
           const NdbEventOperation *gci_op;
           Uint32 event_types;
+          Uint32 cumulative_any_value;
 
-          while ((gci_op= i_ndb->getGCIEventOperations(&iter, &event_types))
+          while ((gci_op= i_ndb->getNextEventOpInEpoch3(&iter, &event_types, &cumulative_any_value))
                  != NULL)
           {
             Ndb_event_data *event_data=
@@ -7354,12 +7355,31 @@ restart_cluster_failure:
                          ("Found new data event, initializing transaction"));
               inj->new_trans(thd, &trans);
             }
-            DBUG_PRINT("info", ("use_table: %.*s, cols %u",
-                                (int) name.length, name.str,
-                                table->s->fields));
-            injector::transaction::table tbl(table, true);
-            int ret = trans.use_table(::server_id, tbl);
-            assert(ret == 0); NDB_IGNORE_VALUE(ret);
+            {
+              bool use_table= true;
+              if (ndbcluster_anyvalue_is_reserved(cumulative_any_value))
+              {
+                /*
+                   All events for this table in this epoch are marked as nologging,
+                   therefore we do not include the table in the epoch transaction.
+                */
+                if (ndbcluster_anyvalue_is_nologging(cumulative_any_value))
+                {
+                  DBUG_PRINT("info", ("Skip binlogging table table: %.*s",
+                                      (int) name.length, name.str));
+                  use_table= false;
+                }
+              }
+              if (use_table)
+              {
+                DBUG_PRINT("info", ("use_table: %.*s, cols %u",
+                                    (int) name.length, name.str,
+                                    table->s->fields));
+                injector::transaction::table tbl(table, true);
+                int ret = trans.use_table(::server_id, tbl);
+                assert(ret == 0); NDB_IGNORE_VALUE(ret);
+              }
+            }
           }
         }
         if (trans.good())
