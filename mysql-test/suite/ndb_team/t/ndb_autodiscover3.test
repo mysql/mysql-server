@@ -45,17 +45,17 @@ insert into t1 values (1);
 
 --exec $NDB_MGM --no-defaults -e "all restart" >> $NDB_TOOLS_OUTPUT
 --exec $NDB_WAITER --no-defaults -c $connect_str >> $NDB_TOOLS_OUTPUT
+
 # Wait for mysqld to reconnect and exit from readonly mode
---disable_query_log
 --connection con1
 --source include/ndb_not_readonly.inc
 # wait for server1 stats thread to re-initialize
 --source include/ndb_index_stat_wait.inc
+
 --connection con2
 --source include/ndb_not_readonly.inc
 # wait for server2 stats thread to re-initialize
 --source include/ndb_index_stat_wait.inc
---enable_query_log
 
 --connection server1
 --error 1297
@@ -81,16 +81,16 @@ select * from t2 order by a limit 3;
 --inc $the_backup_id
 --exec $NDB_MGM --no-defaults -e "start backup $the_backup_id" >> $NDB_TOOLS_OUTPUT
 # to ensure mysqld has connected again, and recreated system tables
---disable_query_log
+
 --connection con1
 --source include/ndb_not_readonly.inc
 # wait for server1 stats thread to re-initialize
 --source include/ndb_index_stat_wait.inc
+
 --connection con2
 --source include/ndb_not_readonly.inc
 # wait for server2 stats thread to re-initialize
 --source include/ndb_index_stat_wait.inc
---enable_query_log
 
 --connection server2
 --error ER_NO_SUCH_TABLE
@@ -115,16 +115,16 @@ reset master;
 --inc $the_backup_id
 --exec $NDB_MGM --no-defaults -e "start backup $the_backup_id" >> $NDB_TOOLS_OUTPUT
 # to ensure mysqld has connected again, and recreated system tables
---disable_query_log
+
 --connection con1
 --source include/ndb_not_readonly.inc
 # wait for server1 stats thread to re-initialize
 --source include/ndb_index_stat_wait.inc
+
 --connection con2
 --source include/ndb_not_readonly.inc
 # wait for server2 stats thread to re-initialize
 --source include/ndb_index_stat_wait.inc
---enable_query_log
 
 --connection server1
 --error ER_NO_SUCH_TABLE

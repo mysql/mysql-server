@@ -59,11 +59,7 @@ select * from t1;
 # cluster has been restored or timeout occurs
 #
 connection default;
---disable_result_log
---disable_query_log
 --source include/ndb_not_readonly.inc
---enable_result_log
---enable_query_log
 
 # Run selects to show that the cluster are back
 
@@ -79,11 +75,7 @@ select * from t1;
 #
 # Wait until mysqld has connected properly to cluster
 #
---disable_result_log
---disable_query_log
 source include/ndb_not_readonly.inc;
---enable_query_log
---enable_result_log
 
 # Do an insert to see table is writable
 insert into t1 values (2, "row 1", 37);
@@ -126,11 +118,7 @@ delimiter ;//
 # cluster has been restored or timeout occurs
 #
 connection default;
---disable_result_log
---disable_query_log
 --source include/ndb_not_readonly.inc
---enable_result_log
---enable_query_log
 
 # Create the table again to check there are no conflicts
 create table t1(a int, b varchar(10), c date) engine=ndb;

@@ -10498,6 +10498,9 @@ int ha_ndbcluster::create(const char *name,
     }
     single_user_mode = NdbDictionary::Table::SingleUserModeReadWrite;
     ndb_sys_table= TRUE;
+
+    // Mark the mysql.ndb_schema table as hidden in the DD
+    ndb_dd_table_mark_as_hidden(table_def);
   }
 
   if (!ndb_apply_status_share)
@@ -13391,41 +13394,6 @@ static void ndbcluster_drop_database(handlerton *hton, char *path)
 }
 
 
-static int
-ndbcluster_find_files(handlerton* /* hton */, THD* /* thd */,
-                      const char* db, const char* /* path */,
-                      const char* /* wild */, bool dir,
-                      List<LEX_STRING> *files)
-{
-  DBUG_ENTER("ndbcluster_find_files");
-  DBUG_PRINT("enter", ("db: %s", db));
-
-  if (dir)
-  {
-    // Nothing to do for databases at this time
-    DBUG_RETURN(0);
-  }
-
-  /* Hide mysql.ndb_schema table */
-  if (!strcmp(db, NDB_REP_DB))
-  {
-    LEX_STRING* file_name;
-    List_iterator<LEX_STRING> it(*files);
-    while ((file_name= it++))
-    {
-      if (!strcmp(file_name->str, NDB_SCHEMA_TABLE))
-      {
-        DBUG_PRINT("info", ("Hiding table '%s.%s'", db, file_name->str));
-        it.remove();
-        break; // Match found, no need to continue iterating
-      }
-    }
-  }
-
-  DBUG_RETURN(0);
-}
-
-
 /**
   Check if the given table is a system table which is
   supported to store in NDB
@@ -13690,7 +13658,6 @@ int ndbcluster_init(void* p)
                          HTON_SUPPORTS_FOREIGN_KEYS |
                          HTON_SUPPORTS_ATOMIC_DDL;
     h->discover=         ndbcluster_discover;
-    h->find_files=       ndbcluster_find_files;
     h->table_exists_in_engine= ndbcluster_table_exists_in_engine;
     h->make_pushed_join= ndbcluster_make_pushed_join;
     h->is_supported_system_table = is_supported_system_table;

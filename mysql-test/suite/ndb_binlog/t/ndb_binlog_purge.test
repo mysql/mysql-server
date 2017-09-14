@@ -83,11 +83,7 @@ call mtr.add_suppression("mysqld startup An incident event has been written");
 let $mysqld_name=mysqld.1.1;
 --source include/restart_mysqld.inc
 
---disable_result_log
---disable_query_log
 --source include/ndb_not_readonly.inc
---enable_result_log
---enable_query_log
 
 #show binary logs;
 

@@ -1844,7 +1844,7 @@ public:
         being distributed to other mysqld's.
       */
       Ndb_global_schema_lock_guard global_schema_lock_guard(m_thd);
-      if (global_schema_lock_guard.lock(false))
+      if (global_schema_lock_guard.lock())
       {
         break;
       }

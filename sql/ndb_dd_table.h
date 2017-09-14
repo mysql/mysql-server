@@ -39,4 +39,10 @@ ndb_dd_table_get_object_id_and_version(const dd::Table* table_def,
                                        int& object_id, int& object_version);
 
 
+/*
+   Mark the table as being hidden, thus avoiding that it shows
+   up in SHOW TABLES and information_schema queries.
+*/
+void ndb_dd_table_mark_as_hidden(dd::Table* table_def);
+
 #endif

@@ -45,11 +45,7 @@ insert into t1 values (3, 4);
 --exec $ndb_waiter_cmd > /dev/null
 
 # Wait for mysqld to reconnect
---disable_result_log
---disable_query_log
 --source include/ndb_not_readonly.inc
---enable_result_log
---enable_query_log
 
 # Check table is still there
 select * from t1 order by a;
@@ -73,11 +69,7 @@ insert into t1 values (4, 5);
 --exec $NDB_MGM --no-defaults -e "start backup $the_backup_id" >> $NDB_TOOLS_OUTPUT
 
 # Wait for mysqld to reconnect
---disable_result_log
---disable_query_log
 --source include/ndb_not_readonly.inc
---enable_result_log
---enable_query_log
 
 # Check table is gone
 --error ER_NO_SUCH_TABLE

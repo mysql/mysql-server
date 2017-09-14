@@ -324,8 +324,7 @@ create table t2 (a int) engine=ndbcluster;
 --exec $NDB_MGM --no-defaults -e "all start" >> $NDB_TOOLS_OUTPUT
 --exec $NDB_WAITER --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" >> $NDB_TOOLS_OUTPUT
 
-# Wait for mysqld to reconnect and exit from readonly mode
---disable_query_log
+# Wait for mysqld(s) to reconnect and exit from readonly mode
 connection server1;
 --source include/ndb_not_readonly.inc
 connection server2;
@@ -334,7 +333,6 @@ connection server3;
 --source include/ndb_not_readonly.inc
 connection server4;
 --source include/ndb_not_readonly.inc
---enable_query_log
 
 connection server1;
 desc t1;
@@ -367,8 +365,7 @@ create table t2 (a int) engine=ndbcluster;
 --exec $NDB_MGM --no-defaults -e "all start" >> $NDB_TOOLS_OUTPUT
 --exec $NDB_WAITER --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" >> $NDB_TOOLS_OUTPUT
 
-# Wait for mysqld to reconnect and exit from readonly mode
---disable_query_log
+# Wait for mysqld(s) to reconnect and exit from readonly mode
 connection server1;
 --source include/ndb_not_readonly.inc
 connection server2;
@@ -377,7 +374,6 @@ connection server3;
 --source include/ndb_not_readonly.inc
 connection server4;
 --source include/ndb_not_readonly.inc
---enable_query_log
 
 connection server1;
 --error 1146

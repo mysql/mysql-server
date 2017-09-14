@@ -33,8 +33,10 @@ bool ndb_sdi_serialize(THD *thd,
                        const char* schema_name,
                        dd::sdi_t& sdi)
 {
-  // Require the table to be visible or else have temporary name
+  // Require the table to be visible, hidden by SE(like mysql.ndb_schema)
+  // or else have temporary name
   DBUG_ASSERT(table_def->hidden() == dd::Abstract_table::HT_VISIBLE ||
+              table_def->hidden() == dd::Abstract_table::HT_HIDDEN_SE ||
               is_prefix(table_def->name().c_str(), tmp_file_prefix));
 
   // Make a copy of the table definition to allow it to
