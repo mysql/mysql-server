@@ -6397,7 +6397,7 @@ void pfs_set_prepared_stmt_text_v1(PSI_prepared_stmt *prepared_stmt,
     reinterpret_cast<PFS_prepared_stmt *>(prepared_stmt);
   DBUG_ASSERT(pfs_prepared_stmt != NULL);
 
-  uint max_len = sizeof(PFS_prepared_stmt::m_sqltext);
+  uint max_len = COL_INFO_SIZE;
   if (text_len > max_len)
   {
     text_len = max_len;
