@@ -2396,8 +2396,15 @@ Ndb::isConsistentGCI(Uint64 gci)
 const NdbEventOperation*
 Ndb::getNextEventOpInEpoch2(Uint32* iter, Uint32* event_types)
 {
+  return getNextEventOpInEpoch3(iter, event_types, NULL);
+}
+
+const NdbEventOperation*
+Ndb::getNextEventOpInEpoch3(Uint32* iter, Uint32* event_types,
+                           Uint32* cumulative_any_value)
+{
   NdbEventOperationImpl* op =
-    theEventBuffer->getGCIEventOperations(iter, event_types);
+    theEventBuffer->getEpochEventOperations(iter, event_types, cumulative_any_value);
   if (op != NULL)
     return op->m_facade;
   return NULL;
@@ -2406,7 +2413,7 @@ Ndb::getNextEventOpInEpoch2(Uint32* iter, Uint32* event_types)
 const NdbEventOperation*
 Ndb::getGCIEventOperations(Uint32* iter, Uint32* event_types)
 {
-  return getNextEventOpInEpoch2(iter, event_types);
+  return getNextEventOpInEpoch3(iter, event_types, NULL);
   /*
    * No event operation is added to gci_ops list for exceptional event data.
    * So it is not possible to get them in event_types. No check needed.
