@@ -1,0 +1,151 @@
+-- source include/have_multi_ndb.inc
+-- source include/have_binlog_format_mixed_or_row.inc
+
+connect(mysqld1,127.0.0.1,root,,test,$MASTER_MYPORT);
+connect(mysqld2,127.0.0.1,root,,test,$MASTER_MYPORT1);
+
+connection mysqld1;
+
+# Wait for each mysqld to startup binlogging
+--let $source_server=mysqld1
+--let $dest_server=mysqld2
+source suite/ndb_rpl/t/wait_schema_logging.inc;
+
+--disable_query_log
+connection mysqld1;
+reset master;
+connection mysqld2;
+reset master;
+--enable_query_log
+
+# Bug#26333981 BI IS WRITING TABLE_MAP EVEN WHEN USING SQL_LOG_BIN = 0
+
+--connection mysqld1
+
+create table test.ndbt1 (a int primary key, b int) engine=ndb;
+SET sql_log_bin = 0;
+use test;
+create table test.ndbt2 (a int primary key, b int) engine=ndb;
+create table test.ndbt3 (a int primary key, b int) engine=ndb;
+begin;
+insert into ndbt1 values (1,1);
+insert into ndbt2 values (1,1),(2,2);
+insert into ndbt3 values (1,1);
+commit;
+SET sql_log_bin = 1;
+begin;
+insert into ndbt1 values (2,2);
+insert into ndbt3 values (2,2);
+commit;
+
+--disable_query_log
+# Add an event-stream marker
+create table stream_marker(a int) engine=ndb;
+drop table stream_marker;
+--let $wait_binlog_event=stream_marker
+--enable_query_log
+
+--echo Show + reset Binlog contents on Mysqld 1
+--echo We should se tables ndbt1 and ndbt3 added to Table_map,
+--echo but not table ndbt2
+--connection mysqld1
+--source include/wait_for_binlog_event.inc
+--let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+let $MYSQLD_DATADIR= `select @@datadir;`;
+
+create table table_map_binlog_rows (table_map varchar(1000));
+--disable_warnings
+--disable_query_log
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/$binlog_file  > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.txt
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.txt' into table table_map_binlog_rows fields terminated by 'mapped' lines starting by 'Table_map:';
+--remove_file $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.txt
+--enable_query_log
+--enable_warnings
+select * from table_map_binlog_rows order by table_map;
+drop table table_map_binlog_rows;
+reset master;
+
+--echo Show + reset Binlog contents on Mysqld 2
+--echo We should se tables ndbt1 and ndbt3 added to Table_map,
+--echo but not table ndbt2
+--connection mysqld2
+--source include/wait_for_binlog_event.inc
+--let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+let $MYSQLD_DATADIR= `select @@datadir;`;
+
+create table table_map_binlog_rows (table_map varchar(1000));
+--disable_warnings
+--disable_query_log
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/$binlog_file > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.txt
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.txt' into table table_map_binlog_rows fields terminated by 'mapped' lines starting by 'Table_map:';
+--remove_file $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.txt
+--enable_query_log
+--enable_warnings
+select * from table_map_binlog_rows order by table_map;
+drop table table_map_binlog_rows;
+reset master;
+
+--connection mysqld1
+drop table ndbt1;
+drop table ndbt2;
+drop table ndbt3;
+
+## Bug #11779725 MYSQL CLUSTER REPLICATION : ANYVALUE MERGED FOR TABLES WITH BLOBS
+## This is a check that the fix for Bug#26333981 doesn't cause inconsistency
+## between table map and what rows are binlogged.
+## NOTE: this test case is dependent on epoch boundries and is this not totally
+## reliable, hence it is commented out
+#--connection mysqld1
+## Check toggle of SQL_LOG_BIN between insert+update
+## Check that incomplete transaction for t1 (where update becomes incorrect insert)
+## still has t1 i Table_map
+#CREATE TABLE t1 (a int primary key, b int, c longtext) engine=ndb;
+#
+#SET SQL_LOG_BIN=0;
+#INSERT INTO t1 VALUES (1, 1, "HIDDEN");
+#SET SQL_LOG_BIN=1;
+#UPDATE t1 SET b = 5 WHERE a = 1; 
+## Check oposite toggle of SQL_LOG_BIN between insert+update
+## Check that incomplete transaction for t1 (where first insert incorrectly is not logged)
+## t2 is not in Table_map
+#CREATE TABLE t2 (a int primary key, b int, c longtext) engine=ndb;
+#
+#SET SQL_LOG_BIN=1;
+#INSERT INTO t2 VALUES (1, 1, "HIDDEN");
+#SET SQL_LOG_BIN=0;
+#UPDATE t2 SET b = 5 WHERE a = 1; 
+## Check that insert+delete case where nothing is binlogged for t3
+## then t3 is not in Table_map
+#SET SQL_LOG_BIN=1;
+#CREATE TABLE t3 (a int primary key, b int, c longtext) engine=ndb;
+#
+#INSERT INTO t3 VALUES (1, 1, "HIDDEN");
+#DELETE from t3 WHERE a = 1;
+#
+#--disable_query_log
+## Add an event-stream marker
+#create table stream_marker(a int) engine=ndb;
+#drop table stream_marker;
+#--let $wait_binlog_event=stream_marker
+#--enable_query_log
+#
+#--connection mysqld2
+#--source include/wait_for_binlog_event.inc
+#--let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+#let $MYSQLD_DATADIR= `select @@datadir;`;
+#create table table_map_binlog_rows (Table_map varchar(1000));
+#--disable_warnings
+#--disable_query_log
+#--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/$binlog_file > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.txt
+#--eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.txt' into table table_map_binlog_rows fields terminated by 'mapped' lines starting by 'Table_map:';
+#--remove_file $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.txt
+#--enable_query_log
+#--enable_warnings
+#--echo Check that only t1 is in the Table_map
+#select * from table_map_binlog_rows;
+#drop table table_map_binlog_rows;
+#
+#--connection mysqld1
+#drop table t1;
+#drop table t2;
+#drop table t3;

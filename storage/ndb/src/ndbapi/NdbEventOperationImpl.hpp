@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -248,6 +248,7 @@ struct Gci_op  //A helper
 {
   NdbEventOperationImpl* op;
   Uint32 event_types;
+  Uint32 cumulative_any_value;// Merged for table/epoch events
 };
 
 class Gci_container
@@ -821,8 +822,9 @@ public:
   bool isConsistent(Uint64& gci);
   bool isConsistentGCI(Uint64 gci);
 
-  NdbEventOperationImpl* getGCIEventOperations(Uint32* iter,
-                                               Uint32* event_types);
+  NdbEventOperationImpl* getEpochEventOperations(Uint32* iter,
+                                                 Uint32* event_types,
+                                                 Uint32* cumulative_any_value);
   void deleteUsedEventOperations(MonotonicEpoch last_consumed_gci);
 
   EventBufData *move_data();
