@@ -3412,9 +3412,15 @@ public:
 		m_mutex(),
 		m_space_max_id(),
 		m_n_threads()
+#if !defined(__SUNPRO_C)
+		,m_checked()
+		,m_n_errors()
+#endif /* !__SUNPRO_C */
 	{
+#if defined(__SUNPRO_C)
 		m_checked = ATOMIC_VAR_INIT(0);
 		m_n_errors = ATOMIC_VAR_INIT(0);
+#endif /* __SUNPRO_C */
 	}
 
 	/** Validate the tablespaces against the DD.
@@ -3455,20 +3461,20 @@ private:
 	}
 
 private:
-	/** Number of threads that failed. */
-	std::atomic_size_t	m_n_errors;
-
 	/** Mutex protecting the parallel check. */
 	std::mutex		m_mutex;
 
 	/** Maximum tablespace ID found. */
 	space_id_t		m_space_max_id;
 
+	/** Number of threads used in the parallel for. */
+	size_t			m_n_threads;
+
 	/** Number of tablespaces checked. */
 	std::atomic_size_t	m_checked;
 
-	/** Number of threads used in the parallel for. */
-	size_t			m_n_threads;
+	/** Number of threads that failed. */
+	std::atomic_size_t	m_n_errors;
 };
 
 /** Validate the tablespace filenames.
