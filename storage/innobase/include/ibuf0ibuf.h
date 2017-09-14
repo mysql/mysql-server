@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -54,11 +54,12 @@ typedef enum {
 @see innodb_change_buffering_names */
 enum ibuf_use_t {
 	IBUF_USE_NONE = 0,
-	IBUF_USE_INSERT,	/* insert */
-	IBUF_USE_DELETE_MARK,	/* delete */
-	IBUF_USE_INSERT_DELETE_MARK,	/* insert+delete */
-	IBUF_USE_DELETE,	/* delete+purge */
-	IBUF_USE_ALL		/* insert+delete+purge */
+	IBUF_USE_INSERT,		/** insert */
+	IBUF_USE_DELETE_MARK,		/** delete */
+	IBUF_USE_INSERT_DELETE_MARK,	/** insert+delete */
+	IBUF_USE_DELETE,		/** delete+purge */
+	IBUF_USE_ALL,			/** insert+delete+purge */
+	IBUF_USE_COUNT
 };
 
 /** Operations that can currently be buffered. */
