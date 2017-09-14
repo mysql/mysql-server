@@ -1883,21 +1883,22 @@ NdbEventBuffer::isConsistentGCI(Uint64 gci)
   DBUG_RETURN(true);
 }
 
-
 NdbEventOperationImpl*
-NdbEventBuffer::getGCIEventOperations(Uint32* iter, Uint32* event_types)
+NdbEventBuffer::getEpochEventOperations(Uint32* iter, Uint32* event_types, Uint32* cumulative_any_value)
 {
-  DBUG_ENTER("NdbEventBuffer::getGCIEventOperations");
+  DBUG_ENTER("NdbEventBuffer::getEpochEventOperations");
   EventBufData_list::Gci_ops *gci_ops = m_available_data.first_gci_ops();
   if (*iter < gci_ops->m_gci_op_count)
   {
     EventBufData_list::Gci_op g = gci_ops->m_gci_op_list[(*iter)++];
     if (event_types != NULL)
       *event_types = g.event_types;
-    DBUG_PRINT("info", ("gci: %u  g.op: 0x%lx  g.event_types: 0x%lx 0x%x %s",
+    if (cumulative_any_value != NULL)
+      *cumulative_any_value = g.cumulative_any_value;
+    DBUG_PRINT("info", ("gci: %u  g.op: 0x%lx  g.event_types: 0x%lx g.cumulative_any_value: 0x%lx 0x%x %s",
                         (unsigned)gci_ops->m_gci.getGCI(), (long) g.op,
-                        (long) g.event_types, m_ndb->getReference(),
-                        m_ndb->getNdbObjectName()));
+                        (long) g.event_types, (long) g.cumulative_any_value,
+                        m_ndb->getReference(), m_ndb->getNdbObjectName()));
     DBUG_RETURN(g.op);
   }
   DBUG_RETURN(NULL);
@@ -3307,13 +3308,15 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
         // since the flags represent multiple ops on multiple PKs
         // XXX fix by doing merge at end of epoch (extra mem cost)
         {
-          EventBufData_list::Gci_op g = { op, (1U << operation) };
+          Uint32 any_value = sdata->anyValue;
+          EventBufData_list::Gci_op g = { op, (1U << operation), any_value };
           bucket->m_data.add_gci_op(g);
         }
         {
+          Uint32 any_value = data->sdata->anyValue;
           EventBufData_list::Gci_op 
 	    g = { op, 
-		  (1U << SubTableData::getOperation(data->sdata->requestInfo))};
+		  (1U << SubTableData::getOperation(data->sdata->requestInfo)), any_value};
           bucket->m_data.add_gci_op(g);
         }
       }
@@ -3998,7 +4001,7 @@ void
 EventBufData_list::add_gci_op(Gci_op g)
 {
   DBUG_ENTER_EVENT("EventBufData_list::add_gci_op");
-  DBUG_PRINT_EVENT("info", ("p.op: %p  g.event_types: %x", g.op, g.event_types));
+  DBUG_PRINT_EVENT("info", ("p.op: %p  g.event_types: %x g.cumulative_any_value: %x", g.op, g.event_types, g.cumulative_any_value));
   assert(g.op != NULL && g.op->theMainOp == NULL); // as in nextEvent
   Uint32 i;
   for (i = 0; i < m_gci_op_count; i++) {
@@ -4007,6 +4010,7 @@ EventBufData_list::add_gci_op(Gci_op g)
   }
   if (i < m_gci_op_count) {
     m_gci_op_list[i].event_types |= g.event_types;
+    m_gci_op_list[i].cumulative_any_value &= g.cumulative_any_value;
   } else {
     if (m_gci_op_count == m_gci_op_alloc) {
       Uint32 n = 1 + 2 * m_gci_op_alloc;
