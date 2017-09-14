@@ -17,8 +17,6 @@
 
 #include <errno.h>
 
-#include "my_compiler.h"
-
 #ifndef XCOM_STANDALONE
 My_xp_thread_server::My_xp_thread_server()
   : m_thread_handle(
@@ -38,7 +36,7 @@ native_thread_t *My_xp_thread_server::get_native_thread()
 }
 
 
-int My_xp_thread_server::create(PSI_thread_key key MY_ATTRIBUTE((unused)),
+int My_xp_thread_server::create(PSI_thread_key key,
                               const native_thread_attr_t *attr,
                               native_start_routine func,
                               void *arg)
@@ -47,7 +45,7 @@ int My_xp_thread_server::create(PSI_thread_key key MY_ATTRIBUTE((unused)),
 };
 
 
-int My_xp_thread_server::create_detached(PSI_thread_key key MY_ATTRIBUTE((unused)),
+int My_xp_thread_server::create_detached(PSI_thread_key key,
                                          native_thread_attr_t *attr,
                                          native_start_routine func,
                                          void *arg)

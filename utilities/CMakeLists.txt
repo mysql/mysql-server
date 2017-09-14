@@ -80,7 +80,7 @@ IF (WIN32 AND WITH_SSL_PATH AND HAVE_CRYPTO_DLL)
 ENDIF()
 
 
-MYSQL_ADD_EXECUTABLE(my_print_defaults my_print_defaults.cc)
+MYSQL_ADD_EXECUTABLE(my_print_defaults my_print_defaults.c)
 TARGET_LINK_LIBRARIES(my_print_defaults  mysys mysys_ssl)
 SET_TARGET_PROPERTIES(my_print_defaults PROPERTIES LINKER_LANGUAGE CXX)
 

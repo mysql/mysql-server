@@ -23,6 +23,8 @@
 #include "my_thread_local.h"
 #include "my_tree.h"
 
+C_MODE_START
+
 /*
   When allocating keys /rows in the internal block structure, do it
   within the following boundaries.
@@ -114,3 +116,5 @@ extern PSI_memory_key hp_key_memory_HP_KEYDEF;
 
 void init_heap_psi_keys();
 #endif /* HAVE_PSI_INTERFACE */
+
+C_MODE_END
