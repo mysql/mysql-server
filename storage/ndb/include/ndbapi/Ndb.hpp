@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1339,9 +1339,29 @@ public:
    *
    * Set *iter=0 to start.  Returns NULL when no more.  If event_types
    * is not NULL, it returns bitmask of received event types.
+   *
+   * This is a wrapper for getNextEventOpInEpoch3, but retains the
+   * old name in order to preserve backward compatibility.
    */
   const NdbEventOperation*
-    getGCIEventOperations(Uint32* iter, Uint32* event_types);
+    getGCIEventOperations(Uint32* iter,
+                          Uint32* event_types);
+
+  /**
+   * Iterate over distinct event operations which are part of current
+   * GCI.  Valid after nextEvent.  Used to get summary information for
+   * the epoch (e.g. list of all tables) before processing event data.
+   *
+   * Set *iter=0 to start.  Returns NULL when no more.  If event_types
+   * is not NULL, it returns bitmask of received event types.
+   * If cumulative_any_value is not NULL, it returns a merged value of
+   * received any_value(s) to show what bits are set for all operations of a
+   * specific table.
+   */
+  const NdbEventOperation*
+    getNextEventOpInEpoch3(Uint32* iter,
+                           Uint32* event_types,
+                           Uint32* cumulative_any_value);
   
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
