@@ -32,6 +32,8 @@
 #include "storage/myisam/queues.h"
 #include "typelib.h"
 
+C_MODE_START
+
 #define MYRG_NAME_EXT	".MRG"
 
 /* In which table to INSERT rows */
@@ -118,5 +120,7 @@ extern ha_rows myrg_records_in_range(MYRG_INFO *info, int inx,
 extern ha_rows myrg_records(MYRG_INFO *info);
 
 extern ulonglong myrg_position(MYRG_INFO *info);
+
+C_MODE_END
 
 #endif /* _myisammrg_h */

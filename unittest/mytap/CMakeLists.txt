@@ -13,5 +13,5 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-ADD_LIBRARY(mytap tap.cc)
+ADD_LIBRARY(mytap tap.c)
 TARGET_LINK_LIBRARIES(mytap mysys)

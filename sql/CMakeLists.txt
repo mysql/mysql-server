@@ -500,7 +500,7 @@ SET(SQL_SOURCE
   ../extra/lz4/xxhash.c
   ../libmysql/errmsg.cc
   ../sql-common/client.cc
-  ../sql-common/client_plugin.cc
+  ../sql-common/client_plugin.c
   ../sql-common/client_authentication.cc
   ../sql-common/net_serv.cc
   ../sql-common/sql_string.cc 

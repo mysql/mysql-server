@@ -96,7 +96,7 @@ extern "C" {
 
 /* Include error messages when sourced from perror */
 #if defined PERROR_VERSION
-#include "../../src/mgmapi/mgmapi_error.cpp"
+#include "../../src/mgmapi/mgmapi_error.c"
 #endif
 
 #ifdef __cplusplus
