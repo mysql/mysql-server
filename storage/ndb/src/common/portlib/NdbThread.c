@@ -1359,7 +1359,7 @@ NdbThread_UnlockCPU(struct NdbThread* pThread)
     if (!has_required_glibc_version())
     {
       error_no = BIND_CPU_NOT_SUPPORTED_ERROR;
-      goto error;
+      return error_no;
     }
 
     CPU_ZERO(&cpu_set);
@@ -1455,7 +1455,6 @@ NdbThread_UnlockCPU(struct NdbThread* pThread)
   error_no = BIND_CPU_NOT_SUPPORTED_ERROR;
   (void)ret;
 #endif
-  error:
   if (!error_no)
   {
     pThread->cpu_set_key = NULL;
