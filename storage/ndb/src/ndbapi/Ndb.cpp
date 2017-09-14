@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2172,8 +2172,15 @@ Ndb::isConsistentGCI(Uint64 gci)
 const NdbEventOperation*
 Ndb::getGCIEventOperations(Uint32* iter, Uint32* event_types)
 {
+  return getNextEventOpInEpoch3(iter, event_types, NULL);
+}
+
+const NdbEventOperation*
+Ndb::getNextEventOpInEpoch3(Uint32* iter, Uint32* event_types,
+                           Uint32* cumulative_any_value)
+{
   NdbEventOperationImpl* op =
-    theEventBuffer->getGCIEventOperations(iter, event_types);
+    theEventBuffer->getEpochEventOperations(iter, event_types, cumulative_any_value);
   if (op != NULL)
     return op->m_facade;
   return NULL;

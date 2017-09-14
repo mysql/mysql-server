@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -139,6 +139,7 @@ public:
   {
     NdbEventOperationImpl* op;
     Uint32 event_types;
+    Uint32 cumulative_any_value;// Merged for table/epoch events
   };
   struct Gci_ops                // 2
   {
@@ -269,8 +270,9 @@ void EventBufData_list::append_used_data(EventBufData *data)
 inline
 void EventBufData_list::append_data(EventBufData *data)
 {
+  Uint32 any_value = data->sdata->anyValue;
   Gci_op g = { data->m_event_op, 
-	       1U << SubTableData::getOperation(data->sdata->requestInfo) };
+	       1U << SubTableData::getOperation(data->sdata->requestInfo), any_value };
   add_gci_op(g);
 
   append_used_data(data);
@@ -539,8 +541,10 @@ public:
   bool isConsistent(Uint64& gci);
   bool isConsistentGCI(Uint64 gci);
 
-  NdbEventOperationImpl* getGCIEventOperations(Uint32* iter,
-                                               Uint32* event_types);
+  NdbEventOperationImpl* getEpochEventOperations(Uint32* iter,
+                                                 Uint32* event_types,
+                                                 Uint32* cumulative_any_value);
+
   void deleteUsedEventOperations(Uint64 last_consumed_gci);
 
   NdbEventOperationImpl *move_data();
