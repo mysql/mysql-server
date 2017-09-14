@@ -182,8 +182,7 @@ Raw_key *Se_private_id_key::create_access_key(Raw_table *db_table) const
 
   t->use_all_columns();
 
-  DBUG_ASSERT(m_engine);
-  t->field[m_engine_column_no]->store(m_engine->c_str(), m_engine->length(),
+  t->field[m_engine_column_no]->store(m_engine.c_str(), m_engine.length(),
                                      &my_charset_bin);
   t->field[m_engine_column_no]->set_notnull();
 
@@ -210,7 +209,7 @@ Raw_key *Se_private_id_key::create_access_key(Raw_table *db_table) const
 String_type Se_private_id_key::str() const
 {
   dd::Stringstream_type ss;
-  ss << *m_engine << ":" << m_private_id;
+  ss << m_engine << ":" << m_private_id;
   return ss.str();
 }
 

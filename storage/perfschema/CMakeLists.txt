@@ -33,6 +33,7 @@ pfs_builtin_memory.h
 pfs_column_types.h
 pfs_column_values.h
 pfs_con_slice.h
+pfs_dd_version.h
 pfs_defaults.h
 pfs_digest.h
 pfs_engine_table.h

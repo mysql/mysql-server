@@ -146,4 +146,9 @@ void item_set_cas(ENGINE_HANDLE *handle, const void *cookie,
                   item* item, uint64_t val);
 uint64_t item_get_cas(const hash_item* item);
 uint8_t item_get_clsid(const hash_item* item);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

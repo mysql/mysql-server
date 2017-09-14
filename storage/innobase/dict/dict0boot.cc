@@ -35,6 +35,7 @@ Created 4/18/1996 Heikki Tuuri
 #include "os0file.h"
 #include "srv0srv.h"
 #include "trx0trx.h"
+#include "dict0dd.h"
 
 /**********************************************************************//**
 Gets a pointer to the dictionary header and x-latches its page.
@@ -198,7 +199,7 @@ dict_hdr_create(
 	/* Start counting row, table, index, and tree ids from 0 */
 	mlog_write_ull(dict_header + DICT_HDR_ROW_ID, 0, mtr);
 
-	mlog_write_ull(dict_header + DICT_HDR_TABLE_ID, 0, mtr);
+	mlog_write_ull(dict_header + DICT_HDR_TABLE_ID, DICT_MAX_DD_TABLES, mtr);
 
 	mlog_write_ull(dict_header + DICT_HDR_INDEX_ID, 0, mtr);
 

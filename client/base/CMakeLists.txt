@@ -1,4 +1,4 @@
-# Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@ ADD_CONVENIENCE_LIBRARY(client_base
 
   mutex.cc
 
-  ../get_password.c
+  ../get_password.cc
 
   ../../sql-common/sql_string.cc
 )

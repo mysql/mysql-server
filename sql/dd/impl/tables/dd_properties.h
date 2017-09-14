@@ -22,6 +22,7 @@
 #include "sql/dd/impl/properties_impl.h"            // dd::Properties_impl
 #include "sql/dd/impl/types/object_table_impl.h"
 #include "sql/dd/string_type.h"
+#include "storage/perfschema/pfs_dd_version.h"
 
 class THD;
 
@@ -35,7 +36,7 @@ static const uint TARGET_DD_VERSION= 1;
 static const uint TARGET_I_S_VERSION= 1;
 
 // The version of the current server PS schema
-static const uint TARGET_P_S_VERSION= 1;
+static const uint TARGET_P_S_VERSION= PFS_DD_VERSION;
 
 // Unknown version of the current server PS schema. It is used for tests.
 static const uint UNKNOWN_P_S_VERSION= -1;

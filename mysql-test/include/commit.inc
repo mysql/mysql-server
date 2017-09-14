@@ -822,13 +822,13 @@ create table t2 (a int);
 # COM_PREPARE.
 if (`SELECT $PS_PROTOCOL = 0`)
 {
-  --replace_regex /(call p_verify_status_increment.*)11(.*6)/\1<commit_count>\2/
-  call p_verify_status_increment(12, 4, 6, 0);
+  --replace_regex /11/<commit_count>/
+  call p_verify_status_increment(11, 4, 6, 0);
 }
 if (`SELECT $PS_PROTOCOL > 0`)
 {
-  --replace_regex /(call p_verify_status_increment.*)12(.*6)/\1<commit_count>\2/
-  call p_verify_status_increment(13, 4, 6, 0);
+  --replace_regex /12/<commit_count>/
+  call p_verify_status_increment(12, 4, 6, 0);
 }
 --echo # One extra transaction to load table 't2' into data-dictionary cache.
 do (select f1() from t1 where a=2);
@@ -882,8 +882,8 @@ create table t3 select a from t2;
 # COM_PREPARE.
 if (`SELECT $PS_PROTOCOL = 0`)
 {
- --replace_regex /13/<commit_count>/
-  call p_verify_status_increment(13, 4, 4, 4);
+ --replace_regex /12/<commit_count>/
+  call p_verify_status_increment(12, 4, 4, 4);
 }
 if (`SELECT $PS_PROTOCOL > 0`)
 {
@@ -907,7 +907,7 @@ if ($have_debug)
 alter table t3 rename t4;
 call p_verify_status_increment(20, 4, 3, 0);
 rename table t4 to t3;
-call p_verify_status_increment(24, 4, 5, 0);
+call p_verify_status_increment(23, 4, 5, 0);
 truncate table t3;
 
 if (!$have_debug)
@@ -923,7 +923,7 @@ if ($have_debug)
 }
 
 create view v1 as select * from t2;
-call p_verify_status_increment(8, 4, 3, 0);
+call p_verify_status_increment(7, 4, 3, 0);
 check table t1;
 call p_verify_status_increment(2, 0, 2, 0);
 --echo # Sic: after this bug is fixed, CHECK leaves no pending transaction

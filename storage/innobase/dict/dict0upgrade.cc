@@ -35,8 +35,7 @@ from DICT_HDR during upgrade because unlike bootstrap case,
 the ids are moved after user table creation.  Since we
 want to create dictionary tables with fixed ids, we use
 in-memory counter for upgrade */
-uint	dd_upgrade_indexes_num = 1;
-uint	dd_upgrade_tables_num = 1;
+uint32_t	dd_upgrade_indexes_num = 1;
 
 /** Fill foreign key information from InnoDB table to
 server table
@@ -1184,6 +1183,50 @@ int dd_upgrade_logs(THD* thd) {
   DBUG_RETURN(error);
 }
 
+/** Drop all InnoDB Dictionary tables (SYS_*). This is done only at
+the end of successful upgrade */
+static
+void dd_upgrade_drop_sys_tables() {
+  ut_ad(srv_is_upgrade_mode);
+
+  mutex_enter(&dict_sys->mutex);
+
+  bool found;
+  const page_size_t page_size(
+      fil_space_get_page_size(SYSTEM_TABLE_SPACE, &found));
+  ut_ad(found);
+  ut_ad(page_size.equals_to(univ_page_size));
+
+  for (uint32_t i = 0; i < SYS_NUM_SYSTEM_TABLES; i++) {
+    dict_table_t* system_table = dict_table_get_low(SYSTEM_TABLE_NAME[i]);
+    ut_ad(system_table != nullptr);
+    ut_ad(system_table->space == SYSTEM_TABLE_SPACE);
+
+    for (dict_index_t* index = system_table->first_index(); index != nullptr;
+         index = index->next()) {
+      ut_ad(index->space == system_table->space);
+
+      const page_id_t root(index->space, index->page);
+
+      mtr_t mtr;
+      mtr_start(&mtr);
+
+      btr_free_if_exists(root, page_size, index->id, &mtr);
+
+      mtr_commit(&mtr);
+    }
+    dict_table_remove_from_cache(system_table);
+  }
+
+  dict_sys->sys_tables = nullptr;
+  dict_sys->sys_columns = nullptr;
+  dict_sys->sys_indexes = nullptr;
+  dict_sys->sys_fields = nullptr;
+  dict_sys->sys_virtual = nullptr;
+
+  mutex_exit(&dict_sys->mutex);
+}
+
 /** If upgrade is successful, this API is used to flush innodb
 dirty pages to disk. In case of server crash, this function
 sets storage engine for rollback any changes.
@@ -1197,12 +1240,15 @@ int dd_upgrade_finish(THD* thd, bool failed_upgrade) {
     srv_downgrade_logs = true;
 
   } else {
-    /* Flush entire buffer pool. */
-    buf_flush_sync_all_buf_pools();
-
     /* Delete the old undo tablespaces and the references to them
     in the TRX_SYS page. */
     srv_undo_tablespaces_upgrade();
+
+    /* Drop InnoDB Dictionary tables (SYS_*) */
+    dd_upgrade_drop_sys_tables();
+
+    /* Flush entire buffer pool. */
+    buf_flush_sync_all_buf_pools();
   }
 
   srv_is_upgrade_mode = false;

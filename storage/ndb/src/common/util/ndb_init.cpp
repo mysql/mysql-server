@@ -29,16 +29,15 @@ extern void destroy_event_logger(class EventLogger ** g_eventLogger);
 
 static int ndb_init_called = 0;
 
-extern "C" void NdbMutex_SysInit();
-extern "C" void NdbMutex_SysEnd();
-extern "C" void NdbCondition_initialize();
-extern "C" int NdbThread_Init();
-extern "C" void NdbThread_End();
-extern "C" void NdbGetRUsage_Init();
-extern "C" void NdbGetRUsage_End();
-extern "C" int NdbLockCpu_Init();
-extern "C" void NdbLockCpu_End();
-
+extern void NdbMutex_SysInit();
+extern void NdbMutex_SysEnd();
+extern void NdbCondition_initialize();
+extern int NdbThread_Init();
+extern void NdbThread_End();
+extern void NdbGetRUsage_Init();
+extern void NdbGetRUsage_End();
+extern int NdbLockCpu_Init();
+extern void NdbLockCpu_End();
 extern void NdbTick_Init();
 extern void NdbOut_Init();
 

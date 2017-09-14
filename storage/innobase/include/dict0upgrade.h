@@ -23,8 +23,7 @@ from DICT_HDR during upgrade because unlike bootstrap case,
 the ids are moved after user table creation.  Since we
 want to create dictionary tables with fixed ids, we use
 in-memory counter for upgrade */
-extern uint	dd_upgrade_indexes_num;
-extern uint	dd_upgrade_tables_num;
+extern uint32_t	dd_upgrade_indexes_num;
 
 namespace dd {
 class Table;

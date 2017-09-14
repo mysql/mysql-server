@@ -745,6 +745,7 @@ DROP TABLE z, q;
 # Create Innodb table with full text index
 CREATE TABLE t1(id INT, c CHAR(100) , FULLTEXT KEY `msg_idx` (`c`))
 ENGINE INNODB;
+CREATE TABLE t2 (a int, b2 char(10), FULLTEXT KEY b2 (b2));
 # Find name of first FTS index "table"
 # SHOW CREATE TABLE on an FTS index table should give error
 # (not crash). Query log and error message suppressed as the name of
@@ -757,4 +758,4 @@ Got one of the listed errors
 Got one of the listed errors
 Got one of the listed errors
 Got one of the listed errors
-DROP TABLE t1;
+DROP TABLE t1, t2;

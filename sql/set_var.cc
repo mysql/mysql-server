@@ -409,13 +409,6 @@ void sys_var::set_user_host(THD *thd)
             thd->security_context()->host().length);
 }
 
-ulonglong sys_var::get_timestamp()
-{
-  if (!timestamp)
-    timestamp= my_getsystime()/10.0;
-  return timestamp;
-}
-
 void sys_var::do_deprecated_warning(THD *thd)
 {
   if (deprecation_substitute != NULL)

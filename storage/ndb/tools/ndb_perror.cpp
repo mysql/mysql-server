@@ -76,7 +76,7 @@ int mgmapi_error_string(int err_no, char *str, int size)
 
 // Forward declare function from ndbd_exit_codes.cc which is not
 // declared in any header
-extern "C" int ndbd_exit_string(int err_no, char *str, unsigned int size);
+int ndbd_exit_string(int err_no, char *str, unsigned int size);
 
 
 int main(int argc, char** argv)

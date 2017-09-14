@@ -771,7 +771,7 @@ bool Overlaps::eval(const Cartesian_box *b1, const Cartesian_box *b2) const {
     Cartesian_linestring b2_ls;
     b2_ls.push_back(b2_ls_start);
     b2_ls.push_back(b2_ls_end);
-    return bg::overlaps(b1_ls, b2_ls);
+    return bg::overlaps(b1_ls, b2_ls) || bg::crosses(b1_ls, b2_ls);
   }
 
   return bg::overlaps(*b1, *b2);
@@ -796,7 +796,7 @@ bool Overlaps::eval(const Geographic_box *b1, const Geographic_box *b2) const {
     Geographic_linestring b2_ls;
     b2_ls.push_back(b2_ls_start);
     b2_ls.push_back(b2_ls_end);
-    return bg::overlaps(b1_ls, b2_ls);
+    return bg::overlaps(b1_ls, b2_ls) || bg::crosses(b1_ls, b2_ls);
   }
 
   return bg::overlaps(*b1, *b2);

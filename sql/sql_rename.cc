@@ -178,6 +178,24 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
       || lock_trigger_names(thd, table_list))
     DBUG_RETURN(true);
 
+  const dd::Table *table_def= nullptr;
+  TABLE_LIST *table;
+  for (table= table_list; table && table->next_local;
+       table= table->next_local)
+  {
+    if (thd->dd_client()->acquire(table->db,
+                                  table->table_name, &table_def))
+    {
+      return true;
+    }
+    if (table_def && table_def->hidden() == dd::Abstract_table::HT_HIDDEN_SE)
+    {
+      my_error(ER_NO_SUCH_TABLE, MYF(0),
+               table->db, table->table_name);
+      DBUG_RETURN(true);
+    }
+  }
+
   for (ren_table= table_list; ren_table; ren_table= ren_table->next_local)
     tdc_remove_table(thd, TDC_RT_REMOVE_ALL, ren_table->db,
                      ren_table->table_name, FALSE);

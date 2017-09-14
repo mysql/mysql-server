@@ -62,6 +62,9 @@ static constexpr size_t MAX_SPACE_NAME_LEN =
 	 + SUB_PART_SEPARATOR_LEN
 	 + 4; // 4 == strlen("#tmp"))
 
+/* Maximum hardcoded data dictionary tables. */
+#define DICT_MAX_DD_TABLES	1024
+
 /** InnoDB private keys for dd::Table */
 enum dd_table_keys {
 	/** Auto-increment counter */

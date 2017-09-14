@@ -60,15 +60,24 @@ dict_build_table_def(
 {
 	dberr_t		err = DB_SUCCESS;
 
-	if (srv_is_upgrade_mode) {
-		table->id = dd_upgrade_tables_num++;
-#ifdef UNIV_DEBUG
-		char	db_buf[NAME_LEN + 1];
-		char	tbl_buf[NAME_LEN + 1];
+	char	db_buf[NAME_LEN + 1];
+	char	tbl_buf[NAME_LEN + 1];
 
-		dd_parse_tbl_name(table->name.m_name, db_buf, tbl_buf,
-				  nullptr, nullptr, nullptr);
-#endif /* UNIV_DEBUG */
+	dd_parse_tbl_name(table->name.m_name, db_buf, tbl_buf,
+			  nullptr, nullptr, nullptr);
+
+	bool is_dd_table = dd::get_dictionary()->is_dd_table_name(
+		                        db_buf, tbl_buf);
+
+	/** In-memory counter used for assigning table_id
+	of data dictionary table. This counter is only used
+	during bootstrap or upgrade */
+	static uint32_t	dd_table_id = 1;
+
+	if (is_dd_table) {
+		table->id = dd_table_id++;
+		table->is_dd_table = true;
+		ut_ad(strcmp(tbl_buf, innodb_dd_table[table->id - 1].name) == 0);
 
 	} else {
 		dict_table_assign_new_id(table, trx);
@@ -315,7 +324,7 @@ dict_build_index_def(
 	if (!table->is_intrinsic()) {
 		if (srv_is_upgrade_mode) {
 			index->id = dd_upgrade_indexes_num++;
-			ut_ad(dd_upgrade_indexes_num <= INNODB_SYS_INDEX_ID_MAX + dd_get_total_indexes_num());
+			ut_ad(index->id <= dd_get_total_indexes_num());
 		} else {
 			dict_hdr_get_new_id(NULL, &index->id, NULL, table, false);
 		}
