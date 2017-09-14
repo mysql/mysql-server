@@ -6389,6 +6389,26 @@ void pfs_reprepare_prepared_stmt_v1(PSI_prepared_stmt* prepared_stmt)
   return;
 }
 
+void pfs_set_prepared_stmt_text_v1(PSI_prepared_stmt *prepared_stmt,
+                                   const char *text,
+                                   uint text_len)
+{
+  PFS_prepared_stmt *pfs_prepared_stmt =
+    reinterpret_cast<PFS_prepared_stmt *>(prepared_stmt);
+  DBUG_ASSERT(pfs_prepared_stmt != NULL);
+
+  uint max_len = sizeof(PFS_prepared_stmt::m_sqltext);
+  if (text_len > max_len)
+  {
+    text_len = max_len;
+  }
+
+  memcpy(pfs_prepared_stmt->m_sqltext, text, text_len);
+  pfs_prepared_stmt->m_sqltext_length = text_len;
+
+  return;
+}
+
 /**
   Implementation of the thread attribute connection interface
   @sa PSI_v1::set_thread_connect_attr.
@@ -7049,6 +7069,7 @@ PSI_v1 PFS_v1=
   pfs_destroy_prepared_stmt_v1,
   pfs_reprepare_prepared_stmt_v1,
   pfs_execute_prepared_stmt_v1,
+  pfs_set_prepared_stmt_text_v1,
   pfs_digest_start_v1,
   pfs_digest_end_v1,
   pfs_set_thread_connect_attrs_v1,

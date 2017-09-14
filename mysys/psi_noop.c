@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -737,6 +737,12 @@ execute_prepare_stmt_noop(PSI_statement_locker *locker NNN,
   return;
 }
 
+static void set_prepared_stmt_text_noop(PSI_prepared_stmt *prepared_stmt NNN,
+                                        const char *text NNN, uint text_len NNN)
+{
+  return;
+}
+
 void
 destroy_prepared_stmt_noop(PSI_prepared_stmt *prepared_stmt NNN)
 {
@@ -991,6 +997,7 @@ static PSI PSI_noop=
   destroy_prepared_stmt_noop,
   reprepare_prepared_stmt_noop,
   execute_prepare_stmt_noop,
+  set_prepared_stmt_text_noop,
   digest_start_noop,
   digest_end_noop,
   set_thread_connect_attrs_noop,
