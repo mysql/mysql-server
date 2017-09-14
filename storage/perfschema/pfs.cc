@@ -7024,9 +7024,6 @@ pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
     }
   }
 
-  state->m_query_sample_length = 0;
-  state->m_query_sample = nullptr;
-
   if (pfs_program != NULL)
   {
     PFS_statement_stat *sub_stmt_stat = NULL;
@@ -7119,6 +7116,9 @@ pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
       }
     }
   }
+
+  state->m_query_sample_length = 0;
+  state->m_query_sample = nullptr;
 
   PFS_statement_stat *sub_stmt_stat = NULL;
   if (pfs_program != NULL)
@@ -8030,6 +8030,27 @@ pfs_reprepare_prepared_stmt_v1(PSI_prepared_stmt *prepared_stmt)
   {
     prepared_stmt_stat->aggregate_counted();
   }
+  return;
+}
+
+void
+pfs_set_prepared_stmt_text_v1(PSI_prepared_stmt *prepared_stmt,
+                              const char *text,
+                              uint text_len)
+{
+  PFS_prepared_stmt *pfs_prepared_stmt =
+    reinterpret_cast<PFS_prepared_stmt *>(prepared_stmt);
+  DBUG_ASSERT(pfs_prepared_stmt != NULL);
+
+  uint max_len = COL_INFO_SIZE;
+  if (text_len > max_len)
+  {
+    text_len = max_len;
+  }
+
+  memcpy(pfs_prepared_stmt->m_sqltext, text, text_len);
+  pfs_prepared_stmt->m_sqltext_length = text_len;
+
   return;
 }
 
@@ -9050,6 +9071,7 @@ PSI_statement_service_v1 pfs_statement_service_v1 = {
   pfs_destroy_prepared_stmt_v1,
   pfs_reprepare_prepared_stmt_v1,
   pfs_execute_prepared_stmt_v1,
+  pfs_set_prepared_stmt_text_v1,
   pfs_digest_start_v1,
   pfs_digest_end_v1,
   pfs_get_sp_share_v1,
@@ -9087,6 +9109,7 @@ SERVICE_IMPLEMENTATION(performance_schema, psi_statement_v1) = {
   pfs_destroy_prepared_stmt_v1,
   pfs_reprepare_prepared_stmt_v1,
   pfs_execute_prepared_stmt_v1,
+  pfs_set_prepared_stmt_text_v1,
   pfs_digest_start_v1,
   pfs_digest_end_v1,
   pfs_get_sp_share_v1,

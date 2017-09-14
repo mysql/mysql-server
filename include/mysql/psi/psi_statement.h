@@ -110,6 +110,8 @@ struct PSI_statement_service_v1
   reprepare_prepared_stmt_v1_t reprepare_prepared_stmt;
   /** @sa execute_prepared_stmt_v1_t. */
   execute_prepared_stmt_v1_t execute_prepared_stmt;
+  /** @sa set_prepared_stmt_text_v1_t. */
+  set_prepared_stmt_text_v1_t set_prepared_stmt_text;
 
   /** @sa digest_start_v1_t. */
   digest_start_v1_t digest_start;

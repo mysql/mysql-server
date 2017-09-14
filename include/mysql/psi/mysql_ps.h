@@ -28,6 +28,7 @@
 #endif
 
 #ifdef HAVE_PSI_PS_INTERFACE
+
 #define MYSQL_CREATE_PS(                                            \
   IDENTITY, ID, LOCKER, NAME, NAME_LENGTH, SQLTEXT, SQLTEXT_LENGTH) \
   inline_mysql_create_prepared_stmt(                                \
@@ -38,7 +39,11 @@
   inline_mysql_destroy_prepared_stmt(PREPARED_STMT)
 #define MYSQL_REPREPARE_PS(PREPARED_STMT) \
   inline_mysql_reprepare_prepared_stmt(PREPARED_STMT)
+#define MYSQL_SET_PS_TEXT(PREPARED_STMT, SQLTEXT, SQLTEXT_LENGTH) \
+  inline_mysql_set_prepared_stmt_text(PREPARED_STMT, SQLTEXT, SQLTEXT_LENGTH)
+
 #else
+
 #define MYSQL_CREATE_PS(                                            \
   IDENTITY, ID, LOCKER, NAME, NAME_LENGTH, SQLTEXT, SQLTEXT_LENGTH) \
   NULL
@@ -54,6 +59,11 @@
   do                                      \
   {                                       \
   } while (0)
+#define MYSQL_SET_PS_TEXT(PREPARED_STMT, SQLTEXT, SQLTEXT_LENGTH) \
+  do                                                              \
+  {                                                               \
+  } while (0)
+
 #endif
 
 #ifdef HAVE_PSI_PS_INTERFACE
@@ -106,6 +116,18 @@ inline_mysql_reprepare_prepared_stmt(PSI_prepared_stmt *prepared_stmt)
     PSI_PS_CALL(reprepare_prepared_stmt)(prepared_stmt);
   }
 }
+
+static inline void
+inline_mysql_set_prepared_stmt_text(PSI_prepared_stmt *prepared_stmt,
+                                    const char *text,
+                                    uint text_len)
+{
+  if (prepared_stmt != NULL)
+  {
+    PSI_PS_CALL(set_prepared_stmt_text)(prepared_stmt, text, text_len);
+  }
+}
+
 #endif
 
 #endif

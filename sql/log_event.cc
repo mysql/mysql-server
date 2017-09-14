@@ -5344,8 +5344,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
                                                     thd->db().length,
                                                     thd->charset(), NULL);
         THD_STAGE_INFO(thd, stage_starting);
-        MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, thd->query().str,
-                                 thd->query().length);
+
         if (thd->m_digest != NULL)
           thd->m_digest->reset(thd->m_token_array, max_digest_length);
 

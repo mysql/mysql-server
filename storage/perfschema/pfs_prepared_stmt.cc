@@ -97,8 +97,12 @@ create_prepared_stmt(void *identity,
     pfs->reset_data();
     /* Do the assignments. */
     pfs->m_identity = identity;
-    strncpy(pfs->m_sqltext, sqltext, sqltext_length);
+    /* Set query text if available, else it will be set later. */
+    if (sqltext_length > 0)
+      strncpy(pfs->m_sqltext, sqltext, sqltext_length);
+
     pfs->m_sqltext_length = sqltext_length;
+
     if (stmt_name != NULL)
     {
       pfs->m_stmt_name_length = stmt_name_length;

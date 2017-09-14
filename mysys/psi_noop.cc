@@ -1071,6 +1071,12 @@ execute_prepared_stmt_noop(PSI_statement_locker *,
   return;
 }
 
+static void set_prepared_stmt_text_noop(PSI_prepared_stmt *,
+                                        const char *, uint )
+{
+  return;
+}
+
 static struct PSI_digest_locker*
 digest_start_noop(PSI_statement_locker *)
 {
@@ -1145,6 +1151,7 @@ static PSI_statement_service_t psi_statement_noop=
   destroy_prepared_stmt_noop,
   reprepare_prepared_stmt_noop,
   execute_prepared_stmt_noop,
+  set_prepared_stmt_text_noop,
   digest_start_noop,
   digest_end_noop,
   get_sp_share_noop,

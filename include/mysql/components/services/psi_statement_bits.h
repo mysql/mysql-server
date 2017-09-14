@@ -434,6 +434,15 @@ typedef void (*execute_prepared_stmt_v1_t)(PSI_statement_locker *locker,
                                            PSI_prepared_stmt *prepared_stmt);
 
 /**
+  Set the statement text for a prepared statment event.
+  @param prepared_stmt prepared statement.
+  @param text the prepared statement text
+  @param text_len the prepared statement text length
+*/
+typedef void (*set_prepared_stmt_text_v1_t)(PSI_prepared_stmt *prepared_stmt,
+                                            const char *text,
+                                            uint text_len);
+/**
   Get a digest locker for the current statement.
   @param locker a statement locker for the running thread
 */
