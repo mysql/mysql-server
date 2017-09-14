@@ -72,7 +72,7 @@ static bool get_prio_first = TRUE;
 #endif
 
 #if defined(HAVE_LINUX_SCHEDULING)
-static inline my_bool has_required_glibc_version() {
+static inline bool has_required_glibc_version() {
   /* sched_setaffinity has a bug due to which it fails when an all-ones
    * CPU mask is set. The bug is fixed in GLIBC v2.23. */
   if (__GLIBC__ > 2 || ( __GLIBC__ == 2 && __GLIBC_MINOR__ >= 23 ))
@@ -1361,7 +1361,7 @@ NdbThread_UnlockCPU(struct NdbThread* pThread)
     if (!has_required_glibc_version())
     {
       error_no = BIND_CPU_NOT_SUPPORTED_ERROR;
-      goto error;
+      return error_no;
     }
 
     CPU_ZERO(&cpu_set);
@@ -1457,7 +1457,6 @@ NdbThread_UnlockCPU(struct NdbThread* pThread)
   error_no = BIND_CPU_NOT_SUPPORTED_ERROR;
   (void)ret;
 #endif
-  error:
   if (!error_no)
   {
     pThread->cpu_set_key = NULL;
