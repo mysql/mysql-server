@@ -3478,8 +3478,9 @@ class Ndb_schema_event_handler {
       mysql_mutex_unlock(&ndbcluster_mutex);
     } // if (share)
 
+    bool exists_in_DD;
     Ndb_local_schema::Table tab(m_thd, schema->db, schema->name);
-    if (tab.is_local_table() &&
+    if (tab.is_local_table(&exists_in_DD) &&
        !Ndb_dist_priv_util::is_distributed_priv_table(schema->db,
                                                       schema->name))
     {
@@ -3515,8 +3516,9 @@ class Ndb_schema_event_handler {
     {
       write_schema_op_to_binlog(m_thd, schema);
 
+      bool exists_in_DD;
       Ndb_local_schema::Table tab(m_thd, schema->db, schema->name);
-      if (!tab.is_local_table())
+      if (!tab.is_local_table(&exists_in_DD))
       {
         // Install table from NDB, overwrite the existing table
         if (ndb_create_table_from_engine(m_thd,
@@ -3693,8 +3695,9 @@ class Ndb_schema_event_handler {
     // Participant never takes GSL
     assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT));
 
+    bool exists_in_DD;
     Ndb_local_schema::Table tab(m_thd, schema->db, schema->name);
-    if (tab.is_local_table())
+    if (tab.is_local_table(&exists_in_DD))
     {
       /* Table is not a NDB table in this mysqld -> leave it */
       ndb_log_warning("NDB Binlog: Skipping drop of locally "
@@ -3709,7 +3712,23 @@ class Ndb_schema_event_handler {
       DBUG_VOID_RETURN;
     }
 
-    tab.remove_table();
+    if (exists_in_DD)
+    {
+      // The table exists in DD on this MySL Server, remove it
+      tab.remove_table();
+    }
+    else
+    {
+      // The table didn't exist in DD, no need to remove but still
+      // continue to invalidate the table in NdbApi, close cached tables
+      // etc. This case may happen when a MySQL Server drops a "shadow"
+      // table and afterwards someone drops also the table with same name
+      // in NDB
+      // NOTE! Probably could check after a drop of "shadow" table if a
+      // table with same name exists in NDB
+     ndb_log_info("NDB Binlog: Ignoring drop of table '%s.%s' since it "
+                  "doesn't exist in DD", schema->db, schema->name);
+    }
 
     NDB_SHARE *share= get_share(schema); // temporary ref.
     if (!share || !share->op)
@@ -3785,8 +3804,9 @@ class Ndb_schema_event_handler {
     // Participant never takes GSL
     assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT));
 
+    bool exists_in_DD;
     Ndb_local_schema::Table from(m_thd, schema->db, schema->name);
-    if (from.is_local_table())
+    if (from.is_local_table(&exists_in_DD))
     {
       /* Tables exists as a local table, print warning and leave it */
       ndb_log_warning("NDB Binlog: Skipping rename of locally "
@@ -4005,8 +4025,9 @@ class Ndb_schema_event_handler {
     if (share)
       ndbcluster_free_share(&share); // temporary ref.
 
+    bool exists_in_DD;
     Ndb_local_schema::Table tab(m_thd, schema->db, schema->name);
-    if (tab.is_local_table())
+    if (tab.is_local_table(&exists_in_DD))
     {
       ndb_log_warning("NDB Binlog: Skipping locally defined table "
                       "'%s.%s' from binlog schema event '%s' from node %d. ",
@@ -4039,8 +4060,9 @@ class Ndb_schema_event_handler {
 
     write_schema_op_to_binlog(m_thd, schema);
 
+    bool exists_in_DD;
     Ndb_local_schema::Table tab(m_thd, schema->db, schema->name);
-    if (tab.is_local_table())
+    if (tab.is_local_table(&exists_in_DD))
     {
       ndb_log_warning("NDB Binlog: Skipping locally defined table '%s.%s' from "
                       "binlog schema event '%s' from node %d. ",

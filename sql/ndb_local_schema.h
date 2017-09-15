@@ -72,7 +72,7 @@ public:
     Table(const Table&); // Not implemented
     Table(class THD* thd, const char* db, const char* name);
 
-    bool is_local_table(void) const;
+    bool is_local_table(bool* exists) const;
     void remove_table(void) const;
     void rename_table(const char* new_db, const char* new_name) const;
   };
