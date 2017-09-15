@@ -940,7 +940,8 @@ srv_undo_tablespace_open(space_id_t space_id)
 	But if it is under construction, we cannot open it until the
 	header page has been written. */
 	if (!undo::is_under_construction(space_id)) {
-		ut_a(fil_space_open(space_id));
+		bool	success = fil_space_open(space_id);
+		ut_a(success);
 	}
 
 	return(DB_SUCCESS);

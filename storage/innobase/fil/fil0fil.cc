@@ -5584,6 +5584,28 @@ fil_ibd_open(
 		return(DB_CORRUPTION);
 	}
 
+	/* Check if the file is already open. The space can be loaded
+	via fil_space_get_first_path(). On Windows this can lead to a
+	sharing violation when we attempt to open it again. */
+
+	auto	shard = fil_system->shard_by_id(space_id);
+
+	shard->mutex_acquire();
+
+	auto	space = shard->get_space_by_id(space_id);
+
+	if (space != nullptr) {
+
+		shard->close_file(space_id);
+
+		ut_a(space->flags == flags);
+		ut_a(space->purpose == purpose);
+		ut_a(space->files.size() == 1);
+		ut_a(strcmp(space->name, space_name) == 0);
+	}
+
+	shard->mutex_release();
+
 	df.init(space_name, flags);
 
 	if (path_in != nullptr) {
@@ -5591,6 +5613,9 @@ fil_ibd_open(
 	} else {
 		df.make_filepath(nullptr, table_name, IBD);
 	}
+
+	ut_a(space == nullptr
+	     || strcmp(space->files.front().name, df.filepath()) == 0);
 
 	/* Attempt to open the tablespace. */
 	if (df.open_read_only(strict) == DB_SUCCESS) {
@@ -5630,23 +5655,23 @@ fil_ibd_open(
 		return(DB_SUCCESS);
 	}
 
-	fil_space_t*	space = fil_space_create(
-		space_name, space_id, flags, purpose);
+	if (space == nullptr) {
 
-	if (space == nullptr){
-		return(DB_ERROR);
-	}
+		space = fil_space_create(space_name, space_id, flags, purpose);
 
-	/* We do not measure the size of the file, that is why
-	we pass the 0 below */
+		if (space == nullptr){
+			return(DB_ERROR);
+		}
 
-	auto	shard = fil_system->shard_by_id(space_id);
+		/* We do not measure the size of the file, that is why
+		we pass the 0 below */
 
-	const fil_node_t*	file = shard->create_node(
-		df.filepath(), 0, space, false, true, atomic_write);
+		const fil_node_t*	file = shard->create_node(
+			df.filepath(), 0, space, false, true, atomic_write);
 
-	if (file == nullptr) {
-		return(DB_ERROR);
+		if (file == nullptr) {
+			return(DB_ERROR);
+		}
 	}
 
 	/* For encryption tablespace, initialize encryption information.*/
@@ -6016,7 +6041,6 @@ Fil_system::ibd_open_for_recovery(
 	auto	shard = shard_by_id(space_id);
 
 	return(shard->ibd_open_for_recovery(space_id, path, space));
-
 }
 
 /** Report that a tablespace for a table was not found.
@@ -10069,7 +10093,7 @@ fil_op_replay_rename_for_ddl(
 /** Get the tablespace ID from an .ibd and/or an undo tablespace. If the ID
 is == 0 on the first page then check for at least MAX_PAGES_TO_CHECK  pages
 with the same tablespace ID. Do a Light weight check before trying with
-DataFile::find_space_id().
+Datafile::find_space_id().
 @param[in]	filename	File name to check
 @return ULINT32_UNDEFINED if not found, otherwise the space ID */
 space_id_t

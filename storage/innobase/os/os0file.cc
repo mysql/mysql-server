@@ -4950,8 +4950,7 @@ os_file_create_func(
 	if (!read_only) {
 		access |= GENERIC_WRITE;
 
-	} else if (type == OS_CLONE_LOG_FILE
-		   || type ==  OS_CLONE_DATA_FILE) {
+	} else if (type == OS_CLONE_LOG_FILE || type ==  OS_CLONE_DATA_FILE) {
 
 		/* Clone must allow concurrent write to file. */
 		share_mode |= FILE_SHARE_WRITE;
@@ -5072,7 +5071,7 @@ os_file_create_simple_no_error_handling_func(
 
 		access = GENERIC_READ;
 
-		/*!< A backup program has to give mysqld the maximum
+		/* A backup program has to give mysqld the maximum
 		freedom to do what it likes with the file */
 
 		share_mode |= FILE_SHARE_DELETE | FILE_SHARE_WRITE;
@@ -5380,7 +5379,7 @@ os_file_get_status_win32(
 			fh = CreateFile(
 				(LPCTSTR) path,		// File to open
 				access,
-				0,			// No sharing
+				FILE_SHARE_READ,
 				NULL,			// Default security
 				OPEN_EXISTING,		// Existing file only
 				FILE_ATTRIBUTE_NORMAL,	// Normal file
