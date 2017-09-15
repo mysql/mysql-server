@@ -705,6 +705,9 @@ public:
                                 MYSQL_LOCK *lock,
                                 size_t reopen_count);
   bool reopen_tables(THD *thd);
+  void rename_locked_table(TABLE_LIST *old_table_list,
+                           const char *new_db, const char *new_table_name,
+                           MDL_ticket *target_mdl_ticket);
 };
 
 

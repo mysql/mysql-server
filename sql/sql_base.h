@@ -318,7 +318,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables,
   @param  share       Table share, but is just a handy way to
                       access the table cache key.
   @param  remove_from_locked_tables
-                      True if the table is being dropped or renamed.
+                      True if the table is being dropped.
                       In that case the documented behaviour is to
                       implicitly remove the table from LOCK TABLES list.
   @param  skip_table  TABLE instance that should be kept open.
@@ -340,7 +340,7 @@ void close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
   @param  db          Database name.
   @param  table_name  Table name.
   @param  remove_from_locked_tables
-                      True if the table is being dropped or renamed.
+                      True if the table is being dropped.
                       In that case the documented behaviour is to
                       implicitly remove the table from LOCK TABLES list.
 
