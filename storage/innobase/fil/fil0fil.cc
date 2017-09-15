@@ -3058,16 +3058,18 @@ fil_space_free(space_id_t space_id, bool x_latched)
 	auto	shard = fil_system->shard_by_id(space_id);
 	auto	space = shard->space_free(space_id);
 
-	if (space != nullptr) {
-
-		if (x_latched) {
-			rw_lock_x_unlock(&space->latch);
-		}
-
-		Fil_shard::space_free_low(space);
+	if (space == nullptr) {
+		return(false);
 	}
 
-	return(space != nullptr);
+	if (x_latched) {
+		rw_lock_x_unlock(&space->latch);
+	}
+
+	Fil_shard::space_free_low(space);
+	ut_a(space == nullptr);
+
+	return(true);
 }
 
 /** Create a space memory object and put it to the fil_system hash table.
@@ -3637,6 +3639,8 @@ Fil_shard::close_all_files()
 		space_detach(space);
 
 		space_free_low(space);
+
+		ut_a(space == nullptr);
 	}
 }
 
@@ -3700,6 +3704,7 @@ Fil_shard::close_log_files(bool free_all)
 
 			space_detach(space);
 			space_free_low(space);
+			ut_a(space == nullptr);
 
 			it = m_spaces.erase(it);
 
@@ -4431,6 +4436,7 @@ Fil_shard::space_delete(
 		mutex_release();
 
 		space_free_low(space);
+		ut_a(space == nullptr);
 
 		if (!os_file_delete(innodb_data_file_key, path)
 		    && !os_file_delete_if_exists(
@@ -5603,6 +5609,7 @@ fil_ibd_open(
 		shard->space_detach(space);
 		shard->space_delete(space->id);
 		shard->space_free_low(space);
+		ut_a(space == nullptr);
 	}
 
 	shard->mutex_release();
