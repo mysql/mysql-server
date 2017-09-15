@@ -2293,7 +2293,7 @@ void _db_flush_()
 #ifndef _WIN32
 
 #ifdef HAVE_GCOV
-extern void __gcov_flush();
+extern "C" void __gcov_flush();
 #endif
 
 void _db_flush_gcov_()
