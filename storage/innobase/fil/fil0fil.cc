@@ -5596,15 +5596,17 @@ fil_ibd_open(
 
 	if (space != nullptr) {
 
+		shard->mutex_release();
+
 		shard->close_file(space_id);
 
 		ut_a(space->flags == flags);
 		ut_a(space->purpose == purpose);
 		ut_a(space->files.size() == 1);
 		ut_a(strcmp(space->name, space_name) == 0);
+	} else {
+		shard->mutex_release();
 	}
-
-	shard->mutex_release();
 
 	df.init(space_name, flags);
 
