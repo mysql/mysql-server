@@ -442,12 +442,12 @@ static std::vector<Plugin_tablespace::Plugin_tablespace_file*,
 
 /** Allowed values of innodb_change_buffering */
 static const char* innodb_change_buffering_names[] = {
-	"none",		/** IBUF_USE_NONE */
-	"inserts",	/** IBUF_USE_INSERT */
-	"deletes",	/** IBUF_USE_DELETE_MARK */
-	"changes",	/** IBUF_USE_INSERT_DELETE_MARK */
-	"purges",	/** IBUF_USE_DELETE */
-	"all",		/** IBUF_USE_ALL */
+	"none",		/* IBUF_USE_NONE */
+	"inserts",	/* IBUF_USE_INSERT */
+	"deletes",	/* IBUF_USE_DELETE_MARK */
+	"changes",	/* IBUF_USE_INSERT_DELETE_MARK */
+	"purges",	/* IBUF_USE_DELETE */
+	"all",		/* IBUF_USE_ALL */
 	NullS
 };
 
@@ -1543,100 +1543,6 @@ innobase_fts_store_docid(
 	tbl->fts_doc_id_field->store(static_cast<longlong>(doc_id), true);
 
 	dbug_tmp_restore_column_map(tbl->write_set, old_map);
-}
-
-/** Find the corresponding ibuf_use_t value that indexes into
-innobase_change_buffering_values[] array for the input
-change buffering option name.
-@param[in]	input_name	Change buffering option name
-@return corresponding IBUF_USE_* value for the input variable
-name, or IBUF_USE_COUNT if not able to find a match */
-static
-ibuf_use_t
-innodb_find_change_buffering_value(const char* input_name)
-{
-	size_t	i = 0;
-
-	for (auto& name : innodb_change_buffering_names) {
-
-		if (!innobase_strcasecmp(input_name, name)) {
-			return(static_cast<ibuf_use_t>(i));
-		}
-
-		++i;
-	}
-
-	return(IBUF_USE_COUNT);
-}
-
-/** Check if it is a valid value of innodb_change_buffering. This function is
-registered as a callback with MySQL.
-@param[in]	thd		Thread heandle
-@param[in]	var		System variable
-@param[out]	save		immediae result for update function
-@param[in]	value		Incoming strin
-@return 0 for valid innodb_change_buffering */
-static
-int
-innodb_change_buffering_validate(
-	THD*			thd,
-	st_mysql_sys_var*	var,
-	void*			save,
-	st_mysql_value*		value)
-{
-	char		buff[STRING_BUFFER_USUAL_SIZE];
-	int		len = sizeof(buff);
-	const char*	change_buffering_input;
-
-	ut_a(save != nullptr);
-	ut_a(value != nullptr);
-
-	change_buffering_input = value->val_str(value, buff, &len);
-
-	if (change_buffering_input != nullptr) {
-		ibuf_use_t	use;
-
-		use = innodb_find_change_buffering_value(
-			change_buffering_input);
-
-		if (use != IBUF_USE_COUNT) {
-			/* Find a matching change_buffering option value. */
-			*static_cast<const char**>(save) =
-				innodb_change_buffering_names[use];
-
-			return(0);
-		}
-	}
-
-	/* Return error */
-	return(1);
-}
-
-/** Update the system variable innodb_change_buffering using the "saved"
-value. This function is registered as a callback with MySQL.
-@param[in]	thd		Thread handle
-@param[in]	var		System variable
-@param[out]	var_ptr		Where the format string goes
-@param[in]	save		Immediage result from check function */
-static
-void
-innodb_change_buffering_update(
-	THD*			thd,
-	st_mysql_sys_var*	var,
-	void*			var_ptr,
-	const void*		save)
-{
-	ibuf_use_t	use;
-
-	use = innodb_find_change_buffering_value(
-		*static_cast<const char*const*>(save));
-
-	ut_a(use < IBUF_USE_COUNT);
-
-	ibuf_use = use;
-
-	*static_cast<const char**>(var_ptr) =
-		 *static_cast<const char*const*>(save);
 }
 
 /*************************************************************//**
@@ -21799,9 +21705,7 @@ static MYSQL_SYSVAR_ENUM(change_buffering, innodb_change_buffering,
   PLUGIN_VAR_RQCMDARG,
   "Buffer changes to reduce random access:"
   " OFF, ON, inserting, deleting, changing, or purging.",
-  innodb_change_buffering_validate,
-  innodb_change_buffering_update,
-  IBUF_USE_ALL, &innodb_change_buffering_typelib);
+  NULL, NULL, IBUF_USE_ALL, &innodb_change_buffering_typelib);
 
 static MYSQL_SYSVAR_UINT(change_buffer_max_size,
   srv_change_buffer_max_size,
