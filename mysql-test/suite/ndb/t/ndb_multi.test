@@ -219,21 +219,6 @@ truncate t1;
 drop table t1;
 connection server1;
 
-# bug#7798
-create table t1(a int primary key, b int not null, index(b)) engine = ndb;
-insert into t1 values (1,1), (2,2);
-set autocommit=0;
-begin;
-select count(*) from t1;
-connection server2;
-ALTER TABLE t1 algorithm=copy, ADD COLUMN c int;
-connection server1;
-select a from t1 where b = 2;
-commit;
-show tables;
-drop table t1;
-
-connection server1;
 #
 # Bug#14798043 DROP DATABASE PERFORMANCE_SCHEMA DROPS IT ON ALL SQL NODES
 # Check that local tables in system database are not dropped remotely
