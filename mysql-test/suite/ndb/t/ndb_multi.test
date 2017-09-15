@@ -211,12 +211,6 @@ alter table t1 engine ndb;
 # Switch to other mysqld
 connection server2;
 
-## Check that .ndb file has been created
-## on second mysqld
-let $datadir2 = `select @@datadir`;
-#echo datadir2: $datadir2;
---file_exists $datadir2/test/t1.ndb
-
 # Check that truncate works on second mysqld
 # (didn't work before fix)
 truncate t1;
