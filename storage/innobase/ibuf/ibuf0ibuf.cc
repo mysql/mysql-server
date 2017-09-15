@@ -193,7 +193,7 @@ it uses synchronous aio, it can access any pages, as long as it obeys the
 access order rules. */
 
 /** Operations that can currently be buffered. */
-ibuf_use_t	ibuf_use		= IBUF_USE_ALL;
+ulong	innodb_change_buffering	= IBUF_USE_ALL;
 
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
 /** Flag to control insert buffer debugging. */
@@ -3685,7 +3685,9 @@ ibuf_insert(
 	ibool		no_counter;
 	/* Read the settable global variable ibuf_use only once in
 	this function, so that we will have a consistent view of it. */
-	ibuf_use_t	use		= ibuf_use;
+	DBUG_ASSERT(innodb_change_buffering <= IBUF_USE_ALL);
+	ibuf_use_t	use		= static_cast<ibuf_use_t>(innodb_change_buffering);
+
 	DBUG_ENTER("ibuf_insert");
 
 	DBUG_PRINT("ibuf", ("op: %d, space: " UINT32PF ", page_no: " UINT32PF,
@@ -3709,8 +3711,6 @@ ibuf_insert(
 		case IBUF_USE_INSERT_DELETE_MARK:
 		case IBUF_USE_ALL:
 			goto check_watch;
-		case IBUF_USE_COUNT:
-			break;
 		}
 		break;
 	case IBUF_OP_DELETE_MARK:
@@ -3724,8 +3724,6 @@ ibuf_insert(
 		case IBUF_USE_ALL:
 			ut_ad(!no_counter);
 			goto check_watch;
-		case IBUF_USE_COUNT:
-			break;
 		}
 		break;
 	case IBUF_OP_DELETE:
@@ -3739,8 +3737,6 @@ ibuf_insert(
 		case IBUF_USE_ALL:
 			ut_ad(!no_counter);
 			goto skip_watch;
-		case IBUF_USE_COUNT:
-			break;
 		}
 		break;
 	case IBUF_OP_COUNT:

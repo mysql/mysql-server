@@ -179,25 +179,6 @@ dd::sdi_key_t get_sdi_key(const dd::Tablespace &tablespace)
       tablespace.id()};
 }
 
-void check_error_state(THD *thd, const char *operation,
-                       const dd::Schema *sch,
-                       const dd::Table *tbl,
-                       const dd::Tablespace &tspc)
-{
-  // TODO: Bug#26516584 - Handle SDI API error
-  // Gopal: What is expected here ?
-  if (thd->is_error() || thd->killed)
-  {
-    // An error should not be set here, but if it is, we don't want to report
-    // ER_SDI_OPERATION_FAILED
-    return;
-  }
-  my_error(ER_SDI_OPERATION_FAILED, MYF(0), operation,
-           (sch?sch->name().c_str():"<no schema>"),
-           (tbl?tbl->name().c_str():"<no table>"),
-           tspc.name().c_str());
-}
-
 } // namespace
 
 namespace dd {
@@ -220,9 +201,7 @@ bool store_sch_sdi(THD *thd, const handlerton &hton,
                         &schema_key,
                         sdi.c_str(), sdi.size()))
        {
-         check_error_state(thd, "store schema", &schema,
-                           &table, tblspc);
-         return true;
+         return checked_return(true);
        }
        return false;
      });
@@ -243,15 +222,13 @@ bool store_tbl_sdi(THD *thd, const handlerton &hton,
                         ENTITY_VAL(schema), ENTITY_VAL(table)));
     if (hton.sdi_set(tblspc, &table, &key, sdi.c_str(), sdi.size()))
     {
-      check_error_state(thd, "store table", &schema, &table, tblspc);
-      return true;
+      return checked_return(true);
     }
 
     if (hton.sdi_set(tblspc, &table, &schema_key, schema_sdi.c_str(),
                      schema_sdi.size()))
     {
-      check_error_state(thd, "store schema", &schema, &table, tblspc);
-      return true;
+      return checked_return(true);
     }
 
     return false;
@@ -261,7 +238,7 @@ bool store_tbl_sdi(THD *thd, const handlerton &hton,
 }
 
 
-bool store_tsp_sdi(THD *thd, const handlerton &hton, const Sdi_type &sdi,
+bool store_tsp_sdi(const handlerton &hton, const Sdi_type &sdi,
                    const Tablespace &tblspc)
 {
   dd::sdi_key_t key= get_sdi_key(tblspc);
@@ -269,8 +246,7 @@ bool store_tsp_sdi(THD *thd, const handlerton &hton, const Sdi_type &sdi,
   DBUG_PRINT("ddsdi",("store_tsp_sdi(" ENTITY_FMT ")", ENTITY_VAL(tblspc)));
   if (hton.sdi_set(tblspc, nullptr, &key, sdi.c_str(), sdi.size()))
   {
-    check_error_state(thd, "store tablespace", nullptr, nullptr, tblspc);
-    return true;
+    return checked_return(true);
   }
   return false;
 }
@@ -290,9 +266,7 @@ bool drop_tbl_sdi(THD *thd, const handlerton &hton,
       {
         if (hton.sdi_delete(tblspc, &table, &sdi_key))
         {
-          check_error_state(thd, "drop table", &schema, &table,
-                            tblspc);
-          return true;
+          return checked_return(true);
         }
         return false;
       });

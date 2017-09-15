@@ -158,6 +158,9 @@ typedef void (*destroy_prepared_stmt_v1_t)(PSI_prepared_stmt *prepared_stmt);
 typedef void (*reprepare_prepared_stmt_v1_t)(PSI_prepared_stmt *prepared_stmt);
 typedef void (*execute_prepared_stmt_v1_t)(PSI_statement_locker *locker,
                                            PSI_prepared_stmt *prepared_stmt);
+typedef void (*set_prepared_stmt_text_v1_t)(PSI_prepared_stmt *prepared_stmt,
+                                            const char *text,
+                                            uint text_len);
 typedef struct PSI_digest_locker *(*digest_start_v1_t)(
   struct PSI_statement_locker *locker);
 typedef void (*digest_end_v1_t)(struct PSI_digest_locker *locker,
@@ -212,6 +215,7 @@ struct PSI_statement_service_v1
   destroy_prepared_stmt_v1_t destroy_prepared_stmt;
   reprepare_prepared_stmt_v1_t reprepare_prepared_stmt;
   execute_prepared_stmt_v1_t execute_prepared_stmt;
+  set_prepared_stmt_text_v1_t set_prepared_stmt_text;
   digest_start_v1_t digest_start;
   digest_end_v1_t digest_end;
   get_sp_share_v1_t get_sp_share;

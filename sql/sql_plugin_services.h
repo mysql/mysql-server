@@ -64,7 +64,7 @@
   ~~~~
 </li><li>
   Create a new file `libservices/foo_service.c` using the following template:
-  @include service_foo.c
+  @include service_foo.cc
 </li><li>
   Add the new file to libservices/CMakeLists.txt (MYSQLSERVICES_SOURCES)
 </li><li>

@@ -1069,7 +1069,10 @@ alter table t1 modify c char(10) default "Three", rename to t2;
 select * from t1;
 ERROR HY000: Table 't1' was not locked with LOCK TABLES
 select * from t2;
-ERROR HY000: Table 't2' was not locked with LOCK TABLES
+c
+NULL
+1
+Two
 select * from t3;
 j
 NULL
@@ -1084,7 +1087,11 @@ Three
 lock table t2 write, t3 read;
 alter table t2 change c vc varchar(100) default "Four", rename to t1;
 select * from t1;
-ERROR HY000: Table 't1' was not locked with LOCK TABLES
+vc
+NULL
+1
+Two
+Three
 select * from t2;
 ERROR HY000: Table 't2' was not locked with LOCK TABLES
 select * from t3;

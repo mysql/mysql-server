@@ -928,24 +928,29 @@ void rewrite_acl_ddl(THD *thd,
   DBUG_ENTER("rewrite_acl_ddl");
   DBUG_ASSERT(thd);
   String * rlb= NULL;
+  bool rewrite= false;
 
   enum_sql_command command= thd->lex->sql_command;
-  /*rewrite the query */
+  /* Rewrite the query */
   rlb= &thd->rewritten_query;
+
   switch (command)
   {
     case SQLCOM_CREATE_USER:
     case SQLCOM_ALTER_USER:
       rlb->mem_free();
       mysql_rewrite_create_alter_user(thd, rlb, extra_users, for_binlog);
+      rewrite= true;
       break;
     case SQLCOM_GRANT:
       rlb->mem_free();
       mysql_rewrite_grant(thd, rlb);
+      rewrite= true;
       break;
     case SQLCOM_SET_PASSWORD:
       rlb->mem_free();
       mysql_rewrite_set_password(thd, rlb, extra_users, for_binlog);
+      rewrite= true;
       break;
     /*
       We don't attempt to rewrite any of the following because they do
@@ -970,6 +975,14 @@ void rewrite_acl_ddl(THD *thd,
       DBUG_ASSERT(false);
       break;
   }
+
+  if (rewrite && thd->rewritten_query.length())
+  {
+    MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi,
+                             thd->rewritten_query.c_ptr_safe(),
+                             thd->rewritten_query.length());
+  }
+
   DBUG_VOID_RETURN;
 }
 

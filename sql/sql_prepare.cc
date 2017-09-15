@@ -1481,10 +1481,12 @@ void mysqld_stmt_prepare(THD *thd, const char *query, uint length,
         thd->get_protocol()->get_client_capabilities());
     thd->push_protocol(&thd->protocol_binary);
   }
+
+  /* Create PS table entry, set query text after rewrite. */
   stmt->m_prepared_stmt= MYSQL_CREATE_PS(stmt, stmt->id,
                                          thd->m_statement_psi,
                                          stmt->name().str, stmt->name().length,
-                                         query, length);
+                                         NULL, 0);
 
   if (stmt->prepare(query, length))
   {
@@ -1758,10 +1760,11 @@ void mysql_sql_stmt_prepare(THD *thd)
     DBUG_VOID_RETURN;
   }
 
+  /* Create PS table entry, set query text after rewrite. */
   stmt->m_prepared_stmt= MYSQL_CREATE_PS(stmt, stmt->id,
                                          thd->m_statement_psi,
                                          stmt->name().str, stmt->name().length,
-                                         query, query_len);
+                                         NULL, 0);
 
   if (stmt->prepare(query, query_len))
   {
@@ -2738,6 +2741,19 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length)
 
   rewrite_query_if_needed(thd);
 
+  if (thd->rewritten_query.length())
+  {
+    MYSQL_SET_PS_TEXT(m_prepared_stmt,
+                      thd->rewritten_query.c_ptr_safe(),
+                      thd->rewritten_query.length());
+  }
+  else
+  {
+    MYSQL_SET_PS_TEXT(m_prepared_stmt,
+                      thd->query().str,
+                      thd->query().length);
+  }
+
   cleanup_stmt();
   stmt_backup.restore_thd(thd, this);
   thd->stmt_arena= old_stmt_arena;
@@ -3314,6 +3330,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
       */
       rewrite_query_if_needed(thd);
       log_execute_line(thd);
+
       thd->binlog_need_explicit_defaults_ts= lex->binlog_need_explicit_defaults_ts;
       resourcegroups::Resource_group *src_res_grp= nullptr;
       resourcegroups::Resource_group *dest_res_grp= nullptr;
