@@ -88,7 +88,7 @@ bool store_tbl_sdi(THD *thd, const handlerton &hton, const Sdi_type &sdi,
   @param sdi
   @param tablespace
  */
-bool store_tsp_sdi(THD *thd, const handlerton &hton, const Sdi_type &sdi,
+bool store_tsp_sdi(const handlerton &hton, const Sdi_type &sdi,
                    const Tablespace &tablespace);
 
 /**
