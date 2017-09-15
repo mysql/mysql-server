@@ -52,6 +52,8 @@ public:
   typedef NdbImportUtil::Row Row;
   typedef NdbImportUtil::RowList RowList;
   typedef NdbImportUtil::Blob Blob;
+  typedef NdbImportUtil::Range Range;
+  typedef NdbImportUtil::RangeList RangeList;
   typedef NdbImportUtil::RowMap RowMap;
   typedef NdbImportUtil::ErrorMap ErrorMap;
   typedef NdbImportUtil::Buf Buf;
@@ -294,7 +296,7 @@ public:
     RowList* m_rows_exec[g_max_ndb_nodes];
     RowList* m_rows_reject;
     RowMap m_rowmap_in;         // old rowmap on resume
-    RowMap::Range m_range_in;   // first range on resume
+    Range m_range_in;           // first range on resume
     RowMap m_rowmap_out;
     mutable Timer m_timer;
     Error m_error;
@@ -308,6 +310,7 @@ public:
     Stat* m_stat_rowssec;       // rows inserted per second
     Stat* m_stat_utime;
     Stat* m_stat_stime;
+    Stat* m_stat_rowmap;
   };
 
   struct Team {
@@ -356,6 +359,7 @@ public:
     Stat* m_stat_idlerun;
     Stat* m_stat_utime;
     Stat* m_stat_stime;
+    Stat* m_stat_rowmap;
   };
 
   struct Worker : Thread {
@@ -402,6 +406,7 @@ public:
     Stat* m_stat_idlerun;
     Stat* m_stat_utime;
     Stat* m_stat_stime;
+    Stat* m_stat_rowmap;
   };
 
   // random input team

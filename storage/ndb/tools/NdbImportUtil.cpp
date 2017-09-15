@@ -38,6 +38,7 @@ NdbImportUtil::NdbImportUtil() :
   c_rows_free = new RowList;
   c_rows_free->set_stats(m_util.c_stats, "rows-free");
   c_blobs_free = new BlobList;
+  c_ranges_free = new RangeList;
   add_pseudo_tables();
 }
 
@@ -246,6 +247,64 @@ NdbImportUtil::List::push_front(ListEnt* ent)
     ent->m_next = m_front;
     m_front = ent;
   }
+  m_cnt++;
+  if (m_maxcnt < m_cnt)
+  {
+    m_maxcnt++;
+    require(m_maxcnt == m_cnt);
+  }
+  m_totcnt++;
+  validate();
+  if (m_stat_occup != 0)
+    m_stat_occup->add(m_cnt);
+  if (m_stat_total != 0)
+    m_stat_total->add(1);
+}
+
+void
+NdbImportUtil::List::push_after(ListEnt* ent1, ListEnt* ent2)
+{
+  require(ent1 != 0 && ent2 != 0);
+  require(ent2->m_next == 0 && ent2->m_prev == 0);
+  ListEnt* ent3 = ent1->m_next;
+  if (ent3 == 0)
+  {
+    push_back(ent2);
+    return;
+  }
+  ent1->m_next = ent2;
+  ent2->m_prev = ent1;
+  ent2->m_next = ent3;
+  ent3->m_prev = ent2;
+  m_cnt++;
+  if (m_maxcnt < m_cnt)
+  {
+    m_maxcnt++;
+    require(m_maxcnt == m_cnt);
+  }
+  m_totcnt++;
+  validate();
+  if (m_stat_occup != 0)
+    m_stat_occup->add(m_cnt);
+  if (m_stat_total != 0)
+    m_stat_total->add(1);
+}
+
+void
+NdbImportUtil::List::push_before(ListEnt* ent1, ListEnt* ent2)
+{
+  require(ent1 != 0 && ent2 != 0);
+  require(ent2->m_next == 0 && ent2->m_prev == 0);
+  ListEnt* ent3 = ent1->m_prev;
+  if (ent3 == 0)
+  {
+    push_front(ent2);
+    return;
+  }
+  ent1->m_prev = ent2;
+  ent2->m_next = ent1;
+  ent2->m_prev = ent3;
+  ent3->m_next = ent2;
   m_cnt++;
   if (m_maxcnt < m_cnt)
   {
@@ -1312,169 +1371,281 @@ NdbImportUtil::free_blob(Blob* blob)
 
 // rowmap
 
-void
-NdbImportUtil::RowMap::add(Range r)
+NdbImportUtil::RowMap::RowMap(NdbImportUtil& util) :
+  m_util(util)
 {
-  require(r.m_start < r.m_end);
-  if (unlikely(m_ranges.empty()))
+}
+
+NdbImportUtil::Range::Range()
+{
+  m_start = 0;
+  m_end = 0;
+  m_startpos = 0;
+  m_endpos = 0;
+  m_reject = 0;
+}
+
+NdbImportUtil::Range::~Range()
+{
+}
+
+void
+NdbImportUtil::Range::copy(const Range& range2)
+{
+  m_start = range2.m_start;
+  m_end = range2.m_end;
+  m_startpos = range2.m_startpos;
+  m_endpos = range2.m_endpos;
+  m_reject = range2.m_reject;
+}
+
+/*
+ * This is typically used by a worker to add a row to its
+ * private rowmap.  The row is likely to go near the end
+ * so search is done backwards.
+ */
+void
+NdbImportUtil::RowMap::add(Range range2)
+{
+  RangeList& ranges = m_ranges;
+  Range* r2 = alloc_range();
+  r2->copy(range2);
+  if (ranges.empty())
   {
-    m_ranges.push_back(r);
+    ranges.push_back(r2);
   }
   else
   {
-    Iterator itbegin = m_ranges.begin();
-    Iterator itend = m_ranges.end();
-    Range& rback = m_ranges.back();
-    Range& rfront = m_ranges.front();
-    if (rback.m_start < r.m_start)
+    Range* rback = ranges.back();
+    Range* rfront = ranges.front();
+    if (rback->m_start < r2->m_start)
     {
-      if (merge_down(rback, r))
+      if (merge_up(rback, r2))
       {
-        // rback grows up to include r
-        ;
+        // rback grows up to include r2
+        free_range(r2);
       }
       else
       {
-        m_ranges.push_back(r);
+        ranges.push_back(r2);
       }
     }
-    else if (rfront.m_start > r.m_start)
+    else if (r2->m_start < rfront->m_start)
     {
-      if (merge_up(rfront, r))
+      if (merge_down(rfront, r2))
       {
-        // rfront grows down to include r
-        ;
+        // rfront grows down to include r2
+        free_range(r2);
       }
       else
       {
-        m_ranges.insert(itbegin, r);
+        ranges.push_front(r2);
       }
     }
     else
     {
-      Iterator it = std::lower_bound(itbegin, itend, r);
-      require(it > itbegin);
-      require(it < itend);
-      Range& rprev = *(it - 1);
-      Range& rnext = *it;
-      if (merge_down(rprev, r))
+      // r2 is between 2 entries rprev rnext
+      Range* rprev = rback;
+      Range* rnext = 0;
+      while (1)
       {
-        // rprev grows up to include r
-        if (merge_down(rprev, rnext))
+        if (r2->m_start > rprev->m_start)
         {
-          // rprev grows up to include rnext
-          // erase rnext
-          m_ranges.erase(it);
+          // found the place
+          require(rnext != 0);
+          if (merge_up(rprev, r2))
+          {
+            // rprev grows up to include r2
+            free_range(r2);
+            if (merge_up(rprev, rnext))
+            {
+              // rprev and rnext have been joined via r2
+              // rnext is now obsolete
+              ranges.remove(rnext);
+              free_range(rnext);
+            }
+          }
+          else if (merge_down(rnext, r2))
+          {
+            // rnext grows down to include r2
+            free_range(r2);
+          }
+          else
+          {
+            // r2 becomes new entry after rprev
+            ranges.push_after(rprev, r2);
+          }
+          break;
+        }
+        rnext = rprev;
+        rprev = rprev->prev();
+        require(rprev != 0);
+      }
+    }
+  }
+  validate();
+}
+
+/*
+ * Merge from another rowmap.  Walks through both maps
+ * in ascending order.  The argument map2 is not modified
+ * here but is normally cleared afterwards by caller.
+ */
+void
+NdbImportUtil::RowMap::add(const RowMap& map2)
+{
+  RangeList& ranges = m_ranges;
+  const RangeList& ranges2 = map2.m_ranges;
+  Range* r = ranges.front();
+  const Range* r2 = ranges2.front();
+  while (1)
+  {
+    if (r == 0)
+    {
+      // copy rest of map2 using our free ranges
+      while (r2 != 0)
+      {
+        r = alloc_range();
+        r->copy(*r2);
+        ranges.push_back(r);
+        r2 = r2->next();
+      }
+      break;
+    }
+    if (r2 == 0)
+    {
+      // nothing more to do
+      break;
+    }
+    if (r->m_start < r2->m_start)
+    {
+      {
+        Range* rnext = r->next();
+        if (rnext != 0 && rnext->m_start < r2->m_start)
+        {
+          // still below r2
+          r = rnext;
+          continue;
         }
       }
-      else if (merge_up(rnext, r))
+      if (merge_up(r, r2))
       {
-        // rnext grows down to include r
-        ;
+        // r grows up to include r2
+        Range* rnext = r->next();
+        if (rnext != 0 && merge_up(r, rnext))
+        {
+          // r and rnext have been joined via r2
+          // rnext is now obsolete
+          ranges.remove(rnext);
+          free_range(rnext);
+        }
+        // leave r unchanged as next r2 may also apply
+        {
+          const Range* r2next = r2->next();
+          // even in the join case r2next cannot overlap r
+          if (r2next != 0)
+            require(r->m_end <= r2next->m_start);
+        }
       }
       else
       {
-        m_ranges.insert(it, r);
+        // r2 creates new entry
+        Range* rnext = alloc_range();
+        rnext->copy(*r2);
+        ranges.push_after(r, rnext);
+        require(rnext == r->next());
+        // move to the new entry
+        r = r->next();
+        {
+          Range* rnext = r->next();
+          if (rnext != 0 && merge_up(r, rnext))
+          {
+            // r and rnext have been joined via r2
+            // rnext is now obsolete
+            ranges.remove(rnext);
+            free_range(rnext);
+          }
+        }
+        // leave current r unchanged
       }
+      // r2 has been consumed
+      r2 = r2->next();
+      continue;
     }
+    if (r->m_start > r2->m_start)
+    {
+      if (merge_down(r, r2))
+      {
+        // r grows down to include r2
+        // no more entries below r but there can be one above
+      }
+      else
+      {
+        // r2 creates new entry
+        Range* rprev = alloc_range();
+        rprev->copy(*r2);
+        ranges.push_before(r, rprev);
+        // can be more entries below r
+      }
+      // r2 has been consumed
+      r2 = r2->next();
+      continue;
+    }
+    require(false);
   }
+  validate();
 }
 
-void
-NdbImportUtil::RowMap::add(const RowMap& m)
-{
-  const Ranges& ranges = m.m_ranges;
-  ConstIterator it;
-  for (it = ranges.begin(); it < ranges.end(); it++)
-  {
-    Range r = *it;
-    add(r);
-  }
-}
+/*
+ * find() and remove() are used only on --resume, which consumes
+ * the old rowmap.  They need not be afficient.
+ */
 
-bool
-NdbImportUtil::RowMap::find(uint64 rowid, Iterator& itout)
+NdbImportUtil::Range*
+NdbImportUtil::RowMap::find(uint64 rowid)
 {
-  if (unlikely(m_ranges.empty()))
-    return false;
-  Range r;
-  r.m_start = rowid;
-  r.m_end = rowid + 1;
-  r.m_reject = 0;
-  Iterator itbegin = m_ranges.begin();
-  Iterator itend = m_ranges.end();
-  Iterator it = std::lower_bound(itbegin, itend, r);
-  if (it == itbegin)
+  RangeList& ranges = m_ranges;
+  Range* r = ranges.front();
+  while (r != 0)
   {
-    Range& rfront = *it;
-    if (r.m_start < rfront.m_start)
-      return false;
-    require(r.m_start == rfront.m_start);
-    itout = it;
-    return true;
+    if (r->m_start <= rowid && rowid < r->m_end)
+      break;
+    r = r->next();
   }
-  if (it == itend)
-  {
-    Range& rback = *(it - 1);
-    require(r.m_start > rback.m_start);
-    if (r.m_end <= rback.m_end)
-    {
-      itout = it - 1;
-      return true;
-    }
-    return false;
-  }
-  {
-    Range& rcurr = *it;
-    require(r.m_start <= rcurr.m_start);
-    if (r.m_start == rcurr.m_start)
-    {
-      itout = it;
-      return true;
-    }
-  }
-  {
-    Range& rprev = *(it - 1);
-    require(r.m_start > rprev.m_start);
-    if (r.m_end <= rprev.m_end)
-    {
-      itout = it - 1;
-      return true;
-    }
-    return false;
-  }
+  return r;
 }
 
 bool
 NdbImportUtil::RowMap::remove(uint64 rowid)
 {
-  Iterator it;
-  if (!find(rowid, it))
+  RangeList& ranges = m_ranges;
+  Range* r = find(rowid);
+  if (r == 0)
     return false;
-  Range& r = *it;
-  require(rowid >= r.m_start);
-  require(rowid < r.m_end);
-  if (rowid == r.m_start)
+  if (rowid == r->m_start)
   {
-    r.m_start += 1;
-    if (r.m_start == r.m_end)
-      m_ranges.erase(it);
+    r->m_start++;
+    if (r->m_start == r->m_end)
+    {
+      ranges.remove(r);
+      free_range(r);
+    }
   }
-  else if (rowid == r.m_end - 1)
+  else if (rowid == r->m_end - 1)
   {
-    r.m_end -= 1;
-    require(r.m_start < r.m_end);
+    r->m_end -= 1;
+    require(r->m_start < r->m_end);
   }
   else
   {
-    Range r2;
-    r2.m_start = rowid + 1;
-    r2.m_end = r.m_end;
-    r2.m_reject = 0;
-    require(r2.m_start < r2.m_end);
-    r.m_end = rowid;
-    require(r.m_start < r.m_end);
-    m_ranges.insert(it + 1, r2);
+    Range* r2 = alloc_range();
+    r2->m_start = rowid + 1;
+    r2->m_end = r->m_end;
+    r2->m_reject = 0;   // not relevant
+    require(r2->m_start < r2->m_end);
+    r->m_end = rowid;
+    require(r->m_start < r->m_end);
+    ranges.push_after(r, r2);
   }
   return true;
 }
@@ -1482,20 +1653,88 @@ NdbImportUtil::RowMap::remove(uint64 rowid)
 void
 NdbImportUtil::RowMap::get_total(uint64& rows, uint64& reject) const
 {
-  uint64 t = 0;
-  uint64 r = 0;
-  ConstIterator it;
-  for (it = m_ranges.begin(); it < m_ranges.end(); it++)
+  uint64 trows = 0;
+  uint64 treject = 0;
+  const Range* r = m_ranges.front();
+  while (r != 0)
   {
-    t += it->m_end - it->m_start - it->m_reject;
-    r += it->m_reject;
+    trows += r->m_end - r->m_start - r->m_reject;
+    treject += r->m_reject;
+    r = r->next();
   }
-  rows = t;
-  reject = r;
+  rows = trows;
+  reject = treject;
 }
 
+NdbImportUtil::Range*
+NdbImportUtil::alloc_range(bool dolock)
+{
+  RangeList& ranges = *c_ranges_free;
+  if (dolock)
+    ranges.lock();
+  Range* range = ranges.pop_front();
+  if (dolock)
+    ranges.unlock();
+  if (range == 0) {
+    range = new Range;
+  }
+  return range;
+}
+
+void
+NdbImportUtil::alloc_ranges(uint cnt, RangeList& dst)
+{
+  RangeList& ranges = *c_ranges_free;
+  ranges.lock();
+  for (uint i = 0; i < cnt; i++)
+  {
+    Range* range = alloc_range(false);
+    dst.push_back(range);
+  }
+  ranges.unlock();
+}
+
+void
+NdbImportUtil::free_range(Range* range)
+{
+  RangeList& ranges = *c_ranges_free;
+  ranges.lock();
+  ranges.push_back(range);
+  ranges.unlock();
+}
+
+void
+NdbImportUtil::free_ranges(RangeList& src)
+{
+  RangeList& ranges = *c_ranges_free;
+  ranges.lock();
+  ranges.push_back_from(src);
+  ranges.unlock();
+}
+
+#if defined(VM_TRACE) || defined(TEST_NDBIMPORTUTIL)
+void
+NdbImportUtil::RowMap::validate() const
+{
+  m_ranges.validate();
+#if defined(VM_TRACE) && defined(TEST_NDBIMPORTUTIL)
+  const RangeList& ranges = m_ranges;
+  const Range* r2 = 0;
+  const Range* r1 = ranges.front();
+  while (r1 != 0)
+  {
+    require(r1->m_start < r1->m_end);
+    if (r2 != 0)
+      require(r2->m_end < r1->m_start);
+    r2 = r1;
+    r1 = r1->next();
+  }
+#endif
+}
+#endif
+
 NdbOut&
-operator<<(NdbOut& out, const NdbImportUtil::RowMap::Range& range)
+operator<<(NdbOut& out, const NdbImportUtil::Range& range)
 {
   out << "start=" << range.m_start
       << " end=" << range.m_end
@@ -1510,14 +1749,14 @@ operator<<(NdbOut& out, const NdbImportUtil::RowMap::Range& range)
 NdbOut&
 operator<<(NdbOut& out, const NdbImportUtil::RowMap& rowmap)
 {
-  const NdbImportUtil::RowMap::Ranges& ranges = rowmap.m_ranges;
-  NdbImportUtil::RowMap::ConstIterator it;
+  const NdbImportUtil::RangeList& ranges = rowmap.m_ranges;
+  const NdbImportUtil::Range* r = ranges.front();
   uint i = 0;
-  for (it = ranges.begin(); it < ranges.end(); it++)
+  while (r != 0)
   {
-    out << endl;
-    const NdbImportUtil::RowMap::Range& range = *it;
-    out << i << ": " << range;
+    out << i << ": " << *r << endl;
+    r = r->next();
+    i++;
   }
   return out;
 }
@@ -1613,7 +1852,7 @@ NdbImportUtil::add_rowmap_table()
 void
 NdbImportUtil::set_rowmap_row(Row* row,
                               uint32 runno,
-                              const RowMap::Range& range)
+                              const Range& range)
 {
   const Table& table = c_rowmap_table;
   const Attrs& attrs = table.m_attrs;
@@ -2845,6 +3084,8 @@ typedef NdbImportUtil::Table UtilTable;
 typedef NdbImportUtil::RowCtl UtilRowCtl;
 typedef NdbImportUtil::Row UtilRow;
 typedef NdbImportUtil::RowList UtilRowList;
+typedef NdbImportUtil::Range UtilRange;
+typedef NdbImportUtil::RangeList UtilRangeList;
 typedef NdbImportUtil::RowMap UtilRowMap;
 typedef NdbImportUtil::Buf UtilBuf;
 typedef NdbImportUtil::File UtilFile;
@@ -2900,6 +3141,12 @@ testlist()
     rec->m_index = n;
   }
   const uint numops = 1024 * poolsize;
+  uint ops[5];
+  ops[0] = 0;   // push back
+  ops[1] = 0;   // pop front
+  ops[2] = 0;   // remove
+  ops[3] = 0;   // push after
+  ops[4] = 0;   // push before
   uint max_occup = 0;
   for (uint numop = 0; numop < numops; numop++)
   {
@@ -2919,21 +3166,45 @@ testlist()
     {
       recs.push_back(rec);
       rec->m_member = true;
+      ops[0]++;
     }
     else if (myrandom(100) < 50)
     {
       MyRec* rec = static_cast<MyRec*>(recs.pop_front());
       require(rec != 0);
       rec->m_member = false;
+      ops[1]++;
     }
-    else
+    else if (myrandom(100) < 50)
     {
       recs.remove(rec);
       rec->m_member = false;
+      ops[2]++;
+    }
+    else
+    {
+      uint n2 = myrandom(poolsize);
+      MyRec* rec2 = &recpool[n2];
+      if (!rec2->m_member)
+      {
+        if (myrandom(100) < 50)
+        {
+          recs.push_after(rec, rec2);
+          rec2->m_member = true;
+          ops[3]++;
+        }
+        else
+        {
+          recs.push_before(rec, rec2);
+          rec2->m_member = true;
+          ops[4]++;
+        }
+      }
     }
     if (max_occup < recs.m_cnt)
       max_occup = recs.m_cnt;
   }
+  uint last_occup = recs.m_cnt;
   for (MyRec* rec = static_cast<MyRec*>(recs.m_front);
       rec != 0;
       rec = static_cast<MyRec*>(rec->m_next))
@@ -2953,8 +3224,17 @@ testlist()
     }
   }
   require(recs.m_cnt == 0);
+  uint ins = ops[0] + ops[3] + ops[4];
+  uint del = ops[1] + ops[2];
+  require(last_occup == ins - del);
   delete [] recpool;
   ndbout << "max_occup=" << max_occup << endl;
+  ndbout << "last_occup=" << last_occup << endl;
+  ndbout << "push_back: " << ops[0] << endl;
+  ndbout << "pop_front: " << ops[1] << endl;
+  ndbout << "remove: " << ops[2] << endl;
+  ndbout << "push_after: " << ops[3] << endl;
+  ndbout << "push_before: " << ops[4] << endl;
   return 0;
 }
 
@@ -3035,9 +3315,132 @@ testrowlist2()
 }
 
 static int
-testrowmap()
+testrowmap1()
 {
-  ndbout << "testrowmap" << endl;
+  ndbout << "testrowmap1" << endl;
+  NdbImportUtil util;
+  /*
+   * Create random ascending ranges.  This does not represent
+   * a valid rowmap because gaps between ranges can be zero.
+   */
+  const uint maxranges = 1000;
+  const uint numranges = myrandom(maxranges);
+  ndbout << "numranges = " << numranges << endl;
+  const uint maxgap = 5;
+  const uint maxcount = 10;
+  const uint maxrowid = maxranges * (maxcount + maxgap);
+  UtilRange tstranges[maxranges];
+  bool rowexist[maxrowid];
+  uint toprowid = 0;
+  for (uint k = 0; k < maxrowid; k++)
+    rowexist[k] = false;
+  {
+    uint start = 0;
+    for (uint i = 0; i < numranges; i++)
+    {
+      UtilRange& r = tstranges[i];
+      uint gap = myrandom(maxgap + 1);
+      uint count = 1 + myrandom(maxcount);
+      r.m_start = start + gap;
+      r.m_end = r.m_start + count;
+      r.m_reject = myrandom(1 + count);
+      start = r.m_end;
+      for (uint k = r.m_start; k < r.m_end; k++)
+        rowexist[k] = true;
+      toprowid = r.m_end;
+    }
+  }
+  ndbout << "toprowid=" << toprowid << endl;
+  //
+  ndbout << "map1: create in ascending order" << endl;
+  UtilRowMap map1(util);
+  for (uint i = 0; i < numranges; i++)
+  {
+    UtilRange r = tstranges[i];
+    map1.add(r);
+  }
+  ndbout << "map1: " << map1.size() << endl;
+  for (uint k = 0; k < toprowid; k++)
+  {
+    if (rowexist[k])
+      require(map1.find(k) != 0);
+    else
+      require(map1.find(k) == 0);
+  }
+  uint reorder[maxranges];
+  {
+    for (uint i = 0; i < numranges; i++)
+      reorder[i] = i;
+    for (uint i = 0; i < numranges; i++)
+    {
+      uint j = myrandom(numranges);
+      uint k = reorder[i];
+      reorder[i] = reorder[j];
+      reorder[j] = k;
+    }
+  }
+  //
+  ndbout << "map2: create in random order" << endl;
+  UtilRowMap map2(util);
+  for (uint i = 0; i < numranges; i++)
+  {
+    uint j = reorder[i];
+    UtilRange r = tstranges[j];
+    map2.add(r);
+  }
+  ndbout << "map2: " << map2.size() << endl;
+  require(map1.equal(map2));
+  //
+  ndbout << "map3: create from 2 random pieces" << endl;
+  UtilRowMap map3(util);
+  UtilRowMap map3a(util);
+  UtilRowMap map3b(util);
+  for (uint i = 0; i < numranges; i++)
+  {
+    UtilRange r = tstranges[i];
+    if (myrandom(100) < 50)
+      map3a.add(r);
+    else
+      map3b.add(r);
+  }
+  ndbout << "map3a: " << map3a.size() << endl;
+  //ndbout << map3a;
+  ndbout << "map3b: " << map3b.size() << endl;
+  //ndbout << map3b;
+  ndbout << "add map3a" << endl;
+  map3.add(map3a);
+  ndbout << "add map3b" << endl;
+  map3.add(map3b);
+  ndbout << "map3: " << map3.size() << endl;
+  //ndbout << map3;
+  require(map1.equal(map3));
+  //
+  ndbout << "map4: delete all in random order" << endl;
+  UtilRowMap map4(util);
+  map4.add(map1);
+  ndbout << "map4: " << map4.size() << endl;
+  bool rowexist4[maxrowid];
+  for (uint k = 0; k < maxrowid; k++)
+    rowexist4[k] = rowexist[k];
+  while (map4.size() != 0)
+  {
+    uint k = myrandom(toprowid);
+    if (rowexist4[k])
+    {
+      require(map4.remove(k) == true);
+      rowexist4[k] = false;
+    }
+  }
+  ndbout << "map4: " << map4.size() << endl;
+  return 0;
+}
+
+// an old "intrusive" test, fix later
+static int
+testrowmap2()
+{
+#if 0
+  ndbout << "testrowmap2" << endl;
   const uint maxranges = 10000;
   //
   ndbout << "map1: create manually" << endl;
@@ -3205,6 +3608,7 @@ testrowmap()
   }
   require(map3.empty());
   require(mark.m_cnt == 0);
+#endif
   return 0;
 }
 
@@ -3409,7 +3813,9 @@ testmain()
     return -1;
   if (mycase("testrowlist2") && testrowlist2() != 0)
     return -1;
-  if (mycase("testrowmap") && testrowmap() != 0)
+  if (mycase("testrowmap1") && testrowmap1() != 0)
+    return -1;
+  if (mycase("testrowmap2") && testrowmap2() != 0)
     return -1;
   if (mycase("testbuf") && testbuf() != 0)
     return -1;
