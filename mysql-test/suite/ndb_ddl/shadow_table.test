@@ -124,6 +124,12 @@ create table ndb_ddl_test2.shadow_in_db (
 
 --connection mysqld2
 
+# Create a table in NDB in order to verify that it's dropped
+# from first mysqld although the database is still there
+create table ndb_ddl_test2.table_in_ndb (
+  in_NDB_engine int primary key
+) engine = NDB;
+
 # Check that table does not exist on second mysqld(as it was not
 # created in NDB)
 --error ER_NO_SUCH_TABLE
@@ -141,6 +147,10 @@ use ndb_ddl_test2;
 
 # Check that the database still exist on first mysqld
 use ndb_ddl_test2;
+
+# Check that the NDB table is gone although database still exist
+--error ER_NO_SUCH_TABLE
+show create table ndb_ddl_test2.table_in_ndb;
 
 # Drop the "shadow table" from other engine
 drop table ndb_ddl_test2.shadow_in_db;

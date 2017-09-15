@@ -49,12 +49,17 @@ drop table ndb_ddl_test.shadow1;
 create table ndb_ddl_test2.shadow_in_db (
 in_other_engine int primary key
 ) engine = InnoDB;
+create table ndb_ddl_test2.table_in_ndb (
+in_NDB_engine int primary key
+) engine = NDB;
 show create table ndb_ddl_test2.shadow_in_db;
 ERROR 42S02: Table 'ndb_ddl_test2.shadow_in_db' doesn't exist
 drop database ndb_ddl_test2;
 use ndb_ddl_test2;
 ERROR 42000: Unknown database 'ndb_ddl_test2'
 use ndb_ddl_test2;
+show create table ndb_ddl_test2.table_in_ndb;
+ERROR 42S02: Table 'ndb_ddl_test2.table_in_ndb' doesn't exist
 drop table ndb_ddl_test2.shadow_in_db;
 drop database ndb_ddl_test2;
 create database ndb_ddl_test2;

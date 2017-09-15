@@ -3890,6 +3890,63 @@ class Ndb_schema_event_handler {
       DBUG_VOID_RETURN;
     }
 
+    // Remove all NDB tables in the dropped database from DD,
+    // this function is only called when they all have been dropped
+    // from NDB by another MySQL Server
+    //
+    // NOTE! This is code which always run "in the server" so it would be
+    // appropriate to log error messages to the server log file describing
+    // any problems which occur in these functions.
+    std::unordered_set<std::string> ndb_tables_in_DD;
+    if (!dd_client.get_ndb_table_names_in_schema(schema->db, &ndb_tables_in_DD))
+    {
+      DBUG_PRINT("info", ("Failed to get list of NDB table in schema '%s'",
+                          schema->db));
+      DBUG_VOID_RETURN;
+    }
+
+    for (const auto ndb_table_name : ndb_tables_in_DD)
+    {
+      if (!dd_client.mdl_locks_acquire_exclusive(schema->db,
+                                                 ndb_table_name.c_str()))
+      {
+        DBUG_PRINT("error", ("Failed to acquire exclusive MDL on '%s.%s'",
+                             schema->db, ndb_table_name.c_str()));
+        DBUG_ASSERT(false);
+        continue;
+      }
+
+      if (!dd_client.drop_table(schema->db, ndb_table_name.c_str()))
+      {
+        // Failed to drop the table from DD, not much else to do
+        // than try with the next
+        DBUG_PRINT("error", ("Failed to drop table '%s.%s' from DD",
+                             schema->db, ndb_table_name.c_str()));
+        DBUG_ASSERT(false);
+        continue;
+      }
+
+      NDB_SHARE *share= get_share(schema); // temporary ref.
+      if (!share || !share->op)
+      {
+        ndbapi_invalidate_table(schema->db, ndb_table_name.c_str());
+        ndb_tdc_close_cached_table(m_thd, schema->db, ndb_table_name.c_str());
+      }
+      if (share)
+      {
+        mysql_mutex_lock(&ndbcluster_mutex);
+        ndbcluster_mark_share_dropped(&share); // server ref.
+        DBUG_ASSERT(share);                    // Should still be ref'ed
+        ndbcluster_free_share(&share, true);   // temporary ref.
+        mysql_mutex_unlock(&ndbcluster_mutex);
+      }
+
+      ndbapi_invalidate_table(schema->db, ndb_table_name.c_str());
+      ndb_tdc_close_cached_table(m_thd, schema->db, ndb_table_name.c_str());
+    }
+
+    dd_client.commit();
+
     bool found_local_tables;
     if (!dd_client.have_local_tables_in_schema(schema->db, &found_local_tables))
     {
@@ -3912,6 +3969,11 @@ class Ndb_schema_event_handler {
       DBUG_VOID_RETURN;
     }
 
+    // Run the plain DROP DATABASE query in order to remove other artifacts
+    // like the physical database directory.
+    // Note! This is not done in the case where a "shadow" table is found
+    // in the schema, but at least all the NDB tables have in such case
+    // already been removed from the DD
     const int no_print_error[1]= {0};
     run_query(m_thd, schema->query,
               schema->query + schema->query_length,
