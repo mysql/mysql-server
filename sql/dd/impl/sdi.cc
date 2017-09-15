@@ -721,7 +721,7 @@ bool store(THD *thd, const Tablespace *ts)
   {
     return checked_return(true);
   }
-  return checked_return(sdi_tablespace::store_tsp_sdi(thd, *hton, sdi, *ts));
+  return checked_return(sdi_tablespace::store_tsp_sdi(*hton, sdi, *ts));
 }
 
 bool drop(THD *, const Schema *sp)
