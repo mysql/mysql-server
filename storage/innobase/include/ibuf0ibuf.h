@@ -62,7 +62,7 @@ enum ibuf_use_t {
 };
 
 /** Operations that can currently be buffered. */
-extern ibuf_use_t	ibuf_use;
+extern ulong	innodb_change_buffering;
 
 /** The insert buffer control structure */
 extern ibuf_t*		ibuf;

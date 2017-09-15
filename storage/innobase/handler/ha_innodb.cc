@@ -235,7 +235,6 @@ static char*	innobase_reset_monitor_counter		= NULL;
 static char*	innobase_reset_all_monitor_counter	= NULL;
 static char*	innobase_scan_directories		= NULL;
 
-static ulong	innodb_change_buffering;
 static ulong	innodb_flush_method;
 
 /* This variable can be set in the server configure file, specifying
@@ -4136,7 +4135,6 @@ innodb_init_params()
 		DBUG_RETURN(HA_ERR_INITIALIZATION);
 	}
 
-	ibuf_use = static_cast<ibuf_use_t>(innodb_change_buffering);
 	DBUG_ASSERT(innodb_change_buffering <= IBUF_USE_ALL);
 
 	/* Check that interdependent parameters have sane values. */
