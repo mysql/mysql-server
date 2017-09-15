@@ -628,7 +628,7 @@ String *Item_func_aes_decrypt::val_str(String *str)
 
 bool Item_func_aes_decrypt::resolve_type(THD *)
 {
-   set_data_type_string(args[0]->max_length);
+   set_data_type_string(args[0]->max_char_length());
    maybe_null= true;
    return false;
 }
@@ -3429,7 +3429,7 @@ bool Item_func_weight_string::resolve_type(THD *)
                          field->pack_length() :
                          result_length ?
                            result_length :
-                           cs->mbmaxlen * max(args[0]->max_length,
+                           cs->mbmaxlen * max(args[0]->max_char_length(),
                                               num_codepoints));
   maybe_null= true;
   return false;
