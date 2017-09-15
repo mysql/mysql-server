@@ -1,6 +1,8 @@
 # The include statement below is a temp one for tests that are yet to
 #be ported to run with InnoDB,
 #but needs to be kept for tests that would need MyISAM in future.
+
+# When removing this, also remove 'SET default_storage_engine InnoDB' below
 --source include/force_myisam_default.inc
 
 # Description
@@ -2020,3 +2022,21 @@ SELECT COUNT(*), CONCAT(x, 'x') FROM (SELECT * FROM t) AS tt;
 --source include/restore_strict_mode.inc
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 DROP TABLE t;
+
+# Force default storage engine InnoDB for new tests
+
+SET default_storage_engine=InnoDB;
+
+--echo # Bug#26049942 create table .. as select .. quote() give wrong length
+
+SET NAMES latin1;
+CREATE TABLE t1 AS SELECT quote('a');
+SHOW CREATE TABLE t1;
+SET NAMES utf8;
+CREATE TABLE t2 AS SELECT quote('a');
+SHOW CREATE TABLE t2;
+SET NAMES utf8mb4;
+CREATE TABLE t3 AS SELECT quote('a');
+SHOW CREATE TABLE t3;
+SET NAMES DEFAULT;
+DROP TABLE t1, t2, t3;

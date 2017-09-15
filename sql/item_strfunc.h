@@ -1029,6 +1029,7 @@ public:
   }
   bool resolve_type(THD *) override
   {
+    // Determine binary string length from max length of argument in bytes
     set_data_type_string(args[0]->max_length, &my_charset_bin);
     return false;
   }
@@ -1087,8 +1088,7 @@ public:
   String *val_str(String *) override;
   bool resolve_type(THD *) override
   {
-    uint32 max_result_length= args[0]->max_length * 2U +
-                              2U * collation.collation->mbmaxlen;
+    uint32 max_result_length= args[0]->max_char_length() + 2U;
     set_data_type_string(std::min<uint32>(max_result_length, MAX_BLOB_WIDTH),
                          args[0]->collation);
     return false;

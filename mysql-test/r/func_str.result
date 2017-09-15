@@ -737,7 +737,7 @@ t1	CREATE TABLE `t1` (
   `trim(BOTH _latin2' ' FROM _latin2' a ')` varchar(3) CHARACTER SET latin2 DEFAULT NULL,
   `repeat(_latin2'a',10)` varchar(10) CHARACTER SET latin2 DEFAULT NULL,
   `reverse(_latin2'ab')` varchar(2) CHARACTER SET latin2 DEFAULT NULL,
-  `quote(_latin2'ab')` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
+  `quote(_latin2'ab')` varchar(4) CHARACTER SET latin2 DEFAULT NULL,
   `soundex(_latin2'ab')` varchar(4) CHARACTER SET latin2 DEFAULT NULL,
   `substring(_latin2'ab',1)` varchar(2) CHARACTER SET latin2 DEFAULT NULL,
   `insert(_latin2'abcd',2,3,_latin2'ef')` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
@@ -4978,3 +4978,28 @@ SELECT COUNT(*), CONCAT(x, 'x') FROM (SELECT * FROM t) AS tt;
 COUNT(*)	CONCAT(x, 'x')
 0	NULL
 DROP TABLE t;
+SET default_storage_engine=InnoDB;
+# Bug#26049942 create table .. as select .. quote() give wrong length
+SET NAMES latin1;
+CREATE TABLE t1 AS SELECT quote('a');
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `quote('a')` varchar(3) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+SET NAMES utf8;
+CREATE TABLE t2 AS SELECT quote('a');
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `quote('a')` varchar(3) CHARACTER SET utf8 DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+SET NAMES utf8mb4;
+CREATE TABLE t3 AS SELECT quote('a');
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `quote('a')` varchar(3) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+SET NAMES DEFAULT;
+DROP TABLE t1, t2, t3;
