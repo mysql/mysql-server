@@ -5587,8 +5587,10 @@ fil_ibd_open(
 	}
 
 	/* Check if the file is already open. The space can be loaded
-	via fil_space_get_first_path(). On Windows this can lead to a
-	sharing violation when we attempt to open it again. */
+	via fil_space_get_first_path() on startup. This is a problem
+	for partitioning code. It's a convoluted call graph via the DD.
+	On Windows this can lead to a sharing violation when we attempt
+	to open it again. */
 
 	auto	shard = fil_system->shard_by_id(space_id);
 
@@ -5598,6 +5600,8 @@ fil_ibd_open(
 
 	if (space != nullptr) {
 
+		shard->space_detach(space);
+		shard->space_delete(space->id);
 		shard->space_free_low(space);
 	}
 
@@ -5610,9 +5614,6 @@ fil_ibd_open(
 	} else {
 		df.make_filepath(nullptr, table_name, IBD);
 	}
-
-	ut_a(space == nullptr
-	     || strcmp(space->files.front().name, df.filepath()) == 0);
 
 	/* Attempt to open the tablespace. */
 	if (df.open_read_only(strict) == DB_SUCCESS) {
