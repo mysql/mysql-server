@@ -275,10 +275,10 @@ const char *load_default_groups[]=
   0
 };
 
-static Program program;
 
 int main(int argc, char **argv)
 {
-  ::program.run(argc, argv);
+  Program program;
+  program.run(argc, argv);
   return 0;
 }
