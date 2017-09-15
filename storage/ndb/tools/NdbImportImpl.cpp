@@ -334,7 +334,9 @@ NdbImportImpl::Job::Job(NdbImportImpl& impl, uint jobno) :
   m_util(m_impl.m_util),
   m_jobno(jobno),
   m_name("job", m_jobno),
-  m_stats(m_util)
+  m_stats(m_util),
+  m_rowmap_in(m_util),
+  m_rowmap_out(m_util)
 {
   m_runno = 0;
   m_state = JobState::State_null;
@@ -381,6 +383,11 @@ NdbImportImpl::Job::Job(NdbImportImpl& impl, uint jobno) :
     const Name name("job", "stime");
     Stat* stat = stats.create(name, 0, 0);
     m_stat_stime = stat;
+  }
+  {
+    const Name name("job", "rowmap");
+    Stat* stat = stats.create(name, 0, 0);
+    m_stat_rowmap = stat;
   }
   log1("ctor");
 }
@@ -636,6 +643,9 @@ NdbImportImpl::Job::check_teams(bool dostop)
       // lock since diag team also writes to job rowmap
       m_rowmap_out.lock();
       m_rowmap_out.add(team->m_rowmap_out);
+      log1("rowmap " << m_rowmap_out.size() << " <- "
+                     << team->m_rowmap_out.size());
+      m_stat_rowmap->add(m_rowmap_out.size());
       m_rowmap_out.unlock();
       team->m_rowmap_out.clear();
     }
@@ -743,7 +753,8 @@ NdbImportImpl::Team::Team(Job& job,
   m_util(m_impl.m_util),
   m_teamno(job.m_teamcnt),
   m_name(name),
-  m_workercnt(workercnt)
+  m_workercnt(workercnt),
+  m_rowmap_out(m_util)
 {
   m_state = TeamState::State_null;
   m_workers = 0;
@@ -783,6 +794,11 @@ NdbImportImpl::Team::Team(Job& job,
     uint parent = m_job.m_stat_stime->m_id;
     Stat* stat = stats.create(name, parent, 0);
     m_stat_stime = stat;
+  }
+  {
+    const Name name(m_name, "rowmap");
+    Stat* stat = stats.create(name, 0, 0);
+    m_stat_rowmap = stat;
   }
   log1("ctor");
 }
@@ -949,6 +965,9 @@ NdbImportImpl::Team::check_workers()
     if (!w->m_rowmap_out.empty())
     {
       m_rowmap_out.add(w->m_rowmap_out);
+      log1("rowmap " << m_rowmap_out.size() << " <- "
+                     << w->m_rowmap_out.size());
+      m_stat_rowmap->add(m_rowmap_out.size());
       w->m_rowmap_out.clear();
     }
     log2("rowmap out: " << m_rowmap_out);
@@ -984,6 +1003,7 @@ NdbImportImpl::Team::do_stop()
     if (!w->m_rowmap_out.empty())
     {
       m_rowmap_out.add(w->m_rowmap_out);
+      m_stat_rowmap->add(m_rowmap_out.size());
       w->m_rowmap_out.clear();
     }
   }
@@ -1059,6 +1079,7 @@ NdbImportImpl::Worker::Worker(NdbImportImpl::Team& team, uint n) :
   m_util(m_impl.m_util),
   m_workerno(n),
   m_name(team.m_name, m_workerno),
+  m_rowmap_out(m_util),
   m_error(m_team.m_error)
 {
   m_state = WorkerState::State_null;
@@ -1099,6 +1120,11 @@ NdbImportImpl::Worker::Worker(NdbImportImpl::Team& team, uint n) :
     uint parent = m_team.m_stat_stime->m_id;
     Stat* stat = stats.create(name, parent, 0);
     m_stat_stime = stat;
+  }
+  {
+    const Name name(m_name, "rowmap");
+    Stat* stat = stats.create(name, 0, 0);
+    m_stat_rowmap = stat;
   }
   log1("ctor");
 }
@@ -1609,9 +1635,9 @@ NdbImportImpl::CsvInputWorker::do_init()
     {
       CsvInputTeam& team = static_cast<CsvInputTeam&>(m_team);
       WorkerFile& file = team.m_file;
-      RowMap::Ranges& ranges_in = rowmap_in.m_ranges;
+      RangeList& ranges_in = rowmap_in.m_ranges;
       require(!ranges_in.empty());
-      RowMap::Range range_in = ranges_in.front();
+      Range range_in = *ranges_in.front();
       /*
        * First range is likely to be the big one.  If the range
        * starts with rowid 0 seek to the end and erase it.
@@ -1629,7 +1655,7 @@ NdbImportImpl::CsvInputWorker::do_init()
         log1("file " << file.get_path() << ": "
              "seek to pos " << seekpos << " done");
         m_csvinput->do_resume(range_in);
-        ranges_in.erase(ranges_in.begin());
+        (void)ranges_in.pop_front();
       }
       else
       {
@@ -3068,6 +3094,8 @@ NdbImportImpl::ExecOpWorkerAsynch::state_poll()
                              temperrors, opt.m_temperrors);
     }
   }
+  log1("rowmap " << m_rowmap_out.size());
+  m_stat_rowmap->add(m_rowmap_out.size());
   m_util.free_rows(m_rows_free);
   m_execstate = ExecState::State_receive;
 }
@@ -3189,7 +3217,7 @@ NdbImportImpl::DiagTeam::read_old_diags(const char* name,
     uint pagecnt = opt.m_pagecnt;
     buf[i] = new Buf(true);
     buf[i]->alloc(pagesize, pagecnt);
-    RowMap rowmap_in;   // dummy
+    RowMap rowmap_in(m_util);   // dummy
     csvinput[i] = new CsvInput(m_impl.m_csv,
                                Name(name, i),
                                csvspec,
@@ -3300,7 +3328,7 @@ NdbImportImpl::DiagTeam::read_old_diags()
     Row* row = 0;
     while ((row = rows.pop_front()) != 0)
     {
-      RowMap::Range range;
+      Range range;
       // runno
       {
         const Attr& attr = table.get_attr("runno");
@@ -3791,12 +3819,12 @@ NdbImportImpl::DiagWorker::write_rowmap()
   Buf& buf = m_rowmap_buf;
   const Table& table = m_util.c_rowmap_table;
   const RowMap& rowmap = job.m_rowmap_out;
-  const RowMap::Ranges& ranges = rowmap.m_ranges;
-  RowMap::ConstIterator it;
-  for (it = ranges.begin(); it < ranges.end(); it++)
+  const RangeList& ranges = rowmap.m_ranges;
+  const Range* r = ranges.front();
+  while (r != 0)
   {
     Row* row = m_util.alloc_row(table);
-    const RowMap::Range& range = *it;
+    const Range& range = *r;
     m_util.set_rowmap_row(row, job.m_runno, range);
     buf.reset();
     m_rowmap_csv->add_line(row);
@@ -3806,6 +3834,7 @@ NdbImportImpl::DiagWorker::write_rowmap()
       m_team.m_job.m_fatal = true;
       return;
     }
+    r = r->next();
   }
 }
 
