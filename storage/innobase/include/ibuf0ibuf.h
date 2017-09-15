@@ -54,16 +54,15 @@ typedef enum {
 @see innodb_change_buffering_names */
 enum ibuf_use_t {
 	IBUF_USE_NONE = 0,
-	IBUF_USE_INSERT,		/** insert */
-	IBUF_USE_DELETE_MARK,		/** delete */
-	IBUF_USE_INSERT_DELETE_MARK,	/** insert+delete */
-	IBUF_USE_DELETE,		/** delete+purge */
-	IBUF_USE_ALL,			/** insert+delete+purge */
-	IBUF_USE_COUNT
+	IBUF_USE_INSERT,	/* insert */
+	IBUF_USE_DELETE_MARK,	/* delete */
+	IBUF_USE_INSERT_DELETE_MARK,	/* insert+delete */
+	IBUF_USE_DELETE,	/* delete+purge */
+	IBUF_USE_ALL		/* insert+delete+purge */
 };
 
 /** Operations that can currently be buffered. */
-extern ibuf_use_t	ibuf_use;
+extern ulong	innodb_change_buffering;
 
 /** The insert buffer control structure */
 extern ibuf_t*		ibuf;
