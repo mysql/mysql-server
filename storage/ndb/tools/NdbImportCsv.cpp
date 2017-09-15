@@ -448,7 +448,7 @@ NdbImportCsv::Input::do_init()
  * rowmap.  Input file seek is done by caller.
  */
 void
-NdbImportCsv::Input::do_resume(RowMap::Range range_in)
+NdbImportCsv::Input::do_resume(Range range_in)
 {
   m_startpos = range_in.m_endpos;
   m_startlineno = range_in.m_end + m_ignore_lines;
@@ -2680,7 +2680,7 @@ testinput1()
       out << bufdatac << "\\c" << endl;
     UtilRowList rows_out;
     UtilRowList rows_reject;
-    UtilRowMap rowmap_in;
+    UtilRowMap rowmap_in(util);
     CsvInput input(csv,
                    "csvinput",
                    csvspec,
@@ -2767,7 +2767,7 @@ testinput2()
   buf[1]->alloc(4096, 4);
   UtilRowList rows_out;
   UtilRowList rows_reject;
-  UtilRowMap rowmap_in;
+  UtilRowMap rowmap_in(util);
   UtilStats stats(util);
   CsvInput* input[2];
   input[0] = new CsvInput(csv, "csvinput-0", csvspec, table, *buf[0],

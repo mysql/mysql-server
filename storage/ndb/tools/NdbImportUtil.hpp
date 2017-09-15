@@ -181,6 +181,8 @@ public:
     void set_stats(Stats& stats, const char* name);
     void push_back(ListEnt* ent);
     void push_front(ListEnt* ent);
+    void push_after(ListEnt* ent1, ListEnt* ent2);
+    void push_before(ListEnt* ent1, ListEnt* ent2);
     ListEnt* pop_front();
     void remove(ListEnt* ent);
     void push_back_from(List& src);
@@ -416,26 +418,113 @@ public:
    * should have private row maps merged periodically to a global
    * row map.  Contents of the row map are written to t1.map etc and
    * are used to implement a --resume function.
+   *
+   * Implementation uses an ordered list.  The main operation is
+   * merge.  Lookup is used only when a resume is starting.  Change
+   * to a skip list later if necessary.
    */
+
+  struct Range : ListEnt {
+    Range();
+    virtual ~Range();
+    void copy(const Range& range2);
+    bool equal(const Range& range2) const {
+      return
+        m_start == range2.m_start &&
+        m_end == range2.m_end &&
+        m_startpos == range2.m_startpos &&
+        m_endpos == range2.m_endpos &&
+        m_reject == range2.m_reject;
+    }
+    Range* next() {
+      return static_cast<Range*>(m_next);
+    }
+    const Range* next() const {
+      return static_cast<const Range*>(m_next);
+    }
+    Range* prev() {
+      return static_cast<Range*>(m_prev);
+    }
+    const Range* prev() const {
+      return static_cast<const Range*>(m_prev);
+    }
+    uint64 m_start;           // starting rowid
+    uint64 m_end;             // next rowid after
+    uint64 m_startpos;        // byte offset of start in input
+    uint64 m_endpos;          // byte offset of end in input
+    uint64 m_reject;          // rejected rows (info only)
+  };
+
+  struct RangeList : private List, Lockable {
+    Range* front() {
+      return static_cast<Range*>(m_front);
+    }
+    const Range* front() const {
+      return static_cast<const Range*>(m_front);
+    }
+    Range* back() {
+      return static_cast<Range*>(m_back);
+    }
+    const Range* back() const {
+      return static_cast<const Range*>(m_back);
+    }
+    void push_back(Range* range) {
+      List::push_back(range);
+    }
+    void push_front(Range* range) {
+      List::push_front(range);
+    }
+    void push_after(Range* range1, Range* range2) {
+      List::push_after(range1, range2);
+    }
+    void push_before(Range* range1, Range* range2) {
+      List::push_before(range1, range2);
+    }
+    Range* pop_front() {
+      return static_cast<Range*>(List::pop_front());
+    }
+    void remove(Range* r) {
+      List::remove(r);
+    }
+    void push_back_from(RangeList& src) {
+      List::push_back_from(src);
+    }
+    uint cnt() const {
+      return m_cnt;
+    }
+    bool empty() const {
+      return m_cnt == 0;
+    }
+    void validate() const {
+      List::validate();
+    }
+  };
+
   struct RowMap : Lockable {
-    struct Range {
-      bool operator<(const Range& r2) const {
-        return m_start < r2.m_start;
-      }
-      uint64 m_start;           // starting rowid
-      uint64 m_end;             // next rowid after
-      uint64 m_startpos;        // byte offset of start in input
-      uint64 m_endpos;          // byte offset of end in input
-      uint64 m_reject;          // rejected rows (info only)
-    };
-    typedef std::vector<Range> Ranges;
-    typedef Ranges::iterator Iterator;
-    typedef Ranges::const_iterator ConstIterator;
-    bool empty() {
+    RowMap(NdbImportUtil& util);
+    bool empty() const {
       return m_ranges.empty();
     }
+    uint size() const {
+      return m_ranges.cnt();
+    }
     void clear() {
-      m_ranges.clear();
+      m_ranges_free.push_back_from(m_ranges);
+    }
+    bool equal(const RowMap& map2) const {
+      if (size() != map2.size())
+        return false;
+      const Range* r = m_ranges.front();
+      const Range* r2 = map2.m_ranges.front();
+      for (uint i = 0; i < size(); i++) {
+        require(r != 0 && r2 != 0);
+        if (!r->equal(*r2))
+          return false;
+        r = r->next();
+        r2 = r2->next();
+      }
+      require(r == 0 && r2 == 0);
+      return true;
     }
     void add(const Row* row, bool reject) {
       Range r;
@@ -446,35 +535,62 @@ public:
       r.m_reject = (uint)reject;
       add(r);
     }
-    void add(const Range r);
-    void add(const RowMap& m);
-    bool find(uint64 rowid, Iterator& itout);
+    void add(Range range2);
+    void add(const RowMap& map2);
+    Range* find(uint64 rowid);
     bool remove(uint64 rowid);
-    bool merge_down(Range& rprev, Range r) {
-      if (rprev.m_end == r.m_start)
+    // try to extend r upwards by r2
+    static bool merge_up(Range* r, const Range* r2) {
+      if (r->m_end == r2->m_start)
       {
-        rprev.m_end = r.m_end;
-        rprev.m_endpos = r.m_endpos;
-        rprev.m_reject += r.m_reject;
+        r->m_end = r2->m_end;
+        r->m_endpos = r2->m_endpos;
+        r->m_reject += r2->m_reject;
         return true;
       }
-      require(rprev.m_end < r.m_start);
+      require(r->m_end < r2->m_start);
       return false;
     }
-    bool merge_up(Range& rnext, Range r) {
-      if (rnext.m_start == r.m_end)
+    // try to extend r downwards by r2
+    static bool merge_down(Range* r, const Range* r2) {
+      if (r->m_start == r2->m_end)
       {
-        rnext.m_start = r.m_start;
-        rnext.m_startpos = r.m_startpos;
-        rnext.m_reject += r.m_reject;
+        r->m_start = r2->m_start;
+        r->m_startpos = r2->m_startpos;
+        r->m_reject += r2->m_reject;
         return true;
       }
-      require(rnext.m_start > r.m_end);
+      require(r->m_start > r2->m_end);
       return false;
     }
     void get_total(uint64& rows, uint64& reject) const;
-    Ranges m_ranges;
+    Range* alloc_range() {
+      if (unlikely(m_ranges_free.empty())) {
+        Range* r = m_util.alloc_range(true);
+        m_ranges_free.push_back(r);
+      }
+      return m_ranges_free.pop_front();
+    }
+    void free_range(Range* r) {
+      m_ranges_free.push_back(r);
+    }
+#if defined(VM_TRACE) || defined(TEST_NDBIMPORTUTIL)
+    void validate() const;
+#else
+    void validate() const {}
+#endif
+    NdbImportUtil& m_util;
+    RangeList m_ranges;
+    // store free ranges locally to avoid mutexing
+    RangeList m_ranges_free;
   };
+
+  Range* alloc_range(bool dolock);
+  void alloc_ranges(uint cnt, RangeList& dst);
+  void free_range(Range* r);
+  void free_ranges(RangeList& src);
+
+  RangeList* c_ranges_free;
 
   // errormap
 
@@ -555,7 +671,7 @@ public:
 
   void set_rowmap_row(Row* row,
                       uint32 runno,
-                      const RowMap::Range& range);
+                      const Range& range);
 
   void set_stopt_row(Row* row,
                      uint32 runno,
@@ -790,7 +906,7 @@ public:
 NdbOut& operator<<(NdbOut& out, const NdbImportUtil& util);
 NdbOut& operator<<(NdbOut& out, const NdbImportUtil::Name& name);
 NdbOut& operator<<(NdbOut& out, const NdbImportUtil::RowMap& rowmap);
-NdbOut& operator<<(NdbOut& out, const NdbImportUtil::RowMap::Range& range);
+NdbOut& operator<<(NdbOut& out, const NdbImportUtil::Range& range);
 NdbOut& operator<<(NdbOut& out, const NdbImportUtil::Buf& buf);
 NdbOut& operator<<(NdbOut& out, const NdbImportUtil::Stats& stats);
 NdbOut& operator<<(NdbOut& out, const NdbImportUtil::Timer& timer);

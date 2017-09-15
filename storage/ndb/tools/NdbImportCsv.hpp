@@ -54,6 +54,8 @@ public:
   typedef NdbImportUtil::Blob Blob;
   typedef NdbImportUtil::RowList RowList;
   typedef NdbImportUtil::RowCtl RowCtl;
+  typedef NdbImportUtil::Range Range;
+  typedef NdbImportUtil::RangeList RangeList;
   typedef NdbImportUtil::RowMap RowMap;
   typedef NdbImportUtil::Buf Buf;
   typedef NdbImportUtil::Stats Stats;
@@ -278,7 +280,7 @@ public:
           Stats& stats);
     ~Input();
     void do_init();
-    void do_resume(RowMap::Range range_in);
+    void do_resume(Range range_in);
     void do_parse();
     void do_eval();
     void do_send(uint& curr, uint& left);
