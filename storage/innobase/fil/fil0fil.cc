@@ -1005,7 +1005,7 @@ public:
 	/** Free a tablespace object on which fil_space_detach() was invoked.
 	There must not be any pending i/o's or flushes on the files.
 	@param[in,out]	space		tablespace */
-	static void space_free_low(fil_space_t* space);
+	static void space_free_low(fil_space_t*& space);
 
 	/** Wait for an empty slot to reserve for opening a file.
 	@return true on success. */
@@ -2991,10 +2991,10 @@ Fil_shard::space_detach(fil_space_t* space)
 }
 
 /** Free a tablespace object on which fil_space_detach() was invoked.
-There must not be any pending i/o's or flushes on the files.
+There must not be any pending I/O's or flushes on the files.
 @param[in,out]	space		tablespace */
 void
-Fil_shard::space_free_low(fil_space_t* space)
+Fil_shard::space_free_low(fil_space_t*& space)
 {
 	ut_ad(srv_fast_shutdown == 2 || space->max_lsn == 0);
 
@@ -3015,6 +3015,8 @@ Fil_shard::space_free_low(fil_space_t* space)
 
 	ut_free(space->name);
 	ut_free(space);
+
+	space = nullptr;
 }
 
 /** Frees a space object from the tablespace memory cache.
@@ -5596,17 +5598,10 @@ fil_ibd_open(
 
 	if (space != nullptr) {
 
-		shard->mutex_release();
-
-		shard->close_file(space_id);
-
-		ut_a(space->flags == flags);
-		ut_a(space->purpose == purpose);
-		ut_a(space->files.size() == 1);
-		ut_a(strcmp(space->name, space_name) == 0);
-	} else {
-		shard->mutex_release();
+		shard->space_free_low(space);
 	}
+
+	shard->mutex_release();
 
 	df.init(space_name, flags);
 
@@ -5657,23 +5652,20 @@ fil_ibd_open(
 		return(DB_SUCCESS);
 	}
 
-	if (space == nullptr) {
+	space = fil_space_create(space_name, space_id, flags, purpose);
 
-		space = fil_space_create(space_name, space_id, flags, purpose);
+	if (space == nullptr){
+		return(DB_ERROR);
+	}
 
-		if (space == nullptr){
-			return(DB_ERROR);
-		}
+	/* We do not measure the size of the file, that is why
+	we pass the 0 below */
 
-		/* We do not measure the size of the file, that is why
-		we pass the 0 below */
+	const fil_node_t*	file = shard->create_node(
+		df.filepath(), 0, space, false, true, atomic_write);
 
-		const fil_node_t*	file = shard->create_node(
-			df.filepath(), 0, space, false, true, atomic_write);
-
-		if (file == nullptr) {
-			return(DB_ERROR);
-		}
+	if (file == nullptr) {
+		return(DB_ERROR);
 	}
 
 	/* For encryption tablespace, initialize encryption information.*/

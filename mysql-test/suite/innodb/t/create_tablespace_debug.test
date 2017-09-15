@@ -3,6 +3,8 @@
 #
 
 --source include/have_debug.inc
+--source include/not_valgrind.inc
+
 SET DEFAULT_STORAGE_ENGINE=InnoDB;
 
 # Set these up for show_i_s_tablespaces.inc 
