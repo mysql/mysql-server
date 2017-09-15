@@ -86,6 +86,9 @@ ndb_share: Need WL#9185 MySQL Cluster support for new DD
 ndb_ddl_open_trans: Need WL#9185 MySQL Cluster support for new DD
 ndb_dist_priv: Need WL#9185 MySQL Cluster support for new DD
 
+# Need to remove stale .ndb files for DROP DATABASE
+drop_database_stale: Need WL#9185 MySQL Cluster support for new DD
+
 # Problem with inplace alter table, probably share released too early
 # (occurs when mtr.pl is run with --mysqld=--log-bin argument)
 ndb_addnode: Need WL#9185 MySQL Cluster support for new DD

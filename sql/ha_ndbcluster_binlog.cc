@@ -1556,7 +1556,7 @@ class Ndb_binlog_setup {
     }
 
     // Iterate over remaining NDB tables found in DD, they
-    // dojn't exists in NDB anymore as they haven't
+    // don't exist in NDB anymore as they haven't
     // been removed
 
     for (const auto ndb_table_name : ndb_tables_in_DD)
@@ -1602,6 +1602,15 @@ class Ndb_binlog_setup {
         return false;
       }
     }
+
+    // NOTE! While upgrading MySQL Server from version
+    // without DD the synchronize code should loop through and
+    // remove files that ndbcluster used to put in the data directory
+    // (like .ndb and .frm files). Such files would otherwise prevent
+    // for example DROP DATABASE to drop the actual data directory.
+    // This point where it's known that the DD is in synch with
+    // NDB's dictionary would be a good place to do that removal of
+    // old files from the data directory.
 
     ndb_log_info("Completed metadata synchronization");
 

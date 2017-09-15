@@ -13288,9 +13288,10 @@ int ndbcluster_table_exists_in_engine(handlerton*, THD* thd,
   Drop a database and all its tables from NDB
 */
 
+static
 int ndbcluster_drop_database_impl(THD *thd, const char *path)
 {
-  DBUG_ENTER("ndbcluster_drop_database");
+  DBUG_ENTER("ndbcluster_drop_database_impl");
   char dbname[FN_HEADLEN];
   Ndb* ndb;
   NdbDictionary::Dictionary::List list;
@@ -13374,6 +13375,12 @@ static void ndbcluster_drop_database(handlerton *hton, char *path)
   {
     DBUG_VOID_RETURN;
   }
+
+  // NOTE! While upgrading MySQL Server from version
+  // without DD there might be remaining .ndb and .frm files.
+  // Such files would prevent DROP DATABASE to drop the actual
+  // data directory and should be removed probably remove at this
+  // point or in the "schema distribution synch" code.
 
   char db[FN_REFLEN];
   ha_ndbcluster::set_dbname(path, db);

@@ -1,0 +1,89 @@
+#
+# Testcases for bug#44529 and bug#20480035 split out
+# from ndb_multi.test waiting for wolution how to remove
+# "stale" .ndb files from the data directory of MySQL Server.
+# The new DD(data dictionary) based MySQL Server does not use
+# such files but it may very well be the case that such files
+# are left behind in the data dir and thus preventing drop
+# of for example databases
+
+--source include/have_multi_ndb.inc
+
+# Bug#44529 Cannot drop database with stale temporary tables
+connection server1;
+create database db;
+use db;
+create table t1(x int) engine=ndb;
+connection server2;
+--let $MYSQLD_DATADIR= `SELECT @@datadir`
+use db;
+show tables;
+--write_file $MYSQLD_DATADIR/db/#sql-1c17_25d0.ndb
+EOF
+connection server1;
+drop database db;
+connection server2;
+--error ER_BAD_DB_ERROR
+use db;
+
+#
+# Bug#20480035 REMOVE MCP_BUG44529
+#  - The mysqld participating in schema distribution
+#    of DROP DATABASE failed to remove the database
+#    when there was a .ndb file in the directory
+#    which didn't have any corresponding table in NDB.
+#  - Fix by adding an additional check for leftover .ndb
+#    files in ndbcluster's DROP DATABASE implementation.
+#
+
+--echo #
+--echo # 1. Check that DROP DATABASE removes leftover .ndb file
+--echo #    in the database directory
+--echo #
+--connection server1
+create database db;
+use db;
+create table t1(x int) engine=ndb;
+create table t2(b int primary key) engine=ndb;
+create table t3_default_engine(c int primary key);
+--let $MYSQLD_DATADIR= `SELECT @@datadir`
+# Write emtpy .ndb file with normal file name
+--write_file $MYSQLD_DATADIR/db/t4.ndb
+EOF
+# Write emtpy .ndb file with temporary file name
+--write_file $MYSQLD_DATADIR/db/#sql-1c17_25d0.ndb
+EOF
+
+drop database db;
+
+--echo #
+--echo # 2. Check that DROP DATABASE removes leftover .ndb file
+--echo #    in the database directory on participating mysqld.
+--echo #    This is the same testcase as BUG44529 with comments
+--echo #
+--echo # Create DATABASE and one table on first mysqld
+--connection server1
+create database db;
+use db;
+create table t1(x int) engine=ndb;
+
+--echo # Show that DATABASE exist on the pariticipant(second mysqld)
+--echo # and create a .ndb file without corresponding table in NDB
+--connection server2
+use db;
+show tables;
+--let $MYSQLD_DATADIR= `SELECT @@datadir`
+--write_file $MYSQLD_DATADIR/db/#sql-1c17_25d0.ndb
+EOF
+
+--echo # Drop the DATABASE from first mysqld
+--connection server1
+drop database db;
+
+--echo # Check that the pariticipant has dropped the DATABASE
+--connection server2
+--error ER_BAD_DB_ERROR
+use db;
+
+--connection server1
+
