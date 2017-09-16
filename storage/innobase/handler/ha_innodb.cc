@@ -4009,6 +4009,8 @@ innobase_post_recover()
 		log_ddl->recover();
 	}
 
+	fil_free_scanned_files();
+
 	if (srv_read_only_mode
 	    || srv_force_recovery >= SRV_FORCE_NO_BACKGROUND) {
 		purge_sys->state = PURGE_STATE_DISABLED;

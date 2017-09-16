@@ -1536,6 +1536,13 @@ public:
 		const char*	old_name,
 		const char*	new_name)
 		MY_ATTRIBUTE((warn_unused_result));
+
+	/** Free the data structures required for recovery. */
+	void free_scanned_files()
+	{
+		m_dirs.clear();
+	}
+
 private:
 	/** Open an ibd tablespace and add it to the InnoDB data structures.
 	This is similar to fil_ibd_open() except that it is used while
@@ -9371,8 +9378,8 @@ fil_tablespace_redo_create(
 
 	if (result.second == nullptr) {
 
-		/* No files map to this tablespace ID. It's possible that
-		the files were deleted later or ar misisng. */
+		/* No file maps to this tablespace ID. It's possible that
+		the file was deleted later or is misisng. */
 
 		return(ptr);
 	}
@@ -9397,7 +9404,8 @@ fil_tablespace_redo_create(
 	return(ptr);
 }
 
-/** Redo a tablespace rename
+/** Redo a tablespace rename.
+This function doesn't do anything, simply parses the redo log record.
 @param[in]	ptr		redo log record
 @param[in]	end		end of the redo log buffer
 @param[in]	page_id		Tablespace Id and first page in file
@@ -9522,47 +9530,6 @@ fil_tablespace_redo_rename(
 		recv_sys->found_corrupt_log = true;
 
 		return(nullptr);
-	}
-
-	const auto	result = fil_system->get_scanned_files(page_id.space());
-
-	if (result.second == nullptr) {
-
-		/* No file on disk maps to this tablespace ID. It's possible
-		that the files were deleted later or are misisng. */
-
-		return(ptr);
-	}
-
-	/* Duplicates should have been sorted out before start of recovery. */
-
-	ut_a(result.second->size() == 1);
-
-	std::string	abs_path = Fil_path::get_real_path(
-		result.first + result.second->front());
-
-	if (abs_path.compare(abs_to_name) == 0) {
-
-		/* Rename must have succeeded, open the file. */
-
-		bool	success;
-
-		success = fil_tablespace_open_for_recovery(page_id.space());
-
-		if (!success) {
-
-			ib::info()
-				<< "Rename '" << from_name << "' to '"
-				<< to_name << "' failed!";
-		}
-
-	} else if (abs_path.compare(abs_from_name) == 0
-		   && !fil_op_replay_rename(page_id, from_name, to_name)) {
-
-		ib::info()
-			<< "MLOG_FILE_RENAME tablespace ID " << page_id.space()
-			<< ": From '" << from_name << "'"
-			<< " to '" << to_name << "' failed!";
 	}
 
 	return(ptr);
@@ -10649,8 +10616,6 @@ Fil_system::prepare_open_for_business(bool read_only_mode)
 			<< ", failures " << failed;
 	}
 
-	m_dirs.clear();
-
 	return(failed == 0 ? DB_SUCCESS : DB_ERROR);
 }
 
@@ -10678,4 +10643,11 @@ std::string
 fil_get_dirs()
 {
 	return(fil_system->get_dirs());
+}
+
+/** Free the data structures required for recovery. */
+void
+fil_free_scanned_files()
+{
+	fil_system->free_scanned_files();
 }

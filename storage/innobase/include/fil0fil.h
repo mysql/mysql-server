@@ -1847,7 +1847,7 @@ std::string
 fil_get_dirs()
 	MY_ATTRIBUTE((warn_unused_result));
 
-/* Rename a tablespace by its name only
+/** Rename a tablespace by its name only
 @param[in]	old_name	old tablespace name
 @param[in]	new_name	new tablespace name
 @return DB_SUCCESS on success */
@@ -1856,5 +1856,9 @@ fil_rename_tablespace_by_name(
         const char*	old_name,
         const char*     new_name)
 	MY_ATTRIBUTE((warn_unused_result));
+
+/** Free the data structures required for recovery. */
+void
+fil_free_scanned_files();
 
 #endif /* fil0fil_h */
