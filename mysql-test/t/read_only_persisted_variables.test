@@ -397,3 +397,26 @@ SET @@persist_only.innodb_buffer_pool_load_at_startup= "";
 RESET PERSIST;
 DROP USER wl9787;
 --remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
+
+--echo #
+--echo # Bug26395134: SET PERSIST_ONLY HAS WRONG EFFECT ON P_S.VARIABLES_INFO
+--echo #
+
+SELECT VARIABLE_SOURCE, SET_USER, SET_HOST FROM performance_schema.variables_info
+  WHERE VARIABLE_NAME = 'max_connections';
+SET PERSIST_ONLY max_connections = 151;
+# ensure user/host/timestamp/variable_source are not changed.
+SELECT VARIABLE_SOURCE, SET_USER, SET_HOST FROM performance_schema.variables_info
+  WHERE VARIABLE_NAME = 'max_connections';
+
+--echo # Restart server
+--let $restart_parameters=restart
+--source include/restart_mysqld.inc
+
+# ensure variable source is set to PERSISTED
+SELECT VARIABLE_SOURCE, SET_USER, SET_HOST FROM performance_schema.variables_info
+  WHERE VARIABLE_NAME = 'max_connections';
+
+# cleanup
+RESET PERSIST;
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf

@@ -1053,20 +1053,13 @@ int set_var::light_check(THD *thd)
 }
 
 /**
-  Update variable source.
+  Update variable source, user, host and timestamp values.
 */
 
-void set_var::update_source()
+void set_var::update_source_user_host_timestamp(THD *thd)
 {
-    var->set_source(enum_variable_source::DYNAMIC);
-    var->set_source_name(EMPTY_STR.str);
-}
-
-/**
-  Update variables USER, HOST, TIMESTAMP
-*/
-void set_var::update_user_host_timestamp(THD *thd)
-{
+  var->set_source(enum_variable_source::DYNAMIC);
+  var->set_source_name(EMPTY_STR.str);
   var->set_user_host(thd);
   var->set_timestamp();
 }
@@ -1094,10 +1087,14 @@ int set_var::update(THD *thd)
     else
       ret= (int) var->set_default(thd, this);
   }
-  if (ret == 0)
+  /*
+   For PERSIST_ONLY syntax we dont change the value of the variable
+   for the current session, thus we should not change variables
+   source/timestamp/user/host.
+  */
+  if (ret == 0 && type != OPT_PERSIST_ONLY)
   {
-    update_user_host_timestamp(thd);
-    update_source();
+    update_source_user_host_timestamp(thd);
   }
   return ret;
 }
