@@ -240,7 +240,7 @@ static PSI_rwlock_key key_rwlock_openssl;
 
 static PSI_rwlock_info openssl_rwlocks[]=
 {
-  { &key_rwlock_openssl, "CRYPTO_dynlock_value::lock", 0}
+  { &key_rwlock_openssl, "CRYPTO_dynlock_value::lock", 0, 0, nullptr }
 };
 #endif
 
