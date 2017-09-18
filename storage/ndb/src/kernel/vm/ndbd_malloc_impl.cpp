@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1029,6 +1029,9 @@ void
 Ndbd_mem_manager::release(Uint32 start, Uint32 cnt)
 {
   assert(start);
+#if defined VM_TRACE || defined ERROR_INSERT
+  memset(m_base_page + start, 0xF5, cnt * sizeof(m_base_page[0]));
+#endif
 
   set(start, start+cnt-1);
 
@@ -1076,7 +1079,12 @@ Ndbd_mem_manager::alloc(AllocZone zone,
   {
     alloc_impl(z, ret, pages, min);
     if (*pages)
+    {
+#if defined VM_TRACE || defined ERROR_INSERT
+      memset(m_base_page + *ret, 0xF6, *pages * sizeof(m_base_page[0]));
+#endif
       return;
+    }
     if (z == 0)
       return;
     * pages = save;
