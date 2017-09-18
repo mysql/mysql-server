@@ -137,29 +137,11 @@ init_timers(void)
     sql_print_warning("The NANOSECOND timer is not available. "
                       "IDLE/STAGE/STATEMENT/TRANSACTION events in the performance_schema will not be timed.");
   }
-
-  if ((microsec_to_pico != 0) &&
-      (pfs_timer_info.microseconds.overhead < pfs_timer_info.nanoseconds.overhead))
-  {
-    sql_print_warning("The NANOSECOND timer has an overhead of %d, but is not the best choice: "
-                      "the MICROSECOND timer overhead is %d.",
-                      pfs_timer_info.nanoseconds.overhead,
-                      pfs_timer_info.microseconds.overhead);
-  }
 #else
   if (microsec_to_pico == 0)
   {
     sql_print_warning("The MICROSECOND timer is not available. "
                       "IDLE/STAGE/STATEMENT/TRANSACTION events in the performance_schema will not be timed.");
-  }
-
-  if ((nanosec_to_pico != 0) &&
-      (pfs_timer_info.nanoseconds.overhead < pfs_timer_info.microseconds.overhead))
-  {
-    sql_print_warning("The MICROSECOND timer has an overhead of %d, but is not the best choice: "
-                      "the NANOSECOND timer overhead is %d.",
-                      pfs_timer_info.microseconds.overhead,
-                      pfs_timer_info.nanoseconds.overhead);
   }
 #endif
 
