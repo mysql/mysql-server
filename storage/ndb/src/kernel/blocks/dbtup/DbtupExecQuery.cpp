@@ -282,6 +282,8 @@ Dbtup::insertActiveOpList(OperationrecPtr regOperPtr,
       prevOpPtr.p->op_struct.bit_field.m_load_diskpage_on_commit;
     regOperPtr.p->op_struct.bit_field.m_gci_written=
       prevOpPtr.p->op_struct.bit_field.m_gci_written;
+    regOperPtr.p->op_struct.bit_field.m_tuple_existed_at_start=
+      prevOpPtr.p->op_struct.bit_field.m_tuple_existed_at_start;
     regOperPtr.p->m_undo_buffer_space= prevOpPtr.p->m_undo_buffer_space;
     // start with prev mask (matters only for UPD o UPD)
 
@@ -947,16 +949,24 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
    
 
    const Uint32 loc_prepare_page_id = prepare_page_no;
-   if (Roptype == ZINSERT && Local_key::isInvalid(pageid, pageidx))
+   if (!Local_key::isInvalid(pageid, pageidx))
    {
-     // No tuple allocated yet
-     goto do_insert;
+     regOperPtr->op_struct.bit_field.m_tuple_existed_at_start = 1;
    }
-
-   if (Roptype == ZREFRESH && Local_key::isInvalid(pageid, pageidx))
+   else
    {
-     // No tuple allocated yet
-     goto do_refresh;
+     regOperPtr->op_struct.bit_field.m_tuple_existed_at_start = 0;
+     if (Roptype == ZINSERT)
+     {
+       // No tuple allocated yet
+       goto do_insert;
+     }
+     if (Roptype == ZREFRESH)
+     {
+       // No tuple allocated yet
+       goto do_refresh;
+     }
+     ndbrequire(!Local_key::isInvalid(pageid, pageidx));
    }
 
    if (unlikely(isCopyTuple(pageid, pageidx)))
@@ -2381,7 +2391,7 @@ exit_error:
 
 disk_prealloc_error:
   jam();
-  base->m_header_bits |= Tuple_header::FREED;
+  base->m_header_bits |= Tuple_header::FREE;
   setInvalidChecksum(base, regTabPtr);
   goto exit_error;
 }
@@ -4774,6 +4784,9 @@ Dbtup::nr_delete(Signal* signal, Uint32 senderData,
                key->m_page_no,
                key->m_page_idx,
                *ptr->get_mm_gci(tablePtr.p)));
+
+  /* A row is deleted as part of Copy fragment or Restore */
+  fragPtr.p->m_restore_row_count--;
 
   if (tablePtr.p->m_attributes[MM].m_no_of_varsize +
       tablePtr.p->m_attributes[MM].m_no_of_dynamic)

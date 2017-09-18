@@ -4965,7 +4965,7 @@ Backup::insertFileHeader(BackupFormat::FileType ft,
   if (ft == BackupFormat::LCP_FILE)
   {
     jam();
-    header->BackupVersion = htonl(NDBD_USE_PARTIAL_LCP);
+    header->BackupVersion = htonl(NDBD_USE_PARTIAL_LCP_v2);
   }
   else
   {
@@ -6260,6 +6260,7 @@ Backup::record_deleted_pageid(Uint32 pageNo, Uint32 record_size)
   c_backupFilePool.getPtr(currentFilePtr, ptr.p->m_current_data_file_ptr);
   OperationRecord & current_op = currentFilePtr.p->operation;
   OperationRecord & zero_op = zeroFilePtr.p->operation;
+  ndbrequire(ptr.p->m_num_parts_in_this_lcp != BackupFormat::NDB_MAX_LCP_PARTS);
   Uint32 * dst = current_op.dst;
   Uint32 dataLen = 2;
   Uint32 copy_array[2];
@@ -6295,6 +6296,7 @@ Backup::record_deleted_rowid(Uint32 pageNo, Uint32 pageIndex, Uint32 gci)
   c_backupFilePool.getPtr(currentFilePtr, ptr.p->m_current_data_file_ptr);
   OperationRecord & current_op = currentFilePtr.p->operation;
   OperationRecord & zero_op = zeroFilePtr.p->operation;
+  ndbrequire(ptr.p->m_num_parts_in_this_lcp != BackupFormat::NDB_MAX_LCP_PARTS);
   Uint32 * dst = current_op.dst;
   Uint32 dataLen = 3;
   Uint32 copy_array[3];
@@ -10904,16 +10906,33 @@ Backup::convert_ctl_page_to_host(
   lcpCtlFilePtr->MaxPartPairs = ntohl(lcpCtlFilePtr->MaxPartPairs);
   lcpCtlFilePtr->NumPartPairs = ntohl(lcpCtlFilePtr->NumPartPairs);
 
-  ndbrequire(BackupFormat::NDB_LCP_CTL_FILE_SIZE >= real_bytes_read);
+  ndbrequire((2 * BackupFormat::NDB_LCP_CTL_FILE_SIZE) >= real_bytes_read);
   ndbrequire(lcpCtlFilePtr->fileHeader.FileType ==
              BackupFormat::LCP_CTL_FILE);
   ndbrequire(memcmp(BACKUP_MAGIC, lcpCtlFilePtr->fileHeader.Magic, 8) == 0);
   ndbrequire(lcpCtlFilePtr->NumPartPairs <= lcpCtlFilePtr->MaxPartPairs);
   ndbrequire(lcpCtlFilePtr->NumPartPairs > 0);
-  ndbrequire(lcpCtlFilePtr->fileHeader.NdbVersion >= NDBD_USE_PARTIAL_LCP);
-
-  Uint32 total_parts = decompress_part_pairs(lcpCtlFilePtr,
-                                             lcpCtlFilePtr->NumPartPairs);
+  Uint32 total_parts;
+  if (lcpCtlFilePtr->fileHeader.BackupVersion == NDBD_USE_PARTIAL_LCP_v2)
+  {
+    lcpCtlFilePtr->RowCountLow = ntohl(lcpCtlFilePtr->RowCountLow);
+    lcpCtlFilePtr->RowCountHigh = ntohl(lcpCtlFilePtr->RowCountHigh);
+    total_parts = decompress_part_pairs(lcpCtlFilePtr,
+                                        lcpCtlFilePtr->NumPartPairs,
+                                        &lcpCtlFilePtr->partPairs[0]);
+  }
+  else
+  {
+    struct BackupFormat::LCPCtlFile *oldLcpCtlFilePtr =
+      (struct BackupFormat::LCPCtlFile*)lcpCtlFilePtr;
+    lcpCtlFilePtr->RowCountLow = 0;
+    lcpCtlFilePtr->RowCountHigh = 0;
+    ndbrequire(lcpCtlFilePtr->fileHeader.BackupVersion ==
+               NDBD_USE_PARTIAL_LCP_v1);
+    total_parts = decompress_part_pairs(lcpCtlFilePtr,
+                                        lcpCtlFilePtr->NumPartPairs,
+                                        &oldLcpCtlFilePtr->partPairs[0]);
+  }
   ndbrequire(total_parts <= lcpCtlFilePtr->MaxPartPairs);
   return true;
 }
@@ -10935,8 +10954,8 @@ Backup::convert_ctl_page_to_network(Uint32 *page)
              BackupFormat::LCP_CTL_FILE);
   ndbrequire(lcpCtlFilePtr->NumPartPairs <= lcpCtlFilePtr->MaxPartPairs);
   ndbrequire(lcpCtlFilePtr->NumPartPairs > 0);
-  ndbrequire(lcpCtlFilePtr->fileHeader.NdbVersion >= NDBD_USE_PARTIAL_LCP);
-  ndbrequire(lcpCtlFilePtr->fileHeader.BackupVersion == NDBD_USE_PARTIAL_LCP);
+  ndbrequire(lcpCtlFilePtr->fileHeader.NdbVersion >= NDBD_USE_PARTIAL_LCP_v2);
+  ndbrequire(lcpCtlFilePtr->fileHeader.BackupVersion == NDBD_USE_PARTIAL_LCP_v2);
 
   /* Magic is written/read as is */
   lcpCtlFilePtr->fileHeader.BackupVersion =
@@ -10973,6 +10992,9 @@ Backup::convert_ctl_page_to_network(Uint32 *page)
   Uint32 maxPartPairs = lcpCtlFilePtr->MaxPartPairs;
   lcpCtlFilePtr->MaxPartPairs = htonl(lcpCtlFilePtr->MaxPartPairs);
   lcpCtlFilePtr->NumPartPairs = htonl(lcpCtlFilePtr->NumPartPairs);
+
+  lcpCtlFilePtr->RowCountLow = htonl(lcpCtlFilePtr->RowCountLow);
+  lcpCtlFilePtr->RowCountHigh = htonl(lcpCtlFilePtr->RowCountHigh);
 
   Uint32 total_parts = compress_part_pairs(lcpCtlFilePtr, numPartPairs);
   ndbrequire(total_parts <= maxPartPairs);
@@ -11041,11 +11063,11 @@ Backup::compress_part_pairs(struct BackupFormat::LCPCtlFile *lcpCtlFilePtr,
 
 Uint32 Backup::decompress_part_pairs(
   struct BackupFormat::LCPCtlFile *lcpCtlFilePtr,
-  Uint32 num_parts)
+  Uint32 num_parts,
+  struct BackupFormat::PartPair *partPairs)
 {
   Uint32 total_parts = 0;
-  unsigned char *part_array =
-    (unsigned char*)&lcpCtlFilePtr->partPairs[0].startPart;
+  unsigned char *part_array = (unsigned char*)&partPairs[0].startPart;
   ndbrequire(num_parts <= BackupFormat::NDB_MAX_LCP_PARTS);
   memcpy(c_part_array, part_array, 3 * num_parts);
   Uint32 j = 0;
@@ -11056,8 +11078,8 @@ Uint32 Backup::decompress_part_pairs(
     Uint32 part_2 = c_part_array[j+2];
     Uint32 startPart = ((part_1 & 0xF) + (part_0 << 4));
     Uint32 numParts = (((part_1 >> 4) & 0xF)) + (part_2 << 4);
-    lcpCtlFilePtr->partPairs[part].startPart = startPart;
-    lcpCtlFilePtr->partPairs[part].numParts = numParts;
+    partPairs[part].startPart = startPart;
+    partPairs[part].numParts = numParts;
     total_parts += numParts;
     DEB_EXTRA_LCP(("(%u)decompress:tab(%u,%u) Part(%u), start:%u, num_parts: %u",
                    instance(),
@@ -11080,7 +11102,7 @@ Backup::lcp_init_ctl_file(Page32Ptr pagePtr)
     (struct BackupFormat::LCPCtlFile*)pagePtr.p;
 
   memcpy(lcpCtlFilePtr->fileHeader.Magic, BACKUP_MAGIC, 8);
-  lcpCtlFilePtr->fileHeader.BackupVersion = NDBD_USE_PARTIAL_LCP;
+  lcpCtlFilePtr->fileHeader.BackupVersion = NDBD_USE_PARTIAL_LCP_v2;
   lcpCtlFilePtr->fileHeader.SectionType = BackupFormat::FILE_HEADER;
   lcpCtlFilePtr->fileHeader.SectionLength = sz - 3;
   lcpCtlFilePtr->fileHeader.FileType = BackupFormat::LCP_CTL_FILE;
@@ -11107,6 +11129,8 @@ Backup::lcp_init_ctl_file(Page32Ptr pagePtr)
   lcpCtlFilePtr->LastDataFileNumber = BackupFormat::NDB_MAX_LCP_FILES - 1;
   lcpCtlFilePtr->MaxPartPairs = BackupFormat::NDB_MAX_LCP_PARTS;
   lcpCtlFilePtr->NumPartPairs = 1;
+  lcpCtlFilePtr->RowCountLow = 0;
+  lcpCtlFilePtr->RowCountHigh = 0;
   lcpCtlFilePtr->partPairs[0].startPart = 0;
   lcpCtlFilePtr->partPairs[0].numParts = BackupFormat::NDB_MAX_LCP_PARTS;
 }
@@ -11479,6 +11503,7 @@ void
 Backup::prepare_new_part_info(BackupRecordPtr ptr, Uint32 new_parts)
 {
   Uint32 remove_files = 0;
+  ptr.p->m_num_parts_in_this_lcp = new_parts;
   Uint32 old_num_parts = ptr.p->m_num_parts_in_lcp;
   if (old_num_parts != 0)
   {
@@ -12498,7 +12523,7 @@ Backup::lcp_write_ctl_file(Signal *signal, BackupRecordPtr ptr)
     (struct BackupFormat::LCPCtlFile*)pagePtr.p;
 
   memcpy(lcpCtlFilePtr->fileHeader.Magic, BACKUP_MAGIC, 8);
-  lcpCtlFilePtr->fileHeader.BackupVersion = NDBD_USE_PARTIAL_LCP;
+  lcpCtlFilePtr->fileHeader.BackupVersion = NDBD_USE_PARTIAL_LCP_v2;
 
   const Uint32 sz = sizeof(BackupFormat::FileHeader) >> 2;
   lcpCtlFilePtr->fileHeader.SectionType = BackupFormat::FILE_HEADER;
@@ -12562,6 +12587,8 @@ Backup::lcp_write_ctl_file(Signal *signal, BackupRecordPtr ptr)
     BackupFormat::NDB_MAX_LCP_FILES;
   lcpCtlFilePtr->NumPartPairs = ptr.p->m_num_parts_in_lcp;
   lcpCtlFilePtr->MaxPartPairs = BackupFormat::NDB_MAX_LCP_PARTS;
+  lcpCtlFilePtr->RowCountLow = Uint32(ptr.p->m_row_count & 0xFFFFFFFF);
+  lcpCtlFilePtr->RowCountHigh = Uint32(ptr.p->m_row_count >> 32);
 
   for (Uint32 i = 0; i < ptr.p->m_num_parts_in_lcp; i++)
   {

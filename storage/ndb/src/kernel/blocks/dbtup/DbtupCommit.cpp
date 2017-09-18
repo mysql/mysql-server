@@ -104,7 +104,7 @@ void Dbtup::execTUP_DEALLOCREQ(Signal* signal)
     PagePtr pagePtr;
     Tuple_header* ptr= (Tuple_header*)get_ptr(&pagePtr, &tmp, regTabPtr.p);
 
-    ndbrequire(ptr->m_header_bits & Tuple_header::FREED);
+    ndbrequire(ptr->m_header_bits & Tuple_header::FREE);
 
     if (regTabPtr.p->m_attributes[MM].m_no_of_varsize +
         regTabPtr.p->m_attributes[MM].m_no_of_dynamic)
@@ -286,7 +286,7 @@ Dbtup::dealloc_tuple(Signal* signal,
   Uint32 lcpScan_ptr_i= regFragPtr->m_lcp_scan_op;
 
   Uint32 bits = ptr->m_header_bits;
-  Uint32 extra_bits = Tuple_header::FREED;
+  Uint32 extra_bits = Tuple_header::FREE;
   if (bits & Tuple_header::DISK_PART)
   {
     jam();
@@ -371,6 +371,11 @@ Dbtup::dealloc_tuple(Signal* signal,
     regFragPtr->m_lcp_changed_rows++;
   }
   setInvalidChecksum(ptr, regTabPtr);
+  if (regOperPtr->op_struct.bit_field.m_tuple_existed_at_start)
+  {
+    ndbrequire(regFragPtr->m_restore_row_count > 0);
+    regFragPtr->m_restore_row_count--;
+  }
 }
 
 void
@@ -867,6 +872,10 @@ Dbtup::commit_operation(Signal* signal,
     regFragPtr->m_lcp_changed_rows++;
   }
   setChecksum(tuple_ptr, regTabPtr);
+  if (!regOperPtr->op_struct.bit_field.m_tuple_existed_at_start)
+  {
+    regFragPtr->m_restore_row_count++;
+  }
 }
 
 void

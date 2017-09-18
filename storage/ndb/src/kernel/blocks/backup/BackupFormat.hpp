@@ -105,6 +105,30 @@ struct BackupFormat {
     Uint16 numParts;
   };
 
+  struct OldLCPCtlFile
+  {
+    struct FileHeader fileHeader;
+    Uint32 Checksum;
+    Uint32 ValidFlag;
+    Uint32 TableId;
+    Uint32 FragmentId;
+    Uint32 CreateTableVersion;
+    Uint32 CreateGci;
+    Uint32 MaxGciCompleted;
+    Uint32 MaxGciWritten;
+    Uint32 LcpId;
+    Uint32 LocalLcpId;
+    Uint32 MaxPageCount;
+    Uint32 MaxNumberDataFiles;
+    Uint32 LastDataFileNumber;
+    Uint32 MaxPartPairs;
+    Uint32 NumPartPairs;
+    /**
+     * Flexible sized array of partPairs, there are
+     * NumPartPairs in the array here.
+     */
+    struct PartPair partPairs[1];
+  };
   struct LCPCtlFile
   {
     struct FileHeader fileHeader;
@@ -123,6 +147,9 @@ struct BackupFormat {
     Uint32 LastDataFileNumber;
     Uint32 MaxPartPairs;
     Uint32 NumPartPairs;
+    Uint32 RowCountLow;
+    Uint32 RowCountHigh;
+    Uint32 FutureUse[16];
     /**
      * Flexible sized array of partPairs, there are
      * NumPartPairs in the array here.

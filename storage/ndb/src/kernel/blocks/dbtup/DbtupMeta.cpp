@@ -776,6 +776,7 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   regFragPtr.p->m_restore_lcp_id = RNIL;
   regFragPtr.p->m_restore_local_lcp_id = 0;
   regFragPtr.p->m_fixedElemCount = 0;
+  regFragPtr.p->m_restore_row_count = 0;
   regFragPtr.p->m_lcp_start_gci = 0;
   regFragPtr.p->m_varElemCount = 0;
   for (Uint32 i = 0; i<MAX_FREE_LIST+1; i++)
@@ -3181,6 +3182,17 @@ Dbtup::get_frag_stats(Uint32 fragId) const
   return fs;
 }
 
+Uint64
+Dbtup::get_restore_row_count(Uint32 tableId, Uint32 fragId)
+{
+  TablerecPtr tabPtr;
+  Ptr<Fragrecord> fragPtr;
+  tabPtr.i= tableId;
+  ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
+  getFragmentrec(fragPtr, fragId, tabPtr.p);
+  return fragPtr.p->m_restore_row_count;
+}
+
 void
 Dbtup::get_lcp_frag_stats(Uint32 fragPtrI,
                           Uint32 startGci,
@@ -3259,7 +3271,7 @@ Dbtup::get_lcp_frag_stats(Uint32 fragPtrI,
   FragrecordPtr fragptr;
   fragptr.i = fragPtrI;
   ptrCheckGuard(fragptr, cnoOfFragrec, fragrecord);
-  row_count = fragptr.p->m_fixedElemCount;
+  row_count = fragptr.p->m_restore_row_count;
   row_change_count = fragptr.p->m_lcp_changed_rows;
   maxPageCount = fragptr.p->m_max_page_cnt;
 

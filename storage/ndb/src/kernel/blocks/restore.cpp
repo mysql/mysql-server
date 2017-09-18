@@ -711,7 +711,7 @@ Restore::lcp_create_ctl_done_open(Signal *signal, FilePtr file_ptr)
 
   memcpy(lcpCtlFilePtr->fileHeader.Magic, BACKUP_MAGIC, 8);
 
-  lcpCtlFilePtr->fileHeader.BackupVersion = NDBD_USE_PARTIAL_LCP;
+  lcpCtlFilePtr->fileHeader.BackupVersion = NDBD_USE_PARTIAL_LCP_v2;
   const Uint32 sz = sizeof(BackupFormat::FileHeader) >> 2;
   lcpCtlFilePtr->fileHeader.SectionType = BackupFormat::FILE_HEADER;
   lcpCtlFilePtr->fileHeader.SectionLength = sz - 3;
@@ -1390,7 +1390,8 @@ Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
 
   const Uint32 sz = sizeof(BackupFormat::FileHeader) >> 2;
   if ((memcmp(BACKUP_MAGIC, lcpCtlFilePtr->fileHeader.Magic, 8) != 0) ||
-      (lcpCtlFilePtr->fileHeader.BackupVersion != NDBD_USE_PARTIAL_LCP) ||
+      ((lcpCtlFilePtr->fileHeader.BackupVersion != NDBD_USE_PARTIAL_LCP_v1) &&
+       (lcpCtlFilePtr->fileHeader.BackupVersion != NDBD_USE_PARTIAL_LCP_v2)) ||
       (lcpCtlFilePtr->fileHeader.SectionType != BackupFormat::FILE_HEADER) ||
       (lcpCtlFilePtr->fileHeader.SectionLength != (sz - 3)) ||
       (lcpCtlFilePtr->fileHeader.FileType != BackupFormat::LCP_CTL_FILE) ||
@@ -1420,6 +1421,10 @@ Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
   Uint32 localLcpId = lcpCtlFilePtr->LocalLcpId;
   Uint32 maxPageCnt = lcpCtlFilePtr->MaxPageCount;
   Uint32 createTableVersion = lcpCtlFilePtr->CreateTableVersion;
+  Uint32 lcpCtlVersion = lcpCtlFilePtr->fileHeader.BackupVersion;
+  Uint64 rowCount = Uint64(lcpCtlFilePtr->RowCountLow) +
+                    (Uint64(lcpCtlFilePtr->RowCountHigh) << 32);
+
   if (createTableVersion == 0)
   {
     jam();
@@ -1519,6 +1524,8 @@ Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
     file_ptr.p->m_max_page_cnt = maxPageCnt;
     file_ptr.p->m_max_gci_written = maxGciWritten;
     file_ptr.p->m_used_ctl_file_no = file_ptr.p->m_ctl_file_no;
+    file_ptr.p->m_lcp_ctl_version = lcpCtlVersion;
+    file_ptr.p->m_rows_in_lcp = rowCount;
     if (file_ptr.p->m_ctl_file_no == 1)
     {
       jam();
@@ -1580,6 +1587,8 @@ Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
     file_ptr.p->m_restored_local_lcp_id = localLcpId;
     file_ptr.p->m_max_page_cnt = maxPageCnt;
     file_ptr.p->m_remove_ctl_file_no = 0;
+    file_ptr.p->m_lcp_ctl_version = lcpCtlVersion;
+    file_ptr.p->m_rows_in_lcp = rowCount;
     calculate_remove_old_data_files(file_ptr);
   }
   else
@@ -3318,6 +3327,27 @@ Restore::restore_lcp_conf(Signal *signal, FilePtr file_ptr)
    * TUP will send RESTORE_LCP_CONF
    */
   DEB_RES(("(%u)Complete restore", instance()));
+
+  if (file_ptr.p->m_lcp_ctl_version == NDBD_USE_PARTIAL_LCP_v2)
+  {
+    /**
+     * Important to verify that number of rows is what we expect.
+     * Otherwise we could go on with inconsistent database without
+     * knowing it. So better to crash and specify error.
+     */
+    if (file_ptr.p->m_rows_in_lcp != file_ptr.p->m_rows_restored)
+    {
+      g_eventLogger->info("Inconsistency in restoring"
+                          " tab(%u,%u), restored %llu rows"
+                          ", expected %llu rows",
+                          file_ptr.p->m_table_id,
+                          file_ptr.p->m_fragment_id,
+                          file_ptr.p->m_rows_restored,
+                          file_ptr.p->m_rows_in_lcp);
+      ndbrequire(file_ptr.p->m_rows_in_lcp == file_ptr.p->m_rows_restored)
+    }
+  }
+
   c_tup->complete_restore_lcp(signal, 
                               file_ptr.p->m_sender_ref,
                               file_ptr.p->m_sender_data,
@@ -3329,6 +3359,21 @@ Restore::restore_lcp_conf(Signal *signal, FilePtr file_ptr)
                               file_ptr.p->m_fragment_id);
   jamEntry();
 
+  if (c_tup->get_restore_row_count(file_ptr.p->m_table_id,
+                                   file_ptr.p->m_fragment_id) !=
+      file_ptr.p->m_rows_restored)
+  {
+    g_eventLogger->info("Inconsistency in restoring tab(%u,%u),"
+                        " restored %llu rows, TUP claims %llu rows",
+                        file_ptr.p->m_table_id,
+                        file_ptr.p->m_fragment_id,
+                        file_ptr.p->m_rows_restored,
+                        c_tup->get_restore_row_count(file_ptr.p->m_table_id,
+                                                 file_ptr.p->m_fragment_id));
+    ndbrequire(c_tup->get_restore_row_count(file_ptr.p->m_table_id,
+                                            file_ptr.p->m_fragment_id) ==
+               file_ptr.p->m_rows_in_lcp);
+  }
   signal->theData[0] = NDB_LE_ReadLCPComplete;
   signal->theData[1] = file_ptr.p->m_table_id;
   signal->theData[2] = file_ptr.p->m_fragment_id;

@@ -648,6 +648,7 @@ int runSystemRestart4(NDBT_Context* ctx, NDBT_Step* step){
   UtilTransactions utilTrans(*ctx->getTab());
   HugoTransactions hugoTrans(*ctx->getTab());
 
+  if (ctx->getProperty("SetMinTimeLcp"))
   {
     int val = DumpStateOrd::DihMinTimeBetweenLCP;
     if(restarter.dumpStateAllNodes(&val, 1) != 0){
@@ -690,25 +691,31 @@ int runSystemRestart4(NDBT_Context* ctx, NDBT_Step* step){
 				       false) == 0);
       currentRestartNodeIndex = (currentRestartNodeIndex + 1 ) % nodeCount;
     }
-    g_err << "Updating records..." << endl;
-    CHECK(hugoTrans.pkUpdateRecords(pNdb, records) == 0);
-    
-    g_err << "Restarting cluster..." << endl;
-    CHECK(restarter.restartAll() == 0);
-    CHECK(restarter.waitClusterStarted(timeout) == 0);
+    if (ctx->getProperty("PerformUpdates"))
     {
-      int val = DumpStateOrd::DihMinTimeBetweenLCP;
-      CHECK(restarter.dumpStateAllNodes(&val, 1) == 0);
+      g_err << "Updating records..." << endl;
+      CHECK(hugoTrans.pkUpdateRecords(pNdb, records) == 0);
     }
-    CHECK(pNdb->waitUntilReady(timeout) == 0);
+    if (ctx->getProperty("VerifyInsert"))
+    {
+      g_err << "Restarting cluster..." << endl;
+      CHECK(restarter.restartAll() == 0);
+      CHECK(restarter.waitClusterStarted(timeout) == 0);
+      if (ctx->getProperty("SetMinTimeLcp"))
+      {
+        int val = DumpStateOrd::DihMinTimeBetweenLCP;
+        CHECK(restarter.dumpStateAllNodes(&val, 1) == 0);
+      }
+      CHECK(pNdb->waitUntilReady(timeout) == 0);
 
-    g_err << "Verifying records..." << endl;
-    CHECK(hugoTrans.pkReadRecords(pNdb, records) == 0);
-    CHECK(hugoTrans.scanReadRecords(pNdb, records, 0, 64) == 0);
-    CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
-    CHECK(count == records);
-    if (result == NDBT_FAILED)
-      return result;
+      g_err << "Verifying records..." << endl;
+      CHECK(hugoTrans.pkReadRecords(pNdb, records) == 0);
+      CHECK(hugoTrans.scanReadRecords(pNdb, records, 0, 64) == 0);
+      CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
+      CHECK(count == records);
+      if (result == NDBT_FAILED)
+        return result;
+    }
 
     if (ctx->getProperty("StopOneNode"))
     {
@@ -719,15 +726,14 @@ int runSystemRestart4(NDBT_Context* ctx, NDBT_Step* step){
 				       true,
 				       false) == 0);
       currentRestartNodeIndex = (currentRestartNodeIndex - 1 ) % nodeCount;
+      g_err << "Verifying records again..." << endl;
+      CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
+      CHECK(hugoTrans.scanReadRecords(pNdb, records, 0, 64) == 0);
+      CHECK(hugoTrans.pkReadRecords(pNdb, records) == 0);
+      CHECK(count == records);
+      if (result == NDBT_FAILED)
+        return result;
     }
-
-    g_err << "Verifying records again..." << endl;
-    CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
-    CHECK(hugoTrans.scanReadRecords(pNdb, records, 0, 64) == 0);
-    CHECK(hugoTrans.pkReadRecords(pNdb, records) == 0);
-    CHECK(count == records);
-    if (result == NDBT_FAILED)
-      return result;
 
     remaining_records = records;
     remove_records = records / num_parts;
@@ -744,18 +750,22 @@ int runSystemRestart4(NDBT_Context* ctx, NDBT_Step* step){
 
       remaining_records -= remove_records;
 
-      g_err << "Verifying " << remaining_records
-            << " records remain..." << endl;
-      CHECK(hugoTrans.pkReadRecords(pNdb, remaining_records) == 0);
-      CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
-      CHECK(count == (remaining_records));
-      CHECK(hugoTrans.scanReadRecords(pNdb, remaining_records, 0, 64) == 0);
-      if (result == NDBT_FAILED)
-        return result;
+      if (ctx->getProperty("VerifyDelete"))
+      {
+        g_err << "Verifying " << remaining_records
+              << " records remain..." << endl;
+        CHECK(hugoTrans.pkReadRecords(pNdb, remaining_records) == 0);
+        CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
+        CHECK(count == (remaining_records));
+        CHECK(hugoTrans.scanReadRecords(pNdb, remaining_records, 0, 64) == 0);
+        if (result == NDBT_FAILED)
+          return result;
+      }
 
       g_err << "Restarting cluster..." << endl;
       CHECK(restarter.restartAll() == 0);
       CHECK(restarter.waitClusterStarted(timeout) == 0);
+      if (ctx->getProperty("SetMinTimeLcp"))
       {
         int val = DumpStateOrd::DihMinTimeBetweenLCP;
         CHECK(restarter.dumpStateAllNodes(&val, 1) == 0);
@@ -808,6 +818,7 @@ int runSystemRestart4(NDBT_Context* ctx, NDBT_Step* step){
     g_err << "Restarting cluster..." << endl;
     CHECK(restarter.restartAll() == 0);
     CHECK(restarter.waitClusterStarted(timeout) == 0);
+    if (ctx->getProperty("SetMinTimeLcp"))
     {
       int val = DumpStateOrd::DihMinTimeBetweenLCP;
       CHECK(restarter.dumpStateAllNodes(&val, 1) == 0);
@@ -843,6 +854,7 @@ int runSystemRestart4(NDBT_Context* ctx, NDBT_Step* step){
     
     CHECK(restarter.restartAll() == 0);
     CHECK(restarter.waitClusterStarted(timeout) == 0);
+    if (ctx->getProperty("SetMinTimeLcp"))
     {
       int val = DumpStateOrd::DihMinTimeBetweenLCP;
       CHECK(restarter.dumpStateAllNodes(&val, 1) == 0);
@@ -3559,8 +3571,12 @@ TESTCASE("SR4",
 	 "* 8. Restart 1 node -nostart\n"
 	 "* 9. Delete all records\n"
 	 "* 10. Restart cluster and verify records\n"){
-  TC_PROPERTY("StopOneNode", true);
+  TC_PROPERTY("StopOneNode", Uint32(1));
   TC_PROPERTY("NumParts", 2);
+  TC_PROPERTY("SetMinTimeLCP", Uint32(1));
+  TC_PROPERTY("PerformUpdates", Uint32(1));
+  TC_PROPERTY("VerifyInsert", Uint32(1));
+  TC_PROPERTY("VerifyDelete", Uint32(1));
   INITIALIZER(runWaitStarted);
   STEP(runSystemRestart4);
 }
@@ -3636,6 +3652,10 @@ TESTCASE("SR11", "More tests of SR4 variant\n")
 {
   TC_PROPERTY("StopOneNode", Uint32(1));
   TC_PROPERTY("NumParts", 10);
+  TC_PROPERTY("SetMinTimeLCP", Uint32(0));
+  TC_PROPERTY("PerformUpdates", Uint32(0));
+  TC_PROPERTY("VerifyInsert", Uint32(0));
+  TC_PROPERTY("VerifyDelete", Uint32(0));
   INITIALIZER(runWaitStarted);
   STEP(runSystemRestart4);
 }
@@ -3643,6 +3663,10 @@ TESTCASE("SR12", "More tests of SR4 variant\n")
 {
   TC_PROPERTY("StopOneNode", Uint32(0));
   TC_PROPERTY("NumParts", 10);
+  TC_PROPERTY("SetMinTimeLCP", Uint32(0));
+  TC_PROPERTY("PerformUpdates", Uint32(0));
+  TC_PROPERTY("VerifyInsert", Uint32(0));
+  TC_PROPERTY("VerifyDelete", Uint32(0));
   INITIALIZER(runWaitStarted);
   STEP(runSystemRestart4);
 }
@@ -3650,6 +3674,10 @@ TESTCASE("SR13", "More tests of SR4 variant\n")
 {
   TC_PROPERTY("StopOneNode", Uint32(1));
   TC_PROPERTY("NumParts", 5);
+  TC_PROPERTY("SetMinTimeLCP", Uint32(0));
+  TC_PROPERTY("PerformUpdates", Uint32(0));
+  TC_PROPERTY("VerifyInsert", Uint32(0));
+  TC_PROPERTY("VerifyDelete", Uint32(0));
   INITIALIZER(runWaitStarted);
   STEP(runSystemRestart4);
 }
@@ -3657,6 +3685,10 @@ TESTCASE("SR14", "More tests of SR4 variant\n")
 {
   TC_PROPERTY("StopOneNode", Uint32(0));
   TC_PROPERTY("NumParts", 5);
+  TC_PROPERTY("SetMinTimeLCP", Uint32(0));
+  TC_PROPERTY("PerformUpdates", Uint32(0));
+  TC_PROPERTY("VerifyInsert", Uint32(0));
+  TC_PROPERTY("VerifyDelete", Uint32(0));
   INITIALIZER(runWaitStarted);
   STEP(runSystemRestart4);
 }

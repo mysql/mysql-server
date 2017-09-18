@@ -142,6 +142,8 @@ private:
     Uint64 m_row_operations;
 
     Uint64 m_restore_start_time;
+    Uint64 m_rows_in_lcp;
+    Uint32 m_lcp_ctl_version;
     Uint32 m_restored_gcp_id;
     Uint32 m_restored_lcp_id;
     Uint32 m_restored_local_lcp_id;
