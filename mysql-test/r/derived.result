@@ -2838,7 +2838,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 4	DEPENDENT SUBQUERY	t4	NULL	system	PRIMARY,col_int_key	NULL	NULL	NULL	1	100.00	NULL
 4	DEPENDENT SUBQUERY	t3	NULL	index	NULL	col_varchar_key	7	NULL	20	90.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`pk` AS `x` from `test`.`t2` where (((<in_optimizer>((`test`.`t2`.`col_int_nokey`,`test`.`t2`.`col_int_key`),<exists>(/* select#4 */ select 1,1 from `test`.`t3` where ((('7' <> '10') or 0) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`col_int_nokey`) = '7') or <cache>(isnull('7'))), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`col_int_key`) = '8') or <cache>(isnull('8'))), true) and (`test`.`t3`.`col_varchar_key` <> 'b')) having (<if>(outer_field_is_not_null, <is_not_null_test>('7'), true) and <if>(outer_field_is_not_null, <is_not_null_test>('8'), true)))) and (`test`.`t2`.`pk` < 7)) xor (`test`.`t2`.`col_varchar_nokey` <> 'i')) and ('00:00:00' >= `test`.`t2`.`col_date_nokey`)) order by `test`.`t2`.`col_varchar_key`,`test`.`t2`.`pk`
+Note	1003	/* select#1 */ select `test`.`t2`.`pk` AS `x` from `test`.`t2` where (((<in_optimizer>((`test`.`t2`.`col_int_nokey`,`test`.`t2`.`col_int_key`),<exists>(/* select#4 */ select 1,1 from `test`.`t3` where ((('7' <> '10') or 0) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`col_int_nokey`) = '7') or isnull('7')), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`col_int_key`) = '8') or isnull('8')), true) and (`test`.`t3`.`col_varchar_key` <> 'b')) having (<if>(outer_field_is_not_null, <is_not_null_test>('7'), true) and <if>(outer_field_is_not_null, <is_not_null_test>('8'), true)))) and (`test`.`t2`.`pk` < 7)) xor (`test`.`t2`.`col_varchar_nokey` <> 'i')) and ('00:00:00' >= `test`.`t2`.`col_date_nokey`)) order by `test`.`t2`.`col_varchar_key`,`test`.`t2`.`pk`
 SELECT outr.pk AS x
 FROM (SELECT * FROM t1) AS outr2
 LEFT JOIN (SELECT * FROM t2) AS outr
@@ -4104,7 +4104,7 @@ FROM t3 AS subquery4_t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	subquery2_t2	NULL	system	PRIMARY,col_varchar_key	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	subquery3_t1	NULL	system	col_varchar_key	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	<subquery4>	NULL	const	<auto_key>	<auto_key>	4	const	1	100.00	Using where
+1	SIMPLE	<subquery4>	NULL	eq_ref	<auto_key>	<auto_key>	4	const	1	100.00	Using where
 1	SIMPLE	subquery2_t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
 4	MATERIALIZED	subquery4_t1	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
 Warnings:
