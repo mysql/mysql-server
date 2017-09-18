@@ -889,3 +889,35 @@ eval $query2;
 
 SET @@tmp_table_size=default;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #25050090: LIMITATION @@GROUP_CONCAT_MAX_LEN IS NOT RESPECTED
+--echo #
+
+SET group_concat_max_len= 50;
+CREATE TABLE t1 (c VARCHAR(40) NULL DEFAULT NULL) CHARACTER SET utf8mb4;
+
+CREATE TABLE t2 AS SELECT GROUP_CONCAT(t.c) as c FROM t1 t;
+SHOW CREATE TABLE t2;
+
+CREATE TABLE t3 AS SELECT GROUP_CONCAT(t.c) as c
+FROM t1 t
+UNION
+SELECT '' as c;
+SHOW CREATE TABLE t3;
+
+
+INSERT INTO t1 VALUES ('abcdefghijk'), ('pqrstuvwxyz'), ('124567890'), ('010011000111');
+INSERT INTO t1 VALUES ('abcdefghijk'), ('pqrstuvwxyz'), ('124567890'), ('010011000111');
+
+SELECT GROUP_CONCAT(t.c) as c
+FROM t1 t;
+
+SELECT GROUP_CONCAT(t.c) as c
+FROM t1 t
+UNION
+SELECT '' as c;
+
+
+SET group_concat_max_len= DEFAULT;
+DROP TABLE t1, t2, t3;

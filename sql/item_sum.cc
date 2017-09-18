@@ -4611,8 +4611,11 @@ int dump_leaf_key(void* key_arg, element_count count MY_ATTRIBUTE((unused)),
 
   item->row_count++;
 
-  /* stop if length of result more than max_length */
-  if (result->length() > item->max_length)
+  /*
+     Stop if the size of group_concat value, in bytes, is longer than
+     the maximum size.
+  */
+  if (result->length() > item->group_concat_max_len)
   {
     int well_formed_error;
     const CHARSET_INFO *cs= item->collation.collation;
@@ -4625,7 +4628,7 @@ int dump_leaf_key(void* key_arg, element_count count MY_ATTRIBUTE((unused)),
     */
     add_length= cs->cset->well_formed_len(cs,
                                           ptr + old_length,
-                                          ptr + item->max_length,
+                                          ptr + item->group_concat_max_len,
                                           result->length(),
                                           &well_formed_error);
     result->length(old_length + add_length);
@@ -4668,6 +4671,7 @@ Item_func_group_concat::Item_func_group_concat(const POS &pos,
    arg_count_order(opt_order_list ? opt_order_list->value.elements : 0),
    arg_count_field(select_list->elements()),
    row_count(0),
+   group_concat_max_len(0),
    distinct(distinct_arg),
    warning_for_row(FALSE),
    always_null(false),
@@ -4731,6 +4735,7 @@ Item_func_group_concat::Item_func_group_concat(THD *thd,
   arg_count_order(item->arg_count_order),
   arg_count_field(item->arg_count_field),
   row_count(item->row_count),
+  group_concat_max_len(item->group_concat_max_len),
   distinct(item->distinct),
   warning_for_row(item->warning_for_row),
   always_null(item->always_null),
@@ -4823,13 +4828,16 @@ Field *Item_func_group_concat::make_string_field(TABLE *table_arg)
   Field *field;
   DBUG_ASSERT(collation.collation);
   /*
-    max_characters is maximum number of characters
-    what can fit into max_length size. It's necessary
-    to use field size what allows to store group_concat
-    result without truncation. For this purpose we use
-    max_characters * CS->mbmaxlen.
+    Use mbminlen to determine maximum number of characters.
+    Compared to using mbmaxlen, this provides ability to
+    accommodate more characters in case of charsets that
+    support variable length characters.
+    If the actual data has characters with length less than
+    mbmaxlen, with this approach more characters can be stored.
   */
-  const uint32 max_characters= max_length / collation.collation->mbminlen;
+
+  const uint32 max_characters= group_concat_max_len /
+                               collation.collation->mbminlen;
   if (max_characters > CONVERT_IF_BIGGER_TO_BLOB)
     field= new (*THR_MALLOC)
       Field_blob( max_characters * collation.collation->mbmaxlen, maybe_null,
@@ -4965,10 +4973,11 @@ Item_func_group_concat::fix_fields(THD *thd, Item **ref)
   result.set_charset(collation.collation);
   result_field= 0;
   null_value= 1;
-  max_length= thd->variables.group_concat_max_len;
-  set_data_type(max_length/collation.collation->mbmaxlen >
-                CONVERT_IF_BIGGER_TO_BLOB ?
-                MYSQL_TYPE_BLOB : MYSQL_TYPE_VARCHAR);
+  group_concat_max_len= thd->variables.group_concat_max_len;
+  uint32 max_chars= group_concat_max_len / collation.collation->mbminlen;
+  uint max_byte_length= max_chars * collation.collation->mbmaxlen;
+  max_chars > CONVERT_IF_BIGGER_TO_BLOB ? set_data_type_blob(max_byte_length)
+                                        : set_data_type_string(max_chars);
 
   size_t offset;
   if (separator->needs_conversion(separator->length(), separator->charset(),

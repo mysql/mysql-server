@@ -1951,6 +1951,9 @@ class Item_func_group_concat final : public Item_sum
   /** The number of selected items, aka the expr list. */
   uint arg_count_field;
   uint row_count;
+  /** The maximum permitted result length in bytes as set for
+      group_concat_max_len system variable */
+  uint group_concat_max_len;
   bool distinct;
   bool warning_for_row;
   bool always_null;
