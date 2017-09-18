@@ -352,8 +352,7 @@ public:
   int resolve(THD *thd);
   int check(THD *thd);
   int update(THD *thd);
-  void update_source();
-  void update_user_host_timestamp(THD *thd);
+  void update_source_user_host_timestamp(THD *thd);
   int light_check(THD *thd);
   /**
     Print variable in short form.
