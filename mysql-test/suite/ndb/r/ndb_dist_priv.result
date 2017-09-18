@@ -144,11 +144,11 @@ BEGIN;
 UPDATE mysql.user SET Authentication_string = ''
 WHERE User = 'billy1';
 SET PASSWORD FOR 'billy1'@'127.0.0.1' = 'newpass';
-ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ERROR HY000: The ACL operation failed due to the following error from SE: errcode 146 - Lock timed out; Retry transaction
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1297	Got temporary error 266 'Time-out in NDB, probably caused by deadlock' from NDB
-Error	1205	Lock wait timeout exceeded; try restarting transaction
+Error	3501	The ACL operation failed due to the following error from SE: errcode 146 - Lock timed out; Retry transaction
 Warning	1297	Got temporary error 274 'Time-out in NDB, probably caused by deadlock' from NDB
 Warning	1297	Got temporary error 274 'Time-out in NDB, probably caused by deadlock' from NDB
 Error	1205	Lock wait timeout exceeded; try restarting transaction
