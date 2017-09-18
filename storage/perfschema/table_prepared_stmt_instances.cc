@@ -219,6 +219,7 @@ table_prepared_stmt_instances::get_row_count(void)
 table_prepared_stmt_instances::table_prepared_stmt_instances()
   : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0)
 {
+  m_normalizer = time_normalizer::get_statement();
 }
 
 void
@@ -360,13 +361,12 @@ table_prepared_stmt_instances::make_row(PFS_prepared_stmt *prepared_stmt)
            prepared_stmt->m_owner_object_schema,
            m_row.m_owner_object_schema_length);
 
-  time_normalizer *normalizer = time_normalizer::get(statement_timer);
   /* Get prepared statement prepare stats. */
-  m_row.m_prepare_stat.set(normalizer, &prepared_stmt->m_prepare_stat);
-  /* Get prepared statement reprepare stats. */
-  m_row.m_reprepare_stat.set(normalizer, &prepared_stmt->m_reprepare_stat);
+  m_row.m_prepare_stat.set(m_normalizer, &prepared_stmt->m_prepare_stat);
+  /* Get prepared statement re-prepare stats. */
+  m_row.m_reprepare_stat.set(m_normalizer, &prepared_stmt->m_reprepare_stat);
   /* Get prepared statement execute stats. */
-  m_row.m_execute_stat.set(normalizer, &prepared_stmt->m_execute_stat);
+  m_row.m_execute_stat.set(m_normalizer, &prepared_stmt->m_execute_stat);
 
   if (!prepared_stmt->m_lock.end_optimistic_lock(&lock))
   {

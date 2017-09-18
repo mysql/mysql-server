@@ -116,6 +116,7 @@ table_esgs_by_thread_by_event_name::get_row_count(void)
 table_esgs_by_thread_by_event_name::table_esgs_by_thread_by_event_name()
   : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos()
 {
+  m_normalizer = time_normalizer::get_stage();
 }
 
 void
@@ -128,7 +129,6 @@ table_esgs_by_thread_by_event_name::reset_position(void)
 int
 table_esgs_by_thread_by_event_name::rnd_init(bool)
 {
-  m_normalizer = time_normalizer::get(stage_timer);
   return 0;
 }
 
@@ -181,8 +181,6 @@ int
 table_esgs_by_thread_by_event_name::index_init(uint idx MY_ATTRIBUTE((unused)),
                                                bool)
 {
-  m_normalizer = time_normalizer::get(stage_timer);
-
   DBUG_ASSERT(idx == 0);
   m_opened_index = PFS_NEW(PFS_index_esgs_by_thread_by_event_name);
   m_index = m_opened_index;

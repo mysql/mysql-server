@@ -65,7 +65,6 @@ show create table setup_actors;
 show create table setup_consumers;
 show create table setup_instruments;
 show create table setup_objects;
-show create table setup_timers;
 show create table socket_instances;
 show create table socket_summary_by_instance;
 show create table socket_summary_by_event_name;

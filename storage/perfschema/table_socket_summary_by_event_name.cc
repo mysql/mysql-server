@@ -105,6 +105,7 @@ table_socket_summary_by_event_name::create(PFS_engine_table_share *)
 table_socket_summary_by_event_name::table_socket_summary_by_event_name()
   : PFS_engine_table(&m_share, &m_pos), m_pos(1), m_next_pos(1)
 {
+  m_normalizer = time_normalizer::get_wait();
 }
 
 int
@@ -208,10 +209,8 @@ table_socket_summary_by_event_name::make_row(PFS_socket_class *socket_class)
   PFS_instance_socket_io_stat_visitor visitor;
   PFS_instance_iterator::visit_socket_instances(socket_class, &visitor);
 
-  time_normalizer *normalizer = time_normalizer::get(wait_timer);
-
   /* Collect timer and byte count stats */
-  m_row.m_io_stat.set(normalizer, &visitor.m_socket_io_stat);
+  m_row.m_io_stat.set(m_normalizer, &visitor.m_socket_io_stat);
 
   return 0;
 }

@@ -239,6 +239,7 @@ table_events_waits_summary_by_instance::delete_all_rows(void)
 table_events_waits_summary_by_instance::table_events_waits_summary_by_instance()
   : table_all_instr(&m_share)
 {
+  m_normalizer = time_normalizer::get_wait();
 }
 
 int
@@ -281,7 +282,6 @@ table_events_waits_summary_by_instance::make_instr_row(
   m_row.m_name_length = klass->m_name_length;
   m_row.m_object_instance_addr = (intptr)object_instance_begin;
 
-  get_normalizer(klass);
   m_row.m_stat.set(m_normalizer, pfs_stat);
 
   if (!pfs->m_lock.end_optimistic_lock(&lock))

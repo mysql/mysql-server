@@ -404,6 +404,15 @@ int main()
   struct timespec ts;
   return clock_gettime(CLOCK_MONOTONIC, &ts);
 }" HAVE_CLOCK_GETTIME)
+
+CHECK_C_SOURCE_RUNS("
+#include <time.h>
+int main()
+{
+  struct timespec ts;
+  return clock_gettime(CLOCK_REALTIME, &ts);
+}" HAVE_CLOCK_REALTIME)
+
 # For libevent
 SET(DNS_USE_CPU_CLOCK_FOR_ID CACHE ${HAVE_CLOCK_GETTIME} INTERNAL "")
 

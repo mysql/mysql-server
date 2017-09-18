@@ -86,7 +86,6 @@ performance_schema	setup_consumers	def
 performance_schema	setup_instruments	def
 performance_schema	setup_objects	def
 performance_schema	setup_threads	def
-performance_schema	setup_timers	def
 performance_schema	socket_instances	def
 performance_schema	socket_summary_by_event_name	def
 performance_schema	socket_summary_by_instance	def
@@ -192,7 +191,6 @@ setup_consumers	BASE TABLE	PERFORMANCE_SCHEMA
 setup_instruments	BASE TABLE	PERFORMANCE_SCHEMA
 setup_objects	BASE TABLE	PERFORMANCE_SCHEMA
 setup_threads	BASE TABLE	PERFORMANCE_SCHEMA
-setup_timers	BASE TABLE	PERFORMANCE_SCHEMA
 socket_instances	BASE TABLE	PERFORMANCE_SCHEMA
 socket_summary_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
 socket_summary_by_instance	BASE TABLE	PERFORMANCE_SCHEMA
@@ -298,7 +296,6 @@ setup_consumers	10	Dynamic
 setup_instruments	10	Dynamic
 setup_objects	10	Dynamic
 setup_threads	10	Dynamic
-setup_timers	10	Dynamic
 socket_instances	10	Dynamic
 socket_summary_by_event_name	10	Dynamic
 socket_summary_by_instance	10	Dynamic
@@ -400,7 +397,6 @@ setup_consumers	0
 setup_instruments	0
 setup_objects	0
 setup_threads	0
-setup_timers	0
 socket_instances	0
 socket_summary_by_event_name	0
 socket_summary_by_instance	0
@@ -516,7 +512,6 @@ setup_consumers	0	0
 setup_instruments	0	0
 setup_objects	0	0
 setup_threads	0	0
-setup_timers	0	0
 socket_instances	0	0
 socket_summary_by_event_name	0	0
 socket_summary_by_instance	0	0
@@ -622,7 +617,6 @@ setup_consumers	0	0	NULL
 setup_instruments	0	0	NULL
 setup_objects	0	0	NULL
 setup_threads	0	0	NULL
-setup_timers	0	0	NULL
 socket_instances	0	0	NULL
 socket_summary_by_event_name	0	0	NULL
 socket_summary_by_instance	0	0	NULL
@@ -728,7 +722,6 @@ setup_consumers	NULL	NULL	NULL
 setup_instruments	NULL	NULL	NULL
 setup_objects	NULL	NULL	NULL
 setup_threads	NULL	NULL	NULL
-setup_timers	NULL	NULL	NULL
 socket_instances	NULL	NULL	NULL
 socket_summary_by_event_name	NULL	NULL	NULL
 socket_summary_by_instance	NULL	NULL	NULL
@@ -834,7 +827,6 @@ setup_consumers	utf8_general_ci	NULL
 setup_instruments	utf8_general_ci	NULL
 setup_objects	utf8_general_ci	NULL
 setup_threads	utf8_general_ci	NULL
-setup_timers	utf8_general_ci	NULL
 socket_instances	utf8_general_ci	NULL
 socket_summary_by_event_name	utf8_general_ci	NULL
 socket_summary_by_instance	utf8_general_ci	NULL
@@ -940,7 +932,6 @@ setup_consumers
 setup_instruments	
 setup_objects	
 setup_threads	
-setup_timers	
 socket_instances	
 socket_summary_by_event_name	
 socket_summary_by_instance	
@@ -1046,7 +1037,6 @@ setup_consumers
 setup_instruments	
 setup_objects	
 setup_threads	
-setup_timers	
 socket_instances	
 socket_summary_by_event_name	
 socket_summary_by_instance	

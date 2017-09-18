@@ -127,7 +127,6 @@ private:
   /** Current row. */
   PFS_esmh_global_histogram m_materialized_histogram;
   row_esmh_global m_row;
-  time_normalizer *m_normalizer;
   /** Current position. */
   pos_t m_pos;
   /** Next position. */

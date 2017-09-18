@@ -65,7 +65,6 @@ class PFS_opaque_container_page;
 */
 
 extern bool pfs_enabled;
-extern enum_timer_name *class_timers[];
 
 /** Key, naming a synch instrument (mutex, rwlock, cond). */
 typedef unsigned int PFS_sync_key;
@@ -158,8 +157,6 @@ struct PFS_instr_class
   char m_name[PFS_MAX_INFO_NAME_LENGTH];
   /** Length in bytes of @c m_name. */
   uint m_name_length;
-  /** Timer associated with this class. */
-  enum_timer_name *m_timer;
   /** Documentation. */
   char *m_documentation;
 
