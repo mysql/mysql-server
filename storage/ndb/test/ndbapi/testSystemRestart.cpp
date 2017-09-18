@@ -3673,7 +3673,7 @@ TESTCASE("SR12", "More tests of SR4 variant\n")
 TESTCASE("SR13", "More tests of SR4 variant\n")
 {
   TC_PROPERTY("StopOneNode", Uint32(1));
-  TC_PROPERTY("NumParts", 5);
+  TC_PROPERTY("NumParts", 2);
   TC_PROPERTY("SetMinTimeLCP", Uint32(0));
   TC_PROPERTY("PerformUpdates", Uint32(0));
   TC_PROPERTY("VerifyInsert", Uint32(0));
@@ -3684,7 +3684,7 @@ TESTCASE("SR13", "More tests of SR4 variant\n")
 TESTCASE("SR14", "More tests of SR4 variant\n")
 {
   TC_PROPERTY("StopOneNode", Uint32(0));
-  TC_PROPERTY("NumParts", 5);
+  TC_PROPERTY("NumParts", 2);
   TC_PROPERTY("SetMinTimeLCP", Uint32(0));
   TC_PROPERTY("PerformUpdates", Uint32(0));
   TC_PROPERTY("VerifyInsert", Uint32(0));

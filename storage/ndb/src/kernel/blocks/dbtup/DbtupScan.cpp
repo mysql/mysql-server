@@ -351,10 +351,12 @@ Dbtup::execACC_CHECK_SCAN(Signal* signal)
     conf->scanPtr = scan.m_userPtr;
     conf->accOperationPtr = RNIL;       // no tuple returned
     conf->fragId = frag.fragmentId;
-    unsigned signalLength = 3;
     // if TC has ordered scan close, it will be detected here
-    sendSignal(scan.m_userRef, GSN_NEXT_SCANCONF,
-               signal, signalLength, JBB);
+    sendSignal(scan.m_userRef,
+               GSN_NEXT_SCANCONF,
+               signal,
+               NextScanConf::SignalLengthNoTuple,
+               JBB);
     return;     // stop
   }
 
@@ -512,7 +514,6 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
     conf->fragId = frag.fragmentId;
     conf->localKey[0] = pos.m_key_mm.m_page_no;
     conf->localKey[1] = pos.m_key_mm.m_page_idx;
-    unsigned signalLength = 5;
     // next time look for next entry
     scan.m_state = ScanOp::Next;
     prepareTUPKEYREQ(pos.m_key_mm.m_page_no,
@@ -524,7 +525,10 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
      * We decided to ignore this here.
      */
     Uint32 blockNo = refToMain(scan.m_userRef);
-    EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, signalLength);
+    EXECUTE_DIRECT(blockNo,
+                   GSN_NEXT_SCANCONF,
+                   signal,
+                   NextScanConf::SignalLengthNoGCI);
     jamEntryDebug();
     return;
   }
@@ -536,9 +540,11 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
     conf->scanPtr = scan.m_userPtr;
     conf->accOperationPtr = RNIL;
     conf->fragId = RNIL;
-    unsigned signalLength = 3;
     Uint32 blockNo = refToMain(scan.m_userRef);
-    EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, signalLength);
+    EXECUTE_DIRECT(blockNo,
+                   GSN_NEXT_SCANCONF,
+                   signal,
+                   NextScanConf::SignalLengthNoTuple);
     jamEntry();
     return;
   }
@@ -1955,8 +1961,10 @@ Dbtup::record_delete_by_rowid(Signal *signal,
   conf->gci = foundGCI;
   Uint32 blockNo = refToMain(scan.m_userRef);
   scan.m_state = ScanOp::Next;
-  EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF,
-                 signal, NextScanConf::SignalLengthNoKeyInfo);
+  EXECUTE_DIRECT(blockNo,
+                 GSN_NEXT_SCANCONF,
+                 signal,
+                 NextScanConf::SignalLengthNoKeyInfo);
   jamEntry();
 }
 
@@ -2106,9 +2114,14 @@ Dbtup::handle_lcp_keep(Signal* signal,
   else
   {
     jam();
+    /**
+     * tmp points to copy tuple. We need real page id to change to correct
+     * current page temporarily. This can be found in copytuple[0]
+     * where handle_lcp_keep_commit puts it.
+     */
     remove_top_from_lcp_keep_list(fragPtr.p, copytuple, tmp);
 
-    c_backup->change_current_page_temp(tmp.m_page_no);
+    c_backup->change_current_page_temp(copytuple[0]);
     DEB_LCP_KEEP(("(%u)Handle LCP keep insert entry", instance()));
     Local_key save = tmp;
     setCopyTuple(tmp.m_page_no, tmp.m_page_idx);
@@ -2119,10 +2132,11 @@ Dbtup::handle_lcp_keep(Signal* signal,
     conf->fragId = fragPtr.p->fragmentId;
     conf->localKey[0] = tmp.m_page_no;
     conf->localKey[1] = tmp.m_page_idx;
-    conf->gci = 0;
     Uint32 blockNo = refToMain(scanPtrP->m_userRef);
-    EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, 6);
-
+    EXECUTE_DIRECT(blockNo,
+                   GSN_NEXT_SCANCONF,
+                   signal,
+                   NextScanConf::SignalLengthNoGCI);
     c_undo_buffer.free_copy_tuple(&save);
   }
 }
@@ -2360,12 +2374,11 @@ Dbtup::scanClose(Signal* signal, ScanOpPtr scanPtr)
   conf->scanPtr = scanPtr.p->m_userPtr;
   conf->accOperationPtr = RNIL;
   conf->fragId = RNIL;
-  unsigned signalLength = 3;
   releaseScanOp(scanPtr);
   EXECUTE_DIRECT(blockNo,
                  GSN_NEXT_SCANCONF,
                  signal,
-                 signalLength);
+                 NextScanConf::SignalLengthNoTuple);
 }
 
 void

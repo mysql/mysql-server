@@ -50,6 +50,13 @@ extern EventLogger *g_eventLogger;
 #define DEB_LCP_SKIP(arglist) do { } while (0)
 #endif
 
+//#define DEBUG_LCP_SKIP_EXTRA 1
+#ifdef DEBUG_LCP_SKIP_EXTRA
+#define DEB_LCP_SKIP_EXTRA(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LCP_SKIP_EXTRA(arglist) do { } while (0)
+#endif
+
 //#define DEBUG_LCP_SCANNED_BIT 1
 #ifdef DEBUG_LCP_SCANNED_BIT
 #define DEB_LCP_SCANNED_BIT(arglist) do { g_eventLogger->info arglist ; } while (0)
@@ -346,6 +353,15 @@ Dbtup::dealloc_tuple(Signal* signal,
                              regOperPtr,
                              regFragPtr,
                              regTabPtr);
+    }
+    else
+    {
+      DEB_LCP_SKIP_EXTRA(("(%u)tab(%u,%u), row_id(%u,%u) DELETE already LCP:ed",
+                           instance(),
+                           regFragPtr->fragTableId,
+                           regFragPtr->fragmentId,
+                           rowid.m_page_no,
+                           rowid.m_page_idx));
     }
   }
   

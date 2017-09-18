@@ -12768,7 +12768,8 @@ void Dblqh::nextScanConfScanLab(Signal* signal,
                                 const TcConnectionrecPtr tcConnectptr)
 {
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
-  if (fragId != RNIL && accOpPtr != RNIL) {
+  if (fragId != RNIL && accOpPtr != RNIL)
+  {
     check_send_scan_hb_rep(signal, scanPtr, regTcPtr);
     set_acc_ptr_in_scan_record(scanPtr,
                                scanPtr->m_curr_batch_size_rows,
