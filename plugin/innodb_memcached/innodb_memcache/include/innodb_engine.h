@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -24,6 +24,11 @@ Created 03/15/2011      Jimmy Yang
 
 #ifndef INNODB_ENGINE_H
 #define INNODB_ENGINE_H
+
+// Work around a bug in the memcached C++ headers with GCC 4.x.
+#ifndef bool
+#define bool bool
+#endif
 
 #include "config.h"
 

@@ -82,7 +82,8 @@ struct {								\
 }									\
 
 # define UT_LIST_REMOVE_CLEAR(NAME, N)					\
-	((N)->NAME.prev = (N)->NAME.next = (void*) -1)
+	((N)->NAME.prev = (N)->NAME.next =                              \
+		reinterpret_cast<decltype((N)->NAME.next)>(-1))
 
 /** Removes a node from a linked list. */
 #define UT_LIST_REMOVE(NAME, BASE, N)                                   \
@@ -189,7 +190,7 @@ do {									\
 									\
 		while (data) {						\
 			TYPE	next_data;				\
-			next_data = HASH_GET_NEXT(name_hash, data);	\
+			next_data = (TYPE)HASH_GET_NEXT(name_hash, data);	\
 			innodb_config_free(data);			\
 			free(data);					\
 			data = next_data;				\
