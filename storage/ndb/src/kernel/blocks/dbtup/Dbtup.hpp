@@ -705,6 +705,7 @@ struct Fragrecord {
   Uint64 m_lcp_changed_rows;
   // Number of fixed-seize tuple parts (which equals the tuple count).
   Uint64 m_fixedElemCount;
+  Uint64 m_restore_row_count;
   /**
     Number of variable-size tuple parts, i.e. the number of tuples that has
     one or more non-NULL varchar/varbinary or blob fields. (The first few bytes
@@ -834,6 +835,7 @@ struct Operationrec {
      */
     unsigned int m_triggers : 2;
     unsigned int m_disable_fk_checks : 1;
+    unsigned int m_tuple_existed_at_start : 1;
   };
 
   union OpStruct {
@@ -1457,8 +1459,7 @@ typedef Ptr<HostBuffer> HostBufferPtr;
     STATIC_CONST( ALLOC       = 0x00100000 ); // Is record allocated now
     STATIC_CONST( NOT_USED_BIT= 0x00200000 ); //
     STATIC_CONST( MM_GROWN    = 0x00400000 ); // Has MM part grown
-    STATIC_CONST( FREED       = 0x00800000 ); // Is freed
-    STATIC_CONST( FREE        = 0x00800000 ); // alias
+    STATIC_CONST( FREE        = 0x00800000 ); // Is free
     STATIC_CONST( LCP_SKIP    = 0x01000000 ); // Should not be returned in LCP
     STATIC_CONST( VAR_PART    = 0x04000000 ); // Is there a varpart
     STATIC_CONST( REORG_MOVE  = 0x08000000 ); // Tuple will be moved in reorg
@@ -1826,6 +1827,7 @@ public:
   void stop_lcp_scan(Uint32 tableId, Uint32 fragmentId);
   void lcp_frag_watchdog_print(Uint32 tableId, Uint32 fragmentId);
 
+  Uint64 get_restore_row_count(Uint32 tableId, Uint32 fragmentId);
   void set_lcp_start_gci(Uint32 fragPtrI, Uint32 startGci);
   void get_lcp_frag_stats(Uint32 fragPtrI,
                           Uint32 startGci,

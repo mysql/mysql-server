@@ -620,6 +620,7 @@ public:
     bool   m_current_changed_row_page_flag;
     Uint32 m_outstanding_operations;
     Uint32 m_first_start_part_in_lcp;
+    Uint32 m_num_parts_in_this_lcp;
     Uint32 m_num_parts_in_lcp;
     Uint32 m_max_parts_in_lcp;
     Uint32 m_lcp_current_page_scanned;
@@ -1099,7 +1100,9 @@ public:
   void lcp_write_ctl_file_to_disk(Signal*, BackupFilePtr, Page32Ptr);
   void lcp_init_ctl_file(Page32Ptr pagePtr);
   Uint32 compress_part_pairs(struct BackupFormat::LCPCtlFile*, Uint32);
-  Uint32 decompress_part_pairs(struct BackupFormat::LCPCtlFile*, Uint32);
+  Uint32 decompress_part_pairs(struct BackupFormat::LCPCtlFile*,
+                               Uint32,
+                               struct BackupFormat::PartPair*);
   bool convert_ctl_page_to_host(struct BackupFormat::LCPCtlFile*);
   void convert_ctl_page_to_network(Uint32*);
   void handle_idle_lcp(Signal*, BackupRecordPtr);

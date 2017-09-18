@@ -6405,6 +6405,9 @@ Dblqh::handle_nr_copy(Signal* signal, Ptr<TcConnectionrec> regTcPtr)
      * Otherwise it is a DELETE by ROWID without primary key.
      * This signal comes with the GCI set on the row at the primary
      * replica.
+     *
+     * It can also be a DELETE_BY_ROWID sent from RESTORE.
+     * In this case the operation is always DELETE.
      */
     ndbassert(LqhKeyReq::getGCIFlag(regTcPtr.p->reqinfo));
     if (match)
