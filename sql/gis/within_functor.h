@@ -46,9 +46,7 @@ class Within : public Functor<bool> {
   /// Semi-minor axis of ellipsoid.
   double m_semi_minor;
   /// Strategy used for P/L and P/A.
-  boost::geometry::strategy::within::winding<
-      Geographic_point, Geographic_point,
-      boost::geometry::strategy::side::geographic<>>
+  boost::geometry::strategy::within::geographic_winding<Geographic_point>
       m_geographic_pl_pa_strategy;
   /// Strategy used for L/L, L/A and A/A.
   boost::geometry::strategy::intersection::geographic_segments<>

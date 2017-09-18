@@ -17,12 +17,13 @@
 ///
 /// This file implements the within functor and function.
 
-#include <boost/geometry.hpp>
 #include <cmath>  // std::isfinite
 #include <limits>
 #include <memory>  // std::unique_ptr
 
-#include "sql/dd/types/spatial_reference_system.h" // dd::Spatial_reference_system
+#include <boost/geometry.hpp>
+
+#include "sql/dd/types/spatial_reference_system.h"  // dd::Spatial_reference_system
 #include "sql/gis/box.h"
 #include "sql/gis/box_traits.h"
 #include "sql/gis/difference_functor.h"
@@ -34,8 +35,8 @@
 #include "sql/gis/mbr_utils.h"
 #include "sql/gis/relops.h"
 #include "sql/gis/within_functor.h"
-#include "sql/sql_exception_handler.h" // handle_gis_exception
-#include "template_utils.h"         // down_cast
+#include "sql/sql_exception_handler.h"  // handle_gis_exception
+#include "template_utils.h"             // down_cast
 
 namespace bg = boost::geometry;
 
@@ -44,8 +45,8 @@ namespace gis {
 Within::Within(double semi_major, double semi_minor)
     : m_semi_major(semi_major),
       m_semi_minor(semi_minor),
-      m_geographic_pl_pa_strategy(bg::strategy::side::geographic<>(
-          bg::srs::spheroid<double>(semi_major, semi_minor))),
+      m_geographic_pl_pa_strategy(
+          bg::srs::spheroid<double>(semi_major, semi_minor)),
       m_geographic_ll_la_aa_strategy(
           bg::srs::spheroid<double>(semi_major, semi_minor)) {}
 

@@ -32,8 +32,8 @@ namespace gis {
 Difference::Difference(double semi_major, double semi_minor)
     : m_semi_major(semi_major),
       m_semi_minor(semi_minor),
-      m_geographic_pl_pa_strategy(bg::strategy::side::geographic<>(
-          bg::srs::spheroid<double>(semi_major, semi_minor))),
+      m_geographic_pl_pa_strategy(
+          bg::srs::spheroid<double>(semi_major, semi_minor)),
       m_geographic_ll_la_aa_strategy(
           bg::srs::spheroid<double>(semi_major, semi_minor)) {}
 

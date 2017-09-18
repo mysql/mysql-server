@@ -131,11 +131,6 @@ void handle_gis_exception(const char *funcname)
   {
     my_error(ER_BOOST_GEOMETRY_TURN_INFO_EXCEPTION, MYF(0), funcname);
   }
-  catch (const boost::geometry::detail::self_get_turn_points::self_ip_exception &)
-  {
-    my_error(ER_BOOST_GEOMETRY_SELF_INTERSECTION_POINT_EXCEPTION, MYF(0),
-             funcname);
-  }
   catch (const boost::geometry::empty_input_exception &)
   {
     my_error(ER_BOOST_GEOMETRY_EMPTY_INPUT_EXCEPTION, MYF(0), funcname);
