@@ -2048,3 +2048,57 @@ eval $query3;
 SHOW STATUS LIKE 'HANDLER_%';
 
 DROP TABLE t1, t2, t3, t4;
+
+
+--echo #
+--echo # Bug #26627181: WRONG RESULT WITH LEFT JOIN + DERIVED TABLES
+--echo #
+
+CREATE TABLE t1 (id INT);
+CREATE TABLE t2 (id INT);
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (1);
+
+let query1=
+SELECT *
+FROM (SELECT id
+      FROM t1) AS a
+    LEFT JOIN
+    (SELECT id, 2 AS tall
+     FROM t2) AS b
+    ON a.id = b.id
+WHERE b.tall IS NOT NULL;
+
+eval EXPLAIN $query1;
+eval $query1;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #23169204: Left join + merged derived table + group by = bad result
+--echo #
+
+CREATE TABLE t1(doc text);
+CREATE TABLE t2(a INTEGER DEFAULT NULL);
+INSERT INTO t2 VALUES(1);
+
+# Derived table is materialized due to LIMIT.
+# t1 is empty so the derived table is empty, so NULL-complementing produces
+# NULL for 'je' in the SELECT list.
+SELECT je
+FROM t2 LEFT JOIN (SELECT 1 AS je FROM t1 LIMIT 1) AS dt ON FALSE;
+
+SELECT je
+FROM t2 LEFT JOIN (SELECT 1 AS je FROM t1 LIMIT 1) AS dt ON FALSE
+GROUP BY je;
+
+# Remove LIMIT (to have the derived table be merged), produces NULL too.
+
+SELECT je
+FROM t2 LEFT JOIN (SELECT 1 AS je FROM t1) AS dt ON FALSE;
+
+SELECT je
+FROM t2 LEFT JOIN (SELECT 1 AS je FROM t1) AS dt ON FALSE
+GROUP BY je;
+
+DROP TABLE t1, t2;

@@ -876,20 +876,7 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
         }
       }
 
-      /*
-        Consider field as constant only if:
-        1) The item is constant and
-           1a) Isn't part of a derived table (or view). OR
-           1b) The item belongs to a derived table (or view) and it doesn't
-               belong to an inner table of an outer join.
-      */
-      bool is_const= item->const_item() &&
-        ((item->type() == Item::REF_ITEM &&
-          (down_cast<Item_ref *>(item))->ref_type() == Item_ref::VIEW_REF) ?
-         !(down_cast<Item_direct_view_ref *>(item))->cached_table->
-         is_inner_table_of_outer_join() : true);
-
-      if (is_const && (int)hidden_field_count <= 0)
+      if (item->const_item() && (int)hidden_field_count <= 0)
         continue; // We don't have to store this
     }
     if (type == Item::SUM_FUNC_ITEM && !group && !save_sum_fields)
