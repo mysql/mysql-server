@@ -929,7 +929,9 @@ EXECUTE stmt1 USING @val;
 DEALLOCATE PREPARE stmt;
 
 # Test case for checksum on contents of a file
+SET NAMES utf8;
 CREATE TABLE t1 (a TEXT) CHARACTER SET = utf8;
-LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t1;
-SELECT a, CRC32(a) from t1;
+LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t1 CHARACTER SET utf8;
+SELECT HEX(a), CRC32(a) from t1;
 DROP TABLE t1;
+SET NAMES default;
