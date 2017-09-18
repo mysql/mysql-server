@@ -88,6 +88,13 @@ static NDB_TICKS startTime;
 #define DEB_LCP(arglist) do { } while (0)
 #endif
 
+//#define DEBUG_LCP_DEL 1
+#ifdef DEBUG_LCP_DEL
+#define DEB_LCP_DEL(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LCP_DEL(arglist) do { } while (0)
+#endif
+
 #define DEBUG_LCP_STAT 1
 #ifdef DEBUG_LCP_STAT
 #define DEB_LCP_STAT(arglist) do { g_eventLogger->info arglist ; } while (0)
@@ -6257,7 +6264,7 @@ Backup::record_deleted_pageid(Uint32 pageNo, Uint32 record_size)
   BackupFilePtr currentFilePtr;
   c_backupPool.getPtr(ptr, m_lcp_ptr_i);
   c_backupFilePool.getPtr(zeroFilePtr, ptr.p->dataFilePtr[0]);
-  c_backupFilePool.getPtr(currentFilePtr, ptr.p->m_current_data_file_ptr);
+  c_backupFilePool.getPtr(currentFilePtr, ptr.p->m_working_data_file_ptr);
   OperationRecord & current_op = currentFilePtr.p->operation;
   OperationRecord & zero_op = zeroFilePtr.p->operation;
   ndbrequire(ptr.p->m_num_parts_in_this_lcp != BackupFormat::NDB_MAX_LCP_PARTS);
@@ -6266,6 +6273,9 @@ Backup::record_deleted_pageid(Uint32 pageNo, Uint32 record_size)
   Uint32 copy_array[2];
   copy_array[0] = pageNo;
   copy_array[1] = record_size;
+  DEB_LCP_DEL(("(%u) DELETE_BY_PAGEID: page(%u)",
+                instance(),
+                pageNo));
   *dst = htonl(Uint32(dataLen + (BackupFormat::DELETE_BY_PAGEID_TYPE << 16)));
   memcpy(dst + 1, copy_array, dataLen*sizeof(Uint32));
   ndbrequire(dataLen < zero_op.maxRecordSize);
@@ -6293,7 +6303,7 @@ Backup::record_deleted_rowid(Uint32 pageNo, Uint32 pageIndex, Uint32 gci)
   BackupFilePtr currentFilePtr;
   c_backupPool.getPtr(ptr, m_lcp_ptr_i);
   c_backupFilePool.getPtr(zeroFilePtr, ptr.p->dataFilePtr[0]);
-  c_backupFilePool.getPtr(currentFilePtr, ptr.p->m_current_data_file_ptr);
+  c_backupFilePool.getPtr(currentFilePtr, ptr.p->m_working_data_file_ptr);
   OperationRecord & current_op = currentFilePtr.p->operation;
   OperationRecord & zero_op = zeroFilePtr.p->operation;
   ndbrequire(ptr.p->m_num_parts_in_this_lcp != BackupFormat::NDB_MAX_LCP_PARTS);
@@ -6303,6 +6313,10 @@ Backup::record_deleted_rowid(Uint32 pageNo, Uint32 pageIndex, Uint32 gci)
   copy_array[0] = pageNo;
   copy_array[1] = pageIndex;
   copy_array[2] = gci;
+  DEB_LCP_DEL(("(%u) DELETE_BY_ROWID: rowid(%u,%u)",
+                instance(),
+                pageNo,
+                pageIndex));
   *dst = htonl(Uint32(dataLen + (BackupFormat::DELETE_BY_ROWID_TYPE << 16)));
   memcpy(dst + 1, copy_array, dataLen*sizeof(Uint32));
   ndbrequire(dataLen < zero_op.maxRecordSize);
@@ -6335,11 +6349,11 @@ Backup::execTRANSID_AI(Signal* signal)
   if (ptr.p->is_lcp())
   {
     BackupFilePtr currentFilePtr;
-    c_backupFilePool.getPtr(currentFilePtr, ptr.p->m_current_data_file_ptr);
+    c_backupFilePool.getPtr(currentFilePtr, ptr.p->m_working_data_file_ptr);
     OperationRecord & current_op = currentFilePtr.p->operation;
     Uint32 * dst = current_op.dst;
     Uint32 header;
-    if (ptr.p->m_current_changed_row_page_flag)
+    if (ptr.p->m_working_changed_row_page_flag)
     {
       /* LCP for CHANGED ROWS pages */
       jam();
@@ -6422,7 +6436,7 @@ Backup::is_all_rows_page(BackupRecordPtr ptr,
 }
 
 void
-Backup::set_current_file(BackupRecordPtr ptr,
+Backup::set_working_file(BackupRecordPtr ptr,
                          Uint32 part_id,
                          bool is_all_rows_page)
 {
@@ -6444,7 +6458,7 @@ Backup::set_current_file(BackupRecordPtr ptr,
     }
     ndbrequire(found);
   }
-  ptr.p->m_current_data_file_ptr = ptr.p->dataFilePtr[index];
+  ptr.p->m_working_data_file_ptr = ptr.p->dataFilePtr[index];
 }
 
 bool
@@ -6547,17 +6561,27 @@ Backup::change_current_page_temp(Uint32 page_no)
   BackupRecordPtr ptr;
   jamEntry();
   c_backupPool.getPtr(ptr, m_lcp_ptr_i);
-  ptr.p->m_save_data_file_ptr = ptr.p->m_current_data_file_ptr;
   Uint32 part_id = hash_lcp_part(page_no);
-  set_current_file(ptr,
+  ptr.p->m_working_changed_row_page_flag = !(is_all_rows_page(ptr, part_id));
+  set_working_file(ptr,
                    part_id,
-                   is_all_rows_page(ptr, part_id));
+                   !ptr.p->m_working_changed_row_page_flag);
 }
 
+/**
+ * After each operation, whether it is INSERT, WRITE or any DELETE variant,
+ * we restore the working data file and current page flag. We can change
+ * those for one operation (when retrieving a record from LCP keep list).
+ * Since we don't know when we retrieved a record from LCP keep list here,
+ * we simply always restore. The current values always have the current
+ * setting and the working is the one we're currently using.
+ */
 void
 Backup::restore_current_page(BackupRecordPtr ptr)
 {
-  ptr.p->m_current_data_file_ptr = ptr.p->m_save_data_file_ptr;
+  ptr.p->m_working_data_file_ptr = ptr.p->m_current_data_file_ptr;
+  ptr.p->m_working_changed_row_page_flag =
+    ptr.p->m_current_changed_row_page_flag;
 }
 
 void
@@ -6601,8 +6625,10 @@ Backup::init_lcp_scan(Uint32 & scanGCI,
                 scanGCI,
                 skip_page,
                 changed_row_page_flag);
-  set_current_file(ptr, part_id, !changed_row_page_flag);
-  ptr.p->m_save_data_file_ptr = ptr.p->m_current_data_file_ptr;
+  set_working_file(ptr, part_id, !changed_row_page_flag);
+  ptr.p->m_current_data_file_ptr = ptr.p->m_working_data_file_ptr;
+  ptr.p->m_working_changed_row_page_flag = changed_row_page_flag;
+  ptr.p->m_current_changed_row_page_flag = changed_row_page_flag;
 
 #ifdef DEBUG_EXTRA_LCP
   TablePtr debTabPtr;
@@ -6620,7 +6646,6 @@ Backup::init_lcp_scan(Uint32 & scanGCI,
           skip_page ? "SKIP page" :
             changed_row_page_flag ? "CHANGED ROWS page" : " ALL ROWS page"));
 #endif
-  ptr.p->m_current_changed_row_page_flag = changed_row_page_flag;
 }
 
 /**
@@ -6702,8 +6727,9 @@ Backup::update_lcp_pages_scanned(Signal *signal,
                 scanGCI,
                 skip_page,
                 changed_row_page_flag);
-  set_current_file(ptr, part_id, !changed_row_page_flag);
-  ptr.p->m_save_data_file_ptr = ptr.p->m_current_data_file_ptr;
+  set_working_file(ptr, part_id, !changed_row_page_flag);
+  ptr.p->m_current_data_file_ptr = ptr.p->m_working_data_file_ptr;
+  ptr.p->m_working_changed_row_page_flag = changed_row_page_flag;
   ptr.p->m_current_changed_row_page_flag = changed_row_page_flag;
 #ifdef DEBUG_EXTRA_LCP
   TablePtr debTabPtr;

@@ -617,6 +617,7 @@ public:
     Uint64 m_memory_used_in_bytes;
     bool   m_empty_lcp;
     bool   m_is_lcp_scan_active;
+    bool   m_working_changed_row_page_flag;
     bool   m_current_changed_row_page_flag;
     Uint32 m_outstanding_operations;
     Uint32 m_first_start_part_in_lcp;
@@ -631,8 +632,8 @@ public:
     Uint32 m_num_lcp_data_files_open;
     Uint32 m_first_data_file_number;
     Uint32 m_last_data_file_number;
-    Uint32 m_save_data_file_ptr;
     Uint32 m_current_data_file_ptr;
+    Uint32 m_working_data_file_ptr;
     Uint64 m_current_lcp_lsn;
     BackupFormat::PartPair m_part_info[BackupFormat::NDB_MAX_LCP_PARTS];
     LcpScanInfo m_scan_info[BackupFormat::NDB_MAX_FILES_PER_LCP];
@@ -1222,7 +1223,7 @@ public:
                      Uint32 & scanGCI,
                      bool & skip_flag,
                      bool & changed_row_page_flag);
-  void set_current_file(BackupRecordPtr,
+  void set_working_file(BackupRecordPtr,
                         Uint32 part_id,
                         bool is_all_rows_page);
   void init_file_for_lcp(Signal*, Uint32 index, BackupRecordPtr, Uint32 ptrI);

@@ -7256,16 +7256,18 @@ void Dbacc::releaseScanLab(Signal* signal)
   }//for
   // Stops the heartbeat
   Uint32 blockNo = refToMain(scanPtr.p->scanUserblockref);
-  signal->theData[0] = scanPtr.p->scanUserptr;
-  signal->theData[1] = RNIL;
-  signal->theData[2] = RNIL;
+  NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
+
+  conf->scanPtr = scanPtr.p->scanUserptr;
+  conf->accOperationPtr = RNIL;
+  conf->fragId = RNIL;
   fragrecptr.p->activeScanMask &= ~scanPtr.p->scanMask;
   scanPtr.p->activeLocalFrag = RNIL;
   releaseScanRec();
   EXECUTE_DIRECT(blockNo,
                  GSN_NEXT_SCANCONF,
                  signal,
-                 3);
+                 NextScanConf::SignalLengthNoTuple);
   return;
 }//Dbacc::releaseScanLab()
 
@@ -7415,13 +7417,14 @@ void Dbacc::execACC_CHECK_SCAN(Signal* signal)
     // The scan is now completed and there are no more locks outstanding. Thus we
     // we will report the scan as completed to LQH.
     //----------------------------------------------------------------------------
-    signal->theData[0] = scanPtr.p->scanUserptr;
-    signal->theData[1] = RNIL;
-    signal->theData[2] = RNIL;
+    NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
+    conf->scanPtr = scanPtr.p->scanUserptr;
+    conf->accOperationPtr = RNIL;
+    conf->fragId = RNIL;
     EXECUTE_DIRECT(refToMain(scanPtr.p->scanUserblockref),
                    GSN_NEXT_SCANCONF,
                    signal,
-                   3);
+                   NextScanConf::SignalLengthNoTuple);
     return;
   }//if
   if (TcheckLcpStop == AccCheckScan::ZCHECK_LCP_STOP) {
@@ -7452,10 +7455,15 @@ void Dbacc::execACC_CHECK_SCAN(Signal* signal)
       ((scanPtr.p->scanBucketState == ScanRec::SCAN_COMPLETED) &&
        (scanPtr.p->scanLockHeld > 0))) {
     jam();
-    signal->theData[0] = scanPtr.p->scanUserptr;
-    signal->theData[1] = RNIL; // No operation is returned
-    signal->theData[2] = 512;  // MASV  
-    sendSignal(scanPtr.p->scanUserblockref, GSN_NEXT_SCANCONF, signal, 3, JBB);
+    NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
+    conf->scanPtr = scanPtr.p->scanUserptr;
+    conf->accOperationPtr = RNIL;
+    conf->fragId = 512; // MASV
+    sendSignal(scanPtr.p->scanUserblockref,
+               GSN_NEXT_SCANCONF,
+               signal,
+               NextScanConf::SignalLengthNoTuple,
+               JBB);
     return;
   }
   if (scanPtr.p->scanBucketState == ScanRec::SCAN_COMPLETED) {
@@ -8059,12 +8067,16 @@ void Dbacc::sendNextScanConf(Signal* signal)
    * LQH WILL NOT HAVE ANY USE OF THE TUPLE KEY LENGTH IN THIS CASE AND 
    * SO WE DO NOT PROVIDE IT. IN THIS CASE THESE VALUES ARE UNDEFINED. 
    * ---------------------------------------------------------------------- */
-  signal->theData[0] = scanUserPtr;
-  signal->theData[1] = opPtrI;
-  signal->theData[2] = fid;
-  signal->theData[3] = localKey.m_page_no;
-  signal->theData[4] = localKey.m_page_idx;
-  EXECUTE_DIRECT(refToMain(blockRef), GSN_NEXT_SCANCONF, signal, 5);
+  NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
+  conf->scanPtr = scanUserPtr;
+  conf->accOperationPtr = opPtrI;
+  conf->fragId = fid;
+  conf->localKey[0] = localKey.m_page_no;
+  conf->localKey[1] = localKey.m_page_idx;
+  EXECUTE_DIRECT(refToMain(blockRef),
+                 GSN_NEXT_SCANCONF,
+                 signal,
+                 NextScanConf::SignalLengthNoGCI);
   return;
 }//Dbacc::sendNextScanConf()
 

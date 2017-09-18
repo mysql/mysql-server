@@ -1912,7 +1912,7 @@ Restore::release_file(FilePtr file_ptr, bool statistics)
     m_rows_restored+= file_ptr.p->m_rows_restored;
     m_frags_restored++;
 
-    DEB_RES_STAT(("(%u)Restore tab(%u,%u): file_index: %u, "
+    DEB_RES_STAT(("(%u)Restore tab(%u,%u): file_index: %u"
                   ", inserts: %llu, writes: %llu"
                   ", deletes: %llu, delete_pages: %llu"
                   ", delete_failed: %llu"
