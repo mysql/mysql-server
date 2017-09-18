@@ -139,6 +139,7 @@ table_esms_by_digest::get_row_count(void)
 table_esms_by_digest::table_esms_by_digest()
   : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0)
 {
+  m_normalizer = time_normalizer::get_statement();
 }
 
 void
@@ -248,8 +249,7 @@ table_esms_by_digest::make_row(PFS_statements_digest_stat *digest_stat)
   /*
     Get statements stats.
   */
-  time_normalizer *normalizer = time_normalizer::get(statement_timer);
-  m_row.m_stat.set(normalizer, &digest_stat->m_stat);
+  m_row.m_stat.set(m_normalizer, &digest_stat->m_stat);
 
   PFS_histogram *histogram = &digest_stat->m_histogram;
 
@@ -325,7 +325,7 @@ table_esms_by_digest::make_row(PFS_statements_digest_stat *digest_stat)
 
   m_row.m_query_sample_seen = digest_stat->m_query_sample_seen;
   m_row.m_query_sample_timer_wait =
-    normalizer->wait_to_pico(digest_stat->m_query_sample_timer_wait);
+    m_normalizer->wait_to_pico(digest_stat->m_query_sample_timer_wait);
   return 0;
 }
 

@@ -56,6 +56,7 @@
   - setup_threads (created)
   - setup_instruments (modified)
   - variables_info (modified)
+  - setup_timers (removed)
 */
 static const uint PFS_DD_VERSION= 80004;
 

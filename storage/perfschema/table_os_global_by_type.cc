@@ -154,6 +154,8 @@ table_os_global_by_type::get_row_count(void)
 table_os_global_by_type::table_os_global_by_type()
   : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos()
 {
+  // FIXME, verify
+  m_normalizer = time_normalizer::get_wait();
 }
 
 void
@@ -328,8 +330,7 @@ table_os_global_by_type::make_program_row(PFS_program *pfs_program)
 
   m_row.m_object.make_row(pfs_program);
 
-  time_normalizer *normalizer = time_normalizer::get(wait_timer);
-  m_row.m_stat.set(normalizer, &pfs_program->m_sp_stat.m_timer1_stat);
+  m_row.m_stat.set(m_normalizer, &pfs_program->m_sp_stat.m_timer1_stat);
 
   if (!pfs_program->m_lock.end_optimistic_lock(&lock))
   {
@@ -380,8 +381,7 @@ table_os_global_by_type::make_table_row(PFS_table_share *share)
     }
   }
 
-  time_normalizer *normalizer = time_normalizer::get(wait_timer);
-  m_row.m_stat.set(normalizer, &cumulated_stat);
+  m_row.m_stat.set(m_normalizer, &cumulated_stat);
 
   return 0;
 }

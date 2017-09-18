@@ -116,6 +116,8 @@ table_ews_global_by_event_name::get_row_count(void)
 table_ews_global_by_event_name::table_ews_global_by_event_name()
   : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos()
 {
+  // For all cases except IDLE
+  m_normalizer = time_normalizer::get_wait();
 }
 
 void
@@ -474,7 +476,6 @@ table_ews_global_by_event_name::make_mutex_row(PFS_mutex_class *klass)
   PFS_instance_wait_visitor visitor;
   PFS_instance_iterator::visit_mutex_instances(klass, &visitor);
 
-  get_normalizer(klass);
   m_row.m_stat.set(m_normalizer, &visitor.m_stat);
   return 0;
 }
@@ -487,7 +488,6 @@ table_ews_global_by_event_name::make_rwlock_row(PFS_rwlock_class *klass)
   PFS_instance_wait_visitor visitor;
   PFS_instance_iterator::visit_rwlock_instances(klass, &visitor);
 
-  get_normalizer(klass);
   m_row.m_stat.set(m_normalizer, &visitor.m_stat);
   return 0;
 }
@@ -500,7 +500,6 @@ table_ews_global_by_event_name::make_cond_row(PFS_cond_class *klass)
   PFS_instance_wait_visitor visitor;
   PFS_instance_iterator::visit_cond_instances(klass, &visitor);
 
-  get_normalizer(klass);
   m_row.m_stat.set(m_normalizer, &visitor.m_stat);
   return 0;
 }
@@ -513,7 +512,6 @@ table_ews_global_by_event_name::make_file_row(PFS_file_class *klass)
   PFS_instance_wait_visitor visitor;
   PFS_instance_iterator::visit_file_instances(klass, &visitor);
 
-  get_normalizer(klass);
   m_row.m_stat.set(m_normalizer, &visitor.m_stat);
   return 0;
 }
@@ -526,7 +524,6 @@ table_ews_global_by_event_name::make_table_io_row(PFS_instr_class *klass)
   PFS_table_io_wait_visitor visitor;
   PFS_object_iterator::visit_all_tables(&visitor);
 
-  get_normalizer(klass);
   m_row.m_stat.set(m_normalizer, &visitor.m_stat);
   return 0;
 }
@@ -539,7 +536,6 @@ table_ews_global_by_event_name::make_table_lock_row(PFS_instr_class *klass)
   PFS_table_lock_wait_visitor visitor;
   PFS_object_iterator::visit_all_tables(&visitor);
 
-  get_normalizer(klass);
   m_row.m_stat.set(m_normalizer, &visitor.m_stat);
   return 0;
 }
@@ -552,7 +548,6 @@ table_ews_global_by_event_name::make_socket_row(PFS_socket_class *klass)
   PFS_instance_wait_visitor visitor;
   PFS_instance_iterator::visit_socket_instances(klass, &visitor);
 
-  get_normalizer(klass);
   m_row.m_stat.set(m_normalizer, &visitor.m_stat);
   return 0;
 }
@@ -569,8 +564,9 @@ table_ews_global_by_event_name::make_idle_row(PFS_instr_class *klass)
                                         true,  /* threads */
                                         false, /* THDs */
                                         &visitor);
-  get_normalizer(klass);
-  m_row.m_stat.set(m_normalizer, &visitor.m_stat);
+
+  time_normalizer *normalizer = time_normalizer::get_idle();
+  m_row.m_stat.set(normalizer, &visitor.m_stat);
   return 0;
 }
 
@@ -586,7 +582,6 @@ table_ews_global_by_event_name::make_metadata_row(PFS_instr_class *klass)
                                         true,  /* threads */
                                         false, /* THDs */
                                         &visitor);
-  get_normalizer(klass);
   m_row.m_stat.set(m_normalizer, &visitor.m_stat);
   return 0;
 }

@@ -117,6 +117,7 @@ table_ets_global_by_event_name::get_row_count(void)
 table_ets_global_by_event_name::table_ets_global_by_event_name()
   : PFS_engine_table(&m_share, &m_pos), m_pos(1), m_next_pos(1)
 {
+  m_normalizer = time_normalizer::get_transaction();
 }
 
 void
@@ -129,7 +130,6 @@ table_ets_global_by_event_name::reset_position(void)
 int
 table_ets_global_by_event_name::rnd_init(bool)
 {
-  m_normalizer = time_normalizer::get(transaction_timer);
   return 0;
 }
 
@@ -170,8 +170,6 @@ int
 table_ets_global_by_event_name::index_init(uint idx MY_ATTRIBUTE((unused)),
                                            bool)
 {
-  m_normalizer = time_normalizer::get(transaction_timer);
-
   PFS_index_ets_global_by_event_name *result = NULL;
   DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_ets_global_by_event_name);

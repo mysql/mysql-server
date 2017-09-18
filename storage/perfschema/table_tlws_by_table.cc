@@ -184,6 +184,7 @@ table_tlws_by_table::get_row_count(void)
 table_tlws_by_table::table_tlws_by_table()
   : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0)
 {
+  m_normalizer = time_normalizer::get_wait();
 }
 
 void
@@ -196,7 +197,6 @@ table_tlws_by_table::reset_position(void)
 int
 table_tlws_by_table::rnd_init(bool)
 {
-  m_normalizer = time_normalizer::get(wait_timer);
   return 0;
 }
 
@@ -240,8 +240,6 @@ table_tlws_by_table::rnd_pos(const void *pos)
 int
 table_tlws_by_table::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
-  m_normalizer = time_normalizer::get(wait_timer);
-
   PFS_index_tlws_by_table *result = NULL;
   DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_tlws_by_table);

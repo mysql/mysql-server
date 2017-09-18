@@ -134,6 +134,8 @@ table_ews_by_account_by_event_name::get_row_count(void)
 table_ews_by_account_by_event_name::table_ews_by_account_by_event_name()
   : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos()
 {
+  // For all cases except IDLE
+  m_normalizer = time_normalizer::get_wait();
 }
 
 void
@@ -346,6 +348,7 @@ int
 table_ews_by_account_by_event_name::make_row(PFS_account *account,
                                              PFS_instr_class *klass)
 {
+  time_normalizer *normalizer = m_normalizer;
   pfs_optimistic_state lock;
 
   account->m_lock.begin_optimistic_lock(&lock);
@@ -368,8 +371,12 @@ table_ews_by_account_by_event_name::make_row(PFS_account *account,
     return HA_ERR_RECORD_DELETED;
   }
 
-  get_normalizer(klass);
-  m_row.m_stat.set(m_normalizer, &visitor.m_stat);
+  if (klass->m_type == PFS_CLASS_IDLE)
+  {
+    normalizer = time_normalizer::get_idle();
+  }
+
+  m_row.m_stat.set(normalizer, &visitor.m_stat);
 
   return 0;
 }
