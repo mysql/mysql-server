@@ -1725,34 +1725,47 @@ class Ndb_binlog_setup {
     if (g_ndb_cluster_connection->get_no_ready() <= 0)
       return true;
 
-    ndb_log_verbose(1, "Creating %s.%s", db, table);
+    /*
+      Check if table exists in MySQL DD and in such case remove
+      it from DD since there is none in NDB.
+    */
+
+    Ndb_dd_client dd_client(thd);
+
+    if (!dd_client.mdl_locks_acquire_exclusive(db, table))
+    {
+      ndb_log_info("Failed to MDL lock '%s.%s'", db, table);
+      return true; // failed
+    }
+
+    int table_id;
+    int table_version;
+    dd::String_type engine;
+    if (dd_client.check_table_exists(db, table,
+                                     table_id, table_version, &engine))
+    {
+      ndb_log_verbose(1, "Dropping %s.%s from DD", db, table);
+
+      if (!dd_client.drop_table(db, table))
+      {
+        ndb_log_info("Failed to drop '%s.%s' from DD", db, table);
+      }
+
+      dd_client.commit();
+
+      /*
+        The table existed in and was deleted from DD. It's possible
+        that someone has tried to use it and thus it might have been
+        inserted in the table definition cache. Close the table
+        in the table definition cace(tdc).
+      */
+      ndb_log_verbose(1, "Removing table '%s.%s'' from table definition cache",
+                      db, table);
+
+      ndb_tdc_close_cached_table(thd, db, table);
+    }
 
     Ndb_local_connection mysqld(thd);
-
-    /*
-      Check if table exists in MySQL "dictionary"(i.e on disk)
-      if so, remove it since there is none in Ndb
-    */
-    {
-      char path[FN_REFLEN + 1];
-      build_table_filename(path, sizeof(path) - 1,
-                           db, table, reg_ext, 0);
-      if (my_delete(path, MYF(0)) == 0)
-      {
-        /*
-        The .frm file existed and was deleted from disk.
-        It's possible that someone has tried to use it and thus
-        it might have been inserted in the table definition cache.
-        It must be flushed to avoid that it exist only in the
-        table definition cache.
-        */
-        ndb_log_verbose(1, "Flushing %s.%s", db, table);
-
-        /* Flush mysql.ndb_apply_status table, ignore all errors */
-        (void)mysqld.flush_table(db, db_length,
-                                 table, table_length);
-      }
-    }
 
     const bool create_if_not_exists = true;
     const bool res = mysqld.create_sys_table(db, db_length,

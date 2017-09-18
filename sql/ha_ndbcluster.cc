@@ -2295,19 +2295,23 @@ int ha_ndbcluster::get_metadata(THD *thd, const dd::Table* table_def)
 
   // Check that the id and version from DD
   // matches the id and version of the NDB table
-  if (tab->getObjectId() != object_id ||
-      tab->getObjectVersion() != object_version)
+  const int ndb_object_id = tab->getObjectId();
+  const int ndb_object_version = tab->getObjectVersion();
+  if (ndb_object_id != object_id ||
+      ndb_object_version != object_version)
   {
     DBUG_PRINT("error", ("Table id or version mismatch"));
     DBUG_PRINT("error", ("NDB table id: %u, version: %u",
-                         tab->getObjectId(), tab->getObjectVersion()));
+                         ndb_object_id, ndb_object_version));
     DBUG_PRINT("error", ("DD table id: %u, version: %u",
                          object_id, object_version));
 
-    // This failure should hardly ever happen, it indicates that
-    // schema distribution has failed somehow and the data dictionary is
-    // not consistent with what is in NDB, catch in debug
-    DBUG_ASSERT(!HA_ERR_TABLE_DEF_CHANGED);
+    ndb_log_verbose(10,
+                    "Table id or version mismatch for table '%s.%s', "
+                    "[%d, %d] != [%d, %d]",
+                    m_dbname, m_tabname,
+                    object_id, object_version,
+                    ndb_object_id, ndb_object_version);
 
     ndbtab_g.invalidate();
 
@@ -13187,6 +13191,23 @@ int ndbcluster_discover(handlerton*, THD* thd,
 
   DBUG_PRINT("info", ("table exists, check if it can also be discovered"));
 
+  // 2) Assume that exclusive MDL lock is held on the table at this point
+  DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+                                                           db,
+                                                           name,
+                                                           MDL_EXCLUSIVE));
+
+  // Don't allow discover unless ndb_schema distribution is ready and
+  // "schema distribution synchronization" have completed(which currently
+  // can be checked using ndb_binlog_is_read_only()).
+  // The user who want to use this table simply have to wait
+  if (!ndb_schema_dist_is_ready() ||
+      ndb_binlog_is_read_only())
+  {
+    // Can't discover, table is not available yet
+    DBUG_RETURN(1);
+  }
+
   {
     Uint32 version;
     void* unpacked_data;
@@ -18646,7 +18667,6 @@ bool ha_ndbcluster::get_num_parts(const char *name, uint *num_parts)
   NDBDICT *dict;
   int err= 0;
   DBUG_ENTER("ha_ndbcluster::get_num_parts");
-
   set_dbname(name);
   set_tabname(name);
   for (;;)

@@ -379,6 +379,29 @@ Ndb_dd_client::install_table(const char* schema_name, const char* table_name,
 
   if (existing != nullptr)
   {
+    // Get id and version of existing table
+    int object_id, object_version;
+    if (!ndb_dd_table_get_object_id_and_version(existing,
+                                                object_id, object_version))
+    {
+      DBUG_PRINT("error", ("Could not extract object_id and object_version "
+                           "from table definition"));
+      DBUG_ASSERT(false);
+      return false;
+    }
+
+    // Check that id and version of the existing table in DD
+    // matches NDB, otherwise it's a programming error
+    // not to request "force_overwrite"
+    if (ndb_table_id == object_id &&
+        ndb_table_version == object_version)
+    {
+
+      // Table is already installed, with same id and version
+      // return sucess
+      return true;
+    }
+
     // Table already exists
     if (!force_overwrite)
     {
