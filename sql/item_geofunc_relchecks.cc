@@ -19,6 +19,7 @@
 #include <boost/geometry/geometries/box.hpp>
 #include <boost/geometry/index/rtree.hpp>
 #include <boost/iterator/iterator_facade.hpp>
+#include <boost/geometry/strategies/strategies.hpp>
 #include <stddef.h>
 #include <memory>
 #include <set>

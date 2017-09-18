@@ -22,6 +22,7 @@
 #include <boost/geometry/algorithms/within.hpp>
 #include <boost/geometry/geometries/box.hpp>
 #include <boost/geometry/index/rtree.hpp>
+#include <boost/geometry/strategies/strategies.hpp>
 #include <algorithm>
 #include <utility>
 

@@ -42,6 +42,7 @@ SET @star= 'POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0))
 SET @star_elem_vertical_val= '((5 0,15 25,25 0,15 5,5 0))';
 SET @star_elem_horizontal_val= '((25 0,0 15,30 15,22 10,25 0))';
 SET @star_of_elems='MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0)))';
+# star_collection_elems contains at least one invalid geometry
 SET @star_collection_elems='GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))),POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)),LINESTRING(15 25,15 10),MULTIPOINT(5 0,25 0),POINT(15 25))';
 SET @star_collection_multilinestr='GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))),POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)),MULTILINESTRING((25 0,0 15,15 30,0 5)),LINESTRING(15 25,15 10),MULTIPOINT(5 0,25 0),POINT(15 25))';
 
@@ -493,10 +494,13 @@ SELECT ST_ASTEXT(ST_SYMDIFFERENCE(g,ST_GEOMFROMTEXT(@star_of_elems))) FROM gis_g
 --echo #====================================================================================
 --echo # multilinestring,geometrycollection
 --echo #====================================================================================
+--echo # Invalid geometry in input.
 SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 25,25 0,25 30))'),ST_GEOMFROMTEXT(@star_collection_elems)));
 
+--echo # Invalid geometry in input.
 SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_collection_elems)));
 
+--echo # Invalid geometry in input.
 SELECT ST_ASTEXT(ST_SYMDIFFERENCE(g,ST_GEOMFROMTEXT(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=114;
 
 SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_lines_near_horizontal),ST_GEOMFROMTEXT(@star_collection_multilinestr)));
@@ -692,10 +696,13 @@ SELECT ST_ASTEXT(ST_SYMDIFFERENCE(g,ST_GEOMFROMTEXT(@star_top_to_center))) FROM 
 --echo #====================================================================================
 --echo # geometrycollection,multilinestring
 --echo #====================================================================================
+--echo # Invalid geometry in input.
 SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_lines_near_vertical)));
 
+--echo # Invalid geometry in input.
 SELECT ST_ASTEXT(ST_SYMDIFFERENCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))')));
 
+--echo # Invalid geometry in input.
 SELECT ST_ASTEXT(ST_SYMDIFFERENCE(g,ST_GEOMFROMTEXT(@star_lines_near_vertical))) FROM gis_geometrycollection WHERE fid=115;
 
 --echo #====================================================================================
