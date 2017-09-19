@@ -118,7 +118,8 @@ static void usage()
 int main(int argc, char** argv){
   NDB_INIT(argv[0]);
   ndb_opt_set_usage_funcs(short_usage_sub, usage);
-  ndb_load_defaults(NULL, load_default_groups,&argc,&argv);
+  MEM_ROOT alloc;
+  ndb_load_defaults(NULL, load_default_groups,&argc,&argv,&alloc);
   const char* _tabname;
   int ho_error;
 #ifndef DBUG_OFF

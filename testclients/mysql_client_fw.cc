@@ -59,7 +59,6 @@ static const char *opt_vardir= "mysql-test/var";
 
 static longlong opt_getopt_ll_test= 0;
 
-static char **defaults_argv;
 static int   original_argc;
 static char **original_argv;
 
@@ -1318,8 +1317,6 @@ static void get_options(int *argc, char ***argv)
 {
  int ho_error;
 
- /* Copy argv from load_defaults, so we can free it when done. */
- defaults_argv= *argv;
  /* reset --silent option */
  opt_silent= 0;
 
@@ -1376,7 +1373,8 @@ int main(int argc, char **argv)
  for (i= 0; i < argc; i++)
  original_argv[i]= strdup(argv[i]);
 
- if (load_defaults("my", client_test_load_default_groups, &argc, &argv))
+ MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512, 0};
+ if (load_defaults("my", client_test_load_default_groups, &argc, &argv, &alloc))
  exit(1);
 
  get_options(&argc, &argv);
@@ -1430,7 +1428,6 @@ int main(int argc, char **argv)
 	 fprintf(stderr, "See legal test names with %s -T\n\nAborting!\n",
 	 my_progname);
 	 client_disconnect(mysql);
-	 free_defaults(defaults_argv);
 	 mysql_server_end();
 	 exit(1);
        }
@@ -1445,7 +1442,6 @@ int main(int argc, char **argv)
 
  client_disconnect(mysql);    /* disconnect from server */
 
- free_defaults(defaults_argv);
  print_test_output();
 
  mysql_server_end();

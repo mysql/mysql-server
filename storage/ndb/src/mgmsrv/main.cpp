@@ -178,14 +178,14 @@ static void usage()
   ndb_usage(short_usage_sub, load_default_groups, my_long_options);
 }
 
-static char **defaults_argv;
+MEM_ROOT argv_alloc;
 
 static void mgmd_exit(int result)
 {
   g_eventLogger->close();
 
   /* Free memory allocated by 'load_defaults' */
-  ndb_free_defaults(defaults_argv);
+  free_root(&argv_alloc, MYF(0));
 
   ndb_end(opt_ndb_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
 
@@ -202,8 +202,7 @@ static int mgmd_main(int argc, char** argv)
 
   ndb_opt_set_usage_funcs(short_usage_sub, usage);
 
-  ndb_load_defaults(NULL, load_default_groups,&argc,&argv);
-  defaults_argv= argv; /* Must be freed by 'free_defaults' */
+  ndb_load_defaults(NULL, load_default_groups,&argc,&argv, &argv_alloc);
 
   int ho_error;
 #ifndef DBUG_OFF

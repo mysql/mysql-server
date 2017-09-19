@@ -19,6 +19,7 @@
 #include <ndb_opts.h>
 
 #include <ndb_version.h>
+#include "my_alloc.h"
 #include "my_default.h"
 
 static void default_ndb_opt_short(void)
@@ -134,16 +135,16 @@ bool ndb_is_load_default_arg_separator(const char* arg)
 extern "C"
 int
 ndb_load_defaults(const char* conf_file, const char** groups,
-                  int *argc, char*** argv)
+                  int *argc, char*** argv, MEM_ROOT *mem_root)
 {
   return my_load_defaults(conf_file ? conf_file : MYSQL_CONFIG_NAME,
-                          groups, argc, argv, NULL);
+                          groups, argc, argv, mem_root, NULL);
 }
 
 extern "C"
 void
-ndb_free_defaults(char** argv)
+ndb_free_defaults(MEM_ROOT *mem_root)
 {
-  free_defaults(argv);
+  free_root(mem_root, MYF(0));
 }
 

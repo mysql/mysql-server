@@ -88,7 +88,8 @@ int main(int argc, char** argv){
   NDB_INIT(argv[0]);
 
   ndb_opt_set_usage_funcs(short_usage_sub, usage);
-  ndb_load_defaults(NULL,load_default_groups,&argc,&argv);
+  MEM_ROOT alloc;
+  ndb_load_defaults(NULL,load_default_groups,&argc,&argv, &alloc);
   int ho_error;
 #ifndef DBUG_OFF
   opt_debug= "d:t:O,/tmp/ndb_desc.trace";

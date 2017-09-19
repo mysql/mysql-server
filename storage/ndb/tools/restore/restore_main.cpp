@@ -589,7 +589,8 @@ readArguments(int *pargc, char*** pargv)
   const char *load_default_groups[]= { "mysql_cluster","ndb_restore",0 };
 
   init_nodegroup_map();
-  ndb_load_defaults(NULL,load_default_groups,pargc,pargv);
+  MEM_ROOT alloc;
+  ndb_load_defaults(NULL,load_default_groups,pargc,pargv,&alloc);
   debug << "handle_options" << endl;
 
   ndb_opt_set_usage_funcs(short_usage_sub, usage);

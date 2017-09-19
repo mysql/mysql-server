@@ -145,7 +145,7 @@ static char  *opt_password=0,*current_user=0,
              *opt_compatible_mode_str= 0,
              *err_ptr= 0, *opt_ignore_error= 0,
              *log_error_file= NULL;
-static char **defaults_argv= 0;
+static MEM_ROOT argv_alloc{PSI_NOT_INSTRUMENTED, 512, 0};
 static char compatible_mode_normal_str[255];
 /* Server supports character_set_results session variable? */
 static bool server_supports_switching_charsets= TRUE;
@@ -998,11 +998,9 @@ static int get_options(int *argc, char ***argv)
 
   md_result_file= stdout;
   my_getopt_use_args_separator= TRUE;
-  if (load_defaults("my",load_default_groups,argc,argv))
+  if (load_defaults("my",load_default_groups,argc,argv,&argv_alloc))
     return 1;
   my_getopt_use_args_separator= FALSE;
-
-  defaults_argv= *argv;
 
   ignore_table= new collation_unordered_set<string>(charset_info, PSI_NOT_INSTRUMENTED);
   /* Don't copy internal log tables */
@@ -1542,8 +1540,6 @@ static void free_resources()
   }
   if (insert_pat_inited)
     dynstr_free(&insert_pat);
-  if (defaults_argv)
-    free_defaults(defaults_argv);
   if (opt_ignore_error)
     my_free(opt_ignore_error);
   my_end(my_end_arg);
