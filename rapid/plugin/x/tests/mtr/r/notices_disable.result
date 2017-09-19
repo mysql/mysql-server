@@ -368,7 +368,7 @@ Mysqlx.Resultset.ColumnMetaData {
   schema: ""
   catalog: "def"
   collation: 45
-  length: 1024
+  length: 4096
 }
 
 Mysqlx.Resultset.Row {
@@ -422,7 +422,7 @@ Mysqlx.Resultset.ColumnMetaData {
   schema: ""
   catalog: "def"
   collation: 45
-  length: 1024
+  length: 4096
 }
 
 Mysqlx.Resultset.Row {
@@ -489,7 +489,7 @@ Mysqlx.Resultset.ColumnMetaData {
   schema: ""
   catalog: "def"
   collation: 255
-  length: 4
+  length: 16
 }
 
 Mysqlx.Resultset.Row {
