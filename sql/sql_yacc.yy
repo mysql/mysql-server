@@ -14992,6 +14992,15 @@ view_tail:
             thd->parsing_system_view= lex->query_tables->is_system_view;
             if ($4.size())
             {
+              for (auto column_alias : $4)
+              {
+                // Report error if the column name/length is incorrect.
+                if (check_column_name(column_alias.str))
+                {
+                  my_error(ER_WRONG_COLUMN_NAME, MYF(0), column_alias.str);
+                  MYSQL_YYABORT;
+                }
+              }
               /*
                 The $4 object is short-lived (its 'm_array' is not);
                 so we have to duplicate it, and then we can store a
