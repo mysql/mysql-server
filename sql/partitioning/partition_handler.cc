@@ -2725,7 +2725,7 @@ int Partition_helper::handle_unordered_next(uchar *buf, bool is_next_same)
                                    m_start_key.key,
                                    m_start_key.length);
   }
-  else if ((m_index_scan_type == PARTITION_READ_RANGE))
+  else if (m_index_scan_type == PARTITION_READ_RANGE)
   {
     DBUG_ASSERT(buf == m_table->record[0]);
     error= read_range_next_in_part(m_part_spec.start_part, NULL);
