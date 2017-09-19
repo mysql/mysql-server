@@ -4208,7 +4208,7 @@ fil_close_tablespace(trx_t* trx, space_id_t space_id)
 	/* If it is a delete then also delete any generated files, otherwise
 	when we drop the database the remove directory will fail. */
 
-	char*	cfg_name = Fil_path::make(path, nullptr, CFG, false);
+	char*	cfg_name = Fil_path::make_cfg(path);
 
 	if (cfg_name != nullptr) {
 
@@ -4218,7 +4218,7 @@ fil_close_tablespace(trx_t* trx, space_id_t space_id)
 		ut_free(cfg_name);
 	}
 
-	char*	cfp_name = Fil_path::make(path, nullptr, CFP, false);
+	char*	cfp_name = Fil_path::make_cfp(path);
 
 	if (cfp_name != nullptr) {
 
@@ -4399,8 +4399,7 @@ Fil_shard::space_delete(
 
 #endif /* UNIV_HOTBACKUP */
 
-		char*	cfg_name = Fil_path::make(
-			path, nullptr, CFG, false);
+		char*	cfg_name = Fil_path::make_cfg(path);
 
 		if (cfg_name != nullptr) {
 
@@ -4410,8 +4409,7 @@ Fil_shard::space_delete(
 			ut_free(cfg_name);
 		}
 
-		char*	cfp_name = Fil_path::make(
-			path, nullptr, CFP, false);
+		char*	cfp_name = Fil_path::make_cfp(path);
 
 		if (cfp_name != nullptr) {
 
@@ -4688,40 +4686,52 @@ fil_discard_tablespace(space_id_t space_id)
 
 /** Allocate and build a file name from a path, a table or tablespace name
 and a suffix.
-@param[in]	path_in	nullptr or the direcory path or the full path and
-			filename
-@param[in]	name_in	nullptr if path is full, or Table/Tablespace name
-@param[in]	ext	the file extension to use
-@param[in]	trim	whether last name on the path should be trimmed
+@param[in]	path_in		nullptr or the direcory path or the full path
+				and filename
+@param[in]	name_in		nullptr if path is full, or Table/Tablespace
+				name
+@param[in]	ext		the file extension to use
+@param[in]      trim            whether last name on the path should be trimmed
 @return own: file name; must be freed by ut_free() */
 char*
 Fil_path::make(
-	const char*	path_in,
-	const char*	name_in,
-	ib_file_suffix	ext,
-	bool		trim)
+	const std::string&	path_in,
+	const std::string&	name_in,
+	ib_file_suffix		ext,
+	bool			trim)
 {
-	/* The path may contain the basename of the file, if so we do not
-	need the name.  If the path is nullptr, we can use the default path,
-	but there needs to be a name. */
-	ut_ad(path_in != nullptr || name_in != nullptr);
+	ib::info() << path_in << ", " << name_in;
 
-	if (path_in == nullptr || *path_in == 0) {
+	/* The path should be a directory and should not contain the
+	basename of the file. If the path is empty, we will use  the
+	default path, */
+
+	ut_ad(!path_in.empty() || !name_in.empty());
+
+	std::string	path;
+
+	if (path_in.empty()) {
 
 		if (is_absolute_path(name_in)) {
-			path_in = "";
+			path = "";
 		} else {
-			path_in = MySQL_datadir_path;
+			path.assign(MySQL_datadir_path);
 		}
+	} else {
+		path.assign(path_in);
 	}
 
 	std::string	name;
 
-	if (name_in != nullptr) {
+	if (!name_in.empty()) {
 		name.assign(name_in);
 	}
 
-	std::string	path(path_in);
+	if (path.length() > 10
+	    && path.compare(path.size() - 10, 10, "t5_restart") == 0) {
+
+		ut_a(trim);
+	}
 
 	/* If the name is a relative path like './', '../' or an absolute path,
 	do not prepend the datadir path.  */
@@ -4741,7 +4751,7 @@ Fil_path::make(
 	if (trim) {
 		/* Find the offset of the last DIR separator and set it to
 		null in order to strip off the old basename from this path. */
-		auto	pos = filepath.find_last_of(SEPARATOR);
+		auto    pos = filepath.find_last_of(SEPARATOR);
 
 		if (pos != std::string::npos) {
 			filepath.resize(pos);
@@ -4784,7 +4794,94 @@ Fil_path::make(
 
 	normalize(filepath);
 
+	ib::info() << filepath;
+
 	return(mem_strdup(filepath.c_str()));
+}
+
+/** Create an IBD path name after replacing the basename in an old path
+with a new basename.  The old_path is a full path name including the
+extension.  The tablename is in the normal form "schema/tablename".
+
+@param[in]	path_in			Pathname
+@param[in]	name_in			Contains new base name
+@return own: new full pathname */
+std::string
+Fil_path::make_new_ibd(
+	const std::string&	path_in,
+	const std::string&	name_in)
+{
+	ut_a(Fil_path::has_ibd_suffix(path_in));
+	ut_a(!Fil_path::has_ibd_suffix(name_in));
+
+	std::string	path(path_in);
+
+	auto	pos = path.find_last_of(SEPARATOR);
+
+	ut_a(pos != std::string::npos);
+
+	path.resize(pos);
+
+	pos = path.find_last_of(SEPARATOR);
+
+	ut_a(pos != std::string::npos);
+
+	path.resize(pos + 1);
+
+	path.append(name_in + ".ibd");
+
+	return(path);
+}
+
+/** This function reduces a null-terminated full remote path name into
+the path that is sent by MySQL for DATA DIRECTORY clause.  It replaces
+the 'databasename/tablename.ibd' found at the end of the path with just
+'tablename'.
+
+Since the result is always smaller than the path sent in, no new memory
+is allocated. The caller should allocate memory for the path sent in.
+This function manipulates that path in place.
+
+If the path format is not as expected, just return.  The result is used
+to inform a SHOW CREATE TABLE command.
+@param[in,out] data_dir_path           Full path/data_dir_path */
+void
+Fil_path::make_data_dir_path(char* data_dir_path)
+{
+	/* Replace the period before the extension with a null byte. */
+	char*   ptr = strrchr((char*) data_dir_path, '.');
+
+	if (ptr == nullptr) {
+		return;
+	}
+
+       *ptr = '\0';
+
+	/* The tablename starts after the last slash. */
+	ptr = strrchr((char*) data_dir_path, OS_PATH_SEPARATOR);
+
+	if (ptr == nullptr) {
+	return;
+	}
+
+	*ptr = '\0';
+
+	char*	tablename = ptr + 1;
+
+	/* The databasename starts after the next to last slash. */
+	ptr = strrchr((char*) data_dir_path, OS_SEPARATOR);
+
+	if (ptr == nullptr) {
+		return;
+	}
+
+       size_t	tablename_len = strlen(tablename);
+
+       ++ptr;
+
+	memmove(ptr, tablename, tablename_len);
+
+	ptr[tablename_len] = '\0';
 }
 
 /** Write redo log for renaming a file.
@@ -4997,7 +5094,7 @@ Fil_shard::space_rename(
 			file = &space->files.front();
 
 			char*   new_file_name = new_path_in == nullptr
-				? Fil_path::make(nullptr, new_name, IBD, false)
+				? Fil_path::make("", new_name, IBD)
 				: mem_strdup(new_path_in);
 
 			char*   old_file_name = file->name;
@@ -5080,8 +5177,7 @@ Fil_shard::space_rename(
 
 	if (new_path_in == nullptr) {
 
-		new_file_name = Fil_path::make(
-			nullptr, new_name, IBD, false);
+		new_file_name = Fil_path::make("", new_name, IBD);
 	} else {
 		new_file_name = mem_strdup(new_path_in);
 	}
@@ -8211,15 +8307,9 @@ fil_tablespace_iterate(
 	/* Make sure the data_dir_path is set. */
 	dd_get_and_save_data_dir_path<dd::Table>(table, nullptr, false);
 
-	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
-		ut_a(table->data_dir_path);
+	std::string	path = dict_table_get_datadir(table);
 
-		filepath = Fil_path::make(
-			table->data_dir_path, table->name.m_name, IBD, true);
-	} else {
-		filepath = Fil_path::make(
-			nullptr, table->name.m_name, IBD, false);
-	}
+	filepath = Fil_path::make(path, table->name.m_name, IBD, true);
 
 	if (filepath == nullptr) {
 		return(DB_OUT_OF_MEMORY);
@@ -8386,7 +8476,7 @@ fil_delete_file(const char* path)
 
 	success = os_file_delete_if_exists(innodb_data_file_key, path, nullptr);
 
-	char*	cfg_filepath = Fil_path::make(path, nullptr, CFG, false);
+	char*	cfg_filepath = Fil_path::make_cfg(path);
 
 	if (cfg_filepath != nullptr) {
 
@@ -8396,7 +8486,7 @@ fil_delete_file(const char* path)
 		ut_free(cfg_filepath);
 	}
 
-	char*	cfp_filepath = Fil_path::make(path, nullptr, CFP, false);
+	char*	cfp_filepath = Fil_path::make_cfp(path);
 
 	if (cfp_filepath != nullptr) {
 
@@ -8434,12 +8524,10 @@ fil_rename_precheck(
 		return(DB_SUCCESS);
 	}
 
-	const char*	old_dir = DICT_TF_HAS_DATA_DIR(old_table->flags)
-		? old_table->data_dir_path
-		: nullptr;
+	auto	old_dir = dict_table_get_datadir(old_table);
 
 	char*	old_path = Fil_path::make(
-		old_dir, old_table->name.m_name, IBD, (old_dir != nullptr));
+		old_dir, old_table->name.m_name, IBD, !old_dir.empty());
 
 	if (old_path == nullptr) {
 		return(DB_OUT_OF_MEMORY);
@@ -8448,7 +8536,7 @@ fil_rename_precheck(
 	if (old_is_file_per_table) {
 
 		char*	tmp_path = Fil_path::make(
-			old_dir, tmp_name, IBD, (old_dir != nullptr));
+			old_dir, tmp_name, IBD, !old_dir.empty());
 
 		if (tmp_path == nullptr) {
 			ut_free(old_path);
@@ -8471,13 +8559,10 @@ fil_rename_precheck(
 
 	if (new_is_file_per_table) {
 
-		const char*	new_dir = DICT_TF_HAS_DATA_DIR(new_table->flags)
-			? new_table->data_dir_path
-			: nullptr;
+		auto	new_dir = dict_table_get_datadir(new_table);
 
 		char*	new_path = Fil_path::make(
-				new_dir, new_table->name.m_name,
-				IBD, (new_dir != nullptr));
+			new_dir, new_table->name.m_name, IBD, !new_dir.empty());
 
 		if (new_path == nullptr) {
 			ut_free(old_path);
@@ -9060,6 +9145,19 @@ fil_tablespace_path_equals(
 	const auto&	it = recv_sys->deleted.find(space_id);
 
 	if (result.second == nullptr) {
+
+		/* If the DD has the path but --innodb-directories doesn't,
+		we need to check if the DD path is valid before we tag the
+		file as missing. */
+
+		if (Fil_path::get_file_type(old_path) == OS_FILE_TYPE_FILE) {
+
+			ib::info()
+				<< old_path << " found outside of"
+				<< " --innodb-directories setting";
+
+			return(Fil_state::MATCHES);
+		}
 
 		/* If it wasn't deleted during redo apply, we tag it
 		as missing. */
@@ -10361,6 +10459,8 @@ Tablespace_dirs::scan(const std::string& in_directories)
 
 			if (Fil_path::has_ibd_suffix(file.c_str())) {
 
+				ib::info() << file;
+
 				ibd_files.push_back(value{count, file});
 
 			} else if (Fil_path::is_undo_tablespace_name(file)) {
@@ -10651,3 +10751,4 @@ fil_free_scanned_files()
 {
 	fil_system->free_scanned_files();
 }
+

@@ -2436,8 +2436,8 @@ ha_innopart::update_part_elem(
 		if (part_elem->tablespace_name != NULL) {
 			if (0 != strcmp(part_elem->tablespace_name,
 					tablespace_name)) {
-				/* Update part_elem ablespace to NULL same as in
-				innodb data dictionary ib_table. */
+				/* Update part_elem tablespace to NULL same
+				as in innodb data dictionary ib_table. */
 				part_elem->tablespace_name = NULL;
 			}
 		} else if (display_tablespace) {

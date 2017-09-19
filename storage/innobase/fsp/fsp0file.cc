@@ -209,11 +209,20 @@ Datafile::make_filepath(
 	const char*	filename,
 	ib_file_suffix	ext)
 {
-	ut_ad(dirpath != NULL || filename != NULL);
-
 	free_filepath();
 
-	m_filepath = Fil_path::make(dirpath, filename, ext, false);
+	std::string	path;
+	std::string	name;
+
+	if (dirpath != nullptr) {
+		path.assign(dirpath);
+	}
+
+	if (filename != nullptr) {
+		name.assign(filename);
+	}
+
+	m_filepath = Fil_path::make(path, name, ext);
 
 	ut_ad(m_filepath != NULL);
 

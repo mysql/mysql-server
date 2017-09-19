@@ -1918,39 +1918,6 @@ os_file_status(
 	bool*		exists,
 	os_file_type_t* type);
 
-/** This function returns a new path name after replacing the basename
-in an old path with a new basename.  The old_path is a full path
-name including the extension.  The tablename is in the normal
-form "databasename/tablename".  The new base name is found after
-the forward slash.  Both input strings are null terminated.
-
-This function allocates memory to be returned.  It is the callers
-responsibility to free the return value after it is no longer needed.
-
-@param[in]	old_path		pathname
-@param[in]	tablename		new file name
-@return own: new full pathname */
-char*
-os_file_make_new_pathname(
-	const char*	old_path,
-	const char*	tablename);
-
-/** This function reduces a null-terminated full remote path name into
-the path that is sent by MySQL for DATA DIRECTORY clause.  It replaces
-the 'databasename/tablename.ibd' found at the end of the path with just
-'tablename'.
-
-Since the result is always smaller than the path sent in, no new memory
-is allocated. The caller should allocate memory for the path sent in.
-This function manipulates that path in place.
-
-If the path format is not as expected, just return.  The result is used
-to inform a SHOW CREATE TABLE command.
-@param[in,out]	data_dir_path	full path/data_dir_path */
-void
-os_file_make_data_dir_path(
-	char*	data_dir_path);
-
 /** Create all missing subdirectories along the given path.
 @return DB_SUCCESS if OK, otherwise error code. */
 dberr_t

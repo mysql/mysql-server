@@ -3730,8 +3730,6 @@ Validate_files::validate(const Tablespaces& tablespaces, size_t* moved_count)
 	par_for(PFS_NOT_INSTRUMENTED,
 		tablespaces, m_n_threads, check, moved_count);
 
-	ib::info() << "Validated " << checked();
-
 	if (failed()) {
 		return(DB_ERROR);
 	}
@@ -11014,7 +11012,7 @@ create_table_info_t::create_table_def(
 	}
 
 	if (DICT_TF_HAS_DATA_DIR(m_flags)) {
-		ut_a(strlen(m_remote_path));
+		ut_a(strlen(m_remote_path) != 0);
 
 		table->data_dir_path = mem_heap_strdup(
 			table->heap, m_remote_path);
@@ -11691,8 +11689,8 @@ create_table_info_t::create_option_data_directory_is_valid()
 {
 	bool		is_valid = true;
 
-	ut_ad(m_create_info->data_file_name
-	      && m_create_info->data_file_name[0] != '\0');
+	ut_ad(m_create_info->data_file_name != nullptr
+	      && *m_create_info->data_file_name != '\0');
 
 	/* Use DATA DIRECTORY only with file-per-table. */
 	if (!m_use_shared_space && !m_allow_file_per_table) {
@@ -11842,10 +11840,13 @@ create_table_info_t::create_option_tablespace_is_valid()
 	needed for CREATE TABLE only. ALTER TABLE may be moving remote
 	file-per-table table to a general tablespace, in which case the
 	create_info->data_file_name is not null. */
-	bool	is_create_table = (thd_sql_command(m_thd) == SQLCOM_CREATE_TABLE);
+	bool	is_create_table;
+
+	is_create_table = (thd_sql_command(m_thd) == SQLCOM_CREATE_TABLE);
+
 	if (is_create_table
-	    && m_create_info->data_file_name != NULL
-	    && m_create_info->data_file_name[0] != '\0') {
+	    && m_create_info->data_file_name != nullptr
+	    && *m_create_info->data_file_name != '\0') {
 		my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
 			"InnoDB: DATA DIRECTORY cannot be used"
 			" with a TABLESPACE assignment.", MYF(0));
@@ -12135,8 +12136,8 @@ create_table_info_t::create_options_are_invalid()
 		break;
 	}
 
-	if (m_create_info->data_file_name
-	    && m_create_info->data_file_name[0] != '\0'
+	if (m_create_info->data_file_name != nullptr
+	    && *m_create_info->data_file_name != '\0'
 	    && !create_option_data_directory_is_valid()) {
 		ret = "DATA DIRECTORY";
 	}
@@ -12199,9 +12200,11 @@ ha_innobase::update_create_info(
 	}
 
 	/* Update the DATA DIRECTORY name. */
-	dd_get_and_save_data_dir_path<dd::Table>(m_prebuilt->table, NULL, false);
+	dd_get_and_save_data_dir_path<dd::Table>(
+		m_prebuilt->table, NULL, false);
 
-	if (m_prebuilt->table->data_dir_path) {
+	if (m_prebuilt->table->data_dir_path != nullptr) {
+
 		create_info->data_file_name = m_prebuilt->table->data_dir_path;
 	}
 
@@ -12401,13 +12404,13 @@ create_table_info_t::parse_table_name(
 	if (m_innodb_file_per_table
 	    && !(m_create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
 
-		if ((name[1] == ':')
+		if (name[1] == ':'
 		    || (name[0] == '\\' && name[1] == '\\')) {
 			sql_print_error("Cannot create table %s\n", name);
 			DBUG_RETURN(HA_ERR_GENERIC);
 		}
 	}
-#endif
+#endif /* _WIN32 */
 
 	normalize_table_name(m_table_name, name);
 	m_remote_path[0] = '\0';
@@ -12418,8 +12421,8 @@ create_table_info_t::parse_table_name(
 	  CREATE TEMPORARY TABLE ... DATA DIRECTORY={path} ... ;
 	  CREATE TABLE ... DATA DIRECTORY={path} TABLESPACE={name}... ;
 	we ignore the DATA DIRECTORY. */
-	if (m_create_info->data_file_name
-	    && m_create_info->data_file_name[0] != '\0') {
+	if (m_create_info->data_file_name != nullptr
+	    && *m_create_info->data_file_name != '\0') {
 		if (!create_option_data_directory_is_valid()) {
 			push_warning_printf(
 				m_thd, Sql_condition::SL_WARNING,
@@ -12428,6 +12431,7 @@ create_table_info_t::parse_table_name(
 				"DATA DIRECTORY");
 			m_flags &= ~DICT_TF_MASK_DATA_DIR;
 		} else {
+
 			strncpy(m_remote_path,
 				m_create_info->data_file_name,
 				FN_REFLEN - 1);
@@ -12446,6 +12450,7 @@ create_table_info_t::parse_table_name(
 	create_option_tablespace_is_valid() irregardless of strict-mode.
 	So it only needs to be copied now. */
 	if (m_use_shared_space) {
+
 		strncpy(m_tablespace, m_create_info->tablespace,
 			NAME_LEN - 1);
 	}
@@ -13074,8 +13079,6 @@ create_table_info_t::prepare_create_table(
 	DBUG_ENTER("prepare_create_table");
 
 	ut_ad(m_thd != NULL);
-	ut_ad(m_create_info != NULL);
-
 	ut_ad(m_form->s->row_type == m_create_info->row_type);
 
 	normalize_table_name(m_table_name, name);
@@ -13543,7 +13546,6 @@ innobase_basic_ddl::create_impl(
 	bool			evictable,
 	bool			skip_strict)
 {
-	int		error;
 	char		norm_name[FN_REFLEN];	/* {database}/{tablename} */
 	char		remote_path[FN_REFLEN];	/* Absolute path of table */
 	char		tablespace[NAME_LEN];	/* Tablespace name identifier */
@@ -13557,22 +13559,21 @@ innobase_basic_ddl::create_impl(
 		trx_start_if_not_started(trx, true);
 	}
 
-	create_table_info_t	info(thd,
-				     form,
-				     create_info,
-				     norm_name,
-				     remote_path,
-				     tablespace,
-				     file_per_table,
-				     skip_strict);
+	create_table_info_t	info(
+		thd, form, create_info, norm_name, remote_path, tablespace,
+		file_per_table, skip_strict);
 
 	/* Initialize the object. */
-	if ((error = info.initialize())) {
+	int	error = info.initialize();
+
+	if (error != 0) {
 		return(error);
 	}
 
 	/* Prepare for create and validate options. */
-	if ((error = info.prepare_create_table(name))) {
+	error = info.prepare_create_table(name);
+
+	if (error != 0) {
 		return(error);
 	}
 
@@ -14467,20 +14468,28 @@ ha_innobase::truncate_rename_tablespace(
 	dict_sys->size += new_size - old_size;
 	mutex_exit(&dict_sys->mutex);
 
-	char*	new_path = nullptr;
 	char*	old_path = nullptr;
 
 	old_path = fil_space_get_first_path(table->space);
 
+	std::string	new_path;
+
 	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
-		new_path = os_file_make_new_pathname(old_path, temp_name);
+
+		new_path = Fil_path::make_new_ibd(old_path, temp_name);
+
 	} else {
-		new_path = Fil_path::make(nullptr, temp_name, IBD, false);
+		char*	ptr = Fil_path::make("", temp_name, IBD);
+
+		new_path.assign(ptr);
+
+		ut_free(ptr);
 	}
 
 	/* New filepath must not exist. */
 	dberr_t	err = fil_rename_tablespace_check(
-		table->space, old_path, new_path, false);
+		table->space, old_path, new_path.c_str(), false);
+
 	if (err == DB_SUCCESS) {
 
 		mutex_enter(&dict_sys->mutex);
@@ -14488,7 +14497,7 @@ ha_innobase::truncate_rename_tablespace(
 		clone_mark_abort(true);
 
 		bool	success = fil_rename_tablespace(
-			table->space, old_path, temp_name, new_path);
+			table->space, old_path, temp_name, new_path.c_str());
 
 		clone_mark_active();
 
@@ -14504,7 +14513,6 @@ ha_innobase::truncate_rename_tablespace(
 	}
 
 	ut_free(old_path);
-	ut_free(new_path);
 
 	dd_table_close(table, nullptr, nullptr, false);
 
@@ -14573,9 +14581,9 @@ ha_innobase::truncate(dd::Table *table_def)
 	info.tablespace = tsname;
 	info.key_block_size = table->s->key_block_size;
 
-	char* data_file_name = m_prebuilt->table->data_dir_path;
+	char*	data_file_name = m_prebuilt->table->data_dir_path;
 
-	if (data_file_name) {
+	if (data_file_name != nullptr) {
 		info.data_file_name = data_file_name
 			= mem_strdup(data_file_name);
 	}
@@ -14719,8 +14727,8 @@ validate_create_tablespace_info(
 	st_alter_tablespace*	alter_info)
 {
 	/* The parser ensures that these fields are provided. */
-	ut_a(alter_info->tablespace_name);
-	ut_a(alter_info->data_file_name);
+	ut_a(alter_info->data_file_name != nullptr);
+	ut_a(alter_info->tablespace_name != nullptr);
 
 	if (high_level_read_only) {
 		return(HA_ERR_INNODB_READ_ONLY);

@@ -3730,13 +3730,14 @@ row_import_for_mysql(
 	dd_get_and_save_data_dir_path(table, table_def, true);
 
 	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
-		ut_a(table->data_dir_path);
 
-		filepath = Fil_path::make(
-			table->data_dir_path, table->name.m_name, IBD, true);
+		ut_a(table->data_dir_path != nullptr);
+
+		const auto	dir = table->data_dir_path;
+
+		filepath = Fil_path::make(dir, table->name.m_name, IBD, true);
 	} else {
-		filepath = Fil_path::make(
-			NULL, table->name.m_name, IBD, false);
+		filepath = Fil_path::make("", table->name.m_name, IBD);
 	}
 
 	DBUG_EXECUTE_IF(

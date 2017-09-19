@@ -636,15 +636,85 @@ public:
 	@param[in]	name_in		nullptr if path is full, or
 					Table/Tablespace name
 	@param[in]	ext		the file extension to use
-	@param[in]	trim		whether last name on the path should
+	@param[in]      trim            whether last name on the path should
 					be trimmed
 	@return own: file name; must be freed by ut_free() */
 	static char* make(
-		const char*	path_in,
-		const char*	name_in,
-		ib_file_suffix	ext,
-		bool		trim)
+		const std::string&	path_in,
+		const std::string&	name_in,
+		ib_file_suffix		ext,
+		bool			trim = false)
 		MY_ATTRIBUTE((warn_unused_result));
+
+	/** Allocate and build a CFG file name from a path.
+	@param[in]	path_in		Full path to the filename
+	@return own: file name; must be freed by ut_free() */
+	static char* make_cfg(
+		const std::string&	path_in)
+		MY_ATTRIBUTE((warn_unused_result))
+	{
+		return(make(path_in, "", CFG));
+	}
+
+	/** Allocate and build a CFP file name from a path.
+	@param[in]	path_in		Full path to the filename
+	@return own: file name; must be freed by ut_free() */
+	static char* make_cfp(
+		const std::string&	path_in)
+		MY_ATTRIBUTE((warn_unused_result))
+	{
+		return(make(path_in, "", CFP));
+	}
+
+	/** Allocate and build a file name from a path, a table or
+	tablespace name and a suffix.
+	@param[in]	path_in		nullptr or the direcory path or
+					the full path and filename
+	@param[in]	name_in		nullptr if path is full, or
+					Table/Tablespace name
+	@return own: file name; must be freed by ut_free() */
+	static char* make_ibd(
+		const std::string&	path_in,
+		const std::string&	name_in)
+		MY_ATTRIBUTE((warn_unused_result))
+	{
+		return(make(path_in, name_in, IBD));
+	}
+
+	/** Allocate and build a file name from a path, a table or
+	tablespace name and a suffix.
+	@param[in]	name_in		Table/Tablespace name
+	@return own: file name; must be freed by ut_free() */
+	static char* make_ibd_from_table_name(const std::string& name_in)
+		MY_ATTRIBUTE((warn_unused_result))
+	{
+		return(make("", name_in, IBD));
+	}
+
+	/** Create an IBD path name after replacing the basename in an old path
+	with a new basename.  The old_path is a full path name including the
+	extension.  The tablename is in the normal form "schema/tablename".
+	@param[in]	path_in			Pathname
+	@param[in]	name_in			Contains new base name
+	@return new full pathname */
+	static std::string make_new_ibd(
+		const std::string&	path_in,
+		const std::string&	name_in)
+		MY_ATTRIBUTE((warn_unused_result));
+
+	/** This function reduces a null-terminated full remote path name into
+	the path that is sent by MySQL for DATA DIRECTORY clause.  It replaces
+	the 'databasename/tablename.ibd' found at the end of the path with just
+	'tablename'.
+
+	Since the result is always smaller than the path sent in, no new memory
+	is allocated. The caller should allocate memory for the path sent in.
+	This function manipulates that path in place.
+
+	If the path format is not as expected, just return.  The result is used
+	to inform a SHOW CREATE TABLE command.
+	@param[in,out] data_dir_path           Full path/data_dir_path */
+	static void make_data_dir_path(char* data_dir_path);
 
 	/** @return the null path */
 	static const Fil_path& null()
@@ -661,7 +731,7 @@ protected:
 	std::string		m_abs_path;
 
 	/** Empty (null) path. */
-	static Fil_path	s_null_path;
+	static Fil_path		s_null_path;
 };
 
 /** The MySQL server --datadir value */

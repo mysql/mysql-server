@@ -4578,14 +4578,13 @@ row_drop_table_for_mysql(
 	/* Determine the tablespace filename before we drop
 	dict_table_t.  Free this memory before returning. */
 	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
-		ut_a(table->data_dir_path);
 
-		filepath = Fil_path::make(
-			table->data_dir_path, table_name, IBD, true);
+		auto	dir = dict_table_get_datadir(table);
+
+		filepath = Fil_path::make(dir, table_name, IBD, true);
 
 	} else if (!shared_tablespace) {
-
-		filepath = Fil_path::make(nullptr, table_name, IBD, false);
+		filepath = Fil_path::make("", table_name, IBD);
 	}
 
 	/* Free the dict_table_t object. */
@@ -4601,11 +4600,16 @@ row_drop_table_for_mysql(
 
 	/* Do not attempt to drop known-to-be-missing tablespaces,
 	nor system or shared general tablespaces. */
-	if (is_discarded || ibd_file_missing || is_temp || shared_tablespace
+	if (is_discarded
+	    || ibd_file_missing
+	    || is_temp
+	    || shared_tablespace
 	    || fsp_is_system_or_temp_tablespace(space_id)) {
+
 		/* For encrypted table, if ibd file can not be decrypt,
 		we also set ibd_file_missing. We still need to try to
 		remove the ibd file for this. */
+
 		if (is_discarded || !is_encrypted || !ibd_file_missing) {
 			goto funct_exit;
 		}

@@ -3198,48 +3198,6 @@ dd_table_get_space_name(
 	DBUG_RETURN(space_name);
 }
 
-/** Using the table->heap, copy the null-terminated filepath into
-table->data_dir_path and replace the 'databasename/tablename.ibd'
-portion with 'tablename'.
-This allows SHOW CREATE TABLE to return the correct DATA DIRECTORY path.
-Make this data directory path only if it has not yet been saved.
-@param[in,out]	table		table obj
-@param[in]	filepath	filepath of tablespace */
-static
-void
-dd_save_data_dir_path(
-       dict_table_t*   table,
-       char*           filepath)
-{
-       ut_ad(mutex_own(&dict_sys->mutex));
-       ut_ad(DICT_TF_HAS_DATA_DIR(table->flags));
-
-       ut_ad(filepath != nullptr);
-       ut_ad(table->data_dir_path == nullptr);
-
-       /* Be sure this filepath is not the default filepath. */
-       char*   default_filepath = Fil_path::make(
-                       nullptr, table->name.m_name, IBD, false);
-
-       if (default_filepath != nullptr) {
-
-               if (0 != strcmp(filepath, default_filepath)) {
-                       ulint	pathlen = strlen(filepath);
-
-                       ut_a(pathlen < OS_FILE_MAX_PATH);
-
-                       ut_a(0 == strcmp(filepath + pathlen - 4, DOT_IBD));
-
-                       table->data_dir_path = mem_heap_strdup(
-                               table->heap, filepath);
-
-                       os_file_make_data_dir_path(table->data_dir_path);
-               }
-
-               ut_free(default_filepath);
-       }
-}
-
 /** Get the first filepath from mysql.tablespace_datafiles for a given space_id.
 @tparam		Table		dd::Table or dd::Partition
 @param[in,out]	heap		heap for store file name.
@@ -3321,25 +3279,26 @@ dd_get_and_save_data_dir_path(
 	mem_heap_t*		heap = NULL;
 
 	if (DICT_TF_HAS_DATA_DIR(table->flags)
-	    && (!table->data_dir_path)) {
+	    && table->data_dir_path == nullptr) {
+
 		char*	path = fil_space_get_first_path(table->space);
 
 		if (!dict_mutex_own) {
 			dict_mutex_enter_for_mysql();
 		}
 
-		if (path == NULL) {
+		if (path == nullptr) {
 			heap = mem_heap_create(1000);
 			dict_mutex_exit_for_mysql();
 			path = dd_get_first_path(heap, table, dd_table);
 			dict_mutex_enter_for_mysql();
 		}
 
-		if (path != NULL) {
-			dd_save_data_dir_path(table, path);
+		if (path != nullptr) {
+			dict_save_data_dir_path(table, path);
 		}
 
-		if (table->data_dir_path == NULL) {
+		if (table->data_dir_path == nullptr) {
 			/* Since we did not set the table data_dir_path,
 			unset the flag. */
 			table->flags &= ~DICT_TF_MASK_DATA_DIR;
@@ -3349,7 +3308,7 @@ dd_get_and_save_data_dir_path(
 			dict_mutex_exit_for_mysql();
 		}
 
-		if (heap) {
+		if (heap != nullptr) {
 			mem_heap_free(heap);
 		} else {
 			ut_free(path);
@@ -3379,24 +3338,15 @@ dd_get_meta_data_filename(
 	/* Make sure the data_dir_path is set. */
 	dd_get_and_save_data_dir_path(table, dd_table, false);
 
-	char*		path;
+	std::string	path = dict_table_get_datadir(table);
 
-	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
+	auto	filepath = Fil_path::make(path, table->name.m_name, CFG, true);
 
-		ut_a(table->data_dir_path != nullptr);
+	ut_a(max_len >= strlen(filepath) + 1);
 
-		const auto	dir = table->data_dir_path;
+	strcpy(filename, filepath);
 
-		path = Fil_path::make(dir, table->name.m_name, CFG, true);
-	} else {
-		path = Fil_path::make(NULL, table->name.m_name, CFG, false);
-	}
-
-	ut_a(max_len >= strlen(path) + 1);
-
-	strcpy(filename, path);
-
-	ut_free(path);
+	ut_free(filepath);
 }
 
 /** Opens a tablespace for dd_load_table_one()
@@ -3490,20 +3440,20 @@ dd_load_tablespace(
 	/* Use the remote filepath if needed. This parameter is optional
 	in the call to fil_ibd_open(). If not supplied, it will be built
 	from the space_name. */
-	char* filepath = nullptr;
+	char*	filepath = nullptr;
 	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
 		/* This will set table->data_dir_path from either
 		fil_system */
 		dd_get_and_save_data_dir_path(table, dd_table, true);
 
-		if (table->data_dir_path) {
+		if (table->data_dir_path != nullptr) {
+
 			filepath = Fil_path::make(
 				table->data_dir_path,
 				table->name.m_name, IBD, true);
 		}
 
-	}
-	else if (DICT_TF_HAS_SHARED_SPACE(table->flags)) {
+	} else if (DICT_TF_HAS_SHARED_SPACE(table->flags)) {
 
 		mutex_exit(&dict_sys->mutex);
 		filepath = dd_get_first_path(heap, table, dd_table);
@@ -5478,7 +5428,8 @@ dd_get_referenced_table(
 		}
 		memcpy(ref, db_name, database_name_len);
 		ref[database_name_len] = '/';
-		memcpy(ref + database_name_len + 1, table_name, table_name_len + 1);
+		memcpy(ref + database_name_len + 1,
+		       table_name, table_name_len + 1);
 
 	} else {
 #ifndef _WIN32

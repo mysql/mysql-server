@@ -58,16 +58,14 @@ dict_build_table_def(
 	dict_table_t*	table,
 	trx_t*		trx)
 {
-	dberr_t		err = DB_SUCCESS;
-
 	char	db_buf[NAME_LEN + 1];
 	char	tbl_buf[NAME_LEN + 1];
 
 	dd_parse_tbl_name(table->name.m_name, db_buf, tbl_buf,
 			  nullptr, nullptr, nullptr);
 
-	bool is_dd_table = dd::get_dictionary()->is_dd_table_name(
-		                        db_buf, tbl_buf);
+	bool	is_dd_table = dd::get_dictionary()->is_dd_table_name(
+			db_buf, tbl_buf);
 
 	/** In-memory counter used for assigning table_id
 	of data dictionary table. This counter is only used
@@ -77,13 +75,15 @@ dict_build_table_def(
 	if (is_dd_table) {
 		table->id = dd_table_id++;
 		table->is_dd_table = true;
-		ut_ad(strcmp(tbl_buf, innodb_dd_table[table->id - 1].name) == 0);
+
+		ut_ad(strcmp(tbl_buf, innodb_dd_table[table->id - 1].name)
+		      == 0);
 
 	} else {
 		dict_table_assign_new_id(table, trx);
 	}
 
-	err = dict_build_tablespace_for_table(table, trx);
+	dberr_t	err = dict_build_tablespace_for_table(table, trx);
 
 	return(err);
 }
@@ -212,24 +212,23 @@ dict_build_tablespace_for_table(
 		table->space = space;
 
 		/* Determine the tablespace flags. */
-		bool	has_data_dir = DICT_TF_HAS_DATA_DIR(table->flags);
 		bool	is_encrypted = dict_table_is_encrypted(table);
-		ulint	fsp_flags = dict_tf_to_fsp_flags(table->flags,
-							 is_encrypted);
-		std::string	tablespace_name;
 
-		/* Determine the full filepath */
-		if (has_data_dir) {
-			ut_ad(table->data_dir_path);
+		ulint	fsp_flags = dict_tf_to_fsp_flags(
+			table->flags, is_encrypted);
+
+		if (DICT_TF_HAS_DATA_DIR(table->flags)) {
+			std::string	path;
+
+			path = dict_table_get_datadir(table);
+
+			ib::info() << "PATH1: " << path;
+
 			filepath = Fil_path::make(
-				table->data_dir_path,
-				table->name.m_name, IBD, true);
-
+				path, table->name.m_name, IBD, true);
 		} else {
-			/* Make the tablespace file in the default dir
-			using the table name */
-			filepath = Fil_path::make(
-				NULL, table->name.m_name, IBD, false);
+			filepath = Fil_path::make_ibd_from_table_name(
+				table->name.m_name);
 		}
 
 		log_ddl->write_delete_space_log(
@@ -242,6 +241,8 @@ dict_build_tablespace_for_table(
 		- page 2 is the first inode page,
 		- page 3 will contain the root of the clustered index of
 		the table we create here. */
+
+		std::string	tablespace_name;
 
 		dd_filename_to_spacename(table->name.m_name, &tablespace_name);
 

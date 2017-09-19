@@ -3272,28 +3272,19 @@ srv_get_encryption_data_filename(
 	char*		filename,
 	ulint		max_len)
 {
-	ulint		len;
-	char*		path;
-
 	/* Make sure the data_dir_path is set. */
 	dd_get_and_save_data_dir_path<dd::Table>(table, NULL, false);
 
-	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
-		ut_a(table->data_dir_path);
+	std::string	path = dict_table_get_datadir(table);
 
-		path = Fil_path::make(
-			table->data_dir_path, table->name.m_name, CFP, true);
-	} else {
-		path = Fil_path::make(NULL, table->name.m_name, CFP, false);
-	}
+	auto	filepath = Fil_path::make(path, table->name.m_name, CFP, true);
 
-	ut_a(path);
-	len = ut_strlen(path);
+	size_t	len = strlen(filepath);
 	ut_a(max_len >= len);
 
-	strcpy(filename, path);
+	strcpy(filename, filepath);
 
-	ut_free(path);
+	ut_free(filepath);
 }
 
 /** Call exit(3) */

@@ -1663,16 +1663,9 @@ dict_table_rename_in_cache(
 		/* Make sure the data_dir_path is set. */
 		dd_get_and_save_data_dir_path<dd::Table>(table, NULL, true);
 
-		if (DICT_TF_HAS_DATA_DIR(table->flags)) {
-			ut_a(table->data_dir_path);
+		std::string	path = dict_table_get_datadir(table);
 
-			filepath = Fil_path::make(
-				table->data_dir_path, table->name.m_name,
-				IBD, true);
-		} else {
-			filepath = Fil_path::make(
-				NULL, table->name.m_name, IBD, false);
-		}
+		filepath = Fil_path::make(path, table->name.m_name, IBD, true);
 
 		if (filepath == NULL) {
 			return(DB_OUT_OF_MEMORY);
@@ -1711,11 +1704,14 @@ dict_table_rename_in_cache(
 		ut_ad(!table->is_temporary());
 
 		if (DICT_TF_HAS_DATA_DIR(table->flags)) {
-			new_path = os_file_make_new_pathname(
-				old_path, new_name);
+			std::string	new_ibd;
+
+			new_ibd = Fil_path::make_new_ibd(old_path, new_name);
+
+			new_path = mem_strdup(new_ibd.c_str());
+
 		} else {
-			new_path = Fil_path::make(
-				NULL, new_name, IBD, false);
+			new_path = Fil_path::make("", new_name, IBD);
 		}
 
 		/* New filepath must not exist. */
@@ -1733,7 +1729,8 @@ dict_table_rename_in_cache(
 		dd_filename_to_spacename(new_name, &new_tablespace_name);
 
 		bool	success = fil_rename_tablespace(
-			table->space, old_path, new_tablespace_name.c_str(), new_path);
+			table->space, old_path, new_tablespace_name.c_str(),
+			new_path);
 
 		clone_mark_active();
 
@@ -8077,4 +8074,19 @@ dd_sdi_acquire_shared_mdl(
 	}
 
 	return(DB_SUCCESS);
+}
+
+/** Get the tablespace data directory if set, otherwise empty string.
+@return the data directory */
+std::string
+dict_table_get_datadir(const dict_table_t* table)
+{
+	std::string	path;
+
+	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
+
+		path.assign(table->data_dir_path);
+	}
+
+	return(path);
 }

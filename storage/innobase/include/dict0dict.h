@@ -2226,6 +2226,12 @@ dict_table_change_id_sys_tables();
 
 #endif /* !UNIV_HOTBACKUP */
 
+/** Get the tablespace data directory if set, otherwise empty string.
+@return the data directory */
+std::string
+dict_table_get_datadir(const dict_table_t* table)
+	MY_ATTRIBUTE((warn_unused_result));
+
 #include "dict0dict.ic"
 
 #endif

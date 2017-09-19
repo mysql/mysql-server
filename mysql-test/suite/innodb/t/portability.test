@@ -42,9 +42,12 @@ CREATE INDEX ix1 ON tab2(c2) ;
 
 --echo ## create tables and tablespaces with absolute paths
 --replace_result $MYSQL_TMP_DIR data_directory1
-eval CREATE TABLE tab3(empno INT, ename VARCHAR(30),sal NUMERIC(3)) ENGINE=InnoDB ROW_FORMAT=COMPRESSED
-PARTITION by hash(empno) (PARTITION P0 DATA DIRECTORY '$MYSQL_TMP_DIR/data_directory1',
-PARTITION P1 DATA DIRECTORY '$MYSQL_TMP_DIR/data_directory1');
+eval CREATE TABLE tab3(
+	empno INT, ename VARCHAR(30),sal NUMERIC(3))
+	ENGINE=InnoDB ROW_FORMAT=COMPRESSED
+	PARTITION by hash(empno) (
+		PARTITION P0 DATA DIRECTORY '$MYSQL_TMP_DIR/data_directory1',
+		PARTITION P1 DATA DIRECTORY '$MYSQL_TMP_DIR/data_directory1');
 
 CREATE INDEX ix1 ON tab3(ename) USING BTREE;
 
@@ -191,7 +194,7 @@ SHOW CREATE TABLE tab3;
 
 --echo # Re-start with old --datadir
 --replace_result $MYSQLD_OLD_DATADIR OLD_DATADIR
---let $restart_parameters="restart: --datadir=$MYSQLD_OLD_DATADIR "
+--let $restart_parameters="restart: --datadir=$MYSQLD_OLD_DATADIR"
 --source include/start_mysqld.inc
 
 --echo # Check --datadir started with old

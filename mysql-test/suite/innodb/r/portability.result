@@ -7,8 +7,11 @@ INSERT INTO tab2 VALUES(2, 'VISH');
 CREATE INDEX ix1 ON tab1(c2) USING BTREE;
 CREATE INDEX ix1 ON tab2(c2) ;
 ## create tables and tablespaces with absolute paths
-CREATE TABLE tab3(empno INT, ename VARCHAR(30),sal NUMERIC(3)) ENGINE=InnoDB ROW_FORMAT=COMPRESSED
-PARTITION by hash(empno) (PARTITION P0 DATA DIRECTORY 'data_directory1/data_directory1',
+CREATE TABLE tab3(
+empno INT, ename VARCHAR(30),sal NUMERIC(3))
+ENGINE=InnoDB ROW_FORMAT=COMPRESSED
+PARTITION by hash(empno) (
+PARTITION P0 DATA DIRECTORY 'data_directory1/data_directory1',
 PARTITION P1 DATA DIRECTORY 'data_directory1/data_directory1');
 CREATE INDEX ix1 ON tab3(ename) USING BTREE;
 INSERT INTO tab3 VALUES (100,'VISWANATH',100);
@@ -162,7 +165,7 @@ tab3	CREATE TABLE `tab3` (
 ## Copy absolute path *.ibd files back to old location
 ## Remove the new DATA DIRECTORY *.ibd files
 # Re-start with old --datadir
-# restart: --datadir=OLD_DATADIR 
+# restart: --datadir=OLD_DATADIR
 # Check --datadir started with old
 SELECT @@datadir;
 @@datadir
