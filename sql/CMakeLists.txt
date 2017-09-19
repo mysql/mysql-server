@@ -796,7 +796,7 @@ IF(NOT DISABLE_SHARED)
   IF(MSVC)
     # Set module definition file.
     SET_TARGET_PROPERTIES(mysqld
-      PROPERTIES LINK_FLAGS "${mysqld_link_flags} /DEF:mysqld.def")
+      PROPERTIES LINK_FLAGS "${mysqld_link_flags} /DEF:${CMAKE_CURRENT_BINARY_DIR}/mysqld.def")
 
     SET(_PLATFORM  x64)
     ADD_CUSTOM_COMMAND(TARGET mysqld PRE_LINK
