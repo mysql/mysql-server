@@ -227,7 +227,7 @@ MACRO (MYSQL_CHECK_SSL)
     # and we have found static libraries, then link them statically
     # into our executables and libraries.
     # Adding IMPORTED_LOCATION allows MERGE_STATIC_LIBS
-    # to get LOCATION and do correct dependency analysis.
+    # to merge imported libraries as well as our own libraries.
     SET(MY_CRYPTO_LIBRARY "${CRYPTO_LIBRARY}")
     SET(MY_OPENSSL_LIBRARY "${OPENSSL_LIBRARY}")
     IF (WITH_SSL_PATH)

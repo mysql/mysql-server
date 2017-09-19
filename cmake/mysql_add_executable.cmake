@@ -25,7 +25,6 @@
 #   ADD_TEST     add a unit test with given name (and add SKIP_INSTALL)
 # On Windows :
 # - add version resource
-# - instruct CPack to do autenticode signing if SIGNCODE is set
 #
 # All executables are built in ${CMAKE_BINARY_DIR}/runtime_output_directory
 # (can be overridden by the RUNTIME_OUTPUT_DIRECTORY option).

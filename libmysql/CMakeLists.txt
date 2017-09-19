@@ -269,7 +269,7 @@ IF(NOT DISABLE_SHARED)
 
     IF(APPLE)
       SET_TARGET_PROPERTIES(libmysql PROPERTIES
-        INSTALL_NAME_DIR "${CMAKE_INSTALL_PREFIX}/${INSTALL_LIBDIR}"
+        MACOSX_RPATH ON 
       )
     ENDIF()
 
@@ -321,9 +321,15 @@ IF(LIBRT)
   TARGET_LINK_LIBRARIES(libmysql_api_test ${LIBRT})
 ENDIF()
 
-IF(DISABLE_SHARED)
+# We need to find both SSL .dlls and libmysql.dll, link statically on WIN32
+IF(DISABLE_SHARED OR WIN32)
   TARGET_LINK_LIBRARIES(libmysql_api_test ${LIBS})
 ELSE()
   TARGET_LINK_LIBRARIES(libmysql_api_test libmysql)
 ENDIF()
 
+# Verify that libmysql_api_test runs OK
+ADD_CUSTOM_COMMAND(TARGET libmysql_api_test POST_BUILD
+  COMMAND $<TARGET_FILE:libmysql_api_test>
+  > ${CMAKE_CURRENT_BINARY_DIR}/libmysql_api_test.out
+  )
