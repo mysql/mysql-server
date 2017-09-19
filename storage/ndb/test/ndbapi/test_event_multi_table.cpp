@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2005, 2006, 2008 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -269,7 +268,8 @@ main(int argc, char** argv)
 {
   NDB_INIT(argv[0]);
   const char *load_default_groups[]= { "mysql_cluster",0 };
-  ndb_load_defaults(NULL,load_default_groups,&argc,&argv);
+  MEM_ROOT alloc;
+  ndb_load_defaults(NULL,load_default_groups,&argc,&argv,&alloc);
 
   int ho_error;
 #ifndef DBUG_OFF

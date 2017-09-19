@@ -147,11 +147,13 @@ void ndb_short_usage_sub(const char* extra);
 bool ndb_is_load_default_arg_separator(const char* arg);
 
 /* Read the given [groups] from <conf_file> and return in argc/argv */
+struct MEM_ROOT;
 int ndb_load_defaults(const char* conf_file,
                       const char** groups,
-                      int *argc, char*** argv);
-/* Free memory returned in "argv" from ndb_load_defaults() */
-void ndb_free_defaults(char** argv);
+                      int *argc, char*** argv,
+                      MEM_ROOT *mem_root);
+/* Free memory returned from ndb_load_defaults() */
+void ndb_free_defaults(MEM_ROOT *mem_root);
 
 #ifdef __cplusplus
 }

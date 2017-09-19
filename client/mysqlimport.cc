@@ -632,19 +632,16 @@ error:
 int main(int argc, char **argv)
 {
   int error=0;
-  char **argv_to_free;
   MY_INIT(argv[0]);
 
   my_getopt_use_args_separator= TRUE;
-  if (load_defaults("my",load_default_groups,&argc,&argv))
+  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512, 0};
+  if (load_defaults("my",load_default_groups,&argc,&argv,&alloc))
     return 1;
   my_getopt_use_args_separator= FALSE;
 
-  /* argv is changed in the program */
-  argv_to_free= argv;
   if (get_options(&argc, &argv))
   {
-    free_defaults(argv_to_free);
     return(1);
   }
 
@@ -731,7 +728,6 @@ int main(int argc, char **argv)
     MYSQL *mysql= 0;
     if (!(mysql= db_connect(current_host,current_db,current_user,opt_password)))
     {
-      free_defaults(argv_to_free);
       return(1); /* purecov: deadcode */
     }
 
@@ -753,7 +749,6 @@ int main(int argc, char **argv)
 #if defined (_WIN32)
   my_free(shared_memory_base_name);
 #endif
-  free_defaults(argv_to_free);
   my_end(my_end_arg);
   return(exitcode);
 }

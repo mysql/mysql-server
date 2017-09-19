@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,7 +44,8 @@ int
 main(int argc, char** argv){
   NDB_INIT(argv[0]);
   const char *load_default_groups[]= { "mysql_cluster",0 };
-  ndb_load_defaults(NULL, load_default_groups,&argc,&argv);
+  MEM_ROOT alloc;
+  ndb_load_defaults(NULL, load_default_groups,&argc,&argv, &alloc);
   int ho_error;
 
   if ((ho_error=handle_options(&argc, &argv, my_long_options,

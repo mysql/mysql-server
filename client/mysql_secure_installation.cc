@@ -34,7 +34,7 @@
 
 using namespace std;
 
-static char **defaults_argv= 0;
+static MEM_ROOT argv_alloc{PSI_NOT_INSTRUMENTED, 512, 0};
 static char *opt_host= 0;
 static char *opt_user= 0;
 static uint opt_port= 0;
@@ -121,8 +121,6 @@ static void free_resources()
   if (password)
     my_free(password);
   mysql_close(&mysql);
-  if (defaults_argv && *defaults_argv)
-    free_defaults(defaults_argv);
 }
 
 extern "C" {
@@ -931,14 +929,13 @@ int main(int argc,char *argv[])
 #endif
 
   my_getopt_use_args_separator= TRUE;
-  if (load_defaults("my", load_default_groups, &argc, &argv))
+  if (load_defaults("my", load_default_groups, &argc, &argv, &argv_alloc))
   {
     my_end(0);
     free_resources();
     exit(1);
   }
 
-  defaults_argv= argv;
   my_getopt_use_args_separator= FALSE;
 
   if ((rc= my_handle_options(&argc, &argv, my_connection_options,
