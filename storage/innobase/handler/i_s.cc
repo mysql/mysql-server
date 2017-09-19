@@ -7461,7 +7461,7 @@ i_s_dict_fill_innodb_tablespaces(
 			filepath = fil_space_get_first_path(space);
 			mutex_exit(&dict_sys->mutex);
 		} else {
-			filepath = Fil_path::make("", name, IBD);
+			filepath = Fil_path::make_ibd_from_table_name(name);
 		}
 	}
 

@@ -4584,7 +4584,7 @@ row_drop_table_for_mysql(
 		filepath = Fil_path::make(dir, table_name, IBD, true);
 
 	} else if (!shared_tablespace) {
-		filepath = Fil_path::make("", table_name, IBD);
+		filepath = Fil_path::make_ibd_from_table_name(table_name);
 	}
 
 	/* Free the dict_table_t object. */

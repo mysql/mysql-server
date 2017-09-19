@@ -3737,7 +3737,8 @@ row_import_for_mysql(
 
 		filepath = Fil_path::make(dir, table->name.m_name, IBD, true);
 	} else {
-		filepath = Fil_path::make("", table->name.m_name, IBD);
+		filepath = Fil_path::make_ibd_from_table_name(
+			table->name.m_name);
 	}
 
 	DBUG_EXECUTE_IF(

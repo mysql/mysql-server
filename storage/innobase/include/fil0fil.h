@@ -649,8 +649,7 @@ public:
 	/** Allocate and build a CFG file name from a path.
 	@param[in]	path_in		Full path to the filename
 	@return own: file name; must be freed by ut_free() */
-	static char* make_cfg(
-		const std::string&	path_in)
+	static char* make_cfg(const std::string& path_in)
 		MY_ATTRIBUTE((warn_unused_result))
 	{
 		return(make(path_in, "", CFG));
@@ -659,8 +658,7 @@ public:
 	/** Allocate and build a CFP file name from a path.
 	@param[in]	path_in		Full path to the filename
 	@return own: file name; must be freed by ut_free() */
-	static char* make_cfp(
-		const std::string&	path_in)
+	static char* make_cfp(const std::string& path_in)
 		MY_ATTRIBUTE((warn_unused_result))
 	{
 		return(make(path_in, "", CFP));

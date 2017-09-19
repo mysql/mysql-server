@@ -5084,7 +5084,7 @@ Fil_shard::space_rename(
 			file = &space->files.front();
 
 			char*   new_file_name = new_path_in == nullptr
-				? Fil_path::make("", new_name, IBD)
+				? Fil_path::make_ibd_from_table_name(new_name)
 				: mem_strdup(new_path_in);
 
 			char*   old_file_name = file->name;
@@ -5167,7 +5167,7 @@ Fil_shard::space_rename(
 
 	if (new_path_in == nullptr) {
 
-		new_file_name = Fil_path::make("", new_name, IBD);
+		new_file_name = Fil_path::make_ibd_from_table_name(new_name);
 	} else {
 		new_file_name = mem_strdup(new_path_in);
 	}

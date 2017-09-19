@@ -14479,7 +14479,7 @@ ha_innobase::truncate_rename_tablespace(
 		new_path = Fil_path::make_new_ibd(old_path, temp_name);
 
 	} else {
-		char*	ptr = Fil_path::make("", temp_name, IBD);
+		char*	ptr = Fil_path::make_ibd_from_table_name(temp_name);
 
 		new_path.assign(ptr);
 

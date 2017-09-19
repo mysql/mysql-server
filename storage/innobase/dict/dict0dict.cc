@@ -1711,7 +1711,7 @@ dict_table_rename_in_cache(
 			new_path = mem_strdup(new_ibd.c_str());
 
 		} else {
-			new_path = Fil_path::make("", new_name, IBD);
+			new_path = Fil_path::make_ibd_from_table_name(new_name);
 		}
 
 		/* New filepath must not exist. */
