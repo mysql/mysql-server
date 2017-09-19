@@ -11,12 +11,12 @@ Pattern "InnoDB: No valid checkpoint found .corrupted redo log" found
 # valid 5.7.9 header, valid checkpoint 1, all-zero (invalid) checkpoint 2,
 # invalid block checksum (MLOG_CHECKPOINT cannot be read),
 # thus we cannot determine if the redo log is logically clean.
-Pattern "InnoDB: Upgrade after a crash is not supported\. This redo log was created with malicious intentions, or perhaps, and it appears corrupted\." found
+Pattern "InnoDB: Database upgrade cannot be accomplished with innodb_force_recovery > 0" found
 # --innodb-force-recovery=6 (skip the entire redo log)
 Pattern "InnoDB: Database upgrade cannot be accomplished in read-only mode" found
 # valid header, valid checkpoint 1, all-zero (invalid) checkpoint 2, invalid block number
 # Start with innodb-force-recovery=5
-Pattern "Cannot continue InnoDB startup in force_recovery mode because there are no existing undo tablespaces found" found
+Pattern "InnoDB: Database upgrade cannot be accomplished with innodb_force_recovery > 0" found
 # Start with --innodb-force-recovery=6 (skip the entire redo log)
 Pattern "InnoDB: Database upgrade cannot be accomplished in read-only mode" found
 # valid 8.0.0 header, valid checkpoint 1, all-zero (invalid) checkpoint 2, invalid block checksum
