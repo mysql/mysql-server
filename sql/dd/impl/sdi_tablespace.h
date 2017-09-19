@@ -83,7 +83,6 @@ bool store_tbl_sdi(THD *thd, const handlerton &hton, const Sdi_type &sdi,
 /**
   Stores the tablespace SDI in the tablespace.
 
-  @param thd
   @param hton
   @param sdi
   @param tablespace
