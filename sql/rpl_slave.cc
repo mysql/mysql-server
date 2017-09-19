@@ -9481,7 +9481,7 @@ bool start_slave(THD* thd,
       is_error= true;
       my_error(ER_MASTER_INFO, MYF(0));
     }
-    else if (server_id_supplied && (*mi->host || !(thread_mask & SLAVE_IO)))
+    else if (*mi->host || !(thread_mask & SLAVE_IO))
     {
       /*
         If we will start IO thread we need to take care of possible
