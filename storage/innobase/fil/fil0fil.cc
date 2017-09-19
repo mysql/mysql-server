@@ -4700,8 +4700,6 @@ Fil_path::make(
 	ib_file_suffix		ext,
 	bool			trim)
 {
-	ib::info() << path_in << ", " << name_in;
-
 	/* The path should be a directory and should not contain the
 	basename of the file. If the path is empty, we will use  the
 	default path, */
@@ -4787,8 +4785,6 @@ Fil_path::make(
 	}
 
 	normalize(filepath);
-
-	ib::info() << filepath;
 
 	return(mem_strdup(filepath.c_str()));
 }
@@ -10452,8 +10448,6 @@ Tablespace_dirs::scan(const std::string& in_directories)
 			using value = Scanned_files::value_type;
 
 			if (Fil_path::has_ibd_suffix(file.c_str())) {
-
-				ib::info() << file;
 
 				ibd_files.push_back(value{count, file});
 

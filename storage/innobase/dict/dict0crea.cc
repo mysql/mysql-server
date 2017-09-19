@@ -222,8 +222,6 @@ dict_build_tablespace_for_table(
 
 			path = dict_table_get_datadir(table);
 
-			ib::info() << "PATH1: " << path;
-
 			filepath = Fil_path::make(
 				path, table->name.m_name, IBD, true);
 		} else {
