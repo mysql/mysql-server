@@ -192,8 +192,6 @@ MACRO(MERGE_LIBRARIES_SHARED)
         COMMAND install_name_tool -change
                 "${OPENSSL_VERSION}" "@loader_path/${OPENSSL_VERSION}"
                 $<TARGET_SONAME_FILE:${TARGET}>
-        COMMAND install_name_tool -id "$<TARGET_SONAME_FILE_NAME:${TARGET}>"
-                $<TARGET_SONAME_FILE:${TARGET}>
         )
       # All executables have dependencies:  "@loader_path/../lib/xxx.dylib
       # Create a symlink so that this works for Xcode also.
