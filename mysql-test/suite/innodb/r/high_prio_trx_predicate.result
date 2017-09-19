@@ -21,7 +21,7 @@ COMMIT;
 
 # On connection 1
 COMMIT;
-ERROR HY000: Got error 149 during COMMIT
+ERROR HY000: Got error 149 - 'Lock deadlock; Retry transaction' during COMMIT
 include/assert.inc ['There is a 8 in tab']
 SELECT c1 FROM tab;
 c1
