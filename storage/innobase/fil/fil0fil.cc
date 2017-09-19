@@ -4926,9 +4926,12 @@ fil_ibd_open_for_recovery(
 		return(FIL_LOAD_OK);
 	}
 #endif /* UNIV_HOTBACKUP */
+	std::string	tablespace_name;
+	dd_filename_to_spacename(file.name(), &tablespace_name);
 
 	space = fil_space_create(
-		file.name(), space_id, file.flags(), FIL_TYPE_TABLESPACE);
+		tablespace_name.c_str(), space_id,
+		file.flags(), FIL_TYPE_TABLESPACE);
 
 	if (space == NULL) {
 		return(FIL_LOAD_INVALID);
