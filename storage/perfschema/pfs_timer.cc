@@ -20,6 +20,7 @@
 
 #include "storage/perfschema/pfs_timer.h"
 
+#include <math.h>
 #include <stddef.h>
 #include <sys/types.h>
 
@@ -49,18 +50,6 @@ static struct time_normalizer
     {0, 0, {0}}, /* millisec */
 };
 
-static inline ulong
-round_to_ulong(double value)
-{
-  return (ulong)(value + 0.5);
-}
-
-static inline ulonglong
-round_to_ulonglong(double value)
-{
-  return (ulonglong)(value + 0.5);
-}
-
 void
 init_timers(void)
 {
@@ -76,7 +65,7 @@ init_timers(void)
   if (pfs_timer_info.cycles.frequency > 0)
   {
     cycle_to_pico =
-      round_to_ulong(pico_frequency / (double)pfs_timer_info.cycles.frequency);
+      lrint(pico_frequency / (double)pfs_timer_info.cycles.frequency);
   }
   else
   {
@@ -85,7 +74,7 @@ init_timers(void)
 
   if (pfs_timer_info.nanoseconds.frequency > 0)
   {
-    nanosec_to_pico = round_to_ulong(
+    nanosec_to_pico = lrint(
       pico_frequency / (double)pfs_timer_info.nanoseconds.frequency);
   }
   else
@@ -95,7 +84,7 @@ init_timers(void)
 
   if (pfs_timer_info.microseconds.frequency > 0)
   {
-    microsec_to_pico = round_to_ulong(
+    microsec_to_pico = lrint(
       pico_frequency / (double)pfs_timer_info.microseconds.frequency);
   }
   else
@@ -105,7 +94,7 @@ init_timers(void)
 
   if (pfs_timer_info.milliseconds.frequency > 0)
   {
-    millisec_to_pico = round_to_ulong(
+    millisec_to_pico = lrint(
       pico_frequency / (double)pfs_timer_info.milliseconds.frequency);
   }
   else
