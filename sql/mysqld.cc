@@ -5634,7 +5634,7 @@ int mysqld_main(int argc, char **argv)
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
-  if (((opt_initialize || opt_initialize_insecure) && !server_id_supplied))
+  if (!server_id_supplied)
     LogErr(WARNING_LEVEL, ER_WARN_NO_SERVERID_SPECIFIED);
 
 
