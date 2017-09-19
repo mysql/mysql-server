@@ -4727,12 +4727,6 @@ Fil_path::make(
 		name.assign(name_in);
 	}
 
-	if (path.length() > 10
-	    && path.compare(path.size() - 10, 10, "t5_restart") == 0) {
-
-		ut_a(trim);
-	}
-
 	/* If the name is a relative path like './', '../' or an absolute path,
 	do not prepend the datadir path.  */
 	if (is_absolute_path(name)
