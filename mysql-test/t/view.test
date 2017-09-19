@@ -6237,3 +6237,22 @@ ORDER BY t1.pk DESC;
 
 DROP VIEW v1;
 DROP TABLE t1, t2;
+
+
+--echo #
+--echo # BUG#26266789: ON SERVER 8.0 CREATE OR REPLACE VIEW FAILS FOR COLUMN SIZE > 64
+--echo #
+
+CREATE TABLE t1(fld1 INT, fld2 INT);
+INSERT INTO t1 VALUES(1, 1);
+
+--echo # Without patch, a dictionary store error is triggered on release
+--echo # build and an assert on debug build.
+
+--error ER_WRONG_COLUMN_NAME
+CREATE OR REPLACE VIEW v1
+(`x12345678901234567890123456789012345678901234567890123456789012322`) AS
+SELECT fld1 FROM t1;
+
+--echo # Clean up.
+DROP TABLE t1;
