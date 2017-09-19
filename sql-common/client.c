@@ -1823,6 +1823,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
 	  break;
         case OPT_pipe:
           options->protocol = MYSQL_PROTOCOL_PIPE;
+          break;
 	case OPT_connect_timeout:
 	case OPT_timeout:
 	  if (opt_arg)

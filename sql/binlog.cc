@@ -4224,6 +4224,7 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
       DBUG_ASSERT(prev_gtids == NULL ? true : all_gtids != NULL ||
                                               first_gtid != NULL);
     }
+    // Fall through.
     default:
       // if we found any other event type without finding a
       // previous_gtids_log_event, then the rest of this binlog

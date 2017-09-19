@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -351,7 +351,9 @@ void OptRangeTest::check_use_count(SEL_TREE *tree)
   {
     SEL_ARG *cur_range= tree->keys[i];
     if (cur_range != NULL)
+    {
       EXPECT_FALSE(cur_range->test_use_count(cur_range));
+    }
   }
 
   if (!tree->merges.is_empty())
