@@ -359,6 +359,16 @@ IF(HAVE_MISLEADING_INDENTATION)
     COMPILE_FLAGS "-Wno-misleading-indentation")
 ENDIF()
 
+# gcc 7.2.0 complains:
+# boost/geometry/algorithms/detail/expand/indexed.hpp:81
+# *((void*)& box +24) may be used uninitialized
+MY_CHECK_CXX_COMPILER_FLAG("-Wmaybe-uninitialized" HAVE_MAYBE_UNINITIALIZED)
+IF(HAVE_MAYBE_UNINITIALIZED)
+  ADD_COMPILE_FLAGS(
+    geometry_rtree.cc
+    COMPILE_FLAGS "-Wno-maybe-uninitialized")
+ENDIF()
+
 MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)
 # See comments in filesort_compare-t.cc about __builtin_memcmp
 IF(HAVE_NO_BUILTIN_MEMCMP)

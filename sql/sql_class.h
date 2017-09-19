@@ -5070,8 +5070,11 @@ public:
 
   Temp_table_param()
     :copy_field(NULL), copy_field_end(NULL),
+     group_buff(NULL),
+     items_to_copy(NULL),
      recinfo(NULL), start_recinfo(NULL),
      keyinfo(NULL),
+     end_write_records(0),
      field_count(0), func_count(0), sum_func_count(0), hidden_field_count(0),
      group_parts(0), group_length(0), group_null_parts(0),
      quick_group(1),

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2807,6 +2807,7 @@ String *sp_get_item_value(THD *thd, Item *item, String *str)
     if (item->field_type() != MYSQL_TYPE_BIT)
       return item->val_str(str);
     else {/* Bit type is handled as binary string */}
+    // Fall through
   case STRING_RESULT:
     {
       String *result= item->val_str(str);

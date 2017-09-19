@@ -1730,10 +1730,10 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
     case '\0':
       list= NULL; /* terminate the loop */
       /* fall through */
+    case ';':
 #ifndef _WIN32
     case ':':     /* can't use this as delimiter as it may be drive letter */
 #endif
-    case ';':
       str->str[str->length]= '\0';
       if (str == &name)  // load all plugins in named module
       {
@@ -1780,6 +1780,7 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
         str->str= p;
         continue;
       }
+      // Fall through.
     default:
       str->length++;
       continue;

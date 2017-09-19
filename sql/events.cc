@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -241,6 +241,8 @@ common_1_lev_code:
     break;
   case INTERVAL_WEEK:
     expr/= 7;
+    close_quote= FALSE;
+    break;
   default:
     close_quote= FALSE;
     break;
