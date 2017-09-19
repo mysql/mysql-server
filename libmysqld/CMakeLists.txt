@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -179,6 +179,16 @@ IF(HAVE_MISLEADING_INDENTATION)
     ../sql/item_geofunc_relchecks_bgwrap.cc
     ../sql/item_geofunc_setops.cc    
     COMPILE_FLAGS "-Wno-misleading-indentation")
+ENDIF()
+
+# gcc 7.2.0 complains:
+# boost/geometry/algorithms/detail/expand/indexed.hpp:81
+# *((void*)& box +24) may be used uninitialized
+MY_CHECK_CXX_COMPILER_FLAG("-Wmaybe-uninitialized" HAVE_MAYBE_UNINITIALIZED)
+IF(HAVE_MAYBE_UNINITIALIZED)
+  ADD_COMPILE_FLAGS(
+    ../sql/geometry_rtree.cc
+    COMPILE_FLAGS "-Wno-maybe-uninitialized")
 ENDIF()
 
 # Handle out-of-source build from source package with possibly broken 

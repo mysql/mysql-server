@@ -2774,6 +2774,7 @@ bool schedule_next_event(Log_event* ev, Relay_log_info* rli)
     my_error(ER_MTS_CANT_PARALLEL, MYF(0),
     ev->get_type_str(), rli->get_event_relay_log_name(), llbuff,
              "The master event is logically timestamped incorrectly.");
+    return true;
   case ER_MTS_INCONSISTENT_DATA:
     /* Don't have to do anything. */
     return true;

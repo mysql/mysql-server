@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -470,8 +470,10 @@ void TC_LOG_MMAP::close()
   case 6:
     mysql_mutex_destroy(&LOCK_tc);
     mysql_cond_destroy(&COND_pool);
+    // Fall through.
   case 5:
     data[0]='A'; // garble the first (signature) byte, in case mysql_file_delete fails
+    // Fall through.
   case 4:
     for (i=0; i < npages; i++)
     {
@@ -479,10 +481,13 @@ void TC_LOG_MMAP::close()
         break;
       mysql_cond_destroy(&pages[i].cond);
     }
+    // Fall through.
   case 3:
     my_free(pages);
+    // Fall through.
   case 2:
     my_munmap((char*)data, (size_t)file_length);
+    // Fall through.
   case 1:
     mysql_file_close(fd, MYF(0));
   }
