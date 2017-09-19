@@ -20,6 +20,7 @@ package My::ConfigFactory;
 use strict;
 use warnings;
 use Carp;
+use Cwd qw(abs_path);
 
 use My::Config;
 use My::Find;
@@ -78,6 +79,25 @@ sub fix_language {
 sub fix_datadir {
   my ($self, $config, $group_name)= @_;
   my $vardir= $self->{ARGS}->{vardir};
+  return "$vardir/$group_name/data";
+}
+
+# Resolve the symbolic path and return the absolute path
+# to the datadir it is pointing to.
+sub fix_abs_datadir {
+  my ($self, $config, $group_name)= @_;
+
+  my $vardir;
+  if ($::opt_mem)
+  {
+    # Resolve the symbolic path
+    $vardir= abs_path($self->{ARGS}->{vardir});
+  }
+  else
+  {
+    $vardir= $self->{ARGS}->{vardir};
+  }
+
   return "$vardir/$group_name/data";
 }
 
@@ -256,6 +276,7 @@ my @mysqld_rules=
  { 'tmpdir' => \&fix_tmpdir },
  { 'character-sets-dir' => \&fix_charset_dir },
  { 'datadir' => \&fix_datadir },
+ { '#abs_datadir' => \&fix_abs_datadir },
  { 'pid-file' => \&fix_pidfile },
  { '#host' => \&fix_host },
  { 'port' => \&fix_port },
