@@ -1479,7 +1479,8 @@ btr_drop_ahi_for_table(dict_table_t* table)
 
 				if (buf_page_get_state(bpage)
 				    != BUF_BLOCK_FILE_PAGE
-				    || bpage->io_fix != BUF_IO_NONE
+				    || (bpage->io_fix != BUF_IO_NONE
+					&& bpage->io_fix != BUF_IO_WRITE)
 				    || bpage->buf_fix_count > 0) {
 					continue;
 				}
@@ -1507,6 +1508,8 @@ btr_drop_ahi_for_table(dict_table_t* table)
 					drop[i], page_size);
 			}
 		}
+
+		os_thread_yield();
 	}
 }
 
@@ -1548,7 +1551,8 @@ btr_drop_ahi_for_index(dict_index_t* index)
 
 				if (buf_page_get_state(bpage)
 				    != BUF_BLOCK_FILE_PAGE
-				    || bpage->io_fix != BUF_IO_NONE
+				    || (bpage->io_fix != BUF_IO_NONE
+					&& bpage->io_fix != BUF_IO_WRITE)
 				    || bpage->buf_fix_count > 0) {
 					continue;
 				}
@@ -1574,6 +1578,8 @@ btr_drop_ahi_for_index(dict_index_t* index)
 					drop[i], page_size);
 			}
 		}
+
+		os_thread_yield();
 	}
 }
 
