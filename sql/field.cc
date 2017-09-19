@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10881,7 +10881,7 @@ bool Create_field::init(THD *thd, const char *fld_name,
   case MYSQL_TYPE_DATE:
     /* Old date type. */
     sql_type= MYSQL_TYPE_NEWDATE;
-    /* fall trough */
+    /* fall through */
   case MYSQL_TYPE_NEWDATE:
     length= MAX_DATE_WIDTH;
     break;

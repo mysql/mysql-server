@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3065,9 +3065,9 @@ int Json_wrapper::compare(const Json_wrapper &other) const
           return 1;                           /* purecov: inspected */
         return -compare_json_decimal_int(b_dec, get_int());
       }
-    default:
-      break;
+    default:;
     }
+    break;
   case Json_dom::J_UINT:
     // Unsigned integers can be compared to all other numbers.
     switch (other_type)
@@ -3085,9 +3085,9 @@ int Json_wrapper::compare(const Json_wrapper &other) const
           return 1;                           /* purecov: inspected */
         return -compare_json_decimal_uint(b_dec, get_uint());
       }
-    default:
-      break;
+    default:;
     }
+    break;
   case Json_dom::J_DOUBLE:
     // Doubles can be compared to all other numbers.
     {
@@ -3106,9 +3106,9 @@ int Json_wrapper::compare(const Json_wrapper &other) const
             return 1;                         /* purecov: inspected */
           return -compare_json_decimal_double(other_dec, get_double());
         }
-      default:
-        break;
+      default:;
       }
+      break;
     }
   case Json_dom::J_DECIMAL:
     // Decimals can be compared to all other numbers.
@@ -3135,9 +3135,9 @@ int Json_wrapper::compare(const Json_wrapper &other) const
         return compare_json_decimal_uint(a_dec, other.get_uint());
       case Json_dom::J_DOUBLE:
         return compare_json_decimal_double(a_dec, other.get_double());
-      default:
-        break;
+      default:;
       }
+      break;
     }
   case Json_dom::J_BOOLEAN:
     // Booleans are only equal to other booleans. false is less than true.

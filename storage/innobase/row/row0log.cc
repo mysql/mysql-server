@@ -2037,6 +2037,7 @@ row_log_table_apply_update(
 
 		When applying the subsequent ROW_T_DELETE, no matching
 		record will be found. */
+		/* Fall through. */
 	case DB_SUCCESS:
 		ut_ad(row != NULL);
 		break;

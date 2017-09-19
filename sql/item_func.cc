@@ -2380,6 +2380,7 @@ my_decimal *Item_func_mod::decimal_op(my_decimal *decimal_value)
     return decimal_value;
   case E_DEC_DIV_ZERO:
     signal_divide_by_null();
+    // Fall through.
   default:
     null_value= 1;
     return 0;
@@ -6420,6 +6421,7 @@ String *user_var_entry::val_str(my_bool *null_value, String *str,
   case STRING_RESULT:
     if (str->copy(m_ptr, m_length, collation.collation))
       str= 0;					// EOM error
+    break;
   case ROW_RESULT:
     DBUG_ASSERT(1);				// Impossible
     break;

@@ -1218,6 +1218,7 @@ static bool execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
         action in the log entry by stepping up the phase.
       */
     }
+    // Fall through
     case DDL_LOG_RENAME_ACTION:
     {
       error= TRUE;

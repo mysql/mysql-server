@@ -2767,7 +2767,7 @@ public:
                             mi->get_channel(), mi->is_auto_position()));
         if (mi != NULL && mi->is_auto_position())
         {
-          char buf[512];
+          char buf[1024];
           sprintf(buf, "replication channel '%.192s' is configured "
                   "in AUTO_POSITION mode. Execute "
                   "CHANGE MASTER TO MASTER_AUTO_POSITION = 0 "
