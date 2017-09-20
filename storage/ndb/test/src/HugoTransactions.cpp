@@ -1552,9 +1552,9 @@ HugoTransactions::pkDelRecords(Ndb* pNdb,
 			       int batch,
 			       bool allowConstraintViolation,
 			       int doSleep,
-                               int start_record)
+                               int start_record,
+                               int step)
 {
-  // TODO Batch is not implemented
   int deleted = 0;
   int                  r = start_record;
   int                  retryAttempt = 0;
@@ -1594,6 +1594,7 @@ HugoTransactions::pkDelRecords(Ndb* pNdb,
       }
       NDB_ERR(err);
       setNdbError(err);
+      g_err << r << ": " << err.code << " " << err.message << endl;
       return NDBT_FAILED;
     }
 
@@ -1607,10 +1608,12 @@ HugoTransactions::pkDelRecords(Ndb* pNdb,
     if (timer_active)
       timer_start = NdbTick_getCurrentTicks();
 
-    if(pkDeleteRecord(pNdb, r, batch) != NDBT_OK)
+    if(pkDeleteRecord(pNdb, r, batch, step) != NDBT_OK)
     {
-      NDB_ERR(pTrans->getNdbError());
-      setNdbError(pTrans->getNdbError());
+      const NdbError err = pTrans->getNdbError();
+      NDB_ERR(err);
+      setNdbError(err);
+      g_err << r << ": " << err.code << " " << err.message << endl;
       closeTransaction(pNdb);
       return NDBT_FAILED;
     }
@@ -1642,6 +1645,7 @@ HugoTransactions::pkDelRecords(Ndb* pNdb,
 	}
 	NDB_ERR(err);
 	setNdbError(err);
+	g_err << r << ": " << err.code << " " << err.message << endl;
 	closeTransaction(pNdb);
 	return NDBT_FAILED;
 	break;
@@ -1649,6 +1653,7 @@ HugoTransactions::pkDelRecords(Ndb* pNdb,
       default:
 	NDB_ERR(err);
 	setNdbError(err);
+	g_err << r << ": " << err.code << " " << err.message << endl;
 	closeTransaction(pNdb);
 	return NDBT_FAILED;
       }
@@ -1665,7 +1670,7 @@ HugoTransactions::pkDelRecords(Ndb* pNdb,
       m_stats_latency->addObservation((double)elapsed);
     }
 
-    r += batch; // Read next record
+    r += (batch * step); // Read next record
     batch_no++;
   }
 

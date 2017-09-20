@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -591,10 +591,13 @@ int HugoOperations::pkWritePartialRecord(Ndb* pNdb,
 
 int HugoOperations::pkDeleteRecord(Ndb* pNdb,
 				   int recordNo,
-				   int numRecords){
+				   int numRecords,
+                                   int step)
+{
   
   int check;
-  for(int r=0; r < numRecords; r++){
+  for (int r=0; r < (numRecords * step); r+= step)
+  {
     NdbOperation* pOp = getOperation(pTrans, NdbOperation::DeleteRequest);
     if (pOp == NULL) {
       NDB_ERR(pTrans->getNdbError());

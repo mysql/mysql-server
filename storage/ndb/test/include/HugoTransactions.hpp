@@ -109,12 +109,13 @@ public:
   int pkInterpretedUpdateRecords(Ndb*, 
 				 int records,
 				 int batchsize = 1);
-  int pkDelRecords(Ndb*, 
+  int pkDelRecords(Ndb*,
 		   int records = 0,
 		   int batch = 1,
 		   bool allowConstraintViolation = true,
 		   int doSleep = 0,
-                   int start_record = 0);
+                   int start_record = 0,
+                   int step = 1);
 
   int pkRefreshRecords(Ndb*, int startFrom, int count = 1, int batch = 1);
 

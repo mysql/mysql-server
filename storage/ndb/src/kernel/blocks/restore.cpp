@@ -2966,7 +2966,8 @@ Restore::parse_record(Signal* signal,
       Uint32 record_size = data[1];
       file_ptr.p->m_outstanding_operations++;
       file_ptr.p->m_rows_restored_delete_page++;
-      while (rowid_val.m_page_idx < Tup_fixsize_page::DATA_WORDS)
+      while ((rowid_val.m_page_idx + record_size) <=
+             Tup_fixsize_page::DATA_WORDS)
       {
         jam();
         execute_operation(signal,
@@ -3339,7 +3340,8 @@ Restore::restore_lcp_conf(Signal *signal, FilePtr file_ptr)
     {
       g_eventLogger->info("Inconsistency in restoring"
                           " tab(%u,%u), restored %llu rows"
-                          ", expected %llu rows",
+                          ", expected %llu rows, "
+                          "Requires initial node restart to fix",
                           file_ptr.p->m_table_id,
                           file_ptr.p->m_fragment_id,
                           file_ptr.p->m_rows_restored,
