@@ -24,7 +24,7 @@ import "mysqlx_datatypes.proto";
 import "mysqlx.proto"; // comment_out_if PROTOBUF_LITE
 
 package Mysqlx.Connection;
-option java_package = "com.mysql.cj.mysqlx.protobuf";
+option java_package = "com.mysql.cj.x.protobuf";
 
 // a Capability
 //
