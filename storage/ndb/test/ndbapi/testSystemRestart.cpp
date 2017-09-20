@@ -625,11 +625,13 @@ int runSystemRestart4(NDBT_Context* ctx, NDBT_Step* step){
   int result = NDBT_OK;
   int timeout = 300;
   Uint32 loops = ctx->getNumLoops();
-  int records = ctx->getNumRecords();
+  int records = int((Uint64(1000) * Uint64(ctx->getNumRecords()) / Uint64(1000)));
   int count;
   int remaining_records;
   int remove_records;
   int num_parts = ctx->getProperty("NumParts");
+  int row_step = ctx->getProperty("Step");
+  int batch = ctx->getProperty("Batch");
   NdbRestarter restarter;
   Uint32 i = 1;
 
@@ -694,7 +696,7 @@ int runSystemRestart4(NDBT_Context* ctx, NDBT_Step* step){
     if (ctx->getProperty("PerformUpdates"))
     {
       g_err << "Updating records..." << endl;
-      CHECK(hugoTrans.pkUpdateRecords(pNdb, records) == 0);
+      CHECK(hugoTrans.pkUpdateRecords(pNdb, records, batch) == 0);
     }
     if (ctx->getProperty("VerifyInsert"))
     {
@@ -709,7 +711,7 @@ int runSystemRestart4(NDBT_Context* ctx, NDBT_Step* step){
       CHECK(pNdb->waitUntilReady(timeout) == 0);
 
       g_err << "Verifying records..." << endl;
-      CHECK(hugoTrans.pkReadRecords(pNdb, records) == 0);
+      CHECK(hugoTrans.pkReadRecords(pNdb, records, batch) == 0);
       CHECK(hugoTrans.scanReadRecords(pNdb, records, 0, 64) == 0);
       CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
       CHECK(count == records);
@@ -729,7 +731,7 @@ int runSystemRestart4(NDBT_Context* ctx, NDBT_Step* step){
       g_err << "Verifying records again..." << endl;
       CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
       CHECK(hugoTrans.scanReadRecords(pNdb, records, 0, 64) == 0);
-      CHECK(hugoTrans.pkReadRecords(pNdb, records) == 0);
+      CHECK(hugoTrans.pkReadRecords(pNdb, records, batch) == 0);
       CHECK(count == records);
       if (result == NDBT_FAILED)
         return result;
@@ -739,12 +741,25 @@ int runSystemRestart4(NDBT_Context* ctx, NDBT_Step* step){
     remove_records = records / num_parts;
     for (int part = 0; part < num_parts; part++)
     {
-      g_err << "Deleting " << remove_records
-            << " records at the end..." << endl;
+      if (row_step == 1)
+      {
+        g_err << "Deleting " << remove_records
+              << " records at the end..." << endl;
+      }
+      else
+      {
+        g_err << "Deleting " << remove_records
+              << " records ..." << endl;
+      }
+      int start = (row_step == 1) ? (remaining_records - remove_records) : part;
+      int num_records = (row_step == 1) ? remaining_records : records;
       CHECK(hugoTrans.pkDelRecords(pNdb,
-                                   remaining_records,
-                                   1, true, 0,
-                                   (remaining_records - remove_records)) == 0);
+                                   num_records,
+                                   batch,
+                                   true,
+                                   0,
+                                   start,
+                                   row_step) == 0);
       if (result == NDBT_FAILED)
         return result;
 
@@ -754,7 +769,10 @@ int runSystemRestart4(NDBT_Context* ctx, NDBT_Step* step){
       {
         g_err << "Verifying " << remaining_records
               << " records remain..." << endl;
-        CHECK(hugoTrans.pkReadRecords(pNdb, remaining_records) == 0);
+        if (row_step == 1)
+        {
+          CHECK(hugoTrans.pkReadRecords(pNdb, remaining_records, batch) == 0);
+        }
         CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
         CHECK(count == (remaining_records));
         CHECK(hugoTrans.scanReadRecords(pNdb, remaining_records, 0, 64) == 0);
@@ -776,7 +794,7 @@ int runSystemRestart4(NDBT_Context* ctx, NDBT_Step* step){
 
       g_err << "Verifying " << remaining_records
             << " records remain..." << endl;
-      if (remaining_records != 0)
+      if (remaining_records != 0 && row_step == 1)
       {
         CHECK(hugoTrans.pkReadRecords(pNdb, remaining_records) == 0);
       }
@@ -797,7 +815,7 @@ int runSystemRestart4(NDBT_Context* ctx, NDBT_Step* step){
         currentRestartNodeIndex = (currentRestartNodeIndex + 1 ) % nodeCount;
 
         g_err << "Verifying records again..." << endl;
-        if (remaining_records != 0)
+        if (remaining_records != 0 && row_step == 1)
         {
           CHECK(hugoTrans.pkReadRecords(pNdb, remaining_records) == 0);
         }
@@ -3577,6 +3595,8 @@ TESTCASE("SR4",
   TC_PROPERTY("PerformUpdates", Uint32(1));
   TC_PROPERTY("VerifyInsert", Uint32(1));
   TC_PROPERTY("VerifyDelete", Uint32(1));
+  TC_PROPERTY("Step", Uint32(1));
+  TC_PROPERTY("Batch", Uint32(1));
   INITIALIZER(runWaitStarted);
   STEP(runSystemRestart4);
 }
@@ -3656,6 +3676,8 @@ TESTCASE("SR11", "More tests of SR4 variant\n")
   TC_PROPERTY("PerformUpdates", Uint32(0));
   TC_PROPERTY("VerifyInsert", Uint32(0));
   TC_PROPERTY("VerifyDelete", Uint32(0));
+  TC_PROPERTY("Step", Uint32(1));
+  TC_PROPERTY("Batch", Uint32(1));
   INITIALIZER(runWaitStarted);
   STEP(runSystemRestart4);
 }
@@ -3667,6 +3689,8 @@ TESTCASE("SR12", "More tests of SR4 variant\n")
   TC_PROPERTY("PerformUpdates", Uint32(0));
   TC_PROPERTY("VerifyInsert", Uint32(0));
   TC_PROPERTY("VerifyDelete", Uint32(0));
+  TC_PROPERTY("Step", Uint32(1));
+  TC_PROPERTY("Batch", Uint32(1));
   INITIALIZER(runWaitStarted);
   STEP(runSystemRestart4);
 }
@@ -3678,6 +3702,8 @@ TESTCASE("SR13", "More tests of SR4 variant\n")
   TC_PROPERTY("PerformUpdates", Uint32(0));
   TC_PROPERTY("VerifyInsert", Uint32(0));
   TC_PROPERTY("VerifyDelete", Uint32(0));
+  TC_PROPERTY("Step", Uint32(1));
+  TC_PROPERTY("Batch", Uint32(1));
   INITIALIZER(runWaitStarted);
   STEP(runSystemRestart4);
 }
@@ -3689,6 +3715,21 @@ TESTCASE("SR14", "More tests of SR4 variant\n")
   TC_PROPERTY("PerformUpdates", Uint32(0));
   TC_PROPERTY("VerifyInsert", Uint32(0));
   TC_PROPERTY("VerifyDelete", Uint32(0));
+  TC_PROPERTY("Step", Uint32(1));
+  TC_PROPERTY("Batch", Uint32(1));
+  INITIALIZER(runWaitStarted);
+  STEP(runSystemRestart4);
+}
+TESTCASE("SR15", "More tests of SR4 variant\n")
+{
+  TC_PROPERTY("StopOneNode", Uint32(0));
+  TC_PROPERTY("NumParts", 10);
+  TC_PROPERTY("SetMinTimeLCP", Uint32(1));
+  TC_PROPERTY("PerformUpdates", Uint32(0));
+  TC_PROPERTY("VerifyInsert", Uint32(0));
+  TC_PROPERTY("VerifyDelete", Uint32(0));
+  TC_PROPERTY("Step", Uint32(10));
+  TC_PROPERTY("Batch", Uint32(100));
   INITIALIZER(runWaitStarted);
   STEP(runSystemRestart4);
 }
