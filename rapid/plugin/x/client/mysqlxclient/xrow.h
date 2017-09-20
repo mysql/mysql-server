@@ -25,9 +25,9 @@
 #include <set>
 #include <string>
 
-#include "plugin/x/client/mysqlxclient/xdatetime.h"
-#include "plugin/x/client/mysqlxclient/xdecimal.h"
-#include "plugin/x/client/mysqlxclient/xmessage.h"
+#include "mysqlxclient/xdatetime.h"
+#include "mysqlxclient/xdecimal.h"
+#include "mysqlxclient/xmessage.h"
 
 
 namespace xcl {
