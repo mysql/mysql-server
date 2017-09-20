@@ -1149,9 +1149,12 @@ format_validate(
 					kbs, zip_refused);
 			}
 		} else if (real_type != ROW_TYPE_COMPRESSED) {
-			/* This is only possible for partitioned table,
-			real_type should be considered as priority. */
-			ut_ad(form->s->real_row_type == ROW_TYPE_COMPRESSED);
+			/* This could happen when
+			1. There was an ALTER TABLE ... COPY to move
+			the table from COMPRESSED into DYNAMIC, etc.
+			2. For partitioned table, some partitions of which
+			could be of different row format from the specified
+			one */
 		} else if (form->s->row_type == ROW_TYPE_DEFAULT
 			   || form->s->row_type == ROW_TYPE_COMPRESSED) {
 			ut_ad(real_type == ROW_TYPE_COMPRESSED);
