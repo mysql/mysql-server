@@ -152,6 +152,8 @@ The following commands may appear in the input script:
   Wait until SQL query returns value matches expected value (time limit 30 second)
 -->assert_eq <VALUE_EXPECTED>	<VALUE_TESTED>
   Ensure that 'TESTED' value equals 'EXPECTED' by comparing strings lexicographically
+-->assert_ne <VALUE_EXPECTED>	<VALUE_TESTED>
+  Ensure that 'TESTED' value doesn't equals 'EXPECTED' by comparing strings lexicographically
 -->assert_gt <VALUE_EXPECTED>	<VALUE_TESTED>
   Ensure that 'TESTED' value is greater than 'EXPECTED' (only when the both are numeric values)
 -->assert_ge <VALUE_EXPECTED>	<VALUE_TESTED>

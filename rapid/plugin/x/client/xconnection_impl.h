@@ -48,7 +48,7 @@ class Connection_impl : public XConnection {
   XError connect(const std::string &host, const uint16_t port,
                  const Internet_protocol ip_mode) override;
 
-  my_socket get_socket_fd() override { return 0; }
+  my_socket get_socket_fd() override;
 
   XError activate_tls() override;
   XError shutdown(const Shutdown_type how_to_shutdown) override;

@@ -65,6 +65,8 @@ class Connection_manager {
   uint64_t active_session_messages_received(
     const std::string &message_name) const;
 
+  void setup_variables(xcl::XSession *session);
+
  private:
   using Session_holder_ptr  = std::shared_ptr<Session_holder>;
   using Map_name_vs_session = std::map<std::string, Session_holder_ptr>;

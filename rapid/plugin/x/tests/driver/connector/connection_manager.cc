@@ -167,7 +167,7 @@ void Connection_manager::connect_default(const bool send_cap_password_expired,
     throw error;
   }
 
-  m_variables->set("%ACTIVE_CLIENT_ID%", std::to_string(session->client_id()));
+  setup_variables(session);
 
   m_console.print_verbose("Connected client #", session->client_id(), "\n");
 }
@@ -229,8 +229,8 @@ void Connection_manager::create(const std::string &name,
   m_session_holders[name] = holder;
   m_active_session_name = name;
 
-  m_variables->set("%ACTIVE_CLIENT_ID%",
-                  std::to_string(active_xsession()->client_id()));
+  setup_variables(active_xsession());
+
   m_console.print("active session is now '", name, "'\n");
 
   m_console.print_verbose("Connected client #",
@@ -337,8 +337,9 @@ void Connection_manager::set_active(const std::string &name,
   }
   m_active_holder = m_session_holders[name];
   m_active_session_name = name;
-  m_variables->set("%ACTIVE_CLIENT_ID%",
-                  std::to_string(active_xsession()->client_id()));
+
+  setup_variables(active_xsession());
+
   if (!be_quiet)
     m_console.print(
         "switched to session ",
@@ -372,3 +373,13 @@ uint64_t Connection_manager::active_session_messages_received(
 
   return result;
 }
+
+void Connection_manager::setup_variables(xcl::XSession *session) {
+  auto &connection = session->get_protocol().get_connection();
+  m_variables->set("%ACTIVE_CLIENT_ID%",
+                  std::to_string(session->client_id()));
+
+  m_variables->set("%ACTIVE_SOCKET_ID%",
+                  std::to_string(connection.get_socket_fd()));
+}
+
