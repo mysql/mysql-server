@@ -2718,17 +2718,17 @@ int Partition_helper::handle_unordered_next(uchar *buf, bool is_next_same)
     partition_read_range is_next_same are always local constants
   */
 
-  if (m_index_scan_type == PARTITION_READ_RANGE)
+  if(is_next_same)
+  {
+    error= index_next_same_in_part(m_part_spec.start_part,
+				   buf,
+                                   m_start_key.key,
+                                   m_start_key.length);
+  }
+  else if (m_index_scan_type == PARTITION_READ_RANGE)
   {
     DBUG_ASSERT(buf == m_table->record[0]);
     error= read_range_next_in_part(m_part_spec.start_part, NULL);
-  }
-  else if (is_next_same)
-  {
-    error= index_next_same_in_part(m_part_spec.start_part,
-                                   buf,
-                                   m_start_key.key,
-                                   m_start_key.length);
   }
   else
   {

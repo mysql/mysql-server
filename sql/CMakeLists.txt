@@ -678,6 +678,13 @@ IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     ADD_COMPILE_FLAGS(${SQL_BOOST_SOURCES}
                       COMPILE_FLAGS "-Wno-maybe-uninitialized")
   ENDIF()
+
+  MY_CHECK_CXX_COMPILER_FLAG("-Wunused-variable" HAVE_MAYBE_UNUSED)
+  IF(HAVE_MAYBE_UNUSED)
+    # Boost Geometry has unused variables
+    ADD_COMPILE_FLAGS(${SQL_BOOST_SOURCES}
+                      COMPILE_FLAGS "-Wno-unused-variable")
+  ENDIF()
 ENDIF()
 
 
@@ -830,18 +837,12 @@ IF(WITH_MYSQLD_LDFLAGS)
      "${MYSQLD_LINK_FLAGS} ${WITH_MYSQLD_LDFLAGS}")
 ENDIF()
 
-IF(DEBUG_EXTNAME)
-  INSTALL_DEBUG_TARGET(mysqld 
-    DESTINATION ${INSTALL_SBINDIR} 
-    PDB_DESTINATION ${INSTALL_SBINDIR}
-    SUFFIX "-debug")
-ELSE()
-  INSTALL_DEBUG_TARGET(mysqld 
-    DESTINATION ${INSTALL_SBINDIR} 
-    PDB_DESTINATION ${INSTALL_SBINDIR}/debug
-    RENAME mysqld-debug)
-ENDIF()
-
+# See DEBUG_EXTNAME above: mysqld may already have name mysqld-debug,
+# and the rename is a no-op. If it is called 'mysqld' we rename it.
+INSTALL_DEBUG_TARGET(mysqld
+  DESTINATION ${INSTALL_SBINDIR}
+  RENAME mysqld-debug${CMAKE_EXECUTABLE_SUFFIX}
+)
 
 # Handle out-of-source build from source package with possibly broken 
 # bison. Copy bison output to from source to build directory, if not already 

@@ -6064,11 +6064,14 @@ Fil_shard::ibd_open_for_recovery(
 		return(FIL_LOAD_OK);
 	}
 #endif /* UNIV_HOTBACKUP */
+	std::string	tablespace_name;
+	dd_filename_to_spacename(file.name(), &tablespace_name);
 
 	fil_system->mutex_acquire_all();
 
 	space = space_create(
-		df.name(), space_id, df.flags(), FIL_TYPE_TABLESPACE);
+		tablespace_name.c_str(),
+		space_id, df.flags(), FIL_TYPE_TABLESPACE);
 
 	fil_system->mutex_release_all();
 

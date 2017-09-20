@@ -356,3 +356,22 @@ SET @@persist_only.innodb_buffer_pool_load_at_startup= "";
 ERROR HY000: Variable 'innodb_buffer_pool_load_at_startup' is a non persistent read only variable
 RESET PERSIST;
 DROP USER wl9787;
+#
+# Bug26395134: SET PERSIST_ONLY HAS WRONG EFFECT ON P_S.VARIABLES_INFO
+#
+SELECT VARIABLE_SOURCE, SET_USER, SET_HOST FROM performance_schema.variables_info
+WHERE VARIABLE_NAME = 'max_connections';
+VARIABLE_SOURCE	SET_USER	SET_HOST
+COMPILED	NULL	NULL
+SET PERSIST_ONLY max_connections = 151;
+SELECT VARIABLE_SOURCE, SET_USER, SET_HOST FROM performance_schema.variables_info
+WHERE VARIABLE_NAME = 'max_connections';
+VARIABLE_SOURCE	SET_USER	SET_HOST
+COMPILED	NULL	NULL
+# Restart server
+# restart
+SELECT VARIABLE_SOURCE, SET_USER, SET_HOST FROM performance_schema.variables_info
+WHERE VARIABLE_NAME = 'max_connections';
+VARIABLE_SOURCE	SET_USER	SET_HOST
+PERSISTED	NULL	NULL
+RESET PERSIST;

@@ -22,6 +22,7 @@
 #include <boost/geometry/core/exception.hpp>
 #include <boost/geometry/geometries/box.hpp>
 #include <boost/geometry/index/predicates.hpp>
+#include <boost/geometry/strategies/strategies.hpp>
 #include <boost/iterator/iterator_facade.hpp>
 #include <string.h>
 #include <algorithm>

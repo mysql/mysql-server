@@ -169,6 +169,13 @@ MACRO(MERGE_LIBRARIES_SHARED)
     SET_TARGET_PROPERTIES(${TARGET} PROPERTIES
       LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory)
 
+    IF(WIN32)
+      # This must be a cmake bug on windows ...
+      # Anyways, with this the .dll ends up in the desired directory.
+      SET_TARGET_PROPERTIES(${TARGET} PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory)
+    ENDIF()
+
     TARGET_LINK_LIBRARIES(${TARGET} ${LIBS})
     IF(ARG_OUTPUT_NAME)
       SET_TARGET_PROPERTIES(

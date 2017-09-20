@@ -186,6 +186,7 @@ table_events_stages_common::table_events_stages_common(
   const PFS_engine_table_share *share, void *pos)
   : PFS_engine_table(share, pos)
 {
+  m_normalizer = time_normalizer::get_stage();
 }
 
 /**
@@ -215,7 +216,7 @@ table_events_stages_common::make_row(PFS_events_stages *stage)
 
   if (m_row.m_end_event_id == 0)
   {
-    timer_end = get_timer_raw_value(stage_timer);
+    timer_end = get_stage_timer();
   }
   else
   {
@@ -402,7 +403,6 @@ table_events_stages_current::reset_position(void)
 int
 table_events_stages_current::rnd_init(bool)
 {
-  m_normalizer = time_normalizer::get(stage_timer);
   return 0;
 }
 
@@ -446,8 +446,6 @@ table_events_stages_current::rnd_pos(const void *pos)
 int
 table_events_stages_current::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
-  m_normalizer = time_normalizer::get(stage_timer);
-
   PFS_index_events_stages *result;
   DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_events_stages);
@@ -522,7 +520,6 @@ table_events_stages_history::reset_position(void)
 int
 table_events_stages_history::rnd_init(bool)
 {
-  m_normalizer = time_normalizer::get(stage_timer);
   return 0;
 }
 
@@ -604,8 +601,6 @@ table_events_stages_history::rnd_pos(const void *pos)
 int
 table_events_stages_history::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
-  m_normalizer = time_normalizer::get(stage_timer);
-
   PFS_index_events_stages *result;
   DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_events_stages);
@@ -702,7 +697,6 @@ table_events_stages_history_long::reset_position(void)
 int
 table_events_stages_history_long::rnd_init(bool)
 {
-  m_normalizer = time_normalizer::get(stage_timer);
   return 0;
 }
 

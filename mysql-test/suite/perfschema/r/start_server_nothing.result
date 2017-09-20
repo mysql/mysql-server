@@ -8,18 +8,13 @@ sys
 test
 select count(*) from performance_schema.performance_timers;
 count(*)
-5
+4
 select count(*) from performance_schema.setup_consumers;
 count(*)
 15
 select count(*) > 4 from performance_schema.setup_instruments;
 count(*) > 4
 1
-select count(*) from performance_schema.setup_timers;
-count(*)
-5
-Warnings:
-Warning	1681	'performance_schema.setup_timers' is deprecated and will be removed in a future release.
 select * from performance_schema.accounts;
 select * from performance_schema.cond_instances;
 select * from performance_schema.events_stages_current;
@@ -92,7 +87,6 @@ select * from performance_schema.setup_consumers;
 select * from performance_schema.setup_instruments;
 select * from performance_schema.setup_objects;
 select * from performance_schema.setup_threads;
-select * from performance_schema.setup_timers;
 select * from performance_schema.socket_instances;
 select * from performance_schema.socket_summary_by_instance;
 select * from performance_schema.socket_summary_by_event_name;
@@ -255,7 +249,6 @@ CYCLE
 NANOSECOND
 MICROSECOND
 MILLISECOND
-TICK
 select * from performance_schema.setup_consumers;
 NAME	ENABLED
 events_stages_current	YES
@@ -273,15 +266,6 @@ events_waits_history_long	YES
 global_instrumentation	YES
 thread_instrumentation	YES
 statements_digest	YES
-select NAME from performance_schema.setup_timers;
-NAME
-idle
-wait
-stage
-statement
-transaction
-Warnings:
-Warning	1681	'performance_schema.setup_timers' is deprecated and will be removed in a future release.
 select * from performance_schema.accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 select * from performance_schema.cond_instances;

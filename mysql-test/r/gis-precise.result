@@ -2110,6 +2110,7 @@ st_geomfromtext('polygon((0 5, 1 3, 2 5, 3 3, 4 3, 4 5, 0 5))')))
 as result;
 result
 GEOMETRYCOLLECTION(POINT(1 3),LINESTRING(4 3,3 3))
+# Invalid geometry in input.
 select st_astext(st_intersection(
 st_geomfromtext('polygon((0 0, 10 0, 10 3, 0 3, 0 0))'),
 st_geomfromtext('polygon((0 5, 1 3, 2 5, 3 2, 6 2, 6 5, 0 5))')))

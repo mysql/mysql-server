@@ -3354,6 +3354,7 @@ int
 innodb_init_abort()
 {
 	DBUG_ENTER("innodb_init_abort");
+	srv_shutdown_all_bg_threads();
 	innodb_space_shutdown();
 	DBUG_RETURN(1);
 }
@@ -5113,12 +5114,6 @@ innobase_init_files(
 	}
 
 	if (srv_is_upgrade_mode) {
-		if (srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO
-		    || srv_read_only_mode) {
-			ib::error() << "Database upgrade cannot be"
-				" accomplished in read-only mode.";
-			DBUG_RETURN(innodb_init_abort());
-		}
 
 		dict_sys_table_id_build();
 		/* Disable AHI when we start loading tables for purge.
@@ -20364,6 +20359,14 @@ innodb_monitor_validate(
 	ut_a(value != NULL);
 
 	name = value->val_str(value, buff, &len);
+
+	/* Check if the value is a valid string. */
+	size_t	valid_len;
+	bool	len_error;
+	if (validate_string(system_charset_info, name, len,
+			    &valid_len, &len_error)) {
+		return(1);
+	}
 
 	/* monitor_name could point to memory from MySQL
 	or buff[]. Always dup the name to memory allocated

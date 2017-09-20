@@ -32,3 +32,20 @@ call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Cannot calculate sta
 select * from `..................................................`;
 DROP TABLE `..................................................`;
 DROP DATABASE `..................................................`;
+
+--echo #
+--echo # Bug #26761960	TABLESPACE WITH SPECIAL CHARACTER MAY
+--echo #		BE NOT FOUND AFTER RESTART
+--echo #
+
+create database `test#_1`;
+create table `test#_1`.t1(f1 int);
+insert into `test#_1`.t1 values(1);
+insert into `test#_1`.t1 select * from `test#_1`.t1;
+
+--source include/kill_and_restart_mysqld.inc
+
+insert into `test#_1`.t1 values(2);
+
+drop table `test#_1`.t1;
+drop database `test#_1`;

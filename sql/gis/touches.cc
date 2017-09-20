@@ -21,7 +21,7 @@
 #include <cstddef>  // std::size_t
 #include <memory>   // std::unique_ptr
 
-#include "sql/dd/types/spatial_reference_system.h" // dd::Spatial_reference_system
+#include "sql/dd/types/spatial_reference_system.h"  // dd::Spatial_reference_system
 #include "sql/gis/box.h"
 #include "sql/gis/box_traits.h"
 #include "sql/gis/gc_utils.h"
@@ -31,7 +31,7 @@
 #include "sql/gis/relops.h"
 #include "sql/gis/touches_functor.h"
 #include "sql/gis/within_functor.h"
-#include "sql/sql_exception_handler.h" // handle_gis_exception
+#include "sql/sql_exception_handler.h"  // handle_gis_exception
 
 namespace bg = boost::geometry;
 
@@ -53,11 +53,9 @@ template <typename GC>
 static bool geometry_collection_apply_touches(const Touches &f,
                                               const Geometry *g1,
                                               const Geometry *g2) {
-  boost::geometry::strategy::within::winding<
-      Geographic_point, Geographic_point,
-      boost::geometry::strategy::side::geographic<>>
-  geographic_pl_pa_strategy(bg::strategy::side::geographic<>(
-      bg::srs::spheroid<double>(f.semi_major(), f.semi_minor())));
+  boost::geometry::strategy::within::geographic_winding<Geographic_point>
+  geographic_pl_pa_strategy(
+      bg::srs::spheroid<double>(f.semi_major(), f.semi_minor()));
   boost::geometry::strategy::intersection::geographic_segments<>
   geographic_ll_la_aa_strategy(
       bg::srs::spheroid<double>(f.semi_major(), f.semi_minor()));
@@ -374,9 +372,10 @@ static bool geometry_collection_apply_touches(const Touches &f,
                  i < down_cast<const Geographic_multipoint *>(g1)->size();
                  i++) {
               auto &pt = (*down_cast<const Geographic_multipoint *>(g1))[i];
-              if (bg::relate(pt, *down_cast<Geographic_multilinestring *>(
-                                     g2_mls.get()),
-                             mask, geographic_pl_pa_strategy) ||
+              if (bg::relate(
+                      pt,
+                      *down_cast<Geographic_multilinestring *>(g2_mls.get()),
+                      mask, geographic_pl_pa_strategy) ||
                   bg::relate(
                       pt, *down_cast<Geographic_multipolygon *>(g2_mpy.get()),
                       mask, geographic_pl_pa_strategy))
@@ -442,8 +441,8 @@ static bool geometry_collection_apply_touches(const Touches &f,
 Touches::Touches(double semi_major, double semi_minor)
     : m_semi_major(semi_major),
       m_semi_minor(semi_minor),
-      m_geographic_pl_pa_strategy(bg::strategy::side::geographic<>(
-          bg::srs::spheroid<double>(semi_major, semi_minor))),
+      m_geographic_pl_pa_strategy(
+          bg::srs::spheroid<double>(semi_major, semi_minor)),
       m_geographic_ll_la_aa_strategy(
           bg::srs::spheroid<double>(semi_major, semi_minor)) {}
 

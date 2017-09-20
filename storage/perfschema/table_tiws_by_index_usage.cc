@@ -186,6 +186,7 @@ table_tiws_by_index_usage::get_row_count(void)
 table_tiws_by_index_usage::table_tiws_by_index_usage()
   : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos()
 {
+  m_normalizer = time_normalizer::get_wait();
 }
 
 void
@@ -198,7 +199,6 @@ table_tiws_by_index_usage::reset_position(void)
 int
 table_tiws_by_index_usage::rnd_init(bool)
 {
-  m_normalizer = time_normalizer::get(wait_timer);
   return 0;
 }
 
@@ -260,8 +260,6 @@ table_tiws_by_index_usage::rnd_pos(const void *pos)
 int
 table_tiws_by_index_usage::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
-  m_normalizer = time_normalizer::get(wait_timer);
-
   PFS_index_tiws_by_index_usage *result = NULL;
   DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_tiws_by_index_usage);

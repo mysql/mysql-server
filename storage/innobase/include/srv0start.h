@@ -190,5 +190,9 @@ extern	enum srv_shutdown_t	srv_shutdown_state;
 void
 srv_fatal_error()
 	MY_ATTRIBUTE((noreturn));
+/**
+Shutdown all background threads created by InnoDB. */
+void
+srv_shutdown_all_bg_threads();
 
 #endif

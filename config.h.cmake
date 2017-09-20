@@ -172,6 +172,7 @@
 
 /* Code tests*/
 #cmakedefine HAVE_CLOCK_GETTIME 1
+#cmakedefine HAVE_CLOCK_REALTIME 1
 #cmakedefine DNS_USE_CPU_CLOCK_FOR_ID 1
 #cmakedefine STACK_DIRECTION @STACK_DIRECTION@
 #cmakedefine TIME_WITH_SYS_TIME 1

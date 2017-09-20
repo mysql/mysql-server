@@ -6586,7 +6586,10 @@ dict_foreign_qualify_index(
 
 		col_name = col_names
 			? col_names[col_no]
-			: table->get_col_name(col_no);
+			: (field->col->is_virtual()
+			   ? dict_table_get_v_col_name_mysql(table, col_no)
+			   : table->get_col_name(col_no)
+			  );
 
 		if (0 != innobase_strcasecmp(columns[i], col_name)) {
 			return(false);

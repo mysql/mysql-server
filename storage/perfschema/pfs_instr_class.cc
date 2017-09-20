@@ -161,27 +161,6 @@ PFS_ALIGNED PFS_instr_class global_metadata_class;
 PFS_ALIGNED PFS_error_class global_error_class;
 PFS_ALIGNED PFS_transaction_class global_transaction_class;
 
-/** Class-timer map */
-enum_timer_name *class_timers[] = {
-  &wait_timer,        /* PFS_CLASS_NONE */
-  &wait_timer,        /* PFS_CLASS_MUTEX */
-  &wait_timer,        /* PFS_CLASS_RWLOCK */
-  &wait_timer,        /* PFS_CLASS_COND */
-  &wait_timer,        /* PFS_CLASS_FILE */
-  &wait_timer,        /* PFS_CLASS_TABLE */
-  &stage_timer,       /* PFS_CLASS_STAGE */
-  &statement_timer,   /* PFS_CLASS_STATEMENT */
-  &transaction_timer, /* PFS_CLASS_TRANSACTION */
-  &wait_timer,        /* PFS_CLASS_SOCKET */
-  &wait_timer,        /* PFS_CLASS_TABLE_IO */
-  &wait_timer,        /* PFS_CLASS_TABLE_LOCK */
-  &idle_timer,        /* PFS_CLASS_IDLE */
-  &wait_timer,        /* PFS_CLASS_METADATA */
-  &wait_timer,        /* PFS_CLASS_MEMORY */
-  &wait_timer,        /* PFS_CLASS_ERROR */
-  &wait_timer         /* PFS_CLASS_THREAD */
-};
-
 /**
   Hash index for instrumented table shares.
   This index is searched by table fully qualified name (@c PFS_table_share_key),
@@ -296,7 +275,6 @@ register_global_classes()
                    PFS_CLASS_ERROR);
   global_error_class.m_event_name_index = GLOBAL_ERROR_INDEX;
   global_error_class.m_enabled = true; /* Enabled by default */
-  global_error_class.m_timer = NULL;
   configure_instr_class(&global_error_class);
   global_error_class.m_timed = false; /* Not applicable */
   error_class_max = 1;                /* only one error class as of now. */
@@ -1186,7 +1164,6 @@ init_instr_class(PFS_instr_class *klass,
   klass->m_enabled = true;
   klass->m_timed = true;
   klass->m_type = class_type;
-  klass->m_timer = class_timers[class_type];
 
   klass->m_documentation = NULL;
   if (documentation != NULL)

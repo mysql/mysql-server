@@ -166,7 +166,7 @@ enum srv_start_state_t {
 };
 
 /** Track server thrd starting phases */
-static ulint	srv_start_state;
+static uint64_t	srv_start_state = SRV_START_STATE_NONE;
 
 /** At a shutdown this value climbs from SRV_SHUTDOWN_NONE to
 SRV_SHUTDOWN_CLEANUP and then to SRV_SHUTDOWN_LAST_PHASE, and so on */
@@ -1588,7 +1588,6 @@ srv_start_state_is_set(
 
 /**
 Shutdown all background threads created by InnoDB. */
-static
 void
 srv_shutdown_all_bg_threads()
 {
@@ -1843,6 +1842,11 @@ srv_start(bool create_new_db, const std::string& scan_directories)
 		if (srv_read_only_mode) {
 			ib::error() << "Database upgrade cannot be"
 				" accomplished in read-only mode.";
+			return(srv_init_abort(DB_ERROR));
+		}
+		if (srv_force_recovery != 0) {
+			ib::error() << "Database upgrade cannot be"
+				<< " accomplished with innodb_force_recovery > 0";
 			return(srv_init_abort(DB_ERROR));
 		}
 	}

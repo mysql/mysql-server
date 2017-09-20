@@ -115,7 +115,6 @@
 #include "storage/perfschema/table_setup_instruments.h"
 #include "storage/perfschema/table_setup_objects.h"
 #include "storage/perfschema/table_setup_threads.h"
-#include "storage/perfschema/table_setup_timers.h"
 #include "storage/perfschema/table_socket_instances.h"
 #include "storage/perfschema/table_socket_summary_by_event_name.h"
 #include "storage/perfschema/table_socket_summary_by_instance.h"
@@ -580,7 +579,6 @@ static PFS_engine_table_share *all_shares[] = {
   &table_setup_instruments::m_share,
   &table_setup_objects::m_share,
   &table_setup_threads::m_share,
-  &table_setup_timers::m_share,
   &table_tiws_by_index_usage::m_share,
   &table_tiws_by_table::m_share,
   &table_tlws_by_table::m_share,
@@ -920,20 +918,6 @@ void
 PFS_engine_table::set_position(const void *ref)
 {
   memcpy(m_pos_ptr, ref, m_share_ptr->m_ref_length);
-}
-
-/**
-  Get the timer normalizer and class type for the current row.
-  @param [in] instr_class    class
-*/
-void
-PFS_engine_table::get_normalizer(PFS_instr_class *instr_class)
-{
-  if (instr_class->m_type != m_class_type)
-  {
-    m_normalizer = time_normalizer::get(*instr_class->m_timer);
-    m_class_type = instr_class->m_type;
-  }
 }
 
 int

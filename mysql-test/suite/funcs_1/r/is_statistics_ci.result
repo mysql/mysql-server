@@ -324,7 +324,6 @@ def	performance_schema	setup_objects	performance_schema	OBJECT
 def	performance_schema	setup_objects	performance_schema	OBJECT
 def	performance_schema	setup_objects	performance_schema	OBJECT
 def	performance_schema	setup_threads	performance_schema	PRIMARY
-def	performance_schema	setup_timers	performance_schema	PRIMARY
 def	performance_schema	socket_instances	performance_schema	IP
 def	performance_schema	socket_instances	performance_schema	IP
 def	performance_schema	socket_instances	performance_schema	PRIMARY

@@ -315,6 +315,7 @@ class Statement_backup
 {
   LEX *m_lex;
   LEX_CSTRING m_query_string;
+  String m_rewritten_query;
 
 public:
   LEX *lex() const { return m_lex; }
@@ -328,7 +329,7 @@ public:
     DBUG_ENTER("Statement_backup::set_thd_to_ps");
 
     mysql_mutex_lock(&thd->LOCK_thd_data);
-    m_lex=    thd->lex;
+    m_lex= thd->lex;
     thd->lex= stmt->lex;
     mysql_mutex_unlock(&thd->LOCK_thd_data);
 
@@ -337,7 +338,6 @@ public:
 
     DBUG_VOID_RETURN;
   }
-
 
   /**
     Restore the THD statement state after the prepared
@@ -349,11 +349,49 @@ public:
 
     mysql_mutex_lock(&thd->LOCK_thd_data);
     stmt->lex= thd->lex;
-    thd->lex=  m_lex;
+    thd->lex= m_lex;
     mysql_mutex_unlock(&thd->LOCK_thd_data);
 
     stmt->m_query_string= thd->query();
     thd->set_query(m_query_string);
+
+    DBUG_VOID_RETURN;
+  }
+
+  /**
+    Save the current rewritten query prior to
+    rewriting the prepared statement.
+  */
+  void save_rlb(THD *thd)
+  {
+    DBUG_ENTER("Statement_backup::save_rlb");
+
+    if (thd->rewritten_query.length() > 0)
+    {
+      /* Duplicate the original rewritten query. */
+      m_rewritten_query.copy(thd->rewritten_query);
+      /* Swap the duplicate with the original. */
+      thd->rewritten_query.swap(m_rewritten_query);
+    }
+
+    DBUG_VOID_RETURN;
+  }
+
+  /**
+    Restore the rewritten query after the prepared
+    statement has finished executing.
+  */
+  void restore_rlb(THD *thd)
+  {
+    DBUG_ENTER("Statement_backup::restore_rlb");
+
+    if (m_rewritten_query.length() > 0)
+    {
+      /* Restore with swap() instead of '='. */
+      thd->rewritten_query.swap(m_rewritten_query);
+      /* Free the rewritten prepared statement. */
+      m_rewritten_query.mem_free();
+    }
 
     DBUG_VOID_RETURN;
   }
@@ -2599,11 +2637,13 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length)
   */
   Statement_backup stmt_backup;
   stmt_backup.set_thd_to_ps(thd, this);
+  stmt_backup.save_rlb(thd);
   thd->set_n_backup_active_arena(this, &arena_backup);
 
   if (alloc_query(thd, query_str, query_length))
   {
     stmt_backup.restore_thd(thd, this);
+    stmt_backup.restore_rlb(thd);
     thd->restore_active_arena(this, &arena_backup);
     DBUG_RETURN(TRUE);
   }
@@ -2620,6 +2660,7 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length)
   if (parser_state.init(thd, thd->query().str, thd->query().length))
   {
     stmt_backup.restore_thd(thd, this);
+    stmt_backup.restore_rlb(thd);
     thd->restore_active_arena(this, &arena_backup);
     thd->stmt_arena= old_stmt_arena;
     DBUG_RETURN(TRUE);
@@ -2807,8 +2848,11 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length)
       error |= thd->is_error();
     }
   }
-  thd->m_digest= parent_digest;
 
+  /* Restore the original rewritten query. */
+  stmt_backup.restore_rlb(thd);
+
+  thd->m_digest= parent_digest;
   thd->m_statement_psi= parent_locker;
 
   DBUG_RETURN(error);
@@ -2986,6 +3030,7 @@ Prepared_statement::execute_server_runnable(Server_runnable *server_runnable)
 
   Statement_backup stmt_backup;
   stmt_backup.set_thd_to_ps(thd, this);
+  stmt_backup.save_rlb(thd);
   thd->set_n_backup_active_arena(this, &arena_backup);
   thd->stmt_arena= this;
 
@@ -2995,6 +3040,7 @@ Prepared_statement::execute_server_runnable(Server_runnable *server_runnable)
 
   thd->restore_active_arena(this, &arena_backup);
   stmt_backup.restore_thd(thd, this);
+  stmt_backup.restore_rlb(thd);
   thd->stmt_arena= save_stmt_arena;
 
   save_change_list.move_elements_to(&thd->change_list);
@@ -3239,6 +3285,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
 
   Statement_backup stmt_backup;
   stmt_backup.set_thd_to_ps(thd, this);
+  stmt_backup.save_rlb(thd);
 
   /*
     Change the current database (if needed).
@@ -3252,6 +3299,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   {
     flags&= ~ (uint) IS_IN_USE;
     stmt_backup.restore_thd(thd, this);
+    stmt_backup.restore_rlb(thd);
     return TRUE;
   }
 
@@ -3264,6 +3312,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
     my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), expanded_query->length());
     flags&= ~ (uint) IS_IN_USE;
     stmt_backup.restore_thd(thd, this);
+    stmt_backup.restore_rlb(thd);
     return TRUE;
   }
 
@@ -3386,6 +3435,9 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   alloc_query(thd, thd->query().str, thd->query().length);
 
   thd->stmt_arena= old_stmt_arena;
+
+  /* Restore the original rewritten query. */
+  stmt_backup.restore_rlb(thd);
 
   if (state == Query_arena::STMT_PREPARED)
     state= Query_arena::STMT_EXECUTED;
