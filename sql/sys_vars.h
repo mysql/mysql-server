@@ -669,6 +669,15 @@ end:
       res= var->value->val_str(&str);
       if (!res)
         DBUG_RETURN(true);
+
+      /* Check if the value is a valid string. */
+      size_t valid_len;
+      bool len_error;
+      if (validate_string(system_charset_info, res->ptr(),
+                          res->length(),
+                          &valid_len, &len_error))
+        DBUG_RETURN(true);
+
       int value= find_value(res->ptr());
       if (value == -1)
         DBUG_RETURN(true);

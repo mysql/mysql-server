@@ -376,6 +376,16 @@ drop table monitor_test;
 set global innodb_monitor_disable = All;
 set global innodb_monitor_reset_all = all;
 
+# should fail when setting it as an invalid string.
+--error ER_WRONG_VALUE_FOR_VAR
+set global innodb_monitor_reset_all=0xe7;
+--error ER_WRONG_VALUE_FOR_VAR
+set global innodb_monitor_enable =0xee;
+--error ER_WRONG_VALUE_FOR_VAR
+set global innodb_monitor_reset =0xe9;
+--error ER_WRONG_VALUE_FOR_VAR
+set global innodb_monitor_disable =0xed;
+
 -- disable_warnings
 set global innodb_monitor_enable = default;
 set global innodb_monitor_disable = default;

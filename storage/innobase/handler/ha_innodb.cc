@@ -20018,6 +20018,14 @@ innodb_monitor_validate(
 
 	name = value->val_str(value, buff, &len);
 
+	/* Check if the value is a valid string. */
+	size_t	valid_len;
+	bool	len_error;
+	if (validate_string(system_charset_info, name, len,
+			    &valid_len, &len_error)) {
+		return(1);
+	}
+
 	/* monitor_name could point to memory from MySQL
 	or buff[]. Always dup the name to memory allocated
 	by InnoDB, so we can access it in another callback
