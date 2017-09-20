@@ -105,7 +105,8 @@ bool store_tsp_sdi(const handlerton &hton, const Sdi_type &sdi,
   @param schema
  */
 bool drop_tbl_sdi(THD *thd, const handlerton &hton,
-                  const Table &table, const Schema &schema);
+                  const Table &table,
+                  const Schema &schema MY_ATTRIBUTE((unused)));
 
 /** @} End of group sdi_tablespace */
 }
