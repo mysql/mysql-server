@@ -24,7 +24,7 @@ import "mysqlx.proto"; // comment_out_if PROTOBUF_LITE
 
 // Expect operations
 package Mysqlx.Expect;
-option java_package = "com.mysql.cj.mysqlx.protobuf";
+option java_package = "com.mysql.cj.x.protobuf";
 
 // Pipelining messages is a core feature of the Mysqlx Protocol. It
 // sends messages to the server without waiting for a response to
