@@ -6065,7 +6065,8 @@ Fil_shard::ibd_open_for_recovery(
 	}
 #endif /* UNIV_HOTBACKUP */
 	std::string	tablespace_name;
-	dd_filename_to_spacename(file.name(), &tablespace_name);
+
+	dd_filename_to_spacename(df.name(), &tablespace_name);
 
 	fil_system->mutex_acquire_all();
 
