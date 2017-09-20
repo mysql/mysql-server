@@ -13288,6 +13288,30 @@ cleanup:
 	}
 
 	if (!info.is_intrinsic_temp_table()) {
+		if (info.is_temp_table()) {
+
+			if (!dict_locked) {
+				row_mysql_lock_data_dictionary(trx);
+				dict_locked = true;
+			}
+
+			dict_table_t*	table =
+				dict_table_check_if_in_cache_low(norm_name);
+
+			if (table != nullptr) {
+				for (dict_index_t* index = table->first_index();
+				     index != nullptr;
+				     index = index->next()) {
+					ut_ad(index->space == table->space);
+					page_no_t	root = index->page;
+					index->page = FIL_NULL;
+					dict_drop_temporary_table_index(
+						index, root);
+				}
+				dict_table_remove_from_cache(table);
+			}
+		}
+
 		if (dict_locked) {
 			row_mysql_unlock_data_dictionary(trx);
 			trx->dict_operation_lock_mode = 0;

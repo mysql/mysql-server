@@ -927,6 +927,13 @@ public:
 		return((m_flags2 & DICT_TF2_INTRINSIC) != 0);
 	}
 
+	/** @return true only if table is temporary and not intrinsic */
+	inline bool is_temp_table() const
+	{
+		return(((m_flags2 & DICT_TF2_TEMPORARY) != 0)
+		       && ((m_flags & DICT_TF2_INTRINSIC) == 0));
+	}
+
 	/** Prevent the created table to be evicted from cache, also all
 	auxiliary tables.
 	Call this if the DD would be updated after dict_sys mutex is released,
