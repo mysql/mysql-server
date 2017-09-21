@@ -14613,23 +14613,22 @@ innobase_create_tablespace(
 	tablespace.set_flags(fsp_flags);
 
 	err = dict_build_tablespace(trx, &tablespace);
-	if (err != DB_SUCCESS) {
-		error = convert_error_code_to_mysql(err, 0, NULL);
-		goto cleanup;
-	}
-
-	err = btr_sdi_create_index(tablespace.space_id(), true);
-	if (err != DB_SUCCESS) {
-		error = convert_error_code_to_mysql(err, 0, NULL);
-		goto cleanup;
-	}
-
-cleanup:
-	row_mysql_unlock_data_dictionary(trx);
 
 	if (err == DB_SUCCESS) {
+		err = btr_sdi_create_index(tablespace.space_id(), true);
+		if (err == DB_SUCCESS) {
+			fsp_flags = FSP_FLAGS_SET_SDI(fsp_flags);
+			tablespace.set_flags(fsp_flags);
+		}
+	}
+
+	if (err != DB_SUCCESS) {
+		error = convert_error_code_to_mysql(err, 0, NULL);
+	} else {
 		dd_write_tablespace(dd_space, tablespace);
 	}
+
+	row_mysql_unlock_data_dictionary(trx);
 
 	DBUG_RETURN(error);
 }
