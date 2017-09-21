@@ -1278,6 +1278,565 @@ NdbImportCsv::Eval::eval_line(Row* row, Line* line)
     m_input.m_rows.push_back(row);
 }
 
+/*
+ * Parse some fields.  Using my_regex was impossibly slow so here
+ * we do a CS101 "turn string into number".  Digits must be ascii
+ * digits.  Bengalese numbers are not supported.
+ */
+
+struct Ndb_import_csv_error {
+  enum Error_code {
+    No_error = 0,
+    Format_error = 1,
+    Value_error = 2     // but DBTUP should be final arbiter
+  };
+  static const int error_code_count = Value_error + 1;
+  int error_code;
+  const char* error_text;
+  int error_line;
+};
+
+static const Ndb_import_csv_error
+ndb_import_csv_error[Ndb_import_csv_error::error_code_count] = {
+  { Ndb_import_csv_error::No_error, "no error", 0 },
+  { Ndb_import_csv_error::Format_error, "format error", 0 },
+  { Ndb_import_csv_error::Value_error, "value error", 0 }
+};
+
+static bool
+ndb_import_csv_parse_year(const NdbImportCsv::Attr& attr,
+                          const char* datac,
+                          NdbSqlUtil::Year& s,
+                          Ndb_import_csv_error& csv_error)
+{
+#if 0
+  // yyyy
+  "^"
+  "([[:digit:]]{4}|[[:digit:]]{2})"           // 1:yyyy
+  "$"
+#endif
+  csv_error = ndb_import_csv_error[Ndb_import_csv_error::No_error];
+  s.year = 0;
+  const char* p = datac;
+  const char* q = p;
+  while (isdigit(*p) && p - q < 4)
+    s.year = 10 * s.year + (*p++ - '0');
+  if (p - q == 4)
+    ;
+  else if (p - q == 2)
+  {
+    if (s.year >= 70)
+      s.year += 1900;
+    else
+      s.year += 2000;
+  }
+  else
+  {
+    csv_error = ndb_import_csv_error[Ndb_import_csv_error::Format_error];
+    csv_error.error_line = __LINE__;
+    return false;
+  }
+  return true;
+}
+
+static bool
+ndb_import_csv_parse_date(const NdbImportCsv::Attr& attr,
+                          const char* datac,
+                          NdbSqlUtil::Date& s,
+                          Ndb_import_csv_error& csv_error)
+{
+#if 0
+  // yyyy-mm-dd
+  "^"
+  "([[:digit:]]{4}|[[:digit:]]{2})"           // 1:yyyy
+  "("                                         // 2:
+  "[[:punct:]]+"
+  "([[:digit:]]{1,2})"                        // 3:mm
+  "[[:punct:]]+"
+  "([[:digit:]]{1,2})"                        // 4:dd
+  "|"
+  "([[:digit:]]{2})"                          // 5:mm
+  "([[:digit:]]{2})"                          // 6:dd
+  ")"
+  "$"
+#endif
+  csv_error = ndb_import_csv_error[Ndb_import_csv_error::No_error];
+  s.year = s.month = s.day = 0;
+  const char* p = datac;
+  const char* q = p;
+  while (isdigit(*p) && p - q < 4)
+    s.year = 10 * s.year + (*p++ - '0');
+  if (p - q == 4)
+    ;
+  else if (p - q == 2)
+  {
+    if (s.year >= 70)
+      s.year += 1900;
+    else
+      s.year += 2000;
+  }
+  else
+  {
+    csv_error = ndb_import_csv_error[Ndb_import_csv_error::Format_error];
+    csv_error.error_line = __LINE__;
+    return false;
+  }
+  q = p;
+  // separator vs non-separator variant
+  if (ispunct(*p))
+  {
+    // anything goes
+    while (ispunct(*p))
+      p++;
+    q = p;
+    // month
+    while (isdigit(*p) && p - q < 2)
+      s.month = 10 * s.month + (*p++ - '0');
+    if (p - q > 0)
+      ;
+    else
+    {
+      csv_error = ndb_import_csv_error[Ndb_import_csv_error::Format_error];
+      csv_error.error_line = __LINE__;
+      return false;
+    }
+    q = p;
+    if (ispunct(*p))
+      ;
+    else
+    {
+      csv_error = ndb_import_csv_error[Ndb_import_csv_error::Format_error];
+      csv_error.error_line = __LINE__;
+      return false;
+    }
+    // anything goes
+    while (ispunct(*p))
+      p++;
+    q = p;
+    // day
+    while (isdigit(*p) && p - q < 2)
+      s.day = 10 * s.day + (*p++ - '0');
+    if (p - q > 0)
+      ;
+    else
+    {
+      csv_error = ndb_import_csv_error[Ndb_import_csv_error::Format_error];
+      csv_error.error_line = __LINE__;
+      return false;
+    }
+    q = p;
+  }
+  else
+  {
+    // month
+    while (isdigit(*p) && p - q < 2)
+      s.month = 10 * s.month + (*p++ - '0');
+    if (p - q == 2)
+      ;
+    else
+    {
+      csv_error = ndb_import_csv_error[Ndb_import_csv_error::Format_error];
+      csv_error.error_line = __LINE__;
+      return false;
+    }
+    q = p;
+    // day
+    while (isdigit(*p) && p - q < 2)
+      s.day = 10 * s.day + (*p++ - '0');
+    if (p - q == 2)
+      ;
+    else
+    {
+      csv_error = ndb_import_csv_error[Ndb_import_csv_error::Format_error];
+      csv_error.error_line = __LINE__;
+      return false;
+    }
+    q = p;
+  }
+  return true;
+}
+
+static bool
+ndb_import_csv_parse_time2(const NdbImportCsv::Attr& attr,
+                           const char* datac,
+                           NdbSqlUtil::Time2& s,
+                           Ndb_import_csv_error& csv_error)
+{
+#if 0
+  // dd hh:mm:ss.ffffff
+  "^"
+  "(([[:digit:]]+)[[:space:]]+)?"             // 1:dd 2: ***NOTYET***
+  "("                                         // 3:
+  "([[:digit:]]{1,2})"                        // 4:hh
+  "[:]"
+  "([[:digit:]]{1,2})"                        // 5:mm
+  "[:]"
+  "([[:digit:]]{1,2})"                        // 6:ss
+  "|"
+  "([[:digit:]]{2})"                          // 7:hh
+  "([[:digit:]]{2})"                          // 8:mm
+  "([[:digit:]]{2})"                          // 9:ss
+  ")"
+  "(\\.([[:digit:]]*))?"                      // 10: 11:ffffff
+  "$"
+#endif
+  csv_error = ndb_import_csv_error[Ndb_import_csv_error::No_error];
+  s.sign = 1;
+  s.interval = 0;
+  s.hour = s.minute = s.second = 0;
+  s.fraction = 0;
+  const char* p = datac;
+  const char* q = p;
+  // hour
+  while (isdigit(*p) && p - q < 2)
+    s.hour = 10 * s.hour + (*p++ - '0');
+  if (p - q == 1 || p - q == 2)
+    ;
+  else
+  {
+    csv_error = ndb_import_csv_error[Ndb_import_csv_error::Format_error];
+    csv_error.error_line = __LINE__;
+    return false;
+  }
+  q = p;
+  // separator vs non-separator variant
+  if (*p == ':')
+  {
+    q = ++p;
+    // minute
+    while (isdigit(*p))
+      s.minute = 10 * s.minute + (*p++ - '0');
+    if (p - q == 1 || p - q == 2)
+      ;
+    else
+    {
+      csv_error = ndb_import_csv_error[Ndb_import_csv_error::Format_error];
+      csv_error.error_line = __LINE__;
+      return false;
+    }
+    q = p;
+    if (*p == ':')
+      q = ++p;
+    else
+    {
+      csv_error = ndb_import_csv_error[Ndb_import_csv_error::Format_error];
+      csv_error.error_line = __LINE__;
+      return false;
+    }
+    while (isdigit(*p))
+      s.second = 10 * s.second + (*p++ - '0');
+    if (p - q == 1 || p - q == 2)
+      ;
+    else
+    {
+      csv_error = ndb_import_csv_error[Ndb_import_csv_error::Format_error];
+      csv_error.error_line = __LINE__;
+      return false;
+    }
+    q = p;
+  }
+  else
+  {
+    while (isdigit(*p) && p - q < 2)
+      s.minute = 10 * s.minute + (*p++ - '0');
+    if (p - q == 2)
+      ;
+    else
+    {
+      csv_error = ndb_import_csv_error[Ndb_import_csv_error::Format_error];
+      csv_error.error_line = __LINE__;
+      return false;
+    }
+    q = p;
+    while (isdigit(*p) && p - q < 2)
+      s.second = 10 * s.second + (*p++ - '0');
+    if (p - q == 2)
+      ;
+    else
+    {
+      csv_error = ndb_import_csv_error[Ndb_import_csv_error::Format_error];
+      csv_error.error_line = __LINE__;
+      return false;
+    }
+    q = p;
+  }
+  // fraction point (optional)
+  if (*p != 0)
+  {
+    if (*p == '.')
+      p++;
+    if (p - q == 1)
+      ;
+    else
+    {
+      csv_error = ndb_import_csv_error[Ndb_import_csv_error::Format_error];
+      csv_error.error_line = __LINE__;
+      return false;
+    }
+    q = p;
+    // fraction value (optional)
+    while (isdigit(*p))
+      s.fraction = 10 * s.fraction + (*p++ - '0');
+    if (p - q <= 6)
+    {
+      uint n = p - q;
+      while (n++ < attr.m_precision)
+        s.fraction *= 10;
+    }
+    else
+    {
+      csv_error = ndb_import_csv_error[Ndb_import_csv_error::Format_error];
+      csv_error.error_line = __LINE__;
+      return false;
+    }
+  }
+  return true;
+}
+
+static bool
+ndb_import_csv_parse_datetime2(const NdbImportCsv::Attr& attr,
+                               const char* datac,
+                               NdbSqlUtil::Datetime2& s,
+                               Ndb_import_csv_error& csv_error)
+{
+#if 0
+  yyyy-mm-dd/hh:mm:ss.ffffff
+  "^"
+  "([[:digit:]]{4}|[[:digit:]]{2})"           // 1:yyyy
+  "[[:punct:]]+"
+  "([[:digit:]]{1,2})"                        // 2:mm
+  "[[:punct:]]+"
+  "([[:digit:]]{1,2})"                        // 3:dd
+  "(T|[[:space:]]+|[[:punct:]]+)"             // 4:
+  "([[:digit:]]{1,2})"                        // 5:hh
+  "[[:punct:]]+"
+  "([[:digit:]]{1,2})"                        // 6:mm
+  "[[:punct:]]+"
+  "([[:digit:]]{1,2})"                        // 7:ss
+  "(\\.([[:digit:]]*))?"                      // 8: 9:ffffff
+  "$"
+#endif
+  csv_error = ndb_import_csv_error[Ndb_import_csv_error::No_error];
+  s.sign = 1;
+  s.year = s.month = s.day = 0;
+  s.hour = s.minute = s.second = 0;
+  s.fraction = 0;
+  const char* p = datac;
+  const char* q = p;
+  // year
+  while (isdigit(*p))
+    s.year = 10 * s.year + (*p++ - '0');
+  if (p - q == 4)
+    ;
+  else if (p - q == 2)
+  {
+    if (s.year >= 70)
+      s.year += 1900;
+    else
+      s.year += 2000;
+  }
+  else
+  {
+    csv_error = ndb_import_csv_error[Ndb_import_csv_error::Format_error];
+    csv_error.error_line = __LINE__;
+    return false;
+  }
+  q = p;
+  // separator
+  while (ispunct(*p))
+    p++;
+  if (p - q != 0)
+    ;
+  else
+  {
+    csv_error = ndb_import_csv_error[Ndb_import_csv_error::Format_error];
+    csv_error.error_line = __LINE__;
+    return false;
+  }
+  q = p;
+  // month
+  while (isdigit(*p))
+    s.month = 10 * s.month + (*p++ - '0');
+  if (p - q == 1 || p - q == 2)
+    ;
+  else
+  {
+    csv_error = ndb_import_csv_error[Ndb_import_csv_error::Format_error];
+    csv_error.error_line = __LINE__;
+    return false;
+  }
+  // separator
+  while (ispunct(*p))
+    p++;
+  if (p - q != 0)
+    ;
+  else
+  {
+    csv_error = ndb_import_csv_error[Ndb_import_csv_error::Format_error];
+    csv_error.error_line = __LINE__;
+    return false;
+  }
+  q = p;
+  // day
+  while (isdigit(*p))
+    s.day = 10 * s.day + (*p++ - '0');
+  if (p - q == 1 || p - q == 2)
+    ;
+  else
+  {
+    csv_error = ndb_import_csv_error[Ndb_import_csv_error::Format_error];
+    csv_error.error_line = __LINE__;
+    return false;
+  }
+  q = p;
+  // separator
+  if (*p == 'T')
+    p++;
+  else if (isspace(*p))
+  {
+    while (isspace(*p))
+      p++;
+  }
+  else if (ispunct(*p))
+  {
+    while (ispunct(*p))
+      p++;
+  }
+  if (p - q != 0)
+    ;
+  else
+  {
+    csv_error = ndb_import_csv_error[Ndb_import_csv_error::Format_error];
+    csv_error.error_line = __LINE__;
+    return false;
+  }
+  q = p;
+  // hour
+  while (isdigit(*p))
+    s.hour = 10 * s.hour + (*p++ - '0');
+  if (p - q == 1 || p - q == 2)
+    ;
+  else
+  {
+    csv_error = ndb_import_csv_error[Ndb_import_csv_error::Format_error];
+    csv_error.error_line = __LINE__;
+    return false;
+  }
+  q = p;
+  // separator
+  while (ispunct(*p))
+    p++;
+  if (p - q != 0)
+    ;
+  else
+  {
+    csv_error = ndb_import_csv_error[Ndb_import_csv_error::Format_error];
+    csv_error.error_line = __LINE__;
+    return false;
+  }
+  q = p;
+  // minute
+  while (isdigit(*p))
+    s.minute = 10 * s.minute + (*p++ - '0');
+  if (p - q == 1 || p - q == 2)
+    ;
+  else
+  {
+    csv_error = ndb_import_csv_error[Ndb_import_csv_error::Format_error];
+    csv_error.error_line = __LINE__;
+    return false;
+  }
+  q = p;
+  // separator
+  while (ispunct(*p))
+    p++;
+  if (p - q != 0)
+    ;
+  else
+  {
+    csv_error = ndb_import_csv_error[Ndb_import_csv_error::Format_error];
+    csv_error.error_line = __LINE__;
+    return false;
+  }
+  q = p;
+  // second
+  while (isdigit(*p))
+    s.second = 10 * s.second + (*p++ - '0');
+  if (p - q == 1 || p - q == 2)
+    ;
+  else
+  {
+    csv_error = ndb_import_csv_error[Ndb_import_csv_error::Format_error];
+    csv_error.error_line = __LINE__;
+    return false;
+  }
+  q = p;
+  // fraction point (optional)
+  if (*p != 0)
+  {
+    if (*p == '.')
+      p++;
+    if (p - q == 1)
+      ;
+    else
+    {
+      csv_error = ndb_import_csv_error[Ndb_import_csv_error::Format_error];
+      csv_error.error_line = __LINE__;
+      return false;
+    }
+    q = p;
+    // fraction value (optional)
+    while (isdigit(*p))
+      s.fraction = 10 * s.fraction + (*p++ - '0');
+    if (p - q <= 6)
+    {
+      uint n = p - q;
+      while (n++ < attr.m_precision)
+        s.fraction *= 10;
+    }
+    else
+    {
+      csv_error = ndb_import_csv_error[Ndb_import_csv_error::Format_error];
+      csv_error.error_line = __LINE__;
+      return false;
+    }
+    if (*p == 0)
+      ;
+    else
+    {
+      csv_error = ndb_import_csv_error[Ndb_import_csv_error::Format_error];
+      csv_error.error_line = __LINE__;
+      return false;
+    }
+  }
+  //
+  return true;
+}
+
+static bool
+ndb_import_csv_parse_timestamp2(const NdbImportCsv::Attr& attr,
+                                const char* datac,
+                                NdbSqlUtil::Timestamp2& s,
+                                Ndb_import_csv_error& csv_error)
+{
+  // parsed as Datetime2
+  NdbSqlUtil::Datetime2 s2;
+  if (!ndb_import_csv_parse_datetime2(attr, datac, s2, csv_error))
+    return false;
+  // convert to seconds in localtime
+  struct tm tm;
+  tm.tm_year = s2.year - 1900;
+  tm.tm_mon = s2.month - 1;
+  tm.tm_mday = s2.day;
+  tm.tm_hour = s2.hour;
+  tm.tm_min = s2.minute;
+  tm.tm_sec = s2.second;
+  tm.tm_isdst = -1;       // mktime() will determine
+  s.second = mktime(&tm);
+  s.fraction = s2.fraction;
+  return true;
+}
+
 void
 NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
 {
@@ -1883,29 +2442,19 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
     break;
   case NdbDictionary::Column::Year:
     {
-      Regex& r = *m_regex_year;
-      if (!r.match(datac))
+      NdbSqlUtil::Year s;
+      Ndb_import_csv_error csv_error;
+      if (!ndb_import_csv_parse_year(attr,
+                                     datac,
+                                     s,
+                                     csv_error))
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-         "line %llu field %u: eval %s failed: bad format",
-         linenr, fieldnr, attr.m_sqltype);
+          "line %llu field %u: eval %s failed: %s at %d",
+          linenr, fieldnr, attr.m_sqltype,
+          csv_error.error_text, csv_error.error_line);
         break;
-      }
-      NdbSqlUtil::Year s;
-      {
-        int err = 0;
-        char* endptr = 0;
-        const char* sp = &datac[r.m_subs[1].rm_so];
-        const char* ep = &datac[r.m_subs[1].rm_eo];
-        s.year = cs->cset->strntoul(cs, sp, ep - sp, 10, &endptr, &err);
-        if (ep - sp == 2)
-        {
-          if (s.year >= 70)
-            s.year += 1900;
-          else if (s.year != 0)
-            s.year += 2000;
-        }
       }
       uchar val[1];
       NdbSqlUtil::pack_year(s, val);
@@ -1914,43 +2463,19 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
     break;
   case NdbDictionary::Column::Date:
     {
-      Regex& r = *m_regex_date;
-      if (!r.match(datac))
+      NdbSqlUtil::Date s;
+      Ndb_import_csv_error csv_error;
+      if (!ndb_import_csv_parse_date(attr,
+                                     datac,
+                                     s,
+                                     csv_error))
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-         "line %llu field %u: eval %s failed: bad format",
-         linenr, fieldnr, attr.m_sqltype);
+          "line %llu field %u: eval %s failed: %s at %d",
+          linenr, fieldnr, attr.m_sqltype,
+          csv_error.error_text, csv_error.error_line);
         break;
-      }
-      NdbSqlUtil::Date s;
-      {
-        int err = 0;
-        char* endptr = 0;
-        const char* sp = &datac[r.m_subs[1].rm_so];
-        const char* ep = &datac[r.m_subs[1].rm_eo];
-        s.year = cs->cset->strntoul(cs, sp, ep - sp, 10, &endptr, &err);
-        if (ep - sp == 2)
-        {
-          if (s.year >= 70)
-            s.year += 1900;
-          else
-            s.year += 2000;
-        }
-      }
-      {
-        int err = 0;
-        char* endptr = 0;
-        const char* sp = &datac[r.m_subs[2].rm_so];
-        const char* ep = &datac[r.m_subs[2].rm_eo];
-        s.month = cs->cset->strntoul(cs, sp, ep - sp, 10, &endptr, &err);
-      }
-      {
-        int err = 0;
-        char* endptr = 0;
-        const char* sp = &datac[r.m_subs[3].rm_so];
-        const char* ep = &datac[r.m_subs[3].rm_eo];
-        s.day = cs->cset->strntoul(cs, sp, ep - sp, 10, &endptr, &err);
       }
       uchar val[3];
       NdbSqlUtil::pack_date(s, val);
@@ -1959,119 +2484,19 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
     break;
   case NdbDictionary::Column::Time2:
     {
-      Regex& r = *m_regex_time2;
-      if (!r.match(datac))
+      NdbSqlUtil::Time2 s;
+      Ndb_import_csv_error csv_error;
+      if (!ndb_import_csv_parse_time2(attr,
+                                      datac,
+                                      s,
+                                      csv_error))
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-          "line %llu field %u: eval %s failed: bad format",
-          linenr, fieldnr, attr.m_sqltype);
+          "line %llu field %u: eval %s failed: %s at %d",
+          linenr, fieldnr, attr.m_sqltype,
+          csv_error.error_text, csv_error.error_line);
         break;
-      }
-      bool issep = false;       // separated fields
-      bool nosep = false;       // non-separated fields
-      // sanity check
-      {
-        const char* sp = &datac[r.m_subs[4].rm_so];
-        const char* ep = &datac[r.m_subs[4].rm_eo];
-        issep = (sp < ep);
-      }
-      {
-        const char* sp = &datac[r.m_subs[7].rm_so];
-        const char* ep = &datac[r.m_subs[7].rm_eo];
-        nosep = (sp < ep);
-      }
-      require(issep || nosep);
-      require(!(issep && nosep));
-      NdbSqlUtil::Time2 s;
-      s.sign = 1;
-      s.interval = 0;
-      {
-        s.hour = 0;
-        const char* sp = &datac[r.m_subs[1].rm_so];
-        const char* ep = &datac[r.m_subs[1].rm_eo];
-        if (sp < ep)
-        {
-          int err = 0;
-          char* endptr = 0;
-          uint val = cs->cset->strntoul(cs, sp, ep - sp, 10, &endptr, &err);
-          const uint maxval = 34; // oh the wonder
-          if (val > maxval)
-          {
-            m_util.set_error_data(
-              error, __LINE__, 0,
-              "line %llu field %u: eval %s failed: "
-              "date field %u out of range %u",
-              linenr, fieldnr, attr.m_sqltype, val, maxval);
-            break;
-          }
-          s.hour = 24 * val;
-        }
-      }
-      if (issep)
-      {
-        {
-          int err = 0;
-          char* endptr = 0;
-          const char* sp = &datac[r.m_subs[4].rm_so];
-          const char* ep = &datac[r.m_subs[4].rm_eo];
-          uint val = cs->cset->strntoul(cs, sp, ep - sp, 10, &endptr, &err);
-          s.hour += val;
-        }
-        {
-          int err = 0;
-          char* endptr = 0;
-          const char* sp = &datac[r.m_subs[5].rm_so];
-          const char* ep = &datac[r.m_subs[5].rm_eo];
-          uint val = cs->cset->strntoul(cs, sp, ep - sp, 10, &endptr, &err);
-          s.minute = val;
-        }
-        {
-          int err = 0;
-          char* endptr = 0;
-          const char* sp = &datac[r.m_subs[6].rm_so];
-          const char* ep = &datac[r.m_subs[6].rm_eo];
-          uint val = cs->cset->strntoul(cs, sp, ep - sp, 10, &endptr, &err);
-          s.second = val;
-        }
-      }
-      else
-      {
-        {
-          int err = 0;
-          char* endptr = 0;
-          const char* sp = &datac[r.m_subs[7].rm_so];
-          const char* ep = &datac[r.m_subs[7].rm_eo];
-          uint val = cs->cset->strntoul(cs, sp, ep - sp, 10, &endptr, &err);
-          s.hour += val;
-        }
-        {
-          int err = 0;
-          char* endptr = 0;
-          const char* sp = &datac[r.m_subs[8].rm_so];
-          const char* ep = &datac[r.m_subs[8].rm_eo];
-          uint val = cs->cset->strntoul(cs, sp, ep - sp, 10, &endptr, &err);
-          s.minute = val;
-        }
-        {
-          int err = 0;
-          char* endptr = 0;
-          const char* sp = &datac[r.m_subs[9].rm_so];
-          const char* ep = &datac[r.m_subs[9].rm_eo];
-          uint val = cs->cset->strntoul(cs, sp, ep - sp, 10, &endptr, &err);
-          s.second = val;
-        }
-      }
-      {
-        int err = 0;
-        char* endptr = 0;
-        const char* sp = &datac[r.m_subs[11].rm_so];
-        const char* ep = &datac[r.m_subs[11].rm_eo];
-        // XXX rounding rules
-        s.fraction = cs->cset->strntoul(cs, sp, ep - sp, 10, &endptr, &err);
-        uint n = (uint)(ep - sp);
-        while (n++ < attr.m_precision)
-          s.fraction *= 10;
       }
       uint prec = attr.m_precision;
       require(prec <= 6);
@@ -2085,76 +2510,19 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
     break;
   case NdbDictionary::Column::Datetime2:
     {
-      Regex& r = *m_regex_datetime2;
-      if (!r.match(datac))
+      NdbSqlUtil::Datetime2 s;
+      Ndb_import_csv_error csv_error;
+      if (!ndb_import_csv_parse_datetime2(attr,
+                                          datac,
+                                          s,
+                                          csv_error))
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-          "line %llu field %u: eval %s failed: bad format",
-          linenr, fieldnr, attr.m_sqltype);
+          "line %llu field %u: eval %s failed: %s at %d",
+          linenr, fieldnr, attr.m_sqltype,
+          csv_error.error_text, csv_error.error_line);
         break;
-      }
-      NdbSqlUtil::Datetime2 s;
-      s.sign = 1;
-      {
-        int err = 0;
-        char* endptr = 0;
-        const char* sp = &datac[r.m_subs[1].rm_so];
-        const char* ep = &datac[r.m_subs[1].rm_eo];
-        s.year = cs->cset->strntoul(cs, sp, ep - sp, 10, &endptr, &err);
-        if (ep - sp == 2)
-        {
-          if (s.year >= 70)
-            s.year += 1900;
-          else
-            s.year += 2000;
-        }
-      }
-      {
-        int err = 0;
-        char* endptr = 0;
-        const char* sp = &datac[r.m_subs[2].rm_so];
-        const char* ep = &datac[r.m_subs[2].rm_eo];
-        s.month = cs->cset->strntoul(cs, sp, ep - sp, 10, &endptr, &err);
-      }
-      {
-        int err = 0;
-        char* endptr = 0;
-        const char* sp = &datac[r.m_subs[3].rm_so];
-        const char* ep = &datac[r.m_subs[3].rm_eo];
-        s.day = cs->cset->strntoul(cs, sp, ep - sp, 10, &endptr, &err);
-      }
-      {
-        int err = 0;
-        char* endptr = 0;
-        const char* sp = &datac[r.m_subs[5].rm_so];
-        const char* ep = &datac[r.m_subs[5].rm_eo];
-        s.hour = cs->cset->strntoul(cs, sp, ep - sp, 10, &endptr, &err);
-      }
-      {
-        int err = 0;
-        char* endptr = 0;
-        const char* sp = &datac[r.m_subs[6].rm_so];
-        const char* ep = &datac[r.m_subs[6].rm_eo];
-        s.minute = cs->cset->strntoul(cs, sp, ep - sp, 10, &endptr, &err);
-      }
-      {
-        int err = 0;
-        char* endptr = 0;
-        const char* sp = &datac[r.m_subs[7].rm_so];
-        const char* ep = &datac[r.m_subs[7].rm_eo];
-        s.second = cs->cset->strntoul(cs, sp, ep - sp, 10, &endptr, &err);
-      }
-      {
-        int err = 0;
-        char* endptr = 0;
-        const char* sp = &datac[r.m_subs[9].rm_so];
-        const char* ep = &datac[r.m_subs[9].rm_eo];
-        // XXX rounding rules
-        s.fraction = cs->cset->strntoul(cs, sp, ep - sp, 10, &endptr, &err);
-        uint n = (uint)(ep - sp);
-        while (n++ < attr.m_precision)
-          s.fraction *= 10;
       }
       uint prec = attr.m_precision;
       require(prec <= 6);
@@ -2168,91 +2536,19 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
     break;
   case NdbDictionary::Column::Timestamp2:
     {
-      // parsed as Datetime2
-      Regex& r = *m_regex_datetime2;
-      if (!r.match(datac))
+      NdbSqlUtil::Timestamp2 s;
+      Ndb_import_csv_error csv_error;
+      if (!ndb_import_csv_parse_timestamp2(attr,
+                                          datac,
+                                          s,
+                                          csv_error))
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-          "line %llu field %u: eval %s failed: bad format",
-          linenr, fieldnr, attr.m_sqltype);
+          "line %llu field %u: eval %s failed: %s at %d",
+          linenr, fieldnr, attr.m_sqltype,
+          csv_error.error_text, csv_error.error_line);
         break;
-      }
-      NdbSqlUtil::Datetime2 s;
-      s.sign = 1;
-      {
-        int err = 0;
-        char* endptr = 0;
-        const char* sp = &datac[r.m_subs[1].rm_so];
-        const char* ep = &datac[r.m_subs[1].rm_eo];
-        s.year = cs->cset->strntoul(cs, sp, ep - sp, 10, &endptr, &err);
-        if (ep - sp == 2)
-        {
-          if (s.year >= 70)
-            s.year += 1900;
-          else
-            s.year += 2000;
-        }
-      }
-      {
-        int err = 0;
-        char* endptr = 0;
-        const char* sp = &datac[r.m_subs[2].rm_so];
-        const char* ep = &datac[r.m_subs[2].rm_eo];
-        s.month = cs->cset->strntoul(cs, sp, ep - sp, 10, &endptr, &err);
-      }
-      {
-        int err = 0;
-        char* endptr = 0;
-        const char* sp = &datac[r.m_subs[3].rm_so];
-        const char* ep = &datac[r.m_subs[3].rm_eo];
-        s.day = cs->cset->strntoul(cs, sp, ep - sp, 10, &endptr, &err);
-      }
-      {
-        int err = 0;
-        char* endptr = 0;
-        const char* sp = &datac[r.m_subs[5].rm_so];
-        const char* ep = &datac[r.m_subs[5].rm_eo];
-        s.hour = cs->cset->strntoul(cs, sp, ep - sp, 10, &endptr, &err);
-      }
-      {
-        int err = 0;
-        char* endptr = 0;
-        const char* sp = &datac[r.m_subs[6].rm_so];
-        const char* ep = &datac[r.m_subs[6].rm_eo];
-        s.minute = cs->cset->strntoul(cs, sp, ep - sp, 10, &endptr, &err);
-      }
-      {
-        int err = 0;
-        char* endptr = 0;
-        const char* sp = &datac[r.m_subs[7].rm_so];
-        const char* ep = &datac[r.m_subs[7].rm_eo];
-        s.second = cs->cset->strntoul(cs, sp, ep - sp, 10, &endptr, &err);
-      }
-      {
-        int err = 0;
-        char* endptr = 0;
-        const char* sp = &datac[r.m_subs[9].rm_so];
-        const char* ep = &datac[r.m_subs[9].rm_eo];
-        // XXX rounding rules
-        s.fraction = cs->cset->strntoul(cs, sp, ep - sp, 10, &endptr, &err);
-        uint n = (uint)(ep - sp);
-        while (n++ < attr.m_precision)
-          s.fraction *= 10;
-      }
-      NdbSqlUtil::Timestamp2 t;
-      {
-        // convert to seconds in localtime
-        struct tm tm;
-        tm.tm_year = s.year - 1900;
-        tm.tm_mon = s.month - 1;
-        tm.tm_mday = s.day;
-        tm.tm_hour = s.hour;
-        tm.tm_min = s.minute;
-        tm.tm_sec = s.second;
-        tm.tm_isdst = -1;       // mktime() will determine
-        t.second = mktime(&tm);
-        t.fraction = s.fraction;
       }
       uint prec = attr.m_precision;
       require(prec <= 6);
@@ -2260,7 +2556,7 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
       uint len = 4 + flen;
       require(len <= 7);
       uchar val[7];
-      NdbSqlUtil::pack_timestamp2(t, val, prec);
+      NdbSqlUtil::pack_timestamp2(s, val, prec);
       attr.set_value(row, val, len);
     }
     break;
