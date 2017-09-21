@@ -1288,7 +1288,8 @@ struct Ndb_import_csv_error {
   enum Error_code {
     No_error = 0,
     Format_error = 1,
-    Value_error = 2     // but DBTUP should be final arbiter
+    Value_error = 2,    // but DBTUP should be final arbiter
+    Internal_error = 3
   };
   static const int error_code_count = Value_error + 1;
   int error_code;
@@ -1302,6 +1303,82 @@ ndb_import_csv_error[Ndb_import_csv_error::error_code_count] = {
   { Ndb_import_csv_error::Format_error, "format error", 0 },
   { Ndb_import_csv_error::Value_error, "value error", 0 }
 };
+
+static void
+ndb_import_csv_decimal_error(int err,
+                             Ndb_import_csv_error& csv_error)
+{
+  switch (err) {
+  case E_DEC_OK:
+    csv_error = ndb_import_csv_error[Ndb_import_csv_error::No_error];
+    break;
+  case E_DEC_TRUNCATED:
+  case E_DEC_OVERFLOW:
+    csv_error = ndb_import_csv_error[Ndb_import_csv_error::Value_error];
+    break;
+  case E_DEC_BAD_NUM:
+    csv_error = ndb_import_csv_error[Ndb_import_csv_error::Format_error];
+    break;
+  case E_DEC_OOM:
+  case E_DEC_BAD_PREC:
+  case E_DEC_BAD_SCALE:
+  default:
+    csv_error = ndb_import_csv_error[Ndb_import_csv_error::Internal_error];
+    break;
+  }
+}
+
+static bool
+ndb_import_csv_parse_decimal(const NdbImportCsv::Attr& attr,
+                             bool is_unsigned,
+                             const char* datac, uint length,
+                             uchar* val, uint val_len,
+                             Ndb_import_csv_error& csv_error)
+{
+#if 0
+  // [-+]ddd.ff
+  "^"
+  "([-+])*"                                   // 1:sign
+  "([[:digit:]]*)?"                           // 2:ddd
+  "(.)?"                                      // 3:.
+  "([[:digit:]]*)?"                           // 4:ff
+  "$"
+#endif
+  // sign
+  const char* p = datac;
+  if (!is_unsigned)
+    while (*p == '+' || *p == '-')
+      p++;
+  else
+    while (*p == '+')
+      p++;
+  // decimal_str2bin does not check string end so parse here
+  while (isdigit(*p))
+    p++;
+  if (*p == '.')
+  {
+    p++;
+    while (isdigit(*p))
+      p++;
+  }
+  if (*p != 0)
+  {
+    csv_error = ndb_import_csv_error[Ndb_import_csv_error::Format_error];
+    csv_error.error_line = __LINE__;
+    return false;
+  }
+  int err;
+  err = decimal_str2bin(datac, length,
+                        attr.m_precision, attr.m_scale,
+                        val, val_len);
+  if (err != 0)
+  {
+    ndb_import_csv_decimal_error(err, csv_error);
+    csv_error.error_line = __LINE__;
+    return false;
+  }
+  return true;
+}
 
 static bool
 ndb_import_csv_parse_year(const NdbImportCsv::Attr& attr,
@@ -2194,29 +2271,19 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
     break;
   case NdbDictionary::Column::Decimal:
     {
-      Regex& r = *m_regex_decimal;
-      if (!r.match(datac) ||
-          ( r.m_subs[2].rm_so == r.m_subs[2].rm_eo &&
-            r.m_subs[4].rm_so == r.m_subs[4].rm_eo
-          ))
+      uchar val[200];
+      Ndb_import_csv_error csv_error;
+      if (!ndb_import_csv_parse_decimal(attr,
+                                        false,
+                                        datac, length,
+                                        val, sizeof(val),
+                                        csv_error))
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-          "line %llu field %u: eval %s failed: bad format",
-          linenr, fieldnr, attr.m_sqltype);
-        break;
-      }
-      uchar val[200];
-      int err = 0;
-      err = decimal_str2bin(datac, length,
-                            attr.m_precision, attr.m_scale,
-                            val, sizeof(val));
-      if (err != 0)
-      {
-        m_util.set_error_data(
-          error, __LINE__, err,
-          "line %llu field %u: eval %s failed",
-          linenr, fieldnr, attr.m_sqltype);
+          "line %llu field %u: eval %s failed: %s at %d",
+          linenr, fieldnr, attr.m_sqltype,
+          csv_error.error_text, csv_error.error_line);
         break;
       }
       attr.set_value(row, val, attr.m_size);
@@ -2224,29 +2291,19 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
     break;
   case NdbDictionary::Column::Decimalunsigned:
     {
-      Regex& r = *m_regex_decimalunsigned;
-      if (!r.match(datac) ||
-          ( r.m_subs[2].rm_so == r.m_subs[2].rm_eo &&
-            r.m_subs[4].rm_so == r.m_subs[4].rm_eo
-          ))
+      uchar val[200];
+      Ndb_import_csv_error csv_error;
+      if (!ndb_import_csv_parse_decimal(attr,
+                                        true,
+                                        datac, length,
+                                        val, sizeof(val),
+                                        csv_error))
       {
         m_util.set_error_data(
           error, __LINE__, 0,
-          "line %llu field %u: eval %s failed: bad format",
-          linenr, fieldnr, attr.m_sqltype);
-        break;
-      }
-      uchar val[200];
-      int err = 0;
-      err = decimal_str2bin(datac, length,
-                            attr.m_precision, attr.m_scale,
-                            val, sizeof(val));
-      if (err != 0)
-      {
-        m_util.set_error_data(
-          error, __LINE__, err,
-          "line %llu field %u: eval %s failed",
-          linenr, fieldnr, attr.m_sqltype);
+          "line %llu field %u: eval %s failed: %s at %d",
+          linenr, fieldnr, attr.m_sqltype,
+          csv_error.error_text, csv_error.error_line);
         break;
       }
       attr.set_value(row, val, attr.m_size);
