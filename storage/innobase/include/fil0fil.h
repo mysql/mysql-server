@@ -1521,16 +1521,7 @@ fil_op_replay_rename_for_ddl(
 	const char*		name,
 	const char*		new_name);
 
-/** Callback to check tablespace size with space header size and extend
-@param[in]	node	file node
-@param[in]	context	callers context, currently unused
-@return	error code */
-dberr_t
-fil_check_extend_space(
-	fil_node_t*	node,
-	void* 		context MY_ATTRIBUTE((unused)));
-
-/* Rename a tablespace by its name only
+/** Rename a tablespace by its name only
 @param[in]	old_name	old tablespace name
 @param[in]	new_name	new tablespace name
 @return DB_SUCCESS on success */

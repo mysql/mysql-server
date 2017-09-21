@@ -1045,6 +1045,21 @@ Clone_Handle::open_file(
 				option, OS_FILE_NORMAL, file_type, read_only,
 				&success);
 
+	if (success && set_and_close) {
+
+		ut_ad(create_file);
+
+		success = os_file_set_size(file_meta->m_file_name,
+			handle, 0, file_meta->m_file_size, false, false);
+
+		os_file_close(handle);
+
+		if (success) {
+
+			return(DB_SUCCESS);
+		}
+	}
+
 	if (!success) {
 
 		int	err;
@@ -1058,18 +1073,6 @@ Clone_Handle::open_file(
 			 my_strerror(errbuf, sizeof(errbuf), errno));
 
 		return(DB_CANNOT_OPEN_FILE);
-	}
-
-	if (set_and_close) {
-
-		ut_ad(create_file);
-
-		success = os_file_set_size(file_meta->m_file_name,
-			handle, file_meta->m_file_size, false, false);
-
-		os_file_close(handle);
-
-		return(DB_SUCCESS);
 	}
 
 	/* Set file descriptor in task. */

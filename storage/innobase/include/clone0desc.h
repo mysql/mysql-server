@@ -332,13 +332,16 @@ struct Clone_Desc_Data
 	Clone_Task_Meta		m_task_meta;
 
 	/** File identifier */
-	uint			m_file_index;
+	uint32_t		m_file_index;
 
 	/** Data Length */
-	uint			m_data_len;
+	uint32_t		m_data_len;
 
 	/** File offset for the data */
-	ib_uint64_t		m_file_offset;
+	uint64_t		m_file_offset;
+
+	/** Updated file size */
+	uint64_t		m_file_size;
 
 	/** Initialize header
 	@param[in]	version	descriptor version */

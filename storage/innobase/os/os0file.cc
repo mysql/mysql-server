@@ -6095,10 +6095,11 @@ short_warning:
 #endif /* defined(UNIV_SOLARIS) && defined(DIRECTIO_ON) */
 }
 
-/** Write the specified number of zeros to a newly created file.
+/**  Write the specified number of zeros to a file from specific offset.
 @param[in]	name		name of the file or path as a null-terminated
 				string
 @param[in]	file		handle to a file
+@param[in]	offset		file offset
 @param[in]	size		file size
 @param[in]	read_only	Enable read-only checks if true
 @param[in]	flush		Flush file content to disk
@@ -6107,6 +6108,7 @@ bool
 os_file_set_size(
 	const char*	name,
 	pfs_os_file_t	file,
+	os_offset_t	offset,
 	os_offset_t	size,
 	bool		read_only,
 	bool		flush)
@@ -6133,7 +6135,7 @@ os_file_set_size(
 		ib::info() << "Progress in MB:";
 	}
 
-	os_offset_t	current_size = 0;
+	os_offset_t	current_size = offset;
 
 	while (current_size < size) {
 		ulint	n_bytes;

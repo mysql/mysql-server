@@ -3688,13 +3688,6 @@ innobase_dict_recover(
 			return(true);
 		}
 
-		/* Check and extend space files, if needed. */
-		if (fil_iterate_tablespace_files(false, nullptr,
-			fil_check_extend_space) != DB_SUCCESS) {
-
-			return(true);
-		}
-
 		srv_dict_recover_on_restart();
 success:
 		srv_start_threads(

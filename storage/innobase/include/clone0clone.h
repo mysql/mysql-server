@@ -453,13 +453,15 @@ private:
 	/** Receive data from callback and apply
 	@param[in]	task		task that is receiving the information
 	@param[in]	offset		file offset for applying data
+	@param[in]	file_size	updated file size
 	@param[in]	size		data length in bytes
 	@param[in]	callback	callback interface
 	@return error code */
 	dberr_t receive_data(
 		Clone_Task*	task,
-		ib_uint64_t	offset,
-		uint		size,
+		uint64_t	offset,
+		uint64_t	file_size,
+		uint32_t	size,
 		Ha_clone_cbk*	callback);
 
 private:

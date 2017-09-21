@@ -308,6 +308,7 @@ Arch_Log_Sys::start(
 	if (m_state == ARCH_STATE_ABORT) {
 
 		mutex_exit(&m_mutex);
+		my_error(ER_QUERY_INTERRUPTED, MYF(0));
 		return(DB_INTERRUPTED);
 	}
 
@@ -389,6 +390,7 @@ Arch_Log_Sys::start(
 
 			mutex_exit(&m_mutex);
 
+			my_error(ER_OUTOFMEMORY, MYF(0), sizeof(Arch_Group));
 			err = DB_OUT_OF_MEMORY;
 			return(err);
 		}
@@ -402,6 +404,9 @@ Arch_Log_Sys::start(
 		if (err != DB_SUCCESS) {
 
 			mutex_exit(&m_mutex);
+
+			my_error(ER_OUTOFMEMORY, MYF(0),
+				sizeof(Arch_File_Ctx));
 			return(err);
 		}
 
@@ -720,6 +725,7 @@ Arch_Log_Sys::wait_archive_complete(
 		    || srv_shutdown_state != SRV_SHUTDOWN_NONE) {
 
 			log_write_mutex_exit();
+			my_error(ER_QUERY_INTERRUPTED, MYF(0));
 			return(DB_INTERRUPTED);
 		}
 
@@ -746,7 +752,7 @@ Arch_Log_Sys::wait_archive_complete(
 
 		++count;
 
-		if (count % 600 == 0) {
+		if (count % 50 == 0) {
 
 			ib::info() << "Waiting for archiver to"
 				" finish archiving log till LSN "
@@ -754,11 +760,13 @@ Arch_Log_Sys::wait_archive_complete(
 				<< " Archived LSN: "
 				<< m_archived_lsn;
 
-			if (count > 600 * 5) {
+			if (count > 600) {
 
-				/* Wait too long - 5 minutes */
+				/* Wait too long - 1 minutes */
 				ib::error() << "Log Archive wait too long";
 
+				my_error(ER_INTERNAL_ERROR, MYF(0),
+					"Log Archiver wait too long");
 				return(DB_ERROR);
 			}
 		}
