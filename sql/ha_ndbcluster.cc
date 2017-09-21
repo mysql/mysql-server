@@ -14452,7 +14452,7 @@ NDB_SHARE::create(const char* key, TABLE* table)
   // NDB_SHARE has been allocated with zerofill, just verify pointer is NULL
   DBUG_ASSERT(share->inplace_alter_new_table_def == nullptr);
 
-  if (ndbcluster_binlog_init_share(current_thd, share, table))
+  if (share->binlog_init(current_thd, table))
   {
     DBUG_PRINT("error", ("get_share: %s could not init share", key));
     DBUG_ASSERT(share->event_data == NULL);

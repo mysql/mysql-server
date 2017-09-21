@@ -112,6 +112,7 @@ struct NDB_SHARE {
   const char* share_state_string() const;
 private:
   uint m_use_count;
+  int binlog_init(THD *thd, TABLE *_table);
 };
 
 

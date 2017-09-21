@@ -433,13 +433,13 @@ ndb_binlog_open_shadow_table(THD *thd, NDB_SHARE *share,
 /*
   Initialize the binlog part of the NDB_SHARE
 */
-int ndbcluster_binlog_init_share(THD *thd, NDB_SHARE *share, TABLE *_table)
+int NDB_SHARE::binlog_init(THD *thd, TABLE *_table)
 {
-  DBUG_ENTER("ndbcluster_binlog_init_share");
+  DBUG_ENTER("NDB_SHARE::binlog_init");
 
-  if (!share->need_events(ndb_binlog_running))
+  if (!need_events(ndb_binlog_running))
   {
-    share->set_binlog_flags_for_table(_table);
+    set_binlog_flags_for_table(_table);
     DBUG_RETURN(0);
   }
 
@@ -449,7 +449,7 @@ int ndbcluster_binlog_init_share(THD *thd, NDB_SHARE *share, TABLE *_table)
   {
     MDL_request mdl_request;
     MDL_REQUEST_INIT(&mdl_request,
-                     MDL_key::TABLE, share->db, share->table_name,
+                     MDL_key::TABLE, db, table_name,
                      MDL_SHARED, MDL_EXPLICIT);
 
     if (thd->mdl_context.acquire_lock(&mdl_request,
@@ -466,7 +466,7 @@ int ndbcluster_binlog_init_share(THD *thd, NDB_SHARE *share, TABLE *_table)
   // and passed to ndb_binlog_open_shadow_table() in order to avoid
   // taking these additional MDL lock(s).
   const int open_shadow_result =
-      ndb_binlog_open_shadow_table(thd, share, NULL);
+      ndb_binlog_open_shadow_table(thd, this, NULL);
 
   thd->mdl_context.release_lock(mdl_ticket);
 
