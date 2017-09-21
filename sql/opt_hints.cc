@@ -426,7 +426,7 @@ static table_map get_other_dep(opt_hints_enum type,
   Auxiluary class is used to save/restore table dependencies.
 */
 
-class Join_order_hint_handler : public Sql_alloc
+class Join_order_hint_handler
 {
   JOIN *join;
   table_map *orig_dep_array;     ///< Original table dependencies

@@ -43,7 +43,6 @@
 #include "sql/mem_root_array.h"
 #include "sql/opt_costmodel.h" // Cost_model_table
 #include "sql/record_buffer.h" // Record_buffer
-#include "sql/sql_alloc.h"
 #include "sql/sql_bitmap.h" // Bitmap
 #include "sql/sql_const.h"
 #include "sql/sql_list.h"
@@ -254,8 +253,7 @@ protected:
  View_creation_ctx -- creation context of view objects.
 */
 
-class View_creation_ctx : public Default_object_creation_ctx,
-                          public Sql_alloc
+class View_creation_ctx : public Default_object_creation_ctx
 {
 public:
   static View_creation_ctx *create(THD *thd);
@@ -1096,7 +1094,7 @@ struct TABLE_SHARE
    GROUP_CONCAT with  DISTINCT or ORDER BY options.
  */
 
-class Blob_mem_storage: public Sql_alloc
+class Blob_mem_storage
 {
 private:
   MEM_ROOT storage;
@@ -2196,7 +2194,7 @@ struct Field_translator
   Field (for tables), or a Field_translator (for views).
 */
 
-class Natural_join_column: public Sql_alloc
+class Natural_join_column
 {
 public:
   Field_translator *view_field;  /* Column reference of merge view. */
@@ -2307,7 +2305,8 @@ enum enum_open_type
   See also the comment for the TABLE_LIST::update_derived_keys function.
 */
 
-class Derived_key: public Sql_alloc {
+class Derived_key
+{
 public:
   table_map referenced_by;
   Field_map used_fields;
@@ -3346,7 +3345,7 @@ private:
   Iterator over the fields of a generic table reference.
 */
 
-class Field_iterator: public Sql_alloc
+class Field_iterator
 {
 public:
   Field_iterator() {}                         /* Remove gcc warning */

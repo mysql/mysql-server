@@ -48,7 +48,6 @@
 #include "sql/dd/string_type.h"
 #include "sql/discrete_interval.h" // Discrete_interval
 #include "sql/key.h"
-#include "sql/sql_alloc.h"
 #include "sql/sql_const.h"     // SHOW_COMP_OPTION
 #include "sql/sql_list.h"      // SQL_I_List
 #include "sql/sql_plugin_ref.h" // plugin_ref
@@ -2225,12 +2224,11 @@ struct KEY_PAIR
   as early as during check_if_supported_inplace_alter().
 
   The SQL layer is responsible for destroying the object.
-  The class extends Sql_alloc so the memory will be mem root allocated.
 
   @see Alter_inplace_info
 */
 
-class inplace_alter_handler_ctx : public Sql_alloc
+class inplace_alter_handler_ctx
 {
 public:
   inplace_alter_handler_ctx() {}
@@ -3006,7 +3004,7 @@ public:
   Wrapper for struct ft_hints.
 */
 
-class Ft_hints: public Sql_alloc
+class Ft_hints
 {
 private:
   struct ft_hints hints;
@@ -3497,7 +3495,7 @@ public:
     get_partition_handler()
 */
 
-class handler :public Sql_alloc
+class handler
 {
   friend class Partition_handler;
 public:

@@ -48,7 +48,7 @@ typedef NdbDictionary::ForeignKey NDBFK;
   Unlike indexes, no references to global dictionary are kept.
 */
 
-struct Ndb_fk_item : Sql_alloc
+struct Ndb_fk_item
 {
   FOREIGN_KEY_INFO f_key_info;
   int update_action;    // NDBFK::FkAction
@@ -57,7 +57,7 @@ struct Ndb_fk_item : Sql_alloc
   bool is_parent;
 };
 
-struct Ndb_fk_data : Sql_alloc
+struct Ndb_fk_data
 {
   List<Ndb_fk_item> list;
   uint cnt_child;

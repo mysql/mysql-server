@@ -24,7 +24,6 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_sharedlib.h"
-#include "sql/sql_alloc.h"     // Sql_alloc
 #include "sql/thr_malloc.h"
 
 
@@ -36,7 +35,7 @@
           reference to the last element.
 */
 template <typename T>
-class SQL_I_List :public Sql_alloc
+class SQL_I_List
 {
 public:
   uint elements;
@@ -47,11 +46,11 @@ public:
 
   SQL_I_List() { empty(); }
 
-  SQL_I_List(const SQL_I_List &tmp) : Sql_alloc()
+  SQL_I_List(const SQL_I_List &tmp)
+    : elements(tmp.elements),
+      first(tmp.first),
+      next(elements ? tmp.next : &first)
   {
-    elements= tmp.elements;
-    first= tmp.first;
-    next= elements ? tmp.next : &first;
   }
 
   inline void empty()
@@ -111,7 +110,7 @@ public:
   @note We never call a destructor for instances of this class.
 */
 
-struct list_node :public Sql_alloc
+struct list_node
 {
   list_node *next;
   void *info;
@@ -143,7 +142,7 @@ extern MYSQL_PLUGIN_IMPORT list_node end_of_list;
 
 typedef int (*Node_cmp_func)(void *n1, void *n2, void *arg);
 
-class base_list :public Sql_alloc
+class base_list
 {
 protected:
   list_node *first,**last;
@@ -171,8 +170,7 @@ public:
     it in any new code.
   */
   base_list(const base_list &tmp)
-    : Sql_alloc(),
-      first(tmp.first),
+    : first(tmp.first),
       last(tmp.elements ? tmp.last : &first),
       elements(tmp.elements)
   {

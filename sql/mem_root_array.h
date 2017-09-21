@@ -24,12 +24,6 @@
 #include "my_dbug.h"
 
 /**
-  Just a dummy class for use as a default value in template parameters.
-*/
-class Empty_class {};
-
-
-/**
    A typesafe replacement for DYNAMIC_ARRAY.
    We use MEM_ROOT for allocating storage, rather than the C++ heap.
    The interface is chosen to be similar to std::vector.
@@ -52,11 +46,9 @@ class Empty_class {};
 
    @tparam Element_type The type of the elements of the container.
            Elements must be copyable.
-   @tparam Parent The parent class (e.g. Sql_alloc).
 */
-template<typename Element_type,
-         typename Parent = Empty_class>
-class Mem_root_array_YY : public Parent
+template<typename Element_type>
+class Mem_root_array_YY
 {
   /**
      Is Element_type trivially destructible? If it is, we don't destroy
@@ -348,11 +340,10 @@ private:
 
   @see Mem_root_array_YY.
 */
-template<typename Element_type,
-         typename Parent= Empty_class>
-class Mem_root_array : public Mem_root_array_YY<Element_type, Parent>
+template<typename Element_type>
+class Mem_root_array : public Mem_root_array_YY<Element_type>
 {
-  typedef Mem_root_array_YY<Element_type, Parent> super;
+  typedef Mem_root_array_YY<Element_type> super;
 
 public:
   /// Convenience typedef, same typedef name as std::vector

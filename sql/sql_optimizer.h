@@ -43,7 +43,6 @@
 #include "sql/item_subselect.h"
 #include "sql/mem_root_array.h"
 #include "sql/opt_explain_format.h"             // Explain_sort_clause
-#include "sql/sql_alloc.h"
 #include "sql/sql_array.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
@@ -172,7 +171,7 @@ public:
   bool can_ignore_order() { return ignore_order; }
 };
 
-class JOIN :public Sql_alloc
+class JOIN
 {
   JOIN(const JOIN &rhs);                        /**< not implemented */
   JOIN& operator=(const JOIN &rhs);             /**< not implemented */

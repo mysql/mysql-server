@@ -41,7 +41,6 @@
 #include "sql/mem_root_array.h" // Mem_root_array
 #include "sql/my_decimal.h"
 #include "sql/parse_tree_node_base.h"
-#include "sql/sql_alloc.h"
 #include "sql/sql_const.h"
 #include "sql/sql_list.h"
 #include "sql/table.h"
@@ -64,7 +63,7 @@ typedef int (Arg_comparator::*arg_cmp_func)();
 
 typedef int (*Item_field_cmpfunc)(Item_field *f1, Item_field *f2, void *arg); 
 
-class Arg_comparator: public Sql_alloc
+class Arg_comparator
 {
   Item **a, **b;
   arg_cmp_func func;
@@ -1187,7 +1186,7 @@ public:
 
 /* A vector of values of some type  */
 
-class in_vector :public Sql_alloc
+class in_vector
 {
 public:
   const uint count;  ///< Original size of the vector
@@ -1451,7 +1450,7 @@ public:
 ** Classes for easy comparing of non const items
 */
 
-class cmp_item :public Sql_alloc
+class cmp_item
 {
 public:
   cmp_item() {}
@@ -2215,7 +2214,7 @@ public:
                              double rows_in_table) override;
 };
 
-class COND_EQUAL: public Sql_alloc
+class COND_EQUAL
 {
 public:
   uint max_members;               /* max number of members the current level

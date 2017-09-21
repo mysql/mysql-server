@@ -1588,7 +1588,7 @@ mysql_stmt_precheck(THD *thd, const COM_DATA *com_data,
   case COM_STMT_PREPARE:
   {
     if (! (*stmt= new Prepared_statement(thd)))
-      // out of memory: error is set in Sql_alloc
+      // out of memory: error is set in MEM_ROOT
       goto silent_error;           /* purecov: inspected */
 
     if (thd->stmt_map.insert(*stmt))

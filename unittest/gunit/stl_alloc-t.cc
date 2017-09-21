@@ -26,6 +26,7 @@
 #include "sql/memroot_allocator.h"
 #include "sql/psi_memory_key.h"
 #include "sql/stateless_allocator.h"
+#include "sql/thr_malloc.h"
 
 using std::vector;
 using std::list;

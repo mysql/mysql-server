@@ -70,7 +70,6 @@
 #include "sql/resourcegroups/resource_group_basic_types.h" // Type, Range
 #include "sql/set_var.h"
 #include "sql/sql_admin.h"
-#include "sql/sql_alloc.h"            // Sql_alloc
 #include "sql/sql_alter.h"            // Alter_info
 #include "sql/sql_array.h"
 #include "sql/sql_connect.h"          // USER_RESOURCES
@@ -337,7 +336,7 @@ extern char internal_table_name[2];
 
 class Table_function;
 
-class Table_ident :public Sql_alloc
+class Table_ident
 {
 public:
   LEX_CSTRING db;
@@ -486,7 +485,7 @@ typedef uchar index_clause_map;
                              INDEX_HINT_MASK_ORDER)
 
 /* Single element of an USE/FORCE/IGNORE INDEX list specified as a SQL hint  */
-class Index_hint : public Sql_alloc
+class Index_hint
 {
 public:
   /* The type of the hint : USE/FORCE/IGNORE */
@@ -637,7 +636,7 @@ struct LEX;
   This class represents a query expression (one query block or
   several query blocks combined with UNION).
 */
-class SELECT_LEX_UNIT: public Sql_alloc
+class SELECT_LEX_UNIT
 {
   /**
     Intrusive double-linked list of all query expressions
@@ -912,7 +911,7 @@ enum class enum_explain_type
   a query consisting of a SELECT keyword, followed by a table list,
   optionally followed by a WHERE clause, a GROUP BY, etc.
 */
-class SELECT_LEX: public Sql_alloc
+class SELECT_LEX
 {
 public:
   Item  *where_cond() const { return m_where_cond; }
@@ -1700,7 +1699,7 @@ public:
   Item **add_hidden_item(Item *item);
 
   bool add_tables(THD *thd,
-                  const Trivial_array<Table_ident *> *tables,
+                  const Mem_root_array<Table_ident *> *tables,
                   ulong table_options,
                   thr_lock_type lock_type,
                   enum_mdl_type mdl_type);
@@ -1979,7 +1978,7 @@ union YYSTYPE {
   List<String> *string_list;
   String *string;
   Key_part_spec *key_part;
-  Trivial_array<Table_ident *> *table_list;
+  Mem_root_array<Table_ident *> *table_list;
   udf_func *udf;
   LEX_USER *lex_user;
   List<LEX_USER> *user_list;
@@ -2132,20 +2131,20 @@ union YYSTYPE {
   class PT_common_table_expr *common_table_expr;
   Create_col_name_list simple_ident_list;
   class PT_partition_option *partition_option;
-  Trivial_array<PT_partition_option *> *partition_option_list;
+  Mem_root_array<PT_partition_option *> *partition_option_list;
   class PT_subpartition *sub_part_definition;
-  Trivial_array<PT_subpartition *> *sub_part_list;
+  Mem_root_array<PT_subpartition *> *sub_part_list;
   class PT_part_value_item *part_value_item;
-  Trivial_array<PT_part_value_item *> *part_value_item_list;
+  Mem_root_array<PT_part_value_item *> *part_value_item_list;
   class PT_part_value_item_list_paren *part_value_item_list_paren;
-  Trivial_array<PT_part_value_item_list_paren *> *part_value_list;
+  Mem_root_array<PT_part_value_item_list_paren *> *part_value_list;
   class PT_part_values *part_values;
   struct {
     partition_type type;
     PT_part_values *values;
   } opt_part_values;
   class PT_part_definition *part_definition;
-  Trivial_array<PT_part_definition *> *part_def_list;
+  Mem_root_array<PT_part_definition *> *part_def_list;
   List<char> *name_list; // TODO: merge with string_list
   enum_key_algorithm opt_key_algo;
   class PT_sub_partition *opt_sub_part;
@@ -2159,13 +2158,13 @@ union YYSTYPE {
   enum_drop_mode opt_restrict;
   Ternary_option ternary_option;
   class PT_create_table_option *create_table_option;
-  Trivial_array<PT_create_table_option *> *create_table_options;
-  Trivial_array<PT_ddl_table_option *> *space_separated_alter_table_opts;
+  Mem_root_array<PT_create_table_option *> *create_table_options;
+  Mem_root_array<PT_ddl_table_option *> *space_separated_alter_table_opts;
   On_duplicate on_duplicate;
   class PT_column_attr_base *col_attr;
   column_format_type column_format;
   ha_storage_media storage_media;
-  Trivial_array<PT_column_attr_base *> *col_attr_list;
+  Mem_root_array<PT_column_attr_base *> *col_attr_list;
   Virtual_or_stored virtual_or_stored;
   Field_option field_option;
   Int_type int_type;
@@ -2192,9 +2191,9 @@ union YYSTYPE {
   } fk_references;
   class PT_column_def *column_def;
   class PT_table_element *table_element;
-  Trivial_array<PT_table_element *> *table_element_list;
+  Mem_root_array<PT_table_element *> *table_element_list;
   struct {
-    Trivial_array<PT_create_table_option *> *opt_create_table_options;
+    Mem_root_array<PT_create_table_option *> *opt_create_table_options;
     PT_partition *opt_partitioning;
     On_duplicate on_duplicate;
     PT_query_expression *opt_query_expression;
@@ -2203,7 +2202,7 @@ union YYSTYPE {
   Locked_row_action locked_row_action;
   class PT_locking_clause *locking_clause;
   class PT_locking_clause_list *locking_clause_list;
-  Trivial_array<PT_json_table_column *> *jtc_list;
+  Mem_root_array<PT_json_table_column *> *jtc_list;
   struct jt_on_response {
     enum_jtc_on type;
     const LEX_STRING *default_str;
@@ -2226,9 +2225,9 @@ union YYSTYPE {
     int num_buckets;
   } histogram;
   Acl_type acl_type;
-  Trivial_array<LEX_CSTRING> *lex_cstring_list;
+  Mem_root_array<LEX_CSTRING> *lex_cstring_list;
   class PT_role_or_privilege *role_or_privilege;
-  Trivial_array<PT_role_or_privilege *> *role_or_privilege_list;
+  Mem_root_array<PT_role_or_privilege *> *role_or_privilege_list;
   enum_order order_direction;
   Alter_info::enum_with_validation with_validation;
   class PT_alter_table_action *alter_table_action;
@@ -2255,29 +2254,29 @@ union YYSTYPE {
   } algo_and_lock_and_validation;
   struct {
     Algo_and_lock_and_validation flags;
-    Trivial_array<PT_ddl_table_option *> *actions;
+    Mem_root_array<PT_ddl_table_option *> *actions;
   } alter_list;
   struct {
     Algo_and_lock_and_validation flags;
     PT_alter_table_standalone_action *action;
   } standalone_alter_table_action;
   class PT_assign_to_keycache *assign_to_keycache;
-  Trivial_array<PT_assign_to_keycache *> *keycache_list;
+  Mem_root_array<PT_assign_to_keycache *> *keycache_list;
   class PT_adm_partition *adm_partition;
   class PT_preload_keys *preload_keys;
-  Trivial_array<PT_preload_keys *> *preload_list;
+  Mem_root_array<PT_preload_keys *> *preload_list;
   PT_alter_tablespace_option_base *ts_option;
-  Trivial_array<PT_alter_tablespace_option_base *> *ts_options;
+  Mem_root_array<PT_alter_tablespace_option_base *> *ts_options;
   struct {
     resourcegroups::platform::cpu_id_t start;
     resourcegroups::platform::cpu_id_t end;
   } vcpu_range_type;
-  Trivial_array<resourcegroups::Range> *resource_group_vcpu_list_type;
+  Mem_root_array<resourcegroups::Range> *resource_group_vcpu_list_type;
   Value_or_default<int> resource_group_priority_type;
   Value_or_default<bool> resource_group_state_type;
   bool resource_group_flag_type;
   resourcegroups::Type resource_group_type;
-  Trivial_array<ulonglong> *thread_id_list_type;
+  Mem_root_array<ulonglong> *thread_id_list_type;
   Explain_format_type explain_format_type;
   struct {
     Item *set_var;
@@ -3528,7 +3527,7 @@ public:
 };
 
 
-class LEX_COLUMN : public Sql_alloc
+class LEX_COLUMN
 {
 public:
   String column;

@@ -105,7 +105,8 @@ typedef struct p_elem_val
   part_column_list_val *col_val_array;
 } part_elem_value;
 
-class partition_element :public Sql_alloc {
+class partition_element
+{
 public:
   List<partition_element> subpartitions;
   List<part_elem_value> list_val_list;  // list of LIST values/column arrays

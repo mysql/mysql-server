@@ -457,7 +457,6 @@ VE2 are NULL then VE3 must be NULL, which makes the dependency NULL-friendly.
 #include "sql/item_cmpfunc.h"    // Item_func_any_value
 #include "sql/item_sum.h"        // Item_sum
 #include "sql/mem_root_array.h"  // Mem_root_array
-#include "sql/sql_alloc.h"       // Sql_alloc
 #include "sql/sql_lex.h"
 
 class Opt_trace_context;
@@ -537,7 +536,7 @@ private:
 /**
    Checks for queries which have DISTINCT.
 */
-class Distinct_check: public Item_tree_walker, public Sql_alloc
+class Distinct_check: public Item_tree_walker
 {
 public:
 
@@ -571,7 +570,7 @@ private:
 /**
    Checks for queries which have GROUP BY or aggregate functions.
 */
-class Group_check: public Item_tree_walker, public Sql_alloc
+class Group_check: public Item_tree_walker
 {
 public:
 

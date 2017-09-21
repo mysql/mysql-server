@@ -29,7 +29,6 @@
 #include "mysql_com.h"
 #include "sql/protocol_classic.h"
 #include "sql/query_result.h" // Query_result_send
-#include "sql/sql_alloc.h"
 #include "sql/sql_class.h" // Query_arena
 #include "sql/sql_error.h"
 #include "sql/sql_list.h"
@@ -138,7 +137,7 @@ class Ed_row;
   automatic type conversion.
 */
 
-class Ed_result_set final : public Sql_alloc
+class Ed_result_set final
 {
 public:
   operator List<Ed_row>&() { return *m_rows; }
@@ -285,7 +284,7 @@ struct Ed_column final : public LEX_STRING
 
 /** One result set record. */
 
-class Ed_row final : public Sql_alloc
+class Ed_row final
 {
 public:
   const Ed_column &operator[](const unsigned int column_index) const

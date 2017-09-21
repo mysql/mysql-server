@@ -45,7 +45,6 @@
 #include "sql/mem_root_array.h"
 #include "sql/my_decimal.h" // my_decimal
 #include "sql/parse_tree_node_base.h" // Parse_tree_node
-#include "sql/sql_alloc.h"
 #include "sql/sql_array.h" // Bounds_checked_array
 #include "sql/sql_const.h"
 #include "sql/table.h"
@@ -414,7 +413,7 @@ public:
   structure before and after INSERT/CREATE and its SELECT to make correct
   field name resolution.
 */
-struct Name_resolution_context: Sql_alloc
+struct Name_resolution_context
 {
   /*
     The name resolution context to search in when an Item cannot be
@@ -5378,7 +5377,7 @@ class Item_cache;
   It caches a value, which is representative of the group, and can compare it
   to another row, and update its value when entering a new group.
 */
-class Cached_item :public Sql_alloc
+class Cached_item
 {
 protected:
   Item *item;              ///< The item whose value to cache.

@@ -43,7 +43,6 @@
 #include "mysqld_error.h"                       // ER_*
 #include "nullable.h"
 #include "sql/gis/srid.h"
-#include "sql/sql_alloc.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"                      // Sql_condition
@@ -619,7 +618,7 @@ void copy_integer(uchar *to, size_t to_length,
   If one field contains such an object, it means the field
   is a genereated one.
 */
-class Generated_column: public Sql_alloc
+class Generated_column
 {
 public:
   /**
@@ -724,7 +723,7 @@ public:
   virtual bool send_text(Protocol *protocol)= 0;
 };
 
-class Field: public Proto_field, public Sql_alloc
+class Field: public Proto_field
 {
   Field(const Item &);				/* Prevent use of these */
   void operator=(Field &);
@@ -4624,7 +4623,7 @@ public:
   Create field class for CREATE TABLE
 */
 
-class Create_field :public Sql_alloc
+class Create_field
 {
 public:
   const char *field_name;
@@ -4775,7 +4774,8 @@ public:
   A class for sending info to the client
 */
 
-class Send_field :public Sql_alloc {
+class Send_field
+{
  public:
   const char *db_name;
   const char *table_name,*org_table_name;
@@ -4797,7 +4797,8 @@ class Send_field :public Sql_alloc {
   A class for quick copying data to fields
 */
 
-class Copy_field :public Sql_alloc {
+class Copy_field
+{
   /**
     Convenience definition of a copy function returned by
     get_copy_func.

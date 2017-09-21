@@ -16,6 +16,7 @@
 #ifndef SQL_CMD_CREATE_TABLE_INCLUDED
 #define SQL_CMD_CREATE_TABLE_INCLUDED
 
+#include "lex_string.h"
 #include "my_sqlcommand.h"
 #include "sql/sql_cmd_ddl.h"
 

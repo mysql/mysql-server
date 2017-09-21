@@ -7888,7 +7888,7 @@ LEX_USER::alloc(THD *thd, LEX_STRING *user_arg, LEX_STRING *host_arg)
   A struct that contains execution time state used for partial update of JSON
   columns.
 */
-struct Partial_update_info : public Sql_alloc
+struct Partial_update_info
 {
   Partial_update_info(const TABLE *table, const MY_BITMAP *columns,
                       bool logical_diffs)

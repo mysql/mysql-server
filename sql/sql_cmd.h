@@ -23,7 +23,6 @@
 
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
-#include "sql/sql_alloc.h"
 
 class THD;
 class Prepared_statement;
@@ -50,7 +49,7 @@ class Prepared_statement;
   of SQL commands. When the SQL statement text is analyzed, the parser will
   create one or more Sql_cmd objects to represent the actual SQL commands.
 */
-class Sql_cmd : public Sql_alloc
+class Sql_cmd
 {
 private:
   Sql_cmd(const Sql_cmd &);         // No copy constructor wanted
@@ -141,7 +140,7 @@ protected:
       simply destroyed instead.
       Do not rely on the destructor for any cleanup.
     */
-    DBUG_ASSERT(FALSE);
+    DBUG_ASSERT(false);
   }
 
   /**

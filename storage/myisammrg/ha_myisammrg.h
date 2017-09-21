@@ -36,7 +36,7 @@
   share.
 */
 
-class Mrg_child_def: public Sql_alloc
+class Mrg_child_def
 {
   /* Remembered MERGE child def version.  See top comment in ha_myisammrg.cc */
   enum_table_ref_type m_child_table_ref_type;

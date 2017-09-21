@@ -44,7 +44,6 @@
 #include "sql/log.h"
 #include "sql/psi_memory_key.h"
 #include "sql/sp_head.h"
-#include "sql/sql_alloc.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
 #include "sql/sql_digest_stream.h"
@@ -117,8 +116,7 @@ static inline LEX_CSTRING make_lex_cstring(MEM_ROOT *mem_root,
   Event_creation_ctx -- creation context of events.
 */
 
-class Event_creation_ctx :public Stored_program_creation_ctx,
-                          public Sql_alloc
+class Event_creation_ctx :public Stored_program_creation_ctx
 {
 public:
   static bool create_event_creation_ctx(const dd::Event &event_obj,

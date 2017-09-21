@@ -26,7 +26,6 @@
 #include "my_io.h"
 #include "my_sys.h"
 #include "mysqld_error.h"       // ER_*
-#include "sql/sql_alloc.h"
 #include "sql/sql_lex.h"        // SELECT_LEX_UNIT
 #include "sql/sql_list.h"
 
@@ -40,7 +39,7 @@ class THD;
   This is used to get result from a query
 */
 
-class Query_result :public Sql_alloc
+class Query_result
 {
 protected:
   THD *thd;
@@ -196,7 +195,7 @@ public:
   XXX: We never call destructor for objects of this class.
 */
 
-class sql_exchange final : public Sql_alloc
+class sql_exchange final
 {
 public:
   Field_separators field;

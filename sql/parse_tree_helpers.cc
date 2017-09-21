@@ -456,7 +456,7 @@ bool resolve_engine(THD *thd,
 */
 
 bool apply_privileges(THD *thd,
-                      const Trivial_array<class PT_role_or_privilege *> &privs)
+                      const Mem_root_array<class PT_role_or_privilege *> &privs)
 {
   LEX * const lex= thd->lex;
 
