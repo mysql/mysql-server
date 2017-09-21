@@ -4061,7 +4061,7 @@ fts_query(
 	the ut_malloc'ed result and so remember to free it before return. */
 
 	lc_query_str_len = query_len * charset->casedn_multiply + charset->mbmaxlen;
-	lc_query_str = static_cast<byte*>(ut_malloc_nokey(lc_query_str_len));
+	lc_query_str = static_cast<byte*>(ut_zalloc_nokey(lc_query_str_len));
 
 	result_len = innobase_fts_casedn_str(
 		charset, (char*) query_str, query_len,
