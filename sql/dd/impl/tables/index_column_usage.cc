@@ -34,7 +34,6 @@ const Index_column_usage &Index_column_usage::instance()
 Index_column_usage::Index_column_usage()
 {
   m_target_def.table_name(table_name());
-  m_target_def.dd_version(1);
 
   m_target_def.add_field(FIELD_INDEX_ID,
                          "FIELD_INDEX_ID",

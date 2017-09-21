@@ -177,16 +177,7 @@ uint Dictionary_impl::get_target_dd_version()
 
 uint Dictionary_impl::get_actual_dd_version(THD *thd)
 {
-  bool not_used;
-  return tables::DD_properties::instance().get_actual_dd_version(thd,
-                                                                 &not_used);
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-uint Dictionary_impl::get_actual_dd_version(THD *thd, bool *not_used)
-{ return tables::DD_properties::instance().get_actual_dd_version(thd,
-                                                                 not_used);
+  return tables::DD_properties::instance().get_actual_dd_version(thd);
 }
 
 ///////////////////////////////////////////////////////////////////////////

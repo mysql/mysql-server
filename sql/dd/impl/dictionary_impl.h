@@ -85,13 +85,11 @@ public:
 
   virtual uint get_actual_dd_version(THD *thd);
 
-  virtual uint get_actual_dd_version(THD *thd, bool *exists);
-
   static uint get_target_I_S_version();
 
-  static uint get_target_P_S_version();
-
   virtual uint get_actual_I_S_version(THD *thd);
+
+  static uint get_target_P_S_version();
 
   virtual uint get_actual_P_S_version(THD *thd);
 

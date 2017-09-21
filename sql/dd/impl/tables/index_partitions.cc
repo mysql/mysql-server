@@ -34,7 +34,6 @@ const Index_partitions &Index_partitions::instance()
 Index_partitions::Index_partitions()
 {
   m_target_def.table_name(table_name());
-  m_target_def.dd_version(1);
 
   m_target_def.add_field(FIELD_PARTITION_ID,
                          "FIELD_PARTITION_ID",

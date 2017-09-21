@@ -21,6 +21,8 @@
 
 #include "sql/dd/impl/properties_impl.h"            // dd::Properties_impl
 #include "sql/dd/impl/types/object_table_impl.h"
+#include "sql/dd/types/object_table_definition.h"   // DD_VERSION
+#include "sql/dd/info_schema/metadata.h"            // IS_DD_VERSION
 #include "sql/dd/string_type.h"
 #include "storage/perfschema/pfs_dd_version.h"
 
@@ -30,10 +32,10 @@ namespace dd {
 namespace tables {
 
 // The version of the current DD schema
-static const uint TARGET_DD_VERSION= 1;
+static const uint TARGET_DD_VERSION= dd::DD_VERSION;
 
 // The version of the current server IS schema
-static const uint TARGET_I_S_VERSION= 1;
+static const uint TARGET_I_S_VERSION= dd::info_schema::IS_DD_VERSION;
 
 // The version of the current server PS schema
 static const uint TARGET_P_S_VERSION= PFS_DD_VERSION;
@@ -92,12 +94,10 @@ public:
     The DD version stored in mysql.dd_properties.
 
     @param thd         - Thread context.
-    @param[out] exists - Will be marked 'false' if dd_properties
-                         tables is not present. Otherwise true.
 
     @returns TARGET_DD_VERSION
   */
-  uint get_actual_dd_version(THD *thd,  bool *exists) const;
+  uint get_actual_dd_version(THD *thd) const;
 
 
   /*
@@ -159,22 +159,6 @@ public:
   */
   bool set_P_S_version(THD *thd, uint version);
 
-  /**
-    Get the dd::Properties raw string of all versions.
-    This is used when creating mysql.dd_properties table
-    and while upgrading.
-
-    @returns String containing all versions.
-  */
-  static String_type get_target_versions()
-  {
-    dd::Properties_impl p;
-    p.set_uint32("DD_version", get_target_dd_version());
-    p.set_uint32("IS_version", get_target_I_S_version());
-    p.set_uint32("PS_version", get_target_P_S_version());
-    return p.raw_string();
-  }
-
 private:
 
   /**
@@ -183,12 +167,10 @@ private:
 
     @param thd         - Thread context.
     @param key         - The key representing property stored.
-    @param[out] exists - Will be marked 'false' if dd_properties
-                         tables is not present. Otherwise true.
 
     @returns uint value stored for the key.
   */
-  uint get_property(THD *thd, String_type key, bool *exists) const;
+  uint get_property(THD *thd, String_type key) const;
 
   /**
     Set the value of property key in dd_properties table.

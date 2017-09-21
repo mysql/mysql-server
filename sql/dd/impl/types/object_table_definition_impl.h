@@ -56,7 +56,7 @@ private:
   uint m_dd_version;
 
 public:
-  Object_table_definition_impl(): m_dd_version(0)
+  Object_table_definition_impl(): m_dd_version(DD_VERSION)
   { }
 
   virtual ~Object_table_definition_impl()
