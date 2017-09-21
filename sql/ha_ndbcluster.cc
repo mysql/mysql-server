@@ -14239,29 +14239,6 @@ bool ha_ndbcluster::low_byte_first() const
 }
 
 
-#ifndef DBUG_OFF
-
-static void print_ndbcluster_open_tables()
-{
-  DBUG_LOCK_FILE;
-  fprintf(DBUG_FILE, ">ndbcluster_open_tables\n");
-  for (const auto &key_and_value : *ndbcluster_open_tables)
-  {
-    NDB_SHARE* share= key_and_value.second;
-    share->print("", DBUG_FILE);
-  }
-  fprintf(DBUG_FILE, "<ndbcluster_open_tables\n");
-  DBUG_UNLOCK_FILE;
-}
-
-#endif
-
-
-#define dbug_print_open_tables()                \
-  DBUG_EXECUTE("info",                          \
-               print_ndbcluster_open_tables(););
-
-
 /*
   For some reason a share is still around, try to salvage the situation
   by closing all cached tables. If the share still exists, there is an
@@ -14278,13 +14255,11 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share)
   static ulong trailing_share_id= 0;
   DBUG_ENTER("handle_trailing_share");
 
+  mysql_mutex_assert_owner(&ndbcluster_mutex);
+
   /* ndb_share reference temporary, free below */
   share->increment_use_count();
 
-  ndb_log_verbose(9, "handle_trailing_share: %s use_count: %u",
-                  share->key_string(), share->use_count());
-  DBUG_PRINT("NDB_SHARE", ("%s temporary  use_count: %u",
-                           share->key_string(), share->use_count()));
   mysql_mutex_unlock(&ndbcluster_mutex);
 
   ndb_tdc_close_cached_table(thd, share->db, share->table_name);
@@ -14327,8 +14302,6 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share)
   ndb_log_warning("NDB_SHARE, %s already exists use_count=%d."
                   " Moving away for safety, but possible memleak.",
                   share->key_string(), share->use_count());
-
-  dbug_print_open_tables();
 
   /*
     Ndb share has not been released as it should
@@ -14430,9 +14403,6 @@ ndbcluster_rename_share(THD *thd, NDB_SHARE *share, NDB_SHARE_KEY* new_key)
   }
   /* else rename will be handled when the ALTER event comes */
 
-  // Print share after rename
-  dbug_print_share("renamed share:", share);
-
   mysql_mutex_unlock(&ndbcluster_mutex);
   DBUG_RETURN(0);
 }
@@ -14445,11 +14415,6 @@ NDB_SHARE *ndbcluster_get_share(NDB_SHARE *share)
 {
   mysql_mutex_lock(&ndbcluster_mutex);
   share->increment_use_count();
-
-  dbug_print_open_tables();
-  dbug_print_share("ndbcluster_get_share:", share);
-  ndb_log_verbose(9, "ndbcluster_get_share: %s use_count: %u",
-                  share->key_string(), share->use_count());
   mysql_mutex_unlock(&ndbcluster_mutex);
   return share;
 }
@@ -14526,19 +14491,12 @@ NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
     // Insert the new share in list of open shares
     ndbcluster_open_tables->emplace(key, share);
     share->increment_use_count(); // Add share refcount from 'ndbcluster_open_tables'
-    ndb_log_verbose(9, "ndbcluster_get_share: %s use_count: %u",
-                    share->key_string(), share->use_count());
   }
   else
   {
     share= it->second;
   }
   share->increment_use_count(); //Add refcount for returned 'share'.
-  ndb_log_verbose(9, "ndbcluster_get_share: %s use_count: %u",
-                  share->key_string(), share->use_count());
-
-  dbug_print_open_tables();
-  dbug_print_share("ndbcluster_get_share:", share);
   DBUG_RETURN(share);
 }
 
@@ -14585,10 +14543,6 @@ NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
 void ndbcluster_real_free_share(NDB_SHARE **share)
 {
   DBUG_ENTER("ndbcluster_real_free_share");
-  dbug_print_share("ndbcluster_real_free_share:", *share);
-
-  ndb_log_verbose(9, "ndbcluster_real_free_share: %s use_count: %u",
-                  (*share)->key_string(), (*share)->use_count());
 
   if ((*share)->state == NSS_DROPPED)
   {
@@ -14610,7 +14564,6 @@ void ndbcluster_real_free_share(NDB_SHARE **share)
   NDB_SHARE::destroy(*share);
   *share= 0;
 
-  dbug_print_open_tables();
   DBUG_VOID_RETURN;
 }
 
@@ -14660,9 +14613,6 @@ ndbcluster_mark_share_dropped(NDB_SHARE** share)
 
   (*share)->state= NSS_DROPPED;
   (*share)->decrement_use_count();
-  ndb_log_verbose(9, "ndbcluster_mark_share_dropped: %s use_count: %u",
-                   (*share)->key_string(), (*share)->use_count());
-  dbug_print_share("ndbcluster_mark_share_dropped:", *share);
 
   if (ndbcluster_open_tables->erase((*share)->key_string()) != 0)
   {
@@ -14673,8 +14623,6 @@ ndbcluster_mark_share_dropped(NDB_SHARE** share)
     // put in 'dropped' list awaiting remaining refs to be freed.
     if ((*share)->use_count() == 0)
     {
-      ndb_log_verbose(9, "ndbcluster_mark_share_dropped: destroys "
-                      "share %s", (*share)->key_string());
       NDB_SHARE::destroy(*share);
       *share= NULL;
     }
@@ -14682,7 +14630,6 @@ ndbcluster_mark_share_dropped(NDB_SHARE** share)
     {
       ndbcluster_dropped_tables->emplace((*share)->key_string(), *share);
     }
-    dbug_print_open_tables();
   }
   else
   {

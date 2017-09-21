@@ -2568,7 +2568,6 @@ ndb_handle_schema_change(THD *thd, Ndb *is_ndb, NdbEventOperation *pOp,
 
 
   NDB_SHARE *share= event_data->share;
-  dbug_print_share("changed share: ", share);
 
   TABLE *shadow_table= event_data->shadow_table;
   const char *tabname= shadow_table->s->table_name.str;
