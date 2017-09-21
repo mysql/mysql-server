@@ -6436,11 +6436,21 @@ static void add_not_null_conds(JOIN *join)
   a) Don't push down the triggered conditions. Nested outer joins execution
      code may need to evaluate a condition several times (both triggered and
      untriggered).
+     TODO: Consider cloning the triggered condition and using the copies for:
+        1. push the first copy down, to have most restrictive index condition
+           possible.
+        2. Put the second copy into tab->m_condition.
   b) Stored functions contain a statement that might start new operations (like
      DML statements) from within the storage engine. This does not work against
      all SEs.
   c) Subqueries might contain nested subqueries and involve more tables.
      TODO: ROY: CHECK THIS
+  d) Do not push down internal functions of type DD_INTERNAL_FUNC. When ICP is
+     enabled, pushing internal functions to storage engine for evaluation will
+     open data-dictionary tables. In InnoDB storage engine this will result in
+     situation like recursive latching of same page by the same thread. To avoid
+     such situation, internal functions of type DD_INTERNAL_FUNC are not pushed to
+     storage engine for evaluation.
 
   @param  item           Expression to check
   @param  tbl            The table having the index
@@ -6469,15 +6479,8 @@ bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno,
       Item_func *item_func= (Item_func*)item;
       const Item_func::Functype func_type= item_func->functype();
 
-      /*
-        Restriction a.
-        TODO: Consider cloning the triggered condition and using the copies
-        for:
-        1. push the first copy down, to have most restrictive index condition
-           possible.
-        2. Put the second copy into tab->m_condition.
-      */
-      if (func_type == Item_func::TRIG_COND_FUNC)
+      if (func_type == Item_func::TRIG_COND_FUNC ||    // Restriction a.
+          func_type == Item_func::DD_INTERNAL_FUNC)    // Restriction d.
         return false;
 
       /* This is a function, apply condition recursively to arguments */

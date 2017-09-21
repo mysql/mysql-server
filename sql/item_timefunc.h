@@ -1804,6 +1804,7 @@ public:
     const POS &pos, PT_item_list *list)
     : Item_datetime_func(pos, list)
   {}
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   const char *func_name() const override { return "internal_update_time"; }
   bool resolve_type(THD *thd) override;
   bool get_date(MYSQL_TIME *res, my_time_flags_t fuzzy_date) override;
@@ -1817,6 +1818,7 @@ public:
     const POS &pos, PT_item_list *list)
     : Item_datetime_func(pos, list)
   {}
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   const char *func_name() const override { return "internal_check_time"; }
   bool resolve_type(THD *thd) override;
   bool get_date(MYSQL_TIME *res, my_time_flags_t fuzzy_date) override;
