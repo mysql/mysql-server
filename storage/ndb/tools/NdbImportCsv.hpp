@@ -350,6 +350,8 @@ public:
 
   // eval
 
+  // not used anymore due to extremely bad my_regex performance
+  // remove later or convert to C++ <regex> if it proves useful
   struct Regex {
     Regex(NdbImportUtil& util, const char* pattern, uint nsub);
     ~Regex();
@@ -373,13 +375,6 @@ public:
     NdbImportCsv& m_csv;
     NdbImportUtil& m_util;
     Error& m_error;     // team level
-    // regex
-    Regex* m_regex_decimal;
-    Regex* m_regex_decimalunsigned;
-    Regex* m_regex_year;
-    Regex* m_regex_date;
-    Regex* m_regex_time2;
-    Regex* m_regex_datetime2;
   };
 
   // output
