@@ -5353,7 +5353,7 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
   DBUG_ASSERT(! IS_NDB_BLOB_PREFIX(table_name));
 
   // Get a temporary ref AND a ref from open_tables iff created.
-  NDB_SHARE* share= get_share(key, table, true, false);
+  NDB_SHARE* share = ndbcluster_get_share(key, table, true);
   if (share == NULL)
   {
     /**

@@ -198,7 +198,7 @@ static inline bool get_binlog_update_minimal(const NDB_SHARE *share)
 NDB_SHARE *ndbcluster_get_share(const char *key,
                                 struct TABLE *table,
                                 bool create_if_not_exists,
-                                bool have_lock);
+                                bool have_lock = false);
 NDB_SHARE *ndbcluster_get_share(NDB_SHARE *share);
 void ndbcluster_free_share(NDB_SHARE **share, bool have_lock = false);
 void ndbcluster_real_free_share(NDB_SHARE **share);
@@ -206,14 +206,6 @@ int ndbcluster_rename_share(THD *thd,
                             NDB_SHARE *share,
                             struct NDB_SHARE_KEY* new_key);
 void ndbcluster_mark_share_dropped(NDB_SHARE** share);
-inline NDB_SHARE *get_share(const char *key,
-                            struct TABLE *table,
-                            bool create_if_not_exists= TRUE,
-                            bool have_lock= FALSE)
-{
-  return ndbcluster_get_share(key, table, create_if_not_exists, have_lock);
-}
-
 
 /**
    @brief Utility class for working with a temporary
@@ -230,7 +222,7 @@ class Ndb_share_temp_ref {
 public:
   Ndb_share_temp_ref(const char* key)
   {
-    m_share= get_share(key, NULL, FALSE);
+    m_share = ndbcluster_get_share(key, nullptr, false);
      // Should always exist
     assert(m_share);
      // already existed + this temp ref

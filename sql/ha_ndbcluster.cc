@@ -11299,7 +11299,7 @@ cleanup_failed:
     */
 
     /* Get a temporary ref AND a ref from open_tables iff share created */
-    if (!(share= get_share(name, form, TRUE, TRUE)))
+    if (!(share = ndbcluster_get_share(name, form, true, true)))
     {
       ndb_log_error("allocating table share for %s failed", name);
     }
@@ -12217,10 +12217,10 @@ delete_table_drop_share_from_path(const char * path)
 
   mysql_mutex_lock(&ndbcluster_mutex);
 
-  NDB_SHARE* share= get_share(path,
-                              nullptr,  /* table */
-                              false,    /* create_if_not_exists */
-                              true);    /* have_lock */
+  NDB_SHARE* share = ndbcluster_get_share(path,
+                                          nullptr,  /* table */
+                                          false,    /* create_if_not_exists */
+                                          true);    /* have_lock */
   if (share)
   {
     delete_table_drop_share_do_drop(share);
@@ -12307,7 +12307,7 @@ drop_table_impl(THD *thd, Ndb *ndb,
   int ndb_table_version= 0;
 
   /* ndb_share reference temporary */
-  NDB_SHARE *share= get_share(path, 0, FALSE);
+  NDB_SHARE *share= ndbcluster_get_share(path, nullptr, false);
   if (share)
   {
     DBUG_PRINT("NDB_SHARE", ("%s temporary  use_count: %u",
@@ -12777,7 +12777,7 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked,
   }
 
   /* ndb_share reference handler */
-  if ((m_share=get_share(name, table, FALSE)) == 0)
+  if ((m_share = ndbcluster_get_share(name, table, false)) == 0)
   {
     /**
      * No share present...we must create one
@@ -12789,7 +12789,7 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked,
     Ndb* ndb= check_ndb_in_thd(thd);
     ndbcluster_create_binlog_setup(thd, ndb, name,
                                    m_dbname, m_tabname, table);
-    if ((m_share=get_share(name, table, FALSE)) == 0)
+    if ((m_share = ndbcluster_get_share(name, table, false)) == 0)
     {
       local_close(thd, FALSE);
       DBUG_RETURN(1);
