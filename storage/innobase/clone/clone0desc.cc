@@ -508,8 +508,11 @@ static const uint CLONE_DATA_LEN_OFFSET = CLONE_DATA_FILE_IDX_OFFSET + 4;
 /** Clone Data: Data file offset in 8 bytes */
 static const uint CLONE_DATA_FOFF_OFFSET = CLONE_DATA_LEN_OFFSET + 4;
 
+/** Clone Data: Updated file size in 8 bytes */
+static const uint CLONE_DATA_FILE_SIZE_OFFSET = CLONE_DATA_FOFF_OFFSET + 8;
+
 /** Clone Data: Total length */
-static const uint CLONE_DESC_DATA_LEN = CLONE_DATA_FOFF_OFFSET + 8;
+static const uint CLONE_DESC_DATA_LEN = CLONE_DATA_FILE_SIZE_OFFSET + 8;
 
 /** Initialize header
 @param[in]	version	descriptor version */
@@ -560,6 +563,7 @@ Clone_Desc_Data::serialize(
 	mach_write_to_4(desc_data + CLONE_DATA_FILE_IDX_OFFSET, m_file_index);
 	mach_write_to_4(desc_data + CLONE_DATA_LEN_OFFSET, m_data_len);
 	mach_write_to_8(desc_data + CLONE_DATA_FOFF_OFFSET, m_file_offset);
+	mach_write_to_8(desc_data + CLONE_DATA_FILE_SIZE_OFFSET, m_file_size);
 }
 
 /** Deserialize the descriptor.
@@ -588,4 +592,5 @@ Clone_Desc_Data::deserialize(
 	m_file_index = mach_read_from_4(desc_data + CLONE_DATA_FILE_IDX_OFFSET);
 	m_data_len = mach_read_from_4(desc_data + CLONE_DATA_LEN_OFFSET);
 	m_file_offset = mach_read_from_8(desc_data + CLONE_DATA_FOFF_OFFSET);
+	m_file_size = mach_read_from_8(desc_data + CLONE_DATA_FILE_SIZE_OFFSET);
 }

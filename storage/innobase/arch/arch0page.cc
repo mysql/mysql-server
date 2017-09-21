@@ -221,6 +221,9 @@ Page_Arch_Client_Ctx::get_pages(
 			if (cur_pos.m_offset > m_stop_pos.m_offset) {
 
 				ut_ad(false);
+				my_error(ER_INTERNAL_ERROR, MYF(0),
+					"Wrong Archiver page offset");
+
 				err = DB_ERROR;
 				break;
 			}
@@ -237,6 +240,10 @@ Page_Arch_Client_Ctx::get_pages(
 			if (cur_pos.m_offset > ARCH_PAGE_BLK_SIZE) {
 
 				ut_ad(false);
+
+				my_error(ER_INTERNAL_ERROR, MYF(0),
+					"Wrong Archiver page offset");
+
 				err = DB_ERROR;
 				break;
 			}
@@ -325,13 +332,13 @@ Arch_Block::wait_flush()
 
 		++count;
 
-		if (count % 600 == 0) {
+		if (count % 50 == 0) {
 
 			ib::warn() << "Page Tracking Write: Waiting"
 				" for archiver to flush blocks.";
 
-			if (count > 600 * 5) {
-				/* Wait too long - 5 minutes */
+			if (count > 600) {
+				/* Wait too long - 1 minutes */
 				return(false);
 			}
 		}
@@ -733,13 +740,13 @@ Arch_Page_Sys::wait_idle()
 
 		++count;
 
-		if (count % 600 == 0) {
+		if (count % 50 == 0) {
 
 			ib::info() << "Page Tracking IDLE: Waiting for"
 				" archiver to flush last blocks.";
 
-			if (count > 600 * 5) {
-				/* Wait too long - 5 minutes */
+			if (count > 600) {
+				/* Wait too long - 1 minute */
 				ib::error() << "Page Tracking wait too long";
 				return(false);
 			}
@@ -834,6 +841,9 @@ Arch_Page_Sys::track_initial_pages()
 		buf_flush_list_mutex_exit(buf_pool);
 		mutex_exit(&buf_pool->flush_state_mutex);
 	}
+
+	/* Make sure all written pages are flushed to disk. */
+	log_checkpoint(false, false);
 }
 
 /** Enable tracking pages in all buffer pools.
@@ -898,6 +908,15 @@ Arch_Page_Sys::start(
 	/* Wait for idle state, if preparing to idle. */
 	if(!wait_idle()) {
 
+		if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+
+			my_error(ER_QUERY_INTERRUPTED, MYF(0));
+		} else {
+
+			my_error(ER_INTERNAL_ERROR, MYF(0),
+				"Page Archiver wait too long");
+		}
+
 		return(DB_ERROR);
 	}
 
@@ -905,6 +924,7 @@ Arch_Page_Sys::start(
 
 	case ARCH_STATE_ABORT:
 		arch_mutex_exit();
+		my_error(ER_QUERY_INTERRUPTED, MYF(0));
 		return(DB_INTERRUPTED);
 
 	case ARCH_STATE_IDLE:
@@ -949,6 +969,7 @@ Arch_Page_Sys::start(
 		arch_oper_mutex_exit();
 		arch_mutex_exit();
 
+		my_error(ER_OUTOFMEMORY, MYF(0), ARCH_PAGE_BLK_SIZE);
 		return(DB_OUT_OF_MEMORY);
 	}
 
@@ -983,6 +1004,7 @@ Arch_Page_Sys::start(
 			arch_oper_mutex_exit();
 			arch_mutex_exit();
 
+			my_error(ER_OUTOFMEMORY, MYF(0), sizeof(Arch_Group));
 			return(DB_OUT_OF_MEMORY);
 		}
 
@@ -995,6 +1017,9 @@ Arch_Page_Sys::start(
 
 			arch_oper_mutex_exit();
 			arch_mutex_exit();
+
+			my_error(ER_OUTOFMEMORY, MYF(0),
+				sizeof(Arch_File_Ctx));
 			return(err);
 		}
 
@@ -1019,10 +1044,10 @@ Arch_Page_Sys::start(
 
 		m_state = ARCH_STATE_ACTIVE;
 		arch_oper_mutex_exit();
-	}
 
-	/* Add pages to tracking for which IO has already started. */
-	track_initial_pages();
+		/* Add pages to tracking for which IO has already started. */
+		track_initial_pages();
+	}
 
 	/* Attach to the group. */
 	m_current_group->attach(m_last_lsn,
@@ -1097,6 +1122,7 @@ Arch_Page_Sys::stop(
 
 	if (m_state == ARCH_STATE_ABORT) {
 
+		my_error(ER_QUERY_INTERRUPTED, MYF(0));
 		err = DB_INTERRUPTED;
 	}
 
@@ -1240,5 +1266,5 @@ Arch_Page_Sys::archive(
 		arch_mutex_exit();
 	}
 
-	return(false);
+	return(is_abort);
 }

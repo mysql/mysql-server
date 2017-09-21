@@ -3625,7 +3625,7 @@ fil_truncate_tablespace(
 		os_offset_t	size = size_in_pages * UNIV_PAGE_SIZE;
 
 		success = os_file_set_size(
-			node->name, node->handle, size,
+			node->name, node->handle, 0, size,
 			srv_read_only_mode, true);
 
 		if (success) {
@@ -4320,14 +4320,14 @@ fil_ibd_create(
 		atomic_write = false;
 
 		success = os_file_set_size(
-			path, file, size * UNIV_PAGE_SIZE,
+			path, file, 0, size * UNIV_PAGE_SIZE,
 			srv_read_only_mode, true);
 	}
 #else
 	atomic_write = false;
 
 	success = os_file_set_size(
-		path, file, size * UNIV_PAGE_SIZE,
+		path, file, 0, size * UNIV_PAGE_SIZE,
 		srv_read_only_mode, true);
 
 #endif /* !NO_FALLOCATE && UNIV_LINUX */
@@ -9396,60 +9396,6 @@ fil_scan_for_tablespaces(const std::string& directories)
 		}
 
 		ib::warn() << oss.str();
-	}
-
-	return(err);
-}
-
-/** Callback to check tablespace size with space header size and extend
-@param[in]	node	file node
-@param[in]	context	callers context, currently unused
-@return	error code */
-dberr_t
-fil_check_extend_space(
-	fil_node_t*	node,
-	void* 		context MY_ATTRIBUTE((unused)))
-{
-	dberr_t	err = DB_SUCCESS;
-	bool	open_node = !node->is_open;
-
-	if (recv_sys == nullptr || !recv_sys->is_cloned_db) {
-
-		return(DB_SUCCESS);
-	}
-
-	if (open_node && !fil_node_open_file(node, false)) {
-
-		return(DB_CANNOT_OPEN_FILE);
-	}
-
-	mutex_exit(&fil_system->mutex);
-
-	fil_space_t*	space = node->space;
-
-	if (space->size < space->size_in_header) {
-
-		ib::info() << "Extending space: " << space->name
-			   << " from size " << space->size
-			   << " pages to " << space->size_in_header
-			   << " pages as stored in space header.";
-
-		if(!fil_space_extend(space, space->size_in_header)) {
-
-			ib::error() << "Failed to extend tablespace."
-				    << " Check for free space in disk"
-				    << " and try again.";
-
-			err = DB_OUT_OF_FILE_SPACE;
-		}
-	}
-
-	mutex_enter(&fil_system->mutex);
-
-	/* Close node if it was opened by current function */
-	if (open_node) {
-
-		fil_node_close_file(node, false);
 	}
 
 	return(err);

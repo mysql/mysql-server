@@ -1566,17 +1566,34 @@ recv_parse_or_apply_log_rec_body(
 					break;
 
 				case FSP_HEADER_OFFSET + FSP_SIZE:
-					bool	success;
+
 					space->size_in_header = val;
-					success = fil_space_extend(space, val);
-					if (!success) {
-						ib::error()
+
+					if (space->size >= val) {
+
+						break;
+					}
+
+					ib::info()
+						<< "Extending tablespace : "
+						<< space->id
+						<< " space name: "
+						<< space->name
+						<< " to new size: " << val
+						<< " pages during recovery.";
+
+					if (fil_space_extend(space, val)) {
+
+						break;
+					}
+
+					ib::error()
 						<< "Could not extend tablespace"
 						<< ": " << space->id << " space"
 						<< " name: " << space->name
 						<< " to new size: " << val
 						<< " pages during recovery.";
-					}
+
 					break;
 
 				case FSP_HEADER_OFFSET + FSP_FREE_LIMIT:
@@ -4113,7 +4130,7 @@ recv_reset_log_files_for_backup(
 		ib::info() << "Setting log file size to " << log_file_size;
 
 		success = os_file_set_size(
-			name, log_file, log_file_size,
+			name, log_file, 0, log_file_size,
 			srv_read_only_mode, true);
 
 		if (!success) {

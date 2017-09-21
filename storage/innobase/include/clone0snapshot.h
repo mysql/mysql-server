@@ -336,6 +336,10 @@ private:
 	@return error code */
 	dberr_t init_redo_copy();
 
+	/** Extend files after copying pages, if needed
+	@return error code */
+	dberr_t extend_files();
+
 	/** Get file metadata for current chunk
 	@param[in]	file_vector	clone file vector
 	@param[in]	num_files	total number of files

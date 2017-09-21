@@ -1728,10 +1728,11 @@ os_file_get_size(
 	pfs_os_file_t	file)
 	MY_ATTRIBUTE((warn_unused_result));
 
-/** Write the specified number of zeros to a newly created file.
+/** Write the specified number of zeros to a file from specific offset.
 @param[in]	name		name of the file or path as a null-terminated
 				string
 @param[in]	file		handle to a file
+@param[in]	offset		file offset
 @param[in]	size		file size
 @param[in]	read_only	Enable read-only checks if true
 @param[in]	flush		Flush file content to disk
@@ -1740,6 +1741,7 @@ bool
 os_file_set_size(
 	const char*	name,
 	pfs_os_file_t	file,
+	os_offset_t	offset,
 	os_offset_t	size,
 	bool		read_only,
 	bool		flush)

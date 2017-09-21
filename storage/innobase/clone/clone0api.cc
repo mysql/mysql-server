@@ -399,6 +399,8 @@ clone_mark_abort(
 
 	mutex_exit(clone_sys->get_mutex());
 
+	DEBUG_SYNC_C("clone_marked_abort2");
+
 	return(aborted);
 }
 
