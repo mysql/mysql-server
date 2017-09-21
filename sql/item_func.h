@@ -88,8 +88,15 @@ protected:
   table_map not_null_tables_cache;
 public:
   uint arg_count;
-  // When updating Functype with new spatial functions,
-  // is_spatial_operator() should also be updated.
+  /*
+    When updating Functype with new spatial functions,
+    is_spatial_operator() should also be updated.
+
+    DD_INTERNAL_FUNC:
+      Some of the internal functions introduced for the INFORMATION_SCHEMA views
+      opens data-dictionary tables. DD_INTERNAL_FUNC is used for the such type
+      of functions.
+  */
   enum Functype { UNKNOWN_FUNC,EQ_FUNC,EQUAL_FUNC,NE_FUNC,LT_FUNC,LE_FUNC,
 		  GE_FUNC,GT_FUNC,FT_FUNC,
 		  LIKE_FUNC,ISNULL_FUNC,ISNOTNULL_FUNC,
@@ -106,7 +113,8 @@ public:
                   NOW_FUNC, TRIG_COND_FUNC,
                   SUSERVAR_FUNC, GUSERVAR_FUNC, COLLATE_FUNC,
                   EXTRACT_FUNC, TYPECAST_FUNC, FUNC_SP, UDF_FUNC,
-                  NEG_FUNC, GSYSVAR_FUNC, GROUPING_FUNC };
+                  NEG_FUNC, GSYSVAR_FUNC, GROUPING_FUNC,
+                  DD_INTERNAL_FUNC};
   enum optimize_type { OPTIMIZE_NONE,OPTIMIZE_KEY,OPTIMIZE_OP, OPTIMIZE_NULL,
                        OPTIMIZE_EQUAL };
   enum Type type() const override { return FUNC_ITEM; }
@@ -2383,6 +2391,7 @@ public:
     const POS &pos, PT_item_list *list)
     : Item_int_func(pos, list)
   {}
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   longlong val_int() override;
   const char *func_name() const override { return "internal_table_rows"; }
   bool resolve_type(THD *) override
@@ -2401,6 +2410,7 @@ public:
     const POS &pos, PT_item_list *list)
     : Item_int_func(pos, list)
   {}
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   longlong val_int() override;
   const char *func_name() const override { return "internal_avg_row_length"; }
   bool resolve_type(THD *) override
@@ -2419,6 +2429,7 @@ public:
     const POS &pos, PT_item_list *list)
     : Item_int_func(pos, list)
   {}
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   longlong val_int() override;
   const char *func_name() const override { return "internal_data_length"; }
   bool resolve_type(THD *) override
@@ -2437,6 +2448,7 @@ public:
     const POS &pos, PT_item_list *list)
     : Item_int_func(pos, list)
   {}
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   longlong val_int() override;
   const char *func_name() const override { return "internal_max_data_length"; }
   bool resolve_type(THD *) override
@@ -2455,6 +2467,7 @@ public:
     const POS &pos, PT_item_list *list)
     : Item_int_func(pos, list)
   {}
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   longlong val_int() override;
   const char *func_name() const override { return "internal_index_length"; }
   bool resolve_type(THD *) override
@@ -2473,6 +2486,7 @@ public:
     const POS &pos, PT_item_list *list)
     : Item_int_func(pos, list)
   {}
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   longlong val_int() override;
   const char *func_name() const override { return "internal_data_free"; }
   bool resolve_type(THD *) override
@@ -2491,6 +2505,7 @@ public:
     const POS &pos, PT_item_list *list)
     : Item_int_func(pos, list)
   {}
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   longlong val_int() override;
   const char *func_name() const override { return "internal_auto_increment"; }
   bool resolve_type(THD *) override
@@ -2509,6 +2524,7 @@ public:
     const POS &pos, PT_item_list *list)
     : Item_int_func(pos, list)
   {}
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   longlong val_int() override;
   const char *func_name() const override { return "internal_checksum"; }
   bool resolve_type(THD *) override
@@ -2542,6 +2558,7 @@ public:
     const POS &pos, PT_item_list *list)
     : Item_int_func(pos, list)
   {}
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   longlong val_int() override;
   const char *func_name() const override
   { return "internal_index_column_cardinality"; }
@@ -2613,6 +2630,7 @@ public:
                                    Item *c, Item *d)
     :Item_int_func(pos, a, b, c, d)
   {}
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   longlong val_int() override;
   const char *func_name() const override { return "internal_tablespace_id"; }
   bool resolve_type(THD *) override
@@ -2632,6 +2650,7 @@ public:
     :Item_int_func(pos, a, b, c, d)
   {}
 
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   longlong val_int() override;
 
   const char *func_name() const override
@@ -2654,6 +2673,7 @@ public:
     :Item_int_func(pos, a, b, c, d)
   {}
 
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   longlong val_int() override;
 
   const char *func_name() const override
@@ -2676,6 +2696,7 @@ public:
     :Item_int_func(pos, a, b, c, d)
   {}
 
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   longlong val_int() override;
 
   const char *func_name() const override
@@ -2698,6 +2719,7 @@ public:
     :Item_int_func(pos, a, b, c, d)
   {}
 
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   longlong val_int() override;
 
   const char *func_name() const override
@@ -2720,6 +2742,7 @@ public:
     :Item_int_func(pos, a, b, c, d)
   {}
 
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   longlong val_int() override;
 
   const char *func_name() const override
@@ -2742,6 +2765,7 @@ public:
     :Item_int_func(pos, a, b, c, d)
   {}
 
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   longlong val_int() override;
 
   const char *func_name() const override
@@ -2764,6 +2788,7 @@ public:
     :Item_int_func(pos, a, b, c, d)
   {}
 
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   longlong val_int() override;
 
   const char *func_name() const override

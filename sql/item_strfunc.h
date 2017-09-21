@@ -1480,6 +1480,7 @@ public:
     :Item_str_func(pos, a, b, c, d)
   {}
 
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   bool resolve_type(THD *) override
   {
     // maximum string length of all options is expected
@@ -1503,6 +1504,7 @@ public:
     :Item_str_func(pos, a, b, c, d)
   {}
 
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   bool resolve_type(THD *) override
   {
     // maximum string length of all options is expected
