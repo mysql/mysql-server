@@ -14465,12 +14465,15 @@ NDB_SHARE::create(const char* key, TABLE* table)
 
 
 static inline
-NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
-                                bool create_if_not_exists)
+NDB_SHARE *
+ndbcluster_get_share_have_lock(const char *key, TABLE *table,
+                               bool create_if_not_exists)
 {
   NDB_SHARE *share;
-  DBUG_ENTER("ndbcluster_get_share");
+  DBUG_ENTER("ndbcluster_get_share_have_lock");
   DBUG_PRINT("enter", ("key: '%s'", key));
+
+  mysql_mutex_assert_owner(&ndbcluster_mutex);
 
   auto it= ndbcluster_open_tables->find(key);
   if (it == ndbcluster_open_tables->end())
@@ -14478,25 +14481,30 @@ NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
     if (!create_if_not_exists)
     {
       DBUG_PRINT("error", ("get_share: %s does not exist", key));
-      DBUG_RETURN(0);
+      DBUG_RETURN(nullptr);
     }
 
     if (!(share= NDB_SHARE::create(key, table)))
     {
       DBUG_PRINT("error", ("get_share: failed to alloc share"));
       my_error(ER_OUTOFMEMORY, MYF(0), static_cast<int>(sizeof(*share)));
-      DBUG_RETURN(0);
+      DBUG_RETURN(nullptr);
     }
 
     // Insert the new share in list of open shares
     ndbcluster_open_tables->emplace(key, share);
-    share->increment_use_count(); // Add share refcount from 'ndbcluster_open_tables'
+
+    // Add share refcount from 'ndbcluster_open_tables'
+    share->increment_use_count();
   }
   else
   {
     share= it->second;
   }
-  share->increment_use_count(); //Add refcount for returned 'share'.
+
+  // Add refcount for returned 'share'.
+  share->increment_use_count();
+
   DBUG_RETURN(share);
 }
 
@@ -14522,7 +14530,7 @@ NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
   if (!have_lock)
     mysql_mutex_lock(&ndbcluster_mutex);
 
-  share= ndbcluster_get_share(key, table, create_if_not_exists);
+  share= ndbcluster_get_share_have_lock(key, table, create_if_not_exists);
 
   if (!have_lock)
     mysql_mutex_unlock(&ndbcluster_mutex);
