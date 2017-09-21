@@ -213,11 +213,6 @@ inline NDB_SHARE *get_share(const char *key,
   return ndbcluster_get_share(key, table, create_if_not_exists, have_lock);
 }
 
-inline NDB_SHARE *get_share(NDB_SHARE *share)
-{
-  return ndbcluster_get_share(share);
-}
-
 
 /**
    @brief Utility class for working with a temporary

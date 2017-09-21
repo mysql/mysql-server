@@ -5787,13 +5787,13 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
   }
 
   /* ndb_share reference binlog */
-  get_share(share);
+  ndbcluster_get_share(share);
   DBUG_PRINT("NDB_SHARE", ("%s binlog  use_count: %u",
                            share->key_string(), share->use_count()));
   if (do_ndb_apply_status_share)
   {
     /* ndb_share reference binlog extra */
-    ndb_apply_status_share= get_share(share);
+    ndb_apply_status_share= ndbcluster_get_share(share);
     DBUG_PRINT("NDB_SHARE", ("%s binlog extra  use_count: %u",
                              share->key_string(), share->use_count()));
     DBUG_ASSERT(get_thd_ndb(thd)->check_option(Thd_ndb::ALLOW_BINLOG_SETUP));
@@ -5802,7 +5802,7 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
   {
     /* ndb_share reference binlog extra */
     Mutex_guard ndb_schema_share_g(injector_data_mutex);
-    ndb_schema_share= get_share(share);
+    ndb_schema_share= ndbcluster_get_share(share);
     DBUG_PRINT("NDB_SHARE", ("%s binlog extra  use_count: %u",
                              share->key_string(), share->use_count()));
     DBUG_ASSERT(get_thd_ndb(thd)->check_option(Thd_ndb::ALLOW_BINLOG_SETUP));
