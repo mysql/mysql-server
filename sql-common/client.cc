@@ -1374,7 +1374,7 @@ cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
       Return to READY_FOR_COMMAND protocol stage in case server reports error 
       or sends OK packet.
     */
-    if (!result || mysql->net.read_pos[0] == 0x00)
+    if (result || mysql->net.read_pos[0] == 0x00)
       MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
 #endif
   }
