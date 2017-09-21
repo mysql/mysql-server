@@ -42,7 +42,6 @@ void Dbtc::initData()
   chostFilesize = MAX_NODES;
   cgcpFilesize = ZGCP_FILESIZE;
   cscanrecFileSize = ZSCANREC_FILE_SIZE;
-  cscanFragrecFileSize = ZSCAN_FRAGREC_FILE_SIZE;
   ctabrecFilesize = ZTABREC_FILESIZE;
   ctcConnectFilesize = ZTC_CONNECT_FILESIZE;
   cdihblockref = DBDIH_REF;
@@ -155,17 +154,6 @@ void Dbtc::initRecords()
 					sizeof(ScanRecord),
 					cscanrecFileSize);
 
-
-  c_scan_frag_pool.setSize(cscanFragrecFileSize);
-  {
-    ScanFragRecPtr ptr;
-    ScanFragRec_sllist tmp(c_scan_frag_pool);
-    while (tmp.seizeFirst(ptr)) {
-      new (ptr.p) ScanFragRec();
-    }
-    while (tmp.releaseFirst());
-  }
-
   for (Uint32 i = 0; i < cscanrecFileSize; i++)
   {
     ScanRecordPtr ptr;
@@ -188,6 +176,7 @@ void Dbtc::initRecords()
 
   Pool_context pc;
   pc.m_block = this;
+  c_scan_frag_pool.init(RT_DBTC_SCAN_FRAGMENT, pc, 0, UINT32_MAX);
   m_fragLocationPool.init(RT_DBTC_FRAG_LOCATION, pc);
   m_commitAckMarkerPool.init(CommitAckMarker::TYPE_ID, pc, 0, UINT32_MAX);
 }//Dbtc::initRecords()

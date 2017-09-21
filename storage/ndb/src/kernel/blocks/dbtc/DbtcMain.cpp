@@ -931,13 +931,11 @@ void Dbtc::execREAD_CONFIG_REQ(Signal* signal)
   UintR apiConnect;
   UintR tcConnect;
   UintR tables;
-  UintR localScan;
   UintR tcScan;
 
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TC_API_CONNECT, &apiConnect));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TC_TC_CONNECT, &tcConnect));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TC_TABLE, &tables));
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TC_LOCAL_SCAN, &localScan));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TC_SCAN, &tcScan));
 
   ccacheFilesize = (apiConnect/3) + 1;
@@ -945,7 +943,6 @@ void Dbtc::execREAD_CONFIG_REQ(Signal* signal)
   ctcConnectFilesize  = tcConnect;
   ctabrecFilesize     = tables;
   cscanrecFileSize = tcScan;
-  cscanFragrecFileSize = localScan;
 
   initRecords();
   initialiseRecordsLab(signal, 0, ref, senderData);
@@ -9588,34 +9585,21 @@ void Dbtc::timeOutLoopStartFragLab(Signal* signal, Uint32 TscanConPtr)
 
   ctimeOutCheckHeartbeatScan = TtcTimer;
 
-  while ((TscanConPtr + 8) < cscanFragrecFileSize) {
-    jam();
-    timeOutPtr[0].i  = TscanConPtr + 0;
-    timeOutPtr[1].i  = TscanConPtr + 1;
-    timeOutPtr[2].i  = TscanConPtr + 2;
-    timeOutPtr[3].i  = TscanConPtr + 3;
-    timeOutPtr[4].i  = TscanConPtr + 4;
-    timeOutPtr[5].i  = TscanConPtr + 5;
-    timeOutPtr[6].i  = TscanConPtr + 6;
-    timeOutPtr[7].i  = TscanConPtr + 7;
-    
-    c_scan_frag_pool.getPtrForce(timeOutPtr[0]);
-    c_scan_frag_pool.getPtrForce(timeOutPtr[1]);
-    c_scan_frag_pool.getPtrForce(timeOutPtr[2]);
-    c_scan_frag_pool.getPtrForce(timeOutPtr[3]);
-    c_scan_frag_pool.getPtrForce(timeOutPtr[4]);
-    c_scan_frag_pool.getPtrForce(timeOutPtr[5]);
-    c_scan_frag_pool.getPtrForce(timeOutPtr[6]);
-    c_scan_frag_pool.getPtrForce(timeOutPtr[7]);
-
-    tfragTimer[0] = timeOutPtr[0].p->scanFragTimer;
-    tfragTimer[1] = timeOutPtr[1].p->scanFragTimer;
-    tfragTimer[2] = timeOutPtr[2].p->scanFragTimer;
-    tfragTimer[3] = timeOutPtr[3].p->scanFragTimer;
-    tfragTimer[4] = timeOutPtr[4].p->scanFragTimer;
-    tfragTimer[5] = timeOutPtr[5].p->scanFragTimer;
-    tfragTimer[6] = timeOutPtr[6].p->scanFragTimer;
-    tfragTimer[7] = timeOutPtr[7].p->scanFragTimer;
+  while (TscanConPtr != RNIL)
+  {
+    Uint32 ptr_cnt = c_scan_frag_pool.getUncheckedPtrs(&TscanConPtr, timeOutPtr, NDB_ARRAY_SIZE(timeOutPtr));
+    TloopCount += ptr_cnt;
+    for (Uint32 i = 0; i < ptr_cnt; i++)
+    {
+      if (Magic::match(timeOutPtr[i].p->m_magic, ScanFragRec::TYPE_ID))
+      {
+        tfragTimer[i] = timeOutPtr[i].p->scanFragTimer;
+      }
+      else
+      {
+        tfragTimer[i] = 0;
+      }
+    }
 
     texpiredTime[0] = TtcTimer - tfragTimer[0];
     texpiredTime[1] = TtcTimer - tfragTimer[1];
@@ -9626,7 +9610,8 @@ void Dbtc::timeOutLoopStartFragLab(Signal* signal, Uint32 TscanConPtr)
     texpiredTime[6] = TtcTimer - tfragTimer[6];
     texpiredTime[7] = TtcTimer - tfragTimer[7];
     
-    for (Uint32 Ti = 0; Ti < 8; Ti++) {
+    for (Uint32 Ti = 0; Ti < ptr_cnt; Ti++)
+    {
       jam();
       if (tfragTimer[Ti] != 0) {
 
@@ -9637,17 +9622,17 @@ void Dbtc::timeOutLoopStartFragLab(Signal* signal, Uint32 TscanConPtr)
 		<<", texpiredTime="<<texpiredTime[Ti]<<endl
 		<<"      tfragTimer="<<tfragTimer[Ti]
 		<<", ctcTimer="<<ctcTimer);
-          timeOutFoundFragLab(signal, TscanConPtr + Ti);
+          timeOutFoundFragLab(signal, timeOutPtr[Ti].i);
           return;
         }//if
       }//if
     }//for
-    TscanConPtr += 8;
     /*----------------------------------------------------------------*/
     /* We split the process up checking 1024 fragmentrecords at a time*/
     /* to maintain real time behaviour.                               */
     /*----------------------------------------------------------------*/
-    if (TloopCount++ > 128 ) {
+    if (TloopCount > 1024 && TscanConPtr != RNIL)
+    {
       jam();
       signal->theData[0] = TcContinueB::ZCONTINUE_TIME_OUT_FRAG_CONTROL;
       signal->theData[1] = TscanConPtr;
@@ -9655,10 +9640,14 @@ void Dbtc::timeOutLoopStartFragLab(Signal* signal, Uint32 TscanConPtr)
       return;
     }//if
   }//while
-  for ( ; TscanConPtr < cscanFragrecFileSize; TscanConPtr++){
+  while (TscanConPtr != RNIL)
+  {
     jam();
-    timeOutPtr[0].i = TscanConPtr;
-    c_scan_frag_pool.getPtrForce(timeOutPtr[0]);
+    if ((c_scan_frag_pool.getUncheckedPtrs(&TscanConPtr, timeOutPtr, 1) == 0) ||
+        (!Magic::match(timeOutPtr[0].p->m_magic, ScanFragRec::TYPE_ID)))
+    {
+      continue;
+    }
     if (timeOutPtr[0].p->scanFragTimer != 0) {
       texpiredTime[0] = ctcTimer - timeOutPtr[0].p->scanFragTimer;
       if (texpiredTime[0] > ctimeOutValue) {
@@ -9668,7 +9657,7 @@ void Dbtc::timeOutLoopStartFragLab(Signal* signal, Uint32 TscanConPtr)
 	      <<", texpiredTime="<<texpiredTime[0]<<endl
 		<<"      tfragTimer="<<tfragTimer[0]
 		<<", ctcTimer="<<ctcTimer);
-        timeOutFoundFragLab(signal, TscanConPtr);
+        timeOutFoundFragLab(signal, timeOutPtr[0].i);
         return;
       }//if
     }//if
@@ -9740,7 +9729,8 @@ void Dbtc::execSCAN_HBREP(Signal* signal)
 void Dbtc::timeOutFoundFragLab(Signal* signal, UintR TscanConPtr)
 {
   ScanFragRecPtr ptr;
-  c_scan_frag_pool.getPtr(ptr, TscanConPtr);
+  ptr.i = TscanConPtr;
+  c_scan_frag_pool.getPtr(ptr);
 #ifdef VM_TRACE
   {
     ScanRecordPtr scanptr;
@@ -9824,7 +9814,8 @@ void Dbtc::timeOutFoundFragLab(Signal* signal, UintR TscanConPtr)
       ptr.p->stopFragTimer();
       {
         Local_ScanFragRec_dllist run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
-        run.release(ptr);
+        run.remove(ptr);
+        c_scan_frag_pool.release(ptr);
       }
     }
     
@@ -10308,25 +10299,24 @@ void Dbtc::checkScanActiveInFailedLqh(Signal* signal,
     {
       jam();
       ScanFragRecPtr ptr;
-      {
-        Local_ScanFragRec_dllist run(c_scan_frag_pool,
-                                     scanptr.p->m_running_scan_frags);
+      Local_ScanFragRec_dllist run(c_scan_frag_pool,
+                                   scanptr.p->m_running_scan_frags);
       
-        for(run.first(ptr); !ptr.isNull(); )
+      for(run.first(ptr); !ptr.isNull(); )
+      {
+	jam();
+	ScanFragRecPtr curr = ptr;
+	run.next(ptr);
+	if (curr.p->scanFragState == ScanFragRec::LQH_ACTIVE && 
+	    refToNode(curr.p->lqhBlockref) == failedNodeId)
         {
-          jam();
-          ScanFragRecPtr curr = ptr;
-          run.next(ptr);
-          if (curr.p->scanFragState == ScanFragRec::LQH_ACTIVE && 
-              refToNode(curr.p->lqhBlockref) == failedNodeId)
-          {
-            jam();
-            curr.p->scanFragState = ScanFragRec::COMPLETED;
-            curr.p->stopFragTimer();
-            run.release(curr);
-            found = true;
-          }
-        }
+	  jam();
+	  curr.p->scanFragState = ScanFragRec::COMPLETED;
+	  curr.p->stopFragTimer();
+	  run.remove(curr);
+	  c_scan_frag_pool.release(curr);
+	  found = true;
+	}
       }
       if (!found)
       {
@@ -13027,6 +13017,24 @@ SCAN_TAB_error_no_state_change:
   return;
 }//Dbtc::execSCAN_TABREQ()
 
+Dbtc::ScanFragRec::ScanFragRec()
+: m_magic(Magic::make(TYPE_ID)),
+  lqhScanFragId(RNIL),
+  lqhBlockref(0),
+  m_connectCount(0),
+  scanFragState(ScanFragRec::IDLE),
+  scanRec(RNIL),
+  m_scan_frag_conf_status(0),
+  m_ops(0),
+  m_apiPtr(RNIL),
+  m_totalLen(0),
+  nextList(RNIL),
+  prevList(RNIL)
+{
+  stopFragTimer();
+  NdbTick_Invalidate(&m_start_ticks);
+}
+
 Uint32
 Dbtc::initScanrec(ScanRecordPtr scanptr,
 		  const ScanTabReq * scanTabReq,
@@ -13046,6 +13054,8 @@ Dbtc::initScanrec(ScanRecordPtr scanptr,
   scanptr.p->m_scan_block_no = DBLQH;
   scanptr.p->m_scan_dist_key_flag = 0;
   scanptr.p->m_start_ticks = getHighResTimer();
+
+  scanptr.p->m_running_scan_frags.init();
 
   Uint32 tmp = 0;
   ScanFragReq::setLockMode(tmp, ScanTabReq::getLockMode(ri));
@@ -13081,16 +13091,15 @@ Dbtc::initScanrec(ScanRecordPtr scanptr,
   for (Uint32 i = 0; i < scanParallel; i++) {
     jamDebug();
     ScanFragRecPtr ptr;
-    if (unlikely((list.seizeFirst(ptr) == false) ||
+    if (unlikely((c_scan_frag_pool.seize(ptr) == false) ||
                  ERROR_INSERTED(8093)))
     {
       jam();
       goto errout;
     }
-    ptr.p->scanFragState = ScanFragRec::IDLE;
+    list.addFirst(ptr);
     ptr.p->scanRec = scanptr.i;
     ptr.p->lqhScanFragId = 0;
-    ptr.p->lqhBlockref = 0;
     ptr.p->m_apiPtr = apiPtr[i];
   }//for
   scanptr.p->m_booked_fragments_count = scanParallel;
@@ -13564,7 +13573,8 @@ void Dbtc::releaseScanResources(Signal* signal,
       ScanFragRecPtr old_ptr = ptr;
       ptr.p->scanFragState = ScanFragRec::COMPLETED;
       found = run.next(ptr);
-      run.release(old_ptr);
+      run.remove(old_ptr);
+      c_scan_frag_pool.release(old_ptr);
     }
     found = queue.first(ptr);
     while (found)
@@ -13572,7 +13582,8 @@ void Dbtc::releaseScanResources(Signal* signal,
       ScanFragRecPtr old_ptr = ptr;
       ptr.p->scanFragState = ScanFragRec::COMPLETED;
       found = queue.next(ptr);
-      queue.release(old_ptr);
+      queue.remove(old_ptr);
+      c_scan_frag_pool.release(old_ptr);
     }
   }
 
@@ -14039,7 +14050,8 @@ void Dbtc::execSCAN_FRAGREF(Signal* signal)
   time_track_complete_scan_frag_error(scanFragptr.p);
   {
     Local_ScanFragRec_dllist run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
-    run.release(scanFragptr);
+    run.remove(scanFragptr);
+    c_scan_frag_pool.release(scanFragptr);
   }    
   scanError(signal, scanptr, errCode);
 }//Dbtc::execSCAN_FRAGREF()
@@ -14145,7 +14157,8 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
       scanFragptr.p->scanFragState = ScanFragRec::COMPLETED;
       {
         Local_ScanFragRec_dllist run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
-        run.release(scanFragptr);
+        run.remove(scanFragptr);
+        c_scan_frag_pool.release(scanFragptr);
       }
     }
     close_scan_req_send_conf(signal, scanptr);
@@ -14453,7 +14466,8 @@ Dbtc::close_scan_req(Signal* signal, ScanRecordPtr scanPtr, bool req_received){
 	jam(); // real early abort
 	ndbrequire(old == ScanRecord::WAIT_AI || old == ScanRecord::RUNNING);
         curr.p->scanFragState = ScanFragRec::COMPLETED;
-	running.release(curr);
+	running.remove(curr);
+	c_scan_frag_pool.release(curr);
 	continue;
       case ScanFragRec::WAIT_GET_PRIMCONF:
 	jam();
@@ -15742,27 +15756,27 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     {
       numRecords = MAX_RECORDS_AT_A_TIME;
     }
-    if (recordNo >= cscanFragrecFileSize)
+    if (recordNo >= RNIL)
     {
       return;
     }
     
     ScanFragRecPtr sfp;
-    sfp.i = recordNo;
-    c_scan_frag_pool.getPtr(sfp);
-    if (sfp.p->scanFragState != ScanFragRec::COMPLETED ||
-        !includeOnlyActive)
+    Uint32 found = c_scan_frag_pool.getUncheckedPtrs(&recordNo, &sfp, 1);
+    if (found == 1 &&
+        Magic::match(sfp.p->m_magic, ScanFragRec::TYPE_ID) &&
+        (sfp.p->scanFragState != ScanFragRec::COMPLETED ||
+         !includeOnlyActive))
     {
       dumpState->args[0] = DumpStateOrd::TcDumpOneScanFragRec;
-      dumpState->args[1] = recordNo;
+      dumpState->args[1] = sfp.i;
       dumpState->args[2] = instance();
       signal->setLength(3);
       execDUMP_STATE_ORD(signal);
     }
     numRecords--;
-    recordNo++;
 
-    if (recordNo < cscanFragrecFileSize && numRecords > 0)
+    if (recordNo != RNIL && numRecords > 0)
     {
       dumpState->args[0] = DumpStateOrd::TcDumpSetOfScanFragRec;
       dumpState->args[1] = recordNo;
@@ -15798,21 +15812,23 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     {
       return;
     }
-    if (recordNo >= cscanFragrecFileSize)
+    if (recordNo >= RNIL)
     {
       return;
     }
 
     ScanFragRecPtr sfp;
     sfp.i = recordNo;
-    c_scan_frag_pool.getPtr(sfp);
-    infoEvent("Dbtc::ScanFragRec[%d]: state=%d, lqhFragId=%u",
-	      sfp.i,
-	      sfp.p->scanFragState,
-              sfp.p->lqhScanFragId);
-    infoEvent(" nodeid=%d, timer=%d",
-	      refToNode(sfp.p->lqhBlockref),
-	      sfp.p->scanFragTimer);
+    if (c_scan_frag_pool.getValidPtr(sfp))
+    {
+      infoEvent("Dbtc::ScanFragRec[%d]: state=%d, lqhFragId=%u",
+  	        sfp.i,
+	        sfp.p->scanFragState,
+                sfp.p->lqhScanFragId);
+      infoEvent(" nodeid=%d, timer=%d",
+	        refToNode(sfp.p->lqhBlockref),
+	        sfp.p->scanFragTimer);
+    }
     return;
   }
 

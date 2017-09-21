@@ -77,7 +77,6 @@
 #define ZNODEBUF_FILESIZE 2000
 #define ZNR_OF_SEIZE 10
 #define ZSCANREC_FILE_SIZE 100
-#define ZSCAN_FRAGREC_FILE_SIZE 400
 #define ZSCAN_OPREC_FILE_SIZE 400
 #define ZSPH1 1
 #define ZTABREC_FILESIZE 16
@@ -1343,13 +1342,8 @@ public:
    * It will receive max 16 tuples in each request
    */
   struct ScanFragRec {
-    ScanFragRec(){ 
-      stopFragTimer();
-      lqhBlockref = 0;
-      scanFragState = COMPLETED;
-      scanRec = RNIL;
-      NdbTick_Invalidate(&m_start_ticks);
-    }
+    STATIC_CONST( TYPE_ID = RT_DBTC_SCAN_FRAGMENT );
+    ScanFragRec();
     /**
      * ScanFragState      
      *  WAIT_GET_PRIMCONF : Waiting for DIGETPRIMCONF when starting a new 
@@ -1375,6 +1369,7 @@ public:
       QUEUED_FOR_DELIVERY = 6,
       COMPLETED = 7
     };
+    Uint32 m_magic;
     // Timer for checking timeout of this fragment scan
     Uint32  scanFragTimer;
 
@@ -1416,7 +1411,7 @@ public:
   };
   
   typedef Ptr<ScanFragRec> ScanFragRecPtr;
-  typedef UnsafeArrayPool<ScanFragRec> ScanFragRec_pool;
+  typedef TransientPool<ScanFragRec> ScanFragRec_pool;
   typedef SLList<ScanFragRec_pool> ScanFragRec_sllist;
   typedef DLList<ScanFragRec_pool> ScanFragRec_dllist;
   typedef LocalDLList<ScanFragRec_pool> Local_ScanFragRec_dllist;
@@ -2335,8 +2330,6 @@ private:
   ScanFragRec_pool c_scan_frag_pool;
   RSS_AP_SNAPSHOT(c_scan_frag_pool);
   ScanFragRecPtr scanFragptr;
-
-  UintR cscanFragrecFileSize;
 
   BlockReference cndbcntrblockref;
   BlockInstance cspjInstanceRR;    // SPJ instance round-robin counter
