@@ -378,7 +378,9 @@ Pipeline_stats_member_message::decode_payload(const unsigned char *buffer,
 Pipeline_stats_member_collector::Pipeline_stats_member_collector()
   : m_transactions_waiting_apply(0), m_transactions_certified(0),
     m_transactions_applied(0), m_transactions_local(0),
-    m_transactions_local_rollback(0), send_transaction_identifiers(false)
+    m_transactions_local_rollback(0),
+    m_transactions_applied_during_recovery(0),
+    send_transaction_identifiers(false)
 {
   mysql_mutex_init(key_GR_LOCK_pipeline_stats_transactions_waiting_apply,
                    &m_transactions_waiting_apply_lock,
@@ -480,6 +482,18 @@ void
 Pipeline_stats_member_collector::set_send_transaction_identifiers()
 {
   send_transaction_identifiers= true;
+}
+
+
+void Pipeline_stats_member_collector::increment_transactions_applied_during_recovery()
+{
+  ++m_transactions_applied_during_recovery;
+}
+
+uint64
+Pipeline_stats_member_collector::get_transactions_applied_during_recovery()
+{
+  return m_transactions_applied_during_recovery.load();
 }
 
 

@@ -286,6 +286,11 @@ int group_replication_trans_before_commit(Trans_param *param)
         applier_module->get_pipeline_stats_member_collector()
             ->increment_transactions_applied();
       }
+      else if (local_member_info->get_recovery_status() == Group_member_info::MEMBER_IN_RECOVERY)
+      {
+        applier_module->get_pipeline_stats_member_collector()
+            ->increment_transactions_applied_during_recovery();
+      }
       shared_plugin_stop_lock->release_read_lock();
     }
 

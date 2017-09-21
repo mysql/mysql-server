@@ -151,6 +151,7 @@ public:
   virtual int purge_applier_queue_and_restart_applier_module()= 0;
   virtual void kill_pending_transactions(bool set_read_mode,
                                          bool threaded_sql_session)= 0;
+  virtual uint64 get_pipeline_stats_member_collector_transactions_applied_during_recovery()= 0;
 };
 
 class Applier_module: public Applier_module_interface
@@ -497,6 +498,17 @@ public:
   */
   void kill_pending_transactions(bool set_read_mode,
                                  bool threaded_sql_session);
+
+  /**
+    Return the number of transactions applied during recovery from the pipeline
+    stats member.
+
+    @return number of transactions applied during recovery
+  */
+  uint64 get_pipeline_stats_member_collector_transactions_applied_during_recovery()
+  {
+    return pipeline_stats_member_collector.get_transactions_applied_during_recovery();
+  }
 
 private:
 

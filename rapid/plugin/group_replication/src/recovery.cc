@@ -528,17 +528,31 @@ int Recovery_module::wait_for_applier_module_recovery()
 {
   DBUG_ENTER("Recovery_module::wait_for_applier_module_recovery");
 
+  size_t queue_size= 0, queue_initial_size= queue_size= applier_module->get_message_queue_size();
+  uint64 transactions_applied_during_recovery= 0;
+
+  /*
+    Wait for the number the transactions to be applied be greater than the
+    initial size of the queue or the queue be empty, what happens first will
+    finish the recovery.
+  */
+
   bool applier_monitoring= true;
   while (!recovery_aborted && applier_monitoring)
   {
-    size_t queue_size = applier_module->get_message_queue_size();
-    if (queue_size <= RECOVERY_TRANSACTION_THRESHOLD)
+    transactions_applied_during_recovery= applier_module
+      ->get_pipeline_stats_member_collector_transactions_applied_during_recovery();
+    queue_size = applier_module->get_message_queue_size();
+
+    if ((queue_initial_size - RECOVERY_TRANSACTION_THRESHOLD) < transactions_applied_during_recovery
+        || queue_size <= RECOVERY_TRANSACTION_THRESHOLD)
     {
-      if (recovery_completion_policy == RECOVERY_POLICY_WAIT_EXECUTED)
+      int error= 1;
+      while (recovery_completion_policy == RECOVERY_POLICY_WAIT_EXECUTED
+             && !recovery_aborted && error != 0)
       {
-        int error= applier_module->wait_for_applier_event_execution(1);
-        if (!error)
-          applier_monitoring= false;
+        error= applier_module->wait_for_applier_event_execution(1);
+
         /* purecov: begin inspected */
         if (error == -2) //error when waiting
         {
@@ -550,14 +564,11 @@ int Recovery_module::wait_for_applier_module_recovery()
         }
         /* purecov: end */
       }
-      else
-      {
-        applier_monitoring= false;
-      }
+      applier_monitoring= false;
     }
     else
     {
-      my_sleep(100 * queue_size);
+      my_sleep(100 * std::min(queue_size, static_cast<size_t>(5000)));
     }
   }
 
