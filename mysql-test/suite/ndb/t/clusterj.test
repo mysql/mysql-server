@@ -6,6 +6,9 @@
 --source suite/ndb/include/have_connectorj.inc
 --source suite/ndb/include/have_java.inc
 
+# Avoid check for result file
+--source include/ndb_no_result_file.inc
+
 --let JAVA_CLASSPATH=$CLUSTERJ_TEST_JAR
 --let JAVA_CLASSPATH_1=$CLUSTERJ_JAR
 # MTR_CLASSPATH automatically added to JAVA_CLASSPATH
