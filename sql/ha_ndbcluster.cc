@@ -18660,33 +18660,76 @@ ndberror2:
 }
 
 
-bool ha_ndbcluster::get_num_parts(const char *name, uint *num_parts)
-{
-  THD *thd= current_thd;
-  Ndb *ndb;
-  NDBDICT *dict;
-  int err= 0;
-  DBUG_ENTER("ha_ndbcluster::get_num_parts");
-  set_dbname(name);
-  set_tabname(name);
-  for (;;)
-  {
-    if (check_ndb_connection(thd))
-    {
-      err= HA_ERR_NO_CONNECTION;
-      break;
-    }
-    ndb= get_ndb(thd);
-    ndb->setDatabaseName(m_dbname);
-    Ndb_table_guard ndbtab_g(dict= ndb->getDictionary(), m_tabname);
-    if (!ndbtab_g.get_table())
-      ERR_BREAK(dict->getNdbError(), err);
-    *num_parts= ndbtab_g.get_table()->getPartitionCount();
-    DBUG_RETURN(FALSE);
-  }
+/**
+  Return number of partitions for table in SE
 
-  print_error(err, MYF(0));
-  DBUG_RETURN(TRUE);
+  @param name normalized path(same as open) to the table
+
+  @param[out] num_parts Number of partitions
+
+  @retval false for success
+  @retval true for failure, for example table didn't exist in engine
+*/
+
+bool
+ha_ndbcluster::get_num_parts(const char *name, uint *num_parts)
+{
+  /*
+    NOTE! This function is called very early in the code path
+    for opening a table and ha_ndbcluster might not have been
+    involved ealier in this query. Also it's asking questions
+    about a table but is using a ha_ndbcluster instance which
+    haven't been opened yet. Implement as a local static function
+    to avoid having access to member variables and functions.
+  */
+
+  struct impl {
+
+    static
+    int get_num_parts(const char* name, uint* num_parts)
+    {
+      DBUG_ENTER("impl::get_num_parts");
+
+      // Since this function is always called early in the code
+      // path, it's safe to allow the Ndb object to be recycled
+      const bool allow_recycle_ndb = true;
+      Ndb * const ndb = check_ndb_in_thd(current_thd, allow_recycle_ndb);
+      if (!ndb)
+      {
+        // No connection to NDB
+        DBUG_RETURN(HA_ERR_NO_CONNECTION);
+      }
+
+      // Split name into db and table name
+      char db_name[FN_HEADLEN];
+      char table_name[FN_HEADLEN];
+      set_dbname(name, db_name);
+      set_tabname(name, table_name);
+
+      // Open the table from NDB
+      ndb->setDatabaseName(db_name);
+      NdbDictionary::Dictionary* dict= ndb->getDictionary();
+      Ndb_table_guard ndbtab_g(dict, table_name);
+      if (!ndbtab_g.get_table())
+      {
+        // Could not open table from NDB
+        ERR_RETURN(dict->getNdbError());
+      }
+
+      // Return number of partitions used in the table
+      *num_parts= ndbtab_g.get_table()->getPartitionCount();
+
+      DBUG_RETURN(0);
+    }
+  };
+
+  const int error = impl::get_num_parts(name, num_parts);
+  if (error)
+  {
+    print_error(error, MYF(0));
+    return true; // Could not return number of partitions
+  }
+  return false;
 }
 
 
