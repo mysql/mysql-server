@@ -532,9 +532,9 @@ static PSI_mutex_info all_mysys_mutexes[]=
 };
 #endif /* HAVE_PSI_MUTEX_INTERFACE */
 
-#ifdef HAVE_PSI_RWLOCK_INTERFACE
 PSI_rwlock_key key_SAFE_HASH_lock;
 
+#ifdef HAVE_PSI_RWLOCK_INTERFACE
 static PSI_rwlock_info all_mysys_rwlocks[]=
 {
   { &key_SAFE_HASH_lock, "SAFE_HASH::lock", 0, 0, PSI_DOCUMENT_ME}
