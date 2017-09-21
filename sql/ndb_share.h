@@ -116,17 +116,6 @@ private:
 };
 
 
-inline
-NDB_SHARE_STATE
-get_ndb_share_state(NDB_SHARE *share)
-{
-  NDB_SHARE_STATE state;
-  mysql_mutex_lock(&share->mutex);
-  state= share->state;
-  mysql_mutex_unlock(&share->mutex);
-  return state;
-}
-
 
 inline
 void
