@@ -1043,113 +1043,15 @@ NdbImportCsv::Eval::Eval(Input& input) :
   m_util(m_input.m_util),
   m_error(m_input.m_error)
 {
-  // regex
-  m_regex_decimal = 0;
-  m_regex_decimalunsigned = 0;
-  m_regex_year = 0;
-  m_regex_date = 0;
-  m_regex_time2 = 0;
-  m_regex_datetime2 = 0;
 }
 
 NdbImportCsv::Eval::~Eval()
 {
-  // regex
-  delete m_regex_decimal;
-  delete m_regex_decimalunsigned;
-  delete m_regex_year;
-  delete m_regex_date;
-  delete m_regex_time2;
-  delete m_regex_datetime2;
 }
 
 void
 NdbImportCsv::Eval::do_init()
 {
-  // -ddd.ff
-  m_regex_decimal = new Regex(
-    m_util,
-    "^"
-    "([-+])*"                                   // 1:sign
-    "([[:digit:]]*)?"                           // 2:ddd
-    "(.)?"                                      // 3:.
-    "([[:digit:]]*)?"                           // 4:ff
-    "$",
-    4
-  );
-  // ddd.ff
-  m_regex_decimalunsigned = new Regex(
-    m_util,
-    "^"
-    "([+])*"                                    // 1:sign
-    "([[:digit:]]*)?"                           // 2:ddd
-    "(.)?"                                      // 3:.
-    "([[:digit:]]*)?"                           // 4:ff
-    "$",
-    4
-  );
-  // yyyy
-  m_regex_year = new Regex(
-    m_util,
-    "^"
-    "([[:digit:]]{4}|[[:digit:]]{2})"           // 1:yyyy
-    "$",
-    1
-  );
-
-  // yyyy-mm-dd
-  m_regex_date = new Regex(
-    m_util,
-    "^"
-    "([[:digit:]]{4}|[[:digit:]]{2})"           // 1:yyyy
-    "[[:punct:]]*"
-    "([[:digit:]]{1,2})"                        // 2:mm
-    "[[:punct:]]*"
-    "([[:digit:]]{1,2})$"                       // 3:dd
-    "$",
-    3
-  );
-
-  // dd hh:mm:ss.ffffff
-  m_regex_time2 = new Regex(
-    m_util,
-    "^"
-    "(([[:digit:]]+)[[:space:]]+)?"             // 1:dd 2:
-    "("                                         // 3:
-    "([[:digit:]]{1,2})"                        // 4:hh
-    "[:]"
-    "([[:digit:]]{1,2})"                        // 5:mm
-    "[:]"
-    "([[:digit:]]{1,2})"                        // 6:ss
-    "|"
-    "([[:digit:]]{2})"                          // 7:hh
-    "([[:digit:]]{2})"                          // 8:mm
-    "([[:digit:]]{2})"                          // 9:ss
-    ")"
-    "(\\.([[:digit:]]*))?"                      // 10: 11:ffffff
-    "$",
-    11
-  );
-
-  // yyyy-mm-dd/hh:mm:ss.ffffff
-  m_regex_datetime2 = new Regex(
-    m_util,
-    "^"
-    "([[:digit:]]{4}|[[:digit:]]{2})"           // 1:yyyy
-    "[[:punct:]]+"
-    "([[:digit:]]{1,2})"                        // 2:mm
-    "[[:punct:]]+"
-    "([[:digit:]]{1,2})"                        // 3:dd
-    "(T|[[:space:]]+|[[:punct:]]+)"             // 4:
-    "([[:digit:]]{1,2})"                        // 5:hh
-    "[[:punct:]]+"
-    "([[:digit:]]{1,2})"                        // 6:mm
-    "[[:punct:]]+"
-    "([[:digit:]]{1,2})"                        // 7:ss
-    "(\\.([[:digit:]]*))?"                      // 8: 9:ffffff
-    "$",
-    9
-  );
 }
 
 void
