@@ -42,7 +42,7 @@ private:
   String_type m_tablespace_name;
 
 public:
-  Plugin_table_definition_impl(): m_dd_version(0)
+  Plugin_table_definition_impl(): m_dd_version(DD_VERSION)
   { }
 
   virtual ~Plugin_table_definition_impl()

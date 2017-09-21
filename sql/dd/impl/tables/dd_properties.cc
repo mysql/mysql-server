@@ -59,15 +59,16 @@ DD_properties::DD_properties()
                          "properties MEDIUMTEXT");
 
   // Insert the target dictionary version
+  const String_type
+    dd_version(std::to_string(get_target_dd_version()).c_str());
   m_target_def.add_populate_statement(
                  "INSERT INTO dd_properties (properties)"
-                 "VALUES ('" + get_target_versions() + "')");
+                 "VALUES ('DD_version=" + dd_version + "')");
 }
 
 
 // Read property for the given key.
-uint DD_properties::get_property(THD *thd,
-                                 String_type key, bool *exists) const
+uint DD_properties::get_property(THD *thd, String_type key) const
 {
   /*
     Start a DD transaction to get the version number.
@@ -77,7 +78,6 @@ uint DD_properties::get_property(THD *thd,
   */
   Transaction_ro trx(thd, ISO_READ_UNCOMMITTED);
   uint version= 0;
-  *exists= false;
 
   trx.otx.add_table<DD_properties>();
 
@@ -112,7 +112,6 @@ uint DD_properties::get_property(THD *thd,
     }
 
     t->file->ha_rnd_end();
-    *exists= true;
   }
   return version;
 }
@@ -195,26 +194,18 @@ bool DD_properties::set_property(THD *thd, String_type key, uint value)
 
 
 // Get property value for key 'DD_version'
-uint DD_properties::get_actual_dd_version(THD *thd, bool *exists) const
-{
-  return get_property(thd, "DD_version", exists);
-}
+uint DD_properties::get_actual_dd_version(THD *thd) const
+{ return get_property(thd, "DD_version"); }
 
 
 // Get property value for key 'IS_version'
 uint DD_properties::get_actual_I_S_version(THD *thd) const
-{
-  bool not_used;
-  return get_property(thd, "IS_version", &not_used);
-}
+{ return get_property(thd, "IS_version"); }
 
 
 // Get property value for key 'PS_version'
 uint DD_properties::get_actual_P_S_version(THD *thd) const
-{
-  bool not_used;
-  return get_property(thd, "PS_version", &not_used);
-}
+{ return get_property(thd, "PS_version"); }
 
 
 // Set property value for key 'IS_version'

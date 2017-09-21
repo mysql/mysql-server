@@ -293,6 +293,10 @@ bool initialize_pfs(THD *thd)
       check_perf_schema_has_correct_version(thd))
     return false;
 
+  /*
+    Stop server restart if P_S version is changed and the server is
+    started with DDSE in read-only mode.
+  */
   if (check_if_server_ddse_readonly(thd, PERFORMANCE_SCHEMA_DB_NAME.str))
     return true;
 

@@ -35,7 +35,6 @@ const Parameter_type_elements &Parameter_type_elements::instance()
 Parameter_type_elements::Parameter_type_elements()
 {
   m_target_def.table_name(table_name());
-  m_target_def.dd_version(1);
 
   m_target_def.add_field(FIELD_PARAMETER_ID,
                          "FIELD_PARAMETER_ID",

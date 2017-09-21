@@ -34,7 +34,6 @@ const Foreign_key_column_usage &Foreign_key_column_usage::instance()
 Foreign_key_column_usage::Foreign_key_column_usage()
 {
   m_target_def.table_name(table_name());
-  m_target_def.dd_version(1);
 
   m_target_def.add_field(FIELD_FOREIGN_KEY_ID,
                          "FIELD_FOREIGN_KEY_ID",

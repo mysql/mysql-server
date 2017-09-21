@@ -13,8 +13,6 @@ CALL mtr.add_suppression("Skip re-populating collations and character sets table
 # 2.3 Search for, and suppress, the expected warning in the log file.
 Pattern "Skip re-populating collations and character sets tables in InnoDB read-only mode." found
 CALL mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode.");
-Pattern "Skip updating information_schema metadata in read-only mode." found
-CALL mtr.add_suppression("Skip updating information_schema metadata in read-only mode.");
 Pattern "Skip updating information_schema metadata in InnoDB read-only mode." found
 CALL mtr.add_suppression("Skip updating information_schema metadata in InnoDB read-only mode.");
 CALL mtr.add_suppression("Skipped updating resource group metadata in InnoDB read only mode.");

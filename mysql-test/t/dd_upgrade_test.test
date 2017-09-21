@@ -210,8 +210,9 @@ EOF
 
 let MYSQLD_LOG= $MYSQL_TMP_DIR/server.log;
 
+# Add '--read-only' option in the scope of fix of Bug#26636238, to avoid creation of another bulky test.
 --echo # Start the DB server. Server will create and populate Dictionary tables.
---exec echo "restart: --loose-skip-log-bin --skip-log-slave-updates --skip-slave-preserve-commit-order --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart: --loose-skip-log-bin --read-only --skip-log-slave-updates --skip-slave-preserve-commit-order --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
@@ -310,6 +311,10 @@ DESC `test`.`initial_vü`;
 --replace_column 15 CREATE_TIME
 SELECT * FROM information_schema.tables WHERE table_schema = 'test' and table_type='VIEW';
 SET names default;
+
+--echo #Test case for Bug#26636238
+#Check metadata of a performance schema table when upgrade is performed with --read-only
+SHOW CREATE TABLE performance_schema.threads;
 
 --echo # Check for SP/SF
 SHOW CREATE PROCEDURE sp.simpleproc;

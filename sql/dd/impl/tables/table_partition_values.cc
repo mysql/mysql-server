@@ -44,7 +44,6 @@ const Table_partition_values &Table_partition_values::instance()
 Table_partition_values::Table_partition_values()
 {
   m_target_def.table_name(table_name());
-  m_target_def.dd_version(1);
 
   m_target_def.add_field(FIELD_PARTITION_ID,
                          "FIELD_PARTITION_ID",

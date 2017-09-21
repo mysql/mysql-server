@@ -13895,7 +13895,6 @@ ha_innobase::get_se_private_data(
 #endif
 
 	DBUG_ENTER("ha_innobase::get_se_private_data");
-	DBUG_ASSERT(dd_version < 2);
 	DBUG_ASSERT(dd_table != nullptr);
 	DBUG_ASSERT((dd_version == 0)
 		    == (dd_table->name() == innodb_dd_table[0].name));
