@@ -70,6 +70,7 @@ static const char *traditional_extra_tags[ET_total]=
   "Ft_hints:",                         // ET_FT_HINTS
   "Backward index scan",               // ET_BACKWARD_SCAN
   "Recursive",                         // ET_RECURSIVE
+  "Table function:",                   // ET_TABLE_FUNCTION
   "Index dive skipped due to FORCE"    // ET_SKIP_RECORDS_IN_RANGE
 };
 

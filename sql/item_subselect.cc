@@ -3619,10 +3619,17 @@ bool subselect_indexsubquery_engine::exec()
   if (tl && tl->uses_materialization() && !table->materialized)
   {
     THD *const thd= table->in_use;
-    bool err= tl->create_derived(thd);
+    bool err= tl->create_materialized_table(thd);
     if (!err)
-      err= tl->materialize_derived(thd);
-    err|= tl->cleanup_derived();
+    {
+      if (tl->is_table_function())
+        err= tl->table_function->fill_result_table();
+      else
+      {
+        err= tl->materialize_derived(thd);
+        err|= tl->cleanup_derived();
+      }
+    }
     if (err)
       DBUG_RETURN(true);            /* purecov: inspected */
   }

@@ -64,6 +64,7 @@ class SELECT_LEX;
 class THD;
 class sp_rcontext;
 template <class T> class List;
+class Table_function_result;
 
 /* Function items used by mysql */
 
@@ -113,7 +114,7 @@ public:
                   NOW_FUNC, TRIG_COND_FUNC,
                   SUSERVAR_FUNC, GUSERVAR_FUNC, COLLATE_FUNC,
                   EXTRACT_FUNC, TYPECAST_FUNC, FUNC_SP, UDF_FUNC,
-                  NEG_FUNC, GSYSVAR_FUNC, GROUPING_FUNC,
+                  NEG_FUNC, GSYSVAR_FUNC, GROUPING_FUNC, TABLE_FUNC,
                   DD_INTERNAL_FUNC};
   enum optimize_type { OPTIMIZE_NONE,OPTIMIZE_KEY,OPTIMIZE_OP, OPTIMIZE_NULL,
                        OPTIMIZE_EQUAL };

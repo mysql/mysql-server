@@ -87,6 +87,7 @@ static const char *json_extra_tags[ET_total]=
   "ft_hints",                           // ET_FT_HINTS
   "backward_index_scan",                // ET_BACKWARD_SCAN
   "recursive",                          // ET_RECURSIVE
+  "table_function",                     // ET_TABLE_FUNCTION
   "skip_records_in_range_due_to_force"  // ET_SKIP_RECORDS_IN_RANGE
 };
 

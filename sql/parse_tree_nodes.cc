@@ -1052,6 +1052,53 @@ bool PT_query_specification::contextualize(Parse_context *pc)
 }
 
 
+bool PT_table_factor_function::contextualize(Parse_context *pc)
+{
+  if (super::contextualize(pc) || m_expr->itemize(pc, &m_expr))
+    return true;
+
+  auto nested_columns= new (pc->mem_root) List<Json_table_column>;
+  if (nested_columns == nullptr)
+    return true; // OOM
+
+  for (auto col : *m_nested_columns)
+  {
+    if (col->contextualize(pc) ||
+        nested_columns->push_back(col->get_column()))
+      return true;
+  }
+
+  auto root_el= new (pc->mem_root) Json_table_column(m_path, nested_columns);
+  auto *root_list= new (pc->mem_root) List<Json_table_column>;
+  if (root_el == NULL || root_list == NULL ||
+      root_list->push_front(root_el))
+    return true; // OOM
+
+  auto jtf= new (pc->mem_root) Table_function_json(pc->thd, m_table_alias.str,
+                                                   m_expr, root_list);
+  if (jtf == nullptr)
+    return true; // OOM
+
+  LEX_CSTRING alias;
+  alias.length= strlen(jtf->func_name());
+  alias.str= sql_strmake(jtf->func_name(), alias.length);
+  if (alias.str == nullptr)
+    return true; // OOM
+
+  auto ti= new (pc->mem_root) Table_ident(alias, jtf);
+  if (ti == nullptr)
+    return true;
+
+  value= pc->select->add_table_to_list(pc->thd,
+                                       ti, m_table_alias.str, 0,
+                                       TL_READ, MDL_SHARED_READ);
+  if (value == NULL || pc->select->add_joined_table(value))
+    return true;
+
+  return false;
+}
+
+
 PT_derived_table::PT_derived_table(PT_subquery *subquery,
                                    const LEX_CSTRING &table_alias,
                                    Create_col_name_list *column_names)
@@ -2554,6 +2601,57 @@ Sql_cmd *PT_show_tables::make_cmd(THD *thd)
     return NULL;
 
   return &m_sql_cmd;
+}
+
+
+bool PT_json_table_column_with_path::contextualize(Parse_context *pc)
+{
+  if (super::contextualize(pc) || m_type->contextualize(pc))
+    return true;
+
+  const CHARSET_INFO *cs=
+    m_type->get_charset() ? m_type->get_charset() :
+    global_system_variables.character_set_results;
+
+  m_column.init(pc->thd,
+                m_name,                            // Alias
+                m_type->type,                      // Type
+                m_type->get_length(),              // Length
+                m_type->get_dec(),                 // Decimals
+                m_type->get_type_flags(),          // Type modifier
+                nullptr,                           // Default value
+                nullptr,                           // On update value
+                &EMPTY_STR,                        // Comment
+                nullptr,                           // Change
+                nullptr,                           // Interval list
+                cs,                                // Charset
+                m_type->get_uint_geom_type(),      // Geom type
+                NULL,                              // Gcol_info
+                {});                               // SRID
+  return false;
+}
+
+
+bool PT_json_table_column_with_nested_path::contextualize(Parse_context *pc)
+{
+  if (super::contextualize(pc))
+    return true; // OOM
+
+  auto nested_columns= new (pc->mem_root) List<Json_table_column>;
+  if (nested_columns == nullptr)
+    return true; // OOM
+
+  for (auto col : *m_nested_columns)
+  {
+    if (col->contextualize(pc) || nested_columns->push_back(col->get_column()))
+      return true;
+  }
+
+  m_column= new (pc->mem_root) Json_table_column(m_path, nested_columns);
+  if (m_column == nullptr)
+    return true; // OOM
+
+  return false;
 }
 
 

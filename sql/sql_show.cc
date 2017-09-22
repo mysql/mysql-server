@@ -6024,3 +6024,231 @@ static void get_cs_converted_string_value(THD *thd,
   }
   return;
 }
+
+
+/**
+  A field's SQL type printout
+
+  @param type     the type to print
+  @param metadata field's metadata, depending on the type
+                  could be nothing, length, or length + decimals
+  @param str      String to print to
+  @param field_cs field's charset. When given [var]char length is printed in
+                  characters, otherwise - in bytes
+
+*/
+
+void show_sql_type(enum_field_types type, uint16 metadata, String *str,
+                   const CHARSET_INFO *field_cs)
+{
+  DBUG_ENTER("show_sql_type");
+  DBUG_PRINT("enter", ("type: %d, metadata: 0x%x", type, metadata));
+
+  switch (type)
+  {
+  case MYSQL_TYPE_TINY:
+    str->set_ascii(STRING_WITH_LEN("tinyint"));
+    break;
+
+  case MYSQL_TYPE_SHORT:
+    str->set_ascii(STRING_WITH_LEN("smallint"));
+    break;
+
+  case MYSQL_TYPE_LONG:
+    str->set_ascii(STRING_WITH_LEN("int"));
+    break;
+
+  case MYSQL_TYPE_FLOAT:
+    str->set_ascii(STRING_WITH_LEN("float"));
+    break;
+
+  case MYSQL_TYPE_DOUBLE:
+    str->set_ascii(STRING_WITH_LEN("double"));
+    break;
+
+  case MYSQL_TYPE_NULL:
+    str->set_ascii(STRING_WITH_LEN("null"));
+    break;
+
+  case MYSQL_TYPE_TIMESTAMP:
+  case MYSQL_TYPE_TIMESTAMP2:
+    str->set_ascii(STRING_WITH_LEN("timestamp"));
+    break;
+
+  case MYSQL_TYPE_LONGLONG:
+    str->set_ascii(STRING_WITH_LEN("bigint"));
+    break;
+
+  case MYSQL_TYPE_INT24:
+    str->set_ascii(STRING_WITH_LEN("mediumint"));
+    break;
+
+  case MYSQL_TYPE_NEWDATE:
+  case MYSQL_TYPE_DATE:
+    str->set_ascii(STRING_WITH_LEN("date"));
+    break;
+
+  case MYSQL_TYPE_TIME:
+  case MYSQL_TYPE_TIME2:
+    str->set_ascii(STRING_WITH_LEN("time"));
+    break;
+
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_DATETIME2:
+    str->set_ascii(STRING_WITH_LEN("datetime"));
+    break;
+
+  case MYSQL_TYPE_YEAR:
+    str->set_ascii(STRING_WITH_LEN("year"));
+    break;
+
+  case MYSQL_TYPE_VAR_STRING:
+  case MYSQL_TYPE_VARCHAR:
+    {
+      const CHARSET_INFO *cs= str->charset();
+      size_t length;
+      if (field_cs)
+        length= cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
+                                   "varchar(%u)", metadata / field_cs->mbmaxlen);
+      else
+        length= cs->cset->snprintf(cs, (char*) str->ptr(),
+                                   str->alloced_length(),
+                                   "varchar(%u(bytes))", metadata);
+      str->length(length);
+    }
+    break;
+
+  case MYSQL_TYPE_BIT:
+    {
+      const CHARSET_INFO *cs= str->charset();
+      int bit_length= 8 * (metadata >> 8) + (metadata & 0xFF);
+      size_t length=
+        cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
+                           "bit(%d)", bit_length);
+      str->length(length);
+    }
+    break;
+
+  case MYSQL_TYPE_DECIMAL:
+    {
+      const CHARSET_INFO *cs= str->charset();
+      size_t length=
+        cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
+                           "decimal(%d,?)", metadata);
+      str->length(length);
+    }
+    break;
+
+  case MYSQL_TYPE_NEWDECIMAL:
+    {
+      const CHARSET_INFO *cs= str->charset();
+      /*
+        Field_new_decimal encodes metadata this way. Bit shifts can't be used
+        due to different endianness on different platforms.
+      */
+      uchar *metadata_ptr= (uchar*)&metadata;
+      uint len= *metadata_ptr;
+      uint dec= *(metadata_ptr + 1);
+      size_t length=
+        cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
+                           "decimal(%d,%d)", len, dec);
+      str->length(length);
+    }
+    break;
+
+  case MYSQL_TYPE_ENUM:
+    str->set_ascii(STRING_WITH_LEN("enum"));
+    break;
+
+  case MYSQL_TYPE_SET:
+    str->set_ascii(STRING_WITH_LEN("set"));
+    break;
+
+  case MYSQL_TYPE_TINY_BLOB:
+    if (!field_cs || field_cs == &my_charset_bin)
+      str->set_ascii(STRING_WITH_LEN("tinyblob"));
+    else
+      str->set_ascii(STRING_WITH_LEN("tinytext"));
+    break;
+
+  case MYSQL_TYPE_MEDIUM_BLOB:
+    if (!field_cs || field_cs == &my_charset_bin)
+      str->set_ascii(STRING_WITH_LEN("mediumblob"));
+    else
+      str->set_ascii(STRING_WITH_LEN("mediumtext"));
+    break;
+
+  case MYSQL_TYPE_LONG_BLOB:
+    if (!field_cs || field_cs == &my_charset_bin)
+      str->set_ascii(STRING_WITH_LEN("longblob"));
+    else
+      str->set_ascii(STRING_WITH_LEN("longtext"));
+    break;
+
+  case MYSQL_TYPE_BLOB:
+    /*
+      Field::real_type() lies regarding the actual type of a BLOB, so
+      it is necessary to check the pack length to figure out what kind
+      of blob it really is.
+      Non-'BLOB' is handled above.
+     */
+    switch (metadata)
+    {
+    case 1:
+      str->set_ascii(STRING_WITH_LEN("tinyblob"));
+      break;
+
+    case 3:
+      str->set_ascii(STRING_WITH_LEN("mediumblob"));
+      break;
+
+    case 4:
+      str->set_ascii(STRING_WITH_LEN("longblob"));
+      break;
+
+    default:
+    case 2:
+      if (!field_cs || field_cs == &my_charset_bin)
+        str->set_ascii(STRING_WITH_LEN("blob"));
+      else
+        str->set_ascii(STRING_WITH_LEN("text"));
+      break;
+    }
+    break;
+
+  case MYSQL_TYPE_STRING:
+    {
+      /*
+        This is taken from Field_string::unpack.
+      */
+      const CHARSET_INFO *cs= str->charset();
+      uint bytes= (((metadata >> 4) & 0x300) ^ 0x300) + (metadata & 0x00ff);
+      size_t length;
+      if (field_cs)
+        length=
+          cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
+                             "char(%d)", bytes / field_cs->mbmaxlen);
+      else
+        length=
+          cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
+                             "char(%d(bytes))", bytes);
+      str->length(length);
+    }
+    break;
+
+  case MYSQL_TYPE_GEOMETRY:
+    str->set_ascii(STRING_WITH_LEN("geometry"));
+    break;
+
+  case MYSQL_TYPE_JSON:
+    str->set_ascii(STRING_WITH_LEN("json"));
+    break;
+
+  default:
+    str->set_ascii(STRING_WITH_LEN("<unknown type>"));
+  }
+  DBUG_VOID_RETURN;
+}
+
+
+

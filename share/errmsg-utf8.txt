@@ -10910,6 +10910,24 @@ ER_CANT_START_ERROR_LOG_SERVICE
 ER_SDI_OPERATION_FAILED
   eng "Failed to %s SDI '%.192s.%.192s' in tablespace '%.192s'."
 
+ER_MISSING_JSON_TABLE_VALUE 22035
+  eng "Missing value for JSON_TABLE column '%.192s'"
+
+ER_WRONG_JSON_TABLE_VALUE 2203F
+  eng "Can't store an array or an object in the scalar JSON_TABLE column '%.192s'"
+
+ER_TF_MUST_HAVE_ALIAS 42000
+        eng "Every table function must have an alias"
+
+ER_TF_FORBIDDEN_JOIN_TYPE
+  eng "INNER or LEFT JOIN must be used for '%.192s' table function's LATERAL reference"
+
+ER_JT_VALUE_OUT_OF_RANGE 22003
+  eng "Value is out of range for JSON_TABLE's column '%.192s'"
+
+ER_JT_MAX_NESTED_PATH 42000
+  eng "More than supported %u NESTED PATHs were found in JSON_TABLE '%.192s'"
 #
 #  End of 8.0 error messages.
 #
+

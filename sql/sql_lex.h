@@ -100,6 +100,7 @@ class PT_base_index_option;
 class PT_column_attr_base;
 class PT_create_table_option;
 class PT_ddl_table_option;
+class PT_json_table_column;
 class PT_part_definition;
 class PT_part_value_item;
 class PT_part_value_item_list_paren;
@@ -119,6 +120,9 @@ class Select_lex_visitor;
 class THD;
 class Window;
 
+class Json_table_column;
+enum class enum_jt_column;
+enum class enum_jtc_on : uint16;
 typedef Parse_tree_node_tmpl<struct Alter_tablespace_parse_context>
     PT_alter_tablespace_option_base;
 
@@ -334,19 +338,23 @@ extern LEX_CSTRING EMPTY_CSTR;
 extern LEX_CSTRING NULL_CSTR;
 extern char internal_table_name[2];
 
+class Table_function;
+
 class Table_ident :public Sql_alloc
 {
 public:
   LEX_CSTRING db;
   LEX_CSTRING table;
   SELECT_LEX_UNIT *sel;
+  Table_function *table_function;
+
   Table_ident(Protocol *protocol, const LEX_CSTRING &db_arg,
               const LEX_CSTRING &table_arg, bool force);
   Table_ident(const LEX_CSTRING &db_arg, const LEX_CSTRING &table_arg)
-    :db(db_arg), table(table_arg), sel(NULL)
+    :db(db_arg), table(table_arg), sel(NULL), table_function(NULL)
   {}
   Table_ident(const LEX_CSTRING &table_arg)
-    :table(table_arg), sel(NULL)
+    :table(table_arg), sel(NULL), table_function(NULL)
   {
     db= NULL_CSTR;
   }
@@ -356,13 +364,27 @@ public:
     Later, if there was an alias specified for the table, it will be set
     by add_table_to_list.
   */
-  Table_ident(SELECT_LEX_UNIT *s) : sel(s)
+  Table_ident(SELECT_LEX_UNIT *s) : sel(s), table_function(NULL)
   {
     /* We must have a table name here as this is used with add_table_to_list */
     db= EMPTY_CSTR;                    /* a subject to casedn_str */
     table.str= internal_table_name;
     table.length=1;
   }
+  /*
+    This constructor is used only for the case when we create a table function.
+    It has no name and doesn't belong to any database as it exists only
+    during query execution. Later, if there was an alias specified for the
+    table, it will be set by add_table_to_list.
+  */
+  Table_ident(LEX_CSTRING &table_arg, Table_function *table_func_arg)
+    : table(table_arg), sel(NULL), table_function(table_func_arg)
+  {
+    /* We must have a table name here as this is used with add_table_to_list */
+    db= EMPTY_CSTR;                    /* a subject to casedn_str */
+  }
+  // True if we can tell from syntax that this is a table function.
+  bool is_table_function() const { return (table_function != nullptr); }
   // True if we can tell from syntax that this is an unnamed derived table.
   bool is_derived_table() const { return sel; }
   void change_db(const char *db_name)
@@ -1127,6 +1149,8 @@ public:
   uint leaf_table_count;
   /// Number of derived tables and views in this query block.
   uint derived_table_count;
+  /// Number of table functions in this query block
+  uint table_func_count;
   /// Number of materialized derived tables and views in this query block.
   uint materialized_derived_table_count;
   /**
@@ -1265,7 +1289,8 @@ public:
   /// Query-block-level hints, for this query block
   Opt_hints_qb *opt_hints_qb;
 
-
+  // Last table for LATERAL join, used by table functions
+  TABLE_LIST *end_lateral_table;
   /**
     @note the group_by and order_by lists below will probably be added to the
           constructor when the parser is converted into a true bottom-up design.
@@ -1398,8 +1423,8 @@ public:
   // Resolve and prepare information about tables for one query block
   bool setup_tables(THD *thd, TABLE_LIST *tables, bool select_insert);
 
-  // Resolve derived table and view information for a query block
-  bool resolve_derived(THD *thd, bool apply_semijoin);
+  // Resolve derived table, view, table function information for a query block
+  bool resolve_placeholder_tables(THD *thd, bool apply_semijoin);
 
   // Propagate exclusion from table uniqueness test into subqueries
   void propagate_unique_test_exclusion();
@@ -2181,6 +2206,17 @@ union YYSTYPE {
   Locked_row_action locked_row_action;
   class PT_locking_clause *locking_clause;
   class PT_locking_clause_list *locking_clause_list;
+  Trivial_array<PT_json_table_column *> *jtc_list;
+  struct jt_on_response {
+    enum_jtc_on type;
+    const LEX_STRING *default_str;
+  } jt_on_response;
+  struct {
+    struct jt_on_response error;
+    struct jt_on_response empty;
+  } jt_on_error_or_empty;
+  PT_json_table_column *jt_column;
+  enum_jt_column jt_column_type;
   struct
   {
     LEX_STRING wild;

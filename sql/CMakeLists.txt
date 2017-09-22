@@ -440,6 +440,7 @@ SET(SQL_SHARED_SOURCES
   system_variables.cc
   table.cc
   table_cache.cc
+  table_function.cc
   table_trigger_dispatcher.cc
   tc_log.cc
   thr_malloc.cc 

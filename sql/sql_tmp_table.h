@@ -72,7 +72,10 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
                  const char *table_alias,
                  enum_tmpfile_windowing_action windowing);
 bool open_tmp_table(TABLE *table);
-TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list);
+TABLE *create_tmp_table_from_fields(THD *thd, List<Create_field> &field_list,
+                                    bool is_virtual= true,
+                                    ulonglong select_options= 0,
+                                    const char* alias= NULL);
 bool create_ondisk_from_heap(THD *thd, TABLE *table,
                              MI_COLUMNDEF *start_recinfo,
                              MI_COLUMNDEF **recinfo, 

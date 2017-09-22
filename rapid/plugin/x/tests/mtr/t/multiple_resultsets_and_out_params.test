@@ -18,7 +18,7 @@ INSERT INTO tab_2 VALUES ('2006-07-03'), ('2013-06-15'), ('2012-11-24'), ('1979-
 
 DELIMITER //
 
-CREATE PROCEDURE empty()
+CREATE PROCEDURE `empty`()
 BEGIN
 END //
 
@@ -156,7 +156,7 @@ END //
 
 DELIMITER ;
 
-CALL empty();
+CALL `empty`();
 
 CALL one_results_set();
 CALL three_results_sets();

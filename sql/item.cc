@@ -7023,6 +7023,9 @@ Item_temporal::save_in_field_inner(Field *field, bool)
 type_conversion_status
 Item_decimal::save_in_field_inner(Field *field, bool)
 {
+  if (null_value)
+    return set_field_to_null(field);
+
   field->set_notnull();
   return field->store_decimal(&decimal_value);
 }

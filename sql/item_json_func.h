@@ -37,6 +37,8 @@
 #include "sql/my_decimal.h"
 #include "sql/parse_tree_node_base.h"
 #include "sql_string.h"
+#include "psi_memory_key.h"     // key_memory_JSON
+#include <vector>
 
 class Item_func_like;
 class Json_scalar_holder;
@@ -282,7 +284,7 @@ bool get_json_atom_wrapper(Item **args, uint arg_idx,
 
   @returns True if the string could not be converted. False on success.
 */
-bool ensure_utf8mb4(String *val,
+bool ensure_utf8mb4(const String &val,
                     String *buf,
                     const char **resptr,
                     size_t *reslength,
@@ -894,6 +896,14 @@ bool get_json_string(Item *arg_item,
                      String *utf8_res,
                      const char **safep,
                      size_t *safe_length);
+using Json_dom_ptr= std::unique_ptr<Json_dom>;
 
+bool parse_json(const String &res,
+                uint arg_idx,
+                const char *func_name,
+                Json_dom_ptr *dom,
+                bool require_str_or_json,
+                bool *parse_error,
+                bool handle_numbers_as_double= false);
 
 #endif /* ITEM_JSON_FUNC_INCLUDED */

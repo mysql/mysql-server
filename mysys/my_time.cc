@@ -642,6 +642,7 @@ bool str_to_time(const char *str, size_t length, MYSQL_TIME *l_time,
   const char *end=str+length, *end_of_days;
   bool found_days,found_hours;
   uint state;
+  const char *start;
 
   my_time_status_init(status);
   l_time->neg=0;
@@ -655,6 +656,9 @@ bool str_to_time(const char *str, size_t length, MYSQL_TIME *l_time,
   }
   if (str == end)
     return 1;
+
+  // Remember beginning of first non-space/- char.
+  start= str;
 
   /* Check first if this is a full TIMESTAMP */
   if (length >= 12)
@@ -828,6 +832,12 @@ fractional:
       if (!my_isspace(&my_charset_latin1,*str))
       {
         status->warnings|= MYSQL_TIME_WARN_TRUNCATED;
+        // No char was actually used in conversion - bad value
+        if (str == start)
+        {
+          l_time->time_type= MYSQL_TIMESTAMP_NONE;
+          return true;
+        }
         break;
       }
     } while (++str != end);

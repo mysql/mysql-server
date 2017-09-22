@@ -140,6 +140,7 @@ typedef ulonglong nested_join_map;
 #define tmp_file_prefix "#sql"			/**< Prefix for tmp tables */
 #define tmp_file_prefix_length 4
 #define TMP_TABLE_KEY_EXTRA 8
+#define PLACEHOLDER_TABLE_ROW_ESTIMATE 2
 
 /**
   Enumerate possible types of a table from re-execution
@@ -1538,6 +1539,9 @@ private:
 public:
 
   void init(THD *thd, TABLE_LIST *tl);
+  bool init_tmp_table(THD *thd, TABLE_SHARE *share, MEM_ROOT *m_root,
+                      CHARSET_INFO *charset, const char* alias, Field **fld,
+                      uint *blob_fld, bool is_virtual);
   bool fill_item_list(List<Item> *item_list) const;
   void reset_item_list(List<Item> *item_list) const;
   void clear_column_bitmaps(void);
@@ -2302,7 +2306,8 @@ public:
   Field_map used_fields;
 };
 
-
+class Item_func;
+class Table_function;
 /*
   Table reference in the FROM clause.
 
@@ -2448,7 +2453,7 @@ struct TABLE_LIST
   bool is_placeholder() const
   {
     return is_view_or_derived() || schema_table || !table ||
-      m_is_recursive_reference;
+      m_is_recursive_reference || is_table_function();
   }
 
   /// Produce a textual identification of this object
@@ -2501,6 +2506,11 @@ struct TABLE_LIST
     return derived != NULL;
   }
 
+  /// Return true if this represents a table function
+  bool is_table_function() const
+  {
+    return table_function != NULL;
+  }
   /**
      @returns true if this is a recursive reference inside the definition of a
      recursive CTE.
@@ -2667,7 +2677,8 @@ struct TABLE_LIST
   /// Set temporary name from underlying temporary table:
   void set_name_temporary()
   {
-    DBUG_ASSERT(is_view_or_derived() && uses_materialization());
+    DBUG_ASSERT((is_view_or_derived()) &&
+                uses_materialization());
     table_name= table->s->table_name.str;
     table_name_length= table->s->table_name.length;
     db= (char *)"";
@@ -2677,7 +2688,8 @@ struct TABLE_LIST
   /// Reset original name for temporary table.
   void reset_name_temporary()
   {
-    DBUG_ASSERT(is_view_or_derived() && uses_materialization());
+    DBUG_ASSERT((is_table_function() || is_view_or_derived()) &&
+                uses_materialization());
     /*
       When printing a query using a view or CTE, we need the table's name and
       the alias; the name has been destroyed if the table was materialized,
@@ -2701,7 +2713,7 @@ struct TABLE_LIST
   bool optimize_derived(THD *thd);
 
   /// Create result table for a materialized derived table/view
-  bool create_derived(THD *thd);
+  bool create_materialized_table(THD *thd);
 
   /// Materialize derived table
   bool materialize_derived(THD *thd);
@@ -2791,6 +2803,9 @@ struct TABLE_LIST
   /// Setup a derived table to use materialization
   bool setup_materialized_derived(THD *thd);
   bool setup_materialized_derived_tmp_table(THD *thd);
+
+  /// Setup a table function to use materialization
+  bool setup_table_function(THD *thd);
 
   bool create_field_translation(THD *thd);
 
@@ -3009,6 +3024,12 @@ public:
     can see this lists can't be merged)
   */
   TABLE_LIST	*correspondent_table;
+
+  /*
+    Holds the function used as the table function
+  */
+  Table_function *table_function;
+
 private:
   /**
      This field is set to non-null for derived tables and views. It points
@@ -3279,7 +3300,7 @@ public:
   { return m_derived_column_names; }
   void set_derived_column_names(const Create_col_name_list *d)
   { m_derived_column_names= d; }
-
+  void propagate_table_maps(table_map map_arg);
 
 private:
   /*

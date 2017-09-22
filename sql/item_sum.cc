@@ -1203,7 +1203,7 @@ bool Aggregator_distinct::setup(THD *thd)
                                  arg->unsigned_flag,
                                  0);
 
-    if (! (table= create_virtual_tmp_table(thd, field_list)))
+    if (! (table= create_tmp_table_from_fields(thd, field_list)))
       DBUG_RETURN(TRUE);
 
     /* XXX: check that the case of CHAR(0) works OK */

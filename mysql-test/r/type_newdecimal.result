@@ -2170,7 +2170,6 @@ CREATE TABLE t(a DECIMAL(56,13) NOT NULL);
 INSERT INTO t VALUES(0);
 SELECT 1 FROM t WHERE a<=>time('-t');
 1
-1
 Warnings:
 Warning	1292	Truncated incorrect time value: '-t'
 DROP TABLE t;
