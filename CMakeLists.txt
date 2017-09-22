@@ -18,7 +18,8 @@ IF(WIN32)
   CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12)
 ELSE()
   # There's a bug in unzipping prior to 2.8.2
-  CMAKE_MINIMUM_REQUIRED(VERSION 2.8.2)
+  # Debian 7 has the oldest cmake we need to support
+  CMAKE_MINIMUM_REQUIRED(VERSION 2.8.9)
 ENDIF()
 
 # We use CMAKE_SHARED_LIBRARY_<Lang>_FLAGS. See cmake --help-policy CMP0018
@@ -695,6 +696,8 @@ CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/sql/sql_builtin.cc.in
 CONFIGURE_FILE(
     ${CMAKE_SOURCE_DIR}/cmake/info_macros.cmake.in
     ${CMAKE_BINARY_DIR}/info_macros.cmake @ONLY)
+
+SET(KNOWN_CONVENIENCE_LIBRARIES "" CACHE INTERNAL "")
 
 # Handle the "INFO_*" files.
 INCLUDE(${CMAKE_BINARY_DIR}/info_macros.cmake)
