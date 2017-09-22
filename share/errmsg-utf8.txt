@@ -10907,6 +10907,9 @@ ER_GROUP_REPLICATION_COMMAND_FAILURE
 ER_CANT_START_ERROR_LOG_SERVICE
   eng "Failed to set %s at or around \"%s\" -- service is valid, but can not be initialized; please check its configuration and make sure it can read its input(s) and write to its output(s)."
 
+ER_SDI_OPERATION_FAILED
+  eng "Failed to %s SDI '%.192s.%.192s' in tablespace '%.192s'."
+
 #
 #  End of 8.0 error messages.
 #
