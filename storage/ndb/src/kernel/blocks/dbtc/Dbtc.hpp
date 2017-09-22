@@ -861,7 +861,15 @@ public:
     Uint8 tckeyrec; // Changed from R
 
     Uint8 tcindxrec;
-    Uint8 apiFailState; // Changed R
+
+    enum ApiFailStates
+    {
+      AFS_API_OK = 0,
+      AFS_API_FAILED = 1,
+      AFS_API_DISCONNECTED = 2
+    };
+    Uint8 apiFailState;
+
     Uint8 timeOutCounter;
     Uint8 singleUserMode;
     
@@ -1721,6 +1729,10 @@ private:
                          LqhTransConf::OperationStatus transStatus,
                          NodeId nodeId);
 
+  bool handleFailedApiConnection(Signal*,
+                                 Uint32 *TloopCount,
+                                 Uint32 TapiFailedNode);
+  void set_api_fail_state(Uint32 TapiFailedNode);
   void handleApiFailState(Signal* signal, UintR anApiConnectptr);
   void handleFailedApiNode(Signal* signal,
                            UintR aFailedNode,
