@@ -194,9 +194,18 @@ public:
    */
   struct RowPtr
   {
-    Uint32 m_type;
-    Uint32 m_src_node_ptrI;
-    Uint32 m_src_correlation;
+    enum RowType
+    {
+      RT_SECTION = 1,
+      RT_LINEAR = 2,
+      RT_END = 0
+    };
+
+    RowType m_type;
+    Uint32  m_src_node_ptrI;
+    Uint32  m_src_correlation;
+
+    TreeNodeBitMask *m_matched;  //If 'T_BUFFER_MATCH' is specified, else NULL
 
     struct Header
     {
@@ -221,13 +230,6 @@ public:
       struct Section m_section;
       struct Linear m_linear;
     } m_row_data;
-
-    enum RowType
-    {
-      RT_SECTION = 1,
-      RT_LINEAR = 2,
-      RT_END = 0
-    };
   };
 
   struct RowBuffer;  // forward decl.
@@ -928,17 +930,23 @@ public:
       T_UNIQUE_INDEX_LOOKUP = 0x40,
 
       /*
-       * Should this node buffers its rows
+       * Should this node buffers its rows or 'm_matched' bitmask?
+       *  We could request the buffer to store either the 'ROW',
+       *  as received by TRANSID_AI, and/or a 'MATCH' bitMask.
+       *  If 'ROW' is not specified, the correlationId of the 
+       *  row is stored nevertheless. 
        */
-      T_ROW_BUFFER = 0x80,
+      T_BUFFER_ROW   = 0x80,
+      T_BUFFER_MATCH = 0x8000000,  //Placeholder, still never set
+      T_BUFFER_ANY   = (T_BUFFER_ROW | T_BUFFER_MATCH),
 
       /**
-       * Should rows have dictionary (i.e random access capability)
+       * Should row/match buffers have dictionary (i.e random access capability)
        *  This is typically used when having nodes depending on multiple parents
-       *  so that when row gets availble from "last" parent, a key can be
+       *  so that when row gets available from "last" parent, a key can be
        *  constructed using correlation value from parents
        */
-      T_ROW_BUFFER_MAP = 0x100,
+      T_BUFFER_MAP = 0x100,
 
       /**
        * Does any child need to know when all its ancestors are complete
@@ -1088,7 +1096,7 @@ public:
     enum RequestBits
     {
       RT_SCAN                = 0x1  // unbounded result set, scan interface
-      ,RT_ROW_BUFFERS        = 0x2  // Do any of the node use row-buffering
+      ,RT_BUFFERS            = 0x2  // Do any of nodes use row/match-buffering
       ,RT_MULTI_SCAN         = 0x4  // Is there several scans in request
 //    ,RT_VAR_ALLOC          = 0x8  // DEPRECATED
       ,RT_NEED_PREPARE       = 0x10 // Does any node need m_prepare hook
@@ -1352,8 +1360,8 @@ private:
   /**
    * Row buffering
    */
-  Uint32 storeRow(RowCollection& collection, RowPtr &row);
-  void releaseRow(RowCollection& collection, RowRef ref);
+  Uint32 storeRow(Ptr<TreeNode> treeNodePtr, const RowPtr &row);
+  void releaseRow(Ptr<TreeNode> treeNodePtr, RowRef ref);
   Uint32* stackAlloc(RowBuffer& dst, RowRef&, Uint32 len);
   Uint32* varAlloc(RowBuffer& dst, RowRef&, Uint32 len);
   Uint32* rowAlloc(RowBuffer& dst, RowRef&, Uint32 len);
@@ -1361,7 +1369,7 @@ private:
   void add_to_list(SLFifoRowList & list, RowRef);
   Uint32 add_to_map(RowMap& map, Uint32, RowRef);
 
-  void setupRowPtr(const RowCollection& collection,
+  void setupRowPtr(Ptr<TreeNode> treeNodePtr,
                    RowPtr& dst, RowRef, const Uint32 * src);
   Uint32 * get_row_ptr(RowRef pos);
 
@@ -1418,8 +1426,9 @@ private:
       return expandS(ptrI, p, r, hasNull);
     case RowPtr::RT_LINEAR:
       return expandL(ptrI, p, r, hasNull);
+    default:
+      return DbspjErr::InternalError;
     }
-    return DbspjErr::InternalError;
   }
   Uint32 expandS(Uint32 & ptrI, Local_pattern_store&, const RowPtr&, bool& hasNull);
   Uint32 expandL(Uint32 & ptrI, Local_pattern_store&, const RowPtr&, bool& hasNull);

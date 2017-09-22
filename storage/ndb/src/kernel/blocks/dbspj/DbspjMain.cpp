@@ -45,6 +45,7 @@
 #include <signaldata/ReadNodesConf.hpp>
 #include <signaldata/SignalDroppedRep.hpp>
 #include <EventLogger.hpp>
+#include <Bitmask.hpp>
 
 #define JAM_FILE_ID 479
 
@@ -1601,15 +1602,15 @@ Dbspj::initRowBuffers(Ptr<Request> requestPtr)
   }
 
   /**
-   * Init ROW_BUFFERS iff Request has to buffer any rows.
+   * Init BUFFERS iff Request has to buffer any rows/matches
    */
-  if (requestPtr.p->m_bits & Request::RT_ROW_BUFFERS)
+  if (requestPtr.p->m_bits & Request::RT_BUFFERS)
   {
     jam();
 
     /**
      * Iff, multi-scan is non-bushy (normal case)
-     *   we don't strictly need BUFFER_VAR for RT_ROW_BUFFERS
+     *   we don't strictly need BUFFER_VAR for RT_BUFFERS
      *   but could instead pop-row stack frame,
      *     however this is not implemented...
      *
@@ -1639,14 +1640,14 @@ Dbspj::initRowBuffers(Ptr<Request> requestPtr)
        * Construct a List or Map RowCollection for those TreeNodes
        * requiring rows to be buffered.
        */
-      if (treeNodePtr.p->m_bits & TreeNode::T_ROW_BUFFER_MAP)
+      if (treeNodePtr.p->m_bits & TreeNode::T_BUFFER_MAP)
       {
         jam();
         treeNodePtr.p->m_rows.construct (RowCollection::COLLECTION_MAP,
                                          requestPtr.p->m_rowBuffer,
                                          treeNodePtr.p->m_batch_size);
       }
-      else if (treeNodePtr.p->m_bits & TreeNode::T_ROW_BUFFER)
+      else if (treeNodePtr.p->m_bits & TreeNode::T_BUFFER_ANY)
       {
         jam();
         treeNodePtr.p->m_rows.construct (RowCollection::COLLECTION_LIST,
@@ -1778,9 +1779,9 @@ Dbspj::buildExecPlan(Ptr<Request>  requestPtr,
       ndbassert(nextLookup.p->m_parentPtrI != RNIL);
       Ptr<TreeNode> parentPtr;
       m_treenode_pool.getPtr(parentPtr, nextLookup.p->m_parentPtrI);
-      parentPtr.p->m_bits |= TreeNode::T_ROW_BUFFER
-                           | TreeNode::T_ROW_BUFFER_MAP;
-      requestPtr.p->m_bits |= Request::RT_ROW_BUFFERS;
+      parentPtr.p->m_bits |= TreeNode::T_BUFFER_ROW
+                           | TreeNode::T_BUFFER_MAP;
+      requestPtr.p->m_bits |= Request::RT_BUFFERS;
 
       DEBUG("ExecPlan: rows from node " << parentPtr.p->m_node_no
          << " are buffered");
@@ -2318,7 +2319,7 @@ Dbspj::cleanupBatch(Ptr<Request> requestPtr)
    * Release any buffered rows for the TreeNode branches
    * getting new rows.
    */
-  if ((requestPtr.p->m_bits & Request::RT_ROW_BUFFERS) != 0)
+  if ((requestPtr.p->m_bits & Request::RT_BUFFERS) != 0)
   {
     if ((requestPtr.p->m_bits & Request::RT_MULTI_SCAN) != 0)
     {
@@ -2342,7 +2343,7 @@ Dbspj::cleanupBatch(Ptr<Request> requestPtr)
       ndbassert(requestPtr.p->m_active_nodes.get(0));
       releaseRequestBuffers(requestPtr);
     }
-  } //RT_ROW_BUFFERS
+  } //RT_BUFFERS
 
   Ptr<TreeNode> treeNodePtr;
   Local_TreeNode_list list(m_treenode_pool, requestPtr.p->m_nodes);
@@ -2358,6 +2359,21 @@ Dbspj::cleanupBatch(Ptr<Request> requestPtr)
     {
       jam();
       treeNodePtr.p->m_rows.init();
+    }
+
+    /* Clear parents 'm_matched' bitMask for any buffered rows: */
+    if (treeNodePtr.p->m_bits & TreeNode::T_BUFFER_MATCH)
+    {
+      RowIterator iter;
+      for (first(treeNodePtr.p->m_rows, iter); !iter.isNull(); next(iter))
+      {
+        jam();
+        RowPtr row;
+        setupRowPtr(treeNodePtr, row, 
+                    iter.m_base.m_ref, iter.m_base.m_row_ptr);
+
+        row.m_matched->bitANDC(requestPtr.p->m_active_nodes);
+      }
     }
 
     /**
@@ -2407,7 +2423,7 @@ Dbspj::releaseScanBuffers(Ptr<Request> requestPtr)
     if (requestPtr.p->m_active_nodes.get(treeNodePtr.p->m_node_no) ||
         requestPtr.p->m_active_nodes.overlaps(treeNodePtr.p->m_ancestors))
     {
-      if (treeNodePtr.p->m_bits & TreeNode::T_ROW_BUFFER)
+      if (treeNodePtr.p->m_bits & TreeNode::T_BUFFER_ANY)
       {
         jam();
         releaseNodeRows(requestPtr, treeNodePtr);
@@ -2427,7 +2443,7 @@ Dbspj::releaseNodeRows(Ptr<Request> requestPtr, Ptr<TreeNode> treeNodePtr)
      << ", request: " << requestPtr.i
   );
 
-  ndbassert(treeNodePtr.p->m_bits & TreeNode::T_ROW_BUFFER);
+  ndbassert(treeNodePtr.p->m_bits & TreeNode::T_BUFFER_ANY);
 
   Uint32 cnt = 0;
   RowIterator iter;
@@ -2436,7 +2452,7 @@ Dbspj::releaseNodeRows(Ptr<Request> requestPtr, Ptr<TreeNode> treeNodePtr)
     jam();
     RowRef pos = iter.m_base.m_ref;
     next(iter);
-    releaseRow(treeNodePtr.p->m_rows, pos);
+    releaseRow(treeNodePtr, pos);
     cnt ++;
   }
   DEBUG("RowIterator: released " << cnt << " rows!");
@@ -2451,16 +2467,17 @@ Dbspj::releaseNodeRows(Ptr<Request> requestPtr, Ptr<TreeNode> treeNodePtr)
       jam();
       RowRef ref;
       map.copyto(ref);
-      releaseRow(treeNodePtr.p->m_rows, ref);  // Map was allocated in row memory
+      releaseRow(treeNodePtr, ref);  // Map was allocated in row memory
     }
   }
 }
 
 void
-Dbspj::releaseRow(RowCollection& collection, RowRef pos)
+Dbspj::releaseRow(Ptr<TreeNode> treeNodePtr, RowRef pos)
 {
-  // only when var-alloc, or else stack will be popped wo/ consideration
+  // Only when var-alloc, or else stack will be popped wo/ consideration
   // to individual rows
+  const RowCollection& collection = treeNodePtr.p->m_rows;
   ndbassert(collection.m_base.m_rowBuffer != NULL);
   ndbassert(collection.m_base.m_rowBuffer->m_type == BUFFER_VAR);
   ndbassert(pos.m_alloc_type == BUFFER_VAR);
@@ -2523,12 +2540,10 @@ Dbspj::releaseRequestBuffers(Ptr<Request> requestPtr)
    * Release all pages for request
    */
   {
-    {
-      Local_RowPage_list freelist(m_page_pool, m_free_page_list);
-      freelist.prependList(requestPtr.p->m_rowBuffer.m_page_list);
-    }
-    requestPtr.p->m_rowBuffer.reset();
+    Local_RowPage_list freelist(m_page_pool, m_free_page_list);
+    freelist.prependList(requestPtr.p->m_rowBuffer.m_page_list);
   }
+  requestPtr.p->m_rowBuffer.reset();
 }
 
 /**
@@ -3271,7 +3286,7 @@ Dbspj::execTRANSID_AI(Signal* signal)
 
   do  //Dummy loop to allow 'break' into error handling
   {
-    if (treeNodePtr.p->m_bits & TreeNode::T_ROW_BUFFER)
+    if (treeNodePtr.p->m_bits & TreeNode::T_BUFFER_ANY)
     {
       jam();
       Uint32 err;
@@ -3289,7 +3304,7 @@ Dbspj::execTRANSID_AI(Signal* signal)
         abort(signal, requestPtr, DbspjErr::OutOfRowMemory);
         break;
       }
-      else if ((err = storeRow(treeNodePtr.p->m_rows, row)) != 0)
+      else if ((err = storeRow(treeNodePtr, row)) != 0)
       {
         jam();
         abort(signal, requestPtr, err);
@@ -3317,69 +3332,120 @@ Dbspj::execTRANSID_AI(Signal* signal)
 }
 
 Uint32
-Dbspj::storeRow(RowCollection& collection, RowPtr &row)
+Dbspj::storeRow(Ptr<TreeNode> treeNodePtr, const RowPtr &row)
 {
   ndbassert(row.m_type == RowPtr::RT_SECTION);
+  RowCollection& collection = treeNodePtr.p->m_rows;
   SegmentedSectionPtr dataPtr = row.m_row_data.m_section.m_dataPtr;
-  Uint32 * headptr = (Uint32*)row.m_row_data.m_section.m_header;
-  Uint32 headlen = 1 + row.m_row_data.m_section.m_header->m_len;
+  Uint32 datalen;
+  Uint32 *headptr;
+  Uint32 headlen;
+
+  Uint32 tmpHeader[2];
+  if (treeNodePtr.p->m_bits & TreeNode::T_BUFFER_ROW)
+  {
+    headptr = (Uint32*)row.m_row_data.m_section.m_header;
+    headlen = 1 + row.m_row_data.m_section.m_header->m_len;
+    datalen = dataPtr.sz;
+  }
+  else
+  {
+    // Build a header for only the 1-word correlation
+    RowPtr::Header *header = CAST_PTR(RowPtr::Header, &tmpHeader[0]);
+    header->m_len = 1;
+    header->m_offset[0] = 0;
+    headptr = (Uint32*)header;
+    headlen = 1 + header->m_len;
+
+    // 2 words: AttributeHeader + CorrelationId
+    datalen = 2;
+  }
 
   /**
    * Rows might be stored at an offset within the collection.
+   * Calculate size to allocate for buffer.
    */
   const Uint32 offset = collection.rowOffset();
-
-  Uint32 totlen = 0;
-  totlen += dataPtr.sz;
-  totlen += headlen;
-  totlen += offset;
+  const Uint32 matchlen = 
+     (treeNodePtr.p->m_bits & TreeNode::T_BUFFER_MATCH) ? 1 : 0;
+  const Uint32 totlen = offset + matchlen + headlen + datalen;
 
   RowRef ref;
-  Uint32* const dstptr = rowAlloc(*collection.m_base.m_rowBuffer, ref, totlen);
-  if (unlikely(dstptr == 0))
+  Uint32* dstptr = rowAlloc(*collection.m_base.m_rowBuffer, ref, totlen);
+  if (unlikely(dstptr == NULL))
   {
     jam();
     return DbspjErr::OutOfRowMemory;
   }
-  memcpy(dstptr + offset, headptr, 4 * headlen);
-  copy(dstptr + offset + headlen, dataPtr);
 
+  // Register row in a list or a correlationId searchable 'map' 
   if (collection.m_type == RowCollection::COLLECTION_LIST)
   {
-    jam();
     NullRowRef.copyto_link(dstptr); // Null terminate list...
     add_to_list(collection.m_list, ref);
   }
   else
   {
-    jam();
     Uint32 error = add_to_map(collection.m_map, row.m_src_correlation, ref);
     if (unlikely(error))
       return error;
   }
+  dstptr += offset;
 
-  /**
-   * Refetch pointer to alloc'ed row memory  before creating RowPtr 
-   * as above add_to_xxx may mave reorganized memory causing
-   * alloced row to be moved.
-   */
-  const Uint32* const rowptr = get_row_ptr(ref);
-  setupRowPtr(collection, row, ref, rowptr);
+  // Insert 'MATCH', Header and 'ROW'/correlationId as specified
+  if (matchlen > 0)
+  {
+    TreeNodeBitMask matched;
+    matched.clear();
+    memcpy(dstptr, &matched, 4 * matchlen);
+    dstptr += matchlen;
+  }
+
+  memcpy(dstptr, headptr, 4 * headlen);
+  dstptr += headlen;
+
+  if (treeNodePtr.p->m_bits & TreeNode::T_BUFFER_ROW)
+  {
+    //Store entire row, include correlationId (last column)
+    copy(dstptr, dataPtr);
+  }
+  else
+  {
+    //Store only the correlation-id if not 'BUFFER_ROW':
+    const RowPtr::Header *header = row.m_row_data.m_section.m_header;
+    const Uint32 pos = header->m_offset[header->m_len-1];
+    SectionReader reader(dataPtr, getSectionSegmentPool());
+    ndbrequire(reader.step(pos));
+    ndbrequire(reader.getWords(dstptr, 2));
+  }
   return 0;
 }
 
 void
-Dbspj::setupRowPtr(const RowCollection& collection,
+Dbspj::setupRowPtr(Ptr<TreeNode> treeNodePtr,
                    RowPtr& row, RowRef ref, const Uint32 * src)
 {
-  const Uint32 offset = collection.rowOffset();
-  const RowPtr::Header * headptr = (RowPtr::Header*)(src + offset);
-  Uint32 headlen = 1 + headptr->m_len;
-
+  ndbassert(src != NULL);
+  const Uint32 offset = treeNodePtr.p->m_rows.rowOffset();
+  const Uint32 matchlen = 
+     (treeNodePtr.p->m_bits & TreeNode::T_BUFFER_MATCH) ? 1 : 0;
+  const RowPtr::Header * headptr = (RowPtr::Header*)(src + offset + matchlen);
+  const Uint32 headlen = 1 + headptr->m_len;
+ 
+  // Setup row, containing either entire row or only the correlationId.
   row.m_type = RowPtr::RT_LINEAR;
   row.m_row_data.m_linear.m_row_ref = ref;
   row.m_row_data.m_linear.m_header = headptr;
   row.m_row_data.m_linear.m_data = (Uint32*)headptr + headlen;
+
+  if (treeNodePtr.p->m_bits & TreeNode::T_BUFFER_MATCH)
+  {
+    row.m_matched = (TreeNodeBitMask*)(src + offset);
+  }
+  else
+  {
+    row.m_matched = NULL;
+  }
 }
 
 void
@@ -3906,8 +3972,6 @@ Dbspj::common_execTRANSID_AI(Signal* signal,
                              Ptr<TreeNode> treeNodePtr,
                              const RowPtr & rowRef)
 {
-  jam();
-
   if (likely((requestPtr.p->m_state & Request::RS_ABORTING) == 0))
   {
     LocalArenaPool<DataBufferSegment<14> > pool(requestPtr.p->m_arena, m_dependency_map_pool);
@@ -4784,7 +4848,7 @@ Dbspj::lookup_resume(Signal* signal,
   parentPtr.p->m_rows.m_map.load(mapptr, rowId, ref);
 
   const Uint32* const rowptr = get_row_ptr(ref);
-  setupRowPtr(parentPtr.p->m_rows, row, ref, rowptr);
+  setupRowPtr(parentPtr, row, ref, rowptr);
 
   lookup_row(signal, requestPtr, treeNodePtr, row);
 } // Dbspj::lookup_resume()
@@ -8245,7 +8309,7 @@ Dbspj::appendFromParent(Uint32 & dst, Local_pattern_store& pattern,
     treeNodePtr.p->m_rows.m_map.load(mapptr, pos, ref);
 
     const Uint32* const rowptr = get_row_ptr(ref);
-    setupRowPtr(treeNodePtr.p->m_rows, targetRow, ref, rowptr);
+    setupRowPtr(treeNodePtr, targetRow, ref, rowptr);
 
     if (levels)
     {
@@ -8622,7 +8686,7 @@ Dbspj::expand(Local_pattern_store& dst, Ptr<TreeNode> treeNodePtr,
         break;
       }
       // Locate requested grandparent and request it to
-      // T_ROW_BUFFER its result rows
+      // T_BUFFER_ROW its result rows
       Ptr<TreeNode> parentPtr;
       m_treenode_pool.getPtr(parentPtr, treeNodePtr.p->m_parentPtrI);
       while (val--)
@@ -8630,12 +8694,12 @@ Dbspj::expand(Local_pattern_store& dst, Ptr<TreeNode> treeNodePtr,
         jam();
         ndbassert(parentPtr.p->m_parentPtrI != RNIL);
         m_treenode_pool.getPtr(parentPtr, parentPtr.p->m_parentPtrI);
-        parentPtr.p->m_bits |= TreeNode::T_ROW_BUFFER;
-        parentPtr.p->m_bits |= TreeNode::T_ROW_BUFFER_MAP;
+        parentPtr.p->m_bits |= TreeNode::T_BUFFER_ROW;
+        parentPtr.p->m_bits |= TreeNode::T_BUFFER_MAP;
       }
       Ptr<Request> requestPtr;
       m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
-      requestPtr.p->m_bits |= Request::RT_ROW_BUFFERS;
+      requestPtr.p->m_bits |= Request::RT_BUFFERS;
       break;
     }
     default:
