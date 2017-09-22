@@ -1,6 +1,4 @@
 # TBF - difference in row level logging
--- source include/have_binlog_format_mixed_or_statement.inc
--- source include/master-slave.inc
 
 --disable_warnings
 drop database if exists mysqltest1;
@@ -254,4 +252,3 @@ connection master;
 --source include/sync_slave_sql_with_master.inc
 
 # end of 5.0 tests
---source include/rpl_end.inc

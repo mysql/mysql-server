@@ -84,7 +84,7 @@ ERROR 42S02: Table 'mysqltest1.tmp2' doesn't exist
 ######### for MBR, t1 has one row here: the transaction not rolled back since t1 uses MyISAM  #########
 SELECT COUNT(*) FROM mysqltest1.t1;
 COUNT(*)
-2
+1
 FLUSH LOGS;
 -------- switch to master --------
 FLUSH LOGS;

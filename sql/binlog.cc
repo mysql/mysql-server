@@ -108,6 +108,7 @@
 #include "statement_events.h"
 #include "table_id.h"
 #include "thr_lock.h"
+#include "sql/sql_base.h"                        // find_temporary_table
 
 class Item;
 
@@ -10662,6 +10663,11 @@ int THD::decide_logging_format(TABLE_LIST *tables)
        Innodb and Falcon; Innodb and MyIsam.
     */
     bool multi_access_engine= FALSE;
+     /*
+       Track if statement creates or drops a temporary table
+       and log in ROW if it does.
+    */
+    bool is_create_drop_temp_table= false;
     /*
        Identifies if a table is changed.
     */
@@ -10753,8 +10759,24 @@ int THD::decide_logging_format(TABLE_LIST *tables)
     for (TABLE_LIST *table= tables; table; table= table->next_global)
     {
       if (table->is_placeholder())
+      {
+        /*
+          Detect if this is a CREATE TEMPORARY or DROP of a
+          temporary table. This will be used later in determining whether to
+          log in ROW or STMT if MIXED replication is being used.
+        */
+        if (!is_create_drop_temp_table &&
+            !table->table &&
+            ((lex->sql_command == SQLCOM_CREATE_TABLE &&
+              (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE)) ||
+             ((lex->sql_command == SQLCOM_DROP_TABLE ||
+               lex->sql_command == SQLCOM_TRUNCATE) &&
+              find_temporary_table(this, table))))
+        {
+          is_create_drop_temp_table= true;
+        }
         continue;
-
+      }
       handler::Table_flags const flags= table->table->file->ha_table_flags();
 
       DBUG_PRINT("info", ("table: %s; ha_table_flags: 0x%llx",
@@ -10873,7 +10895,8 @@ int THD::decide_logging_format(TABLE_LIST *tables)
 
       if (lex->sql_command != SQLCOM_CREATE_TABLE ||
           (lex->sql_command == SQLCOM_CREATE_TABLE &&
-          (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE)))
+           ((lex->create_info->options & HA_LEX_CREATE_TMP_TABLE) ||
+            (table->lock_descriptor().type < TL_WRITE_ALLOW_WRITE))))
       {
         if (table->table->s->tmp_table)
           lex->set_stmt_accessed_table(trans ? LEX::STMT_READS_TEMP_TRANS_TABLE :
@@ -10909,7 +10932,13 @@ int THD::decide_logging_format(TABLE_LIST *tables)
     int error= 0;
     int unsafe_flags;
 
-    bool multi_stmt_trans= in_multi_stmt_transaction_mode();
+    /*
+      With transactional data dictionary, CREATE TABLE runs as one statement
+      in a multi-statement transaction internally. Revert this for the
+      purposes of determining mixed statement safety.
+    */
+    const bool multi_stmt_trans= lex->sql_command != SQLCOM_CREATE_TABLE
+        && in_multi_stmt_transaction_mode();
     bool trans_table= trans_has_updated_trans_table(this);
     bool binlog_direct= variables.binlog_direct_non_trans_update;
 
@@ -11027,7 +11056,10 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       else
       {
         if (lex->is_stmt_unsafe() || lex->is_stmt_row_injection()
-            || (flags_write_all_set & HA_BINLOG_STMT_CAPABLE) == 0)
+            || (flags_write_all_set & HA_BINLOG_STMT_CAPABLE) == 0
+            || lex->stmt_accessed_table(LEX::STMT_READS_TEMP_TRANS_TABLE)
+            || lex->stmt_accessed_table(LEX::STMT_READS_TEMP_NON_TRANS_TABLE)
+            || is_create_drop_temp_table)
         {
 #ifndef DBUG_OFF
           int flags= lex->get_stmt_unsafe_flags();

@@ -27,7 +27,6 @@
 # BUG#35583 mysqlbinlog replay fails with ERROR 1146 when temp tables are used
 #
 source include/have_log_bin.inc;
-source include/have_binlog_format_mixed_or_statement.inc;
 
 RESET MASTER;
 

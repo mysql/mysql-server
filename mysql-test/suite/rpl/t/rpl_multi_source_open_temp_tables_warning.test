@@ -22,7 +22,7 @@
 #               USING MULTI-SOURCE
 
 
---source include/have_binlog_format_mixed.inc
+--source include/have_binlog_format_statement.inc
 # Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
 --source include/have_slave_repository_type_table.inc
 
