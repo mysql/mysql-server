@@ -73,7 +73,7 @@ into table t2ver;
 # crash node 2 in 5-25 seconds, may hit t1 or t2
 
 exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING"
-     -e "2 dump 9999 5000 25000" >> NDB_TOOLS_OUTPUT 2>&1;
+     -e "2 dump 9999 5000 25000" >> $NDB_TOOLS_OUTPUT 2>&1;
 
 --echo # import t1, t2
 
