@@ -834,7 +834,7 @@ public:
     TreeNode()
     : m_magic(MAGIC), m_state(TN_END),
       m_parentPtrI(RNIL), m_requestPtrI(RNIL),
-      m_ancestors(),
+      m_ancestors(), m_coverage(), m_predecessors(), m_dependencies(),
       m_resumeEvents(0), m_resumePtrI(RNIL)
     {
     }
@@ -843,7 +843,7 @@ public:
     : m_magic(MAGIC),
       m_info(0), m_bits(T_LEAF), m_state(TN_BUILDING),
       m_parentPtrI(RNIL), m_requestPtrI(request),
-      m_ancestors(),
+      m_ancestors(), m_coverage(), m_predecessors(), m_dependencies(),
       m_resumeEvents(0), m_resumePtrI(RNIL),
       nextList(RNIL), prevList(RNIL)
     {
@@ -1027,8 +1027,54 @@ public:
     Uint32 m_batch_size;
     Uint32 m_parentPtrI;
     const Uint32 m_requestPtrI;
+
+    /**
+     * The TreeNode organize its descendant nodes in two different lists:
+     *
+     * m_child_nodes: (The dependent nodes)
+     *   Are the list of descendant nodes as organized by the request sent
+     *   from the SPJ API. All child-TreeNodes will have their 'm_parentPtrI'
+     *   referring 'this' TreeNode.
+     *
+     * m_next_nodes: (The execution order)
+     *   The list of TreeNodes having operations to be started after
+     *   this TreeNode. Either when a single operation completes, or
+     *   after completion of entire 'batch' from this TreeNode.
+     *   All 'm_child_nodes' will either be directly included in
+     *   the 'next' list, or be included in the 'next' list of some
+     *   'next' TreeNodes.
+     *   Usage is to set up a more sequential execution plan than what
+     *   is available through the 'child' list.
+     */
+    Dependency_map::Head m_child_nodes;
+    Dependency_map::Head m_next_nodes;
+
+    /**
+     * We provide some TreeNodeBitMap's. Usefull to check how
+     * a specific node relates to other TreeNodes:
+     *
+     * - 'ancestors' are the set of TreeNodes reachable through
+     *    this nodes (grand-)parentPtr(s)
+     * - 'coverage' are the set of (grand-)children reachable through
+     *    a 'm_child_nodes' dive. Also include this TreeNode itself.
+     * - 'predecessors' are the TreeNodes which will be executed prior
+     *    to this TreeNode. This include all 'ancestors', as well as
+     *    other TreeNodes which the SPJ 'query planner' may decide
+     *    to execute prior to this TreeNode.
+     * - 'dependencies' are the sub set of 'predecessors' where 
+     *    there are an equi-join relation specified between the
+     *    TreeNodes.
+     *
+     * 'ancestors' and 'coverage' relates to the topology of the query
+     * as represented by parentPtrI and m_child_nodes. 'predecessors' and
+     * 'dependencies' relates to the order of execution, as represented by
+     * 'm_next_nodes'.
+     */
     TreeNodeBitMask m_ancestors;
-    Dependency_map::Head m_dependent_nodes;
+    TreeNodeBitMask m_coverage;
+    TreeNodeBitMask m_predecessors;
+    TreeNodeBitMask m_dependencies;
+
     PatternStore::Head m_keyPattern;
     PatternStore::Head m_attrParamPattern;
 
@@ -1335,6 +1381,7 @@ private:
   Uint32 build(Build_context&,Ptr<Request>,SectionReader&,SectionReader&);
   Uint32 initRowBuffers(Ptr<Request>);
   void buildExecPlan(Ptr<Request>, Ptr<TreeNode> node, Ptr<TreeNode> next);
+  Uint32 planParallelExec(Ptr<Request>, Ptr<TreeNode>);
   void prepare(Signal*, Ptr<Request>);
   void checkPrepareComplete(Signal*, Ptr<Request>);
   void checkBatchComplete(Signal*, Ptr<Request>);
