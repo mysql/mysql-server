@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3514,6 +3514,26 @@ runBugXXX_createIndex(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 int
+runBug21362876(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table tab(* ctx->getTab());
+  int result = NDBT_OK;
+  HugoOperations h_op(tab);
+  h_op.startTransaction(pNdb);
+  h_op.pkInsertRecord(pNdb, 1);
+  h_op.execute_NoCommit(pNdb);
+  /**
+   * deleting the pNdb object here will lead to sending of
+   * TCRELEASEREQ. This should abort the transaction, and
+   * not crash the data node.
+   */
+  step->tearDown();
+  h_op.setTransaction(NULL, true);
+  return result;
+}
+
+int
 runBug16834333(NDBT_Context* ctx, NDBT_Step* step)
 {
   Ndb* pNdb = GETNDB(step);
@@ -4224,6 +4244,10 @@ TESTCASE("BugXXX","")
 TESTCASE("Bug16834333","")
 {
   INITIALIZER(runBug16834333);
+}
+TESTCASE("BUG21362876","")
+{
+  INITIALIZER(runBug21362876);
 }
 TESTCASE("FillQueueREDOLog",
          "Verify that we can handle a REDO log queue situation")
