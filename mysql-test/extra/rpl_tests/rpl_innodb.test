@@ -109,6 +109,12 @@ SHOW CREATE TABLE mysqltest1.tmp;
 --error ER_NO_SUCH_TABLE
 SHOW CREATE TABLE mysqltest1.tmp2;
 --echo ######### t1 has two rows here: the transaction not rolled back since t1 uses MyISAM  #########
+# Aa a result of the bugfix for 72475, t1 has one row here since the
+# CREATE TEMPORARY TABLE tmp2 above is not binlogged and thus changes the
+# transactional/non-transactional logic, causing the INSERT f1=2 to not be bilogged
+# on ROLLBACK
+--echo ######### for SBR, t1 has two rows here: the transaction not rolled back since t1 uses MyISAM  #########
+--echo ######### for MBR, t1 has one row here: the transaction not rolled back since t1 uses MyISAM  #########
 SELECT COUNT(*) FROM mysqltest1.t1;
 FLUSH LOGS;
 
