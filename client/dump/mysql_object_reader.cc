@@ -118,7 +118,7 @@ void Mysql_object_reader::read_table_rows_task(
     new Rows_fetching_context(this, item_to_process, has_generated_columns);
 
   runner->run_query(
-    "SELECT SQL_NO_CACHE " + column_names + "  FROM " +
+    "SELECT " + column_names + "  FROM " +
     this->get_quoted_object_full_name(table),
     new std::function<int64(const Mysql::Tools::Base::Mysql_query_runner::Row&)>(
       std::bind(&Rows_fetching_context::result_callback,
