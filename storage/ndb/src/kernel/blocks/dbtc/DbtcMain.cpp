@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1205,17 +1205,55 @@ void Dbtc::execAPI_FAILREQ(Signal* signal)
   handleFailedApiNode(signal, signal->theData[0], (UintR)0);
 }
 
+/**
+ * This function is used when we need to handle API disconnect/node failure
+ * with waiting for a few signals.
+ * In the case of API node failure we need to keep track of how many API
+ * connect records are in the close down phase, we cannot complete the
+ * API node failure handling until all nodes have completed this phase.
+ *
+ * For API disconnect (from receiving TCRELEASEREQ on active API connect)
+ * we need no such counter, we maintain specific states for those two
+ * variants.
+ */
 void
-Dbtc::set_api_fail_state(Uint32 TapiFailedNode)
+Dbtc::set_api_fail_state(Uint32 TapiFailedNode, bool apiNodeFailed)
 {
-  capiConnectClosing[TapiFailedNode]++;
-  apiConnectptr.p->apiFailState = ApiConnectRecord::AFS_API_FAILED;
+  if (apiNodeFailed)
+  {
+    jam();
+    capiConnectClosing[TapiFailedNode]++;
+    apiConnectptr.p->apiFailState = ApiConnectRecord::AFS_API_FAILED;
+  }
+  else
+  {
+    jam();
+    apiConnectptr.p->apiFailState = ApiConnectRecord::AFS_API_DISCONNECTED;
+  }
 }
 
 bool Dbtc::handleFailedApiConnection(Signal *signal,
                                      Uint32 *TloopCount,
-                                     Uint32 TapiFailedNode)
+                                     Uint32 TapiFailedNode,
+                                     bool apiNodeFailed)
 {
+  if (apiConnectptr.p->apiFailState == ApiConnectRecord::AFS_API_DISCONNECTED)
+  {
+    jam();
+    /**
+     * We are currently closing down the API connect record after receiving
+     * a TCRELEASEREQ. Now we received an API node failure. We don't need
+     * to restart the close down handling, it is already in progress. But
+     * we need to add to counter and change state such that we are waiting
+     * for API node fail handling to complete instead.
+     *
+     * We cannot come here from TCRELEASEREQ as we will simply send an
+     * immediate CONF when receiving multiple TCRELEASEREQ.
+     */
+    ndbrequire(apiNodeFailed);
+    set_api_fail_state(TapiFailedNode, apiNodeFailed);
+    return true;
+  }
 #ifdef VM_TRACE
   if (apiConnectptr.p->apiFailState != ApiConnectRecord::AFS_API_OK)
   {
@@ -1261,7 +1299,7 @@ bool Dbtc::handleFailedApiConnection(Signal *signal,
       releaseApiCon(signal, apiConnectptr.i);
     } else {
       jam();
-      set_api_fail_state(TapiFailedNode);
+      set_api_fail_state(TapiFailedNode, apiNodeFailed);
     }//if
     break;
   case CS_WAIT_ABORT_CONF:
@@ -1278,7 +1316,7 @@ bool Dbtc::handleFailedApiConnection(Signal *signal,
     // wait for before we can respond with API_FAILCONF.
     /*********************************************************************/
     jam();
-    set_api_fail_state(TapiFailedNode);
+    set_api_fail_state(TapiFailedNode, apiNodeFailed);
     break;
   case CS_START_SCAN:
   {
@@ -1289,7 +1327,7 @@ bool Dbtc::handleFailedApiConnection(Signal *signal,
     /*********************************************************************/
     jam();
 
-    set_api_fail_state(TapiFailedNode);
+    set_api_fail_state(TapiFailedNode, apiNodeFailed);
 
     ScanRecordPtr scanPtr;
     scanPtr.i = apiConnectptr.p->apiScanRec;
@@ -1314,7 +1352,7 @@ bool Dbtc::handleFailedApiConnection(Signal *signal,
     // break after checking this record.
     /*********************************************************************/
     jam();
-    set_api_fail_state(TapiFailedNode);
+    set_api_fail_state(TapiFailedNode, apiNodeFailed);
     abort010Lab(signal);
     (*TloopCount) = 256;
     break;
@@ -1362,7 +1400,8 @@ Dbtc::handleFailedApiNode(Signal* signal,
     {
       bool handled = handleFailedApiConnection(signal,
                                                &TloopCount,
-                                               TapiFailedNode);
+                                               TapiFailedNode,
+                                               true);
       if (!handled)
       {
         systemErrorLab(signal, __LINE__);
@@ -1504,11 +1543,12 @@ void Dbtc::handleApiFailState(Signal* signal, UintR TapiConnectptr)
 
   TlocalApiConnectptr.i = TapiConnectptr;
   ptrCheckGuard(TlocalApiConnectptr, capiConnectFilesize, apiConnectRecord);
+  Uint32 apiFailState = TlocalApiConnectptr.p->apiFailState;
   TfailedApiNode = refToNode(TlocalApiConnectptr.p->ndbapiBlockref);
   arrGuard(TfailedApiNode, MAX_NODES);
   TlocalApiConnectptr.p->apiFailState = ApiConnectRecord::AFS_API_OK;
   releaseApiCon(signal, TapiConnectptr);
-  if (true)
+  if (apiFailState == ApiConnectRecord::AFS_API_FAILED)
   {
     capiConnectClosing[TfailedApiNode]--;
     if (capiConnectClosing[TfailedApiNode] == 0)
@@ -1648,7 +1688,8 @@ void Dbtc::execTCRELEASEREQ(Signal* signal)
     apiConnectptr.i = tapiPointer;
   }//if
   ptrAss(apiConnectptr, apiConnectRecord);
-  if (apiConnectptr.p->apiConnectstate == CS_DISCONNECTED)
+  if (apiConnectptr.p->apiConnectstate == CS_DISCONNECTED ||
+      apiConnectptr.p->apiFailState == ApiConnectRecord::AFS_API_DISCONNECTED)
   {
     jam();
     signal->theData[0] = tuserpointer;
@@ -1658,30 +1699,37 @@ void Dbtc::execTCRELEASEREQ(Signal* signal)
   {
     if (tapiBlockref == apiConnectptr.p->ndbapiBlockref)
     {
-      if (apiConnectptr.p->apiConnectstate == CS_CONNECTED ||
-	  (apiConnectptr.p->apiConnectstate == CS_ABORTING &&
-	   apiConnectptr.p->abortState == AS_IDLE) ||
-	  (apiConnectptr.p->apiConnectstate == CS_STARTED &&
-	   apiConnectptr.p->firstTcConnect == RNIL))
-      {
-        jam();                                   /* JUST REPLY OK */
-	apiConnectptr.p->m_transaction_nodes.clear();
-        releaseApiCon(signal, apiConnectptr.i);
-        signal->theData[0] = tuserpointer;
-        sendSignal(tapiBlockref,
-                   GSN_TCRELEASECONF, signal, 1, JBB);
-      }
-      else
-      {
-        jam();
-        ndbassert(false);
-        signal->theData[0] = tuserpointer;
-        signal->theData[1] = ZINVALID_CONNECTION;
-	signal->theData[2] = __LINE__;
-	signal->theData[3] = apiConnectptr.p->apiConnectstate;
-        sendSignal(tapiBlockref,
-                   GSN_TCRELEASEREF, signal, 4, JBB);
-      }
+      Uint32 dummy_loop_count = 0;
+      Uint32 dummy_api_node = 0;
+      /**
+       * It isn't ok to receive a signal from a node that we're still
+       * handling the API node failure, this must be some type of bug.
+       * It is ok to receive multiple TCRELEASEREQ on the same connection.
+       * We will handle it according to its state.
+       */
+      ndbrequire(apiConnectptr.p->apiFailState == ApiConnectRecord::AFS_API_OK);
+      bool handled = handleFailedApiConnection(signal,
+                                               &dummy_loop_count,
+                                               dummy_api_node,
+                                               false);
+      ndbrequire(handled);
+      /**
+       * We have taken care of any necessary abort of ongoing statements.
+       * We have ensured that if there is an ongoing transaction that
+       * needs to be concluded that the API is not communicated to. The
+       * transaction will be silently concluded and returned to free list
+       * when concluded.
+       * In most cases it will be immediately returned to
+       * free list.
+       *
+       * NOTE: The NDB API can still get TRANSID_AI from LQHs and TCKEYCONF
+       * from this TC on old Transaction ID's. So it is vital that the
+       * NDB API does validate the signals before processing them.
+       */
+      jam();
+      signal->theData[0] = tuserpointer;
+      sendSignal(tapiBlockref,
+                 GSN_TCRELEASECONF, signal, 1, JBB);
     }
     else
     {
