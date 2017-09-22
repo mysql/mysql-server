@@ -466,7 +466,8 @@ ELSE()
   SET(MYSQLD_SOURCE main.cc ${DTRACE_PROBES_ALL})
 ENDIF()
 
-MYSQL_ADD_EXECUTABLE(mysqld ${MYSQLD_SOURCE} DESTINATION ${INSTALL_SBINDIR} COMPONENT Server)
+MYSQL_ADD_EXECUTABLE(mysqld
+  ${MYSQLD_SOURCE} DESTINATION ${INSTALL_SBINDIR} COMPONENT Server)
 
 OPTION(DEBUG_EXTNAME "Build server as mysqld-debug (debug builds only)" OFF)
 MARK_AS_ADVANCED(DEBUG_EXTNAME)
@@ -493,28 +494,30 @@ IF(NOT WITHOUT_DYNAMIC_PLUGINS)
     SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_FLAGS "${mysqld_link_flags} -Wl,--export-all-symbols")
   ENDIF()
   IF(MSVC)
-    # Set module definition file. Also use non-incremental linker, 
-    # incremental appears to crash from time to time,if used with /DEF option
-    SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_FLAGS "${mysqld_link_flags} /DEF:mysqld.def /INCREMENTAL:NO")
+    # Set module definition file.
+    # Also use non-incremental linker, incremental appears to crash from
+    # time to time,if used with /DEF option
+    SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_FLAGS
+      "${mysqld_link_flags} /DEF:${CMAKE_CURRENT_BINARY_DIR}/mysqld.def /INCREMENTAL:NO")
 
-    FOREACH (CORELIB sql binlog slave mysys mysys_ssl dbug regex strings
-        vio binlogevents_static)
-      GET_TARGET_PROPERTY(LOC ${CORELIB} LOCATION)
-      IF (NOT LOC)
-        GET_TARGET_PROPERTY(LOC ${CORELIB} IMPORTED_LOCATION)
-      ENDIF()
-
-
-      FILE(TO_NATIVE_PATH ${LOC} LOC)
-      SET (LIB_LOCATIONS ${LIB_LOCATIONS} ${LOC}) 
-    ENDFOREACH (CORELIB ${MYSQLD_CORE_LIBS})
     SET(_PLATFORM x86)
     IF(CMAKE_SIZEOF_VOID_P EQUAL 8)
       SET(_PLATFORM  x64)
     ENDIF()
     ADD_CUSTOM_COMMAND(TARGET mysqld PRE_LINK
       COMMAND echo ${_PLATFORM} && cscript ARGS //nologo ${PROJECT_SOURCE_DIR}/win/create_def_file.js
-                  ${_PLATFORM}  ${LIB_LOCATIONS} > mysqld.def 
+      ${_PLATFORM}
+      "$<TARGET_FILE:binlog>"
+      "$<TARGET_FILE:binlogevents_static>"
+      "$<TARGET_FILE:dbug>"
+      "$<TARGET_FILE:mysys>"
+      "$<TARGET_FILE:mysys_ssl>"
+      "$<TARGET_FILE:regex>"
+      "$<TARGET_FILE:slave>"
+      "$<TARGET_FILE:sql>"
+      "$<TARGET_FILE:strings>"
+      "$<TARGET_FILE:vio>"
+      > mysqld.def
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
     ADD_DEPENDENCIES(sql GenError)
   ENDIF()

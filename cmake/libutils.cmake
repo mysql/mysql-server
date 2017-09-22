@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -102,11 +102,22 @@ MACRO(ADD_CONVENIENCE_LIBRARY)
   LIST(REMOVE_AT SOURCES 0)
   ADD_LIBRARY(${TARGET} STATIC ${SOURCES})
   IF(NOT _SKIP_PIC)
-    SET_TARGET_PROPERTIES(${TARGET} PROPERTIES  COMPILE_FLAGS
-    "${CMAKE_SHARED_LIBRARY_C_FLAGS}")
+    SET_TARGET_PROPERTIES(${TARGET} PROPERTIES POSITION_INDEPENDENT_CODE ON)
   ENDIF()
+
+  # Keep track of known convenience libraries, in a global scope.
+  SET(KNOWN_CONVENIENCE_LIBRARIES
+    ${KNOWN_CONVENIENCE_LIBRARIES} ${TARGET} CACHE INTERNAL "" FORCE)
 ENDMACRO()
 
+
+# An IMPORTED library can also be merged.
+MACRO(ADD_IMPORTED_LIBRARY TARGET LOC)
+  ADD_LIBRARY(${TARGET} STATIC IMPORTED)
+  SET_TARGET_PROPERTIES(${TARGET} PROPERTIES IMPORTED_LOCATION ${LOC})
+  SET(KNOWN_CONVENIENCE_LIBRARIES
+    ${KNOWN_CONVENIENCE_LIBRARIES} ${TARGET} CACHE INTERNAL "" FORCE)
+ENDMACRO()
 
 # Write content to file, using CONFIGURE_FILE
 # The advantage compared to FILE(WRITE) is that timestamp
@@ -262,7 +273,8 @@ MACRO(MERGE_LIBRARIES)
     ADD_LIBRARY(${TARGET} ${LIBTYPE} ${SRC})
     TARGET_LINK_LIBRARIES(${TARGET} ${LIBS})
     IF(ARG_OUTPUT_NAME)
-      SET_TARGET_PROPERTIES(${TARGET} PROPERTIES OUTPUT_NAME "${ARG_OUTPUT_NAME}")
+      SET_TARGET_PROPERTIES(
+        ${TARGET} PROPERTIES OUTPUT_NAME "${ARG_OUTPUT_NAME}")
     ENDIF()
   ELSE()
     MESSAGE(FATAL_ERROR "Unknown library type")
@@ -271,19 +283,24 @@ MACRO(MERGE_LIBRARIES)
     IF(ARG_COMPONENT)
       SET(COMP COMPONENT ${ARG_COMPONENT}) 
     ENDIF()
+
     MYSQL_INSTALL_TARGETS(${TARGET} DESTINATION "${INSTALL_LIBDIR}" ${COMP})
+
   ENDIF()
   SET_TARGET_PROPERTIES(${TARGET} PROPERTIES LINK_INTERFACE_LIBRARIES "")
 ENDMACRO()
+
 
 FUNCTION(GET_DEPENDEND_OS_LIBS target result)
   SET(deps ${${target}_LIB_DEPENDS})
   IF(deps)
    FOREACH(lib ${deps})
-    # Filter out keywords for used for debug vs optimized builds
-    IF(NOT lib MATCHES "general" AND NOT lib MATCHES "debug" AND NOT lib MATCHES "optimized")
-      GET_TARGET_PROPERTY(lib_location ${lib} LOCATION)
-      IF(NOT lib_location)
+     # Filter out keywords for used for debug vs optimized builds
+     IF(NOT lib MATCHES "general" AND
+        NOT lib MATCHES "debug" AND
+        NOT lib MATCHES "optimized")
+      LIST(FIND KNOWN_CONVENIENCE_LIBRARIES ${lib} FOUNDIT)
+      IF(FOUNDIT LESS 0)
         SET(ret ${ret} ${lib})
       ENDIF()
     ENDIF()
