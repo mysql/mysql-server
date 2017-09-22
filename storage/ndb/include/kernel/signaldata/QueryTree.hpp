@@ -121,6 +121,25 @@ struct DABits
      */
     NI_REPEAT_SCAN_RESULT = 0x200,
 
+    /**
+     * If EQUI_JOIN is set, an equality match is required on the parent
+     * tuple, else the parent tuple will eventually be removed from the
+     * result set. This implies that other join-siblings of this parent
+     * tuple also will effectively be eliminated. Thus, producing further
+     * results having this tuple as a parent could be skipped.
+     *
+     * In Sql terms this is an INNER JOIN. Not setting an EQUI_JOIN 
+     * is similar to 'LEFT OUTER JOIN' result being produced.
+     */ 
+    NI_EQUI_JOIN = 0x400,
+
+    /**
+     * A SEMI_JOIN is as an EQUI_JOIN, except that duplicates matching
+     * the same parent row can be skipped.
+     * In Sql terms this is similar to a IN/EXIST subquery.
+     */
+    NI_SEMI_JOIN = 0x800,
+
     NI_END = 0
   };
 

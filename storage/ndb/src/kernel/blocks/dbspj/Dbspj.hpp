@@ -835,7 +835,8 @@ public:
     : m_magic(MAGIC), m_state(TN_END),
       m_parentPtrI(RNIL), m_requestPtrI(RNIL),
       m_ancestors(), m_coverage(), m_predecessors(), m_dependencies(),
-      m_resumeEvents(0), m_resumePtrI(RNIL)
+      m_resumeEvents(0), m_resumePtrI(RNIL),
+      m_scanAncestorPtrI(RNIL)
     {
     }
 
@@ -845,6 +846,7 @@ public:
       m_parentPtrI(RNIL), m_requestPtrI(request),
       m_ancestors(), m_coverage(), m_predecessors(), m_dependencies(),
       m_resumeEvents(0), m_resumePtrI(RNIL),
+      m_scanAncestorPtrI(RNIL),
       nextList(RNIL), prevList(RNIL)
     {
 //    m_send.m_ref = 0;
@@ -852,6 +854,10 @@ public:
       m_send.m_keyInfoPtrI = RNIL;
       m_send.m_attrInfoPtrI = RNIL;
     }
+
+    // TreeNode represent either a 'lookup' or 'scan' operation
+    bool isLookup() const { return (m_info == &g_LookupOpInfo); }
+    bool isScan()   const { return (m_info != &g_LookupOpInfo); }
 
     const Uint32 m_magic;
     const struct OpInfo* m_info;
@@ -937,7 +943,7 @@ public:
        *  row is stored nevertheless. 
        */
       T_BUFFER_ROW   = 0x80,
-      T_BUFFER_MATCH = 0x8000000,  //Placeholder, still never set
+      T_BUFFER_MATCH = 0x100,
       T_BUFFER_ANY   = (T_BUFFER_ROW | T_BUFFER_MATCH),
 
       /**
@@ -946,12 +952,7 @@ public:
        *  so that when row gets available from "last" parent, a key can be
        *  constructed using correlation value from parents
        */
-      T_BUFFER_MAP = 0x100,
-
-      /**
-       * Does any child need to know when all its ancestors are complete
-       */
-      T_REPORT_BATCH_COMPLETE  = 0x200,
+      T_BUFFER_MAP = 0x200,
 
       /**
        * Do *I need* to know when all ancestors has completed this batch
@@ -978,11 +979,7 @@ public:
        */
       T_SCAN_REPEATABLE = 0x4000,
 
-      /**
-       * Exec of a previous REQ must complete before we can proceed.
-       * A ResumeEvent will later resume exec. of this operation
-       */
-      T_EXEC_SEQUENTIAL = 0x8000,
+      // 0x8000, Deprecated, available for reuse
 
       /**
        * Does this node need the m_prepare() method to be called.
@@ -997,6 +994,12 @@ public:
        */
       T_NEED_COMPLETE = 0x20000,
 
+      /**
+       * Allow equi-join optimizations for this treeNode.
+       * (No outer-join semantics required)
+       */
+      T_EQUI_JOIN = 0x40000,
+
       // End marker...
       T_END = 0
     };
@@ -1008,8 +1011,12 @@ public:
      */
     enum TreeNodeResumeEvents
     {
-      TN_RESUME_REF   = 0x01,
-      TN_RESUME_CONF  = 0x02
+      TN_ENQUEUE_OP   = 0x01,   // Enqueue and wait for RESUME_REF / _CONF
+      TN_RESUME_REF   = 0x02,
+      TN_RESUME_CONF  = 0x04,
+
+      TN_EXEC_WAIT    = 0x08,
+      TN_RESUME_NODE  = 0x10
     };
 
     bool isLeaf() const { return (m_bits & T_LEAF) != 0;}
@@ -1098,6 +1105,12 @@ public:
      */
     Uint32 m_resumeEvents;
     Uint32 m_resumePtrI;
+
+    /**
+     * The Scan-TreeNode being the head of the equi-joined-branch
+     * this node is a member of.
+     */
+    Uint32 m_scanAncestorPtrI;
 
     union
     {
@@ -1198,7 +1211,8 @@ public:
     NDB_TICKS m_save_time;
 #endif
 
-    bool isScan() const { return (m_bits & RT_SCAN) != 0;}
+    // Entire query may be either a 'scan' or 'lookup' type
+    bool isScan()   const { return (m_bits & RT_SCAN) != 0;}
     bool isLookup() const { return (m_bits & RT_SCAN) == 0;}
 
     bool equal(const Request & key) const {
@@ -1380,8 +1394,27 @@ private:
   const OpInfo* getOpInfo(Uint32 op);
   Uint32 build(Build_context&,Ptr<Request>,SectionReader&,SectionReader&);
   Uint32 initRowBuffers(Ptr<Request>);
-  void buildExecPlan(Ptr<Request>, Ptr<TreeNode> node, Ptr<TreeNode> next);
-  Uint32 planParallelExec(Ptr<Request>, Ptr<TreeNode>);
+
+  void setupAncestors(Ptr<Request>  requestPtr,
+                      Ptr<TreeNode> treeNodePtr,
+                      Uint32 scanAncestorPtrI);
+  
+  Uint32 buildExecPlan(Ptr<Request> requestPtr);
+  Uint32 planParallelExec(Ptr<Request> requestPtr,
+			  Ptr<TreeNode> treeNodePtr);
+
+  Uint32 planSequentialExec(Ptr<Request>  requestPtr,
+                            const Ptr<TreeNode> branchPtr,
+                            Ptr<TreeNode> prevExecPtr,
+                            const Ptr<TreeNode> outerBranchPtr);
+
+  Uint32 appendTreeNode(Ptr<Request>  requestPtr,
+                        Ptr<TreeNode> treeNodePtr,
+                        Ptr<TreeNode> prevExecPtr,
+                        const Ptr<TreeNode> outerBranchPtr);
+
+  void dumpExecPlan(Ptr<Request>, Ptr<TreeNode> node);
+
   void prepare(Signal*, Ptr<Request>);
   void checkPrepareComplete(Signal*, Ptr<Request>);
   void checkBatchComplete(Signal*, Ptr<Request>);
@@ -1419,6 +1452,11 @@ private:
   void setupRowPtr(Ptr<TreeNode> treeNodePtr,
                    RowPtr& dst, RowRef, const Uint32 * src);
   Uint32 * get_row_ptr(RowRef pos);
+
+  void getBufferedRow(const Ptr<TreeNode>, Uint32 rowId,
+                      RowPtr *row);
+
+  void resumeBufferedNode(Signal*, Ptr<Request>, Ptr<TreeNode>);
 
   /**
    * SLFifoRowListIterator
