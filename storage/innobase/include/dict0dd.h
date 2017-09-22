@@ -47,6 +47,7 @@ Data dictionary interface */
 #include "dd_table_share.h"
 #include "dd/types/foreign_key.h"
 #include "dd/types/foreign_key_element.h"
+#include "mysql_version.h"
 
 class THD;
 class MDL_ticket;
@@ -76,6 +77,12 @@ enum dd_table_keys {
 	DD_TABLE__LAST
 };
 
+/** Server version that the tablespace created */
+const uint32  DD_SPACE_CURRENT_SRV_VERSION = MYSQL_VERSION_ID;
+
+/** The tablespace version that the tablespace created */
+const uint32  DD_SPACE_CURRENT_SPACE_VERSION = 1;
+
 /** InnoDB private keys for dd::Partition */
 enum dd_partition_keys {
 	/** Row format for this partition */
@@ -92,6 +99,10 @@ enum dd_space_keys {
 	DD_SPACE_ID,
 	/** Discard attribute */
 	DD_SPACE_DISCARD,
+	/** Server version */
+	DD_SPACE_SERVER_VERSION,
+	/** TABLESPACE_VERSION */
+	DD_SPACE_VERSION,
 	/** Sentinel */
 	DD_SPACE__LAST
 };
@@ -120,7 +131,9 @@ static constexpr char reserved_implicit_name[] = "innodb_file_per_table";
 const char* const dd_space_key_strings[DD_SPACE__LAST] = {
 	"flags",
 	"id",
-	"discard"
+	"discard",
+	"server_version",
+	"space_version"
 };
 
 /** InnoDB private key strings for dd::Table. @see dd_table_keys */
@@ -582,6 +595,8 @@ dd_process_dd_indexes_rec_simple(
 @param[in,out]	space_id	space id
 @param[in,out]	name		space name
 @param[in,out]	flags		space flags
+@param[in]	server_version	space server version
+@param[in]	space_version	space server version
 @param[in]	dd_spaces	dict_table_t obj of mysql.tablespaces
 @retval true if index is filled */
 bool
@@ -591,6 +606,8 @@ dd_process_dd_tablespaces_rec(
 	space_id_t*	space_id,
 	char**		name,
 	uint*		flags,
+	uint32*		server_version,
+	uint32*		space_version,
 	dict_table_t*	dd_spaces);
 /** Make sure the data_dir_path is saved in dict_table_t if DATA DIRECTORY
 was used. Try to read it from the fil_system first, then from new dd.

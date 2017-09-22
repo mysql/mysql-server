@@ -2488,7 +2488,7 @@ files_checked:
 						dict_sys_t::s_dd_space_name,
 						dict_sys_t::s_dd_space_name,
 						dict_sys_t::s_dd_space_file_name,
-						true);
+						true, false);
 					if (error != DB_SUCCESS) {
 						return(srv_init_abort(
 							DB_ERROR));

@@ -3765,7 +3765,8 @@ row_import_for_mysql(
 
 	err = fil_ibd_open(
 		true, FIL_TYPE_IMPORT, table->space,
-		fsp_flags, tablespace_name.c_str(), table->name.m_name, filepath, true);
+		fsp_flags, tablespace_name.c_str(), table->name.m_name,
+		filepath, true, false);
 
 	DBUG_EXECUTE_IF("ib_import_open_tablespace_failure",
 			err = DB_TABLESPACE_NOT_FOUND;);

@@ -4377,6 +4377,11 @@ fil_ibd_create(
 	fsp_header_init_fields(page, space_id, flags);
 	mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, space_id);
 
+	mach_write_to_4(page + FIL_PAGE_SRV_VERSION,
+			DD_SPACE_CURRENT_SRV_VERSION);
+	mach_write_to_4(page + FIL_PAGE_SPACE_VERSION,
+			 DD_SPACE_CURRENT_SPACE_VERSION);
+
 	const page_size_t	page_size(flags);
 	IORequest		request(IORequest::WRITE);
 
@@ -4517,6 +4522,8 @@ If file-per-table, it is the table name in the databasename/tablename format
 @param[in]	table_name	table name in case if need to construct file path
 @param[in]	path_in		expected filepath, usually read from dictionary
 @param[in]	strict		whether to report error when open ibd failed
+@param[in]	old_space	whether it is a 5.7 tablespace opening
+				by upgrade
 @return DB_SUCCESS or error code */
 dberr_t
 fil_ibd_open(
@@ -4527,7 +4534,8 @@ fil_ibd_open(
 	const char*	space_name,
 	const char*	table_name,
 	const char*	path_in,
-	bool		strict)
+	bool		strict,
+	bool		old_space)
 {
 	Datafile	df;
 	bool		is_encrypted = FSP_FLAGS_GET_ENCRYPTION(flags);
@@ -4596,6 +4604,14 @@ fil_ibd_open(
 
 		return(DB_ERROR);
 	}
+
+#ifdef UNIV_DEBUG
+	/* TODO: WL#11063 will deal with import and upgrade tablespace */
+	if (validate && !old_space && !for_import) {
+		ut_ad(df.server_version() == DD_SPACE_CURRENT_SRV_VERSION);
+		ut_ad(df.space_version() == DD_SPACE_CURRENT_SPACE_VERSION);
+	}
+#endif /* UNIV_DEBUG */
 
 	/* For encryption tablespace, initialize encryption information.*/
 	if (is_encrypted && !for_import) {

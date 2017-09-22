@@ -7374,6 +7374,24 @@ static ST_FIELD_INFO	innodb_tablespaces_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
+#define INNODB_TABLESPACES_SERVER_VESION 10
+	{STRUCT_FLD(field_name,		"SERVER_VERSION"),
+	 STRUCT_FLD(field_length,	10),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define INNODB_TABLESPACES_SPACE_VESION 11
+	{STRUCT_FLD(field_name,		"SPACE_VERSION"),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
 	END_OF_ST_FIELD_INFO
 
 };
@@ -7384,6 +7402,8 @@ collected by scanning INNODB_TABLESPACESS table.
 @param[in]	space		space ID
 @param[in]	name		tablespace name
 @param[in]	flags		tablespace flags
+@param[in]	server_version	server version
+@param[in]	space_version	tablespace version
 @param[in,out]	table_to_fill	fill this table
 @return 0 on success */
 static
@@ -7393,6 +7413,8 @@ i_s_dict_fill_innodb_tablespaces(
 	space_id_t	space,
 	const char*	name,
 	ulint		flags,
+	uint32		server_version,
+	uint32		space_version,
 	TABLE*		table_to_fill)
 {
 
@@ -7402,8 +7424,17 @@ i_s_dict_fill_innodb_tablespaces(
 	const char*	row_format;
 	const page_size_t	page_size(flags);
 	const char*	space_type;
+	ulint		major_version = server_version / 10000;
+	ulint		minor_version = (server_version
+					 - (major_version *10000)) /100;
+	ulint		patch_version = server_version - (major_version * 10000)
+					- (minor_version * 100);
+	char            version_str[NAME_LEN];
 
 	DBUG_ENTER("i_s_dict_fill_innodb_tablespaces");
+
+	snprintf(version_str, NAME_LEN, "%ld.%ld.%ld", major_version,
+		 minor_version, patch_version);
 
 	if (fsp_is_system_or_temp_tablespace(space)) {
 		row_format = "Compact or Redundant";
@@ -7446,6 +7477,11 @@ i_s_dict_fill_innodb_tablespaces(
 
 	OK(field_store_string(fields[INNODB_TABLESPACES_SPACE_TYPE],
 			      space_type));
+
+	OK(field_store_string(fields[INNODB_TABLESPACES_SERVER_VESION],
+			      version_str));
+
+	OK(fields[INNODB_TABLESPACES_SPACE_VESION]->store(space_version, true));
 
 	char*	filepath = NULL;
 	if (FSP_FLAGS_HAS_DATA_DIR(flags)
@@ -7556,17 +7592,21 @@ i_s_innodb_tablespaces_fill_table(
 		space_id_t	space;
 		char*		name;
 		uint		flags;
+		uint32		server_version;
+		uint32		space_version;
 
 		/* Extract necessary information from a INNODB_TABLESPACES row */
 		ret = dd_process_dd_tablespaces_rec(
-			heap, rec, &space, &name, &flags, dd_spaces);
+			heap, rec, &space, &name, &flags, &server_version,
+			&space_version, dd_spaces);
 
 		mtr_commit(&mtr);
 		mutex_exit(&dict_sys->mutex);
 
 		if (ret && space != 0) {
 			i_s_dict_fill_innodb_tablespaces(
-				thd, space, name, flags, tables->table);
+				thd, space, name, flags, server_version,
+				space_version, tables->table);
 		}
 
 		mem_heap_empty(heap);

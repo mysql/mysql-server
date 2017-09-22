@@ -943,6 +943,8 @@ If file-per-table, it is the table name in the databasename/tablename format
 @param[in]	table_name	table name in case need to build filename from it
 @param[in]	path_in		expected filepath, usually read from dictionary
 @param[in]	strict		whether to report error when open ibd failed
+@param[in]	old_space	whether it is a 5.7 tablespace opening
+				by upgrade
 @return DB_SUCCESS or error code */
 dberr_t
 fil_ibd_open(
@@ -953,7 +955,8 @@ fil_ibd_open(
 	const char*	space_name,
 	const char*	table_name,
 	const char*	path_in,
-	bool		strict)
+	bool		strict,
+	bool		old_space)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /** Returns true if a matching tablespace exists in the InnoDB tablespace

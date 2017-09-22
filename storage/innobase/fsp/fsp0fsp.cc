@@ -42,6 +42,7 @@ Created 11/29/1995 Heikki Tuuri
 # include "btr0btr.h"
 # include "btr0sea.h"
 # include "dict0boot.h"
+# include "dict0dd.h"
 # include "fut0fut.h"
 # include "ibuf0ibuf.h"
 # include "log0log.h"
@@ -1045,6 +1046,13 @@ fsp_header_init(
 
 	mlog_write_ulint(page + FIL_PAGE_TYPE, FIL_PAGE_TYPE_FSP_HDR,
 			 MLOG_2BYTES, mtr);
+
+	mlog_write_ulint(page + FIL_PAGE_SRV_VERSION,
+			 DD_SPACE_CURRENT_SRV_VERSION,
+			 MLOG_4BYTES, mtr);
+	mlog_write_ulint(page + FIL_PAGE_SPACE_VERSION,
+			 DD_SPACE_CURRENT_SPACE_VERSION,
+			 MLOG_4BYTES, mtr);
 
 	header = FSP_HEADER_OFFSET + page;
 

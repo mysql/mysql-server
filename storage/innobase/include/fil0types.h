@@ -40,12 +40,18 @@ Otherwise FIL_NULL. This field is not set on BLOB pages, which are stored as a
 singly-linked list. See also FIL_PAGE_NEXT. */
 #define FIL_PAGE_PREV			8
 
+/** On page 0 of the tablespace, this is the server version ID */
+#define FIL_PAGE_SRV_VERSION		8
+
 /** if there is a 'natural' successor of the page, its offset. Otherwise
 FIL_NULL. B-tree index pages(FIL_PAGE_TYPE contains FIL_PAGE_INDEX) on the
 same PAGE_LEVEL are maintained as a doubly linked list via FIL_PAGE_PREV and
 FIL_PAGE_NEXT in the collation order of the smallest user record on each
 page. */
 #define FIL_PAGE_NEXT			12
+
+/** On page 0 of the tablespace, this is the server version ID */
+#define FIL_PAGE_SPACE_VERSION		12
 
 /** lsn of the end of the newest modification log record to the page */
 #define FIL_PAGE_LSN			16

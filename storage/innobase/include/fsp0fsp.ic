@@ -462,3 +462,33 @@ fsp_header_get_sdi_offset(
 #endif
 	return(offset);
 }
+
+/** Reads the server space version from the first page of a tablespace.
+@param[in]      page            first page of a tablespace
+@return space server version */
+UNIV_INLINE
+uint32
+fsp_header_get_server_version(
+        const page_t*   page)
+{
+        uint32  version;
+
+        version = mach_read_from_4(page + FIL_PAGE_SRV_VERSION);
+
+        return(version);
+}
+
+/** Reads the server space version from the first page of a tablespace.
+@param[in]      page            first page of a tablespace
+@return space server version */
+UNIV_INLINE
+uint32
+fsp_header_get_space_version(
+        const page_t*   page)
+{
+        uint32  version;
+
+        version = mach_read_from_4(page + FIL_PAGE_SPACE_VERSION);
+
+        return(version);
+}
