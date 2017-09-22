@@ -696,9 +696,14 @@ bool Sql_cmd_delete::prepare_inner(THD *thd)
   if (select->setup_tables(thd, table_list, false))
     DBUG_RETURN(true);            /* purecov: inspected */
 
-  if (select->derived_table_count)
+  ulong want_privilege_saved= thd->want_privilege;
+  thd->want_privilege= SELECT_ACL;
+  enum enum_mark_columns mark_used_columns_saved= thd->mark_used_columns;
+  thd->mark_used_columns= MARK_COLUMNS_READ;
+
+  if (select->derived_table_count || select->table_func_count)
   {
-    if (select->resolve_derived(thd, apply_semijoin))
+    if (select->resolve_placeholder_tables(thd, apply_semijoin))
       DBUG_RETURN(true);
 
     if (select->check_view_privileges(thd, DELETE_ACL, SELECT_ACL))
@@ -765,11 +770,6 @@ bool Sql_cmd_delete::prepare_inner(THD *thd)
   DBUG_ASSERT(sql_command_code() == SQLCOM_DELETE || select->select_limit == 0);
 
   lex->allow_sum_func= 0;
-
-  ulong want_privilege_saved= thd->want_privilege;
-  thd->want_privilege= SELECT_ACL;
-  enum enum_mark_columns mark_used_columns_saved= thd->mark_used_columns;
-  thd->mark_used_columns= MARK_COLUMNS_READ;
 
   if (select->setup_conds(thd))
     DBUG_RETURN(true);

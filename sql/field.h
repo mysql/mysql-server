@@ -138,11 +138,6 @@ enum type_conversion_status
   */
   TYPE_NOTE_TIME_TRUNCATED,
   /**
-    Value outside min/max limit of datatype. The min/max value is
-    stored by Field::store() instead (if applicable)
-  */
-  TYPE_WARN_OUT_OF_RANGE,
-  /**
     Value was stored, but something was cut. What was cut is
     considered insignificant enough to only issue a note. Example:
     trying to store a number with 5 decimal places into a field that
@@ -152,6 +147,11 @@ enum type_conversion_status
     whitespace is cut.
   */
   TYPE_NOTE_TRUNCATED,
+  /**
+    Value outside min/max limit of datatype. The min/max value is
+    stored by Field::store() instead (if applicable)
+  */
+  TYPE_WARN_OUT_OF_RANGE,
   /**
     Value was stored, but something was cut. What was cut is
     considered significant enough to issue a warning. Example: storing
@@ -1168,16 +1168,16 @@ public:
   virtual void sql_type(String &str) const =0;
 
   bool is_temporal() const
-  { return is_temporal_type(type()); }
+  { return is_temporal_type(real_type_to_type(type())); }
 
   bool is_temporal_with_date() const
-  { return is_temporal_type_with_date(type()); }
+  { return is_temporal_type_with_date(real_type_to_type(type())); }
 
   bool is_temporal_with_time() const
-  { return is_temporal_type_with_time(type()); }
+  { return is_temporal_type_with_time(real_type_to_type(type())); }
 
   bool is_temporal_with_date_and_time() const
-  { return is_temporal_type_with_date_and_time(type()); }
+  { return is_temporal_type_with_date_and_time(real_type_to_type(type())); }
 
   /**
     Check whether the full table's row is NULL or the Field has value NULL.
@@ -4688,7 +4688,8 @@ public:
   void init_for_tmp_table(enum_field_types sql_type_arg,
                           uint32 max_length, uint32 decimals,
                           bool maybe_null, bool is_unsigned,
-                          uint pack_length_override);
+                          uint pack_length_override,
+                          const char *field_name= "");
 
   bool init(THD *thd, const char *field_name, enum_field_types type,
             const char *length, const char *decimals, uint type_modifier,

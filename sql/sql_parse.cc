@@ -6028,7 +6028,8 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
     }
   }
   LEX_STRING db= to_lex_string(table_name->db);
-  if (!table_name->is_derived_table() && table_name->db.str &&
+  if (!table_name->is_derived_table() && !table_name->is_table_function() &&
+      table_name->db.str &&
       (check_and_convert_db_name(&db, false) != Ident_name_check::OK))
     DBUG_RETURN(0);
 
@@ -6056,6 +6057,12 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
   ptr->table_name_length= table_name->table.length;
   ptr->alias= const_cast<char*>(alias_str);
   ptr->is_alias= alias != nullptr;
+  ptr->table_function= table_name->table_function;
+  if (table_name->table_function)
+  {
+    table_func_count++;
+    ptr->derived_key_list.empty();
+  }
 
   if (table_name->db.str)
   {
@@ -6080,7 +6087,8 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
   ptr->force_index= (table_options & TL_OPTION_FORCE_INDEX);
   ptr->ignore_leaves= (table_options & TL_OPTION_IGNORE_LEAVES);
   ptr->set_derived_unit(table_name->sel);
-  if (!ptr->is_derived() && is_infoschema_db(ptr->db, ptr->db_length))
+  if (!ptr->is_derived() && !ptr->is_table_function() &&
+      is_infoschema_db(ptr->db, ptr->db_length))
   {
     dd::info_schema::convert_table_name_case(
                        const_cast<char*>(ptr->db),

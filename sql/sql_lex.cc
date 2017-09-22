@@ -145,7 +145,7 @@ SELECT_LEX::type_str[static_cast<int>(enum_explain_type::EXPLAIN_total)]=
 
 Table_ident::Table_ident(Protocol *protocol, const LEX_CSTRING &db_arg,
                          const LEX_CSTRING &table_arg, bool force)
-  :table(table_arg), sel(NULL)
+  :table(table_arg), sel(NULL), table_function(NULL)
 {
   if (!force && protocol->has_client_capability(CLIENT_NO_SCHEMA))
     db= NULL_CSTR;
@@ -2322,6 +2322,7 @@ SELECT_LEX::SELECT_LEX(Item *where, Item *having)
   leaf_tables(NULL),
   leaf_table_count(0),
   derived_table_count(0),
+  table_func_count(0),
   materialized_derived_table_count(0),
   has_sj_nests(false),
   partitioned_table_count(0),
@@ -2363,6 +2364,7 @@ SELECT_LEX::SELECT_LEX(Item *where, Item *having)
   m_empty_query(false),
   sj_candidates(NULL)
 {
+  end_lateral_table= NULL;
 }
 
 
@@ -3083,6 +3085,11 @@ void TABLE_LIST::print(THD *thd, String *str, enum_query_type query_type) const
       }
       append_identifier(thd, str, view_name.str, view_name.length);
       cmp_name= view_name.str;
+    }
+    else if (is_table_function())
+    {
+      table_function->print(str, query_type);
+      cmp_name= table_name;
     }
     else if (is_derived() && !is_merged())
     {

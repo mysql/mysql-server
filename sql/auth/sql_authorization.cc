@@ -3868,9 +3868,10 @@ bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST * table_ref,
 
   DBUG_ASSERT(want_privilege);
 
-  if (is_temporary_table(table_ref) || table_ref->is_derived())
+  if (is_temporary_table(table_ref) || table_ref->is_derived() ||
+      table_ref->is_table_function())
   {
-    // Temporary table or derived table: no need to evaluate privileges
+    // Tmp table,table function or derived table: no need to evaluate privileges
     DBUG_RETURN(false);
   }
   else if (table_ref->is_view() || table_ref->field_translation)

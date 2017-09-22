@@ -1391,9 +1391,12 @@ bool Sql_cmd_update::prepare_inner(THD *thd)
   if (select->setup_tables(thd, table_list, false))
     DBUG_RETURN(true);            /* purecov: inspected */
 
-  if (select->derived_table_count)
+  thd->want_privilege= SELECT_ACL;
+  enum enum_mark_columns mark_used_columns_saved= thd->mark_used_columns;
+  thd->mark_used_columns= MARK_COLUMNS_READ;
+  if (select->derived_table_count || select->table_func_count)
   {
-    if (select->resolve_derived(thd, apply_semijoin))
+    if (select->resolve_placeholder_tables(thd, apply_semijoin))
       DBUG_RETURN(true);
     /*
       @todo - This check is a bit primitive and ad-hoc. We have not yet analyzed
@@ -1459,10 +1462,6 @@ bool Sql_cmd_update::prepare_inner(THD *thd)
   }
 
   lex->allow_sum_func= 0;          // Query block cannot be aggregated
-
-  thd->want_privilege= SELECT_ACL;
-  enum enum_mark_columns mark_used_columns_saved= thd->mark_used_columns;
-  thd->mark_used_columns= MARK_COLUMNS_READ;
 
   if (select->setup_conds(thd))
     DBUG_RETURN(true);

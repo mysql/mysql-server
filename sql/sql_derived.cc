@@ -55,6 +55,7 @@
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/temp_table_param.h"
+#include "sql/table_function.h"
 #include "thr_lock.h"
 
 class Opt_trace_context;
@@ -309,7 +310,7 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin)
     bool m_derived_tables_processing_saved;
   };
 
-  if (!is_view_or_derived() || is_merged())
+  if (!is_view_or_derived() || is_merged() || is_table_function())
     DBUG_RETURN(false);
 
   // Dummy derived tables for recursive references disappear before this stage
@@ -650,6 +651,75 @@ bool SELECT_LEX_UNIT::check_materialized_derived_query_blocks(THD *thd_arg)
 
 
 /**
+  Prepare a table function for materialization.
+
+  @param  thd   THD pointer
+
+  @return false if successful, true if error
+*/
+bool TABLE_LIST::setup_table_function(THD *thd)
+{
+  DBUG_ENTER("TABLE_LIST::setup_table_function");
+
+  DBUG_ASSERT(is_table_function());
+
+  DBUG_PRINT("info", ("algorithm: TEMPORARY TABLE"));
+
+  Opt_trace_context *const trace= &thd->opt_trace;
+  Opt_trace_object trace_wrapper(trace);
+  Opt_trace_object trace_derived(trace, "table_function");
+  char *func_name;
+  uint func_name_len;
+  func_name= (char*)table_function->func_name();
+  func_name_len= strlen(func_name);
+
+  set_uses_materialization();
+
+  if (table_function->init())
+    DBUG_RETURN(TRUE);
+
+  // Create the result table for the materialization
+  if (internal_tmp_disk_storage_engine != TMP_TABLE_INNODB)
+  {
+    my_error(ER_SWITCH_TMP_ENGINE, MYF(0), "Table function");
+    DBUG_RETURN(true);
+  }
+
+  if (table_function->create_result_table(0LL, alias))
+    DBUG_RETURN(true);        /* purecov: inspected */
+  table= table_function->table;
+  table->pos_in_table_list= this;
+
+  table->s->tmp_table= NON_TRANSACTIONAL_TMP_TABLE;
+
+  // Table is "nullable" if inner table of an outer_join
+  if (is_inner_table_of_outer_join())
+    table->set_nullable();
+
+  const char *saved_where= thd->where;
+  thd->where= "a table function argument";
+  enum_mark_columns saved_mark= thd->mark_used_columns;
+  thd->mark_used_columns= MARK_COLUMNS_READ;
+  if (table_function->init_args())
+  {
+    thd->mark_used_columns= saved_mark;
+    DBUG_RETURN(true);
+  }
+  thd->mark_used_columns= saved_mark;
+  /*
+    Trace needs to be here as it'ss print the table, and columns have to be
+    set up at the moment of printing.
+  */
+  trace_derived.add_utf8_table(this).
+    add_utf8("function_name", func_name, func_name_len).
+    add("materialized", true);
+  thd->where= saved_where;
+
+  DBUG_RETURN(false);
+}
+
+
+/**
   Optimize the query expression representing a derived table/view.
 
   @note
@@ -673,7 +743,7 @@ bool TABLE_LIST::optimize_derived(THD *thd)
     DBUG_RETURN(true);
 
   if (materializable_is_const() &&
-      (create_derived(thd) || materialize_derived(thd)))
+      (create_materialized_table(thd) || materialize_derived(thd)))
     DBUG_RETURN(true);
 
   DBUG_RETURN(false);
@@ -681,7 +751,7 @@ bool TABLE_LIST::optimize_derived(THD *thd)
 
 
 /**
-  Create result table for a materialized derived table/view.
+  Create result table for a materialized derived table/view/table function.
 
   @param thd     thread handle
 
@@ -691,14 +761,15 @@ bool TABLE_LIST::optimize_derived(THD *thd)
   @returns false if success, true if error.
 */
 
-bool TABLE_LIST::create_derived(THD *thd)
+bool TABLE_LIST::create_materialized_table(THD *thd)
 {
-  DBUG_ENTER("TABLE_LIST::create_derived");
+  DBUG_ENTER("TABLE_LIST::create_materialized_table");
 
-  SELECT_LEX_UNIT *const unit= derived_unit();
+  SELECT_LEX_UNIT *const unit= is_table_function() ? NULL : derived_unit();
 
   // @todo: Be able to assert !table->is_created() as well
-  DBUG_ASSERT(unit && uses_materialization() && table);
+  DBUG_ASSERT((unit || is_table_function()) &&
+              uses_materialization() && table);
 
   if (!table->is_created())
   {
@@ -737,14 +808,26 @@ bool TABLE_LIST::create_derived(THD *thd)
     DBUG_RETURN(false);
   }
   /* create tmp table */
-  Query_result_union *result= (Query_result_union*)unit->query_result();
+  MI_COLUMNDEF *start_recinfo;
+  MI_COLUMNDEF **recinfo;
+  if (!is_table_function())
+  {
+    Query_result_union *result= (Query_result_union*)unit->query_result();
+    start_recinfo= result->tmp_table_param.start_recinfo;
+    recinfo= &result->tmp_table_param.recinfo;
+  }
+  else
+  {
+    start_recinfo= NULL;
+    recinfo= NULL;
+  }
 
+  ulonglong options= thd->lex->select_lex->active_options() |
+                      TMP_TABLE_ALL_COLUMNS |
+                      (is_table_function() ? 0 :
+                       unit->first_select()->active_options());
   if (instantiate_tmp_table(thd, table, table->key_info,
-                            result->tmp_table_param.start_recinfo,
-                            &result->tmp_table_param.recinfo,
-                            unit->first_select()->active_options() |
-                            thd->lex->select_lex->active_options() |
-                            TMP_TABLE_ALL_COLUMNS,
+                            start_recinfo, recinfo, options,
                             thd->variables.big_tables))
     DBUG_RETURN(true);        /* purecov: inspected */
 
@@ -756,7 +839,7 @@ bool TABLE_LIST::create_derived(THD *thd)
     HA_EXTRA_IGNORE_DUP_KEY.
 
   */
-  if (!unit->is_recursive())
+  if (is_table_function() || !unit->is_recursive())
     table->file->extra(HA_EXTRA_WRITE_CACHE);
   table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
 

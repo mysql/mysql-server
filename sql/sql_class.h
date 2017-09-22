@@ -307,6 +307,10 @@ public:
     void *m= alloc(sizeof(T));
     return m == NULL ? NULL : new (m) T;
   }
+  template<typename T> T *memdup_typed(const T *mem)
+  {
+    return static_cast<T *>(memdup_root(mem_root, mem, sizeof(T)));
+  }
   inline char *mem_strdup(const char *str)
   { return strdup_root(mem_root,str); }
   inline char *strmake(const char *str, size_t size) const

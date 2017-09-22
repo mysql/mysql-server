@@ -211,5 +211,8 @@ bool
 try_acquire_high_prio_shared_mdl_lock(THD *thd, TABLE_LIST *table,
                                       bool can_deadlock);
 
+void show_sql_type(enum_field_types type, uint16 metadata, String *str,
+                   const CHARSET_INFO *field_cs= NULL);
+
 extern TYPELIB grant_types;
 #endif /* SQL_SHOW_H */

@@ -902,10 +902,13 @@ void do_eval(DYNAMIC_STRING *query_eval, const char *query,
 
   for (p= query; (c= *p) && p < query_end; ++p)
   {
+    next_c= *(p+1);
     switch(c) {
     case '$':
-      if (escaped)
-      {
+      if (escaped ||
+          // a JSON path expression
+          next_c == '.' || next_c == '[' || next_c == '\'' || next_c == '"')
+     {
 	escaped= 0;
 	dynstr_append_mem(query_eval, p, 1);
       }
@@ -917,7 +920,6 @@ void do_eval(DYNAMIC_STRING *query_eval, const char *query,
       }
       break;
     case '\\':
-      next_c= *(p+1);
       if (escaped)
       {
 	escaped= 0;

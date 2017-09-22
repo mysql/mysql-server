@@ -5296,14 +5296,14 @@ FROM department d
 WHERE id = 405;
 JSON_ARRAY( d.deptName, CAST( '{ "processed" : true }' AS JSON ) )
 ["Accounting", {"processed": true}]
-create table json_table( json_column json );
+create table jsn_table( json_column json );
 Warnings:
 Warning	1478	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
-INSERT INTO json_table( json_column )
+INSERT INTO jsn_table( json_column )
 SELECT JSON_ARRAY( d.deptName, d.id, d.blobColumn )
 FROM department d
 WHERE id = 405;
-drop table json_table;
+drop table jsn_table;
 drop table department;
 create table misc_dt
 (

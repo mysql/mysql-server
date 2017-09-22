@@ -1731,7 +1731,7 @@ sub_select(JOIN *join, QEP_TAB *const qep_tab,bool end_of_records)
 bool QEP_TAB::prepare_scan()
 {
   // Check whether materialization is required.
-  if (!materialize_table || table()->materialized)
+  if (!materialize_table || (table()->materialized && !rematerialize))
     return false;
 
   // Materialize table prior to reading it
@@ -2966,6 +2966,23 @@ int join_init_read_record(QEP_TAB *tab)
 
   return (*tab->read_record.read_record)(&tab->read_record);
 }
+
+
+/*
+  This helper function materializes derived table/view and then calls
+  read_first_record function to set up access to the materialized table.
+*/
+
+int join_materialize_table_function(QEP_TAB *tab)
+{
+  TABLE_LIST *const table= tab->table_ref;
+  DBUG_ASSERT(table->table_function);
+
+  (void)table->table_function->fill_result_table();
+
+  return table->table->in_use->is_error() ? NESTED_LOOP_ERROR : NESTED_LOOP_OK;
+}
+
 
 /*
   This helper function materializes derived table/view and then calls
@@ -7243,6 +7260,7 @@ bool QEP_TAB::pfs_batch_update(JOIN *join)
            this->type() == JT_SYSTEM ||
            (condition() && condition()->has_subquery()));        // 3
 }
+
 
 /**
   @} (end of group Query_Executor)

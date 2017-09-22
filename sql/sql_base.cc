@@ -5731,7 +5731,7 @@ open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *const tables,
     routines used by this view; for a non-view derived table, those routines
     are already part of the containing query's structures.
   */
-  if (tables->is_derived())
+  if (tables->is_derived() || tables->is_table_function())
     goto end;
 
   DBUG_ASSERT(!tables->common_table_expr());
@@ -8617,7 +8617,10 @@ find_field_in_tables(THD *thd, Item_ident *item,
     db= name_buff;
   }
 
-  if (last_table)
+  if (first_table && first_table->select_lex &&
+      first_table->select_lex->end_lateral_table)
+    last_table= first_table->select_lex->end_lateral_table;
+  else if (last_table)
     last_table= last_table->next_name_resolution_table;
 
   for (; cur_table != last_table ;

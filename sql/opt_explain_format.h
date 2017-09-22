@@ -84,6 +84,7 @@ enum Extra_tag
   ET_FT_HINTS,
   ET_BACKWARD_SCAN,
   ET_RECURSIVE,
+  ET_TABLE_FUNCTION,
   ET_SKIP_RECORDS_IN_RANGE,
   //------------------------------------
   ET_total

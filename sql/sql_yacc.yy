@@ -1179,6 +1179,11 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  TIES_SYM                      /* SQL-2003-N */
 %token  UNBOUNDED_SYM                 /* SQL-2003-N */
 %token  WINDOW_SYM                    /* SQL-2003-R */
+%token  EMPTY_SYM                     /* SQL-2016-R */
+%token  JSON_TABLE_SYM                /* SQL-2016-R */
+%token  NESTED_SYM                    /* SQL-2016-N */
+%token  ORDINALITY_SYM                /* SQL-2003-N */
+%token  PATH_SYM                      /* SQL-2003-N */
 %token  HISTORY_SYM                   /* MYSQL */
 %token  REUSE_SYM                     /* MYSQL */
 %token  SRID_SYM                      /* MYSQL */
@@ -1525,7 +1530,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %type <lock_strength> lock_strength
 
 %type <table_reference> table_reference esc_table_reference
-        table_factor single_table single_table_parens
+        table_factor single_table single_table_parens table_function
 
 %type <query_expression_body> query_expression_body
 
@@ -1757,6 +1762,13 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         opt_create_partitioning_etc opt_duplicate_as_qe
 
 %type <wild_or_where> opt_wild_or_where_for_show
+// used by JSON_TABLE
+%type <jtc_list> columns_clause columns_list
+%type <jt_column> jt_column
+%type <jt_on_response> jt_on_response opt_on_error opt_on_empty
+%type <jt_on_error_or_empty> opt_on_empty_or_error
+%type <jt_column_type> jt_column_type
+
 %type <acl_type> opt_acl_type
 %type <histogram> opt_histogram
 
@@ -10451,6 +10463,7 @@ table_factor:
           { $$= NEW_PTN PT_table_factor_joined_table($1); }
         | table_reference_list_parens
           { $$= NEW_PTN PT_table_reference_list_parens($1); }
+        | table_function { $$ = $1; }
         ;
 
 table_reference_list_parens:
@@ -10493,6 +10506,141 @@ derived_table:
                          ER_THD(YYTHD, ER_DERIVED_MUST_HAVE_ALIAS), MYF(0));
 
             $$= NEW_PTN PT_derived_table($1, $2, &$3);
+          }
+        ;
+
+table_function:
+          JSON_TABLE_SYM '(' expr ',' TEXT_STRING_sys columns_clause ')'
+          opt_table_alias
+          {
+            // Alias isn't optional, follow derived's behavior
+            if ($8 == NULL_CSTR)
+            {
+              my_message(ER_TF_MUST_HAVE_ALIAS,
+                         ER_THD(YYTHD, ER_TF_MUST_HAVE_ALIAS), MYF(0));
+              MYSQL_YYABORT;
+            }
+
+            $$= NEW_PTN PT_table_factor_function($3, $5, $6, to_lex_string($8));
+          }
+        ;
+
+columns_clause:
+          COLUMNS '(' columns_list ')'
+          {
+            $$= $3;
+          }
+        ;
+
+columns_list:
+          jt_column
+          {
+            $$= NEW_PTN Trivial_array<PT_json_table_column *>(YYMEM_ROOT);
+            if ($$ == NULL || $$->push_back($1))
+              MYSQL_YYABORT; // OOM
+          }
+        | columns_list ',' jt_column
+          {
+            $$= $1;
+            if ($$->push_back($3))
+              MYSQL_YYABORT; // OOM
+          }
+        ;
+
+jt_column:
+          ident FOR_SYM ORDINALITY_SYM
+          {
+            $$= NEW_PTN PT_json_table_column_for_ordinality($1);
+          }
+        | ident type jt_column_type PATH_SYM TEXT_STRING_sys
+          opt_on_empty_or_error
+          {
+            $$= NEW_PTN PT_json_table_column_with_path($1, $2, $3, $5 ,
+                                                       $6.error.type,
+                                                       *$6.error.default_str,
+                                                       $6.empty.type,
+                                                       *$6.empty.default_str);
+          }
+        | NESTED_SYM PATH_SYM TEXT_STRING_sys columns_clause
+          {
+            $$= NEW_PTN PT_json_table_column_with_nested_path($3, $4);
+          }
+        ;
+
+jt_column_type:
+          {
+            $$= enum_jt_column::JTC_PATH;
+          }
+        | EXISTS
+          {
+            $$= enum_jt_column::JTC_EXISTS;
+          }
+        ;
+
+opt_on_empty_or_error:
+          /* empty */
+          {
+            $$.error.type= enum_jtc_on::JTO_IMPLICIT;
+            $$.error.default_str= &NULL_STR;
+
+            $$.empty.type= enum_jtc_on::JTO_IMPLICIT;
+            $$.empty.default_str= &NULL_STR;
+          }
+        | opt_on_empty
+          {
+            $$.error.type= enum_jtc_on::JTO_IMPLICIT;
+            $$.error.default_str= &NULL_STR;
+
+            $$.empty.type= $1.type;
+            $$.empty.default_str= $1.default_str;
+          }
+        | opt_on_error
+          {
+            $$.error.type= $1.type;
+            $$.error.default_str= $1.default_str;
+
+            $$.empty.type= enum_jtc_on::JTO_IMPLICIT;
+            $$.empty.default_str= &NULL_STR;
+          }
+        | opt_on_empty opt_on_error
+          {
+            $$.error.type= $2.type;
+            $$.error.default_str= $2.default_str;
+
+            $$.empty.type= $1.type;
+            $$.empty.default_str= $1.default_str;
+          }
+        | opt_on_error opt_on_empty
+          {
+            $$.error.type= $1.type;
+            $$.error.default_str= $1.default_str;
+
+            $$.empty.type= $2.type;
+            $$.empty.default_str= $2.default_str;
+          }
+        ;
+
+opt_on_empty:
+          jt_on_response ON_SYM EMPTY_SYM       { $$= $1; }
+        ;
+opt_on_error:
+          jt_on_response ON_SYM ERROR_SYM       { $$= $1; }
+        ;
+jt_on_response:
+          ERROR_SYM
+          {
+            $$.type= enum_jtc_on::JTO_ERROR;
+            $$.default_str= &NULL_STR;
+          }
+        | NULL_SYM
+          {
+            $$.type= enum_jtc_on::JTO_NULL;
+            $$.default_str= &NULL_STR;
+          }
+        | DEFAULT_SYM TEXT_STRING_sys
+          {
+            $$.type= enum_jtc_on::JTO_DEFAULT;
+            $$.default_str= YYTHD->memdup_typed(&$2);
           }
         ;
 
@@ -13548,6 +13696,7 @@ role_or_label_keyword:
         | NATIONAL_SYM             {}
         | NCHAR_SYM                {}
         | NDBCLUSTER_SYM           {}
+        | NESTED_SYM               {}
         | NEVER_SYM                {}
         | NEXT_SYM                 {}
         | NEW_SYM                  {}
@@ -13561,12 +13710,14 @@ role_or_label_keyword:
         | ONE_SYM                  {}
         | ONLY_SYM                 {}
         | OTHERS_SYM               {}        
+        | ORDINALITY_SYM           {}
         | PACK_KEYS_SYM            {}
         | PAGE_SYM                 {}
         | PARTIAL                  {}
         | PARTITIONING_SYM         {}
         | PARTITIONS_SYM           {}
         | PASSWORD                 {}
+        | PATH_SYM                 {}
         | PHASE_SYM                {}
         | PLUGIN_DIR_SYM           {}
         | PLUGIN_SYM               {}

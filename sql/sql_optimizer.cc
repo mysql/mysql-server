@@ -3298,6 +3298,10 @@ static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join, uint no_jbuf_after)
       !join->best_ref[tab->first_upper()]->use_join_cache())
     goto no_join_cache;
 
+  if (tab->table()->pos_in_table_list->is_table_function() &&
+      tab->dependent)
+    goto no_join_cache;
+
   switch (tab_sj_strategy)
   {
   case SJ_OPT_FIRST_MATCH:
@@ -5335,7 +5339,8 @@ bool JOIN::make_join_plan()
     DBUG_RETURN(true);
 
   // Cleanup after update_ref_and_keys has added keys for derived tables.
-  if (select_lex->materialized_derived_table_count)
+  if (select_lex->materialized_derived_table_count ||
+      select_lex->table_func_count)
     finalize_derived_keys();
 
   // No need for this struct after new JOIN_TAB array is set up.
@@ -6221,9 +6226,10 @@ static ha_rows get_quick_record_count(THD *thd, JOIN_TAB *tab, ha_rows limit)
     }
     DBUG_PRINT("warning",("Couldn't use record count on const keypart"));
   }
-  else if (tl->materializable_is_const())
+  else if (tl->is_table_function() || tl->materializable_is_const())
   {
-    DBUG_RETURN(tl->derived_unit()->query_result()->estimated_rowcount);
+    tl->fetch_number_of_rows();
+    DBUG_RETURN(tl->table->file->stats.records);
   }
   DBUG_RETURN(HA_POS_ERROR);
 }
@@ -8489,7 +8495,8 @@ update_ref_and_keys(THD *thd, Key_use_array *keyuse,JOIN_TAB *join_tab,
   }
 
   /* Generate keys descriptions for derived tables */
-  if (select_lex->materialized_derived_table_count)
+  if (select_lex->materialized_derived_table_count ||
+      select_lex->table_func_count)
   {
     if (join->generate_derived_keys())
       return true;
@@ -8693,7 +8700,10 @@ void JOIN::make_outerjoin_info()
       */
       TABLE_LIST *const outer_join_nest= tbl->outer_join_nest();
       if (outer_join_nest)
+      {
+        DBUG_ASSERT(outer_join_nest->nested_join->first_nested != NO_PLAN_IDX);
         tab->set_first_upper(outer_join_nest->nested_join->first_nested);
+      }
     }    
     for (TABLE_LIST *embedding= tbl->embedding;
          embedding;
@@ -9077,7 +9087,8 @@ void JOIN::remove_subq_pushed_predicates()
 
 bool JOIN::generate_derived_keys()
 {
-  DBUG_ASSERT(select_lex->materialized_derived_table_count);
+  DBUG_ASSERT(select_lex->materialized_derived_table_count ||
+              select_lex->table_func_count);
 
   for (TABLE_LIST *table= select_lex->leaf_tables;
        table;
@@ -9101,7 +9112,8 @@ bool JOIN::generate_derived_keys()
 
 void JOIN::finalize_derived_keys()
 {
-  DBUG_ASSERT(select_lex->materialized_derived_table_count);
+  DBUG_ASSERT(select_lex->materialized_derived_table_count ||
+              select_lex->table_func_count);
   ASSERT_BEST_REF_IN_JOIN_ORDER(this);
 
   bool adjust_key_count= false;

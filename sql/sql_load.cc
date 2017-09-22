@@ -247,7 +247,8 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
   if (run_before_dml_hook(thd))
     DBUG_RETURN(true);
 
-  if (table_list->is_view() && select->resolve_derived(thd, false))
+  if (table_list->is_view() &&
+      select->resolve_placeholder_tables(thd, false))
     DBUG_RETURN(true);                   /* purecov: inspected */
 
   TABLE_LIST *const insert_table_ref=
