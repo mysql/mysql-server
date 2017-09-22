@@ -1731,8 +1731,9 @@ private:
 
   bool handleFailedApiConnection(Signal*,
                                  Uint32 *TloopCount,
-                                 Uint32 TapiFailedNode);
-  void set_api_fail_state(Uint32 TapiFailedNode);
+                                 Uint32 TapiFailedNode,
+                                 bool apiNodeFailed);
+  void set_api_fail_state(Uint32 TapiFailedNode, bool apiNodeFailed);
   void handleApiFailState(Signal* signal, UintR anApiConnectptr);
   void handleFailedApiNode(Signal* signal,
                            UintR aFailedNode,
