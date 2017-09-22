@@ -2344,7 +2344,6 @@ Dbspj::cleanupBatch(Ptr<Request> requestPtr)
     }
   } //RT_ROW_BUFFERS
 
-
   Ptr<TreeNode> treeNodePtr;
   Local_TreeNode_list list(m_treenode_pool, requestPtr.p->m_nodes);
 
@@ -3222,7 +3221,6 @@ Dbspj::execTRANSID_AI(Signal* signal)
   
   ndbassert(checkRequest(requestPtr));
   ndbassert(!requestPtr.p->m_completed_nodes.get(treeNodePtr.p->m_node_no));
-  ndbassert(!treeNodePtr.p->isLeaf())
 
   DEBUG("execTRANSID_AI"
      << ", node: " << treeNodePtr.p->m_node_no
@@ -4233,19 +4231,10 @@ Dbspj::lookup_send(Signal* signal,
    *     (All replies goes directly to API-client)
    */
   Uint32 cnt = 2;
-  if (treeNodePtr.p->isLeaf())
+  if (requestPtr.p->isLookup() && treeNodePtr.p->isLeaf())
   {
     jam();
-    if (requestPtr.p->isLookup())
-    {
-      jam();
-      cnt = 0;
-    }
-    else
-    {
-      jam();
-      cnt = 1;
-    }
+    cnt = 0;
   }
 
   LqhKeyReq* req = reinterpret_cast<LqhKeyReq*>(signal->getDataPtrSend());
@@ -4325,7 +4314,6 @@ Dbspj::lookup_send(Signal* signal,
          * - 17071: Fail on lookup_send() if 'isLeaf'
          * - 17072: Fail on lookup_send() if treeNode not root
          */
-
         if (ERROR_INSERTED(17070) ||
            (ERROR_INSERTED(17071) && treeNodePtr.p->isLeaf()) ||
            (ERROR_INSERTED(17072) && treeNodePtr.p->m_parentPtrI != RNIL))
@@ -4516,12 +4504,8 @@ Dbspj::lookup_execLQHKEYREF(Signal* signal,
 
   DEBUG("lookup_execLQHKEYREF, errorCode:" << errCode);
 
-  if (!treeNodePtr.p->isLeaf())
-  {
-    // Count the non-arriving TRANSID_AI due to the 'REF'
-    jam();
-    lookup_countSignal(signal, requestPtr, treeNodePtr);
-  }
+  // Count the non-arriving TRANSID_AI due to the 'REF'
+  lookup_countSignal(signal, requestPtr, treeNodePtr);
 
   // Count awaiting CONF/REF
   const bool done = lookup_countSignal(signal, requestPtr, treeNodePtr);
@@ -4940,10 +4924,9 @@ Dbspj::lookup_row(Signal* signal,
        * Test execution terminated due to 'OutOfSectionMemory' which
        * may happen for different treeNodes in the request:
        * - 17080: Fail on lookup_parent_row
-       * - 17081: Fail on lookup_parent_row:  if 'isLeaf'
+       * - 17081: Fail on lookup_parent_row: if 'isLeaf'
        * - 17082: Fail on lookup_parent_row: if treeNode not root
        */
-
       if (ERROR_INSERTED(17080) ||
          (ERROR_INSERTED(17081) && treeNodePtr.p->isLeaf()) ||
          (ERROR_INSERTED(17082) && treeNodePtr.p->m_parentPtrI != RNIL))
@@ -7053,16 +7036,12 @@ Dbspj::scanFrag_execSCAN_FRAGCONF(Signal* signal,
   }
 
   requestPtr.p->m_rows += rows;
+  data.m_rows_expecting += rows;
   data.m_totalRows += rows;
   data.m_totalBytes += bytes;
   data.m_largestBatchRows = MAX(data.m_largestBatchRows, rows);
   data.m_largestBatchBytes = MAX(data.m_largestBatchBytes, bytes);
 
-  if (!treeNodePtr.p->isLeaf())
-  {
-    jam();
-    data.m_rows_expecting += rows;
-  }
   ndbrequire(data.m_frags_outstanding);
   ndbrequire(state == ScanFragHandle::SFH_SCANNING ||
              state == ScanFragHandle::SFH_WAIT_CLOSE);
@@ -9149,7 +9128,29 @@ Dbspj::parseDA(Build_context& ctx,
           jam();
           break;
         }
+        sum_read += cnt;
+      }
+      /**
+       * If no LINKED_ATTR's including the CORR_FACTOR was requested by
+       * the API, the SPJ-block does its own request of a CORR_FACTOR.
+       * Will be used to keep track of whether a 'match' was found for
+       * for the request parent row.
+       */
+      else if (requestPtr.p->isScan())
+      {
+        jam();
+        Uint32 cnt = 0;
+        /**
+         * Only read correlation factor
+         */
+        dst[cnt++] = AttributeHeader::CORR_FACTOR32 << 16;
 
+        err = DbspjErr::OutOfSectionMemory;
+        if (!appendToSection(attrInfoPtrI, dst, cnt))
+        {
+          jam();
+          break;
+        }
         sum_read += cnt;
       }
 
