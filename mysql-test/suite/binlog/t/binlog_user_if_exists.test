@@ -91,6 +91,7 @@ DROP USER IF EXISTS u1@localhost, u2@localhost, u3@localhost, slave_user@localho
 --source include/sync_slave_sql_with_master.inc
 --echo [On Slave]
 --source include/show_binlog_events.inc
+--source include/stop_slave_io.inc
 
 # Scenario 3: Make sure that the default authentication plugin is not used
 # when the plugin is specified explicitly while creating or altering users.
@@ -104,6 +105,10 @@ DROP USER IF EXISTS u1@localhost, u2@localhost, u3@localhost, slave_user@localho
 --let $rpl_server_parameters= --default_authentication_plugin=sha256_password
 --source include/rpl_restart_server.inc
 
+--connection slave
+--source include/start_slave_io.inc
+
+--connection master
 --disable_warnings
 --source include/rpl_reset.inc
 --enable_warnings
