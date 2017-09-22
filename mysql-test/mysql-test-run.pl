@@ -631,6 +631,21 @@ sub run_test_server ($$$) {
 	    else {
 	      mtr_report(" - saving '$worker_savedir/' to '$savedir/'");
 	      rename($worker_savedir, $savedir);
+              #look for the test.log file and put in savedir
+	      my $logf= "$result->{shortname}" . ".log";
+              my $logfilepath= dirname($worker_savedir); 
+              move($logfilepath . "/" . $logf, $savedir);
+
+              if ($opt_check_testcases && !defined $result->{'result_file'})
+              {
+                mtr_report("Mysqltest client output from logfile");
+                mtr_report("----------- MYSQLTEST OUTPUT START -----------\n");
+                mtr_printfile($savedir . "/" . $logf);
+                mtr_report("\n------------ MYSQLTEST OUTPUT END ------------\n");
+              }
+
+              mtr_report(" - the logfile can be found in '$savedir/$logf'");
+
 	      # Move any core files from e.g. mysqltest
 	      foreach my $coref (glob("core*"), glob("*.dmp"))
 	      {
@@ -6335,12 +6350,19 @@ sub start_mysqltest ($) {
     debugger_arguments(\$args, \$exe, "client");
   }
 
+  my @redirect_output;
+  if ($opt_check_testcases && !defined $tinfo->{'result_file'})
+  {
+    @redirect_output = (output => "/dev/null");
+  }
+
   my $proc= My::SafeProcess->new
     (
      name          => "mysqltest",
      path          => $exe,
      args          => \$args,
      append        => 1,
+     @redirect_output,
      error         => $path_current_testlog,
      verbose       => $opt_verbose,
     );
