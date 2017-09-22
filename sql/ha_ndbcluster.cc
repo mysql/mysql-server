@@ -10893,13 +10893,11 @@ int ha_ndbcluster::create(const char *name,
     {
       if (key_part->field->field_storage_type() == HA_SM_DISK)
       {
-        push_warning_printf(thd, Sql_condition::SL_WARNING,
-                            ER_ILLEGAL_HA_CREATE_OPTION,
-                            ER_THD(thd, ER_ILLEGAL_HA_CREATE_OPTION),
-                            ndbcluster_hton_name,
-                            "Index on field "
-                            "declared with "
-                            "STORAGE DISK is not supported");
+        my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
+                        "Cannot create index on DISK column '%s'. Alter it "
+                        "in a way to use STORAGE MEMORY.",
+                        MYF(0),
+                        key_part->field->field_name);
         result= HA_ERR_UNSUPPORTED;
         goto abort_return;
       }
@@ -11477,13 +11475,11 @@ int ha_ndbcluster::create_ndb_index(THD *thd, const char *name,
     Field *field= key_part->field;
     if (field->field_storage_type() == HA_SM_DISK)
     {
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_ILLEGAL_HA_CREATE_OPTION,
-                          ER_THD(thd, ER_ILLEGAL_HA_CREATE_OPTION),
-                          ndbcluster_hton_name,
-                          "Index on field "
-                          "declared with "
-                          "STORAGE DISK is not supported");
+        my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
+                        "Cannot create index on DISK column '%s'. Alter it "
+                        "in a way to use STORAGE MEMORY.",
+                        MYF(0),
+                        field->field_name);
       DBUG_RETURN(HA_ERR_UNSUPPORTED);
     }
     DBUG_PRINT("info", ("attr: %s", field->field_name));
@@ -16989,6 +16985,7 @@ ha_ndbcluster::check_inplace_alter_supported(TABLE *altered_table,
   bool auto_increment_value_changed= false;
   bool max_rows_changed= false;
   bool comment_changed = false;
+  bool table_storage_changed= false;
   if (alter_flags & Alter_inplace_info::CHANGE_CREATE_OPTION)
   {
     DBUG_PRINT("info", ("Some create options changed"));
@@ -17017,6 +17014,17 @@ ha_ndbcluster::check_inplace_alter_supported(TABLE *altered_table,
     {
       DBUG_PRINT("info", ("The COMMENT string changed"));
       comment_changed = true;
+    }
+
+    enum ha_storage_media new_table_storage= create_info->storage_media;
+    if (new_table_storage == HA_SM_DEFAULT)
+      new_table_storage= HA_SM_MEMORY;
+    enum ha_storage_media old_table_storage= table->s->default_storage_media;
+    if (old_table_storage == HA_SM_DEFAULT)
+      old_table_storage= HA_SM_MEMORY;
+    if (new_table_storage != old_table_storage)
+    {
+      table_storage_changed= true;
     }
   }
 
@@ -17314,16 +17322,32 @@ ha_ndbcluster::check_inplace_alter_supported(TABLE *altered_table,
     {
       if (field->field_storage_type() == HA_SM_DISK)
       {
-           DBUG_RETURN(inplace_unsupported(ha_alter_info,
-                                           "Found change of COLUMN_STORAGE to disk"));
+        DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                        "Found change of COLUMN_STORAGE to disk (Explicit STORAGE DISK on index column)."));
       }
       new_col.setStorageType(NdbDictionary::Column::StorageTypeMemory);
     }
     else if (field->field_storage_type() == HA_SM_DEFAULT)
     {
+      if (table_storage_changed &&
+             new_col.getStorageType() != col->getStorageType())
+      {
+        DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                        "Column storage media is changed due to change in table storage media"));
+      }
+
       /**
        * If user didn't specify any column format, keep old
-       *   to make as many alter's as possible online
+       *   to make as many alter's as possible online. E.g.:
+       *
+       *   When an index is created on an implicit disk column,
+       *   the column storage is silently converted to memory.
+       *   It is not changed back to disk again when the index is
+       *   dropped, unless the user explicitly specifies copy algorithm.
+       *
+       *   Also, keep the storage format Ndb has for BLOB/TEXT columns
+       *   since NDB stores BLOB/TEXT < 256 bytes in memory,
+       *   irrespective of storage type.
        */
       new_col.setStorageType(col->getStorageType());
     }
