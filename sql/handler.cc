@@ -2782,7 +2782,7 @@ handler *handler::clone(const char *name, MEM_ROOT *mem_root)
   DBUG_RETURN(new_handler);
 
 err:
-  delete new_handler;
+  destroy(new_handler);
   DBUG_RETURN(NULL);
 }
 
@@ -6969,7 +6969,7 @@ error:
   h2->ha_index_or_rnd_end();
   h2->ha_external_lock(thd, F_UNLCK);
   h2->ha_close();
-  delete h2;
+  destroy(h2);
   h2= NULL;
   DBUG_ASSERT(retval != 0);
   DBUG_RETURN(retval);
@@ -7002,7 +7002,7 @@ void DsMrr_impl::reset()
 
     // Close and delete the h2 handler
     h2->ha_close();
-    delete h2;
+    destroy(h2);
     h2= NULL;
   }
   DBUG_VOID_RETURN;

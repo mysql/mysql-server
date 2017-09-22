@@ -197,6 +197,7 @@ public:
 protected:
   Object_creation_ctx() {}
   virtual Object_creation_ctx *create_backup_ctx(THD *thd) const = 0;
+  virtual void delete_backup_ctx() = 0;
 
   virtual void change_env(THD *thd) const = 0;
 
@@ -233,6 +234,7 @@ protected:
 
 protected:
   virtual Object_creation_ctx *create_backup_ctx(THD *thd) const;
+  virtual void delete_backup_ctx();
 
   virtual void change_env(THD *thd) const;
 

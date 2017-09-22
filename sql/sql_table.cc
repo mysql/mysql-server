@@ -14415,7 +14415,7 @@ copy_data_between_tables(THD * thd,
 
   if (to->file->ha_external_lock(thd, F_WRLCK))
   {
-    delete [] copy;
+    destroy_array(copy, to->s->fields);
     DBUG_RETURN(-1);
   }
 
@@ -14613,7 +14613,7 @@ copy_data_between_tables(THD * thd,
   }
   end_read_record(&info);
   free_io_cache(from);
-  delete [] copy;				// This is never 0
+  destroy_array(copy, to->s->fields);
 
   if (to->file->ha_end_bulk_insert() && error <= 0)
   {

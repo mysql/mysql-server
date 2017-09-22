@@ -19,6 +19,7 @@
 
 #include <stddef.h>
 
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -58,7 +59,7 @@ namespace AQP
 
   Join_plan::~Join_plan()
   {
-    delete[] m_table_accesses;
+    destroy_array(m_table_accesses, m_access_count);
     m_table_accesses= NULL;
   }
 

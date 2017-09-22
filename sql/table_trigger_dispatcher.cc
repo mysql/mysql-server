@@ -150,14 +150,14 @@ Table_trigger_dispatcher::~Table_trigger_dispatcher()
   if (m_record1_field)
   {
     for (Field **fld_ptr= m_record1_field; *fld_ptr; fld_ptr++)
-      delete *fld_ptr;
+      destroy(*fld_ptr);
   }
 
   // Destroy trigger chains.
 
   for (int i= 0; i < (int) TRG_EVENT_MAX; ++i)
     for (int j= 0; j < (int) TRG_ACTION_MAX; ++j)
-      delete m_trigger_map[i][j];
+      destroy(m_trigger_map[i][j]);
 }
 
 
@@ -338,7 +338,7 @@ bool Table_trigger_dispatcher::create_trigger(
 
   if (!tc)
   {
-    delete t;
+    destroy(t);
     return true;
   }
 
@@ -348,7 +348,7 @@ bool Table_trigger_dispatcher::create_trigger(
                       lex->sphead->m_trg_chistics.ordering_clause,
                       lex->sphead->m_trg_chistics.anchor_trigger_name))
   {
-    delete t;
+    destroy(t);
     return true;
   }
 
@@ -618,7 +618,7 @@ void Table_trigger_dispatcher::parse_triggers(THD *thd,
 
       if (fatal_parse_error)
       {
-        delete t;
+        destroy(t);
         it.remove();
       }
 

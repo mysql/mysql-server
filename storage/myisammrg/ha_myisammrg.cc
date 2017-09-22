@@ -716,14 +716,14 @@ handler *ha_myisammrg::clone(const char *name, MEM_ROOT *mem_root)
   */
   if (!(new_handler->ref= (uchar*) alloc_root(mem_root, ALIGN_SIZE(ref_length)*2)))
   {
-    delete new_handler;
+    destroy(new_handler);
     return NULL;
   }
 
   if (new_handler->ha_open(table, name, table->db_stat,
                            HA_OPEN_IGNORE_IF_LOCKED, NULL))
   {
-    delete new_handler;
+    destroy(new_handler);
     return NULL;
   }
  

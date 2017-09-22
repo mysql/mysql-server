@@ -41,6 +41,7 @@
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "map_helpers.h"
+#include "my_alloc.h"
 #include "my_bitmap.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
@@ -147,7 +148,7 @@ static constexpr size_t MAX_RECORD_BUFFER_SIZE= 128 * 1024; // 128KB
 
 void Temp_table_param::cleanup(void)
 {
-  delete [] copy_field;
+  destroy_array(copy_field, field_count);
   copy_field= NULL;
   copy_field_end= NULL;
 }
@@ -6761,9 +6762,8 @@ setup_copy_fields(THD *thd, Temp_table_param *param,
   DBUG_RETURN(0);
 
  err:
-  if (copy)
-    delete [] param->copy_field;			// This is never 0
-  param->copy_field=0;
+  destroy_array(param->copy_field, param->field_count);
+  param->copy_field= nullptr;
 err2:
   DBUG_RETURN(TRUE);
 }

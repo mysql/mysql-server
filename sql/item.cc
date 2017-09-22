@@ -4829,7 +4829,7 @@ Item_copy_json::Item_copy_json(Item *item)
 
 Item_copy_json::~Item_copy_json()
 {
-  delete m_value;
+  destroy(m_value);
 }
 
 bool Item_copy_json::copy(const THD *thd)
@@ -10164,7 +10164,7 @@ Item_cache_json::Item_cache_json()
 
 Item_cache_json::~Item_cache_json()
 {
-  delete m_value;
+  destroy(m_value);
 }
 
 

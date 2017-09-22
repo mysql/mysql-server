@@ -176,6 +176,14 @@ inline void operator delete[](void*, MEM_ROOT*,
 template<class T>
 inline void destroy(T *ptr) { if (ptr != nullptr) ptr->~T(); }
 
+template<class T>
+inline void destroy_array(T *ptr, size_t count)
+{
+  if (ptr != nullptr)
+    for (size_t i= 0; i < count; ++i)
+      destroy(&ptr[i]);
+}
+
 /*
   For std::unique_ptr with objects allocated on a MEM_ROOT, you shouldn't use
   Default_deleter; use this deleter instead.

@@ -571,6 +571,17 @@ public:
     empty();
   }
 
+  void destroy_elements(void)
+  {
+    list_node *element,*next;
+    for (element=first; element != &end_of_list; element=next)
+    {
+      next=element->next;
+      destroy((T*) element->info);
+    }
+    empty();
+  }
+
   T *operator[] (uint index) const
   {
     DBUG_ASSERT(index < elements);

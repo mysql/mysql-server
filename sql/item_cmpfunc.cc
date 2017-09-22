@@ -34,6 +34,7 @@
 #include "m_ctype.h"
 #include "m_string.h"
 #include "mf_wcomp.h"           // wild_one, wild_many
+#include "my_alloc.h"
 #include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_macros.h"
@@ -725,11 +726,11 @@ void Arg_comparator::cleanup()
     for (size_t i= 0; i < comparator_count; i++)
     {
       comparators[i].cleanup();
+      destroy(&comparators[i]);
     }
-    delete[] comparators;
     comparators= NULL;
   }
-  delete json_scalar;
+  destroy(json_scalar);
   json_scalar= NULL;
 }
 
@@ -4854,7 +4855,7 @@ cmp_item_row::~cmp_item_row()
     for (uint i= 0; i < n; i++)
     {
       if (comparators[i])
-	delete comparators[i];
+	destroy(comparators[i]);
     }
   }
   DBUG_VOID_RETURN;

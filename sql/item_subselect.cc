@@ -557,7 +557,7 @@ void Item_in_subselect::cleanup()
   DBUG_ENTER("Item_in_subselect::cleanup");
   if (left_expr_cache)
   {
-    left_expr_cache->delete_elements();
+    left_expr_cache->destroy_elements();
     destroy(left_expr_cache);
     left_expr_cache= NULL;
   }
@@ -4186,7 +4186,7 @@ subselect_hash_sj_engine::~subselect_hash_sj_engine()
   /* Assure that cleanup has been called for this engine. */
   DBUG_ASSERT(!tab);
 
-  delete result;
+  destroy(result);
 }
 
 

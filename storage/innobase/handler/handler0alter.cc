@@ -8193,9 +8193,7 @@ public:
 	~ha_innopart_inplace_ctx()
 	{
 		if (ctx_array) {
-			for (uint i = 0; i < m_tot_parts; i++) {
-				delete ctx_array[i];
-			}
+			destroy_array(ctx_array, m_tot_parts);
 			ut_free(ctx_array);
 		}
 
