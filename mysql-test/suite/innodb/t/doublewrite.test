@@ -16,6 +16,7 @@ call mtr.add_suppression("Header page consists of zero bytes");
 call mtr.add_suppression("Checksum mismatch in datafile");
 call mtr.add_suppression("but the innodb_page_size start-up parameter is");
 call mtr.add_suppression("Database page corruption");
+call mtr.add_suppression("Wrong server version");
 --enable_query_log
 
 let INNODB_PAGE_SIZE=`select @@innodb_page_size`;
