@@ -793,7 +793,6 @@ buf_read_recv_pages(
 	ulint			n_stored)
 {
 	ulint			count;
-	bool			success;
 	fil_space_t*		space	= fil_space_get(space_id);
 
 	if (space == NULL) {
