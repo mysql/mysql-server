@@ -123,7 +123,7 @@
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"      // I_List
-#include "sql/sql_load.h"      // mysql_load
+#include "sql/sql_load.h"      // Sql_cmd_load_table
 #include "sql/sql_locale.h"    // my_locale_by_number
 #include "sql/sql_parse.h"     // mysql_test_parse_for_slave
 #include "sql/sql_plugin.h" // plugin_foreach
@@ -8103,6 +8103,9 @@ Load_query_generator::Load_query_generator(THD *thd_arg, const sql_exchange *ex,
 
 const String* Load_query_generator::generate(size_t *fn_start, size_t *fn_end)
 {
+  DBUG_ASSERT(thd->lex->sql_command == SQLCOM_LOAD);
+  auto cmd= down_cast<Sql_cmd_load_table *>(thd->lex->m_sql_cmd);
+
   str.append("LOAD DATA ");
 
   if (is_concurrent)
@@ -8111,7 +8114,7 @@ const String* Load_query_generator::generate(size_t *fn_start, size_t *fn_end)
   if (fn_start)
     *fn_start= str.length()-1;
 
-  if (thd->lex->local_file)
+  if (cmd->m_is_local_file)
     str.append("LOCAL ");
   str.append("INFILE ");
   pretty_print_str(&str, fname, strlen(fname));
@@ -8164,9 +8167,9 @@ const String* Load_query_generator::generate(size_t *fn_start, size_t *fn_end)
   }
 
   /* prepare fields-list */
-  if (!thd->lex->load_field_list.is_empty())
+  if (!cmd->m_opt_fields_or_vars.is_empty())
   {
-    List_iterator<Item> li(thd->lex->load_field_list);
+    List_iterator<Item> li(cmd->m_opt_fields_or_vars);
     Item *item;
     str.append(" (");
 
@@ -8184,10 +8187,10 @@ const String* Load_query_generator::generate(size_t *fn_start, size_t *fn_end)
     str.append(')');
   }
 
-  if (!thd->lex->load_update_list.is_empty())
+  if (!cmd->m_opt_set_fields.is_empty())
   {
-    List_iterator<Item> lu(thd->lex->load_update_list);
-    List_iterator<String> ls(thd->lex->load_set_str_list);
+    List_iterator<Item> lu(cmd->m_opt_set_fields);
+    List_iterator<String> ls(*cmd->m_opt_set_expr_strings);
     Item *item;
 
     str.append(" SET ");

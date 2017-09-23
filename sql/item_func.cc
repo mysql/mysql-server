@@ -103,6 +103,7 @@
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
+#include "sql/sql_load.h"        // Sql_cmd_load_table
 #include "sql/sql_optimizer.h"   // JOIN
 #include "sql/sql_parse.h"       // check_stack_overrun
 #include "sql/sql_show.h"        // append_identifier
@@ -7246,14 +7247,17 @@ bool Item_func_get_user_var::set_value(THD *thd,
 bool Item_user_var_as_out_param::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
-  DBUG_ASSERT(thd->lex->exchange);
+
+  DBUG_ASSERT(thd->lex->sql_command == SQLCOM_LOAD);
+  auto exchange_cs=
+    down_cast<Sql_cmd_load_table *>(thd->lex->m_sql_cmd)->m_exchange.cs;
   /*
     Let us set the same collation which is used for loading
     of fields in LOAD DATA INFILE.
     (Since Item_user_var_as_out_param is used only there).
   */
-  const CHARSET_INFO *cs= thd->lex->exchange->cs ?
-    thd->lex->exchange->cs : thd->variables.collation_database;
+  const CHARSET_INFO *cs= exchange_cs ? exchange_cs
+                                      : thd->variables.collation_database;
 
   if (Item::fix_fields(thd, ref))
     return true;

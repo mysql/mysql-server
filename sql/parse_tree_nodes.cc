@@ -2697,3 +2697,64 @@ Sql_cmd *PT_explain::make_cmd(THD *thd)
 
   return ret;
 }
+
+
+Sql_cmd *PT_load_table::make_cmd(THD *thd)
+{
+  LEX * const lex= thd->lex;
+  SELECT_LEX * const select= lex->current_select();
+
+  if (lex->sphead)
+  {
+    my_error(ER_SP_BADSTATEMENT, MYF(0),
+             m_cmd.m_exchange.filetype == FILETYPE_CSV ? "LOAD DATA"
+                                                       : "LOAD XML");
+    return nullptr;
+  }
+
+  lex->sql_command= SQLCOM_LOAD;
+
+  switch (m_cmd.m_on_duplicate) {
+  case On_duplicate::ERROR:
+    lex->duplicates=DUP_ERROR;
+    break;
+  case On_duplicate::IGNORE_DUP:
+    lex->set_ignore(true);
+    break;
+  case On_duplicate::REPLACE_DUP:
+    lex->duplicates=DUP_REPLACE;
+    break;
+  }
+
+  /* Fix lock for LOAD DATA CONCURRENT REPLACE */
+  thr_lock_type lock_type= m_lock_type;
+  if (lex->duplicates == DUP_REPLACE && lock_type == TL_WRITE_CONCURRENT_INSERT)
+    lock_type= TL_WRITE_DEFAULT;
+
+  if (!select->add_table_to_list(thd, m_cmd.m_table, nullptr,
+                                 TL_OPTION_UPDATING,
+                                 lock_type,
+                                 lock_type == TL_WRITE_LOW_PRIORITY ?
+                                 MDL_SHARED_WRITE_LOW_PRIO :
+                                 MDL_SHARED_WRITE,
+                                 nullptr,
+                                 m_cmd.m_opt_partitions))
+    return nullptr;
+
+  /* We can't give an error in the middle when using LOCAL files */
+  if (m_cmd.m_is_local_file && lex->duplicates == DUP_ERROR)
+    lex->set_ignore(true);
+
+  Parse_context pc(thd, select);
+  if (contextualize_safe(&pc, m_opt_fields_or_vars))
+    return nullptr;
+
+  if (m_opt_set_fields != nullptr)
+  {
+    if (m_opt_set_fields->contextualize(&pc) ||
+        m_opt_set_exprs->contextualize(&pc))
+      return nullptr;
+  }
+
+  return &m_cmd;
+}

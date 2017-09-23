@@ -8228,8 +8228,8 @@ int ha_ndbcluster::end_bulk_insert()
     {
       // The requirement to calling set_my_errno() here is
       // not according to the handler interface specification
-      // However there it is still code in mysql_load() which check
-      // 'my_errno' after end_bulk_insert has reported failure
+      // However there it is still code in Sql_cmd_load_table::execute_inner()
+      // which checks 'my_errno' after end_bulk_insert has reported failure
       // The call to set_my_errno() can be removed from here when
       // Bug #26126535 	MYSQL_LOAD DOES NOT CHECK RETURN VALUES
       // FROM HANDLER BULK INSERT FUNCTIONS has been fixed upstream
