@@ -80,6 +80,7 @@
 #include "sql/sql_select.h"
 #include "sql/table.h"
 #include "sql_string.h"
+#include "sql/table_function.h"      // Table_function
 
 class Opt_trace_context;
 
@@ -1067,6 +1068,15 @@ bool Explain_table_base::explain_extra_common(int quick_type,
 
   if (tab)
   {
+    if (tab->table_ref && tab->table_ref->table_function)
+    {
+      StringBuffer<64> str(cs);
+      str.append(tab->table_ref->table_function->func_name());
+
+      if (push_extra(ET_TABLE_FUNCTION, str) ||
+          push_extra(ET_USING_TEMPORARY))
+        return true;
+    }
     if (tab->dynamic_range())
     {
       StringBuffer<64> str(STRING_WITH_LEN("index map: 0x"), cs);

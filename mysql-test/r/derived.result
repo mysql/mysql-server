@@ -3563,7 +3563,7 @@ KEY c2k (c2k)
 );
 INSERT INTO t2 VALUES
 ('f','ff'),('t','tt'),('c','cc'),('c','cc'),('r','rr'),('k','kk');
-CREATE TABLE empty (dummy INTEGER);
+CREATE TABLE `empty` (dummy INTEGER);
 CREATE VIEW vr AS
 SELECT t2.c2n AS v_field
 FROM t1 RIGHT JOIN t2
@@ -3669,7 +3669,7 @@ kk
 SELECT alias1.dt_field AS field1
 FROM (SELECT t2.c2n AS dt_field
 FROM t1 RIGHT JOIN
-(empty RIGHT JOIN t2
+(`empty` RIGHT JOIN t2
 ON TRUE)
 ON t2.c2k = t1.c1k
 ) AS alias1
@@ -3687,8 +3687,8 @@ kk
 SELECT alias1.dt_field AS field1
 FROM (SELECT t2.c2n AS dt_field
 FROM t1 RIGHT JOIN
-(t2 LEFT JOIN empty
-ON TRUE)
+(t2 LEFT JOIN `empty`
+              ON TRUE)
 ON t2.c2k = t1.c1k
 ) AS alias1
 RIGHT JOIN t2 AS alias2
@@ -3703,7 +3703,7 @@ cc
 rr
 kk
 DROP VIEW vl, vr;
-DROP TABLE t1, t2, empty;
+DROP TABLE t1, t2, `empty`;
 # Bug#22239474: Unexpected error 1093 on nested subquery for update
 CREATE TABLE t1 (id INTEGER PRIMARY KEY, d INTEGER);
 INSERT INTO t1 VALUES(1, 10), (2, 20);

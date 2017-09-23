@@ -68,6 +68,7 @@
 #include "sql/thr_malloc.h"
 #include "sql/window.h"                         // Window
 #include "template_utils.h"
+#include "sql/table_function.h"                     // Table_function
 
 bool Query_result_union::prepare(List<Item>&, SELECT_LEX_UNIT *u)
 {
@@ -1580,6 +1581,10 @@ static void destroy_materialized(THD *thd, TABLE_LIST *list)
       // Find a materialized view inside another view.
       destroy_materialized(thd, tl->merge_underlying_list);
     }
+    else if (tl->is_table_function())
+    {
+      tl->table_function->cleanup();
+    }
     if (!tl->table)
       continue;                                 // Not materialized
     if (tl->is_view_or_derived())
@@ -1588,7 +1593,8 @@ static void destroy_materialized(THD *thd, TABLE_LIST *list)
       if (tl->common_table_expr())
         tl->common_table_expr()->tmp_tables.clear();
     }
-    else if (!tl->is_recursive_reference() && !tl->schema_table)
+    else if (!tl->is_recursive_reference() && !tl->schema_table &&
+             !tl->is_table_function())
       continue;
     free_tmp_table(thd, tl->table);
   }

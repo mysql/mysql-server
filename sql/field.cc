@@ -8878,7 +8878,7 @@ Field_json::store(const char *from, size_t length, const CHARSET_INFO *cs)
   size_t ss;
   String v(from, length, cs);
 
-  if (ensure_utf8mb4(&v, &value, &s, &ss, true))
+  if (ensure_utf8mb4(v, &value, &s, &ss, true))
   {
     return TYPE_ERR_BAD_VALUE;
   }
@@ -10704,11 +10704,12 @@ uint32 calc_key_length(enum_field_types sql_type, uint32 length,
 void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
                                       uint32 length_arg, uint32 decimals_arg,
                                       bool maybe_null_arg, bool is_unsigned_arg,
-                                      uint pack_length_override_arg)
+                                      uint pack_length_override_arg,
+                                      const char *fld_name)
 {
   DBUG_ENTER("Create_field::init_for_tmp_table");
 
-  field_name= "";
+  field_name= fld_name;
   sql_type= sql_type_arg;
   char_length= length= length_arg;;
   auto_flags= Field::NONE;
@@ -10727,6 +10728,10 @@ void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
   {
   case MYSQL_TYPE_BIT:
     treat_bit_as_char= true;
+    break;
+  case MYSQL_TYPE_DATE:
+    // Old type
+    sql_type= MYSQL_TYPE_NEWDATE;
     break;
 
   case MYSQL_TYPE_NEWDECIMAL:
@@ -10803,6 +10808,7 @@ bool Create_field::init(THD *thd, const char *fld_name,
   flags= fld_type_modifier;
   charset= fld_charset;
   auto_flags= Field::NONE;
+  maybe_null= !(fld_type_modifier & NOT_NULL_FLAG);
 
   if (fld_default_value != NULL && fld_default_value->type() == Item::FUNC_ITEM)
   {

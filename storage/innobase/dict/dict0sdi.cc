@@ -62,6 +62,45 @@ dict_sdi_check_existence(
 	return(fsp_has_sdi(*space_id) ? DB_SUCCESS : DB_ERROR);
 }
 
+/** Report error on failure
+@param[in]	operation	SDI set or delete
+@param[in]	table		table object for which SDI is serialized
+@param[in]	tablespace	tablespace where SDI is stored */
+static
+void
+dict_sdi_report_error(
+	const char*		operation,
+	const dd::Table*	table,
+	const dd::Tablespace&	tablespace)
+{
+	THD*			thd = current_thd;
+	const char*		schema_name = nullptr;
+	const dd::Schema*	schema= nullptr;
+	const char*		table_name = nullptr;
+
+	if (thd != nullptr && table != nullptr) {
+		 table_name = table->name().c_str();
+		 if (thd->dd_client()->acquire(table->schema_id(), &schema)) {
+			 schema_name = nullptr;
+		 } else {
+			schema_name = schema->name().c_str();
+		}
+	}
+
+	if (schema_name == nullptr) {
+		schema_name = "<no schema>";
+	}
+
+	if (table_name == nullptr) {
+		table_name = "<no table>";
+	}
+
+	my_error(ER_SDI_OPERATION_FAILED, MYF(0), operation,
+		 schema_name,
+		 table_name,
+		 tablespace.name().c_str());
+}
+
 /** Create SDI in a tablespace. This API should be used when
 upgrading a tablespace with no SDI.
 @param[in,out]	tablespace	tablespace object
@@ -280,6 +319,8 @@ dict_sdi_set(
 	const void*		sdi,
 	uint64			sdi_len)
 {
+	const char* operation = "set";
+
 	DBUG_EXECUTE_IF("ib_sdi",
 		ib::info() << "dict_sdi_set(" << tablespace.name()
 			<< "," << tablespace.id()
@@ -330,6 +371,7 @@ dict_sdi_set(
 	if (dict_sdi_check_existence(tablespace, &space_id)
 	    != DB_SUCCESS) {
 		ut_ad(0);
+		dict_sdi_report_error(operation, table, tablespace);
 		return(true);
 	}
 
@@ -352,6 +394,11 @@ dict_sdi_set(
 				 compressor.get_comp_len(),
 				 compressor.get_data(), trx);
 
+	DBUG_EXECUTE_IF("sdi_set_failure",
+		dict_sdi_report_error(operation, table, tablespace);
+		return(true);
+	);
+
 	if (err == DB_INTERRUPTED) {
 		my_error(ER_QUERY_INTERRUPTED, MYF(0));
 		DBUG_EXECUTE_IF("ib_sdi",
@@ -366,6 +413,7 @@ dict_sdi_set(
 		return(true);
 	} else if (err != DB_SUCCESS) {
 		ut_ad(0);
+		dict_sdi_report_error(operation, table, tablespace);
 		return(true);
 	} else {
 		return(false);
@@ -394,6 +442,8 @@ dict_sdi_delete(
 	const dd::Table*	table,
 	const dd::sdi_key_t*	sdi_key)
 {
+	const char* operation = "delete";
+
 	DBUG_EXECUTE_IF("ib_sdi",
 		ib::info() << "dict_sdi_delete(" << tablespace.name()
 			<< "," << tablespace.id()
@@ -443,6 +493,7 @@ dict_sdi_delete(
 			return(false);
 		} else {
 			ut_ad(0);
+			dict_sdi_report_error(operation, table, tablespace);
 			return(true);
 		}
 	}
@@ -461,6 +512,11 @@ dict_sdi_delete(
 
 	dberr_t	err = ib_sdi_delete(space_id, &ib_sdi_key, trx);
 
+	DBUG_EXECUTE_IF("sdi_delete_failure",
+		dict_sdi_report_error(operation, table, tablespace);
+		return(true);
+	);
+
 	if (err == DB_INTERRUPTED) {
 		my_error(ER_QUERY_INTERRUPTED, MYF(0));
 
@@ -476,6 +532,7 @@ dict_sdi_delete(
 		return(true);
 	} else if (err != DB_SUCCESS) {
 		ut_ad(0);
+		dict_sdi_report_error(operation, table, tablespace);
 		return(true);
 	} else {
 		return(false);

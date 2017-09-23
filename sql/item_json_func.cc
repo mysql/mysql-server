@@ -49,16 +49,17 @@
 #include "sql/sql_time.h"          // field_type_to_timestamp_type
 #include "sql/table.h"
 #include "template_utils.h"        // down_cast
+#include "sql_executor.h"       // Table_function_result
 
 class PT_item_list;
 
 /** Helper routines */
 
 // see the contract for this function in item_json_func.h
-bool ensure_utf8mb4(String *val, String *buf,
+bool ensure_utf8mb4(const String &val, String *buf,
                     const char **resptr, size_t *reslength, bool require_string)
 {
-  const CHARSET_INFO *cs= val->charset();
+  const CHARSET_INFO *cs= val.charset();
 
   if (cs == &my_charset_bin)
   {
@@ -67,8 +68,8 @@ bool ensure_utf8mb4(String *val, String *buf,
     return true;
   }
 
-  const char *s= val->ptr();
-  size_t ss= val->length();
+  const char *s= val.ptr();
+  size_t ss= val.length();
 
   if (my_charset_same(cs, &my_charset_utf8mb4_bin) ||
       my_charset_same(cs, &my_charset_utf8_bin) ||
@@ -82,7 +83,7 @@ bool ensure_utf8mb4(String *val, String *buf,
   else
   { // If not, we convert, possibly with loss (best effort).
     uint dummy_errors;
-    if (buf->copy(val->ptr(), val->length(), val->charset(),
+    if (buf->copy(val.ptr(), val.length(), val.charset(),
                   &my_charset_utf8mb4_bin, &dummy_errors))
     {
       return true;                            /* purecov: inspected */
@@ -116,13 +117,13 @@ bool ensure_utf8mb4(String *val, String *buf,
 
   @returns false if the arg parsed as valid JSON, true otherwise
 */
-static bool parse_json(String *res,
-                       uint arg_idx,
-                       const char *func_name,
-                       Json_dom_ptr *dom,
-                       bool require_str_or_json,
-                       bool *parse_error,
-                       bool handle_numbers_as_double= false)
+bool parse_json(const String &res,
+                uint arg_idx,
+                const char *func_name,
+                Json_dom_ptr *dom,
+                bool require_str_or_json,
+                bool *parse_error,
+                bool handle_numbers_as_double)
 {
   char buff[MAX_FIELD_WIDTH];
   String utf8_res(buff, sizeof(buff), &my_charset_utf8mb4_bin);
@@ -227,7 +228,7 @@ bool get_json_string(Item *arg_item,
     return true;
   }
 
-  if (ensure_utf8mb4(res, utf8_res, safep, safe_length,
+  if (ensure_utf8mb4(*res, utf8_res, safep, safe_length,
                       true))
   {
     return true;
@@ -311,7 +312,7 @@ static bool json_is_valid(Item **args,
       }
 
       bool parse_error= false;
-      const bool failure= parse_json(res, arg_idx, func_name,
+      const bool failure= parse_json(*res, arg_idx, func_name,
                                      dom, require_str_or_json,
                                      &parse_error, handle_numbers_as_double);
       *valid= !failure;
@@ -331,37 +332,15 @@ static bool json_is_valid(Item **args,
 }
 
 
-/**
-  Helper method for Item_func_json_* methods. Assumes that the caller
-  has already verified that the path expression is not null. Raises an
-  error if the path expression is syntactically incorrect. Raises an
-  error if the path expression contains wildcard tokens but is not
-  supposed to. Otherwise updates the supplied Json_path object with
-  the parsed path.
-
-  @param[in]  path_expression  A string Item to be interpreted as a path.
-  @param[out] value            Holder for path string
-  @param[in]  forbid_wildcards True if the path shouldn't contain * or **
-  @param[out] json_path        The object that will hold the parsed path
-  @param[out] null_value       Tells if the returned path is NULL
-
-  @returns false on success (valid path or NULL), true on error
-*/
-static bool parse_path(Item * path_expression, String *value,
-                       bool forbid_wildcards, Json_path *json_path,
-                       bool *null_value)
+bool parse_path(String *path_value, bool forbid_wildcards, Json_path *json_path)
 {
-  String *path_value= path_expression->val_str(value);
-  *null_value= (path_value == nullptr);
-  if (*null_value)
-    return false;
+  DBUG_ASSERT(path_value);
 
   const char * path_chars= path_value->ptr();
   size_t path_length= path_value->length();
-  char buff[STRING_BUFFER_USUAL_SIZE];
-  String res(buff, sizeof(buff), &my_charset_utf8mb4_bin);
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> res(&my_charset_utf8mb4_bin);
 
-  if (ensure_utf8mb4(path_value, &res, &path_chars, &path_length, true))
+  if (ensure_utf8mb4(*path_value, &res, &path_chars, &path_length, true))
   {
     return true;
   }
@@ -504,9 +483,10 @@ bool Json_path_cache::parse_and_cache_path(Item ** args, uint arg_idx,
     m_paths[cell.m_index].clear();
   }
 
-  bool null_value;
-  if (parse_path(arg, &m_path_value, forbid_wildcards, &m_paths[cell.m_index],
-                 &null_value))
+  String *path_value= arg->val_str(&m_path_value);
+  bool null_value= (path_value == nullptr);
+  if (!null_value &&
+      parse_path(path_value, forbid_wildcards, &m_paths[cell.m_index]))
   {
     // oops, parsing failed
     cell.m_status= enum_path_status::ERROR;
@@ -1522,7 +1502,7 @@ static bool val_json_func_field_subselect(Item* arg,
         const char *s= res->ptr();
         size_t ss= res->length();
 
-        if (ensure_utf8mb4(res, tmp, &s, &ss, true))
+        if (ensure_utf8mb4(*res, tmp, &s, &ss, true))
         {
           return true;
         }
@@ -3548,7 +3528,7 @@ String *Item_func_json_quote::val_str(String *str)
       return error_str();
     }
 
-    if (ensure_utf8mb4(res, &m_value, &safep, &safep_size, true))
+    if (ensure_utf8mb4(*res, &m_value, &safep, &safep_size, true))
     {
       null_value= true;
       return NULL;
@@ -3642,7 +3622,7 @@ String *Item_func_json_unquote::val_str(String *str)
     StringBuffer<STRING_BUFFER_USUAL_SIZE> buf;
     const char *utf8text;
     size_t utf8len;
-    if (ensure_utf8mb4(res, &buf, &utf8text, &utf8len, true))
+    if (ensure_utf8mb4(*res, &buf, &utf8text, &utf8len, true))
       return error_str();
     String *utf8str= (res->ptr() == utf8text) ? res : &buf;
     DBUG_ASSERT(utf8text == utf8str->ptr());
@@ -3660,7 +3640,7 @@ String *Item_func_json_unquote::val_str(String *str)
 
     Json_dom_ptr dom;
     bool parse_error= false;
-    if (parse_json(utf8str, 0, func_name(), &dom, true, &parse_error))
+    if (parse_json(*utf8str, 0, func_name(), &dom, true, &parse_error))
     {
       return error_str();
     }

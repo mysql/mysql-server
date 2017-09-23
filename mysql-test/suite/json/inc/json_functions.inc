@@ -918,12 +918,12 @@ FROM department d
 WHERE id = 405;
 
 # stores a JSON value in a JSON-typed column
-create table json_table( json_column json );
-INSERT INTO json_table( json_column )
+create table jsn_table( json_column json );
+INSERT INTO jsn_table( json_column )
   SELECT JSON_ARRAY( d.deptName, d.id, d.blobColumn )
   FROM department d
   WHERE id = 405;
-drop table json_table;
+drop table jsn_table;
 
 drop table department;
 

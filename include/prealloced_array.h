@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -539,7 +539,22 @@ public:
     // No point in swapping.
     if (size() == capacity())
       return;
-    Prealloced_array(m_psi_key, begin(), end()).swap(*this);
+    Prealloced_array tmp(m_psi_key, begin(), end());
+    if (size() <= Prealloc)
+    {
+      /*
+        The elements fit in the pre-allocated array. Destruct the
+        heap-allocated array in this, and copy the elements into the
+        pre-allocated array.
+      */
+      this->~Prealloced_array();
+      new (this) Prealloced_array(tmp.m_psi_key, tmp.begin(), tmp.end());
+    }
+    else
+    {
+      // Both this and tmp have a heap-allocated array. Swap pointers.
+      swap(tmp);
+    }
   }
 
   /**

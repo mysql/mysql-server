@@ -667,7 +667,7 @@ insert into at(c,_dec) select concat('_dec: ',c),j from t where c='uint';
 insert into at(c,_dec) select concat('_dec: ',c),j from t where c='int';
 insert into at(c,_dec) select concat('_dec: ',c),j from t where c='double';
 insert into at(c,_dec) select concat('_dec: ',c),j from t where c='stringany';
-ERROR HY000: Incorrect DECIMAL value: '0' for column '' at row -1
+ERROR 22018: Invalid JSON value for CAST to DECIMAL from column j at row 6
 insert into at(c,_dec) select concat('_dec: ',c),j from t where c='stringint';
 insert into at(c,_dec) select concat('_dec: ',c),j from t where c='stringdecimal';
 insert into at(c,_dec) select concat('_dec: ',c),j from t where c='object';
@@ -676,9 +676,9 @@ insert into at(c,_dec) select concat('_dec: ',c),j from t where c='array';
 ERROR 22018: Invalid JSON value for CAST to DECIMAL from column j at row 10
 insert into at(c,_dec) select concat('_dec: ',c),j from t where c='opaque_mysql_type_decimal';
 insert into at(c,_dec) select concat('_dec: ',c),j from t where c='opaque_mysql_type_set';
-ERROR HY000: Incorrect DECIMAL value: '0' for column '' at row -1
+ERROR 22018: Invalid JSON value for CAST to DECIMAL from column j at row 12
 insert into at(c,_dec) select concat('_dec: ',c),j from t where c='opaque_mysql_type_enum';
-ERROR HY000: Incorrect DECIMAL value: '0' for column '' at row -1
+ERROR 22018: Invalid JSON value for CAST to DECIMAL from column j at row 13
 insert into at(c,_dec) select concat('_dec: ',c),j from t where c='opaque_mysql_type_date';
 ERROR 22018: Invalid JSON value for CAST to DECIMAL from column j at row 14
 insert into at(c,_dec) select concat('_dec: ',c),j from t where c='opaque_mysql_type_time';
@@ -2430,7 +2430,7 @@ insert into at(c,_dec) select concat('_dec: ',c), json_extract(j, '$') from t wh
 insert into at(c,_dec) select concat('_dec: ',c), json_extract(j, '$') from t where c='int';
 insert into at(c,_dec) select concat('_dec: ',c), json_extract(j, '$') from t where c='double';
 insert into at(c,_dec) select concat('_dec: ',c), json_extract(j, '$') from t where c='stringany';
-ERROR HY000: Incorrect DECIMAL value: '0' for column '' at row -1
+ERROR 22018: Invalid JSON value for CAST to DECIMAL from column json_extract at row 6
 insert into at(c,_dec) select concat('_dec: ',c), json_extract(j, '$') from t where c='stringint';
 insert into at(c,_dec) select concat('_dec: ',c), json_extract(j, '$') from t where c='stringdecimal';
 insert into at(c,_dec) select concat('_dec: ',c), json_extract(j, '$') from t where c='object';
@@ -2439,9 +2439,9 @@ insert into at(c,_dec) select concat('_dec: ',c), json_extract(j, '$') from t wh
 ERROR 22018: Invalid JSON value for CAST to DECIMAL from column json_extract at row 10
 insert into at(c,_dec) select concat('_dec: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_decimal';
 insert into at(c,_dec) select concat('_dec: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_set';
-ERROR HY000: Incorrect DECIMAL value: '0' for column '' at row -1
+ERROR 22018: Invalid JSON value for CAST to DECIMAL from column json_extract at row 12
 insert into at(c,_dec) select concat('_dec: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_enum';
-ERROR HY000: Incorrect DECIMAL value: '0' for column '' at row -1
+ERROR 22018: Invalid JSON value for CAST to DECIMAL from column json_extract at row 13
 insert into at(c,_dec) select concat('_dec: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_date';
 ERROR 22018: Invalid JSON value for CAST to DECIMAL from column json_extract at row 14
 insert into at(c,_dec) select concat('_dec: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_time';
@@ -4192,7 +4192,7 @@ insert into at(c,_dec) select concat('_dec: ',c), (select j from t where c='uint
 insert into at(c,_dec) select concat('_dec: ',c), (select j from t where c='int') from t where c='int';
 insert into at(c,_dec) select concat('_dec: ',c), (select j from t where c='double') from t where c='double';
 insert into at(c,_dec) select concat('_dec: ',c), (select j from t where c='stringany') from t where c='stringany';
-ERROR HY000: Incorrect DECIMAL value: '0' for column '' at row -1
+ERROR 22018: Invalid JSON value for CAST to DECIMAL from column j at row 29
 insert into at(c,_dec) select concat('_dec: ',c), (select j from t where c='stringint') from t where c='stringint';
 insert into at(c,_dec) select concat('_dec: ',c), (select j from t where c='stringdecimal') from t where c='stringdecimal';
 insert into at(c,_dec) select concat('_dec: ',c), (select j from t where c='object') from t where c='object';
@@ -4201,9 +4201,9 @@ insert into at(c,_dec) select concat('_dec: ',c), (select j from t where c='arra
 ERROR 22018: Invalid JSON value for CAST to DECIMAL from column j at row 29
 insert into at(c,_dec) select concat('_dec: ',c), (select j from t where c='opaque_mysql_type_decimal') from t where c='opaque_mysql_type_decimal';
 insert into at(c,_dec) select concat('_dec: ',c), (select j from t where c='opaque_mysql_type_set') from t where c='opaque_mysql_type_set';
-ERROR HY000: Incorrect DECIMAL value: '0' for column '' at row -1
+ERROR 22018: Invalid JSON value for CAST to DECIMAL from column j at row 29
 insert into at(c,_dec) select concat('_dec: ',c), (select j from t where c='opaque_mysql_type_enum') from t where c='opaque_mysql_type_enum';
-ERROR HY000: Incorrect DECIMAL value: '0' for column '' at row -1
+ERROR 22018: Invalid JSON value for CAST to DECIMAL from column j at row 29
 insert into at(c,_dec) select concat('_dec: ',c), (select j from t where c='opaque_mysql_type_date') from t where c='opaque_mysql_type_date';
 ERROR 22018: Invalid JSON value for CAST to DECIMAL from column j at row 29
 insert into at(c,_dec) select concat('_dec: ',c), (select j from t where c='opaque_mysql_type_time') from t where c='opaque_mysql_type_time';
@@ -9723,7 +9723,6 @@ select concat('From JSON col ',c, ' as DECIMAL(5,2)'), cast(j as DECIMAL(5,2)) f
 concat('From JSON col ',c, ' as DECIMAL(5,2)')	cast(j as DECIMAL(5,2))
 From JSON col stringany as DECIMAL(5,2)	0.00
 Warnings:
-Warning	1366	Incorrect DECIMAL value: '0' for column '' at row -1
 Warning	3156	Invalid JSON value for CAST to DECIMAL from column j at row 6
 select concat('From JSON col ',c, ' as DECIMAL(5,2)'), cast(j as DECIMAL(5,2)) from t where c='stringint';
 concat('From JSON col ',c, ' as DECIMAL(5,2)')	cast(j as DECIMAL(5,2))
@@ -9748,13 +9747,11 @@ select concat('From JSON col ',c, ' as DECIMAL(5,2)'), cast(j as DECIMAL(5,2)) f
 concat('From JSON col ',c, ' as DECIMAL(5,2)')	cast(j as DECIMAL(5,2))
 From JSON col opaque_mysql_type_set as DECIMAL(5,2)	0.00
 Warnings:
-Warning	1366	Incorrect DECIMAL value: '0' for column '' at row -1
 Warning	3156	Invalid JSON value for CAST to DECIMAL from column j at row 12
 select concat('From JSON col ',c, ' as DECIMAL(5,2)'), cast(j as DECIMAL(5,2)) from t where c='opaque_mysql_type_enum';
 concat('From JSON col ',c, ' as DECIMAL(5,2)')	cast(j as DECIMAL(5,2))
 From JSON col opaque_mysql_type_enum as DECIMAL(5,2)	0.00
 Warnings:
-Warning	1366	Incorrect DECIMAL value: '0' for column '' at row -1
 Warning	3156	Invalid JSON value for CAST to DECIMAL from column j at row 13
 select concat('From JSON col ',c, ' as DECIMAL(5,2)'), cast(j as DECIMAL(5,2)) from t where c='opaque_mysql_type_date';
 concat('From JSON col ',c, ' as DECIMAL(5,2)')	cast(j as DECIMAL(5,2))
@@ -10673,7 +10670,6 @@ select concat('From JSON func ',c, ' as DECIMAL(5,2)'), cast(json_extract(j, '$'
 concat('From JSON func ',c, ' as DECIMAL(5,2)')	cast(json_extract(j, '$') as DECIMAL(5,2))
 From JSON func stringany as DECIMAL(5,2)	0.00
 Warnings:
-Warning	1366	Incorrect DECIMAL value: '0' for column '' at row -1
 Warning	3156	Invalid JSON value for CAST to DECIMAL from column json_extract at row 6
 select concat('From JSON func ',c, ' as DECIMAL(5,2)'), cast(json_extract(j, '$') as DECIMAL(5,2)) from t where c='stringint';
 concat('From JSON func ',c, ' as DECIMAL(5,2)')	cast(json_extract(j, '$') as DECIMAL(5,2))
@@ -10698,13 +10694,11 @@ select concat('From JSON func ',c, ' as DECIMAL(5,2)'), cast(json_extract(j, '$'
 concat('From JSON func ',c, ' as DECIMAL(5,2)')	cast(json_extract(j, '$') as DECIMAL(5,2))
 From JSON func opaque_mysql_type_set as DECIMAL(5,2)	0.00
 Warnings:
-Warning	1366	Incorrect DECIMAL value: '0' for column '' at row -1
 Warning	3156	Invalid JSON value for CAST to DECIMAL from column json_extract at row 12
 select concat('From JSON func ',c, ' as DECIMAL(5,2)'), cast(json_extract(j, '$') as DECIMAL(5,2)) from t where c='opaque_mysql_type_enum';
 concat('From JSON func ',c, ' as DECIMAL(5,2)')	cast(json_extract(j, '$') as DECIMAL(5,2))
 From JSON func opaque_mysql_type_enum as DECIMAL(5,2)	0.00
 Warnings:
-Warning	1366	Incorrect DECIMAL value: '0' for column '' at row -1
 Warning	3156	Invalid JSON value for CAST to DECIMAL from column json_extract at row 13
 select concat('From JSON func ',c, ' as DECIMAL(5,2)'), cast(json_extract(j, '$') as DECIMAL(5,2)) from t where c='opaque_mysql_type_date';
 concat('From JSON func ',c, ' as DECIMAL(5,2)')	cast(json_extract(j, '$') as DECIMAL(5,2))
@@ -11623,7 +11617,6 @@ select concat('From JSON subselect ',c, ' as DECIMAL(5,2)'), cast(j as DECIMAL(5
 concat('From JSON subselect ',c, ' as DECIMAL(5,2)')	cast(j as DECIMAL(5,2))
 From JSON subselect stringany as DECIMAL(5,2)	0.00
 Warnings:
-Warning	1366	Incorrect DECIMAL value: '0' for column '' at row -1
 Warning	3156	Invalid JSON value for CAST to DECIMAL from column j at row 6
 select concat('From JSON subselect ',c, ' as DECIMAL(5,2)'), cast((select j from t where c='stringint') as DECIMAL(5,2)) from t where c='stringint';
 concat('From JSON subselect ',c, ' as DECIMAL(5,2)')	cast((select j from t where c='stringint') as DECIMAL(5,2))
@@ -11648,13 +11641,11 @@ select concat('From JSON subselect ',c, ' as DECIMAL(5,2)'), cast(j as DECIMAL(5
 concat('From JSON subselect ',c, ' as DECIMAL(5,2)')	cast(j as DECIMAL(5,2))
 From JSON subselect opaque_mysql_type_set as DECIMAL(5,2)	0.00
 Warnings:
-Warning	1366	Incorrect DECIMAL value: '0' for column '' at row -1
 Warning	3156	Invalid JSON value for CAST to DECIMAL from column j at row 12
 select concat('From JSON subselect ',c, ' as DECIMAL(5,2)'), cast((select j from t where c='opaque_mysql_type_enum') as DECIMAL(5,2)) from t where c='opaque_mysql_type_enum';
 concat('From JSON subselect ',c, ' as DECIMAL(5,2)')	cast((select j from t where c='opaque_mysql_type_enum') as DECIMAL(5,2))
 From JSON subselect opaque_mysql_type_enum as DECIMAL(5,2)	0.00
 Warnings:
-Warning	1366	Incorrect DECIMAL value: '0' for column '' at row -1
 Warning	3156	Invalid JSON value for CAST to DECIMAL from column j at row 29
 select concat('From JSON subselect ',c, ' as DECIMAL(5,2)'), cast(j as DECIMAL(5,2)) from t where c='opaque_mysql_type_date';
 concat('From JSON subselect ',c, ' as DECIMAL(5,2)')	cast(j as DECIMAL(5,2))

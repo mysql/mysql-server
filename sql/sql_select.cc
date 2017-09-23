@@ -1518,11 +1518,13 @@ bool JOIN::prepare_result()
 
   error= 0;
   // Create result tables for materialized views/derived tables
-  if (select_lex->materialized_derived_table_count && !zero_result_cause)
+  if ((select_lex->materialized_derived_table_count > 0 ||
+       select_lex->table_func_count > 0) && !zero_result_cause)
   {
     for (TABLE_LIST *tl= select_lex->leaf_tables; tl; tl= tl->next_leaf)
     {
-      if (tl->is_view_or_derived() && tl->create_derived(thd))
+      if ((tl->is_view_or_derived() || tl->is_table_function()) &&
+          tl->create_materialized_table(thd))
         goto err;                 /* purecov: inspected */
     }
   }
@@ -2945,7 +2947,13 @@ make_join_readinfo(JOIN *join, uint no_jbuf_after)
     qep_tab->pick_table_access_method(tab);
 
     // Materialize derived tables prior to accessing them.
-    if (tab->table_ref->uses_materialization())
+    if (tab->table_ref->is_table_function())
+    {
+      qep_tab->materialize_table= join_materialize_table_function;
+      if (tab->dependent)
+        qep_tab->rematerialize= true;
+    }
+    else if (tab->table_ref->uses_materialization())
       qep_tab->materialize_table= join_materialize_derived;
 
     if (qep_tab->sj_mat_exec())

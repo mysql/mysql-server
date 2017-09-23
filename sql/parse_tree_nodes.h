@@ -76,6 +76,7 @@
 #include "sql/table.h"                   // Common_table_expr
 
 #include "thr_lock.h"
+#include "sql/table_function.h"          // Json_table_column
 
 class PT_field_def_base;
 class PT_hint_list;
@@ -577,6 +578,38 @@ public:
       return true;
     return false;
   }
+};
+
+
+class PT_json_table_column : public Parse_tree_node
+{
+public:
+  virtual Json_table_column *get_column() = 0;
+};
+
+
+class PT_table_factor_function : public PT_table_reference
+{
+  typedef PT_table_reference super;
+
+public:
+  PT_table_factor_function(Item *expr,
+                           const LEX_STRING &path,
+                           Trivial_array<PT_json_table_column *> *nested_cols,
+                           const LEX_STRING &table_alias)
+    : m_expr(expr),
+      m_path(path),
+      m_nested_columns(nested_cols),
+      m_table_alias(table_alias)
+  {}
+
+  bool contextualize(Parse_context *pc) override;
+
+private:
+  Item *m_expr;
+  const LEX_STRING m_path;
+  Trivial_array<PT_json_table_column *> *m_nested_columns;
+  const LEX_STRING m_table_alias;
 };
 
 
@@ -5247,6 +5280,84 @@ private:
   Item *m_where_condition;
 
   Show_cmd_type m_show_cmd_type;
+};
+
+
+class PT_json_table_column_for_ordinality final : public PT_json_table_column
+{
+  typedef PT_json_table_column super;
+
+public:
+  explicit PT_json_table_column_for_ordinality(const LEX_STRING &name)
+    : m_column(enum_jt_column::JTC_ORDINALITY),
+      m_name(name.str)
+  {}
+
+  bool contextualize(Parse_context *pc) override
+  {
+    m_column.init_for_tmp_table(MYSQL_TYPE_LONGLONG, 10, 0, true, true, 8,
+                                m_name);
+    return super::contextualize(pc);
+  }
+
+  Json_table_column *get_column() override { return &m_column; }
+
+private:
+  Json_table_column m_column;
+  const char *m_name;
+};
+
+
+class PT_json_table_column_with_path final : public PT_json_table_column
+{
+  typedef PT_json_table_column super;
+
+public:
+  PT_json_table_column_with_path(const LEX_STRING &name,
+                                 PT_type *type,
+                                 enum_jt_column col_type,
+                                 LEX_STRING path,
+                                 enum_jtc_on on_err,
+                                 const LEX_STRING &error_def,
+                                 enum_jtc_on on_empty,
+                                 const LEX_STRING &missing_def)
+    : m_column(col_type, path, on_err, error_def, on_empty, missing_def),
+      m_name(name.str),
+      m_type(type)
+  {}
+
+  bool contextualize(Parse_context *pc) override;
+
+  Json_table_column *get_column() override { return &m_column; }
+
+private:
+  Json_table_column m_column;
+  const char *m_name;
+  PT_type *m_type;
+};
+
+
+class PT_json_table_column_with_nested_path final : public PT_json_table_column
+{
+  typedef PT_json_table_column super;
+
+public:
+  PT_json_table_column_with_nested_path(
+      const LEX_STRING &path,
+      Trivial_array<PT_json_table_column *> *nested_cols)
+    : m_path(path),
+      m_nested_columns(nested_cols),
+      m_column(nullptr)
+  {}
+
+  bool contextualize(Parse_context *pc) override;
+
+  Json_table_column *get_column() override { return m_column; }
+
+private:
+  const LEX_STRING m_path;
+  const Trivial_array<PT_json_table_column *> *m_nested_columns;
+  Json_table_column *m_column;
 };
 
 

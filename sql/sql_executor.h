@@ -190,7 +190,6 @@ public:
 };
 
 
-
 /**
   QEP_operation is an interface class for operations in query execution plan.
 
@@ -378,6 +377,7 @@ int join_read_first(QEP_TAB *tab);
 int join_read_last(QEP_TAB *tab);
 int join_read_last_key(QEP_TAB *tab);
 int join_materialize_derived(QEP_TAB *tab);
+int join_materialize_table_function(QEP_TAB *tab);
 int join_materialize_semijoin(QEP_TAB *tab);
 int join_read_prev_same(READ_RECORD *info);
 
@@ -422,6 +422,7 @@ public:
     found(false),
     not_null_compl(false),
     first_unmatched(NO_PLAN_IDX),
+    rematerialize(false),
     materialize_table(NULL),
     read_first_record(NULL),
     next_select(NULL),
@@ -616,6 +617,9 @@ public:
   bool not_null_compl;
 
   plan_idx first_unmatched; /**< used for optimization purposes only   */
+
+  /// Dependent table functions have to be materialized on each new scan
+  bool rematerialize;
 
   READ_RECORD::Setup_func materialize_table;
   /**

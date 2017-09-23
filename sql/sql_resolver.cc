@@ -82,6 +82,7 @@
 
 static const Item::enum_walk walk_subquery=
   Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY);
+static bool check_right_lateral_join(TABLE_LIST *table_ref);
 
 /**
   Prepare query block for optimization.
@@ -147,8 +148,6 @@ bool SELECT_LEX::prepare(THD *thd)
   if (top_join_list.elements > 0)
     propagate_nullability(&top_join_list, false);
 
-  is_item_list_lookup= true;
-
   /*
     Determine whether it is suggested to merge immediate derived tables, based
     on the placement of the query block:
@@ -172,9 +171,28 @@ bool SELECT_LEX::prepare(THD *thd)
   Opt_trace_object trace_prepare(trace, "join_preparation");
   trace_prepare.add_select_number(select_number);
   Opt_trace_array trace_steps(trace, "steps");
- 
+
   // Initially, "all_fields" is the select list
   all_fields= fields_list;
+
+  /*
+    Setup the expressions in the SELECT list. Wait with privilege checking
+    until all derived tables are resolved, except do privilege checking for
+    subqueries inside a derived table.
+    Need to be done here in order for table function's arguments to be fixed
+    properly.
+  */
+  const bool check_privs= !thd->derived_tables_processing ||
+                          master_unit()->item != NULL;
+  thd->mark_used_columns= check_privs ? MARK_COLUMNS_READ : MARK_COLUMNS_NONE;
+  ulonglong want_privilege_saved= thd->want_privilege;
+  thd->want_privilege= check_privs ? SELECT_ACL : 0;
+
+  /*
+    Expressions in lateral join can't refer to item list, thus item list lookup
+    shouldn't be allowed during table/table function setup.
+  */
+  is_item_list_lookup= false;
 
   /* Check that all tables, fields, conds and order are ok */
 
@@ -183,7 +201,8 @@ bool SELECT_LEX::prepare(THD *thd)
     if (setup_tables(thd, get_table_list(), false))
       DBUG_RETURN(true);
 
-    if (derived_table_count && resolve_derived(thd, true))
+    if ((derived_table_count || table_func_count) &&
+        resolve_placeholder_tables(thd, true))
       DBUG_RETURN(true);
 
     // Wait with privilege checking until all derived tables are resolved.
@@ -191,6 +210,21 @@ bool SELECT_LEX::prepare(THD *thd)
         check_view_privileges(thd, SELECT_ACL, SELECT_ACL))
       DBUG_RETURN(true);
   }
+
+  if (table_func_count)
+  {
+    for (TABLE_LIST *tl= leaf_tables; tl; tl= tl->next_leaf)
+    {
+      tl->propagate_table_maps(0);
+      if (tl->is_table_function())
+      {
+        if (check_right_lateral_join(tl))
+          DBUG_RETURN(true);
+      }
+    }
+  }
+
+  is_item_list_lookup= true;
 
   // Precompute and store the row types of NATURAL/USING joins.
   if (leaf_table_count >= 2 &&
@@ -211,17 +245,6 @@ bool SELECT_LEX::prepare(THD *thd)
   parsing_place= CTX_NONE;
 
   resolve_place= RESOLVE_SELECT_LIST;
-
-  /*
-    Setup the expressions in the SELECT list. Wait with privilege checking
-    until all derived tables are resolved, except do privilege checking for
-    subqueries inside a derived table.
-  */
-  const bool check_privs= !thd->derived_tables_processing ||
-                          master_unit()->item != NULL;
-  thd->mark_used_columns= check_privs ? MARK_COLUMNS_READ : MARK_COLUMNS_NONE;
-  ulonglong want_privilege_saved= thd->want_privilege;
-  thd->want_privilege= check_privs ? SELECT_ACL : 0;
 
   if (with_wild && setup_wild(thd))
     DBUG_RETURN(true);
@@ -462,6 +485,46 @@ bool SELECT_LEX::prepare(THD *thd)
   DBUG_RETURN(false);
 }
 
+
+/**
+  Check whether the given table function depends on a table it's RIGHT JOINed
+  to. An error is thrown if such dependency is found.
+
+  @param table_ref  Table representing the table function
+
+  @returns
+    false no dependency is found
+    true  otherwise
+*/
+
+static bool check_right_lateral_join(TABLE_LIST *table_ref)
+{
+  table_map map= table_ref->table_function->used_tables();
+  TABLE_LIST *orig_table= table_ref;
+
+  for (; table_ref->embedding && map; table_ref= table_ref->embedding)
+  {
+    List_iterator<TABLE_LIST> li(table_ref->embedding->nested_join->join_list);
+    TABLE_LIST *table;
+    while ((table= li++))
+    {
+      table_map cur_table_map=
+        table->nested_join ? table->nested_join->used_tables : table->map();
+      if (cur_table_map & map)
+      {
+        if (table->outer_join & JOIN_TYPE_RIGHT)
+        {
+          my_error(ER_TF_FORBIDDEN_JOIN_TYPE, MYF(0), orig_table->alias);
+          return true;
+        }
+        map &= (~cur_table_map);
+        if (!map)
+          return false;
+      }
+    }
+  }
+  return false;
+}
 
 /**
   Apply local transformations, such as query block merging.
@@ -926,7 +989,7 @@ void SELECT_LEX::remap_tables(THD *thd)
 }
 
 /**
-  @brief Resolve derived table and view references in query block
+  @brief Resolve derived table, view or table function references in query block
 
   @param thd            Pointer to THD.
   @param apply_semijoin if true, apply semi-join transform when possible
@@ -934,16 +997,17 @@ void SELECT_LEX::remap_tables(THD *thd)
   @return false if success, true if error
 */
 
-bool SELECT_LEX::resolve_derived(THD *thd, bool apply_semijoin)
+bool SELECT_LEX::resolve_placeholder_tables(THD *thd, bool apply_semijoin)
 {
-  DBUG_ENTER("SELECT_LEX::resolve_derived");
+  DBUG_ENTER("SELECT_LEX::resolve_placeholder_tables");
 
-  DBUG_ASSERT(derived_table_count);
+  DBUG_ASSERT(derived_table_count > 0 || table_func_count > 0);
 
   // Prepare derived tables and views that belong to this query block.
   for (TABLE_LIST *tl= get_table_list(); tl; tl= tl->next_local)
   {
-    if (!tl->is_view_or_derived() || tl->is_merged())
+    if ((!tl->is_view_or_derived() && !tl->is_table_function()) ||
+        tl->is_merged())
       continue;
     if (tl->resolve_derived(thd, apply_semijoin))
       DBUG_RETURN(true);
@@ -959,7 +1023,7 @@ bool SELECT_LEX::resolve_derived(THD *thd, bool apply_semijoin)
   {
     for (TABLE_LIST *tl= get_table_list(); tl; tl= tl->next_local)
     {
-      if (!tl->is_view_or_derived() ||
+      if ((!tl->is_view_or_derived() && !tl->is_table_function()) ||
           tl->is_merged() ||
           !tl->is_mergeable())
         continue;
@@ -973,15 +1037,24 @@ bool SELECT_LEX::resolve_derived(THD *thd, bool apply_semijoin)
   {
     // Ensure that any derived table is merged or materialized after prepare:
     DBUG_ASSERT(first_execution || !tl->is_view_or_derived() ||
-                tl->is_merged() || tl->uses_materialization());
-    if (!tl->is_view_or_derived() || tl->is_merged())
+                tl->is_merged() || tl->uses_materialization() ||
+                tl->is_table_function());
+    if (!(tl->is_view_or_derived() || tl->is_table_function()) ||
+        tl->is_merged())
       continue;
     /*
       If tl->resolve_derived() created the tmp table, don't create it again.
       @todo in WL#6570, eliminate tests of tl->table in this function.
     */
-    if (tl->table == nullptr &&
-        tl->setup_materialized_derived(thd))
+    if (tl->is_table_function())
+    {
+      end_lateral_table= tl;
+      if (tl->setup_table_function(thd))
+        DBUG_RETURN(true);
+      end_lateral_table= NULL;
+      continue;
+    }
+    else if (tl->table == nullptr && tl->setup_materialized_derived(thd))
       DBUG_RETURN(true);
     materialized_derived_table_count++;
   }
@@ -997,9 +1070,17 @@ bool SELECT_LEX::resolve_derived(THD *thd, bool apply_semijoin)
   {
     for (TABLE_LIST *tl= leaf_tables; tl; tl= tl->next_leaf)
     {
-      if (!tl->is_view_or_derived() || tl->table != NULL)
+      if (!(tl->is_view_or_derived() || tl->is_table_function()) ||
+          tl->table != NULL)
         continue;
       DBUG_ASSERT(!tl->is_merged());
+      if (tl->is_table_function())
+      {
+        end_lateral_table= tl;
+        if (tl->setup_table_function(thd))
+          DBUG_RETURN(true);
+        end_lateral_table= NULL;
+      }
       if (tl->resolve_derived(thd, apply_semijoin))
         DBUG_RETURN(true);        /* purecov: inspected */
       if (tl->table == nullptr && tl->setup_materialized_derived(thd))
@@ -2132,7 +2213,10 @@ SELECT_LEX::convert_subquery_to_semijoin(Item_exists_subselect *subq_pred)
   // Walk through child's tables and adjust table map
   uint table_no= leaf_table_count;
   for (tl= subq_select->leaf_tables; tl; tl= tl->next_leaf, table_no++)
+  {
+    tl->dep_tables<<= leaf_table_count;
     tl->set_tableno(table_no);
+  }
 
   /*
     If we leave this function in an error path before subq_select is unlinked,
@@ -2145,6 +2229,8 @@ SELECT_LEX::convert_subquery_to_semijoin(Item_exists_subselect *subq_pred)
   derived_table_count+= subq_select->derived_table_count;
   materialized_derived_table_count+=
     subq_select->materialized_derived_table_count;
+  table_func_count+=
+    subq_select->table_func_count;
   has_sj_nests|= subq_select->has_sj_nests;
   partitioned_table_count+= subq_select->partitioned_table_count;
   leaf_table_count+= subq_select->leaf_table_count;
@@ -2473,6 +2559,7 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table)
       for (TABLE_LIST *leaf= derived_select->leaf_tables; leaf;
            leaf= leaf->next_leaf)
       {
+        leaf->dep_tables<<= table_adjust;
         if (leaf->next_leaf == NULL)
         {
           leaf->next_leaf= (*tl)->next_leaf;
@@ -2486,6 +2573,7 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table)
 
   leaf_table_count+= (derived_select->leaf_table_count - 1);
   derived_table_count+= derived_select->derived_table_count;
+  table_func_count+= derived_select->table_func_count;
   materialized_derived_table_count+=
     derived_select->materialized_derived_table_count;
   has_sj_nests|= derived_select->has_sj_nests;

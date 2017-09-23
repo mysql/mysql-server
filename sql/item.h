@@ -2393,19 +2393,19 @@ public:
   }
   inline bool is_temporal_with_date() const
   {
-    return is_temporal_type_with_date(data_type());
+    return is_temporal_type_with_date(real_type_to_type(data_type()));
   }
   inline bool is_temporal_with_date_and_time() const
   {
-    return is_temporal_type_with_date_and_time(data_type());
+    return is_temporal_type_with_date_and_time(real_type_to_type(data_type()));
   }
   inline bool is_temporal_with_time() const
   {
-    return is_temporal_type_with_time(data_type());
+    return is_temporal_type_with_time(real_type_to_type(data_type()));
   }
   inline bool is_temporal() const
   {
-    return is_temporal_type(data_type());
+    return is_temporal_type(real_type_to_type(data_type()));
   }
   /**
     Check whether this and the given item has compatible comparison context.
@@ -2736,6 +2736,7 @@ public:
     if (orig_name.is_set())
       item_name= orig_name;
   }
+  bool basic_const_item() const override { return true; }
 };
 
 
@@ -3505,7 +3506,6 @@ public:
   bool val_json(Json_wrapper *wr) override;
   bool send(Protocol *protocol, String *str) override;
   enum Item_result result_type() const override { return STRING_RESULT; }
-  bool basic_const_item() const override { return true; }
   Item *clone_item() const override { return new Item_null(item_name); }
   bool is_null() override { return true; }
 
@@ -3828,7 +3828,6 @@ public:
   {
     return get_time_from_int(ltime);
   }
-  bool basic_const_item() const override { return true; }
   Item *clone_item() const override { return new Item_int(this); }
   void print(String *str, enum_query_type query_type) override;
   Item_num *neg() override { value= -value; return this; }
@@ -3962,7 +3961,6 @@ public:
   {
     return get_time_from_decimal(ltime);
   }
-  bool basic_const_item() const override { return true; }
   Item *clone_item() const override
   {
     return new Item_decimal(item_name, &decimal_value, decimals, max_length);
@@ -4057,7 +4055,6 @@ public:
   {
     return get_time_from_real(ltime);
   }
-  bool basic_const_item() const override { return true; }
   Item *clone_item() const override
   { return new Item_float(item_name, value, decimals, max_length); }
   Item_num *neg() override { value= -value; return this; }
@@ -4230,7 +4227,6 @@ public:
     return get_time_from_string(ltime);
   }
   enum Item_result result_type() const override { return STRING_RESULT; }
-  bool basic_const_item() const override { return true; }
   bool eq(const Item *item, bool binary_cmp) const override;
   Item *clone_item() const override
   {
@@ -4408,7 +4404,6 @@ public:
     return (double) (ulonglong) Item_hex_string::val_int();
   }
   longlong val_int() override;
-  bool basic_const_item() const override { return true; }
   Item *clone_item() const override
   {
     return new Item_hex_string(str_value.ptr(), max_length);

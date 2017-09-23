@@ -58,7 +58,7 @@ public:
                            bool is_distinct, ulonglong options,
                            const char *alias, bool bit_fields_as_long,
                            bool create_table);
-  friend bool TABLE_LIST::create_derived(THD *thd);
+  friend bool TABLE_LIST::create_materialized_table(THD *thd);
   virtual const ha_rows *row_count() const override { return &m_rows_in_table; }
 };
 

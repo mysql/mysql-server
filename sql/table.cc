@@ -100,6 +100,7 @@
 #include "sql_string.h"
 #include "template_utils.h"              // down_cast
 #include "thr_mutex.h"
+#include "table_function.h"              // Table_function
 
 /* INFORMATION_SCHEMA name */
 LEX_STRING INFORMATION_SCHEMA_NAME= {C_STRING_WITH_LEN("information_schema")};
@@ -4357,6 +4358,71 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
 }
 
 
+/**
+  Initialize table as internal tmp table
+
+  @param thd        thread handle
+  @param share      table share
+  @param m_root     table's mem root
+  @param charset    table's charset
+  @param alias_arg  table's alias
+  @param fld        table's fields array
+  @param blob_fld   buffer for blob field index
+  @param is_virtual TRUE <=> it's a virtual tmp table
+
+  @returns
+    true  OOM
+    false otherwise
+*/
+
+bool TABLE::init_tmp_table(THD *thd, TABLE_SHARE *share, MEM_ROOT *m_root,
+                           CHARSET_INFO *charset, const char* alias_arg,
+                           Field **fld, uint *blob_fld, bool is_virtual)
+{
+  if (!is_virtual)
+  {
+    char *name, path[FN_REFLEN];
+    DBUG_ASSERT(sizeof(my_thread_id) == 4);
+    sprintf(path,"%s%lx_%x_%x", tmp_file_prefix, current_pid, thd->thread_id(),
+            thd->tmp_table++);
+    fn_format(path, path, mysql_tmpdir, "", MY_REPLACE_EXT|MY_UNPACK_FILENAME);
+    if (!(name= (char*)alloc_root(m_root, strlen(path) + 1)))
+      return true;
+    my_stpcpy(name, path);
+
+    init_tmp_table_share(thd, share, "", 0, name, name, m_root);
+  }
+  s= share;
+  in_use= thd;
+
+  share->blob_field= blob_fld;
+  share->db_low_byte_first=1;                // True for HEAP and MyISAM
+  share->ref_count++;
+  share->primary_key= MAX_KEY;
+  share->keys_for_keyread.init();
+  share->keys_in_use.init();
+  share->keys= 0;
+  share->field= field= fld;
+  share->table_charset= charset;
+  set_not_started();
+  alias= alias_arg;
+  reginfo.lock_type=TL_WRITE;	/* Will be updated */
+  db_stat= HA_OPEN_KEYFILE + HA_OPEN_RNDFILE;
+  copy_blobs= 1;
+  quick_keys.init();
+  possible_quick_keys.init();
+  covering_keys.init();
+  merge_keys.init();
+  keys_in_use_for_query.init();
+  keys_in_use_for_group_by.init();
+  keys_in_use_for_order_by.init();
+  set_not_started();
+#ifndef DBUG_OFF
+  set_tmp_table_seq_id(thd->get_tmp_table_seq_id());
+#endif
+  return false;
+}
+
 bool TABLE::refix_gc_items(THD *thd)
 {
   if (vfield)
@@ -4535,6 +4601,7 @@ TABLE_LIST *TABLE_LIST::new_nested_join(MEM_ROOT *allocator,
   join_nest->embedding= embedding;
   join_nest->join_list= belongs_to;
   join_nest->select_lex= select;
+  join_nest->nested_join->first_nested= NO_PLAN_IDX;
 
   join_nest->nested_join->join_list.empty();
 
@@ -5540,7 +5607,8 @@ const char *Field_iterator_table_ref::get_table_name()
   else if (table_ref->is_natural_join)
     return natural_join_it.column_ref()->table_name();
 
-  DBUG_ASSERT(!strcmp(table_ref->table_name,
+  DBUG_ASSERT(table_ref->is_table_function() ||
+              !strcmp(table_ref->table_name,
                       table_ref->table->s->table_name.str));
   return table_ref->table_name;
 }
@@ -6955,7 +7023,13 @@ uint TABLE_LIST::leaf_tables_count() const
 int TABLE_LIST::fetch_number_of_rows()
 {
   int error= 0;
-  if (uses_materialization())
+  if (is_table_function())
+  {
+    // FIXME: open question - there's no estimate for table function.
+    // return arbitrary, non-zero number;
+    table->file->stats.records= PLACEHOLDER_TABLE_ROW_ESTIMATE;
+  }
+  else if (uses_materialization())
   {
     /*
       @todo: CostModel: This updates the stats.record value to the
@@ -6976,7 +7050,8 @@ int TABLE_LIST::fetch_number_of_rows()
     */
     table->file->stats.records=
       std::max(select_lex->master_unit()->query_result()->estimated_rowcount,
-               (ha_rows)2); // Recursive reference is never a const table
+               // Recursive reference is never a const table
+               (ha_rows)PLACEHOLDER_TABLE_ROW_ESTIMATE);
   }
   else
     error= table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
@@ -7711,6 +7786,27 @@ bool TABLE_LIST::set_recursive_reference()
   return false;
 }
 
+
+/**
+  Propagate table map of a table up by nested join tree. Used to check
+  dependencies for LATERAL JOIN of table functions.
+
+  @param map_arg  table map to propagate
+*/
+
+void TABLE_LIST::propagate_table_maps(table_map map_arg)
+{
+  table_map prop_map;
+  if (nested_join)
+  {
+    nested_join->used_tables|= map_arg;
+    prop_map= nested_join->used_tables;
+  }
+  else
+    prop_map= map();
+  if (embedding)
+    embedding->propagate_table_maps(prop_map);
+}
 
 LEX_USER *
 LEX_USER::alloc(THD *thd, LEX_STRING *user_arg, LEX_STRING *host_arg)

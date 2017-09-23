@@ -571,7 +571,8 @@ void Group_check::add_to_fd(Item *item, bool local_column,
   {
     Item_field *const item_field= (Item_field*)item;
     TABLE_LIST *const tl= item_field->field->table->pos_in_table_list;
-    if (tl->uses_materialization()) // materialized table
+    if (tl->uses_materialization() && // materialized table
+        !tl->is_table_function())     // there's no underlying query expr
       add_to_source_of_mat_table(item_field, tl);
   }
 }
@@ -870,7 +871,8 @@ bool Group_check::is_in_fd_of_underlying(Item_ident *item)
         return true;
       }
     }
-    else if (tl->uses_materialization()) // Materialized derived table
+    else if (tl->uses_materialization() && // Materialized derived table
+             !tl->is_table_function())
     {
       SELECT_LEX *const mat_select= tl->derived_unit()->first_select();
       uint j;

@@ -1162,6 +1162,16 @@ public:
   std::pair<const std::string, Json_wrapper> elt() const;
 };
 
+
+/**
+  How Json_wrapper would handle coercion error
+*/
+
+enum enum_coercion_error {
+  CE_WARNING,  // Throw a warning, default
+  CE_ERROR     // Throw an error
+};
+
 /**
   Abstraction for accessing JSON values irrespective of whether they
   are (started out as) binary JSON values or JSON DOM values. The
@@ -1194,7 +1204,6 @@ private:
     json_binary::Value m_value;
   };
   bool m_is_dom;      //!< Wraps a DOM iff true
-
 public:
   /**
     Get the wrapped datetime value in the packed format.
@@ -1614,47 +1623,65 @@ public:
   /**
     Extract an int (signed or unsigned) from the JSON if possible
     coercing if need be.
-    @param[in] msgnam to use in error message in conversion failed
+    @param[in]  msgnam to use in error message in conversion failed
+    @param[out] err    TRUE <=> error occur during coercion
+    @param[in]  cr_error Whether to raise an error or warning on
+                         data truncation
     @returns json value coerced to int
   */
-  longlong coerce_int(const char *msgnam) const;
+  longlong coerce_int(const char *msgnam, bool *err= NULL,
+                      enum_coercion_error cr_error= CE_WARNING) const;
 
   /**
     Extract a real from the JSON if possible, coercing if need be.
 
-    @param[in] msgnam to use in error message in conversion failed
+    @param[in]  msgnam to use in error message in conversion failed
+    @param[out] err    TRUE <=> error occur during coercion
+    @param[in]  cr_error Whether to raise an error or warning on
+                         data truncation
     @returns json value coerced to real
   */
-  double coerce_real(const char *msgnam) const;
+  double coerce_real(const char *msgnam, bool *err= NULL,
+                      enum_coercion_error cr_error= CE_WARNING) const;
 
   /**
     Extract a decimal from the JSON if possible, coercing if need be.
 
     @param[in,out] decimal_value a value buffer
-    @param[in] msgnam to use in error message in conversion failed
+    @param[in]  msgnam to use in error message in conversion failed
+    @param[out] err    TRUE <=> error occur during coercion
+    @param[in]  cr_error Whether to raise an error or warning on
+                         data truncation
     @returns json value coerced to decimal
   */
-  my_decimal *coerce_decimal(my_decimal *decimal_value, const char *msgnam)
-    const;
+  my_decimal *coerce_decimal(my_decimal *decimal_value, const char *msgnam,
+                             bool *err= NULL,
+                             enum_coercion_error cr_error= CE_WARNING) const;
 
   /**
     Extract a date from the JSON if possible, coercing if need be.
 
     @param[in,out] ltime a value buffer
     @param msgnam
+    @param[in]  cr_error Whether to raise an error or warning on
+                         data truncation
     @returns json value coerced to date
    */
-  bool coerce_date(MYSQL_TIME *ltime, const char *msgnam) const;
+  bool coerce_date(MYSQL_TIME *ltime, const char *msgnam,
+                   enum_coercion_error cr_error= CE_WARNING) const;
 
   /**
     Extract a time value from the JSON if possible, coercing if need be.
 
     @param[in,out] ltime a value buffer
     @param msgnam
+    @param[in]  cr_error Whether to raise an error or warning on
+                         data truncation
 
     @returns json value coerced to time
   */
-  bool coerce_time(MYSQL_TIME *ltime, const char *msgnam) const;
+  bool coerce_time(MYSQL_TIME *ltime, const char *msgnam,
+                   enum_coercion_error cr_error= CE_WARNING) const;
 
   /**
     Make a sort key that can be used by filesort to order JSON values.

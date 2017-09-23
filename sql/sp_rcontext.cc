@@ -32,7 +32,7 @@
 #include "sql/sql_class.h"     // THD
 #include "sql/sql_cursor.h"    // mysql_open_cursor
 #include "sql/sql_list.h"
-#include "sql/sql_tmp_table.h" // create_virtual_tmp_table
+#include "sql/sql_tmp_table.h" // create_tmp_table_from_fields
 #include "template_utils.h"    // delete_container_pointers
 
 class SELECT_LEX_UNIT;
@@ -130,7 +130,7 @@ bool sp_rcontext::init_var_table(THD *thd)
 
   DBUG_ASSERT(field_def_lst.elements == m_root_parsing_ctx->max_var_index());
 
-  if (!(m_var_table= create_virtual_tmp_table(thd, field_def_lst)))
+  if (!(m_var_table= create_tmp_table_from_fields(thd, field_def_lst)))
     return true;
 
   m_var_table->copy_blobs= true;

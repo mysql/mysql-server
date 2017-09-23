@@ -565,6 +565,12 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
   {
     TABLE *tmp_table= table_ref->table;
 
+    /*
+      THD::decide_logging_format has not yet been called and may
+      not be called at all depending on the engine, so call it here.
+    */
+    if (thd->decide_logging_format(table_ref) != 0)
+      DBUG_RETURN(true);
     /* In RBR, the statement is not binlogged if the table is temporary. */
     binlog_stmt= !thd->is_current_stmt_binlog_format_row();
 
