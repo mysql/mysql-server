@@ -20,7 +20,6 @@
 #include <sys/types.h>
 #include <time.h>
 #include <atomic>
-#include <atomic>
 
 #include "binlog_event.h"
 #include "my_dbug.h"
@@ -48,6 +47,7 @@
 class Rpl_info_handler;
 class Slave_worker;
 struct TABLE;
+struct TABLE_REF;
 
 #ifndef DBUG_OFF
 extern ulong w_rr;
@@ -64,7 +64,7 @@ extern ulong w_rr;
 */
 
 /* Assigned Partition Hash (APH) entry */
-typedef struct st_db_worker_hash_entry
+struct db_worker_hash_entry
 {
   uint  db_len;
   const char *db;
@@ -89,7 +89,7 @@ typedef struct st_db_worker_hash_entry
      pthread_cond_t
      timestamp updated_at; */
 
-} db_worker_hash_entry;
+};
 
 bool init_hash_workers(Relay_log_info *rli);
 void destroy_hash_workers(Relay_log_info*);
@@ -102,15 +102,15 @@ Slave_worker *get_least_occupied_worker(Relay_log_info *rli,
 
 #define SLAVE_INIT_DBS_IN_GROUP 4     // initial allocation for CGEP dynarray
 
-typedef struct st_slave_job_group
+struct Slave_job_group
 {
-  st_slave_job_group() {}
+  Slave_job_group() {}
 
   /*
     We need a custom copy constructor and assign operator because std::atomic<T>
     is not copy-constructible.
   */
-  st_slave_job_group(const st_slave_job_group &other)
+  Slave_job_group(const Slave_job_group &other)
     : group_master_log_name(other.group_master_log_name),
       group_master_log_pos(other.group_master_log_pos),
       group_relay_log_name(other.group_relay_log_name),
@@ -134,7 +134,7 @@ typedef struct st_slave_job_group
       sequence_number(other.sequence_number),
       new_fd_event(other.new_fd_event) {}
 
-  st_slave_job_group &operator=(const st_slave_job_group &other)
+  Slave_job_group &operator=(const Slave_job_group &other)
   {
     group_master_log_name= other.group_master_log_name;
     group_master_log_pos= other.group_master_log_pos;
@@ -249,7 +249,7 @@ typedef struct st_slave_job_group
     sequence_number= SEQ_UNINIT;
     new_fd_event= NULL;
   }
-} Slave_job_group;
+};
 
 /**
    The class defines a type of queue with a predefined max size that is

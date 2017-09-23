@@ -131,7 +131,7 @@ using binary_log::Binary_log_event;
 using binary_log::Format_description_event;
 
 typedef ulonglong sql_mode_t;
-typedef struct st_db_worker_hash_entry db_worker_hash_entry;
+struct db_worker_hash_entry;
 extern "C" MYSQL_PLUGIN_IMPORT char server_version[SERVER_VERSION_LENGTH];
 #if defined(MYSQL_SERVER)
 int ignored_error_code(int err_code);
@@ -405,7 +405,7 @@ enum enum_base64_output_mode {
   2. Other information on how to print the events, e.g. short_form,
      hexdump_from.  These are not dependent on the last event.
 */
-typedef struct st_print_event_info
+struct PRINT_EVENT_INFO
 {
   /*
     Settings for database, sql_mode etc that comes from the last event
@@ -427,9 +427,9 @@ typedef struct st_print_event_info
   my_thread_id thread_id;
   bool thread_id_printed;
 
-  st_print_event_info();
+  PRINT_EVENT_INFO();
 
-  ~st_print_event_info() {
+  ~PRINT_EVENT_INFO() {
     close_cached_file(&head_cache);
     close_cached_file(&body_cache);
     close_cached_file(&footer_cache);
@@ -485,17 +485,17 @@ typedef struct st_print_event_info
   bool skipped_event_in_transaction;
 
   bool print_table_metadata;
-} PRINT_EVENT_INFO;
+};
 #endif
 
 /*
   A specific to the database-scheduled MTS type.
 */
-typedef struct st_mts_db_names
+struct Mts_db_names
 {
   const char *name[MAX_DBS_IN_EVENT_MTS];
   int  num;
-} Mts_db_names;
+};
 
 /**
   @class Log_event

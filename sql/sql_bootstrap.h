@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,8 @@
 #define SQL_BOOTSTRAP_H
 
 #include <stddef.h>
+
+struct MYSQL_FILE;
 
 /**
   The maximum size of a bootstrap query.
@@ -41,7 +43,7 @@
 #define QUERY_SOURCE_FILE     0
 #define QUERY_SOURCE_COMPILED 1
 
-typedef struct st_mysql_file *fgets_input_t;
+typedef MYSQL_FILE *fgets_input_t;
 typedef char * (*fgets_fn_t)(char *, size_t, fgets_input_t, int *error);
 
 int read_bootstrap_query(char *query, size_t *query_length,

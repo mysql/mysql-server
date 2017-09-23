@@ -560,7 +560,7 @@ static int validate_password_deinit(void *arg MY_ATTRIBUTE((unused)))
 */
 static void
 dictionary_update(MYSQL_THD thd MY_ATTRIBUTE((unused)),
-                  struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
+                  SYS_VAR *var MY_ATTRIBUTE((unused)),
                   void *var_ptr, const void *save)
 {
   *(const char**)var_ptr= *(const char**)save;
@@ -576,7 +576,7 @@ dictionary_update(MYSQL_THD thd MY_ATTRIBUTE((unused)),
 */
 static void
 length_update(MYSQL_THD thd MY_ATTRIBUTE((unused)),
-              struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
+              SYS_VAR *var MY_ATTRIBUTE((unused)),
               void *var_ptr, const void *save)
 {
   /* check if there is an actual change */
@@ -636,7 +636,7 @@ static MYSQL_SYSVAR_BOOL(check_user_name, check_user_name,
   "or the reverse of them",
   NULL, NULL, TRUE);
 
-static struct st_mysql_sys_var* validate_password_system_variables[]= {
+static SYS_VAR* validate_password_system_variables[]= {
   MYSQL_SYSVAR(length),
   MYSQL_SYSVAR(number_count),
   MYSQL_SYSVAR(mixed_case_count),
@@ -647,7 +647,7 @@ static struct st_mysql_sys_var* validate_password_system_variables[]= {
   NULL
 };
 
-static struct st_mysql_show_var validate_password_status_variables[]= {
+static SHOW_VAR validate_password_status_variables[]= {
     { "validate_password_dictionary_file_last_parsed",
       (char *) &validate_password_dictionary_file_last_parsed,
       SHOW_CHAR_PTR, SHOW_SCOPE_GLOBAL },

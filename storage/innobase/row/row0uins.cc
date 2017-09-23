@@ -305,7 +305,7 @@ retry:
 
 /** Parses the row reference and other info in a fresh insert undo record.
 @param[in,out]	node	row undo node
-@param[in,out]	mdl	MDL ticket */
+@param[in,out]	mdl	MDL ticket or nullptr if unnecessary */
 static
 void
 row_undo_ins_parse_undo_rec(
@@ -319,11 +319,8 @@ row_undo_ins_parse_undo_rec(
 	ulint		type;
 	ulint		dummy;
 	bool		dummy_extern;
-	bool		get_mdl;
 
 	ut_ad(node);
-
-	get_mdl = dd_mdl_for_undo(current_thd);
 
 	ptr = trx_undo_rec_get_pars(node->undo_rec, &type, &dummy,
 				    &dummy_extern, &undo_no, &table_id);
@@ -332,22 +329,15 @@ row_undo_ins_parse_undo_rec(
 
 	node->update = NULL;
 
-	if (get_mdl) {
-		node->table = dd_table_open_on_id(
-			table_id, current_thd, mdl, false, true);
-	} else {
-		node->table = dd_table_open_on_id_in_mem(table_id, false);
-	}
+	node->table = dd_table_open_on_id(
+		table_id, current_thd, mdl, false, true);
 
 	/* Skip the UNDO if we can't find the table or the .ibd file. */
 	if (node->table == NULL) {
 	} else if (node->table->ibd_file_missing) {
 close_table:
-		if (get_mdl) {
-			dd_table_close(node->table, current_thd, mdl, false);
-		} else {
-			dd_table_close(node->table, nullptr, nullptr, false);
-		}
+		dd_table_close(node->table, current_thd, mdl, false);
+
 		node->table = NULL;
 	} else {
 		ut_ad(!node->table->skip_alter_undo);
@@ -455,7 +445,8 @@ row_undo_ins(
 	ut_ad(node->trx->in_rollback);
 	ut_ad(trx_undo_roll_ptr_is_insert(node->roll_ptr));
 
-	row_undo_ins_parse_undo_rec(node, &mdl);
+	row_undo_ins_parse_undo_rec(
+		node, dd_mdl_for_undo(node->trx) ? &mdl : nullptr);
 
 	if (node->table == NULL) {
 		return(DB_SUCCESS);
@@ -481,11 +472,7 @@ row_undo_ins(
 		err = row_undo_ins_remove_clust_rec(node);
 	}
 
-	if (dd_mdl_for_undo(current_thd)) {
-		dd_table_close(node->table, current_thd, &mdl, false);
-	} else {
-		dd_table_close(node->table, nullptr, nullptr, false);
-	}
+	dd_table_close(node->table, current_thd, &mdl, false);
 
 	node->table = NULL;
 

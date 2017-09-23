@@ -25,8 +25,8 @@
 #include "sql/log.h"                            /* sql_print_information */
 #include "sql/replication.h"
 
-typedef struct st_mysql_show_var SHOW_VAR;
-typedef struct st_mysql_sys_var SYS_VAR;
+struct SHOW_VAR;
+struct SYS_VAR;
 
 
 /**

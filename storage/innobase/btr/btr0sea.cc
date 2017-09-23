@@ -1266,11 +1266,11 @@ retry:
 		not be any adaptive hash index entries), or it was
 		completed and then flagged aborted in
 		rollback_inplace_alter_table(). */
-		break;
 	case ONLINE_INDEX_ABORTED_DROPPED:
-		/* The index should have been dropped from the tablespace
-		already, and the adaptive hash index entries should have
-		been dropped as well. */
+		/* Since dropping the indexes are delayed to post_ddl,
+		this status is similar to ONLINE_INDEX_ABORTED. */
+		break;
+	default:
 		ut_error;
 	}
 #endif /* UNIV_DEBUG */

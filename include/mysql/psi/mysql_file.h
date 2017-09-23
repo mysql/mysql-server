@@ -462,9 +462,10 @@
 
 /**
   An instrumented FILE structure.
-  @sa MYSQL_FILE
+  @c MYSQL_FILE is a drop-in replacement for @c FILE.
+  @sa mysql_file_open
 */
-struct st_mysql_file
+struct MYSQL_FILE
 {
   /** The real file. */
   FILE *m_file;
@@ -475,13 +476,6 @@ struct st_mysql_file
   */
   struct PSI_file *m_psi;
 };
-
-/**
-  Type of an instrumented file.
-  @c MYSQL_FILE is a drop-in replacement for @c FILE.
-  @sa mysql_file_open
-*/
-typedef struct st_mysql_file MYSQL_FILE;
 
 static inline void
 inline_mysql_file_register(

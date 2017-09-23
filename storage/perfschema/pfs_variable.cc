@@ -1115,7 +1115,7 @@ PFS_status_variable_cache::init_show_var_array(enum_var_type scope, bool strict)
   }
 
   /* Last element is NULL. */
-  m_show_var_array.push_back(st_mysql_show_var());
+  m_show_var_array.push_back(SHOW_VAR());
 
   /* Get the latest version of all_status_vars. */
   m_version = get_status_vars_version();

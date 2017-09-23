@@ -748,7 +748,7 @@ void read_ok_ex(MYSQL *mysql, ulong length)
   my_ulonglong affected_rows, insert_id;
   char *db;
 
-  struct charset_info_st *saved_cs;
+  CHARSET_INFO *saved_cs;
   char charset_name[64];
   bool is_charset;
 
@@ -1373,7 +1373,7 @@ cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
       Return to READY_FOR_COMMAND protocol stage in case server reports error 
       or sends OK packet.
     */
-    if (!result || mysql->net.read_pos[0] == 0x00)
+    if (result || mysql->net.read_pos[0] == 0x00)
       MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
 #endif
   }
@@ -2651,7 +2651,7 @@ mysql_init(MYSQL *mysql)
 
 /*
   MYSQL::extension handling (see sql_common.h for declaration
-  of st_mysql_extension structure). 
+  of MYSQL_EXTENSION structure). 
 */
 
 MYSQL_EXTENSION* mysql_extension_init(MYSQL *mysql MY_ATTRIBUTE((unused)))
@@ -2665,7 +2665,7 @@ MYSQL_EXTENSION* mysql_extension_init(MYSQL *mysql MY_ATTRIBUTE((unused)))
 }
 
 
-void mysql_extension_free(struct st_mysql_extension* ext)
+void mysql_extension_free(MYSQL_EXTENSION* ext)
 {
   if (!ext)
     return;
@@ -2947,12 +2947,12 @@ typedef enum my_cs_match_type_enum
 } my_cs_match_type;
 
 
-typedef struct str2str_st
+struct MY_CSET_OS_NAME
 {
   const char *os_name;
   const char *my_name;
   my_cs_match_type param;
-} MY_CSET_OS_NAME;
+};
 
 const MY_CSET_OS_NAME charsets[]=
 {
@@ -3253,8 +3253,7 @@ C_MODE_END
 
 /*********** client side authentication support **************************/
 
-typedef struct st_mysql_client_plugin_AUTHENTICATION auth_plugin_t;
-static int client_mpvio_write_packet(struct st_plugin_vio*, const uchar*, int);
+static int client_mpvio_write_packet(MYSQL_PLUGIN_VIO*, const uchar*, int);
 static int native_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql);
 static int clear_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql);
 
@@ -3425,10 +3424,10 @@ static size_t get_length_store_length(size_t length)
 
 
 /* this is a "superset" of MYSQL_PLUGIN_VIO, in C++ I use inheritance */
-typedef struct {
-  int (*read_packet)(struct st_plugin_vio *vio, uchar **buf);
-  int (*write_packet)(struct st_plugin_vio *vio, const uchar *pkt, int pkt_len);
-  void (*info)(struct st_plugin_vio *vio, struct st_plugin_vio_info *info);
+struct MCPVIO_EXT {
+  int (*read_packet)(MYSQL_PLUGIN_VIO *vio, uchar **buf);
+  int (*write_packet)(MYSQL_PLUGIN_VIO *vio, const uchar *pkt, int pkt_len);
+  void (*info)(MYSQL_PLUGIN_VIO *vio, MYSQL_PLUGIN_VIO_INFO *info);
   /* -= end of MYSQL_PLUGIN_VIO =- */
   MYSQL *mysql;
   auth_plugin_t *plugin;            /**< what plugin we're under */
@@ -3440,7 +3439,7 @@ typedef struct {
   int packets_read, packets_written; /**< counters for send/received packets */
   int mysql_change_user;            /**< if it's mysql_change_user() */
   int last_read_packet_len;         /**< the length of the last *read* packet */
-} MCPVIO_EXT;
+};
 
 
 /*
@@ -4106,7 +4105,7 @@ error:
   This function is called by a client authentication plugin, when it wants
   to read data from the server.
 */
-static int client_mpvio_read_packet(struct st_plugin_vio *mpv, uchar **buf)
+static int client_mpvio_read_packet(MYSQL_PLUGIN_VIO *mpv, uchar **buf)
 {
   MCPVIO_EXT *mpvio= (MCPVIO_EXT*)mpv;
   MYSQL *mysql= mpvio->mysql;
@@ -4167,7 +4166,7 @@ static int client_mpvio_read_packet(struct st_plugin_vio *mpv, uchar **buf)
   It transparently wraps the data into a change user or authentication
   handshake packet, if neccessary.
 */
-static int client_mpvio_write_packet(struct st_plugin_vio *mpv,
+static int client_mpvio_write_packet(MYSQL_PLUGIN_VIO *mpv,
                                      const uchar *pkt, int pkt_len)
 {
   int res;
@@ -4214,11 +4213,11 @@ void mpvio_info(Vio *vio, MYSQL_PLUGIN_VIO_INFO *info)
   memset(info, 0, sizeof(*info));
   switch (vio->type) {
   case VIO_TYPE_TCPIP:
-    info->protocol= st_plugin_vio_info::MYSQL_VIO_TCP;
+    info->protocol= MYSQL_PLUGIN_VIO_INFO::MYSQL_VIO_TCP;
     info->socket= (int)vio_fd(vio);
     return;
   case VIO_TYPE_SOCKET:
-    info->protocol= st_plugin_vio_info::MYSQL_VIO_SOCKET;
+    info->protocol= MYSQL_PLUGIN_VIO_INFO::MYSQL_VIO_SOCKET;
     info->socket= (int)vio_fd(vio);
     return;
   case VIO_TYPE_SSL:
@@ -4228,19 +4227,19 @@ void mpvio_info(Vio *vio, MYSQL_PLUGIN_VIO_INFO *info)
       if (getsockname(vio_fd(vio), &addr, &addrlen))
         return;
       info->protocol= addr.sa_family == AF_UNIX ?
-        st_plugin_vio_info::MYSQL_VIO_SOCKET :
-        st_plugin_vio_info::MYSQL_VIO_TCP;
+        MYSQL_PLUGIN_VIO_INFO::MYSQL_VIO_SOCKET :
+        MYSQL_PLUGIN_VIO_INFO::MYSQL_VIO_TCP;
       info->socket= (int)vio_fd(vio);
       return;
     }
 #ifdef _WIN32
   case VIO_TYPE_NAMEDPIPE:
-    info->protocol= st_plugin_vio_info::MYSQL_VIO_PIPE;
+    info->protocol= MYSQL_PLUGIN_VIO_INFO::MYSQL_VIO_PIPE;
     info->handle= vio->hPipe;
     return;
 #if defined (_WIN32)
   case VIO_TYPE_SHARED_MEMORY:
-    info->protocol= st_plugin_vio_info::MYSQL_VIO_MEMORY;
+    info->protocol= MYSQL_PLUGIN_VIO_INFO::MYSQL_VIO_MEMORY;
     info->handle= vio->handle_file_map; /* or what ? */
     return;
 #endif
@@ -4345,7 +4344,7 @@ int run_plugin_auth(MYSQL *mysql, char *data, uint data_len,
 
   MYSQL_TRACE(AUTH_PLUGIN, mysql, (auth_plugin->name));
 
-  res= auth_plugin->authenticate_user((struct st_plugin_vio *)&mpvio, mysql);
+  res= auth_plugin->authenticate_user((MYSQL_PLUGIN_VIO *)&mpvio, mysql);
   DBUG_PRINT ("info", ("authenticate_user returned %s", 
                        res == CR_OK ? "CR_OK" : 
                        res == CR_ERROR ? "CR_ERROR" :
@@ -4423,7 +4422,7 @@ int run_plugin_auth(MYSQL *mysql, char *data, uint data_len,
     MYSQL_TRACE(AUTH_PLUGIN, mysql, (auth_plugin->name));
 
     mpvio.plugin= auth_plugin;
-    res= auth_plugin->authenticate_user((struct st_plugin_vio *)&mpvio, mysql);
+    res= auth_plugin->authenticate_user((MYSQL_PLUGIN_VIO *)&mpvio, mysql);
 
     DBUG_PRINT ("info", ("second authenticate_user returned %s", 
                          res == CR_OK ? "CR_OK" : 
@@ -6707,7 +6706,7 @@ mysql_get_server_version(MYSQL *mysql)
 */
 int STDCALL mysql_set_character_set(MYSQL *mysql, const char *cs_name)
 {
-  struct charset_info_st *cs;
+  CHARSET_INFO *cs;
   const char *save_csdir= charsets_dir;
 
   if (mysql->options.charset_dir)

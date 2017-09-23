@@ -73,8 +73,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
   } while (0)
 #endif
 
-/** An instrumented socket. */
-struct st_mysql_socket
+/**
+  An instrumented socket.
+  @c MYSQL_SOCKET is a replacement for @c my_socket.
+*/
+struct MYSQL_SOCKET
 {
   /** The real socket descriptor. */
   my_socket fd;
@@ -86,12 +89,6 @@ struct st_mysql_socket
   */
   struct PSI_socket *m_psi;
 };
-
-/**
-  An instrumented socket.
-  @c MYSQL_SOCKET is a replacement for @c my_socket.
-*/
-typedef struct st_mysql_socket MYSQL_SOCKET;
 
 /**
   @def MYSQL_INVALID_SOCKET

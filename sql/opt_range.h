@@ -55,10 +55,12 @@ class Item;
 class Item_sum;
 class JOIN;
 class Opt_trace_context;
+struct TABLE_REF;
 class THD;
 class Unique;
 
-typedef struct st_key_part {
+struct KEY_PART
+{
   uint16           key,part;
   /* See KEY_PART_INFO for meaning of the next two: */
   uint16           store_length, length;
@@ -70,7 +72,7 @@ typedef struct st_key_part {
   uint16 flag;
   Field            *field;
   Field::imagetype image_type;
-} KEY_PART;
+};
 
 
 class QUICK_RANGE :public Sql_alloc {
@@ -438,12 +440,12 @@ typedef Prealloced_array<QUICK_RANGE*, 16> Quick_ranges;
   MRR range sequence, array<QUICK_RANGE> implementation: sequence traversal
   context.
 */
-typedef struct st_quick_range_seq_ctx
+struct QUICK_RANGE_SEQ_CTX
 {
   Quick_ranges::const_iterator first;
   Quick_ranges::const_iterator cur;
   Quick_ranges::const_iterator last;
-} QUICK_RANGE_SEQ_CTX;
+};
 
 range_seq_t quick_range_seq_init(void *init_param, uint n_ranges, uint flags);
 uint quick_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range);
@@ -466,7 +468,7 @@ protected:
   friend class TRP_ROR_INTERSECT;
   friend
   QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
-                                               struct st_table_ref *ref,
+                                               TABLE_REF *ref,
                                                ha_rows records);
   friend bool get_quick_keys(PARAM *param,
                              QUICK_RANGE_SELECT *quick,KEY_PART *key,
@@ -1068,7 +1070,7 @@ public:
 
 FT_SELECT *get_ft_select(THD *thd, TABLE *table, uint key);
 QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
-                                             struct st_table_ref *ref,
+                                             TABLE_REF *ref,
                                              ha_rows records);
 bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond);
 void store_key_image_to_rec(Field *field, uchar *ptr, uint len);

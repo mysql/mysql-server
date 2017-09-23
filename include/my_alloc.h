@@ -56,12 +56,12 @@ extern void init_alloc_root(PSI_memory_key key,
 
 }
 
-typedef struct st_used_mem
+struct USED_MEM
 {				   /* struct for once_alloc (block) */
-  struct st_used_mem *next;	   /* Next block in use */
+  USED_MEM *next;	   /* Next block in use */
   unsigned int	left;		   /* memory left in block  */
   unsigned int	size;		   /* size of block */
-} USED_MEM;
+};
 
 
 struct MEM_ROOT

@@ -137,7 +137,7 @@ static MYSQL_THDVAR_ULONG(session_number,
 
 
 static void update_session_version_tokens(MYSQL_THD thd,
-                                          struct st_mysql_sys_var*,
+                                          SYS_VAR*,
 					  void *var_ptr, const void *save)
 {
   THDVAR(thd, session_number)= 0;
@@ -646,7 +646,7 @@ static int version_tokens_deinit(void *arg MY_ATTRIBUTE((unused)))
   return 0;
 }
 
-static struct st_mysql_sys_var* system_variables[]={
+static SYS_VAR* system_variables[]={
   MYSQL_SYSVAR(session_number),
   MYSQL_SYSVAR(session),
   NULL

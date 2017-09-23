@@ -32,7 +32,7 @@
 
 typedef uint32 my_bitmap_map;
 
-typedef struct st_bitmap
+struct MY_BITMAP
 {
   my_bitmap_map *bitmap;
   uint n_bits; /* number of bits occupied by the above */
@@ -44,7 +44,7 @@ typedef struct st_bitmap
      acquiring the mutex
    */
   mysql_mutex_t *mutex;
-} MY_BITMAP;
+};
 
 #ifdef	__cplusplus
 extern "C" {

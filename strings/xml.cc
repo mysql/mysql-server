@@ -36,11 +36,11 @@
 #define MY_XML_EXCLAM   '!'
 #define MY_XML_CDATA    'D'
 
-typedef struct xml_attr_st
+struct MY_XML_ATTR
 {
   const char *beg;
   const char *end;
-} MY_XML_ATTR;
+};
 
 
 /*

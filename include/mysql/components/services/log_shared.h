@@ -62,7 +62,7 @@ constexpr int basename_index(const char * const path, const int index)
   CSTRING means "constant lex string (char * + size_t)",
   not "C-style string" (char *, \0 terminated)!
 */
-typedef struct st_mysql_const_lex_string LEX_CSTRING;
+typedef struct MYSQL_LEX_CSTRING LEX_CSTRING;
 
 /**
   log_type -- which log to send data to

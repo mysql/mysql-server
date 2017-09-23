@@ -4857,7 +4857,7 @@ bool LEX::set_wild(LEX_STRING w)
 }
 
 
-void st_lex_master_info::initialize()
+void LEX_MASTER_INFO::initialize()
 {
   host= user= password= log_file_name= bind_addr = NULL;
   port= connect_retry= 0;
@@ -4881,7 +4881,7 @@ void st_lex_master_info::initialize()
   for_channel= false;
 }
 
-void st_lex_master_info::set_unspecified()
+void LEX_MASTER_INFO::set_unspecified()
 {
   initialize();
   sql_delay= -1;

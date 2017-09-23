@@ -843,11 +843,11 @@ public:
   void deinit();
 };
 
-typedef struct st_gcs_xcom_thread_startup_parameters
+struct Gcs_xcom_thread_startup_parameters
 {
   Gcs_xcom_proxy *proxy;
   unsigned int   port;
-} Gcs_xcom_thread_startup_parameters;
+};
 
 /*****************************************************
  *****************************************************

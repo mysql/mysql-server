@@ -119,7 +119,7 @@ public:
 
 private:
   void materialize(THD *thd);
-  static int make_row(const struct st_udf_func *entry,
+  static int make_row(const udf_func *entry,
                       row_user_defined_functions *row);
   static void materialize_udf_funcs(udf_func *udf, void *arg);
 

@@ -117,7 +117,7 @@
 
       0 < decimal_digit <= DIG_MAX < DIG_BASE
 
-  in the struct st_decimal_t:
+  in the decimal_t:
 
     intg is the number of *decimal* digits (NOT number of decimal_digit_t's !)
          before the point

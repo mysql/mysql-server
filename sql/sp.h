@@ -58,7 +58,6 @@ class sp_cache;
 struct TABLE;
 struct TABLE_LIST;
 
-typedef struct st_hash HASH;
 typedef ulonglong sql_mode_t;
 template <typename T> class SQL_I_List;
 

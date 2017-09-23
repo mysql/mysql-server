@@ -187,7 +187,7 @@ enum type_conversion_status
 #define my_charset_numeric      my_charset_latin1
 #define MY_REPERTOIRE_NUMERIC   MY_REPERTOIRE_ASCII
 
-struct st_cache_field;
+struct CACHE_FIELD;
 type_conversion_status field_conv(Field *to,Field *from);
 
 inline uint get_enum_pack_length(int elements)
@@ -1523,7 +1523,7 @@ public:
 
   void copy_data(my_ptrdiff_t src_record_offset);
 
-  uint fill_cache_field(struct st_cache_field *copy);
+  uint fill_cache_field(CACHE_FIELD *copy);
   virtual bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   virtual bool get_time(MYSQL_TIME *ltime);
   virtual const CHARSET_INFO *charset(void) const { return &my_charset_bin; }

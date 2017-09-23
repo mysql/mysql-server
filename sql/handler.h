@@ -83,11 +83,10 @@ struct TABLE_SHARE;
 struct handlerton;
 struct Tablespace_options;
 
-typedef struct st_bitmap MY_BITMAP;
-typedef struct st_foreign_key_info FOREIGN_KEY_INFO;
-typedef struct st_hash HASH;
-typedef struct st_key_cache KEY_CACHE;
-typedef struct st_savepoint SAVEPOINT;
+struct MY_BITMAP;
+struct FOREIGN_KEY_INFO;
+struct KEY_CACHE;
+struct SAVEPOINT;
 typedef struct xid_t XID;
 struct MDL_key;
 
@@ -2073,9 +2072,9 @@ enum enum_stats_auto_recalc { HA_STATS_AUTO_RECALC_DEFAULT= 0,
                               HA_STATS_AUTO_RECALC_OFF };
 
 /* struct to hold information about the table that should be created */
-typedef struct st_ha_create_information
+struct HA_CREATE_INFO
 {
-  st_ha_create_information()
+  HA_CREATE_INFO()
   {
     memset(this, 0, sizeof(*this));
   }
@@ -2150,7 +2149,7 @@ typedef struct st_ha_create_information
 
   void init_create_options_from_share(const TABLE_SHARE *share,
                                       uint used_fields);
-} HA_CREATE_INFO;
+};
 
 
 /**
@@ -2588,14 +2587,14 @@ public:
 };
 
 
-typedef struct st_ha_check_opt
+struct HA_CHECK_OPT
 {
-  st_ha_check_opt() {}                        /* Remove gcc warning */
+  HA_CHECK_OPT() {}                        /* Remove gcc warning */
   uint flags;       /* isam layer flags (e.g. for myisamchk) */
   uint sql_flags;   /* sql layer flags - for something myisamchk cannot do */
   KEY_CACHE *key_cache;	/* new key cache when changing key cache */
   void init();
-} HA_CHECK_OPT;
+};
 
 
 /*
@@ -2605,16 +2604,16 @@ typedef struct st_ha_check_opt
   remaining area (until next read calls is issued).
 */
 
-typedef struct st_handler_buffer
+struct HANDLER_BUFFER
 {
   uchar *buffer;         /* Buffer one can start using */
   uchar *buffer_end;     /* End of buffer */
   uchar *end_of_used_area;     /* End of area that was used by handler */
-} HANDLER_BUFFER;
+};
 
 typedef void *range_seq_t;
 
-typedef struct st_range_seq_if
+struct RANGE_SEQ_IF
 {
   /*
     Initialize the traversal of range sequence
@@ -2674,7 +2673,7 @@ typedef struct st_range_seq_if
       1 - Otherwise
   */ 
   bool (*skip_index_tuple) (range_seq_t seq, char *range_info);
-} RANGE_SEQ_IF;
+};
 
 
 /**

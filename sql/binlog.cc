@@ -3724,7 +3724,7 @@ static int find_uniq_filename(char *name, uint32 new_index_number)
 {
   uint                  i;
   char                  buff[FN_REFLEN], ext_buf[FN_REFLEN];
-  struct st_my_dir     *dir_info= NULL;
+  MY_DIR     *dir_info= NULL;
   struct fileinfo *file_info;
   ulong                 max_found= 0, next= 0, number= 0;
   size_t		buf_length, length;

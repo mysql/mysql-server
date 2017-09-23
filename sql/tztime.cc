@@ -162,7 +162,7 @@ typedef struct revtinfo
   Structure which fully describes time zone which is
   described in our db or in zoneinfo files.
 */
-typedef struct st_time_zone_info
+struct TIME_ZONE_INFO
 {
   uint leapcnt;  // Number of leap-second corrections
   uint timecnt;  // Number of transitions between time types
@@ -195,7 +195,7 @@ typedef struct st_time_zone_info
   */
   TRAN_TYPE_INFO *fallback_tti;
 
-} TIME_ZONE_INFO;
+};
 
 
 static bool prepare_tz_info(TIME_ZONE_INFO *sp, MEM_ROOT *storage);

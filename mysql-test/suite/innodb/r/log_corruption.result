@@ -25,7 +25,7 @@ Pattern "Data Dictionary initialization failed" found
 # --innodb-force-recovery=6 (skip the entire redo log)
 Pattern "InnoDB: Database upgrade cannot be accomplished in read-only mode" found
 # valid 5.7.9 header, valid checkpoint 1, no matching MLOG_CHECKSUM
-Pattern "InnoDB: Upgrade after a crash is not supported.*" found
+Pattern "InnoDB: Upgrade after a crash is not supported\. This redo log was created with malicious intentions, or perhaps\." not found
 Pattern "Data Dictionary initialization failed" found
 # --innodb-force-recovery=6 (skip the entire redo log)
 Pattern "InnoDB: Database upgrade cannot be accomplished in read-only mode" found

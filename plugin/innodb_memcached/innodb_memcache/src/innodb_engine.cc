@@ -25,6 +25,11 @@ Extracted and modified from NDB memcached project
 04/12/2011 Jimmy Yang
 *******************************************************/
 
+// Work around a bug in the memcached C++ headers with GCC 4.x.
+#ifndef bool
+#define bool bool
+#endif
+
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
@@ -243,6 +248,7 @@ innodb_sdi_store(
 #endif /* UNIV_MEMCACHED_SDI */
 
 /****** Gateway to the default_engine's create_instance() function */
+extern "C"
 ENGINE_ERROR_CODE
 create_my_default_instance(
 /*=======================*/
@@ -274,7 +280,7 @@ create_instance(
 		return(ENGINE_ENOTSUP);
 	}
 
-	innodb_eng = malloc(sizeof(struct innodb_engine));
+	innodb_eng = (innodb_engine *)malloc(sizeof(struct innodb_engine));
 
 	if (innodb_eng == NULL) {
 		return(ENGINE_ENOMEM);
@@ -800,8 +806,8 @@ innodb_conn_clean(
 
 		if (!clear_all && !conn_data->in_use) {
 			innodb_conn_data_t*	check_data;
-			check_data = engine->server.cookie->get_engine_specific(
-				cookie);
+			check_data = (innodb_conn_data_t *)
+				engine->server.cookie->get_engine_specific(cookie);
 
 			/* The check data is the original conn_data stored
 			in connection "cookie", it can be set to NULL if
@@ -989,14 +995,14 @@ innodb_conn_init(
 	bool			trx_updated = false;
 
 	/* Get this connection's conn_data */
-	conn_data = engine->server.cookie->get_engine_specific(cookie);
+	conn_data = (innodb_conn_data_t *)engine->server.cookie->get_engine_specific(cookie);
 
 	assert(!conn_data || !conn_data->in_use || conn_data->range
 	       || conn_data->multi_get);
 
 	if (!conn_data) {
 		LOCK_CONN_IF_NOT_LOCKED(has_lock, engine);
-		conn_data = engine->server.cookie->get_engine_specific(cookie);
+		conn_data = (innodb_conn_data_t *)engine->server.cookie->get_engine_specific(cookie);
 
 		if (conn_data) {
                         UNLOCK_CONN_IF_NOT_LOCKED(has_lock, engine);
@@ -1008,7 +1014,7 @@ innodb_conn_init(
 			innodb_conn_clean(engine, false, true);
 		}
 
-		conn_data = malloc(sizeof(*conn_data));
+		conn_data = (innodb_conn_data_t *)malloc(sizeof(*conn_data));
 
 		if (!conn_data) {
 			UNLOCK_CONN_IF_NOT_LOCKED(has_lock, engine);
@@ -1466,7 +1472,7 @@ innodb_allocate(
 	meta_cfg_info_t*	meta_info = innodb_eng->meta_info;
 
 
-	conn_data = innodb_eng->server.cookie->get_engine_specific(cookie);
+	conn_data = (innodb_conn_data_t *)innodb_eng->server.cookie->get_engine_specific(cookie);
 
 	if (!conn_data) {
 		conn_data = innodb_conn_init(innodb_eng, cookie,
@@ -1538,7 +1544,7 @@ check_key_name_for_sdi_pattern(
 	const size_t	pattern_len)
 {
 	return(nkey >= pattern_len
-	       && strncmp(key, pattern, pattern_len) == 0);
+	       && strncmp((const char *)key, pattern, pattern_len) == 0);
 }
 #endif /* UNIV_MEMCACHED_SDI */
 
@@ -1606,7 +1612,7 @@ innodb_remove(
 	  2: The CAS doesn't match; delete the item because it's stale.
 	Therefore we skip the check altogether if(do_db_delete) */
 
-	err_ret = innodb_api_delete(innodb_eng, conn_data, key, nkey);
+	err_ret = innodb_api_delete(innodb_eng, conn_data, (const char *)key, nkey);
 
 	innodb_api_cursor_reset(innodb_eng, conn_data, CONN_OP_DELETE,
 				err_ret == ENGINE_SUCCESS);
@@ -1675,7 +1681,7 @@ innodb_switch_mapping(
 		new_map_name_len = *name_len;
 	}
 
-	conn_data = innodb_eng->server.cookie->get_engine_specific(cookie);
+	conn_data = (innodb_conn_data_t *)innodb_eng->server.cookie->get_engine_specific(cookie);
 
 	/* Check if we are getting the same configure setting as existing one */
 	if (conn_data && conn_data->conn_meta
@@ -1708,7 +1714,7 @@ innodb_switch_mapping(
 	}
 
 	conn_data = innodb_conn_init(innodb_eng, cookie,
-				     CONN_MODE_NONE, 0, false,
+				     CONN_MODE_NONE, ib_lck_mode_t(0), false,
 				     new_meta_info);
 
 	assert(conn_data->conn_meta == new_meta_info);
@@ -1748,7 +1754,7 @@ check_key_name_for_map_switch(
 
 	if ((*nkey) > 3 && ((char*)key)[0] == '@'
 	    && ((char*)key)[1] == '@') {
-		err_ret = innodb_switch_mapping(handle, cookie, key, nkey, true);
+		err_ret = innodb_switch_mapping(handle, cookie, (const char *)key, nkey, true);
 	}
 
 	return(err_ret);
@@ -1769,7 +1775,7 @@ innodb_bind(
 {
 	ENGINE_ERROR_CODE	err_ret = ENGINE_SUCCESS;
 
-	err_ret = innodb_switch_mapping(handle, cookie, name, &name_len, false);
+	err_ret = innodb_switch_mapping(handle, cookie, (const char *)name, &name_len, false);
 
 	return(err_ret);
 }
@@ -1815,7 +1821,7 @@ innodb_release(
 	innodb_conn_data_t*	conn_data;
 	mem_buf_t*		mem_buf;
 
-	conn_data = innodb_eng->server.cookie->get_engine_specific(cookie);
+	conn_data = (innodb_conn_data_t *)innodb_eng->server.cookie->get_engine_specific(cookie);
 
 	if (!conn_data) {
 		return;
@@ -2016,7 +2022,7 @@ innodb_get(
 			: IB_LOCK_NONE;
 
 	conn_data = innodb_conn_init(innodb_eng, cookie, CONN_MODE_READ,
-				     lock_mode, false, NULL);
+				     ib_lck_mode_t(lock_mode), false, NULL);
 
 	if (!conn_data) {
 		return(ENGINE_TMPFAIL);
@@ -2024,7 +2030,7 @@ innodb_get(
 
 	result = (mci_item_t*)(conn_data->result);
 
-	newkey = (void*)key + nkey - key_len;
+	newkey = (char*)key + nkey - key_len;
 
 	/* This signifies a range search, so set up the range search info */
 	if (*(char*)newkey == '@' && !conn_data->range) {
@@ -2133,7 +2139,7 @@ innodb_get(
 	}
 #endif /* UNIV_MEMCACHED_SDI */
 
-	err = innodb_api_search(conn_data, &crsr, key + nkey - key_len,
+	err = innodb_api_search(conn_data, &crsr, (const char *)key + nkey - key_len,
 				key_len, result, NULL, true,
 				is_range_srch ? conn_data->range_key : NULL);
 
@@ -2164,7 +2170,7 @@ search_done:
 		char*	name;
 		char*	dbname;
 
-		conn_data = innodb_eng->server.cookie->get_engine_specific(cookie);
+		conn_data = (innodb_conn_data_t *)innodb_eng->server.cookie->get_engine_specific(cookie);
 		assert(nkey > 0);
 
 		name = conn_data->conn_meta->col_info[CONTAINER_TABLE].col_name;
@@ -2182,7 +2188,7 @@ search_done:
 
 		memset(result, 0, sizeof(*result));
 
-		memcpy((conn_data->row_buf[conn_data->row_buf_slot]) + conn_data->row_buf_used, table_name, strlen(table_name));
+		memcpy((char *)(conn_data->row_buf[conn_data->row_buf_slot]) + conn_data->row_buf_used, table_name, strlen(table_name));
 
 		result->col_value[MCI_COL_VALUE].value_str = ((char*)conn_data->row_buf[conn_data->row_buf_slot]) + conn_data->row_buf_used;
 		result->col_value[MCI_COL_VALUE].value_len = strlen(table_name);
@@ -2261,7 +2267,7 @@ search_done:
 					new_temp);
 			}
 
-			conn_data->mul_col_buf = malloc(new_len + 1);
+			conn_data->mul_col_buf = (char *)malloc(new_len + 1);
 			conn_data->mul_col_buf_len = new_len + 1;
 			conn_data->mul_col_buf_used = 0;
 		}
@@ -2334,7 +2340,7 @@ search_done:
 				free(conn_data->mul_col_buf);
 			}
 
-			conn_data->mul_col_buf = malloc(int_len + 1);
+			conn_data->mul_col_buf = (char *)malloc(int_len + 1);
 			conn_data->mul_col_buf_len = int_len;
 		}
 
@@ -2426,10 +2432,10 @@ innodb_store(
 						engine only */
 {
 	struct innodb_engine*	innodb_eng = innodb_handle(handle);
-	uint16_t		len = hash_item_get_key_len(item);
-	char*			value = hash_item_get_key(item);
-	uint64_t		exptime = hash_item_get_exp(item);
-	uint64_t		flags = hash_item_get_flag(item);
+	uint16_t		len = hash_item_get_key_len((const hash_item *)item);
+	char*			value = hash_item_get_key((const hash_item *)item);
+	uint64_t		exptime = hash_item_get_exp((const hash_item *)item);
+	uint64_t		flags = hash_item_get_flag((const hash_item *)item);
 	ENGINE_ERROR_CODE	result;
 	uint64_t		input_cas;
 	innodb_conn_data_t*	conn_data;
@@ -2444,7 +2450,7 @@ innodb_store(
 
 	if (meta_info->set_option == META_CACHE_OPT_DEFAULT
 	    || meta_info->set_option == META_CACHE_OPT_MIX) {
-		result = store_item(default_handle(innodb_eng), item, cas,
+		result = store_item(default_handle(innodb_eng), (hash_item *)item, cas,
 				    op, cookie);
 
 		if (meta_info->set_option == META_CACHE_OPT_DEFAULT) {
@@ -2471,7 +2477,7 @@ innodb_store(
 		return(ENGINE_NOT_STORED);
 	}
 
-	input_cas = hash_item_get_cas(item);
+	input_cas = hash_item_get_cas((const hash_item *)item);
 
 #ifdef UNIV_MEMCACHED_SDI
 	if (innodb_sdi_store(innodb_eng, conn_data, &result, value, val_len,
@@ -2544,7 +2550,7 @@ innodb_arithmetic(
 		return(ENGINE_NOT_STORED);
 	}
 
-	err_ret = innodb_api_arithmetic(innodb_eng, conn_data, key, nkey,
+	err_ret = innodb_api_arithmetic(innodb_eng, conn_data, (const char *)key, nkey,
 					delta, increment, cas, exptime,
 					create, initial, result);
 
@@ -2571,7 +2577,7 @@ innodb_flush_sync_conn(
 	innodb_conn_data_t*	curr_conn_data;
 	bool			ret = true;
 
-	curr_conn_data = engine->server.cookie->get_engine_specific(cookie);
+	curr_conn_data = (innodb_conn_data_t *)engine->server.cookie->get_engine_specific(cookie);
 	assert(curr_conn_data);
 
 	conn_data = UT_LIST_GET_FIRST(engine->conn_data);
@@ -2650,7 +2656,7 @@ innodb_flush(
 	/* Lock the flush_mutex for blocking other DMLs. */
 	pthread_mutex_lock(&innodb_eng->flush_mutex);
 
-	conn_data = innodb_eng->server.cookie->get_engine_specific(cookie);
+	conn_data = (innodb_conn_data_t *)innodb_eng->server.cookie->get_engine_specific(cookie);
 
 	if (conn_data) {
 		/* Commit any work on this connection */
@@ -2675,9 +2681,9 @@ innodb_flush(
 	}
 
 	meta_info = conn_data->conn_meta;
-	ib_err = innodb_api_flush(innodb_eng, conn_data,
+	ib_err = ib_err_t(innodb_api_flush(innodb_eng, conn_data,
 				  meta_info->col_info[CONTAINER_DB].col_name,
-			          meta_info->col_info[CONTAINER_TABLE].col_name);
+			          meta_info->col_info[CONTAINER_TABLE].col_name));
 
 	/* Commit work and release the MDL table. */
 	innodb_api_cursor_reset(innodb_eng, conn_data, CONN_OP_FLUSH, true);
@@ -2728,7 +2734,7 @@ innodb_get_item_info(
 	struct innodb_engine* innodb_eng = innodb_handle(handle);
 	innodb_conn_data_t*     conn_data;
 
-	conn_data = innodb_eng->server.cookie->get_engine_specific(cookie);
+	conn_data = (innodb_conn_data_t *)innodb_eng->server.cookie->get_engine_specific(cookie);
 
 	if (!conn_data || !conn_data->result_in_use) {
 		hash_item*      it;
@@ -2843,7 +2849,7 @@ innodb_sdi_remove(
 			" '%s' \n", table_name);
 		err = DB_ERROR;
 	} else {
-		err = ib_cb_sdi_delete(crsr, key, trx);
+		err = ib_cb_sdi_delete(crsr, (const char *)key, trx);
 	}
 
 	ib_cb_cursor_close(crsr);
@@ -2880,7 +2886,7 @@ innodb_sdi_get(
 		return(false);
 	}
 
-	mci_item_t*	result = conn_data->result;
+	mci_item_t*	result = (mci_item_t *)conn_data->result;
 
 	ib_trx_t	trx = conn_data->crsr_trx;
 	ib_crsr_t	crsr;
@@ -2935,7 +2941,7 @@ innodb_sdi_get(
 		conn_data->sdi_buf = malloc(SDI_LIST_BUF_MAX_LEN);
 
 		err = ib_cb_sdi_get_keys(
-			crsr, key, (char*)conn_data->sdi_buf,
+			crsr, (const char *)key, (char*)conn_data->sdi_buf,
 			SDI_LIST_BUF_MAX_LEN);
 		ret_len = strlen((char*)conn_data->sdi_buf);
 	} else {
@@ -2957,7 +2963,7 @@ innodb_sdi_get(
 		conn_data->sdi_buf = new_mem;
 		ret_len = mem_size;
 		err = ib_cb_sdi_get(
-			crsr, key, conn_data->sdi_buf, &ret_len, trx);
+			crsr, (const char *)key, conn_data->sdi_buf, &ret_len, trx);
 
 		if (err == DB_SUCCESS) {
 			assert(ret_len < mem_size);
@@ -2976,7 +2982,7 @@ innodb_sdi_get(
 
 			conn_data->sdi_buf = new_mem;
 			err = ib_cb_sdi_get(
-				crsr, key, conn_data->sdi_buf, &ret_len, trx);
+				crsr, (const char *)key, conn_data->sdi_buf, &ret_len, trx);
 		}
 	}
 

@@ -17,11 +17,11 @@
 #include <m_string.h>
 
 
-typedef struct my_ctype_name_st
+struct MY_CTYPE_NAME_ST
 {
   const char *name;
   int val;
-} MY_CTYPE_NAME_ST;
+};
 
 
 static MY_CTYPE_NAME_ST my_ctype_name[]=

@@ -608,6 +608,8 @@ Clone_Snapshot::init_state(
 
 	if (!is_copy()) {
 
+		err = extend_files();
+
 		return(err);
 	}
 
@@ -798,6 +800,21 @@ Clone_Snapshot::get_next_page(
 	page_id_t	page_id(clone_page.m_space_id, clone_page.m_page_no);
 
 	get_page_for_write(page_id, page_size, data_buf, data_size);
+
+	/* Update size from space header page. */
+	if (clone_page.m_page_no == 0) {
+
+		auto	space_size = fsp_header_get_field(data_buf, FSP_SIZE);
+
+		auto	size_bytes = static_cast<uint64_t>(space_size);
+
+		size_bytes *= page_size.physical();
+
+		if (file_meta->m_file_size < size_bytes) {
+
+			file_meta->m_file_size = size_bytes;
+		}
+	}
 
 	return(DB_SUCCESS);
 }

@@ -29,8 +29,8 @@
   Ditto LEX_CSTRING/MYSQL_LEX_CSTRING.
 */
 
-typedef struct st_mysql_lex_string LEX_STRING;
-typedef struct st_mysql_const_lex_string LEX_CSTRING;
+typedef struct MYSQL_LEX_STRING LEX_STRING;
+typedef struct MYSQL_LEX_CSTRING LEX_CSTRING;
 
 #ifdef __cplusplus
 

@@ -63,16 +63,17 @@ struct st_file_buffer {
   ulonglong bitbucket;
 };
 
-struct st_huff_tree;
-struct st_huff_element;
+struct HUFF_ELEMENT;
+struct HUFF_TREE;
 
-typedef struct st_huff_counts {
+struct HUFF_COUNTS
+{
   uint	field_length,max_zero_fill;
   uint	pack_type;
   uint	max_end_space,max_pre_space,length_bits,min_space;
   ulong max_length;
   enum en_fieldtype field_type;
-  struct st_huff_tree *tree;		/* Tree for field */
+  HUFF_TREE *tree;		/* Tree for field */
   my_off_t counts[256];
   my_off_t end_space[8];
   my_off_t pre_space[8];
@@ -80,15 +81,13 @@ typedef struct st_huff_counts {
   TREE int_tree;        /* Tree for detecting distinct column values. */
   uchar *tree_buff;      /* Column values, 'field_length' each. */
   uchar *tree_pos;       /* Points to end of column values in 'tree_buff'. */
-} HUFF_COUNTS;
-
-typedef struct st_huff_element HUFF_ELEMENT;
+};
 
 /*
   WARNING: It is crucial for the optimizations in calc_packed_length()
   that 'count' is the first element of 'HUFF_ELEMENT'.
 */
-struct st_huff_element {
+struct HUFF_ELEMENT {
   my_off_t count;
   union un_element {
     struct st_nod {
@@ -102,7 +101,8 @@ struct st_huff_element {
 };
 
 
-typedef struct st_huff_tree {
+struct HUFF_TREE
+{
   HUFF_ELEMENT *root,*element_buffer;
   HUFF_COUNTS *counts;
   uint tree_number;
@@ -112,10 +112,11 @@ typedef struct st_huff_tree {
   uint min_chr,max_chr,char_bits,offset_bits,max_offset,height;
   ulonglong *code;
   uchar *code_len;
-} HUFF_TREE;
+};
 
 
-typedef struct st_isam_mrg {
+struct PACK_MRG_INFO
+{
   MI_INFO **file,**current,**end;
   uint free_file;
   uint count;
@@ -126,7 +127,7 @@ typedef struct st_isam_mrg {
   my_off_t records;
   /* true if at least one source file has at least one disabled index */
   bool src_file_has_indexes_disabled;
-} PACK_MRG_INFO;
+};
 
 
 extern int main(int argc,char * *argv);

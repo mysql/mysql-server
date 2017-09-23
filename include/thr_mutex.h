@@ -130,13 +130,13 @@ static inline int native_mutex_destroy(native_mutex_t *mutex)
 
 #ifdef SAFE_MUTEX
 /* safe_mutex adds checking to mutex for easier debugging */
-typedef struct st_safe_mutex_t
+struct safe_mutex_t
 {
   native_mutex_t global, mutex;
   const char *file;
   uint line, count;
   my_thread_t thread;
-} safe_mutex_t;
+};
 
 void safe_mutex_global_init();
 int safe_mutex_init(safe_mutex_t *mp, const native_mutexattr_t *attr,

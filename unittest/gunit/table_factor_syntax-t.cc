@@ -161,8 +161,8 @@ TEST_F(TableFactorSyntaxTest, Union)
   EXPECT_EQ(t1, first_inner_block->context.first_name_resolution_table);
   EXPECT_EQ(t2, second_inner_block->context.first_name_resolution_table);
 
-  expect_null<st_nested_join>(t1->nested_join);
-  expect_null<st_nested_join>(t2->nested_join);
+  expect_null<NESTED_JOIN>(t1->nested_join);
+  expect_null<NESTED_JOIN>(t2->nested_join);
 
   check_query_block(first_inner_block, 1, "t1");
   check_query_block(second_inner_block, 2, "t2");

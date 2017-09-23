@@ -24,17 +24,18 @@
 #include "my_inttypes.h"
 #include "storage/myisam/ftdefs.h"
 
-typedef struct st_ft_docstat {
+struct FT_DOCSTAT
+{
   FT_WORD *list;
   uint uniq;
   double sum;
-} FT_DOCSTAT;
+};
 
-typedef struct st_my_ft_parser_param
+struct MY_FT_PARSER_PARAM
 {
   TREE     *wtree;
   MEM_ROOT *mem_root;
-} MY_FT_PARSER_PARAM;
+};
 
 static int FT_WORD_cmp(const void* a, const void* b, const void *c)
 {
@@ -388,7 +389,7 @@ MYSQL_FTPARSER_PARAM *ftparser_call_initializer(MI_INFO *info,
        mysql_add_word != 0 - parser is initialized, or no
                              initialization needed. */
     info->ftparser_param[ftparser_nr].mysql_add_word=
-      (int (*)(struct st_mysql_ftparser_param *, char *, int,
+      (int (*)(MYSQL_FTPARSER_PARAM *, char *, int,
               MYSQL_FTPARSER_BOOLEAN_INFO *)) 1;
     if (parser->init && parser->init(&info->ftparser_param[ftparser_nr]))
       return 0;

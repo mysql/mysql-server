@@ -7356,10 +7356,10 @@ user_func:
           {
             /* empty LEX_USER means current_user */
             LEX_USER *curr_user;
-            if (!(curr_user= (LEX_USER*) Lex->thd->alloc(sizeof(st_lex_user))))
+            if (!(curr_user= (LEX_USER*) Lex->thd->alloc(sizeof(LEX_USER))))
               MYSQL_YYABORT;
 
-            memset(curr_user, 0, sizeof(st_lex_user));
+            memset(curr_user, 0, sizeof(LEX_USER));
             Lex->users_list.push_back(curr_user);
             $$= curr_user;
           }
@@ -13222,17 +13222,17 @@ role_ident_or_text:
 user:
           ident_or_text
           {
-            if (!($$= st_lex_user::alloc(YYTHD, &$1, NULL)))
+            if (!($$= LEX_USER::alloc(YYTHD, &$1, NULL)))
               MYSQL_YYABORT;
           }
         | ident_or_text '@' ident_or_text
           {
-            if (!($$= st_lex_user::alloc(YYTHD, &$1, &$3)))
+            if (!($$= LEX_USER::alloc(YYTHD, &$1, &$3)))
               MYSQL_YYABORT;
           }
         | CURRENT_USER optional_braces
           {
-            if (!($$=(LEX_USER*) YYTHD->alloc(sizeof(st_lex_user))))
+            if (!($$=(LEX_USER*) YYTHD->alloc(sizeof(LEX_USER))))
               MYSQL_YYABORT;
             /*
               empty LEX_USER means current_user and
@@ -13246,12 +13246,12 @@ user:
 role:
           role_ident_or_text
           {
-            if (!($$= st_lex_user::alloc(YYTHD, &$1, NULL)))
+            if (!($$= LEX_USER::alloc(YYTHD, &$1, NULL)))
               MYSQL_YYABORT;
           }
         | role_ident_or_text '@' ident_or_text
           {
-            if (!($$= st_lex_user::alloc(YYTHD, &$1, &$3)))
+            if (!($$= LEX_USER::alloc(YYTHD, &$1, &$3)))
               MYSQL_YYABORT;
           }
         ;

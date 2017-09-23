@@ -1613,9 +1613,11 @@ bool Sql_cmd_clone_local::execute(THD *thd)
   DBUG_ENTER("Sql_cmd_clone_local::execute");
   DBUG_PRINT("admin", ("CLONE type = local, DIR = %s", clone_dir));
 
-  if (!(thd->security_context()->check_access(SUPER_ACL)))
+  auto sctx = thd->security_context();
+
+  if (!(sctx->has_global_grant(STRING_WITH_LEN("BACKUP_ADMIN")).first))
   {
-    my_error(ER_CMD_NEED_SUPER, MYF(0), "CLONE LOCAL");
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "BACKUP_ADMIN");
     DBUG_RETURN(true);
   }
 
@@ -1648,9 +1650,11 @@ bool Sql_cmd_clone_remote::execute(THD *thd)
   DBUG_PRINT("admin", ("CLONE type = remote, DIR = %s, FOR REPLICATION = %d",
                        clone_dir, is_for_replication));
 
-  if (!(thd->security_context()->check_access(SUPER_ACL)))
+  auto sctx = thd->security_context();
+
+  if (!(sctx->has_global_grant(STRING_WITH_LEN("BACKUP_ADMIN")).first))
   {
-    my_error(ER_CMD_NEED_SUPER, MYF(0), "CLONE REMOTE");
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "BACKUP_ADMIN");
     DBUG_RETURN(true);
   }
 

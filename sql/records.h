@@ -20,6 +20,7 @@
 #include "my_base.h"
 #include "my_inttypes.h"
 
+struct IO_CACHE;
 class QEP_TAB;
 class THD;
 struct TABLE;
@@ -68,7 +69,7 @@ struct READ_RECORD
   uchar *record;
   uchar *rec_buf;                /* to read field values  after filesort */
   uchar	*cache,*cache_pos,*cache_end,*read_positions;
-  struct st_io_cache *io_cache;
+  IO_CACHE *io_cache;
   bool print_error, ignore_not_found_rows;
 
 public:

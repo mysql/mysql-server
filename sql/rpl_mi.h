@@ -43,7 +43,7 @@ class Rpl_info_handler;
 class Server_ids;
 class THD;
 
-typedef struct st_mysql MYSQL;
+struct MYSQL;
 
 #define DEFAULT_CONNECT_RETRY 60
 

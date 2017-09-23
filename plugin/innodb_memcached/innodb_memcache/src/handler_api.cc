@@ -86,7 +86,7 @@ handler_create_thd(
 		return(NULL);
 	}
 
-	thd->get_protocol_classic()->init_net((st_vio *) 0);
+	thd->get_protocol_classic()->init_net((Vio *) 0);
 	thd->set_new_thread_id();
 	thd->thread_stack = reinterpret_cast<char*>(&thd);
 	thd->store_globals();

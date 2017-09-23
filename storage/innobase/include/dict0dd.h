@@ -418,11 +418,11 @@ dd_mdl_release(
 	MDL_ticket**	mdl);
 
 /** Check if current undo needs a MDL or not
-@param[in]	thd	current thd
+@param[in]	trx	transaction
 @return	true if MDL is necessary, otherwise false */
 bool
 dd_mdl_for_undo(
-	const THD*	thd);
+	const trx_t*	trx);
 
 /** Load foreign key constraint info for the dd::Table object.
 @param[out]	m_table		InnoDB table handle

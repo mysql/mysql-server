@@ -183,20 +183,27 @@ dd_mdl_release(
 }
 
 /** Check if current undo needs a MDL or not
-@param[in]	thd	current thd
+@param[in]	trx	transaction
 @return true if MDL is necessary, otherwise false */
 bool
 dd_mdl_for_undo(
-	const THD*	thd)
+	const trx_t*	trx)
 {
-	/* There are three cases for the undo to check here:
+	/* Try best to find a valid THD for checking, in case in background
+	rollback thread, trx doens't hold a mysql_thd */
+	THD*	thd = trx->mysql_thd == nullptr ? current_thd : trx->mysql_thd;
+
+	/* There are four cases for the undo to check here:
 	1. In recovery phase, binlog recover, there is no concurrent
 	user queries, so MDL is no necessary. In this case, thd is NULL.
 	2. In background rollback thread, there could be concurrent
-	user queties, so MDL is needed. In this case, thd is not NULL
+	user queries, so MDL is needed. In this case, thd is not NULL
 	3. In runtime transaction rollback, no need for MDL.
-	In this case, THD::transaction_rollback_request would be set. */
-	return(thd != nullptr && !thd->transaction_rollback_request);
+	THD::transaction_rollback_request would be set.
+	4. In runtime asynchronous rollback, no need for MDL.
+	Check TRX_FORCE_ROLLBACK. */
+	return(thd != nullptr && !thd->transaction_rollback_request
+	       && ((trx->in_innodb & TRX_FORCE_ROLLBACK) == 0));
 }
 
 /** Instantiate an InnoDB in-memory table metadata (dict_table_t)
@@ -1157,9 +1164,12 @@ format_validate(
 					kbs, zip_refused);
 			}
 		} else if (real_type != ROW_TYPE_COMPRESSED) {
-			/* This is only possible for partitioned table,
-			real_type should be considered as priority. */
-			ut_ad(form->s->real_row_type == ROW_TYPE_COMPRESSED);
+			/* This could happen when
+			1. There was an ALTER TABLE ... COPY to move
+			the table from COMPRESSED into DYNAMIC, etc.
+			2. For partitioned table, some partitions of which
+			could be of different row format from the specified
+			one */
 		} else if (form->s->row_type == ROW_TYPE_DEFAULT
 			   || form->s->row_type == ROW_TYPE_COMPRESSED) {
 			ut_ad(real_type == ROW_TYPE_COMPRESSED);

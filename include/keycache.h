@@ -33,28 +33,24 @@
 
 C_MODE_START
 
-/* declare structures that is used by st_key_cache */
+/* declare structures that is used by KEY_CACHE */
 
-struct st_block_link;
-
-typedef struct st_block_link BLOCK_LINK;
-struct st_hash_link;
-
-typedef struct st_hash_link HASH_LINK;
+struct BLOCK_LINK;
+struct HASH_LINK;
 
 /* Thread specific variables */
-typedef struct st_keycache_thread_var
+struct st_keycache_thread_var
 {
   mysql_cond_t suspend;
   struct st_keycache_thread_var *next,**prev;
   void *opt_info;
-} st_keycache_thread_var;
+};
 
 /* info about requests in a waiting queue */
-typedef struct st_keycache_wqueue
+struct KEYCACHE_WQUEUE
 {
   st_keycache_thread_var *last_thread;  /* circular list of waiting threads */
-} KEYCACHE_WQUEUE;
+};
 
 	/* Typical key cash */
 #define KEY_CACHE_SIZE		(uint) (8*1024*1024)
@@ -68,7 +64,7 @@ typedef struct st_keycache_wqueue
   It also contains read-only statistics parameters.
 */   
 
-typedef struct st_key_cache
+struct KEY_CACHE
 {
   bool key_cache_inited;
   bool in_resize;                /* true during resize operation             */
@@ -128,7 +124,7 @@ typedef struct st_key_cache
 
   int blocks;                   /* max number of blocks in the cache        */
   bool in_init;		/* Set to 1 in MySQL during init/resize     */
-} KEY_CACHE;
+};
 
 /* The default key cache */
 extern KEY_CACHE dflt_key_cache_var, *dflt_key_cache;

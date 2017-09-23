@@ -23,6 +23,7 @@
 #include "storage/ndb/include/ndbapi/NdbApi.hpp"
 
 class Item;
+struct key_range;
 struct TABLE;
 class Ndb_cond;
 class Ndb_cond_stack;
@@ -43,8 +44,8 @@ public:
   int generate_scan_filter_from_key(NdbInterpretedCode* code,
                                     NdbScanOperation::ScanOptions* options,
                                     const class KEY* key_info,
-                                    const struct st_key_range *start_key,
-                                    const struct st_key_range *end_key) const;
+                                    const key_range *start_key,
+                                    const key_range *end_key) const;
 private:
   bool serialize_cond(const Item *cond, Ndb_cond_stack *ndb_cond,
                       TABLE *table,

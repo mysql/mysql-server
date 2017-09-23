@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,21 +33,21 @@ typedef unsigned int uint;
 #define MY_UCA_CMASK	255
 #define MY_UCA_PSHIFT	8
 #define MY_UCA_NPAGES	MY_UCA_MAXCHAR/MY_UCA_NCHARS
-typedef struct uca_item_st
+struct MY_UCA_ITEM
 {
   uchar  num; /* Number of weights */
   uint16 weight[MY_UCA_MAXLEVEL+1][MY_UCA_MAXWEIGHT_TO_DUMP];
   /* +1 for trailing zero */
-} MY_UCA_ITEM;
+};
 
 
-typedef struct uca_contraction_st
+struct MY_UCA_CONTRACTION
 {
   uint ch[MY_UCA_MAX_CONTRACTION];
   MY_UCA_ITEM item;
-} MY_UCA_CONTRACTION;
+};
 
-typedef struct uca_info_st
+struct MY_UCA
 {
   char version[MY_UCA_VERSION_SIZE];
   MY_UCA_ITEM item[MY_UCA_MAXCHAR];
@@ -55,7 +55,7 @@ typedef struct uca_info_st
   MY_UCA_CONTRACTION contraction[MY_UCA_NCONTRACTIONS];
   int optimize_contractions;
   int debug;
-} MY_UCA;
+};
 
 
 

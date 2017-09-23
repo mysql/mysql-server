@@ -45,7 +45,7 @@
   ((type *)((char *)ptr - offsetof(type, member)))
 
 
-struct st_thd_timer_info
+struct THD_timer_info
 {
   my_thread_id thread_id;
   my_timer_t timer;

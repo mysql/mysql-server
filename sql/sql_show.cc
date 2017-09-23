@@ -2402,19 +2402,19 @@ static inline int show_var_cmp(const SHOW_VAR *var1, const SHOW_VAR *var2)
 }
 
 class Show_var_cmp :
-  public std::binary_function<const st_mysql_show_var &,
-                              const st_mysql_show_var &, bool>
+  public std::binary_function<const SHOW_VAR &,
+                              const SHOW_VAR &, bool>
 {
 public:
-  bool operator()(const st_mysql_show_var &var1,
-                  const st_mysql_show_var &var2)
+  bool operator()(const SHOW_VAR &var1,
+                  const SHOW_VAR &var2)
   {
     return show_var_cmp(&var1, &var2) < 0;
   }
 };
 
 
-static inline bool is_show_undef(const st_mysql_show_var &var)
+static inline bool is_show_undef(const SHOW_VAR &var)
 {
   return var.type == SHOW_UNDEF;
 }
@@ -2869,7 +2869,7 @@ extern ST_SCHEMA_TABLE schema_tables[];
   When the query contain a TABLE_SCHEMA or TABLE_NAME clause,
   narrow the search for data based on the constraints given.
 */
-typedef struct st_lookup_field_values
+struct LOOKUP_FIELD_VALUES
 {
   /**
     Value of a TABLE_SCHEMA clause.
@@ -2893,7 +2893,7 @@ typedef struct st_lookup_field_values
     false when @c table_value is an '=' clause.
   */
   bool wild_table_value;
-} LOOKUP_FIELD_VALUES;
+};
 
 /*
   Store record to I_S table, convert HEAP table

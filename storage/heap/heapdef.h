@@ -46,12 +46,12 @@ if (!(info->update & HA_STATE_AKTIV))\
 	/* Find pos for record and update it in info->current_ptr */
 #define hp_find_record(info,pos) (info)->current_ptr= hp_find_block(&(info)->s->block,pos)
 
-typedef struct st_hp_hash_info
+struct HASH_INFO
 {
-  struct st_hp_hash_info *next_key;
+  HASH_INFO *next_key;
   uchar *ptr_to_rec;
   ulong hash;                           /* Cached key hash value. */
-} HASH_INFO;
+};
 
 typedef struct {
   HA_KEYSEG *keyseg;

@@ -214,7 +214,7 @@ static bool init_done= FALSE; /* Set to TRUE when initialization done */
 static struct settings init_settings;
 static const char *db_process= 0;/* Pointer to process name; argv[0] */
 
-typedef struct _db_code_state_ {
+struct CODE_STATE {
   const char *process;          /* Pointer to process name; usually argv[0] */
   const char *func;             /* Name of current user function            */
   const char *file;             /* Name of current user file                */
@@ -240,7 +240,7 @@ typedef struct _db_code_state_ {
   int  locked;                  /* If locked with _db_lock_file_ */
   const char *u_keyword;        /* Keyword for current macro */
   uint m_read_lock_count;
-} CODE_STATE;
+};
 
 /*
   The test below is so we could call functions with DBUG_ENTER before

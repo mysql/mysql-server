@@ -29,12 +29,13 @@ struct MEM_ROOT;
 extern "C" {
 #endif
 
-typedef struct st_typelib {     /* Different types saved here */
+struct TYPELIB
+{     /* Different types saved here */
   size_t count;                 /* How many types */
   const char *name;             /* Name of typelib */
   const char **type_names;
   unsigned int *type_lengths;
-} TYPELIB;
+};
 
 extern my_ulonglong find_typeset(char *x, TYPELIB *typelib,int *error_position);
 extern int find_type_or_exit(const char *x, TYPELIB *typelib,

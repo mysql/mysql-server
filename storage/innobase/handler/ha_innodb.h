@@ -48,7 +48,8 @@ struct innodb_idx_translate_t {
 };
 
 /** InnoDB table share */
-typedef struct st_innobase_share {
+struct INNOBASE_SHARE
+{
 	const char*	table_name;	/*!< InnoDB table name */
 	uint		use_count;	/*!< reference count,
 					incremented in get_share()
@@ -59,7 +60,7 @@ typedef struct st_innobase_share {
 	innodb_idx_translate_t
 			idx_trans_tbl;	/*!< index translation table between
 					MySQL and InnoDB */
-} INNOBASE_SHARE;
+};
 
 /** Prebuilt structures in an InnoDB table handle used within MySQL */
 struct row_prebuilt_t;
@@ -916,6 +917,13 @@ public:
 		ut_ad(!(m_flags2 & DICT_TF2_INTRINSIC)
 		      || (m_flags2 & DICT_TF2_TEMPORARY));
 		return((m_flags2 & DICT_TF2_INTRINSIC) != 0);
+	}
+
+	/** @return true only if table is temporary and not intrinsic */
+	inline bool is_temp_table() const
+	{
+		return(((m_flags2 & DICT_TF2_TEMPORARY) != 0)
+		       && ((m_flags & DICT_TF2_INTRINSIC) == 0));
 	}
 
 	/** Prevent the created table to be evicted from cache, also all

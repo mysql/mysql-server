@@ -632,9 +632,9 @@ struct st_replace_regex
 
 struct st_replace_regex *glob_replace_regex= 0;
 
-struct st_replace;
-struct st_replace *glob_replace= 0;
-void replace_strings_append(struct st_replace *rep, DYNAMIC_STRING* ds,
+struct REPLACE;
+REPLACE *glob_replace= 0;
+void replace_strings_append(REPLACE *rep, DYNAMIC_STRING* ds,
                             const char *from, size_t len);
 
 static void cleanup_and_exit(int exit_code) MY_ATTRIBUTE((noreturn));
@@ -10650,14 +10650,15 @@ void replace_numeric_round_append(int round, DYNAMIC_STRING* result,
 
 /* Definitions for replace result */
 
-typedef struct st_pointer_array {		/* when using array-strings */
+struct POINTER_ARRAY
+{		/* when using array-strings */
   TYPELIB typelib;				/* Pointer to strings */
   uchar	*str;					/* Strings is here */
   uint8 *flag;					/* Flag about each var. */
   uint	array_allocs,max_count,length,max_length;
-} POINTER_ARRAY;
+};
 
-struct st_replace *init_replace(char * *from, char * *to, uint count,
+REPLACE *init_replace(char * *from, char * *to, uint count,
 				char * word_end_chars);
 int insert_pointer_name(POINTER_ARRAY *pa,char * name);
 void free_pointer_array(POINTER_ARRAY *pa);
@@ -10727,17 +10728,19 @@ void free_replace()
 }
 
 
-typedef struct st_replace {
+struct REPLACE
+{
   int found;
-  struct st_replace *next[256];
-} REPLACE;
+  REPLACE *next[256];
+};
 
-typedef struct st_replace_found {
+struct REPLACE_STRING
+{
   int found;
   char *replace_string;
   uint to_offset;
   int from_offset;
-} REPLACE_STRING;
+};
 
 
 void replace_strings_append(REPLACE *rep, DYNAMIC_STRING* ds,
@@ -11226,34 +11229,38 @@ int reg_replace(char** buf_p, int* buf_len_p, char *pattern,
 #define SET_MALLOC_HUNC 64
 #define LAST_CHAR_CODE 259
 
-typedef struct st_rep_set {
+struct REP_SET
+{
   uint	*bits;				/* Pointer to used sets */
   short next[LAST_CHAR_CODE];		/* Pointer to next sets */
   uint	found_len;			/* Best match to date */
   int	found_offset;
   uint	table_offset;
   uint	size_of_bits;			/* For convinience */
-} REP_SET;
+};
 
-typedef struct st_rep_sets {
+struct REP_SETS
+{
   uint		count;			/* Number of sets */
   uint		extra;			/* Extra sets in buffer */
   uint		invisible;		/* Sets not chown */
   uint		size_of_bits;
   REP_SET	*set,*set_buffer;
   uint		*bit_buffer;
-} REP_SETS;
+};
 
-typedef struct st_found_set {
+struct FOUND_SET
+{
   uint table_offset;
   int found_offset;
-} FOUND_SET;
+};
 
-typedef struct st_follow {
+struct FOLLOWS
+{
   int chr;
   uint table_offset;
   uint len;
-} FOLLOWS;
+};
 
 
 int init_sets(REP_SETS *sets,uint states);

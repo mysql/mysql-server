@@ -893,7 +893,7 @@ number_to_time(longlong nr, MYSQL_TIME *ltime, int *warnings)
   @param  my_time  pointer to MYSQL_TIME value
   @param  warning  set MYSQL_TIME_WARN_OUT_OF_RANGE flag if the value is out of range
 */
-void adjust_time_range(struct st_mysql_time *my_time, int *warning) 
+void adjust_time_range(MYSQL_TIME *my_time, int *warning) 
 {
   DBUG_ASSERT(!check_time_mmssff_range(my_time));
   if (check_time_range_quick(my_time))

@@ -40,7 +40,7 @@ extern "C" {
 
 #define DEFAULT_FTB_SYNTAX "+ -><()~*:\"\"&|"
 
-typedef struct st_ft_info FT_INFO;
+struct FT_INFO;
 struct _ft_vft
 {
   int       (*read_next)(FT_INFO *, char *);
@@ -50,7 +50,7 @@ struct _ft_vft
   void      (*reinit_search)(FT_INFO *);
 };
 
-typedef struct st_ft_info_ext FT_INFO_EXT;
+struct FT_INFO_EXT;
 struct _ft_vft_ext
 {
   uint      (*get_version)();        // Extended API version
@@ -67,13 +67,13 @@ struct _ft_vft_ext
 
 #define FTS_NGRAM_PARSER_NAME "ngram"
 
-struct st_ft_info
+struct FT_INFO
 {
   struct _ft_vft *please; /* INTERCAL style :-) */
 };
 
 #ifndef FT_CORE
-struct st_ft_info_ext
+struct FT_INFO_EXT
 {
   struct _ft_vft     *please; /* INTERCAL style :-) */
   struct _ft_vft_ext *could_you;

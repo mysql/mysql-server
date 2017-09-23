@@ -39,7 +39,7 @@
 namespace
 {
 
-typedef void (*Xpl_status_variable_get)(THD *, st_mysql_show_var *, char *);
+typedef void (*Xpl_status_variable_get)(THD *, SHOW_VAR *, char *);
 
 char *xpl_func_ptr(Xpl_status_variable_get callback)
 {
@@ -190,7 +190,7 @@ static MYSQL_SYSVAR_UINT(port_open_timeout, xpl::Plugin_system_variables::port_o
       "How long X Plugin is going to retry binding of server socket (in case of failure)",
       NULL, &xpl::Plugin_system_variables::update_func<unsigned int>, 0, 0, 120, 0);
 
-static struct st_mysql_sys_var* xpl_plugin_system_variables[]= {
+static SYS_VAR* xpl_plugin_system_variables[]= {
   MYSQL_SYSVAR(port),
   MYSQL_SYSVAR(max_connections),
   MYSQL_SYSVAR(min_worker_threads),
@@ -246,7 +246,7 @@ static struct st_mysql_sys_var* xpl_plugin_system_variables[]= {
       SHOW_FUNC,                                                                           \
       SHOW_SCOPE_GLOBAL }
 
-static struct st_mysql_show_var xpl_plugin_status[]=
+static SHOW_VAR xpl_plugin_status[]=
 {
   SESSION_STATUS_VARIABLE_ENTRY_LONGLONG("stmt_execute_sql",        xpl::Common_status_variables::m_stmt_execute_sql),
   SESSION_STATUS_VARIABLE_ENTRY_LONGLONG("stmt_execute_xplugin",    xpl::Common_status_variables::m_stmt_execute_xplugin),

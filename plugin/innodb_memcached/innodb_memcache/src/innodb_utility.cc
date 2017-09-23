@@ -185,7 +185,6 @@ hash_calc_hash(
 /************************************************************//**
 Gets the nth cell in a hash table.
 @return pointer to cell */
-inline
 hash_cell_t*
 hash_get_nth_cell(
 /*==============*/

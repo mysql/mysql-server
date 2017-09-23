@@ -27,12 +27,12 @@
 #include "sql/system_variables.h" // System_variables
 
 
-typedef struct st_changed_table_list
+struct CHANGED_TABLE_LIST
 {
-  struct        st_changed_table_list *next;
+  struct        CHANGED_TABLE_LIST *next;
   char	        *key;
   uint32        key_length;
-} CHANGED_TABLE_LIST;
+};
 
 
 Transaction_ctx::Transaction_ctx()

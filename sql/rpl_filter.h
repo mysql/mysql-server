@@ -41,12 +41,12 @@ class THD;
 struct TABLE_LIST;
 
 
-typedef struct st_table_rule_ent
+struct TABLE_RULE_ENT
 {
   char* db;
   char* tbl_name;
   uint key_len;
-} TABLE_RULE_ENT;
+};
 
 
 /** Enum values for CONFIGURED_BY column. */

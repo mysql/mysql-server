@@ -803,20 +803,34 @@ buf_read_recv_pages(
 
 	fil_space_open_if_needed(space);
 
+	auto	req_size = page_nos[n_stored - 1] + 1;
+
 	/* Extend the tablespace if needed. Required only while
 	recovering from cloned database. */
-	page_no_t	last_page = page_nos[n_stored - 1];
+	if (recv_sys->is_cloned_db && space->size < req_size) {
 
-	/* Align size to multiple of extent size */
-	success = fil_space_extend(
-		space, ut_calc_align(last_page + 1, FSP_EXTENT_SIZE));
+		/* Align size to multiple of extent size */
+		if (req_size > FSP_EXTENT_SIZE) {
 
-	if (!success) {
-		ib::error()
-			<< "Could not extend tablespace: " << space->id
+			req_size = ut_calc_align(req_size, FSP_EXTENT_SIZE);
+		}
+
+		ib::info()
+			<< "Extending tablespace : " << space->id
 			<< " space name: " << space->name
-			<< " for page number: " << last_page
+			<< " from page number: " << space->size << " pages"
+			<< " to " << req_size << " pages"
+			<< " for page number: " << page_nos[n_stored - 1]
 			<< " during recovery.";
+
+		if(!fil_space_extend(space, req_size)) {
+
+			ib::error()
+				<< "Could not extend tablespace: " << space->id
+				<< " space name: " << space->name
+				<< " to " << req_size << " pages"
+				<< " during recovery.";
+		}
 	}
 
 	const page_size_t	page_size(space->flags);

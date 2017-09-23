@@ -71,14 +71,14 @@ typedef Mem_root_array<Key_use> Key_use_array;
 class Cost_model_server;
 
 
-typedef struct st_sargable_param
+struct SARGABLE_PARAM
 {
   Field *field;              /* field against which to check sargability */
   Item **arg_value;          /* values of potential keys for lookups     */
   uint num_values;           /* number of values in the above array      */
-} SARGABLE_PARAM;
+};
 
-typedef struct st_rollup
+struct ROLLUP
 {
   enum State { STATE_NONE, STATE_INITED, STATE_READY };
   State state;
@@ -86,7 +86,7 @@ typedef struct st_rollup
   Ref_item_array *ref_item_arrays;
   List<Item> *fields_list;  ///< SELECT list
   List<Item> *all_fields;   ///< Including hidden fields
-} ROLLUP;
+};
 
 /**
   Wrapper for ORDER* pointer to trace origins of ORDER list 

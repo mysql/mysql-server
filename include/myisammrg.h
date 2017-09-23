@@ -43,7 +43,7 @@ extern TYPELIB merge_insert_method;
 
 	/* Param to/from myrg_info */
 
-typedef struct st_mymerge_info		/* Struct from h_info */
+struct MYMERGE_INFO		/* Struct from h_info */
 {
   ulonglong records;			/* Records in database */
   ulonglong deleted;			/* Deleted records in database */
@@ -54,15 +54,15 @@ typedef struct st_mymerge_info		/* Struct from h_info */
   int	errkey;				/* With key was dupplicated on err */
   uint	options;			/* HA_OPTION_... used */
   ulong *rec_per_key;			/* for sql optimizing */
-} MYMERGE_INFO;
+};
 
-typedef struct st_myrg_table_info
+struct MYRG_TABLE
 {
-  struct st_myisam_info *table;
+  MI_INFO *table;
   ulonglong file_offset;
-} MYRG_TABLE;
+};
 
-typedef struct st_myrg_info
+struct MYRG_INFO
 {
   MYRG_TABLE *open_tables,*current_table,*end_table,*last_used_table;
   ulonglong records;			/* records in tables */
@@ -78,7 +78,7 @@ typedef struct st_myrg_info
   QUEUE  by_key;
   ulong *rec_per_key_part;			/* for sql optimizing */
   mysql_mutex_t mutex;
-} MYRG_INFO;
+};
 
 
 	/* Prototypes for merge-functions */

@@ -80,7 +80,7 @@ struct get_opt_arg_source
   enum enum_variable_source m_source;
 };
 
-struct st_typelib;
+struct TYPELIB;
 
 struct my_option
 {
@@ -109,7 +109,7 @@ struct my_option
                                          */
   void       *value;                    /**< A pointer to the variable value */
   void       *u_max_value;              /**< The user def. max variable value */
-  struct st_typelib *typelib;           /**< Pointer to possible values */
+  TYPELIB *typelib;           /**< Pointer to possible values */
   ulong     var_type;                   /**< GET_BOOL, GET_ULL, etc */
   enum get_opt_arg_type arg_type;       /**< e.g. REQUIRED_ARG or OPT_ARG */
   longlong   def_value;                 /**< Default value */

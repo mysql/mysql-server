@@ -120,7 +120,7 @@ import "mysqlx.proto"; // comment_out_if PROTOBUF_LITE
 
 
 package Mysqlx.Resultset;
-option java_package = "com.mysql.cj.mysqlx.protobuf";
+option java_package = "com.mysql.cj.x.protobuf";
 
 // resultsets are finished, OUT paramset is next
 message FetchDoneMoreOutParams {
@@ -141,7 +141,7 @@ message FetchDone {
 //
 // .. note:: the encoding used for the different ``bytes`` fields in the meta data is externally
 //   controlled.
-//   .. seealso:: https://dev.mysql.com/doc/refman/5.0/en/charset-connection.html
+//   .. seealso:: https://dev.mysql.com/doc/refman/8.0/en/charset-connection.html
 //
 // .. note::
 //   The server may not set the ``original_{table|name}`` fields if they are equal to the plain
@@ -213,7 +213,7 @@ message FetchDone {
 //       LONGLONG SIGNED 20
 //       =============== ==
 //
-//       .. seealso:: definition of ``M`` in https://dev.mysql.com/doc/refman/5.5/en/numeric-type-overview.html
+//       .. seealso:: definition of ``M`` in https://dev.mysql.com/doc/refman/8.0/en/numeric-type-overview.html
 //
 //     ``value``
 //       variable length encoded signed 64 integer
@@ -239,7 +239,7 @@ message FetchDone {
 //       LONGLONG UNSIGNED 20
 //       ================= ==
 //
-//       .. seealso:: definition of ``M`` in https://dev.mysql.com/doc/refman/5.5/en/numeric-type-overview.html
+//       .. seealso:: definition of ``M`` in https://dev.mysql.com/doc/refman/8.0/en/numeric-type-overview.html
 //
 //     ``value``
 //       variable length encoded unsigned 64 integer
@@ -250,7 +250,7 @@ message FetchDone {
 //       maximum number of displayable binary digits
 //
 //       .. note:: valid range for M of the ``BIT`` type is 1 - 64
-//       .. seealso:: https://dev.mysql.com/doc/refman/5.5/en/numeric-type-overview.html
+//       .. seealso:: https://dev.mysql.com/doc/refman/8.0/en/numeric-type-overview.html
 //
 //     ``value``
 //       variable length encoded unsigned 64 integer

@@ -29,7 +29,7 @@
 #include "plugin/x/ngs/include/ngs/thread.h"
 #include "plugin/x/src/query_formatter.h"
 
-struct charset_info_st;
+struct CHARSET_INFO;
 
 namespace xpl
 {
@@ -157,7 +157,7 @@ private:
 
   static void init_charset();
   static std::once_flag m_charset_initialized;
-  static charset_info_st *m_charset;
+  static CHARSET_INFO *m_charset;
 };
 
 } // namespace xpl

@@ -945,7 +945,7 @@ ErrConvString::ErrConvString(const my_decimal *nr)
 }
 
 
-ErrConvString::ErrConvString(const struct st_mysql_time *ltime, uint dec)
+ErrConvString::ErrConvString(const MYSQL_TIME *ltime, uint dec)
 {
   buf_length= my_TIME_to_str(ltime, err_buffer,
                              MY_MIN(dec, DATETIME_MAX_DECIMALS));

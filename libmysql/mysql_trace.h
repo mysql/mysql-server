@@ -53,7 +53,7 @@ C_MODE_START
   Per connection protocol tracing state
 
   For each connection which is traced an instance of this structure
-  is pointed by the trace_data member of st_mysql_extension structure
+  is pointed by the trace_data member of MYSQL_EXTENSION structure
   attached to that connection handle.
 
   If trace_data is NULL, for an initialized connection, then it means
@@ -75,10 +75,10 @@ struct st_mysql_trace_info
   these functions.
 */
 
-void mysql_trace_trace(struct st_mysql*,
+void mysql_trace_trace(MYSQL*,
                        enum trace_event,
                        struct st_trace_event_args);
-void mysql_trace_start(struct st_mysql*);
+void mysql_trace_start(MYSQL*);
 
 
 /**

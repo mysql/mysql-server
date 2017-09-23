@@ -31,9 +31,16 @@
 
 /**
   An instrumented rwlock structure.
-  @sa mysql_rwlock_t
+  @c mysql_rwlock_t is a drop-in replacement for @c pthread_rwlock_t.
+  @sa mysql_rwlock_init
+  @sa mysql_rwlock_rdlock
+  @sa mysql_rwlock_tryrdlock
+  @sa mysql_rwlock_wrlock
+  @sa mysql_rwlock_trywrlock
+  @sa mysql_rwlock_unlock
+  @sa mysql_rwlock_destroy
 */
-struct st_mysql_rwlock
+struct mysql_rwlock_t
 {
   /** The real rwlock */
   native_rw_lock_t m_rwlock;
@@ -47,9 +54,15 @@ struct st_mysql_rwlock
 
 /**
   An instrumented prlock structure.
-  @sa mysql_prlock_t
+  A prlock is a read write lock that 'prefers readers' (pr).
+  @c mysql_prlock_t is a drop-in replacement for @c rw_pr_lock_t.
+  @sa mysql_prlock_init
+  @sa mysql_prlock_rdlock
+  @sa mysql_prlock_wrlock
+  @sa mysql_prlock_unlock
+  @sa mysql_prlock_destroy
 */
-struct st_mysql_prlock
+struct mysql_prlock_t
 {
   /** The real prlock */
   rw_pr_lock_t m_prlock;
@@ -60,31 +73,6 @@ struct st_mysql_prlock
   */
   struct PSI_rwlock *m_psi;
 };
-
-/**
-  Type of an instrumented rwlock.
-  @c mysql_rwlock_t is a drop-in replacement for @c pthread_rwlock_t.
-  @sa mysql_rwlock_init
-  @sa mysql_rwlock_rdlock
-  @sa mysql_rwlock_tryrdlock
-  @sa mysql_rwlock_wrlock
-  @sa mysql_rwlock_trywrlock
-  @sa mysql_rwlock_unlock
-  @sa mysql_rwlock_destroy
-*/
-typedef struct st_mysql_rwlock mysql_rwlock_t;
-
-/**
-  Type of an instrumented prlock.
-  A prlock is a read write lock that 'prefers readers' (pr).
-  @c mysql_prlock_t is a drop-in replacement for @c rw_pr_lock_t.
-  @sa mysql_prlock_init
-  @sa mysql_prlock_rdlock
-  @sa mysql_prlock_wrlock
-  @sa mysql_prlock_unlock
-  @sa mysql_prlock_destroy
-*/
-typedef struct st_mysql_prlock mysql_prlock_t;
 
 /** @} (end of group psi_api_rwlock) */
 

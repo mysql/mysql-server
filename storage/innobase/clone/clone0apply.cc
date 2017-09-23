@@ -295,14 +295,16 @@ Clone_Handle::apply_file_metadata(
 /** Receive data from callback and apply
 @param[in]	task		task that is receiving the information
 @param[in]	offset		file offset for applying data
+@param[in]	file_size	updated file size
 @param[in]	size		data length in bytes
 @param[in]	callback	callback interface
 @return error code */
 dberr_t
 Clone_Handle::receive_data(
 	Clone_Task*	task,
-	ib_uint64_t	offset,
-	uint		size,
+	uint64_t	offset,
+	uint64_t	file_size,
+	uint32_t	size,
 	Ha_clone_cbk*	callback)
 {
 	dberr_t			err;
@@ -314,6 +316,14 @@ Clone_Handle::receive_data(
 	snapshot = m_clone_task_manager.get_snapshot();
 
 	file_meta = snapshot->get_file_by_index(task->m_current_file_index);
+
+	/* Check and update file size for space header page */
+	if (snapshot->get_state() == CLONE_SNAPSHOT_PAGE_COPY
+	    && offset == 0
+	    && file_meta->m_file_size < file_size) {
+
+		file_meta->m_file_size = file_size;
+	}
 
 	/* Open destination file for first block. */
 	if (task->m_current_file_des.m_file == OS_FILE_CLOSED) {
@@ -392,8 +402,8 @@ Clone_Handle::apply_data(
 	}
 
 	/* Receive data from callback and apply. */
-	err = receive_data(task, data_desc.m_file_offset, data_desc.m_data_len,
-			   callback);
+	err = receive_data(task, data_desc.m_file_offset, data_desc.m_file_size,
+			   data_desc.m_data_len, callback);
 
 	task->m_task_meta = *task_meta;
 
@@ -407,9 +417,9 @@ dberr_t
 Clone_Handle::apply(
 	Ha_clone_cbk*	callback)
 {
-	dberr_t		err = DB_SUCCESS;
+	dberr_t			err = DB_SUCCESS;
 	Clone_Desc_Header	header;
-	byte*		clone_desc;
+	byte*			clone_desc;
 
 	clone_desc = callback->get_data_desc(nullptr);
 	ut_ad(clone_desc != nullptr);
@@ -443,4 +453,75 @@ Clone_Handle::apply(
 	}
 
 	return(err);
+}
+
+/** Extend files after copying pages, if needed
+@return error code */
+dberr_t
+Clone_Snapshot::extend_files()
+{
+	bool	success;
+	bool	check_redo_files = false;
+
+	if (m_snapshot_state == CLONE_SNAPSHOT_DONE) {
+
+		/* flush redo files after clone is over. */
+		check_redo_files = true;
+
+	} else if (m_snapshot_state == CLONE_SNAPSHOT_REDO_COPY) {
+
+		/* extend and flush data files after page copy */
+		check_redo_files = false;
+	} else {
+
+		return(DB_SUCCESS);
+	}
+
+	auto&	file_vector = (check_redo_files)
+			? m_redo_file_vector
+			: m_data_file_vector;
+
+	for (auto file_meta : file_vector) {
+
+		char	errbuf[MYSYS_STRERROR_SIZE];
+
+		auto	file = os_file_create(innodb_clone_file_key,
+				file_meta->m_file_name, OS_FILE_OPEN,
+				OS_FILE_NORMAL, OS_CLONE_LOG_FILE,
+				false, &success);
+
+	        if (!success) {
+
+			my_error(ER_CANT_OPEN_FILE, MYF(0),
+				file_meta->m_file_name, errno,
+				my_strerror(errbuf, sizeof(errbuf), errno));
+
+			return(DB_CANNOT_OPEN_FILE);
+		}
+
+		auto	file_size = os_file_get_size(file);
+
+		if (!check_redo_files && file_size < file_meta->m_file_size) {
+
+			success = os_file_set_size(file_meta->m_file_name,
+				file, file_size,
+				file_meta->m_file_size, false, true);
+		} else {
+
+			success = os_file_flush(file);
+		}
+
+		os_file_close(file);
+
+		if (!success) {
+
+			my_error(ER_ERROR_ON_WRITE, MYF(0),
+				file_meta->m_file_name, errno,
+				my_strerror(errbuf, sizeof(errbuf), errno));
+
+			return(DB_IO_ERROR);
+		}
+        }
+
+	return(DB_SUCCESS);
 }

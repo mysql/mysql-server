@@ -37,7 +37,7 @@ class my_decimal;
 template <class T> class List;
 union COM_DATA;
 
-typedef struct st_mysql_field MYSQL_FIELD;
+struct MYSQL_FIELD;
 class Item_param;
 class i_string;
 template <class T> class I_List;

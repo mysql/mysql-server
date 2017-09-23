@@ -50,10 +50,10 @@ namespace dd {
   class Foreign_key;
 }
 
-typedef struct st_ha_check_opt HA_CHECK_OPT;
-typedef struct st_ha_create_information HA_CREATE_INFO;
-typedef struct charset_info_st CHARSET_INFO;
-typedef struct st_mysql_mutex mysql_mutex_t;
+struct HA_CHECK_OPT;
+struct HA_CREATE_INFO;
+struct CHARSET_INFO;
+typedef mysql_mutex_t mysql_mutex_t;
 template<typename T> class List;
 
 

@@ -39,11 +39,11 @@ typedef int32 decimal_digit_t;
     sign false means positive, true means negative
     buf  is an array of decimal_digit_t's
  */
-typedef struct st_decimal_t {
+struct decimal_t {
   int    intg, frac, len;
   bool sign;
   decimal_digit_t *buf;
-} decimal_t;
+};
 
 #ifndef MYSQL_ABI_CHECK
 int string2decimal(const char *from, decimal_t *to, char **end);

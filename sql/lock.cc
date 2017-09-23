@@ -111,8 +111,6 @@
   @{
 */
 
-extern HASH open_cache;
-
 /* flags for get_lock_data */
 #define GET_LOCK_UNLOCK         1
 #define GET_LOCK_STORE_LOCKS    2

@@ -43,11 +43,11 @@ static bool is_nt()
   around while SECURITY_ATTRIBUTES is in use.
 */
 
-typedef struct st_my_security_attr
+struct My_security_attr
 {
   PSID everyone_sid;
   PACL dacl;
-} My_security_attr;
+};
 
 
 /*

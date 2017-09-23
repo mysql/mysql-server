@@ -1249,7 +1249,7 @@ static bool all_same(const SEL_ROOT *sa1, const SEL_ROOT *sa2)
 }
 
 class SEL_IMERGE;
-
+struct ROR_SCAN_INFO;
 
 class SEL_TREE :public Sql_alloc
 {
@@ -1338,8 +1338,8 @@ public:
   Key_map ror_scans_map;   /* bitmask of ROR scan-able elements in keys */
   uint    n_ror_scans;     /* number of set bits in ror_scans_map */
 
-  struct st_ror_scan_info **ror_scans;     /* list of ROR key scans */
-  struct st_ror_scan_info **ror_scans_end; /* last ROR scan */
+  ROR_SCAN_INFO **ror_scans;     /* list of ROR key scans */
+  ROR_SCAN_INFO **ror_scans_end; /* last ROR scan */
   /* Note that #records for each key scan is stored in table->quick_rows */
 
   /**
@@ -1527,8 +1527,8 @@ TRP_GROUP_MIN_MAX *get_best_group_min_max(PARAM *param, SEL_TREE *tree,
 static void print_sel_tree(PARAM *param, SEL_TREE *tree, Key_map *tree_map,
                            const char *msg);
 static void print_ror_scans_arr(TABLE *table, const char *msg,
-                                struct st_ror_scan_info **start,
-                                struct st_ror_scan_info **end);
+                                ROR_SCAN_INFO **start,
+                                ROR_SCAN_INFO **end);
 static void print_quick(QUICK_SELECT_I *quick, const Key_map *needed_reg);
 #endif
 
@@ -2881,7 +2881,7 @@ void TRP_RANGE::trace_basic_info(const PARAM *param,
 }
 
 
-typedef struct st_ror_scan_info
+struct ROR_SCAN_INFO
 {
   uint      idx;      ///< # of used key in param->keys
   uint      keynr;    ///< # of used key in table
@@ -2906,7 +2906,7 @@ typedef struct st_ror_scan_info
     (assuming there is no need to access full table records)
   */
   Cost_estimate index_read_cost;
-} ROR_SCAN_INFO;
+};
 
 /* Plan for QUICK_ROR_INTERSECT_SELECT scan. */
 
@@ -2923,9 +2923,9 @@ public:
                              MEM_ROOT *parent_alloc);
 
   /* Array of pointers to ROR range scans used in this intersection */
-  struct st_ror_scan_info **first_scan;
-  struct st_ror_scan_info **last_scan; /* End of the above array */
-  struct st_ror_scan_info *cpk_scan;  /* Clustered PK scan, if there is one */
+  ROR_SCAN_INFO **first_scan;
+  ROR_SCAN_INFO **last_scan; /* End of the above array */
+  ROR_SCAN_INFO *cpk_scan;  /* Clustered PK scan, if there is one */
   bool is_covering; /* TRUE if no row retrieval phase is necessary */
   Cost_estimate index_scan_cost; /* SUM(cost(index_scan)) */
 
@@ -2945,7 +2945,7 @@ void TRP_ROR_INTERSECT::trace_basic_info(const PARAM *param,
 
   Opt_trace_context * const trace= &param->thd->opt_trace;
   Opt_trace_array ota(trace, "intersect_of");
-  for (st_ror_scan_info **cur_scan= first_scan;
+  for (ROR_SCAN_INFO **cur_scan= first_scan;
        cur_scan != last_scan;
        cur_scan++)
   {
@@ -3790,7 +3790,7 @@ typedef void (*mark_full_part_func)(partition_info*, uint32);
 /*
   Partition pruning operation context
 */
-typedef struct st_part_prune_param
+struct PART_PRUNE_PARAM
 {
   RANGE_OPT_PARAM range_param; /* Range analyzer parameters */
 
@@ -3853,7 +3853,7 @@ typedef struct st_part_prune_param
   uchar *cur_max_key;
 
   uint cur_min_flag, cur_max_flag;
-} PART_PRUNE_PARAM;
+};
 
 static bool create_partition_index_description(PART_PRUNE_PARAM *prune_par);
 static int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ROOT *key_tree);
@@ -6579,7 +6579,7 @@ QUICK_SELECT_I *TRP_ROR_INTERSECT::make_quick(PARAM *param,
                                              "creating ROR-intersect",
                                              first_scan, last_scan););
     alloc= parent_alloc? parent_alloc: &quick_intrsect->alloc;
-    for (st_ror_scan_info **current= first_scan;
+    for (ROR_SCAN_INFO **current= first_scan;
          current != last_scan;
          current++)
     {
@@ -10243,7 +10243,7 @@ inline bool SEL_ROOT::simple_key() const
  ****************************************************************************/
 
 /* MRR range sequence, SEL_ARG* implementation: stack entry */
-typedef struct st_range_seq_entry 
+struct RANGE_SEQ_ENTRY
 {
   /* 
     Pointers in min and max keys. They point to right-after-end of key
@@ -10266,7 +10266,7 @@ typedef struct st_range_seq_entry
     reparsing the R-B range trees each time a new range is fetched.
   */
   SEL_ARG *key_tree;
-} RANGE_SEQ_ENTRY;
+};
 
 
 /*
@@ -15302,8 +15302,8 @@ static void print_sel_tree(PARAM *param, SEL_TREE *tree, Key_map *tree_map,
 
 
 static void print_ror_scans_arr(TABLE *table, const char *msg,
-                                struct st_ror_scan_info **start,
-                                struct st_ror_scan_info **end)
+                                ROR_SCAN_INFO **start,
+                                ROR_SCAN_INFO **end)
 {
   DBUG_ENTER("print_ror_scans_arr");
 

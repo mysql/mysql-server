@@ -214,7 +214,7 @@ static struct st_mysql_ftparser simple_parser_descriptor=
   Plugin status variables for SHOW STATUS
 */
 
-static struct st_mysql_show_var simple_status[]=
+static SHOW_VAR simple_status[]=
 {
   {"static",     (char *)"just a static text",     SHOW_CHAR, SHOW_SCOPE_GLOBAL},
   {"called",     (char *)&number_of_calls, SHOW_LONG, SHOW_SCOPE_GLOBAL},
@@ -248,7 +248,7 @@ static MYSQL_THDVAR_STR(simple_thdvar_two,
   "Simple fulltext parser example thread variable number two. Give a string.",
   NULL, NULL, "simple thdvar two default");
 
-static struct st_mysql_sys_var* simple_system_variables[]= {
+static SYS_VAR* simple_system_variables[]= {
   MYSQL_SYSVAR(simple_sysvar_one),
   MYSQL_SYSVAR(simple_sysvar_two),
   MYSQL_SYSVAR(simple_thdvar_one),

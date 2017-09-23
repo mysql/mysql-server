@@ -125,7 +125,7 @@ innodb_config_parse_value_col(
 
 	if (num_cols > 1) {
 		int	i = 0;
-		item->extra_col_info = malloc(
+		item->extra_col_info = (meta_column_t *)malloc(
 			num_cols * sizeof(*item->extra_col_info));
 
 		if (!item->extra_col_info) {
@@ -439,7 +439,7 @@ innodb_config_add_item(
 		goto func_exit;
 	}
 
-	item = malloc(sizeof(*item));
+	item = (meta_cfg_info_t *)malloc(sizeof(*item));
 
 	memset(item, 0, sizeof(*item));
 
@@ -704,7 +704,7 @@ innodb_config_container(
 		goto func_exit;
 	}
 
-	item = malloc(sizeof(*item));
+	item = (meta_cfg_info_t *)malloc(sizeof(*item));
 	memset(item, 0, sizeof(*item));
 
 	/* Get the column mappings (column for each memcached data */
@@ -912,10 +912,10 @@ innodb_verify_low(
 	tpl = innodb_cb_read_tuple_create(crsr);
 
 	if (runtime && info->n_extra_col) {
-		col_verify = malloc(info->n_extra_col * sizeof(meta_column_t));
+		col_verify = (meta_column_t *)malloc(info->n_extra_col * sizeof(meta_column_t));
 
 		if (!col_verify) {
-			return(false);
+			return(DB_ERROR);
 		}
 
 		for (i = 0; i < info->n_extra_col; i++) {

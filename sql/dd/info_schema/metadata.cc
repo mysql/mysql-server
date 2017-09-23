@@ -89,18 +89,7 @@ const dd::String_type SERVER_I_S_TABLE_STRING("server_i_s_table");
 bool check_if_server_ddse_readonly(THD *thd, const char *schema_name_abbrev)
 {
   /*
-    If we are in read-only mode, we skip updating I_S/P_S metadata. Here,
-    'opt_readonly' is the value of the '--read-only' option.
-  */
-  if (opt_readonly)
-  {
-    sql_print_warning("Skip updating %s metadata in read-only mode.",
-                      schema_name_abbrev);
-    return true;
-  }
-
-  /*
-    We must also check if the DDSE is started in a way that makes the DD
+    We must check if the DDSE is started in a way that makes the DD
     read only. For now, we only support InnoDB as SE for the DD. The call
     to retrieve the handlerton for the DDSE should be replaced by a more
     generic mechanism.
@@ -346,7 +335,7 @@ bool store_plugin_metadata(THD *thd,
 */
 bool update_plugins_I_S_metadata(THD *thd)
 {
-  // Warn if we have read-only mode enabled and continue.
+  //  Warn if we have DDSE in read only mode and continue server startup.
   if (check_if_server_ddse_readonly(thd, INFORMATION_SCHEMA_NAME.str))
     return false;
 
@@ -446,7 +435,7 @@ bool update_server_I_S_metadata(THD *thd)
 
   /*
     Stop server restart if I_S version is changed and the server is
-    started in read-only mode.
+    started with DDSE in read-only mode.
   */
   if (check_if_server_ddse_readonly(thd, INFORMATION_SCHEMA_NAME.str))
     return true;
@@ -488,8 +477,7 @@ bool update_server_I_S_metadata(THD *thd)
   */
   error= error ||
          dd::info_schema::store_server_I_S_metadata(thd) ||
-         dd::info_schema::create_system_views(thd) ||
-         d->set_I_S_version(thd, d->get_target_I_S_version());
+         dd::info_schema::create_system_views(thd);
 
   return dd::end_transaction(thd, error);
 }
@@ -533,6 +521,13 @@ bool create_system_views(THD *thd)
       error= true;
       break;
     }
+  }
+
+  // Store the target I_S version.
+  if (!error)
+  {
+    dd::Dictionary_impl *d= dd::Dictionary_impl::instance();
+    error= d->set_I_S_version(thd, d->get_target_I_S_version());
   }
 
   // Restore the original character set.

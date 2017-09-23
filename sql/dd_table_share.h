@@ -28,7 +28,7 @@ class KEY_PART_INFO;
 class THD;
 struct TABLE_SHARE;
 
-typedef struct charset_info_st CHARSET_INFO;
+struct CHARSET_INFO;
 namespace dd {
   class Table;
   enum class enum_column_types;

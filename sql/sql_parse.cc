@@ -660,6 +660,9 @@ void init_sql_command_flags(void)
   sql_command_flags[SQLCOM_DROP_RESOURCE_GROUP]=   CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_SET_RESOURCE_GROUP]=    CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
 
+  sql_command_flags[SQLCOM_CLONE]= CF_AUTO_COMMIT_TRANS |
+                                   CF_ALLOW_PROTOCOL_PLUGIN;
+
   /* Does not change the contents of the Diagnostics Area. */
   sql_command_flags[SQLCOM_GET_DIAGNOSTICS]= CF_DIAGNOSTIC_STMT;
 
@@ -7104,7 +7107,7 @@ LEX_USER *get_current_user(THD *thd, LEX_USER *user)
       /*
         Inherit parser semantics from the statement in which the user parameter
         was used.
-        This is needed because a st_lex_user is both used as a component in an
+        This is needed because a LEX_USER is both used as a component in an
         AST and as a specifier for a particular user in the ACL subsystem.
       */
       default_definer->uses_authentication_string_clause=

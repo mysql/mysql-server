@@ -335,32 +335,32 @@ struct st_my_file_info
 
 extern struct st_my_file_info *my_file_info;
 
-typedef struct st_dynamic_array
+struct DYNAMIC_ARRAY
 {
   uchar *buffer;
   uint elements,max_element;
   uint alloc_increment;
   uint size_of_element;
   PSI_memory_key m_psi_key;
-} DYNAMIC_ARRAY;
+};
 
-typedef struct st_my_tmpdir
+struct MY_TMPDIR
 {
   char **list;
   uint cur, max;
   mysql_mutex_t mutex;
-} MY_TMPDIR;
+};
 
-typedef struct st_dynamic_string
+struct DYNAMIC_STRING
 {
   char *str;
   size_t length,max_length,alloc_increment;
-} DYNAMIC_STRING;
+};
 
-struct st_io_cache;
-typedef int (*IO_CACHE_CALLBACK)(struct st_io_cache*);
+struct IO_CACHE;
+typedef int (*IO_CACHE_CALLBACK)(IO_CACHE*);
 
-typedef struct st_io_cache_share
+struct IO_CACHE_SHARE
 {
   mysql_mutex_t       mutex;           /* To sync on reads into buffer. */
   mysql_cond_t        cond;            /* To wait for signals. */
@@ -368,15 +368,15 @@ typedef struct st_io_cache_share
   /* Offset in file corresponding to the first byte of buffer. */
   my_off_t              pos_in_file;
   /* If a synchronized write cache is the source of the data. */
-  struct st_io_cache    *source_cache;
+  IO_CACHE    *source_cache;
   uchar                 *buffer;         /* The read buffer. */
   uchar                 *read_end;       /* Behind last valid byte of buffer. */
   int                   running_threads; /* threads not in lock. */
   int                   total_threads;   /* threads sharing the cache. */
   int                   error;           /* Last error. */
-} IO_CACHE_SHARE;
+};
 
-typedef struct st_io_cache		/* Used when cacheing files */
+struct IO_CACHE		/* Used when cacheing files */
 {
   /* Offset in file corresponding to the first byte of uchar* buffer. */
   my_off_t pos_in_file;
@@ -438,12 +438,12 @@ typedef struct st_io_cache		/* Used when cacheing files */
     my_b_read() will call read_function to fetch the data. read_function
     must never be invoked directly.
   */
-  int (*read_function)(struct st_io_cache *,uchar *,size_t);
+  int (*read_function)(IO_CACHE *,uchar *,size_t);
   /*
     Same idea as in the case of read_function, except my_b_write() needs to
     be replaced with my_b_append() for a SEQ_READ_APPEND cache
   */
-  int (*write_function)(struct st_io_cache *,const uchar *,size_t);
+  int (*write_function)(IO_CACHE *,const uchar *,size_t);
   /*
     Specifies the type of the cache. Depending on the type of the cache
     certain operations might not be available and yield unpredicatable
@@ -493,7 +493,7 @@ typedef struct st_io_cache		/* Used when cacheing files */
     somewhere else
   */
   bool alloced_buffer;
-} IO_CACHE;
+};
 
 typedef int (*qsort_cmp)(const void *,const void *);
 typedef int (*qsort2_cmp)(const void *, const void *, const void *);
@@ -502,11 +502,11 @@ typedef int (*qsort2_cmp)(const void *, const void *, const void *);
   Subset of struct stat fields filled by stat/lstat/fstat that uniquely
   identify a file
 */
-typedef struct st_file_id
+struct ST_FILE_ID
 {
   dev_t st_dev;
   ino_t st_ino;
-} ST_FILE_ID;
+};
 
 typedef void (*my_error_reporter)(enum loglevel level, const char *format, ...)
   MY_ATTRIBUTE((format(printf, 2, 3)));
@@ -611,7 +611,8 @@ extern my_off_t my_ftell(FILE *stream);
 /* Platform-independent SysLog support */
 
 /* facilities on unixoid syslog. harmless on systemd / Win platforms. */
-typedef struct st_syslog_facility { int id; const char *name; } SYSLOG_FACILITY;
+struct SYSLOG_FACILITY
+{ int id; const char *name; };
 extern SYSLOG_FACILITY syslog_facility[];
 
 enum my_syslog_options { MY_SYSLOG_PIDS= 1 };
@@ -997,8 +998,8 @@ extern MYSQL_PLUGIN_IMPORT PSI_data_lock_bootstrap *psi_data_lock_hook;
 extern void set_psi_data_lock_service(void *psi);
 #endif /* HAVE_PSI_INTERFACE */
 
-struct st_mysql_file;
-extern struct st_mysql_file *mysql_stdin;
+struct MYSQL_FILE;
+extern MYSQL_FILE *mysql_stdin;
 
 C_MODE_END
 #endif /* _my_sys_h */

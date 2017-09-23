@@ -399,7 +399,7 @@ SysTablespace::set_size(
 		" Physically writing the file full; Please wait ...";
 
 	bool	success = os_file_set_size(
-		file.m_filepath, file.m_handle,
+		file.m_filepath, file.m_handle, 0,
 		static_cast<os_offset_t>(file.m_size << UNIV_PAGE_SIZE_SHIFT),
 		m_ignore_read_only ? false : srv_read_only_mode, true);
 

@@ -57,8 +57,8 @@ struct handlerton;
 template <class T> class List;
 template <class T> class List_iterator;
 
-typedef struct st_bitmap MY_BITMAP;
-typedef struct st_open_table_list OPEN_TABLE_LIST;
+struct MY_BITMAP;
+struct OPEN_TABLE_LIST;
 class SELECT_LEX;
 
 typedef Bounds_checked_array<Item *> Ref_item_array;

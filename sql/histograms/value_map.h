@@ -37,7 +37,7 @@ class THD;
 class my_decimal;
 template <class T> class Memroot_allocator;
 
-typedef struct st_mysql_time MYSQL_TIME;
+struct MYSQL_TIME;
 
 namespace histograms {
 

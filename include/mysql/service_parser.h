@@ -59,7 +59,7 @@ int (*sql_condition_handler_function)(int sql_errno,
                                       const char* msg,
                                       void *state);
 
-struct st_my_thread_handle;
+struct my_thread_handle;
 
 typedef MYSQL_THD (*mysql_current_session_t)();
 
@@ -68,9 +68,9 @@ typedef MYSQL_THD (*mysql_open_session_t)();
 typedef void (*mysql_start_thread_t)(MYSQL_THD thd,
                                      void *(*callback_fun)(void*),
                                      void *arg,
-                                     struct st_my_thread_handle *thread_handle);
+                                     struct my_thread_handle *thread_handle);
 
-typedef void (*mysql_join_thread_t)(struct st_my_thread_handle *thread_handle);
+typedef void (*mysql_join_thread_t)(struct my_thread_handle *thread_handle);
 
 typedef void (*mysql_set_current_database_t)(MYSQL_THD thd, const MYSQL_LEX_STRING db);
 
@@ -269,8 +269,8 @@ typedef void *(*callback_function)(void*);
 MYSQL_THD mysql_parser_current_session();
 MYSQL_THD mysql_parser_open_session();
 void mysql_parser_start_thread(MYSQL_THD thd, callback_function fun, void *arg,
-                               struct st_my_thread_handle *thread_handle);
-void mysql_parser_join_thread(struct st_my_thread_handle *thread_handle);
+                               struct my_thread_handle *thread_handle);
+void mysql_parser_join_thread(struct my_thread_handle *thread_handle);
 void mysql_parser_set_current_database(MYSQL_THD thd,
                                        const MYSQL_LEX_STRING db);
 int mysql_parser_parse(MYSQL_THD thd, const MYSQL_LEX_STRING query,

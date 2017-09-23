@@ -814,6 +814,8 @@ bool
 srv_purge_threads_active();
 
 #ifdef UNIV_DEBUG
+struct SYS_VAR;
+
 /** Disables master thread. It's used by:
 	SET GLOBAL innodb_master_thread_disabled_debug = 1 (0).
 @param[in]	thd		thread handle
@@ -823,7 +825,7 @@ srv_purge_threads_active();
 void
 srv_master_thread_disabled_debug_update(
 	THD*				thd,
-	struct st_mysql_sys_var*	var,
+	SYS_VAR*	var,
 	void*				var_ptr,
 	const void*			save);
 #endif /* UNIV_DEBUG */

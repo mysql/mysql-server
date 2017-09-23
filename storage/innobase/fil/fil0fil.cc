@@ -4547,7 +4547,7 @@ Fil_shard::space_truncate(
 		os_offset_t	size = size_in_pages * UNIV_PAGE_SIZE;
 
 		success = os_file_set_size(
-			file.name, file.handle, size,
+			file.name, file.handle, 0, size,
 			srv_read_only_mode, true);
 
 		if (success) {
@@ -5466,14 +5466,14 @@ fil_ibd_create(
 		atomic_write = false;
 
 		success = os_file_set_size(
-			path, file, size * UNIV_PAGE_SIZE,
+			path, file, 0, size * UNIV_PAGE_SIZE,
 			srv_read_only_mode, true);
 	}
 #else
 	atomic_write = false;
 
 	success = os_file_set_size(
-		path, file, size * UNIV_PAGE_SIZE,
+		path, file, 0, size * UNIV_PAGE_SIZE,
 		srv_read_only_mode, true);
 
 #endif /* !NO_FALLOCATE && UNIV_LINUX */
@@ -10738,6 +10738,7 @@ fil_get_dirs()
 }
 
 /** Free the data structures required for recovery. */
+/** Create tablespaces.open.* files. */
 void
 fil_free_scanned_files()
 {

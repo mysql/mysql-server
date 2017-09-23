@@ -1752,7 +1752,7 @@ fts_proximity_is_word_in_range(
 
 /*****************************************************************//**
 FTS plugin parser 'myql_add_word' callback function for phrase match
-Refer to 'st_mysql_ftparser_param' for more detail.
+Refer to 'MYSQL_FTPARSER_PARAM' for more detail.
 @return 0 if match, or return non-zero */
 static
 int
@@ -4061,7 +4061,7 @@ fts_query(
 	the ut_malloc'ed result and so remember to free it before return. */
 
 	lc_query_str_len = query_len * charset->casedn_multiply + charset->mbmaxlen;
-	lc_query_str = static_cast<byte*>(ut_malloc_nokey(lc_query_str_len));
+	lc_query_str = static_cast<byte*>(ut_zalloc_nokey(lc_query_str_len));
 
 	result_len = innobase_fts_casedn_str(
 		charset, (char*) query_str, query_len,

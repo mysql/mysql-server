@@ -57,7 +57,7 @@ struct TABLE_SHARE;
 #define PARTITION_BYTES_IN_POS 2
 
 /* forward declarations */
-typedef struct st_ha_create_information HA_CREATE_INFO;
+struct HA_CREATE_INFO;
 struct MEM_ROOT;
 
 static const uint NO_CURRENT_PART_ID= UINT_MAX32;
@@ -84,13 +84,13 @@ enum enum_part_operation {
 };
 
 /** Struct used for partition_name_hash */
-typedef struct st_part_name_def
+struct PART_NAME_DEF
 {
   uchar *partition_name;
   uint length;
   uint32 part_id;
   bool is_subpart;
-} PART_NAME_DEF;
+};
 
 
 /**

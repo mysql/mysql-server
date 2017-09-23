@@ -596,6 +596,11 @@ archiver_thread()
 			log_abort = arch_log_sys->archive(log_init,
 				&log_file_ctx, &log_arch_lsn, &log_wait);
 
+			if (log_abort) {
+
+				ib::info() << "Exiting Log Archiver";
+			}
+
 			log_init = false;
 		}
 
@@ -603,6 +608,11 @@ archiver_thread()
 
 			/* Archive in memory data blocks to disk. */
 			page_abort = arch_page_sys->archive(&page_wait);
+
+			if (page_abort) {
+
+				ib::info() << "Exiting Page Archiver";
+			}
 		}
 
 		if (log_abort && page_abort) {

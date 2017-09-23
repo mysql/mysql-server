@@ -37,7 +37,7 @@ class THD;
 class my_decimal;
 
 
-typedef struct st_udf_func
+struct udf_func
 {
   LEX_STRING name;
   Item_result returns;
@@ -50,7 +50,7 @@ typedef struct st_udf_func
   Udf_func_clear func_clear;
   Udf_func_add func_add;
   ulong usage_count;
-} udf_func;
+};
 
 class udf_handler :public Sql_alloc
 {

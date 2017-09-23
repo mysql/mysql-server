@@ -536,11 +536,11 @@ const CHARSET_INFO *sys_var::charset(THD *thd)
     system_charset_info;
 }
 
-typedef struct old_names_map_st
+struct my_old_conv
 {
   const char *old_name;
   const char *new_name;
-} my_old_conv;
+};
 
 static my_old_conv old_conv[]=
 {
@@ -742,7 +742,7 @@ bool enumerate_sys_vars(Show_var_array *show_var_array,
                  show_var_array->element_size(), show_cmp);
 
     /* Make last element empty. */
-    show_var_array->push_back(st_mysql_show_var());
+    show_var_array->push_back(SHOW_VAR());
   }
   
   return false;

@@ -833,6 +833,7 @@ Clone_Handle::send_data(
 	data_desc.m_file_index = file_meta->m_file_index;
 	data_desc.m_data_len = size;
 	data_desc.m_file_offset = offset;
+	data_desc.m_file_size = file_meta->m_file_size;
 
 	/* Serialize data descriptor and set in callback */
 	mem_heap_t*	heap;

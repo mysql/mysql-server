@@ -4861,7 +4861,7 @@ my_wildcmp_unicode_impl(const CHARSET_INFO *cs,
   int result= -1;                             /* Not found, using wildcards */
   my_wc_t s_wc, w_wc;
   int scan;
-  int (*mb_wc)(const struct charset_info_st *, my_wc_t *,
+  int (*mb_wc)(const CHARSET_INFO *, my_wc_t *,
                const uchar *, const uchar *);
   mb_wc= cs->cset->mb_wc;
 

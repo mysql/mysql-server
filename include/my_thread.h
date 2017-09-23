@@ -97,13 +97,13 @@ typedef pthread_attr_t   my_thread_attr_t;
 typedef void *(* my_start_routine)(void *);
 #endif
 
-typedef struct st_my_thread_handle
+struct my_thread_handle
 {
   my_thread_t thread;
 #ifdef _WIN32
   HANDLE handle;
 #endif
-} my_thread_handle;
+};
 
 static inline my_thread_t my_thread_self()
 {

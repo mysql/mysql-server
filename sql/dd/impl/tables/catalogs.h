@@ -43,7 +43,6 @@ public:
   Catalogs()
   {
     m_target_def.table_name(table_name());
-    m_target_def.dd_version(1);
 
     m_target_def.add_field(0, "FIELD_ID",
             "id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT");

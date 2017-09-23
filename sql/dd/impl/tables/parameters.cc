@@ -32,7 +32,6 @@ const Parameters &Parameters::instance()
 Parameters::Parameters()
 {
   m_target_def.table_name(table_name());
-  m_target_def.dd_version(1);
 
   m_target_def.add_field(FIELD_ID,
                          "FIELD_ID",

@@ -37,7 +37,7 @@ REQUIRES_SERVICE_PLACEHOLDER(status_variable_registration);
 
 static char char_variable_value[]= "This is the initial value if the char_variable.";
 
-static STATUS_VAR char_variable[]=
+static SHOW_VAR char_variable[]=
 { 
   {"test_str_component.char_variable", (char *) &char_variable_value,
    SHOW_CHAR, SHOW_SCOPE_GLOBAL},
@@ -56,7 +56,7 @@ static mysql_service_status_t test_component_status_var_service_str_init()
   WRITE_LOG("%s\n", "test_component_status_var_str init:");
 
   if (mysql_service_status_variable_registration->register_variable(
-                 (STATUS_VAR *) &char_variable))
+                 (SHOW_VAR *) &char_variable))
   {
     WRITE_LOG ("%s\n", "char register_variable failed.");
   }
@@ -77,7 +77,7 @@ static mysql_service_status_t test_component_status_var_service_str_deinit()
   WRITE_LOG("%s\n", "test_component_status_var_str deinit:");
 
   if (mysql_service_status_variable_registration->unregister_variable(
-                 (STATUS_VAR *) &char_variable))
+                 (SHOW_VAR *) &char_variable))
   {
     WRITE_LOG ("%s\n", "char unregister_variable failed.");
   }

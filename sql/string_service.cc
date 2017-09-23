@@ -76,7 +76,7 @@ void mysql_string_free(mysql_string_handle string_handle)
 extern "C"
 void mysql_string_iterator_free(mysql_string_iterator_handle iterator_handle)
 {
-  my_free((string_iterator *) iterator_handle);
+  my_free((st_string_iterator *) iterator_handle);
 }
 
 /* This service function allocate mysql_string_iterator_handle and return it */
@@ -85,9 +85,9 @@ mysql_string_iterator_handle mysql_string_get_iterator(mysql_string_handle
                                                        string_handle)
 {
   String *str= (String *) string_handle;
-  string_iterator *iterator= (string_iterator *) my_malloc(key_memory_string_iterator,
+  st_string_iterator *iterator= (st_string_iterator *) my_malloc(key_memory_string_iterator,
                                                            sizeof
-                                           (struct st_string_iterator), MYF(0));
+                                           (st_string_iterator), MYF(0));
   iterator->iterator_str= str;
   iterator->iterator_ptr= str->ptr();
   iterator->ctype= 0;
@@ -99,7 +99,7 @@ extern "C"
 int mysql_string_iterator_next(mysql_string_iterator_handle iterator_handle)
 {
   int char_len, char_type, tmp_len;
-  string_iterator *iterator= (string_iterator *) iterator_handle;
+  st_string_iterator *iterator= (st_string_iterator *) iterator_handle;
   String *str= iterator->iterator_str;
   const CHARSET_INFO *cs= str->charset();
   char *end= (char*) str->ptr() + str->length();
@@ -123,7 +123,7 @@ int mysql_string_iterator_next(mysql_string_iterator_handle iterator_handle)
 extern "C"
 int mysql_string_iterator_isupper(mysql_string_iterator_handle iterator_handle)
 {
-  string_iterator *iterator= (string_iterator *) iterator_handle;
+  st_string_iterator *iterator= (st_string_iterator *) iterator_handle;
   return (iterator->ctype & _MY_U);
 }
 
@@ -134,7 +134,7 @@ int mysql_string_iterator_isupper(mysql_string_iterator_handle iterator_handle)
 extern "C"
 int mysql_string_iterator_islower(mysql_string_iterator_handle iterator_handle)
 {
-  string_iterator *iterator= (string_iterator *) iterator_handle;
+  st_string_iterator *iterator= (st_string_iterator *) iterator_handle;
   return (iterator->ctype & _MY_L);
 }
 
@@ -145,7 +145,7 @@ int mysql_string_iterator_islower(mysql_string_iterator_handle iterator_handle)
 extern "C"
 int mysql_string_iterator_isdigit(mysql_string_iterator_handle iterator_handle)
 {
-  string_iterator *iterator= (string_iterator *) iterator_handle;
+  st_string_iterator *iterator= (st_string_iterator *) iterator_handle;
   return (iterator->ctype & _MY_NMR);
 }
 

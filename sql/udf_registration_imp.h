@@ -19,7 +19,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include <mysql/components/services/udf_registration.h>
 #include <mysql/components/service_implementation.h>
 
-typedef struct st_udf_func udf_func;
+struct udf_func;
 
 /**
   A helper class for the implementation of the

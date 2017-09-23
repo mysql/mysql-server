@@ -52,13 +52,13 @@ class Time_zone;
 class set_var;
 class sys_var;
 class sys_var_pluginvar;
-struct st_lex_user;
+struct LEX_USER;
 template <class Key, class Value> class collation_unordered_map;
 
 typedef ulonglong sql_mode_t;
 typedef enum enum_mysql_show_type SHOW_TYPE;
 typedef enum enum_mysql_show_scope SHOW_SCOPE;
-typedef struct st_mysql_show_var SHOW_VAR;
+struct SHOW_VAR;
 template <class T> class List;
 
 extern TYPELIB bool_typelib;
@@ -395,10 +395,10 @@ public:
 
 class set_var_password: public set_var_base
 {
-  st_lex_user *user;
+  LEX_USER *user;
   char *password;
 public:
-  set_var_password(st_lex_user *user_arg,char *password_arg)
+  set_var_password(LEX_USER *user_arg,char *password_arg)
     :user(user_arg), password(password_arg)
   {}
   int resolve(THD*) { return 0; }

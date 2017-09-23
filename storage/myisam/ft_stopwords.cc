@@ -28,11 +28,11 @@
 static CHARSET_INFO *ft_stopword_cs= NULL;
 
 
-typedef struct st_ft_stopwords
+struct FT_STOPWORD
 {
   const char * pos;
   uint   len;
-} FT_STOPWORD;
+};
 
 static TREE *stopwords3=NULL;
 

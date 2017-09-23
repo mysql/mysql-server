@@ -36,6 +36,7 @@
 
 class THD;
 class my_decimal;
+struct MYSQL_TIME;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -259,7 +260,7 @@ public:
 
   ErrConvString(double nr);
   ErrConvString(const my_decimal *nr);
-  ErrConvString(const struct st_mysql_time *ltime, uint dec);
+  ErrConvString(const MYSQL_TIME *ltime, uint dec);
  
   ~ErrConvString() { };
   char *ptr() { return err_buffer; }

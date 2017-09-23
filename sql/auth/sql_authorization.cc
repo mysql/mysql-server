@@ -5415,7 +5415,7 @@ bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
   Dummy_error_handler error_handler;
   DBUG_ENTER("sp_grant_privileges");
 
-  if (!(combo=(LEX_USER*) thd->alloc(sizeof(st_lex_user))))
+  if (!(combo=(LEX_USER*) thd->alloc(sizeof(LEX_USER))))
     DBUG_RETURN(TRUE);
 
   combo->user.str= (char *) sctx->priv_user().str;
@@ -7346,7 +7346,7 @@ swap_dynamic_privileges_map(User_to_dynamic_privileges_map *map)
   return old_map;
 }
 
-bool assert_valid_privilege_id(const List<st_lex_user>* priv_list)
+bool assert_valid_privilege_id(const List<LEX_USER>* priv_list)
 {
   /*
     Because we need to combine the parsing rule of roles with the parsing

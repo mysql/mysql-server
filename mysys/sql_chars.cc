@@ -24,7 +24,7 @@
 #include "my_sys.h"
 
 static
-void hint_lex_init_maps(charset_info_st *cs,
+void hint_lex_init_maps(CHARSET_INFO *cs,
                         enum hint_lex_char_classes *hint_map)
 {
   size_t i;
@@ -56,7 +56,7 @@ void hint_lex_init_maps(charset_info_st *cs,
 }
 
 
-bool init_state_maps(charset_info_st *cs)
+bool init_state_maps(CHARSET_INFO *cs)
 {
   uint i;
   uchar *ident_map;

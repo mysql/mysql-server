@@ -3035,7 +3035,7 @@ static void plugin_vars_free_values(sys_var *vars)
   Used in plugin.h:THDVAR_SET(thd, name, value) macro.
 */
 
-void plugin_thdvar_safe_update(THD *thd, st_mysql_sys_var *var, char **dest, const char *value)
+void plugin_thdvar_safe_update(THD *thd, SYS_VAR *var, char **dest, const char *value)
 {
   DBUG_ASSERT(thd == current_thd);
 
@@ -3111,7 +3111,7 @@ static int construct_options(MEM_ROOT *mem_root, st_plugin_int *tmp,
   char *optname;
 
   int index= 0, offset= 0;
-  st_mysql_sys_var *opt, **plugin_option;
+  SYS_VAR *opt, **plugin_option;
   st_bookmark *v;
 
   /** Used to circumvent the const attribute on my_option::name */
@@ -3361,7 +3361,7 @@ static int construct_options(MEM_ROOT *mem_root, st_plugin_int *tmp,
 static my_option *construct_help_options(MEM_ROOT *mem_root,
                                          st_plugin_int *p)
 {
-  st_mysql_sys_var **opt;
+  SYS_VAR **opt;
   my_option *opts;
   uint count= EXTRA_OPTIONS;
   DBUG_ENTER("construct_help_options");
@@ -3445,7 +3445,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, st_plugin_int *tmp,
 
   MEM_ROOT *mem_root= alloc_root_inited(&tmp->mem_root) ?
                       &tmp->mem_root : &plugin_mem_root;
-  st_mysql_sys_var **opt;
+  SYS_VAR **opt;
   my_option *opts= NULL;
   LEX_STRING plugin_name;
   char *varname;
@@ -3533,7 +3533,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, st_plugin_int *tmp,
   error= 1;
   for (opt= tmp->plugin->system_vars; opt && *opt; opt++)
   {
-    st_mysql_sys_var *o;
+    SYS_VAR *o;
     const my_option** optp= (const my_option**)&opts;
     if (((o= *opt)->flags & PLUGIN_VAR_NOSYSVAR))
       continue;

@@ -33,7 +33,7 @@ static void get_options(int argc, char *argv[]);
 static uint rnd(uint max_value);
 static void fix_length(uchar *record,uint length);
 static void put_blob_in_record(uchar *blob_pos,char **blob_buffer);
-static void copy_key(struct st_myisam_info *info,uint inx,
+static void copy_key(MI_INFO *info,uint inx,
 		     uchar *record,uchar *key);
 
 static	int verbose=0,testflag=0,

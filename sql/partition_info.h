@@ -42,7 +42,7 @@ struct TABLE;
 class Create_field;
 class partition_info;
 struct TABLE_LIST;
-struct st_partition_iter;
+struct PARTITION_ITERATOR;
 
 /**
   A "Get next" function for partition iterator.
@@ -63,7 +63,7 @@ struct st_partition_iter;
     @retval NOT_A_PARTITION_ID if there are no more partitions.
     @retval [sub]partition_id  of the next partition
 */
-typedef uint32 (*partition_iter_func)(st_partition_iter* part_iter);
+typedef uint32 (*partition_iter_func)(PARTITION_ITERATOR* part_iter);
 
 /**
   Partition set iterator. Used to enumerate a set of [sub]partitions
@@ -80,7 +80,7 @@ typedef uint32 (*partition_iter_func)(st_partition_iter* part_iter);
   Cleanup is not needed.
 */
 
-typedef struct st_partition_iter
+struct PARTITION_ITERATOR
 {
   partition_iter_func get_next;
   /*
@@ -108,7 +108,7 @@ typedef struct st_partition_iter
     struct st_field_value_range  field_vals;
   };
   partition_info *part_info;
-} PARTITION_ITERATOR;
+};
 
 
 typedef struct {
@@ -553,7 +553,7 @@ private:
   bool is_full_part_expr_in_fields(List<Item> &fields);
 };
 
-uint32 get_next_partition_id_range(struct st_partition_iter* part_iter);
+uint32 get_next_partition_id_range(PARTITION_ITERATOR* part_iter);
 bool check_partition_dirs(partition_info *part_info);
 
 /* Initialize the iterator to return a single partition with given part_id */

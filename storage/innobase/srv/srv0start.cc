@@ -319,7 +319,7 @@ create_log_file(
 		<< (srv_log_file_size >> (20 - UNIV_PAGE_SIZE_SHIFT))
 		<< " MB";
 
-	ret = os_file_set_size(name, *file,
+	ret = os_file_set_size(name, *file, 0,
 			       (os_offset_t) srv_log_file_size
 			       << UNIV_PAGE_SIZE_SHIFT,
 			       srv_read_only_mode, true);
@@ -616,7 +616,7 @@ srv_undo_tablespace_create(
 		ib::info() << "Physically writing the file full";
 
 		ret = os_file_set_size(
-			file_name, fh,
+			file_name, fh, 0,
 			SRV_UNDO_TABLESPACE_SIZE_IN_PAGES
 				<< UNIV_PAGE_SIZE_SHIFT,
 			srv_read_only_mode, true);

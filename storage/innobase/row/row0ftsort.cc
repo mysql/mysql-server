@@ -362,7 +362,7 @@ row_fts_free_pll_merge_buf(
 
 /*********************************************************************//**
 FTS plugin parser 'myql_add_word' callback function for row merge.
-Refer to 'st_mysql_ftparser_param' for more detail.
+Refer to 'MYSQL_FTPARSER_PARAM' for more detail.
 @return always returns 0 */
 static
 int

@@ -14479,7 +14479,7 @@ View_change_log_event::set_certification_info(std::map<std::string, std::string>
   *incorrect*, i.e., values that cannot occur in an event.  This way,
   they will always be printed for the first event.
 */
-st_print_event_info::st_print_event_info()
+PRINT_EVENT_INFO::PRINT_EVENT_INFO()
   :flags2_inited(0), sql_mode_inited(0), sql_mode(0),
    auto_increment_increment(0),auto_increment_offset(0), charset_inited(0),
    lc_time_names_number(~0),

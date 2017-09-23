@@ -317,7 +317,7 @@ bool check_audit_mask(const unsigned long *lhs,
 */
 inline
 void thd_get_audit_query(THD *thd, MYSQL_LEX_CSTRING *query,
-                         const struct charset_info_st **charset)
+                         const CHARSET_INFO **charset)
 {
   if (!thd->rewritten_query.length())
     mysql_rewrite_query(thd);
@@ -425,7 +425,7 @@ int mysql_audit_notify(THD *thd, mysql_event_general_subclass_t subclass,
   event.general_sql_command= sql_statement_names[thd->lex->sql_command];
 
   thd_get_audit_query(thd, &event.general_query,
-                      (const charset_info_st**)&event.general_charset);
+                      (const CHARSET_INFO**)&event.general_charset);
 
   event.general_time= thd->query_start_in_secs();
 

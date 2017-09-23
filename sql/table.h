@@ -83,6 +83,8 @@ class Item_field;
 class Json_diff_vector;
 class Json_seekable_path;
 class Json_wrapper;
+struct NESTED_JOIN;
+struct POSITION;
 class Query_result_union;
 class SELECT_LEX_UNIT;
 class Security_context;
@@ -280,8 +282,9 @@ private:
 
 /** Order clause list element */
 
-typedef struct st_order {
-  struct st_order *next;
+struct ORDER
+{
+  ORDER *next;
   Item   **item;                        /* Point at item in select fields */
   Item   *item_ptr;                     /* Storage for initial item */
 
@@ -299,7 +302,7 @@ typedef struct st_order {
   table_map used, depend_map;
   bool is_position;  /* An item expresses a position in a ORDER clause */
   bool is_explicit;  /* Whether ASC/DESC is explicitly specified */
-} ORDER;
+};
 
 /**
   State information for internal tables grants.
@@ -307,7 +310,7 @@ typedef struct st_order {
   during the ACL check process.
   @sa GRANT_INFO
 */
-struct st_grant_internal_info
+struct GRANT_INTERNAL_INFO
 {
   /** True if the internal lookup by schema name was done. */
   bool m_schema_lookup_done;
@@ -318,7 +321,6 @@ struct st_grant_internal_info
   /** Cached internal table access. */
   const ACL_internal_table_access *m_table_access;
 };
-typedef struct st_grant_internal_info GRANT_INTERNAL_INFO;
 
 /**
    @brief The current state of the privilege checking process for the current
@@ -552,19 +554,19 @@ typedef enum enum_table_category TABLE_CATEGORY;
 
 extern ulong refresh_version;
 
-typedef struct st_table_field_type
+struct TABLE_FIELD_TYPE
 {
   LEX_STRING name;
   LEX_STRING type;
   LEX_STRING cset;
-} TABLE_FIELD_TYPE;
+};
 
 
-typedef struct st_table_field_def
+struct TABLE_FIELD_DEF
 {
   uint count;
   const TABLE_FIELD_TYPE *field;
-} TABLE_FIELD_DEF;
+};
 
 
 class Table_check_intact
@@ -2053,7 +2055,7 @@ enum enum_schema_table_state
   PROCESSED_BY_JOIN_EXEC
 };
 
-typedef struct st_foreign_key_info
+struct FOREIGN_KEY_INFO
 {
   LEX_STRING *foreign_id;
   LEX_STRING *foreign_db;
@@ -2065,7 +2067,7 @@ typedef struct st_foreign_key_info
   LEX_STRING *referenced_key_name;
   List<LEX_STRING> foreign_fields;
   List<LEX_STRING> referenced_fields;
-} FOREIGN_KEY_INFO;
+};
 
 #define MY_I_S_MAYBE_NULL 1
 #define MY_I_S_UNSIGNED   2
@@ -2075,7 +2077,7 @@ typedef struct st_foreign_key_info
 #define OPEN_FRM_ONLY   1                // open FRM file only
 #define OPEN_FULL_TABLE 2                // open FRM,MYD, MYI files
 
-typedef struct st_field_info
+struct ST_FIELD_INFO
 {
   /** 
       This is used as column name. 
@@ -2110,12 +2112,12 @@ typedef struct st_field_info
      @c OPEN_FRM_ONLY or @c OPEN_FULL_TABLE.
   */
   uint open_method;
-} ST_FIELD_INFO;
+};
 
 
 struct TABLE_LIST;
 
-typedef struct st_schema_table
+struct ST_SCHEMA_TABLE
 {
   const char* table_name;
   ST_FIELD_INFO *fields_info;
@@ -2124,13 +2126,13 @@ typedef struct st_schema_table
   /* Fill table with data */
   int (*fill_table) (THD *thd, TABLE_LIST *tables, Item *cond);
   /* Handle fileds for old SHOW */
-  int (*old_format) (THD *thd, struct st_schema_table *schema_table);
+  int (*old_format) (THD *thd, ST_SCHEMA_TABLE *schema_table);
   int (*process_table) (THD *thd, TABLE_LIST *tables, TABLE *table,
                         bool res, LEX_STRING *db_name, LEX_STRING *table_name);
   int idx_field1, idx_field2; 
   bool hidden;
   uint i_s_requested_object;  /* the object we need to open(TABLE | VIEW) */
-} ST_SCHEMA_TABLE;
+};
 
 
 #define JOIN_TYPE_LEFT	1
@@ -2213,7 +2215,8 @@ public:
   This structure holds the specifications relating to
   ALTER user ... PASSWORD EXPIRE ...
 */
-typedef struct st_lex_alter {
+struct LEX_ALTER
+{
   bool update_password_expired_fields;
   bool update_password_expired_column;
   bool use_default_password_lifetime;
@@ -2243,9 +2246,10 @@ typedef struct st_lex_alter {
     password_reuse_interval= 0;
   }
 
-} LEX_ALTER;
+};
 
-typedef struct	st_lex_user {
+struct LEX_USER
+{
   LEX_CSTRING user;
   LEX_CSTRING host;
   LEX_CSTRING plugin;
@@ -2257,8 +2261,8 @@ typedef struct	st_lex_user {
   bool uses_identified_by_password_clause;
   LEX_ALTER alter_status;
 
-  static st_lex_user *alloc(THD *thd, LEX_STRING *user, LEX_STRING *host);
-} LEX_USER;
+  static LEX_USER *alloc(THD *thd, LEX_STRING *user, LEX_STRING *host);
+};
 
 
 /**
@@ -3094,7 +3098,7 @@ public:
   LEX_CSTRING   view_db;                ///< saved view database
   LEX_CSTRING   view_name;              ///< saved view name
   LEX_STRING    timestamp;              ///< GMT time stamp of last operation
-  st_lex_user   definer;                ///< definer of view
+  LEX_USER   definer;                ///< definer of view
   /**
     @note: This field is currently not reliable when read from dictionary:
     If an underlying view is changed, updatable_view is not changed,
@@ -3140,7 +3144,7 @@ public:
   bool          ignore_leaves;          /* preload only non-leaf nodes */
   table_map     dep_tables;             /* tables the table depends on      */
   table_map     on_expr_dep_tables;     /* tables on expression depends on  */
-  struct st_nested_join *nested_join;   /* if the element is a nested join  */
+  NESTED_JOIN *nested_join;   /* if the element is a nested join  */
   TABLE_LIST *embedding;             /* nested join containing the table */
   List<TABLE_LIST> *join_list;/* join list the table belongs to   */
   bool		cacheable_table;	/* stop PS caching */
@@ -3512,7 +3516,7 @@ typedef Table_list_adapter<Global_tables_iterator> Global_tables_list;
 struct Semijoin_mat_optimize
 {
   /// Optimal join order calculated for inner tables of this semijoin op.
-  struct st_position *positions;
+  POSITION *positions;
   /// True if data types allow the MaterializeLookup semijoin strategy
   bool lookup_allowed;
   /// True if data types allow the MaterializeScan semijoin strategy
@@ -3531,14 +3535,14 @@ struct Semijoin_mat_optimize
 
 
 /**
-  Struct st_nested_join is used to represent how tables are connected through
+  Struct NESTED_JOIN is used to represent how tables are connected through
   outer join operations and semi-join operations to form a query block.
-  Out of the parser, inner joins are also represented by st_nested_join
+  Out of the parser, inner joins are also represented by NESTED_JOIN
   structs, but these are later flattened out by simplify_joins().
   Some outer join nests are also flattened, when it can be determined that
   they can be processed as inner joins instead of outer joins.
 */
-typedef struct st_nested_join
+struct NESTED_JOIN
 {
   List<TABLE_LIST>  join_list;       /* list of elements in the nested join */
   table_map         used_tables;     /* bitmap of tables in the nested join */
@@ -3595,14 +3599,15 @@ typedef struct st_nested_join
   */
   List<Item>        sj_outer_exprs, sj_inner_exprs;
   Semijoin_mat_optimize sjm;
-} NESTED_JOIN;
+};
 
 
-typedef struct st_open_table_list{
-  struct st_open_table_list *next;
+struct OPEN_TABLE_LIST
+{
+  OPEN_TABLE_LIST *next;
   char	*db,*table;
   uint32 in_use,locked;
-} OPEN_TABLE_LIST;
+};
 
 
 static inline my_bitmap_map *tmp_use_all_columns(TABLE *table,

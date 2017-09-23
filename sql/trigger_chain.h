@@ -30,7 +30,7 @@ class Trigger;
 struct TABLE;
 struct TABLE_LIST;
 
-typedef struct st_bitmap MY_BITMAP;
+struct MY_BITMAP;
 
 
 class Trigger_chain : public Sql_alloc

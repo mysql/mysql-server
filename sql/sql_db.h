@@ -23,8 +23,8 @@ namespace dd {
   class Schema;
 }
 
-typedef struct charset_info_st CHARSET_INFO;
-typedef struct st_ha_create_information HA_CREATE_INFO;
+struct CHARSET_INFO;
+struct HA_CREATE_INFO;
 
 bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create);
 bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create);

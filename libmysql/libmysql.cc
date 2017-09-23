@@ -86,10 +86,10 @@ static void append_wild(char *to,char *end,const char *wild);
 static bool mysql_client_init= 0;
 static bool org_my_init_done= 0;
 
-typedef struct st_mysql_stmt_extension
+struct MYSQL_STMT_EXT
 {
   MEM_ROOT fields_mem_root;
-} MYSQL_STMT_EXT;
+};
 
 
 /*
@@ -490,13 +490,13 @@ err:
   Default handlers for LOAD LOCAL INFILE
 ****************************************************************************/
 
-typedef struct st_default_local_infile
+struct default_local_infile_data
 {
   int fd;
   int error_num;
   const char *filename;
   char error_msg[LOCAL_INFILE_ERROR_LEN];
-} default_local_infile_data;
+};
 
 
 /*

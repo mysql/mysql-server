@@ -43,7 +43,7 @@ struct
 class THD;
 struct TABLE;
 
-typedef struct charset_info_st CHARSET_INFO;
+struct CHARSET_INFO;
 
 /**
   Character set of the buildin error messages loaded from errmsg.sys.

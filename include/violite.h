@@ -37,7 +37,7 @@
 #include "my_io.h"
 #include "my_psi_config.h"  // IWYU pragma: keep
 
-struct st_vio;
+struct Vio;
 
 /* Simple vio interface in C;  The functions are implemented in violite.c */
 
@@ -62,8 +62,8 @@ void init_vio_psi_keys();
 #endif
 
 #ifndef MYSQL_VIO
-struct st_vio;
-typedef struct st_vio Vio;
+struct Vio;
+typedef Vio Vio;
 #define MYSQL_VIO Vio*
 #endif
 
@@ -286,7 +286,7 @@ enum SSL_type
 
 #ifdef __cplusplus
 /* This structure is for every connection on both sides */
-struct st_vio
+struct Vio
 {
   MYSQL_SOCKET  mysql_socket;           /* Instrumented socket */
   bool          localhost= { false };   /* Are we from localhost? */
@@ -383,17 +383,17 @@ struct st_vio
 #endif /* _WIN32 */
 
 private:
-  friend st_vio *internal_vio_create(uint flags);
-  friend void internal_vio_delete(st_vio *vio);
+  friend Vio *internal_vio_create(uint flags);
+  friend void internal_vio_delete(Vio *vio);
   friend bool vio_reset(Vio* vio, enum_vio_type type,
                         my_socket sd, void *ssl, uint flags);
 
-  explicit st_vio(uint flags);
-  ~st_vio();
+  explicit Vio(uint flags);
+  ~Vio();
 
 public:
-  st_vio(const st_vio&) = delete;
-  st_vio &operator=(const st_vio&) = delete;
+  Vio(const Vio&) = delete;
+  Vio &operator=(const Vio&) = delete;
 };
 
 }

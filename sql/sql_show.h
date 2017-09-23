@@ -40,7 +40,7 @@ struct System_status_var;
 template <class T> class List;
 
 // TODO: allocator based on my_malloc.
-typedef std::vector<st_mysql_show_var> Status_var_array;
+typedef std::vector<SHOW_VAR> Status_var_array;
 enum find_files_result {
   FIND_FILES_OK,
   FIND_FILES_OOM,

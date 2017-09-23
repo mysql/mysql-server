@@ -280,7 +280,7 @@ static MYSQL_SYSVAR_INT(token_size, ngram_token_size,
   NULL, NULL, 2, 1, 10, 0);
 
 /** Ngram plugin system variables */
-static struct st_mysql_sys_var* ngram_system_variables[] =
+static SYS_VAR* ngram_system_variables[] =
 {
 	MYSQL_SYSVAR(token_size),
 	NULL

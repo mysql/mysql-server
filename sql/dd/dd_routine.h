@@ -24,7 +24,7 @@ class THD;
 class sp_head;
 struct st_sp_chistics;
 
-typedef struct st_lex_user LEX_USER;
+struct LEX_USER;
 
 namespace dd {
   class Routine;

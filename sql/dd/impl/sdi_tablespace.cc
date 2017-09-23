@@ -253,7 +253,8 @@ bool store_tsp_sdi(const handlerton &hton, const Sdi_type &sdi,
 
 
 bool drop_tbl_sdi(THD *thd, const handlerton &hton,
-                  const Table &table, const Schema &schema)
+                  const Table &table,
+                  const Schema &schema MY_ATTRIBUTE((unused)))
 {
   DBUG_PRINT("ddsdi",("store_tbl_sdi(Schema" ENTITY_FMT
                       ", Table" ENTITY_FMT ")",

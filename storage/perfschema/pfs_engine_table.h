@@ -33,7 +33,7 @@ class PFS_engine_key;
 class PFS_engine_index;
 class PFS_engine_index_abstract;
 
-typedef struct st_thr_lock THR_LOCK;
+struct THR_LOCK;
 
 /**
   @file storage/perfschema/pfs_engine_table.h

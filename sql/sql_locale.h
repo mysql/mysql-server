@@ -24,7 +24,7 @@
 class MY_LOCALE_ERRMSGS;
 class THD;
 
-typedef struct st_typelib TYPELIB;
+struct TYPELIB;
 
 class MY_LOCALE
 {
