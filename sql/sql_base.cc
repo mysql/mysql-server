@@ -6066,7 +6066,7 @@ int run_before_dml_hook(THD *thd)
   @retval true   Failure (e.g. connection was killed)
   @retval false  Success.
 */
-static bool
+bool
 get_and_lock_tablespace_names(THD *thd,
                               TABLE_LIST *tables_start,
                               TABLE_LIST *tables_end,

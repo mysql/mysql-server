@@ -1203,29 +1203,26 @@ SET DEBUG_SYNC= 'now SIGNAL cont';
 --echo # Reaping 'RENAME TABLE t1 to t2'
 --reap
 
-# Disabling the case as the scenario dumps core on current 5.7/trunk
-# Bug#21755994 is raised.
-#--echo #############################################
-#--echo # Case3: Checking ALTER TABLE
-#--echo # Sending 'ALTER TABLE t1 ADD COLUMN f int;'
-#SET DEBUG_SYNC= 'after_wait_locked_tablespace_name_for_table
-#  SIGNAL got_lock
-#  WAIT_FOR cont';
-#--send ALTER TABLE t1 ADD COLUMN f int;
-#
-#--echo # Verify that the tablespace name is locked.
-#--connection default
-#SET DEBUG_SYNC= 'now WAIT_FOR got_lock';
-#LET $wait_condition=
-#  SELECT COUNT(*) = 1 FROM performance_schema.metadata_locks
-#    WHERE object_type LIKE 'TABLESPACE' AND object_name LIKE 'ts1';
-#--source include/wait_condition.inc
-#SET DEBUG_SYNC= 'now SIGNAL cont';
-#
-#--connection con1
-#--echo # Reaping 'ALTER TABLE t1 ADD COLUMN f int;'
-#--reap
-#
+--echo #############################################
+--echo # Case3: Checking ALTER TABLE
+--echo # Sending 'ALTER TABLE t1 ADD COLUMN f int;'
+SET DEBUG_SYNC= 'after_wait_locked_tablespace_name_for_table
+  SIGNAL got_lock
+  WAIT_FOR cont';
+--send ALTER TABLE t2 ADD COLUMN f int;
+
+--echo # Verify that the tablespace name is locked.
+--connection default
+SET DEBUG_SYNC= 'now WAIT_FOR got_lock';
+LET $wait_condition=
+  SELECT COUNT(*) = 1 FROM performance_schema.metadata_locks
+    WHERE object_type LIKE 'TABLESPACE' AND object_name LIKE 'ts1';
+--source include/wait_condition.inc
+SET DEBUG_SYNC= 'now SIGNAL cont';
+
+--connection con1
+--echo # Reaping 'ALTER TABLE t2 ADD COLUMN f int;'
+--reap
 
 --echo #############################################
 --echo # Case4: Checking CREATE TABLE
@@ -1352,7 +1349,6 @@ DROP TABLE t4;
 DROP TABLESPACE ts1;
 DROP TABLESPACE ts2;
 
-
 --echo #
 --echo # Tescases for wl#8972. Rename a general tablespace.
 --echo #
@@ -1477,3 +1473,27 @@ disconnect con1;
 DROP TABLE t2;
 DROP TABLESPACE ts1;
 SET @@session.lock_wait_timeout= DEFAULT;
+
+--echo #############################################
+--echo #
+--echo # Bug#22486020 TARGET TABLESPACE META DATA LOCK
+--echo #              NOT ACQUIRED DURING ALTER UNDER
+--echo #              LOCK TABLE
+--echo #
+--echo # Make sure that target tablespaces are locked
+--echo # when issuing ALTER TABLE under LOCK TABLE.
+--echo #
+
+CREATE TABLESPACE s1 ADD DATAFILE 's1.ibd';
+CREATE TABLESPACE s2 ADD DATAFILE 's2.ibd';
+
+CREATE TABLE t1 (pk INTEGER PRIMARY KEY)
+  PARTITION BY RANGE (pk) PARTITIONS 1 (PARTITION P1 VALUES LESS THAN (2));
+
+LOCK TABLE t1 WRITE;
+ALTER TABLE t1 TABLESPACE s1;
+ALTER TABLE t1 ADD PARTITION (PARTITION p2 VALUES LESS THAN (4) TABLESPACE s2);
+UNLOCK TABLE;
+DROP TABLE t1;
+DROP TABLESPACE s1;
+DROP TABLESPACE s2;
