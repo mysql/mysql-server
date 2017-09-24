@@ -1552,8 +1552,8 @@ range-optimizer-max-mem-size 8388608
 read-buffer-size 131072
 read-only FALSE
 read-rnd-buffer-size 262144
-relay-log (No default value)
-relay-log-index (No default value)
+relay-log relaylog
+relay-log-index relaylog.index
 relay-log-info-file relay-log.info
 relay-log-info-repository TABLE
 relay-log-purge TRUE

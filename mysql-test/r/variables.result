@@ -1833,12 +1833,12 @@ ERROR HY000: Variable 'log_slave_updates' is a read only variable
 #
 SHOW VARIABLES like 'relay_log';
 Variable_name	Value
-relay_log	
+relay_log	hostname-relay-bin
 SELECT @@session.relay_log;
 ERROR HY000: Variable 'relay_log' is a GLOBAL variable
 SELECT @@global.relay_log;
 @@global.relay_log
-NULL
+hostname-relay-bin
 SET @@session.relay_log= 'x';
 ERROR HY000: Variable 'relay_log' is a read only variable
 SET @@global.relay_log= 'x';
