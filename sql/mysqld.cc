@@ -6771,9 +6771,11 @@ struct my_option my_long_options[]=
    &lc_time_names_name, &lc_time_names_name,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   {"log-bin", OPT_BIN_LOG,
-   "Log update queries in binary format. Optional (but strongly recommended "
-   "to avoid replication problems if server's hostname changes) argument "
-   "should be the chosen location for the binary log files.",
+   "Configures the name prefix to use for binary log files. The name prefix "
+   "defaults to `hostname`-bin if the --log-bin option is not configured. "
+   "To set a different name prefix for binary log files use --log-bin=name. "
+   "To disable binary logging use the --skip-log-bin or --disable-log-bin "
+   "option.",
    &opt_bin_logname, &opt_bin_logname, 0, GET_STR_ALLOC,
    OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"log-bin-index", 0,

@@ -409,10 +409,12 @@ The following options may be given as the first argument:
  --lock-wait-timeout=# 
  Timeout in seconds to wait for a lock before returning an
  error.
- --log-bin[=name]    Log update queries in binary format. Optional (but
- strongly recommended to avoid replication problems if
- server's hostname changes) argument should be the chosen
- location for the binary log files.
+ --log-bin[=name]    Configures the name prefix to use for binary log files.
+ The name prefix defaults to `hostname`-bin if the
+ --log-bin option is not configured. To set a different
+ name prefix for binary log files use --log-bin=name. To
+ disable binary logging use the --skip-log-bin or
+ --disable-log-bin option.
  --log-bin-index=name 
  File that holds the names for binary log files.
  --log-bin-trust-function-creators 
