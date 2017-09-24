@@ -18,7 +18,7 @@ log_bin_trust_function_creators	ON
 log_bin_use_v1_row_events	OFF
 show variables like 'relay_log%';
 Variable_name	Value
-relay_log	
+relay_log	hostname-relay-bin
 relay_log_basename	MYSQLTEST_VARDIR/mysqld.1/data/hostname-relay-bin
 relay_log_index	MYSQLTEST_VARDIR/mysqld.1/data/hostname-relay-bin.index
 relay_log_info_file	relay-log.info
@@ -36,7 +36,7 @@ log_bin_trust_function_creators	ON
 log_bin_use_v1_row_events	OFF
 show variables like 'relay_log%';
 Variable_name	Value
-relay_log	
+relay_log	hostname-relay-bin
 relay_log_basename	MYSQLTEST_VARDIR/mysqld.1/data/hostname-relay-bin
 relay_log_index	MYSQLTEST_VARDIR/mysqld.1/data/hostname-relay-bin.index
 relay_log_info_file	relay-log.info
