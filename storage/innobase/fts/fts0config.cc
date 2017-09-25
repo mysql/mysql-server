@@ -420,7 +420,7 @@ fts_config_set_ulint(
 	ut_a(FTS_MAX_INT_LEN < FTS_MAX_CONFIG_VALUE_LEN);
 
 	value.f_len = snprintf(
-		(char*) value.f_str, FTS_MAX_INT_LEN, "%lu", int_value);
+		(char*) value.f_str, FTS_MAX_INT_LEN, ULINTPF, int_value);
 
 	error = fts_config_set_value(trx, fts_table, name, &value);
 

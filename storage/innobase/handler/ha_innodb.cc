@@ -3896,7 +3896,9 @@ innodb_buffer_pool_size_init()
 		static const char* variable_name = "innodb_buffer_pool_size";
 		enum enum_variable_source source;
 		if (!sysvar_source_svc->get(
-			variable_name, strlen(variable_name), &source))
+			variable_name,
+			static_cast<unsigned int>(strlen(variable_name)),
+			&source))
 		{
 
 			/* If innodb_buffer_pool_size is not specified explicitly,
@@ -4068,7 +4070,9 @@ innodb_init_params()
 		static const char* variable_name = "innodb_log_file_size";
 		enum enum_variable_source source;
 		if (!sysvar_source_svc->get(
-			variable_name, strlen(variable_name), &source))
+			variable_name,
+			static_cast<unsigned int>(strlen(variable_name)),
+			&source))
 		{
 			/* If innodb_log_file_size is not specified explicitly,
 			then set it according to server memory as follow:
@@ -8714,7 +8718,7 @@ calc_row_difference(
 			if (!uvect->old_vrow) {
 				uvect->old_vrow = dtuple_create_with_vcol(
 					uvect->heap, 0, prebuilt->table->n_v_cols);
-				for (int j = 0; j < prebuilt->table->n_v_cols;
+				for (uint j = 0; j < prebuilt->table->n_v_cols;
 				     j++) {
 					dfield_t*       field =
 						dtuple_get_nth_v_field(

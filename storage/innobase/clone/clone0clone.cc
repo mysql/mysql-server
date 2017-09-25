@@ -603,7 +603,7 @@ Clone_Task_Manager::get_task(
 	heap = get_heap();
 
 	/* Maximum variable length of descriptor. */
-	alloc_len = m_clone_snapshot->get_max_file_name_length();
+	alloc_len = static_cast<uint>(m_clone_snapshot->get_max_file_name_length());
 
 	/* Check with maximum path name length. */
 	if (alloc_len < FN_REFLEN_SE) {

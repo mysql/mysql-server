@@ -59,8 +59,8 @@ Clone_Snapshot::add_file_from_desc(
 	char*		ptr;
 
 	ulint		alloc_size;
-	ulint		dir_len;
-	ulint		name_len;
+	size_t		dir_len;
+	size_t		name_len;
 
 	dir_len = strlen(data_dir);
 

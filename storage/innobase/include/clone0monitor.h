@@ -77,7 +77,7 @@ public:
 	/** Update the work estimated for the clone operation.
 	@param[in]	size	size in bytes that needs to transferred
 	across. */
-	void add_estimate(uint size)
+	void add_estimate(ib_uint64_t size)
 	{
 		ut_ad(m_cur_phase == ESTIMATE_WORK);
 		ut_ad(m_progress != nullptr);
@@ -141,17 +141,17 @@ private:
 	@param[in]	size	size in bytes that needs to be converted to the
 	corresponding work unit.
 	@return the number of PFS chunks that the size constitutes. */
-	uint convert_bytes_to_work(uint size)
+	uint convert_bytes_to_work(ib_uint64_t size)
 	{
 		uint	aligned_size;
 		int	chunks;
 
 		size += m_work_bytes_left;
-		aligned_size = ut_uint64_align_down(
-				size, m_pfs_data_chunk_size);
+		aligned_size = static_cast<uint>(
+			ut_uint64_align_down(size, m_pfs_data_chunk_size));
 		chunks = aligned_size >> PFS_DATA_CHUNK_SIZE_POW2;
 
-		m_work_bytes_left = size - aligned_size;
+		m_work_bytes_left = static_cast<uint>(size) - aligned_size;
 
 		return chunks;
 	}

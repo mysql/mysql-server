@@ -608,10 +608,10 @@ DDL_Log_Table::set_field(
 		record.set_type(static_cast<Log_Type>(value));
 		break;
 	case s_space_id_col_no:
-		record.set_space_id(value);
+		record.set_space_id(static_cast<space_id_t>(value));
 		break;
 	case s_page_no_col_no:
-		record.set_page_no(value);
+		record.set_page_no(static_cast<page_no_t>(value));
 		break;
 	case s_index_id_col_no:
 		record.set_index_id(value);
