@@ -3922,19 +3922,7 @@ Dbspj::storeRow(Ptr<TreeNode> treeNodePtr, const RowPtr &row)
     jam();
     return DbspjErr::OutOfRowMemory;
   }
-
-  // Register row in a list or a correlationId searchable 'map' 
-  if (collection.m_type == RowCollection::COLLECTION_LIST)
-  {
-    NullRowRef.copyto_link(dstptr); // Null terminate list...
-    add_to_list(collection.m_list, ref);
-  }
-  else
-  {
-    Uint32 error = add_to_map(collection.m_map, row.m_src_correlation, ref);
-    if (unlikely(error))
-      return error;
-  }
+  Uint32 * const saved_dstptr = dstptr;
   dstptr += offset;
 
   // Insert 'MATCH', Header and 'ROW'/correlationId as specified
@@ -3963,6 +3951,25 @@ Dbspj::storeRow(Ptr<TreeNode> treeNodePtr, const RowPtr &row)
     ndbrequire(reader.step(pos));
     ndbrequire(reader.getWords(dstptr, 2));
   }
+
+  /**
+   * Register row in a list or a correlationId searchable 'map'
+   * Note that add_to_xxx may relocate entire memory area which 
+   * 'dstptr' referred, so it is not safe to use 'dstptr' *after*
+   * the add_to_* below.
+   */
+  if (collection.m_type == RowCollection::COLLECTION_LIST)
+  {
+    NullRowRef.copyto_link(saved_dstptr); // Null terminate list...
+    add_to_list(collection.m_list, ref);
+  }
+  else
+  {
+    Uint32 error = add_to_map(collection.m_map, row.m_src_correlation, ref);
+    if (unlikely(error))
+      return error;
+  }
+
   return 0;
 }
 
