@@ -50,6 +50,7 @@
 #include "sql/dd/types/column.h"
 #include "sql/dd/types/column_statistics.h"
 #include "sql/dd/types/table.h"         // dd::Table
+#include "sql/debug_sync.h"
 #include "sql/field.h"                  // Field
 #include "sql/handler.h"
 #include "sql/histograms/equi_height.h" // Equi_height<T>
@@ -1283,6 +1284,8 @@ bool Histogram::store_histogram(THD *thd) const
     // Error has already been reported
     return true; /* purecov: deadcode */
   }
+
+  DEBUG_SYNC(thd, "store_histogram_after_write_lock");
 
   dd::String_type dd_name=
     dd::Column_statistics::create_name(get_database_name().str,
