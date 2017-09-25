@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,7 +41,8 @@
 #include "node_no.h"
 #include "x_platform.h"
 
-#define IF_INIT_BUF_SIZE 512
+/* Buffer size should be always a multiple of 'struct ifreq' size */
+#define IF_INIT_BUF_SIZE (sizeof(struct ifreq) * 10)
 #define IFRP_INIT_ARR_SIZE 64
 
 struct sock_probe
@@ -89,12 +90,11 @@ static int init_sock_probe(sock_probe *s)
    ioctl may overflow without returning an error. Thence we iterate to
    make sure that we don't fill up the buffer. Then, when finally ifc_len
    is smaller than the buffer size, we break the loop.
-   */
-  for (i= 0, bufsize= IF_INIT_BUF_SIZE;
-       i==0 || s->ifc.ifc_len >= bufsize;
-       i++, bufsize+= IF_INIT_BUF_SIZE)
+  */
+  do
   {
-	  if (!(s->ifbuf= (char*)realloc(s->ifbuf, (size_t)bufsize)))
+    bufsize+= IF_INIT_BUF_SIZE;
+    if (!(s->ifbuf= (char*)realloc(s->ifbuf, (size_t)bufsize)))
     {
       abrt= TRUE;
       /* Out of memory. */
@@ -115,7 +115,7 @@ static int init_sock_probe(sock_probe *s)
       abrt= TRUE;
       goto err;
     }
-  }
+  } while (s->ifc.ifc_len >= bufsize);
 
   DBGOUT(STRLIT("Registering interfaces:"));
 
