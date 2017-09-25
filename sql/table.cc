@@ -7809,8 +7809,8 @@ void TABLE_LIST::propagate_table_maps(table_map map_arg)
 }
 
 
-st_lex_user *
-st_lex_user::alloc(THD *thd, LEX_STRING *user_arg, LEX_STRING *host_arg)
+LEX_USER *
+LEX_USER::alloc(THD *thd, LEX_STRING *user_arg, LEX_STRING *host_arg)
 {
   LEX_USER *ret= static_cast<LEX_USER *>(thd->alloc(sizeof(LEX_USER)));
   if (ret == NULL)
