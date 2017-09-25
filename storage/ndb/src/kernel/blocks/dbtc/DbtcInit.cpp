@@ -140,7 +140,6 @@ void Dbtc::initRecords()
 						  sizeof(TcConnectRecord),
 						  ctcConnectFilesize);
   
-  m_commitAckMarkerPool.setSize(2 * capiConnectFilesize);
   m_commitAckMarkerHash.setSize(1024);
   c_theCommitAckMarkerBufferPool.setSize(4 * capiConnectFilesize);
 
@@ -190,7 +189,7 @@ void Dbtc::initRecords()
   Pool_context pc;
   pc.m_block = this;
   m_fragLocationPool.init(RT_DBTC_FRAG_LOCATION, pc);
-  
+  m_commitAckMarkerPool.init(CommitAckMarker::TYPE_ID, pc, 0, UINT32_MAX);
 }//Dbtc::initRecords()
 
 bool

@@ -47,6 +47,7 @@
 #include <SignalCounter.hpp>
 #include <KeyTable.hpp>
 #include <portlib/NdbTick.h>
+#include "TransientPool.hpp"
 #endif
 
 
@@ -2390,8 +2391,13 @@ private:
    * Commit Ack handling
    */
 public:
-  struct CommitAckMarker {
-    CommitAckMarker() {}
+  struct CommitAckMarker
+  {
+    STATIC_CONST( TYPE_ID = RT_DBTC_COMMIT_ACK_MARKER );
+
+    CommitAckMarker(): m_magic(Magic::make(TYPE_ID)) {}
+
+    Uint32 m_magic;
     Uint32 transid1;
     Uint32 transid2;
     union { Uint32 nextPool; Uint32 nextHash; };
@@ -2417,7 +2423,7 @@ public:
 
 private:
   typedef Ptr<CommitAckMarker> CommitAckMarkerPtr;
-  typedef ArrayPool<CommitAckMarker> CommitAckMarker_pool;
+  typedef TransientPool<CommitAckMarker> CommitAckMarker_pool;
   typedef DLHashTable<CommitAckMarker_pool> CommitAckMarker_hash;
   typedef CommitAckMarker_hash::Iterator CommitAckMarkerIterator;
   

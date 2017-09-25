@@ -1572,7 +1572,8 @@ Dbtc::removeMarkerForFailedAPI(Signal* signal,
        * the commit ack marker in LQH.
        */
       sendRemoveMarkers(signal, iter.curr.p, 1);
-      m_commitAckMarkerHash.release(iter.curr);
+      m_commitAckMarkerHash.remove(iter.curr);
+      m_commitAckMarkerPool.release(iter.curr);
       
       break;
     } 
@@ -3640,7 +3641,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
           return;
         }
 
-        if (!m_commitAckMarkerHash.seize(tmp))
+        if (!m_commitAckMarkerPool.seize(tmp))
         {
           TCKEY_abort(signal, 56);
           return;
@@ -10746,16 +10747,20 @@ Dbtc::findApiConnectFail(Signal *signal, Uint32 transid1, Uint32 transid2)
 
 void Dbtc::releaseMarker(ApiConnectRecord * const regApiPtr)
 {
-  Uint32 marker = regApiPtr->commitAckMarker;
-  if (marker != RNIL)
+  Ptr<CommitAckMarker> marker;
+  marker.i = regApiPtr->commitAckMarker;
+  if (marker.i != RNIL)
   {
     regApiPtr->commitAckMarker = RNIL;
+    m_commitAckMarkerPool.getPtr(marker);
     CommitAckMarkerBuffer::DataBufferPool & pool =
       c_theCommitAckMarkerBufferPool;
-    CommitAckMarker * tmp = m_commitAckMarkerHash.getPtr(marker);
-    LocalCommitAckMarkerBuffer commitAckMarkers(pool, tmp->theDataBuffer);
-    commitAckMarkers.release();
-    m_commitAckMarkerHash.release(marker);
+    {
+      LocalCommitAckMarkerBuffer commitAckMarkers(pool, marker.p->theDataBuffer);
+      commitAckMarkers.release();
+    }
+    m_commitAckMarkerHash.remove(marker);
+    m_commitAckMarkerPool.release(marker);
   }
 }
 
@@ -12146,7 +12151,7 @@ void Dbtc::initApiConnectFail(Signal* signal,
       else
       {
         jam();
-        m_commitAckMarkerHash.seize(tmp);
+        m_commitAckMarkerPool.seize(tmp);
         ndbrequire(tmp.i != RNIL);
         new (tmp.p) CommitAckMarker();
         tmp.p->transid1      = transid1;
@@ -12318,7 +12323,7 @@ void Dbtc::updateApiStateFail(Signal* signal,
     {
       jam();
 
-      m_commitAckMarkerHash.seize(tmp);
+      m_commitAckMarkerPool.seize(tmp);
       ndbrequire(tmp.i != RNIL);
       
       new (tmp.p) CommitAckMarker();
