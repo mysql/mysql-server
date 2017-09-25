@@ -394,8 +394,8 @@ bool Win32AsyncFile::isOpen(){
 void
 Win32AsyncFile::syncReq(Request * request)
 {
-  if ((m_auto_sync_freq && m_write_wo_sync == 0) ||
-      m_always_sync)
+  if ((m_auto_sync_freq && m_write_wo_sync == 0) &&
+      !m_always_sync)
   {
     return;
   }
