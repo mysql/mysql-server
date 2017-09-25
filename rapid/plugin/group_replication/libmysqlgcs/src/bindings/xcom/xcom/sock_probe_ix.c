@@ -40,7 +40,8 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_transport.h"
 #include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
 
-#define IF_INIT_BUF_SIZE 512
+/* Buffer size should be always a multiple of 'struct ifreq' size */
+#define IF_INIT_BUF_SIZE (sizeof(struct ifreq) * 10)
 #define IFRP_INIT_ARR_SIZE 64
 
 struct sock_probe {
@@ -84,10 +85,12 @@ static int init_sock_probe(sock_probe *s) {
    ioctl may overflow without returning an error. Thence we iterate to
    make sure that we don't fill up the buffer. Then, when finally ifc_len
    is smaller than the buffer size, we break the loop.
-   */
-  for (i = 0, bufsize = IF_INIT_BUF_SIZE; i == 0 || s->ifc.ifc_len >= bufsize;
-       i++, bufsize += IF_INIT_BUF_SIZE) {
-    if (!(s->ifbuf = (char *)realloc(s->ifbuf, (size_t)bufsize))) {
+  */
+  do
+  {
+    bufsize+= IF_INIT_BUF_SIZE;
+    if (!(s->ifbuf= (char *)realloc(s->ifbuf, (size_t)bufsize)))
+    {
       abrt = TRUE;
       /* Out of memory. */
       goto err;
@@ -99,15 +102,15 @@ static int init_sock_probe(sock_probe *s) {
         INVALID_SOCKET)
       goto err;
 
-    s->ifc.ifc_len = bufsize;
-    s->ifc.ifc_buf = s->ifbuf;
+    s->ifc.ifc_len= bufsize;
+    s->ifc.ifc_buf= s->ifbuf;
     /* Get information about IP interfaces on this machine.*/
     if (ioctl(s->tmp_socket, SIOCGIFCONF, (char *)&s->ifc) < 0) {
       DBGOUT(NUMEXP(errno); STREXP(strerror(errno)););
-      abrt = TRUE;
+      abrt= TRUE;
       goto err;
     }
-  }
+  } while (s->ifc.ifc_len >= bufsize);
 
   DBGOUT(STRLIT("Registering interfaces:"));
 
