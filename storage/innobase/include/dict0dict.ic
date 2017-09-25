@@ -1376,7 +1376,7 @@ dict_table_get_index_on_first_col(
 {
 	ut_ad(col_index < table->n_cols);
 
-	dict_col_t* column = dict_table_get_nth_col(table, col_index);
+	dict_col_t* column = table->get_col(col_index);
 
 	for (dict_index_t* index = table->first_index();
 		index != NULL; index = index->next()) {
