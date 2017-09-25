@@ -40,14 +40,6 @@ bool ndb_dd_does_table_exist(class THD *thd,
                              int &table_id,
                              int &table_version, dd::String_type* engine);
 
-
-bool ndb_dd_install_table(class THD *thd,
-                          const char *schema_name,
-                          const char *table_name,
-                          const dd::sdi_t& sdi,
-                          int ndb_table_id, int ndb_table_version,
-                          bool force_overwrite);
-
 bool ndb_dd_drop_table(class THD* thd,
                        const char* schema_name,
                        const char* table_name);

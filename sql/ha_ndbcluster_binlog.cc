@@ -1099,14 +1099,24 @@ ndb_create_table_from_engine(THD *thd,
 
 
   // Found table, now install it in DD
-  const bool install_res =
-      ndb_dd_install_table(thd, schema_name, table_name, sdi,
-                           tab->getObjectId(), tab->getObjectVersion(),
-                           force_overwrite);
-  if (!install_res)
+  Ndb_dd_client dd_client(thd);
+
+  // First acquire exclusive MDL lock on schema and table
+  if (!dd_client.mdl_locks_acquire_exclusive(schema_name, table_name))
   {
     DBUG_RETURN(12);
   }
+
+  if (!dd_client.install_table(schema_name, table_name,
+                               sdi,
+                               tab->getObjectId(), tab->getObjectVersion(),
+                               force_overwrite))
+  {
+    DBUG_RETURN(13);
+  }
+
+  dd_client.commit();
+
 
   // ndbcluster_create_binlog_setup() ... to open the share for
   // binlog

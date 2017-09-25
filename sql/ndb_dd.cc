@@ -121,38 +121,6 @@ bool ndb_dd_does_table_exist(class THD *thd,
 
 
 bool
-ndb_dd_install_table(class THD *thd,
-                     const char* schema_name,
-                     const char* table_name,
-                     const dd::sdi_t &sdi,
-                     int ndb_table_id, int ndb_table_version,
-                     bool force_overwrite)
-{
-
-  DBUG_ENTER("ndb_dd_install_table");
-
-  Ndb_dd_client dd_client(thd);
-
-  // First acquire exclusive MDL locks on schema and table
-  if (!dd_client.mdl_locks_acquire_exclusive(schema_name, table_name))
-  {
-    DBUG_RETURN(false);
-  }
-
-  if (!dd_client.install_table(schema_name, table_name,
-                               sdi, ndb_table_id, ndb_table_version,
-                               force_overwrite))
-  {
-    DBUG_RETURN(false);
-  }
-
-  dd_client.commit();
-
-  DBUG_RETURN(true); // OK!
-}
-
-
-bool
 ndb_dd_drop_table(THD *thd,
                   const char *schema_name, const char *table_name)
 {

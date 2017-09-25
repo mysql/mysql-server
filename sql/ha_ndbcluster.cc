@@ -83,6 +83,7 @@
 #include "sql/sql_class.h"
 #include "sql/sql_table.h"  // build_table_filename,
 #include "sql/ndb_dd.h"
+#include "sql/ndb_dd_client.h"
 #include "sql/ndb_dd_table.h"
 #include "sql/ndb_dummy_ts.h"
 
@@ -13248,16 +13249,23 @@ int ndbcluster_discover(handlerton*, THD* thd,
     free(unpacked_data);
 
     // Install the table into DD, don't use force_overwrite since
-    // this funcion would never have been called unless
-    // the table didn't exist
-    if (!ndb_dd_install_table(thd, db, name, sdi,
-                              tab->getObjectId(), tab->getObjectVersion(),
-                              false))
+    // this function would never have been called unless the table
+    // didn't exist
+    Ndb_dd_client dd_client(thd);
+
+    if (!dd_client.install_table(db, name, sdi,
+                                 tab->getObjectId(), tab->getObjectVersion(),
+                                 false))
     {
       // Table existed in NDB but it could not be inserted into DD
       DBUG_ASSERT(false);
       DBUG_RETURN(1);
     }
+
+    // NOTE! It might be possible to not commit the transaction
+    // here, assuming the caller would then commit or rollback.
+    dd_client.commit();
+
   }
 
   // return a dummy frmblob to indicate that table exists
