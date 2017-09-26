@@ -810,31 +810,22 @@ srv_undo_tablespace_open(space_id_t space_id)
 	char*			undo_name = undo_space.space_name();
 	char*			file_name = undo_space.file_name();
 
-	if (srv_is_being_started) {
+	/* See if the previous name in the file map is correct. */
+	scanned_name = fil_system_open_fetch(space_id);
 
-		/* See if the previous name in the file map is correct. */
-		scanned_name = fil_system_open_fetch(space_id);
+	if (scanned_name.length() != 0
+		&& !Fil_path::equal(file_name, scanned_name)) {
 
-		if (scanned_name.length() != 0
-		    && !Fil_path::equal(file_name, scanned_name)) {
+		/* Make sure that this space_id is used by the
+		correctly named undo tablespace. Assume that the
+		undo files have been relocated. */
+		ib::info()
+			<< "Cannot create " << file_name
+			<< " because " << scanned_name
+			<< " already uses Space ID=" << space_id
+			<< "!  Did you change innodb_undo_directory?";
 
-			/* Make sure that this space_id is used by the
-			correctly named undo tablespace. Assume that the
-			undo files have been relocated. */
-			ib::info()
-				<< "Cannot create " << file_name
-				<< " because " << scanned_name
-				<< " already uses Space ID=" << space_id
-				<< "!  Did you change innodb_undo_directory?";
-
-			return(DB_SUCCESS);
-		}
-	} else {
-
-		/* If we are not in recovery then the paths and filenames
-		should all be known and synced with the data dictionary. */
-
-		scanned_name = file_name;
+		return(DB_SUCCESS);
 	}
 
 	/* Check if it was already opened during redo recovery. */

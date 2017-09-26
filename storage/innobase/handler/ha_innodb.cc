@@ -3676,8 +3676,8 @@ Validate_files::check(
 		/* It's safe to pass space_name in tablename charset because
 		filename is already in filename charset. */
 		dberr_t	err = fil_ibd_open(
-			validate, FIL_TYPE_TABLESPACE,
-			space_id, flags, space_name, nullptr, filename, false);
+			validate, FIL_TYPE_TABLESPACE, space_id, flags,
+			space_name, nullptr, filename, false, false);
 
 		switch (err) {
 		case DB_SUCCESS:
@@ -3923,7 +3923,6 @@ innobase_dict_recover(
 	dict_recovery_mode_t		dict_recovery_mode,
 	uint				version)
 {
-	dberr_t		err;
 	size_t		moved_count = 0;
 	THD*		thd = current_thd;
 
@@ -16678,14 +16677,14 @@ innobase_get_tablespace_statistics(
 		return(true);
 	}
 
-        stats->m_id = space->id;
+	stats->m_id = space->id;
 
-        const char*	type = "TABLESPACE";
+	const char*	type = "TABLESPACE";
 
-        fil_type_t	purpose = space->purpose;
+	fil_type_t	purpose = space->purpose;
 
-        switch (purpose) {
-        case FIL_TYPE_LOG:
+	switch (purpose) {
+	case FIL_TYPE_LOG:
 		/* Do not report REDO LOGs to I_S.FILES */
 		space = nullptr;
 		return(false);

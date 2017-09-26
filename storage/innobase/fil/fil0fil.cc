@@ -4834,40 +4834,40 @@ This function manipulates that path in place.
 
 If the path format is not as expected, just return.  The result is used
 to inform a SHOW CREATE TABLE command.
-@param[in,out] data_dir_path           Full path/data_dir_path */
+@param[in,out] data_dir_path	Full path/data_dir_path */
 void
 Fil_path::make_data_dir_path(char* data_dir_path)
 {
 	/* Replace the period before the extension with a null byte. */
-	char*   ptr = strrchr((char*) data_dir_path, '.');
+	char*	ptr = strrchr((char*) data_dir_path, '.');
 
 	if (ptr == nullptr) {
 		return;
 	}
 
-       *ptr = '\0';
+	*ptr = '\0';
 
 	/* The tablename starts after the last slash. */
 	ptr = strrchr((char*) data_dir_path, OS_PATH_SEPARATOR);
 
 	if (ptr == nullptr) {
-	return;
+		return;
 	}
 
 	*ptr = '\0';
 
 	char*	tablename = ptr + 1;
 
-	/* The databasename starts after the next to last slash. */
+	/* The database name starts after the next to last slash. */
 	ptr = strrchr((char*) data_dir_path, OS_SEPARATOR);
 
 	if (ptr == nullptr) {
 		return;
 	}
 
-       size_t	tablename_len = strlen(tablename);
+	size_t	tablename_len = strlen(tablename);
 
-       ++ptr;
+	++ptr;
 
 	memmove(ptr, tablename, tablename_len);
 
