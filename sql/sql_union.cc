@@ -1585,7 +1585,7 @@ static void destroy_materialized(THD *thd, TABLE_LIST *list)
     {
       tl->table_function->cleanup();
     }
-    if (!tl->table)
+    if (tl->table == nullptr)
       continue;                                 // Not materialized
     if (tl->is_view_or_derived())
     {
@@ -1597,6 +1597,7 @@ static void destroy_materialized(THD *thd, TABLE_LIST *list)
              !tl->is_table_function())
       continue;
     free_tmp_table(thd, tl->table);
+    tl->table= nullptr;
   }
 }
 

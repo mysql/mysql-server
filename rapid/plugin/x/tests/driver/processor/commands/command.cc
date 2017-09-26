@@ -143,6 +143,7 @@ Command::Command() {
       &Command::cmd_macro_delimiter_compress;
   m_commands["import"] = &Command::cmd_import;
   m_commands["assert_eq"] = &Command::cmd_assert_eq;
+  m_commands["assert_ne"] = &Command::cmd_assert_ne;
   m_commands["assert_gt"] = &Command::cmd_assert_gt;
   m_commands["assert_ge"] = &Command::cmd_assert_ge;
   m_commands["query_result"] = &Command::cmd_query;
@@ -716,6 +717,9 @@ Command::Result Command::cmd_login(std::istream &input,
 
     return Result::Continue;
   }
+
+  context->m_connection->setup_variables(
+      context->m_connection->active_xsession());
 
   context->print("Login OK\n");
   return Result::Continue;
@@ -1541,8 +1545,36 @@ Command::Result Command::cmd_assert_eq(std::istream &input,
   context->m_variables->replace(&vargs[1]);
 
   if (vargs[0] != vargs[1]) {
+    context->print_error("Execution of '", args, "', resulted in an error:\n");
     context->print_error("Expecting '", vargs[0], "', but received '", vargs[1],
                          "'\n");
+    return Result::Stop_with_failure;
+  }
+
+  return Result::Continue;
+}
+
+Command::Result Command::cmd_assert_ne(std::istream &input,
+                                       Execution_context *context,
+                                       const std::string &args) {
+  std::vector<std::string> vargs;
+
+  aux::split(vargs, args, "\t", true);
+
+  if (2 != vargs.size()) {
+    context->print_error(
+        "Specified invalid number of arguments for command assert_eq:",
+        vargs.size(), " expecting 2\n");
+    return Result::Stop_with_failure;
+  }
+
+  context->m_variables->replace(&vargs[0]);
+  context->m_variables->replace(&vargs[1]);
+
+  if (vargs[0] == vargs[1]) {
+    context->print_error(
+        "Expecting '", vargs[0],
+        "', to be different from '", vargs[1], "'\n");
     return Result::Stop_with_failure;
   }
 
@@ -1935,6 +1967,9 @@ void print_help_commands() {
   std::cout << "-->assert_eq <VALUE_EXPECTED>\t<VALUE_TESTED>\n";
   std::cout << "  Ensure that 'TESTED' value equals 'EXPECTED' by comparing "
                "strings lexicographically\n";
+  std::cout << "-->assert_ne <VALUE_EXPECTED>\t<VALUE_TESTED>\n";
+  std::cout << "  Ensure that 'TESTED' value doesn't equals 'EXPECTED' by"
+               " comparing strings lexicographically\n";
   std::cout << "-->assert_gt <VALUE_EXPECTED>\t<VALUE_TESTED>\n";
   std::cout << "  Ensure that 'TESTED' value is greater than 'EXPECTED' "
                "(only when the both are numeric values)\n";
