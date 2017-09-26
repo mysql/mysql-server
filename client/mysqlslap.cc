@@ -129,6 +129,8 @@ uint master_wakeup;
 native_mutex_t sleeper_mutex;
 native_cond_t sleep_threshold;
 
+static char **defaults_argv;
+
 char **primary_keys;
 unsigned long long primary_keys_number_of;
 
@@ -321,17 +323,18 @@ int main(int argc, char **argv)
   MY_INIT(argv[0]);
 
   my_getopt_use_args_separator= TRUE;
-  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512, 0};
-  if (load_defaults("my",load_default_groups,&argc,&argv,&alloc))
+  if (load_defaults("my",load_default_groups,&argc,&argv))
   {
     my_end(0);
-    return EXIT_FAILURE;
+    exit(1);
   }
   my_getopt_use_args_separator= FALSE;
+  defaults_argv=argv;
   if (get_options(&argc,&argv))
   {
+    free_defaults(defaults_argv);
     my_end(0);
-    return EXIT_FAILURE;
+    exit(1);
   }
 
   /* Seed the random number generator if we will be using it. */
@@ -341,8 +344,9 @@ int main(int argc, char **argv)
   if (argc > 2)
   {
     fprintf(stderr,"%s: Too many arguments\n",my_progname);
+    free_defaults(defaults_argv);
     my_end(0);
-    return EXIT_FAILURE;
+    exit(1);
   }
   mysql_init(&mysql);
   if (opt_compress)
@@ -378,8 +382,9 @@ int main(int argc, char **argv)
       fprintf(stderr,"%s: Error when connecting to server: %s\n",
               my_progname,mysql_error(&mysql));
       mysql_close(&mysql);
+      free_defaults(defaults_argv);
       my_end(0);
-      return EXIT_FAILURE;
+      exit(1);
     }
   }
   set_sql_mode(&mysql);
@@ -439,9 +444,10 @@ int main(int argc, char **argv)
   my_free(shared_memory_base_name);
 #endif
   mysql_server_end();
+  free_defaults(defaults_argv);
   my_end(my_end_arg);
 
-  return EXIT_SUCCESS;
+  return 0;
 }
 
 void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr)

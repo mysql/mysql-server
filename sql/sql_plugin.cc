@@ -2075,7 +2075,7 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
   TABLE *table;
   bool error= true;
   int argc= orig_argc;
-  char **argv= orig_argv;
+  char **argv= orig_argv, **default_argv= NULL;
   st_plugin_int *tmp= nullptr;
   LEX_CSTRING name_cstr= {name->str, name->length};
   bool store_infoschema_metadata= false;
@@ -2125,30 +2125,30 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
   DEBUG_SYNC(thd, "acquired_LOCK_plugin");
   mysql_rwlock_wrlock(&LOCK_system_variables_hash);
 
+  if (my_load_defaults(MYSQL_CONFIG_NAME, load_default_groups,
+                       &argc, &argv, NULL))
   {
-    MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512, 0};
-    if (my_load_defaults(MYSQL_CONFIG_NAME, load_default_groups,
-                         &argc, &argv, &alloc, NULL))
-    {
-      mysql_rwlock_unlock(&LOCK_system_variables_hash);
-      report_error(REPORT_TO_USER, ER_PLUGIN_IS_NOT_LOADED, name->str);
-      mysql_mutex_unlock(&LOCK_plugin);
-      goto err;
-    }
-    /*
-     Append static variables present in mysqld-auto.cnf file for the
-     newly installed plugin to process those options which are specific
-     to this plugin.
-    */
-    if (pv && pv->append_read_only_variables(&argc, &argv, TRUE))
-    {
-      mysql_rwlock_unlock(&LOCK_system_variables_hash);
-      report_error(REPORT_TO_USER, ER_PLUGIN_IS_NOT_LOADED, name->str);
-      mysql_mutex_unlock(&LOCK_plugin);
-      goto err;
-    }
-    error= plugin_add(thd->mem_root, name, dl, &argc, argv, REPORT_TO_USER);
+    mysql_rwlock_unlock(&LOCK_system_variables_hash);
+    report_error(REPORT_TO_USER, ER_PLUGIN_IS_NOT_LOADED, name->str);
+    mysql_mutex_unlock(&LOCK_plugin);
+    goto err;
   }
+  default_argv= argv;
+  /*
+   Append static variables present in mysqld-auto.cnf file for the
+   newly installed plugin to process those options which are specific
+   to this plugin.
+  */
+  if (pv && pv->append_read_only_variables(&argc, &argv, TRUE))
+  {
+    mysql_rwlock_unlock(&LOCK_system_variables_hash);
+    report_error(REPORT_TO_USER, ER_PLUGIN_IS_NOT_LOADED, name->str);
+    mysql_mutex_unlock(&LOCK_plugin);
+    goto err;
+  }
+  error= plugin_add(thd->mem_root, name, dl, &argc, argv, REPORT_TO_USER);
+  if (default_argv)
+    free_defaults(default_argv);
   mysql_rwlock_unlock(&LOCK_system_variables_hash);
 
   if (error || !(tmp= plugin_find_internal(name_cstr, MYSQL_ANY_PLUGIN)))

@@ -345,19 +345,20 @@ int main(int argc,char *argv[])
   int first_command;
   bool can_handle_passwords;
   MYSQL mysql;
-  char **commands, **temp_argv;
+  char **commands, **save_argv, **temp_argv;
 
   MY_INIT(argv[0]);
   mysql_init(&mysql);
   my_getopt_use_args_separator= TRUE;
-  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512, 0};
-  if (load_defaults("my",load_default_groups,&argc,&argv,&alloc))
+  if (load_defaults("my",load_default_groups,&argc,&argv))
    exit(1); 
   my_getopt_use_args_separator= FALSE;
 
+  save_argv = argv;				/* Save for free_defaults */
   if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
   {
-    return ho_error;
+    free_defaults(save_argv);
+    exit(ho_error);
   }
 
   if (debug_info_flag)
@@ -368,7 +369,7 @@ int main(int argc,char *argv[])
   if (argc == 0)
   {
     usage();
-    return EXIT_FAILURE;
+    exit(1);
   }
 
   temp_argv= mask_password(argc, &argv);
@@ -527,6 +528,7 @@ int main(int argc,char *argv[])
 #if defined (_WIN32)
   my_free(shared_memory_base_name);
 #endif
+  free_defaults(save_argv);
   temp_argc--;
   while(temp_argc >= 0)
   {

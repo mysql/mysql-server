@@ -220,16 +220,17 @@ int main(int argc, char **argv)
 {
   int error,ok;
   PACK_MRG_INFO merge;
+  char **default_argv;
   MY_INIT(argv[0]);
 
   memset(&main_thread_keycache_var, 0, sizeof(st_keycache_thread_var));
   mysql_cond_init(PSI_NOT_INSTRUMENTED,
                   &main_thread_keycache_var.suspend);
 
-  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512, 0};
-  if (load_defaults("my",load_default_groups,&argc,&argv, &alloc))
+  if (load_defaults("my",load_default_groups,&argc,&argv))
     exit(1);
 
+  default_argv= argv;
   get_options(&argc,&argv);
 
   error=ok=isamchk_neaded=0;
@@ -264,6 +265,7 @@ int main(int argc, char **argv)
     puts("Remember to run myisamchk -rq on compressed tables");
   (void) fflush(stdout);
   (void) fflush(stderr);
+  free_defaults(default_argv);
   my_end(verbose ? MY_CHECK_ERROR | MY_GIVE_INFO : MY_CHECK_ERROR);
   mysql_cond_destroy(&main_thread_keycache_var.suspend);
   exit(error ? 2 : 0);

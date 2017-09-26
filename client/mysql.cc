@@ -142,7 +142,7 @@ struct STATUS
 
 
 static HashTable ht;
-static MEM_ROOT argv_alloc{PSI_NOT_INSTRUMENTED, 512, 0};
+static char **defaults_argv;
 
 enum enum_info_type { INFO_INFO,INFO_ERROR,INFO_RESULT};
 typedef enum enum_info_type INFO_TYPE;
@@ -1296,31 +1296,35 @@ int main(int argc,char *argv[])
 #endif
 
   my_getopt_use_args_separator= TRUE;
-  if (load_defaults("my",load_default_groups,&argc,&argv,&argv_alloc))
+  if (load_defaults("my",load_default_groups,&argc,&argv))
   {
     my_end(0);
-    return EXIT_FAILURE;
+    exit(1);
   }
   my_getopt_use_args_separator= FALSE;
 
+  defaults_argv=argv;
   if (get_options(argc, (char **) argv))
   {
+    free_defaults(defaults_argv);
     my_end(0);
-    return EXIT_FAILURE;
+    exit(1);
   }
   if (status.batch && !status.line_buff &&
       !(status.line_buff= batch_readline_init(MAX_BATCH_BUFFER_SIZE, stdin)))
   {
     put_info("Can't initialize batch_readline - may be the input source is "
              "a directory or a block device.", INFO_ERROR, 0);
+    free_defaults(defaults_argv);
     my_end(0);
-    return EXIT_FAILURE;
+    exit(1);
   }
   if (mysql_server_init(0, nullptr, nullptr))
   {
     put_error(NULL);
+    free_defaults(defaults_argv);
     my_end(0);
-    return EXIT_FAILURE;
+    exit(1);
   }
   glob_buffer.mem_realloc(512);
   completion_hash_init(&ht, 128);
@@ -1427,7 +1431,7 @@ int main(int argc,char *argv[])
 					      MYF(MY_WME))))
         {
 	  fprintf(stderr, "Couldn't allocate memory for temp histfile!\n");
-	  return EXIT_FAILURE;
+	  exit(1);
         }
         sprintf(histfile_tmp, "%s.TMP", histfile);
       }
@@ -1517,6 +1521,7 @@ void mysql_end(int sig)
 #endif
   my_free(current_prompt);
   mysql_server_end();
+  free_defaults(defaults_argv);
   my_end(my_end_arg);
   exit(status.exit_status);
 }

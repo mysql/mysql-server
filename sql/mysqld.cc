@@ -1169,9 +1169,14 @@ char *opt_binlog_index_name;
 char *mysql_home_ptr, *pidfile_name_ptr;
 char *default_auth_plugin;
 /**
-  Memory for allocating command line arguments, after load_defaults().
+  Initial command line arguments (arguments), after load_defaults().
+  This memory is allocated by @c load_defaults() and should be freed
+  using @c free_defaults().
+  Do not modify defaults_argv,
+  use remaining_argc / remaining_argv instead to parse the command
+  line arguments in multiple steps.
 */
-static MEM_ROOT argv_alloc{PSI_NOT_INSTRUMENTED, 512, 0};
+static char **defaults_argv;
 /** Remaining command line arguments (count), filtered by handle_options().*/
 static int remaining_argc;
 /** Remaining command line arguments (arguments), filtered by handle_options().*/
@@ -2001,6 +2006,8 @@ static void clean_up(bool print_message)
   multi_keycache_free();
   query_logger.cleanup();
   my_free_open_file_info();
+  if (defaults_argv)
+    free_defaults(defaults_argv);
   free_tmpdir(&mysql_tmpdir_list);
   my_free(opt_bin_logname);
   free_max_user_conn();
@@ -4227,10 +4234,14 @@ static int init_server_auto_options()
   }
 
   /* load all options in 'auto.cnf'. */
-  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512, 0};
-  if (my_load_defaults(fname, groups, &argc, &argv, &alloc, NULL))
+  if (my_load_defaults(fname, groups, &argc, &argv, NULL))
     DBUG_RETURN(1);
 
+  /*
+    Record the origial pointer allocated by my_load_defaults for free,
+    because argv will be changed by handle_options
+   */
+  char **old_argv= argv;
   if (handle_options(&argc, &argv, auto_options, mysqld_get_one_option))
     DBUG_RETURN(1);
 
@@ -4269,11 +4280,17 @@ static int init_server_auto_options()
     DBUG_PRINT("info", ("generated server_uuid=%s", server_uuid));
     LogErr(WARNING_LEVEL, ER_CREATING_NEW_UUID, server_uuid);
   }
+  /*
+    The uuid has been copied to server_uuid, so the memory allocated by
+    my_load_defaults can be freed now.
+   */
+  free_defaults(old_argv);
 
   if (flush)
     DBUG_RETURN(flush_auto_options(fname));
   DBUG_RETURN(0);
 err:
+  free_defaults(argv);
   DBUG_RETURN(1);
 }
 
@@ -5156,11 +5173,12 @@ int mysqld_main(int argc, char **argv)
   orig_argv= argv;
   my_getopt_use_args_separator= TRUE;
   my_defaults_read_login_file= FALSE;
-  if (load_defaults(MYSQL_CONFIG_NAME, load_default_groups, &argc, &argv, &argv_alloc))
+  if (load_defaults(MYSQL_CONFIG_NAME, load_default_groups, &argc, &argv))
   {
     flush_error_log_messages();
     return 1;
   }
+  defaults_argv= argv;
 
   /*
    Initialize variables cache for persisted variables, load persisted

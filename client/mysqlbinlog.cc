@@ -2942,6 +2942,7 @@ inline bool gtid_client_init()
 
 int main(int argc, char** argv)
 {
+  char **defaults_argv;
   Exit_status retval= OK_CONTINUE;
   MY_INIT(argv[0]);
   DBUG_ENTER("main");
@@ -2959,30 +2960,31 @@ int main(int argc, char** argv)
   buff_ev= new Buff_ev(PSI_NOT_INSTRUMENTED);
 
   my_getopt_use_args_separator= TRUE;
-  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512, 0};
-  if (load_defaults("my", load_default_groups, &argc, &argv, &alloc))
+  if (load_defaults("my", load_default_groups, &argc, &argv))
     exit(1);
   my_getopt_use_args_separator= FALSE;
+  defaults_argv= argv;
 
   parse_args(&argc, &argv);
 
   if (!argc)
   {
     usage();
+    free_defaults(defaults_argv);
     my_end(my_end_arg);
-    return EXIT_FAILURE;
+    exit(1);
   }
 
   if (gtid_client_init())
   {
     error("Could not initialize GTID structuress.");
-    return EXIT_FAILURE;
+    exit(1);
   }
 
   umask(((~my_umask) & 0666));
   /* Check for argument conflicts and do any post-processing */
   if (args_post_process() == ERROR_STOP)
-    return EXIT_FAILURE;
+    exit(1);
 
   if (opt_base64_output_mode == BASE64_OUTPUT_UNSPEC)
     opt_base64_output_mode= BASE64_OUTPUT_AUTO;
@@ -2997,7 +2999,7 @@ int main(int argc, char** argv)
   if (!dirname_for_local_load)
   {
     if (init_tmpdir(&tmpdir, 0))
-      return EXIT_FAILURE;
+      exit(1);
     dirname_for_local_load= my_strdup(PSI_NOT_INSTRUMENTED,
                                       my_tmpdir(&tmpdir), MY_WME);
   }
@@ -3072,11 +3074,15 @@ int main(int argc, char** argv)
     my_fclose(result_file, MYF(0));
   cleanup();
 
+  if (defaults_argv)
+    free_defaults(defaults_argv);
   my_free_open_file_info();
   load_processor.destroy();
   /* We cannot free DBUG, it is used in global destructors after exit(). */
   my_end(my_end_arg | MY_DONT_FREE_DBUG);
   gtid_client_cleanup();
 
-  return(retval == ERROR_STOP ? EXIT_FAILURE : EXIT_SUCCESS);
+  exit(retval == ERROR_STOP ? 1 : 0);
+  /* Keep compilers happy. */
+  DBUG_RETURN(retval == ERROR_STOP ? 1 : 0);
 }

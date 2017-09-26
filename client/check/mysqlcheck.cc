@@ -24,7 +24,6 @@
 #include "caching_sha2_passwordopt-vars.h"
 #include "client/client_priv.h"
 #include "m_ctype.h"
-#include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_default.h"
 #include "my_inttypes.h"
@@ -219,7 +218,7 @@ static const char *load_default_groups[] = { "mysqlcheck", "client", 0 };
 
 
 static void usage(void);
-static int get_options(int *argc, char ***argv, MEM_ROOT *alloc);
+static int get_options(int *argc, char ***argv);
 static int dbConnect(char *host, char *user,char *passwd);
 static void dbDisconnect(char *host);
 static void DBerror(MYSQL *mysql, string when);
@@ -344,7 +343,7 @@ get_one_option(int optid, const struct my_option *opt,
 }
 
 
-static int get_options(int *argc, char ***argv, MEM_ROOT *alloc)
+static int get_options(int *argc, char ***argv)
 {
   int ho_error;
 
@@ -355,7 +354,7 @@ static int get_options(int *argc, char ***argv, MEM_ROOT *alloc)
   }
 
   my_getopt_use_args_separator= TRUE;
-  if ((ho_error= load_defaults("my", load_default_groups, argc, argv, alloc)) ||
+  if ((ho_error= load_defaults("my", load_default_groups, argc, argv)) ||
       (ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
     exit(ho_error);
   my_getopt_use_args_separator= FALSE;
@@ -500,8 +499,7 @@ int main(int argc, char **argv)
   /*
   ** Check out the args
   */
-  MEM_ROOT alloc(PSI_NOT_INSTRUMENTED, 512, 0);
-  if (get_options(&argc, &argv, &alloc))
+  if (get_options(&argc, &argv))
   {
     my_end(my_end_arg);
     exit(EX_USAGE);
@@ -532,7 +530,7 @@ int main(int argc, char **argv)
 #if defined (_WIN32)
   my_free(shared_memory_base_name);
 #endif
-  free_root(&alloc, MYF(0));
+  free_defaults(argv);
   my_end(my_end_arg);
   return(first_error!=0);
 } /* main */

@@ -770,8 +770,7 @@ load_defaults(Vector<struct my_option>& options, const char* groups[])
   }
 
   char ** tmp = (char**)argv;
-  MEM_ROOT alloc;
-  int ret = load_defaults("my", groups, &argc, &tmp, &alloc);
+  int ret = load_defaults("my", groups, &argc, &tmp);
 
   my_defaults_file = save_file;
   my_defaults_extra_file = save_extra_file;

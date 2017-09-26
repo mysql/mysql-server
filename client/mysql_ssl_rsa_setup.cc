@@ -257,6 +257,8 @@ void free_resources()
   if (opt_userid)
     my_free(opt_userid);
 #endif
+  if (defaults_argv && *defaults_argv)
+    free_defaults(defaults_argv);
 }
 
 
@@ -451,7 +453,6 @@ int main(int argc, char *argv[])
   int ret_val= 0;
   Sql_string_t openssl_check("openssl version");
   bool save_skip_unknown= my_getopt_skip_unknown;
-  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512, 0};
 
   MY_INIT(argv[0]);
   DBUG_ENTER("main");
@@ -464,7 +465,7 @@ int main(int argc, char *argv[])
   my_win_translate_command_line_args(&my_charset_utf8mb4_bin, &argc, &argv);
 #endif
   my_getopt_use_args_separator= TRUE;
-  if (load_defaults("my", load_default_groups, &argc, &argv, &alloc))
+  if (load_defaults("my", load_default_groups, &argc, &argv))
   {
     my_end(0);
     free_resources();

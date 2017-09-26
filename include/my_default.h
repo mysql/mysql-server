@@ -25,8 +25,6 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 
-struct MEM_ROOT;
-
 C_MODE_START
 
 extern const char *my_defaults_extra_file;
@@ -48,15 +46,16 @@ int get_defaults_options(int argc, char **argv,
                          char **group_suffix, char **login_path,
                          bool found_no_defaults);
 int my_load_defaults(const char *conf_file, const char **groups,
-                     int *argc, char ***argv, MEM_ROOT *alloc, const char ***);
+                     int *argc, char ***argv, const char ***);
 int check_file_permissions(const char *file_name, bool is_login_file);
 int load_defaults(const char *conf_file, const char **groups,
-                  int *argc, char ***argv, MEM_ROOT *alloc);
+                  int *argc, char ***argv);
 int my_search_option_files(const char *conf_file, int *argc,
                            char ***argv, uint *args_used,
                            Process_option_func func, void *func_ctx,
                            const char **default_directories,
                            bool is_login_file, bool found_no_defaults);
+void free_defaults(char **argv);
 void my_print_default_files(const char *conf_file);
 void print_defaults(const char *conf_file, const char **groups);
 void init_variable_default_paths();

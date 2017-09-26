@@ -196,9 +196,8 @@ int main(int argc, char **argv)
     exit(1);
   memcpy((char*) load_default_groups, (char*) argv, (argc + 1) * sizeof(*argv));
 
-  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512, 0};
   if ((error= load_defaults(config_file, (const char **) load_default_groups,
-			   &count, &arguments, &alloc)))
+			   &count, &arguments)))
   {
     if (verbose && opt_defaults_file_used)
     {
@@ -223,6 +222,7 @@ int main(int argc, char **argv)
         puts(*argument);
     }
   my_free(load_default_groups);
+  free_defaults(arguments);
 
   exit(0);
 }

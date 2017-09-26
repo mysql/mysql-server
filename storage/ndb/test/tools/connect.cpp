@@ -55,8 +55,7 @@ int main(int argc, char** argv){
   NDB_INIT(argv[0]);
 
   const char *load_default_groups[]= { "mysql_cluster",0 };
-  MEM_ROOT alloc;
-  ndb_load_defaults(NULL, load_default_groups,&argc,&argv,&alloc);
+  ndb_load_defaults(NULL, load_default_groups,&argc,&argv);
   int ho_error;
 #ifndef DBUG_OFF
   opt_debug= "d:t:O,/tmp/ndb_connect.trace";

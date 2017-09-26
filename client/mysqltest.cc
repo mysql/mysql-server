@@ -185,7 +185,7 @@ static bool disable_info= 1;
 static bool abort_on_error= 1;
 static bool server_initialized= 0;
 static bool is_windows= 0;
-static MEM_ROOT argv_alloc{PSI_NOT_INSTRUMENTED, 512, 0};
+static char **default_argv;
 static const char *load_default_groups[]= { "mysqltest", "client", 0 };
 static char line_buffer[MAX_DELIMITER_LENGTH], *line_buffer_pos= line_buffer;
 static const char *opt_server_public_key= 0;
@@ -1325,6 +1325,7 @@ static void free_used_memory()
     dynstr_free(ds_warn);
   free_all_replace();
   my_free(opt_pass);
+  free_defaults(default_argv);
   free_re();
 #ifdef _WIN32
   free_win_path_patterns();
@@ -7787,8 +7788,10 @@ static void validate_filename(const char *file_name)
 
 static int parse_args(int argc, char **argv)
 {
-  if (load_defaults("my",load_default_groups,&argc,&argv,&argv_alloc))
+  if (load_defaults("my",load_default_groups,&argc,&argv))
     exit(1);
+
+  default_argv= argv;
 
   if ((handle_options(&argc, &argv, my_long_options, get_one_option)))
     exit(1);

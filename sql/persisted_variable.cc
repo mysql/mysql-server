@@ -144,7 +144,7 @@ int Persisted_variables_cache::init(int *argc, char ***argv)
 #endif
 
   int temp_argc= *argc;
-  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512, 0};
+  MEM_ROOT alloc;
   char *ptr, **res, *datadir= NULL;
   char dir[FN_REFLEN]= { 0 };
   const char *dirs= NULL;
@@ -199,6 +199,8 @@ int Persisted_variables_cache::init(int *argc, char ***argv)
     &m_LOCK_persist_file, MY_MUTEX_INIT_FAST);
 
   m_instance= this;
+  ro_persisted_argv= NULL;
+  ro_persisted_plugin_argv= NULL;
   return 0;
 }
 
@@ -756,6 +758,7 @@ bool Persisted_variables_cache::append_read_only_variables(int *argc,
   TYPELIB group;
   MEM_ROOT alloc;
   const char *type_name= "mysqld";
+  char *ptr, **res;
   map<string, string>::const_iterator iter;
 
   if (*argc < 2 || no_defaults || !persisted_globals_load)
@@ -786,9 +789,21 @@ bool Persisted_variables_cache::append_read_only_variables(int *argc,
   */
   if (my_args.size())
   {
-    char **res= new (&alloc) char*[my_args.size() + *argc + 2];
-    if (res == nullptr)
+    if (!(ptr= (char *) alloc_root(&alloc, sizeof(alloc) +
+        (my_args.size() + *argc + 2) * sizeof(char *))))
       goto err;
+    if (plugin_options)
+    {
+      /* free previously allocated memory */
+      if (ro_persisted_plugin_argv)
+      {
+        free_defaults(ro_persisted_plugin_argv);
+        ro_persisted_plugin_argv= NULL;
+      }
+      ro_persisted_plugin_argv= res= (char **) (ptr + sizeof(alloc));
+    }
+    else
+      ro_persisted_argv= res= (char **) (ptr + sizeof(alloc));
     memset(res, 0, (sizeof(char *) * (my_args.size() + *argc + 2)));
     /* copy all arguments to new array */
     memcpy((uchar *) (res), (char *) (*argv), (*argc) * sizeof(char *));
@@ -806,15 +821,14 @@ bool Persisted_variables_cache::append_read_only_variables(int *argc,
     res[my_args.size() + *argc + 1] = 0;  /* last null */
     (*argc)+= my_args.size() + 1;
     *argv= res;
-    if (plugin_options)
-      ro_persisted_plugin_argv_alloc= std::move(alloc);  // Possibly overwrite previous.
-    else
-      ro_persisted_argv_alloc= std::move(alloc);
+    *(MEM_ROOT *) ptr= std::move(alloc);
     return 0;
   }
+  else
+    free_root(&alloc, MYF(0));
   return 0;
 
-err:
+  err:
   my_message_local(ERROR_LEVEL,
                    "Fatal error in defaults handling. Program aborted!");
   exit(1);
@@ -922,6 +936,14 @@ void Persisted_variables_cache::cleanup()
 {
   mysql_mutex_destroy(&m_LOCK_persist_variables);
   mysql_mutex_destroy(&m_LOCK_persist_file);
-  free_root(&ro_persisted_argv_alloc, MYF(0));
-  free_root(&ro_persisted_plugin_argv_alloc, MYF(0));
+  if (ro_persisted_argv)
+  {
+    free_defaults(ro_persisted_argv);
+    ro_persisted_argv= NULL;
+  }
+  if (ro_persisted_plugin_argv)
+  {
+    free_defaults(ro_persisted_plugin_argv);
+    ro_persisted_plugin_argv= NULL;
+  }
 }

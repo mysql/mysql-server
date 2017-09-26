@@ -82,8 +82,7 @@ int main(int argc, char **argv)
   MY_INIT(argv[0]);
 
   my_getopt_use_args_separator= TRUE;
-  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512, 0};
-  if (load_defaults("my",load_default_groups,&argc,&argv,&alloc))
+  if (load_defaults("my",load_default_groups,&argc,&argv))
     exit(1);
   my_getopt_use_args_separator= FALSE;
 
@@ -124,6 +123,7 @@ int main(int argc, char **argv)
   if (argc > 2)
   {
     fprintf(stderr,"%s: Too many arguments\n",my_progname);
+    free_defaults(argv);
     exit(1);
   }
   mysql_init(&mysql);
@@ -185,6 +185,7 @@ int main(int argc, char **argv)
   my_free(shared_memory_base_name);
 #endif
   mysql_server_end();
+  free_defaults(argv);
   my_end(my_end_arg);
   exit(error ? 1 : 0);
 }

@@ -1820,8 +1820,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
   argc=1; argv=argv_buff; argv_buff[0]= (char*) "client";
   groups[0]= (char*) "client"; groups[1]= (char*) group; groups[2]=0;
 
-  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512, 0};
-  my_load_defaults(filename, groups, &argc, &argv, &alloc, nullptr);
+  my_load_defaults(filename, groups, &argc, &argv, NULL);
   if (argc != 1)				/* If some default option */
   {
     char **option=argv;
@@ -2050,6 +2049,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
       }
     }
   }
+  free_defaults(argv);
   DBUG_VOID_RETURN;
 }
 

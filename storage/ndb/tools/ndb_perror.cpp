@@ -84,8 +84,7 @@ int main(int argc, char** argv)
   NDB_INIT(argv[0]);
 
   ndb_opt_set_usage_funcs(short_usage_sub, usage);
-  MEM_ROOT alloc;
-  ndb_load_defaults(NULL, load_default_groups, &argc, &argv,&alloc);
+  ndb_load_defaults(NULL, load_default_groups, &argc, &argv);
 
   if (handle_options(&argc, &argv, my_long_options,
                      ndb_std_get_one_option) != 0)

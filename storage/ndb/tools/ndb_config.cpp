@@ -220,8 +220,7 @@ int
 main(int argc, char** argv){
   NDB_INIT(argv[0]);
   ndb_opt_set_usage_funcs(short_usage_sub, usage);
-  MEM_ROOT alloc;
-  ndb_load_defaults(NULL,load_default_groups,&argc,&argv,&alloc);
+  ndb_load_defaults(NULL,load_default_groups,&argc,&argv);
   int ho_error;
   bool print_headers = false;
   if ((ho_error=handle_options(&argc, &argv, my_long_options,
