@@ -9881,7 +9881,7 @@ static bool record_compare(TABLE *table, MY_BITMAP *cols)
          ptr++)
     {
       Field *field= *ptr;
-      if (bitmap_is_set(cols, field->field_index))
+      if (bitmap_is_set(cols, field->field_index) && !field->is_virtual_gcol())
       {
         /* compare null bit */
         if (field->is_null() != field->is_null_in_record(table->record[1]))
