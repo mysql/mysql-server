@@ -8,6 +8,7 @@
 # - Table without InnoDB storage engine
 # - Table without both
 # - Table with 'CASCADE' referential key
+# - Table with 'SET NULL' referential key
 #
 # It will cycle all cases in which the runtime validation is verified.
 #
@@ -37,6 +38,8 @@
 #  - Create auxiliary table with primary key and with InnoDB engine.
 #  - Create table with 'ON UPDATE CASCADE' foreign key.
 #  - Create table with 'ON DELETE CASCADE' foreign key.
+#  - Create table with 'ON DELETE SET NULL' foreign key.
+#  - Create table with 'ON UPDATE SET NULL' foreign key.
 #
 # 2. Testing all tables that will fail with following DMLs:
 #    INSERT,  UPDATE,  INSERT...SELECT,  DELETE,  LOAD DATA,  REPLACE,
@@ -94,6 +97,15 @@ CREATE TABLE t7 (c1 char(50) NOT NULL PRIMARY KEY, FOREIGN KEY (c1) REFERENCES t
 # Wrong table with 'ON DELETE CASCADE' foreign key.
 CREATE TABLE t8 (c1 char(50) NOT NULL PRIMARY KEY, FOREIGN KEY (c1) REFERENCES
                  tn(cn) ON DELETE CASCADE ON UPDATE RESTRICT) ENGINE = InnoDB;
+
+# Wrong table with 'ON DELETE SET NULL' foreign key.
+CREATE TABLE t9 (c1 char(50), c2 char(50) NOT NULL PRIMARY KEY, FOREIGN KEY (c1) REFERENCES
+                 tn(cn) ON DELETE SET NULL) ENGINE = InnoDB;
+
+# Wrong table with 'ON UPDATE SET NULL' foreign key.
+CREATE TABLE t10 (c1 char(50), c2 char(50) NOT NULL PRIMARY KEY, FOREIGN KEY (c1) REFERENCES
+                 tn(cn) ON UPDATE SET NULL) ENGINE = InnoDB;
+
 #
 # The tests begin here.
 #
@@ -113,12 +125,20 @@ CREATE TABLE t8 (c1 char(50) NOT NULL PRIMARY KEY, FOREIGN KEY (c1) REFERENCES
 --echo # Testing all tables that will fail.
 --echo #
 
---let $wrong_tables_count=8
+--let $wrong_tables_count=10
 while ($wrong_tables_count)
 {
    #Test the INSERT instruction
-   --error ER_BEFORE_DML_VALIDATION_ERROR
-   --eval INSERT INTO t$wrong_tables_count VALUES('a')
+   if ($wrong_tables_count >= 9)
+   {
+     --error ER_BEFORE_DML_VALIDATION_ERROR
+     --eval INSERT INTO t$wrong_tables_count VALUES('a','a')
+   }
+   if ($wrong_tables_count < 9)
+   {
+     --error ER_BEFORE_DML_VALIDATION_ERROR
+     --eval INSERT INTO t$wrong_tables_count VALUES('a')
+   }
 
   #Test the UPDATE instruction
   --error ER_BEFORE_DML_VALIDATION_ERROR
@@ -126,7 +146,19 @@ while ($wrong_tables_count)
 
   #Test the INSERT...SELECT instruction
   --error ER_BEFORE_DML_VALIDATION_ERROR
-  --eval INSERT INTO t$wrong_tables_count (c1) SELECT tn.cn FROM tn
+  --eval UPDATE t$wrong_tables_count SET c1 = 'a'
+
+  #Test the INSERT...SELECT instruction
+  if ($wrong_tables_count >= 9)
+  {
+    --error ER_BEFORE_DML_VALIDATION_ERROR
+    --eval INSERT INTO t$wrong_tables_count (c1,c2) SELECT tn.cn,'a' FROM tn
+  }
+  if ($wrong_tables_count < 9)
+  {
+    --error ER_BEFORE_DML_VALIDATION_ERROR
+    --eval INSERT INTO t$wrong_tables_count (c1) SELECT tn.cn FROM tn
+  }
 
   #Test the DELETE instruction
   --error ER_BEFORE_DML_VALIDATION_ERROR
