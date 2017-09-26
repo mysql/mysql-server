@@ -43,8 +43,6 @@ ndb_restore_schema_subsets: Need WL#9185 MySQL Cluster support for new DD
 ndb_fk_bugs: Need WL#9185 MySQL Cluster support for new DD
 ndb_alter_table_online: Need WL#9185 MySQL Cluster support for new DD
 ndb_fk_restore: Need WL#9185 MySQL Cluster support for new DD
-ndb_tools_connect: Need WL#9185 MySQL Cluster support for new DD
-ndb_restore_schema_tolerance: Bug#25860404 CREATE TABLE DOES NOT CHECK EXISTENCE OF TABLESPACE IN NDB
 
 # Test which timeout most likley due to mismatches in shares etc.
 ndb.ndb_spj_dict: Need WL#9185 MySQL Cluster support for new DD

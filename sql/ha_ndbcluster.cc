@@ -13121,15 +13121,12 @@ static int ndbcluster_close_connection(handlerton *hton, THD *thd)
            same name to be created in other engine.
         2) ha_discover() which is intended to take the returned frmblob
            and install it into the DD. The install path is however not
-           implemented and it's actuall much better if the install code
+           implemented and it's actually much better if the install code
            is kept inside ndbcluster to allow full control over how a
            table and any related objects are installed.
 
   @note The caller does not check the return code other
-        than zero or not, thus there is no way to return any
-        error which for example can occur when communication
-        with NDB fails. It should be possible to return -1
-        to indicate such error
+        than zero or not.
 */
 
 static
@@ -13268,12 +13265,13 @@ int ndbcluster_discover(handlerton*, THD* thd,
 
   }
 
-  // return a dummy frmblob to indicate that table exists
-  // and has been inserted into DD
-  *frmlen= 137;
-  *frmblob= (uchar*)my_malloc(PSI_NOT_INSTRUMENTED,
-                              *frmlen,
-                              MYF(0));
+  // Don't return any sdi in order to indicate that table definitions exists
+  // and has been installed into DD
+  DBUG_PRINT("info", ("no sdi returned for ha_create_table_from_engine() "
+                      "since the table definition is already installed"));
+  *frmlen= 0;
+  *frmblob= nullptr;
+
   DBUG_RETURN(0);
 }
 
