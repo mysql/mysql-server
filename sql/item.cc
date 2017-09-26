@@ -4838,6 +4838,7 @@ Item_copy_json::save_in_field_inner(Field *field, bool no_conversions)
   }
   else
   {
+    str_value.length(0);
     if (m_value->to_string(&str_value, true, item_name.ptr()))
       return set_field_to_null(field);        /* purecov: inspected */
     return save_str_value_in_field(field, &str_value);
