@@ -61,7 +61,7 @@ CREATE TABLE t1(c1 INT PRIMARY KEY, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 INSERT INTO t1 VALUES(1, "first");
 INSERT INTO t1 VALUES(2, "second");
 INSERT INTO t1 VALUES(3, "third");
-CREATE TABLE t2 (c1 INT PRIMARY KEY,c2 INT,FOREIGN KEY(c2)REFERENCES t1(c1)ON DELETE SET NULL);
+CREATE TABLE t2 (c1 INT PRIMARY KEY,c2 INT,FOREIGN KEY(c2)REFERENCES t1(c1)ON DELETE RESTRICT);
 INSERT INTO t2 VALUES(1,1);
 INSERT INTO t2 VALUEs(2,2);
 
@@ -99,6 +99,7 @@ ALTER INSTANCE ROTATE INNODB MASTER KEY;
 
 --source include/start_group_replication.inc
 UPDATE t2 SET c1=3 WHERE c1=2;
+UPDATE t2 SET c2=NULL WHERE c2=3;
 DELETE FROM t1 WHERE c1=3;
 
 --source include/rpl_sync.inc
@@ -156,9 +157,9 @@ SELECT * FROM t3;
 --query_vertical SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_file'
 
 --source include/start_group_replication.inc
-DELETE FROM t1 WHERE c1=1;
-DELETE FROM t2 WHERE c1=1;
 DELETE FROM t3 WHERE c1=1;
+DELETE FROM t2 WHERE c1=1;
+DELETE FROM t1 WHERE c1=1;
 
 --source include/rpl_sync.inc
 --echo # check that t1 exists and has same values in both servers

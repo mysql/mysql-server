@@ -350,14 +350,18 @@ bool has_cascade_foreign_key(TABLE *table, THD *thd)
      {"CASCADE", "SET NULL", "NO ACTION", "RESTRICT"}.
 
      Hence we are avoiding the usage of strncmp
-     ("'update_method' value with 'CASCADE'") and just comparing
-     the first character of the update_method value with 'C'.
+     ("'update_method' value with 'CASCADE' or 'SET NULL'") and just comparing
+     the first character of the update_method value with 'C' or 'S'.
     */
     if (f_key_info->update_method->str[0] == 'C' ||
-        f_key_info->delete_method->str[0] == 'C')
+        f_key_info->delete_method->str[0] == 'C' ||
+        f_key_info->update_method->str[0] == 'S' ||
+        f_key_info->delete_method->str[0] == 'S')
     {
       DBUG_ASSERT(!strncmp(f_key_info->update_method->str, "CASCADE", 7) ||
-                  !strncmp(f_key_info->delete_method->str, "CASCADE", 7));
+                  !strncmp(f_key_info->delete_method->str, "CASCADE", 7) ||
+                  !strncmp(f_key_info->update_method->str, "SET NUL", 7) ||
+                  !strncmp(f_key_info->delete_method->str, "SET NUL", 7));
       DBUG_RETURN(TRUE);
     }
   }
