@@ -1,0 +1,86 @@
+## XPLUGIN: Following test cases for mysqlx plugin ssl connection testing
+##          with SSL cert verification on client side.
+
+--source include/xplugin_preamble.inc
+
+
+CREATE DATABASE xtest;
+CREATE USER 'user1'@'127.0.0.1' IDENTIFIED BY 'user1_pass';
+CREATE USER 'user2'@'127.0.0.1' IDENTIFIED BY 'user2_pass';
+
+--write_file $MYSQL_TMP_DIR/mysqlx-verify-variables.tmp
+-->varlet %OLD_SOCKET_ID% %ACTIVE_SOCKET_ID%
+
+-->macro Check_cmd_options %TEXT%
+-->echo #
+-->echo # Command line options must be unchange, %TEXT%
+-->echo # on every session or authenticated account
+-->assert_eq xtest	%OPTION_CLIENT_SCHEMA%
+-->assert_eq user1	%OPTION_CLIENT_USER%
+-->assert_eq user1_pass	%OPTION_CLIENT_PASSWORD%
+-->assert_eq 127.0.0.1	%OPTION_CLIENT_HOST%
+-->assert_eq DISABLED	%OPTION_SSL_MODE%
+-->endmacro
+
+-->callmacro Check_cmd_options	on unauthenticated connection
+
+-->echo #
+-->echo # Authenticating on existing connection
+-->login
+-->echo # * SOCKET_ID must be the same as before
+-->assert_eq %OLD_SOCKET_ID%	%ACTIVE_SOCKET_ID%
+-->echo # * CLIENT_ID must have a expected value
+-->assert_eq %EXPECTED_CLIENT_ID%	%ACTIVE_CLIENT_ID%
+-->callmacro Check_cmd_options	on authenticated connection
+-->varinc %EXPECTED_CLIENT_ID% 1
+
+-->echo #
+-->echo # New connection:
+-->newsession second_session	user2	user2_pass
+-->callmacro Check_cmd_options	on second session
+-->echo # * SOCKET_ID must have a new value
+-->assert_ne %OLD_SOCKET_ID%	%ACTIVE_SOCKET_ID%
+-->echo # * CLIENT_ID must have a new value
+-->assert_eq %EXPECTED_CLIENT_ID%	%ACTIVE_CLIENT_ID%
+EOF
+
+--echo
+--echo ############################################################
+--echo ## Verify mysqlxtests variables at first connection
+--echo ##
+
+exec $MYSQLXTEST
+  -v%EXPECTED_CLIENT_ID%=1
+  --no-auth
+  --user=user1
+  --password=user1_pass
+  --host=127.0.0.1
+  --schema=xtest
+  --ssl-mode=DISABLED
+  --file=$MYSQL_TMP_DIR/mysqlx-verify-variables.tmp 2>&1;
+
+--echo
+--echo ############################################################
+--echo ## Verify mysqlxtests variables at second connection
+--echo ##
+
+exec $MYSQLXTEST
+  -v%EXPECTED_CLIENT_ID%=3
+  --no-auth
+  --user=user1
+  --password=user1_pass
+  --host=127.0.0.1
+  --schema=xtest
+  --ssl-mode=DISABLED
+  --file=$MYSQL_TMP_DIR/mysqlx-verify-variables.tmp 2>&1;
+
+--echo
+--echo ############################################################
+--echo ## Cleanup
+--remove_file $MYSQL_TMP_DIR/mysqlx-verify-variables.tmp
+
+# Postamble
+DROP DATABASE xtest;
+DROP USER 'user1'@'127.0.0.1';
+DROP USER 'user2'@'127.0.0.1';
+UNINSTALL PLUGIN mysqlx;
