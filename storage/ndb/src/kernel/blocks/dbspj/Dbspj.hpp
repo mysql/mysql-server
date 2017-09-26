@@ -995,10 +995,10 @@ public:
       T_NEED_COMPLETE = 0x20000,
 
       /**
-       * Allow equi-join optimizations for this treeNode.
+       * Allow inner-join optimizations for this treeNode.
        * (No outer-join semantics required)
        */
-      T_EQUI_JOIN = 0x40000,
+      T_INNER_JOIN = 0x40000,
 
       // End marker...
       T_END = 0
@@ -1069,7 +1069,7 @@ public:
      *    other TreeNodes which the SPJ 'query planner' may decide
      *    to execute prior to this TreeNode.
      * - 'dependencies' are the sub set of 'predecessors' where 
-     *    there are an equi-join relation specified between the
+     *    there are an inner-join relation specified between the
      *    TreeNodes.
      *
      * 'ancestors' and 'coverage' relates to the topology of the query
@@ -1107,7 +1107,7 @@ public:
     Uint32 m_resumePtrI;
 
     /**
-     * The Scan-TreeNode being the head of the equi-joined-branch
+     * The Scan-TreeNode being the head of the inner-joined-branch
      * this node is a member of.
      */
     Uint32 m_scanAncestorPtrI;

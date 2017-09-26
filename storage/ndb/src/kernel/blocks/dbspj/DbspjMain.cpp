@@ -1691,11 +1691,11 @@ Dbspj::setupAncestors(Ptr<Request>  requestPtr,
  *   result is SPJ sub requests being sent to all datanodes. Thus
  *   the datanode parallelism is utilized without executing 
  *   the SPJ requests TreeNodes in parallel. For such queries
- *   we will execute EQUI-joined TreeNodes in sequence, wherever
+ *   we will execute INNER-joined TreeNodes in sequence, wherever
  *   possible taking advantage of that we can skip further operations
  *   on rows where preceeding matches were not found.
  *
- *   Note that prior to introducing EQUI-join handling in SPJ,
+ *   Note that prior to introducing INNER-join handling in SPJ,
  *   all queries effectively were executed with the most parallel
  *   execution plan.
  */
@@ -1786,7 +1786,7 @@ Dbspj::planParallelExec(Ptr<Request>  requestPtr,
 /**
  * planSequentialExec()
  *
- *   Build an execution plan where EQUI-joined TreeNodes are executed in
+ *   Build an execution plan where INNER-joined TreeNodes are executed in
  *   sequence, such that further evaluation of not matching rows could be
  *   skipped as early as possible.
  *
@@ -1794,53 +1794,53 @@ Dbspj::planParallelExec(Ptr<Request>  requestPtr,
  *
  * 1)
  *  Each 'branch' has the property that it start with either a scan-TreeNode,
- *  or a outer joined (lookup-) TreeNode. Any EQUI-joined lookup-nodes having
+ *  or a outer joined (lookup-) TreeNode. Any INNER-joined lookup-nodes having
  *  this TreeNode as a (grand-)parent, is also a member of the branch.
  *
- *  Such a 'branch' of EQUI-joined lookups has the property that an EQ-match
+ *  Such a 'branch' of INNER-joined lookups has the property that an EQ-match
  *  has to be found from all its TreeNodes in order for any of the related
  *  rows to be part of the joined result set. Thus, during execution we can
  *  skip any further child lookups as soon as a non-match is found. This is
- *  represented in the execution plan by appending the EQUI-joined lookups
+ *  represented in the execution plan by appending the INNER-joined lookups
  *  in a sequence.
  *
- *  Note that we are 'greedy' in appending these EQUI-joined lookups,
+ *  Note that we are 'greedy' in appending these INNER-joined lookups,
  *  such that a lookup-TreeNode may effectively be executed prior to a
  *  scan-TreeNode, even if the scan is located before the lookup in the
  *  'm_nodes' list produced by the SPJ-API. This is intentional as a
- *  potential non-EQUI matching lookup row would eliminate the need for
+ *  potential non-INNER-joined lookup row would eliminate the need for
  *  executing the much more expensive (index-)scan operation.
  *
  * 2)
- *  Recursively append a *single* EQUI-joined scan-*branch* after the
+ *  Recursively append a *single* INNER-joined scan-*branch* after the
  *  sequence of lookup TreeNodes. As it is called recursively, the scan
  *  branch will append further lookup-nodes which depended on this scan-node,
- *  and finaly append any remaining EQUI-joined scan branches.
+ *  and finaly append any remaining INNER-joined scan branches.
  *
  *  Note1 that due to old legacy in the SPJ-API protocol, all scan nodes
  *  has to be executed in order relative to each other. (Explains the 'single'
  *  mentioned above)
  *
  *  Note3: After the two steps above has completed, including the recursive call
- *  handling the EQUI-joined scan, all EQUI-joined TreeNodes to be joined with
+ *  handling the INNER-joined scan, all INNER-joined TreeNodes to be joined with
  *  this 'branch' have been added to the exec plan.
  *
- *  Note3: Below we use the term 'non-EQUI-joined', instead of 'OUTER-joined'.
+ *  Note3: Below we use the term 'non-INNER-joined', instead of 'OUTER-joined'.
  *  This is due to SPJ-API protocol compatability, where we previously didn't
- *  tag the TreeNodes as being EQUI-joined or not. Thus when receiving a SPJ
+ *  tag the TreeNodes as being INNER-joined or not. Thus when receiving a SPJ
  *  request from an API client, we can't tell for sure whether the TreeNode
- *  is outer joined, or if the (old) client simply didn't specify EQUI-joins.
- *  Thus all we know is that nodes are 'non-EQUI-joined'.
+ *  is outer joined, or if the (old) client simply didn't specify INNER-joins.
+ *  Thus all we know is that nodes are 'non-INNER-joined'.
  *
  *  Also note that for any request from such an old API client, there will
  *  not be appended any 'sequential' TreeNodes to the exec plan in 1) and 2)
  *  above. Only steps 3) and 4) below will effectively be used, which will
  *  (intentionaly) result in a parallelized query plan, identical to what
- *  it used to be prior to introducing these EQUI-join optimizations.
+ *  it used to be prior to introducing these INNER-join optimizations.
  *
  * 3)
- *  Recursively append all non-EQUI-joined lookup branches to be executed
- *  after the sequence of EQUI-joined-lookups (from 1). Note that these
+ *  Recursively append all non-INNER-joined lookup branches to be executed
+ *  after the sequence of INNER-joined-lookups (from 1). Note that these
  *  branches are executed in sequence in a left -> right order, such
  *  that when the 'left' branch as completed, we 'RESUME' into the 'right'
  *  branch. This is done in order to avoid overflowing the job buffers
@@ -1849,11 +1849,11 @@ Dbspj::planParallelExec(Ptr<Request>  requestPtr,
  *  to RESUME. (See appendTreeNode() for more about RESUME handling)
  * 
  * 4)
- *  Recursively append all non-EQUI-joined scan branches to be executed
- *  in *parallel* after the sequence of EQUI-joined-lookups (from 1).
+ *  Recursively append all non-INNER-joined scan branches to be executed
+ *  in *parallel* after the sequence of INNER-joined-lookups (from 1).
  *  As we do not really handle OUTER-joined scans (yet), this is only
  *  in effect when we get a SPJ request from an old-API, which do not
- *  specify EQUI-join for a scan-TreeNode. Thus the old type 'submit
+ *  specify INNER-join for a scan-TreeNode. Thus the old type 'submit
  *  scan in parallel'-plan will be produced.
  *  For a client using the updated SPJ-API, all scans will be handled in 2)
  *  
@@ -1876,7 +1876,7 @@ Dbspj::planSequentialExec(Ptr<Request>  requestPtr,
   predecessors.set(branchPtr.p->m_node_no);
 
   /**
-   * 1) Append all EQUI-joined lookups to the 'plan' to be executed in sequence.
+   * 1) Append all INNER-joined lookups to the 'plan' to be executed in sequence.
    * Maintain the set of 'predecessor' TreeNodes which are already executed.
    * Don't append TreeNodes where its ancestors are not part of the 'plan'
    */
@@ -1886,15 +1886,16 @@ Dbspj::planSequentialExec(Ptr<Request>  requestPtr,
   {
     if (treeNodePtr.p->m_predecessors.isclear() &&
         predecessors.contains(treeNodePtr.p->m_ancestors) &&
-        treeNodePtr.p->m_bits & TreeNode::T_EQUI_JOIN &&
+        treeNodePtr.p->m_bits & TreeNode::T_INNER_JOIN &&
 	treeNodePtr.p->isLookup())
     {
       
-      DEBUG("planSequentialExec, append EQUI-lookup treeNode: " << treeNodePtr.p->m_node_no
+      DEBUG("planSequentialExec, append INNER-join lookup treeNode: "
+	<< treeNodePtr.p->m_node_no
 	<< ", to branch at: " << branchPtr.p->m_node_no
         << ", as 'decendant' of node: " << prevExecPtr.p->m_node_no);
 
-      // Add EQUI-lookup treeNode to the join plan:
+      // Add INNER-joined lookup treeNode to the join plan:
       const Uint32 err = appendTreeNode(requestPtr, treeNodePtr, prevExecPtr, nextBranchPtr);
       if (unlikely(err))
         return err;
@@ -1905,12 +1906,12 @@ Dbspj::planSequentialExec(Ptr<Request>  requestPtr,
   } //for 'all request TreeNodes', starting from branchPtr
 
   /**
-   * 2) After this EQUI-joined lookup sequence:
-   * Recursively append a *single* EQUI-joined scan-branch, if found.
+   * 2) After this INNER-joined lookup sequence:
+   * Recursively append a *single* INNER-joined scan-branch, if found.
    *
-   * Note that this branch, including any non-EQUI joined branches below,
+   * Note that this branch, including any non-INNER joined branches below,
    * are planned to be executed in *parallel* after the 'prevExecPtr',
-   * which is the end of the sequence of EQUI-lookups.
+   * which is the end of the sequence of INNER-lookups.
    */
   treeNodePtr = branchPtr;    //Start over
   while (list.next(treeNodePtr))
@@ -1921,9 +1922,11 @@ Dbspj::planSequentialExec(Ptr<Request>  requestPtr,
      */
     if (treeNodePtr.p->m_predecessors.isclear() &&
         predecessors.contains(treeNodePtr.p->m_ancestors) &&
-	treeNodePtr.p->m_bits & TreeNode::T_EQUI_JOIN)
+	treeNodePtr.p->m_bits & TreeNode::T_INNER_JOIN)
     {
-      DEBUG("planSequentialExec, append EQUI-scan-branch at treeNode: " << treeNodePtr.p->m_node_no);
+      DEBUG("planSequentialExec, append INNER-joined scan-branch at treeNode: "
+	<< treeNodePtr.p->m_node_no);
+      
       ndbassert(treeNodePtr.p->isScan());
       const Uint32 err = planSequentialExec(requestPtr, treeNodePtr, prevExecPtr, nextBranchPtr);
       if (unlikely(err))
@@ -1934,10 +1937,10 @@ Dbspj::planSequentialExec(Ptr<Request>  requestPtr,
 
 
   /**
-   * Note: All EQUI-Joins within current 'branch' will now have been handled,
+   * Note: All INNER-Joins within current 'branch' will now have been handled,
    * either directly within this method at 1), or by recursively calling it in 2).
    *
-   * 3a) collect any non-EQUI-joined lookup branches
+   * 3a) collect any non-INNER-joined lookup branches
    */
   Ptr<TreeNode> outerBranches[NDB_SPJ_MAX_TREE_NODES+1];
   int outerCnt = 0;
@@ -1951,15 +1954,14 @@ Dbspj::planSequentialExec(Ptr<Request>  requestPtr,
       if (treeNodePtr.p->isLookup() &&
 	  !branchPtr.p->m_predecessors.contains(treeNodePtr.p->m_ancestors))
       {	
-        // non-EQUI joined lookup-TreeNode
-        DEBUG("planSequentialExec, found non-EQUI-joined lookup-treeNode no: " << treeNodePtr.p->m_node_no);
+        // A non-INNER joined lookup-TreeNode
         outerBranches[outerCnt++] = treeNodePtr;
       }
     }
   } //for 'all request TreeNodes', starting from branchPtr
 
   /**
-   * 3b) Append the non-EQUI-joined lookup branches to the end of the EQUI-joined
+   * 3b) Append the non-INNER-joined lookup branches to the end of the INNER-joined
    * lookup sequence, (at 'prevExecPtr'), will be executed in a sequence, parallell
    * with the scan branch from 2).
    *
@@ -1967,7 +1969,9 @@ Dbspj::planSequentialExec(Ptr<Request>  requestPtr,
   outerBranches[outerCnt] = nextBranchPtr;                      //Resume point for last
   for (int i = 0; i < outerCnt; i++)
   {
-    DEBUG("planSequentialExec, append non-EQUI-joined branch no: " << treeNodePtr.p->m_node_no);
+    DEBUG("planSequentialExec, append non-INNER-joined branch no: "
+      << treeNodePtr.p->m_node_no);
+    
     const Uint32 err = planSequentialExec(requestPtr, outerBranches[i], prevExecPtr,
 				          outerBranches[i+1]);  //RESUME point
     if (unlikely(err))
@@ -1975,7 +1979,7 @@ Dbspj::planSequentialExec(Ptr<Request>  requestPtr,
   }
 
   /**
-   * 4) Append any non-EQUI joined scan branches to the end of the EQUI-joined
+   * 4) Append any non-INNER joined scan branches to the end of the INNER-joined
    * lookup sequence, (at 'prevExecPtr')
    */
   treeNodePtr = branchPtr;    //Start over
@@ -1989,7 +1993,8 @@ Dbspj::planSequentialExec(Ptr<Request>  requestPtr,
 	jam();
         ndbassert(treeNodePtr.p->isScan());
 	
-        DEBUG("planSequentialExec, append non-EQUI-joined scan-treeNode: " << treeNodePtr.p->m_node_no
+        DEBUG("planSequentialExec, append non-INNER-joined scan-treeNode: "
+	  << treeNodePtr.p->m_node_no
           << ", to branch at: " << branchPtr.p->m_node_no
           << ", as 'decendant' of node: " << prevExecPtr.p->m_node_no);
 
@@ -2013,8 +2018,8 @@ Dbspj::planSequentialExec(Ptr<Request>  requestPtr,
  *  outer joined branch.
  *
  *  In case of execution of a row set within the current branch is
- *  terminated due to no EQUI-matches found, execution will be resumed
- *  at 'nextBranchPtr'
+ *  terminated due to no INNER-joined matches found, execution will be
+ *  resumed at 'nextBranchPtr'
  *
  *  Fills in the 'predecessors' and 'dependencies' bitmask.
  *
@@ -2078,8 +2083,8 @@ Dbspj::appendTreeNode(Ptr<Request>  requestPtr,
    * 
    * Instead we now start only the first child lookup operation when a scan
    * completes. Completion of requests from this lookup operation will in turn
-   * either start the next EQUI-joined lookup when a TRANSID_AI result arrives,
-   * or use the 'next branch'-RESUME logic set up below if not EQUI-joined.
+   * either start the next INNER-joined lookup when a TRANSID_AI result arrives,
+   * or use the 'next branch'-RESUME logic set up below if not INNER-joined.
    * Together this maintain a steady pace of LQHKEYREQSs being submitted, where
    * the total number of submitted REQs in the pipeline will be <= number
    * of rows returned from the preceeding scan. (A 1::1 fanout)
@@ -2094,7 +2099,7 @@ Dbspj::appendTreeNode(Ptr<Request>  requestPtr,
    *      for execution. (Also implies that the parent of any ENQUEUing-TreeNode
    *      need to BUFFER_ROW)
    *  - TN_RESUME_REF: If we get a LQHKEYREF-reply it terminate any further
-   *      EQUI-join operations originating from the head of this branch.
+   *      INNER-join operations originating from the head of this branch.
    *      As this frees a scheduling quota, we may start an operation from
    *      the nextBranch to be executed.
    *  - TN_RESUME_CONF: Set only for the last operation in the branch.
@@ -2135,11 +2140,11 @@ Dbspj::appendTreeNode(Ptr<Request>  requestPtr,
   /**    Example:
    *
    *       scan1
-   *       /   \      ====EQUI-join executed as===>  scan1 -> scan2 -> scan3
+   *       /   \      ====INNER-join executed as===>  scan1 -> scan2 -> scan3
    *    scan2  scan3
    *
    * Considdering case above, both scan2 and scan3 has scan1 as its scanAncestor.
-   * In an EQUI-joined execution plan, we will take advantage of that
+   * In an INNER-joined execution plan, we will take advantage of that
    * a match between scan1 join scan2 rows are required, else 'join scan3' could
    * be skipped. Thus, even if scan1 is the scan-ancestor of scan3, we will
    * execute scan2 inbetween these.
@@ -2159,8 +2164,8 @@ Dbspj::appendTreeNode(Ptr<Request>  requestPtr,
    *      need to BUFFER_ROW).
    *
    * ::resumeBufferedNode() will iterate all its buffered parent results.
-   * For each row we will check if the required EQUI-join matches from
-   * the TreeNodes it has EQUI-join dependencies on. Non-matching parent
+   * For each row we will check if the required INNER-join matches from
+   * the TreeNodes it has INNER-join dependencies on. Non-matching parent
    * rows are skipped from further requests.
    *
    * We maintain the found matches in the m_match-bitmask in the
@@ -2636,7 +2641,7 @@ Dbspj::prepareNextBatch(Signal* signal, Ptr<Request> requestPtr)
          *   API always assumed that any nodes having an 'active' node as 
          *   ancestor get a new batch of result rows. So we didn't explicitly 
          *   set the 'active' bit for these siblings, as it was implicit.
-         *   In addition, we might now have (EQUI-join) dependencies outside
+         *   In addition, we might now have (INNER-join) dependencies outside
          *   of the set of ancestor nodes. If such a dependent node, not being one
          *   of our ancestor,  is 'active' it will also re-activate this TreeNode.
          *   Has to inform the API about that.
@@ -4580,7 +4585,7 @@ Dbspj::resumeBufferedNode(Signal* signal,
                        parentRow.m_src_correlation);
 
     // Need to consult the Scan-ancestor(s) to determine if
-    // EQUI_JOIN matches were found for all of our predecessors
+    // INNER_JOIN matches were found for all of our predecessors
     Ptr<TreeNode> scanAncestorPtr(parentPtr);
     RowPtr scanAncestorRow(parentRow);
     if (treeNodePtr.p->m_parentPtrI != treeNodePtr.p->m_scanAncestorPtrI)
@@ -4622,7 +4627,7 @@ Dbspj::resumeBufferedNode(Signal* signal,
       getBufferedRow(scanAncestorPtr, (scanAncestorRow.m_src_correlation >> 16),
                      &scanAncestorRow);
     }
-    continue;  //Row skipped, didn't 'match' dependent EQUI-join -> next row
+    continue;  //Row skipped, didn't 'match' dependent INNER-join -> next row
     
 row_accepted:
     ndbassert(treeNodePtr.p->m_info != NULL);
@@ -9464,12 +9469,12 @@ Dbspj::parseDA(Build_context& ctx,
       requestPtr.p->m_bits |= Request::RT_REPEAT_SCAN_RESULT;
     } // DABits::NI_REPEAT_SCAN_RESULT
 
-    if (treeBits & DABits::NI_EQUI_JOIN)
+    if (treeBits & DABits::NI_INNER_JOIN)
     {
       jam();
-      DEBUG("EQUI_JOIN optimization used");
-      treeNodePtr.p->m_bits |= TreeNode::T_EQUI_JOIN;
-    } // DABits::NI_EQUI_JOIN
+      DEBUG("INNER_JOIN optimization used");
+      treeNodePtr.p->m_bits |= TreeNode::T_INNER_JOIN;
+    } // DABits::NI_INNER_JOIN
 
     if (treeBits & DABits::NI_HAS_PARENT)
     {

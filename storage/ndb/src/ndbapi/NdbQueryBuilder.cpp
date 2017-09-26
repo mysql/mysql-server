@@ -2559,7 +2559,7 @@ NdbQueryPKLookupOperationDefImpl
 
   if (getMatchType() == NdbQueryOptions::MatchNonNull)
   {
-    requestInfo |= DABits::NI_EQUI_JOIN; //No outer-joins
+    requestInfo |= DABits::NI_INNER_JOIN; //No outer-joins
   }
 
   /**
@@ -2628,7 +2628,7 @@ NdbQueryIndexOperationDefImpl
 
     if (getMatchType() == NdbQueryOptions::MatchNonNull)
     {
-      requestInfo |= DABits::NI_EQUI_JOIN; //No outer-joins
+      requestInfo |= DABits::NI_INNER_JOIN; //No outer-joins
     }
 
     // Optional part1: Make list of parent nodes.
@@ -2680,8 +2680,8 @@ NdbQueryIndexOperationDefImpl
   serializedDef.alloc(QN_LookupNode::NodeSize);
   Uint32 requestInfo = 0;
 
-  // Always EQUI_JOINed with its index parent
-  requestInfo |= DABits::NI_EQUI_JOIN;
+  // Always INNER_JOINed with its index parent
+  requestInfo |= DABits::NI_INNER_JOIN;
 
   /**
    * NOTE: Order of sections within the optional part is fixed as:
@@ -2766,7 +2766,7 @@ NdbQueryScanOperationDefImpl::serialize(const Ndb *ndb,
 
   if (getMatchType() == NdbQueryOptions::MatchNonNull)
   {
-    requestInfo |= DABits::NI_EQUI_JOIN; //No outer-joins
+    requestInfo |= DABits::NI_INNER_JOIN; //No outer-joins
   }
 
   // Optional part1: Make list of parent nodes.
