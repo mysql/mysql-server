@@ -4188,3 +4188,11 @@ FROM t3 AS subquery4_t1);
 field3
 SET optimizer_switch = default;
 DROP TABLE t1, t2, t3, t4;
+# Bug#26798989: Sig 11 in find_table_in_global_list
+CREATE TABLE t1(a INTEGER);
+CREATE TABLE t2(a INTEGER);
+UPDATE t1
+SET a=5
+WHERE a IN (SELECT a FROM t2
+ORDER BY (SELECT a FROM (SELECT SUM(a) FROM t1) AS dt));
+DROP TABLE t1, t2;
