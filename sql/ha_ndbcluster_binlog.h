@@ -73,7 +73,7 @@ void ndb_rep_event_name(String *event_name,
                         const char *db, const char *tbl,
                         bool full, bool allow_hardcoded_name = true);
 
-int
+bool
 ndbcluster_get_binlog_replication_info(THD *thd, Ndb *ndb,
                                        const char* db,
                                        const char* table_name,

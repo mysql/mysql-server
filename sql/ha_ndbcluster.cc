@@ -10314,7 +10314,22 @@ void ha_ndbcluster::append_create_info(String *packet)
 
 /**
   Create a table in NDB Cluster
-*/
+
+  ERROR HANDLING:
+  1) when a new error is added call my_error()/my_printf_error() with proper
+  mysql error code from(mysqld_error.h ,mysqld_ername.h). only the first call to
+  my_error() will be displayed on the prompt, other error message can be viewed only
+  by calling 'SHOW WARNING' command. hence, make sure the new error  is first
+  in the error flow.
+
+  2)Caller of ha_ndbcluster::create() will call ha_ndbcluster::print_error() and
+  handler::print_error() with the return value.
+
+  so, incase we return MySQL error code, make sure that the error code we return is
+  present in handler::print_error(). not all error codes that are listed in mysqld_error.h
+  can be returned.
+
+  */
 
 int ha_ndbcluster::create(const char *name, 
                           TABLE *form, 
@@ -10603,18 +10618,12 @@ int ha_ndbcluster::create(const char *name,
   st_conflict_fn_arg args[MAX_CONFLICT_ARGS];
   Uint32 num_args = MAX_CONFLICT_ARGS;
 
-  int rep_read_rc= ndbcluster_get_binlog_replication_info(thd,
-                                                          ndb,
-                                                          m_dbname,
-                                                          m_tabname,
-                                                          ::server_id,
-                                                          &binlog_flags,
-                                                          &conflict_fn,
-                                                          args,
-                                                          &num_args);
-  if (rep_read_rc != 0)
+  if (ndbcluster_get_binlog_replication_info(thd, ndb, m_dbname,
+                                             m_tabname, ::server_id,
+                                             &binlog_flags, &conflict_fn,
+                                             args, &num_args))
   {
-    DBUG_RETURN(rep_read_rc);
+    DBUG_RETURN(HA_WRONG_CREATE_OPTION);
   }
 
   /* Reset database name */

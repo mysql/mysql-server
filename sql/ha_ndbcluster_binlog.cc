@@ -4666,7 +4666,7 @@ set_binlog_flags(NDB_SHARE *share,
   If the table is not found, or the table does not exist,
   then defaults are returned.
 */
-int
+bool
 ndbcluster_get_binlog_replication_info(THD *thd, Ndb *ndb,
                                        const char* db,
                                        const char* table_name,
@@ -4696,29 +4696,41 @@ ndbcluster_get_binlog_replication_info(THD *thd, Ndb *ndb,
       *binlog_flags = NBT_FULL;
       *conflict_fn = NULL;
       *num_args = 0;
-      DBUG_RETURN(0);
+      DBUG_RETURN(false);
     }
   }
 
   Ndb_rep_tab_reader rep_tab_reader;
 
-  int rc = rep_tab_reader.lookup(ndb,
+  int const rc = rep_tab_reader.lookup(ndb,
                                  db,
                                  table_name,
                                  server_id);
 
-  const char* msg = rep_tab_reader.get_warning_message();
-  if (msg != NULL)
-  {
-    push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_NDB_REPLICATION_SCHEMA_ERROR,
-                        ER_THD(thd, ER_NDB_REPLICATION_SCHEMA_ERROR),
-                        msg);
-    ndb_log_warning("NDB Binlog: %s", msg);
-  }
 
-  if (rc != 0)
-    DBUG_RETURN(ER_NDB_REPLICATION_SCHEMA_ERROR);
+  if (rc == 0)
+  {
+    // lookup() may return a warning although it succeeds
+    const char* msg = rep_tab_reader.get_warning_message();
+    if (msg != NULL)
+    {
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+          ER_NDB_REPLICATION_SCHEMA_ERROR,
+          ER_THD(thd, ER_NDB_REPLICATION_SCHEMA_ERROR),
+          msg);
+      ndb_log_warning("NDB Binlog: %s", msg);
+    }
+  }
+  else
+  {
+    /* When rep_tab_reader.lookup() returns with non-zero error code,
+    it must give a warning message describing why it failed*/
+    const char* msg = rep_tab_reader.get_warning_message();
+    DBUG_ASSERT(msg);
+    my_error(ER_NDB_REPLICATION_SCHEMA_ERROR, MYF(0), msg);
+    ndb_log_warning("NDB Binlog: %s", msg);
+    DBUG_RETURN(true);
+  }
 
   *binlog_flags= rep_tab_reader.get_binlog_flags();
   const char* conflict_fn_spec= rep_tab_reader.get_conflict_fn_spec();
@@ -4733,10 +4745,7 @@ ndbcluster_get_binlog_replication_info(THD *thd, Ndb *ndb,
                                msgbuf,
                                sizeof(msgbuf)) != 0)
     {
-        push_warning_printf(thd, Sql_condition::SL_WARNING,
-                            ER_CONFLICT_FN_PARSE_ERROR,
-                            ER_THD(thd, ER_CONFLICT_FN_PARSE_ERROR),
-                            msgbuf);
+      my_error(ER_CONFLICT_FN_PARSE_ERROR, MYF(0), msgbuf);
 
       /*
         Log as well, useful for contexts where the thd's stack of
@@ -4746,7 +4755,7 @@ ndbcluster_get_binlog_replication_info(THD *thd, Ndb *ndb,
                       db, table_name,
                       msgbuf);
 
-      DBUG_RETURN(ER_CONFLICT_FN_PARSE_ERROR);
+      DBUG_RETURN(true);
     }
   }
   else
@@ -4756,7 +4765,7 @@ ndbcluster_get_binlog_replication_info(THD *thd, Ndb *ndb,
     num_args= 0;
   }
 
-  DBUG_RETURN(0);
+  DBUG_RETURN(false);
 }
 
 int
@@ -4836,7 +4845,7 @@ ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
                                               &binlog_flags,
                                               &conflict_fn,
                                               args,
-                                              &num_args) != 0) ||
+                                              &num_args)) ||
       (ndbcluster_apply_binlog_replication_info(thd,
                                                 share,
                                                 ndbtab,
