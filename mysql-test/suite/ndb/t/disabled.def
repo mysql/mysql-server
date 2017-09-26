@@ -67,10 +67,6 @@ ndb_fk_no_fk: Bug#25915132 INPLACE ALTER TABLE WITH FOREIGN KEYS CAUSES TABLE DE
 # Inplace alter table and index problem(same problem as above)
 ndb_alter_table3: Bug#25915132 INPLACE ALTER TABLE WITH FOREIGN KEYS CAUSES TABLE DEFINITION MISMATCH
 
-# Inplace alter table reopen the table from SE and thus table definition
-# does not match
-ndb_index_unique: Bug#26028185 INPLACE ALTER TABLE REOPEN TABLE WITH TABLE DEFINITION OUT OF SYNCH
-
 # Problem with distributed privilege tables in combination with shadow
 # table behaviour causing the DD come severly out of synch on participants
 # Example:
