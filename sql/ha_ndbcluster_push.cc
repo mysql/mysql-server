@@ -1267,8 +1267,8 @@ ndb_pushed_builder_ctx::optimize_query_plan()
      * Will result in the most 'bushy' query plan (aka: star-join).
      *
      * The SPJ block may on its own choose to sequentialize the
-     * execution order of the star-join children. Thereby eliminating
-     * some operations on its sibling, where EQUI-join results could
+     * execution order of the star-joined children. Thereby eliminating
+     * some operations on its sibling, where INNER_JOIN'ed results could
      * never be produced.
      */
     const uint parent_no= parents.first_table(root_no);
