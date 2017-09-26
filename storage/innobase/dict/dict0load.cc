@@ -1448,6 +1448,7 @@ dict_check_sys_tablespaces(
 			space_name,
 			space_name,
 			filepath,
+			true,
 			true);
 
 		if (err != DB_SUCCESS) {
@@ -1693,6 +1694,7 @@ dict_check_sys_tables(
 			space_name,
 			tbl_name,
 			filepath,
+			true,
 			true);
 
 		if (err != DB_SUCCESS) {
@@ -2503,9 +2505,11 @@ dict_load_tablespace(
 	ulint fsp_flags = dict_tf_to_fsp_flags(table->flags,
 					       is_encrypted);
 
+	/* This dict_load_tablespace() is only used on old 5.7 database during
+	upgrade */
 	dberr_t err = fil_ibd_open(
 		true, FIL_TYPE_TABLESPACE, table->space,
-		fsp_flags, space_name, tbl_name, filepath, true);
+		fsp_flags, space_name, tbl_name, filepath, true, true);
 
 	if (err != DB_SUCCESS) {
 		/* We failed to find a sensible tablespace file */

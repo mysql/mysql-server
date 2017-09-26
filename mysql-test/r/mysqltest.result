@@ -1241,6 +1241,8 @@ loaddata5.dat
 loaddata6.dat
 loaddata7.dat
 loaddata_dq.dat
+loaddata_incomplete_escape.dat
+loaddata_incomplete_mb.dat
 loaddata_pair.dat
 loaddata_utf8.dat
 loadxml.dat
@@ -1263,6 +1265,8 @@ loaddata5.dat
 loaddata6.dat
 loaddata7.dat
 loaddata_dq.dat
+loaddata_incomplete_escape.dat
+loaddata_incomplete_mb.dat
 loaddata_pair.dat
 loaddata_utf8.dat
 loadxml.dat

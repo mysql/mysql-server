@@ -1247,10 +1247,11 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 
 %type <string>
         text_string opt_gconcat_separator
+        opt_xml_rows_identified_by
 
 %type <num>
         lock_option
-        udf_type if_exists opt_local
+        udf_type if_exists
         opt_no_write_to_binlog
         all_or_any opt_distinct
         fulltext_options union_option
@@ -1283,6 +1284,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         ws_num_codepoints func_datetime_precision
         now
         opt_checksum_type
+        opt_ignore_lines
 
 %type <ulonglong_number>
         ulonglong_num real_ulonglong_num size_number
@@ -1337,6 +1339,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %type <item_list2>
         expr_list udf_expr_list opt_udf_expr_list opt_expr_list select_item_list
         opt_paren_expr_list ident_list_arg ident_list values opt_values row_value fields
+        fields_or_vars
+        opt_field_or_var_spec
 
 %type <var_type>
         option_type opt_var_type opt_var_ident_type opt_set_var_ident_type
@@ -1441,6 +1445,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         opt_for_replication
         opt_full opt_extended
         opt_ignore_leaves
+        opt_local
 
 %type <show_cmd_type> opt_show_cmd_type
 
@@ -1590,6 +1595,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         handler_stmt
         insert_stmt
         keycache_stmt
+        load_stmt
         optimize_table_stmt
         preload_stmt
         repair_table_stmt
@@ -1819,6 +1825,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 
 %type <explain_format_type> opt_explain_format_type
 
+%type <load_set_element> load_data_set_elem
+
+%type <load_set_list> load_data_set_list opt_load_data_set_spec
 %%
 
 /*
@@ -1989,7 +1998,7 @@ simple_statement:
         | insert_stmt           { MAKE_CMD($1); }
         | install
         | kill
-        | load
+        | load_stmt             { MAKE_CMD($1); }
         | lock
         | optimize_table_stmt   { MAKE_CMD($1); }
         | keycache_stmt         { MAKE_CMD($1); }
@@ -12732,76 +12741,53 @@ use:
 
 /* import, export of files */
 
-load:
-          LOAD data_or_xml
+load_stmt:
+          LOAD                          /*  1 */
+          data_or_xml                   /*  2 */
+          load_data_lock                /*  3 */
+          opt_local                     /*  4 */
+          INFILE                        /*  5 */
+          TEXT_STRING_filesystem        /*  6 */
+          opt_duplicate                 /*  7 */
+          INTO                          /*  8 */
+          TABLE_SYM                     /*  9 */
+          table_ident                   /* 10 */
+          opt_use_partition             /* 11 */
+          opt_load_data_charset         /* 12 */
+          opt_xml_rows_identified_by    /* 13 */
+          opt_field_term                /* 14 */
+          opt_line_term                 /* 15 */
+          opt_ignore_lines              /* 16 */
+          opt_field_or_var_spec         /* 17 */
+          opt_load_data_set_spec        /* 18 */
           {
-            THD *thd= YYTHD;
-            LEX *lex= thd->lex;
-
-            if (lex->sphead)
-            {
-              my_error(ER_SP_BADSTATEMENT, MYF(0),
-                       $2 == FILETYPE_CSV ? "LOAD DATA" : "LOAD XML");
-              MYSQL_YYABORT;
-            }
+            $$= NEW_PTN PT_load_table($2,  // data_or_xml
+                                      $3,  // load_data_lock
+                                      $4,  // opt_local
+                                      $6,  // TEXT_STRING_filesystem
+                                      $7,  // opt_duplicate
+                                      $10, // table_ident
+                                      $11, // opt_use_partition
+                                      $12, // opt_load_data_charset
+                                      $13, // opt_xml_rows_identified_by
+                                      $14, // opt_field_term
+                                      $15, // opt_line_term
+                                      $16, // opt_ignore_lines
+                                      $17, // opt_field_or_var_spec
+                                      $18.set_var_list,// opt_load_data_set_spec
+                                      $18.set_expr_list,
+                                      $18.set_expr_str_list);
           }
-          load_data_lock opt_local INFILE TEXT_STRING_filesystem
-          opt_duplicate INTO TABLE_SYM table_ident opt_use_partition
-          {
-            LEX *lex=Lex;
-            lex->sql_command= SQLCOM_LOAD;
-            lex->local_file=  $5;
-            lex->duplicates= DUP_ERROR;
-            lex->set_ignore(false);
-            if (!(lex->exchange= new (*THR_MALLOC) sql_exchange($7.str, 0, $2)))
-              MYSQL_YYABORT;
-
-            switch ($8) {
-            case On_duplicate::ERROR:
-              Lex->duplicates=DUP_ERROR;
-              break;
-            case On_duplicate::IGNORE_DUP:
-              Lex->set_ignore(true);
-              break;
-            case On_duplicate::REPLACE_DUP:
-              Lex->duplicates=DUP_REPLACE;
-              break;
-            }
-
-            /* Fix lock for LOAD DATA CONCURRENT REPLACE */
-            if (lex->duplicates == DUP_REPLACE && $4 == TL_WRITE_CONCURRENT_INSERT)
-              $4= TL_WRITE_DEFAULT;
-            if (!Select->add_table_to_list(YYTHD, $11, NULL, TL_OPTION_UPDATING,
-                                           $4, $4 == TL_WRITE_LOW_PRIORITY ?
-                                               MDL_SHARED_WRITE_LOW_PRIO :
-                                               MDL_SHARED_WRITE, NULL, $12))
-              MYSQL_YYABORT;
-            lex->load_field_list.empty();
-            lex->load_update_list.empty();
-            lex->load_value_list.empty();
-            /* We can't give an error in the middle when using LOCAL files */
-            if (lex->local_file && lex->duplicates == DUP_ERROR)
-              lex->set_ignore(true);
-          }
-          opt_load_data_charset
-          { Lex->exchange->cs= $14; }
-          opt_xml_rows_identified_by
-          opt_field_term opt_line_term opt_ignore_lines opt_field_or_var_spec
-          opt_load_data_set_spec
-          {
-            Lex->exchange->field.merge_field_separators($17);
-            Lex->exchange->line.merge_line_separators($18);
-          }
-          ;
+        ;
 
 data_or_xml:
-        DATA_SYM  { $$= FILETYPE_CSV; }
+          DATA_SYM{ $$= FILETYPE_CSV; }
         | XML_SYM { $$= FILETYPE_XML; }
         ;
 
 opt_local:
-          /* empty */ { $$=0;}
-        | LOCAL_SYM { $$=1;}
+          /* empty */ { $$= false; }
+        | LOCAL_SYM   { $$= true; }
         ;
 
 load_data_lock:
@@ -12886,76 +12872,98 @@ line_term:
         ;
 
 opt_xml_rows_identified_by:
-        /* empty */ { }
-        | ROWS_SYM IDENTIFIED_SYM BY text_string
-          { Lex->exchange->line.line_term = $4; };
+          /* empty */                            { $$= nullptr; }
+        | ROWS_SYM IDENTIFIED_SYM BY text_string { $$= $4; }
+        ;
 
 opt_ignore_lines:
-          /* empty */
-        | IGNORE_SYM NUM lines_or_rows
-          {
-            DBUG_ASSERT(Lex->exchange != 0);
-            Lex->exchange->skip_lines= atol($2.str);
-          }
+          /* empty */                   { $$= 0; }
+        | IGNORE_SYM NUM lines_or_rows  { $$= atol($2.str); }
         ;
 
 lines_or_rows:
-        LINES { }
-
-        | ROWS_SYM { }
+          LINES
+        | ROWS_SYM
         ;
 
 opt_field_or_var_spec:
-          /* empty */ {}
-        | '(' fields_or_vars ')' {}
-        | '(' ')' {}
+          /* empty */            { $$= nullptr; }
+        | '(' fields_or_vars ')' { $$= $2; }
+        | '(' ')'                { $$= nullptr; }
         ;
 
 fields_or_vars:
           fields_or_vars ',' field_or_var
-          { Lex->load_field_list.push_back($3); }
+          {
+            $$= $1;
+            if ($$->push_back($3))
+              MYSQL_YYABORT; // OOM
+          }
         | field_or_var
-          { Lex->load_field_list.push_back($1); }
+          {
+            $$= NEW_PTN PT_item_list;
+            if ($$ == nullptr || $$->push_back($1))
+              MYSQL_YYABORT; // OOM
+          }
         ;
 
 field_or_var:
-          simple_ident_nospvar { ITEMIZE($1, &$$); }
+          simple_ident_nospvar
         | '@' ident_or_text
           {
-            $$= NEW_PTN Item_user_var_as_out_param($2);
-            if ($$ == NULL)
-              MYSQL_YYABORT;
+            $$= NEW_PTN Item_user_var_as_out_param(@$, $2);
           }
         ;
 
 opt_load_data_set_spec:
-          /* empty */ {}
-        | SET_SYM load_data_set_list {}
+          /* empty */                { $$= {nullptr, nullptr, nullptr}; }
+        | SET_SYM load_data_set_list { $$= $2; }
         ;
 
 load_data_set_list:
           load_data_set_list ',' load_data_set_elem
+          {
+            $$= $1;
+            if ($$.set_var_list->push_back($3.set_var) ||
+                $$.set_expr_list->push_back($3.set_expr) ||
+                $$.set_expr_str_list->push_back($3.set_expr_str))
+              MYSQL_YYABORT; // OOM
+          }
         | load_data_set_elem
+          {
+            $$.set_var_list= NEW_PTN PT_item_list;
+            if ($$.set_var_list == nullptr ||
+                $$.set_var_list->push_back($1.set_var))
+              MYSQL_YYABORT; // OOM
+
+            $$.set_expr_list= NEW_PTN PT_item_list;
+            if ($$.set_expr_list == nullptr ||
+                $$.set_expr_list->push_back($1.set_expr))
+              MYSQL_YYABORT; // OOM
+
+            $$.set_expr_str_list= NEW_PTN List<String>;
+            if ($$.set_expr_str_list == nullptr ||
+                $$.set_expr_str_list->push_back($1.set_expr_str))
+              MYSQL_YYABORT; // OOM
+          }
         ;
 
 load_data_set_elem:
           simple_ident_nospvar equal expr_or_default
           {
-            ITEMIZE($1, &$1);
-            ITEMIZE($3, &$3);
+            size_t length= @3.cpp.end - @2.cpp.start;
 
-            LEX *lex= Lex;
-            uint length= (uint) (@3.cpp.end - @2.cpp.start);
-            String *val= NEW_PTN String(@2.cpp.start,
-                                        length,
-                                        YYTHD->charset());
-            if (val == NULL)
-              MYSQL_YYABORT;
-            if (lex->load_update_list.push_back($1) ||
-                lex->load_value_list.push_back($3) ||
-                lex->load_set_str_list.push_back(val))
-                MYSQL_YYABORT;
+            if ($3 == nullptr)
+              MYSQL_YYABORT; // OOM
             $3->item_name.copy(@2.cpp.start, length, YYTHD->charset());
+
+            $$.set_var= $1;
+            $$.set_expr= $3;
+            $$.set_expr_str= NEW_PTN String(@2.cpp.start,
+                                            length,
+                                            YYTHD->charset());
+            if ($$.set_expr_str == nullptr)
+              MYSQL_YYABORT; // OOM
           }
         ;
 

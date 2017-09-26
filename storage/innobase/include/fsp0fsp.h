@@ -897,6 +897,22 @@ fsp_sdi_write_root_to_page(
 
 #include "fsp0fsp.ic"
 
+/** Reads the server version from the first page of a tablespace.
+@param[in]	page	first page of a tablespace
+@return space server version */
+inline
+uint32
+fsp_header_get_server_version(
+	const page_t*	page);
+
+/** Reads the server space version from the first page of a tablespace.
+@param[in]	page	first page of a tablespace
+@return space server version */
+inline
+uint32
+fsp_header_get_space_version(
+	const page_t*	page);
+
 /** Get the state of an xdes.
 @param[in]	descr	extent descriptor
 @param[in,out]	mtr	mini transaction.

@@ -995,6 +995,10 @@ static uint32_t dd_upgrade_register_tablespace(
                static_cast<uint32>(upgrade_space->id));
   p.set_uint32(dd_space_key_strings[DD_SPACE_FLAGS],
                static_cast<uint32>(upgrade_space->flags));
+  p.set_uint32(dd_space_key_strings[DD_SPACE_SERVER_VERSION],
+	       DD_SPACE_CURRENT_SRV_VERSION);
+  p.set_uint32(dd_space_key_strings[DD_SPACE_VERSION],
+	       DD_SPACE_CURRENT_SPACE_VERSION);
   dd::Tablespace_file* dd_file = dd_space->add_file();
 
   dd_file->set_filename(upgrade_space->path);

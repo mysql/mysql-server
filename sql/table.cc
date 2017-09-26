@@ -7808,6 +7808,7 @@ void TABLE_LIST::propagate_table_maps(table_map map_arg)
     embedding->propagate_table_maps(prop_map);
 }
 
+
 LEX_USER *
 LEX_USER::alloc(THD *thd, LEX_STRING *user_arg, LEX_STRING *host_arg)
 {

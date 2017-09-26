@@ -312,6 +312,20 @@ public:
 		return(m_order);
 	}
 
+	/** Get Datafile::m_server_version.
+	@return m_server_version */
+	ulint	server_version()	const
+	{
+		return(m_server_version);
+	}
+
+	/** Get Datafile::m_space_version.
+	@return m_space_version */
+	ulint	space_version()	const
+	{
+		return(m_space_version);
+	}
+
 	/** Get Datafile::m_space_id.
 	@return m_space_id */
 	space_id_t	space_id()	const
@@ -444,6 +458,12 @@ private:
 	If this is a system tablespace, FSP_SPACE_ID is only valid
 	in the first datafile. */
 	space_id_t		m_space_id;
+
+	/** Server version */
+	uint32			m_server_version;
+
+	/** Space version */
+	uint32			m_space_version;
 
 	/** Tablespace flags. Contained in the datafile header.
 	If this is a system tablespace, FSP_SPACE_FLAGS are only valid

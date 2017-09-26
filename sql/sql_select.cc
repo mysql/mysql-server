@@ -797,8 +797,9 @@ bool Sql_cmd_select::precheck(THD *thd)
     lex->exchange != NULL implies SELECT .. INTO OUTFILE and this
     requires FILE_ACL access.
   */
-  ulong privileges_requested= lex->exchange ? SELECT_ACL | FILE_ACL :
-                                              SELECT_ACL;
+  ulong privileges_requested= (lex->result != nullptr &&
+                               lex->result->needs_file_privilege()) ?
+    SELECT_ACL | FILE_ACL : SELECT_ACL;
 
   TABLE_LIST *tables= lex->query_tables;
   //TABLE_LIST *first_table= tables;

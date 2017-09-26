@@ -1023,16 +1023,22 @@ const double log_10[] = {
   1e300, 1e301, 1e302, 1e303, 1e304, 1e305, 1e306, 1e307, 1e308
 };
 
+
 /* Index extention. */
+const int index_ext_length= 6;
 const char *index_ext= ".index";
-#define INDEX_EXT_LENGTH 6
+const int relay_ext_length= 10;
+const char *relay_ext= "-relay-bin";
+
 time_t server_start_time, flush_status_time;
 
 char server_uuid[UUID_LENGTH+1];
 const char *server_uuid_ptr;
 char mysql_home[FN_REFLEN], pidfile_name[FN_REFLEN], system_time_zone[30];
 char default_logfile_name[FN_REFLEN];
-char default_binlog_index_name[FN_REFLEN+INDEX_EXT_LENGTH];
+char default_binlog_index_name[FN_REFLEN+index_ext_length];
+char default_relaylogfile_name[FN_REFLEN+relay_ext_length];
+char default_relaylog_index_name[FN_REFLEN+relay_ext_length+index_ext_length];
 char *default_tz_name;
 static char errorlog_filename_buff[FN_REFLEN];
 const char *log_error_dest;
@@ -4577,6 +4583,21 @@ static int init_server_components()
   DBUG_PRINT("debug",
              ("opt_bin_logname: %s, opt_relay_logname: %s, pidfile_name: %s",
               opt_bin_logname, opt_relay_logname, pidfile_name));
+
+  if (!opt_relay_logname || !opt_relay_logname[0])
+  {
+    /* Generate default relay log file name. */
+    strmake(default_relaylogfile_name, default_logfile_name, FN_REFLEN - 1);
+    opt_relay_logname= strcat(default_relaylogfile_name, relay_ext);
+  }
+
+  if (!opt_relaylog_index_name || !opt_relaylog_index_name[0])
+  {
+    strmake(default_relaylog_index_name, opt_relay_logname,
+            FN_REFLEN + relay_ext_length - 1);
+    opt_relaylog_index_name= strcat(default_relaylog_index_name, index_ext);
+  }
+
   /*
     opt_relay_logname[0] needs to be checked to make sure opt relaylog name is
     not an empty string, incase it is an empty string default file
@@ -4585,7 +4606,7 @@ static int init_server_components()
   relay_log_basename=
     rpl_make_log_name(key_memory_MYSQL_RELAY_LOG_basename,
                       opt_relay_logname, default_logfile_name,
-                      (opt_relay_logname && opt_relay_logname[0]) ? "" : "-relay-bin");
+                      (opt_relay_logname && opt_relay_logname[0]) ? "" : relay_ext);
 
   if (relay_log_basename != NULL)
     relay_log_index=
@@ -4601,16 +4622,18 @@ static int init_server_components()
 
   if (log_bin_basename != NULL && !strcmp(log_bin_basename, relay_log_basename))
   {
-    const int relay_ext_length= 10;
     const int bin_ext_length= 4;
     char default_binlogfile_name[FN_REFLEN+bin_ext_length];
-    char default_relaylogfile_name[FN_REFLEN+relay_ext_length];
     /* Generate default bin log file name. */
     strmake(default_binlogfile_name, default_logfile_name, FN_REFLEN - 1);
     strcat(default_binlogfile_name, "-bin");
-    /* Generate default relay log file name. */
-    strmake(default_relaylogfile_name, default_logfile_name, FN_REFLEN - 1);
-    strcat(default_relaylogfile_name, "-relay-bin");
+
+    if (!default_relaylogfile_name[0])
+    {
+      /* Generate default relay log file name. */
+      strmake(default_relaylogfile_name, default_logfile_name, FN_REFLEN - 1);
+      strcat(default_relaylogfile_name, relay_ext);
+    }
     /*
       Reports an error and aborts, if the same base name is specified
       for both binary and relay logs.
@@ -6748,9 +6771,11 @@ struct my_option my_long_options[]=
    &lc_time_names_name, &lc_time_names_name,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   {"log-bin", OPT_BIN_LOG,
-   "Log update queries in binary format. Optional (but strongly recommended "
-   "to avoid replication problems if server's hostname changes) argument "
-   "should be the chosen location for the binary log files.",
+   "Configures the name prefix to use for binary log files. The name prefix "
+   "defaults to `hostname`-bin if the --log-bin option is not configured. "
+   "To set a different name prefix for binary log files use --log-bin=name. "
+   "To disable binary logging use the --skip-log-bin or --disable-log-bin "
+   "option.",
    &opt_bin_logname, &opt_bin_logname, 0, GET_STR_ALLOC,
    OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"log-bin-index", 0,

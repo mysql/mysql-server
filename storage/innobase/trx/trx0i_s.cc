@@ -972,8 +972,8 @@ fetch_data_into_cache_low(
 						transactions */
 	trx_ut_list_t*		trx_list)	/*!< in: trx list */
 {
-	const trx_t*		trx;
-	bool			rw_trx_list = trx_list == &trx_sys->rw_trx_list;
+	trx_t*		trx;
+	bool		rw_trx_list = trx_list == &trx_sys->rw_trx_list;
 
 	ut_ad(rw_trx_list || trx_list == &trx_sys->mysql_trx_list);
 
@@ -992,11 +992,14 @@ fetch_data_into_cache_low(
 		i_s_trx_row_t*		trx_row;
 		i_s_locks_row_t*	requested_lock_row;
 
+		trx_mutex_enter(trx);
+
 		/* Note: Read only transactions that modify temporary
 		tables an have a transaction ID */
 		if (!trx_is_started(trx)
 		    || (!rw_trx_list && trx->id != 0 && !trx->read_only)) {
 
+			trx_mutex_exit(trx);
 			continue;
 		}
 
@@ -1008,6 +1011,7 @@ fetch_data_into_cache_low(
 						     &requested_lock_row)) {
 
 			cache->is_truncated = TRUE;
+			trx_mutex_exit(trx);
 			return;
 		}
 
@@ -1019,6 +1023,7 @@ fetch_data_into_cache_low(
 		if (trx_row == NULL) {
 
 			cache->is_truncated = TRUE;
+			trx_mutex_exit(trx);
 			return;
 		}
 
@@ -1027,8 +1032,11 @@ fetch_data_into_cache_low(
 			/* memory could not be allocated */
 			--cache->innodb_trx.rows_used;
 			cache->is_truncated = TRUE;
+			trx_mutex_exit(trx);
 			return;
 		}
+
+		trx_mutex_exit(trx);
 	}
 }
 

@@ -618,3 +618,28 @@ SELECT HEX(a) FROM t1;
 HEX(a)
 815C825C
 DROP TABLE t1;
+#
+# Regression test added in WL#8063
+#
+LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890;
+ERROR 42000: Identifier name 't123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789' is too long
+CREATE TABLE t1(a VARCHAR(20));
+LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t1 ();
+LOAD DATA INFILE '../../std_data/loaddata_incomplete_mb.dat' INTO TABLE t1 IGNORE 20 LINES;
+LOAD DATA INFILE '../../std_data/loaddata_incomplete_escape.dat' INTO TABLE t1 IGNORE 20 LINES;
+CREATE PROCEDURE p1() LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t1;
+ERROR 0A000: LOAD DATA is not allowed in stored procedures
+SET @save_local_infile = @@local_infile;
+SET GLOBAL local_infile = OFF;
+LOAD DATA LOCAL INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t1;
+ERROR 42000: The used command is not allowed with this MySQL version
+SET GLOBAL local_infile = @save_local_infile;
+DROP TABLE t1;
+CREATE TABLE t2(a BLOB);
+LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t2 FIELDS TERMINATED BY '' LINES TERMINATED BY '';
+ERROR 42000: You can't use fixed rowlength with BLOBs; please use 'fields terminated by'
+DROP TABLE t2;
+CREATE TABLE t3(a VARCHAR(20), i INT NOT NULL);
+LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t3 (a) SET i = NULL;
+ERROR 23000: Column 'i' cannot be null
+DROP TABLE t3;

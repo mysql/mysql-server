@@ -40,6 +40,7 @@
 #include "sql/item_func.h"
 #include "sql/key.h"
 #include "sql/key_spec.h"
+#include "sql/sql_load.h"            // Sql_cmd_load_table
 #include "sql/mdl.h"
 #include "sql/mem_root_array.h"
 #include "sql/mysqld.h"              // table_alias_charset
@@ -1799,14 +1800,9 @@ public:
 };
 
 
-class PT_into_destination_outfile : public PT_into_destination
+class PT_into_destination_outfile final : public PT_into_destination
 {
   typedef PT_into_destination super;
-
-  const char *file_name;
-  const CHARSET_INFO *charset;
-  const Field_separators field_term;
-  const Line_separators line_term;
 
 public:
   PT_into_destination_outfile(const POS &pos,
@@ -1814,47 +1810,42 @@ public:
                               const CHARSET_INFO *charset_arg,
                               const Field_separators &field_term_arg,
                               const Line_separators &line_term_arg)
-    : PT_into_destination(pos),
-      file_name(file_name_arg.str),
-      charset(charset_arg),
-      field_term(field_term_arg),
-      line_term(line_term_arg)
-  {}
+    : PT_into_destination(pos), m_exchange(file_name_arg.str, false)
+  {
+    m_exchange.cs= charset_arg;
+    m_exchange.field.merge_field_separators(field_term_arg);
+    m_exchange.line.merge_line_separators(line_term_arg);
+  }
 
-  virtual bool contextualize(Parse_context *pc)
+  bool contextualize(Parse_context *pc) override
   {
     if (super::contextualize(pc))
       return true;
 
     LEX *lex= pc->thd->lex;
     lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
-    if (!(lex->exchange= new (*THR_MALLOC) sql_exchange(file_name, 0)) ||
-        !(lex->result= new (*THR_MALLOC) Query_result_export(pc->thd, lex->exchange)))
+    if (!(lex->result= new (*THR_MALLOC) Query_result_export(pc->thd,
+                                                             &m_exchange)))
       return true;
-
-    lex->exchange->cs= charset;
-    lex->exchange->field.merge_field_separators(field_term);
-    lex->exchange->line.merge_line_separators(line_term);
 
     return false;
   }
+
+private:
+  sql_exchange m_exchange;
 };
 
 
-class PT_into_destination_dumpfile : public PT_into_destination
+class PT_into_destination_dumpfile final : public PT_into_destination
 {
   typedef PT_into_destination super;
 
-  const char *file_name;
-
 public:
-  explicit PT_into_destination_dumpfile(const POS &pos,
-                                        const LEX_STRING &file_name_arg)
-    : PT_into_destination(pos),
-      file_name(file_name_arg.str)
+  PT_into_destination_dumpfile(const POS &pos, const LEX_STRING &file_name_arg)
+    : PT_into_destination(pos), m_exchange(file_name_arg.str, true)
   {}
 
-  virtual bool contextualize(Parse_context *pc)
+  bool contextualize(Parse_context *pc) override
   {
     if (super::contextualize(pc))
       return true;
@@ -1863,13 +1854,15 @@ public:
     if (!lex->is_explain())
     {
       lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
-      if (!(lex->exchange= new (*THR_MALLOC) sql_exchange(file_name, 1)))
-        return true;
-      if (!(lex->result= new (*THR_MALLOC) Query_result_dump(pc->thd, lex->exchange)))
+      if (!(lex->result= new (*THR_MALLOC) Query_result_dump(pc->thd,
+                                                             &m_exchange)))
         return true;
     }
     return false;
   }
+
+private:
+  sql_exchange m_exchange;
 };
 
 
@@ -5721,6 +5714,64 @@ public:
 private:
   const Explain_format_type m_format;
   Parse_tree_root * const m_explainable_stmt;
+};
+
+
+class PT_load_table final : public Parse_tree_root
+{
+public:
+  PT_load_table(enum_filetype filetype,
+                thr_lock_type lock_type,
+                bool is_local_file,
+                const LEX_STRING filename,
+                On_duplicate on_duplicate,
+                Table_ident *table,
+                List<String> *opt_partitions,
+                const CHARSET_INFO *opt_charset,
+                String *opt_xml_rows_identified_by,
+                const Field_separators &opt_field_separators,
+                const Line_separators &opt_line_separators,
+                ulong opt_ignore_lines,
+                PT_item_list *opt_fields_or_vars,
+                PT_item_list *opt_set_fields,
+                PT_item_list *opt_set_exprs,
+                List<String> *opt_set_expr_strings)
+    : m_cmd(filetype,
+            is_local_file,
+            filename,
+            on_duplicate,
+            table,
+            opt_partitions,
+            opt_charset,
+            opt_xml_rows_identified_by,
+            opt_field_separators,
+            opt_line_separators,
+            opt_ignore_lines,
+            opt_fields_or_vars ? &opt_fields_or_vars->value : nullptr,
+            opt_set_fields ? &opt_set_fields->value : nullptr,
+            opt_set_exprs ? &opt_set_exprs->value : nullptr,
+            opt_set_expr_strings),
+      m_lock_type(lock_type),
+      m_opt_fields_or_vars(opt_fields_or_vars),
+      m_opt_set_fields(opt_set_fields),
+      m_opt_set_exprs(opt_set_exprs)
+  {
+      DBUG_ASSERT((opt_set_fields == nullptr) ^
+                  (opt_set_exprs != nullptr));
+      DBUG_ASSERT(opt_set_fields == nullptr ||
+                  opt_set_fields->value.elements ==
+                  opt_set_exprs->value.elements);
+  }
+
+  Sql_cmd *make_cmd(THD *thd) override;
+
+private:
+  Sql_cmd_load_table m_cmd;
+
+  const thr_lock_type m_lock_type;
+  PT_item_list *m_opt_fields_or_vars;
+  PT_item_list *m_opt_set_fields;
+  PT_item_list *m_opt_set_exprs;
 };
 
 #endif /* PARSE_TREE_NODES_INCLUDED */
