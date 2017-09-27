@@ -25,3 +25,23 @@ INSERT INTO t1 VALUES(1),(1);
 --error ER_SUBQUERY_NO_1_ROW
 SELECT ((SELECT 1 FROM t1) IN (SELECT 1 FROM t1)) - (11111111111111111111);
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#26679495: SIG 11 IN SUBSELECT_HASH_SJ_ENGINE::CLEANUP
+--echo #
+
+CREATE TABLE t (x INT);
+INSERT INTO t VALUES (1), (2), (3);
+ANALYZE TABLE t;
+--let $query= SELECT * FROM t WHERE x IN (SELECT COUNT(*) FROM t GROUP BY x)
+--echo # The subquery should be materialized so that we
+--echo # use subselect_hash_sj_engine.
+--eval EXPLAIN $query
+--eval $query
+--echo # Execute the query with a simulated error in
+--echo # subselect_hash_sj_engine::setup().
+SET DEBUG='+d,hash_semijoin_fail_in_setup';
+--error ER_UNKNOWN_ERROR
+--eval $query
+SET DEBUG='-d,hash_semijoin_fail_in_setup';
+DROP TABLE t;
