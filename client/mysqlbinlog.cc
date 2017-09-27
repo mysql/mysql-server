@@ -85,8 +85,10 @@ std::map<std::string, std::string> map_mysqlbinlog_rewrite_db;
 */
 inline void reset_temp_buf_and_delete(Log_event *ev)
 {
+  char *event_buf= ev->temp_buf;
   ev->temp_buf= NULL;
   delete ev;
+  my_free(event_buf);
 }
 
 static bool
@@ -2692,8 +2694,14 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     */
     if (type == binary_log::HEARTBEAT_LOG_EVENT)
       continue;
-    event_buf= (char *) net->read_pos + 1;
     event_len= len - 1;
+    if (!(event_buf = (char*) my_malloc(key_memory_log_event,
+                                        event_len+1, MYF(0))))
+    {
+      error("Out of memory.");
+      DBUG_RETURN(ERROR_STOP);
+    }
+    memcpy(event_buf, net->buff + 1, event_len);
     if (rewrite_db_filter(&event_buf, &event_len, glob_description_event))
     {
       error("Got a fatal error while applying rewrite db filter.");
@@ -2709,13 +2717,10 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
                                           opt_verify_binlog_checksum)))
       {
         error("Could not construct log event object: %s", error_msg);
+        my_free(event_buf);
         DBUG_RETURN(ERROR_STOP);
       }
-      /*
-        If reading from a remote host, ensure the temp_buf for the
-        Log_event class is pointing to the incoming stream.
-      */
-      ev->register_temp_buf((char *) net->read_pos + 1);
+      ev->register_temp_buf(event_buf);
     }
     if (raw_mode || (type != binary_log::LOAD_EVENT))
     {
