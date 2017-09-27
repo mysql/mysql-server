@@ -103,11 +103,8 @@ dd_parse_tbl_name(
 	       strlen(tbl_name) - db_len - 1);
 	tbl_buf[strlen(tbl_name) - db_len - 1] = 0;
 
-	filename_to_tablename(db_buf, dd_db_name, MAX_DATABASE_NAME_LEN + 1
-#ifndef DBUG_OFF
-			      , true
-#endif /* DBUG_OFF */
-	);
+	filename_to_tablename(db_buf, dd_db_name, MAX_DATABASE_NAME_LEN + 1,
+			      true);
 
 	is_part = strstr(tbl_buf, part_sep);
 

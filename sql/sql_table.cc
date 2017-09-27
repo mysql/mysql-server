@@ -628,11 +628,8 @@ void parse_filename(const char *filename, size_t filename_length,
     Table name length.
 */
 
-size_t filename_to_tablename(const char *from, char *to, size_t to_length
-#ifndef DBUG_OFF
-                           , bool stay_quiet
-#endif /* DBUG_OFF */
-                           )
+size_t filename_to_tablename(const char *from, char *to, size_t to_length,
+                             bool stay_quiet)
 {
   uint errors;
   size_t res;
@@ -651,13 +648,9 @@ size_t filename_to_tablename(const char *from, char *to, size_t to_length
                     system_charset_info,  to, to_length, &errors);
     if (errors) // Old 5.0 name
     {
-#ifndef DBUG_OFF
       if (!stay_quiet) {
-#endif /* DBUG_OFF */
         LogErr(ERROR_LEVEL, ER_INVALID_OR_OLD_TABLE_OR_DB_NAME, from);
-#ifndef DBUG_OFF
       }
-#endif /* DBUG_OFF */
       /*
         TODO: add a stored procedure for fix table and database names,
         and mention its name in error log.
