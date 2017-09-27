@@ -1137,10 +1137,11 @@ sub collect_one_test_case {
       if ( $default_storage_engine =~ /^mysiam/i );
   }
 
-  if ( ! $tinfo->{'not_parallel'} and $::opt_run_non_parallel_tests )
+  # Skip non-parallel tests if 'non-parallel-test' option is disabled
+  if ($tinfo->{'not_parallel'} and !$::opt_non_parallel_test)
   {
     $tinfo->{'skip'}= 1;
-    $tinfo->{'comment'}= "Test needs 'include/not_parallel.inc' include file when 'run-non-parallel-tests' option is set";
+    $tinfo->{'comment'}= "Test needs 'non-parallel-test' option";
     return $tinfo;
   }
 
