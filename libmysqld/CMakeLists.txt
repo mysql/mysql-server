@@ -166,6 +166,14 @@ IF(HAVE_NO_UNUSED_TYPEDEFS)
   )
 ENDIF()
 
+# Segfault in boost::geometry code at high optimization levels
+IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
+  STRING(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKEBT)
+  IF(CMAKEBT MATCHES "^REL")
+    ADD_COMPILE_FLAGS(../sql/item_geofunc_buffer.cc COMPILE_FLAGS "-xO2")
+  ENDIF()
+ENDIF()
+
 # Boost source has misleading indentation
 MY_CHECK_CXX_COMPILER_FLAG("-Wmisleading-indentation"
                            HAVE_MISLEADING_INDENTATION)
