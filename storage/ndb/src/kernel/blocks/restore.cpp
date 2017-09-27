@@ -1799,6 +1799,7 @@ Restore::init_file(const RestoreLcpReq* req, FilePtr file_ptr)
   file_ptr.p->m_outstanding_reads = 0;
   file_ptr.p->m_outstanding_operations = 0;
 
+  file_ptr.p->m_rows_in_lcp = 0;
   file_ptr.p->m_rows_restored = 0;
   file_ptr.p->m_rows_restored_insert = 0;
   file_ptr.p->m_rows_restored_delete = 0;
