@@ -9358,7 +9358,8 @@ Fil_system::check_missing_tablespaces()
 		know that the problem is elsewhere. If a file deleted
 		record was not found in the redo log and the tablespace
 		doesn't exist in the SYS_TABLESPACES file then it is
-		an error or data corruption. */
+		an error or data corruption. The special case is an
+		undo truncate in progress. */
 
 		if (recv_sys->deleted.find(space_id) == end
 		    && recv_sys->missing_ids.find(space_id)
@@ -9397,7 +9398,13 @@ Fil_system::check_missing_tablespaces()
 				<< "Could not find any file associated with"
 				<< " the tablespace ID: " << space_id;
 
-			missing = true;
+			if (!fsp_is_undo_tablespace(space_id)) {
+
+				missing = true;
+			} else {
+				/* Could be an undo truncate in progress. */
+			}
+
 		} else {
 			ut_a(!result.second->empty());
 		}
@@ -10335,7 +10342,15 @@ Tablespace_dirs::duplicate_check(
 				duplicates->insert(space_id);
 			}
 
+		} else if (Fil_path::is_undo_tablespace_name(phy_filename)) {
+
+			ib::info()
+				<< "Can't determine the undo file tablespace"
+				<< " ID for '" << phy_filename << "', could be"
+				<< " an undo truncate in progress";
+
 		} else {
+
 			ib::warn()
 				<< "Ignoring '" << phy_filename << "' invalid"
 				<< " tablespace ID in the header";
