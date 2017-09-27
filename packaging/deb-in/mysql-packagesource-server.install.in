@@ -100,5 +100,5 @@ usr/share/mysql/errmsg-utf8.txt
 @DEB_INSTALL_SERVER_SYSTEMD@
 usr/share/mysql/mysqld_multi.server
 # legal
-usr/share/doc/mysql-@DEB_PRODUCTNAME@-server/@DEB_INSTALL_LICENSEFILE@
-usr/share/doc/mysql-@DEB_PRODUCTNAME@-server/README
+usr/share/mysql/@DEB_INSTALL_LICENSEFILE@ usr/share/doc/mysql-@DEB_PRODUCTNAME@-server/
+usr/share/mysql/README usr/share/doc/mysql-@DEB_PRODUCTNAME@-server/
