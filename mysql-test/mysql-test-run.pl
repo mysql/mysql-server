@@ -345,7 +345,6 @@ my $opt_max_save_datadir= env_or_val(MTR_MAX_SAVE_DATADIR => 20);
 my $opt_max_test_fail= env_or_val(MTR_MAX_TEST_FAIL => 10);
 
 our $opt_parallel= $ENV{MTR_PARALLEL};
-
 our $opt_run_non_parallel_tests;
 
 our $opt_summary_report;
@@ -668,6 +667,9 @@ sub run_test_server ($$$) {
   my $result;
   my $exe_mysqld= find_mysqld($basedir) || ""; # Used as hint to CoreDump
 
+  my $non_parallel_tests= [];
+  my $completed_wid_count= 0;
+
   my $suite_timeout= start_timer(suite_timeout());
 
   my $s= IO::Select->new();
@@ -882,6 +884,15 @@ sub run_test_server ($$$) {
 	    redo;
 	  }
 
+          # Create a separate list for tests sourcing 'not_parallel.inc'
+          # include file.
+          if ($t->{'not_parallel'})
+          {
+            push (@$non_parallel_tests, splice(@$tests, $i, 1));
+            # Search for the next available test.
+            redo;
+          }
+
 	  # Limit number of parallell NDB tests
 	  if ($t->{ndb_test} and $num_ndb_tests >= $max_ndb){
 	    #mtr_report("Skipping, num ndb is already at max, $num_ndb_tests");
@@ -933,17 +944,43 @@ sub run_test_server ($$$) {
 	  delete $next->{reserved};
 	}
 
-	if ($next) {
-	  # We don't need this any more
-	  delete $next->{criteria};
-	  $next->write_test($sock, 'TESTCASE');
-	  $running{$next->key()}= $next;
-	  $num_ndb_tests++ if ($next->{ndb_test});
-	}
-	else {
-	  # No more test, tell child to exit
-	  #mtr_report("Saying BYE to child");
-	  print $sock "BYE\n";
+        if ($next)
+        {
+          # We don't need this any more
+          delete $next->{criteria};
+          $next->write_test($sock, 'TESTCASE');
+          $running{$next->key()}= $next;
+          $num_ndb_tests++ if ($next->{ndb_test});
+        }
+        else
+        {
+          # Keep track of the number of child processes completed. Last
+          # one will be used to run the non-parallel tests at the end.
+          if ($completed_wid_count < $opt_parallel)
+          {
+            $completed_wid_count++;
+          }
+
+          # Check if there exist any non-parallel tests which should
+          # be run using the last active worker process.
+          if (int(@$non_parallel_tests) > 0 and
+              $completed_wid_count == $opt_parallel)
+          {
+            # Fetch the next test to run from non_parallel_tests list
+            $next= shift @$non_parallel_tests;
+
+            # We don't need this any more
+            delete $next->{criteria};
+
+            $next->write_test($sock, 'TESTCASE');
+            $running{$next->key()}= $next;
+            $num_ndb_tests++ if ($next->{ndb_test});
+          }
+          else
+          {
+            # No more test, tell child to exit
+            print $sock "BYE\n";
+          }
 	}
       }
     }
@@ -1163,7 +1200,7 @@ sub command_line_setup {
 	     # Max number of parallel threads to use
 	     'parallel=s'               => \$opt_parallel,
 
-             # Option to run the tests having 'not_parallel.inc' file
+             # Option to run the tests sourcing 'not_parallel.inc' file
              'run-non-parallel-tests'   => \$opt_run_non_parallel_tests,
 
              # Config file to use as template for all tests
@@ -1644,17 +1681,29 @@ sub command_line_setup {
 
   set_vardir($opt_vardir);
 
-  # Check if both "parallel" and "run-non-parallel-tests" options are set
-  if ( $opt_parallel )
+  # Check if "parallel" options is set
+  if (not defined $opt_parallel)
   {
-    if ( $opt_run_non_parallel_tests )
-    {
-      mtr_error("Can't use --parallel with --run-non-parallel-tests");
-    }
+    # Set parallel value to 1
+    $opt_parallel= 1;
   }
   else
   {
-    $opt_parallel= 1;
+    my $flag= 0;
+    # Check if parallel value is a positive number or "auto".
+    if ($opt_parallel =~ /^[0-9]+$/)
+    {
+      # Numeric value, can't be less than '1'
+      $flag= 1 if ($opt_parallel < 1);
+    }
+    else
+    {
+      # String value and should be "auto"
+      $flag= 1 if ($opt_parallel ne "auto");
+    }
+
+    mtr_error("Invalid value '$opt_parallel' for '--parallel' option, ".
+              "use 'auto' or a positive number.") if $flag;
   }
 
   # --------------------------------------------------------------------------
@@ -1684,14 +1733,6 @@ sub command_line_setup {
   # --------------------------------------------------------------------------
   if ($opt_fast){
     $opt_shutdown_timeout= 0; # Kill processes instead of nice shutdown
-  }
-
-  # --------------------------------------------------------------------------
-  # Check parallel value
-  # --------------------------------------------------------------------------
-  if ($opt_parallel ne "auto" && $opt_parallel < 1)
-  {
-    mtr_error("0 or negative parallel value makes no sense, use 'auto' or positive number");
   }
 
   # --------------------------------------------------------------------------
@@ -7624,7 +7665,8 @@ Misc options
   parallel=N            Run tests in N parallel threads (default=1)
                         Use parallel=auto for auto-setting of N
   run-non-parallel-tests
-                        Option to run the tests having 'not_parallel.inc' file
+                        Also run tests marked as 'non-parallel'. Tests sourcing
+                        'not_parallel.inc' are marked as 'non-parallel' tests.
   repeat=N              Run each test N number of times
   retry=N               Retry tests that fail N times, limit number of failures
                         to $opt_retry_failure

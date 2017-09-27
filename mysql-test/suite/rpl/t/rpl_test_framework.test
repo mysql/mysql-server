@@ -13,7 +13,6 @@
 #
 # BUG#49978: Replication tests don't clean up replication state at the end
 
-
 --source include/not_parallel.inc
 --source include/no_valgrind_without_big.inc
 

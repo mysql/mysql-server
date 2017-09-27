@@ -1,3 +1,2 @@
-if ($MTR_PARALLEL > 1) {
-  --skip test requires --parallel=1
-}
+# Tests sourcing this include file will run at the end one at a time
+# on a same worker process.
