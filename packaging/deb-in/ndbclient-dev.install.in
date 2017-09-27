@@ -49,5 +49,5 @@ usr/include/mysql/storage/ndb/mgmapi/mgmapi.h
 usr/include/mysql/storage/ndb/mgmapi/ndb_logevent.h
 usr/include/mysql/storage/ndb/mgmapi/mgmapi_debug.h
 # legal
-usr/share/doc/ndbclient-dev/@DEB_INSTALL_LICENSEFILE@
-usr/share/doc/ndbclient-dev/README
+usr/share/mysql/@DEB_INSTALL_LICENSEFILE@ usr/share/doc/ndbclient-dev/
+usr/share/mysql/README usr/share/doc/ndbclient-dev/
