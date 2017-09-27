@@ -14,5 +14,5 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 usr/share/mysql/java/*
 # legal
-usr/share/doc/mysql-@DEB_PRODUCTNAME@-java/@DEB_INSTALL_LICENSEFILE@
-usr/share/doc/mysql-@DEB_PRODUCTNAME@-java/README
+usr/share/mysql/@DEB_INSTALL_LICENSEFILE@ usr/share/doc/mysql-@DEB_PRODUCTNAME@-java/
+usr/share/mysql/README usr/share/doc/mysql-@DEB_PRODUCTNAME@-java/
