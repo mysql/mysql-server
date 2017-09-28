@@ -45,3 +45,32 @@ SELECT * FROM t WHERE x IN (SELECT COUNT(*) FROM t GROUP BY x);
 ERROR HY000: Unknown error
 SET DEBUG='-d,hash_semijoin_fail_in_setup';
 DROP TABLE t;
+#
+# Bug#26679983: SIG 11 IN MAKE_JOIN_READINFO|SQL/SQL_SELECT.CC
+#
+CREATE TABLE t (x INT);
+INSERT INTO t VALUES (1), (2), (3);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+# We want nested loop with duplicate weedout to reproduce the bug.
+SET optimizer_switch = 'firstmatch=off,materialization=off';
+EXPLAIN SELECT * FROM t WHERE x IN (SELECT x FROM t);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Start temporary
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; End temporary; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`x` AS `x` from `test`.`t` semi join (`test`.`t`) where (`test`.`t`.`x` = `test`.`t`.`x`)
+SELECT * FROM t WHERE x IN (SELECT x FROM t);
+x
+1
+2
+3
+# Execute the query with a simulated error in
+# create_duplicate_weedout_tmp_table().
+SET DEBUG='+d,create_duplicate_weedout_tmp_table_error';
+SELECT * FROM t WHERE x IN (SELECT x FROM t);
+ERROR HY000: Unknown error
+SET DEBUG='-d,create_duplicate_weedout_tmp_table_error';
+DROP TABLE t;
+SET optimizer_switch = DEFAULT;

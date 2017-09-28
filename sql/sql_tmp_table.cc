@@ -1697,6 +1697,11 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
 
   DBUG_ENTER("create_duplicate_weedout_tmp_table");
   DBUG_ASSERT(!sjtbl->is_confluent);
+
+  DBUG_EXECUTE_IF("create_duplicate_weedout_tmp_table_error",
+                  { my_error(ER_UNKNOWN_ERROR, MYF(0));
+                    DBUG_RETURN(nullptr); });
+
   /* STEP 1: Figure if we'll be using a key or blob+constraint */
   if (uniq_tuple_length_arg > CONVERT_IF_BIGGER_TO_BLOB)
     using_unique_constraint= true;

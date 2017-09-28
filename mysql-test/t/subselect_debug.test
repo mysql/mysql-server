@@ -45,3 +45,25 @@ SET DEBUG='+d,hash_semijoin_fail_in_setup';
 --eval $query
 SET DEBUG='-d,hash_semijoin_fail_in_setup';
 DROP TABLE t;
+
+--echo #
+--echo # Bug#26679983: SIG 11 IN MAKE_JOIN_READINFO|SQL/SQL_SELECT.CC
+--echo #
+
+CREATE TABLE t (x INT);
+INSERT INTO t VALUES (1), (2), (3);
+ANALYZE TABLE t;
+--let $query= SELECT * FROM t WHERE x IN (SELECT x FROM t)
+--echo # We want nested loop with duplicate weedout to reproduce the bug.
+SET optimizer_switch = 'firstmatch=off,materialization=off';
+--eval EXPLAIN $query
+--sorted_result
+--eval $query
+--echo # Execute the query with a simulated error in
+--echo # create_duplicate_weedout_tmp_table().
+SET DEBUG='+d,create_duplicate_weedout_tmp_table_error';
+--error ER_UNKNOWN_ERROR
+--eval $query
+SET DEBUG='-d,create_duplicate_weedout_tmp_table_error';
+DROP TABLE t;
+SET optimizer_switch = DEFAULT;

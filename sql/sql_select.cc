@@ -1280,6 +1280,8 @@ static bool setup_semijoin_dups_elimination(JOIN *join, uint no_jbuf_after)
                                                sjtbl->rowid_len + 
                                                sjtbl->null_bytes,
                                                sjtbl);
+          if (sjtbl->tmp_table == nullptr)
+            DBUG_RETURN(true);
           if (sjtbl->tmp_table->hash_field)
             sjtbl->tmp_table->file->ha_index_init(0, 0);
           join->sj_tmp_tables.push_back(sjtbl->tmp_table);
