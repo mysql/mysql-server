@@ -6624,6 +6624,31 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
     thd->variables.sql_mode= global_system_variables.sql_mode;
     thd->variables.auto_increment_increment=
       thd->variables.auto_increment_offset= 1;
+    /*
+      Rotate_log_events are generated on Slaves with server_id=0
+      for all the ignored events, so that the positions in the repository
+      is updated properly even for ignored events.
+
+      This kind of Rotate_log_event is generated when
+
+        1) the event is generated on the same host and reached due
+           to circular replication (server_id == ::server_id)
+
+        2) the event is from the host which is listed in ignore_server_ids
+
+        3) IO thread is receiving HEARTBEAT event from the master
+
+        4) IO thread is receiving PREVIOUS_GTID_LOG_EVENT from the master.
+
+      We have to free thd's mem_root here after we update the positions
+      in the repository table. Otherwise, imagine a situation where
+      Slave is keep getting ignored events only and no other (non-ignored)
+      events from the Master, Slave never executes free_root (that generally
+      happens from Query_log_event::do_apply_event or
+      Rows_log_event::do_apply_event when they find end of the group event).
+    */
+    if (server_id == 0)
+      free_root(thd->mem_root, MYF(MY_KEEP_PREALLOC));
   }
   else
     rli->inc_event_relay_log_pos();
