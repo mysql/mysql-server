@@ -3660,6 +3660,7 @@ class Ndb_schema_event_handler {
 
         Thd_ndb *thd_ndb= get_thd_ndb(m_thd);
         Ndb *ndb= thd_ndb->ndb;
+        ndb->setDatabaseName(schema->db);
         Ndb_table_guard ndbtab_g(ndb->getDictionary(), schema->name);
         const NDBTAB *ndbtab= ndbtab_g.get_table();
         if (ndbcluster_create_event_ops(m_thd, share, ndbtab,
