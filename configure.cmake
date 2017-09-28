@@ -80,6 +80,7 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND
     MESSAGE(WARNING "You should upgrade to -std=c++03")
   ELSE()
     # cmake/os/SunOS.cmake has done version check
+    # /opt/solarisstudio12.4/bin/CC has CC_MINOR_VERSION == 13
     IF(DEFINED CC_MINOR_VERSION AND CC_MINOR_VERSION GREATER 12)
       MESSAGE("Adding -std=c++03")
       SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++03")
@@ -88,9 +89,11 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND
 ENDIF()
 
 # The default C++ library for SunPro is really old, and not standards compliant.
-# http://www.oracle.com/technetwork/server-storage/solaris10/cmp-stlport-libcstd-142559.html
+# http://www.oracle.com/technetwork/server-storage/solaris/cmp-stlport-libcstd-142559.html
 # Use stlport rather than Rogue Wave,
 #   unless otherwise specified on command line.
+# This does *not* work for building the server, only for client libraries,
+# i.e. -DWITHOUT_SERVER=1
 IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
   IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
     IF(CMAKE_CXX_FLAGS MATCHES "-std=")

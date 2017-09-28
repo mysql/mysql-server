@@ -55,5 +55,5 @@ ENDIF ()
 MYSQL_ADD_PLUGIN(authentication_ldap_sasl_client
                  auth_ldap_sasl_client.cc log_client.cc
                  LINK_LIBRARIES ${SASL_LIBRARY}
-                 MODULE_ONLY
+                 CLIENT_ONLY MODULE_ONLY
                  MODULE_OUTPUT_NAME "authentication_ldap_sasl_client")
