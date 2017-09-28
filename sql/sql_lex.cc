@@ -2278,6 +2278,7 @@ st_select_lex::st_select_lex
   outer_join(0),
   opt_hints_qb(NULL),
   m_agg_func_used(false),
+  m_json_agg_func_used(false),
   sj_candidates(NULL)
 {
 }
