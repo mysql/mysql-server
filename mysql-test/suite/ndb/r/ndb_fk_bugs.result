@@ -651,6 +651,7 @@ alter table t2 drop index t2x1;
 ERROR HY000: Cannot drop index 't2x1': needed in a foreign key constraint
 show warnings;
 Level	Code	Message
+Warning	1296	Got error 21082 'Drop index not allowed in NDB - used as child index of a foreign key' from NDB
 Error	1553	Cannot drop index 't2x1': needed in a foreign key constraint
 insert into t1 values (1,10),(2,20),(3,30);
 insert into t2 values (1,10,100),(2,20,200),(3,30,300);

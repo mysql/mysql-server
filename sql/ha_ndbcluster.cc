@@ -17848,21 +17848,10 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
 
   if (alter_flags & Alter_inplace_info::ADD_FOREIGN_KEY)
   {
-    int res= create_fks(thd, ndb);
-    if (res != 0)
+    const int create_fks_result = create_fks(thd, ndb);
+    if (create_fks_result != 0)
     {
-      /*
-        Unlike CREATE, ALTER for some reason does not translate
-        the HA_ code.  So fix it to be Innodb compatible.
-      */
-      if (res == HA_ERR_CANNOT_ADD_FOREIGN)
-      {
-        DBUG_PRINT("info", ("change error %d to %d",
-                            HA_ERR_CANNOT_ADD_FOREIGN, ER_CANNOT_ADD_FOREIGN));
-        res= ER_CANNOT_ADD_FOREIGN;
-      }
-      error= res;
-      table->file->print_error(error, MYF(0));
+      table->file->print_error(create_fks_result, MYF(0));
       goto abort;
     }
   }
