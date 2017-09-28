@@ -24,7 +24,7 @@
 debian/extra/conf.d  etc/mysql/
 debian/extra/my.cnf.fallback etc/mysql/
 
-usr/share/mysql/docs/ChangeLog
+@DEB_INSTALL_MAN_COMMON@
 usr/share/mysql/docs/INFO_SRC
 usr/share/mysql/docs/INFO_BIN
 # legal

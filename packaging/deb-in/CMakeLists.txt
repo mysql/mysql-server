@@ -44,6 +44,10 @@ ELSE()
   SET (DEB_CONTROL_SERVER_CONFLICT_NDB "mysql-cluster-community-server, mysql-cluster-commercial-server")
   SET (DEB_CONTROL_CLIENT_CONFLICT_NDB "mysql-cluster-community-client, mysql-cluster-commercial-client")
 ENDIF()
+# Manpages
+IF (NOT DEFINED DEB_NOMANPAGES)
+  INCLUDE(deb_manpages.cmake)
+ENDIF()
 # Timestamp for use in debian/changelog
 IF (NOT DEFINED DEB_CHANGELOG_TIMESTAMP)
   execute_process(

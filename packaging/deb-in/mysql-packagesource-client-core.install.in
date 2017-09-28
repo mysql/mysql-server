@@ -25,10 +25,8 @@ usr/bin/mysql
 usr/bin/mysqldump
 usr/bin/mysqlpump
 
-# man pages
-usr/share/man/man1/mysql.1
-usr/share/man/man1/mysqldump.1
-usr/share/man/man1/mysqlpump.1
+@DEB_INSTALL_MAN_CLIENTCORE@
+
 # legal
 usr/share/mysql/LICENSE usr/share/doc/mysql-@DEB_PRODUCTNAME@-client-core/
 usr/share/mysql/README usr/share/doc/mysql-@DEB_PRODUCTNAME@-client-core/
