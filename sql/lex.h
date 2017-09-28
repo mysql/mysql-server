@@ -1,7 +1,7 @@
 #ifndef LEX_INCLUDED
 #define LEX_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -704,6 +704,8 @@ static const SYMBOL symbols[] = {
   { SYM_FN("DATE_SUB",              DATE_SUB_INTERVAL)},
   { SYM_FN("EXTRACT",               EXTRACT_SYM)},
   { SYM_FN("GROUP_CONCAT",          GROUP_CONCAT_SYM)},
+  { SYM_FN("JSON_OBJECTAGG",        JSON_OBJECTAGG)},
+  { SYM_FN("JSON_ARRAYAGG",         JSON_ARRAYAGG)},
   { SYM_FN("MAX",                   MAX_SYM)},
   { SYM_FN("MID",                   SUBSTRING)}, /* unireg function */
   { SYM_FN("MIN",                   MIN_SYM)},

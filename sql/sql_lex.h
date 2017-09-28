@@ -1296,9 +1296,11 @@ public:
     function.
   */
   bool agg_func_used()      const { return m_agg_func_used; }
+  bool json_agg_func_used() const { return m_json_agg_func_used; }
 
   void set_agg_func_used(bool val)      { m_agg_func_used= val; }
 
+  void set_json_agg_func_used(bool val) { m_json_agg_func_used= val; }
   /// Lookup for SELECT_LEX type
   type_enum type();
 
@@ -1353,6 +1355,7 @@ private:
   void delete_unused_merged_columns(List<TABLE_LIST> *tables);
 
   bool m_agg_func_used;
+  bool m_json_agg_func_used;
 
   /// Helper for fix_prepare_information()
   void fix_prepare_information_for_order(THD *thd,
