@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -114,8 +114,7 @@ private:
   };
   typedef Ptr<MeasurementRecord> MeasurementRecordPtr;
   typedef ArrayPool<MeasurementRecord> MeasurementRecord_pool;
-  typedef DLCFifoList<MeasurementRecord,
-                      MeasurementRecord_pool> MeasurementRecord_fifo;
+  typedef DLCFifoList<MeasurementRecord_pool> MeasurementRecord_fifo;
 
   MeasurementRecord_pool c_measurementRecordPool;
 
@@ -146,10 +145,8 @@ private:
   };
   typedef Ptr<SendThreadMeasurement> SendThreadMeasurementPtr;
   typedef ArrayPool<SendThreadMeasurement> SendThreadMeasurement_pool;
-  typedef DLCFifoList<SendThreadMeasurement,
-                      SendThreadMeasurement_pool> SendThreadMeasurement_fifo;
-  typedef LocalDLCFifoList<SendThreadMeasurement,
-                               SendThreadMeasurement_pool>
+  typedef DLCFifoList<SendThreadMeasurement_pool> SendThreadMeasurement_fifo;
+  typedef LocalDLCFifoList<SendThreadMeasurement_pool>
                                Local_SendThreadMeasurement_fifo;
 
   SendThreadMeasurement_pool c_sendThreadMeasurementPool;

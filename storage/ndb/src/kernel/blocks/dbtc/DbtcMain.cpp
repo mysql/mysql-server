@@ -3831,8 +3831,8 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
   /* TO DIH IN TRAFFIC IT SHOULD BE OK (3% OF THE EXECUTION TIME */
   /* IS SPENT IN DIH AND EVEN LESS IN REPLICATED NDB.            */
   /*-------------------------------------------------------------*/
-  EXECUTE_DIRECT(DBDIH, GSN_DIGETNODESREQ, signal,
-                 DiGetNodesReq::SignalLength, 0);
+  EXECUTE_DIRECT_MT(DBDIH, GSN_DIGETNODESREQ, signal,
+                    DiGetNodesReq::SignalLength, 0);
   DiGetNodesConf * conf = (DiGetNodesConf *)&signal->theData[0];
   UintR Tdata2 = conf->reqinfo;
   UintR TerrorIndicator = signal->theData[0];
@@ -5874,8 +5874,8 @@ void Dbtc::diverify010Lab(Signal* signal)
        * COMMIT MESSAGE CAN BE SENT TO ALL INVOLVED PARTS.
        *---------------------------------------------------------------------*/
       * (EmulatedJamBuffer**)(signal->theData+2) = jamBuffer();
-      EXECUTE_DIRECT(DBDIH, GSN_DIVERIFYREQ, signal,
-                     2 + sizeof(void*)/sizeof(Uint32), 0);
+      EXECUTE_DIRECT_MT(DBDIH, GSN_DIVERIFYREQ, signal,
+                        2 + sizeof(void*)/sizeof(Uint32), 0);
       if (clastApiConnectPREPARE_TO_COMMIT != RNIL ||
           signal->theData[3] != 0)
       {
@@ -11284,8 +11284,8 @@ Dbtc::routeTCKEY_FAILREFCONF(Signal* signal, const ApiConnectRecord* regApiPtr,
     CheckNodeGroups::Direct |
     CheckNodeGroups::GetNodeGroupMembers;
   sd->nodeId = node;
-  EXECUTE_DIRECT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal, 
-		 CheckNodeGroups::SignalLength, 0);
+  EXECUTE_DIRECT_MT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal, 
+		    CheckNodeGroups::SignalLength, 0);
   jamEntry();
   
   NdbNodeBitmask mask;
@@ -12993,8 +12993,8 @@ void Dbtc::diFcountReqLab(Signal* signal, ScanRecordPtr scanptr)
   req->schemaTransId = 0;
   req->jamBufferPtr = jamBuffer();
 
-  EXECUTE_DIRECT(DBDIH, GSN_DIH_SCAN_TAB_REQ, signal,
-                 DihScanTabReq::SignalLength, 0);
+  EXECUTE_DIRECT_MT(DBDIH, GSN_DIH_SCAN_TAB_REQ, signal,
+                    DihScanTabReq::SignalLength, 0);
 
   DihScanTabConf * conf = (DihScanTabConf*)signal->getDataPtr();
   if (conf->senderData == 0)
@@ -13336,8 +13336,8 @@ void Dbtc::releaseScanResources(Signal* signal,
     rep->scanCookie = scanPtr.p->m_scan_cookie;
     rep->jamBufferPtr = jamBuffer();
 
-    EXECUTE_DIRECT(DBDIH, GSN_DIH_SCAN_TAB_COMPLETE_REP, signal,
-                   DihScanTabCompleteRep::SignalLength, 0);
+    EXECUTE_DIRECT_MT(DBDIH, GSN_DIH_SCAN_TAB_COMPLETE_REP, signal,
+                      DihScanTabCompleteRep::SignalLength, 0);
     jamEntryDebug();
     /* No return code, it will always succeed. */
     scanPtr.p->m_scan_cookie = DihScanTabConf::InvalidCookie;
@@ -13383,8 +13383,8 @@ bool Dbtc::sendDihGetNodeReq(Signal* signal,
     req->distr_key_indicator = tabPtr.p->get_user_defined_partitioning();
   }
 
-  EXECUTE_DIRECT(DBDIH, GSN_DIGETNODESREQ, signal,
-                 DiGetNodesReq::SignalLength, 0);
+  EXECUTE_DIRECT_MT(DBDIH, GSN_DIGETNODESREQ, signal,
+                    DiGetNodesReq::SignalLength, 0);
 
   jamEntryDebug();
   /**
@@ -21255,8 +21255,8 @@ Dbtc::executeFullyReplicatedTrigger(Signal* signal,
   diGetNodesReq->get_next_fragid_indicator = 1;
   diGetNodesReq->anyNode = 0;
   diGetNodesReq->jamBufferPtr = jamBuffer();
-  EXECUTE_DIRECT(DBDIH, GSN_DIGETNODESREQ, signal,
-                 DiGetNodesReq::SignalLength, 0);
+  EXECUTE_DIRECT_MT(DBDIH, GSN_DIGETNODESREQ, signal,
+                    DiGetNodesReq::SignalLength, 0);
   DiGetNodesConf * diGetNodesConf =  (DiGetNodesConf *)signal->getDataPtrSend();
   ndbrequire(diGetNodesConf->zero == 0);
   Uint32 fragId = diGetNodesConf->fragId;

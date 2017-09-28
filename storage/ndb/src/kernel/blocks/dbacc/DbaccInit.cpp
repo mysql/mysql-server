@@ -79,7 +79,8 @@ void Dbacc::initRecords()
 
 Dbacc::Dbacc(Block_context& ctx, Uint32 instanceNumber):
   SimulatedBlock(DBACC, ctx, instanceNumber),
-  c_tup(0)
+  c_tup(0),
+  c_page8_pool(c_page_pool)
 {
   BLOCK_CONSTRUCTOR(Dbacc);
 

@@ -203,7 +203,7 @@ public:
   };
   typedef Ptr<Node> NodePtr;
   typedef ArrayPool<Node> Node_pool;
-  typedef SLList<Node, Node_pool> Node_list;
+  typedef SLList<Node_pool> Node_list;
 
   void update_lcp_pages_scanned(Signal *signal,
                                 Uint32 filePtrI,
@@ -273,9 +273,9 @@ public:
     Uint32 prevList;
   };
   typedef Ptr<DeleteLcpFile> DeleteLcpFilePtr;
-  typedef DLCFifoList<DeleteLcpFile, ArrayPool<DeleteLcpFile> >
-    DeleteLcpFile_list;
-  typedef LocalDLCFifoList<DeleteLcpFile, ArrayPool<DeleteLcpFile> >
+  typedef ArrayPool<DeleteLcpFile> DeleteLcpFile_pool;
+  typedef DLCFifoList<DeleteLcpFile_pool> DeleteLcpFile_list;
+  typedef LocalDLCFifoList<DeleteLcpFile_pool>
     LocalDeleteLcpFile_list;
   DeleteLcpFile_list::Head m_delete_lcp_file_head;
 
@@ -315,8 +315,8 @@ public:
   };
   typedef Ptr<Table> TablePtr;
   typedef ArrayPool<Table> Table_pool;
-  typedef SLList<Table, Table_pool> Table_list;
-  typedef DLCFifoList<Table, Table_pool> Table_fifo;
+  typedef SLList<Table_pool> Table_list;
+  typedef DLCFifoList<Table_pool> Table_fifo;
 
   struct OperationRecord {
   public:
@@ -403,7 +403,7 @@ public:
   };
   typedef Ptr<TriggerRecord> TriggerPtr;
   typedef ArrayPool<TriggerRecord> TriggerRecord_pool;
-  typedef SLList<TriggerRecord, TriggerRecord_pool> TriggerRecord_list;
+  typedef SLList<TriggerRecord_pool> TriggerRecord_list;
 
   /**
    * BackupFile - At least 3 per backup
@@ -446,7 +446,7 @@ public:
   }; 
   typedef Ptr<BackupFile> BackupFilePtr;
   typedef ArrayPool<BackupFile> BackupFile_pool;
-  typedef SLList<BackupFile, BackupFile_pool> BackupFile_list;
+  typedef SLList<BackupFile_pool> BackupFile_list;
 
   /**
    * State for BackupRecord
@@ -772,8 +772,8 @@ public:
   friend struct BackupRecord;
   typedef Ptr<BackupRecord> BackupRecordPtr;
   typedef ArrayPool<BackupRecord> BackupRecord_pool;
-  typedef SLList<BackupRecord, BackupRecord_pool> BackupRecord_sllist;
-  typedef DLList<BackupRecord, BackupRecord_pool> BackupRecord_dllist;
+  typedef SLList<BackupRecord_pool> BackupRecord_sllist;
+  typedef DLList<BackupRecord_pool> BackupRecord_dllist;
 
 /**
  * Number of words needed in buff to start a new scan batch

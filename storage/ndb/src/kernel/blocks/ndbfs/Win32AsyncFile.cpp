@@ -218,10 +218,10 @@ void Win32AsyncFile::openReq(Request* request)
       req->varIndex = index++;
       req->data.pageData[0] = m_page_ptr.i;
 
-      m_fs.EXECUTE_DIRECT(block, GSN_FSWRITEREQ, signal,
-			  FsReadWriteReq::FixedLength + 1,
-                          instance // wl4391_todo This EXECUTE_DIRECT is thread safe
-                          );
+      m_fs.EXECUTE_DIRECT_MT(block, GSN_FSWRITEREQ, signal,
+			     FsReadWriteReq::FixedLength + 1,
+                             instance // wl4391_todo This EXECUTE_DIRECT is thread safe
+                            );
       Uint32 size = request->par.open.page_size;
       char* buf = (char*)m_page_ptr.p;
       DWORD dwWritten;

@@ -290,9 +290,9 @@ private:
   };
   typedef Ptr<ScanLock> ScanLockPtr;
   typedef ArrayPool<ScanLock> ScanLock_pool;
-  typedef DLFifoList<ScanLock, ScanLock_pool> ScanLock_fifo;
-  typedef LocalDLFifoList<ScanLock, ScanLock_pool> Local_ScanLock_fifo;
-  typedef ConstLocalDLFifoList<ScanLock, ScanLock_pool> ConstLocal_ScanLock_fifo;
+  typedef DLFifoList<ScanLock_pool> ScanLock_fifo;
+  typedef LocalDLFifoList<ScanLock_pool> Local_ScanLock_fifo;
+  typedef ConstLocalDLFifoList<ScanLock_pool> ConstLocal_ScanLock_fifo;
 
   ScanLock_pool c_scanLockPool;
  
@@ -364,7 +364,7 @@ private:
   };
   typedef Ptr<ScanOp> ScanOpPtr;
   typedef ArrayPool<ScanOp> ScanOp_pool;
-  typedef DLList<ScanOp, ScanOp_pool> ScanOp_list;
+  typedef DLList<ScanOp_pool> ScanOp_list;
 
   ScanOp_pool c_scanOpPool;
 

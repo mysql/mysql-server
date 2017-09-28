@@ -170,8 +170,8 @@ private:
   };
   typedef Ptr<File> FilePtr;
   typedef ArrayPool<File> File_pool;
-  typedef DLList<File, File_pool> File_list;
-  typedef KeyTable<File_pool, File> File_hash;
+  typedef DLList<File_pool> File_list;
+  typedef KeyTable<File_pool> File_hash;
 
   /* Methods to handle UPGRADE from old LCP format to new LCP format. */
   void lcp_create_ctl_open(Signal*, FilePtr);
@@ -220,7 +220,6 @@ private:
   void parse_gcp_entry(Signal*, FilePtr, const Uint32*, Uint32 len);
   void close_file(Signal*, FilePtr, bool remove_flag = false);
 
-  void reorder_key(const struct KeyDescriptor*, Uint32* data, Uint32 len);
   Uint32 calculate_hash(Uint32 tableId, const Uint32 *src);
 
   void parse_error(Signal*, FilePtr, Uint32 line, Uint32 extra);

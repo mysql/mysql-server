@@ -2373,8 +2373,8 @@ SimulatedBlock::sendCallbackConf(Signal* signal, Uint32 fullBlockNo,
 
     if (ce.m_flags & CALLBACK_DIRECT) {
       jam();
-      EXECUTE_DIRECT(blockNo, GSN_CALLBACK_CONF,
-                     signal, CallbackConf::SignalLength, instanceNo);
+      EXECUTE_DIRECT_MT(blockNo, GSN_CALLBACK_CONF,
+                        signal, CallbackConf::SignalLength, instanceNo);
     } else {
       jam();
       BlockReference ref = numberToRef(fullBlockNo, getOwnNodeId());

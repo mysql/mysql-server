@@ -386,9 +386,9 @@ no_odirect:
         req->varIndex = index++;
         req->data.pageData[0] = m_page_ptr.i + cnt;
 
-        m_fs.EXECUTE_DIRECT(block, GSN_FSWRITEREQ, signal,
-                            FsReadWriteReq::FixedLength + 1,
-                            instance);
+        m_fs.EXECUTE_DIRECT_MT(block, GSN_FSWRITEREQ, signal,
+                               FsReadWriteReq::FixedLength + 1,
+                               instance);
         
         cnt++;
         size += request->par.open.page_size;
