@@ -135,3 +135,9 @@ ndb_fragment_count_addnode: Bug #26794953 INCORRECT PARTITIONS INFORMATION IN IN
 ndb_fully_replicated: Bug #26794953 INCORRECT PARTITIONS INFORMATION IN INFORMATION_SCHEMA.PARTITIONS
 ndb_no_rb_fragment_count: Bug #26794953 INCORRECT PARTITIONS INFORMATION IN INFORMATION_SCHEMA.PARTITIONS
 ndb_rb_fragment_count: Bug #26794953 INCORRECT PARTITIONS INFORMATION IN INFORMATION_SCHEMA.PARTITIONS
+
+# Problem with table present in DD and not in SE
+ndb_restore_schema_rewrites: Need WL#9185 MySQL Cluster support for new DD
+
+# Problem with SendBufferMemory being exhausted
+ndb_blob_big: Bug #25958538 BLOB SIZE INCREASES IN 8.0
