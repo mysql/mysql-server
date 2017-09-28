@@ -1182,7 +1182,7 @@ char *default_auth_plugin;
 /**
   Memory for allocating command line arguments, after load_defaults().
 */
-static MEM_ROOT argv_alloc{PSI_NOT_INSTRUMENTED, 512, 0};
+static MEM_ROOT argv_alloc{PSI_NOT_INSTRUMENTED, 512};
 /** Remaining command line arguments (count), filtered by handle_options().*/
 static int remaining_argc;
 /** Remaining command line arguments (arguments), filtered by handle_options().*/
@@ -4238,7 +4238,7 @@ static int init_server_auto_options()
   }
 
   /* load all options in 'auto.cnf'. */
-  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512, 0};
+  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
   if (my_load_defaults(fname, groups, &argc, &argv, &alloc, NULL))
     DBUG_RETURN(1);
 

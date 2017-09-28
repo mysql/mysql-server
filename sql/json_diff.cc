@@ -248,7 +248,7 @@ Json_diff_vector::Json_diff_vector(allocator_type arg)
 {}
 
 
-static MEM_ROOT empty_json_diff_vector_mem_root(PSI_NOT_INSTRUMENTED, 256, 0);
+static MEM_ROOT empty_json_diff_vector_mem_root(PSI_NOT_INSTRUMENTED, 256);
 const Json_diff_vector Json_diff_vector::EMPTY_JSON_DIFF_VECTOR{Json_diff_vector::allocator_type{&empty_json_diff_vector_mem_root}};
 
 

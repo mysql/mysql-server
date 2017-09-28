@@ -3510,8 +3510,6 @@ Ed_result_set::Ed_result_set(List<Ed_row> *rows_arg,
   m_rows(rows_arg),
   m_next_rset(NULL)
 {
-  /* Take over responsibility for the memory */
-  clear_alloc_root(mem_root_arg);
 }
 
 /***************************************************************************
@@ -3644,7 +3642,6 @@ Protocol_local::Protocol_local(THD *thd, Ed_connection *ed_connection):
   m_send_metadata(false),
   m_thd(thd)
 {
-  clear_alloc_root(&m_rset_root);
 }
 
 /**

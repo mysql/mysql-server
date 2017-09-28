@@ -69,7 +69,7 @@ public:
   {
     init_sql_alloc(PSI_NOT_INSTRUMENTED, &m_mem_root, 1024, 0);
     // memory allocation error is expected, don't abort unit test.
-    m_mem_root.error_handler= NULL;
+    m_mem_root.set_error_handler(nullptr);
   }
 
   /*

@@ -120,7 +120,7 @@ private:
   Options::Debug_options m_debug_options;
   Options::Help_options m_help_options;
   std::vector<my_option> m_options;
-  MEM_ROOT m_argv_alloc{PSI_NOT_INSTRUMENTED, 512, 0};
+  MEM_ROOT m_argv_alloc{PSI_NOT_INSTRUMENTED, 512};
   std::string m_name;
 
   friend class Abstract_connection_program;

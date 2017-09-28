@@ -34,7 +34,7 @@
 
 using namespace std;
 
-static MEM_ROOT argv_alloc{PSI_NOT_INSTRUMENTED, 512, 0};
+static MEM_ROOT argv_alloc{PSI_NOT_INSTRUMENTED, 512};
 static char *opt_host= 0;
 static char *opt_user= 0;
 static uint opt_port= 0;

@@ -64,7 +64,7 @@ protected:
 
 public:
   HistogramsTest()
-  :m_mem_root(PSI_NOT_INSTRUMENTED, 256, 0),
+  :m_mem_root(PSI_NOT_INSTRUMENTED, 256),
   double_values(&my_charset_numeric, Value_map_type::DOUBLE),
   string_values(&my_charset_latin1, Value_map_type::STRING),
   uint_values(&my_charset_numeric, Value_map_type::UINT),
@@ -2765,7 +2765,7 @@ TEST_F(HistogramsTest, HistogramOOM)
     Restrict the maximum capacity of the MEM_ROOT so it cannot grow anymore. But
     don't set it to 0, as this means "unlimited".
   */
-  oom_mem_root.max_capacity= 4;
+  oom_mem_root.set_max_capacity(4);
 
   Histogram *histogram= nullptr;
 
@@ -2803,7 +2803,7 @@ TEST_F(HistogramsTest, EquiHeightOOM)
                                     Value_map_type::INT);
 
     // Restrict the maximum capacity of the MEM_ROOT so it cannot grow anymore.
-    oom_mem_root.max_capacity= oom_mem_root.allocated_size;
+    oom_mem_root.set_max_capacity(oom_mem_root.allocated_size());
     EXPECT_TRUE(histogram.build_histogram(values, 10U));
   }
 }
@@ -2833,7 +2833,7 @@ TEST_F(HistogramsTest, SingletonOOM)
                                   Value_map_type::INT);
 
     // Restrict the maximum capacity of the MEM_ROOT so it cannot grow anymore.
-    oom_mem_root.max_capacity= oom_mem_root.allocated_size;
+    oom_mem_root.set_max_capacity(oom_mem_root.allocated_size());
     EXPECT_TRUE(histogram.build_histogram(values, 10U));
   }
 }

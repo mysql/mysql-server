@@ -113,7 +113,7 @@ void equi_height_test(histograms::Value_map_type value_map_type)
   bitmap_set_all(table.write_set);
   dd::Raw_record r(&table);
 
-  MEM_ROOT mem_root(PSI_NOT_INSTRUMENTED, 256, 0);
+  MEM_ROOT mem_root(PSI_NOT_INSTRUMENTED, 256);
 
   dd::Column_statistics_impl column_statistics;
 
@@ -250,7 +250,7 @@ void singleton_test(histograms::Value_map_type value_map_type)
   bitmap_set_all(table.write_set);
   dd::Raw_record r(&table);
 
-  MEM_ROOT mem_root(PSI_NOT_INSTRUMENTED, 256, 0);
+  MEM_ROOT mem_root(PSI_NOT_INSTRUMENTED, 256);
 
   dd::Column_statistics_impl column_statistics;
 

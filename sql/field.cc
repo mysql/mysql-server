@@ -9297,8 +9297,7 @@ bool Field_json::unpack_diff(const uchar **from)
   // Use a temporary mem_root so that the thread does not hold the
   // memory for the Json_diff_vector until the end of the statement.
   int memory_page_size= my_getpagesize();
-  MEM_ROOT mem_root(key_memory_Slave_applier_json_diff_vector,
-                    memory_page_size, memory_page_size);
+  MEM_ROOT mem_root(key_memory_Slave_applier_json_diff_vector, memory_page_size);
 
   Json_diff_vector diff_vector{
     Json_diff_vector::allocator_type(&mem_root)};

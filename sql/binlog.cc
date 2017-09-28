@@ -9920,8 +9920,7 @@ int MYSQL_BIN_LOG::recover(IO_CACHE *log, Format_description_log_event *fdle,
     goto err1;
 
   {
-    MEM_ROOT mem_root(
-      key_memory_binlog_recover_exec, memory_page_size, memory_page_size);
+    MEM_ROOT mem_root(key_memory_binlog_recover_exec, memory_page_size);
     memroot_unordered_set<my_xid> xids(&mem_root);
 
     while ((ev= Log_event::read_log_event(log, 0, fdle, TRUE))

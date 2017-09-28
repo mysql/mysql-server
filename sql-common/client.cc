@@ -1820,7 +1820,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
   argc=1; argv=argv_buff; argv_buff[0]= (char*) "client";
   groups[0]= (char*) "client"; groups[1]= (char*) group; groups[2]=0;
 
-  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512, 0};
+  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
   my_load_defaults(filename, groups, &argc, &argv, &alloc, nullptr);
   if (argc != 1)				/* If some default option */
   {
@@ -2410,7 +2410,6 @@ MYSQL_DATA *cli_read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
   }
   init_alloc_root(PSI_NOT_INSTRUMENTED,
                   result->alloc, 8192, 0); /* Assume rowlength < 8192 */
-  result->alloc->min_malloc= sizeof(MYSQL_ROWS);
   prev_ptr= &result->data;
   result->rows=0;
   result->fields=fields;

@@ -1373,7 +1373,7 @@ int main(int argc, char **argv)
  for (i= 0; i < argc; i++)
  original_argv[i]= strdup(argv[i]);
 
- MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512, 0};
+ MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
  if (load_defaults("my", client_test_load_default_groups, &argc, &argv, &alloc))
  exit(1);
 

@@ -2128,7 +2128,7 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
   mysql_rwlock_wrlock(&LOCK_system_variables_hash);
 
   {
-    MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512, 0};
+    MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
     if (my_load_defaults(MYSQL_CONFIG_NAME, load_default_groups,
                          &argc, &argv, &alloc, NULL))
     {

@@ -1592,7 +1592,6 @@ mysql_stmt_init(MYSQL *mysql)
 
   init_alloc_root(PSI_NOT_INSTRUMENTED, stmt->mem_root, 2048, 2048);
   init_alloc_root(PSI_NOT_INSTRUMENTED, stmt->result.alloc, 4096, 4096);
-  stmt->result.alloc->min_malloc= sizeof(MYSQL_ROWS);
   mysql->stmts= list_add(mysql->stmts, &stmt->list);
   stmt->list.data= stmt;
   stmt->state= MYSQL_STMT_INIT_DONE;

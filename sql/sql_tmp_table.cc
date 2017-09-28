@@ -2605,7 +2605,7 @@ void free_tmp_table(THD *thd, TABLE *entry)
     (*ptr)->mem_free();
   free_io_cache(entry);
 
-  DBUG_ASSERT(!alloc_root_inited(&entry->mem_root));
+  DBUG_ASSERT(entry->mem_root.allocated_size() == 0);
   
   DBUG_ASSERT(entry->s->ref_count >= 1);
   if (--entry->s->ref_count == 0) // no more TABLE objects
@@ -2614,7 +2614,7 @@ void free_tmp_table(THD *thd, TABLE *entry)
     /*
       In create_tmp_table(), the share's memroot is allocated inside own_root
       and is then made a copy of own_root, so it is inside its memory blocks,
-      so as soon as we free a memory block the memroot becomes unreadbable.
+      so as soon as we free a memory block the memroot becomes unreadable.
       So we need a copy to free it.
     */
     MEM_ROOT own_root= std::move(entry->s->mem_root);

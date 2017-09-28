@@ -196,7 +196,7 @@ int main(int argc, char **argv)
     exit(1);
   memcpy((char*) load_default_groups, (char*) argv, (argc + 1) * sizeof(*argv));
 
-  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512, 0};
+  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
   if ((error= load_defaults(config_file, (const char **) load_default_groups,
 			   &count, &arguments, &alloc)))
   {

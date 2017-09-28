@@ -8437,7 +8437,7 @@ tree_and(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
           Do not test use_count if there is a large range tree created.
           It takes too much time to traverse the tree.
         */
-        if (param->mem_root->allocated_size < 2097152)
+        if (param->mem_root->allocated_size() < 2097152)
           new_key->test_use_count(new_key);
 #endif
       }
@@ -8636,7 +8636,7 @@ tree_or(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
           Do not test use count if there is a large range tree created.
           It takes too much time to traverse the tree.
         */
-        if (param->mem_root->allocated_size < 2097152)
+        if (param->mem_root->allocated_size() < 2097152)
           new_key->test_use_count(new_key);
 #endif
       }
