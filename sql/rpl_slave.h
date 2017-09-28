@@ -356,6 +356,8 @@ extern bool use_slave_mask;
 extern char *slave_load_tmpdir;
 extern char *master_info_file, *relay_log_info_file;
 extern char *opt_relay_logname, *opt_relaylog_index_name;
+extern bool opt_relaylog_index_name_supplied;
+extern bool opt_relay_logname_supplied;
 extern char *opt_binlog_index_name;
 extern bool opt_skip_slave_start;
 extern bool opt_log_slave_updates;
