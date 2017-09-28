@@ -99,6 +99,8 @@ override_dh_install:
 		-Xusr/share/mysql/mysql.server \
 		-Xusr/share/man/man1/mysql.server.1 \
 		-Xusr/share/mysql/binary-configure \
+		-Xusr/share/mysql/@DEB_INSTALL_LICENSEFILE@-test \
+		-Xusr/share/mysql/README-test \
 		-Xusr/share/mysql/docs/mysql.info \
 		-Xusr/share/man/man1/mysqlman.1 \
 		-X.h.pp
