@@ -1,0 +1,36 @@
+--source include/have_log_bin.inc
+--source include/have_myisam.inc
+--source include/have_binlog_format_statement.inc
+
+RESET MASTER;
+
+CREATE TABLE t1(a INT) ENGINE=InnoDB;
+CREATE TABLE t2(a INT) ENGINE=MyISAM;
+
+--source include/count_sessions.inc
+
+--connect(con1,localhost,root)
+
+# A DROP should be logged for the following tables because CREATE TABLE
+# is logged
+CREATE TEMPORARY TABLE tmp1 ENGINE=InnoDB SELECT * FROM t1;
+CREATE TEMPORARY TABLE tmp2 ENGINE=MyISAM SELECT * FROM t2;
+CREATE TEMPORARY TABLE tmp3 ENGINE=MyISAM SELECT * FROM t1;
+CREATE TEMPORARY TABLE tmp4 ENGINE=InnoDB SELECT * FROM t2;
+CREATE TEMPORARY TABLE tmp5 (a INT) ENGINE=InnoDB;
+CREATE TEMPORARY TABLE tmp6 (a INT) ENGINE=MyISAM;
+CREATE TEMPORARY TABLE tmp7 LIKE t1;
+CREATE TEMPORARY TABLE tmp8 LIKE t2;
+
+SET SESSION binlog_format= 'ROW';
+# No DROP should be logged for tmp10
+CREATE TEMPORARY TABLE tmp10 (a INT);
+
+--disconnect con1
+--connection default
+--source include/wait_until_count_sessions.inc
+
+--source include/show_binlog_events.inc
+
+DROP TABLE t1, t2;
+

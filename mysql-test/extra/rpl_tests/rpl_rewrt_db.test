@@ -85,168 +85,172 @@ set sql_log_bin= 1;
 
 # End of 4.1 tests
 
---echo
---echo ****
---echo **** Bug #46861 Auto-closing of temporary tables broken by replicate-rewrite-db
---echo ****
---echo
-
---echo ****
---echo **** Preparing the environment
---echo ****
-connection master;
-
-connect (con_temp_03,127.0.0.1,root,,test,$MASTER_MYPORT,);
-connect (con_temp_02,127.0.0.1,root,,test,$MASTER_MYPORT,);
-connect (con_temp_01,127.0.0.1,root,,test,$MASTER_MYPORT,);
-
-connection master;
-SET sql_log_bin= 0;
-CREATE DATABASE database_master_temp_01;
-CREATE DATABASE database_master_temp_02;
-CREATE DATABASE database_master_temp_03;
-SET sql_log_bin= 1;
-
-connection slave;
-SET sql_log_bin= 0;
-CREATE DATABASE database_slave_temp_01;
-CREATE DATABASE database_slave_temp_02;
-CREATE DATABASE database_slave_temp_03;
-SET sql_log_bin= 1;
-
---echo
---echo ****
---echo **** Creating temporary tables on different databases with different connections
---echo ****
---echo **** con_temp_01 --> creates
---echo ****                  t_01_01_temp on database_master_temp_01
---echo ****
---echo **** con_temp_02 --> creates
---echo ****                  t_01_01_temp on database_master_temp_01
---echo ****                  t_02_01_temp, t_02_02_temp on database_master_temp_02
---echo ****
---echo **** con_temp_03 --> creates
---echo ****                  t_01_01_temp on database_master_temp_01
---echo ****                  t_02_01_temp, t_02_02_temp on database_master_temp_02
---echo ****                  t_03_01_temp, t_03_02_temp, t_03_03_temp on database_master_temp_03
---echo ****
-
---echo
---echo con_temp_01
---echo
-connection con_temp_01;
-USE database_master_temp_01;
-CREATE TEMPORARY TABLE t_01_01_temp(a int);
-INSERT INTO t_01_01_temp VALUES(1);
-
---echo
---echo con_temp_02
---echo
-connection con_temp_02;
-USE database_master_temp_01;
-CREATE TEMPORARY TABLE t_01_01_temp(a int);
-INSERT INTO t_01_01_temp VALUES(1);
-USE database_master_temp_02;
-CREATE TEMPORARY TABLE t_02_01_temp(a int);
-INSERT INTO t_02_01_temp VALUES(1);
-CREATE TEMPORARY TABLE t_02_02_temp(a int);
-INSERT INTO t_02_02_temp VALUES(1);
-
---echo
---echo con_temp_03
---echo
-connection con_temp_03;
-USE database_master_temp_01;
-CREATE TEMPORARY TABLE t_01_01_temp(a int);
-INSERT INTO t_01_01_temp VALUES(1);
-USE database_master_temp_02;
-CREATE TEMPORARY TABLE t_02_01_temp(a int);
-INSERT INTO t_02_01_temp VALUES(1);
-CREATE TEMPORARY TABLE t_02_02_temp(a int);
-INSERT INTO t_02_02_temp VALUES(1);
-USE database_master_temp_03;
-CREATE TEMPORARY TABLE t_03_01_temp(a int);
-INSERT INTO t_03_01_temp VALUES(1);
-CREATE TEMPORARY TABLE t_03_02_temp(a int);
-INSERT INTO t_03_02_temp VALUES(1);
-CREATE TEMPORARY TABLE t_03_03_temp(a int);
-INSERT INTO t_03_03_temp VALUES(1);
-
---echo
---echo **** Dropping the connections
---echo **** To be sure that the DROP statements have been logged, we make
---echo **** sure that the number of open temporary tables at slave becomes
---echo **** zero. If not,the test will time out.
---echo
-connection master;
---source include/sync_slave_sql_with_master.inc
-connection slave;
-show status like 'Slave_open_temp_tables';
-
-connection master;
-flush logs;
-
-connection con_temp_01;
-disconnect con_temp_01;
---source include/wait_until_disconnected.inc
-
-connection con_temp_02;
-disconnect con_temp_02;
---source include/wait_until_disconnected.inc
-
-connection con_temp_03;
-disconnect con_temp_03;
---source include/wait_until_disconnected.inc
-
---echo
---echo **** Wait until number of open temporary tables at slave becomes zero
---echo
-connection slave;
---let $status_var= Slave_open_temp_tables
---let $status_var_value= 0
-# The below include file accepts time in units of tenths of seconds.
-# Hence 3 minutes = 1800.
---let $status_timeout= 1800
---source include/wait_for_status_var.inc
-
---echo
---echo **** Check if every drop temporary table command is prepended with "use"
---echo
-connection master;
---let $current_binlog_file= query_get_value(SHOW MASTER STATUS,File,1)
---let $count_drop= 0
---let $event_number= 1
---let $binlog_event= query_get_value(SHOW BINLOG EVENTS IN '$current_binlog_file', Info, $event_number)
-while($binlog_event != No such row)
+# Test only STATEMENT as for MIX/ROW no DROPS will be logged
+if (`SELECT @@SESSION.binlog_format = 'STATEMENT'`)
 {
+  --echo
+  --echo ****
+  --echo **** Bug #46861 Auto-closing of temporary tables broken by replicate-rewrite-db
+  --echo ****
+  --echo
+
+  --echo ****
+  --echo **** Preparing the environment
+  --echo ****
+  connection master;
+
+  connect (con_temp_03,127.0.0.1,root,,test,$MASTER_MYPORT,);
+  connect (con_temp_02,127.0.0.1,root,,test,$MASTER_MYPORT,);
+  connect (con_temp_01,127.0.0.1,root,,test,$MASTER_MYPORT,);
+
+  connection master;
+  SET sql_log_bin= 0;
+  CREATE DATABASE database_master_temp_01;
+  CREATE DATABASE database_master_temp_02;
+  CREATE DATABASE database_master_temp_03;
+  SET sql_log_bin= 1;
+
+  connection slave;
+  SET sql_log_bin= 0;
+  CREATE DATABASE database_slave_temp_01;
+  CREATE DATABASE database_slave_temp_02;
+  CREATE DATABASE database_slave_temp_03;
+  SET sql_log_bin= 1;
+
+  --echo
+  --echo ****
+  --echo **** Creating temporary tables on different databases with different connections
+  --echo ****
+  --echo **** con_temp_01 --> creates
+  --echo ****                  t_01_01_temp on database_master_temp_01
+  --echo ****
+  --echo **** con_temp_02 --> creates
+  --echo ****                  t_01_01_temp on database_master_temp_01
+  --echo ****                  t_02_01_temp, t_02_02_temp on database_master_temp_02
+  --echo ****
+  --echo **** con_temp_03 --> creates
+  --echo ****                  t_01_01_temp on database_master_temp_01
+  --echo ****                  t_02_01_temp, t_02_02_temp on database_master_temp_02
+  --echo ****                  t_03_01_temp, t_03_02_temp, t_03_03_temp on database_master_temp_03
+  --echo ****
+
+  --echo
+  --echo con_temp_01
+  --echo
+  connection con_temp_01;
+  USE database_master_temp_01;
+  CREATE TEMPORARY TABLE t_01_01_temp(a int);
+  INSERT INTO t_01_01_temp VALUES(1);
+
+  --echo
+  --echo con_temp_02
+  --echo
+  connection con_temp_02;
+  USE database_master_temp_01;
+  CREATE TEMPORARY TABLE t_01_01_temp(a int);
+  INSERT INTO t_01_01_temp VALUES(1);
+  USE database_master_temp_02;
+  CREATE TEMPORARY TABLE t_02_01_temp(a int);
+  INSERT INTO t_02_01_temp VALUES(1);
+  CREATE TEMPORARY TABLE t_02_02_temp(a int);
+  INSERT INTO t_02_02_temp VALUES(1);
+
+  --echo
+  --echo con_temp_03
+  --echo
+  connection con_temp_03;
+  USE database_master_temp_01;
+  CREATE TEMPORARY TABLE t_01_01_temp(a int);
+  INSERT INTO t_01_01_temp VALUES(1);
+  USE database_master_temp_02;
+  CREATE TEMPORARY TABLE t_02_01_temp(a int);
+  INSERT INTO t_02_01_temp VALUES(1);
+  CREATE TEMPORARY TABLE t_02_02_temp(a int);
+  INSERT INTO t_02_02_temp VALUES(1);
+  USE database_master_temp_03;
+  CREATE TEMPORARY TABLE t_03_01_temp(a int);
+  INSERT INTO t_03_01_temp VALUES(1);
+  CREATE TEMPORARY TABLE t_03_02_temp(a int);
+  INSERT INTO t_03_02_temp VALUES(1);
+  CREATE TEMPORARY TABLE t_03_03_temp(a int);
+  INSERT INTO t_03_03_temp VALUES(1);
+
+  --echo
+  --echo **** Dropping the connections
+  --echo **** To be sure that the DROP statements have been logged, we make
+  --echo **** sure that the number of open temporary tables at slave becomes
+  --echo **** zero. If not,the test will time out.
+  --echo
+  connection master;
+  --source include/sync_slave_sql_with_master.inc
+  connection slave;
+  show status like 'Slave_open_temp_tables';
+
+  connection master;
+  flush logs;
+
+  connection con_temp_01;
+  disconnect con_temp_01;
+  --source include/wait_until_disconnected.inc
+
+  connection con_temp_02;
+  disconnect con_temp_02;
+  --source include/wait_until_disconnected.inc
+
+  connection con_temp_03;
+  disconnect con_temp_03;
+  --source include/wait_until_disconnected.inc
+
+  --echo
+  --echo **** Wait until number of open temporary tables at slave becomes zero
+  --echo
+  connection slave;
+  --let $status_var= Slave_open_temp_tables
+  --let $status_var_value= 0
+  # The below include file accepts time in units of tenths of seconds.
+  # Hence 3 minutes = 1800.
+  --let $status_timeout= 1800
+  --source include/wait_for_status_var.inc
+
+  --echo
+  --echo **** Check if every drop temporary table command is prepended with "use"
+  --echo
+  connection master;
+  --let $current_binlog_file= query_get_value(SHOW MASTER STATUS,File,1)
+  --let $count_drop= 0
+  --let $event_number= 1
+  --let $binlog_event= query_get_value(SHOW BINLOG EVENTS IN '$current_binlog_file', Info, $event_number)
+  while($binlog_event != No such row)
+  {
     if(`SELECT INSTR("$binlog_event", "DROP /*!40005 TEMPORARY */ TABLE IF EXISTS") AND INSTR("$binlog_event", "use") <> 0`)
     {
       --inc $count_drop
     }
     --inc $event_number
     --let $binlog_event=query_get_value(SHOW BINLOG EVENTS IN '$current_binlog_file', Info, $event_number)
-}
+  }
 
---let $assert_cond= $count_drop= 6
---let $assert_text= The number of drop temporary table events in binlog should be 6
---source include/assert.inc
+  --let $assert_cond= $count_drop= 6
+  --let $assert_text= The number of drop temporary table events in binlog should be 6
+  --source include/assert.inc
 
---echo ****
---echo **** Cleaning up the test case
---echo ****
-connection master;
-SET sql_log_bin= 0;
-DROP DATABASE database_master_temp_01;
-DROP DATABASE database_master_temp_02;
-DROP DATABASE database_master_temp_03;
-SET sql_log_bin= 1;
+  --echo ****
+  --echo **** Cleaning up the test case
+  --echo ****
+  connection master;
+  SET sql_log_bin= 0;
+  DROP DATABASE database_master_temp_01;
+  DROP DATABASE database_master_temp_02;
+  DROP DATABASE database_master_temp_03;
+  SET sql_log_bin= 1;
 
-connection slave;
-SET sql_log_bin= 0;
-DROP DATABASE database_slave_temp_01;
-DROP DATABASE database_slave_temp_02;
-DROP DATABASE database_slave_temp_03;
-SET sql_log_bin= 1;
+  connection slave;
+  SET sql_log_bin= 0;
+  DROP DATABASE database_slave_temp_01;
+  DROP DATABASE database_slave_temp_02;
+  DROP DATABASE database_slave_temp_03;
+  SET sql_log_bin= 1;
+} # if (`SELECT @@SESSION.binlog_format = 'STATEMENT')
 
 connection master;
 --source include/sync_slave_sql_with_master.inc
