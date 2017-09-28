@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -87,7 +87,9 @@ page_update_max_trx_id(
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
 	ut_ad(block);
+#ifndef UNIV_HOTBACKUP
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
+#endif /* !UNIV_HOTBACKUP */
 	/* During crash recovery, this function may be called on
 	something else than a leaf page of a secondary index or the
 	insert buffer index tree (dict_index_is_sec_or_ibuf() returns

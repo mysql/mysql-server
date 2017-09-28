@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -178,6 +178,48 @@ public:
 		return(a.physical() == m_physical
 		       && a.logical() == m_logical
 		       && a.is_compressed() == m_is_compressed);
+	}
+
+	inline void set_flag(ulint fsp_flags)
+	{
+		ulint	ssize = FSP_FLAGS_GET_PAGE_SSIZE(fsp_flags);
+
+		/* If the logical page size is zero in fsp_flags, then
+		use the legacy 16k page size. */
+		ssize = (0 == ssize) ? UNIV_PAGE_SSIZE_ORIG : ssize;
+
+		/* Convert from a 'log2 minus 9' to a page size in bytes. */
+		const ulint	size = ((UNIV_ZIP_SIZE_MIN >> 1) << ssize);
+
+		ut_ad(size <= UNIV_PAGE_SIZE_MAX);
+		ut_ad(size <= (1 << PAGE_SIZE_T_SIZE_BITS));
+
+		m_logical = size;
+
+		ssize = FSP_FLAGS_GET_ZIP_SSIZE(fsp_flags);
+
+		/* If the fsp_flags have zero in the zip_ssize field,
+		then it means that the tablespace does not have
+		compressed pages and the physical page size is the same
+		as the logical page size. */
+		if (ssize == 0) {
+			m_is_compressed = false;
+			m_physical = m_logical;
+		}
+		else {
+			m_is_compressed = true;
+
+			/* Convert from a 'log2 minus 9' to a page size
+			in bytes. */
+			const ulint	phy
+				= ((UNIV_ZIP_SIZE_MIN >> 1) << ssize);
+
+			ut_ad(phy <= UNIV_ZIP_SIZE_MAX);
+			ut_ad(phy <= (1 << PAGE_SIZE_T_SIZE_BITS));
+
+			m_physical = phy;
+		}
+
 	}
 
 private:

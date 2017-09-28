@@ -30,7 +30,9 @@ Database log
 Created 12/9/1995 Heikki Tuuri
 *******************************************************/
 
+#ifndef UNIV_HOTBACKUP
 #include <debug_sync.h>
+#endif /* !UNIV_HOTBACKUP */
 #include <sys/types.h>
 #include <time.h>
 
@@ -57,6 +59,7 @@ Created 12/9/1995 Heikki Tuuri
 #include "trx0sys.h"
 #include "trx0trx.h"
 #include "arch0arch.h"
+#endif /* !UNIV_HOTBACKUP */
 
 /*
 General philosophy of InnoDB redo-logs:
@@ -98,6 +101,7 @@ bool	srv_checkpoint_disabled;
 /** Pointer to the log checksum calculation function */
 log_checksum_func_t log_checksum_algorithm_ptr;
 
+#ifndef UNIV_HOTBACKUP
 /* These control how often we print warnings if the last checkpoint is too
 old */
 static bool	log_has_printed_chkp_warning = false;
@@ -674,9 +678,7 @@ log_group_calc_lsn_offset(
 
 	return(log_group_calc_real_offset(offset, group));
 }
-#endif /* !UNIV_HOTBACKUP */
 
-#ifndef UNIV_HOTBACKUP
 /********************************************************//**
 Sets the field values in group to correspond to a given lsn. For this function
 to work, the values must already be correctly initialized to correspond to
@@ -1940,47 +1942,6 @@ log_group_checkpoint(
 	ut_ad(((ulint) group & 0x1UL) == 0);
 }
 #endif /* !UNIV_HOTBACKUP */
-
-#ifdef UNIV_HOTBACKUP
-/******************************************************//**
-Writes info to a buffer of a log group when log files are created in
-backup restoration. */
-void
-log_reset_first_header_and_checkpoint(
-/*==================================*/
-	byte*		hdr_buf,/*!< in: buffer which will be written to the
-				start of the first log file */
-	ib_uint64_t	start)	/*!< in: lsn of the start of the first log file;
-				we pretend that there is a checkpoint at
-				start + LOG_BLOCK_HDR_SIZE */
-{
-	byte*		buf;
-	ib_uint64_t	lsn;
-
-	mach_write_to_4(hdr_buf + LOG_HEADER_FORMAT,
-			LOG_HEADER_FORMAT_CURRENT);
-	mach_write_to_8(hdr_buf + LOG_HEADER_START_LSN, start);
-
-	lsn = start + LOG_BLOCK_HDR_SIZE;
-
-	/* Write the label of mysqlbackup --restore */
-	strcpy((char*) hdr_buf + LOG_HEADER_CREATOR, "ibbackup ");
-	ut_sprintf_timestamp((char*) hdr_buf
-			     + (LOG_HEADER_CREATOR
-				+ (sizeof "ibbackup ") - 1));
-	buf = hdr_buf + LOG_CHECKPOINT_1;
-	memset(buf, 0, OS_FILE_LOG_BLOCK_SIZE);
-
-	/*mach_write_to_8(buf + LOG_CHECKPOINT_NO, 0);*/
-	mach_write_to_8(buf + LOG_CHECKPOINT_LSN, lsn);
-
-	mach_write_to_8(buf + LOG_CHECKPOINT_OFFSET,
-			LOG_FILE_HDR_SIZE + LOG_BLOCK_HDR_SIZE);
-	mach_write_to_8(buf + LOG_CHECKPOINT_LOG_BUF_SIZE, 2 * 1024 * 1024);
-
-	log_block_set_checksum(buf, log_block_calc_checksum_crc32(buf));
-}
-#endif /* UNIV_HOTBACKUP */
 
 #ifndef UNIV_HOTBACKUP
 /** Read a log group header page to log_sys->checkpoint_buf.

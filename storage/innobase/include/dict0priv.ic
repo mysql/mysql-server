@@ -26,7 +26,6 @@ Created  Wed 13 Oct 2010 16:10:14 EST Sunny Bains
 #include "dict0dict.h"
 #include "dict0load.h"
 #include "dict0priv.h"
-#ifndef UNIV_HOTBACKUP
 
 /**********************************************************************//**
 Gets a table; loads it to the dictionary cache if necessary. A low-level
@@ -91,4 +90,3 @@ dict_table_check_if_in_cache_low(
 		    !strcmp(table->name.m_name, table_name));
 	DBUG_RETURN(table);
 }
-#endif /*! UNIV_HOTBACKUP */

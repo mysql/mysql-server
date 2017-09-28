@@ -29,7 +29,6 @@ Created 8/22/1994 Heikki Tuuri
 
 #include "my_inttypes.h"
 
-#ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
 # include "buf0buf.h"
 #endif /* UNIV_DEBUG */
@@ -549,4 +548,3 @@ builds, see http://bugs.mysql.com/36941 */
 			(ulong) n_bufs);
 	}
 }
-#endif /* !UNIV_HOTBACKUP */

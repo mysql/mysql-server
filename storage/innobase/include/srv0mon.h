@@ -37,8 +37,6 @@ Created 12/15/2009	Jimmy Yang
 
 #include <stdint.h>
 
-#ifndef UNIV_HOTBACKUP
-
 
 /** Possible status values for "mon_status" in "struct monitor_value" */
 enum monitor_running_status {
@@ -466,6 +464,7 @@ enum mon_option_t {
 					function */
 };
 
+#ifndef UNIV_HOTBACKUP
 /** Number of bit in a ulint datatype */
 #define	NUM_BITS_ULINT	(sizeof(ulint) * CHAR_BIT)
 

@@ -152,6 +152,9 @@ mkdir release
            -DWITH_NUMA=ON \
            %{?mecab_option} \
            -DWITH_SSL=system \
+%if 0%{?with_meb:1}
+           -DWITH_MEB=1 \
+%endif
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
            -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
   echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG

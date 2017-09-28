@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -27,7 +27,9 @@ Created 10/4/1994 Heikki Tuuri
 #include "buf0types.h"
 
 #ifdef UNIV_DEBUG
+#ifndef UNIV_HOTBACKUP
 # include "rem0cmp.h"
+#endif /* !UNIV_HOTBACKUP */
 
 /*********************************************************//**
 Gets pointer to the page frame where the cursor is positioned.

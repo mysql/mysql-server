@@ -19,10 +19,14 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** @file dict/dict0dd.cc
 Data dictionary interface */
 
-#include <current_thd.h>
-#include <sql_thd_internal_api.h>
+#ifndef UNIV_HOTBACKUP
+# include <current_thd.h>
+# include <sql_thd_internal_api.h>
 #include <sql_class.h>
 #include <auto_thd.h>
+#else /* !UNIV_HOTBACKUP */
+# include <my_base.h>
+#endif /* !UNIV_HOTBACKUP */
 
 #include "dict0dd.h"
 #include "dict0dict.h"
@@ -30,26 +34,33 @@ Data dictionary interface */
 #include "dict0priv.h"
 #include <dd/properties.h>
 #include "dict0mem.h"
-#include "dict0stats.h"
+#ifndef UNIV_HOTBACKUP
+# include "dict0stats.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "rem0rec.h"
 #include "data0type.h"
 #include "mach0data.h"
 #include "dict0dict.h"
-#include "fts0priv.h"
-#include "gis/rtree_support.h"  // fetch_srs
+#ifndef UNIV_HOTBACKUP
+# include "fts0priv.h"
+# include "gis/rtree_support.h"  // fetch_srs
+#endif /* !UNIV_HOTBACKUP */
 #include "ut0crc32.h"
 #include "srv0start.h"
-#include "sql_table.h"
-#include "sql_base.h"
-#include "ha_innodb.h"
-#include "ha_innopart.h"
-#include "ha_prototypes.h"
-#include "derror.h"
-#include "fts0plugin.h"
-#include "btr0sea.h"
-#include "query_options.h"
+#ifndef UNIV_HOTBACKUP
+# include "sql_table.h"
+# include "sql_base.h"
+# include "ha_innodb.h"
+# include "ha_innopart.h"
+# include "ha_prototypes.h"
+# include "derror.h"
+# include "fts0plugin.h"
+# include "btr0sea.h"
+# include "query_options.h"
+#endif /* !UNIV_HOTBACKUP */
 #include <bitset>
 
+#ifndef UNIV_HOTBACKUP
 /** Check if the InnoDB index is consistent with dd::Index
 @param[in]	index		InnoDB index
 @param[in]	dd_index	dd::Index or dd::Partition_index
@@ -513,6 +524,7 @@ dd_table_open_on_id_low(
 
 	return(ib_table);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /** Check if access to a table should be refused.
 @param[in,out]	table	InnoDB table or partition
@@ -525,9 +537,18 @@ dd_check_corrupted(dict_table_t*& table)
 
 	if (table->is_corrupted()) {
 		if (dict_table_is_sdi(table->id)
-		    || dict_table_is_system(table->id)) {
+#ifndef UNIV_HOTBACKUP
+		    || dict_table_is_system(table->id)
+#endif /* !UNIV_HOTBACKUP */
+		    ) {
+#ifndef UNIV_HOTBACKUP
 			my_error(ER_TABLE_CORRUPT, MYF(0),
 				 "", table->name.m_name);
+#else /* !UNIV_HOTBACKUP */
+			ib::fatal()
+				<< "table is corrupt: "
+				<< table->name.m_name;
+#endif /* !UNIV_HOTBACKUP */
 		} else {
 			char	db_buf[MAX_DATABASE_NAME_LEN + 1];
 			char	tbl_buf[MAX_TABLE_NAME_LEN + 1];
@@ -535,8 +556,14 @@ dd_check_corrupted(dict_table_t*& table)
 			dd_parse_tbl_name(
 				table->name.m_name, db_buf, tbl_buf,
 				nullptr, nullptr, nullptr);
+#ifndef UNIV_HOTBACKUP
 			my_error(ER_TABLE_CORRUPT, MYF(0),
 				 db_buf, tbl_buf);
+#else /* !UNIV_HOTBACKUP */
+			ib::fatal()
+				<< "table is corrupt: "
+				<< db_buf << "." << tbl_buf;
+#endif /* !UNIV_HOTBACKUP */
 		}
 		table = nullptr;
 		return(HA_ERR_TABLE_CORRUPT);
@@ -545,7 +572,13 @@ dd_check_corrupted(dict_table_t*& table)
 	dict_index_t* index = table->first_index();
 	if (!dict_table_is_sdi(table->id)
 	    && fil_space_get(index->space) == nullptr) {
+#ifndef UNIV_HOTBACKUP
 		my_error(ER_TABLESPACE_MISSING, MYF(0), table->name.m_name);
+#else /* !UNIV_HOTBACKUP */
+		ib::fatal()
+			<< "table space is missing: "
+			<< table->name.m_name;
+#endif /* !UNIV_HOTBACKUP */
 		table = nullptr;
 		return(HA_ERR_TABLESPACE_MISSING);
 	}
@@ -595,6 +628,7 @@ dd_table_open_on_id(
 
 reopen:
 	if (ib_table == nullptr) {
+#ifndef UNIV_HOTBACKUP
 		if (dict_table_is_sdi(table_id)) {
 			/* The table is SDI table */
 			space_id_t	space_id = dict_sdi_get_space_id(
@@ -629,6 +663,11 @@ reopen:
 				mutex_enter(&dict_sys->mutex);
 			}
 		}
+#else /* !UNIV_HOTBACKUP */
+		/* PRELIMINARY TEMPORARY WORKAROUND: is this ever used? */
+		bool	not_hotbackup = false;
+		ut_a(not_hotbackup);
+#endif /* !UNIV_HOTBACKUP */
 	} else if (mdl == nullptr || ib_table->is_temporary()
 		   || dict_table_is_sdi(ib_table->id)) {
 		if (dd_check_corrupted(ib_table)) {
@@ -661,12 +700,14 @@ reopen:
 				return(nullptr);
 			}
 
+#ifndef UNIV_HOTBACKUP
 			if (dd_mdl_acquire(thd, mdl, db_buf, tbl_buf)) {
 				if (dict_locked) {
 					mutex_enter(&dict_sys->mutex);
 				}
 				return(nullptr);
 			}
+#endif /* !UNIV_HOTBACKUP */
 
 			/* Re-lookup the table after acquiring MDL. */
 			mutex_enter(&dict_sys->mutex);
@@ -687,16 +728,22 @@ reopen:
 				if (namelen != strlen(full_name)
 				    || memcmp(ib_table->name.m_name,
 					      full_name, namelen)) {
+#ifndef UNIV_HOTBACKUP
 					dd_mdl_release(thd, mdl);
+#endif /* !UNIV_HOTBACKUP */
 					continue;
 				} else if (check_corruption
 					   && dd_check_corrupted(ib_table)) {
 					ut_ad(ib_table == nullptr);
 				} else if (ib_table->discard_after_ddl) {
+#ifndef UNIV_HOTBACKUP
 					btr_drop_ahi_for_table(ib_table);
 					dict_table_remove_from_cache(ib_table);
+#endif /* !UNIV_HOTBACKUP */
 					ib_table = nullptr;
+#ifndef UNIV_HOTBACKUP
 					dd_mdl_release(thd, mdl);
+#endif /* !UNIV_HOTBACKUP */
 					goto reopen;
 				} else {
 					ib_table->acquire();
@@ -707,6 +754,7 @@ reopen:
 			break;
 		}
 
+#ifndef UNIV_HOTBACKUP
 		ut_ad(*mdl != nullptr);
 
 		/* Now the table can't be found, release MDL,
@@ -721,6 +769,11 @@ reopen:
 				dd_mdl_release(thd, mdl);
 			}
 		}
+#else /* !UNIV_HOTBACKUP */
+		/* PRELIMINARY TEMPORARY WORKAROUND: is this ever used? */
+		bool	not_hotbackup = false;
+		ut_a(not_hotbackup);
+#endif /* !UNIV_HOTBACKUP */
 
 		if (dict_locked) {
 			mutex_enter(&dict_sys->mutex);
@@ -732,6 +785,7 @@ reopen:
 	return(ib_table);
 }
 
+#ifndef UNIV_HOTBACKUP
 /** Set the discard flag for a non-partitioned dd table.
 @param[in,out]	thd		current thread
 @param[in]	table		InnoDB table
@@ -960,6 +1014,7 @@ dd_table_open_on_name(
 
 	DBUG_RETURN(table);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /** Close an internal InnoDB table handle.
 @param[in,out]	table		InnoDB table handle
@@ -975,12 +1030,20 @@ dd_table_close(
 {
 	dict_table_close(table, dict_locked, false);
 
+#ifndef UNIV_HOTBACKUP
 	if (mdl != nullptr && *mdl != nullptr) {
 		ut_ad(!table->is_temporary());
 		dd_mdl_release(thd, mdl);
 	}
+#endif /* !UNIV_HOTBACKUP */
 }
 
+#ifndef UNIV_HOTBACKUP
+/** Update filename of dd::Tablespace
+@param[in]	dd_space_id	dd tablespace id
+@param[in]	new_space_name	new tablespace name
+@param[in]	new_path	new data file path
+@retval true if fail. */
 bool
 dd_rename_tablespace(
 	dd::Object_id	dd_space_id,
@@ -2598,6 +2661,7 @@ dd_fill_dict_table(
 
 	return(m_table);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /** Parse the tablespace name from filename charset to table name charset
 @param[in]      space_name      tablespace name
@@ -2650,6 +2714,7 @@ dd_filename_to_spacename(
 	ut_ad(tablespace_name->size() < MAX_SPACE_NAME_LEN);
 }
 
+#ifndef UNIV_HOTBACKUP
 /* Create metadata for specified tablespace, acquiring exlcusive MDL first
 @param[in,out]	dd_client	data dictionary client
 @param[in,out]	thd		THD
@@ -3514,9 +3579,10 @@ dd_load_tablespace(
 		filepath = dd_get_first_path(heap, table, dd_table);
 		mutex_enter(&dict_sys->mutex);
 		if (filepath == nullptr) {
-			ib::warn() << "Could not find the filepath"
-				" for table " << table->name <<
-				", space ID " << table->space;
+			ib::warn()
+				<< "Could not find the filepath for table "
+				<< table->name
+				<< ", space ID " << table->space;
 		} else {
 			alloc_from_heap = true;
 		}
@@ -5629,3 +5695,4 @@ dd_tablespace_update_cache(THD* thd)
 	fil_set_max_space_id_if_bigger(max_id);
 	return(fail);
 }
+#endif /* !UNIV_HOTBACKUP */

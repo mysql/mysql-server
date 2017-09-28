@@ -34,8 +34,8 @@ Created 12/27/1996 Heikki Tuuri
 #include "trx0types.h"
 #include <stack>
 
-#ifndef UNIV_HOTBACKUP
 # include "btr0pcur.h"
+#ifndef UNIV_HOTBACKUP
 # include "que0types.h"
 # include "pars0types.h"
 #endif /* !UNIV_HOTBACKUP */
@@ -82,7 +82,6 @@ upd_get_nth_field(
 #else
 # define upd_get_nth_field(update, n) ((update)->fields + (n))
 #endif
-#ifndef UNIV_HOTBACKUP
 /** Sets an index field number to be updated by an update vector field.
 @param[in]	upd_field	update vector field
 @param[in]	field_no	field number in a clustered index
@@ -200,7 +199,6 @@ row_upd_changes_disowned_external(
 /*==============================*/
 	const upd_t*	update)	/*!< in: update vector */
 	MY_ATTRIBUTE((warn_unused_result));
-#endif /* !UNIV_HOTBACKUP */
 /***********************************************************//**
 Replaces the new column values stored in the update vector to the
 record given. No field size changes are allowed. This function is
@@ -216,7 +214,6 @@ row_upd_rec_in_place(
 	const upd_t*	update,	/*!< in: update vector */
 	page_zip_des_t*	page_zip);/*!< in: compressed page with enough space
 				available, or NULL */
-#ifndef UNIV_HOTBACKUP
 /***************************************************************//**
 Builds an update vector from those fields which in a secondary index entry
 differ from a record that has the equal ordering fields. NOTE: we compare
@@ -410,7 +407,6 @@ que_thr_t*
 row_upd_step(
 /*=========*/
 	que_thr_t*	thr);	/*!< in: query thread */
-#endif /* !UNIV_HOTBACKUP */
 /*********************************************************************//**
 Parses the log data of system field values.
 @return log data end or NULL */
@@ -464,7 +460,6 @@ struct upd_field_t{
 					this is the position in the secondary
 					index, also it could be the position
 					in virtual index for virtual column */
-#ifndef UNIV_HOTBACKUP
 	unsigned	orig_len:16;	/*!< original length of the locally
 					stored part of an externally stored
 					column, or 0 */
@@ -472,7 +467,6 @@ struct upd_field_t{
 					value: it refers to column values and
 					constants in the symbol table of the
 					query graph */
-#endif /* !UNIV_HOTBACKUP */
 	dfield_t	new_val;	/*!< new value for the column */
 	dfield_t*	old_v_val;	/*!< old value for the virtual column */
 };

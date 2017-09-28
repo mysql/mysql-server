@@ -27,7 +27,6 @@ Created 11/5/1995 Heikki Tuuri
 
 #include "my_inttypes.h"
 
-#ifndef UNIV_HOTBACKUP
 #include "btr0btr.h"
 #include "btr0sea.h"
 #include "buf0buddy.h"
@@ -2838,4 +2837,3 @@ buf_LRU_print(void)
 	}
 }
 #endif /* UNIV_DEBUG_PRINT || UNIV_DEBUG || UNIV_BUF_DEBUG */
-#endif /* !UNIV_HOTBACKUP */

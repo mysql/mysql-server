@@ -719,6 +719,7 @@ public:
 		m_mtr->set_log_mode(log_mode);
 	}
 
+#ifndef UNIV_HOTBACKUP
 	/** Increment the buffer fix count of the clustered index record
 	block. */
 	void rec_block_fix()
@@ -749,6 +750,7 @@ public:
 
 		recalc();
 	}
+#endif  /* !UNIV_HOTBACKUP */
 
 	/** Restore the position of the persistent cursor. */
 	void restore_position()
