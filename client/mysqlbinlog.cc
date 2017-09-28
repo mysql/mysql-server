@@ -2342,6 +2342,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     if (rewrite_db_filter(&event_buf, &event_len, glob_description_event))
     {
       error("Got a fatal error while applying rewrite db filter.");
+      my_free(event_buf);
       DBUG_RETURN(ERROR_STOP);
     }
 
@@ -2417,6 +2418,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
          */
           old_off= start_position_mot;
           rpl.size= 1; // fake Rotate, so don't increment old_off
+          event_len= 0;
         }
       }
       else if (type == binary_log::FORMAT_DESCRIPTION_EVENT)
@@ -2430,7 +2432,10 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
         */
         // fake event when not in raw mode, don't increment old_off
         if ((old_off != BIN_LOG_HEADER_SIZE) && (!raw_mode))
+        {
           rpl.size= 1;
+          event_len= 0;
+        }
         if (raw_mode)
         {
           if (result_file && (result_file != stdout))
@@ -2467,11 +2472,14 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
       {
         DBUG_EXECUTE_IF("simulate_result_file_write_error",
                         DBUG_SET("+d,simulate_fwrite_error"););
-        if (my_fwrite(result_file, rpl.buffer + 1, rpl.size - 1, MYF(MY_NABP)))
+        if (my_fwrite(result_file, (const uchar*)event_buf, event_len,
+                      MYF(MY_NABP)))
         {
           error("Could not write into log file '%s'", log_file_name);
           retval= ERROR_STOP;
         }
+        if (!ev)
+          my_free(event_buf);
 
         /* Flush result_file after every event */
         fflush(result_file);
