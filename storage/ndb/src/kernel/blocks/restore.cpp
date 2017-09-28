@@ -55,6 +55,13 @@ extern EventLogger * g_eventLogger;
 #define DEB_HIGH_RES(arglist) do { } while (0)
 #endif
 
+/**
+ * Same error codes used by both DBLQH and DBTC.
+ * See Dblqh.hpp and Dbtc.hpp.
+ */
+#define ZGET_DATAREC_ERROR 418
+#define ZGET_ATTRINBUF_ERROR 419
+
 #define PAGES LCP_RESTORE_BUFFER
 
 Restore::Restore(Block_context& ctx, Uint32 instanceNumber) :
@@ -2770,21 +2777,31 @@ Restore::parse_record(Signal* signal,
   }
 
   LqhKeyReq * req = (LqhKeyReq *)signal->getDataPtrSend();
-  Uint32 hashValue = 0;
-  if (keyLen > 0)
+  /**
+   * attrLen is not used for long lqhkeyreq, and should be zero for short
+   * lqhkeyreq.
+   */
+  req->attrLen = 0;
+
+  Uint32 tmp= 0;
+  const bool short_lqhkeyreq = (keyLen == 0);
+  /**
+   * With partital LCP also other operations like delete by rowid will be used.
+   * In these cases no data is passed, and receiver will interpret signal as a
+   * short signal, but no KEYINFO or ATTRINFO will be sent or expected.
+   */
+  if(short_lqhkeyreq)
   {
-    if (g_key_descriptor_pool.getPtr(tableId)->hasCharAttr)
-      hashValue = calculate_hash(tableId, key_start);
-    else
-      hashValue = md5_hash((Uint64*)key_start, keyLen);
+    ndbrequire(attrLen == 0);
+    ndbassert(keyLen == 0);
+    LqhKeyReq::setKeyLen(tmp, keyLen);
   }
-
-  Uint32 tmpAttrLen= 0;
-  LqhKeyReq::setAttrLen(tmpAttrLen, attrLen);
-  req->attrLen = tmpAttrLen;
-
-  Uint32 tmp = 0;
-  LqhKeyReq::setKeyLen(tmp, keyLen);
+  if (!short_lqhkeyreq)
+  {
+    LqhKeyReq::setDisableFkConstraints(tmp, 0);
+    LqhKeyReq::setNoTriggersFlag(tmp, 0);
+    LqhKeyReq::setUtilFlag(tmp, 0);
+  }
   LqhKeyReq::setLastReplicaNo(tmp, 0);
   /* ---------------------------------------------------------------------- */
   // Indicate Application Reference is present in bit 15
@@ -2794,11 +2811,29 @@ Restore::parse_record(Signal* signal,
   LqhKeyReq::setSimpleFlag(tmp, 1);
   LqhKeyReq::setOperation(tmp, op_type);
   LqhKeyReq::setSameClientAndTcFlag(tmp, 0);
-  LqhKeyReq::setAIInLqhKeyReq(tmp, 0);
+  if (short_lqhkeyreq)
+  {
+    LqhKeyReq::setAIInLqhKeyReq(tmp, 0);
+    req->hashValue = 0;
+  }
+  else
+  {
+    LqhKeyReq::setCorrFactorFlag(tmp, 0);
+    LqhKeyReq::setNormalProtocolFlag(tmp, 0);
+    LqhKeyReq::setDeferredConstraints(tmp, 0);
+
+    if (g_key_descriptor_pool.getPtr(tableId)->hasCharAttr)
+    {
+      req->hashValue = calculate_hash(tableId, key_start);
+    }
+    else
+    {
+      req->hashValue = md5_hash((Uint64*)key_start, keyLen);
+    }
+  }
   LqhKeyReq::setNoDiskFlag(tmp, 1);
   LqhKeyReq::setRowidFlag(tmp, 1);
   req->clientConnectPtr = file_ptr.i;
-  req->hashValue = hashValue;
   req->tcBlockref = reference();
   req->savePointId = 0;
   req->tableSchemaVersion = file_ptr.p->m_table_id + 
@@ -2814,8 +2849,6 @@ Restore::parse_record(Signal* signal,
      * Need not set GCI flag here since we restore also the header part of
      * the row in this case.
      */
-    pos = keyLen > 4 ? 4 : keyLen;
-    memcpy(req->variableData, key_start, 16);
     req->variableData[pos++] = rowid_val.m_page_no;
     req->variableData[pos++] = rowid_val.m_page_idx;
     LqhKeyReq::setGCIFlag(tmp, 0);
@@ -2833,15 +2866,9 @@ Restore::parse_record(Signal* signal,
     LqhKeyReq::setNrCopyFlag(tmp, 1);
   }
   req->requestInfo = tmp;
-  if (header_type != BackupFormat::DELETE_BY_PAGEID_TYPE)
+  if (header_type == BackupFormat::DELETE_BY_PAGEID_TYPE)
   {
-    jam();
-    file_ptr.p->m_outstanding_operations++;
-    EXECUTE_DIRECT(DBLQH, GSN_LQHKEYREQ, signal, 
-		   LqhKeyReq::FixedSignalLength+pos);
-  }
-  else
-  {
+ndbrequire(short_lqhkeyreq);
     jam();
     while (rowid_val.m_page_idx < Tup_fixsize_page::DATA_WORDS)
     {
@@ -2856,15 +2883,49 @@ Restore::parse_record(Signal* signal,
     return;
   }
   
-  if(keyLen > 4)
+  if (short_lqhkeyreq)
   {
-    c_lqh->receive_keyinfo(signal,
-			   key_start + 4,
-			   keyLen - 4);
+    file_ptr.p->m_outstanding_operations++;
+    EXECUTE_DIRECT(DBLQH, GSN_LQHKEYREQ, signal,
+                   LqhKeyReq::FixedSignalLength + pos);
   }
-  if (attrLen > 0)
+  else
   {
-    c_lqh->receive_attrinfo(signal, attr_start, attrLen);
+    bool ok = true;
+    SectionHandle sections(this);
+    sections.clear();
+
+    sections.m_ptr[LqhKeyReq::KeyInfoSectionNum].i = RNIL;
+    ok= appendToSection(sections.m_ptr[LqhKeyReq::KeyInfoSectionNum].i,
+                        key_start,
+                        keyLen);
+    if (unlikely(!ok))
+    {
+      jam();
+      crash_during_restore(file_ptr, __LINE__, ZGET_DATAREC_ERROR);
+      ndbrequire(false);
+    }
+    sections.m_cnt++;
+
+    if (attrLen > 0)
+    {
+      sections.m_ptr[LqhKeyReq::AttrInfoSectionNum].i = RNIL;
+      ok= appendToSection(sections.m_ptr[LqhKeyReq::AttrInfoSectionNum].i,
+                          attr_start,
+                          attrLen);
+
+      if (unlikely(!ok))
+      {
+        jam();
+        crash_during_restore(file_ptr, __LINE__, ZGET_ATTRINBUF_ERROR);
+        ndbrequire(false);
+      }
+      sections.m_cnt++;
+    }
+    file_ptr.p->m_outstanding_operations++;
+    EXECUTE_DIRECT_SS(DBLQH, GSN_LQHKEYREQ, signal,
+                      LqhKeyReq::FixedSignalLength+pos,
+                      &sections);
   }
 }
 

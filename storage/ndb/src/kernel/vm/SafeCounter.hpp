@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -97,7 +97,7 @@ private:
 
   typedef Ptr<ActiveCounter> ActiveCounterPtr;
   typedef ArrayPool<ActiveCounter> ActiveCounter_pool;
-  typedef DLList<ActiveCounter, ActiveCounter_pool> ActiveCounter_list;
+  typedef DLList<ActiveCounter_pool> ActiveCounter_list;
   
   bool seize(ActiveCounterPtr& ptr);
   void release(ActiveCounterPtr& ptr);

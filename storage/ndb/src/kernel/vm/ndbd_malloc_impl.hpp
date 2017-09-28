@@ -149,6 +149,7 @@ public:
                    Uint32* i,
                    Uint32 *cnt,
                    Uint32 min = 1,
+                   AllocZone zone = NDB_ZONE_LE_32,
                    bool locked = false);
   void release_pages(Uint32 type, Uint32 i, Uint32 cnt, bool locked = false);
 

@@ -2667,8 +2667,8 @@ Suma::sendDIH_SCAN_TAB_REQ(Signal *signal,
   req->tableId = tableId;
   req->schemaTransId = schemaTransId;
   req->jamBufferPtr = jamBuffer();
-  EXECUTE_DIRECT(DBDIH, GSN_DIH_SCAN_TAB_REQ, signal,
-                 DihScanTabReq::SignalLength, 0);
+  EXECUTE_DIRECT_MT(DBDIH, GSN_DIH_SCAN_TAB_REQ, signal,
+                    DihScanTabReq::SignalLength, 0);
   DihScanTabConf * conf = (DihScanTabConf*)signal->getDataPtr();
   Uint32 retCode = conf->senderData;
   conf->senderData = synPtrI;
@@ -2794,8 +2794,8 @@ Suma::sendDIGETNODESREQ(Signal *signal,
     req->scan_indicator = ZTRUE;
     req->jamBufferPtr = jamBuffer();
     req->get_next_fragid_indicator = 0;
-    EXECUTE_DIRECT(DBDIH, GSN_DIGETNODESREQ, signal,
-                   DiGetNodesReq::SignalLength, 0);
+    EXECUTE_DIRECT_MT(DBDIH, GSN_DIGETNODESREQ, signal,
+                      DiGetNodesReq::SignalLength, 0);
 
     jamEntry();
     DiGetNodesConf * conf = (DiGetNodesConf *)&signal->theData[0];
@@ -3334,8 +3334,8 @@ Suma::SyncRecord::completeScan(Signal* signal, int error)
   rep->tableId = subPtr.p->m_tableId;
   rep->scanCookie = m_scan_cookie;
   rep->jamBufferPtr = jamBuffer();
-  suma.EXECUTE_DIRECT(DBDIH, GSN_DIH_SCAN_TAB_COMPLETE_REP, signal,
-                      DihScanTabCompleteRep::SignalLength, 0);
+  suma.EXECUTE_DIRECT_MT(DBDIH, GSN_DIH_SCAN_TAB_COMPLETE_REP, signal,
+                         DihScanTabCompleteRep::SignalLength, 0);
 
 #if PRINT_ONLY
   ndbout_c("GSN_SUB_SYNC_CONF (data)");
