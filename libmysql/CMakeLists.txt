@@ -257,7 +257,7 @@ IF(UNIX)
   ENDMACRO()
 ENDIF()
 
-# In our special "mixed" builds, also install libstlport which will
+# I we build client-only, we may be using libstlport which will
 # be injected into the build tree by the Sun Studio part of the build.
 
 IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND DEFINED ENV{PB2WORKDIR})
