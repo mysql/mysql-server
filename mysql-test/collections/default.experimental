@@ -10,7 +10,6 @@ innodb.innodb_page_size_func @windows    # Bug#19527616 2015-03-13 anitha Test f
 
 rpl.rpl_delayed_slave                    # BUG#11764654 rpl_delayed_slave fails sporadically in pb
 rpl.rpl_show_slave_running               # BUG#12346048 2011-04-11 sven fails sporadically on pb2
-rpl_nogtid.rpl_semi_sync_group_commit_deadlock_ssl    # Bug #26865538 2017-9-27 disable the test until WL#8998 is pushed into the tree.
 
 perfschema.transaction_nested_events     # Bug#17752288 2013-12-17 agopi Fails several times each day in PB2 
 
