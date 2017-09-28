@@ -39,6 +39,7 @@ typedef struct os_event* os_event_t;
 /** Return value of os_event_wait_time() when the time is exceeded */
 #define OS_SYNC_TIME_EXCEEDED   1
 
+#ifndef UNIV_HOTBACKUP
 /**
 Creates an event semaphore, i.e., a semaphore which may just have two states:
 signaled and nonsignaled. The created event is manual reset: it must be reset
@@ -134,4 +135,5 @@ os_event_wait_time_low(
 @param t - timeout in microseconds */
 #define os_event_wait_time(e, t) os_event_wait_time_low((e), (t), 0)
 
+#endif /* !UNIV_HOTBACKUP */
 #endif /* !os0event_h */

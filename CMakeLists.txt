@@ -264,6 +264,8 @@ INCLUDE(character_sets)
 INCLUDE(cpu_info)
 INCLUDE(zlib)
 INCLUDE(lz4)
+INCLUDE(lzma)
+INCLUDE(re2)
 INCLUDE(libevent)
 INCLUDE(ssl)
 INCLUDE(readline)
@@ -659,6 +661,10 @@ MYSQL_CHECK_EDITLINE()
 MYSQL_CHECK_LIBEVENT()
 # Add lz4 library
 MYSQL_CHECK_LZ4()
+# Add lzma library
+MYSQL_CHECK_LZMA()
+# Add re2 library
+MYSQL_CHECK_RE2()
 # Add protoc and libprotobuf
 IF(NOT WITHOUT_SERVER)
   MYSQL_CHECK_PROTOBUF()
@@ -681,6 +687,14 @@ IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
     return ret;
   }"
   HAVE_PTHREAD_SETNAME_NP)
+ENDIF()
+
+IF (BUILD_BUNDLED_LZMA)
+  ADD_SUBDIRECTORY(extra/lzma)
+ENDIF()
+
+IF (BUILD_BUNDLED_RE2)
+  ADD_SUBDIRECTORY(extra/re2)
 ENDIF()
 
 #

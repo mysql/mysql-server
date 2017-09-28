@@ -34,11 +34,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** @file ha_innodb.cc */
 
-#include "my_config.h"
+#ifndef UNIV_HOTBACKUP
+# include "my_config.h"
 
-#include <current_thd.h>
-#include <debug_sync.h>
-#include <derror.h>
+# include <current_thd.h>
+# include <debug_sync.h>
+# include <derror.h>
+#endif /* !UNIV_HOTBACKUP */
 #include <errno.h>
 #include <fcntl.h>
 #include <gstream.h>
@@ -47,34 +49,39 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <math.h>
 #include <my_bitmap.h>
 #include <my_check_opt.h>
-#include <mysql/service_thd_alloc.h>
-#include <mysql/service_thd_wait.h>
-#include <mysql_com.h>
-#include <mysqld.h>
-#include <sql_acl.h>
-#include <sql_class.h>
-#include <sql_show.h>
+#ifndef UNIV_HOTBACKUP
+# include <mysql/service_thd_alloc.h>
+# include <mysql/service_thd_wait.h>
+# include <mysql_com.h>
+# include <mysqld.h>
+# include <sql_acl.h>
+# include <sql_class.h>
+# include <sql_show.h>
+#endif /* !UNIV_HOTBACKUP */
 #include <sql_table.h>
-#include <sql_tablespace.h>
-#include <sql_thd_internal_api.h>
+#ifndef UNIV_HOTBACKUP
+# include <sql_tablespace.h>
+# include <sql_thd_internal_api.h>
+#endif /* !UNIV_HOTBACKUP */
 #include <stdlib.h>
 #include <strfunc.h>
 #include <time.h>
 #include <auto_thd.h>
 
-#include "api0api.h"
-#include "api0misc.h"
+#ifndef UNIV_HOTBACKUP
+# include "api0api.h"
+# include "api0misc.h"
 /* Include necessary InnoDB headers */
 #include "auth_acls.h"
-#include "btr0btr.h"
-#include "btr0bulk.h"
-#include "btr0cur.h"
-#include "btr0sea.h"
-#include "buf0dblwr.h"
-#include "buf0dump.h"
-#include "buf0flu.h"
-#include "buf0lru.h"
-#include "buf0stats.h"
+# include "btr0btr.h"
+# include "btr0bulk.h"
+# include "btr0cur.h"
+# include "btr0sea.h"
+# include "buf0dblwr.h"
+# include "buf0dump.h"
+# include "buf0flu.h"
+# include "buf0lru.h"
+# include "buf0stats.h"
 #include "clone0api.h"
 #include "dd/dd.h"
 #include "dd/dictionary.h"
@@ -83,73 +90,84 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dd/types/partition.h"
 #include "dd/types/table.h"
 #include "dd/types/tablespace.h"
-#include "dict0boot.h"
-#include "dict0crea.h"
-#include "dict0dd.h"
-#include "dict0dict.h"
-#include "dict0load.h"
-#include "dict0stats.h"
-#include "dict0stats_bg.h"
-#include "fil0fil.h"
-#include "fsp0fsp.h"
-#include "fsp0space.h"
-#include "fsp0sysspace.h"
-#include "fts0fts.h"
-#include "fts0plugin.h"
-#include "fts0priv.h"
-#include "fts0types.h"
-#include "ha_innodb.h"
-#include "ha_innopart.h"
-#include "ha_prototypes.h"
-#include "i_s.h"
-#include "ibuf0ibuf.h"
-#include "lex_string.h"
-#include "lob0lob.h"
-#include "lock0lock.h"
+# include "dict0boot.h"
+# include "dict0crea.h"
+# include "dict0dd.h"
+# include "dict0dict.h"
+# include "dict0load.h"
+# include "dict0stats.h"
+# include "dict0stats_bg.h"
+# include "fil0fil.h"
+# include "fsp0fsp.h"
+# include "fsp0space.h"
+# include "fsp0sysspace.h"
+# include "fts0fts.h"
+# include "fts0plugin.h"
+# include "fts0priv.h"
+# include "fts0types.h"
+# include "ha_innodb.h"
+# include "ha_innopart.h"
+# include "ha_prototypes.h"
+# include "i_s.h"
+# include "ibuf0ibuf.h"
+# include "lex_string.h"
+# include "lob0lob.h"
+# include "lock0lock.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "log0log.h"
-#include "mem0mem.h"
-#include "mtr0mtr.h"
-#include "my_dbug.h"
-#include "my_double2ulonglong.h"
-#include "my_io.h"
-#include "my_macros.h"
-#include "my_psi_config.h"
-#include "mysql/psi/mysql_data_lock.h"
+#ifndef UNIV_HOTBACKUP
+# include "mem0mem.h"
+# include "mtr0mtr.h"
+# include "my_dbug.h"
+# include "my_double2ulonglong.h"
+# include "my_io.h"
+# include "my_macros.h"
+# include "my_psi_config.h"
+# include "mysql/psi/mysql_data_lock.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "mysys_err.h"
 #include "os0file.h"
-#include "os0thread.h"
-#include "p_s.h"
-#include "page0zip.h"
-#include "pars0pars.h"
-#include "rem0types.h"
-#include "row0ext.h"
-#include "row0import.h"
-#include "row0ins.h"
-#include "row0merge.h"
-#include "row0mysql.h"
-#include "row0quiesce.h"
-#include "row0sel.h"
-#include "row0upd.h"
-#include "srv0mon.h"
-#include "srv0srv.h"
-#include "srv0start.h"
-#include "sync0sync.h"
+#ifndef UNIV_HOTBACKUP
+# include "os0thread.h"
+# include "p_s.h"
+# include "page0zip.h"
+# include "pars0pars.h"
+# include "rem0types.h"
+# include "row0ext.h"
+# include "row0import.h"
+# include "row0ins.h"
+# include "row0merge.h"
+# include "row0mysql.h"
+# include "row0quiesce.h"
+# include "row0sel.h"
+# include "row0upd.h"
+# include "srv0mon.h"
+# include "srv0srv.h"
+# include "srv0start.h"
+# include "sync0sync.h"
 #ifdef UNIV_DEBUG
-#include "trx0purge.h"
+# include "trx0purge.h"
 #endif /* UNIV_DEBUG */
 #include "dict0priv.h"
 #include "dict0sdi.h"
 #include "dict0upgrade.h"
 #include "sql_base.h" // OPEN_FRM_FILE_ONLY
 #include "sql/item.h"
-#include "trx0roll.h"
+# include "trx0roll.h"
 #include "trx0rseg.h"
-#include "trx0sys.h"
-#include "trx0trx.h"
-#include "trx0xa.h"
-#include "univ.i"
-#include "ut0mem.h"
+# include "trx0sys.h"
+# include "trx0trx.h"
+# include "trx0xa.h"
+# include "univ.i"
+# include "ut0mem.h"
+#endif /* !UNIV_HOTBACKUP */
 
+#ifdef UNIV_HOTBACKUP
+# include <typelib.h>
+# include "buf0types.h"
+#endif /* UNIV_HOTBACKUP */
+
+#ifndef UNIV_HOTBACKUP
 #include <mysql/components/services/system_variable_source.h>
 
 SERVICE_TYPE(registry) *reg_svc = nullptr;
@@ -365,6 +383,7 @@ static TYPELIB innodb_stats_method_typelib = {
 	NULL
 };
 
+#endif /* UNIV_HOTBACKUP */
 /** Possible values of the parameter innodb_checksum_algorithm */
 static const char* innodb_checksum_algorithm_names[] = {
 	"crc32",
@@ -385,6 +404,7 @@ static TYPELIB innodb_checksum_algorithm_typelib = {
 	NULL
 };
 
+#ifndef UNIV_HOTBACKUP
 /** Names of allowed values of innodb_flush_method */
 static const char* innodb_flush_method_names[] = {
 #ifndef _WIN32 /* See srv_unix_flush_t */
@@ -425,7 +445,46 @@ static TYPELIB innodb_default_row_format_typelib = {
 	innodb_default_row_format_names,
 	NULL
 };
+#endif /* !UNIV_HOTBACKUP */
 
+#ifdef UNIV_HOTBACKUP
+/** Returns the name of the checksum algorithm corresponding to the
+algorithm id given by "algo_enum" parameter.
+@param[in]	algo_enum	algorithm enumerator
+@return		C-string	algorithm name */
+const char*
+meb_get_checksum_algorithm_name(
+	srv_checksum_algorithm_t algo_enum)
+{
+	return(get_type(&innodb_checksum_algorithm_typelib, algo_enum));
+}
+
+/** Retrieves the enum corresponding to the checksum algorithm
+name specified by algo_name. If the call succeeds, returns
+TRUE and checksum algorithm enum is returned in algo_enum.
+@param[in]	algo_name	algorithm name
+@param[out]	algo_enum	algorithm enumerator
+@retval	true	if successful
+@retval	false	if algorithn name not found */
+ibool
+meb_get_checksum_algorithm_enum(
+	const char* algo_name,
+	srv_checksum_algorithm_t &algo_enum)
+{
+	int type = find_type(
+		algo_name, &innodb_checksum_algorithm_typelib, FIND_TYPE_BASIC);
+	if (type <= 0) {
+		/** Invalid algorithm name */
+		return(FALSE);
+	} else {
+		algo_enum = srv_checksum_algorithm_t(type - 1);
+	}
+
+	return(TRUE);
+}
+#endif /* UNIV_HOTBACKUP */
+
+#ifndef UNIV_HOTBACKUP
 /* The following counter is used to convey information to InnoDB
 about server activity: in case of normal DML ops it is not
 sensible to call srv_active_wake_master_thread after each
@@ -2300,6 +2359,7 @@ innobase_convert_from_id(
 
 	strconvert(cs, from, system_charset_info, to, len, &errors);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /******************************************************************//**
 Compares NUL-terminated UTF-8 strings case insensitively.
@@ -2323,6 +2383,7 @@ innobase_strcasecmp(
 	return(my_strcasecmp(system_charset_info, a, b));
 }
 
+#ifndef UNIV_HOTBACKUP
 /******************************************************************//**
 Compares NUL-terminated UTF-8 strings case insensitively. The
 second string contains wildcards.
@@ -2336,6 +2397,7 @@ innobase_wildcasecmp(
 {
 	return(wild_case_compare(system_charset_info, a, b));
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /** Strip dir name from a full path name and return only the file name
 @param[in]	path_name	full path name
@@ -2348,6 +2410,7 @@ innobase_basename(
 
 	return((name) ? name : "null");
 }
+#ifndef UNIV_HOTBACKUP
 
 /******************************************************************//**
 Makes all characters in a NUL-terminated UTF-8 string lower case. */
@@ -2560,6 +2623,7 @@ innobase_raw_format(
 	return(ut_str_sql_format(buf_tmp, buf_tmp_used, buf, buf_size));
 }
 
+#endif /* !UNIV_HOTBACKUP */
 /** Check if the string is "empty" or "none".
 @param[in]      algorithm       Compression algorithm to check
 @return true if no algorithm requested */
@@ -2615,6 +2679,7 @@ Compression::validate(const char* algorithm)
 	return(check(algorithm, &compression));
 }
 
+#ifndef UNIV_HOTBACKUP
 /** Check if the string is "" or "n".
 @param[in]      algorithm       Encryption algorithm to check
 @return true if no algorithm requested */
@@ -3129,6 +3194,7 @@ innobase_quote_identifier(
 		putc(q, file);
 	}
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /** Convert a table name to the MySQL system_charset_info (UTF-8)
 and quote it.
@@ -3204,6 +3270,7 @@ innobase_convert_name(
 	return(s);
 }
 
+#ifndef UNIV_HOTBACKUP
 /*****************************************************************//**
 A wrapper function of innobase_convert_name(), convert a table name
 to the MySQL system_charset_info (UTF-8) and quote it if needed.
@@ -3868,11 +3935,14 @@ static uint innobase_partition_flags()
 {
 	return(HA_CAN_EXCHANGE_PARTITION | HA_CANNOT_PARTITION_FK);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /** Update log_checksum_algorithm_ptr with a pointer to the function
 corresponding to whether checksums are enabled.
 @param[in]	check	whether redo log block checksums are enabled */
+#ifndef UNIV_HOTBACKUP
 static
+#endif /* !UNIV_HOTBACKUP */
 void
 innodb_log_checksums_func_update(bool	check)
 {
@@ -3881,6 +3951,7 @@ innodb_log_checksums_func_update(bool	check)
 		: log_block_calc_checksum_none;
 }
 
+#ifndef UNIV_HOTBACKUP
 /** Minimum expected tablespace size. (5M) */
 static const ulint MIN_EXPECTED_TABLESPACE_SIZE = 5 * 1024 * 1024;
 
@@ -22821,6 +22892,10 @@ ib_senderrf(
 	case IB_LOG_LEVEL_FATAL:
 		l = Sql_condition::SEVERITY_END;
 		break;
+#ifdef UNIV_HOTBACKUP
+	default:
+		break;
+#endif /* UNIV_HOTBACKUP */
 	}
 
 	if (level != IB_LOG_LEVEL_ERROR) {
@@ -22899,6 +22974,7 @@ ib_errf(
 	va_end(args);
 	free(str);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /* Keep the first 16 characters as-is, since the url is sometimes used
 as an offset from this.*/
@@ -22931,6 +23007,7 @@ const char*	FOREIGN_KEY_CONSTRAINTS_MSG =
 const char*	INNODB_PARAMETERS_MSG =
 	"Please refer to " REFMAN "innodb-parameters.html";
 
+#ifndef UNIV_HOTBACKUP
 /**********************************************************************
 Converts an identifier from my_charset_filename to UTF-8 charset.
 @return result string length, as returned by strconvert() */
@@ -23079,4 +23156,4 @@ debug_set:
 
 	return(0);
 }
-
+#endif /* !UNIV_HOTBACKUP */

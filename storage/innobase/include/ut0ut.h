@@ -36,7 +36,7 @@ Created 1/20/1994 Heikki Tuuri
 
 #ifndef UNIV_HOTBACKUP
 # include "os0atomic.h"
-#endif /* UNIV_HOTBACKUP */
+#endif /* !UNIV_HOTBACKUP */
 
 #include <time.h>
 
@@ -211,7 +211,6 @@ the only way to manipulate it is to use the function ut_difftime.
 ib_time_t
 ut_time(void);
 /*=========*/
-#ifndef UNIV_HOTBACKUP
 /**********************************************************//**
 Returns system time.
 Upon successful completion, the value 0 is returned; otherwise the
@@ -250,7 +249,6 @@ bool
 ut_win_init_time();
 
 #endif /* _WIN32 */
-#endif /* !UNIV_HOTBACKUP */
 
 /**********************************************************//**
 Returns the number of milliseconds since some epoch.  The
@@ -287,23 +285,6 @@ struct ut_strcmp_functor
 	}
 };
 
-#ifdef UNIV_HOTBACKUP
-/**********************************************************//**
-Sprintfs a timestamp to a buffer with no spaces and with ':' characters
-replaced by '_'. */
-void
-ut_sprintf_timestamp_without_extra_chars(
-/*=====================================*/
-	char*	buf); /*!< in: buffer where to sprintf */
-/**********************************************************//**
-Returns current year, month, day. */
-void
-ut_get_year_month_day(
-/*==================*/
-	ulint*	year,	/*!< out: current year */
-	ulint*	month,	/*!< out: month */
-	ulint*	day);	/*!< out: day */
-#else /* UNIV_HOTBACKUP */
 /*************************************************************//**
 Runs an idle loop on CPU. The argument gives the desired delay
 in microseconds on 100 MHz Pentium + Visual C++.
@@ -363,7 +344,6 @@ ut_copy_file(
 /*=========*/
 	FILE*	dest,	/*!< in: output file */
 	FILE*	src);	/*!< in: input file to be appended to output */
-#endif /* !UNIV_HOTBACKUP */
 
 #ifdef _WIN32
 /**********************************************************************//**
@@ -557,7 +537,38 @@ private:
 	const bool	m_fatal;
 };
 
+#ifdef UNIV_HOTBACKUP
+/**  The class trace is used to emit informational log messages. only when
+trace level is set in the MEB code */
+class trace : public logger {
+public:
+    ~trace();
+};
+
+/**  The class trace_2 is used to emit informational log messages only when
+trace level 2 is set in the MEB code */
+class trace_2 : public logger {
+public:
+    ~trace_2();
+};
+
+/**  The class trace_3 is used to emit informational log messages only when
+trace level 3 is set in the MEB code */
+class trace_3 : public logger {
+public:
+    ~trace_3();
+};
+#endif /* UNIV_HOTBACKUP */
 } // namespace ib
+
+#ifdef UNIV_HOTBACKUP
+/** Sprintfs a timestamp to a buffer with no spaces and with ':' characters
+replaced by '_'.
+@param[in]	buf	buffer where to sprintf */
+void
+meb_sprintf_timestamp_without_extra_chars(
+	char*	buf);
+#endif /* UNIV_HOTBACKUP */
 
 #include "ut0ut.ic"
 

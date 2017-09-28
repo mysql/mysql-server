@@ -36,9 +36,10 @@ Created 11/29/1995 Heikki Tuuri
 #include "ut0byte.h"
 #ifdef UNIV_HOTBACKUP
 # include "fut0lst.h"
-#else /* UNIV_HOTBACKUP */
-# include <my_aes.h>
+#endif /* UNIV_HOTBACKUP */
+#include <my_aes.h>
 
+#ifndef UNIV_HOTBACKUP
 # include "btr0btr.h"
 # include "btr0sea.h"
 # include "dict0boot.h"
@@ -47,14 +48,13 @@ Created 11/29/1995 Heikki Tuuri
 # include "ibuf0ibuf.h"
 # include "log0log.h"
 # include "srv0srv.h"
-# include "srv0start.h"
-#endif /* UNIV_HOTBACKUP */
+#endif /* !UNIV_HOTBACKUP */
+#include "srv0start.h"
 #include "dict0mem.h"
 #include "fsp0sysspace.h"
 #include "trx0purge.h"
 
 #ifndef UNIV_HOTBACKUP
-
 /** Returns an extent to the free list of a space.
 @param[in]	page_id		page id in the extent
 @param[in]	page_size	page size
@@ -160,6 +160,7 @@ fseg_alloc_free_page_low(
 #endif /* UNIV_DEBUG */
 )
 	MY_ATTRIBUTE((warn_unused_result));
+#endif /* !UNIV_HOTBACKUP */
 
 /** Get the segment identifier to which the extent belongs to.
 @param[in]	descr	extent descriptor
@@ -182,15 +183,18 @@ xdes_get_segment_id(
 	const xdes_t*		descr,
 	mtr_t*			mtr)
 {
+#ifndef UNIV_HOTBACKUP
 	ut_ad(mtr_memo_contains_page_flagged(
 			mtr, descr,
 			MTR_MEMO_PAGE_S_FIX
 			| MTR_MEMO_PAGE_X_FIX
 			| MTR_MEMO_PAGE_SX_FIX));
+#endif /* !UNIV_HOTBACKUP */
 
 	return(xdes_get_segment_id(descr));
 }
 
+#ifndef UNIV_HOTBACKUP
 /** Gets a pointer to the space header and x-locks its page.
 @param[in]	id		space id
 @param[in]	page_size	page size
@@ -251,6 +255,7 @@ fsp_flags_to_dict_tf(
 
 	return(flags);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /** Check whether a space id is an undo tablespace ID
 Undo tablespaces have space_id's starting 1 less than the redo logs.
@@ -296,6 +301,7 @@ fsp_is_checksum_disabled(space_id_t space_id)
 	return(fsp_is_system_temporary(space_id));
 }
 
+#ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
 
 /** Skip some of the sanity checks that are time consuming even in debug mode
@@ -885,7 +891,6 @@ fsp_header_init_fields(
 			flags);
 }
 
-#ifndef UNIV_HOTBACKUP
 /** Get the offset of encrytion information in page 0.
 @param[in]	page_size	page size.
 @return	offset on success, otherwise 0. */
@@ -909,6 +914,7 @@ fsp_header_get_encryption_offset(
 	return offset;
 }
 
+#ifndef UNIV_HOTBACKUP
 /** Write the encryption info into the space header.
 @param[in]      space_id		tablespace id
 @param[in]      space_flags		tablespace flags
@@ -4232,7 +4238,6 @@ fsp_sdi_write_root_to_page(
 	mlog_write_ulint(page + sdi_offset + 4,
 			 root_page_num, MLOG_4BYTES, mtr);
 }
-#endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG
 /** Print the file segment header to the given output stream.
@@ -4396,6 +4401,7 @@ fsp_check_tablespace_size(space_id_t space_id)
 	return(true);
 }
 #endif /* UNIV_DEBUG */
+#endif /* !UNIV_HOTBACKUP */
 
 /** Determine if the tablespace contians an SDI.
 @param[in]	space_id	Tablespace id
@@ -4414,6 +4420,7 @@ fsp_has_sdi(space_id_t space_id)
 		return(false);
 	}
 
+#ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
 	mtr_t	mtr;
 	mtr.start();
@@ -4422,6 +4429,7 @@ fsp_has_sdi(space_id_t space_id)
 		&mtr) != 0);
 	mtr.commit();
 #endif /* UNIV_DEBUG */
+#endif /* !UNIV_HOTBACKUP */
 
 	fil_space_release(space);
 	DBUG_EXECUTE_IF("ib_sdi",

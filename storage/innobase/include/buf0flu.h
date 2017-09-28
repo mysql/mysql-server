@@ -29,9 +29,9 @@ Created 11/5/1995 Heikki Tuuri
 #include "univ.i"
 #include "ut0byte.h"
 #include "log0log.h"
-#ifndef UNIV_HOTBACKUP
 #include "buf0types.h"
 
+#ifndef UNIV_HOTBACKUP
 /** Flag indicating if the page_cleaner is in active state. */
 extern bool buf_page_cleaner_is_active;
 

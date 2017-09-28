@@ -74,8 +74,10 @@ dict_mem_fill_index_struct(
 	index->disable_ahi = false;
 	index->last_ins_cur = nullptr;
 	index->last_sel_cur = nullptr;
+#ifndef UNIV_HOTBACKUP
 	new (&index->rec_cache) rec_cache_t();
 
+#endif /* UNIV_HOTBACKUP */
 #ifdef UNIV_DEBUG
 	index->magic_n = DICT_INDEX_MAGIC_N;
 #endif /* UNIV_DEBUG */

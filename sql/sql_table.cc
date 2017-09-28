@@ -29,16 +29,21 @@
 #include <string>
 #include <type_traits>
 
+#ifndef UNIV_HOTBACKUP
 #include "binary_log_types.h"
 #include "binlog_event.h"
 #include "lex_string.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "m_ctype.h"
 #include "m_string.h"                 // my_stpncpy
+#ifndef UNIV_HOTBACKUP
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_check_opt.h"             // T_EXTEND
 #include "my_compiler.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "my_dbug.h"
+#ifndef UNIV_HOTBACKUP
 #include "my_io.h"
 #include "my_loglevel.h"
 #include "my_psi_config.h"
@@ -129,9 +134,14 @@
 #include "sql/sql_tablespace.h"       // validate_tablespace_name
 #include "sql/sql_time.h"             // make_truncated_value_warning
 #include "sql/sql_trigger.h"          // change_trigger_table_name
+#endif /* !UNIV_HOTBACKUP */
+#include "sql/strfunc.h"                  // find_type2
+#ifndef UNIV_HOTBACKUP
 #include "sql/strfunc.h"              // find_type2
 #include "sql/system_variables.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "sql/table.h"
+#ifndef UNIV_HOTBACKUP
 #include "sql/thd_raii.h"
 #include "sql/thr_malloc.h"
 #include "sql/transaction.h"          // trans_commit_stmt
@@ -177,6 +187,13 @@ static bool prepare_enum_field(THD *thd, Create_field *sql_field);
 static uint blob_length_by_type(enum_field_types type);
 static const Create_field *get_field_by_index(Alter_info *alter_info, uint idx);
 
+#else /* !UNIV_HOTBACKUP */
+/* Branches which use these, should not be taken by backup. */
+#define ER_THD_OR_DEFAULT(thd,X) ("Cannot explain file name, MySQL error")
+#define get_quote_char_for_identifier(thd, conv_name, len) ('`')
+#endif /* !UNIV_HOTBACKUP */
+
+#ifndef UNIV_HOTBACKUP
 /**
   RAII class to control the atomic DDL commit on slave.
   A slave context flag responsible to mark the DDL as committed is
@@ -231,6 +248,7 @@ static bool trans_intermediate_ddl_commit(THD *thd, bool error)
   }
   return trans_commit_stmt(thd) || trans_commit(thd);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 
 /**
@@ -505,6 +523,7 @@ size_t explain_filename(THD* thd,
   DBUG_RETURN(static_cast<size_t>(to_p - to));
 }
 
+#ifndef UNIV_HOTBACKUP
 void parse_filename(const char *filename, size_t filename_length,
                     const char ** schema_name, size_t *schema_name_length,
                     const char ** table_name, size_t *table_name_length,
@@ -619,6 +638,7 @@ void parse_filename(const char *filename, size_t filename_length,
   *subpartition_name= id_ptr;
   *subpartition_name_length= id_length;
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /*
   Translate a file name to a table name (WL #1324).
@@ -653,6 +673,7 @@ size_t filename_to_tablename(const char *from, char *to, size_t to_length,
                     system_charset_info,  to, to_length, &errors);
     if (errors) // Old 5.0 name
     {
+#ifndef UNIV_HOTBACKUP
       if (!stay_quiet) {
         LogErr(ERROR_LEVEL, ER_INVALID_OR_OLD_TABLE_OR_DB_NAME, from);
       }
@@ -660,6 +681,7 @@ size_t filename_to_tablename(const char *from, char *to, size_t to_length,
         TODO: add a stored procedure for fix table and database names,
         and mention its name in error log.
       */
+#endif /* !UNIV_HOTBACKUP */
     }
   }
 
@@ -668,6 +690,7 @@ size_t filename_to_tablename(const char *from, char *to, size_t to_length,
 }
 
 
+#ifndef UNIV_HOTBACKUP
 /*
   Translate a table name to a file name (WL #1324).
 
@@ -14933,3 +14956,4 @@ static bool check_engine(THD *thd, const char *db_name,
 
   DBUG_RETURN(false);
 }
+#endif /* !UNIV_HOTBACKUP */

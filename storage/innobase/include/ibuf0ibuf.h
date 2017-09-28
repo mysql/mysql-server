@@ -32,13 +32,13 @@ Created 7/19/1997 Heikki Tuuri
 #include "dict0mem.h"
 #include "fsp0fsp.h"
 
-#ifndef UNIV_HOTBACKUP
 # include "ibuf0types.h"
 
 /** Default value for maximum on-disk size of change buffer in terms
 of percentage of the buffer pool. */
 #define CHANGE_BUFFER_DEFAULT_SIZE	(25)
 
+#ifndef UNIV_HOTBACKUP
 /* Possible operations buffered in the insert/whatever buffer. See
 ibuf_insert(). DO NOT CHANGE THE VALUES OF THESE, THEY ARE STORED ON DISK. */
 typedef enum {

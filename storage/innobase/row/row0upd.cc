@@ -34,37 +34,43 @@ Created 12/27/1996 Heikki Tuuri
 #include "row0upd.h"
 #include "trx0undo.h"
 #ifndef UNIV_HOTBACKUP
-#include <algorithm>
+# include <algorithm>
 
-#include "btr0btr.h"
-#include "btr0cur.h"
-#include "buf0lru.h"
-#include "current_thd.h"
-#include "dict0boot.h"
-#include "dict0crea.h"
-#include "eval0eval.h"
-#include "fts0fts.h"
-#include "fts0types.h"
-#include "lob0lob.h"
-#include "lock0lock.h"
-#include "log0log.h"
-#include "mach0data.h"
-#include "pars0sym.h"
-#include "que0que.h"
-#include "rem0cmp.h"
+# include "btr0btr.h"
+# include "btr0cur.h"
+# include "buf0lru.h"
+# include "current_thd.h"
+# include "dict0boot.h"
+# include "dict0crea.h"
+# include "eval0eval.h"
+# include "fts0fts.h"
+# include "fts0types.h"
+# include "lob0lob.h"
+# include "lock0lock.h"
+# include "log0log.h"
+# include "mach0data.h"
+# include "pars0sym.h"
+# include "que0que.h"
+# include "rem0cmp.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "row0ext.h"
 #include "row0ins.h"
 #include "row0log.h"
-#include "row0row.h"
-#include "row0sel.h"
-#include "trx0rec.h"
-#include "fts0fts.h"
-#include "fts0types.h"
+#ifndef UNIV_HOTBACKUP
+# include "row0row.h"
+# include "row0sel.h"
+# include "trx0rec.h"
+# include "fts0fts.h"
+# include "fts0types.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "lob0lob.h"
 #include <algorithm>
-#include "current_thd.h"
-#include "dict0dd.h"
+#ifndef UNIV_HOTBACKUP
+# include "current_thd.h"
+# include "dict0dd.h"
+#endif /* !UNIV_HOTBACKUP */
 
+#ifndef UNIV_HOTBACKUP
 /* What kind of latch and lock can we assume when the control comes to
    -------------------------------------------------------------------
 an update node?

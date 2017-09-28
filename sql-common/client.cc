@@ -3093,7 +3093,7 @@ const MY_CSET_OS_NAME charsets[]=
 };
 
 
-static const char *
+const char *
 my_os_charset_to_mysql_charset(const char *csname)
 {
   const MY_CSET_OS_NAME *csp;

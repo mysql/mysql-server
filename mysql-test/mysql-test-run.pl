@@ -472,6 +472,16 @@ sub main {
     $opt_parallel= 1;
   }
 
+  #
+  # Please note, that disk_usage() will print a space to separate its
+  # information from the preceding string, if the disk usage report is
+  # enabled. Otherwise an empty string is returned.
+  #
+  my $du = disk_usage();
+  if ($du) {
+    mtr_report(sprintf("Disk usage of vardir in MB:%s",$du));
+  }
+
   # Create server socket on any free port
   my $server = new IO::Socket::INET
     (
@@ -1338,6 +1348,7 @@ sub command_line_setup {
 	     'retry=i'                  => \$opt_retry,
 	     'retry-failure=i'          => \$opt_retry_failure,
              'timer!'                   => \&report_option,
+             'disk-usage!'              => \&report_option,
              'user=s'                   => \$opt_user,
              'testcase-timeout=i'       => \$opt_testcase_timeout,
              'suite-timeout=i'          => \$opt_suite_timeout,
@@ -2494,6 +2505,32 @@ sub mysqlpump_arguments ($) {
   client_debug_arg($args, "mysqlpump-$group_suffix");
   return mtr_args2str($exe, @$args);
 }
+
+sub mysqlbackup_arguments ()
+{
+  my $exe= mtr_exe_maybe_exists(vs_config_dirs('runtime_output_directory',
+                                               'mysqlbackup'),
+                                "$basedir/bin/mysqlbackup",
+                                "$path_client_bindir/mysqlbackup");
+  return "" unless $exe;
+
+  my $args;
+  mtr_init_args(\$args);
+  if ( $opt_valgrind_clients )
+  {
+    valgrind_client_arguments($args, \$exe);
+  }
+  return mtr_args2str($exe, @$args);
+}
+
+sub mysqlbackup_plugin_dir ()
+{
+  my $fnm= find_plugin('mysqlbackup_sbt_test_mms', 'plugin_output_directory');
+  return "" unless $fnm;
+
+  return dirname($fnm);
+}
+
 #
 # Set environment to be used by childs of this process for
 # things that are constant during the whole lifetime of mysql-test-run
@@ -2735,6 +2772,11 @@ sub environment_setup {
   $ENV{'EXE_MYSQL'}=                   $exe_mysql;
   $ENV{'PATH_CONFIG_FILE'}=            $path_config_file;
   $ENV{'MYSQL_SSL_RSA_SETUP'}=         $exe_mysql_ssl_rsa_setup;
+
+  $ENV{'MYSQLBACKUP'}=                 mysqlbackup_arguments()
+                                         unless $ENV{'MYSQLBACKUP'};
+  $ENV{'MYSQLBACKUP_PLUGIN_DIR'}=      mysqlbackup_plugin_dir()
+                                         unless $ENV{'MYSQLBACKUP_PLUGIN_DIR'};
 
   my $exe_mysqld= find_mysqld($basedir);
   $ENV{'MYSQLD'}= $exe_mysqld;
@@ -7646,6 +7688,7 @@ Misc options
   user=USER             User for connecting to mysqld(default: $opt_user)
   comment=STR           Write STR to the output
   timer                 Show test case execution time.
+  disk-usage            Show disk usage of vardir after each test.
   verbose               More verbose output(use multiple times for even more)
   verbose-restart       Write when and why servers are restarted
   start                 Only initialize and start the servers. If a testcase is

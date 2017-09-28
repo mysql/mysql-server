@@ -145,7 +145,9 @@ typedef ib_bpmutex_t BPageMutex;
 typedef ib_mutex_t BufListMutex;
 typedef ib_mutex_t FlushListMutex;
 typedef BPageMutex BufPoolZipMutex;
+#ifndef UNIV_HOTBACKUP
 typedef rw_lock_t BPageLock;
+#endif /* !UNIV_HOTBACKUP */
 
 /** Page identifier. */
 class page_id_t {

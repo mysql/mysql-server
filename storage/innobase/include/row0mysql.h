@@ -27,7 +27,9 @@ Created 9/17/2000 Heikki Tuuri
 #ifndef row0mysql_h
 #define row0mysql_h
 
+#ifndef UNIV_HOTBACKUP
 #include "ha_prototypes.h"
+#endif  /* !UNIV_HOTBACKUP */
 
 #include "data0data.h"
 #include "que0types.h"
@@ -40,6 +42,7 @@ Created 9/17/2000 Heikki Tuuri
 #include "sess0sess.h"
 #include "sql_cmd.h"
 
+#ifndef UNIV_HOTBACKUP
 extern ibool row_rollback_on_timeout;
 
 struct row_prebuilt_t;
@@ -290,6 +293,7 @@ void
 row_unlock_for_mysql(
 	row_prebuilt_t*	prebuilt,
 	ibool		has_latches_on_recs);
+#endif  /* !UNIV_HOTBACKUP */
 
 /*********************************************************************//**
 Checks if a table name contains the string "/#sql" which denotes temporary
@@ -302,6 +306,7 @@ row_is_mysql_tmp_table_name(
 				/*!< in: table name in the form
 				'database/tablename' */
 
+#ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
 Creates an query graph node of 'update' type to be used in the MySQL
 interface.
@@ -982,5 +987,6 @@ innobase_rename_vc_templ(
 void
 row_wait_for_background_drop_list_empty();
 #endif /* UNIV_DEBUG */
+#endif  /* !UNIV_HOTBACKUP */
 
 #endif /* row0mysql.h */

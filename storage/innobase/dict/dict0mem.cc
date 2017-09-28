@@ -25,21 +25,20 @@ Created 1/8/1996 Heikki Tuuri
 ***********************************************************************/
 
 #ifndef UNIV_HOTBACKUP
-#include <mysql_com.h>
+# include <mysql_com.h>
 
-#include "ha_prototypes.h"
+# include "ha_prototypes.h"
+
+# include "data0type.h"
 #endif /* !UNIV_HOTBACKUP */
-
-#include "data0type.h"
 #include "dict0dict.h"
 #include "dict0mem.h"
-#include "fts0priv.h"
-#include "mach0data.h"
-#include "my_dbug.h"
-#include "rem0rec.h"
-#include "ut0crc32.h"
-
 #ifndef UNIV_HOTBACKUP
+# include "fts0priv.h"
+# include "mach0data.h"
+# include "my_dbug.h"
+# include "rem0rec.h"
+# include "ut0crc32.h"
 # include "lock0lock.h"
 #endif /* !UNIV_HOTBACKUP */
 
@@ -85,6 +84,7 @@ operator<<(
 	return(s << ut_get_name(NULL, table_name.m_name));
 }
 
+#ifndef UNIV_HOTBACKUP
 /** Adds a virtual column definition to a table.
 @param[in,out]	table		table
 @param[in,out]	heap		temporary memory heap, or NULL. It is
@@ -377,7 +377,6 @@ dict_mem_table_col_rename(
 				      to, s, is_virtual);
 }
 
-#ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Creates and initializes a foreign constraint memory object.
 @return own: foreign constraint struct */
@@ -634,8 +633,6 @@ dict_mem_table_free_foreign_vcol_set(
 	}
 }
 
-#endif /* !UNIV_HOTBACKUP */
-
 /** Check whether index can be used by transaction
 @param[in] trx		transaction*/
 bool dict_index_t::is_usable(const trx_t* trx) const
@@ -656,6 +653,7 @@ bool dict_index_t::is_usable(const trx_t* trx) const
 			|| !MVCC::is_view_active(trx->read_view)
 			|| trx->read_view->changes_visible(trx_id, table->name));
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /** Gets pointer to the nth column in an index.
 @param[in] pos	position of the field
@@ -741,6 +739,7 @@ dict_mem_index_free(
 	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 
+#ifndef UNIV_HOTBACKUP
 	dict_index_zip_pad_mutex_destroy(index);
 
 	if (dict_index_is_spatial(index)) {
@@ -758,11 +757,13 @@ dict_mem_index_free(
 		mutex_destroy(&index->rtr_track->rtr_active_mutex);
 		UT_DELETE(index->rtr_track->rtr_active);
 	}
+#endif /* !UNIV_HOTBACKUP */
 
 	index->rtr_srs.reset();
 
 	mem_heap_free(index->heap);
 }
+#ifndef UNIV_HOTBACKUP
 
 /** Create a temporary tablename like "#sql-ibtid-inc" where
   tid = the Table ID
@@ -851,6 +852,7 @@ dict_foreign_set_validate(
 	return(dict_foreign_set_validate(table.foreign_set)
 	       && dict_foreign_set_validate(table.referenced_set));
 }
+#endif /* !UNIV_HOTBACKUP */
 
 std::ostream&
 operator<< (std::ostream& out, const dict_foreign_t& foreign)
