@@ -2043,7 +2043,7 @@ bool close_temporary_tables(THD *thd)
   /* scan sorted tmps to generate sequence of DROP */
   for (table= thd->temporary_tables; table; table= next)
   {
-    if (is_user_table(table))
+    if (is_user_table(table) && table->should_binlog_drop_if_temp())
     {
       bool save_thread_specific_used= thd->thread_specific_used;
       my_thread_id save_pseudo_thread_id= thd->variables.pseudo_thread_id;
@@ -2064,27 +2064,31 @@ bool close_temporary_tables(THD *thd)
            table= next)
       {
         /* Separate transactional from non-transactional temp tables */
-        if (table->s->tmp_table == TRANSACTIONAL_TMP_TABLE)
+        if (table->should_binlog_drop_if_temp())
         {
-          found_trans_table= true;
-          /*
-            We are going to add ` around the table names and possible more
-            due to special characters
-          */
-          append_identifier(thd, &s_query_trans, table->s->table_name.str,
-                            strlen(table->s->table_name.str));
-          s_query_trans.append(',');
-        }
-        else if (table->s->tmp_table == NON_TRANSACTIONAL_TMP_TABLE)
-        {
-          found_non_trans_table= true;
-          /*
-            We are going to add ` around the table names and possible more
-            due to special characters
-          */
-          append_identifier(thd, &s_query_non_trans, table->s->table_name.str,
-                            strlen(table->s->table_name.str));
-          s_query_non_trans.append(',');
+          /* Separate transactional from non-transactional temp tables */
+          if (table->s->tmp_table == TRANSACTIONAL_TMP_TABLE)
+          {
+            found_trans_table= true;
+            /*
+              We are going to add ` around the table names and possible more
+              due to special characters
+            */
+            append_identifier(thd, &s_query_trans, table->s->table_name.str,
+                              strlen(table->s->table_name.str));
+            s_query_trans.append(',');
+          }
+          else if (table->s->tmp_table == NON_TRANSACTIONAL_TMP_TABLE)
+          {
+            found_non_trans_table= true;
+            /*
+              We are going to add ` around the table names and possible more
+              due to special characters
+            */
+            append_identifier(thd, &s_query_non_trans, table->s->table_name.str,
+                              strlen(table->s->table_name.str));
+            s_query_non_trans.append(',');
+          }
         }
 
         next= table->next;
@@ -2165,6 +2169,11 @@ bool close_temporary_tables(THD *thd)
     else
     {
       next= table->next;
+      /*
+        This is for those cases when we have acquired lock but drop temporary table
+        will not be logged.
+      */
+      mysql_lock_remove(thd, thd->lock, table);
       close_temporary(thd, table, 1, 1);
       slave_closed_temp_tables++;
     }
@@ -7760,6 +7769,8 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
 
   if (add_to_temporary_tables_list)
   {
+    tmp_table->set_binlog_drop_if_temp(!thd->is_current_stmt_binlog_disabled()
+                                 && !thd->is_current_stmt_binlog_format_row());
     /* growing temp list at the head */
     tmp_table->next= thd->temporary_tables;
     if (tmp_table->next)

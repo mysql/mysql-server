@@ -2885,6 +2885,10 @@ int Query_result_create::binlog_show_create_table()
   if (error)
     DBUG_RETURN(error);
 
+  create_table->table->set_binlog_drop_if_temp(
+    !thd->is_current_stmt_binlog_disabled()
+    && !thd->is_current_stmt_binlog_format_row());
+
   if (!thd->is_current_stmt_binlog_format_row() ||
       table->s->tmp_table)
     DBUG_RETURN(0);
