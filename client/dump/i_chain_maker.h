@@ -18,10 +18,10 @@
 #ifndef I_CHAIN_MAKER_INCLUDED
 #define I_CHAIN_MAKER_INCLUDED
 
-#include "chain_data.h"
-#include "i_chain_element.h"
-#include "i_dump_task.h"
-#include "i_object_reader.h"
+#include "client/dump/chain_data.h"
+#include "client/dump/i_chain_element.h"
+#include "client/dump/i_dump_task.h"
+#include "client/dump/i_object_reader.h"
 
 namespace Mysql{
 namespace Tools{

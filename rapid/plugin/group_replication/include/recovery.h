@@ -16,16 +16,16 @@
 #ifndef RECOVERY_INCLUDE
 #define RECOVERY_INCLUDE
 
-#include <mysql/gcs/gcs_communication_interface.h>
-#include <mysql/gcs/gcs_control_interface.h>
 #include <mysql/group_replication_priv.h>
 #include <stddef.h>
 #include <list>
 #include <string>
 
-#include "applier.h"
-#include "channel_observation_manager.h"
-#include "recovery_state_transfer.h"
+#include "plugin/group_replication/include/applier.h"
+#include "plugin/group_replication/include/channel_observation_manager.h"
+#include "plugin/group_replication/include/recovery_state_transfer.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_communication_interface.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_control_interface.h"
 
 /* The possible policies used on recovery when applying cached transactions */
 enum enum_recovery_completion_policies

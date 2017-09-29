@@ -16,7 +16,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
-#include "gcs_basic_logging.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_basic_logging.h"
 
 using ::testing::Return;
 using ::testing::WithArgs;

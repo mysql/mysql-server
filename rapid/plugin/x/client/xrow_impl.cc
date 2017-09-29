@@ -17,7 +17,7 @@
  * 02110-1301  USA
  */
 
-#include "xrow_impl.h"
+#include "plugin/x/client/xrow_impl.h"
 
 #include <cassert>
 #include <utility>
@@ -236,8 +236,10 @@ bool XRow_impl::get_datetime(const int32_t field_index,
     return false;
 
   const std::string &field = m_row->field(field_index);
+  bool has_time = (*m_metadata)[field_index].content_type ==
+      static_cast<uint32_t>(Mysqlx::Resultset::DATETIME);
 
-  return row_decoder::buffer_to_datetime(field, out_data);
+  return row_decoder::buffer_to_datetime(field, out_data, has_time);
 }
 
 bool XRow_impl::get_set(const int32_t field_index,

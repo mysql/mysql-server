@@ -86,26 +86,27 @@
 */
 
 #define MYSQL_SERVER 1
+#include "storage/myisammrg/ha_myisammrg.h"
+
 #include "my_config.h"
 
-#include <m_ctype.h>
 #include <mysql/plugin.h>
 #include <algorithm>
 
-#include "../myisam/ha_myisam.h"
-#include "current_thd.h"
-#include "debug_sync.h"
-#include "ha_myisammrg.h"
+#include "m_ctype.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_pointer_arithmetic.h"
 #include "my_psi_config.h"
-#include "myrg_def.h"
-#include "mysqld.h"
-#include "sql_class.h"                          // THD
-#include "sql_show.h"                           // append_identifier
-#include "sql_table.h"                         // build_table_filename
-#include "thr_malloc.h"                         // int_sql_alloc
+#include "sql/current_thd.h"
+#include "sql/debug_sync.h"
+#include "sql/mysqld.h"
+#include "sql/sql_class.h"                      // THD
+#include "sql/sql_show.h"                       // append_identifier
+#include "sql/sql_table.h"                     // build_table_filename
+#include "sql/thr_malloc.h"                     // int_sql_alloc
+#include "storage/myisam/ha_myisam.h"
+#include "storage/myisammrg/myrg_def.h"
 #include "typelib.h"
 
 using std::min;

@@ -20,11 +20,11 @@
 
 #include <vector>
 
-#include "abstract_program.h"
-#include "base/mutex.h"
-#include "client_priv.h"
-#include "composite_options_provider.h"
-#include "i_connection_factory.h"
+#include "client/base/abstract_program.h"
+#include "client/base/composite_options_provider.h"
+#include "client/base/i_connection_factory.h"
+#include "client/base/mutex.h"
+#include "client/client_priv.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "nullable.h"
@@ -134,6 +134,7 @@ private:
   Nullable<std::string> m_user;
   Nullable<std::string> m_password;
   Nullable<std::string> m_default_charset;
+  bool m_get_server_public_key;
 };
 
 }

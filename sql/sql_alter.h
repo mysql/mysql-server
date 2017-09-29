@@ -23,16 +23,18 @@
 
 #include "binary_log_types.h" // enum_field_types
 #include "lex_string.h"
-#include "mem_root_array.h" // Mem_root_array
 #include "my_dbug.h"
 #include "my_io.h"
 #include "my_sqlcommand.h"
 #include "mysql/psi/psi_base.h"
-#include "sql_alloc.h"
-#include "sql_cmd.h"  // Sql_cmd
-#include "sql_cmd_ddl_table.h" // Sql_cmd_ddl_table
-#include "sql_list.h" // List
-#include "thr_malloc.h"
+#include "nullable.h"
+#include "sql/gis/srid.h"
+#include "sql/mem_root_array.h" // Mem_root_array
+#include "sql/sql_alloc.h"
+#include "sql/sql_cmd.h" // Sql_cmd
+#include "sql/sql_cmd_ddl_table.h" // Sql_cmd_ddl_table
+#include "sql/sql_list.h" // List
+#include "sql/thr_malloc.h"
 
 class Create_field;
 class FOREIGN_KEY;
@@ -41,6 +43,8 @@ class Key_spec;
 class String;
 class THD;
 struct TABLE_LIST;
+
+using Mysql::Nullable;
 
 /**
   Class representing DROP COLUMN, DROP KEY and DROP FOREIGN KEY
@@ -409,7 +413,8 @@ public:
                  const CHARSET_INFO *cs,
                  uint uint_geom_type,
                  class Generated_column *gcol_info,
-                 const char *opt_after);
+                 const char *opt_after,
+                 Nullable<gis::srid_t> srid);
 private:
   Alter_info &operator=(const Alter_info &rhs); // not implemented
   Alter_info(const Alter_info &rhs);            // not implemented

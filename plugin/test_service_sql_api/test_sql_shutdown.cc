@@ -24,7 +24,7 @@
 #include "my_io.h"
 #include "my_sys.h"                             // my_write, my_malloc
 #include "mysql_com.h"
-#include "sql_plugin.h"                         // st_plugin_int
+#include "sql/sql_plugin.h"                     // st_plugin_int
 
 #define STRING_BUFFER_SIZE 256
 

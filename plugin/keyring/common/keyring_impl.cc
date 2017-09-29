@@ -13,15 +13,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <sstream>
 #include <stddef.h>
 #include <memory>
+#include <sstream>
 
-#include "keyring.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_memory.h"
+#include "plugin/keyring/common/keyring.h"
 
 namespace keyring
 {
@@ -40,12 +40,12 @@ std::unique_ptr<char[]> keyring_file_data(nullptr);
 #ifdef HAVE_PSI_INTERFACE
 static PSI_rwlock_info all_keyring_rwlocks[]=
 {
-  {&keyring::key_LOCK_keyring, "LOCK_keyring", 0}
+  {&keyring::key_LOCK_keyring, "LOCK_keyring", 0, 0, PSI_DOCUMENT_ME}
 };
 
 static PSI_memory_info all_keyring_memory[]=
 {
-  {&keyring::key_memory_KEYRING, "KEYRING", 0}
+  {&keyring::key_memory_KEYRING, "KEYRING", 0, 0, PSI_DOCUMENT_ME}
 };
 
 void keyring_init_psi_keys(void)

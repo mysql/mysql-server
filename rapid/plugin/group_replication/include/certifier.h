@@ -16,8 +16,6 @@
 #ifndef CERTIFIER_INCLUDE
 #define CERTIFIER_INCLUDE
 
-#include <mysql/gcs/gcs_communication_interface.h>
-#include <mysql/gcs/gcs_control_interface.h>
 #include <mysql/group_replication_priv.h>
 #include <list>
 #include <map>
@@ -25,13 +23,15 @@
 #include <unordered_map>
 #include <vector>
 
-#include "certifier_stats_interface.h"
-#include "gcs_plugin_messages.h"
-#include "member_info.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "pipeline_interfaces.h"
-#include "plugin_utils.h"
+#include "plugin/group_replication/include/certifier_stats_interface.h"
+#include "plugin/group_replication/include/gcs_plugin_messages.h"
+#include "plugin/group_replication/include/member_info.h"
+#include "plugin/group_replication/include/pipeline_interfaces.h"
+#include "plugin/group_replication/include/plugin_utils.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_communication_interface.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_control_interface.h"
 
 
 /**

@@ -95,10 +95,10 @@ FLUSH RELAY LOGS;
 ===== Executing MASTER_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
 [connection server_1]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return NULL for channel '' and position 881.]
+include/assert.inc [MASTER_POS_WAIT should return NULL for channel '' and position POSITION.]
 [connection server_1]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return NULL for channel '' and position 882.]
+include/assert.inc [MASTER_POS_WAIT should return NULL for channel '' and position POSITION+1.]
 ===== Executing FLUSH RELAY LOGS FOR CHANNEL on channel ''.
 FLUSH RELAY LOGS FOR CHANNEL '';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel ''.
@@ -138,10 +138,10 @@ RESET SLAVE ALL FOR CHANNEL '';
 ===== Executing MASTER_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
 [connection server_2]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return 0 for channel 'channel_2' and position 881.]
+include/assert.inc [MASTER_POS_WAIT should return 0 for channel 'channel_2' and position POSITION.]
 [connection server_2]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return -1 for channel 'channel_2' and position 882.]
+include/assert.inc [MASTER_POS_WAIT should return -1 for channel 'channel_2' and position POSITION+1.]
 ===== Executing FLUSH RELAY LOGS FOR CHANNEL on channel 'channel_2'.
 FLUSH RELAY LOGS FOR CHANNEL 'channel_2';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel 'channel_2'.
@@ -185,10 +185,10 @@ RESET SLAVE ALL FOR CHANNEL 'channel_2';
 ===== Executing MASTER_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
 [connection server_3]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return 0 for channel 'channel_3' and position 881.]
+include/assert.inc [MASTER_POS_WAIT should return 0 for channel 'channel_3' and position POSITION.]
 [connection server_3]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return -1 for channel 'channel_3' and position 882.]
+include/assert.inc [MASTER_POS_WAIT should return -1 for channel 'channel_3' and position POSITION+1.]
 ===== Executing FLUSH RELAY LOGS FOR CHANNEL on channel 'channel_3'.
 FLUSH RELAY LOGS FOR CHANNEL 'channel_3';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel 'channel_3'.
@@ -316,10 +316,10 @@ FLUSH RELAY LOGS;
 ===== Executing MASTER_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
 [connection server_1]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return 0 for channel '' and position 881.]
+include/assert.inc [MASTER_POS_WAIT should return 0 for channel '' and position POSITION.]
 [connection server_1]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return -1 for channel '' and position 882.]
+include/assert.inc [MASTER_POS_WAIT should return -1 for channel '' and position POSITION+1.]
 ===== Executing FLUSH RELAY LOGS FOR CHANNEL on channel ''.
 FLUSH RELAY LOGS FOR CHANNEL '';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel ''.
@@ -363,10 +363,10 @@ RESET SLAVE ALL FOR CHANNEL '';
 ===== Executing MASTER_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
 [connection server_2]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return NULL for channel 'channel_2' and position 881.]
+include/assert.inc [MASTER_POS_WAIT should return NULL for channel 'channel_2' and position POSITION.]
 [connection server_2]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return NULL for channel 'channel_2' and position 882.]
+include/assert.inc [MASTER_POS_WAIT should return NULL for channel 'channel_2' and position POSITION+1.]
 ===== Executing FLUSH RELAY LOGS FOR CHANNEL on channel 'channel_2'.
 FLUSH RELAY LOGS FOR CHANNEL 'channel_2';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel 'channel_2'.
@@ -406,10 +406,10 @@ RESET SLAVE ALL FOR CHANNEL 'channel_2';
 ===== Executing MASTER_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
 [connection server_3]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return 0 for channel 'channel_3' and position 881.]
+include/assert.inc [MASTER_POS_WAIT should return 0 for channel 'channel_3' and position POSITION.]
 [connection server_3]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return -1 for channel 'channel_3' and position 882.]
+include/assert.inc [MASTER_POS_WAIT should return -1 for channel 'channel_3' and position POSITION+1.]
 ===== Executing FLUSH RELAY LOGS FOR CHANNEL on channel 'channel_3'.
 FLUSH RELAY LOGS FOR CHANNEL 'channel_3';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel 'channel_3'.
@@ -537,10 +537,10 @@ FLUSH RELAY LOGS;
 ===== Executing MASTER_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
 [connection server_1]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return 0 for channel '' and position 881.]
+include/assert.inc [MASTER_POS_WAIT should return 0 for channel '' and position POSITION.]
 [connection server_1]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return -1 for channel '' and position 882.]
+include/assert.inc [MASTER_POS_WAIT should return -1 for channel '' and position POSITION+1.]
 ===== Executing FLUSH RELAY LOGS FOR CHANNEL on channel ''.
 FLUSH RELAY LOGS FOR CHANNEL '';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel ''.
@@ -584,10 +584,10 @@ RESET SLAVE ALL FOR CHANNEL '';
 ===== Executing MASTER_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
 [connection server_2]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return 0 for channel 'channel_2' and position 881.]
+include/assert.inc [MASTER_POS_WAIT should return 0 for channel 'channel_2' and position POSITION.]
 [connection server_2]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return -1 for channel 'channel_2' and position 882.]
+include/assert.inc [MASTER_POS_WAIT should return -1 for channel 'channel_2' and position POSITION+1.]
 ===== Executing FLUSH RELAY LOGS FOR CHANNEL on channel 'channel_2'.
 FLUSH RELAY LOGS FOR CHANNEL 'channel_2';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel 'channel_2'.
@@ -631,10 +631,10 @@ RESET SLAVE ALL FOR CHANNEL 'channel_2';
 ===== Executing MASTER_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
 [connection server_3]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return NULL for channel 'channel_3' and position 881.]
+include/assert.inc [MASTER_POS_WAIT should return NULL for channel 'channel_3' and position POSITION.]
 [connection server_3]
 [connection server_4]
-include/assert.inc [MASTER_POS_WAIT should return NULL for channel 'channel_3' and position 882.]
+include/assert.inc [MASTER_POS_WAIT should return NULL for channel 'channel_3' and position POSITION+1.]
 ===== Executing FLUSH RELAY LOGS FOR CHANNEL on channel 'channel_3'.
 FLUSH RELAY LOGS FOR CHANNEL 'channel_3';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel 'channel_3'.

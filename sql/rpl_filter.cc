@@ -23,9 +23,6 @@
 #include <map>
 #include <utility>
 
-#include "auth_acls.h"
-#include "current_thd.h"
-#include "item.h"                       // Item
 #include "m_ctype.h"
 #include "m_string.h"
 #include "mf_wcomp.h"                   // wild_one, wild_many
@@ -36,20 +33,23 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
-#include "mysqld.h"                     // table_alias_charset
 #include "mysqld_error.h"
-#include "psi_memory_key.h"
-#include "rpl_mi.h"                     // Master_info
-#include "rpl_msr.h"                    // channel_map
-#include "rpl_rli.h"                    // Relay_log_info
-#include "rpl_slave.h"                  // SLAVE_SQL
-#include "sql_class.h"
-#include "sql_lex.h"
-#include "sql_security_ctx.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/current_thd.h"
+#include "sql/item.h"                   // Item
+#include "sql/mysqld.h"                 // table_alias_charset
+#include "sql/psi_memory_key.h"
+#include "sql/rpl_mi.h"                 // Master_info
+#include "sql/rpl_msr.h"                // channel_map
+#include "sql/rpl_rli.h"                // Relay_log_info
+#include "sql/rpl_slave.h"              // SLAVE_SQL
+#include "sql/sql_class.h"
+#include "sql/sql_lex.h"
+#include "sql/table.h"                  // TABLE_LIST
+#include "sql/thr_malloc.h"
 #include "sql_string.h"
-#include "table.h"                      // TABLE_LIST
 #include "template_utils.h"             // my_free_container_pointers
-#include "thr_malloc.h"
 
 
 

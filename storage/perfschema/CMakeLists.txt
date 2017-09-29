@@ -14,14 +14,6 @@
 # along with this program; if not, write to the Free Software Foundation,
 # 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}
-                    ${CMAKE_SOURCE_DIR}/include
-                    ${CMAKE_SOURCE_DIR}/sql
-                    ${CMAKE_BINARY_DIR}/sql
-                    ${CMAKE_SOURCE_DIR}/extra/regex
-                    ${CMAKE_SOURCE_DIR}/extra/yassl/include
-                    ${SSL_INCLUDE_DIRS})
-
 ADD_DEFINITIONS(-DMYSQL_SERVER)
 
 #
@@ -41,6 +33,7 @@ pfs_builtin_memory.h
 pfs_column_types.h
 pfs_column_values.h
 pfs_con_slice.h
+pfs_dd_version.h
 pfs_defaults.h
 pfs_digest.h
 pfs_engine_table.h
@@ -129,7 +122,7 @@ table_setup_actors.h
 table_setup_consumers.h
 table_setup_instruments.h
 table_setup_objects.h
-table_setup_timers.h
+table_setup_threads.h
 table_sync_instances.h
 table_status_by_account.h
 table_status_by_host.h
@@ -266,7 +259,7 @@ table_setup_actors.cc
 table_setup_consumers.cc
 table_setup_instruments.cc
 table_setup_objects.cc
-table_setup_timers.cc
+table_setup_threads.cc
 table_sync_instances.cc
 table_status_by_account.cc
 table_status_by_host.cc

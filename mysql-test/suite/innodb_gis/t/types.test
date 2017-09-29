@@ -77,8 +77,8 @@ SELECT ST_AsText(g) FROM t_wl6455;
 
 # Check information_schema, the mtype of GEOMETRY datatype is 14.
 SELECT sc.name, sc.pos, sc.mtype
-FROM information_schema.innodb_sys_columns sc
-INNER JOIN information_schema.innodb_sys_tables st
+FROM information_schema.innodb_columns sc
+INNER JOIN information_schema.innodb_tables st
 ON sc.TABLE_ID=st.TABLE_ID
 WHERE st.NAME='test/t_wl6455' AND sc.NAME='g';
 

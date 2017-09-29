@@ -15,9 +15,9 @@
 
 #include <gtest/gtest.h>
 
-#include "benchmark.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "unittest/gunit/benchmark.h"
 
 namespace strings_valid_check_unittest {
 // Benchmark testing character valid check function of utf8 charset

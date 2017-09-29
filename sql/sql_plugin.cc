@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "sql_plugin.h"
+#include "sql/sql_plugin.h"
 
 #include "my_config.h"
 
@@ -22,24 +22,9 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "auth_acls.h"
-#include "auth_common.h"       // check_table_access
-#include "auto_thd.h"                   // Auto_THD
-#include "current_thd.h"
-#include "dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
-#include "dd/dd_schema.h"                // dd::Schema_MDL_locker
-#include "dd/info_schema/metadata.h"     // dd::info_schema::store_dynamic_p...
-#include "dd/string_type.h"    // dd::String_type
-#include "debug_sync.h"        // DEBUG_SYNC
-#include "derror.h"            // ER_THD
-#include "field.h"
-#include "handler.h"           // ha_initalize_handlerton
-#include "key.h"               // key_copy
-#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "map_helpers.h"
-#include "mdl.h"
 #include "mutex_lock.h"        // MUTEX_LOCK
 #include "my_base.h"
 #include "my_compiler.h"
@@ -72,36 +57,51 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysql_version.h"
-#include "mysqld.h"            // files_charset_info
 #include "mysqld_error.h"
-#include "persisted_variable.h"// Persisted_variables_cache
 #include "prealloced_array.h"
-#include "protocol_classic.h"
-#include "psi_memory_key.h"
-#include "records.h"           // READ_RECORD
-#include "set_var.h"
-#include "sql_audit.h"         // mysql_audit_acquire_plugins
-#include "sql_base.h"          // close_mysql_tables
-#include "sql_class.h"         // THD
-#include "sql_const.h"
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_parse.h"         // check_string_char_length
-#include "sql_plugin_var.h"
-#include "sql_servers.h"
-#include "sql_show.h"          // add_status_vars
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h" // check_table_access
+#include "sql/auto_thd.h"               // Auto_THD
+#include "sql/current_thd.h"
+#include "sql/dd/cache/dictionary_client.h" // dd::cache::Dictionary_client
+#include "sql/dd/dd_schema.h"            // dd::Schema_MDL_locker
+#include "sql/dd/info_schema/metadata.h" // dd::info_schema::store_dynamic_p...
+#include "sql/dd/string_type.h" // dd::String_type
+#include "sql/debug_sync.h"    // DEBUG_SYNC
+#include "sql/derror.h"        // ER_THD
+#include "sql/field.h"
+#include "sql/handler.h"       // ha_initalize_handlerton
+#include "sql/key.h"           // key_copy
+#include "sql/log.h"
+#include "sql/mdl.h"
+#include "sql/mysqld.h"        // files_charset_info
+#include "sql/persisted_variable.h"// Persisted_variables_cache
+#include "sql/protocol_classic.h"
+#include "sql/psi_memory_key.h"
+#include "sql/records.h"       // READ_RECORD
+#include "sql/set_var.h"
+#include "sql/sql_audit.h"     // mysql_audit_acquire_plugins
+#include "sql/sql_base.h"      // close_mysql_tables
+#include "sql/sql_class.h"     // THD
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_parse.h"     // check_string_char_length
+#include "sql/sql_plugin_var.h"
+#include "sql/sql_servers.h"
+#include "sql/sql_show.h"      // add_status_vars
+#include "sql/sql_table.h"
+#include "sql/strfunc.h"       // find_type
+#include "sql/sys_vars_resource_mgr.h"
+#include "sql/sys_vars_shared.h" // intern_find_sys_var
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/transaction.h"   // trans_rollback_stmt
 #include "sql_string.h"
-#include "sql_table.h"
-#include "strfunc.h"           // find_type
-#include "sys_vars_resource_mgr.h"
-#include "sys_vars_shared.h"   // intern_find_sys_var
-#include "system_variables.h"
-#include "table.h"
 #include "template_utils.h"    // pointer_cast
 #include "thr_lock.h"
 #include "thr_mutex.h"
-#include "transaction.h"       // trans_rollback_stmt
 
 
 /**
@@ -283,7 +283,7 @@
 #include <unordered_map>
 #include <utility>
 
-#include "srv_session.h"       // Srv_session::check_for_stale_threads()
+#include "sql/srv_session.h"   // Srv_session::check_for_stale_threads()
 
 using std::min;
 using std::max;
@@ -406,7 +406,7 @@ static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 
 /* support for Services */
 
-#include "sql_plugin_services.h"
+#include "sql/sql_plugin_services.h"
 
 /*
   A mutex LOCK_plugin_delete must be acquired before calling plugin_del
@@ -1329,26 +1329,29 @@ static PSI_mutex_key key_LOCK_plugin;
 static PSI_mutex_key key_LOCK_plugin_delete;
 static PSI_mutex_key key_LOCK_plugin_install;
 
+/* clang-format off */
 static PSI_mutex_info all_plugin_mutexes[]=
 {
-  { &key_LOCK_plugin, "LOCK_plugin", PSI_FLAG_GLOBAL, 0},
-  { &key_LOCK_plugin_delete, "LOCK_plugin_delete", PSI_FLAG_GLOBAL, 0},
-  { &key_LOCK_plugin_install, "LOCK_plugin_install", PSI_FLAG_GLOBAL, 0}
+  { &key_LOCK_plugin, "LOCK_plugin", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_LOCK_plugin_delete, "LOCK_plugin_delete", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_LOCK_plugin_install, "LOCK_plugin_install", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
+/* clang-format on */
 
-
+/* clang-format off */
 static PSI_memory_info all_plugin_memory[]=
 {
 #ifndef DBUG_OFF
-  { &key_memory_plugin_ref, "plugin_ref", PSI_FLAG_GLOBAL},
+  { &key_memory_plugin_ref, "plugin_ref", PSI_FLAG_ONLY_GLOBAL_STAT, 0, PSI_DOCUMENT_ME},
 #endif
-  { &key_memory_plugin_mem_root, "plugin_mem_root", PSI_FLAG_GLOBAL},
-  { &key_memory_plugin_init_tmp, "plugin_init_tmp", 0},
-  { &key_memory_plugin_int_mem_root, "plugin_int_mem_root", 0},
-  { &key_memory_mysql_plugin_dl, "mysql_plugin_dl", 0},
-  { &key_memory_mysql_plugin, "mysql_plugin", 0},
-  { &key_memory_plugin_bookmark, "plugin_bookmark", PSI_FLAG_GLOBAL}
+  { &key_memory_plugin_mem_root, "plugin_mem_root", PSI_FLAG_ONLY_GLOBAL_STAT, 0, PSI_DOCUMENT_ME},
+  { &key_memory_plugin_init_tmp, "plugin_init_tmp", 0, 0, PSI_DOCUMENT_ME},
+  { &key_memory_plugin_int_mem_root, "plugin_int_mem_root", 0, 0, PSI_DOCUMENT_ME},
+  { &key_memory_mysql_plugin_dl, "mysql_plugin_dl", 0, 0, PSI_DOCUMENT_ME},
+  { &key_memory_mysql_plugin, "mysql_plugin", 0, 0, PSI_DOCUMENT_ME},
+  { &key_memory_plugin_bookmark, "plugin_bookmark", PSI_FLAG_ONLY_GLOBAL_STAT, 0, PSI_DOCUMENT_ME}
 };
+/* clang-format on */
 
 static void init_plugin_psi_keys(void)
 {

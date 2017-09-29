@@ -21,25 +21,23 @@
 #define _GNU_SOURCE
 #endif
 
-#include "xcom_profile.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_profile.h"
 #ifndef _WIN32
 #include <netdb.h>
 #include <sys/socket.h>
 #endif
-#include <sys/types.h>
-
-#include "x_platform.h"
-
 #include <assert.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
 
-#include "simset.h"
-#include "task.h"
-#include "task_debug.h"
-#include "task_os.h"
-#include "xcom_vp.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/simset.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_debug.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_os.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
+#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
 
 /**
  * Wrapper function which retries and checks errors from socket

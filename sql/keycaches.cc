@@ -13,11 +13,11 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "keycaches.h"
+#include "sql/keycaches.h"
 
-#include "../mysys/mysys_priv.h"
 #include "m_string.h"
 #include "my_dbug.h"
+#include "mysys/mysys_priv.h"
 #include "template_utils.h"
 
 

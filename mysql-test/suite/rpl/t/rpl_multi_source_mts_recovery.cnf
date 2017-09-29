@@ -3,5 +3,4 @@
 [mysqld.1]
 
 [mysqld.2]
-log-slave-updates
 

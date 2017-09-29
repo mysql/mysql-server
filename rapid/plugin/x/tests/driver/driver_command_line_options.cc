@@ -15,13 +15,13 @@
  * 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "driver_command_line_options.h"
+#include "plugin/x/tests/driver/driver_command_line_options.h"
 
 #include <iostream>
 
-#include "processor/commands/command.h"
-#include "mysqlx_version.h"
-#include "ngs_common/to_string.h"
+#include "plugin/x/generated/mysqlx_version.h"
+#include "plugin/x/ngs/include/ngs_common/to_string.h"
+#include "plugin/x/tests/driver/processor/commands/command.h"
 #include "print_version.h"
 #include "welcome_copyright_notice.h"
 
@@ -41,6 +41,7 @@ void Driver_command_line_options::print_help() {
                "by -->import\n";
   std::cout << "--sql=<SQL>           Use SQL as input and execute it like "
                "in -->sql block\n";
+  std::cout << "-e=<SQL>, --execute=<SQL> Aliases for \"--sql\" option\n";
   std::cout << "-n, --no-auth         Skip authentication which is required "
                "by -->sql block (run mode)\n";
   std::cout
@@ -52,17 +53,17 @@ void Driver_command_line_options::print_help() {
             << MYSQLX_TCP_PORT << ")\n";
   std::cout << "--ipv=<mode>          Force internet protocol (default:4):\n";
   std::cout << "                      0 - allow system to resolve IPv6 and "
-               "IPv4, for example";
+               "IPv4, for example\n";
   std::cout << "                          resolving of 'localhost' can "
-               "return both '::1' and '127.0.0.1'";
+               "return both '::1' and '127.0.0.1'\n";
   std::cout << "                      4 - allow system to resolve only IPv4, "
                "for example\n";
   std::cout << "                          resolving of 'localhost' is going "
-               "to return '127.0.0.1'";
+               "to return '127.0.0.1'\n";
   std::cout << "                      6 - allow system to resolve only IPv6, "
                "for example\n";
   std::cout << "                          resolving of 'localhost' is going "
-               "to return '::1'";
+               "to return '::1'\n";
   std::cout << "-t, --timeout=<ms>    I/O timeouts in milliseconds\n";
   std::cout << "--close-no-sync       Do not wait for connection to be "
                "closed by server(disconnect first)\n";
@@ -135,6 +136,8 @@ Driver_command_line_options::Driver_command_line_options(
     } else if (check_arg(argv, i, "--plain-auth", NULL)) {
       m_use_plain_auth = true;
     } else if (check_arg_with_value(argv, i, "--sql", NULL, value)) {
+      m_sql = value;
+    } else if (check_arg_with_value(argv, i, "--execute", "-e", value)) {
       m_sql = value;
     } else if (check_arg_with_value(argv, i, "--password", "-p", value)) {
       m_connection_options.password = value;

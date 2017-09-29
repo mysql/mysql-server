@@ -16,18 +16,15 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "sql/partitioning/partition_handler.h"
+
 #include <fcntl.h>
 #include <limits.h>
 #include <stdarg.h>
 #include <utility>
 
 #include "binary_log_types.h"
-#include "derror.h"
-#include "discrete_interval.h"
-#include "field.h"
-#include "key.h"                             // key_rec_cmp
 #include "lex_string.h"
-#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_bitmap.h"
@@ -47,23 +44,27 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "partition_element.h"
-#include "partition_handler.h"
-#include "partition_info.h"                  // NOT_A_PARTITION_ID
-#include "protocol.h"
-#include "protocol_classic.h"
-#include "psi_memory_key.h"
-#include "set_var.h"
-#include "sql_alter.h"
-#include "sql_class.h"                       // THD
-#include "sql_const.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_partition.h"          // LIST_PART_ENTRY, part_id_range
-#include "sql_security_ctx.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/derror.h"
+#include "sql/discrete_interval.h"
+#include "sql/field.h"
+#include "sql/key.h"                         // key_rec_cmp
+#include "sql/log.h"
+#include "sql/partition_element.h"
+#include "sql/partition_info.h"              // NOT_A_PARTITION_ID
+#include "sql/protocol.h"
+#include "sql/protocol_classic.h"
+#include "sql/psi_memory_key.h"
+#include "sql/set_var.h"
+#include "sql/sql_alter.h"
+#include "sql/sql_class.h"                   // THD
+#include "sql/sql_const.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_partition.h"      // LIST_PART_ENTRY, part_id_range
+#include "sql/system_variables.h"
+#include "sql/table.h"                       // TABLE_SHARE
 #include "sql_string.h"
-#include "system_variables.h"
-#include "table.h"                           // TABLE_SHARE
 #include "template_utils.h"
 #include "thr_mutex.h"
 
@@ -85,13 +86,13 @@ static PSI_memory_key key_memory_Partition_admin;
 PSI_mutex_key key_partition_auto_inc_mutex;
 static PSI_memory_info all_partitioning_memory[]=
 {
-  { &key_memory_Partition_share, "Partition_share", 0},
-  { &key_memory_partition_sort_buffer, "partition_sort_buffer", 0},
-  { &key_memory_Partition_admin, "Partition_admin", 0}
+  { &key_memory_Partition_share, "Partition_share", 0, 0, PSI_DOCUMENT_ME},
+  { &key_memory_partition_sort_buffer, "partition_sort_buffer", 0, 0, PSI_DOCUMENT_ME},
+  { &key_memory_Partition_admin, "Partition_admin", 0, 0, PSI_DOCUMENT_ME}
 };
 static PSI_mutex_info all_partitioning_mutex[]=
 {
-  { &key_partition_auto_inc_mutex, "Partiton_share::auto_inc_mutex", 0, 0}
+  { &key_partition_auto_inc_mutex, "Partition_share::auto_inc_mutex", 0, 0, PSI_DOCUMENT_ME}
 };
 #endif
 
@@ -2717,17 +2718,17 @@ int Partition_helper::handle_unordered_next(uchar *buf, bool is_next_same)
     partition_read_range is_next_same are always local constants
   */
 
-  if (m_index_scan_type == PARTITION_READ_RANGE)
+  if(is_next_same)
+  {
+    error= index_next_same_in_part(m_part_spec.start_part,
+				   buf,
+                                   m_start_key.key,
+                                   m_start_key.length);
+  }
+  else if (m_index_scan_type == PARTITION_READ_RANGE)
   {
     DBUG_ASSERT(buf == m_table->record[0]);
     error= read_range_next_in_part(m_part_spec.start_part, NULL);
-  }
-  else if (is_next_same)
-  {
-    error= index_next_same_in_part(m_part_spec.start_part,
-                                   buf,
-                                   m_start_key.key,
-                                   m_start_key.length);
   }
   else
   {

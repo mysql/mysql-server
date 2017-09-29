@@ -24,8 +24,8 @@
 #include <stddef.h>
 
 #include "lf.h"
-#include "pfs_lock.h"
-#include "pfs_status.h"
+#include "storage/perfschema/pfs_lock.h"
+#include "storage/perfschema/pfs_status.h"
 
 struct PFS_single_stat;
 struct PFS_stage_stat;

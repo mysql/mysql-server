@@ -24,7 +24,7 @@
     Abort logging when we get an error in reading or writing log files
 */
 
-#include "log.h"
+#include "sql/log.h"
 
 #include "my_config.h"
 
@@ -35,12 +35,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "my_decimal.h"
 #include "my_sys.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/psi/mysql_rwlock.h"
-#include "session_tracker.h"
+#include "sql/my_decimal.h"
+#include "sql/session_tracker.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
@@ -54,14 +54,7 @@
 #include <string>
 #include <utility>
 
-#include "auth_acls.h"
 #include "binary_log_types.h"
-#include "derror.h"         // ER_DEFAULT
-#include "discrete_interval.h"
-#include "error_handler.h"  // Internal_error_handler
-#include "field.h"
-#include "handler.h"
-#include "key.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
@@ -76,25 +69,32 @@
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_version.h"
-#include "mysqld.h"         // opt_log_syslog_enable
 #include "mysqld_error.h"
-#include "psi_memory_key.h" // key_memory_File_query_log_name
-#include "query_options.h"
-#include "sql_audit.h"      // mysql_audit_general_log
-#include "sql_base.h"       // close_log_table
-#include "sql_class.h"      // THD
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_parse.h"      // sql_command_flags
-#include "sql_plugin_ref.h"
-#include "sql_security_ctx.h"
-#include "sql_time.h"       // calc_time_from_sec
-#include "system_variables.h"
-#include "table.h"          // TABLE_FIELD_TYPE
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/derror.h"     // ER_DEFAULT
+#include "sql/discrete_interval.h"
+#include "sql/error_handler.h" // Internal_error_handler
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/key.h"
+#include "sql/mysqld.h"     // opt_log_syslog_enable
+#include "sql/psi_memory_key.h" // key_memory_File_query_log_name
+#include "sql/query_options.h"
+#include "sql/sql_audit.h"  // mysql_audit_general_log
+#include "sql/sql_base.h"   // close_log_table
+#include "sql/sql_class.h"  // THD
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_parse.h"  // sql_command_flags
+#include "sql/sql_plugin_ref.h"
+#include "sql/sql_time.h"   // calc_time_from_sec
+#include "sql/system_variables.h"
+#include "sql/table.h"      // TABLE_FIELD_TYPE
 #include "thr_lock.h"
 #include "thr_mutex.h"
 #ifdef _WIN32
-#include <message.h>
+#include "sql/message.h"
 #else
 #endif
 

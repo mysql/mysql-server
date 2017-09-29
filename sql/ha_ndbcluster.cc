@@ -21,67 +21,66 @@
   MySQL and NDB Cluster
 */
 
-#include "ha_ndbcluster.h"
+#include "sql/ha_ndbcluster.h"
 
 #include <mysql/psi/mysql_thread.h>
-
 #include <memory>
 #include <string>
 
-#include "../storage/ndb/include/util/SparseBitmask.hpp"
-#include "../storage/ndb/src/common/util/parse_mask.hpp"
-#include "../storage/ndb/src/ndbapi/NdbQueryBuilder.hpp"
-#include "../storage/ndb/src/ndbapi/NdbQueryOperation.hpp"
-#include "abstract_query_plan.h"
-#include "ha_ndb_index_stat.h"
-#include "ha_ndbcluster_binlog.h"
-#include "ha_ndbcluster_cond.h"
-#include "ha_ndbcluster_connection.h"
-#include "ha_ndbcluster_push.h"
-#include "ha_ndbcluster_tables.h"
 #include "m_ctype.h"
 #include "mf_wcomp.h"
 #include "my_dbug.h"
 #include "mysql/plugin.h"
-#include "mysqld_thd_manager.h"  // Global_THD_manager
-#include "ndb_anyvalue.h"
-#include "ndb_binlog_extra_row_info.h"
-#include "ndb_bitmap.h"
-#include "ndb_component.h"
-#include "ndb_conflict.h"
-#include "ndb_dist_priv_util.h"
-#include "ndb_event_data.h"
-#include "ndb_global.h"
-#include "ndb_global_schema_lock.h"
-#include "ndb_global_schema_lock_guard.h"
-#include "ndb_local_connection.h"
-#include "ndb_local_schema.h"
-#include "ndb_log.h"
-#include "ndb_mi.h"
-#include "ndb_name_util.h"
-#include "ndb_schema_dist.h"
-#include "ndb_table_guard.h"
-#include "ndb_tdc.h"
-#include "ndb_thd.h"
-#include "ndb_version.h"
-#include "ndbapi/NdbApi.hpp"
-#include "ndbapi/NdbIndexStat.hpp"
-#include "ndbapi/NdbInterpretedCode.hpp"
-#include "partition_info.h"
+#include "sql/abstract_query_plan.h"
+#include "sql/current_thd.h"
+#include "sql/derror.h"     // ER_THD
+#include "sql/ha_ndb_index_stat.h"
+#include "sql/ha_ndbcluster_binlog.h"
+#include "sql/ha_ndbcluster_cond.h"
+#include "sql/ha_ndbcluster_connection.h"
+#include "sql/ha_ndbcluster_push.h"
+#include "sql/ha_ndbcluster_tables.h"
+#include "sql/mysqld.h"     // global_system_variables table_alias_charset ...
+#include "sql/mysqld_thd_manager.h" // Global_THD_manager
+#include "sql/ndb_anyvalue.h"
+#include "sql/ndb_binlog_extra_row_info.h"
+#include "sql/ndb_bitmap.h"
+#include "sql/ndb_component.h"
+#include "sql/ndb_conflict.h"
+#include "sql/ndb_dist_priv_util.h"
+#include "sql/ndb_event_data.h"
+#include "sql/ndb_global_schema_lock.h"
+#include "sql/ndb_global_schema_lock_guard.h"
+#include "sql/ndb_local_connection.h"
+#include "sql/ndb_local_schema.h"
+#include "sql/ndb_log.h"
+#include "sql/ndb_mi.h"
+#include "sql/ndb_name_util.h"
+#include "sql/ndb_schema_dist.h"
+#include "sql/ndb_sleep.h"
+#include "sql/ndb_table_guard.h"
+#include "sql/ndb_tdc.h"
+#include "sql/ndb_thd.h"
+#include "sql/partition_info.h"
+#include "storage/ndb/include/ndb_global.h"
+#include "storage/ndb/include/ndb_version.h"
+#include "storage/ndb/include/ndbapi/NdbApi.hpp"
+#include "storage/ndb/include/ndbapi/NdbIndexStat.hpp"
+#include "storage/ndb/include/ndbapi/NdbInterpretedCode.hpp"
+#include "storage/ndb/include/util/SparseBitmask.hpp"
+#include "storage/ndb/src/common/util/parse_mask.hpp"
+#include "storage/ndb/src/ndbapi/NdbQueryBuilder.hpp"
+#include "storage/ndb/src/ndbapi/NdbQueryOperation.hpp"
 #include "template_utils.h"
-#include "mysqld.h"         // global_system_variables table_alias_charset ...
-#include "current_thd.h"
-#include "derror.h"         // ER_THD
-#include "ndb_sleep.h"
 
 #ifndef DBUG_OFF
-#include "sql_test.h"       // print_where
+#include "sql/sql_test.h"   // print_where
 #endif
-#include "auth_common.h"    // wild_case_compare
-#include "sql_table.h"      // build_table_filename,
+#include "sql/auth/auth_common.h" // wild_case_compare
+#include "sql/ndb_dd.h"
                             // tablename_to_filename
-#include "sql_class.h"
-#include "ndb_dd.h"
+#include "sql/sql_class.h"
+#include "sql/sql_table.h"  // build_table_filename,
 
 using std::string;
 using std::unique_ptr;
@@ -375,10 +374,6 @@ static int ndbcluster_alter_tablespace(handlerton*, THD* thd,
                                        st_alter_tablespace* info,
                                        const dd::Tablespace*,
                                        dd::Tablespace*);
-static int ndbcluster_fill_files_table(handlerton *hton,
-                                       THD *thd, 
-                                       TABLE_LIST *tables, 
-                                       Item *cond);
 static int handle_trailing_share(THD *thd, NDB_SHARE *share);
 
 /**
@@ -396,9 +391,11 @@ static int
 ndbcluster_fill_is_table(handlerton *hton, THD *thd, TABLE_LIST *tables,
                          Item *cond, enum enum_schema_tables schema_table_idx)
 {
-  if (schema_table_idx == SCH_FILES)
-    return  ndbcluster_fill_files_table(hton, thd, tables, cond);
-  return 0;
+  DBUG_ASSERT(schema_table_idx == SCH_TABLESPACES);
+
+  // NDB does not implement SCH_TABLESPACES.
+
+  return  0;
 }
 
 
@@ -8231,8 +8228,8 @@ int ha_ndbcluster::end_bulk_insert()
     {
       // The requirement to calling set_my_errno() here is
       // not according to the handler interface specification
-      // However there it is still code in mysql_load() which check
-      // 'my_errno' after end_bulk_insert has reported failure
+      // However there it is still code in Sql_cmd_load_table::execute_inner()
+      // which checks 'my_errno' after end_bulk_insert has reported failure
       // The call to set_my_errno() can be removed from here when
       // Bug #26126535 	MYSQL_LOAD DOES NOT CHECK RETURN VALUES
       // FROM HANDLER BULK INSERT FUNCTIONS has been fixed upstream
@@ -18997,283 +18994,6 @@ bool ha_ndbcluster::get_num_parts(const char *name, uint *num_parts)
 
   print_error(err, MYF(0));
   DBUG_RETURN(TRUE);
-}
-
-static int ndbcluster_fill_files_table(handlerton *hton, 
-                                       THD *thd, 
-                                       TABLE_LIST *tables,
-                                       Item *cond)
-{
-  TABLE* table= tables->table;
-  Ndb *ndb= check_ndb_in_thd(thd);
-  NdbDictionary::Dictionary* dict= ndb->getDictionary();
-  NdbDictionary::Dictionary::List dflist;
-  NdbError ndberr;
-  uint i;
-  DBUG_ENTER("ndbcluster_fill_files_table");
-
-  dict->listObjects(dflist, NdbDictionary::Object::Datafile);
-  ndberr= dict->getNdbError();
-  if (ndberr.classification != NdbError::NoError)
-    ERR_RETURN(ndberr);
-
-  for (i= 0; i < dflist.count; i++)
-  {
-    NdbDictionary::Dictionary::List::Element& elt = dflist.elements[i];
-    Ndb_cluster_connection_node_iter iter;
-    uint id;
-    
-    g_ndb_cluster_connection->init_get_next_node(iter);
-
-    while ((id= g_ndb_cluster_connection->get_next_alive_node(iter)))
-    {
-      init_fill_schema_files_row(table);
-      NdbDictionary::Datafile df= dict->getDatafile(id, elt.name);
-      ndberr= dict->getNdbError();
-      if(ndberr.classification != NdbError::NoError)
-      {
-        if (ndberr.classification == NdbError::SchemaError)
-          continue;
-
-        if (ndberr.classification == NdbError::UnknownResultError)
-          continue;
-
-        ERR_RETURN(ndberr);
-      }
-      NdbDictionary::Tablespace ts= dict->getTablespace(df.getTablespace());
-      ndberr= dict->getNdbError();
-      if (ndberr.classification != NdbError::NoError)
-      {
-        if (ndberr.classification == NdbError::SchemaError)
-          continue;
-        ERR_RETURN(ndberr);
-      }
-
-      table->field[IS_FILES_FILE_NAME]->set_notnull();
-      table->field[IS_FILES_FILE_NAME]->store(elt.name, (uint)strlen(elt.name),
-                                              system_charset_info);
-      table->field[IS_FILES_FILE_TYPE]->set_notnull();
-      table->field[IS_FILES_FILE_TYPE]->store("DATAFILE",8,
-                                              system_charset_info);
-      table->field[IS_FILES_TABLESPACE_NAME]->set_notnull();
-      table->field[IS_FILES_TABLESPACE_NAME]->store(df.getTablespace(),
-                                                    (uint)strlen(df.getTablespace()),
-                                                    system_charset_info);
-      table->field[IS_FILES_LOGFILE_GROUP_NAME]->set_notnull();
-      table->field[IS_FILES_LOGFILE_GROUP_NAME]->
-        store(ts.getDefaultLogfileGroup(),
-              (uint)strlen(ts.getDefaultLogfileGroup()),
-              system_charset_info);
-      table->field[IS_FILES_ENGINE]->set_notnull();
-      table->field[IS_FILES_ENGINE]->store(ndbcluster_hton_name,
-                                           ndbcluster_hton_name_length,
-                                           system_charset_info);
-
-      table->field[IS_FILES_FREE_EXTENTS]->set_notnull();
-      table->field[IS_FILES_FREE_EXTENTS]->store(df.getFree()
-                                                 / ts.getExtentSize(), true);
-      table->field[IS_FILES_TOTAL_EXTENTS]->set_notnull();
-      table->field[IS_FILES_TOTAL_EXTENTS]->store(df.getSize()
-                                                  / ts.getExtentSize(), true);
-      table->field[IS_FILES_EXTENT_SIZE]->set_notnull();
-      table->field[IS_FILES_EXTENT_SIZE]->store(ts.getExtentSize(), true);
-      table->field[IS_FILES_INITIAL_SIZE]->set_notnull();
-      table->field[IS_FILES_INITIAL_SIZE]->store(df.getSize(), true);
-      table->field[IS_FILES_MAXIMUM_SIZE]->set_notnull();
-      table->field[IS_FILES_MAXIMUM_SIZE]->store(df.getSize(), true);
-      table->field[IS_FILES_VERSION]->set_notnull();
-      table->field[IS_FILES_VERSION]->store(df.getObjectVersion(), true);
-
-      table->field[IS_FILES_ROW_FORMAT]->set_notnull();
-      table->field[IS_FILES_ROW_FORMAT]->store("FIXED", 5, system_charset_info);
-
-      char extra[30];
-      int len= (int)my_snprintf(extra, sizeof(extra), "CLUSTER_NODE=%u", id);
-      table->field[IS_FILES_EXTRA]->set_notnull();
-      table->field[IS_FILES_EXTRA]->store(extra, len, system_charset_info);
-      schema_table_store_record(thd, table);
-    }
-  }
-
-  NdbDictionary::Dictionary::List tslist;
-  dict->listObjects(tslist, NdbDictionary::Object::Tablespace);
-  ndberr= dict->getNdbError();
-  if (ndberr.classification != NdbError::NoError)
-    ERR_RETURN(ndberr);
-
-  for (i= 0; i < tslist.count; i++)
-  {
-    NdbDictionary::Dictionary::List::Element&elt= tslist.elements[i];
-
-    NdbDictionary::Tablespace ts= dict->getTablespace(elt.name);
-    ndberr= dict->getNdbError();
-    if (ndberr.classification != NdbError::NoError)
-    {
-      if (ndberr.classification == NdbError::SchemaError)
-        continue;
-      ERR_RETURN(ndberr);
-    }
-
-    init_fill_schema_files_row(table);
-    table->field[IS_FILES_FILE_TYPE]->set_notnull();
-    table->field[IS_FILES_FILE_TYPE]->store("TABLESPACE", 10,
-                                            system_charset_info);
-
-    table->field[IS_FILES_TABLESPACE_NAME]->set_notnull();
-    table->field[IS_FILES_TABLESPACE_NAME]->store(elt.name,
-                                                     (uint)strlen(elt.name),
-                                                     system_charset_info);
-    table->field[IS_FILES_LOGFILE_GROUP_NAME]->set_notnull();
-    table->field[IS_FILES_LOGFILE_GROUP_NAME]->
-      store(ts.getDefaultLogfileGroup(),
-           (uint)strlen(ts.getDefaultLogfileGroup()),
-           system_charset_info);
-
-    table->field[IS_FILES_ENGINE]->set_notnull();
-    table->field[IS_FILES_ENGINE]->store(ndbcluster_hton_name,
-                                         ndbcluster_hton_name_length,
-                                         system_charset_info);
-
-    table->field[IS_FILES_EXTENT_SIZE]->set_notnull();
-    table->field[IS_FILES_EXTENT_SIZE]->store(ts.getExtentSize(), true);
-
-    table->field[IS_FILES_VERSION]->set_notnull();
-    table->field[IS_FILES_VERSION]->store(ts.getObjectVersion(), true);
-
-    schema_table_store_record(thd, table);
-  }
-
-  NdbDictionary::Dictionary::List uflist;
-  dict->listObjects(uflist, NdbDictionary::Object::Undofile);
-  ndberr= dict->getNdbError();
-  if (ndberr.classification != NdbError::NoError)
-    ERR_RETURN(ndberr);
-
-  for (i= 0; i < uflist.count; i++)
-  {
-    NdbDictionary::Dictionary::List::Element& elt= uflist.elements[i];
-    Ndb_cluster_connection_node_iter iter;
-    unsigned id;
-
-    g_ndb_cluster_connection->init_get_next_node(iter);
-
-    while ((id= g_ndb_cluster_connection->get_next_alive_node(iter)))
-    {
-      NdbDictionary::Undofile uf= dict->getUndofile(id, elt.name);
-      ndberr= dict->getNdbError();
-      if (ndberr.classification != NdbError::NoError)
-      {
-        if (ndberr.classification == NdbError::SchemaError)
-          continue;
-        if (ndberr.classification == NdbError::UnknownResultError)
-          continue;
-        ERR_RETURN(ndberr);
-      }
-      NdbDictionary::LogfileGroup lfg=
-        dict->getLogfileGroup(uf.getLogfileGroup());
-      ndberr= dict->getNdbError();
-      if (ndberr.classification != NdbError::NoError)
-      {
-        if (ndberr.classification == NdbError::SchemaError)
-          continue;
-        ERR_RETURN(ndberr);
-      }
-
-      init_fill_schema_files_row(table);
-      table->field[IS_FILES_FILE_NAME]->set_notnull();
-      table->field[IS_FILES_FILE_NAME]->store(elt.name, (uint)strlen(elt.name),
-                                              system_charset_info);
-      table->field[IS_FILES_FILE_TYPE]->set_notnull();
-      table->field[IS_FILES_FILE_TYPE]->store("UNDO LOG", 8,
-                                              system_charset_info);
-      NdbDictionary::ObjectId objid;
-      uf.getLogfileGroupId(&objid);
-      table->field[IS_FILES_LOGFILE_GROUP_NAME]->set_notnull();
-      table->field[IS_FILES_LOGFILE_GROUP_NAME]->store(uf.getLogfileGroup(),
-                                                  (uint)strlen(uf.getLogfileGroup()),
-                                                       system_charset_info);
-      table->field[IS_FILES_LOGFILE_GROUP_NUMBER]->set_notnull();
-      table->field[IS_FILES_LOGFILE_GROUP_NUMBER]->store(objid.getObjectId(), true);
-      table->field[IS_FILES_ENGINE]->set_notnull();
-      table->field[IS_FILES_ENGINE]->store(ndbcluster_hton_name,
-                                           ndbcluster_hton_name_length,
-                                           system_charset_info);
-
-      table->field[IS_FILES_TOTAL_EXTENTS]->set_notnull();
-      table->field[IS_FILES_TOTAL_EXTENTS]->store(uf.getSize()/4, true);
-      table->field[IS_FILES_EXTENT_SIZE]->set_notnull();
-      table->field[IS_FILES_EXTENT_SIZE]->store(4, true);
-
-      table->field[IS_FILES_INITIAL_SIZE]->set_notnull();
-      table->field[IS_FILES_INITIAL_SIZE]->store(uf.getSize(), true);
-      table->field[IS_FILES_MAXIMUM_SIZE]->set_notnull();
-      table->field[IS_FILES_MAXIMUM_SIZE]->store(uf.getSize(), true);
-
-      table->field[IS_FILES_VERSION]->set_notnull();
-      table->field[IS_FILES_VERSION]->store(uf.getObjectVersion(), true);
-
-      char extra[100];
-      int len= (int)my_snprintf(extra,sizeof(extra),"CLUSTER_NODE=%u;UNDO_BUFFER_SIZE=%lu",
-                           id, (ulong) lfg.getUndoBufferSize());
-      table->field[IS_FILES_EXTRA]->set_notnull();
-      table->field[IS_FILES_EXTRA]->store(extra, len, system_charset_info);
-      schema_table_store_record(thd, table);
-    }
-  }
-
-  // now for LFGs
-  NdbDictionary::Dictionary::List lfglist;
-  dict->listObjects(lfglist, NdbDictionary::Object::LogfileGroup);
-  ndberr= dict->getNdbError();
-  if (ndberr.classification != NdbError::NoError)
-    ERR_RETURN(ndberr);
-
-  for (i= 0; i < lfglist.count; i++)
-  {
-    NdbDictionary::Dictionary::List::Element& elt= lfglist.elements[i];
-
-    NdbDictionary::LogfileGroup lfg= dict->getLogfileGroup(elt.name);
-    ndberr= dict->getNdbError();
-    if (ndberr.classification != NdbError::NoError)
-    {
-      if (ndberr.classification == NdbError::SchemaError)
-        continue;
-      ERR_RETURN(ndberr);
-    }
-
-    init_fill_schema_files_row(table);
-    table->field[IS_FILES_FILE_TYPE]->set_notnull();
-    table->field[IS_FILES_FILE_TYPE]->store("UNDO LOG", 8,
-                                            system_charset_info);
-
-    table->field[IS_FILES_LOGFILE_GROUP_NAME]->set_notnull();
-    table->field[IS_FILES_LOGFILE_GROUP_NAME]->store(elt.name,
-                                                     (uint)strlen(elt.name),
-                                                     system_charset_info);
-    table->field[IS_FILES_LOGFILE_GROUP_NUMBER]->set_notnull();
-    table->field[IS_FILES_LOGFILE_GROUP_NUMBER]->store(lfg.getObjectId(), true);
-    table->field[IS_FILES_ENGINE]->set_notnull();
-    table->field[IS_FILES_ENGINE]->store(ndbcluster_hton_name,
-                                         ndbcluster_hton_name_length,
-                                         system_charset_info);
-
-    table->field[IS_FILES_FREE_EXTENTS]->set_notnull();
-    table->field[IS_FILES_FREE_EXTENTS]->store(lfg.getUndoFreeWords(), true);
-    table->field[IS_FILES_EXTENT_SIZE]->set_notnull();
-    table->field[IS_FILES_EXTENT_SIZE]->store(4, true);
-
-    table->field[IS_FILES_VERSION]->set_notnull();
-    table->field[IS_FILES_VERSION]->store(lfg.getObjectVersion(), true);
-
-    char extra[100];
-    int len= (int)my_snprintf(extra,sizeof(extra),
-                         "UNDO_BUFFER_SIZE=%lu",
-                         (ulong) lfg.getUndoBufferSize());
-    table->field[IS_FILES_EXTRA]->set_notnull();
-    table->field[IS_FILES_EXTRA]->store(extra, len, system_charset_info);
-    schema_table_store_record(thd, table);
-  }
-  DBUG_RETURN(0);
 }
 
 

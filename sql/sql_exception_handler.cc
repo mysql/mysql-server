@@ -22,7 +22,7 @@
   This file defines functions to convert exceptions to MySQL error messages.
 */
 
-#include "sql_exception_handler.h"
+#include "sql/sql_exception_handler.h"
 
 // boost::geometry::centroid_exception
 #include <boost/geometry/algorithms/centroid.hpp>
@@ -40,11 +40,11 @@
 #include <new> // std::bad_alloc
 #include <stdexcept> // Other std exceptions
 
-#include "gis/functor.h"  // gis::not_implemented_exception
-#include "gis/gc_utils.h" // gis::invalid_geometry_exception
 #include "my_inttypes.h"  // MYF
 #include "my_sys.h"       // my_error
 #include "mysqld_error.h" // Error codes
+#include "sql/gis/functor.h" // gis::not_implemented_exception
+#include "sql/gis/gc_utils.h" // gis::invalid_geometry_exception
 
 void handle_std_exception(const char *funcname)
 {
@@ -130,11 +130,6 @@ void handle_gis_exception(const char *funcname)
   catch (const boost::geometry::turn_info_exception &)
   {
     my_error(ER_BOOST_GEOMETRY_TURN_INFO_EXCEPTION, MYF(0), funcname);
-  }
-  catch (const boost::geometry::detail::self_get_turn_points::self_ip_exception &)
-  {
-    my_error(ER_BOOST_GEOMETRY_SELF_INTERSECTION_POINT_EXCEPTION, MYF(0),
-             funcname);
   }
   catch (const boost::geometry::empty_input_exception &)
   {

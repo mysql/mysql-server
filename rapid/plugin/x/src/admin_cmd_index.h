@@ -21,10 +21,10 @@
 #define X_SRC_ADMIN_CMD_INDEX_H_
 
 #include <list>
-#include <vector>
 #include <string>
+#include <vector>
 
-#include "admin_cmd_handler.h"
+#include "plugin/x/src/admin_cmd_handler.h"
 
 namespace xpl {
 

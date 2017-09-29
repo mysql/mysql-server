@@ -20,6 +20,10 @@
 // MySQL DB access module, for use by plugins and others
 // For the module that implements interactive DB functionality see mod_db
 
+#include "plugin/x/client/xconnection_impl.h"
+
+#include "my_config.h"
+
 #include <errno.h>
 #include <cassert>
 #include <limits>
@@ -27,13 +31,10 @@
 #include <string>
 
 #include "errmsg.h"
-#include "my_config.h"
-#include "mysqlx_error.h"
+#include "plugin/x/client/xconnection_config.h"
+#include "plugin/x/client/xssl_config.h"
+#include "plugin/x/generated/mysqlx_error.h"
 #include "scope_guard.h"
-#include "xconnection_config.h"
-#include "xconnection_impl.h"
-
-#include "xssl_config.h"
 
 #ifndef WIN32
 #include <netdb.h>
@@ -270,11 +271,13 @@ XError Connection_impl::connect_to_localhost(
 
   auto error = connect(reinterpret_cast<sockaddr *>(&addr), sizeof(addr));
 
-  if (error)
-    return error;
+  if (error) {
+    return XError(
+        CR_CONNECTION_ERROR,
+        std::string(error.what()) + ", while connecting to " + unix_socket);
+  }
 
   m_connected = true;
-
   return {};
 #else
   return XError(CR_SOCKET_CREATE_ERROR,
@@ -366,6 +369,13 @@ XError Connection_impl::connect(sockaddr *addr, const std::size_t addr_size) {
   return XError();
 }
 
+my_socket Connection_impl::get_socket_fd() {
+  if (nullptr == m_vio)
+    return INVALID_SOCKET;
+
+  return vio_fd(m_vio);
+}
+
 std::string Connection_impl::get_socket_error_description(const int error_id) {
   std::string strerr;
 #ifdef _WIN32
@@ -427,7 +437,6 @@ XError Connection_impl::get_socket_error(const int error_id) {
     case SOCKET_ECONNRESET:
     case SOCKET_EPIPE:
       return XError(CR_SERVER_GONE_ERROR, ER_TEXT_SERVER_GONE);
-
     default:
       return XError(CR_UNKNOWN_ERROR, get_socket_error_description(error_id));
   }

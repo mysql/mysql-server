@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -19,8 +19,9 @@
 #define VIEW_STATEMENT_BUILDER_H_
 
 #include <string>
-#include "statement_builder.h"
-#include "find_statement_builder.h"
+
+#include "plugin/x/src/find_statement_builder.h"
+#include "plugin/x/src/statement_builder.h"
 
 namespace xpl {
 

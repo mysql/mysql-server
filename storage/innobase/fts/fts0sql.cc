@@ -61,28 +61,23 @@ fts_get_table_id(
 					long */
 {
 	int		len;
-	bool		hex_name = DICT_TF2_FLAG_IS_SET(fts_table->table,
-						DICT_TF2_FTS_AUX_HEX_NAME);
 
 	ut_a(fts_table->table != NULL);
 
 	switch (fts_table->type) {
 	case FTS_COMMON_TABLE:
-		len = fts_write_object_id(fts_table->table_id, table_id,
-					  hex_name);
+		len = fts_write_object_id(fts_table->table_id, table_id);
 		break;
 
 	case FTS_INDEX_TABLE:
 
-		len = fts_write_object_id(fts_table->table_id, table_id,
-					  hex_name);
+		len = fts_write_object_id(fts_table->table_id, table_id);
 
 		table_id[len] = '_';
 		++len;
 		table_id += len;
 
-		len += fts_write_object_id(fts_table->index_id, table_id,
-					   hex_name);
+		len += fts_write_object_id(fts_table->index_id, table_id);
 		break;
 
 	default:
@@ -226,83 +221,41 @@ fts_parse_sql(
 {
 	char*		str;
 	que_t*		graph;
-	ibool		dict_locked;
 	dict_table_t*	aux_table = nullptr;
 	MDL_ticket*     mdl = nullptr;
 	THD*		thd = current_thd;
 
 	str = ut_str3cat(fts_sql_begin, sql, fts_sql_end);
 
-	dict_locked = (fts_table && fts_table->table->fts
-		       && (fts_table->table->fts->fts_status
-			   & TABLE_DICT_LOCKED));
-
+	/* To open this table in advance, in case it has to be opened
+	in pars_sql where pars_mutex is held. This is because holding
+	a mutex to open a table which may access InnoDB is not safe */
 	if (fts_table != nullptr) {
 		char		table_name[MAX_FULL_NAME_LEN];
 
 		fts_get_table_name(fts_table, table_name);
 
 		aux_table = dd_table_open_on_name_in_mem(
-			table_name, dict_locked);
+			table_name, false);
 
 		if (aux_table == nullptr) {
-			if (dict_locked) {
-				mutex_exit(&dict_sys->mutex);
-				dict_locked = false;
-			}
-
 			aux_table = dd_table_open_on_name(
 					thd, &mdl, table_name, false,
 					DICT_ERR_IGNORE_NONE);
 		}
 	}
 
-	if (!dict_locked) {
-		ut_ad(!mutex_own(&dict_sys->mutex));
-
-		/* The InnoDB SQL parser is not re-entrant. */
-		mutex_enter(&dict_sys->mutex);
-	}
+	/* The InnoDB SQL parser is not re-entrant. */
+	mutex_enter(&pars_mutex);
 
 	graph = pars_sql(info, str);
 	ut_a(graph);
 
-	if (!dict_locked) {
-		mutex_exit(&dict_sys->mutex);
-	}
+	mutex_exit(&pars_mutex);
 
 	if (aux_table != nullptr) {
-		dd_table_close(aux_table, thd, &mdl, dict_locked);
+		dd_table_close(aux_table, thd, &mdl, false);
 	}
-
-	ut_free(str);
-
-	return(graph);
-}
-
-/******************************************************************//**
-Parse an SQL string.
-@return query graph */
-que_t*
-fts_parse_sql_no_dict_lock(
-/*=======================*/
-	fts_table_t*	fts_table,	/*!< in: FTS aux table info */
-	pars_info_t*	info,		/*!< in: info struct, or NULL */
-	const char*	sql)		/*!< in: SQL string to evaluate */
-{
-	char*		str;
-	que_t*		graph;
-
-#ifdef UNIV_DEBUG
-	ut_ad(mutex_own(&dict_sys->mutex));
-#endif
-
-	str = ut_str3cat(fts_sql_begin, sql, fts_sql_end);
-
-	//fprintf(stderr, "%s\n", str);
-
-	graph = pars_sql(info, str);
-	ut_a(graph);
 
 	ut_free(str);
 

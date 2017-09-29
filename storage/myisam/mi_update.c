@@ -20,11 +20,11 @@
 #include <fcntl.h>
 #include <sys/types.h>
 
-#include "fulltext.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
-#include "rt_index.h"
+#include "storage/myisam/fulltext.h"
+#include "storage/myisam/rt_index.h"
 
 int mi_update(MI_INFO *info, const uchar *oldrec, uchar *newrec)
 {

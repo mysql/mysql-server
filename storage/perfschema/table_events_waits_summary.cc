@@ -22,14 +22,14 @@
 
 #include <stddef.h>
 
-#include "field.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_thread.h"
-#include "pfs_column_types.h"
-#include "pfs_column_values.h"
-#include "pfs_global.h"
-#include "pfs_instr_class.h"
+#include "sql/field.h"
+#include "storage/perfschema/pfs_column_types.h"
+#include "storage/perfschema/pfs_column_values.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_instr_class.h"
 
 THR_LOCK table_events_waits_summary_by_instance::m_table_lock;
 
@@ -239,6 +239,7 @@ table_events_waits_summary_by_instance::delete_all_rows(void)
 table_events_waits_summary_by_instance::table_events_waits_summary_by_instance()
   : table_all_instr(&m_share)
 {
+  m_normalizer = time_normalizer::get_wait();
 }
 
 int
@@ -281,7 +282,6 @@ table_events_waits_summary_by_instance::make_instr_row(
   m_row.m_name_length = klass->m_name_length;
   m_row.m_object_instance_addr = (intptr)object_instance_begin;
 
-  get_normalizer(klass);
   m_row.m_stat.set(m_normalizer, pfs_stat);
 
   if (!pfs->m_lock.end_optimistic_lock(&lock))

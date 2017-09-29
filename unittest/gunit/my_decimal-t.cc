@@ -16,14 +16,14 @@
 #include "my_config.h"
 
 #include <gtest/gtest.h>
-#include <my_decimal.h>
 #include <stddef.h>
 #include <sys/types.h>
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
-#include "test_utils.h"
+#include "sql/my_decimal.h"
+#include "unittest/gunit/test_utils.h"
 
 namespace my_decimal_unittest {
 

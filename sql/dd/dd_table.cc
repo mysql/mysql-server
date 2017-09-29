@@ -13,73 +13,74 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "dd_table.h"
+#include "sql/dd/dd_table.h"
 
 #include <string.h>
 #include <algorithm>
 #include <memory>                             // unique_ptr
 
-#include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
-#include "dd/dd.h"                            // dd::get_dictionary
-#include "dd/dictionary.h"                    // dd::Dictionary
-// TODO: Avoid exposing dd/impl headers in public files.
-#include "dd/impl/dictionary_impl.h"          // default_catalog_name
-#include "dd/impl/system_registry.h"          // dd::System_tables
-#include "dd/impl/utils.h"                    // dd::escape
-#include "dd/performance_schema/init.h"       // performance_schema::
-                                              //   set_PS_version_for_table
-#include "dd/properties.h"                    // dd::Properties
-#include "dd/types/abstract_table.h"
-#include "dd/types/column.h"                  // dd::Column
-#include "dd/types/column_type_element.h"     // dd::Column_type_element
-#include "dd/types/foreign_key.h"             // dd::Foreign_key
-#include "dd/types/foreign_key_element.h"     // dd::Foreign_key_element
-#include "dd/types/index.h"                   // dd::Index
-#include "dd/types/index_element.h"           // dd::Index_element
-#include "dd/types/object_table.h"            // dd::Object_table
-#include "dd/types/partition.h"               // dd::Partition
-#include "dd/types/partition_value.h"         // dd::Partition_value
-#include "dd/types/schema.h"                  // dd::Schema
-#include "dd/types/table.h"                   // dd::Table
-#include "dd/types/tablespace.h"              // dd::Tablespace
-#include "dd_table_share.h"                   // is_suitable_for_primary_key
-#include "debug_sync.h"                       // DEBUG_SYNC
-#include "default_values.h"                   // max_pack_length
-#include "enum_query_type.h"
-#include "field.h"
-#include "item.h"
-#include "key.h"
-#include "key_spec.h"
 #include "lex_string.h"
-#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
-#include "mdl.h"
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_io.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "mysqld.h"                           // lower_case_table_names
 #include "mysqld_error.h"
-#include "partition_element.h"
-#include "partition_info.h"                   // partition_info
-#include "psi_memory_key.h"                   // key_memory_frm
-#include "sql_class.h"                        // THD
-#include "sql_const.h"
-#include "sql_list.h"
-#include "sql_parse.h"
-#include "sql_partition.h"                    // expr_to_string
-#include "sql_plugin_ref.h"
+#include "sql/dd/cache/dictionary_client.h"   // dd::cache::Dictionary_client
+#include "sql/dd/dd.h"                        // dd::get_dictionary
+#include "sql/dd/dictionary.h"                // dd::Dictionary
+// TODO: Avoid exposing dd/impl headers in public files.
+#include "sql/dd/impl/dictionary_impl.h"      // default_catalog_name
+#include "sql/dd/impl/system_registry.h"      // dd::System_tables
+#include "sql/dd/impl/utils.h"                // dd::escape
+#include "sql/dd/performance_schema/init.h"   // performance_schema::
+                                              //   set_PS_version_for_table
+#include "sql/dd/properties.h"                // dd::Properties
+#include "sql/dd/types/abstract_table.h"
+#include "sql/dd/types/column.h"              // dd::Column
+#include "sql/dd/types/column_type_element.h" // dd::Column_type_element
+#include "sql/dd/types/foreign_key.h"         // dd::Foreign_key
+#include "sql/dd/types/foreign_key_element.h" // dd::Foreign_key_element
+#include "sql/dd/types/index.h"               // dd::Index
+#include "sql/dd/types/index_element.h"       // dd::Index_element
+#include "sql/dd/types/object_table.h"        // dd::Object_table
+#include "sql/dd/types/partition.h"           // dd::Partition
+#include "sql/dd/types/partition_value.h"     // dd::Partition_value
+#include "sql/dd/types/schema.h"              // dd::Schema
+#include "sql/dd/types/table.h"               // dd::Table
+#include "sql/dd/types/tablespace.h"          // dd::Tablespace
+#include "sql/dd_table_share.h"               // is_suitable_for_primary_key
+#include "sql/debug_sync.h"                   // DEBUG_SYNC
+#include "sql/default_values.h"               // max_pack_length
+#include "sql/enum_query_type.h"
+#include "sql/field.h"
+#include "sql/item.h"
+#include "sql/key.h"
+#include "sql/key_spec.h"
+#include "sql/log.h"
+#include "sql/mdl.h"
+#include "sql/my_decimal.h"
+#include "sql/mysqld.h"                       // lower_case_table_names
+#include "sql/partition_element.h"
+#include "sql/partition_info.h"               // partition_info
+#include "sql/psi_memory_key.h"               // key_memory_frm
+#include "sql/sql_class.h"                    // THD
+#include "sql/sql_const.h"
+#include "sql/sql_list.h"
+#include "sql/sql_parse.h"
+#include "sql/sql_partition.h"                // expr_to_string
+#include "sql/sql_plugin_ref.h"
+#include "sql/sql_table.h"                    // primary_key_name
+#include "sql/srs_fetcher.h"
+#include "sql/strfunc.h"                      // lex_cstring_handle
+#include "sql/table.h"
 #include "sql_string.h"
-#include "sql_table.h"                        // primary_key_name
-#include "strfunc.h"                          // lex_cstring_handle
-#include "table.h"
 #include "typelib.h"
 
 namespace dd {
@@ -226,7 +227,8 @@ dd::String_type get_sql_type_by_create_field(TABLE *table,
                    field->is_zerofill,
                    field->is_unsigned,
                    field->decimals,
-                   field->treat_bit_as_char, 0));
+                   field->treat_bit_as_char, 0,
+                   field->m_srid));
   fld->init(table);
 
   // Read column display type.
@@ -282,7 +284,8 @@ static void prepare_default_value_string(uchar *buf,
                  field.is_zerofill,
                  field.is_unsigned,
                  field.decimals,
-                 field.treat_bit_as_char, 0));
+                 field.treat_bit_as_char, 0,
+                 field.m_srid));
   f->init(table);
 
   if (col_obj->has_no_default())
@@ -608,6 +611,8 @@ fill_dd_columns_from_create_fields(THD *thd,
     col_obj->set_unsigned(field->is_unsigned);
 
     col_obj->set_zerofill(field->is_zerofill);
+
+    col_obj->set_srs_id(field->m_srid);
 
     /*
       AUTO_INCREMENT, DEFAULT/ON UPDATE CURRENT_TIMESTAMP properties are
@@ -1013,7 +1018,8 @@ bool is_candidate_primary_key(THD *thd,
                              cfield->is_zerofill,
                              cfield->is_unsigned,
                              cfield->decimals,
-                             cfield->treat_bit_as_char, 0));
+                             cfield->treat_bit_as_char, 0,
+                             cfield->m_srid));
     table_field->init(&table);
 
     if (is_suitable_for_primary_key(key_part, table_field.get()) == false)
@@ -1246,30 +1252,9 @@ static bool fill_dd_foreign_keys_from_create_fields(dd::Table *tab_obj,
 
     fk_obj->set_name(key->name);
 
-    /*
-      TODO: The 'unique_constraint_id' field for Foreign_key is
-      supposed to contain the ID of the index in parent table.
-      However, until WL#6049 we don't have a safe way to keep this
-      field updated. For now, it contains the ID of the index
-      in the child table in order to make it a valid Foreign_key
-      object (unique_constraint_id is NOT NULL).
-      We also plan to make this field nullable or replace it with
-      'unique_constraint_name'.
-    */
-    DBUG_ASSERT(key->unique_index_name);
-    const dd::Index *matching_index= nullptr;
-    for (const dd::Index *index : *tab_obj->indexes())
-    {
-      if (my_strcasecmp(system_charset_info,
-                        index->name().c_str(),
-                        key->unique_index_name) == 0)
-      {
-        matching_index= index;
-        break;
-      }
-    }
-    DBUG_ASSERT(matching_index != nullptr);
-    fk_obj->set_unique_constraint(matching_index);
+    // Note: Setting "" is interpreted as NULL.
+    fk_obj->set_unique_constraint_name(key->unique_index_name ?
+                                       key->unique_index_name : "");
 
     switch (key->match_opt)
     {
@@ -1290,13 +1275,13 @@ static bool fill_dd_foreign_keys_from_create_fields(dd::Table *tab_obj,
 
     fk_obj->set_delete_rule(get_fk_rule(key->delete_opt));
 
-    fk_obj->referenced_table_catalog_name(
+    fk_obj->set_referenced_table_catalog_name(
       Dictionary_impl::instance()->default_catalog_name());
 
-    fk_obj->referenced_table_schema_name(dd::String_type(key->ref_db.str,
+    fk_obj->set_referenced_table_schema_name(dd::String_type(key->ref_db.str,
                                                      key->ref_db.length));
 
-    fk_obj->referenced_table_name(dd::String_type(key->ref_table.str,
+    fk_obj->set_referenced_table_name(dd::String_type(key->ref_table.str,
                                               key->ref_table.length));
 
     for (uint i= 0; i < key->key_parts; i++)
@@ -1460,13 +1445,24 @@ static void set_partition_options(partition_element *part_elem,
 }
 
 
-/** Helper function to add partition column values. */
+/*
+  Helper function to add partition column values.
+
+  @param      part_info          Parition info.
+  @param      list_value         List of partition element value.
+  @param      list_index         Element index.
+  @param      part_obj           DD partition object.
+  @param      create_info        Create info.
+  @param      create_fields      List of fields being created.
+  @param[out] part_desc_str Partiton description string.
+*/
 static bool add_part_col_vals(partition_info *part_info,
                               part_elem_value *list_value,
                               uint list_index,
                               dd::Partition *part_obj,
                               const HA_CREATE_INFO *create_info,
-                              const List<Create_field> &create_fields)
+                              const List<Create_field> &create_fields,
+                              String *part_desc_str)
 {
   uint i;
   List_iterator<char> it(part_info->part_field_list);
@@ -1482,10 +1478,12 @@ static bool add_part_col_vals(partition_info *part_info,
     if (col_val->max_value)
     {
       val_obj->set_max_value(true);
+      part_desc_str->append(partition_keywords[PKW_MAXVALUE].str);
     }
     else if (col_val->null_value)
     {
       val_obj->set_value_null(true);
+      part_desc_str->append("NULL");
     }
     else
     {
@@ -1503,9 +1501,29 @@ static bool add_part_col_vals(partition_info *part_info,
       }
       dd::String_type std_str(val_str.ptr(), val_str.length());
       val_obj->set_value_utf8(std_str);
+      part_desc_str->append(std_str.c_str());
     }
+    if (i != num_elements - 1)
+      part_desc_str->append(",");
   }
   return false;
+}
+
+
+static void collect_partition_expr(THD *thd, List<char> &field_list,
+                                   String *str)
+{
+  List_iterator<char> part_it(field_list);
+  ulong no_fields= field_list.elements;
+  const char *field_str;
+  str->length(0);
+  while ((field_str= part_it++))
+  {
+    append_identifier(thd, str, field_str, strlen(field_str));
+    if (--no_fields != 0)
+      str->append(",");
+  }
+  return;
 }
 
 
@@ -1598,21 +1616,23 @@ static bool fill_dd_partition_from_create_info(THD *thd,
     }
 
     /* Set partition_expression */
+    dd::String_type expr;
+    dd::String_type expr_utf8;
+    char expr_buff[256];
+    String tmp(expr_buff, sizeof(expr_buff), system_charset_info);
+    // Default on-stack buffer which allows to avoid malloc() in most cases.
+    tmp.length(0);
     if (part_info->list_of_part_fields)
     {
-      dd::String_type str;
-      if (get_field_list_str(str, &part_info->part_field_list))
+      if (get_field_list_str(expr, &part_info->part_field_list))
         return true;
-      tab_obj->set_partition_expression(str);
+      collect_partition_expr(thd, part_info->part_field_list, &tmp);
+      expr_utf8.assign(tmp.ptr(), tmp.length());
     }
     else
     {
       /* column_list also has list_of_part_fields set! */
       DBUG_ASSERT(!part_info->column_list);
-      // Default on-stack buffer which allows to avoid malloc() in most cases.
-      char expr_buff[256];
-      String tmp(expr_buff, sizeof(expr_buff), system_charset_info);
-      tmp.length(0);
 
       // Turn off ANSI_QUOTES and other SQL modes which affect printing of
       // expressions.
@@ -1630,9 +1650,11 @@ static bool fill_dd_partition_from_create_info(THD *thd,
         return true;
       }
 
-      dd::String_type str(tmp.ptr(), tmp.length());
-      tab_obj->set_partition_expression(str);
+      expr.assign(tmp.ptr(), tmp.length());
+      expr_utf8= expr;
     }
+    tab_obj->set_partition_expression(expr);
+    tab_obj->set_partition_expression_utf8(expr_utf8);
 
     if (part_info->use_default_partitions)
     {
@@ -1674,20 +1696,19 @@ static bool fill_dd_partition_from_create_info(THD *thd,
       }
 
       /* Set subpartition_expression */
+      expr.clear();
+      expr_utf8.clear();
+      tmp.length(0);
       if (part_info->list_of_subpart_fields)
       {
-        dd::String_type str;
-        if (get_field_list_str(str, &part_info->subpart_field_list))
+        if (get_field_list_str(expr, &part_info->subpart_field_list))
           return true;
-        tab_obj->set_subpartition_expression(str);
+
+        collect_partition_expr(thd, part_info->subpart_field_list, &tmp);
+        expr_utf8.assign(tmp.ptr(), tmp.length());
       }
       else
       {
-        // Default on-stack buffer which allows to avoid malloc() in most cases.
-        char expr_buff[256];
-        String tmp(expr_buff, sizeof(expr_buff), system_charset_info);
-        tmp.length(0);
-
         // Turn off ANSI_QUOTES and other SQL modes which affect printing of
         // expressions.
         Sql_mode_parse_guard parse_guard(thd);
@@ -1705,9 +1726,12 @@ static bool fill_dd_partition_from_create_info(THD *thd,
           return true;
         }
 
-        dd::String_type str(tmp.ptr(), tmp.length());
-        tab_obj->set_subpartition_expression(str);
+        expr.assign(tmp.ptr(), tmp.length());
+        expr_utf8= expr;
       }
+      tab_obj->set_subpartition_expression(expr);
+      tab_obj->set_subpartition_expression_utf8(expr_utf8);
+
       if (part_info->use_default_subpartitions)
       {
         if (!part_info->use_default_num_subpartitions)
@@ -1724,6 +1748,11 @@ static bool fill_dd_partition_from_create_info(THD *thd,
       List_iterator<partition_element> part_it(part_info->partitions);
       partition_element *part_elem;
       uint part_num= 0;
+      CHARSET_INFO *cs= system_charset_info;
+      char buff[2048];
+      String part_desc_res(buff, sizeof(buff), cs);
+      String part_desc_str;
+
       while ((part_elem= part_it++))
       {
         if (part_elem->part_state == PART_TO_BE_DROPPED ||
@@ -1758,16 +1787,22 @@ static bool fill_dd_partition_from_create_info(THD *thd,
           if (part_info->column_list)
           {
             List_iterator<part_elem_value> list_it(part_elem->list_val_list);
+            part_desc_str.length(0);
             part_elem_value *list_value= list_it++;
             if (add_part_col_vals(part_info,
                                   list_value,
                                   0,
                                   part_obj,
                                   create_info,
-                                  create_fields))
+                                  create_fields,
+                                  &part_desc_str))
             {
               return true;
             }
+
+            part_obj->set_description_utf8(String_type(part_desc_str.ptr(),
+                                                       part_desc_str.length()));
+
             DBUG_ASSERT(list_it++ == NULL);
           }
           else
@@ -1790,33 +1825,61 @@ static bool fill_dd_partition_from_create_info(THD *thd,
                                         (ulonglong) part_elem->range_value));
               }
             }
+
+            // Set partition description. Used only by I_S.
+            part_desc_str.length(0);
+            if (part_elem->range_value != LLONG_MAX)
+            {
+              part_desc_res.set(part_elem->range_value, cs);
+              part_desc_str.append(part_desc_res);
+            }
+            else
+              part_desc_str.append(partition_keywords[PKW_MAXVALUE].str);
+
+            part_obj->set_description_utf8(String_type(part_desc_str.ptr(),
+                                                       part_desc_str.length()));
+
           }
         }
         else if (part_info->part_type == partition_type::LIST)
         {
           uint list_index= 0;
           List_iterator<part_elem_value> list_val_it(part_elem->list_val_list);
+          uint num_items= part_elem->list_val_list.elements;
+          part_desc_str.length(0);
+          part_desc_res.length(0);
           if (part_elem->has_null_value)
           {
             DBUG_ASSERT(!part_info->column_list);
             dd::Partition_value *val_obj= part_obj->add_value();
             val_obj->set_value_null(true);
             val_obj->set_list_num(list_index++);
+            part_desc_str.append("NULL");
+            if (num_items > 0)
+              part_desc_str.append(",");
           }
           part_elem_value *list_value;
           while ((list_value= list_val_it++))
           {
             if (part_info->column_list)
             {
+              // Store partition description. Used by I_S only.
+              if (part_info->part_field_list.elements > 1U)
+                part_desc_str.append("(");
+
               if (add_part_col_vals(part_info,
                                     list_value,
                                     list_index,
                                     part_obj,
                                     create_info,
-                                    create_fields))
+                                    create_fields,
+                                    &part_desc_str))
               {
                 return true;
               }
+
+              if (part_info->part_field_list.elements > 1U)
+                part_desc_str.append(")");
             }
             else
             {
@@ -1826,15 +1889,23 @@ static bool fill_dd_partition_from_create_info(THD *thd,
               {
                 val_obj->set_value_utf8(dd::Properties::from_uint64(
                                         (ulonglong) list_value->value));
+                part_desc_res.set((ulonglong)list_value->value, cs);
               }
               else
               {
                 val_obj->set_value_utf8(dd::Properties::from_int64(
                                         list_value->value));
+                part_desc_res.set(list_value->value, cs);
               }
+              part_desc_str.append(part_desc_res);
             }
+            if (--num_items != 0)
+              part_desc_str.append(",");
+
             list_index++;
           }
+          part_obj->set_description_utf8(String_type(part_desc_str.ptr(),
+                                                     part_desc_str.length()));
         }
         else
         {
@@ -1929,6 +2000,53 @@ static Table::enum_row_format dd_get_new_row_format(row_type old_format)
     break;
   }
   return Table::RF_FIXED;
+}
+
+
+/**
+  Check if the storage engine supports geographic geometry columns. If not,
+  check that the columns defined only has Cartesian coordinate systems
+  (projected SRS or SRID 0).
+
+  @param thd Thread handle
+  @param table The table definition
+  @param handler Handler to the storage engine
+
+  @retval true if the engine does not supports the provided SRS id. In that case
+          my_error is called
+  @retval false on success
+*/
+static bool engine_supports_provided_srs_id(THD *thd, const dd::Table &table,
+                                            const handler *handler)
+{
+  if (!(handler->ha_table_flags() & HA_SUPPORTS_GEOGRAPHIC_GEOMETRY_COLUMN))
+  {
+    for (const auto col : table.columns())
+    {
+      if (col->srs_id().has_value() && col->srs_id() != 0)
+      {
+        Srs_fetcher fetcher(thd);
+        const dd::Spatial_reference_system *srs= nullptr;
+        dd::cache::Dictionary_client::Auto_releaser m_releaser(thd->dd_client());
+        if (fetcher.acquire(col->srs_id().value(), &srs))
+        {
+          // An error has already been flagged.
+          return true; /* purecov: deadcode */
+        }
+
+        // Non-existing spatial reference systems should already been stopped
+        DBUG_ASSERT(srs != nullptr);
+        if (srs->is_geographic())
+        {
+          my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0),
+                   "geographic spatial reference systems");
+          return true;
+        }
+      }
+    }
+  }
+
+  return false;
 }
 
 
@@ -2132,6 +2250,14 @@ static bool fill_dd_table_from_create_info(THD *thd,
   if (fill_dd_columns_from_create_fields(thd, tab_obj,
                                          create_fields,
                                          file))
+    return true;
+
+  /*
+    Reject the create if the SRID represents a geographic spatial reference
+    system in an engine that does not support it. The function will call
+    my_error in case of any errors.
+  */
+  if (engine_supports_provided_srs_id(thd, *tab_obj, file))
     return true;
 
   // Add index definitions

@@ -18,20 +18,8 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "auth_acls.h"
-#include "auth_common.h"    // DROP_ACL
-#include "dd/cache/dictionary_client.h"// dd::cache::Dictionary_client
-#include "dd/dd_schema.h"   // dd::Schema_MDL_locker
-#include "dd/dd_table.h"    // dd::table_storage_engine
-#include "dd/types/abstract_table.h" // dd::enum_table_type
-#include "debug_sync.h"     // DEBUG_SYNC
-#include "handler.h"
-#include "item_create.h"
-#include "key.h"
 #include "lex_string.h"
-#include "lock.h"           // MYSQL_OPEN_* flags
 #include "m_ctype.h"
-#include "mdl.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -39,21 +27,33 @@
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld_error.h"
-#include "query_options.h"
-#include "sql_audit.h"      // mysql_audit_table_access_notify
-#include "sql_base.h"       // open_and_lock_tables
-#include "sql_class.h"      // THD
-#include "sql_const.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_show.h"       // append_identifier()
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h" // DROP_ACL
+#include "sql/dd/cache/dictionary_client.h"// dd::cache::Dictionary_client
+#include "sql/dd/dd_schema.h" // dd::Schema_MDL_locker
+#include "sql/dd/dd_table.h" // dd::table_storage_engine
+#include "sql/dd/types/abstract_table.h" // dd::enum_table_type
+#include "sql/debug_sync.h" // DEBUG_SYNC
+#include "sql/handler.h"
+#include "sql/item_create.h"
+#include "sql/key.h"
+#include "sql/lock.h"       // MYSQL_OPEN_* flags
+#include "sql/mdl.h"
+#include "sql/query_options.h"
+#include "sql/sql_audit.h"  // mysql_audit_table_access_notify
+#include "sql/sql_base.h"   // open_and_lock_tables
+#include "sql/sql_class.h"  // THD
+#include "sql/sql_const.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_show.h"   // append_identifier()
+#include "sql/sql_table.h"  // write_bin_log
+#include "sql/system_variables.h"
+#include "sql/table.h"      // TABLE, FOREIGN_KEY_INFO
+#include "sql/transaction.h" // trans_commit_stmt()
+#include "sql/transaction_info.h"
 #include "sql_string.h"
-#include "sql_table.h"      // write_bin_log
-#include "system_variables.h"
-#include "table.h"          // TABLE, FOREIGN_KEY_INFO
 #include "thr_lock.h"
-#include "transaction.h"    // trans_commit_stmt()
-#include "transaction_info.h"
 
 namespace dd {
 class Table;
@@ -211,7 +211,8 @@ enum truncate_result
 {
   TRUNCATE_OK=0,
   TRUNCATE_FAILED_BUT_BINLOG,
-  TRUNCATE_FAILED_SKIP_BINLOG
+  TRUNCATE_FAILED_SKIP_BINLOG,
+  TRUNCATE_FAILED_OPEN
 };
 
 
@@ -228,8 +229,10 @@ enum truncate_result
                         binlogging as in case of non transactional tables
                         partial truncation is possible.
 
-  @retval TRUNCATE_FAILED_SKIP_BINLOG Truncate was not successful hence donot
-                        binlong the statement.
+  @retval TRUNCATE_FAILED_SKIP_BINLOG Truncate was not successful hence do not
+                        binlog the statement.
+  @retval TRUNCATE_FAILED_OPEN Truncate failed to open table, do not binlog
+                        the statement.
 */
 
 static truncate_result handler_truncate_base(THD *thd,
@@ -269,7 +272,7 @@ static truncate_result handler_truncate_base(THD *thd,
 
   /* Open the table as it will handle some required preparations. */
   if (open_and_lock_tables(thd, table_ref, flags))
-    DBUG_RETURN(TRUNCATE_FAILED_SKIP_BINLOG);
+    DBUG_RETURN(TRUNCATE_FAILED_OPEN);
 
   /* Whether to truncate regardless of foreign keys. */
   if (! (thd->variables.option_bits & OPTION_NO_FOREIGN_KEY_CHECKS))
@@ -317,8 +320,10 @@ static truncate_result handler_truncate_base(THD *thd,
                         binlogging as in case of non transactional tables
                         partial truncation is possible.
 
-  @retval TRUNCATE_FAILED_SKIP_BINLOG Truncate was not successful hence donot
-                        binlong the statement.
+  @retval TRUNCATE_FAILED_SKIP_BINLOG Truncate was not successful hence do not
+                        binlog the statement.
+  @retval TRUNCATE_FAILED_OPEN Truncate failed to open table, do not binlog
+                        the statement.
 */
 
 static truncate_result handler_truncate_temporary(THD *thd,
@@ -333,7 +338,7 @@ static truncate_result handler_truncate_temporary(THD *thd,
 
   /* Open the table as it will handle some required preparations. */
   if (open_and_lock_tables(thd, table_ref, 0))
-    DBUG_RETURN(TRUNCATE_FAILED_SKIP_BINLOG);
+    DBUG_RETURN(TRUNCATE_FAILED_OPEN);
 
   int error=
     table_ref->table->file->ha_truncate(table_ref->table->s->tmp_table_def);
@@ -560,6 +565,12 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
   {
     TABLE *tmp_table= table_ref->table;
 
+    /*
+      THD::decide_logging_format has not yet been called and may
+      not be called at all depending on the engine, so call it here.
+    */
+    if (thd->decide_logging_format(table_ref) != 0)
+      DBUG_RETURN(true);
     /* In RBR, the statement is not binlogged if the table is temporary. */
     binlog_stmt= !thd->is_current_stmt_binlog_format_row();
 
@@ -658,23 +669,31 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
       /*
         All effects of a TRUNCATE TABLE operation are committed even if
         truncation fails in the case of non transactional tables. Thus, the
-        query must be written to the binary log. The only exception is a
-        unimplemented truncate method.
+        query must be written to the binary log for such tables.
+        The exceptions are failure to open table or unimplemented truncate
+        method.
       */
       if (error == TRUNCATE_OK || error == TRUNCATE_FAILED_BUT_BINLOG)
       {
         binlog_stmt= true;
         binlog_is_trans= table_ref->table->file->has_transactions();
-        /*
-          Call to handler_truncate() might have updated table definition
-          in the data-dictionary, let us remove TABLE_SHARE from the TDC.
-        */
-        close_all_tables_for_name(thd, table_ref->table->s, false, NULL);
       }
       else
       {
         binlog_stmt= false;
         binlog_is_trans= false; // Safety.
+
+      }
+
+      /*
+        Call to handler_truncate() might have updated table definition
+        in the data-dictionary, let us remove TABLE_SHARE from the TDC.
+        This needs to be done even in case of failure so InnoDB SE
+        properly invalidates its internal cache.
+      */
+      if (error != TRUNCATE_FAILED_OPEN)
+      {
+        close_all_tables_for_name(thd, table_ref->table->s, false, NULL);
       }
     }
   }

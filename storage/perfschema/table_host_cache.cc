@@ -20,12 +20,12 @@
 
 #include "storage/perfschema/table_host_cache.h"
 
-#include "current_thd.h"
-#include "field.h"
-#include "hostname.h"
 #include "my_dbug.h"
 #include "my_thread.h"
-#include "sql_class.h"
+#include "sql/current_thd.h"
+#include "sql/field.h"
+#include "sql/hostname.h"
+#include "sql/sql_class.h"
 
 THR_LOCK table_host_cache::m_table_lock;
 

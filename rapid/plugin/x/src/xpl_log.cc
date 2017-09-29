@@ -18,7 +18,7 @@
  */
 
 
-#include "xpl_log.h"
+#include "plugin/x/src/xpl_log.h"
 
 #include <stddef.h>
 

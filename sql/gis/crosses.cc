@@ -17,20 +17,18 @@
 ///
 /// This file implements the crosses functor and function.
 
-#include "crosses_functor.h"
-#include "relops.h"
-
+#include <boost/geometry.hpp>
 #include <memory>  // std::unique_ptr
 
-#include <boost/geometry.hpp>
-
-#include "dd/types/spatial_reference_system.h"  // dd::Spatial_reference_system
-#include "disjoint_functor.h"
-#include "gc_utils.h"
-#include "geometries.h"
-#include "geometries_traits.h"
-#include "sql_exception_handler.h"  // handle_gis_exception
-#include "within_functor.h"
+#include "sql/dd/types/spatial_reference_system.h"  // dd::Spatial_reference_system
+#include "sql/gis/crosses_functor.h"
+#include "sql/gis/disjoint_functor.h"
+#include "sql/gis/gc_utils.h"
+#include "sql/gis/geometries.h"
+#include "sql/gis/geometries_traits.h"
+#include "sql/gis/relops.h"
+#include "sql/gis/within_functor.h"
+#include "sql/sql_exception_handler.h"  // handle_gis_exception
 
 namespace bg = boost::geometry;
 
@@ -107,8 +105,8 @@ static bool geometry_collection_apply_crosses(const Crosses &f,
 Crosses::Crosses(double semi_major, double semi_minor)
     : m_semi_major(semi_major),
       m_semi_minor(semi_minor),
-      m_geographic_pl_pa_strategy(bg::strategy::side::geographic<>(
-          bg::srs::spheroid<double>(semi_major, semi_minor))),
+      m_geographic_pl_pa_strategy(
+          bg::srs::spheroid<double>(semi_major, semi_minor)),
       m_geographic_ll_la_aa_strategy(
           bg::srs::spheroid<double>(semi_major, semi_minor)) {}
 

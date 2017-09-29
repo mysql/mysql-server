@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,11 +13,11 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/dd.h"
+#include "sql/dd/dd.h"
 
-#include "dd/impl/cache/shared_dictionary_cache.h"  // dd::cache::Shared_...
-#include "dd/impl/dictionary_impl.h"                // dd::Dictionary_impl
-#include "dd/impl/system_registry.h"                // dd::System_tables
+#include "sql/dd/impl/cache/shared_dictionary_cache.h" // dd::cache::Shared_...
+#include "sql/dd/impl/dictionary_impl.h"            // dd::Dictionary_impl
+#include "sql/dd/impl/system_registry.h"            // dd::System_tables
 
 namespace dd {
 

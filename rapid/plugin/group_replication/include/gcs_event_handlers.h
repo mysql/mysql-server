@@ -19,19 +19,17 @@
 #include <set>
 #include <vector>
 
-#include <mysql/gcs/gcs_control_event_listener.h>
-#include <mysql/gcs/gcs_communication_event_listener.h>
-
-#include "applier.h"
-#include "compatibility_module.h"
-#include "gcs_plugin_messages.h"
-#include "gcs_view_modification_notifier.h"
-#include "plugin_constants.h"
-#include "recovery.h"
-#include "recovery_message.h"
-#include "read_mode_handler.h"
-
-#include "services/notification/notification.h"
+#include "plugin/group_replication/include/applier.h"
+#include "plugin/group_replication/include/compatibility_module.h"
+#include "plugin/group_replication/include/gcs_plugin_messages.h"
+#include "plugin/group_replication/include/gcs_view_modification_notifier.h"
+#include "plugin/group_replication/include/plugin_constants.h"
+#include "plugin/group_replication/include/read_mode_handler.h"
+#include "plugin/group_replication/include/recovery.h"
+#include "plugin/group_replication/include/recovery_message.h"
+#include "plugin/group_replication/include/services/notification/notification.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_communication_event_listener.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_control_event_listener.h"
 
 /*
  The server version in which member weight was introduced.
@@ -68,7 +66,8 @@ public:
   Plugin_gcs_events_handler(Applier_module_interface* applier_module,
                             Recovery_module* recovery_module,
                             Plugin_gcs_view_modification_notifier* vc_notifier,
-                            Compatibility_module* compatibility_manager);
+                            Compatibility_module* compatibility_manager,
+                            ulong components_stop_timeout);
   virtual ~Plugin_gcs_events_handler();
 
   /*
@@ -81,6 +80,14 @@ public:
   void on_suspicions(const std::vector<Gcs_member_identifier>& members,
                      const std::vector<Gcs_member_identifier>& unreachable) const;
 
+  /**
+    Sets the component stop timeout.
+
+    @param[in]  timeout      the timeout
+  */
+  void set_stop_wait_timeout (ulong timeout){
+    stop_wait_timeout= timeout;
+  }
 
 private:
   /*
@@ -257,6 +264,32 @@ private:
   */
   bool was_member_expelled_from_group(const Gcs_view& view) const;
 
+  /**
+    Logs member joining message to error logs from view.
+
+    @param[in]  new_view        the view delivered by the GCS
+  */
+  void log_members_joining_message(const Gcs_view& new_view) const;
+
+  /**
+    Logs member leaving message to error logs from view.
+
+    @param[in]  new_view        the view delivered by the GCS
+  */
+  void log_members_leaving_message(const Gcs_view& new_view) const;
+
+  /**
+    This function return all members present in vector of Gcs_member_identifier
+    in HOST:PORT format separated by comma.
+    Function also return PRIMARY member if any in HOST:PORT format.
+
+    @param[in]    members      joining or leaving members for this view
+    @param[out]   all_hosts    host and port of all members from view
+    @param[out]   primary_host primary member hosts and port of all members from view
+  */
+  void get_hosts_from_view(const std::vector<Gcs_member_identifier> &members,
+                           std::string& all_hosts, std::string& primary_host) const;
+
   Applier_module_interface* applier_module;
   Recovery_module* recovery_module;
 
@@ -273,6 +306,9 @@ private:
 
   /**The status of this member when it joins*/
   st_compatibility_types* joiner_compatibility_status;
+
+  /* Component stop timeout on shutdown */
+  ulong stop_wait_timeout;
 
 #ifndef DBUG_OFF
   bool set_number_of_members_on_view_changed_to_10;

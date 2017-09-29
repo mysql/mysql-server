@@ -19,11 +19,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <welcome_copyright_notice.h>
+#include <zlib.h>
 
 #include "my_sys.h"
 #include "print_version.h"
-#include "zlib.h"
+#include "welcome_copyright_notice.h"
 
 static void usage()
 {

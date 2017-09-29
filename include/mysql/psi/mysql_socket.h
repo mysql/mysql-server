@@ -23,15 +23,15 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #ifndef MYSQL_SOCKET_H
 #define MYSQL_SOCKET_H
 
-#include "mysql/psi/psi_socket.h"
-
 #include <errno.h>
 /* For strlen() */
 #include <string.h>
+
 /* For MY_STAT */
-#include <my_dir.h>
+#include "my_dir.h"
 /* For my_chsize */
-#include <my_sys.h>
+#include "my_sys.h"
+#include "mysql/psi/psi_socket.h"
 /* For socket api */
 #ifdef _WIN32
 #include <MSWSock.h>
@@ -42,6 +42,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #define SOCKBUF_T char
 #else
 #include <netinet/in.h>
+
 #define SOCKBUF_T void
 #endif
 

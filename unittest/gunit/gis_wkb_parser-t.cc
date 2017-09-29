@@ -18,17 +18,15 @@
 #include "my_config.h"
 
 #include <gtest/gtest.h>
-
-#include <gtest/gtest.h>
 #include <memory>           // unique_ptr
 #include <string>
 
-#include "dd/dd.h"
-#include "dd/impl/types/spatial_reference_system_impl.h"
-#include "dd/properties.h"
-#include "dd/types/spatial_reference_system.h"
-#include "gis/geometries.h"
-#include "gis/wkb_parser.h"
+#include "sql/dd/dd.h"
+#include "sql/dd/impl/types/spatial_reference_system_impl.h"
+#include "sql/dd/properties.h"
+#include "sql/dd/types/spatial_reference_system.h"
+#include "sql/gis/geometries.h"
+#include "sql/gis/wkb_parser.h"
 
 namespace wkb_parser__unittest {
 

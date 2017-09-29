@@ -20,17 +20,17 @@
 
 #include "storage/perfschema/table_setup_objects.h"
 
-#include "field.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_thread.h"
-#include "pfs_buffer_container.h"
-#include "pfs_column_types.h"
-#include "pfs_column_values.h"
-#include "pfs_global.h"
-#include "pfs_instr.h"
-#include "pfs_setup_object.h"
-#include "table_helper.h"
+#include "sql/field.h"
+#include "storage/perfschema/pfs_buffer_container.h"
+#include "storage/perfschema/pfs_column_types.h"
+#include "storage/perfschema/pfs_column_values.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_instr.h"
+#include "storage/perfschema/pfs_setup_object.h"
+#include "storage/perfschema/table_helper.h"
 
 THR_LOCK table_setup_objects::m_table_lock;
 

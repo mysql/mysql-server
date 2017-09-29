@@ -1,36 +1,19 @@
 
 
 =======================================================================
-Checking the password authentication with mysql_native_password plugin
+Checking the password authentication with @default_plugin plugin
 =======================================================================
 
+set @default_plugin= @@global.default_authentication_plugin;
 CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED BY 'abc';
 CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED BY 'abc';
-select (select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')='mysql_native_password';
-(select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')='mysql_native_password'
+select (select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')=@default_plugin;
+(select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')=@default_plugin
 1
 1 Expected
-select (select plugin from mysql.user where User='Tanjotuser2' and Host='127.0.0.1')='mysql_native_password';
-(select plugin from mysql.user where User='Tanjotuser2' and Host='127.0.0.1')='mysql_native_password'
+select (select plugin from mysql.user where User='Tanjotuser2' and Host='127.0.0.1')=@default_plugin;
+(select plugin from mysql.user where User='Tanjotuser2' and Host='127.0.0.1')=@default_plugin
 1
-1 Expected
-SET @@global.old_passwords=0;
-Warnings:
-Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
-SET @@session.old_passwords=0;
-Warnings:
-Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
-select (select authentication_string from mysql.user where User='Tanjotuser1' and Host='localhost')=password('abc');
-(select authentication_string from mysql.user where User='Tanjotuser1' and Host='localhost')=password('abc')
-1
-Warnings:
-Warning	1681	'PASSWORD' is deprecated and will be removed in a future release.
-1 Expected
-select (select authentication_string from mysql.user where User='Tanjotuser2' and Host='127.0.0.1')=password('abc');
-(select authentication_string from mysql.user where User='Tanjotuser2' and Host='127.0.0.1')=password('abc')
-1
-Warnings:
-Warning	1681	'PASSWORD' is deprecated and will be removed in a future release.
 1 Expected
 ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: NO)
 ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: NO)
@@ -73,7 +56,7 @@ DROP USER 'Tanjotuser2'@'127.0.0.1';
 
 
 ====================================================================================================
-checking the integrity of long password (more than 40 chars) using mysql_native_password plugin
+checking the integrity of long password (more than 40 chars) using @default_plugin plugin
 ====================================================================================================
 
 CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED BY 'aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeaaaaaaaaaannnnnnnnnnaaaaaaaaaahhhhhhhhhh1111111111gggggggggg2222222222';
@@ -105,7 +88,7 @@ DROP USER 'Tanjotuser2'@'127.0.0.1';
 
 
 ====================================================================================================
-checking the integrity of NULL password using mysql_native_password plugin
+checking the integrity of NULL password using @default_plugin plugin
 ====================================================================================================
 
 CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED BY '';

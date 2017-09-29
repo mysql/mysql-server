@@ -13,8 +13,8 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
-#include <pfs.h>
-#include <pfs_defaults.h>
+#include "storage/perfschema/pfs.h"
+#include "storage/perfschema/pfs_defaults.h"
 
 void install_default_setup(PSI_thread_bootstrap *)
 {

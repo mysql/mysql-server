@@ -17,9 +17,10 @@
 #define PIPELINE_INTERFACES_INCLUDED
 
 #include <mysql/group_replication_priv.h>
-#include "plugin_server_include.h"
-#include "plugin_log.h"
-#include "plugin_psi.h"
+
+#include "plugin/group_replication/include/plugin_log.h"
+#include "plugin/group_replication/include/plugin_psi.h"
+#include "plugin/group_replication/include/plugin_server_include.h"
 
 //Define the data packet type
 #define DATA_PACKET_TYPE  1

@@ -15,27 +15,27 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "ha_ndbcluster_connection.h"
+#include "sql/ha_ndbcluster_connection.h"
 
 #include <mysql/psi/mysql_thread.h>
 
-#include "auth_acls.h"
-#include "kernel/ndb_limits.h"
 #include "my_dbug.h"
-#include "mysqld.h"         // server_id, connection_events_loop_aborted
 #include "mysqld_error.h"
-#include "ndbapi/NdbApi.hpp"
-#include "portlib/NdbTick.h"
-#include "rpl_slave.h"      // report_port
-#include "sql_class.h"
-#include "util/BaseString.hpp"
-#include "util/Vector.hpp"
+#include "sql/auth/auth_acls.h"
+#include "sql/mysqld.h"     // server_id, connection_events_loop_aborted
+#include "sql/rpl_slave.h"  // report_port
+#include "sql/sql_class.h"
+#include "storage/ndb/include/kernel/ndb_limits.h"
+#include "storage/ndb/include/ndbapi/NdbApi.hpp"
+#include "storage/ndb/include/portlib/NdbTick.h"
+#include "storage/ndb/include/util/BaseString.hpp"
+#include "storage/ndb/include/util/Vector.hpp"
 #ifndef _WIN32
 #include <netdb.h>          // getservbyname
 #endif
 
-#include "ndb_log.h"
-#include "ndb_sleep.h"
+#include "sql/ndb_log.h"
+#include "sql/ndb_sleep.h"
 
 extern char *my_bind_addr_str;
 

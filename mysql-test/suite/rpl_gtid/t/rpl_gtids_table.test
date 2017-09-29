@@ -63,10 +63,10 @@ SELECT * FROM mysql.gtid_executed;
 --echo #
 CREATE TEMPORARY TABLE tmp1 (c1 INT) Engine=MyISAM;
 CREATE TABLE t3 (a INT);
-if (`SELECT @@BINLOG_FORMAT = 'ROW'`)
+if (`SELECT @@BINLOG_FORMAT = 'ROW' || @@BINLOG_FORMAT = 'MIXED'`)
 {
   # We did not generate gtid for above 'CREATE TEMPORARY TABLE' statement
-  # in row format, but we did in statement format. So let the 'INSERT'
+  # in row or mixed format, but we did in statement format. So let the 'INSERT'
   # statement generate the missed gtid in row format.
   --disable_query_log
   INSERT INTO t3 VALUES(1);

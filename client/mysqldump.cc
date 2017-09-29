@@ -44,19 +44,15 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <m_ctype.h>
-#include <m_string.h>
-#include <my_sys.h>
-#include <my_user.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
-#include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
-
 #include <string>
 
-#include "client_priv.h"
+#include "client/client_priv.h"
+#include "m_ctype.h"
+#include "m_string.h"
 #include "map_helpers.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -64,6 +60,8 @@
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"
+#include "my_sys.h"
+#include "my_user.h"
 #include "mysql.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
@@ -73,6 +71,7 @@
 #include "print_version.h"
 #include "template_utils.h"
 #include "typelib.h"
+#include "welcome_copyright_notice.h" /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 /* Exit codes */
 
@@ -164,7 +163,8 @@ static uint my_end_arg;
 static char * opt_mysql_unix_port=0;
 static char *opt_bind_addr = NULL;
 static int   first_error=0;
-#include <sslopt-vars.h>
+#include "caching_sha2_passwordopt-vars.h"
+#include "sslopt-vars.h"
 
 FILE *md_result_file= 0;
 FILE *stderror_file=0;
@@ -550,7 +550,8 @@ static struct my_option my_long_options[] =
   {"socket", 'S', "The socket file to use for connection.",
    &opt_mysql_unix_port, &opt_mysql_unix_port, 0, 
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#include <sslopt-longopts.h>
+#include "caching_sha2_passwordopt-longopts.h"
+#include "sslopt-longopts.h"
 
   {"tab",'T',
    "Create tab-separated textfile for each table to given path. (Create .sql "
@@ -861,7 +862,7 @@ get_one_option(int optid, const struct my_option *opt,
     DBUG_PUSH(argument ? argument : default_dbug_option);
     debug_check_flag= 1;
     break;
-#include <sslopt-case.h>
+#include "sslopt-case.h"
 
   case 'V': print_version(); exit(0);
   case 'X':
@@ -1662,6 +1663,7 @@ static int connect_to_db(char *host, char *user,char *passwd)
   mysql_options(&mysql_connection, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
   mysql_options4(&mysql_connection, MYSQL_OPT_CONNECT_ATTR_ADD,
                  "program_name", "mysqldump");
+  set_get_server_public_key_option(&mysql_connection);
 
   if (opt_network_timeout)
   {
@@ -1736,13 +1738,13 @@ static int connect_to_db(char *host, char *user,char *passwd)
     underlying tables during execution of SHOW command. However
     the first option might read old statistics, so we feel second
     option is preferred here to get statistics dynamically from
-    SE by setting information_schema_stats=latest for this
-    session.
+    SE by setting information_schema_stats_expiry=0.
   */
   my_snprintf(buff, sizeof(buff),
-              "/*!80000 SET SESSION INFORMATION_SCHEMA_STATS=latest */");
+              "/*!80000 SET SESSION information_schema_stats_expiry=0 */");
   if (mysql_query_with_error_report(mysql, 0, buff))
     DBUG_RETURN(1);
+
   /*
     set network read/write timeout value to a larger value to allow tables with
     large data to be sent on network without causing connection lost error due
@@ -2683,7 +2685,8 @@ static inline bool innodb_stats_tables(const char *db,
   return (!my_strcasecmp(charset_info, db, "mysql")) &&
           (!my_strcasecmp(charset_info, table, "innodb_table_stats") ||
            !my_strcasecmp(charset_info, table, "innodb_index_stats") ||
-           !my_strcasecmp(charset_info, table, "innodb_dynamic_metadata"));
+           !my_strcasecmp(charset_info, table, "innodb_dynamic_metadata") ||
+           !my_strcasecmp(charset_info, table, "innodb_ddl_log"));
 }
 
 /**

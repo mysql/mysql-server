@@ -29,6 +29,7 @@
 #include <sys/time.h>
 #endif
 #include <sys/types.h>
+#include <unordered_map>
 
 #include "m_ctype.h"
 #include "m_string.h"
@@ -37,7 +38,6 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_psi_config.h"
-#include "my_static.h"
 #include "my_sys.h"
 #include "my_thread.h"
 #include "mysql/psi/mysql_cond.h"
@@ -56,8 +56,9 @@
 #include "mysql/psi/psi_stage.h"
 #include "mysql/psi/psi_thread.h"
 #include "mysql/service_my_snprintf.h"
+#include "mysys/my_static.h"
+#include "mysys/mysys_priv.h"
 #include "mysys_err.h"
-#include "mysys_priv.h"
 
 #ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
@@ -174,7 +175,6 @@ bool my_init()
 
 
 	/* End my_sys */
-
 void my_end(int infoflag)
 {
   /*
@@ -201,6 +201,7 @@ void my_end(int infoflag)
     }
   }
   my_error_unregister_all();
+  charset_uninit();
   my_once_free();
 
   if ((infoflag & MY_GIVE_INFO) || (info_file != stderr))
@@ -497,10 +498,10 @@ static bool my_win_init()
 #endif /* _WIN32 */
 
 PSI_stage_info stage_waiting_for_table_level_lock=
-{0, "Waiting for table level lock", 0};
+{0, "Waiting for table level lock", 0, PSI_DOCUMENT_ME};
 
 PSI_stage_info stage_waiting_for_disk_space=
-{0, "Waiting for disk space", 0};
+{0, "Waiting for disk space", 0, PSI_DOCUMENT_ME};
 
 PSI_mutex_key key_BITMAP_mutex, key_IO_CACHE_append_buffer_lock,
   key_IO_CACHE_SHARE_mutex, key_KEY_CACHE_cache_lock,
@@ -514,21 +515,21 @@ PSI_mutex_key key_BITMAP_mutex, key_IO_CACHE_append_buffer_lock,
 
 static PSI_mutex_info all_mysys_mutexes[]=
 {
-  { &key_BITMAP_mutex, "BITMAP::mutex", 0, 0},
-  { &key_IO_CACHE_append_buffer_lock, "IO_CACHE::append_buffer_lock", 0, 0},
-  { &key_IO_CACHE_SHARE_mutex, "IO_CACHE::SHARE_mutex", 0, 0},
-  { &key_KEY_CACHE_cache_lock, "KEY_CACHE::cache_lock", 0, 0},
-  { &key_THR_LOCK_charset, "THR_LOCK_charset", PSI_FLAG_GLOBAL, 0},
-  { &key_THR_LOCK_heap, "THR_LOCK_heap", PSI_FLAG_GLOBAL, 0},
-  { &key_THR_LOCK_lock, "THR_LOCK_lock", PSI_FLAG_GLOBAL, 0},
-  { &key_THR_LOCK_malloc, "THR_LOCK_malloc", PSI_FLAG_GLOBAL, 0},
-  { &key_THR_LOCK_mutex, "THR_LOCK::mutex", 0, 0},
-  { &key_THR_LOCK_myisam, "THR_LOCK_myisam", PSI_FLAG_GLOBAL, 0},
-  { &key_THR_LOCK_net, "THR_LOCK_net", PSI_FLAG_GLOBAL, 0},
-  { &key_THR_LOCK_open, "THR_LOCK_open", PSI_FLAG_GLOBAL, 0},
-  { &key_THR_LOCK_threads, "THR_LOCK_threads", PSI_FLAG_GLOBAL, 0},
-  { &key_TMPDIR_mutex, "TMPDIR_mutex", PSI_FLAG_GLOBAL, 0},
-  { &key_THR_LOCK_myisam_mmap, "THR_LOCK_myisam_mmap", PSI_FLAG_GLOBAL, 0}
+  { &key_BITMAP_mutex, "BITMAP::mutex", 0, 0, PSI_DOCUMENT_ME},
+  { &key_IO_CACHE_append_buffer_lock, "IO_CACHE::append_buffer_lock", 0, 0, PSI_DOCUMENT_ME},
+  { &key_IO_CACHE_SHARE_mutex, "IO_CACHE::SHARE_mutex", 0, 0, PSI_DOCUMENT_ME},
+  { &key_KEY_CACHE_cache_lock, "KEY_CACHE::cache_lock", 0, 0, PSI_DOCUMENT_ME},
+  { &key_THR_LOCK_charset, "THR_LOCK_charset", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_THR_LOCK_heap, "THR_LOCK_heap", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_THR_LOCK_lock, "THR_LOCK_lock", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_THR_LOCK_malloc, "THR_LOCK_malloc", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_THR_LOCK_mutex, "THR_LOCK::mutex", 0, 0, PSI_DOCUMENT_ME},
+  { &key_THR_LOCK_myisam, "THR_LOCK_myisam", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_THR_LOCK_net, "THR_LOCK_net", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_THR_LOCK_open, "THR_LOCK_open", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_THR_LOCK_threads, "THR_LOCK_threads", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_TMPDIR_mutex, "TMPDIR_mutex", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_THR_LOCK_myisam_mmap, "THR_LOCK_myisam_mmap", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 #endif /* HAVE_PSI_MUTEX_INTERFACE */
 
@@ -537,7 +538,7 @@ PSI_rwlock_key key_SAFE_HASH_lock;
 
 static PSI_rwlock_info all_mysys_rwlocks[]=
 {
-  { &key_SAFE_HASH_lock, "SAFE_HASH::lock", 0}
+  { &key_SAFE_HASH_lock, "SAFE_HASH::lock", 0, 0, PSI_DOCUMENT_ME}
 };
 #endif /* HAVE_PSI_RWLOCK_INTERFACE */
 
@@ -549,9 +550,9 @@ PSI_cond_key key_IO_CACHE_SHARE_cond,
 
 static PSI_cond_info all_mysys_conds[]=
 {
-  { &key_IO_CACHE_SHARE_cond, "IO_CACHE_SHARE::cond", 0},
-  { &key_IO_CACHE_SHARE_cond_writer, "IO_CACHE_SHARE::cond_writer", 0},
-  { &key_THR_COND_threads, "THR_COND_threads", 0}
+  { &key_IO_CACHE_SHARE_cond, "IO_CACHE_SHARE::cond", 0, 0, PSI_DOCUMENT_ME},
+  { &key_IO_CACHE_SHARE_cond_writer, "IO_CACHE_SHARE::cond_writer", 0, 0, PSI_DOCUMENT_ME},
+  { &key_THR_COND_threads, "THR_COND_threads", 0, 0, PSI_DOCUMENT_ME}
 };
 #endif /* HAVE_PSI_COND_INTERFACE */
 
@@ -564,10 +565,10 @@ PSI_file_key key_file_charset, key_file_cnf;
 static PSI_file_info all_mysys_files[]=
 {
 #ifdef HAVE_LINUX_LARGE_PAGES
-  { &key_file_proc_meminfo, "proc_meminfo", 0},
+  { &key_file_proc_meminfo, "proc_meminfo", 0, 0, PSI_DOCUMENT_ME},
 #endif /* HAVE_LINUX_LARGE_PAGES */
-  { &key_file_charset, "charset", 0},
-  { &key_file_cnf, "cnf", 0}
+  { &key_file_charset, "charset", 0, 0, PSI_DOCUMENT_ME},
+  { &key_file_cnf, "cnf", 0, 0, PSI_DOCUMENT_ME}
 };
 #endif /* HAVE_PSI_FILE_INTERFACE */
 
@@ -582,36 +583,36 @@ PSI_stage_info *all_mysys_stages[]=
 static PSI_memory_info all_mysys_memory[]=
 {
 #ifdef _WIN32
-  { &key_memory_win_SECURITY_ATTRIBUTES, "win_SECURITY_ATTRIBUTES", 0},
-  { &key_memory_win_PACL, "win_PACL", 0},
-  { &key_memory_win_IP_ADAPTER_ADDRESSES, "win_IP_ADAPTER_ADDRESSES", 0},
+  { &key_memory_win_SECURITY_ATTRIBUTES, "win_SECURITY_ATTRIBUTES", 0, 0, PSI_DOCUMENT_ME},
+  { &key_memory_win_PACL, "win_PACL", 0, 0, PSI_DOCUMENT_ME},
+  { &key_memory_win_IP_ADAPTER_ADDRESSES, "win_IP_ADAPTER_ADDRESSES", 0, 0, PSI_DOCUMENT_ME},
 #endif
 
-  { &key_memory_max_alloca, "max_alloca", 0},
-  { &key_memory_charset_file, "charset_file", 0},
-  { &key_memory_charset_loader, "charset_loader", 0},
-  { &key_memory_lf_node, "lf_node", 0},
-  { &key_memory_lf_dynarray, "lf_dynarray", 0},
-  { &key_memory_lf_slist, "lf_slist", 0},
-  { &key_memory_LIST, "LIST", 0},
-  { &key_memory_IO_CACHE, "IO_CACHE", 0},
-  { &key_memory_KEY_CACHE, "KEY_CACHE", 0},
-  { &key_memory_SAFE_HASH_ENTRY, "SAFE_HASH_ENTRY", 0},
-  { &key_memory_MY_TMPDIR_full_list, "MY_TMPDIR::full_list", 0},
-  { &key_memory_MY_BITMAP_bitmap, "MY_BITMAP::bitmap", 0},
-  { &key_memory_my_compress_alloc, "my_compress_alloc", 0},
-  { &key_memory_my_err_head, "my_err_head", 0},
-  { &key_memory_my_file_info, "my_file_info", 0},
-  { &key_memory_MY_DIR, "MY_DIR", 0},
-  { &key_memory_DYNAMIC_STRING, "DYNAMIC_STRING", 0},
-  { &key_memory_TREE, "TREE", 0}
+  { &key_memory_max_alloca, "max_alloca", 0, 0, PSI_DOCUMENT_ME},
+  { &key_memory_charset_file, "charset_file", 0, 0, PSI_DOCUMENT_ME},
+  { &key_memory_charset_loader, "charset_loader", 0, 0, PSI_DOCUMENT_ME},
+  { &key_memory_lf_node, "lf_node", 0, 0, PSI_DOCUMENT_ME},
+  { &key_memory_lf_dynarray, "lf_dynarray", 0, 0, PSI_DOCUMENT_ME},
+  { &key_memory_lf_slist, "lf_slist", 0, 0, PSI_DOCUMENT_ME},
+  { &key_memory_LIST, "LIST", 0, 0, PSI_DOCUMENT_ME},
+  { &key_memory_IO_CACHE, "IO_CACHE", 0, 0, PSI_DOCUMENT_ME},
+  { &key_memory_KEY_CACHE, "KEY_CACHE", 0, 0, PSI_DOCUMENT_ME},
+  { &key_memory_SAFE_HASH_ENTRY, "SAFE_HASH_ENTRY", 0, 0, PSI_DOCUMENT_ME},
+  { &key_memory_MY_TMPDIR_full_list, "MY_TMPDIR::full_list", 0, 0, PSI_DOCUMENT_ME},
+  { &key_memory_MY_BITMAP_bitmap, "MY_BITMAP::bitmap", 0, 0, PSI_DOCUMENT_ME},
+  { &key_memory_my_compress_alloc, "my_compress_alloc", 0, 0, PSI_DOCUMENT_ME},
+  { &key_memory_my_err_head, "my_err_head", 0, 0, PSI_DOCUMENT_ME},
+  { &key_memory_my_file_info, "my_file_info", 0, 0, PSI_DOCUMENT_ME},
+  { &key_memory_MY_DIR, "MY_DIR", 0, 0, PSI_DOCUMENT_ME},
+  { &key_memory_DYNAMIC_STRING, "DYNAMIC_STRING", 0, 0, PSI_DOCUMENT_ME},
+  { &key_memory_TREE, "TREE", 0, 0, PSI_DOCUMENT_ME}
 };
 #endif /* HAVE_PSI_MEMORY_INTERFACE */
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
 static PSI_thread_info all_mysys_thread[]=
 {
-  { &key_thread_timer_notifier, "thread_timer_notifier", PSI_FLAG_GLOBAL}
+  { &key_thread_timer_notifier, "thread_timer_notifier", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 #endif /* HAVE_PSI_THREAD_INTERFACE */
 

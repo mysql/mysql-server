@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,18 +17,19 @@
   @file mysys/my_fstream.cc
 */
 
+#include "my_config.h"
+
 #include <errno.h>
 #include <stdio.h>
 #include <sys/types.h>
 
-#include "my_config.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysys_err.h"
 #if defined(_WIN32)
-#include "mysys_priv.h"
+#include "mysys/mysys_priv.h"
 #endif
 
 

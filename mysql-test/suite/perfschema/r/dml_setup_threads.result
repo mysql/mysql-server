@@ -1,0 +1,50 @@
+select * from performance_schema.setup_threads;
+select * from performance_schema.setup_threads
+order by name limit 10;
+NAME	ENABLED	HISTORY	PROPERTIES	VOLATILITY	DOCUMENTATION
+thread/innodb/archiver_thread	YES	YES		0	NULL
+thread/innodb/buf_dump_thread	YES	YES		0	NULL
+thread/innodb/buf_resize_thread	YES	YES		0	NULL
+thread/innodb/dict_stats_thread	YES	YES		0	NULL
+thread/innodb/fts_optimize_thread	YES	YES		0	NULL
+thread/innodb/fts_parallel_merge_thread	YES	YES		0	NULL
+thread/innodb/fts_parallel_tokenization_thread	YES	YES		0	NULL
+thread/innodb/io_handler_thread	YES	YES		0	NULL
+thread/innodb/io_ibuf_thread	YES	YES		0	NULL
+thread/innodb/io_log_thread	YES	YES		0	NULL
+select * from performance_schema.setup_threads
+where enabled='YES';
+insert into performance_schema.setup_threads
+set name='FOO', enabled='YES', history='YES';
+ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'setup_threads'
+update performance_schema.setup_threads
+set name='FOO';
+ERROR HY000: Invalid performance_schema usage.
+update performance_schema.setup_threads
+set properties='user';
+ERROR HY000: Invalid performance_schema usage.
+update performance_schema.setup_threads
+set volatility=666;
+ERROR HY000: Invalid performance_schema usage.
+update performance_schema.setup_threads
+set documentation='Bar';
+ERROR HY000: Invalid performance_schema usage.
+update performance_schema.setup_threads
+set enabled='NO';
+update performance_schema.setup_threads
+set history='NO';
+update performance_schema.setup_threads
+set enabled='YES', history='YES';
+delete from performance_schema.setup_threads;
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'setup_threads'
+delete from performance_schema.setup_threads
+where name like 'thread/%';
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'setup_threads'
+LOCK TABLES performance_schema.setup_threads READ;
+UNLOCK TABLES;
+LOCK TABLES performance_schema.setup_threads WRITE;
+UNLOCK TABLES;
+UPDATE performance_schema.setup_threads SET history='NO'
+ORDER BY RAND();
+update performance_schema.setup_threads
+set enabled='YES', history='YES';

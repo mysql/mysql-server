@@ -24,7 +24,6 @@
 #include <unordered_map>
 #include <utility>
 
-#include "handler.h"
 #include "lex_string.h"
 #include "my_base.h"
 #include "my_dbug.h"
@@ -36,11 +35,12 @@
 #include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_mutex.h"
 #include "mysql/udf_registration_types.h"
-#include "sql_base.h"
-#include "sql_class.h"
-#include "sql_plist.h"
-#include "system_variables.h"
-#include "table.h"
+#include "sql/handler.h"
+#include "sql/sql_base.h"
+#include "sql/sql_class.h"
+#include "sql/sql_plist.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
 
 class Table_cache_element;
 

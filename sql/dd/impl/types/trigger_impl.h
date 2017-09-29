@@ -18,8 +18,8 @@
 
 #include "my_config.h"
 
-#include "dd/string_type.h"
 #include "my_inttypes.h"
+#include "sql/dd/string_type.h"
 
 #if HAVE_SYS_TIME_H
 #include <sys/time.h>
@@ -27,13 +27,13 @@
 #include <sys/types.h>
 #include <new>
 
-#include "dd/impl/raw/raw_record.h"
-#include "dd/impl/types/entity_object_impl.h"  // dd::Entity_object_impl
-#include "dd/impl/types/table_impl.h"          // dd::Table_impl
-#include "dd/impl/types/weak_object_impl.h"
-#include "dd/object_id.h"
-#include "dd/types/object_type.h"              // dd::Object_type
-#include "dd/types/trigger.h"                  // dd::Trigger
+#include "sql/dd/impl/raw/raw_record.h"
+#include "sql/dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
+#include "sql/dd/impl/types/table_impl.h"      // dd::Table_impl
+#include "sql/dd/impl/types/weak_object_impl.h"
+#include "sql/dd/object_id.h"
+#include "sql/dd/types/object_type.h"          // dd::Object_type
+#include "sql/dd/types/trigger.h"              // dd::Trigger
 
 namespace dd {
 
@@ -165,7 +165,9 @@ public:
   /////////////////////////////////////////////////////////////////////////
 
   virtual timeval created() const override
-  { return m_created; }
+  {
+    return m_created;
+  }
 
   virtual void set_created(timeval created) override
   { m_created= created; }

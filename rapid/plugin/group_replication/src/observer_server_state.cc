@@ -15,8 +15,8 @@
 
 #include <stddef.h>
 
-#include "delayed_plugin_initialization.h"
-#include "observer_server_state.h"
+#include "plugin/group_replication/include/delayed_plugin_initialization.h"
+#include "plugin/group_replication/include/observer_server_state.h"
 
 using std::string;
 
@@ -28,9 +28,7 @@ int group_replication_before_handle_connection(Server_state_param*)
   if (wait_on_engine_initialization)
   {
     delayed_initialization_thread->signal_thread_ready();
-    delayed_initialization_thread->wait_for_initialization();
-    delete delayed_initialization_thread;
-    delayed_initialization_thread= NULL;
+    delayed_initialization_thread->wait_for_read_mode();
   }
   return 0;
 }

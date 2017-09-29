@@ -17,7 +17,7 @@
 * 02110-1301  USA
 */
 
-#include "ngs/protocol/row_builder.h"
+#include "plugin/x/ngs/include/ngs/protocol/row_builder.h"
 
 #include <algorithm>
 #include <cstring>
@@ -29,10 +29,10 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_macros.h"
-#include "mysqlxclient/xdatetime.h"
-#include "mysqlxclient/xdecimal.h"
-#include "ngs/protocol/output_buffer.h"
-#include "ngs_common/protocol_protobuf.h"
+#include "plugin/x/client/mysqlxclient/xdatetime.h"
+#include "plugin/x/client/mysqlxclient/xdecimal.h"
+#include "plugin/x/ngs/include/ngs/protocol/output_buffer.h"
+#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
 
 using namespace ngs;
 
@@ -345,7 +345,8 @@ void Row_builder::add_date_field(const MYSQL_TIME * value)
 size_t Row_builder::get_time_size(const MYSQL_TIME * value)
 {
   size_t result = 0;
-  if (value->hour != 0 || value->minute != 0 || value->second != 0 || value->second_part != 0)
+  if (value->hour != 0 || value->minute != 0 || value->second != 0 ||
+      value->second_part != 0)
   {
     result += CodedOutputStream::VarintSize64(value->hour);
   }
@@ -368,7 +369,8 @@ size_t Row_builder::get_time_size(const MYSQL_TIME * value)
 void Row_builder::append_time_values(const MYSQL_TIME * value, CodedOutputStream* out_stream)
 {
   // optimize the output size skipping the right-most 0's
-  if (value->hour != 0 || value->minute != 0 || value->second != 0 || value->second_part != 0)
+  if (value->hour != 0 || value->minute != 0 || value->second != 0 ||
+      value->second_part != 0)
   {
     out_stream->WriteVarint64(value->hour);
   }

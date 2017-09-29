@@ -530,27 +530,25 @@ insert into t2 (id, cur_date) values (1, '2007-04-25');
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-explain extended
+explain
 select * from t1
 where id in (select id from t1 as x1 where (t1.cur_date is null));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 2	DEPENDENT SUBQUERY	x1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1276	Field or reference 'test.t1.cur_date' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`cur_date` AS `cur_date` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`id`,<exists>(/* select#2 */ select 1 from `test`.`t1` `x1` where ((`test`.`t1`.`cur_date` = '0000-00-00 00:00:00') and (<cache>(`test`.`t1`.`id`) = `test`.`x1`.`id`))))
 select * from t1
 where id in (select id from t1 as x1 where (t1.cur_date is null));
 id	cur_date
-explain extended
+explain
 select * from t2
 where id in (select id from t2 as x1 where (t2.cur_date is null));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 2	DEPENDENT SUBQUERY	x1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1276	Field or reference 'test.t2.cur_date' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`cur_date` AS `cur_date` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`id`,<exists>(/* select#2 */ select 1 from `test`.`t2` `x1` where ((`test`.`t2`.`cur_date` = '0000-00-00') and (<cache>(`test`.`t2`.`id`) = `test`.`x1`.`id`))))
 select * from t2
@@ -558,27 +556,25 @@ where id in (select id from t2 as x1 where (t2.cur_date is null));
 id	cur_date
 insert into t1 (id, cur_date) values (2, '2007-04-26 18:30:22');
 insert into t2 (id, cur_date) values (2, '2007-04-26');
-explain extended
+explain
 select * from t1
 where id in (select id from t1 as x1 where (t1.cur_date is null));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DEPENDENT SUBQUERY	x1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1276	Field or reference 'test.t1.cur_date' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`cur_date` AS `cur_date` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`id`,<exists>(/* select#2 */ select 1 from `test`.`t1` `x1` where ((`test`.`t1`.`cur_date` = '0000-00-00 00:00:00') and (<cache>(`test`.`t1`.`id`) = `test`.`x1`.`id`))))
 select * from t1
 where id in (select id from t1 as x1 where (t1.cur_date is null));
 id	cur_date
-explain extended
+explain
 select * from t2
 where id in (select id from t2 as x1 where (t2.cur_date is null));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DEPENDENT SUBQUERY	x1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1276	Field or reference 'test.t2.cur_date' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`cur_date` AS `cur_date` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`id`,<exists>(/* select#2 */ select 1 from `test`.`t2` `x1` where ((`test`.`t2`.`cur_date` = '0000-00-00') and (<cache>(`test`.`t2`.`id`) = `test`.`x1`.`id`))))
 select * from t2
@@ -683,11 +679,10 @@ End of 5.1 tests
 CREATE TABLE t1 (Id INT, AtTime DATETIME, KEY AtTime (AtTime));
 SET NAMES CP850;
 INSERT INTO t1 VALUES (1,'2010-04-12 22:30:12'), (2,'2010-04-12 22:30:12'), (3,'2010-04-12 22:30:12');
-EXPLAIN EXTENDED SELECT * FROM t1 FORCE INDEX(attime) WHERE AtTime = '2010-02-22 18:40:07';
+EXPLAIN SELECT * FROM t1 FORCE INDEX(attime) WHERE AtTime = '2010-02-22 18:40:07';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	AtTime	AtTime	6	const	1	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`Id` AS `Id`,`test`.`t1`.`AtTime` AS `AtTime` from `test`.`t1` FORCE INDEX (`attime`) where (`test`.`t1`.`AtTime` = '2010-02-22 18:40:07')
 DROP TABLE t1;
 SET NAMES latin1;
@@ -906,6 +901,7 @@ UPDATE test.t SET `col_varchar_nokey` = TIMESTAMP(`col_time_nokey`,'00:00:00')
 WHERE `col_int_nokey` > `col_int_nokey`
         AND TIMESTAMP('18:16:35.025453') IS  NULL;
 ERROR 22007: Incorrect datetime value: '18:16:35.025453'
+INSERT INTO t VALUES('x', CURRENT_TIME(), 0, CURRENT_TIMESTAMP());
 UPDATE test.t SET `col_datetime_key` = `col_datetime_key` WHERE
 `col_datetime_key` <=> FROM_UNIXTIME(1151860736,CONCAT_WS(':','%D','%v'));
 ERROR 22007: Incorrect datetime value: '2nd:26' for column 'col_datetime_key' at row 1

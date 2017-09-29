@@ -20,119 +20,119 @@
 
 #include "storage/perfschema/pfs_engine_table.h"
 
-#include "auth_acls.h"
-#include "current_thd.h"
-#include "derror.h"
-#include "lock.h"  // MYSQL_LOCK_IGNORE_TIMEOUT
-#include "log.h"
 #include "my_dbug.h"
 #include "my_macros.h"
 #include "my_thread.h"
-#include "mysqld.h" /* lower_case_table_names */
-#include "pfs_buffer_container.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/current_thd.h"
+#include "sql/derror.h"
+#include "sql/lock.h"  // MYSQL_LOCK_IGNORE_TIMEOUT
+#include "sql/log.h"
+#include "sql/mysqld.h"    /* lower_case_table_names */
+#include "sql/sql_base.h"  // close_thread_tables
+#include "sql/sql_class.h"
+#include "storage/perfschema/pfs_buffer_container.h"
 /* For show status */
-#include "pfs_column_values.h"
-#include "pfs_digest.h"
-#include "pfs_global.h"
-#include "pfs_instr.h"
-#include "pfs_instr_class.h"
-#include "pfs_setup_actor.h"
-#include "pfs_setup_object.h"
-#include "sql_base.h"  // close_thread_tables
-#include "sql_class.h"
-#include "table_accounts.h"
-#include "table_data_lock_waits.h"
-#include "table_data_locks.h"
-#include "table_ees_by_account_by_error.h"
-#include "table_ees_by_host_by_error.h"
-#include "table_ees_by_thread_by_error.h"
-#include "table_ees_by_user_by_error.h"
-#include "table_ees_global_by_error.h"
-#include "table_esgs_by_account_by_event_name.h"
-#include "table_esgs_by_host_by_event_name.h"
-#include "table_esgs_by_thread_by_event_name.h"
-#include "table_esgs_by_user_by_event_name.h"
-#include "table_esgs_global_by_event_name.h"
-#include "table_esmh_by_digest.h"
-#include "table_esmh_global.h"
-#include "table_esms_by_account_by_event_name.h"
-#include "table_esms_by_digest.h"
-#include "table_esms_by_host_by_event_name.h"
-#include "table_esms_by_program.h"
-#include "table_esms_by_thread_by_event_name.h"
-#include "table_esms_by_user_by_event_name.h"
-#include "table_esms_global_by_event_name.h"
-#include "table_ets_by_account_by_event_name.h"
-#include "table_ets_by_host_by_event_name.h"
-#include "table_ets_by_thread_by_event_name.h"
-#include "table_ets_by_user_by_event_name.h"
-#include "table_ets_global_by_event_name.h"
-#include "table_events_stages.h"
-#include "table_events_statements.h"
-#include "table_events_transactions.h"
-#include "table_events_waits.h"
-#include "table_events_waits_summary.h"
-#include "table_ews_by_account_by_event_name.h"
-#include "table_ews_by_host_by_event_name.h"
-#include "table_ews_by_thread_by_event_name.h"
-#include "table_ews_by_user_by_event_name.h"
-#include "table_ews_global_by_event_name.h"
-#include "table_file_instances.h"
-#include "table_file_summary_by_event_name.h"
-#include "table_file_summary_by_instance.h"
-#include "table_global_status.h"
-#include "table_global_variables.h"
-#include "table_host_cache.h"
-#include "table_hosts.h"
-#include "table_md_locks.h"
-#include "table_mems_by_account_by_event_name.h"
-#include "table_mems_by_host_by_event_name.h"
-#include "table_mems_by_thread_by_event_name.h"
-#include "table_mems_by_user_by_event_name.h"
-#include "table_mems_global_by_event_name.h"
-#include "table_os_global_by_type.h"
-#include "table_performance_timers.h"
-#include "table_persisted_variables.h"
-#include "table_plugin_table.h"
-#include "table_prepared_stmt_instances.h"
-#include "table_replication_applier_configuration.h"
-#include "table_replication_applier_filters.h"
-#include "table_replication_applier_global_filters.h"
-#include "table_replication_applier_status.h"
-#include "table_replication_applier_status_by_coordinator.h"
-#include "table_replication_applier_status_by_worker.h"
+#include "storage/perfschema/pfs_column_values.h"
+#include "storage/perfschema/pfs_digest.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_instr.h"
+#include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/pfs_setup_actor.h"
+#include "storage/perfschema/pfs_setup_object.h"
+#include "storage/perfschema/table_accounts.h"
+#include "storage/perfschema/table_data_lock_waits.h"
+#include "storage/perfschema/table_data_locks.h"
+#include "storage/perfschema/table_ees_by_account_by_error.h"
+#include "storage/perfschema/table_ees_by_host_by_error.h"
+#include "storage/perfschema/table_ees_by_thread_by_error.h"
+#include "storage/perfschema/table_ees_by_user_by_error.h"
+#include "storage/perfschema/table_ees_global_by_error.h"
+#include "storage/perfschema/table_esgs_by_account_by_event_name.h"
+#include "storage/perfschema/table_esgs_by_host_by_event_name.h"
+#include "storage/perfschema/table_esgs_by_thread_by_event_name.h"
+#include "storage/perfschema/table_esgs_by_user_by_event_name.h"
+#include "storage/perfschema/table_esgs_global_by_event_name.h"
+#include "storage/perfschema/table_esmh_by_digest.h"
+#include "storage/perfschema/table_esmh_global.h"
+#include "storage/perfschema/table_esms_by_account_by_event_name.h"
+#include "storage/perfschema/table_esms_by_digest.h"
+#include "storage/perfschema/table_esms_by_host_by_event_name.h"
+#include "storage/perfschema/table_esms_by_program.h"
+#include "storage/perfschema/table_esms_by_thread_by_event_name.h"
+#include "storage/perfschema/table_esms_by_user_by_event_name.h"
+#include "storage/perfschema/table_esms_global_by_event_name.h"
+#include "storage/perfschema/table_ets_by_account_by_event_name.h"
+#include "storage/perfschema/table_ets_by_host_by_event_name.h"
+#include "storage/perfschema/table_ets_by_thread_by_event_name.h"
+#include "storage/perfschema/table_ets_by_user_by_event_name.h"
+#include "storage/perfschema/table_ets_global_by_event_name.h"
+#include "storage/perfschema/table_events_stages.h"
+#include "storage/perfschema/table_events_statements.h"
+#include "storage/perfschema/table_events_transactions.h"
+#include "storage/perfschema/table_events_waits.h"
+#include "storage/perfschema/table_events_waits_summary.h"
+#include "storage/perfschema/table_ews_by_account_by_event_name.h"
+#include "storage/perfschema/table_ews_by_host_by_event_name.h"
+#include "storage/perfschema/table_ews_by_thread_by_event_name.h"
+#include "storage/perfschema/table_ews_by_user_by_event_name.h"
+#include "storage/perfschema/table_ews_global_by_event_name.h"
+#include "storage/perfschema/table_file_instances.h"
+#include "storage/perfschema/table_file_summary_by_event_name.h"
+#include "storage/perfschema/table_file_summary_by_instance.h"
+#include "storage/perfschema/table_global_status.h"
+#include "storage/perfschema/table_global_variables.h"
+#include "storage/perfschema/table_host_cache.h"
+#include "storage/perfschema/table_hosts.h"
+#include "storage/perfschema/table_md_locks.h"
+#include "storage/perfschema/table_mems_by_account_by_event_name.h"
+#include "storage/perfschema/table_mems_by_host_by_event_name.h"
+#include "storage/perfschema/table_mems_by_thread_by_event_name.h"
+#include "storage/perfschema/table_mems_by_user_by_event_name.h"
+#include "storage/perfschema/table_mems_global_by_event_name.h"
+#include "storage/perfschema/table_os_global_by_type.h"
+#include "storage/perfschema/table_performance_timers.h"
+#include "storage/perfschema/table_persisted_variables.h"
+#include "storage/perfschema/table_plugin_table.h"
+#include "storage/perfschema/table_prepared_stmt_instances.h"
+#include "storage/perfschema/table_replication_applier_configuration.h"
+#include "storage/perfschema/table_replication_applier_filters.h"
+#include "storage/perfschema/table_replication_applier_global_filters.h"
+#include "storage/perfschema/table_replication_applier_status.h"
+#include "storage/perfschema/table_replication_applier_status_by_coordinator.h"
+#include "storage/perfschema/table_replication_applier_status_by_worker.h"
 /* For replication related perfschema tables. */
-#include "table_replication_connection_configuration.h"
-#include "table_replication_connection_status.h"
-#include "table_replication_group_member_stats.h"
-#include "table_replication_group_members.h"
-#include "table_session_account_connect_attrs.h"
-#include "table_session_connect_attrs.h"
-#include "table_session_status.h"
-#include "table_session_variables.h"
-#include "table_setup_actors.h"
-#include "table_setup_consumers.h"
-#include "table_setup_instruments.h"
-#include "table_setup_objects.h"
-#include "table_setup_timers.h"
-#include "table_socket_instances.h"
-#include "table_socket_summary_by_event_name.h"
-#include "table_socket_summary_by_instance.h"
-#include "table_status_by_account.h"
-#include "table_status_by_host.h"
-#include "table_status_by_thread.h"
-#include "table_status_by_user.h"
-#include "table_sync_instances.h"
-#include "table_table_handles.h"
-#include "table_threads.h"
-#include "table_tiws_by_index_usage.h"
-#include "table_tiws_by_table.h"
-#include "table_tlws_by_table.h"
-#include "table_user_defined_functions.h"
-#include "table_users.h"
-#include "table_uvar_by_thread.h"
-#include "table_variables_by_thread.h"
-#include "table_variables_info.h"
+#include "storage/perfschema/table_replication_connection_configuration.h"
+#include "storage/perfschema/table_replication_connection_status.h"
+#include "storage/perfschema/table_replication_group_member_stats.h"
+#include "storage/perfschema/table_replication_group_members.h"
+#include "storage/perfschema/table_session_account_connect_attrs.h"
+#include "storage/perfschema/table_session_connect_attrs.h"
+#include "storage/perfschema/table_session_status.h"
+#include "storage/perfschema/table_session_variables.h"
+#include "storage/perfschema/table_setup_actors.h"
+#include "storage/perfschema/table_setup_consumers.h"
+#include "storage/perfschema/table_setup_instruments.h"
+#include "storage/perfschema/table_setup_objects.h"
+#include "storage/perfschema/table_setup_threads.h"
+#include "storage/perfschema/table_socket_instances.h"
+#include "storage/perfschema/table_socket_summary_by_event_name.h"
+#include "storage/perfschema/table_socket_summary_by_instance.h"
+#include "storage/perfschema/table_status_by_account.h"
+#include "storage/perfschema/table_status_by_host.h"
+#include "storage/perfschema/table_status_by_thread.h"
+#include "storage/perfschema/table_status_by_user.h"
+#include "storage/perfschema/table_sync_instances.h"
+#include "storage/perfschema/table_table_handles.h"
+#include "storage/perfschema/table_threads.h"
+#include "storage/perfschema/table_tiws_by_index_usage.h"
+#include "storage/perfschema/table_tiws_by_table.h"
+#include "storage/perfschema/table_tlws_by_table.h"
+#include "storage/perfschema/table_user_defined_functions.h"
+#include "storage/perfschema/table_users.h"
+#include "storage/perfschema/table_uvar_by_thread.h"
+#include "storage/perfschema/table_variables_by_thread.h"
+#include "storage/perfschema/table_variables_info.h"
 
 /* clang-format off */
 /**
@@ -578,7 +578,7 @@ static PFS_engine_table_share *all_shares[] = {
   &table_setup_consumers::m_share,
   &table_setup_instruments::m_share,
   &table_setup_objects::m_share,
-  &table_setup_timers::m_share,
+  &table_setup_threads::m_share,
   &table_tiws_by_index_usage::m_share,
   &table_tiws_by_table::m_share,
   &table_tlws_by_table::m_share,
@@ -671,6 +671,32 @@ static PFS_engine_table_share *all_shares[] = {
   &table_user_defined_functions::m_share,
 
   NULL};
+
+static PSI_mutex_key key_LOCK_pfs_share_list;
+static PSI_mutex_info info_LOCK_pfs_share_list = {
+  &key_LOCK_pfs_share_list,
+  "LOCK_pfs_share_list",
+  PSI_VOLATILITY_PERMANENT,
+  PSI_FLAG_SINGLETON,
+  /* Doc */
+  "Components can provide their own performance_schema tables. "
+  "This lock protects the list of such tables definitions."};
+
+void
+PFS_dynamic_table_shares::init_mutex()
+{
+  /* This is called once at startup, ok to register here. */
+  /* FIXME: Category "performance_schema" leads to a name too long. */
+  mysql_mutex_register("pfs", &info_LOCK_pfs_share_list, 1);
+  mysql_mutex_init(
+    key_LOCK_pfs_share_list, &LOCK_pfs_share_list, MY_MUTEX_INIT_FAST);
+}
+
+void
+PFS_dynamic_table_shares::destroy_mutex()
+{
+  mysql_mutex_destroy(&LOCK_pfs_share_list);
+}
 
 PFS_dynamic_table_shares pfs_external_table_shares;
 
@@ -892,20 +918,6 @@ void
 PFS_engine_table::set_position(const void *ref)
 {
   memcpy(m_pos_ptr, ref, m_share_ptr->m_ref_length);
-}
-
-/**
-  Get the timer normalizer and class type for the current row.
-  @param [in] instr_class    class
-*/
-void
-PFS_engine_table::get_normalizer(PFS_instr_class *instr_class)
-{
-  if (instr_class->m_type != m_class_type)
-  {
-    m_normalizer = time_normalizer::get(*instr_class->m_timer);
-    m_class_type = instr_class->m_type;
-  }
 }
 
 int

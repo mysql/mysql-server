@@ -18,7 +18,7 @@
 
 #include <ndb_global.h>
 #include <NdbThread.h>
-#include <my_thread.h>
+#include "my_thread.h"
 #include <NdbMutex.h>
 #include <NdbCondition.h>
 

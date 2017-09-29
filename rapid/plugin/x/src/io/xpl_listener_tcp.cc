@@ -17,7 +17,7 @@
  * 02110-1301  USA
  */
 
-#include "io/xpl_listener_tcp.h"
+#include "plugin/x/src/io/xpl_listener_tcp.h"
 
 #include <errno.h>
 #ifndef _WIN32
@@ -25,11 +25,11 @@
 #endif
 
 #include "my_io.h"
-#include "mysqlx_version.h"
-#include "ngs_common/operations_factory.h"
-#include "ngs_common/smart_ptr.h"
-#include "ngs_common/string_formatter.h"
-#include "xpl_log.h"
+#include "plugin/x/generated/mysqlx_version.h"
+#include "plugin/x/ngs/include/ngs_common/operations_factory.h"
+#include "plugin/x/ngs/include/ngs_common/smart_ptr.h"
+#include "plugin/x/ngs/include/ngs_common/string_formatter.h"
+#include "plugin/x/src/xpl_log.h"
 
 namespace xpl {
 

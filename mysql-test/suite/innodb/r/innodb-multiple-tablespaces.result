@@ -103,7 +103,7 @@ yyy.ibd
 # Start the server and show the tablespaces.
 #
 # restart
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 test/yyy	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/yyy.ibd
 test/nyy	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/nyy.ibd
@@ -120,12 +120,20 @@ test/www	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/www.ibd
 test/nolink	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/nolink.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
-test/yyy	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/yyy.ibd
-test/nyy	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/nyy.ibd
-test/yyn	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/yyn.ibd
-test/nyw	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/nyw.ibd
-test/wyn	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/wyn.ibd
-test/nolink	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/nolink.ibd
+test/yyy	TABLESPACE	InnoDB	NORMAL	test/yyy	MYSQL_TMP_DIR/alt_dir/test/yyy.ibd
+test/nyy	TABLESPACE	InnoDB	NORMAL	test/nyy	MYSQL_TMP_DIR/alt_dir/test/nyy.ibd
+test/yyn	TABLESPACE	InnoDB	NORMAL	test/yyn	MYSQL_TMP_DIR/alt_dir/test/yyn.ibd
+test/nyw	TABLESPACE	InnoDB	NORMAL	test/nyw	MYSQL_TMP_DIR/alt_dir/test/nyw.ibd
+test/wyn	TABLESPACE	InnoDB	NORMAL	test/wyn	MYSQL_TMP_DIR/alt_dir/test/wyn.ibd
+test/nolink	TABLESPACE	InnoDB	NORMAL	test/nolink	MYSQL_TMP_DIR/alt_dir/test/nolink.ibd
+Warnings:
+Warning	1812	Tablespace is missing for table test/yny.
+Warning	1812	Tablespace is missing for table test/nwy.
+Warning	1812	Tablespace is missing for table test/wny.
+Warning	1812	Tablespace is missing for table test/ynw.
+Warning	1812	Tablespace is missing for table test/ywn.
+Warning	1812	Tablespace is missing for table test/nnn.
+Warning	1812	Tablespace is missing for table test/www.
 SELECT * FROM yyy;
 c1	c2
 1	yyy
@@ -365,6 +373,8 @@ ny.ibd
 wy.ibd
 yw.ibd
 yy.ibd
+Pattern "InnoDB: Could not find any file associated with the tablespace \d+" found
+Pattern "InnoDB: Tablespace file '.*.tmp.*alt_dir.test.yw.ibd' ID mismatch, expected \d+ but found \d+" found
 # restoring yn.ibd, yw.ibd
 # restart
 SELECT * FROM ny;
@@ -417,7 +427,7 @@ yy	CREATE TABLE `yy` (
   `c2` text,
   PRIMARY KEY (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 test/ny	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/ny.ibd
 test/wy	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/wy.ibd
@@ -426,11 +436,11 @@ test/yw	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/yw.ibd
 test/yy	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/yy.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
-test/ny	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/ny.ibd
-test/wy	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/wy.ibd
-test/yn	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/yn.ibd
-test/yw	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/yw.ibd
-test/yy	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/yy.ibd
+test/ny	TABLESPACE	InnoDB	NORMAL	test/ny	MYSQL_TMP_DIR/alt_dir/test/ny.ibd
+test/wy	TABLESPACE	InnoDB	NORMAL	test/wy	MYSQL_TMP_DIR/alt_dir/test/wy.ibd
+test/yn	TABLESPACE	InnoDB	NORMAL	test/yn	MYSQL_TMP_DIR/alt_dir/test/yn.ibd
+test/yw	TABLESPACE	InnoDB	NORMAL	test/yw	MYSQL_TMP_DIR/alt_dir/test/yw.ibd
+test/yy	TABLESPACE	InnoDB	NORMAL	test/yy	MYSQL_TMP_DIR/alt_dir/test/yy.ibd
 #
 # List of files before removing unused files
 #

@@ -20,30 +20,28 @@
 
 /* This file defines all boost geometry traits. */
 
-#include <boost/static_assert.hpp>
-
+#include <boost/concept/requires.hpp>
 #include <boost/geometry/core/access.hpp>
-#include <boost/geometry/core/coordinate_type.hpp>
-#include <boost/geometry/core/coordinate_system.hpp>
+#include <boost/geometry/core/closure.hpp>
 #include <boost/geometry/core/coordinate_dimension.hpp>
-#include <boost/geometry/core/interior_type.hpp>
-#include <boost/geometry/core/ring_type.hpp>
+#include <boost/geometry/core/coordinate_system.hpp>
+#include <boost/geometry/core/coordinate_type.hpp>
+#include <boost/geometry/core/cs.hpp>
 #include <boost/geometry/core/exterior_ring.hpp>
 #include <boost/geometry/core/interior_rings.hpp>
+#include <boost/geometry/core/interior_type.hpp>
 #include <boost/geometry/core/point_order.hpp>
-#include <boost/geometry/core/closure.hpp>
+#include <boost/geometry/core/ring_type.hpp>
 #include <boost/geometry/core/tags.hpp>
-#include <boost/geometry/core/cs.hpp>
+#include <boost/geometry/geometries/concepts/linestring_concept.hpp>
+#include <boost/geometry/geometries/concepts/point_concept.hpp>
+#include <boost/geometry/geometries/concepts/polygon_concept.hpp>
 #include <boost/geometry/multi/core/tags.hpp>
 #include <boost/geometry/util/math.hpp>
-#include <boost/concept/requires.hpp>
+#include <boost/static_assert.hpp>
 
-#include <boost/geometry/geometries/concepts/point_concept.hpp>
-#include <boost/geometry/geometries/concepts/linestring_concept.hpp>
-#include <boost/geometry/geometries/concepts/polygon_concept.hpp>
-
-#include "gis/srid.h"
-#include "spatial.h"
+#include "sql/gis/srid.h"
+#include "sql/spatial.h"
 
 /**
   Helper class for spherical, spherical_equaltorial(i.e. geography)

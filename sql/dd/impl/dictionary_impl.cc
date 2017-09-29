@@ -13,29 +13,13 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/dictionary_impl.h"
+#include "sql/dd/impl/dictionary_impl.h"
 
 #include <string.h>
 #include <memory>
 
-#include "auth_common.h"                   // acl_init
-#include "bootstrap.h"                     // bootstrap::bootstrap_functor
-#include "dd/cache/dictionary_client.h"    // dd::Dictionary_client
-#include "dd/dd.h"                         // enum_dd_init_type
-#include "dd/dd_schema.h"                  // dd::Schema_MDL_locker
-#include "dd/impl/bootstrapper.h"          // dd::Bootstrapper
-#include "dd/impl/system_registry.h"       // dd::System_tables
-#include "dd/impl/tables/dd_properties.h"  // get_actual_dd_version()
-#include "dd/impl/types/plugin_table_impl.h" // dd::Plugin_table_impl
-#include "dd/info_schema/metadata.h"       // dd::info_schema::store_dynamic...
-#include "dd/types/object_table_definition.h"
-#include "dd/types/system_view.h"
-#include "dd/upgrade/upgrade.h"            // dd::upgrade
-#include "derror.h"
-#include "handler.h"
 #include "m_ctype.h"
 #include "m_string.h"
-#include "mdl.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
@@ -43,10 +27,28 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "opt_costconstantcache.h"         // init_optimizer_cost_module
-#include "sql_class.h"                     // THD
-#include "sql_security_ctx.h"
-#include "system_variables.h"
+#include "sql/auth/auth_common.h"          // acl_init
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/auto_thd.h"                  // Auto_thd
+#include "sql/bootstrap.h"                 // bootstrap::bootstrap_functor
+#include "sql/dd/cache/dictionary_client.h" // dd::Dictionary_client
+#include "sql/dd/dd.h"                     // enum_dd_init_type
+#include "sql/dd/dd_schema.h"              // dd::Schema_MDL_locker
+#include "sql/dd/impl/bootstrapper.h"      // dd::Bootstrapper
+#include "sql/dd/impl/cache/shared_dictionary_cache.h" // Shared_dictionary_cache
+#include "sql/dd/impl/system_registry.h"   // dd::System_tables
+#include "sql/dd/impl/tables/dd_properties.h" // get_actual_dd_version()
+#include "sql/dd/impl/types/plugin_table_impl.h" // dd::Plugin_table_impl
+#include "sql/dd/info_schema/metadata.h"   // dd::info_schema::store_dynamic...
+#include "sql/dd/types/object_table_definition.h"
+#include "sql/dd/types/system_view.h"
+#include "sql/dd/upgrade/upgrade.h"        // dd::upgrade
+#include "sql/derror.h"
+#include "sql/handler.h"
+#include "sql/mdl.h"
+#include "sql/opt_costconstantcache.h"     // init_optimizer_cost_module
+#include "sql/sql_class.h"                 // THD
+#include "sql/system_variables.h"
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -175,16 +177,7 @@ uint Dictionary_impl::get_target_dd_version()
 
 uint Dictionary_impl::get_actual_dd_version(THD *thd)
 {
-  bool not_used;
-  return tables::DD_properties::instance().get_actual_dd_version(thd,
-                                                                 &not_used);
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-uint Dictionary_impl::get_actual_dd_version(THD *thd, bool *not_used)
-{ return tables::DD_properties::instance().get_actual_dd_version(thd,
-                                                                 not_used);
+  return tables::DD_properties::instance().get_actual_dd_version(thd);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -344,6 +337,7 @@ static bool acquire_mdl(THD *thd,
                         const char *schema_name,
                         const char *table_name,
                         bool no_wait,
+                        ulong lock_wait_timeout,
                         enum_mdl_type lock_type,
                         enum_mdl_duration lock_duration,
                         MDL_ticket **out_mdl_ticket)
@@ -359,8 +353,7 @@ static bool acquire_mdl(THD *thd,
     if (thd->mdl_context.try_acquire_lock(&mdl_request))
       DBUG_RETURN(true);
   }
-  else if (thd->mdl_context.acquire_lock(&mdl_request,
-                                         thd->variables.lock_wait_timeout))
+  else if (thd->mdl_context.acquire_lock(&mdl_request, lock_wait_timeout))
     DBUG_RETURN(true);
 
   if (out_mdl_ticket)
@@ -377,7 +370,8 @@ bool acquire_shared_table_mdl(THD *thd,
                               MDL_ticket **out_mdl_ticket)
 {
   return acquire_mdl(thd, MDL_key::TABLE, schema_name, table_name, no_wait,
-                     MDL_SHARED, MDL_EXPLICIT, out_mdl_ticket);
+                     thd->variables.lock_wait_timeout, MDL_SHARED,
+                     MDL_EXPLICIT, out_mdl_ticket);
 }
 
 
@@ -411,7 +405,8 @@ bool acquire_exclusive_tablespace_mdl(THD *thd,
 {
   // When requesting a tablespace name lock, we leave the schema name empty.
   return acquire_mdl(thd, MDL_key::TABLESPACE, "", tablespace_name, no_wait,
-                     MDL_EXCLUSIVE, MDL_TRANSACTION, NULL);
+                     thd->variables.lock_wait_timeout, MDL_EXCLUSIVE,
+                     MDL_TRANSACTION, NULL);
 }
 
 
@@ -421,7 +416,8 @@ bool acquire_shared_tablespace_mdl(THD *thd,
 {
   // When requesting a tablespace name lock, we leave the schema name empty.
   return acquire_mdl(thd, MDL_key::TABLESPACE, "", tablespace_name, no_wait,
-                     MDL_SHARED, MDL_TRANSACTION, NULL);
+                     thd->variables.lock_wait_timeout, MDL_SHARED,
+                     MDL_TRANSACTION, NULL);
 }
 
 
@@ -455,7 +451,19 @@ bool acquire_exclusive_table_mdl(THD *thd,
                                  MDL_ticket **out_mdl_ticket)
 {
   return acquire_mdl(thd, MDL_key::TABLE, schema_name, table_name, no_wait,
-                           MDL_EXCLUSIVE, MDL_TRANSACTION, out_mdl_ticket);
+                     thd->variables.lock_wait_timeout, MDL_EXCLUSIVE,
+                     MDL_TRANSACTION, out_mdl_ticket);
+}
+
+bool acquire_exclusive_table_mdl(THD *thd,
+                                 const char *schema_name,
+                                 const char *table_name,
+                                 unsigned long int lock_wait_timeout,
+                                 MDL_ticket **out_mdl_ticket)
+{
+  return acquire_mdl(thd, MDL_key::TABLE, schema_name, table_name, false,
+                     lock_wait_timeout, MDL_EXCLUSIVE, MDL_TRANSACTION,
+                     out_mdl_ticket);
 }
 
 bool acquire_exclusive_schema_mdl(THD *thd,
@@ -464,7 +472,8 @@ bool acquire_exclusive_schema_mdl(THD *thd,
                                  MDL_ticket **out_mdl_ticket)
 {
   return acquire_mdl(thd, MDL_key::SCHEMA, schema_name, "", no_wait,
-                           MDL_EXCLUSIVE, MDL_EXPLICIT, out_mdl_ticket);
+                     thd->variables.lock_wait_timeout, MDL_EXCLUSIVE,
+                     MDL_EXPLICIT, out_mdl_ticket);
 }
 
 void release_mdl(THD *thd, MDL_ticket *mdl_ticket)
@@ -603,4 +612,22 @@ bool drop_native_table(THD *thd, const char *schema_name, const char *table_name
                                                  table_name);
 }
 
+bool reset_tables_and_tablespaces()
+{
+  Auto_THD thd;
+  handlerton *ddse= ha_resolve_by_legacy_type(thd.thd ,DB_TYPE_INNODB);
+
+  // Acquire transactional metadata locks and evict all cached objects.
+  if (dd::cache::Shared_dictionary_cache::reset_tables_and_tablespaces(thd.thd))
+    return true;
+
+  // Evict all cached objects in the DD cache in the DDSE.
+  if (ddse->dict_cache_reset_tables_and_tablespaces != nullptr)
+    ddse->dict_cache_reset_tables_and_tablespaces();
+
+  // Release transactional metadata locks.
+  thd.thd->mdl_context.release_transactional_locks();
+
+  return false;
+}
 }

@@ -16,7 +16,7 @@
 */
 
 #include "my_sys.h"
-#include "ndb_types.h"
+#include "storage/ndb/include/ndb_types.h"
 
 class Ndb_cluster_connection;
 

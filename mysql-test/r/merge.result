@@ -2070,7 +2070,7 @@ test.t1	optimize	status	OK
 FLUSH TABLES m1, t1;
 UNLOCK TABLES;
 DROP TABLE t1, m1;
-SET SESSION information_schema_stats=latest;
+SET SESSION information_schema_stats_expiry=0;
 CREATE TABLE tm1 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1) INSERT_METHOD=FIRST;
 SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE
 TABLE_SCHEMA = 'test' and TABLE_NAME='tm1';
@@ -2079,7 +2079,7 @@ def	test	tm1	BASE TABLE	MRG_MYISAM	10	Fixed	#	#	#	#	#	#	#	#	#	#	utf8mb4_0900_ai_
 Warnings:
 Warning	1168	Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
 DROP TABLE tm1;
-SET SESSION information_schema_stats=cached;
+SET SESSION information_schema_stats_expiry=default;
 CREATE TABLE t1(C1 INT, C2 INT, KEY C1(C1), KEY C2(C2)) ENGINE=MYISAM;
 CREATE TABLE t2(C1 INT, C2 INT, KEY C1(C1), KEY C2(C2)) ENGINE=MYISAM;
 CREATE TABLE t3(C1 INT, C2 INT, KEY C1(C1), KEY C2(C2)) ENGINE=MYISAM;

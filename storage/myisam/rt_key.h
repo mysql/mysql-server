@@ -25,6 +25,7 @@
 #include <sys/types.h>
 
 #include "my_inttypes.h"
+#include "myisam.h"
 
 int rtree_add_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key, 
                  uint key_length, uchar *page_buf, my_off_t *new_page);

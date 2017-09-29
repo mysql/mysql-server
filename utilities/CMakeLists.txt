@@ -13,11 +13,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-INCLUDE_DIRECTORIES(
-${CMAKE_SOURCE_DIR}/include 
-${ZLIB_INCLUDE_DIR}
-${LZ4_INCLUDE_DIR})
-
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 
 # Default install component for the files is Server here
@@ -118,16 +113,15 @@ IF (BUILD_BUNDLED_LZ4)
   TARGET_LINK_LIBRARIES(lz4_decompress ${LZ4_LIBRARY} mysys)
 ENDIF()
 
-IF (BUILD_BUNDLED_ZLIB)
+IF (BUILD_BUNDLED_ZLIB OR NOT OPENSSL_EXECUTABLE_HAS_ZLIB)
   MYSQL_ADD_EXECUTABLE(zlib_decompress zlib_decompress.cc)
   TARGET_LINK_LIBRARIES(zlib_decompress ${ZLIB_LIBRARY} mysys)
 ENDIF()
 
 IF(WITH_INNOBASE_STORAGE_ENGINE)
 
-  IF(LZ4_INCLUDE_DIR AND LZ4_LIBRARY)
+  IF(LZ4_LIBRARY)
     ADD_DEFINITIONS(-DHAVE_LZ4=1)
-    INCLUDE_DIRECTORIES(${LZ4_INCLUDE_DIR})
   ENDIF()
 
   IF(NOT MSVC)
@@ -158,7 +152,6 @@ IF(WITH_INNOBASE_STORAGE_ENGINE)
   INCLUDE_DIRECTORIES(
     ${CMAKE_SOURCE_DIR}/storage/innobase/
     ${CMAKE_SOURCE_DIR}/storage/innobase/include
-    ${CMAKE_SOURCE_DIR}/sql
   )
 
   # We use the InnoDB code directly in case the code changes.

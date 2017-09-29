@@ -20,7 +20,6 @@ log-bin=                 master-bin
 log-bin=                    slave-bin
 relay-log=                  slave-relay-bin
 
-log-slave-updates
 master-retry-count=         10
 
 # Values reported by slave when it connect to master
@@ -42,7 +41,6 @@ slave-load-tmpdir=          ../../tmp
 log-bin=                    blackhole-slave-bin
 relay-log=                  blackhole-slave-relay-bin
 
-log-slave-updates
 master-retry-count=         10
 
 # Values reported by slave when it connect to master

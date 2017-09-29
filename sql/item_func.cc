@@ -20,7 +20,7 @@
   This file defines all numerical functions
 */
 
-#include "item_func.h"
+#include "sql/item_func.h"
 
 #include <string.h>
 #include <time.h>
@@ -35,30 +35,8 @@
 #include <unordered_map>
 #include <utility>
 
-#include "auth_acls.h"
-#include "auth_common.h"         // check_password_strength
-#include "binlog.h"              // mysql_bin_log
-#include "check_stack.h"
-#include "current_thd.h"         // current_thd
-#include "dd/info_schema/stats.h" // dd::info_schema::Statistics_cache
-#include "dd/object_id.h"
-#include "dd/properties.h"       // dd::Properties
-#include "dd/types/abstract_table.h"
-#include "dd/types/index.h"      // Index::enum_index_type
-#include "dd_sql_view.h"         // push_view_warning_or_error
-#include "dd_table_share.h"      // dd_get_old_field_type
-#include "debug_sync.h"          // DEBUG_SYNC
-#include "derror.h"              // ER_THD
-#include "error_handler.h"       // Internal_error_handler
-#include "item_cmpfunc.h"        // get_datetime_value
-#include "item_create.h"
-#include "item_strfunc.h"        // Item_func_concat_ws
-#include "json_dom.h"            // Json_wrapper
-#include "key.h"
-#include "log_event.h"
 #include "m_string.h"
 #include "map_helpers.h"
-#include "mdl.h"
 #include "mutex_lock.h"          // MUTEX_LOCK
 #include "my_bit.h"              // my_count_bits
 #include "my_bitmap.h"
@@ -79,34 +57,61 @@
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_password_policy.h"
 #include "mysql/service_thd_wait.h"
-#include "mysqld.h"              // log_10 stage_user_sleep
-#include "parse_tree_helpers.h"  // PT_item_list
 #include "prealloced_array.h"
-#include "psi_memory_key.h"
-#include "query_result.h"        // sql_exchange
-#include "rpl_gtid.h"
-#include "rpl_mi.h"              // Master_info
-#include "rpl_msr.h"             // channel_map
-#include "rpl_rli.h"             // Relay_log_info
-#include "sp.h"                  // sp_setup_routine
-#include "sp_head.h"             // sp_name
-#include "sql_audit.h"           // audit_global_variable
-#include "sql_base.h"            // Internal_error_handler_holder
-#include "sql_bitmap.h"
-#include "sql_class.h"           // THD
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_optimizer.h"       // JOIN
-#include "sql_parse.h"           // check_stack_overrun
-#include "sql_security_ctx.h"
-#include "sql_show.h"            // append_identifier
-#include "sql_time.h"            // TIME_from_longlong_packed
-#include "strfunc.h"             // find_type
-#include "system_variables.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h" // check_password_strength
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/binlog.h"          // mysql_bin_log
+#include "sql/check_stack.h"
+#include "sql/current_thd.h"     // current_thd
+#include "sql/dd/info_schema/table_stats.h"  // dd::info_schema::Table_stati...
+#include "sql/dd/info_schema/tablespace_stats.h" // dd::info_schema::Tablesp...
+#include "sql/dd/object_id.h"
+#include "sql/dd/properties.h"   // dd::Properties
+#include "sql/dd/types/abstract_table.h"
+#include "sql/dd/types/index.h"  // Index::enum_index_type
+#include "sql/dd_sql_view.h"     // push_view_warning_or_error
+#include "sql/dd_table_share.h"  // dd_get_old_field_type
+#include "sql/debug_sync.h"      // DEBUG_SYNC
+#include "sql/derror.h"          // ER_THD
+#include "sql/error_handler.h"   // Internal_error_handler
+#include "sql/histograms/value_map.h"
+#include "sql/item_cmpfunc.h"    // get_datetime_value
+#include "sql/item_create.h"
+#include "sql/item_strfunc.h"    // Item_func_concat_ws
+#include "sql/json_dom.h"        // Json_wrapper
+#include "sql/key.h"
+#include "sql/log_event.h"
+#include "sql/mdl.h"
+#include "sql/mysqld.h"          // log_10 stage_user_sleep
+#include "sql/parse_tree_helpers.h" // PT_item_list
+#include "sql/psi_memory_key.h"
+#include "sql/query_result.h"    // sql_exchange
+#include "sql/resourcegroups/resource_group.h"
+#include "sql/resourcegroups/resource_group_basic_types.h"
+#include "sql/resourcegroups/resource_group_mgr.h"
+#include "sql/rpl_gtid.h"
+#include "sql/rpl_mi.h"          // Master_info
+#include "sql/rpl_msr.h"         // channel_map
+#include "sql/rpl_rli.h"         // Relay_log_info
+#include "sql/sp.h"              // sp_setup_routine
+#include "sql/sp_head.h"         // sp_name
+#include "sql/sql_audit.h"       // audit_global_variable
+#include "sql/sql_base.h"        // Internal_error_handler_holder
+#include "sql/sql_bitmap.h"
+#include "sql/sql_class.h"       // THD
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_load.h"        // Sql_cmd_load_table
+#include "sql/sql_optimizer.h"   // JOIN
+#include "sql/sql_parse.h"       // check_stack_overrun
+#include "sql/sql_show.h"        // append_identifier
+#include "sql/sql_time.h"        // TIME_from_longlong_packed
+#include "sql/strfunc.h"         // find_type
+#include "sql/system_variables.h"
+#include "sql/val_int_compare.h" // Integer_value
 #include "thr_mutex.h"
-#include "val_int_compare.h"     // Integer_value
-#include "value_map.h"
 
 class Protocol;
 class sp_rcontext;
@@ -200,7 +205,6 @@ Item_func::Item_func(const POS &pos, PT_item_list *opt_list)
 
 Item_func::Item_func(THD *thd, Item_func *item)
   :Item_result_field(thd, item),
-   const_item_cache(false),
    allowed_arg_cols(item->allowed_arg_cols),
    used_tables_cache(item->used_tables_cache),
    not_null_tables_cache(item->not_null_tables_cache),
@@ -289,7 +293,6 @@ Item_func::fix_fields(THD *thd, Item**)
 
   used_tables_cache= get_initial_pseudo_tables();
   not_null_tables_cache= 0;
-  const_item_cache= true;
 
   /*
     Use stack limit of STACK_MIN_SIZE * 2 since
@@ -337,7 +340,6 @@ bool Item_func::fix_func_arg(THD *thd, Item **arg)
   maybe_null|=            item->maybe_null;
   used_tables_cache|=     item->used_tables();
   not_null_tables_cache|= item->not_null_tables();
-  const_item_cache&=      item->const_item();
   add_accum_properties(item);
 
   return false;
@@ -360,7 +362,6 @@ void Item_func::fix_after_pullout(SELECT_LEX *parent_select,
 
   used_tables_cache= get_initial_pseudo_tables();
   not_null_tables_cache= 0;
-  const_item_cache= true;
 
   if (arg_count)
   {
@@ -368,10 +369,8 @@ void Item_func::fix_after_pullout(SELECT_LEX *parent_select,
     {
       Item *const item= *arg;
       item->fix_after_pullout(parent_select, removed_select);
-
       used_tables_cache|=     item->used_tables();
       not_null_tables_cache|= item->not_null_tables();
-      const_item_cache&=      item->const_item();
     }
   }
 }
@@ -510,14 +509,12 @@ void Item_func::split_sum_func(THD *thd, Ref_item_array ref_item_array,
 void Item_func::update_used_tables()
 {
   used_tables_cache= get_initial_pseudo_tables();
-  const_item_cache= true;
   m_accum_properties= 0;
 
   for (uint i=0 ; i < arg_count ; i++)
   {
     args[i]->update_used_tables();
     used_tables_cache|=args[i]->used_tables();
-    const_item_cache&=args[i]->const_item();
     add_accum_properties(args[i]);
   }
 }
@@ -4489,7 +4486,6 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
   /* Fix all arguments */
   func->maybe_null=0;
   used_tables_cache=0;
-  const_item_cache= true;
 
   if ((f_args.arg_count=arg_count))
   {
@@ -4528,9 +4524,8 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
 	func->collation.set(&my_charset_bin);
       func->maybe_null|= item->maybe_null;
       func->add_accum_properties(item);
-      used_tables_cache|=item->used_tables();
-      const_item_cache&=item->const_item();
-      f_args.arg_type[i]=item->result_type();
+      used_tables_cache|= item->used_tables();
+      f_args.arg_type[i]= item->result_type();
     }
     //TODO: why all following memory is not allocated with 1 call of sql_alloc?
     if (!(buffers=new String[arg_count]) ||
@@ -4551,7 +4546,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
     DBUG_RETURN(true);
   initid.max_length=func->max_length;
   initid.maybe_null=func->maybe_null;
-  initid.const_item=const_item_cache;
+  initid.const_item= used_tables_cache == 0;
   initid.decimals=func->decimals;
   initid.ptr=0;
 
@@ -4618,12 +4613,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
     }
     func->max_length= min<uint32>(initid.max_length, MAX_BLOB_WIDTH);
     func->maybe_null=initid.maybe_null;
-    const_item_cache=initid.const_item;
-    /* 
-      Keep used_tables_cache in sync with const_item_cache.
-      See the comment in Item_udf_func::update_used tables.
-    */
-    if (!const_item_cache && !used_tables_cache)
+    if (!initid.const_item && used_tables_cache == 0)
       used_tables_cache= RAND_TABLE_BIT;
     func->decimals= min<uint>(initid.decimals, NOT_FIXED_DEC);
   }
@@ -5991,10 +5981,9 @@ mysql_mutex_t LOCK_item_func_sleep;
 #ifdef HAVE_PSI_INTERFACE
 static PSI_mutex_key key_LOCK_item_func_sleep;
 
-
 static PSI_mutex_info item_func_sleep_mutexes[]=
 {
-  { &key_LOCK_item_func_sleep, "LOCK_item_func_sleep", PSI_FLAG_GLOBAL, 0}
+  { &key_LOCK_item_func_sleep, "LOCK_item_func_sleep", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 
 
@@ -7156,6 +7145,8 @@ bool Item_func_get_user_var::resolve_type(THD *thd)
   decimals=NOT_FIXED_DEC;
   max_length=MAX_BLOB_WIDTH;
 
+  used_tables_cache= thd->lex->locate_var_assignment(name) ? RAND_TABLE_BIT : 0;
+
   if (get_var_with_binlog(thd, thd->lex->sql_command, name, &var_entry))
     return true;
 
@@ -7213,12 +7204,6 @@ bool Item_func_get_user_var::resolve_type(THD *thd)
 }
 
 
-bool Item_func_get_user_var::const_item() const
-{
-  return (!var_entry || current_thd->query_id != var_entry->update_query_id);
-}
-
-
 enum Item_result Item_func_get_user_var::result_type() const
 {
   return m_cached_result_type;
@@ -7262,14 +7247,17 @@ bool Item_func_get_user_var::set_value(THD *thd,
 bool Item_user_var_as_out_param::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
-  DBUG_ASSERT(thd->lex->exchange);
+
+  DBUG_ASSERT(thd->lex->sql_command == SQLCOM_LOAD);
+  auto exchange_cs=
+    down_cast<Sql_cmd_load_table *>(thd->lex->m_sql_cmd)->m_exchange.cs;
   /*
     Let us set the same collation which is used for loading
     of fields in LOAD DATA INFILE.
     (Since Item_user_var_as_out_param is used only there).
   */
-  const CHARSET_INFO *cs= thd->lex->exchange->cs ?
-    thd->lex->exchange->cs : thd->variables.collation_database;
+  const CHARSET_INFO *cs= exchange_cs ? exchange_cs
+                                      : thd->variables.collation_database;
 
   if (Item::fix_fields(thd, ref))
     return true;
@@ -7964,7 +7952,7 @@ bool Item_func_match::init_search(THD *thd)
 }
 
 
-float Item_func_match::get_filtering_effect(table_map filter_for_table,
+float Item_func_match::get_filtering_effect(THD*, table_map filter_for_table,
                                             table_map read_tables,
                                             const MY_BITMAP *fields_to_ignore,
                                             double rows_in_table)
@@ -8028,7 +8016,6 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
   thd->mark_used_columns= save_mark_used_columns;
 
   bool allows_multi_table_search= true;
-  const_item_cache=0;
   for (uint i= 0 ; i < arg_count ; i++)
   {
     item= args[i]= args[i]->real_item(); 
@@ -9329,6 +9316,75 @@ longlong Item_func_can_access_event::val_int()
 /**
   @brief
     INFORMATION_SCHEMA picks metadata from DD using system views.
+    In order for INFORMATION_SCHEMA to skip listing resource groups for which
+    the user does not have rights, the following internal functions are used.
+
+  Syntax:
+    int CAN_ACCCESS_RESOURCE_GROUP(resource_group_name);
+
+  @returns,
+    1 - If current user has access.
+    0 - If not.
+*/
+
+longlong Item_func_can_access_resource_group::val_int()
+{
+  DBUG_ENTER("Item_func_can_access_resource_group::val_int");
+
+  auto mgr_ptr= resourcegroups::Resource_group_mgr::instance();
+  if (!mgr_ptr->resource_group_support())
+  {
+    null_value= true;
+    DBUG_RETURN(FALSE);
+  }
+
+  // Read resource group name.
+  String res_grp_name;
+  String *res_grp_name_ptr= args[0]->val_str(&res_grp_name);
+
+  if (res_grp_name_ptr == nullptr)
+  {
+    null_value= true;
+    DBUG_RETURN(FALSE);
+  }
+
+  // Make sure we have safe string to access.
+  res_grp_name_ptr->c_ptr_safe();
+
+  MDL_ticket *ticket= nullptr;
+  if (mgr_ptr->acquire_shared_mdl_for_resource_group(current_thd,
+                                                     res_grp_name_ptr->c_ptr(),
+                                                     MDL_EXPLICIT, &ticket,
+                                                     false))
+    DBUG_RETURN(FALSE);
+
+  auto res_grp_ptr= mgr_ptr->get_resource_group(res_grp_name_ptr->c_ptr());
+  longlong result= TRUE;
+  if (res_grp_ptr != nullptr)
+  {
+    Security_context *sctx= current_thd->security_context();
+    if (res_grp_ptr->type() == resourcegroups::Type::SYSTEM_RESOURCE_GROUP)
+    {
+      if (!(sctx->check_access(SUPER_ACL) ||
+          sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN")).first))
+        result= FALSE;
+    }
+    else
+    {
+      if (!(sctx->check_access(SUPER_ACL) ||
+          sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN")).first ||
+          sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_USER")).first))
+        result= FALSE;
+    }
+  }
+  mgr_ptr->release_shared_mdl_for_resource_group(current_thd, ticket);
+  DBUG_RETURN(res_grp_ptr != nullptr ? result : FALSE);
+}
+
+
+/**
+  @brief
+    INFORMATION_SCHEMA picks metadata from DD using system views.
     In order for INFORMATION_SCHEMA to skip listing column for which
     the user does not have rights, the following UDF's is used.
 
@@ -9561,7 +9617,7 @@ longlong Item_func_is_visible_dd_object::val_int()
 
 
 /**
-  Get table statistics from dd::info_schema::Statistics_cache.
+  Get table statistics from dd::info_schema::get_table_statistics.
 
   @param      args       List of parameters in following order,
 
@@ -9572,6 +9628,9 @@ longlong Item_func_is_visible_dd_object::val_int()
                          - Hidden_table
                          - Tablespace_se_private_data
                          - Table_se_private_data (Used if stype is AUTO_INC)
+                         - Partition name (optional argument).
+
+  @param      arg_count  Number of arguments in 'args'
 
   @param      stype      Type of statistics that is requested
 
@@ -9580,12 +9639,13 @@ longlong Item_func_is_visible_dd_object::val_int()
   @returns ulonglong representing the statistics requested.
 */
 
-static ulonglong get_statistics_from_cache(
+static ulonglong get_table_statistics(
                    Item** args,
-                   dd::info_schema::enum_statistics_type stype,
+                   uint arg_count,
+                   dd::info_schema::enum_table_stats_type stype,
                    bool *null_value)
 {
-  DBUG_ENTER("get_statistics_from_cache");
+  DBUG_ENTER("get_table_statistics");
   *null_value= FALSE;
 
   // Reads arguments
@@ -9594,14 +9654,32 @@ static ulonglong get_statistics_from_cache(
   String engine_name;
   String ts_se_private_data;
   String tbl_se_private_data;
+  String partition_name;
+  String *partition_name_ptr= nullptr;
   String *schema_name_ptr=args[0]->val_str(&schema_name);
   String *table_name_ptr=args[1]->val_str(&table_name);
   String *engine_name_ptr=args[2]->val_str(&engine_name);
   bool skip_hidden_table= args[4]->val_int();
   String *ts_se_private_data_ptr= args[5]->val_str(&ts_se_private_data);
+  ulonglong stat_data= args[6]->val_uint();
+  ulonglong cached_timestamp= args[7]->val_uint();
+
   String *tbl_se_private_data_ptr= nullptr;
-  if (stype == dd::info_schema::enum_statistics_type::AUTO_INCREMENT)
-    tbl_se_private_data_ptr= args[6]->val_str(&tbl_se_private_data);
+
+  /*
+    The same native function used by I_S.TABLES is used by I_S.PARTITIONS.
+    We invoke native function with partition name only with I_S.PARTITIONS
+    as a last argument. So, we check for argument count below, before
+    reading partition name.
+  */
+  if (stype == dd::info_schema::enum_table_stats_type::AUTO_INCREMENT)
+  {
+    tbl_se_private_data_ptr= args[8]->val_str(&tbl_se_private_data);
+    if (arg_count == 10)
+      partition_name_ptr= args[9]->val_str(&partition_name);
+  }
+  else if (arg_count == 9)
+    partition_name_ptr= args[8]->val_str(&partition_name);
 
   if (schema_name_ptr == nullptr || table_name_ptr == nullptr ||
       engine_name_ptr == nullptr || skip_hidden_table)
@@ -9623,15 +9701,18 @@ static ulonglong get_statistics_from_cache(
   THD *thd= current_thd;
   dd::Object_id se_private_id= (dd::Object_id) args[3]->val_uint();
   ulonglong result=
-    thd->lex->m_IS_dyn_stat_cache.read_stat(thd,
+    thd->lex->m_IS_table_stats.read_stat(thd,
                 *schema_name_ptr,
                 *table_name_ptr,
                 *engine_name_ptr,
+                (partition_name_ptr ?
+                 partition_name_ptr->c_ptr_safe() : nullptr),
                 se_private_id,
                 (ts_se_private_data_ptr ?
                  ts_se_private_data_ptr->c_ptr_safe() : nullptr),
                 (tbl_se_private_data_ptr ?
                  tbl_se_private_data_ptr->c_ptr_safe() : nullptr),
+                stat_data, cached_timestamp,
                 stype);
 
   DBUG_RETURN(result);
@@ -9641,9 +9722,10 @@ longlong Item_func_internal_table_rows::val_int()
 {
   DBUG_ENTER("Item_func_internal_table_rows::val_int");
 
-  ulonglong result= get_statistics_from_cache(
+  ulonglong result= get_table_statistics(
                       args,
-                      dd::info_schema::enum_statistics_type::TABLE_ROWS,
+                      arg_count,
+                      dd::info_schema::enum_table_stats_type::TABLE_ROWS,
                       &null_value);
 
   if (null_value == FALSE && result == (ulonglong) -1)
@@ -9657,9 +9739,10 @@ longlong Item_func_internal_avg_row_length::val_int()
   DBUG_ENTER("Item_func_internal_avg_row_length::val_int");
 
   ulonglong result=
-    get_statistics_from_cache(
+    get_table_statistics(
       args,
-      dd::info_schema::enum_statistics_type::TABLE_AVG_ROW_LENGTH,
+      arg_count,
+      dd::info_schema::enum_table_stats_type::TABLE_AVG_ROW_LENGTH,
       &null_value);
   DBUG_RETURN(result);
 }
@@ -9668,9 +9751,10 @@ longlong Item_func_internal_data_length::val_int()
 {
   DBUG_ENTER("Item_func_internal_data_length::val_int");
 
-  ulonglong result= get_statistics_from_cache(
+  ulonglong result= get_table_statistics(
                       args,
-                      dd::info_schema::enum_statistics_type::DATA_LENGTH,
+                      arg_count,
+                      dd::info_schema::enum_table_stats_type::DATA_LENGTH,
                       &null_value);
   DBUG_RETURN(result);
 }
@@ -9679,9 +9763,10 @@ longlong Item_func_internal_max_data_length::val_int()
 {
   DBUG_ENTER("Item_func_internal_max_data_length::val_int");
 
-  ulonglong result= get_statistics_from_cache(
+  ulonglong result= get_table_statistics(
                       args,
-                      dd::info_schema::enum_statistics_type::MAX_DATA_LENGTH,
+                      arg_count,
+                      dd::info_schema::enum_table_stats_type::MAX_DATA_LENGTH,
                       &null_value);
   DBUG_RETURN(result);
 }
@@ -9690,9 +9775,10 @@ longlong Item_func_internal_index_length::val_int()
 {
   DBUG_ENTER("Item_func_internal_index_length::val_int");
 
-  ulonglong result= get_statistics_from_cache(
+  ulonglong result= get_table_statistics(
                       args,
-                      dd::info_schema::enum_statistics_type::INDEX_LENGTH,
+                      arg_count,
+                      dd::info_schema::enum_table_stats_type::INDEX_LENGTH,
                       &null_value);
   DBUG_RETURN(result);
 }
@@ -9701,9 +9787,10 @@ longlong Item_func_internal_data_free::val_int()
 {
   DBUG_ENTER("Item_func_internal_data_free::val_int");
 
-  ulonglong result= get_statistics_from_cache(
+  ulonglong result= get_table_statistics(
                       args,
-                      dd::info_schema::enum_statistics_type::DATA_FREE,
+                      arg_count,
+                      dd::info_schema::enum_table_stats_type::DATA_FREE,
                       &null_value);
 
   if (null_value == FALSE && result == (ulonglong) -1)
@@ -9716,9 +9803,10 @@ longlong Item_func_internal_auto_increment::val_int()
 {
   DBUG_ENTER("Item_func_internal_auto_increment::val_int");
 
-  ulonglong result= get_statistics_from_cache(
+  ulonglong result= get_table_statistics(
                       args,
-                      dd::info_schema::enum_statistics_type::AUTO_INCREMENT,
+                      arg_count,
+                      dd::info_schema::enum_table_stats_type::AUTO_INCREMENT,
                       &null_value);
 
   if (null_value == FALSE && result < (ulonglong) 1)
@@ -9731,9 +9819,10 @@ longlong Item_func_internal_checksum::val_int()
 {
   DBUG_ENTER("Item_func_internal_checksum::val_int");
 
-  ulonglong result= get_statistics_from_cache(
+  ulonglong result= get_table_statistics(
                       args,
-                      dd::info_schema::enum_statistics_type::CHECKSUM,
+                      arg_count,
+                      dd::info_schema::enum_table_stats_type::CHECKSUM,
                       &null_value);
 
   if (null_value == FALSE && result == 0)
@@ -9781,19 +9870,21 @@ longlong Item_func_internal_keys_disabled::val_int()
 /**
   @brief
     INFORMATION_SCHEMA picks metadata from DD using system views.
-    INFORMATION_SCHEMA.STATISTICS.CARDINALITY is can be read from SE when
-    information_schema_stats is set to 'latest'.
+    INFORMATION_SCHEMA.STATISTICS.CARDINALITY reads data from SE.
 
   Syntax:
     int INTERNAL_INDEX_COLUMN_CARDINALITY(
           schema_name,
           table_name,
           index_name,
+          column_name,
           index_ordinal_position,
           column_ordinal_position,
           engine,
           se_private_id,
-          is_hidden);
+          is_hidden,
+          stat_cardinality,
+          cached_timestamp);
 
   @returns Cardinatily. Or sets null_value to true if cardinality is -1.
 */
@@ -9806,19 +9897,27 @@ longlong Item_func_internal_index_column_cardinality::val_int()
   String schema_name;
   String table_name;
   String index_name;
+  String column_name;
   String engine_name;
   String *schema_name_ptr= args[0]->val_str(&schema_name);
   String *table_name_ptr= args[1]->val_str(&table_name);
   String *index_name_ptr= args[2]->val_str(&index_name);
-  String *engine_name_ptr= args[5]->val_str(&engine_name);
-  uint index_ordinal_position= args[3]->val_uint();
-  uint column_ordinal_position= args[4]->val_uint();
-  dd::Object_id se_private_id= (dd::Object_id) args[6]->val_uint();
-  bool hidden_index= args[7]->val_int();
+  String *column_name_ptr= args[3]->val_str(&column_name);
+  uint index_ordinal_position= args[4]->val_uint();
+  uint column_ordinal_position= args[5]->val_uint();
+  String *engine_name_ptr= args[6]->val_str(&engine_name);
+  dd::Object_id se_private_id= (dd::Object_id) args[7]->val_uint();
+  bool hidden_index= args[8]->val_int();
+  ulonglong stat_cardinality= args[9]->val_uint();
+  ulonglong cached_timestamp= args[10]->val_uint();
+
+  // stat_cardinality and cached_timestamp from mysql.index_stats can be null
+  // when stat is fetched for 1st time without executing ANALYZE command.
   if (schema_name_ptr == nullptr || table_name_ptr == nullptr ||
       index_name_ptr == nullptr || engine_name_ptr == nullptr ||
-      args[3]->null_value || args[4]->null_value ||
-      args[7]->null_value || hidden_index)
+      column_name_ptr == nullptr ||
+      args[4]->null_value || args[5]->null_value ||
+      args[8]->null_value || hidden_index)
   {
     null_value= TRUE;
     DBUG_RETURN(0);
@@ -9828,24 +9927,241 @@ longlong Item_func_internal_index_column_cardinality::val_int()
   schema_name_ptr->c_ptr_safe();
   table_name_ptr->c_ptr_safe();
   index_name_ptr->c_ptr_safe();
+  column_name_ptr->c_ptr_safe();
   engine_name_ptr->c_ptr_safe();
 
   ulonglong result= 0;
   THD *thd= current_thd;
-  result= thd->lex->m_IS_dyn_stat_cache.read_stat(thd,
+  result= thd->lex->m_IS_table_stats.read_stat(thd,
             *schema_name_ptr,
             *table_name_ptr,
             *index_name_ptr,
+            nullptr,
+            *column_name_ptr,
             index_ordinal_position - 1,
             column_ordinal_position - 1,
             *engine_name_ptr,
             se_private_id,
             nullptr,
             nullptr,
-            dd::info_schema::enum_statistics_type::INDEX_COLUMN_CARDINALITY);
+            stat_cardinality,
+            cached_timestamp,
+            dd::info_schema::enum_table_stats_type::INDEX_COLUMN_CARDINALITY);
 
   if (result == (ulonglong) -1)
     null_value= TRUE;
+
+  DBUG_RETURN(result);
+}
+
+
+/**
+  Retrieve tablespace statistics from SE
+
+  @param      thd        The current thread.
+
+  @param      args       List of parameters in following order,
+
+                         - Tablespace_name
+                         - Engine_name
+                         - Tablespace_se_private_data
+
+  @param[out] null_value Marked true indicating NULL, if there is no value.
+
+  @returns void
+*/
+
+void retrieve_tablespace_statistics(THD *thd, Item** args, bool *null_value)
+{
+  DBUG_ENTER("retrieve_tablespace_statistics");
+  *null_value= FALSE;
+
+  // Reads arguments
+  String tablespace_name;
+  String *tablespace_name_ptr=args[0]->val_str(&tablespace_name);
+  String file_name;
+  String *file_name_ptr=args[1]->val_str(&file_name);
+  String engine_name;
+  String *engine_name_ptr=args[2]->val_str(&engine_name);
+  String ts_se_private_data;
+  String *ts_se_private_data_ptr= args[3]->val_str(&ts_se_private_data);
+
+  if (tablespace_name_ptr == nullptr ||
+      file_name_ptr == nullptr ||
+      my_strcasecmp(system_charset_info,
+                    engine_name_ptr->c_ptr_safe(),
+                    "InnoDB"))
+  {
+    *null_value= TRUE;
+    DBUG_VOID_RETURN;
+  }
+
+  // Make sure we have safe string to access.
+  tablespace_name_ptr->c_ptr_safe();
+  file_name_ptr->c_ptr_safe();
+
+  // Read the statistic value from cache.
+  if (thd->lex->m_IS_tablespace_stats.read_stat(thd,
+                *tablespace_name_ptr,
+                *file_name_ptr,
+                (ts_se_private_data_ptr ?
+                 ts_se_private_data_ptr->c_ptr_safe() : nullptr)))
+    *null_value= TRUE;
+
+  DBUG_VOID_RETURN;
+}
+
+
+longlong Item_func_internal_tablespace_id::val_int()
+{
+  DBUG_ENTER("Item_func_internal_tablespace_id::val_int");
+  ulonglong result= -1;
+
+  THD *thd= current_thd;
+  retrieve_tablespace_statistics(thd, args, &null_value);
+  if (null_value == false)
+  {
+     thd->lex->m_IS_tablespace_stats.get_stat(
+                  dd::info_schema::enum_tablespace_stats_type::TS_ID,
+                  &result);
+     DBUG_RETURN(result);
+  }
+
+  DBUG_RETURN(result);
+}
+
+
+longlong Item_func_internal_tablespace_free_extents::val_int()
+{
+  DBUG_ENTER("Item_func_internal_tablespace_free_extents::val_int");
+  ulonglong result= -1;
+
+  THD *thd= current_thd;
+  retrieve_tablespace_statistics(thd, args, &null_value);
+  if (null_value == false)
+  {
+     thd->lex->m_IS_tablespace_stats.get_stat(
+                  dd::info_schema::enum_tablespace_stats_type::TS_FREE_EXTENTS,
+                  &result);
+     DBUG_RETURN(result);
+  }
+
+  DBUG_RETURN(result);
+}
+
+
+longlong Item_func_internal_tablespace_total_extents::val_int()
+{
+  DBUG_ENTER("Item_func_internal_tablespace_total_extents::val_int");
+  ulonglong result= -1;
+
+  THD *thd= current_thd;
+  retrieve_tablespace_statistics(thd, args, &null_value);
+  if (null_value == false)
+  {
+     thd->lex->m_IS_tablespace_stats.get_stat(
+                  dd::info_schema::enum_tablespace_stats_type::TS_TOTAL_EXTENTS,
+                  &result);
+     DBUG_RETURN(result);
+  }
+
+  DBUG_RETURN(result);
+}
+
+
+longlong Item_func_internal_tablespace_extent_size::val_int()
+{
+  DBUG_ENTER("Item_func_internal_tablespace_extent_size::val_int");
+  ulonglong result= -1;
+
+  THD *thd= current_thd;
+  retrieve_tablespace_statistics(thd, args, &null_value);
+  if (null_value == false)
+  {
+     thd->lex->m_IS_tablespace_stats.get_stat(
+                  dd::info_schema::enum_tablespace_stats_type::TS_EXTENT_SIZE,
+                  &result);
+     DBUG_RETURN(result);
+  }
+
+  DBUG_RETURN(result);
+}
+
+
+longlong Item_func_internal_tablespace_initial_size::val_int()
+{
+  DBUG_ENTER("Item_func_internal_tablespace_initial_size::val_int");
+  ulonglong result= -1;
+
+  THD *thd= current_thd;
+  retrieve_tablespace_statistics(thd, args, &null_value);
+  if (null_value == false)
+  {
+     thd->lex->m_IS_tablespace_stats.get_stat(
+                  dd::info_schema::enum_tablespace_stats_type::TS_INITIAL_SIZE,
+                  &result);
+     DBUG_RETURN(result);
+  }
+
+  DBUG_RETURN(result);
+}
+
+
+longlong Item_func_internal_tablespace_maximum_size::val_int()
+{
+  DBUG_ENTER("Item_func_internal_tablespace_maximum_size::val_int");
+  ulonglong result= -1;
+
+  THD *thd= current_thd;
+  retrieve_tablespace_statistics(thd, args, &null_value);
+  if (null_value == false)
+  {
+     thd->lex->m_IS_tablespace_stats.get_stat(
+                  dd::info_schema::enum_tablespace_stats_type::TS_MAXIMUM_SIZE,
+                  &result);
+     if (result == (ulonglong) -1)
+       null_value= TRUE;
+
+     DBUG_RETURN(result);
+  }
+
+  DBUG_RETURN(result);
+}
+
+
+longlong Item_func_internal_tablespace_autoextend_size::val_int()
+{
+  DBUG_ENTER("Item_func_internal_tablespace_autoextend_size::val_int");
+  ulonglong result= -1;
+
+  THD *thd= current_thd;
+  retrieve_tablespace_statistics(thd, args, &null_value);
+  if (null_value == false)
+  {
+     thd->lex->m_IS_tablespace_stats.get_stat(
+       dd::info_schema::enum_tablespace_stats_type::TS_AUTOEXTEND_SIZE,
+       &result);
+     DBUG_RETURN(result);
+  }
+
+  DBUG_RETURN(result);
+}
+
+
+longlong Item_func_internal_tablespace_data_free::val_int()
+{
+  DBUG_ENTER("Item_func_internal_tablespace_data_free::val_int");
+  ulonglong result= -1;
+
+  THD *thd= current_thd;
+  retrieve_tablespace_statistics(thd, args, &null_value);
+  if (null_value == false)
+  {
+     thd->lex->m_IS_tablespace_stats.get_stat(
+       dd::info_schema::enum_tablespace_stats_type::TS_DATA_FREE,
+       &result);
+     DBUG_RETURN(result);
+  }
 
   DBUG_RETURN(result);
 }

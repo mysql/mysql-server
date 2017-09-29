@@ -5,6 +5,10 @@
 --source include/no_valgrind_without_big.inc
 --source include/have_innodb_max_16k.inc
 
+--disable_query_log
+call mtr.add_suppression('Error in Log_event::read_log_event()');
+--enable_query_log
+
 # Create a table with encryption, should fail since keyring is not
 # loaded
 
@@ -57,7 +61,7 @@ CREATE DATABASE test;
 EOF
 
 --echo # Prepare new datadir
-let NEW_CMD = $MYSQLD --no-defaults --initialize-insecure --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --innodb_undo_tablespaces=2 --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR_1 --init-file=$BOOTSTRAP_SQL --secure-file-priv="" --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap2.log 2>&1;
+let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --innodb_undo_tablespaces=2 --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR_1 --init-file=$BOOTSTRAP_SQL --secure-file-priv="" --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap2.log 2>&1;
 
 --echo # Run the bootstrap command with keyring
 --exec $NEW_CMD

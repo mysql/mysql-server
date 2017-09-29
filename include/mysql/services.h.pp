@@ -377,7 +377,9 @@ struct PSI_memory_info_v1
 {
   PSI_memory_key *m_key;
   const char *m_name;
-  int m_flags;
+  uint m_flags;
+  int m_volatility;
+  const char *m_documentation;
 };
 typedef struct PSI_memory_info_v1 PSI_memory_info_v1;
 typedef void (*register_memory_v1_t)(const char *category,
@@ -431,7 +433,6 @@ extern struct mysql_password_policy_service_st {
 int my_validate_password_policy(const char *, unsigned int);
 int my_calculate_password_strength(const char *, unsigned int);
 #include <mysql/service_parser.h>
-#include "my_md5_size.h"
 #include <mysql/mysql_lex_string.h>
 typedef void* MYSQL_ITEM;
 typedef
@@ -541,12 +542,26 @@ enum enum_mysql_show_type
   SHOW_LONG,
   SHOW_LONGLONG,
   SHOW_CHAR, SHOW_CHAR_PTR,
-  SHOW_ARRAY, SHOW_FUNC, SHOW_DOUBLE
+  SHOW_ARRAY, SHOW_FUNC, SHOW_DOUBLE,
+  SHOW_KEY_CACHE_LONG,
+  SHOW_KEY_CACHE_LONGLONG,
+  SHOW_LONG_STATUS,
+  SHOW_DOUBLE_STATUS,
+  SHOW_HAVE,
+  SHOW_MY_BOOL,
+  SHOW_HA_ROWS,
+  SHOW_SYS,
+  SHOW_LONG_NOFLUSH,
+  SHOW_LONGLONG_STATUS,
+  SHOW_LEX_STRING,
+  SHOW_SIGNED_LONG
 };
 enum enum_mysql_show_scope
 {
   SHOW_SCOPE_UNDEF,
-  SHOW_SCOPE_GLOBAL
+  SHOW_SCOPE_GLOBAL,
+  SHOW_SCOPE_SESSION,
+  SHOW_SCOPE_ALL
 };
 struct st_mysql_show_var
 {

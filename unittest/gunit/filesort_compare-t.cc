@@ -18,9 +18,9 @@
 #include <memory>
 #include <vector>
 
-#include "filesort_utils.h"
 #include "my_inttypes.h"
-#include "test_utils.h"
+#include "sql/filesort_utils.h"
+#include "unittest/gunit/test_utils.h"
 
 namespace filesort_compare_unittest {
 

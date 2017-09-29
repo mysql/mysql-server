@@ -1,0 +1,8 @@
+--source include/not_parallel.inc
+--source include/have_binlog_format_row.inc
+
+--let $key=
+
+--source extra/rpl_tests/rpl_row_jsondiff_init.inc
+--source extra/rpl_tests/rpl_row_jsondiff_datatypes.inc
+--source extra/rpl_tests/rpl_row_jsondiff_exit.inc

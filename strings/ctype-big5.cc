@@ -6835,6 +6835,7 @@ size_t my_well_formed_len_big5(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 static MY_COLLATION_HANDLER my_collation_big5_chinese_ci_handler =
 {
   NULL,			/* init */
+  NULL,
   my_strnncoll_big5,
   my_strnncollsp_big5,
   my_strnxfrm_big5,

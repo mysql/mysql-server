@@ -19,7 +19,7 @@ SET @@global.default_storage_engine = myisam;
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/mysqlx-in.tmp
 -->sql
--- "Creating database for testcase"
+#-- "Creating database for testcase"
 DROP DATABASE IF EXISTS xplugintest;
 CREATE DATABASE xplugintest;
 USE xplugintest;
@@ -31,7 +31,7 @@ CREATE TABLE `table1` (
 
 -->endsql
 
--- "Create table table2 in xplugintest "
+#-- "Create table table2 in xplugintest "
 
 Mysqlx.Sql.StmtExecute {
   stmt: "create_collection"
@@ -343,7 +343,7 @@ Mysqlx.Crud.Delete {
       }
    }
 }
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->echo Delete with == operator : memory table
@@ -373,7 +373,7 @@ Mysqlx.Crud.Delete {
     }
   }
 }
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->sql

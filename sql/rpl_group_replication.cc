@@ -18,7 +18,6 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
-#include "log.h"
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -28,16 +27,17 @@
 #include "mysql/plugin.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/udf_registration_types.h"
-#include "mysqld.h"               // mysqld_port
 #include "mysqld_error.h"         // ER_*
-#include "mysqld_thd_manager.h"   // Global_THD_manager
-#include "replication.h"          // Trans_context_info
-#include "rpl_channel_service_interface.h"
-#include "rpl_gtid.h"             // gtid_mode_lock
-#include "rpl_slave.h"            // report_host
-#include "sql_plugin.h"           // plugin_unlock
-#include "sql_plugin_ref.h"
-#include "system_variables.h"     // System_variables
+#include "sql/log.h"
+#include "sql/mysqld.h"           // mysqld_port
+#include "sql/mysqld_thd_manager.h" // Global_THD_manager
+#include "sql/replication.h"      // Trans_context_info
+#include "sql/rpl_channel_service_interface.h"
+#include "sql/rpl_gtid.h"         // gtid_mode_lock
+#include "sql/rpl_slave.h"        // report_host
+#include "sql/sql_plugin.h"       // plugin_unlock
+#include "sql/sql_plugin_ref.h"
+#include "sql/system_variables.h" // System_variables
 
 class THD;
 
@@ -82,7 +82,7 @@ bool is_group_replication_plugin_loaded()
 }
 
 
-int group_replication_start()
+int group_replication_start(char **error_message)
 {
   int result= 1;
 
@@ -107,7 +107,7 @@ int group_replication_start()
     gtid_mode_lock->rdlock();
     st_mysql_group_replication *plugin_handle=
         (st_mysql_group_replication*) plugin_decl(plugin)->info;
-    result= plugin_handle->start();
+    result= plugin_handle->start(error_message);
     gtid_mode_lock->unlock();
 
     plugin_unlock(0, plugin);
@@ -121,7 +121,7 @@ int group_replication_start()
 }
 
 
-int group_replication_stop()
+int group_replication_stop(char **error_message)
 {
   int result= 1;
 
@@ -132,7 +132,7 @@ int group_replication_stop()
   {
     st_mysql_group_replication *plugin_handle=
         (st_mysql_group_replication*) plugin_decl(plugin)->info;
-    result= plugin_handle->stop();
+    result= plugin_handle->stop(error_message);
 
     plugin_unlock(0, plugin);
   }

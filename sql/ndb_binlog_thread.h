@@ -18,7 +18,7 @@
 #ifndef NDB_BINLOG_THREAD_H
 #define NDB_BINLOG_THREAD_H
 
-#include "ndb_component.h"
+#include "sql/ndb_component.h"
 
 class Ndb_binlog_thread : public Ndb_component
 {

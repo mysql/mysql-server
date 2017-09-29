@@ -833,7 +833,7 @@ trx_rseg_upgrade_undo_tablespaces()
 
 		/* The TRX_SYS page only tracks older undo tablespaces
 		that do not use the RSEG_ARRAY page. */
-		ut_a(space_id < dict_sys_t::min_undo_space_id);
+		ut_a(space_id < dict_sys_t::s_min_undo_space_id);
 
 		/* Leave rollback segments in the system tablespace
 		untouched in case innodb_undo_tablespaces is later

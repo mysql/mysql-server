@@ -26,7 +26,7 @@ SHOW INDEX FROM t1;
 # nl search
 
 select * from t1 where MATCH(a,b) AGAINST ("collections");
-explain extended select * from t1 where MATCH(a,b) AGAINST ("collections");
+explain select * from t1 where MATCH(a,b) AGAINST ("collections");
 select * from t1 where MATCH(a,b) AGAINST ("indexes");
 select * from t1 where MATCH(a,b) AGAINST ("indexes collections");
 select * from t1 where MATCH(a,b) AGAINST ("only");
@@ -59,7 +59,7 @@ explain select * from t1 where MATCH(a,b) AGAINST ("collections")>0 and a like '
 # boolean search
 
 select * from t1 where MATCH(a,b) AGAINST("support -collections" IN BOOLEAN MODE);
-explain extended select * from t1 where MATCH(a,b) AGAINST("support -collections" IN BOOLEAN MODE);
+explain select * from t1 where MATCH(a,b) AGAINST("support -collections" IN BOOLEAN MODE);
 select * from t1 where MATCH(a,b) AGAINST("support  collections" IN BOOLEAN MODE);
 select * from t1 where MATCH(a,b) AGAINST("support +collections" IN BOOLEAN MODE);
 select * from t1 where MATCH(a,b) AGAINST("sear*" IN BOOLEAN MODE);
@@ -660,3 +660,72 @@ WHERE (SELECT MATCH(b) AGAINST ('*') FROM z);
 eval explain format=json $query;
 
 DROP TABLE z, q;
+
+--echo #
+--echo # Bug#26271244: ASSERT FAILS WHEN SHOW CREATE TABLE CALLED ON A FILE
+--echo # CREATED FOR FULLTEXT INDEX
+--echo #
+
+let DATADIR= `SELECT @@datadir`;
+
+--echo # Create Innodb table with full text index
+CREATE TABLE t1(id INT, c CHAR(100) , FULLTEXT KEY `msg_idx` (`c`))
+ENGINE INNODB;
+CREATE TABLE t2 (a int, b2 char(10), FULLTEXT KEY b2 (b2));
+--echo # Find name of first FTS index "table"
+let INCFILE= $MYSQL_TMP_DIR/tmp.inc;
+--perl
+  my $FTS_FILE= "";
+  opendir(DD, "$ENV{'DATADIR'}/test") || die "Could not open $ENV{'DATADIR'}: $!";
+  while ($_= readdir(DD)) {
+    if (/(fts_\S+_index_1)\.ibd/) {
+      $FTS_FILE= $1;
+      last;
+    }
+  }
+  close(DD);
+  open(INC, ">$ENV{'INCFILE'}") || die "Could not open $ENV{'INCFILE'}: $!";
+  print INC "let FTS_FILE= $FTS_FILE;\n";
+  close(INC);
+EOF
+--source $INCFILE
+
+--echo # SHOW CREATE TABLE on an FTS index table should give error
+--echo # (not crash). Query log and error message suppressed as the name of
+--echo # FTS index table is not stable.
+--disable_query_log
+
+--error ER_NO_SUCH_TABLE,ER_NO_SUCH_TABLE
+--eval SHOW CREATE TABLE $FTS_FILE
+
+--disable_result_log
+--echo # Msg_type Error ER_NO_SUCH_TABLE,ER_NO_SUCH_TABLE
+--eval OPTIMIZE TABLE $FTS_FILE
+
+--echo # Msg_type Error ER_NO_SUCH_TABLE,ER_NO_SUCH_TABLE
+--eval REPAIR TABLE $FTS_FILE
+
+--error ER_NO_SUCH_TABLE,ER_NO_SUCH_TABLE
+--eval ALTER TABLE $FTS_FILE DROP id
+
+--enable_result_log
+
+--error ER_NO_SUCH_TABLE,ER_NO_SUCH_TABLE
+--eval LOCK TABLE $FTS_FILE AS mytable WRITE
+--eval UNLOCK TABLES
+
+--error ER_NO_SUCH_TABLE,ER_NO_SUCH_TABLE
+--eval RENAME TABLE $FTS_FILE TO SOMETHING_ELSE
+
+--error ER_NO_SUCH_TABLE,ER_NO_SUCH_TABLE
+--eval RENAME TABLE t2 TO t3, $FTS_FILE TO SOMETHING_ELSE2
+
+--error ER_NO_SUCH_TABLE,ER_NO_SUCH_TABLE
+--eval TRUNCATE TABLE $FTS_FILE
+
+--error ER_NO_SUCH_TABLE,ER_NO_SUCH_TABLE
+--eval DROP TABLE $FTS_FILE
+
+--enable_query_log
+
+DROP TABLE t1, t2;

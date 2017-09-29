@@ -22,18 +22,9 @@
 #include <vector>
 
 #include "binary_log_types.h"
-#include "dd/properties.h"
-#include "enum_query_type.h" // enum_query_type
-#include "handler.h"       // row_type
-#include "json_diff.h"
-#include "key.h"
-#include "key_spec.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "map_helpers.h"
-#include "mdl.h"           // MDL_wait_for_subgraph
-#include "mem_root_array.h"
-#include "memroot_allocator.h"
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
@@ -47,21 +38,36 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_table.h"
 #include "mysql/udf_registration_types.h"
-#include "opt_costmodel.h" // Cost_model_table
-#include "record_buffer.h" // Record_buffer
-#include "sql_alloc.h"
-#include "sql_bitmap.h"    // Bitmap
-#include "sql_const.h"
-#include "sql_list.h"
-#include "sql_plist.h"
-#include "sql_plugin_ref.h"
-#include "sql_sort.h"      // Filesort_info
+#include "sql/auth/auth_common.h"
+#include "sql/dd/properties.h"
+#include "sql/dd/types/foreign_key.h" // dd::Foreign_key::enum_rule
+#include "sql/enum_query_type.h" // enum_query_type
+#include "sql/handler.h"   // row_type
+#include "sql/key.h"
+#include "sql/key_spec.h"
+#include "sql/mdl.h"       // MDL_wait_for_subgraph
+#include "sql/mem_root_array.h"
+#include "sql/memroot_allocator.h"
+#include "sql/opt_costmodel.h" // Cost_model_table
+#include "sql/record_buffer.h" // Record_buffer
+#include "sql/sql_alloc.h"
+#include "sql/sql_bitmap.h" // Bitmap
+#include "sql/sql_const.h"
+#include "sql/sql_list.h"
+#include "sql/sql_plist.h"
+#include "sql/sql_plugin_ref.h"
+#include "sql/sql_sort.h"  // Filesort_info
+#include "sql/system_variables.h"
+#include "sql/thr_malloc.h"
 #include "sql_string.h"
-#include "system_variables.h"
 #include "table_id.h"      // Table_id
 #include "thr_lock.h"
-#include "thr_malloc.h"
 #include "typelib.h"
+
+namespace histograms
+{
+  class Histogram;
+};
 
 class ACL_internal_schema_access;
 class ACL_internal_table_access;
@@ -74,7 +80,7 @@ class GRANT_TABLE;
 class Index_hint;
 class Item;
 class Item_field;
-class Json_diff;
+class Json_diff_vector;
 class Json_seekable_path;
 class Json_wrapper;
 class Query_result_union;
@@ -112,7 +118,6 @@ typedef Mem_root_array_YY<LEX_CSTRING> Create_col_name_list;
 typedef int64 query_id_t;
 
 enum class enum_json_diff_operation;
-using Json_diff_vector= std::vector<Json_diff, Memroot_allocator<Json_diff>>;
 
 #define store_record(A,B) memcpy((A)->B,(A)->record[0],(size_t) (A)->s->reclength)
 #define restore_record(A,B) memcpy((A)->record[0],(A)->B,(size_t) (A)->s->reclength)
@@ -133,6 +138,7 @@ typedef ulonglong nested_join_map;
 #define tmp_file_prefix "#sql"			/**< Prefix for tmp tables */
 #define tmp_file_prefix_length 4
 #define TMP_TABLE_KEY_EXTRA 8
+#define PLACEHOLDER_TABLE_ROW_ESTIMATE 2
 
 /**
   Enumerate possible types of a table from re-execution
@@ -322,8 +328,7 @@ typedef struct st_grant_internal_info GRANT_INTERNAL_INFO;
    @details The privilege checking process is divided into phases depending on
    the level of the privilege to be checked and the type of object to be
    accessed. Due to the mentioned scattering of privilege checking
-   functionality, it is necessary to keep track of the state of the
-   process. This information is stored in privilege and want_privilege.
+   functionality, it is necessary to keep track of the state of the process.
 
    A GRANT_INFO also serves as a cache of the privilege hash tables. Relevant
    members are grant_table and version.
@@ -366,15 +371,6 @@ struct GRANT_INFO
      The set is implemented as a bitmap, with the bits defined in sql_acl.h.
    */
   ulong privilege;
-#ifndef DBUG_OFF
-  /**
-     @brief the set of privileges that the current user needs to fulfil in
-     order to carry out the requested operation. Used in debug build to
-     ensure individual column privileges are assigned consistently.
-     @todo remove this member in 8.0.
-   */
-  ulong want_privilege;
-#endif
   /** The grant state for internal tables. */
   GRANT_INTERNAL_INFO m_internal;
 };
@@ -631,6 +627,21 @@ typedef I_P_List <Wait_for_flush,
                  Wait_for_flush_list;
 
 
+typedef struct Table_share_foreign_key_info
+{
+  LEX_CSTRING referenced_table_db;
+  LEX_CSTRING referenced_table_name;
+} TABLE_SHARE_FOREIGN_KEY_INFO;
+
+
+typedef struct Table_share_foreign_key_parent_info
+{
+  LEX_CSTRING referencing_table_db;
+  LEX_CSTRING referencing_table_name;
+  dd::Foreign_key::enum_rule update_rule, delete_rule;
+} TABLE_SHARE_FOREIGN_KEY_PARENT_INFO;
+
+
 /**
   This structure is shared between different table objects. There is one
   instance of table share per one table in the database.
@@ -639,6 +650,23 @@ typedef I_P_List <Wait_for_flush,
 struct TABLE_SHARE
 {
   TABLE_SHARE() {}                    /* Remove gcc warning */
+
+  /*
+    A map of [uint, Histogram] values, where the key is the field index. The
+    map is populated with any histogram statistics when it is loaded/created.
+  */
+  malloc_unordered_map<uint, const histograms::Histogram*> *m_histograms
+  { nullptr };
+
+  /**
+    Find the histogram for the given field index.
+
+    @param field_index the index of the field we want to find a histogram for
+
+    @retval nullptr if no histogram is found
+    @retval a pointer to a histogram if one is found
+  */
+  const histograms::Histogram* find_histogram(uint field_index);
 
   /** Category of this table. */
   TABLE_CATEGORY table_category;
@@ -895,6 +923,16 @@ struct TABLE_SHARE
 
   /// For materialized derived tables; @see add_derived_key().
   SELECT_LEX *owner_of_possible_tmp_keys;
+
+  /**
+    Arrays with descriptions of foreign keys in which this table participates
+    as child or parent. We only cache in them information from dd::Table object
+    which is sufficient for use by prelocking algorithm.
+  */
+  uint foreign_keys;
+  TABLE_SHARE_FOREIGN_KEY_INFO *foreign_key;
+  uint foreign_key_parents;
+  TABLE_SHARE_FOREIGN_KEY_PARENT_INFO *foreign_key_parent;
 
   /**
     Set share's table cache key and update its db and table name appropriately.
@@ -1499,6 +1537,9 @@ private:
 public:
 
   void init(THD *thd, TABLE_LIST *tl);
+  bool init_tmp_table(THD *thd, TABLE_SHARE *share, MEM_ROOT *m_root,
+                      CHARSET_INFO *charset, const char* alias, Field **fld,
+                      uint *blob_fld, bool is_virtual);
   bool fill_item_list(List<Item> *item_list) const;
   void reset_item_list(List<Item> *item_list) const;
   void clear_column_bitmaps(void);
@@ -1807,6 +1848,11 @@ private:
   */
   Partial_update_info *m_partial_update_info;
 
+  /**
+    This flag decides whether or not we should log the drop temporary table
+    command.
+  */
+  bool should_binlog_drop_if_temp_flag;
 public:
   /**
     Does this table have any columns that can be updated using partial update
@@ -1886,6 +1932,17 @@ public:
     @retval true   on out-of-memory
   */
   bool setup_partial_update(bool logical_diffs);
+
+  /**
+    @see setup_partial_update(bool)
+
+    This is a wrapper that auto-computes the value of the parameter
+    logical_diffs.
+
+    @retval false  on success
+    @retval true   on out-of-memory
+  */
+  bool setup_partial_update();
 
   /**
     Add a binary diff for a column that is updated using partial update.
@@ -1995,6 +2052,20 @@ public:
     to false for all such fields in this table.
   */
   void blobs_need_not_keep_old_value();
+
+  /**
+    Set the variable should_binlog_drop_if_temp_flag, so that
+    the logging of temporary tables can be decided.
+
+    @param should_binlog  the value to set flag should_binlog_drop_if_temp_flag
+  */
+  void set_binlog_drop_if_temp(bool should_binlog);
+
+  /**
+    @return whether should_binlog_drop_if_temp_flag flag is
+            set or not
+  */
+  bool should_binlog_drop_if_temp(void) const;
 };
 
 
@@ -2172,6 +2243,12 @@ typedef struct st_lex_alter {
   uint16 expire_after_days;
   bool update_account_locked_column;
   bool account_locked;
+  uint32 password_history_length;
+  bool use_default_password_history;
+  bool update_password_history;
+  uint32 password_reuse_interval;
+  bool use_default_password_reuse_interval;
+  bool update_password_reuse_interval;
 
   void cleanup()
   {
@@ -2181,7 +2258,14 @@ typedef struct st_lex_alter {
     expire_after_days= 0;
     update_account_locked_column= false;
     account_locked= false;
+    use_default_password_history= true;
+    update_password_history= false;
+    use_default_password_reuse_interval= true;
+    update_password_reuse_interval= false;
+    password_history_length= 0;
+    password_reuse_interval= 0;
   }
+
 } LEX_ALTER;
 
 typedef struct	st_lex_user {
@@ -2237,7 +2321,8 @@ public:
   Field_map used_fields;
 };
 
-
+class Item_func;
+class Table_function;
 /*
   Table reference in the FROM clause.
 
@@ -2383,7 +2468,7 @@ struct TABLE_LIST
   bool is_placeholder() const
   {
     return is_view_or_derived() || schema_table || !table ||
-      m_is_recursive_reference;
+      m_is_recursive_reference || is_table_function();
   }
 
   /// Produce a textual identification of this object
@@ -2436,6 +2521,11 @@ struct TABLE_LIST
     return derived != NULL;
   }
 
+  /// Return true if this represents a table function
+  bool is_table_function() const
+  {
+    return table_function != NULL;
+  }
   /**
      @returns true if this is a recursive reference inside the definition of a
      recursive CTE.
@@ -2602,7 +2692,8 @@ struct TABLE_LIST
   /// Set temporary name from underlying temporary table:
   void set_name_temporary()
   {
-    DBUG_ASSERT(is_view_or_derived() && uses_materialization());
+    DBUG_ASSERT((is_view_or_derived()) &&
+                uses_materialization());
     table_name= table->s->table_name.str;
     table_name_length= table->s->table_name.length;
     db= (char *)"";
@@ -2612,7 +2703,8 @@ struct TABLE_LIST
   /// Reset original name for temporary table.
   void reset_name_temporary()
   {
-    DBUG_ASSERT(is_view_or_derived() && uses_materialization());
+    DBUG_ASSERT((is_table_function() || is_view_or_derived()) &&
+                uses_materialization());
     /*
       When printing a query using a view or CTE, we need the table's name and
       the alias; the name has been destroyed if the table was materialized,
@@ -2636,16 +2728,13 @@ struct TABLE_LIST
   bool optimize_derived(THD *thd);
 
   /// Create result table for a materialized derived table/view
-  bool create_derived(THD *thd);
+  bool create_materialized_table(THD *thd);
 
   /// Materialize derived table
   bool materialize_derived(THD *thd);
 
   /// Clean up the query expression for a materialized derived table
   bool cleanup_derived();
-
-  /// Set wanted privilege for subsequent column privilege checking
-  void set_want_privilege(ulong want_privilege);
 
   /// Prepare security context for a view
   bool prepare_security(THD *thd);
@@ -2729,6 +2818,9 @@ struct TABLE_LIST
   /// Setup a derived table to use materialization
   bool setup_materialized_derived(THD *thd);
   bool setup_materialized_derived_tmp_table(THD *thd);
+
+  /// Setup a table function to use materialization
+  bool setup_table_function(THD *thd);
 
   bool create_field_translation(THD *thd);
 
@@ -2947,6 +3039,12 @@ public:
     can see this lists can't be merged)
   */
   TABLE_LIST	*correspondent_table;
+
+  /*
+    Holds the function used as the table function
+  */
+  Table_function *table_function;
+
 private:
   /**
      This field is set to non-null for derived tables and views. It points
@@ -3217,7 +3315,7 @@ public:
   { return m_derived_column_names; }
   void set_derived_column_names(const Create_col_name_list *d)
   { m_derived_column_names= d; }
-
+  void propagate_table_maps(table_map map_arg);
 
 private:
   /*
@@ -3614,9 +3712,6 @@ void dbug_tmp_restore_column_maps(MY_BITMAP *read_set MY_ATTRIBUTE((unused)),
   tmp_restore_column_map(write_set, old[1]);
 #endif
 }
-
-
-size_t max_row_length(TABLE *table, const uchar *data);
 
 
 void init_mdl_requests(TABLE_LIST *table_list);

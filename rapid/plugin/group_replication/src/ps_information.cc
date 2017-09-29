@@ -15,9 +15,9 @@
 
 #include <string>
 
-#include "ps_information.h"
-#include "member_info.h"
-#include "plugin.h"
+#include "plugin/group_replication/include/member_info.h"
+#include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/ps_information.h"
 
 using std::string;
 

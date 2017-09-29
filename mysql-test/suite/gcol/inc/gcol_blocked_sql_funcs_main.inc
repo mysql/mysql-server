@@ -332,3 +332,16 @@ alter table t1 add column r blob generated always
 as (match(a) against ('' in boolean mode)) virtual;
 drop table t1;
 }
+
+# Deprecated functions are not allowed in generation expressions
+--echo #
+--echo # Bug#26279884 : VIRTUAL COLUMNS ALLOW DEPRECATED FUNCTION TO BE USED
+--echo #
+
+--echo # PASSWORD()
+--error ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
+create table t2(a varchar(50), b varchar(50)  generated always as  (password(a)));
+
+--echo # JSON_MERGE()
+--error ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
+CREATE TABLE t2(a JSON, b JSON, c JSON  GENERATED ALWAYS AS  (JSON_MERGE(a,b)));

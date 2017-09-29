@@ -5,7 +5,7 @@
 #
 # ==== Usage ====
 #
-# --let $rand_type= { int | float | decide }
+# --let $rand_type= { int | float | decide | init }
 # [--let $rand_min= MIN_VALUE]
 # [--let $rand_max= MAX_VALUE]
 # [--let $rand_probability= THRESHOLD]
@@ -25,11 +25,18 @@
 #     If set to 'decide', generates 1 with probability
 #     $rand_probability and 0 with probability 1-$rand_probability.
 #
+#     If set to 'init', does not generate $rand, but initializes
+#     the $rand_seed in case this is the first invocation.
+#
 #   $rand_min, $rand_max
 #     Range of values for $rand_type=int or $rand_type=float.
+#     These are evaluated in an SQL query, so may contain valid
+#     arithmetic operations.
 #
 #   $rand_probability
 #     Probability to get a '1' if $rand_type=decide.
+#     This is evaluated in an SQL query, so may contain valid
+#     arithmetic operations.
 #
 #   $rand_seed
 #     The seed value.  If you want to set the seed to a random number

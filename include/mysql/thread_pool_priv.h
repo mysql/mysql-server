@@ -31,20 +31,20 @@
   to include sql_profile.h and table.h.
 */
 #include <mysqld_error.h> /* To get ER_ERROR_ON_READ */
-#include <conn_handler/channel_info.h>
-#include <conn_handler/connection_handler_manager.h>
-#include <debug_sync.h>
-#include <sql_profile.h>
-#include <table.h>
-#include "field.h"
-#include "sql_thd_internal_api.h"
 #include <set>
 
+#include "sql/conn_handler/channel_info.h"
+#include "sql/conn_handler/connection_handler_manager.h"
+#include "sql/debug_sync.h"
+#include "sql/field.h"
 /*
   Print to the MySQL error log -- ultimately, this should possibly
   become a service calling another service.
 */
-#include "log.h"
+#include "sql/log.h"
+#include "sql/sql_profile.h"
+#include "sql/sql_thd_internal_api.h"
+#include "sql/table.h"
 
 
 #ifdef __cplusplus

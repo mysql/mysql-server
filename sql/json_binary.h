@@ -160,7 +160,9 @@ namespace json_binary
   @retval false on success
   @retval true if an error occurred
 */
+#ifdef MYSQL_SERVER
 bool serialize(const THD *thd, const Json_dom *dom, String *dest);
+#endif
 
 /**
   Class used for reading JSON values that are stored in the binary
@@ -398,8 +400,10 @@ Value parse_binary(const char *data, size_t len);
   @retval false if successful
   @retval true if an error occurred while calculating the needed space
 */
+#ifdef MYSQL_SERVER
 bool space_needed(const THD *thd, const Json_wrapper *value,
                   bool large, size_t *needed);
+#endif
 
 /**
   Apply a function to every value in a JSON document. That is, apply

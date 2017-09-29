@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,11 +16,11 @@
 #ifndef GCS_CONTROL_EVENT_LISTENER_INCLUDED
 #define GCS_CONTROL_EVENT_LISTENER_INCLUDED
 
-#include "gcs_view.h"
-#include "gcs_message.h"
-
-#include <vector>
 #include <utility>
+#include <vector>
+
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_message.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_view.h"
 
 /**
   Alias for the Data exchanged and delivered from all nodes.

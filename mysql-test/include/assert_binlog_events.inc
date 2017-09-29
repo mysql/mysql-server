@@ -67,7 +67,7 @@
 #
 #       !Q(STATEMENT) -> Query/(use .*; )?STATEMENT
 #       !Begin -> !Q(BEGIN)
-#       !Commit -> !Q(COMMIT)
+#       !Commit -> (!Q(COMMIT) | Xid)
 #       !Insert -> (!Q(INSERT.*) | Table_map # Write_rows)
 #       !Update -> (!Q(UPDATE.*) | Table_map # Update_rows)
 #       !Delete -> (!Q(DELETE.*) | Table_map # Delete_rows)
@@ -77,6 +77,7 @@
 #       !DDL -> !Q(neither BEGIN or COMMIT)
 #       !Gtid_transaction -> Gtid # (DML_transaction | DDL)
 #       !Empty_gtid_transaction -> Gtid # Begin # Commit
+#       !Gtid_or_anon -> (Gtid | Anonymous_Gtid)
 #
 #     Whitespace around / and # is ignored.
 #
@@ -222,6 +223,7 @@ while ($_abe_verdict != 'ok')
 
   # Expand syntactic sugar definitions.
   $event_sequence =~ s{!Gtid_transaction}{Gtid\n(!DDL|!DML_transaction)}g;
+  $event_sequence =~ s{!Gtid_or_anon}{(Gtid|Anonymous_Gtid)}g;
   $event_sequence =~ s{!Empty_gtid_transaction}{Gtid\n!Begin\n!Commit}g;
   $event_sequence =~ s{!DML_transaction}{!Begin\n!Multi_DML\n!Commit}g;
   $event_sequence =~ s{!DDL}{Query/(?!BEGIN|COMMIT).*}g;

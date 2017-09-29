@@ -25,10 +25,10 @@
 #include <string>
 #include <utility>
 
-#include "formatters/console.h"
 #include "my_macros.h"
-#include "mysqlxclient/xconnection.h"
-#include "mysqlxclient/xsession.h"
+#include "plugin/x/client/mysqlxclient/xconnection.h"
+#include "plugin/x/client/mysqlxclient/xsession.h"
+#include "plugin/x/tests/driver/formatters/console.h"
 
 
 struct Connection_options {

@@ -20,15 +20,15 @@
 #include <string>
 #include <vector>
 
-#include "fake_range_opt_param.h"
-#include "fake_table.h"
-#include "handler-t.h"
-#include "mock_field_long.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "opt_range.cc"
-#include "parse_tree_helpers.h"
-#include "test_utils.h"
+#include "sql/opt_range.cc"
+#include "sql/parse_tree_helpers.h"
+#include "unittest/gunit/fake_range_opt_param.h"
+#include "unittest/gunit/fake_table.h"
+#include "unittest/gunit/handler-t.h"
+#include "unittest/gunit/mock_field_long.h"
+#include "unittest/gunit/test_utils.h"
 
 namespace opt_range_unittest {
 

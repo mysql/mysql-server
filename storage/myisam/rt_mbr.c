@@ -13,12 +13,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
+#include "storage/myisam/rt_mbr.h"
+
 #include "my_dbug.h"
 #include "my_double2ulonglong.h"
 #include "my_macros.h"
-#include "myisamdef.h"
-#include "rt_index.h"
-#include "rt_mbr.h"
+#include "storage/myisam/myisamdef.h"
+#include "storage/myisam/rt_index.h"
 
 #define INTERSECT_CMP(amin, amax, bmin, bmax) ((amin >  bmax) || (bmin >  amax))
 #define CONTAIN_CMP(amin, amax, bmin, bmax) ((bmin > amin)  || (bmax <  amax))

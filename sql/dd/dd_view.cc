@@ -22,28 +22,7 @@
 #include <string>
 
 #include "binary_log_types.h"
-#include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
-#include "dd/dd.h"                            // dd::get_dictionary
-#include "dd/dd_table.h"                      // fill_dd_columns_from_create_*
-#include "dd/dictionary.h"                    // dd::Dictionary
-#include "dd/impl/dictionary_impl.h"          // default_catalog_name
-#include "dd/properties.h"                    // dd::Properties
-#include "dd/string_type.h"
-#include "dd/types/abstract_table.h"          // dd::enum_table_type
-#include "dd/types/schema.h"                  // dd::Schema
-#include "dd/types/view.h"                    // dd::View
-#include "dd/types/view_routine.h"            // dd::View_routine
-#include "dd/types/view_table.h"              // dd::View_table
-#include "dd_table_share.h"                   // dd_get_mysql_charset
-#include "field.h"
-#include "handler.h"
-#include "item.h"
-#include "item_create.h"
-#include "item_func.h"                        // Item_func
-#include "key.h"
 #include "lex_string.h"
-#include "log.h"
-#include "mem_root_array.h"
 #include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -55,19 +34,40 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "parse_file.h"                       // PARSE_FILE_TIMESTAMPLENGTH
-#include "sp.h"                               // Sroutine_hash_entry
-#include "sql_class.h"                        // THD
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_security_ctx.h"
-#include "sql_servers.h"
-#include "sql_tmp_table.h"                    // create_tmp_field
-#include "system_variables.h"
-#include "table.h"
-#include "transaction.h"                      // trans_commit
-#include "tztime.h"                           // Time_zone
-#include "value_map.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/dd/cache/dictionary_client.h"   // dd::cache::Dictionary_client
+#include "sql/dd/dd.h"                        // dd::get_dictionary
+#include "sql/dd/dd_table.h"                  // fill_dd_columns_from_create_*
+#include "sql/dd/dictionary.h"                // dd::Dictionary
+#include "sql/dd/impl/dictionary_impl.h"      // default_catalog_name
+#include "sql/dd/properties.h"                // dd::Properties
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/abstract_table.h"      // dd::enum_table_type
+#include "sql/dd/types/schema.h"              // dd::Schema
+#include "sql/dd/types/view.h"                // dd::View
+#include "sql/dd/types/view_routine.h"        // dd::View_routine
+#include "sql/dd/types/view_table.h"          // dd::View_table
+#include "sql/dd_table_share.h"               // dd_get_mysql_charset
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/histograms/value_map.h"
+#include "sql/item.h"
+#include "sql/item_create.h"
+#include "sql/item_func.h"                    // Item_func
+#include "sql/key.h"
+#include "sql/log.h"
+#include "sql/mem_root_array.h"
+#include "sql/parse_file.h"                   // PARSE_FILE_TIMESTAMPLENGTH
+#include "sql/sp.h"                           // Sroutine_hash_entry
+#include "sql/sql_class.h"                    // THD
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_servers.h"
+#include "sql/sql_tmp_table.h"                // create_tmp_field
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/transaction.h"                  // trans_commit
+#include "sql/tztime.h"                       // Time_zone
 
 namespace dd {
 

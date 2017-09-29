@@ -5296,14 +5296,14 @@ FROM department d
 WHERE id = 405;
 JSON_ARRAY( d.deptName, CAST( '{ "processed" : true }' AS JSON ) )
 ["Accounting", {"processed": true}]
-create table json_table( json_column json );
+create table jsn_table( json_column json );
 Warnings:
 Warning	1478	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
-INSERT INTO json_table( json_column )
+INSERT INTO jsn_table( json_column )
 SELECT JSON_ARRAY( d.deptName, d.id, d.blobColumn )
 FROM department d
 WHERE id = 405;
-drop table json_table;
+drop table jsn_table;
 drop table department;
 create table misc_dt
 (
@@ -9262,7 +9262,7 @@ ERROR 42000: Result consisted of more than one row
 set @initialized_21602361 = '$';
 select json_length('{}',@initialized_21602361)
 from t group by b into @initialized_21602361;
-ERROR 42000: Invalid JSON path expression. The error is around character position 1.
+ERROR 42000: Result consisted of more than one row
 set @error_value_21602361 = '$[';
 select json_length('{}',@error_value_21602361)
 from t group by b into @error_value_21602361;

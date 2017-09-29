@@ -15,18 +15,19 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "client/dump/mysqldump_tool_chain_maker.h"
+
 #include <boost/algorithm/string.hpp>
 #include <stddef.h>
 #include <functional>
 
-#include "compression_lz4_writer.h"
-#include "compression_zlib_writer.h"
-#include "file_writer.h"
-#include "i_output_writer.h"
-#include "mysqldump_tool_chain_maker.h"
-#include "mysqldump_tool_chain_maker_options.h"
-#include "sql_formatter.h"
-#include "standard_writer.h"
+#include "client/dump/compression_lz4_writer.h"
+#include "client/dump/compression_zlib_writer.h"
+#include "client/dump/file_writer.h"
+#include "client/dump/i_output_writer.h"
+#include "client/dump/mysqldump_tool_chain_maker_options.h"
+#include "client/dump/sql_formatter.h"
+#include "client/dump/standard_writer.h"
 
 using namespace Mysql::Tools::Dump;
 using std::placeholders::_1;

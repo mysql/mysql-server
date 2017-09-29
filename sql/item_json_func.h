@@ -21,22 +21,24 @@
 #include <utility>              // std::forward
 
 #include "binary_log_types.h"
-#include "enum_query_type.h"
-#include "field.h"
-#include "item.h"
-#include "item_func.h"
-#include "item_strfunc.h"       // Item_str_func
-#include "json_path.h"          // Json_path
 #include "m_ctype.h"
-#include "mem_root_array.h"     // Mem_root_array
-#include "my_decimal.h"
 #include "my_inttypes.h"
 #include "my_time.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "parse_tree_node_base.h"
 #include "prealloced_array.h"   // Prealloced_array
+#include "sql/enum_query_type.h"
+#include "sql/field.h"
+#include "sql/item.h"
+#include "sql/item_func.h"
+#include "sql/item_strfunc.h"   // Item_str_func
+#include "sql/json_path.h"      // Json_path
+#include "sql/mem_root_array.h" // Mem_root_array
+#include "sql/my_decimal.h"
+#include "sql/parse_tree_node_base.h"
 #include "sql_string.h"
+#include "psi_memory_key.h"     // key_memory_JSON
+#include <vector>
 
 class Item_func_like;
 class Json_scalar_holder;
@@ -282,7 +284,7 @@ bool get_json_atom_wrapper(Item **args, uint arg_idx,
 
   @returns True if the string could not be converted. False on success.
 */
-bool ensure_utf8mb4(String *val,
+bool ensure_utf8mb4(const String &val,
                     String *buf,
                     const char **resptr,
                     size_t *reslength,
@@ -717,6 +719,8 @@ class Item_func_json_merge :public Item_func_json_merge_preserve
 {
 public:
   Item_func_json_merge(THD *thd, const POS &pos, PT_item_list *a);
+
+  bool is_deprecated() const override { return true; }
 };
 
 
@@ -900,6 +904,14 @@ bool get_json_string(Item *arg_item,
                      String *utf8_res,
                      const char **safep,
                      size_t *safe_length);
+using Json_dom_ptr= std::unique_ptr<Json_dom>;
 
+bool parse_json(const String &res,
+                uint arg_idx,
+                const char *func_name,
+                Json_dom_ptr *dom,
+                bool require_str_or_json,
+                bool *parse_error,
+                bool handle_numbers_as_double= false);
 
 #endif /* ITEM_JSON_FUNC_INCLUDED */

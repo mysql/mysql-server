@@ -25,7 +25,7 @@
 #include <string>
 #include <vector>
 
-#include "ngs/memory.h"
+#include "plugin/x/ngs/include/ngs/memory.h"
 #include "violite.h"
 
 

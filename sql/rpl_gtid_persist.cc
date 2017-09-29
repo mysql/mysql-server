@@ -21,21 +21,15 @@
 
 #include <assert.h>
 
-#include "derror.h"
 #include "my_loglevel.h"
 #include "mysql/udf_registration_types.h"
+#include "sql/derror.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
 #include <list>
 
 #include "control_events.h"
-#include "current_thd.h"
-#include "debug_sync.h"       // debug_sync_set_action
-#include "field.h"
-#include "handler.h"
-#include "key.h"
-#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_base.h"
@@ -48,17 +42,23 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_thread.h"
 #include "mysql/thread_type.h"
-#include "mysqld.h"           // gtid_executed_compression_period
-#include "query_options.h"
-#include "replication.h"      // THD_ENTER_COND
-#include "sql_base.h"         // MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK
-#include "sql_const.h"
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_parse.h"        // mysql_reset_thd_for_next_command
-#include "sql_security_ctx.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/current_thd.h"
+#include "sql/debug_sync.h"   // debug_sync_set_action
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/key.h"
+#include "sql/log.h"
+#include "sql/mysqld.h"       // gtid_executed_compression_period
+#include "sql/query_options.h"
+#include "sql/replication.h"  // THD_ENTER_COND
+#include "sql/sql_base.h"     // MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_parse.h"    // mysql_reset_thd_for_next_command
+#include "sql/system_variables.h"
 #include "sql_string.h"
-#include "system_variables.h"
 
 using std::list;
 using std::string;
@@ -69,60 +69,6 @@ static bool terminate_compress_thread= false;
 static bool should_compress= false;
 const LEX_STRING Gtid_table_access_context::TABLE_NAME= {C_STRING_WITH_LEN("gtid_executed")};
 const LEX_STRING Gtid_table_access_context::DB_NAME= {C_STRING_WITH_LEN("mysql")};
-
-/**
-  A derived from THD::Attachable_trx class allows updates in
-  the attachable transaction. Callers of the class methods must
-  make sure the attachable_rw won't cause deadlock with the main transaction.
-  The destructor does not invoke ha_commit_{stmt,trans} nor ha_rollback_trans
-  on purpose.
-  Burden to terminate the read-write instance also lies on the caller!
-  In order to use this interface it *MUST* prove that no side effect to
-  the global transaction state can be inflicted by a chosen method.
-*/
-
-class THD::Attachable_trx_rw : public THD::Attachable_trx
-{
-public:
-  bool is_read_only() const { return false; }
-  Attachable_trx_rw(THD *thd, Attachable_trx *prev_trx= NULL)
-    : THD::Attachable_trx(thd, prev_trx)
-  {
-    m_thd->tx_read_only= false;
-    m_thd->lex->sql_command= SQLCOM_END;
-    m_xa_state_saved= m_thd->get_transaction()->xid_state()->get_state();
-    thd->get_transaction()->xid_state()->set_state(XID_STATE::XA_NOTR);
-  }
-  ~Attachable_trx_rw()
-  {
-    /* The attachable transaction has been already committed */
-    DBUG_ASSERT(!m_thd->get_transaction()->is_active(Transaction_ctx::STMT)
-                && !m_thd->get_transaction()->is_active(Transaction_ctx::SESSION));
-
-    m_thd->get_transaction()->xid_state()->set_state(m_xa_state_saved);
-    m_thd->tx_read_only= true;
-  }
-
-private:
-  XID_STATE::xa_states m_xa_state_saved;
-  Attachable_trx_rw(const Attachable_trx_rw &);
-  Attachable_trx_rw &operator =(const Attachable_trx_rw &);
-};
-
-
-bool THD::is_attachable_rw_transaction_active() const
-{
-  return m_attachable_trx != NULL && !m_attachable_trx->is_read_only();
-}
-
-
-void THD::begin_attachable_rw_transaction()
-{
-  DBUG_ASSERT(!m_attachable_trx);
-
-  m_attachable_trx= new Attachable_trx_rw(this);
-}
-
 
 /**
   Initialize a new THD.
@@ -893,6 +839,12 @@ static void *compress_gtid_table(void *p_thd)
   DBUG_ENTER("compress_gtid_table");
 
   init_thd(&thd);
+  /*
+    Gtid table compression thread should ignore 'read-only' and
+    'super_read_only' options so that it can update 'mysql.gtid_executed'
+    replication repository tables.
+  */
+  thd->set_skip_readonly_check();
   for (;;)
   {
     mysql_mutex_lock(&LOCK_compress_gtid_table);
@@ -928,6 +880,7 @@ static void *compress_gtid_table(void *p_thd)
   }
 
   mysql_mutex_unlock(&LOCK_compress_gtid_table);
+  thd->reset_skip_readonly_check();
   deinit_thd(thd);
   DBUG_LEAVE;
   my_thread_end();

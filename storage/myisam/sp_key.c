@@ -19,8 +19,8 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "myisamdef.h"
-#include "sp_defs.h"
+#include "storage/myisam/myisamdef.h"
+#include "storage/myisam/sp_defs.h"
 
 static int sp_add_point_to_mbr(uchar *(*wkb), uchar *end, uint n_dims, 
                              uchar byte_order, double *mbr);

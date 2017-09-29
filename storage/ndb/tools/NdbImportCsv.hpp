@@ -24,7 +24,7 @@
 #include <NdbOut.hpp>
 #include <NdbImport.hpp>
 #include "NdbImportUtil.hpp"
-#include <my_regex.h>
+#include "extra/regex/my_regex.h"
 // STL
 #include <algorithm>
 

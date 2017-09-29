@@ -13,12 +13,12 @@
 // this program; if not, write to the Free Software Foundation, 51 Franklin
 // Street, Suite 500, Boston, MA 02110-1335 USA.
 
-#include "ring_flip_visitor.h"
+#include "sql/gis/ring_flip_visitor.h"
 
 #include <boost/geometry.hpp>  // boost::geometry::correct
 
-#include "geometries_cs.h"
-#include "geometries_traits.h"
+#include "sql/gis/geometries_cs.h"
+#include "sql/gis/geometries_traits.h"
 
 namespace gis {
 

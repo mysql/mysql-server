@@ -11,7 +11,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #ifndef COMPONENTS_SERVICES_PSI_STATEMENT_SERVICE_H
 #define COMPONENTS_SERVICES_PSI_STATEMENT_SERVICE_H
@@ -73,6 +73,8 @@ BEGIN_SERVICE_DEFINITION(psi_statement_v1)
   reprepare_prepared_stmt_v1_t reprepare_prepared_stmt;
   /** @sa execute_prepared_stmt_v1_t. */
   execute_prepared_stmt_v1_t execute_prepared_stmt;
+  /** @sa set_prepared_stmt_text_v1_t. */
+  set_prepared_stmt_text_v1_t set_prepared_stmt_text;
 
   /** @sa digest_start_v1_t. */
   digest_start_v1_t digest_start;

@@ -19,9 +19,9 @@
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
-#include "query_result.h"       // Query_result_interceptor
-#include "table.h"
-#include "temp_table_param.h"   // Temp_table_param
+#include "sql/query_result.h"   // Query_result_interceptor
+#include "sql/table.h"
+#include "sql/temp_table_param.h" // Temp_table_param
 
 class Item;
 class SELECT_LEX_UNIT;
@@ -58,7 +58,7 @@ public:
                            bool is_distinct, ulonglong options,
                            const char *alias, bool bit_fields_as_long,
                            bool create_table);
-  friend bool TABLE_LIST::create_derived(THD *thd);
+  friend bool TABLE_LIST::create_materialized_table(THD *thd);
   virtual const ha_rows *row_count() const override { return &m_rows_in_table; }
 };
 

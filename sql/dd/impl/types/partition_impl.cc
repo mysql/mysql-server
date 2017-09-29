@@ -13,35 +13,37 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/types/partition_impl.h"
+#include "sql/dd/impl/types/partition_impl.h"
 
 #include <stddef.h>
 #include <sstream>
 #include <string>
 
-#include "dd/impl/properties_impl.h"               // Properties_impl
-#include "dd/impl/raw/raw_record.h"                // Raw_record
-#include "dd/impl/sdi_impl.h"                      // sdi read/write functions
-#include "dd/impl/tables/index_partitions.h"       // Index_partitions
-#include "dd/impl/tables/table_partition_values.h" // Table_partition_values
-#include "dd/impl/tables/table_partitions.h"       // Table_partitions
-#include "dd/impl/transaction_impl.h"              // Open_dictionary_tables_ctx
-#include "dd/impl/types/partition_index_impl.h"    // Partition_index_impl
-#include "dd/impl/types/partition_value_impl.h"    // Partition_value_impl
-#include "dd/impl/types/table_impl.h"              // Table_impl
-#include "dd/properties.h"
-#include "dd/string_type.h"                        // dd::String_type
-#include "dd/types/object_table.h"
-#include "dd/types/partition_index.h"
-#include "dd/types/partition_value.h"
-#include "dd/types/weak_object.h"
+#include "my_rapidjson_size_t.h"    // IWYU pragma: keep
+#include <rapidjson/document.h>
+#include <rapidjson/prettywriter.h>
+
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"                          // ER_*
-#include "rapidjson/document.h"
-#include "rapidjson/prettywriter.h"
+#include "sql/dd/impl/properties_impl.h"           // Properties_impl
+#include "sql/dd/impl/raw/raw_record.h"            // Raw_record
+#include "sql/dd/impl/sdi_impl.h"                  // sdi read/write functions
+#include "sql/dd/impl/tables/index_partitions.h"   // Index_partitions
+#include "sql/dd/impl/tables/table_partition_values.h" // Table_partition_values
+#include "sql/dd/impl/tables/table_partitions.h"   // Table_partitions
+#include "sql/dd/impl/transaction_impl.h"          // Open_dictionary_tables_ctx
+#include "sql/dd/impl/types/partition_index_impl.h" // Partition_index_impl
+#include "sql/dd/impl/types/partition_value_impl.h" // Partition_value_impl
+#include "sql/dd/impl/types/table_impl.h"          // Table_impl
+#include "sql/dd/properties.h"
+#include "sql/dd/string_type.h"                    // dd::String_type
+#include "sql/dd/types/object_table.h"
+#include "sql/dd/types/partition_index.h"
+#include "sql/dd/types/partition_value.h"
+#include "sql/dd/types/weak_object.h"
 
 using dd::tables::Index_partitions;
 using dd::tables::Table_partitions;
@@ -294,6 +296,7 @@ bool Partition_impl::restore_attributes(const Raw_record &r)
 
   m_number=          r.read_uint(Table_partitions::FIELD_NUMBER);
 
+  m_description_utf8= r.read_str(Table_partitions::FIELD_DESCRIPTION_UTF8);
   m_engine=          r.read_str(Table_partitions::FIELD_ENGINE);
   m_comment=         r.read_str(Table_partitions::FIELD_COMMENT);
 
@@ -319,6 +322,8 @@ bool Partition_impl::store_attributes(Raw_record *r)
                   m_parent_partition_id,
                   m_parent_partition_id == dd::INVALID_OBJECT_ID) ||
          r->store(Table_partitions::FIELD_NUMBER, m_number) ||
+         r->store(Table_partitions::FIELD_DESCRIPTION_UTF8,
+                  m_description_utf8, m_description_utf8.empty()) ||
          r->store(Table_partitions::FIELD_ENGINE, m_engine) ||
          r->store(Table_partitions::FIELD_COMMENT, m_comment) ||
          r->store(Table_partitions::FIELD_OPTIONS, *m_options) ||
@@ -329,7 +334,7 @@ bool Partition_impl::store_attributes(Raw_record *r)
 }
 
 ///////////////////////////////////////////////////////////////////////////
-static_assert(Table_partitions::FIELD_TABLESPACE_ID==10,
+static_assert(Table_partitions::FIELD_TABLESPACE_ID==11,
               "Table_partitions definition has changed. Review (de)ser memfuns!");
 void
 Partition_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const
@@ -339,6 +344,7 @@ Partition_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const
   write(w, m_parent_partition_id, STRING_WITH_LEN("parent_partition_id"));
   write(w, m_number, STRING_WITH_LEN("number"));
   write(w, m_se_private_id, STRING_WITH_LEN("se_private_id"));
+  write(w, m_description_utf8, STRING_WITH_LEN("description_utf8"));
   write(w, m_engine, STRING_WITH_LEN("engine"));
   write(w, m_comment, STRING_WITH_LEN("comment"));
   write_properties(w, m_options, STRING_WITH_LEN("options"));
@@ -359,6 +365,7 @@ Partition_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val)
   read(&m_parent_partition_id, val, "parent_partition_id");
   read(&m_number, val, "number");
   read(&m_se_private_id, val, "se_private_id");
+  read(&m_description_utf8, val, "description_utf8");
   read(&m_engine, val, "engine");
   read(&m_comment, val, "comment");
   read_properties(&m_options, val, "options");
@@ -384,6 +391,7 @@ void Partition_impl::debug_print(String_type &outb) const
     << "m_name: " << name() << "; "
     << "m_parent_partition_id: " << m_parent_partition_id << "; "
     << "m_number: " << m_number << "; "
+    << "m_description_utf8: " << m_description_utf8 << "; "
     << "m_engine: " << m_engine << "; "
     << "m_comment: " << m_comment << "; "
     << "m_options " << m_options->raw_string() << "; "
@@ -472,7 +480,9 @@ Partition_impl::Partition_impl(const Partition_impl &src,
                                Table_impl *parent)
   : Weak_object(src), Entity_object_impl(src),
     m_parent_partition_id(src.m_parent_partition_id), m_number(src.m_number),
-    m_se_private_id(src.m_se_private_id), m_engine(src.m_engine),
+    m_se_private_id(src.m_se_private_id),
+    m_description_utf8(src.m_description_utf8),
+    m_engine(src.m_engine),
     m_comment(src.m_comment),
     m_options(Properties_impl::parse_properties(src.m_options->raw_string())),
     m_se_private_data(Properties_impl::
@@ -498,7 +508,9 @@ Partition_impl::Partition_impl(const Partition_impl &src,
                                Partition_impl *part)
   : Weak_object(src), Entity_object_impl(src),
     m_parent_partition_id(src.m_parent_partition_id), m_number(src.m_number),
-    m_se_private_id(src.m_se_private_id), m_engine(src.m_engine),
+    m_se_private_id(src.m_se_private_id),
+    m_description_utf8(src.m_description_utf8),
+    m_engine(src.m_engine),
     m_comment(src.m_comment),
     m_options(Properties_impl::parse_properties(src.m_options->raw_string())),
     m_se_private_data(Properties_impl::

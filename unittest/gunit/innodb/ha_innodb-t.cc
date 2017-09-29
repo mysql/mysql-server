@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,9 +20,8 @@
 
 #include <gtest/gtest.h>
 
-#include "univ.i"
-
-#include "ha_prototypes.h"
+#include "storage/innobase/include/ha_prototypes.h"
+#include "storage/innobase/include/univ.i"
 
 namespace innodb_ha_innodb_unittest {
 

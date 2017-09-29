@@ -17,7 +17,7 @@
 #define DD__ENTITY_OBJECT_TABLE_INCLUDED
 
 
-#include "dd/types/object_table.h"    // dd::Object_table
+#include "sql/dd/types/object_table.h" // dd::Object_table
 
 namespace dd {
 

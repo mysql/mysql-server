@@ -30,21 +30,9 @@
 #include <utility>
 
 #include "binary_log_types.h"
-#include "dd/info_schema/stats.h"     // dd::info_schema::Statistics_cache
-#include "enum_query_type.h"
-#include "field.h"
-#include "handler.h"
-#include "item.h"                     // Name_resolution_context
-#include "item_create.h"              // Cast_target
-#include "item_subselect.h"           // chooser_compare_func_creator
-#include "key.h"
-#include "key_spec.h"                 // KEY_CREATE_INFO
 #include "lex_string.h"
-#include "lex_symbol.h"               // LEX_SYMBOL
 #include "m_string.h"
 #include "map_helpers.h"
-#include "mdl.h"
-#include "mem_root_array.h"           // Mem_root_array
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -60,34 +48,49 @@
 #include "mysql/psi/psi_statement.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "opt_hints.h"
-#include "parse_tree_hints.h"
-#include "parse_tree_node_base.h"     // enum_parsing_context
 #include "prealloced_array.h"         // Prealloced_array
-#include "query_options.h"            // OPTION_NO_CONST_TABLES
-#include "set_var.h"
-#include "sql_admin.h"
-#include "sql_alloc.h"                // Sql_alloc
-#include "sql_alter.h"                // Alter_info
-#include "sql_array.h"
+#include "sql/dd/info_schema/table_stats.h"  // dd::info_schema::Table_stati...
+#include "sql/dd/info_schema/tablespace_stats.h" // dd::info_schema::Tablesp...
+#include "sql/enum_query_type.h"
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/item.h"                 // Name_resolution_context
+#include "sql/item_create.h"          // Cast_target
+#include "sql/item_subselect.h"       // chooser_compare_func_creator
+#include "sql/key.h"
+#include "sql/key_spec.h"             // KEY_CREATE_INFO
+#include "sql/lex_symbol.h"           // LEX_SYMBOL
+#include "sql/mdl.h"
+#include "sql/mem_root_array.h"       // Mem_root_array
+#include "sql/opt_hints.h"
+#include "sql/parse_tree_hints.h"
+#include "sql/parse_tree_node_base.h" // enum_parsing_context
+#include "sql/query_options.h"        // OPTION_NO_CONST_TABLES
+#include "sql/resourcegroups/platform/thread_attrs_api.h" // cpu_id_t
+#include "sql/resourcegroups/resource_group_basic_types.h" // Type, Range
+#include "sql/set_var.h"
+#include "sql/sql_admin.h"
+#include "sql/sql_alloc.h"            // Sql_alloc
+#include "sql/sql_alter.h"            // Alter_info
+#include "sql/sql_array.h"
+#include "sql/sql_connect.h"          // USER_RESOURCES
+#include "sql/sql_const.h"
+#include "sql/sql_data_change.h"      // enum_duplicates
+#include "sql/sql_get_diagnostics.h"  // Diagnostics_information
+#include "sql/sql_list.h"
+#include "sql/sql_plugin_ref.h"
+#include "sql/sql_servers.h"          // Server_options
+#include "sql/sql_signal.h"           // enum_condition_item_name
+#include "sql/sql_udf.h"              // Item_udftype
+#include "sql/table.h"                // TABLE_LIST
+#include "sql/thr_malloc.h"
+#include "sql/trigger_def.h"          // enum_trigger_action_time_type
+#include "sql/window_lex.h"
+#include "sql/xa.h"                   // xa_option_words
 #include "sql_chars.h"
-#include "sql_connect.h"              // USER_RESOURCES
-#include "sql_const.h"
-#include "sql_data_change.h"          // enum_duplicates
-#include "sql_get_diagnostics.h"      // Diagnostics_information
-#include "sql_list.h"
-#include "sql_plugin_ref.h"
-#include "sql_servers.h"              // Server_options
-#include "sql_signal.h"               // enum_condition_item_name
 #include "sql_string.h"
-#include "sql_udf.h"                  // Item_udftype
-#include "table.h"                    // TABLE_LIST
 #include "thr_lock.h"                 // thr_lock_type
-#include "thr_malloc.h"
-#include "trigger_def.h"              // enum_trigger_action_time_type
 #include "violite.h"                  // SSL_type
-#include "window_lex.h"
-#include "xa.h"                       // xa_option_words
 
 class Item_func_set_user_var;
 class Item_sum;
@@ -97,6 +100,7 @@ class PT_base_index_option;
 class PT_column_attr_base;
 class PT_create_table_option;
 class PT_ddl_table_option;
+class PT_json_table_column;
 class PT_part_definition;
 class PT_part_value_item;
 class PT_part_value_item_list_paren;
@@ -116,6 +120,12 @@ class Select_lex_visitor;
 class THD;
 class Window;
 
+class Json_table_column;
+enum class enum_jt_column;
+enum class enum_jtc_on : uint16;
+typedef Parse_tree_node_tmpl<struct Alter_tablespace_parse_context>
+    PT_alter_tablespace_option_base;
+
 /* YACC and LEX Definitions */
 
 class Event_parse_data;
@@ -128,8 +138,10 @@ class partition_info;
 class sp_head;
 class sp_name;
 class sp_pcontext;
-class sql_exchange;
 struct sql_digest_state;
+class Sql_cmd_tablespace;
+class Sql_cmd_logfile_group;
+struct Tablespace_options;
 
 const size_t INITIAL_LEX_PLUGIN_LIST_SIZE = 16;
 
@@ -190,7 +202,6 @@ enum class enum_ha_read_modes;
 
 enum enum_filetype { FILETYPE_CSV, FILETYPE_XML };
 
-
 /**
   used by the parser to store internal variable name
 */
@@ -205,10 +216,6 @@ struct sys_var_with_base
 union YYSTYPE;
 
 typedef YYSTYPE *LEX_YYSTYPE;
-
-// describe/explain types
-#define DESCRIBE_NONE		0 // Not explain query
-#define DESCRIBE_NORMAL		1
 
 /*
   If we encounter a diagnostics statement (GET DIAGNOSTICS, or e.g.
@@ -330,19 +337,23 @@ extern LEX_CSTRING EMPTY_CSTR;
 extern LEX_CSTRING NULL_CSTR;
 extern char internal_table_name[2];
 
+class Table_function;
+
 class Table_ident :public Sql_alloc
 {
 public:
   LEX_CSTRING db;
   LEX_CSTRING table;
   SELECT_LEX_UNIT *sel;
+  Table_function *table_function;
+
   Table_ident(Protocol *protocol, const LEX_CSTRING &db_arg,
               const LEX_CSTRING &table_arg, bool force);
   Table_ident(const LEX_CSTRING &db_arg, const LEX_CSTRING &table_arg)
-    :db(db_arg), table(table_arg), sel(NULL)
+    :db(db_arg), table(table_arg), sel(NULL), table_function(NULL)
   {}
   Table_ident(const LEX_CSTRING &table_arg)
-    :table(table_arg), sel(NULL)
+    :table(table_arg), sel(NULL), table_function(NULL)
   {
     db= NULL_CSTR;
   }
@@ -352,13 +363,27 @@ public:
     Later, if there was an alias specified for the table, it will be set
     by add_table_to_list.
   */
-  Table_ident(SELECT_LEX_UNIT *s) : sel(s)
+  Table_ident(SELECT_LEX_UNIT *s) : sel(s), table_function(NULL)
   {
     /* We must have a table name here as this is used with add_table_to_list */
     db= EMPTY_CSTR;                    /* a subject to casedn_str */
     table.str= internal_table_name;
     table.length=1;
   }
+  /*
+    This constructor is used only for the case when we create a table function.
+    It has no name and doesn't belong to any database as it exists only
+    during query execution. Later, if there was an alias specified for the
+    table, it will be set by add_table_to_list.
+  */
+  Table_ident(LEX_CSTRING &table_arg, Table_function *table_func_arg)
+    : table(table_arg), sel(NULL), table_function(table_func_arg)
+  {
+    /* We must have a table name here as this is used with add_table_to_list */
+    db= EMPTY_CSTR;                    /* a subject to casedn_str */
+  }
+  // True if we can tell from syntax that this is a table function.
+  bool is_table_function() const { return (table_function != nullptr); }
   // True if we can tell from syntax that this is an unnamed derived table.
   bool is_derived_table() const { return sel; }
   void change_db(const char *db_name)
@@ -950,7 +975,8 @@ public:
   */
   void set_tables_readonly()
   {
-    for (TABLE_LIST *tr= get_table_list(); tr != NULL; tr= tr->next_local)
+    // Set all referenced base tables as read only.
+    for (TABLE_LIST *tr= leaf_tables; tr != nullptr; tr= tr->next_leaf)
       tr->set_readonly();
   }
 
@@ -1122,6 +1148,8 @@ public:
   uint leaf_table_count;
   /// Number of derived tables and views in this query block.
   uint derived_table_count;
+  /// Number of table functions in this query block
+  uint table_func_count;
   /// Number of materialized derived tables and views in this query block.
   uint materialized_derived_table_count;
   /**
@@ -1260,7 +1288,8 @@ public:
   /// Query-block-level hints, for this query block
   Opt_hints_qb *opt_hints_qb;
 
-
+  // Last table for LATERAL join, used by table functions
+  TABLE_LIST *end_lateral_table;
   /**
     @note the group_by and order_by lists below will probably be added to the
           constructor when the parser is converted into a true bottom-up design.
@@ -1273,6 +1302,19 @@ public:
   SELECT_LEX_UNIT *first_inner_unit() const { return slave; }
   SELECT_LEX *outer_select() const { return master->outer_select(); }
   SELECT_LEX *next_select() const { return next; }
+
+  /**
+    @return true  If STRAIGHT_JOIN applies to all tables.
+    @return false Else.
+  */
+  bool is_straight_join()
+  {
+    bool straight_join= true;
+    /// false for exmaple in t1 STRAIGHT_JOIN t2 JOIN t3.
+    for (TABLE_LIST *tbl= leaf_tables->next_leaf; tbl ; tbl=tbl->next_leaf)
+      straight_join&= tbl->straight;
+    return straight_join || (active_options() & SELECT_STRAIGHT_JOIN);
+  }
 
   SELECT_LEX* last_select()
   {
@@ -1356,7 +1398,7 @@ public:
   bool add_ftfunc_to_list(Item_func_match *func);
   void add_order_to_list(ORDER *order);
   TABLE_LIST* add_table_to_list(THD *thd, Table_ident *table,
-				LEX_STRING *alias,
+				const char *alias,
 				ulong table_options,
 				thr_lock_type flags= TL_UNLOCK,
                                 enum_mdl_type mdl_type= MDL_SHARED_READ,
@@ -1380,8 +1422,8 @@ public:
   // Resolve and prepare information about tables for one query block
   bool setup_tables(THD *thd, TABLE_LIST *tables, bool select_insert);
 
-  // Resolve derived table and view information for a query block
-  bool resolve_derived(THD *thd, bool apply_semijoin);
+  // Resolve derived table, view, table function information for a query block
+  bool resolve_placeholder_tables(THD *thd, bool apply_semijoin);
 
   // Propagate exclusion from table uniqueness test into subqueries
   void propagate_unique_test_exclusion();
@@ -1898,6 +1940,17 @@ private:
 };
 
 
+template<typename T>
+struct Value_or_default
+{
+  bool is_default;
+  T value; ///< undefined if is_default is true
+};
+
+
+enum class Explain_format_type { TRADITIONAL, JSON };
+
+
 union YYSTYPE {
   /*
     Hint parser section (sql_hints.yy)
@@ -1916,6 +1969,7 @@ union YYSTYPE {
   int  num;
   ulong ulong_num;
   ulonglong ulonglong_number;
+  LEX_CSTRING lex_cstr;
   LEX_STRING lex_str;
   LEX_STRING *lex_str_ptr;
   LEX_SYMBOL symbol;
@@ -2026,7 +2080,6 @@ union YYSTYPE {
   class PT_select_var *select_var_ident;
   class PT_select_var_list *select_var_list;
   Mem_root_array_YY<PT_table_reference *> table_reference_list;
-  class PT_select_stmt *select_stmt;
   class Item_param *param_marker;
   class PTI_text_literal *text_literal;
   class PT_query_expression *query_expression;
@@ -2152,6 +2205,17 @@ union YYSTYPE {
   Locked_row_action locked_row_action;
   class PT_locking_clause *locking_clause;
   class PT_locking_clause_list *locking_clause_list;
+  Trivial_array<PT_json_table_column *> *jtc_list;
+  struct jt_on_response {
+    enum_jtc_on type;
+    const LEX_STRING *default_str;
+  } jt_on_response;
+  struct {
+    struct jt_on_response error;
+    struct jt_on_response empty;
+  } jt_on_error_or_empty;
+  PT_json_table_column *jt_column;
+  enum_jt_column jt_column_type;
   struct
   {
     LEX_STRING wild;
@@ -2204,6 +2268,29 @@ union YYSTYPE {
   class PT_adm_partition *adm_partition;
   class PT_preload_keys *preload_keys;
   Trivial_array<PT_preload_keys *> *preload_list;
+  PT_alter_tablespace_option_base *ts_option;
+  Trivial_array<PT_alter_tablespace_option_base *> *ts_options;
+  struct {
+    resourcegroups::platform::cpu_id_t start;
+    resourcegroups::platform::cpu_id_t end;
+  } vcpu_range_type;
+  Trivial_array<resourcegroups::Range> *resource_group_vcpu_list_type;
+  Value_or_default<int> resource_group_priority_type;
+  Value_or_default<bool> resource_group_state_type;
+  bool resource_group_flag_type;
+  resourcegroups::Type resource_group_type;
+  Trivial_array<ulonglong> *thread_id_list_type;
+  Explain_format_type explain_format_type;
+  struct {
+    Item *set_var;
+    Item *set_expr;
+    String *set_expr_str;
+  } load_set_element;
+  struct {
+    PT_item_list *set_var_list;
+    PT_item_list *set_expr_list;
+    List<String> *set_expr_str_list;
+  } load_set_list;
 };
 
 static_assert(sizeof(YYSTYPE) <= 32, "YYSTYPE is too big");
@@ -3467,7 +3554,7 @@ private:
   SELECT_LEX *m_current_select;
 
 public:
-  inline SELECT_LEX *current_select() { return m_current_select; }
+  inline SELECT_LEX *current_select() const { return m_current_select; }
 
   /*
     We want to keep current_thd out of header files, so the debug assert 
@@ -3482,14 +3569,13 @@ public:
     m_current_select= select;
   }
   /// @return true if this is an EXPLAIN statement
-  bool is_explain() const { return (describe & DESCRIBE_NORMAL); }
+  bool is_explain() const { return explain_format != nullptr; }
   LEX_STRING name;
   char *help_arg;
   char* to_log;                                 /* For PURGE MASTER LOGS TO */
   char* x509_subject,*x509_issuer,*ssl_cipher;
   // Widcard from SHOW ... LIKE <wildcard> statements.
   String *wild;
-  sql_exchange *exchange;
   Query_result *result;
   LEX_STRING binlog_stmt_arg; ///< Argument of the BINLOG event statement.
   LEX_STRING ident;
@@ -3526,21 +3612,9 @@ public:
   List<LEX_USER>      users_list;
   List<LEX_COLUMN>    columns;
   List<LEX_CSTRING>   dynamic_privileges;
+  List<LEX_USER>      *default_roles;
 
   ulonglong           bulk_insert_row_cnt;
-
-  // LOAD statement-specific fields:
-
-  List<Item>          load_field_list;
-  List<Item>          load_update_list;
-  List<Item>          load_value_list;
-  /*
-    A list of strings is maintained to store the SET clause command user strings
-    which are specified in load data operation.  This list will be used
-    during the reconstruction of "load data" statement at the time of writing
-    to binary log.
-  */
-  List<String>        load_set_str_list;
 
   // PURGE statement-specific fields:
   List<Item>          purge_value_list;
@@ -3548,13 +3622,21 @@ public:
   // KILL statement-specific fields:
   List<Item>          kill_value_list;
 
-  // HANDLER statement-specific fields:
-  List<Item>          *handler_insert_list;
-
   // other stuff:
   List<set_var_base>  var_list;
   List<Item_func_set_user_var> set_var_list; // in-query assignment list
+  /**
+    List of placeholders ('?') for parameters of a prepared statement. Because
+    we append to this list during parsing, it is naturally sorted by
+    position of the '?' in the query string. The code which fills placeholders
+    with user-supplied values, and the code which writes a query for
+    statement-based logging, rely on this order.
+    This list contains only real placeholders, not the clones which originate
+    in a re-parsed CTE definition.
+  */
   List<Item_param>    param_list;
+
+  bool locate_var_assignment(const Name_string &name);
 
   void insert_values_map(Field *f1, Field *f2)
   {
@@ -3661,13 +3743,12 @@ public:
   enum enum_var_type option_type;
   enum_view_create_mode create_view_mode;
 
-  /// QUERY ID for SHOW PROFILE and EXPLAIN CONNECTION
-  my_thread_id query_id;
+  /// QUERY ID for SHOW PROFILE
+  my_thread_id show_profile_query_id;
   uint profile_options;
   uint grant, grant_tot_col;
   uint slave_thd_opt, start_transaction_opt;
   int select_number;                     ///< Number of query block (by EXPLAIN)
-  uint8 describe;
   uint8 create_view_algorithm;
   uint8 create_view_check;
   /**
@@ -3675,7 +3756,8 @@ public:
           code, so we can fully rely on this field.
   */
   uint8 context_analysis_only;
-  bool drop_if_exists, drop_temporary, local_file;
+  bool drop_if_exists;
+  bool drop_temporary;
   bool autocommit;
   bool verbose, no_write_to_binlog;
   // For show commands to show hidden columns and indexes.
@@ -3799,12 +3881,6 @@ public:
   */
   bool use_only_table_context;
 
-  /*
-    Reference to a struct that contains information in various commands
-    to add/create/drop/change table spaces.
-  */
-  st_alter_tablespace *alter_tablespace_info;
-  
   bool is_lex_started; /* If lex_start() did run. For debugging. */
   /// Set to true while resolving values in ON DUPLICATE KEY UPDATE clause
   bool in_update_value_clause;
@@ -3982,7 +4058,8 @@ public:
     These statistics are cached, to avoid opening of table more
     than once while preparing a single output record buffer.
   */
-  dd::info_schema::Statistics_cache m_IS_dyn_stat_cache;
+  dd::info_schema::Table_statistics m_IS_table_stats;
+  dd::info_schema::Tablespace_statistics m_IS_tablespace_stats;
 
   bool accept(Select_lex_visitor *visitor);
 
@@ -4011,7 +4088,6 @@ public:
     yacc_yyls= NULL;
     m_lock_type= TL_READ_DEFAULT;
     m_mdl_type= MDL_SHARED_READ;
-    m_ha_rkey_mode= HA_READ_KEY_EXACT;
   }
 
   ~Yacc_state();
@@ -4024,7 +4100,6 @@ public:
   {
     m_lock_type= TL_READ_DEFAULT;
     m_mdl_type= MDL_SHARED_READ;
-    m_ha_rkey_mode= HA_READ_KEY_EXACT; /* Let us be future-proof. */
   }
 
   /**
@@ -4069,9 +4144,6 @@ public:
     the statement table list.
   */
   enum_mdl_type m_mdl_type;
-
-  /** Type of condition for key in HANDLER READ statement. */
-  enum ha_rkey_function m_ha_rkey_mode;
 
   /*
     TODO: move more attributes from the LEX structure here.
@@ -4251,5 +4323,38 @@ void print_derived_column_names(THD *thd, String *str,
 /**
   @} (End of group GROUP_PARSER)
 */
+
+
+/**
+   Check if the given string is invalid using the system charset.
+
+   @param string_val       Reference to the string.
+   @param charset_info     Pointer to charset info.
+
+   @return true if the string has an invalid encoding using
+                the system charset else false.
+*/
+
+inline bool is_invalid_string(const LEX_CSTRING &string_val,
+                              const CHARSET_INFO *charset_info)
+{
+  size_t valid_len;
+  bool len_error;
+
+  if (validate_string(charset_info, string_val.str,
+                      static_cast<uint32>(string_val.length),
+                      &valid_len, &len_error))
+  {
+    char hexbuf[7];
+    octet2hex(hexbuf, string_val.str + valid_len,
+              static_cast<uint>(std::min<size_t>(string_val.length - valid_len,
+                                                 3)));
+    my_error(ER_INVALID_CHARACTER_STRING, MYF(0), charset_info->csname,
+             hexbuf);
+    return true;
+  }
+  return false;
+}
+
 
 #endif /* SQL_LEX_INCLUDED */

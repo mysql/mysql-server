@@ -27,8 +27,8 @@
 #include <string>
 
 #include "my_compiler.h"
-#include "mysqlxclient/xargument.h"
-#include "mysqlxclient/xmessage.h"
+#include "plugin/x/client/mysqlxclient/xargument.h"
+#include "plugin/x/client/mysqlxclient/xmessage.h"
 
 
 namespace xcl {

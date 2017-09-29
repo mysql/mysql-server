@@ -22,16 +22,16 @@ TempTable public handler API implementation. */
 #include <thread> /* std::thread* */
 #endif
 
-#include "handler.h"
-#include "temptable/handler.h"
-#include "temptable/row.h"
-#include "temptable/storage.h" /* temptable::Storage */
-#include "temptable/table.h"
-#include "temptable/test.h"
 #include "my_base.h"
 #include "my_dbug.h"
+#include "sql/handler.h"
 #include "sql/mysqld.h" /* temptable_max_ram */
-#include "table.h"
+#include "sql/table.h"
+#include "storage/temptable/include/temptable/handler.h"
+#include "storage/temptable/include/temptable/row.h"
+#include "storage/temptable/include/temptable/storage.h" /* temptable::Storage */
+#include "storage/temptable/include/temptable/table.h"
+#include "storage/temptable/include/temptable/test.h"
 
 namespace temptable {
 

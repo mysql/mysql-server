@@ -16,16 +16,16 @@
 */
 
 #ifndef UNITTEST_OBJECT_FILTER_PARSER
-#include "object_filter.h"
+#include "client/dump/object_filter.h"
 
-#include "database.h"
-#include "event_scheduler_event.h"
-#include "mysql_function.h"
-#include "pattern_matcher.h"
-#include "privilege.h"
-#include "stored_procedure.h"
-#include "table.h"
-#include "trigger.h"
+#include "client/dump/database.h"
+#include "client/dump/event_scheduler_event.h"
+#include "client/dump/mysql_function.h"
+#include "client/dump/pattern_matcher.h"
+#include "client/dump/privilege.h"
+#include "client/dump/stored_procedure.h"
+#include "client/dump/table.h"
+#include "client/dump/trigger.h"
 #endif
 #include <boost/algorithm/string.hpp>
 #include <boost/tokenizer.hpp>

@@ -36,9 +36,9 @@
 
  ***************************************************************/
 
-#include <limits>
-
 #include "my_config.h"
+
+#include <limits>
 
 #include "my_inttypes.h"
 #include "my_macros.h"
@@ -49,10 +49,10 @@
 #endif
 #include <errno.h>
 #include <float.h>
-#include <m_string.h>  /* for memcpy and NOT_FIXED_DEC */
 #include <stdlib.h>
 #include <string.h>
 
+#include "m_string.h"  /* for memcpy and NOT_FIXED_DEC */
 #include "my_dbug.h"
 
 #ifndef EOVERFLOW

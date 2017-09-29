@@ -52,18 +52,8 @@ SET(MYSQLPUMP_LIB_SOURCES
   field.cc
   file_writer.cc
   i_chain_element.cc
-  i_connection_provider.cc
-  i_crawler.cc
-  i_data_formatter.cc
-  i_data_formatter_wrapper.cc
-  i_data_object.cc
   i_dump_task.cc
-  i_object_reader.cc
-  i_object_reader_wrapper.cc
-  i_output_writer.cc
-  i_output_writer_wrapper.cc
   i_progress_reporter.cc
-  i_progress_watcher.cc
   item_processing_data.cc
   mysql_chain_element_options.cc
   mysql_crawler.cc
@@ -159,11 +149,6 @@ IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 
 ENDIF()
 
-ADD_COMPILE_FLAGS(
-  compression_writer.cc
-  mysqldump_tool_chain_maker.cc
-  COMPILE_FLAGS -I${LZ4_INCLUDE_DIR}
-)
 MYSQL_ADD_EXECUTABLE(mysqlpump  program.cc)
 ADD_COMPILE_FLAGS(
   program.cc COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}

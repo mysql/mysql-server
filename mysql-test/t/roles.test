@@ -21,6 +21,7 @@ CREATE ROLE r1 IDENTIFIED BY 'test';
 
 --echo # Created roles should not allow login per default
 --echo # WL988.R-1.4
+--replace_column 3 <default_plugin>
 SELECT user,host, plugin,IF(account_locked = 'Y',"Account is locked","ERROR") FROM mysql.user u WHERE u.user NOT IN ('root', 'mysql.sys', 'mysql.session');
 
 --echo # Creating roles which already exist should not cause an error to be raised
@@ -805,12 +806,12 @@ GRANT r1 TO u1@localhost;
 CREATE ROLE r2;
 GRANT r2 TO r1;
 SELECT ExtractValue(ROLES_GRAPHML(),'//node[text()="`mysql.sys`@`localhost`"]');
-SELECT ExtractValue(ROLES_GRAPHML(),'//node[text()="`mysql.session_user`@`localhost`"]');
+SELECT ExtractValue(ROLES_GRAPHML(),'//node[text()="`mysql.session`@`localhost`"]');
 SELECT ExtractValue(ROLES_GRAPHML(),'count(//node)') as num_nodes;
 SELECT ExtractValue(ROLES_GRAPHML(),'count(//edge)') as num_edges;
 connect(con1, localhost, u1, foo, test);
 SELECT ExtractValue(ROLES_GRAPHML(),'//node[text()="`mysql.sys`@`localhost`"]');
-SELECT ExtractValue(ROLES_GRAPHML(),'//node[text()="`mysql.session_user`@`localhost`"]');
+SELECT ExtractValue(ROLES_GRAPHML(),'//node[text()="`mysql.session`@`localhost`"]');
 SELECT ExtractValue(ROLES_GRAPHML(),'count(//node)') as num_nodes;
 SELECT ExtractValue(ROLES_GRAPHML(),'count(//edge)') as num_edges;
 connection default;
@@ -894,7 +895,9 @@ DROP TABLE test.t5;
 
 --echo # Test of role for proxy users
 DROP USER IF EXISTS baseuser, admin1, admin2, r1, r2;
-CREATE USER baseuser, admin1, admin2;
+CREATE USER baseuser IDENTIFIED WITH mysql_native_password,
+            admin1 IDENTIFIED WITH mysql_native_password,
+            admin2 IDENTIFIED WITH mysql_native_password;
 GRANT PROXY ON baseuser TO admin1;
 GRANT PROXY ON baseuser TO admin2;
 SET @@global.check_proxy_users = ON;
@@ -929,3 +932,30 @@ CONNECTION default;
 DROP USER baseuser, admin1, admin2, r1, r2;
 SET @@global.check_proxy_users = OFF;
 SET @@global.mysql_native_password_proxy_users = OFF;
+
+--echo #
+--echo # SHOW CREATE USER DOESN'T SHOW DEFAULT ROLE
+--echo #
+CREATE USER u1 IDENTIFIED BY 'foo' DEFAULT ROLE a,a@localhost,`b`,`b`@local,`c c`,`aaa`, `a`@`a`;
+--replace_regex /AS '(.*)'/AS '<hash>'/
+SHOW CREATE USER u1;
+--error ER_CANNOT_USER
+CREATE USER u1;
+--echo # Same as before and don't crash.
+--replace_regex /AS '(.*)'/AS '<hash>'/
+SHOW CREATE USER u1;
+--echo # check that we can combine different properties with default roles.
+CREATE USER u2 DEFAULT ROLE r1 REQUIRE SSL ACCOUNT LOCK;
+SHOW CREATE USER u2;
+SELECT user,host FROM mysql.user;
+SELECT * FROM mysql.default_roles;
+DROP USER u1,u2;
+CREATE USER u1;
+--echo # If I alter user this will show up in show create user
+ALTER USER u1 DEFAULT ROLE r1;
+SHOW CREATE USER u1;
+SELECT * FROM mysql.default_roles;
+DROP USER u1;
+SELECT * FROM mysql.default_roles;
+
+

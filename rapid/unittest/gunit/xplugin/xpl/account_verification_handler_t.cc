@@ -13,17 +13,17 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
 #include <string>
 
-#include <gtest/gtest.h>
-#include <gmock/gmock.h>
+#include "plugin/x/src/account_verification_handler.h"
+#include "plugin/x/src/sql_user_require.h"
+#include "plugin/x/src/xpl_resultset.h"
+#include "unittest/gunit/xplugin/xpl/mock/ngs_general.h"
+#include "unittest/gunit/xplugin/xpl/mock/session.h"
+#include "unittest/gunit/xplugin/xpl/one_row_resultset.h"
 
-#include "account_verification_handler.h"
-#include "mock/ngs_general.h"
-#include "mock/session.h"
-#include "sql_user_require.h"
-#include "xpl_resultset.h"
-#include "one_row_resultset.h"
 
 namespace xpl {
 

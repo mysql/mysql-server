@@ -16,12 +16,12 @@
 #include <gtest/gtest.h>
 #include <sys/types.h>
 
-#include "ha_example.h"
 #include "lex_string.h"
 #include "my_inttypes.h"
-#include "mysqld_thd_manager.h"
-#include "table_cache.h"
-#include "test_utils.h"
+#include "sql/mysqld_thd_manager.h"
+#include "sql/table_cache.h"
+#include "storage/example/ha_example.h"
+#include "unittest/gunit/test_utils.h"
 
 /*
   We need example_hton to be able short-cut creation of example

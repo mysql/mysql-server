@@ -17,7 +17,7 @@
  * 02110-1301  USA
  */
 
-#include "ngs/server_acceptors.h"
+#include "plugin/x/ngs/include/ngs/server_acceptors.h"
 
 #include "my_config.h"
 
@@ -25,10 +25,10 @@
 #include <algorithm>
 #include <iterator>
 
-#include "ngs/log.h"
-#include "ngs_common/bind.h"
-#include "ngs_common/connection_vio.h"
-#include "ngs_common/string_formatter.h"
+#include "plugin/x/ngs/include/ngs/log.h"
+#include "plugin/x/ngs/include/ngs_common/bind.h"
+#include "plugin/x/ngs/include/ngs_common/connection_vio.h"
+#include "plugin/x/ngs/include/ngs_common/string_formatter.h"
 
 
 using namespace ngs;

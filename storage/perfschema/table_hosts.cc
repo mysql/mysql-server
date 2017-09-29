@@ -22,16 +22,16 @@
 
 #include <stddef.h>
 
-#include "field.h"
 #include "my_dbug.h"
 #include "my_thread.h"
-#include "pfs_account.h"
-#include "pfs_host.h"
-#include "pfs_instr.h"
-#include "pfs_instr_class.h"
-#include "pfs_memory.h"
-#include "pfs_status.h"
-#include "pfs_visitor.h"
+#include "sql/field.h"
+#include "storage/perfschema/pfs_account.h"
+#include "storage/perfschema/pfs_host.h"
+#include "storage/perfschema/pfs_instr.h"
+#include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/pfs_memory.h"
+#include "storage/perfschema/pfs_status.h"
+#include "storage/perfschema/pfs_visitor.h"
 
 THR_LOCK table_hosts::m_table_lock;
 

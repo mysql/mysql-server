@@ -21,8 +21,8 @@
 #include <gtest/gtest.h>
 #include <sys/types.h>
 
-#include "auth/partitioned_rwlock.h"
-#include "thread_utils.h"
+#include "sql/auth/partitioned_rwlock.h"
+#include "unittest/gunit/thread_utils.h"
 
 
 namespace partitioned_rwlock_unittest {

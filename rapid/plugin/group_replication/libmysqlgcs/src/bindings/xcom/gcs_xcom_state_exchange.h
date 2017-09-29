@@ -16,22 +16,21 @@
 #ifndef GCS_XCOM_STATE_EXCHANGE_INCLUDED
 #define GCS_XCOM_STATE_EXCHANGE_INCLUDED
 
-#include <map>
-#include <set>
-#include <vector>
-#include <string>
 #include <stdio.h>
 #include <sys/types.h>
+#include <map>
+#include <set>
+#include <string>
+#include <vector>
 
-#include "mysql/gcs/gcs_message.h"
-#include "mysql/gcs/gcs_communication_interface.h"
-#include "mysql/gcs/gcs_view.h"
-
-#include "gcs_xcom_utils.h"
-#include "gcs_xcom_view_identifier.h"
-#include "gcs_internal_message.h"
-#include "gcs_xcom_group_member_information.h"
-#include "xcom_vp.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_communication_interface.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_message.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_view.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_internal_message.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_group_member_information.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_utils.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_view_identifier.h"
+#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
 
 #define WIRE_XCOM_VARIABLE_VIEW_ID_SIZE 8
 #define WIRE_XCOM_VIEW_ID_SIZE 4

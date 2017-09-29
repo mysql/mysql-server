@@ -15,12 +15,12 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <ndbapi/NdbApi.hpp>
+#include "sql/ndb_table_map.h"
 
-#include "field.h"
 #include "my_dbug.h"
-#include "ndb_table_map.h"
-#include "table.h"
+#include "sql/field.h"
+#include "sql/table.h"
+#include "storage/ndb/include/ndbapi/NdbApi.hpp"
 
 Ndb_table_map::Ndb_table_map(struct TABLE * mysqlTable,
                              const NdbDictionary::Table * ndbTable) :

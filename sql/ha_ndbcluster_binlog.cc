@@ -15,41 +15,41 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "sql/ha_ndbcluster_binlog.h"
+
 #include <mysql/psi/mysql_thread.h>
 
-#include "binlog.h"
-#include "dd/cache/dictionary_client.h"
-#include "dd/types/abstract_table.h"
-#include "dd_table_share.h"
-#include "ha_ndbcluster.h"
-#include "ha_ndbcluster_binlog.h"
-#include "ha_ndbcluster_connection.h"
 #include "my_dbug.h"
 #include "my_thread.h"
-#include "mysqld_thd_manager.h"  // Global_THD_manager
-#include "ndb_global_schema_lock.h"
-#include "ndb_global_schema_lock_guard.h"
-#include "ndb_local_connection.h"
-#include "ndb_name_util.h"
-#include "ndb_table_guard.h"
-#include "ndb_tdc.h"
-#include "ndb_thd.h"
-#include "ndb_log.h"
-#include "ndbapi/NdbDictionary.hpp"
-#include "ndbapi/ndb_cluster_connection.hpp"
-#include "ndb_sleep.h"
-#include "ndb_bitmap.h"
-
-#include "rpl_filter.h"
-#include "rpl_injector.h"
-#include "rpl_slave.h"
-#include "log_event.h"      // my_strmov_quoted_identifier
-#include "transaction.h"
-#include "sql_table.h"      // build_table_filename,
+#include "sql/binlog.h"
+#include "sql/dd/cache/dictionary_client.h"
+#include "sql/dd/types/abstract_table.h"
+#include "sql/dd_table_share.h"
+#include "sql/derror.h"     // ER_THD
+#include "sql/ha_ndbcluster.h"
+#include "sql/ha_ndbcluster_connection.h"
+#include "sql/log_event.h"  // my_strmov_quoted_identifier
                             // tablename_to_filename
-#include "mysqld.h"         // global_system_variables table_alias_charset ...
-#include "derror.h"         // ER_THD
-#include "ndb_dd.h"
+#include "sql/mysqld.h"     // global_system_variables table_alias_charset ...
+#include "sql/mysqld_thd_manager.h" // Global_THD_manager
+#include "sql/ndb_bitmap.h"
+#include "sql/ndb_dd.h"
+#include "sql/ndb_global_schema_lock.h"
+#include "sql/ndb_global_schema_lock_guard.h"
+#include "sql/ndb_local_connection.h"
+#include "sql/ndb_log.h"
+#include "sql/ndb_name_util.h"
+#include "sql/ndb_sleep.h"
+#include "sql/ndb_table_guard.h"
+#include "sql/ndb_tdc.h"
+#include "sql/ndb_thd.h"
+#include "sql/rpl_filter.h"
+#include "sql/rpl_injector.h"
+#include "sql/rpl_slave.h"
+#include "sql/sql_table.h"  // build_table_filename,
+#include "sql/transaction.h"
+#include "storage/ndb/include/ndbapi/NdbDictionary.hpp"
+#include "storage/ndb/include/ndbapi/ndb_cluster_connection.hpp"
 
 extern bool opt_ndb_log_orig;
 extern bool opt_ndb_log_bin;
@@ -71,16 +71,16 @@ void ndb_index_stat_restart();
 /*
   defines for cluster replication table names
 */
-#include "ha_ndbcluster_tables.h"
-#include "ndb_anyvalue.h"
-#include "ndb_binlog_extra_row_info.h"
-#include "ndb_binlog_thread.h"
-#include "ndb_dist_priv_util.h"
-#include "ndb_event_data.h"
-#include "ndb_find_files_list.h"
-#include "ndb_repl_tab.h"
-#include "ndb_schema_dist.h"
-#include "ndb_schema_object.h"
+#include "sql/ha_ndbcluster_tables.h"
+#include "sql/ndb_anyvalue.h"
+#include "sql/ndb_binlog_extra_row_info.h"
+#include "sql/ndb_binlog_thread.h"
+#include "sql/ndb_dist_priv_util.h"
+#include "sql/ndb_event_data.h"
+#include "sql/ndb_find_files_list.h"
+#include "sql/ndb_repl_tab.h"
+#include "sql/ndb_schema_dist.h"
+#include "sql/ndb_schema_object.h"
 
 /*
   Timeout for syncing schema events between
@@ -2532,7 +2532,7 @@ private:
 }; //class Ndb_schema_dist_data
 
 
-#include "ndb_local_schema.h"
+#include "sql/ndb_local_schema.h"
 
 class Ndb_schema_event_handler {
 

@@ -16,9 +16,9 @@
 #ifndef DD_TABLESPACE_INCLUDED
 #define DD_TABLESPACE_INCLUDED
 
-#include "lock.h"                    // Tablespace_hash_set
 #include "mem_root_fwd.h"
-#include "thr_malloc.h"
+#include "sql/lock.h"                // Tablespace_hash_set
+#include "sql/thr_malloc.h"
 
 class THD;
 class st_alter_tablespace;
@@ -61,29 +61,6 @@ template <typename T>
 bool get_tablespace_name(THD *thd, const T *obj,
                          const char** tablespace_name,
                          MEM_ROOT *mem_root);
-
-/**
-  Create Tablespace in Data Dictionary.
-
-  @note:
-  We now impose tablespace names to be unique accross SE's.
-  Which was not the case earlier.
-
-  @param thd                Thread executing the operation.
-  @param ts_info            Tablespace metadata from the DDL.
-  @param hton               Handlerton in which tablespace reside.
-
-  @note The caller must rollback both statement and transaction on
-        failure, before any further accesses to DD. This is because
-        such a failure might be caused by a deadlock, which requires
-        rollback before any other operations on SE (including reads
-        using attachable transactions) can be done.
-
-  @return false - On success.
-  @return true - On failure.
-*/
-bool create_tablespace(THD *thd, st_alter_tablespace *ts_info,
-                       handlerton *hton);
 
 } // namespace dd
 #endif // DD_TABLESPACE_INCLUDED

@@ -15,7 +15,7 @@
 
 /* Some general useful functions */
 
-#include "partition_info.h"                   // LIST_PART_ENTRY
+#include "sql/partition_info.h"               // LIST_PART_ENTRY
 
 #include <limits.h>
 #include <stdio.h>
@@ -25,13 +25,6 @@
 #include <string>
 #include <utility>
 
-#include "auth_acls.h"
-#include "auth_common.h"                      // *_ACL
-#include "derror.h"                           // ER_THD
-#include "error_handler.h"
-#include "field.h"
-#include "item.h"
-#include "item_create.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
@@ -45,24 +38,31 @@
 #include "mysql/service_my_snprintf.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "partitioning/partition_handler.h"   // PART_DEF_NAME, Partition_share
-#include "set_var.h"
-#include "sql_base.h"                         // fill_record
-#include "sql_class.h"                        // THD
-#include "sql_const.h"
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_parse.h"                        // test_if_data_home_dir
-#include "sql_partition.h"
-#include "sql_security_ctx.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h"             // *_ACL
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/derror.h"                       // ER_THD
+#include "sql/error_handler.h"
+#include "sql/field.h"
+#include "sql/item.h"
+#include "sql/item_create.h"
+#include "sql/partitioning/partition_handler.h" // PART_DEF_NAME, Partition_share
+#include "sql/set_var.h"
+#include "sql/sql_base.h"                     // fill_record
+#include "sql/sql_class.h"                    // THD
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_parse.h"                    // test_if_data_home_dir
+#include "sql/sql_partition.h"
+#include "sql/sql_tablespace.h"               // validate_tablespace_name
+#include "sql/system_variables.h"
+#include "sql/table.h"                        // TABLE_LIST
+#include "sql/table_trigger_dispatcher.h"     // Table_trigger_dispatcher
+#include "sql/thr_malloc.h"
+#include "sql/trigger_chain.h"                // Trigger_chain
+#include "sql/trigger_def.h"
 #include "sql_string.h"
-#include "sql_tablespace.h"                   // validate_tablespace_name
-#include "system_variables.h"
-#include "table.h"                            // TABLE_LIST
-#include "table_trigger_dispatcher.h"         // Table_trigger_dispatcher
-#include "thr_malloc.h"
-#include "trigger_chain.h"                    // Trigger_chain
-#include "trigger_def.h"
 #include "varlen_sort.h"
 
 using std::string;
@@ -1942,18 +1942,9 @@ bool partition_info::set_part_expr(char *start_token, Item *item_ptr,
     return true;
   }
 
-  size_t valid_length;
-  bool dummy_len_err;
-  if (validate_string(system_charset_info, func_string, expr_len,
-                      &valid_length, &dummy_len_err))
-  {
-    char hexbuf[7];
-    octet2hex(hexbuf, func_string + valid_length,
-              std::min<size_t>(expr_len - valid_length, 3));
-    my_error(ER_INVALID_CHARACTER_STRING, MYF(0), system_charset_info->csname,
-             hexbuf);
+  if (is_invalid_string(LEX_CSTRING{func_string, expr_len},
+                        system_charset_info))
     return true;
-  }
 
   if (is_subpart)
   {

@@ -17,7 +17,7 @@
 #define DD_TRIGGER_INCLUDED
 
 #include "lex_string.h"
-#include "trigger_def.h"     // enum_trigger_order_type
+#include "sql/trigger_def.h" // enum_trigger_order_type
 
 class THD;
 class Trigger;

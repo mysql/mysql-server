@@ -1,1 +1,1 @@
---gtid-mode=ON --enforce-gtid-consistency=ON --log-bin
+--gtid-mode=ON --enforce-gtid-consistency=ON

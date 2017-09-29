@@ -27,47 +27,48 @@
   UNION's  were introduced by Monty and Sinisa <sinisa@mysql.com>
 */
 
-#include "sql_union.h"
+#include "sql/sql_union.h"
 
 #include "my_config.h"
 
 #include <string.h>
 #include <sys/types.h>
 
-#include "auth_acls.h"
-#include "current_thd.h"
-#include "debug_sync.h"                         // DEBUG_SYNC
-#include "error_handler.h"                      // Strict_error_handler
-#include "field.h"
-#include "filesort.h"                           // filesort_free_buffers
-#include "handler.h"
-#include "item.h"
-#include "item_subselect.h"
-#include "mem_root_array.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_sys.h"
 #include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
-#include "opt_explain.h"                        // explain_no_table
-#include "opt_explain_format.h"
-#include "opt_trace_context.h"
-#include "parse_tree_node_base.h"
-#include "query_options.h"
-#include "set_var.h"
-#include "sql_base.h"                           // fill_record
-#include "sql_class.h"
-#include "sql_const.h"
-#include "sql_executor.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_optimizer.h"                      // JOIN
-#include "sql_parse.h"
-#include "sql_select.h"
-#include "sql_tmp_table.h"                      // tmp tables
+#include "sql/auth/auth_acls.h"
+#include "sql/current_thd.h"
+#include "sql/debug_sync.h"                     // DEBUG_SYNC
+#include "sql/error_handler.h"                  // Strict_error_handler
+#include "sql/field.h"
+#include "sql/filesort.h"                       // filesort_free_buffers
+#include "sql/handler.h"
+#include "sql/item.h"
+#include "sql/item_subselect.h"
+#include "sql/mem_root_array.h"
+#include "sql/opt_explain.h"                    // explain_no_table
+#include "sql/opt_explain_format.h"
+#include "sql/opt_trace_context.h"
+#include "sql/parse_tree_node_base.h"
+#include "sql/query_options.h"
+#include "sql/set_var.h"
+#include "sql/sql_base.h"                       // fill_record
+#include "sql/sql_class.h"
+#include "sql/sql_const.h"
+#include "sql/sql_executor.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_optimizer.h"                  // JOIN
+#include "sql/sql_parse.h"
+#include "sql/sql_select.h"
+#include "sql/sql_tmp_table.h"                  // tmp tables
+#include "sql/thr_malloc.h"
+#include "sql/window.h"                         // Window
 #include "template_utils.h"
-#include "thr_malloc.h"
-#include "window.h"                             // Window
+#include "sql/table_function.h"                     // Table_function
 
 bool Query_result_union::prepare(List<Item>&, SELECT_LEX_UNIT *u)
 {
@@ -559,11 +560,7 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
   // global parameters.
   if (saved_fake_select_lex == NULL && // Don't overwrite on PS second prepare
       fake_select_lex != NULL)
-  {
-    thd->lock_query_plan();
     saved_fake_select_lex= fake_select_lex;
-    thd->unlock_query_plan();
-  }
 
   const bool simple_query_expression= is_simple();
 
@@ -576,11 +573,7 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
             new (*THR_MALLOC) Query_result_union_direct(thd, sel_result, last_select)))
         goto err; /* purecov: inspected */
       if (fake_select_lex != NULL)
-      {
-        thd->lock_query_plan();
         fake_select_lex= NULL;
-        thd->unlock_query_plan();
-      }
       instantiate_tmp_table= false;
     }
     else
@@ -1588,7 +1581,11 @@ static void destroy_materialized(THD *thd, TABLE_LIST *list)
       // Find a materialized view inside another view.
       destroy_materialized(thd, tl->merge_underlying_list);
     }
-    if (!tl->table)
+    else if (tl->is_table_function())
+    {
+      tl->table_function->cleanup();
+    }
+    if (tl->table == nullptr)
       continue;                                 // Not materialized
     if (tl->is_view_or_derived())
     {
@@ -1596,9 +1593,11 @@ static void destroy_materialized(THD *thd, TABLE_LIST *list)
       if (tl->common_table_expr())
         tl->common_table_expr()->tmp_tables.clear();
     }
-    else if (!tl->is_recursive_reference() && !tl->schema_table)
+    else if (!tl->is_recursive_reference() && !tl->schema_table &&
+             !tl->is_table_function())
       continue;
     free_tmp_table(thd, tl->table);
+    tl->table= nullptr;
   }
 }
 

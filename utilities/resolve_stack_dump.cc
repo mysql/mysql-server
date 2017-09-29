@@ -17,24 +17,25 @@
    versions into symbolic names. By Sasha Pachev <sasha@mysql.com>
  */
 
+#include "my_config.h"
+
 #include <errno.h>
 #include <fcntl.h>
-#include <m_ctype.h>
-#include <m_string.h>
-#include <my_config.h>
-#include <my_getopt.h>
-#include <my_sys.h>
 #include <mysql_version.h>
 #include <stdarg.h>
 #include <stdio.h>                              // Needed on SunOS 5.10
 #include <stdlib.h>
 #include <sys/types.h>
-#include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 #include <string>
 #include <vector>
 
+#include "m_ctype.h"
+#include "m_string.h"
 #include "my_compiler.h"
+#include "my_getopt.h"
+#include "my_sys.h"
 #include "print_version.h"
+#include "welcome_copyright_notice.h" /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 const int initial_symbol_table_size= 4096;
 

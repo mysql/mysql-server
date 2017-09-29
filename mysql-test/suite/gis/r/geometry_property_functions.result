@@ -1849,13 +1849,6 @@ NULL
 SELECT ST_LENGTH(ST_GEOMFROMTEXT('POINT(0 0)', 4326));
 ST_LENGTH(ST_GEOMFROMTEXT('POINT(0 0)', 4326))
 NULL
-# Undefined SRS (should pass with warning)
-SELECT ST_LENGTH(ST_GEOMFROMTEXT('POINT(0 0)', 19000000));
-ST_LENGTH(ST_GEOMFROMTEXT('POINT(0 0)', 19000000))
-NULL
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 19000000. The axis order is unknown.
-Warning	3519	There's no spatial reference system with SRID 19000000. Calculations in function st_length will be done in SRID 0.
 # Unparseable SRS definition (should fail)
 INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
 organization, organization_coordsys_id, definition, description)
@@ -1904,9 +1897,7 @@ CALL geom_prop_func(0);
 CALL geom_prop_func(2000);
 # Geographic SRS (should pass)
 CALL geom_prop_func(4326);
-# Undefined SRS (should pass)
-CALL geom_prop_func(19000000);
-# Unparseable SRS definition (should pass)
+# Unparseable SRS definition (should fail)
 INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
 organization, organization_coordsys_id, definition, description)
 VALUES (44444444, 1, 'TEST44444444', 'Foo', 44444444, 'FOOBAR', '');

@@ -15,9 +15,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "ndb_schema_object.h"
-#include "ha_ndbcluster.h"
+#include "sql/ndb_schema_object.h"
+
 #include "mysql/service_mysql_alloc.h"
+#include "sql/ha_ndbcluster.h"
 #include "template_utils.h"
 
 

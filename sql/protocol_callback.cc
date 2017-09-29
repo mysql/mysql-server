@@ -19,17 +19,17 @@
 #include <stddef.h>
 #include <algorithm>
 
-#include "current_thd.h"
-#include "field.h"
-#include "item.h"
 #include "m_ctype.h"
-#include "my_decimal.h"
 #include "mysql_com.h"
-#include "session_tracker.h"
-#include "sql_class.h"
-#include "sql_error.h"
-#include "sql_list.h"
-#include "value_map.h"
+#include "sql/current_thd.h"
+#include "sql/field.h"
+#include "sql/histograms/value_map.h"
+#include "sql/item.h"
+#include "sql/my_decimal.h"
+#include "sql/session_tracker.h"
+#include "sql/sql_class.h"
+#include "sql/sql_error.h"
+#include "sql/sql_list.h"
 
 class String;
 union COM_DATA;

@@ -121,19 +121,19 @@ INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
 SELECT unique_constraint_name FROM information_schema.referential_constraints
 WHERE table_name = 't2';
-unique_constraint_name
+UNIQUE_CONSTRAINT_NAME
 PRIMARY
 # restart
 SELECT unique_constraint_name FROM information_schema.referential_constraints
 WHERE table_name = 't2';
-unique_constraint_name
+UNIQUE_CONSTRAINT_NAME
 PRIMARY
 SELECT * FROM t1;
 c1
 1
 SELECT unique_constraint_name FROM information_schema.referential_constraints
 WHERE table_name = 't2';
-unique_constraint_name
+UNIQUE_CONSTRAINT_NAME
 PRIMARY
 DROP TABLE t2;
 DROP TABLE t1;
@@ -146,15 +146,65 @@ CREATE TABLE child_table (c1 INT PRIMARY KEY,
 FOREIGN KEY (c1) REFERENCES parent_table(c1));
 CREATE TABLE parent_table (c1 INT PRIMARY KEY);
 SET foreign_key_checks=1;
-SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN WHERE
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN WHERE
 ID='test/child_table_ibfk_1';
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
 test/child_table_ibfk_1	test/child_table	test/parent_table	1	0
-SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS WHERE
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN_COLS WHERE
 ID='test/child_table_ibfk_1';
 ID	FOR_COL_NAME	REF_COL_NAME	POS
-test/child_table_ibfk_1	c1	c1	0
+test/child_table_ibfk_1	c1	c1	1
 DROP TABLE parent_table;
 ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
 DROP TABLE child_table;
 DROP TABLE parent_table;
+#
+# Bug#26764604 - INNODB: FAILING ASSERTION: COL_NR < TABLE->N_DEF
+#
+SELECT @@foreign_key_checks;
+@@foreign_key_checks
+1
+CREATE TABLE t1 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+unique1 int(11) DEFAULT NULL,
+unique2 int(11) DEFAULT NULL,
+two int(11) DEFAULT NULL,
+four int(11) DEFAULT NULL,
+ten int(11) DEFAULT NULL,
+twenty int(11) DEFAULT NULL,
+forty int(11) DEFAULT NULL,
+sixty int(11) DEFAULT NULL,
+eighty int(11) DEFAULT NULL,
+tenPercent int(11) DEFAULT NULL,
+twentyPercent int(11) DEFAULT NULL,
+fiftyPercent int(11) DEFAULT NULL,
+unique1gc int(11) GENERATED ALWAYS AS ((unique1 + unique2)) VIRTUAL,
+unique2gc int(11) GENERATED ALWAYS AS ((unique1 * unique2)) VIRTUAL,
+twogc int(11) GENERATED ALWAYS AS (((two * two) + 1)) VIRTUAL,
+fourgc int(11) GENERATED ALWAYS AS (((four + four) - 1)) VIRTUAL,
+tengc int(11) GENERATED ALWAYS AS ((twogc + ten)) VIRTUAL,
+twentygc int(11) GENERATED ALWAYS AS ((((twenty * twogc) * unique1) % 20)) VIRTUAL,
+fortygc int(11) GENERATED ALWAYS AS (forty) VIRTUAL,
+sixtygc int(11) GENERATED ALWAYS AS (sixty) VIRTUAL,
+eightygc int(11) GENERATED ALWAYS AS ((((eighty - twentygc) - ten) - two)) VIRTUAL,
+PRIMARY KEY (pk),
+KEY allkey(unique1,unique2,two,four,ten,twenty,forty,sixty,eighty,tenPercent,twentyPercent,fiftyPercent),
+KEY kugc1 (unique1gc),
+KEY kugc2 (unique2gc),
+KEY kumixgc1 (unique1gc,unique2gc),
+KEY kgc1 (twogc,fourgc),
+KEY kgc2 (fourgc,tengc),
+KEY kgc3 (tengc,twentygc),
+KEY kgc4 (twentygc,fortygc),
+KEY kgc5 (fortygc,sixtygc),
+KEY kgc6 (sixtygc,eightygc),
+KEY allkeygc(unique1gc,unique2gc,twogc,fourgc,tengc,twentygc,fortygc,sixtygc,eightygc)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE t2_fk (
+pk int(11) NOT NULL,
+sixty int(11) DEFAULT NULL,
+PRIMARY KEY (pk),
+CONSTRAINT fk6 FOREIGN KEY (sixty) REFERENCES t1(sixty)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+ERROR HY000: Cannot add foreign key constraint
+DROP TABLE t1;

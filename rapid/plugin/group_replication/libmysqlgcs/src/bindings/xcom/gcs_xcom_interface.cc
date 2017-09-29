@@ -13,29 +13,29 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_interface.h"
+
 #include <assert.h>
 #include <ctype.h>
 #include <stdio.h>
 #include <algorithm>
+#include <cstdarg>
 #include <fstream>
 #include <iostream>
-#include <sstream>
 #include <queue>
+#include <sstream>
 #include <vector>
-#include <cstdarg>
 
-#include "gcs_xcom_interface.h"
-#include "gcs_internal_message.h"
-#include "gcs_message_stage_lz4.h"
-#include "gcs_message_stages.h"
-#include "gcs_xcom_group_member_information.h"
-#include "gcs_xcom_interface.h"
-#include "gcs_xcom_networking.h"
-#include "gcs_xcom_notification.h"
 #include "my_compiler.h"
-#include "sock_probe.h"
-#include "synode_no.h"
-#include "xcom_ssl_transport.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_internal_message.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_message_stage_lz4.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_message_stages.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_group_member_information.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_networking.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_notification.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/sock_probe.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/synode_no.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_ssl_transport.h"
 
 using std::map;
 using std::vector;
@@ -235,6 +235,8 @@ Gcs_xcom_interface::initialize(const Gcs_interface_parameters &interface_params)
 
   if (is_initialized())
     return GCS_OK;
+
+  register_gcs_thread_psi_keys();
 
   last_config_id.group_id= 0;
 

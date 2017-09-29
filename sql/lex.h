@@ -19,16 +19,17 @@
 
 /* This file includes all reserved words and functions */
 
-#include "lex_symbol.h"
 #include "m_string.h"
+#include "sql/lex_symbol.h"
 
 /* We don't want to include sql_yacc.h into gen_lex_hash */
 #ifdef NO_YACC_SYMBOLS
 #define SYM_OR_NULL(A) 0
 #else
-#include "sql_hints.yy.h"
-#include <sql_yacc.h>
-#include "sql_hints.yy.h"
+
+#include "sql/sql_hints.yy.h"
+#include "sql/sql_yacc.h"
+
 #define SYM_OR_NULL(A) A
 #endif
 
@@ -209,6 +210,7 @@ static const SYMBOL symbols[] = {
   { SYM("EACH",                     EACH_SYM)},
   { SYM("ELSE",                     ELSE)},
   { SYM("ELSEIF",                   ELSEIF_SYM)},
+  { SYM("EMPTY",                    EMPTY_SYM)},
   { SYM("ENABLE",                   ENABLE_SYM)},
   { SYM("ENCLOSED",                 ENCLOSED)},
   { SYM("END",                      END)},
@@ -280,6 +282,7 @@ static const SYMBOL symbols[] = {
   { SYM("HELP",                     HELP_SYM)},
   { SYM("HIGH_PRIORITY",            HIGH_PRIORITY)},
   { SYM("HISTOGRAM",                HISTOGRAM_SYM)},
+  { SYM("HISTORY",                  HISTORY_SYM)},
   { SYM("HOST",                     HOST_SYM)},
   { SYM("HOSTS",                    HOSTS_SYM)},
   { SYM("HOUR",                     HOUR_SYM)},
@@ -324,6 +327,7 @@ static const SYMBOL symbols[] = {
   { SYM("INVOKER",                  INVOKER_SYM)},
   { SYM("JOIN",                     JOIN_SYM)},
   { SYM("JSON",                     JSON_SYM)},
+  { SYM("JSON_TABLE",               JSON_TABLE_SYM)},
   { SYM("KEY",                      KEY_SYM)},
   { SYM("KEYS",                     KEYS)},
   { SYM("KEY_BLOCK_SIZE",           KEY_BLOCK_SIZE)},
@@ -422,6 +426,7 @@ static const SYMBOL symbols[] = {
   { SYM("NDB",                      NDBCLUSTER_SYM)},
   { SYM("NDBCLUSTER",               NDBCLUSTER_SYM)},
   { SYM("NCHAR",                    NCHAR_SYM)},
+  { SYM("NESTED",                   NESTED_SYM)},
   { SYM("NEVER",                    NEVER_SYM)},
   { SYM("NEW",                      NEW_SYM)},
   { SYM("NEXT",                     NEXT_SYM)},
@@ -453,12 +458,14 @@ static const SYMBOL symbols[] = {
   { SYM("OR",                       OR_SYM)},
   { SYM("OTHERS",                   OTHERS_SYM)},
   { SYM("ORDER",                    ORDER_SYM)},
+  { SYM("ORDINALITY",               ORDINALITY_SYM)},
   { SYM("OUT",                      OUT_SYM)},
   { SYM("OUTER",                    OUTER)},
   { SYM("OUTFILE",                  OUTFILE)},
   { SYM("OVER",                     OVER_SYM)},
   { SYM("OWNER",                    OWNER_SYM)},
   { SYM("PACK_KEYS",                PACK_KEYS_SYM)},
+  { SYM("PATH",                     PATH_SYM)},
   { SYM("PARSER",                   PARSER_SYM)},
   { SYM("PAGE",                     PAGE_SYM)},
   { SYM("PARTIAL",                  PARTIAL)},
@@ -505,7 +512,6 @@ static const SYMBOL symbols[] = {
   { SYM("RECOVER",                  RECOVER_SYM)},
   { SYM("RECURSIVE",                RECURSIVE_SYM)},
   { SYM("REDO_BUFFER_SIZE",         REDO_BUFFER_SIZE_SYM)},
-  { SYM("REDOFILE",                 REDOFILE_SYM)},
   { SYM("REDUNDANT",                REDUNDANT_SYM)},
   { SYM("REFERENCES",               REFERENCES)},
   { SYM("REGEXP",                   REGEXP)},
@@ -535,12 +541,14 @@ static const SYMBOL symbols[] = {
   { SYM("RESET",                    RESET_SYM)},
   { SYM("RESPECT",                  RESPECT_SYM)},
   { SYM("RESIGNAL",                 RESIGNAL_SYM)},
+  { SYM("RESOURCE",                 RESOURCE_SYM)},
   { SYM("RESTORE",                  RESTORE_SYM)},
   { SYM("RESTRICT",                 RESTRICT)},
   { SYM("RESUME",                   RESUME_SYM)},
   { SYM("RETURNED_SQLSTATE",        RETURNED_SQLSTATE_SYM)},
   { SYM("RETURN",                   RETURN_SYM)},
   { SYM("RETURNS",                  RETURNS_SYM)},
+  { SYM("REUSE",                    REUSE_SYM)},
   { SYM("REVERSE",                  REVERSE_SYM)},
   { SYM("REVOKE",                   REVOKE)},
   { SYM("RIGHT",                    RIGHT)},
@@ -610,6 +618,7 @@ static const SYMBOL symbols[] = {
   { SYM("SQL_TSI_MONTH",            MONTH_SYM)},
   { SYM("SQL_TSI_QUARTER",          QUARTER_SYM)},
   { SYM("SQL_TSI_YEAR",             YEAR_SYM)},
+  { SYM("SRID",                     SRID_SYM)},
   { SYM("SSL",                      SSL_SYM)},
   { SYM("STACKED",                  STACKED_SYM)},
   { SYM("START",                    START_SYM)},
@@ -632,6 +641,7 @@ static const SYMBOL symbols[] = {
   { SYM("SUSPEND",                  SUSPEND_SYM)},
   { SYM("SWAPS",                    SWAPS_SYM)},
   { SYM("SWITCHES",                 SWITCHES_SYM)},
+  { SYM("SYSTEM",                   SYSTEM_SYM)},
   { SYM("TABLE",                    TABLE_SYM)},
   { SYM("TABLE_NAME",               TABLE_NAME_SYM)},
   { SYM("TABLES",                   TABLES)},
@@ -643,6 +653,7 @@ static const SYMBOL symbols[] = {
   { SYM("TEXT",                     TEXT_SYM)},
   { SYM("THAN",                     THAN_SYM)},
   { SYM("THEN",                     THEN_SYM)},
+  { SYM("THREAD_PRIORITY",          THREAD_PRIORITY_SYM)},
   { SYM("TIES",                     TIES_SYM)},
   { SYM("TIME",                     TIME_SYM)},
   { SYM("TIMESTAMP",                TIMESTAMP_SYM)},
@@ -700,6 +711,7 @@ static const SYMBOL symbols[] = {
   { SYM("WHERE",                    WHERE)},
   { SYM("WHILE",                    WHILE_SYM)},
   { SYM("WINDOW",                   WINDOW_SYM)},
+  { SYM("VCPU",                     VCPU_SYM)},
   { SYM("VIEW",                     VIEW_SYM)},
   { SYM("VIRTUAL",                  VIRTUAL_SYM)},
   { SYM("VISIBLE",                  VISIBLE_SYM)},
@@ -782,6 +794,7 @@ static const SYMBOL symbols[] = {
   { SYM_H("MRR",                    MRR_HINT)},
   { SYM_H("QB_NAME",                QB_NAME_HINT)},
   { SYM_H("SEMIJOIN",               SEMIJOIN_HINT)},
+  { SYM_H("SET_VAR",                SET_VAR_HINT)},
   { SYM_H("SUBQUERY",               SUBQUERY_HINT)},
   { SYM_H("MERGE",                  DERIVED_MERGE_HINT)},
   { SYM_H("NO_MERGE",               NO_DERIVED_MERGE_HINT)},
@@ -791,6 +804,7 @@ static const SYMBOL symbols[] = {
   { SYM_H("JOIN_FIXED_ORDER",       JOIN_FIXED_ORDER_HINT)},
   { SYM_H("INDEX_MERGE",            INDEX_MERGE_HINT)},
   { SYM_H("NO_INDEX_MERGE",         NO_INDEX_MERGE_HINT)},
+  { SYM_H("RESOURCE_GROUP",         RESOURCE_GROUP_HINT)}
 };
 
 #endif /* LEX_INCLUDED */

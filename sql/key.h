@@ -19,13 +19,13 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "key_spec.h"                  /* fk_option */
 #include "my_base.h"                   /* ha_rows, ha_key_alg */
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql/mysql_lex_string.h"    /* LEX_CSTRING */
 #include "mysql/udf_registration_types.h"
-#include "sql_plugin_ref.h"            /* plugin_ref */
+#include "sql/key_spec.h"              /* fk_option */
+#include "sql/sql_plugin_ref.h"        /* plugin_ref */
 
 class Field;
 class String;
@@ -67,9 +67,9 @@ public:
   */
   uint16 store_length;
   uint16 fieldnr;			/* Fieldnum in UNIREG */
-  uint16 key_part_flag;			/* 0 or HA_REVERSE_SORT */
+  uint16 key_part_flag{0};		/* 0 or HA_REVERSE_SORT */
   uint8 type;
-  uint8 null_bit;			/* Position to null_bit */
+  uint8 null_bit{0};			/* Position to null_bit */
   /**
     True - if key part allows trivial binary comparison,
     False - if charset collation function needs to be involved.

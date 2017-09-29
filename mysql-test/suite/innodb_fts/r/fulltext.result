@@ -14,11 +14,10 @@ select * from t1 where MATCH(a,b) AGAINST ("collections");
 a	b
 Full-text indexes	are called collections
 Only MyISAM tables	support collections
-explain extended select * from t1 where MATCH(a,b) AGAINST ("collections");
+explain select * from t1 where MATCH(a,b) AGAINST ("collections");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	fulltext	a	a	0	const	1	100.00	Using where; Ft_hints: sorted
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (match `test`.`t1`.`a`,`test`.`t1`.`b` against ('collections'))
 select * from t1 where MATCH(a,b) AGAINST ("indexes");
 a	b
@@ -112,11 +111,10 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` fr
 select * from t1 where MATCH(a,b) AGAINST("support -collections" IN BOOLEAN MODE);
 a	b
 MySQL has now support	for full-text search
-explain extended select * from t1 where MATCH(a,b) AGAINST("support -collections" IN BOOLEAN MODE);
+explain select * from t1 where MATCH(a,b) AGAINST("support -collections" IN BOOLEAN MODE);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	fulltext	a	a	0	const	1	100.00	Using where; Ft_hints: no_ranking
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (match `test`.`t1`.`a`,`test`.`t1`.`b` against ('support -collections' in boolean mode))
 select * from t1 where MATCH(a,b) AGAINST("support  collections" IN BOOLEAN MODE);
 a	b

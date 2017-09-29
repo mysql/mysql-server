@@ -20,18 +20,17 @@
 #include <errno.h>
 #include <sys/types.h>
 
+#include "my_io.h"
+#include "plugin/x/ngs/include/ngs/log.h"
+#include "plugin/x/ngs/include/ngs/protocol/buffer.h"
+#include "plugin/x/ngs/include/ngs/protocol/output_buffer.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_config.h"
+#include "plugin/x/ngs/include/ngs/protocol_encoder.h"
+#include "plugin/x/ngs/include/ngs_common/connection_vio.h"
 // "ngs_common/protocol_protobuf.h" has to come before boost includes, because of build
 // issue in Solaris (unqualified map used, which clashes with some other map defined
 // in Solaris headers)
-#include "ngs_common/protocol_protobuf.h"
-
-#include "my_io.h"
-#include "ngs/log.h"
-#include "ngs/protocol/buffer.h"
-#include "ngs/protocol/output_buffer.h"
-#include "ngs/protocol/protocol_config.h"
-#include "ngs/protocol_encoder.h"
-#include "ngs_common/connection_vio.h"
+#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
 
 #undef ERROR // Needed to avoid conflict with ERROR in mysqlx.pb.h
 
@@ -289,31 +288,12 @@ void Protocol_encoder::send_rows_affected(uint64_t value)
   enqueue_buffer(Mysqlx::ServerMessages::NOTICE);
 }
 
-bool Protocol_encoder::send_column_metadata(const std::string &catalog,
-                                            const std::string &db_name,
-                                            const std::string &table_name, const std::string &org_table_name,
-                                            const std::string &col_name, const std::string &org_col_name,
-                                            uint64_t collation, int type, int decimals,
-                                            uint32_t flags, uint32_t length, uint32_t content_type)
+bool Protocol_encoder::send_column_metadata(const Encode_column_info *column_info)
 {
-  m_metadata_builder.encode_metadata(m_buffer.get(),
-    catalog, db_name, table_name, org_table_name,
-    col_name, org_col_name, collation, type, decimals,
-    flags, length, content_type);
+  m_metadata_builder.encode_metadata(m_buffer.get(), column_info);
 
   return send_raw_buffer(Mysqlx::ServerMessages::RESULTSET_COLUMN_META_DATA);
 }
-
-bool Protocol_encoder::send_column_metadata(uint64_t collation, int type, int decimals,
-  uint32_t flags, uint32_t length, uint32_t content_type)
-{
-  m_metadata_builder.encode_metadata(m_buffer.get(),
-    collation, type, decimals,
-    flags, length, content_type);
-
-  return send_raw_buffer(Mysqlx::ServerMessages::RESULTSET_COLUMN_META_DATA);
-}
-
 
 bool Protocol_encoder::flush_buffer()
 {

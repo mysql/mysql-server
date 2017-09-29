@@ -18,12 +18,12 @@ TempTable index cursor. */
 #ifndef TEMPTABLE_CURSOR_H
 #define TEMPTABLE_CURSOR_H
 
-#include "temptable/column.h"        /* temptable::Columns */
-#include "temptable/containers.h"    /* temptable::*container */
-#include "temptable/indexed_cells.h" /* temptable::Indexed_cells */
-#include "temptable/row.h"           /* temptable::Row */
-#include "temptable/storage.h"       /* temptable::Storage::Element */
 #include "my_dbug.h"              /* DBUG_ASSERT() */
+#include "storage/temptable/include/temptable/column.h" /* temptable::Columns */
+#include "storage/temptable/include/temptable/containers.h" /* temptable::*container */
+#include "storage/temptable/include/temptable/indexed_cells.h" /* temptable::Indexed_cells */
+#include "storage/temptable/include/temptable/row.h" /* temptable::Row */
+#include "storage/temptable/include/temptable/storage.h" /* temptable::Storage::Element */
 
 namespace temptable {
 

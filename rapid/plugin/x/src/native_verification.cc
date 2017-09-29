@@ -17,9 +17,10 @@
  * 02110-1301  USA
  */
 
-#include "native_verification.h"
-#include "mysql_com.h"
+#include "plugin/x/src/native_verification.h"
+
 #include "crypt_genhash_impl.h"
+#include "mysql_com.h"
 #include "password.h"
 
 namespace xpl {

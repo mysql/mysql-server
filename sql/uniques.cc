@@ -30,7 +30,7 @@
   deletes in disk order.
 */
 
-#include "uniques.h"                            // Unique
+#include "sql/uniques.h"                        // Unique
 
 #include <string.h>
 #include <algorithm>
@@ -39,8 +39,6 @@
 #include <new>
 #include <vector>
 
-#include "malloc_allocator.h"
-#include "merge_many_buff.h"
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -49,16 +47,18 @@
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysqld.h"                             // mysql_tmpdir
-#include "opt_costmodel.h"
 #include "priority_queue.h"
-#include "psi_memory_key.h"
-#include "sql_base.h"                           // TEMP_PREFIX
-#include "sql_class.h"
-#include "sql_const.h"
-#include "sql_sort.h"
+#include "sql/malloc_allocator.h"
+#include "sql/merge_many_buff.h"
+#include "sql/mysqld.h"                         // mysql_tmpdir
+#include "sql/opt_costmodel.h"
+#include "sql/psi_memory_key.h"
+#include "sql/sql_base.h"                       // TEMP_PREFIX
+#include "sql/sql_class.h"
+#include "sql/sql_const.h"
+#include "sql/sql_sort.h"
+#include "sql/table.h"
 #include "sql_string.h"
-#include "table.h"
 
 namespace 
 {
@@ -240,9 +240,6 @@ merge_buffers(THD *thd, Uniq_param *param, IO_CACHE *from_file,
        Called by Unique::get()
        Copy the first argument to param->unique_buff for unique removal.
        Store it also in 'to_file'.
-
-       This is safe as we know that there is always more than one element
-       in each block to merge (This is guaranteed by the Unique:: algorithm
     */
     merge_chunk= queue.top();
     memcpy(param->unique_buff, merge_chunk->current_key(), rec_length);
@@ -256,6 +253,17 @@ merge_buffers(THD *thd, Uniq_param *param, IO_CACHE *from_file,
     {
       error= 0;                                       /* purecov: inspected */
       goto end;                                       /* purecov: inspected */
+    }
+    // The top chunk may actually contain only a single element
+    if (merge_chunk->mem_count() == 0)
+    {
+      if (!(error= (int) uniq_read_to_buffer(from_file, merge_chunk, param)))
+      {
+        queue.pop();
+        reuse_freed_buff(merge_chunk, &queue);
+      }
+      else if (error == -1)
+        DBUG_RETURN(error);
     }
     queue.update_top();                   // Top element has been used
   }

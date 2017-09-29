@@ -17,7 +17,7 @@
 #include "my_inttypes.h"
 #include "my_loglevel.h"
 #include "mysql/service_mysql_alloc.h"
-#include "vio_priv.h"
+#include "vio/vio_priv.h"
 
 #ifdef HAVE_OPENSSL
 
@@ -240,7 +240,7 @@ static PSI_rwlock_key key_rwlock_openssl;
 
 static PSI_rwlock_info openssl_rwlocks[]=
 {
-  { &key_rwlock_openssl, "CRYPTO_dynlock_value::lock", 0}
+  { &key_rwlock_openssl, "CRYPTO_dynlock_value::lock", 0, 0, nullptr }
 };
 #endif
 

@@ -1518,20 +1518,11 @@ SELECT ST_WITHIN(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_c
 --echo #====================================================================================
 SELECT MBRWITHIN(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0));
 
---error ER_SRS_NOT_FOUND
-SELECT MBRWITHIN(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100));
+SELECT MBRWITHIN(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145));
 
---error ER_SRS_NOT_FOUND
-SELECT MBRWITHIN(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000));
+SELECT MBRWITHIN(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326));
 
---error ER_SRS_NOT_FOUND
-SELECT MBRWITHIN(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456));
-
---error ER_SRS_NOT_FOUND
-SELECT MBRWITHIN(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575));
-
---error ER_SRS_NOT_FOUND
-SELECT MBRWITHIN(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295));
+SELECT MBRWITHIN(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135));
 
 --error ER_DATA_OUT_OF_RANGE
 SELECT MBRWITHIN(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1));
@@ -1547,20 +1538,17 @@ SELECT MBRWITHIN(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_
 --echo #====================================================================================
 SELECT ST_WITHIN(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0));
 
---error ER_SRS_NOT_FOUND
-SELECT ST_WITHIN(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100));
+SELECT ST_WITHIN(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145));
 
---error ER_SRS_NOT_FOUND
-SELECT ST_WITHIN(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000));
+SELECT ST_WITHIN(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326));
 
---error ER_SRS_NOT_FOUND
-SELECT ST_WITHIN(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456));
+SELECT ST_WITHIN(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135));
 
---error ER_SRS_NOT_FOUND
-SELECT ST_WITHIN(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575));
+SELECT ST_WITHIN(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145));
 
---error ER_SRS_NOT_FOUND
-SELECT ST_WITHIN(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295));
+SELECT ST_WITHIN(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326));
+
+SELECT ST_WITHIN(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135));
 
 --error ER_DATA_OUT_OF_RANGE
 SELECT ST_WITHIN(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1));
@@ -1581,8 +1569,11 @@ SELECT ST_WITHIN(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_
 --error ER_GIS_DIFFERENT_SRIDS
 SELECT ST_WITHIN(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center,4326));
 
---error ER_SRS_NOT_FOUND
-SELECT ST_WITHIN(ST_GEOMFROMTEXT(@star_top,1048576),ST_GEOMFROMTEXT(@star_center,4326));
+--error ER_GIS_DIFFERENT_SRIDS
+SELECT ST_WITHIN(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4326));
+
+--error ER_GIS_DIFFERENT_SRIDS
+SELECT ST_WITHIN(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4326));
 
 SELECT ST_WITHIN(NULL,ST_GEOMFROMTEXT(@star_top));
 
@@ -1654,8 +1645,11 @@ SELECT ST_WITHIN(,ST_GEOMFROMTEXT(@star_top));
 --error ER_GIS_DIFFERENT_SRIDS
 SELECT MBRWITHIN(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center,4326));
 
---error ER_SRS_NOT_FOUND
-SELECT MBRWITHIN(ST_GEOMFROMTEXT(@star_top,1048576),ST_GEOMFROMTEXT(@star_center,4326));
+--error ER_GIS_DIFFERENT_SRIDS
+SELECT MBRWITHIN(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4326));
+
+--error ER_GIS_DIFFERENT_SRIDS
+SELECT MBRWITHIN(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4326));
 
 SELECT MBRWITHIN(NULL,ST_GEOMFROMTEXT(@star_top));
 
@@ -1815,6 +1809,8 @@ SELECT MBRWITHIN(a.g, b.g) FROM t1 AS a JOIN t1 AS b;
 
 SELECT ST_WITHIN(ST_SRID(a.g, 4326), ST_SRID(b.g, 4326))
 FROM t1 AS a JOIN t1 AS b;
+SELECT MBRWITHIN(ST_SRID(a.g, 4326), ST_SRID(b.g, 4326))
+FROM t1 AS a JOIN t1 AS b;
 --enable_result_log
 
 --echo # clean up
@@ -1856,19 +1852,6 @@ SELECT MBRWITHIN(
   ST_GEOMFROMTEXT('POINT(0 0)', 4326)
 );
 
---echo # Undefined SRS (should fail)
-# Assume SRID 25000000 is undefined
---error ER_SRS_NOT_FOUND
-SELECT ST_WITHIN(
-  ST_GEOMFROMTEXT('POINT(0 0)', 25000000),
-  ST_GEOMFROMTEXT('POINT(0 0)', 25000000)
-);
---error ER_SRS_NOT_FOUND
-SELECT MBRWITHIN(
-  ST_GEOMFROMTEXT('POINT(0 0)', 25000000),
-  ST_GEOMFROMTEXT('POINT(0 0)', 25000000)
-);
-
 --echo # Unparseable SRS definition (should fail)
 # Assume SRID 25000001 is undefined
 INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
@@ -1885,3 +1868,109 @@ SELECT MBRWITHIN(
   ST_GEOMFROMTEXT('POINT(0 0)', 25000001)
 );
 DELETE FROM mysql.st_spatial_reference_systems WHERE id = 25000001;
+
+--echo #
+--echo # WL#10827 Ellipsoidal R-tree support functions
+--echo #
+
+SET @pt = ST_GeomFromText('POINT(0 0)', 4326);
+--error ER_LATITUDE_OUT_OF_RANGE
+SELECT ST_Within(ST_SRID(ST_GeomFromText('POINT(0 -91)'), 4326), @pt);
+--error ER_LATITUDE_OUT_OF_RANGE
+SELECT ST_Within(ST_SRID(ST_GeomFromText('POINT(0 91)'), 4326), @pt);
+--error ER_LONGITUDE_OUT_OF_RANGE
+SELECT ST_Within(ST_SRID(ST_GeomFromText('POINT(-181 0)'), 4326), @pt);
+--error ER_LONGITUDE_OUT_OF_RANGE
+SELECT ST_Within(ST_SRID(ST_GeomFromText('POINT(181 0)'), 4326), @pt);
+--error ER_LATITUDE_OUT_OF_RANGE
+SELECT MBRWithin(ST_SRID(ST_GeomFromText('POINT(0 -91)'), 4326), @pt);
+--error ER_LATITUDE_OUT_OF_RANGE
+SELECT MBRWithin(ST_SRID(ST_GeomFromText('POINT(0 91)'), 4326), @pt);
+--error ER_LONGITUDE_OUT_OF_RANGE
+SELECT MBRWithin(ST_SRID(ST_GeomFromText('POINT(-181 0)'), 4326), @pt);
+--error ER_LONGITUDE_OUT_OF_RANGE
+SELECT MBRWithin(ST_SRID(ST_GeomFromText('POINT(181 0)'), 4326), @pt);
+
+CREATE TABLE t1 (
+  id INT,
+  c GEOMETRY NOT NULL,
+  g GEOMETRY AS (ST_SRID(c, 4326)) STORED NOT NULL,
+  SPATIAL INDEX c_idx (c),
+  SPATIAL INDEX g_idx (g)
+);
+
+INSERT INTO t1 (id, c) VALUES
+  (0, ST_GeomFromText('POINT(0 0)')),
+  (1, ST_GeomFromText('POINT(1 1)')),
+  (2, ST_GeomFromText('POINT(2 2)')),
+  (3, ST_GeomFromText('POINT(3 3)')),
+  (4, ST_GeomFromText('POINT(4 4)')),
+  (5, ST_GeomFromText('POINT(5 5.00001)')),
+  (6, ST_GeomFromText('POINT(6 6)')),
+  (7, ST_GeomFromText('POINT(7 7)'));
+
+SET @py = 'POLYGON((0 0, 10 0, 10 5, 0 5, 0 0))';
+SET @cart_py = ST_GeomFromText(@py);
+SET @geo_py = ST_GeomFromText(@py, 4326, 'axis-order=long-lat');
+
+SET @mpt = 'MULTIPOINT((0 0), (10 5))';
+SET @cart_mpt = ST_GeomFromText(@mpt);
+SET @geo_mpt = ST_GeomFromText(@mpt, 4326, 'axis-order=long-lat');
+
+--echo # Cartesian ST_Within
+SELECT id, ST_AsText(c)
+  FROM t1 IGNORE INDEX(c_idx)
+  WHERE ST_Within(c, @cart_py)
+  ORDER BY id;
+SELECT id, ST_AsText(c)
+  FROM t1 FORCE INDEX(c_idx)
+  WHERE ST_Within(c, @cart_py)
+  ORDER BY id;
+
+--echo # Geographic ST_Within
+SELECT id, ST_AsText(g)
+  FROM t1 IGNORE INDEX(g_idx)
+  WHERE ST_Within(g, @geo_py)
+  ORDER BY id;
+SELECT id, ST_AsText(g)
+  FROM t1 FORCE INDEX(g_idx)
+  WHERE ST_Within(g, @geo_py)
+  ORDER BY id;
+
+--echo # Cartesian MBRWithin
+SELECT id, ST_AsText(c)
+  FROM t1 IGNORE INDEX(c_idx)
+  WHERE MBRWithin(c, @cart_py)
+  ORDER BY id;
+SELECT id, ST_AsText(c)
+  FROM t1 FORCE INDEX(c_idx)
+  WHERE MBRWithin(c, @cart_py)
+  ORDER BY id;
+SELECT id, ST_AsText(c)
+  FROM t1 IGNORE INDEX(c_idx)
+  WHERE MBRWithin(c, @cart_mpt)
+  ORDER BY id;
+SELECT id, ST_AsText(c)
+  FROM t1 FORCE INDEX(c_idx)
+  WHERE MBRWithin(c, @cart_mpt)
+  ORDER BY id;
+
+--echo # Geographic MBRWithin
+SELECT id, ST_AsText(g)
+  FROM t1 IGNORE INDEX(g_idx)
+  WHERE MBRWithin(g, @geo_py)
+  ORDER BY id;
+SELECT id, ST_AsText(g)
+  FROM t1 FORCE INDEX(g_idx)
+  WHERE MBRWithin(g, @geo_py)
+  ORDER BY id;
+SELECT id, ST_AsText(g)
+  FROM t1 IGNORE INDEX(g_idx)
+  WHERE MBRWithin(g, @geo_mpt)
+  ORDER BY id;
+SELECT id, ST_AsText(g)
+  FROM t1 FORCE INDEX(g_idx)
+  WHERE MBRWithin(g, @geo_mpt)
+  ORDER BY id;
+
+DROP TABLE t1;

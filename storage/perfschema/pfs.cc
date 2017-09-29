@@ -38,9 +38,6 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <sys/types.h>
-#include <time.h>
-
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/service.h>
 #include <mysql/components/service_implementation.h>
@@ -58,13 +55,14 @@
 #include <mysql/components/services/psi_table_service.h>
 #include <mysql/components/services/psi_thread_service.h>
 #include <mysql/components/services/psi_transaction_service.h>
+#include <sys/types.h>
+#include <time.h>
 
 /**
   @file storage/perfschema/pfs.cc
   The performance schema implementation of all instruments.
 */
 #include "lex_string.h"
-#include "mdl.h" /* mdl_key_init */
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -72,47 +70,47 @@
 #include "my_macros.h"
 #include "my_thread.h"
 #include "mysql/psi/mysql_thread.h"
-#include "pfs_account.h"
-#include "pfs_column_values.h"
-#include "pfs_data_lock.h"
-#include "pfs_digest.h"
-#include "pfs_error.h"
 #include "pfs_error_provider.h"
-#include "pfs_events_stages.h"
-#include "pfs_events_statements.h"
-#include "pfs_events_transactions.h"
-#include "pfs_events_waits.h"
 /* Make sure exported prototypes match the implementation. */
 #include "pfs_file_provider.h"
-#include "pfs_global.h"
-#include "pfs_host.h"
 #include "pfs_idle_provider.h"
-#include "pfs_instr.h"
-#include "pfs_instr_class.h"
 #include "pfs_memory_provider.h"
 #include "pfs_metadata_provider.h"
-#include "pfs_prepared_stmt.h"
-#include "pfs_program.h"
-#include "pfs_setup_actor.h"
-#include "pfs_setup_object.h"
 #include "pfs_socket_provider.h"
 #include "pfs_stage_provider.h"
 #include "pfs_statement_provider.h"
 #include "pfs_table_provider.h"
 #include "pfs_thread_provider.h"
-#include "pfs_timer.h"
 #include "pfs_transaction_provider.h"
-#include "pfs_user.h"
-#include "service_pfs_notification.h"
-#include "sp_head.h"
-#include "sql_const.h"
-#include "sql_error.h"
+#include "sql/mdl.h" /* mdl_key_init */
+#include "sql/sp_head.h"
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "storage/perfschema/pfs_account.h"
+#include "storage/perfschema/pfs_column_values.h"
+#include "storage/perfschema/pfs_data_lock.h"
+#include "storage/perfschema/pfs_digest.h"
+#include "storage/perfschema/pfs_error.h"
+#include "storage/perfschema/pfs_events_stages.h"
+#include "storage/perfschema/pfs_events_statements.h"
+#include "storage/perfschema/pfs_events_transactions.h"
+#include "storage/perfschema/pfs_events_waits.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_host.h"
+#include "storage/perfschema/pfs_instr.h"
+#include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/pfs_plugin_table.h"
+#include "storage/perfschema/pfs_prepared_stmt.h"
+#include "storage/perfschema/pfs_program.h"
+#include "storage/perfschema/pfs_services.h"
+#include "storage/perfschema/pfs_setup_actor.h"
+#include "storage/perfschema/pfs_setup_object.h"
+#include "storage/perfschema/pfs_timer.h"
+#include "storage/perfschema/pfs_user.h"
+#include "storage/perfschema/service_pfs_notification.h"
 #include "thr_lock.h"
-#include "pfs_services.h"
 
-#include <mysql/components/component_implementation.h>
-#include "pfs_plugin_table.h"
-#include "pfs_services.h"
+using std::min;
 
 /*
   Exporting cmake compilation flags to doxygen,
@@ -2338,7 +2336,7 @@ pfs_register_rwlock_v1(const char *category,
     DBUG_ASSERT(info->m_name != NULL);
     len = strlen(info->m_name);
 
-    if (info->m_flags & PSI_RWLOCK_FLAG_SX)
+    if (info->m_flags & PSI_FLAG_RWLOCK_SX)
     {
       full_length = sx_prefix_length + len;
       if (likely(full_length <= PFS_MAX_INFO_NAME_LENGTH))
@@ -3220,7 +3218,8 @@ pfs_set_thread_account_v1(const char *user,
   DBUG_ASSERT((uint)user_len <= sizeof(pfs->m_username));
   DBUG_ASSERT((host != NULL) || (host_len == 0));
   DBUG_ASSERT(host_len >= 0);
-  DBUG_ASSERT((uint)host_len <= sizeof(pfs->m_hostname));
+
+  host_len = min<size_t>(host_len, sizeof(pfs->m_hostname));
 
   if (unlikely(pfs == NULL))
   {
@@ -3701,8 +3700,7 @@ pfs_start_mutex_wait_v1(PSI_mutex_locker_state *state,
 
     if (pfs_mutex->m_timed)
     {
-      timer_start =
-        get_timer_raw_value_and_function(wait_timer, &state->m_timer);
+      timer_start = get_wait_timer();
       state->m_timer_start = timer_start;
       flags |= STATE_FLAG_TIMED;
     }
@@ -3743,8 +3741,7 @@ pfs_start_mutex_wait_v1(PSI_mutex_locker_state *state,
   {
     if (pfs_mutex->m_timed)
     {
-      timer_start =
-        get_timer_raw_value_and_function(wait_timer, &state->m_timer);
+      timer_start = get_wait_timer();
       state->m_timer_start = timer_start;
       flags = STATE_FLAG_TIMED;
       state->m_thread = NULL;
@@ -3824,8 +3821,7 @@ pfs_start_rwlock_wait_v1(PSI_rwlock_locker_state *state,
 
     if (pfs_rwlock->m_timed)
     {
-      timer_start =
-        get_timer_raw_value_and_function(wait_timer, &state->m_timer);
+      timer_start = get_wait_timer();
       state->m_timer_start = timer_start;
       flags |= STATE_FLAG_TIMED;
     }
@@ -3866,8 +3862,7 @@ pfs_start_rwlock_wait_v1(PSI_rwlock_locker_state *state,
   {
     if (pfs_rwlock->m_timed)
     {
-      timer_start =
-        get_timer_raw_value_and_function(wait_timer, &state->m_timer);
+      timer_start = get_wait_timer();
       state->m_timer_start = timer_start;
       flags = STATE_FLAG_TIMED;
       state->m_thread = NULL;
@@ -3973,8 +3968,7 @@ pfs_start_cond_wait_v1(PSI_cond_locker_state *state,
 
     if (pfs_cond->m_timed)
     {
-      timer_start =
-        get_timer_raw_value_and_function(wait_timer, &state->m_timer);
+      timer_start = get_wait_timer();
       state->m_timer_start = timer_start;
       flags |= STATE_FLAG_TIMED;
     }
@@ -4015,8 +4009,7 @@ pfs_start_cond_wait_v1(PSI_cond_locker_state *state,
   {
     if (pfs_cond->m_timed)
     {
-      timer_start =
-        get_timer_raw_value_and_function(wait_timer, &state->m_timer);
+      timer_start = get_wait_timer();
       state->m_timer_start = timer_start;
       flags = STATE_FLAG_TIMED;
     }
@@ -4126,8 +4119,7 @@ pfs_start_table_io_wait_v1(PSI_table_locker_state *state,
 
     if (pfs_table->m_io_timed)
     {
-      timer_start =
-        get_timer_raw_value_and_function(wait_timer, &state->m_timer);
+      timer_start = get_wait_timer();
       state->m_timer_start = timer_start;
       flags |= STATE_FLAG_TIMED;
     }
@@ -4174,8 +4166,7 @@ pfs_start_table_io_wait_v1(PSI_table_locker_state *state,
   {
     if (pfs_table->m_io_timed)
     {
-      timer_start =
-        get_timer_raw_value_and_function(wait_timer, &state->m_timer);
+      timer_start = get_wait_timer();
       state->m_timer_start = timer_start;
       flags = STATE_FLAG_TIMED;
     }
@@ -4266,8 +4257,7 @@ pfs_start_table_lock_wait_v1(PSI_table_locker_state *state,
 
     if (pfs_table->m_lock_timed)
     {
-      timer_start =
-        get_timer_raw_value_and_function(wait_timer, &state->m_timer);
+      timer_start = get_wait_timer();
       state->m_timer_start = timer_start;
       flags |= STATE_FLAG_TIMED;
     }
@@ -4314,8 +4304,7 @@ pfs_start_table_lock_wait_v1(PSI_table_locker_state *state,
   {
     if (pfs_table->m_lock_timed)
     {
-      timer_start =
-        get_timer_raw_value_and_function(wait_timer, &state->m_timer);
+      timer_start = get_wait_timer();
       state->m_timer_start = timer_start;
       flags = STATE_FLAG_TIMED;
     }
@@ -4701,8 +4690,7 @@ pfs_start_socket_wait_v1(PSI_socket_locker_state *state,
 
     if (pfs_socket->m_timed)
     {
-      timer_start =
-        get_timer_raw_value_and_function(wait_timer, &state->m_timer);
+      timer_start = get_wait_timer();
       state->m_timer_start = timer_start;
       flags |= STATE_FLAG_TIMED;
     }
@@ -4745,8 +4733,7 @@ pfs_start_socket_wait_v1(PSI_socket_locker_state *state,
   {
     if (pfs_socket->m_timed)
     {
-      timer_start =
-        get_timer_raw_value_and_function(wait_timer, &state->m_timer);
+      timer_start = get_wait_timer();
       state->m_timer_start = timer_start;
       flags = STATE_FLAG_TIMED;
     }
@@ -4820,7 +4807,7 @@ pfs_unlock_mutex_v1(PSI_mutex *mutex)
   }
 
   ulonglong locked_time;
-  locked_time = get_timer_pico_value(wait_timer) - pfs_mutex->m_last_locked;
+  locked_time = get_wait_timer() - pfs_mutex->m_last_locked;
   pfs_mutex->m_mutex_stat.m_lock_stat.aggregate_value(locked_time);
 #endif
 }
@@ -4896,12 +4883,12 @@ pfs_unlock_rwlock_v1(PSI_rwlock *rwlock)
   ulonglong locked_time;
   if (last_writer)
   {
-    locked_time = get_timer_pico_value(wait_timer) - pfs_rwlock->m_last_written;
+    locked_time = get_wait_timer() - pfs_rwlock->m_last_written;
     pfs_rwlock->m_rwlock_stat.m_write_lock_stat.aggregate_value(locked_time);
   }
   else if (last_reader)
   {
-    locked_time = get_timer_pico_value(wait_timer) - pfs_rwlock->m_last_read;
+    locked_time = get_wait_timer() - pfs_rwlock->m_last_read;
     pfs_rwlock->m_rwlock_stat.m_read_lock_stat.aggregate_value(locked_time);
   }
 #else
@@ -4984,8 +4971,7 @@ pfs_start_idle_wait_v1(PSI_idle_locker_state *state,
 
     if (global_idle_class.m_timed)
     {
-      timer_start =
-        get_timer_raw_value_and_function(idle_timer, &state->m_timer);
+      timer_start = get_idle_timer();
       state->m_timer_start = timer_start;
       flags |= STATE_FLAG_TIMED;
     }
@@ -5029,8 +5015,7 @@ pfs_start_idle_wait_v1(PSI_idle_locker_state *state,
   {
     if (global_idle_class.m_timed)
     {
-      timer_start =
-        get_timer_raw_value_and_function(idle_timer, &state->m_timer);
+      timer_start = get_idle_timer();
       state->m_timer_start = timer_start;
       flags = STATE_FLAG_TIMED;
     }
@@ -5057,7 +5042,7 @@ pfs_end_idle_wait_v1(PSI_idle_locker *locker)
 
   if (flags & STATE_FLAG_TIMED)
   {
-    timer_end = state->m_timer();
+    timer_end = get_idle_timer();
     wait_time = timer_end - state->m_timer_start;
   }
 
@@ -5134,7 +5119,7 @@ pfs_end_mutex_wait_v1(PSI_mutex_locker *locker, int rc)
 
   if (flags & STATE_FLAG_TIMED)
   {
-    timer_end = state->m_timer();
+    timer_end = get_wait_timer();
     wait_time = timer_end - state->m_timer_start;
     /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (timed) */
     mutex->m_mutex_stat.m_wait_stat.aggregate_value(wait_time);
@@ -5213,7 +5198,7 @@ pfs_end_rwlock_rdwait_v1(PSI_rwlock_locker *locker, int rc)
 
   if (state->m_flags & STATE_FLAG_TIMED)
   {
-    timer_end = state->m_timer();
+    timer_end = get_wait_timer();
     wait_time = timer_end - state->m_timer_start;
     /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (timed) */
     rwlock->m_rwlock_stat.m_wait_stat.aggregate_value(wait_time);
@@ -5304,7 +5289,7 @@ pfs_end_rwlock_wrwait_v1(PSI_rwlock_locker *locker, int rc)
 
   if (state->m_flags & STATE_FLAG_TIMED)
   {
-    timer_end = state->m_timer();
+    timer_end = get_wait_timer();
     wait_time = timer_end - state->m_timer_start;
     /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (timed) */
     rwlock->m_rwlock_stat.m_wait_stat.aggregate_value(wait_time);
@@ -5389,7 +5374,7 @@ pfs_end_cond_wait_v1(PSI_cond_locker *locker, int)
 
   if (state->m_flags & STATE_FLAG_TIMED)
   {
-    timer_end = state->m_timer();
+    timer_end = get_wait_timer();
     wait_time = timer_end - state->m_timer_start;
     /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (timed) */
     cond->m_cond_stat.m_wait_stat.aggregate_value(wait_time);
@@ -5493,7 +5478,7 @@ pfs_end_table_io_wait_v1(PSI_table_locker *locker, ulonglong numrows)
 
   if (flags & STATE_FLAG_TIMED)
   {
-    timer_end = state->m_timer();
+    timer_end = get_wait_timer();
     wait_time = timer_end - state->m_timer_start;
     stat->aggregate_many_value(wait_time, numrows);
   }
@@ -5574,7 +5559,7 @@ pfs_end_table_lock_wait_v1(PSI_table_locker *locker)
 
   if (flags & STATE_FLAG_TIMED)
   {
-    timer_end = state->m_timer();
+    timer_end = get_wait_timer();
     wait_time = timer_end - state->m_timer_start;
     stat->aggregate_value(wait_time);
   }
@@ -5778,7 +5763,7 @@ pfs_start_file_wait_v1(PSI_file_locker *locker,
 
   if (flags & STATE_FLAG_TIMED)
   {
-    timer_start = get_timer_raw_value_and_function(wait_timer, &state->m_timer);
+    timer_start = get_wait_timer();
     state->m_timer_start = timer_start;
   }
 
@@ -5863,7 +5848,7 @@ pfs_end_file_wait_v1(PSI_file_locker *locker, size_t byte_count)
   /* Aggregation for EVENTS_WAITS_SUMMARY_BY_INSTANCE */
   if (flags & STATE_FLAG_TIMED)
   {
-    timer_end = state->m_timer();
+    timer_end = get_wait_timer();
     wait_time = timer_end - state->m_timer_start;
     /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (timed) */
     byte_stat->aggregate(wait_time, bytes);
@@ -6055,8 +6040,7 @@ pfs_start_stage_v1(PSI_stage_key key, const char *src_file, int src_line)
     /* Finish old event */
     if (old_class->m_timed)
     {
-      timer_value = get_timer_raw_value(stage_timer);
-      ;
+      timer_value = get_stage_timer();
       pfs->m_timer_end = timer_value;
 
       /* Aggregate to EVENTS_STAGES_SUMMARY_BY_THREAD_BY_EVENT_NAME (timed) */
@@ -6113,7 +6097,7 @@ pfs_start_stage_v1(PSI_stage_key key, const char *src_file, int src_line)
     */
     if (timer_value == 0)
     {
-      timer_value = get_timer_raw_value(stage_timer);
+      timer_value = get_stage_timer();
     }
     pfs->m_timer_start = timer_value;
   }
@@ -6194,8 +6178,7 @@ pfs_end_stage_v1()
     /* Finish old event */
     if (old_class->m_timed)
     {
-      timer_value = get_timer_raw_value(stage_timer);
-      ;
+      timer_value = get_stage_timer();
       pfs->m_timer_end = timer_value;
 
       /* Aggregate to EVENTS_STAGES_SUMMARY_BY_THREAD_BY_EVENT_NAME (timed) */
@@ -6442,6 +6425,10 @@ pfs_get_thread_statement_locker_v1(PSI_statement_locker_state *state,
   state->m_parent_sp_share = sp_share;
   state->m_parent_prepared_stmt = NULL;
 
+  state->m_query_sample = nullptr;
+  state->m_query_sample_length = 0;
+  state->m_query_sample_truncated = false;
+
   return reinterpret_cast<PSI_statement_locker *>(state);
 }
 
@@ -6516,8 +6503,7 @@ pfs_start_statement_v1(PSI_statement_locker *locker,
 
   if (flags & STATE_FLAG_TIMED)
   {
-    timer_start =
-      get_timer_raw_value_and_function(statement_timer, &state->m_timer);
+    timer_start = get_statement_timer();
     state->m_timer_start = timer_start;
   }
 
@@ -6547,6 +6533,10 @@ pfs_start_statement_v1(PSI_statement_locker *locker,
     }
     pfs->m_current_schema_name_length = db_len;
   }
+
+  state->m_query_sample = nullptr;
+  state->m_query_sample_length = 0;
+  state->m_query_sample_truncated = false;
 }
 
 void
@@ -6563,22 +6553,28 @@ pfs_set_statement_text_v1(PSI_statement_locker *locker,
     return;
   }
 
+  if (text_len > pfs_max_sqltext)
+  {
+    text_len = (uint)pfs_max_sqltext;
+    state->m_query_sample_truncated = true;
+  }
+  state->m_query_sample = text;
+  state->m_query_sample_length = text_len;
+
   if (state->m_flags & STATE_FLAG_EVENT)
   {
     PFS_events_statements *pfs =
       reinterpret_cast<PFS_events_statements *>(state->m_statement);
     DBUG_ASSERT(pfs != NULL);
-    if (text_len > pfs_max_sqltext)
-    {
-      text_len = (uint)pfs_max_sqltext;
-      pfs->m_sqltext_truncated = true;
-    }
+
+    pfs->m_sqltext_length = text_len;
+    pfs->m_sqltext_truncated = state->m_query_sample_truncated;
+    pfs->m_sqltext_cs_number = state->m_cs_number;
     if (text_len)
     {
+      DBUG_ASSERT(pfs->m_sqltext != NULL);
       memcpy(pfs->m_sqltext, text, text_len);
     }
-    pfs->m_sqltext_length = text_len;
-    pfs->m_sqltext_cs_number = state->m_cs_number;
   }
 
   return;
@@ -6752,7 +6748,7 @@ pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
 
   if (flags & STATE_FLAG_TIMED)
   {
-    timer_end = state->m_timer();
+    timer_end = get_statement_timer();
     wait_time = timer_end - state->m_timer_start;
   }
 
@@ -6907,13 +6903,20 @@ pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
 
   if (digest_stat != NULL)
   {
+    bool new_max_wait = false;
+
     digest_stat->m_stat.mark_used();
 
     if (flags & STATE_FLAG_TIMED)
     {
       digest_stat->m_stat.aggregate_value(wait_time);
 
-      time_normalizer *normalizer = time_normalizer::get(wait_timer);
+      /* Update the digest sample if it's a new maximum. */
+      if (wait_time > digest_stat->get_sample_timer_wait())
+      {
+        new_max_wait = true;
+      }
+      time_normalizer *normalizer = time_normalizer::get_statement();
       ulong bucket_index = normalizer->bucket_index(wait_time);
 
       /* Update digest histogram. */
@@ -6925,6 +6928,52 @@ pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
     else
     {
       digest_stat->m_stat.aggregate_counted();
+    }
+
+    if (state->m_query_sample_length != 0)
+    {
+      /* Get a new query sample if:
+         - This is the first query sample, or
+         - The wait time is a new maximum, or
+         - The last query sample age exceeds the maximum age.
+      */
+      bool get_sample_query = (digest_stat->m_query_sample_length == 0);
+
+      if (!get_sample_query)
+      {
+        get_sample_query = new_max_wait;
+
+        if (!get_sample_query)
+        {
+          /* Check the query sample age. */
+          if (pfs_param.m_max_digest_sample_age > 0)
+          {
+            /* Comparison in micro seconds. */
+            get_sample_query = (digest_stat->get_sample_age() >
+                                pfs_param.m_max_digest_sample_age * 1000000);
+          }
+        }
+      }
+
+      /* Update the query sample. */
+      if (get_sample_query)
+      {
+        /* Get exclusive access otherwise abort. */
+        if (digest_stat->inc_sample_ref() == 0)
+        {
+          digest_stat->set_sample_timer_wait(wait_time);
+          DBUG_ASSERT(digest_stat->m_query_sample != NULL);
+          memcpy(digest_stat->m_query_sample,
+                 state->m_query_sample,
+                 state->m_query_sample_length);
+          digest_stat->m_query_sample_length = state->m_query_sample_length;
+          digest_stat->m_query_sample_cs_number = state->m_cs_number;
+          digest_stat->m_query_sample_truncated =
+            state->m_query_sample_truncated;
+          digest_stat->m_query_sample_seen = digest_stat->m_last_seen;
+        }
+        digest_stat->dec_sample_ref();
+      }
     }
 
     digest_stat->m_stat.m_lock_time += state->m_lock_time;
@@ -6950,7 +6999,7 @@ pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
   {
     if (flags & STATE_FLAG_TIMED)
     {
-      time_normalizer *normalizer = time_normalizer::get(wait_timer);
+      time_normalizer *normalizer = time_normalizer::get_statement();
       ulong bucket_index = normalizer->bucket_index(wait_time);
 
       /* Update global histogram. */
@@ -7050,6 +7099,9 @@ pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
       }
     }
   }
+
+  state->m_query_sample_length = 0;
+  state->m_query_sample = nullptr;
 
   PFS_statement_stat *sub_stmt_stat = NULL;
   if (pfs_program != NULL)
@@ -7223,9 +7275,8 @@ pfs_start_sp_v1(PSI_sp_locker_state *state, PSI_sp_share *sp_share)
 
   if (pfs_program->m_timed)
   {
+    state->m_timer_start = get_statement_timer();
     state->m_flags |= STATE_FLAG_TIMED;
-    state->m_timer_start =
-      get_timer_raw_value_and_function(statement_timer, &state->m_timer);
   }
 
   state->m_sp_share = sp_share;
@@ -7247,7 +7298,7 @@ pfs_end_sp_v1(PSI_sp_locker *locker)
 
   if (state->m_flags & STATE_FLAG_TIMED)
   {
-    timer_end = state->m_timer();
+    timer_end = get_statement_timer();
     wait_time = timer_end - state->m_timer_start;
 
     /* Now use this timer_end and wait_time for timing information. */
@@ -7411,8 +7462,7 @@ pfs_start_transaction_v1(PSI_transaction_locker *locker,
 
   if (flags & STATE_FLAG_TIMED)
   {
-    timer_start =
-      get_timer_raw_value_and_function(transaction_timer, &state->m_timer);
+    timer_start = get_transaction_timer();
     state->m_timer_start = timer_start;
   }
 
@@ -7567,7 +7617,7 @@ pfs_end_transaction_v1(PSI_transaction_locker *locker, bool commit)
 
   if (flags & STATE_FLAG_TIMED)
   {
-    timer_end = state->m_timer();
+    timer_end = get_transaction_timer();
     wait_time = timer_end - state->m_timer_start;
   }
 
@@ -7708,7 +7758,7 @@ pfs_end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
   /* Aggregation for EVENTS_WAITS_SUMMARY_BY_INSTANCE */
   if (flags & STATE_FLAG_TIMED)
   {
-    timer_end = state->m_timer();
+    timer_end = get_wait_timer();
     wait_time = timer_end - state->m_timer_start;
 
     /* Aggregate to the socket instrument for now (timed) */
@@ -7855,8 +7905,8 @@ pfs_digest_end_v1(PSI_digest_locker *locker, const sql_digest_storage *digest)
     sql_digest_storage *update_digest =
       const_cast<sql_digest_storage *>(digest);
 
-    /* Compute MD5 Hash of the tokens received. */
-    compute_digest_md5(digest, update_digest->m_md5);
+    /* Compute digest hash of the tokens received. */
+    compute_digest_hash(digest, update_digest->m_hash);
 
     state->m_digest = digest;
 
@@ -7961,6 +8011,27 @@ pfs_reprepare_prepared_stmt_v1(PSI_prepared_stmt *prepared_stmt)
   {
     prepared_stmt_stat->aggregate_counted();
   }
+  return;
+}
+
+void
+pfs_set_prepared_stmt_text_v1(PSI_prepared_stmt *prepared_stmt,
+                              const char *text,
+                              uint text_len)
+{
+  PFS_prepared_stmt *pfs_prepared_stmt =
+    reinterpret_cast<PFS_prepared_stmt *>(prepared_stmt);
+  DBUG_ASSERT(pfs_prepared_stmt != NULL);
+
+  uint max_len = COL_INFO_SIZE;
+  if (text_len > max_len)
+  {
+    text_len = max_len;
+  }
+
+  memcpy(pfs_prepared_stmt->m_sqltext, text, text_len);
+  pfs_prepared_stmt->m_sqltext_length = text_len;
+
   return;
 }
 
@@ -8464,8 +8535,7 @@ pfs_start_metadata_wait_v1(PSI_metadata_locker_state *state,
 
     if (pfs_lock->m_timed)
     {
-      timer_start =
-        get_timer_raw_value_and_function(wait_timer, &state->m_timer);
+      timer_start = get_wait_timer();
       state->m_timer_start = timer_start;
       flags |= STATE_FLAG_TIMED;
     }
@@ -8508,8 +8578,7 @@ pfs_start_metadata_wait_v1(PSI_metadata_locker_state *state,
   {
     if (pfs_lock->m_timed)
     {
-      timer_start =
-        get_timer_raw_value_and_function(wait_timer, &state->m_timer);
+      timer_start = get_wait_timer();
       state->m_timer_start = timer_start;
       flags = STATE_FLAG_TIMED;
       state->m_thread = NULL;
@@ -8546,7 +8615,7 @@ pfs_end_metadata_wait_v1(PSI_metadata_locker *locker, int)
 
   if (flags & STATE_FLAG_TIMED)
   {
-    timer_end = state->m_timer();
+    timer_end = get_wait_timer();
     wait_time = timer_end - state->m_timer_start;
   }
 
@@ -8981,6 +9050,7 @@ PSI_statement_service_v1 pfs_statement_service_v1 = {
   pfs_destroy_prepared_stmt_v1,
   pfs_reprepare_prepared_stmt_v1,
   pfs_execute_prepared_stmt_v1,
+  pfs_set_prepared_stmt_text_v1,
   pfs_digest_start_v1,
   pfs_digest_end_v1,
   pfs_get_sp_share_v1,
@@ -9018,6 +9088,7 @@ SERVICE_IMPLEMENTATION(performance_schema, psi_statement_v1) = {
   pfs_destroy_prepared_stmt_v1,
   pfs_reprepare_prepared_stmt_v1,
   pfs_execute_prepared_stmt_v1,
+  pfs_set_prepared_stmt_text_v1,
   pfs_digest_start_v1,
   pfs_digest_end_v1,
   pfs_get_sp_share_v1,

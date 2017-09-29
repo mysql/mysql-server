@@ -15,21 +15,13 @@
 
 /* variable declarations are in sys_vars.cc now !!! */
 
-#include "set_var.h"
+#include "sql/set_var.h"
 
 #include <string.h>
 #include <sys/types.h>
 #include <cstdlib>
 #include <utility>
 
-#include "auth_acls.h"
-#include "auth_common.h"         // SUPER_ACL
-#include "derror.h"              // ER_THD
-#include "enum_query_type.h"
-#include "item.h"
-#include "item_func.h"
-#include "key.h"
-#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "map_helpers.h"
@@ -41,26 +33,34 @@
 #include "mysql/plugin_audit.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
-#include "mysqld.h"              // system_charset_info
 #include "mysqld_error.h"
-#include "persisted_variable.h"
-#include "protocol_classic.h"
-#include "session_tracker.h"
-#include "sql_audit.h"           // mysql_audit
-#include "sql_base.h"            // lock_tables
-#include "sql_class.h"           // THD
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_parse.h"           // is_supported_parser_charset
-#include "sql_security_ctx.h"
-#include "sql_select.h"          // free_underlaid_joins
-#include "sql_show.h"            // append_identifier
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h" // SUPER_ACL
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/derror.h"          // ER_THD
+#include "sql/enum_query_type.h"
+#include "sql/item.h"
+#include "sql/item_func.h"
+#include "sql/key.h"
+#include "sql/log.h"
+#include "sql/mysqld.h"          // system_charset_info
+#include "sql/persisted_variable.h"
+#include "sql/protocol_classic.h"
+#include "sql/session_tracker.h"
+#include "sql/sql_audit.h"       // mysql_audit
+#include "sql/sql_base.h"        // lock_tables
+#include "sql/sql_class.h"       // THD
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_parse.h"       // is_supported_parser_charset
+#include "sql/sql_select.h"      // free_underlaid_joins
+#include "sql/sql_show.h"        // append_identifier
+#include "sql/sql_table.h"
+#include "sql/sys_vars_shared.h" // PolyLock_mutex
+#include "sql/system_variables.h"
+#include "sql/table.h"
 #include "sql_string.h"
-#include "sql_table.h"
-#include "sys_vars_shared.h"     // PolyLock_mutex
-#include "system_variables.h"
-#include "table.h"
 
 using std::string;
 
@@ -71,6 +71,38 @@ ulonglong system_variable_hash_version= 0;
 collation_unordered_map<string, sys_var *> *get_system_variable_hash(void)
 {
   return system_variable_hash;
+}
+
+/**
+  Get source of a given system variable given its name and name length.
+*/
+bool
+get_sysvar_source(const char *name, uint length,
+                  enum enum_variable_source* source)
+{
+  DBUG_ENTER("get_sysvar_source");
+
+  bool ret = false;
+  sys_var *sysvar= nullptr;
+
+  mysql_rwlock_wrlock(&LOCK_system_variables_hash);
+
+  /* system_variable_hash should have been initialized. */
+  DBUG_ASSERT(get_system_variable_hash() != nullptr);
+  std::string str(name, length);
+  sysvar= find_or_nullptr(*get_system_variable_hash(), str);
+
+  if(sysvar == nullptr)
+  {
+    ret = true;
+  }
+  else
+  {
+    *source = sysvar->get_source();
+  }
+
+  mysql_rwlock_unlock(&LOCK_system_variables_hash);
+  DBUG_RETURN(ret);
 }
 
 sys_var_chain all_sys_vars = { NULL, NULL };
@@ -331,8 +363,7 @@ bool sys_var::is_default(THD*, set_var *var)
   DBUG_ENTER("sys_var::is_default");
   bool ret= false;
   longlong def= option.def_value;
-  ulong var_type= (option.var_type & GET_TYPE_MASK);
-  switch(var_type)
+  switch(get_var_type())
   {
     case GET_INT:
     case GET_UINT:
@@ -378,13 +409,6 @@ void sys_var::set_user_host(THD *thd)
             thd->security_context()->host().length);
 }
 
-ulonglong sys_var::get_timestamp()
-{
-  if (!timestamp)
-    timestamp= my_getsystime()/10.0;
-  return timestamp;
-}
-
 void sys_var::do_deprecated_warning(THD *thd)
 {
   if (deprecation_substitute != NULL)
@@ -407,6 +431,48 @@ void sys_var::do_deprecated_warning(THD *thd)
       LogErr(WARNING_LEVEL, errmsg, buf1, deprecation_substitute);
   }
 }
+
+
+Item *sys_var::copy_value(THD *thd)
+{
+  LEX_STRING str;
+  uchar* val_ptr= session_value_ptr(thd, thd, &str);
+  switch(get_var_type())
+  {
+    case GET_INT:
+      return new Item_int(*(int*) val_ptr);
+    case GET_UINT:
+      return new Item_int((ulonglong)*(uint*) val_ptr);
+    case GET_LONG:
+      return new Item_int((longlong)*(long*) val_ptr);
+    case GET_ULONG:
+      return new Item_int((ulonglong)*(ulong*) val_ptr);
+    case GET_LL:
+      return new Item_int(*(longlong*) val_ptr);
+    case GET_ULL:
+      return new Item_int(*(ulonglong*) val_ptr);
+    case GET_BOOL:
+      return new Item_int(*(bool*) val_ptr);
+    case GET_ENUM:
+    case GET_SET:
+    case GET_FLAGSET:
+    case GET_STR_ALLOC:
+    case GET_STR:
+    case GET_NO_ARG:
+    case GET_PASSWORD:
+    {
+      const char *tmp_str_val= (const char*) val_ptr;
+      return new Item_string(tmp_str_val, strlen(tmp_str_val),
+                             system_charset_info);
+    }
+    case GET_DOUBLE:
+      return new Item_float(*(double*) val_ptr, NOT_FIXED_DEC);
+    default:
+      DBUG_ASSERT(0);
+  }
+  return NULL;
+}
+
 
 /**
   Throw warning (error in STRICT mode) if value for variable needed bounding.
@@ -987,20 +1053,13 @@ int set_var::light_check(THD *thd)
 }
 
 /**
-  Update variable source.
+  Update variable source, user, host and timestamp values.
 */
 
-void set_var::update_source()
+void set_var::update_source_user_host_timestamp(THD *thd)
 {
-    var->set_source(enum_variable_source::DYNAMIC);
-    var->set_source_name(EMPTY_STR.str);
-}
-
-/**
-  Update variables USER, HOST, TIMESTAMP
-*/
-void set_var::update_user_host_timestamp(THD *thd)
-{
+  var->set_source(enum_variable_source::DYNAMIC);
+  var->set_source_name(EMPTY_STR.str);
   var->set_user_host(thd);
   var->set_timestamp();
 }
@@ -1028,13 +1087,29 @@ int set_var::update(THD *thd)
     else
       ret= (int) var->set_default(thd, this);
   }
-  if (ret == 0)
+  /*
+   For PERSIST_ONLY syntax we dont change the value of the variable
+   for the current session, thus we should not change variables
+   source/timestamp/user/host.
+  */
+  if (ret == 0 && type != OPT_PERSIST_ONLY)
   {
-    update_user_host_timestamp(thd);
-    update_source();
+    update_source_user_host_timestamp(thd);
   }
   return ret;
 }
+
+
+void set_var::print_short(String *str)
+{
+  str->append(var->name.str,var->name.length);
+  str->append(STRING_WITH_LEN("="));
+  if (value)
+    value->print(str, QT_ORDINARY);
+  else
+    str->append(STRING_WITH_LEN("DEFAULT"));
+}
+
 
 /**
   Self-print assignment
@@ -1062,12 +1137,7 @@ void set_var::print(THD*, String *str)
     str->append(base.str, base.length);
     str->append(STRING_WITH_LEN("."));
   }
-  str->append(var->name.str,var->name.length);
-  str->append(STRING_WITH_LEN("="));
-  if (value)
-    value->print(str, QT_ORDINARY);
-  else
-    str->append(STRING_WITH_LEN("DEFAULT"));
+  print_short(str);
 }
 
 

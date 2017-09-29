@@ -22,9 +22,9 @@
 #include "my_base.h"        // ha_rows
 #include "my_sqlcommand.h"
 #include "my_table_map.h"
-#include "query_result.h"   // Query_result_interceptor
-#include "sql_cmd_dml.h"    // Sql_cmd_dml
-#include "sql_lex.h"
+#include "sql/query_result.h" // Query_result_interceptor
+#include "sql/sql_cmd_dml.h" // Sql_cmd_dml
+#include "sql/sql_lex.h"
 
 class Item;
 class THD;
@@ -106,7 +106,7 @@ public:
   {}
 
   enum_sql_command sql_command_code() const override
-  { return lex->sql_command; }
+  { return multitable ? SQLCOM_DELETE_MULTI : SQLCOM_DELETE; }
 
   bool is_single_table_plan() const override { return !multitable; }
 

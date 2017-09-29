@@ -22,7 +22,7 @@
 #include <mgmapi_config_parameters.h>
 #include <ndb_limits.h>
 #include "InitConfigFileParser.hpp"
-#include <m_string.h>
+#include "m_string.h"
 #include <Bitmask.hpp>
 #include <ndb_opts.h>
 #include <ndb_version.h>

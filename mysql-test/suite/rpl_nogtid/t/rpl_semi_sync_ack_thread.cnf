@@ -6,21 +6,17 @@
 # instances when MTR runs rpl tests with parallel 4 or more.
 
 [mysqld.1]
-log-slave-updates
 server-id= 1
 
 [mysqld.2]
-log-slave-updates
 server-id= 2
 
 [mysqld.3]
-log-slave-updates
 server-id= 3
 loose-innodb_write_io_threads=    2
 loose-innodb_read_io_threads=     2
 
 [mysqld.4]
-log-slave-updates
 server-id= 4
 loose-innodb_write_io_threads=    2
 loose-innodb_read_io_threads=     2

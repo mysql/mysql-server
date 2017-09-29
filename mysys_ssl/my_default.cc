@@ -40,27 +40,27 @@
 #include "my_config.h"
 
 #include <fcntl.h>
-#include <my_aes.h>
-#include <my_dir.h>
-#include <my_getopt.h>
 #include <stdlib.h>
 #include <sys/types.h>
 
-#include "../mysys/mysys_priv.h"
 #include "m_ctype.h"
 #include "m_string.h"
+#include "my_aes.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"
-#include "my_default_priv.h"
+#include "my_dir.h"
+#include "my_getopt.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_psi_config.h"
-#include "mysql_version.h"             // MYSQL_PERSIST_CONFIG_NAME
 #include "mysql/psi/mysql_file.h"
 #include "mysql/service_my_snprintf.h"
+#include "mysql_version.h"             // MYSQL_PERSIST_CONFIG_NAME
+#include "mysys/mysys_priv.h"
+#include "mysys_ssl/my_default_priv.h"
 #include "typelib.h"
 #ifdef _WIN32
 #include <winbase.h>
@@ -341,7 +341,7 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
                                       (char **) &my_login_path, found_no_defaults);
 
     if (! my_defaults_group_suffix)
-      my_defaults_group_suffix= getenv(STRINGIFY_ARG(DEFAULT_GROUP_SUFFIX_ENV));
+      my_defaults_group_suffix= getenv("MYSQL_GROUP_SUFFIX");
 
     if (forced_extra_defaults && !defaults_already_read)
     {

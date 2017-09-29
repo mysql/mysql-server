@@ -21,8 +21,6 @@
 #include <atomic>
 #include <new>
 
-#include "current_thd.h"
-#include "derror.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -30,7 +28,9 @@
 #include "mysql/service_my_snprintf.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "sql_class.h"
+#include "sql/current_thd.h"
+#include "sql/derror.h"
+#include "sql/sql_class.h"
 
 /****************************************************************************
 	Check stack size; Send error if there isn't enough stack to continue

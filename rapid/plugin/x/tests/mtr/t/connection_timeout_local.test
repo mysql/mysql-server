@@ -1,4 +1,4 @@
---source ../include/is_local_machine.inc
+--source include/is_local_machine.inc
 
 --echo Preamble
 --source include/xplugin_preamble.inc

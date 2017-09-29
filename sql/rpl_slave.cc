@@ -43,8 +43,8 @@
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
-#include "rpl_channel_service_interface.h"
-#include "thr_malloc.h"
+#include "sql/rpl_channel_service_interface.h"
+#include "sql/thr_malloc.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
@@ -59,25 +59,14 @@
 #include <utility>
 #include <vector>
 
-#include "auth_acls.h"
 #include "binary_log_types.h"
-#include "binlog.h"
 #include "binlog_event.h"
 #include "control_events.h"
-#include "current_thd.h"
-#include "debug_sync.h"                        // DEBUG_SYNC
 #include "debug_vars.h"
-#include "derror.h"                            // ER_THD
-#include "dynamic_ids.h"                       // Server_ids
 #include "errmsg.h"                            // CR_*
-#include "handler.h"
-#include "item.h"
 #include "lex_string.h"
-#include "log.h"
-#include "log_event.h"                         // Rotate_log_event
 #include "m_ctype.h"
 #include "m_string.h"
-#include "mdl.h"
 #include "my_bitmap.h"                         // MY_BITMAP
 #include "my_byteorder.h"
 #include "my_command.h"
@@ -99,46 +88,57 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/thread_type.h"
 #include "mysql_com.h"
-#include "mysqld.h"                            // ER
 #include "mysqld_error.h"
-#include "mysqld_thd_manager.h"                // Global_THD_manager
 #include "pfs_thread_provider.h"
 #include "prealloced_array.h"
-#include "protocol.h"
-#include "protocol_classic.h"
-#include "psi_memory_key.h"
-#include "query_options.h"
-#include "rpl_filter.h"
-#include "rpl_group_replication.h"
-#include "rpl_gtid.h"
-#include "rpl_handler.h"                       // RUN_HOOK
-#include "rpl_info.h"
-#include "rpl_info_factory.h"                  // Rpl_info_factory
-#include "rpl_info_handler.h"
-#include "rpl_mi.h"
-#include "rpl_msr.h"                           // Multisource_info
-#include "rpl_mts_submode.h"
-#include "rpl_reporting.h"
-#include "rpl_rli.h"                           // Relay_log_info
-#include "rpl_rli_pdb.h"                       // Slave_worker
-#include "rpl_slave_commit_order_manager.h"    // Commit_order_manager
-#include "rpl_slave_until_options.h"
-#include "rpl_trx_boundary_parser.h"
-#include "rpl_utility.h"
-#include "sql_class.h"                         // THD
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/binlog.h"
+#include "sql/current_thd.h"
+#include "sql/debug_sync.h"                    // DEBUG_SYNC
+#include "sql/derror.h"                        // ER_THD
+#include "sql/dynamic_ids.h"                   // Server_ids
+#include "sql/handler.h"
+#include "sql/item.h"
+#include "sql/log.h"
+#include "sql/log_event.h"                     // Rotate_log_event
+#include "sql/mdl.h"
+#include "sql/mysqld.h"                        // ER
+#include "sql/mysqld_thd_manager.h"            // Global_THD_manager
+#include "sql/protocol.h"
+#include "sql/protocol_classic.h"
+#include "sql/psi_memory_key.h"
+#include "sql/query_options.h"
+#include "sql/rpl_filter.h"
+#include "sql/rpl_group_replication.h"
+#include "sql/rpl_gtid.h"
+#include "sql/rpl_handler.h"                   // RUN_HOOK
+#include "sql/rpl_info.h"
+#include "sql/rpl_info_factory.h"              // Rpl_info_factory
+#include "sql/rpl_info_handler.h"
+#include "sql/rpl_mi.h"
+#include "sql/rpl_msr.h"                       // Multisource_info
+#include "sql/rpl_mts_submode.h"
+#include "sql/rpl_reporting.h"
+#include "sql/rpl_rli.h"                       // Relay_log_info
+#include "sql/rpl_rli_pdb.h"                   // Slave_worker
+#include "sql/rpl_slave_commit_order_manager.h" // Commit_order_manager
+#include "sql/rpl_slave_until_options.h"
+#include "sql/rpl_trx_boundary_parser.h"
+#include "sql/rpl_utility.h"
+#include "sql/sql_class.h"                     // THD
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_parse.h"                     // execute_init_command
+#include "sql/sql_plugin.h"                    // opt_plugin_dir_ptr
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/transaction.h"                   // trans_begin
+#include "sql/transaction_info.h"
 #include "sql_common.h"                        // end_server
-#include "sql_const.h"
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_parse.h"                         // execute_init_command
-#include "sql_plugin.h"                        // opt_plugin_dir_ptr
-#include "sql_security_ctx.h"
 #include "sql_string.h"
-#include "system_variables.h"
-#include "table.h"
-#include "transaction.h"                       // trans_begin
-#include "transaction_info.h"
 #include "typelib.h"
 
 using std::min;
@@ -172,7 +172,8 @@ const char *relay_log_basename= 0;
 const ulong mts_slave_worker_queue_len_max= 16384;
 
 /*
-  Statistics go to the error log every # of seconds when --log-warnings > 1
+  Statistics go to the error log every # of seconds when
+  --log_error_verbosity > 2
 */
 const long mts_online_stat_period= 60 * 2;
 
@@ -427,14 +428,14 @@ static PSI_thread_key key_thread_slave_io, key_thread_slave_sql, key_thread_slav
 
 static PSI_thread_info all_slave_threads[]=
 {
-  { &key_thread_slave_io, "slave_io", PSI_FLAG_GLOBAL},
-  { &key_thread_slave_sql, "slave_sql", PSI_FLAG_GLOBAL},
-  { &key_thread_slave_worker, "slave_worker", PSI_FLAG_GLOBAL}
+  { &key_thread_slave_io, "slave_io", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_thread_slave_sql, "slave_sql", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_thread_slave_worker, "slave_worker", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 
 static PSI_memory_info all_slave_memory[]=
 {
-  { &key_memory_rli_mts_coor, "Relay_log_info::mts_coor", 0}
+  { &key_memory_rli_mts_coor, "Relay_log_info::mts_coor", 0, 0, PSI_DOCUMENT_ME}
 };
 
 static void init_slave_psi_keys(void)
@@ -2037,7 +2038,7 @@ bool start_slave_thread(
     while (start_id == *slave_run_id && thd != NULL)
     {
       DBUG_PRINT("sleep",("Waiting for slave thread to start"));
-      PSI_stage_info saved_stage= {0, "", 0};
+      PSI_stage_info saved_stage= {0, "", 0, ""};
       thd->ENTER_COND(start_cond, cond_lock,
                       & stage_waiting_for_slave_thread_to_start,
                       & saved_stage);
@@ -3305,7 +3306,6 @@ static int write_rotate_to_master_pos_into_relay_log(THD *thd,
                  "failed to write a Rotate event"
                  " to the relay log, SHOW SLAVE STATUS may be"
                  " inaccurate");
-    rli->relay_log.harvest_bytes_written(&rli->log_space_total);
     if (flush_master_info(mi, true, false, false))
     {
       error= 1;
@@ -4211,8 +4211,6 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   thd->slave_thread = 1;
   thd->enable_slow_log= opt_log_slow_slave_statements;
   set_slave_thread_options(thd);
-  thd->get_protocol_classic()->set_client_capabilities(
-      CLIENT_LOCAL_FILES);
 
   /*
     Replication threads are:
@@ -4462,7 +4460,7 @@ static ulong read_event(MYSQL *mysql, MYSQL_RPL *rpl, Master_info *mi,
     LogErr(INFORMATION_LEVEL, ER_RPL_SLAVE_DUMP_THREAD_KILLED_BY_MASTER,
            mi->get_for_channel_str(),
            ::server_uuid,
-           mysql_error(mysql));
+           mysql_error(mysql)).force_print();
      DBUG_RETURN(packet_error);
   }
 
@@ -4880,6 +4878,23 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
 #endif
 
       error= ev->update_pos(rli);
+      /*
+        Slave skips an event if the slave_skip_counter is greater than zero.
+        We have to free thd's mem_root here after we update the positions
+        in the repository table if the event is a skipped event.
+        Otherwise, imagine a situation where slave_skip_counter is big number
+        and slave is skipping the events and updating the repository.
+        All the memory used while these operations are going on is never
+        freed unless slave starts executing the events (after slave_skip_counter
+        becomes zero).
+
+        Hence we free thd's mem_root here if it is a skipped event.
+        (freeing mem_root generally happens from Query_log_event::do_apply_event
+        or Rows_log_event::do_apply_event when they find the end of
+        the group event).
+      */
+      if (skip_event)
+        free_root(thd->mem_root, MYF(MY_KEEP_PREALLOC));
 
 #ifndef DBUG_OFF
       DBUG_PRINT("info", ("update_pos error = %d", error));
@@ -5573,7 +5588,7 @@ extern "C" void *handle_slave_io(void *arg)
            mi->get_for_channel_str(),
            mi->get_user(), mi->host, mi->port,
            mi->get_io_rpl_log_name(),
-           llstr(mi->get_master_log_pos(), llbuff));
+           llstr(mi->get_master_log_pos(), llbuff)).force_print();
   }
   else
   {
@@ -8260,7 +8275,6 @@ QUEUE_EVENT_RESULT queue_event(Master_info* mi,
       lock_count= 2;
       mi->set_master_log_pos(mi->get_master_log_pos() + inc_pos);
       DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->get_master_log_pos()));
-      rli->relay_log.harvest_bytes_written(&rli->log_space_total);
 
       /*
         If we are starting an anonymous transaction, we will discard
@@ -8566,7 +8580,7 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
                mi->get_for_channel_str(), mi->get_user(),
                mi->host, mi->port,
                mi->get_io_rpl_log_name(),
-               llstr(mi->get_master_log_pos(),llbuff));
+               llstr(mi->get_master_log_pos(),llbuff)).force_print();
     }
     else
     {
@@ -9331,8 +9345,11 @@ bool rpl_master_has_bug(const Relay_log_info *rli, uint bug_id, bool report,
         report_level= ERROR_LEVEL;
         current_thd->is_slave_error= 1;
       }
-      /* In case of ignored errors report warnings only if log_warnings > 1. */
-      else if (log_warnings > 1)
+      /*
+        In case of ignored errors report warnings only if
+        log_error_verbosity > 2.
+      */
+      else if (log_error_verbosity > 2)
         report_level= WARNING_LEVEL;
 
       if (report_level != INFORMATION_LEVEL)
@@ -9428,6 +9445,12 @@ bool start_slave(THD* thd,
 
   DBUG_ENTER("start_slave(THD, lex, lex, int, Master_info, bool");
 
+  /*
+    START SLAVE command should ignore 'read-only' and 'super_read_only'
+    options so that it can update 'mysql.slave_master_info' and
+    'mysql.slave_relay_log_info' replication repository tables.
+  */
+  thd->set_skip_readonly_check();
   Security_context *sctx= thd->security_context();
   if (!sctx->check_access(SUPER_ACL) &&
       !sctx->has_global_grant(STRING_WITH_LEN("REPLICATION_SLAVE_ADMIN")).first)
@@ -9475,7 +9498,7 @@ bool start_slave(THD* thd,
       is_error= true;
       my_error(ER_MASTER_INFO, MYF(0));
     }
-    else if (server_id_supplied && (*mi->host || !(thread_mask & SLAVE_IO)))
+    else if (*mi->host || !(thread_mask & SLAVE_IO))
     {
       /*
         If we will start IO thread we need to take care of possible
@@ -9616,6 +9639,13 @@ int stop_slave(THD* thd, Master_info* mi, bool net_report, bool for_one_channel,
   int slave_errno;
   if (!thd)
     thd = current_thd;
+
+  /*
+    STOP SLAVE command should ignore 'read-only' and 'super_read_only'
+    options so that it can update 'mysql.slave_master_info' and
+    'mysql.slave_relay_log_info' replication repository tables.
+  */
+  thd->set_skip_readonly_check();
 
   Security_context *sctx= thd->security_context();
   if (!sctx->check_access(SUPER_ACL) &&
@@ -9784,6 +9814,12 @@ int reset_slave(THD *thd, Master_info* mi, bool reset_all)
 
   bool no_init_after_delete= false;
 
+  /*
+    RESET SLAVE command should ignore 'read-only' and 'super_read_only'
+    options so that it can update 'mysql.slave_master_info' and
+    'mysql.slave_relay_log_info' replication repository tables.
+  */
+  thd->set_skip_readonly_check();
   mi->channel_wrlock();
 
   lock_slave_threads(mi);
@@ -10351,6 +10387,12 @@ int change_master(THD* thd, Master_info* mi, LEX_MASTER_INFO* lex_mi,
 
   DBUG_ENTER("change_master");
 
+  /*
+    CHANGE MASTER command should ignore 'read-only' and 'super_read_only'
+    options so that it can update 'mysql.slave_master_info' replication
+    repository tables.
+  */
+  thd->set_skip_readonly_check();
   mi->channel_wrlock();
   /*
     When we change master, we first decide which thread is running and
@@ -10604,7 +10646,7 @@ int change_master(THD* thd, Master_info* mi, LEX_MASTER_INFO* lex_mi,
            mi->get_for_channel_str(true),
            saved_host, saved_port, saved_log_name, (ulong) saved_log_pos,
            saved_bind_addr, mi->host, mi->port, mi->get_master_log_name(),
-           (ulong) mi->get_master_log_pos(), mi->bind_addr);
+           (ulong) mi->get_master_log_pos(), mi->bind_addr).force_print();
 
   if (have_execute_option)
     change_execute_options(lex_mi, mi);

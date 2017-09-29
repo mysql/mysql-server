@@ -24,10 +24,10 @@
 #include <netdb.h>
 #endif
 
-#include "io/xpl_listener_tcp.h"
-#include "mock/ngs_general.h"
 #include "my_inttypes.h"
 #include "my_io.h"
+#include "plugin/x/src/io/xpl_listener_tcp.h"
+#include "unittest/gunit/xplugin/xpl/mock/ngs_general.h"
 
 
 namespace xpl {

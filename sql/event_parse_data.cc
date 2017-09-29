@@ -14,71 +14,35 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "event_parse_data.h"
+#include "sql/event_parse_data.h"
 
 #include <string.h>
 #include <algorithm>
 
-#include "dd/types/event.h"
-#include "derror.h"                             // ER_THD
-#include "item.h"
-#include "item_create.h"
-#include "item_timefunc.h"                      // get_interval_value
-#include "key.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "mysql/thread_type.h"
 #include "mysql_com.h"
-#include "mysqld.h"                             // server_id
 #include "mysqld_error.h"                       // ER_INVALID_CHARACTER_STRING
-#include "sp_head.h"                            // sp_name
-#include "sql_class.h"                          // THD
-#include "sql_connect.h"
-#include "sql_const.h"
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_security_ctx.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/dd/types/event.h"
+#include "sql/derror.h"                         // ER_THD
+#include "sql/histograms/value_map.h"
+#include "sql/item.h"
+#include "sql/item_create.h"
+#include "sql/item_timefunc.h"                  // get_interval_value
+#include "sql/key.h"
+#include "sql/mysqld.h"                         // server_id
+#include "sql/sp_head.h"                        // sp_name
+#include "sql/sql_class.h"                      // THD
+#include "sql/sql_connect.h"
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_time.h"                       // TIME_to_timestamp
 #include "sql_string.h"                         // validate_string
-#include "sql_time.h"                           // TIME_to_timestamp
-#include "value_map.h"
-
-
-/**
-   Check if the given string is invalid using the system charset.
-
-   @param string_val Reference to the string.
-
-   @return true if the string has an invalid encoding using
-                the system charset else false.
-*/
-
-static bool is_invalid_string(const LEX_STRING &string_val)
-{
-  size_t valid_len;
-  bool len_error;
-
-  if (validate_string(system_charset_info, string_val.str, string_val.length,
-                      &valid_len, &len_error))
-  {
-    char hexbuf[7];
-    octet2hex(hexbuf, string_val.str + valid_len,
-              std::min<size_t>(string_val.length - valid_len, 3));
-    my_error(ER_INVALID_CHARACTER_STRING, MYF(0), system_charset_info->csname,
-             hexbuf);
-    return true;
-  }
-  return false;
-}
-
-
-/*
-  Constructor
-
-  SYNOPSIS
-    Event_parse_data::Event_parse_data()
-*/
 
 
 
@@ -520,7 +484,8 @@ Event_parse_data::check_parse_data(THD *thd)
                       item_execute_at, item_expression,
                       item_starts, item_ends));
 
-  if (is_invalid_string(comment))
+  if (is_invalid_string(to_lex_cstring(comment),
+                        system_charset_info))
     DBUG_RETURN(true);
 
   init_name(thd, identifier);

@@ -16,9 +16,9 @@
 */
 
 #include <gtest/gtest.h>
-#include <nullable.h>
 
 #include "my_inttypes.h"
+#include "nullable.h"
 
 namespace nullable_unittest {
 

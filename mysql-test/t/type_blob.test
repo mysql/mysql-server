@@ -310,7 +310,7 @@ eval select
   collation(load_file('../../std_data/words.dat')),
   coercibility(load_file('../../std_data/words.dat'));
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
-eval explain extended select
+eval explain select
   charset(load_file('$MYSQLTEST_VARDIR/std_data/words.dat')),
   collation(load_file('$MYSQLTEST_VARDIR/std_data/words.dat')),
   coercibility(load_file('$MYSQLTEST_VARDIR/std_data/words.dat'));

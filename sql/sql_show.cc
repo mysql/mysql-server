@@ -16,7 +16,7 @@
 
 /* Function with list databases, tables or fields */
 
-#include "sql_show.h"
+#include "sql/sql_show.h"
 
 #include "my_config.h"
 
@@ -35,28 +35,10 @@
 #include <new>
 #include <string>
 
-#include "auth_acls.h"
-#include "auth_common.h"                    // check_grant_db
 #include "binary_log_types.h"
-#include "dd/cache/dictionary_client.h"     // dd::cache::Dictionary_client
-#include "dd/dd_schema.h"                   // dd::Schema_MDL_locker
-#include "dd/string_type.h"
-#include "debug_sync.h"                     // DEBUG_SYNC
-#include "derror.h"                         // ER_THD
-#include "enum_query_type.h"
-#include "error_handler.h"                  // Internal_error_handler
-#include "field.h"                          // Field
-#include "filesort.h"                       // filesort_free_buffers
-#include "item.h"                           // Item_empty_string
-#include "item_cmpfunc.h"                   // Item_cond
-#include "item_func.h"
-#include "key.h"
 #include "keycache.h"                       // dflt_key_cache
-#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
-#include "mdl.h"
-#include "mem_root_array.h"
 #include "mf_wcomp.h"                       // wild_compare,wild_one,wild_many
 #include "mutex_lock.h"                     // MUTEX_LOCK
 #include "my_base.h"
@@ -78,47 +60,65 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "mysqld.h"                         // lower_case_table_names
 #include "mysqld_error.h"
-#include "mysqld_thd_manager.h"             // Global_THD_manager
-#include "opt_trace.h"                      // fill_optimizer_trace_info
-#include "partition_element.h"
-#include "partition_info.h"                 // partition_info
-#include "partitioning/partition_handler.h" // Partition_handler
-#include "protocol.h"                       // Protocol
-#include "psi_memory_key.h"
-#include "query_options.h"
-#include "sp_head.h"                        // sp_head
-#include "sql_alloc.h"
-#include "sql_base.h"                       // close_thread_tables
-#include "sql_bitmap.h"
-#include "sql_class.h"                      // THD
-#include "sql_const.h"
-#include "sql_db.h"                         // get_default_db_collation
-#include "sql_error.h"
-#include "sql_executor.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_optimizer.h"                  // JOIN
-#include "sql_parse.h"                      // command_name
-#include "sql_partition.h"
-#include "sql_plugin.h"                     // PLUGIN_IS_DELETED, LOCK_plugin
-#include "sql_plugin_ref.h"
-#include "sql_profile.h"
-#include "sql_security_ctx.h"
-#include "sql_servers.h"
-#include "sql_table.h"                      // filename_to_tablename
-#include "sql_tmp_table.h"                  // create_tmp_table
-#include "sql_trigger.h"                    // acquire_shared_mdl_for_trigger
-#include "stateless_allocator.h"
-#include "system_variables.h"
-#include "table_trigger_dispatcher.h"       // Table_trigger_dispatcher
-#include "temp_table_param.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h"           // check_grant_db
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/dd/cache/dictionary_client.h" // dd::cache::Dictionary_client
+#include "sql/dd/dd_schema.h"               // dd::Schema_MDL_locker
+#include "sql/dd/string_type.h"
+#include "sql/debug_sync.h"                 // DEBUG_SYNC
+#include "sql/derror.h"                     // ER_THD
+#include "sql/enum_query_type.h"
+#include "sql/error_handler.h"              // Internal_error_handler
+#include "sql/field.h"                      // Field
+#include "sql/filesort.h"                   // filesort_free_buffers
+#include "sql/histograms/value_map.h"
+#include "sql/item.h"                       // Item_empty_string
+#include "sql/item_cmpfunc.h"               // Item_cond
+#include "sql/item_func.h"
+#include "sql/key.h"
+#include "sql/log.h"
+#include "sql/mdl.h"
+#include "sql/mem_root_array.h"
+#include "sql/mysqld.h"                     // lower_case_table_names
+#include "sql/mysqld_thd_manager.h"         // Global_THD_manager
+#include "sql/opt_trace.h"                  // fill_optimizer_trace_info
+#include "sql/partition_element.h"
+#include "sql/partition_info.h"             // partition_info
+#include "sql/partitioning/partition_handler.h" // Partition_handler
+#include "sql/protocol.h"                   // Protocol
+#include "sql/psi_memory_key.h"
+#include "sql/query_options.h"
+#include "sql/sp_head.h"                    // sp_head
+#include "sql/sql_alloc.h"
+#include "sql/sql_base.h"                   // close_thread_tables
+#include "sql/sql_bitmap.h"
+#include "sql/sql_class.h"                  // THD
+#include "sql/sql_const.h"
+#include "sql/sql_db.h"                     // get_default_db_collation
+#include "sql/sql_error.h"
+#include "sql/sql_executor.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_optimizer.h"              // JOIN
+#include "sql/sql_parse.h"                  // command_name
+#include "sql/sql_partition.h"
+#include "sql/sql_plugin.h"                 // PLUGIN_IS_DELETED, LOCK_plugin
+#include "sql/sql_plugin_ref.h"
+#include "sql/sql_profile.h"
+#include "sql/sql_servers.h"
+#include "sql/sql_table.h"                  // filename_to_tablename
+#include "sql/sql_tmp_table.h"              // create_tmp_table
+#include "sql/sql_trigger.h"                // acquire_shared_mdl_for_trigger
+#include "sql/stateless_allocator.h"
+#include "sql/system_variables.h"
+#include "sql/table_trigger_dispatcher.h"   // Table_trigger_dispatcher
+#include "sql/temp_table_param.h"
+#include "sql/thr_malloc.h"
+#include "sql/trigger.h"                    // Trigger
+#include "sql/tztime.h"                     // Time_zone
 #include "thr_lock.h"
-#include "thr_malloc.h"
-#include "trigger.h"                        // Trigger
-#include "tztime.h"                         // Time_zone
-#include "value_map.h"
 
 namespace dd {
 class Abstract_table;
@@ -1479,6 +1479,16 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(STRING_WITH_LEN(" NULL"));
     }
 
+    if (field->type() == MYSQL_TYPE_GEOMETRY)
+    {
+      const Field_geom *field_geom= down_cast<const Field_geom*>(field);
+      if (field_geom->get_srid().has_value())
+      {
+        packet->append(STRING_WITH_LEN(" /*!80003 SRID "));
+        packet->append_ulonglong(field_geom->get_srid().value());
+        packet->append(STRING_WITH_LEN(" */"));
+      }
+    }
     switch(field->field_storage_type()){
     case HA_SM_DEFAULT:
       break;
@@ -4053,7 +4063,7 @@ static int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
   else
     partial_cond= make_cond_for_info_schema(cond, tables);
 
-  if (lex->describe)
+  if (lex->is_explain())
   {
     /* EXPLAIN SELECT */
     error= 0;
@@ -4524,23 +4534,6 @@ static int get_schema_tmp_table_keys_record(THD *thd, TABLE_LIST *tables,
 }
 
 
-static void collect_partition_expr(THD *thd, List<char> &field_list,
-                                   String *str)
-{
-  List_iterator<char> part_it(field_list);
-  ulong no_fields= field_list.elements;
-  const char *field_str;
-  str->length(0);
-  while ((field_str= part_it++))
-  {
-    append_identifier(thd, str, field_str, strlen(field_str));
-    if (--no_fields != 0)
-      str->append(",");
-  }
-  return;
-}
-
-
 /*
   Convert a string in a given character set to a string which can be
   used for FRM file storage in which case use_hex is TRUE and we store
@@ -4592,387 +4585,6 @@ int get_cs_converted_part_value_from_string(THD *thd,
 }
 
 
-static void store_schema_partitions_record(THD *thd, TABLE *schema_table,
-                                           TABLE *showing_table,
-                                           partition_element *part_elem,
-                                           handler *file, uint part_id)
-{
-  TABLE* table= schema_table;
-  CHARSET_INFO *cs= system_charset_info;
-  ha_statistics stat_info;
-  ha_checksum check_sum = 0;
-  MYSQL_TIME time;
-  Partition_handler *part_handler= file->get_partition_handler();
-
-
-  if (!part_handler)
-  {
-    /* Not a partitioned table, get the stats from the full table! */
-    file->info(HA_STATUS_CONST | HA_STATUS_TIME | HA_STATUS_VARIABLE |
-               HA_STATUS_NO_LOCK);
-    stat_info.records=              file->stats.records;
-    stat_info.mean_rec_length=      file->stats.mean_rec_length;
-    stat_info.data_file_length=     file->stats.data_file_length;
-    stat_info.max_data_file_length= file->stats.max_data_file_length;
-    stat_info.index_file_length=    file->stats.index_file_length;
-    stat_info.delete_length=        file->stats.delete_length;
-    stat_info.create_time=          file->stats.create_time;
-    stat_info.update_time=          file->stats.update_time;
-    stat_info.check_time=           file->stats.check_time;
-    if (file->ha_table_flags() & (ulong) HA_HAS_CHECKSUM)
-      check_sum= file->checksum();
-  }
-  else
-    part_handler->get_dynamic_partition_info(&stat_info, &check_sum, part_id);
-
-  table->field[0]->store(STRING_WITH_LEN("def"), cs);
-  table->field[12]->store((longlong) stat_info.records, TRUE);
-  table->field[13]->store((longlong) stat_info.mean_rec_length, TRUE);
-  table->field[14]->store((longlong) stat_info.data_file_length, TRUE);
-  if (stat_info.max_data_file_length)
-  {
-    table->field[15]->store((longlong) stat_info.max_data_file_length, TRUE);
-    table->field[15]->set_notnull();
-  }
-  table->field[16]->store((longlong) stat_info.index_file_length, TRUE);
-  table->field[17]->store((longlong) stat_info.delete_length, TRUE);
-  if (stat_info.create_time)
-  {
-    thd->variables.time_zone->gmt_sec_to_TIME(&time,
-                                              (my_time_t)stat_info.create_time);
-    table->field[18]->store_time(&time);
-    table->field[18]->set_notnull();
-  }
-  if (stat_info.update_time)
-  {
-    thd->variables.time_zone->gmt_sec_to_TIME(&time,
-                                              (my_time_t)stat_info.update_time);
-    table->field[19]->store_time(&time);
-    table->field[19]->set_notnull();
-  }
-  if (stat_info.check_time)
-  {
-    thd->variables.time_zone->gmt_sec_to_TIME(&time,
-                                              (my_time_t)stat_info.check_time);
-    table->field[20]->store_time(&time);
-    table->field[20]->set_notnull();
-  }
-  if (file->ha_table_flags() & (ulong) HA_HAS_CHECKSUM)
-  {
-    table->field[21]->store((longlong) check_sum, TRUE);
-    table->field[21]->set_notnull();
-  }
-  if (part_elem)
-  {
-    if (part_elem->part_comment)
-      table->field[22]->store(part_elem->part_comment,
-                              strlen(part_elem->part_comment), cs);
-    else
-      table->field[22]->store(STRING_WITH_LEN(""), cs);
-    if (part_elem->nodegroup_id != UNDEF_NODEGROUP)
-      table->field[23]->store((longlong) part_elem->nodegroup_id, TRUE);
-    else
-      table->field[23]->store(STRING_WITH_LEN("default"), cs);
-
-    table->field[24]->set_notnull();
-    if (part_elem->tablespace_name)
-      table->field[24]->store(part_elem->tablespace_name,
-                              strlen(part_elem->tablespace_name), cs);
-    else
-    {
-      char *ts= showing_table->s->tablespace;
-      if(ts)
-        table->field[24]->store(ts, strlen(ts), cs);
-      else
-        table->field[24]->set_null();
-    }
-  }
-  return;
-}
-
-static int
-get_partition_column_description(THD *thd,
-                                 partition_info *part_info,
-                                 part_elem_value *list_value,
-                                 String &tmp_str)
-{
-  uint num_elements= part_info->part_field_list.elements;
-  uint i;
-  DBUG_ENTER("get_partition_column_description");
-
-  for (i= 0; i < num_elements; i++)
-  {
-    part_column_list_val *col_val= &list_value->col_val_array[i];
-    if (col_val->max_value)
-      tmp_str.append(partition_keywords[PKW_MAXVALUE].str);
-    else if (col_val->null_value)
-      tmp_str.append("NULL");
-    else
-    {
-      char buffer[MAX_KEY_LENGTH];
-      String str(buffer, sizeof(buffer), &my_charset_bin);
-      String val_conv;
-      Item *item= col_val->item_expression;
-
-      if (!(item= part_info->get_column_item(item,
-                              part_info->part_field_array[i])))
-      {
-        DBUG_RETURN(1);
-      }
-      String *res= item->val_str(&str);
-      if (get_cs_converted_part_value_from_string(thd, item, res, &val_conv,
-                              part_info->part_field_array[i]->charset(),
-                              FALSE))
-      {
-        DBUG_RETURN(1);
-      }
-      tmp_str.append(val_conv);
-    }
-    if (i != num_elements - 1)
-      tmp_str.append(",");
-  }
-  DBUG_RETURN(0);
-}
-
-static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
-                                        TABLE *table, bool res,
-                                        LEX_STRING *db_name,
-                                        LEX_STRING *table_name)
-{
-  CHARSET_INFO *cs= system_charset_info;
-  char buff[61];
-  String tmp_res(buff, sizeof(buff), cs);
-  String tmp_str;
-  TABLE *show_table= tables->table;
-  handler *file;
-  partition_info *part_info;
-  DBUG_ENTER("get_schema_partitions_record");
-
-  if (res)
-  {
-    if (thd->is_error())
-      push_warning(thd, Sql_condition::SL_WARNING,
-                   thd->get_stmt_da()->mysql_errno(),
-                   thd->get_stmt_da()->message_text());
-    thd->clear_error();
-    DBUG_RETURN(0);
-  }
-  file= show_table->file;
-  part_info= show_table->part_info;
-  if (part_info)
-  {
-    partition_element *part_elem;
-    List_iterator<partition_element> part_it(part_info->partitions);
-    uint part_pos= 0, part_id= 0;
-
-    restore_record(table, s->default_values);
-    table->field[0]->store(STRING_WITH_LEN("def"), cs);
-    table->field[1]->store(db_name->str, db_name->length, cs);
-    table->field[2]->store(table_name->str, table_name->length, cs);
-
-
-    /* Partition method*/
-    switch (part_info->part_type) {
-    case partition_type::RANGE:
-    case partition_type::LIST:
-      tmp_res.length(0);
-      if (part_info->part_type == partition_type::RANGE)
-        tmp_res.append(partition_keywords[PKW_RANGE].str,
-                       partition_keywords[PKW_RANGE].length);
-      else
-        tmp_res.append(partition_keywords[PKW_LIST].str,
-                       partition_keywords[PKW_LIST].length);
-      if (part_info->column_list)
-        tmp_res.append(partition_keywords[PKW_COLUMNS].str,
-                       partition_keywords[PKW_COLUMNS].length);
-      table->field[7]->store(tmp_res.ptr(), tmp_res.length(), cs);
-      break;
-    case partition_type::HASH:
-      tmp_res.length(0);
-      if (part_info->linear_hash_ind)
-        tmp_res.append(partition_keywords[PKW_LINEAR].str,
-                       partition_keywords[PKW_LINEAR].length);
-      if (part_info->list_of_part_fields)
-        tmp_res.append(partition_keywords[PKW_KEY].str,
-                       partition_keywords[PKW_KEY].length);
-      else
-        tmp_res.append(partition_keywords[PKW_HASH].str, 
-                       partition_keywords[PKW_HASH].length);
-      table->field[7]->store(tmp_res.ptr(), tmp_res.length(), cs);
-      break;
-    default:
-      DBUG_ASSERT(0);
-      my_error(ER_OUT_OF_RESOURCES, MYF(ME_FATALERROR));
-      DBUG_RETURN(1);
-    }
-    table->field[7]->set_notnull();
-
-    /* Partition expression */
-    if (part_info->part_expr)
-    {
-      table->field[9]->store(part_info->part_func_string,
-                             part_info->part_func_len, cs);
-    }
-    else if (part_info->list_of_part_fields)
-    {
-      collect_partition_expr(thd, part_info->part_field_list, &tmp_str);
-      table->field[9]->store(tmp_str.ptr(), tmp_str.length(), cs);
-    }
-    table->field[9]->set_notnull();
-
-    if (part_info->is_sub_partitioned())
-    {
-      /* Subpartition method */
-      tmp_res.length(0);
-      if (part_info->linear_hash_ind)
-        tmp_res.append(partition_keywords[PKW_LINEAR].str,
-                       partition_keywords[PKW_LINEAR].length);
-      if (part_info->list_of_subpart_fields)
-        tmp_res.append(partition_keywords[PKW_KEY].str,
-                       partition_keywords[PKW_KEY].length);
-      else
-        tmp_res.append(partition_keywords[PKW_HASH].str, 
-                       partition_keywords[PKW_HASH].length);
-      table->field[8]->store(tmp_res.ptr(), tmp_res.length(), cs);
-      table->field[8]->set_notnull();
-
-      /* Subpartition expression */
-      if (part_info->subpart_expr)
-      {
-        table->field[10]->store(part_info->subpart_func_string,
-                                part_info->subpart_func_len, cs);
-      }
-      else if (part_info->list_of_subpart_fields)
-      {
-        collect_partition_expr(thd, part_info->subpart_field_list, &tmp_str);
-        table->field[10]->store(tmp_str.ptr(), tmp_str.length(), cs);
-      }
-      table->field[10]->set_notnull();
-    }
-
-    while ((part_elem= part_it++))
-    {
-      table->field[3]->store(part_elem->partition_name,
-                             strlen(part_elem->partition_name), cs);
-      table->field[3]->set_notnull();
-      /* PARTITION_ORDINAL_POSITION */
-      table->field[5]->store((longlong) ++part_pos, TRUE);
-      table->field[5]->set_notnull();
-
-      /* Partition description */
-      if (part_info->part_type == partition_type::RANGE)
-      {
-        if (part_info->column_list)
-        {
-          List_iterator<part_elem_value> list_val_it(part_elem->list_val_list);
-          part_elem_value *list_value= list_val_it++;
-          tmp_str.length(0);
-          if (get_partition_column_description(thd,
-                                               part_info,
-                                               list_value,
-                                               tmp_str))
-          {
-            DBUG_RETURN(1);
-          }
-          table->field[11]->store(tmp_str.ptr(), tmp_str.length(), cs);
-        }
-        else
-        {
-          if (part_elem->range_value != LLONG_MAX)
-            table->field[11]->store(part_elem->range_value, FALSE);
-          else
-            table->field[11]->store(partition_keywords[PKW_MAXVALUE].str,
-                                 partition_keywords[PKW_MAXVALUE].length, cs);
-        }
-        table->field[11]->set_notnull();
-      }
-      else if (part_info->part_type == partition_type::LIST)
-      {
-        List_iterator<part_elem_value> list_val_it(part_elem->list_val_list);
-        part_elem_value *list_value;
-        uint num_items= part_elem->list_val_list.elements;
-        tmp_str.length(0);
-        tmp_res.length(0);
-        if (part_elem->has_null_value)
-        {
-          tmp_str.append("NULL");
-          if (num_items > 0)
-            tmp_str.append(",");
-        }
-        while ((list_value= list_val_it++))
-        {
-          if (part_info->column_list)
-          {
-            if (part_info->part_field_list.elements > 1U)
-              tmp_str.append("(");
-            if (get_partition_column_description(thd,
-                                                 part_info,
-                                                 list_value,
-                                                 tmp_str))
-            {
-              DBUG_RETURN(1);
-            }
-            if (part_info->part_field_list.elements > 1U)
-              tmp_str.append(")");
-          }
-          else
-          {
-            if (!list_value->unsigned_flag)
-              tmp_res.set(list_value->value, cs);
-            else
-              tmp_res.set((ulonglong)list_value->value, cs);
-            tmp_str.append(tmp_res);
-          }
-          if (--num_items != 0)
-            tmp_str.append(",");
-        }
-        table->field[11]->store(tmp_str.ptr(), tmp_str.length(), cs);
-        table->field[11]->set_notnull();
-      }
-
-      if (part_elem->subpartitions.elements)
-      {
-        List_iterator<partition_element> sub_it(part_elem->subpartitions);
-        partition_element *subpart_elem;
-        uint subpart_pos= 0;
-
-        while ((subpart_elem= sub_it++))
-        {
-          table->field[4]->store(subpart_elem->partition_name,
-                                 strlen(subpart_elem->partition_name), cs);
-          table->field[4]->set_notnull();
-          /* SUBPARTITION_ORDINAL_POSITION */
-          table->field[6]->store((longlong) ++subpart_pos, TRUE);
-          table->field[6]->set_notnull();
-          
-          store_schema_partitions_record(thd, table, show_table, subpart_elem,
-                                         file, part_id);
-          part_id++;
-          if(schema_table_store_record(thd, table))
-            DBUG_RETURN(1);
-        }
-      }
-      else
-      {
-        store_schema_partitions_record(thd, table, show_table, part_elem,
-                                       file, part_id);
-        part_id++;
-        if(schema_table_store_record(thd, table))
-          DBUG_RETURN(1);
-      }
-    }
-    DBUG_RETURN(0);
-  }
-  else
-  {
-    store_schema_partitions_record(thd, table, show_table, 0, file, 0);
-    if(schema_table_store_record(thd, table))
-      DBUG_RETURN(1);
-  }
-  DBUG_RETURN(0);
-}
-
-
 static int fill_open_tables(THD *thd, TABLE_LIST *tables, Item*)
 {
   DBUG_ENTER("fill_open_tables");
@@ -4997,82 +4609,6 @@ static int fill_open_tables(THD *thd, TABLE_LIST *tables, Item*)
   DBUG_RETURN(0);
 }
 
-
-/*
-  Fill and store records into I_S.referential_constraints table
-
-  SYNOPSIS
-    get_referential_constraints_record()
-    thd                 thread handle
-    tables              table list struct(processed table)
-    table               I_S table
-    res                 1 means the error during opening of the processed table
-                        0 means processed table is opened without error
-    base_name           db name
-    file_name           table name
-
-  RETURN
-    0	ok
-    #   error
-*/
-
-static int
-get_referential_constraints_record(THD *thd, TABLE_LIST *tables,
-                                   TABLE *table, bool res,
-                                   LEX_STRING *db_name, LEX_STRING *table_name)
-{
-  CHARSET_INFO *cs= system_charset_info;
-  DBUG_ENTER("get_referential_constraints_record");
-
-  if (res)
-  {
-    if (thd->is_error())
-      push_warning(thd, Sql_condition::SL_WARNING,
-                   thd->get_stmt_da()->mysql_errno(),
-                   thd->get_stmt_da()->message_text());
-    thd->clear_error();
-    DBUG_RETURN(0);
-  }
-  if (!tables->is_view())
-  {
-    List<FOREIGN_KEY_INFO> f_key_list;
-    TABLE *show_table= tables->table;
-
-    show_table->file->get_foreign_key_list(thd, &f_key_list);
-    FOREIGN_KEY_INFO *f_key_info;
-    List_iterator_fast<FOREIGN_KEY_INFO> it(f_key_list);
-    while ((f_key_info= it++))
-    {
-      restore_record(table, s->default_values);
-      table->field[0]->store(STRING_WITH_LEN("def"), cs);
-      table->field[1]->store(db_name->str, db_name->length, cs);
-      table->field[9]->store(table_name->str, table_name->length, cs);
-      table->field[2]->store(f_key_info->foreign_id->str,
-                             f_key_info->foreign_id->length, cs);
-      table->field[3]->store(STRING_WITH_LEN("def"), cs);
-      table->field[4]->store(f_key_info->referenced_db->str, 
-                             f_key_info->referenced_db->length, cs);
-      table->field[10]->store(f_key_info->referenced_table->str, 
-                             f_key_info->referenced_table->length, cs);
-      if (f_key_info->referenced_key_name)
-      {
-        table->field[5]->store(f_key_info->referenced_key_name->str, 
-                               f_key_info->referenced_key_name->length, cs);
-        table->field[5]->set_notnull();
-      }
-      else
-        table->field[5]->set_null();
-      table->field[6]->store(STRING_WITH_LEN("NONE"), cs);
-      table->field[7]->store(f_key_info->update_method->str, 
-                             f_key_info->update_method->length, cs);
-      table->field[8]->store(f_key_info->delete_method->str, 
-                             f_key_info->delete_method->length, cs);
-      if (schema_table_store_record(thd, table))
-        DBUG_RETURN(1);
-    }
-  }
-  DBUG_RETURN(0);
-}
 
 struct schema_table_ref 
 {
@@ -5651,7 +5187,7 @@ bool get_schema_tables_result(JOIN *join,
         continue;
 
       /* skip I_S optimizations specific to get_all_tables */
-      if (thd->lex->describe &&
+      if (thd->lex->is_explain() &&
           (table_list->schema_table->fill_table != get_all_tables))
         continue;
 
@@ -5930,94 +5466,6 @@ ST_FIELD_INFO plugin_fields_info[]=
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
 };
 
-ST_FIELD_INFO files_fields_info[]=
-{
-  {"FILE_ID", 4, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
-  {"FILE_NAME", FN_REFLEN_SE, MYSQL_TYPE_STRING, 0, 1, 0, SKIP_OPEN_TABLE},
-  {"FILE_TYPE", 20, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE},
-  {"TABLESPACE_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 1, 0,
-   SKIP_OPEN_TABLE},
-  {"TABLE_CATALOG", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE},
-  {"TABLE_SCHEMA", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 1, 0, SKIP_OPEN_TABLE},
-  {"TABLE_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 1, 0, SKIP_OPEN_TABLE},
-  {"LOGFILE_GROUP_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 1, 0,
-   SKIP_OPEN_TABLE},
-  {"LOGFILE_GROUP_NUMBER", 4, MYSQL_TYPE_LONGLONG, 0, 1, 0, SKIP_OPEN_TABLE},
-  {"ENGINE", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE},
-  {"FULLTEXT_KEYS", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 1, 0, SKIP_OPEN_TABLE},
-  {"DELETED_ROWS", 4, MYSQL_TYPE_LONGLONG, 0, 1, 0, SKIP_OPEN_TABLE},
-  {"UPDATE_COUNT", 4, MYSQL_TYPE_LONGLONG, 0, 1, 0, SKIP_OPEN_TABLE},
-  {"FREE_EXTENTS", 4, MYSQL_TYPE_LONGLONG, 0, 1, 0, SKIP_OPEN_TABLE},
-  {"TOTAL_EXTENTS", 4, MYSQL_TYPE_LONGLONG, 0, 1, 0, SKIP_OPEN_TABLE},
-  {"EXTENT_SIZE", 4, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
-  {"INITIAL_SIZE", 21, MYSQL_TYPE_LONGLONG, 0,
-   (MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED), 0, SKIP_OPEN_TABLE},
-  {"MAXIMUM_SIZE", 21, MYSQL_TYPE_LONGLONG, 0, 
-   (MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED), 0, SKIP_OPEN_TABLE},
-  {"AUTOEXTEND_SIZE", 21, MYSQL_TYPE_LONGLONG, 0, 
-   (MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED), 0, SKIP_OPEN_TABLE},
-  {"CREATION_TIME", 0, MYSQL_TYPE_DATETIME, 0, 1, 0, SKIP_OPEN_TABLE},
-  {"LAST_UPDATE_TIME", 0, MYSQL_TYPE_DATETIME, 0, 1, 0, SKIP_OPEN_TABLE},
-  {"LAST_ACCESS_TIME", 0, MYSQL_TYPE_DATETIME, 0, 1, 0, SKIP_OPEN_TABLE},
-  {"RECOVER_TIME", 4, MYSQL_TYPE_LONGLONG, 0, 1, 0, SKIP_OPEN_TABLE},
-  {"TRANSACTION_COUNTER", 4, MYSQL_TYPE_LONGLONG, 0, 1, 0, SKIP_OPEN_TABLE},
-  {"VERSION", 21 , MYSQL_TYPE_LONGLONG, 0,
-   (MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED), "Version", SKIP_OPEN_TABLE},
-  {"ROW_FORMAT", 10, MYSQL_TYPE_STRING, 0, 1, "Row_format", SKIP_OPEN_TABLE},
-  {"TABLE_ROWS", 21 , MYSQL_TYPE_LONGLONG, 0,
-   (MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED), "Rows", SKIP_OPEN_TABLE},
-  {"AVG_ROW_LENGTH", 21 , MYSQL_TYPE_LONGLONG, 0, 
-   (MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED), "Avg_row_length", SKIP_OPEN_TABLE},
-  {"DATA_LENGTH", 21 , MYSQL_TYPE_LONGLONG, 0, 
-   (MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED), "Data_length", SKIP_OPEN_TABLE},
-  {"MAX_DATA_LENGTH", 21 , MYSQL_TYPE_LONGLONG, 0, 
-   (MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED), "Max_data_length", SKIP_OPEN_TABLE},
-  {"INDEX_LENGTH", 21 , MYSQL_TYPE_LONGLONG, 0, 
-   (MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED), "Index_length", SKIP_OPEN_TABLE},
-  {"DATA_FREE", 21 , MYSQL_TYPE_LONGLONG, 0, 
-   (MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED), "Data_free", SKIP_OPEN_TABLE},
-  {"CREATE_TIME", 0, MYSQL_TYPE_DATETIME, 0, 1, "Create_time", SKIP_OPEN_TABLE},
-  {"UPDATE_TIME", 0, MYSQL_TYPE_DATETIME, 0, 1, "Update_time", SKIP_OPEN_TABLE},
-  {"CHECK_TIME", 0, MYSQL_TYPE_DATETIME, 0, 1, "Check_time", SKIP_OPEN_TABLE},
-  {"CHECKSUM", 21 , MYSQL_TYPE_LONGLONG, 0, 
-   (MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED), "Checksum", SKIP_OPEN_TABLE},
-  {"STATUS", 20, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE},
-  {"EXTRA", 255, MYSQL_TYPE_STRING, 0, 1, 0, SKIP_OPEN_TABLE},
-  {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
-};
-
-void init_fill_schema_files_row(TABLE* table)
-{
-  int i;
-  for(i=0; files_fields_info[i].field_name!=NULL; i++)
-    table->field[i]->set_null();
-
-  table->field[IS_FILES_STATUS]->set_notnull();
-  table->field[IS_FILES_STATUS]->store("NORMAL", 6, system_charset_info);
-}
-
-ST_FIELD_INFO referential_constraints_fields_info[]=
-{
-  {"CONSTRAINT_CATALOG", FN_REFLEN, MYSQL_TYPE_STRING, 0, 0, 0, OPEN_FULL_TABLE},
-  {"CONSTRAINT_SCHEMA", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0,
-   OPEN_FULL_TABLE},
-  {"CONSTRAINT_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0,
-   OPEN_FULL_TABLE},
-  {"UNIQUE_CONSTRAINT_CATALOG", FN_REFLEN, MYSQL_TYPE_STRING, 0, 0, 0,
-   OPEN_FULL_TABLE},
-  {"UNIQUE_CONSTRAINT_SCHEMA", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0,
-   OPEN_FULL_TABLE},
-  {"UNIQUE_CONSTRAINT_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0,
-   MY_I_S_MAYBE_NULL, 0, OPEN_FULL_TABLE},
-  {"MATCH_OPTION", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0, OPEN_FULL_TABLE},
-  {"UPDATE_RULE", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0, OPEN_FULL_TABLE},
-  {"DELETE_RULE", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0, OPEN_FULL_TABLE},
-  {"TABLE_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0, OPEN_FULL_TABLE},
-  {"REFERENCED_TABLE_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0,
-   OPEN_FULL_TABLE},
-  {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
-};
-
 
 ST_FIELD_INFO tablespaces_fields_info[]=
 {
@@ -6079,8 +5527,6 @@ ST_SCHEMA_TABLE schema_tables[]=
    fill_schema_column_privileges, 0, 0, -1, -1, 0, 0},
   {"ENGINES", engines_fields_info, create_schema_table,
    fill_schema_engines, make_old_format, 0, -1, -1, 0, 0},
-  {"FILES", files_fields_info, create_schema_table,
-   hton_fill_schema_table, 0, 0, -1, -1, 0, 0},
   {"OPEN_TABLES", open_tables_fields_info, create_schema_table,
    fill_open_tables, make_old_format, 0, -1, -1, 1, 0},
 #ifdef OPTIMIZER_TRACE
@@ -6090,9 +5536,6 @@ ST_SCHEMA_TABLE schema_tables[]=
   {"OPTIMIZER_TRACE", optimizer_trace_info, create_schema_table,
    NULL, NULL, NULL, -1, -1, false, 0},
 #endif
-  {"PARTITIONS", partitions_fields_info, create_schema_table,
-   get_all_tables, 0, get_schema_partitions_record, 1, 2, 0,
-   OPTIMIZE_I_S_TABLE|OPEN_TABLE_ONLY},
   {"PLUGINS", plugin_fields_info, create_schema_table,
    fill_plugins, make_old_format, 0, -1, -1, 0, 0},
   {"PROCESSLIST", processlist_fields_info, create_schema_table,
@@ -6100,9 +5543,6 @@ ST_SCHEMA_TABLE schema_tables[]=
   {"PROFILING", query_profile_statistics_info, create_schema_table,
     fill_query_profile_statistics_info, make_profile_table_for_show, 
     NULL, -1, -1, false, 0},
-  {"REFERENTIAL_CONSTRAINTS", referential_constraints_fields_info,
-   create_schema_table, get_all_tables, 0, get_referential_constraints_record,
-   1, 9, 0, OPTIMIZE_I_S_TABLE|OPEN_TABLE_ONLY},
   {"SCHEMA_PRIVILEGES", schema_privileges_fields_info, create_schema_table,
    fill_schema_schema_privileges, 0, 0, -1, -1, 0, 0},
   {"TABLESPACES", tablespaces_fields_info, create_schema_table,
@@ -6585,3 +6025,231 @@ static void get_cs_converted_string_value(THD *thd,
   }
   return;
 }
+
+
+/**
+  A field's SQL type printout
+
+  @param type     the type to print
+  @param metadata field's metadata, depending on the type
+                  could be nothing, length, or length + decimals
+  @param str      String to print to
+  @param field_cs field's charset. When given [var]char length is printed in
+                  characters, otherwise - in bytes
+
+*/
+
+void show_sql_type(enum_field_types type, uint16 metadata, String *str,
+                   const CHARSET_INFO *field_cs)
+{
+  DBUG_ENTER("show_sql_type");
+  DBUG_PRINT("enter", ("type: %d, metadata: 0x%x", type, metadata));
+
+  switch (type)
+  {
+  case MYSQL_TYPE_TINY:
+    str->set_ascii(STRING_WITH_LEN("tinyint"));
+    break;
+
+  case MYSQL_TYPE_SHORT:
+    str->set_ascii(STRING_WITH_LEN("smallint"));
+    break;
+
+  case MYSQL_TYPE_LONG:
+    str->set_ascii(STRING_WITH_LEN("int"));
+    break;
+
+  case MYSQL_TYPE_FLOAT:
+    str->set_ascii(STRING_WITH_LEN("float"));
+    break;
+
+  case MYSQL_TYPE_DOUBLE:
+    str->set_ascii(STRING_WITH_LEN("double"));
+    break;
+
+  case MYSQL_TYPE_NULL:
+    str->set_ascii(STRING_WITH_LEN("null"));
+    break;
+
+  case MYSQL_TYPE_TIMESTAMP:
+  case MYSQL_TYPE_TIMESTAMP2:
+    str->set_ascii(STRING_WITH_LEN("timestamp"));
+    break;
+
+  case MYSQL_TYPE_LONGLONG:
+    str->set_ascii(STRING_WITH_LEN("bigint"));
+    break;
+
+  case MYSQL_TYPE_INT24:
+    str->set_ascii(STRING_WITH_LEN("mediumint"));
+    break;
+
+  case MYSQL_TYPE_NEWDATE:
+  case MYSQL_TYPE_DATE:
+    str->set_ascii(STRING_WITH_LEN("date"));
+    break;
+
+  case MYSQL_TYPE_TIME:
+  case MYSQL_TYPE_TIME2:
+    str->set_ascii(STRING_WITH_LEN("time"));
+    break;
+
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_DATETIME2:
+    str->set_ascii(STRING_WITH_LEN("datetime"));
+    break;
+
+  case MYSQL_TYPE_YEAR:
+    str->set_ascii(STRING_WITH_LEN("year"));
+    break;
+
+  case MYSQL_TYPE_VAR_STRING:
+  case MYSQL_TYPE_VARCHAR:
+    {
+      const CHARSET_INFO *cs= str->charset();
+      size_t length;
+      if (field_cs)
+        length= cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
+                                   "varchar(%u)", metadata / field_cs->mbmaxlen);
+      else
+        length= cs->cset->snprintf(cs, (char*) str->ptr(),
+                                   str->alloced_length(),
+                                   "varchar(%u(bytes))", metadata);
+      str->length(length);
+    }
+    break;
+
+  case MYSQL_TYPE_BIT:
+    {
+      const CHARSET_INFO *cs= str->charset();
+      int bit_length= 8 * (metadata >> 8) + (metadata & 0xFF);
+      size_t length=
+        cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
+                           "bit(%d)", bit_length);
+      str->length(length);
+    }
+    break;
+
+  case MYSQL_TYPE_DECIMAL:
+    {
+      const CHARSET_INFO *cs= str->charset();
+      size_t length=
+        cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
+                           "decimal(%d,?)", metadata);
+      str->length(length);
+    }
+    break;
+
+  case MYSQL_TYPE_NEWDECIMAL:
+    {
+      const CHARSET_INFO *cs= str->charset();
+      /*
+        Field_new_decimal encodes metadata this way. Bit shifts can't be used
+        due to different endianness on different platforms.
+      */
+      uchar *metadata_ptr= (uchar*)&metadata;
+      uint len= *metadata_ptr;
+      uint dec= *(metadata_ptr + 1);
+      size_t length=
+        cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
+                           "decimal(%d,%d)", len, dec);
+      str->length(length);
+    }
+    break;
+
+  case MYSQL_TYPE_ENUM:
+    str->set_ascii(STRING_WITH_LEN("enum"));
+    break;
+
+  case MYSQL_TYPE_SET:
+    str->set_ascii(STRING_WITH_LEN("set"));
+    break;
+
+  case MYSQL_TYPE_TINY_BLOB:
+    if (!field_cs || field_cs == &my_charset_bin)
+      str->set_ascii(STRING_WITH_LEN("tinyblob"));
+    else
+      str->set_ascii(STRING_WITH_LEN("tinytext"));
+    break;
+
+  case MYSQL_TYPE_MEDIUM_BLOB:
+    if (!field_cs || field_cs == &my_charset_bin)
+      str->set_ascii(STRING_WITH_LEN("mediumblob"));
+    else
+      str->set_ascii(STRING_WITH_LEN("mediumtext"));
+    break;
+
+  case MYSQL_TYPE_LONG_BLOB:
+    if (!field_cs || field_cs == &my_charset_bin)
+      str->set_ascii(STRING_WITH_LEN("longblob"));
+    else
+      str->set_ascii(STRING_WITH_LEN("longtext"));
+    break;
+
+  case MYSQL_TYPE_BLOB:
+    /*
+      Field::real_type() lies regarding the actual type of a BLOB, so
+      it is necessary to check the pack length to figure out what kind
+      of blob it really is.
+      Non-'BLOB' is handled above.
+     */
+    switch (metadata)
+    {
+    case 1:
+      str->set_ascii(STRING_WITH_LEN("tinyblob"));
+      break;
+
+    case 3:
+      str->set_ascii(STRING_WITH_LEN("mediumblob"));
+      break;
+
+    case 4:
+      str->set_ascii(STRING_WITH_LEN("longblob"));
+      break;
+
+    default:
+    case 2:
+      if (!field_cs || field_cs == &my_charset_bin)
+        str->set_ascii(STRING_WITH_LEN("blob"));
+      else
+        str->set_ascii(STRING_WITH_LEN("text"));
+      break;
+    }
+    break;
+
+  case MYSQL_TYPE_STRING:
+    {
+      /*
+        This is taken from Field_string::unpack.
+      */
+      const CHARSET_INFO *cs= str->charset();
+      uint bytes= (((metadata >> 4) & 0x300) ^ 0x300) + (metadata & 0x00ff);
+      size_t length;
+      if (field_cs)
+        length=
+          cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
+                             "char(%d)", bytes / field_cs->mbmaxlen);
+      else
+        length=
+          cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
+                             "char(%d(bytes))", bytes);
+      str->length(length);
+    }
+    break;
+
+  case MYSQL_TYPE_GEOMETRY:
+    str->set_ascii(STRING_WITH_LEN("geometry"));
+    break;
+
+  case MYSQL_TYPE_JSON:
+    str->set_ascii(STRING_WITH_LEN("json"));
+    break;
+
+  default:
+    str->set_ascii(STRING_WITH_LEN("<unknown type>"));
+  }
+  DBUG_VOID_RETURN;
+}
+
+
+

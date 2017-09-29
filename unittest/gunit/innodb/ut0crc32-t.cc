@@ -18,15 +18,13 @@
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
 
+#include <gtest/gtest.h>
 #include <string.h>
 
-#include <gtest/gtest.h>
-
-#include "univ.i"
-
-#include "benchmark.h"
-#include "ut0crc32.h"
-#include "ut0dbg.h"
+#include "storage/innobase/include/univ.i"
+#include "storage/innobase/include/ut0crc32.h"
+#include "storage/innobase/include/ut0dbg.h"
+#include "unittest/gunit/benchmark.h"
 
 namespace innodb_ut0crc32_unittest {
 

@@ -18,10 +18,10 @@
 
 #include <new>
 
-#include "dd/impl/types/entity_object_table_impl.h"
-#include "dd/impl/types/index_stat_impl.h"
-#include "dd/string_type.h"                              // dd::String_type
-#include "dd/types/index_stat.h"
+#include "sql/dd/impl/types/entity_object_table_impl.h"
+#include "sql/dd/impl/types/index_stat_impl.h"
+#include "sql/dd/string_type.h"                          // dd::String_type
+#include "sql/dd/types/index_stat.h"
 
 namespace dd {
 
@@ -51,7 +51,8 @@ public:
     FIELD_TABLE_NAME,
     FIELD_INDEX_NAME,
     FIELD_COLUMN_NAME,
-    FIELD_CARDINALITY
+    FIELD_CARDINALITY,
+    FIELD_CACHED_TIME
   };
 
 public:

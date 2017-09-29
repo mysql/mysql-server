@@ -13,12 +13,12 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/tables/parameters.h"
+#include "sql/dd/impl/tables/parameters.h"
 
 #include <new>
 
-#include "dd/impl/raw/object_keys.h"      // dd::Parent_id_range_key
-#include "dd/impl/types/object_table_definition_impl.h"
+#include "sql/dd/impl/raw/object_keys.h"  // dd::Parent_id_range_key
+#include "sql/dd/impl/types/object_table_definition_impl.h"
 
 namespace dd {
 namespace tables {
@@ -32,7 +32,6 @@ const Parameters &Parameters::instance()
 Parameters::Parameters()
 {
   m_target_def.table_name(table_name());
-  m_target_def.dd_version(1);
 
   m_target_def.add_field(FIELD_ID,
                          "FIELD_ID",

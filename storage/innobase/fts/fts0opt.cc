@@ -25,30 +25,28 @@ Completed 2011/7/10 Sunny and Jimmy Yang
 
 ***********************************************************************/
 
-#include "ha_prototypes.h"
-#include "current_thd.h"
-
 #include <math.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <time.h>
+#include <zlib.h>
 
+#include "current_thd.h"
 #include "dict0dd.h"
 #include "fts0fts.h"
 #include "fts0opt.h"
 #include "fts0priv.h"
 #include "fts0types.h"
+#include "ha_prototypes.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "os0thread-create.h"
 #include "que0types.h"
 #include "row0sel.h"
+#include "sql_thd_internal_api.h"
 #include "srv0start.h"
 #include "ut0list.h"
 #include "ut0wqueue.h"
-#include "zlib.h"
-#include "os0thread-create.h"
-#include "sql_thd_internal_api.h"
 
 /** The FTS optimize thread's work queue. */
 static ib_wqueue_t* fts_optimize_wq;
@@ -1025,9 +1023,7 @@ fts_table_fetch_doc_ids(
 
 	error = fts_eval_sql(trx, graph);
 
-	mutex_enter(&dict_sys->mutex);
 	que_graph_free(graph);
-	mutex_exit(&dict_sys->mutex);
 
 	if (error == DB_SUCCESS) {
 		fts_sql_commit(trx);
@@ -2544,7 +2540,8 @@ fts_optimize_table_bk(
 		MDL_ticket*	mdl = nullptr;
 		THD*		thd = current_thd;
 
-		table = dd_table_open_on_id(slot->table_id, thd, &mdl, false);
+		table = dd_table_open_on_id(slot->table_id, thd, &mdl,
+					    false, true);
 
 		if (table != nullptr) {
 			fts_t*	fts = table->fts;
@@ -3104,7 +3101,7 @@ fts_optimize_sync_table(
 	MDL_ticket*	mdl = nullptr;
 	THD*		thd = current_thd;
 
-	table = dd_table_open_on_id(table_id, thd, &mdl, false);
+	table = dd_table_open_on_id(table_id, thd, &mdl, false, true);
 
 	if (table) {
 		if (dict_table_has_fts_index(table) && table->fts->cache) {

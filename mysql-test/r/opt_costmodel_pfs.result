@@ -4,5 +4,5 @@
 #
 SELECT * FROM performance_schema.setup_instruments
 WHERE NAME LIKE 'Wait/Synch/Mutex/sql/Cost_constant_cache%';
-NAME	ENABLED	TIMED
-wait/synch/mutex/sql/Cost_constant_cache::LOCK_cost_const	YES	YES
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+wait/synch/mutex/sql/Cost_constant_cache::LOCK_cost_const	YES	YES	singleton	0	NULL

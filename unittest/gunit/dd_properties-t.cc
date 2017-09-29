@@ -16,10 +16,10 @@
 #include <gtest/gtest.h>
 #include <stddef.h>
 
-#include "../../sql/dd/impl/properties_impl.h"
-#include "../../sql/dd/properties.h"
 #include "my_inttypes.h"
-#include "test_utils.h"
+#include "sql/dd/impl/properties_impl.h"
+#include "sql/dd/properties.h"
+#include "unittest/gunit/test_utils.h"
 
 
 namespace dd_properties_unittest {

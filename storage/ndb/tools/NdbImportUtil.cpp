@@ -15,7 +15,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <my_sys.h>
+#include "my_sys.h"
 #include <NdbDictionaryImpl.hpp>
 #include "NdbImportUtil.hpp"
 // legacy

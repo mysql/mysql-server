@@ -22,10 +22,10 @@
 
 #include <string>
 
-#include "ngs/error_code.h"
-#include "ngs/protocol/row_builder.h"
-#include "ngs/protocol/output_buffer.h"
-#include "ngs/protocol/message.h"
+#include "plugin/x/ngs/include/ngs/error_code.h"
+#include "plugin/x/ngs/include/ngs/protocol/message.h"
+#include "plugin/x/ngs/include/ngs/protocol/output_buffer.h"
+#include "plugin/x/ngs/include/ngs/protocol/row_builder.h"
 
 namespace ngs {
 
@@ -44,6 +44,33 @@ enum class Frame_type {
   WARNING = Mysqlx::Notice::Frame_Type_WARNING,
   SESSION_VARIABLE_CHANGED = Mysqlx::Notice::Frame_Type_SESSION_VARIABLE_CHANGED,
   SESSION_STATE_CHANGED = Mysqlx::Notice::Frame_Type_SESSION_STATE_CHANGED
+};
+
+struct Encode_column_info {
+  const char *m_catalog = "";
+  const char *m_db_name = "";
+  const char *m_table_name = "";
+  const char *m_org_table_name = "";
+  const char *m_col_name = "";
+  const char *m_org_col_name = "";
+
+  uint64_t m_collation{0};
+  bool     m_has_collation{false};
+
+  int32_t  m_type{0};
+
+  int32_t  m_decimals{0};
+  int32_t  m_has_decimals{false};
+
+  uint32_t m_flags{0};
+  bool     m_has_flags{false};
+
+  uint32_t m_length{0};
+  bool     m_has_length{false};
+
+  uint32_t m_content_type{0};
+
+  bool m_compact{true};
 };
 
 class Protocol_encoder_interface {
@@ -68,17 +95,7 @@ class Protocol_encoder_interface {
   virtual bool send_exec_ok() = 0;
   virtual bool send_result_fetch_done() = 0;
   virtual bool send_result_fetch_done_more_results() = 0;
-
-  virtual bool send_column_metadata(
-      const std::string &catalog, const std::string &db_name,
-      const std::string &table_name, const std::string &org_table_name,
-      const std::string &col_name, const std::string &org_col_name,
-      uint64_t collation, int type, int decimals, uint32_t flags,
-      uint32_t length, uint32_t content_type = 0) = 0;
-
-  virtual bool send_column_metadata(uint64_t collation, int type, int decimals,
-                                    uint32_t flags, uint32_t length,
-                                    uint32_t content_type = 0) = 0;
+  virtual bool send_column_metadata(const Encode_column_info *column_info) = 0;
 
   virtual Row_builder &row_builder() = 0;
   virtual void start_row() = 0;

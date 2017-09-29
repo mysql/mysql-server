@@ -51,14 +51,7 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "field.h"
 #include "ft_global.h"
-#include "handler.h"
-#include "item.h"
-#include "item_cmpfunc.h"
-#include "item_func.h"
-#include "item_sum.h"                           // Item_sum
-#include "key.h"                                // key_cmp_if_same
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_dbug.h"
@@ -67,15 +60,22 @@
 #include "my_table_map.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "sql_bitmap.h"
-#include "sql_class.h"
-#include "sql_const.h"
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_opt_exec_shared.h"
-#include "sql_select.h"
-#include "table.h"
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/item.h"
+#include "sql/item_cmpfunc.h"
+#include "sql/item_func.h"
+#include "sql/item_sum.h"                       // Item_sum
+#include "sql/key.h"                            // key_cmp_if_same
+#include "sql/sql_bitmap.h"
+#include "sql/sql_class.h"
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_opt_exec_shared.h"
+#include "sql/sql_select.h"
+#include "sql/table.h"
 
 static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
                                 Item_field *item_field, Item *cond,
@@ -378,7 +378,7 @@ int opt_sum_query(THD *thd,
               done in this function from showing in EXPLAIN, that's ok as
               real query will be executed faster than one shown by EXPLAIN.
             */
-            if (!thd->lex->describe &&
+            if (!thd->lex->is_explain() &&
                 (count= get_exact_record_count(tables)) == ULLONG_MAX)
             {
               /* Error from handler in counting rows. Don't optimize count() */
@@ -417,7 +417,8 @@ int opt_sum_query(THD *thd,
           const_result= 0;
 
         // See comment above for get_exact_record_count()
-        if (!thd->lex->describe && const_result == 1) {
+        if (!thd->lex->is_explain() && const_result == 1)
+        {
           ((Item_sum_count*) item)->make_const((longlong) count);
           recalc_const_item= true;
         }

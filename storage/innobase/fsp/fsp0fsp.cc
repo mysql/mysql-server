@@ -42,6 +42,7 @@ Created 11/29/1995 Heikki Tuuri
 # include "btr0btr.h"
 # include "btr0sea.h"
 # include "dict0boot.h"
+# include "dict0dd.h"
 # include "fut0fut.h"
 # include "ibuf0ibuf.h"
 # include "log0log.h"
@@ -263,8 +264,8 @@ bool
 fsp_is_undo_tablespace(space_id_t space_id)
 {
 	/* Starting with v8, undo space_ids have a unique range. */
-	if (space_id >= dict_sys_t::min_undo_space_id
-	    && space_id <= dict_sys_t::max_undo_space_id) {
+	if (space_id >= dict_sys_t::s_min_undo_space_id
+	    && space_id <= dict_sys_t::s_max_undo_space_id) {
 		return(true);
 	}
 
@@ -984,6 +985,9 @@ fsp_header_rotate_encryption(
 	ut_ad(mtr);
 	ut_ad(space->encryption_type != Encryption::NONE);
 
+	DBUG_EXECUTE_IF("fsp_header_rotate_encryption_failure",
+			return(false););
+
 	/* Fill encryption info. */
 	if (!Encryption::fill_encryption_info(space->encryption_key,
 					      space->encryption_iv,
@@ -1042,6 +1046,13 @@ fsp_header_init(
 
 	mlog_write_ulint(page + FIL_PAGE_TYPE, FIL_PAGE_TYPE_FSP_HDR,
 			 MLOG_2BYTES, mtr);
+
+	mlog_write_ulint(page + FIL_PAGE_SRV_VERSION,
+			 DD_SPACE_CURRENT_SRV_VERSION,
+			 MLOG_4BYTES, mtr);
+	mlog_write_ulint(page + FIL_PAGE_SPACE_VERSION,
+			 DD_SPACE_CURRENT_SPACE_VERSION,
+			 MLOG_4BYTES, mtr);
 
 	header = FSP_HEADER_OFFSET + page;
 

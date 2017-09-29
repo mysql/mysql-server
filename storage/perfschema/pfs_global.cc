@@ -26,7 +26,8 @@
 
 #include "my_dbug.h"
 #include "my_sys.h"
-#include "pfs_builtin_memory.h"
+#include "storage/perfschema/pfs_builtin_memory.h"
+#include "sql/log.h"
 
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -149,13 +150,23 @@ pfs_malloc_array(PFS_builtin_memory_class *klass,
   DBUG_ASSERT(klass != NULL);
   DBUG_ASSERT(n > 0);
   DBUG_ASSERT(size > 0);
+  void *ptr = NULL;
   size_t array_size = n * size;
   /* Check for overflow before allocating. */
   if (is_overflow(array_size, n, size))
   {
+    sql_print_warning("Failed to allocate memory for %zu chunks each of size "
+                      "%zu for buffer '%s' due to overflow", n, size,
+                      klass->m_class.m_name);
     return NULL;
   }
-  return pfs_malloc(klass, array_size, flags);
+
+  if(NULL == (ptr = pfs_malloc(klass, array_size, flags)))
+  {
+    sql_print_warning("Failed to allocate %zu bytes for buffer '%s' due to "
+                      "out-of-memory", array_size, klass->m_class.m_name);
+  }
+  return ptr;
 }
 
 /**

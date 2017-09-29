@@ -22,11 +22,10 @@
 */
 
 #include <sys/types.h>
-
 #include <atomic>
 
-#include "pfs_events.h"
-#include "pfs_global.h"
+#include "storage/perfschema/pfs_events.h"
+#include "storage/perfschema/pfs_global.h"
 
 struct PFS_thread;
 struct PFS_account;

@@ -47,7 +47,7 @@ GROUP BY product, country_id, year;
 SELECT product, country_id , year, SUM(profit) FROM t1
 GROUP BY product, country_id, year WITH ROLLUP;
 ANALYZE TABLE t1;
-EXPLAIN EXTENDED SELECT product, country_id , year, SUM(profit)
+EXPLAIN SELECT product, country_id , year, SUM(profit)
 FROM t1 GROUP BY product, country_id, year WITH ROLLUP;
 SELECT product, country_id , SUM(profit) FROM t1
 GROUP BY product desc, country_id WITH ROLLUP;
@@ -725,3 +725,17 @@ EXECUTE ps;
 DROP TABLE t;
 DROP PREPARE ps;
 DROP VIEW v;
+
+--echo # Bug#25727892: Refactor Item::const_item() as a non-virtual function
+
+--echo Extended coverage for ROLLUP and const expressions
+
+CREATE TABLE t1 (a INTEGER) ENGINE=InnoDB;
+CREATE TABLE t2 (c INTEGER) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES (7),(8);
+INSERT INTO t2 VALUES (-3);
+
+SELECT c, a, SUM(c) OVER () FROM t1,t2 GROUP BY c,a WITH ROLLUP;
+
+DROP TABLE t1, t2;

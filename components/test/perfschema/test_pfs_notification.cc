@@ -530,8 +530,8 @@ bool test_pfs_notification()
         callbacks.session_disconnect  = &session_disconnect_cb1;
         callbacks.session_change_user = &session_change_user_cb1;
         break;
-    
-      case 2:
+
+    case 2:
         callbacks.thread_create       = &thread_create_cb2;
         callbacks.thread_destroy      = &thread_destroy_cb2;
         callbacks.session_connect     = &session_connect_cb2;

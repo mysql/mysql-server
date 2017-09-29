@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "rpl_utility.h"
+#include "sql/rpl_utility.h"
 
 #include <string.h>
 #include <iterator>
@@ -28,38 +28,39 @@
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/udf_registration_types.h"
-#include "thr_malloc.h"
+#include "sql/thr_malloc.h"
 
 #ifdef MYSQL_SERVER
 
 #include <algorithm>
 
 #include "binlog_event.h"                // checksum_crv32
-#include "dd/dd.h"                       // get_dictionary
-#include "dd/dictionary.h"               // is_dd_table_access_allowed
-#include "derror.h"                      // ER_THD
-#include "field.h"                       // Field
-#include "log.h"
-#include "log_event.h"                   // Log_event
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_base.h"
 #include "my_bitmap.h"
-#include "my_decimal.h"
 #include "mysql/psi/psi_memory.h"
-#include "mysqld.h"                      // slave_type_conversions_options
 #include "mysqld_error.h"
-#include "psi_memory_key.h"
-#include "rpl_rli.h"                     // Relay_log_info
-#include "rpl_slave.h"
-#include "sql_class.h"                   // THD
-#include "sql_const.h"
-#include "sql_list.h"
-#include "sql_plugin_ref.h"
+#include "sql/dd/dd.h"                   // get_dictionary
+#include "sql/dd/dictionary.h"           // is_dd_table_access_allowed
+#include "sql/derror.h"                  // ER_THD
+#include "sql/field.h"                   // Field
+#include "sql/log.h"
+#include "sql/log_event.h"               // Log_event
+#include "sql/my_decimal.h"
+#include "sql/mysqld.h"                  // slave_type_conversions_options
+#include "sql/psi_memory_key.h"
+#include "sql/rpl_rli.h"                 // Relay_log_info
+#include "sql/rpl_slave.h"
+#include "sql/sql_class.h"               // THD
+#include "sql/sql_const.h"
+#include "sql/sql_list.h"
+#include "sql/sql_plugin_ref.h"
+#include "sql/sql_tmp_table.h"           // create_tmp_table_from_fields
 #include "sql_string.h"
-#include "sql_tmp_table.h"               // create_virtual_tmp_table
 #include "template_utils.h"              // delete_container_pointers
 #include "typelib.h"
+#include "sql_show.h"                    // show_sql_type
 
 using std::min;
 using std::max;
@@ -123,177 +124,6 @@ static int compare_lengths(Field *field, enum_field_types source_type,
   int result= compare(source_length, target_length);
   DBUG_PRINT("result", ("%d", result));
   DBUG_RETURN(result);
-}
-
-static void show_sql_type(enum_field_types type, uint16 metadata, String *str)
-{
-  DBUG_ENTER("show_sql_type");
-  DBUG_PRINT("enter", ("type: %d, metadata: 0x%x", type, metadata));
-
-  switch (type)
-  {
-  case MYSQL_TYPE_TINY:
-    str->set_ascii(STRING_WITH_LEN("tinyint"));
-    break;
-
-  case MYSQL_TYPE_SHORT:
-    str->set_ascii(STRING_WITH_LEN("smallint"));
-    break;
-
-  case MYSQL_TYPE_LONG:
-    str->set_ascii(STRING_WITH_LEN("int"));
-    break;
-
-  case MYSQL_TYPE_FLOAT:
-    str->set_ascii(STRING_WITH_LEN("float"));
-    break;
-
-  case MYSQL_TYPE_DOUBLE:
-    str->set_ascii(STRING_WITH_LEN("double"));
-    break;
-
-  case MYSQL_TYPE_NULL:
-    str->set_ascii(STRING_WITH_LEN("null"));
-    break;
-
-  case MYSQL_TYPE_TIMESTAMP:
-  case MYSQL_TYPE_TIMESTAMP2:
-    str->set_ascii(STRING_WITH_LEN("timestamp"));
-    break;
-
-  case MYSQL_TYPE_LONGLONG:
-    str->set_ascii(STRING_WITH_LEN("bigint"));
-    break;
-
-  case MYSQL_TYPE_INT24:
-    str->set_ascii(STRING_WITH_LEN("mediumint"));
-    break;
-
-  case MYSQL_TYPE_NEWDATE:
-  case MYSQL_TYPE_DATE:
-    str->set_ascii(STRING_WITH_LEN("date"));
-    break;
-
-  case MYSQL_TYPE_TIME:
-  case MYSQL_TYPE_TIME2:
-    str->set_ascii(STRING_WITH_LEN("time"));
-    break;
-
-  case MYSQL_TYPE_DATETIME:
-  case MYSQL_TYPE_DATETIME2:
-    str->set_ascii(STRING_WITH_LEN("datetime"));
-    break;
-
-  case MYSQL_TYPE_YEAR:
-    str->set_ascii(STRING_WITH_LEN("year"));
-    break;
-
-  case MYSQL_TYPE_VAR_STRING:
-  case MYSQL_TYPE_VARCHAR:
-    {
-      const CHARSET_INFO *cs= str->charset();
-      size_t length=
-        cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
-                           "varchar(%u(bytes))", metadata);
-      str->length(length);
-    }
-    break;
-
-  case MYSQL_TYPE_BIT:
-    {
-      const CHARSET_INFO *cs= str->charset();
-      int bit_length= 8 * (metadata >> 8) + (metadata & 0xFF);
-      size_t length=
-        cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
-                           "bit(%d)", bit_length);
-      str->length(length);
-    }
-    break;
-
-  case MYSQL_TYPE_DECIMAL:
-    {
-      const CHARSET_INFO *cs= str->charset();
-      size_t length=
-        cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
-                           "decimal(%d,?)", metadata);
-      str->length(length);
-    }
-    break;
-
-  case MYSQL_TYPE_NEWDECIMAL:
-    {
-      const CHARSET_INFO *cs= str->charset();
-      size_t length=
-        cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
-                           "decimal(%d,%d)", metadata >> 8, metadata & 0xff);
-      str->length(length);
-    }
-    break;
-
-  case MYSQL_TYPE_ENUM:
-    str->set_ascii(STRING_WITH_LEN("enum"));
-    break;
-
-  case MYSQL_TYPE_SET:
-    str->set_ascii(STRING_WITH_LEN("set"));
-    break;
-
-  case MYSQL_TYPE_BLOB:
-    /*
-      Field::real_type() lies regarding the actual type of a BLOB, so
-      it is necessary to check the pack length to figure out what kind
-      of blob it really is.
-     */
-    switch (metadata)
-    {
-    case 1:
-      str->set_ascii(STRING_WITH_LEN("tinyblob"));
-      break;
-
-    case 2:
-      str->set_ascii(STRING_WITH_LEN("blob"));
-      break;
-
-    case 3:
-      str->set_ascii(STRING_WITH_LEN("mediumblob"));
-      break;
-
-    case 4:
-      str->set_ascii(STRING_WITH_LEN("longblob"));
-      break;
-
-    default:
-      DBUG_ASSERT(0);
-      break;
-    }
-    break;
-
-  case MYSQL_TYPE_STRING:
-    {
-      /*
-        This is taken from Field_string::unpack.
-      */
-      const CHARSET_INFO *cs= str->charset();
-      uint bytes= (((metadata >> 4) & 0x300) ^ 0x300) + (metadata & 0x00ff);
-      size_t length=
-        cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
-                           "char(%d(bytes))", bytes);
-      str->length(length);
-    }
-    break;
-
-  case MYSQL_TYPE_GEOMETRY:
-    str->set_ascii(STRING_WITH_LEN("geometry"));
-    break;
-
-  case MYSQL_TYPE_JSON:
-    str->set_ascii(STRING_WITH_LEN("json"));
-    break;
-
-  default:
-    str->set_ascii(STRING_WITH_LEN("<unknown type>"));
-  }
-  DBUG_VOID_RETURN;
 }
 
 
@@ -726,8 +556,11 @@ table_def::compatible_with(THD *thd, Relay_log_info *rli,
         report_level= ERROR_LEVEL;
         thd->is_slave_error= 1;
       }
-      /* In case of ignored errors report warnings only if log_warnings > 1. */
-      else if (log_warnings > 1)
+      /*
+        In case of ignored errors report warnings only if
+        log_error_verbosity > 2.
+      */
+      else if (log_error_verbosity > 2)
         report_level= WARNING_LEVEL;
 
       if (field->has_charset() &&
@@ -894,7 +727,7 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
     field_def->interval= interval;
   }
 
-  conv_table= create_virtual_tmp_table(thd, field_list);
+  conv_table= create_tmp_table_from_fields(thd, field_list);
 
 err:
   if (conv_table == NULL)
@@ -905,8 +738,11 @@ err:
       report_level= ERROR_LEVEL;
       thd->is_slave_error= 1;
     }
-    /* In case of ignored errors report warnings only if log_warnings > 1. */
-    else if (log_warnings > 1)
+    /*
+      In case of ignored errors report warnings only if
+      log_error_verbosity > 2.
+    */
+    else if (log_error_verbosity > 2)
       report_level= WARNING_LEVEL;
 
     if (report_level != INFORMATION_LEVEL)
@@ -929,7 +765,7 @@ table_def::table_def(unsigned char *types, ulong size,
                      uchar *null_bitmap, uint16 flags)
   : m_size(size), m_type(0), m_field_metadata_size(metadata_size),
     m_field_metadata(0), m_null_bits(0), m_flags(flags),
-    m_memory(NULL)
+    m_memory(NULL), m_json_column_count(-1)
 {
   m_memory= (uchar *)my_multi_malloc(key_memory_table_def_memory,
                                      MYF(MY_WME),
@@ -1042,7 +878,7 @@ table_def::~table_def()
 
 void hash_slave_rows_free_entry::operator() (HASH_ROW_ENTRY *entry) const
 {
-  DBUG_ENTER("free_entry");
+  DBUG_ENTER("hash_slave_rows_free_entry::operator()");
   if (entry)
   {
     if (entry->preamble)
@@ -1073,8 +909,9 @@ bool Hash_slave_rows::init(void)
 
 bool Hash_slave_rows::deinit(void)
 {
+  DBUG_ENTER("Hash_slave_rows::deinit");
   m_hash.clear();
-  return 0;
+  DBUG_RETURN(0);
 }
 
 int Hash_slave_rows::size()
@@ -1124,6 +961,7 @@ HASH_ROW_ENTRY* Hash_slave_rows::make_entry(const uchar* bi_start, const uchar* 
   DBUG_RETURN(entry);
 
 err:
+  DBUG_PRINT("info", ("Hash_slave_rows::make_entry - malloc error"));
   if (entry)
     my_free(entry);
   if (preamble)

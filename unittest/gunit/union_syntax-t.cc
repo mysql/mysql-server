@@ -21,10 +21,10 @@
 #include <stddef.h>
 #include <string>
 
-#include "parsertest.h"
-#include "sql_lex.h"
-#include "test_utils.h"
+#include "sql/sql_lex.h"
 #include "thr_lock.h"
+#include "unittest/gunit/parsertest.h"
+#include "unittest/gunit/test_utils.h"
 
 namespace union_syntax_unittest {
 

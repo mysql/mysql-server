@@ -227,11 +227,10 @@ fid	ST_AsText(ST_Envelope(g))
 119	POLYGON((0 0,3 0,3 3,0 3,0 0))
 120	POLYGON((0 0,10 0,10 10,0 10,0 0))
 121	POLYGON((3 6,44 6,44 9,3 9,3 6))
-explain extended select ST_Dimension(g), ST_GeometryType(g), ST_IsEmpty(g), ST_AsText(ST_Envelope(g)) from gis_geometry;
+explain select ST_Dimension(g), ST_GeometryType(g), ST_IsEmpty(g), ST_AsText(ST_Envelope(g)) from gis_geometry;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	gis_geometry	NULL	ALL	NULL	NULL	NULL	NULL	21	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select st_dimension(`test`.`gis_geometry`.`g`) AS `ST_Dimension(g)`,st_geometrytype(`test`.`gis_geometry`.`g`) AS `ST_GeometryType(g)`,st_isempty(`test`.`gis_geometry`.`g`) AS `ST_IsEmpty(g)`,st_astext(st_envelope(`test`.`gis_geometry`.`g`)) AS `ST_AsText(ST_Envelope(g))` from `test`.`gis_geometry`
 SELECT fid, ST_X(g) FROM gis_point;
 fid	ST_X(g)
@@ -245,11 +244,10 @@ fid	ST_Y(g)
 102	10
 103	20
 104	20
-explain extended select ST_X(g),ST_Y(g) FROM gis_point;
+explain select ST_X(g),ST_Y(g) FROM gis_point;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	gis_point	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select st_x(`test`.`gis_point`.`g`) AS `ST_X(g)`,st_y(`test`.`gis_point`.`g`) AS `ST_Y(g)` from `test`.`gis_point`
 SELECT fid, ST_AsText(ST_StartPoint(g)) FROM gis_line;
 fid	ST_AsText(ST_StartPoint(g))
@@ -281,11 +279,10 @@ fid	ST_IsClosed(g)
 105	0
 106	1
 107	0
-explain extended select ST_AsText(ST_StartPoint(g)),ST_AsText(ST_EndPoint(g)),ST_Length(g),ST_NumPoints(g),ST_AsText(ST_PointN(g, 2)),ST_IsClosed(g) FROM gis_line;
+explain select ST_AsText(ST_StartPoint(g)),ST_AsText(ST_EndPoint(g)),ST_Length(g),ST_NumPoints(g),ST_AsText(ST_PointN(g, 2)),ST_IsClosed(g) FROM gis_line;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	gis_line	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select st_astext(st_startpoint(`test`.`gis_line`.`g`)) AS `ST_AsText(ST_StartPoint(g))`,st_astext(st_endpoint(`test`.`gis_line`.`g`)) AS `ST_AsText(ST_EndPoint(g))`,st_length(`test`.`gis_line`.`g`) AS `ST_Length(g)`,st_numpoints(`test`.`gis_line`.`g`) AS `ST_NumPoints(g)`,st_astext(st_pointn(`test`.`gis_line`.`g`,2)) AS `ST_AsText(ST_PointN(g, 2))`,st_isclosed(`test`.`gis_line`.`g`) AS `ST_IsClosed(g)` from `test`.`gis_line`
 SELECT fid, ST_AsText(ST_Centroid(g)) FROM gis_polygon;
 fid	ST_AsText(ST_Centroid(g))
@@ -312,11 +309,10 @@ fid	ST_AsText(ST_InteriorRingN(g, 1))
 108	NULL
 109	LINESTRING(10 10,20 10,20 20,10 20,10 10)
 110	NULL
-explain extended select ST_AsText(ST_Centroid(g)),ST_Area(g),ST_AsText(ST_ExteriorRing(g)),ST_NumInteriorRings(g),ST_AsText(ST_InteriorRingN(g, 1)) FROM gis_polygon;
+explain select ST_AsText(ST_Centroid(g)),ST_Area(g),ST_AsText(ST_ExteriorRing(g)),ST_NumInteriorRings(g),ST_AsText(ST_InteriorRingN(g, 1)) FROM gis_polygon;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	gis_polygon	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select st_astext(st_centroid(`test`.`gis_polygon`.`g`)) AS `ST_AsText(ST_Centroid(g))`,st_area(`test`.`gis_polygon`.`g`) AS `ST_Area(g)`,st_astext(st_exteriorring(`test`.`gis_polygon`.`g`)) AS `ST_AsText(ST_ExteriorRing(g))`,st_numinteriorrings(`test`.`gis_polygon`.`g`) AS `ST_NumInteriorRings(g)`,st_astext(st_interiorringn(`test`.`gis_polygon`.`g`,1)) AS `ST_AsText(ST_InteriorRingN(g, 1))` from `test`.`gis_polygon`
 SELECT fid, ST_IsClosed(g) FROM gis_multi_line;
 fid	ST_IsClosed(g)
@@ -352,11 +348,10 @@ SELECT fid, ST_NumGeometries(g) from gis_geometrycollection;
 fid	ST_NumGeometries(g)
 120	2
 121	2
-explain extended SELECT fid, ST_NumGeometries(g) from gis_multi_point;
+explain SELECT fid, ST_NumGeometries(g) from gis_multi_point;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	gis_multi_point	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`gis_multi_point`.`fid` AS `fid`,st_numgeometries(`test`.`gis_multi_point`.`g`) AS `ST_NumGeometries(g)` from `test`.`gis_multi_point`
 SELECT fid, ST_AsText(ST_GeometryN(g, 2)) from gis_multi_point;
 fid	ST_AsText(ST_GeometryN(g, 2))
@@ -381,11 +376,10 @@ SELECT fid, ST_AsText(ST_GeometryN(g, 1)) from gis_geometrycollection;
 fid	ST_AsText(ST_GeometryN(g, 1))
 120	POINT(0 0)
 121	POINT(44 6)
-explain extended SELECT fid, ST_AsText(ST_GeometryN(g, 2)) from gis_multi_point;
+explain SELECT fid, ST_AsText(ST_GeometryN(g, 2)) from gis_multi_point;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	gis_multi_point	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`gis_multi_point`.`fid` AS `fid`,st_astext(st_geometryn(`test`.`gis_multi_point`.`g`,2)) AS `ST_AsText(ST_GeometryN(g, 2))` from `test`.`gis_multi_point`
 SELECT g1.fid as first, g2.fid as second,
 MBRWithin(g1.g, g2.g) as w, MBRContains(g1.g, g2.g) as c, MBROverlaps(g1.g, g2.g) as o,
@@ -397,7 +391,7 @@ first	second	w	c	o	e	d	t	i	r
 120	121	0	0	1	0	0	0	1	0
 121	120	0	0	1	0	0	0	1	0
 121	121	1	1	0	1	0	0	1	0
-explain extended SELECT g1.fid as first, g2.fid as second,
+explain SELECT g1.fid as first, g2.fid as second,
 MBRWithin(g1.g, g2.g) as w, MBRContains(g1.g, g2.g) as c, MBROverlaps(g1.g, g2.g) as o,
 MBREquals(g1.g, g2.g) as e, MBRDisjoint(g1.g, g2.g) as d, ST_Touches(g1.g, g2.g) as t,
 MBRIntersects(g1.g, g2.g) as i, ST_Crosses(g1.g, g2.g) as r
@@ -406,7 +400,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	g1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
 1	SIMPLE	g2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`g1`.`fid` AS `first`,`test`.`g2`.`fid` AS `second`,mbrwithin(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `w`,mbrcontains(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `c`,mbroverlaps(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `o`,mbrequals(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `e`,mbrdisjoint(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `d`,st_touches(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `t`,mbrintersects(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `i`,st_crosses(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `r` from `test`.`gis_geometrycollection` `g1` join `test`.`gis_geometrycollection` `g2` order by `first`,`second`
 DROP TABLE gis_point, gis_line, gis_polygon, gis_multi_point, gis_multi_line, gis_multi_polygon, gis_geometrycollection, gis_geometry;
 CREATE TABLE t1 (
@@ -445,34 +438,28 @@ DROP TABLE t1;
 SELECT ST_AsText(ST_GeometryFromWKB(ST_AsWKB(ST_GeometryFromText('POINT(1 4)'))));
 ST_AsText(ST_GeometryFromWKB(ST_AsWKB(ST_GeometryFromText('POINT(1 4)'))))
 POINT(1 4)
-explain extended SELECT ST_AsText(ST_GeometryFromWKB(ST_AsWKB(ST_GeometryFromText('POINT(1 4)'))));
+explain SELECT ST_AsText(ST_GeometryFromWKB(ST_AsWKB(ST_GeometryFromText('POINT(1 4)'))));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select st_astext(st_geometryfromwkb(st_aswkb(st_geometryfromtext('POINT(1 4)')))) AS `ST_AsText(ST_GeometryFromWKB(ST_AsWKB(ST_GeometryFromText('POINT(1 4)'))))`
-explain extended SELECT ST_AsText(ST_GeometryFromWKB(ST_AsWKB(ST_PointFromText('POINT(1 4)'))));
+explain SELECT ST_AsText(ST_GeometryFromWKB(ST_AsWKB(ST_PointFromText('POINT(1 4)'))));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select st_astext(st_geometryfromwkb(st_aswkb(st_pointfromtext('POINT(1 4)')))) AS `ST_AsText(ST_GeometryFromWKB(ST_AsWKB(ST_PointFromText('POINT(1 4)'))))`
-SELECT ST_SRID(ST_GeomFromText('LineString(1 1,2 2)',101));
-ST_SRID(ST_GeomFromText('LineString(1 1,2 2)',101))
-101
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
-explain extended SELECT ST_SRID(ST_GeomFromText('LineString(1 1,2 2)',101));
+SELECT ST_SRID(ST_GeomFromText('LineString(1 1,2 2)'));
+ST_SRID(ST_GeomFromText('LineString(1 1,2 2)'))
+0
+explain SELECT ST_SRID(ST_GeomFromText('LineString(1 1,2 2)'));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select st_srid(st_geomfromtext('LineString(1 1,2 2)',101)) AS `ST_SRID(ST_GeomFromText('LineString(1 1,2 2)',101))`
-explain extended select ST_issimple(MultiPoint(Point(3, 6), Point(4, 10))), ST_issimple(Point(3, 6));
+Note	1003	/* select#1 */ select st_srid(st_geomfromtext('LineString(1 1,2 2)')) AS `ST_SRID(ST_GeomFromText('LineString(1 1,2 2)'))`
+explain select ST_issimple(MultiPoint(Point(3, 6), Point(4, 10))), ST_issimple(Point(3, 6));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select st_issimple(multipoint(point(3,6),point(4,10))) AS `ST_issimple(MultiPoint(Point(3, 6), Point(4, 10)))`,st_issimple(point(3,6)) AS `ST_issimple(Point(3, 6))`
 create table t1 (a geometry not null);
 insert into t1 values (ST_GeomFromText('Point(1 2)'));
@@ -1222,108 +1209,72 @@ ST_PolyFromText(
 (52 18,66 23,73 9,48 6,52 18), 
 (59 18,67 18,67 13,59 13,59 18) 
 )', 
-101));
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
+0));
 # Road Segments
 INSERT INTO road_segments VALUES(102, 'Route 5', NULL, 2, 
 ST_LineFromText( 
-'LINESTRING( 0 18, 10 21, 16 23, 28 26, 44 31 )' ,101));
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
+'LINESTRING( 0 18, 10 21, 16 23, 28 26, 44 31 )' ,0));
 INSERT INTO road_segments VALUES(103, 'Route 5', 'Main Street', 4, 
 ST_LineFromText( 
-'LINESTRING( 44 31, 56 34, 70 38 )' ,101));
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
+'LINESTRING( 44 31, 56 34, 70 38 )' ,0));
 INSERT INTO road_segments VALUES(104, 'Route 5', NULL, 2, 
 ST_LineFromText( 
-'LINESTRING( 70 38, 72 48 )' ,101));
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
+'LINESTRING( 70 38, 72 48 )' ,0));
 INSERT INTO road_segments VALUES(105, 'Main Street', NULL, 4, 
 ST_LineFromText( 
-'LINESTRING( 70 38, 84 42 )' ,101));
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
+'LINESTRING( 70 38, 84 42 )' ,0));
 INSERT INTO road_segments VALUES(106, 'Dirt Road by Green Forest', NULL, 
 1, 
 ST_LineFromText( 
-'LINESTRING( 28 26, 28 0 )',101));
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
+'LINESTRING( 28 26, 28 0 )',0));
 # DividedRoutes 
 INSERT INTO divided_routes VALUES(119, 'Route 75', 4, 
 ST_MLineFromText( 
 'MULTILINESTRING((10 48,10 21,10 0), 
-(16 0,16 23,16 48))', 101));
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
+(16 0,16 23,16 48))', 0));
 # Forests 
 INSERT INTO forests VALUES(109, 'Green Forest', 
 ST_MPolyFromText( 
 'MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26), 
 (52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))', 
-101));
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
+0));
 # Bridges 
 INSERT INTO bridges VALUES(110, 'Cam Bridge', ST_PointFromText( 
-'POINT( 44 31 )', 101));
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
+'POINT( 44 31 )', 0));
 # Streams 
 INSERT INTO streams VALUES(111, 'Cam Stream', 
 ST_LineFromText( 
-'LINESTRING( 38 48, 44 41, 41 36, 44 31, 52 18 )', 101));
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
+'LINESTRING( 38 48, 44 41, 41 36, 44 31, 52 18 )', 0));
 INSERT INTO streams VALUES(112, NULL, 
 ST_LineFromText( 
-'LINESTRING( 76 0, 78 4, 73 9 )', 101));
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
+'LINESTRING( 76 0, 78 4, 73 9 )', 0));
 # Buildings 
 INSERT INTO buildings VALUES(113, '123 Main Street', 
 ST_PointFromText( 
-'POINT( 52 30 )', 101), 
+'POINT( 52 30 )', 0), 
 ST_PolyFromText( 
-'POLYGON( ( 50 31, 54 31, 54 29, 50 29, 50 31) )', 101));
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
-Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
+'POLYGON( ( 50 31, 54 31, 54 29, 50 29, 50 31) )', 0));
 INSERT INTO buildings VALUES(114, '215 Main Street', 
 ST_PointFromText( 
-'POINT( 64 33 )', 101), 
+'POINT( 64 33 )', 0), 
 ST_PolyFromText( 
-'POLYGON( ( 66 34, 62 34, 62 32, 66 32, 66 34) )', 101));
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
-Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
+'POLYGON( ( 66 34, 62 34, 62 32, 66 32, 66 34) )', 0));
 # Ponds 
 INSERT INTO ponds VALUES(120, NULL, 'Stock Pond', 
 ST_MPolyFromText( 
 'MULTIPOLYGON( ( ( 24 44, 22 42, 24 40, 24 44) ), 
-( ( 26 44, 26 40, 28 42, 26 44) ) )', 101));
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
+( ( 26 44, 26 40, 28 42, 26 44) ) )', 0));
 # Named Places 
 INSERT INTO named_places VALUES(117, 'Ashton', 
 ST_PolyFromText( 
-'POLYGON( ( 62 48, 84 48, 84 30, 56 30, 56 34, 62 48) )', 101));
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
+'POLYGON( ( 62 48, 84 48, 84 30, 56 30, 56 34, 62 48) )', 0));
 INSERT INTO named_places VALUES(118, 'Goose Island', 
 ST_PolyFromText( 
-'POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )', 101));
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
+'POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )', 0));
 # Map Neatlines 
 INSERT INTO map_neatlines VALUES(115, 
 ST_PolyFromText( 
-'POLYGON( ( 0 0, 0 48, 84 48, 84 0, 0 0 ) )', 101));
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
+'POLYGON( ( 0 0, 0 48, 84 48, 84 0, 0 0 ) )', 0));
 #
 # C.3.3.3 Geometry types and functions schema test queries 
 
@@ -1345,24 +1296,18 @@ FROM named_places
 WHERE name = 'Goose Island';
 ST_AsText(boundary)
 POLYGON((67 13,67 18,59 18,59 13,67 13))
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
 # Conformance Item T9 
-SELECT ST_AsText(ST_PolyFromWKB(ST_AsBinary(boundary),101)) 
+SELECT ST_AsText(ST_PolyFromWKB(ST_AsBinary(boundary),0)) 
 FROM named_places 
 WHERE name = 'Goose Island';
-ST_AsText(ST_PolyFromWKB(ST_AsBinary(boundary),101))
+ST_AsText(ST_PolyFromWKB(ST_AsBinary(boundary),0))
 POLYGON((67 13,67 18,59 18,59 13,67 13))
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
-Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
-Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
 # Conformance Item T10 
 SELECT ST_SRID(boundary) 
 FROM named_places 
 WHERE name = 'Goose Island';
 ST_SRID(boundary)
-101
+0
 # Conformance Item T11 
 SELECT ST_IsEmpty(centerline) 
 FROM road_segments 
@@ -1376,9 +1321,6 @@ FROM named_places
 WHERE name = 'Goose Island';
 ST_AsText(ST_Envelope(boundary))
 POLYGON((59 13,67 13,67 18,59 18,59 13))
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_envelope will be done in SRID 0.
-Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
 # Conformance Item T15 
 SELECT ST_X(position) 
 FROM bridges 
@@ -1397,24 +1339,18 @@ FROM road_segments
 WHERE fid = 102;
 ST_AsText(ST_StartPoint(centerline))
 POINT(0 18)
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
 # Conformance Item T18 
 SELECT ST_AsText(ST_EndPoint(centerline)) 
 FROM road_segments 
 WHERE fid = 102;
 ST_AsText(ST_EndPoint(centerline))
 POINT(44 31)
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
 # Conformance Item T21 
 SELECT ST_Length(centerline) 
 FROM road_segments 
 WHERE fid = 106;
 ST_Length(centerline)
 26
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_length will be done in SRID 0.
 # Conformance Item T22 
 SELECT ST_NumPoints(centerline) 
 FROM road_segments 
@@ -1427,33 +1363,24 @@ FROM road_segments
 WHERE fid = 102;
 ST_AsText(ST_PointN(centerline, 1))
 POINT(0 18)
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
 # Conformance Item T24 
 SELECT ST_AsText(ST_Centroid(boundary)) 
 FROM named_places 
 WHERE name = 'Goose Island';
 ST_AsText(ST_Centroid(boundary))
 POINT(63 15.5)
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_centroid will be done in SRID 0.
-Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
 # Conformance Item T26 
 SELECT ST_Area(boundary) 
 FROM named_places 
 WHERE name = 'Goose Island';
 ST_Area(boundary)
 40
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_area will be done in SRID 0.
 # Conformance Item T27 
 SELECT ST_AsText(ST_ExteriorRing(shore)) 
 FROM lakes 
 WHERE name = 'Blue Lake';
 ST_AsText(ST_ExteriorRing(shore))
 LINESTRING(52 18,66 23,73 9,48 6,52 18)
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
 # Conformance Item T28 
 SELECT ST_NumInteriorRings(shore) 
 FROM lakes 
@@ -1466,8 +1393,6 @@ FROM lakes
 WHERE name = 'Blue Lake';
 ST_AsText(ST_InteriorRingN(shore, 1))
 LINESTRING(59 18,67 18,67 13,59 13,59 18)
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
 # Conformance Item T30 
 SELECT ST_NumGeometries(centerlines) 
 FROM divided_routes 
@@ -1480,8 +1405,6 @@ FROM divided_routes
 WHERE name = 'Route 75';
 ST_AsText(ST_GeometryN(centerlines, 2))
 LINESTRING(16 0,16 23,16 48)
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
 # Conformance Item T32 
 SELECT ST_IsClosed(centerlines) 
 FROM divided_routes 
@@ -1494,72 +1417,73 @@ FROM divided_routes
 WHERE name = 'Route 75';
 ST_Length(centerlines)
 96
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_length will be done in SRID 0.
 # Conformance Item T34 
 SELECT ST_AsText(ST_Centroid(shores)) 
 FROM ponds 
 WHERE fid = 120;
 ST_AsText(ST_Centroid(shores))
 POINT(25 42)
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_centroid will be done in SRID 0.
-Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
 # Conformance Item T36 
 SELECT ST_Area(shores) 
 FROM ponds 
 WHERE fid = 120;
 ST_Area(shores)
 8
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_area will be done in SRID 0.
 # Conformance Item T37 
 SELECT ST_Equals(boundary,
-ST_PolyFromText('POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )',101))
+ST_PolyFromText('POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )',0))
 FROM named_places
 WHERE name = 'Goose Island';
-ERROR SR001: There's no spatial reference system with SRID 101.
+ST_Equals(boundary,
+ST_PolyFromText('POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )',0))
+1
 SELECT ST_Equals(boundary,
-ST_PolyFromText('POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )',1))
+ST_PolyFromText('POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )',4145))
 FROM named_places
 WHERE name = 'Goose Island';
-ERROR SR001: There's no spatial reference system with SRID 101.
-# Conformance Item T38 
+ERROR HY000: Binary geometry function st_equals given two geometries of different srids: 0 and 4145, which should have been identical.
+# Conformance Item T38
 SELECT ST_Disjoint(centerlines, boundary) 
 FROM divided_routes, named_places 
 WHERE divided_routes.name = 'Route 75' 
 AND named_places.name = 'Ashton';
-ERROR SR001: There's no spatial reference system with SRID 101.
-# Conformance Item T39 
+ST_Disjoint(centerlines, boundary)
+1
+# Conformance Item T39
 SELECT ST_Touches(centerline, shore) 
 FROM streams, lakes 
 WHERE streams.name = 'Cam Stream' 
 AND lakes.name = 'Blue Lake';
-ERROR SR001: There's no spatial reference system with SRID 101.
+ST_Touches(centerline, shore)
+1
 # Conformance Item T42
 SELECT ST_Crosses(road_segments.centerline, divided_routes.centerlines)
 FROM road_segments, divided_routes 
 WHERE road_segments.fid = 102 
 AND divided_routes.name = 'Route 75';
-ERROR SR001: There's no spatial reference system with SRID 101.
-# Conformance Item T43 
+ST_Crosses(road_segments.centerline, divided_routes.centerlines)
+1
+# Conformance Item T43
 SELECT ST_Intersects(road_segments.centerline, divided_routes.centerlines) 
 FROM road_segments, divided_routes 
 WHERE road_segments.fid = 102 
 AND divided_routes.name = 'Route 75';
-ERROR SR001: There's no spatial reference system with SRID 101.
-# Conformance Item T44 
+ST_Intersects(road_segments.centerline, divided_routes.centerlines)
+1
+# Conformance Item T44
 SELECT ST_Contains(forests.boundary, named_places.boundary) 
 FROM forests, named_places 
 WHERE forests.name = 'Green Forest' 
 AND named_places.name = 'Ashton';
-ERROR SR001: There's no spatial reference system with SRID 101.
+ST_Contains(forests.boundary, named_places.boundary)
+0
 # Conformance Item T46 
 SELECT ST_Distance(position, boundary) 
 FROM bridges, named_places 
 WHERE bridges.name = 'Cam Bridge' 
 AND named_places.name = 'Ashton';
-ERROR SR001: There's no spatial reference system with SRID 101.
+ST_Distance(position, boundary)
+12
 # Conformance Item T48 
 SELECT ST_AsText(ST_Difference(named_places.boundary, forests.boundary)) 
 FROM named_places, forests 
@@ -1567,18 +1491,12 @@ WHERE named_places.name = 'Ashton'
 AND forests.name = 'Green Forest';
 ST_AsText(ST_Difference(named_places.boundary, forests.boundary))
 POLYGON((84 42,84 48,62 48,56 34,84 42))
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_difference will be done in SRID 0.
-Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
 SELECT ST_AsText(ST_Union(shore, boundary)) 
 FROM lakes, named_places 
 WHERE lakes.name = 'Blue Lake' 
 AND named_places.name = 'Goose Island';
 ST_AsText(ST_Union(shore, boundary))
 POLYGON((52 18,48 6,73 9,66 23,52 18))
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_union will be done in SRID 0.
-Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
 # Conformance Item T50 
 SELECT ST_AsText(ST_SymDifference(shore, boundary)) 
 FROM lakes, named_places 
@@ -1586,14 +1504,12 @@ WHERE lakes.name = 'Blue Lake'
 AND named_places.name = 'Ashton';
 ST_AsText(ST_SymDifference(shore, boundary))
 MULTIPOLYGON(((52 18,48 6,73 9,66 23,52 18),(59 18,67 18,67 13,59 13,59 18)),((62 48,56 34,56 30,84 30,84 48,62 48)))
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_symdifference will be done in SRID 0.
-Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
-# Conformance Item T51 
+# Conformance Item T51
 SELECT count(*) 
 FROM buildings, bridges 
 WHERE ST_Contains(ST_Buffer(bridges.position, 15.0), buildings.footprint) = 1;
-ERROR SR001: There's no spatial reference system with SRID 101.
+count(*)
+1
 DROP DATABASE gis_ogs;
 #
 # Bug#13362660 ASSERTION `FIELD_POS < FIELD_COUNT' FAILED. IN PROTOCOL_TEXT::STORE
@@ -2220,9 +2136,9 @@ ERROR 42000: Too many key parts specified; max 1 parts allowed
 SET @poly1 = ST_GeomFromText('POLYGON((25 25, 25 35, 35 35, 35 25, 25 25))');
 CREATE TABLE t1 (
 a INT NOT NULL,
-p POINT NOT NULL,
-l LINESTRING NOT NULL,
-g GEOMETRY NOT NULL,
+p POINT NOT NULL SRID 0,
+l LINESTRING NOT NULL SRID 0,
+g GEOMETRY NOT NULL SRID 0,
 PRIMARY KEY(p),
 SPATIAL KEY idx2 (p),
 SPATIAL KEY idx3 (l),
@@ -2240,7 +2156,7 @@ EXPLAIN SELECT ST_AsText(p) FROM t1 WHERE ST_Within(p, @poly1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	PRIMARY,idx2	idx2	34	NULL	2	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select st_astext(`test`.`t1`.`p`) AS `ST_AsText(p)` from `test`.`t1` where st_within(`test`.`t1`.`p`,(@`poly1`))
+Note	1003	/* select#1 */ select st_astext(`test`.`t1`.`p`) AS `ST_AsText(p)` from `test`.`t1` where st_within(`test`.`t1`.`p`,<cache>((@`poly1`)))
 SELECT ST_AsText(p) FROM t1 WHERE ST_Within(p, @poly1);
 ST_AsText(p)
 POINT(30 30)
@@ -2254,9 +2170,9 @@ ST_AsText(p)
 DROP TABLE t1;
 CREATE TABLE t1 (
 a INT NOT NULL,
-p POINT NOT NULL,
-l LINESTRING NOT NULL,
-g GEOMETRY NOT NULL,
+p POINT NOT NULL SRID 0,
+l LINESTRING NOT NULL SRID 0,
+g GEOMETRY NOT NULL SRID 0,
 PRIMARY KEY(p),
 SPATIAL KEY idx2 (p),
 SPATIAL KEY idx3 (l),
@@ -2274,7 +2190,7 @@ EXPLAIN SELECT ST_AsText(p) FROM t1 WHERE ST_Within(p, @poly1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	PRIMARY,idx2	idx2	34	NULL	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select st_astext(`test`.`t1`.`p`) AS `ST_AsText(p)` from `test`.`t1` where st_within(`test`.`t1`.`p`,(@`poly1`))
+Note	1003	/* select#1 */ select st_astext(`test`.`t1`.`p`) AS `ST_AsText(p)` from `test`.`t1` where st_within(`test`.`t1`.`p`,<cache>((@`poly1`)))
 SELECT ST_AsText(p) FROM t1 WHERE ST_Within(p, @poly1);
 ST_AsText(p)
 POINT(30 30)
@@ -3273,361 +3189,6 @@ ST_SRID(ST_POLYFROMTEXT(@wkt_py, 0))
 SELECT ST_SRID(ST_POLYGONFROMTEXT(@wkt_py, 0));
 ST_SRID(ST_POLYGONFROMTEXT(@wkt_py, 0))
 0
-SELECT ST_SRID(ST_GEOMCOLLFROMWKB(@wkb_gc, 0));
-ST_SRID(ST_GEOMCOLLFROMWKB(@wkb_gc, 0))
-0
-SELECT ST_SRID(ST_GEOMETRYCOLLECTIONFROMWKB(@wkb_gc, 0));
-ST_SRID(ST_GEOMETRYCOLLECTIONFROMWKB(@wkb_gc, 0))
-0
-SELECT ST_SRID(ST_GEOMETRYFROMWKB(@wkb_pt, 0));
-ST_SRID(ST_GEOMETRYFROMWKB(@wkb_pt, 0))
-0
-SELECT ST_SRID(ST_GEOMFROMWKB(@wkb_pt, 0));
-ST_SRID(ST_GEOMFROMWKB(@wkb_pt, 0))
-0
-SELECT ST_SRID(ST_LINEFROMWKB(@wkb_ls, 0));
-ST_SRID(ST_LINEFROMWKB(@wkb_ls, 0))
-0
-SELECT ST_SRID(ST_LINESTRINGFROMWKB(@wkb_ls, 0));
-ST_SRID(ST_LINESTRINGFROMWKB(@wkb_ls, 0))
-0
-SELECT ST_SRID(ST_MLINEFROMWKB(@wkb_mls, 0));
-ST_SRID(ST_MLINEFROMWKB(@wkb_mls, 0))
-0
-SELECT ST_SRID(ST_MPOINTFROMWKB(@wkb_mpt, 0));
-ST_SRID(ST_MPOINTFROMWKB(@wkb_mpt, 0))
-0
-SELECT ST_SRID(ST_MPOLYFROMWKB(@wkb_mpy, 0));
-ST_SRID(ST_MPOLYFROMWKB(@wkb_mpy, 0))
-0
-SELECT ST_SRID(ST_MULTILINESTRINGFROMWKB(@wkb_mls, 0));
-ST_SRID(ST_MULTILINESTRINGFROMWKB(@wkb_mls, 0))
-0
-SELECT ST_SRID(ST_MULTIPOINTFROMWKB(@wkb_mpt, 0));
-ST_SRID(ST_MULTIPOINTFROMWKB(@wkb_mpt, 0))
-0
-SELECT ST_SRID(ST_MULTIPOLYGONFROMWKB(@wkb_mpy, 0));
-ST_SRID(ST_MULTIPOLYGONFROMWKB(@wkb_mpy, 0))
-0
-SELECT ST_SRID(ST_POINTFROMWKB(@wkb_pt, 0));
-ST_SRID(ST_POINTFROMWKB(@wkb_pt, 0))
-0
-SELECT ST_SRID(ST_POLYFROMWKB(@wkb_py, 0));
-ST_SRID(ST_POLYFROMWKB(@wkb_py, 0))
-0
-SELECT ST_SRID(ST_POLYGONFROMWKB(@wkb_py, 0));
-ST_SRID(ST_POLYGONFROMWKB(@wkb_py, 0))
-0
-SELECT ST_SRID(ST_GEOMCOLLFROMTEXT(@wkt_gc, 1));
-ST_SRID(ST_GEOMCOLLFROMTEXT(@wkt_gc, 1))
-1
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
-SELECT ST_SRID(ST_GEOMCOLLFROMTXT(@wkt_gc, 1));
-ST_SRID(ST_GEOMCOLLFROMTXT(@wkt_gc, 1))
-1
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
-SELECT ST_SRID(ST_GEOMETRYCOLLECTIONFROMTEXT(@wkt_gc, 1));
-ST_SRID(ST_GEOMETRYCOLLECTIONFROMTEXT(@wkt_gc, 1))
-1
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
-SELECT ST_SRID(ST_GEOMETRYFROMTEXT(@wkt_pt, 1));
-ST_SRID(ST_GEOMETRYFROMTEXT(@wkt_pt, 1))
-1
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
-SELECT ST_SRID(ST_GEOMFROMTEXT(@wkt_pt, 1));
-ST_SRID(ST_GEOMFROMTEXT(@wkt_pt, 1))
-1
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
-SELECT ST_SRID(ST_LINEFROMTEXT(@wkt_ls, 1));
-ST_SRID(ST_LINEFROMTEXT(@wkt_ls, 1))
-1
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
-SELECT ST_SRID(ST_LINESTRINGFROMTEXT(@wkt_ls, 1));
-ST_SRID(ST_LINESTRINGFROMTEXT(@wkt_ls, 1))
-1
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
-SELECT ST_SRID(ST_MLINEFROMTEXT(@wkt_mls, 1));
-ST_SRID(ST_MLINEFROMTEXT(@wkt_mls, 1))
-1
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
-SELECT ST_SRID(ST_MPOINTFROMTEXT(@wkt_mpt, 1));
-ST_SRID(ST_MPOINTFROMTEXT(@wkt_mpt, 1))
-1
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
-SELECT ST_SRID(ST_MPOLYFROMTEXT(@wkt_mpy, 1));
-ST_SRID(ST_MPOLYFROMTEXT(@wkt_mpy, 1))
-1
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
-SELECT ST_SRID(ST_MULTILINESTRINGFROMTEXT(@wkt_mls, 1));
-ST_SRID(ST_MULTILINESTRINGFROMTEXT(@wkt_mls, 1))
-1
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
-SELECT ST_SRID(ST_MULTIPOINTFROMTEXT(@wkt_mpt, 1));
-ST_SRID(ST_MULTIPOINTFROMTEXT(@wkt_mpt, 1))
-1
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
-SELECT ST_SRID(ST_MULTIPOLYGONFROMTEXT(@wkt_mpy, 1));
-ST_SRID(ST_MULTIPOLYGONFROMTEXT(@wkt_mpy, 1))
-1
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
-SELECT ST_SRID(ST_POINTFROMTEXT(@wkt_pt, 1));
-ST_SRID(ST_POINTFROMTEXT(@wkt_pt, 1))
-1
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
-SELECT ST_SRID(ST_POLYFROMTEXT(@wkt_py, 1));
-ST_SRID(ST_POLYFROMTEXT(@wkt_py, 1))
-1
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
-SELECT ST_SRID(ST_POLYGONFROMTEXT(@wkt_py, 1));
-ST_SRID(ST_POLYGONFROMTEXT(@wkt_py, 1))
-1
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
-SELECT ST_SRID(ST_GEOMCOLLFROMWKB(@wkb_gc, 1));
-ST_SRID(ST_GEOMCOLLFROMWKB(@wkb_gc, 1))
-1
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
-SELECT ST_SRID(ST_GEOMETRYCOLLECTIONFROMWKB(@wkb_gc, 1));
-ST_SRID(ST_GEOMETRYCOLLECTIONFROMWKB(@wkb_gc, 1))
-1
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
-SELECT ST_SRID(ST_GEOMETRYFROMWKB(@wkb_pt, 1));
-ST_SRID(ST_GEOMETRYFROMWKB(@wkb_pt, 1))
-1
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
-SELECT ST_SRID(ST_GEOMFROMWKB(@wkb_pt, 1));
-ST_SRID(ST_GEOMFROMWKB(@wkb_pt, 1))
-1
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
-SELECT ST_SRID(ST_LINEFROMWKB(@wkb_ls, 1));
-ST_SRID(ST_LINEFROMWKB(@wkb_ls, 1))
-1
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
-SELECT ST_SRID(ST_LINESTRINGFROMWKB(@wkb_ls, 1));
-ST_SRID(ST_LINESTRINGFROMWKB(@wkb_ls, 1))
-1
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
-SELECT ST_SRID(ST_MLINEFROMWKB(@wkb_mls, 1));
-ST_SRID(ST_MLINEFROMWKB(@wkb_mls, 1))
-1
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
-SELECT ST_SRID(ST_MPOINTFROMWKB(@wkb_mpt, 1));
-ST_SRID(ST_MPOINTFROMWKB(@wkb_mpt, 1))
-1
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
-SELECT ST_SRID(ST_MPOLYFROMWKB(@wkb_mpy, 1));
-ST_SRID(ST_MPOLYFROMWKB(@wkb_mpy, 1))
-1
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
-SELECT ST_SRID(ST_MULTILINESTRINGFROMWKB(@wkb_mls, 1));
-ST_SRID(ST_MULTILINESTRINGFROMWKB(@wkb_mls, 1))
-1
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
-SELECT ST_SRID(ST_MULTIPOINTFROMWKB(@wkb_mpt, 1));
-ST_SRID(ST_MULTIPOINTFROMWKB(@wkb_mpt, 1))
-1
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
-SELECT ST_SRID(ST_MULTIPOLYGONFROMWKB(@wkb_mpy, 1));
-ST_SRID(ST_MULTIPOLYGONFROMWKB(@wkb_mpy, 1))
-1
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
-SELECT ST_SRID(ST_POINTFROMWKB(@wkb_pt, 1));
-ST_SRID(ST_POINTFROMWKB(@wkb_pt, 1))
-1
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
-SELECT ST_SRID(ST_POLYFROMWKB(@wkb_py, 1));
-ST_SRID(ST_POLYFROMWKB(@wkb_py, 1))
-1
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
-SELECT ST_SRID(ST_POLYGONFROMWKB(@wkb_py, 1));
-ST_SRID(ST_POLYGONFROMWKB(@wkb_py, 1))
-1
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1. The axis order is unknown.
-SELECT ST_SRID(ST_GEOMCOLLFROMTEXT(@wkt_gc, 4294967295));
-ST_SRID(ST_GEOMCOLLFROMTEXT(@wkt_gc, 4294967295))
-4294967295
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
-SELECT ST_SRID(ST_GEOMCOLLFROMTXT(@wkt_gc, 4294967295));
-ST_SRID(ST_GEOMCOLLFROMTXT(@wkt_gc, 4294967295))
-4294967295
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
-SELECT ST_SRID(ST_GEOMETRYCOLLECTIONFROMTEXT(@wkt_gc, 4294967295));
-ST_SRID(ST_GEOMETRYCOLLECTIONFROMTEXT(@wkt_gc, 4294967295))
-4294967295
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
-SELECT ST_SRID(ST_GEOMETRYFROMTEXT(@wkt_pt, 4294967295));
-ST_SRID(ST_GEOMETRYFROMTEXT(@wkt_pt, 4294967295))
-4294967295
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
-SELECT ST_SRID(ST_GEOMFROMTEXT(@wkt_pt, 4294967295));
-ST_SRID(ST_GEOMFROMTEXT(@wkt_pt, 4294967295))
-4294967295
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
-SELECT ST_SRID(ST_LINEFROMTEXT(@wkt_ls, 4294967295));
-ST_SRID(ST_LINEFROMTEXT(@wkt_ls, 4294967295))
-4294967295
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
-SELECT ST_SRID(ST_LINESTRINGFROMTEXT(@wkt_ls, 4294967295));
-ST_SRID(ST_LINESTRINGFROMTEXT(@wkt_ls, 4294967295))
-4294967295
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
-SELECT ST_SRID(ST_MLINEFROMTEXT(@wkt_mls, 4294967295));
-ST_SRID(ST_MLINEFROMTEXT(@wkt_mls, 4294967295))
-4294967295
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
-SELECT ST_SRID(ST_MPOINTFROMTEXT(@wkt_mpt, 4294967295));
-ST_SRID(ST_MPOINTFROMTEXT(@wkt_mpt, 4294967295))
-4294967295
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
-SELECT ST_SRID(ST_MPOLYFROMTEXT(@wkt_mpy, 4294967295));
-ST_SRID(ST_MPOLYFROMTEXT(@wkt_mpy, 4294967295))
-4294967295
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
-SELECT ST_SRID(ST_MULTILINESTRINGFROMTEXT(@wkt_mls, 4294967295));
-ST_SRID(ST_MULTILINESTRINGFROMTEXT(@wkt_mls, 4294967295))
-4294967295
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
-SELECT ST_SRID(ST_MULTIPOINTFROMTEXT(@wkt_mpt, 4294967295));
-ST_SRID(ST_MULTIPOINTFROMTEXT(@wkt_mpt, 4294967295))
-4294967295
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
-SELECT ST_SRID(ST_MULTIPOLYGONFROMTEXT(@wkt_mpy, 4294967295));
-ST_SRID(ST_MULTIPOLYGONFROMTEXT(@wkt_mpy, 4294967295))
-4294967295
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
-SELECT ST_SRID(ST_POINTFROMTEXT(@wkt_pt, 4294967295));
-ST_SRID(ST_POINTFROMTEXT(@wkt_pt, 4294967295))
-4294967295
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
-SELECT ST_SRID(ST_POLYFROMTEXT(@wkt_py, 4294967295));
-ST_SRID(ST_POLYFROMTEXT(@wkt_py, 4294967295))
-4294967295
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
-SELECT ST_SRID(ST_POLYGONFROMTEXT(@wkt_py, 4294967295));
-ST_SRID(ST_POLYGONFROMTEXT(@wkt_py, 4294967295))
-4294967295
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
-SELECT ST_SRID(ST_GEOMCOLLFROMWKB(@wkb_gc, 4294967295));
-ST_SRID(ST_GEOMCOLLFROMWKB(@wkb_gc, 4294967295))
-4294967295
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
-SELECT ST_SRID(ST_GEOMETRYCOLLECTIONFROMWKB(@wkb_gc, 4294967295));
-ST_SRID(ST_GEOMETRYCOLLECTIONFROMWKB(@wkb_gc, 4294967295))
-4294967295
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
-SELECT ST_SRID(ST_GEOMETRYFROMWKB(@wkb_pt, 4294967295));
-ST_SRID(ST_GEOMETRYFROMWKB(@wkb_pt, 4294967295))
-4294967295
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
-SELECT ST_SRID(ST_GEOMFROMWKB(@wkb_pt, 4294967295));
-ST_SRID(ST_GEOMFROMWKB(@wkb_pt, 4294967295))
-4294967295
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
-SELECT ST_SRID(ST_LINEFROMWKB(@wkb_ls, 4294967295));
-ST_SRID(ST_LINEFROMWKB(@wkb_ls, 4294967295))
-4294967295
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
-SELECT ST_SRID(ST_LINESTRINGFROMWKB(@wkb_ls, 4294967295));
-ST_SRID(ST_LINESTRINGFROMWKB(@wkb_ls, 4294967295))
-4294967295
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
-SELECT ST_SRID(ST_MLINEFROMWKB(@wkb_mls, 4294967295));
-ST_SRID(ST_MLINEFROMWKB(@wkb_mls, 4294967295))
-4294967295
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
-SELECT ST_SRID(ST_MPOINTFROMWKB(@wkb_mpt, 4294967295));
-ST_SRID(ST_MPOINTFROMWKB(@wkb_mpt, 4294967295))
-4294967295
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
-SELECT ST_SRID(ST_MPOLYFROMWKB(@wkb_mpy, 4294967295));
-ST_SRID(ST_MPOLYFROMWKB(@wkb_mpy, 4294967295))
-4294967295
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
-SELECT ST_SRID(ST_MULTILINESTRINGFROMWKB(@wkb_mls, 4294967295));
-ST_SRID(ST_MULTILINESTRINGFROMWKB(@wkb_mls, 4294967295))
-4294967295
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
-SELECT ST_SRID(ST_MULTIPOINTFROMWKB(@wkb_mpt, 4294967295));
-ST_SRID(ST_MULTIPOINTFROMWKB(@wkb_mpt, 4294967295))
-4294967295
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
-SELECT ST_SRID(ST_MULTIPOLYGONFROMWKB(@wkb_mpy, 4294967295));
-ST_SRID(ST_MULTIPOLYGONFROMWKB(@wkb_mpy, 4294967295))
-4294967295
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
-SELECT ST_SRID(ST_POINTFROMWKB(@wkb_pt, 4294967295));
-ST_SRID(ST_POINTFROMWKB(@wkb_pt, 4294967295))
-4294967295
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
-SELECT ST_SRID(ST_POLYFROMWKB(@wkb_py, 4294967295));
-ST_SRID(ST_POLYFROMWKB(@wkb_py, 4294967295))
-4294967295
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
-SELECT ST_SRID(ST_POLYGONFROMWKB(@wkb_py, 4294967295));
-ST_SRID(ST_POLYGONFROMWKB(@wkb_py, 4294967295))
-4294967295
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
 SELECT ST_SRID(ST_GEOMCOLLFROMTEXT(@wkt_gc, 4294967296));
 ERROR 22003: SRID value is out of range in 'st_geomcollfromtext'
 SELECT ST_SRID(ST_GEOMCOLLFROMTXT(@wkt_gc, 4294967296));
@@ -4305,3 +3866,115 @@ INSERT INTO t VALUES(1),(2),(3),(4);
 DO (SELECT DISTINCT SQL_BIG_RESULT ST_SIMPLIFY(POINT(a,1),1) FROM t);
 ERROR 21000: Subquery returns more than 1 row
 DROP TABLE t;
+#
+# Bug #26615824 WL10827: SELECT QUERY WITH LIMIT 1 RETURNS ZERO
+# NUMBER OF ROWS
+#
+CREATE TABLE t1 (
+g POLYGON SRID 4326 NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE SPATIAL INDEX g_idx ON t1(g);
+INSERT INTO t1 VALUES (
+ST_GeomFromText(
+'POLYGON((-165 -46,161 -70,-108 72,-165 -46))',
+4326,
+'axis-order=long-lat'
+  )
+);
+# The two queries should return the same result.
+SELECT COUNT(*)
+FROM t1 IGNORE INDEX (g_idx)
+WHERE MBRContains(
+ST_GeomFromText(
+'LINESTRING(-111 -85,-136 -53,116 -20,-80 47,111 0)',
+4326,
+'axis-order=long-lat'
+  ),
+g
+);
+COUNT(*)
+1
+SELECT COUNT(*)
+FROM t1 FORCE INDEX (g_idx)
+WHERE MBRContains(
+ST_GeomFromText(
+'LINESTRING(-111 -85,-136 -53,116 -20,-80 47,111 0)',
+4326,
+'axis-order=long-lat'),
+g
+);
+COUNT(*)
+1
+DROP TABLE t1;
+CREATE TABLE t1 (
+g POLYGON SRID 4326 NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+ALTER TABLE t1 ADD SPATIAL INDEX g_idx (g);
+INSERT INTO t1 VALUES (
+ST_GeomFromText(
+'POLYGON((-165 -46,161 -70,-108 72,-165 -46))',
+4326,
+'axis-order=long-lat'
+  )
+);
+# The two queries should return the same result.
+SELECT COUNT(*)
+FROM t1 IGNORE INDEX (g_idx)
+WHERE MBRContains(
+ST_GeomFromText(
+'LINESTRING(-111 -85,-136 -53,116 -20,-80 47,111 0)',
+4326,
+'axis-order=long-lat'
+  ),
+g
+);
+COUNT(*)
+1
+SELECT COUNT(*)
+FROM t1 FORCE INDEX (g_idx)
+WHERE MBRContains(
+ST_GeomFromText(
+'LINESTRING(-111 -85,-136 -53,116 -20,-80 47,111 0)',
+4326,
+'axis-order=long-lat'),
+g
+);
+COUNT(*)
+1
+DROP TABLE t1;
+CREATE TABLE t1 (
+g POLYGON SRID 4326 NOT NULL,
+SPATIAL INDEX g_idx (g)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO t1 VALUES (
+ST_GeomFromText(
+'POLYGON((-165 -46,161 -70,-108 72,-165 -46))',
+4326,
+'axis-order=long-lat'
+  )
+);
+# The two queries should return the same result.
+SELECT COUNT(*)
+FROM t1 IGNORE INDEX (g_idx)
+WHERE MBRContains(
+ST_GeomFromText(
+'LINESTRING(-111 -85,-136 -53,116 -20,-80 47,111 0)',
+4326,
+'axis-order=long-lat'
+  ),
+g
+);
+COUNT(*)
+1
+SELECT COUNT(*)
+FROM t1 FORCE INDEX (g_idx)
+WHERE MBRContains(
+ST_GeomFromText(
+'LINESTRING(-111 -85,-136 -53,116 -20,-80 47,111 0)',
+4326,
+'axis-order=long-lat'),
+g
+);
+COUNT(*)
+1
+DROP TABLE t1;

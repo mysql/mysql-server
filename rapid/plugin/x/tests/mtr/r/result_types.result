@@ -36,10 +36,7 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: "unsigneds"
   schema: "xtest"
   catalog: "def"
-  collation: 0
-  fractional_digits: 0
   length: 10
-  flags: 0
 }
 
 Mysqlx.Resultset.ColumnMetaData {
@@ -50,10 +47,7 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: "unsigneds"
   schema: "xtest"
   catalog: "def"
-  collation: 0
-  fractional_digits: 0
   length: 20
-  flags: 0
 }
 
 Mysqlx.Resultset.ColumnMetaData {
@@ -64,10 +58,7 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: "unsigneds"
   schema: "xtest"
   catalog: "def"
-  collation: 0
-  fractional_digits: 0
   length: 3
-  flags: 0
 }
 
 Mysqlx.Resultset.ColumnMetaData {
@@ -78,10 +69,7 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: "unsigneds"
   schema: "xtest"
   catalog: "def"
-  collation: 0
-  fractional_digits: 0
   length: 5
-  flags: 0
 }
 
 Mysqlx.Resultset.ColumnMetaData {
@@ -92,7 +80,6 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: "unsigneds"
   schema: "xtest"
   catalog: "def"
-  collation: 0
   fractional_digits: 31
   length: 12
   flags: 1
@@ -106,7 +93,6 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: "unsigneds"
   schema: "xtest"
   catalog: "def"
-  collation: 0
   fractional_digits: 31
   length: 22
   flags: 1
@@ -120,7 +106,6 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: "unsigneds"
   schema: "xtest"
   catalog: "def"
-  collation: 0
   fractional_digits: 2
   length: 11
   flags: 1
@@ -134,10 +119,8 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: "unsigneds"
   schema: "xtest"
   catalog: "def"
-  collation: 0
-  fractional_digits: 0
   length: 19
-  flags: 0
+  content_type: 2
 }
 
 Mysqlx.Resultset.ColumnMetaData {
@@ -148,10 +131,9 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: "unsigneds"
   schema: "xtest"
   catalog: "def"
-  collation: 0
-  fractional_digits: 0
   length: 19
   flags: 1
+  content_type: 2
 }
 
 Mysqlx.Resultset.FetchDone {

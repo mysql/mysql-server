@@ -33,28 +33,28 @@
 #include <string.h>
 #include <sys/types.h>
 
-#include "field.h"
-#include "item.h"
-#include "item_subselect.h"
-#include "mem_root_array.h"
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_table_map.h"
-#include "opt_explain_format.h"                 // Explain_sort_clause
-#include "sql_alloc.h"
-#include "sql_array.h"
-#include "sql_class.h"
-#include "sql_const.h"
-#include "sql_executor.h"                       // Next_select_func
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_opt_exec_shared.h"
-#include "sql_select.h"                         // Key_use
-#include "sql_tmp_table.h"                      // enum_tmpfile_windowing_action
-#include "table.h"
-#include "temp_table_param.h"
+#include "sql/field.h"
+#include "sql/item.h"
+#include "sql/item_subselect.h"
+#include "sql/mem_root_array.h"
+#include "sql/opt_explain_format.h"             // Explain_sort_clause
+#include "sql/sql_alloc.h"
+#include "sql/sql_array.h"
+#include "sql/sql_class.h"
+#include "sql/sql_const.h"
+#include "sql/sql_executor.h"                   // Next_select_func
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_opt_exec_shared.h"
+#include "sql/sql_select.h"                     // Key_use
+#include "sql/sql_tmp_table.h"                  // enum_tmpfile_windowing_action
+#include "sql/table.h"
+#include "sql/temp_table_param.h"
 #include "template_utils.h"
 
 class COND_EQUAL;
@@ -229,7 +229,7 @@ public:
       group_optimized_away(false),
       simple_order(false),
       simple_group(false),
-      ordered_index_usage(ordered_index_void),
+      m_ordered_index_usage(ORDERED_INDEX_VOID),
       no_order(false),
       skip_sort_order(false),
       need_tmp_before_win(false),
@@ -439,23 +439,26 @@ public:
   bool simple_order, simple_group;
 
   /*
-    ordered_index_usage is set if an ordered index access
+    m_ordered_index_usage is set if an ordered index access
     should be used instead of a filesort when computing 
     ORDER/GROUP BY.
   */
   enum
   {
-    ordered_index_void,       // No ordered index avail.
-    ordered_index_group_by,   // Use index for GROUP BY
-    ordered_index_order_by    // Use index for ORDER BY
-  } ordered_index_usage;
+    ORDERED_INDEX_VOID,       // No ordered index avail.
+    ORDERED_INDEX_GROUP_BY,   // Use index for GROUP BY
+    ORDERED_INDEX_ORDER_BY    // Use index for ORDER BY
+  } m_ordered_index_usage;
 
   /**
     Is set only in case if we have a GROUP BY clause
     and no ORDER BY after constant elimination of 'order'.
   */
   bool no_order;
-  /** Is set if we have a GROUP BY and we have ORDER BY on a constant. */
+  /**
+    Is set if we have a GROUP BY and we have ORDER BY on a constant or when
+    sorting isn't required.
+  */
   bool          skip_sort_order;
 
   /**
@@ -978,7 +981,7 @@ private:
       been transformed to a GROUP BY at this stage if it is a candidate for 
       ordered index optimization.
       If a decision was made to use an ordered index, the availability
-      if such an access path is stored in 'ordered_index_usage' for later
+      if such an access path is stored in 'm_ordered_index_usage' for later
       use by 'execute' or 'explain'
   */
   void test_skip_sort();

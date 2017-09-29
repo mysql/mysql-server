@@ -221,12 +221,17 @@ include/rpl_sync.inc
 include/gtid_step_reset.inc
 DROP TABLES base_1_n, base_2_n, base_3_a, base_4_a;
 ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
-# In AUTOMATIC mode the above statement should be split into three:
-# two statements for each of MyISAM tables and single statement
-# dropping base_3_a. Note that this will change once InnoDB really
-# supports atomic DDL.
-include/gtid_step_assert.inc [count=3, only_count=0]
-# base_4_a should still be there on master
+# In AUTOMATIC mode the above statement should be split into
+# two statements for each of MyISAM tables.
+# There should be no statement for dropping base_3_a as its
+# removal is rolled back.
+include/gtid_step_assert.inc [count=2., only_count=0]
+# base_3_a and base_4_a should still be there on master
+SHOW CREATE TABLE base_3_a;
+Table	Create Table
+base_3_a	CREATE TABLE `base_3_a` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SHOW CREATE TABLE base_4_a;
 Table	Create Table
 base_4_a	CREATE TABLE `base_4_a` (
@@ -234,7 +239,12 @@ base_4_a	CREATE TABLE `base_4_a` (
   PRIMARY KEY (`pk`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 include/rpl_sync.inc
-# base_4_a should still be there on slave
+# base_3_a and base_4_a should still be there on master
+SHOW CREATE TABLE base_3_a;
+Table	Create Table
+base_3_a	CREATE TABLE `base_3_a` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SHOW CREATE TABLE base_4_a;
 Table	Create Table
 base_4_a	CREATE TABLE `base_4_a` (
@@ -243,7 +253,6 @@ base_4_a	CREATE TABLE `base_4_a` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 CREATE TABLE base_1_n (a INT) ENGINE = MyISAM;
 CREATE TABLE base_2_n (a INT) ENGINE = MyISAM;
-CREATE TABLE base_3_a (a INT) ENGINE = InnoDB;
 include/rpl_sync.inc
 ---- GTID_NEXT=non-automatic ----
 include/gtid_step_reset.inc
@@ -252,9 +261,14 @@ DROP TABLES base_1_n, base_2_n, base_3_a, base_4_a;
 ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
 SET GTID_NEXT= 'AUTOMATIC';
 # Without GTID assigned the above statement should be split into
-# three as in AUTOMATIC mode.
-include/gtid_step_assert.inc [count=3, only_count=0]
-# base_4_a should still be there on master
+# two as in AUTOMATIC mode.
+include/gtid_step_assert.inc [count=2, only_count=0]
+# base_3_a and base_4_a should still be there on master
+SHOW CREATE TABLE base_3_a;
+Table	Create Table
+base_3_a	CREATE TABLE `base_3_a` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SHOW CREATE TABLE base_4_a;
 Table	Create Table
 base_4_a	CREATE TABLE `base_4_a` (
@@ -262,7 +276,12 @@ base_4_a	CREATE TABLE `base_4_a` (
   PRIMARY KEY (`pk`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 include/rpl_sync.inc
-# base_4_a should still be there on slave
+# base_3_a and base_4_a should still be there on master
+SHOW CREATE TABLE base_3_a;
+Table	Create Table
+base_3_a	CREATE TABLE `base_3_a` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SHOW CREATE TABLE base_4_a;
 Table	Create Table
 base_4_a	CREATE TABLE `base_4_a` (
@@ -270,7 +289,7 @@ base_4_a	CREATE TABLE `base_4_a` (
   PRIMARY KEY (`pk`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ---- Clean up ----
-DROP TABLE base_5_a, base_4_a;
+DROP TABLE base_5_a, base_4_a, base_3_a;
 include/rpl_sync.inc
 ==== Case 3: DROP DATABASE ====
 See rpl_split_statements_debug.test

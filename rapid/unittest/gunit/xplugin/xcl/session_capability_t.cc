@@ -19,7 +19,7 @@
 #include <gtest/gtest.h>
 #include <memory>
 
-#include "session_t.h"
+#include "unittest/gunit/xplugin/xcl/session_t.h"
 
 
 namespace xcl {

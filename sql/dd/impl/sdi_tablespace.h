@@ -16,8 +16,8 @@
 #ifndef DD__SDI_TABLESPACE_INCLUDED
 #define DD__SDI_TABLESPACE_INCLUDED
 
-#include "dd/object_id.h"
-#include "dd/impl/sdi.h" // dd::Sdi_type
+#include "sql/dd/impl/sdi.h" // dd::Sdi_type
+#include "sql/dd/object_id.h"
 
 class THD;
 struct handlerton;
@@ -83,12 +83,11 @@ bool store_tbl_sdi(THD *thd, const handlerton &hton, const Sdi_type &sdi,
 /**
   Stores the tablespace SDI in the tablespace.
 
-  @param thd
   @param hton
   @param sdi
   @param tablespace
  */
-bool store_tsp_sdi(THD *thd, const handlerton &hton, const Sdi_type &sdi,
+bool store_tsp_sdi(const handlerton &hton, const Sdi_type &sdi,
                    const Tablespace &tablespace);
 
 /**
@@ -106,7 +105,8 @@ bool store_tsp_sdi(THD *thd, const handlerton &hton, const Sdi_type &sdi,
   @param schema
  */
 bool drop_tbl_sdi(THD *thd, const handlerton &hton,
-                  const Table &table, const Schema &schema);
+                  const Table &table,
+                  const Schema &schema MY_ATTRIBUTE((unused)));
 
 /** @} End of group sdi_tablespace */
 }

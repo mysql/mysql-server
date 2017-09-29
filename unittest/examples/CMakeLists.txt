@@ -13,12 +13,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/extra/zlib
-                    ${CMAKE_SOURCE_DIR}/sql
-                    ${CMAKE_SOURCE_DIR}/extra/regex
-                    ${CMAKE_SOURCE_DIR}/extra/yassl/include
-                    ${CMAKE_SOURCE_DIR}/unittest/mytap)
-
 # We omit core-t here, since it will always fail.
 SET(TESTS simple skip todo skip_all no_plan)
 FOREACH(test ${TESTS})

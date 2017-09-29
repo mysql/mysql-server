@@ -16,6 +16,10 @@
 #ifndef XCOM_MSG_QUEUE_H
 #define XCOM_MSG_QUEUE_H
 
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/simset.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task.h"
+#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif

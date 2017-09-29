@@ -47,6 +47,7 @@ Created 2/16/1996 Heikki Tuuri
 #include "btr0cur.h"
 #include "buf0buf.h"
 #include "buf0dump.h"
+#include "current_thd.h"
 #include "data0data.h"
 #include "data0type.h"
 #include "dict0dict.h"
@@ -78,6 +79,8 @@ Created 2/16/1996 Heikki Tuuri
 #include "trx0trx.h"
 #include "ut0mem.h"
 #ifndef UNIV_HOTBACKUP
+# include <zlib.h>
+
 # include "arch0arch.h"
 # include "btr0pcur.h"
 # include "btr0sea.h"
@@ -106,13 +109,15 @@ Created 2/16/1996 Heikki Tuuri
 # include "usr0sess.h"
 # include "ut0crc32.h"
 # include "ut0new.h"
-# include "zlib.h"
 
 #ifdef HAVE_LZO1X
 #include <lzo/lzo1x.h>
 
 extern bool srv_lzo_disabled;
 #endif /* HAVE_LZO1X */
+
+/** fil_space_t::flags for hard-coded tablespaces */
+extern ulint		predefined_flags;
 
 /** Recovered persistent metadata */
 static MetadataRecover* srv_dict_metadata;
@@ -161,7 +166,7 @@ enum srv_start_state_t {
 };
 
 /** Track server thrd starting phases */
-static ulint	srv_start_state;
+static uint64_t	srv_start_state = SRV_START_STATE_NONE;
 
 /** At a shutdown this value climbs from SRV_SHUTDOWN_NONE to
 SRV_SHUTDOWN_CLEANUP and then to SRV_SHUTDOWN_LAST_PHASE, and so on */
@@ -314,7 +319,7 @@ create_log_file(
 		<< (srv_log_file_size >> (20 - UNIV_PAGE_SIZE_SHIFT))
 		<< " MB";
 
-	ret = os_file_set_size(name, *file,
+	ret = os_file_set_size(name, *file, 0,
 			       (os_offset_t) srv_log_file_size
 			       << UNIV_PAGE_SIZE_SHIFT,
 			       srv_read_only_mode, true);
@@ -322,6 +327,13 @@ create_log_file(
 		ib::error() << "Cannot set log file " << name << " to size "
 			<< (srv_log_file_size >> (20 - UNIV_PAGE_SIZE_SHIFT))
 			<< " MB";
+		/* Delete incomplete file if OOM */
+		if (os_has_said_disk_full) {
+			ret = os_file_close(*file);
+			ut_a(ret);
+			os_file_delete(innodb_log_file_key, name);
+		}
+
 		return(DB_ERROR);
 	}
 
@@ -397,7 +409,7 @@ create_log_files(
 	/* Disable the doublewrite buffer for log files, not required */
 
 	fil_space_t*	log_space = fil_space_create(
-		"innodb_redo_log", dict_sys_t::log_space_first_id,
+		"innodb_redo_log", dict_sys_t::s_log_space_first_id,
 		fsp_flags_set_page_size(0, univ_page_size),
 		FIL_TYPE_LOG);
 	ut_a(fil_validate());
@@ -445,7 +457,7 @@ create_log_files(
 
 	if (!log_group_init(0, srv_n_log_files,
 			    srv_log_file_size * UNIV_PAGE_SIZE,
-			    dict_sys_t::log_space_first_id)) {
+			    dict_sys_t::s_log_space_first_id)) {
 		return(DB_ERROR);
 	}
 
@@ -484,7 +496,7 @@ create_log_files_rename(
 {
 	/* If innodb_flush_method=O_DSYNC,
 	we need to explicitly flush the log buffers. */
-	fil_flush(dict_sys_t::log_space_first_id);
+	fil_flush(dict_sys_t::s_log_space_first_id);
 	/* Close the log files, so that we can rename
 	the first one. */
 	fil_close_log_files(false);
@@ -603,7 +615,7 @@ srv_undo_tablespace_create(
 		ib::info() << "Physically writing the file full";
 
 		ret = os_file_set_size(
-			file_name, fh,
+			file_name, fh, 0,
 			SRV_UNDO_TABLESPACE_SIZE_IN_PAGES
 				<< UNIV_PAGE_SIZE_SHIFT,
 			srv_read_only_mode, true);
@@ -1460,7 +1472,7 @@ srv_open_tmp_tablespace(
 
 	bool		create_new_temp_space = true;
 
-	tmp_space->set_space_id(dict_sys_t::temp_space_id);
+	tmp_space->set_space_id(dict_sys_t::s_temp_space_id);
 
 	RECOVERY_CRASH(100);
 
@@ -1549,7 +1561,6 @@ srv_start_state_is_set(
 
 /**
 Shutdown all background threads created by InnoDB. */
-static
 void
 srv_shutdown_all_bg_threads()
 {
@@ -1704,15 +1715,6 @@ srv_prepare_to_delete_redo_log_files(
 	ulint	count = 0;
 
 	do {
-		/* Write back all dirty metadata first. To resize the logs
-		files to smaller ones, we will do the checkpoint at last,
-		if we write back there, it could be found that the new log
-		group was not big enough for the new redo logs, thus a
-		cascade checkpoint would be invoked, which is unexpected.
-		There should be no concurrent DML, so no need to require
-		dict_persist::lock. */
-		dict_persist_to_dd_table_buffer();
-
 		/* Clean the buffer pool. */
 		buf_flush_sync_all_buf_pools();
 
@@ -1743,7 +1745,7 @@ srv_prepare_to_delete_redo_log_files(
 
 		/* If innodb_flush_method=O_DSYNC,
 		we need to explicitly flush the log buffers. */
-		fil_flush(dict_sys_t::log_space_first_id);
+		fil_flush(dict_sys_t::s_log_space_first_id);
 
 		ut_ad(flushed_lsn == log_get_lsn());
 
@@ -1813,6 +1815,11 @@ srv_start(bool create_new_db, const char* scan_directories)
 		if (srv_read_only_mode) {
 			ib::error() << "Database upgrade cannot be"
 				" accomplished in read-only mode.";
+			return(srv_init_abort(DB_ERROR));
+		}
+		if (srv_force_recovery != 0) {
+			ib::error() << "Database upgrade cannot be"
+				<< " accomplished with innodb_force_recovery > 0";
 			return(srv_init_abort(DB_ERROR));
 		}
 	}
@@ -1900,8 +1907,6 @@ srv_start(bool create_new_db, const char* scan_directories)
 	if (!create_new_db
 	    && scan_directories != nullptr
 	    && strlen(scan_directories) > 0) {
-
-		dberr_t	err;
 
 		err = fil_scan_for_tablespaces(scan_directories);
 
@@ -2040,6 +2045,7 @@ srv_start(bool create_new_db, const char* scan_directories)
 
 	fsp_init();
 	log_init();
+	pars_init();
 	clone_init();
 	arch_init();
 
@@ -2259,7 +2265,7 @@ srv_start(bool create_new_db, const char* scan_directories)
 		/* Disable the doublewrite buffer for log files. */
 		fil_space_t*	log_space = fil_space_create(
 			"innodb_redo_log",
-			dict_sys_t::log_space_first_id,
+			dict_sys_t::s_log_space_first_id,
 			fsp_flags_set_page_size(0, univ_page_size),
 			FIL_TYPE_LOG);
 
@@ -2282,7 +2288,7 @@ srv_start(bool create_new_db, const char* scan_directories)
 		}
 
 		if (!log_group_init(0, i, srv_log_file_size * UNIV_PAGE_SIZE,
-				    dict_sys_t::log_space_first_id)) {
+				    dict_sys_t::s_log_space_first_id)) {
 			return(srv_init_abort(DB_ERROR));
 		}
 
@@ -2463,6 +2469,38 @@ files_checked:
 		    && !recv_sys->found_corrupt_log
 		    && (srv_log_file_size_requested != srv_log_file_size
 			|| srv_n_log_files_found != srv_n_log_files)) {
+
+			if (!srv_dict_metadata->empty()) {
+				/* Open this table in case srv_dict_metadata
+				should be applied to this table before
+				checkpoint. And because DD is not fully up yet,
+				the table can be opened by internal APIs.
+				FIXME: What if there is no enough room
+				in redo logs? */
+				fil_space_t*	space =
+					fil_space_acquire_silent(
+						dict_sys_t::s_space_id);
+				if (space == nullptr) {
+					dberr_t error = fil_ibd_open(
+						true, FIL_TYPE_TABLESPACE,
+						dict_sys_t::s_space_id,
+						predefined_flags,
+						dict_sys_t::s_dd_space_name,
+						dict_sys_t::s_dd_space_name,
+						dict_sys_t::s_dd_space_file_name,
+						true, false);
+					if (error != DB_SUCCESS) {
+						return(srv_init_abort(
+							DB_ERROR));
+					}
+				} else {
+					fil_space_release(space);
+				}
+
+				dict_persist->table_buffer = UT_NEW_NOKEY(
+					DDTableBuffer());
+				srv_dict_metadata->store();
+			}
 
 			/* Prepare to replace the redo log files. */
 
@@ -2667,17 +2705,6 @@ files_checked:
 		srv_start_state_set(SRV_START_STATE_MONITOR);
 	}
 
-	/* Create the SYS_FOREIGN and SYS_FOREIGN_COLS system tables */
-	err = dict_create_or_check_foreign_constraint_tables();
-	if (err != DB_SUCCESS) {
-		return(srv_init_abort(err));
-	}
-
-	/* Create the SYS_TABLESPACES system table */
-	err = dict_create_or_check_sys_tablespace();
-	if (err != DB_SUCCESS) {
-		return(srv_init_abort(err));
-	}
 	srv_sys_tablespaces_open = true;
 
 	/* Rotate the encryption key for recovery. It's because
@@ -2687,12 +2714,6 @@ files_checked:
 	if (!srv_read_only_mode && !create_new_db
 	    && srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
 		fil_encryption_rotate();
-	}
-
-	/* Create the SYS_VIRTUAL system table */
-	err = dict_create_or_check_sys_virtual();
-	if (err != DB_SUCCESS) {
-		return(srv_init_abort(err));
 	}
 
 	srv_is_being_started = false;
@@ -2816,42 +2837,22 @@ any tables (including data dictionary tables) can be accessed. */
 void
 srv_dict_recover_on_restart()
 {
-	apply_dynamic_metadata();
-
 	trx_resurrect_locks();
 
 	/* Roll back any recovered data dictionary transactions, so
 	that the data dictionary tables will be free of any locks.
 	The data dictionary latch should guarantee that there is at
 	most one data dictionary transaction active at a time. */
-	if (srv_force_recovery < SRV_FORCE_NO_TRX_UNDO) {
+	if (srv_force_recovery < SRV_FORCE_NO_TRX_UNDO
+	    && trx_sys_need_rollback()) {
 		trx_rollback_or_clean_recovered(FALSE);
 	}
 
+	/* Do after all DD transactions recovery, to get consistent metadata */
+	apply_dynamic_metadata();
+
 	if (srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE) {
-		/* Open or Create SYS_TABLESPACES and SYS_DATAFILES
-		so that tablespace names and other metadata can be
-		found. */
 		srv_sys_tablespaces_open = true;
-		dberr_t	err = dict_create_or_check_sys_tablespace();
-
-		ut_a(err == DB_SUCCESS); // FIXME: remove in WL#9535
-	}
-
-	/* We can't start any (DDL) transactions if UNDO logging has
-	been disabled. */
-	if (srv_force_recovery < SRV_FORCE_NO_TRX_UNDO
-	    && !srv_read_only_mode) {
-
-		/* Drop partially created indexes. */
-		row_merge_drop_temp_indexes();
-
-		/* Drop any auxiliary tables that were not
-		dropped when the parent table was
-		dropped. This can happen if the parent table
-		was dropped but the server crashed before the
-		auxiliary tables were dropped. */
-		fts_drop_orphaned_tables();
 	}
 }
 
@@ -2863,7 +2864,6 @@ srv_start_purge_threads()
 	/* Start purge threads only if they are not started
 	earlier. */
 	if (srv_start_state_is_set(SRV_START_STATE_PURGE)) {
-		ut_ad(srv_is_upgrade_mode);
 		return;
 	}
 
@@ -2915,12 +2915,6 @@ srv_start_threads(
 
 
 	srv_start_state_set(SRV_START_STATE_MASTER);
-
-	if (srv_force_recovery < SRV_FORCE_NO_BACKGROUND) {
-		srv_start_purge_threads();
-	} else {
-		purge_sys->state = PURGE_STATE_DISABLED;
-	}
 
 	if (srv_force_recovery == 0) {
 		/* In the insert buffer we may have even bigger tablespace
@@ -3117,6 +3111,7 @@ srv_shutdown()
 	ibuf_close();
 	clone_free();
 	arch_free();
+	ddl_log_close();
 	log_shutdown();
 	trx_sys_close();
 	lock_sys_close();
@@ -3136,6 +3131,7 @@ srv_shutdown()
 	row_mysql_close();
 	srv_free();
 	fil_close();
+	pars_close();
 
 	/* 4. Free all allocated memory */
 
@@ -3239,41 +3235,6 @@ srv_shutdown_table_bg_threads(void)
 }
 #endif
 
-/** Get the meta-data filename from the table name for a
-single-table tablespace.
-@param[in]	table		table object
-@param[out]	filename	filename
-@param[in]	max_len		filename max length */
-void
-srv_get_meta_data_filename(
-	dict_table_t*	table,
-	char*		filename,
-	ulint		max_len)
-{
-	ulint		len;
-	char*		path;
-
-	/* Make sure the data_dir_path is set. */
-	dict_get_and_save_data_dir_path(table, false);
-
-	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
-		ut_a(table->data_dir_path);
-
-		path = fil_make_filepath(
-			table->data_dir_path, table->name.m_name, CFG, true);
-	} else {
-		path = fil_make_filepath(NULL, table->name.m_name, CFG, false);
-	}
-
-	ut_a(path);
-	len = ut_strlen(path);
-	ut_a(max_len >= len);
-
-	strcpy(filename, path);
-
-	ut_free(path);
-}
-
 /** Get the encryption-data filename from the table name for a
 single-table tablespace.
 @param[in]	table		table object
@@ -3289,7 +3250,7 @@ srv_get_encryption_data_filename(
 	char*		path;
 
 	/* Make sure the data_dir_path is set. */
-	dict_get_and_save_data_dir_path(table, false);
+	dd_get_and_save_data_dir_path<dd::Table>(table, NULL, false);
 
 	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
 		ut_a(table->data_dir_path);

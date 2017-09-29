@@ -1,1 +1,2 @@
 --log-slave-updates=false --slave-parallel-workers=2
+--slave-preserve-commit-order=OFF

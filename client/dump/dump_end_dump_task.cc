@@ -15,7 +15,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "dump_end_dump_task.h"
+#include "client/dump/dump_end_dump_task.h"
 
 #include <stddef.h>
 

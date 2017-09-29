@@ -23,46 +23,26 @@
 #include "my_alloc.h"
 #include "my_inttypes.h"
 #include "mysql/udf_registration_types.h"
+#include "sql/thr_malloc.h"
 #include "template_utils.h"
-#include "thr_malloc.h"
 
 /* Forward declarations */
 #ifdef MYSQL_SERVER
 struct TABLE;
+typedef TABLE Mapped_table;
 #else
 class Table_map_log_event;
-
-typedef Table_map_log_event TABLE;
-void free_table_map_log_event(TABLE *table);
+typedef Table_map_log_event Mapped_table;
 #endif
 
 
-/*
-  CLASS table_mapping
+/**
+  Maps table id's (integers) to table pointers.
 
-  RESPONSIBILITIES
-    The table mapping is used to map table id's to table pointers
+  In mysqlbinlog, "table pointer" means Table_map_log_event*.
 
-  COLLABORATION
-    RELAY_LOG    For mapping table id:s to tables when receiving events.
- */
-
-/*
-  Guilhem to Mats:
-  in the table_mapping class, the memory is allocated and never freed (until
-  destruction). So this is a good candidate for allocating inside a MEM_ROOT:
-  it gives the efficient allocation in chunks (like in expand()). So I have
-  introduced a MEM_ROOT.
-
-  Note that inheriting from Sql_alloc had no effect: it has effects only when
-  "ptr= new table_mapping" is called, and this is never called. And it would
-  then allocate from thd->mem_root which is a highly volatile object (reset
-  from example after executing each query, see dispatch_command(), it has a
-  free_root() at end); as the table_mapping object is supposed to live longer
-  than a query, it was dangerous.
-  A dedicated MEM_ROOT needs to be used, see below.
+  In the server, "table pointer" means TABLE*.
 */
-
 class table_mapping {
 
 private:
@@ -79,9 +59,9 @@ public:
   table_mapping();
   ~table_mapping();
 
-  TABLE* get_table(ulonglong table_id);
+  Mapped_table* get_table(ulonglong table_id);
 
-  int       set_table(ulonglong table_id, TABLE* table);
+  int       set_table(ulonglong table_id, Mapped_table* table);
   int       remove_table(ulonglong table_id);
   void      clear_tables();
   ulong     count() const { return m_table_ids.size(); }
@@ -91,7 +71,7 @@ private:
   struct entry { 
     ulonglong table_id;
     union {
-      TABLE *table;
+      Mapped_table *table;
       entry *next;
     };
   };
@@ -106,7 +86,7 @@ private:
   entry *m_free;
 
   /*
-    Correspondence between an id (a number) and a TABLE object.
+    Map from table ids (numbers) to Mapped_table objects.
 
     No destructor for entries passed here, as the entries are allocated in a
     MEM_ROOT (freed as a whole in the destructor), they cannot be freed one by

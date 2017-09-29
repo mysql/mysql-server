@@ -16,19 +16,19 @@
 #include <rpc/rpc.h>
 #include <stdlib.h>
 
-#include "bitset.h"
-#include "xcom_profile.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/bitset.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_profile.h"
 #ifndef XCOM_STANDALONE
 #include "my_compiler.h"
 #endif
-#include "node_set.h"
-#include "simset.h"
-#include "task.h"
-#include "task_debug.h"
-#include "x_platform.h"
-#include "xcom_common.h"
-#include "xcom_memory.h"
-#include "xcom_vp.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_set.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/simset.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_debug.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_common.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_memory.h"
+#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
 
 /* purecov: begin deadcode */
 node_set bit_set_to_node_set(bit_set *set, u_int n) {

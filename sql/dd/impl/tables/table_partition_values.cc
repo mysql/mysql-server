@@ -13,22 +13,22 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/tables/table_partition_values.h"
+#include "sql/dd/impl/tables/table_partition_values.h"
 
 #include <new>
 #include <sstream>      // std::stringstream
 
-#include "dd/impl/object_key.h"             // dd::Object_key
-#include "dd/impl/raw/object_keys.h"        // dd::Parent_id_range_key
-#include "dd/impl/raw/raw_key.h"            // dd::Raw_key
-#include "dd/impl/raw/raw_table.h"          // dd::Raw_table
-#include "dd/impl/types/object_table_definition_impl.h"
-#include "dd/string_type.h"                 // dd::String_type
-#include "field.h"                          // Field
-#include "key.h"
 #include "my_base.h"                        // HA_WHOLE_KEY
 #include "mysql/udf_registration_types.h"
-#include "table.h"
+#include "sql/dd/impl/object_key.h"         // dd::Object_key
+#include "sql/dd/impl/raw/object_keys.h"    // dd::Parent_id_range_key
+#include "sql/dd/impl/raw/raw_key.h"        // dd::Raw_key
+#include "sql/dd/impl/raw/raw_table.h"      // dd::Raw_table
+#include "sql/dd/impl/types/object_table_definition_impl.h"
+#include "sql/dd/string_type.h"             // dd::String_type
+#include "sql/field.h"                      // Field
+#include "sql/key.h"
+#include "sql/table.h"
 
 namespace dd {
 namespace tables {
@@ -44,7 +44,6 @@ const Table_partition_values &Table_partition_values::instance()
 Table_partition_values::Table_partition_values()
 {
   m_target_def.table_name(table_name());
-  m_target_def.dd_version(1);
 
   m_target_def.add_field(FIELD_PARTITION_ID,
                          "FIELD_PARTITION_ID",

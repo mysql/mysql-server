@@ -20,19 +20,19 @@
 #include <sys/types.h>
 #include <algorithm>
 
-#include "bounded_queue.h"
-#include "bounded_queue_boost.cc"
-#include "bounded_queue_boost.h"
-#include "bounded_queue_c.h"
-#include "bounded_queue_std.h"
-#include "fake_costmodel.h"
-#include "filesort_utils.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "opt_costmodel.h"
-#include "test_utils.h"
+#include "sql/bounded_queue.h"
+#include "sql/filesort_utils.h"
+#include "sql/opt_costmodel.h"
+#include "unittest/gunit/bounded_queue_boost.cc"
+#include "unittest/gunit/bounded_queue_boost.h"
+#include "unittest/gunit/bounded_queue_c.h"
+#include "unittest/gunit/bounded_queue_std.h"
+#include "unittest/gunit/fake_costmodel.h"
+#include "unittest/gunit/test_utils.h"
 
 namespace bounded_queue_unittest {
 
@@ -304,9 +304,9 @@ static void my_string_ptr_sort(Test_key **base, uint items, size_t size)
   if (size && items)
   {
     std::sort(base, base + items,
-      [size](const Test_key *a, const Test_key *b)
+      [](const Test_key *a, const Test_key *b)
       {
-        return memcmp(a, b, size) < 0;
+        return memcmp(&a->key, &b->key, sizeof(a->key)) < 0;
       });
   }
 }

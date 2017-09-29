@@ -12,7 +12,7 @@ RUN create table bla (data json)
 1 rows affected
 RUN select * from bla
 data
-%JSONDATA%
+%JSONDATA_UNESCAPED%
 0 rows affected
 RUN drop table bla
 
@@ -26,7 +26,6 @@ Mysqlx.Resultset.ColumnMetaData {
   schema: ""
   catalog: "def"
   collation: 45
-  fractional_digits: 31
   length: 2440012
   flags: 16
 }

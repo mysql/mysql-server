@@ -179,7 +179,7 @@ select SQL_BIG_RESULT a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_an
 insert into t1 values (3,1);
 select a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b) from t1 group by a;
 select SQL_BIG_RESULT a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b), bit_xor(b) from t1 group by a;
-explain extended select SQL_BIG_RESULT a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b), bit_xor(b) from t1 group by a;
+explain select SQL_BIG_RESULT a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b), bit_xor(b) from t1 group by a;
 drop table t1;
 
 #
@@ -940,7 +940,7 @@ set SQL_MODE=ONLY_FULL_GROUP_BY;
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1),(2),(3),(4);
 CREATE VIEW v1 AS SELECT a,(a + 1) AS y FROM t1;
-EXPLAIN EXTENDED SELECT y FROM v1 GROUP BY v1.y;
+EXPLAIN SELECT y FROM v1 GROUP BY v1.y;
 
 DROP VIEW v1;
 DROP TABLE t1;

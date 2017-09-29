@@ -10,59 +10,67 @@
 --echo # CREATE USER
 
 CREATE USER u1@localhost;
-query_vertical SELECT User,plugin,authentication_string FROM mysql.user WHERE USER='u1';
+--replace_column 2 <default_authentication_plugin>
+query_vertical SELECT User,plugin FROM mysql.user WHERE USER='u1';
 
 CREATE USER u2@localhost IDENTIFIED BY 'auth_string';
-query_vertical SELECT User,plugin,authentication_string FROM mysql.user WHERE USER='u2';
+--replace_column 2 <default_authentication_plugin>
+query_vertical SELECT User,plugin FROM mysql.user WHERE USER='u2';
 
 CREATE USER u3@localhost IDENTIFIED WITH 'sha256_password';
-query_vertical SELECT User,plugin,length(authentication_string) FROM mysql.user WHERE USER='u3';
+query_vertical SELECT User,plugin FROM mysql.user WHERE USER='u3';
 
 CREATE USER u4@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string';
-query_vertical SELECT User,plugin,length(authentication_string) FROM mysql.user WHERE USER='u4';
+query_vertical SELECT User,plugin FROM mysql.user WHERE USER='u4';
 
 CREATE USER u5@localhost REQUIRE SSL;
-query_vertical SELECT User,plugin,authentication_string,ssl_type FROM mysql.user WHERE USER='u5';
+--replace_column 2 <default_authentication_plugin>
+query_vertical SELECT User,plugin,ssl_type FROM mysql.user WHERE USER='u5';
 
 CREATE USER u6@localhost IDENTIFIED BY 'auth_string' REQUIRE X509;
-query_vertical SELECT User,plugin,authentication_string,ssl_type FROM mysql.user WHERE USER='u6';
+--replace_column 2 <default_authentication_plugin>
+query_vertical SELECT User,plugin,ssl_type FROM mysql.user WHERE USER='u6';
 
 CREATE USER u7@localhost IDENTIFIED WITH 'sha256_password'
             REQUIRE CIPHER "DHE-RSA-AES256-SHA" PASSWORD EXPIRE NEVER;
-query_vertical SELECT User,plugin,length(authentication_string),ssl_type,
+query_vertical SELECT User,plugin,ssl_type,
             ssl_cipher,x509_issuer,x509_subject,password_expired,password_lifetime FROM mysql.user WHERE USER='u7';
 
 CREATE USER u8@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string'
             REQUIRE ISSUER 'issuer';
-query_vertical SELECT User,plugin,length(authentication_string),ssl_type,ssl_cipher,x509_issuer,x509_subject FROM mysql.user WHERE USER='u8';
+query_vertical SELECT User,plugin,ssl_type,ssl_cipher,x509_issuer,x509_subject FROM mysql.user WHERE USER='u8';
 
 CREATE USER u9@localhost REQUIRE SUBJECT 'sub';
-query_vertical SELECT User,plugin,authentication_string,ssl_type,ssl_cipher,x509_issuer,x509_subject FROM mysql.user WHERE USER='u9';
+--replace_column 2 <default_authentication_plugin>
+query_vertical SELECT User,plugin,ssl_type,ssl_cipher,x509_issuer,x509_subject FROM mysql.user WHERE USER='u9';
 
 CREATE USER u10@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string'
             REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND
             SUBJECT "/C=SE/ST=Uppsala/O=MySQL AB"
             ISSUER "/C=SE/ST=Uppsala/L=Uppsala/O=MySQL AB";
-query_vertical SELECT User,plugin,length(authentication_string),ssl_type,ssl_cipher,x509_issuer,x509_subject FROM mysql.user WHERE USER='u10';
+query_vertical SELECT User,plugin,ssl_type,ssl_cipher,x509_issuer,x509_subject FROM mysql.user WHERE USER='u10';
 
 CREATE USER u11@localhost WITH MAX_QUERIES_PER_HOUR 2;
-query_vertical SELECT User,plugin,authentication_string,max_questions FROM mysql.user WHERE USER='u11';
+--replace_column 2 <default_authentication_plugin>
+query_vertical SELECT User,plugin,max_questions FROM mysql.user WHERE USER='u11';
 
 CREATE USER u12@localhost IDENTIFIED BY 'auth_string'  WITH MAX_QUERIES_PER_HOUR 2;
-query_vertical SELECT User,plugin,authentication_string,max_questions FROM mysql.user WHERE USER='u12';
+--replace_column 2 <default_authentication_plugin>
+query_vertical SELECT User,plugin,max_questions FROM mysql.user WHERE USER='u12';
 
 CREATE USER u13@localhost IDENTIFIED WITH 'sha256_password'
             WITH MAX_CONNECTIONS_PER_HOUR 2;
-query_vertical SELECT User,plugin,length(authentication_string),max_connections FROM mysql.user WHERE USER='u13';
+query_vertical SELECT User,plugin,max_connections FROM mysql.user WHERE USER='u13';
 
 CREATE USER u14@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string'
             WITH MAX_USER_CONNECTIONS 2 PASSWORD EXPIRE INTERVAL 6 DAY;
-query_vertical SELECT User,plugin,length(authentication_string),max_user_connections,
+query_vertical SELECT User,plugin,max_user_connections,
           password_expired,password_lifetime FROM mysql.user WHERE USER='u14';
 
 CREATE USER u15@localhost,
             u16@localhost IDENTIFIED BY 'auth_string',
             u17@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string' PASSWORD EXPIRE;
+--replace_column 2 <authentication_plugin>
 query_vertical SELECT User,plugin,password_expired,password_lifetime FROM mysql.user WHERE USER BETWEEN 'u15' AND 'u17' ORDER BY User;
 
 CREATE USER u18@localhost,
@@ -71,6 +79,7 @@ CREATE USER u18@localhost,
             u21@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string'
             REQUIRE SUBJECT '/C=SE/ST=Uppsala/O=MySQL AB' WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2
             PASSWORD EXPIRE NEVER;
+--replace_column 2 <authentication_plugin>
 query_vertical SELECT User,plugin,ssl_type,ssl_cipher,x509_issuer,x509_subject,
        max_questions,max_user_connections,password_expired,password_lifetime
        FROM mysql.user WHERE USER BETWEEN 'u18' AND 'u21' ORDER BY User;
@@ -85,23 +94,27 @@ drop user u1@localhost, u2@localhost, u3@localhost, u4@localhost, u5@localhost,
 --echo # ALTER USER
 
 CREATE USER u1@localhost;
+--replace_column 6 <authentication_plugin>
 query_vertical SELECT User,ssl_type,ssl_cipher,x509_issuer,x509_subject,
 plugin,password_expired,
 password_lifetime
 FROM mysql.user WHERE USER='u1';
 --echo its a no op
 ALTER USER u1@localhost;
+--replace_column 6 <authentication_plugin>
 query_vertical SELECT User,ssl_type,ssl_cipher,x509_issuer,x509_subject,
 plugin,password_expired,
 password_lifetime
 FROM mysql.user WHERE USER='u1';
 
 CREATE USER u2@localhost IDENTIFIED BY 'auth_string';
+--replace_column 6 <authentication_plugin>
 query_vertical SELECT User,ssl_type,ssl_cipher,x509_issuer,x509_subject,
 plugin,password_expired,
 password_lifetime FROM mysql.user WHERE USER='u2';
 ALTER USER u2@localhost IDENTIFIED BY 'new_auth_string';
 # look for auth_string and password last changed field
+--replace_column 6 <authentication_plugin>
 query_vertical SELECT User,ssl_type,ssl_cipher,x509_issuer,x509_subject,
 plugin,password_expired,
 password_lifetime FROM mysql.user WHERE USER='u2';
@@ -128,6 +141,7 @@ plugin,password_expired,
 password_lifetime FROM mysql.user WHERE USER='u4';
 
 CREATE USER u5@localhost REQUIRE SSL;
+--replace_column 6 <authentication_plugin>
 query_vertical SELECT User,ssl_type,ssl_cipher,x509_issuer,x509_subject,
 plugin,password_expired,
 password_lifetime FROM mysql.user WHERE USER='u5';
@@ -138,10 +152,12 @@ plugin,password_expired,
 password_lifetime FROM mysql.user WHERE USER='u5';
 
 CREATE USER u6@localhost IDENTIFIED BY 'auth_string' REQUIRE X509;
+--replace_column 6 <authentication_plugin>
 query_vertical SELECT User,ssl_type,ssl_cipher,x509_issuer,x509_subject,
 plugin,password_expired,
 password_lifetime FROM mysql.user WHERE USER='u6';
 ALTER USER u6@localhost IDENTIFIED BY 'new_auth_string' REQUIRE SSL;
+--replace_column 6 <authentication_plugin>
 query_vertical SELECT User,ssl_type,ssl_cipher,x509_issuer,x509_subject,
 plugin,password_expired,
 password_lifetime FROM mysql.user WHERE USER='u6';
@@ -171,10 +187,12 @@ plugin,password_expired,
 password_lifetime FROM mysql.user WHERE USER='u8';
 
 CREATE USER u9@localhost REQUIRE SUBJECT 'sub';
+--replace_column 6 <authentication_plugin>
 query_vertical SELECT User,ssl_type,ssl_cipher,x509_issuer,x509_subject,
 plugin,password_expired,
 password_lifetime FROM mysql.user WHERE USER='u9';
 ALTER USER u9@localhost REQUIRE ISSUER "/C=SE/ST=Uppsala/L=Uppsala/O=MySQL AB";
+--replace_column 6 <authentication_plugin>
 query_vertical SELECT User,ssl_type,ssl_cipher,x509_issuer,x509_subject,
 plugin,password_expired,
 password_lifetime FROM mysql.user WHERE USER='u9';
@@ -225,6 +243,7 @@ password_lifetime FROM mysql.user WHERE USER='u14';
 CREATE USER u15@localhost,
             u16@localhost IDENTIFIED WITH 'sha256_password',
             u17@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string';
+--replace_column 6 <authentication_plugin>
 query_vertical SELECT User,ssl_type,ssl_cipher,x509_issuer,x509_subject,
 plugin,password_expired,
 password_lifetime FROM mysql.user
@@ -233,6 +252,7 @@ ALTER USER u15@localhost IDENTIFIED WITH 'sha256_password',
            u16@localhost,
            u17@localhost IDENTIFIED BY 'new_auth_string'
            PASSWORD EXPIRE DEFAULT;
+--replace_column 6 <authentication_plugin>
 query_vertical SELECT User,ssl_type,ssl_cipher,x509_issuer,x509_subject,
 plugin,password_expired,
 password_lifetime FROM mysql.user
@@ -243,6 +263,7 @@ CREATE USER u18@localhost,
             u20@localhost IDENTIFIED WITH 'sha256_password',
             u21@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string'
             REQUIRE SUBJECT '/C=SE/ST=Uppsala/O=MySQL AB' WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2;
+--replace_column 6 <authentication_plugin>
 query_vertical SELECT User,ssl_type,ssl_cipher,x509_issuer,x509_subject,
 plugin,password_expired,max_user_connections,
 max_questions,password_lifetime FROM mysql.user
@@ -252,6 +273,7 @@ ALTER USER u18@localhost, u19@localhost,
            REQUIRE SUBJECT '/C=SE/ST=Uppsala/O=MySQL AB'
            WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2
            PASSWORD EXPIRE NEVER;
+--replace_column 6 <authentication_plugin>
 query_vertical SELECT User,ssl_type,ssl_cipher,x509_issuer,x509_subject,
 plugin,password_expired,max_user_connections,
 max_questions,password_lifetime FROM mysql.user
@@ -375,13 +397,17 @@ DROP USER u1@localhost, u2@localhost;
 --echo # SHOW CREATE USER
 
 CREATE USER u1@localhost;
+--replace_regex /WITH .* REQUIRE/WITH '<default_authentication_plugin>' REQUIRE/
 SHOW CREATE USER u1@localhost;
 ALTER USER u1@localhost IDENTIFIED BY 'auth_string';
+--replace_regex /WITH .* AS .* REQUIRE/WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u1@localhost;
 
 CREATE USER u2@localhost IDENTIFIED BY 'auth_string';
+--replace_regex /WITH .* AS .* REQUIRE/WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u2@localhost;
 ALTER USER u2@localhost IDENTIFIED WITH 'sha256_password';
+--replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u2@localhost;
 
 CREATE USER u3@localhost IDENTIFIED WITH 'sha256_password';
@@ -393,17 +419,21 @@ CREATE USER u4@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string';
 --replace_regex /AS .*$/AS '<non-deterministic-password-hash>'/
 SHOW CREATE USER u4@localhost;
 ALTER USER u4@localhost PASSWORD EXPIRE INTERVAL 365 DAY;
---replace_regex /AS .*$/AS '<non-deterministic-password-hash>'/
+--replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u4@localhost;
 
 CREATE USER u5@localhost REQUIRE SSL;
+--replace_regex /WITH .*$ REQUIRE/WITH '<default_authentication_plugin>' REQUIRE/
 SHOW CREATE USER u5@localhost;
 ALTER USER u5@localhost REQUIRE CIPHER "DHE-RSA-AES256-SHA";
+--replace_regex /WITH .* REQUIRE/WITH '<default_authentication_plugin>' REQUIRE/
 SHOW CREATE USER u5@localhost;
 
 CREATE USER u6@localhost IDENTIFIED BY 'auth_string' REQUIRE X509;
+--replace_regex /WITH .* AS .* REQUIRE/WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u6@localhost;
 ALTER USER u6@localhost REQUIRE CIPHER "DHE-RSA-AES256-SHA" WITH MAX_QUERIES_PER_HOUR 2;
+--replace_regex /WITH .* AS .* REQUIRE/WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u6@localhost;
 
 CREATE USER u7@localhost IDENTIFIED WITH 'sha256_password'
@@ -420,8 +450,10 @@ ALTER USER u8@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
 SHOW CREATE USER u8@localhost;
 
 CREATE USER u9@localhost REQUIRE SUBJECT 'sub';
+--replace_regex /WITH .* REQUIRE/WITH '<default_authentication_plugin>' REQUIRE/
 SHOW CREATE USER u9@localhost;
 ALTER USER u9@localhost;
+--replace_regex /WITH .* REQUIRE/WITH '<default_authentication_plugin>' REQUIRE/
 SHOW CREATE USER u9@localhost;
 
 CREATE USER u10@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string'
@@ -435,13 +467,17 @@ ALTER USER u10@localhost PASSWORD EXPIRE NEVER;
 SHOW CREATE USER u10@localhost;
 
 CREATE USER u11@localhost WITH MAX_QUERIES_PER_HOUR 2;
+--replace_regex /WITH .* REQUIRE/WITH '<default_authentication_plugin>' REQUIRE/
 SHOW CREATE USER u11@localhost;
 ALTER USER u11@localhost WITH MAX_QUERIES_PER_HOUR 10;
+--replace_regex /WITH .* REQUIRE/WITH '<default_authentication_plugin>' REQUIRE/
 SHOW CREATE USER u11@localhost;
 
 CREATE USER u12@localhost IDENTIFIED BY 'auth_string'  WITH MAX_QUERIES_PER_HOUR 2;
+--replace_regex /WITH .* AS .* REQUIRE/WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u12@localhost;
 ALTER USER u12@localhost REQUIRE SUBJECT '/C=SE/ST=Uppsala/O=MySQL AB' WITH MAX_QUERIES_PER_HOUR 10;
+--replace_regex /WITH .* AS .* REQUIRE/WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u12@localhost;
 
 CREATE USER u13@localhost IDENTIFIED WITH 'sha256_password'
@@ -469,14 +505,18 @@ ALTER USER u15@localhost REQUIRE X509 PASSWORD EXPIRE INTERVAL 365 DAY;
 SHOW CREATE USER u15@localhost;
 
 CREATE USER u16@localhost IDENTIFIED BY 'auth_string' PASSWORD EXPIRE;
+--replace_regex /WITH .* AS .* REQUIRE/WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u16@localhost;
 ALTER USER u16@localhost REQUIRE X509 PASSWORD EXPIRE INTERVAL 365 DAY;
+--replace_regex /WITH .* AS .* REQUIRE/WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u16@localhost;
 
 CREATE USER u17@localhost WITH MAX_QUERIES_PER_HOUR 200
                                MAX_USER_CONNECTIONS 2 PASSWORD EXPIRE NEVER;
+--replace_regex /WITH .* REQUIRE/WITH '<default_authentication_plugin>' REQUIRE/
 SHOW CREATE USER u17@localhost;
 ALTER USER u17@localhost REQUIRE X509 PASSWORD EXPIRE INTERVAL 365 DAY;
+--replace_regex /WITH .* REQUIRE/WITH '<default_authentication_plugin>' REQUIRE/
 SHOW CREATE USER u17@localhost;
 
 CREATE USER u18@localhost IDENTIFIED WITH 'sha256_password' PASSWORD EXPIRE INTERVAL 365 DAY;
@@ -487,9 +527,11 @@ SHOW CREATE USER u18@localhost;
 CREATE USER u19@localhost REQUIRE SUBJECT '/C=SE/ST=Uppsala/O=MySQL AB'
                           ISSUER "/C=SE/ST=Uppsala/L=Uppsala/O=MySQL AB"
                           PASSWORD EXPIRE DEFAULT;
+--replace_regex /WITH .* REQUIRE/WITH '<default_authentication_plugin>' REQUIRE/
 SHOW CREATE USER u19@localhost;
 ALTER USER u19@localhost WITH MAX_QUERIES_PER_HOUR 200
                          MAX_USER_CONNECTIONS 2 PASSWORD EXPIRE NEVER;
+--replace_regex /WITH .* REQUIRE/WITH '<default_authentication_plugin>' REQUIRE/
 SHOW CREATE USER u19@localhost;
 
 drop user u1@localhost, u2@localhost, u3@localhost, u4@localhost, u5@localhost,
@@ -550,9 +592,9 @@ eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/log/rewrite_general.log'
 
 --echo Show what is logged:
 --echo ------ rewrite ------
-SELECT argument FROM mysql.general_log WHERE argument LIKE 'CREATE USER %' AND
+SELECT COUNT(*) FROM mysql.general_log WHERE argument LIKE 'CREATE USER %' AND
                                              command_type NOT LIKE 'Prepare';
-SELECT argument FROM mysql.general_log WHERE argument LIKE 'SET PASSWORD %';
+SELECT COUNT(*) FROM mysql.general_log WHERE argument LIKE 'SET PASSWORD %';
 SELECT argument FROM mysql.general_log WHERE argument LIKE 'GRANT %' AND
                                              command_type NOT LIKE 'Prepare';
 --echo ------ done ------

@@ -223,19 +223,16 @@ SET(DISABLE_PSI_OPTIONS
   "-DDISABLE_PSI_STAGE"
   )
 
+IF(SSL_DEFINES)
+  ADD_DEFINITIONS(${SSL_DEFINES})
+ENDIF()
+
 IF (WITH_SSL STREQUAL "bundled")
   ADD_SUBDIRECTORY(yassl)
 ENDIF()
 
 INCLUDE_DIRECTORIES(
-  ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include
-  ${ZLIB_INCLUDE_DIR}
-  ${CMAKE_SOURCE_DIR}/extra/regex
-  ${CMAKE_SOURCE_DIR}/sql
-  ${CMAKE_SOURCE_DIR}/sql/auth
-  ${CMAKE_SOURCE_DIR}/storage/example
-  ${CMAKE_SOURCE_DIR}/storage/temptable/include
 )
 
 # main-wrapper libraries (with tap-compatible option).
@@ -348,6 +345,7 @@ SET(TESTS
   pump_object_filter
   val_int_compare
   varlen_sort
+  collation_loader
   )
  
 IF(WIN32)
@@ -423,6 +421,7 @@ SET(SERVER_TESTS
   unique
   value_map
   wild_case_compare
+  sha2_password
 )
 
 SET(ALL_LARGE_TESTS)

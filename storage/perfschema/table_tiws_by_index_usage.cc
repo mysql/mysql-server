@@ -24,15 +24,15 @@
 
 #include <stddef.h>
 
-#include "field.h"
 #include "my_dbug.h"
 #include "my_thread.h"
-#include "pfs_buffer_container.h"
-#include "pfs_column_types.h"
-#include "pfs_column_values.h"
-#include "pfs_global.h"
-#include "pfs_instr_class.h"
-#include "pfs_visitor.h"
+#include "sql/field.h"
+#include "storage/perfschema/pfs_buffer_container.h"
+#include "storage/perfschema/pfs_column_types.h"
+#include "storage/perfschema/pfs_column_values.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/pfs_visitor.h"
 
 THR_LOCK table_tiws_by_index_usage::m_table_lock;
 
@@ -186,6 +186,7 @@ table_tiws_by_index_usage::get_row_count(void)
 table_tiws_by_index_usage::table_tiws_by_index_usage()
   : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos()
 {
+  m_normalizer = time_normalizer::get_wait();
 }
 
 void
@@ -198,7 +199,6 @@ table_tiws_by_index_usage::reset_position(void)
 int
 table_tiws_by_index_usage::rnd_init(bool)
 {
-  m_normalizer = time_normalizer::get(wait_timer);
   return 0;
 }
 
@@ -260,8 +260,6 @@ table_tiws_by_index_usage::rnd_pos(const void *pos)
 int
 table_tiws_by_index_usage::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
-  m_normalizer = time_normalizer::get(wait_timer);
-
   PFS_index_tiws_by_index_usage *result = NULL;
   DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_tiws_by_index_usage);

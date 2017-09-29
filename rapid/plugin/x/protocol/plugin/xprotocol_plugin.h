@@ -18,13 +18,13 @@
 #ifndef X_PROTOCOL_PLUGIN_XPROTOCOL_PLUGIN_H
 #define X_PROTOCOL_PLUGIN_XPROTOCOL_PLUGIN_H
 
-#include <google/protobuf/descriptor.h>
 #include <google/protobuf/compiler/code_generator.h>
-#include <string>
+#include <google/protobuf/descriptor.h>
 #include <set>
+#include <string>
 #include <vector>
 
-#include "message_field_chain.h"
+#include "plugin/x/protocol/plugin/message_field_chain.h"
 
 
 class XProtocol_plugin : public google::protobuf::compiler::CodeGenerator {

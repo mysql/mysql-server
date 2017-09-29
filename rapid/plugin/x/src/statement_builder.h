@@ -21,11 +21,11 @@
 #include <algorithm>
 #include <string>
 
-#include "expr_generator.h"
-#include "ngs_common/bind.h"
-#include "ngs_common/protocol_protobuf.h"
-#include "ngs/error_code.h"
-#include "ngs/protocol_fwd.h"
+#include "plugin/x/ngs/include/ngs/error_code.h"
+#include "plugin/x/ngs/include/ngs/protocol_fwd.h"
+#include "plugin/x/ngs/include/ngs_common/bind.h"
+#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "plugin/x/src/expr_generator.h"
 
 namespace xpl {
 
@@ -35,7 +35,7 @@ class Statement_builder {
       : m_builder(gen) {}
 
  protected:
-  using Collection =  ::Mysqlx::Crud::Collection;
+  using Collection = ::Mysqlx::Crud::Collection;
 
   void add_collection(const Collection &table) const;
 
@@ -61,10 +61,15 @@ class Statement_builder {
       return *this;
     }
 
-    template <typename I, typename Op>
+    template<typename L, typename Op>
+    const Generator &put_each(const L &list, Op generate) const {
+      return put_each(list.begin(), list.end(), generate);
+    }
+
+    template<typename I, typename Op>
     const Generator &put_list(I begin, I end, Op generate,
                               const std::string &separator = ",") const {
-      if (end - begin == 0) return *this;
+      if (std::distance(begin, end) == 0) return *this;
 
       generate(*begin);
       for (++begin; begin != end; ++begin) {

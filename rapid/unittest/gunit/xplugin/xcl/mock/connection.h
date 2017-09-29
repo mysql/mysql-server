@@ -23,10 +23,10 @@
 #include <gmock/gmock.h>
 #include <cstdint>
 #include <memory>
-#include <utility>
 #include <string>
+#include <utility>
 
-#include "mysqlxclient/xconnection.h"
+#include "plugin/x/client/mysqlxclient/xconnection.h"
 
 
 namespace xcl {

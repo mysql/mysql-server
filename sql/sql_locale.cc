@@ -24,8 +24,6 @@
 
 #include <stddef.h>
 
-#include "derror.h"                             // MY_LOCALE_ERRMSGS
-#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_dbug.h"
@@ -33,7 +31,9 @@
 #include "my_loglevel.h"
 #include "my_macros.h"
 #include "mysqld_error.h"
-#include "sql_error.h"
+#include "sql/derror.h"                         // MY_LOCALE_ERRMSGS
+#include "sql/log.h"
+#include "sql/sql_error.h"
 #include "typelib.h"
 
 

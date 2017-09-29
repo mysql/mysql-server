@@ -19,26 +19,26 @@
 
 #include <errno.h>
 #include <limits.h>
-#include <m_ctype.h>
-#include <m_string.h>
-#include <my_getopt.h>
-#include <mysys_err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
+#include <array>
 
-#include "../mysys/mysys_priv.h"
+#include "m_ctype.h"
+#include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"
+#include "my_getopt.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
-#include "mysql_version.h"             // MYSQL_PERSIST_CONFIG_NAME
 #include "mysql/service_mysql_alloc.h"
+#include "mysql_version.h"             // MYSQL_PERSIST_CONFIG_NAME
+#include "mysys/mysys_priv.h"
+#include "mysys_err.h"
 #include "typelib.h"
-#include <array>
 
 typedef void (*init_func_p)(const struct my_option *option, void *variable,
                             longlong value);

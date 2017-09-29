@@ -37,6 +37,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "read0read.h"
 #include "row0mysql.h"
 #include "row0undo.h"
+#include "sql_thd_internal_api.h"
 #include "srv0mon.h"
 #include "srv0start.h"
 #include "trx0rec.h"
@@ -630,10 +631,8 @@ trx_rollback_active(
 	que_fork_t*	fork;
 	que_thr_t*	thr;
 	roll_node_t*	roll_node;
-	dict_table_t*	table;
 	int64_t		rows_to_undo;
 	const char*	unit		= "";
-	ibool		dictionary_locked = FALSE;
 
 	heap = mem_heap_create(512);
 
@@ -673,11 +672,6 @@ trx_rollback_active(
 	ib::info() << "Rolling back trx with id " << trx_id << ", "
 		<< rows_to_undo << unit << " rows to undo";
 
-	if (trx_get_dict_operation(trx) != TRX_DICT_OP_NONE) {
-		row_mysql_lock_data_dictionary(trx);
-		dictionary_locked = TRUE;
-	}
-
 	que_run_threads(thr);
 	ut_a(roll_node->undo_thr != NULL);
 
@@ -690,37 +684,6 @@ trx_rollback_active(
 			       roll_node->undo_thr->common.parent));
 
 	ut_a(trx->lock.que_state == TRX_QUE_RUNNING);
-
-	if (trx_get_dict_operation(trx) != TRX_DICT_OP_NONE
-	    && trx->table_id != 0) {
-
-		ut_ad(dictionary_locked);
-
-		/* TODO: With Atomic DDL (WL#9536), this should not be
-		happening. Remove the code below */
-
-		/* If the transaction was for a dictionary operation,
-		we drop the relevant table only if it is not flagged
-		as DISCARDED. If it still exists. */
-		MDL_ticket*	mdl;
-
-		table = dd_table_open_on_id(
-			trx->table_id, current_thd, &mdl, false);
-
-		if (table && !dict_table_is_discarded(table)) {
-			ib::warn() << "Dropping table '" << table->name
-				<< "', with id " << trx->table_id
-				<< " in recovery";
-
-			dict_table_close_and_drop(trx, table);
-
-			trx_commit_for_mysql(trx);
-		}
-	}
-
-	if (dictionary_locked) {
-		row_mysql_unlock_data_dictionary(trx);
-	}
 
 	ib::info() << "Rollback of trx with id " << trx_id << " completed";
 
@@ -769,7 +732,7 @@ trx_rollback_resurrected(
 		trx_free_resurrected(trx);
 		return(TRUE);
 	case TRX_STATE_ACTIVE:
-		if (all || trx_get_dict_operation(trx) != TRX_DICT_OP_NONE) {
+		if (all || trx->ddl_operation) {
 			trx_sys_mutex_exit();
 			trx_rollback_active(trx);
 			trx_free_for_background(trx);
@@ -855,6 +818,13 @@ Note: this is done in a background thread. */
 void
 trx_recovery_rollback_thread()
 {
+#ifdef UNIV_PFS_THREAD
+	THD*	thd = create_thd(false, true, true,
+				 trx_recovery_rollback_thread_key.m_value);
+#else
+	THD*	thd = create_thd(false, true, true, 0);
+#endif
+
 	my_thread_init();
 
 	ut_ad(!srv_read_only_mode);
@@ -862,6 +832,8 @@ trx_recovery_rollback_thread()
 	trx_rollback_or_clean_recovered(TRUE);
 
 	trx_rollback_or_clean_is_active = false;
+
+	destroy_thd(thd);
 
 	my_thread_end();
 }

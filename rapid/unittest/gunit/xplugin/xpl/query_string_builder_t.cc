@@ -15,12 +15,12 @@
  * 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "ngs/error_code.h"
-#include "query_string_builder.h"
-
-#include <stdexcept>
-#include <list>
 #include <gtest/gtest.h>
+#include <list>
+#include <stdexcept>
+
+#include "plugin/x/ngs/include/ngs/error_code.h"
+#include "plugin/x/src/query_string_builder.h"
 
 
 namespace xpl {

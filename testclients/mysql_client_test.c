@@ -19251,7 +19251,8 @@ static void test_wl6791()
     MYSQL_OPT_COMPRESS, MYSQL_OPT_USE_REMOTE_CONNECTION,
     MYSQL_OPT_USE_EMBEDDED_CONNECTION, MYSQL_OPT_GUESS_CONNECTION,
     MYSQL_REPORT_DATA_TRUNCATION, MYSQL_OPT_RECONNECT,
-    MYSQL_ENABLE_CLEARTEXT_PLUGIN, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS
+    MYSQL_ENABLE_CLEARTEXT_PLUGIN, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS,
+    MYSQL_OPT_OPTIONAL_RESULTSET_METADATA
   },
   const_char_opts[] = {
     MYSQL_READ_DEFAULT_FILE, MYSQL_READ_DEFAULT_GROUP,
@@ -20610,6 +20611,315 @@ static void test_mysql_binlog()
   myquery(rc);
 }
 
+
+static void print_no_metadata_row(MYSQL_RES *result, MYSQL_ROW *row)
+{
+  uint i;
+
+  for (i= 0; i < mysql_num_fields(result); i++)
+  {
+    if (!opt_silent)
+      fprintf(stdout, "field#%u='%s' ", i, (*row)[i] ? (*row)[i] : "NULL");
+  }
+  if (!opt_silent)
+    fprintf(stdout, "\n");
+}
+
+
+static void print_metadata_row(MYSQL_RES *result, MYSQL_ROW *row)
+{
+  uint i;
+  MYSQL_FIELD *field;
+
+  mysql_field_seek(result, 0);
+  for (i= 0; i < mysql_num_fields(result); i++)
+  {
+    field= mysql_fetch_field(result);
+    DIE_UNLESS(field != NULL);
+    if (!opt_silent)
+      fprintf(stdout, "%s='%s' ", field->name, (*row)[i] ? (*row)[i] : "NULL");
+  }
+  if (!opt_silent)
+    fprintf(stdout, "\n");
+}
+
+
+static void perform_query(MYSQL *mysql1, const char *query, bool store_result, bool use_metadata)
+{
+  MYSQL_RES *result;
+  MYSQL_ROW row;
+  uint row_count;
+  int rc;
+
+  if (!opt_silent)
+    fprintf(stdout, "\nQuery: '%s' %s\n", query, use_metadata ? "(with metadata)" : "(no metadata)");
+
+  DIE_IF(mysql_query(mysql1, query));
+
+  do
+  {
+    result= store_result ? mysql_store_result(mysql1) : mysql_use_result(mysql1);
+    if (mysql_errno(mysql1))
+    {
+      if (!opt_silent)
+        fprintf(stdout, "mysql_{store,use}_result() failed: %s\n", mysql_error(mysql1));
+      DIE_UNLESS(0);
+    }
+    if (!result)
+    {
+      if (!opt_silent)
+        fprintf(stdout, "Query OK\n");
+    }
+    else
+    {
+      if (!opt_silent)
+        fprintf(stdout, "Result:\n");
+
+      row_count= 0;
+      while ((row= mysql_fetch_row(result)) != NULL)
+      {
+        if (use_metadata)
+          print_metadata_row(result, &row);
+        else
+          print_no_metadata_row(result, &row);
+
+        row_count++;
+      }
+
+      if (mysql_errno(mysql1) != 0)
+      {
+        if (!opt_silent)
+          fprintf(stderr, "mysql_fetch_row() failed: %s\n", mysql_error(mysql1));
+        DIE_UNLESS(0);
+      }
+      if (!opt_silent)
+        fprintf(stdout, "%d row(s) returned\n", row_count);
+
+      mysql_free_result(result);
+    }
+
+    rc= mysql_next_result(mysql1);
+  } while (rc == 0);
+  if (rc > 0)
+  {
+    if (!opt_silent)
+      fprintf(stderr, "mysql_next_result() failed: %s\n", mysql_error(mysql1));
+    DIE_UNLESS(0);
+  }
+}
+
+
+static void perform_no_metadata_query(MYSQL *mysql1, const char *query, bool store_result)
+{
+  perform_query(mysql1, query, store_result, FALSE);
+}
+
+
+static void perform_metadata_query(MYSQL *mysql1, const char *query, bool store_result)
+{
+  perform_query(mysql1, query, store_result, TRUE);
+}
+
+
+static void perform_no_metadata_stmt(MYSQL *mysql1, const char *query, uint params, uint fields)
+{
+  MYSQL_STMT *stmt= mysql_stmt_init(mysql1);
+  int rc;
+  MYSQL_RES *result;
+
+  if (!opt_silent)
+    fprintf(stdout, "\nStmt: '%s'", query);
+
+  DIE_UNLESS(stmt);
+
+  rc= mysql_stmt_prepare(stmt, query, (ulong) strlen(query));
+  check_execute(stmt, rc);
+
+  verify_param_count(stmt, params);
+
+  result= mysql_stmt_result_metadata(stmt);
+  DIE_UNLESS(result);
+
+  verify_field_count(result, fields);
+  if (!opt_silent)
+    fprintf(stdout, "\n");
+
+  if (params == 0)
+  {
+    rc= mysql_stmt_execute(stmt);
+    check_execute(stmt, rc);
+  }
+
+  mysql_free_result(result);
+  mysql_stmt_close(stmt);
+}
+
+
+static void test_skip_metadata()
+{
+  int rc;
+  MYSQL *mysql1;
+  bool optional_resultset_metadata= TRUE;
+  bool get_optional_resultset_metadata= FALSE;
+  MYSQL_RES *result;
+
+  myheader("test_skip_metadata");
+
+  /* Check default resultset_metadata value. */
+  perform_metadata_query(mysql, "SELECT @@resultset_metadata", TRUE);
+
+  /* Check if we can set it to FULL. */
+  rc= mysql_query(mysql, "SET @@session.resultset_metadata=FULL");
+  DIE_UNLESS(rc == 0);
+
+  /* Check if resultset_metadata's local only. */
+  rc= mysql_query(mysql, "SET @@global.resultset_metadata=NONE");
+  DIE_UNLESS(rc == 1 && mysql_errno(mysql) == ER_LOCAL_VARIABLE);
+
+  /*
+    Check if we can set resultset_metadata for connection that doesn't
+    have CLIENT_OPTIONAL_RESULTSET_METADATA flag.
+  */
+  rc= mysql_query(mysql, "SET @@session.resultset_metadata=NONE");
+  DIE_UNLESS(rc == 1 && mysql_errno(mysql) == ER_CLIENT_DOES_NOT_SUPPORT);
+
+  /* Check if we can set resultset_metadata to wrong value. */
+  rc= mysql_query(mysql, "SET @@session.resultset_metadata=XXX");
+  DIE_UNLESS(rc == 1 && mysql_errno(mysql) == ER_WRONG_VALUE_FOR_VAR);
+
+  /* Test MYSQL_OPT_OPTIONAL_RESULTSET_METADATA option. */
+  if (!(mysql1= mysql_client_init(NULL)))
+  {
+    myerror("mysql_client_init() failed");
+    DIE_UNLESS(0);
+  }
+  mysql_options(mysql1, MYSQL_OPT_OPTIONAL_RESULTSET_METADATA, &optional_resultset_metadata);
+  mysql1= mysql_real_connect(mysql1, opt_host, opt_user, opt_password,
+                             current_db, opt_port, opt_unix_socket, 0);
+  if (!mysql1)
+  {
+   if (!opt_silent)
+      fprintf(stdout, "mysql_real_connect() failed: '%s'\n", mysql_error(mysql1));
+    DIE_UNLESS(0);
+  }
+
+  /* Check CLIENT_OPTIONAL_RESULTSET_METADATA flag. */
+  DIE_UNLESS(mysql->client_flag | CLIENT_OPTIONAL_RESULTSET_METADATA);
+
+ /* Check MYSQL_OPT_OPTIONAL_RESULTSET_METADATA option. */
+  mysql_get_option(mysql1, MYSQL_OPT_OPTIONAL_RESULTSET_METADATA, &get_optional_resultset_metadata);
+  DIE_UNLESS(get_optional_resultset_metadata == TRUE);
+
+  mysql_close(mysql1);
+
+  /* Connect with CLIENT_OPTIONAL_RESULTSET_METADATA flag. */
+  if (!(mysql1= mysql_client_init(NULL)))
+  {
+    myerror("mysql_client_init() failed");
+    DIE_UNLESS(0);
+  }
+
+  mysql1= mysql_real_connect(mysql1, opt_host, opt_user, opt_password,
+                             current_db, opt_port, opt_unix_socket,
+                             CLIENT_MULTI_RESULTS |
+                             CLIENT_MULTI_STATEMENTS |
+                             CLIENT_OPTIONAL_RESULTSET_METADATA);
+  if (!mysql1)
+  {
+    if (!opt_silent)
+      fprintf(stdout, "mysql_real_connect() failed: '%s'\n", mysql_error(mysql1));
+    DIE_UNLESS(0);
+  }
+
+  /* Check default resultset_metadata value. */
+  perform_metadata_query(mysql1, "SELECT @@resultset_metadata", TRUE);
+
+  /* Check if we can set resultset_metadata to wrong value. */
+  rc= mysql_query(mysql1, "SET @@session.resultset_metadata=XXX");
+  DIE_UNLESS(rc == 1 && mysql_errno(mysql1) == ER_WRONG_VALUE_FOR_VAR);
+
+  /* Check if resultset_metadata's session only. */
+  rc= mysql_query(mysql1, "SET @@global.resultset_metadata=NONE");
+  DIE_UNLESS(rc == 1 && mysql_errno(mysql1) == ER_LOCAL_VARIABLE);
+
+  /* Set resultset_metadata to NONE. */
+  DIE_IF(mysql_query(mysql1, "SET @@session.resultset_metadata=NONE"));
+
+  /* Check API functions. */
+  DIE_IF(mysql_query(mysql1, "SELECT 1, 2, 3"));
+  DIE_UNLESS(mysql_field_count(mysql1) == 3);
+  result= mysql_store_result(mysql1);
+  mytest(result);
+  DIE_UNLESS(mysql_result_metadata(result) == RESULTSET_METADATA_NONE);
+  DIE_UNLESS(mysql_num_fields(result) == 3);
+  DIE_UNLESS(mysql_field_seek(result, 3) == 0);
+  DIE_UNLESS(mysql_field_seek(result, 2) == 3);
+  DIE_UNLESS(mysql_fetch_field(result) == NULL);
+  DIE_UNLESS(mysql_field_tell(result) == 2);
+  DIE_UNLESS(mysql_fetch_field_direct(result, 1) == NULL);
+  DIE_UNLESS(mysql_fetch_fields(result) == NULL);
+  mysql_free_result(result);
+
+  /* Test different datasets using mysql_store_result()/mysql_use_result(). */
+  perform_no_metadata_query(mysql1, "SELECT @@resultset_metadata", TRUE);
+  perform_no_metadata_query(mysql1, "SELECT 1", FALSE);
+  perform_no_metadata_query(mysql1, "SELECT 1/0", FALSE);
+  DIE_IF(mysql_query(mysql1, "DROP TABLE IF EXISTS t"));
+  DIE_IF(mysql_query(mysql1, "CREATE TABLE t(a INT, b varchar(20))"));
+  DIE_IF(mysql_query(mysql1, "INSERT INTO t VALUES (0, '00'), (1, '01'), (100, '0100')"));
+  perform_no_metadata_query(mysql1, "SELECT * FROM t", TRUE);
+  perform_no_metadata_query(mysql1, "SELECT a FROM t", FALSE);
+  perform_no_metadata_query(mysql1, "SELECT b FROM t", TRUE);
+  perform_no_metadata_query(mysql1, "SELECT b, a FROM t", FALSE);
+
+  /* Tests for prepare statements. */
+  perform_no_metadata_stmt(mysql1, "SELECT 1", 0 , 1);
+  perform_no_metadata_stmt(mysql1, "SELECT * FROM t", 0 , 2);
+  perform_no_metadata_stmt(mysql1, "SELECT b FROM t WHERE a=?", 1 , 1);
+  perform_no_metadata_stmt(mysql1, "SELECT * FROM t WHERE a=? AND b=?", 2 , 2);
+
+  /* Test for a SP with multiple results. */
+  DIE_IF(mysql_query(mysql1, "DROP PROCEDURE IF EXISTS p"));
+  DIE_IF(mysql_query(mysql1,
+                     "CREATE PROCEDURE p() "
+                     "BEGIN "
+                     "  SELECT 1; "
+                     "  SELECT 1, 2, 3; "
+                     "  SELECT * FROM t; "
+                     "END"));
+  perform_no_metadata_query(mysql1, "CALL p()", TRUE);
+  perform_no_metadata_query(mysql1, "CALL p()", FALSE);
+
+  /* Set resultset_metadata back to FULL. */
+  DIE_IF(mysql_query(mysql1, "SET @@session.resultset_metadata=FULL"));
+
+  /* Check it's value */
+  perform_metadata_query(mysql1, "SELECT @@resultset_metadata", TRUE);
+
+  /* Test mysql_result_metadata(). */
+  DIE_IF(mysql_query(mysql1, "SELECT 1, 2, 3"));
+  result= mysql_store_result(mysql1);
+  mytest(result);
+  DIE_UNLESS(mysql_result_metadata(result) == RESULTSET_METADATA_FULL);
+  mysql_free_result(result);
+
+  /* Test different datasets again. */
+  perform_metadata_query(mysql1, "SELECT 1", FALSE);
+  perform_metadata_query(mysql1, "SELECT 1/0", TRUE);
+  perform_metadata_query(mysql1, "SELECT * FROM t", FALSE);
+  perform_metadata_query(mysql1, "SELECT a FROM t", TRUE);
+  perform_metadata_query(mysql1, "SELECT b FROM t", FALSE);
+  perform_metadata_query(mysql1, "SELECT b, a FROM t", TRUE);
+  perform_metadata_query(mysql1, "CALL p()", TRUE);
+  perform_metadata_query(mysql1, "CALL p()", FALSE);
+
+  /* Cleanup. */
+  DIE_IF(mysql_query(mysql1, "DROP TABLE t"));
+  DIE_IF(mysql_query(mysql1, "DROP PROCEDURE p"));
+  mysql_close(mysql1);
+}
+
+
 static struct my_tests_st my_tests[]= {
   { "disable_query_logs", disable_query_logs },
   { "test_view_sp_list_fields", test_view_sp_list_fields },
@@ -20890,6 +21200,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug24963580", test_bug24963580 },
   { "test_mysql_binlog", test_mysql_binlog },
   { "test_bug22028117", test_bug22028117 },
+  { "test_skip_metadata", test_skip_metadata },
   { 0, 0 }
 };
 

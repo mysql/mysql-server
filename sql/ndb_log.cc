@@ -15,13 +15,13 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "ndb_log.h"
+#include "sql/ndb_log.h"
 
 /*
   Implements a logging interface for the ndbcluster
   plugin using the LogEvent class as defined in log_builtins.h
 */
-#include "log.h"
+#include "sql/log.h"
 #include <mysql/components/services/log_builtins.h>
 
 #include "my_dbug.h"

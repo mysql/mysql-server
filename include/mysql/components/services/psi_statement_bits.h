@@ -98,8 +98,13 @@ struct PSI_statement_info_v1
   PSI_statement_key m_key;
   /** The name of the statement instrument to register. */
   const char *m_name;
-  /** The flags of the statement instrument to register. */
-  int m_flags;
+  /**
+    The flags of the statement instrument to register.
+    @sa PSI_FLAG_MUTABLE
+  */
+  uint m_flags;
+  /** Documentation. */
+  const char *m_documentation;
 };
 typedef struct PSI_statement_info_v1 PSI_statement_info_v1;
 
@@ -174,6 +179,13 @@ struct PSI_statement_locker_state_v1
   uint m_schema_name_length;
   /** Statement character set number. */
   uint m_cs_number;
+  /** Statement query sample. */
+  const char *m_query_sample;
+  /** Length in bytes of @c m_query_sample. */
+  uint m_query_sample_length;
+  /** True if @c m_query_sample was truncated. */
+  bool m_query_sample_truncated;
+
   PSI_sp_share *m_parent_sp_share;
   PSI_prepared_stmt *m_parent_prepared_stmt;
 };
@@ -243,6 +255,8 @@ typedef void (*start_statement_v1_t)(struct PSI_statement_locker *locker,
 
 /**
   Set the statement text for a statement event.
+  Note that the statement text pointer must remain valid until end statement
+  is called.
   @param locker the current statement locker
   @param text the statement text
   @param text_len the statement text length
@@ -419,6 +433,15 @@ typedef void (*reprepare_prepared_stmt_v1_t)(PSI_prepared_stmt *prepared_stmt);
 typedef void (*execute_prepared_stmt_v1_t)(PSI_statement_locker *locker,
                                            PSI_prepared_stmt *prepared_stmt);
 
+/**
+  Set the statement text for a prepared statment event.
+  @param prepared_stmt prepared statement.
+  @param text the prepared statement text
+  @param text_len the prepared statement text length
+*/
+typedef void (*set_prepared_stmt_text_v1_t)(PSI_prepared_stmt *prepared_stmt,
+                                            const char *text,
+                                            uint text_len);
 /**
   Get a digest locker for the current statement.
   @param locker a statement locker for the running thread

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -20,10 +20,10 @@
 #ifndef NGS_OPERATIONS_FACTORY_INTERFACE_H_
 #define NGS_OPERATIONS_FACTORY_INTERFACE_H_
 
-#include "ngs/memory.h"
-#include "ngs_common/socket_interface.h"
-#include "ngs_common/file_interface.h"
-#include "ngs_common/system_interface.h"
+#include "plugin/x/ngs/include/ngs/memory.h"
+#include "plugin/x/ngs/include/ngs_common/file_interface.h"
+#include "plugin/x/ngs/include/ngs_common/socket_interface.h"
+#include "plugin/x/ngs/include/ngs_common/system_interface.h"
 
 
 namespace ngs {

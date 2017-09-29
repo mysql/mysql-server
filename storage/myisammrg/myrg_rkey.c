@@ -31,7 +31,7 @@
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "myrg_def.h"
+#include "storage/myisammrg/myrg_def.h"
 
 /* todo: we could store some additional info to speedup lookups:
          column (key, keyseg) can be constant per table

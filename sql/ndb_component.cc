@@ -15,9 +15,9 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <stdarg.h>
+#include "sql/ndb_component.h"
 
-#include "ndb_component.h"
+#include <stdarg.h>
 
 Ndb_component::Ndb_component(const char *name)
   : m_thread_state(TS_UNINIT),
@@ -156,7 +156,7 @@ Ndb_component::deinit()
   return do_deinit();
 }
 
-#include "ndb_log.h"
+#include "sql/ndb_log.h"
 
 
 void Ndb_component::log_verbose(unsigned verbose_level,

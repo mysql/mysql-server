@@ -366,13 +366,13 @@ if (`select locate('semijoin', @@optimizer_switch) > 0`)
   set optimizer_switch='semijoin=off';
 }
 --enable_query_log
-explain extended
+explain
 select * from t1
 where id in (select id from t1 as x1 where (t1.cur_date is null));
 select * from t1
 where id in (select id from t1 as x1 where (t1.cur_date is null));
 
-explain extended
+explain
 select * from t2
 where id in (select id from t2 as x1 where (t2.cur_date is null));
 select * from t2
@@ -381,13 +381,13 @@ where id in (select id from t2 as x1 where (t2.cur_date is null));
 insert into t1 (id, cur_date) values (2, '2007-04-26 18:30:22');
 insert into t2 (id, cur_date) values (2, '2007-04-26');
 
-explain extended
+explain
 select * from t1
 where id in (select id from t1 as x1 where (t1.cur_date is null));
 select * from t1
 where id in (select id from t1 as x1 where (t1.cur_date is null));
 
-explain extended
+explain
 select * from t2
 where id in (select id from t2 as x1 where (t2.cur_date is null));
 select * from t2
@@ -475,7 +475,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (Id INT, AtTime DATETIME, KEY AtTime (AtTime));
 SET NAMES CP850;
 INSERT INTO t1 VALUES (1,'2010-04-12 22:30:12'), (2,'2010-04-12 22:30:12'), (3,'2010-04-12 22:30:12');
-EXPLAIN EXTENDED SELECT * FROM t1 FORCE INDEX(attime) WHERE AtTime = '2010-02-22 18:40:07';
+EXPLAIN SELECT * FROM t1 FORCE INDEX(attime) WHERE AtTime = '2010-02-22 18:40:07';
 DROP TABLE t1;
 SET NAMES latin1;
 
@@ -644,6 +644,7 @@ DELETE FROM test.t WHERE `col_int_nokey` > `col_int_nokey`
 UPDATE test.t SET `col_varchar_nokey` = TIMESTAMP(`col_time_nokey`,'00:00:00')
   WHERE `col_int_nokey` > `col_int_nokey`
         AND TIMESTAMP('18:16:35.025453') IS  NULL;
+INSERT INTO t VALUES('x', CURRENT_TIME(), 0, CURRENT_TIMESTAMP());
 --error ER_TRUNCATED_WRONG_VALUE
 UPDATE test.t SET `col_datetime_key` = `col_datetime_key` WHERE
   `col_datetime_key` <=> FROM_UNIXTIME(1151860736,CONCAT_WS(':','%D','%v'));

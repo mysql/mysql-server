@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,8 +16,8 @@
 #ifndef GCS_VIEW_MODIFICATION_NOTIFIER_INCLUDE
 #define GCS_VIEW_MODIFICATION_NOTIFIER_INCLUDE
 
-#include "plugin_constants.h"
-#include "plugin_server_include.h"
+#include "plugin/group_replication/include/plugin_constants.h"
+#include "plugin/group_replication/include/plugin_server_include.h"
 
 
 /*

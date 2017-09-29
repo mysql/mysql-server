@@ -30,20 +30,20 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <m_ctype.h>
 #include <sys/types.h>
 #include <time.h>
 
-#include "fulltext.h"
+#include "m_ctype.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
-#include "myisam_sys.h"
-#include "rt_index.h"
-#include "sp_defs.h"
+#include "storage/myisam/fulltext.h"
+#include "storage/myisam/myisam_sys.h"
+#include "storage/myisam/rt_index.h"
+#include "storage/myisam/sp_defs.h"
 
 #ifdef _WIN32
 #include <fcntl.h>

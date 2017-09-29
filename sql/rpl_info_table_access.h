@@ -17,7 +17,7 @@
 
 #include <sys/types.h>
 
-#include "rpl_table_access.h"    // System_table_access
+#include "sql/rpl_table_access.h" // System_table_access
 
 class Field;
 class Open_tables_backup;

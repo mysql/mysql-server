@@ -25,7 +25,7 @@
 #include <memory>
 #include <string>
 
-#include "mysqlxclient/xquery_result.h"
+#include "plugin/x/client/mysqlxclient/xquery_result.h"
 
 
 namespace xcl {

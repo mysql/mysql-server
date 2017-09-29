@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "services/registry.h"
+#include "plugin/group_replication/include/services/registry.h"
 
 const std::string Registry_module_interface::SVC_NAME_MEMBERSHIP=
   "group_membership_listener";

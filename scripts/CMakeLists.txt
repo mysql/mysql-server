@@ -26,13 +26,10 @@ SET(COMPILER_ID_AND_VERSION
 IF(NOT WITHOUT_SERVER)
   # Check that mysql_system_tables.sql is up-to-date
   IF(WITH_NDBCLUSTER_STORAGE_ENGINE)
-    IF(NOT TARGET ndbinfo_sql_run)
-      MESSAGE(FATAL_ERROR "TARGET ndbinfo_sql_run missing, needed to generate storage/ndb/tools/ndbinfo.sql.")
-    ENDIF()
     SET(MYSQL_SYSTEM_TABLES_PATCHES
         ${PROJECT_BINARY_DIR}/storage/ndb/tools/ndbinfo.sql)
     SET(MYSQL_SYSTEM_TABLES_DEPENDS
-        ndbinfo_sql_run)
+        ndbinfo_sql)
   ENDIF()
 ENDIF()
 
@@ -335,6 +332,11 @@ IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
   SET(RPATH_OPTION " -R$pkglibdir")
 ENDIF()
 
+IF(LINUX_INSTALL_RPATH_ORIGIN)
+  SET(RPATH_OPTION " -Wl,-R,$pkglibdir")    # for mysql_config
+  SET(RPATH_OPTION_PC " -Wl,-R,\${libdir}") # for pkg_config
+ENDIF()
+
 # some scripts use  @TARGET_LINUX@
 IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
   SET(TARGET_LINUX "true")
@@ -346,14 +348,6 @@ ENDIF()
 # mysqlclient library (add -l stuff)
 SET(CLIENT_LIBS "")
 SET(LIBS "")
-
-# Avoid compatibility warning about lists with empty elements
-IF(POLICY CMP0011)
-  CMAKE_POLICY(SET CMP0011 NEW)
-ENDIF()
-IF(POLICY CMP0007)
-  CMAKE_POLICY(SET CMP0007 OLD)
-ENDIF()
 
 # Extract dependencies using CMake's internal ${target}_LIB_DEPENDS variable
 # returned string in ${var} is can be passed to linker's command line
@@ -404,6 +398,16 @@ IF (WITH_SSL STREQUAL "system")
   STRING(REPLACE "-lcrypto" "" CONFIG_LIBS_PRIVATE "${CONFIG_LIBS_PRIVATE}")
   STRING(REGEX REPLACE "[ ]+" " " CONFIG_LIBS_PRIVATE "${CONFIG_LIBS_PRIVATE}")
 ENDIF()
+
+# libmysqlclient.dylib will depend on @loader_path/libssl.1.0.0.dylib
+IF(APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
+  STRING(REPLACE "-lssl" "" CONFIG_CLIENT_LIBS "${CONFIG_CLIENT_LIBS}")
+  STRING(REPLACE "-lcrypto" "" CONFIG_CLIENT_LIBS "${CONFIG_CLIENT_LIBS}")
+  STRING(REGEX REPLACE "[ ]+" " " CONFIG_CLIENT_LIBS "${CONFIG_CLIENT_LIBS}")
+ENDIF()
+
+MESSAGE(STATUS "CONFIG_CLIENT_LIBS ${CONFIG_CLIENT_LIBS}")
+MESSAGE(STATUS "CONFIG_LIBS_PRIVATE ${CONFIG_LIBS_PRIVATE}")
 
 SET(mysql_config_COMPONENT COMPONENT Development)
 

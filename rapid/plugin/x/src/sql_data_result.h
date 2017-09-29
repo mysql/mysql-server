@@ -22,8 +22,8 @@
 
 #include <initializer_list>
 
-#include "ngs/interface/sql_session_interface.h"
-#include "xpl_resultset.h"
+#include "plugin/x/ngs/include/ngs/interface/sql_session_interface.h"
+#include "plugin/x/src/xpl_resultset.h"
 
 namespace xpl {
 class PFS_string;

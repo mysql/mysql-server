@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,11 +16,11 @@
 #ifndef GCS_XCOM_VIEW_IDENTIFIER_INCLUDED
 #define GCS_XCOM_VIEW_IDENTIFIER_INCLUDED
 
-#include "mysql/gcs/gcs_view_identifier.h"
-#include "mysql/gcs/gcs_types.h"
-
-#include <string>
 #include <stdint.h>
+#include <string>
+
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_types.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_view_identifier.h"
 
 class Gcs_xcom_view_identifier: public Gcs_view_identifier
 {

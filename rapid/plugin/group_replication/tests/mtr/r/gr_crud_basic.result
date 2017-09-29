@@ -227,6 +227,7 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+include/rpl_sync.inc
 Performing DDL/DML operations on server 2
 RUN USE test
 
@@ -471,6 +472,7 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+include/rpl_sync.inc
 Performing DDL/DML operations on server 3
 RUN USE test;
 

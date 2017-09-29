@@ -13,7 +13,7 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SELECT unique_constraint_schema, referenced_table_name
 FROM information_schema.referential_constraints WHERE table_name = 't2';
-unique_constraint_schema	referenced_table_name
+UNIQUE_CONSTRAINT_SCHEMA	REFERENCED_TABLE_NAME
 test	t1
 SET SESSION debug= '+d,skip_dd_table_access_check';
 SELECT referenced_table_schema, referenced_table_name

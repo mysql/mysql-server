@@ -32,7 +32,7 @@ t1	CREATE TABLE `t1` (
 (PARTITION p10 VALUES LESS THAN (734708) ENGINE = InnoDB,
  PARTITION p20 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 DROP TABLE t1;
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Table `test`.`t1` .* Partition.* InnoDB internal");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Table `test`.`t1` .* Partition.* InnoDB internal");
 #
 # Bug#55091: Server crashes on ADD PARTITION after a failed attempt
 #
@@ -68,7 +68,14 @@ ALTER TABLE t1 ADD PARTITION PARTITIONS 2;
 Warnings:
 Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
 Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=4.
+Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
+Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=4.
+Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
+Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=4.
 ALTER TABLE t1 REBUILD PARTITION p0;
+Warnings:
+Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
+Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=4.
 UNLOCK TABLES;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -76,7 +83,7 @@ t1	CREATE TABLE `t1` (
   `id` int(11) NOT NULL,
   `user_num` char(10) DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 KEY_BLOCK_SIZE=4
 /*!50100 PARTITION BY HASH (`id`)
 PARTITIONS 3 */
 DROP TABLE t1;

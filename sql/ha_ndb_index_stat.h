@@ -18,8 +18,9 @@
 #ifndef HA_NDB_INDEX_STAT_H
 #define HA_NDB_INDEX_STAT_H
 
-#include "ndb_component.h"
 #include <mysql/psi/mysql_thread.h>
+
+#include "sql/ndb_component.h"
 
 struct NDB_SHARE;
 class Ndb_cluster_connection;

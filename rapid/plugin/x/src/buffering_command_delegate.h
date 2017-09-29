@@ -20,8 +20,9 @@
 #ifndef _XPL_BUFFERING_COMMAND_DELEGATE_H_
 #define _XPL_BUFFERING_COMMAND_DELEGATE_H_
 
-#include "callback_command_delegate.h"
 #include <list>
+
+#include "plugin/x/src/callback_command_delegate.h"
 
 namespace xpl {
 class Buffering_command_delegate : public Callback_command_delegate {

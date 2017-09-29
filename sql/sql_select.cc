@@ -23,60 +23,60 @@
   @{
 */
 
-#include "sql_select.h"
+#include "sql/sql_select.h"
 
 #include <string.h>
 #include <algorithm>
 #include <atomic>
 
-#include "auth_acls.h"
-#include "auth_common.h"         // *_ACL
-#include "current_thd.h"
-#include "debug_sync.h"          // DEBUG_SYNC
-#include "enum_query_type.h"
-#include "error_handler.h"       // Ignore_error_handler
-#include "filesort.h"            // filesort_free_buffers
-#include "handler.h"
-#include "item_func.h"
-#include "item_subselect.h"
-#include "item_sum.h"            // Item_sum
-#include "key.h"                 // key_copy, key_cmp, key_cmp_if_same
-#include "lock.h"                // mysql_unlock_some_tables,
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql_com.h"
-#include "mysqld.h"              // stage_init
 #include "mysqld_error.h"
-#include "opt_explain.h"
-#include "opt_explain_format.h"
-#include "opt_hints.h"           // hint_key_state()
-#include "opt_range.h"           // QUICK_SELECT_I
-#include "opt_trace.h"
-#include "query_options.h"
-#include "query_result.h"
-#include "records.h"             // init_read_record, end_read_record
-#include "sql_base.h"
-#include "sql_do.h"
-#include "sql_executor.h"
-#include "sql_join_buffer.h"     // JOIN_CACHE
-#include "sql_list.h"
-#include "sql_optimizer.h"       // JOIN
-#include "sql_planner.h"         // calculate_condition_filter
-#include "sql_security_ctx.h"
-#include "sql_show.h"            // append_identifier
-#include "sql_sort.h"
-#include "sql_test.h"            // misc. debug printing utilities
-#include "sql_timer.h"           // thd_timer_set
-#include "sql_tmp_table.h"       // tmp tables
-#include "temp_table_param.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h" // *_ACL
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/current_thd.h"
+#include "sql/debug_sync.h"      // DEBUG_SYNC
+#include "sql/enum_query_type.h"
+#include "sql/error_handler.h"   // Ignore_error_handler
+#include "sql/filesort.h"        // filesort_free_buffers
+#include "sql/handler.h"
+#include "sql/item_func.h"
+#include "sql/item_subselect.h"
+#include "sql/item_sum.h"        // Item_sum
+#include "sql/key.h"             // key_copy, key_cmp, key_cmp_if_same
+#include "sql/lock.h"            // mysql_unlock_some_tables,
+#include "sql/my_decimal.h"
+#include "sql/mysqld.h"          // stage_init
+#include "sql/opt_explain.h"
+#include "sql/opt_explain_format.h"
+#include "sql/opt_hints.h"       // hint_key_state()
+#include "sql/opt_range.h"       // QUICK_SELECT_I
+#include "sql/opt_trace.h"
+#include "sql/query_options.h"
+#include "sql/query_result.h"
+#include "sql/records.h"         // init_read_record, end_read_record
+#include "sql/sql_base.h"
+#include "sql/sql_do.h"
+#include "sql/sql_executor.h"
+#include "sql/sql_join_buffer.h" // JOIN_CACHE
+#include "sql/sql_list.h"
+#include "sql/sql_optimizer.h"   // JOIN
+#include "sql/sql_planner.h"     // calculate_condition_filter
+#include "sql/sql_show.h"        // append_identifier
+#include "sql/sql_sort.h"
+#include "sql/sql_test.h"        // misc. debug printing utilities
+#include "sql/sql_timer.h"       // thd_timer_set
+#include "sql/sql_tmp_table.h"   // tmp tables
+#include "sql/temp_table_param.h"
+#include "sql/window.h"          // ignore_gaf_const_opt
 #include "template_utils.h"
 #include "thr_lock.h"
-#include "window.h"              // ignore_gaf_const_opt
 
 class Opt_trace_context;
 
@@ -797,8 +797,9 @@ bool Sql_cmd_select::precheck(THD *thd)
     lex->exchange != NULL implies SELECT .. INTO OUTFILE and this
     requires FILE_ACL access.
   */
-  ulong privileges_requested= lex->exchange ? SELECT_ACL | FILE_ACL :
-                                              SELECT_ACL;
+  ulong privileges_requested= (lex->result != nullptr &&
+                               lex->result->needs_file_privilege()) ?
+    SELECT_ACL | FILE_ACL : SELECT_ACL;
 
   TABLE_LIST *tables= lex->query_tables;
   //TABLE_LIST *first_table= tables;
@@ -1518,11 +1519,13 @@ bool JOIN::prepare_result()
 
   error= 0;
   // Create result tables for materialized views/derived tables
-  if (select_lex->materialized_derived_table_count && !zero_result_cause)
+  if ((select_lex->materialized_derived_table_count > 0 ||
+       select_lex->table_func_count > 0) && !zero_result_cause)
   {
     for (TABLE_LIST *tl= select_lex->leaf_tables; tl; tl= tl->next_leaf)
     {
-      if (tl->is_view_or_derived() && tl->create_derived(thd))
+      if ((tl->is_view_or_derived() || tl->is_table_function()) &&
+          tl->create_materialized_table(thd))
         goto err;                 /* purecov: inspected */
     }
   }
@@ -2763,7 +2766,8 @@ make_join_readinfo(JOIN *join, uint no_jbuf_after)
 {
   const bool statistics= !join->thd->lex->is_explain();
   const bool prep_for_pos= join->need_tmp_before_win || join->select_distinct ||
-                           join->group_list || join->order;
+                           join->group_list || join->order ||
+                           join->m_windows.elements > 0;
 
   DBUG_ENTER("make_join_readinfo");
   ASSERT_BEST_REF_IN_JOIN_ORDER(join);
@@ -2929,12 +2933,13 @@ make_join_readinfo(JOIN *join, uint no_jbuf_after)
         for a query.
       */
       tab->position()->filter_effect=
-        join->thd->lex->describe ?
+        join->thd->lex->is_explain() ?
         calculate_condition_filter(tab,
                                    (tab->ref().key != -1) ? tab->position()->key : NULL,
                                    tab->prefix_tables() & ~tab->table_ref->map(),
                                    tab->position()->rows_fetched,
-                                   false) : COND_FILTER_ALLPASS;
+                                   false, false,
+                                   trace_refine_table) : COND_FILTER_ALLPASS;
     }
 
     DBUG_ASSERT(!qep_tab->table_ref->is_recursive_reference() ||
@@ -2943,7 +2948,13 @@ make_join_readinfo(JOIN *join, uint no_jbuf_after)
     qep_tab->pick_table_access_method(tab);
 
     // Materialize derived tables prior to accessing them.
-    if (tab->table_ref->uses_materialization())
+    if (tab->table_ref->is_table_function())
+    {
+      qep_tab->materialize_table= join_materialize_table_function;
+      if (tab->dependent)
+        qep_tab->rematerialize= true;
+    }
+    else if (tab->table_ref->uses_materialization())
       qep_tab->materialize_table= join_materialize_derived;
 
     if (qep_tab->sj_mat_exec())
@@ -3155,7 +3166,7 @@ void JOIN::join_free()
     Optimization: if not EXPLAIN and we are done with the JOIN,
     free all tables.
   */
-  bool full= (!select_lex->uncacheable && !thd->lex->describe);
+  bool full= (!select_lex->uncacheable && !thd->lex->is_explain());
   bool can_unlock= full;
   DBUG_ENTER("JOIN::join_free");
 
@@ -4279,7 +4290,7 @@ bool JOIN::make_tmp_tables_info()
       sorted access even if final result is not to be sorted.
     */
     DBUG_ASSERT(
-      !(ordered_index_usage == ordered_index_void &&
+      !(m_ordered_index_usage == ORDERED_INDEX_VOID &&
         !plan_is_const() && 
         qep_tab[const_tables].position()->sj_strategy != SJ_OPT_LOOSE_SCAN &&
         qep_tab[const_tables].use_order()));
@@ -4663,8 +4674,8 @@ bool JOIN::make_tmp_tables_info()
     DBUG_PRINT("info",("Sorting for order by/group by"));
     ORDER_with_src order_arg= group_list ?  group_list : order;
     if (qep_tab &&
-        ordered_index_usage !=
-        (group_list ? ordered_index_group_by : ordered_index_order_by) &&
+        m_ordered_index_usage !=
+        (group_list ? ORDERED_INDEX_GROUP_BY : ORDERED_INDEX_ORDER_BY) &&
         // Windowing will change order, so it's too early to sort here
         !m_windowing_steps)
     {
@@ -4823,7 +4834,7 @@ bool JOIN::make_tmp_tables_info()
       }
 
       if (order != nullptr &&
-          ordered_index_usage != ordered_index_order_by &&
+          m_ordered_index_usage != ORDERED_INDEX_ORDER_BY &&
           m_windows[wno]->is_last())
       {
         if (add_sorting_to_table(curr_tmp_table, &order))

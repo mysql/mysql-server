@@ -13,22 +13,22 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "rpl_trx_tracking.h"
+#include "sql/rpl_trx_tracking.h"
 
 #include <algorithm>
 #include <utility>
 #include <vector>
 
-#include "binlog.h"
 #include "binlog_event.h"
-#include "current_thd.h"
 #include "my_inttypes.h"
-#include "mysqld.h"
-#include "rpl_context.h"
-#include "rpl_transaction_write_set_ctx.h"
-#include "sql_class.h"
-#include "system_variables.h"
-#include "transaction_info.h"
+#include "sql/binlog.h"
+#include "sql/current_thd.h"
+#include "sql/mysqld.h"
+#include "sql/rpl_context.h"
+#include "sql/rpl_transaction_write_set_ctx.h"
+#include "sql/sql_class.h"
+#include "sql/system_variables.h"
+#include "sql/transaction_info.h"
 
 
 Logical_clock::Logical_clock()
@@ -107,6 +107,25 @@ inline int64 Logical_clock::set_if_greater(int64 new_val)
   DBUG_RETURN(cas_rc ? new_val : old_val);
 }
 
+/*
+  Admin statements release metadata lock too earlier. It breaks the rule of lock
+  based logical clock. This function recognizes the statements.
+ */
+static bool is_trx_unsafe_for_parallel_slave(const THD *thd)
+{
+  switch (thd->lex->sql_command)
+  {
+  case SQLCOM_ANALYZE:
+  case SQLCOM_REPAIR:
+  case SQLCOM_OPTIMIZE:
+    return true;
+  case SQLCOM_ALTER_TABLE:
+    return thd->lex->alter_info->flags & Alter_info::ALTER_ADMIN_PARTITION;
+  default:
+    return false;
+  }
+  return false;
+}
 
 /**
   Get the sequence_number for a transaction, and get the last_commit based
@@ -141,10 +160,15 @@ Commit_order_trx_dependency_tracker::get_dependency(THD *thd,
   sequence_number=
     trn_ctx->sequence_number - m_max_committed_transaction.get_offset();
 
-  commit_parent=
-    trn_ctx->last_committed <= m_max_committed_transaction.get_offset()
-           ? SEQ_UNINIT
-           : trn_ctx->last_committed - m_max_committed_transaction.get_offset();
+  if (trn_ctx->last_committed <= m_max_committed_transaction.get_offset())
+    commit_parent= SEQ_UNINIT;
+  else
+    commit_parent=
+      std::max(trn_ctx->last_committed, m_last_blocking_transaction) -
+      m_max_committed_transaction.get_offset();
+
+  if (is_trx_unsafe_for_parallel_slave(thd))
+    m_last_blocking_transaction= trn_ctx->sequence_number;
 }
 
 int64

@@ -19,12 +19,13 @@
   Implementation part of the parser service layer.
 */
 
+#include "plugin/rewriter/services.h"
+
 #include "my_config.h"
 
 #include <mysql/service_my_snprintf.h>
 #include <stddef.h>
 
-#include "services.h"
 #include "template_utils.h"
 
 using std::string;

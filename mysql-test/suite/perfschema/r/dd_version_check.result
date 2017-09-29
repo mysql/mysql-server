@@ -1,0 +1,6 @@
+"Checking the data dictionary properties ..."
+properties
+DD_version=80004;IS_version=80004;PS_version=80004;
+"Checking the performance schema database structure ..."
+CHECK STATUS
+The tables in the performance_schema were last changed in MySQL 8.0.4-rc

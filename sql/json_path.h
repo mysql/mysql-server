@@ -597,4 +597,20 @@ bool parse_path(const bool begins_with_column_id, const size_t path_length,
                 const char *path_expression, Json_path *path,
                 size_t *bad_index);
 
+/**
+  A helper function that uses the above one as workhorse. Entry point for
+  for JSON_TABLE (Table_function_json class) and Json_path_cache. Raises an
+  error if the path expression is syntactically incorrect. Raises an
+  error if the path expression contains wildcard tokens but is not
+  supposed to. Otherwise updates the supplied Json_path object with
+  the parsed path.
+
+  @param[in]  path_value       A String to be interpreted as a path.
+  @param[in]  forbid_wildcards True if the path shouldn't contain * or **
+  @param[out] json_path        The object that will hold the parsed path
+
+  @returns false on success (valid path or NULL), true on error
+*/
+bool parse_path(String *path_value, bool forbid_wildcards,
+                Json_path *json_path);
 #endif /* SQL_JSON_PATH_INCLUDED */

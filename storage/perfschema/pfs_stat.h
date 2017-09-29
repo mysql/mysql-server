@@ -19,9 +19,9 @@
 #include <algorithm>
 
 #include "my_dbug.h"
-#include "pfs_error.h"
-#include "pfs_global.h"
-#include "sql_const.h"
+#include "sql/sql_const.h"
+#include "storage/perfschema/pfs_error.h"
+#include "storage/perfschema/pfs_global.h"
 /* memcpy */
 #include "string.h"
 

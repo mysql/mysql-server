@@ -20,8 +20,8 @@
 
 #include <sys/types.h>
 
-#include "heapdef.h"
 #include "my_dbug.h"
+#include "storage/heap/heapdef.h"
 
 static void heap_extra_keyflag(HP_INFO *info,
                                enum ha_extra_function function);

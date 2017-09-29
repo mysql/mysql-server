@@ -16,14 +16,14 @@
 #ifndef DD__PLUGIN_TABLE_DEFINITION_IMPL_INCLUDED
 #define DD__PLUGIN_TABLE_DEFINITION_IMPL_INCLUDED
 
-#include "table.h"                            // MYSQL_TABLESPACE_NAME
-#include "dd/string_type.h"                   // dd::String_type
-#include "dd/impl/system_registry.h"          // System_tablespaces
-#include "dd/types/object_table_definition.h"
-#include "dd/types/table.h"
-
-#include <vector>
 #include <map>
+#include <vector>
+
+#include "sql/dd/impl/system_registry.h"      // System_tablespaces
+#include "sql/dd/string_type.h"               // dd::String_type
+#include "sql/dd/types/object_table_definition.h"
+#include "sql/dd/types/table.h"
+#include "sql/table.h"                        // MYSQL_TABLESPACE_NAME
 
 namespace dd {
 
@@ -42,7 +42,7 @@ private:
   String_type m_tablespace_name;
 
 public:
-  Plugin_table_definition_impl(): m_dd_version(0)
+  Plugin_table_definition_impl(): m_dd_version(DD_VERSION)
   { }
 
   virtual ~Plugin_table_definition_impl()

@@ -16,7 +16,7 @@
 */
 
 
-#include "sql_class.h"
+#include "sql/sql_class.h"
 
 #include <assert.h>
 #include <errno.h>
@@ -25,19 +25,6 @@
 #include <utility>
 
 #include "binary_log_types.h"
-#include "binlog.h"
-#include "check_stack.h"
-#include "connection_handler_manager.h"      // Connection_handler_manager
-#include "current_thd.h"
-#include "dd/cache/dictionary_client.h"      // Dictionary_client
-#include "dd/dd_kill_immunizer.h"            // dd:DD_kill_immunizer
-#include "debug_sync.h"                      // DEBUG_SYNC
-#include "derror.h"                          // ER_THD
-#include "error_handler.h"                   // Internal_error_handler
-#include "item_func.h"                       // user_var_entry
-#include "key.h"
-#include "lock.h"                            // mysql_lock_abort_for_thread
-#include "locking_service.h"                 // release_all_locking_service_locks
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_compiler.h"
@@ -50,31 +37,45 @@
 #include "mysql/psi/mysql_statement.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysqld.h"                          // global_system_variables ...
-#include "mysqld_thd_manager.h"              // Global_THD_manager
 #include "mysys_err.h"                       // EE_OUTOFMEMORY
 #include "pfs_statement_provider.h"
-#include "psi_memory_key.h"
-#include "query_result.h"
-#include "rpl_rli.h"                         // Relay_log_info
-#include "rpl_slave.h"                       // rpl_master_erroneous_autoinc
-#include "rpl_transaction_write_set_ctx.h"
-#include "sp_cache.h"                        // sp_cache_clear
-#include "sql_audit.h"                       // mysql_audit_free_thd
-#include "sql_base.h"                        // close_temporary_tables
-#include "sql_callback.h"                    // MYSQL_CALLBACK
-#include "sql_handler.h"                     // mysql_ha_cleanup
-#include "sql_parse.h"                       // is_update_query
-#include "sql_plugin.h"                      // plugin_thdvar_init
-#include "sql_prepare.h"                     // Prepared_statement
-#include "sql_security_ctx.h"
-#include "sql_time.h"                        // my_timeval_trunc
-#include "sql_timer.h"                       // thd_timer_destroy
-#include "tc_log.h"
-#include "thr_malloc.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/binlog.h"
+#include "sql/check_stack.h"
+#include "sql/conn_handler/connection_handler_manager.h" // Connection_handler_manager
+#include "sql/current_thd.h"
+#include "sql/dd/cache/dictionary_client.h"  // Dictionary_client
+#include "sql/dd/dd_kill_immunizer.h"        // dd:DD_kill_immunizer
+#include "sql/debug_sync.h"                  // DEBUG_SYNC
+#include "sql/derror.h"                      // ER_THD
+#include "sql/error_handler.h"               // Internal_error_handler
+#include "sql/item_func.h"                   // user_var_entry
+#include "sql/key.h"
+#include "sql/lock.h"                        // mysql_lock_abort_for_thread
+#include "sql/locking_service.h"             // release_all_locking_service_locks
+#include "sql/mysqld.h"                      // global_system_variables ...
+#include "sql/mysqld_thd_manager.h"          // Global_THD_manager
+#include "sql/psi_memory_key.h"
+#include "sql/query_result.h"
+#include "sql/rpl_rli.h"                     // Relay_log_info
+#include "sql/rpl_slave.h"                   // rpl_master_erroneous_autoinc
+#include "sql/rpl_transaction_write_set_ctx.h"
+#include "sql/sp_cache.h"                    // sp_cache_clear
+#include "sql/sql_audit.h"                   // mysql_audit_free_thd
+#include "sql/sql_backup_lock.h"             // release_backup_lock
+#include "sql/sql_base.h"                    // close_temporary_tables
+#include "sql/sql_callback.h"                // MYSQL_CALLBACK
+#include "sql/sql_handler.h"                 // mysql_ha_cleanup
+#include "sql/sql_parse.h"                   // is_update_query
+#include "sql/sql_plugin.h"                  // plugin_thdvar_init
+#include "sql/sql_prepare.h"                 // Prepared_statement
+#include "sql/sql_time.h"                    // my_timeval_trunc
+#include "sql/sql_timer.h"                   // thd_timer_destroy
+#include "sql/tc_log.h"
+#include "sql/thr_malloc.h"
+#include "sql/transaction.h"                 // trans_rollback
+#include "sql/xa.h"
 #include "thr_mutex.h"
-#include "transaction.h"                     // trans_rollback
-#include "xa.h"
 
 using std::min;
 using std::max;
@@ -363,6 +364,7 @@ THD::THD(bool enable_plugins)
    fill_variables_recursion_level(0),
    ha_data(PSI_NOT_INSTRUMENTED, ha_data.initial_capacity),
    binlog_row_event_extra_data(NULL),
+   skip_readonly_check(false),
    binlog_unsafe_warning_flags(0),
    binlog_table_maps(0),
    binlog_accessed_db_names(NULL),
@@ -472,6 +474,9 @@ THD::THD(bool enable_plugins)
   m_release_resources_done= false;
   peer_port= 0;					// For SHOW PROCESSLIST
   get_transaction()->m_flags.enabled= true;
+  m_resource_group_ctx.m_cur_resource_group= nullptr;
+  m_resource_group_ctx.m_switch_resource_group_str[0]= '\0';
+  m_resource_group_ctx.m_warn= 0;
 
   mysql_mutex_init(key_LOCK_thd_data, &LOCK_thd_data, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_thd_query, &LOCK_thd_query, MY_MUTEX_INIT_FAST);
@@ -853,6 +858,9 @@ void THD::init(void)
   owned_gtid.clear();
   owned_sid.clear();
   owned_gtid.dbug_print(NULL, "set owned_gtid (clear) in THD::init");
+
+  // This will clear the writeset session history.
+  rpl_thd_ctx.dependency_tracker_ctx().set_last_session_sequence_number(0);
 }
 
 
@@ -982,6 +990,11 @@ void THD::cleanup(void)
     All locking service locks must be released on disconnect.
   */
   release_all_locking_service_locks(this);
+
+  /*
+    If Backup Lock was acquired it must be released on disconnect.
+  */
+  release_backup_lock(this);
 
   /* All metadata locks must have been released by now. */
   DBUG_ASSERT(!mdl_context.has_locks());
@@ -2084,6 +2097,20 @@ void THD::end_attachable_transaction()
 }
 
 
+bool THD::is_attachable_rw_transaction_active() const
+{
+  return m_attachable_trx != NULL && !m_attachable_trx->is_read_only();
+}
+
+
+void THD::begin_attachable_rw_transaction()
+{
+  DBUG_ASSERT(!m_attachable_trx);
+
+  m_attachable_trx= new Attachable_trx_rw(this);
+}
+
+
 /****************************************************************************
   Handling of statement states in functions and triggers.
 
@@ -2230,6 +2257,15 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
   if ((variables.option_bits & OPTION_BIN_LOG) && is_update_query(lex->sql_command) &&
        !is_current_stmt_binlog_format_row())
     mysql_bin_log.stop_union_events(this);
+
+  /*
+    The below assert mostly serves as reminder that optimization in
+    DML_prelocking_strategy::handle_table() relies on the fact
+    that stored function/trigger can't change FOREIGN_KEY_CHECKS
+    value for the top-level statement which invokes them.
+  */
+  DBUG_ASSERT((variables.option_bits & OPTION_NO_FOREIGN_KEY_CHECKS) ==
+              (backup->option_bits & OPTION_NO_FOREIGN_KEY_CHECKS));
 
   /*
     The following is added to the old values as we are interested in the
@@ -2792,19 +2828,31 @@ bool THD::send_result_metadata(List<Item> *list, uint flags)
   if (m_protocol->start_result_metadata(list->elements, flags,
           variables.character_set_results))
     goto err;
-
-  while ((item= it++))
+  switch (variables.resultset_metadata)
   {
-    Send_field field;
-    item->make_field(&field);
-    m_protocol->start_row();
-    if (m_protocol->send_field_metadata(&field,
-            item->charset_for_protocol()))
-      goto err;
-    if (flags & Protocol::SEND_DEFAULTS)
-      item->send(m_protocol, &tmp);
-    if (m_protocol->end_row())
-      DBUG_RETURN(true);
+    case RESULTSET_METADATA_FULL:
+      /* Sent metadata. */
+      while ((item= it++))
+      {
+        Send_field field;
+        item->make_field(&field);
+        m_protocol->start_row();
+        if (m_protocol->send_field_metadata(&field, item->charset_for_protocol()))
+          goto err;
+        if (flags & Protocol::SEND_DEFAULTS)
+          item->send(m_protocol, &tmp);
+        if (m_protocol->end_row())
+          DBUG_RETURN(true);
+      }
+      break;
+
+    case RESULTSET_METADATA_NONE:
+      /* Skip metadata. */
+      break;
+
+    default:
+      /* Unknown @@resultset_metadata value. */
+      DBUG_RETURN(1);
   }
 
   DBUG_RETURN(m_protocol->end_result_metadata());

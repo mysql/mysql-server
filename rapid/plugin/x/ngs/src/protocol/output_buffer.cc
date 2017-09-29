@@ -17,7 +17,7 @@
  * 02110-1301  USA
  */
 
-#include "ngs/protocol/output_buffer.h"
+#include "plugin/x/ngs/include/ngs/protocol/output_buffer.h"
 
 #include "my_byteorder.h"
 #include "my_inttypes.h"

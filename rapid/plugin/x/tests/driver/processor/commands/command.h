@@ -24,9 +24,9 @@
 #include <string>
 #include <vector>
 
-#include "connector/result_fetcher.h"
-#include "ngs_common/chrono.h"
-#include "processor/execution_context.h"
+#include "plugin/x/ngs/include/ngs_common/chrono.h"
+#include "plugin/x/tests/driver/connector/result_fetcher.h"
+#include "plugin/x/tests/driver/processor/execution_context.h"
 
 
 class Command {
@@ -42,7 +42,10 @@ class Command {
  public:
   Command();
 
-  bool is_command_syntax(const std::string &cmd) const;
+  bool is_command_registred(
+      const std::string &command_line,
+      std::string *out_command_name = nullptr,
+      bool *out_is_single_line_command = nullptr) const;
 
   Result process(std::istream &input,
                  Execution_context *context,
@@ -66,8 +69,6 @@ class Command {
   std::list<Loop_do>       m_loop_stack;
   static ngs::chrono::time_point m_start_measure;
 
-  bool match_command_name(const Command_map::value_type &command,
-                          const std::string &instruction);
   Result cmd_echo(std::istream &input, Execution_context *context,
                   const std::string &args);
   Result cmd_title(std::istream &input, Execution_context *context,
@@ -161,6 +162,8 @@ class Command {
                     const std::string &args);
   Result cmd_varfile(std::istream &input, Execution_context *context,
                      const std::string &args);
+  Result cmd_varescape(std::istream &input, Execution_context *context,
+                       const std::string &args);
   Result cmd_binsend(std::istream &input, Execution_context *context,
                      const std::string &args);
   Result cmd_hexsend(std::istream &input, Execution_context *context,
@@ -170,7 +173,12 @@ class Command {
                            const std::string &args);
   Result cmd_callmacro(std::istream &input, Execution_context *context,
                        const std::string &args);
+  Result cmd_macro_delimiter_compress(std::istream &input,
+                                      Execution_context *context,
+                                      const std::string &args);
   Result cmd_assert_eq(std::istream &input, Execution_context *context,
+                       const std::string &args);
+  Result cmd_assert_ne(std::istream &input, Execution_context *context,
                        const std::string &args);
   Result cmd_assert_gt(std::istream &input, Execution_context *context,
                        const std::string &args);

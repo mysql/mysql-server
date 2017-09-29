@@ -13,8 +13,6 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include <mutex_lock.h>
-#include <scope_guard.h>
 #include <stdarg.h>
 #include <string.h>
 #include <sys/types.h>
@@ -28,14 +26,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include "../components/mysql_server/dynamic_loader.h"
 #include "../components/mysql_server/persistent_dynamic_loader.h"
 #include "../components/mysql_server/server_component.h"
-#include "auth_acls.h"
-#include "auth_common.h" // commit_and_close_mysql_tables
-#include "derror.h"
-#include "field.h"
-#include "handler.h"
-#include "key.h"
-#include "log.h" // error_log_print
 #include "m_string.h"
+#include "mutex_lock.h"
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -49,19 +41,27 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/udf_registration_types.h"
-#include "mysqld.h"
 #include "mysqld_error.h"
-#include "records.h"
-#include "session_tracker.h"
-#include "sql_base.h"
-#include "sql_class.h"
-#include "sql_const.h"
-#include "sql_error.h"
+#include "scope_guard.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h" // commit_and_close_mysql_tables
+#include "sql/derror.h"
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/key.h"
+#include "sql/log.h" // error_log_print
+#include "sql/mysqld.h"
+#include "sql/records.h"
+#include "sql/session_tracker.h"
+#include "sql/sql_base.h"
+#include "sql/sql_class.h"
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/table.h"
+#include "sql/transaction.h"
 #include "sql_string.h"
-#include "table.h"
 #include "thr_lock.h"
 #include "thr_mutex.h"
-#include "transaction.h"
 
 typedef std::string my_string;
 
@@ -187,7 +187,7 @@ bool mysql_persistent_dynamic_loader_imp::init(void* thdp)
     static PSI_mutex_info all_dyloader_mutexes[]=
     {
       { &key_component_id_by_urn_mutex,
-        "key_component_id_by_urn_mutex", 0, 0
+        "key_component_id_by_urn_mutex", 0, 0, PSI_DOCUMENT_ME
       }
     };
 

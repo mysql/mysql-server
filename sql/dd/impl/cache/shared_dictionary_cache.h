@@ -18,18 +18,18 @@
 
 #include <stdio.h>
 
-#include "dd/types/abstract_table.h"
-#include "dd/types/charset.h"               // Charset
-#include "dd/types/collation.h"             // Collation
-#include "dd/types/column_statistics.h"     // Column_statistics
-#include "dd/types/event.h"                 // Event
-#include "dd/types/routine.h"               // Routine
-#include "dd/types/schema.h"                // Schema
-#include "dd/types/spatial_reference_system.h" // Spatial_reference_system
-#include "dd/types/table.h"                 // IWYU pragma: keep
-#include "dd/types/tablespace.h"            // Tablespace
-#include "handler.h"                        // enum_tx_isolation
-#include "shared_multi_map.h"               // Shared_multi_map
+#include "sql/dd/impl/cache/shared_multi_map.h" // Shared_multi_map
+#include "sql/dd/types/abstract_table.h"
+#include "sql/dd/types/charset.h"           // Charset
+#include "sql/dd/types/collation.h"         // Collation
+#include "sql/dd/types/column_statistics.h" // Column_statistics
+#include "sql/dd/types/event.h"             // Event
+#include "sql/dd/types/routine.h"           // Routine
+#include "sql/dd/types/schema.h"            // Schema
+#include "sql/dd/types/spatial_reference_system.h" // Spatial_reference_system
+#include "sql/dd/types/table.h"             // IWYU pragma: keep
+#include "sql/dd/types/tablespace.h"        // Tablespace
+#include "sql/handler.h"                    // enum_tx_isolation
 
 class THD;
 
@@ -55,20 +55,28 @@ template <typename T> class Cache_element;
 class Shared_dictionary_cache
 {
 private:
-  // We have 223 collations, 41 character sets and 4906 spatial
-  // reference systems after initializing the server, as of MySQL
-  // 8.0.0.
+  // Collation and character set cache sizes are chosen so that they can hold
+  // all collations and character sets built into the server. The spatial
+  // reference system cache size is chosen to hold a reasonable number of SRSs
+  // for normal server use.
   static const size_t collation_capacity= 256;
   static const size_t column_statistics_capacity= 32;
   static const size_t charset_capacity= 64;
   static const size_t event_capacity= 256;
   static const size_t spatial_reference_system_capacity= 256;
+  /**
+    Maximum number of DD resource group objects to be kept in
+    cache. We use value of 32 which is a fairly reasonable upper limit
+    of resource group configurations that may be in use.
+  */
+  static const size_t resource_group_capacity= 32;
 
   Shared_multi_map<Abstract_table> m_abstract_table_map;
   Shared_multi_map<Charset>        m_charset_map;
   Shared_multi_map<Collation>      m_collation_map;
   Shared_multi_map<Column_statistics> m_column_stat_map;
   Shared_multi_map<Event>          m_event_map;
+  Shared_multi_map<Resource_group> m_resource_group_map;
   Shared_multi_map<Routine>        m_routine_map;
   Shared_multi_map<Schema>         m_schema_map;
   Shared_multi_map<Spatial_reference_system> m_spatial_reference_system_map;
@@ -92,6 +100,8 @@ private:
   { return &m_column_stat_map; }
   Shared_multi_map<Event>        *m_map(Type_selector<Event>)
   { return &m_event_map; }
+  Shared_multi_map<Resource_group> *m_map(Type_selector<Resource_group>)
+  { return &m_resource_group_map; }
   Shared_multi_map<Routine>        *m_map(Type_selector<Routine>)
   { return &m_routine_map; }
   Shared_multi_map<Schema>         *m_map(Type_selector<Schema>)
@@ -119,7 +129,9 @@ private:
   { return &m_spatial_reference_system_map; }
   const Shared_multi_map<Tablespace>     *m_map(Type_selector<Tablespace>) const
   { return &m_tablespace_map; }
-
+  const Shared_multi_map<Resource_group> *m_map(
+    Type_selector<Resource_group>) const
+  { return &m_resource_group_map; }
 
   /**
     Template function to get a map instance.
@@ -159,6 +171,9 @@ public:
 
   // Reset the shared cache. Optionally keep the core DD table meta data.
   static void reset(bool keep_dd_entities);
+
+  // Reset the table and tablespace partitions.
+  static bool reset_tables_and_tablespaces(THD *thd);
 
 
   /**

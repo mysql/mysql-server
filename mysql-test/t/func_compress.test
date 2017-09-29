@@ -8,9 +8,9 @@ select @test_compress_string:='string for test compress function aaaaaaaaaaaaaaa
 select length(@test_compress_string);
 
 select uncompress(compress(@test_compress_string));
-explain extended select uncompress(compress(@test_compress_string));
+explain select uncompress(compress(@test_compress_string));
 select uncompressed_length(compress(@test_compress_string))=length(@test_compress_string);
-explain extended select uncompressed_length(compress(@test_compress_string))=length(@test_compress_string);
+explain select uncompressed_length(compress(@test_compress_string))=length(@test_compress_string);
 select uncompressed_length(compress(@test_compress_string));
 select length(compress(@test_compress_string))<length(@test_compress_string);
 
@@ -104,7 +104,7 @@ SELECT UNCOMPRESS(c1), UNCOMPRESSED_LENGTH(c1) FROM t1;
 
 # We do not need the results, just make sure there are no valgrind errors
 --disable_result_log
-EXPLAIN EXTENDED SELECT * FROM (SELECT UNCOMPRESSED_LENGTH(c1) FROM t1) AS s;
+EXPLAIN SELECT * FROM (SELECT UNCOMPRESSED_LENGTH(c1) FROM t1) AS s;
 --enable_result_log
 
 DROP TABLE t1;

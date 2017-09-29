@@ -114,7 +114,7 @@ delimiter ;|
 INSERT INTO t1 (id) VALUES (11), (12), (13);
 
 --replace_column 2 [EVENT_ID]
-SELECT id, c FROM t1 WHERE id > 10 ORDER BY c;
+SELECT id, c FROM t1 WHERE id > 10 ORDER BY id, c;
 
 DROP TRIGGER t_ps_trigger;
 

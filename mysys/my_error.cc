@@ -22,7 +22,6 @@
 #ifdef __linux__
 #include <features.h>
 #endif
-#include <stdarg.h>
 #include <string.h>
 #include <sys/types.h>
 
@@ -30,14 +29,14 @@
 #include "m_string.h"
 #include "my_base.h"
 #include "my_dbug.h"
-#include "my_handler_errors.h"
 #include "my_inttypes.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysys/my_handler_errors.h"
+#include "mysys/mysys_priv.h"
 #include "mysys_err.h"
-#include "mysys_priv.h"
 
 /* Max length of a error message. Should be kept in sync with MYSQL_ERRMSG_SIZE. */
 #define ERRMSGSIZE      (512)

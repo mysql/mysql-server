@@ -20,7 +20,6 @@
 #include <vector>
 
 #include "../components/mysql_server/server_component.h" // imp_*
-#include "dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/components/my_service.h"
@@ -28,8 +27,10 @@
 #include "mysql/components/services/persistent_dynamic_loader.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysqld_error.h"
-#include "sql_class.h"         // THD
-#include "sql_plugin.h"        // end_transaction
+#include "sql/dd/cache/dictionary_client.h" // dd::cache::Dictionary_client
+#include "sql/resourcegroups/resource_group_mgr.h" // Resource_group_mgr
+#include "sql/sql_class.h"     // THD
+#include "sql/sql_plugin.h"    // end_transaction
 
 bool Sql_cmd_install_component::execute(THD *thd)
 {
@@ -44,6 +45,14 @@ bool Sql_cmd_install_component::execute(THD *thd)
 
   Disable_autocommit_guard autocommit_guard(thd);
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
+  DBUG_EXECUTE_IF("disable_rg_pfs_notifications",
+                  {
+                    auto name= "file://component_test_pfs_notification";
+                    if (m_urns.size() == 1 && strcmp(name, m_urns[0].str) == 0)
+                      resourcegroups::Resource_group_mgr::instance()->
+                        disable_pfs_notification();
+                  });
 
   std::vector<const char*> urns(m_urns.size());
   for (size_t i= 0; i < m_urns.size();  ++i)

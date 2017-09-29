@@ -9,9 +9,9 @@
 #Suppress following messages from myslqd log
 call mtr.add_suppression("keyring_file initialization failure. Please check if the keyring_file_data points to readable keyring file or keyring file can be created in the specified location. The keyring_file will stay unusable until correct path to the keyring file gets provided");
 call mtr.add_suppression("Error while loading keyring content. The keyring might be malformed");
-call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find masterkey, please check the keyring plugin is loaded.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Failed to find tablespace for table `\.\.*`\.`\.\.*` in the cache.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
+call mtr.add_suppression("\\[Error\\] \\[[^]]*\\] InnoDB: Encryption can't find masterkey, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Failed to find tablespace for table `\.\.*`\.`\.\.*` in the cache.");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
 call mtr.add_suppression ("InnoDB: New log files created");
 --enable_query_log
 
@@ -35,7 +35,7 @@ EOF
 --echo # Stop the MTR default DB server
 --source include/shutdown_mysqld.inc
 
-let NEW_CMD = $MYSQLD --no-defaults --initialize-insecure --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --init-file=$BOOTSTRAP_SQL --secure-file-priv="" --innodb_redo_log_encrypt=ON --innodb_undo_tablespaces=2 --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring_file_data=$MYSQL_TMP_DIR/my_key_redo4 $KEYRING_PLUGIN_OPT </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap1.log 2>&1;
+let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --init-file=$BOOTSTRAP_SQL --secure-file-priv="" --innodb_redo_log_encrypt=ON --innodb_undo_tablespaces=2 --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring_file_data=$MYSQL_TMP_DIR/my_key_redo4 $KEYRING_PLUGIN_OPT </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap1.log 2>&1;
 
 --echo # Run the bootstrap command of datadir1
 --exec $NEW_CMD
@@ -96,7 +96,7 @@ DROP DATABASE tde_db;
 --source include/shutdown_mysqld.inc
 
 --echo # Try starting without keyring : Error
-let NEW_CMD = $MYSQLD --no-defaults --innodb_undo_tablespaces=2 --innodb_page_size=$START_PAGE_SIZE --innodb_log_file_size=$LOG_FILE_SIZE --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1  --secure-file-priv="" --console </dev/null>>$MYSQL_TMP_DIR/wl9290.err 2>&1;
+let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --innodb_undo_tablespaces=2 --innodb_page_size=$START_PAGE_SIZE --innodb_log_file_size=$LOG_FILE_SIZE --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1  --secure-file-priv="" --console </dev/null>>$MYSQL_TMP_DIR/wl9290.err 2>&1;
 --error 1,42
 --exec $NEW_CMD
 

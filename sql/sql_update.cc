@@ -24,21 +24,8 @@
 #include <string.h>
 #include <atomic>
 
-#include "auth_acls.h"
-#include "auth_common.h"              // check_grant, check_access
 #include "binary_log_types.h"
-#include "binlog.h"                   // mysql_bin_log
-#include "debug_sync.h"               // DEBUG_SYNC
-#include "derror.h"                   // ER_THD
-#include "field.h"                    // Field
-#include "filesort.h"                 // Filesort
-#include "handler.h"
-#include "item.h"                     // Item
-#include "item_json_func.h"           // Item_json_func
-#include "key.h"                      // is_key_used
-#include "key_spec.h"
 #include "m_ctype.h"
-#include "mem_root_array.h"
 #include "my_bit.h"                   // my_count_bits
 #include "my_bitmap.h"
 #include "my_dbug.h"
@@ -51,44 +38,57 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "mysqld.h"                   // stage_... mysql_tmpdir
 #include "mysqld_error.h"
-#include "opt_explain.h"              // Modification_plan
-#include "opt_explain_format.h"
-#include "opt_range.h"                // QUICK_SELECT_I
-#include "opt_trace.h"                // Opt_trace_object
-#include "opt_trace_context.h"
-#include "parse_tree_node_base.h"
 #include "prealloced_array.h"         // Prealloced_array
-#include "protocol.h"
-#include "psi_memory_key.h"
-#include "query_options.h"
-#include "records.h"                  // READ_RECORD
-#include "sql_array.h"
-#include "sql_base.h"                 // check_record, fill_record
-#include "sql_bitmap.h"
-#include "sql_class.h"
-#include "sql_const.h"
-#include "sql_data_change.h"
-#include "sql_error.h"
-#include "sql_executor.h"
-#include "sql_opt_exec_shared.h"
-#include "sql_optimizer.h"            // build_equal_items, substitute_gc
-#include "sql_partition.h"            // partition_key_modified
-#include "sql_resolver.h"             // setup_order
-#include "sql_select.h"
-#include "sql_sort.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h"     // check_grant, check_access
+#include "sql/binlog.h"               // mysql_bin_log
+#include "sql/debug_sync.h"           // DEBUG_SYNC
+#include "sql/derror.h"               // ER_THD
+#include "sql/field.h"                // Field
+#include "sql/filesort.h"             // Filesort
+#include "sql/handler.h"
+#include "sql/item.h"                 // Item
+#include "sql/item_json_func.h"       // Item_json_func
+#include "sql/key.h"                  // is_key_used
+#include "sql/key_spec.h"
+#include "sql/mem_root_array.h"
+#include "sql/mysqld.h"               // stage_... mysql_tmpdir
+#include "sql/opt_explain.h"          // Modification_plan
+#include "sql/opt_explain_format.h"
+#include "sql/opt_range.h"            // QUICK_SELECT_I
+#include "sql/opt_trace.h"            // Opt_trace_object
+#include "sql/opt_trace_context.h"
+#include "sql/parse_tree_node_base.h"
+#include "sql/protocol.h"
+#include "sql/psi_memory_key.h"
+#include "sql/query_options.h"
+#include "sql/records.h"              // READ_RECORD
+#include "sql/sql_array.h"
+#include "sql/sql_base.h"             // check_record, fill_record
+#include "sql/sql_bitmap.h"
+#include "sql/sql_class.h"
+#include "sql/sql_const.h"
+#include "sql/sql_data_change.h"
+#include "sql/sql_error.h"
+#include "sql/sql_executor.h"
+#include "sql/sql_opt_exec_shared.h"
+#include "sql/sql_optimizer.h"        // build_equal_items, substitute_gc
+#include "sql/sql_partition.h"        // partition_key_modified
+#include "sql/sql_resolver.h"         // setup_order
+#include "sql/sql_select.h"
+#include "sql/sql_sort.h"
+#include "sql/sql_tmp_table.h"        // create_tmp_table
+#include "sql/sql_view.h"             // check_key_in_view
+#include "sql/system_variables.h"
+#include "sql/table.h"                // TABLE
+#include "sql/table_trigger_dispatcher.h" // Table_trigger_dispatcher
+#include "sql/temp_table_param.h"
+#include "sql/transaction_info.h"
+#include "sql/trigger_def.h"
 #include "sql_string.h"
-#include "sql_tmp_table.h"            // create_tmp_table
-#include "sql_view.h"                 // check_key_in_view
-#include "system_variables.h"
-#include "table.h"                    // TABLE
-#include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
-#include "temp_table_param.h"
 #include "template_utils.h"
 #include "thr_lock.h"
-#include "transaction_info.h"
-#include "trigger_def.h"
 
 class COND_EQUAL;
 class Item_exists_subselect;
@@ -408,7 +408,7 @@ bool Sql_cmd_update::update_single_table(THD *thd)
     if (result == Item::COND_FALSE)
     {
       no_rows= true;                               // Impossible WHERE
-      if (thd->lex->describe)
+      if (thd->lex->is_explain())
       {
         Modification_plan plan(thd, MT_UPDATE, table,
                                "Impossible WHERE", true, 0);
@@ -438,7 +438,7 @@ bool Sql_cmd_update::update_single_table(THD *thd)
     {
       no_rows= true;
 
-      if (thd->lex->describe)
+      if (thd->lex->is_explain())
       {
         Modification_plan plan(thd, MT_UPDATE, table,
                                "No matching rows after partition pruning",
@@ -481,7 +481,7 @@ bool Sql_cmd_update::update_single_table(THD *thd)
     }
     if (no_rows)
     {
-      if (thd->lex->describe)
+      if (thd->lex->is_explain())
       {
         Modification_plan plan(thd, MT_UPDATE, table,
                                "Impossible WHERE", true, 0);
@@ -550,11 +550,7 @@ bool Sql_cmd_update::update_single_table(THD *thd)
 
   table->mark_columns_per_binlog_row_image(thd);
 
-  /*
-    WL#2955 will change this to only request JSON diffs when needed.
-    For now, always request JSON diffs so that the code can be tested.
-  */
-  if (table->setup_partial_update(true /* will be changed by WL#2955 */))
+  if (table->setup_partial_update())
     DBUG_RETURN(true);                          /* purecov: inspected */
 
   ha_rows updated_rows= 0;
@@ -581,7 +577,7 @@ bool Sql_cmd_update::update_single_table(THD *thd)
                            (!using_filesort && (used_key_is_modified || order)),
                            using_filesort, used_key_is_modified, rows);
     DEBUG_SYNC(thd, "planned_single_update");
-    if (thd->lex->describe)
+    if (thd->lex->is_explain())
     {
       bool err= explain_single_table_modification(thd, &plan, select_lex);
       DBUG_RETURN(err);
@@ -1395,9 +1391,12 @@ bool Sql_cmd_update::prepare_inner(THD *thd)
   if (select->setup_tables(thd, table_list, false))
     DBUG_RETURN(true);            /* purecov: inspected */
 
-  if (select->derived_table_count)
+  thd->want_privilege= SELECT_ACL;
+  enum enum_mark_columns mark_used_columns_saved= thd->mark_used_columns;
+  thd->mark_used_columns= MARK_COLUMNS_READ;
+  if (select->derived_table_count || select->table_func_count)
   {
-    if (select->resolve_derived(thd, apply_semijoin))
+    if (select->resolve_placeholder_tables(thd, apply_semijoin))
       DBUG_RETURN(true);
     /*
       @todo - This check is a bit primitive and ad-hoc. We have not yet analyzed
@@ -1464,20 +1463,11 @@ bool Sql_cmd_update::prepare_inner(THD *thd)
 
   lex->allow_sum_func= 0;          // Query block cannot be aggregated
 
-  thd->want_privilege= SELECT_ACL;
-  enum enum_mark_columns mark_used_columns_saved= thd->mark_used_columns;
-  thd->mark_used_columns= MARK_COLUMNS_READ;
-  for (TABLE_LIST *tr= table_list; tr; tr= tr->next_local)
-    tr->set_want_privilege(SELECT_ACL);
   if (select->setup_conds(thd))
     DBUG_RETURN(true);
 
   if (select->setup_base_ref_items(thd))
     DBUG_RETURN(true);                          /* purecov: inspected */
-
-  // Check the fields to be updated (assume that all tables may be updated)
-  for (TABLE_LIST *tr= table_list; tr; tr= tr->next_local)
-    tr->set_want_privilege(UPDATE_ACL);
 
   if (setup_fields(thd, Ref_item_array(), *update_fields,
                    UPDATE_ACL, NULL, false, true))
@@ -1496,8 +1486,6 @@ bool Sql_cmd_update::prepare_inner(THD *thd)
 
   DBUG_ASSERT(update_table_count_local > 0);
 
-  for (TABLE_LIST *tr= table_list; tr; tr= tr->next_local)
-    tr->set_want_privilege(SELECT_ACL);
   if (setup_fields(thd, Ref_item_array(), *update_value_list, SELECT_ACL, NULL,
                    false, false))
     DBUG_RETURN(true);                          /* purecov: inspected */
@@ -1629,13 +1617,6 @@ bool Sql_cmd_update::prepare_inner(THD *thd)
 	DBUG_RETURN(true);
       }
     }
-  }
-
-  // Downgrade desired privileges for updated tables to SELECT
-  for (TABLE_LIST *tl= table_list; tl; tl= tl->next_local)
-  {
-    if (tl->updating)
-      tl->set_want_privilege(SELECT_ACL);
   }
 
   /* @todo: downgrade the metadata locks here. */
@@ -2063,11 +2044,7 @@ bool Query_result_update::optimize()
                              select->get_table_list()))
       {
         table->mark_columns_needed_for_update(thd, true/*mark_binlog_columns=true*/);
-        /*
-          WL#2955 will change this to only request JSON diffs when needed.
-          For now, always request JSON diffs so that the code can be tested.
-        */
-        if (table->setup_partial_update(true /* will be changed by WL#2955 */))
+        if (table->setup_partial_update())
           DBUG_RETURN(true);                    /* purecov: inspected */
 	table_to_update= table;			// Update table on the fly
 	continue;
@@ -2182,14 +2159,10 @@ loop_end:
     tmp_param->field_count=temp_fields.elements;
     tmp_param->group_parts=1;
     tmp_param->group_length= table->file->ref_length;
-    /* small table, ignore SQL_BIG_TABLES */
-    bool save_big_tables= thd->variables.big_tables; 
-    thd->variables.big_tables= FALSE;
     tmp_tables[cnt]=create_tmp_table(thd, tmp_param, temp_fields,
                                      &group, 0, 0,
                                      TMP_TABLE_ALL_COLUMNS, HA_POS_ERROR, "",
                                      TMP_WIN_NONE);
-    thd->variables.big_tables= save_big_tables;
     if (!tmp_tables[cnt])
       DBUG_RETURN(1);
 

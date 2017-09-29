@@ -638,8 +638,15 @@ DROP PREPARE stmt;
 -- Add the privilege XA_RECOVER_ADMIN for every user who has the privilege SUPER
 -- provided that there isn't a user who already has the privilige XA_RECOVER_ADMIN.
 SET @hadXARecoverAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'XA_RECOVER_ADMIN');
-INSERT INTO global_grants SELECT user, host, 'XA_RECOVER_ADMIN', 'Y' FROM mysql.user
-WHERE super_priv = 'Y' AND @hadXARecoverAdminPriv = 0;
+INSERT INTO global_grants SELECT user, host, 'XA_RECOVER_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE super_priv = 'Y' AND @hadXARecoverAdminPriv = 0;
+COMMIT;
+
+-- Add the privilege BACKUP_ADMIN for every user who has the privilege RELOAD
+-- provided that there isn't a user who already has the privilige BACKUP_ADMIN.
+SET @hadBackupAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'BACKUP_ADMIN');
+INSERT INTO global_grants SELECT user, host, 'BACKUP_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE Reload_priv = 'Y' AND @hadBackupAdminPriv = 0;
 COMMIT;
 
 # Activate the new, possible modified privilege tables
@@ -831,6 +838,12 @@ ALTER TABLE user MODIFY Drop_role_priv enum('N','Y') COLLATE utf8_general_ci DEF
 UPDATE user SET Create_role_priv= 'Y', Drop_role_priv= 'Y' WHERE Create_user_priv = 'Y';
 
 --
+-- Password_reuse_history and Password_reuse_time
+--
+ALTER TABLE user ADD Password_reuse_history smallint unsigned NULL DEFAULT NULL AFTER Drop_role_priv;
+ALTER TABLE user ADD Password_reuse_time smallint unsigned NULL DEFAULT NULL AFTER Password_reuse_history;
+
+--
 -- Change engine of the firewall tables to InnoDB
 --
 SET @had_firewall_whitelist =
@@ -930,7 +943,7 @@ DROP PREPARE stmt;
 # tables the mysql.user table.
 #
 
-INSERT IGNORE INTO mysql.user VALUES ('localhost','mysql.session','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','Y','N','N','N','N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,'mysql_native_password','*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE','N',CURRENT_TIMESTAMP,NULL,'Y', 'N', 'N');
+INSERT IGNORE INTO mysql.user VALUES ('localhost','mysql.session','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','Y','N','N','N','N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,'mysql_native_password','*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE','N',CURRENT_TIMESTAMP,NULL,'Y', 'N', 'N', NULL, NULL);
 
 UPDATE user SET Create_role_priv= 'N', Drop_role_priv= 'N' WHERE User= 'mysql.session';
 

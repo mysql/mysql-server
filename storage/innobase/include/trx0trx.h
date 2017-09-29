@@ -34,6 +34,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "dict0types.h"
 #include "trx0types.h"
 #include "ut0new.h"
+#include "sql/handler.h"
 
 #ifndef UNIV_HOTBACKUP
 #include "lock0types.h"
@@ -216,27 +217,6 @@ trx_start_internal_read_only_low(
 
 #define trx_start_if_not_started_xa(t, rw)			\
 	trx_start_if_not_started_xa_low((t), (rw))
-#endif /* UNIV_DEBUG */
-
-/*************************************************************//**
-Starts the transaction for a DDL operation. */
-void
-trx_start_for_ddl_low(
-/*==================*/
-	trx_t*		trx,	/*!< in/out: transaction */
-	trx_dict_op_t	op);	/*!< in: dictionary operation type */
-
-#ifdef UNIV_DEBUG
-#define trx_start_for_ddl(t, o)					\
-	do {							\
-	ut_ad((t)->start_file == 0);				\
-	(t)->start_line = __LINE__;				\
-	(t)->start_file = __FILE__;				\
-	trx_start_for_ddl_low((t), (o));			\
-	} while (0)
-#else
-#define trx_start_for_ddl(t, o)					\
-	trx_start_for_ddl_low((t), (o))
 #endif /* UNIV_DEBUG */
 
 /****************************************************************//**
@@ -1110,6 +1090,12 @@ struct trx_t {
 					and this flag would be set to false */
 	trx_dict_op_t	dict_operation;	/**< @see enum trx_dict_op_t */
 
+	bool		ddl_operation; /*!< True if this trx involves dd table
+					change */
+	bool		ddl_must_flush; /*!< True if this trx involves dd table
+					change, and must flush */
+	bool		in_truncate;	/* This trx is doing truncation */
+
 	/* Fields protected by the srv_conc_mutex. */
 	bool		declared_to_be_inside_innodb;
 					/*!< this is TRUE if we have declared
@@ -1137,8 +1123,7 @@ struct trx_t {
 	uint64_t	age_updated;
 
 	lsn_t		commit_lsn;	/*!< lsn at the time of the commit */
-	table_id_t	table_id;	/*!< Table to drop iff dict_operation
-					== TRX_DICT_OP_TABLE, or 0. */
+
 	/*------------------------------*/
 	THD*		mysql_thd;	/*!< MySQL thread handle corresponding
 					to this trx, or NULL */
@@ -1262,11 +1247,8 @@ struct trx_t {
 					count of tables being flushed. */
 
 	/*------------------------------*/
-	bool		ddl;		/*!< true if it is an internal
-					transaction for DDL */
 	bool		internal;	/*!< true if it is a system/internal
-					transaction background task. This
-					includes DDL transactions too.  Such
+					transaction background task. Such
 					transactions are always treated as
 					read-write. */
 	/*------------------------------*/

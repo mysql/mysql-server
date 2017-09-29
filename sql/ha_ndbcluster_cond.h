@@ -20,7 +20,7 @@
   the NDB Cluster handler
 */
 
-#include <ndbapi/NdbApi.hpp>
+#include "storage/ndb/include/ndbapi/NdbApi.hpp"
 
 class Item;
 struct TABLE;

@@ -14,14 +14,15 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA */
 
 #include "my_config.h"
+
 #include <gtest/gtest.h>
 #include <memory>
 #include <vector>
 
-#include "../sql/dd/properties.h"
-#include "../sql/dd/impl/types/table_impl.h"
-#include "../sql/dd/types/column.h"
-#include "../sql/dd/dd.h"
+#include "sql/dd/dd.h"
+#include "sql/dd/impl/types/table_impl.h"
+#include "sql/dd/properties.h"
+#include "sql/dd/types/column.h"
 
 namespace dd_columns_unittest {
 

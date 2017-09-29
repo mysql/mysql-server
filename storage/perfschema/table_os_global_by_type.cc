@@ -23,14 +23,14 @@
 
 #include <stddef.h>
 
-#include "field.h"
 #include "my_dbug.h"
 #include "my_thread.h"
-#include "pfs_buffer_container.h"
-#include "pfs_column_types.h"
-#include "pfs_column_values.h"
-#include "pfs_global.h"
-#include "pfs_instr_class.h"
+#include "sql/field.h"
+#include "storage/perfschema/pfs_buffer_container.h"
+#include "storage/perfschema/pfs_column_types.h"
+#include "storage/perfschema/pfs_column_values.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_instr_class.h"
 
 THR_LOCK table_os_global_by_type::m_table_lock;
 
@@ -154,6 +154,8 @@ table_os_global_by_type::get_row_count(void)
 table_os_global_by_type::table_os_global_by_type()
   : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos()
 {
+  // FIXME, verify
+  m_normalizer = time_normalizer::get_wait();
 }
 
 void
@@ -328,8 +330,7 @@ table_os_global_by_type::make_program_row(PFS_program *pfs_program)
 
   m_row.m_object.make_row(pfs_program);
 
-  time_normalizer *normalizer = time_normalizer::get(wait_timer);
-  m_row.m_stat.set(normalizer, &pfs_program->m_sp_stat.m_timer1_stat);
+  m_row.m_stat.set(m_normalizer, &pfs_program->m_sp_stat.m_timer1_stat);
 
   if (!pfs_program->m_lock.end_optimistic_lock(&lock))
   {
@@ -380,8 +381,7 @@ table_os_global_by_type::make_table_row(PFS_table_share *share)
     }
   }
 
-  time_normalizer *normalizer = time_normalizer::get(wait_timer);
-  m_row.m_stat.set(normalizer, &cumulated_stat);
+  m_row.m_stat.set(m_normalizer, &cumulated_stat);
 
   return 0;
 }

@@ -17,7 +17,7 @@
  * 02110-1301  USA
  */
 
-#include "mysql41_hash.h"
+#include "plugin/x/client/mysql41_hash.h"
 
 #if defined(HAVE_YASSL)
 #include <sha.hpp>

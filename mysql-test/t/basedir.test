@@ -23,7 +23,7 @@ let SHUTDOWN_SQL= $MYSQL_TMP_DIR/shutdown.sql;
 # Need to save this as PWD env var is overriden when invoking perl
 let BDIR= $PWD;
 
-let DEFARGS= --no-defaults --explicit_defaults_for_timestamp --socket=$MYSQLD_SOCKET --port=$MYSQLD_PORT --log-syslog=0 --skip-ssl --secure-file-priv="" --datadir=$DDIR;
+let DEFARGS= --no-defaults --innodb_dedicated_server=OFF --explicit_defaults_for_timestamp --socket=$MYSQLD_SOCKET --port=$MYSQLD_PORT --log-syslog=0 --skip-ssl --secure-file-priv="" --datadir=$DDIR;
 
 let INIT_FILE_ARGS= $DEFARGS --log-error=$MYSQLD_LOG --init-file=$SHUTDOWN_SQL;
 let INIT_FILE_ARGS_D= $DEFARGS -D --log-error=$MYSQLD_LOG --init-file=$SHUTDOWN_SQL;
@@ -122,7 +122,7 @@ EOF
   my $found_expected_error= 0;
   while(<MYSQLD_OUT>)
   {
-    if (/\[ERROR\] Could not open .+ for error logging/)
+    if (/\[ERROR\] \[[^]]*\] Could not open .+ for error logging/)
     {
       print "# Found expected error\n";
       $found_expected_error= 1;
@@ -149,12 +149,12 @@ EOF
   my $found_expected_errors= 0;
   while(<MYSQLD_OUT>)
   {
-    if (/\[ERROR\] Could not open .+ for error logging/)
+    if (/\[ERROR\] \[[^]]*\] Could not open .+ for error logging/)
     {
       print "# Found expected error from launcher process\n";
       ++$found_expected_errors;
     }
-    if (/\[ERROR\] Failed to start mysqld daemon\. Check mysqld error log\./)
+    if (/\[ERROR\] \[[^]]*\] Failed to start mysqld daemon\. Check mysqld error log\./)
     {
       print "# Found expected error from daemon process\n";
       ++$found_expected_errors;

@@ -35,7 +35,7 @@
 #include "mysql/psi/psi_base.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "rpl_channel_service_interface.h" // enum_channel_type
+#include "sql/rpl_channel_service_interface.h" // enum_channel_type
 
 class Master_info;
 class Relay_log_info;
@@ -356,6 +356,8 @@ extern bool use_slave_mask;
 extern char *slave_load_tmpdir;
 extern char *master_info_file, *relay_log_info_file;
 extern char *opt_relay_logname, *opt_relaylog_index_name;
+extern bool opt_relaylog_index_name_supplied;
+extern bool opt_relay_logname_supplied;
 extern char *opt_binlog_index_name;
 extern bool opt_skip_slave_start;
 extern bool opt_log_slave_updates;

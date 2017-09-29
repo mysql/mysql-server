@@ -18,8 +18,8 @@
 
 #include <memory>
 
-#include "dd/string_type.h"      // dd::String_type
-#include "table.h"               // TABLE_LIST
+#include "sql/dd/string_type.h"  // dd::String_type
+#include "sql/table.h"           // TABLE_LIST
 #include "thr_lock.h"
 
 namespace dd {

@@ -13,30 +13,31 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include "sql/sql_plugin_var.h"
+
 #include <limits.h>
 #include <string>
 #include <unordered_map>
 #include <utility>
 
-#include "current_thd.h"
-#include "item.h"
 #include "m_string.h"
 #include "map_helpers.h"
 #include "my_dbug.h"
 #include "my_list.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysqld.h"
-#include "psi_memory_key.h"
-#include "set_var.h"
-#include "sql_class.h"         // THD
-#include "sql_const.h"
-#include "sql_plugin.h"
-#include "sql_plugin_var.h"
-#include "sql_security_ctx.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/current_thd.h"
+#include "sql/item.h"
+#include "sql/mysqld.h"
+#include "sql/psi_memory_key.h"
+#include "sql/set_var.h"
+#include "sql/sql_class.h"     // THD
+#include "sql/sql_const.h"
+#include "sql/sql_plugin.h"
+#include "sql/strfunc.h"       // find_type
+#include "sql/sys_vars_shared.h" // intern_find_sys_var
+#include "sql/system_variables.h"
 #include "sql_string.h"
-#include "strfunc.h"           // find_type
-#include "sys_vars_shared.h"   // intern_find_sys_var
-#include "system_variables.h"
 
 /**
   Set value for global variable with PLUGIN_VAR_MEMALLOC flag.

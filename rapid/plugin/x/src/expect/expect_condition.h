@@ -20,10 +20,10 @@
 #ifndef X_SRC_EXPECT_EXPECT_CONDITION_H
 #define X_SRC_EXPECT_EXPECT_CONDITION_H
 
-#include <string>
 #include <memory>
+#include <string>
 
-#include "ngs/error_code.h"
+#include "plugin/x/ngs/include/ngs/error_code.h"
 
 
 namespace xpl {

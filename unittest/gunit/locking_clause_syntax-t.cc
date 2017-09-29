@@ -20,12 +20,12 @@
 #include <stddef.h>
 #include <string>
 
-#include "item_func.h"
-#include "parsertest.h"
-#include "sql_lex.h"
+#include "sql/item_func.h"
+#include "sql/sql_lex.h"
 #include "template_utils.h"
-#include "test_utils.h"
 #include "thr_lock.h"
+#include "unittest/gunit/parsertest.h"
+#include "unittest/gunit/test_utils.h"
 
 namespace locking_clause_syntax_unittest {
 
@@ -162,6 +162,8 @@ TEST_F(LockingClauseSyntaxTest, SafeToCacheQuery)
 
   parse("SELECT * FROM t1, t2 FOR SHARE OF t1");
   EXPECT_FALSE(thd()->lex->safe_to_cache_query);
+
+  init_sql_command_flags();
 
   // The locking clause should not get contextualized for EXPLAIN.
   parse("EXPLAIN SELECT * FROM t1 FOR UPDATE");

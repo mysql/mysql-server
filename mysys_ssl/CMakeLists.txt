@@ -1,4 +1,4 @@
-# Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -12,11 +12,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
-
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
-                    ${CMAKE_SOURCE_DIR}/mysys_ssl
-                    ${CMAKE_SOURCE_DIR}/mysys
-                    ${SSL_INCLUDE_DIRS})
 
 IF(SSL_DEFINES)
 ADD_DEFINITIONS(${SSL_DEFINES})
@@ -46,8 +41,3 @@ TARGET_LINK_LIBRARIES(mysys_ssl dbug strings ${SSL_LIBRARIES} ${ZLIB_LIBRARY})
 IF(WIN32 AND NOT WITH_SSL STREQUAL "bundled")
   TARGET_LINK_LIBRARIES(mysys_ssl crypt32)
 ENDIF()
-
-IF(MSVC)
-   INSTALL_DEBUG_TARGET(mysys_ssl DESTINATION ${INSTALL_LIBDIR}/debug)
-ENDIF()
-

@@ -48,6 +48,7 @@ Created 10/10/1995 Heikki Tuuri
 #include "buf0checksum.h"
 #include "fil0fil.h"
 #include "log0log.h"
+#include "log0ddl.h"
 #include "os0event.h"
 #include "que0types.h"
 #include "srv0conc.h"
@@ -131,6 +132,8 @@ struct srv_stats_t {
 	/** Number of rows inserted */
 	ulint_ctr_64_t		n_rows_inserted;
 };
+
+extern Log_DDL*		log_ddl;
 
 #ifdef INNODB_DD_TABLE
 extern bool	srv_is_upgrade_mode;
@@ -280,6 +283,8 @@ even if they are marked as "corrupted". Mostly it is for DBA to process
 corrupted index and table */
 extern bool	srv_load_corrupted;
 
+/** Dedicated server setting */
+extern bool	srv_dedicated_server;
 /** Requested size in bytes */
 extern ulint		srv_buf_pool_size;
 /** Minimum pool size in bytes */
@@ -445,6 +450,9 @@ extern ulong srv_sync_array_size;
 
 /* print all user-level transactions deadlocks to mysqld stderr */
 extern bool srv_print_all_deadlocks;
+
+/** Print all DDL logs to mysqld stderr */
+extern bool	srv_print_ddl_logs;
 
 extern bool	srv_cmp_per_index_enabled;
 

@@ -31,8 +31,8 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/service_mysql_string.h"
 #include "mysql/udf_registration_types.h"
+#include "sql/thr_malloc.h"
 #include "sql_string.h"
-#include "thr_malloc.h"
 
 PSI_memory_key key_memory_string_iterator;
 

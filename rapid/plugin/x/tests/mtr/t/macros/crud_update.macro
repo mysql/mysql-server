@@ -1,0 +1,65 @@
+-->macro Operation_value	%SOURCE%	%OPERATION%	%VALUE%
+-->varlet %PAYLOAD% %PAYLOAD%   operation {
+-->varlet %PAYLOAD% %PAYLOAD%     source {
+-->varlet %PAYLOAD% %PAYLOAD%       %SOURCE%
+-->varlet %PAYLOAD% %PAYLOAD%     }
+-->varlet %PAYLOAD% %PAYLOAD%     operation: %OPERATION%
+-->varlet %PAYLOAD% %PAYLOAD%     value {
+-->varlet %PAYLOAD% %PAYLOAD%       %VALUE%
+-->varlet %PAYLOAD% %PAYLOAD%     }
+-->varlet %PAYLOAD% %PAYLOAD%   }
+-->endmacro
+
+
+-->macro_varg Crud_set_Op_octets	%SRC%	%OP%	%LITERAL%
+callmacro Operation_value
+	%SRC%
+	%OP%
+	type: LITERAL literal { type: V_OCTETS v_octets {value: %LITERAL% } };
+-->callmacro Crud %VAR_ARGS%
+-->endmacro
+
+
+-->macro_varg Crud_set_Op_object	%SRC%	%OP%	%FIELDS%
+callmacro Operation_value
+	%SRC%
+	%OP%
+	type: OBJECT object { %FIELDS% };
+-->callmacro Crud %VAR_ARGS%
+-->endmacro
+
+
+-->macro_varg Crud_set_Where_field	%FIELD%	%VALUE%
+-->varlet %PAYLOAD% %PAYLOAD%   criteria {
+-->varlet %PAYLOAD% %PAYLOAD%     type: OPERATOR
+-->varlet %PAYLOAD% %PAYLOAD%     operator {
+-->varlet %PAYLOAD% %PAYLOAD%       name: "=="
+-->varlet %PAYLOAD% %PAYLOAD%       param {
+-->varlet %PAYLOAD% %PAYLOAD%         type: IDENT
+-->varlet %PAYLOAD% %PAYLOAD%         identifier {
+-->varlet %PAYLOAD% %PAYLOAD%           document_path {
+-->varlet %PAYLOAD% %PAYLOAD%             type: MEMBER value: %FIELD%
+-->varlet %PAYLOAD% %PAYLOAD%           }
+-->varlet %PAYLOAD% %PAYLOAD%         }
+-->varlet %PAYLOAD% %PAYLOAD%       }
+-->varlet %PAYLOAD% %PAYLOAD%       param {
+-->varlet %PAYLOAD% %PAYLOAD%         type: LITERAL
+-->varlet %PAYLOAD% %PAYLOAD%         literal {
+-->varlet %PAYLOAD% %PAYLOAD%           type: V_OCTETS
+-->varlet %PAYLOAD% %PAYLOAD%           v_octets { value: %VALUE% }
+-->varlet %PAYLOAD% %PAYLOAD%         }
+-->varlet %PAYLOAD% %PAYLOAD%       }
+-->varlet %PAYLOAD% %PAYLOAD%     }
+-->varlet %PAYLOAD% %PAYLOAD%   }
+
+-->callmacro Crud %VAR_ARGS%
+-->endmacro
+
+
+-->macro_varg Crud_update
+-->varlet %PAYLOAD% 
+-->callmacro Crud %VAR_ARGS%
+Mysqlx.Crud.Update {
+  %PAYLOAD%
+}
+-->endmacro

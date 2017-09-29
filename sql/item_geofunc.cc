@@ -20,7 +20,7 @@
   @brief
   This file defines all spatial functions
 */
-#include "item_geofunc.h"
+#include "sql/item_geofunc.h"
 
 #include <boost/concept/usage.hpp>
 #include <boost/geometry/algorithms/area.hpp>
@@ -31,6 +31,8 @@
 #include <boost/geometry/algorithms/simplify.hpp>
 #include <boost/geometry/core/cs.hpp>
 #include <boost/geometry/strategies/spherical/distance_haversine.hpp>
+#include <boost/geometry/strategies/strategies.hpp>
+#include <boost/geometry/geometry.hpp>
 #include <boost/iterator/iterator_facade.hpp>
 #include <boost/move/utility_core.hpp>
 #include <float.h>
@@ -45,33 +47,33 @@
 #include <utility>
 
 #include "binlog_config.h"
-#include "current_thd.h"
-#include "dd/cache/dictionary_client.h"
-#include "dd/types/spatial_reference_system.h"
-#include "derror.h"       // ER_THD
-#include "gis/distance.h"
-#include "gis/geometries.h"
-#include "gis/srid.h"
-#include "gis/wkb_parser.h"
-#include "gis_bg_traits.h"
-#include "gstream.h"      // Gis_read_stream
-#include "item_geofunc_internal.h"
-#include "json_dom.h"     // Json_wrapper
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
-#include "options_parser.h"
-#include "psi_memory_key.h"
-#include "sql_class.h"    // THD
-#include "sql_error.h"
-#include "sql_exception_handler.h"
-#include "sql_lex.h"
-#include "srs_fetcher.h"
-#include "system_variables.h"
+#include "sql/current_thd.h"
+#include "sql/dd/cache/dictionary_client.h"
+#include "sql/dd/types/spatial_reference_system.h"
+#include "sql/derror.h"   // ER_THD
+#include "sql/gis/distance.h"
+#include "sql/gis/geometries.h"
+#include "sql/gis/srid.h"
+#include "sql/gis/wkb_parser.h"
+#include "sql/gis_bg_traits.h"
+#include "sql/gstream.h"  // Gis_read_stream
+#include "sql/item_geofunc_internal.h"
+#include "sql/json_dom.h" // Json_wrapper
+#include "sql/options_parser.h"
+#include "sql/psi_memory_key.h"
+#include "sql/sql_class.h" // THD
+#include "sql/sql_error.h"
+#include "sql/sql_exception_handler.h"
+#include "sql/sql_lex.h"
+#include "sql/srs_fetcher.h"
+#include "sql/system_variables.h"
+#include "sql/thr_malloc.h"
 #include "template_utils.h"
-#include "thr_malloc.h"
 
 class PT_item_list;
 struct TABLE;
@@ -224,7 +226,7 @@ Field *Item_geometry_func::tmp_table_field(TABLE *t_arg)
   Field *result;
   if ((result= new (*THR_MALLOC) Field_geom(max_length, maybe_null,
                                             item_name.ptr(),
-                                            get_geometry_type())))
+                                            get_geometry_type(), {})))
     result->init(t_arg);
   return result;
 }
@@ -402,11 +404,12 @@ String *Item_func_geometry_from_text::val_str(String *str)
     }
   }
 
+  const dd::Spatial_reference_system *srs= nullptr;
+  dd::cache::Dictionary_client::Auto_releaser
+    m_releaser(current_thd->dd_client());
   if (srid != 0)
   {
     Srs_fetcher fetcher(current_thd);
-    const dd::Spatial_reference_system *srs= nullptr;
-    dd::cache::Dictionary_client::Auto_releaser m_releaser(current_thd->dd_client());
     if (fetcher.acquire(srid, &srs))
     {
       return error_str();
@@ -414,12 +417,8 @@ String *Item_func_geometry_from_text::val_str(String *str)
 
     if (srs == nullptr)
     {
-      push_warning_printf(current_thd,
-                          Sql_condition::SL_WARNING,
-                          ER_WARN_SRS_NOT_FOUND_AXIS_ORDER,
-                          ER_THD(current_thd, ER_WARN_SRS_NOT_FOUND_AXIS_ORDER),
-                          srid,
-                          func_name());
+      my_error(ER_SRS_NOT_FOUND, MYF(0), srid);
+      return error_str();
     }
     else if (srs->is_geographic())
     {
@@ -505,6 +504,38 @@ String *Item_func_geometry_from_text::val_str(String *str)
     {
       my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
       return error_str();
+    }
+  }
+
+  if (is_geographic)
+  {
+    bool latitude_out_of_range;
+    bool longitude_out_of_range;
+    double out_of_range_coord_value;
+    if (g->validate_coordinate_range(srs->angular_unit(),
+                                     &longitude_out_of_range,
+                                     &latitude_out_of_range,
+                                     &out_of_range_coord_value))
+    {
+      if (longitude_out_of_range)
+      {
+        my_error(ER_LONGITUDE_OUT_OF_RANGE, MYF(0), out_of_range_coord_value,
+                 func_name(), srs->from_radians(-M_PI),
+                 srs->from_radians(M_PI));
+        return error_str();
+      }
+
+      if (latitude_out_of_range)
+      {
+        my_error(ER_LATITUDE_OUT_OF_RANGE, MYF(0), out_of_range_coord_value,
+                 func_name(), srs->from_radians(-M_PI_2),
+                 srs->from_radians(M_PI_2));
+        return error_str();
+      }
+
+      my_error(ER_GIS_INVALID_DATA, MYF(0),
+               func_name()); /* purecov: inspected */
+      return error_str(); /* purecov: inspected */
     }
   }
 
@@ -656,12 +687,13 @@ String *Item_func_geometry_from_wkb::val_str(String *str)
     }
   }
 
+  const dd::Spatial_reference_system *srs= nullptr;
+  dd::cache::Dictionary_client::Auto_releaser
+    m_releaser(current_thd->dd_client());
+
   if (srid != 0)
   {
     Srs_fetcher fetcher(current_thd);
-    const dd::Spatial_reference_system *srs= nullptr;
-    dd::cache::Dictionary_client::Auto_releaser
-      m_releaser(current_thd->dd_client());
     if (fetcher.acquire(srid, &srs))
     {
       return error_str();
@@ -669,12 +701,8 @@ String *Item_func_geometry_from_wkb::val_str(String *str)
 
     if (srs == nullptr)
     {
-      push_warning_printf(current_thd,
-                          Sql_condition::SL_WARNING,
-                          ER_WARN_SRS_NOT_FOUND_AXIS_ORDER,
-                          ER_THD(current_thd, ER_WARN_SRS_NOT_FOUND_AXIS_ORDER),
-                          srid,
-                          func_name());
+      my_error(ER_SRS_NOT_FOUND, MYF(0), srid);
+      return error_str();
     }
     else if (srs->is_geographic())
     {
@@ -769,6 +797,38 @@ String *Item_func_geometry_from_wkb::val_str(String *str)
     {
       my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
       return error_str();
+    }
+  }
+
+  if (is_geographic)
+  {
+    bool latitude_out_of_range;
+    bool longitude_out_of_range;
+    double out_of_range_coord_value;
+    if (g->validate_coordinate_range(srs->angular_unit(),
+                                     &longitude_out_of_range,
+                                     &latitude_out_of_range,
+                                     &out_of_range_coord_value))
+    {
+      if (longitude_out_of_range)
+      {
+        my_error(ER_LONGITUDE_OUT_OF_RANGE, MYF(0), out_of_range_coord_value,
+                 func_name(), srs->from_radians(-M_PI),
+                 srs->from_radians(M_PI));
+        return error_str();
+      }
+
+      if (latitude_out_of_range)
+      {
+        my_error(ER_LATITUDE_OUT_OF_RANGE, MYF(0), out_of_range_coord_value,
+                 func_name(), srs->from_radians(-M_PI_2),
+                 srs->from_radians(M_PI_2));
+        return error_str();
+      }
+
+      my_error(ER_GIS_INVALID_DATA, MYF(0),
+               func_name()); /* purecov: inspected */
+      return error_str(); /* purecov: inspected */
     }
   }
 
@@ -884,6 +944,24 @@ String *Item_func_geomfromgeojson::val_str(String *buf)
     }
 
     m_user_provided_srid= true;
+
+    if (m_user_srid != 0)
+    {
+      Srs_fetcher fetcher(current_thd);
+      const dd::Spatial_reference_system *srs= nullptr;
+      dd::cache::Dictionary_client
+               ::Auto_releaser releaser(current_thd->dd_client());
+      if (fetcher.acquire(m_user_srid, &srs))
+      {
+        return error_str(); /* purecov: inspected */
+      }
+
+      if (srs == nullptr)
+      {
+        my_error(ER_SRS_NOT_FOUND, MYF(0), m_user_srid);
+        return error_str();
+      }
+    }
   }
 
   Json_wrapper wr;
@@ -973,9 +1051,29 @@ String *Item_func_geomfromgeojson::val_str(String *buf)
 
   // Set the correct SRID for the geometry data.
   if (m_user_provided_srid)
+  {
     buf->write_at_position(0, m_user_srid);
+  }
   else if (m_srid_found_in_document > -1)
+  {
+    Srs_fetcher fetcher(current_thd);
+    const dd::Spatial_reference_system *srs= nullptr;
+    dd::cache::Dictionary_client
+      ::Auto_releaser releaser(current_thd->dd_client());
+    if (fetcher.acquire(m_srid_found_in_document, &srs))
+    {
+      return error_str(); /* purecov: inspected */
+    }
+
+    if (srs == nullptr)
+    {
+      delete result_geometry;
+      my_error(ER_SRS_NOT_FOUND, MYF(0), m_srid_found_in_document);
+      return error_str();
+    }
+
     buf->write_at_position(0, static_cast<uint32>(m_srid_found_in_document));
+  }
 
   bool return_result= result_geometry->as_wkb(buf, false);
 
@@ -3357,16 +3455,13 @@ String *Item_func_as_wkt::val_str_ascii(String *str)
     return nullptr;
   }
 
-  // Even if args[0]->val_str didn't return swkb_tmp, it may still
-  // have modified it, so clean it up first.
-  if (swkb != &swkb_tmp)
-  {
-    swkb_tmp.set(static_cast<const char *>(nullptr), 0, swkb_tmp.charset());
-  }
-  swkb_tmp.copy(*swkb);
-  swkb= &swkb_tmp;
+  // args[0]->val_str() may have returned a string that we shouldn't modify, and
+  // it may have modified swkb_tmp in the process. We need a local copy of the
+  // string, with its own buffer, since we may have to flip coordinate order.
+  String modifiable_swkb;
+  modifiable_swkb.copy(*swkb);
 
-  if (!(g= Geometry::construct(&buffer, swkb)))
+  if (!(g= Geometry::construct(&buffer, &modifiable_swkb)))
   {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_str();
@@ -3506,13 +3601,13 @@ String *Item_func_as_wkb::val_str(String *str)
     return nullptr;
   }
 
-  // swkb may not point to swkb_tmp, but to another string that shouldn't be
-  // modified, so the following procedure is necessary to be sure to have a
-  // string that can be altered.
-  swkb_tmp.copy(*swkb);
-  swkb= &swkb_tmp;
+  // args[0]->val_str() may have returned a string that we shouldn't modify, and
+  // it may have modified swkb_tmp in the process. We need a local copy of the
+  // string, with its own buffer, since we may have to flip coordinate order.
+  String modifiable_swkb;
+  modifiable_swkb.copy(*swkb);
 
-  if (!(g= Geometry::construct(&buffer, swkb)))
+  if (!(g= Geometry::construct(&buffer, &modifiable_swkb)))
   {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_str();
@@ -3611,9 +3706,8 @@ String *Item_func_as_wkb::val_str(String *str)
     }
   }
 
-  str->copy(swkb->ptr() + SRID_SIZE, swkb->length() - SRID_SIZE,
-            &my_charset_bin);
-
+  str->copy(modifiable_swkb.ptr() + SRID_SIZE,
+            modifiable_swkb.length() - SRID_SIZE, &my_charset_bin);
 
   return str;
 }
@@ -4899,6 +4993,23 @@ String *Item_func_pointfromgeohash::val_str(String *str)
   // Return null if one or more of the input arguments is null.
   if ((null_value= (args[0]->null_value || args[1]->null_value)))
     return NULL;
+
+  if (srid != 0)
+  {
+    Srs_fetcher fetcher(current_thd);
+    const dd::Spatial_reference_system *srs= nullptr;
+    dd::cache::Dictionary_client::Auto_releaser releaser(current_thd->dd_client());
+    if (fetcher.acquire(srid, &srs))
+    {
+      return error_str();
+    }
+
+    if (srs == nullptr)
+    {
+      my_error(ER_SRS_NOT_FOUND, MYF(0), srid);
+      return error_str();
+    }
+  }
 
   if (str->mem_realloc(GEOM_HEADER_SIZE + POINT_DATA_SIZE))
     return make_empty_result();

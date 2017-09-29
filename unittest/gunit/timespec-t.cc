@@ -20,7 +20,7 @@
 
 #include "my_inttypes.h"
 #include "my_systime.h"
-#include "sql_const.h"
+#include "sql/sql_const.h"
 
 namespace timespec_unittest {
 

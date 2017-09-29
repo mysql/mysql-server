@@ -16,14 +16,14 @@
 #ifndef MYSQL_HASH_TO_BUFFER_SERIALIZER_H
 #define MYSQL_HASH_TO_BUFFER_SERIALIZER_H
 
-#include "buffer.h"
-#include "i_keyring_key.h"
-#include "i_serializer.h"
-#include "map_helpers.h"
-#include "my_inttypes.h"
-
 #include <memory>
 #include <string>
+
+#include "map_helpers.h"
+#include "my_inttypes.h"
+#include "plugin/keyring/buffer.h"
+#include "plugin/keyring/common/i_keyring_key.h"
+#include "plugin/keyring/common/i_serializer.h"
 
 namespace keyring
 {

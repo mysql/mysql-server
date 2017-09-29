@@ -34,7 +34,7 @@ syntax = "proto2";
 // * generate SQL from it
 // * use as filter condition in CRUD's Find(), Update() and Delete() calls.
 package Mysqlx.Expr;
-option java_package = "com.mysql.cj.mysqlx.protobuf";
+option java_package = "com.mysql.cj.x.protobuf";
 
 import "mysqlx_datatypes.proto";
 

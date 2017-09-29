@@ -23,7 +23,7 @@
 #include <iostream>
 #include <string>
 
-#include "ngs/protocol/output_buffer.h"
+#include "plugin/x/ngs/include/ngs/protocol/output_buffer.h"
 
 using namespace ngs;
 

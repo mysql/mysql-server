@@ -20,40 +20,40 @@
 #include <set>
 #include <vector>
 
-#include "auth_common.h"
-#include "dd/cache/dictionary_client.h" // dd::cache::Dictionary_client
-#include "dd/dd.h"                      // dd::get_dictionary
-#include "dd/dd_view.h"                 // dd::update_view_status
-#include "dd/dictionary.h"              // is_dd_schema_name
-#include "dd/object_id.h"
-#include "dd/string_type.h"
-#include "dd/types/schema.h"
-#include "dd/types/view.h"
-#include "debug_sync.h"
-#include "derror.h"                     // ER_THD
-#include "error_handler.h"              // Internal_error_handler
-#include "handler.h"                    // HA_LEX_CREATE_TMP_TABLE
-#include "key.h"
 #include "lex_string.h"
-#include "mdl.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
-#include "set_var.h"
-#include "sp_head.h"                    // sp_name
-#include "sql_alter.h"                  // Alter_info
-#include "sql_base.h"                   // open_tables
-#include "sql_class.h"
-#include "sql_const.h"
-#include "sql_error.h"
-#include "sql_lex.h"                    // LEX
-#include "sql_view.h"                   // mysql_register_view
-#include "system_variables.h"
-#include "table.h"                      // TABLE_LIST
+#include "sql/auth/auth_common.h"
+#include "sql/dd/cache/dictionary_client.h" // dd::cache::Dictionary_client
+#include "sql/dd/dd.h"                  // dd::get_dictionary
+#include "sql/dd/dd_view.h"             // dd::update_view_status
+#include "sql/dd/dictionary.h"          // is_dd_schema_name
+#include "sql/dd/object_id.h"
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/schema.h"
+#include "sql/dd/types/view.h"
+#include "sql/debug_sync.h"
+#include "sql/derror.h"                 // ER_THD
+#include "sql/error_handler.h"          // Internal_error_handler
+#include "sql/handler.h"                // HA_LEX_CREATE_TMP_TABLE
+#include "sql/key.h"
+#include "sql/mdl.h"
+#include "sql/set_var.h"
+#include "sql/sp_head.h"                // sp_name
+#include "sql/sql_alter.h"              // Alter_info
+#include "sql/sql_base.h"               // open_tables
+#include "sql/sql_class.h"
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"                // LEX
+#include "sql/sql_view.h"               // mysql_register_view
+#include "sql/system_variables.h"
+#include "sql/table.h"                  // TABLE_LIST
+#include "sql/transaction.h"
 #include "thr_lock.h"
-#include "transaction.h"
 
 namespace dd {
 class View_routine;

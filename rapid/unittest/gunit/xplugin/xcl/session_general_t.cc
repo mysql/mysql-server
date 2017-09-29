@@ -15,7 +15,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "session_t.h"
+#include "unittest/gunit/xplugin/xcl/session_t.h"
 
 
 namespace xcl {

@@ -21,7 +21,7 @@ RUN INSERT INTO tab_2 VALUES ('2006-07-03'), ('2013-06-15'), ('2012-11-24'), ('1
 
 4 rows affected
 Records: 4  Duplicates: 0  Warnings: 0
-RUN CREATE PROCEDURE empty()
+RUN CREATE PROCEDURE `empty`()
 BEGIN
 END 
 
@@ -178,7 +178,7 @@ BEGIN
 END 
 
 0 rows affected
-RUN CALL empty()
+RUN CALL `empty`()
 
 0 rows affected
 RUN CALL one_results_set()
@@ -193,10 +193,10 @@ c1t1	c2t1
 2	TWO
 3	THREE
 c1t2
-2006/07/03 00:00:00
-2013/06/15 00:00:00
-2012/11/24 00:00:00
-1979/11/24 00:00:00
+2006-07-03 00:00:00
+2013-06-15 00:00:00
+2012-11-24 00:00:00
+1979-11-24 00:00:00
 c1t1	c2t1
 1	ONE
 2	TWO
@@ -312,10 +312,10 @@ Error	1264	Out of range value for column 'tiny' at row 1
 0 rows affected
 RUN CALL select_and_warning()
 c1t2
-2006/07/03 00:00:00
-2013/06/15 00:00:00
-2012/11/24 00:00:00
-1979/11/24 00:00:00
+2006-07-03 00:00:00
+2013-06-15 00:00:00
+2012-11-24 00:00:00
+1979-11-24 00:00:00
 While executing CALL select_and_warning():
 Got expected error: Out of range value for column 'tiny' at row 1 (code 1264)
 RUN SHOW WARNINGS

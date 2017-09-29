@@ -20,13 +20,13 @@ TempTable C++ unit tests hooked inside CREATE TABLE. */
 #include <memory>
 #include <thread>
 
-#include "../storage/heap/ha_heap.h"
-#include "field.h"
-#include "handler.h"
-#include "temptable/storage.h"
-#include "temptable/test.h"
 #include "my_dbug.h"
-#include "table.h"
+#include "sql/field.h"
+#include "sql/table.h"
+#include "storage/heap/ha_heap.h"
+#include "storage/temptable/include/temptable/handler.h"
+#include "storage/temptable/include/temptable/storage.h"
+#include "storage/temptable/include/temptable/test.h"
 
 #ifdef TEMPTABLE_CPP_HOOKED_TESTS
 

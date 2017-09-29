@@ -28,6 +28,8 @@
   - "profiling_history_size", integer, session + global, "Num queries stored?"
 */
 
+#include "sql/sql_profile.h"
+
 #include "my_config.h"
 
 #include <string.h>
@@ -35,28 +37,27 @@
 
 #include "binary_log_types.h"
 #include "decimal.h"
-#include "field.h"
-#include "item.h"
 #include "m_string.h"
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "my_systime.h"
-#include "protocol.h"
-#include "psi_memory_key.h"
-#include "query_options.h"
-#include "sql_class.h"                    // THD
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_profile.h"
-#include "sql_security_ctx.h"
-#include "sql_show.h"                     // schema_table_store_record
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/field.h"
+#include "sql/item.h"
+#include "sql/my_decimal.h"
+#include "sql/protocol.h"
+#include "sql/psi_memory_key.h"
+#include "sql/query_options.h"
+#include "sql/sql_class.h"                // THD
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_show.h"                 // schema_table_store_record
+#include "sql/system_variables.h"
 #include "sql_string.h"
-#include "system_variables.h"
 
 using std::min;
 using std::max;
@@ -602,14 +603,14 @@ int PROFILING::fill_statistics_info(THD *thd_arg, TABLE_LIST *tables)
           struct where and having conditions at the SQL layer, then this
           condition should be ripped out.
         */
-        if (thd_arg->lex->query_id == 0) /* 0 == show final query */
+        if (thd_arg->lex->show_profile_query_id == 0) /* 0 == show final query */
         {
           if (query != last)
             continue;
         }
         else
         {
-          if (thd_arg->lex->query_id != query->profiling_query_id)
+          if (thd_arg->lex->show_profile_query_id != query->profiling_query_id)
             continue;
         }
       }

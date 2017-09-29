@@ -19,9 +19,8 @@
 /* Error messages for MySQL clients */
 /* (Error messages for the daemon are in share/language/errmsg.sys) */
 
-#include <my_sys.h>
-
 #include "errmsg.h"
+#include "my_sys.h"
 
 const char *client_errors[]=
 {

@@ -20,24 +20,23 @@
 #ifndef _NGS_PROTOCOL_ENCODER_H_
 #define _NGS_PROTOCOL_ENCODER_H_
 
-#include <vector>
 #include <map>
+#include <vector>
 
-#include "ngs/protocol/message.h"
-#include "ngs/protocol/page_pool.h"
-#include "ngs/protocol/output_buffer.h"
-#include "ngs/interface/protocol_encoder_interface.h"
-#include "ngs/error_code.h"
-#include "ngs/memory.h"
-
-#include "ngs/protocol_fwd.h"
-#include "ngs_common/smart_ptr.h"
-#include "ngs_common/chrono.h"
-#include "ngs/protocol/message_builder.h"
-#include "ngs/protocol/notice_builder.h"
-#include "ngs/protocol/row_builder.h"
-#include "ngs/protocol/metadata_builder.h"
-#include "ngs/interface/protocol_monitor_interface.h"
+#include "plugin/x/ngs/include/ngs/error_code.h"
+#include "plugin/x/ngs/include/ngs/interface/protocol_encoder_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/protocol_monitor_interface.h"
+#include "plugin/x/ngs/include/ngs/memory.h"
+#include "plugin/x/ngs/include/ngs/protocol/message.h"
+#include "plugin/x/ngs/include/ngs/protocol/message_builder.h"
+#include "plugin/x/ngs/include/ngs/protocol/metadata_builder.h"
+#include "plugin/x/ngs/include/ngs/protocol/notice_builder.h"
+#include "plugin/x/ngs/include/ngs/protocol/output_buffer.h"
+#include "plugin/x/ngs/include/ngs/protocol/page_pool.h"
+#include "plugin/x/ngs/include/ngs/protocol/row_builder.h"
+#include "plugin/x/ngs/include/ngs/protocol_fwd.h"
+#include "plugin/x/ngs/include/ngs_common/chrono.h"
+#include "plugin/x/ngs/include/ngs_common/smart_ptr.h"
 
 
 namespace ngs
@@ -78,15 +77,7 @@ public:
   bool send_result_fetch_done() override;
   bool send_result_fetch_done_more_results() override;
 
-  bool send_column_metadata(const std::string &catalog,
-                            const std::string &db_name,
-                            const std::string &table_name, const std::string &org_table_name,
-                            const std::string &col_name, const std::string &org_col_name,
-                            uint64_t collation, int type, int decimals,
-                            uint32_t flags, uint32_t length, uint32_t content_type = 0) override;
-
-  bool send_column_metadata(uint64_t collation, int type, int decimals,
-                            uint32_t flags, uint32_t length, uint32_t content_type = 0) override;
+  bool send_column_metadata(const Encode_column_info *column_info) override;
 
   Row_builder& row_builder() override { return m_row_builder; }
   void start_row() override;

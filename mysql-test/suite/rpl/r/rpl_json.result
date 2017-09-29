@@ -1173,10 +1173,6 @@ i	j	j2	j3
 include/sync_slave_sql_with_master.inc
 [Connection Slave]
 include/diff_tables.inc [master:t5, slave:t5]
-Warnings:
-Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
-Warnings:
-Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 [Connection Master]
 DROP TABLE t1, t2, t3, t4, t5;
 include/sync_slave_sql_with_master.inc
@@ -1218,10 +1214,6 @@ SELECT JSON_ARRAYAGG(jcol) FROM json_data;
 JSON_ARRAYAGG(jcol)
 [{"1": 30, "2": 24, "3": 26, "4": 28, "5": 32}, ["ailemac", "nielk", "nuicarc", "ihcseruj", "qweasdas"], [30, 24, 26, 28, 32], {"12": "uciov", "13": "ierdna", "14": "elisav", "15": "namor", "16": "jugcvb"}, {"1": "ailemac", "2": "nielk", "3": "nuicarc", "4": "ihcseruj", "5": "qweasdas"}, [1, 2, 3, 4, 5]]
 include/diff_tables.inc [master:json_data, slave:json_data]
-Warnings:
-Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
-Warnings:
-Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 [Connection Master]
 # Update values in the table
 UPDATE json_data SET jcol= (SELECT JSON_ARRAYAGG(vcol) FROM data_table) WHERE nkey = 1;
@@ -1231,10 +1223,6 @@ SELECT * FROM json_data WHERE nkey = 1;
 nkey	jcol
 1	["namor", "uciov", "ierdna", "elisav", "jugcvb"]
 include/diff_tables.inc [master:json_data, slave:json_data]
-Warnings:
-Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
-Warnings:
-Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 [Connection Master]
 # Delete values from the table
 DELETE FROM json_data WHERE jcol  = (SELECT JSON_ARRAYAGG(pkey) FROM data_table);
@@ -1248,10 +1236,6 @@ nkey	jcol
 4	{"12": "uciov", "13": "ierdna", "14": "elisav", "15": "namor", "16": "jugcvb"}
 5	{"1": "ailemac", "2": "nielk", "3": "nuicarc", "4": "ihcseruj", "5": "qweasdas"}
 include/diff_tables.inc [master:json_data, slave:json_data]
-Warnings:
-Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
-Warnings:
-Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 [Connection Master]
 DROP TABLE data_table;
 DROP TABLE json_data;
@@ -1406,10 +1390,6 @@ gcol2
 {"32": 64}
 include/diff_tables.inc [master:json_data, slave:json_data]
 include/diff_tables.inc [master:data, slave:data]
-Warnings:
-Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
-Warnings:
-Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 [Connection Master]
 # Update values in the table
 UPDATE json_data SET jcol= (SELECT JSON_PRETTY(JSON_ARRAYAGG(gcol2)) FROM data) WHERE pk= 2;
@@ -1701,10 +1681,6 @@ pk	id	jd	td	gcol	gcol2	gcol3	gcol4
 4	40	{"key": ["array", "of", "strings"]}	letters	45	0	[40, {"key": ["array", "of", "strings"]}, "letters", 45, 0]	{"40": {"key": ["array", "of", "strings"]}, "45": "letters"}
 5	50	{"key": [{"key": "value"}, {"key": "value2"}]}	strings	66	0	[50, {"key": [{"key": "value"}, {"key": "value2"}]}, "strings", 66, 0]	{"50": {"key": [{"key": "value"}, {"key": "value2"}]}, "66": "strings"}
 include/diff_tables.inc [master:json_data, slave:json_data]
-Warnings:
-Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
-Warnings:
-Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 [Connection Master]
 # Update values in the table
 UPDATE json_data SET jd = JSON_REPLACE(jd, '$[0].a',"a");
@@ -1733,10 +1709,6 @@ JSON_STORAGE_FREE(gcol3)	JSON_STORAGE_FREE(gcol4)
 0	0
 0	0
 include/diff_tables.inc [master:json_data, slave:json_data]
-Warnings:
-Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
-Warnings:
-Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 [Connection Master]
 # Update more values in the table
 UPDATE json_data SET jd = JSON_SET(jd, '$.key[0]', "ar");
@@ -1765,10 +1737,6 @@ JSON_STORAGE_FREE(gcol3)	JSON_STORAGE_FREE(gcol4)
 0	0
 0	0
 include/diff_tables.inc [master:json_data, slave:json_data]
-Warnings:
-Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
-Warnings:
-Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 [Connection Master]
 # Update values again
 UPDATE json_data SET jd = JSON_REPLACE(jd, '$.key', "hello");
@@ -1797,10 +1765,6 @@ JSON_STORAGE_FREE(gcol3)	JSON_STORAGE_FREE(gcol4)
 0	0
 0	0
 include/diff_tables.inc [master:json_data, slave:json_data]
-Warnings:
-Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
-Warnings:
-Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 [Connection Master]
 # Update values such that they can fill up the "free" space
 UPDATE json_data SET jd= JSON_SET(jd, '$.key', '["h","e","l","l","o"]');
@@ -1829,10 +1793,6 @@ JSON_STORAGE_FREE(gcol3)	JSON_STORAGE_FREE(gcol4)
 0	0
 0	0
 include/diff_tables.inc [master:json_data, slave:json_data]
-Warnings:
-Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
-Warnings:
-Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 [Connection Master]
 # Clean up
 DROP TABLE json_data;
@@ -1876,10 +1836,6 @@ pk	id	jd	td	gcol	gcol2	gcol3	gcol4
 4	40	["array", "of", "strings", "and", "more"]	[2, 3, 5, 7]	["strings", "and", "more"]	[2, 3, 5, 7]	NULL	NULL
 5	50	[{"key": [{"key": "value"}, {"key": "value2"}]}, {"key": [{"key": "value3"}, {"key": "value4"}]}]	["N", "U", "L", "L"]	[{"key": [{"key": "value"}, {"key": "value2"}]}, {"key": [{"key": "value3"}, {"key": "value4"}]}]	["N", "U", "L", "L"]	NULL	NULL
 include/diff_tables.inc [master:json_data, slave:json_data]
-Warnings:
-Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
-Warnings:
-Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 [Connection Master]
 # Update values in the table
 UPDATE json_data SET jd = JSON_SET(jd, '$[1]', "replaced") WHERE
@@ -1933,10 +1889,6 @@ pk	id	jd	td	gcol
 4	40	[null, null, "null", 0, 1]	def	NULL
 5	50	{"a": null}	leppard	null
 include/diff_tables.inc [master:json_data, slave:json_data]
-Warnings:
-Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
-Warnings:
-Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 [Connection Master]
 # Create tables using the JSON_MERGE_PATCH function
 CREATE TABLE json_data2(field1 JSON);
@@ -1983,10 +1935,6 @@ UPDATE json_data SET jd = JSON_SET(jd, '$[1]', JSON_MERGE_PATCH(JSON_ARRAY(pk),J
 include/sync_slave_sql_with_master.inc
 [Connection Slave]
 include/diff_tables.inc [master:json_data, slave:json_data]
-Warnings:
-Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
-Warnings:
-Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 # Check whether values were updated
 SELECT * FROM json_data;
 pk	id	jd	td	gcol
@@ -1998,5 +1946,61 @@ pk	id	jd	td	gcol
 [Connection Master]
 # Clean up
 DROP TABLE json_data, json_data2, json_data3, json_data4;
+include/sync_slave_sql_with_master.inc
+#
+# WL#8867: ADD JSON TABLE FUNCTIONS
+#
+[Connection Master]
+# Create table using data obtained from JSON_TABLE function
+CREATE TABLE json_data(j json);
+INSERT INTO json_data VALUES('{"a":1, "b":"trucks", "c":[1,2,3], "d":"taste", "e":"93-01-01", "f":"03:48:07"}');
+INSERT INTO json_data VALUES('{"a":2, "b":"rickshaws", "c":{"key":"value"}, "d":"smell" , "e":"12-11-12", "f":"09:09:10"}');
+INSERT INTO json_data VALUES('{"a":3, "b":"cars", "c":["a","b","c","d"], "d":"sight", "e":"01-01-01", "f":"05:18:12"}');
+INSERT INTO json_data VALUES('{"a":4, "b":"bikes", "c":{"a":[1,2]}, "d":"hearing", "e":"98-05-06", "f":"00:00:00" }');
+INSERT INTO json_data VALUES('{"a":5, "b":"mopeds", "c":["one", "two", "three"], "d":"touch", "e":"56-12-07", "f":"12:12:12"}');
+CREATE TABLE data(i INT, v VARCHAR(10), j JSON, b BLOB, d DATE, t TIME, n JSON);
+INSERT INTO data SELECT jint, jchar, jjson, jblob, jdate, jtime, njson FROM json_data,JSON_TABLE(j, '$' COLUMNS(o FOR ORDINALITY, jexst INT EXISTS PATH '$.g', jint INT PATH '$.a', jchar VARCHAR(10) PATH '$.b', jjson JSON PATH '$.c', jblob BLOB PATH '$.d', jdate DATE PATH '$.e', jtime TIME PATH '$.f', NESTED PATH '$.c' COLUMNS(njson JSON PATH '$[0]' DEFAULT '{"json":"json_val"}' ON EMPTY ))) AS alias;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+# Check whether the table was created on the slave
+SELECT * FROM data;
+i	v	j	b	d	t	n
+1	trucks	[1, 2, 3]	taste	1993-01-01	03:48:07	1
+2	rickshaws	{"key": "value"}	smell	2012-11-12	09:09:10	{"key": "value"}
+3	cars	["a", "b", "c", "d"]	sight	2001-01-01	05:18:12	"a"
+4	bikes	{"a": [1, 2]}	hearing	1998-05-06	00:00:00	{"a": [1, 2]}
+5	mopeds	["one", "two", "three"]	touch	2056-12-07	12:12:12	"one"
+include/diff_tables.inc [master:data, slave:data]
+[Connection Master]
+# Update values in the table with data obtained from JSON_TABLE
+UPDATE data SET j = (SELECT ucol FROM json_data,JSON_TABLE(j, '$' COLUMNS(ucol JSON PATH '$', ucol2 INT PATH '$.a')) AS alias WHERE ucol2 = 2) WHERE i = 2;
+UPDATE data SET v = (SELECT ucol FROM JSON_TABLE('{"key":["update"]}', '$' COLUMNS(ucol VARCHAR(10) PATH '$.key[0]')) AS alias) WHERE i = 4;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+# Check whether the values were updated
+SELECT j,v FROM data;
+j	v
+[1, 2, 3]	trucks
+{"a": 2, "b": "rickshaws", "c": {"key": "value"}, "d": "smell", "e": "12-11-12", "f": "09:09:10"}	rickshaws
+["a", "b", "c", "d"]	cars
+{"a": [1, 2]}	update
+["one", "two", "three"]	mopeds
+include/diff_tables.inc [master:data, slave:data]
+[Connection Master]
+# Delete values from the table
+DELETE FROM data WHERE i = (SELECT dcol FROM JSON_TABLE('{"key":["delete",1,"2"]}', '$' COLUMNS(dcol INT PATH '$.key[1]')) AS alias);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+# Check whether the row was deleted
+SELECT * FROM data;
+i	v	j	b	d	t	n
+2	rickshaws	{"a": 2, "b": "rickshaws", "c": {"key": "value"}, "d": "smell", "e": "12-11-12", "f": "09:09:10"}	smell	2012-11-12	09:09:10	{"key": "value"}
+3	cars	["a", "b", "c", "d"]	sight	2001-01-01	05:18:12	"a"
+4	update	{"a": [1, 2]}	hearing	1998-05-06	00:00:00	{"a": [1, 2]}
+5	mopeds	["one", "two", "three"]	touch	2056-12-07	12:12:12	"one"
+include/diff_tables.inc [master:data, slave:data]
+[Connection Master]
+# cleanup
+DROP TABLE data,json_data;
 include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

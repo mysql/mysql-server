@@ -31,17 +31,17 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
-#include "client_priv.h"
+#include "client/client_priv.h"
 #include "my_aes.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"
-#include "my_default_priv.h"
 #include "my_dir.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_rnd.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysys_ssl/my_default_priv.h"
 #include "print_version.h"
 #include "welcome_copyright_notice.h"
 

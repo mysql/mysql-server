@@ -19,7 +19,7 @@
 #include <stddef.h>
 
 #include "my_inttypes.h"
-#include "sql_service_context_base.h"
+#include "plugin/group_replication/include/sql_service/sql_service_context_base.h"
 
 class Sql_service_context : public Sql_service_context_base
 {

@@ -155,7 +155,7 @@ SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
 SHOW SESSION STATUS LIKE 'Sort%';
 SHOW STATUS LIKE 'Handler_read_%';
 --replace_column 1 x 2 x 3 x 5 x 6 x 7 x 8 x 9 x 10 x 11 x
-EXPLAIN EXTENDED SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
+EXPLAIN SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
 
 FLUSH STATUS;
 DELETE FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
@@ -163,7 +163,7 @@ SHOW SESSION STATUS LIKE 'Sort%';
 SHOW STATUS LIKE 'Handler_read_%';
 SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
 --replace_column 1 x 2 x 3 x 5 x 6 x 7 x 8 x 9 x 10 x 11 x
-EXPLAIN EXTENDED SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
+EXPLAIN SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
 DROP TABLE t2;
 
 --echo #
@@ -382,7 +382,7 @@ SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
 SHOW SESSION STATUS LIKE 'Sort%';
 SHOW STATUS LIKE 'Handler_read_%';
 --replace_column 1 x 2 x 3 x 5 x 6 x 7 x 8 x 9 x 10 x 11 x
-EXPLAIN EXTENDED SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
+EXPLAIN SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
 
 FLUSH STATUS;
 UPDATE t2 SET i = 123 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
@@ -390,7 +390,7 @@ SHOW SESSION STATUS LIKE 'Sort%';
 SHOW STATUS LIKE 'Handler_read_%';
 SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
 --replace_column 1 x 2 x 3 x 5 x 6 x 7 x 8 x 9 x 10 x 11 x
-EXPLAIN EXTENDED SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
+EXPLAIN SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
 
 DROP TABLE t2;
 

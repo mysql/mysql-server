@@ -13,19 +13,19 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/synode_no.h"
+
 #include <assert.h>
 #include <rpc/rpc.h>
 #include <stdlib.h>
 
-#include "simset.h"
-#include "task.h"
-#include "task_debug.h"
-#include "xcom_common.h"
-#include "xcom_profile.h"
-#include "xcom_vp.h"
-#include "xdr_utils.h"
-
-#include "synode_no.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/simset.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_debug.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_common.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_profile.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xdr_utils.h"
+#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
 
 int synode_eq(synode_no x, synode_no y) {
   return x.group_id == y.group_id && x.msgno == y.msgno && x.node == y.node;

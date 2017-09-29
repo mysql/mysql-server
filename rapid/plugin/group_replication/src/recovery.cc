@@ -18,15 +18,15 @@
 #include <signal.h>
 #include <time.h>
 
-#include "member_info.h"
 #include "my_dbug.h"
 #include "my_systime.h"
-#include "plugin.h"
-#include "plugin_log.h"
-#include "recovery.h"
-#include "recovery_channel_state_observer.h"
-#include "recovery_message.h"
-#include "services/notification/notification.h"
+#include "plugin/group_replication/include/member_info.h"
+#include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/plugin_log.h"
+#include "plugin/group_replication/include/recovery.h"
+#include "plugin/group_replication/include/recovery_channel_state_observer.h"
+#include "plugin/group_replication/include/recovery_message.h"
+#include "plugin/group_replication/include/services/notification/notification.h"
 
 using std::list;
 using std::string;
@@ -198,6 +198,27 @@ void Recovery_module::leave_group_on_recovery_failure()
   notify_and_reset_ctx(ctx);
 
   Gcs_operations::enum_leave_state state= gcs_module->leave();
+
+  char **error_message= NULL;
+  int error= channel_stop_all(CHANNEL_APPLIER_THREAD|CHANNEL_RECEIVER_THREAD,
+                              stop_wait_timeout, error_message);
+  if (error)
+  {
+    if (error_message != NULL && *error_message != NULL)
+    {
+      log_message(MY_ERROR_LEVEL,
+                  "Error stopping all replication channels while server was"
+                  " leaving the group. %s", *error_message);
+      my_free(error_message);
+    }
+    else
+    {
+      log_message(MY_ERROR_LEVEL,
+                  "Error stopping all replication channels while server was"
+                  " leaving the group. Got error: %d. Please check the error"
+                  " log for more details.", error);
+    }
+  }
 
   std::stringstream ss;
   plugin_log_level log_severity= MY_WARNING_LEVEL;
@@ -507,17 +528,31 @@ int Recovery_module::wait_for_applier_module_recovery()
 {
   DBUG_ENTER("Recovery_module::wait_for_applier_module_recovery");
 
+  size_t queue_size= 0, queue_initial_size= queue_size= applier_module->get_message_queue_size();
+  uint64 transactions_applied_during_recovery= 0;
+
+  /*
+    Wait for the number the transactions to be applied be greater than the
+    initial size of the queue or the queue be empty, what happens first will
+    finish the recovery.
+  */
+
   bool applier_monitoring= true;
   while (!recovery_aborted && applier_monitoring)
   {
-    size_t queue_size = applier_module->get_message_queue_size();
-    if (queue_size <= RECOVERY_TRANSACTION_THRESHOLD)
+    transactions_applied_during_recovery= applier_module
+      ->get_pipeline_stats_member_collector_transactions_applied_during_recovery();
+    queue_size = applier_module->get_message_queue_size();
+
+    if ((queue_initial_size - RECOVERY_TRANSACTION_THRESHOLD) < transactions_applied_during_recovery
+        || queue_size <= RECOVERY_TRANSACTION_THRESHOLD)
     {
-      if (recovery_completion_policy == RECOVERY_POLICY_WAIT_EXECUTED)
+      int error= 1;
+      while (recovery_completion_policy == RECOVERY_POLICY_WAIT_EXECUTED
+             && !recovery_aborted && error != 0)
       {
-        int error= applier_module->wait_for_applier_event_execution(1);
-        if (!error)
-          applier_monitoring= false;
+        error= applier_module->wait_for_applier_event_execution(1);
+
         /* purecov: begin inspected */
         if (error == -2) //error when waiting
         {
@@ -529,14 +564,11 @@ int Recovery_module::wait_for_applier_module_recovery()
         }
         /* purecov: end */
       }
-      else
-      {
-        applier_monitoring= false;
-      }
+      applier_monitoring= false;
     }
     else
     {
-      my_sleep(100 * queue_size);
+      my_sleep(100 * std::min(queue_size, static_cast<size_t>(5000)));
     }
   }
 

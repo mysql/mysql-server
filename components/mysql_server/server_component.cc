@@ -13,33 +13,34 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include <my_sys.h>                         // my_error
-#include "component_status_var_service.h"
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/my_service.h>
 #include <mysql/components/services/mysql_cond_service.h>
 #include <mysql/components/services/mysql_mutex_service.h>
 #include <mysql/components/services/mysql_rwlock_service.h>
-
 #include <stddef.h>
 #include <new>
 #include <stdexcept>                        // std::exception subclasses
 
+#include "component_status_var_service.h"
+#include "component_sys_var_service.h"
+#include "system_variable_source_imp.h"
 #include "dynamic_loader.h"
 #include "dynamic_loader_path_filter.h"
 #include "dynamic_loader_scheme_file.h"
-#include "log.h"
-#include "log_builtins_imp.h"
 #include "log_builtins_filter_imp.h"
+#include "log_builtins_imp.h"
 #include "my_inttypes.h"
+#include "my_sys.h"                         // my_error
+#include "mysql_backup_lock.h"
+#include "mysql_string_service.h"
 #include "mysqld_error.h"
 #include "persistent_dynamic_loader.h"
-#include "mysql_string_service.h"
 #include "registry.h"
 #include "server_component.h"
-#include "auth/dynamic_privileges_impl.h"
-#include "udf_registration_imp.h"
-#include "component_sys_var_service.h"
+#include "sql/auth/dynamic_privileges_impl.h"
+#include "sql/log.h"
+#include "sql/udf_registration_imp.h"
 
 /* Implementation located in the mysql_server component. */
 extern SERVICE_TYPE(mysql_cond_v1) SERVICE_IMPLEMENTATION(mysql_server, mysql_cond_v1);
@@ -273,6 +274,15 @@ BEGIN_SERVICE_IMPLEMENTATION(mysql_server, status_variable_registration)
   mysql_status_variable_registration_imp::unregister_variable
 END_SERVICE_IMPLEMENTATION()
 
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, system_variable_source)
+    mysql_system_variable_source_imp::get
+END_SERVICE_IMPLEMENTATION()
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_backup_lock)
+  mysql_acquire_backup_lock,
+  mysql_release_backup_lock
+END_SERVICE_IMPLEMENTATION()
+
 BEGIN_COMPONENT_PROVIDES(mysql_server)
   PROVIDES_SERVICE(mysql_server, registry)
   PROVIDES_SERVICE(mysql_server, registry_registration)
@@ -308,6 +318,8 @@ BEGIN_COMPONENT_PROVIDES(mysql_server)
   PROVIDES_SERVICE(mysql_server, mysql_mutex_v1)
   PROVIDES_SERVICE(mysql_server, mysql_rwlock_v1)
   PROVIDES_SERVICE(mysql_server, status_variable_registration)
+  PROVIDES_SERVICE(mysql_server, system_variable_source)
+  PROVIDES_SERVICE(mysql_server, mysql_backup_lock)
 END_COMPONENT_PROVIDES()
 
 static BEGIN_COMPONENT_REQUIRES(mysql_server)

@@ -11,7 +11,7 @@ set ndb_autoincrement_prefetch_sz = 256;
 select count(*) from t1;
 count(*)
 10000
-set information_schema_stats=LATEST;
+SET SESSION information_schema_stats_expiry=0;
 delete from t1 where mod(pk, 100) < 75 order by pk limit 1000;
 delete from t1 where mod(pk, 100) < 75 order by pk limit 1000;
 delete from t1 where mod(pk, 100) < 75 order by pk limit 1000;
@@ -33,3 +33,4 @@ Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
 optimize worked ok!
 drop table t1;
+SET SESSION information_schema_stats_expiry=default;

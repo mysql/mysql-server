@@ -18,10 +18,10 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "fake_table.h"
-#include "mock_field_datetime.h"
-#include "sql_executor.h"
-#include "test_utils.h"
+#include "sql/sql_executor.h"
+#include "unittest/gunit/fake_table.h"
+#include "unittest/gunit/mock_field_datetime.h"
+#include "unittest/gunit/test_utils.h"
 
 /*
   HAVE_UBSAN: undefined behaviour in gmock.

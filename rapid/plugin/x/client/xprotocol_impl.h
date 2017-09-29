@@ -29,14 +29,14 @@
 #include <utility>
 #include <vector>
 
-#include "mysqlxclient/xargument.h"
-#include "mysqlxclient/xmessage.h"
-#include "mysqlxclient/xprotocol.h"
-#include "xconnection_impl.h"
-#include "xcontext.h"
-#include "xpriority_list.h"
-#include "xprotocol_factory.h"
-#include "xquery_instances.h"
+#include "plugin/x/client/mysqlxclient/xargument.h"
+#include "plugin/x/client/mysqlxclient/xmessage.h"
+#include "plugin/x/client/mysqlxclient/xprotocol.h"
+#include "plugin/x/client/xconnection_impl.h"
+#include "plugin/x/client/xcontext.h"
+#include "plugin/x/client/xpriority_list.h"
+#include "plugin/x/client/xprotocol_factory.h"
+#include "plugin/x/client/xquery_instances.h"
 
 
 namespace xcl {

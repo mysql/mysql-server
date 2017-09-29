@@ -409,6 +409,11 @@
       If a <b>.reject</b> file is created because a test fails, @ref
       PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl" removes the file
       later the next time the test succeeds.
+
+      When <b>`--check-testcases`</b> option is enabled, a test case
+      not having its corresponding <b>.result</b> file is marked as
+      failed by MTR. See @ref PAGE_MYSQL_TEST_RUN_PL
+      "mysql-test-run.pl".
     </li>
 
     <li>
@@ -3755,6 +3760,12 @@
       Check test cases for side effects. This is done by checking the
       system state before and after each test case. If there is any
       difference, the test case is marked as failed because of it.
+
+      Similarly, when <b>`--check-testcases`</b> option is enabled,
+      MTR does additional check for missing <b>.result</b> file and a
+      test case not having its corresponding <b>.result</b> file is
+      marked as failed.
+
       This check is enabled by default. To disable it, use the
       <b>`--nocheck-testcases`</b> option.
     </li>

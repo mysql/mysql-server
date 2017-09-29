@@ -16,10 +16,10 @@
 #ifndef DD_TABLES__TABLE_PARTITIONS_INCLUDED
 #define DD_TABLES__TABLE_PARTITIONS_INCLUDED
 
-#include "dd/impl/types/object_table_impl.h" // dd::Object_table_impl
-#include "dd/object_id.h"                    // dd::Object_id
-#include "dd/string_type.h"
 #include "my_inttypes.h"
+#include "sql/dd/impl/types/object_table_impl.h" // dd::Object_table_impl
+#include "sql/dd/object_id.h"                // dd::Object_id
+#include "sql/dd/string_type.h"
 
 class THD;
 
@@ -50,6 +50,7 @@ public:
     FIELD_PARENT_PARTITION_ID,
     FIELD_NUMBER,
     FIELD_NAME,
+    FIELD_DESCRIPTION_UTF8,
     FIELD_ENGINE,
     FIELD_COMMENT,
     FIELD_OPTIONS,

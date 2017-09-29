@@ -13,12 +13,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <cassert>
-#include <string>
 #include <algorithm>
+#include <cassert>
 #include <sstream>
+#include <string>
 
-#include "mysql/gcs/gcs_logging.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_logging.h"
 
 #define SIZE_DEBUG_OPTIONS sizeof(gcs_xcom_debug_strings) / sizeof(*gcs_xcom_debug_strings)
 

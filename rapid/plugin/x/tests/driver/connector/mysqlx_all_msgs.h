@@ -25,7 +25,7 @@
 #include <string>
 #include <utility>
 
-#include "mysqlxclient/xprotocol.h"
+#include "plugin/x/client/mysqlxclient/xprotocol.h"
 
 
 using  Message_by_full_name = std::map<std::string, std::string>;

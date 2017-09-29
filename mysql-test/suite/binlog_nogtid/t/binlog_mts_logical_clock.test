@@ -61,7 +61,7 @@ START TRANSACTION;
   INSERT INTO t1 SET a=1;
   INSERT INTO tm SET a=2;
 COMMIT;
---let $binlog_file= master-bin.000001
+--let $binlog_file= binlog.000001
 --let $logical_timestamps= 0 1;1 2
 --source include/assert_logical_timestamps.inc
 

@@ -73,8 +73,13 @@ struct PSI_stage_info_v1
   PSI_stage_key m_key;
   /** The name of the stage instrument to register. */
   const char *m_name;
-  /** The flags of the stage instrument to register. */
-  int m_flags;
+  /**
+    The flags of the stage instrument to register.
+    @sa PSI_FLAG_PROGRESS
+  */
+  uint m_flags;
+  /** Documentation. */
+  const char *m_documentation;
 };
 typedef struct PSI_stage_info_v1 PSI_stage_info_v1;
 

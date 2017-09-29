@@ -11,7 +11,7 @@
 # Run the master.sh script before starting this process
 #!run-master-sh
 
-log-bin=                 master-bin
+log-bin=                 binlog
 
 loose-innodb_write_io_threads=    2
 loose-innodb_read_io_threads=     2

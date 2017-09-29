@@ -19,27 +19,27 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 --echo # check contents of persistent config file
 SET PERSIST sort_buffer_size=256000;
 SET PERSIST long_query_time= 8.3452;
-select * from performance_schema.persisted_variables;
+select * from performance_schema.persisted_variables ORDER BY 1;
 RESET PERSIST;
 --echo # config file should be empty
-select * from performance_schema.persisted_variables;
+select * from performance_schema.persisted_variables ORDER BY 1;
 
 --echo # add few more to config file and reset
 SET PERSIST sort_buffer_size=156000,max_connections= 52;
 SET PERSIST max_heap_table_size=887808, slave_net_timeout=160;
 SET PERSIST long_query_time= 7.8102;
-select * from performance_schema.persisted_variables;
+select * from performance_schema.persisted_variables ORDER BY 1;
 RESET PERSIST max_heap_table_size;
 RESET PERSIST sort_buffer_size;
-select * from performance_schema.persisted_variables;
+select * from performance_schema.persisted_variables ORDER BY 1;
 
 RESET PERSIST IF EXISTS slave_net_timeout;
-select * from performance_schema.persisted_variables;
+select * from performance_schema.persisted_variables ORDER BY 1;
 
 SET PERSIST join_buffer_size= 262144;
-select * from performance_schema.persisted_variables;
+select * from performance_schema.persisted_variables ORDER BY 1;
 RESET PERSIST;
-select * from performance_schema.persisted_variables;
+select * from performance_schema.persisted_variables ORDER BY 1;
 
 --echo # check for errors and warnings
 # should report warning

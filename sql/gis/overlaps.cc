@@ -17,21 +17,19 @@
 ///
 /// This file implements the overlaps functor and function.
 
-#include "overlaps_functor.h"
-#include "relops.h"
-
+#include <boost/geometry.hpp>
 #include <memory>  // std::unique_ptr
 
-#include <boost/geometry.hpp>
-
-#include "box.h"
-#include "box_traits.h"
-#include "dd/types/spatial_reference_system.h"  // dd::Spatial_reference_system
-#include "gc_utils.h"
-#include "geometries.h"
-#include "geometries_traits.h"
-#include "mbr_utils.h"
-#include "sql_exception_handler.h"  // handle_gis_exception
+#include "sql/dd/types/spatial_reference_system.h" // dd::Spatial_reference_system
+#include "sql/gis/box.h"
+#include "sql/gis/box_traits.h"
+#include "sql/gis/gc_utils.h"
+#include "sql/gis/geometries.h"
+#include "sql/gis/geometries_traits.h"
+#include "sql/gis/mbr_utils.h"
+#include "sql/gis/overlaps_functor.h"
+#include "sql/gis/relops.h"
+#include "sql/sql_exception_handler.h" // handle_gis_exception
 
 namespace bg = boost::geometry;
 
@@ -773,7 +771,7 @@ bool Overlaps::eval(const Cartesian_box *b1, const Cartesian_box *b2) const {
     Cartesian_linestring b2_ls;
     b2_ls.push_back(b2_ls_start);
     b2_ls.push_back(b2_ls_end);
-    return bg::overlaps(b1_ls, b2_ls);
+    return bg::overlaps(b1_ls, b2_ls) || bg::crosses(b1_ls, b2_ls);
   }
 
   return bg::overlaps(*b1, *b2);
@@ -798,7 +796,7 @@ bool Overlaps::eval(const Geographic_box *b1, const Geographic_box *b2) const {
     Geographic_linestring b2_ls;
     b2_ls.push_back(b2_ls_start);
     b2_ls.push_back(b2_ls_end);
-    return bg::overlaps(b1_ls, b2_ls);
+    return bg::overlaps(b1_ls, b2_ls) || bg::crosses(b1_ls, b2_ls);
   }
 
   return bg::overlaps(*b1, *b2);

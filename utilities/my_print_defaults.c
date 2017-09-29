@@ -23,19 +23,19 @@
 **  Written by Monty
 */
 
-#include <m_string.h>
-#include <my_getopt.h>
-#include <my_sys.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
-#include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
+#include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"
+#include "my_getopt.h"
+#include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
 #include "print_version.h"
+#include "welcome_copyright_notice.h" /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 
 const char *config_file="my";			/* Default config file */

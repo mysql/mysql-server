@@ -34,6 +34,7 @@ Created 10/25/1995 Heikki Tuuri
 #include "buf0flu.h"
 #include "dict0boot.h"
 #include "dict0dict.h"
+#include "dict0dd.h"
 #include "fsp0file.h"
 #include "fsp0fsp.h"
 #include "fsp0space.h"
@@ -1930,7 +1931,11 @@ fil_node_close_to_free(
 			UT_LIST_REMOVE(fil_system->unflushed_spaces, space);
 		}
 
-		fil_node_close_file(node, false);
+		/* TODO: set second parameter to true, so to release
+		fil_system mutex before logging tablespace name and id.
+		To go around Bug#26271853 - POTENTIAL DEADLOCK BETWEEN
+		FIL_SYSTEM MUTEX AND LOG MUTEX */
+		fil_node_close_file(node, true);
 	}
 }
 
@@ -2168,7 +2173,7 @@ fil_assign_new_space_id(
 
 	id++;
 
-	space_id_t	reserved_space_id = dict_sys_t::reserved_space_id;
+	space_id_t	reserved_space_id = dict_sys_t::s_reserved_space_id;
 	if (id > (reserved_space_id / 2) && (id % 1000000UL == 0)) {
 		ib::warn() << "You are running out of new single-table"
 			" tablespace id's. Current counter is " << id
@@ -2998,7 +3003,6 @@ fil_rename_validate(fil_space_t* space, const char* name, Datafile& file)
 @return	whether the operation was successfully applied
 (the name did not exist, or new_name did not exist and
 name was successfully renamed to new_name)  */
-static
 bool
 fil_op_replay_rename(
 	const page_id_t&	page_id,
@@ -3082,6 +3086,40 @@ fil_op_replay_rename(
 
 	ut_free(new_table);
 	return(true);
+}
+
+/** Replay a file rename operation for ddl replay.
+@param[in]	page_id		Space ID and first page number in the file
+@param[in]	name		old file name
+@param[in]	new_name	new file name
+@return	whether the operation was successfully applied
+(the name did not exist, or new_name did not exist and
+name was successfully renamed to new_name)  */
+bool
+fil_op_replay_rename_for_ddl(
+	const page_id_t&	page_id,
+	const char*		name,
+	const char*		new_name)
+{
+	space_id_t	space_id = page_id.space();
+
+	fil_space_t*	space = fil_space_get(space_id);
+
+	if (space == nullptr) {
+		/* If can't find the space, try to load it by
+		the information in tablespace.open.*. */
+		fil_system->m_open.open_for_recovery(space_id);
+		if (!fil_space_get(space_id)) {
+			ib::info()
+				<< "Can not find space with space ID "
+				<< space_id << " when replaying ddl log "
+				<< "rename from '"  << name
+				<< "' to '" << new_name << "'";
+			return(true);
+		}
+	}
+
+	return(fil_op_replay_rename(page_id, name, new_name));
 }
 
 /** File operations for tablespace */
@@ -3587,7 +3625,7 @@ fil_truncate_tablespace(
 		os_offset_t	size = size_in_pages * UNIV_PAGE_SIZE;
 
 		success = os_file_set_size(
-			node->name, node->handle, size,
+			node->name, node->handle, 0, size,
 			srv_read_only_mode, true);
 
 		if (success) {
@@ -3873,8 +3911,10 @@ fil_rename_tablespace(
 	fil_space_t*	space;
 	fil_node_t*	node;
 	ulint		count		= 0;
-	ut_a(id != 0);
+	bool		write_ddl_log	= true;
+	ut_d(static uint32_t	crash_injection_rename_tablespace_counter = 1;);
 
+	ut_a(id != 0);
 	ut_ad(strchr(new_name, '/') != NULL);
 
 retry:
@@ -3953,9 +3993,42 @@ retry:
 		}
 	}
 
-	/* We temporarily close the .ibd file because we do not trust that
-	operating systems can rename an open file. For the closing we have to
-	wait until there are no pending i/o's or flushes on the file. */
+	/* Don't write DDL log during recovery when log_ddl is not
+	initialized */
+	if (write_ddl_log && log_ddl != nullptr) {
+		/* Write ddl log when space->stop_ios is true can
+		cause deadlock:
+		a. buffer flush thread waits for rename thread to set
+		   stop_ios to false;
+		b. rename thread waits for buffer flush thread to flush
+		   a page and release page lock. The page is ready for
+		   flush in double write buffer. */
+		ut_ad(!space->stop_ios);
+
+		ut_a(UT_LIST_GET_LEN(space->chain) == 1);
+		node = UT_LIST_GET_FIRST(space->chain);
+
+		char*	new_file_name = new_path_in == NULL
+			? fil_make_filepath(NULL, new_name, IBD, false)
+			: mem_strdup(new_path_in);
+		char*	old_file_name = node->name;
+
+		ut_ad(strchr(old_file_name, OS_PATH_SEPARATOR) != NULL);
+		ut_ad(strchr(new_file_name, OS_PATH_SEPARATOR) != NULL);
+
+		mutex_exit(&fil_system->mutex);
+
+		/* Rename ddl log is for rollback, so we exchange old file
+		name with new file name. */
+		log_ddl->write_rename_space_log(
+			id, new_file_name, old_file_name);
+
+		ut_free(new_file_name);
+
+		write_ddl_log = false;
+
+		goto retry;
+	}
 
 	space->stop_ios = true;
 
@@ -4034,11 +4107,17 @@ retry:
 	DBUG_EXECUTE_IF("fil_rename_tablespace_failure_2",
 			goto skip_rename; );
 
+	DBUG_INJECT_CRASH("ddl_crash_before_rename_tablespace",
+			  crash_injection_rename_tablespace_counter++);
+
 	success = os_file_rename(
 		innodb_data_file_key, old_file_name, new_file_name);
 
 	DBUG_EXECUTE_IF("fil_rename_tablespace_failure_2",
 			skip_rename: success = false; );
+
+	DBUG_INJECT_CRASH("ddl_crash_after_rename_tablespace",
+			  crash_injection_rename_tablespace_counter++);
 
 	ut_ad(node->name == old_file_name);
 
@@ -4079,6 +4158,58 @@ retry:
 
 	return(success);
 }
+
+/* Rename a tablespace by its name only
+@param[in]	old_name	old tablespace name
+@param[in]	new_name	new tablespace name
+@return DB_SUCCESS on success */
+/* purecov: begin inspected */
+dberr_t
+fil_rename_tablespace_by_name(
+	const char*     old_name,
+	const char*	new_name)
+{
+	mutex_enter(&fil_system->mutex);
+	fil_space_t*	space = fil_space_get_by_name(old_name);
+
+	if (!space) {
+		mutex_exit(&fil_system->mutex);
+		ib::error()
+			<< "Cannot find space for " << old_name
+			<< " in tablespace memory cache";
+
+		return(DB_ERROR);
+	}
+
+	auto    new_space = fil_space_get_by_name(new_name);
+
+	if (new_space != nullptr) {
+		mutex_exit(&fil_system->mutex);
+		if (new_space->id != space->id) {
+			ib::error()
+				<< new_name
+				<< " is already in the tablespace"
+				<< " memory cache";
+
+			return(DB_ERROR);
+		}
+		return(DB_SUCCESS);
+	}
+
+	char*	new_space_name = mem_strdup(new_name);
+	char*	old_space_name = space->name;
+
+	fil_system->names.erase(space->name);
+	space->name = new_space_name;
+	auto	it = fil_system->names.insert(
+		Names::value_type(space->name, space));
+	mutex_exit(&fil_system->mutex);
+	ut_a(it.second);
+	ut_free(old_space_name);
+
+	return(DB_SUCCESS);
+}
+/* purecov: end */
 
 /** Create a tablespace file.
 @param[in]	space_id	Tablespace ID
@@ -4136,8 +4267,7 @@ fil_ibd_create(
 		if (error == OS_FILE_ALREADY_EXISTS) {
 			ib::error() << "The file '" << path << "'"
 				" already exists though the"
-				" corresponding table did not exist"
-				" in the InnoDB data dictionary."
+				" corresponding table did not exist."
 				" Have you moved InnoDB .ibd files"
 				" around without using the SQL commands"
 				" DISCARD TABLESPACE and IMPORT TABLESPACE,"
@@ -4190,14 +4320,14 @@ fil_ibd_create(
 		atomic_write = false;
 
 		success = os_file_set_size(
-			path, file, size * UNIV_PAGE_SIZE,
+			path, file, 0, size * UNIV_PAGE_SIZE,
 			srv_read_only_mode, true);
 	}
 #else
 	atomic_write = false;
 
 	success = os_file_set_size(
-		path, file, size * UNIV_PAGE_SIZE,
+		path, file, 0, size * UNIV_PAGE_SIZE,
 		srv_read_only_mode, true);
 
 #endif /* !NO_FALLOCATE && UNIV_LINUX */
@@ -4246,6 +4376,11 @@ fil_ibd_create(
 	flags = fsp_flags_set_page_size(flags, univ_page_size);
 	fsp_header_init_fields(page, space_id, flags);
 	mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, space_id);
+
+	mach_write_to_4(page + FIL_PAGE_SRV_VERSION,
+			DD_SPACE_CURRENT_SRV_VERSION);
+	mach_write_to_4(page + FIL_PAGE_SPACE_VERSION,
+			 DD_SPACE_CURRENT_SPACE_VERSION);
 
 	const page_size_t	page_size(flags);
 	IORequest		request(IORequest::WRITE);
@@ -4384,7 +4519,11 @@ The fil_node_t::handle will not be left open.
 @param[in]	flags		tablespace flags
 @param[in]	space_name	tablespace name of the datafile
 If file-per-table, it is the table name in the databasename/tablename format
+@param[in]	table_name	table name in case if need to construct file path
 @param[in]	path_in		expected filepath, usually read from dictionary
+@param[in]	strict		whether to report error when open ibd failed
+@param[in]	old_space	whether it is a 5.7 tablespace opening
+				by upgrade
 @return DB_SUCCESS or error code */
 dberr_t
 fil_ibd_open(
@@ -4393,7 +4532,10 @@ fil_ibd_open(
 	space_id_t	id,
 	ulint		flags,
 	const char*	space_name,
-	const char*	path_in)
+	const char*	table_name,
+	const char*	path_in,
+	bool		strict,
+	bool		old_space)
 {
 	Datafile	df;
 	bool		is_encrypted = FSP_FLAGS_GET_ENCRYPTION(flags);
@@ -4406,14 +4548,15 @@ fil_ibd_open(
 	}
 
 	df.init(space_name, flags);
-	df.make_filepath(NULL, space_name, IBD);
 
 	if (path_in) {
 		df.set_filepath(path_in);
+	} else {
+		df.make_filepath(NULL, table_name, IBD);
 	}
 
 	/* Attempt to open the tablespace at the dictionary filepath. */
-	if (df.open_read_only(true) == DB_SUCCESS) {
+	if (df.open_read_only(strict) == DB_SUCCESS) {
 		ut_ad(df.is_open());
 	} else {
 		ut_ad(!df.is_open());
@@ -4461,6 +4604,14 @@ fil_ibd_open(
 
 		return(DB_ERROR);
 	}
+
+#ifdef UNIV_DEBUG
+	/* TODO: WL#11063 will deal with import and upgrade tablespace */
+	if (validate && !old_space && !for_import) {
+		ut_ad(df.server_version() == DD_SPACE_CURRENT_SRV_VERSION);
+		ut_ad(df.space_version() == DD_SPACE_CURRENT_SPACE_VERSION);
+	}
+#endif /* UNIV_DEBUG */
 
 	/* For encryption tablespace, initialize encryption information.*/
 	if (is_encrypted && !for_import) {
@@ -4791,9 +4942,12 @@ fil_ibd_open_for_recovery(
 		return(FIL_LOAD_OK);
 	}
 #endif /* UNIV_HOTBACKUP */
+	std::string	tablespace_name;
+	dd_filename_to_spacename(file.name(), &tablespace_name);
 
 	space = fil_space_create(
-		file.name(), space_id, file.flags(), FIL_TYPE_TABLESPACE);
+		tablespace_name.c_str(), space_id,
+		file.flags(), FIL_TYPE_TABLESPACE);
 
 	if (space == NULL) {
 		return(FIL_LOAD_INVALID);
@@ -4879,6 +5033,17 @@ fil_space_for_table_exists_in_mem(
 
 	space = fil_space_get_by_id(id);
 
+	/* name is NULL when replay DELETE ddl log. */
+	if (name == NULL) {
+		mutex_exit(&fil_system->mutex);
+
+		if (space != NULL) {
+			return(true);
+		} else {
+			return(false);
+		}
+	}
+
 	if (space != NULL
 	    && FSP_FLAGS_GET_SHARED(space->flags)
 	    && adjust_space
@@ -4937,40 +5102,7 @@ fil_space_for_table_exists_in_mem(
 	    && row_is_mysql_tmp_table_name(space->name)
 	    && !row_is_mysql_tmp_table_name(name)) {
 
-		mutex_exit(&fil_system->mutex);
-
-		DBUG_EXECUTE_IF("ib_crash_before_adjust_fil_space",
-				DBUG_SUICIDE(););
-
-		if (fnamespace) {
-			const char*	tmp_name;
-
-			tmp_name = dict_mem_create_temporary_tablename(
-				heap, name, table_id);
-
-			clone_mark_abort(true);
-			fil_rename_tablespace(
-				fnamespace->id,
-				UT_LIST_GET_FIRST(fnamespace->chain)->name,
-				tmp_name, NULL);
-			clone_mark_active();
-		}
-
-		DBUG_EXECUTE_IF("ib_crash_after_adjust_one_fil_space",
-				DBUG_SUICIDE(););
-
-		clone_mark_abort(true);
-		fil_rename_tablespace(
-			id, UT_LIST_GET_FIRST(space->chain)->name,
-			name, NULL);
-		clone_mark_active();
-
-		DBUG_EXECUTE_IF("ib_crash_after_adjust_fil_space",
-				DBUG_SUICIDE(););
-
-		mutex_enter(&fil_system->mutex);
-		fnamespace = fil_space_get_by_name(name);
-		ut_ad(space == fnamespace);
+		/* Atomic DDL's "ddl_log" will adjust the tablespace name */
 		mutex_exit(&fil_system->mutex);
 
 		return(true);
@@ -6634,7 +6766,7 @@ fil_tablespace_iterate(
 			return(DB_CORRUPTION););
 
 	/* Make sure the data_dir_path is set. */
-	dict_get_and_save_data_dir_path(table, false);
+	dd_get_and_save_data_dir_path<dd::Table>(table, NULL, false);
 
 	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
 		ut_a(table->data_dir_path);
@@ -6812,7 +6944,23 @@ fil_delete_file(
 
 	ib::info() << "Deleting " << ibd_filepath;
 
+#ifdef _WIN32
+	/* For Windows, we need to check the status of the file.
+	If there's a subdir with same name, we will skip to delete it.
+	Otherwise, it'll keep looping in os_file_delete_if_exists_func. */
+	os_file_type_t	type;
+	bool		exists;
+
+	os_file_status(ibd_filepath, &exists, &type);
+	if (type == OS_FILE_TYPE_DIR) {
+		ib::info() << "There is a directory with same name, skip deleting "
+			<< ibd_filepath;
+	} else {
+			os_file_delete_if_exists(innodb_data_file_key, ibd_filepath, NULL);
+	}
+#else
 	os_file_delete_if_exists(innodb_data_file_key, ibd_filepath, NULL);
+#endif /* _WIN32 */
 
 	char*	cfg_filepath = fil_make_filepath(
 		ibd_filepath, NULL, CFG, false);
@@ -6934,18 +7082,16 @@ fil_node_next(
 	return(node);
 }
 
-/** Generate redo log for swapping two .ibd files
+/** Check if swapping two .ibd files can be done without failure 
 @param[in]	old_table	old table
 @param[in]	new_table	new table
 @param[in]	tmp_name	temporary table name
-@param[in,out]	mtr		mini-transaction
 @return innodb error code */
 dberr_t
-fil_mtr_rename_log(
+fil_rename_precheck(
 	const dict_table_t*	old_table,
 	const dict_table_t*	new_table,
-	const char*		tmp_name,
-	mtr_t*			mtr)
+	const char*		tmp_name)
 {
 	dberr_t	err;
 
@@ -6989,9 +7135,6 @@ fil_mtr_rename_log(
 			return(err);
 		}
 
-		fil_name_write_rename(
-			old_table->space, 0, old_path, tmp_path, mtr);
-
 		ut_free(tmp_path);
 	}
 
@@ -7019,9 +7162,6 @@ fil_mtr_rename_log(
 				return(err);
 			}
 		}
-
-		fil_name_write_rename(
-			new_table->space, 0, new_path, old_path, mtr);
 
 		ut_free(new_path);
 	}
@@ -8216,11 +8356,6 @@ Fil_Open::from_file(bool recovery)
 
 			++n_errors;
 
-			ib::warn()
-				<< "File '" << abspath << "' size is "
-				<< n_bytes << " bytes. Must be at least "
-				<< sizeof(uint32_t) * 3 << " bytes";
-
 			continue;
 		}
 
@@ -8420,7 +8555,7 @@ Fil_Open::from_file(bool recovery)
 	for (const auto& space : files[i].m_spaces) {
 
 		if (space.first == TRX_SYS_SPACE
-		    || space.first == dict_sys_t::temp_space_id){
+		    || space.first == dict_sys_t::s_temp_space_id){
 
 			continue;
 		}
@@ -8500,7 +8635,7 @@ fil_tablespace_open_for_recovery(
 	fil_space_t*	space;
 	fil_load_status	status;
 
-	ut_ad(recv_recovery_is_on());
+	ut_ad(recv_recovery_is_on() || Log_DDL::is_in_recovery());
 
 	status = fil_ibd_open_for_recovery(space_id, path.c_str(), space);
 
@@ -8782,7 +8917,7 @@ fil_tablespace_name_recover(
 			corrupt = true;
 		}
 
-	} else if (strcmp(name, dict_sys_t::dd_space_file_name) == 0) {
+	} else if (strcmp(name, dict_sys_t::s_dd_space_file_name) == 0) {
 		/* new dd tablespace (mysql.ibd) */
 		if (page_id.page_no() != 0) {
 			corrupt = true;
@@ -8887,6 +9022,15 @@ fil_tablespace_name_recover(
 				page_id, from.c_str(), to.c_str())) {
 
 				recv_sys->found_corrupt_fs = true;
+
+				ib::error() << "Cannot replay the rename '"
+					<< from << "' to '" << to << "'"
+					<< " for tablespace with ID "
+					<< page_id.space() << "."
+					<< " Please try to increase"
+					<< " innodb_buffer_pool_size to"
+					<< " see if it helps the redo"
+					<< " recovery.";
 			} else {
 
 				fil_system->m_open.rename(
@@ -8963,9 +9107,7 @@ fil_check_missing_tablespaces()
 
 		if (recv_sys->deleted.find(space_id) == end
 		    && recv_sys->missing_ids.find(space_id)
-		    != recv_sys->missing_ids.end()
-		    && dict_space_is_empty(space_id)) {
-
+		    != recv_sys->missing_ids.end()) {
 			page_no_t	page_no;
 
 			page_no = page_get_page_no(page.m_page);
@@ -9270,60 +9412,6 @@ fil_scan_for_tablespaces(const std::string& directories)
 		}
 
 		ib::warn() << oss.str();
-	}
-
-	return(err);
-}
-
-/** Callback to check tablespace size with space header size and extend
-@param[in]	node	file node
-@param[in]	context	callers context, currently unused
-@return	error code */
-dberr_t
-fil_check_extend_space(
-	fil_node_t*	node,
-	void* 		context MY_ATTRIBUTE((unused)))
-{
-	dberr_t	err = DB_SUCCESS;
-	bool	open_node = !node->is_open;
-
-	if (recv_sys == nullptr || !recv_sys->is_cloned_db) {
-
-		return(DB_SUCCESS);
-	}
-
-	if (open_node && !fil_node_open_file(node, false)) {
-
-		return(DB_CANNOT_OPEN_FILE);
-	}
-
-	mutex_exit(&fil_system->mutex);
-
-	fil_space_t*	space = node->space;
-
-	if (space->size < space->size_in_header) {
-
-		ib::info() << "Extending space: " << space->name
-			   << " from size " << space->size
-			   << " pages to " << space->size_in_header
-			   << " pages as stored in space header.";
-
-		if(!fil_space_extend(space, space->size_in_header)) {
-
-			ib::error() << "Failed to extend tablespace."
-				    << " Check for free space in disk"
-				    << " and try again.";
-
-			err = DB_OUT_OF_FILE_SPACE;
-		}
-	}
-
-	mutex_enter(&fil_system->mutex);
-
-	/* Close node if it was opened by current function */
-	if (open_node) {
-
-		fil_node_close_file(node, false);
 	}
 
 	return(err);

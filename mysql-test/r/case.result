@@ -26,11 +26,10 @@ false
 select CASE 1 when 1 then "one" WHEN 2 then "two" ELSE "more" END;
 CASE 1 when 1 then "one" WHEN 2 then "two" ELSE "more" END
 one
-explain extended select CASE 1 when 1 then "one" WHEN 2 then "two" ELSE "more" END;
+explain select CASE 1 when 1 then "one" WHEN 2 then "two" ELSE "more" END;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select (case 1 when 1 then 'one' when 2 then 'two' else 'more' end) AS `CASE 1 when 1 then "one" WHEN 2 then "two" ELSE "more" END`
 select CASE 2.0 when 1 then "one" WHEN 2.0 then "two" ELSE "more" END;
 CASE 2.0 when 1 then "one" WHEN 2.0 then "two" ELSE "more" END
@@ -69,11 +68,10 @@ fcase	count(*)
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-explain extended select case a when 1 then 2 when 2 then 3 else 0 end as fcase, count(*) from t1 group by fcase;
+explain select case a when 1 then 2 when 2 then 3 else 0 end as fcase, count(*) from t1 group by fcase;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using temporary
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select (case `test`.`t1`.`a` when 1 then 2 when 2 then 3 else 0 end) AS `fcase`,count(0) AS `count(*)` from `test`.`t1` group by `fcase`
 select case a when 1 then "one" when 2 then "two" else "nothing" end as fcase, count(*) from t1 group by fcase;
 fcase	count(*)
@@ -148,14 +146,13 @@ CREATE TABLE t1 SELECT
 COALESCE(1), COALESCE(1.0),COALESCE('a'),
 COALESCE(1,1.0), COALESCE(1,'1'),COALESCE(1.1,'1'),
 COALESCE('a' COLLATE latin1_bin,'b');
-explain extended SELECT 
+explain SELECT 
 COALESCE(1), COALESCE(1.0),COALESCE('a'),
 COALESCE(1,1.0), COALESCE(1,'1'),COALESCE(1.1,'1'),
 COALESCE('a' COLLATE latin1_bin,'b');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select coalesce(1) AS `COALESCE(1)`,coalesce(1.0) AS `COALESCE(1.0)`,coalesce('a') AS `COALESCE('a')`,coalesce(1,1.0) AS `COALESCE(1,1.0)`,coalesce(1,'1') AS `COALESCE(1,'1')`,coalesce(1.1,'1') AS `COALESCE(1.1,'1')`,coalesce(('a' collate latin1_bin),'b') AS `COALESCE('a' COLLATE latin1_bin,'b')`
 SHOW CREATE TABLE t1;
 Table	Create Table

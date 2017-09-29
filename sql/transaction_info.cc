@@ -14,17 +14,17 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "transaction_info.h"
+#include "sql/transaction_info.h"
 
 #include <string.h>
 
-#include "derror.h"             // ER_THD
-#include "mysqld.h"             // global_system_variables
 #include "mysqld_error.h"       // ER_*
-#include "psi_memory_key.h"     // key_memory_thd_transactions
-#include "sql_class.h"          // THD_STAGE_INFO
-#include "sql_error.h"          // Sql_condition
-#include "system_variables.h"   // System_variables
+#include "sql/derror.h"         // ER_THD
+#include "sql/mysqld.h"         // global_system_variables
+#include "sql/psi_memory_key.h" // key_memory_thd_transactions
+#include "sql/sql_class.h"      // THD_STAGE_INFO
+#include "sql/sql_error.h"      // Sql_condition
+#include "sql/system_variables.h" // System_variables
 
 
 typedef struct st_changed_table_list

@@ -371,15 +371,13 @@
 
 
 #define MYSQL_SERVER 1
-#include "ha_federated.h"
+#include "storage/federated/ha_federated.h"
 
 #include <mysql/plugin.h>
 #include <stdlib.h>
 #include <algorithm>
 #include <string>
 
-#include "current_thd.h"
-#include "key.h"                                // key_copy
 #include "lex_string.h"
 #include "m_string.h"
 #include "map_helpers.h"
@@ -390,9 +388,11 @@
 #include "myisam.h"                             // TT_USEFRM
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysqld.h"                             // my_localhost
-#include "sql_class.h"
-#include "sql_servers.h"         // FOREIGN_SERVER, get_server_by_name
+#include "sql/current_thd.h"
+#include "sql/key.h"                            // key_copy
+#include "sql/mysqld.h"                         // my_localhost
+#include "sql/sql_class.h"
+#include "sql/sql_servers.h"     // FOREIGN_SERVER, get_server_by_name
 #include "template_utils.h"
 
 using std::min;
@@ -438,17 +438,19 @@ static handler *federated_create_handler(handlerton *hton,
 static PSI_mutex_key fe_key_mutex_federated, fe_key_mutex_FEDERATED_SHARE_mutex;
 
 #ifdef HAVE_PSI_MUTEX_INTERFACE
+/* clang-format off */
 static PSI_mutex_info all_federated_mutexes[]=
 {
-  { &fe_key_mutex_federated, "federated", PSI_FLAG_GLOBAL, 0},
-  { &fe_key_mutex_FEDERATED_SHARE_mutex, "FEDERATED_SHARE::mutex", 0, 0}
+  { &fe_key_mutex_federated, "federated", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &fe_key_mutex_FEDERATED_SHARE_mutex, "FEDERATED_SHARE::mutex", 0, 0, PSI_DOCUMENT_ME}
 };
+/* clang-format on */
 #endif /* HAVE_PSI_MUTEX_INTERFACE */
 
 #ifdef HAVE_PSI_MEMORY_INTERFACE
 static PSI_memory_info all_federated_memory[]=
 {
-  { &fe_key_memory_federated_share, "FEDERATED_SHARE", PSI_FLAG_GLOBAL}
+  { &fe_key_memory_federated_share, "FEDERATED_SHARE", PSI_FLAG_ONLY_GLOBAL_STAT, 0, PSI_DOCUMENT_ME}
 };
 #endif /* HAVE_PSI_MEMORY_INTERFACE */
 

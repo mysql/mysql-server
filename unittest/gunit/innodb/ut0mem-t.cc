@@ -20,8 +20,8 @@
 
 #include <gtest/gtest.h>
 
-#include "univ.i"
-#include "ut0mem.h"
+#include "storage/innobase/include/univ.i"
+#include "storage/innobase/include/ut0mem.h"
 
 namespace innodb_ut0mem_unittest {
 

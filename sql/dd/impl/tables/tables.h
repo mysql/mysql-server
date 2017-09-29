@@ -18,12 +18,12 @@
 
 #include <string>
 
-#include "dd/impl/raw/raw_record.h"
-#include "dd/impl/types/entity_object_table_impl.h"
-#include "dd/object_id.h"                               // dd::Object_id
-#include "dd/string_type.h"
-#include "dd/types/abstract_table.h"
 #include "my_inttypes.h"
+#include "sql/dd/impl/raw/raw_record.h"
+#include "sql/dd/impl/types/entity_object_table_impl.h"
+#include "sql/dd/object_id.h"                           // dd::Object_id
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/abstract_table.h"
 
 namespace dd {
 
@@ -66,9 +66,11 @@ public:
     FIELD_TABLESPACE_ID,
     FIELD_PARTITION_TYPE,
     FIELD_PARTITION_EXPRESSION,
+    FIELD_PARTITION_EXPRESSION_UTF8,
     FIELD_DEFAULT_PARTITIONING,
     FIELD_SUBPARTITION_TYPE,
     FIELD_SUBPARTITION_EXPRESSION,
+    FIELD_SUBPARTITION_EXPRESSION_UTF8,
     FIELD_DEFAULT_SUBPARTITIONING,
     FIELD_CREATED,
     FIELD_LAST_ALTERED,

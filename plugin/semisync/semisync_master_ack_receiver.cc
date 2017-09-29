@@ -13,6 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "plugin/semisync/semisync_master_ack_receiver.h"
+
 #include "my_config.h"
 
 #include <errno.h>
@@ -21,9 +23,9 @@
 #include "my_dbug.h"
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_stage.h"
-#include "semisync_master.h"
-#include "semisync_master_ack_receiver.h"
-#include "semisync_master_socket_listener.h"
+#include "plugin/semisync/semisync.h"
+#include "plugin/semisync/semisync_master.h"
+#include "plugin/semisync/semisync_master_socket_listener.h"
 
 extern ReplSemiSyncMaster repl_semisync;
 
@@ -271,16 +273,24 @@ void Ack_receiver::run()
       if (listener.is_socket_active(i))
       {
         ulong len;
-
-        net_clear(&net, 0);
         net.vio= m_slaves[i].vio;
+        /*
+          Set compress flag. This is needed to support
+          Slave_compress_protocol flag enabled Slaves
+        */
+        net.compress=
+          m_slaves[i].thd->get_protocol_classic()->get_compression();
 
-        len= my_net_read(&net);
-        if (likely(len != packet_error))
-          repl_semisync.reportReplyPacket(m_slaves[i].server_id(),
-                                          net.read_pos, len);
-        else if (net.last_errno == ER_NET_READ_ERROR)
-          listener.clear_socket_info(i);
+        do {
+          net_clear(&net, 0);
+
+          len= my_net_read(&net);
+          if (likely(len != packet_error))
+            repl_semisync.reportReplyPacket(m_slaves[i].server_id(),
+                                            net.read_pos, len);
+          else if (net.last_errno == ER_NET_READ_ERROR)
+            listener.clear_socket_info(i);
+        } while (net.vio->has_data(net.vio));
       }
       i++;
     }

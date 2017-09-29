@@ -23,15 +23,15 @@
 
 #include <stddef.h>
 
-#include "field.h"
 #include "my_dbug.h"
 #include "my_thread.h"
-#include "pfs_buffer_container.h"
-#include "pfs_column_types.h"
-#include "pfs_column_values.h"
-#include "pfs_global.h"
-#include "pfs_instr_class.h"
-#include "pfs_visitor.h"
+#include "sql/field.h"
+#include "storage/perfschema/pfs_buffer_container.h"
+#include "storage/perfschema/pfs_column_types.h"
+#include "storage/perfschema/pfs_column_values.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/pfs_visitor.h"
 
 THR_LOCK table_esgs_by_user_by_event_name::m_table_lock;
 
@@ -119,6 +119,7 @@ table_esgs_by_user_by_event_name::get_row_count(void)
 table_esgs_by_user_by_event_name::table_esgs_by_user_by_event_name()
   : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos()
 {
+  m_normalizer = time_normalizer::get_stage();
 }
 
 void
@@ -131,7 +132,6 @@ table_esgs_by_user_by_event_name::reset_position(void)
 int
 table_esgs_by_user_by_event_name::rnd_init(bool)
 {
-  m_normalizer = time_normalizer::get(stage_timer);
   return 0;
 }
 
@@ -184,8 +184,6 @@ int
 table_esgs_by_user_by_event_name::index_init(uint idx MY_ATTRIBUTE((unused)),
                                              bool)
 {
-  m_normalizer = time_normalizer::get(stage_timer);
-
   PFS_index_esgs_by_user_by_event_name *result = NULL;
   DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_esgs_by_user_by_event_name);

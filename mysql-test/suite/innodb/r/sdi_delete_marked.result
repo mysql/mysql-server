@@ -22,7 +22,7 @@ SET GLOBAL DEBUG= '+d, skip_purge_check_shutdown';
 	"object":
 		{
     "mysqld_version_id": X,
-    "dd_version": 1,
+    "dd_version": 80004,
     "sdi_version": 1,
     "dd_object_type": "Schema",
     "dd_object": {
@@ -40,12 +40,12 @@ SET GLOBAL DEBUG= '+d, skip_purge_check_shutdown';
 	"object":
 		{
     "mysqld_version_id": X,
-    "dd_version": 1,
+    "dd_version": 80004,
     "sdi_version": 1,
     "dd_object_type": "Table",
     "dd_object": {
         "name": "t1",
-        "mysql_version_id": 80003,
+        "mysql_version_id": X,
         "created": NNN,
         "last_altered": NNN,
         "hidden": 1,
@@ -69,6 +69,8 @@ SET GLOBAL DEBUG= '+d, skip_purge_check_shutdown';
                 "datetime_precision_null": 1,
                 "has_no_default": true,
                 "default_value_null": false,
+                "srs_id_null": true,
+                "srs_id": 0,
                 "default_value": "AAAAAA==",
                 "default_value_utf8_null": true,
                 "default_value_utf8": "",
@@ -78,7 +80,7 @@ SET GLOBAL DEBUG= '+d, skip_purge_check_shutdown';
                 "generation_expression": "",
                 "generation_expression_utf8": "",
                 "options": "interval_count=0;",
-                "se_private_data": "",
+                "se_private_data": "table_id=X",
                 "column_key": 2,
                 "column_type_utf8": "int(11)",
                 "elements": [],
@@ -102,6 +104,8 @@ SET GLOBAL DEBUG= '+d, skip_purge_check_shutdown';
                 "datetime_precision_null": 1,
                 "has_no_default": false,
                 "default_value_null": true,
+                "srs_id_null": true,
+                "srs_id": 0,
                 "default_value": "",
                 "default_value_utf8_null": true,
                 "default_value_utf8": "",
@@ -111,7 +115,7 @@ SET GLOBAL DEBUG= '+d, skip_purge_check_shutdown';
                 "generation_expression": "",
                 "generation_expression_utf8": "",
                 "options": "interval_count=0;",
-                "se_private_data": "",
+                "se_private_data": "table_id=X",
                 "column_key": 1,
                 "column_type_utf8": "json",
                 "elements": [],
@@ -135,6 +139,8 @@ SET GLOBAL DEBUG= '+d, skip_purge_check_shutdown';
                 "datetime_precision_null": 1,
                 "has_no_default": false,
                 "default_value_null": true,
+                "srs_id_null": true,
+                "srs_id": 0,
                 "default_value": "",
                 "default_value_utf8_null": true,
                 "default_value_utf8": "",
@@ -144,7 +150,7 @@ SET GLOBAL DEBUG= '+d, skip_purge_check_shutdown';
                 "generation_expression": "",
                 "generation_expression_utf8": "",
                 "options": "interval_count=0;",
-                "se_private_data": "",
+                "se_private_data": "table_id=X",
                 "column_key": 1,
                 "column_type_utf8": "blob",
                 "elements": [],
@@ -168,6 +174,8 @@ SET GLOBAL DEBUG= '+d, skip_purge_check_shutdown';
                 "datetime_precision_null": 1,
                 "has_no_default": false,
                 "default_value_null": true,
+                "srs_id_null": true,
+                "srs_id": 0,
                 "default_value": "",
                 "default_value_utf8_null": true,
                 "default_value_utf8": "",
@@ -177,7 +185,7 @@ SET GLOBAL DEBUG= '+d, skip_purge_check_shutdown';
                 "generation_expression": "",
                 "generation_expression_utf8": "",
                 "options": "interval_count=0;",
-                "se_private_data": "",
+                "se_private_data": "table_id=X",
                 "column_key": 1,
                 "column_type_utf8": "longblob",
                 "elements": [],
@@ -201,6 +209,8 @@ SET GLOBAL DEBUG= '+d, skip_purge_check_shutdown';
                 "datetime_precision_null": 1,
                 "has_no_default": false,
                 "default_value_null": true,
+                "srs_id_null": true,
+                "srs_id": 0,
                 "default_value": "",
                 "default_value_utf8_null": true,
                 "default_value_utf8": "",
@@ -210,7 +220,7 @@ SET GLOBAL DEBUG= '+d, skip_purge_check_shutdown';
                 "generation_expression": "",
                 "generation_expression_utf8": "",
                 "options": "interval_count=0;",
-                "se_private_data": "",
+                "se_private_data": "table_id=X",
                 "column_key": 1,
                 "column_type_utf8": "mediumblob",
                 "elements": [],
@@ -234,6 +244,8 @@ SET GLOBAL DEBUG= '+d, skip_purge_check_shutdown';
                 "datetime_precision_null": 1,
                 "has_no_default": false,
                 "default_value_null": true,
+                "srs_id_null": true,
+                "srs_id": 0,
                 "default_value": "",
                 "default_value_utf8_null": true,
                 "default_value_utf8": "",
@@ -243,7 +255,7 @@ SET GLOBAL DEBUG= '+d, skip_purge_check_shutdown';
                 "generation_expression": "",
                 "generation_expression_utf8": "",
                 "options": "interval_count=0;",
-                "se_private_data": "",
+                "se_private_data": "table_id=X",
                 "column_key": 1,
                 "column_type_utf8": "tinyblob",
                 "elements": [],
@@ -267,6 +279,8 @@ SET GLOBAL DEBUG= '+d, skip_purge_check_shutdown';
                 "datetime_precision_null": 1,
                 "has_no_default": false,
                 "default_value_null": true,
+                "srs_id_null": true,
+                "srs_id": 0,
                 "default_value": "",
                 "default_value_utf8_null": true,
                 "default_value_utf8": "",
@@ -276,7 +290,7 @@ SET GLOBAL DEBUG= '+d, skip_purge_check_shutdown';
                 "generation_expression": "",
                 "generation_expression_utf8": "",
                 "options": "",
-                "se_private_data": "",
+                "se_private_data": "table_id=X",
                 "column_key": 1,
                 "column_type_utf8": "",
                 "elements": [],
@@ -300,6 +314,8 @@ SET GLOBAL DEBUG= '+d, skip_purge_check_shutdown';
                 "datetime_precision_null": 1,
                 "has_no_default": false,
                 "default_value_null": true,
+                "srs_id_null": true,
+                "srs_id": 0,
                 "default_value": "",
                 "default_value_utf8_null": true,
                 "default_value_utf8": "",
@@ -309,7 +325,7 @@ SET GLOBAL DEBUG= '+d, skip_purge_check_shutdown';
                 "generation_expression": "",
                 "generation_expression_utf8": "",
                 "options": "",
-                "se_private_data": "",
+                "se_private_data": "table_id=X",
                 "column_key": 1,
                 "column_type_utf8": "",
                 "elements": [],
@@ -324,9 +340,11 @@ SET GLOBAL DEBUG= '+d, skip_purge_check_shutdown';
         "row_format": 2,
         "partition_type": 0,
         "partition_expression": "",
+        "partition_expression_utf8": "",
         "default_partitioning": 0,
         "subpartition_type": 0,
         "subpartition_expression": "",
+        "subpartition_expression_utf8": "",
         "default_subpartitioning": 0,
         "indexes": [
             {
@@ -336,7 +354,7 @@ SET GLOBAL DEBUG= '+d, skip_purge_check_shutdown';
                 "ordinal_position": 1,
                 "comment": "",
                 "options": "flags=0;",
-                "se_private_data": "id=X;root=Y;trx_id=Z",
+                "se_private_data": "id=A;root=B;space_id=C,table_id=D,trx_id=E",
                 "type": 1,
                 "algorithm": 2,
                 "is_algorithm_explicit": false,
@@ -392,7 +410,7 @@ SET GLOBAL DEBUG= '+d, skip_purge_check_shutdown';
                         "column_opx": 5
                     }
                 ],
-                "tablespace_ref": "innodb_file_per_table.X"
+                "tablespace_ref": "test/t1"
             }
         ],
         "foreign_keys": [],
@@ -408,20 +426,20 @@ SET GLOBAL DEBUG= '+d, skip_purge_check_shutdown';
 	"object":
 		{
     "mysqld_version_id": X,
-    "dd_version": 1,
+    "dd_version": 80004,
     "sdi_version": 1,
     "dd_object_type": "Tablespace",
     "dd_object": {
-        "name": "innodb_file_per_table.X",
+        "name": "test/t1",
         "comment": "",
         "options": "",
-        "se_private_data": "flags=X;id=Y;",
+        "se_private_data": "flags=X;id=Y;server_version=Z;space_version=M;",
         "engine": "InnoDB",
         "files": [
             {
                 "ordinal_position": 1,
                 "filename": "./test/t1.ibd",
-                "se_private_data": ""
+                "se_private_data": "id=X"
             }
         ]
     }

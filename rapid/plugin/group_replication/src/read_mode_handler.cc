@@ -13,13 +13,13 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "read_mode_handler.h"
+#include "plugin/group_replication/include/read_mode_handler.h"
 
 #include <stddef.h>
 
 #include "my_dbug.h"
-#include "plugin_utils.h"
-#include "plugin.h"
+#include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/plugin_utils.h"
 
 
 long enable_super_read_only_mode(Sql_service_command_interface *command_interface)
@@ -74,8 +74,8 @@ int enable_server_read_mode(enum_plugin_con_isolation session_isolation)
       new Sql_service_command_interface();
   int error=
     sql_command_interface->
-      establish_session_connection(session_isolation, get_plugin_pointer()) ||
-    sql_command_interface->set_interface_user(GROUPREPL_USER) ||
+      establish_session_connection(session_isolation, GROUPREPL_USER,
+                                   get_plugin_pointer()) ||
     enable_super_read_only_mode(sql_command_interface);
   delete sql_command_interface;
   return error;
@@ -87,8 +87,8 @@ int disable_server_read_mode(enum_plugin_con_isolation session_isolation)
       new Sql_service_command_interface();
   int error=
     sql_command_interface->
-      establish_session_connection(session_isolation, get_plugin_pointer()) ||
-    sql_command_interface->set_interface_user(GROUPREPL_USER) ||
+      establish_session_connection(session_isolation, GROUPREPL_USER,
+                                   get_plugin_pointer()) ||
     disable_super_read_only_mode(sql_command_interface);
   delete sql_command_interface;
   return error;

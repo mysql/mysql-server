@@ -20,15 +20,8 @@
 #include <sys/types.h>
 #include <memory>
 
-#include "auth_acls.h"
-#include "auth_common.h"                    // check_access
-#include "dd/cache/dictionary_client.h"     // dd::cache::Dictionary_client
-#include "debug_sync.h"                     // DEBUG_SYNC
-#include "handler.h"
 #include "lex_string.h"
-#include "log.h"
 #include "m_ctype.h"
-#include "mdl.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -37,21 +30,28 @@
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_my_snprintf.h"
-#include "mysqld.h"                         // opt_log_slow_admin_statements
 #include "mysqld_error.h"
-#include "partition_info.h"                 // class partition_info etc.
-#include "partitioning/partition_handler.h" // Partition_handler
-#include "sql_base.h"                       // open_and_lock_tables, etc
-#include "sql_class.h"                      // THD
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_partition.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h"           // check_access
+#include "sql/dd/cache/dictionary_client.h" // dd::cache::Dictionary_client
+#include "sql/debug_sync.h"                 // DEBUG_SYNC
+#include "sql/handler.h"
+#include "sql/log.h"
+#include "sql/mdl.h"
+#include "sql/mysqld.h"                     // opt_log_slow_admin_statements
+#include "sql/partition_info.h"             // class partition_info etc.
+#include "sql/partitioning/partition_handler.h" // Partition_handler
+#include "sql/sql_base.h"                   // open_and_lock_tables, etc
+#include "sql/sql_class.h"                  // THD
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_partition.h"
+#include "sql/sql_table.h"                  // mysql_alter_table, etc.
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/transaction.h" // trans_commit_stmt
 #include "sql_string.h"
-#include "sql_table.h"                      // mysql_alter_table, etc.
-#include "system_variables.h"
-#include "table.h"
 #include "thr_lock.h"
-#include "transaction.h"    // trans_commit_stmt
 
 class partition_element;
 
@@ -212,6 +212,10 @@ static bool compare_table_with_partition(THD *thd, TABLE *table,
   /* mark all columns used, since they are used when preparing the new table */
   part_table->use_all_columns();
   table->use_all_columns();
+
+  /* db_type is not set in prepare_alter_table */
+  part_create_info.db_type= part_table->part_info->default_engine_type;
+
   if (mysql_prepare_alter_table(thd, part_table_def,
                                 part_table, &part_create_info,
                                 &part_alter_info, &part_alter_ctx))
@@ -219,8 +223,7 @@ static bool compare_table_with_partition(THD *thd, TABLE *table,
     my_error(ER_TABLES_DIFFERENT_METADATA, MYF(0));
     DBUG_RETURN(TRUE);
   }
-  /* db_type is not set in prepare_alter_table */
-  part_create_info.db_type= part_table->part_info->default_engine_type;
+
   /*
     Since we exchange the partition with the table, allow exchanging
     auto_increment value as well.

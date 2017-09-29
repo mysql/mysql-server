@@ -21,8 +21,8 @@ TempTable Column declaration. */
 #include <cstddef> /* size_t */
 #include <vector>  /* std::vector */
 
-#include "field.h"            /* Field */
-#include "temptable/allocator.h" /* temptable::Allocator */
+#include "sql/field.h"        /* Field */
+#include "storage/temptable/include/temptable/allocator.h" /* temptable::Allocator */
 
 namespace temptable {
 

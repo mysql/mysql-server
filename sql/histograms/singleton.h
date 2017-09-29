@@ -68,17 +68,17 @@
 #include <string>             // std::string
 #include <utility>            // std::pair
 
-#include "histogram.h"        // Histogram, Histogram_comparator,
-#include "memroot_allocator.h"
 #include "my_base.h"          // ha_rows
-#include "my_decimal.h"
 #include "my_inttypes.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_time.h"
+#include "sql/histograms/histogram.h" // Histogram, Histogram_comparator,
 #include "sql/histograms/value_map.h"        // Value_map
+#include "sql/memroot_allocator.h"
+#include "sql/my_decimal.h"
+#include "sql/thr_malloc.h"
 #include "sql_string.h"
 #include "template_utils.h"
-#include "thr_malloc.h"
 
 class Json_array;
 class Json_object;
@@ -118,9 +118,11 @@ public:
     @param db_name  name of the database this histogram represents
     @param tbl_name name of the table this histogram represents
     @param col_name name of the column this histogram represents
+    @param data_type the type of data that this histogram contains
   */
   Singleton(MEM_ROOT *mem_root, const std::string &db_name,
-            const std::string &tbl_name, const std::string &col_name);
+            const std::string &tbl_name, const std::string &col_name,
+            Value_map_type data_type);
 
   /**
     Singleton copy-constructor
@@ -179,6 +181,42 @@ public:
     @return a copy of the histogram allocated on the provided MEM_ROOT.
   */
   Histogram *clone(MEM_ROOT *mem_root) const override;
+
+  /**
+    Find the number of values equal to 'value'.
+
+    This function will estimate the number of values that is equal to the
+    provided value.
+
+    @param value The value to estimate the selectivity for.
+
+    @return the selectivity between 0.0 and 1.0 inclusive.
+  */
+  double get_equal_to_selectivity(const T& value) const;
+
+  /**
+    Find the number of values less than 'value'.
+
+    This function will estimate the number of values that is less than the
+    provided value.
+
+    @param value The value to estimate the selectivity for.
+
+    @return the selectivity between 0.0 and 1.0 inclusive.
+  */
+  double get_less_than_selectivity(const T& value) const;
+
+  /**
+    Find the number of values greater than 'value'.
+
+    This function will estimate the number of values that is greater than the
+    provided value.
+
+    @param value The value to estimate the selectivity for.
+
+    @return the selectivity between 0.0 and 1.0 inclusive.
+  */
+  double get_greater_than_selectivity(const T& value) const;
 private:
   /**
     Add value to a JSON bucket
@@ -203,6 +241,7 @@ private:
   */
   static bool create_json_bucket(const std::pair<T, double> &bucket,
                                  Json_array *json_bucket);
+
 
 protected:
   /**

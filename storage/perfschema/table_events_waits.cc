@@ -20,18 +20,18 @@
 
 #include "storage/perfschema/table_events_waits.h"
 
-#include "field.h"
 #include "lex_string.h"
 #include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_thread.h"
-#include "pfs_buffer_container.h"
-#include "pfs_events_waits.h"
-#include "pfs_global.h"
-#include "pfs_instr.h"
-#include "pfs_instr_class.h"
-#include "pfs_timer.h"
+#include "sql/field.h"
+#include "storage/perfschema/pfs_buffer_container.h"
+#include "storage/perfschema/pfs_events_waits.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_instr.h"
+#include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/pfs_timer.h"
 
 bool
 PFS_index_events_waits::match(PFS_thread *pfs)
@@ -208,6 +208,7 @@ table_events_waits_common::table_events_waits_common(
   const PFS_engine_table_share *share, void *pos)
   : PFS_engine_table(share, pos)
 {
+  m_normalizer = time_normalizer::get_wait();
 }
 
 void
@@ -497,6 +498,18 @@ table_events_waits_common::make_metadata_lock_object_columns(
       m_row.m_object_schema_length = mdl->db_name_length();
       m_row.m_object_name_length = mdl->name_length();
       break;
+    case MDL_key::BACKUP_LOCK:
+      m_row.m_object_type = "BACKUP_LOCK";
+      m_row.m_object_type_length = sizeof("BACKUP_LOCK") - 1;
+      m_row.m_object_schema_length = 0;
+      m_row.m_object_name_length = 0;
+      break;
+    case MDL_key::RESOURCE_GROUPS:
+      m_row.m_object_type = "RESOURCE_GROUPS";
+      m_row.m_object_type_length = 15;
+      m_row.m_object_schema_length = mdl->db_name_length();
+      m_row.m_object_name_length = mdl->name_length();
+      break;
     case MDL_key::NAMESPACE_END:
     default:
       m_row.m_object_type_length = 0;
@@ -549,8 +562,9 @@ table_events_waits_common::make_row(PFS_events_waits *wait)
   PFS_instr_class *safe_class;
   const char *base;
   const char *safe_source_file;
-  enum_timer_name timer_name = wait_timer;
   ulonglong timer_end;
+  /* wait normalizer for most rows. */
+  time_normalizer *normalizer = m_normalizer;
 
   /*
     Design choice:
@@ -588,7 +602,7 @@ table_events_waits_common::make_row(PFS_events_waits *wait)
     clear_object_columns();
     m_row.m_object_instance_addr = 0;
     safe_class = sanitize_idle_class(wait->m_class);
-    timer_name = idle_timer;
+    normalizer = time_normalizer::get_idle();
     break;
   case WAIT_CLASS_MUTEX:
     clear_object_columns();
@@ -642,22 +656,27 @@ table_events_waits_common::make_row(PFS_events_waits *wait)
   m_row.m_nesting_event_id = wait->m_nesting_event_id;
   m_row.m_nesting_event_type = wait->m_nesting_event_type;
 
-  get_normalizer(safe_class);
-
   if (m_row.m_end_event_id == 0)
   {
-    timer_end = get_timer_raw_value(timer_name);
+    if (wait->m_wait_class == WAIT_CLASS_IDLE)
+    {
+      timer_end = get_idle_timer();
+    }
+    else
+    {
+      timer_end = get_wait_timer();
+    }
   }
   else
   {
     timer_end = wait->m_timer_end;
   }
 
-  m_normalizer->to_pico(wait->m_timer_start,
-                        timer_end,
-                        &m_row.m_timer_start,
-                        &m_row.m_timer_end,
-                        &m_row.m_timer_wait);
+  normalizer->to_pico(wait->m_timer_start,
+                      timer_end,
+                      &m_row.m_timer_start,
+                      &m_row.m_timer_end,
+                      &m_row.m_timer_wait);
 
   m_row.m_name = safe_class->m_name;
   m_row.m_name_length = safe_class->m_name_length;

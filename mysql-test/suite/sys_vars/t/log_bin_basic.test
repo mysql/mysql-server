@@ -1,8 +1,7 @@
-# Need log_bin off initially to check the default value.
---source include/not_log_bin.inc
 #
 # only global
 #
+--source include/have_log_bin.inc
 select @@global.log_bin;
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 select @@session.log_bin;

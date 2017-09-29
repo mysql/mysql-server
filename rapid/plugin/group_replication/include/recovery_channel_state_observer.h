@@ -16,9 +16,9 @@
 #ifndef RECOVERY_CHANNEL_STATE_OBSERVER_INCLUDE
 #define	RECOVERY_CHANNEL_STATE_OBSERVER_INCLUDE
 
-#include "channel_observation_manager.h"
 #include "my_inttypes.h"
-#include "recovery_state_transfer.h"
+#include "plugin/group_replication/include/channel_observation_manager.h"
+#include "plugin/group_replication/include/recovery_state_transfer.h"
 
 class Recovery_channel_state_observer : public Channel_state_observer
 {

@@ -21,12 +21,12 @@
 #define X_SRC_EXPECT_EXPECT_H_
 
 #include <deque>
-#include <utility>
-#include <string>
 #include <memory>
+#include <string>
+#include <utility>
 
-#include "expect/expect_condition.h"
-#include "ngs_common/protocol_protobuf.h"
+#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "plugin/x/src/expect/expect_condition.h"
 
 
 namespace xpl {

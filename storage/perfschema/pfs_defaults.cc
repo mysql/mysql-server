@@ -22,11 +22,11 @@
 
 #include <stddef.h>
 
-#include "pfs.h"
-#include "pfs_instr.h"
-#include "pfs_instr_class.h"
-#include "pfs_setup_actor.h"
-#include "pfs_setup_object.h"
+#include "storage/perfschema/pfs.h"
+#include "storage/perfschema/pfs_instr.h"
+#include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/pfs_setup_actor.h"
+#include "storage/perfschema/pfs_setup_object.h"
 
 void
 install_default_setup(PSI_thread_bootstrap *thread_boot)
@@ -39,7 +39,8 @@ install_default_setup(PSI_thread_bootstrap *thread_boot)
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
   static PSI_thread_key thread_key;
-  static PSI_thread_info thread_info = {&thread_key, "setup", PSI_FLAG_GLOBAL};
+  static PSI_thread_info thread_info = {
+    &thread_key, "setup", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME};
 
   const char *pfs_category = "performance_schema";
 

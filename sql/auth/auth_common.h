@@ -26,13 +26,13 @@
 #include <utility>
 #include <vector>
 
-#include "dynamic_privileges_impl.h"
 #include "lex_string.h"
 #include "my_command.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "sql/auth/dynamic_privileges_impl.h"
+#include "sql/thr_malloc.h"
 #include "template_utils.h"
-#include "thr_malloc.h"
 
 /* Forward Declarations */
 class Alter_info;
@@ -267,6 +267,8 @@ enum mysql_user_table_field
   MYSQL_USER_FIELD_ACCOUNT_LOCKED,
   MYSQL_USER_FIELD_CREATE_ROLE_PRIV,
   MYSQL_USER_FIELD_DROP_ROLE_PRIV,
+  MYSQL_USER_FIELD_PASSWORD_REUSE_HISTORY,
+  MYSQL_USER_FIELD_PASSWORD_REUSE_TIME,
   MYSQL_USER_FIELD_COUNT
 };
 
@@ -339,6 +341,25 @@ enum mysql_default_roles_table_field
   MYSQL_DEFAULT_ROLES_FIELD_COUNT
 };
 
+
+enum mysql_password_history_table_field
+{
+  MYSQL_PASSWORD_HISTORY_FIELD_HOST = 0,
+  MYSQL_PASSWORD_HISTORY_FIELD_USER,
+  MYSQL_PASSWORD_HISTORY_FIELD_PASSWORD_TIMESTAMP,
+  MYSQL_PASSWORD_HISTORY_FIELD_PASSWORD,
+  MYSQL_PASSWORD_HISTORY_FIELD_COUNT
+};
+
+enum mysql_dynamic_priv_table_field
+{
+  MYSQL_DYNAMIC_PRIV_FIELD_USER= 0,
+  MYSQL_DYNAMIC_PRIV_FIELD_HOST,
+  MYSQL_DYNAMIC_PRIV_FIELD_PRIV,
+  MYSQL_DYNAMIC_PRIV_FIELD_WITH_GRANT_OPTION,
+  MYSQL_DYNAMIC_PRIV_FIELD_COUNT
+};
+
 /* When we run mysql_upgrade we must make sure that the server can be run
    using previous mysql.user table schema during acl_load.
 
@@ -396,6 +417,9 @@ public:
   virtual uint password_last_changed_idx()= 0;
   virtual uint password_lifetime_idx()= 0;
   virtual uint account_locked_idx()= 0;
+  virtual uint password_reuse_history_idx()= 0;
+  virtual uint password_reuse_time_idx()= 0;
+
 
   virtual ~Acl_load_user_table_schema() {}
 };
@@ -473,6 +497,14 @@ public:
   }
   uint password_lifetime_idx() { return MYSQL_USER_FIELD_PASSWORD_LIFETIME; }
   uint account_locked_idx() { return MYSQL_USER_FIELD_ACCOUNT_LOCKED; }
+  uint password_reuse_history_idx()
+  {
+    return MYSQL_USER_FIELD_PASSWORD_REUSE_HISTORY;
+  }
+  uint password_reuse_time_idx()
+  {
+    return MYSQL_USER_FIELD_PASSWORD_REUSE_TIME;
+  }
 };
 
 /*
@@ -597,6 +629,14 @@ public:
   uint account_locked_idx() { return MYSQL_USER_FIELD_COUNT_56; }
   uint create_role_priv_idx() { return MYSQL_USER_FIELD_COUNT_56; }
   uint drop_role_priv_idx() { return MYSQL_USER_FIELD_COUNT_56; }
+  uint password_reuse_history_idx()
+  {
+    return MYSQL_USER_FIELD_COUNT_56;
+  }
+  uint password_reuse_time_idx()
+  {
+    return MYSQL_USER_FIELD_COUNT_56;
+  }
 };
 
 
@@ -648,6 +688,7 @@ bool acl_check_host(THD *thd, const char *host, const char *ip);
 #define PASSWORD_EXPIRE_ATTR    (1L << 4)    /* update password expire col */
 #define ACCESS_RIGHTS_ATTR      (1L << 5)    /* update privileges */
 #define ACCOUNT_LOCK_ATTR       (1L << 6)    /* update account lock status */
+#define DIFFERENT_PLUGIN_ATTR   (1L << 7)    /* updated plugin with a different value */
 
 /* rewrite CREATE/ALTER/GRANT user */
 void mysql_rewrite_create_alter_user(THD *thd, String *rlb,
@@ -691,6 +732,7 @@ bool is_acl_user(THD *thd, const char *host, const char *user);
 bool acl_getroot(THD *thd, Security_context *sctx, char *user,
                  char *host, char *ip, const char *db);
 bool check_acl_tables_intact(THD *thd);
+void notify_flush_event(THD *thd);
 
 /* sql_authorization */
 bool has_grant_role_privilege(THD *thd);
@@ -823,7 +865,11 @@ bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status);
 #define DEFAULT_SSL_SERVER_KEY  "server-key.pem"
 
 void update_mandatory_roles(void);
+bool check_authorization_id_string(const char *buffer, size_t length);
 String *func_current_role(THD *thd, String *str, String *active_role);
 
+extern volatile uint32 global_password_history, global_password_reuse_interval;
+
+bool operator==(const LEX_CSTRING &a, const LEX_CSTRING &b);
 #endif /* AUTH_COMMON_INCLUDED */
 

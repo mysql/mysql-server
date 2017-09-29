@@ -97,18 +97,19 @@
       implementation-defined.
 */
 
-#include <decimal.h>
+#include "decimal.h"
+
 #include <limits.h>
-#include <m_ctype.h>
-#include <m_string.h>
 #include <math.h>
-#include <my_sys.h> /* for my_alloca */
-#include <myisampack.h>
 #include <string.h>
 #include <algorithm>
 
+#include "m_ctype.h"
+#include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_sys.h" /* for my_alloca */
+#include "myisampack.h"
 
 /*
   Internally decimal numbers are stored base 10^9 (see DIG_BASE below)

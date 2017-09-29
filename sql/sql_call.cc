@@ -24,10 +24,6 @@
 #include <algorithm>
 #include <atomic>
 
-#include "auth_acls.h"
-#include "auth_common.h"        // check_routine_access, check_table_access
-#include "item.h"               // class Item
-#include "key.h"
 #include "lex_string.h"
 #include "my_base.h"
 #include "my_dbug.h"
@@ -36,15 +32,19 @@
 #include "mysql/plugin_audit.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "protocol.h"
-#include "sp.h"                 // sp_find_routine
-#include "sp_head.h"
-#include "sp_pcontext.h"        // class sp_variable
-#include "sql_audit.h"          // AUDIT_EVENT
-#include "sql_class.h"          // class THD
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "system_variables.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h" // check_routine_access, check_table_access
+#include "sql/item.h"           // class Item
+#include "sql/key.h"
+#include "sql/protocol.h"
+#include "sql/sp.h"             // sp_find_routine
+#include "sql/sp_head.h"
+#include "sql/sp_pcontext.h"    // class sp_variable
+#include "sql/sql_audit.h"      // AUDIT_EVENT
+#include "sql/sql_class.h"      // class THD
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/system_variables.h"
 #include "template_utils.h"
 
 using std::max;
@@ -77,6 +77,18 @@ bool Sql_cmd_call::prepare_inner(THD *thd)
     return true;
   }
 
+  sp_pcontext *root_parsing_context= sp->get_root_parsing_context();
+
+  uint arg_count= proc_args != NULL ? proc_args->elements : 0;
+
+  if (root_parsing_context->context_var_count() != arg_count)
+  {
+    my_error(ER_SP_WRONG_NO_OF_ARGS, MYF(0),
+             "PROCEDURE", proc_name->m_qname.str,
+             root_parsing_context->context_var_count(), arg_count);
+    return true;
+  }
+
   if (proc_args == NULL)
     return false;
 
@@ -88,7 +100,7 @@ bool Sql_cmd_call::prepare_inner(THD *thd)
     if (item->type() == Item::TRIGGER_FIELD_ITEM)
     {
       Item_trigger_field *itf= down_cast<Item_trigger_field *>(item);
-      sp_variable *spvar= sp->get_root_parsing_context()->find_variable(arg_no);
+      sp_variable *spvar= root_parsing_context->find_variable(arg_no);
       if (spvar->mode != sp_variable::MODE_IN)
         itf->set_required_privilege(spvar->mode == sp_variable::MODE_INOUT);
     }

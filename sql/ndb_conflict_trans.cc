@@ -15,10 +15,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "ndb_conflict_trans.h"
+#include "sql/ndb_conflict_trans.h"
 
-#include "my_sys.h"
 #include "my_base.h"
+#include "my_sys.h"
 
 /* Whether to track all transactions, or just
  * 'interesting' ones

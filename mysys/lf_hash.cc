@@ -25,7 +25,6 @@
 #include <stddef.h>
 #include <string.h>
 #include <sys/types.h>
-
 #include <atomic>
 
 #include "lf.h"
@@ -37,7 +36,7 @@
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysys_priv.h"
+#include "mysys/mysys_priv.h"
 
 LF_REQUIRE_PINS(3)
 

@@ -20,8 +20,8 @@
 #include <gtest/gtest.h>
 #include <sys/types.h>
 
-#include "fake_key.h"                             // Fake_KEY
-#include "key.h"                                  // KEY
+#include "sql/key.h"                              // KEY
+#include "unittest/gunit/fake_key.h"              // Fake_KEY
 
 namespace recperkey_unittest {
 

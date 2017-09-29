@@ -17,13 +17,13 @@
  * 02110-1301  USA
  */
 
-#include "account_verification_handler.h"
+#include "plugin/x/src/account_verification_handler.h"
 
-#include "ngs/interface/sql_session_interface.h"
-#include "query_string_builder.h"
-#include "sql_data_result.h"
-#include "xpl_client.h"
-#include "xpl_log.h"
+#include "plugin/x/ngs/include/ngs/interface/sql_session_interface.h"
+#include "plugin/x/src/query_string_builder.h"
+#include "plugin/x/src/sql_data_result.h"
+#include "plugin/x/src/xpl_client.h"
+#include "plugin/x/src/xpl_log.h"
 
 namespace xpl {
 
@@ -82,6 +82,8 @@ Account_verification_handler::get_account_verificator_id(
     return ngs::Account_verification_interface::Account_native;
   if (name == "sha256_password")
     return ngs::Account_verification_interface::Account_sha256;
+  if (name == "caching_sha2_password")
+    return ngs::Account_verification_interface::Account_sha2;
   return ngs::Account_verification_interface::Account_unsupported;
 }
 

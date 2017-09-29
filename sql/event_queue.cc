@@ -21,13 +21,6 @@
 #include <atomic>
 #include <new>
 
-#include "dd/cache/dictionary_client.h" // Auto_releaser
-#include "event_db_repository.h"  // Event_db_repository
-#include "events.h"               // Events
-#include "lock.h"                 // lock_object_name
-#include "log.h"                  // log_*()
-#include "malloc_allocator.h"
-#include "mdl.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -37,16 +30,23 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_sp.h"
 #include "mysqld_error.h"
-#include "psi_memory_key.h"       // key_memory_Event_scheduler_scheduler_param
-#include "sql_audit.h"            // mysql_audit_release
-#include "sql_class.h"            // THD
-#include "sql_lex.h"
+#include "sql/dd/cache/dictionary_client.h" // Auto_releaser
+#include "sql/event_db_repository.h" // Event_db_repository
+#include "sql/events.h"           // Events
+#include "sql/histograms/value_map.h"
+#include "sql/lock.h"             // lock_object_name
+#include "sql/log.h"              // log_*()
+#include "sql/malloc_allocator.h"
+#include "sql/mdl.h"
+#include "sql/psi_memory_key.h"   // key_memory_Event_scheduler_scheduler_param
+#include "sql/sql_audit.h"        // mysql_audit_release
+#include "sql/sql_class.h"        // THD
+#include "sql/sql_lex.h"
+#include "sql/sql_table.h"        // write_bin_log
+#include "sql/transaction.h"      // trans_commit*, trans_rollback*
+#include "sql/tztime.h"           // my_tz_OFFSET0
 #include "sql_string.h"
-#include "sql_table.h"            // write_bin_log
 #include "thr_mutex.h"
-#include "transaction.h"          // trans_commit*, trans_rollback*
-#include "tztime.h"               // my_tz_OFFSET0
-#include "value_map.h"
 
 /**
   @addtogroup Event_Scheduler

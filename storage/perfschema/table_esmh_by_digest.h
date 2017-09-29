@@ -22,8 +22,8 @@
   Table EVENTS_STATEMENTS_HISTOGRAM_BY_DIGEST (declarations).
 */
 
-#include "table_helper.h"
-#include "pfs_digest.h"
+#include "storage/perfschema/pfs_digest.h"
+#include "storage/perfschema/table_helper.h"
 
 /**
   @addtogroup performance_schema_tables
@@ -188,7 +188,6 @@ private:
   PFS_statements_digest_stat *m_materialized_digest;
   PFS_esmh_by_digest_histogram m_materialized_histogram;
   row_esmh_by_digest m_row;
-  time_normalizer *m_normalizer;
   /** Current position. */
   pos_t m_pos;
   /** Next position. */

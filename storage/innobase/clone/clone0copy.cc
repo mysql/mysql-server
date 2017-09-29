@@ -140,7 +140,7 @@ Clone_Snapshot::add_buf_pool_file()
 		ut_ad(m_num_data_files == 0);
 
 		err = add_file(path, size_bytes,
-			       dict_sys_t::invalid_space_id, true);
+			       dict_sys_t::s_invalid_space_id, true);
 	}
 
 	return(err);
@@ -653,7 +653,7 @@ Clone_Snapshot::add_redo_file(
 		ut_ad(file_offset == 0);
 	}
 
-	file_meta->m_space_id = dict_sys_t::log_space_first_id;
+	file_meta->m_space_id = dict_sys_t::s_log_space_first_id;
 
 	file_meta->m_file_index = m_num_redo_files;
 
@@ -776,7 +776,7 @@ Clone_Handle::send_file_metadata(
 		file_desc.m_file_meta.m_file_name = nullptr;
 		file_desc.m_file_meta.m_file_name_len = 0;
 
-	} else if (file_meta->m_space_id == dict_sys_t::invalid_space_id) {
+	} else if (file_meta->m_space_id == dict_sys_t::s_invalid_space_id) {
 
 		/* Server buffer dump file ib_buffer_pool. */
 		ut_ad(file_desc.m_state == CLONE_SNAPSHOT_FILE_COPY);
@@ -854,6 +854,7 @@ Clone_Handle::send_data(
 	data_desc.m_file_index = file_meta->m_file_index;
 	data_desc.m_data_len = size;
 	data_desc.m_file_offset = offset;
+	data_desc.m_file_size = file_meta->m_file_size;
 
 	/* Serialize data descriptor and set in callback */
 	mem_heap_t*	heap;
@@ -868,7 +869,7 @@ Clone_Handle::send_data(
 	callback->clear_flags();
 
 	if (data_desc.m_state == CLONE_SNAPSHOT_REDO_COPY
-	    || file_meta->m_space_id == dict_sys_t::invalid_space_id) {
+	    || file_meta->m_space_id == dict_sys_t::s_invalid_space_id) {
 
 		file_type = OS_CLONE_LOG_FILE;
 	} else {

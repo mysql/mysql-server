@@ -16,9 +16,6 @@
 
 #include "storage/perfschema/pfs_variable.h"
 
-#include "current_thd.h"
-#include "debug_sync.h"
-#include "derror.h"
 #include "my_compiler.h"
 /**
   @file storage/perfschema/pfs_variable.cc
@@ -27,13 +24,16 @@
 #include "my_dbug.h"
 #include "my_macros.h"
 #include "my_sys.h"
-#include "mysqld.h"
-#include "persisted_variable.h"
-#include "pfs.h"
-#include "pfs_global.h"
-#include "pfs_visitor.h"
-#include "sql_audit.h"  // audit_global_variable_get
-#include "sql_class.h"
+#include "sql/current_thd.h"
+#include "sql/debug_sync.h"
+#include "sql/derror.h"
+#include "sql/mysqld.h"
+#include "sql/persisted_variable.h"
+#include "sql/sql_audit.h"  // audit_global_variable_get
+#include "sql/sql_class.h"
+#include "storage/perfschema/pfs.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_visitor.h"
 
 bool
 Find_THD_variable::operator()(THD *thd)
@@ -538,27 +538,29 @@ PFS_system_persisted_variables_cache::do_materialize_all(THD *unsafe_thd)
     Persisted_variables_cache *pv = Persisted_variables_cache::get_instance();
     if (pv)
     {
-      map<string, string> *persist_hash = pv->get_persist_hash();
-      map<string, string>::const_iterator iter;
-      for (iter = persist_hash->begin(); iter != persist_hash->end(); iter++)
+      vector<st_persist_var> *persist_variables = pv->get_persisted_variables();
+      for (auto iter = persist_variables->begin();
+           iter != persist_variables->end();
+           iter++)
       {
         System_variable system_var;
         system_var.m_charset = system_charset_info;
 
-        system_var.m_name = iter->first.c_str();
-        system_var.m_name_length = iter->first.length();
-        system_var.m_value_length = iter->second.length();
+        system_var.m_name = iter->key.c_str();
+        system_var.m_name_length = iter->key.length();
+        system_var.m_value_length = iter->value.length();
         memcpy(system_var.m_value_str,
-               iter->second.c_str(),
+               iter->value.c_str(),
                system_var.m_value_length);
         system_var.m_value_str[system_var.m_value_length] = 0;
 
         m_cache.push_back(system_var);
       }
-      map<string, string> *persist_ro_hash = pv->get_persist_ro_hash();
+      map<string, string> *persist_ro_variables =
+        pv->get_persist_ro_variables();
       map<string, string>::const_iterator ro_iter;
-      for (ro_iter = persist_ro_hash->begin();
-           ro_iter != persist_ro_hash->end();
+      for (ro_iter = persist_ro_variables->begin();
+           ro_iter != persist_ro_variables->end();
            ro_iter++)
       {
         System_variable system_var;

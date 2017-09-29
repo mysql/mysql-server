@@ -52,7 +52,6 @@
 #include <unordered_map>
 #include <utility>
 
-#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_compiler.h"
@@ -60,9 +59,10 @@
 #include "my_sys.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysqld.h"                             // specialflag
 #include "mysqld_error.h"
-#include "psi_memory_key.h"
+#include "sql/log.h"
+#include "sql/mysqld.h"                         // specialflag
+#include "sql/psi_memory_key.h"
 #include "violite.h"                            // vio_getnameinfo,
 
 #ifdef HAVE_ARPA_INET_H
@@ -590,6 +590,14 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage,
   DBUG_EXECUTE_IF("getnameinfo_format_ipv6",
                   {
                     strcpy(hostname_buffer, "12:DEAD:BEEF:0");
+                    err_code= 0;
+                  }
+                  );
+
+  DBUG_EXECUTE_IF ("getnameinfo_fake_max_length",
+                  {
+                    std::string s(NI_MAXHOST-1, 'a');
+                    strcpy(hostname_buffer, s.c_str());
                     err_code= 0;
                   }
                   );

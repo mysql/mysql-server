@@ -29,11 +29,11 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "parse_tree_node_base.h"
-#include "sql_alloc.h"
-#include "sql_list.h"
+#include "sql/parse_tree_node_base.h"
+#include "sql/sql_alloc.h"
+#include "sql/sql_list.h"
+#include "sql/thr_malloc.h"
 #include "sql_string.h"
-#include "thr_malloc.h"
 
 class Opt_trace_object;
 class Query_result;
@@ -84,6 +84,8 @@ enum Extra_tag
   ET_FT_HINTS,
   ET_BACKWARD_SCAN,
   ET_RECURSIVE,
+  ET_TABLE_FUNCTION,
+  ET_SKIP_RECORDS_IN_RANGE,
   //------------------------------------
   ET_total
 };

@@ -13,8 +13,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-INCLUDE_DIRECTORIES(${ZLIB_INCLUDE_DIR} ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/mysys)
-
 SET(MYSYS_SOURCES
   array.cc
   base64.cc
@@ -151,7 +149,3 @@ SET_TARGET_PROPERTIES(mf_iocache_test PROPERTIES COMPILE_FLAGS "-DMAIN")
 MYSQL_ADD_EXECUTABLE(base64_test base64.cc SKIP_INSTALL)
 SET_TARGET_PROPERTIES(base64_test PROPERTIES COMPILE_FLAGS "-DMAIN")
 TARGET_LINK_LIBRARIES(base64_test mysys)
-
-IF(MSVC)
-   INSTALL_DEBUG_TARGET(mysys DESTINATION ${INSTALL_LIBDIR}/debug)
-ENDIF()

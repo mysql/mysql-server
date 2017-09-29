@@ -19,13 +19,13 @@
 #include <signal.h>
 #include <time.h>
 
-#include "applier.h"
 #include "my_dbug.h"
 #include "my_systime.h"
-#include "plugin.h"
-#include "plugin_log.h"
-#include "single_primary_message.h"
-#include "services/notification/notification.h"
+#include "plugin/group_replication/include/applier.h"
+#include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/plugin_log.h"
+#include "plugin/group_replication/include/services/notification/notification.h"
+#include "plugin/group_replication/include/single_primary_message.h"
 
 char applier_module_channel_name[] = "group_replication_applier";
 bool applier_thread_is_exiting= false;
@@ -692,6 +692,27 @@ void Applier_module::leave_group_on_failure()
 
   bool set_read_mode= false;
   Gcs_operations::enum_leave_state state= gcs_module->leave();
+
+  char **error_message= NULL;
+  int error= channel_stop_all(CHANNEL_APPLIER_THREAD|CHANNEL_RECEIVER_THREAD,
+                              stop_wait_timeout, error_message);
+  if (error)
+  {
+    if (error_message != NULL && *error_message != NULL)
+    {
+      log_message(MY_ERROR_LEVEL,
+                  "Error stopping all replication channels while server was"
+                  " leaving the group. %s", *error_message);
+      my_free(error_message);
+    }
+    else
+    {
+      log_message(MY_ERROR_LEVEL,
+                  "Error stopping all replication channels while server was"
+                  " leaving the group. Got error: %d. Please check the error"
+                  " log for more details.", error);
+    }
+  }
 
   std::stringstream ss;
   plugin_log_level log_severity= MY_WARNING_LEVEL;

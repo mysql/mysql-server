@@ -17,18 +17,17 @@
 ///
 /// This file implements the disjoint functor and function.
 
-#include "disjoint_functor.h"
-#include "relops.h"
-
 #include <boost/geometry.hpp>
 
-#include "box.h"
-#include "box_traits.h"
-#include "dd/types/spatial_reference_system.h"  // dd::Spatial_reference_system
-#include "geometries.h"
-#include "geometries_traits.h"
-#include "mbr_utils.h"
-#include "sql_exception_handler.h"  // handle_gis_exception
+#include "sql/dd/types/spatial_reference_system.h"  // dd::Spatial_reference_system
+#include "sql/gis/box.h"
+#include "sql/gis/box_traits.h"
+#include "sql/gis/disjoint_functor.h"
+#include "sql/gis/geometries.h"
+#include "sql/gis/geometries_traits.h"
+#include "sql/gis/mbr_utils.h"
+#include "sql/gis/relops.h"
+#include "sql/sql_exception_handler.h"  // handle_gis_exception
 
 namespace bg = boost::geometry;
 
@@ -68,8 +67,8 @@ static bool geometry_collection_apply_disjoint(const Disjoint &f,
 }
 
 Disjoint::Disjoint(double semi_major, double semi_minor)
-    : m_geographic_pl_pa_strategy(bg::strategy::side::geographic<>(
-          bg::srs::spheroid<double>(semi_major, semi_minor))),
+    : m_geographic_pl_pa_strategy(
+          bg::srs::spheroid<double>(semi_major, semi_minor)),
       m_geographic_ll_la_aa_strategy(
           bg::srs::spheroid<double>(semi_major, semi_minor)) {}
 

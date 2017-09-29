@@ -63,7 +63,9 @@ struct PSI_file_info_v1
 {
   PSI_file_key *m_key;
   const char *m_name;
-  int m_flags;
+  uint m_flags;
+  int m_volatility;
+  const char *m_documentation;
 };
 typedef struct PSI_file_info_v1 PSI_file_info_v1;
 struct PSI_file_locker_state_v1

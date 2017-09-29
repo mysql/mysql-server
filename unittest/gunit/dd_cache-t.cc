@@ -22,31 +22,31 @@
 #include <typeinfo>
 #include <vector>
 
-#include "dd.h"
-#include "dd/cache/dictionary_client.h"
-#include "dd/cache/element_map.h"
-#include "dd/dd.h"
-#include "dd/impl/cache/cache_element.h"
-#include "dd/impl/cache/free_list.h"
-#include "dd/impl/cache/shared_dictionary_cache.h"
-#include "dd/impl/cache/storage_adapter.h"
-#include "dd/impl/types/charset_impl.h"
-#include "dd/impl/types/collation_impl.h"
-#include "dd/impl/types/column_statistics_impl.h"
-#include "dd/impl/types/event_impl.h"
-#include "dd/impl/types/procedure_impl.h"
-#include "dd/impl/types/schema_impl.h"
-#include "dd/impl/types/table_impl.h"
-#include "dd/impl/types/tablespace_impl.h"
-#include "dd/impl/types/view_impl.h"
-// Avoid warning about deleting ptr to incomplete type on Win
-#include "dd/properties.h"
 #include "lex_string.h"
-#include "mdl.h"
 #include "my_compiler.h"
-#include "sql_base.h"
-#include "test_mdl_context_owner.h"
-#include "test_utils.h"
+#include "sql/dd/cache/dictionary_client.h"
+#include "sql/dd/cache/element_map.h"
+#include "sql/dd/dd.h"
+#include "sql/dd/impl/cache/cache_element.h"
+#include "sql/dd/impl/cache/free_list.h"
+#include "sql/dd/impl/cache/shared_dictionary_cache.h"
+#include "sql/dd/impl/cache/storage_adapter.h"
+#include "sql/dd/impl/types/charset_impl.h"
+#include "sql/dd/impl/types/collation_impl.h"
+#include "sql/dd/impl/types/column_statistics_impl.h"
+#include "sql/dd/impl/types/event_impl.h"
+#include "sql/dd/impl/types/procedure_impl.h"
+#include "sql/dd/impl/types/schema_impl.h"
+#include "sql/dd/impl/types/table_impl.h"
+#include "sql/dd/impl/types/tablespace_impl.h"
+#include "sql/dd/impl/types/view_impl.h"
+// Avoid warning about deleting ptr to incomplete type on Win
+#include "sql/dd/properties.h"
+#include "sql/mdl.h"
+#include "sql/sql_base.h"
+#include "unittest/gunit/dd.h"
+#include "unittest/gunit/test_mdl_context_owner.h"
+#include "unittest/gunit/test_utils.h"
 
 
 namespace dd {
@@ -1064,6 +1064,41 @@ TEST_F(CacheStorageTest, DoubleUpdate)
 
   new_obj->set_name("newer name");
   EXPECT_FALSE(dc->update(new_obj));
+
+  dc->commit_modified_objects();
+}
+
+
+TEST_F(CacheStorageTest, DuplicateSePrivateId)
+{
+  dd::cache::Dictionary_client *dc= thd()->dd_client();
+  dd::cache::Dictionary_client::Auto_releaser releaser(dc);
+
+  std::unique_ptr<dd::Table> ibd_tab(dd::create_object<dd::Table>());
+  dd_unittest::set_attributes(ibd_tab.get(), "innodb_table_object", *mysql);
+  ibd_tab->set_engine("innodb");
+  ibd_tab->set_se_private_id(123);
+  lock_object(ibd_tab->name());
+
+  std::unique_ptr<dd::Table> ndb_tab(dd::create_object<dd::Table>());
+  dd_unittest::set_attributes(ndb_tab.get(), "ndb_table_object", *mysql);
+  ndb_tab->set_engine("ndb");
+  ndb_tab->set_se_private_id(123);
+  lock_object(ndb_tab->name());
+
+  EXPECT_FALSE(dc->store(ibd_tab.get()));
+  EXPECT_FALSE(dc->store(ndb_tab.get()));
+
+  // Acquire and drop the objects
+  const dd::Table *ibd_tab_ptr= NULL;
+  EXPECT_FALSE(dc->acquire<dd::Table>("mysql", "innodb_table_object", &ibd_tab_ptr));
+  EXPECT_NE(nullp<const dd::Table>(), ibd_tab_ptr);
+  EXPECT_FALSE(dc->drop(ibd_tab_ptr));
+
+  const dd::Table *ndb_tab_ptr= NULL;
+  EXPECT_FALSE(dc->acquire<dd::Table>("mysql", "ndb_table_object", &ndb_tab_ptr));
+  EXPECT_NE(nullp<const dd::Table>(), ndb_tab_ptr);
+  EXPECT_FALSE(dc->drop(ndb_tab_ptr));
 
   dc->commit_modified_objects();
 }

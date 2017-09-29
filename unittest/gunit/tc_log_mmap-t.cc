@@ -21,11 +21,11 @@
 
 #include "my_inttypes.h"
 #include "my_io.h"
-#include "mysqld.h"
-#include "sql_class.h"
-#include "tc_log.h"
-#include "test_utils.h"
-#include "thread_utils.h"
+#include "sql/mysqld.h"
+#include "sql/sql_class.h"
+#include "sql/tc_log.h"
+#include "unittest/gunit/test_utils.h"
+#include "unittest/gunit/thread_utils.h"
 
 #ifdef _WIN32
 #include <process.h> // getpid

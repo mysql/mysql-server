@@ -18,7 +18,7 @@
  02110-1301  USA
  */
 
-#include <my_config.h>
+#include "my_config.h"
 #include <stdio.h>
 #include <ctype.h>
 #include <stdio.h>

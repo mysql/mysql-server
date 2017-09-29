@@ -25,12 +25,12 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "pfs.h"
-#include "pfs_account.h"
-#include "pfs_buffer_container.h"
-#include "pfs_global.h"
-#include "pfs_instr.h"
-#include "pfs_stat.h"
+#include "storage/perfschema/pfs.h"
+#include "storage/perfschema/pfs_account.h"
+#include "storage/perfschema/pfs_buffer_container.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_instr.h"
+#include "storage/perfschema/pfs_stat.h"
 
 /**
   @addtogroup performance_schema_buffers

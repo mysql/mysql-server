@@ -249,6 +249,7 @@ Tables_in_test
 create temporary table t1 (keyc int, c1 char(100), c2 char(100)) engine = innodb;
 ERROR HY000: InnoDB is in read only mode.
 "testing system and temp tablespace name conflict"
+Pattern "innodb_temporary and innodb_system file names seem to be the same" found
 "restarting server in normal mode"
 # restart
 show tables;
@@ -857,7 +858,9 @@ t1	CREATE TEMPORARY TABLE `t1` (
 DROP TABLE t1, space_id;
 set innodb_strict_mode = OFF;
 "testing temp tablespace non-support for raw device"
+Pattern "support raw device" found
 "testing temp tablespace non-support for raw device"
+Pattern "support raw device" found
 # restart
 show tables;
 Tables_in_test
@@ -866,7 +869,9 @@ keyc int, c1 char(100), c2 char(100)
 ) engine = innodb;
 drop table t1;
 "try starting server with temp-tablespace size < min. threshold"
+Pattern "Tablespace size must be at least" found
 "try starting server with sys-tablespace size < min. threshold"
+Pattern "Tablespace size must be at least" found
 # restart
 show tables;
 Tables_in_test
@@ -875,6 +880,7 @@ keyc int, c1 char(100), c2 char(100)
 ) engine = innodb;
 drop table t1;
 "try starting server with no file specified for temp-tablespace"
+Pattern "init function returned error" found
 # restart
 show tables;
 Tables_in_test

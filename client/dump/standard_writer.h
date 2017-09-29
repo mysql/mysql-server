@@ -21,8 +21,8 @@
 #include <functional>
 #include <string>
 
-#include "abstract_chain_element.h"
-#include "i_output_writer.h"
+#include "client/dump/abstract_chain_element.h"
+#include "client/dump/i_output_writer.h"
 #include "my_inttypes.h"
 
 namespace Mysql{

@@ -22,7 +22,7 @@ select hex(inet_aton('127.1.1'));
 select inet_aton("122.256");
 select inet_aton("122.226.");
 select inet_aton("");
-explain extended select inet_aton("122.256"),inet_aton("122.226."),inet_aton("");
+explain select inet_aton("122.256"),inet_aton("122.226."),inet_aton("");
 
 select length(uuid()), charset(uuid()), length(unhex(replace(uuid(),_utf8'-',_utf8'')));
 

@@ -13,16 +13,33 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#ifndef SQL_DD_METADATA_H
+#define SQL_DD_METADATA_H
 
 #include <mysql/plugin.h>            // st_plugin_int
 
-#include "dd/string_type.h"          // dd::String_type
+#include "sql/dd/string_type.h"      // dd::String_type
 
 class THD;
 struct st_plugin_int;
 
 namespace dd {
 namespace info_schema {
+
+/**
+  The version of the current information_schema system views.
+
+  This version number is stored on disk in the data dictionary.
+  Every time the information_schema structure changes,
+  this version number must change.
+
+  The numbering to use is the MySQL version number
+  of the first MySQL version that published a given database schema.
+  The format is Mmmdd with M=Major, m=minor, d=dot,
+  so that MySQL 8.0.4 is encoded as 80004.
+*/
+
+static const uint IS_DD_VERSION= 80004;
 
 /**
   Initialize INFORMATION_SCHEMA system views.
@@ -92,3 +109,5 @@ bool remove_I_S_view_metadata(THD *thd,
 
 }
 }
+
+#endif // SQL_DD_METADATA_H

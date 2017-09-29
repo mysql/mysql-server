@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
 #ifndef GROUP_REPLICATION_AUTO_INCREMENT
 #define GROUP_REPLICATION_AUTO_INCREMENT
 
-#include "plugin_server_include.h"
+#include "plugin/group_replication/include/plugin_server_include.h"
 
 #define SERVER_DEFAULT_AUTO_INCREMENT 1
 #define SERVER_DEFAULT_AUTO_OFFSET 1

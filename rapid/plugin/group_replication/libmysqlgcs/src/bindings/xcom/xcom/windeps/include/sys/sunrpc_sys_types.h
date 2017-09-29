@@ -44,13 +44,9 @@ typedef unsigned short __u_short;
 typedef unsigned int __u_int;
 typedef unsigned long __u_long;
 
-#if defined(WIN32)
+#if defined(_WIN32)
 typedef long long int __quad_t;
 typedef unsigned long long int __u_quad_t;
-#endif
-#if defined(WIN64)
-typedef long int __quad_t;
-typedef unsigned long int __u_quad_t;
 #endif
 typedef struct { int __val[2];} __fsid_t;
 

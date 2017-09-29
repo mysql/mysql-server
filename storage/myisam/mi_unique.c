@@ -15,13 +15,13 @@
 
 /* Functions to check if a row is unique */
 
-#include <m_ctype.h>
 #include <sys/types.h>
 
+#include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
-#include "myisamdef.h"
+#include "storage/myisam/myisamdef.h"
 
 bool mi_check_unique(MI_INFO *info, MI_UNIQUEDEF *def, uchar *record,
                      ha_checksum unique_hash, my_off_t disk_pos)

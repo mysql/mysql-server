@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -34,16 +34,17 @@ struct trx_t;
 struct dict_table_t;
 struct row_prebuilt_t;
 
-/*****************************************************************//**
-Imports a tablespace. The space id in the .ibd file must match the space id
+/** Imports a tablespace. The space id in the .ibd file must match the space id
 of the table in the data dictionary.
+@param[in]	table		table
+@param[in]	table_def	dd table
+@param[in]	prebuilt	prebuilt struct in MySQL
 @return error code or DB_SUCCESS */
 dberr_t
 row_import_for_mysql(
-/*=================*/
-	dict_table_t*	table,		/*!< in/out: table */
-	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct
-						in MySQL */
+	dict_table_t*	table,
+	dd::Table*	table_def,
+	row_prebuilt_t*	prebuilt)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /*****************************************************************//**
@@ -59,24 +60,6 @@ row_import_update_discarded_flag(
 	bool		discarded,		/*!< in: set MIX_LEN column bit
 						to discarded, if true */
 	bool		dict_locked)		/*!< in: Set to true if the
-						caller already owns the
-						dict_sys_t:: mutex. */
-	MY_ATTRIBUTE((warn_unused_result));
-
-/*****************************************************************//**
-Update the (space, root page) of a table's indexes from the values
-in the data dictionary.
-@return DB_SUCCESS or error code */
-dberr_t
-row_import_update_index_root(
-/*=========================*/
-	trx_t*			trx,		/*!< in/out: transaction that
-						covers the update */
-	const dict_table_t*	table,		/*!< in: Table for which we want
-						to set the root page_no */
-	bool			reset,		/*!< in: if true then set to
-						FIL_NUL */
-	bool			dict_locked)	/*!< in: Set to true if the
 						caller already owns the
 						dict_sys_t:: mutex. */
 	MY_ATTRIBUTE((warn_unused_result));

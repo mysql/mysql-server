@@ -17,12 +17,12 @@
  * 02110-1301  USA
  */
 
-#include "sql_data_result.h"
+#include "plugin/x/src/sql_data_result.h"
 
 #include <stddef.h>
-
-#include "ngs/memory.h"
 #include <algorithm>
+
+#include "plugin/x/ngs/include/ngs/memory.h"
 
 namespace xpl {
 

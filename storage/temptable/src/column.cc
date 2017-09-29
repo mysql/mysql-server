@@ -15,10 +15,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** @file storage/temptable/src/column.cc
 TempTable Column implementation. */
 
-#include "temptable/column.h" /* temptable::Column */
-#include "field.h"         /* Field */
-#include "key.h"           /* KEY */
+#include "storage/temptable/include/temptable/column.h" /* temptable::Column */
+
 #include "my_dbug.h"       /* DBUG_ASSERT() */
+#include "sql/field.h"     /* Field */
+#include "sql/key.h"       /* KEY */
 
 namespace temptable {
 

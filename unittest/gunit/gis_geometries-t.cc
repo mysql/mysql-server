@@ -16,11 +16,13 @@
 */
 
 #include "my_config.h"
-#include "gis/geometries.h"
-#include "gis/geometries_cs.h"
-#include "gis/geometry_visitor.h"
+
 #include <gtest/gtest.h>
 #include <memory>           // unique_ptr
+
+#include "sql/gis/geometries.h"
+#include "sql/gis/geometries_cs.h"
+#include "sql/gis/geometry_visitor.h"
 
 namespace geometries_unittest {
 

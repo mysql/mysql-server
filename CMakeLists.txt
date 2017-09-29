@@ -14,8 +14,8 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 IF(WIN32)
-  # CMake 3.2.3 is needed for Visual Studio 2015 due to CMake bug 15552.
-  CMAKE_MINIMUM_REQUIRED(VERSION 3.2.3)
+  # CMake 3.8.0 is needed for Visual Studio 2017 and x64 toolset.
+  CMAKE_MINIMUM_REQUIRED(VERSION 3.8.0)
 ELSEIF(UNIX)
   # CMake 3.4.0 is needed for Solaris due to CMake bug 15673.
   # Cannot use CMAKE_SYSTEM_NAME until after PROJECT(), use uname directly.
@@ -36,14 +36,10 @@ CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12)
 CMAKE_POLICY(SET CMP0018 NEW)
 CMAKE_POLICY(SET CMP0022 NEW)
 
-# We use the LOCATION target property (CMP0026)
-# and get_target_property() for non-existent targets (CMP0045)
-# and INSTALL_NAME_DIR (CMP0042)
+# We use get_target_property() for non-existent targets (CMP0045)
 IF(CMAKE_VERSION VERSION_EQUAL "3.0.0" OR
    CMAKE_VERSION VERSION_GREATER "3.0.0")
- CMAKE_POLICY(SET CMP0026 OLD)
  CMAKE_POLICY(SET CMP0045 OLD)
- CMAKE_POLICY(SET CMP0042 OLD)
 ENDIF()
 
 MESSAGE(STATUS "Running cmake version ${CMAKE_VERSION}")
@@ -119,15 +115,11 @@ ELSEIF(NOT HAVE_CMAKE_BUILD_TYPE OR OLD_WITH_DEBUG)
   SET(OLD_WITH_DEBUG 0 CACHE INTERNAL "" FORCE)
 ENDIF()
 
-IF(CMAKE_GENERATOR MATCHES "Visual Studio 14.*")
-# Switch to 64 bit toolset on Windows (32 bit is default).
-# This is recommended as the 32 bit linker can run into address space issues.
-# Sadly there is no clean way to do it from CMake yet, so therefore this
-# slightly hackish way of doing it.
-  IF(WIN32)
-    SET(CMAKE_GENERATOR_TOOLSET
-        "v140</PlatformToolset><PreferredToolArchitecture>x64</PreferredToolArchitecture><PlatformToolset>v140")
-  ENDIF()
+IF(CMAKE_GENERATOR MATCHES "Visual Studio [1-9][0-9].*")
+  # Switch to 64 bit toolset on Windows (32 bit is default).
+  # This is recommended as the 32 bit linker will run into address space issues
+  # and not exit for long time.
+  SET(CMAKE_GENERATOR_TOOLSET "host=x64")
 ENDIF()
 
 # On Linux el6/el7 the default gcc is too old, see if devtoolset is installed.
@@ -459,9 +451,9 @@ IF (USE_LD_GOLD)
   # as the flag not existing).
   MY_CHECK_C_COMPILER_FLAG("-fuse-ld=gold" C_LD_GOLD_RESULT)
   MY_CHECK_CXX_COMPILER_FLAG("-fuse-ld=gold" CXX_LD_GOLD_RESULT)
-  IF (C_LD_GOLD_RESULT AND CXX_LD_GOLD_RESULT)
-    SET(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -fuse-ld=gold")
-    SET(CMAKE_CXX_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS} -fuse-ld=gold")
+  IF (C_LD_GOLD_RESULT AND CXX_LD_GOLD_RESULT AND NOT SOLARIS)
+    SET(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -fuse-ld=gold -Wl,--gc-sections -Wl,--icf=safe")
+    SET(CMAKE_CXX_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS} -fuse-ld=gold -Wl,--gc-sections -Wl,--icf=safe")
   ENDIF()
 ENDIF()
 
@@ -640,15 +632,19 @@ ADD_DEFINITIONS(-D__STDC_FORMAT_MACROS)    # Enable C99 printf format macros
 ADD_DEFINITIONS(-D_USE_MATH_DEFINES)       # Get access to M_PI, M_E, etc. in math.h
 
 INCLUDE_DIRECTORIES(
+  ${CMAKE_CURRENT_BINARY_DIR}
   ${CMAKE_CURRENT_BINARY_DIR}/include
+  ${CMAKE_CURRENT_BINARY_DIR}/rapid
   ${CMAKE_SOURCE_DIR}
-  ${CMAKE_SOURCE_DIR}/extra/regex
-  ${CMAKE_SOURCE_DIR}/extra/rapidjson/include
-  ${CMAKE_SOURCE_DIR}/sql/histograms
+  ${CMAKE_SOURCE_DIR}/include
+  ${CMAKE_SOURCE_DIR}/rapid
   ${CMAKE_CURRENT_BINARY_DIR}/libbinlogevents/include
   ${CMAKE_SOURCE_DIR}/libbinlogevents/export)
 # Add bundled or system zlib.
 MYSQL_CHECK_ZLIB_WITH_COMPRESS()
+IF(BUILD_BUNDLED_ZLIB)
+  INCLUDE_DIRECTORIES(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/extra/zlib ${CMAKE_CURRENT_BINARY_DIR}/extra/zlib)
+ENDIF()
 # Add bundled yassl/taocrypt or system openssl or custom openssl
 MYSQL_CHECK_SSL()
 MYSQL_CHECK_SSL_DLLS()
@@ -665,11 +661,15 @@ IF(NOT WITHOUT_SERVER)
 ENDIF()
 # Try and set CURL_LIBRARY
 MYSQL_CHECK_CURL()
+# Add RapidJSON library.
+# TODO: Support -DWITH_RAPIDJSON=system.
+INCLUDE_DIRECTORIES(SYSTEM ${CMAKE_SOURCE_DIR}/extra/rapidjson/include)
 
 IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
   # Check for pthread_setname_np
   CHECK_C_SOURCE_COMPILES("
   #include <pthread.h>
+
   int main(int ac, char **av)
   {
     const char *thread_name= 0;
@@ -696,15 +696,6 @@ IF(WITH_UNIT_TESTS)
  ENABLE_TESTING()
 ENDIF()
 
-IF(NOT WITHOUT_SERVER)
-  SET (MYSQLD_STATIC_PLUGIN_LIBS "" CACHE INTERNAL "")
-  # Add storage engines and plugins.
-  CONFIGURE_PLUGINS()
-ELSE()
-  # We may still want Cluster client libraries, use -DWITH_NDBCLUSTER=1
-  ADD_SUBDIRECTORY(storage/ndb)
-ENDIF()
-
 ADD_SUBDIRECTORY(include)
 ADD_SUBDIRECTORY(dbug)
 ADD_SUBDIRECTORY(strings)
@@ -715,6 +706,15 @@ ADD_SUBDIRECTORY(extra/regex)
 ADD_SUBDIRECTORY(libmysql)
 ADD_SUBDIRECTORY(libbinlogevents)
 ADD_SUBDIRECTORY(libbinlogstandalone)
+
+IF(NOT WITHOUT_SERVER)
+  SET (MYSQLD_STATIC_PLUGIN_LIBS "" CACHE INTERNAL "")
+  # Add storage engines and plugins.
+  CONFIGURE_PLUGINS()
+ELSE()
+  # We may still want Cluster client libraries, use -DWITH_NDBCLUSTER=1
+  ADD_SUBDIRECTORY(storage/ndb)
+ENDIF()
 
 IF(NOT WITHOUT_SERVER)
   SET (MYSQLD_STATIC_COMPONENT_LIBS "" CACHE INTERNAL "")
@@ -788,6 +788,14 @@ CONFIGURE_FILE(
     ${CMAKE_SOURCE_DIR}/cmake/info_macros.cmake.in
     ${CMAKE_BINARY_DIR}/info_macros.cmake @ONLY)
 
+SET(KNOWN_CONVENIENCE_LIBRARIES "" CACHE INTERNAL "")
+# Add to the 'make clean' target.
+# With this you need to do 'cmake .' before doing 'make' again.
+GET_PROPERTY(CLEAN_FILES DIRECTORY PROPERTY ADDITIONAL_MAKE_CLEAN_FILES)
+SET_PROPERTY(DIRECTORY PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
+  "${CLEAN_FILES}" "${CMAKE_BINARY_DIR}/archive_output_directory"
+)
+
 # Handle the "INFO_*" files.
 INCLUDE(${CMAKE_BINARY_DIR}/info_macros.cmake)
 # Source: This can be done during the cmake phase, all information is
@@ -846,6 +854,8 @@ IF(UNIX)
   EXECUTE_PROCESS(
     COMMAND ${CMAKE_COMMAND} -E create_symlink
      ./runtime_output_directory bin
+    COMMAND ${CMAKE_COMMAND} -E create_symlink
+     ./library_output_directory lib
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
   )
 ENDIF()

@@ -17,16 +17,17 @@
  * 02110-1301  USA
  */
 
-#include "admin_cmd_handler.h"
+#include "plugin/x/src/admin_cmd_handler.h"
 
 #include <algorithm>
 
-#include "admin_cmd_index.h"
-#include "query_string_builder.h"
-#include "sql_data_result.h"
-#include "xpl_error.h"
-#include "xpl_log.h"
-#include "xpl_server.h"
+#include "plugin/x/ngs/include/ngs/protocol/column_info_builder.h"
+#include "plugin/x/src/admin_cmd_index.h"
+#include "plugin/x/src/query_string_builder.h"
+#include "plugin/x/src/sql_data_result.h"
+#include "plugin/x/src/xpl_error.h"
+#include "plugin/x/src/xpl_log.h"
+#include "plugin/x/src/xpl_server.h"
 
 namespace xpl {
 
@@ -185,14 +186,17 @@ ngs::Error_code Admin_command_handler::list_clients(
 
   auto &proto = m_session->proto();
 
-  proto.send_column_metadata("", "", "", "", "client_id", "", 0,
-                             Mysqlx::Resultset::ColumnMetaData::UINT, 0, 0, 0);
-  proto.send_column_metadata("", "", "", "", "user", "", 0,
-                             Mysqlx::Resultset::ColumnMetaData::BYTES, 0, 0, 0);
-  proto.send_column_metadata("", "", "", "", "host", "", 0,
-                             Mysqlx::Resultset::ColumnMetaData::BYTES, 0, 0, 0);
-  proto.send_column_metadata("", "", "", "", "sql_session", "", 0,
-                             Mysqlx::Resultset::ColumnMetaData::UINT, 0, 0, 0);
+  ngs::Column_info_builder column[4]{
+    {Mysqlx::Resultset::ColumnMetaData::UINT, "client_id"},
+    {Mysqlx::Resultset::ColumnMetaData::BYTES, "user"},
+    {Mysqlx::Resultset::ColumnMetaData::BYTES, "host"},
+    {Mysqlx::Resultset::ColumnMetaData::UINT, "sql_session"}
+  };
+
+  proto.send_column_metadata(&column[0].get());
+  proto.send_column_metadata(&column[1].get());
+  proto.send_column_metadata(&column[2].get());
+  proto.send_column_metadata(&column[3].get());
 
   for (std::vector<Client_data_>::const_iterator it = clients.begin();
        it != clients.end(); ++it) {
@@ -467,10 +471,13 @@ ngs::Error_code Admin_command_handler::list_notices(
   // notice | enabled
   // <name> | <1/0>
   auto &proto = m_session->proto();
-  proto.send_column_metadata("", "", "", "", "notice", "", 0,
-                             Mysqlx::Resultset::ColumnMetaData::BYTES, 0, 0, 0);
-  proto.send_column_metadata("", "", "", "", "enabled", "", 0,
-                             Mysqlx::Resultset::ColumnMetaData::SINT, 0, 0, 0);
+  ngs::Column_info_builder column[2] {
+    { Mysqlx::Resultset::ColumnMetaData::BYTES, "notice" },
+    { Mysqlx::Resultset::ColumnMetaData::SINT, "enabled" }
+  };
+
+  proto.send_column_metadata(&column[0].get());
+  proto.send_column_metadata(&column[1].get());
 
   add_notice_row(&proto, "warnings",
                  m_session->options().get_send_warnings() ? 1 : 0);
@@ -626,9 +633,9 @@ bool is_collection(ngs::Sql_session_interface *da, const std::string &schema,
     result.query(qb.get());
     if (result.size() != 1) {
       log_debug(
-          "Unable to recognize '%s' as a collection; query result size: %lu",
+          "Unable to recognize '%s' as a collection; query result size: %llu",
           std::string(schema.empty() ? name : schema + "." + name).c_str(),
-          static_cast<uint64_t>(result.size()));
+          static_cast<unsigned long long>(result.size()));
       return false;
     }
     long cnt = 0, doc = 0, id = 0, gen = 0;

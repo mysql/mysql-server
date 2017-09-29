@@ -30,11 +30,7 @@
 #include <random>       // std::mt19937
 #include <string>
 
-#include "dd/object_id.h"      // dd::Object_id
-#include "dd/properties.h"     // dd::Properties
-#include "discrete_interval.h" // Discrete_interval
 #include "ft_global.h"         // ft_hints
-#include "key.h"
 #include "lex_string.h"
 #include "m_string.h"
 #include "map_helpers.h"
@@ -52,14 +48,18 @@
 #include "mysql/components/services/psi_table_bits.h"
 #include "mysql/psi/psi_table.h"
 #include "mysql/udf_registration_types.h"
-#include "sql_alloc.h"
-#include "sql_bitmap.h"        // Key_map
-#include "sql_const.h"         // SHOW_COMP_OPTION
-#include "sql_list.h"          // SQL_I_List
-#include "sql_plugin_ref.h"    // plugin_ref
-#include "system_variables.h"  // System_status_var
+#include "sql/dd/object_id.h"  // dd::Object_id
+#include "sql/dd/properties.h" // dd::Properties
+#include "sql/discrete_interval.h" // Discrete_interval
+#include "sql/key.h"
+#include "sql/sql_alloc.h"
+#include "sql/sql_bitmap.h"    // Key_map
+#include "sql/sql_const.h"     // SHOW_COMP_OPTION
+#include "sql/sql_list.h"      // SQL_I_List
+#include "sql/sql_plugin_ref.h" // plugin_ref
+#include "sql/system_variables.h" // System_status_var
+#include "sql/thr_malloc.h"
 #include "thr_lock.h"          // thr_lock_type
-#include "thr_malloc.h"
 #include "typelib.h"
 
 class Alter_info;
@@ -81,6 +81,7 @@ struct TABLE;
 struct TABLE_LIST;
 struct TABLE_SHARE;
 struct handlerton;
+struct Tablespace_options;
 
 typedef struct st_bitmap MY_BITMAP;
 typedef struct st_foreign_key_info FOREIGN_KEY_INFO;
@@ -95,8 +96,11 @@ namespace dd {
   class  Table;
   class  Tablespace;
 
-  typedef struct sdi_key sdi_key_t;
-  typedef struct sdi_vector sdi_vector_t;
+  struct sdi_key;
+  struct sdi_vector;
+
+typedef sdi_key sdi_key_t;
+typedef sdi_vector sdi_vector_t;
 }
 
 typedef bool (*qc_engine_callback)(THD *thd, const char *table_key,
@@ -108,6 +112,7 @@ typedef bool (stat_print_fn)(THD *thd, const char *type, size_t type_len,
                              const char *status, size_t status_len);
 
 class ha_statistics;
+class ha_tablespace_statistics;
 
 namespace AQP {
   class Join_plan;
@@ -469,6 +474,13 @@ enum enum_alter_inplace_result {
 */
 #define HA_BLOB_PARTIAL_UPDATE (1LL << 49)
 
+/**
+  If this isn't defined, only columns/indexes with Cartesian coordinate systems
+  (projected SRS or SRID 0) is supported. Columns/indexes without SRID
+  restriction is also supported if this isn't defined.
+*/
+#define HA_SUPPORTS_GEOGRAPHIC_GEOMETRY_COLUMN (1LL << 50)
+
 /*
   Bits in index_flags(index_number) for what you can do with index.
   If you do not implement indexes, just return zero here.
@@ -719,6 +731,8 @@ struct st_handler_tablename
   on add/drop/change tablespace definitions to the proper hton.
 */
 #define UNDEF_NODEGROUP 65535
+
+// FUTURE: Combine these two enums into one enum class
 enum ts_command_type
 {
   TS_CMD_NOT_DEFINED = -1,
@@ -728,6 +742,7 @@ enum ts_command_type
   ALTER_LOGFILE_GROUP = 3,
   DROP_TABLESPACE = 4,
   DROP_LOGFILE_GROUP = 5,
+  // FUTURE: Remove these as they are never used, execpt as case labels in SE
   CHANGE_FILE_TABLESPACE = 6,
   ALTER_ACCESS_MODE_TABLESPACE = 7
 };
@@ -736,39 +751,36 @@ enum ts_alter_tablespace_type
 {
   TS_ALTER_TABLESPACE_TYPE_NOT_DEFINED = -1,
   ALTER_TABLESPACE_ADD_FILE = 1,
-  ALTER_TABLESPACE_DROP_FILE = 2
+  ALTER_TABLESPACE_DROP_FILE = 2,
+  ALTER_TABLESPACE_RENAME = 3
 };
 
-enum tablespace_access_mode
-{
-  TS_NOT_DEFINED= -1,
-  TS_READ_ONLY = 0,
-  TS_READ_WRITE = 1,
-  TS_NOT_ACCESSIBLE = 2
-};
+/**
+  Legacy struct for passing tablespace information to SEs.
 
-class st_alter_tablespace : public Sql_alloc
+  FUTURE: Pass all info through dd objects
+ */
+class st_alter_tablespace
 {
-  public:
-  const char *tablespace_name;
-  const char *logfile_group_name;
-  enum ts_command_type ts_cmd_type;
-  enum ts_alter_tablespace_type ts_alter_tablespace_type;
-  const char *data_file_name;
-  const char *undo_file_name;
-  const char *redo_file_name;
-  ulonglong extent_size;
-  ulonglong undo_buffer_size;
-  ulonglong redo_buffer_size;
-  ulonglong initial_size;
-  ulonglong autoextend_size;
-  ulonglong max_size;
-  ulonglong file_block_size;
-  uint nodegroup_id;
-  handlerton *storage_engine;
-  bool wait_until_completed;
-  const char *ts_comment;
-  enum tablespace_access_mode ts_access_mode;
+public:
+  const char *tablespace_name= nullptr;
+  const char *logfile_group_name= nullptr;
+  ts_command_type ts_cmd_type= TS_CMD_NOT_DEFINED;
+  enum ts_alter_tablespace_type ts_alter_tablespace_type=
+    TS_ALTER_TABLESPACE_TYPE_NOT_DEFINED;
+  const char *data_file_name= nullptr;
+  const char *undo_file_name= nullptr;
+  ulonglong extent_size= 1024*1024;        // Default 1 MByte
+  ulonglong undo_buffer_size= 8*1024*1024; // Default 8 MByte
+  ulonglong redo_buffer_size= 8*1024*1024; // Default 8 MByte
+  ulonglong initial_size= 128*1024*1024;   // Default 128 MByte
+  ulonglong autoextend_size= 0;            // No autoextension as default
+  ulonglong max_size=0;                    // Max size == initial size => no extension
+  ulonglong file_block_size= 0;            // 0=default or must be a valid Page Size
+  uint nodegroup_id= UNDEF_NODEGROUP;
+  bool wait_until_completed= true;
+  const char *ts_comment= nullptr;
+
   bool is_tablespace_command()
   {
     return ts_cmd_type == CREATE_TABLESPACE      ||
@@ -778,28 +790,28 @@ class st_alter_tablespace : public Sql_alloc
             ts_cmd_type == ALTER_ACCESS_MODE_TABLESPACE;
   }
 
-  /** Default constructor */
-  st_alter_tablespace()
-  {
-    tablespace_name= NULL;
-    logfile_group_name= "DEFAULT_LG"; //Default log file group
-    ts_cmd_type= TS_CMD_NOT_DEFINED;
-    data_file_name= NULL;
-    undo_file_name= NULL;
-    redo_file_name= NULL;
-    extent_size= 1024*1024;        // Default 1 MByte
-    undo_buffer_size= 8*1024*1024; // Default 8 MByte
-    redo_buffer_size= 8*1024*1024; // Default 8 MByte
-    initial_size= 128*1024*1024;   // Default 128 MByte
-    autoextend_size= 0;            // No autoextension as default
-    max_size= 0;                   // Max size == initial size => no extension
-    storage_engine= NULL;
-    file_block_size= 0;            // 0=default or must be a valid Page Size
-    nodegroup_id= UNDEF_NODEGROUP;
-    wait_until_completed= TRUE;
-    ts_comment= NULL;
-    ts_access_mode= TS_NOT_DEFINED;
-  }
+  /**
+    Proper constructor even for all-public class simplifies initialization and allows
+    members to be const.
+
+    FUTURE: With constructor all members can be made const, and do not need default
+    initializers.
+
+    @param tablespace name of tabelspace (nullptr for logfile group statements)
+    @param logfile_group name of logfile group or nullptr
+    @param cmd main statement type
+    @param alter_tablespace_cmd subcommand type for ALTER TABLESPACE
+    @param datafile tablespace file for CREATE and ALTER ... ADD ...
+    @param undofile only applies to logfile group statements. nullptr otherwise.
+    @param opts options provided by parser
+  */
+  st_alter_tablespace(const char *tablespace,
+		      const char *logfile_group,
+		      ts_command_type cmd,
+		      enum ts_alter_tablespace_type alter_tablespace_cmd,
+		      const char *datafile,
+		      const char *undofile,
+		      const Tablespace_options &opts);
 };
 
 
@@ -811,14 +823,11 @@ enum enum_schema_tables
   SCH_FIRST=0,
   SCH_COLUMN_PRIVILEGES=SCH_FIRST,
   SCH_ENGINES,
-  SCH_FILES,
   SCH_OPEN_TABLES,
   SCH_OPTIMIZER_TRACE,
-  SCH_PARTITIONS,
   SCH_PLUGINS,
   SCH_PROCESSLIST,
   SCH_PROFILES,
-  SCH_REFERENTIAL_CONSTRAINTS,
   SCH_SCHEMA_PRIVILEGES,
   SCH_TABLESPACES,
   SCH_TABLE_PRIVILEGES,
@@ -1481,7 +1490,8 @@ typedef bool (*sdi_get_t)(const dd::Tablespace &tablespace,
   @param[in]  sdi         SDI to write into the tablespace
   @param[in]  sdi_len     length of SDI BLOB returned
   @retval     false       success
-  @retval     true        failure
+  @retval     true        failure, my_error() should be called
+                          by SE
 */
 typedef bool (*sdi_set_t)(const dd::Tablespace &tablespace,
                           const dd::Table *table,
@@ -1493,7 +1503,8 @@ typedef bool (*sdi_set_t)(const dd::Tablespace &tablespace,
   @param[in]  tablespace  tablespace object
   @param[in]  sdi_key     SDI key to uniquely identify SDI obj
   @retval     false       success
-  @retval     true        failure
+  @retval     true        failure, my_error() should be called
+                          by SE
 */
 typedef bool (*sdi_delete_t)(const dd::Tablespace &tablespace,
                              const dd::Table *table,
@@ -1564,7 +1575,6 @@ typedef SE_cost_constants *(*get_cost_constants_t)(uint storage_category);
 typedef void (*replace_native_transaction_in_thd_t)(THD *thd, void *new_trx_arg,
                                                     void **ptr_trx_arg);
 
-
 /** Mode for initializing the data dictionary. */
 enum dict_init_mode_t
 {
@@ -1615,6 +1625,15 @@ typedef bool (*dict_init_t)(dict_init_mode_t dict_init_mode,
 
 typedef void (*dict_cache_reset_t)(const char* schema_name,
                                    const char* table_name);
+
+
+/**
+  Invalidate all table and tablespace entries in the local dictionary cache.
+
+  Needed for recovery during server restart.
+ */
+
+typedef void (*dict_cache_reset_tables_and_tablespaces_t)();
 
 
 /** Mode for data dictionary recovery. */
@@ -1729,7 +1748,7 @@ typedef bool (*rotate_encryption_master_key_t)(void);
   @param ts_se_private_data       Tablespace SE private data.
   @param tbl_se_private_data      Table SE private data.
   @param flags                    Type of statistics to retrieve.
-  @param stats                    (OUT) Contains statistics read from SE.
+  @param[out] stats               Contains statistics read from SE.
 
   @returns false on success,
            true on failure
@@ -1753,7 +1772,7 @@ typedef bool (*get_table_statistics_t)(
   @param index_ordinal_position   Position of index.
   @param column_ordinal_position  Position of column in index.
   @param se_private_id            SE private id of the table.
-  @param cardinality              (OUT) cardinality being returned by SE.
+  @param[out] cardinality         cardinality being returned by SE.
 
   @returns false on success,
            true on failure
@@ -1765,6 +1784,22 @@ typedef bool (*get_index_column_cardinality_t)(const char *db_name,
                                                uint column_ordinal_position,
                                                dd::Object_id se_private_id,
                                                ulonglong *cardinality);
+
+/**
+  Retrieve ha_tablespace_statistics from SE.
+
+  @param tablespace_name          Tablespace_name
+  @param ts_se_private_data       Tablespace SE private data.
+  @param tbl_se_private_data      Table SE private data.
+  @param[out] stats               Contains tablespace
+                                  statistics read from SE.
+  @returns false on success, true on failure
+*/
+typedef bool (*get_tablespace_statistics_t)(
+                const char *tablespace_name,
+                const char *file_name,
+                const dd::Properties &ts_se_private_data,
+                ha_tablespace_statistics *stats);
 
 /* Database physical clone interfaces */
 using Clone_begin_t = int (*)(handlerton* hton, THD* thd,
@@ -1810,6 +1845,16 @@ struct Clone_interface_t
         statement with error.
 */
 typedef void (*post_ddl_t)(THD *thd);
+
+
+/**
+  Perform SE-specific cleanup after recovery of transactions.
+
+  @note Particularly SEs supporting atomic DDL can use this call
+        to perform post-DDL actions for DDL statements which were
+        committed or rolled back during recovery stage.
+*/
+typedef void (*post_recover_t)(void);
 
 
 /**
@@ -1887,6 +1932,8 @@ struct handlerton
   fill_is_table_t fill_is_table;
   dict_init_t dict_init;
   dict_cache_reset_t dict_cache_reset;
+  dict_cache_reset_tables_and_tablespaces_t
+    dict_cache_reset_tables_and_tablespaces;
   dict_recover_t dict_recover;
 
   /** Global handler flags. */
@@ -1947,8 +1994,10 @@ struct handlerton
 
   get_table_statistics_t get_table_statistics;
   get_index_column_cardinality_t get_index_column_cardinality;
+  get_tablespace_statistics_t get_tablespace_statistics;
 
   post_ddl_t post_ddl;
+  post_recover_t post_recover;
 
   /** Clone data transfer interfaces */
   Clone_interface_t clone_interface;
@@ -2011,6 +2060,10 @@ struct handlerton
 
 #define HTON_SUPPORTS_ATOMIC_DDL     (1 << 12)
 
+inline bool ddl_is_atomic(const handlerton *hton)
+{
+  return (hton->flags & HTON_SUPPORTS_ATOMIC_DDL) != 0;
+}
 
 enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
 			 ISO_REPEATABLE_READ, ISO_SERIALIZABLE};
@@ -4862,7 +4915,9 @@ public:
          Engines that support atomic DDL only prepare for the commit during this step
          but do not finalize it. Real commit happens later when the whole statement is
          committed. Also in some situations statement might be rolled back after call
-         to commit_inplace_alter_table() for such storage engines.
+         to commit_inplace_alter_table() for such storage engines. In the latter
+         special case SE might require call to handlerton::dict_cache_reset() in
+         order to invalidate its internal table definition cache after rollback.
       b) If we have failed to upgrade lock or any errors have occured during the
          handler functions calls (including commit), we call
          handler::ha_commit_inplace_alter_table()
@@ -5077,7 +5132,9 @@ protected:
     prepare for the commit but do not finalize it. Real commit should happen
     later when the whole statement is committed. Also in some situations
     statement might be rolled back after call to commit_inplace_alter_table()
-    for such storage engines.
+    for such storage engines. In the latter special case SE might require call
+    to handlerton::dict_cache_reset() in order to invalidate its internal
+    table definition cache after rollback.
 
     @note Storage engines are responsible for reporting any errors by
     calling my_error()/print_error()
@@ -5912,6 +5969,16 @@ int ha_prepare(THD *thd);
 typedef ulonglong my_xid; // this line is the same as in log_event.h
 int ha_recover(const memroot_unordered_set<my_xid> *commit_list);
 
+
+/**
+  Perform SE-specific cleanup after recovery of transactions.
+
+  @note SE supporting atomic DDL can use this method to perform
+        post-DDL actions for DDL statements which were committed
+        or rolled back during recovery stage.
+*/
+void ha_post_recover();
+
 /*
  transactions: interface to low-level handlerton functions. These are
  intended to be used by the transaction coordinators to
@@ -6019,5 +6086,50 @@ std::string indexed_cells_to_string(const uchar *indexed_cells,
                                     uint indexed_cells_len,
                                     const KEY &mysql_index);
 #endif /* DBUG_OFF */
+
+/*
+  This class is used by INFORMATION_SCHEMA.FILES to read SE specific
+  tablespace dynamic metadata. Some member like m_type and id, is not
+  really dynamic, but as this information is not stored in data dictionary
+  in a generic format and still is SE specific Some member like m_type and
+  id, is not really dynamic, but as this information is not stored in data
+  dictionary in a generic format and still needs SE specific decision, we
+  are requesting the same from SE.
+*/
+
+class ha_tablespace_statistics
+{
+public:
+  ha_tablespace_statistics()
+   :m_id(0),
+    m_logfile_group_number(0),
+    m_free_extents(0),
+    m_total_extents(0),
+    m_extent_size(0),
+    m_initial_size(0),
+    m_maximum_size(0),
+    m_maximum_size_is_null(false),
+    m_autoextend_size(0),
+    m_version(0),
+    m_data_free(0)
+  { }
+
+  ulonglong   m_id;
+  dd::String_type m_type;
+  dd::String_type m_logfile_group_name;   // Cluster
+  ulonglong   m_logfile_group_number; // Cluster
+  ulonglong   m_free_extents;
+  ulonglong   m_total_extents;
+  ulonglong   m_extent_size;
+  ulonglong   m_initial_size;
+  ulonglong   m_maximum_size;
+  bool        m_maximum_size_is_null;
+  ulonglong   m_autoextend_size;
+  ulonglong   m_version;    // NDB only
+  dd::String_type m_row_format; // NDB only
+  ulonglong   m_data_free;  // InnoDB
+  dd::String_type m_status;
+};
+
 
 #endif /* HANDLER_INCLUDED */

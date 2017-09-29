@@ -27,16 +27,16 @@
 #include <vector>
 
 #include "binary_log_types.h"   // enum_field_types
-#include "json_binary.h"        // json_binary::Value
-#include "malloc_allocator.h"   // Malloc_allocator
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_decimal.h"         // my_decimal
 #include "my_inttypes.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_time.h"         // MYSQL_TIME
 #include "prealloced_array.h"   // Prealloced_array
-#include "sql_alloc.h"          // Sql_alloc
+#include "sql/json_binary.h"    // json_binary::Value
+#include "sql/malloc_allocator.h" // Malloc_allocator
+#include "sql/my_decimal.h"     // my_decimal
+#include "sql/sql_alloc.h"      // Sql_alloc
 
 class Field_json;
 class Json_array;
@@ -236,7 +236,9 @@ public:
 
     @return the depth of the document
   */
+#ifdef MYSQL_SERVER
   virtual uint32 depth() const= 0;
+#endif
 
   /**
     Make a deep clone. The ownership of the returned object is
@@ -297,6 +299,7 @@ public:
     @param[in] newv the new value to put in the container
   */
   /* purecov: begin deadcode */
+#ifdef MYSQL_SERVER
   virtual void
   replace_dom_in_container(const Json_dom *oldv MY_ATTRIBUTE((unused)),
                            Json_dom_ptr newv MY_ATTRIBUTE((unused)))
@@ -307,6 +310,7 @@ public:
     */
     DBUG_ASSERT(false);
   }
+#endif // ifdef MYSQL_SERVER
   /* purecov: end */
 
   /**
@@ -464,13 +468,17 @@ public:
   size_t cardinality() const;
 
   // See base class documentation.
+#ifdef MYSQL_SERVER
   uint32 depth() const;
+#endif
 
   // See base class documentation.
   Json_dom_ptr clone() const;
 
   // See base class documentation.
+#ifdef MYSQL_SERVER
   void replace_dom_in_container(const Json_dom *oldv, Json_dom_ptr newv);
+#endif
 
   /**
     Remove all elements in the object.
@@ -630,7 +638,9 @@ public:
   }
 
   // See base class documentation.
+#ifdef MYSQL_SERVER
   uint32 depth() const;
+#endif
 
   // See base class documentation.
   Json_dom_ptr clone() const;
@@ -657,8 +667,6 @@ public:
   */
   void clear() { m_v.clear(); }
 
-  void replace_dom_in_container(const Json_dom *oldv, Json_dom_ptr newv);
-
   /// Constant iterator over the elements in the JSON array.
   using const_iterator= decltype(m_v)::const_iterator;
 
@@ -667,6 +675,10 @@ public:
 
   /// Returns a const_iterator that refers past the last element.
   const_iterator end() const { return m_v.end(); }
+
+#ifdef MYSQL_SERVER
+  void replace_dom_in_container(const Json_dom *oldv, Json_dom_ptr newv);
+#endif
 };
 
 
@@ -676,7 +688,9 @@ public:
 class Json_scalar : public Json_dom {
 public:
   // See base class documentation.
+#ifdef MYSQL_SERVER
   uint32 depth() const { return 1; }
+#endif
 
   // See base class documentation.
   bool is_scalar() const { return true; }
@@ -1148,6 +1162,16 @@ public:
   std::pair<const std::string, Json_wrapper> elt() const;
 };
 
+
+/**
+  How Json_wrapper would handle coercion error
+*/
+
+enum enum_coercion_error {
+  CE_WARNING,  // Throw a warning, default
+  CE_ERROR     // Throw an error
+};
+
 /**
   Abstraction for accessing JSON values irrespective of whether they
   are (started out as) binary JSON values or JSON DOM values. The
@@ -1180,7 +1204,6 @@ private:
     json_binary::Value m_value;
   };
   bool m_is_dom;      //!< Wraps a DOM iff true
-
 public:
   /**
     Get the wrapped datetime value in the packed format.
@@ -1317,7 +1340,9 @@ public:
     @param thd current session
     @return pointer to a DOM object, or NULL if the DOM could not be allocated
   */
+#ifdef MYSQL_SERVER
   Json_dom_ptr clone_dom(const THD *thd) const;
+#endif
 
   /**
     Get the wrapped contents in binary value form.
@@ -1327,7 +1352,9 @@ public:
     @retval false on success
     @retval true  on error
   */
+#ifdef MYSQL_SERVER
   bool to_binary(const THD *thd, String *str) const;
+#endif
 
   /**
     Check if the wrapped JSON document is a binary value (a
@@ -1361,6 +1388,14 @@ public:
     @return false formatting went well, else true
   */
   bool to_string(String *buffer, bool json_quoted, const char *func_name) const;
+
+  /**
+    Print this JSON document to the debug trace.
+
+    @param[in] message If given, the JSON document is prefixed with
+    this message.
+  */
+  void dbug_print(const char *message MY_ATTRIBUTE((unused))= "") const;
 
   /**
     Format the JSON value to an external JSON string in buffer in the format of
@@ -1588,47 +1623,65 @@ public:
   /**
     Extract an int (signed or unsigned) from the JSON if possible
     coercing if need be.
-    @param[in] msgnam to use in error message in conversion failed
+    @param[in]  msgnam to use in error message in conversion failed
+    @param[out] err    TRUE <=> error occur during coercion
+    @param[in]  cr_error Whether to raise an error or warning on
+                         data truncation
     @returns json value coerced to int
   */
-  longlong coerce_int(const char *msgnam) const;
+  longlong coerce_int(const char *msgnam, bool *err= NULL,
+                      enum_coercion_error cr_error= CE_WARNING) const;
 
   /**
     Extract a real from the JSON if possible, coercing if need be.
 
-    @param[in] msgnam to use in error message in conversion failed
+    @param[in]  msgnam to use in error message in conversion failed
+    @param[out] err    TRUE <=> error occur during coercion
+    @param[in]  cr_error Whether to raise an error or warning on
+                         data truncation
     @returns json value coerced to real
   */
-  double coerce_real(const char *msgnam) const;
+  double coerce_real(const char *msgnam, bool *err= NULL,
+                      enum_coercion_error cr_error= CE_WARNING) const;
 
   /**
     Extract a decimal from the JSON if possible, coercing if need be.
 
     @param[in,out] decimal_value a value buffer
-    @param[in] msgnam to use in error message in conversion failed
+    @param[in]  msgnam to use in error message in conversion failed
+    @param[out] err    TRUE <=> error occur during coercion
+    @param[in]  cr_error Whether to raise an error or warning on
+                         data truncation
     @returns json value coerced to decimal
   */
-  my_decimal *coerce_decimal(my_decimal *decimal_value, const char *msgnam)
-    const;
+  my_decimal *coerce_decimal(my_decimal *decimal_value, const char *msgnam,
+                             bool *err= NULL,
+                             enum_coercion_error cr_error= CE_WARNING) const;
 
   /**
     Extract a date from the JSON if possible, coercing if need be.
 
     @param[in,out] ltime a value buffer
     @param msgnam
+    @param[in]  cr_error Whether to raise an error or warning on
+                         data truncation
     @returns json value coerced to date
    */
-  bool coerce_date(MYSQL_TIME *ltime, const char *msgnam) const;
+  bool coerce_date(MYSQL_TIME *ltime, const char *msgnam,
+                   enum_coercion_error cr_error= CE_WARNING) const;
 
   /**
     Extract a time value from the JSON if possible, coercing if need be.
 
     @param[in,out] ltime a value buffer
     @param msgnam
+    @param[in]  cr_error Whether to raise an error or warning on
+                         data truncation
 
     @returns json value coerced to time
   */
-  bool coerce_time(MYSQL_TIME *ltime, const char *msgnam) const;
+  bool coerce_time(MYSQL_TIME *ltime, const char *msgnam,
+                   enum_coercion_error cr_error= CE_WARNING) const;
 
   /**
     Make a sort key that can be used by filesort to order JSON values.

@@ -1,0 +1,115 @@
+#
+# WL#6526: FORCE INDEX to avoid index dives when possible
+#
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_innodb_16k.inc
+
+# All the queries use EXPLAIN FOR CONNECTION. There will be no change in
+# EXPLAIN output.
+
+CREATE TABLE t1 (
+  pk_col1 INT NOT NULL,
+  a1 CHAR(64),
+  a2 CHAR(64),
+  PRIMARY KEY(pk_col1),
+  KEY t1_a1_idx (a1),
+  KEY t1_a1_a2_idx (a1, a2)
+) ENGINE=INNODB;
+
+INSERT INTO t1 (pk_col1, a1, a2) VALUES (1,'a','b'), (2,'a','b'), (3,'d','c'),
+                                        (4,'b','c'), (5,'c','d'), (6,'a','b');
+CREATE TABLE t2 (
+  pk_col1 INT NOT NULL,
+  pk_col2 INT NOT NULL,
+  a1 CHAR(64),
+  a2 CHAR(64),
+  PRIMARY KEY(pk_col1, pk_col2),
+  KEY t2_a1_idx (a1),
+  KEY t2_a1_a2_idx (a1, a2)
+) ENGINE=INNODB;
+
+INSERT INTO t2 (pk_col1, pk_col2, a1, a2) VALUES (1,1,'a','b'),(1,2,'a','b'),
+                                                 (1,3,'d','c'),(1,4,'b','c'),
+                                                 (2,1,'c','d'),(3,1,'a','b');
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+
+#range scan
+let query1=SELECT a1 FROM t1 WHERE a1 > 'b';
+let query2=SELECT a1 FROM t1 FORCE INDEX(t1_a1_a2_idx) WHERE a1 > 'b';
+
+#ref access
+let query3=SELECT a1 FROM t1 WHERE a1 = 'a';
+let query4=SELECT a1 FROM t1 FORCE INDEX(t1_a1_a2_idx) WHERE a1 = 'a';
+
+#index scan (no effect with this WL.)
+let query5=SELECT a1 FROM t1;
+let query6=SELECT a1 FROM t1 FORCE INDEX(t1_a1_a2_idx);
+
+# This query chose index scan before this WL, but will change to range.
+# EXPLAIN FOR CONNECTION will reflect this switch. This happens because we now
+# set rows = 1 in handler::multi_range_read_info_const.
+let query7=SELECT a1 FROM t1 FORCE INDEX(t1_a1_a2_idx) WHERE a1 >= 'a';
+
+#Cases when FORCE INDEX should be ignored (because index is not applicable)
+let query8=SELECT a1 FROM t1 FORCE INDEX(t1_a1_idx) WHERE a2 > 'a';
+
+#shouldn't skip index dives because it is a JOIN.
+let query9=
+SELECT t2.a1, t2.a2
+FROM t1 FORCE INDEX(t1_a1_a2_idx) JOIN t2 ON (t1.pk_col1 = t2.pk_col2)
+WHERE t1.a1 > 'a';
+
+let $QID= `SELECT CONNECTION_ID()`;
+let $point= before_join_exec;
+let $err=0;
+
+connect (ce, localhost, root,, test);
+connect (cq, localhost, root,, test);
+connection cq;
+
+let $query= $query1;
+--source include/skip_records_in_range.inc
+
+let $query= $query2;
+--source include/skip_records_in_range.inc
+
+let $query= $query3;
+--source include/skip_records_in_range.inc
+
+let $query= $query4;
+--source include/skip_records_in_range.inc
+
+let $query= $query5;
+--source include/skip_records_in_range.inc
+
+let $query= $query6;
+--source include/skip_records_in_range.inc
+
+let $query= $query7;
+--source include/skip_records_in_range.inc
+
+let $query= $query8;
+--source include/skip_records_in_range.inc
+
+let $query= $query9;
+--source include/skip_records_in_range.inc
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #26627136: WL#6526: ASSERTION
+--echo #               `!ALL_SELECTS_LIST->NEXT_SELECT_IN_LIST()' FAILED.
+--echo #
+
+CREATE TABLE t1 (v3 INT, KEY(v3));
+CREATE view v1 AS SELECT v3  FROM t1 FORCE KEY (v3) GROUP BY v3;
+
+let query1= select * from v1;
+eval EXPLAIN $query1;
+eval $query1;
+
+DROP VIEW v1;
+DROP TABLE t1;

@@ -18,7 +18,7 @@
 
 #include <stddef.h>
 
-#include "dd/impl/raw/raw_record.h"       // dd::Raw_record
+#include "sql/dd/impl/raw/raw_record.h"   // dd::Raw_record
 
 struct TABLE;
 

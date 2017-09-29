@@ -36,29 +36,11 @@
 #include <random>                     // std::uniform_real_distribution
 #include <string>
 
-#include "auth_common.h"              // check_readonly() and SUPER_ACL
 #include "binary_log_types.h"
-#include "binlog.h"                   // mysql_bin_log
 #include "binlog_event.h"
-#include "check_stack.h"
-#include "current_thd.h"
-#include "dd/cache/dictionary_client.h" // dd::cache::Dictionary_client
-#include "dd/dd.h"                    // dd::get_dictionary
-#include "dd/dictionary.h"            // dd:acquire_shared_table_mdl
-#include "dd/types/table.h"           // dd::Table
-#include "dd_table_share.h"           // open_table_def
-#include "debug_sync.h"               // DEBUG_SYNC
-#include "derror.h"                   // ER_DEFAULT
-#include "error_handler.h"            // Internal_error_handler
-#include "field.h"
-#include "item.h"
 #include "keycache.h"
-#include "lock.h"                     // MYSQL_LOCK
-#include "log.h"
-#include "log_event.h"                // Write_rows_log_event
 #include "m_ctype.h"
 #include "m_string.h"
-#include "mdl.h"
 #include "my_bit.h"                   // my_count_bits
 #include "my_bitmap.h"                // MY_BITMAP
 #include "my_check_opt.h"
@@ -82,42 +64,60 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysql_version.h"            // MYSQL_VERSION_ID
-#include "mysqld.h"                   // global_system_variables heap_hton ..
 #include "mysqld_error.h"
-#include "opt_costconstantcache.h"    // reload_optimizer_cost_constants
-#include "opt_costmodel.h"
-#include "opt_hints.h"
 #include "prealloced_array.h"
-#include "protocol.h"
-#include "psi_memory_key.h"
-#include "query_options.h"
-#include "record_buffer.h"            // Record_buffer
-#include "rpl_filter.h"
-#include "rpl_gtid.h"
-#include "rpl_handler.h"              // RUN_HOOK
-#include "rpl_rli.h"                  // is_atomic_ddl_commit_on_slave
-#include "rpl_write_set_handler.h"    // add_pke
-#include "sdi_utils.h"                // import_serialized_meta_data
-#include "session_tracker.h"
-#include "sql_base.h"                 // free_io_cache
-#include "sql_bitmap.h"
-#include "sql_class.h"
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_parse.h"                // check_stack_overrun
-#include "sql_plugin.h"               // plugin_foreach
-#include "sql_select.h"               // actual_key_parts
-#include "sql_servers.h"
+#include "sql/auth/auth_common.h"     // check_readonly() and SUPER_ACL
+#include "sql/binlog.h"               // mysql_bin_log
+#include "sql/check_stack.h"
+#include "sql/current_thd.h"
+#include "sql/dd/cache/dictionary_client.h" // dd::cache::Dictionary_client
+#include "sql/dd/dd.h"                // dd::get_dictionary
+#include "sql/dd/dictionary.h"        // dd:acquire_shared_table_mdl
+#include "sql/dd/types/table.h"       // dd::Table
+#include "sql/dd_table_share.h"       // open_table_def
+#include "sql/debug_sync.h"           // DEBUG_SYNC
+#include "sql/derror.h"               // ER_DEFAULT
+#include "sql/error_handler.h"        // Internal_error_handler
+#include "sql/field.h"
+#include "sql/item.h"
+#include "sql/lock.h"                 // MYSQL_LOCK
+#include "sql/log.h"
+#include "sql/log_event.h"            // Write_rows_log_event
+#include "sql/mdl.h"
+#include "sql/mysqld.h"               // global_system_variables heap_hton ..
+#include "sql/opt_costconstantcache.h" // reload_optimizer_cost_constants
+#include "sql/opt_costmodel.h"
+#include "sql/opt_hints.h"
+#include "sql/protocol.h"
+#include "sql/psi_memory_key.h"
+#include "sql/query_options.h"
+#include "sql/record_buffer.h"        // Record_buffer
+#include "sql/rpl_filter.h"
+#include "sql/rpl_gtid.h"
+#include "sql/rpl_handler.h"          // RUN_HOOK
+#include "sql/rpl_rli.h"              // is_atomic_ddl_commit_on_slave
+#include "sql/rpl_write_set_handler.h" // add_pke
+#include "sql/sdi_utils.h"            // import_serialized_meta_data
+#include "sql/session_tracker.h"
+#include "sql/sql_base.h"             // free_io_cache
+#include "sql/sql_bitmap.h"
+#include "sql/sql_class.h"
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_parse.h"            // check_stack_overrun
+#include "sql/sql_plugin.h"           // plugin_foreach
+#include "sql/sql_select.h"           // actual_key_parts
+#include "sql/sql_servers.h"
+#include "sql/sql_table.h"            // build_table_filename
+#include "sql/table.h"
+#include "sql/tc_log.h"
+#include "sql/thr_malloc.h"
+#include "sql/transaction.h"          // trans_commit_implicit
+#include "sql/transaction_info.h"
+#include "sql/xa.h"
 #include "sql_string.h"
-#include "sql_table.h"                // build_table_filename
-#include "table.h"
-#include "tc_log.h"
 #include "template_utils.h"
-#include "thr_malloc.h"
-#include "transaction.h"              // trans_commit_implicit
-#include "transaction_info.h"
 #include "varlen_sort.h"
-#include "xa.h"
 
 
 /**
@@ -1811,13 +1811,14 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
       release_mdl= true;
 
       DEBUG_SYNC(thd, "ha_commit_trans_after_acquire_commit_lock");
+    }
 
-      if (stmt_has_updated_trans_table(ha_info) && check_readonly(thd, true))
-      {
-        ha_rollback_trans(thd, all);
-        error= 1;
-        goto end;
-      }
+    if (rw_trans && stmt_has_updated_trans_table(ha_info)
+        && check_readonly(thd, true))
+    {
+      ha_rollback_trans(thd, all);
+      error= 1;
+      goto end;
     }
 
     if (!trn_ctx->no_2pc(trx_scope) && (trn_ctx->rw_ha_count(trx_scope) > 1))
@@ -6444,7 +6445,7 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
   ha_rows rows, total_rows= 0;
   uint n_ranges=0;
   THD *thd= current_thd;
-  
+
   /* Default MRR implementation doesn't need buffer */
   *bufsz= 0;
 
@@ -6472,35 +6473,46 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
       Get the number of rows in the range. This is done by calling
       records_in_range() unless:
 
-        1) The range is an equality range and the index is unique.
+        1) The index is unique.
            There cannot be more than one matching row, so 1 is
            assumed. Note that it is possible that the correct number
            is actually 0, so the row estimate may be too high in this
            case. Also note: ranges of the form "x IS NULL" may have more
            than 1 mathing row so records_in_range() is called for these.
-        2) a) The range is an equality range but the index is either 
-              not unique or all of the keyparts are not used. 
-           b) The user has requested that index statistics should be used
-              for equality ranges to avoid the incurred overhead of 
-              index dives in records_in_range().
-           c) Index statistics is available.
-           Ranges of the form "x IS NULL" will not use index statistics 
-           because the number of rows with this value are likely to be 
+        2) SKIP_RECORDS_IN_RANGE will be set when skip_records_in_range or
+           use_index_statistics are true.
+           Ranges of the form "x IS NULL" will not use index statistics
+           because the number of rows with this value are likely to be
            very different than the values in the index statistics.
+
+      Note: With SKIP_RECORDS_IN_RANGE, use Index statistics if:
+            a) Index statistics is available.
+            b) The range is an equality range but the index is either not
+               unique or all of the keyparts are not used.
     */
     int keyparts_used= 0;
     if ((range.range_flag & UNIQUE_RANGE) &&                        // 1)
         !(range.range_flag & NULL_RANGE))
       rows= 1; /* there can be at most one row */
-    else if ((range.range_flag & EQ_RANGE) &&                       // 2a)
-             (range.range_flag & USE_INDEX_STATISTICS) &&           // 2b)
-             (keyparts_used= my_count_bits(range.start_key.keypart_map)) &&
-             table->
-               key_info[keyno].has_records_per_key(keyparts_used-1) && // 2c)
+    else if (range.range_flag & SKIP_RECORDS_IN_RANGE &&            // 2)
              !(range.range_flag & NULL_RANGE))
     {
-      rows= static_cast<ha_rows>(
-        table->key_info[keyno].records_per_key(keyparts_used - 1));
+      if ((range.range_flag & EQ_RANGE) &&
+          (keyparts_used= my_count_bits(range.start_key.keypart_map)) &&
+          table->key_info[keyno].has_records_per_key(keyparts_used-1))
+      {
+        rows=
+          static_cast<ha_rows>(table->key_info[keyno].
+                               records_per_key(keyparts_used - 1));
+      }
+      else
+      {
+        /*
+          Since records_in_range has not been called, set the rows to 1.
+          FORCE INDEX has been used, cost model values will be ignored anyway.
+        */
+        rows= 1;
+      }
     }
     else
     {
@@ -6516,14 +6528,13 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
     }
     total_rows += rows;
   }
-  
+
   if (total_rows != HA_POS_ERROR)
   {
     const Cost_model_table *const cost_model= table->cost_model();
 
     /* The following calculation is the same as in multi_range_read_info(): */
-    *flags|= HA_MRR_USE_DEFAULT_IMPL;
-    *flags|= HA_MRR_SUPPORT_SORTED;
+    *flags|= (HA_MRR_USE_DEFAULT_IMPL | HA_MRR_SUPPORT_SORTED);
 
     DBUG_ASSERT(cost->is_zero());
     if (*flags & HA_MRR_INDEX_ONLY)
@@ -8763,7 +8774,6 @@ bool handler::my_prepare_gcolumn_template(THD *thd,
   build_table_filename(path, sizeof(path) - 1 - reg_ext_length,
                        db_name, table_name, "", 0, &was_truncated);
   DBUG_ASSERT(!was_truncated);
-  lex_start(thd);
   bool rc= true;
 
   MDL_ticket *mdl_ticket= NULL;
@@ -8795,7 +8805,6 @@ bool handler::my_prepare_gcolumn_template(THD *thd,
     intern_close_table(table);
     rc= false;
   }
-  lex_end(thd->lex);
   return rc;
 }
 
@@ -8827,7 +8836,6 @@ bool handler::my_eval_gcolumn_expr_with_open(THD *thd,
                                              uchar *record)
 {
   bool retval= true;
-  lex_start(thd);
 
   char path[FN_REFLEN + 1];
   bool was_truncated;
@@ -8836,8 +8844,8 @@ bool handler::my_eval_gcolumn_expr_with_open(THD *thd,
   DBUG_ASSERT(!was_truncated);
 
   MDL_ticket *mdl_ticket= NULL;
-  if (dd::acquire_shared_table_mdl(
-                                   thd, db_name, table_name, false, &mdl_ticket))
+  if (dd::acquire_shared_table_mdl(thd, db_name, table_name, false,
+                                   &mdl_ticket))
     return true;
 
   TABLE *table= nullptr;
@@ -8860,7 +8868,6 @@ bool handler::my_eval_gcolumn_expr_with_open(THD *thd,
     intern_close_table(table);
   }
 
-  lex_end(thd->lex);
   return retval;
 }
 
@@ -9081,7 +9088,7 @@ std::string table_definition(const char *table_name, const TABLE *mysql_table) {
     def += i == 0 ? "`" : ", `";
     def += field->field_name;
     def += "` ";
-    def += type.c_ptr();
+    def.append(type.ptr(), type.length());
 
     if (!field->real_maybe_null()) {
       def += " not null";
@@ -9200,6 +9207,8 @@ std::string row_to_string(const uchar* mysql_row, TABLE* mysql_table) {
     repoint_field_to_record(mysql_table, fields_orig_buf, buf_used_by_mysql);
   }
 
+  bool skip_raw_and_hex= false;
+
 #ifdef HAVE_VALGRIND
   /* It is expected that here not all bits in (mysql_row, mysql_row_length) are
    * initialized. For example in the first byte (the null-byte) we only set
@@ -9217,16 +9226,30 @@ std::string row_to_string(const uchar* mysql_row, TABLE* mysql_table) {
   MEM_DEFINED_IF_ADDRESSABLE(mysql_row_copy, mysql_row_length);
 #else
   const uchar* mysql_row_copy = mysql_row;
+  const char* running_valgrind= getenv("VALGRIND_SERVER_TEST");
+  int error= 0;
+  /* If testing with Valgrind, and MySQL isn't compiled for it, printing
+     would produce misleading errors, see comments for HAVE_VALGRIND above.
+  */
+  skip_raw_and_hex= (nullptr != running_valgrind &&
+                     0 != my_strtoll10(running_valgrind, nullptr, &error) &&
+                     0 == error);
 #endif /* HAVE_VALGRIND */
 
   std::string r;
 
   r += "len=" + std::to_string(mysql_row_length);
 
-  r += ", raw=" + buf_to_raw(mysql_row_copy, mysql_row_length);
-
-  r += ", hex=" + buf_to_hex(mysql_row_copy, mysql_row_length);
-
+  if (skip_raw_and_hex)
+  {
+    r += ", raw=<skipped because of valgrind>";
+    r += ", hex=<skipped because of valgrind>";
+  }
+  else
+  {
+    r += ", raw=" + buf_to_raw(mysql_row_copy, mysql_row_length);
+    r += ", hex=" + buf_to_hex(mysql_row_copy, mysql_row_length);
+  }
 #ifdef HAVE_VALGRIND
   free(mysql_row_copy);
 #endif /* HAVE_VALGRIND */
@@ -9375,4 +9398,20 @@ bool set_tx_isolation(THD *thd,
     tst->set_isol_level(thd, TX_ISOL_INHERIT);
   }
   return false;
+}
+
+static bool post_recover_handlerton(THD*, plugin_ref plugin, void *)
+{
+  handlerton *hton= plugin_data<handlerton*>(plugin);
+
+  if (hton->state == SHOW_OPTION_YES && hton->post_recover)
+    hton->post_recover();
+
+  return false;
+}
+
+void ha_post_recover(void)
+{
+  (void) plugin_foreach(nullptr, post_recover_handlerton,
+                        MYSQL_STORAGE_ENGINE_PLUGIN, nullptr);
 }

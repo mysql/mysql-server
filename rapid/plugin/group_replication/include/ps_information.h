@@ -17,12 +17,12 @@
 #define PS_INFORMATION_INCLUDED
 
 
-#include "plugin_server_include.h"
-#include "member_info.h"
-#include "applier.h"
-#include "gcs_operations.h"
-
 #include <mysql/plugin_group_replication.h>
+
+#include "plugin/group_replication/include/applier.h"
+#include "plugin/group_replication/include/gcs_operations.h"
+#include "plugin/group_replication/include/member_info.h"
+#include "plugin/group_replication/include/plugin_server_include.h"
 
 
 bool get_group_members_info(uint index,

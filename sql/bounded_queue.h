@@ -16,11 +16,11 @@
 #ifndef BOUNDED_QUEUE_INCLUDED
 #define BOUNDED_QUEUE_INCLUDED
 
-#include "malloc_allocator.h"
 #include "my_base.h"
 #include "my_sys.h"
 #include "mysys_err.h"
 #include "priority_queue.h"
+#include "sql/malloc_allocator.h"
 
 /**
   A priority queue with a fixed, limited size.

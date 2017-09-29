@@ -13,11 +13,16 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "json_dom.h"
+#include "sql/json_dom.h"
 
 #include <errno.h>
 #include <float.h>
 #include <limits.h>
+#include "my_rapidjson_size_t.h"  // IWYU pragma: keep
+#include <rapidjson/error/en.h>
+#include <rapidjson/error/error.h>
+#include <rapidjson/memorystream.h>
+#include <rapidjson/reader.h>
 #include <stdint.h>
 #include <string.h>
 #include <sys/types.h>
@@ -26,42 +31,40 @@
 #include <functional>           // std::function
 
 #include "base64.h"
-#include "check_stack.h"
-#include "current_thd.h"        // current_thd
 #include "decimal.h"
-#include "derror.h"             // ER_THD
-#include "field.h"
-#include "json_path.h"
 #include "m_ctype.h"
 #include "m_string.h"           // my_gcvt, _dig_vec_lower, my_strtod
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_double2ulonglong.h"
-#include "my_rapidjson_size_t.h"
 #include "my_sys.h"
 #include "my_time.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"       // ER_*
-#include "psi_memory_key.h"     // key_memory_JSON
-#include "rapidjson/error/en.h"
-#include "rapidjson/error/error.h"
-#include "rapidjson/memorystream.h"
-#include "rapidjson/reader.h"
-#include "session_tracker.h"
-#include "sql_class.h"          // THD
-#include "sql_const.h"          // STACK_MIN_SIZE
-#include "sql_error.h"
-#include "sql_sort.h"
+#ifdef MYSQL_SERVER
+#include "sql/check_stack.h"
+#endif
+#include "sql/current_thd.h"    // current_thd
+#include "sql/derror.h"         // ER_THD
+#include "sql/field.h"
+#include "sql/histograms/value_map.h"
+#include "sql/json_path.h"
+#include "sql/psi_memory_key.h" // key_memory_JSON
+#include "sql/session_tracker.h"
+#include "sql/sql_class.h"      // THD
+#include "sql/sql_const.h"      // STACK_MIN_SIZE
+#include "sql/sql_error.h"
+#include "sql/sql_sort.h"
+#include "sql/sql_time.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
 #include "sql_string.h"
-#include "sql_time.h"
-#include "system_variables.h"
-#include "table.h"
 #include "template_utils.h"     // down_cast, pointer_cast
-#include "value_map.h"
 
 using namespace rapidjson;
 
+#ifdef MYSQL_SERVER
 static Json_dom *json_binary_to_dom_template(const json_binary::Value &v);
 static bool populate_object_or_array(const THD *thd, Json_dom *dom,
                                      const json_binary::Value &v);
@@ -105,7 +108,7 @@ Json_dom_ptr merge_doms(Json_dom_ptr left, Json_dom_ptr right)
     return nullptr;                       /* purecov: inspected */
   return std::move(left_array);
 }
-
+#endif // ifdef MYSQL_SERVER
 
 void *Json_dom::operator new(size_t size, const std::nothrow_t&) throw()
 {
@@ -113,7 +116,13 @@ void *Json_dom::operator new(size_t size, const std::nothrow_t&) throw()
     Call my_malloc() with the MY_WME flag to make sure that it will
     write an error message if the memory could not be allocated.
   */
-  return my_malloc(key_memory_JSON, size, MYF(MY_WME));
+  return my_malloc(
+#ifdef MYSQL_SERVER
+                   key_memory_JSON,
+#else
+                   PSI_NOT_INSTRUMENTED,
+#endif
+                   size, MYF(MY_WME));
 }
 
 
@@ -138,6 +147,7 @@ void Json_dom::operator delete(void *ptr, const std::nothrow_t&) throw()
 /* purecov: end */
 
 
+#ifdef MYSQL_SERVER
 /**
   Add a value to a vector if it isn't already there.
 
@@ -179,6 +189,7 @@ static bool add_if_missing(Json_dom *candidate,
   }
   return false;
 }
+#endif // ifdef MYSQL_SERVER
 
 
 /**
@@ -187,10 +198,12 @@ static bool add_if_missing(Json_dom *candidate,
 
   @return true if only one result is needed and a result has been found
 */
+#ifdef MYSQL_SERVER
 static inline bool is_seek_done(const Json_dom_vector *hits, bool only_need_one)
 {
   return only_need_one && hits->size() > 0;
 }
+#endif // ifdef MYSQL_SERVER
 
 
 /**
@@ -215,6 +228,7 @@ static inline bool is_seek_done(const Json_dom_vector *hits, bool only_need_one)
   @param[in,out] result the vector of qualifying children
   @return false on success, true on error
 */
+#ifdef MYSQL_SERVER
 static bool find_child_doms(Json_dom *dom,
                             const Json_path_iterator &current_leg,
                             const Json_path_iterator &last_leg,
@@ -373,12 +387,19 @@ static bool path_gives_duplicates(const Json_path_iterator &begin,
              (auto_wrap && leg->is_autowrap());
     });
 }
+#endif // ifdef MYSQL_SERVER
 
 
 Json_object::Json_object()
   : Json_dom(),
     m_map(Json_object_map::key_compare(),
-          Json_object_map::allocator_type(key_memory_JSON))
+          Json_object_map::allocator_type(
+#ifdef MYSQL_SERVER
+                                          key_memory_JSON
+#else
+                                          PSI_NOT_INSTRUMENTED
+#endif
+                                          ))
 {}
 
 
@@ -425,6 +446,7 @@ namespace
   </code>
   @see Json_dom::parse
 */
+#ifdef MYSQL_SERVER
 class Rapid_json_handler
 {
 private:
@@ -634,10 +656,12 @@ private:
     }
   }
 };
+#endif // ifdef MYSQL_SERVER
 
 } // namespace
 
 
+#ifdef MYSQL_SERVER
 Json_dom_ptr Json_dom::parse(const char *text, size_t length,
                              const char **syntaxerr, size_t *offset,
                              bool handle_numbers_as_double)
@@ -669,6 +693,7 @@ Json_dom_ptr Json_dom::parse(const char *text, size_t length,
 
   return NULL;
 }
+#endif // ifdef MYSQL_SERVER
 
 
 namespace
@@ -787,6 +812,7 @@ static enum_json_type bjson2json(const json_binary::Value::enum_type bintype)
 }
 
 
+#ifdef MYSQL_SERVER
 Json_dom_ptr Json_dom::parse(const THD* thd, const json_binary::Value &v)
 {
   Json_dom_ptr dom(json_binary_to_dom_template(v));
@@ -794,6 +820,7 @@ Json_dom_ptr Json_dom::parse(const THD* thd, const json_binary::Value &v)
     return nullptr;                              /* purecov: inspected */
   return dom;
 }
+#endif // ifdef MYSQL_SERVER
 
 
 /// Get string data as std::string from a json_binary::Value.
@@ -817,6 +844,7 @@ static std::string get_string_data(const json_binary::Value &v)
   @return a DOM template for the top-level the binary value, or NULL
   if an error is detected.
 */
+#ifdef MYSQL_SERVER
 static Json_dom *json_binary_to_dom_template(const json_binary::Value &v)
 {
   switch (v.type())
@@ -1003,6 +1031,7 @@ void Json_object::replace_dom_in_container(const Json_dom *oldv,
     it->second= std::move(newv);
   }
 }
+#endif // ifdef MYSQL_SERVER
 
 
 bool Json_object::add_alias(const std::string &key, Json_dom_ptr value)
@@ -1039,6 +1068,7 @@ bool Json_object::add_alias(const std::string &key, Json_dom_ptr value)
   return false;
 }
 
+#ifdef MYSQL_SERVER
 bool Json_object::consume(Json_object_ptr other)
 {
   for (auto &other_member : other->m_map)
@@ -1081,6 +1111,7 @@ Json_dom *Json_object::get(const std::string &key) const
 
   return nullptr;
 }
+#endif // ifdef MYSQL_SERVER
 
 
 bool Json_object::remove(const std::string &key)
@@ -1100,6 +1131,7 @@ size_t Json_object::cardinality() const
 }
 
 
+#ifdef MYSQL_SERVER
 uint32 Json_object::depth() const
 {
   uint deepest_child= 0;
@@ -1111,6 +1143,7 @@ uint32 Json_object::depth() const
   }
   return 1 + deepest_child;
 }
+#endif // ifdef MYSQL_SERVER
 
 
 Json_dom_ptr Json_object::clone() const
@@ -1201,12 +1234,19 @@ bool Json_key_comparator::operator() (const std::string &key1,
 
 
 Json_array::Json_array()
-  : Json_dom(), m_v(Malloc_allocator<Json_dom*>(key_memory_JSON))
+  : Json_dom(), m_v(Malloc_allocator<Json_dom*>(
+#ifdef MYSQL_SERVER
+                    key_memory_JSON
+#else
+                    PSI_NOT_INSTRUMENTED
+#endif
+                                                ))
 {}
 
 
 bool Json_array::consume(Json_array_ptr other)
 {
+  // We've promised to delete other before returning.
   m_v.reserve(size() + other->size());
   for (auto &elt : other->m_v)
   {
@@ -1246,6 +1286,7 @@ bool Json_array::remove(size_t index)
 }
 
 
+#ifdef MYSQL_SERVER
 uint32 Json_array::depth() const
 {
   uint deepest_child= 0;
@@ -1256,6 +1297,7 @@ uint32 Json_array::depth() const
   }
   return 1 + deepest_child;
 }
+#endif // ifdef MYSQL_SERVER
 
 Json_dom_ptr Json_array::clone() const
 {
@@ -1392,6 +1434,7 @@ Json_decimal::Json_decimal(const my_decimal &value)
 {}
 
 
+#ifdef MYSQL_SERVER
 int Json_decimal::binary_size() const
 {
   /*
@@ -1416,6 +1459,7 @@ bool Json_decimal::get_binary(char* dest) const
                            pointer_cast<uchar*>(dest) + 2,
                            m_dec.precision(), m_dec.frac) != E_DEC_OK;
 }
+#endif // ifdef MYSQL_SERVER
 
 
 bool Json_decimal::convert_from_binary(const char *bin, size_t len,
@@ -1472,11 +1516,13 @@ Json_dom_ptr Json_datetime::clone() const
 }
 
 
+#ifdef MYSQL_SERVER
 void Json_datetime::to_packed(char *dest) const
 {
   longlong packed= TIME_to_longlong_packed(&m_t);
   int8store(dest, packed);
 }
+#endif // ifdef MYSQL_SERVER
 
 
 void Json_datetime::from_packed(const char *from, enum_field_types ft,
@@ -1605,6 +1651,7 @@ Json_wrapper::~Json_wrapper()
   Json_wrapper. If @a from is an rvalue, its contents are moved into
   @a to, otherwise the contents are copied over.
 */
+#ifdef MYSQL_SERVER
 template <typename T>
 static Json_wrapper &assign_json_wrapper(T &&from, Json_wrapper *to)
 {
@@ -1676,6 +1723,7 @@ bool Json_wrapper::to_binary(const THD *thd, String *str) const
 
   return m_value.raw_binary(thd, str);
 }
+#endif // ifdef MYSQL_SERVER
 
 
 /**
@@ -1918,12 +1966,15 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
     }
   default:
     /* purecov: begin inspected */
+    DBUG_PRINT("info", ("JSON wrapper: unexpected type %d",
+                        static_cast<int>(wr.type())));
     DBUG_ASSERT(false);
     my_error(ER_INTERNAL_ERROR, MYF(0), "JSON wrapper: unexpected type");
     return true;
     /* purecov: end inspected */
   }
 
+#ifdef MYSQL_SERVER
   if (buffer->length() > current_thd->variables.max_allowed_packet)
   {
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
@@ -1932,6 +1983,7 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
 			func_name, current_thd->variables.max_allowed_packet);
     return true;
   }
+#endif // ifdef MYSQL_SERVER
 
   return false;
 }
@@ -1949,6 +2001,21 @@ bool Json_wrapper::to_pretty_string(String *buffer, const char *func_name) const
 {
   buffer->set_charset(&my_charset_utf8mb4_bin);
   return wrapper_to_string(*this, buffer, true, true, func_name, 0);
+}
+
+
+void Json_wrapper::dbug_print(const char *message MY_ATTRIBUTE((unused))) const
+{
+#ifndef DBUG_OFF
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> buf;
+  if (to_string(&buf, false, "Json_wrapper::dbug_print"))
+    DBUG_ASSERT(0); /* purecov: inspected */ // OOM
+  DBUG_PRINT("info", ("%s[length=%zu]%s%.*s",
+                      message,
+                      buf.length(),
+                      message[0] ? ": " : "",
+                      static_cast<int>(buf.length()), buf.ptr()));
+#endif
 }
 
 
@@ -2016,6 +2083,7 @@ Json_wrapper_object_iterator Json_wrapper::object_iterator() const
 }
 
 
+#ifdef MYSQL_SERVER
 Json_wrapper Json_wrapper::lookup(const std::string &key) const
 {
   DBUG_ASSERT(type() == enum_json_type::J_OBJECT);
@@ -2029,6 +2097,7 @@ Json_wrapper Json_wrapper::lookup(const std::string &key) const
 
   return Json_wrapper(m_value.lookup(key));
 }
+#endif // ifdef MYSQL_SERVER
 
 Json_wrapper Json_wrapper::operator[](size_t index) const
 {
@@ -2149,6 +2218,7 @@ void Json_wrapper::get_datetime(MYSQL_TIME *t) const
 }
 
 
+#ifdef MYSQL_SERVER
 const char *Json_wrapper::get_datetime_packed(char *buffer) const
 {
   if (m_is_dom)
@@ -2160,6 +2230,7 @@ const char *Json_wrapper::get_datetime_packed(char *buffer) const
   DBUG_ASSERT(m_value.get_data_length() == Json_datetime::PACKED_SIZE);
   return m_value.get_data();
 }
+#endif // ifdef MYSQL_SERVER
 
 
 bool Json_wrapper::get_boolean() const
@@ -2173,6 +2244,7 @@ bool Json_wrapper::get_boolean() const
 }
 
 
+#ifdef MYSQL_SERVER
 Json_path Json_dom::get_location()
 {
   if (m_parent == nullptr)
@@ -2522,6 +2594,7 @@ bool Json_wrapper::seek(const Json_seekable_path &path, size_t legs,
                                  Json_seek_params(end, hits,
                                                   auto_wrap, only_need_one));
 }
+#endif // ifdef MYSQL_SERVER
 
 
 size_t Json_wrapper::length() const
@@ -2578,6 +2651,7 @@ template <class T> static int compare_numbers(T val1, T val2)
           0 if a is equal to b,
           1 if a is greater than b
 */
+#ifdef MYSQL_SERVER
 static int compare_json_decimal_double(const my_decimal &a, double b)
 {
   /*
@@ -3059,34 +3133,53 @@ int Json_wrapper::compare(const Json_wrapper &other) const
 
 
 /**
-  Push a warning about a problem encountered when coercing a JSON
+  Push a warning/error about a problem encountered when coercing a JSON
   value to some other data type.
 
+  @param[in] cr_error     what to issue: a warning or an error
   @param[in] target_type  the name of the target type of the coercion
   @param[in] error_code   the error code to use for the warning
   @param[in] msgnam       the name of the field/expression being coerced
 */
-static void push_json_coercion_warning(const char *target_type,
-                                       int error_code,
-                                       const char *msgnam)
+
+static void handle_coercion_error(enum_coercion_error cr_error,
+                                  const char *target_type,
+                                  int error_code,
+                                  const char *msgnam)
 {
-  /*
-    One argument is no longer used (the empty string), but kept to avoid
-    changing error message format.
-  */
-  push_warning_printf(current_thd,
-                      Sql_condition::SL_WARNING,
-                      error_code,
-                      ER_THD(current_thd, error_code),
-                      target_type,
-                      "",
-                      msgnam,
-                      current_thd->get_stmt_da()->current_row_for_condition());
+  switch (cr_error)
+  {
+    case CE_WARNING:
+    {
+      /*
+        One argument is no longer used (the empty string), but kept to avoid
+        changing error message format.
+      */
+      push_warning_printf(current_thd,
+                          Sql_condition::SL_WARNING,
+                          error_code,
+                          ER_THD(current_thd, error_code),
+                          target_type,
+                          "",
+                          msgnam,
+                          current_thd->get_stmt_da()->current_row_for_condition());
+      return;
+    }
+    case CE_ERROR:
+    {
+      my_error(error_code, MYF(0), target_type, "", msgnam,
+               current_thd->get_stmt_da()->current_row_for_condition());
+      return;
+    }
+  }
 }
 
 
-longlong Json_wrapper::coerce_int(const char *msgnam) const
+longlong Json_wrapper::coerce_int(const char *msgnam, bool *err,
+                                  enum_coercion_error cr_error) const
 {
+  if (err)
+    *err= false;
   switch (type())
   {
   case enum_json_type::J_UINT:
@@ -3112,7 +3205,9 @@ longlong Json_wrapper::coerce_int(const char *msgnam) const
         int code= (error == MY_ERRNO_ERANGE ?
                    ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE :
                    ER_INVALID_JSON_VALUE_FOR_CAST);
-        push_json_coercion_warning("INTEGER", code, msgnam);
+        handle_coercion_error(cr_error, "INTEGER", code, msgnam);
+        if (err)
+          *err= true;
       }
 
       return value;
@@ -3151,21 +3246,28 @@ longlong Json_wrapper::coerce_int(const char *msgnam) const
         return (longlong) rint(j);
       }
 
-      push_json_coercion_warning("INTEGER",
+      handle_coercion_error(cr_error, "INTEGER",
                                  ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE, msgnam);
+      if (err)
+        *err= true;
       return res;
     }
   default:;
   }
 
-  push_json_coercion_warning("INTEGER", ER_INVALID_JSON_VALUE_FOR_CAST,
-                             msgnam);
+  handle_coercion_error(cr_error, "INTEGER",
+                        ER_INVALID_JSON_VALUE_FOR_CAST, msgnam);
+  if (err)
+    *err= true;
   return 0;
 }
 
 
-double Json_wrapper::coerce_real(const char *msgnam) const
+double Json_wrapper::coerce_real(const char *msgnam, bool *err,
+                                 enum_coercion_error cr_error) const
 {
+  if (err)
+    *err= false;
   switch (type())
   {
   case enum_json_type::J_DECIMAL:
@@ -3196,7 +3298,9 @@ double Json_wrapper::coerce_real(const char *msgnam) const
         int code= (error == EOVERFLOW ?
                    ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE :
                    ER_INVALID_JSON_VALUE_FOR_CAST);
-        push_json_coercion_warning("DOUBLE", code, msgnam);
+        handle_coercion_error(cr_error, "DOUBLE", code, msgnam);
+        if (err)
+          *err= true;
       }
       return value;
     }
@@ -3211,15 +3315,20 @@ double Json_wrapper::coerce_real(const char *msgnam) const
   default:;
   }
 
-  push_json_coercion_warning("DOUBLE", ER_INVALID_JSON_VALUE_FOR_CAST,
-                             msgnam);
+  handle_coercion_error(cr_error, "DOUBLE",
+                        ER_INVALID_JSON_VALUE_FOR_CAST, msgnam);
+  if (err)
+    *err= true;
   return 0.0;
 }
 
 my_decimal
 *Json_wrapper::coerce_decimal(my_decimal *decimal_value,
-                              const char *msgnam) const
+                              const char *msgnam, bool *err,
+                              enum_coercion_error cr_error) const
 {
+  if (err)
+    *err= false;
   switch (type())
   {
   case enum_json_type::J_DECIMAL:
@@ -3230,38 +3339,47 @@ my_decimal
       /*
         For a string result, we must first get the string and then convert it
         to a decimal.
+        it has own error reporting, but not very informative, disable it, except
+        for OOM
       */
-      // has own error handling, but not very informative
-      int err= str2my_decimal(E_DEC_FATAL_ERROR, get_data(), get_data_length(),
-                              &my_charset_utf8mb4_bin, decimal_value);
-      if (err)
+      int error= str2my_decimal(E_DEC_OOM, get_data(), get_data_length(),
+                                &my_charset_utf8mb4_bin, decimal_value);
+      if (error)
       {
-        int code= (err == E_DEC_OVERFLOW ?
+        int code= (error == E_DEC_OVERFLOW ?
                    ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE :
                    ER_INVALID_JSON_VALUE_FOR_CAST);
-        push_json_coercion_warning("DECIMAL", code, msgnam);
+        handle_coercion_error(cr_error, "DECIMAL", code, msgnam);
+        if (err)
+          *err= true;
       }
       return decimal_value;
     }
   case enum_json_type::J_DOUBLE:
     if (double2my_decimal(E_DEC_FATAL_ERROR, get_double(), decimal_value))
     {
-      push_json_coercion_warning("DECIMAL",
-                                 ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE, msgnam);
+      handle_coercion_error(cr_error, "DECIMAL",
+                            ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE, msgnam);
+      if (err)
+        *err= true;
     }
     return decimal_value;
   case enum_json_type::J_INT:
     if (longlong2decimal(get_int(), decimal_value))
     {
-      push_json_coercion_warning("DECIMAL",
-                                 ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE, msgnam);
+      handle_coercion_error(cr_error, "DECIMAL",
+                            ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE, msgnam);
+      if (err)
+        *err= true;
     }
     return decimal_value;
   case enum_json_type::J_UINT:
     if (longlong2decimal(get_uint(), decimal_value))
     {
-      push_json_coercion_warning("DECIMAL",
-                                 ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE, msgnam);
+      handle_coercion_error(cr_error, "DECIMAL",
+                            ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE, msgnam);
+      if (err)
+        *err= true;
     }
     return decimal_value;
   case enum_json_type::J_BOOLEAN:
@@ -3272,8 +3390,10 @@ my_decimal
   default:;
   }
 
-  push_json_coercion_warning("DECIMAL", ER_INVALID_JSON_VALUE_FOR_CAST,
-                             msgnam);
+  handle_coercion_error(cr_error, "DECIMAL",
+                        ER_INVALID_JSON_VALUE_FOR_CAST, msgnam);
+  if (err)
+    *err= true;
 
   my_decimal_set_zero(decimal_value);
   return decimal_value;
@@ -3281,9 +3401,10 @@ my_decimal
 
 
 bool Json_wrapper::coerce_date(MYSQL_TIME *ltime,
-                               const char *msgnam) const
+                               const char *msgnam,
+                               enum_coercion_error cr_error) const
 {
-  bool result= coerce_time(ltime, msgnam);
+  bool result= coerce_time(ltime, msgnam, cr_error);
 
   if (!result && ltime->time_type == MYSQL_TIMESTAMP_TIME)
   {
@@ -3296,7 +3417,8 @@ bool Json_wrapper::coerce_date(MYSQL_TIME *ltime,
 
 
 bool Json_wrapper::coerce_time(MYSQL_TIME *ltime,
-                               const char *msgnam) const
+                               const char *msgnam,
+                               enum_coercion_error cr_error) const
 {
   switch (type())
   {
@@ -3308,16 +3430,18 @@ bool Json_wrapper::coerce_time(MYSQL_TIME *ltime,
     get_datetime(ltime);
     return false;
   default:
-    push_json_coercion_warning("DATE/TIME/DATETIME/TIMESTAMP",
-                               ER_INVALID_JSON_VALUE_FOR_CAST, msgnam);
+    handle_coercion_error(cr_error, "DATE/TIME/DATETIME/TIMESTAMP",
+                          ER_INVALID_JSON_VALUE_FOR_CAST, msgnam);
     return true;
   }
 }
+#endif // ifdef MYSQL_SERVER
 
 
 namespace
 {
 
+#ifdef MYSQL_SERVER
 /// Wrapper around a sort key buffer.
 class Wrapper_sort_key
 {
@@ -3496,6 +3620,7 @@ private:
       (m_crc >> (8*sizeof(ha_checksum)-8));
   }
 };
+#endif // ifdef MYSQL_SERVER
 
 
 /*
@@ -3504,6 +3629,7 @@ private:
   before types with higher identifiers.
   See also note for Json_dom::enum_json_type.
 */
+#ifdef MYSQL_SERVER
 constexpr uchar JSON_KEY_NULL=        '\x00';
 constexpr uchar JSON_KEY_NUMBER_NEG=  '\x01';
 constexpr uchar JSON_KEY_NUMBER_ZERO= '\x02';
@@ -3517,6 +3643,7 @@ constexpr uchar JSON_KEY_DATE=        '\x09';
 constexpr uchar JSON_KEY_TIME=        '\x0A';
 constexpr uchar JSON_KEY_DATETIME=    '\x0B';
 constexpr uchar JSON_KEY_OPAQUE=      '\x0C';
+#endif // ifdef MYSQL_SERVER
 
 } // namespace
 
@@ -3556,6 +3683,7 @@ constexpr uchar JSON_KEY_OPAQUE=      '\x0C';
   @param[in]     negative true if the number is negative, false otherwise
   @param[in,out] to       the target sort key
 */
+#ifdef MYSQL_SERVER
 static void make_json_numeric_sort_key(const char *from, size_t len,
                                        bool negative, Wrapper_sort_key *to)
 {
@@ -4109,3 +4237,4 @@ bool Json_wrapper::binary_remove(const Field_json *field,
   *found_path= true;
   return false;
 }
+#endif // ifdef MYSQL_SERVER

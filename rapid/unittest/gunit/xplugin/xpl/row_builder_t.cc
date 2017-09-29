@@ -22,14 +22,14 @@
 #include <string>
 
 #include "decimal.h"
-#include "mysqlxclient/xdatetime.h"
-#include "mysqlxclient/xdecimal.h"
-#include "mysqlxclient/xrow.h"
-#include "ngs/protocol/buffer.h"
-#include "ngs/protocol/output_buffer.h"
-#include "ngs/protocol/row_builder.h"
-#include "ngs_common/protocol_protobuf.h"
-#include "protobuf_message.h"
+#include "plugin/x/client/mysqlxclient/xdatetime.h"
+#include "plugin/x/client/mysqlxclient/xdecimal.h"
+#include "plugin/x/client/mysqlxclient/xrow.h"
+#include "plugin/x/ngs/include/ngs/protocol/buffer.h"
+#include "plugin/x/ngs/include/ngs/protocol/output_buffer.h"
+#include "plugin/x/ngs/include/ngs/protocol/row_builder.h"
+#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "unittest/gunit/xplugin/xpl/protobuf_message.h"
 
 
 namespace xpl {
@@ -420,7 +420,8 @@ TEST(row_builder, date_field) {
 
   buffer = row->mutable_field(idx++);
   xcl::DateTime xtime;
-  ASSERT_TRUE(xcl::row_decoder::buffer_to_datetime(*buffer, &xtime));
+  bool has_time = false;
+  ASSERT_TRUE(xcl::row_decoder::buffer_to_datetime(*buffer, &xtime, has_time));
   ASSERT_EQ(time.year, xtime.year());
   ASSERT_EQ(time.month, xtime.month());
   ASSERT_EQ(time.day, xtime.day());
@@ -521,7 +522,8 @@ TEST(row_builder, datetime_field) {
 
   buffer = row->mutable_field(idx++);
   xcl::DateTime xtime;
-  ASSERT_TRUE(xcl::row_decoder::buffer_to_datetime(*buffer, &xtime));
+  bool has_time = true;
+  ASSERT_TRUE(xcl::row_decoder::buffer_to_datetime(*buffer, &xtime, has_time));
   ASSERT_EQ(time.year, xtime.year());
   ASSERT_EQ(time.month, xtime.month());
   ASSERT_EQ(time.day, xtime.day());
@@ -531,7 +533,7 @@ TEST(row_builder, datetime_field) {
   ASSERT_EQ(time.second_part, xtime.useconds());
 
   buffer = row->mutable_field(idx++);
-  ASSERT_TRUE(xcl::row_decoder::buffer_to_datetime(*buffer, &xtime));
+  ASSERT_TRUE(xcl::row_decoder::buffer_to_datetime(*buffer, &xtime, has_time));
   ASSERT_EQ(time2.year, xtime.year());
   ASSERT_EQ(time2.month, xtime.month());
   ASSERT_EQ(time2.day, xtime.day());

@@ -18,7 +18,7 @@
 
 #include <stdio.h>
 
-#include "dd/string_type.h"
+#include "sql/dd/string_type.h"
 
 class THD;
 

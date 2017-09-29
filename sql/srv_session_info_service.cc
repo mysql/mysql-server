@@ -18,10 +18,10 @@
 #include <stdint.h>
 #include <atomic>
 
-#include "key.h"
 #include "my_thread_local.h"
-#include "sql_class.h"
-#include "srv_session.h"
+#include "sql/key.h"
+#include "sql/sql_class.h"
+#include "sql/srv_session.h"
 #include "violite.h"
 
 /**

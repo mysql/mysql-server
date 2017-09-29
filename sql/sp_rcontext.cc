@@ -13,26 +13,26 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "sp_rcontext.h"
+#include "sql/sp_rcontext.h"
 
 #include <atomic>
 #include <new>
 
-#include "current_thd.h"
-#include "derror.h"            // ER_THD
-#include "field.h"
 #include "my_dbug.h"
 #include "my_sys.h"
 #include "mysql/psi/psi_base.h"
 #include "mysqld_error.h"
-#include "protocol.h"
-#include "sp.h"                // sp_eval_instr
-#include "sp_instr.h"          // sp_instr
-#include "sp_pcontext.h"       // sp_pcontext
-#include "sql_class.h"         // THD
-#include "sql_cursor.h"        // mysql_open_cursor
-#include "sql_list.h"
-#include "sql_tmp_table.h"     // create_virtual_tmp_table
+#include "sql/current_thd.h"
+#include "sql/derror.h"        // ER_THD
+#include "sql/field.h"
+#include "sql/protocol.h"
+#include "sql/sp.h"            // sp_eval_instr
+#include "sql/sp_instr.h"      // sp_instr
+#include "sql/sp_pcontext.h"   // sp_pcontext
+#include "sql/sql_class.h"     // THD
+#include "sql/sql_cursor.h"    // mysql_open_cursor
+#include "sql/sql_list.h"
+#include "sql/sql_tmp_table.h" // create_tmp_table_from_fields
 #include "template_utils.h"    // delete_container_pointers
 
 class SELECT_LEX_UNIT;
@@ -130,7 +130,7 @@ bool sp_rcontext::init_var_table(THD *thd)
 
   DBUG_ASSERT(field_def_lst.elements == m_root_parsing_ctx->max_var_index());
 
-  if (!(m_var_table= create_virtual_tmp_table(thd, field_def_lst)))
+  if (!(m_var_table= create_tmp_table_from_fields(thd, field_def_lst)))
     return true;
 
   m_var_table->copy_blobs= true;

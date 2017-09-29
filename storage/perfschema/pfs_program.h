@@ -23,10 +23,10 @@
 
 #include <sys/types.h>
 
-#include "pfs_column_types.h"
-#include "pfs_global.h"
-#include "pfs_instr.h"
-#include "pfs_stat.h"
+#include "storage/perfschema/pfs_column_types.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_instr.h"
+#include "storage/perfschema/pfs_stat.h"
 
 #define PROGRAM_HASH_KEY_LENGTH                         \
   sizeof(enum_object_type) + COL_OBJECT_NAME_SIZE + 1 + \

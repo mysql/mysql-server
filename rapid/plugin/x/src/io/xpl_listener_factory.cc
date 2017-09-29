@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -17,10 +17,11 @@
  * 02110-1301  USA
  */
 
-#include "xpl_listener_factory.h"
-#include "io/xpl_listener_tcp.h"
-#include "io/xpl_listener_unix_socket.h"
-#include "ngs_common/operations_factory.h"
+#include "plugin/x/src/io/xpl_listener_factory.h"
+
+#include "plugin/x/ngs/include/ngs_common/operations_factory.h"
+#include "plugin/x/src/io/xpl_listener_tcp.h"
+#include "plugin/x/src/io/xpl_listener_unix_socket.h"
 
 
 namespace xpl {

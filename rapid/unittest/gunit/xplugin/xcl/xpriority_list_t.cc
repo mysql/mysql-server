@@ -15,13 +15,14 @@
  * 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
-#include <string>
-#include <memory>
+#include <gtest/gtest.h>
 #include <initializer_list>
+#include <memory>
+#include <string>
 #include <vector>
-#include "client/xpriority_list.h"
+
+#include "plugin/x/client/xpriority_list.h"
 
 
 namespace xcl {

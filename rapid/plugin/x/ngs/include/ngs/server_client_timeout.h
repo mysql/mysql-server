@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -20,9 +20,9 @@
 #ifndef MYSQLX_NGS_SERVER_CLIENT_TIMEOUT_H_
 #define MYSQLX_NGS_SERVER_CLIENT_TIMEOUT_H_
 
-#include "ngs_common/chrono.h"
-#include "ngs/interface/client_interface.h"
-#include "ngs_common/bind.h"
+#include "plugin/x/ngs/include/ngs/interface/client_interface.h"
+#include "plugin/x/ngs/include/ngs_common/bind.h"
+#include "plugin/x/ngs/include/ngs_common/chrono.h"
 
 
 namespace ngs

@@ -20,9 +20,9 @@ TempTable Indexed Column. */
 
 #include <cstddef> /* size_t */
 
-#include "field.h"   /* Field */
-#include "key.h"     /* KEY */
 #include "m_ctype.h" /* CHARSET_INFO, my_charpos() */
+#include "sql/field.h" /* Field */
+#include "sql/key.h" /* KEY */
 
 namespace temptable {
 

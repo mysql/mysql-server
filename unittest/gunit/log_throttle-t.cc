@@ -20,8 +20,8 @@
 #include <gtest/gtest.h>
 #include <sys/types.h>
 
-#include "log.h"
-#include "test_utils.h"
+#include "sql/log.h"
+#include "unittest/gunit/test_utils.h"
 
 namespace log_throttle_unittest {
 

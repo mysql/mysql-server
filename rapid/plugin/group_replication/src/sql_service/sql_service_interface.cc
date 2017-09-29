@@ -13,13 +13,13 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "sql_service_interface.h"
+#include "plugin/group_replication/include/sql_service/sql_service_interface.h"
 
 #include <stddef.h>
 
 #include "lex_string.h"
 #include "my_dbug.h"
-#include "plugin_log.h"
+#include "plugin/group_replication/include/plugin_log.h"
 
 /* keep it in sync with enum_server_command in my_command.h */
 const LEX_STRING command_name[]={
@@ -280,7 +280,7 @@ int Sql_service_interface::set_session_user(const char *user)
     log_message(MY_ERROR_LEVEL,
                 "There was an error when trying to access the server with user:"
                 " %s. Make sure the user is present in the server and that"
-                " mysql_upgrade was ran after a server update.", user);
+                " mysql_upgrade was run after a server update.", user);
     return 1;
     /* purecov: end */
   }

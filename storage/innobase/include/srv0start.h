@@ -133,17 +133,6 @@ srv_path_copy(
 	const char*	table_name)	/*!< in: source table name */
 	MY_ATTRIBUTE((warn_unused_result));
 
-/** Get the meta-data filename from the table name for a
-single-table tablespace.
-@param[in]	table		table object
-@param[out]	filename	filename
-@param[in]	max_len		filename max length */
-void
-srv_get_meta_data_filename(
-	dict_table_t*	table,
-	char*		filename,
-	ulint		max_len);
-
 /** Get the encryption-data filename from the table name for a
 single-table tablespace.
 @param[in]	table		table object
@@ -201,5 +190,9 @@ extern	enum srv_shutdown_t	srv_shutdown_state;
 void
 srv_fatal_error()
 	MY_ATTRIBUTE((noreturn));
+/**
+Shutdown all background threads created by InnoDB. */
+void
+srv_shutdown_all_bg_threads();
 
 #endif

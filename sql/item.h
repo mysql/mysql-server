@@ -25,18 +25,12 @@
 #include <new>
 
 #include "binary_log_types.h"
-#include "dd/properties.h"
-#include "enum_query_type.h"
-#include "field.h"       // Derivation
-#include "handler.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
-#include "mem_root_array.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_decimal.h"  // my_decimal
 #include "my_double2ulonglong.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
@@ -46,17 +40,23 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "parse_tree_node_base.h" // Parse_tree_node
-#include "sql_alloc.h"
-#include "sql_array.h"   // Bounds_checked_array
-#include "sql_const.h"
+#include "sql/dd/properties.h"
+#include "sql/enum_query_type.h"
+#include "sql/field.h"   // Derivation
+#include "sql/handler.h"
+#include "sql/mem_root_array.h"
+#include "sql/my_decimal.h" // my_decimal
+#include "sql/parse_tree_node_base.h" // Parse_tree_node
+#include "sql/sql_alloc.h"
+#include "sql/sql_array.h" // Bounds_checked_array
+#include "sql/sql_const.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/table_trigger_field_support.h" // Table_trigger_field_support
+#include "sql/thr_malloc.h"
+#include "sql/trigger_def.h" // enum_trigger_variable_type
 #include "sql_string.h"
-#include "system_variables.h"
-#include "table.h"
-#include "table_trigger_field_support.h" // Table_trigger_field_support
 #include "template_utils.h"
-#include "thr_malloc.h"
-#include "trigger_def.h" // enum_trigger_variable_type
 #include "typelib.h"
 
 class Item;
@@ -1558,6 +1558,7 @@ public:
     Calculate the filter contribution that is relevant for table
     'filter_for_table' for this item.
 
+    @param thd               Thread handler
     @param filter_for_table  The table we are calculating filter effect for
     @param read_tables       Tables earlier in the join sequence.
                              Predicates for table 'filter_for_table' that
@@ -1575,7 +1576,8 @@ public:
                              Item contributes with.
   */
   virtual float
-  get_filtering_effect(table_map filter_for_table MY_ATTRIBUTE((unused)),
+  get_filtering_effect(THD *thd MY_ATTRIBUTE((unused)),
+                       table_map filter_for_table MY_ATTRIBUTE((unused)),
                        table_map read_tables MY_ATTRIBUTE((unused)),
                        const MY_BITMAP
                        *fields_to_ignore MY_ATTRIBUTE((unused)),
@@ -1600,7 +1602,15 @@ public:
     return true;
   }
 
+  /**
+    Convert a non-temporal type to date
+  */
+  bool get_date_from_non_temporal(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
 
+  /**
+    Convert a non-temporal type to time
+  */
+  bool get_time_from_non_temporal(MYSQL_TIME *ltime);
 protected:
   /* Helper functions, see item_sum.cc */
   String *val_string_from_real(String *str);
@@ -1711,10 +1721,7 @@ protected:
   */
   bool get_date_from_numeric(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
 
-  /**
-    Convert a non-temporal type to date
-  */
-  bool get_date_from_non_temporal(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
+
 
   /**
     Convert val_str() to time in MYSQL_TIME
@@ -1745,11 +1752,6 @@ protected:
     Convert a numeric type to time
   */
   bool get_time_from_numeric(MYSQL_TIME *ltime);
-
-  /**
-    Convert a non-temporal type to time
-  */
-  bool get_time_from_non_temporal(MYSQL_TIME *ltime);
 
 public:
 
@@ -1832,13 +1834,13 @@ public:
   virtual uint datetime_precision();
   /**
     Returns true if item is constant, regardless of query evaluation state.
-    Default is that an expression is constant if it:
+    An expression is constant if it:
     - refers no tables.
     - refers no subqueries that refers any tables.
     - refers no non-deterministic functions.
     - refers no statement parameters.
   */
-  virtual bool const_item() const
+  bool const_item() const
   {
     return used_tables() == 0;
   }
@@ -2391,19 +2393,19 @@ public:
   }
   inline bool is_temporal_with_date() const
   {
-    return is_temporal_type_with_date(data_type());
+    return is_temporal_type_with_date(real_type_to_type(data_type()));
   }
   inline bool is_temporal_with_date_and_time() const
   {
-    return is_temporal_type_with_date_and_time(data_type());
+    return is_temporal_type_with_date_and_time(real_type_to_type(data_type()));
   }
   inline bool is_temporal_with_time() const
   {
-    return is_temporal_type_with_time(data_type());
+    return is_temporal_type_with_time(real_type_to_type(data_type()));
   }
   inline bool is_temporal() const
   {
-    return is_temporal_type(data_type());
+    return is_temporal_type(real_type_to_type(data_type()));
   }
   /**
     Check whether this and the given item has compatible comparison context.
@@ -2734,6 +2736,7 @@ public:
     if (orig_name.is_set())
       item_name= orig_name;
   }
+  bool basic_const_item() const override { return true; }
 };
 
 
@@ -3401,7 +3404,7 @@ public:
   }
 #endif
 
-  float get_filtering_effect(table_map filter_for_table,
+  float get_filtering_effect(THD *thd, table_map filter_for_table,
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;
@@ -3503,7 +3506,6 @@ public:
   bool val_json(Json_wrapper *wr) override;
   bool send(Protocol *protocol, String *str) override;
   enum Item_result result_type() const override { return STRING_RESULT; }
-  bool basic_const_item() const override { return true; }
   Item *clone_item() const override { return new Item_null(item_name); }
   bool is_null() override { return true; }
 
@@ -3826,7 +3828,6 @@ public:
   {
     return get_time_from_int(ltime);
   }
-  bool basic_const_item() const override { return true; }
   Item *clone_item() const override { return new Item_int(this); }
   void print(String *str, enum_query_type query_type) override;
   Item_num *neg() override { value= -value; return this; }
@@ -3960,7 +3961,6 @@ public:
   {
     return get_time_from_decimal(ltime);
   }
-  bool basic_const_item() const override { return true; }
   Item *clone_item() const override
   {
     return new Item_decimal(item_name, &decimal_value, decimals, max_length);
@@ -4055,7 +4055,6 @@ public:
   {
     return get_time_from_real(ltime);
   }
-  bool basic_const_item() const override { return true; }
   Item *clone_item() const override
   { return new Item_float(item_name, value, decimals, max_length); }
   Item_num *neg() override { value= -value; return this; }
@@ -4228,7 +4227,6 @@ public:
     return get_time_from_string(ltime);
   }
   enum Item_result result_type() const override { return STRING_RESULT; }
-  bool basic_const_item() const override { return true; }
   bool eq(const Item *item, bool binary_cmp) const override;
   Item *clone_item() const override
   {
@@ -4406,7 +4404,6 @@ public:
     return (double) (ulonglong) Item_hex_string::val_int();
   }
   longlong val_int() override;
-  bool basic_const_item() const override { return true; }
   Item *clone_item() const override
   {
     return new Item_hex_string(str_value.ptr(), max_length);
@@ -4613,10 +4610,6 @@ public:
   Field *get_tmp_table_field() override
   { return result_field ? result_field : (*ref)->get_tmp_table_field(); }
   Item *get_tmp_table_item(THD *thd) override;
-  bool const_item() const override
-  {
-    return (*ref)->const_item() && (used_tables() == 0);
-  }
   table_map used_tables() const override
   {
     return depended_from ? OUTER_REF_TABLE_BIT : (*ref)->used_tables(); 
@@ -4829,7 +4822,9 @@ public:
     table_map inner_map= (*ref)->used_tables();
     return
       !(inner_map & ~INNER_TABLE_BIT) && first_inner_table != NULL ?
-        first_inner_table->map() :
+        (*ref)->real_item()->type() == FIELD_ITEM ?
+          down_cast<Item_field *>((*ref)->real_item())->table_ref->map() :
+          first_inner_table->map() :
         inner_map;
   }
 
@@ -4937,7 +4932,7 @@ public:
                          SELECT_LEX *removed_select) override;
   table_map used_tables() const override
   {
-    return (*ref)->const_item() ? 0 : OUTER_REF_TABLE_BIT;
+    return (*ref)->used_tables() == 0 ? 0 : OUTER_REF_TABLE_BIT;
   }
   table_map not_null_tables() const override { return 0; }
 
@@ -5422,6 +5417,7 @@ public:
   explicit Cached_item_json(Item *item);
   ~Cached_item_json();
   bool cmp() override;
+  void copy_to_Item_cache(Item_cache *i_c) override;
 };
 
 
@@ -6037,6 +6033,7 @@ public:
   Item_cache_json();
   ~Item_cache_json();
   bool cache_value() override;
+  void store_value(Item *expr, Json_wrapper *wr);
   bool val_json(Json_wrapper *wr) override;
   longlong val_int() override;
   String *val_str(String *str) override;

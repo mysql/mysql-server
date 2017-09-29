@@ -15,9 +15,9 @@
 
 /* close a heap-database */
 
-#include "heapdef.h"
 #include "my_dbug.h"
 #include "mysql/service_mysql_alloc.h"
+#include "storage/heap/heapdef.h"
 
 	/* Close a database open by hp_open() */
 	/* Data is normally not deallocated */

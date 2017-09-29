@@ -45,15 +45,15 @@
  * This is a casual hack to do static memory allocation
  * (needed by NDB)
  */
-#include "../../../../extra/zlib/zutil.h"
-#include "../../../../extra/zlib/zconf.h"
-#include "../../../../extra/zlib/inftrees.h"
-#include "../../../../extra/zlib/inflate.h"
-#include "../../../../extra/zlib/deflate.h"
+#include <zutil.h>
+#include <zlib.h>
+#include <inftrees.h>
+#include <inflate.h>
+#include <deflate.h>
 
 #include <util/ndbzio.h>
 
-#include <my_sys.h>
+#include "my_sys.h"
 
 #ifdef HAVE_VALGRIND
 #include <valgrind/memcheck.h>
@@ -1054,7 +1054,7 @@ int ndbzclose (ndbzio_stream *s)
   return destroy(s);
 }
 
-#include <my_dir.h>  // MY_STAT, my_fstat
+#include "my_dir.h"  // MY_STAT, my_fstat
 
 int ndbz_file_size(ndbzio_stream *s, size_t *size)
 {

@@ -105,7 +105,7 @@ struct Block {
 
 	byte*		m_ptr;
 
-	byte		pad[CACHE_LINE_SIZE - sizeof(ulint)];
+	byte		pad[INNOBASE_CACHE_LINE_SIZE - sizeof(ulint)];
 	lock_word_t	m_in_use;
 };
 
@@ -123,6 +123,74 @@ static const size_t	MAX_BLOCKS = 128;
 
 /** Disk sector size of aligning write buffer for DIRECT_IO */
 static ulint	os_io_ptr_align = UNIV_SECTOR_SIZE;
+
+/** Determine if O_DIRECT is supported
+@retval	true	if O_DIRECT is supported.
+@retval	false	if O_DIRECT is not supported. */
+bool
+os_is_o_direct_supported()
+{
+#if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
+	char*		path = srv_data_home;
+	char*		file_name;
+	os_file_t	file_handle;
+	ulint		dir_len;
+	ulint		path_len;
+	bool		add_os_path_separator = false;
+
+	/* If the srv_data_home is empty, set the path to current dir. */
+	char		current_dir[3];
+	if (*path == 0) {
+		current_dir[0] = FN_CURLIB;
+		current_dir[1] = FN_LIBCHAR;
+		current_dir[2] = 0;
+		path = current_dir;
+	}
+
+	/* Get the path length. */
+	if (path[strlen(path) - 1] == OS_PATH_SEPARATOR) {
+		/* path is ended with OS_PATH_SEPARATOR */
+		dir_len = strlen(path);
+	} else {
+		/* path is not ended with OS_PATH_SEPARATOR */
+		dir_len = strlen(path) + 1;
+		add_os_path_separator = true;
+	}
+
+	/* Allocate a new path and move the directory path to it. */
+	path_len = dir_len + sizeof "o_direct_test";
+	file_name = static_cast<char*>(
+		ut_zalloc_nokey(path_len));
+	if (add_os_path_separator == true) {
+		memcpy(file_name, path, dir_len - 1);
+		file_name[dir_len - 1] = OS_PATH_SEPARATOR;
+	} else {
+		memcpy(file_name, path, dir_len);
+	}
+
+	/* Construct a temp file name. */
+	strcat(file_name + dir_len, "o_direct_test");
+
+	/* Try to create a temp file with O_DIRECT flag. */
+	file_handle = ::open(file_name,
+			     O_CREAT|O_TRUNC|O_WRONLY|O_DIRECT,
+			     S_IRWXU);
+
+	/* If Failed */
+	if (file_handle == -1) {
+		ut_free(file_name);
+		return(false);
+	}
+
+	::close(file_handle);
+	unlink(file_name);
+	ut_free(file_name);
+
+	return(true);
+#else
+	return(false);
+#endif /* !NO_FALLOCATE && UNIV_LINUX */
+}
 
 /* This specifies the file permissions InnoDB uses when it creates files in
 Unix; the value of os_innodb_umask is initialized in ha_innodb.cc to
@@ -6027,10 +6095,11 @@ short_warning:
 #endif /* defined(UNIV_SOLARIS) && defined(DIRECTIO_ON) */
 }
 
-/** Write the specified number of zeros to a newly created file.
+/**  Write the specified number of zeros to a file from specific offset.
 @param[in]	name		name of the file or path as a null-terminated
 				string
 @param[in]	file		handle to a file
+@param[in]	offset		file offset
 @param[in]	size		file size
 @param[in]	read_only	Enable read-only checks if true
 @param[in]	flush		Flush file content to disk
@@ -6039,6 +6108,7 @@ bool
 os_file_set_size(
 	const char*	name,
 	pfs_os_file_t	file,
+	os_offset_t	offset,
 	os_offset_t	size,
 	bool		read_only,
 	bool		flush)
@@ -6065,7 +6135,7 @@ os_file_set_size(
 		ib::info() << "Progress in MB:";
 	}
 
-	os_offset_t	current_size = 0;
+	os_offset_t	current_size = offset;
 
 	while (current_size < size) {
 		ulint	n_bytes;

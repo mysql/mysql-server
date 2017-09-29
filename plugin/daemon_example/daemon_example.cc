@@ -15,7 +15,6 @@
 
 #include <ctype.h>
 #include <fcntl.h>
-#include <my_dir.h>
 #include <mysql/plugin.h>
 #include <mysql_version.h>
 #include <stdio.h>
@@ -24,13 +23,14 @@
 
 #include "m_string.h"                           // strlen
 #include "my_dbug.h"
+#include "my_dir.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_psi_config.h"
 #include "my_sys.h"                             // my_write, my_malloc
 #include "my_thread.h"
 #include "mysql/psi/mysql_memory.h"
-#include "sql_plugin.h"                         // st_plugin_int
+#include "sql/sql_plugin.h"                     // st_plugin_int
 
 PSI_memory_key key_memory_mysql_heartbeat_context;
 
@@ -38,7 +38,7 @@ PSI_memory_key key_memory_mysql_heartbeat_context;
 
 static PSI_memory_info all_deamon_example_memory[]=
 {
-  {&key_memory_mysql_heartbeat_context, "mysql_heartbeat_context", 0}
+  {&key_memory_mysql_heartbeat_context, "mysql_heartbeat_context", 0, 0, PSI_DOCUMENT_ME}
 };
 
 static void init_deamon_example_psi_keys()

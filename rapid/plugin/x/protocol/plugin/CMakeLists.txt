@@ -13,8 +13,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-SET(PROTOC_PLUGIN_EXE_NAME xprotocol_plugin)
-
 FILE(GLOB protoc_plugin_SRC
   "${CMAKE_CURRENT_SOURCE_DIR}/xprotocol_plugin.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/message_field_chain.cc"
@@ -24,26 +22,31 @@ INCLUDE_DIRECTORIES(
   ${MYSQLX_GENERATE_DIR}
 )
 
+INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
+
+# Protoc version 2.6.1 generates calls to
+# OSAtomicCompareAndSwap64 and others which are deprecated.
+IF(APPLE)
+  ADD_COMPILE_FLAGS(
+    "${CMAKE_CURRENT_SOURCE_DIR}/message_field_chain.cc"
+    COMPILE_FLAGS "-Wno-deprecated-declarations")
+ENDIF()
+
 ADD_COMPILE_FLAGS(${protoc_plugin_SRC}
   COMPILE_FLAGS "${PUBLIC_XPROTOCOL_FLAGS}"
 )
 
 MYSQL_ADD_EXECUTABLE(
-  ${PROTOC_PLUGIN_EXE_NAME}
+  xprotocol_plugin
   ${protoc_plugin_SRC}
   SKIP_INSTALL
 )
 
 TARGET_LINK_LIBRARIES(
-  ${PROTOC_PLUGIN_EXE_NAME}
+  xprotocol_plugin
   ${PROTOCOL_FULL_LIB_NAME}
   ${PROTOBUF_PROTOC_LIBRARY}
   ${PROTOBUF_LIBRARY}
-)
-
-GET_TARGET_PROPERTY(PROTOC_PLUGIN_EXECUTABLE
-  ${PROTOC_PLUGIN_EXE_NAME}
-  LOCATION
 )
 
 SET(PROTOC_PLUGIN_GENERATED_HDR
@@ -51,23 +54,23 @@ SET(PROTOC_PLUGIN_GENERATED_HDR
 )
 
 ADD_CUSTOM_COMMAND(
-  OUTPUT "${PROTOC_PLUGIN_GENERATED_HDR}"
+  OUTPUT "${MYSQLX_GENERATE_DIR}/${PROTOC_PLUGIN_GENERATED_HDR}"
   COMMAND ${PROTOBUF_PROTOC_EXECUTABLE}
-  ARGS --plugin=protoc-gen-yplg=${PROTOC_PLUGIN_EXECUTABLE}
+  ARGS --plugin=protoc-gen-yplg=$<TARGET_FILE:xprotocol_plugin>
        --yplg_out "${MYSQLX_GENERATE_DIR}"
        -I "${PROTOBUF_INCLUDE_DIR}"
        -I "${MYSQLX_PROTOBUF_INCLUDE_DIR}"
        ${MYSQLX_PROTOBUF_FILES}
   DEPENDS
-    ${PROTOBUF_PROTOC_EXECUTABLE}
-    ${PROTOC_PLUGIN_EXE_NAME}
+  xprotocol_plugin
   COMMENT "Running protocol buffer plugin on all 'proto' files"
   VERBATIM
 )
 
 ADD_CUSTOM_TARGET(xprotocol_tags
   DEPENDS
-  ${PROTOC_PLUGIN_EXE_NAME}
+  xprotocol_plugin
+  "${MYSQLX_GENERATE_DIR}/${PROTOC_PLUGIN_GENERATED_HDR}"
   SOURCES
-  "${PROTOC_PLUGIN_GENERATED_HDR}"
+  "${MYSQLX_GENERATE_DIR}/${PROTOC_PLUGIN_GENERATED_HDR}"
 )

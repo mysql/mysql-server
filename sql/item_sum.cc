@@ -21,25 +21,14 @@
   Sum functions (COUNT, MIN...)
 */
 
-#include "item_sum.h"
+#include "sql/item_sum.h"
 
 #include <algorithm>
 #include <cstring>
 #include <functional>
 #include <string>
 
-#include "aggregate_check.h"               // Distinct_check
-#include "current_thd.h"                   // current_thd
 #include "decimal.h"
-#include "derror.h"                        // ER_THD
-#include "field.h"
-#include "handler.h"
-#include "item_cmpfunc.h"
-#include "item_func.h"
-#include "item_json_func.h"
-#include "item_subselect.h"
-#include "json_dom.h"
-#include "key_spec.h"
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_byteorder.h"
@@ -47,29 +36,40 @@
 #include "my_double2ulonglong.h"
 #include "my_sys.h"
 #include "mysql_com.h"
-#include "mysqld.h"
 #include "mysqld_error.h"
-#include "opt_trace.h"
-#include "parse_tree_helpers.h"            // PT_item_list
-#include "parse_tree_nodes.h"              // PT_order_list
-#include "sql_array.h"
-#include "sql_class.h"                     // THD
-#include "sql_const.h"
-#include "sql_error.h"
-#include "sql_exception_handler.h"         // handle_std_exception
-#include "sql_executor.h"                  // copy_fields
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_resolver.h"                  // setup_order
-#include "sql_security_ctx.h"
-#include "sql_select.h"
-#include "sql_tmp_table.h"                 // create_tmp_table
-#include "system_variables.h"
-#include "table.h"
-#include "temp_table_param.h"              // Temp_table_param
-#include "thr_malloc.h"
-#include "uniques.h"                       // Unique
-#include "window.h"
+#include "sql/aggregate_check.h"           // Distinct_check
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/current_thd.h"               // current_thd
+#include "sql/derror.h"                    // ER_THD
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/item_cmpfunc.h"
+#include "sql/item_func.h"
+#include "sql/item_json_func.h"
+#include "sql/item_subselect.h"
+#include "sql/json_dom.h"
+#include "sql/key_spec.h"
+#include "sql/mysqld.h"
+#include "sql/opt_trace.h"
+#include "sql/parse_tree_helpers.h"        // PT_item_list
+#include "sql/parse_tree_nodes.h"          // PT_order_list
+#include "sql/sql_array.h"
+#include "sql/sql_class.h"                 // THD
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_exception_handler.h"     // handle_std_exception
+#include "sql/sql_executor.h"              // copy_fields
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_resolver.h"              // setup_order
+#include "sql/sql_select.h"
+#include "sql/sql_tmp_table.h"             // create_tmp_table
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/temp_table_param.h"          // Temp_table_param
+#include "sql/thr_malloc.h"
+#include "sql/uniques.h"                   // Unique
+#include "sql/window.h"
 
 using std::min;
 using std::max;
@@ -151,9 +151,13 @@ bool Item_sum::init_sum_func_check(THD *thd)
 {
   if (m_is_window_function)
   {
-    if (!thd->lex->allow_sum_func ||
-        ((thd->lex->m_deny_window_func >>
-          thd->lex->current_select()->nest_level) & 0x1))
+    /*
+      Are either no aggregates of any kind allowed at this level, or
+      specifically not window functions?
+    */
+    LEX * const lex= thd->lex;
+    if (((~lex->allow_sum_func |
+	  lex->m_deny_window_func) >> lex->current_select()->nest_level) & 0x1)
     {
       my_error(ER_WINDOW_INVALID_WINDOW_FUNC_USE, MYF(0),
                func_name());
@@ -735,19 +739,27 @@ void Item_sum::update_used_tables()
       add_accum_properties(args[i]);
     }
 
-    used_tables_cache&= PSEUDO_TABLE_BITS;
     /*
       If the function is aggregated into its local context, it can
       be calculated only after evaluating the full join, thus it
       depends on all tables of this join. Otherwise, it depends on
       outer tables, even if its arguments args[] do not explicitly
       reference an outer table, like COUNT (*) or COUNT(123).
+
+      Window functions are always evaluated in the local scope
+      and depend on all tables involved in the join since they cannot
+      be evaluated until after the join is completed.
     */
-    if (!m_is_window_function)
-      used_tables_cache|=
-        aggr_select == base_select ?
-            base_select->all_tables_map() :
-          OUTER_REF_TABLE_BIT;
+    used_tables_cache|=
+      aggr_select == base_select || m_is_window_function ?
+        base_select->all_tables_map() :
+        OUTER_REF_TABLE_BIT;
+    /*
+      Aggregate functions are not allowed to be const, but they may
+      be const-for-execution.
+    */
+    if (used_tables_cache == 0)
+      used_tables_cache= INNER_TABLE_BIT;
   }
 }
 
@@ -1191,7 +1203,7 @@ bool Aggregator_distinct::setup(THD *thd)
                                  arg->unsigned_flag,
                                  0);
 
-    if (! (table= create_virtual_tmp_table(thd, field_list)))
+    if (! (table= create_tmp_table_from_fields(thd, field_list)))
       DBUG_RETURN(TRUE);
 
     /* XXX: check that the case of CHAR(0) works OK */
@@ -4599,8 +4611,11 @@ int dump_leaf_key(void* key_arg, element_count count MY_ATTRIBUTE((unused)),
 
   item->row_count++;
 
-  /* stop if length of result more than max_length */
-  if (result->length() > item->max_length)
+  /*
+     Stop if the size of group_concat value, in bytes, is longer than
+     the maximum size.
+  */
+  if (result->length() > item->group_concat_max_len)
   {
     int well_formed_error;
     const CHARSET_INFO *cs= item->collation.collation;
@@ -4613,7 +4628,7 @@ int dump_leaf_key(void* key_arg, element_count count MY_ATTRIBUTE((unused)),
     */
     add_length= cs->cset->well_formed_len(cs,
                                           ptr + old_length,
-                                          ptr + item->max_length,
+                                          ptr + item->group_concat_max_len,
                                           result->length(),
                                           &well_formed_error);
     result->length(old_length + add_length);
@@ -4656,6 +4671,7 @@ Item_func_group_concat::Item_func_group_concat(const POS &pos,
    arg_count_order(opt_order_list ? opt_order_list->value.elements : 0),
    arg_count_field(select_list->elements()),
    row_count(0),
+   group_concat_max_len(0),
    distinct(distinct_arg),
    warning_for_row(FALSE),
    always_null(false),
@@ -4719,6 +4735,7 @@ Item_func_group_concat::Item_func_group_concat(THD *thd,
   arg_count_order(item->arg_count_order),
   arg_count_field(item->arg_count_field),
   row_count(item->row_count),
+  group_concat_max_len(item->group_concat_max_len),
   distinct(item->distinct),
   warning_for_row(item->warning_for_row),
   always_null(item->always_null),
@@ -4811,13 +4828,16 @@ Field *Item_func_group_concat::make_string_field(TABLE *table_arg)
   Field *field;
   DBUG_ASSERT(collation.collation);
   /*
-    max_characters is maximum number of characters
-    what can fit into max_length size. It's necessary
-    to use field size what allows to store group_concat
-    result without truncation. For this purpose we use
-    max_characters * CS->mbmaxlen.
+    Use mbminlen to determine maximum number of characters.
+    Compared to using mbmaxlen, this provides ability to
+    accommodate more characters in case of charsets that
+    support variable length characters.
+    If the actual data has characters with length less than
+    mbmaxlen, with this approach more characters can be stored.
   */
-  const uint32 max_characters= max_length / collation.collation->mbminlen;
+
+  const uint32 max_characters= group_concat_max_len /
+                               collation.collation->mbminlen;
   if (max_characters > CONVERT_IF_BIGGER_TO_BLOB)
     field= new (*THR_MALLOC)
       Field_blob( max_characters * collation.collation->mbmaxlen, maybe_null,
@@ -4953,10 +4973,11 @@ Item_func_group_concat::fix_fields(THD *thd, Item **ref)
   result.set_charset(collation.collation);
   result_field= 0;
   null_value= 1;
-  max_length= thd->variables.group_concat_max_len;
-  set_data_type(max_length/collation.collation->mbmaxlen >
-                CONVERT_IF_BIGGER_TO_BLOB ?
-                MYSQL_TYPE_BLOB : MYSQL_TYPE_VARCHAR);
+  group_concat_max_len= thd->variables.group_concat_max_len;
+  uint32 max_chars= group_concat_max_len / collation.collation->mbminlen;
+  uint max_byte_length= max_chars * collation.collation->mbmaxlen;
+  max_chars > CONVERT_IF_BIGGER_TO_BLOB ? set_data_type_blob(max_byte_length)
+                                        : set_data_type_string(max_chars);
 
   size_t offset;
   if (separator->needs_conversion(separator->length(), separator->charset(),
@@ -6331,11 +6352,11 @@ bool Item_lead_lag::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
     return true;
 
   compute();
-
+  DBUG_ASSERT(m_has_value || null_value);
   return (m_has_value ?
           (m_use_default ? m_default->get_date(ltime, fuzzydate) :
            m_value->get_date(ltime, fuzzydate)) :
-          false);
+          null_value);
 }
 
 
@@ -6345,10 +6366,10 @@ bool Item_lead_lag::get_time(MYSQL_TIME *ltime)
     return true;
 
   compute();
-
+  DBUG_ASSERT(m_has_value || null_value);
   return (m_has_value ?
           (m_use_default ? m_default->get_time(ltime) : m_value->get_time(ltime)) :
-          false);
+          null_value);
 }
 
 void Item_lead_lag::compute()

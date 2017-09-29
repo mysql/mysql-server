@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "json_binary.h"
+#include "sql/json_binary.h"
 
 #include <string.h>
 #include <algorithm>            // std::min
@@ -22,20 +22,22 @@
 #include <string>
 #include <utility>
 
-#include "check_stack.h"
-#include "field.h"              // Field_json
-#include "json_dom.h"           // Json_dom
 #include "m_ctype.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_sys.h"
 #include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
-#include "sql_class.h"          // THD
-#include "sql_const.h"
+#ifdef MYSQL_SERVER
+#include "sql/check_stack.h"
+#endif
+#include "sql/field.h"          // Field_json
+#include "sql/json_dom.h"       // Json_dom
+#include "sql/sql_class.h"      // THD
+#include "sql/sql_const.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"          // TABLE::add_binary_diff()
 #include "sql_string.h"
-#include "system_variables.h"
-#include "table.h"              // TABLE::add_binary_diff()
 #include "template_utils.h"     // down_cast
 
 namespace
@@ -112,12 +114,15 @@ enum enum_serialization_result
   FAILURE
 };
 
+#ifdef MYSQL_SERVER
 static enum_serialization_result
 serialize_json_value(const THD *thd, const Json_dom *dom, size_t type_pos,
                      String *dest, size_t depth, bool small_parent);
 static void write_offset_or_size(char *dest, size_t offset_or_size, bool large);
+#endif // ifdef MYSQL_SERVER
 static uint8 offset_size(bool large);
 
+#ifdef MYSQL_SERVER
 bool serialize(const THD *thd, const Json_dom *dom, String *dest)
 {
   // Reset the destination buffer.
@@ -277,6 +282,7 @@ static bool append_variable_length(String *dest, size_t length)
   // Successfully appended the length.
   return false;
 }
+#endif // ifdef MYSQL_SERVER
 
 
 /**
@@ -337,6 +343,7 @@ static bool read_variable_length(const char *data, size_t data_length,
   @return true if offset_or_size is too big for the format, false
     otherwise
 */
+#ifdef MYSQL_SERVER
 static bool is_too_big_for_json(size_t offset_or_size, bool large)
 {
   if (offset_or_size > UINT_MAX16)
@@ -405,6 +412,7 @@ append_key_entries(const Json_object *object, String *dest,
 
   return OK;
 }
+#endif // ifdef MYSQL_SERVER
 
 
 /**
@@ -474,6 +482,7 @@ static uint8 value_entry_size(bool large)
   @param[in] large true if the large storage format is used
   @return true if the value was inlined, false if it was not
 */
+#ifdef MYSQL_SERVER
 static bool attempt_inline_value(const Json_dom *value, String *dest,
                                  size_t pos, bool large)
 {
@@ -944,6 +953,7 @@ serialize_json_value(const THD *thd, const Json_dom *dom, size_t type_pos,
 
   return result;
 }
+#endif // ifdef MYSQL_SERVER
 
 
 bool Value::is_valid() const
@@ -1191,11 +1201,13 @@ static Value parse_value(uint8 type, const char *data, size_t len)
 
 Value parse_binary(const char *data, size_t len)
 {
+  DBUG_ENTER("json_binary::parse_binary");
   // Each document should start with a one-byte type specifier.
   if (len < 1)
-    return err();                             /* purecov: inspected */
+    DBUG_RETURN(err());                             /* purecov: inspected */
 
-  return parse_value(data[0], data + 1, len - 1);
+  Value ret= parse_value(data[0], data + 1, len - 1);
+  DBUG_RETURN(ret);
 }
 
 
@@ -1385,6 +1397,7 @@ bool Value::is_backed_by(const String *str) const
   @param buf  the receiving buffer
   @return false on success, true otherwise
 */
+#ifdef MYSQL_SERVER
 bool Value::raw_binary(const THD *thd, String *buf) const
 {
   // It's not safe to overwrite ourselves.
@@ -1448,6 +1461,7 @@ bool Value::raw_binary(const THD *thd, String *buf) const
   return true;
   /* purecov: end */
 }
+#endif // ifdef MYSQL_SERVER
 
 
 /**
@@ -1705,6 +1719,7 @@ inline size_t Value::value_entry_offset(size_t pos) const
 }
 
 
+#ifdef MYSQL_SERVER
 bool space_needed(const THD *thd, const Json_wrapper *value,
                   bool large, size_t *needed)
 {
@@ -2236,6 +2251,7 @@ bool Value::get_free_space(const THD *thd, size_t *space) const
   *space+= m_length - next_value_offset;
   return false;
 }
+#endif // ifdef MYSQL_SERVER
 
 
 } // end namespace json_binary

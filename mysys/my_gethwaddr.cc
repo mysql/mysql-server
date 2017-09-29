@@ -20,6 +20,7 @@
 */
 
 #include "my_config.h"
+
 #include <errno.h>
 #include <string.h>
 #ifdef SYS_SOCKET_H
@@ -32,7 +33,7 @@
 #include "my_inttypes.h"
 #include "my_sys.h"  // IWYU pragma: keep
 #if defined(_WIN32)
-#include "mysys_priv.h"
+#include "mysys/mysys_priv.h"
 #endif
 
 #ifndef MAIN

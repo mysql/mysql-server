@@ -13,12 +13,13 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/sdi.h"
+#include "sql/dd/impl/sdi.h"
 
 #include "my_rapidjson_size_t.h"  // IWYU pragma: keep
 #include <rapidjson/document.h>     // rapidjson::GenericValue
 #include <rapidjson/error/en.h>     // rapidjson::GetParseError_En
 #include <rapidjson/prettywriter.h> // rapidjson::PrettyWrite
+#include <rapidjson/stringbuffer.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/types.h>
@@ -26,24 +27,8 @@
 #include <string>
 #include <vector>
 
-#include "dd/cache/dictionary_client.h" // dd::Dictionary_client
-#include "dd/impl/dictionary_impl.h"    // dd::Dictionary_impl::get_target_dd_version
-#include "dd/impl/sdi_impl.h"           // sdi read/write functions
-#include "dd/impl/sdi_tablespace.h"     // dd::sdi_tablespace::store
-#include "dd/impl/sdi_utils.h"          // dd::checked_return
-#include "dd/object_id.h"               // dd::Object_id
-#include "dd/sdi_file.h"                // dd::sdi_file::store
-#include "dd/sdi_fwd.h"
-#include "dd/types/abstract_table.h"
-#include "dd/types/column.h"            // dd::Column
-#include "dd/types/index.h"             // dd::Index
-#include "dd/types/schema.h"            // dd::Schema
-#include "dd/types/table.h"             // dd::Table
-#include "dd/types/tablespace.h"        // dd::Tablespace
-#include "handler.h"              // ha_resolve_by_name_raw
 #include "m_ctype.h"
 #include "m_string.h"             // STRING_WITH_LEN
-#include "mdl.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
@@ -51,11 +36,26 @@
 #include "mysql_version.h"        // MYSQL_VERSION_ID
 #include "mysqld_error.h"
 #include "prealloced_array.h"
-#include "rapidjson/stringbuffer.h"
-#include "sql_class.h"            // THD
-#include "sql_plugin_ref.h"
-#include "sql_security_ctx.h"
-#include "strfunc.h"              // lex_cstring_handle
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/dd/cache/dictionary_client.h" // dd::Dictionary_client
+#include "sql/dd/impl/dictionary_impl.h" // dd::Dictionary_impl::get_target_dd_version
+#include "sql/dd/impl/sdi_impl.h"       // sdi read/write functions
+#include "sql/dd/impl/sdi_tablespace.h" // dd::sdi_tablespace::store
+#include "sql/dd/impl/sdi_utils.h"      // dd::checked_return
+#include "sql/dd/object_id.h"           // dd::Object_id
+#include "sql/dd/sdi_file.h"            // dd::sdi_file::store
+#include "sql/dd/sdi_fwd.h"
+#include "sql/dd/types/abstract_table.h"
+#include "sql/dd/types/column.h"        // dd::Column
+#include "sql/dd/types/index.h"         // dd::Index
+#include "sql/dd/types/schema.h"        // dd::Schema
+#include "sql/dd/types/table.h"         // dd::Table
+#include "sql/dd/types/tablespace.h"    // dd::Tablespace
+#include "sql/handler.h"          // ha_resolve_by_name_raw
+#include "sql/mdl.h"
+#include "sql/sql_class.h"        // THD
+#include "sql/sql_plugin_ref.h"
+#include "sql/strfunc.h"          // lex_cstring_handle
 
 /**
   @defgroup sdi Serialized Dictionary Information
@@ -721,7 +721,7 @@ bool store(THD *thd, const Tablespace *ts)
   {
     return checked_return(true);
   }
-  return checked_return(sdi_tablespace::store_tsp_sdi(thd, *hton, sdi, *ts));
+  return checked_return(sdi_tablespace::store_tsp_sdi(*hton, sdi, *ts));
 }
 
 bool drop(THD *, const Schema *sp)

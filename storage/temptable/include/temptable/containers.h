@@ -22,8 +22,8 @@ TempTable index containers declarations. */
 #include <type_traits>   /* std::is_same */
 #include <unordered_set> /* std::unordered_set, std::unordered_multiset */
 
-#include "temptable/allocator.h"     /* temptable::Allocator */
-#include "temptable/indexed_cells.h" /* temptable::Indexed_cells */
+#include "storage/temptable/include/temptable/allocator.h" /* temptable::Allocator */
+#include "storage/temptable/include/temptable/indexed_cells.h" /* temptable::Indexed_cells */
 
 namespace temptable {
 

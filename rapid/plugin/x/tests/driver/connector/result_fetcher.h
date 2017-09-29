@@ -23,8 +23,8 @@
 #include <utility>
 #include <vector>
 
-#include "mysqlxclient/xquery_result.h"
-#include "mysqlxclient/xrow.h"
+#include "plugin/x/client/mysqlxclient/xquery_result.h"
+#include "plugin/x/client/mysqlxclient/xrow.h"
 
 
 class Result_fetcher {

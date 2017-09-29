@@ -13,6 +13,16 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA */
 
+#include <assert.h>
+#include <errno.h>
+#include <limits.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/time.h>
+#include <sys/types.h>
+
 /**
   @file
   rapid/plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_base.c
@@ -219,22 +229,12 @@
     All tcp messages from beyond the event horizon will be ignored.
 
 */
-#include "xcom_profile.h"
-
-#include <assert.h>
-#include <errno.h>
-#include <limits.h>
-#include <signal.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/time.h>
-#include <sys/types.h>
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_profile.h"
 
 #ifndef XCOM_STANDALONE
 #include "my_compiler.h"
 #endif
-#include "x_platform.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
 
 #ifndef _WIN32
 #include <net/if.h>
@@ -250,44 +250,48 @@
 #include <windows.h>
 #endif
 
-#include "app_data.h"
-#include "node_no.h"
-#include "server_struct.h"
-#include "simset.h"
-#include "site_struct.h"
-#include "task.h"
-#include "task_os.h"
-#include "xcom_base.h"
-#include "xcom_common.h"
-#include "xcom_detector.h"
-#include "xcom_transport.h"
-#include "xcom_vp.h"
-#include "xdr_utils.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/app_data.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_no.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/server_struct.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/simset.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/site_struct.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_os.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_base.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_common.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_detector.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_transport.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xdr_utils.h"
+#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
 
 #ifdef XCOM_HAVE_OPENSSL
-#include "xcom_ssl_transport.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_ssl_transport.h"
 #endif
 
-#include "bitset.h"
-#include "node_list.h"
-#include "node_set.h"
-#include "pax_msg.h"
-#include "site_def.h"
-#include "sock_probe.h"
-#include "synode_no.h"
-#include "task_debug.h"
-#include "task_net.h"
-#include "xcom_cache.h"
-#include "xcom_cfg.h"
-#include "xcom_interface.h"
-#include "xcom_memory.h"
-#include "xcom_msg_queue.h"
-#include "xcom_recover.h"
-#include "xcom_statistics.h"
-#include "xcom_vp_str.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/bitset.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_list.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_set.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/pax_msg.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/site_def.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/sock_probe.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/synode_no.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_debug.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_net.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_cache.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_cfg.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_interface.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_memory.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_msg_queue.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_recover.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_statistics.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_vp_str.h"
 
 #ifdef XCOM_HAVE_OPENSSL
-#include "openssl/ssl.h"
+#ifdef WIN32
+// In OpenSSL before 1.1.0, we need this first.
+#include <winsock2.h>
+#endif  // WIN32
+#include <openssl/ssl.h>
 #endif
 
 /* {{{ Defines and constants */
@@ -311,7 +315,7 @@ int const threephase = 0;
 
 /* }}} */
 
-#include "retry.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/retry.h"
 
 #ifdef NODE_0_IS_ARBITRATOR
 int ARBITRATOR_HACK = 1;
@@ -328,7 +332,6 @@ static int use_buffered_read = 1;
 
 /* {{{ Forward declarations */
 long xcom_unique_long(void);
-unsigned long msg_count(app_data_ptr a);
 void get_host_name(char *a, char *name);
 
 static double wakeup_delay(double old);
@@ -457,13 +460,8 @@ static bool_t is_dead_site(uint32_t id) {
   return FALSE;
 }
 
-d_xdr_funcs(node_no) define_xdr_funcs(node_no)
+define_xdr_funcs(node_no)
 
-    extern void init_recovery_sema();
-extern void end_xcom_recovery();
-extern void end_recovery();
-extern void send_agent_info();
-extern void send_end_recover();
 
 extern node_set *init_node_set(node_set *set, u_int n);
 extern node_set *alloc_node_set(node_set *set, u_int n);
@@ -561,7 +559,7 @@ static void	dbg_machine_and_msg(pax_machine *p, pax_msg *pm)
 {
   GET_GOUT;
 
-  if (!IS_XCOM_DEBUG_WITH(X_XCOM_DEBUG_TRACE))
+  if (!IS_XCOM_DEBUG_WITH(XCOM_DEBUG_TRACE))
     return;
 
   STRLIT("machine ");
@@ -858,7 +856,7 @@ static void free_forced_config_site_def() {
 static void dbg_proposers() MY_ATTRIBUTE((unused));
 static void dbg_proposers() {
   GET_GOUT;
-  if (!IS_XCOM_DEBUG_WITH(X_XCOM_DEBUG_TRACE))
+  if (!IS_XCOM_DEBUG_WITH(XCOM_DEBUG_TRACE))
     return;
   NDBG(PROPOSERS, d);
   {
@@ -1354,7 +1352,7 @@ static void dbg_reply_set(site_def const *site, const char *s, bit_set *bs) {
   unsigned int n = get_maxnodes(site);
   GET_GOUT;
 
-  if (!IS_XCOM_DEBUG_WITH(X_XCOM_DEBUG_TRACE))
+  if (!IS_XCOM_DEBUG_WITH(XCOM_DEBUG_TRACE))
     return;
 
   STRLIT(s);
@@ -1857,7 +1855,7 @@ static void perf_dbg(int *_n, int *_old_n, double *_old_t) {
   int old_n = *_old_n;
   double old_t = *_old_t;
 
-  if (!IS_XCOM_DEBUG_WITH(X_XCOM_DEBUG_TRACE))
+  if (!IS_XCOM_DEBUG_WITH(XCOM_DEBUG_TRACE))
     return;
 
   DBGOHK(FN; SYCEXP(executed_msg));
@@ -1917,7 +1915,7 @@ static inline int LOSER(synode_no x, site_def const *site) {
 static void debug_loser(synode_no x) MY_ATTRIBUTE((unused));
 #if defined(TASK_DBUG_ON) && TASK_DBUG_ON
 static void debug_loser(synode_no x) {
-  if (!IS_XCOM_DEBUG_WITH(X_XCOM_DEBUG_TRACE))
+  if (!IS_XCOM_DEBUG_WITH(XCOM_DEBUG_TRACE))
     return;
   if (1 || x.msgno < 10) {
     GET_GOUT;
@@ -1935,7 +1933,7 @@ static void debug_loser(synode_no x MY_ATTRIBUTE((unused))) {}
 /* purecov: end */
 #endif
 
-/* #define DBGFIX2(x){ if (!IS_XCOM_DEBUG_WITH(X_XCOM_DEBUG_TRACE)) return; GET_GOUT; ADD_F_GOUT("%f ",task_now()); x; PRINT_GOUT; FREE_GOUT; } */
+/* #define DBGFIX2(x){ if (!IS_XCOM_DEBUG_WITH(XCOM_DEBUG_TRACE)) return; GET_GOUT; ADD_F_GOUT("%f ",task_now()); x; PRINT_GOUT; FREE_GOUT; } */
 #define DBGFIX2(x)
 static void send_value(site_def const *site, node_no to, synode_no synode) {
   pax_machine *pm = get_cache(synode);

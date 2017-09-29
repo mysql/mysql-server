@@ -16,9 +16,9 @@
 /* Test if a record has changed since last read */
 /* In heap this is only used when debugging */
 
-#include "heapdef.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "storage/heap/heapdef.h"
 
 int hp_rectest(HP_INFO *info, const uchar *old)
 {

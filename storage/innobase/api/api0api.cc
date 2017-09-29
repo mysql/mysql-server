@@ -1134,6 +1134,8 @@ ib_insert_row_with_lock_retry(
 	ib_err_t	err;
 	ib_bool_t	lock_wait;
 
+	bool		is_sdi = dict_table_is_sdi(node->table->id);
+
 	trx = thr_get_trx(thr);
 
 	do {
@@ -1149,7 +1151,7 @@ ib_insert_row_with_lock_retry(
 
 			thr->lock_state = QUE_THR_LOCK_ROW;
 			lock_wait = static_cast<ib_bool_t>(
-				ib_handle_errors(&err, trx, thr, savept));
+				ib_handle_errors(&err, trx, thr, savept, is_sdi));
 			thr->lock_state = QUE_THR_LOCK_NOLOCK;
 		} else {
 			lock_wait = FALSE;
@@ -1471,6 +1473,8 @@ ib_update_row_with_lock_retry(
 	ib_err_t	err;
 	ib_bool_t	lock_wait;
 
+	bool		is_sdi = dict_table_is_sdi(node->table->id);
+
 	trx = thr_get_trx(thr);
 
 	do {
@@ -1488,7 +1492,7 @@ ib_update_row_with_lock_retry(
 				thr->lock_state = QUE_THR_LOCK_ROW;
 
 				lock_wait = static_cast<ib_bool_t>(
-					ib_handle_errors(&err, trx, thr, savept));
+					ib_handle_errors(&err, trx, thr, savept, is_sdi));
 
 				thr->lock_state = QUE_THR_LOCK_NOLOCK;
 			} else {
@@ -3173,7 +3177,8 @@ ib_cursor_open_table_using_id(
 	dict_table_t*	table;
 	MDL_ticket*	mdl = nullptr;
 
-	table = dd_table_open_on_id(table_id, ib_trx->mysql_thd, &mdl, false);
+	table = dd_table_open_on_id(table_id, ib_trx->mysql_thd,
+				    &mdl, false, true);
 
 	if (table == NULL) {
 
@@ -3267,6 +3272,71 @@ ib_sdi_open_table(
 	return(err);
 }
 
+
+/* TODO: remove this workaround for Bug#26539665 after discussing with runtime team
+@param[in]	space_id	space id
+@param[in]	ib_sdi_key	SDI key to uniquely identify the tablespace
+				object
+@param[in]	uncomp_len	uncompressed length of SDI
+@param[in]	comp_len	compressed length of SDI
+@param[in]	sdi		compressed SDI to be stored in tablespace
+@return DB_SUCCESS if SDI Insert/Update is successful, else error */
+static
+dberr_t
+ib_sdi_insert_schema(
+	uint32_t		space_id,
+	const ib_sdi_key_t*	ib_sdi_key,
+	uint32_t		uncomp_len,
+	uint32_t		comp_len,
+	const void*		sdi)
+{
+	/* use separate trx for schema SDI */
+	/* do non-locking MVCC read to see schema SDI already exists */
+	/* If exists, just return, we never update schema SDI */
+	/* If doesn't exist and we get DB_LOCK_WAIT/DB_DEADLOCK due to
+	concurrent inserts of same schema SDI, retry until success */
+	trx_t* trx = trx_allocate_for_mysql();
+	trx_start_internal(trx);
+
+	ib_crsr_t	ib_crsr = NULL;
+	ib_err_t	err = ib_sdi_open_table(
+		space_id, trx, &ib_crsr);
+
+	if (err != DB_SUCCESS) {
+		trx_commit_for_mysql(trx);
+		trx_free_for_mysql(trx);
+		return(err);
+	}
+
+	ib_tpl_t	schema_tuple = ib_sdi_create_insert_tuple(
+		ib_crsr, ib_sdi_key->sdi_key, uncomp_len,
+		comp_len, sdi);
+
+	ib_cursor_set_lock_mode(ib_crsr, IB_LOCK_X);
+	ib_tpl_t	key_tpl = ib_sdi_create_search_tuple(
+		ib_crsr, ib_sdi_key->sdi_key);
+
+	ib_cursor_set_match_mode(ib_crsr, IB_EXACT_MATCH);
+	ib_cursor_set_lock_mode(ib_crsr, IB_LOCK_NONE);
+	err = ib_cursor_moveto(ib_crsr, key_tpl, IB_CUR_LE, 0);
+
+	if (err == DB_RECORD_NOT_FOUND) {
+		do {
+			/* Do insert. handle lock wait timeout and deadlock */
+			err = ib_cursor_insert_row(ib_crsr, schema_tuple);
+		} while (err == DB_LOCK_WAIT_TIMEOUT || err == DB_DEADLOCK);
+	}
+
+	ut_ad(err == DB_SUCCESS || err == DB_DUPLICATE_KEY);
+
+	ib_tuple_delete(key_tpl);
+	ib_tuple_delete(schema_tuple);
+	ib_cursor_close(ib_crsr);
+	trx_commit_for_mysql(trx);
+	trx_free_for_mysql(trx);
+	return(DB_SUCCESS);
+}
+
 /** Insert/Update SDI in tablespace
 @param[in]	tablespace_id	tablespace id
 @param[in]	ib_sdi_key	SDI key to uniquely identify the tablespace
@@ -3294,6 +3364,13 @@ ib_sdi_set(
 			<< " " << ib_sdi_key->sdi_key->id
 			<< " sdi_len: " << comp_len;
 	);
+
+	/* TODO: remove this workaround for handling Schema SDI
+	(Bug#26539665) */
+	if (ib_sdi_key->sdi_key->type == 0) {
+		return(ib_sdi_insert_schema(tablespace_id, ib_sdi_key,
+					    uncomp_len, comp_len, sdi));
+	}
 
 	ib_crsr_t	ib_crsr = NULL;
 	ib_err_t	err = ib_sdi_open_table(
@@ -3371,6 +3448,9 @@ ib_sdi_set(
 			);
 
 			err = ib_cursor_update_row(ib_crsr, old_tuple, new_tuple);
+
+			ut_ad(err == DB_SUCCESS || trx_is_interrupted(trx)
+			      || !"sdi_update_failed");
 		}
 
 		ib_tuple_delete(old_tuple);
@@ -3393,6 +3473,9 @@ ib_sdi_set(
 				<< " Error returned: " << err
 				<< " by trx->id: " << trx->id;
 		);
+
+		ut_ad(err == DB_SUCCESS || trx_is_interrupted(trx)
+		      || !"sdi_insert_failed");
 	}
 
 	ib_tuple_delete(new_tuple);
@@ -3602,20 +3685,28 @@ ib_sdi_delete(
 		err = ib_cursor_delete_row(ib_crsr);
 	}
 
-	DBUG_EXECUTE_IF("ib_sdi",
+#ifdef UNIV_DEBUG
+	if (err != DB_SUCCESS && !trx_is_interrupted(trx)) {
+
 		if (err == DB_RECORD_NOT_FOUND) {
 			ib::warn() << "sdi_delete failed: Record Doesn't exist:"
 				<< " tablespace_id: " << tablespace_id
 				<< " Key: " << ib_sdi_key->sdi_key->type
 				<< " " << ib_sdi_key->sdi_key->id;
-		} else if (err != DB_SUCCESS) {
+			bool	sdi_delete_record_not_found = true;
+			ut_ad(!sdi_delete_record_not_found);
+
+		} else {
 			ib::warn() << "sdi_delete failed: tablespace_id: "
 				<< tablespace_id
 				<< " Key: " << ib_sdi_key->sdi_key->type
 				<< " " << ib_sdi_key->sdi_key->id
 				<< " Error returned: " << err;
+			bool	sdi_delete_failed = true;
+			ut_ad(!sdi_delete_failed);
 		}
-	);
+	}
+#endif /* UNIV_DEBUG */
 
 	ib_tuple_delete(key_tpl);
 	ib_cursor_close(ib_crsr);

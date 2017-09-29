@@ -28,15 +28,15 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "mysql/udf_registration_types.h"
-#include "psi_memory_key.h"
+#include "sql/psi_memory_key.h"
 
 #ifdef MYSQL_SERVER
 #include <memory>
 
-#include "handler.h"
 #include "map_helpers.h"
 #include "prealloced_array.h"   // Prealloced_array
-#include "table.h"              // TABLE_LIST
+#include "sql/handler.h"
+#include "sql/table.h"          // TABLE_LIST
 
 class Log_event;
 class Relay_log_info;
@@ -246,8 +246,9 @@ private:
   - Extract and decode table definition data from the table map event
   - Check if table definition in table map is compatible with table
     definition on slave
- */
-
+  - expose the type information so that it can be used when encoding
+    or decoding row event data.
+*/
 class table_def
 {
 public:
@@ -282,6 +283,22 @@ public:
   {
     return static_cast<enum_field_types>(m_type[index]);
   }
+
+  /// Return the number of JSON columns in this table.
+  int json_column_count() const
+  {
+    // Cache in member field to make successive calls faster.
+    if (m_json_column_count == -1)
+    {
+      int c= 0;
+      for (uint i= 0; i < size(); i++)
+        if (type(i) == MYSQL_TYPE_JSON)
+          c++;
+      m_json_column_count= c;
+    }
+    return m_json_column_count;
+  }
+
   /*
     Return a representation of the type data for one field.
 
@@ -433,6 +450,7 @@ private:
   uchar *m_null_bits;
   uint16 m_flags;         // Table flags
   uchar *m_memory;
+  mutable int m_json_column_count;   // Number of JSON columns
 };
 
 

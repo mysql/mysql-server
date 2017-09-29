@@ -17,9 +17,11 @@
  * 02110-1301  USA
  */
 
-#include "auth_plain.h"
-#include "native_plain_verification.h"
-#include "sha256_plain_verification.h"
+#include "plugin/x/src/auth_plain.h"
+
+#include "plugin/x/src/native_plain_verification.h"
+#include "plugin/x/src/sha256_plain_verification.h"
+#include "plugin/x/src/sha2_plain_verification.h"
 
 namespace xpl {
 
@@ -33,6 +35,9 @@ ngs::Authentication_interface_ptr Sasl_plain_auth::create(
   handler->add_account_verificator(
       ngs::Account_verification_interface::Account_sha256,
       ngs::allocate_object<Sha256_plain_verification>());
+  handler->add_account_verificator(
+      ngs::Account_verification_interface::Account_sha2,
+      ngs::allocate_object<Sha2_plain_verification>());
   return ngs::Authentication_interface_ptr(
       ngs::allocate_object<Sasl_plain_auth>(handler));
 }

@@ -15,12 +15,13 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
    */
 
+#include "client/base/abstract_options_provider.h"
+
 #include <stdlib.h>
 #include <iostream>
 #include <vector>
 
-#include "abstract_options_provider.h"
-#include "i_options_provider.h"
+#include "client/base/i_options_provider.h"
 #include "my_dbug.h"
 #include "my_getopt.h"
 

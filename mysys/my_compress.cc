@@ -29,8 +29,7 @@
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysys_priv.h"
-#include "zconf.h"
+#include "mysys/mysys_priv.h"
 
 /*
    This replaces the packet with a compressed packet

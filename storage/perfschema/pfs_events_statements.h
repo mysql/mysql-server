@@ -22,13 +22,12 @@
 */
 
 #include <sys/types.h>
-
 #include <atomic>
 
 #include "my_inttypes.h"
-#include "pfs_column_types.h"
-#include "pfs_digest.h"
-#include "pfs_events.h"
+#include "storage/perfschema/pfs_column_types.h"
+#include "storage/perfschema/pfs_digest.h"
+#include "storage/perfschema/pfs_events.h"
 
 struct PFS_thread;
 struct PFS_account;

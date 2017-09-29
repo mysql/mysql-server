@@ -22,16 +22,16 @@
 
 #include <stddef.h>
 
-#include "field.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_thread.h"
-#include "pfs_buffer_container.h"
-#include "pfs_column_types.h"
-#include "pfs_column_values.h"
-#include "pfs_global.h"
-#include "pfs_instr_class.h"
+#include "sql/field.h"
+#include "storage/perfschema/pfs_buffer_container.h"
+#include "storage/perfschema/pfs_column_types.h"
+#include "storage/perfschema/pfs_column_values.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_instr_class.h"
 
 THR_LOCK table_file_summary_by_instance::m_table_lock;
 
@@ -150,6 +150,7 @@ table_file_summary_by_instance::get_row_count(void)
 table_file_summary_by_instance::table_file_summary_by_instance()
   : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0)
 {
+  m_normalizer = time_normalizer::get_wait();
 }
 
 void
@@ -270,10 +271,8 @@ table_file_summary_by_instance::make_row(PFS_file *pfs)
   m_row.m_event_name.make_row(safe_class);
   m_row.m_identity = pfs->m_identity;
 
-  time_normalizer *normalizer = time_normalizer::get(wait_timer);
-
   /* Collect timer and byte count stats */
-  m_row.m_io_stat.set(normalizer, &pfs->m_file_stat.m_io_stat);
+  m_row.m_io_stat.set(m_normalizer, &pfs->m_file_stat.m_io_stat);
 
   if (!pfs->m_lock.end_optimistic_lock(&lock))
   {

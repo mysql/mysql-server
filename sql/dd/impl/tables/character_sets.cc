@@ -13,27 +13,27 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/tables/character_sets.h"
+#include "sql/dd/impl/tables/character_sets.h"
 
 #include <stddef.h>
 #include <new>
 #include <set>
 #include <vector>
 
-#include "dd/cache/dictionary_client.h"           // dd::cache::Dictionary_...
-#include "dd/dd.h"                                // dd::create_object
-#include "dd/impl/cache/storage_adapter.h"        // Storage_adapter
-#include "dd/impl/raw/object_keys.h"              // Global_name_key
-#include "dd/impl/raw/raw_record.h"
-#include "dd/impl/types/charset_impl.h"           // dd::Charset_impl
-#include "dd/impl/types/object_table_definition_impl.h"
-#include "dd/object_id.h"
-#include "dd/types/charset.h"
-#include "item_create.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_sys.h"
-#include "sql_class.h"                            // THD
+#include "sql/dd/cache/dictionary_client.h"       // dd::cache::Dictionary_...
+#include "sql/dd/dd.h"                            // dd::create_object
+#include "sql/dd/impl/cache/storage_adapter.h"    // Storage_adapter
+#include "sql/dd/impl/raw/object_keys.h"          // Global_name_key
+#include "sql/dd/impl/raw/raw_record.h"
+#include "sql/dd/impl/types/charset_impl.h"       // dd::Charset_impl
+#include "sql/dd/impl/types/object_table_definition_impl.h"
+#include "sql/dd/object_id.h"
+#include "sql/dd/types/charset.h"
+#include "sql/item_create.h"
+#include "sql/sql_class.h"                        // THD
 
 namespace dd {
 namespace tables {
@@ -49,7 +49,6 @@ const Character_sets &Character_sets::instance()
 Character_sets::Character_sets()
 {
   m_target_def.table_name(table_name());
-  m_target_def.dd_version(1);
 
   m_target_def.add_field(FIELD_ID,
                          "FIELD_ID",

@@ -20,35 +20,35 @@
    sql_mode contains 'only_full_group_by'.
 */
 
-#include "aggregate_check.h"
+#include "sql/aggregate_check.h"
 
 #include "my_config.h"
 
 #include <utility>
 
-#include "derror.h"
-#include "field.h"
-#include "item_func.h"
-#include "item_row.h"
-#include "key.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_sys.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysqld_error.h"
-#include "opt_trace.h"
-#include "opt_trace_context.h"
-#include "parse_tree_nodes.h"
-#include "sql_array.h"
-#include "sql_base.h"
-#include "sql_class.h"
-#include "sql_const.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_parse.h"
-#include "table.h"
+#include "sql/derror.h"
+#include "sql/field.h"
+#include "sql/item_func.h"
+#include "sql/item_row.h"
+#include "sql/key.h"
+#include "sql/opt_trace.h"
+#include "sql/opt_trace_context.h"
+#include "sql/parse_tree_nodes.h"
+#include "sql/sql_array.h"
+#include "sql/sql_base.h"
+#include "sql/sql_class.h"
+#include "sql/sql_const.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_parse.h"
+#include "sql/table.h"
+#include "sql/window.h"
 #include "template_utils.h"
-#include "window.h"
 
 /**
   @addtogroup AGGREGATE_CHECKS
@@ -571,7 +571,8 @@ void Group_check::add_to_fd(Item *item, bool local_column,
   {
     Item_field *const item_field= (Item_field*)item;
     TABLE_LIST *const tl= item_field->field->table->pos_in_table_list;
-    if (tl->uses_materialization()) // materialized table
+    if (tl->uses_materialization() && // materialized table
+        !tl->is_table_function())     // there's no underlying query expr
       add_to_source_of_mat_table(item_field, tl);
   }
 }
@@ -870,7 +871,8 @@ bool Group_check::is_in_fd_of_underlying(Item_ident *item)
         return true;
       }
     }
-    else if (tl->uses_materialization()) // Materialized derived table
+    else if (tl->uses_materialization() && // Materialized derived table
+             !tl->is_table_function())
     {
       SELECT_LEX *const mat_select= tl->derived_unit()->first_select();
       uint j;

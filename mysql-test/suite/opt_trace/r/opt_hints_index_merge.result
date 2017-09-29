@@ -206,6 +206,9 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3) */ f1 FROM t1 WHERE f2 = 5 OR f3 = 'c'
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 288,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 0.5312,
                       "access_type": "scan",
                       "resulting_rows": 153,
                       "cost": 29.05,
@@ -487,6 +490,9 @@ EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f3) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND 
                     },
                     {
                       "rows_to_scan": 288,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 0.0878,
                       "access_type": "scan",
                       "resulting_rows": 25.284,
                       "cost": 29.05,
@@ -823,6 +829,9 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 2,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "range",
                       "range_details": {
                         "used_index": "sort_union(f2,f4)"
@@ -1153,6 +1162,9 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 136,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "range",
                       "range_details": {
                         "used_index": "union(f2,f3)"

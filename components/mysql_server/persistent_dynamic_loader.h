@@ -20,6 +20,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include <map>
 #include <mysql/components/services/persistent_dynamic_loader.h>
 #include <mysql/components/service_implementation.h>
+#include <mysql/psi/mysql_mutex.h>
+
+#include "my_inttypes.h"
 
 /*
   This header file is used in mysql_server component, which is not

@@ -2910,11 +2910,10 @@ a
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-EXPLAIN EXTENDED SELECT * FROM t1 WHERE a IN (990000,0);
+EXPLAIN SELECT * FROM t1 WHERE a IN (990000,0);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	14	20.00	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` in ('99:00:00.000000','00:00:00.000000'))
 #
 # Testing IN with index: field->store_packed
@@ -4269,55 +4268,47 @@ t6	d	ts6	dt6
 DROP TABLE t1;
 SET @@timestamp=default;
 #
-# Testing EXPLAIN EXTENDED SELECT for CAST(TIME(N))
+# Testing EXPLAIN SELECT for CAST(TIME(N))
 #
-EXPLAIN EXTENDED SELECT CAST('10:10:10' AS TIME);
+EXPLAIN SELECT CAST('10:10:10' AS TIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as time) AS `CAST('10:10:10' AS TIME)`
-EXPLAIN EXTENDED SELECT CAST('10:10:10' AS TIME(0));
+EXPLAIN SELECT CAST('10:10:10' AS TIME(0));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as time) AS `CAST('10:10:10' AS TIME(0))`
-EXPLAIN EXTENDED SELECT CAST('10:10:10' AS TIME(1));
+EXPLAIN SELECT CAST('10:10:10' AS TIME(1));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as time(1)) AS `CAST('10:10:10' AS TIME(1))`
-EXPLAIN EXTENDED SELECT CAST('10:10:10' AS TIME(2));
+EXPLAIN SELECT CAST('10:10:10' AS TIME(2));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as time(2)) AS `CAST('10:10:10' AS TIME(2))`
-EXPLAIN EXTENDED SELECT CAST('10:10:10' AS TIME(3));
+EXPLAIN SELECT CAST('10:10:10' AS TIME(3));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as time(3)) AS `CAST('10:10:10' AS TIME(3))`
-EXPLAIN EXTENDED SELECT CAST('10:10:10' AS TIME(4));
+EXPLAIN SELECT CAST('10:10:10' AS TIME(4));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as time(4)) AS `CAST('10:10:10' AS TIME(4))`
-EXPLAIN EXTENDED SELECT CAST('10:10:10' AS TIME(5));
+EXPLAIN SELECT CAST('10:10:10' AS TIME(5));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as time(5)) AS `CAST('10:10:10' AS TIME(5))`
-EXPLAIN EXTENDED SELECT CAST('10:10:10' AS TIME(6));
+EXPLAIN SELECT CAST('10:10:10' AS TIME(6));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as time(6)) AS `CAST('10:10:10' AS TIME(6))`
 #
 # Testing CAST with bad FSPs
@@ -5482,6 +5473,7 @@ EXTRA
 PRIVILEGES	#
 COLUMN_COMMENT	
 GENERATION_EXPRESSION	
+SRS_ID	NULL
 DROP TABLE t1;
 #
 # SELECT from a subquery
@@ -7892,11 +7884,10 @@ a
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-EXPLAIN EXTENDED SELECT * FROM t1 WHERE a IN (0.000001,0);
+EXPLAIN SELECT * FROM t1 WHERE a IN (0.000001,0);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	11	20.00	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` in ('0000-00-00 00:00:00.000001','0000-00-00 00:00:00.000000'))
 #
 # Testing IN with index: involves field->store_packed()
@@ -9087,55 +9078,47 @@ a	b	c
 10:10:10.100000	2001-01-01 10:10:10.100000	2001-01-01
 DROP TABLE t1;
 #
-# Testing EXPLAIN EXTENDED SELECT for CAST(DATETIME(N))
+# Testing EXPLAIN SELECT for CAST(DATETIME(N))
 #
-EXPLAIN EXTENDED SELECT CAST('10:10:10' AS DATETIME);
+EXPLAIN SELECT CAST('10:10:10' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as datetime) AS `CAST('10:10:10' AS DATETIME)`
-EXPLAIN EXTENDED SELECT CAST('10:10:10' AS DATETIME(0));
+EXPLAIN SELECT CAST('10:10:10' AS DATETIME(0));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as datetime) AS `CAST('10:10:10' AS DATETIME(0))`
-EXPLAIN EXTENDED SELECT CAST('10:10:10' AS DATETIME(1));
+EXPLAIN SELECT CAST('10:10:10' AS DATETIME(1));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as datetime(1)) AS `CAST('10:10:10' AS DATETIME(1))`
-EXPLAIN EXTENDED SELECT CAST('10:10:10' AS DATETIME(2));
+EXPLAIN SELECT CAST('10:10:10' AS DATETIME(2));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as datetime(2)) AS `CAST('10:10:10' AS DATETIME(2))`
-EXPLAIN EXTENDED SELECT CAST('10:10:10' AS DATETIME(3));
+EXPLAIN SELECT CAST('10:10:10' AS DATETIME(3));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as datetime(3)) AS `CAST('10:10:10' AS DATETIME(3))`
-EXPLAIN EXTENDED SELECT CAST('10:10:10' AS DATETIME(4));
+EXPLAIN SELECT CAST('10:10:10' AS DATETIME(4));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as datetime(4)) AS `CAST('10:10:10' AS DATETIME(4))`
-EXPLAIN EXTENDED SELECT CAST('10:10:10' AS DATETIME(5));
+EXPLAIN SELECT CAST('10:10:10' AS DATETIME(5));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as datetime(5)) AS `CAST('10:10:10' AS DATETIME(5))`
-EXPLAIN EXTENDED SELECT CAST('10:10:10' AS DATETIME(6));
+EXPLAIN SELECT CAST('10:10:10' AS DATETIME(6));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select cast('10:10:10' as datetime(6)) AS `CAST('10:10:10' AS DATETIME(6))`
 #
 # Testing CAST with bad FSPs
@@ -10438,6 +10421,7 @@ EXTRA
 PRIVILEGES	#
 COLUMN_COMMENT	
 GENERATION_EXPRESSION	
+SRS_ID	NULL
 DROP TABLE t1;
 #
 # SELECT from a subquery
@@ -14817,6 +14801,7 @@ EXTRA	on update CURRENT_TIMESTAMP(6)
 PRIVILEGES	#
 COLUMN_COMMENT	
 GENERATION_EXPRESSION	
+SRS_ID	NULL
 DROP TABLE t1;
 #
 # SELECT from a subquery
@@ -16928,8 +16913,6 @@ OR col_datetime_6_not_null_key < TIMEDIFF('0000-00-00','2002-11-24' )
 AND col_timestamp_6_not_null_key IS NULL;
 c1
 Warnings:
-Warning	1292	Truncated incorrect time value: '0000-00-00'
-Warning	1292	Truncated incorrect time value: '2002-11-24'
 Warning	1292	Truncated incorrect time value: '0000-00-00'
 Warning	1292	Truncated incorrect time value: '2002-11-24'
 Warning	1292	Truncated incorrect time value: '0000-00-00'

@@ -17,7 +17,7 @@
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "myrg_def.h"
+#include "storage/myisammrg/myrg_def.h"
 
 static int queue_key_cmp(void *keyseg, uchar *a, uchar *b)
 {

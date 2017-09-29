@@ -4,7 +4,7 @@
 --source include/not_valgrind.inc
 
 --disable_query_log
-call mtr.add_suppression("\\[Warning\\] InnoDB: Parent table of FTS auxiliary table.*");
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Parent table of FTS auxiliary table.*");
 call mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
 --enable_query_log
 
@@ -210,8 +210,9 @@ EOF
 
 let MYSQLD_LOG= $MYSQL_TMP_DIR/server.log;
 
+# Add '--read-only' option in the scope of fix of Bug#26636238, to avoid creation of another bulky test.
 --echo # Start the DB server. Server will create and populate Dictionary tables.
---exec echo "restart: --loose-skip-log-bin --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart: --loose-skip-log-bin --read-only --skip-log-slave-updates --skip-slave-preserve-commit-order --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
@@ -259,9 +260,11 @@ SHOW CREATE TABLE mysql.user;
 SHOW CREATE TABLE mysql.innodb_table_stats;
 SHOW CREATE TABLE mysql.innodb_index_stats;
 
-SELECT NAME,LEN FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE TABLE_ID IN
-  (SELECT TABLE_ID FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES WHERE NAME LIKE '%innodb_%_stats')
-  AND NAME LIKE 'table_name';
+SELECT COLUMN_NAME,CHARACTER_MAXIMUM_LENGTH
+  FROM INFORMATION_SCHEMA.COLUMNS col
+    JOIN INFORMATION_SCHEMA.TABLES tab ON col.table_name=tab.table_name
+  WHERE col.TABLE_NAME LIKE '%innodb_%_stats'
+    AND col.COLUMN_NAME LIKE 'table_name';
 
 SHOW CREATE TABLE test.t_compressed;
 SHOW CREATE TABLE test.t_compressed2;
@@ -308,6 +311,10 @@ DESC `test`.`initial_vü`;
 --replace_column 15 CREATE_TIME
 SELECT * FROM information_schema.tables WHERE table_schema = 'test' and table_type='VIEW';
 SET names default;
+
+--echo #Test case for Bug#26636238
+#Check metadata of a performance schema table when upgrade is performed with --read-only
+SHOW CREATE TABLE performance_schema.threads;
 
 --echo # Check for SP/SF
 SHOW CREATE PROCEDURE sp.simpleproc;
@@ -389,7 +396,7 @@ TABLE_SCHEMA='view_with_column_names';
 
 --echo # Restart on the upgraded data dir
 --replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
-let $restart_parameters = "restart: --loose-skip-log-bin --datadir=$MYSQLD_DATADIR1";
+let $restart_parameters = "restart: --loose-skip-log-bin --skip-log-slave-updates --skip-slave-preserve-commit-order --datadir=$MYSQLD_DATADIR1";
 --source include/restart_mysqld.inc
 let $restart_parameters =;
 

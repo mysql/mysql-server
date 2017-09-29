@@ -17,6 +17,10 @@
  * 02110-1301  USA
  */
 
+#include "plugin/x/client/xprotocol_impl.h"
+
+#include "my_config.h"
+
 #include <algorithm>
 #include <cstdint>
 #include <cstdlib>
@@ -25,14 +29,11 @@
 #include <string>
 
 #include "errmsg.h"
-#include "my_config.h"
 #include "my_io.h"
-#include "mysqlx_version.h"
-#include "password_hasher.h"
-#include "xprotocol_impl.h"
-
-#include "mysqlxclient/xerror.h"
-#include "mysqlxclient/xrow.h"
+#include "plugin/x/client/mysqlxclient/xerror.h"
+#include "plugin/x/client/mysqlxclient/xrow.h"
+#include "plugin/x/client/password_hasher.h"
+#include "plugin/x/generated/mysqlx_version.h"
 
 
 namespace xcl {

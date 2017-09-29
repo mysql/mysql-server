@@ -19,8 +19,8 @@
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "myisamdef.h"
-#include "rt_index.h"
+#include "storage/myisam/myisamdef.h"
+#include "storage/myisam/rt_index.h"
 
 	/* Read a record using key */
 	/* Ordinary search_flag is 0 ; Give error if no record with key */

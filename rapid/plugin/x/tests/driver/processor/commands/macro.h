@@ -23,9 +23,9 @@
 #include <string>
 #include <vector>
 
-#include "formatters/console.h"
-#include "processor/block_processor.h"
-#include "processor/script_stack.h"
+#include "plugin/x/tests/driver/formatters/console.h"
+#include "plugin/x/tests/driver/processor/block_processor.h"
+#include "plugin/x/tests/driver/processor/script_stack.h"
 
 
 class Execution_context;
@@ -36,21 +36,27 @@ class Macro {
 
  public:
   Macro(const std::string &name,
-        const Strings &argnames)
-      : m_name(name), m_args(argnames) {}
+        const Strings &argnames,
+        const bool accepts_variadic_arguments)
+      : m_name(name),
+        m_accepts_args(argnames),
+        m_accepts_variadic_arguments(accepts_variadic_arguments)
+  {}
 
   const std::string &name() const { return m_name; }
 
-  void set_body(const std::string &body) { m_body = body; }
+  void set_macro_body(const std::string &body) { m_body = body; }
 
-  std::string get(const Strings &args,
-                  const Script_stack *stack,
-                  const Console &console) const;
+  std::string get_expanded_macro_body(
+      const Strings &args,
+      const Script_stack *stack,
+      const Console &console) const;
 
  private:
   std::string m_name;
-  Strings     m_args;
+  Strings     m_accepts_args;
   std::string m_body;
+  bool        m_accepts_variadic_arguments;
 };
 
 class Macro_container {
@@ -58,16 +64,22 @@ class Macro_container {
   using Strings = std::list<std::string>;
 
  public:
-  void add(std::shared_ptr<Macro> macro) { m_macros.push_back(macro); }
+  void add_macro(std::shared_ptr<Macro> macro);
+  void set_compress_option(const bool compress);
 
-  std::string get(const std::string &cmd,
-                  std::string *r_name,
-                  const Script_stack *stack,
-                  const Console &console);
-  bool call(Execution_context *context, const std::string &cmd);
+  bool call(Execution_context *context,
+            const std::string &cmd);
 
  private:
+  std::string get_expanded_macro(
+      Execution_context *context,
+      const std::string &cmd,
+      std::string *r_name,
+      const Script_stack *stack,
+      const Console &console);
+
   std::list<std::shared_ptr<Macro>> m_macros;
+  bool m_compress{true};
 };
 
 #endif  // X_TESTS_DRIVER_PROCESSOR_COMMANDS_MACRO_H_

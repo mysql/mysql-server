@@ -1,4 +1,5 @@
 --source include/have_debug.inc
+--source include/not_valgrind.inc
 --echo # Pre-create some tables, so that DDTableBuffer is not empty
 
 set global innodb_flush_log_at_trx_commit=1;
@@ -194,5 +195,132 @@ TRUNCATE TABLE t1;
 set session debug = "-d,partition_truncate_no_reset";
 
 ALTER TABLE t1 ADD INDEX(b), ALGORITHM = INPLACE;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Scenario 4: Test ALTER TABLE .. AUTO_INCREMENT to a smaller value
+--echo # and maybe crash
+--echo #
+
+# Part 1
+
+CREATE TABLE t1(a TINYINT AUTO_INCREMENT KEY) ENGINE = InnoDB;
+
+INSERT INTO t1 VALUES(0), (0), (10), (20), (30), (31), (32);
+
+INSERT INTO t1 VALUES(0), (0), (0);
+
+SELECT MAX(a) `Expect 35` FROM t1;
+
+DELETE FROM t1 WHERE a >= 30;
+
+ALTER TABLE t1 AUTO_INCREMENT = 21;
+
+--source include/restart_mysqld.inc
+
+SHOW CREATE TABLE t1;
+
+INSERT INTO t1 VALUES(0), (0), (0);
+
+SELECT MAX(a) `Expect 23` FROM t1;
+
+DROP TABLE t1;
+
+# Part 2
+
+CREATE TABLE t1(a TINYINT AUTO_INCREMENT KEY) ENGINE = InnoDB;
+
+INSERT INTO t1 VALUES(0), (0), (10), (20), (30), (31), (32);
+
+INSERT INTO t1 VALUES(0), (0), (0);
+
+SELECT MAX(a) `Expect 35` FROM t1;
+
+DELETE FROM t1 WHERE a >= 30;
+
+SET SESSION debug="+d, ib_ddl_crash_before_update_stats";
+
+--echo # Write file to make mysql-test-run.pl expect crash
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--error CR_SERVER_LOST
+ALTER TABLE t1 AUTO_INCREMENT = 21;
+
+--echo # Restart mysqld after the crash and reconnect.
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+SHOW CREATE TABLE t1;
+
+INSERT INTO t1 VALUES(0), (0), (0);
+
+SELECT MAX(a) `Expect 38` FROM t1;
+
+DROP TABLE t1;
+
+# Part 3, test partitioned table for part 1
+
+CREATE TABLE t1 (a INT AUTO_INCREMENT NOT NULL, KEY(a))
+PARTITION BY RANGE (a)
+( PARTITION p0 VALUES LESS THAN (10),
+  PARTITION p1 VALUES LESS THAN (20),
+  PARTITION p2 VALUES LESS THAN (50));
+
+INSERT INTO t1 VALUES(0), (0), (10), (20), (30), (31), (32);
+
+INSERT INTO t1 VALUES(0), (0), (0);
+
+SELECT MAX(a) `Expect 35` FROM t1;
+
+DELETE FROM t1 WHERE a >= 30;
+
+ALTER TABLE t1 AUTO_INCREMENT = 21;
+
+--source include/restart_mysqld.inc
+
+SHOW CREATE TABLE t1;
+
+INSERT INTO t1 VALUES(0), (0), (0);
+
+SELECT MAX(a) `Expect 23` FROM t1;
+
+DROP TABLE t1;
+
+# Part 4, test partitioned table for part 2
+
+CREATE TABLE t1 (a INT AUTO_INCREMENT NOT NULL, KEY(a))
+PARTITION BY RANGE (a)
+( PARTITION p0 VALUES LESS THAN (10),
+  PARTITION p1 VALUES LESS THAN (20),
+  PARTITION p2 VALUES LESS THAN (50));
+
+INSERT INTO t1 VALUES(0), (0), (10), (20), (30), (31), (32);
+
+INSERT INTO t1 VALUES(0), (0), (0);
+
+SELECT MAX(a) `Expect 35` FROM t1;
+
+DELETE FROM t1 WHERE a >= 30;
+
+SET SESSION debug="+d, ib_ddl_crash_before_update_stats";
+
+--echo # Write file to make mysql-test-run.pl expect crash
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--error CR_SERVER_LOST
+ALTER TABLE t1 AUTO_INCREMENT = 21;
+
+--echo # Restart mysqld after the crash and reconnect.
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+SHOW CREATE TABLE t1;
+
+INSERT INTO t1 VALUES(0), (0), (0);
+
+SELECT MAX(a) `Expect 38` FROM t1;
 
 DROP TABLE t1;

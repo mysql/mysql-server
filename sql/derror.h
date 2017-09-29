@@ -16,10 +16,11 @@
 #ifndef DERROR_INCLUDED
 #define DERROR_INCLUDED
 
-#include <my_inttypes.h>
-#include <my_macros.h>
 #include <stddef.h>
 #include <sys/types.h>
+
+#include "my_inttypes.h"
+#include "my_macros.h"
 
 #ifdef EXTRA_CODE_FOR_UNIT_TESTING
 #include "mysqld_error.h"

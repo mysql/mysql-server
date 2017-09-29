@@ -179,10 +179,12 @@ mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
 mysql.help_topic                                   OK
+mysql.innodb_ddl_log                               OK
 mysql.innodb_dynamic_metadata                      OK
 mysql.innodb_index_stats                           OK
 mysql.innodb_table_stats                           OK
 mysql.ndb_binlog_index                             OK
+mysql.password_history                             OK
 mysql.plugin                                       OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
@@ -340,6 +342,8 @@ user	CREATE TABLE `user` (
   `account_locked` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
   `Create_role_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
   `Drop_role_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `Password_reuse_history` smallint(5) unsigned DEFAULT NULL,
+  `Password_reuse_time` smallint(5) unsigned DEFAULT NULL,
   PRIMARY KEY (`Host`,`User`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 COMMENT='Users and global privileges'
 SHOW CREATE TABLE mysql.innodb_table_stats;
@@ -366,12 +370,14 @@ innodb_index_stats	CREATE TABLE `innodb_index_stats` (
   `stat_description` varchar(1024) COLLATE utf8_bin NOT NULL,
   PRIMARY KEY (`database_name`,`table_name`,`index_name`,`stat_name`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
-SELECT NAME,LEN FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE TABLE_ID IN
-(SELECT TABLE_ID FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES WHERE NAME LIKE '%innodb_%_stats')
-AND NAME LIKE 'table_name';
-NAME	LEN
-table_name	192
-table_name	192
+SELECT COLUMN_NAME,CHARACTER_MAXIMUM_LENGTH
+FROM INFORMATION_SCHEMA.COLUMNS col
+JOIN INFORMATION_SCHEMA.TABLES tab ON col.table_name=tab.table_name
+WHERE col.TABLE_NAME LIKE '%innodb_%_stats'
+    AND col.COLUMN_NAME LIKE 'table_name';
+COLUMN_NAME	CHARACTER_MAXIMUM_LENGTH
+table_name	199
+table_name	199
 SHOW CREATE TABLE test.t_compressed;
 Table	Create Table
 t_compressed	CREATE TABLE `t_compressed` (
@@ -526,8 +532,38 @@ Field	Type	Null	Key	Default	Extra
 cü	char(1)	YES		NULL	
 SELECT * FROM information_schema.tables WHERE table_schema = 'test' and table_type='VIEW';
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT
-def	test	initial_vü	VIEW	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	CREATE_TIME	NULL	NULL	NULL	NULL	NULL	VIEW
+def	test	initial_vü	VIEW	NULL	NULL	NULL	0	0	0	0	0	0	NULL	CREATE_TIME	NULL	NULL	NULL	NULL	NULL	VIEW
 SET names default;
+#Test case for Bug#26636238
+SHOW CREATE TABLE performance_schema.threads;
+Table	Create Table
+threads	CREATE TABLE `threads` (
+  `THREAD_ID` bigint(20) unsigned NOT NULL,
+  `NAME` varchar(128) NOT NULL,
+  `TYPE` varchar(10) NOT NULL,
+  `PROCESSLIST_ID` bigint(20) unsigned DEFAULT NULL,
+  `PROCESSLIST_USER` varchar(32) DEFAULT NULL,
+  `PROCESSLIST_HOST` varchar(60) DEFAULT NULL,
+  `PROCESSLIST_DB` varchar(64) DEFAULT NULL,
+  `PROCESSLIST_COMMAND` varchar(16) DEFAULT NULL,
+  `PROCESSLIST_TIME` bigint(20) DEFAULT NULL,
+  `PROCESSLIST_STATE` varchar(64) DEFAULT NULL,
+  `PROCESSLIST_INFO` longtext,
+  `PARENT_THREAD_ID` bigint(20) unsigned DEFAULT NULL,
+  `ROLE` varchar(64) DEFAULT NULL,
+  `INSTRUMENTED` enum('YES','NO') NOT NULL,
+  `HISTORY` enum('YES','NO') NOT NULL,
+  `CONNECTION_TYPE` varchar(16) DEFAULT NULL,
+  `THREAD_OS_ID` bigint(20) unsigned DEFAULT NULL,
+  `RESOURCE_GROUP` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`THREAD_ID`),
+  KEY `PROCESSLIST_ID` (`PROCESSLIST_ID`),
+  KEY `THREAD_OS_ID` (`THREAD_OS_ID`),
+  KEY `NAME` (`NAME`),
+  KEY `PROCESSLIST_ACCOUNT` (`PROCESSLIST_USER`,`PROCESSLIST_HOST`),
+  KEY `PROCESSLIST_HOST` (`PROCESSLIST_HOST`),
+  KEY `RESOURCE_GROUP` (`RESOURCE_GROUP`)
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 # Check for SP/SF
 SHOW CREATE PROCEDURE sp.simpleproc;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
@@ -725,17 +761,17 @@ x	y
 3	5
 SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE
 TABLE_SCHEMA='view_with_column_names';
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT	GENERATION_EXPRESSION
-def	view_with_column_names	t1	x	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
-def	view_with_column_names	t1	y	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
-def	view_with_column_names	v1	a	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
-def	view_with_column_names	v1	b	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
-def	view_with_column_names	v2	e	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
-def	view_with_column_names	v2	f	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
-def	view_with_column_names	v3	x	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
-def	view_with_column_names	v3	y	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT	GENERATION_EXPRESSION	SRS_ID
+def	view_with_column_names	t1	x	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	view_with_column_names	t1	y	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	view_with_column_names	v1	a	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	view_with_column_names	v1	b	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	view_with_column_names	v2	e	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	view_with_column_names	v2	f	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	view_with_column_names	v3	x	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	view_with_column_names	v3	y	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
 # Restart on the upgraded data dir
-# restart: --loose-skip-log-bin --datadir=MYSQLD_DATADIR1
+# restart: --loose-skip-log-bin --skip-log-slave-updates --skip-slave-preserve-commit-order --datadir=MYSQLD_DATADIR1
 # Execute FTS queries that modify FTS pages
 select count(*) from sakila.film_text;
 count(*)

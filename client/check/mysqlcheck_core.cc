@@ -15,17 +15,17 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <m_ctype.h>
 #include <mysql_version.h>
 #include <mysqld_error.h>
 #include <sys/types.h>
 #include <string>
 #include <vector>
 
-#include "client_priv.h"
+#include "client/check/mysqlcheck.h"
+#include "client/client_priv.h"
+#include "m_ctype.h"
 #include "my_default.h"
 #include "my_inttypes.h"
-#include "mysqlcheck.h"
 
 using namespace Mysql::Tools::Check;
 

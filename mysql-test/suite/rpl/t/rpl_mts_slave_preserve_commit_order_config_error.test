@@ -28,7 +28,7 @@
 --source include/force_restart.inc
 # This test case is binlog format agnostic
 --source include/have_binlog_format_row.inc
-
+--source include/only_mts_slave_parallel_type_logical_clock.inc
 # initialize the master and slave without starting the slave
 --let $rpl_skip_start_slave= 1
 --source include/master-slave.inc

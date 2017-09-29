@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -17,11 +17,10 @@
  * 02110-1301  USA
  */
 
-#include <algorithm>
-
-#include "mysql_show_variable_wrapper.h"
+#include "plugin/x/src/mysql_show_variable_wrapper.h"
 
 #include <mysql/plugin.h>
+#include <algorithm>
 
 
 using namespace mysqld;

@@ -28,11 +28,6 @@
 #include <string>
 #include <unordered_map>
 
-#include "auth_common.h"
-#include "auth_internal.h"       // List_of_authid, Authid
-#include "dd/properties.h"
-#include "handler.h"
-#include "key.h"
 #include "lex_string.h"
 #include "lf.h"
 #include "m_ctype.h"
@@ -40,7 +35,6 @@
 #include "mem_root_fwd.h"
 #include "mf_wcomp.h"                   // wild_many, wild_one, wild_prefix
 #include "my_alloc.h"
-#include "my_decimal.h"
 #include "my_inttypes.h"
 #include "my_sharedlib.h"
 #include "my_sys.h"
@@ -52,11 +46,17 @@
 #include "mysql_com.h"                  // SCRAMBLE_LENGTH
 #include "mysql_time.h"                 // MYSQL_TIME
 #include "prealloced_array.h"           // Prealloced_array
-#include "sql_alloc.h"                  // Sql_alloc
-#include "sql_connect.h"                // USER_RESOURCES
-#include "sql_plugin_ref.h"
+#include "sql/auth/auth_common.h"
+#include "sql/auth/auth_internal.h" // List_of_authid, Authid
+#include "sql/dd/properties.h"
+#include "sql/handler.h"
+#include "sql/key.h"
+#include "sql/my_decimal.h"
+#include "sql/sql_alloc.h"              // Sql_alloc
+#include "sql/sql_connect.h"            // USER_RESOURCES
+#include "sql/sql_plugin_ref.h"
+#include "sql/table.h"
 #include "sql_string.h"
-#include "table.h"
 #include "typelib.h"
 #include "violite.h"                    // SSL_type
 
@@ -148,6 +148,28 @@ public:
    to rename the user or not.
   */
   bool is_role;
+
+  /**
+    The number of old passwords to check when setting a new password
+  */
+  uint32 password_history_length;
+
+  /**
+    Ignore @ref password_history_length,
+    use the global default @ref global_password_history
+  */
+  bool use_default_password_history;
+
+  /**
+    The number of days that would have to pass before a password can be reused.
+  */
+  uint32 password_reuse_interval;
+  /**
+    Ignore @ref password_reuse_interval,
+    use the global default @ref global_password_reuse_interval
+  */
+  bool use_default_password_reuse_interval;
+
   ACL_USER *copy(MEM_ROOT *root);
 };
 

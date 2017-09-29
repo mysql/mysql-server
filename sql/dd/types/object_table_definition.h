@@ -18,8 +18,8 @@
 
 #include <vector>
 
-#include "dd/string_type.h"                    // dd::String_type
 #include "my_inttypes.h"
+#include "sql/dd/string_type.h"                // dd::String_type
 
 namespace dd {
 
@@ -29,6 +29,13 @@ class Table;
 
 ///////////////////////////////////////////////////////////////////////////
 
+/**
+  The hard coded version of the dictionary tables. This version number is
+  stored in mysql.dd_properties when dictionary tables are created.
+
+  This version number will be used in the upgrade of dictionary tables.
+*/
+static const uint DD_VERSION= 80004;
 
 /**
   The purpose of this interface is to enable retrieving the SQL statements

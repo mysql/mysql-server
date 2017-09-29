@@ -27,7 +27,7 @@
 #include "my_sys.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysys_priv.h"
+#include "mysys/mysys_priv.h"
 
 
 	/*

@@ -13,15 +13,15 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/tables/foreign_keys.h"
+#include "sql/dd/impl/tables/foreign_keys.h"
 
 #include <new>
 #include <string>
 
-#include "dd/impl/raw/object_keys.h"  // Parent_id_range_key
-#include "dd/impl/types/object_table_definition_impl.h"
-#include "mysqld.h"
-#include "stateless_allocator.h"
+#include "sql/dd/impl/raw/object_keys.h" // Parent_id_range_key
+#include "sql/dd/impl/types/object_table_definition_impl.h"
+#include "sql/mysqld.h"
+#include "sql/stateless_allocator.h"
 
 namespace dd {
 namespace tables {
@@ -35,7 +35,6 @@ const Foreign_keys &Foreign_keys::instance()
 Foreign_keys::Foreign_keys()
 {
   m_target_def.table_name(table_name());
-  m_target_def.dd_version(1);
 
   m_target_def.add_field(FIELD_ID,
                          "FIELD_ID",
@@ -49,9 +48,9 @@ Foreign_keys::Foreign_keys()
   m_target_def.add_field(FIELD_NAME,
                          "FIELD_NAME",
                          "name VARCHAR(64) NOT NULL COLLATE utf8_general_ci");
-  m_target_def.add_field(FIELD_UNIQUE_CONSTRAINT_ID,
-                         "FIELD_UNIQUE_CONSTRAINT_ID",
-                         "unique_constraint_id BIGINT UNSIGNED NOT NULL");
+  m_target_def.add_field(FIELD_UNIQUE_CONSTRAINT_NAME,
+                         "FIELD_UNIQUE_CONSTRAINT_NAME",
+                         "unique_constraint_name VARCHAR(64) COLLATE utf8_tolower_ci");
   m_target_def.add_field(FIELD_MATCH_OPTION,
                          "FIELD_MATCH_OPTION",
                          "match_option ENUM('NONE', 'PARTIAL', 'FULL') "
@@ -97,8 +96,6 @@ Foreign_keys::Foreign_keys()
 
   m_target_def.add_foreign_key("FOREIGN KEY (schema_id) REFERENCES "
                                "schemata(id)");
-  m_target_def.add_foreign_key("FOREIGN KEY (unique_constraint_id) "
-                               "REFERENCES indexes(id)");
 }
 
 ///////////////////////////////////////////////////////////////////////////

@@ -17,10 +17,9 @@
 #define ONE_ROW_RESULTSET_H_
 
 #include <gmock/gmock.h>
-
 #include <string>
 
-#include "xpl_resultset.h"
+#include "plugin/x/src/xpl_resultset.h"
 
 namespace xpl {
 namespace test {

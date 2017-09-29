@@ -14,23 +14,15 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "sql/window.h"
+
 #include <sys/types.h>
 #include <algorithm>
 #include <cstring>
 #include <limits>
 #include <unordered_set>
 
-#include "derror.h"                             // ER_THD
-#include "enum_query_type.h"
-#include "handler.h"
-#include "item.h"
-#include "item_cmpfunc.h"
-#include "item_func.h"
-#include "item_sum.h"          // Item_sum
-#include "item_timefunc.h"                      // Item_date_add_interval
-#include "key_spec.h"
 #include "m_ctype.h"
-#include "mem_root_array.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -38,26 +30,35 @@
 #include "my_table_map.h"
 #include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
-#include "parse_tree_nodes.h"  // PT_*
-#include "sql_array.h"
-#include "sql_class.h"
-#include "sql_const.h"
-#include "sql_error.h"
-#include "sql_exception_handler.h" // handle_std_exception
-#include "sql_lex.h"           // SELECT_LEX
-#include "sql_list.h"
-#include "sql_optimizer.h"     // JOIN
-#include "sql_resolver.h"      // find_order_in_list
-#include "sql_security_ctx.h"
-#include "sql_show.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/derror.h"                         // ER_THD
+#include "sql/enum_query_type.h"
+#include "sql/handler.h"
+#include "sql/item.h"
+#include "sql/item_cmpfunc.h"
+#include "sql/item_func.h"
+#include "sql/item_sum.h"      // Item_sum
+#include "sql/item_timefunc.h"                  // Item_date_add_interval
+#include "sql/key_spec.h"
+#include "sql/mem_root_array.h"
+#include "sql/parse_tree_nodes.h" // PT_*
+#include "sql/sql_array.h"
+#include "sql/sql_class.h"
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_exception_handler.h" // handle_std_exception
+#include "sql/sql_lex.h"       // SELECT_LEX
+#include "sql/sql_list.h"
+#include "sql/sql_optimizer.h" // JOIN
+#include "sql/sql_resolver.h"  // find_order_in_list
+#include "sql/sql_show.h"
+#include "sql/sql_time.h"
+#include "sql/sql_tmp_table.h" // free_tmp_table
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/window_lex.h"
 #include "sql_string.h"
-#include "sql_time.h"
-#include "sql_tmp_table.h"     // free_tmp_table
-#include "system_variables.h"
-#include "table.h"
 #include "template_utils.h"
-#include "window.h"
-#include "window_lex.h"
 
 /**
   Shallow clone the list of ORDER objects using mem_root and return
@@ -155,7 +156,7 @@ bool Window::check_window_functions(THD *thd, SELECT_LEX *select)
     if (reqs.opt_ll_row.m_rowno != INT_MIN64)
       m_opt_lead_lag.m_offsets.push_back(reqs.opt_ll_row);
 
-    if (thd->lex->describe && m_frame != nullptr && !wfs->framing())
+    if (thd->lex->is_explain() && m_frame != nullptr && !wfs->framing())
     {
       /*
         SQL2014 <window clause> SR6b: functions which do not respect frames
@@ -203,13 +204,11 @@ static Item_cache *make_result_item(Item *value)
       break;
     case STRING_RESULT:
       if (value->is_temporal())
-      {
         result= new Item_cache_datetime(value->data_type());
-      }
+      else if (value->data_type() == MYSQL_TYPE_JSON)
+        result= new Item_cache_json();
       else
-      {
         result= new Item_cache_str(value);
-      }
       break;
     default:
       DBUG_ASSERT(false);
@@ -881,6 +880,15 @@ bool Window::check_border_sanity(THD *thd, Window *w,
         {
           // postpone check till execute time
         }
+        // Only integer values can be specified as args for ROW frames
+        else if (fr.m_unit == WFU_ROWS &&
+                 ((border_t == WBT_VALUE_PRECEDING ||
+                   border_t == WBT_VALUE_FOLLOWING) &&
+                  border->m_value->type() != Item::INT_ITEM))
+        {
+          my_error(ER_WINDOW_FRAME_ILLEGAL, MYF(0), w->printable_name());
+          return true;
+        }
         else if (fr.m_unit == WFU_RANGE &&
                  (o_item= w->m_order_by_items[0]->get_item())->result_type()
                  == STRING_RESULT &&
@@ -1060,8 +1068,6 @@ bool Window::setup_windows(THD* thd,
     Window *w;
     while ((w= w_it++))
     {
-      const PT_frame *f= w->frame();
-      const PT_order_list *o= w->order();
       /*
         We can encounter aggregate functions in the ORDER BY and PARTITION clauses
         of window function, so make sure we allow it:
@@ -1082,7 +1088,13 @@ bool Window::setup_windows(THD* thd,
         return true;
 
       thd->lex->allow_sum_func= save_allow_sum_func;
+    }
 
+    w_it.rewind();
+    while ((w= w_it++))
+    {
+      const PT_frame *f= w->frame();
+      const PT_order_list *o= w->order();
       if (w->setup_ordering_cached_items(thd, select, o, false))
         return true;
 

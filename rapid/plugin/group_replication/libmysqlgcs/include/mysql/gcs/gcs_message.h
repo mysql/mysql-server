@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,13 +16,13 @@
 #ifndef GCS_GCS_MESSAGE_INCLUDED
 #define GCS_GCS_MESSAGE_INCLUDED
 
-#include "gcs_group_identifier.h"
-#include "gcs_member_identifier.h"
-#include "gcs_types.h"
-
 #include <stdint.h>
-#include <vector>
 #include <cstring>
+#include <vector>
+
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_group_identifier.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_member_identifier.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_types.h"
 
 #define WIRE_PAYLOAD_LEN_SIZE 8
 #define WIRE_HEADER_LEN_SIZE 4

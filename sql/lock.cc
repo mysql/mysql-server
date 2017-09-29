@@ -73,16 +73,13 @@
   we are forced to use mysql_lock_merge.
 */
 
-#include "lock.h"
+#include "sql/lock.h"
 
 #include <fcntl.h>
 #include <string.h>
 #include <algorithm>
 #include <atomic>
 
-#include "auth_common.h"                   // SUPER_ACL
-#include "debug_sync.h"
-#include "handler.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
@@ -93,17 +90,20 @@
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
-#include "mysqld.h"                        // opt_readonly
 #include "mysqld_error.h"
-#include "psi_memory_key.h"
-#include "session_tracker.h"
-#include "sql_base.h"                       // MYSQL_LOCK_LOG_TABLE
-#include "sql_class.h"
-#include "sql_const.h"
-#include "sql_lex.h"
-#include "sql_parse.h"                     // is_log_table_write_query
-#include "system_variables.h"
-#include "table.h"
+#include "sql/auth/auth_common.h"          // SUPER_ACL
+#include "sql/debug_sync.h"
+#include "sql/handler.h"
+#include "sql/mysqld.h"                    // opt_readonly
+#include "sql/psi_memory_key.h"
+#include "sql/session_tracker.h"
+#include "sql/sql_base.h"                   // MYSQL_LOCK_LOG_TABLE
+#include "sql/sql_class.h"
+#include "sql/sql_const.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_parse.h"                 // is_log_table_write_query
+#include "sql/system_variables.h"
+#include "sql/table.h"
 #include "thr_lock.h"
 
 /**
@@ -977,7 +977,8 @@ bool lock_object_name(THD *thd, MDL_key::enum_mdl_namespace mdl_type,
   */
   DBUG_ASSERT(mdl_type == MDL_key::FUNCTION ||
               mdl_type == MDL_key::PROCEDURE ||
-              mdl_type == MDL_key::EVENT);
+              mdl_type == MDL_key::EVENT ||
+              mdl_type == MDL_key::RESOURCE_GROUPS);
 
   char lc_name[NAME_LEN + 1];
   my_stpncpy(lc_name, name, NAME_LEN);

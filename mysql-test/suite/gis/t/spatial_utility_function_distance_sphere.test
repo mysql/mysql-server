@@ -525,11 +525,6 @@ SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 0)', 2000), ST_GEOMFROMTEXT('
 --replace_regex /([0-9]+\.[0-9]{5})[0-9]*/\1/
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 0)', 4326), ST_GEOMFROMTEXT('POINT(1 1)', 4326));
 
---echo # Undefined SRS (should pass)
-# Assume SRID 19000000 is undefined
---replace_regex /([0-9]+\.[0-9]{5})[0-9]*/\1/
-SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 0)', 19000000), ST_GEOMFROMTEXT('POINT(1 1)', 19000000));
-
 --echo # Unparseable SRS definition (should fail)
 # Assume SRID 33333333 is undefined
 INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,

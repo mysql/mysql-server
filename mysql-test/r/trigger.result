@@ -729,7 +729,7 @@ select "hello again";
 end|
 create trigger tr1 before insert on t1 for each row 
 begin 
-call bug11587();
+call bug11587(new.c2);
 set new.c2= '2004-04-02';
 end|
 insert into t1 (c1) values (4),(5),(6);
@@ -2689,13 +2689,13 @@ trg1a0	INSERT	t1	BEGIN END	BEFORE	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	
 trg1a	INSERT	t1	BEGIN END	BEFORE	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 trg1a2	INSERT	t1	BEGIN END	BEFORE	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 trg1a3	INSERT	t1	BEGIN END	BEFORE	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+trg1b3	INSERT	t1	BEGIN END	AFTER	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 trg1b0	INSERT	t1	BEGIN END	AFTER	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 trg1b	INSERT	t1	BEGIN END	AFTER	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 trg1b2	INSERT	t1	BEGIN END	AFTER	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
-trg1b3	INSERT	t1	BEGIN END	AFTER	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
-trg1c0	UPDATE	t1	BEGIN END	BEFORE	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 trg1c	UPDATE	t1	BEGIN END	BEFORE	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 trg1c2	UPDATE	t1	BEGIN END	BEFORE	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+trg1c0	UPDATE	t1	BEGIN END	BEFORE	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 trg1c3	UPDATE	t1	BEGIN END	BEFORE	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 trg1d	UPDATE	t1	BEGIN END	AFTER	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 trg1d2	UPDATE	t1	BEGIN END	AFTER	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci

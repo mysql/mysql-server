@@ -25,6 +25,8 @@ Created 3/26/1996 Heikki Tuuri
 
 #include <stddef.h>
 
+#include <sql_thd_internal_api.h>
+
 #include "fsp0fsp.h"
 #include "ha_prototypes.h"
 #include "my_compiler.h"
@@ -1266,7 +1268,6 @@ trx_undo_mem_create_at_db_start(
 	undo->dict_operation =	mtr_read_ulint(
 		undo_header + TRX_UNDO_DICT_TRANS, MLOG_1BYTE, mtr);
 
-	undo->table_id = mach_read_from_8(undo_header + TRX_UNDO_TABLE_ID);
 	undo->state = state;
 	undo->size = flst_get_len(seg_header + TRX_UNDO_PAGE_LIST);
 
@@ -1636,24 +1637,9 @@ trx_undo_mark_as_dict_operation(
 		page_id_t(undo->space, undo->hdr_page_no),
 		undo->page_size, mtr);
 
-	switch (trx_get_dict_operation(trx)) {
-	case TRX_DICT_OP_NONE:
-		ut_error;
-	case TRX_DICT_OP_INDEX:
-		/* Do not discard the table on recovery. */
-		undo->table_id = 0;
-		break;
-	case TRX_DICT_OP_TABLE:
-		undo->table_id = trx->table_id;
-		break;
-	}
-
 	mlog_write_ulint(hdr_page + undo->hdr_offset
 			 + TRX_UNDO_DICT_TRANS,
 			 TRUE, MLOG_1BYTE, mtr);
-
-	mlog_write_ull(hdr_page + undo->hdr_offset + TRX_UNDO_TABLE_ID,
-		       undo->table_id, mtr);
 
 	undo->dict_operation = TRUE;
 }
@@ -1728,7 +1714,13 @@ trx_undo_assign_undo(
 		undo_ptr->update_undo = undo;
 	}
 
-	if (trx_get_dict_operation(trx) != TRX_DICT_OP_NONE) {
+	if (trx->mysql_thd && !trx->ddl_operation
+	    && thd_is_dd_update_stmt(trx->mysql_thd)) {
+		trx->ddl_operation = true;
+	}
+
+	if (trx->ddl_operation
+	    || trx_get_dict_operation(trx) != TRX_DICT_OP_NONE) {
 		trx_undo_mark_as_dict_operation(trx, undo, &mtr);
 	}
 

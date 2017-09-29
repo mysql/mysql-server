@@ -20,9 +20,9 @@
 #ifndef XPL_RESULTSET_H_
 #define XPL_RESULTSET_H_
 
-#include "buffering_command_delegate.h"
-#include "ngs/interface/resultset_interface.h"
-#include "streaming_command_delegate.h"
+#include "plugin/x/ngs/include/ngs/interface/resultset_interface.h"
+#include "plugin/x/src/buffering_command_delegate.h"
+#include "plugin/x/src/streaming_command_delegate.h"
 
 namespace xpl {
 

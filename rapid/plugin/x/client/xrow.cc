@@ -17,7 +17,7 @@
  * 02110-1301  USA
  */
 
-#include "mysqlxclient/xrow.h"
+#include "plugin/x/client/mysqlxclient/xrow.h"
 
 #include <algorithm>
 #include <cassert>
@@ -247,7 +247,8 @@ bool buffer_to_double(const std::string& buffer,
 }
 
 bool buffer_to_datetime(const std::string& buffer,
-                        DateTime *out_result) {
+                        DateTime *out_result,
+                        const bool has_time) {
   uint16_t year;
   uint8_t  month, day;
   uint8_t  hour = 0, minutes = 0, seconds = 0;
@@ -266,16 +267,18 @@ bool buffer_to_datetime(const std::string& buffer,
   if (!read_required_uint64(&input_stream, &day))
     return false;
 
-  read_optional_time(&input_stream,
-                     &hour, &minutes, &seconds,
-                     &useconds);
+  if (out_result) {
+    if (has_time) {
+      read_optional_time(&input_stream, &hour, &minutes, &seconds, &useconds);
+      *out_result = DateTime(year, month, day, hour, minutes, seconds,
+                             useconds);
+    } else {
+      *out_result = DateTime(year, month, day);
+    }
+    return true;
+  }
 
-  if (out_result)
-    *out_result = DateTime(year, month, day,
-                    hour, minutes, seconds,
-                    useconds);
-
-  return true;
+  return false;
 }
 
 bool buffer_to_time(const std::string& buffer,

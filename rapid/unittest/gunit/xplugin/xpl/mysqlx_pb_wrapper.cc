@@ -13,284 +13,232 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include "mysqlx_pb_wrapper.h"
+#include "unittest/gunit/xplugin/xpl/mysqlx_pb_wrapper.h"
 
 #include <utility>
 
-#include "ngs_common/to_string.h"
+#include "plugin/x/ngs/include/ngs_common/to_string.h"
 
 namespace xpl {
-
 namespace test {
 
 Identifier::Identifier(const std::string &name,
                        const std::string &schema_name) {
-  if (name.empty() == false) set_name(name);
+  if (name.empty() == false) m_base.set_name(name);
 
-  if (schema_name.empty() == false) set_schema_name(schema_name);
-}
-
-Document_path::Document_path(const Path &path) {
-  for (Path::const_iterator i = path.begin(); i != path.end(); ++i) {
-    Mysqlx::Expr::DocumentPathItem *item = Add();
-
-    item->set_type(i->first);
-    if (i->first == Mysqlx::Expr::DocumentPathItem::ARRAY_INDEX)
-      item->set_index(ngs::stoi(i->second));
-    else
-      item->set_value(i->second);
-  }
-}
-
-Document_path::Path::Path(const std::string &value) { add_member(value); }
-
-Document_path::Path &Document_path::Path::add_member(const std::string &value) {
-  push_back(std::make_pair(Mysqlx::Expr::DocumentPathItem::MEMBER, value));
-  return *this;
-}
-
-Document_path::Path &Document_path::Path::add_index(int index) {
-  push_back(std::make_pair(Mysqlx::Expr::DocumentPathItem::ARRAY_INDEX,
-                           ngs::to_string(index)));
-  return *this;
-}
-
-Document_path::Path &Document_path::Path::add_asterisk() {
-  push_back(
-      std::make_pair(Mysqlx::Expr::DocumentPathItem::MEMBER_ASTERISK, ""));
-  return *this;
-}
-
-Document_path::Path &Document_path::Path::add_double_asterisk() {
-  push_back(
-      std::make_pair(Mysqlx::Expr::DocumentPathItem::DOUBLE_ASTERISK, ""));
-  return *this;
+  if (schema_name.empty() == false) m_base.set_schema_name(schema_name);
 }
 
 ColumnIdentifier::ColumnIdentifier(const std::string &name,
                                    const std::string &table_name,
-                                   const std::string &schema_name,
-                                   const Document_path::Path *path) {
-  if (name.empty() == false) set_name(name);
+                                   const std::string &schema_name) {
+  if (name.empty() == false) m_base.set_name(name);
 
-  if (table_name.empty() == false) set_table_name(table_name);
+  if (table_name.empty() == false) m_base.set_table_name(table_name);
 
-  if (schema_name.empty() == false) set_schema_name(schema_name);
-
-  if (path) *mutable_document_path() = Document_path(*path);
+  if (schema_name.empty() == false) m_base.set_schema_name(schema_name);
 }
 
 ColumnIdentifier::ColumnIdentifier(const Document_path &path,
                                    const std::string &name,
                                    const std::string &table_name,
                                    const std::string &schema_name) {
-  if (!name.empty()) set_name(name);
+  if (!name.empty()) m_base.set_name(name);
 
-  if (!table_name.empty()) set_table_name(table_name);
+  if (!table_name.empty()) m_base.set_table_name(table_name);
 
-  if (!schema_name.empty()) set_schema_name(schema_name);
+  if (!schema_name.empty()) m_base.set_schema_name(schema_name);
 
-  mutable_document_path()->CopyFrom(path);
+  m_base.mutable_document_path()->CopyFrom(path);
 }
 
-Scalar::Scalar(int value) {
-  set_type(Mysqlx::Datatypes::Scalar_Type_V_SINT);
-  set_v_signed_int(value);
+Scalar::Scalar(const int value) {
+  m_base.set_type(Mysqlx::Datatypes::Scalar_Type_V_SINT);
+  m_base.set_v_signed_int(value);
 }
 
-Scalar::Scalar(unsigned int value) {
-  set_type(Mysqlx::Datatypes::Scalar_Type_V_UINT);
-  set_v_unsigned_int(value);
+Scalar::Scalar(const unsigned int value) {
+  m_base.set_type(Mysqlx::Datatypes::Scalar_Type_V_UINT);
+  m_base.set_v_unsigned_int(value);
 }
 
-Scalar::Scalar(bool value) {
-  set_type(Mysqlx::Datatypes::Scalar_Type_V_BOOL);
-  set_v_bool(value);
+Scalar::Scalar(const bool value) {
+  m_base.set_type(Mysqlx::Datatypes::Scalar_Type_V_BOOL);
+  m_base.set_v_bool(value);
 }
 
-Scalar::Scalar(float value) {
-  set_type(Mysqlx::Datatypes::Scalar_Type_V_FLOAT);
-  set_v_float(value);
+Scalar::Scalar(const float value) {
+  m_base.set_type(Mysqlx::Datatypes::Scalar_Type_V_FLOAT);
+  m_base.set_v_float(value);
 }
 
-Scalar::Scalar(double value) {
-  set_type(Mysqlx::Datatypes::Scalar_Type_V_DOUBLE);
-  set_v_double(value);
+Scalar::Scalar(const double value) {
+  m_base.set_type(Mysqlx::Datatypes::Scalar_Type_V_DOUBLE);
+  m_base.set_v_double(value);
 }
 
 Scalar::Scalar(const char *value, unsigned type) {
-  set_type(Mysqlx::Datatypes::Scalar_Type_V_OCTETS);
-  set_allocated_v_octets(new Scalar::Octets(value, type));
-}
-
-Scalar::Scalar(Scalar::Octets *value) {
-  set_type(Mysqlx::Datatypes::Scalar_Type_V_OCTETS);
-  set_allocated_v_octets(value);
+  m_base.set_type(Mysqlx::Datatypes::Scalar_Type_V_OCTETS);
+  m_base.mutable_v_octets()->CopyFrom(Scalar::Octets(value, type));
 }
 
 Scalar::Scalar(const Scalar::Octets &value) {
-  set_type(Mysqlx::Datatypes::Scalar_Type_V_OCTETS);
-  mutable_v_octets()->CopyFrom(value);
-}
-
-Scalar::Scalar(Scalar::String *value) {
-  set_type(Mysqlx::Datatypes::Scalar_Type_V_STRING);
-  set_allocated_v_string(value);
+  m_base.set_type(Mysqlx::Datatypes::Scalar_Type_V_OCTETS);
+  m_base.mutable_v_octets()->CopyFrom(value);
 }
 
 Scalar::Scalar(const Scalar::String &value) {
-  set_type(Mysqlx::Datatypes::Scalar_Type_V_STRING);
-  mutable_v_string()->CopyFrom(value);
+  m_base.set_type(Mysqlx::Datatypes::Scalar_Type_V_STRING);
+  m_base.mutable_v_string()->CopyFrom(value);
 }
 
 Scalar::Scalar(Scalar::Null) {
-  set_type(Mysqlx::Datatypes::Scalar_Type_V_NULL);
+  m_base.set_type(Mysqlx::Datatypes::Scalar_Type_V_NULL);
 }
 
-Scalar::String::String(const std::string &value) { set_value(value); }
+Scalar::String::String(const std::string &value) { m_base.set_value(value); }
 
-Scalar::Octets::Octets(const std::string &value, unsigned type) {
-  set_value(value);
-  set_content_type(type);
+Scalar::Octets::Octets(const std::string &value, const unsigned type) {
+  m_base.set_value(value);
+  m_base.set_content_type(type);
 }
 
 Any::Any(const Scalar &scalar) {
-  set_type(Mysqlx::Datatypes::Any_Type_SCALAR);
-  mutable_scalar()->CopyFrom(scalar);
+  m_base.set_type(Mysqlx::Datatypes::Any_Type_SCALAR);
+  m_base.mutable_scalar()->CopyFrom(scalar);
 }
 
 Any::Any(const Object &obj) {
-  set_type(Mysqlx::Datatypes::Any_Type_OBJECT);
-  mutable_obj()->CopyFrom(obj);
+  m_base.set_type(Mysqlx::Datatypes::Any_Type_OBJECT);
+  m_base.mutable_obj()->CopyFrom(obj);
 }
 
 Any::Any(const Array &array) {
-  set_type(Mysqlx::Datatypes::Any_Type_ARRAY);
-  mutable_array()->CopyFrom(array);
+  m_base.set_type(Mysqlx::Datatypes::Any_Type_ARRAY);
+  m_base.mutable_array()->CopyFrom(array);
 }
 
-void Expr::initialize(Mysqlx::Expr::Expr *expr, const Scalar &value) {
-  expr->set_type(Mysqlx::Expr::Expr_Type_LITERAL);
-  expr->mutable_literal()->CopyFrom(value);
+Expr::Expr(const Scalar &value) {
+  m_base.set_type(Mysqlx::Expr::Expr_Type_LITERAL);
+  m_base.mutable_literal()->CopyFrom(value);
 }
 
-void Expr::initialize(Mysqlx::Expr::Expr *expr, Operator *oper) {
-  expr->set_type(Mysqlx::Expr::Expr_Type_OPERATOR);
-  expr->set_allocated_operator_(oper);
+Expr::Expr(const Operator &oper) {
+  m_base.set_type(Mysqlx::Expr::Expr_Type_OPERATOR);
+  m_base.mutable_operator_()->CopyFrom(oper);
 }
 
-void Expr::initialize(Mysqlx::Expr::Expr *expr, const Operator &oper) {
-  expr->set_type(Mysqlx::Expr::Expr_Type_OPERATOR);
-  expr->mutable_operator_()->CopyFrom(oper);
+Expr::Expr(const FunctionCall &func) {
+  m_base.set_type(Mysqlx::Expr::Expr_Type_FUNC_CALL);
+  m_base.mutable_function_call()->CopyFrom(func);
 }
 
-void Expr::initialize(Mysqlx::Expr::Expr *expr, const Identifier &ident) {
-  expr->set_type(Mysqlx::Expr::Expr_Type_IDENT);
-  expr->mutable_operator_()->CopyFrom(ident);
+Expr::Expr(const ColumnIdentifier &id) {
+  m_base.set_type(Mysqlx::Expr::Expr_Type_IDENT);
+  m_base.mutable_identifier()->CopyFrom(id);
 }
 
-void Expr::initialize(Mysqlx::Expr::Expr *expr, FunctionCall *func) {
-  expr->set_type(Mysqlx::Expr::Expr_Type_FUNC_CALL);
-  expr->set_allocated_function_call(func);
+Expr::Expr(const Object &obj) {
+  m_base.set_type(Mysqlx::Expr::Expr_Type_OBJECT);
+  m_base.mutable_object()->CopyFrom(obj);
 }
 
-void Expr::initialize(Mysqlx::Expr::Expr *expr, const FunctionCall &func) {
-  expr->set_type(Mysqlx::Expr::Expr_Type_FUNC_CALL);
-  expr->mutable_function_call()->CopyFrom(func);
+Expr::Expr(const Array &arr) {
+  m_base.set_type(Mysqlx::Expr::Expr_Type_ARRAY);
+  m_base.mutable_array()->CopyFrom(arr);
 }
 
-void Expr::initialize(Mysqlx::Expr::Expr *expr, ColumnIdentifier *id) {
-  expr->set_type(Mysqlx::Expr::Expr_Type_IDENT);
-  expr->set_allocated_identifier(id);
+Expr::Expr(const Placeholder &ph) {
+  m_base.set_type(Mysqlx::Expr::Expr_Type_PLACEHOLDER);
+  m_base.set_position(ph.value);
 }
 
-void Expr::initialize(Mysqlx::Expr::Expr *expr, const ColumnIdentifier &id) {
-  expr->set_type(Mysqlx::Expr::Expr_Type_IDENT);
-  expr->mutable_identifier()->CopyFrom(id);
+Expr::Expr(const Variable &var) {
+  m_base.set_type(Mysqlx::Expr::Expr_Type_VARIABLE);
+  m_base.set_variable(var.value);
 }
 
-void Expr::initialize(Mysqlx::Expr::Expr *expr, Object *obj) {
-  expr->set_type(Mysqlx::Expr::Expr_Type_OBJECT);
-  expr->set_allocated_object(obj);
-}
-
-void Expr::initialize(Mysqlx::Expr::Expr *expr, const Object &obj) {
-  expr->set_type(Mysqlx::Expr::Expr_Type_OBJECT);
-  expr->mutable_object()->CopyFrom(obj);
-}
-
-void Expr::initialize(Mysqlx::Expr::Expr *expr, Array *arr) {
-  expr->set_type(Mysqlx::Expr::Expr_Type_ARRAY);
-  expr->set_allocated_array(arr);
-}
-
-void Expr::initialize(Mysqlx::Expr::Expr *expr, const Array &arr) {
-  expr->set_type(Mysqlx::Expr::Expr_Type_ARRAY);
-  expr->mutable_array()->CopyFrom(arr);
-}
-
-void Expr::initialize(Mysqlx::Expr::Expr *expr, const Placeholder &ph) {
-  expr->set_type(Mysqlx::Expr::Expr_Type_PLACEHOLDER);
-  expr->set_position(ph.value);
-}
-
-void Expr::initialize(Mysqlx::Expr::Expr *expr, const Variable &var) {
-  expr->set_type(Mysqlx::Expr::Expr_Type_VARIABLE);
-  expr->set_variable(var.value);
-}
-
-Any::Object::Object(std::initializer_list<Any::Object::Fld> list) {
+Any::Object::Object(const std::initializer_list<Any::Object::Fld> &list) {
   for (const Fld &f : list) {
-    Mysqlx::Datatypes::Object_ObjectField *item = add_fld();
+    Mysqlx::Datatypes::Object_ObjectField *item = m_base.add_fld();
     item->set_key(f.key);
     item->mutable_value()->CopyFrom(f.value);
   }
 }
 
 Object::Object(const std::string &key, Expr *value) {
-  Mysqlx::Expr::Object_ObjectField *item = add_fld();
+  Mysqlx::Expr::Object_ObjectField *item = m_base.add_fld();
   item->set_key(key);
-  item->set_allocated_value(value);
+  if (value)
+    item->mutable_value()->CopyFrom(*value);
 }
 
-Object::Object(std::initializer_list<Fld> list) {
+Object::Object(const std::initializer_list<Fld> &list) {
   for (const Fld &f : list) {
-    Mysqlx::Expr::Object_ObjectField *item = add_fld();
+    Mysqlx::Expr::Object_ObjectField *item = m_base.add_fld();
     item->set_key(f.key);
     item->mutable_value()->CopyFrom(f.value);
   }
 }
 
 Column::Column(const std::string &name, const std::string &alias) {
-  if (!name.empty()) set_name(name);
-  if (!alias.empty()) set_alias(alias);
+  if (!name.empty()) m_base.set_name(name);
+  if (!alias.empty()) m_base.set_alias(alias);
 }
 
 Column::Column(const Document_path &path, const std::string &name,
                const std::string &alias) {
-  mutable_document_path()->CopyFrom(path);
-  if (!name.empty()) set_name(name);
-  if (!alias.empty()) set_alias(alias);
+  m_base.mutable_document_path()->CopyFrom(path);
+  if (!name.empty()) m_base.set_name(name);
+  if (!alias.empty()) m_base.set_alias(alias);
 }
 
 Collection::Collection(const std::string &name, const std::string &schema) {
-  if (!name.empty()) set_name(name);
-  if (!schema.empty()) set_schema(schema);
+  if (!name.empty()) m_base.set_name(name);
+  if (!schema.empty()) m_base.set_schema(schema);
 }
 
 Projection::Projection(const Expr &source, const std::string &alias) {
-  mutable_source()->CopyFrom(source);
-  if (!alias.empty()) set_alias(alias);
+  m_base.mutable_source()->CopyFrom(source);
+  if (!alias.empty()) m_base.set_alias(alias);
 }
 
-Order::Order(const Expr &expr, const ::Mysqlx::Crud::Order_Direction dir) {
-  mutable_expr()->CopyFrom(expr);
-  set_direction(dir);
+Order::Order(const Expr &expr, const Direction dir) {
+  m_base.mutable_expr()->CopyFrom(expr);
+  m_base.set_direction(dir);
 }
 
 Limit::Limit(const uint64_t row_count, const uint64_t offset) {
-  if (row_count > 0) set_row_count(row_count);
-  if (offset > 0) set_offset(offset);
+  if (row_count > 0) m_base.set_row_count(row_count);
+  if (offset > 0) m_base.set_offset(offset);
+}
+
+Update_operation::Update_operation(const Update_type &update_type,
+                                   const ColumnIdentifier &source,
+                                   const Expr &value) {
+  m_base.set_operation(update_type);
+  m_base.mutable_source()->CopyFrom(source);
+  m_base.mutable_value()->CopyFrom(value);
+}
+
+Update_operation::Update_operation(const Update_type &update_type,
+                                   const Document_path &source,
+                                   const Expr &value) {
+  m_base.set_operation(update_type);
+  m_base.mutable_source()->CopyFrom(ColumnIdentifier(source));
+  m_base.mutable_value()->CopyFrom(value);
+}
+
+Update_operation::Update_operation(const Update_type &update_type,
+                                   const Document_path &source) {
+  m_base.set_operation(update_type);
+  m_base.mutable_source()->CopyFrom(ColumnIdentifier(source));
+}
+
+Update_operation::Update_operation(const Update_type &update_type,
+                                   const ColumnIdentifier &source) {
+  m_base.set_operation(update_type);
+  m_base.mutable_source()->CopyFrom(source);
 }
 
 }  // namespace test

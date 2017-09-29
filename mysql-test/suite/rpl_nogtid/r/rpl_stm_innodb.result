@@ -80,6 +80,8 @@ ERROR 42S02: Table 'mysqltest1.tmp' doesn't exist
 SHOW CREATE TABLE mysqltest1.tmp2;
 ERROR 42S02: Table 'mysqltest1.tmp2' doesn't exist
 ######### t1 has two rows here: the transaction not rolled back since t1 uses MyISAM  #########
+######### for SBR, t1 has two rows here: the transaction not rolled back since t1 uses MyISAM  #########
+######### for MBR, t1 has one row here: the transaction not rolled back since t1 uses MyISAM  #########
 SELECT COUNT(*) FROM mysqltest1.t1;
 COUNT(*)
 2

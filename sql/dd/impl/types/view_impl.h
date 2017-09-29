@@ -20,20 +20,20 @@
 #include <memory>
 #include <new>
 
-#include "dd/impl/raw/raw_record.h"
-#include "dd/impl/types/abstract_table_impl.h" // dd::Abstract_table_impl
-#include "dd/impl/types/entity_object_impl.h"
-#include "dd/impl/types/weak_object_impl.h"
-#include "dd/object_id.h"
-#include "dd/properties.h"
-#include "dd/string_type.h"
-#include "dd/types/abstract_table.h"
-#include "dd/types/entity_object_table.h"      // dd::Entity_object_table
-#include "dd/types/object_type.h"
-#include "dd/types/view.h"                     // dd::View
-#include "dd/types/view_routine.h"             // IWYU pragma: keep
-#include "dd/types/view_table.h"               // IWYU pragma: keep
 #include "my_inttypes.h"
+#include "sql/dd/impl/raw/raw_record.h"
+#include "sql/dd/impl/types/abstract_table_impl.h" // dd::Abstract_table_impl
+#include "sql/dd/impl/types/entity_object_impl.h"
+#include "sql/dd/impl/types/weak_object_impl.h"
+#include "sql/dd/object_id.h"
+#include "sql/dd/properties.h"
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/abstract_table.h"
+#include "sql/dd/types/entity_object_table.h"  // dd::Entity_object_table
+#include "sql/dd/types/object_type.h"
+#include "sql/dd/types/view.h"                 // dd::View
+#include "sql/dd/types/view_routine.h"         // IWYU pragma: keep
+#include "sql/dd/types/view_table.h"           // IWYU pragma: keep
 
 namespace dd {
 class Column;
@@ -239,12 +239,12 @@ public:
   virtual bool set_options_raw(const String_type &options_raw)
   { return Abstract_table_impl::set_options_raw(options_raw); }
   virtual bool set_column_names_raw(const String_type &column_names_raw);
-  virtual ulonglong created() const
-  { return Abstract_table_impl::created(); }
+  virtual ulonglong created(bool convert_time) const
+  { return Abstract_table_impl::created(convert_time); }
   virtual void set_created(ulonglong created)
   { Abstract_table_impl::set_created(created); }
-  virtual ulonglong last_altered() const
-  { return Abstract_table_impl::last_altered(); }
+  virtual ulonglong last_altered(bool convert_time) const
+  { return Abstract_table_impl::last_altered(convert_time); }
   virtual void set_last_altered(ulonglong last_altered)
   { Abstract_table_impl::set_last_altered(last_altered); }
   virtual Column *add_column()

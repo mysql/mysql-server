@@ -22,7 +22,7 @@
 #include <stack>
 
 #include "my_rapidjson_size_t.h"  // IWYU pragma: keep
-#include "mysqlxclient/xmessage.h"
+#include "plugin/x/client/mysqlxclient/xmessage.h"
 #include "rapidjson/document.h"
 #include "rapidjson/stringbuffer.h"
 #include "rapidjson/writer.h"

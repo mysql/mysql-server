@@ -20,11 +20,15 @@
   the function comments.
 */
 
+#ifdef WIN32
+// In OpenSSL before 1.1.0, we need this first.
+#include <winsock2.h>
+#endif  // WIN32
+#include <openssl/ssl.h>
 #include <string.h>
 
 #include "my_compiler.h"
 #include "my_io.h"  // IWYU pragma: keep (for Winsock definitions)
-#include "openssl/ssl.h"
 // IWYU pragma: no_include "openssl/prefix_ssl.h"
 // IWYU pragma: no_include "violite.h"
 

@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "xa.h"
+#include "sql/xa.h"
 
 #include <memory>
 #include <new>
@@ -21,14 +21,9 @@
 #include <unordered_map>
 #include <utility>
 
-#include "debug_sync.h"         // DEBUG_SYNC
-#include "handler.h"            // handlerton
-#include "item.h"
-#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "map_helpers.h"
-#include "mdl.h"
 #include "my_dbug.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
@@ -42,26 +37,31 @@
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
-#include "mysqld.h"             // server_id
 #include "mysqld_error.h"
-#include "protocol.h"
-#include "psi_memory_key.h"     // key_memory_XID
-#include "query_options.h"
-#include "rpl_context.h"
-#include "rpl_gtid.h"
-#include "sql_class.h"          // THD
-#include "sql_const.h"
-#include "sql_error.h"
-#include "sql_list.h"
-#include "sql_plugin.h"         // plugin_foreach
-#include "sql_security_ctx.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/debug_sync.h"     // DEBUG_SYNC
+#include "sql/handler.h"        // handlerton
+#include "sql/item.h"
+#include "sql/log.h"
+#include "sql/mdl.h"
+#include "sql/mysqld.h"         // server_id
+#include "sql/protocol.h"
+#include "sql/psi_memory_key.h" // key_memory_XID
+#include "sql/query_options.h"
+#include "sql/rpl_context.h"
+#include "sql/rpl_gtid.h"
+#include "sql/sql_class.h"      // THD
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_list.h"
+#include "sql/sql_plugin.h"     // plugin_foreach
+#include "sql/system_variables.h"
+#include "sql/tc_log.h"         // tc_log
+#include "sql/transaction.h"    // trans_begin, trans_rollback
+#include "sql/transaction_info.h"
 #include "sql_string.h"
-#include "system_variables.h"
-#include "tc_log.h"             // tc_log
 #include "template_utils.h"
 #include "thr_mutex.h"
-#include "transaction.h"        // trans_begin, trans_rollback
-#include "transaction_info.h"
 
 const char *XID_STATE::xa_state_names[]={
   "NON-EXISTING", "ACTIVE", "IDLE", "PREPARED", "ROLLBACK ONLY"
@@ -238,7 +238,7 @@ int ha_recover(const memroot_unordered_set<my_xid> *commit_list)
     DBUG_RETURN(0);
 
   if (info.commit_list)
-    LogErr(INFORMATION_LEVEL, ER_XA_STARTING_RECOVERY);
+    LogErr(INFORMATION_LEVEL, ER_XA_STARTING_RECOVERY).force_print();
 
   if (total_ha_2pc > (ulong)opt_bin_log + 1)
   {
@@ -285,7 +285,7 @@ int ha_recover(const memroot_unordered_set<my_xid> *commit_list)
     DBUG_RETURN(1);
   }
   if (info.commit_list)
-    LogErr(INFORMATION_LEVEL, ER_XA_RECOVERY_DONE);
+    LogErr(INFORMATION_LEVEL, ER_XA_RECOVERY_DONE).force_print();
   DBUG_RETURN(0);
 }
 
@@ -378,6 +378,22 @@ bool Sql_cmd_xa_commit::trans_xa_commit(THD *thd)
     */
     res= xs->xa_trans_rolled_back();
 
+#ifdef HAVE_PSI_TRANSACTION_INTERFACE
+    /*
+      If the original transaction is not rolled back then initiate a new PSI
+      transaction to update performance schema related information.
+     */
+    if (!res)
+    {
+      thd->m_transaction_psi= MYSQL_START_TRANSACTION(&thd->m_transaction_state,
+                                                      NULL, NULL, thd->tx_isolation,
+                                                      thd->tx_read_only, false);
+      gtid_set_performance_schema_values(thd);
+      MYSQL_SET_TRANSACTION_XID(thd->m_transaction_psi,
+                                (const void *)xs->get_xid(),
+                                (int)xs->get_state());
+    }
+#endif
     /*
       xs' is_binlogged() is passed through xid_state's member to low-level
       logging routines for deciding how to log.  The same applies to
@@ -420,6 +436,20 @@ bool Sql_cmd_xa_commit::trans_xa_commit(THD *thd)
     // todo xa framework: return an error
     ha_commit_or_rollback_by_xid(thd, m_xid, !res);
     xid_state->unset_binlogged();
+
+#ifdef HAVE_PSI_TRANSACTION_INTERFACE
+    if (!res)
+    {
+      if (thd->m_transaction_psi)
+      {
+        /*
+          Mark the current PREPARED transaction as COMMITTED in PSI context.
+        */
+        MYSQL_COMMIT_TRANSACTION(thd->m_transaction_psi);
+        thd->m_transaction_psi= NULL;
+      }
+    }
+#endif
 
     transaction_cache_delete(transaction);
     gtid_state_commit_or_rollback(thd, need_clear_owned_gtid, !gtid_error);
@@ -1188,7 +1218,7 @@ static PSI_mutex_key key_LOCK_transaction_cache;
 
 static PSI_mutex_info transaction_cache_mutexes[]=
 {
-  { &key_LOCK_transaction_cache, "LOCK_transaction_cache", PSI_FLAG_GLOBAL, 0}
+  { &key_LOCK_transaction_cache, "LOCK_transaction_cache", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 
 static void init_transaction_cache_psi_keys(void)
@@ -1418,7 +1448,6 @@ bool applier_reset_xa_trans(THD *thd)
   trn_ctx->set_no_2pc(Transaction_ctx::SESSION, false);
   trn_ctx->cleanup();
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
-  MYSQL_COMMIT_TRANSACTION(thd->m_transaction_psi);
   thd->m_transaction_psi= NULL;
 #endif
   thd->mdl_context.release_transactional_locks();

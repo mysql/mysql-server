@@ -17,10 +17,10 @@
  * 02110-1301  USA
  */
 
-#include "ngs_common/operations_factory_interface.h"
-#include "ngs_common/options.h"
-#include "ngs_common/socket_interface.h"
-#include "ngs/interface/socket_events_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/socket_events_interface.h"
+#include "plugin/x/ngs/include/ngs_common/operations_factory_interface.h"
+#include "plugin/x/ngs/include/ngs_common/options.h"
+#include "plugin/x/ngs/include/ngs_common/socket_interface.h"
 
 
 namespace ngs {

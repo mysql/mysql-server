@@ -20,7 +20,7 @@
 #ifndef _XPL_NATIVE_PLAIN_VERIFICATION_H_
 #define _XPL_NATIVE_PLAIN_VERIFICATION_H_
 
-#include "ngs/interface/account_verification_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/account_verification_interface.h"
 
 namespace xpl {
 

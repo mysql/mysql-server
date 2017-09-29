@@ -21,13 +21,13 @@
 
 #include "binary_log_types.h"
 #include "my_command.h"
-#include "my_decimal.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysql_time.h"
-#include "protocol.h"            // Protocol
+#include "sql/my_decimal.h"
+#include "sql/protocol.h"        // Protocol
 #include "sql_string.h"
 #include "violite.h"
 
@@ -89,7 +89,9 @@ protected:
                                uint param_count, ulong cond_count);
 public:
   bool bad_packet;
-  Protocol_classic(): send_metadata(false), bad_packet(true) {}
+  Protocol_classic():
+    send_metadata(false), input_packet_length(0), bad_packet(true)
+  {}
   Protocol_classic(THD *thd):
         send_metadata(false),
         input_packet_length(0),

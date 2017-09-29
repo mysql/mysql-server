@@ -21,14 +21,14 @@
 #include <memory>
 #include <new>
 
-#include "dd/impl/types/weak_object_impl.h"     // dd::Weak_object_impl
-#include "dd/object_id.h"
-#include "dd/properties.h"
-#include "dd/sdi_fwd.h"
-#include "dd/string_type.h"
-#include "dd/types/index.h"
-#include "dd/types/object_type.h"               // dd::Object_type
-#include "dd/types/partition_index.h"           // dd::Partition_index
+#include "sql/dd/impl/types/weak_object_impl.h" // dd::Weak_object_impl
+#include "sql/dd/object_id.h"
+#include "sql/dd/properties.h"
+#include "sql/dd/sdi_fwd.h"
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/index.h"
+#include "sql/dd/types/object_type.h"           // dd::Object_type
+#include "sql/dd/types/partition_index.h"       // dd::Partition_index
 
 namespace dd {
 

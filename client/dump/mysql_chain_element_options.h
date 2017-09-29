@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,8 +18,8 @@
 #ifndef MYSQL_CHAIN_ELEMENT_OPTIONS_INCLUDED
 #define MYSQL_CHAIN_ELEMENT_OPTIONS_INCLUDED
 
-#include "base/abstract_options_provider.h"
-#include "base/abstract_connection_program.h"
+#include "client/base/abstract_connection_program.h"
+#include "client/base/abstract_options_provider.h"
 
 namespace Mysql{
 namespace Tools{

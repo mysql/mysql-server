@@ -124,7 +124,7 @@
 
 #include "my_inttypes.h"
 /* Iteration on THD from the sql layer. */
-#include "mysqld_thd_manager.h"
+#include "sql/mysqld_thd_manager.h"
 
 #define PFS_VAR
 #include <stddef.h>
@@ -132,11 +132,11 @@
 #include <string>
 
 #include "my_dbug.h"
-#include "pfs_account.h"
-#include "pfs_host.h"
-#include "pfs_instr.h"
-#include "pfs_user.h"
-#include "set_var.h"
+#include "sql/set_var.h"
+#include "storage/perfschema/pfs_account.h"
+#include "storage/perfschema/pfs_host.h"
+#include "storage/perfschema/pfs_instr.h"
+#include "storage/perfschema/pfs_user.h"
 
 using std::string;
 

@@ -326,7 +326,7 @@ delete from t1 order by a limit 1;
 show status like 'handler_read%';
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	3
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0

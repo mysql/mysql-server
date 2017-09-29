@@ -1,6 +1,5 @@
 use strict;
 use warnings;
-use LWP::Simple;
 use File::Copy;
 
 my $json_file_path = $ENV{'JSON_FILE_PATH'} or die;
@@ -19,7 +18,16 @@ sub ibd2sdi_replace() {
     $_=~ s/("created": )[0-9]+/$1NNN/g;
 
     # Remove se_private_data: id & trx_id output. retain the root page number value
+    $_=~ s/("se_private_data":) "id=[0-9]+;root=[0-9]+;space_id=[0-9]+;table_id=[0-9]+;trx_id=[0-9]+;"/$1 "id=A;root=B;space_id=C;table_id=D;trx_id=E"/g;
+
+    # Remove se_private_data: id & trx_id output. retain the root page number value
     $_=~ s/("se_private_data":) "id=[0-9]+;root=[0-9]+;trx_id=[0-9]+;"/$1 "id=X;root=Y;trx_id=Z"/g;
+
+    # Remove se_private_data: table_id.
+    $_=~ s/("se_private_data":) "table_id=[0-9]+;"/$1 "table_id=X"/g;
+
+    # Remove se_private_data: id.
+    $_=~ s/("se_private_data":) "id=[0-9]+;"/$1 "id=X"/g;
 
     # Remove se_private_id: id. This is innodb table_id
     $_=~ s/("se_private_id":) [0-9]+/$1NNN/g;
@@ -34,10 +42,10 @@ sub ibd2sdi_replace() {
     $_=~ s/("name": "innodb_file_per_table.)[0-9]+"/$1X"/g;
 
     # Remove id output in se_prvate_data of dd::Tablespace
-    $_=~ s/("se_private_data": "flags=)([0-9]+)(;id=)[0-9]+;"/$1X$3Y;"/g;
+    $_=~ s/("se_private_data": "flags=)([0-9]+)(;id=)([0-9]+)(;server_version=)([0-9]+)(;space_version=)([0-9]+);"/$1X$3Y$5Z$7M;"/g;
 
     # Remove mysql version id
-    $_=~ s/("mysqld_version_id": )[0-9]+/$1X/g;
+    $_=~ s/("mysqld?_version_id": )[0-9]+/$1X/g;
 
     # Remove extra path separator seen on windows and partition names
     if (m/"filename":/)
@@ -73,7 +81,16 @@ sub ibd2sdi_replace_system() {
 
     # Remove se_private_data: id & trx_id output. retain the root page number value
     # This is only thing that differed from normal replace
+    $_=~ s/("se_private_data":) "id=[0-9]+;root=[0-9]+;space_id=[0-9]+;table_id=[0-9]+;trx_id=[0-9]+;"/$1 "id=A;root=B;space_id=C;table_id=D;trx_id=E"/g;
+
+    # Remove se_private_data: id & trx_id output. retain the root page number value
     $_=~ s/("se_private_data":) "id=[0-9]+;root=[0-9]+;trx_id=[0-9]+;"/$1 "id=X;root=Y;trx_id=Z"/g;
+
+    # Remove se_private_data: table_id.
+    $_=~ s/("se_private_data":) "table_id=[0-9]+;"/$1 "table_id=X"/g;
+
+    # Remove se_private_data: id.
+    $_=~ s/("se_private_data":) "id=[0-9]+;"/$1 "id=X"/g;
 
     # Remove se_private_id: id. This is innodb table_id
     $_=~ s/("se_private_id":) [0-9]+/$1NNN/g;
@@ -88,10 +105,10 @@ sub ibd2sdi_replace_system() {
     $_=~ s/("name": "innodb_file_per_table.)[0-9]+"/$1X"/g;
 
     # Remove id output in se_prvate_data of dd::Tablespace
-    $_=~ s/("se_private_data": "flags=)([0-9]+)(;id=)[0-9]+;"/$1X$3Y;"/g;
+    $_=~ s/("se_private_data": "flags=)([0-9]+)(;id=)([0-9]+)(;server_version=)([0-9]+)(;space_version=)([0-9]+);"/$1X$3Y$5Z$7M;"/g;
 
     # Remove mysql version id
-    $_=~ s/("mysqld_version_id": )[0-9]+/$1X/g;
+    $_=~ s/("mysqld?_version_id": )[0-9]+/$1X/g;
 
     # Remove extra path separator seen on windows and partition names
     if (m/"filename":/)
@@ -126,7 +143,16 @@ sub ibd2sdi_replace_mysql() {
     $_=~ s/("created": )[0-9]+/$1NNN/g;
 
     # Remove se_private_data: id & trx_id output. retain the root page number value
-    $_=~ s/("se_private_data":) "id=[0-9]+;root=[0-9]+;trx_id=[0-9]+;"/$1 "id=X;root=Y;trx_id=Z"/g;
+    $_=~ s/("se_private_data":) "id=[0-9]+;root=[0-9]+;space_id=[0-9]+;table_id=[0-9]+;trx_id=[0-9]+;"/$1 "id=A;root=B;space_id=C;table_id=D;trx_id=E"/g;
+
+    # Remove se_private_data: id & trx_id output. retain the root page number value
+    $_=~ s/("se_private_data":) "id=[0-9]+;root=[0-9]+;trx_id=[0-9]+;"/$1 "id=A;root=B;trx_id=C"/g;
+
+    # Remove se_private_data: table_id.
+    $_=~ s/("se_private_data":) "table_id=[0-9]+;"/$1 "table_id=X"/g;
+
+    # Remove se_private_data: id.
+    $_=~ s/("se_private_data":) "id=[0-9]+;"/$1 "id=X"/g;
 
     # Remove se_private_id: id. This is innodb table_id
     $_=~ s/("se_private_id":) [0-9]+/$1NNN/g;
@@ -141,10 +167,10 @@ sub ibd2sdi_replace_mysql() {
     $_=~ s/("name": "innodb_file_per_table.)[0-9]+"/$1X"/g;
 
     # Remove id output in se_prvate_data of dd::Tablespace
-    $_=~ s/("se_private_data": "flags=)([0-9]+)(;id=)[0-9]+;"/$1X$3Y;"/g;
+    $_=~ s/("se_private_data": "flags=)([0-9]+)(;id=)([0-9]+)(;server_version=)([0-9]+)(;space_version=)([0-9]+);"/$1X$3Y$5Z$7M;"/g;
 
     # Remove mysql version id
-    $_=~ s/("mysqld_version_id": )[0-9]+/$1X/g;
+    $_=~ s/("mysqld?_version_id": )[0-9]+/$1X/g;
 
     # Remove extra path separator seen on windows and partition names
     if (m/"filename":/)

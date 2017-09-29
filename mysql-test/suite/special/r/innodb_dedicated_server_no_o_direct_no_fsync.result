@@ -1,0 +1,115 @@
+
+#########################################
+# INITIAL START                         #
+#  innodb_dedicated_server = OFF        #
+#  innodb_buffer_pool_size = default    #
+#  innodb_log_file_size    = default    #
+#########################################
+INNODB_DEDICATED_SERVER
+OFF
+BUFFER_POOL_SIZE_IN_MB
+128
+LOG_FILE_SIZE_IN_MB
+48
+
+#########################################
+# RESTART 1                             #
+#  innodb_dedicated_server = ON         #
+#  innodb_buffer_pool_size = autoscaled #
+#  innodb_log_file_size    = autoscaled #
+#########################################
+# restart: --innodb_dedicated_server=ON
+INNODB_DEDICATED_SERVER
+ON
+1 expected
+@final_pool_size_result
+1
+1 expected
+@final_log_file_size_result
+1
+
+#########################################
+# RESTART 2                             #
+#  innodb_dedicated_server = ON         #
+#  innodb_buffer_pool_size = explicit   #
+#  innodb_log_file_size    = autoscaled #
+#########################################
+# restart: --innodb_dedicated_server=ON --innodb_buffer_pool_size=256M
+INNODB_DEDICATED_SERVER
+ON
+BUFFER_POOL_SIZE_IN_MB
+256
+1 expected
+@final_log_file_size_result
+1
+# Make sure that the warnings are present in server log.
+Pattern "\[Warning\] \[[^]]*\] InnoDB: Option innodb_dedicated_server is ignored for innodb_buffer_pool_size" found
+
+#########################################
+# RESTART 3                             #
+#  innodb_dedicated_server = ON         #
+#  innodb_buffer_pool_size = autoscaled #
+#  innodb_log_file_size    = explicit   #
+#########################################
+# restart: --innodb_dedicated_server=ON --innodb_log_file_size=50M
+INNODB_DEDICATED_SERVER
+ON
+1 expected
+@final_pool_size_result
+1
+LOG_FILE_SIZE_IN_MB
+50
+# Make sure that the warnings are present in server log.
+Pattern "\[Warning\] \[[^]]*\] InnoDB: Option innodb_dedicated_server is ignored for innodb_log_file_size" found
+
+#########################################
+# RESTART 4                             #
+#  innodb_dedicated_server = ON         #
+#  innodb_buffer_pool_size = explicit   #
+#  innodb_log_file_size    = explicit   #
+#########################################
+# restart: --innodb_dedicated_server=ON --innodb_buffer_pool_size=256M --innodb_log_file_size=50M
+INNODB_DEDICATED_SERVER
+ON
+BUFFER_POOL_SIZE_IN_MB
+256
+LOG_FILE_SIZE_IN_MB
+50
+# Make sure that the warnings are present in server log.
+Pattern "\[Warning\] \[[^]]*\] InnoDB: Option innodb_dedicated_server is ignored for innodb_buffer_pool_size" found
+Pattern "\[Warning\] \[[^]]*\] InnoDB: Option innodb_dedicated_server is ignored for innodb_log_file_size" found
+SET innodb_dedicated_server = 0;
+ERROR HY000: Variable 'innodb_dedicated_server' is a read only variable
+SELECT @@innodb_dedicated_server;
+@@innodb_dedicated_server
+1
+SELECT local.innodb_dedicated_server;
+ERROR 42S02: Unknown table 'local' in field list
+SET global innodb_dedicated_server = 0;
+ERROR HY000: Variable 'innodb_dedicated_server' is a read only variable
+SELECT @@global.innodb_dedicated_server;
+@@global.innodb_dedicated_server
+1
+set session innodb_dedicated_server=1;
+ERROR HY000: Variable 'innodb_dedicated_server' is a read only variable
+SELECT @@innodb_dedicated_server;
+@@innodb_dedicated_server
+1
+show global variables like 'innodb_dedicated_server';
+Variable_name	Value
+innodb_dedicated_server	ON
+show session variables like 'innodb_dedicated_server';
+Variable_name	Value
+innodb_dedicated_server	ON
+1 Expected
+SELECT @@global.innodb_dedicated_server;
+@@global.innodb_dedicated_server
+1
+select * from performance_schema.global_variables where variable_name='innodb_dedicated_server';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_dedicated_server	ON
+select * from performance_schema.session_variables where variable_name='innodb_dedicated_server';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_dedicated_server	ON
+set persist_only innodb_dedicated_server=off;
+ERROR HY000: Variable 'innodb_dedicated_server' is a non persistent read only variable

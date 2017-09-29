@@ -16,8 +16,8 @@
 #ifndef DD__INDEX_STAT_INCLUDED
 #define DD__INDEX_STAT_INCLUDED
 
-
-#include "my_inttypes.h"
+#include "sql/dd/types/entity_object.h"       // Entity_object
+#include "sql/dd/types/entity_object_table.h" // Entity_object_table
 
 namespace dd {
 
@@ -71,6 +71,13 @@ public:
 
   virtual ulonglong cardinality() const = 0;
   virtual void set_cardinality(ulonglong cardinality) = 0;
+
+  /////////////////////////////////////////////////////////////////////////
+  // cached_time.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual ulonglong cached_time() const = 0;
+  virtual void set_cached_time(ulonglong cached_time) = 0;
 
 };
 

@@ -22,15 +22,15 @@
 
 #include <stddef.h>
 
-#include "field.h"
 #include "my_dbug.h"
 #include "my_thread.h"
-#include "pfs_buffer_container.h"
-#include "pfs_column_types.h"
-#include "pfs_column_values.h"
-#include "pfs_global.h"
-#include "pfs_instr_class.h"
-#include "pfs_visitor.h"
+#include "sql/field.h"
+#include "storage/perfschema/pfs_buffer_container.h"
+#include "storage/perfschema/pfs_column_types.h"
+#include "storage/perfschema/pfs_column_values.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/pfs_visitor.h"
 
 THR_LOCK table_ews_by_thread_by_event_name::m_table_lock;
 
@@ -90,6 +90,8 @@ table_ews_by_thread_by_event_name::get_row_count(void)
 table_ews_by_thread_by_event_name::table_ews_by_thread_by_event_name()
   : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos()
 {
+  // For all cases except IDLE
+  m_normalizer = time_normalizer::get_wait();
 }
 
 bool
@@ -333,6 +335,7 @@ int
 table_ews_by_thread_by_event_name::make_row(PFS_thread *thread,
                                             PFS_instr_class *klass)
 {
+  time_normalizer *normalizer = m_normalizer;
   pfs_optimistic_state lock;
 
   /* Protect this reader against a thread termination */
@@ -363,8 +366,12 @@ table_ews_by_thread_by_event_name::make_row(PFS_thread *thread,
     return HA_ERR_RECORD_DELETED;
   }
 
-  get_normalizer(klass);
-  m_row.m_stat.set(m_normalizer, &visitor.m_stat);
+  if (klass->m_type == PFS_CLASS_IDLE)
+  {
+    normalizer = time_normalizer::get_idle();
+  }
+
+  m_row.m_stat.set(normalizer, &visitor.m_stat);
 
   return 0;
 }

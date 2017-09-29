@@ -16,7 +16,7 @@
 #ifndef SQL_SERVICE_INTERFACE_INCLUDE
 #define SQL_SERVICE_INTERFACE_INCLUDE
 
-#include "sql_service_context.h"
+#include "plugin/group_replication/include/sql_service/sql_service_context.h"
 
 #define MAX_NUMBER_RETRIES 100
 #define SESSION_WAIT_TIMEOUT 2

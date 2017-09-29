@@ -17,21 +17,21 @@
  * 02110-1301  USA
  */
 
-#include "ngs/client_session.h"
+#include "plugin/x/ngs/include/ngs/client_session.h"
 
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "ngs/interface/authentication_interface.h"
-#include "ngs/interface/client_interface.h"
-#include "ngs/interface/server_interface.h"
-#include "ngs/interface/protocol_encoder_interface.h"
-#include "ngs/interface/protocol_monitor_interface.h"
-#include "ngs/log.h"
-#include "ngs/ngs_error.h"
+#include "plugin/x/ngs/include/ngs/interface/authentication_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/client_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/protocol_encoder_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/protocol_monitor_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/server_interface.h"
+#include "plugin/x/ngs/include/ngs/log.h"
+#include "plugin/x/ngs/include/ngs/ngs_error.h"
 
 #undef ERROR // Needed to avoid conflict with ERROR in mysqlx.pb.h
-#include "ngs_common/protocol_protobuf.h"
+#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
 
 using namespace ngs;
 
@@ -98,8 +98,6 @@ void Session::on_kill()
 // If message is handled, ownership of the object is passed on (and should be deleted by the callee)
 bool Session::handle_message(ngs::Request &command)
 {
-  log_message_recv(command);
-
   if (m_state == Authenticating)
   {
     return handle_auth_message(command);

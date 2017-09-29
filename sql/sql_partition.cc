@@ -45,7 +45,7 @@
 
 /* Some general useful functions */
 
-#include "sql_partition.h"
+#include "sql/sql_partition.h"
 
 #include <assert.h>
 #include <limits.h>
@@ -53,16 +53,7 @@
 #include <algorithm>
 
 #include "binary_log_types.h"
-#include "current_thd.h"
-#include "debug_sync.h"                 // DEBUG_SYNC
-#include "derror.h"                     // ER_THD
-#include "enum_query_type.h"
-#include "field.h"
-#include "item.h"                       // enum_monotoncity_info
-#include "item_func.h"                  // Item_func
-#include "key.h"
 #include "m_string.h"
-#include "mdl.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -74,32 +65,41 @@
 #include "mysql/psi/mysql_file.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
-#include "mysqld.h"                     // mysql_tmpdir
 #include "mysqld_error.h"
-#include "opt_range.h"                  // store_key_image_to_rec
-#include "parse_tree_node_base.h"
-#include "partition_info.h"             // partition_info
-#include "partitioning/partition_handler.h" // Partition_handler
-#include "psi_memory_key.h"
-#include "query_options.h"
-#include "sql_alter.h"
-#include "sql_base.h"                   // wait_while_table_is_used
-#include "sql_class.h"                  // THD
-#include "sql_const.h"
-#include "sql_digest_stream.h"
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_parse.h"                  // parse_sql
-#include "sql_security_ctx.h"
-#include "sql_servers.h"
-#include "sql_show.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/current_thd.h"
+#include "sql/debug_sync.h"             // DEBUG_SYNC
+#include "sql/derror.h"                 // ER_THD
+#include "sql/enum_query_type.h"
+#include "sql/field.h"
+#include "sql/histograms/value_map.h"
+#include "sql/item.h"                   // enum_monotoncity_info
+#include "sql/item_func.h"              // Item_func
+#include "sql/key.h"
+#include "sql/mdl.h"
+#include "sql/mysqld.h"                 // mysql_tmpdir
+#include "sql/opt_range.h"              // store_key_image_to_rec
+#include "sql/parse_tree_node_base.h"
+#include "sql/partition_info.h"         // partition_info
+#include "sql/partitioning/partition_handler.h" // Partition_handler
+#include "sql/psi_memory_key.h"
+#include "sql/query_options.h"
+#include "sql/sql_alter.h"
+#include "sql/sql_base.h"               // wait_while_table_is_used
+#include "sql/sql_class.h"              // THD
+#include "sql/sql_const.h"
+#include "sql/sql_digest_stream.h"
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_parse.h"              // parse_sql
+#include "sql/sql_servers.h"
+#include "sql/sql_show.h"
+#include "sql/sql_table.h"              // build_table_filename
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/thr_malloc.h"
 #include "sql_string.h"
-#include "sql_table.h"                  // build_table_filename
-#include "system_variables.h"
-#include "table.h"
-#include "thr_malloc.h"
-#include "value_map.h"
 
 using std::max;
 using std::min;
@@ -2420,7 +2420,7 @@ int expr_to_string(String *val_conv,
   if (get_cs_converted_part_value_from_string(current_thd,
                                               item_expr, res,
                                               val_conv, field_cs,
-                                              (bool)(create_fields != NULL)))
+                                              false))
   {
       return 1;
   }

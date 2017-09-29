@@ -1,0 +1,62 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t (a INT);
+---- 1. Disconnect after SET GTID_NEXT ----
+include/rpl_connect.inc [creating con1]
+[connection con1]
+CREATE TEMPORARY TABLE tt (a INT);
+SET GTID_NEXT = '#';
+include/save_binlog_position.inc
+include/gtid_step_reset.inc
+# Disconnecting.
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Slave should not have any open temporary tables.]
+include/gtid_step_assert.inc [count=0, only_count=0]
+---- 2. Disconnect in the middle of transaction ----
+include/rpl_connect.inc [creating con1]
+[connection con1]
+CREATE TEMPORARY TABLE tt (a INT);
+SET GTID_NEXT = '#';
+BEGIN;
+INSERT INTO t VALUES (1);
+include/save_binlog_position.inc
+include/gtid_step_reset.inc
+# Disconnecting.
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Slave should not have any open temporary tables.]
+include/gtid_step_assert.inc [count=0, only_count=0]
+---- 3. Disconnect after COMMIT ----
+include/rpl_connect.inc [creating con1]
+[connection con1]
+CREATE TEMPORARY TABLE tt (a INT);
+SET GTID_NEXT = '#';
+BEGIN;
+INSERT INTO t VALUES (1);
+COMMIT;
+include/save_binlog_position.inc
+include/gtid_step_reset.inc
+# Disconnecting.
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Slave should not have any open temporary tables.]
+include/gtid_step_assert.inc [count=0, only_count=0]
+---- 4. Disconnect after ROLLBACK ----
+include/rpl_connect.inc [creating con1]
+[connection con1]
+CREATE TEMPORARY TABLE tt (a INT);
+SET GTID_NEXT = '#';
+BEGIN;
+INSERT INTO t VALUES (1);
+ROLLBACK;
+include/save_binlog_position.inc
+include/gtid_step_reset.inc
+# Disconnecting.
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Slave should not have any open temporary tables.]
+include/gtid_step_assert.inc [count=0, only_count=0]
+---- Clean up ----
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

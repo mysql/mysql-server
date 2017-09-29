@@ -17,15 +17,15 @@ TempTable Index implementation. */
 
 #include <utility> /* std::pair */
 
-#include "temptable/allocator.h"     /* temptable::allocator */
-#include "temptable/constants.h"     /* temptable::INDEX_DEFAULT_HASH_TABLE_BUCKETS */
-#include "temptable/containers.h"    /* temptable::*container */
-#include "temptable/cursor.h"        /* temptable::Cursor */
-#include "temptable/index.h"         /* temptable::Index */
-#include "temptable/indexed_cells.h" /* temptable::Indexed_cells* */
-#include "temptable/result.h"        /* temptable::Result */
-#include "key.h"                  /* KEY */
 #include "my_base.h"              /* HA_NOSAME */
+#include "sql/key.h"              /* KEY */
+#include "storage/temptable/include/temptable/allocator.h" /* temptable::allocator */
+#include "storage/temptable/include/temptable/constants.h" /* temptable::INDEX_DEFAULT_HASH_TABLE_BUCKETS */
+#include "storage/temptable/include/temptable/containers.h" /* temptable::*container */
+#include "storage/temptable/include/temptable/cursor.h" /* temptable::Cursor */
+#include "storage/temptable/include/temptable/index.h" /* temptable::Index */
+#include "storage/temptable/include/temptable/indexed_cells.h" /* temptable::Indexed_cells* */
+#include "storage/temptable/include/temptable/result.h" /* temptable::Result */
 
 namespace temptable {
 

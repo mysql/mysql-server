@@ -16,6 +16,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #ifndef COMPONENT_SYS_VAR_SERVICE_H
 #define COMPONENT_SYS_VAR_SERVICE_H
 
+#include <stddef.h>
+
 #include <mysql/components/service.h>
 
 /**

@@ -24,7 +24,7 @@
 #include <gmock/gmock.h>
 #include <memory>
 
-#include "client/xprotocol_factory.h"
+#include "plugin/x/client/xprotocol_factory.h"
 
 
 namespace xcl {

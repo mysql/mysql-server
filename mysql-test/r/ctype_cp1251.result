@@ -3235,13 +3235,10 @@ CREATE PROCEDURE p1()
 BEGIN
 DECLARE v_LastPaymentDate DATETIME DEFAULT NULL;
 SELECT v_LastPaymentDate < NOW();
-EXPLAIN EXTENDED SELECT v_LastPaymentDate < NOW();
+EXPLAIN SELECT v_LastPaymentDate < NOW();
 SHOW WARNINGS;
-EXPLAIN EXTENDED SELECT CONCAT(v_LastPaymentDate, NOW());
+EXPLAIN SELECT CONCAT(v_LastPaymentDate, NOW());
 END//
-Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 CALL p1;
 v_LastPaymentDate < NOW()
 NULL
@@ -3252,8 +3249,6 @@ Note	1003	/* select#1 */ select (v_LastPaymentDate@0 < now()) AS `v_LastPaymentD
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select concat(v_LastPaymentDate@0,now()) AS `CONCAT(v_LastPaymentDate, NOW())`
 DROP PROCEDURE p1;
 #

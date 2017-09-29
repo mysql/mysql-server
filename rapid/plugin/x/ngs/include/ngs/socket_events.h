@@ -21,7 +21,8 @@
 #define NGS_SOCKET_EVENTS_H_
 
 #include <vector>
-#include "ngs/interface/socket_events_interface.h"
+
+#include "plugin/x/ngs/include/ngs/interface/socket_events_interface.h"
 
 struct event_base;
 

@@ -20,8 +20,8 @@
 #include<iterator>
 #endif
 
-#include "bindings/xcom/gcs_xcom_interface.h"
-#include "mysql/gcs/gcs_interface.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_interface.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_interface.h"
 
 Gcs_interface *
 Gcs_interface_factory::

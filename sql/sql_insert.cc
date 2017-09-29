@@ -26,19 +26,8 @@
 #include <map>
 #include <utility>
 
-#include "auth_acls.h"
-#include "auth_common.h"              // check_grant_all_columns
 #include "binary_log_types.h"
-#include "binlog.h"
-#include "dd_sql_view.h"              // update_referencing_views_metadata
-#include "debug_sync.h"               // DEBUG_SYNC
-#include "derror.h"                   // ER_THD
-#include "discrete_interval.h"
-#include "field.h"
-#include "item.h"
-#include "key.h"
 #include "lex_string.h"
-#include "lock.h"                     // mysql_unlock_tables
 #include "m_string.h"
 #include "my_base.h"
 #include "my_bitmap.h"
@@ -52,40 +41,55 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "mysqld.h"                   // stage_update
 #include "mysqld_error.h"
-#include "opt_explain.h"              // Modification_plan
-#include "opt_explain_format.h"
-#include "partition_info.h"           // partition_info
 #include "prealloced_array.h"
-#include "protocol.h"
-#include "query_options.h"
-#include "rpl_rli.h"                  // Relay_log_info
-#include "rpl_slave.h"                // rpl_master_has_bug
-#include "sql_alter.h"
-#include "sql_array.h"
-#include "sql_base.h"                 // setup_fields
-#include "sql_class.h"
-#include "sql_const.h"
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_optimizer.h"            // Prepare_error_tracker
-#include "sql_resolver.h"             // validate_gc_assignment
-#include "sql_servers.h"
-#include "sql_show.h"                 // store_create_info
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h"     // check_grant_all_columns
+#include "sql/binlog.h"
+#include "sql/dd/cache/dictionary_client.h"
+#include "sql/dd/dd_schema.h"         // dd::Schema_MDL_locker
+#include "sql/dd/dd.h"                // dd::get_dictionary
+#include "sql/dd/dictionary.h"        // dd::Dictionary
+#include "sql/dd_sql_view.h"          // update_referencing_views_metadata
+#include "sql/debug_sync.h"           // DEBUG_SYNC
+#include "sql/derror.h"               // ER_THD
+#include "sql/discrete_interval.h"
+#include "sql/field.h"
+#include "sql/item.h"
+#include "sql/key.h"
+#include "sql/lock.h"                 // mysql_unlock_tables
+#include "sql/mysqld.h"               // stage_update
+#include "sql/opt_explain.h"          // Modification_plan
+#include "sql/opt_explain_format.h"
+#include "sql/partition_info.h"       // partition_info
+#include "sql/protocol.h"
+#include "sql/query_options.h"
+#include "sql/rpl_rli.h"              // Relay_log_info
+#include "sql/rpl_slave.h"            // rpl_master_has_bug
+#include "sql/sql_alter.h"
+#include "sql/sql_array.h"
+#include "sql/sql_base.h"             // setup_fields
+#include "sql/sql_class.h"
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_optimizer.h"        // Prepare_error_tracker
+#include "sql/sql_resolver.h"         // validate_gc_assignment
+#include "sql/sql_servers.h"
+#include "sql/sql_show.h"             // store_create_info
+#include "sql/sql_table.h"            // quick_rm_table
+#include "sql/sql_tmp_table.h"        // create_tmp_field
+#include "sql/sql_update.h"           // records_are_comparable
+#include "sql/sql_view.h"             // check_key_in_view
+#include "sql/system_variables.h"
+#include "sql/table_trigger_dispatcher.h" // Table_trigger_dispatcher
+#include "sql/thr_malloc.h"
+#include "sql/transaction.h"          // trans_commit_stmt
+#include "sql/transaction_info.h"
+#include "sql/trigger_def.h"
 #include "sql_string.h"
-#include "sql_table.h"                // quick_rm_table
-#include "sql_tmp_table.h"            // create_tmp_field
-#include "sql_update.h"               // records_are_comparable
-#include "sql_view.h"                 // check_key_in_view
-#include "system_variables.h"
-#include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
 #include "template_utils.h"
 #include "thr_lock.h"
-#include "thr_malloc.h"
-#include "transaction.h"              // trans_commit_stmt
-#include "transaction_info.h"
-#include "trigger_def.h"
 
 
 static bool check_view_insertability(THD *thd, TABLE_LIST *view,
@@ -511,7 +515,7 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd)
   DEBUG_SYNC(thd, "planned_single_insert");
 
  
-  if (lex->describe)
+  if (lex->is_explain())
   {
     bool err= explain_single_table_modification(thd, &plan, select_lex);
     DBUG_RETURN(err);
@@ -1194,7 +1198,6 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd)
 
   if (duplicates == DUP_UPDATE)
   {
-    table_list->set_want_privilege(UPDATE_ACL);
     // Setup the columns to be updated
     if (setup_fields(thd, Ref_item_array(), update_field_list, UPDATE_ACL,
                      NULL, false, true))
@@ -1202,8 +1205,6 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd)
 
     if (check_valid_table_refs(table_list, update_field_list, map))
       DBUG_RETURN(true);
-
-    table_list->set_want_privilege(SELECT_ACL);
   }
 
   if (table_list->is_merged())
@@ -2171,7 +2172,7 @@ bool Query_result_insert::start_execution()
 {
   DBUG_ENTER("Query_result_insert::start_execution");
   if (thd->locked_tables_mode <= LTM_LOCK_TABLES &&
-      !thd->lex->describe)
+      !thd->lex->is_explain())
   {
     DBUG_ASSERT(!bulk_insert_started);
     // TODO: Is there no better estimation than 0 == Unknown number of rows?
@@ -2581,6 +2582,40 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     alter_info->create_list.push_back(cr_field);
   }
 
+  /*
+    Acquire SU meta data locks for the tables referenced
+    in the FK constraints.
+  */
+  if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
+      (create_info->db_type->flags & HTON_SUPPORTS_FOREIGN_KEYS))
+  {
+    /*
+      CREATE TABLE SELECT fails under LOCK TABLES at open_tables() time
+      if target table doesn't exist already. So we don't need to handle
+      LOCK TABLES case here by checking that parent tables for new FKs
+      are properly locked and there are no orphan child tables for which
+      table being created will become parent.
+    */
+    DBUG_ASSERT(thd->locked_tables_mode != LTM_LOCK_TABLES &&
+                thd->locked_tables_mode != LTM_PRELOCKED_UNDER_LOCK_TABLES);
+
+    MDL_request_list mdl_requests;
+
+    if (collect_fk_parents_for_new_fks(thd, create_table->db,
+                                       create_table->table_name,
+                                       alter_info,
+                                       MDL_SHARED_UPGRADABLE,
+                                       nullptr,
+                                       &mdl_requests,
+                                       nullptr))
+      DBUG_RETURN(NULL);
+
+    if (!mdl_requests.is_empty() &&
+        thd->mdl_context.acquire_locks(&mdl_requests,
+                                       thd->variables.lock_wait_timeout))
+      DBUG_RETURN(NULL);
+  }
+
   DEBUG_SYNC(thd,"create_table_select_before_create");
 
   /*
@@ -2603,29 +2638,14 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     if (!mysql_create_table_no_lock(thd, create_table->db,
                                     create_table->table_name,
                                     create_info, alter_info,
-                                    select_field_count, NULL,
-                                    post_ddl_ht))
+                                    select_field_count,
+                                    true,
+                                    NULL, post_ddl_ht))
     {
       DEBUG_SYNC(thd,"create_table_select_before_open");
 
       if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
       {
-#ifndef WORKAROUND_TO_BE_REMOVED_IN_WL7141_WL7016_TREES
-        /*
-          InnoDB might add tablespace objects to the DD during table creation.
-          If these changes are not committed here it will have problems dropping
-          table on error.
-
-          The problem will be solved once InnoDB implements support for atomic
-          DDL and statement rollback will remove the table automatically.
-        */
-        {
-          Disable_gtid_state_update_guard disabler(thd);
-          trans_commit_stmt(thd);
-          trans_commit_implicit(thd);
-        }
-#endif
-
         Open_table_context ot_ctx(thd, MYSQL_OPEN_REOPEN);
         /*
           Here we open the destination table, on which we already have
@@ -2640,15 +2660,6 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
           if (!(create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
             quick_rm_table(thd, create_info->db_type, create_table->db,
                            create_table->table_name, 0);
-#ifndef WORKAROUND_TO_BE_REMOVED_IN_WL7141_WL7016_TREES
-          else
-          {
-            /*
-              In practice this never ever happens. So it is not worth
-              to write workaround code.
-            */
-          }
-#endif
         }
         else
           table= create_table->table;
@@ -2874,6 +2885,10 @@ int Query_result_create::binlog_show_create_table()
   if (error)
     DBUG_RETURN(error);
 
+  create_table->table->set_binlog_drop_if_temp(
+    !thd->is_current_stmt_binlog_disabled()
+    && !thd->is_current_stmt_binlog_format_row());
+
   if (!thd->is_current_stmt_binlog_format_row() ||
       table->s->tmp_table)
     DBUG_RETURN(0);
@@ -2982,20 +2997,79 @@ bool Query_result_create::send_eof()
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
     thd->get_transaction()->mark_created_temp_table(Transaction_ctx::STMT);
 
-  bool tmp;
+  bool error= false;
+
+  /*
+    For non-temporary tables, we update the unique_constraint_name for
+    the FKs of referencing tables, after acquiring exclusive metadata locks.
+    We also need to upgrade the SU locks on referenced tables to be exclusive
+    before invalidating the referenced tables.
+  */
+  Foreign_key_parents_invalidator fk_invalidator;
+
+  if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
+      (create_info->db_type->flags & HTON_SUPPORTS_FOREIGN_KEYS))
+  {
+    MDL_request_list mdl_requests;
+
+    if ((!dd::get_dictionary()->is_dd_table_name(create_table->db,
+                                                 create_table->table_name) &&
+         collect_fk_children(thd, create_table->db, create_table->table_name,
+                             create_info->db_type, &mdl_requests)) ||
+         collect_fk_parents_for_new_fks(thd, create_table->db,
+                                       create_table->table_name,
+                                       alter_info,
+                                       MDL_EXCLUSIVE,
+                                       create_info->db_type,
+                                       &mdl_requests,
+                                       &fk_invalidator) ||
+        (!mdl_requests.is_empty() &&
+         thd->mdl_context.acquire_locks(&mdl_requests,
+                                        thd->variables.lock_wait_timeout)))
+      error= true;
+    else
+    {
+      dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+      const dd::Table *new_table= nullptr;
+      if (thd->dd_client()->acquire(create_table->db,
+                                    create_table->table_name,
+                                    &new_table))
+        error= true;
+      else
+      {
+        DBUG_ASSERT(new_table != nullptr);
+        /*
+          If we are to support FKs for storage engines which don't support
+          atomic DDL we need to decide what to do for such SEs in case of
+          failure to update children definitions and adjust code accordingly.
+        */
+        DBUG_ASSERT(create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL);
+
+        if (adjust_fk_children_after_parent_def_change(thd,
+                                                       create_table->db,
+                                                       create_table->table_name,
+                                                       create_info->db_type,
+                                                       new_table, nullptr) ||
+            adjust_fk_parents(thd, create_table->db, create_table->table_name,
+                              true, nullptr))
+          error= true;
+      }
+    }
+  }
 
   {
     Uncommitted_tables_guard uncommitted_tables(thd);
 
-    tmp= update_referencing_views_metadata(thd, create_table,
-                                           !(table->s->db_type()->flags &
-                                             HTON_SUPPORTS_ATOMIC_DDL),
-                                           &uncommitted_tables);
+    if (!error)
+      error= update_referencing_views_metadata(thd, create_table,
+                                               !(table->s->db_type()->flags &
+                                                 HTON_SUPPORTS_ATOMIC_DDL),
+                                               &uncommitted_tables);
   }
 
-  if (!tmp)
-    tmp= Query_result_insert::send_eof();
-  if (tmp)
+  if (!error)
+    error= Query_result_insert::send_eof();
+  if (error)
     abort_result_set();
   else
   {
@@ -3038,8 +3112,10 @@ bool Query_result_create::send_eof()
 
     if (m_post_ddl_ht)
       m_post_ddl_ht->post_ddl(thd);
+
+    fk_invalidator.invalidate(thd);
   }
-  return tmp;
+  return error;
 }
 
 
@@ -3094,22 +3170,6 @@ void Query_result_create::drop_open_table()
       quick_rm_table(thd, table_type, create_table->db,
                      create_table->table_name, 0);
     }
-#ifndef WORKAROUND_TO_BE_REMOVED_IN_WL7141_WL7016_TREES
-    else
-    {
-      trans_rollback_stmt(thd);
-      /*
-        Rollback transaction both to clear THD::transaction_rollback_request
-        (if it is set) and to synchronize DD state for view metadata in cache
-        and on disk (as statement rollback doesn't clear DD cache of modified
-        uncommitted objects).
-      */
-      trans_rollback_implicit(thd);
-
-      quick_rm_table(thd, table_type, create_table->db,
-                     create_table->table_name, 0);
-    }
-#endif
   }
   DBUG_VOID_RETURN;
 }

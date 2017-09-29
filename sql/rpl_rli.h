@@ -32,11 +32,8 @@
 #include <string>
 #include <vector>
 
-#include "binlog.h"            // MYSQL_BIN_LOG
 #include "binlog_event.h"
-#include "handler.h"
 #include "lex_string.h"
-#include "log_event.h"        //Gtid_log_event
 #include "m_string.h"
 #include "map_helpers.h"
 #include "my_bitmap.h"
@@ -54,22 +51,25 @@
 #include "mysql/psi/psi_base.h"
 #include "mysql/thread_type.h"
 #include "mysql/udf_registration_types.h"
-#include "mysqld.h"
 #include "prealloced_array.h"  // Prealloced_array
-#include "psi_memory_key.h"
-#include "query_options.h"
-#include "rpl_filter.h"
-#include "rpl_gtid.h"          // Gtid_set
-#include "rpl_info.h"          // Rpl_info
-#include "rpl_mts_submode.h"   // enum_mts_parallel_type
-#include "rpl_slave_until_options.h"
-#include "rpl_tblmap.h"        // table_mapping
-#include "rpl_utility.h"       // Deferred_log_events
-#include "sql_class.h"         // THD
-#include "sql_lex.h"
+#include "sql/binlog.h"        // MYSQL_BIN_LOG
+#include "sql/handler.h"
+#include "sql/log_event.h"    //Gtid_log_event
+#include "sql/mysqld.h"
+#include "sql/psi_memory_key.h"
+#include "sql/query_options.h"
+#include "sql/rpl_filter.h"
+#include "sql/rpl_gtid.h"      // Gtid_set
+#include "sql/rpl_info.h"      // Rpl_info
+#include "sql/rpl_mts_submode.h" // enum_mts_parallel_type
+#include "sql/rpl_slave_until_options.h"
+#include "sql/rpl_tblmap.h"    // table_mapping
+#include "sql/rpl_utility.h"   // Deferred_log_events
+#include "sql/sql_class.h"     // THD
+#include "sql/sql_lex.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
 #include "sql_string.h"
-#include "system_variables.h"
-#include "table.h"
 
 class Commit_order_manager;
 class Format_description_log_event;
@@ -1440,9 +1440,19 @@ private:
 
 
  /**
-   sets the suffix required for relay log names
-   in multisource replication.
-   The extension is "-relay-bin-<channel_name>"
+   sets the suffix required for relay log names in multisource
+   replication. When --relay-log option is not provided, the
+   names of the relay log files are relaylog.0000x or
+   relaylog-CHANNEL.00000x in the case of MSR. However, if
+   that option is provided, then the names of the relay log
+   files are <relay-log-option>.0000x or
+   <relay-log-option>-CHANNEL.00000x in the case of MSR.
+
+   The function adds a channel suffix (according to the channel to
+   file name conventions and conversions) to the relay log file.
+
+   @todo: truncate the log file if length exceeds.
+
    @param[in, out]  buff       buffer to store the complete relay log file name
    @param[in]       buff_size  size of buffer buff
    @param[in]       base_name  the base name of the relay log file

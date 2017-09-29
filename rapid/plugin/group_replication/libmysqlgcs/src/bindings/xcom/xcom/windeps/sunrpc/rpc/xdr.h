@@ -21,7 +21,7 @@
 #ifndef _RPC_XDR_H
 #define _RPC_XDR_H 1
 
-#if !defined(_WIN32)
+#ifdef __linux__
 #include <features.h>
 #endif
 

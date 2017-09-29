@@ -17,8 +17,8 @@
 
 #include <gtest/gtest.h>
 
-#include "find_statement_builder.h"
-#include "mysqlx_pb_wrapper.h"
+#include "plugin/x/src/find_statement_builder.h"
+#include "unittest/gunit/xplugin/xpl/mysqlx_pb_wrapper.h"
 
 namespace xpl {
 namespace test {
@@ -74,8 +74,8 @@ TEST_F(Find_statement_builder_test, add_document_projection_empty) {
 }
 
 TEST_F(Find_statement_builder_test, add_document_projection_wildcards) {
-  ASSERT_THROW(builder()->add_document_projection(Projection_list(
-                   Projection(Operator("*", ColumnIdentifier("", "xtable"))))),
+  ASSERT_THROW(builder()->add_document_projection(Projection_list{
+                   {Operator("*", ColumnIdentifier("", "xtable"))}}),
                ngs::Error_code);
 }
 
@@ -87,15 +87,14 @@ TEST_F(Find_statement_builder_test, add_document_projection_wildcards_mix) {
 }
 
 TEST_F(Find_statement_builder_test, add_projection_table_one_member_item) {
-  Document_path::Path member("alpha");
   ASSERT_NO_THROW(builder()->add_table_projection(
-      Projection_list{{ColumnIdentifier(member)}}));
+      Projection_list{{ColumnIdentifier(Document_path{"alpha"})}}));
   EXPECT_EQ("JSON_EXTRACT(doc,'$.alpha')", query.get());
 }
 
 TEST_F(Find_statement_builder_test, add_projection_table_one_item) {
   ASSERT_NO_THROW(builder()->add_table_projection(
-      Projection_list(Projection(ColumnIdentifier("alpha")))));
+      Projection_list{{ColumnIdentifier("alpha")}}));
   EXPECT_EQ("`alpha`", query.get());
 }
 
@@ -115,33 +114,33 @@ TEST_F(Find_statement_builder_test,
 
 TEST_F(Find_statement_builder_test, add_projection_table_one_item_with_alias) {
   ASSERT_NO_THROW(builder()->add_table_projection(
-      Projection_list(Projection(ColumnIdentifier("alpha"), "beta"))));
+      Projection_list{{ColumnIdentifier("alpha"), "beta"}}));
   EXPECT_EQ("`alpha` AS `beta`", query.get());
 }
 
 TEST_F(Find_statement_builder_test, add_projection_document_one_item_no_alias) {
   ASSERT_THROW(builder()->add_document_projection(
-                   Projection_list(Projection(ColumnIdentifier("alpha")))),
+                   Projection_list{{ColumnIdentifier("alpha")}}),
                ngs::Error_code);
 }
 
 TEST_F(Find_statement_builder_test, add_projection_document_one_item) {
-  ASSERT_NO_THROW(builder()->add_document_projection(Projection_list(
-      Projection(ColumnIdentifier("alpha", "xtable"), "beta"))));
+  ASSERT_NO_THROW(builder()->add_document_projection(Projection_list{
+      {ColumnIdentifier("alpha", "xtable"), "beta"}}));
   EXPECT_EQ("JSON_OBJECT('beta', `xtable`.`alpha`) AS doc", query.get());
 }
 
 TEST_F(Find_statement_builder_test, add_projection_document_one_member_item) {
-  ASSERT_NO_THROW(builder()->add_document_projection(Projection_list(
-      Projection(ColumnIdentifier(Document_path::Path("alpha")), "beta"))));
+  ASSERT_NO_THROW(builder()->add_document_projection(Projection_list{
+      {ColumnIdentifier(Document_path{"alpha"}), "beta"}}));
   EXPECT_EQ("JSON_OBJECT('beta', JSON_EXTRACT(doc,'$.alpha')) AS doc",
             query.get());
 }
 
 TEST_F(Find_statement_builder_test, add_projection_document_two_member_items) {
   ASSERT_NO_THROW(builder()->add_document_projection(
-      Projection_list{{ColumnIdentifier(Document_path::Path("alpha")), "beta"},
-                      {ColumnIdentifier(Document_path::Path("first")), "second"}}));
+      Projection_list{{ColumnIdentifier(Document_path{"alpha"}), "beta"},
+                      {ColumnIdentifier(Document_path{"first"}), "second"}}));
   EXPECT_EQ(
       "JSON_OBJECT('beta', JSON_EXTRACT(doc,'$.alpha'),"
       "'second', JSON_EXTRACT(doc,'$.first')) AS doc",
@@ -151,9 +150,9 @@ TEST_F(Find_statement_builder_test, add_projection_document_two_member_items) {
 TEST_F(Find_statement_builder_test,
        add_projection_document_two_member_items_placeholder) {
   args = Expression_args{2.2};
-  Document_path::Path member("alpha");
-  ASSERT_NO_THROW(builder()->add_document_projection(Projection_list{
-      {ColumnIdentifier(member), "beta"}, {Placeholder(0), "second"}}));
+  ASSERT_NO_THROW(builder()->add_document_projection(
+      Projection_list{{ColumnIdentifier(Document_path{"alpha"}), "beta"},
+                      {Placeholder(0), "second"}}));
   EXPECT_EQ(
       "JSON_OBJECT('beta', JSON_EXTRACT(doc,'$.alpha'),"
       "'second', 2.2) AS doc",
@@ -167,7 +166,7 @@ TEST_F(Find_statement_builder_test, add_gruping_empty) {
 
 TEST_F(Find_statement_builder_test, add_gruping_one_item) {
   ASSERT_NO_THROW(
-      builder()->add_grouping(Grouping_list(ColumnIdentifier("alpha"))));
+      builder()->add_grouping(Grouping_list{ColumnIdentifier("alpha")}));
   EXPECT_EQ(" GROUP BY `alpha`", query.get());
 }
 
@@ -218,7 +217,8 @@ TEST_F(Find_statement_builder_test, build_table) {
       Projection_list{{ColumnIdentifier("alpha"), "zeta"}};
   *msg.mutable_criteria() =
       Filter(Operator(">", ColumnIdentifier("delta"), Scalar(1.0)));
-  *msg.mutable_order() = Order_list{{ColumnIdentifier("gamma"), Order::DESC}};
+  *msg.mutable_order() =
+      Order_list{{ColumnIdentifier("gamma"), Order::Base::DESC}};
   *msg.mutable_grouping() = Grouping_list{{ColumnIdentifier("beta")}};
   *msg.mutable_grouping_criteria() =
       Grouping_criteria(Operator("<", ColumnIdentifier("lambda"), Scalar(2.0)));
@@ -237,11 +237,11 @@ TEST_F(Find_statement_builder_test, build_document_no_grouping) {
   msg.set_data_model(Mysqlx::Crud::DOCUMENT);
   *msg.mutable_collection() = Collection("xtable", "xschema");
   *msg.mutable_projection() =
-      Projection_list{{ColumnIdentifier(Document_path::Path("alpha")), "zeta"}};
+      Projection_list{{ColumnIdentifier(Document_path{"alpha"}), "zeta"}};
   *msg.mutable_criteria() = Filter(
-      Operator(">", ColumnIdentifier(Document_path::Path("delta")), Scalar(1.0)));
+      Operator(">", ColumnIdentifier(Document_path{"delta"}), Scalar(1.0)));
   *msg.mutable_order() =
-      Order_list{{ColumnIdentifier(Document_path::Path("gamma")), Order::DESC}};
+      Order_list{{ColumnIdentifier(Document_path{"gamma"}), Order::Base::DESC}};
   ASSERT_NO_THROW(builder()->build(msg));
   EXPECT_STREQ(
       "SELECT JSON_OBJECT('zeta', JSON_EXTRACT(doc,'$.alpha')) AS doc "
@@ -255,15 +255,15 @@ TEST_F(Find_statement_builder_test, build_document_with_grouping_and_criteria) {
   msg.set_data_model(Mysqlx::Crud::DOCUMENT);
   *msg.mutable_collection() = Collection("xtable", "xschema");
   *msg.mutable_projection() =
-      Projection_list{{ColumnIdentifier(Document_path::Path("alpha")), "zeta"}};
+      Projection_list{{ColumnIdentifier(Document_path{"alpha"}), "zeta"}};
   *msg.mutable_criteria() = Filter(
-      Operator(">", ColumnIdentifier(Document_path::Path("delta")), Scalar(1.0)));
+      Operator(">", ColumnIdentifier(Document_path{"delta"}), Scalar(1.0)));
   *msg.mutable_order() =
-      Order_list{{ColumnIdentifier(Document_path::Path("beta")), Order::DESC}};
+      Order_list{{ColumnIdentifier(Document_path{"beta"}), Order::Base::DESC}};
   *msg.mutable_grouping() =
-      Grouping_list{{ColumnIdentifier(Document_path::Path("alpha"))}};
+      Grouping_list{{ColumnIdentifier(Document_path{"alpha"})}};
   *msg.mutable_grouping_criteria() = Grouping_criteria(
-      Operator("<", ColumnIdentifier(Document_path::Path("lambda")), Scalar(2.0)));
+      Operator("<", ColumnIdentifier(Document_path{"lambda"}), Scalar(2.0)));
   ASSERT_NO_THROW(builder()->build(msg));
   EXPECT_STREQ(
       "SELECT JSON_OBJECT('zeta', `_DERIVED_TABLE_`.`zeta`) AS doc FROM ("
@@ -281,11 +281,11 @@ TEST_F(Find_statement_builder_test, build_document_with_grouping) {
   msg.set_data_model(Mysqlx::Crud::DOCUMENT);
   *msg.mutable_collection() = Collection("xtable", "xschema");
   *msg.mutable_projection() =
-      Projection_list{{ColumnIdentifier(Document_path::Path("alpha")), "zeta"},
-                      {ColumnIdentifier(Document_path::Path("gama")), "ksi"}};
+      Projection_list{{ColumnIdentifier(Document_path{"alpha"}), "zeta"},
+                      {ColumnIdentifier(Document_path{"gama"}), "ksi"}};
   *msg.mutable_grouping() =
-      Grouping_list{{ColumnIdentifier(Document_path::Path("alpha"))},
-                    {ColumnIdentifier(Document_path::Path("gama"))}};
+      Grouping_list{{ColumnIdentifier(Document_path{"alpha"})},
+                    {ColumnIdentifier(Document_path{"gama"})}};
   ASSERT_NO_THROW(builder()->build(msg));
   EXPECT_STREQ(
       "SELECT JSON_OBJECT('zeta', `_DERIVED_TABLE_`.`zeta`,'ksi', "
@@ -303,7 +303,7 @@ TEST_F(Find_statement_builder_test,
   msg.set_data_model(Mysqlx::Crud::DOCUMENT);
   *msg.mutable_collection() = Collection("xtable", "xschema");
   *msg.mutable_grouping()->Add() =
-      Group(ColumnIdentifier(Document_path::Path("beta")));
+      Group(ColumnIdentifier(Document_path{"beta"}));
   EXPECT_THROW(builder()->build(msg), ngs::Error_code);
 }
 
@@ -312,11 +312,11 @@ TEST_F(Find_statement_builder_test, build_document_shared_lock) {
   msg.set_locking(Mysqlx::Crud::Find::SHARED_LOCK);
   *msg.mutable_collection() = Collection("xtable", "xschema");
   *msg.mutable_projection() =
-      Projection_list{{ColumnIdentifier(Document_path::Path("alpha")), "zeta"}};
+      Projection_list{{ColumnIdentifier(Document_path{"alpha"}), "zeta"}};
   *msg.mutable_criteria() = Filter(
-      Operator(">", ColumnIdentifier(Document_path::Path("delta")), Scalar(1.0)));
+      Operator(">", ColumnIdentifier(Document_path{"delta"}), Scalar(1.0)));
   *msg.mutable_order() =
-      Order_list{{ColumnIdentifier(Document_path::Path("gamma")), Order::DESC}};
+      Order_list{{ColumnIdentifier(Document_path{"gamma"}), Order::Base::DESC}};
   ASSERT_NO_THROW(builder()->build(msg));
   EXPECT_STREQ(
       "SELECT JSON_OBJECT('zeta', JSON_EXTRACT(doc,'$.alpha')) AS doc "
@@ -332,11 +332,11 @@ TEST_F(Find_statement_builder_test, build_document_exclusive_lock) {
   msg.set_locking(Mysqlx::Crud::Find::EXCLUSIVE_LOCK);
   *msg.mutable_collection() = Collection("xtable", "xschema");
   *msg.mutable_projection() =
-      Projection_list{{ColumnIdentifier(Document_path::Path("alpha")), "zeta"}};
+      Projection_list{{ColumnIdentifier(Document_path{"alpha"}), "zeta"}};
   *msg.mutable_criteria() = Filter(
-      Operator(">", ColumnIdentifier(Document_path::Path("delta")), Scalar(1.0)));
+      Operator(">", ColumnIdentifier(Document_path{"delta"}), Scalar(1.0)));
   *msg.mutable_order() =
-      Order_list{{ColumnIdentifier(Document_path::Path("gamma")), Order::DESC}};
+      Order_list{{ColumnIdentifier(Document_path{"gamma"}), Order::Base::DESC}};
   ASSERT_NO_THROW(builder()->build(msg));
   EXPECT_STREQ(
       "SELECT JSON_OBJECT('zeta', JSON_EXTRACT(doc,'$.alpha')) AS doc "

@@ -19,9 +19,6 @@
 
 #include <new>
 
-#include "channel_info.h"              // Channel_info
-#include "connection_handler_impl.h"   // Per_thread_connection_handler
-#include "current_thd.h"
 #include "my_dbug.h"
 #include "my_macros.h"
 #include "my_psi_config.h"
@@ -31,10 +28,13 @@
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_thd_wait.h"
 #include "mysql/udf_registration_types.h"
-#include "mysqld.h"                    // max_connections
 #include "mysqld_error.h"              // ER_*
-#include "plugin_connection_handler.h" // Plugin_connection_handler
-#include "sql_callback.h"              // MYSQL_CALLBACK
+#include "sql/conn_handler/channel_info.h" // Channel_info
+#include "sql/conn_handler/connection_handler_impl.h" // Per_thread_connection_handler
+#include "sql/conn_handler/plugin_connection_handler.h" // Plugin_connection_handler
+#include "sql/current_thd.h"
+#include "sql/mysqld.h"                // max_connections
+#include "sql/sql_callback.h"          // MYSQL_CALLBACK
 #include "thr_lock.h"
 #include "thr_mutex.h"
 
@@ -135,14 +135,14 @@ static PSI_mutex_key key_LOCK_connection_count;
 
 static PSI_mutex_info all_conn_manager_mutexes[]=
 {
-  { &key_LOCK_connection_count, "LOCK_connection_count", PSI_FLAG_GLOBAL, 0}
+  { &key_LOCK_connection_count, "LOCK_connection_count", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 
 static PSI_cond_key key_COND_connection_count;
 
 static PSI_cond_info all_conn_manager_conds[]=
 {
-  { &key_COND_connection_count, "COND_connection_count", PSI_FLAG_GLOBAL}
+  { &key_COND_connection_count, "COND_connection_count", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 #endif
 

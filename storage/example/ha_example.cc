@@ -87,11 +87,11 @@
     -Brian
 */
 
-#include "ha_example.h"
+#include "storage/example/ha_example.h"
 
 #include "my_dbug.h"
-#include "sql_class.h"           // MYSQL_HANDLERTON_INTERFACE_VERSION
-#include "sql_plugin.h"
+#include "sql/sql_class.h"       // MYSQL_HANDLERTON_INTERFACE_VERSION
+#include "sql/sql_plugin.h"
 #include "typelib.h"
 
 static handler *example_create_handler(handlerton *hton,

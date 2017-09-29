@@ -27,9 +27,9 @@
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/udf_registration_types.h"
-#include "sql_list.h"                      // List
-#include "sql_plugin_ref.h"                // plugin_ref
-#include "thr_malloc.h"
+#include "sql/sql_list.h"                  // List
+#include "sql/sql_plugin_ref.h"            // plugin_ref
+#include "sql/thr_malloc.h"
 
 class Master_info;
 class String;

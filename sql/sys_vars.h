@@ -30,12 +30,7 @@
 #include <string.h>
 #include <sys/types.h>
 
-#include "debug_sync.h"           // debug_sync_update
-#include "handler.h"
-#include "item.h"                 // Item
-#include "key.h"
 #include "keycache.h"             // dflt_key_cache
-#include "keycaches.h"            // default_key_cache_base
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "my_base.h"
@@ -49,24 +44,29 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "mysqld.h"               // max_system_variables
 #include "mysqld_error.h"
-#include "rpl_gtid.h"
-#include "set_var.h"              // sys_var_chain
-#include "sql_admin.h"
-#include "sql_class.h"            // THD
-#include "sql_connect.h"
-#include "sql_const.h"
-#include "sql_error.h"
-#include "sql_plugin.h"           // my_plugin_lock_by_name
-#include "sql_plugin_ref.h"
-#include "sql_security_ctx.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/debug_sync.h"       // debug_sync_update
+#include "sql/handler.h"
+#include "sql/item.h"             // Item
+#include "sql/key.h"
+#include "sql/keycaches.h"        // default_key_cache_base
+#include "sql/mysqld.h"           // max_system_variables
+#include "sql/rpl_gtid.h"
+#include "sql/set_var.h"          // sys_var_chain
+#include "sql/sql_admin.h"
+#include "sql/sql_class.h"        // THD
+#include "sql/sql_connect.h"
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_plugin.h"       // my_plugin_lock_by_name
+#include "sql/sql_plugin_ref.h"
+#include "sql/strfunc.h"          // find_type
+#include "sql/sys_vars_resource_mgr.h"
+#include "sql/sys_vars_shared.h"  // throw_bounds_warning
+#include "sql/tztime.h"           // Time_zone
 #include "sql_string.h"
-#include "strfunc.h"              // find_type
-#include "sys_vars_resource_mgr.h"
-#include "sys_vars_shared.h"      // throw_bounds_warning
 #include "typelib.h"
-#include "tztime.h"               // Time_zone
 
 class Sys_var_bit;
 class Sys_var_bool;
@@ -112,6 +112,7 @@ template <typename T, ulong ARGT, enum enum_mysql_show_type SHOWT, bool SIGNED> 
 #define READ_ONLY sys_var::READONLY+
 #define NOT_VISIBLE sys_var::INVISIBLE+
 #define UNTRACKED_DEFAULT sys_var::TRI_LEVEL+
+#define HINT_UPDATEABLE sys_var::HINT_UPDATEABLE+
 // this means that Sys_var_charptr initial value was malloc()ed
 #define PREALLOCATED sys_var::ALLOCATED+
 #define NON_PERSIST sys_var::NOTPERSIST+
@@ -668,6 +669,15 @@ end:
       res= var->value->val_str(&str);
       if (!res)
         DBUG_RETURN(true);
+
+      /* Check if the value is a valid string. */
+      size_t valid_len;
+      bool len_error;
+      if (validate_string(system_charset_info, res->ptr(),
+                          res->length(),
+                          &valid_len, &len_error))
+        DBUG_RETURN(true);
+
       int value= find_value(res->ptr());
       if (value == -1)
         DBUG_RETURN(true);

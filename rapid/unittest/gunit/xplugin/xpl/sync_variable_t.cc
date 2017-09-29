@@ -14,8 +14,9 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include <gtest/gtest.h>
-#include <ngs/thread.h>
 #include <stddef.h>
+
+#include "plugin/x/ngs/include/ngs/thread.h"
 
 namespace ngs
 {

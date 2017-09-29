@@ -25,20 +25,20 @@
 #include <string.h>
 #include <sys/types.h>
 
-#include "item.h"
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "mysql/udf_registration_types.h"
-#include "records.h"               // READ_RECORD
+#include "sql/item.h"
 #include "sql/opt_trace.h"
-#include "sql_alloc.h"
-#include "sql_class.h"             // THD
-#include "sql_lex.h"
-#include "sql_opt_exec_shared.h"   // QEP_shared_owner
-#include "sql_select.h"
-#include "table.h"
-#include "temp_table_param.h"      // Temp_table_param
+#include "sql/records.h"           // READ_RECORD
+#include "sql/sql_alloc.h"
+#include "sql/sql_class.h"         // THD
+#include "sql/sql_lex.h"
+#include "sql/sql_opt_exec_shared.h" // QEP_shared_owner
+#include "sql/sql_select.h"
+#include "sql/table.h"
+#include "sql/temp_table_param.h"  // Temp_table_param
 
 class Field;
 class Field_longlong;
@@ -188,7 +188,6 @@ public:
   Temp_table_param table_param; ///< The temptable and its related info
   TABLE *table;                 ///< Reference to temporary table
 };
-
 
 
 /**
@@ -378,6 +377,7 @@ int join_read_first(QEP_TAB *tab);
 int join_read_last(QEP_TAB *tab);
 int join_read_last_key(QEP_TAB *tab);
 int join_materialize_derived(QEP_TAB *tab);
+int join_materialize_table_function(QEP_TAB *tab);
 int join_materialize_semijoin(QEP_TAB *tab);
 int join_read_prev_same(READ_RECORD *info);
 
@@ -422,6 +422,7 @@ public:
     found(false),
     not_null_compl(false),
     first_unmatched(NO_PLAN_IDX),
+    rematerialize(false),
     materialize_table(NULL),
     read_first_record(NULL),
     next_select(NULL),
@@ -616,6 +617,9 @@ public:
   bool not_null_compl;
 
   plan_idx first_unmatched; /**< used for optimization purposes only   */
+
+  /// Dependent table functions have to be materialized on each new scan
+  bool rematerialize;
 
   READ_RECORD::Setup_func materialize_table;
   /**

@@ -18,9 +18,9 @@ TempTable C++ unit tests hooked inside CREATE TABLE. */
 #ifndef TEMPTABLE_TEST_H
 #define TEMPTABLE_TEST_H
 
-#include "handler.h"
 #include "my_dbug.h" /* DBUG_OFF */
-#include "table.h"
+#include "sql/handler.h"
+#include "sql/table.h"
 
 #if defined(HAVE_SYS_RESOURCE_H) && defined(HAVE_SYS_TIME_H) && \
     defined(HAVE_SYS_TYPES_H)

@@ -16,6 +16,9 @@
 #ifndef XCOM_INTERFACE_H
 #define XCOM_INTERFACE_H
 
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/site_struct.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_cache.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif

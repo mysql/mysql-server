@@ -21,10 +21,11 @@
 #define _NGS_CLIENT_LIST_H_
 
 #include <algorithm>
-#include <vector>
 #include <list>
-#include <ngs/thread.h>
-#include <ngs/interface/client_interface.h>
+#include <vector>
+
+#include "plugin/x/ngs/include/ngs/interface/client_interface.h"
+#include "plugin/x/ngs/include/ngs/thread.h"
 
 namespace ngs
 {

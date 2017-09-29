@@ -23,9 +23,9 @@
 #include <list>
 #include <new>
 
-#include "ngs/log.h"
-#include "ngs/memory.h"
-#include "ngs/protocol/page_pool.h"
+#include "plugin/x/ngs/include/ngs/log.h"
+#include "plugin/x/ngs/include/ngs/memory.h"
+#include "plugin/x/ngs/include/ngs/protocol/page_pool.h"
 
 using namespace ngs;
 

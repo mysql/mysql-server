@@ -13,13 +13,14 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include <gtest/gtest.h>
-#include <gmock/gmock.h>
-
-#include "ngs/memory.h"
-#include "ngs/ngs_error.h"
-#include "mock/capabilities.h"
 #include "my_config.h"
+
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
+#include "plugin/x/ngs/include/ngs/memory.h"
+#include "plugin/x/ngs/include/ngs/ngs_error.h"
+#include "unittest/gunit/xplugin/xpl/mock/capabilities.h"
 
 const int   NUMBER_OF_HANDLERS = 4;
 const char* NAMES[NUMBER_OF_HANDLERS] = {

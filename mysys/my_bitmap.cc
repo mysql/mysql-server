@@ -48,7 +48,7 @@
 #include "my_sys.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysys_priv.h"
+#include "mysys/mysys_priv.h"
 #include "thr_mutex.h"
 
 void create_last_word_mask(MY_BITMAP *map)

@@ -15,9 +15,9 @@
 
 /* Read a record from a random position */
 
-#include "heapdef.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "storage/heap/heapdef.h"
 
 /*
 	   Returns one of following values:

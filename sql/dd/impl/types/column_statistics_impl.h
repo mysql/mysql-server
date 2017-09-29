@@ -20,19 +20,19 @@
 #include <algorithm>
 #include <new>
 
-#include "dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
-#include "dd/object_id.h"                     // dd::Object_id
-#include "dd/sdi_fwd.h"
-#include "dd/string_type.h"
-#include "dd/types/column_statistics.h"        // dd::Column_statistics
-#include "dd/types/entity_object_table.h"     // dd::Entity_object_table
-#include "dd/types/object_type.h"             // dd::Object_type
-#include "histograms/histogram.h"
 #include "mem_root_fwd.h"
 #include "my_alloc.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "psi_memory_key.h"                   // key_memory_DD_column_statistics
+#include "sql/dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
+#include "sql/dd/object_id.h"                 // dd::Object_id
+#include "sql/dd/sdi_fwd.h"
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/column_statistics.h"    // dd::Column_statistics
+#include "sql/dd/types/entity_object_table.h" // dd::Entity_object_table
+#include "sql/dd/types/object_type.h"         // dd::Object_type
+#include "sql/histograms/histogram.h"
+#include "sql/psi_memory_key.h"               // key_memory_DD_column_statistics
 
 class THD;
 

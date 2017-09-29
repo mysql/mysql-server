@@ -376,7 +376,7 @@ ERROR HY000: Tablespace has been discarded for table 't1'
 restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,ib_import_internal_error";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: Internal error: While updating the <space, root page number> of index GEN_CLUST_INDEX - Generic error
+ERROR HY000: Internal error: While importing table test_wl5522/t1
 SET SESSION debug="-d,ib_import_internal_error";
 restore: t1 .ibd and .cfg files
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;

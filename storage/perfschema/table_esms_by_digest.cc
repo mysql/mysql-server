@@ -23,17 +23,17 @@
 
 #include <stddef.h>
 
-#include "field.h"
 #include "my_dbug.h"
 #include "my_thread.h"
-#include "pfs_column_types.h"
-#include "pfs_column_values.h"
-#include "pfs_digest.h"
-#include "pfs_global.h"
-#include "pfs_instr.h"
-#include "pfs_instr_class.h"
-#include "pfs_timer.h"
-#include "pfs_visitor.h"
+#include "sql/field.h"
+#include "storage/perfschema/pfs_column_types.h"
+#include "storage/perfschema/pfs_column_values.h"
+#include "storage/perfschema/pfs_digest.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_instr.h"
+#include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/pfs_timer.h"
+#include "storage/perfschema/pfs_visitor.h"
 
 THR_LOCK table_esms_by_digest::m_table_lock;
 
@@ -44,7 +44,7 @@ Plugin_table table_esms_by_digest::m_table_def(
   "events_statements_summary_by_digest",
   /* Definition */
   "  SCHEMA_NAME VARCHAR(64),\n"
-  "  DIGEST VARCHAR(32),\n"
+  "  DIGEST VARCHAR(64),\n"
   "  DIGEST_TEXT LONGTEXT,\n"
   "  COUNT_STAR BIGINT unsigned not null,\n"
   "  SUM_TIMER_WAIT BIGINT unsigned not null,\n"
@@ -70,11 +70,14 @@ Plugin_table table_esms_by_digest::m_table_def(
   "  SUM_SORT_SCAN BIGINT unsigned not null,\n"
   "  SUM_NO_INDEX_USED BIGINT unsigned not null,\n"
   "  SUM_NO_GOOD_INDEX_USED BIGINT unsigned not null,\n"
-  "  FIRST_SEEN TIMESTAMP(0) NOT NULL default 0,\n"
-  "  LAST_SEEN TIMESTAMP(0) NOT NULL default 0,\n"
+  "  FIRST_SEEN TIMESTAMP(6) NOT NULL default 0,\n"
+  "  LAST_SEEN TIMESTAMP(6) NOT NULL default 0,\n"
   "  QUANTILE_95 BIGINT unsigned not null,\n"
   "  QUANTILE_99 BIGINT unsigned not null,\n"
   "  QUANTILE_999 BIGINT unsigned not null,\n"
+  "  QUERY_SAMPLE_TEXT LONGTEXT,\n"
+  "  QUERY_SAMPLE_SEEN TIMESTAMP(6) NOT NULL default 0,\n"
+  "  QUERY_SAMPLE_TIMER_WAIT BIGINT unsigned NOT NULL,\n"
   "  UNIQUE KEY (SCHEMA_NAME, DIGEST) USING HASH\n",
   /* Options */
   " ENGINE=PERFORMANCE_SCHEMA",
@@ -136,6 +139,7 @@ table_esms_by_digest::get_row_count(void)
 table_esms_by_digest::table_esms_by_digest()
   : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0)
 {
+  m_normalizer = time_normalizer::get_statement();
 }
 
 void
@@ -245,8 +249,7 @@ table_esms_by_digest::make_row(PFS_statements_digest_stat *digest_stat)
   /*
     Get statements stats.
   */
-  time_normalizer *normalizer = time_normalizer::get(statement_timer);
-  m_row.m_stat.set(normalizer, &digest_stat->m_stat);
+  m_row.m_stat.set(m_normalizer, &digest_stat->m_stat);
 
   PFS_histogram *histogram = &digest_stat->m_histogram;
 
@@ -313,6 +316,16 @@ table_esms_by_digest::make_row(PFS_statements_digest_stat *digest_stat)
     m_row.m_p999 = g_histogram_pico_timers.m_bucket_timer[index_999 + 1];
   }
 
+  /* Format the query sample sqltext string for output. */
+  format_sqltext(digest_stat->m_query_sample,
+                 digest_stat->m_query_sample_length,
+                 get_charset(digest_stat->m_query_sample_cs_number, MYF(0)),
+                 digest_stat->m_query_sample_truncated,
+                 m_row.m_query_sample);
+
+  m_row.m_query_sample_seen = digest_stat->m_query_sample_seen;
+  m_row.m_query_sample_timer_wait =
+    m_normalizer->wait_to_pico(digest_stat->m_query_sample_timer_wait);
   return 0;
 }
 
@@ -356,6 +369,23 @@ table_esms_by_digest::read_row_values(TABLE *table,
         break;
       case 31: /* QUANTILE_999 */
         set_field_ulonglong(f, m_row.m_p999);
+        break;
+      case 32: /* QUERY_SAMPLE_TEXT */
+        if (m_row.m_query_sample.length())
+          set_field_text(f,
+                         m_row.m_query_sample.ptr(),
+                         m_row.m_query_sample.length(),
+                         m_row.m_query_sample.charset());
+        else
+        {
+          f->set_null();
+        }
+        break;
+      case 33: /* QUERY_SAMPLE_SEEN */
+        set_field_timestamp(f, m_row.m_query_sample_seen);
+        break;
+      case 34: /* QUERY_SAMPLE_TIMER_WAIT */
+        set_field_ulonglong(f, m_row.m_query_sample_timer_wait);
         break;
       default: /* 3, ... COUNT/SUM/MIN/AVG/MAX */
         m_row.m_stat.set_field(f->field_index - 3, f);

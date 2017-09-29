@@ -31,7 +31,7 @@
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/psi_memory.h"  // IWYU pragma: keep
 #include "mysql/service_mysql_alloc.h"
-#include "vio_priv.h"
+#include "vio/vio_priv.h"
 
 #ifdef HAVE_OPENSSL
 PSI_memory_key key_memory_vio_ssl_fd;
@@ -44,11 +44,11 @@ PSI_memory_key key_memory_vio_read_buffer;
 static PSI_memory_info all_vio_memory[]=
 {
 #ifdef HAVE_OPENSSL
-  {&key_memory_vio_ssl_fd, "ssl_fd", 0},
+  {&key_memory_vio_ssl_fd, "ssl_fd", 0, 0, PSI_DOCUMENT_ME},
 #endif
 
-  {&key_memory_vio, "vio", 0},
-  {&key_memory_vio_read_buffer, "read_buffer", 0},
+  {&key_memory_vio, "vio", 0, 0, PSI_DOCUMENT_ME},
+  {&key_memory_vio_read_buffer, "read_buffer", 0, 0, PSI_DOCUMENT_ME},
 };
 
 void init_vio_psi_keys()

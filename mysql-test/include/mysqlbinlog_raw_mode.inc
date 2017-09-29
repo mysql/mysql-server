@@ -367,22 +367,22 @@ flush logs;
 let $MYSQLD_DATADIR= `select @@datadir`;
 
 # Test reading one file in raw mode
---exec $MYSQL_BINLOG --raw --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT --result-file=$MYSQLTEST_VARDIR/tmp/ master-bin.000001
---diff_files $MYSQLTEST_VARDIR/tmp/master-bin.000001 $MYSQLD_DATADIR/master-bin.000001
---remove_file $MYSQLTEST_VARDIR/tmp/master-bin.000001
+--exec $MYSQL_BINLOG --raw --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT --result-file=$MYSQLTEST_VARDIR/tmp/ binlog.000001
+--diff_files $MYSQLTEST_VARDIR/tmp/binlog.000001 $MYSQLD_DATADIR/binlog.000001
+--remove_file $MYSQLTEST_VARDIR/tmp/binlog.000001
 
 # Test reading all files in raw mode
 # Don't test the end file since this is still open with mysqld so will be different
---exec $MYSQL_BINLOG --raw --read-from-remote-server --to-last-log --user=root --host=127.0.0.1 --port=$MASTER_MYPORT --result-file=$MYSQLTEST_VARDIR/tmp/ master-bin.000001
---diff_files $MYSQLTEST_VARDIR/tmp/master-bin.000001 $MYSQLD_DATADIR/master-bin.000001
---diff_files $MYSQLTEST_VARDIR/tmp/master-bin.000002 $MYSQLD_DATADIR/master-bin.000002
+--exec $MYSQL_BINLOG --raw --read-from-remote-server --to-last-log --user=root --host=127.0.0.1 --port=$MASTER_MYPORT --result-file=$MYSQLTEST_VARDIR/tmp/ binlog.000001
+--diff_files $MYSQLTEST_VARDIR/tmp/binlog.000001 $MYSQLD_DATADIR/binlog.000001
+--diff_files $MYSQLTEST_VARDIR/tmp/binlog.000002 $MYSQLD_DATADIR/binlog.000002
 
---remove_file $MYSQLTEST_VARDIR/tmp/master-bin.000001
---remove_file $MYSQLTEST_VARDIR/tmp/master-bin.000002
---remove_file $MYSQLTEST_VARDIR/tmp/master-bin.000003
+--remove_file $MYSQLTEST_VARDIR/tmp/binlog.000001
+--remove_file $MYSQLTEST_VARDIR/tmp/binlog.000002
+--remove_file $MYSQLTEST_VARDIR/tmp/binlog.000003
 
 
 # Test output to different filename
---exec $MYSQL_BINLOG --raw --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT --result-file=$MYSQLTEST_VARDIR/tmp/server1- master-bin.000001
---diff_files $MYSQLTEST_VARDIR/tmp/server1-master-bin.000001 $MYSQLD_DATADIR/master-bin.000001
---remove_file $MYSQLTEST_VARDIR/tmp/server1-master-bin.000001
+--exec $MYSQL_BINLOG --raw --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT --result-file=$MYSQLTEST_VARDIR/tmp/server1- binlog.000001
+--diff_files $MYSQLTEST_VARDIR/tmp/server1-binlog.000001 $MYSQLD_DATADIR/binlog.000001
+--remove_file $MYSQLTEST_VARDIR/tmp/server1-binlog.000001

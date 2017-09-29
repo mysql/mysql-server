@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "sql_service_context_base.h"
+#include "plugin/group_replication/include/sql_service/sql_service_context_base.h"
 
 const st_command_service_cbs Sql_service_context_base::sql_service_callbacks = {
   &Sql_service_context_base::sql_start_result_metadata,

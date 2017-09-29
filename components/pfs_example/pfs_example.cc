@@ -11,7 +11,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/services/mysql_mutex.h>
@@ -32,6 +32,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 #include <mysql/components/services/psi_thread.h>
 #include <mysql/components/services/psi_transaction.h>
 
+// FIXME: need to be visible in include
+#include <mysql/psi/psi_base.h>
+
 /* Mutex */
 
 static PSI_mutex_key key_mutex_x = 0;
@@ -39,8 +42,8 @@ static PSI_mutex_key key_mutex_y = 0;
 
 static PSI_mutex_info all_example_mutex[]=
 {
-  { &key_mutex_x, "X", 0, 0},
-  { &key_mutex_y, "Y", 0, 0}
+  { &key_mutex_x, "X", PSI_FLAG_SINGLETON, PSI_VOLATILITY_PERMANENT, "Example doc, permanent mutex, singleton."},
+  { &key_mutex_y, "Y", 0, PSI_VOLATILITY_QUERY, "Example doc, very volatile mutexes."}
 };
 
 static mysql_mutex_t my_mutex_x;
@@ -53,8 +56,8 @@ static PSI_mutex_key key_mutex_t = 0;
 
 static PSI_mutex_info all_example_psi_mutex[]=
 {
-  { &key_mutex_z, "Z", 0, 0},
-  { &key_mutex_t, "T", 0, 0}
+  { &key_mutex_z, "Z", PSI_FLAG_SINGLETON, PSI_VOLATILITY_PROVISIONING, "Another example."},
+  { &key_mutex_t, "T", 0, PSI_VOLATILITY_DDL, "And more."}
 };
 
 static PSI_mutex *psi_mutex_z;
@@ -69,10 +72,10 @@ static PSI_rwlock_key key_prlock_t = 0;
 
 static PSI_rwlock_info all_example_rwlock[]=
 {
-  { &key_rwlock_x, "X", 0},
-  { &key_rwlock_y, "Y", 0},
-  { &key_prlock_z, "Z", 0},
-  { &key_prlock_t, "T", 0}
+  { &key_rwlock_x, "X", 0, 0, ""},
+  { &key_rwlock_y, "Y", 0, 0, ""},
+  { &key_prlock_z, "Z", 0, 0, ""},
+  { &key_prlock_t, "T", 0, 0, ""}
 };
 
 static mysql_rwlock_t my_rwlock_x;
@@ -87,8 +90,8 @@ static PSI_rwlock_key key_rwlock_s2 = 0;
 
 static PSI_rwlock_info all_example_psi_rwlock[]=
 {
-  { &key_rwlock_s1, "S1", PSI_RWLOCK_FLAG_SX},
-  { &key_rwlock_s2, "S2", PSI_RWLOCK_FLAG_SX}
+  { &key_rwlock_s1, "S1", PSI_FLAG_RWLOCK_SX, 0, ""},
+  { &key_rwlock_s2, "S2", PSI_FLAG_RWLOCK_SX, 0, ""}
 };
 
 static PSI_rwlock *psi_rwlock_s1;
@@ -101,8 +104,8 @@ static PSI_cond_key key_cond_y = 0;
 
 static PSI_cond_info all_example_cond[]=
 {
-  { &key_cond_x, "X", 0},
-  { &key_cond_y, "Y", 0}
+  { &key_cond_x, "X", 0, 0, ""},
+  { &key_cond_y, "Y", 0, 0, ""}
 };
 
 static mysql_cond_t my_cond_x;

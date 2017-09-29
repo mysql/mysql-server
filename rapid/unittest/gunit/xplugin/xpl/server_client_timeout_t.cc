@@ -13,11 +13,11 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
-#include "mock/session.h"
-#include "ngs/server_client_timeout.h"
+#include "plugin/x/ngs/include/ngs/server_client_timeout.h"
+#include "unittest/gunit/xplugin/xpl/mock/session.h"
 
 
 namespace ngs

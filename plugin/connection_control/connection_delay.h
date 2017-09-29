@@ -16,17 +16,16 @@
 #ifndef CONNECTION_DELAY_H
 #define CONNECTION_DELAY_H
 
+#include <mysql_com.h>                  /* USERNAME_LENGTH */
 #include <atomic>
 
-#include <lf.h>                         /* LF Hash */
-#include <mysql_com.h>                  /* USERNAME_LENGTH */
-
-#include "connection_control_data.h"    /* variables and status */
-#include "connection_control_interfaces.h" /* Observer interface */
-#include "connection_control_memory.h"  /* Connection_control_alloc */
-#include "connection_delay_api.h"       /* Constants */
+#include "lf.h"                         /* LF Hash */
 #include "my_inttypes.h"
-#include "table.h"                      /* TABLE_LIST */
+#include "plugin/connection_control/connection_control_data.h" /* variables and status */
+#include "plugin/connection_control/connection_control_interfaces.h" /* Observer interface */
+#include "plugin/connection_control/connection_control_memory.h" /* Connection_control_alloc */
+#include "plugin/connection_control/connection_delay_api.h" /* Constants */
+#include "sql/table.h"                  /* TABLE_LIST */
 
 namespace connection_control
 {

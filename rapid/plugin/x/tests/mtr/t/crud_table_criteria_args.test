@@ -848,7 +848,7 @@ Mysqlx.Crud.Update {
   }
 }
 
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->sql
@@ -901,7 +901,7 @@ Mysqlx.Crud.Update {
       }
    }
 }
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->sql

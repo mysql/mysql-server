@@ -12,7 +12,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql_security_ctx.h"
+#include "sql/auth/sql_security_ctx.h"
 
 #include <map>
 #include <string>
@@ -22,11 +22,6 @@
 #include <utility>
 #include <vector>
 
-#include "auth_acls.h"
-#include "auth_common.h"
-#include "auth_internal.h"
-#include "current_thd.h"
-#include "key.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -34,11 +29,16 @@
 #include "mysql/mysql_lex_string.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysqld.h"
 #include "mysqld_error.h"
-#include "sql_auth_cache.h"
-#include "sql_authorization.h"
-#include "sql_class.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h"
+#include "sql/auth/auth_internal.h"
+#include "sql/auth/sql_auth_cache.h"
+#include "sql/auth/sql_authorization.h"
+#include "sql/current_thd.h"
+#include "sql/key.h"
+#include "sql/mysqld.h"
+#include "sql/sql_class.h"
 
 void Security_context::init()
 {
@@ -284,6 +284,11 @@ int Security_context::activate_role(LEX_CSTRING role,
                                     LEX_CSTRING role_host,
                                     bool validate_access)
 {
+  auto res= std::find(m_active_roles.begin(), m_active_roles.end(),
+                      create_authid_from(role, role_host));
+  /* silently ignore requests of activating an already active role */
+  if (res != m_active_roles.end())
+    return 0;
   LEX_CSTRING dup_role= {my_strdup(PSI_NOT_INSTRUMENTED, role.str, MYF(MY_WME)),
                          role.length};
   LEX_CSTRING dup_role_host= {my_strdup(PSI_NOT_INSTRUMENTED, role_host.str,

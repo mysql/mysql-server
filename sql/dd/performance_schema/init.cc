@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "init.h"
+#include "sql/init.h"
 
 #include <sys/types.h>
 #include <list>
@@ -22,34 +22,34 @@
 #include <string>
 #include <vector>
 
-#include "bootstrap.h"                     // bootstrap::run_bootstrap_thread
-#include "dd/cache/dictionary_client.h"    // dd::cache::Dictionary_client
-#include "dd/dd.h"                         // enum_dd_init_type
-#include "dd/dd_schema.h"                  // dd::schema_exists
-#include "dd/dd_table.h"                   // dd::table_exists
-#include "dd/impl/bootstrapper.h"          // execute_query
-#include "dd/impl/dictionary_impl.h"       // dd::Dictionary_impl
-#include "dd/impl/system_registry.h"       // dd::System_tables
-#include "dd/impl/tables/dd_properties.h"  // dd::tables::UNKNOWN_P_S_VERSION
-#include "dd/impl/types/plugin_table_impl.h"  // dd::Plugin_table_impl
-#include "dd/properties.h"                 // dd::Properties
-#include "dd/string_type.h"
-#include "dd/types/object_table.h"
-#include "dd/types/object_table_definition.h"
-#include "dd/types/table.h"
-#include "derror.h"
-#include "handler.h"                       // Plugin_table
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "mysql/thread_type.h"
-#include "set_var.h"
-#include "sql_class.h"                     // THD
-#include "sql_list.h"
-#include "sql_security_ctx.h"
-#include "stateless_allocator.h"
-#include "system_variables.h"
-#include "table.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/bootstrap.h"                 // bootstrap::run_bootstrap_thread
+#include "sql/dd/cache/dictionary_client.h" // dd::cache::Dictionary_client
+#include "sql/dd/dd.h"                     // enum_dd_init_type
+#include "sql/dd/dd_schema.h"              // dd::schema_exists
+#include "sql/dd/dd_table.h"               // dd::table_exists
+#include "sql/dd/impl/bootstrapper.h"      // execute_query
+#include "sql/dd/impl/dictionary_impl.h"   // dd::Dictionary_impl
+#include "sql/dd/impl/system_registry.h"   // dd::System_tables
+#include "sql/dd/impl/tables/dd_properties.h" // dd::tables::UNKNOWN_P_S_VERSION
+#include "sql/dd/impl/types/plugin_table_impl.h" // dd::Plugin_table_impl
+#include "sql/dd/properties.h"             // dd::Properties
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/object_table.h"
+#include "sql/dd/types/object_table_definition.h"
+#include "sql/dd/types/table.h"
+#include "sql/derror.h"
+#include "sql/handler.h"                   // Plugin_table
+#include "sql/set_var.h"
+#include "sql/sql_class.h"                 // THD
+#include "sql/sql_list.h"
+#include "sql/stateless_allocator.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
 
 namespace dd {
 class Schema;
@@ -293,6 +293,10 @@ bool initialize_pfs(THD *thd)
       check_perf_schema_has_correct_version(thd))
     return false;
 
+  /*
+    Stop server restart if P_S version is changed and the server is
+    started with DDSE in read-only mode.
+  */
   if (check_if_server_ddse_readonly(thd, PERFORMANCE_SCHEMA_DB_NAME.str))
     return true;
 

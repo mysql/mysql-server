@@ -1,0 +1,87 @@
+# ==== Requirements ====
+#
+# When a table has generated columns depending on a JSON column,
+# replication should work correctly when there are partial updates
+# of the JSON column.
+#
+# ==== References ====
+#
+# - Implemented in WL#2955 RBR replication of partial JSON updates
+# - See also rpl_row_jsondiff_error for violations of slave-only constraints
+#   on generated columns.
+
+#--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+--echo ######## Configure ########
+
+--let $replace_combination_from= BOTH.BINLOG_FORMAT=ROW,MIXED,STATEMENT
+--let $replace_combination_to= GLOBAL.SLAVE_ROWS_SEARCH_ALGORITHMS=INDEX_SCAN,HASH_SCAN,TABLE_SCAN
+--source include/rpl_connection_master.inc
+--source include/begin_replace_combination.inc
+SET @old_binlog_row_image= @@SESSION.BINLOG_ROW_IMAGE;
+SET @old_binlog_row_value_options= @@SESSION.BINLOG_ROW_VALUE_OPTIONS;
+SET @@SESSION.BINLOG_ROW_IMAGE= MINIMAL;
+SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS= PARTIAL_JSON;
+
+--source include/rpl_connection_slave.inc
+--source include/begin_replace_combination.inc
+SET @old_binlog_row_image= @@GLOBAL.BINLOG_ROW_IMAGE;
+SET @old_binlog_row_value_options= @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS;
+SET @@GLOBAL.BINLOG_ROW_IMAGE= MINIMAL;
+SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= PARTIAL_JSON;
+--source include/stop_slave.inc
+--source include/start_slave.inc
+
+--echo ######## Initialize ########
+
+--source include/rpl_connection_master.inc
+
+CREATE TABLE t (i INT, j JSON,
+                v VARCHAR(256) AS (JSON_PRETTY(j)) VIRTUAL,
+                s VARCHAR(256) AS (JSON_PRETTY(j)) STORED);
+
+INSERT INTO t (j) VALUES ('[{"a":"abc"},{"b":"abcd"}]'),
+                         ('{"key":[{"key":"value"},{"key":"value2"}]}');
+
+--echo ######## Test ########
+
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_connection_master.inc
+--let $diff_tables= master:t, slave:t
+--source include/diff_tables.inc
+
+UPDATE t SET j= JSON_REPLACE(j, '$[0].a',"a");
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_master.inc
+--let $diff_tables= master:t, slave:t
+--source include/diff_tables.inc
+
+UPDATE t SET j= JSON_SET(j, '$.key[0]', "a");
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_master.inc
+--let $diff_tables= master:t, slave:t
+--source include/diff_tables.inc
+
+UPDATE t SET j= JSON_REMOVE(j, '$.key[0].key');
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_master.inc
+--let $diff_tables= master:t, slave:t
+--source include/diff_tables.inc
+
+--echo ######## Clean up ########
+
+DROP TABLE t;
+SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS= @old_binlog_row_value_options;
+SET @@SESSION.BINLOG_ROW_IMAGE= @old_binlog_row_image;
+--source include/end_replace_combination.inc
+
+--source include/sync_slave_sql_with_master.inc
+SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= @old_binlog_row_value_options;
+SET @@GLOBAL.BINLOG_ROW_IMAGE= @old_binlog_row_image;
+--source include/end_replace_combination.inc
+
+--source include/rpl_end.inc

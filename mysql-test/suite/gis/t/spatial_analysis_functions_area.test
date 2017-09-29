@@ -257,12 +257,6 @@ SELECT ST_AREA(ST_GEOMFROMTEXT(@star_all_points,-1));
 
 SELECT ST_AREA(ST_GEOMFROMTEXT(@star_top_to_center,0));
 
-SELECT ST_AREA(ST_GEOMFROMTEXT(@star_lines_near_vertical,1000));
-
-SELECT ST_AREA(ST_GEOMFROMTEXT(@star,123456789));
-
-SELECT ST_AREA(ST_GEOMFROMTEXT(@star_elem_vertical,4294967295));
-
 --error ER_DATA_OUT_OF_RANGE
 SELECT ST_AREA(ST_GEOMFROMTEXT(@star_of_elems,4294967296));
 
@@ -386,10 +380,6 @@ SELECT ST_AREA(ST_GEOMFROMTEXT('POINT(0 0)', 2000));
 
 --echo # Geographic SRS (should pass)
 SELECT ST_AREA(ST_GEOMFROMTEXT('POINT(0 0)', 4326));
-
---echo # Undefined SRS (should pass with warning)
-# Assume SRID 5000000 is undefined
-SELECT ST_AREA(ST_GEOMFROMTEXT('POINT(0 0)', 5000000));
 
 --echo # Unparseable SRS definition (should fail)
 # Assume SRID 5000001 is undefined

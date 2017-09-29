@@ -25,12 +25,11 @@
 ///
 /// @see gis::distance
 
+#include <boost/geometry.hpp>
 #include <memory>  // std::unique_ptr
 
-#include <boost/geometry.hpp>
-
-#include "functor.h"
-#include "geometries.h"
+#include "sql/gis/functor.h"
+#include "sql/gis/geometries.h"
 
 namespace gis {
 

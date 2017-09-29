@@ -26,17 +26,10 @@
 #include <utility>          // std::forward
 
 #include "binary_log_types.h"
-#include "enum_query_type.h"
-#include "item.h"           // Item_result_field
-#include "item_create.h"
-#include "item_func.h"      // Item_int_func
-#include "json_dom.h"       // Json_wrapper
 #include "m_ctype.h"
 #include "m_string.h"
-#include "mem_root_array.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_sys.h"
@@ -47,21 +40,28 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "parse_tree_node_base.h"
-#include "parse_tree_nodes.h" // PT_window
-#include "session_tracker.h"
-#include "sql_alloc.h"      // Sql_alloc
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_parse.h"
+#include "sql/enum_query_type.h"
+#include "sql/histograms/value_map.h"
+#include "sql/item.h"       // Item_result_field
+#include "sql/item_create.h"
+#include "sql/item_func.h"  // Item_int_func
+#include "sql/json_dom.h"   // Json_wrapper
+#include "sql/mem_root_array.h"
+#include "sql/my_decimal.h"
+#include "sql/parse_tree_node_base.h"
+#include "sql/parse_tree_nodes.h" // PT_window
+#include "sql/session_tracker.h"
+#include "sql/sql_alloc.h"  // Sql_alloc
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_parse.h"
+#include "sql/sql_udf.h"    // udf_handler
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/window.h"
+#include "sql/window_lex.h"
 #include "sql_string.h"
-#include "sql_udf.h"        // udf_handler
-#include "system_variables.h"
-#include "table.h"
 #include "template_utils.h"
-#include "value_map.h"
-#include "window.h"
-#include "window_lex.h"
 
 class Field;
 class Item_sum;
@@ -581,7 +581,6 @@ public:
     used_tables_cache= 0; 
     forced_const= true;
   }
-  bool const_item() const override { return forced_const; }
   void print(String *str, enum_query_type query_type) override;
   void fix_num_length_and_dec();
   bool eq(const Item *item, bool binary_cmp) const override;
@@ -717,6 +716,18 @@ public:
     @return true if case two above holds, else false
   */
   bool wf_common_init();
+
+protected:
+  /*
+    Raise an error (ER_NOT_SUPPORTED_YET) with the detail that this
+    function is not yet supported as a window function.
+  */
+  void unsupported_as_wf()
+  {
+    char buff[STRING_BUFFER_USUAL_SIZE];
+    my_snprintf(buff, sizeof(buff), "%s as window function", func_name());
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0), buff);
+  }
 };
 
 
@@ -1161,7 +1172,6 @@ public:
   { DBUG_ASSERT(0); return "sum_bit_field"; }
 };
 
-
 /// Common abstraction for Item_sum_json_array and Item_sum_json_object
 class Item_sum_json : public Item_sum
 {
@@ -1206,7 +1216,7 @@ public:
                           Window::Evaluation_requirements *reqs
                             MY_ATTRIBUTE((unused))) override
   {
-    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "this aggregate as window function");
+    unsupported_as_wf();
     return true;
   }
 };
@@ -1671,7 +1681,7 @@ public:
                           Window::Evaluation_requirements *reqs
                             MY_ATTRIBUTE((unused))) override
   {
-    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "this aggregate as window function");
+    unsupported_as_wf();
     return true;
   }
 };
@@ -1941,6 +1951,9 @@ class Item_func_group_concat final : public Item_sum
   /** The number of selected items, aka the expr list. */
   uint arg_count_field;
   uint row_count;
+  /** The maximum permitted result length in bytes as set for
+      group_concat_max_len system variable */
+  uint group_concat_max_len;
   bool distinct;
   bool warning_for_row;
   bool always_null;
@@ -2028,7 +2041,7 @@ public:
                           Window::Evaluation_requirements *reqs
                             MY_ATTRIBUTE((unused))) override
   {
-    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "this aggregate as window function");
+    unsupported_as_wf();
     return true;
   }
 };
@@ -2071,14 +2084,7 @@ public:
   bool add() override { DBUG_ASSERT(false); return false; }
 
   bool fix_fields(THD *thd, Item **items) override;
-  bool const_item() const override
-  {
-    /*
-      Lest it doesn't get copied, cf. create_tmp_table check using const_item:
-      "We don't have to store this"...
-    */
-    return false;
-  }
+
   bool framing() const override { return false; }
 };
 
@@ -2349,15 +2355,6 @@ public:
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
   bool get_time(MYSQL_TIME *ltime) override;
 
-  bool const_item() const override
-  {
-    /*
-      Lest it doesn't get copied, cf. create_tmp_table check using const_item:
-      "We don't have to store this"...
-    */
-    return false;
-  }
-
   bool two_pass() const override
   {
     return true; /* FIXME poss. optimization: m_is_lead; */
@@ -2425,14 +2422,7 @@ public:
   void reset_field() override { DBUG_ASSERT(false); }
   void update_field() override { DBUG_ASSERT(false); }
   bool add() override { DBUG_ASSERT(false); return false; }
-  bool const_item() const override
-  {
-    /*
-      Lest it doesn't get copied, cf. create_tmp_table check using const_item:
-      "We don't have to store this"...
-    */
-    return false;
-  }
+
   void split_sum_func(THD* thd, Ref_item_array ref_item_array,
                       List<Item>& fields) override;
 
@@ -2497,14 +2487,7 @@ public:
   void reset_field() override { DBUG_ASSERT(false); }
   void update_field() override { DBUG_ASSERT(false); }
   bool add() override { DBUG_ASSERT(false); return false; }
-  bool const_item() const override
-  {
-    /*
-      Lest it doesn't get copied, cf. create_tmp_table check using const_item:
-      "We don't have to store this"...
-    */
-    return false;
-  }
+
   void split_sum_func(THD* thd, Ref_item_array ref_item_array,
                       List<Item>& fields) override;
 

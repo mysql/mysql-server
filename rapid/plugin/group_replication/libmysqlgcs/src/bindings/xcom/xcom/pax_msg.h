@@ -16,8 +16,8 @@
 #ifndef PAX_MSG_H
 #define PAX_MSG_H
 
-#include "site_struct.h"
-#include "xcom_vp.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/site_struct.h"
+#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
 
 #ifdef __cplusplus
 extern "C" {

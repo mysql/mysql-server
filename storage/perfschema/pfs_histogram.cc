@@ -18,7 +18,7 @@
   Miscellaneous global dependencies (implementation).
 */
 
-#include "pfs_histogram.h"
+#include "storage/perfschema/pfs_histogram.h"
 
 /**
   Histogram base bucket timer, in picoseconds.

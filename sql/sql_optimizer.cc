@@ -24,7 +24,7 @@
   @{
 */
 
-#include "sql_optimizer.h"
+#include "sql/sql_optimizer.h"
 
 #include "my_config.h"
 
@@ -34,21 +34,8 @@
 #include <new>
 #include <utility>
 
-#include "abstract_query_plan.h" // Join_plan
 #include "binary_log_types.h"
-#include "check_stack.h"
-#include "debug_sync.h"          // DEBUG_SYNC
-#include "derror.h"              // ER_THD
-#include "enum_query_type.h"
 #include "ft_global.h"
-#include "handler.h"
-#include "item_cmpfunc.h"
-#include "item_func.h"
-#include "item_row.h"
-#include "item_sum.h"            // Item_sum
-#include "key.h"
-#include "key_spec.h"
-#include "lock.h"                // mysql_unlock_some_tables
 #include "m_ctype.h"
 #include "my_bit.h"              // my_count_bits
 #include "my_bitmap.h"
@@ -58,30 +45,43 @@
 #include "my_sys.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "mysqld.h"              // stage_optimizing
 #include "mysqld_error.h"
-#include "opt_costmodel.h"
-#include "opt_explain.h"         // join_type_str
-#include "opt_hints.h"           // hint_table_state
-#include "opt_range.h"           // QUICK_SELECT_I
-#include "opt_trace.h"           // Opt_trace_object
-#include "opt_trace_context.h"
-#include "query_options.h"
-#include "query_result.h"
-#include "sql_base.h"            // init_ftfuncs
-#include "sql_bitmap.h"
-#include "sql_const.h"
-#include "sql_error.h"
-#include "sql_join_buffer.h"     // JOIN_CACHE
-#include "sql_planner.h"         // calculate_condition_filter
-#include "sql_resolver.h"        // subquery_allows_materialization
+#include "sql/abstract_query_plan.h" // Join_plan
+#include "sql/check_stack.h"
+#include "sql/debug_sync.h"      // DEBUG_SYNC
+#include "sql/derror.h"          // ER_THD
+#include "sql/enum_query_type.h"
+#include "sql/handler.h"
+#include "sql/item_cmpfunc.h"
+#include "sql/item_func.h"
+#include "sql/item_row.h"
+#include "sql/item_sum.h"        // Item_sum
+#include "sql/key.h"
+#include "sql/key_spec.h"
+#include "sql/lock.h"            // mysql_unlock_some_tables
+#include "sql/mysqld.h"          // stage_optimizing
+#include "sql/opt_costmodel.h"
+#include "sql/opt_explain.h"     // join_type_str
+#include "sql/opt_hints.h"       // hint_table_state
+#include "sql/opt_range.h"       // QUICK_SELECT_I
+#include "sql/opt_trace.h"       // Opt_trace_object
+#include "sql/opt_trace_context.h"
+#include "sql/query_options.h"
+#include "sql/query_result.h"
+#include "sql/sql_base.h"        // init_ftfuncs
+#include "sql/sql_bitmap.h"
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_join_buffer.h" // JOIN_CACHE
+#include "sql/sql_planner.h"     // calculate_condition_filter
+#include "sql/sql_resolver.h"    // subquery_allows_materialization
+#include "sql/sql_test.h"        // print_where
+#include "sql/sql_tmp_table.h"   // get_max_key_and_part_length
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/thr_malloc.h"
+#include "sql/window.h"
 #include "sql_string.h"
-#include "sql_test.h"            // print_where
-#include "sql_tmp_table.h"       // get_max_key_and_part_length
-#include "system_variables.h"
-#include "table.h"
-#include "thr_malloc.h"
-#include "window.h"
 
 using std::max;
 using std::min;
@@ -403,7 +403,7 @@ JOIN::optimize()
         conjunctions.
         Preserve conditions for EXPLAIN.
       */
-      if (where_cond && !thd->lex->describe)
+      if (where_cond && !thd->lex->is_explain())
       {
         Item *table_independent_conds=
           make_cond_for_table(thd, where_cond, PSEUDO_TABLE_BITS, 0, 0);
@@ -748,8 +748,7 @@ JOIN::optimize()
   */
 
   if (rollup.state != ROLLUP::STATE_NONE &&     // (1)
-      (select_distinct
-      /* the fix for bug#26497353 will enable this: || has_windows*/))
+      (select_distinct || has_windows))
     need_tmp_before_win= true;
 
   if (!plan_is_const())                         // (2)
@@ -1461,7 +1460,7 @@ void JOIN::test_skip_sort()
   ASSERT_BEST_REF_IN_JOIN_ORDER(this);
   JOIN_TAB *const tab= best_ref[const_tables];
 
-  DBUG_ASSERT(ordered_index_usage == ordered_index_void);
+  DBUG_ASSERT(m_ordered_index_usage == ORDERED_INDEX_VOID);
 
   if (group_list)   // GROUP BY honoured first
                     // (DISTINCT was rewritten to GROUP BY if skippable)
@@ -1494,7 +1493,7 @@ void JOIN::test_skip_sort()
                                     &tab->table()->keys_in_use_for_group_by,
                                     &dummy))
         {
-          ordered_index_usage= ordered_index_group_by;
+          m_ordered_index_usage= ORDERED_INDEX_GROUP_BY;
         }
       }
 
@@ -1505,7 +1504,7 @@ void JOIN::test_skip_sort()
         table.  In order to avoid this, force use of temporary table.
         TODO: Explain the quick_group part of the test below.
        */
-      if ((ordered_index_usage != ordered_index_group_by) &&
+      if ((m_ordered_index_usage != ORDERED_INDEX_GROUP_BY) &&
           (tmp_table_param.quick_group ||
            (tab->emb_sj_nest &&
             tab->position()->sj_strategy == SJ_OPT_LOOSE_SCAN)))
@@ -1520,11 +1519,12 @@ void JOIN::test_skip_sort()
            !m_windows_sort) // and WFs will not shuffle rows
   {
     int dummy;
-    if (test_if_skip_sort_order(tab, order, m_select_limit, false,
-                                &tab->table()->keys_in_use_for_order_by,
-                                &dummy))
+    if ((skip_sort_order=
+         test_if_skip_sort_order(tab, order, m_select_limit, false,
+                                 &tab->table()->keys_in_use_for_order_by,
+                                 &dummy)))
     {
-      ordered_index_usage= ordered_index_order_by;
+      m_ordered_index_usage= ORDERED_INDEX_ORDER_BY;
     }
   }
   DBUG_VOID_RETURN;
@@ -3296,6 +3296,10 @@ static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join, uint no_jbuf_after)
   */
   if (tab->first_upper() != NO_PLAN_IDX &&
       !join->best_ref[tab->first_upper()]->use_join_cache())
+    goto no_join_cache;
+
+  if (tab->table()->pos_in_table_list->is_table_function() &&
+      tab->dependent)
     goto no_join_cache;
 
   switch (tab_sj_strategy)
@@ -5335,7 +5339,8 @@ bool JOIN::make_join_plan()
     DBUG_RETURN(true);
 
   // Cleanup after update_ref_and_keys has added keys for derived tables.
-  if (select_lex->materialized_derived_table_count)
+  if (select_lex->materialized_derived_table_count ||
+      select_lex->table_func_count)
     finalize_derived_keys();
 
   // No need for this struct after new JOIN_TAB array is set up.
@@ -6120,6 +6125,36 @@ void semijoin_types_allow_materialization(TABLE_LIST *sj_nest)
   DBUG_VOID_RETURN;
 }
 
+/**
+  Index dive can be skipped if the following conditions are satisfied:
+  F1) For a single table query:
+     a) FORCE INDEX applies to a single index.
+     b) No subquery is present.
+     c) Fulltext Index is not involved.
+     d) No GROUP-BY or DISTINCT clause.
+     e) No ORDER-BY clause.
+
+  F2) Not applicable to multi-table query.
+
+  F3) This optimization is not applicable to EXPLAIN queries.
+
+  @param tab   JOIN_TAB object.
+  @param thd   THD object.
+*/
+static bool check_skip_records_in_range_qualification(JOIN_TAB *tab, THD *thd)
+{
+    SELECT_LEX *select= thd->lex->current_select();
+    TABLE *table= tab->table();
+    return ((table->force_index &&
+             table->pos_in_table_list->index_hints->elements == 1) && // F1.a
+            select->parent_lex->is_single_level_stmt() &&             // F1.b
+            !select->has_ft_funcs() &&                                // F1.c
+            (!select->is_grouped() && !select->is_distinct()) &&      // F1.d
+            !select->is_ordered() &&                                  // F1.e
+            select->join_list->elements == 1 &&                       // F2
+            !thd->lex->is_explain());                                 // F3
+}
+
 
 /*****************************************************************************
   Create JOIN_TABS, make a guess about the table types,
@@ -6164,6 +6199,8 @@ static ha_rows get_quick_record_count(THD *thd, JOIN_TAB *tab, ha_rows limit)
     DBUG_RETURN(0);                           // Fatal error flag is set
 
   TABLE_LIST *const tl= tab->table_ref;
+  tab->set_skip_records_in_range(check_skip_records_in_range_qualification(tab,
+                                                                           thd));
 
   // Derived tables aren't filled yet, so no stats are available.
   if (!tl->uses_materialization())
@@ -6189,9 +6226,10 @@ static ha_rows get_quick_record_count(THD *thd, JOIN_TAB *tab, ha_rows limit)
     }
     DBUG_PRINT("warning",("Couldn't use record count on const keypart"));
   }
-  else if (tl->materializable_is_const())
+  else if (tl->is_table_function() || tl->materializable_is_const())
   {
-    DBUG_RETURN(tl->derived_unit()->query_result()->estimated_rowcount);
+    tl->fetch_number_of_rows();
+    DBUG_RETURN(tl->table->file->stats.records);
   }
   DBUG_RETURN(HA_POS_ERROR);
 }
@@ -6404,11 +6442,21 @@ static void add_not_null_conds(JOIN *join)
   a) Don't push down the triggered conditions. Nested outer joins execution
      code may need to evaluate a condition several times (both triggered and
      untriggered).
+     TODO: Consider cloning the triggered condition and using the copies for:
+        1. push the first copy down, to have most restrictive index condition
+           possible.
+        2. Put the second copy into tab->m_condition.
   b) Stored functions contain a statement that might start new operations (like
      DML statements) from within the storage engine. This does not work against
      all SEs.
   c) Subqueries might contain nested subqueries and involve more tables.
      TODO: ROY: CHECK THIS
+  d) Do not push down internal functions of type DD_INTERNAL_FUNC. When ICP is
+     enabled, pushing internal functions to storage engine for evaluation will
+     open data-dictionary tables. In InnoDB storage engine this will result in
+     situation like recursive latching of same page by the same thread. To avoid
+     such situation, internal functions of type DD_INTERNAL_FUNC are not pushed to
+     storage engine for evaluation.
 
   @param  item           Expression to check
   @param  tbl            The table having the index
@@ -6437,15 +6485,8 @@ bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno,
       Item_func *item_func= (Item_func*)item;
       const Item_func::Functype func_type= item_func->functype();
 
-      /*
-        Restriction a.
-        TODO: Consider cloning the triggered condition and using the copies
-        for:
-        1. push the first copy down, to have most restrictive index condition
-           possible.
-        2. Put the second copy into tab->m_condition.
-      */
-      if (func_type == Item_func::TRIG_COND_FUNC)
+      if (func_type == Item_func::TRIG_COND_FUNC ||    // Restriction a.
+          func_type == Item_func::DD_INTERNAL_FUNC)    // Restriction d.
         return false;
 
       /* This is a function, apply condition recursively to arguments */
@@ -7081,7 +7122,7 @@ static void
 warn_index_not_applicable(THD *thd, const Field *field,
                           const Key_map cant_use_index)
 {
-  if (thd->lex->describe)
+  if (thd->lex->is_explain())
     for (uint j=0 ; j < field->table->s->keys ; j++)
       if (cant_use_index.is_set(j))
         push_warning_printf(thd,
@@ -8454,7 +8495,8 @@ update_ref_and_keys(THD *thd, Key_use_array *keyuse,JOIN_TAB *join_tab,
   }
 
   /* Generate keys descriptions for derived tables */
-  if (select_lex->materialized_derived_table_count)
+  if (select_lex->materialized_derived_table_count ||
+      select_lex->table_func_count)
   {
     if (join->generate_derived_keys())
       return true;
@@ -8658,7 +8700,10 @@ void JOIN::make_outerjoin_info()
       */
       TABLE_LIST *const outer_join_nest= tbl->outer_join_nest();
       if (outer_join_nest)
+      {
+        DBUG_ASSERT(outer_join_nest->nested_join->first_nested != NO_PLAN_IDX);
         tab->set_first_upper(outer_join_nest->nested_join->first_nested);
+      }
     }    
     for (TABLE_LIST *embedding= tbl->embedding;
          embedding;
@@ -9042,7 +9087,8 @@ void JOIN::remove_subq_pushed_predicates()
 
 bool JOIN::generate_derived_keys()
 {
-  DBUG_ASSERT(select_lex->materialized_derived_table_count);
+  DBUG_ASSERT(select_lex->materialized_derived_table_count ||
+              select_lex->table_func_count);
 
   for (TABLE_LIST *table= select_lex->leaf_tables;
        table;
@@ -9066,7 +9112,8 @@ bool JOIN::generate_derived_keys()
 
 void JOIN::finalize_derived_keys()
 {
-  DBUG_ASSERT(select_lex->materialized_derived_table_count);
+  DBUG_ASSERT(select_lex->materialized_derived_table_count ||
+              select_lex->table_func_count);
   ASSERT_BEST_REF_IN_JOIN_ORDER(this);
 
   bool adjust_key_count= false;
@@ -11105,7 +11152,7 @@ bool JOIN::fts_index_access(JOIN_TAB *tab)
   /*
     This optimization does not work with filesort nor GROUP BY
   */
-  if (grouped || (order && ordered_index_usage != ordered_index_order_by))
+  if (grouped || (order && m_ordered_index_usage != ORDERED_INDEX_ORDER_BY))
     return false;
 
   /*

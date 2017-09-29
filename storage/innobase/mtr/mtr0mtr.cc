@@ -171,7 +171,7 @@ private:
 };
 
 /** Release latches and decrement the buffer fix count.
-@param slot	memo slot */
+@param[in]	slot	memo slot */
 static
 void
 memo_slot_release(mtr_memo_slot_t* slot)

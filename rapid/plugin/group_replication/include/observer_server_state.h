@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
 #ifndef OBSERVER_SERVER_STATE
 #define OBSERVER_SERVER_STATE
 
-#include "plugin.h"
+#include "plugin/group_replication/include/plugin.h"
 
 /*
   DBMS lifecycle events observers.

@@ -21,12 +21,12 @@
 #define XPL_LISTENER_TCP_H_
 
 #include "my_inttypes.h"
-#include "ngs/interface/listener_interface.h"
-#include "ngs/interface/listener_interface.h"
-#include "ngs/interface/socket_events_interface.h"
-#include "ngs_common/connection_vio.h"
-#include "ngs_common/operations_factory_interface.h"
-#include "ngs_common/socket_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/listener_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/listener_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/socket_events_interface.h"
+#include "plugin/x/ngs/include/ngs_common/connection_vio.h"
+#include "plugin/x/ngs/include/ngs_common/operations_factory_interface.h"
+#include "plugin/x/ngs/include/ngs_common/socket_interface.h"
 
 
 namespace xpl {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,9 +16,10 @@
 #ifndef FIELD_TEMPORAL_UTILS_INCLUDED
 #define FIELD_TEMPORAL_UTILS_INCLUDED
 
-#include "field.h"
 #include <gtest/gtest.h>
-#include "test_utils.h"
+
+#include "sql/field.h"
+#include "unittest/gunit/test_utils.h"
 
 namespace {
 

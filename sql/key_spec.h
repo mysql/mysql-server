@@ -20,12 +20,12 @@
 
 #include "lex_string.h"
 #include "m_string.h"
-#include "mem_root_array.h"
 #include "my_base.h"
 #include "mysql/udf_registration_types.h"
-#include "sql_alloc.h"
-#include "sql_list.h"
-#include "thr_malloc.h"
+#include "sql/mem_root_array.h"
+#include "sql/sql_alloc.h"
+#include "sql/sql_list.h"
+#include "sql/thr_malloc.h"
 
 class Create_field;
 class THD;
@@ -203,8 +203,8 @@ public:
   }
 
   /**
-    Check if the foreign key options are compatible with columns
-    on which the FK is created.
+    Check if the foreign key name has valid length and its options
+    are compatible with columns on which the FK is created.
 
     @param thd                  Thread handle
     @param table_name           Table name (for error reporting)

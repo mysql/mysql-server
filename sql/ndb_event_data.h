@@ -21,8 +21,8 @@
 #include <stdio.h>
 
 #include "my_alloc.h" // MEM_ROOT
-#include "ndb_bitmap.h"
-#include <ndbapi/ndbapi_limits.h>
+#include "sql/ndb_bitmap.h"
+#include "storage/ndb/include/ndbapi/ndbapi_limits.h"
 
 
 class Ndb_event_data

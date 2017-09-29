@@ -20,21 +20,21 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
       someone's going out of their way to break to API)". :)
 */
 
-#include "current_thd.h"      // current_thd
-#include "log.h"              // make_iso8601_timestamp, log_write_errstream,
+#include <mysql/components/services/log_service.h>
+#include <mysql/components/services/log_shared.h>   // data types
+
+#include "log_builtins_filter_imp.h"
+#include "log_builtins_imp.h" // internal structs
+                              // connection_events_loop_aborted()
+#include "registry.h"         // mysql_registry_imp
+#include "server_component.h"
+#include "sql/current_thd.h"  // current_thd
+#include "sql/log.h"          // make_iso8601_timestamp, log_write_errstream,
                               // log_get_thread_id, mysql_errno_to_symbol,
                               // mysql_symbol_to_errno, log_vmessage,
                               // get_server_errmsgs, LogVar
-#include <mysql/components/services/log_shared.h>   // data types
-#include <mysql/components/services/log_service.h>
-#include "server_component.h"
-#include "log_builtins_filter_imp.h"
-#include "log_builtins_imp.h" // internal structs
-#include "mysqld.h"           // opt_log_(timestamps|error_services),
-                              // connection_events_loop_aborted()
-#include "registry.h"         // mysql_registry_imp
-#include "server_component.h" // imp_mysql_server_registry
-#include "sql_class.h"        // THD
+#include "sql/mysqld.h"       // opt_log_(timestamps|error_services),
+#include "sql/sql_class.h"    // THD
 
 #ifndef _WIN32
 #include <syslog.h>
@@ -275,7 +275,9 @@ static const log_item_wellknown_key log_item_wellknown_keys[] =
   { C_STRING_WITH_LEN("misc_integer"), LOG_INTEGER,    LOG_ITEM_GEN_INTEGER },
   { C_STRING_WITH_LEN("misc_string"),  LOG_LEX_STRING,
                                        LOG_ITEM_GEN_LEX_STRING },
-  { C_STRING_WITH_LEN("misc_cstring"), LOG_CSTRING,    LOG_ITEM_GEN_CSTRING }
+  { C_STRING_WITH_LEN("misc_cstring"), LOG_CSTRING,    LOG_ITEM_GEN_CSTRING },
+  { C_STRING_WITH_LEN("effective_prio"),
+                                       LOG_INTEGER,    LOG_ITEM_LOG_EPRIO }
 };
 
 static uint log_item_wellknown_keys_count=
@@ -1050,14 +1052,14 @@ bool log_item_set_cstring(log_item_data *lid, const char *s)
   @param   prio       the severity/prio in question
 
   @return             a label corresponding to that priority.
-  @retval  "ERROR"    for prio of ERROR_LEVEL or higher
+  @retval  "Error"    for prio of ERROR_LEVEL or higher
   @retval  "Warning"  for prio of WARNING_LEVEL
   @retval  "Note"     otherwise
 */
 const char *log_label_from_prio(int prio)
 {
   return ((prio <= ERROR_LEVEL)
-          ? "ERROR"
+          ? "Error"
           : (prio == WARNING_LEVEL)
             ? "Warning"
             : "Note");
@@ -1084,7 +1086,8 @@ static int log_sink_trad(void *instance MY_ATTRIBUTE((unused)), log_line *ll)
   size_t              msg_len=       0,
                       ts_len=        0,
                       label_len=     0;
-  enum loglevel       level=         ERROR_LEVEL;
+  enum loglevel       prio=          ERROR_LEVEL;
+  unsigned int        errcode=       0;
   log_item_type       item_type=     LOG_ITEM_END;
   log_item_type_mask  out_types=     0;
   const char         *iso_timestamp= "";
@@ -1103,8 +1106,11 @@ static int log_sink_trad(void *instance MY_ATTRIBUTE((unused)), log_line *ll)
 
       switch (item_type)
       {
+      case LOG_ITEM_SQL_ERRCODE:
+        errcode= (unsigned int) ll->item[c].data.data_integer;
+        break;
       case LOG_ITEM_LOG_PRIO:
-        level= (enum loglevel) ll->item[c].data.data_integer;
+        prio=  (enum loglevel) ll->item[c].data.data_integer;
         break;
       case LOG_ITEM_LOG_MESSAGE:
         msg=           ll->item[c].data.data_string.str;
@@ -1133,50 +1139,82 @@ static int log_sink_trad(void *instance MY_ATTRIBUTE((unused)), log_line *ll)
            "This is almost certainly a bug!";
       msg_len= strlen(msg);
 
-      level= ERROR_LEVEL;               // force severity
-      out_types&= ~LOG_ITEM_LOG_LABEL;  // regenerate label
+      prio= ERROR_LEVEL;                // force severity
+      out_types&= ~(LOG_ITEM_LOG_LABEL|LOG_ITEM_LOG_EPRIO); // regenerate label
       out_types|= LOG_ITEM_LOG_MESSAGE; // we added a message
     }
 
     {
-      char          buff[LOG_BUFF_MAX];
+      char          buff_line[LOG_BUFF_MAX];
+      char          buff_label[16];
       size_t        len;
 
       if (!(out_types & LOG_ITEM_LOG_LABEL))
       {
-        label= log_label_from_prio(level);
+        label=     log_label_from_prio(prio);
         label_len= strlen(label);
+
+        if ((out_types & LOG_ITEM_LOG_EPRIO) ||
+            (prio == ERROR_LEVEL))
+        {
+          /*
+            Special feature of this log-writer:
+            for diagnostics,
+            - if we have an override (force-print etc.), lowercase the
+              label as it doesn't coincide with the actual filtering.
+              -
+          */
+
+          const char *label_read=  label;
+          char       *label_write= buff_label;
+
+          DBUG_ASSERT(label_len < sizeof(buff_label));
+
+          while (*label_read)
+            *(label_write++)= toupper(*(label_read++));
+          *label_write= '\0';
+
+          label= buff_label;
+        }
       }
 
       if (!(out_types & LOG_ITEM_LOG_TIMESTAMP))
       {
-        char             local_time_buff[iso8601_size];
+        char             buff_local_time[iso8601_size];
 
-        make_iso8601_timestamp(local_time_buff, my_micro_time(),
+        make_iso8601_timestamp(buff_local_time, my_micro_time(),
                                opt_log_timestamps);
-        iso_timestamp= local_time_buff;
-        ts_len=        strlen(local_time_buff);
+        iso_timestamp= buff_local_time;
+        ts_len=        strlen(buff_local_time);
       }
 
-      len= snprintf(buff, sizeof(buff), "%.*s %u [%.*s] %.*s",
+      /*
+        WL#11009 adds "error identifier" as a field in square brackets
+        that directly precedes the error message. As a result, new
+        tools can check for the presence of this field by testing
+        whether the first character of the presumed message field is '['.
+        Older tools will just consider this identifier part of the
+        message; this should therefore not affect log aggregation.
+        Tools reacting to the contents of the message may wish to
+        use the new field instead as it's simpler to parse.
+        While for the time being, this field contains a numerical
+        value, the rules are like so:
+
+          '[' [ <namespace> ':' ] <identifier> ']'
+
+        That is, an error identifier may be namespaced by a
+        subsystem/component name and a ':'; the identifier
+        itself should be considered opaque; in particular, it
+        may be non-numerical: [ <alpha> | <digit> | '_' | '.' ]
+      */
+      len= snprintf(buff_line, sizeof(buff_line), "%.*s %u [%.*s] [%06u] %.*s",
                     (int) ts_len,    iso_timestamp,
                     thread_id,
                     (int) label_len, label,
+                    errcode,
                     (int) msg_len,   msg);
 
-#if 0
-      /*
-        We should not have newlines in traditional (non-structured) logs.
-        We may enforce this later.
-      */
-      for (c= 0; c < len; c++)
-      {
-        if (buff[c] == '\n')
-          buff[c]= ' ';
-      }
-#endif
-
-      log_write_errstream(buff, len);
+      log_write_errstream(buff_line, len);
 
       return out_fields;  // returning number of processed items
     }
@@ -2806,7 +2844,7 @@ DEFINE_METHOD(longlong,     log_builtins_imp::errcode_by_errsymbol,
   @param   prio       the severity/prio in question
 
   @return             a label corresponding to that priority.
-  @retval  "ERROR"    for prio of ERROR_LEVEL or higher
+  @retval  "Error"    for prio of ERROR_LEVEL or higher
   @retval  "Warning"  for prio of WARNING_LEVEL
   @retval  "Note"     otherwise
 */

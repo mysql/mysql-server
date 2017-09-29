@@ -61,8 +61,8 @@ SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=85;
 HANDLER performance_schema.socket_instances OPEN;
 ERROR HY000: Table storage engine for 'socket_instances' doesn't have this option
 SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=84;
-HANDLER performance_schema.setup_timers OPEN;
-ERROR HY000: Table storage engine for 'setup_timers' doesn't have this option
+HANDLER performance_schema.setup_threads OPEN;
+ERROR HY000: Table storage engine for 'setup_threads' doesn't have this option
 SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=83;
 HANDLER performance_schema.setup_objects OPEN;
 ERROR HY000: Table storage engine for 'setup_objects' doesn't have this option

@@ -41,13 +41,13 @@ https://msdn.microsoft.com/en-us/library/windows/desktop/aa366891(v=vs.85).aspx
  */
 #define _WIN32_WINNT 0x0601
 #include <Windows.h>
+
 #define HAVE_WINNUMA
 #endif /* _WIN32 */
 // clang-format on
 
-#include "temptable/constants.h"       /* temptable::ALLOCATOR_MAX_BLOCK_* */
-#include "temptable/result.h"          /* Result */
 #include "my_config.h"              /* HAVE_LIBNUMA */
+
 #include "my_dbug.h"                /* DBUG_ASSERT(), DBUG_PRINT() */
 #include "my_io.h"                  /* File */
 #include "my_psi_config.h"          /* HAVE_PSI_MEMORY_INTERFACE */
@@ -56,6 +56,8 @@ https://msdn.microsoft.com/en-us/library/windows/desktop/aa366891(v=vs.85).aspx
 #include "mysql/psi/psi_base.h"     /* PSI_NOT_INSTRUMENTED */
 #include "mysql/psi/psi_memory.h"   /* PSI_memory_key, PSI_memory_info */
 #include "sql/mysqld.h"             /* temptable_max_ram */
+#include "storage/temptable/include/temptable/constants.h" /* temptable::ALLOCATOR_MAX_BLOCK_* */
+#include "storage/temptable/include/temptable/result.h" /* Result */
 
 #ifdef HAVE_LIBNUMA
 #define TEMPTABLE_USE_LINUX_NUMA

@@ -26,20 +26,20 @@
 
 #include <assert.h>
 #include <fcntl.h>
-#include <m_ctype.h>
-#include <m_string.h>
-#include <my_dir.h>
-#include <my_getopt.h>
-#include <my_sys.h>
 #include <mysql_version.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <new>
 
+#include "m_ctype.h"
+#include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_dir.h"
+#include "my_getopt.h"
 #include "my_io.h"
+#include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
 #include "prealloced_array.h"
 #include "print_version.h"

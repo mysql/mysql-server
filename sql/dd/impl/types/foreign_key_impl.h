@@ -19,16 +19,16 @@
 #include <sys/types.h>
 #include <new>
 
-#include "dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
-#include "dd/impl/types/weak_object_impl.h"
-#include "dd/object_id.h"
-#include "dd/sdi_fwd.h"
-#include "dd/string_type.h"
-#include "dd/types/foreign_key.h"             // dd::Foreign_key
-#include "dd/types/foreign_key_element.h"     // IWYU pragma: keep
-#include "dd/types/object_type.h"             // dd::Object_type
 #include "m_ctype.h"                          // my_strcasecmp
 #include "my_sharedlib.h"
+#include "sql/dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
+#include "sql/dd/impl/types/weak_object_impl.h"
+#include "sql/dd/object_id.h"
+#include "sql/dd/sdi_fwd.h"
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/foreign_key.h"         // dd::Foreign_key
+#include "sql/dd/types/foreign_key_element.h" // IWYU pragma: keep
+#include "sql/dd/types/object_type.h"         // dd::Object_type
 
 extern "C" MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
 
@@ -57,8 +57,7 @@ public:
   Foreign_key_impl(Table_impl *table);
 
   Foreign_key_impl(const Foreign_key_impl &src,
-                   Table_impl *parent,
-                   const Index *unique_constraint);
+                   Table_impl *parent);
 
   virtual ~Foreign_key_impl()
   { }
@@ -113,11 +112,11 @@ public:
   // unique_constraint
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const Index &unique_constraint() const
-  { return *m_unique_constraint; }
+  virtual const String_type &unique_constraint_name() const
+  { return m_unique_constraint_name; }
 
-  virtual void set_unique_constraint(const Index *unique_constraint)
-  { m_unique_constraint= unique_constraint; }
+  virtual void set_unique_constraint_name(const String_type &name)
+  { m_unique_constraint_name= name; }
 
   /////////////////////////////////////////////////////////////////////////
   // match_option.
@@ -156,7 +155,7 @@ public:
   virtual const String_type &referenced_table_catalog_name() const
   { return m_referenced_table_catalog_name; }
 
-  virtual void referenced_table_catalog_name(const String_type &name)
+  virtual void set_referenced_table_catalog_name(const String_type &name)
   { m_referenced_table_catalog_name= name; }
 
   /////////////////////////////////////////////////////////////////////////
@@ -166,7 +165,7 @@ public:
   virtual const String_type &referenced_table_schema_name() const
   { return m_referenced_table_schema_name; }
 
-  virtual void referenced_table_schema_name(const String_type &name)
+  virtual void set_referenced_table_schema_name(const String_type &name)
   { m_referenced_table_schema_name= name; }
 
   /////////////////////////////////////////////////////////////////////////
@@ -176,7 +175,7 @@ public:
   virtual const String_type &referenced_table_name() const
   { return m_referenced_table_name; }
 
-  virtual void referenced_table_name(const String_type &name)
+  virtual void set_referenced_table_name(const String_type &name)
   { m_referenced_table_name= name; }
 
   /////////////////////////////////////////////////////////////////////////
@@ -187,6 +186,9 @@ public:
 
   virtual const Foreign_key_elements &elements() const
   { return m_elements; }
+
+  virtual Foreign_key_elements *elements()
+  { return &m_elements; }
 
   // Fix "inherits ... via dominance" warnings
   virtual Entity_object_impl *impl()
@@ -209,14 +211,17 @@ public:
   }
 
   static Foreign_key_impl *clone(const Foreign_key_impl &other,
-                                 Table_impl *table);
+                                 Table_impl *table)
+  {
+    return new (std::nothrow) Foreign_key_impl(other, table);
+  }
 
 private:
   enum_match_option m_match_option;
   enum_rule         m_update_rule;
   enum_rule         m_delete_rule;
 
-  const Index *m_unique_constraint;
+  String_type m_unique_constraint_name;
 
   String_type m_referenced_table_catalog_name;
   String_type m_referenced_table_schema_name;
@@ -229,10 +234,9 @@ private:
   Foreign_key_elements m_elements;
 
 public:
-  Foreign_key_impl *clone(Table_impl *parent,
-                          const Index *unique_constraint) const
+  Foreign_key_impl *clone(Table_impl *parent) const
   {
-    return new Foreign_key_impl(*this, parent, unique_constraint);
+    return new Foreign_key_impl(*this, parent);
   }
 };
 

@@ -2779,5 +2779,29 @@ SHOW CREATE TABLE db8657.t1;
 DROP USER 'untrusted8657'@localhost;
 DROP DATABASE db8657;
 
+--echo #
+--echo # Regression test added in WL#8063
+--echo #
+
+CREATE DATABASE db8063;
+CREATE TABLE db8063.t1(a VARCHAR(20));
+
+CREATE USER 'untrusted8063'@'localhost';
+
+
+--echo # Connection con1
+connect (con1, localhost, untrusted8063);
+
+--error ER_ACCESS_DENIED_ERROR
+LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE db8063.t1;
+
+disconnect con1;
+connection default;
+
+SHOW CREATE TABLE db8063.t1;
+
+DROP USER 'untrusted8063'@localhost;
+DROP DATABASE db8063;
+
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc

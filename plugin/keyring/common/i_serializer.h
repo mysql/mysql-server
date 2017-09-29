@@ -16,11 +16,11 @@
 #ifndef MYSQL_I_SERIALIZER_H
 #define MYSQL_I_SERIALIZER_H
 
-#include "i_serialized_object.h"
-#include "map_helpers.h"
-
 #include <memory>
 #include <string>
+
+#include "map_helpers.h"
+#include "plugin/keyring/common/i_serialized_object.h"
 
 namespace keyring
 {

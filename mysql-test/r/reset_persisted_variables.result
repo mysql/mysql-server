@@ -17,19 +17,19 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 # check contents of persistent config file
 SET PERSIST sort_buffer_size=256000;
 SET PERSIST long_query_time= 8.3452;
-select * from performance_schema.persisted_variables;
+select * from performance_schema.persisted_variables ORDER BY 1;
 VARIABLE_NAME	VARIABLE_VALUE
 long_query_time	8.345200
 sort_buffer_size	256000
 RESET PERSIST;
 # config file should be empty
-select * from performance_schema.persisted_variables;
+select * from performance_schema.persisted_variables ORDER BY 1;
 VARIABLE_NAME	VARIABLE_VALUE
 # add few more to config file and reset
 SET PERSIST sort_buffer_size=156000,max_connections= 52;
 SET PERSIST max_heap_table_size=887808, slave_net_timeout=160;
 SET PERSIST long_query_time= 7.8102;
-select * from performance_schema.persisted_variables;
+select * from performance_schema.persisted_variables ORDER BY 1;
 VARIABLE_NAME	VARIABLE_VALUE
 long_query_time	7.810200
 max_connections	52
@@ -38,24 +38,24 @@ slave_net_timeout	160
 sort_buffer_size	156000
 RESET PERSIST max_heap_table_size;
 RESET PERSIST sort_buffer_size;
-select * from performance_schema.persisted_variables;
+select * from performance_schema.persisted_variables ORDER BY 1;
 VARIABLE_NAME	VARIABLE_VALUE
 long_query_time	7.810200
 max_connections	52
 slave_net_timeout	160
 RESET PERSIST IF EXISTS slave_net_timeout;
-select * from performance_schema.persisted_variables;
+select * from performance_schema.persisted_variables ORDER BY 1;
 VARIABLE_NAME	VARIABLE_VALUE
 long_query_time	7.810200
 max_connections	52
 SET PERSIST join_buffer_size= 262144;
-select * from performance_schema.persisted_variables;
+select * from performance_schema.persisted_variables ORDER BY 1;
 VARIABLE_NAME	VARIABLE_VALUE
 join_buffer_size	262144
 long_query_time	7.810200
 max_connections	52
 RESET PERSIST;
-select * from performance_schema.persisted_variables;
+select * from performance_schema.persisted_variables ORDER BY 1;
 VARIABLE_NAME	VARIABLE_VALUE
 # check for errors and warnings
 RESET PERSIST IF EXISTS sort_buffer_size;

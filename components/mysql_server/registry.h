@@ -16,14 +16,15 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #ifndef MYSQL_SERVER_REGISTRY_H
 #define MYSQL_SERVER_REGISTRY_H
 
-#include <map>
-#include <memory>
-#include <c_string_less.h>
 #include <mysql/components/my_service.h>
 #include <mysql/components/service_implementation.h>
 #include <mysql/components/services/registry.h>
-#include <rwlock_scoped_lock.h>
+#include <map>
+#include <memory>
+
+#include "c_string_less.h"
 #include "mysql_service_implementation.h"
+#include "rwlock_scoped_lock.h"
 
 /**
   @page PAGE_COMPONENTS_REGISTRY The Service Registry Service

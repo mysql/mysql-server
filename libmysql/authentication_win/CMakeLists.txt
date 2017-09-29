@@ -1,4 +1,4 @@
-# Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -31,7 +31,3 @@ TARGET_LINK_LIBRARIES(auth_win_client Secur32)
 # In IDE, group headers in a separate folder.
 
 SOURCE_GROUP(Headers REGULAR_EXPRESSION ".*h$")
-
-IF(MSVC)
-   INSTALL_DEBUG_TARGET(auth_win_client DESTINATION ${INSTALL_LIBDIR}/debug)
-ENDIF()

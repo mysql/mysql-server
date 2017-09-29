@@ -88,13 +88,13 @@ AND A.c = 343;
 DROP TABLE t1;
 
 --echo #
---echo # Bug#59503: explain extended crash in get_mm_leaf
+--echo # Bug#59503: explain crash in get_mm_leaf
 --echo #
 CREATE TABLE t1 (a VARCHAR(51) CHARACTER SET latin1)
 PARTITION BY KEY (a) PARTITIONS 1;
 INSERT INTO t1 VALUES ('a'),('b'),('c');
 analyze table t1;
-EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE a > 1;
+EXPLAIN SELECT 1 FROM t1 WHERE a > 1;
 DROP TABLE t1;
 
 --echo #
@@ -238,16 +238,16 @@ INSERT INTO t1 VALUES ('2009-09-21 17:31:42', 'pmax');
 SELECT * FROM t1;
 SELECT * FROM t1 where a between '2007-01-01' and '2007-08-01';
 analyze table t1;
-EXPLAIN PARTITIONS SELECT * FROM t1 where a between '2007-01-01' and '2007-08-01';
-EXPLAIN PARTITIONS SELECT * FROM t1 where a = '2007-07-30 17:35:48';
+EXPLAIN SELECT * FROM t1 where a between '2007-01-01' and '2007-08-01';
+EXPLAIN SELECT * FROM t1 where a = '2007-07-30 17:35:48';
 ALTER TABLE t1 REORGANIZE PARTITION pmax INTO (
  PARTITION p3 VALUES LESS THAN (1247688000),
  PARTITION pmax VALUES LESS THAN MAXVALUE);
 SELECT * FROM t1;
 SELECT * FROM t1 where a between '2007-01-01' and '2007-08-01';
 analyze table t1;
-EXPLAIN PARTITIONS SELECT * FROM t1 where a between '2007-01-01' and '2007-08-01';
-EXPLAIN PARTITIONS SELECT * FROM t1 where a = '2007-07-30 17:35:48';
+EXPLAIN SELECT * FROM t1 where a between '2007-01-01' and '2007-08-01';
+EXPLAIN SELECT * FROM t1 where a = '2007-07-30 17:35:48';
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
@@ -468,13 +468,13 @@ INSERT INTO `t1` VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),
 INSERT INTO `t2` VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
 
 analyze table t1;
-EXPLAIN PARTITIONS SELECT c1 FROM t1 WHERE (c1 > 10 AND c1 < 13) OR (c1 > 17 AND c1 < 20);
+EXPLAIN SELECT c1 FROM t1 WHERE (c1 > 10 AND c1 < 13) OR (c1 > 17 AND c1 < 20);
 
 FLUSH STATUS;
 SELECT c1 FROM t1 WHERE (c1 > 10 AND c1 < 13) OR (c1 > 17 AND c1 < 20);
 SHOW STATUS LIKE 'Handler_read_%';
 
-EXPLAIN PARTITIONS SELECT c1 FROM t2 WHERE (c1 > 10 AND c1 < 13) OR (c1 > 17 AND c1 < 20);
+EXPLAIN SELECT c1 FROM t2 WHERE (c1 > 10 AND c1 < 13) OR (c1 > 17 AND c1 < 20);
 
 FLUSH STATUS;
 SELECT c1 FROM t2 WHERE (c1 > 10 AND c1 < 13) OR (c1 > 17 AND c1 < 20);
@@ -500,25 +500,25 @@ INSERT INTO `t1` VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),
 INSERT INTO `t2` VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
 
 analyze table t1;
-EXPLAIN PARTITIONS SELECT c1 FROM t1 WHERE (c1 > 2 AND c1 < 5);
+EXPLAIN SELECT c1 FROM t1 WHERE (c1 > 2 AND c1 < 5);
 
 FLUSH STATUS;
 SELECT c1 FROM t1 WHERE (c1 > 2 AND c1 < 5);
 SHOW STATUS LIKE 'Handler_read_%';
 
-EXPLAIN PARTITIONS SELECT c1 FROM t2 WHERE (c1 > 2 AND c1 < 5);
+EXPLAIN SELECT c1 FROM t2 WHERE (c1 > 2 AND c1 < 5);
 
 FLUSH STATUS;
 SELECT c1 FROM t2 WHERE (c1 > 2 AND c1 < 5);
 SHOW STATUS LIKE 'Handler_read_%';
 
-EXPLAIN PARTITIONS SELECT c1 FROM t1 WHERE (c1 > 12 AND c1 < 15);
+EXPLAIN SELECT c1 FROM t1 WHERE (c1 > 12 AND c1 < 15);
 
 FLUSH STATUS;
 SELECT c1 FROM t1 WHERE (c1 > 12 AND c1 < 15);
 SHOW STATUS LIKE 'Handler_read_%';
 
-EXPLAIN PARTITIONS SELECT c1 FROM t2 WHERE (c1 > 12 AND c1 < 15);
+EXPLAIN SELECT c1 FROM t2 WHERE (c1 > 12 AND c1 < 15);
 
 FLUSH STATUS;
 SELECT c1 FROM t2 WHERE (c1 > 12 AND c1 < 15);
@@ -1496,7 +1496,7 @@ create table t1 (f1 integer) partition by range(f1)
 insert into t1 set f1 = null;
 select * from t1 where f1 is null;
 analyze table t1;
-explain partitions select * from t1 where f1 is null;
+explain select * from t1 where f1 is null;
 drop table t1;
 
 create table t1 (f1 integer) partition by list(f1)
@@ -1536,9 +1536,9 @@ create table t1 (f1 integer) partition by list(f1)
 insert into t1 values (1),(2),(3),(4),(null);
 select * from t1 where f1 < 3;
 analyze table t1;
-explain partitions select * from t1 where f1 < 3;
+explain select * from t1 where f1 < 3;
 select * from t1 where f1 is null;
-explain partitions select * from t1 where f1 is null;
+explain select * from t1 where f1 is null;
 drop table t1;
 
 create table t1 (f1 int) partition by list(f1 div 2)
@@ -1553,9 +1553,9 @@ create table t1 (f1 int) partition by list(f1 div 2)
 insert into t1 values (2),(4),(6),(8),(null);
 select * from t1 where f1 < 3;
 analyze table t1;
-explain partitions select * from t1 where f1 < 3;
+explain select * from t1 where f1 < 3;
 select * from t1 where f1 is null;
-explain partitions select * from t1 where f1 is null;
+explain select * from t1 where f1 is null;
 drop table t1;
 
 create table t1 (a int) partition by LIST(a) (
@@ -1567,9 +1567,9 @@ create table t1 (a int) partition by LIST(a) (
 insert into t1 values (NULL),(0),(1),(2);
 select * from t1 where a is null or a < 2;
 analyze table t1;
-explain partitions select * from t1 where a is null or a < 2;
+explain select * from t1 where a is null or a < 2;
 select * from t1 where a is null or a < 0 or a > 1;
-explain partitions select * from t1 where a is null or a < 0 or a > 1;
+explain select * from t1 where a is null or a < 0 or a > 1;
 drop table t1;
 
 #
@@ -2235,7 +2235,7 @@ CREATE TABLE t1 (a int) PARTITION BY RANGE (a)
    PARTITION p3 VALUES LESS THAN MAXVALUE);
 INSERT INTO t1 VALUES (10), (100), (200), (300), (400);
 analyze table t1;
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a>=200;
+EXPLAIN SELECT * FROM t1 WHERE a>=200;
 DROP TABLE t1;
 
 #
@@ -2488,8 +2488,8 @@ CREATE TABLE t1 (c1 int(11) DEFAULT NULL, KEY c1 (c1))
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
 
 let $query=SELECT c1 FROM t1 WHERE (c1 > 2 AND c1 < 15);
---eval EXPLAIN PARTITIONS $query
---eval EXPLAIN EXTENDED $query
+--eval EXPLAIN $query
+--eval EXPLAIN $query
 --eval EXPLAIN FORMAT=JSON $query
 
 DROP TABLE t1;

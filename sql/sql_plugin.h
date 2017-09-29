@@ -28,9 +28,9 @@
 #include "my_sqlcommand.h"          // enum_sql_command
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "sql_cmd.h"                // Sql_cmd
-#include "sql_plugin_ref.h"         // plugin_ref
-#include "thr_malloc.h"
+#include "sql/sql_cmd.h"            // Sql_cmd
+#include "sql/sql_plugin_ref.h"     // plugin_ref
+#include "sql/thr_malloc.h"
 
 class THD;
 class i_string;

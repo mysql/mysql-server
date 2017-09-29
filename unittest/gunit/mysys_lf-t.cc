@@ -25,16 +25,16 @@
 #include <stddef.h>
 #include <sys/types.h>
 
+#include "lf.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "lf.h"
 
 
 namespace mysys_lf_unittest {
 
-#include "thr_template.cc"
+#include "unittest/gunit/thr_template.cc"
 
 int32 inserts= 0, N;
 LF_ALLOCATOR lf_allocator;

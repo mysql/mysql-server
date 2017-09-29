@@ -17,14 +17,12 @@
 
 
 #include <ndb_global.h>
-
-#include <my_base.h>
 #include <ndberror.h>
-#include <m_string.h>
 
 #include "../mgmsrv/ndb_mgmd_error.h"
-
 #include "NdbQueryBuilderImpl.hpp"
+#include "m_string.h"
+#include "my_base.h"
 
 typedef struct ErrorBundle {
   int code;

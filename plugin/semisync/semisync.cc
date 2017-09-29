@@ -1,6 +1,5 @@
 /* Copyright (C) 2007 Google Inc.
-   Copyright (C) 2008 MySQL AB
-   Use is subject to license terms
+   Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +15,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 
-#include "semisync.h"
+#include "plugin/semisync/semisync.h"
 
 const unsigned char ReplSemiSyncBase::kPacketMagicNum = 0xef;
 const unsigned char ReplSemiSyncBase::kPacketFlagSync = 0x01;

@@ -25,6 +25,7 @@ Created 2013-7-26 by Kevin Lewis
 
 #include "ha_prototypes.h"
 
+#include "dict0dd.h"
 #include "fsp0file.h"
 #include "fil0fil.h"
 #include "fsp0types.h"
@@ -368,6 +369,10 @@ Datafile::read_first_page(bool read_only_mode)
 		m_flags = fsp_header_get_flags(m_first_page);
 
 		m_space_id = fsp_header_get_space_id(m_first_page);
+
+		m_server_version = fsp_header_get_server_version(m_first_page);
+
+		m_space_version = fsp_header_get_space_version(m_first_page);
 	}
 
 	return(err);
@@ -618,6 +623,19 @@ Datafile::validate_first_page(
 			/* Look for checksum and other corruptions. */
 			error_txt = "Checksum mismatch";
 		}
+
+		/** TODO: Enable following after WL#11063: Update
+		server version information in InnoDB tablespaces:
+
+		else if (!for_import
+			   && (fsp_header_get_server_version(m_first_page)
+			       != DD_SPACE_CURRENT_SRV_VERSION)) {
+			error_txt = "Wrong server version";
+		} else if (!for_import
+			   && (fsp_header_get_space_version(m_first_page)
+			       != DD_SPACE_CURRENT_SPACE_VERSION)) {
+			error_txt = "Wrong tablespace version";
+		} */
 	}
 
 	if (error_txt != NULL) {

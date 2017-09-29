@@ -29,14 +29,13 @@
 #endif
 
 #include "m_string.h"
-#include "my_config.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"
-#include "my_static.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
+#include "mysys/my_static.h"
 #include "mysys_err.h"
 #if defined(_WIN32)
 #include <direct.h>

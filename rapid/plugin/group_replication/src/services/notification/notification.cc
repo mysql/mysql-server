@@ -13,11 +13,11 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include <mysql/components/services/group_membership_listener.h>
 #include <mysql/components/services/group_member_status_listener.h>
+#include <mysql/components/services/group_membership_listener.h>
 
-#include "services/notification/notification.h"
-#include "plugin.h"
+#include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/services/notification/notification.h"
 
 enum SvcTypes
 {

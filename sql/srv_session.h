@@ -19,8 +19,6 @@
 
 #include <stdint.h>
 
-#include "item_create.h"
-#include "key.h"
 #include "my_command.h"
 #include "my_psi_config.h"
 #include "my_thread_local.h"
@@ -28,10 +26,12 @@
 #include "mysql/psi/mysql_statement.h"
 #include "mysql/service_command.h"
 #include "mysql/service_srv_session.h"
-#include "protocol_callback.h"
-#include "session_tracker.h"
-#include "sql_class.h"
-#include "sql_error.h"
+#include "sql/item_create.h"
+#include "sql/key.h"
+#include "sql/protocol_callback.h"
+#include "sql/session_tracker.h"
+#include "sql/sql_class.h"
+#include "sql/sql_error.h"
 #include "violite.h"             /* enum_vio_type */
 
 struct st_plugin_int;

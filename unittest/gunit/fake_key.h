@@ -17,11 +17,11 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include "my_config.h"
+
 #include <gtest/gtest.h>
 
-#include "key.h"                              // KEY
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
+#include "sql/key.h"                           // KEY
 #include "my_dbug.h"
 
 

@@ -1,6 +1,6 @@
 source include/have_memcached_plugin.inc;
 source include/not_valgrind.inc;
-
+source include/have_log_bin.inc;
 source include/not_windows.inc;
 
 --disable_query_log

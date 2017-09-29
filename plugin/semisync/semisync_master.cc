@@ -15,18 +15,18 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 
-#include "semisync_master.h"
+#include "plugin/semisync/semisync_master.h"
 
 #include <assert.h>
 #include <time.h>
 
 #include "my_compiler.h"
 #include "my_systime.h"
-#include "mysqld.h"                             // max_connections
+#include "sql/mysqld.h"                         // max_connections
 #if defined(ENABLED_DEBUG_SYNC)
-#include "current_thd.h"
-#include "debug_sync.h"
-#include "sql_class.h"
+#include "sql/current_thd.h"
+#include "sql/debug_sync.h"
+#include "sql/sql_class.h"
 #endif
 
 #define TIME_THOUSAND 1000

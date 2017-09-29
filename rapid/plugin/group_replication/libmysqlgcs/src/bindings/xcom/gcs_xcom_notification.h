@@ -18,14 +18,14 @@
 
 #include <queue>
 
-#include "mysql/gcs/xplatform/my_xp_thread.h"
-#include "mysql/gcs/xplatform/my_xp_mutex.h"
-#include "mysql/gcs/xplatform/my_xp_cond.h"
-#include "mysql/gcs/gcs_control_interface.h"
-
-#include "gcs_xcom_utils.h"
-#include "gcs_xcom_group_member_information.h"
-#include "xcom_vp.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_control_interface.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_psi.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/my_xp_cond.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/my_xp_mutex.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/my_xp_thread.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_group_member_information.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_utils.h"
+#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
 
 /**
   Abstract class that defines a notification that will be sent from XCOM

@@ -105,14 +105,14 @@ drop function foofct;
 ##============================================================================
 
 # Empty statement
-drop procedure if exists empty;
-create procedure empty()
+drop procedure if exists `empty`;
+create procedure `empty`()
 begin
 end;
 
-call empty();
-show create procedure empty;
-drop procedure empty;
+call `empty`();
+show create procedure `empty`;
+drop procedure `empty`;
 
 drop procedure if exists foosp;
 

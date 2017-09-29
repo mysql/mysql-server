@@ -19,9 +19,9 @@
 #include <string>
 #include <vector>
 
-#include "member_info.h"
 #include "my_inttypes.h"
-#include "services/notification/notification.h"
+#include "plugin/group_replication/include/member_info.h"
+#include "plugin/group_replication/include/services/notification/notification.h"
 
 using std::string;
 using std::vector;

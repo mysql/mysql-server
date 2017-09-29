@@ -24,11 +24,11 @@
 #include <vector>
 
 #include "my_inttypes.h"
-#include "ngs/interface/listener_factory_interface.h"
-#include "ngs/interface/listener_interface.h"
-#include "ngs/interface/server_task_interface.h"
-#include "ngs_common/smart_ptr.h"
-#include "socket_events.h"
+#include "plugin/x/ngs/include/ngs/interface/listener_factory_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/listener_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/server_task_interface.h"
+#include "plugin/x/ngs/include/ngs/socket_events.h"
+#include "plugin/x/ngs/include/ngs_common/smart_ptr.h"
 
 
 namespace ngs

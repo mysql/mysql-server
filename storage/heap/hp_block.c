@@ -18,9 +18,9 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "heapdef.h"
 #include "my_inttypes.h"
 #include "mysql/service_mysql_alloc.h"
+#include "storage/heap/heapdef.h"
 
 /*
   Find record according to record-position.

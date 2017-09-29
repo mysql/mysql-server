@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,10 +16,10 @@
 #ifndef GCS_XCOM_STATISTICS_INTERFACE_INCLUDED
 #define GCS_XCOM_STATISTICS_INTERFACE_INCLUDED
 
-#include "mysql/gcs/gcs_statistics_interface.h"
-
-#include <algorithm>
 #include <time.h>
+#include <algorithm>
+
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_statistics_interface.h"
 
 
 /**

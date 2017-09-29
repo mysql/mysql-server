@@ -445,6 +445,14 @@ class XSession {
       const std::string &stmt,
       const Arguments &args,
       XError *out_error) = 0;
+
+  /**
+    Graceful shutdown maintaing the close connection message flow.
+
+    Client application should call this directly before destroying the XSession
+    object.
+  */
+  virtual void close() = 0;
 };
 
 

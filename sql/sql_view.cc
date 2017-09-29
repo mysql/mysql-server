@@ -21,26 +21,9 @@
 #include <algorithm>
 #include <utility>
 
-#include "auth_acls.h"
-#include "auth_common.h"    // CREATE_VIEW_ACL
-#include "binlog.h"         // mysql_bin_log
-#include "dd/cache/dictionary_client.h"
-#include "dd/dd.h"          // dd::get_dictionary
-#include "dd/dd_schema.h"   // dd::schema_exists
-#include "dd/dd_view.h"     // dd::create_view
-#include "dd/dictionary.h"  // dd::Dictionary
-#include "dd/types/abstract_table.h"
-#include "dd_sql_view.h"    // update_referencing_views_metadata
-#include "derror.h"         // ER_THD
-#include "enum_query_type.h"
-#include "error_handler.h"  // Internal_error_handler
-#include "field.h"
-#include "item.h"
-#include "key.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
-#include "mdl.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -50,29 +33,46 @@
 #include "mysql/service_my_snprintf.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "mysqld.h"         // stage_end reg_ext key_file_frm
 #include "mysqld_error.h"
-#include "opt_trace.h"      // opt_trace_disable_if_no_view_access
-#include "parse_tree_node_base.h"
-#include "query_options.h"
-#include "sp_cache.h"       // sp_cache_invalidate
-#include "sql_base.h"       // get_table_def_key
-#include "sql_class.h"      // THD
-#include "sql_connect.h"
-#include "sql_const.h"
-#include "sql_digest_stream.h"
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_parse.h"      // create_default_definer
-#include "sql_security_ctx.h"
-#include "sql_show.h"       // append_identifier
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h" // CREATE_VIEW_ACL
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/binlog.h"     // mysql_bin_log
+#include "sql/dd/cache/dictionary_client.h"
+#include "sql/dd/dd.h"      // dd::get_dictionary
+#include "sql/dd/dd_schema.h" // dd::schema_exists
+#include "sql/dd/dd_view.h" // dd::create_view
+#include "sql/dd/dictionary.h" // dd::Dictionary
+#include "sql/dd/types/abstract_table.h"
+#include "sql/dd_sql_view.h" // update_referencing_views_metadata
+#include "sql/derror.h"     // ER_THD
+#include "sql/enum_query_type.h"
+#include "sql/error_handler.h" // Internal_error_handler
+#include "sql/field.h"
+#include "sql/item.h"
+#include "sql/key.h"
+#include "sql/mdl.h"
+#include "sql/mysqld.h"     // stage_end reg_ext key_file_frm
+#include "sql/opt_trace.h"  // opt_trace_disable_if_no_view_access
+#include "sql/parse_tree_node_base.h"
+#include "sql/query_options.h"
+#include "sql/sp_cache.h"   // sp_cache_invalidate
+#include "sql/sql_base.h"   // get_table_def_key
+#include "sql/sql_class.h"  // THD
+#include "sql/sql_connect.h"
+#include "sql/sql_const.h"
+#include "sql/sql_digest_stream.h"
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_parse.h"  // create_default_definer
+#include "sql/sql_show.h"   // append_identifier
+#include "sql/sql_table.h"  // write_bin_log
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/transaction.h"
 #include "sql_string.h"
-#include "sql_table.h"      // write_bin_log
-#include "system_variables.h"
-#include "table.h"
 #include "thr_lock.h"
-#include "transaction.h"
 
 namespace dd {
 class View;
@@ -379,15 +379,6 @@ bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
                thd->security_context()->priv_host().str, tbl->table_name);
       goto err;
     }
-    /*
-      All tables will be marked as needing SELECT_ACL privileges. This is
-      sufficient for all tables that are referenced in conditions, GROUP BY and
-      ORDER BY lists, and for any other tables if view is used in a SELECT
-      statement. For tables that are changed in INSERT, UPDATE or DELETE
-      statements, more specific marking will be made during resolving of the
-      query that embeds the view.
-    */
-    tbl->set_want_privilege(SELECT_ACL);
 
     /*
       Make sure that current table privileges are loaded to the
@@ -1038,18 +1029,9 @@ bool mysql_register_view(THD *thd, TABLE_LIST *view,
     This is a temporary workaround to be removed once we stop accepting
     invalid UTF8 in literals and fix bugs in view body printing.
   */
-  size_t valid_length;
-  bool not_used;
-  if (validate_string(system_charset_info, is_query.ptr(), is_query.length(),
-                      &valid_length, &not_used))
-  {
-    char hexbuf[7];
-    octet2hex(hexbuf, is_query.ptr() + valid_length,
-              std::min<size_t>(is_query.length() - valid_length, 3));
-    my_error(ER_INVALID_CHARACTER_STRING, MYF(0),
-             system_charset_info->csname,  hexbuf);
+  if (is_invalid_string(LEX_CSTRING{is_query.ptr(), is_query.length()},
+                        system_charset_info))
     DBUG_RETURN(true);
-  }
 
   if (!thd->make_lex_string(&view->view_body_utf8, is_query.ptr(),
                             is_query.length(), false))
@@ -1260,6 +1242,20 @@ public:
   }
 };
 
+/**
+  parse_view_definition creates a dummy lex object. Restore the parent_lex for
+  all the selects.
+
+  @param view_lex  View's LEX object.
+  @param old_lex   Original LEX object.
+*/
+void restore_parent_lex(LEX *view_lex, LEX *old_lex)
+{
+  for (SELECT_LEX *select= view_lex->all_selects_list;
+       select != nullptr; select= select->next_select_in_list())
+    select->parent_lex= old_lex;
+}
+
 
 /**
   Parse a view definition.
@@ -1360,7 +1356,7 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
   view_lex->unit->explain_marker= CTX_DERIVED;
 
   // Needed for correct units markup for EXPLAIN
-  view_lex->describe= old_lex->describe;
+  view_lex->explain_format= old_lex->explain_format;
 
   if (thd->m_digest != NULL)
     thd->m_digest->reset(thd->m_token_array, max_digest_length);
@@ -1468,7 +1464,7 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
                            false, UINT_MAX, true))
       view_ref->view_no_explain= true;
 
-    if (old_lex->describe && is_explainable_query(old_lex->sql_command))
+    if (old_lex->is_explain() && is_explainable_query(old_lex->sql_command))
     {
       // EXPLAIN statement should be allowed on views created in
       // information_schema
@@ -1514,16 +1510,10 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
     tbl->belong_to_view= top_view;
     tbl->referencing_view= view_ref;
     tbl->prelocking_placeholder= view_ref->prelocking_placeholder;
-    /*
-      First we fill want_privilege with SELECT_ACL (this is needed for the
-      tables which belong to view subqueries and temporary table views,
-      then for the merged view underlying tables we will set wanted
-      privileges of top_view. Clear privilege since this is based on
-      user's security context.
-    */
+
+    // Clear privilege since this is based on user's security context.
     tbl->grant.privilege= 0;
     
-    tbl->set_want_privilege(SELECT_ACL);
     /*
       For LOCK TABLES we need to acquire "strong" metadata lock to ensure
       that we properly protect underlying tables for storage engines which
@@ -1722,6 +1712,8 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
     sl->context.view_error_handler= true;
     sl->context.view_error_handler_arg= view_ref;
   }
+
+  restore_parent_lex(thd->lex, old_lex);
 
   view_select->linkage= DERIVED_TABLE_TYPE;
 

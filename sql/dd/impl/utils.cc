@@ -13,12 +13,12 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/utils.h"
+#include "sql/dd/impl/utils.h"
 
 #include <string>
 
-#include "dd/properties.h"          // dd::Properties
-#include "stateless_allocator.h"
+#include "sql/dd/properties.h"      // dd::Properties
+#include "sql/stateless_allocator.h"
 
 namespace dd {
 

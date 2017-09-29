@@ -20,8 +20,8 @@
 #ifndef _XPL_AUTH_PLAIN_H_
 #define _XPL_AUTH_PLAIN_H_
 
-#include "account_verification_handler.h"
-#include "ngs/interface/authentication_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/authentication_interface.h"
+#include "plugin/x/src/account_verification_handler.h"
 
 namespace xpl {
 

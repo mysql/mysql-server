@@ -17,10 +17,11 @@
 #include "my_config.h"
 
 #include <gtest/gtest.h>
-#include <m_string.h>
 #include <mysql/service_my_snprintf.h>
 #include <stdarg.h>
 #include <stddef.h>
+
+#include "m_string.h"
 
 namespace mysys_my_vsnprintf_unittest {
 

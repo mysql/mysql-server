@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,18 +15,18 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "channel_info.h"
+#include "sql/conn_handler/channel_info.h"
 
 #include <stddef.h>
 #include <new>
 
-#include "derror.h"                     // ER_DEFAULT
 #include "my_dbug.h"
 #include "my_stacktrace.h"              // my_safe_snprintf
 #include "mysql/service_my_snprintf.h"
 #include "mysql_com.h"
-#include "protocol_classic.h"
-#include "sql_class.h"                  // THD
+#include "sql/derror.h"                 // ER_DEFAULT
+#include "sql/protocol_classic.h"
+#include "sql/sql_class.h"              // THD
 #include "violite.h"
 
 

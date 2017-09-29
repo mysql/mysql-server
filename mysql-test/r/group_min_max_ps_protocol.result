@@ -28,7 +28,7 @@ FLUSH STATUS;
 CREATE TABLE t2 SELECT max(b), a FROM t1 GROUP BY a;
 SHOW STATUS LIKE 'handler_read__e%';
 Variable_name	Value
-Handler_read_key	18
+Handler_read_key	24
 Handler_read_next	20
 FLUSH STATUS;
 SELECT * FROM (SELECT max(b), a FROM t1 GROUP BY a) b;
@@ -117,6 +117,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select (/* select#2 */ select (/* select#3 */ select max(`test`.`t1`.`b`) from `test`.`t1` group by `test`.`t1`.`a` having (`test`.`t1`.`a` < 2)) AS `x` from `test`.`t1` `t1_outer`) AS `x2` from `test`.`t1` `t1_outer2`
 CREATE TABLE t3 LIKE t1;
+# Ensure that t3 is loaded into data-dictionary cache.
 FLUSH STATUS;
 INSERT INTO t3 SELECT a,MAX(b) FROM t1 GROUP BY a;
 SHOW STATUS LIKE 'handler_read__e%';

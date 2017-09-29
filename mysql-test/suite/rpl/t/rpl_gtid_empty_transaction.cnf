@@ -7,12 +7,10 @@
 
 [mysqld.1]
 gtid-mode=on
-log-slave-updates=on
 enforce-gtid-consistency=on
 
 [mysqld.2]
 gtid-mode=on
-log-slave-updates=on
 enforce-gtid-consistency=on
 
 replicate-ignore-table=test.t_ignore
@@ -22,7 +20,6 @@ binlog-ignore-db=db_binlog_ignore
 
 [mysqld.3]
 gtid-mode=on
-log-slave-updates=on
 enforce-gtid-consistency=on
 loose-innodb_write_io_threads=    2
 loose-innodb_read_io_threads=     2

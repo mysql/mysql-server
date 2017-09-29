@@ -21,8 +21,9 @@
   plugins/components tables (declarations).
 */
 
-#include "pfs_engine_table.h"
 #include <mysql/components/services/pfs_plugin_table_service.h>
+
+#include "storage/perfschema/pfs_engine_table.h"
 
 /**
   @addtogroup Performance_schema_tables

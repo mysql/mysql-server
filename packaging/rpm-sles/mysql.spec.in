@@ -646,6 +646,7 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %else
 /sbin/insserv /etc/init.d/mysql
 %endif
+%{_sbindir}/setcap cap_sys_nice+ep %{_sbindir}/mysqld >/dev/null 2>&1 || :
 
 %preun server
 %if 0%{?systemd}
@@ -1006,6 +1007,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_example_component2.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_example_component3.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_test.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_backup_lock_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_string_service_charset.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_string_service_long.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_string_service.so
@@ -1033,6 +1035,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_status_var_service_reg_only.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_status_var_service_str.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_status_var_service_unreg_only.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_system_variable_source.so
 %attr(644, root, root) %{_libdir}/mysql/plugin/daemon_example.ini
 %attr(755, root, root) %{_libdir}/mysql/plugin/libdaemon_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/test_udf_services.so
@@ -1070,6 +1073,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_example_component2.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_example_component3.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_sink_test.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_backup_lock_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_string_service_charset.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_string_service_long.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_string_service.so
@@ -1097,6 +1101,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_status_var_service_reg_only.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_status_var_service_str.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_status_var_service_unreg_only.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_system_variable_source.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libdaemon_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_udf_services.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/replication_observers_example_plugin.so
@@ -1188,14 +1193,9 @@ fi
 %endif # cluster
 
 %changelog
-* Fri Jul 28 2017 Horst Hunger <Horst.hunger@oracle.com> - 8.0.3-0.1
-- Add component_test_status_var_service plugin
-
-* Tue Jul 19 2017 V S Murthy Sidagam <venkata.sidagam@oracle.com> - 8.0.3-0.1
-- Add component_test_status_var_service plugin
-
-* Thu Jun 08 2017 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 8.0.3-0.1
+* Wed Jul 19 2017 V S Murthy Sidagam <venkata.sidagam@oracle.com> - 8.0.3-0.1
 - Updated for 8.0.3 release
+- Add component_test_status_var_service plugin
 
 * Fri May 26 2017 Harin Vadodaria <harin.vadodaria@oracle.com> - 8.0.2-0.1
 - Add keyring_aws plugin and UDF components

@@ -1,5 +1,6 @@
 # Tests for WL#8131
 call mtr.add_suppression(".*Missing system table mysql.global_grants.*");
+call mtr.add_suppression("ACL table mysql.global_grants missing. Some operations may fail.");
 
 --echo #
 --echo # Bug25303916 WL8131:FLUSH DOES NOT UPDATE THE GRANT STATUS IN
@@ -474,7 +475,7 @@ CREATE TABLE IF NOT EXISTS mysql.global_grants
  PRIV CHAR(32) COLLATE UTF8_GENERAL_CI DEFAULT '' NOT NULL, 
  WITH_GRANT_OPTION ENUM('N','Y') COLLATE UTF8_GENERAL_CI DEFAULT 'N' NOT NULL,
 PRIMARY KEY (USER,HOST,PRIV)
-) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin;
+) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin TABLESPACE=mysql;
 --source include/restart_mysqld.inc
 DROP USER u1@localhost;
 --echo # restore root privileges
@@ -519,5 +520,17 @@ GRANT XA_RECOVER_ADMIN ON *.* TO u3;
 DROP USER u1;
 DROP USER u2;
 DROP USER u3;
-
 --echo # End of test for WL#7194
+
+--echo # REVOKE ALL IS NOT REVOKING ALL PRIVILEGE WHEN CURRENT_USER() IS USED
+CREATE USER u1@localhost IDENTIFIED BY 'foo';
+GRANT ALL ON *.* TO u1@localhost;
+connect (con2,localhost,u1,foo,,);
+connection con2;
+SHOW GRANTS;
+REVOKE ALL ON *.* FROM CURRENT_USER();
+SHOW GRANTS;
+connection default;
+disconnect con2;
+DROP USER u1@localhost;
+

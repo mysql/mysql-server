@@ -179,7 +179,7 @@ ANALYZE TABLE t2;
 -- enable_result_log
 -- enable_query_log
 
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT MIN(t1.pk)
 FROM t1 WHERE EXISTS (
  SELECT t2.pk

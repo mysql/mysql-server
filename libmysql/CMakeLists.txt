@@ -14,16 +14,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 INCLUDE_DIRECTORIES(
-  ${CMAKE_SOURCE_DIR}/include
-  ${CMAKE_BINARY_DIR}/include
-  ${CMAKE_SOURCE_DIR}/libmysql
-  ${CMAKE_SOURCE_DIR}/extra/regex
-  ${CMAKE_SOURCE_DIR}/sql
-  ${CMAKE_SOURCE_DIR}/strings
-  ${CMAKE_SOURCE_DIR}/libbinlogevents/include
-  ${SSL_INCLUDE_DIRS}
-  ${SSL_INTERNAL_INCLUDE_DIRS}
-  ${ZLIB_INCLUDE_DIR})
+  ${CMAKE_SOURCE_DIR}/libbinlogevents/include)
 ADD_DEFINITIONS(${SSL_DEFINES})
 
 SET(CLIENT_API_FUNCTIONS
@@ -171,11 +162,16 @@ SET(CLIENT_SOURCES
   ../sql-common/client_plugin.c 
   ../sql-common/client_authentication.cc
   ../sql-common/net_serv.cc
-  ../sql/auth/password.c
+  ../sql/auth/password.cc
+  ../sql/auth/sha2_password_common.cc
 )
 
+INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 IF (WIN32 AND OPENSSL_APPLINK_C)
-  LIST(APPEND CLIENT_SOURCES "${OPENSSL_APPLINK_C}")
+  ADD_COMPILE_FLAGS(
+    ../sql-common/client_authentication.cc
+    COMPILE_FLAGS -DHAVE_OPENSSL_APPLINK_C
+  )
 ENDIF()
 
 #
@@ -215,19 +211,26 @@ MESSAGE(STATUS "Creating LDAP authentication SASL client library.")
 ADD_SUBDIRECTORY(authentication_ldap)
   
 # Merge several convenience libraries into one big mysqlclient
-MERGE_LIBRARIES(mysqlclient STATIC ${LIBS} COMPONENT Development)
+MERGE_CONVENIENCE_LIBRARIES(mysqlclient ${LIBS} COMPONENT Development)
 
 # Visual Studio users need debug  static library for debug projects
 IF(MSVC)
- INSTALL_DEBUG_TARGET(mysqlclient DESTINATION ${INSTALL_LIBDIR}/debug)
- INSTALL_DEBUG_TARGET(clientlib DESTINATION ${INSTALL_LIBDIR}/debug)
-ENDIF()
+  INSTALL_DEBUG_TARGET(mysqlclient DESTINATION ${INSTALL_LIBDIR}/debug)
 
-MACRO(GET_TARGET_NAME target out_name)
-  GET_TARGET_PROPERTY(location ${target} LOCATION)
-  GET_FILENAME_COMPONENT(name ${location} NAME)
-  SET(${out_name} ${name})
-ENDMACRO()
+  INSTALL_DEBUG_TARGET(auth_win_client DESTINATION ${INSTALL_LIBDIR}/debug)
+  INSTALL_DEBUG_TARGET(clientlib DESTINATION ${INSTALL_LIBDIR}/debug)
+  INSTALL_DEBUG_TARGET(mysys DESTINATION ${INSTALL_LIBDIR}/debug)
+  INSTALL_DEBUG_TARGET(mysys_ssl DESTINATION ${INSTALL_LIBDIR}/debug)
+  INSTALL_DEBUG_TARGET(strings DESTINATION ${INSTALL_LIBDIR}/debug)
+  INSTALL_DEBUG_TARGET(vio DESTINATION ${INSTALL_LIBDIR}/debug)
+  IF(WITH_SSL STREQUAL "bundled")
+    INSTALL_DEBUG_TARGET(taocrypt DESTINATION ${INSTALL_LIBDIR}/debug)
+    INSTALL_DEBUG_TARGET(yassl DESTINATION ${INSTALL_LIBDIR}/debug)
+  ENDIF()
+  IF(WITH_ZLIB STREQUAL "bundled")
+    INSTALL_DEBUG_TARGET(zlib DESTINATION ${INSTALL_LIBDIR}/debug)
+  ENDIF()
+ENDIF()
 
 IF(UNIX)
   MACRO(GET_VERSIONED_LIBNAME LIBNAME EXTENSION VERSION OUTNAME)
@@ -246,7 +249,7 @@ ENDIF()
 IF(NOT DISABLE_SHARED)
   # Merge several convenience libraries into one big mysqlclient
   # and link them together into shared library.
-  MERGE_LIBRARIES(libmysql SHARED ${LIBS}
+  MERGE_LIBRARIES_SHARED(libmysql ${LIBS}
     EXPORTS ${CLIENT_API_FUNCTIONS} ${CLIENT_API_FUNCTIONS_UNDOCUMENTED}
     COMPONENT SharedLibraries)
   IF(UNIX)
@@ -266,10 +269,11 @@ IF(NOT DISABLE_SHARED)
 
     IF(APPLE)
       SET_TARGET_PROPERTIES(libmysql PROPERTIES
-        INSTALL_NAME_DIR "${CMAKE_INSTALL_PREFIX}/${INSTALL_LIBDIR}"
+        MACOSX_RPATH ON 
       )
     ENDIF()
 
+    GET_TARGET_PROPERTY(libmysql_link_flags libmysql LINK_FLAGS)
     IF(LINK_FLAG_NO_UNDEFINED)
       SET(libmysql_link_flags
         "${libmysql_link_flags} ${LINK_FLAG_NO_UNDEFINED}")
@@ -317,9 +321,15 @@ IF(LIBRT)
   TARGET_LINK_LIBRARIES(libmysql_api_test ${LIBRT})
 ENDIF()
 
-IF(DISABLE_SHARED)
+# We need to find both SSL .dlls and libmysql.dll, link statically on WIN32
+IF(DISABLE_SHARED OR WIN32)
   TARGET_LINK_LIBRARIES(libmysql_api_test ${LIBS})
 ELSE()
   TARGET_LINK_LIBRARIES(libmysql_api_test libmysql)
 ENDIF()
 
+# Verify that libmysql_api_test runs OK
+ADD_CUSTOM_COMMAND(TARGET libmysql_api_test POST_BUILD
+  COMMAND $<TARGET_FILE:libmysql_api_test>
+  > ${CMAKE_CURRENT_BINARY_DIR}/libmysql_api_test.out
+  )

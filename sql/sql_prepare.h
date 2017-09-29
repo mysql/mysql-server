@@ -19,7 +19,6 @@
 #include <sys/types.h>
 #include <new>
 
-#include "key.h"
 #include "lex_string.h"
 #include "my_command.h"
 #include "my_dbug.h"
@@ -30,13 +29,14 @@
 #include "mysql/psi/psi_statement.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "protocol_classic.h"
-#include "query_result.h" // Query_result_send
-#include "sql_alloc.h"
-#include "sql_class.h"    // Query_arena
-#include "sql_error.h"
-#include "sql_list.h"
-#include "sql_servers.h"
+#include "sql/key.h"
+#include "sql/protocol_classic.h"
+#include "sql/query_result.h" // Query_result_send
+#include "sql/sql_alloc.h"
+#include "sql/sql_class.h" // Query_arena
+#include "sql/sql_error.h"
+#include "sql/sql_list.h"
+#include "sql/sql_servers.h"
 
 class Item;
 class Item_param;

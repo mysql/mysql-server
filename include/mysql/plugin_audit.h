@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -49,6 +49,7 @@ typedef enum
   MYSQL_AUDIT_COMMAND_CLASS          = 8,
   MYSQL_AUDIT_QUERY_CLASS            = 9,
   MYSQL_AUDIT_STORED_PROGRAM_CLASS   = 10,
+  MYSQL_AUDIT_AUTHENTICATION_CLASS   = 11,
   /* This item must be last in the list. */
   MYSQL_AUDIT_CLASS_MASK_SIZE
 } mysql_event_class_t;
@@ -558,6 +559,73 @@ struct mysql_event_stored_program
   MYSQL_LEX_CSTRING                     name;
   /** Stored program parameters. */
   void                                  *parameters;
+};
+
+
+/**
+  @enum mysql_event_authentication_subclass_t
+
+  Events for MYSQL_AUDIT_AUTHENTICATION_CLASS event class.
+
+  Event handler can not terminate an event unless stated
+  explicitly.
+*/
+typedef enum
+{
+  /** Generated after FLUSH PRIVILEGES */
+  MYSQL_AUDIT_AUTHENTICATION_FLUSH              = 1 << 0,
+  /** Generated after CREATE USER | CREATE ROLE */
+  MYSQL_AUDIT_AUTHENTICATION_AUTHID_CREATE      = 1 << 1,
+  /**
+    Generated after credential change through:
+    - SET PASSWORD
+    - ALTER USER
+    - GRANT
+  */
+  MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE  = 1 << 2,
+  /** Generated after RENAME USER */
+  MYSQL_AUDIT_AUTHENTICATION_AUTHID_RENAME      = 1 << 3,
+  /** Generated after DROP USER */
+  MYSQL_AUDIT_AUTHENTICATION_AUTHID_DROP        = 1 << 4
+} mysql_event_authentication_subclass_t;
+
+#define MYSQL_AUDIT_AUTHENTICATION_ALL (MYSQL_AUDIT_AUTHENTICATION_FLUSH | \
+                                        MYSQL_AUDIT_AUTHENTICATION_AUTHID_CREATE | \
+                                        MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE | \
+                                        MYSQL_AUDIT_AUTHENTICATION_AUTHID_RENAME | \
+                                        MYSQL_AUDIT_AUTHENTICATION_AUTHID_DROP)
+
+/**
+  @struct mysql_event_authentication
+
+  Structure for MYSQL_AUDIT_AUTHENTICATION_CLASS event class.
+*/
+struct mysql_event_authentication
+{
+  /** Event subclass. */
+  mysql_event_authentication_subclass_t event_subclass;
+  /** Event status */
+  int                                   status;
+  /** Connection id. */
+  unsigned int                          connection_id;
+  /** SQL command id. */
+  enum_sql_command_t                    sql_command_id;
+  /** SQL query text. */
+  MYSQL_LEX_CSTRING                     query;
+  /** SQL query charset. */
+  const struct charset_info_st          *query_charset;
+  /** User name */
+  MYSQL_LEX_CSTRING                     user;
+  /** Host name */
+  MYSQL_LEX_CSTRING                     host;
+  /** Authentication plugin */
+  MYSQL_LEX_CSTRING                     authentication_plugin;
+  /** New user name */
+  MYSQL_LEX_CSTRING                     new_user;
+  /** New host name */
+  MYSQL_LEX_CSTRING                     new_host;
+  /** AuthorizationID type */
+  bool                                  is_role;
 };
 
 #endif

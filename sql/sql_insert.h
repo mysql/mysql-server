@@ -19,15 +19,15 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "handler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
-#include "query_result.h"         // Query_result_interceptor
-#include "sql_cmd_dml.h"          // Sql_cmd_dml
-#include "sql_data_change.h"      // enum_duplicates
-#include "sql_list.h"
-#include "table.h"
+#include "sql/handler.h"
+#include "sql/query_result.h"     // Query_result_interceptor
+#include "sql/sql_cmd_dml.h"      // Sql_cmd_dml
+#include "sql/sql_data_change.h"  // enum_duplicates
+#include "sql/sql_list.h"
+#include "sql/table.h"
 
 class Alter_info;
 class Field;

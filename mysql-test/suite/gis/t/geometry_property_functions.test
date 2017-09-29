@@ -1716,10 +1716,6 @@ SELECT ST_LENGTH(ST_GEOMFROMTEXT('POINT(0 0)', 2000));
 --echo # Geographic SRS (should pass)
 SELECT ST_LENGTH(ST_GEOMFROMTEXT('POINT(0 0)', 4326));
 
---echo # Undefined SRS (should pass with warning)
-# Assume SRID 19000000 is undefined
-SELECT ST_LENGTH(ST_GEOMFROMTEXT('POINT(0 0)', 19000000));
-
 --echo # Unparseable SRS definition (should fail)
 # Assume SRID 19000001 is undefined
 INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
@@ -1782,11 +1778,7 @@ CALL geom_prop_func(2000);
 --echo # Geographic SRS (should pass)
 CALL geom_prop_func(4326);
 
---echo # Undefined SRS (should pass)
-# Assume SRID 19000000 is undefined
-CALL geom_prop_func(19000000);
-
---echo # Unparseable SRS definition (should pass)
+--echo # Unparseable SRS definition (should fail)
 # Assume SRID 44444444 is undefined
 INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
 organization, organization_coordsys_id, definition, description)

@@ -69,7 +69,7 @@ SELECT * FROM tab5;
 
 --echo check the update_time After Commit, whether it is not NULL
 --sorted_result
-SET information_schema_stats=latest;
+SET information_schema_stats_expiry=0;
 SELECT table_name,COUNT(update_time)
 FROM information_schema.tables
 WHERE table_name IN ('tab1','tab3','tab4','tab5')
@@ -78,7 +78,7 @@ GROUP BY table_schema, table_name;
 --echo #restart the server
 --source include/restart_mysqld.inc
 
-SET information_schema_stats=latest;
+SET information_schema_stats_expiry=0;
 --echo Testcase with UPDATE stmt and transaction
 
 --echo #check the record is existing
@@ -111,7 +111,7 @@ FROM information_schema.tables WHERE table_name='tab1';
 --echo #restart the server
 --source include/restart_mysqld.inc
 
-SET information_schema_stats=latest;
+SET information_schema_stats_expiry=0;
 --echo #check the record is existing
 SELECT * FROM tab1;
 
@@ -141,7 +141,7 @@ FROM information_schema.tables WHERE table_name='tab1';
 
 --echo #restart the server
 --source include/restart_mysqld.inc
-SET information_schema_stats=latest;
+SET information_schema_stats_expiry=0;
 
 --echo #check no records are existing
 SELECT * FROM tab1;
@@ -215,7 +215,7 @@ TRUNCATE TABLE tab2;
 
 --echo #restart the server
 --source include/restart_mysqld.inc
-SET information_schema_stats=latest;
+SET information_schema_stats_expiry=0;
 --echo #case6:
 
 SET AUTOCOMMIT=off;
@@ -283,7 +283,7 @@ FROM information_schema.tables WHERE table_name='tab8';
 
 --echo #restart the server
 --source include/restart_mysqld.inc
-SET information_schema_stats=latest;
+SET information_schema_stats_expiry=0;
 
 SET AUTOCOMMIT=off;
 

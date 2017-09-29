@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "rpl_handler.h"
+#include "sql/rpl_handler.h"
 
 #include <string.h>
 #include <memory>
@@ -22,13 +22,7 @@
 #include <utility>
 #include <vector>
 
-#include "current_thd.h"
-#include "debug_sync.h"        // DEBUG_SYNC
-#include "handler.h"
-#include "item_func.h"         // user_var_entry
-#include "key.h"
 #include "lex_string.h"
-#include "log.h"
 #include "map_helpers.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -38,20 +32,26 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysqld.h"            // server_uuid
 #include "mysqld_error.h"
 #include "prealloced_array.h"
-#include "psi_memory_key.h"
-#include "replication.h"       // Trans_param
-#include "rpl_gtid.h"
-#include "rpl_mi.h"            // Master_info
-#include "sql_class.h"         // THD
-#include "sql_const.h"
-#include "sql_plugin.h"        // plugin_int_to_ref
+#include "sql/current_thd.h"
+#include "sql/debug_sync.h"    // DEBUG_SYNC
+#include "sql/handler.h"
+#include "sql/item_func.h"     // user_var_entry
+#include "sql/key.h"
+#include "sql/log.h"
+#include "sql/mysqld.h"        // server_uuid
+#include "sql/psi_memory_key.h"
+#include "sql/replication.h"   // Trans_param
+#include "sql/rpl_gtid.h"
+#include "sql/rpl_mi.h"        // Master_info
+#include "sql/sql_class.h"     // THD
+#include "sql/sql_const.h"
+#include "sql/sql_plugin.h"    // plugin_int_to_ref
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/transaction_info.h"
 #include "sql_string.h"
-#include "system_variables.h"
-#include "table.h"
-#include "transaction_info.h"
 
 Trans_delegate *transaction_delegate;
 Binlog_storage_delegate *binlog_storage_delegate;
@@ -382,14 +382,18 @@ bool has_cascade_foreign_key(TABLE *table, THD *thd)
      {"CASCADE", "SET NULL", "NO ACTION", "RESTRICT"}.
 
      Hence we are avoiding the usage of strncmp
-     ("'update_method' value with 'CASCADE'") and just comparing
-     the first character of the update_method value with 'C'.
+     ("'update_method' value with 'CASCADE' or 'SET NULL'") and just comparing
+     the first character of the update_method value with 'C' or 'S'.
     */
     if (f_key_info->update_method->str[0] == 'C' ||
-        f_key_info->delete_method->str[0] == 'C')
+        f_key_info->delete_method->str[0] == 'C' ||
+        f_key_info->update_method->str[0] == 'S' ||
+        f_key_info->delete_method->str[0] == 'S')
     {
       DBUG_ASSERT(!strncmp(f_key_info->update_method->str, "CASCADE", 7) ||
-                  !strncmp(f_key_info->delete_method->str, "CASCADE", 7));
+                  !strncmp(f_key_info->delete_method->str, "CASCADE", 7) ||
+                  !strncmp(f_key_info->update_method->str, "SET NUL", 7) ||
+                  !strncmp(f_key_info->delete_method->str, "SET NUL", 7));
       DBUG_RETURN(TRUE);
     }
   }

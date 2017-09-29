@@ -100,22 +100,22 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 # Show that the system tables have this tablespace in them correctly
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t1	test/t1	97	5	Dynamic	0	Single
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 test/t1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t1.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
-test/t1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t1.ibd
+test/t1	TABLESPACE	InnoDB	NORMAL	test/t1	MYSQL_TMP_DIR/alt_dir/test/t1.ibd
 #
 # Show that the system tables are updated on drop table
 #
 DROP TABLE t1;
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
@@ -135,15 +135,15 @@ t1	CREATE TABLE `t1` (
   `b` text,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t1	test/t1	97	5	Dynamic	0	Single
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 test/t1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t1.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
-test/t1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t1.ibd
+test/t1	TABLESPACE	InnoDB	NORMAL	test/t1	MYSQL_TMP_DIR/alt_dir/test/t1.ibd
 ---- MYSQLD_DATADIR/test
 ---- MYSQL_TMP_DIR/alt_dir/test
 t1.ibd
@@ -155,15 +155,15 @@ INSERT INTO t1 VALUES (3, 'Truncate the table, then insert');
 SELECT * FROM t1;
 a	b
 3	Truncate the table, then insert
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t1	test/t1	97	5	Dynamic	0	Single
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 test/t1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t1.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
-test/t1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t1.ibd
+test/t1	TABLESPACE	InnoDB	NORMAL	test/t1	MYSQL_TMP_DIR/alt_dir/test/t1.ibd
 ---- MYSQLD_DATADIR/test
 ---- MYSQL_TMP_DIR/alt_dir/test
 t1.ibd
@@ -176,15 +176,15 @@ SELECT * FROM t2;
 a	b
 3	Truncate the table, then insert
 4	Rename the table, then insert
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t2	test/t2	97	5	Dynamic	0	Single
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 test/t2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t2.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
-test/t2	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t2.ibd
+test/t2	TABLESPACE	InnoDB	NORMAL	test/t2	MYSQL_TMP_DIR/alt_dir/test/t2.ibd
 ---- MYSQLD_DATADIR/test
 ---- MYSQL_TMP_DIR/alt_dir/test
 t2.ibd
@@ -196,27 +196,27 @@ INSERT INTO t3 VALUES (5, 'CREATE TABLE LIKE');
 SELECT * FROM t3;
 a	b
 5	CREATE TABLE LIKE
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t2	test/t2	97	5	Dynamic	0	Single
 test/t3	test/t3	33	5	Dynamic	0	Single
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 test/t2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t2.ibd
 test/t3	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t3.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
-test/t2	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t2.ibd
-test/t3	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t3.ibd
+test/t2	TABLESPACE	InnoDB	NORMAL	test/t2	MYSQL_TMP_DIR/alt_dir/test/t2.ibd
+test/t3	TABLESPACE	InnoDB	NORMAL	test/t3	MYSQLD_DATADIR/test/t3.ibd
 ---- MYSQLD_DATADIR/test
 t3.ibd
 #
 # Now make sure the tables can be fully dropped.
 #
 DROP TABLE t2, t3;
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
@@ -301,12 +301,12 @@ Error	1031	Table storage engine for 't1' doesn't have this option
 #
 CREATE PROCEDURE static_proc() BEGIN CREATE TABLE t1 (a int KEY, b text) DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir'; END |
 CALL static_proc;
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 test/t1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t1.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
-test/t1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t1.ibd
+test/t1	TABLESPACE	InnoDB	NORMAL	test/t1	MYSQL_TMP_DIR/alt_dir/test/t1.ibd
 INSERT INTO t1 VALUES (7, 'Create the remote table via static DDL statements');
 SELECT * FROM t1;
 a	b
@@ -344,12 +344,12 @@ t1	CREATE TABLE `t1` (
   `b` text,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 test/t1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t1.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
-test/t1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t1.ibd
+test/t1	TABLESPACE	InnoDB	NORMAL	test/t1	MYSQL_TMP_DIR/alt_dir/test/t1.ibd
 ---- MYSQLD_DATADIR/test
 ---- MYSQL_TMP_DIR/alt_dir/test
 t1.ibd
@@ -393,21 +393,21 @@ id	store_name	parts	store_id
 1	Oracle	NUTT	10
 2	HUAWEI	BOLT	40
 3	IBM	NAIL	70
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/emp#p#east	test/emp#p#east	97	7	Dynamic	0	Single
 test/emp#p#north	test/emp#p#north	97	7	Dynamic	0	Single
 test/emp#p#west	test/emp#p#west	97	7	Dynamic	0	Single
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 test/emp#p#east	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east.ibd
 test/emp#p#north	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_north/test/emp#p#north.ibd
 test/emp#p#west	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_west/test/emp#p#west.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
-test/emp#p#east	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east.ibd
-test/emp#p#north	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_north/test/emp#p#north.ibd
-test/emp#p#west	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_west/test/emp#p#west.ibd
+test/emp#p#east	TABLESPACE	InnoDB	NORMAL	test/emp#p#east	MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east.ibd
+test/emp#p#north	TABLESPACE	InnoDB	NORMAL	test/emp#p#north	MYSQL_TMP_DIR/alt_dir_north/test/emp#p#north.ibd
+test/emp#p#west	TABLESPACE	InnoDB	NORMAL	test/emp#p#west	MYSQL_TMP_DIR/alt_dir_west/test/emp#p#west.ibd
 ---- MYSQLD_DATADIR/test
 ---- MYSQL_TMP_DIR/alt_dir_east/test
 emp#p#east.ibd
@@ -434,18 +434,18 @@ SELECT * FROM emp;
 id	store_name	parts	store_id
 1	Oracle	NUTT	10
 2	HUAWEI	BOLT	40
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/emp#p#east	test/emp#p#east	97	7	Dynamic	0	Single
 test/emp#p#north	test/emp#p#north	97	7	Dynamic	0	Single
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 test/emp#p#east	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east.ibd
 test/emp#p#north	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_north/test/emp#p#north.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
-test/emp#p#east	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east.ibd
-test/emp#p#north	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_north/test/emp#p#north.ibd
+test/emp#p#east	TABLESPACE	InnoDB	NORMAL	test/emp#p#east	MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east.ibd
+test/emp#p#north	TABLESPACE	InnoDB	NORMAL	test/emp#p#north	MYSQL_TMP_DIR/alt_dir_north/test/emp#p#north.ibd
 ---- MYSQLD_DATADIR/test
 ---- MYSQL_TMP_DIR/alt_dir_east/test
 emp#p#east.ibd
@@ -464,21 +464,21 @@ id	store_name	parts	store_id
 1	Oracle	NUTT	10
 2	HUAWEI	BOLT	40
 3	IBM	NAIL	70
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/emp#p#east	test/emp#p#east	97	7	Dynamic	0	Single
 test/emp#p#north	test/emp#p#north	97	7	Dynamic	0	Single
 test/emp#p#west	test/emp#p#west	97	7	Dynamic	0	Single
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 test/emp#p#east	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east.ibd
 test/emp#p#north	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_north/test/emp#p#north.ibd
 test/emp#p#west	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_west/test/emp#p#west.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
-test/emp#p#east	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east.ibd
-test/emp#p#north	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_north/test/emp#p#north.ibd
-test/emp#p#west	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_west/test/emp#p#west.ibd
+test/emp#p#east	TABLESPACE	InnoDB	NORMAL	test/emp#p#east	MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east.ibd
+test/emp#p#north	TABLESPACE	InnoDB	NORMAL	test/emp#p#north	MYSQL_TMP_DIR/alt_dir_north/test/emp#p#north.ibd
+test/emp#p#west	TABLESPACE	InnoDB	NORMAL	test/emp#p#west	MYSQL_TMP_DIR/alt_dir_west/test/emp#p#west.ibd
 ---- MYSQLD_DATADIR/test
 ---- MYSQL_TMP_DIR/alt_dir_east/test
 emp#p#east.ibd
@@ -508,21 +508,21 @@ id	store_name	parts	store_id
 1	Oracle	NUTT	10
 2	HUAWEI	BOLT	40
 3	IBM	NAIL	70
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/emp#p#east	test/emp#p#east	97	7	Dynamic	0	Single
 test/emp#p#north	test/emp#p#north	97	7	Dynamic	0	Single
 test/emp#p#west	test/emp#p#west	97	7	Dynamic	0	Single
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+=== information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 test/emp#p#east	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east.ibd
 test/emp#p#north	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_north/test/emp#p#north.ibd
 test/emp#p#west	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir_west/test/emp#p#west.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
-test/emp#p#east	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east.ibd
-test/emp#p#north	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_north/test/emp#p#north.ibd
-test/emp#p#west	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_west/test/emp#p#west.ibd
+test/emp#p#east	TABLESPACE	InnoDB	NORMAL	test/emp#p#east	MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east.ibd
+test/emp#p#north	TABLESPACE	InnoDB	NORMAL	test/emp#p#north	MYSQL_TMP_DIR/alt_dir_north/test/emp#p#north.ibd
+test/emp#p#west	TABLESPACE	InnoDB	NORMAL	test/emp#p#west	MYSQL_TMP_DIR/alt_dir_west/test/emp#p#west.ibd
 ---- MYSQLD_DATADIR/test
 ---- MYSQL_TMP_DIR/alt_dir_east/test
 emp#p#east.ibd

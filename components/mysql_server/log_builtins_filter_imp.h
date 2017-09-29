@@ -115,8 +115,8 @@ int log_builtins_filter_run(void *instance, log_line *ll);
 
 /**
   This is part of the 5.7 emulation:
-  If --log_error_verbosity / --log_warnings is changed,
-  we generate an artificial filter rule from it here.
+  If --log_error_verbosity is changed, we generate an
+  artificial filter rule from it here.
   These synthetic filter rules are only used if no other
   filter service (including the loadable filter
   configuration engine that extends the built-in filtering

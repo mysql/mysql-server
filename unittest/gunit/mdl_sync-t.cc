@@ -19,13 +19,14 @@
 */
 
 #include "my_config.h"
+
 #include <gtest/gtest.h>
 
-#include "mdl.h"
-#include "test_utils.h"
-#include "thread_utils.h"
-#include "debug_sync.h"
-#include "sql_base.h"
+#include "sql/debug_sync.h"
+#include "sql/mdl.h"
+#include "sql/sql_base.h"
+#include "unittest/gunit/test_utils.h"
+#include "unittest/gunit/thread_utils.h"
 
 #if defined(ENABLED_DEBUG_SYNC)
 namespace mdl_sync_unittest {

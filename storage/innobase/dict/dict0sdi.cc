@@ -62,6 +62,45 @@ dict_sdi_check_existence(
 	return(fsp_has_sdi(*space_id) ? DB_SUCCESS : DB_ERROR);
 }
 
+/** Report error on failure
+@param[in]	operation	SDI set or delete
+@param[in]	table		table object for which SDI is serialized
+@param[in]	tablespace	tablespace where SDI is stored */
+static
+void
+dict_sdi_report_error(
+	const char*		operation,
+	const dd::Table*	table,
+	const dd::Tablespace&	tablespace)
+{
+	THD*			thd = current_thd;
+	const char*		schema_name = nullptr;
+	const dd::Schema*	schema= nullptr;
+	const char*		table_name = nullptr;
+
+	if (thd != nullptr && table != nullptr) {
+		 table_name = table->name().c_str();
+		 if (thd->dd_client()->acquire(table->schema_id(), &schema)) {
+			 schema_name = nullptr;
+		 } else {
+			schema_name = schema->name().c_str();
+		}
+	}
+
+	if (schema_name == nullptr) {
+		schema_name = "<no schema>";
+	}
+
+	if (table_name == nullptr) {
+		table_name = "<no table>";
+	}
+
+	my_error(ER_SDI_OPERATION_FAILED, MYF(0), operation,
+		 schema_name,
+		 table_name,
+		 tablespace.name().c_str());
+}
+
 /** Create SDI in a tablespace. This API should be used when
 upgrading a tablespace with no SDI.
 @param[in,out]	tablespace	tablespace object
@@ -167,19 +206,10 @@ dict_sdi_get_keys(
 	ib_sdi_vector	ib_vector;
 	ib_vector.sdi_vector = &vector;
 
-#if 0  /* TODO: WL#9536: Use internal trx */
 	trx_t*	trx = check_trx_exists(current_thd);
-#else
-	trx_t*	trx = trx_allocate_for_mysql();
-	trx_start_internal(trx);
-#endif
+	trx_start_if_not_started(trx, true);
 
 	dberr_t	err = ib_sdi_get_keys(space_id, &ib_vector, trx);
-
-#if 1 /* TODO: WL#9536: Remove trx commit */
-	trx_commit_for_mysql(trx);
-	trx_free_for_mysql(trx);
-#endif
 
 	return(err != DB_SUCCESS);
 #endif /* TODO: Enable in WL#9761 */
@@ -232,12 +262,8 @@ dict_sdi_get(
 	}
 #endif /* UNIV_DEBUG */
 
-#if 0  /* TODO: WL#9536: Use internal trx */
 	trx_t*	trx = check_trx_exists(current_thd);
-#else
-	trx_t*	trx = trx_allocate_for_mysql();
-	trx_start_internal(trx);
-#endif
+	trx_start_if_not_started(trx, true);
 
 	ib_sdi_key_t	ib_sdi_key;
 	ib_sdi_key.sdi_key = sdi_key;
@@ -270,11 +296,6 @@ dict_sdi_get(
 
 	ut_free(compressed_sdi);
 
-#if 1 /* TODO: WL#9536: Remove trx commit */
-	trx_commit_for_mysql(trx);
-	trx_free_for_mysql(trx);
-#endif
-
 	return(err != DB_SUCCESS);
 #endif /* TODO: Enable in WL#9761 */
 	ut_ad(0);
@@ -298,6 +319,8 @@ dict_sdi_set(
 	const void*		sdi,
 	uint64			sdi_len)
 {
+	const char* operation = "set";
+
 	DBUG_EXECUTE_IF("ib_sdi",
 		ib::info() << "dict_sdi_set(" << tablespace.name()
 			<< "," << tablespace.id()
@@ -348,6 +371,7 @@ dict_sdi_set(
 	if (dict_sdi_check_existence(tablespace, &space_id)
 	    != DB_SUCCESS) {
 		ut_ad(0);
+		dict_sdi_report_error(operation, table, tablespace);
 		return(true);
 	}
 
@@ -357,12 +381,8 @@ dict_sdi_set(
 		return(false);
 	}
 
-#if 0  /* TODO: WL#9536: Use internal trx */
 	trx_t*	trx = check_trx_exists(current_thd);
-#else
-	trx_t*	trx = trx_allocate_for_mysql();
-	trx_start_internal(trx);
-#endif
+	trx_start_if_not_started(trx, true);
 
 	ib_sdi_key_t	ib_sdi_key;
 	ib_sdi_key.sdi_key = sdi_key;
@@ -374,22 +394,28 @@ dict_sdi_set(
 				 compressor.get_comp_len(),
 				 compressor.get_data(), trx);
 
-	if (err != DB_SUCCESS) {
-#if 1 /* TODO: WL#9536: Remove trx rollback */
-		if (err != DB_LOCK_WAIT_TIMEOUT) {
-			trx_rollback_for_mysql(trx);
-		} else {
-			/* trx is already rolled back by
-			ib_handle_errors */
-		}
-		trx_free_for_mysql(trx);
-#endif
+	DBUG_EXECUTE_IF("sdi_set_failure",
+		dict_sdi_report_error(operation, table, tablespace);
+		return(true);
+	);
+
+	if (err == DB_INTERRUPTED) {
+		my_error(ER_QUERY_INTERRUPTED, MYF(0));
+		DBUG_EXECUTE_IF("ib_sdi",
+		ib::info() << "dict_sdi_set: " << tablespace.name()
+				<< "," << tablespace.id()
+				<< " InnoDB space_id: " << space_id
+				<< " sdi_key: type: " << sdi_key->type
+				<< " id: " << sdi_key->id
+				<< " trx_id: " << trx->id
+				<< " is interrupted";
+		);
+		return(true);
+	} else if (err != DB_SUCCESS) {
+		ut_ad(0);
+		dict_sdi_report_error(operation, table, tablespace);
 		return(true);
 	} else {
-#if 1 /* TODO: WL#9536: Remove trx commit */
-		trx_commit_for_mysql(trx);
-		trx_free_for_mysql(trx);
-#endif
 		return(false);
 	}
 }
@@ -416,6 +442,8 @@ dict_sdi_delete(
 	const dd::Table*	table,
 	const dd::sdi_key_t*	sdi_key)
 {
+	const char* operation = "delete";
+
 	DBUG_EXECUTE_IF("ib_sdi",
 		ib::info() << "dict_sdi_delete(" << tablespace.name()
 			<< "," << tablespace.id()
@@ -465,6 +493,7 @@ dict_sdi_delete(
 			return(false);
 		} else {
 			ut_ad(0);
+			dict_sdi_report_error(operation, table, tablespace);
 			return(true);
 		}
 	}
@@ -475,34 +504,37 @@ dict_sdi_delete(
 		return(false);
 	}
 
-#if 0  /* TODO: WL#9536: Use internal trx */
 	trx_t*	trx = check_trx_exists(current_thd);
-#else
-	trx_t*	trx = trx_allocate_for_mysql();
-	trx_start_internal(trx);
-#endif
+	trx_start_if_not_started(trx, true);
 
 	ib_sdi_key_t	ib_sdi_key;
 	ib_sdi_key.sdi_key = sdi_key;
 
 	dberr_t	err = ib_sdi_delete(space_id, &ib_sdi_key, trx);
 
-	if (err != DB_SUCCESS) {
-#if 1 /* TODO: WL#9536: Remove trx rollback */
-		if (err != DB_LOCK_WAIT_TIMEOUT) {
-			trx_rollback_for_mysql(trx);
-		} else {
-			/* trx is already rolled back by
-			ib_handle_errors */
-		}
-		trx_free_for_mysql(trx);
-#endif
+	DBUG_EXECUTE_IF("sdi_delete_failure",
+		dict_sdi_report_error(operation, table, tablespace);
+		return(true);
+	);
+
+	if (err == DB_INTERRUPTED) {
+		my_error(ER_QUERY_INTERRUPTED, MYF(0));
+
+		DBUG_EXECUTE_IF("ib_sdi",
+		ib::info() << "dict_sdi_delete(" << tablespace.name()
+				<< "," << tablespace.id()
+				<< " InnoDB space_id: " << space_id
+				<< " sdi_key: type: " << sdi_key->type
+				<< " id: " << sdi_key->id
+				<< " trx_id: " << trx->id
+				<< " is interrupted";
+		);
+		return(true);
+	} else if (err != DB_SUCCESS) {
+		ut_ad(0);
+		dict_sdi_report_error(operation, table, tablespace);
 		return(true);
 	} else {
-#if 1 /* TODO: WL#9536: Remove trx commit */
-		trx_commit_for_mysql(trx);
-		trx_free_for_mysql(trx);
-#endif
 		return(false);
 	}
 }

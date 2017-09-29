@@ -21,8 +21,8 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
-#include "myisam_sys.h"
-#include "myisamdef.h"
+#include "storage/myisam/myisam_sys.h"
+#include "storage/myisam/myisamdef.h"
 
 
 int _mi_write_static_record(MI_INFO *info, const uchar *record)

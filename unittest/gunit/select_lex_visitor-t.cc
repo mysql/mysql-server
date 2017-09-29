@@ -18,13 +18,13 @@
 #include <gtest/gtest.h>
 #include <stddef.h>
 
-#include "current_thd.h"
 #include "my_inttypes.h"
-#include "parsertest.h"
-#include "select_lex_visitor.h"
-#include "sql_lex.h"
-#include "sql_optimizer.h"
-#include "test_utils.h"
+#include "sql/current_thd.h"
+#include "sql/select_lex_visitor.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_optimizer.h"
+#include "unittest/gunit/parsertest.h"
+#include "unittest/gunit/test_utils.h"
 
 namespace select_lex_visitor_unittest {
 

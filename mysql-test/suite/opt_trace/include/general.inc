@@ -139,9 +139,9 @@ CREATE TABLE t1 (s1 CHAR(5),
                  s2 CHAR(5)) CHARSET utf8mb4;
 INSERT INTO t1 VALUES ('z','?'),('y','!');
 # > ANY -> > MIN...
-explain extended select * from t1 where s1 > any (select s2 from t1);
+explain select * from t1 where s1 > any (select s2 from t1);
 select * from information_schema.OPTIMIZER_TRACE;
-explain extended select * from t1 where s1 > any (select max(s2) from t1);
+explain select * from t1 where s1 > any (select max(s2) from t1);
 select * from information_schema.OPTIMIZER_TRACE;
 # IN -> EXISTS
 if (`select locate('semijoin', @@optimizer_switch) > 0`)
@@ -150,9 +150,9 @@ if (`select locate('semijoin', @@optimizer_switch) > 0`)
   set optimizer_switch="semijoin=off,materialization=off";
 --enable_query_log
 }
-explain extended select * from t1 where s1 in (select s2 from t1);
+explain select * from t1 where s1 in (select s2 from t1);
 select * from information_schema.OPTIMIZER_TRACE;
-explain extended select * from t1 where (s1,s2) in (select s2,s1 from t1);
+explain select * from t1 where (s1,s2) in (select s2,s1 from t1);
 select * from information_schema.OPTIMIZER_TRACE;
 set optimizer_switch=@old_opt_switch;
 drop table t1;
@@ -212,7 +212,7 @@ insert into t3_16 values
 insert into t3_16 values
  (concat('1 - 04', repeat('x', @suffix_len)), concat('2 - 04', repeat('x', @suffix_len)));
 # single value transformer
-explain extended select left(a1,7), left(a2,7)
+explain select left(a1,7), left(a2,7)
 from t1_16
 where a1 in (select b1 from t2_16 where b1 > '0');
 select * from information_schema.OPTIMIZER_TRACE;

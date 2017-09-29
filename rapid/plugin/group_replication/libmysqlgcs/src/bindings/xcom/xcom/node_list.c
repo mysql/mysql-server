@@ -13,24 +13,22 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "x_platform.h"
-
-#include <rpc/rpc.h>
-
 #include <assert.h>
+#include <rpc/rpc.h>
 #include <stdlib.h>
+
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
 
 #ifndef _WIN32
 #include <strings.h>
 #endif
 
-#include "task_debug.h"
-#include "xcom_common.h"
-#include "xcom_profile.h"
-
-#include "node_address.h"
-#include "node_list.h"
-#include "xcom_vp.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_address.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_list.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_debug.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_common.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_profile.h"
+#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
 
 extern xcom_port xcom_get_port(char *a);
 

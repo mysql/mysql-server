@@ -17,10 +17,10 @@
   Rename a table
 */
 
-#include "heapdef.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql/service_mysql_alloc.h"
+#include "storage/heap/heapdef.h"
 
 int heap_rename(const char *old_name, const char *new_name)
 {

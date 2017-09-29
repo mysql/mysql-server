@@ -163,7 +163,7 @@ UNLOCK TABLES;
 
 # We let our server restart attempts write to the file $error_log.
 let $error_log= $MYSQLTEST_VARDIR/log/my_restart.err;
-# $error_log has to be processed by include/search_pattern_in_file.inc which
+# $error_log has to be processed by include/search_pattern.inc which
 # contains Perl code requiring that the environment variable SEARCH_FILE points
 # to this file.
 let SEARCH_FILE= $error_log;
@@ -180,7 +180,7 @@ let SEARCH_FILE= $error_log;
 
 # We get depending on the platform either "./ibdata1" or ".\ibdata1".
 let SEARCH_PATTERN=InnoDB: The innodb_system data file 'ibdata1' must be writable;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 
 #------------------------------------------------------------------------------

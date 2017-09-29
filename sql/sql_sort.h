@@ -16,9 +16,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "filesort_utils.h"   // Filesort_buffer
 #include "my_base.h"          // ha_rows
 #include "my_dbug.h"
+#include "sql/filesort_utils.h" // Filesort_buffer
 
 class Addon_fields;
 

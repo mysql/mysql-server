@@ -19,9 +19,6 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "../storage/perfschema/pfs_error.h"
-#include "current_thd.h"
-#include "log.h"
 #include "m_string.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
@@ -33,14 +30,17 @@
 #include "mysql/psi/mysql_file.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/udf_registration_types.h"
-#include "mysqld.h"                             // lc_messages_dir
 #include "mysqld_error.h"
-#include "psi_memory_key.h"
-#include "session_tracker.h"
-#include "sql_class.h"                          // THD
-#include "sql_locale.h"
-#include "system_variables.h"
-#include "table.h"
+#include "sql/current_thd.h"
+#include "sql/log.h"
+#include "sql/mysqld.h"                         // lc_messages_dir
+#include "sql/psi_memory_key.h"
+#include "sql/session_tracker.h"
+#include "sql/sql_class.h"                      // THD
+#include "sql/sql_locale.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "storage/perfschema/pfs_error.h"
 
 CHARSET_INFO *error_message_charset_info;
 

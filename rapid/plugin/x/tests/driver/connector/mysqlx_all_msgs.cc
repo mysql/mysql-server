@@ -17,9 +17,9 @@
  * 02110-1301  USA
  */
 
-#include "mysqlx_all_msgs.h"
+#include "plugin/x/tests/driver/connector/mysqlx_all_msgs.h"
 
-#include "mysqlxclient/xmessage.h"
+#include "plugin/x/client/mysqlxclient/xmessage.h"
 
 
 Message_by_full_name server_msgs_by_full_name;

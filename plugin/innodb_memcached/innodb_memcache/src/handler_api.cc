@@ -24,30 +24,30 @@ Created 3/14/2011 Jimmy Yang
 
 #include "handler_api.h"
 
-#include <stdlib.h>
 #include <ctype.h>
-#include <mysql_version.h>
+#include <stdlib.h>
 #include <mysql/plugin.h>
-#include <my_dir.h>
-#include "my_thread.h"
-#include "my_sys.h"
-#include "m_string.h"
-#include "sql_plugin.h"
-#include "table.h"
-#include "sql_class.h"
-#include <sql_base.h>
-#include "key.h"
-#include "lock.h"
-#include "transaction.h"
-#include "sql_handler.h"
-#include "handler.h"
-#include "mysqld_thd_manager.h"
-#include "current_thd.h"
-#include "mysqld.h"
 
-#include "log_event.h"
-#include "innodb_config.h"
-#include "binlog.h"
+#include "m_string.h"
+#include "my_dir.h"
+#include "my_sys.h"
+#include "my_thread.h"
+#include "mysql_version.h"
+#include "plugin/innodb_memcached/innodb_memcache/include/innodb_config.h"
+#include "sql/binlog.h"
+#include "sql/current_thd.h"
+#include "sql/handler.h"
+#include "sql/key.h"
+#include "sql/lock.h"
+#include "sql/log_event.h"
+#include "sql/mysqld.h"
+#include "sql/mysqld_thd_manager.h"
+#include "sql/sql_handler.h"
+#include "sql/sql_plugin.h"
+#include "sql/table.h"
+#include "sql/transaction.h"
+#include "sql/sql_base.h"
+#include "sql/sql_class.h"
 
 /** Some handler functions defined in sql/sql_table.cc and sql/handler.cc etc.
 and being used here */

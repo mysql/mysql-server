@@ -18,12 +18,12 @@
 
 #include <sys/types.h>
 
-#include "dd/string_type.h"
-#include "item_create.h"
 #include "my_inttypes.h"
+#include "sql/dd/string_type.h"
+#include "sql/item_create.h"
 #include "sql/sql_class.h"
+#include "sql/sql_servers.h"
 #include "sql/table.h"                            // Table_check_intact
-#include "sql_servers.h"
 
 class THD;
 class Time_zone;
@@ -81,7 +81,7 @@ class Routine_event_context_guard
 {
   THD *m_thd;
   sql_mode_t m_sql_mode;
-  Time_zone *m_saved_time_zone;
+  ::Time_zone *m_saved_time_zone;
   const CHARSET_INFO *m_client_cs;
   const CHARSET_INFO *m_connection_cl;
 

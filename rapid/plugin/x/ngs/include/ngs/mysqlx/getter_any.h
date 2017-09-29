@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -20,13 +20,13 @@
 #ifndef _NGS_GETTER_ANY_H_
 #define _NGS_GETTER_ANY_H_
 
+#include <sstream>
 #include <string>
 #include <vector>
-#include <sstream>
 
-#include "ngs_common/protocol_protobuf.h"
-#include "ngs/ngs_error.h"
-#include "ngs/error_code.h"
+#include "plugin/x/ngs/include/ngs/error_code.h"
+#include "plugin/x/ngs/include/ngs/ngs_error.h"
+#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
 
 
 namespace ngs

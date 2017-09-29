@@ -33,17 +33,9 @@ INCLUDE(rpcgen.cmake)
 ### INCLUDE FILES ###
 
 INCLUDE_DIRECTORIES(
-  ${CMAKE_SOURCE_DIR}/include/                   # my_compiler.h
-  ${CMAKE_BINARY_DIR}/include/                   # config.h
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include/   # byteorder.h
-  ${SSL_INCLUDE_DIRS}                            # SSL include dirs
-  ${LZ4_INCLUDE_DIR}                             # LZ4
   ${XCOM_WINDEPS_INCLUDE_DIRS}                   # win deps and sun rpc
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/bindings/xcom/xcom/
-  ${CMAKE_CURRENT_BINARY_DIR}/xdr_gen/
-  ${CMAKE_CURRENT_BINARY_DIR}/include/
-  ${XCOM_WINDEPS_INCLUDE_DIRS})
+)
 
 ### SOURCES ###
 
@@ -88,7 +80,8 @@ SET(GCS_INTERFACE_SOURCES
   src/interface/gcs_types.cc
   src/interface/gcs_message.cc
   src/interface/gcs_member_identifier.cc
-  src/interface/gcs_group_identifier.cc)
+  src/interface/gcs_group_identifier.cc
+  src/interface/gcs_psi.cc)
 
 
 SET(GCS_SOURCES
@@ -143,10 +136,13 @@ IF(MSVC)
                     COMPILE_FLAGS "/wd4018")
 ELSEIF(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR
        CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  ADD_COMPILE_FLAGS(${XCOM_SUN_RPCS} ${XCOM_RPCGEN_SOURCES}
+  ADD_COMPILE_FLAGS(${XCOM_SOURCES} ${XCOM_SUN_RPCS} ${XCOM_RPCGEN_SOURCES}
     COMPILE_FLAGS
     "-Wno-unused-variable -Wno-unused-function -Wno-conversion -Wno-switch")
 ENDIF()
+
+ADD_COMPILE_FLAGS(${XCOM_SOURCES} COMPILE_FLAGS "-DMYSQL_DYNAMIC_PLUGIN")
+ADD_COMPILE_FLAGS(${GCS_SOURCES} COMPILE_FLAGS "-DMYSQL_DYNAMIC_PLUGIN")
 
 ADD_CONVENIENCE_LIBRARY(${GCS_LIBRARY} ${XCOM_SOURCES} ${GCS_SOURCES})
 

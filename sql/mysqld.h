@@ -60,11 +60,11 @@
 #include "mysql/psi/psi_statement.h"       /* PSI_statement_info */
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"                     // SERVER_VERSION_LENGTH
-#include "rpl_filter.h"                    // Rpl_filter
-#include "sql_bitmap.h"
-#include "sql_const.h"                     // UUID_LENGTH
-#include "system_variables.h"
-#include "thr_malloc.h"
+#include "sql/rpl_filter.h"                // Rpl_filter
+#include "sql/sql_bitmap.h"
+#include "sql/sql_const.h"                 // UUID_LENGTH
+#include "sql/system_variables.h"
+#include "sql/thr_malloc.h"
 
 class Rpl_filter;
 class THD;
@@ -323,7 +323,6 @@ extern bool avoid_temporal_upgrade;
 extern LEX_STRING opt_init_connect, opt_init_slave;
 extern ulong connection_errors_internal;
 extern ulong connection_errors_peer_addr;
-extern ulong log_warnings;
 extern char *opt_log_error_filter_rules;
 extern char *opt_log_error_services;
 extern bool  opt_log_syslog_enable;
@@ -396,6 +395,7 @@ extern PSI_rwlock_key key_rwlock_channel_lock;
 extern PSI_rwlock_key key_rwlock_receiver_sid_lock;
 extern PSI_rwlock_key key_rwlock_rpl_filter_lock;
 extern PSI_rwlock_key key_rwlock_channel_to_filter_lock;
+extern PSI_rwlock_key key_rwlock_resource_group_mgr_map_lock;
 
 extern PSI_cond_key key_PAGE_cond;
 extern PSI_cond_key key_COND_active;
@@ -628,6 +628,8 @@ extern mysql_mutex_t LOCK_sql_slave_skip_counter;
 extern mysql_mutex_t LOCK_slave_net_timeout;
 extern mysql_mutex_t LOCK_offline_mode;
 extern mysql_mutex_t LOCK_mandatory_roles;
+extern mysql_mutex_t LOCK_password_history;
+extern mysql_mutex_t LOCK_password_reuse_interval;
 extern mysql_mutex_t LOCK_default_password_lifetime;
 extern mysql_mutex_t LOCK_server_started;
 extern mysql_mutex_t LOCK_reset_gtid_table;

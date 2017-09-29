@@ -17,28 +17,26 @@
 ///
 /// This file implements the within functor and function.
 
-#include "relops.h"
-#include "within_functor.h"
-
 #include <cmath>  // std::isfinite
 #include <limits>
-
 #include <memory>  // std::unique_ptr
 
 #include <boost/geometry.hpp>
 
-#include "box.h"
-#include "box_traits.h"
-#include "dd/types/spatial_reference_system.h"  // dd::Spatial_reference_system
-#include "difference_functor.h"
-#include "equals_functor.h"
-#include "gc_utils.h"
-#include "geometries.h"
-#include "geometries_traits.h"
-#include "intersects_functor.h"
-#include "mbr_utils.h"
-#include "sql_exception_handler.h"  // handle_gis_exception
-#include "template_utils.h"         // down_cast
+#include "sql/dd/types/spatial_reference_system.h"  // dd::Spatial_reference_system
+#include "sql/gis/box.h"
+#include "sql/gis/box_traits.h"
+#include "sql/gis/difference_functor.h"
+#include "sql/gis/equals_functor.h"
+#include "sql/gis/gc_utils.h"
+#include "sql/gis/geometries.h"
+#include "sql/gis/geometries_traits.h"
+#include "sql/gis/intersects_functor.h"
+#include "sql/gis/mbr_utils.h"
+#include "sql/gis/relops.h"
+#include "sql/gis/within_functor.h"
+#include "sql/sql_exception_handler.h"  // handle_gis_exception
+#include "template_utils.h"             // down_cast
 
 namespace bg = boost::geometry;
 
@@ -47,8 +45,8 @@ namespace gis {
 Within::Within(double semi_major, double semi_minor)
     : m_semi_major(semi_major),
       m_semi_minor(semi_minor),
-      m_geographic_pl_pa_strategy(bg::strategy::side::geographic<>(
-          bg::srs::spheroid<double>(semi_major, semi_minor))),
+      m_geographic_pl_pa_strategy(
+          bg::srs::spheroid<double>(semi_major, semi_minor)),
       m_geographic_ll_la_aa_strategy(
           bg::srs::spheroid<double>(semi_major, semi_minor)) {}
 

@@ -14,11 +14,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 INCLUDE_DIRECTORIES(
-  ${CMAKE_SOURCE_DIR}/sql
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include
-  ${CMAKE_SOURCE_DIR}/storage/perfschema
-  ${CMAKE_SOURCE_DIR}/sql/auth
-  ${ZLIB_INCLUDE_DIR}
 )
 
 SET(MYSQL_SERVER_COMPONENT_SOURCES

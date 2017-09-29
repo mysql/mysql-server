@@ -124,6 +124,9 @@ SELECT * FROM t1;
 
 --source suite/innodb/include/show_i_s_tables.inc
 --source suite/innodb/include/show_i_s_tablespaces.inc
+
+SELECT name, server_version, space_version FROM information_schema.innodb_tablespaces where name="mysql";
+
 --echo ---- MYSQLD_DATADIR/test
 --list_files $MYSQLD_DATADIR/test
 --echo ---- MYSQL_TMP_DIR/alt_dir/test

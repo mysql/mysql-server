@@ -2,10 +2,12 @@
 
 CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.');
 
-let $file_name_checking = SELECT LOWER(path) FROM information_schema.innodb_sys_tablespaces AS `t`, information_schema.innodb_sys_datafiles AS `df`
+let $file_name_checking = SELECT LOWER(path) FROM information_schema.innodb_tablespaces AS `t`, information_schema.innodb_datafiles AS `df`
 WHERE t.space = df.space
 AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
+AND df.path NOT LIKE '%undo%'
+AND df.path NOT LIKE '._mysql_%'
 ORDER BY t.space;
 
 CREATE TABLE tr (

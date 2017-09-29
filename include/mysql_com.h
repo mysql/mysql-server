@@ -622,6 +622,14 @@
 
   @deprecated in favor of --ssl-mode.
 */
+
+
+/**
+  The client can handle optional metadata information in the resultset.
+*/
+#define CLIENT_OPTIONAL_RESULTSET_METADATA (1UL << 25)
+
+
 #define CLIENT_SSL_VERIFY_SERVER_CERT (1UL << 30)
 /**
   Don't reset the options after an unsuccessful connect
@@ -666,6 +674,7 @@
                            | CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS \
                            | CLIENT_SESSION_TRACK \
                            | CLIENT_DEPRECATE_EOF \
+                           | CLIENT_OPTIONAL_RESULTSET_METADATA \
 )
 
 /**
@@ -768,12 +777,10 @@ enum SERVER_STATUS_flags_enum
 */
 #define ONLY_KILL_QUERY         1
 
-#ifdef __cplusplus
+#ifndef MYSQL_VIO
 struct st_vio;
 typedef struct st_vio Vio;
 #define MYSQL_VIO Vio*
-#else
-#define MYSQL_VIO void*
 #endif
 
 #define MAX_TINYINT_WIDTH       3       /**< Max width for a TINY w.o. sign */
@@ -898,6 +905,14 @@ enum mysql_enum_shutdown_level {
 /** @}*/
 
 
+enum enum_resultset_metadata {
+  /** No metadata will be sent. */
+  RESULTSET_METADATA_NONE= 0,
+  /** The server will send all metadata. */
+  RESULTSET_METADATA_FULL= 1
+};
+
+
 enum enum_cursor_type
 {
   CURSOR_TYPE_NO_CURSOR= 0,
@@ -913,6 +928,7 @@ enum enum_mysql_set_option
   MYSQL_OPTION_MULTI_STATEMENTS_ON,
   MYSQL_OPTION_MULTI_STATEMENTS_OFF
 };
+
 
 /**
   Type of state change information that the server can include in the Ok
@@ -1021,6 +1037,10 @@ char *octet2hex(char *to, const char *str, unsigned int len);
 
 /* end of password.c */
 
+bool generate_sha256_scramble(unsigned char *dst, size_t dst_size,
+                              const char *src, size_t src_size,
+                              const char *rnd, size_t rnd_size);
+
 char *get_tty_password(const char *opt_message);
 const char *mysql_errno_to_sqlstate(unsigned int mysql_errno);
 
@@ -1035,7 +1055,7 @@ unsigned long STDCALL net_field_length(unsigned char **packet);
 unsigned long long net_field_length_ll(unsigned char **packet);
 unsigned char *net_store_length(unsigned char *pkg, unsigned long long length);
 unsigned int net_length_size(unsigned long long num);
-unsigned int net_field_length_size(unsigned char *pos);
+unsigned int net_field_length_size(const unsigned char *pos);
 
 #ifdef __cplusplus
 }

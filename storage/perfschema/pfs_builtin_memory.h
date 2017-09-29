@@ -18,8 +18,8 @@
 
 #include <sys/types.h>
 
-#include "pfs_global.h"
-#include "pfs_instr_class.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_instr_class.h"
 
 /**
   @file storage/perfschema/pfs_builtin_memory.h
@@ -122,6 +122,7 @@ extern PFS_builtin_memory_class builtin_memory_setup_object;
 
 extern PFS_builtin_memory_class builtin_memory_digest;
 extern PFS_builtin_memory_class builtin_memory_digest_tokens;
+extern PFS_builtin_memory_class builtin_memory_digest_sample_sqltext;
 
 extern PFS_builtin_memory_class builtin_memory_stages_history_long;
 extern PFS_builtin_memory_class builtin_memory_statements_history_long;

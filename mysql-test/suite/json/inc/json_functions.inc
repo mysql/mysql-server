@@ -918,12 +918,12 @@ FROM department d
 WHERE id = 405;
 
 # stores a JSON value in a JSON-typed column
-create table json_table( json_column json );
-INSERT INTO json_table( json_column )
+create table jsn_table( json_column json );
+INSERT INTO jsn_table( json_column )
   SELECT JSON_ARRAY( d.deptName, d.id, d.blobColumn )
   FROM department d
   WHERE id = 405;
-drop table json_table;
+drop table jsn_table;
 
 drop table department;
 
@@ -3193,9 +3193,10 @@ insert into t values(1),(2);
 select json_length('{}',@uninitialized_21602361)
 from t group by b into @uninitialized_21602361;
 
-# second time around the path is invalid
+# The user variable is assumed to be constant for SELECT ... INTO, even
+# though INTO clause refers the same variable.
 set @initialized_21602361 = '$';
---error ER_INVALID_JSON_PATH
+--error ER_TOO_MANY_ROWS
 select json_length('{}',@initialized_21602361)
 from t group by b into @initialized_21602361;
 

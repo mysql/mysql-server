@@ -25,17 +25,19 @@
   Since this file is used on unit tests includes must set here and
   not through plugin_server_include.h.
 */
-#include <my_sys.h>
-#include <mysql/gcs/gcs_member_identifier.h>
+
 #include <map>
 #include <set>
 #include <string>
+#include <sstream>
 #include <vector>
 
-#include "gcs_plugin_messages.h"
-#include "member_version.h"
 #include "my_inttypes.h"
-#include "services/notification/notification.h"
+#include "my_sys.h"
+#include "plugin/group_replication/include/gcs_plugin_messages.h"
+#include "plugin/group_replication/include/member_version.h"
+#include "plugin/group_replication/include/services/notification/notification.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_member_identifier.h"
 
 /*
   Encoding of the group_replication_enforce_update_everywhere_checks
@@ -537,6 +539,14 @@ public:
   @return true if majority of the group is unreachable
   */
   virtual bool is_majority_unreachable()= 0;
+
+  /**
+    This method returns all ONLINE and RECOVERING members comma separated
+    host and port in string format.
+
+    @return hosts and port of all ONLINE and RECOVERING members
+  */
+  virtual std::string get_string_current_view_active_hosts() const = 0;
 };
 
 
@@ -590,6 +600,8 @@ public:
   void get_primary_member_uuid(std::string &primary_member_uuid);
 
   bool is_majority_unreachable();
+
+  std::string get_string_current_view_active_hosts() const;
 
 private:
   void clear_members();

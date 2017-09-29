@@ -28,21 +28,23 @@
 #include "lex_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "pfs_column_types.h"
-#include "pfs_digest.h"
-#include "pfs_engine_table.h"
-#include "pfs_events.h"
-#include "pfs_instr_class.h"
-#include "pfs_setup_actor.h"
-#include "pfs_stat.h"
-#include "pfs_timer.h"
+#include "storage/perfschema/pfs_column_types.h"
+#include "storage/perfschema/pfs_digest.h"
+#include "storage/perfschema/pfs_engine_table.h"
+#include "storage/perfschema/pfs_events.h"
+#include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/pfs_setup_actor.h"
+#include "storage/perfschema/pfs_stat.h"
+#include "storage/perfschema/pfs_timer.h"
 
 /*
-  Write MD5 hash value in a string to be used
+  Write SHA-256 hash value in a string to be used
   as DIGEST for the statement.
 */
-#define MD5_HASH_TO_STRING(_hash, _str)       \
+#define DIGEST_HASH_TO_STRING(_hash, _str)    \
   sprintf(_str,                               \
+          "%02x%02x%02x%02x%02x%02x%02x%02x"  \
+          "%02x%02x%02x%02x%02x%02x%02x%02x"  \
           "%02x%02x%02x%02x%02x%02x%02x%02x"  \
           "%02x%02x%02x%02x%02x%02x%02x%02x", \
           _hash[0],                           \
@@ -60,9 +62,26 @@
           _hash[12],                          \
           _hash[13],                          \
           _hash[14],                          \
-          _hash[15])
+          _hash[15],                          \
+          _hash[16],                          \
+          _hash[17],                          \
+          _hash[18],                          \
+          _hash[19],                          \
+          _hash[20],                          \
+          _hash[21],                          \
+          _hash[22],                          \
+          _hash[23],                          \
+          _hash[24],                          \
+          _hash[25],                          \
+          _hash[26],                          \
+          _hash[27],                          \
+          _hash[28],                          \
+          _hash[29],                          \
+          _hash[30],                          \
+          _hash[31])
 
-#define MD5_HASH_TO_STRING_LENGTH 32
+/* SHA-256 = 32 bytes of binary = 64 printable characters */
+#define DIGEST_HASH_TO_STRING_LENGTH 64
 
 struct PFS_host;
 struct PFS_user;
@@ -326,8 +345,19 @@ void set_field_varchar_utf8mb4(Field *f, const char *str, uint len);
   @param val the value to assign
   @param len the length of the string to assign
 */
-void set_field_blob(Field *f, const char *val, uint len);
+void set_field_blob(Field *f, const char *val, size_t len);
 
+/**
+  Helper, assign a value to a text field.
+  @param f the field to set
+  @param val the value to assign
+  @param len the length of the string to assign
+  @param cs the charset of the string
+*/
+void set_field_text(Field *f,
+                    const char *val,
+                    size_t len,
+                    const CHARSET_INFO *cs);
 /**
   Helper, read a value from a @c blob field.
   @param f the field to read
@@ -350,6 +380,20 @@ void set_field_enum(Field *f, ulonglong value);
   @return the field value
 */
 ulonglong get_field_enum(Field *f);
+
+/**
+  Helper, assign a value to a @c set field.
+  @param f the field to set
+  @param value the value to assign
+*/
+void set_field_set(Field *f, ulonglong value);
+
+/**
+  Helper, read a value from a @c set field.
+  @param f the field to read
+  @return the field value
+*/
+ulonglong get_field_set(Field *f);
 
 /**
   Helper, assign a value to a @c date field.
@@ -440,6 +484,21 @@ void set_field_year(Field *f, ulong value);
 */
 ulong get_field_year(Field *f);
 
+/**
+  Helper, format sql text for output.
+
+  @param source_sqltext  raw sqltext, possibly truncated
+  @param source_length  length of source_sqltext
+  @param source_cs  character set of source_sqltext
+  @param truncated true if source_sqltext was truncated
+  @param sqltext sqltext formatted for output
+ */
+void format_sqltext(const char *source_sqltext,
+                    size_t source_length,
+                    const CHARSET_INFO *source_cs,
+                    bool truncated,
+                    String &sqltext);
+
 /** Name space, internal views used within table setup_instruments. */
 struct PFS_instrument_view_constants
 {
@@ -456,15 +515,19 @@ struct PFS_instrument_view_constants
   static const uint VIEW_METADATA = 8;
   static const uint LAST_VIEW = 8;
 
-  static const uint VIEW_THREAD = 9;
-  static const uint VIEW_STAGE = 10;
-  static const uint VIEW_STATEMENT = 11;
-  static const uint VIEW_TRANSACTION = 12;
-  static const uint VIEW_BUILTIN_MEMORY = 13;
-  static const uint VIEW_MEMORY = 14;
-  static const uint VIEW_ERROR = 15;
+  /*
+    THREAD are displayed in table setup_threads
+    instead of setup_instruments.
+  */
 
-  static const uint LAST_INSTRUMENT = 15;
+  static const uint VIEW_STAGE = 9;
+  static const uint VIEW_STATEMENT = 10;
+  static const uint VIEW_TRANSACTION = 11;
+  static const uint VIEW_BUILTIN_MEMORY = 12;
+  static const uint VIEW_MEMORY = 13;
+  static const uint VIEW_ERROR = 14;
+
+  static const uint LAST_INSTRUMENT = 14;
 };
 
 /** Name space, internal views used within object summaries. */
@@ -530,7 +593,7 @@ struct PFS_digest_row
   /** Length in bytes of @c m_schema_name. */
   uint m_schema_name_length;
   /** Column DIGEST. */
-  char m_digest[COL_DIGEST_SIZE];
+  char m_digest[DIGEST_HASH_TO_STRING_LENGTH + 1];
   /** Length in bytes of @c m_digest. */
   uint m_digest_length;
   /** Column DIGEST_TEXT. */

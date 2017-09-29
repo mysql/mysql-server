@@ -20,20 +20,20 @@
 
 #include <functional>
 
-#include "abstract_mysql_chain_element_extension.h"
-#include "abstract_output_writer_wrapper.h"
-#include "abstract_plain_sql_object_dump_task.h"
-#include "database_end_dump_task.h"
-#include "database_start_dump_task.h"
-#include "dump_end_dump_task.h"
-#include "dump_start_dump_task.h"
-#include "i_data_formatter.h"
+#include "client/dump/abstract_mysql_chain_element_extension.h"
+#include "client/dump/abstract_output_writer_wrapper.h"
+#include "client/dump/abstract_plain_sql_object_dump_task.h"
+#include "client/dump/database_end_dump_task.h"
+#include "client/dump/database_start_dump_task.h"
+#include "client/dump/dump_end_dump_task.h"
+#include "client/dump/dump_start_dump_task.h"
+#include "client/dump/i_data_formatter.h"
+#include "client/dump/mysqldump_tool_chain_maker_options.h"
+#include "client/dump/row_group_dump_task.h"
+#include "client/dump/sql_formatter_options.h"
+#include "client/dump/table_deferred_indexes_dump_task.h"
+#include "client/dump/table_definition_dump_task.h"
 #include "my_inttypes.h"
-#include "mysqldump_tool_chain_maker_options.h"
-#include "row_group_dump_task.h"
-#include "sql_formatter_options.h"
-#include "table_deferred_indexes_dump_task.h"
-#include "table_definition_dump_task.h"
 
 namespace Mysql{
 namespace Tools{

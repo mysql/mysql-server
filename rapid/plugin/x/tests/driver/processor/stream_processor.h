@@ -21,10 +21,10 @@
 #include <istream>
 #include <vector>
 
-#include "formatters/console.h"
-#include "processor/block_processor.h"
-#include "processor/execution_context.h"
-#include "processor/script_stack.h"
+#include "plugin/x/tests/driver/formatters/console.h"
+#include "plugin/x/tests/driver/processor/block_processor.h"
+#include "plugin/x/tests/driver/processor/execution_context.h"
+#include "plugin/x/tests/driver/processor/script_stack.h"
 
 
 std::vector<Block_processor_ptr> create_macro_block_processors(

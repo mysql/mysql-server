@@ -448,15 +448,15 @@ INSERT INTO t1 VALUES ('2011-10-30 03:00:01', 'Moscow');
 SET @@session.time_zone = 'UTC';
 INSERT INTO t2 SELECT * FROM t1;
 SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS
-WHERE TABLE_NAME = 't2';
+WHERE TABLE_NAME = 't2' ORDER BY PARTITION_NAME;
 PARTITION_NAME	TABLE_ROWS
-p0	2
 p-2000	16
-p-2011-MSK	2
 p-2011-MSD-1	9
 p-2011-MSD-2	6
+p-2011-MSK	2
 p-2012-MSK-1	3
 p-2012-MSK-2	4
+p0	2
 pEnd	2
 pMax	2
 SELECT * FROM t1 ORDER BY a, tz;
@@ -565,26 +565,24 @@ a	tz
 2011-03-26 23:00:00	MoscowI
 2011-03-26 23:00:00	MoscowI
 2011-03-26 23:00:00	UTC
-EXPLAIN PARTITIONS
+EXPLAIN
 SELECT * FROM t2
 WHERE a BETWEEN '2011-03-01 00:00:00' and '2011-03-26 23:00:00' ORDER BY a, tz;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	p-2011-MSK,p-2011-MSD-1	ALL	NULL	NULL	NULL	NULL	11	11.11	Using where; Using filesort
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`tz` AS `tz` from `test`.`t2` where (`test`.`t2`.`a` between '2011-03-01 00:00:00' and '2011-03-26 23:00:00') order by `test`.`t2`.`a`,`test`.`t2`.`tz`
 SELECT * FROM t2
 WHERE a BETWEEN '2011-03-01 00:00:00' and '2011-03-26 22:59:59' ORDER BY a, tz;
 a	tz
 2011-03-26 22:59:59	Moscow
 2011-03-26 22:59:59	UTC
-EXPLAIN PARTITIONS
+EXPLAIN
 SELECT * FROM t2
 WHERE a BETWEEN '2011-03-01 00:00:00' and '2011-03-26 22:59:59' ORDER BY a, tz;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	p-2011-MSK	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using filesort
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`tz` AS `tz` from `test`.`t2` where (`test`.`t2`.`a` between '2011-03-01 00:00:00' and '2011-03-26 22:59:59') order by `test`.`t2`.`a`,`test`.`t2`.`tz`
 SELECT * FROM t2
 WHERE a BETWEEN '2011-03-26 22:59:59' and '2011-03-28 00:00:00' ORDER BY a, tz;
@@ -598,13 +596,12 @@ a	tz
 2011-03-26 23:00:00	UTC
 2011-03-26 23:00:01	Moscow
 2011-03-26 23:00:01	UTC
-EXPLAIN PARTITIONS
+EXPLAIN
 SELECT * FROM t2
 WHERE a BETWEEN '2011-03-26 22:59:59' and '2011-03-28 00:00:00' ORDER BY a, tz;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	p-2011-MSK,p-2011-MSD-1	ALL	NULL	NULL	NULL	NULL	11	11.11	Using where; Using filesort
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`tz` AS `tz` from `test`.`t2` where (`test`.`t2`.`a` between '2011-03-26 22:59:59' and '2011-03-28 00:00:00') order by `test`.`t2`.`a`,`test`.`t2`.`tz`
 SELECT * FROM t2
 WHERE a BETWEEN '2011-03-26 23:00:00' and '2011-03-28 00:00:00' ORDER BY a, tz;
@@ -616,13 +613,12 @@ a	tz
 2011-03-26 23:00:00	UTC
 2011-03-26 23:00:01	Moscow
 2011-03-26 23:00:01	UTC
-EXPLAIN PARTITIONS
+EXPLAIN
 SELECT * FROM t2
 WHERE a BETWEEN '2011-03-26 23:00:00' and '2011-03-28 00:00:00' ORDER BY a, tz;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	p-2011-MSD-1	ALL	NULL	NULL	NULL	NULL	9	11.11	Using where; Using filesort
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`tz` AS `tz` from `test`.`t2` where (`test`.`t2`.`a` between '2011-03-26 23:00:00' and '2011-03-28 00:00:00') order by `test`.`t2`.`a`,`test`.`t2`.`tz`
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-01 00:00:00' and '2011-10-29 23:00:00' ORDER BY a, tz;
@@ -636,13 +632,12 @@ a	tz
 2011-10-29 22:59:59	MoscowD
 2011-10-29 22:59:59	UTC
 2011-10-29 23:00:00	UTC
-EXPLAIN PARTITIONS
+EXPLAIN
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-01 00:00:00' and '2011-10-29 23:00:00' ORDER BY a, tz;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	p-2011-MSD-1,p-2011-MSD-2,p-2012-MSK-1	ALL	NULL	NULL	NULL	NULL	18	11.11	Using where; Using filesort
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`tz` AS `tz` from `test`.`t2` where (`test`.`t2`.`a` between '2011-10-01 00:00:00' and '2011-10-29 23:00:00') order by `test`.`t2`.`a`,`test`.`t2`.`tz`
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-01 00:00:00' and '2011-10-29 22:59:59' ORDER BY a, tz;
@@ -655,13 +650,12 @@ a	tz
 2011-10-29 22:00:01	UTC
 2011-10-29 22:59:59	MoscowD
 2011-10-29 22:59:59	UTC
-EXPLAIN PARTITIONS
+EXPLAIN
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-01 00:00:00' and '2011-10-29 22:59:59' ORDER BY a, tz;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	p-2011-MSD-1,p-2011-MSD-2	ALL	NULL	NULL	NULL	NULL	15	11.11	Using where; Using filesort
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`tz` AS `tz` from `test`.`t2` where (`test`.`t2`.`a` between '2011-10-01 00:00:00' and '2011-10-29 22:59:59') order by `test`.`t2`.`a`,`test`.`t2`.`tz`
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-29 22:59:59' and '2011-10-31 00:00:00' ORDER BY a, tz;
@@ -675,13 +669,12 @@ a	tz
 2011-10-30 00:00:00	UTC
 2011-10-30 00:00:01	Moscow
 2011-10-30 00:00:01	UTC
-EXPLAIN PARTITIONS
+EXPLAIN
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-29 22:59:59' and '2011-10-31 00:00:00' ORDER BY a, tz;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	p-2011-MSD-2,p-2012-MSK-1,p-2012-MSK-2	ALL	NULL	NULL	NULL	NULL	13	11.11	Using where; Using filesort
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`tz` AS `tz` from `test`.`t2` where (`test`.`t2`.`a` between '2011-10-29 22:59:59' and '2011-10-31 00:00:00') order by `test`.`t2`.`a`,`test`.`t2`.`tz`
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-29 23:00:00' and '2011-10-31 00:00:00' ORDER BY a, tz;
@@ -693,13 +686,12 @@ a	tz
 2011-10-30 00:00:00	UTC
 2011-10-30 00:00:01	Moscow
 2011-10-30 00:00:01	UTC
-EXPLAIN PARTITIONS
+EXPLAIN
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-29 23:00:00' and '2011-10-31 00:00:00' ORDER BY a, tz;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	p-2012-MSK-1,p-2012-MSK-2	ALL	NULL	NULL	NULL	NULL	7	14.29	Using where; Using filesort
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`tz` AS `tz` from `test`.`t2` where (`test`.`t2`.`a` between '2011-10-29 23:00:00' and '2011-10-31 00:00:00') order by `test`.`t2`.`a`,`test`.`t2`.`tz`
 # Test end range changes
 DELETE FROM t2 WHERE a = 0;
@@ -736,15 +728,15 @@ SELECT COUNT(*) FROM t2 WHERE a = 0;
 COUNT(*)
 2
 SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS
-WHERE TABLE_NAME = 't2';
+WHERE TABLE_NAME = 't2' ORDER BY PARTITION_NAME;
 PARTITION_NAME	TABLE_ROWS
-p0	3
 p-2000	6
-p-2011-MSK	0
 p-2011-MSD-1	9
 p-2011-MSD-2	6
+p-2011-MSK	0
 p-2012-MSK-1	4
 p-2012-MSK-2	5
+p0	3
 pEnd	0
 pMax	2
 SELECT * FROM t2 ORDER BY a, tz;
@@ -815,15 +807,15 @@ SELECT COUNT(*) FROM t2 WHERE a = 0;
 COUNT(*)
 0
 SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS
-WHERE TABLE_NAME = 't2';
+WHERE TABLE_NAME = 't2' ORDER BY PARTITION_NAME;
 PARTITION_NAME	TABLE_ROWS
-p0	6
 p-2000	4
-p-2011-MSK	2
 p-2011-MSD-1	9
 p-2011-MSD-2	6
+p-2011-MSK	2
 p-2012-MSK-1	3
 p-2012-MSK-2	4
+p0	6
 pEnd	2
 pMax	0
 SELECT * FROM t2 ORDER BY a, tz;
@@ -884,15 +876,15 @@ TRUNCATE TABLE t2;
 SET @@session.time_zone = 'Europe/Moscow';
 INSERT INTO t2 SELECT * FROM t1;
 SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS
-WHERE TABLE_NAME = 't2';
+WHERE TABLE_NAME = 't2' ORDER BY PARTITION_NAME;
 PARTITION_NAME	TABLE_ROWS
-p0	2
 p-2000	16
-p-2011-MSK	2
 p-2011-MSD-1	9
 p-2011-MSD-2	6
+p-2011-MSK	2
 p-2012-MSK-1	3
 p-2012-MSK-2	4
+p0	2
 pEnd	2
 pMax	2
 SELECT * FROM t1 ORDER BY a, tz;
@@ -1002,26 +994,24 @@ a	tz
 2011-03-27 03:00:00	MoscowI
 2011-03-27 03:00:00	MoscowI
 2011-03-27 03:00:00	UTC
-EXPLAIN PARTITIONS
+EXPLAIN
 SELECT * FROM t2
 WHERE a BETWEEN '2011-03-01 00:00:00' and '2011-03-27 03:00:00' ORDER BY a, tz;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	p-2011-MSK,p-2011-MSD-1	ALL	NULL	NULL	NULL	NULL	11	11.11	Using where; Using filesort
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`tz` AS `tz` from `test`.`t2` where (`test`.`t2`.`a` between '2011-03-01 00:00:00' and '2011-03-27 03:00:00') order by `test`.`t2`.`a`,`test`.`t2`.`tz`
 SELECT * FROM t2
 WHERE a BETWEEN '2011-03-01 00:00:00' and '2011-03-27 01:59:59' ORDER BY a, tz;
 a	tz
 2011-03-27 01:59:59	Moscow
 2011-03-27 01:59:59	UTC
-EXPLAIN PARTITIONS
+EXPLAIN
 SELECT * FROM t2
 WHERE a BETWEEN '2011-03-01 00:00:00' and '2011-03-27 01:59:59' ORDER BY a, tz;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	p-2011-MSK	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using filesort
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`tz` AS `tz` from `test`.`t2` where (`test`.`t2`.`a` between '2011-03-01 00:00:00' and '2011-03-27 01:59:59') order by `test`.`t2`.`a`,`test`.`t2`.`tz`
 SELECT * FROM t2
 WHERE a BETWEEN '2011-03-26 01:59:59' and '2011-03-28 00:00:00' ORDER BY a, tz;
@@ -1035,13 +1025,12 @@ a	tz
 2011-03-27 03:00:00	UTC
 2011-03-27 03:00:01	Moscow
 2011-03-27 03:00:01	UTC
-EXPLAIN PARTITIONS
+EXPLAIN
 SELECT * FROM t2
 WHERE a BETWEEN '2011-03-26 01:59:59' and '2011-03-28 00:00:00' ORDER BY a, tz;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	p-2011-MSK,p-2011-MSD-1	ALL	NULL	NULL	NULL	NULL	11	11.11	Using where; Using filesort
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`tz` AS `tz` from `test`.`t2` where (`test`.`t2`.`a` between '2011-03-26 01:59:59' and '2011-03-28 00:00:00') order by `test`.`t2`.`a`,`test`.`t2`.`tz`
 SELECT * FROM t2
 WHERE a BETWEEN '2011-03-26 03:00:00' and '2011-03-28 00:00:00' ORDER BY a, tz;
@@ -1055,58 +1044,53 @@ a	tz
 2011-03-27 03:00:00	UTC
 2011-03-27 03:00:01	Moscow
 2011-03-27 03:00:01	UTC
-EXPLAIN PARTITIONS
+EXPLAIN
 SELECT * FROM t2
 WHERE a BETWEEN '2011-03-26 03:00:00' and '2011-03-28 00:00:00' ORDER BY a, tz;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	p-2011-MSK,p-2011-MSD-1	ALL	NULL	NULL	NULL	NULL	11	11.11	Using where; Using filesort
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`tz` AS `tz` from `test`.`t2` where (`test`.`t2`.`a` between '2011-03-26 03:00:00' and '2011-03-28 00:00:00') order by `test`.`t2`.`a`,`test`.`t2`.`tz`
 # Testing the leap from 02:59:59 to 02:00:00
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-01 00:00:00' and '2011-10-29 02:00:00' ORDER BY a, tz;
 a	tz
-EXPLAIN PARTITIONS
+EXPLAIN
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-01 00:00:00' and '2011-10-29 02:00:00' ORDER BY a, tz;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	p-2011-MSD-1	ALL	NULL	NULL	NULL	NULL	9	11.11	Using where; Using filesort
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`tz` AS `tz` from `test`.`t2` where (`test`.`t2`.`a` between '2011-10-01 00:00:00' and '2011-10-29 02:00:00') order by `test`.`t2`.`a`,`test`.`t2`.`tz`
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-01 00:00:00' and '2011-10-29 02:59:59' ORDER BY a, tz;
 a	tz
-EXPLAIN PARTITIONS
+EXPLAIN
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-01 00:00:00' and '2011-10-29 02:59:59' ORDER BY a, tz;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	p-2011-MSD-1	ALL	NULL	NULL	NULL	NULL	9	11.11	Using where; Using filesort
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`tz` AS `tz` from `test`.`t2` where (`test`.`t2`.`a` between '2011-10-01 00:00:00' and '2011-10-29 02:59:59') order by `test`.`t2`.`a`,`test`.`t2`.`tz`
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-01 00:00:00' and '2011-10-29 03:00:00' ORDER BY a, tz;
 a	tz
-EXPLAIN PARTITIONS
+EXPLAIN
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-01 00:00:00' and '2011-10-29 03:00:00' ORDER BY a, tz;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	p-2011-MSD-1	ALL	NULL	NULL	NULL	NULL	9	11.11	Using where; Using filesort
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`tz` AS `tz` from `test`.`t2` where (`test`.`t2`.`a` between '2011-10-01 00:00:00' and '2011-10-29 03:00:00') order by `test`.`t2`.`a`,`test`.`t2`.`tz`
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-01 00:00:00' and '2011-10-29 01:59:59' ORDER BY a, tz;
 a	tz
-EXPLAIN PARTITIONS
+EXPLAIN
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-01 00:00:00' and '2011-10-29 01:59:59' ORDER BY a, tz;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	p-2011-MSD-1	ALL	NULL	NULL	NULL	NULL	9	11.11	Using where; Using filesort
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`tz` AS `tz` from `test`.`t2` where (`test`.`t2`.`a` between '2011-10-01 00:00:00' and '2011-10-29 01:59:59') order by `test`.`t2`.`a`,`test`.`t2`.`tz`
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-29 02:00:00' and '2011-10-31 00:00:00' ORDER BY a, tz;
@@ -1126,13 +1110,12 @@ a	tz
 2011-10-30 03:00:00	UTC
 2011-10-30 03:00:01	Moscow
 2011-10-30 03:00:01	UTC
-EXPLAIN PARTITIONS
+EXPLAIN
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-29 02:00:00' and '2011-10-31 00:00:00' ORDER BY a, tz;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	p-2011-MSD-1,p-2011-MSD-2,p-2012-MSK-1,p-2012-MSK-2	ALL	NULL	NULL	NULL	NULL	22	11.11	Using where; Using filesort
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`tz` AS `tz` from `test`.`t2` where (`test`.`t2`.`a` between '2011-10-29 02:00:00' and '2011-10-31 00:00:00') order by `test`.`t2`.`a`,`test`.`t2`.`tz`
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-29 02:59:59' and '2011-10-31 00:00:00' ORDER BY a, tz;
@@ -1152,13 +1135,12 @@ a	tz
 2011-10-30 03:00:00	UTC
 2011-10-30 03:00:01	Moscow
 2011-10-30 03:00:01	UTC
-EXPLAIN PARTITIONS
+EXPLAIN
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-29 02:59:59' and '2011-10-31 00:00:00' ORDER BY a, tz;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	p-2011-MSD-1,p-2011-MSD-2,p-2012-MSK-1,p-2012-MSK-2	ALL	NULL	NULL	NULL	NULL	22	11.11	Using where; Using filesort
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`tz` AS `tz` from `test`.`t2` where (`test`.`t2`.`a` between '2011-10-29 02:59:59' and '2011-10-31 00:00:00') order by `test`.`t2`.`a`,`test`.`t2`.`tz`
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-29 03:00:00' and '2011-10-31 00:00:00' ORDER BY a, tz;
@@ -1178,13 +1160,12 @@ a	tz
 2011-10-30 03:00:00	UTC
 2011-10-30 03:00:01	Moscow
 2011-10-30 03:00:01	UTC
-EXPLAIN PARTITIONS
+EXPLAIN
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-29 03:00:00' and '2011-10-31 00:00:00' ORDER BY a, tz;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	p-2011-MSD-1,p-2011-MSD-2,p-2012-MSK-1,p-2012-MSK-2	ALL	NULL	NULL	NULL	NULL	22	11.11	Using where; Using filesort
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`tz` AS `tz` from `test`.`t2` where (`test`.`t2`.`a` between '2011-10-29 03:00:00' and '2011-10-31 00:00:00') order by `test`.`t2`.`a`,`test`.`t2`.`tz`
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-29 01:59:59' and '2011-10-31 00:00:00' ORDER BY a, tz;
@@ -1204,13 +1185,12 @@ a	tz
 2011-10-30 03:00:00	UTC
 2011-10-30 03:00:01	Moscow
 2011-10-30 03:00:01	UTC
-EXPLAIN PARTITIONS
+EXPLAIN
 SELECT * FROM t2
 WHERE a BETWEEN '2011-10-29 01:59:59' and '2011-10-31 00:00:00' ORDER BY a, tz;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	p-2011-MSD-1,p-2011-MSD-2,p-2012-MSK-1,p-2012-MSK-2	ALL	NULL	NULL	NULL	NULL	22	11.11	Using where; Using filesort
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`tz` AS `tz` from `test`.`t2` where (`test`.`t2`.`a` between '2011-10-29 01:59:59' and '2011-10-31 00:00:00') order by `test`.`t2`.`a`,`test`.`t2`.`tz`
 # Test end range changes
 DELETE FROM t2 WHERE a = 0;
@@ -1249,15 +1229,15 @@ SELECT COUNT(*) FROM t2 WHERE a = 0;
 COUNT(*)
 2
 SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS
-WHERE TABLE_NAME = 't2';
+WHERE TABLE_NAME = 't2' ORDER BY PARTITION_NAME;
 PARTITION_NAME	TABLE_ROWS
-p0	3
 p-2000	6
-p-2011-MSK	0
 p-2011-MSD-1	9
 p-2011-MSD-2	8
+p-2011-MSK	0
 p-2012-MSK-1	0
 p-2012-MSK-2	7
+p0	3
 pEnd	0
 pMax	2
 SELECT * FROM t2 ORDER BY a, tz;
@@ -1331,15 +1311,15 @@ SELECT COUNT(*) FROM t2 WHERE a = 0;
 COUNT(*)
 0
 SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS
-WHERE TABLE_NAME = 't2';
+WHERE TABLE_NAME = 't2' ORDER BY PARTITION_NAME;
 PARTITION_NAME	TABLE_ROWS
-p0	6
 p-2000	4
-p-2011-MSK	0
 p-2011-MSD-1	11
 p-2011-MSD-2	9
+p-2011-MSK	0
 p-2012-MSK-1	0
 p-2012-MSK-2	4
+p0	6
 pEnd	2
 pMax	0
 SELECT * FROM t2 ORDER BY a, tz;

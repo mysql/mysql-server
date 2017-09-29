@@ -16,13 +16,13 @@
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-#include <sql_plugin_ref.h>
 
-#include "keyring.cc"
-#include "keyring_impl.cc"
 #include "lex_string.h"
-#include "mock_logger.h"
 #include "my_inttypes.h"
+#include "plugin/keyring/common/keyring_impl.cc"
+#include "plugin/keyring/keyring.cc"
+#include "sql/sql_plugin_ref.h"
+#include "unittest/gunit/keyring/mock_logger.h"
 
 namespace keyring__api_unittest
 {

@@ -19,15 +19,15 @@
 #include <stddef.h>
 #include <vector>
 
-#include "handler.h"                            // enum_schema_tables
-#include "key.h"
 #include "lex_string.h"
 #include "my_inttypes.h"
 #include "mysql/plugin.h"
-#include "set_var.h"                            // enum_var_type
+#include "sql/handler.h"                        // enum_schema_tables
+#include "sql/key.h"
+#include "sql/set_var.h"                        // enum_var_type
+#include "sql/table.h"                          // enum_schema_table_state
+#include "sql/thr_malloc.h"
 #include "sql_string.h"                         // Simple_cstring
-#include "table.h"                              // enum_schema_table_state
-#include "thr_malloc.h"
 #include "typelib.h"
 
 /* Forward declarations */
@@ -210,6 +210,9 @@ int get_quote_char_for_identifier(THD *thd, const char *name, size_t length);
 bool
 try_acquire_high_prio_shared_mdl_lock(THD *thd, TABLE_LIST *table,
                                       bool can_deadlock);
+
+void show_sql_type(enum_field_types type, uint16 metadata, String *str,
+                   const CHARSET_INFO *field_cs= NULL);
 
 extern TYPELIB grant_types;
 #endif /* SQL_SHOW_H */

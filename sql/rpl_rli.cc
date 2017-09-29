@@ -13,6 +13,8 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include "sql/rpl_rli.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -20,12 +22,7 @@
 #include <algorithm>
 
 #include "binlog_event.h"
-#include "debug_sync.h"
-#include "derror.h"
-#include "log.h"
-#include "log_event.h"             // Log_event
 #include "m_ctype.h"
-#include "mdl.h"
 #include "my_dbug.h"
 #include "my_dir.h"                // MY_STAT
 #include "my_sqlcommand.h"
@@ -39,27 +36,31 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/service_thd_wait.h"
 #include "mysql_com.h"
-#include "mysqld.h"                // sync_relaylog_period ...
 #include "mysqld_error.h"
-#include "protocol.h"
-#include "rpl_info_factory.h"      // Rpl_info_factory
-#include "rpl_info_handler.h"
-#include "rpl_mi.h"                // Master_info
-#include "rpl_msr.h"               // channel_map
-#include "rpl_reporting.h"
-#include "rpl_rli.h"
-#include "rpl_rli_pdb.h"           // Slave_worker
-#include "rpl_slave.h"
-#include "rpl_trx_boundary_parser.h"
-#include "sql_base.h"              // close_thread_tables
-#include "sql_error.h"
-#include "sql_list.h"
-#include "sql_plugin.h"
-#include "strfunc.h"               // strconvert
+#include "sql/debug_sync.h"
+#include "sql/derror.h"
+#include "sql/log.h"
+#include "sql/log_event.h"         // Log_event
+#include "sql/mdl.h"
+#include "sql/mysqld.h"            // sync_relaylog_period ...
+#include "sql/protocol.h"
+#include "sql/rpl_info_factory.h"  // Rpl_info_factory
+#include "sql/rpl_info_handler.h"
+#include "sql/rpl_mi.h"            // Master_info
+#include "sql/rpl_msr.h"           // channel_map
+#include "sql/rpl_reporting.h"
+#include "sql/rpl_rli_pdb.h"       // Slave_worker
+#include "sql/rpl_slave.h"
+#include "sql/rpl_trx_boundary_parser.h"
+#include "sql/sql_base.h"          // close_thread_tables
+#include "sql/sql_error.h"
+#include "sql/sql_list.h"
+#include "sql/sql_plugin.h"
+#include "sql/strfunc.h"           // strconvert
+#include "sql/transaction.h"       // trans_commit_stmt
+#include "sql/transaction_info.h"
+#include "sql/xa.h"
 #include "thr_mutex.h"
-#include "transaction.h"           // trans_commit_stmt
-#include "transaction_info.h"
-#include "xa.h"
 
 class Item;
 
@@ -1323,7 +1324,7 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
     inited==0 does not imply that they already are empty.
 
     It could be that slave's info initialization partly succeeded: for example
-    if relay-log.info existed but *relay-bin*.* have been manually removed,
+    if relay-log.info existed but all relay logs have been manually removed,
     init_info reads the old relay-log.info and fills rli->master_log_*, then
     init_info checks for the existence of the relay log, this fails and 
     init_info leaves inited to 0.
@@ -1349,12 +1350,13 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
     DBUG_PRINT("info", ("inited == 0"));
     if (error_on_rli_init_info)
     {
+      DBUG_ASSERT(relay_log.is_relay_log);
       ln_without_channel_name= relay_log.generate_name(opt_relay_logname,
                                                        "-relay-bin", buffer);
 
       ln= add_channel_to_relay_log_name(relay_bin_channel, FN_REFLEN,
                                         ln_without_channel_name);
-      if (opt_relaylog_index_name)
+      if (opt_relaylog_index_name_supplied)
       {
         char index_file_withoutext[FN_REFLEN];
         relay_log.generate_name(opt_relaylog_index_name,"",
@@ -1462,19 +1464,6 @@ err:
   DBUG_RETURN(error);
 }
 
-/*
-   When --relay-bin option is not provided, the names of the
-   relay log files are host-relay-bin.0000x or
-   host-relay-bin-CHANNEL.00000x in the case of MSR.
-   However, if that option is provided, then the names of the
-   relay log files are <relay-bin-option>.0000x or
-   <relay-bin-option>-CHANNEL.00000x in the case of MSR.
-
-   The function adds a channel suffix (according to the channel to file name
-   conventions and conversions) to the relay log file.
-
-   @todo: truncate the log file if length exceeds.
-*/
 
 const char*
 Relay_log_info::add_channel_to_relay_log_name(char *buff, uint buff_size,
@@ -1949,14 +1938,16 @@ int Relay_log_info::rli_init_info()
     const char* log_index_name;
 
 
+    relay_log.is_relay_log= true;
     ln_without_channel_name= relay_log.generate_name(opt_relay_logname,
-                                "-relay-bin", buf);
+                                                     "-relay-bin", buf);
 
     ln= add_channel_to_relay_log_name(relay_bin_channel, FN_REFLEN,
                                       ln_without_channel_name);
 
     /* We send the warning only at startup, not after every RESET SLAVE */
-    if (!opt_relay_logname && !opt_relaylog_index_name && !name_warning_sent)
+    if (!opt_relay_logname_supplied && !opt_relaylog_index_name_supplied &&
+        !name_warning_sent)
     {
       /*
         User didn't give us info to name the relay log index file.
@@ -1970,14 +1961,12 @@ int Relay_log_info::rli_init_info()
       name_warning_sent= 1;
     }
 
-    relay_log.is_relay_log= TRUE;
-
     /*
        If relay log index option is set, convert into channel specific
        index file. If the opt_relaylog_index has an extension, we strip
        it too. This is inconsistent to relay log names.
     */
-    if (opt_relaylog_index_name)
+    if (opt_relaylog_index_name_supplied)
     {
       char index_file_withoutext[FN_REFLEN];
       relay_log.generate_name(opt_relaylog_index_name,"",

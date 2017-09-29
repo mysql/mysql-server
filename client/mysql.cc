@@ -34,30 +34,30 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <m_ctype.h>
 #include <math.h>
-#include <mf_wcomp.h>                  // wild_prefix, wild_one, wild_any
-#include <my_dir.h>
 #include <signal.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <time.h>
-#include <violite.h>
 
-#include "client_priv.h"
+#include "client/client_priv.h"
+#include "client/my_readline.h"
 #include "lex_string.h"
+#include "m_ctype.h"
+#include "mf_wcomp.h"                  // wild_prefix, wild_one, wild_any
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"
+#include "my_dir.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
-#include "my_readline.h"
 #include "mysql/service_my_snprintf.h"
 #include "prealloced_array.h"
 #include "typelib.h"
+#include "violite.h"
 
 #ifdef HAVE_SYS_IOCTL_H
 #include <sys/ioctl.h>
@@ -90,9 +90,10 @@
 #endif
 
 #include <mysqld_error.h>
-#include <sql_common.h>
 #include <algorithm>
 #include <new>
+
+#include "sql_common.h"
 
 using std::min;
 using std::max;
@@ -121,10 +122,9 @@ static char *server_version= NULL;
 #define cmp_database(cs,A,B) strcmp((A),(B))
 #endif
 
-#include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
-
-#include "completion_hash.h"
+#include "client/completion_hash.h"
 #include "print_version.h"
+#include "welcome_copyright_notice.h" // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 #define PROMPT_CHAR '\\'
 #define DEFAULT_DELIMITER ";"
@@ -190,9 +190,7 @@ static STATUS status;
 static ulong select_limit,max_join_size,opt_connect_timeout=0;
 static char mysql_charsets_dir[FN_REFLEN+1];
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
-#if !defined(HAVE_YASSL)
 static char *opt_server_public_key= 0;
-#endif
 static const char *xmlmeta[] = {
   "&", "&amp;",
   "<", "&lt;",
@@ -220,6 +218,7 @@ static char *shared_memory_base_name=0;
 static uint opt_protocol=0;
 static const CHARSET_INFO *charset_info= &my_charset_latin1;
 
+#include "caching_sha2_passwordopt-vars.h"
 #include "sslopt-vars.h"
 
 const char *default_dbug_option="d:t:o,/tmp/mysql.trace";
@@ -1816,6 +1815,7 @@ static struct my_option my_long_options[] =
   {"socket", 'S', "The socket file to use for connection.",
    &opt_mysql_unix_port, &opt_mysql_unix_port, 0, GET_STR_ALLOC,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#include "caching_sha2_passwordopt-longopts.h"
 #include "sslopt-longopts.h"
 
   {"table", 't', "Output in table format.", &output_tables,
@@ -1880,12 +1880,10 @@ static struct my_option my_long_options[] =
    "piped to mysql or loaded using the 'source' command). This is necessary "
    "when processing output from mysqlbinlog that may contain blobs.",
    &opt_binary_mode, &opt_binary_mode, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-#if !defined(HAVE_YASSL)
   {"server-public-key-path", OPT_SERVER_PUBLIC_KEY,
    "File path to the server public RSA key in PEM format.",
    &opt_server_public_key, &opt_server_public_key, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#endif
   {"connect-expired-password", 0,
    "Notify the server that this client is prepared to handle expired "
    "password sandbox mode.",
@@ -2057,7 +2055,7 @@ get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
     opt_protocol = MYSQL_PROTOCOL_PIPE;
 #endif
     break;
-#include <sslopt-case.h>
+#include "sslopt-case.h"
 
   case 'V':
     usage(1);
@@ -2522,7 +2520,10 @@ static bool add_line(String &buffer, char *line, size_t line_length,
       if (*in_string || inchar == 'N')	// \N is short for NULL
       {					// Don't allow commands in string
 	*out++='\\';
-	*out++= (char) inchar;
+        if ((inchar == '`') && (*in_string == inchar))
+          pos--;
+        else
+	  *out++= (char) inchar;
 	continue;
       }
       if ((com= find_command((char) inchar)))
@@ -5093,10 +5094,10 @@ init_connection_options(MYSQL *mysql)
   if (opt_default_auth && *opt_default_auth)
     mysql_options(mysql, MYSQL_DEFAULT_AUTH, opt_default_auth);
 
-#if !defined(HAVE_YASSL)
   if (opt_server_public_key && *opt_server_public_key)
     mysql_options(mysql, MYSQL_SERVER_PUBLIC_KEY, opt_server_public_key);
-#endif
+
+  set_get_server_public_key_option(mysql);
 
   if (using_opt_enable_cleartext_plugin)
     mysql_options(mysql, MYSQL_ENABLE_CLEARTEXT_PLUGIN,

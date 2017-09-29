@@ -17,10 +17,10 @@
   @file mysys/mf_format.cc
 */
 
-#include <m_string.h>
 #include <string.h>
 #include <sys/types.h>
 
+#include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"

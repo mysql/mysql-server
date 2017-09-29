@@ -13,6 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "plugin/keyring/file_io.h"
+
 #include "my_config.h"
 
 #include <errno.h>
@@ -22,12 +24,11 @@
 #include <sstream>
 #include <utility>
 
-#include "current_thd.h"
-#include "file_io.h"
 #include "my_dbug.h"
-#include "mysqld.h"
 #include "mysys_err.h"
-#include "sql_error.h"
+#include "sql/current_thd.h"
+#include "sql/mysqld.h"
+#include "sql/sql_error.h"
 
 namespace keyring
 {

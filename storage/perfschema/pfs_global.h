@@ -21,11 +21,11 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "current_thd.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "sql_class.h"
+#include "sql/current_thd.h"
+#include "sql/sql_class.h"
 
 /**
   @file storage/perfschema/pfs_global.h
@@ -78,6 +78,20 @@ struct PFS_cacheline_atomic_uint64
   char m_full_cache_line[PFS_CACHE_LINE_SIZE - sizeof(std::atomic<uint64>)];
 
   PFS_cacheline_atomic_uint64() : m_u64(0)
+  {
+  }
+};
+
+/**
+  An atomic @c size_t variable, guaranteed to be alone in a CPU cache line.
+  This is for performance, for variables accessed very frequently.
+*/
+struct PFS_cacheline_atomic_size_t
+{
+  std::atomic<size_t> m_size_t;
+  char m_full_cache_line[PFS_CACHE_LINE_SIZE - sizeof(std::atomic<size_t>)];
+
+  PFS_cacheline_atomic_size_t() : m_size_t(0)
   {
   }
 };

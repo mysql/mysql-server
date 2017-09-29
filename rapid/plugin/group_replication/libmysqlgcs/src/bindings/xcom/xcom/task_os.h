@@ -20,7 +20,7 @@
 extern "C" {
 #endif
 
-#include "result.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/result.h"
 
 #ifdef _WIN32
 
@@ -50,6 +50,17 @@ static inline int hard_connect_err(int err) {
 
 static inline int hard_select_err(int err) {
   return err != 0 && from_errno(err) != WSAEINTR;
+}
+
+
+#if(_WIN32_WINNT < 0x0600)
+#error "Need _WIN32_WINNT >= 0x0600"
+#endif
+
+typedef ULONG nfds_t;
+typedef struct pollfd pollfd;
+static inline int poll(pollfd * fds, nfds_t nfds, int timeout) {
+  return WSAPoll(fds, nfds, timeout);
 }
 
 #else
@@ -86,6 +97,8 @@ static inline int hard_connect_err(int err) {
 static inline int hard_select_err(int err) {
   return from_errno(err) != 0 && from_errno(err) != EINTR;
 }
+
+typedef struct pollfd pollfd;
 
 #endif
 

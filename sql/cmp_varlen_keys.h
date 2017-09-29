@@ -20,8 +20,8 @@
 #include <functional>
 
 #include "my_dbug.h"
-#include "sort_param.h"
-#include "sql_array.h"
+#include "sql/sort_param.h"
+#include "sql/sql_array.h"
 
 /**
   A compare function for variable-length keys used by filesort().

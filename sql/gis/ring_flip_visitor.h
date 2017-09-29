@@ -16,8 +16,8 @@
 // this program; if not, write to the Free Software Foundation, 51 Franklin
 // Street, Suite 500, Boston, MA 02110-1335 USA.
 
-#include "dd/types/spatial_reference_system.h"  // dd::Spatial_reference_system
-#include "geometry_visitor.h"
+#include "sql/dd/types/spatial_reference_system.h" // dd::Spatial_reference_system
+#include "sql/gis/geometry_visitor.h"
 
 namespace gis {
 

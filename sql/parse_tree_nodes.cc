@@ -13,42 +13,44 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "parse_tree_nodes.h"
+#include "sql/parse_tree_nodes.h"
 
 #include <string.h>
 #include <algorithm>
 
-#include "dd/info_schema/show.h"             // build_show_...
-#include "dd/types/abstract_table.h" // dd::enum_table_type::BASE_TABLE
-#include "derror.h"         // ER_THD
-#include "item_timefunc.h"
-#include "key_spec.h"
 #include "m_ctype.h"
 #include "m_string.h"
-#include "mdl.h"
 #include "my_dbug.h"
-#include "mysqld.h"         // global_system_variables
-#include "parse_tree_column_attrs.h" // PT_field_def_base
-#include "parse_tree_hints.h"
-#include "parse_tree_partitions.h" // PT_partition
-#include "query_options.h"
-#include "sp.h"             // sp_add_used_routine
-#include "sp_instr.h"       // sp_instr_set
-#include "sp_pcontext.h"
-#include "sql_array.h"
-#include "sql_base.h"                        // find_temporary_table
-#include "sql_call.h"       // Sql_cmd_call...
-#include "sql_cmd_ddl_table.h"
-#include "sql_data_change.h"
-#include "sql_delete.h"     // Sql_cmd_delete...
-#include "sql_do.h"         // Sql_cmd_do...
-#include "sql_error.h"
-#include "sql_insert.h"     // Sql_cmd_insert...
-#include "sql_select.h"     // Sql_cmd_select...
+#include "sql/dd/info_schema/show.h"         // build_show_...
+#include "sql/dd/types/abstract_table.h" // dd::enum_table_type::BASE_TABLE
+#include "sql/derror.h"     // ER_THD
+#include "sql/item_timefunc.h"
+#include "sql/key_spec.h"
+#include "sql/mdl.h"
+#include "sql/mysqld.h"     // global_system_variables
+#include "sql/opt_explain_json.h"        // Explain_format_JSON
+#include "sql/opt_explain_traditional.h" // Explain_format_traditional
+#include "sql/parse_tree_column_attrs.h" // PT_field_def_base
+#include "sql/parse_tree_hints.h"
+#include "sql/parse_tree_partitions.h" // PT_partition
+#include "sql/query_options.h"
+#include "sql/sp.h"         // sp_add_used_routine
+#include "sql/sp_instr.h"   // sp_instr_set
+#include "sql/sp_pcontext.h"
+#include "sql/sql_array.h"
+#include "sql/sql_base.h"                    // find_temporary_table
+#include "sql/sql_call.h"   // Sql_cmd_call...
+#include "sql/sql_cmd_ddl_table.h"
+#include "sql/sql_data_change.h"
+#include "sql/sql_delete.h" // Sql_cmd_delete...
+#include "sql/sql_do.h"     // Sql_cmd_do...
+#include "sql/sql_error.h"
+#include "sql/sql_insert.h" // Sql_cmd_insert...
+#include "sql/sql_select.h" // Sql_cmd_select...
+#include "sql/sql_update.h" // Sql_cmd_update...
+#include "sql/system_variables.h"
+#include "sql/trigger_def.h"
 #include "sql_string.h"
-#include "sql_update.h"     // Sql_cmd_update...
-#include "system_variables.h"
-#include "trigger_def.h"
 
 class Sql_cmd;
 
@@ -549,8 +551,11 @@ bool PT_select_sp_var::contextualize(Parse_context *pc)
 Sql_cmd *PT_select_stmt::make_cmd(THD *thd)
 {
   Parse_context pc(thd, thd->lex->current_select());
-  if (contextualize(&pc))
-    return NULL;
+
+  thd->lex->sql_command= m_sql_command;
+
+  if (m_qe->contextualize(&pc) || contextualize_safe(&pc, m_into))
+    return nullptr;
 
   if (thd->lex->sql_command == SQLCOM_SELECT)
     return new (thd->mem_root) Sql_cmd_select(thd->lex->result);
@@ -1047,11 +1052,58 @@ bool PT_query_specification::contextualize(Parse_context *pc)
 }
 
 
+bool PT_table_factor_function::contextualize(Parse_context *pc)
+{
+  if (super::contextualize(pc) || m_expr->itemize(pc, &m_expr))
+    return true;
+
+  auto nested_columns= new (pc->mem_root) List<Json_table_column>;
+  if (nested_columns == nullptr)
+    return true; // OOM
+
+  for (auto col : *m_nested_columns)
+  {
+    if (col->contextualize(pc) ||
+        nested_columns->push_back(col->get_column()))
+      return true;
+  }
+
+  auto root_el= new (pc->mem_root) Json_table_column(m_path, nested_columns);
+  auto *root_list= new (pc->mem_root) List<Json_table_column>;
+  if (root_el == NULL || root_list == NULL ||
+      root_list->push_front(root_el))
+    return true; // OOM
+
+  auto jtf= new (pc->mem_root) Table_function_json(pc->thd, m_table_alias.str,
+                                                   m_expr, root_list);
+  if (jtf == nullptr)
+    return true; // OOM
+
+  LEX_CSTRING alias;
+  alias.length= strlen(jtf->func_name());
+  alias.str= sql_strmake(jtf->func_name(), alias.length);
+  if (alias.str == nullptr)
+    return true; // OOM
+
+  auto ti= new (pc->mem_root) Table_ident(alias, jtf);
+  if (ti == nullptr)
+    return true;
+
+  value= pc->select->add_table_to_list(pc->thd,
+                                       ti, m_table_alias.str, 0,
+                                       TL_READ, MDL_SHARED_READ);
+  if (value == NULL || pc->select->add_joined_table(value))
+    return true;
+
+  return false;
+}
+
+
 PT_derived_table::PT_derived_table(PT_subquery *subquery,
-                                   LEX_STRING *table_alias,
+                                   const LEX_CSTRING &table_alias,
                                    Create_col_name_list *column_names)
   : m_subquery(subquery),
-    m_table_alias(table_alias),
+    m_table_alias(table_alias.str),
     column_names(*column_names)
 {
   m_subquery->m_is_derived_table= true;
@@ -1651,7 +1703,8 @@ bool PT_column_def::contextualize(Table_ddl_parse_context *pc)
                                    field_def->charset,
                                    field_def->uint_geom_type,
                                    field_def->gcol_info,
-                                   opt_place);
+                                   opt_place,
+                                   field_def->m_srid);
 }
 
 
@@ -1951,7 +2004,8 @@ bool PT_alter_table_change_column::contextualize(Table_ddl_parse_context *pc)
                                    m_field_def->charset,
                                    m_field_def->uint_geom_type,
                                    m_field_def->gcol_info,
-                                            m_opt_place);
+                                   m_opt_place,
+                                   m_field_def->m_srid);
 }
 
 
@@ -2550,3 +2604,157 @@ Sql_cmd *PT_show_tables::make_cmd(THD *thd)
 }
 
 
+bool PT_json_table_column_with_path::contextualize(Parse_context *pc)
+{
+  if (super::contextualize(pc) || m_type->contextualize(pc))
+    return true;
+
+  const CHARSET_INFO *cs=
+    m_type->get_charset() ? m_type->get_charset() :
+    global_system_variables.character_set_results;
+
+  m_column.init(pc->thd,
+                m_name,                            // Alias
+                m_type->type,                      // Type
+                m_type->get_length(),              // Length
+                m_type->get_dec(),                 // Decimals
+                m_type->get_type_flags(),          // Type modifier
+                nullptr,                           // Default value
+                nullptr,                           // On update value
+                &EMPTY_STR,                        // Comment
+                nullptr,                           // Change
+                nullptr,                           // Interval list
+                cs,                                // Charset
+                m_type->get_uint_geom_type(),      // Geom type
+                NULL,                              // Gcol_info
+                {});                               // SRID
+  return false;
+}
+
+
+bool PT_json_table_column_with_nested_path::contextualize(Parse_context *pc)
+{
+  if (super::contextualize(pc))
+    return true; // OOM
+
+  auto nested_columns= new (pc->mem_root) List<Json_table_column>;
+  if (nested_columns == nullptr)
+    return true; // OOM
+
+  for (auto col : *m_nested_columns)
+  {
+    if (col->contextualize(pc) || nested_columns->push_back(col->get_column()))
+      return true;
+  }
+
+  m_column= new (pc->mem_root) Json_table_column(m_path, nested_columns);
+  if (m_column == nullptr)
+    return true; // OOM
+
+  return false;
+}
+
+
+Sql_cmd *PT_explain_for_connection::make_cmd(THD *thd)
+{
+  thd->lex->sql_command= SQLCOM_EXPLAIN_OTHER;
+
+  if (thd->lex->sphead)
+  {
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+             "non-standalone EXPLAIN FOR CONNECTION");
+    return nullptr;
+  }
+  return &m_cmd;
+}
+
+
+Sql_cmd *PT_explain::make_cmd(THD *thd)
+{
+  LEX * const lex= thd->lex;
+  switch (m_format) {
+  case Explain_format_type::TRADITIONAL:
+    lex->explain_format= new (thd->mem_root) Explain_format_traditional;
+    break;
+  case Explain_format_type::JSON:
+    lex->explain_format= new (thd->mem_root) Explain_format_JSON;
+    break;
+  }
+  if (lex->explain_format == nullptr)
+    return nullptr; // OOM
+
+  Sql_cmd *ret= m_explainable_stmt->make_cmd(thd);
+  if (ret == nullptr)
+    return nullptr; // OOM
+
+  auto code= ret->sql_command_code();
+  if (!is_explainable_query(code) && code != SQLCOM_EXPLAIN_OTHER)
+  {
+    DBUG_ASSERT(!"Should not happen!");
+    my_error(ER_WRONG_USAGE, MYF(0), "EXPLAIN", "non-explainable query");
+    return nullptr;
+  }
+
+  return ret;
+}
+
+
+Sql_cmd *PT_load_table::make_cmd(THD *thd)
+{
+  LEX * const lex= thd->lex;
+  SELECT_LEX * const select= lex->current_select();
+
+  if (lex->sphead)
+  {
+    my_error(ER_SP_BADSTATEMENT, MYF(0),
+             m_cmd.m_exchange.filetype == FILETYPE_CSV ? "LOAD DATA"
+                                                       : "LOAD XML");
+    return nullptr;
+  }
+
+  lex->sql_command= SQLCOM_LOAD;
+
+  switch (m_cmd.m_on_duplicate) {
+  case On_duplicate::ERROR:
+    lex->duplicates=DUP_ERROR;
+    break;
+  case On_duplicate::IGNORE_DUP:
+    lex->set_ignore(true);
+    break;
+  case On_duplicate::REPLACE_DUP:
+    lex->duplicates=DUP_REPLACE;
+    break;
+  }
+
+  /* Fix lock for LOAD DATA CONCURRENT REPLACE */
+  thr_lock_type lock_type= m_lock_type;
+  if (lex->duplicates == DUP_REPLACE && lock_type == TL_WRITE_CONCURRENT_INSERT)
+    lock_type= TL_WRITE_DEFAULT;
+
+  if (!select->add_table_to_list(thd, m_cmd.m_table, nullptr,
+                                 TL_OPTION_UPDATING,
+                                 lock_type,
+                                 lock_type == TL_WRITE_LOW_PRIORITY ?
+                                 MDL_SHARED_WRITE_LOW_PRIO :
+                                 MDL_SHARED_WRITE,
+                                 nullptr,
+                                 m_cmd.m_opt_partitions))
+    return nullptr;
+
+  /* We can't give an error in the middle when using LOCAL files */
+  if (m_cmd.m_is_local_file && lex->duplicates == DUP_ERROR)
+    lex->set_ignore(true);
+
+  Parse_context pc(thd, select);
+  if (contextualize_safe(&pc, m_opt_fields_or_vars))
+    return nullptr;
+
+  if (m_opt_set_fields != nullptr)
+  {
+    if (m_opt_set_fields->contextualize(&pc) ||
+        m_opt_set_exprs->contextualize(&pc))
+      return nullptr;
+  }
+
+  return &m_cmd;
+}

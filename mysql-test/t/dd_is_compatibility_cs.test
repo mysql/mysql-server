@@ -25,20 +25,19 @@ USE test;
 --echo # Issue WL#6599/HLS/6a): Analyze table needed in FDS mode.
 --echo #########################################################
 
-SET @old_information_schema_stats= @@session.information_schema_stats;
-SET @@session.information_schema_stats= cached;
+SET information_schema_stats_expiry=default;
 
---echo # Getting cached statistics needs ANALYZE.
-CREATE TABLE t1 (i INTEGER, KEY cached_key(i));
-INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
---echo # Before ANALYZE, cardinality is NULL.
+CREATE TABLE t1 (i INTEGER, KEY cached_key(i)) ENGINE=INNODB STATS_PERSISTENT=0;
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10),
+(11), (12), (13), (14), (15), (16), (17), (18), (19);
+
 SHOW KEYS FROM t1 WHERE key_name LIKE 'cached%';
 ANALYZE TABLE t1;
 --echo # After ANALYZE, cardinality is correct.
 SHOW KEYS FROM t1 WHERE key_name LIKE 'cached%';
 DROP TABLE t1;
 
-SET @@session.information_schema_stats= latest;
+SET information_schema_stats_expiry=0;
 
 --echo # Getting latest statistics does not need ANALYZE.
 CREATE TABLE t1 (i INTEGER, KEY latest_key(i));
@@ -57,7 +56,7 @@ let $wait_condition = SELECT stat_value = 10
 SHOW KEYS FROM t1 WHERE key_name LIKE 'latest%';
 DROP TABLE t1;
 
-SET @@session.information_schema_stats= @old_information_schema_stats;
+SET information_schema_stats_expiry=default;
 
 --echo #########################################################
 --echo # Issue WL#6599/HLS/6b): DD tables listed in I_S query output.
@@ -234,7 +233,7 @@ SET @@session.max_join_size= @old_join_size;
 --echo # WL#6599 HLS/6k
 --echo # ANALYZE TABLE under innodb read only mode fails with
 --echo # error/warning. This would be a restrictions with wl6599. It is
---echo # recommended to use 'information_schema_stats=latest' to get latest
+--echo # recommended to use 'information_schema_stats_expiry=0' to get latest
 --echo # statistics from IS queries in read only mode.
 --echo #########################################################
 
@@ -242,6 +241,7 @@ use test;
 CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES(1);
 --source include/restart_innodb_read_only.inc
+call mtr.add_suppression('Skipped updating resource group metadata in InnoDB read only mode.');
 ANALYZE TABLE t1;
 let $restart_parameters = restart;
 --source include/restart_mysqld.inc

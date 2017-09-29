@@ -23,10 +23,11 @@
 
 #define HAVE_PSI_1
 
-#include <my_thread.h>
-#include <my_thread_local.h>
 #include <mysql/psi/psi_base.h>
 #include <mysql/psi/psi_data_lock.h>
+
+#include "my_thread.h"
+#include "my_thread_local.h"
 
 struct PFS_thread;
 class PFS_table_context;

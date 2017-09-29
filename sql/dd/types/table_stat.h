@@ -16,10 +16,8 @@
 #ifndef DD__TABLE_STAT_INCLUDED
 #define DD__TABLE_STAT_INCLUDED
 
-
-#include "my_inttypes.h"
-
-#include "dd/types/entity_object.h"   // dd::Entity_object
+#include "sql/dd/types/entity_object.h"       // dd::Entity_object
+#include "sql/dd/types/entity_object_table.h" // Entity_object_table
 
 namespace dd {
 
@@ -123,6 +121,12 @@ public:
   virtual ulonglong check_time() const = 0;
   virtual void set_check_time(ulonglong check_time) = 0;
 
+  /////////////////////////////////////////////////////////////////////////
+  // cached_time.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual ulonglong cached_time() const = 0;
+  virtual void set_cached_time(ulonglong cached_time) = 0;
 
 };
 

@@ -20,10 +20,10 @@
 #ifndef _NGS_PROTOCOL_AUTHENTICATION_H_
 #define _NGS_PROTOCOL_AUTHENTICATION_H_
 
-#include "ngs_common/bind.h"
-#include "ngs/error_code.h"
-#include "ngs/interface/account_verification_interface.h"
-#include "ngs/memory.h"
+#include "plugin/x/ngs/include/ngs/error_code.h"
+#include "plugin/x/ngs/include/ngs/interface/account_verification_interface.h"
+#include "plugin/x/ngs/include/ngs/memory.h"
+#include "plugin/x/ngs/include/ngs_common/bind.h"
 
 namespace ngs {
 class Session_interface;

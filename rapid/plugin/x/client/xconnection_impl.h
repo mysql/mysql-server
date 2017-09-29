@@ -23,13 +23,13 @@
 #ifndef X_CLIENT_CONNECTION_IMPL_H_
 #define X_CLIENT_CONNECTION_IMPL_H_
 
-#include <my_io.h>
-#include <violite.h>
 #include <memory>
 
-#include "mysqlxclient/xconnection.h"
-#include "mysqlxclient/xerror.h"
-#include "xcontext.h"
+#include "my_io.h"
+#include "plugin/x/client/mysqlxclient/xconnection.h"
+#include "plugin/x/client/mysqlxclient/xerror.h"
+#include "plugin/x/client/xcontext.h"
+#include "violite.h"
 
 
 struct sockaddr_un;
@@ -48,7 +48,7 @@ class Connection_impl : public XConnection {
   XError connect(const std::string &host, const uint16_t port,
                  const Internet_protocol ip_mode) override;
 
-  my_socket get_socket_fd() override { return 0; }
+  my_socket get_socket_fd() override;
 
   XError activate_tls() override;
   XError shutdown(const Shutdown_type how_to_shutdown) override;

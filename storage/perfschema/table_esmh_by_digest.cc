@@ -19,17 +19,18 @@
   Table EVENTS_STATEMENTS_HISTOGRAM_BY_DIGEST (implementation).
 */
 
+#include "storage/perfschema/table_esmh_by_digest.h"
+
 #include "my_thread.h"
-#include "pfs_instr_class.h"
-#include "pfs_column_types.h"
-#include "pfs_column_values.h"
-#include "table_esmh_by_digest.h"
-#include "pfs_global.h"
-#include "pfs_instr.h"
-#include "pfs_timer.h"
-#include "pfs_visitor.h"
-#include "pfs_digest.h"
-#include "field.h"
+#include "sql/field.h"
+#include "storage/perfschema/pfs_column_types.h"
+#include "storage/perfschema/pfs_column_values.h"
+#include "storage/perfschema/pfs_digest.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_instr.h"
+#include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/pfs_timer.h"
+#include "storage/perfschema/pfs_visitor.h"
 
 THR_LOCK table_esmh_by_digest::m_table_lock;
 
@@ -40,7 +41,7 @@ Plugin_table table_esmh_by_digest::m_table_def(
   "events_statements_histogram_by_digest",
   /* Definition */
   "  SCHEMA_NAME VARCHAR(64),\n"
-  "  DIGEST VARCHAR(32),\n"
+  "  DIGEST VARCHAR(64),\n"
   "  BUCKET_NUMBER INTEGER unsigned not null,\n"
   "  BUCKET_TIMER_LOW BIGINT unsigned not null,\n "
   "  BUCKET_TIMER_HIGH BIGINT unsigned not null,\n"

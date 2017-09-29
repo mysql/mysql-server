@@ -28,11 +28,11 @@
   Most function are just inline wrappers around library calls
 */
 
-#include <decimal.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <algorithm>
 
+#include "decimal.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"

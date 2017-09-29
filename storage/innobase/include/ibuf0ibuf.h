@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -62,7 +62,7 @@ enum ibuf_use_t {
 };
 
 /** Operations that can currently be buffered. */
-extern ibuf_use_t	ibuf_use;
+extern ulong	innodb_change_buffering;
 
 /** The insert buffer control structure */
 extern ibuf_t*		ibuf;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 #include <stdlib.h>
 
 #ifdef _WIN32
+#include <winsock2.h>  // Must come before <windows.h>.
 #include <windows.h>
 
 typedef CRITICAL_SECTION native_mutex_t;

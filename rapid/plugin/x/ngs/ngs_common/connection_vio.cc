@@ -24,11 +24,11 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
-#include "ngs/log.h"
-#include "ngs_common/connection_type.h"
-#include "ngs_common/connection_vio.h"
-#include "ngs_common/options_ssl.h"
-#include "ngs_common/string_formatter.h"
+#include "plugin/x/ngs/include/ngs/log.h"
+#include "plugin/x/ngs/include/ngs_common/connection_type.h"
+#include "plugin/x/ngs/include/ngs_common/connection_vio.h"
+#include "plugin/x/ngs/include/ngs_common/options_ssl.h"
+#include "plugin/x/ngs/include/ngs_common/string_formatter.h"
 
 
 using namespace ngs;

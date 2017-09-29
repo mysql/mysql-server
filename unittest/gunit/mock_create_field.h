@@ -16,7 +16,7 @@
 #ifndef MOCK_CREATE_FIELD_H
 #define MOCK_CREATE_FIELD_H
 
-#include "field.h"
+#include "sql/field.h"
 #include "my_dbug.h"
 
 class Mock_create_field : public Create_field
@@ -49,7 +49,9 @@ public:
          NULL, // char *fld_change,
          NULL, // List<String> *fld_interval_list,
          NULL, // const CHARSET_INFO *fld_charset,
-         0 // uint fld_geom_type
+         0, // uint fld_geom_type
+         nullptr, // gcol info
+         {} // Nullable<gis::srid_t> srid
          );
   }
 };

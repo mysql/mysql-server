@@ -8,11 +8,11 @@ SET @@global.server_id = 500000;
 SET @@global.server_id = DEFAULT;
 SELECT @@global.server_id;
 @@global.server_id
-0
+1
 '#--------------------FN_DYNVARS_144_02-------------------------#'
 SET @@global.server_id = DEFAULT;
-SELECT @@global.server_id = 0;
-@@global.server_id = 0
+SELECT @@global.server_id = 1;
+@@global.server_id = 1
 1
 '#--------------------FN_DYNVARS_144_03-------------------------#'
 SET @@global.server_id = 0;

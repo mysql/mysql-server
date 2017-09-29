@@ -33,7 +33,7 @@ drop table t;
 # Must be an engine that supports spatial indexes
 CREATE TABLE t1(
  pk INT AUTO_INCREMENT PRIMARY KEY,
- col_geom GEOMETRY NOT NULL
+ col_geom GEOMETRY NOT NULL SRID 0
 ) ENGINE=MyISAM;
 
 INSERT INTO t1 VALUES (1, ST_GeomFromText('POINT(10 10)'));

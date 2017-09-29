@@ -15,15 +15,16 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "sql/ha_ndb_index_stat.h"
+
 #include <ctype.h>
 #include <mysql/plugin.h>
 #include <mysql/psi/mysql_thread.h>
 
-#include "ha_ndb_index_stat.h"
-#include "ha_ndbcluster.h"
-#include "ha_ndbcluster_connection.h"
 #include "my_dbug.h"
-#include "mysqld.h"         // LOCK_*, mysqld_server_started
+#include "sql/ha_ndbcluster.h"
+#include "sql/ha_ndbcluster_connection.h"
+#include "sql/mysqld.h"     // LOCK_*, mysqld_server_started
 
 
 /* from other files */

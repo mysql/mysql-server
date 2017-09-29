@@ -28,9 +28,9 @@
 #include <string>
 #include <vector>
 
-#include "mysqlxclient/xargument.h"
-#include "mysqlxclient/xsession.h"
-#include "xcontext.h"
+#include "plugin/x/client/mysqlxclient/xargument.h"
+#include "plugin/x/client/mysqlxclient/xsession.h"
+#include "plugin/x/client/xcontext.h"
 
 
 namespace xcl {
@@ -97,7 +97,7 @@ class Session_impl : public XSession {
       const Arguments &args,
       XError *out_error) override;
 
-  void close();
+  void close() override;
 
  private:
   using Context_ptr          = std::shared_ptr<Context>;

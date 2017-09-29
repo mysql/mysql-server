@@ -67,7 +67,7 @@ AND A.b = '06'
 AND A.c = 343;
 DROP TABLE t1;
 #
-# Bug#59503: explain extended crash in get_mm_leaf
+# Bug#59503: explain crash in get_mm_leaf
 #
 CREATE TABLE t1 (a VARCHAR(51) CHARACTER SET latin1)
 PARTITION BY KEY (a) PARTITIONS 1;
@@ -75,11 +75,10 @@ INSERT INTO t1 VALUES ('a'),('b'),('c');
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE a > 1;
+EXPLAIN SELECT 1 FROM t1 WHERE a > 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where (`test`.`t1`.`a` > 1)
 DROP TABLE t1;
 #
@@ -241,17 +240,15 @@ a	b
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-EXPLAIN PARTITIONS SELECT * FROM t1 where a between '2007-01-01' and '2007-08-01';
+EXPLAIN SELECT * FROM t1 where a between '2007-01-01' and '2007-08-01';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p1	range	PRIMARY	PRIMARY	4	NULL	1	100.00	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` between '2007-01-01' and '2007-08-01')
-EXPLAIN PARTITIONS SELECT * FROM t1 where a = '2007-07-30 17:35:48';
+EXPLAIN SELECT * FROM t1 where a = '2007-07-30 17:35:48';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p1	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select '2007-07-30 17:35:48' AS `a`,'p1' AS `b` from `test`.`t1` where 1
 ALTER TABLE t1 REORGANIZE PARTITION pmax INTO (
 PARTITION p3 VALUES LESS THAN (1247688000),
@@ -267,17 +264,15 @@ a	b
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-EXPLAIN PARTITIONS SELECT * FROM t1 where a between '2007-01-01' and '2007-08-01';
+EXPLAIN SELECT * FROM t1 where a between '2007-01-01' and '2007-08-01';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p1	range	PRIMARY	PRIMARY	4	NULL	1	100.00	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` between '2007-01-01' and '2007-08-01')
-EXPLAIN PARTITIONS SELECT * FROM t1 where a = '2007-07-30 17:35:48';
+EXPLAIN SELECT * FROM t1 where a = '2007-07-30 17:35:48';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p1	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select '2007-07-30 17:35:48' AS `a`,'p1' AS `b` from `test`.`t1` where 1
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -566,11 +561,10 @@ INSERT INTO `t2` VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-EXPLAIN PARTITIONS SELECT c1 FROM t1 WHERE (c1 > 10 AND c1 < 13) OR (c1 > 17 AND c1 < 20);
+EXPLAIN SELECT c1 FROM t1 WHERE (c1 > 10 AND c1 < 13) OR (c1 > 17 AND c1 < 20);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	c1	c1	5	NULL	4	100.00	Using where; Using index
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where (((`test`.`t1`.`c1` > 10) and (`test`.`t1`.`c1` < 13)) or ((`test`.`t1`.`c1` > 17) and (`test`.`t1`.`c1` < 20)))
 FLUSH STATUS;
 SELECT c1 FROM t1 WHERE (c1 > 10 AND c1 < 13) OR (c1 > 17 AND c1 < 20);
@@ -588,11 +582,10 @@ Handler_read_next	4
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
-EXPLAIN PARTITIONS SELECT c1 FROM t2 WHERE (c1 > 10 AND c1 < 13) OR (c1 > 17 AND c1 < 20);
+EXPLAIN SELECT c1 FROM t2 WHERE (c1 > 10 AND c1 < 13) OR (c1 > 17 AND c1 < 20);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	a	range	c1	c1	5	NULL	4	100.00	Using where; Using index
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`c1` AS `c1` from `test`.`t2` where (((`test`.`t2`.`c1` > 10) and (`test`.`t2`.`c1` < 13)) or ((`test`.`t2`.`c1` > 17) and (`test`.`t2`.`c1` < 20)))
 FLUSH STATUS;
 SELECT c1 FROM t2 WHERE (c1 > 10 AND c1 < 13) OR (c1 > 17 AND c1 < 20);
@@ -627,11 +620,10 @@ INSERT INTO `t2` VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-EXPLAIN PARTITIONS SELECT c1 FROM t1 WHERE (c1 > 2 AND c1 < 5);
+EXPLAIN SELECT c1 FROM t1 WHERE (c1 > 2 AND c1 < 5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	c1	c1	5	NULL	2	100.00	Using where; Using index
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where ((`test`.`t1`.`c1` > 2) and (`test`.`t1`.`c1` < 5))
 FLUSH STATUS;
 SELECT c1 FROM t1 WHERE (c1 > 2 AND c1 < 5);
@@ -647,11 +639,10 @@ Handler_read_next	2
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
-EXPLAIN PARTITIONS SELECT c1 FROM t2 WHERE (c1 > 2 AND c1 < 5);
+EXPLAIN SELECT c1 FROM t2 WHERE (c1 > 2 AND c1 < 5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	a	range	c1	c1	5	NULL	2	100.00	Using where; Using index
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`c1` AS `c1` from `test`.`t2` where ((`test`.`t2`.`c1` > 2) and (`test`.`t2`.`c1` < 5))
 FLUSH STATUS;
 SELECT c1 FROM t2 WHERE (c1 > 2 AND c1 < 5);
@@ -667,11 +658,10 @@ Handler_read_next	2
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
-EXPLAIN PARTITIONS SELECT c1 FROM t1 WHERE (c1 > 12 AND c1 < 15);
+EXPLAIN SELECT c1 FROM t1 WHERE (c1 > 12 AND c1 < 15);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	c1	c1	5	NULL	2	100.00	Using where; Using index
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where ((`test`.`t1`.`c1` > 12) and (`test`.`t1`.`c1` < 15))
 FLUSH STATUS;
 SELECT c1 FROM t1 WHERE (c1 > 12 AND c1 < 15);
@@ -687,11 +677,10 @@ Handler_read_next	2
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
-EXPLAIN PARTITIONS SELECT c1 FROM t2 WHERE (c1 > 12 AND c1 < 15);
+EXPLAIN SELECT c1 FROM t2 WHERE (c1 > 12 AND c1 < 15);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	a	range	c1	c1	5	NULL	2	100.00	Using where; Using index
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`c1` AS `c1` from `test`.`t2` where ((`test`.`t2`.`c1` > 12) and (`test`.`t2`.`c1` < 15))
 FLUSH STATUS;
 SELECT c1 FROM t2 WHERE (c1 > 12 AND c1 < 15);
@@ -1390,7 +1379,7 @@ insert into t1 values (0, 1, 1);
 insert into t1 values (12, 1, 1);
 select partition_name, partition_description, table_rows
 from information_schema.partitions where table_schema ='test';
-partition_name	partition_description	table_rows
+PARTITION_NAME	PARTITION_DESCRIPTION	TABLE_ROWS
 x1	0	1
 x2	10	1
 x3	MAXVALUE	1
@@ -1408,8 +1397,14 @@ t1	CREATE TABLE `t1` (
  PARTITION x3 VALUES LESS THAN MAXVALUE TABLESPACE = `ts3` ENGINE = InnoDB) */
 drop table t1;
 DROP TABLESPACE ts1 ENGINE = InnoDB;
+Warnings:
+Warning	1681	'ENGINE tablespace option' is deprecated and will be removed in a future release.
 DROP TABLESPACE ts2 ENGINE = InnoDB;
+Warnings:
+Warning	1681	'ENGINE tablespace option' is deprecated and will be removed in a future release.
 DROP TABLESPACE ts3 ENGINE = InnoDB;
+Warnings:
+Warning	1681	'ENGINE tablespace option' is deprecated and will be removed in a future release.
 create table t1 (a int,b int, c int)
 partition by list(a)
 partitions 2
@@ -1439,7 +1434,7 @@ insert into t1 values (11,1,6);
 insert into t1 values (NULL,1,1);
 select partition_name, partition_description, table_rows
 from information_schema.partitions where table_schema ='test';
-partition_name	partition_description	table_rows
+PARTITION_NAME	PARTITION_DESCRIPTION	TABLE_ROWS
 x123	11,12	1
 x234	NULL,1	1
 drop table t1;
@@ -1638,11 +1633,10 @@ NULL
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-explain partitions select * from t1 where f1 is null;
+explain select * from t1 where f1 is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p1	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where isnull(`test`.`t1`.`f1`)
 drop table t1;
 create table t1 (f1 integer) partition by list(f1)
@@ -1696,20 +1690,18 @@ f1
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-explain partitions select * from t1 where f1 < 3;
+explain select * from t1 where f1 < 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p1,p3	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`f1` < 3)
 select * from t1 where f1 is null;
 f1
 NULL
-explain partitions select * from t1 where f1 is null;
+explain select * from t1 where f1 is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p2	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where isnull(`test`.`t1`.`f1`)
 drop table t1;
 create table t1 (f1 int) partition by list(f1 div 2)
@@ -1727,20 +1719,18 @@ f1
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-explain partitions select * from t1 where f1 < 3;
+explain select * from t1 where f1 < 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p1,p2,p3,p4,p5	ALL	NULL	NULL	NULL	NULL	5	33.33	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`f1` < 3)
 select * from t1 where f1 is null;
 f1
 NULL
-explain partitions select * from t1 where f1 is null;
+explain select * from t1 where f1 is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p2	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where isnull(`test`.`t1`.`f1`)
 drop table t1;
 create table t1 (a int) partition by LIST(a) (
@@ -1758,21 +1748,19 @@ NULL
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-explain partitions select * from t1 where a is null or a < 2;
+explain select * from t1 where a is null or a < 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	pn,p0,p1	ALL	NULL	NULL	NULL	NULL	3	55.56	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (isnull(`test`.`t1`.`a`) or (`test`.`t1`.`a` < 2))
 select * from t1 where a is null or a < 0 or a > 1;
 a
 NULL
 2
-explain partitions select * from t1 where a is null or a < 0 or a > 1;
+explain select * from t1 where a is null or a < 0 or a > 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	pn,p2	ALL	NULL	NULL	NULL	NULL	2	87.50	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (isnull(`test`.`t1`.`a`) or (`test`.`t1`.`a` < 0) or (`test`.`t1`.`a` > 1))
 drop table t1;
 CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, name VARCHAR(20)) 
@@ -2415,11 +2403,10 @@ INSERT INTO t1 VALUES (10), (100), (200), (300), (400);
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a>=200;
+EXPLAIN SELECT * FROM t1 WHERE a>=200;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p2,p3	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` >= 200)
 DROP TABLE t1;
 CREATE TABLE t1 ( a INT, b INT, c INT, KEY bc(b, c) )
@@ -2628,17 +2615,15 @@ PARTITION BY RANGE (c1)
 PARTITION b VALUES LESS THAN (100),
 PARTITION c VALUES LESS THAN MAXVALUE);
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
-EXPLAIN PARTITIONS SELECT c1 FROM t1 WHERE (c1 > 2 AND c1 < 15);
+EXPLAIN SELECT c1 FROM t1 WHERE (c1 > 2 AND c1 < 15);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	a,b	range	c1	c1	5	NULL	12	100.00	Using where; Using index
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where ((`test`.`t1`.`c1` > 2) and (`test`.`t1`.`c1` < 15))
-EXPLAIN EXTENDED SELECT c1 FROM t1 WHERE (c1 > 2 AND c1 < 15);
+EXPLAIN SELECT c1 FROM t1 WHERE (c1 > 2 AND c1 < 15);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	a,b	range	c1	c1	5	NULL	12	100.00	Using where; Using index
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where ((`test`.`t1`.`c1` > 2) and (`test`.`t1`.`c1` < 15))
 EXPLAIN FORMAT=JSON SELECT c1 FROM t1 WHERE (c1 > 2 AND c1 < 15);
 EXPLAIN
@@ -2830,7 +2815,7 @@ SUBPARTITION BY HASH (to_days("col2"))
   SUBPARTITION s3 TABLESPACE = "ts1" ENGINE = InnoDB)) */
 SELECT partition_expression FROM information_schema.partitions
 WHERE table_schema = 'test' AND table_name = 't1';
-partition_expression
+PARTITION_EXPRESSION
 year(`col2`)
 year(`col2`)
 year(`col2`)
@@ -2853,7 +2838,7 @@ SUBPARTITION BY HASH (to_days(`col2`))
   SUBPARTITION s3 TABLESPACE = `ts1` ENGINE = InnoDB)) */
 SELECT partition_expression FROM information_schema.partitions
 WHERE table_schema = 'test' AND table_name = 't1';
-partition_expression
+PARTITION_EXPRESSION
 year(`col2`)
 year(`col2`)
 year(`col2`)
@@ -2875,7 +2860,7 @@ SUBPARTITION BY HASH (to_days(col2))
   SUBPARTITION s3 TABLESPACE = ts1 ENGINE = InnoDB)) */
 SELECT partition_expression FROM information_schema.partitions
 WHERE table_schema = 'test' AND table_name = 't1';
-partition_expression
+PARTITION_EXPRESSION
 year(`col2`)
 year(`col2`)
 year(`col2`)

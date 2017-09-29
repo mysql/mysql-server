@@ -21,7 +21,8 @@
 #define _XPL_NOTICES_H_
 
 #include <stdint.h>
-#include "ngs/error_code.h"
+
+#include "plugin/x/ngs/include/ngs/error_code.h"
 
 namespace ngs {
 

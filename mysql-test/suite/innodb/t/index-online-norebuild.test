@@ -9,12 +9,12 @@ CREATE TABLE t1(
 
 INSERT INTO t1 VALUES(1, 2);
 
-let id_before_alter =`SELECT table_id FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES WHERE name="test/t1"`;
+let id_before_alter =`SELECT table_id FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE name="test/t1"`;
 
 ALTER TABLE t1 MODIFY COLUMN f1 INT NOT NULL DEFAULT 0,
 	       DEFAULT CHARSET=latin1, ALGORITHM=INPLACE;
 
-let id_after_alter =`SELECT table_id FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES WHERE name="test/t1"`;
+let id_after_alter =`SELECT table_id FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE name="test/t1"`;
 
 if ($id_before_alter != $id_after_alter)
 {
@@ -31,12 +31,12 @@ CREATE TABLE t1(
 
 INSERT INTO t1 values(1);
 
-let id_before_alter =`SELECT table_id FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES WHERE name="test/t1"`;
+let id_before_alter =`SELECT table_id FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE name="test/t1"`;
 
 ALTER TABLE t1 MODIFY COLUMN id INT STORAGE MEMORY,
 	       DEFAULT CHARSET=latin1, ALGORITHM=INPLACE;
 
-let id_after_alter =`SELECT table_id FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES WHERE name="test/t1"`;
+let id_after_alter =`SELECT table_id FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE name="test/t1"`;
 
 if ($id_before_alter != $id_after_alter)
 {
@@ -54,11 +54,11 @@ CREATE TABLE t1(
 
 INSERT INTO t1 VALUES(1, 2);
 
-let id_before_alter =`SELECT table_id FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES WHERE name="test/t1"`;
+let id_before_alter =`SELECT table_id FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE name="test/t1"`;
 
 ALTER TABLE t1 RENAME t2, DEFAULT CHARSET=latin1, ALGORITHM=INPLACE;
 
-let id_after_alter =`SELECT table_id FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES WHERE name="test/t2"`;
+let id_after_alter =`SELECT table_id FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE name="test/t2"`;
 
 if ($id_before_alter != $id_after_alter)
 {

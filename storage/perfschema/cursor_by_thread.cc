@@ -23,8 +23,8 @@
 
 #include <stddef.h>
 
-#include "pfs_buffer_container.h"
-#include "pfs_instr.h"
+#include "storage/perfschema/pfs_buffer_container.h"
+#include "storage/perfschema/pfs_instr.h"
 
 ha_rows
 cursor_by_thread::get_row_count(void)

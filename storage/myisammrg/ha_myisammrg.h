@@ -20,14 +20,14 @@
   MyISAM merge storage engine.
 */
 
-#include <myisammrg.h>
 #include <sys/types.h>
 
 #include "lex_string.h"
 #include "my_double2ulonglong.h"
 #include "my_inttypes.h"
 #include "my_io.h"
-#include "table.h"
+#include "myisammrg.h"
+#include "sql/table.h"
 
 /** 
   Represents one name of a MERGE child.

@@ -13,29 +13,29 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/site_def.h"
+
 #include <assert.h>
 #include <stdlib.h>
 
-#include "x_platform.h"
-#include "xcom_profile.h"
-
-#include "bitset.h"
-#include "node_list.h"
-#include "node_no.h"
-#include "node_set.h"
-#include "server_struct.h"
-#include "simset.h"
-#include "site_def.h"
-#include "site_struct.h"
-#include "synode_no.h"
-#include "task.h"
-#include "task_debug.h"
-#include "xcom_base.h"
-#include "xcom_common.h"
-#include "xcom_detector.h"
-#include "xcom_memory.h"
-#include "xcom_transport.h"
-#include "xcom_vp.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/bitset.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_list.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_no.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_set.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/server_struct.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/simset.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/site_struct.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/synode_no.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_debug.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_base.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_common.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_detector.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_memory.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_profile.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_transport.h"
+#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
 
 typedef site_def *site_def_ptr;
 

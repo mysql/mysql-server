@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -144,12 +144,12 @@ row is updated or marked deleted.
 UNIV_INLINE
 void
 row_upd_rec_sys_fields(
-	rec_t*		rec,
-	page_zip_des_t*	page_zip,
-	dict_index_t*	index,
-	const ulint*	offsets,
-	const trx_t*	trx,
-	roll_ptr_t	roll_ptr);
+	rec_t*			rec,
+	page_zip_des_t*		page_zip,
+	const dict_index_t*	index,
+	const ulint*		offsets,
+	const trx_t*		trx,
+	roll_ptr_t		roll_ptr);
 
 /*********************************************************************//**
 Sets the trx id or roll ptr field of a clustered index entry. */

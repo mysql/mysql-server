@@ -15,12 +15,6 @@
 
 ADD_SUBDIRECTORY(libmysqlgcs)
 
-INCLUDE_DIRECTORIES(
-  ${CMAKE_CURRENT_SOURCE_DIR}/libmysqlgcs/include/
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/sql_service/)
-
-
 SET(GROUP_REPLICATION_SOURCES
   src/applier.cc
   src/auto_increment.cc

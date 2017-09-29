@@ -14,14 +14,14 @@
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
     02110-1301  USA */
 
+#include "plugin/rewriter/rewriter_plugin.h"
+
 #include "my_config.h"
 
-#include <my_sys.h>
 #include <mysql/plugin_audit.h>
 #include <mysql/psi/mysql_thread.h>
 #include <mysql/service_my_plugin_log.h>
 #include <stddef.h>
-
 #include <algorithm>
 #include <atomic>
 #include <new>
@@ -29,11 +29,11 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
+#include "my_sys.h"
 #include "mysqld_error.h"
-#include "rewriter.h"
-#include "rewriter_plugin.h"
-#include "rule.h" // Rewrite_result
-#include "services.h"
+#include "plugin/rewriter/rewriter.h"
+#include "plugin/rewriter/rule.h" // Rewrite_result
+#include "plugin/rewriter/services.h"
 #include "template_utils.h"
 
 using std::string;
@@ -201,7 +201,7 @@ PSI_rwlock_key key_rwlock_LOCK_table_;
 
 static PSI_rwlock_info all_rewrite_rwlocks[]=
 {
-  { &key_rwlock_LOCK_table_, "LOCK_plugin_rewriter_table_", 0 }
+  { &key_rwlock_LOCK_table_, "LOCK_plugin_rewriter_table_", 0, 0, PSI_DOCUMENT_ME}
 };
 
 

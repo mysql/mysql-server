@@ -15,7 +15,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "json_to_any_handler.h"
+#include "plugin/x/tests/driver/json_to_any_handler.h"
 
 
 bool Json_to_any_handler::Key(const char *str, rapidjson::SizeType length,

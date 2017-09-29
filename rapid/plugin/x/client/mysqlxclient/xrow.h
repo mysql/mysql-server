@@ -47,7 +47,8 @@ bool buffer_to_double(const std::string &buffer, double *out_result);
 bool buffer_to_time(const std::string &buffer, Time *out_time);
 bool buffer_to_decimal(const std::string &buffer, Decimal *out_result);
 bool buffer_to_set(const std::string &buffer, Row_set *out_result);
-bool buffer_to_datetime(const std::string &buffer, DateTime *out_result);
+bool buffer_to_datetime(const std::string &buffer, DateTime *out_result,
+                        const bool has_time);
 bool buffer_to_string_set(const std::string &buffer, std::string *out_result);
 bool buffer_to_string(const std::string &buffer, Row_str *out_result,
                       size_t *rlength);

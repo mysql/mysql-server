@@ -25,10 +25,11 @@
   Published with a permission.
 */
 
+#include "my_config.h"
+
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
-#include <my_config.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/stat.h>
@@ -38,34 +39,33 @@
 #ifdef HAVE_UNISTD_H
 # include <unistd.h>
 #endif
-#include <m_string.h>
-#include <my_getopt.h>
-#include <welcome_copyright_notice.h>	/* ORACLE_WELCOME_COPYRIGHT_NOTICE */
-
+#include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_getopt.h"
 #include "my_macros.h"
 #include "prealloced_array.h"
 #include "print_version.h"
 #include "typelib.h"
+#include "welcome_copyright_notice.h"	/* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 /* Only parts of these files are included from the InnoDB codebase.
 The parts not included are excluded by #ifndef UNIV_INNOCHECKSUM. */
 
-#include "buf0checksum.h"
-#include "fil0types.h"
-#include "fsp0fsp.h"			/* fsp_flags_get_page_size() &
+#include "storage/innobase/include/buf0checksum.h"
+#include "storage/innobase/include/fil0types.h"
+#include "storage/innobase/include/fsp0fsp.h"			/* fsp_flags_get_page_size() &
 
 					   fsp_flags_get_zip_size() */
-#include "fut0lst.h"			/* FLST_NODE_SIZE */
-#include "mach0data.h"			/* mach_read_from_4() */
-#include "os0file.h"
-#include "page0page.h"			/* PAGE_* */
-#include "page0size.h"			/* page_size_t */
-#include "page0zip.h"
-#include "trx0undo.h"			/* TRX_UNDO_* */
-#include "univ.i"			/* include all of this */
-#include "ut0crc32.h"			/* ut_crc32_init() */
+#include "storage/innobase/include/fut0lst.h"			/* FLST_NODE_SIZE */
+#include "storage/innobase/include/mach0data.h"			/* mach_read_from_4() */
+#include "storage/innobase/include/os0file.h"
+#include "storage/innobase/include/page0page.h"			/* PAGE_* */
+#include "storage/innobase/include/page0size.h"			/* page_size_t */
+#include "storage/innobase/include/page0zip.h"
+#include "storage/innobase/include/trx0undo.h"			/* TRX_UNDO_* */
+#include "storage/innobase/include/univ.i"			/* include all of this */
+#include "storage/innobase/include/ut0crc32.h"			/* ut_crc32_init() */
 
 /* Global variables */
 static bool			verbose;
@@ -359,8 +359,7 @@ open_file(
 	return (fil_in);
 }
 
- /** Read the contents of file. If a page is compressed, the page
-is decompressed.
+ /** Read the contents of file.
 @param[in,out]	buf			read the file in buffer
 @param[in]	partial_page_read	enable when to read the
 					remaining buffer for first page
@@ -389,12 +388,12 @@ ulong read_file(
 		bytes = UNIV_ZIP_SIZE_MIN;
 	}
 
-	bytes += ulong(fread(buf, 1, physical_page_size, fil_in));
-
-	if (!page_size.is_compressed()
-	    || mach_read_from_4(buf + FIL_PAGE_OFFSET) < 3) {
+	/* Nothing to read from file, just return */
+	if (physical_page_size == 0) {
 		return(bytes);
 	}
+
+	bytes += ulong(fread(buf, 1, physical_page_size, fil_in));
 
 	return(bytes);
 }

@@ -79,11 +79,10 @@ NULL	NULL	NULL	NULL
 select @t1:=(@t2:=1)+@t3:=4,@t1,@t2,@t3;
 @t1:=(@t2:=1)+@t3:=4	@t1	@t2	@t3
 5	5	1	4
-explain extended select @t1:=(@t2:=1)+@t3:=4,@t1,@t2,@t3;
+explain select @t1:=(@t2:=1)+@t3:=4,@t1,@t2,@t3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select (@t1:=((@t2:=1) + (@t3:=4))) AS `@t1:=(@t2:=1)+@t3:=4`,(@`t1`) AS `@t1`,(@`t2`) AS `@t2`,(@`t3`) AS `@t3`
 select @t5;
 @t5
@@ -158,20 +157,18 @@ select @@VERSION=version();
 select last_insert_id(345);
 last_insert_id(345)
 345
-explain extended select last_insert_id(345);
+explain select last_insert_id(345);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select last_insert_id(345) AS `last_insert_id(345)`
 select @@IDENTITY,last_insert_id(), @@identity;
 @@IDENTITY	last_insert_id()	@@identity
 345	345	345
-explain extended select @@IDENTITY,last_insert_id(), @@identity;
+explain select @@IDENTITY,last_insert_id(), @@identity;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select @@IDENTITY AS `@@IDENTITY`,last_insert_id() AS `last_insert_id()`,@@identity AS `@@identity`
 set big_tables=OFF, big_tables=ON, big_tables=0, big_tables=1, big_tables="OFF", big_tables="ON";
 set global concurrent_insert=2;
@@ -523,9 +520,6 @@ Warnings:
 Warning	1292	Truncated incorrect max_heap_table_size value: '100'
 set max_join_size=100;
 set max_sort_length=100;
-set max_tmp_tables=100;
-Warnings:
-Warning	1287	'@@max_tmp_tables' is deprecated and will be removed in a future release.
 set global max_user_connections=100;
 select @@max_user_connections;
 @@max_user_connections
@@ -581,9 +575,7 @@ Warnings:
 Warning	1292	Truncated incorrect tmp_table_size value: '100'
 set transaction_isolation="READ-COMMITTED";
 set wait_timeout=100;
-set global log_warnings=1;
-Warnings:
-Warning	1287	'@@log_warnings' is deprecated and will be removed in a future release. Please use log_error_verbosity instead
+set global log_error_verbosity=2;
 set sort_buffer_size=default;
 set global max_allowed_packet        =@my_max_allowed_packet;
 select @@session.insert_id;
@@ -690,44 +682,6 @@ SELECT @@global.session.key_buffer_size;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'session.key_buffer_size' at line 1
 SELECT @@global.local.key_buffer_size;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'local.key_buffer_size' at line 1
-set @tstlw = @@log_warnings;
-Warnings:
-Warning	1287	'@@log_warnings' is deprecated and will be removed in a future release. Please use log_error_verbosity instead
-SET SQL_BIG_SELECTS=1;
-show global variables like 'log_warnings';
-Variable_name	Value
-log_warnings	1
-select * from performance_schema.global_variables where variable_name like 'log_warnings';
-VARIABLE_NAME	VARIABLE_VALUE
-log_warnings	1
-set global log_warnings = 0;
-Warnings:
-Warning	1287	'@@log_warnings' is deprecated and will be removed in a future release. Please use log_error_verbosity instead
-show global variables like 'log_warnings';
-Variable_name	Value
-log_warnings	0
-select * from performance_schema.global_variables where variable_name like 'log_warnings';
-VARIABLE_NAME	VARIABLE_VALUE
-log_warnings	0
-set global log_warnings = 42;
-Warnings:
-Warning	1287	'@@log_warnings' is deprecated and will be removed in a future release. Please use log_error_verbosity instead
-Warning	1292	Truncated incorrect log_warnings value: '42'
-show global variables like 'log_warnings';
-Variable_name	Value
-log_warnings	2
-select * from performance_schema.global_variables where variable_name like 'log_warnings';
-VARIABLE_NAME	VARIABLE_VALUE
-log_warnings	2
-set global log_warnings = @tstlw;
-Warnings:
-Warning	1287	'@@log_warnings' is deprecated and will be removed in a future release. Please use log_error_verbosity instead
-show global variables like 'log_warnings';
-Variable_name	Value
-log_warnings	1
-select * from performance_schema.global_variables where variable_name like 'log_warnings';
-VARIABLE_NAME	VARIABLE_VALUE
-log_warnings	1
 create table t1 (
 c1 tinyint,
 c2 smallint,
@@ -964,6 +918,7 @@ select @@version, @@version_comment, @@version_compile_machine,
 @@version_compile_os;
 @@version	@@version_comment	@@version_compile_machine	@@version_compile_os
 #	#	#	#
+SET SQL_BIG_SELECTS=1;
 select @@basedir, @@datadir, @@tmpdir;
 @@basedir	@@datadir	@@tmpdir
 #	#	#
@@ -1006,6 +961,7 @@ ssl_cipher	#
 ssl_crl	#
 ssl_crlpath	#
 ssl_key	#
+SET SQL_BIG_SELECTS=0;
 select @@log_queries_not_using_indexes;
 @@log_queries_not_using_indexes
 0
@@ -1153,12 +1109,12 @@ ERROR HY000: Variable 'ft_stopword_file' is a read only variable
 #
 SHOW VARIABLES like 'back_log';
 Variable_name	Value
-back_log	80
+back_log	151
 SELECT @@session.back_log;
 ERROR HY000: Variable 'back_log' is a GLOBAL variable
 SELECT @@global.back_log;
 @@global.back_log
-80
+151
 SET @@session.back_log= 7;
 ERROR HY000: Variable 'back_log' is a read only variable
 SET @@global.back_log= 7;
@@ -1864,12 +1820,12 @@ set @@global.slave_net_timeout= @my_slave_net_timeout;
 #
 SHOW VARIABLES like 'log_slave_updates';
 Variable_name	Value
-log_slave_updates	OFF
+log_slave_updates	ON
 SELECT @@session.log_slave_updates;
 ERROR HY000: Variable 'log_slave_updates' is a GLOBAL variable
 SELECT @@global.log_slave_updates;
 @@global.log_slave_updates
-0
+1
 SET @@session.log_slave_updates= true;
 ERROR HY000: Variable 'log_slave_updates' is a read only variable
 SET @@global.log_slave_updates= true;
@@ -1877,12 +1833,12 @@ ERROR HY000: Variable 'log_slave_updates' is a read only variable
 #
 SHOW VARIABLES like 'relay_log';
 Variable_name	Value
-relay_log	
+relay_log	hostname-relay-bin
 SELECT @@session.relay_log;
 ERROR HY000: Variable 'relay_log' is a GLOBAL variable
 SELECT @@global.relay_log;
 @@global.relay_log
-NULL
+hostname-relay-bin
 SET @@session.relay_log= 'x';
 ERROR HY000: Variable 'relay_log' is a read only variable
 SET @@global.relay_log= 'x';

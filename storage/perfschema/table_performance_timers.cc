@@ -22,12 +22,12 @@
 
 #include <stddef.h>
 
-#include "field.h"
 #include "my_dbug.h"
 #include "my_thread.h"
-#include "pfs_global.h"
-#include "pfs_timer.h"
-#include "table_helper.h"
+#include "sql/field.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_timer.h"
+#include "storage/perfschema/table_helper.h"
 
 THR_LOCK table_performance_timers::m_table_lock;
 
@@ -37,8 +37,7 @@ Plugin_table table_performance_timers::m_table_def(
   /* Name */
   "performance_timers",
   /* Definition */
-  "  TIMER_NAME ENUM ('CYCLE', 'NANOSECOND', 'MICROSECOND', 'MILLISECOND',\n"
-  "                   'TICK') NOT NULL,\n"
+  "  TIMER_NAME ENUM ('CYCLE', 'NANOSECOND', 'MICROSECOND', 'MILLISECOND') NOT NULL,\n"
   "  TIMER_FREQUENCY BIGINT,\n"
   "  TIMER_RESOLUTION BIGINT,\n"
   "  TIMER_OVERHEAD BIGINT\n",
@@ -94,10 +93,6 @@ table_performance_timers::table_performance_timers()
   index = (int)TIMER_NAME_MILLISEC - FIRST_TIMER_NAME;
   m_data[index].m_timer_name = TIMER_NAME_MILLISEC;
   m_data[index].m_info = pfs_timer_info.milliseconds;
-
-  index = (int)TIMER_NAME_TICK - FIRST_TIMER_NAME;
-  m_data[index].m_timer_name = TIMER_NAME_TICK;
-  m_data[index].m_info = pfs_timer_info.ticks;
 }
 
 void

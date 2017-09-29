@@ -27,13 +27,13 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysqld_error.h"
-#include "rpl_gtid.h"
-#include "rpl_table_access.h"        // System_table_access
-#include "sql_class.h"               // Open_tables_backup
-#include "table.h"
+#include "sql/rpl_gtid.h"
+#include "sql/rpl_table_access.h"    // System_table_access
+#include "sql/sql_class.h"           // Open_tables_backup
+#include "sql/table.h"
+#include "sql/transaction_info.h"
+#include "sql/xa.h"
 #include "thr_lock.h"
-#include "transaction_info.h"
-#include "xa.h"
 
 class Field;
 

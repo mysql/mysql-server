@@ -24,12 +24,12 @@
 #include <sys/types.h>
 
 #include "my_inttypes.h"
-#include "pfs_column_types.h"
-#include "pfs_engine_table.h"
-#include "pfs_instr.h"
-#include "pfs_instr_class.h"
-#include "table_all_instr.h"
-#include "table_helper.h"
+#include "storage/perfschema/pfs_column_types.h"
+#include "storage/perfschema/pfs_engine_table.h"
+#include "storage/perfschema/pfs_instr.h"
+#include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/table_all_instr.h"
+#include "storage/perfschema/table_helper.h"
 
 /**
   @addtogroup performance_schema_tables

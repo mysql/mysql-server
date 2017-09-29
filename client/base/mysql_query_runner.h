@@ -24,8 +24,8 @@
 #include <string>
 #include <vector>
 
-#include "message_data.h"
-#include "mutex.h"
+#include "client/base/message_data.h"
+#include "client/base/mutex.h"
 #include "my_inttypes.h"
 #include "mysql.h"
 

@@ -16,6 +16,7 @@ call mtr.add_suppression("Header page consists of zero bytes");
 call mtr.add_suppression("Checksum mismatch in datafile");
 call mtr.add_suppression("but the innodb_page_size start-up parameter is");
 call mtr.add_suppression("Database page corruption");
+call mtr.add_suppression("Wrong server version");
 --enable_query_log
 
 let INNODB_PAGE_SIZE=`select @@innodb_page_size`;
@@ -39,7 +40,7 @@ commit work;
 --echo # Test Begin: Test if recovery works if first page of user
 --echo # tablespace is full of zeroes.
 
-select space from information_schema.innodb_sys_tables
+select space from information_schema.innodb_tables
 where name = 'test/t1' into @space_id;
 
 --echo # Wait for purge to complete
@@ -88,7 +89,7 @@ select f1, f2 from t1;
 --echo # Test Begin: Test if recovery works if first page of user
 --echo # tablespace is corrupted.
 
-select space from information_schema.innodb_sys_tables
+select space from information_schema.innodb_tables
 where name = 'test/t1' into @space_id;
 
 --echo # Ensure that dirty pages of table t1 is flushed.
@@ -132,7 +133,7 @@ select f1, f2 from t1;
 --echo # Test Begin: Test if recovery works if 2nd page of user
 --echo # tablespace is full of zeroes.
 
-select space from information_schema.innodb_sys_tables
+select space from information_schema.innodb_tables
 where name = 'test/t1' into @space_id;
 
 --echo # Ensure that dirty pages of table t1 is flushed.
@@ -177,7 +178,7 @@ select f1, f2 from t1;
 --echo # Test Begin: Test if recovery works if 2nd page of user
 --echo # tablespace is corrupted.
 
-select space from information_schema.innodb_sys_tables
+select space from information_schema.innodb_tables
 where name = 'test/t1' into @space_id;
 
 --echo # Ensure that dirty pages of table t1 is flushed.

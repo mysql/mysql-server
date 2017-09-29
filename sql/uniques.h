@@ -26,9 +26,9 @@
 #include "my_tree.h"            // TREE
 #include "mysql/udf_registration_types.h"
 #include "prealloced_array.h"   // Prealloced_array
-#include "sql_alloc.h"          // Sql_alloc
-#include "sql_array.h"
-#include "sql_sort.h"           // IWYU pragma: keep
+#include "sql/sql_alloc.h"      // Sql_alloc
+#include "sql/sql_array.h"
+#include "sql/sql_sort.h"       // IWYU pragma: keep
 
 class Cost_model_table;
 struct TABLE;

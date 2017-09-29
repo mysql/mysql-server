@@ -18,7 +18,7 @@
 #ifndef HELP_OPTIONS_INCLUDED
 #define HELP_OPTIONS_INCLUDED
 
-#include "abstract_options_provider.h"
+#include "client/base/abstract_options_provider.h"
 #include "my_compiler.h"
 
 namespace Mysql{

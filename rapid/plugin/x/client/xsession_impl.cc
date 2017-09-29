@@ -17,6 +17,8 @@
  * 02110-1301  USA
  */
 
+#include "plugin/x/client/xsession_impl.h"
+
 #include <map>
 #include <memory>
 #include <string>
@@ -24,16 +26,14 @@
 
 #include "errmsg.h"
 #include "my_compiler.h"
-#include "mysqlx_error.h"
-#include "mysqlx_version.h"
-#include "xcapability_builder.h"
-#include "xconnection_impl.h"
-#include "xprotocol_factory.h"
-#include "xprotocol_impl.h"
-#include "xquery_result_impl.h"
-#include "xsession_impl.h"
-
-#include "mysqlxclient/xerror.h"
+#include "plugin/x/client/mysqlxclient/xerror.h"
+#include "plugin/x/client/xcapability_builder.h"
+#include "plugin/x/client/xconnection_impl.h"
+#include "plugin/x/client/xprotocol_factory.h"
+#include "plugin/x/client/xprotocol_impl.h"
+#include "plugin/x/client/xquery_result_impl.h"
+#include "plugin/x/generated/mysqlx_error.h"
+#include "plugin/x/generated/mysqlx_version.h"
 
 
 namespace xcl {
@@ -243,8 +243,7 @@ Session_impl::~Session_impl() {
   auto &connection = get_protocol().get_connection();
 
   if (connection.state().is_connected()) {
-    get_protocol().send(::Mysqlx::Connection::Close());
-    get_protocol().recv_ok();
+    connection.close();
   }
 }
 

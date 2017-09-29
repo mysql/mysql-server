@@ -172,6 +172,7 @@
 
 /* Code tests*/
 #cmakedefine HAVE_CLOCK_GETTIME 1
+#cmakedefine HAVE_CLOCK_REALTIME 1
 #cmakedefine DNS_USE_CPU_CLOCK_FOR_ID 1
 #cmakedefine STACK_DIRECTION @STACK_DIRECTION@
 #cmakedefine TIME_WITH_SYS_TIME 1
@@ -186,9 +187,9 @@
 #cmakedefine HAVE_GCC_ATOMIC_BUILTINS 1
 #cmakedefine HAVE_GCC_SYNC_BUILTINS 1
 #cmakedefine HAVE_VALGRIND
-#cmakedefine HAVE_SYS_THREAD_SELFID 1
 #cmakedefine HAVE_SYS_GETTID 1
 #cmakedefine HAVE_PTHREAD_GETTHREADID_NP 1
+#cmakedefine HAVE_PTHREAD_THREADID_NP 1
 #cmakedefine HAVE_INTEGER_PTHREAD_SELF 1
 #cmakedefine HAVE_PTHREAD_SETNAME_NP 1
 /*

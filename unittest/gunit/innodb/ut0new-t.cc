@@ -21,8 +21,8 @@
 #include <gtest/gtest.h>
 #include <stddef.h>
 
-#include "univ.i"
-#include "ut0new.h"
+#include "storage/innobase/include/univ.i"
+#include "storage/innobase/include/ut0new.h"
 
 namespace innodb_ut0new_unittest {
 

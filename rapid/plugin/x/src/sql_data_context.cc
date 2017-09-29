@@ -18,19 +18,19 @@
  * 02110-1301  USA
  */
 
-#include "sql_data_context.h"
+#include "plugin/x/src/sql_data_context.h"
 
 #include <algorithm>
 
 #include "mysql/plugin.h"
 #include "mysql/service_command.h"
-#include "mysql_variables.h"
-#include "notices.h"
-#include "query_string_builder.h"
-#include "sql_user_require.h"
-#include "xpl_error.h"
-#include "xpl_log.h"
-#include "xpl_resultset.h"
+#include "plugin/x/src/mysql_variables.h"
+#include "plugin/x/src/notices.h"
+#include "plugin/x/src/query_string_builder.h"
+#include "plugin/x/src/sql_user_require.h"
+#include "plugin/x/src/xpl_error.h"
+#include "plugin/x/src/xpl_log.h"
+#include "plugin/x/src/xpl_resultset.h"
 
 namespace xpl {
 
@@ -332,9 +332,18 @@ ngs::Error_code Sql_data_context::switch_to_user(const char *username,
   m_address = address ? address : "";
   m_db = db ? db : "";
 
-  log_debug("Switching security context to user %s@%s [%s]", username, hostname,
+  // Workaround for a limitation in security_context_lookup
+  // Empty string causes that IP check is not fully done.
+  // nullptr fixes the problem.
+  if (nullptr != hostname && 0 == strlen(hostname))
+    hostname = nullptr;
+
+  log_debug("Switching security context to user %s@%s [%s]",
+            username,
+            hostname,
             address);
-  if (security_context_lookup(scontext, m_username.c_str(), m_hostname.c_str(),
+
+  if (security_context_lookup(scontext, m_username.c_str(), hostname,
                               m_address.c_str(), m_db.c_str())) {
     return ngs::Fatal(ER_X_SERVICE_ERROR, "Unable to switch context to user %s",
                       username);

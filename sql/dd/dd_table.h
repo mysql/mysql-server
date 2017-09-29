@@ -21,12 +21,12 @@
 #include <string>
 
 #include "binary_log_types.h"        // enum_field_types
-#include "dd/string_type.h"
-#include "dd/types/column.h"         // dd::enum_column_types
-#include "handler.h"                 // legacy_db_type
 #include "my_inttypes.h"
-#include "sql_alter.h"               // Alter_info::enum_enable_or_disable
-#include "system_variables.h"
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/column.h"     // dd::enum_column_types
+#include "sql/handler.h"             // legacy_db_type
+#include "sql/sql_alter.h"           // Alter_info::enum_enable_or_disable
+#include "sql/system_variables.h"
 
 class Create_field;
 class FOREIGN_KEY;

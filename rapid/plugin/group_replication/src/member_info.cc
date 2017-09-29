@@ -13,13 +13,13 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "member_info.h"
+#include "plugin/group_replication/include/member_info.h"
 
 #include <stddef.h>
 
 #include "my_byteorder.h"
 #include "my_dbug.h"
-#include "plugin_psi.h"
+#include "plugin/group_replication/include/plugin_psi.h"
 
 using std::string;
 using std::vector;
@@ -884,6 +884,26 @@ bool Group_member_info_manager::is_majority_unreachable()
   mysql_mutex_unlock(&update_lock);
 
   return ret;
+}
+
+std::string
+Group_member_info_manager::get_string_current_view_active_hosts() const
+{
+  std::stringstream hosts_string;
+  map<string, Group_member_info*>::iterator all_members_it= members->begin();
+
+  while (all_members_it != members->end())
+  {
+    Group_member_info* member_info= (*all_members_it).second;
+    if (member_info->get_recovery_status() == Group_member_info::MEMBER_ONLINE ||
+        member_info->get_recovery_status() == Group_member_info::MEMBER_IN_RECOVERY)
+      hosts_string << member_info->get_hostname() << ":" << member_info->get_port();
+    all_members_it++;
+    if (all_members_it != members->end())
+      hosts_string<<", ";
+  }
+
+  return hosts_string.str();
 }
 
 Group_member_info_manager_message::Group_member_info_manager_message()

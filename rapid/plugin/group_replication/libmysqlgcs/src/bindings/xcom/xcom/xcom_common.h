@@ -19,8 +19,8 @@
 #include <limits.h>
 
 #ifndef XCOM_STANDALONE
-#include <xcom/xcom.h>
 #include "my_compiler.h"
+#include "plugin/group_replication/libmysqlgcs/include/xcom/xcom.h"
 #else
 #ifdef HAVE_STDINT_H
 #include <stdint.h>

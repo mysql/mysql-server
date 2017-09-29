@@ -16,9 +16,9 @@
 #include <stddef.h>
 
 #include "my_dbug.h"
-#include "plugin.h"
-#include "plugin_log.h"
-#include "sql_command_test.h"
+#include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/plugin_log.h"
+#include "plugin/group_replication/include/sql_service/sql_command_test.h"
 
 /*
   The basic test method to check for the execution of the CRUD command.

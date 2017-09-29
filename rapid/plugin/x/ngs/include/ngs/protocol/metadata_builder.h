@@ -24,32 +24,22 @@
 #include <string>
 
 #include "m_ctype.h"
-#include "message_builder.h"
 #include "my_inttypes.h"
-#include "ngs_common/protocol_protobuf.h"
-
-namespace ngs
-{
-
-  class Output_buffer;
-
-  class Metadata_builder: public Message_builder
-  {
-  public:
-
-    void encode_metadata(Output_buffer* out_buffer,
-      const std::string &catalog, const std::string &db_name,
-      const std::string &table_name, const std::string &org_table_name,
-      const std::string &col_name, const std::string &org_col_name,
-      uint64 collation, int type, int decimals,
-      uint32 flags, uint32 length, uint32 content_type = 0);
-
-    void encode_metadata(Output_buffer* out_buffer,
-      uint64 collation, int type, int decimals,
-      uint32 flags, uint32 length, uint32 content_type = 0);
-
-  };
-}
+#include "plugin/x/ngs/include/ngs/protocol/message_builder.h"
+#include "plugin/x/ngs/include/ngs/interface/protocol_encoder_interface.h"
 
 
-#endif //  _NGS_METADATA_BUILDER_H_
+namespace ngs {
+
+class Output_buffer;
+
+class Metadata_builder: public Message_builder {
+ public:
+  void encode_metadata(
+      Output_buffer* out_buffer,
+      const Encode_column_info *column_info);
+};
+
+}  // namespace ngs
+
+#endif  //  _NGS_METADATA_BUILDER_H_

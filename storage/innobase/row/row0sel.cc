@@ -268,8 +268,13 @@ row_sel_sec_rec_is_for_clust_rec(
 				col->prtype, col->mbminmaxlen,
 				ifield->prefix_len, len, (char*) clust_field);
 
+			/* Check sec index field matches that of cluster index
+			in the case of for table with ATOMIC BLOB, note
+			we also need to check if sec_len is 0 */
 			if (rec_offs_nth_extern(clust_offs, clust_pos)
-			    && len < sec_len) {
+			    && (len < sec_len
+				|| (dict_table_has_atomic_blobs(
+					sec_index->table) && sec_len == 0))) {
 				if (!row_sel_sec_rec_is_for_blob(
 					    col->mtype, col->prtype,
 					    col->mbminmaxlen,
@@ -306,13 +311,14 @@ row_sel_sec_rec_is_for_clust_rec(
 					heap);
 			}
 
-			get_mbr_from_store(dptr, static_cast<uint>(clust_len),
-					   SPDIMS,
+			get_mbr_from_store(sec_index->rtr_srs.get(), dptr,
+					   static_cast<uint>(clust_len), SPDIMS,
 					   reinterpret_cast<double*>(&tmp_mbr),
 					   nullptr);
 			rtr_read_mbr(sec_field, &sec_mbr);
 
-			if (!mbr_equal_cmp(&sec_mbr, &tmp_mbr, 0)) {
+			if (!mbr_equal_cmp(sec_index->rtr_srs.get(), &sec_mbr,
+					   &tmp_mbr)) {
 				is_equal = FALSE;
 				goto func_exit;
 			}
@@ -1197,18 +1203,17 @@ lock_match:
 
 	for (rtr_rec_vector::iterator it = match_rec->begin();
 	     it != end; ++it) {
-		dberr_t		err2;
 		rtr_rec_t*	rtr_rec = &(*it);
 
 		my_offsets = rec_get_offsets(
 				rtr_rec->r_rec, index, my_offsets,
 				ULINT_UNDEFINED, &heap);
 
-		err2 = lock_sec_rec_read_check_and_lock(
+		err = lock_sec_rec_read_check_and_lock(
 			0, &match->block, rtr_rec->r_rec, index, my_offsets,
 			sel_mode, static_cast<lock_mode>(mode), type, thr);
 
-		switch (err2) {
+		switch (err) {
 		case DB_SUCCESS:
 		case DB_SUCCESS_LOCKED_REC:
 			rtr_rec->locked = true;
@@ -1221,7 +1226,6 @@ lock_match:
 			break;
 
 		default:
-			err = err2;
 			goto func_end;
 		}
 	}

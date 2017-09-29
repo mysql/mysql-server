@@ -28,18 +28,18 @@ EOF
 
 # We must set '--secure-file-priv=""' here, in case that it will fail on some
 # platform sporadically
-let $args=--no-defaults --datadir=$newdir --secure-file-priv="" --loose-console > $SEARCH_FILE 2>&1 ;
+let $args=--no-defaults --innodb_dedicated_server=OFF --datadir=$newdir --secure-file-priv="" --loose-console > $SEARCH_FILE 2>&1 ;
 
 --error 0,1,42
 --exec $MYSQLD $args
 
 --echo # Matching the server logs for corrupted redo logs
 let SEARCH_PATTERN=InnoDB: ############### CORRUPT LOG RECORD FOUND ###############;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 let SEARCH_PATTERN=InnoDB: Hex dump starting .* bytes before and ending .* bytes after the corrupted record;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 let SEARCH_PATTERN=InnoDB: Set innodb_force_recovery to ignore this error;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --remove_file $SEARCH_FILE
 --force-rmdir $newdir

@@ -13,11 +13,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
+#include "storage/myisam/rt_index.h"
+
 #include "my_dbug.h"
-#include "myisamdef.h"
-#include "rt_index.h"
-#include "rt_key.h"
-#include "rt_mbr.h"
+#include "storage/myisam/myisamdef.h"
+#include "storage/myisam/rt_key.h"
+#include "storage/myisam/rt_mbr.h"
 
 #define REINSERT_BUFFER_INC 10
 #define PICK_BY_AREA

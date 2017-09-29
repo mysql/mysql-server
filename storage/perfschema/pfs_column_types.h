@@ -55,13 +55,9 @@
 /** Size of the SOURCE columns. */
 #define COL_SOURCE_SIZE 64
 
-/** Size of the DIGEST columns. */
-#define COL_DIGEST_SIZE 64
-
 /**
   Enum values for the TIMER_NAME columns.
   This enum is found in the following tables:
-  - performance_schema.setup_timer (TIMER_NAME)
   - performance_schema.performance_timer (TIMER_NAME)
 */
 enum enum_timer_name
@@ -70,13 +66,12 @@ enum enum_timer_name
   TIMER_NAME_NANOSEC = 2,
   TIMER_NAME_MICROSEC = 3,
   TIMER_NAME_MILLISEC = 4,
-  TIMER_NAME_TICK = 5
 };
 
 /** Integer, first value of @sa enum_timer_name. */
 #define FIRST_TIMER_NAME (static_cast<int>(TIMER_NAME_CYCLE))
 /** Integer, last value of @sa enum_timer_name. */
-#define LAST_TIMER_NAME (static_cast<int>(TIMER_NAME_TICK))
+#define LAST_TIMER_NAME (static_cast<int>(TIMER_NAME_MILLISEC))
 /** Integer, number of values of @sa enum_timer_name. */
 #define COUNT_TIMER_NAME (LAST_TIMER_NAME - FIRST_TIMER_NAME + 1)
 
@@ -215,12 +210,14 @@ enum enum_object_type
   OBJECT_TYPE_USER_LEVEL_LOCK = 10,
   OBJECT_TYPE_TABLESPACE = 11,
   OBJECT_TYPE_LOCKING_SERVICE = 12,
-  OBJECT_TYPE_ACL_CACHE = 13
+  OBJECT_TYPE_ACL_CACHE = 13,
+  OBJECT_TYPE_BACKUP_LOCK = 14,
+  OBJECT_TYPE_RESOURCE_GROUPS = 15
 };
 /** Integer, first value of @sa enum_object_type. */
 #define FIRST_OBJECT_TYPE (static_cast<int>(OBJECT_TYPE_EVENT))
 /** Integer, last value of @sa enum_object_type. */
-#define LAST_OBJECT_TYPE (static_cast<int>(OBJECT_TYPE_ACL_CACHE))
+#define LAST_OBJECT_TYPE (static_cast<int>(OBJECT_TYPE_RESOURCE_GROUPS))
 /** Integer, number of values of @sa enum_object_type. */
 #define COUNT_OBJECT_TYPE (LAST_OBJECT_TYPE - FIRST_OBJECT_TYPE + 1)
 
@@ -326,5 +323,16 @@ enum enum_transaction_mode
 #define LAST_TRANS_MODE (static_cast<int>(TRANS_MODE_READ_ONLY))
 /** Integer, number of values of @sa enum_transaction_mode. */
 #define COUNT_TRANS_MODE (LAST_TRANS_MODE - FIRST_TRANS_MODE + 1)
+
+/* Flags exposed in setup_instruments.properties */
+#define INSTR_PROPERTIES_SET_SINGLETON (1 << 0)
+#define INSTR_PROPERTIES_SET_PROGRESS (1 << 1)
+#define INSTR_PROPERTIES_SET_USER (1 << 2)
+#define INSTR_PROPERTIES_SET_GLOBAL_STAT (1 << 3)
+#define INSTR_PROPERTIES_SET_MUTABLE (1 << 4)
+
+/* Flags exposed in setup_threads.properties */
+#define THREAD_PROPERTIES_SET_SINGLETON (1 << 0)
+#define THREAD_PROPERTIES_SET_USER (1 << 1)
 
 #endif

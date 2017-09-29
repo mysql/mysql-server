@@ -23,9 +23,9 @@
 
 #include <sys/types.h>
 
-#include "pfs_engine_table.h"
-#include "pfs_instr_class.h"
-#include "table_helper.h"
+#include "storage/perfschema/pfs_engine_table.h"
+#include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/table_helper.h"
 
 /**
   @addtogroup performance_schema_tables
@@ -126,7 +126,7 @@ public:
   }
 
 private:
-  int make_row(PFS_instr_class *klass, bool update_enabled, bool update_timed);
+  int make_row(PFS_instr_class *klass, bool update_enabled);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;

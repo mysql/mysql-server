@@ -29,7 +29,7 @@
 #include <NdbEnv.h>
 #include <NdbSleep.h>
 #include <NdbLockCpuUtil.h>
-#include <my_thread.h>
+#include "my_thread.h"
 
 #include <kernel/GlobalSignalNumbers.h>
 #include <mgmapi_config_parameters.h>

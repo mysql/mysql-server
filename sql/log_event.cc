@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "log_event.h"
+#include "sql/log_event.h"
 
 #include <assert.h>
 #include <stdlib.h>
@@ -38,7 +38,6 @@
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_decimal.h"        // my_decimal
 #include "my_io.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
@@ -50,18 +49,23 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_my_snprintf.h" // my_snprintf
 #include "mysql_time.h"
-#include "rpl_handler.h"       // RUN_HOOK
-#include "rpl_tblmap.h"
-#include "session_tracker.h"
+#include "sql/my_decimal.h"    // my_decimal
+#include "sql/rpl_handler.h"   // RUN_HOOK
+#include "sql/rpl_tblmap.h"
+#include "sql/session_tracker.h"
+#include "sql/system_variables.h"
+#include "sql/tc_log.h"
 #include "sql_string.h"
-#include "system_variables.h"
 #include "table_id.h"
-#include "tc_log.h"
 #include "wrapper_functions.h"
 
 #ifndef MYSQL_SERVER
-#include "mysqlbinlog.h"
+#include "client/mysqlbinlog.h"
+#include "sql/json_binary.h"
 #endif
+
+#include "json_dom.h"          // Json_dom
+#include "json_diff.h"         // Json_diff_vector
 
 #ifdef MYSQL_SERVER
 
@@ -70,22 +74,7 @@
 #include <cstdint>
 #include <new>
 
-#include "auth/auth_common.h"
-#include "auth/sql_security_ctx.h"
 #include "binary_log.h"        // binary_log
-#include "binlog.h"
-#include "current_thd.h"
-#include "dd/types/abstract_table.h" // dd::enum_table_type
-#include "debug_sync.h"        // debug_sync_set_action
-#include "derror.h"            // ER_THD
-#include "enum_query_type.h"
-#include "field.h"
-#include "handler.h"
-#include "item.h"
-#include "item_func.h"         // Item_func_set_user_var
-#include "key.h"
-#include "log.h"               // Log_throttle
-#include "mdl.h"
 #include "my_base.h"
 #include "my_command.h"
 #include "my_dir.h"            // my_dir
@@ -97,38 +86,53 @@
 #include "mysql/psi/mysql_statement.h"
 #include "mysql/psi/mysql_transaction.h"
 #include "mysql/psi/psi_statement.h"
-#include "mysqld.h"            // lower_case_table_names server_uuid ...
 #include "mysqld_error.h"
 #include "prealloced_array.h"
-#include "protocol.h"
-#include "query_result.h"      // sql_exchange
-#include "rpl_msr.h"           // channel_map
-#include "rpl_mts_submode.h"   // Mts_submode
-#include "rpl_reporting.h"
-#include "rpl_rli.h"           // Relay_log_info
-#include "rpl_rli_pdb.h"       // Slave_job_group
-#include "rpl_slave.h"         // use_slave_mask
-#include "sp_head.h"           // sp_name
-#include "sql_base.h"          // close_thread_tables
-#include "sql_bitmap.h"
-#include "sql_class.h"
-#include "sql_cmd.h"
-#include "sql_data_change.h"
-#include "sql_db.h"            // load_db_opt_by_name
-#include "sql_digest_stream.h"
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_list.h"          // I_List
-#include "sql_load.h"          // mysql_load
-#include "sql_locale.h"        // my_locale_by_number
-#include "sql_parse.h"         // mysql_test_parse_for_slave
-#include "sql_plugin.h" // plugin_foreach
-#include "sql_show.h"          // append_identifier
-#include "table.h"
+#include "sql/auth/auth_common.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/binlog.h"
+#include "sql/current_thd.h"
+#include "sql/dd/types/abstract_table.h" // dd::enum_table_type
+#include "sql/debug_sync.h"    // debug_sync_set_action
+#include "sql/derror.h"        // ER_THD
+#include "sql/enum_query_type.h"
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/item.h"
+#include "sql/item_func.h"     // Item_func_set_user_var
+#include "sql/key.h"
+#include "sql/log.h"           // Log_throttle
+#include "sql/mdl.h"
+#include "sql/mysqld.h"        // lower_case_table_names server_uuid ...
+#include "sql/protocol.h"
+#include "sql/query_result.h"  // sql_exchange
+#include "sql/rpl_msr.h"       // channel_map
+#include "sql/rpl_mts_submode.h" // Mts_submode
+#include "sql/rpl_reporting.h"
+#include "sql/rpl_rli.h"       // Relay_log_info
+#include "sql/rpl_rli_pdb.h"   // Slave_job_group
+#include "sql/rpl_slave.h"     // use_slave_mask
+#include "sql/sp_head.h"       // sp_name
+#include "sql/sql_base.h"      // close_thread_tables
+#include "sql/sql_bitmap.h"
+#include "sql/sql_class.h"
+#include "sql/sql_cmd.h"
+#include "sql/sql_data_change.h"
+#include "sql/sql_db.h"        // load_db_opt_by_name
+#include "sql/sql_digest_stream.h"
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"      // I_List
+#include "sql/sql_load.h"      // Sql_cmd_load_table
+#include "sql/sql_locale.h"    // my_locale_by_number
+#include "sql/sql_parse.h"     // mysql_test_parse_for_slave
+#include "sql/sql_plugin.h" // plugin_foreach
+#include "sql/sql_show.h"      // append_identifier
+#include "sql/table.h"
+#include "sql/transaction.h"   // trans_rollback_stmt
+#include "sql/transaction_info.h"
+#include "sql/tztime.h"        // Time_zone
 #include "thr_lock.h"
-#include "transaction.h"       // trans_rollback_stmt
-#include "transaction_info.h"
-#include "tztime.h"            // Time_zone
 
 #define window_size Log_throttle::LOG_THROTTLE_WINDOW_SIZE
 Error_log_throttle
@@ -140,9 +144,10 @@ slave_ignored_err_throttle(window_size,
                            " replicate-*-table rules\" got suppressed.");
 #endif /* MYSQL_SERVER */
 
-#include "rpl_gtid.h"
-#include "rpl_utility.h"
-#include "xa_aux.h"
+#include "sql/rpl_record.h"        // enum_row_image_type, Bit_reader
+#include "sql/rpl_gtid.h"
+#include "sql/rpl_utility.h"
+#include "sql/xa_aux.h"
 
 extern "C" {
 PSI_memory_key key_memory_log_event;
@@ -637,6 +642,56 @@ static void cleanup_load_tmpdir()
 #endif
 
 
+template<typename T>
+bool net_field_length_checked(const uchar **packet, size_t *max_length, T *out)
+{
+  if (*max_length < 1)
+    return true;
+  const uchar *pos= *packet;
+  if (*pos < 251)
+  {
+    (*packet)++;
+    (*max_length)--;
+    *out= (T)*pos;
+  }
+  else if (*pos == 251)
+  {
+    (*packet)++;
+    (*max_length)--;
+    *out= (T)NULL_LENGTH;
+  }
+  else if (*pos == 252)
+  {
+    if (*max_length < 3)
+      return true;
+    (*packet)+= 3;
+    (*max_length)-= 3;
+    *out= (T)uint2korr(pos + 1);
+  }
+  else if (*pos == 253)
+  {
+    if (*max_length < 4)
+      return true;
+    (*packet)+= 4;
+    (*max_length)-= 4;
+    *out= (T)uint3korr(pos + 1);
+  }
+  else
+  {
+    if (*max_length < 9)
+      return true;
+    (*packet) += 9;
+    (*max_length) -= 9;
+    *out= (T)uint8korr(pos + 1);
+  }
+  return false;
+}
+template bool net_field_length_checked<size_t>(
+  const uchar **packet, size_t *max_length, size_t *out);
+template bool net_field_length_checked<ulonglong>(
+  const uchar **packet, size_t *max_length, ulonglong *out);
+
+
 /*
   Stores string to IO_CACHE file.
 
@@ -801,6 +856,7 @@ const char* Log_event::get_type_str(Log_event_type type)
   case binary_log::TRANSACTION_CONTEXT_EVENT: return "Transaction_context";
   case binary_log::VIEW_CHANGE_EVENT: return "View_change";
   case binary_log::XA_PREPARE_LOG_EVENT: return "XA_prepare";
+  case binary_log::PARTIAL_UPDATE_ROWS_EVENT: return "Update_rows_partial";
   default: return "Unknown";                            /* impossible */
   }
 }
@@ -1747,6 +1803,9 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
     case binary_log::XA_PREPARE_LOG_EVENT:
       ev= new XA_prepare_log_event(buf, description_event);
       break;
+    case binary_log::PARTIAL_UPDATE_ROWS_EVENT:
+      ev= new Update_rows_log_event(buf, event_len, description_event);
+      break;
     default:
       /*
         Create an object of Ignorable_log_event for unrecognized sub-class.
@@ -1934,31 +1993,78 @@ void Log_event::print_header(IO_CACHE* file,
 
 
 /**
+  Auxiliary function that sets up a conversion table for m_b_write_quoted.
+
+  The table has 256 elements.  The i'th element is 5 characters, the
+  first being the length (1..4) and the remaining containing character
+  #i quoted and not null-terminated.  If character #i does not need
+  quoting (it is >= 32 and not backslash or single-quote), the table
+  only contains the character itself.  A quoted character needs at
+  most 4 bytes ("\xXX"), plus the length byte, so each element is 5
+  bytes.
+
+  This function is called exactly once even in a multi-threaded
+  environment, because it is only called in the initializer of a
+  static variable.
+
+  @return Pointer to the table, a 256*5 character array where
+  character i quoted .
+*/
+static const uchar *get_quote_table()
+{
+  static uchar buf[256][5];
+  for (int i= 0; i < 256; i++)
+  {
+    char str[5];
+    switch (i)
+    {
+    case '\b': strcpy(str, "\\b"); break;
+    case '\f': strcpy(str, "\\f"); break;
+    case '\n': strcpy(str, "\\n"); break;
+    case '\r': strcpy(str, "\\r"); break;
+    case '\t': strcpy(str, "\\t"); break;
+    case '\\': strcpy(str, "\\\\"); break;
+    case '\'': strcpy(str, "\\'"); break;
+    default:
+      if (i < 32)
+        sprintf(str, "\\x%02x", i);
+      else
+      {
+        str[0]= i;
+        str[1]= '\0';
+      }
+      break;
+    }
+    buf[i][0]= strlen(str);
+    memcpy(buf[i] + 1, str, strlen(str));
+  }
+  return (const uchar *)(buf);
+}
+
+/**
   Prints a quoted string to io cache.
   Control characters are displayed as hex sequence, e.g. \x00
   
   @param[in] file              IO cache
   @param[in] prt               Pointer to string
   @param[in] length            String length
-*/
 
-static void
-my_b_write_quoted(IO_CACHE *file, const uchar *ptr, uint length)
+  @retval false Success
+  @retval true Failure
+*/
+static bool my_b_write_quoted(IO_CACHE *file, const uchar *ptr, uint length)
 {
   const uchar *s;
+  static const uchar *quote_table= get_quote_table();
   my_b_printf(file, "'");
   for (s= ptr; length > 0 ; s++, length--)
   {
-    if (*s > 0x1F && *s != '\'' && *s != '\\')
-      my_b_write(file, s, 1);
-    else
-    {
-      uchar hex[10];
-      size_t len= my_snprintf((char*) hex, sizeof(hex), "%s%02x", "\\x", *s);
-      my_b_write(file, hex, len);
-    }
+    const uchar *len_and_str = quote_table + *s * 5;
+    my_b_write(file, len_and_str + 1, len_and_str[0]);
   }
-  my_b_printf(file, "'");
+  if (my_b_printf(file, "'") == (size_t)-1)
+    return true;
+  return false;
 }
 
 /**
@@ -2027,6 +2133,216 @@ my_b_write_sint32_and_uint32(IO_CACHE *file, int32 si, uint32 ui)
 }
 
 
+#ifndef MYSQL_SERVER
+static const char *json_diff_operation_name(enum_json_diff_operation op,
+                                            int last_path_char)
+{
+  switch (op)
+  {
+  case enum_json_diff_operation::REPLACE:
+    return "JSON_REPLACE";
+  case enum_json_diff_operation::INSERT:
+    if (last_path_char == ']')
+      return "JSON_ARRAY_INSERT";
+    else
+      return "JSON_INSERT";
+  case enum_json_diff_operation::REMOVE:
+    return "JSON_REMOVE";
+  }
+  /* NOTREACHED */
+  /* purecov: begin deadcode */
+  DBUG_ASSERT(0);
+  return NULL;
+  /* purecov: end */
+}
+
+static bool json_wrapper_to_string(IO_CACHE *out, String *buf,
+                                   Json_wrapper *wrapper, bool json_type)
+{
+  if (wrapper->to_string(buf, false, "json_wrapper_to_string"))
+    return true; /* purecov: inspected */ // OOM
+  if (json_type)
+    return my_b_write_quoted(out, (uchar *)buf->ptr(), buf->length());
+  switch (wrapper->type())
+  {
+  case enum_json_type::J_NULL:
+  case enum_json_type::J_DECIMAL:
+  case enum_json_type::J_INT:
+  case enum_json_type::J_UINT:
+  case enum_json_type::J_DOUBLE:
+  case enum_json_type::J_BOOLEAN:
+    my_b_write(out, (uchar *)buf->ptr(), buf->length());
+    break;
+  case enum_json_type::J_STRING:
+  case enum_json_type::J_DATE:
+  case enum_json_type::J_TIME:
+  case enum_json_type::J_DATETIME:
+  case enum_json_type::J_TIMESTAMP:
+  case enum_json_type::J_OPAQUE:
+  case enum_json_type::J_ERROR:
+    my_b_write_quoted(out, (uchar *)buf->ptr(), buf->length());
+    break;
+  case enum_json_type::J_OBJECT:
+  case enum_json_type::J_ARRAY:
+    my_b_printf(out, "CAST(");
+    my_b_write_quoted(out, (uchar *)buf->ptr(), buf->length());
+    my_b_printf(out, " AS JSON)");
+    break;
+  default:
+    DBUG_ASSERT(0); /* purecov: deadcode */
+  }
+  return false;
+}
+
+
+static const char *print_json_diff(IO_CACHE *out, const uchar *data,
+                                   size_t length, const char *col_name)
+{
+  DBUG_ENTER("print_json_diff");
+
+  static const char *line_separator= "\n###      ";
+
+  // read length
+  const uchar *p= data;
+
+  const uchar *start_p= p;
+  size_t start_length= length;
+
+  // Read the list of operations.
+  std::vector<const char *> operation_names;
+  while (length)
+  {
+    // read operation
+    int operation_int= *p;
+    if (operation_int >= JSON_DIFF_OPERATION_COUNT)
+      DBUG_RETURN("reading operation type (invalid operation code)");
+    enum_json_diff_operation operation=
+      static_cast<enum_json_diff_operation>(operation_int);
+    p++;
+    length--;
+
+    // skip path
+    size_t path_length;
+    if (net_field_length_checked<size_t>(&p, &length, &path_length))
+      DBUG_RETURN("reading path length to skip");
+    if (path_length > length)
+      DBUG_RETURN("skipping path");
+    p+= path_length;
+    length-= path_length;
+
+    // compute operation name
+    const char *operation_name= json_diff_operation_name(operation, p[-1]);
+    operation_names.push_back(operation_name);
+
+    // skip value
+    if (operation != enum_json_diff_operation::REMOVE)
+    {
+      size_t value_length;
+      if (net_field_length_checked<size_t>(&p, &length, &value_length))
+        DBUG_RETURN("reading value length to skip");
+      if (value_length > length)
+        DBUG_RETURN("skipping value");
+      p+= value_length;
+      length-= value_length;
+    }
+  }
+
+  // Print function names in reverse order.
+  bool printed= false;
+  for (int i= operation_names.size() - 1; i >= 0; i--)
+  {
+    if (i == 0 || operation_names[i - 1] != operation_names[i])
+    {
+      if (printed)
+        if (my_b_printf(out, "%s", line_separator) == (size_t)-1)
+          DBUG_RETURN("printing line separator"); /* purecov: inspected */ // error writing to output
+      if (my_b_printf(out, "%s(", operation_names[i]) == (size_t)-1)
+        DBUG_RETURN("printing function name"); /* purecov: inspected */ // error writing to output
+      printed= true;
+    }
+  }
+
+  // Print column id
+  if (my_b_printf(out, "%s", col_name) == (size_t)-1)
+    DBUG_RETURN("printing column id"); /* purecov: inspected */ // error writing to output
+
+  // In case this vector is empty (a no-op), make an early return
+  // after printing only the column name
+  if (operation_names.size() == 0)
+    DBUG_RETURN(nullptr);
+
+  // Print comma between column name and next function argument
+  if (my_b_printf(out, ", ") == (size_t)-1)
+    DBUG_RETURN("printing comma"); /* purecov: inspected */ // error writing to output
+
+  // Print paths and values.
+  p= start_p;
+  length= start_length;
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> buf;
+  int diff_i= 0;
+  while (length)
+  {
+    // Read operation
+    enum_json_diff_operation operation= (enum_json_diff_operation)*p;
+    p++;
+    length--;
+
+    // Read path length
+    size_t path_length;
+    if (net_field_length_checked<size_t>(&p, &length, &path_length))
+      DBUG_RETURN("reading path length"); /* purecov: deadcode */ // already checked in loop above
+
+    // Print path
+    if (my_b_write_quoted(out, p, path_length))
+      DBUG_RETURN("printing path"); /* purecov: inspected */ // error writing to output
+    p+= path_length;
+    length-= path_length;
+
+    if (operation != enum_json_diff_operation::REMOVE)
+    {
+      // Print comma between path and value
+      if (my_b_printf(out, ", ") == (size_t)-1)
+        DBUG_RETURN("printing comma"); /* purecov: inspected */ // error writing to output
+
+      // Read value length
+      size_t value_length;
+      if (net_field_length_checked<size_t>(&p, &length, &value_length))
+        DBUG_RETURN("reading value length"); /* purecov: deadcode */ // already checked in loop above
+
+      // Read value
+      json_binary::Value value=
+        json_binary::parse_binary((const char *)p, value_length);
+      p+= value_length;
+      length-= value_length;
+      if (value.type() == json_binary::Value::ERROR)
+        DBUG_RETURN("parsing json value");
+      Json_wrapper wrapper(value);
+
+      // Print value
+      buf.length(0);
+      if (json_wrapper_to_string(out, &buf, &wrapper, false))
+        DBUG_RETURN("converting json to string"); /* purecov: inspected */ // OOM
+      buf.length(0);
+    }
+
+    // Print closing parenthesis
+    if (length == 0 || operation_names[diff_i + 1] != operation_names[diff_i])
+      if (my_b_printf(out, ")") == (size_t)-1)
+        DBUG_RETURN("printing closing parenthesis"); /* purecov: inspected */ // error writing to output
+
+    // Print ending comma
+    if (length != 0)
+      if (my_b_printf(out, ",%s", line_separator) == (size_t)-1)
+        DBUG_RETURN("printing comma"); /* purecov: inspected */ // error writing to output
+
+    diff_i++;
+  }
+
+  DBUG_RETURN(nullptr);
+}
+#endif // ifndef MYSQL_SERVER
+
+
 /**
   Print a packed value of the given SQL type into IO cache
   
@@ -2035,14 +2351,22 @@ my_b_write_sint32_and_uint32(IO_CACHE *file, int32 si, uint32 ui)
   @param[in] type              Column type
   @param[in] meta              Column meta information
   @param[out] typestr          SQL type string buffer (for verbose output)
-  @param[out] typestr_length   Size of typestr
+  @param[in] typestr_length    Size of typestr
+  @param[in] col_name          Column name
+  @param[in] is_partial        True if this is a JSON column that will be
+                               read in partial format, false otherwise.
   
-  @retval   - number of bytes scanned from ptr.
+  @retval 0 on error
+  @retval number of bytes scanned from ptr for non-NULL fields, or
+  another positive number for NULL fields
 */
+#ifndef MYSQL_SERVER
 static size_t
 log_event_print_value(IO_CACHE *file, const uchar *ptr,
                       uint type, uint meta,
-                      char *typestr, size_t typestr_length)
+                      char *typestr, size_t typestr_length,
+                      char *col_name,
+                      bool is_partial)
 {
   uint32 length= 0;
 
@@ -2385,19 +2709,43 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
     return my_b_write_quoted_with_length(file, ptr, length);
 
   case MYSQL_TYPE_JSON:
+  {
     my_snprintf(typestr, typestr_length, "JSON");
     if (!ptr)
       return my_b_printf(file, "NULL");
-    length= uint2korr(ptr);
-    my_b_write_quoted(file, ptr + meta, length);
+    length= uint4korr(ptr);
+    ptr+= 4;
+    if (is_partial)
+    {
+      const char *error= print_json_diff(file, ptr, length, col_name);
+      if (error != nullptr)
+        my_b_printf(file, "Error %s while printing JSON diff\n", error);
+    }
+    else
+    {
+      json_binary::Value value=
+        json_binary::parse_binary((const char *)ptr, length);
+      if (value.type() == json_binary::Value::ERROR)
+      {
+        if (my_b_printf(file, "Invalid JSON\n")) /* purecov: inspected */ // corrupted event
+          return 0; /* purecov: inspected */ // error writing output
+      }
+      else
+      {
+        Json_wrapper wrapper(value);
+        StringBuffer<STRING_BUFFER_USUAL_SIZE> s;
+        if (json_wrapper_to_string(file, &s, &wrapper, true))
+          my_b_printf(file, "Failed to format JSON object as string.\n"); /* purecov: inspected */ // OOM
+      }
+    }
     return length + meta;
-
+  }
   default:
     {
       char tmp[5];
       my_snprintf(tmp, sizeof(tmp), "%04x", meta);
       my_b_printf(file,
-                  "!! Don't know how to handle column type=%d meta=%d (%s)",
+                  "!! Don't know how to handle column type=%d meta=%d (%s)\n",
                   type, meta, tmp);
     }
     break;
@@ -2405,6 +2753,7 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
   *typestr= 0;
   return 0;
 }
+#endif
 
 
 /**
@@ -2425,48 +2774,82 @@ size_t
 Rows_log_event::print_verbose_one_row(IO_CACHE *file, table_def *td,
                                       PRINT_EVENT_INFO *print_event_info,
                                       MY_BITMAP *cols_bitmap,
-                                      const uchar *value, const uchar *prefix)
+                                      const uchar *value, const uchar *prefix,
+                                      enum_row_image_type row_image_type)
 {
   const uchar *value0= value;
-  const uchar *null_bits= value;
-  uint null_bit_index= 0;
   char typestr[64]= "";
 
+  // Read value_options if this is AI for PARTIAL_UPDATE_ROWS_EVENT
+  ulonglong value_options= 0;
+  Bit_reader partial_bits;
+  if (get_type_code() == binary_log::PARTIAL_UPDATE_ROWS_EVENT &&
+      row_image_type == enum_row_image_type::UPDATE_AI)
+  {
+    size_t length= m_rows_end - value;
+    if (net_field_length_checked<ulonglong>(&value, &length, &value_options))
+    {
+      my_b_printf(file, "*** Error reading binlog_row_value_options from Partial_update_rows_log_event\n");
+      return 0;
+    }
+    if ((value_options & PARTIAL_JSON_UPDATES) != 0)
+    {
+      partial_bits.set_ptr(value);
+      value += (td->json_column_count() + 7) / 8;
+    }
+  }
+
   /*
-    Skip metadata bytes which gives the information about nullabity of master
-    columns. Master writes one bit for each affected column.
-   */
+    Metadata bytes which gives the information about nullabity of
+    master columns. Master writes one bit for each column in the
+    image.
+  */
+  Bit_reader null_bits(value);
   value+= (bitmap_bits_set(cols_bitmap) + 7) / 8;
-  
+
   my_b_printf(file, "%s", prefix);
   
   for (size_t i= 0; i < td->size(); i ++)
   {
-    int is_null= (null_bits[null_bit_index / 8] 
-                  >> (null_bit_index % 8))  & 0x01;
+    /*
+      Note: need to read partial bit before reading cols_bitmap, since
+      the partial_bits bitmap has a bit for every JSON column
+      regardless of whether it is included in the bitmap or not.
+    */
+    bool is_partial=
+      (value_options & PARTIAL_JSON_UPDATES) != 0 &&
+      row_image_type == enum_row_image_type::UPDATE_AI &&
+      td->type(i) == MYSQL_TYPE_JSON &&
+      partial_bits.get();
 
     if (bitmap_is_set(cols_bitmap, i) == 0)
       continue;
-    
+
+    bool is_null= null_bits.get();
+
     my_b_printf(file, "###   @%d=", static_cast<int>(i + 1));
     if (!is_null)
     {
       size_t fsize= td->calc_field_size((uint)i, (uchar*) value);
-      if (value + fsize > m_rows_end)
+      if (fsize > (size_t)(m_rows_end - value))
       {
-        my_b_printf(file, "***Corrupted replication event was detected."
-                    " Not printing the value***\n");
-        value+= fsize;
+        my_b_printf(file, "***Corrupted replication event was detected: "
+                    "field size is set to %u, but there are only %u bytes "
+                    "left of the event. Not printing the value***\n",
+                    (uint)fsize, (uint)(m_rows_end - value));
         return 0;
       }
     }
-    size_t size= log_event_print_value(file,is_null? NULL: value,
-                                         td->type(i), td->field_metadata(i),
-                                         typestr, sizeof(typestr));
+    char col_name[256];
+    sprintf(col_name, "@%lu", (unsigned long) i + 1);
+    size_t size= log_event_print_value(file, is_null ? NULL : value,
+                                       td->type(i), td->field_metadata(i),
+                                       typestr, sizeof(typestr),
+                                       col_name, is_partial);
     if (!size)
       return 0;
 
-    if(!is_null)
+    if (!is_null)
       value+= size;
 
     if (print_event_info->verbose > 1)
@@ -2482,8 +2865,6 @@ Rows_log_event::print_verbose_one_row(IO_CACHE *file, table_def *td,
     }
     
     my_b_printf(file, "\n");
-    
-    null_bit_index++;
   }
   return value - value0;
 }
@@ -2506,7 +2887,14 @@ void Rows_log_event::print_verbose(IO_CACHE *file,
   table_def *td;
   const char *sql_command, *sql_clause1, *sql_clause2;
   Log_event_type general_type_code= get_general_type_code();
-  
+
+  enum_row_image_type row_image_type=
+    get_general_type_code() == binary_log::WRITE_ROWS_EVENT ?
+    enum_row_image_type::WRITE_AI :
+    get_general_type_code() == binary_log::DELETE_ROWS_EVENT ?
+    enum_row_image_type::DELETE_BI :
+    enum_row_image_type::UPDATE_BI;
+
   if (m_extra_row_data)
   {
     uint8 extra_data_len= m_extra_row_data[EXTRA_ROW_INFO_LEN_OFFSET];
@@ -2543,6 +2931,7 @@ void Rows_log_event::print_verbose(IO_CACHE *file,
     sql_clause2= NULL;
     break;
   case binary_log::UPDATE_ROWS_EVENT:
+  case binary_log::PARTIAL_UPDATE_ROWS_EVENT:
     sql_command= "UPDATE";
     sql_clause1= "### WHERE\n";
     sql_clause2= "### SET\n";
@@ -2584,8 +2973,9 @@ void Rows_log_event::print_verbose(IO_CACHE *file,
                       quoted_db, quoted_table);
     /* Print the first image */
     if (!(length= print_verbose_one_row(file, td, print_event_info,
-                                  &m_cols, value,
-                                  (const uchar*) sql_clause1)))
+                                        &m_cols, value,
+                                        (const uchar*) sql_clause1,
+                                        row_image_type)))
       goto end;
     value+= length;
 
@@ -2593,8 +2983,9 @@ void Rows_log_event::print_verbose(IO_CACHE *file,
     if (sql_clause2)
     {
       if (!(length= print_verbose_one_row(file, td, print_event_info,
-                                      &m_cols_ai, value,
-                                      (const uchar*) sql_clause2)))
+                                          &m_cols_ai, value,
+                                          (const uchar*) sql_clause2,
+                                          enum_row_image_type::UPDATE_AI)))
         goto end;
       value+= length;
     }
@@ -2602,12 +2993,6 @@ void Rows_log_event::print_verbose(IO_CACHE *file,
 
 end:
   delete td;
-}
-
-
-void free_table_map_log_event(Table_map_log_event *event)
-{
-  delete event;
 }
 
 
@@ -2681,6 +3066,7 @@ void Log_event::print_base64(IO_CACHE* file,
     }
     case binary_log::UPDATE_ROWS_EVENT:
     case binary_log::UPDATE_ROWS_EVENT_V1:
+    case binary_log::PARTIAL_UPDATE_ROWS_EVENT:
     {
       ev= new Update_rows_log_event((const char*) ptr, size,
                                     &fd_evt);
@@ -4958,8 +5344,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
                                                     thd->db().length,
                                                     thd->charset(), NULL);
         THD_STAGE_INFO(thd, stage_starting);
-        MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, thd->query().str,
-                                 thd->query().length);
+
         if (thd->m_digest != NULL)
           thd->m_digest->reset(thd->m_token_array, max_digest_length);
 
@@ -5903,6 +6288,31 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
     thd->variables.sql_mode= global_system_variables.sql_mode;
     thd->variables.auto_increment_increment=
       thd->variables.auto_increment_offset= 1;
+    /*
+      Rotate_log_events are generated on Slaves with server_id=0
+      for all the ignored events, so that the positions in the repository
+      is updated properly even for ignored events.
+
+      This kind of Rotate_log_event is generated when
+
+        1) the event is generated on the same host and reached due
+           to circular replication (server_id == ::server_id)
+
+        2) the event is from the host which is listed in ignore_server_ids
+
+        3) IO thread is receiving HEARTBEAT event from the master
+
+        4) IO thread is receiving PREVIOUS_GTID_LOG_EVENT from the master.
+
+      We have to free thd's mem_root here after we update the positions
+      in the repository table. Otherwise, imagine a situation where
+      Slave is keep getting ignored events only and no other (non-ignored)
+      events from the Master, Slave never executes free_root (that generally
+      happens from Query_log_event::do_apply_event or
+      Rows_log_event::do_apply_event when they find end of the group event).
+    */
+    if (server_id == 0)
+      free_root(thd->mem_root, MYF(MY_KEEP_PREALLOC));
   }
   else
     rli->inc_event_relay_log_pos();
@@ -7718,6 +8128,9 @@ Load_query_generator::Load_query_generator(THD *thd_arg, const sql_exchange *ex,
 
 const String* Load_query_generator::generate(size_t *fn_start, size_t *fn_end)
 {
+  DBUG_ASSERT(thd->lex->sql_command == SQLCOM_LOAD);
+  auto cmd= down_cast<Sql_cmd_load_table *>(thd->lex->m_sql_cmd);
+
   str.append("LOAD DATA ");
 
   if (is_concurrent)
@@ -7726,7 +8139,7 @@ const String* Load_query_generator::generate(size_t *fn_start, size_t *fn_end)
   if (fn_start)
     *fn_start= str.length()-1;
 
-  if (thd->lex->local_file)
+  if (cmd->m_is_local_file)
     str.append("LOCAL ");
   str.append("INFILE ");
   pretty_print_str(&str, fname, strlen(fname));
@@ -7779,9 +8192,9 @@ const String* Load_query_generator::generate(size_t *fn_start, size_t *fn_end)
   }
 
   /* prepare fields-list */
-  if (!thd->lex->load_field_list.is_empty())
+  if (!cmd->m_opt_fields_or_vars.is_empty())
   {
-    List_iterator<Item> li(thd->lex->load_field_list);
+    List_iterator<Item> li(cmd->m_opt_fields_or_vars);
     Item *item;
     str.append(" (");
 
@@ -7799,10 +8212,10 @@ const String* Load_query_generator::generate(size_t *fn_start, size_t *fn_end)
     str.append(')');
   }
 
-  if (!thd->lex->load_update_list.is_empty())
+  if (!cmd->m_opt_set_fields.is_empty())
   {
-    List_iterator<Item> lu(thd->lex->load_update_list);
-    List_iterator<String> ls(thd->lex->load_set_str_list);
+    List_iterator<Item> lu(cmd->m_opt_set_fields);
+    List_iterator<String> ls(*cmd->m_opt_set_expr_strings);
     Item *item;
 
     str.append(" SET ");
@@ -7896,6 +8309,7 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg, const Table_id& tid
     , m_curr_row(NULL), m_curr_row_end(NULL), m_key(NULL), m_key_info(NULL),
     m_distinct_keys(Key_compare(&m_key_info)), m_distinct_key_spare_buf(NULL)
 {
+  DBUG_ENTER("Rows_log_event::Rows_log_event(THD*,...)");
   common_header->type_code= event_type;
   m_row_count= 0;
   m_table_id= tid;
@@ -7957,6 +8371,8 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg, const Table_id& tid
   */
   if (m_rows_buf && m_cols.bitmap)
     is_valid_param= true;
+
+  DBUG_VOID_RETURN;
 }
 #endif
 
@@ -8019,8 +8435,9 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
   }
   m_cols_ai.bitmap= m_cols.bitmap; //See explanation below while setting is_valid.
 
-  if ((m_type == binary_log::UPDATE_ROWS_EVENT) ||
-      (m_type == binary_log::UPDATE_ROWS_EVENT_V1))
+  if (m_type == binary_log::UPDATE_ROWS_EVENT ||
+      m_type == binary_log::UPDATE_ROWS_EVENT_V1 ||
+      m_type == binary_log::PARTIAL_UPDATE_ROWS_EVENT)
   {
     /* if bitmap_init fails, is_valid will be set to false*/
     if (likely(!bitmap_init(&m_cols_ai,
@@ -8049,7 +8466,7 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
 
 
   /*
-    m_rows_buf, m_cur_row and m_rows_end are pointers to the vector rows.
+    m_rows_buf, m_curr_row and m_rows_end are pointers to the vector rows.
     m_rows_buf is the pointer to the first byte of first row in the event.
     m_curr_row points to current row being applied on the slave. Initially,
     this points to the same element as m_rows_buf in the vector.
@@ -8078,6 +8495,7 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
   DBUG_VOID_RETURN;
 }
 
+
 Rows_log_event::~Rows_log_event()
 {
   if (m_cols.bitmap)
@@ -8087,6 +8505,46 @@ Rows_log_event::~Rows_log_event()
     bitmap_free(&m_cols); // To pair with bitmap_init().
   }
 }
+
+
+#ifdef MYSQL_SERVER
+int Rows_log_event::unpack_current_row(const Relay_log_info *const rli,
+                                       MY_BITMAP const *cols,
+                                       bool is_after_image, bool only_seek)
+{
+  DBUG_ASSERT(m_table);
+
+  enum_row_image_type row_image_type;
+  if (is_after_image)
+  {
+    DBUG_ASSERT(get_general_type_code() != binary_log::DELETE_ROWS_EVENT);
+    row_image_type=
+      (get_general_type_code() == binary_log::UPDATE_ROWS_EVENT) ?
+      enum_row_image_type::UPDATE_AI : enum_row_image_type::WRITE_AI;
+  }
+  else
+  {
+    DBUG_ASSERT(get_general_type_code() != binary_log::WRITE_ROWS_EVENT);
+    row_image_type=
+      (get_general_type_code() == binary_log::UPDATE_ROWS_EVENT) ?
+      enum_row_image_type::UPDATE_BI : enum_row_image_type::DELETE_BI;
+  }
+  bool has_value_options= (get_type_code() ==
+                           binary_log::PARTIAL_UPDATE_ROWS_EVENT);
+  ASSERT_OR_RETURN_ERROR(m_curr_row <= m_rows_end, HA_ERR_CORRUPT_EVENT);
+  if (::unpack_row(rli, m_table, m_width, m_curr_row, cols,
+                   &m_curr_row_end, m_rows_end,
+                   row_image_type, has_value_options, only_seek))
+  {
+    int error= thd->get_stmt_da()->mysql_errno();
+    DBUG_ASSERT(error);
+    return error;
+  }
+  return 0;
+}
+#endif // ifdef MYSQL_SERVER
+
+
 size_t Rows_log_event::get_data_size()
 {
   int const general_type_code= get_general_type_code();
@@ -8755,7 +9213,22 @@ void Rows_log_event::do_post_row_operations(Relay_log_info const *rli, int error
 
   if (!m_curr_row_end && !error)
   {
-    error= unpack_current_row(rli, &m_cols);
+    /*
+      This function is always called immediately following a call to
+      handle_idempotent_and_ignored_errors which returns 0.  And
+      handle_idempotent_and_ignored_errors can only return 0 when
+      error==0.  And when error==0, it means that the previous call to
+      unpack_currrent_row was successful.  And that means
+      m_curr_row_end has been set to a valid pointer.  So it is
+      impossible that both error==0 and m_curr_row_end==0.  So this is
+      dead code.
+
+      @todo: was there a valid intention to add this code?
+    */
+    /* purecov: begin deadcode */
+    DBUG_ASSERT(0);
+    error= unpack_current_row(rli, &m_cols, true/*is AI*/);
+    /* purecov: end */
   }
 
   // at this moment m_curr_row_end should be set
@@ -9086,7 +9559,7 @@ int Rows_log_event::do_index_scan_and_update(Relay_log_info const *rli)
   */
 
   prepare_record(m_table, &m_cols, FALSE);
-  if ((error= unpack_current_row(rli, &m_cols)))
+  if ((error= unpack_current_row(rli, &m_cols, false/*is not AI*/)))
     goto end;
 
   /*
@@ -9265,16 +9738,73 @@ end:
     */
     (void) close_record_scan(); 
 
-  if ((get_general_type_code() == binary_log::UPDATE_ROWS_EVENT) &&
-      (saved_m_curr_row == m_curr_row))
-  {
-    /* we need to unpack the AI so that positions get updated */
-    m_curr_row= m_curr_row_end;
-    unpack_current_row(rli, &m_cols_ai);
-  }
+  int unpack_error= skip_after_image_for_update_event(rli, saved_m_curr_row);
+  if (!error)
+    error= unpack_error;
+
   m_table->default_column_bitmaps();
   DBUG_RETURN(error);
 
+}
+
+int Update_rows_log_event::skip_after_image_for_update_event(
+  const Relay_log_info *rli, const uchar *curr_bi_start)
+{
+  if (m_curr_row == curr_bi_start && m_curr_row_end != nullptr)
+  {
+    /*
+      This handles the case that the BI was read successfully, but an
+      error happened while looking up the row.  In this case, the AI
+      has not been read, so the read position is between the two
+      images.  In case the error is idempotent, we need to move the
+      position to the end of the row, and therefore we skip past the
+      AI.
+
+      The normal behavior is:
+
+      When unpack_row reads a row image, and there is no error,
+      unpack_row sets m_curr_row_end to point to the end of the image,
+      and leaves m_curr_row to point at the beginning.
+
+      The AI is read from Update_rows_log_event::do_exec_row. Before
+      calling unpack_row, do_exec_row sets m_curr_row=m_curr_row_end,
+      so that it actually reads the AI. And again, if there is no
+      error, unpack_row sets m_curr_row_end to point to the end of the
+      AI.
+
+      Thus, the positions are moved as follows:
+
+                          +--------------+--------------+
+                          | BI           | AI           |  NULL
+                          +--------------+--------------+
+      0. Initial values   ^m_curr_row                      ^m_curr_row_end
+      1. Read BI, no error
+                          ^m_curr_row    ^m_curr_row_end
+      2. Lookup BI
+      3. Set m_curr_row
+                                         ^m_curr_row
+                                         ^m_curr_row_end
+      4. Read AI, no error
+                                         ^m_curr_row    ^m_curr_row_end
+
+      If an error happened while reading the BI (e.g. corruption),
+      then we should not try to read the AI here.  Therefore we do not
+      read the AI if m_curr_row_end==NULL.
+
+      If an error happened while looking up BI, then we should try to
+      read AI here. Then we know m_curr_row_end points to beginning of
+      AI, so we come here, set m_curr_row=m_curr_row_end, and read the
+      AI.
+
+      If an error happened while reading the AI, then we should not
+      try to read the AI again.  Therefore we do not read the AI if
+      m_curr_row==curr_bi_start.
+    */
+    m_curr_row= m_curr_row_end;
+    return unpack_current_row(rli, &m_cols_ai,
+                              true/*is AI*/, true/*only_seek*/);
+  }
+  return 0;
 }
 
 int Rows_log_event::do_hash_row(Relay_log_info const *rli)
@@ -9289,8 +9819,12 @@ int Rows_log_event::do_hash_row(Relay_log_info const *rli)
   /* Prepare the record, unpack and save positions. */
   entry->positions->bi_start= m_curr_row;        // save the bi start pos
   prepare_record(m_table, &m_cols, false);
-  if ((error= unpack_current_row(rli, &m_cols)))
+  if ((error= unpack_current_row(rli, &m_cols, false/*is not AI*/)))
+  {
+    hash_slave_rows_free_entry freer;
+    freer(entry);
     goto end;
+  }
   entry->positions->bi_ends= m_curr_row_end;    // save the bi end pos
 
   /*
@@ -9326,7 +9860,8 @@ int Rows_log_event::do_hash_row(Relay_log_info const *rli)
 
     /* We shouldn't need this, but lets not leave loose ends */
     prepare_record(m_table, &m_cols, false);
-    error= unpack_current_row(rli, &m_cols_ai);
+    error= unpack_current_row(rli, &m_cols_ai, true/*is AI*/,
+                              true/*only_seek*/);
 
     /*
       This is the situation after unpacking the AI:
@@ -9397,7 +9932,7 @@ int Rows_log_event::do_scan_and_update(Relay_log_info const *rli)
           m_curr_row_end= entry->positions->bi_ends;
 
           prepare_record(table, &m_cols, false);
-          if ((error= unpack_current_row(rli, &m_cols)))
+          if ((error= unpack_current_row(rli, &m_cols, false/*is not AI*/)))
             goto close_table;
 
           if (record_compare(table, &m_cols))
@@ -9471,6 +10006,8 @@ int Rows_log_event::do_scan_and_update(Relay_log_info const *rli)
          (!error || (error == HA_ERR_RECORD_DELETED)));
 
 close_table:
+  DBUG_PRINT("info", ("m_hash.size()=%d error=%d idempotent_errors=%d",
+                      m_hash.size(), error, idempotent_errors));
   if (error == HA_ERR_RECORD_DELETED)
     error= 0;
 
@@ -9487,10 +10024,6 @@ close_table:
   }
   else
     error= close_record_scan();
-
-  DBUG_ASSERT((m_hash.is_empty() && !error) ||
-              (!m_hash.is_empty() &&
-               ((error) || (idempotent_errors >= m_hash.size()))));
 
 err:
 
@@ -9544,7 +10077,7 @@ int Rows_log_event::do_table_scan_and_update(Relay_log_info const *rli)
 
   /** unpack the before image */
   prepare_record(table, &m_cols, FALSE);
-  if (!(error= unpack_current_row(rli, &m_cols)))
+  if (!(error= unpack_current_row(rli, &m_cols, false/*is not AI*/)))
   {
     /** save a copy so that we can compare against it later */
     store_record(m_table, record[1]);
@@ -9615,12 +10148,9 @@ end:
     */
     (void) close_record_scan(); 
 
-  if ((get_general_type_code() == binary_log::UPDATE_ROWS_EVENT) &&
-      (saved_m_curr_row == m_curr_row)) // we need to unpack the AI
-  {
-    m_curr_row= m_curr_row_end;
-    unpack_current_row(rli, &m_cols);
-  }
+  int unpack_error= skip_after_image_for_update_event(rli, saved_m_curr_row);
+  if (!error)
+    error= unpack_error;
 
   table->default_column_bitmaps();
   DBUG_RETURN(error);
@@ -9720,7 +10250,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       {
         if (ignored_error_code(actual_error))
         {
-          if (log_warnings > 1)
+          if (log_error_verbosity > 2)
             rli->report(WARNING_LEVEL, actual_error,
                         "Error executing row event: '%s'",
                         (actual_error ? thd->get_stmt_da()->message_text() :
@@ -10091,6 +10621,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 #endif
 
     do {
+      DBUG_PRINT("info", ("calling do_apply_row_ptr"));
 
       error= (this->*do_apply_row_ptr)(rli);
 
@@ -10244,13 +10775,14 @@ Rows_log_event::do_shall_skip(Relay_log_info *rli)
 
 static int rows_event_stmt_cleanup(Relay_log_info const *rli, THD * thd)
 {
+  DBUG_ENTER("rows_event_stmt_cleanup");
   DBUG_EXECUTE_IF("simulate_rows_event_cleanup_failure",
                   {
-                  char errbuf[MYSQL_ERRMSG_SIZE];
-                  int err=149;
-                  my_error(ER_ERROR_DURING_COMMIT, MYF(0), err,
-                           my_strerror(errbuf, MYSQL_ERRMSG_SIZE, err));
-                  return (1);
+                    char errbuf[MYSQL_ERRMSG_SIZE];
+                    int err=149;
+                    my_error(ER_ERROR_DURING_COMMIT, MYF(0), err,
+                             my_strerror(errbuf, MYSQL_ERRMSG_SIZE, err));
+                    DBUG_RETURN(1);
                   });
   int error;
   {
@@ -10313,7 +10845,7 @@ static int rows_event_stmt_cleanup(Relay_log_info const *rli, THD * thd)
     thd->lex->sql_command= SQLCOM_END;
 
   }
-  return error;
+  DBUG_RETURN(error);
 }
 
 /**
@@ -10457,8 +10989,7 @@ int Rows_log_event::pack_info(Protocol *protocol)
 
 #ifndef MYSQL_SERVER
 void Rows_log_event::print_helper(FILE*,
-                                  PRINT_EVENT_INFO *print_event_info,
-                                  char const *const name)
+                                  PRINT_EVENT_INFO *print_event_info)
 {
   IO_CACHE *const head= &print_event_info->head_cache;
   IO_CACHE *const body= &print_event_info->body_cache;
@@ -10467,7 +10998,7 @@ void Rows_log_event::print_helper(FILE*,
     bool const last_stmt_event= get_flags(STMT_END_F);
     print_header(head, print_event_info, !last_stmt_event);
     my_b_printf(head, "\t%s: table id %llu%s\n",
-                name, m_table_id.id(),
+                get_type_str(), m_table_id.id(),
                 last_stmt_event ? " flags: STMT_END_F" : "");
     print_base64(body, print_event_info, !last_stmt_event);
   }
@@ -10563,7 +11094,9 @@ int Table_map_log_event::save_field_metadata()
 Table_map_log_event::Table_map_log_event(THD *thd_arg, TABLE *tbl,
                                          const Table_id& tid,
                                          bool using_trans)
-  : binary_log::Table_map_event(tid, tbl->s->fields, (tbl->s->db.str),
+  : binary_log::Table_map_event(tid, tbl->s->fields +
+                                DBUG_EVALUATE_IF("binlog_omit_last_column_from_table_map_event", -1, 0),
+                                (tbl->s->db.str),
                                 ((tbl->s->db.str) ? tbl->s->db.length : 0),
                                 (tbl->s->table_name.str),
                                 (tbl->s->table_name.length)),
@@ -10602,8 +11135,10 @@ Table_map_log_event::Table_map_log_event(THD *thd_arg, TABLE *tbl,
   m_coltype= (uchar *)my_malloc(key_memory_log_event,
                                 m_colcnt, MYF(MY_WME));
 
-  DBUG_ASSERT(m_colcnt == m_table->s->fields);
-  for (unsigned int i= 0; i < m_table->s->fields; ++i)
+  DBUG_ASSERT(m_colcnt == m_table->s->fields +
+              DBUG_EVALUATE_IF("binlog_omit_last_column_from_table_map_event",
+                               -1, 0));
+  for (unsigned int i= 0; i < m_colcnt; ++i)
     m_coltype[i]= m_table->field[i]->binlog_type();
 
   DBUG_EXECUTE_IF("inject_invalid_column_type", m_coltype[1]= 230;);
@@ -10614,7 +11149,7 @@ Table_map_log_event::Table_map_log_event(THD *thd_arg, TABLE *tbl,
     that is not on the slave and is null and thus not in the row data during
     replication.
   */
-  uint num_null_bytes= (m_table->s->fields + 7) / 8;
+  uint num_null_bytes= (m_colcnt + 7) / 8;
   m_data_size+= num_null_bytes;
   /*
     m_null_bits is a pointer indicating which columns can have a null value
@@ -10646,7 +11181,7 @@ Table_map_log_event::Table_map_log_event(THD *thd_arg, TABLE *tbl,
     m_data_size+= m_field_metadata_size + 3; 
 
   memset(m_null_bits, 0, num_null_bytes);
-  for (unsigned int i= 0 ; i < m_table->s->fields ; ++i)
+  for (unsigned int i= 0 ; i < m_colcnt ; ++i)
     if (m_table->field[i]->maybe_null())
       m_null_bits[(i / 8)]+= 1 << (i % 8);
   /*
@@ -12042,7 +12577,7 @@ Write_rows_log_event::write_row(const Relay_log_info *const rli,
                  table->file->ht->db_type != DB_TYPE_NDBCLUSTER);
 
   /* unpack row into table->record[0] */
-  if ((error= unpack_current_row(rli, &m_cols)))
+  if ((error= unpack_current_row(rli, &m_cols, true/*is AI*/)))
     DBUG_RETURN(error);
 
   if (m_curr_row == m_rows_buf)
@@ -12212,7 +12747,7 @@ Write_rows_log_event::write_row(const Relay_log_info *const rli,
     if (!get_flags(COMPLETE_ROWS_F))
     {
       restore_record(table,record[1]);
-      error= unpack_current_row(rli, &m_cols);
+      error= unpack_current_row(rli, &m_cols, true/*is AI*/);
     }
 
 #ifndef DBUG_OFF
@@ -12300,7 +12835,7 @@ void Write_rows_log_event::print(FILE *file, PRINT_EVENT_INFO* print_event_info)
 {
   DBUG_EXECUTE_IF("simulate_cache_read_error",
                   {DBUG_SET("+d,simulate_my_b_fill_error");});
-  Rows_log_event::print_helper(file, print_event_info, "Write_rows");
+  Rows_log_event::print_helper(file, print_event_info);
 }
 #endif
 
@@ -12398,7 +12933,7 @@ int Delete_rows_log_event::do_exec_row(const Relay_log_info *const)
 void Delete_rows_log_event::print(FILE *file,
                                   PRINT_EVENT_INFO* print_event_info)
 {
-  Rows_log_event::print_helper(file, print_event_info, "Delete_rows");
+  Rows_log_event::print_helper(file, print_event_info);
 }
 #endif
 
@@ -12407,27 +12942,41 @@ void Delete_rows_log_event::print(FILE *file,
 	Update_rows_log_event member functions
 **************************************************************************/
 
+#if defined(MYSQL_SERVER)
+binary_log::Log_event_type
+Update_rows_log_event::get_update_rows_event_type(const THD *thd_arg)
+{
+  DBUG_ENTER("Update_rows_log_event::get_update_rows_event_type");
+  binary_log::Log_event_type type=
+    (thd_arg->variables.binlog_row_value_options != 0 ?
+     binary_log::PARTIAL_UPDATE_ROWS_EVENT :
+     (log_bin_use_v1_row_events ?
+      binary_log::UPDATE_ROWS_EVENT_V1 :
+      binary_log::UPDATE_ROWS_EVENT));
+  DBUG_PRINT("info", ("update_rows event_type: %s", get_type_str(type)));
+  DBUG_RETURN(type);
+}
+
 /*
   Constructor used to build an event for writing to the binary log.
  */
-#if defined(MYSQL_SERVER)
 Update_rows_log_event::Update_rows_log_event(THD *thd_arg, TABLE *tbl_arg,
                                              const Table_id& tid,
                                              bool is_transactional,
                                              const uchar* extra_row_info)
-: binary_log::Rows_event(log_bin_use_v1_row_events ?
-                         binary_log::UPDATE_ROWS_EVENT_V1 :
-                         binary_log::UPDATE_ROWS_EVENT),
+: binary_log::Rows_event(get_update_rows_event_type(thd_arg)),
   Rows_log_event(thd_arg, tbl_arg, tid, tbl_arg->read_set, is_transactional,
-                 log_bin_use_v1_row_events?
-                 binary_log::UPDATE_ROWS_EVENT_V1:
-                 binary_log::UPDATE_ROWS_EVENT,
-                 extra_row_info)
+                 get_update_rows_event_type(thd_arg),
+                 extra_row_info),
+  binary_log::Update_rows_event(get_update_rows_event_type(thd_arg))
 {
+  DBUG_ENTER("Update_rows_log_event::Update_rows_log_event");
+  DBUG_PRINT("info", ("update_rows event_type: %s", get_type_str()));
   common_header->type_code= m_type;
   init(tbl_arg->write_set);
   if (Rows_log_event::is_valid() && m_cols_ai.bitmap)
     is_valid_param= true;
+  DBUG_VOID_RETURN;
 }
 
 void Update_rows_log_event::init(MY_BITMAP const *cols)
@@ -12532,7 +13081,7 @@ Update_rows_log_event::do_exec_row(const Relay_log_info *const rli)
 
   m_curr_row= m_curr_row_end;
   /* this also updates m_curr_row_end */
-  if ((error= unpack_current_row(rli, &m_cols_ai)))
+  if ((error= unpack_current_row(rli, &m_cols_ai, true/*is AI*/)))
     return error;
 
   /*
@@ -12558,7 +13107,7 @@ Update_rows_log_event::do_exec_row(const Relay_log_info *const rli)
 void Update_rows_log_event::print(FILE *file,
 				  PRINT_EVENT_INFO* print_event_info)
 {
-  Rows_log_event::print_helper(file, print_event_info, "Update_rows");
+  Rows_log_event::print_helper(file, print_event_info);
 }
 #endif
 

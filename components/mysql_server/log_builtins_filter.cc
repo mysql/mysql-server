@@ -66,14 +66,14 @@
   The event itself is not locked.
 */
 
-#include "log.h"
-#include "log_builtins_imp.h"
-#include "log_builtins_filter_imp.h"
-
-// for the default rules
-#include <mysqld.h>
 #include <mysqld_error.h>
-#include <my_atomic.h>
+
+#include "log_builtins_filter_imp.h"
+#include "log_builtins_imp.h"
+#include "my_atomic.h"
+#include "sql/log.h"
+// for the default rules
+#include "sql/mysqld.h"
 
 
 static bool  filter_inited=    false;
@@ -86,7 +86,7 @@ static PSI_rwlock_key key_rwlock_THR_LOCK_log_builtins_filter;
 static PSI_rwlock_info log_builtins_filter_rwlocks[]=
 {
   { &key_rwlock_THR_LOCK_log_builtins_filter,
-    "THR_LOCK_log_builtin_filter", PSI_FLAG_GLOBAL}
+    "THR_LOCK_log_builtin_filter", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 #endif
 
@@ -224,32 +224,6 @@ static void log_builtins_filter_defaults()
   r->cond=   LOG_FILTER_COND_GE;
   r->verb=   LOG_FILTER_GAG;
   r->flags=  LOG_FILTER_FLAG_SYNTHETIC;
-  log_filter_rules.count++;
-
-
-  // example: error code => re-prio start-up message
-  // "MySQL_error==1408? set_priority 0."
-  r= log_builtins_filter_rule_init();
-  log_item_set_with_key(&r->match, LOG_ITEM_SQL_ERRCODE, nullptr,
-                        LOG_ITEM_FREE_NONE)->data_integer= ER_STARTUP;
-  r->cond=  LOG_FILTER_COND_EQ;
-  r->verb=  LOG_FILTER_PRIO_ABS;
-  // new prio
-  log_item_set(&r->aux, LOG_ITEM_GEN_INTEGER)->data_integer= ERROR_LEVEL;
-  log_filter_rules.count++;
-
-
-  // example: error code => re-label start-up message
-  // "MySQL_error==1408? add_field log_label:=\"HELO\"."
-  r= log_builtins_filter_rule_init();
-  log_item_set_with_key(&r->match, LOG_ITEM_SQL_ERRCODE, nullptr,
-                        LOG_ITEM_FREE_NONE)->data_integer= ER_STARTUP;
-  r->cond=  LOG_FILTER_COND_EQ;
-  r->verb=  LOG_FILTER_ITEM_ADD;
-  // new label
-  // as the aux item is added to the bag, it has to be a fully set up.
-  log_item_set(&r->aux, LOG_ITEM_LOG_LABEL)->data_string=
-    { C_STRING_WITH_LEN("Note") };
   log_filter_rules.count++;
 
   // example: remove all source-line log items
@@ -627,7 +601,11 @@ int log_builtins_filter_run(void *instance MY_ATTRIBUTE((unused)),
     /*
       WL#9651: currently applies to 0 or 1 match, do we ever have multi-match?
     */
-    ln= log_line_index_by_item(ll, &r->match);
+    if ((r->match.type == LOG_ITEM_LOG_PRIO) &&
+        (ll->seen & LOG_ITEM_LOG_EPRIO))
+      ln= log_line_index_by_type(ll, LOG_ITEM_LOG_EPRIO);
+    else
+      ln= log_line_index_by_item(ll, &r->match);
 
     /*
       If we found a suitable field, see whether its value satisfies
@@ -654,8 +632,8 @@ int log_builtins_filter_run(void *instance MY_ATTRIBUTE((unused)),
 
 /**
   This is part of the 5.7 emulation:
-  If --log_error_verbosity / --log_warnings is changed,
-  we generate an artificial filter rule from it here.
+  If --log_error_verbosity is changed, we generate an
+  artificial filter rule from it here.
   These synthetic filter rules are only used if no other
   filter service (including the loadable filter
   configuration engine that extends the built-in filtering

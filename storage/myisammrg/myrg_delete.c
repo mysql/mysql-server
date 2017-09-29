@@ -16,7 +16,7 @@
 /* Delete last read record */
 
 #include "my_inttypes.h"
-#include "myrg_def.h"
+#include "storage/myisammrg/myrg_def.h"
 
 int myrg_delete(MYRG_INFO *info, const uchar *record)
 {

@@ -21,7 +21,7 @@
   TABLE SESSION_CONNECT_ATTRS.
 */
 
-#include "table_session_connect.h"
+#include "storage/perfschema/table_session_connect.h"
 #include "thr_lock.h"
 
 /**

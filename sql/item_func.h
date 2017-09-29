@@ -24,11 +24,7 @@
 
 #include "binary_log_types.h"
 #include "decimal.h"
-#include "enum_query_type.h"
-#include "field.h"
 #include "ft_global.h"
-#include "handler.h"
-#include "item.h"       // Item_result_field
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "my_alloc.h"
@@ -36,7 +32,6 @@
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_decimal.h" // string2my_decimal
 #include "my_inttypes.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
@@ -47,15 +42,20 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "parse_tree_node_base.h"
-#include "set_var.h"    // enum_var_type
-#include "sql_const.h"
+#include "sql/enum_query_type.h"
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/item.h"   // Item_result_field
+#include "sql/my_decimal.h" // string2my_decimal
+#include "sql/parse_tree_node_base.h"
+#include "sql/set_var.h" // enum_var_type
+#include "sql/sql_const.h"
+#include "sql/sql_udf.h" // udf_handler
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/thr_malloc.h"
 #include "sql_string.h"
-#include "sql_udf.h"    // udf_handler
-#include "system_variables.h"
-#include "table.h"
 #include "template_utils.h"
-#include "thr_malloc.h"
 
 class Json_wrapper;
 class PT_item_list;
@@ -64,6 +64,7 @@ class SELECT_LEX;
 class THD;
 class sp_rcontext;
 template <class T> class List;
+class Table_function_result;
 
 /* Function items used by mysql */
 
@@ -77,8 +78,6 @@ class Item_func :public Item_result_field
   typedef Item_result_field super;
 protected:
   Item **args, *tmp_arg[2];
-  /// Value used in calculation of result of const_item()
-  bool const_item_cache;
   /*
     Allowed numbers of columns in result (usually 1, which means scalar value)
     0 means get this number from first argument
@@ -90,8 +89,15 @@ protected:
   table_map not_null_tables_cache;
 public:
   uint arg_count;
-  // When updating Functype with new spatial functions,
-  // is_spatial_operator() should also be updated.
+  /*
+    When updating Functype with new spatial functions,
+    is_spatial_operator() should also be updated.
+
+    DD_INTERNAL_FUNC:
+      Some of the internal functions introduced for the INFORMATION_SCHEMA views
+      opens data-dictionary tables. DD_INTERNAL_FUNC is used for the such type
+      of functions.
+  */
   enum Functype { UNKNOWN_FUNC,EQ_FUNC,EQUAL_FUNC,NE_FUNC,LT_FUNC,LE_FUNC,
 		  GE_FUNC,GT_FUNC,FT_FUNC,
 		  LIKE_FUNC,ISNULL_FUNC,ISNOTNULL_FUNC,
@@ -108,7 +114,8 @@ public:
                   NOW_FUNC, TRIG_COND_FUNC,
                   SUSERVAR_FUNC, GUSERVAR_FUNC, COLLATE_FUNC,
                   EXTRACT_FUNC, TYPECAST_FUNC, FUNC_SP, UDF_FUNC,
-                  NEG_FUNC, GSYSVAR_FUNC, GROUPING_FUNC };
+                  NEG_FUNC, GSYSVAR_FUNC, GROUPING_FUNC, TABLE_FUNC,
+                  DD_INTERNAL_FUNC};
   enum optimize_type { OPTIMIZE_NONE,OPTIMIZE_KEY,OPTIMIZE_OP, OPTIMIZE_NULL,
                        OPTIMIZE_EQUAL };
   enum Type type() const override { return FUNC_ITEM; }
@@ -261,7 +268,6 @@ public:
   virtual optimize_type select_optimize() const { return OPTIMIZE_NONE; }
   virtual bool have_rev_func() const { return 0; }
   virtual Item *key_item() const { return args[0]; }
-  bool const_item() const override { return const_item_cache; }
   inline Item **arguments() const
   { DBUG_ASSERT(argument_count() > 0); return args; }
   /**
@@ -280,6 +286,7 @@ public:
   void print_op(String *str, enum_query_type query_type);
   void print_args(String *str, uint from, enum_query_type query_type);
   virtual void fix_num_length_and_dec();
+  virtual bool is_deprecated() const { return false; }
   bool get_arg0_date(MYSQL_TIME *ltime, my_time_flags_t fuzzy_date)
   {
     return (null_value=args[0]->get_date(ltime, fuzzy_date));
@@ -1276,7 +1283,6 @@ public:
   bool itemize(Parse_context *pc, Item **res) override;
   double val_real() override;
   const char *func_name() const override { return "rand"; }
-  bool const_item() const override { return false; }
   /**
     This function is non-deterministic and hence depends on the
     'RAND' pseudo-table.
@@ -1388,7 +1394,11 @@ public:
 
 /* 
   Objects of this class are used for ROLLUP queries to wrap up 
-  each constant item referred to in GROUP BY list. 
+  each constant item referred to in GROUP BY list.
+
+  Before grouping the wrapped item could be considered constant, but after
+  grouping it is not, as rollup adds NULL values, which can affect later
+  phases like DISTINCT or windowing.
 */
 
 class Item_func_rollup_const final : public Item_func
@@ -1412,7 +1422,14 @@ public:
     return (null_value= args[0]->get_time(ltime));
   }
   const char *func_name() const override { return "rollup_const"; }
-  bool const_item() const override { return false; }
+  table_map used_tables() const override
+  {
+    /*
+      If underlying item is non-constant, return its used_tables value.
+      Otherwise ensure it is non-constant by returning RAND_TABLE_BIT.
+    */
+    return args[0]->used_tables() ? args[0]->used_tables() : RAND_TABLE_BIT;
+  }
   Item_result result_type() const override { return args[0]->result_type(); }
   bool resolve_type(THD *) override
   {
@@ -1825,7 +1842,6 @@ public:
   Item_func_sleep(const POS &pos, Item *a) :Item_int_func(pos, a) {}
 
   bool itemize(Parse_context *pc, Item **res) override;
-  bool const_item() const override { return false; }
   const char *func_name() const override { return "sleep"; }
   /**
     This function is non-deterministic and hence depends on the
@@ -1858,7 +1874,6 @@ public:
     DBUG_ASSERT(fixed == 0);
     bool res= udf.fix_fields(thd, this, arg_count, args);
     used_tables_cache= udf.used_tables_cache;
-    const_item_cache= udf.const_item_cache;
     fixed= true;
     return res;
   }
@@ -1905,11 +1920,7 @@ public:
     */  
     if ((used_tables_cache & ~PSEUDO_TABLE_BITS) && 
         !(used_tables_cache & RAND_TABLE_BIT))
-    {
       Item_func::update_used_tables();
-      if (!const_item_cache && !used_tables_cache)
-        used_tables_cache= RAND_TABLE_BIT;
-    }
   }
   void cleanup() override;
   Item_result result_type() const override { return udf.result_type(); }
@@ -2307,6 +2318,22 @@ public:
   }
 };
 
+class Item_func_can_access_resource_group : public Item_int_func
+{
+public:
+  Item_func_can_access_resource_group(const POS &pos, Item *a)
+    : Item_int_func(pos, a)
+  {}
+  longlong val_int();
+  const char *func_name() const { return "can_access_resource_group"; }
+  bool resolve_type(THD *)
+  {
+    max_length= 1; // Function can return 0 or 1.
+    maybe_null= true;
+    return false;
+  }
+};
+
 class Item_func_can_access_view : public Item_int_func
 {
 public:
@@ -2365,12 +2392,14 @@ public:
     const POS &pos, PT_item_list *list)
     : Item_int_func(pos, list)
   {}
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   longlong val_int() override;
   const char *func_name() const override { return "internal_table_rows"; }
   bool resolve_type(THD *) override
   {
     max_length= 21;
     maybe_null= true;
+    unsigned_flag= true;
     return false;
   }
 };
@@ -2382,12 +2411,14 @@ public:
     const POS &pos, PT_item_list *list)
     : Item_int_func(pos, list)
   {}
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   longlong val_int() override;
   const char *func_name() const override { return "internal_avg_row_length"; }
   bool resolve_type(THD *) override
   {
     max_length= 21;
     maybe_null= true;
+    unsigned_flag= true;
     return false;
   }
 };
@@ -2399,12 +2430,14 @@ public:
     const POS &pos, PT_item_list *list)
     : Item_int_func(pos, list)
   {}
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   longlong val_int() override;
   const char *func_name() const override { return "internal_data_length"; }
   bool resolve_type(THD *) override
   {
     max_length= 21;
     maybe_null= true;
+    unsigned_flag= true;
     return false;
   }
 };
@@ -2416,12 +2449,14 @@ public:
     const POS &pos, PT_item_list *list)
     : Item_int_func(pos, list)
   {}
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   longlong val_int() override;
   const char *func_name() const override { return "internal_max_data_length"; }
   bool resolve_type(THD *) override
   {
     max_length= 21;
     maybe_null= true;
+    unsigned_flag= true;
     return false;
   }
 };
@@ -2433,12 +2468,14 @@ public:
     const POS &pos, PT_item_list *list)
     : Item_int_func(pos, list)
   {}
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   longlong val_int() override;
   const char *func_name() const override { return "internal_index_length"; }
   bool resolve_type(THD *) override
   {
     max_length= 21;
     maybe_null= true;
+    unsigned_flag= true;
     return false;
   }
 };
@@ -2450,12 +2487,14 @@ public:
     const POS &pos, PT_item_list *list)
     : Item_int_func(pos, list)
   {}
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   longlong val_int() override;
   const char *func_name() const override { return "internal_data_free"; }
   bool resolve_type(THD *) override
   {
     max_length= 21;
     maybe_null= true;
+    unsigned_flag= true;
     return false;
   }
 };
@@ -2467,12 +2506,14 @@ public:
     const POS &pos, PT_item_list *list)
     : Item_int_func(pos, list)
   {}
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   longlong val_int() override;
   const char *func_name() const override { return "internal_auto_increment"; }
   bool resolve_type(THD *) override
   {
     max_length= 21;
     maybe_null= true;
+    unsigned_flag= true;
     return false;
   }
 };
@@ -2484,6 +2525,7 @@ public:
     const POS &pos, PT_item_list *list)
     : Item_int_func(pos, list)
   {}
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   longlong val_int() override;
   const char *func_name() const override { return "internal_checksum"; }
   bool resolve_type(THD *) override
@@ -2517,6 +2559,7 @@ public:
     const POS &pos, PT_item_list *list)
     : Item_int_func(pos, list)
   {}
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   longlong val_int() override;
   const char *func_name() const override
   { return "internal_index_column_cardinality"; }
@@ -2579,6 +2622,187 @@ public:
   const char *func_name() const override
   { return "get_dd_index_sub_part_length"; }
 };
+
+
+class Item_func_internal_tablespace_id : public Item_int_func
+{
+public:
+  Item_func_internal_tablespace_id(const POS &pos, Item *a, Item *b,
+                                   Item *c, Item *d)
+    :Item_int_func(pos, a, b, c, d)
+  {}
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
+  longlong val_int() override;
+  const char *func_name() const override { return "internal_tablespace_id"; }
+  bool resolve_type(THD *) override
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
+};
+
+
+class Item_func_internal_tablespace_free_extents : public Item_int_func
+{
+public:
+  Item_func_internal_tablespace_free_extents(const POS &pos, Item *a,
+                                             Item *b, Item *c, Item *d)
+    :Item_int_func(pos, a, b, c, d)
+  {}
+
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
+  longlong val_int() override;
+
+  const char *func_name() const override
+  { return "internal_tablespace_free_extents"; }
+
+  bool resolve_type(THD *) override
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
+};
+
+
+class Item_func_internal_tablespace_total_extents : public Item_int_func
+{
+public:
+  Item_func_internal_tablespace_total_extents(const POS &pos, Item *a,
+                                             Item *b, Item *c, Item *d)
+    :Item_int_func(pos, a, b, c, d)
+  {}
+
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
+  longlong val_int() override;
+
+  const char *func_name() const override
+  { return "internal_tablespace_total_extents"; }
+
+  bool resolve_type(THD *) override
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
+};
+
+
+class Item_func_internal_tablespace_extent_size : public Item_int_func
+{
+public:
+  Item_func_internal_tablespace_extent_size(const POS &pos, Item *a,
+                                            Item *b, Item *c, Item *d)
+    :Item_int_func(pos, a, b, c, d)
+  {}
+
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
+  longlong val_int() override;
+
+  const char *func_name() const override
+  { return "internal_tablespace_extent_size"; }
+
+  bool resolve_type(THD *) override
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
+};
+
+
+class Item_func_internal_tablespace_initial_size : public Item_int_func
+{
+public:
+  Item_func_internal_tablespace_initial_size(const POS &pos, Item *a,
+                                             Item *b, Item *c, Item *d)
+    :Item_int_func(pos, a, b, c, d)
+  {}
+
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
+  longlong val_int() override;
+
+  const char *func_name() const override
+  { return "internal_tablespace_initial_size"; }
+
+  bool resolve_type(THD *) override
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
+};
+
+
+class Item_func_internal_tablespace_maximum_size : public Item_int_func
+{
+public:
+  Item_func_internal_tablespace_maximum_size(const POS &pos, Item *a,
+                                             Item *b, Item *c, Item *d)
+    :Item_int_func(pos, a, b, c, d)
+  {}
+
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
+  longlong val_int() override;
+
+  const char *func_name() const override
+  { return "internal_tablespace_maximum_size"; }
+
+  bool resolve_type(THD *) override
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
+};
+
+
+class Item_func_internal_tablespace_autoextend_size : public Item_int_func
+{
+public:
+  Item_func_internal_tablespace_autoextend_size(const POS &pos, Item *a,
+                                                Item *b, Item *c, Item *d)
+    :Item_int_func(pos, a, b, c, d)
+  {}
+
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
+  longlong val_int() override;
+
+  const char *func_name() const override
+  { return "internal_tablespace_autoextend_size"; }
+
+  bool resolve_type(THD *) override
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
+};
+
+
+class Item_func_internal_tablespace_data_free : public Item_int_func
+{
+public:
+  Item_func_internal_tablespace_data_free(const POS &pos, Item *a,
+                                                Item *b, Item *c, Item *d)
+    :Item_int_func(pos, a, b, c, d)
+  {}
+
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
+  longlong val_int() override;
+
+  const char *func_name() const override
+  { return "internal_tablespace_data_free"; }
+
+  bool resolve_type(THD *) override
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
+};
+
 
 /**
   Common class for:
@@ -2912,6 +3136,8 @@ public:
   my_decimal *val_decimal(my_decimal *) override;
   String *val_str(String *str) override;
   bool resolve_type(THD *) override;
+  void update_used_tables() override
+  {} // Keep existing used tables
   void print(String *str, enum_query_type query_type) override;
   enum Item_result result_type() const override;
   /*
@@ -2919,9 +3145,6 @@ public:
     select @t1:=1,@t1,@t:="hello",@t from foo where (@t1:= t2.b)
   */
   const char *func_name() const override { return "get_user_var"; }
-  bool const_item() const override;
-  table_map used_tables() const override
-  { return const_item() ? 0 : RAND_TABLE_BIT; }
   bool eq(const Item *item, bool binary_cmp) const override;
 private:
   bool set_value(THD *thd, sp_rcontext *ctx, Item **it) override;
@@ -2948,7 +3171,7 @@ class Item_user_var_as_out_param :public Item
   Name_string name;
   user_var_entry *entry;
 public:
-  Item_user_var_as_out_param(Name_string a) :name(a)
+  Item_user_var_as_out_param(const POS &pos, Name_string a) : Item(pos), name(a)
   { item_name.copy(a); }
   /* We should return something different from FIELD_ITEM here */
   enum Type type() const override { return STRING_ITEM;}
@@ -3039,7 +3262,6 @@ public:
   enum Functype functype() const override { return GSYSVAR_FUNC; }
   bool resolve_type(THD *) override;
   void print(String *str, enum_query_type query_type) override;
-  bool const_item() const override { return true; }
   table_map used_tables() const override { return 0; }
   enum Item_result result_type() const override;
   double val_real() override;
@@ -3192,7 +3414,7 @@ public:
       FTS_DOCID_IN_RESULT;
   }
 
-  float get_filtering_effect(table_map filter_for_table,
+  float get_filtering_effect(THD *thd, table_map filter_for_table,
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;
@@ -3445,8 +3667,6 @@ public:
     i.e. @c init_result_field().
   */
   table_map get_initial_pseudo_tables() const override;
-  bool const_item() const override
-  { return used_tables() == 0; }
   void update_used_tables() override;
   void fix_after_pullout(SELECT_LEX *parent_select, SELECT_LEX *removed_select)
   override;
@@ -3595,6 +3815,8 @@ double my_double_round(double value, longlong dec, bool dec_unsigned,
                        bool truncate);
 bool eval_const_cond(THD *thd, Item *cond, bool *value);
 Item_field *get_gc_for_expr(Item_func **func, Field *fld, Item_result type);
+
+void retrieve_tablespace_statistics(THD *thd, Item** args, bool *null_value);
 
 extern bool volatile  mqh_used;
 

@@ -23,7 +23,7 @@ syntax = "proto2";
 
 // Basic CRUD operations
 package Mysqlx.Crud;
-option java_package = "com.mysql.cj.mysqlx.protobuf";
+option java_package = "com.mysql.cj.x.protobuf";
 
 import "mysqlx.proto"; // comment_out_if PROTOBUF_LITE
 import "mysqlx_expr.proto";
@@ -96,6 +96,7 @@ message UpdateOperation {
     ITEM_MERGE = 5;     // source and value must be documents
     ARRAY_INSERT = 6;   // insert the value in the array at the index identified in the source path
     ARRAY_APPEND = 7;   // append the value on the array at the identified path
+    MERGE_PATCH = 8;    // merge JSON object value with the provided patch expression
   }
   required Mysqlx.Expr.ColumnIdentifier source = 1;
   required UpdateType operation = 2;

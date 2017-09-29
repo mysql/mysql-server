@@ -17,9 +17,10 @@
 #define SQL_SERVICE_CONTEXT_BASE_INCLUDE
 
 #include <mysql/plugin.h>
+#include <mysql/service_command.h>
 
 #include "my_inttypes.h"
-#include "sql_resultset.h"
+#include "plugin/group_replication/include/sql_service/sql_resultset.h"
 
 class Sql_service_context_base
 {

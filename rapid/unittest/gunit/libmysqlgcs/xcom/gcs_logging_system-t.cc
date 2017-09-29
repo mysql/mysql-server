@@ -76,18 +76,20 @@ TEST_F(LoggingDebuggingSystemTest, DefaultLifecycle)
     static_cast<Gcs_async_buffer *>(common_sink)->get_sink()
   );
 
-#if defined(WIN32) || defined(WIN64)
-  times++;
-#endif
+  #if defined(_WIN32)
+         times++;
+  #endif
 
-  EXPECT_CALL(*mock_sink, log_event(_, _)).Times(times);
+  ON_CALL(*mock_sink, initialize()).WillByDefault(Return(GCS_OK));
+  EXPECT_CALL(*mock_sink, log_event(_,_)).Times(times);
+  ON_CALL(*mock_sink, finalize()).WillByDefault(Return(GCS_OK));
 
   // on some machines an info message will be displayed stating
   // that a network interface was not successfully probed
   // we cannot predict how many network interfaces are in the
   // machine that cannot be probed
   EXPECT_CALL(*mock_sink,
-    log_event(ContainsRegex("[GCS] Unable to probe network interface .*"))).
+    log_event(ContainsRegex("\\[GCS\\] Unable to probe network interface .*"))).
     Times(AnyNumber());
 
   ASSERT_EQ(true, Gcs_log_manager::get_logger() == NULL);

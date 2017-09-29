@@ -15,7 +15,7 @@
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 */
 
-#include "options_parser.h"
+#include "sql/options_parser.h"
 
 #include <stddef.h>
 #include <algorithm>

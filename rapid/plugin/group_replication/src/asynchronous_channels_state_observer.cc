@@ -13,9 +13,10 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "member_info.h"
-#include "plugin.h"
-#include "asynchronous_channels_state_observer.h"
+#include "plugin/group_replication/include/asynchronous_channels_state_observer.h"
+
+#include "plugin/group_replication/include/member_info.h"
+#include "plugin/group_replication/include/plugin.h"
 
 Asynchronous_channels_state_observer::
 Asynchronous_channels_state_observer()

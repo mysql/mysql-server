@@ -7,8 +7,8 @@ call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations
 1
 0 rows affected
 SCHEMA_NAME	DIGEST_TEXT	COUNT_STAR
-null	SELECT ? 	1
 null	TRUNCATE TABLE `performance_schema` . `events_statements_summary_by_digest` 	1
+null	SELECT ? 	1
 0 rows affected
 
 1 rows affected
@@ -36,7 +36,7 @@ INSERT INTO `xtest`.`test` (doc) VALUES (CAST('{\"_id\": \"two\"}' AS JSON)) ON 
 1 rows affected
 Rows matched: 1  Changed: 1  Warnings: 0
 Query
-UPDATE `xtest`.`test` SET doc=JSON_SET(doc,'$.key','val') WHERE (`_id` = 'one')
+UPDATE `xtest`.`test` SET doc=JSON_SET(JSON_SET(doc,'$.key','val'),'$._id',JSON_EXTRACT(`doc`,'$._id')) WHERE (`_id` = 'one')
 0 rows affected
 ######### Crud.CreateView #########
 Mysqlx.Ok {
@@ -171,8 +171,8 @@ client_id	user	host	sql_session
 1	root	localhost	$SESSION
 command ok
 Query
-create user unpriv@localhost
-set password for unpriv@localhost = password('x')
+CREATE USER 'unpriv'@'localhost' IDENTIFIED WITH 'mysql_native_password'
+SET PASSWORD FOR `unpriv`@`localhost`=<secret>
 SHOW WARNINGS
 0 rows affected
 ######### kill_client #########

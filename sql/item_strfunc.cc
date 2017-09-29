@@ -27,6 +27,9 @@
     (This shouldn't be needed)
 */
 
+#include "sql/item_strfunc.h"
+
+#include <zlib.h>
 #include <algorithm>
 #include <atomic>
 #include <cmath>                     // std::isfinite
@@ -35,20 +38,9 @@
 #include <string>
 #include <utility>
 
-#include "auth_acls.h"
-#include "auth_common.h"             // check_password_policy
 #include "base64.h"                  // base64_encode_max_arg_length
 #include "binary_log_types.h"
-#include "current_thd.h"             // current_thd
-#include "dd/info_schema/stats.h"
-#include "dd/properties.h"           // dd::Properties
-#include "dd/string_type.h"
-#include "dd_sql_view.h"             // push_view_warning_or_error
 #include "decimal.h"
-#include "derror.h"                  // ER_THD
-#include "handler.h"
-#include "item_strfunc.h"
-#include "key.h"
 #include "m_string.h"
 #include "my_aes.h"                  // MY_AES_IV_SIZE
 #include "my_byteorder.h"
@@ -68,24 +60,34 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_password_policy.h"
-#include "mysqld.h"                  // binary_keyword etc
 #include "mysqld_error.h"
 #include "password.h"                // my_make_scrambled_password
-#include "rpl_gtid.h"
 #include "sha1.h"                    // SHA1_HASH_SIZE
 #include "sha2.h"
-#include "sql_class.h"               // THD
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_locale.h"              // my_locale_by_name
-#include "sql_security_ctx.h"
-#include "sql_show.h"  // grant_types
-#include "strfunc.h"                 // hexchar_to_int
-#include "system_variables.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h"    // check_password_policy
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/current_thd.h"         // current_thd
+#include "sql/dd/info_schema/table_stats.h"
+#include "sql/dd/properties.h"       // dd::Properties
+#include "sql/dd/string_type.h"
+#include "sql/dd_sql_view.h"         // push_view_warning_or_error
+#include "sql/derror.h"              // ER_THD
+#include "sql/handler.h"
+#include "sql/key.h"
+#include "sql/mysqld.h"              // binary_keyword etc
+#include "resourcegroups/resource_group_mgr.h"  // num_vcpus
+#include "sql/rpl_gtid.h"
+#include "sql/sql_class.h"           // THD
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_locale.h"          // my_locale_by_name
+#include "sql/sql_show.h" // grant_types
+#include "sql/strfunc.h"             // hexchar_to_int
+#include "sql/system_variables.h"
+#include "sql/val_int_compare.h"     // Integer_value
 #include "template_utils.h"
 #include "typelib.h"
-#include "val_int_compare.h"         // Integer_value
-#include "zconf.h"
 
 using std::min;
 using std::max;
@@ -275,9 +277,9 @@ String *Item_func_sha2::val_str_ascii(String *str)
   unsigned char digest_buf[SHA512_DIGEST_LENGTH];
   uint digest_length= 0;
 
+  String *input_string= args[0]->val_str(str);
   str->set_charset(&my_charset_bin);
 
-  String *input_string= args[0]->val_str(str);
   if (input_string == NULL)
   {
     null_value= TRUE;
@@ -626,7 +628,7 @@ String *Item_func_aes_decrypt::val_str(String *str)
 
 bool Item_func_aes_decrypt::resolve_type(THD *)
 {
-   set_data_type_string(args[0]->max_length);
+   set_data_type_string(args[0]->max_char_length());
    maybe_null= true;
    return false;
 }
@@ -1891,30 +1893,6 @@ String *Item_func_password::val_str_ascii(String *str)
   return str;
 }
 
-char *Item_func_password::
-  create_password_hash_buffer(THD *thd, const char *password,  size_t pass_len)
-{
-  String *password_str= new (thd->mem_root)String(password, thd->variables.
-                                                    character_set_client);
-  my_validate_password_policy(password_str->ptr(), password_str->length());
-
-  char *buff= NULL;
-  if (thd->variables.old_passwords == 0)
-  {
-    /* Allocate memory for the password scramble and one extra byte for \0 */
-    buff= (char *) thd->alloc(SCRAMBLED_PASSWORD_CHAR_LENGTH + 1);
-    my_make_scrambled_password_sha1(buff, password, pass_len);
-  }
-#if defined(HAVE_OPENSSL)
-  else
-  {
-    /* Allocate memory for the password scramble and one extra byte for \0 */
-    buff= (char *) thd->alloc(CRYPT_MAX_PASSWORD_SIZE + 1);
-    my_make_scrambled_password(buff, password, pass_len);
-  }
-#endif
-  return buff;
-}
 
 Item *Item_func_sysconst::safe_charset_converter(THD *,
                                                  const CHARSET_INFO *tocs)
@@ -2483,7 +2461,6 @@ bool Item_func_make_set::resolve_type(THD *)
   set_data_type_string(char_length);
   used_tables_cache|=	  item->used_tables();
   not_null_tables_cache&= item->not_null_tables();
-  const_item_cache&=	  item->const_item();
   add_accum_properties(item);
 
   return false;
@@ -2495,7 +2472,6 @@ void Item_func_make_set::update_used_tables()
   Item_func::update_used_tables();
   item->update_used_tables();
   used_tables_cache|=item->used_tables();
-  const_item_cache&=item->const_item();
   add_accum_properties(item);
 }
 
@@ -3453,7 +3429,7 @@ bool Item_func_weight_string::resolve_type(THD *)
                          field->pack_length() :
                          result_length ?
                            result_length :
-                           cs->mbmaxlen * max(args[0]->max_length,
+                           cs->mbmaxlen * max(args[0]->max_char_length(),
                                               num_codepoints));
   maybe_null= true;
   return false;
@@ -4268,8 +4244,6 @@ longlong Item_func_crc32::val_int()
   return (longlong) crc32(0L, (uchar*)res->ptr(), res->length());
 }
 
-#include "zlib.h"
-
 String *Item_func_compress::val_str(String *str)
 {
   int err= Z_OK, code;
@@ -4830,6 +4804,18 @@ String *Item_func_get_dd_create_options::val_str(String *str)
       }
     }
 
+    if (p->exists("encrypt_type"))
+    {
+      dd::String_type opt_value;
+      p->get("encrypt_type", opt_value);
+      if (!opt_value.empty())
+      {
+        ptr=my_stpcpy(ptr, " ENCRYPTION=\"");
+        ptr=my_stpcpy(ptr, opt_value.c_str());
+        ptr=my_stpcpy(ptr, "\"");
+      }
+    }
+
     if (p->exists("stats_persistent"))
     {
       p->get_uint32("stats_persistent", &opt_value);
@@ -4927,19 +4913,234 @@ String *Item_func_internal_get_comment_or_error::val_str(String *str)
     else
       oss << "VIEW";
   }
-  else if (!thd->lex->m_IS_dyn_stat_cache.error().empty())
+  else if (!thd->lex->m_IS_table_stats.error().empty())
   {
     /*
       There could be error generated due to INTERNAL_*() UDF calls
       in I_S query. If there was a error found, we show that as
       part of COMMENT field.
     */
-    oss << thd->lex->m_IS_dyn_stat_cache.error();
+    oss << thd->lex->m_IS_table_stats.error();
   }
   else
   {
     oss << comment_ptr->c_ptr_safe();
   }
+  str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
+
+  DBUG_RETURN(str);
+}
+
+
+/*
+  The function return 'default' in case the dd::Properties string passed as
+  the argument 'str' does not contain 'nodegroup_id' key stored OR even
+  when the option string is empty.
+*/
+String *Item_func_get_partition_nodegroup::val_str(String *str)
+{
+  DBUG_ENTER("Item_func_get_partition_nodegroup::val_str");
+  null_value= FALSE;
+
+  String options;
+  String *options_ptr= args[0]->val_str(&options);
+  std::ostringstream oss("");
+
+  // If we have a option string.
+  if (options_ptr != nullptr)
+  {
+    // Prepare dd::Properties
+    std::unique_ptr<dd::Properties>
+      view_options(dd::Properties::parse_properties(options_ptr->c_ptr_safe()));
+
+    // Do we have nodegroup id ?
+    if (view_options->exists("nodegroup_id"))
+    {
+      uint32 value;
+
+      // Fetch nodegroup id.
+      view_options->get_uint32("nodegroup_id", &value);
+      oss << value;
+    }
+    else
+      oss << "default";
+  }
+  else
+    oss << "default";
+
+  // Copy the value to output string.
+  str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
+
+  DBUG_RETURN(str);
+}
+
+
+String *Item_func_internal_tablespace_type::val_str(String *str)
+{
+  DBUG_ENTER("Item_func_internal_tablespace_type::val_str");
+  dd::String_type result;
+
+  THD *thd= current_thd;
+  retrieve_tablespace_statistics(thd, args, &null_value);
+  if (null_value == false)
+  {
+    thd->lex->m_IS_tablespace_stats.get_stat(
+                dd::info_schema::enum_tablespace_stats_type::TS_TYPE,
+                &result);
+    str->copy(result.c_str(), result.length(), system_charset_info);
+
+    DBUG_RETURN(str);
+  }
+
+  DBUG_RETURN(nullptr);
+}
+
+
+String *Item_func_internal_tablespace_status::val_str(String *str)
+{
+  DBUG_ENTER("Item_func_internal_tablespace_status::val_str");
+  dd::String_type result;
+
+  THD *thd= current_thd;
+  retrieve_tablespace_statistics(thd, args, &null_value);
+  if (null_value == false)
+  {
+    thd->lex->m_IS_tablespace_stats.get_stat(
+                dd::info_schema::enum_tablespace_stats_type::TS_STATUS,
+                &result);
+    str->copy(result.c_str(), result.length(), system_charset_info);
+
+    DBUG_RETURN(str);
+  }
+
+  DBUG_RETURN(nullptr);
+}
+
+
+/**
+  @brief
+    This function prepares string representing se_private_data for tablespace.
+    This is required for IS implementation which uses views on DD tablespace.
+
+    Syntax:
+      string get_dd_tablespace_private_data(dd.tablespace.se_private_data)
+
+    The arguments accept values from se_private_data from 'tablespace'
+    DD table.
+
+ */
+String *Item_func_get_dd_tablespace_private_data::val_str(String *str)
+{
+  DBUG_ENTER("Item_func_get_dd_tablespace_private_data::val_str");
+
+  // Read tablespaces.se_private_data
+  String option;
+  String *option_ptr;
+  std::ostringstream oss("");
+  if ((option_ptr = args[0]->val_str(&option)) != nullptr)
+  {
+    // Read required values from properties
+    std::unique_ptr<dd::Properties> p
+      (dd::Properties::parse_properties(option_ptr->c_ptr_safe()));
+
+    // Read used_flags
+    uint opt_value = 0;
+    char option_buff[350], *ptr;
+    ptr = option_buff;
+
+    if (strcmp(args[1]->val_str(&option)->ptr(), "id") == 0)
+    {
+      if (p->exists("id"))
+      {
+        p->get_uint32("id", &opt_value);
+        ptr = longlong10_to_str(opt_value, ptr, 10);
+      }
+    }
+
+    if (strcmp(args[1]->val_str(&option)->ptr(), "flags") == 0)
+    {
+      if (p->exists("flags"))
+      {
+        p->get_uint32("flags", &opt_value);
+        ptr = longlong10_to_str(opt_value, ptr, 10);
+      }
+    }
+
+    if (ptr == option_buff)
+      oss << "";
+    else
+      oss << option_buff;
+  }
+
+  str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
+
+  DBUG_RETURN(str);
+}
+
+/**
+  @brief
+    This function prepares string representing se_private_data for index.
+    This is required for IS implementation which uses views on DD indexes.
+
+    Syntax:
+      string get_dd_index_private_data(dd.indexes.se_private_data)
+
+    The arguments accept values from se_private_data from 'indexes'
+    DD table.
+
+ */
+String *Item_func_get_dd_index_private_data::val_str(String *str)
+{
+  DBUG_ENTER("Item_func_get_dd_index_private_data::val_str");
+
+  // Read indexes.se_private_data
+  String option;
+  String *option_ptr;
+  std::ostringstream oss("");
+  if ((option_ptr = args[0]->val_str(&option)) != nullptr)
+  {
+    // Read required values from properties
+    std::unique_ptr<dd::Properties> p
+      (dd::Properties::parse_properties(option_ptr->c_ptr_safe()));
+
+    // Read used_flags
+    uint opt_value = 0;
+    char option_buff[350], *ptr;
+    ptr = option_buff;
+
+    if (strcmp(args[1]->val_str(&option)->ptr(), "id") == 0)
+    {
+      if (p->exists("id"))
+      {
+        p->get_uint32("id", &opt_value);
+        ptr=longlong10_to_str(opt_value, ptr, 10);
+      }
+    }
+
+    if (strcmp(args[1]->val_str(&option)->ptr(), "root") == 0)
+    {
+      if (p->exists("root"))
+      {
+        p->get_uint32("root", &opt_value);
+        ptr=longlong10_to_str(opt_value, ptr, 10);
+      }
+    }
+
+    if (strcmp(args[1]->val_str(&option)->ptr(), "trx_id") == 0)
+    {
+      if (p->exists("trx_id"))
+      {
+        p->get_uint32("trx_id", &opt_value);
+        ptr=longlong10_to_str(opt_value, ptr, 10);
+      }
+    }
+
+    if (ptr == option_buff)
+      oss << "";
+    else
+      oss << option_buff;
+  }
+
   str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
 
   DBUG_RETURN(str);
@@ -4971,4 +5172,53 @@ mysqld_collation_get_by_name(const char *name, CHARSET_INFO *name_cs)
   return cs;
 }
 
+
+String *Item_func_convert_cpu_id_mask::val_str(String *str)
+{
+  DBUG_ENTER("Item_func_convert_cpu_id_mask::val_str");
+  null_value= FALSE;
+
+  String  cpu_mask;
+  String *cpu_mask_str= args[0]->val_str(&cpu_mask);
+
+  if (cpu_mask_str == nullptr || cpu_mask_str->length() == 0)
+  {
+    null_value= TRUE;
+    DBUG_RETURN(nullptr);
+  }
+
+  std::ostringstream oss("");
+  cpu_mask_str->set_charset(&my_charset_bin);
+
+
+  int bit_start= -1, bit_end= -1;
+  int start_pos= cpu_mask_str->length() - 1;
+  bool first= true;
+  for (int i= start_pos; i >= 0; i--)
+  {
+    if (cpu_mask_str->ptr()[i] == '1')
+      bit_start == -1 ? (bit_start= bit_end= start_pos - i) : bit_end++;
+    else
+      if (bit_start != -1)
+      {
+        if (first)
+          first= false;
+        else
+          oss << ",";
+
+        if (bit_start == bit_end)
+          oss << bit_start;
+        else
+          oss << bit_start << "-" << bit_end;
+        bit_start= bit_end= -1;
+      }
+  }
+  if (oss.str().length() == 0)
+    oss << "0-"<<
+      resourcegroups::Resource_group_mgr::instance()->num_vcpus() - 1;
+
+  str->copy(oss.str().c_str(), oss.str().length(), &my_charset_bin);
+
+  DBUG_RETURN(str);
+}
 

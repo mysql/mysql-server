@@ -24,7 +24,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
-#include "semisync_slave.h"
+#include "plugin/semisync/semisync_slave.h"
 
 ReplSemiSyncSlave repl_semisync;
 
@@ -38,6 +38,14 @@ ReplSemiSyncSlave repl_semisync;
 bool semi_sync_need_reply= false;
 
 C_MODE_START
+
+static int repl_semi_apply_slave(Binlog_relay_IO_param *,
+                                 Trans_param *,
+                                 int&)
+{
+  // TODO: implement
+  return 0;
+}
 
 static int repl_semi_reset_slave(Binlog_relay_IO_param*)
 {
@@ -222,6 +230,7 @@ Binlog_relay_IO_observer relay_io_observer = {
   repl_semi_slave_read_event,	// after_read_event
   repl_semi_slave_queue_event,	// after_queue_event
   repl_semi_reset_slave,	// reset
+  repl_semi_apply_slave         // apply
 };
 
 static int semi_sync_slave_plugin_init(void *p)

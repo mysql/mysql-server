@@ -23,7 +23,7 @@
 #include <NdbOut.hpp>
 #include "ConfigInfo.hpp"
 #include "EventLogger.hpp"
-#include <m_string.h>
+#include "m_string.h"
 #include <util/SparseBitmask.hpp>
 #include "../common/util/parse_mask.hpp"
 
@@ -652,9 +652,9 @@ InitConfigFileParser::Context::reportWarning(const char * fmt, ...){
                          m_lineno, buf);
 }
 
-#include <my_sys.h>
-#include <my_getopt.h>
-#include <my_default.h>
+#include "my_sys.h"
+#include "my_getopt.h"
+#include "my_default.h"
 
 static int order = 1;
 static 

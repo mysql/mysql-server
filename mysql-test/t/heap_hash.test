@@ -250,7 +250,6 @@ create table t3
   key (a,b)
 ) charset latin1 engine=heap;
 insert into t3 select name, name from t1;
-analyze table t3;
 show index from t3;
 show index from t3;
 

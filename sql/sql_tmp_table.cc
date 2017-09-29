@@ -18,7 +18,7 @@
   Temporary tables implementation.
 */
 
-#include "sql_tmp_table.h"
+#include "sql/sql_tmp_table.h"
 
 #include <fcntl.h>
 #include <stdio.h>
@@ -26,20 +26,10 @@
 #include <cstring>
 #include <new>
 
-#include "auth_common.h"
 #include "binary_log_types.h"
-#include "current_thd.h"
-#include "debug_sync.h"           // DEBUG_SYNC
-#include "field.h"
-#include "filesort.h"             // filesort_free_buffers
-#include "handler.h"
-#include "item_func.h"            // Item_func
-#include "item_sum.h"             // Item_sum
-#include "key.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
-#include "mem_root_array.h"       // Mem_root_array
 #include "my_alloc.h"
 #include "my_bitmap.h"
 #include "my_compare.h"
@@ -53,35 +43,48 @@
 #include "myisam.h"               // MI_COLUMNDEF
 #include "mysql/service_my_snprintf.h"
 #include "mysql_com.h"
-#include "mysqld.h"               // heap_hton
 #include "mysqld_error.h"
-#include "opt_range.h"            // QUICK_SELECT_I
-#include "opt_trace.h"            // Opt_trace_object
-#include "opt_trace_context.h"    // Opt_trace_context
-#include "psi_memory_key.h"
-#include "query_options.h"
-#include "sql_base.h"             // free_io_cache
-#include "sql_bitmap.h"
-#include "sql_class.h"            // THD
-#include "sql_const.h"
-#include "sql_executor.h"         // SJ_TMP_TABLE
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_opt_exec_shared.h"
-#include "sql_parse.h"
-#include "sql_plugin.h"           // plugin_unlock
-#include "sql_plugin_ref.h"
-#include "sql_select.h"
-#include "sql_servers.h"
-#include "system_variables.h"
-#include "temp_table_param.h"
+#include "sql/auth/auth_common.h"
+#include "sql/current_thd.h"
+#include "sql/debug_sync.h"       // DEBUG_SYNC
+#include "sql/field.h"
+#include "sql/filesort.h"         // filesort_free_buffers
+#include "sql/handler.h"
+#include "sql/item_func.h"        // Item_func
+#include "sql/item_sum.h"         // Item_sum
+#include "sql/key.h"
+#include "sql/mem_root_array.h"   // Mem_root_array
+#include "sql/mysqld.h"           // heap_hton
+#include "sql/opt_range.h"        // QUICK_SELECT_I
+#include "sql/opt_trace.h"        // Opt_trace_object
+#include "sql/opt_trace_context.h" // Opt_trace_context
+#include "sql/psi_memory_key.h"
+#include "sql/query_options.h"
+#include "sql/sql_base.h"         // free_io_cache
+#include "sql/sql_bitmap.h"
+#include "sql/sql_class.h"        // THD
+#include "sql/sql_const.h"
+#include "sql/sql_executor.h"     // SJ_TMP_TABLE
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_opt_exec_shared.h"
+#include "sql/sql_parse.h"
+#include "sql/sql_plugin.h"       // plugin_unlock
+#include "sql/sql_plugin_ref.h"
+#include "sql/sql_select.h"
+#include "sql/sql_servers.h"
+#include "sql/system_variables.h"
+#include "sql/temp_table_param.h"
+#include "sql/thr_malloc.h"
+#include "sql/window.h"
 #include "template_utils.h"
 #include "thr_lock.h"
-#include "thr_malloc.h"
-#include "window.h"
 
 using std::max;
 using std::min;
+static bool setup_tmp_table_handler(TABLE *table, ulonglong select_options,
+                             bool force_disk_table, bool schema_table);
+static bool alloc_record_buffers(TABLE *table);
 
 /****************************************************************************
   Create internal temporary table
@@ -709,6 +712,38 @@ static void set_real_row_type(TABLE *table)
 
 
 /**
+  Helper function for create_tmp_table_* family for setting tmp table fields
+  to their place in record buffer
+
+  @param field      field to set
+  @param pos        field's position in table's record buffer
+  @param null_flags beginning of table's null bits buffer
+  @param null_count  field's null bit in null bits buffer
+*/
+
+inline void relocate_field(Field *field, uchar *pos, uchar *null_flags,
+                           uint *null_count)
+{
+  if (!(field->flags & NOT_NULL_FLAG))
+  {
+    field->move_field(pos, null_flags + *null_count / 8,
+                      (uint8)1 << (*null_count & 7));
+    (*null_count)++;
+  }
+  else
+    field->move_field(pos,(uchar*) 0, 0);
+  if (field->type() == MYSQL_TYPE_BIT)
+  {
+    /* We have to reserve place for extra bits among null bits */
+    ((Field_bit*) field)->set_bit_ptr(null_flags + *null_count / 8,
+                                      *null_count & 7);
+    (*null_count)+= (field->field_length & 7);
+  }
+  field->reset();
+}
+
+
+/**
   Create a temp table according to a field list.
 
   Given field pointers are changed to point at tmp_table for
@@ -774,7 +809,6 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   bool  using_unique_constraint= false;
   bool  use_packed_rows= false;
   const bool not_all_columns= !(select_options & TMP_TABLE_ALL_COLUMNS);
-  char  *tmpname,path[FN_REFLEN];
   uchar	*pos, *group_buff, *bitmaps;
   uchar *null_flags;
   Field **reg_field, **from_field, **default_field;
@@ -798,17 +832,6 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
              ("distinct: %d  save_sum_fields: %d  rows_limit: %lu  group: %d",
               (int) distinct, (int) save_sum_fields,
               (ulong) rows_limit, static_cast<bool>(group)));
-
-  DBUG_ASSERT(sizeof(my_thread_id) == 4);
-  sprintf(path,"%s%lx_%x_%x", tmp_file_prefix, current_pid,
-          thd->thread_id(), thd->tmp_table++);
-
-  /*
-    No need to change table name to lower case as we are only creating
-    MyISAM or HEAP tables here
-  */
-  fn_format(path, path, mysql_tmpdir, "", MY_REPLACE_EXT|MY_UNPACK_FILENAME);
-
   if (group)
   {
     if (!param->quick_group)
@@ -868,7 +891,6 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
                         sizeof(*key_part_info)*(param->group_parts+1),
                         &param->start_recinfo,
                         sizeof(*param->recinfo)*(field_count*2+4),
-                        &tmpname, strlen(path)+1,
                         &group_buff, (group && !using_unique_constraint ?
                                       param->group_length : 0),
                         &bitmaps, bitmap_buffer_size(field_count + 1) * 3,
@@ -883,7 +905,6 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
     DBUG_RETURN(NULL);				/* purecov: inspected */
   }
   param->items_to_copy= copy_func;
-  my_stpcpy(tmpname,path);
   /* make table according to fields */
 
   memset(table, 0, sizeof(*table));
@@ -895,28 +916,8 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   reg_field++;
   default_field++;
   from_field++;
-  table->field= reg_field;
-  table->alias= table_alias;
-  table->reginfo.lock_type=TL_WRITE;	/* Will be updated */
-  table->db_stat=HA_OPEN_KEYFILE+HA_OPEN_RNDFILE;
-  table->copy_blobs= 1;
-  table->in_use= thd;
-  table->quick_keys.init();
-  table->possible_quick_keys.init();
-  table->covering_keys.init();
-  table->merge_keys.init();
-  table->keys_in_use_for_query.init();
-  table->keys_in_use_for_group_by.init();
-  table->keys_in_use_for_order_by.init();
-  table->set_not_started();
-#ifndef DBUG_OFF
-  table->set_tmp_table_seq_id(thd->get_tmp_table_seq_id());
-#endif
-
-  table->s= share;
-  init_tmp_table_share(thd, share, "", 0, tmpname, tmpname, &own_root);
-  share->ref_count++;
-
+  table->init_tmp_table(thd, share, &own_root, param->table_charset,
+                        table_alias, reg_field, blob_field, false);
   /*
     We will use TABLE_SHARE's MEM_ROOT for all allocations, so TABLE's
     MEM_ROOT remains uninitialized.
@@ -927,14 +928,6 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   thd->mem_root= &share->mem_root;
   copy_func->set_mem_root(&share->mem_root);
 
-  share->field= table->field;
-  share->blob_field= blob_field;
-  share->db_low_byte_first=1;                // True for HEAP and MyISAM
-  share->table_charset= param->table_charset;
-  share->primary_key= MAX_KEY;               // Indicate no primary key
-  share->keys_for_keyread.init();
-  share->keys_in_use.init();
-  share->keys= 0;
   if (param->schema_table)
     share->db= INFORMATION_SCHEMA_NAME;
 
@@ -1306,84 +1299,32 @@ update_hidden:
     using_unique_constraint= true;
   }
 
-  /* If result table is small; use a heap */
-  if (select_options & TMP_TABLE_FORCE_MYISAM)
-    share->db_plugin= ha_lock_engine(0, myisam_hton);
-  else if (blob_count ||                        // 1
-           (thd->variables.big_tables &&        // 2
-            !(select_options & SELECT_SMALL_RESULT)) ||
-           (param->allow_scan_from_position && using_unique_constraint && //3
-            thd->variables.internal_tmp_mem_storage_engine ==
-              TMP_TABLE_MEMORY) ||
-           opt_initialize) // 4
-  {
-    /*
-      1: MEMORY and TempTable do not support BLOBs
-      2: User said the result would be big, so may not fit in memory
-      3: unique constraint is implemented as index lookups (ha_index_read); if
-      allow_scan_from_position is true, we will be doing, on table->file:
-      Initialize Scan (rnd_init), Read Next Row (rnd_next, many times),
-      Get Position of Current row (position()), End Scan (rnd_end),
-      Write Row (write_row, many times),
-      Initialize Scan (rnd_init), Read Row at Position (rnd_pos),
-      Read Next Row (rnd_next).
-      This will work if TempTable is used, but will not work for the Heap
-      engine (TMP_TABLE_MEMORY) for the reason below. So only pick
-      on-disk if the configured engine is Heap.
-      write_row checks unique constraint so calls ha_index_read.
-      rnd_pos re-starts the scan on the same row where it had left. In
-      MEMORY, write_row modifies this member of the cursor:
-      HEAP_INFO::current_ptr; current_ptr is properly restored by
-      rnd_pos. But the write, to check the unique constraint, calls
-      ha_index_read (hp_rkey) which modifies another member of the cursor:
-      HEAP_INFO::current_record, which rnd_pos cannot restore. In that case,
-      rnd_pos will work, but rnd_next won't. Thus we switch to InnoDB.
-      4: During bootstrap, the heap engine is not available, so we force using
-      InnoDB. This is especially hit when creating a I_S system view
-      definition with a UNION in it.
+  /*
+    On the 3rd argument - force_disk_table:
 
-      Except for special conditions, tmp table engine will be chosen by user.
-    */
-    switch (internal_tmp_disk_storage_engine)
-    {
-    case TMP_TABLE_MYISAM:
-      share->db_plugin= ha_lock_engine(0, myisam_hton);
-      break;
-    case TMP_TABLE_INNODB:
-      share->db_plugin= ha_lock_engine(0, innodb_hton);
-      break;
-    default:
-      DBUG_ASSERT(0); /* purecov: deadcode */
-      share->db_plugin= ha_lock_engine(0, innodb_hton);
-    }
-  }
-  else
-  {
-    share->db_plugin= nullptr;
-    switch ((enum_internal_tmp_mem_storage_engine)
-              thd->variables.internal_tmp_mem_storage_engine)
-    {
-    case TMP_TABLE_TEMPTABLE:
-      if (!param->schema_table) {
-        share->db_plugin= ha_lock_engine(0, temptable_hton);
-        break;
-      }
-      /* For information_schema tables we use the Heap engine because we do
-      not allow user-created TempTable tables and even though information_schema
-      tables are not user-created, an ingenious user may execute:
-      CREATE TABLE myowntemptabletable LIKE information_schema.some; */
-      /* Fall-through. */
-    case TMP_TABLE_MEMORY:
-      share->db_plugin= ha_lock_engine(0, heap_hton);
-      break;
-    }
-    DBUG_ASSERT(share->db_plugin != nullptr);
-  }
-
-  table->file= get_new_handler(share, false, &share->mem_root,
-                               share->db_type());
-
-  if (!table->file)
+    unique constraint is implemented as index lookups (ha_index_read); if
+    allow_scan_from_position is true, we will be doing, on table->file:
+    Initialize Scan (rnd_init), Read Next Row (rnd_next, many times),
+    Get Position of Current row (position()), End Scan (rnd_end),
+    Write Row (write_row, many times),
+    Initialize Scan (rnd_init), Read Row at Position (rnd_pos),
+    Read Next Row (rnd_next).
+    This will work if TempTable is used, but will not work for the Heap
+    engine (TMP_TABLE_MEMORY) for the reason below. So only pick
+    on-disk if the configured engine is Heap.
+    write_row checks unique constraint so calls ha_index_read.
+    rnd_pos re-starts the scan on the same row where it had left. In
+    MEMORY, write_row modifies this member of the cursor:
+    HEAP_INFO::current_ptr; current_ptr is properly restored by
+    rnd_pos. But the write, to check the unique constraint, calls
+    ha_index_read (hp_rkey) which modifies another member of the cursor:
+    HEAP_INFO::current_record, which rnd_pos cannot restore. In that case,
+    rnd_pos will work, but rnd_next won't. Thus we switch to InnoDB.
+  */
+  if (setup_tmp_table_handler(table, select_options,
+            (param->allow_scan_from_position && using_unique_constraint &&
+            thd->variables.internal_tmp_mem_storage_engine == TMP_TABLE_MEMORY),
+            param->schema_table))
     goto err;                                   /* purecov: inspected */
 
   if (table->s->keys == 1 && table->key_info)
@@ -1418,18 +1359,7 @@ update_hidden:
     table->hash_field= field;
   }
 
-  // Update the handler with information about the table object
-  table->file->change_table_ptr(table, share);
   table->hidden_field_count= param->hidden_field_count;
-
-  if (table->file->set_ha_share_ref(&share->ha_share))
-  {
-    destroy(table->file);
-    goto err;
-  }
-
-  // Initialize cost model for this table
-  table->init_cost_model(thd->cost_model());
 
   if (!using_unique_constraint)
     reclength+= group_null_items;	// null flag is stored separately
@@ -1460,22 +1390,11 @@ update_hidden:
     share->db_create_options&= ~HA_OPTION_PACK_RECORD;
 
   share->reclength= reclength;
-  {
-    uint alloc_length=ALIGN_SIZE(reclength+MI_UNIQUE_HASH_LENGTH+1);
-    share->rec_buff_length= alloc_length;
-    if (!(table->record[0]= (uchar*)
-          alloc_root(&share->mem_root, alloc_length*3 + null_pack_length)))
-      goto err;
-    table->record[1]= table->record[0]+alloc_length;
-    /*
-      Note that code in open_table_from_share() relies on the fact that
-      for optimizer-created temporary tables TABLE_SHARE::default_values
-      is allocated in a single chuck with TABLE::record[0] for the first
-      TABLE instance.
-    */
-    share->default_values= table->record[1]+alloc_length;
-    table->null_flags_saved= share->default_values + alloc_length;
-  }
+  share->null_bytes= null_pack_length;
+  share->null_fields= null_count+ hidden_null_count;
+
+  if (alloc_record_buffers(table))
+    goto err;
   param->func_count= copy_func->size();
   DBUG_ASSERT(param->func_count <= copy_func_count); // Used <= allocated
 
@@ -1490,11 +1409,6 @@ update_hidden:
     recinfo->type=FIELD_NORMAL;
     recinfo->length=null_pack_length;
     recinfo++;
-    memset(null_flags, 255, null_pack_length);	// Set null fields
-
-    table->null_flags= table->record[0];
-    share->null_fields= null_count+ hidden_null_count;
-    share->null_bytes= null_pack_length;
   }
   null_count= (blob_count == 0) ? 1 : 0;
   hidden_field_count=param->hidden_field_count;
@@ -1524,20 +1438,8 @@ update_hidden:
 	recinfo->null_bit= (uint8)1 << (null_count & 7);
 	recinfo->null_pos= null_count/8;
       }
-      field->move_field(pos,null_flags+null_count/8,
-			(uint8)1 << (null_count & 7));
-      null_count++;
     }
-    else
-      field->move_field(pos,(uchar*) 0,0);
-    if (field->type() == MYSQL_TYPE_BIT)
-    {
-      /* We have to reserve place for extra bits among null bits */
-      ((Field_bit*) field)->set_bit_ptr(null_flags + null_count / 8,
-                                        null_count & 7);
-      null_count+= (field->field_length & 7);
-    }
-    field->reset();
+    relocate_field(field, pos, null_flags, &null_count);
 
     /*
       Test if there is a default field value. The test for ->ptr is to skip
@@ -1612,15 +1514,6 @@ update_hidden:
   param->recinfo=recinfo;
   store_record(table,s->default_values);        // Make empty default record
 
-  if (thd->variables.tmp_table_size == ~ (ulonglong) 0)		// No limit
-    share->max_rows= ~(ha_rows) 0;
-  else
-    share->max_rows= (ha_rows) (((share->db_type() == heap_hton) ?
-                                 min(thd->variables.tmp_table_size,
-                                     thd->variables.max_heap_table_size) :
-                                 thd->variables.tmp_table_size) /
-			         share->reclength);
-  set_if_bigger(share->max_rows,1);		// For dummy start options
   /*
     Push the LIMIT clause to the temporary table creation, so that we
     materialize only up to 'rows_limit' records instead of all result records.
@@ -1710,7 +1603,7 @@ update_hidden:
     hash_key->user_defined_key_parts= 1;
     hash_key->set_rec_per_key_array(NULL, NULL);
     hash_key->algorithm= table->file->get_default_index_algorithm();
-    keyinfo->set_in_memory_estimate(IN_MEMORY_ESTIMATE_UNKNOWN);
+    hash_key->set_in_memory_estimate(IN_MEMORY_ESTIMATE_UNKNOWN);
     if (distinct)
       hash_key->name= (char*) "<hash_distinct_key>";
     else
@@ -1788,7 +1681,6 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   MEM_ROOT *mem_root_save, own_root;
   TABLE *table;
   TABLE_SHARE *share;
-  char	*tmpname,path[FN_REFLEN];
   Field **reg_field;
   KEY_PART_INFO *key_part_info;
   KEY *keyinfo;
@@ -1805,19 +1697,11 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
 
   DBUG_ENTER("create_duplicate_weedout_tmp_table");
   DBUG_ASSERT(!sjtbl->is_confluent);
-  /*
-    STEP 1: Get temporary table name
-  */
-  DBUG_ASSERT(sizeof(my_thread_id) == 4);
-  sprintf(path,"%s%lx_%x_%x", tmp_file_prefix,current_pid,
-          thd->thread_id(), thd->tmp_table++);
-  fn_format(path, path, mysql_tmpdir, "", MY_REPLACE_EXT|MY_UNPACK_FILENAME);
-
-  /* STEP 2: Figure if we'll be using a key or blob+constraint */
+  /* STEP 1: Figure if we'll be using a key or blob+constraint */
   if (uniq_tuple_length_arg > CONVERT_IF_BIGGER_TO_BLOB)
     using_unique_constraint= true;
 
-  /* STEP 3: Allocate memory for temptable description */
+  /* STEP 2: Allocate memory for temptable description */
   init_sql_alloc(key_memory_TABLE, &own_root, TABLE_ALLOC_BLOCK_SIZE, 0);
   if (!multi_alloc_root(&own_root,
                         &table, sizeof(*table),
@@ -1828,7 +1712,6 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
                         &key_part_info, sizeof(*key_part_info) * 2,
                         &start_recinfo,
                         sizeof(*recinfo)*(1*2+2),
-                        &tmpname, strlen(path)+1,
                         &group_buff, (!using_unique_constraint ?
                                       uniq_tuple_length_arg : 0),
                         &bitmaps, bitmap_buffer_size(1) * 3,
@@ -1836,41 +1719,15 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   {
     DBUG_RETURN(NULL);
   }
-  my_stpcpy(tmpname,path);
 
-  /* STEP 4: Create TABLE description */
+  /* STEP 3: Create TABLE description */
   memset(table, 0, sizeof(*table));
   memset(reg_field, 0, sizeof(Field*) * 3);
-
-  table->field=reg_field;
-  table->alias= "weedout-tmp";
-  table->reginfo.lock_type=TL_WRITE;	/* Will be updated */
-  table->db_stat=HA_OPEN_KEYFILE+HA_OPEN_RNDFILE;
-  table->copy_blobs= 1;
-  table->in_use= thd;
-  table->quick_keys.init();
-  table->possible_quick_keys.init();
-  table->covering_keys.init();
-  table->keys_in_use_for_query.init();
-  table->set_not_started();
-#ifndef DBUG_OFF
-  table->set_tmp_table_seq_id(thd->get_tmp_table_seq_id());
-#endif
-
-  table->s= share;
-  init_tmp_table_share(thd, share, "", 0, tmpname, tmpname, &own_root);
-  share->ref_count++;
+  table->init_tmp_table(thd, share, &own_root, NULL, "weedout-tmp",
+                        reg_field, blob_field, false);
 
   mem_root_save= thd->mem_root;
   thd->mem_root= &share->mem_root;
-
-  share->blob_field= blob_field;
-  share->db_low_byte_first=1;                // True for HEAP and MyISAM
-  share->table_charset= NULL;
-  share->primary_key= MAX_KEY;               // Indicate no primary key
-  share->keys_for_keyread.init();
-  share->keys_in_use.init();
-  share->field= reg_field;
 
   uint reclength= 0;
   uint null_count= 0;
@@ -1886,7 +1743,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
       goto err;				// Got OOM
     }
     // Mark hash_field as NOT NULL
-    field->flags &= NOT_NULL_FLAG;
+    field->flags= NOT_NULL_FLAG;
     *(reg_field++)= sjtbl->hash_field= field;
     table->hash_field= field;
     field->table= field->orig_table= table;
@@ -1921,64 +1778,19 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
     null_count++;
   }
 
-  if (using_unique_constraint)
-  {
-    switch (internal_tmp_disk_storage_engine)
-    {
-    case TMP_TABLE_MYISAM:
-      share->db_plugin= ha_lock_engine(0, myisam_hton);
-      break;
-    case TMP_TABLE_INNODB:
-      share->db_plugin= ha_lock_engine(0, innodb_hton);
-      break;
-    default:
-      DBUG_ASSERT(0); /* purecov: deadcode */
-      share->db_plugin= ha_lock_engine(0, innodb_hton);
-    }
-    table->file= get_new_handler(share, false, &share->mem_root,
-                                 share->db_type());
-  }
-  else
-  {
-    share->db_plugin= nullptr;
-    switch ((enum_internal_tmp_mem_storage_engine)
-              thd->variables.internal_tmp_mem_storage_engine)
-    {
-    case TMP_TABLE_TEMPTABLE:
-      share->db_plugin= ha_lock_engine(0, temptable_hton);
-      break;
-    case TMP_TABLE_MEMORY:
-      share->db_plugin= ha_lock_engine(0, heap_hton);
-      break;
-    }
-    DBUG_ASSERT(share->db_plugin != nullptr);
-    table->file= get_new_handler(share, false, &share->mem_root,
-                                 share->db_type());
-  }
-
-
-  if (!table->file)
+  /* See also create_tmp_table() */
+  if (setup_tmp_table_handler(table, 0LL, using_unique_constraint, false))
     goto err;
-
-  if (table->file->set_ha_share_ref(&share->ha_share))
-  {
-    destroy(table->file);
-    goto err;
-  }
 
   null_pack_length= 1;
   reclength+= null_pack_length;
 
   share->reclength= reclength;
-  {
-    uint alloc_length= ALIGN_SIZE(share->reclength + MI_UNIQUE_HASH_LENGTH+1);
-    share->rec_buff_length= alloc_length;
-    if (!(table->record[0]= (uchar*)
-                            alloc_root(&share->mem_root, alloc_length * 3)))
-      goto err;
-    table->record[1]= table->record[0] + alloc_length;
-    share->default_values= table->record[1] + alloc_length;
-  }
+  share->null_bytes= null_pack_length;
+  share->null_fields= null_count;
+
+  if (alloc_record_buffers(table))
+    goto err;
   setup_tmp_table_column_bitmaps(table, bitmaps);
 
   recinfo= start_recinfo;
@@ -1991,11 +1803,6 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
     recinfo->type= FIELD_NORMAL;
     recinfo->length= null_pack_length;
     recinfo++;
-    memset(null_flags, 255, null_pack_length);	// Set null fields
-
-    table->null_flags= table->record[0];
-    share->null_fields= null_count;
-    share->null_bytes= null_pack_length;
   }
   null_count=1;
   for (i=0, reg_field=table->field; i < share->fields;
@@ -2006,40 +1813,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
     /* Table description for the concatenated rowid column */
     memset(recinfo, 0, sizeof(*recinfo));
 
-    if (!(field->flags & NOT_NULL_FLAG))
-    {
-      if (field->flags & GROUP_FLAG && !using_unique_constraint)
-      {
-        /*
-          We have to reserve one byte here for NULL bits,
-          as this is updated by 'end_update()'
-        */
-        *pos++= 0;				// Null is stored here
-        recinfo->length= 1;
-        recinfo->type= FIELD_NORMAL;
-        recinfo++;
-        memset(recinfo, 0, sizeof(*recinfo));
-      }
-      else
-      {
-        recinfo->null_bit= (uint8)1 << (null_count & 7);
-        recinfo->null_pos= null_count/8;
-      }
-      field->move_field(pos,null_flags+null_count/8,
-                        (uint8)1 << (null_count & 7));
-      null_count++;
-    }
-    else
-      field->move_field(pos,(uchar*) 0, 0);
-    if (field->type() == MYSQL_TYPE_BIT)
-    {
-      /* We have to reserve place for extra bits among null bits */
-      ((Field_bit*) field)->set_bit_ptr(null_flags + null_count / 8,
-                                        null_count & 7);
-      null_count+= (field->field_length & 7);
-    }
-    field->reset();
-
+    relocate_field(field, pos, null_flags, &null_count);
     length= field->pack_length();
     pos+= length;
 
@@ -2054,17 +1828,6 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
     // fix table name in field entry
     field->table_name= &table->alias;
   }
-
-  if (thd->variables.tmp_table_size == ~ (ulonglong) 0)		// No limit
-    share->max_rows= ~(ha_rows) 0;
-  else
-    share->max_rows= (ha_rows) (((share->db_type() == heap_hton) ?
-                                 min(thd->variables.tmp_table_size,
-                                     thd->variables.max_heap_table_size) :
-                                 thd->variables.tmp_table_size) /
-			         share->reclength);
-  set_if_bigger(share->max_rows,1);		// For dummy start options
-
 
   // Create a key over param->hash_field to enforce unique constraint
   if (using_unique_constraint)
@@ -2136,9 +1899,11 @@ err:
 /****************************************************************************/
 
 /**
-  Create a reduced TABLE object with properly set up Field list from a
-  list of field definitions.
+  Create an, optionally reduced, TABLE object with properly set up Field list
+  from a list of field definitions.
 
+  @details
+  When is_virtual arg is true:
     The created table doesn't have a table handler associated with
     it, has no keys, no group/distinct, no copy_funcs array.
     The sole purpose of this TABLE object is to use the power of Field
@@ -2146,19 +1911,35 @@ err:
     the record in any container (RB tree, hash, etc).
     The table is created in THD mem_root, so are the table's fields.
     Consequently, if you don't BLOB fields, you don't need to free it.
+  When is_virtual is false:
+    This function creates a normal tmp table out of fields' definitions,
+    rather than from lst of items. This is the main difference with
+    create_tmp_table. Also the table created here doesn't do grouping,
+    doesn't have indexes and copy_funcs/fields. The purpose is to be able to
+    create result table for table functions out of fields' definitions
+    without need in intermediate list of items.
 
   @param thd         connection handle
   @param field_list  list of column definitions
+  @param is_virtual  if true, then it's effectively only a record buffer
+                       with wrapper, used e.g to store vars in SP
+                     if false, then a normal table, which can hold
+                       records, is created
+  @param select_options options for non-virtual tmp table
+  @param alias       table's alias
 
   @return
     0 if out of memory, TABLE object in case of success
 */
 
-TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
+TABLE *create_tmp_table_from_fields(THD *thd, List<Create_field> &field_list,
+                                    bool is_virtual,
+                                    ulonglong select_options,
+                                    const char* alias)
 {
   uint field_count= field_list.elements;
   uint blob_count= 0;
-  Field **field;
+  Field **reg_field;
   Create_field *cdef;                           /* column definition */
   uint record_length= 0;
   uint null_count= 0;                 /* number of columns which may be null */
@@ -2167,11 +1948,24 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
   uchar *bitmaps;
   TABLE *table;
   TABLE_SHARE *share;
+  MEM_ROOT own_root, *m_root;
+  /*
+    total_uneven_bit_length is uneven bit length for BIT fields
+  */
+  uint total_uneven_bit_length= 0;
 
-  if (!multi_alloc_root(thd->mem_root,
+  if (!is_virtual)
+  {
+    init_sql_alloc(key_memory_TABLE, &own_root, TABLE_ALLOC_BLOCK_SIZE, 0);
+    m_root= &own_root;
+  }
+  else
+    m_root= thd->mem_root;
+
+  if (!multi_alloc_root(m_root,
                         &table, sizeof(*table),
                         &share, sizeof(*share),
-                        &field, (field_count + 1) * sizeof(Field*),
+                        &reg_field, (field_count + 1) * sizeof(Field*),
                         &blob_field, (field_count+1) *sizeof(uint),
                         &bitmaps, bitmap_buffer_size(field_count) * 3,
                         NullS))
@@ -2179,106 +1973,241 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
 
   memset(table, 0, sizeof(*table));
   memset(share, 0, sizeof(*share));
-  table->field= field;
-  table->set_not_started();
-  table->s= share;
-  share->blob_field= blob_field;
-  share->fields= field_count;
-  share->field= field;
-  share->db_low_byte_first=1;                // True for HEAP and MyISAM
-  setup_tmp_table_column_bitmaps(table, bitmaps);
-  share->ref_count++;
+  table->init_tmp_table(thd, share, m_root, NULL, alias, reg_field,
+                        blob_field, is_virtual);
 
   /* Create all fields and calculate the total length of record */
   List_iterator_fast<Create_field> it(field_list);
+  uint idx= 0;
   while ((cdef= it++))
   {
-    *field= make_field(share, 0, cdef->length,
-                       (uchar*) (cdef->maybe_null ? "" : 0),
-                       cdef->maybe_null ? 1 : 0,
-                       cdef->sql_type, cdef->charset,
-                       cdef->geom_type, cdef->auto_flags,
-                       cdef->interval, cdef->field_name,
-                       cdef->maybe_null, cdef->is_zerofill,
-                       cdef->is_unsigned, cdef->decimals,
-                       cdef->treat_bit_as_char,
-                       cdef->pack_length_override);
-    if (!*field)
+    *reg_field= make_field(share, 0, cdef->length,
+                           (uchar*) (cdef->maybe_null ? "" : 0),
+                           cdef->maybe_null ? 1 : 0,
+                           cdef->sql_type, cdef->charset,
+                           cdef->geom_type, cdef->auto_flags,
+                           cdef->interval, cdef->field_name,
+                           cdef->maybe_null, cdef->is_zerofill,
+                           cdef->is_unsigned, cdef->decimals,
+                           cdef->treat_bit_as_char,
+                           cdef->pack_length_override, cdef->m_srid);
+    if (!*reg_field)
       goto error;
-    (*field)->init(table);
-    record_length+= (*field)->pack_length();
-    if (! ((*field)->flags & NOT_NULL_FLAG))
+    (*reg_field)->init(table);
+    record_length+= (*reg_field)->pack_length();
+    if (! ((*reg_field)->flags & NOT_NULL_FLAG))
       null_count++;
+    (*reg_field)->field_index= idx++;
+    if ((*reg_field)->type() == MYSQL_TYPE_BIT)
+      total_uneven_bit_length+= (*reg_field)->field_length & 7;
 
-    if ((*field)->flags & BLOB_FLAG)
-      share->blob_field[blob_count++]= (uint) (field - table->field);
+    if ((*reg_field)->flags & BLOB_FLAG)
+      share->blob_field[blob_count++]= (uint) (reg_field - table->field);
 
-    field++;
+    reg_field++;
   }
-  *field= NULL;                             /* mark the end of the list */
+  *reg_field= NULL;                             /* mark the end of the list */
   share->blob_field[blob_count]= 0;            /* mark the end of the list */
   share->blob_fields= blob_count;
 
-  null_pack_length= (null_count + 7)/8;
+  null_pack_length= (null_count + total_uneven_bit_length + 7)/8;
   share->reclength= record_length + null_pack_length;
-  share->rec_buff_length= ALIGN_SIZE(share->reclength + 1);
-  table->record[0]= (uchar*) thd->alloc(share->rec_buff_length);
-  if (!table->record[0])
-    goto error;
+  share->null_bytes= null_pack_length;
+  share->null_fields= null_count;
+  share->fields= field_count;
 
-  if (null_pack_length)
+  if (is_virtual)
   {
-    table->null_flags= table->record[0];
-    share->null_fields= null_count;
-    share->null_bytes= null_pack_length;
-  }
-
-  table->in_use= thd;           /* field->reset() may access table->in_use */
-  {
-    /* Set up field pointers */
-    uchar *null_pos= table->record[0];
-    uchar *field_pos= null_pos + share->null_bytes;
-    uint null_bit= 1;
-
-    for (field= table->field; *field; ++field)
+    /*
+      When the table is virtual, updates won't be done on the table and
+      default values won't be stored. Thus no need to allocate buffers for
+      that.
+    */
+    share->rec_buff_length= ALIGN_SIZE(share->reclength + 1);
+    table->record[0]= (uchar*) thd->alloc(share->rec_buff_length);
+    if (!table->record[0])
+      goto error;
+    if (null_pack_length)
     {
-      Field *cur_field= *field;
-      if ((cur_field->flags & NOT_NULL_FLAG))
-        cur_field->move_field(field_pos);
-      else
-      {
-        cur_field->move_field(field_pos, null_pos, null_bit);
-        null_bit<<= 1;
-        if (null_bit == (uint8)1 << 8)
-        {
-          ++null_pos;
-          null_bit= 1;
-        }
-      }
-      if (cur_field->type() == MYSQL_TYPE_BIT &&
-          cur_field->key_type() == HA_KEYTYPE_BIT)
-      {
-        /* This is a Field_bit since key_type is HA_KEYTYPE_BIT */
-        static_cast<Field_bit*>(cur_field)->set_bit_ptr(null_pos, null_bit);
-        null_bit+= cur_field->field_length & 7;
-        if (null_bit > 7)
-        {
-          null_pos++;
-          null_bit-= 8;
-        }
-      }
-      cur_field->reset();
-
-      field_pos+= cur_field->pack_length();
+      table->null_flags= table->record[0];
+      memset(table->record[0], 255, null_pack_length);	// Set null fields
     }
   }
+  else if (alloc_record_buffers(table))
+    goto error;
+
+  setup_tmp_table_column_bitmaps(table, bitmaps);
+
+  {
+    /* Set up field pointers */
+    uchar *null_flags= table->record[0];
+    uchar *pos= null_flags + share->null_bytes;
+    uint null_count= 0;
+
+    for (reg_field= table->field; *reg_field; ++reg_field)
+    {
+      Field *field= *reg_field;
+      relocate_field(field, pos, null_flags, &null_count);
+      pos+= field->pack_length();
+    }
+  }
+
+  if (is_virtual)
+    return table;
+
+  store_record(table, s->default_values);        // Make empty default record
+
+  if (setup_tmp_table_handler(table, select_options, false, false))
+    goto error;
+
   return table;
 error:
-  for (field= table->field; *field; ++field)
-    destroy(*field);
+  for (reg_field= table->field; *reg_field; ++reg_field)
+    destroy(*reg_field);
   return 0;
 }
 
+
+/**
+  Helper function to create_tmp_table_* family for setting up table's SE
+
+  @param table            table to allocate SE for
+  @param select_options   current select's options
+  @param force_disk_table TRUE <=> Use MyISAM or InnoDB
+  @param schema_table     whether the table is a schema table
+
+  @returns
+    false on success
+    true  otherwise
+*/
+
+static bool setup_tmp_table_handler(TABLE *table, ulonglong select_options,
+                                    bool force_disk_table, bool schema_table)
+{
+  THD *thd= table->in_use;
+  TABLE_SHARE *share= table->s;
+  if (select_options & TMP_TABLE_FORCE_MYISAM)
+    share->db_plugin= ha_lock_engine(0, myisam_hton);
+  else if (share->blob_fields ||                        // 1
+           (thd->variables.big_tables &&                // 2
+            !(select_options & SELECT_SMALL_RESULT)) ||
+           force_disk_table ||                          // 3
+           opt_initialize)                              // 4
+  {
+    /*
+      1: MEMORY and TempTable do not support BLOBs
+      2: User said the result would be big, so may not fit in memory
+      3: Caller needs SE to be disk-based (@see create_tmp_table())
+      4: During bootstrap, the heap engine is not available, so we force using
+      InnoDB. This is especially hit when creating a I_S system view
+      definition with a UNION in it.
+
+      Except for special conditions, tmp table engine will be chosen by user.
+    */
+    switch (internal_tmp_disk_storage_engine)
+    {
+    case TMP_TABLE_MYISAM:
+      share->db_plugin= ha_lock_engine(0, myisam_hton);
+      break;
+    case TMP_TABLE_INNODB:
+      share->db_plugin= ha_lock_engine(0, innodb_hton);
+      break;
+    default:
+      DBUG_ASSERT(0); /* purecov: deadcode */
+      share->db_plugin= ha_lock_engine(0, innodb_hton);
+    }
+  }
+  else
+  {
+    share->db_plugin= nullptr;
+    switch ((enum_internal_tmp_mem_storage_engine)
+              thd->variables.internal_tmp_mem_storage_engine)
+    {
+    case TMP_TABLE_TEMPTABLE:
+      if (!schema_table) {
+        share->db_plugin= ha_lock_engine(0, temptable_hton);
+        break;
+      }
+      /* For information_schema tables we use the Heap engine because we do
+      not allow user-created TempTable tables and even though information_schema
+      tables are not user-created, an ingenious user may execute:
+      CREATE TABLE myowntemptabletable LIKE information_schema.some; */
+      /* Fall-through. */
+    case TMP_TABLE_MEMORY:
+      share->db_plugin= ha_lock_engine(0, heap_hton);
+      break;
+    }
+    DBUG_ASSERT(share->db_plugin != nullptr);
+  }
+
+  if (!(table->file= get_new_handler(share, false, &share->mem_root,
+                                     share->db_type())))
+    return true;
+  // Update the handler with information about the table object
+  table->file->change_table_ptr(table, share);
+  if (table->file->set_ha_share_ref(&share->ha_share))
+  {
+    destroy(table->file);
+    return true;
+  }
+
+  // Initialize cost model for this table
+  table->init_cost_model(thd->cost_model());
+
+  return false;
+}
+
+
+/**
+  Helper function for create_tmp_table_* family for allocating record buffers
+
+  @note Caller must initialize TABLE_SHARE::reclength and
+  TABLE_SHARE::null_bytes before calling this function.
+
+  @param table  table to allocate record buffers for
+
+  @returns
+    false  on success
+    true   otherwise
+*/
+
+static bool alloc_record_buffers(TABLE *table)
+{
+  TABLE_SHARE *share= table->s;
+  THD *thd= table->in_use;
+  uint alloc_length= ALIGN_SIZE(share->reclength + MI_UNIQUE_HASH_LENGTH + 1);
+  share->rec_buff_length= alloc_length;
+  /*
+    Note that code in open_table_from_share() relies on the fact that
+    for optimizer-created temporary tables TABLE_SHARE::default_values
+    is allocated in a single chuck with TABLE::record[0] for the first
+    TABLE instance.
+  */
+  if (!(table->record[0]=
+      (uchar*) alloc_root(&share->mem_root,
+                          (alloc_length * 3 + share->null_bytes))))
+    return true;
+  table->record[1]= table->record[0] + alloc_length;
+  share->default_values= table->record[1] + alloc_length;
+  table->null_flags_saved= share->default_values + alloc_length;
+  if (share->null_bytes)
+  {
+    table->null_flags= table->record[0];
+    memset(table->record[0], 255, share->null_bytes);	// Set null fields
+  }
+
+  if (thd->variables.tmp_table_size == ~ (ulonglong) 0)		// No limit
+    share->max_rows= ~(ha_rows) 0;
+  else
+    share->max_rows= (ha_rows) (((share->db_type() == heap_hton) ?
+                                 min(thd->variables.tmp_table_size,
+                                     thd->variables.max_heap_table_size) :
+                                 thd->variables.tmp_table_size) /
+			         share->reclength);
+  set_if_bigger(share->max_rows,1);		// For dummy start options
+
+  return false;
+}
 
 bool open_tmp_table(TABLE *table)
 {
@@ -2459,6 +2388,23 @@ static bool create_tmp_table_with_fallback(TABLE *table)
   create_info.options|= HA_LEX_CREATE_TMP_TABLE |
                         HA_LEX_CREATE_INTERNAL_TMP_TABLE;
 
+  /*
+    INNODB's fixed length column size is restricted to 1024. Exceeding this can
+    result in incorrect behavior.
+  */
+  if (table->s->db_type() == innodb_hton)
+  {
+    for (Field **field= table->field; *field; ++field)
+    {
+      if ((*field)->type() == MYSQL_TYPE_STRING &&
+          (*field)->key_length() > 1024)
+      {
+        my_error(ER_TOO_LONG_KEY, MYF(0), 1024);
+        DBUG_RETURN(true);
+      }
+    }
+  }
+
   int error= table->file->create(share->table_name.str, table, &create_info,
                                  nullptr);
   if (error == HA_ERR_RECORD_FILE_FULL && table->s->db_type() == temptable_hton)
@@ -2581,6 +2527,7 @@ bool instantiate_tmp_table(THD *thd, TABLE *table, KEY *keyinfo,
   }
   else if (share->db_type() == myisam_hton)
   {
+    DBUG_ASSERT(start_recinfo && recinfo);
     if (create_myisam_tmp_table(table, keyinfo, start_recinfo, recinfo,
                                 options, big_tables))
       return TRUE;
@@ -2776,6 +2723,11 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable,
   switch (internal_tmp_disk_storage_engine)
   {
   case TMP_TABLE_MYISAM:
+    if (!start_recinfo)
+    {
+      my_error(ER_NOT_SUPPORTED_YET, MYF(0), "MyISAM for table functions");
+      DBUG_RETURN(true);
+    }
     share.db_plugin= ha_lock_engine(thd, myisam_hton);
     break;
   case TMP_TABLE_INNODB:

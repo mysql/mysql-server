@@ -20,8 +20,8 @@
 #ifndef _XPL_CLIENT_H_
 #define _XPL_CLIENT_H_
 
-#include "ngs/interface/protocol_monitor_interface.h"
-#include "ngs/client.h"
+#include "plugin/x/ngs/include/ngs/client.h"
+#include "plugin/x/ngs/include/ngs/interface/protocol_monitor_interface.h"
 
 struct st_mysql_show_var;
 

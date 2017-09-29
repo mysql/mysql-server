@@ -13,15 +13,15 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "pipeline_factory.h"
+#include "plugin/group_replication/include/pipeline_factory.h"
 
 #include <stddef.h>
 
-#include "handlers/applier_handler.h"
-#include "handlers/certification_handler.h"
-#include "handlers/event_cataloger.h"
 #include "my_dbug.h"
-#include "plugin_log.h"
+#include "plugin/group_replication/include/handlers/applier_handler.h"
+#include "plugin/group_replication/include/handlers/certification_handler.h"
+#include "plugin/group_replication/include/handlers/event_cataloger.h"
+#include "plugin/group_replication/include/plugin_log.h"
 
 
 int get_pipeline(Handler_pipeline_type pipeline_type,

@@ -16,7 +16,7 @@
 #ifndef XCOM_DEBUG_H
 #define XCOM_DEBUG_H
 
-#include "gcs_debug.h"
-#include "err_dump.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/err_dump.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/gcs_debug.h"
 
 #endif

@@ -9,7 +9,6 @@ select count(*) from performance_schema.setup_consumers;
 # idle/io/socket is a native instrument
 # wait/lock/metadata is a native instrument
 select count(*) > 4 from performance_schema.setup_instruments;
-select count(*) from performance_schema.setup_timers;
 
 # Make sure we don't crash, no matter what the starting parameters are
 
@@ -85,7 +84,7 @@ select * from performance_schema.setup_actors;
 select * from performance_schema.setup_consumers;
 select * from performance_schema.setup_instruments;
 select * from performance_schema.setup_objects;
-select * from performance_schema.setup_timers;
+select * from performance_schema.setup_threads;
 select * from performance_schema.socket_instances;
 select * from performance_schema.socket_summary_by_instance;
 select * from performance_schema.socket_summary_by_event_name;

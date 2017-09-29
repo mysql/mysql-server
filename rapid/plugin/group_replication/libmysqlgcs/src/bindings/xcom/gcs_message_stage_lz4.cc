@@ -13,18 +13,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <string.h>
-#include <map>
-#include <limits>
-#include <cassert>
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_message_stage_lz4.h"
 
 #include <lz4.h>
+#include <string.h>
+#include <cassert>
+#include <limits>
+#include <map>
 
-#include "mysql/gcs/xplatform/byteorder.h"
-#include "mysql/gcs/gcs_logging_system.h"
-
-#include "gcs_internal_message.h"
-#include "gcs_message_stage_lz4.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_logging_system.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/byteorder.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_internal_message.h"
 
 const unsigned short Gcs_message_stage_lz4::WIRE_HD_UNCOMPRESSED_OFFSET=
   static_cast<unsigned short>(Gcs_message_stage::WIRE_HD_LEN_SIZE +

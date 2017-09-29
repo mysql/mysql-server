@@ -21,7 +21,8 @@
 #define X_SRC_EXPECT_EXPECT_CONDITION_FIELD_H
 
 #include <string>
-#include "expect/expect_condition.h"
+
+#include "plugin/x/src/expect/expect_condition.h"
 
 
 namespace xpl {

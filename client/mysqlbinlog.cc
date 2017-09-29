@@ -39,10 +39,9 @@
 #include <map>
 #include <utility>
 
-#include "client_priv.h"
-#include "log_event.h"
+#include "caching_sha2_passwordopt-vars.h"
+#include "client/client_priv.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_default.h"
 #include "my_dir.h"
 #include "my_io.h"
@@ -51,8 +50,10 @@
 #include "mysql/service_my_snprintf.h"
 #include "prealloced_array.h"
 #include "print_version.h"
-#include "rpl_constants.h"
-#include "rpl_gtid.h"
+#include "sql/log_event.h"
+#include "sql/my_decimal.h"
+#include "sql/rpl_constants.h"
+#include "sql/rpl_gtid.h"
 #include "sql_common.h"
 #include "sql_string.h"
 #include "sslopt-vars.h"
@@ -1261,6 +1262,7 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *
     case binary_log::WRITE_ROWS_EVENT_V1:
     case binary_log::UPDATE_ROWS_EVENT_V1:
     case binary_log::DELETE_ROWS_EVENT_V1:
+    case binary_log::PARTIAL_UPDATE_ROWS_EVENT:
     {
       bool stmt_end= FALSE;
       Table_map_log_event *ignored_map= NULL;
@@ -1269,7 +1271,8 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *
           ev_type == binary_log::UPDATE_ROWS_EVENT ||
           ev_type == binary_log::WRITE_ROWS_EVENT_V1 ||
           ev_type == binary_log::DELETE_ROWS_EVENT_V1 ||
-          ev_type == binary_log::UPDATE_ROWS_EVENT_V1)
+          ev_type == binary_log::UPDATE_ROWS_EVENT_V1 ||
+          ev_type == binary_log::PARTIAL_UPDATE_ROWS_EVENT)
       {
         Rows_log_event *new_ev= (Rows_log_event*) ev;
         if (new_ev->get_flags(Rows_log_event::STMT_END_F))
@@ -1576,7 +1579,8 @@ static struct my_option my_long_options[] =
   {"socket", 'S', "The socket file to use for connection.",
    &sock, &sock, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0,
    0, 0},
-#include <sslopt-longopts.h>
+#include "caching_sha2_passwordopt-longopts.h"
+#include "sslopt-longopts.h"
 
   {"start-datetime", OPT_START_DATETIME,
    "Start reading the binlog at first event having a datetime equal or "
@@ -1810,7 +1814,7 @@ get_one_option(int optid, const struct my_option *opt,
     DBUG_PUSH(argument ? argument : default_dbug_option);
     break;
 #endif
-#include <sslopt-case.h>
+#include "sslopt-case.h"
 
   case 'd':
     one_database = 1;
@@ -1972,6 +1976,7 @@ static Exit_status safe_connect()
                  "program_name", "mysqlbinlog");
   mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
                 "_client_role", "binary_log_listener");
+  set_get_server_public_key_option(mysql);
 
   if (!mysql_real_connect(mysql, host, user, pass, 0, port, sock, 0))
   {
@@ -2326,8 +2331,14 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     Log_event_type type= (Log_event_type) rpl.buffer[1 + EVENT_TYPE_OFFSET];
     Log_event *ev= NULL;
     Destroy_log_event_guard del(&ev);
-    event_buf= (char*) rpl.buffer + 1;
     event_len= rpl.size - 1;
+    if (!(event_buf = (char*) my_malloc(key_memory_log_event,
+                                        event_len+1, MYF(0))))
+    {
+      error("Out of memory.");
+      DBUG_RETURN(ERROR_STOP);
+    }
+    memcpy(event_buf, rpl.buffer + 1, event_len);
     if (rewrite_db_filter(&event_buf, &event_len, glob_description_event))
     {
       error("Got a fatal error while applying rewrite db filter.");
@@ -2344,13 +2355,10 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
                                           opt_verify_binlog_checksum)))
       {
         error("Could not construct log event object: %s", error_msg);
+        my_free(event_buf);
         DBUG_RETURN(ERROR_STOP);
       }
-      /*
-        If reading from a remote host, ensure the temp_buf for the
-        Log_event class is pointing to the incoming stream.
-      */
-      ev->register_temp_buf((char *) rpl.buffer + 1, false);
+      ev->register_temp_buf(event_buf);
     }
 
     {

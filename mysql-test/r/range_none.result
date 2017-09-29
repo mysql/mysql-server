@@ -1737,7 +1737,7 @@ SELECT str_to_date('2007-10-00', '%Y-%m-%d') BETWEEN '' AND '2007/10/20';
 str_to_date('2007-10-00', '%Y-%m-%d') BETWEEN '' AND '2007/10/20'
 1
 Warnings:
-Warning	1292	Truncated incorrect datetime value: ''
+Warning	1292	Truncated incorrect date value: ''
 SELECT str_to_date('2007-20-00', '%Y-%m-%d') BETWEEN '2007/10/20' AND '';
 str_to_date('2007-20-00', '%Y-%m-%d') BETWEEN '2007/10/20' AND ''
 NULL

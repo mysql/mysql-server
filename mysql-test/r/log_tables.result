@@ -366,6 +366,7 @@ show tables where Tables_in_mysql like '%log%' and Tables_in_mysql != 'ndb_binlo
 Tables_in_mysql
 general_log
 general_log_new
+innodb_ddl_log
 slave_relay_log_info
 slow_log
 slow_log_new
@@ -826,12 +827,18 @@ INSERT INTO t1 VALUES (4,4,4);
 SELECT SQL_NO_CACHE 'Bug#31700 - SCAN',f1,f2,f3,SLEEP(1.1) FROM t1 WHERE f3=4;
 Bug#31700 - SCAN	f1	f2	f3	SLEEP(1.1)
 Bug#31700 - SCAN	4	4	4	0
+Warnings:
+Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
 SELECT SQL_NO_CACHE 'Bug#31700 - KEY', f1,f2,f3,SLEEP(1.1) FROM t1 WHERE f2=3;
 Bug#31700 - KEY	f1	f2	f3	SLEEP(1.1)
 Bug#31700 - KEY	3	3	3	0
+Warnings:
+Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
 SELECT SQL_NO_CACHE 'Bug#31700 - PK',  f1,f2,f3,SLEEP(1.1) FROM t1 WHERE f1=2;
 Bug#31700 - PK	f1	f2	f3	SLEEP(1.1)
 Bug#31700 - PK	2	2	2	0
+Warnings:
+Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
 SELECT start_time, rows_examined, rows_sent, sql_text FROM mysql.slow_log WHERE sql_text LIKE '%Bug#31700%' ORDER BY start_time;
 start_time	rows_examined	rows_sent	sql_text
 TIMESTAMP	4	1	SELECT SQL_NO_CACHE 'Bug#31700 - SCAN',f1,f2,f3,SLEEP(1.1) FROM t1 WHERE f3=4

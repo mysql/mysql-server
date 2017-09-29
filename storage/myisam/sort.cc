@@ -19,21 +19,20 @@
 */
 
 #include <sys/types.h>
-
 #include <algorithm>
 
-#include "fulltext.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"
+#include "storage/myisam/fulltext.h"
 #if defined(_WIN32)
 #include <fcntl.h>
 #else
 #include <stddef.h>
 #endif
-#include "queues.h"
+#include "storage/myisam/queues.h"
 
 /* static variables */
 

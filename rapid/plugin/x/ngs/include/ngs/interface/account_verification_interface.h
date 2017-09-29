@@ -21,7 +21,8 @@
 #define _NGS_ACCOUNT_VERIFICATION_INTERFACE_H_
 
 #include <string>
-#include "ngs/memory.h"
+
+#include "plugin/x/ngs/include/ngs/memory.h"
 
 namespace ngs {
 
@@ -30,6 +31,7 @@ class Account_verification_interface {
   enum Account_type {
     Account_native = 1,
     Account_sha256 = 2,
+    Account_sha2   = 3,
     Account_unsupported = 99
   };
 

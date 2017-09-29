@@ -4,22 +4,22 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 SET SQL_LOG_BIN=0;
-SELECT user, plugin, authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys','mysql.session');
-user	plugin	authentication_string
+SELECT user, plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys','mysql.session');
+user	plugin
 CREATE USER 'plug_user_p' IDENTIFIED WITH 'test_plugin_server' AS 'proxy_user_p';
 CREATE USER 'plug_user_wp' IDENTIFIED WITH 'test_plugin_server' AS 'proxy_user_wp';
 CREATE USER 'proxy_user_p' IDENTIFIED BY 'password';
 CREATE USER 'proxy_user_wp' IDENTIFIED BY '';
 CREATE USER 'regular_user_p' IDENTIFIED BY 'password';
 CREATE USER 'regular_user_wp' IDENTIFIED BY '';
-SELECT user, plugin, authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys','mysql.session');
-user	plugin	authentication_string
-plug_user_p	test_plugin_server	proxy_user_p
-plug_user_wp	test_plugin_server	proxy_user_wp
-proxy_user_p	mysql_native_password	*2470C0C06DEE42FD1618BB99005ADCA2EC9D1E19
-proxy_user_wp	mysql_native_password	
-regular_user_p	mysql_native_password	*2470C0C06DEE42FD1618BB99005ADCA2EC9D1E19
-regular_user_wp	mysql_native_password	
+SELECT user, plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys','mysql.session');
+user	plugin
+plug_user_p	test_plugin_server
+plug_user_wp	test_plugin_server
+proxy_user_p	mysql_native_password
+proxy_user_wp	mysql_native_password
+regular_user_p	mysql_native_password
+regular_user_wp	mysql_native_password
 GRANT PROXY ON proxy_user_p to plug_user_p;
 GRANT PROXY ON proxy_user_wp to plug_user_wp;
 GRANT REPLICATION SLAVE ON *.* TO proxy_user_p;

@@ -19,7 +19,6 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "item_create.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -27,9 +26,10 @@
 #include "my_sys.h"
 #include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"       // ER_*
-#include "sql_alloc.h"
-#include "sql_lex.h"            // SELECT_LEX_UNIT
-#include "sql_list.h"
+#include "sql/item_create.h"
+#include "sql/sql_alloc.h"
+#include "sql/sql_lex.h"        // SELECT_LEX_UNIT
+#include "sql/sql_list.h"
 #include "sql_string.h"
 
 class Item;
@@ -58,6 +58,8 @@ public:
     : thd(thd_arg), unit(NULL), estimated_rowcount(0)
   {}
   virtual ~Query_result() {}
+
+  virtual bool needs_file_privilege() const { return false; }
 
   /**
     Change wrapped Query_result.
@@ -228,6 +230,9 @@ public:
   {
     DBUG_ASSERT(file < 0);
   }
+
+  bool needs_file_privilege() const override { return true; }
+
   void send_error(uint errcode, const char *err) override;
   bool send_eof() override;
   void cleanup() override;

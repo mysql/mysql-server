@@ -20,9 +20,9 @@
 #include <string>
 #include <vector>
 
-#include "gcs_plugin_messages.h"
 #include "my_inttypes.h"
-#include "plugin_psi.h"
+#include "plugin/group_replication/include/gcs_plugin_messages.h"
+#include "plugin/group_replication/include/plugin_psi.h"
 
 
 /**
@@ -320,6 +320,11 @@ public:
   void send_stats_member_message(Flow_control_mode mode);
 
   /**
+    Increment local recovery transactions counter value.
+  */
+  void increment_transactions_applied_during_recovery();
+
+  /**
     @returns transactions waiting to be applied.
   */
   int32 get_transactions_waiting_apply();
@@ -350,12 +355,19 @@ public:
     So need to set each time Transactions identifiers needs to be transmitted
   */
   void set_send_transaction_identifiers();
+
+  /**
+    @returns recovery transactions applied
+  */
+  uint64 get_transactions_applied_during_recovery();
+
 private:
   std::atomic<int32> m_transactions_waiting_apply;
   std::atomic<int64> m_transactions_certified;
   std::atomic<int64> m_transactions_applied;
   std::atomic<int64> m_transactions_local;
   std::atomic<int64> m_transactions_local_rollback;
+  std::atomic<uint64> m_transactions_applied_during_recovery;
 
   bool send_transaction_identifiers;
   mysql_mutex_t m_transactions_waiting_apply_lock;

@@ -24,20 +24,7 @@
 #include <string>
 #include <vector>
 
-#include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
-#include "dd/dd_schema.h"                     // dd::schema_exists
-#include "dd/impl/bootstrapper.h"             // execute_query
-#include "dd/impl/dictionary_impl.h"          // dd::Dictionary_impl
-#include "dd/impl/sdi.h"                      // sdi::store()
-#include "dd/impl/system_registry.h"          // dd::System_tables
-#include "dd/info_schema/metadata.h"          // dd::info_schema::install_IS...
-#include "dd/sdi_file.h"                      // dd::sdi_file::EXT
-#include "dd/types/object_table.h"
-#include "dd/types/tablespace.h"
-#include "error_handler.h"                    // Dummy_error_handler
-#include "handler.h"
 #include "lex_string.h"
-#include "log.h"                              // sql_print_warning
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_dir.h"
@@ -49,21 +36,34 @@
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_file.h"             // mysql_file_open
 #include "mysql/udf_registration_types.h"
-#include "mysqld.h"                           // key_file_sdi
 #include "mysqld_error.h"
+#include "sql/dd/cache/dictionary_client.h"   // dd::cache::Dictionary_client
+#include "sql/dd/dd_schema.h"                 // dd::schema_exists
+#include "sql/dd/impl/bootstrapper.h"         // execute_query
+#include "sql/dd/impl/dictionary_impl.h"      // dd::Dictionary_impl
+#include "sql/dd/impl/sdi.h"                  // sdi::store()
+#include "sql/dd/impl/system_registry.h"      // dd::System_tables
+#include "sql/dd/info_schema/metadata.h"      // dd::info_schema::install_IS...
+#include "sql/dd/sdi_file.h"                  // dd::sdi_file::EXT
+#include "sql/dd/types/object_table.h"
+#include "sql/dd/types/tablespace.h"
 #include "sql/dd/upgrade/event.h"
 #include "sql/dd/upgrade/global.h"
 #include "sql/dd/upgrade/routine.h"
 #include "sql/dd/upgrade/schema.h"
 #include "sql/dd/upgrade/table.h"
-#include "sql_class.h"                        // THD
-#include "sql_plugin.h"
-#include "sql_plugin_ref.h"
-#include "sql_table.h"                        // build_tablename
-#include "stateless_allocator.h"
-#include "strfunc.h"                          // lex_cstring_handle
-#include "table.h"
-#include "transaction.h"                      // trans_rollback
+#include "sql/error_handler.h"                // Dummy_error_handler
+#include "sql/handler.h"
+#include "sql/log.h"                          // sql_print_warning
+#include "sql/mysqld.h"                       // key_file_sdi
+#include "sql/sql_class.h"                    // THD
+#include "sql/sql_plugin.h"
+#include "sql/sql_plugin_ref.h"
+#include "sql/sql_table.h"                    // build_tablename
+#include "sql/stateless_allocator.h"
+#include "sql/strfunc.h"                      // lex_cstring_handle
+#include "sql/table.h"
+#include "sql/transaction.h"                  // trans_rollback
 
 namespace dd {
 class Table;

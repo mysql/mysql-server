@@ -15,7 +15,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** @file storage/temptable/src/result.cc
 TempTable Result to string convert. */
 
-#include "temptable/result.h"
+#include "storage/temptable/include/temptable/result.h"
 
 namespace temptable {
 

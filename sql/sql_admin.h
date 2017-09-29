@@ -20,12 +20,12 @@
 #include <set>
 
 #include "lex_string.h"
-#include "memroot_allocator.h"
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
 #include "sql/histograms/histogram.h"
-#include "sql_cmd.h"       // Sql_cmd
-#include "sql_cmd_ddl_table.h" // Sql_cmd_ddl_table
+#include "sql/memroot_allocator.h"
+#include "sql/sql_cmd.h"   // Sql_cmd
+#include "sql/sql_cmd_ddl_table.h" // Sql_cmd_ddl_table
 
 class String;
 class THD;
@@ -380,24 +380,24 @@ public:
 
 
 /**
-  Sql_cmd_show_privileges SHOW PRIVILEGES ... statement.
+  Sql_cmd_show_grants SHOW GRANTS ... statement.
 */
-class Sql_cmd_show_privileges: public Sql_cmd
+class Sql_cmd_show_grants: public Sql_cmd
 {
-  friend class PT_show_privileges;
+  friend class PT_show_grants;
 
   const LEX_USER *for_user;
   const List<LEX_USER> *using_users;
 
 public:
-  explicit Sql_cmd_show_privileges(const LEX_USER *for_user_arg,
-                                   const List<LEX_USER> *using_users_arg)
+  Sql_cmd_show_grants(const LEX_USER *for_user_arg,
+                          const List<LEX_USER> *using_users_arg)
   : for_user(for_user_arg), using_users(using_users_arg)
   { }
 
   virtual bool execute(THD *thd);
   virtual enum_sql_command sql_command_code() const
-  { return SQLCOM_SHOW_PRIVILEGES; }
+  { return SQLCOM_SHOW_GRANTS; }
 };
 
 

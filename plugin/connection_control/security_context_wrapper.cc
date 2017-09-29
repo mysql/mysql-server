@@ -14,12 +14,13 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
-#include <mysql/service_security_context.h> /* Security context service */
-#include <sql_acl.h>                        /* SUPER_ACL */
-#include <sql_class.h>                      /* THD, Security context */
+#include "plugin/connection_control/security_context_wrapper.h"
 
-#include "auth_acls.h"
-#include "security_context_wrapper.h"
+#include <mysql/service_security_context.h> /* Security context service */
+
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/sql_acl.h"               /* SUPER_ACL */
+#include "sql/sql_class.h"                  /* THD, Security context */
 
 namespace connection_control
 {

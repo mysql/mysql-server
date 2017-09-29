@@ -29,11 +29,10 @@
 
 #ifdef OPTIMIZER_TRACE
 
-#include <mysys_err.h>                          // for testing of OOM
-#include <opt_trace.h>
-
 #include "m_string.h"                           // llstr
-#include "mysqld.h"                             // system_charset_info
+#include "mysys_err.h"                          // for testing of OOM
+#include "sql/mysqld.h"                         // system_charset_info
+#include "sql/opt_trace.h"
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>                           // for WEXITSTATUS
 #endif

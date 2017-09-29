@@ -15,12 +15,13 @@
 
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
+
 #include <gtest/gtest.h>
 #include <algorithm>
 #include <memory>
 
 #include "prealloced_array.h"
-#include "sql_alloc.h"
+#include "sql/sql_alloc.h"
 
 namespace prealloced_array_unittest {
 
@@ -606,6 +607,26 @@ TEST_F(PreallocedArrayTest, Move)
   EXPECT_EQ(1, array[1].getval());
   EXPECT_EQ(8, array[2].getval());
   EXPECT_EQ(9, array[3].getval());
+}
+
+
+TEST_F(PreallocedArrayTest, ShrinkToFit)
+{
+  Prealloced_array<int, 1> array(PSI_NOT_INSTRUMENTED);
+  array.push_back(1);
+  array.push_back(2);
+  array.push_back(3);
+  size_t capacity= array.capacity();
+  EXPECT_LE(3U, capacity);
+
+  // After clear(), array is empty, but the capacity is unchanged.
+  array.clear();
+  EXPECT_TRUE(array.empty());
+  EXPECT_EQ(capacity, array.capacity());
+
+  // After shrink_to_fit(), the capacity should shrink to the prealloc size.
+  array.shrink_to_fit();
+  EXPECT_EQ(1U, array.capacity());
 }
 
 }

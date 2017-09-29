@@ -23,22 +23,21 @@
 */
 
 
-#include <ndb_version.h>
-#include <ndbapi/NdbApi.hpp>
-#include <ndbapi/NdbInterpretedCode.hpp>
+#include "sql/ha_ndbcluster_push.h"
 
-#include "../storage/ndb/src/ndbapi/NdbQueryBuilder.hpp"
-#include "../storage/ndb/src/ndbapi/NdbQueryOperation.hpp"
-#include "abstract_query_plan.h"
-#include "ha_ndbcluster.h"
-#include "ha_ndbcluster_binlog.h"
-#include "ha_ndbcluster_cond.h"
-#include "ha_ndbcluster_push.h"
-#include "sql_class.h"
 #include "my_dbug.h"
-#include "current_thd.h"
-
-#include "ndb_thd.h"
+#include "sql/abstract_query_plan.h"
+#include "sql/current_thd.h"
+#include "sql/ha_ndbcluster.h"
+#include "sql/ha_ndbcluster_binlog.h"
+#include "sql/ha_ndbcluster_cond.h"
+#include "sql/ndb_thd.h"
+#include "sql/sql_class.h"
+#include "storage/ndb/include/ndb_version.h"
+#include "storage/ndb/include/ndbapi/NdbApi.hpp"
+#include "storage/ndb/include/ndbapi/NdbInterpretedCode.hpp"
+#include "storage/ndb/src/ndbapi/NdbQueryBuilder.hpp"
+#include "storage/ndb/src/ndbapi/NdbQueryOperation.hpp"
 
 /*
   Explain why an operation could not be pushed
@@ -47,7 +46,7 @@
 #define EXPLAIN_NO_PUSH(msgfmt, ...)                              \
 do                                                                \
 {                                                                 \
-  if (unlikely(current_thd->lex->describe))                       \
+  if (unlikely(current_thd->lex->is_explain()))                   \
   {                                                               \
     push_warning_printf(current_thd,                              \
                         Sql_condition::SL_NOTE, ER_YES,           \

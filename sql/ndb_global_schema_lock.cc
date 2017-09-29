@@ -15,15 +15,15 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <my_sys.h>               // my_sleep.h
 #include <mysql/plugin.h>
-#include <ndbapi/NdbApi.hpp>
 
 #include "my_dbug.h"
-#include "ndb_sleep.h"
-#include "portlib/NdbTick.h"
-#include "sql_class.h"
-#include "sql_thd_internal_api.h" // thd_query_unsafe
+#include "my_sys.h"               // my_sleep.h
+#include "sql/ndb_sleep.h"
+#include "sql/sql_class.h"
+#include "sql/sql_thd_internal_api.h" // thd_query_unsafe
+#include "storage/ndb/include/ndbapi/NdbApi.hpp"
+#include "storage/ndb/include/portlib/NdbTick.h"
 
 
 /**
@@ -69,7 +69,7 @@ static bool ndb_is_gsl_participant_active()
   return state;
 }
 
-#include "ndb_table_guard.h"
+#include "sql/ndb_table_guard.h"
 
 /*
   The lock/unlock functions use the BACKUP_SEQUENCE row in SYSTAB_0
@@ -184,7 +184,7 @@ gsl_unlock_ext(Ndb *ndb, NdbTransaction *trans,
 // NOTE! 'thd_proc_info' is defined in myql/plugin.h but not implemented, only
 // a #define available in sql_class.h -> include sql_class.h until
 // bug#11844974 has been fixed. 
-#include <sql_class.h> 
+#include "sql/sql_class.h" 
 
 class Thd_proc_info_guard
 {
@@ -211,10 +211,10 @@ private:
 };
 
 
-#include "derror.h"
-#include "ndb_log.h"
-#include "ndb_thd.h"
-#include "ndb_thd_ndb.h"
+#include "sql/derror.h"
+#include "sql/ndb_log.h"
+#include "sql/ndb_thd.h"
+#include "sql/ndb_thd_ndb.h"
 
 /*
   lock/unlock calls are reference counted, so calls to lock
@@ -564,7 +564,7 @@ Thd_ndb::has_required_global_schema_lock(const char* func) const
 }
 
 
-#include "ndb_global_schema_lock_guard.h"
+#include "sql/ndb_global_schema_lock_guard.h"
 
 Ndb_global_schema_lock_guard::Ndb_global_schema_lock_guard(THD *thd)
   : m_thd(thd), m_locked(false)

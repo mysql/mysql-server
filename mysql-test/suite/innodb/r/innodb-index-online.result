@@ -213,26 +213,23 @@ name	count
 ddl_online_create_index	1
 ddl_pending_alter_table	1
 SET GLOBAL innodb_monitor_reset = module_ddl;
-SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES si
-INNER JOIN INFORMATION_SCHEMA.INNODB_SYS_FIELDS sf
+SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_INDEXES si
+INNER JOIN INFORMATION_SCHEMA.INNODB_FIELDS sf
 ON si.index_id = sf.index_id WHERE si.name = '?c2e';
-name	pos
-c2	0
+NAME	POS
 SET DEBUG_SYNC = 'now SIGNAL dml2_done';
 ERROR HY000: Creating index 'c2e' required more than 'innodb_online_alter_log_max_size' bytes of modification log. Please try again.
 SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
 subsystem = 'ddl' and count > 0;
 name	count
-ddl_background_drop_indexes	1
 SET GLOBAL innodb_monitor_reset = module_ddl;
-SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES si
-INNER JOIN INFORMATION_SCHEMA.INNODB_SYS_FIELDS sf
+SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_INDEXES si
+INNER JOIN INFORMATION_SCHEMA.INNODB_FIELDS sf
 ON si.index_id = sf.index_id WHERE si.name = 'c2e';
-name	pos
+NAME	POS
 SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
 subsystem = 'ddl' and count > 0;
 name	count
-ddl_background_drop_indexes	1
 SET GLOBAL innodb_monitor_reset = module_ddl;
 ALTER TABLE t1 COMMENT 'testing if c2e will be dropped';
 SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
@@ -282,28 +279,25 @@ SET lock_wait_timeout = 1;
 SET DEBUG_SYNC = 'row_log_apply_before SIGNAL c3p5_created WAIT_FOR ins_done';
 ALTER TABLE t1 ADD UNIQUE INDEX c3p5(c3(5));
 SET DEBUG_SYNC = 'now WAIT_FOR c3p5_created';
-SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES si
-INNER JOIN INFORMATION_SCHEMA.INNODB_SYS_FIELDS sf
+SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_INDEXES si
+INNER JOIN INFORMATION_SCHEMA.INNODB_FIELDS sf
 ON si.index_id = sf.index_id WHERE si.name = '?c3p5';
-name	pos
-c3	0
+NAME	POS
 SET DEBUG_SYNC = 'ib_after_row_insert SIGNAL ins_done WAIT_FOR ddl_timed_out';
 INSERT INTO t1 VALUES(347,33101,NULL);
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SET DEBUG_SYNC = 'now SIGNAL ddl_timed_out';
-SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES si
-INNER JOIN INFORMATION_SCHEMA.INNODB_SYS_FIELDS sf
+SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_INDEXES si
+INNER JOIN INFORMATION_SCHEMA.INNODB_FIELDS sf
 ON si.index_id = sf.index_id WHERE si.name = 'c3p5';
-name	pos
+NAME	POS
 SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
 subsystem = 'ddl' and count > 0;
 name	count
-ddl_background_drop_indexes	1
 SET GLOBAL innodb_monitor_reset = module_ddl;
 SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
 subsystem = 'ddl' and count > 0;
 name	count
-ddl_background_drop_indexes	1
 SET GLOBAL innodb_monitor_reset = module_ddl;
 SHOW CREATE TABLE t1;
 Table	Create Table

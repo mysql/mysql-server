@@ -17,45 +17,45 @@
 
 /* A lexical scanner on a temporary buffer with a yacc interface */
 
-#include "sql_lex.h"
+#include "sql/sql_lex.h"
 
 #include <limits.h>
 #include <stdlib.h>
 #include <algorithm>                   // find_if, iter_swap, reverse
 
-#include "current_thd.h"
-#include "key.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_macros.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_version.h"             // MYSQL_VERSION_ID
-#include "mysqld.h"                    // table_alias_charset
 #include "mysqld_error.h"
-#include "parse_location.h"
-#include "parse_tree_nodes.h"          // PT_with_clause
 #include "prealloced_array.h"          // Prealloced_array
-#include "protocol.h"
-#include "select_lex_visitor.h"
-#include "sp_head.h"                   // sp_head
-#include "sql_class.h"                 // THD
-#include "sql_error.h"
-#include "sql_insert.h"                // Sql_cmd_insert_base
-#include "sql_lex_hash.h"
-#include "sql_lex_hints.h"
-#include "sql_optimizer.h"             // JOIN
-#include "sql_parse.h"                 // add_to_list
-#include "sql_plugin.h"                // plugin_unlock_list
-#include "sql_profile.h"
-#include "sql_security_ctx.h"
-#include "sql_show.h"                  // append_identifier
-#include "sql_table.h"                 // primary_key_name
-#include "sql_tmp_table.h"
-#include "sql_yacc.h"
-#include "system_variables.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/current_thd.h"
+#include "sql/key.h"
+#include "sql/mysqld.h"                // table_alias_charset
+#include "sql/parse_location.h"
+#include "sql/parse_tree_nodes.h"      // PT_with_clause
+#include "sql/protocol.h"
+#include "sql/select_lex_visitor.h"
+#include "sql/sp_head.h"               // sp_head
+#include "sql/sql_class.h"             // THD
+#include "sql/sql_error.h"
+#include "sql/sql_insert.h"            // Sql_cmd_insert_base
+#include "sql/sql_lex_hash.h"
+#include "sql/sql_lex_hints.h"
+#include "sql/sql_optimizer.h"         // JOIN
+#include "sql/sql_parse.h"             // add_to_list
+#include "sql/sql_plugin.h"            // plugin_unlock_list
+#include "sql/sql_profile.h"
+#include "sql/sql_show.h"              // append_identifier
+#include "sql/sql_table.h"             // primary_key_name
+#include "sql/sql_tmp_table.h"
+#include "sql/sql_yacc.h"
+#include "sql/system_variables.h"
+#include "sql/window.h"
 #include "template_utils.h"
-#include "window.h"
 
 extern int HINT_PARSER_parse(THD *thd,
                              Hint_scanner *scanner,
@@ -145,7 +145,7 @@ SELECT_LEX::type_str[static_cast<int>(enum_explain_type::EXPLAIN_total)]=
 
 Table_ident::Table_ident(Protocol *protocol, const LEX_CSTRING &db_arg,
                          const LEX_CSTRING &table_arg, bool force)
-  :table(table_arg), sel(NULL)
+  :table(table_arg), sel(NULL), table_function(NULL)
 {
   if (!force && protocol->has_client_capability(CLIENT_NO_SCHEMA))
     db= NULL_CSTR;
@@ -456,12 +456,8 @@ void LEX::reset()
   select_lex= NULL;
   m_current_select= NULL;
   all_selects_list= NULL;
-  load_set_str_list.empty();
 
   bulk_insert_row_cnt= 0;
-
-  load_update_list.empty();
-  load_value_list.empty();
 
   purge_value_list.empty();
 
@@ -470,7 +466,6 @@ void LEX::reset()
   set_var_list.empty();
   param_list.empty();
   prepared_stmt_params.empty();
-  describe= DESCRIBE_NONE;
   subqueries= false;
   context_analysis_only= 0;
   safe_to_cache_query= true;
@@ -507,11 +502,9 @@ void LEX::reset()
   is_lex_started= true;
   used_tables= 0;
   reset_slave_info.all= false;
-  alter_tablespace_info= NULL;
   mi.channel= NULL;
 
   wild= NULL;
-  exchange= NULL;
   mark_broken(false);
   max_execution_time= 0;
   reparse_common_table_expr_at= 0;
@@ -547,7 +540,8 @@ bool lex_start(THD *thd)
   DBUG_ASSERT(lex->current_select() == NULL);
   lex->m_current_select= lex->select_lex;
 
-  lex->m_IS_dyn_stat_cache.invalidate_cache();
+  lex->m_IS_table_stats.invalidate_cache();
+  lex->m_IS_tablespace_stats.invalidate_cache();
 
   DBUG_RETURN(status);
 }
@@ -2328,6 +2322,7 @@ SELECT_LEX::SELECT_LEX(Item *where, Item *having)
   leaf_tables(NULL),
   leaf_table_count(0),
   derived_table_count(0),
+  table_func_count(0),
   materialized_derived_table_count(0),
   has_sj_nests(false),
   partitioned_table_count(0),
@@ -2369,6 +2364,7 @@ SELECT_LEX::SELECT_LEX(Item *where, Item *having)
   m_empty_query(false),
   sj_candidates(NULL)
 {
+  end_lateral_table= NULL;
 }
 
 
@@ -2438,15 +2434,16 @@ bool SELECT_LEX::add_tables(THD *thd,
 void SELECT_LEX_UNIT::exclude_level()
 {
   /*
-    Changing unit tree should be done only when LOCK_query_plan mutex is
-    taken. This is needed to provide stable tree for EXPLAIN FOR CONNECTION.
+    This change to the unit tree is done only during statement resolution
+    so doesn't need LOCK_query_plan
   */
-  thd->lock_query_plan();
   SELECT_LEX_UNIT *units= NULL;
   SELECT_LEX_UNIT **units_last= &units;
   SELECT_LEX *sl= first_select();
   while (sl)
   {
+    // Exclusion can only be done prior to optimization.
+    DBUG_ASSERT(sl->join == nullptr);
     SELECT_LEX *next_select= sl->next_select();
 
     // unlink current level from global SELECTs list
@@ -2504,7 +2501,6 @@ void SELECT_LEX_UNIT::exclude_level()
   }
 
   invalidate();
-  thd->unlock_query_plan();
 }
 
 
@@ -2528,6 +2524,11 @@ void SELECT_LEX_UNIT::exclude_tree()
       u->exclude_level();
     }
 
+    /*
+      Reference to this query block is lost after it's excluded. Cleanup must
+      be done at this point to free memory.
+    */
+    sl->cleanup(true);
     sl->invalidate();
     sl= next_select;
   }
@@ -3085,6 +3086,11 @@ void TABLE_LIST::print(THD *thd, String *str, enum_query_type query_type) const
       append_identifier(thd, str, view_name.str, view_name.length);
       cmp_name= view_name.str;
     }
+    else if (is_table_function())
+    {
+      table_function->print(str, query_type);
+      cmp_name= table_name;
+    }
     else if (is_derived() && !is_merged())
     {
       // A derived table that is materialized or without specified algorithm
@@ -3498,6 +3504,7 @@ void LEX::clear_privileges()
   alter_password.cleanup();
   memset(&mqh, 0, sizeof(mqh));
   dynamic_privileges.empty();
+  default_roles= 0;
 }
 
 
@@ -4323,6 +4330,27 @@ bool LEX::table_or_sp_used()
     DBUG_RETURN(TRUE);
 
   DBUG_RETURN(FALSE);
+}
+
+
+/**
+  Locate an assignment to a user variable with a given name, within statement.
+
+  @param name Name of variable to search for
+
+  @returns true if variable is assigned to, false otherwise.
+*/
+
+bool LEX::locate_var_assignment(const Name_string &name)
+{
+  List_iterator<Item_func_set_user_var> li(set_var_list);
+  Item_func_set_user_var *var;
+  while ((var= li++))
+  {
+    if (var->name.eq(name))
+      return true;
+  }
+  return false;
 }
 
 

@@ -15,11 +15,11 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "client/dump/mysqldump_tool_chain_maker_options.h"
+
 #include <functional>
 #include <sstream>
 #include <string>
-
-#include "mysqldump_tool_chain_maker_options.h"
 
 using namespace Mysql::Tools::Dump;
 using std::placeholders::_1;

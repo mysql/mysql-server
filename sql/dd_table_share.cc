@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd_table_share.h"
+#include "sql/dd_table_share.h"
 
 #include "my_config.h"
 
@@ -22,27 +22,7 @@
 #include <string>
 #include <type_traits>
 
-#include "dd/collection.h"
-#include "dd/dd_table.h"                      // dd::FIELD_NAME_SEPARATOR_CHAR
-#include "dd/dd_tablespace.h"                 // dd::get_tablespace_name
-// TODO: Avoid exposing dd/impl headers in public files.
-#include "dd/impl/utils.h"                    // dd::eat_str
-#include "dd/properties.h"                    // dd::Properties
-#include "dd/string_type.h"
-#include "dd/types/column.h"                  // dd::enum_column_types
-#include "dd/types/column_type_element.h"     // dd::Column_type_element
-#include "dd/types/index.h"                   // dd::Index
-#include "dd/types/index_element.h"           // dd::Index_element
-#include "dd/types/partition.h"               // dd::Partition
-#include "dd/types/partition_value.h"         // dd::Partition_value
-#include "dd/types/table.h"                   // dd::Table
-#include "default_values.h"                   // prepare_default_value_buffer...
-#include "error_handler.h"                    // Internal_error_handler
-#include "field.h"
-#include "handler.h"
-#include "key.h"
 #include "lex_string.h"
-#include "log.h"
 #include "m_string.h"
 #include "map_helpers.h"
 #include "my_alloc.h"
@@ -59,23 +39,43 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "partition_element.h"                // partition_element
-#include "partition_info.h"                   // partition_info
-#include "sql_bitmap.h"
-#include "sql_class.h"                        // THD
-#include "sql_const.h"
-#include "sql_error.h"
-#include "sql_list.h"
-#include "sql_partition.h"                    // generate_partition_syntax
-#include "sql_plugin.h"                       // plugin_unlock
-#include "sql_plugin_ref.h"
-#include "sql_security_ctx.h"
-#include "sql_servers.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/dd/collection.h"
+#include "sql/dd/dd_table.h"                  // dd::FIELD_NAME_SEPARATOR_CHAR
+#include "sql/dd/dd_tablespace.h"             // dd::get_tablespace_name
+// TODO: Avoid exposing dd/impl headers in public files.
+#include "sql/dd/impl/utils.h"                // dd::eat_str
+#include "sql/dd/properties.h"                // dd::Properties
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/column.h"              // dd::enum_column_types
+#include "sql/dd/types/column_type_element.h" // dd::Column_type_element
+#include "sql/dd/types/index.h"               // dd::Index
+#include "sql/dd/types/index_element.h"       // dd::Index_element
+#include "sql/dd/types/partition.h"           // dd::Partition
+#include "sql/dd/types/partition_value.h"     // dd::Partition_value
+#include "sql/dd/types/table.h"               // dd::Table
+#include "sql/default_values.h"               // prepare_default_value_buffer...
+#include "sql/error_handler.h"                // Internal_error_handler
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/key.h"
+#include "sql/log.h"
+#include "sql/partition_element.h"            // partition_element
+#include "sql/partition_info.h"               // partition_info
+#include "sql/sql_bitmap.h"
+#include "sql/sql_class.h"                    // THD
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_list.h"
+#include "sql/sql_partition.h"                // generate_partition_syntax
+#include "sql/sql_plugin.h"                   // plugin_unlock
+#include "sql/sql_plugin_ref.h"
+#include "sql/sql_servers.h"
+#include "sql/sql_table.h"                    // primary_key_name
+#include "sql/strfunc.h"                      // lex_cstring_handle
+#include "sql/system_variables.h"
+#include "sql/table.h"
 #include "sql_string.h"
-#include "sql_table.h"                        // primary_key_name
-#include "strfunc.h"                          // lex_cstring_handle
-#include "system_variables.h"
-#include "table.h"
 #include "typelib.h"
 
 
@@ -292,6 +292,9 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share, const dd::Table *table_d
     }
   }
 
+  share->m_histograms=
+    new malloc_unordered_map<uint,
+                             const histograms::Histogram*>(PSI_INSTRUMENT_ME);
 
   // Setup other fields =====================================================
   /* Allocate handler */
@@ -1026,7 +1029,8 @@ static bool fill_column_from_dd(THD *thd,
                         col_obj->is_nullable(),
                         col_obj->is_zerofill(),
                         col_obj->is_unsigned(),
-                        decimals, treat_bit_as_char, 0);
+                        decimals, treat_bit_as_char, 0,
+                        col_obj->srs_id());
 
   reg_field->field_index= field_nr;
   reg_field->gcol_info= gcol_info;
@@ -1421,6 +1425,42 @@ static bool fill_index_from_dd(THD* thd, TABLE_SHARE *share,
 
 
 /**
+  Check if this is a spatial index that can be used. That is, if there is
+  a spatial index on a geometry column without the SRID specified, we will
+  hide the index so that the optimizer won't consider the index during
+  optimization/execution.
+
+  @param index The index to verify
+
+  @retval true if the index is an usable spatial index, or if it isn't a
+          spatial index.
+  @retval false if the index is a spatial index on a geometry column without
+          an SRID specified.
+*/
+static bool is_spatial_index_usable(const dd::Index &index)
+{
+  if (index.type() == dd::Index::IT_SPATIAL)
+  {
+    /*
+      We have already checked for hidden indexes before we get here. But we
+      still play safe since the check is very cheap.
+    */
+    if (index.is_hidden())
+      return false; /* purecov: deadcode */
+
+    // Check that none of the parts references a column with SRID == NULL
+    for (const auto element : index.elements())
+    {
+      if (!element->is_hidden() && !element->column().srs_id().has_value())
+        return false;
+    }
+  }
+
+  return true;
+}
+
+
+/**
   Fill TABLE_SHARE::key_info array according to index metadata
   from dd::Table object.
 */
@@ -1537,7 +1577,8 @@ static bool fill_indexes_from_dd(THD *thd, TABLE_SHARE *share,
       index_at_pos[key_nr]= idx_obj;
 
       share->keys_in_use.set_bit(key_nr);
-      if (idx_obj->is_visible())
+
+      if (idx_obj->is_visible() && is_spatial_index_usable(*idx_obj))
         share->visible_indexes.set_bit(key_nr);
 
       key_nr++;
@@ -2245,6 +2286,82 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
 }
 
 
+/**
+  Fill TABLE_SHARE with information about foreign keys from dd::Table.
+*/
+
+static bool fill_foreign_keys_from_dd(TABLE_SHARE *share,
+                                      const dd::Table *tab_obj)
+{
+  DBUG_ASSERT(share->foreign_keys == 0 &&
+              share->foreign_key_parents == 0);
+
+
+  share->foreign_keys= tab_obj->foreign_keys().size();
+  share->foreign_key_parents= tab_obj->foreign_key_parents().size();
+
+
+  if (share->foreign_keys)
+  {
+    if (!(share->foreign_key= (TABLE_SHARE_FOREIGN_KEY_INFO*)
+            alloc_root(&share->mem_root,
+                       share->foreign_keys *
+                       sizeof(TABLE_SHARE_FOREIGN_KEY_INFO))))
+      return true;
+
+    uint i= 0;
+
+    for (const dd::Foreign_key *fk : tab_obj->foreign_keys())
+    {
+      if (!make_lex_string_root(&share->mem_root,
+                                &share->foreign_key[i].referenced_table_db,
+                                fk->referenced_table_schema_name().c_str(),
+                                fk->referenced_table_schema_name().length(),
+                                false))
+        return true;
+      if (!make_lex_string_root(&share->mem_root,
+                                &share->foreign_key[i].referenced_table_name,
+                                fk->referenced_table_name().c_str(),
+                                fk->referenced_table_name().length(),
+                                false))
+        return true;
+      ++i;
+    }
+  }
+
+  if (share->foreign_key_parents)
+  {
+    if (!(share->foreign_key_parent= (TABLE_SHARE_FOREIGN_KEY_PARENT_INFO*)
+            alloc_root(&share->mem_root,
+                       share->foreign_key_parents *
+                       sizeof(TABLE_SHARE_FOREIGN_KEY_PARENT_INFO))))
+      return true;
+
+    uint i= 0;
+
+    for (const dd::Foreign_key_parent *fk_p : tab_obj->foreign_key_parents())
+    {
+      if (!make_lex_string_root(&share->mem_root,
+              &share->foreign_key_parent[i].referencing_table_db,
+              fk_p->child_schema_name().c_str(),
+              fk_p->child_schema_name().length(),
+              false))
+        return true;
+      if (!make_lex_string_root(&share->mem_root,
+              &share->foreign_key_parent[i].referencing_table_name,
+              fk_p->child_table_name().c_str(),
+              fk_p->child_table_name().length(),
+              false))
+        return true;
+      share->foreign_key_parent[i].update_rule= fk_p->update_rule();
+      share->foreign_key_parent[i].delete_rule= fk_p->delete_rule();
+      ++i;
+    }
+  }
+  return false;
+}
+
+
 bool open_table_def(THD *thd, TABLE_SHARE *share, const dd::Table &table_def)
 {
   DBUG_ENTER("open_table_def");
@@ -2257,7 +2374,8 @@ bool open_table_def(THD *thd, TABLE_SHARE *share, const dd::Table &table_def)
   bool error=  (fill_share_from_dd(thd, share, &table_def) ||
                 fill_columns_from_dd(thd, share, &table_def) ||
                 fill_indexes_from_dd(thd, share, &table_def) ||
-                fill_partitioning_from_dd(thd, share, &table_def));
+                fill_partitioning_from_dd(thd, share, &table_def) ||
+                fill_foreign_keys_from_dd(share, &table_def));
 
   thd->mem_root= old_root;
 

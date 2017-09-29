@@ -31,10 +31,10 @@
 #endif
 #include <unistd.h>
 #include <mysql.h>
-#include <my_getopt.h>
+#include "my_getopt.h"
 #include <signal.h>
 #include "../../../client/client_priv.h"
-#include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
+#include "welcome_copyright_notice.h" /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 
 #define BLUE_COLOR 1

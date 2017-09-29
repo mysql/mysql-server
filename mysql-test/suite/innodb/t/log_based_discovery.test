@@ -48,7 +48,7 @@ EOF
 --source include/shutdown_mysqld.inc
 
 # Set the bootstrap parameters for datadir1
-let NEW_CMD = $MYSQLD --no-defaults --initialize-insecure --innodb_log_group_home_dir=$MYSQLD_REDO_DIR1 --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR1 --innodb_undo_directory=$MYSQLD_UNDO_DATA_DIR1 --innodb_undo_tablespaces=5 --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATA_DIR1 --init-file=$BOOTSTRAP_SQL  --secure-file-priv="" </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
+let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --innodb_log_group_home_dir=$MYSQLD_REDO_DIR1 --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR1 --innodb_undo_directory=$MYSQLD_UNDO_DATA_DIR1 --innodb_undo_tablespaces=5 --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATA_DIR1 --init-file=$BOOTSTRAP_SQL  --secure-file-priv="" </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
 
 --echo # Run the bootstrap command of datadir1
 --exec $NEW_CMD
@@ -69,7 +69,7 @@ SELECT * FROM tab1;
 --source include/shutdown_mysqld.inc
 
 # Set the bootstrap parameters for datadir2
-let NEW_CMD = $MYSQLD --no-defaults --initialize-insecure --innodb_page_size=$START_PAGE_SIZE --innodb_log_group_home_dir=$MYSQLD_REDO_DIR2 --innodb_log_file_size=$LOG_FILE_SIZE --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR2 --innodb_undo_directory=$MYSQLD_UNDO_DATA_DIR2 --innodb_undo_tablespaces=5 --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATA_DIR2 --init-file=$BOOTSTRAP_SQL  --secure-file-priv="" </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
+let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --innodb_page_size=$START_PAGE_SIZE --innodb_log_group_home_dir=$MYSQLD_REDO_DIR2 --innodb_log_file_size=$LOG_FILE_SIZE --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR2 --innodb_undo_directory=$MYSQLD_UNDO_DATA_DIR2 --innodb_undo_tablespaces=5 --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATA_DIR2 --init-file=$BOOTSTRAP_SQL  --secure-file-priv="" </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
 
 --echo # Run the bootstrap command of datadir2
 --exec $NEW_CMD
@@ -90,7 +90,7 @@ SELECT * FROM tab2;
 --source include/shutdown_mysqld.inc
 
 # swap the undo* file path of datadir1 to datadir2 (interchange)
-let NEW_CMD = $MYSQLD --no-defaults --innodb_page_size=$START_PAGE_SIZE --innodb_log_group_home_dir=$MYSQLD_REDO_DIR1 --innodb_log_file_size=$LOG_FILE_SIZE --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR1 --innodb_undo_directory=$MYSQLD_UNDO_DATA_DIR2 --innodb_undo_tablespaces=5 --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATA_DIR1  --secure-file-priv="" --unknown-setting --console </dev/null>>$MYSQLTEST_VARDIR/tmp/mysqld_log.err 2>&1;
+let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --innodb_page_size=$START_PAGE_SIZE --innodb_log_group_home_dir=$MYSQLD_REDO_DIR1 --innodb_log_file_size=$LOG_FILE_SIZE --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR1 --innodb_undo_directory=$MYSQLD_UNDO_DATA_DIR2 --innodb_undo_tablespaces=5 --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATA_DIR1  --secure-file-priv="" --unknown-setting --console </dev/null>>$MYSQLTEST_VARDIR/tmp/mysqld_log.err 2>&1;
 
 --echo # DB1 server started with the wrong path of undo tablespaces.
 --echo # Expect errors during recovery.
@@ -101,7 +101,7 @@ let NEW_CMD = $MYSQLD --no-defaults --innodb_page_size=$START_PAGE_SIZE --innodb
 let SEARCH_FILE= $MYSQLTEST_VARDIR/tmp/mysqld_log.err;
 let SEARCH_PATTERN=Cannot create .*undo_001 because .*undo_001 already uses Space ID=4294967279!  Did you change innodb_undo_directory;
 
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --remove_file $MYSQLTEST_VARDIR/tmp/mysqld_log.err
 
 --echo # Start the DB server with right path, expect no recovery errors

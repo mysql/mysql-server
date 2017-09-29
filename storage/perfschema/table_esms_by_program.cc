@@ -20,18 +20,18 @@
 
 #include "storage/perfschema/table_esms_by_program.h"
 
-#include "field.h"
 #include "my_dbug.h"
 #include "my_thread.h"
-#include "pfs_buffer_container.h"
-#include "pfs_column_types.h"
-#include "pfs_column_values.h"
-#include "pfs_global.h"
-#include "pfs_instr.h"
-#include "pfs_instr_class.h"
-#include "pfs_program.h"
-#include "pfs_timer.h"
-#include "pfs_visitor.h"
+#include "sql/field.h"
+#include "storage/perfschema/pfs_buffer_container.h"
+#include "storage/perfschema/pfs_column_types.h"
+#include "storage/perfschema/pfs_column_values.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_instr.h"
+#include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/pfs_program.h"
+#include "storage/perfschema/pfs_timer.h"
+#include "storage/perfschema/pfs_visitor.h"
 
 THR_LOCK table_esms_by_program::m_table_lock;
 
@@ -147,6 +147,7 @@ table_esms_by_program::get_row_count(void)
 table_esms_by_program::table_esms_by_program()
   : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0)
 {
+  m_normalizer = time_normalizer::get_statement();
 }
 
 void
@@ -245,11 +246,10 @@ table_esms_by_program::make_row(PFS_program *program)
     memcpy(
       m_row.m_schema_name, program->m_schema_name, m_row.m_schema_name_length);
 
-  time_normalizer *normalizer = time_normalizer::get(statement_timer);
   /* Get stored program's over all stats. */
-  m_row.m_sp_stat.set(normalizer, &program->m_sp_stat);
+  m_row.m_sp_stat.set(m_normalizer, &program->m_sp_stat);
   /* Get sub statements' stats. */
-  m_row.m_stmt_stat.set(normalizer, &program->m_stmt_stat);
+  m_row.m_stmt_stat.set(m_normalizer, &program->m_stmt_stat);
 
   if (!program->m_lock.end_optimistic_lock(&lock))
   {

@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "table.h"
+#include "sql/table.h"
 
 #include "my_config.h"
 
@@ -24,33 +24,12 @@
 #include <algorithm>
 #include <string>
 
-#include "auth_acls.h"
-#include "auth_common.h"                 // acl_getroot
-#include "binlog.h"                      // mysql_bin_log
-#include "dd/cache/dictionary_client.h"  // dd::cache_Dictionary_client
-#include "dd/dd.h"                       // dd::get_dictionary
-#include "dd/dictionary.h"               // dd::Dictionary
-#include "dd/types/abstract_table.h"
-#include "dd/types/table.h"              // dd::Table
-#include "dd/types/view.h"               // dd::View
-#include "debug_sync.h"                  // DEBUG_SYNC
-#include "derror.h"                      // ER_THD
-#include "error_handler.h"               // Strict_error_handler
-#include "field.h"
 #include "ft_global.h"
-#include "item.h"
-#include "item_cmpfunc.h"                // and_conds
-#include "item_create.h"
-#include "json_diff.h"                   // Json_diff_vector
-#include "json_dom.h"                    // Json_wrapper
-#include "key.h"                         // find_ref_key
-#include "log.h"
 #include "m_string.h"
 #include "map_helpers.h"
 #include "my_alloc.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_io.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
@@ -71,34 +50,58 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysql_version.h"               // MYSQL_VERSION_ID
-#include "mysqld.h"                      // reg_ext key_file_frm ...
 #include "mysqld_error.h"
-#include "opt_trace.h"                   // opt_trace_disable_if_no_security_...
-#include "opt_trace_context.h"
-#include "parse_file.h"                  // sql_parse_prepare
-#include "partition_info.h"              // partition_info
-#include "psi_memory_key.h"
-#include "query_result.h"                // Query_result
-#include "sql_base.h"
-#include "sql_class.h"                   // THD
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_parse.h"                   // check_stack_overrun
-#include "sql_partition.h"               // mysql_unpack_partition
-#include "sql_plugin.h"                  // plugin_unlock
-#include "sql_security_ctx.h"
-#include "sql_select.h"                  // actual_key_parts
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h"        // acl_getroot
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/binlog.h"                  // mysql_bin_log
+#include "sql/dd/cache/dictionary_client.h" // dd::cache_Dictionary_client
+#include "sql/dd/dd.h"                   // dd::get_dictionary
+#include "sql/dd/dictionary.h"           // dd::Dictionary
+#include "sql/dd/types/abstract_table.h"
+#include "sql/dd/types/table.h"          // dd::Table
+#include "sql/dd/types/view.h"           // dd::View
+#include "sql/debug_sync.h"              // DEBUG_SYNC
+#include "sql/derror.h"                  // ER_THD
+#include "sql/error_handler.h"           // Strict_error_handler
+#include "sql/field.h"
+#include "sql/histograms/histogram.h"
+#include "sql/item.h"
+#include "sql/item_cmpfunc.h"            // and_conds
+#include "sql/item_create.h"
+#include "sql/json_diff.h"               // Json_diff_vector
+#include "sql/json_dom.h"                // Json_wrapper
+#include "sql/key.h"                     // find_ref_key
+#include "sql/log.h"
+#include "sql/my_decimal.h"
+#include "sql/mysqld.h"                  // reg_ext key_file_frm ...
+#include "sql/opt_trace.h"               // opt_trace_disable_if_no_security_...
+#include "sql/opt_trace_context.h"
+#include "sql/parse_file.h"              // sql_parse_prepare
+#include "sql/partition_info.h"          // partition_info
+#include "sql/psi_memory_key.h"
+#include "sql/query_result.h"            // Query_result
+#include "sql/rpl_record.h"              // PARTIAL_JSON_UPDATES
+#include "sql/sql_base.h"
+#include "sql/sql_class.h"               // THD
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_parse.h"               // check_stack_overrun
+#include "sql/sql_partition.h"           // mysql_unpack_partition
+#include "sql/sql_plugin.h"              // plugin_unlock
+#include "sql/sql_select.h"              // actual_key_parts
+#include "sql/sql_table.h"               // build_table_filename
+#include "sql/sql_tablespace.h"          // validate_tablespace_name())
+#include "sql/strfunc.h"                 // find_type
+#include "sql/system_variables.h"
+#include "sql/table_cache.h"             // table_cache_manager
+#include "sql/table_trigger_dispatcher.h" // Table_trigger_dispatcher
+#include "sql/thr_malloc.h"
+#include "sql/trigger_def.h"
 #include "sql_string.h"
-#include "sql_table.h"                   // build_table_filename
-#include "sql_tablespace.h"              // validate_tablespace_name())
-#include "strfunc.h"                     // find_type
-#include "system_variables.h"
-#include "table_cache.h"                 // table_cache_manager
-#include "table_trigger_dispatcher.h"    // Table_trigger_dispatcher
 #include "template_utils.h"              // down_cast
-#include "thr_malloc.h"
 #include "thr_mutex.h"
-#include "trigger_def.h"
+#include "table_function.h"              // Table_function
 
 /* INFORMATION_SCHEMA name */
 LEX_STRING INFORMATION_SCHEMA_NAME= {C_STRING_WITH_LEN("information_schema")};
@@ -271,9 +274,6 @@ GRANT_INFO::GRANT_INFO()
   grant_table= 0;
   version= 0;
   privilege= NO_ACCESS;
-#ifndef DBUG_OFF
-  want_privilege= 0;
-#endif
 }
 
 
@@ -563,6 +563,9 @@ void TABLE_SHARE::destroy()
     mysql_mutex_destroy(&LOCK_ha_data);
   delete name_hash;
   name_hash= nullptr;
+
+  delete m_histograms;
+  m_histograms= nullptr;
 
   plugin_unlock(NULL, db_plugin);
   db_plugin= NULL;
@@ -1467,7 +1470,7 @@ static int make_field_from_frm(THD *thd,
              f_is_dec(pack_flag) == 0,
              f_decimals(pack_flag),
              f_bit_as_char(pack_flag),
-             0);
+             0, {});
   if (!reg_field)
   {
     // Not supported field type
@@ -3669,6 +3672,8 @@ void update_create_info_from_table(HA_CREATE_INFO *create_info, TABLE *table)
   create_info->comment= share->comment;
   create_info->storage_media= share->default_storage_media;
   create_info->tablespace= share->tablespace;
+  create_info->compress= share->compress;
+  create_info->encrypt_type= share->encrypt_type;
 
   DBUG_VOID_RETURN;
 }
@@ -4150,6 +4155,18 @@ end:
   return result;
 }
 
+const histograms::Histogram* TABLE_SHARE::find_histogram(uint field_index)
+{
+  if (m_histograms == nullptr)
+    return nullptr;
+
+  const auto found= m_histograms->find(field_index);
+  if (found == m_histograms->end())
+    return nullptr;
+
+  return found->second;
+}
+
 
 /**
   Wait until the subject share is removed from the table
@@ -4342,6 +4359,71 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
 }
 
 
+/**
+  Initialize table as internal tmp table
+
+  @param thd        thread handle
+  @param share      table share
+  @param m_root     table's mem root
+  @param charset    table's charset
+  @param alias_arg  table's alias
+  @param fld        table's fields array
+  @param blob_fld   buffer for blob field index
+  @param is_virtual TRUE <=> it's a virtual tmp table
+
+  @returns
+    true  OOM
+    false otherwise
+*/
+
+bool TABLE::init_tmp_table(THD *thd, TABLE_SHARE *share, MEM_ROOT *m_root,
+                           CHARSET_INFO *charset, const char* alias_arg,
+                           Field **fld, uint *blob_fld, bool is_virtual)
+{
+  if (!is_virtual)
+  {
+    char *name, path[FN_REFLEN];
+    DBUG_ASSERT(sizeof(my_thread_id) == 4);
+    sprintf(path,"%s%lx_%x_%x", tmp_file_prefix, current_pid, thd->thread_id(),
+            thd->tmp_table++);
+    fn_format(path, path, mysql_tmpdir, "", MY_REPLACE_EXT|MY_UNPACK_FILENAME);
+    if (!(name= (char*)alloc_root(m_root, strlen(path) + 1)))
+      return true;
+    my_stpcpy(name, path);
+
+    init_tmp_table_share(thd, share, "", 0, name, name, m_root);
+  }
+  s= share;
+  in_use= thd;
+
+  share->blob_field= blob_fld;
+  share->db_low_byte_first=1;                // True for HEAP and MyISAM
+  share->ref_count++;
+  share->primary_key= MAX_KEY;
+  share->keys_for_keyread.init();
+  share->keys_in_use.init();
+  share->keys= 0;
+  share->field= field= fld;
+  share->table_charset= charset;
+  set_not_started();
+  alias= alias_arg;
+  reginfo.lock_type=TL_WRITE;	/* Will be updated */
+  db_stat= HA_OPEN_KEYFILE + HA_OPEN_RNDFILE;
+  copy_blobs= 1;
+  quick_keys.init();
+  possible_quick_keys.init();
+  covering_keys.init();
+  merge_keys.init();
+  keys_in_use_for_query.init();
+  keys_in_use_for_group_by.init();
+  keys_in_use_for_order_by.init();
+  set_not_started();
+#ifndef DBUG_OFF
+  set_tmp_table_seq_id(thd->get_tmp_table_seq_id());
+#endif
+  return false;
+}
+
 bool TABLE::refix_gc_items(THD *thd)
 {
   if (vfield)
@@ -4520,6 +4602,7 @@ TABLE_LIST *TABLE_LIST::new_nested_join(MEM_ROOT *allocator,
   join_nest->embedding= embedding;
   join_nest->join_list= belongs_to;
   join_nest->select_lex= select;
+  join_nest->nested_join->first_nested= NO_PLAN_IDX;
 
   join_nest->nested_join->join_list.empty();
 
@@ -5074,25 +5157,6 @@ TABLE_LIST *TABLE_LIST::last_leaf_for_name_resolution()
 
 
 /**
-  Set privileges needed for columns of underlying tables
-
-  @param want_privilege  Required privileges
-*/
-
-void TABLE_LIST::set_want_privilege(ulong want_privilege MY_ATTRIBUTE((unused)))
-{
-#ifndef DBUG_OFF
-  // Remove SHOW_VIEW_ACL, because it will be checked during making view
-  want_privilege&= ~SHOW_VIEW_ACL;
-
-  grant.want_privilege= want_privilege & ~grant.privilege;
-  for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
-    tbl->set_want_privilege(want_privilege);
-#endif
-}
-
-
-/**
   Load security context information for this view
 
   @param thd                  thread handler
@@ -5544,7 +5608,8 @@ const char *Field_iterator_table_ref::get_table_name()
   else if (table_ref->is_natural_join)
     return natural_join_it.column_ref()->table_name();
 
-  DBUG_ASSERT(!strcmp(table_ref->table_name,
+  DBUG_ASSERT(table_ref->is_table_function() ||
+              !strcmp(table_ref->table_name,
                       table_ref->table->s->table_name.str));
   return table_ref->table_name;
 }
@@ -6889,22 +6954,6 @@ bool TABLE_LIST::process_index_hints(const THD *thd, TABLE *tbl)
 }
 
 
-size_t max_row_length(TABLE *table, const uchar *data)
-{
-  TABLE_SHARE *table_s= table->s;
-  size_t length= table_s->reclength + 2 * table_s->fields;
-  uint *const beg= table_s->blob_field;
-  uint *const end= beg + table_s->blob_fields;
-
-  for (uint *ptr= beg ; ptr != end ; ++ptr)
-  {
-    Field_blob* const blob= (Field_blob*) table->field[*ptr];
-    length+= blob->get_length((data + blob->offset(table->record[0]))) +
-      HA_KEY_BLOB_LENGTH;
-  }
-  return length;
-}
-
 /**
    Helper function which allows to allocate metadata lock request
    objects for all elements of table list.
@@ -6975,7 +7024,13 @@ uint TABLE_LIST::leaf_tables_count() const
 int TABLE_LIST::fetch_number_of_rows()
 {
   int error= 0;
-  if (uses_materialization())
+  if (is_table_function())
+  {
+    // FIXME: open question - there's no estimate for table function.
+    // return arbitrary, non-zero number;
+    table->file->stats.records= PLACEHOLDER_TABLE_ROW_ESTIMATE;
+  }
+  else if (uses_materialization())
   {
     /*
       @todo: CostModel: This updates the stats.record value to the
@@ -6996,7 +7051,8 @@ int TABLE_LIST::fetch_number_of_rows()
     */
     table->file->stats.records=
       std::max(select_lex->master_unit()->query_result()->estimated_rowcount,
-               (ha_rows)2); // Recursive reference is never a const table
+               // Recursive reference is never a const table
+               (ha_rows)PLACEHOLDER_TABLE_ROW_ESTIMATE);
   }
   else
     error= table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
@@ -7732,6 +7788,28 @@ bool TABLE_LIST::set_recursive_reference()
 }
 
 
+/**
+  Propagate table map of a table up by nested join tree. Used to check
+  dependencies for LATERAL JOIN of table functions.
+
+  @param map_arg  table map to propagate
+*/
+
+void TABLE_LIST::propagate_table_maps(table_map map_arg)
+{
+  table_map prop_map;
+  if (nested_join)
+  {
+    nested_join->used_tables|= map_arg;
+    prop_map= nested_join->used_tables;
+  }
+  else
+    prop_map= map();
+  if (embedding)
+    embedding->propagate_table_maps(prop_map);
+}
+
+
 st_lex_user *
 st_lex_user::alloc(THD *thd, LEX_STRING *user_arg, LEX_STRING *host_arg)
 {
@@ -7761,7 +7839,10 @@ st_lex_user::alloc(THD *thd, LEX_STRING *user_arg, LEX_STRING *host_arg)
   ret->alter_status.update_account_locked_column= false;
   ret->alter_status.update_password_expired_column= false;
   ret->alter_status.update_password_expired_fields= false;
-  ret->alter_status.use_default_password_lifetime= false;
+  ret->alter_status.use_default_password_lifetime= true;
+  ret->alter_status.use_default_password_history= true;
+  ret->alter_status.password_history_length= 0;
+  ret->alter_status.password_reuse_interval= 0;
   if (check_string_char_length(ret->user, ER_THD(thd, ER_USERNAME),
                                USERNAME_CHAR_LENGTH,
                                system_charset_info, 0) ||
@@ -7907,7 +7988,8 @@ bool TABLE::mark_column_for_partial_update(const Field *field)
 
 void TABLE::disable_binary_diffs_for_current_row(const Field *field)
 {
-  DBUG_ASSERT(field->table == this && is_binary_diff_enabled(field));
+  DBUG_ASSERT(field->table == this);
+  DBUG_ASSERT(is_binary_diff_enabled(field));
 
   // Remove the diffs collected for the column.
   m_partial_update_info->m_binary_diff_vectors[field->field_index]->clear();
@@ -7937,10 +8019,11 @@ bool TABLE::has_binary_diff_columns() const
 
 bool TABLE::setup_partial_update(bool logical_diffs)
 {
+  DBUG_ENTER("TABLE::setup_partial_update(bool)");
   DBUG_ASSERT(m_partial_update_info == nullptr);
 
   if (!has_columns_marked_for_partial_update())
-    return false;
+    DBUG_RETURN(false);
 
   Opt_trace_context *trace= &in_use->opt_trace;
   if (trace->is_started())
@@ -7960,7 +8043,29 @@ bool TABLE::setup_partial_update(bool logical_diffs)
   m_partial_update_info=
     new (in_use->mem_root) Partial_update_info(this, m_partial_update_columns,
                                                logical_diffs);
-  return in_use->is_error();
+  DBUG_RETURN(in_use->is_error());
+}
+
+
+bool TABLE::setup_partial_update()
+{
+  bool logical_diffs=
+    (in_use->variables.binlog_row_value_options & PARTIAL_JSON_UPDATES) != 0 &&
+    mysql_bin_log.is_open() &&
+    (in_use->variables.option_bits & OPTION_BIN_LOG) != 0 &&
+    log_bin_use_v1_row_events == 0 &&
+    in_use->is_current_stmt_binlog_format_row();
+  DBUG_PRINT("info", ("TABLE::setup_partial_update(): logical_diffs=%d "
+                      "because binlog_row_value_options=%d binlog.is_open=%d "
+                      "sql_log_bin=%d use_v1_row_events=%d rbr=%d",
+                      logical_diffs,
+                      (in_use->variables.binlog_row_value_options &
+                       PARTIAL_JSON_UPDATES) != 0,
+                      mysql_bin_log.is_open(),
+                      (in_use->variables.option_bits & OPTION_BIN_LOG) != 0,
+                      log_bin_use_v1_row_events,
+                      in_use->is_current_stmt_binlog_format_row()));
+  return setup_partial_update(logical_diffs);
 }
 
 
@@ -7978,8 +8083,10 @@ bool TABLE::has_columns_marked_for_partial_update() const
 
 void TABLE::cleanup_partial_update()
 {
+  DBUG_ENTER("TABLE::cleanup_partial_update");
   destroy(m_partial_update_info);
   m_partial_update_info= nullptr;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -7992,6 +8099,7 @@ String *TABLE::get_partial_update_buffer()
 
 void TABLE::clear_partial_update_diffs()
 {
+  DBUG_ENTER("TABLE::clear_partial_update_diffs");
   if (m_partial_update_info != nullptr)
   {
     for (auto v : m_partial_update_info->m_binary_diff_vectors)
@@ -8011,6 +8119,7 @@ void TABLE::clear_partial_update_diffs()
                   m_partial_update_columns);
     }
   }
+  DBUG_VOID_RETURN;
 }
 
 
@@ -8104,9 +8213,30 @@ void TABLE::add_logical_diff(const Field_json *field,
   DBUG_ASSERT(is_logical_diff_enabled(field));
   Json_diff_vector *diffs=
     m_partial_update_info->m_logical_diff_vectors[field->field_index];
-  diffs->emplace_back(path, operation,
-                      new_value == nullptr ? nullptr :
-                      new_value->clone_dom(field->table->in_use));
+  if (new_value == nullptr)
+    diffs->add_diff(path, operation);
+  else
+  {
+    Json_dom_ptr dom= new_value->clone_dom(field->table->in_use);
+    diffs->add_diff(path, operation, dom);
+  }
+#ifndef DBUG_OFF
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> path_str;
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> value_str;
+  if (diffs->at(diffs->size() - 1).path().to_string(&path_str))
+    path_str.length(0); /* purecov: inspected */
+  if (new_value == nullptr || new_value->type() == enum_json_type::J_ERROR)
+    value_str.set_ascii("<none>", 6);
+  else
+  {
+    if (new_value->to_string(&value_str, false, "add_logical_diff"))
+      value_str.length(0); /* purecov: inspected */
+  }
+  DBUG_PRINT("info", ("add_logical_diff(operation=%d, path=%.*s, value=%.*s)",
+                      (int)operation,
+                      (int)path_str.length(), path_str.ptr(),
+                      (int)value_str.length(), value_str.ptr()));
+#endif
 }
 
 
@@ -8128,15 +8258,30 @@ bool TABLE::is_binary_diff_enabled(const Field *field) const
 
 bool TABLE::is_logical_diff_enabled(const Field *field) const
 {
-  return m_partial_update_info != nullptr &&
-         bitmap_is_set(&m_partial_update_info->m_enabled_logical_diff_columns,
-                       field->field_index);
+  DBUG_ENTER("TABLE::is_logical_diff_enabled");
+  bool ret=
+    m_partial_update_info != nullptr &&
+    bitmap_is_set(&m_partial_update_info->m_enabled_logical_diff_columns,
+                  field->field_index);
+  DBUG_PRINT("info", (
+    "field=%s "
+    "is_logical_diff_enabled returns=%d "
+    "(m_partial_update_info!=NULL)=%d "
+    "m_enabled_logical_diff_columns[column]=%s",
+    field->field_name,
+    ret,
+    m_partial_update_info != nullptr,
+    m_partial_update_info != nullptr ?
+    (bitmap_is_set(&m_partial_update_info->m_enabled_logical_diff_columns,
+                   field->field_index) ? "1" : "0") : "unknown"));
+  DBUG_RETURN(ret);
 }
 
 
 void TABLE::disable_logical_diffs_for_current_row(const Field *field) const
 {
-  DBUG_ASSERT(field->table == this && is_logical_diff_enabled(field));
+  DBUG_ASSERT(field->table == this);
+  DBUG_ASSERT(is_logical_diff_enabled(field));
 
   // Remove the diffs collected for the column.
   m_partial_update_info->m_logical_diff_vectors[field->field_index]->clear();
@@ -8323,5 +8468,15 @@ void TABLE::blobs_need_not_keep_old_value()
     if (vfield->type() == MYSQL_TYPE_BLOB && vfield->is_virtual_gcol())
       (down_cast<Field_blob*>(vfield))->set_keep_old_value(false);
   }
+}
+
+void TABLE::set_binlog_drop_if_temp(bool should_binlog)
+{
+  should_binlog_drop_if_temp_flag= should_binlog;
+}
+
+bool TABLE::should_binlog_drop_if_temp(void) const
+{
+  return should_binlog_drop_if_temp_flag;
 }
 //////////////////////////////////////////////////////////////////////////

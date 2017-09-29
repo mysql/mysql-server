@@ -22,12 +22,12 @@
 */
 
 #define DONT_MAP_VIO
-#include <m_string.h>
-#include <my_sys.h>
 #include <mysql_com.h>
-#include <violite.h>
 
+#include "m_string.h"
+#include "my_sys.h"
 #include "mysql/psi/psi_memory.h"
+#include "violite.h"
 
 C_MODE_START
 

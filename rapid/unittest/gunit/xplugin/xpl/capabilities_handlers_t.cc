@@ -14,17 +14,18 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 
-#include <gtest/gtest.h>
-#include <gmock/gmock.h>
-
-#include "account_verification_handler.h"
-#include "mock/capabilities.h"
-#include "mock/ngs_general.h"
-#include "mock/session.h"
 #include "my_config.h"
-#include "ngs/capabilities/handler_auth_mech.h"
-#include "ngs/capabilities/handler_tls.h"
-#include "sql_user_require.h"
+
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
+#include "plugin/x/ngs/include/ngs/capabilities/handler_auth_mech.h"
+#include "plugin/x/ngs/include/ngs/capabilities/handler_tls.h"
+#include "plugin/x/src/account_verification_handler.h"
+#include "plugin/x/src/sql_user_require.h"
+#include "unittest/gunit/xplugin/xpl/mock/capabilities.h"
+#include "unittest/gunit/xplugin/xpl/mock/ngs_general.h"
+#include "unittest/gunit/xplugin/xpl/mock/session.h"
 
 namespace ngs
 {

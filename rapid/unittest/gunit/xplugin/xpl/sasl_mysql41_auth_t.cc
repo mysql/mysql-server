@@ -16,9 +16,9 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "auth_mysql41.h"
-#include "mock/session.h"
-#include "sql_user_require.h"
+#include "plugin/x/src/auth_mysql41.h"
+#include "plugin/x/src/sql_user_require.h"
+#include "unittest/gunit/xplugin/xpl/mock/session.h"
 
 namespace xpl {
 

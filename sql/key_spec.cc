@@ -13,22 +13,23 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "key_spec.h"
+#include "sql/key_spec.h"
 
 #include <stddef.h>
 #include <algorithm>
 
-#include "dd/dd.h"         // dd::get_dictionary
-#include "dd/dictionary.h" // dd::Dictionary::check_dd...
-#include "derror.h"      // ER_THD
-#include "field.h"       // Create_field
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
-#include "sql_class.h"   // THD
-#include "sql_security_ctx.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/dd/dd.h"     // dd::get_dictionary
+#include "sql/dd/dictionary.h" // dd::Dictionary::check_dd...
+#include "sql/derror.h"  // ER_THD
+#include "sql/field.h"   // Create_field
+#include "sql/sql_class.h" // THD
+#include "sql/sql_parse.h" // check_string_char_length
 
 KEY_CREATE_INFO default_key_create_info;
 
@@ -158,6 +159,23 @@ bool Foreign_key_spec::validate(THD *thd, const char *table_name,
       }
     }
   }
+
+  if (name.str &&
+      check_string_char_length(name, "", NAME_CHAR_LEN, system_charset_info, 1))
+  {
+    my_error(ER_TOO_LONG_IDENT, MYF(0), name.str);
+    DBUG_RETURN(true);
+  }
+
+  for (const Key_part_spec *fk_col : ref_columns)
+  {
+    if (check_column_name(fk_col->field_name.str))
+    {
+      my_error(ER_WRONG_COLUMN_NAME, MYF(0), fk_col->field_name.str);
+      DBUG_RETURN(true);
+    }
+  }
+
   DBUG_RETURN(false);
 }
 

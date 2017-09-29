@@ -14,11 +14,11 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <limits.h>
-#include <m_string.h>  // IWYU pragma: keep
-#include <my_sys.h>            /* Needed for MY_ERRNO_ERANGE */
 #include <sys/types.h>
 
+#include "m_string.h"  // IWYU pragma: keep
 #include "my_inttypes.h"
+#include "my_sys.h"            /* Needed for MY_ERRNO_ERANGE */
 
 #define MAX_NEGATIVE_NUMBER	((ulonglong) 0x8000000000000000LL)
 #define INIT_CNT  9

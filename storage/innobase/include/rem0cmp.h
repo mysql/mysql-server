@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -32,6 +32,10 @@ Created 7/1/1994 Heikki Tuuri
 #include "dict0dict.h"
 #include "rem0rec.h"
 #include <my_sys.h>
+
+namespace dd {
+class Spatial_reference_system;
+}
 
 /*************************************************************//**
 Returns TRUE if two columns are equal for comparison purposes.
@@ -87,6 +91,7 @@ cmp_dfield_dfield(
 @param[in] rec B-tree record
 @param[in] offsets rec_get_offsets(rec)
 @param[in] mode compare mode
+@param[in] srs Spatial reference system of R-tree
 @retval negative if dtuple is less than rec */
 int
 cmp_dtuple_rec_with_gis(
@@ -94,7 +99,8 @@ cmp_dtuple_rec_with_gis(
 	const dtuple_t*	dtuple,
 	const rec_t*	rec,
 	const ulint*	offsets,
-	page_cur_mode_t	mode);
+	page_cur_mode_t	mode,
+	const dd::Spatial_reference_system*	srs);
 
 /** Compare a GIS data tuple to a physical record in rtree non-leaf node.
 We need to check the page number field, since we don't store pk field in
@@ -107,7 +113,8 @@ int
 cmp_dtuple_rec_with_gis_internal(
 	const dtuple_t*	dtuple,
 	const rec_t*	rec,
-	const ulint*	offsets);
+	const ulint*	offsets,
+	const dd::Spatial_reference_system*	srs);
 
 /** Compare a data tuple to a physical record.
 @param[in]	dtuple		data tuple

@@ -13,12 +13,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_memory.h"
+
 #include <rpc/rpc.h>
 #include <stdlib.h>
 
-#include "xcom_memory.h"
-#include "xcom_profile.h"
-#include "xcom_proto_enum.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_profile.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_proto_enum.h"
 
 extern xcom_proto const my_xcom_version;
 

@@ -19,14 +19,14 @@
 #include <algorithm>
 #include <utility>
 
-#include "auth/auth_common.h"
 #include "lex_string.h"
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_sharedlib.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "sql_const.h"
+#include "sql/auth/auth_common.h"
+#include "sql/sql_const.h"
 #include "sql_string.h"
 
 /* Forward declaration. Depends on sql_auth_cache.h (which depends on this file) */

@@ -17,12 +17,11 @@
 #ifdef _WIN32
 #include <process.h>
 #endif
-#include <my_sys.h>
-#include <m_string.h>
+#include <BaseString.hpp>
+#include "m_string.h"
+#include "my_sys.h"
 #include <mysql/service_my_snprintf.h>
 #include <ndb_daemon.h>
-
-#include <BaseString.hpp>
 #include <portlib/NdbHost.h>
 
 static FILE *dlog_file;
@@ -43,7 +42,8 @@ static int ERR1(const char* fmt, ...)
 
 #ifdef _WIN32
 
-#include <nt_servc.h>
+#include "sql/nt_servc.h"
+
 static NTService g_ntsvc;
 
 static int g_argc;

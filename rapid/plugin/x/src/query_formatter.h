@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 *
 * This program is free software; you can redistribute it and/or
 * modify it under the terms of the GNU General Public License as
@@ -21,13 +21,14 @@
 #define _QUERY_FORMATTER_H_
 
 
-#include <string>
-#include <string.h>
 #include <stdint.h>
-#include <stdexcept>
+#include <string.h>
 #include <sstream>
-#include "ngs/memory.h"
-#include "ngs_common/to_string.h"
+#include <stdexcept>
+#include <string>
+
+#include "plugin/x/ngs/include/ngs/memory.h"
+#include "plugin/x/ngs/include/ngs_common/to_string.h"
 
 
 struct charset_info_st;
