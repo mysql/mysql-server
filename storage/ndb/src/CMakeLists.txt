@@ -73,6 +73,11 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/libndbclient.ver.in
 
 ADD_LIBRARY(ndbclient_so SHARED ndbclient_exports.cpp)
 TARGET_LINK_LIBRARIES(ndbclient_so ${NDBCLIENT_SO_LIBS})
+IF(APPLE)
+  SET_TARGET_PROPERTIES(ndbclient_so PROPERTIES
+    MACOSX_RPATH ON
+  )
+ENDIF()
 
 IF(MSVC)
 # All "convenience" libraries are now well-known, we *could* do this:
@@ -132,7 +137,9 @@ ELSE()
 
     ENDFOREACH()
   ENDFOREACH()
-  LIST(REMOVE_DUPLICATES NDBCLIENT_SYSTEM_LIBS)
+  IF(NDBCLIENT_SYSTEM_LIBS)
+    LIST(REMOVE_DUPLICATES NDBCLIENT_SYSTEM_LIBS)
+  ENDIF()
   MESSAGE(STATUS "System libs used by ndbclient_so: ${NDBCLIENT_SYSTEM_LIBS}")
   TARGET_LINK_LIBRARIES(ndbclient_so LINK_INTERFACE_LIBRARIES
     ${NDBCLIENT_SYSTEM_LIBS})
