@@ -855,6 +855,33 @@ ENDIF()
 
 IF(UNIX)
   EXECUTE_PROCESS(
+    COMMAND ${CMAKE_COMMAND} -E make_directory library_output_directory
+    COMMAND ${CMAKE_COMMAND} -E make_directory plugin_output_directory
+    COMMAND ${CMAKE_COMMAND} -E make_directory runtime_output_directory
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+  )
+ENDIF()
+
+# Pre-create directories for library_output_directory and
+# plugin_output_directory, so create_symlink does not fail in ssl.cmake
+# Do not pre-create runtime_output_directory/Debug or
+# runtime_output_directory/RelWithDebInfo, mtr gets confused, and must be
+# run with --vs-config=Debug or --vs-config=RelWithDebInfo in order to work.
+IF(APPLE AND NOT BUILD_IS_SINGLE_CONFIG)
+  FOREACH(dir
+      library_output_directory
+      plugin_output_directory
+      )
+    EXECUTE_PROCESS(
+      COMMAND ${CMAKE_COMMAND} -E make_directory ${dir}/Debug
+      COMMAND ${CMAKE_COMMAND} -E make_directory ${dir}/RelWithDebInfo
+      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+      )
+  ENDFOREACH()
+ENDIF()
+
+IF(UNIX)
+  EXECUTE_PROCESS(
     COMMAND ${CMAKE_COMMAND} -E create_symlink
      ./runtime_output_directory bin
     COMMAND ${CMAKE_COMMAND} -E create_symlink
