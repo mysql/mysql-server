@@ -24,7 +24,6 @@ stop slave;
 **** On Master ****
 CREATE TEMPORARY TABLE tmp3 (a int);
 DROP TEMPORARY TABLE tmp3;
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
 START SLAVE;
 include/rpl_reset.inc
 CREATE TABLE t1 ( i INT );
