@@ -241,3 +241,30 @@ Warning	3607	Problem while dropping database. Can't remove database directory (E
 # ... and error log too. Let's check that.
 Pattern "Problem while dropping database. Can't remove database directory .* Please remove it manually." found
 # Clean-up.
+#
+# Bug#24510948: ALTER TABLE+INSERT+DROP DB HANG
+#
+CREATE DATABASE db1;
+CREATE TABLE db1.t1(id INT, title VARCHAR(100),
+FULLTEXT fidx(title), PRIMARY KEY(id));
+# Con1 will attempt insert and block holding open_in_progress on share
+SET DEBUG_SYNC= 'get_share_before_open SIGNAL wait_share WAIT_FOR continue_insert';
+SET SESSION lock_wait_timeout= 5;
+INSERT INTO db1.t1 VALUES(1, 'mysql database');
+# Con2 will attempt alter and block before waiting on COND_open
+SET DEBUG_SYNC= 'now WAIT_FOR wait_share';
+SET DEBUG_SYNC= 'get_share_before_COND_open_wait SIGNAL wait_cond WAIT_FOR continue_alter';
+ALTER TABLE db1.t1 DROP INDEX fidx;
+# Con3 will wait until the other connections are waiting for signals,
+# then attempt to drop schema, which requires X-MDL
+SET DEBUG_SYNC= 'now WAIT_FOR wait_cond';
+DROP DATABASE db1;
+# Con3 is now waiting for MDL on schema. Waking the other connections
+# should let them continue (before fix con1 and con2 would deadlock
+# on schema MDL and LOCK_open (protecting share->open_in_progress)
+# until con1 aborts with lock timeout
+SET DEBUG_SYNC= 'now SIGNAL continue_insert';
+SET DEBUG_SYNC= 'now SIGNAL continue_alter';
+# Reaping connection con1
+# Reaping connection con2
+# Reaping connection con3
