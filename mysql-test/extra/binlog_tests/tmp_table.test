@@ -139,8 +139,11 @@ create temporary table t1(i int);
 -- disconnect con1
 
 -- connection default
--- let $wait_binlog_event= DROP
--- source include/wait_for_binlog_event.inc
+if (`SELECT @@GLOBAL.binlog_format = 'STATEMENT'`)
+{
+  -- let $wait_binlog_event= DROP
+  -- source include/wait_for_binlog_event.inc
+}
 
 # action: insert in the t1. This would cause the the test to fail,
 #         because when replaying the binlog the previous implicit drop
@@ -151,8 +154,11 @@ insert into t1 values(1);
 -- disconnect con2
 
 -- connection default
--- let $wait_binlog_event= DROP
--- source include/wait_for_binlog_event.inc
+if (`SELECT @@GLOBAL.binlog_format = 'STATEMENT'`)
+{
+  -- let $wait_binlog_event= DROP
+  -- source include/wait_for_binlog_event.inc
+}
 
 -- eval DROP DATABASE $dbname
 FLUSH LOGS;

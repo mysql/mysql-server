@@ -4829,7 +4829,7 @@ Item_copy_json::Item_copy_json(Item *item)
 
 Item_copy_json::~Item_copy_json()
 {
-  delete m_value;
+  destroy(m_value);
 }
 
 bool Item_copy_json::copy(const THD *thd)
@@ -4941,6 +4941,7 @@ Item_copy_json::save_in_field_inner(Field *field, bool)
   }
   else
   {
+    str_value.length(0);
     if (m_value->to_string(&str_value, true, item_name.ptr()))
       return set_field_to_null(field);        /* purecov: inspected */
     return save_str_value_in_field(field, &str_value);
@@ -10163,7 +10164,7 @@ Item_cache_json::Item_cache_json()
 
 Item_cache_json::~Item_cache_json()
 {
-  delete m_value;
+  destroy(m_value);
 }
 
 

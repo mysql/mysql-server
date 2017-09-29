@@ -586,7 +586,7 @@ public:
   ~Group_check()
   {
     for (uint j= 0; j < mat_tables.size(); ++j)
-      delete mat_tables.at(j);
+      destroy(mat_tables.at(j));
   }
 
   bool check_query(THD *thd);

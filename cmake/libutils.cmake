@@ -255,11 +255,6 @@ MACRO(MERGE_CONVENIENCE_LIBRARIES)
   SET_TARGET_PROPERTIES(${TARGET} PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/archive_output_directory)
 
-  ADD_CUSTOM_COMMAND(
-    OUTPUT  ${SOURCE_FILE}
-    COMMAND ${CMAKE_COMMAND}  -E touch ${SOURCE_FILE}
-    )
-
   # Go though the list of libraries.
   # Known convenience libraries should have type "STATIC_LIBRARY"
   # We assume that that unknown libraries (type "LIB_TYPE-NOTFOUND")
@@ -300,9 +295,18 @@ MACRO(MERGE_CONVENIENCE_LIBRARIES)
     MESSAGE(STATUS "Library ${TARGET} depends on OSLIBS ${OSLIBS}")
   ENDIF()
 
+  # Make the generated dummy source file depended on all static input
+  # libs. If input lib changes,the source file is touched
+  # which causes the desired effect (relink).
+  ADD_CUSTOM_COMMAND(
+    OUTPUT  ${SOURCE_FILE}
+    COMMAND ${CMAKE_COMMAND}  -E touch ${SOURCE_FILE}
+    DEPENDS ${MYLIBS}
+    )
+
   MESSAGE(STATUS "MERGE_CONVENIENCE_LIBRARIES TARGET ${TARGET}")
   MESSAGE(STATUS "MERGE_CONVENIENCE_LIBRARIES LIBS ${LIBS}")
-# MESSAGE(STATUS "MERGE_CONVENIENCE_LIBRARIES MYLIBS ${MYLIBS}")
+  MESSAGE(STATUS "MERGE_CONVENIENCE_LIBRARIES MYLIBS ${MYLIBS}")
 
   CONFIGURE_FILE(
     ${MYSQL_CMAKE_SCRIPT_DIR}/merge_archives.cmake.in

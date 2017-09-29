@@ -101,7 +101,8 @@ dd_parse_tbl_name(
 	memcpy(tbl_buf, tbl_name + db_len + 1, strlen(tbl_name) - db_len - 1);
 	tbl_buf[strlen(tbl_name) - db_len - 1] = 0;
 
-	path_to_tablename(db_buf, dd_db_name, MAX_DATABASE_NAME_LEN + 1, true);
+	filename_to_tablename(db_buf, dd_db_name, MAX_DATABASE_NAME_LEN + 1,
+			      true);
 
 	auto	is_part = strstr(tbl_buf, PART_SEPARATOR);
 

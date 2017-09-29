@@ -89,7 +89,7 @@ sp_rcontext *sp_rcontext::create(THD *thd,
       ctx->init_var_table(thd) ||
       ctx->init_var_items(thd))
   {
-    delete ctx;
+    destroy(ctx);
     return NULL;
   }
 

@@ -80,11 +80,8 @@ static const uint NO_FK_CHECKS=    1 << 2;
 static const uint NO_DD_COMMIT=    1 << 3;
 
 
-size_t filename_to_tablename(const char *from, char *to, size_t to_length
-#ifndef DBUG_OFF
-                           , bool stay_quiet = false
-#endif /* DBUG_OFF */
-                           );
+size_t filename_to_tablename(const char *from, char *to, size_t to_length,
+                             bool stay_quiet = false);
 size_t tablename_to_filename(const char *from, char *to, size_t to_length);
 size_t build_table_filename(char *buff, size_t bufflen, const char *db,
                             const char *table, const char *ext,

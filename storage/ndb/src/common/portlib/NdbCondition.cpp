@@ -23,7 +23,7 @@
 
 static int init = 0;
 #ifdef HAVE_CLOCK_GETTIME
-static int clock_id = CLOCK_REALTIME;
+static clockid_t clock_id = CLOCK_REALTIME;
 #endif
 
 #if defined NDB_MUTEX_STAT || defined NDB_MUTEX_DEADLOCK_DETECTOR

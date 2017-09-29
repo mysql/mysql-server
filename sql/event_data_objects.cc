@@ -145,6 +145,11 @@ protected:
     return NULL;
   }
 
+  virtual void delete_backup_ctx()
+  {
+    destroy(this);
+  }
+
 private:
   Event_creation_ctx(const CHARSET_INFO *client_cs,
                      const CHARSET_INFO *connection_cl,

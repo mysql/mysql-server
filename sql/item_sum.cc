@@ -788,7 +788,7 @@ int Item_sum::set_aggregator(Aggregator::Aggregator_type aggregator)
     return FALSE;
   }
 
-  delete aggr;
+  destroy(aggr);
   switch (aggregator)
   {
   case Aggregator::DISTINCT_AGGREGATOR:
@@ -806,7 +806,7 @@ void Item_sum::cleanup()
 {
   if (aggr)
   {
-    delete aggr;
+    destroy(aggr);
     aggr= NULL;
   }
   Item_result_field::cleanup();
@@ -2147,7 +2147,7 @@ Aggregator_distinct::~Aggregator_distinct()
 {
   if (tree)
   {
-    delete tree;
+    destroy(tree);
     tree= NULL;
   }
   if (table)
@@ -2159,7 +2159,7 @@ Aggregator_distinct::~Aggregator_distinct()
   }
   if (tmp_table_param)
   {
-    delete tmp_table_param;
+    destroy(tmp_table_param);
     tmp_table_param= NULL;
   }
 }

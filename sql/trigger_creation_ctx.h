@@ -19,6 +19,7 @@
 
 ///////////////////////////////////////////////////////////////////////////
 
+#include "my_alloc.h"
 #include "mysql/psi/mysql_statement.h"
 #include "sql/item_create.h"
 #include "sql/key.h"
@@ -58,6 +59,11 @@ protected:
   virtual Object_creation_ctx *create_backup_ctx(THD *thd) const
   {
     return new (*THR_MALLOC) Trigger_creation_ctx(thd);
+  }
+
+  virtual void delete_backup_ctx()
+  {
+    destroy(this);
   }
 
 private:

@@ -1356,7 +1356,7 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
 
       ln= add_channel_to_relay_log_name(relay_bin_channel, FN_REFLEN,
                                         ln_without_channel_name);
-      if (opt_relaylog_index_name)
+      if (opt_relaylog_index_name_supplied)
       {
         char index_file_withoutext[FN_REFLEN];
         relay_log.generate_name(opt_relaylog_index_name,"",
@@ -1946,7 +1946,8 @@ int Relay_log_info::rli_init_info()
                                       ln_without_channel_name);
 
     /* We send the warning only at startup, not after every RESET SLAVE */
-    if (!opt_relay_logname && !opt_relaylog_index_name && !name_warning_sent)
+    if (!opt_relay_logname_supplied && !opt_relaylog_index_name_supplied &&
+        !name_warning_sent)
     {
       /*
         User didn't give us info to name the relay log index file.
@@ -1965,7 +1966,7 @@ int Relay_log_info::rli_init_info()
        index file. If the opt_relaylog_index has an extension, we strip
        it too. This is inconsistent to relay log names.
     */
-    if (opt_relaylog_index_name)
+    if (opt_relaylog_index_name_supplied)
     {
       char index_file_withoutext[FN_REFLEN];
       relay_log.generate_name(opt_relaylog_index_name,"",

@@ -1419,7 +1419,7 @@ bool SELECT_LEX_UNIT::cleanup(bool full)
   if (full && union_result)
   {
     union_result->cleanup();
-    delete union_result;
+    destroy(union_result);
     union_result= NULL; // Safety
     if (table)
       free_tmp_table(thd, table);
@@ -1585,7 +1585,7 @@ static void destroy_materialized(THD *thd, TABLE_LIST *list)
     {
       tl->table_function->cleanup();
     }
-    if (!tl->table)
+    if (tl->table == nullptr)
       continue;                                 // Not materialized
     if (tl->is_view_or_derived())
     {
@@ -1597,6 +1597,7 @@ static void destroy_materialized(THD *thd, TABLE_LIST *list)
              !tl->is_table_function())
       continue;
     free_tmp_table(thd, tl->table);
+    tl->table= nullptr;
   }
 }
 
@@ -1618,7 +1619,7 @@ bool SELECT_LEX::cleanup(bool full)
     {
       DBUG_ASSERT(join->select_lex == this);
       error= join->destroy();
-      delete join;
+      destroy(join);
       join= NULL;
     }
     else

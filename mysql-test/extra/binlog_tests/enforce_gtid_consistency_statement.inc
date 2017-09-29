@@ -236,7 +236,7 @@ if ($statement_ends_transaction_row_mixed != '')
   {
     --let $expect_end_transaction= $statement_ends_transaction_row_mixed
   }
-  --let $counter_expected_text= $statement_ends_transaction (stm) / $statement_ends_transaction_row_mixed (row)
+  --let $counter_expected_text= $statement_ends_transaction (stm) / $statement_ends_transaction_row_mixed (row / mix)
   if ($gtid_next == 'AUTOMATIC')
   {
     --let $automatic_counter_expected_text= $counter_expected_text

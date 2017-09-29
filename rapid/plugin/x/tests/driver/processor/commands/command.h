@@ -178,6 +178,8 @@ class Command {
                                       const std::string &args);
   Result cmd_assert_eq(std::istream &input, Execution_context *context,
                        const std::string &args);
+  Result cmd_assert_ne(std::istream &input, Execution_context *context,
+                       const std::string &args);
   Result cmd_assert_gt(std::istream &input, Execution_context *context,
                        const std::string &args);
   Result cmd_assert_ge(std::istream &input, Execution_context *context,

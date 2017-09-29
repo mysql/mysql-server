@@ -7567,6 +7567,15 @@ ha_innobase::close()
 {
 	DBUG_ENTER("ha_innobase::close");
 
+	/*
+	  Make sure no garbage is left in trx->duplicates. If this
+	  fires, it is necessary to call ha_reset() before calling
+	  ha_close()
+	*/
+	DBUG_ASSERT(ha_thd() == nullptr ||
+		    m_prebuilt->trx != thd_to_trx(ha_thd()) ||
+		    m_prebuilt->trx->duplicates == 0);
+
 	if (m_prebuilt->m_temp_read_shared) {
 		temp_prebuilt_vec*	vec = m_prebuilt->table->temp_prebuilt;
 		ut_ad(m_prebuilt->table->is_intrinsic());

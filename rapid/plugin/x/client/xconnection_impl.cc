@@ -369,6 +369,13 @@ XError Connection_impl::connect(sockaddr *addr, const std::size_t addr_size) {
   return XError();
 }
 
+my_socket Connection_impl::get_socket_fd() {
+  if (nullptr == m_vio)
+    return INVALID_SOCKET;
+
+  return vio_fd(m_vio);
+}
+
 std::string Connection_impl::get_socket_error_description(const int error_id) {
   std::string strerr;
 #ifdef _WIN32

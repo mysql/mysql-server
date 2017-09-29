@@ -125,3 +125,13 @@ drop table pt1;
 drop table pt2;
 drop table t1;
 
+--echo #
+--echo # Bug#26867509: JSON_OBJECT CREATES INVALID JSON CODE
+--echo #
+
+CREATE TABLE t1(i INT, KEY(i));
+INSERT INTO t1 VALUES (1), (2), (3);
+CREATE TABLE t2(i INT, vc VARCHAR(100));
+INSERT INTO t2 SELECT i, JSON_ARRAY(i) FROM t1 GROUP BY i;
+SELECT * FROM t2 ORDER BY i;
+DROP TABLE t1, t2;

@@ -170,7 +170,7 @@ sp_pcontext::sp_pcontext(THD *thd, sp_pcontext *prev,
 sp_pcontext::~sp_pcontext()
 {
   for (size_t i= 0; i < m_children.size(); ++i)
-    delete m_children.at(i);
+    destroy(m_children.at(i));
 }
 
 

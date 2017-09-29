@@ -169,6 +169,11 @@ protected:
     DBUG_RETURN(new (*THR_MALLOC) Stored_routine_creation_ctx(thd));
   }
 
+  virtual void delete_backup_ctx()
+  {
+    destroy(this);
+  }
+
 private:
   Stored_routine_creation_ctx(THD *thd)
     : Stored_program_creation_ctx(thd)
