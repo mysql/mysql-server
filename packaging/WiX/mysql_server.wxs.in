@@ -64,18 +64,32 @@
       <RemoveExistingProducts After="InstallInitialize"/>
     </InstallExecuteSequence>
 
-
     <?if "@LINK_STATIC_RUNTIME_LIBRARIES@"="OFF" ?>
-      <Property Id="VS12REDIST">
-        <RegistrySearch Id="FindRedistVS12"
-            Root="HKLM"
-            Key="SOFTWARE\Microsoft\DevDiv\vc\Servicing\12.0\RuntimeMinimum"
-            Name="Version"
-            Type="raw" />
-      </Property>
-      <Condition Message="This application requires Visual Studio 2013 Redistributable. Please install the Redistributable then run this installer again.">
-        Installed OR VS12REDIST
-      </Condition>
+      <?if "@Platform@"="x64"?>
+        <Property Id="VS12REDISTX64">
+          <RegistrySearch Id="FindRedistVS12"
+              Win64="no"
+              Root="HKLM"
+              Key="SOFTWARE\Microsoft\VisualStudio\12.0\VC\Runtimes\x64"
+              Name="Version"
+              Type="raw" />
+        </Property>
+        <Condition Message="This application requires Visual Studio 2013 x64 Redistributable. Please install the Redistributable then run this installer again.">
+          Installed OR VS12REDISTX64
+        </Condition>
+      <?elseif "@Platform@"="x86" ?>
+        <Property Id="VS12REDISTX86">
+          <RegistrySearch Id="FindRedistVS12"
+              Win64="no"
+              Root="HKLM"
+              Key="SOFTWARE\Microsoft\VisualStudio\12.0\VC\Runtimes\x86"
+              Name="Version"
+              Type="raw" />
+        </Property>
+        <Condition Message="This application requires Visual Studio 2013 x86 Redistributable. Please install the Redistributable then run this installer again.">
+          Installed OR VS12REDISTX86
+        </Condition>
+      <?endif?>
     <?endif?> 
  
     <!-- Save/restore install location -->
