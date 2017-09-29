@@ -217,6 +217,16 @@ int64_t xcom_client_send_data(uint32_t size, char *data,
 int	xcom_client_terminate_and_exit(connection_descriptor* fd);
 int	xcom_client_set_cache_limit(connection_descriptor *fd, uint64_t cache_limit);
 
+static inline char *strerr_msg(char *buf, size_t len, int nr)
+{
+#if defined (WIN32) || defined (WIN64)
+  strerror_s(buf, len, nr);
+#else
+  snprintf(buf, len, "%s", strerror(nr));
+#endif
+  return buf;
+}
+
 #define XCOM_COMMS_ERROR 1
 #define XCOM_COMMS_OK 0
 void set_xcom_comms_cb(xcom_state_change_cb x);
