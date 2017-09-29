@@ -3134,7 +3134,21 @@ void Query_result_create::drop_open_table()
   DBUG_ENTER("Query_result_create::drop_open_table");
 
   if (table->s->tmp_table)
+  {
+    /*
+      Call reset here since SE may depend on this to reset its state
+      properly. Normally this is done when calling
+      mark_tmp_table_for_reuse(table); at the end of a statement using
+      temporary tables. In a Query_result_set_insert object it is done
+      by the cleanup() member function.  For a non-temporary table
+      this is done by close_thread_table(). Calling ha_reset() from
+      close_temporary_table() is not an options since this function
+      gets called at times (boot) when is data structures needed by
+      handler::reset() have not yet been initialized.
+    */
+    table->file->ha_reset();
     close_temporary_table(thd, table, 1, 1);
+  }
   else
   {
     DBUG_ASSERT(table == thd->open_tables);
