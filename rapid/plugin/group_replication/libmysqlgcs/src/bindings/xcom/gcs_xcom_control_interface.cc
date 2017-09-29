@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -422,8 +422,7 @@ enum_gcs_error Gcs_xcom_control::do_join()
         {
           MYSQL_GCS_LOG_ERROR(
             "Error on opening a connection to " << addr <<":"<< port <<
-            " on local port: " << local_port
-            << ". Error= " << con
+            " on local port: " << local_port << "."
           )
         }
       }
