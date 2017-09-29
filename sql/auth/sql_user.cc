@@ -1086,6 +1086,23 @@ bool set_and_validate_user_attributes(THD *thd,
   }
 
   optimize_plugin_compare_by_pointer(&Str->plugin);
+
+  /*
+    Check if non-default password expiraition option
+    is passed to a plugin that does not support it and raise
+    and error if it is.
+  */
+  if (Str->alter_status.update_password_expired_fields &&
+    !Str->alter_status.use_default_password_lifetime &&
+    Str->alter_status.expire_after_days != 0 &&
+    !auth_plugin_supports_expiration(Str->plugin.str))
+  {
+    my_error(ER_PASSWORD_EXPIRATION_NOT_SUPPORTED_BY_AUTH_METHOD, MYF(0),
+      Str->plugin.length, Str->plugin.str);
+    return 1;
+  }
+
+
   plugin= my_plugin_lock_by_name(0, Str->plugin,
                                  MYSQL_AUTHENTICATION_PLUGIN);
 
