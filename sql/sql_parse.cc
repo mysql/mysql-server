@@ -6139,16 +6139,31 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
     else
     {
       schema_table= find_schema_table(thd, ptr->table_name);
-      if (!schema_table ||
-          (schema_table->hidden &&
+      /*
+        Report an error
+          if hidden schema table name is used in the statement other than
+          SHOW statement OR
+          if unknown schema table is used in the statement other than
+          SHOW CREATE VIEW statement.
+        Invalid view warning is reported for SHOW CREATE VIEW statement in
+        the table open stage.
+      */
+      if ((!schema_table &&
+           !(thd->query_plan.get_command() == SQLCOM_SHOW_CREATE &&
+             thd->query_plan.get_lex()->only_view)) ||
+          (schema_table && schema_table->hidden &&
            (sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND) == 0))
       {
         my_error(ER_UNKNOWN_TABLE, MYF(0),
                  ptr->table_name, INFORMATION_SCHEMA_NAME.str);
         DBUG_RETURN(0);
       }
-      ptr->schema_table_name= const_cast<char*>(ptr->table_name);
-      ptr->schema_table= schema_table;
+
+      if (schema_table)
+      {
+        ptr->schema_table_name= const_cast<char*>(ptr->table_name);
+        ptr->schema_table= schema_table;
+      }
     }
   }
 
