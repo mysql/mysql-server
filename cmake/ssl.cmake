@@ -410,13 +410,13 @@ MACRO(MYSQL_CHECK_SSL_DLLS)
 
       # See INSTALL_DEBUG_TARGET used for installing debug versions of plugins.
       IF(EXISTS ${DEBUGBUILDDIR})
-        FILE(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/plugin_output_directory/plugin/debug")
+        FILE(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/plugin_output_directory/plugin/Debug")
         ADD_CUSTOM_TARGET(link_openssl_dlls_for_install_debug ALL
           COMMAND ${CMAKE_COMMAND} -E create_symlink
             "../../../lib/${CRYPTO_VERSION}" "${CRYPTO_VERSION}"
           COMMAND ${CMAKE_COMMAND} -E create_symlink
             "../../../lib/${OPENSSL_VERSION}" "${OPENSSL_VERSION}"
-          WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/plugin_output_directory/plugin/debug"
+          WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/plugin_output_directory/plugin/Debug"
         )
       ENDIF()
 
@@ -444,8 +444,8 @@ MACRO(MYSQL_CHECK_SSL_DLLS)
       # See INSTALL_DEBUG_TARGET used for installing debug versions of plugins.
       IF(EXISTS ${DEBUGBUILDDIR})
         INSTALL(FILES
-          ${CMAKE_BINARY_DIR}/plugin_output_directory/plugin/debug/${CRYPTO_VERSION}
-          ${CMAKE_BINARY_DIR}/plugin_output_directory/plugin/debug/${OPENSSL_VERSION}
+          ${CMAKE_BINARY_DIR}/plugin_output_directory/plugin/Debug/${CRYPTO_VERSION}
+          ${CMAKE_BINARY_DIR}/plugin_output_directory/plugin/Debug/${OPENSSL_VERSION}
           DESTINATION ${INSTALL_PLUGINDIR}/debug COMPONENT SharedLibraries
           )
       ENDIF()
@@ -508,6 +508,13 @@ MACRO(MYSQL_CHECK_SSL_DLLS)
 
       SET(CRYPTO_FULL_NAME "${CRYPTO_DIRECTORY}/${CRYPTO_VERSION}")
       SET(OPENSSL_FULL_NAME "${OPENSSL_DIRECTORY}/${OPENSSL_VERSION}")
+
+      # Link with the copied libraries, rather than the original ones.
+      SET(SSL_LIBRARIES
+        ${CMAKE_BINARY_DIR}/library_output_directory/${CMAKE_CFG_INTDIR}/${OPENSSL_NAME}
+        ${CMAKE_BINARY_DIR}/library_output_directory/${CMAKE_CFG_INTDIR}/${CRYPTO_NAME}
+        )
+      MESSAGE(STATUS "SSL_LIBRARIES = ${SSL_LIBRARIES}")
 
       ADD_CUSTOM_TARGET(copy_openssl_dlls ALL
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
