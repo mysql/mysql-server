@@ -436,8 +436,7 @@ enum_gcs_error Gcs_xcom_control::retry_do_join()
         {
           MYSQL_GCS_LOG_ERROR(
             "Error on opening a connection to " << addr <<":"<< port <<
-            " on local port: " << local_port
-            << ". Error= " << con
+            " on local port: " << local_port << "."
           )
         }
       }
