@@ -682,12 +682,32 @@ TABLE_SHARE *get_table_share(THD *thd, const char *db,
   for ( ;; )
   {
     auto it= table_def_cache->find(string(key, key_length));
-    if (it == table_def_cache->end()) break;
+    if (it == table_def_cache->end())
+    {
+      if (thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::SCHEMA,
+                                                       db, "",
+                                                       MDL_INTENTION_EXCLUSIVE))
+      {
+         break;
+      }
+      mysql_mutex_unlock(&LOCK_open);
 
+      if (dd::mdl_lock_schema(thd, db, MDL_TRANSACTION))
+      {
+        // Lock LOCK_open again to preserve function contract
+        mysql_mutex_lock(&LOCK_open);
+        DBUG_RETURN(nullptr);
+      }
+
+      mysql_mutex_lock(&LOCK_open);
+      // Need to re-try the find after getting the mutex again
+      continue;
+    }
     share= it->second.get();
     if (!share->m_open_in_progress)
       DBUG_RETURN(process_found_table_share(thd, share, open_view));
 
+    DEBUG_SYNC(thd, "get_share_before_COND_open_wait");
     mysql_cond_wait(&COND_open, &LOCK_open);
   }
 
@@ -742,13 +762,11 @@ TABLE_SHARE *get_table_share(THD *thd, const char *db,
 
   {
     // We must make sure the schema is released and unlocked in the right order.
-    dd::Schema_MDL_locker mdl_handler(thd);
     dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
     const dd::Schema *sch= nullptr;
     const dd::Abstract_table *abstract_table= nullptr;
     open_table_err= true; // Assume error to simplify code below.
-    if (mdl_handler.ensure_locked(share->db.str) ||
-        thd->dd_client()->acquire(share->db.str, &sch) ||
+    if (thd->dd_client()->acquire(share->db.str, &sch) ||
         thd->dd_client()->acquire(share->db.str, share->table_name.str, &
                                   abstract_table))
     { }
