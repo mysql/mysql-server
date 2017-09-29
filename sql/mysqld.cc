@@ -663,6 +663,8 @@ const char *my_localhost= "localhost";
 
 bool opt_large_files= sizeof(my_off_t) > 4;
 static bool opt_autocommit; ///< for --autocommit command-line option
+static get_opt_arg_source source_autocommit;
+
 /*
   Used with --help for detailed option
 */
@@ -6650,11 +6652,13 @@ struct my_option my_long_options[]=
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   /*
     Because Sys_var_bit does not support command-line options, we need to
-    explicitely add one for --autocommit
+    explicitly add one for --autocommit
   */
   {"autocommit", 0, "Set default value for autocommit (0 or 1)",
    &opt_autocommit, &opt_autocommit, 0,
-   GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, NULL},
+   GET_BOOL, OPT_ARG, 1, 0, 0,
+   & source_autocommit, /* arg_source, to be copied to Sys_var */
+   0, NULL},
   {"binlog-do-db", OPT_BINLOG_DO_DB,
    "Tells the master it should log updates for the specified database, "
    "and exclude all others not explicitly mentioned.",
@@ -8938,12 +8942,19 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   else
     global_system_variables.option_bits&= ~OPTION_BIG_SELECTS;
 
-  // Synchronize @@global.autocommit on --autocommit
+  // Synchronize @@global.autocommit value on --autocommit
   const ulonglong turn_bit_on= opt_autocommit ?
     OPTION_AUTOCOMMIT : OPTION_NOT_AUTOCOMMIT;
   global_system_variables.option_bits=
     (global_system_variables.option_bits &
      ~(OPTION_NOT_AUTOCOMMIT | OPTION_AUTOCOMMIT)) | turn_bit_on;
+
+  // Synchronize @@global.autocommit metadata on --autocommit
+  my_option *opt = & my_long_options[3];
+  DBUG_ASSERT(strcmp(opt->name, "autocommit") == 0);
+  DBUG_ASSERT(opt->arg_source != NULL);
+  Sys_autocommit_ptr->set_source_name(opt->arg_source->m_path_name);
+  Sys_autocommit_ptr->set_source(opt->arg_source->m_source);
 
   global_system_variables.sql_mode=
     expand_sql_mode(global_system_variables.sql_mode, NULL);
