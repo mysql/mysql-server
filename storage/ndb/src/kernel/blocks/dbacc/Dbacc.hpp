@@ -329,8 +329,8 @@ struct Page32
 
 typedef Ptr<Page32> Page32Ptr;
 typedef ArrayPool<Page32> Page32_pool;
-typedef DLCList<Page32_pool> Page32_list;
-typedef LocalDLCList<Page32_pool> LocalPage32_list;
+typedef DLCFifoList<Page32_pool> Page32_list;
+typedef LocalDLCFifoList<Page32_pool> LocalPage32_list;
 
   class Page32Lists {
     Page32_list::Head lists[16];
@@ -348,7 +348,7 @@ public:
 
     Uint32 getCount() const;
     void addPage32(Page32_pool& pool, Page32Ptr p);
-    void dropFirstPage32(Page32_pool& pool, Page32Ptr& p, Uint32 keep);
+    void dropLastPage32(Page32_pool& pool, Page32Ptr& p, Uint32 keep);
     void dropPage32(Page32_pool& pool, Page32Ptr p);
     void seizePage8(Page32_pool& pool, Page8Ptr& /* out */ p, int sub_page_id);
     void releasePage8(Page32_pool& pool, Page8Ptr p);

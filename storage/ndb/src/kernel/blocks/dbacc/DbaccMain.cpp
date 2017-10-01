@@ -710,7 +710,7 @@ void Dbacc::releaseDirResources(Signal* signal)
     freelist.removeFirst(page);
     pages.releasePage8(c_page_pool, page);
     Page32Ptr page32ptr;
-    pages.dropFirstPage32(c_page_pool, page32ptr, 5);
+    pages.dropLastPage32(c_page_pool, page32ptr, 5);
     if (page32ptr.i != RNIL)
     {
       jam();
@@ -8447,7 +8447,7 @@ void Dbacc::releasePage(Page8Ptr rpPageptr)
   fragrecptr.p->m_noOfAllocatedPages--;
 
   Page32Ptr page32ptr;
-  pages.dropFirstPage32(c_page_pool, page32ptr, 5);
+  pages.dropLastPage32(c_page_pool, page32ptr, 5);
   if (page32ptr.i != RNIL)
   {
     g_acc_pages_used[instance()]--;
@@ -9208,7 +9208,7 @@ void Dbacc::Page32Lists::addPage32(Page32_pool& pool, Page32Ptr p)
   p.p->magic = Page32::MAGIC;
 }
 
-void Dbacc::Page32Lists::dropFirstPage32(Page32_pool& pool,
+void Dbacc::Page32Lists::dropLastPage32(Page32_pool& pool,
                                          Page32Ptr& p,
                                          Uint32 keep)
 {
@@ -9219,7 +9219,7 @@ void Dbacc::Page32Lists::dropFirstPage32(Page32_pool& pool,
     return;
   }
   LocalPage32_list list(pool, lists[0]);
-  list.first(p);
+  list.last(p);
   dropPage32(pool, p);
 }
 
