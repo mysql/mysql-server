@@ -5,7 +5,7 @@ MaxNoOfConcurrentTransactions= 2048
 MaxNoOfConcurrentOperations=   10000
 MaxNoOfConcurrentScans=        64
 BatchSizePerLocalScan=         64
-DataMemory=                    4G
+DataMemory=                    30M
 Diskless=                      0
 TimeBetweenWatchDogCheck=      30000
 MaxNoOfOrderedIndexes=         128
@@ -13,9 +13,7 @@ MaxNoOfAttributes=             2048
 TimeBetweenGlobalCheckpoints=  3000
 TimeBetweenEpochs=             100
 NoOfFragmentLogFiles=          4
-FragmentLogFileSize=           256M
-MinDiskWriteSpeed=             2M
-MaxDiskWriteSpeed=             5M
+FragmentLogFileSize=           12M
 DiskPageBufferMemory=          4M
 SharedGlobalMemory=            20M
 LongMessageBuffer=             4M
@@ -48,7 +46,7 @@ DiskIOThreadPool=1
 #
 # (Option is ignored for non-MT'ed NDB)
 #
-ThreadConfig=main={count=1},tc={count=3},ldm={count=1},io={count=1},rep={count=1},recv={count=2},send={count=2}
+ThreadConfig=main={count=1},tc={count=3},ldm={count=4},io={count=1},rep={count=1},recv={count=2},send={count=2}
 
 
 [ENV]
