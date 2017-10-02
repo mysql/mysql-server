@@ -57,7 +57,8 @@ public:
 		      int abort = 0,
 		      int parallelism = 0,
 		      NdbOperation::LockMode = NdbOperation::LM_Read,
-                      int scan_flags = 0);
+                      int scan_flags = 0,
+                      int force_check_flag = 0);
 
   int scanReadRecords(Ndb*, 
 		      const NdbDictionary::Index*,
