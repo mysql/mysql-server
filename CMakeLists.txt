@@ -16,6 +16,9 @@
 IF(WIN32)
   # CMake 3.8.0 is needed for Visual Studio 2017 and x64 toolset.
   CMAKE_MINIMUM_REQUIRED(VERSION 3.8.0)
+ELSEIF(APPLE)
+  # FindOpenSSL needs at least:
+  CMAKE_MINIMUM_REQUIRED(VERSION 3.1.2)
 ELSEIF(UNIX)
   # CMake 3.4.0 is needed for Solaris due to CMake bug 15673.
   # Cannot use CMAKE_SYSTEM_NAME until after PROJECT(), use uname directly.
