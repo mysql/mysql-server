@@ -46,7 +46,8 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
 				  int abortPercent,
 				  int parallelism, 
 				  NdbOperation::LockMode lm,
-                                  int scan_flags)
+                                  int scan_flags,
+                                  int force_check_flag)
 {
   
   int                  retryAttempt = 0;
@@ -191,7 +192,8 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
     closeTransaction(pNdb);
 
     g_info << rows << " rows have been read" << endl;
-    if (rows != records){
+    if ((force_check_flag != 0 || records != 0) && rows != records)
+    {
       g_err << "Check expected number of records failed" << endl 
 	    << "  expected=" << records <<", " << endl
 	    << "  read=" << rows << endl;

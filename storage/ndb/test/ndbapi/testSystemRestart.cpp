@@ -775,7 +775,8 @@ int runSystemRestart4(NDBT_Context* ctx, NDBT_Step* step){
         }
         CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
         CHECK(count == (remaining_records));
-        CHECK(hugoTrans.scanReadRecords(pNdb, remaining_records, 0, 64) == 0);
+        CHECK(hugoTrans.scanReadRecords(pNdb,remaining_records,0,64,
+                                        NdbOperation::LM_Read,0,1) == 0);
         if (result == NDBT_FAILED)
           return result;
       }
@@ -798,7 +799,8 @@ int runSystemRestart4(NDBT_Context* ctx, NDBT_Step* step){
       {
         CHECK(hugoTrans.pkReadRecords(pNdb, remaining_records) == 0);
       }
-      CHECK(hugoTrans.scanReadRecords(pNdb, remaining_records, 0, 64) == 0);
+      CHECK(hugoTrans.scanReadRecords(pNdb,remaining_records,0,64,
+                                      NdbOperation::LM_Read,0,1) == 0);
       CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
       CHECK(count == (remaining_records));
       if (result == NDBT_FAILED)
@@ -819,7 +821,8 @@ int runSystemRestart4(NDBT_Context* ctx, NDBT_Step* step){
         {
           CHECK(hugoTrans.pkReadRecords(pNdb, remaining_records) == 0);
         }
-        CHECK(hugoTrans.scanReadRecords(pNdb, remaining_records, 0, 64) == 0);
+        CHECK(hugoTrans.scanReadRecords(pNdb,remaining_records,0,64,
+                                        NdbOperation::LM_Read,0,1) == 0);
         CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
         CHECK(count == (remaining_records));
         if (result == NDBT_FAILED)
@@ -847,7 +850,8 @@ int runSystemRestart4(NDBT_Context* ctx, NDBT_Step* step){
     
     g_err << "Verifying no records remain..." << endl;
     CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
-    CHECK(hugoTrans.scanReadRecords(pNdb, 0, 0, 64) == 0);
+    CHECK(hugoTrans.scanReadRecords(pNdb,0,0,64,
+                                    NdbOperation::LM_Read,0,1) == 0);
     CHECK(count == 0);
     if (result == NDBT_FAILED)
       return result;
@@ -863,7 +867,8 @@ int runSystemRestart4(NDBT_Context* ctx, NDBT_Step* step){
       currentRestartNodeIndex = (currentRestartNodeIndex - 1 ) % nodeCount;
 
       g_err << "Verifying no records remain again..." << endl;
-      CHECK(hugoTrans.scanReadRecords(pNdb, 0, 0, 64) == 0);
+      CHECK(hugoTrans.scanReadRecords(pNdb,0,0,64,
+                                      NdbOperation::LM_Read,0,1) == 0);
       CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
       CHECK(count == 0);
       if (result == NDBT_FAILED)
@@ -882,7 +887,8 @@ int runSystemRestart4(NDBT_Context* ctx, NDBT_Step* step){
       return result;
 
     g_err << "Verifying no records remain yet again..." << endl;
-    CHECK(hugoTrans.scanReadRecords(pNdb, 0, 0, 64) == 0);
+    CHECK(hugoTrans.scanReadRecords(pNdb,0,0,64,
+                                    NdbOperation::LM_Read,0,1) == 0);
     CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
     CHECK(count == 0);
     if (result == NDBT_FAILED)
