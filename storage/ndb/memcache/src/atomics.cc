@@ -22,11 +22,11 @@
 
 #if defined USE_SOLARIS_ATOMICS 
 
-int atomic_cmp_swap_int(atomic_int32_t *loc, int old, int new) {
+int atomic_cmp_swap_int(atomic_int32_t *loc, int old, int newval) {
   int stored_old;
   
   membar_enter();
-  stored_old = atomic_cas_32(loc, old, new);
+  stored_old = atomic_cas_32(loc, old, newval);
   membar_exit();
   return (stored_old == old);  
 }
