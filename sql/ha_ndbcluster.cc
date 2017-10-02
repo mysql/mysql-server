@@ -10444,8 +10444,7 @@ int ha_ndbcluster::create(const char *name,
     tables since a table being altered might not be known to the
     mysqld issuing the alter statement.
    */
-  const bool is_alter= (thd_sql_command(thd) == SQLCOM_ALTER_TABLE);
-  if (is_alter)
+  if (thd_sql_command(thd) == SQLCOM_ALTER_TABLE)
   {
     DBUG_PRINT("info", ("Detected copying ALTER TABLE"));
 
@@ -10523,8 +10522,7 @@ int ha_ndbcluster::create(const char *name,
     }
   }
 
-  const bool is_truncate = (thd_sql_command(thd) == SQLCOM_TRUNCATE);
-  if (is_truncate)
+  if (thd_sql_command(thd) == SQLCOM_TRUNCATE)
   {
     Ndb_table_guard ndbtab_g(dict);
     ndbtab_g.init(m_tabname);
@@ -10783,7 +10781,7 @@ int ha_ndbcluster::create(const char *name,
     DBUG_PRINT("info", ("ndb_sys_table true"));
   }
 
-  if (!is_alter)
+  if (thd_sql_command(thd) != SQLCOM_ALTER_TABLE)
   {
     update_comment_info(thd, create_info, &tab);
   }
@@ -11127,7 +11125,7 @@ int ha_ndbcluster::create(const char *name,
   create_result = create_indexes(thd, ndb, form);
 
   if (create_result == 0 &&
-      !is_truncate)
+      thd_sql_command(thd) != SQLCOM_TRUNCATE)
   {
     create_result = create_fks(thd, ndb);
   }
@@ -11370,8 +11368,8 @@ cleanup_failed:
                                share->db, share->table_name,
                                m_table->getObjectId(),
                                m_table->getObjectVersion(),
-                               (is_truncate) ?
-			       SOT_TRUNCATE_TABLE : SOT_CREATE_TABLE, 
+                               (thd_sql_command(thd) == SQLCOM_TRUNCATE ?
+                               SOT_TRUNCATE_TABLE : SOT_CREATE_TABLE),
 			       NULL, NULL);
       break;
     }
