@@ -10355,10 +10355,13 @@ int ha_ndbcluster::create(const char *name,
   NDBCOL col;
   uint i, pk_length= 0;
   bool use_disk= FALSE;
-  NdbDictionary::Table::SingleUserMode single_user_mode= NdbDictionary::Table::SingleUserModeLocked;
   bool ndb_sys_table= FALSE;
   int result= 0;
   Ndb_fk_list fk_list_for_truncate;
+
+  // Verify default value for "single user mode" of the table
+  DBUG_ASSERT(tab.getSingleUserMode() ==
+              NdbDictionary::Table::SingleUserModeLocked);
 
   DBUG_ENTER("ha_ndbcluster::create");
   DBUG_PRINT("enter", ("name: %s", name));
@@ -10501,7 +10504,10 @@ int ha_ndbcluster::create(const char *name,
       DBUG_PRINT("info", ("Schema distribution table not setup"));
       DBUG_RETURN(HA_ERR_NO_CONNECTION);
     }
-    single_user_mode = NdbDictionary::Table::SingleUserModeReadWrite;
+
+    // Set mysql.ndb_schema table to read+write also in single user mode
+    tab.setSingleUserMode(NdbDictionary::Table::SingleUserModeReadWrite);
+
     ndb_sys_table= TRUE;
 
     // Mark the mysql.ndb_schema table as hidden in the DD
@@ -10776,7 +10782,6 @@ int ha_ndbcluster::create(const char *name,
   {
     DBUG_PRINT("info", ("ndb_sys_table true"));
   }
-  tab.setSingleUserMode(single_user_mode);
 
   if (!is_alter)
   {
