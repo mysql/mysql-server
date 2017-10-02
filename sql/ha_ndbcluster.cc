@@ -11796,17 +11796,6 @@ ha_ndbcluster::rename_table_impl(THD* thd, Ndb* ndb,
   ndb_fk_util_resolve_mock_tables(thd, ndb->getDictionary(),
                                   new_dbname, new_tabname);
 
-  {
-    // Rename .ndb file
-    int result;
-    if ((result= handler::rename_table(from, to, nullptr, nullptr)))
-    {
-      // ToDo in 4.1 should rollback alter table...
-
-      DBUG_RETURN(result);
-    }
-  }
-
   /* handle old table */
   if (drop_events)
   {
