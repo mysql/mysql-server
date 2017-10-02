@@ -1712,7 +1712,7 @@ sshx(atrt_config & config, unsigned mask)
 #define SYS_SSH "bash '-c echo\"%s(%s) on %s\";" \
 	        "ssh -t %s sh %s/ssh-login.sh' &"
 #else
-#define SYS_SSH "xterm -fg black -title \"%s(%s) on %s\"" \
+#define SYS_SSH "xterm -title \"%s(%s) on %s\"" \
 	        " -e 'ssh -t -X %s sh %s/ssh-login.sh' &"
 #endif
 
