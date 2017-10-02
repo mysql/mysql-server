@@ -955,7 +955,10 @@ Dbtup::releaseFragPage(Fragrecord* fragPtrP,
      * We use the method is_rowid_in_remaining_lcp_set. We set the
      * key to the page and beyond the last row in the page. This means
      * that if the page is not fully scanned yet we will set the
-     * LCP_SCANNED_BIT. Otherwise we will ignore it.
+     * LCP_SCANNED_BIT, in this case we might have already handled
+     * some of the rows, so there is a small probability that we will
+     * duplicate some DELETE BY ROWID, but it should only have a minor
+     * performance impact. Otherwise we will ignore it.
      */
     ScanOpPtr scanOp;
     Local_key key;
@@ -1011,6 +1014,16 @@ Dbtup::releaseFragPage(Fragrecord* fragPtrP,
                                     LAST_LCP_FREE_BIT : 0;
         if (!all_part && (last_lcp_state == 0))
         {
+          /**
+           * Page is a change page and last LCP state was A.
+           * We set page_freed to true, the reason is that we're
+           * "stealing" the page to be deleted for use by the
+           * LCP keep free list. This removes any possibility that
+           * we will run out of memory for this operation.
+           *
+           * The page is removed later when the LCP keep list operation
+           * is completed.
+           */
           jam();
           c_page_pool.getPtr(pagePtr);
           bool delete_by_pageid = pagePtr.p->is_page_to_skip_lcp();

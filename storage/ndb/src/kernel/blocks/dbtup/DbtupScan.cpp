@@ -1130,7 +1130,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
                * If we come here without having LCP_SCANNED_BIT set then
                * we haven't released the page during LCP scan. Thus the
                * new last LCP state is D. Ensure that LAST_LCP_FREE_BIT
-               * is set.
+               * is set to indicate that LCP state is D for this LCP.
                */
               DEB_LCP_DEL(("(%u)tab(%u,%u) page(%u),"
                            " is_last_lcp_state_A: %u, CHANGED: %u",
@@ -1717,19 +1717,20 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
               /**
                * When setting LCP_DELETE flag we must also have deleted the
                * row and set rowGCI > scanGCI. So can't be set if we arrive
-               * here.
+               * here. Same goes for LCP_SKIP flag.
                */
               ndbassert(!(thbits & Tuple_header::LCP_DELETE));
-              ndbassert(!(thbits & Tuple_header::LCP_SKIP));
               if (foundGCI == 0 && scan.m_scanGCI > 0)
               {
                 jam();
                 /* Cannot have LCP_SKIP bit set on rowid's not yet used */
+                ndbrequire(!(thbits & Tuple_header::LCP_SKIP));
                 scan.m_last_seen = __LINE__;
                 goto found_deleted_rowid;
               }
               else
               {
+                ndbassert(!(thbits & Tuple_header::LCP_SKIP));
                 DEB_LCP_SKIP_EXTRA(("(%u)Skipped tab(%u,%u), rowid(%u,%u),"
                               " foundGCI: %u, scanGCI: %u, header: %x",
                               instance(),

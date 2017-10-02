@@ -6550,6 +6550,7 @@ Backup::get_page_info(BackupRecordPtr ptr,
     jam();
     ndbassert(is_partial_lcp_enabled());
     scanGCI = ptr.p->m_scan_change_gci;
+    ndbrequire(scanGCI != 0);
     skip_flag = false;
     changed_row_page_flag = true;
   }
