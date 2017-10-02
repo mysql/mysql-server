@@ -38,23 +38,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define	MAXBQUALSIZE	 64		/*!< maximum size in bytes of bqual */
 
 #endif
-/** X/Open XA distributed transaction status codes */
-/* @{ */
-#define	XA_OK		0		/*!< normal execution */
-#define	XAER_ASYNC	-2		/*!< asynchronous operation already
-					outstanding */
-#define	XAER_RMERR	-3		/*!< a resource manager error
-					occurred in the transaction
-					branch */
-#define	XAER_NOTA	-4		/*!< the XID is not valid */
-#define	XAER_INVAL	-5		/*!< invalid arguments were given */
-#define	XAER_PROTO	-6		/*!< routine invoked in an improper
-					context */
-#define	XAER_RMFAIL	-7		/*!< resource manager unavailable */
-#define	XAER_DUPID	-8		/*!< the XID already exists */
-#define	XAER_OUTSIDE	-9		/*!< resource manager doing
-					work outside transaction */
-/* @} */
+
 #endif /* ifndef XA_H */
 /*
  * End of xa.h header

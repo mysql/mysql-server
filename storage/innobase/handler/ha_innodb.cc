@@ -1329,7 +1329,7 @@ This function is used to commit one X/Open XA distributed transaction
 which is in the prepared state
 @return 0 or error number */
 static
-int
+xa_status_code
 innobase_commit_by_xid(
 /*===================*/
 	handlerton*	hton,		/*!< in: InnoDB handlerton */
@@ -1340,7 +1340,7 @@ This function is used to rollback one X/Open XA distributed transaction
 which is in the prepared state
 @return 0 or error number */
 static
-int
+xa_status_code
 innobase_rollback_by_xid(
 /*=====================*/
 	handlerton*	hton,		/*!< in: InnoDB handlerton */
@@ -19224,7 +19224,7 @@ This function is used to commit one X/Open XA distributed transaction
 which is in the prepared state
 @return 0 or error number */
 static
-int
+xa_status_code
 innobase_commit_by_xid(
 /*===================*/
 	handlerton*	hton,
@@ -19255,7 +19255,7 @@ This function is used to rollback one X/Open XA distributed transaction
 which is in the prepared state
 @return 0 or error number */
 static
-int
+xa_status_code
 innobase_rollback_by_xid(
 /*=====================*/
 	handlerton*	hton,	/*!< in: InnoDB handlerton */
@@ -19275,7 +19275,7 @@ innobase_rollback_by_xid(
 		ut_ad(!trx->will_lock);
 		trx_free_for_background(trx);
 
-		return(ret);
+		return(ret != 0? XAER_RMERR : XA_OK);
 	} else {
 		return(XAER_NOTA);
 	}

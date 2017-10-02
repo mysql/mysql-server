@@ -1244,9 +1244,60 @@ typedef int (*prepare_t)(handlerton *hton, THD *thd, bool all);
 
 typedef int (*recover_t)(handlerton *hton, XID *xid_list, uint len);
 
-typedef int (*commit_by_xid_t)(handlerton *hton, XID *xid);
 
-typedef int (*rollback_by_xid_t)(handlerton *hton, XID *xid);
+/** X/Open XA distributed transaction status codes */
+enum xa_status_code
+{
+  /**
+    normal execution
+  */
+  XA_OK= 0,
+
+  /**
+    asynchronous operation already outstanding
+  */
+  XAER_ASYNC= -2,
+
+  /**
+    a resource manager error  occurred in the transaction branch
+  */
+  XAER_RMERR= -3,
+
+  /**
+    the XID is not valid
+  */
+  XAER_NOTA= -4,
+
+  /**
+    invalid arguments were given
+  */
+  XAER_INVAL= -5,
+
+  /**
+    routine invoked in an improper context
+  */
+  XAER_PROTO= -6,
+
+  /**
+    resource manager unavailable
+  */
+  XAER_RMFAIL= -7,
+
+  /**
+    the XID already exists
+  */
+  XAER_DUPID= -8,
+
+  /**
+    resource manager doing work outside transaction
+  */
+  XAER_OUTSIDE= -9
+};
+
+
+typedef xa_status_code (*commit_by_xid_t)(handlerton *hton, XID *xid);
+
+typedef xa_status_code (*rollback_by_xid_t)(handlerton *hton, XID *xid);
 
 /**
   Create handler object for the table in the storage engine.
