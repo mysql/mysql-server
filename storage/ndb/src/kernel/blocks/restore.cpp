@@ -2870,6 +2870,29 @@ Restore::parse_record(Signal* signal,
       if (header_type == BackupFormat::DELETE_BY_ROWID_TYPE)
       {
         gci_id = data[2];
+        if (gci_id == 0)
+        {
+          jam();
+          /**
+           * We didn't have access to the GCI at LCP time, row
+           * was in a new page and we didn't know about the GCI of the
+           * old row in a previous page incarnation.
+           * The DELETE BY ROWID could also have come through a
+           * LCP keep list where the GCI isn't transported.
+           *
+           * The row is deleted at end of this restore and the
+           * restore will have at least restored everything up to
+           * Max GCI completed, if any changes happened after this
+           * they will be in REDO log or need to be fetched from
+           * live node.
+           *
+           * It is important to ensure that it is set to at least
+           * this value to ensure that this node can properly
+           * delete this row for a node that have been dead for an
+           * extended amount of time.
+           */
+          gci_id = file_ptr.p->m_max_gci_completed;
+        }
         sent_header_type = (Uint32)BackupFormat::DELETE_BY_ROWID_TYPE;
         file_ptr.p->m_rows_restored_delete++;
       }
