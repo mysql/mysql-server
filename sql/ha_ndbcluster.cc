@@ -17238,7 +17238,7 @@ public:
     old_table_version(table->getObjectVersion())
   {}
   ~NDB_ALTER_DATA()
-  { delete new_table; }
+  { destroy(new_table); }
   NdbDictionary::Dictionary *dictionary;
   const  NdbDictionary::Table *old_table;
   NdbDictionary::Table *new_table;
@@ -18420,7 +18420,7 @@ ha_ndbcluster::commit_inplace_alter_table(TABLE *altered_table,
   // The pointer to new table_def is not valid anymore
   m_share->inplace_alter_new_table_def = nullptr;
 
-  delete alter_data;
+  destroy(alter_data);
   ha_alter_info->handler_ctx= 0;
 
   set_ndb_share_state(m_share, NSS_INITIAL);
