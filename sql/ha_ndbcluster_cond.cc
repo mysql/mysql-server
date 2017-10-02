@@ -593,7 +593,7 @@ class Ndb_cond_traverse_context : public Sql_alloc
   }
   ~Ndb_cond_traverse_context()
   {
-    if (rewrite_stack) delete rewrite_stack;
+    if (rewrite_stack) destroy(rewrite_stack);
   }
   inline void expect(Item::Type type)
   {
