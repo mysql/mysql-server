@@ -1419,7 +1419,7 @@ bool SELECT_LEX_UNIT::cleanup(bool full)
   if (full && union_result)
   {
     union_result->cleanup();
-    delete union_result;
+    destroy(union_result);
     union_result= NULL; // Safety
     if (table)
       free_tmp_table(thd, table);
@@ -1619,7 +1619,7 @@ bool SELECT_LEX::cleanup(bool full)
     {
       DBUG_ASSERT(join->select_lex == this);
       error= join->destroy();
-      delete join;
+      destroy(join);
       join= NULL;
     }
     else

@@ -1,0 +1,45 @@
+###############################################################################
+# Bug#26618925 XA ROLLBACK WITH WRONG XID WILL BE RECORDED INTO THE BINLOG
+#
+# Problem: XA ROLLBACK is getting binlogged even when it is failed.
+#
+# Steps to reproduce:
+#  1) Prepare XA transaction with some sample data with XA global Trx id '1'.
+#  2) Try to do 'XA ROLLBACK' with XA global Trx id '2' and check that it fails.
+#  3) Check that nothing is written to binary log
+#  4) Cleanup
+###############################################################################
+--source include/have_log_bin.inc
+--source include/have_binlog_format_row.inc
+
+CREATE TABLE t1(id INT PRIMARY KEY);
+
+--echo #
+--echo # 1) Prepare XA transaction with some sample data with
+--echo #    XA global Trx id '1'.
+--echo #
+XA START '1';
+INSERT INTO t1 VALUES (1);
+XA END '1';
+XA PREPARE '1';
+
+--echo #
+--echo # 2) Try to do 'XA ROLLBACK' with XA global Trx id '2' and check that
+--echo #    it fails.
+--echo #
+let $binlog_before_xa_rollback = query_get_value(SHOW MASTER STATUS, Position, 1);
+--error ER_XAER_RMFAIL
+XA ROLLBACK '2';
+
+--echo #
+--echo # 3) Check that nothing is written to binary log.
+--echo #
+--let $assert_text= Nothing should be written in binlog for failed XA ROLLBACK.
+--let $assert_cond= [SHOW MASTER STATUS, Position, 1] = $binlog_before_xa_rollback
+--source include/assert.inc
+
+--echo #
+--echo # 4) Cleanup.
+--echo #
+XA COMMIT '1';
+DROP TABLE t1;

@@ -1822,7 +1822,7 @@ bool Query_result_update::prepare(List<Item>&,
     DBUG_RETURN(true);
 
   /* Allocate copy fields */
-  uint max_fields= 0;
+  max_fields= 0;
   for (uint i= 0; i < update_table_count; i++)
     set_if_bigger(max_fields,
                   fields_for_table[i]->elements + select->leaf_table_count);
@@ -2199,8 +2199,7 @@ void Query_result_update::cleanup()
       }
     }
   }
-  if (copy_field)
-    delete [] copy_field;
+  destroy_array(copy_field, max_fields);
   thd->check_for_truncated_fields= CHECK_FIELD_IGNORE;		// Restore this setting
   DBUG_ASSERT(trans_safe ||
               updated_rows == 0 ||
@@ -2208,8 +2207,7 @@ void Query_result_update::cleanup()
                 Transaction_ctx::STMT));
 
   if (update_operations != NULL)
-    for (uint i= 0; i < update_table_count; i++)
-      delete update_operations[i];
+    destroy_array(update_operations, update_table_count);
 }
 
 

@@ -235,6 +235,11 @@ COMMIT;
 
 DROP TABLE t2, t3;
 SET SESSION AUTOCOMMIT= 1;
+
+# The temporary table above will be binlogged in statement mode only, resulting
+# in different Rpl_semi_sync_master_yes_tx values in statement vs row/mixed. Reset it.
+FLUSH STATUS;
+
 --source include/sync_slave_sql_with_master.inc
 
 

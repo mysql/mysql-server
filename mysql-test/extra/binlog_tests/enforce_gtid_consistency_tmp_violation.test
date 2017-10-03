@@ -57,6 +57,7 @@ CREATE TEMPORARY TABLE IF NOT EXISTS t1 (a INT) ENGINE = InnoDB;
 
 --echo ---- DROP TEMPORARY in trx (MyISAM, BEGIN) ----
 --let $statement_ends_transaction= 1
+--let $statement_ends_transaction_row_mixed= 0
 CREATE TEMPORARY TABLE IF NOT EXISTS t1 (a INT) ENGINE = MyISAM;
 --let $pre_statement= BEGIN
 --let $statement= DROP TEMPORARY TABLE t1
@@ -72,6 +73,7 @@ SET AUTOCOMMIT = 1;
 
 --echo ---- DROP TEMPORARY in trx (MyISAM, AUTOCOMMIT=0) ----
 --let $statement_ends_transaction= 1
+--let $statement_ends_transaction_row_mixed= 0
 CREATE TEMPORARY TABLE IF NOT EXISTS t1 (a INT) ENGINE = MyISAM;
 SET AUTOCOMMIT = 0;
 --let $statement= DROP TEMPORARY TABLE t1

@@ -32,7 +32,7 @@
 
 Trigger_chain::~Trigger_chain()
 {
-  m_triggers.delete_elements();
+  m_triggers.destroy_elements();
 }
 
 /**

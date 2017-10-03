@@ -14,5 +14,5 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 usr/share/mysql/nodejs/*
 # legal
-usr/share/doc/mysql-@DEB_PRODUCTNAME@-nodejs/@DEB_INSTALL_LICENSEFILE@
-usr/share/doc/mysql-@DEB_PRODUCTNAME@-nodejs/README
+usr/share/mysql/@DEB_INSTALL_LICENSEFILE@ usr/share/doc/mysql-@DEB_PRODUCTNAME@-nodejs/
+usr/share/mysql/README usr/share/doc/mysql-@DEB_PRODUCTNAME@-nodejs/

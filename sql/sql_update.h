@@ -76,6 +76,8 @@ class Query_result_update final : public Query_result_interceptor
   List <TABLE> unupdated_check_opt_tables;
   /// ???
   Copy_field *copy_field;
+  /// Length of the copy_field array.
+  size_t max_fields{0};
   /// True if the full update operation is complete
   bool update_completed;
   /// True if all tables to be updated are transactional.

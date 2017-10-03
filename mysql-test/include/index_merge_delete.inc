@@ -55,7 +55,7 @@ ANALYZE TABLE t1;
 -- enable_query_log
 
 --let $query = FROM t1 WHERE (key4=42 AND key6 IS NOT NULL) OR (key1=4 AND key3=6)
---replace_result "union(i4,intersect(i1,i3))" "union(i4,i1)"
+--replace_result "i4,i1,i3" "i4,i1" "union(i4,intersect(i1,i3))" "union(i4,i1)"
 --replace_column 10 #
 --eval EXPLAIN DELETE $query
 --eval SELECT COUNT(*) $query
@@ -190,6 +190,8 @@ SET @save_log_bin= @@sql_log_bin;
 SET SQL_LOG_BIN=0;
 --enable_query_log
 --replace_column 10 #
+# Not stable across platforms
+--replace_result "Using sort_union(i1,i3); " ""
 --eval EXPLAIN DELETE $query
 
 --disable_query_log

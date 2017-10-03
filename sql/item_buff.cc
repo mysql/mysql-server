@@ -122,7 +122,7 @@ Cached_item_json::Cached_item_json(Item *item)
 
 Cached_item_json::~Cached_item_json()
 {
-  delete m_value;
+  destroy(m_value);
 }
 
 

@@ -1580,7 +1580,7 @@ bool JOIN::destroy()
   */
 
   // Run Cached_item DTORs!
-  group_fields.delete_elements();
+  group_fields.destroy_elements();
 
   /*
     We can't call delete_elements() on copy_funcs as this will cause
@@ -1602,7 +1602,7 @@ bool JOIN::destroy()
   List_iterator<Semijoin_mat_exec> sjm_list_it(sjm_exec_list);
   Semijoin_mat_exec *sjm;
   while ((sjm= sjm_list_it++))
-    delete sjm;
+    ::destroy(sjm);
   sjm_exec_list.empty();
 
   keyuse_array.clear();
@@ -2729,7 +2729,7 @@ void QEP_TAB::init_join_cache(JOIN_TAB *join_tab)
       if (q->op)
       {
         q->op->mem_free();
-        delete q->op;
+        destroy(q->op);
         q->op= NULL;
       }
       DBUG_ASSERT(i > 0);
@@ -3024,7 +3024,7 @@ void JOIN_TAB::cleanup()
 void QEP_TAB::cleanup()
 {
   // Delete parts specific of QEP_TAB:
-  delete filesort;
+  destroy(filesort);
   filesort= NULL;
   end_read_record(&read_record);
   if (quick_optim() != quick())
@@ -3045,7 +3045,7 @@ void QEP_TAB::cleanup()
     {
       if (t) // Check tmp table is not yet freed.
         free_tmp_table(current_thd, t);
-      delete tmp_table_param;
+      destroy(tmp_table_param);
       tmp_table_param= NULL;
     }
     op->mem_free();

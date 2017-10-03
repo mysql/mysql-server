@@ -60,7 +60,7 @@ public:
   { /* never called */ }
   static void operator delete[](void *ptr MY_ATTRIBUTE((unused)),
                                 size_t size MY_ATTRIBUTE((unused)))
-  { TRASH(ptr, size); }
+  { TRASH(ptr, size); DBUG_ASSERT(false); }
 
   // Duplications of ::operator new from my_alloc.h.
   static void *operator new[](size_t size, MEM_ROOT *mem_root,
@@ -76,7 +76,7 @@ public:
 protected:
   static void operator delete(void *ptr MY_ATTRIBUTE((unused)),
                               size_t size MY_ATTRIBUTE((unused)))
-  { TRASH(ptr, size); }
+  { TRASH(ptr, size); DBUG_ASSERT(false); }
 };
 
 #endif // SQL_ALLOC_INCLUDED

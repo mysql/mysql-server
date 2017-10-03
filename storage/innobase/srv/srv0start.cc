@@ -817,15 +817,14 @@ srv_undo_tablespace_open(space_id_t space_id)
 		&& !Fil_path::equal(file_name, scanned_name)) {
 
 		/* Make sure that this space_id is used by the
-		correctly named undo tablespace. Assume that the
-		undo files have been relocated. */
+		correctly named undo tablespace. */
 		ib::info()
 			<< "Cannot create " << file_name
 			<< " because " << scanned_name
 			<< " already uses Space ID=" << space_id
 			<< "!  Did you change innodb_undo_directory?";
 
-		return(DB_SUCCESS);
+		return(DB_WRONG_FILE_NAME);
 	}
 
 	/* Check if it was already opened during redo recovery. */

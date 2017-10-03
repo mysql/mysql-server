@@ -2332,11 +2332,18 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     Log_event_type type= (Log_event_type) rpl.buffer[1 + EVENT_TYPE_OFFSET];
     Log_event *ev= NULL;
     Destroy_log_event_guard del(&ev);
-    event_buf= (char*) rpl.buffer + 1;
     event_len= rpl.size - 1;
+    if (!(event_buf = (char*) my_malloc(key_memory_log_event,
+                                        event_len+1, MYF(0))))
+    {
+      error("Out of memory.");
+      DBUG_RETURN(ERROR_STOP);
+    }
+    memcpy(event_buf, rpl.buffer + 1, event_len);
     if (rewrite_db_filter(&event_buf, &event_len, glob_description_event))
     {
       error("Got a fatal error while applying rewrite db filter.");
+      my_free(event_buf);
       DBUG_RETURN(ERROR_STOP);
     }
 
@@ -2350,13 +2357,10 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
                                           opt_verify_binlog_checksum)))
       {
         error("Could not construct log event object: %s", error_msg);
+        my_free(event_buf);
         DBUG_RETURN(ERROR_STOP);
       }
-      /*
-        If reading from a remote host, ensure the temp_buf for the
-        Log_event class is pointing to the incoming stream.
-      */
-      ev->register_temp_buf((char *) rpl.buffer + 1, false);
+      ev->register_temp_buf(event_buf);
     }
 
     {
@@ -2415,6 +2419,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
          */
           old_off= start_position_mot;
           rpl.size= 1; // fake Rotate, so don't increment old_off
+          event_len= 0;
         }
       }
       else if (type == binary_log::FORMAT_DESCRIPTION_EVENT)
@@ -2428,7 +2433,10 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
         */
         // fake event when not in raw mode, don't increment old_off
         if ((old_off != BIN_LOG_HEADER_SIZE) && (!raw_mode))
+        {
           rpl.size= 1;
+          event_len= 0;
+        }
         if (raw_mode)
         {
           if (result_file && (result_file != stdout))
@@ -2465,11 +2473,14 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
       {
         DBUG_EXECUTE_IF("simulate_result_file_write_error",
                         DBUG_SET("+d,simulate_fwrite_error"););
-        if (my_fwrite(result_file, rpl.buffer + 1, rpl.size - 1, MYF(MY_NABP)))
+        if (my_fwrite(result_file, (const uchar*)event_buf, event_len,
+                      MYF(MY_NABP)))
         {
           error("Could not write into log file '%s'", log_file_name);
           retval= ERROR_STOP;
         }
+        if (!ev)
+          my_free(event_buf);
 
         /* Flush result_file after every event */
         fflush(result_file);

@@ -333,7 +333,7 @@ bool Sql_cmd_create_table::execute(THD *thd)
       if (thd->lex->is_ignore() || thd->is_strict_mode())
         thd->pop_internal_handler();
 
-      delete result;
+      destroy(result);
     }
 
     lex->link_first_table_back(create_table, link_to_local);

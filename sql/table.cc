@@ -167,8 +167,7 @@ void Object_creation_ctx::restore_env(THD *thd, Object_creation_ctx *backup_ctx)
     return;
 
   backup_ctx->change_env(thd);
-
-  delete backup_ctx;
+  backup_ctx->delete_backup_ctx();
 }
 
 /**************************************************************************
@@ -190,6 +189,11 @@ Object_creation_ctx *
 Default_object_creation_ctx::create_backup_ctx(THD *thd) const
 {
   return new Default_object_creation_ctx(thd);
+}
+
+void Default_object_creation_ctx::delete_backup_ctx()
+{
+  delete this;
 }
 
 void Default_object_creation_ctx::change_env(THD *thd) const
@@ -8467,5 +8471,15 @@ void TABLE::blobs_need_not_keep_old_value()
     if (vfield->type() == MYSQL_TYPE_BLOB && vfield->is_virtual_gcol())
       (down_cast<Field_blob*>(vfield))->set_keep_old_value(false);
   }
+}
+
+void TABLE::set_binlog_drop_if_temp(bool should_binlog)
+{
+  should_binlog_drop_if_temp_flag= should_binlog;
+}
+
+bool TABLE::should_binlog_drop_if_temp(void) const
+{
+  return should_binlog_drop_if_temp_flag;
 }
 //////////////////////////////////////////////////////////////////////////

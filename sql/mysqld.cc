@@ -1158,6 +1158,16 @@ ulong master_retry_count=0;
 char *master_info_file;
 char *relay_log_info_file, *report_user, *report_password, *report_host;
 char *opt_relay_logname = 0, *opt_relaylog_index_name=0;
+/*
+  True if the --relay-log-index is set by users from
+  config file or command line.
+*/
+bool opt_relaylog_index_name_supplied= false;
+/*
+  True if the --relay-log is set by users from
+  config file or command line.
+*/
+bool opt_relay_logname_supplied= false;
 char *opt_general_logname, *opt_slow_logname, *opt_bin_logname;
 
 /* Static variables */
@@ -4541,12 +4551,6 @@ static int init_server_components()
                                 buf, MYF(0));
     }
 
-    if (!opt_binlog_index_name || !opt_binlog_index_name[0])
-    {
-      strmake(default_binlog_index_name, opt_bin_logname, FN_REFLEN - 1);
-      opt_binlog_index_name= strcat(default_binlog_index_name, index_ext);
-    }
-
     /*
       Skip opening the index file if we start with --help. This is necessary
       to avoid creating the file in an otherwise empty datadir, which will
@@ -4572,6 +4576,15 @@ static int init_server_components()
     log_bin_index=
       rpl_make_log_name(key_memory_MYSQL_BIN_LOG_index,
                         opt_binlog_index_name, log_bin_basename, ".index");
+
+    if ((!opt_binlog_index_name || !opt_binlog_index_name[0]) && log_bin_index)
+    {
+      strmake(default_binlog_index_name,
+              log_bin_index + dirname_length(log_bin_index),
+              FN_REFLEN + index_ext_length - 1);
+      opt_binlog_index_name= default_binlog_index_name;
+    }
+
     if (log_bin_basename == NULL || log_bin_index == NULL)
     {
       LogErr(ERROR_LEVEL, ER_RPL_CANT_MAKE_PATHS,
@@ -4584,20 +4597,6 @@ static int init_server_components()
              ("opt_bin_logname: %s, opt_relay_logname: %s, pidfile_name: %s",
               opt_bin_logname, opt_relay_logname, pidfile_name));
 
-  if (!opt_relay_logname || !opt_relay_logname[0])
-  {
-    /* Generate default relay log file name. */
-    strmake(default_relaylogfile_name, default_logfile_name, FN_REFLEN - 1);
-    opt_relay_logname= strcat(default_relaylogfile_name, relay_ext);
-  }
-
-  if (!opt_relaylog_index_name || !opt_relaylog_index_name[0])
-  {
-    strmake(default_relaylog_index_name, opt_relay_logname,
-            FN_REFLEN + relay_ext_length - 1);
-    opt_relaylog_index_name= strcat(default_relaylog_index_name, index_ext);
-  }
-
   /*
     opt_relay_logname[0] needs to be checked to make sure opt relaylog name is
     not an empty string, incase it is an empty string default file
@@ -4608,10 +4607,36 @@ static int init_server_components()
                       opt_relay_logname, default_logfile_name,
                       (opt_relay_logname && opt_relay_logname[0]) ? "" : relay_ext);
 
+  if (!opt_relay_logname || !opt_relay_logname[0])
+  {
+    if (relay_log_basename)
+    {
+      strmake(default_relaylogfile_name,
+              relay_log_basename + dirname_length(relay_log_basename),
+              FN_REFLEN + relay_ext_length - 1);
+      opt_relay_logname= default_relaylogfile_name;
+    }
+  }
+  else
+    opt_relay_logname_supplied= true;
+
   if (relay_log_basename != NULL)
     relay_log_index=
       rpl_make_log_name(key_memory_MYSQL_RELAY_LOG_index,
                         opt_relaylog_index_name, relay_log_basename, ".index");
+
+  if (!opt_relaylog_index_name || !opt_relaylog_index_name[0])
+  {
+    if (relay_log_index)
+    {
+      strmake(default_relaylog_index_name,
+              relay_log_index + dirname_length(relay_log_index),
+              FN_REFLEN + relay_ext_length + index_ext_length - 1);
+      opt_relaylog_index_name= default_relaylog_index_name;
+    }
+  }
+  else
+    opt_relaylog_index_name_supplied= true;
 
   if (relay_log_basename == NULL || relay_log_index == NULL)
   {
@@ -8074,6 +8099,8 @@ static int mysql_init_variables()
     relay_log_info_file= (char*) "relay-log.info";
   report_user= report_password = report_host= 0;  /* TO BE DELETED */
   opt_relay_logname= opt_relaylog_index_name= 0;
+  opt_relaylog_index_name_supplied= false;
+  opt_relay_logname_supplied= false;
   log_bin_basename= NULL;
   log_bin_index= NULL;
 

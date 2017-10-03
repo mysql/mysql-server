@@ -847,6 +847,11 @@ PFS_object_row::make_row(const MDL_key *mdl)
     m_schema_name_length = mdl->db_name_length();
     m_object_name_length = mdl->name_length();
     break;
+  case MDL_key::COLUMN_STATISTICS:
+    m_object_type = OBJECT_TYPE_COLUMN_STATISTICS;
+    m_schema_name_length = 0;
+    m_object_name_length = mdl->name_length();
+    break;
   case MDL_key::NAMESPACE_END:
   default:
     m_object_type = NO_OBJECT_TYPE;
