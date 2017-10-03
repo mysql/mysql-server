@@ -679,7 +679,8 @@ public:
     char *ret= static_cast<char*>(alloc_root(root, m_length + 1));
     if (ret != NULL)
     {
-      memcpy(ret, m_ptr, m_length);
+      if (m_length > 0)
+        memcpy(ret, m_ptr, m_length);
       ret[m_length]= 0;
     }
     return ret;
