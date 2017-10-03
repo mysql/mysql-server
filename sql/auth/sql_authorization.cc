@@ -7522,5 +7522,8 @@ bool operator==(std::pair<const Role_id, std::pair<std::string, bool> > &a,
 
 bool operator==(const LEX_CSTRING &a, const LEX_CSTRING &b)
 {
-  return (a.length == b.length && memcmp(a.str, b.str, a.length) == 0);
+  return
+    (a.length == b.length &&
+     ( (a.length == 0) ||
+       (memcmp(a.str, b.str, a.length) == 0)) );
 }
