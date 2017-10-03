@@ -2032,7 +2032,7 @@ public:
   void add_at_head(List<Item> *nlist)
   {
     DBUG_ASSERT(nlist->elements);
-    list.prepand(nlist);
+    list.prepend(nlist);
   }
 
   bool itemize(Parse_context *pc, Item **res) override;
