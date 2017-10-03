@@ -54,6 +54,14 @@ ndb_join_pushdown_nobnl: Bug#25868387 WRONG DATA RETURNED WITH NDB JOIN PUSHDOWN
 # Inplace alter table and index problem(same problem as above)
 ndb_alter_table3: Bug#25915132 INPLACE ALTER TABLE WITH FOREIGN KEYS CAUSES TABLE DEFINITION MISMATCH
 
+# Problem with alter table which fails while copying data between tables, the
+# temporary named destination table is not dropped. Need to rewrite
+# the copying alter table code path in ndbcluster to drop the table in
+# order to be atomic
+ndb_fk_no_fk: Need WL#9185 MySQL Cluster support for new DD
+ndb_fk_db: Need WL#9185 MySQL Cluster support for new DD
+ndb_dd_alter: Need WL#9185 MySQL Cluster support for new DD
+
 # Problem with distributed privilege tables in combination with shadow
 # table behaviour causing the DD come severly out of synch on participants
 # Example:
