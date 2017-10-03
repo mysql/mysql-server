@@ -267,7 +267,8 @@ main(int argc, char** argv)
 {
   NDB_INIT(argv[0]);
   const char *load_default_groups[]= { "mysql_cluster",0 };
-  ndb_load_defaults(NULL,load_default_groups,&argc,&argv);
+  MEM_ROOT alloc;
+  ndb_load_defaults(NULL,load_default_groups,&argc,&argv,&alloc);
 
   int ho_error;
 #ifndef DBUG_OFF

@@ -319,7 +319,7 @@ class Ndb_cond : public Sql_alloc
   Ndb_cond() : ndb_item(NULL), next(NULL), prev(NULL) {}
   ~Ndb_cond()
   {
-    if (ndb_item) delete ndb_item;
+    if (ndb_item) destroy(ndb_item);
     ndb_item= NULL;
     /*
       First item in the linked list deletes all in a loop
@@ -332,7 +332,7 @@ class Ndb_cond : public Sql_alloc
       Ndb_cond *tmp= n;
       n= n->next;
       tmp->next= NULL;
-      delete tmp;
+      destroy(tmp);
     }
     next= prev= NULL;
   }
@@ -354,9 +354,9 @@ class Ndb_cond_stack : public Sql_alloc
   Ndb_cond_stack() : ndb_cond(NULL), next(NULL) {}
   ~Ndb_cond_stack()
   {
-    if (ndb_cond) delete ndb_cond;
+    if (ndb_cond) destroy(ndb_cond);
     ndb_cond= NULL;
-    if (next) delete next;
+    if (next) destroy(next);
     next= NULL;
   }
   Ndb_cond *ndb_cond;
@@ -413,7 +413,7 @@ Ndb_expect_stack(): collation(NULL), length(0), max_length(0), next(NULL)
       bitmap_union(&expect_field_result_mask, &next->expect_field_result_mask);
       collation= next->collation;
       next= next->next;
-      delete expect_next;
+      destroy(expect_next);
     }
   }
   void expect(Item::Type type)
@@ -593,7 +593,7 @@ class Ndb_cond_traverse_context : public Sql_alloc
   }
   ~Ndb_cond_traverse_context()
   {
-    if (rewrite_stack) delete rewrite_stack;
+    if (rewrite_stack) destroy(rewrite_stack);
   }
   inline void expect(Item::Type type)
   {

@@ -663,6 +663,8 @@ const char *my_localhost= "localhost";
 
 bool opt_large_files= sizeof(my_off_t) > 4;
 static bool opt_autocommit; ///< for --autocommit command-line option
+static get_opt_arg_source source_autocommit;
+
 /*
   Used with --help for detailed option
 */
@@ -1179,14 +1181,9 @@ char *opt_binlog_index_name;
 char *mysql_home_ptr, *pidfile_name_ptr;
 char *default_auth_plugin;
 /**
-  Initial command line arguments (arguments), after load_defaults().
-  This memory is allocated by @c load_defaults() and should be freed
-  using @c free_defaults().
-  Do not modify defaults_argv,
-  use remaining_argc / remaining_argv instead to parse the command
-  line arguments in multiple steps.
+  Memory for allocating command line arguments, after load_defaults().
 */
-static char **defaults_argv;
+static MEM_ROOT argv_alloc{PSI_NOT_INSTRUMENTED, 512, 0};
 /** Remaining command line arguments (count), filtered by handle_options().*/
 static int remaining_argc;
 /** Remaining command line arguments (arguments), filtered by handle_options().*/
@@ -2016,8 +2013,6 @@ static void clean_up(bool print_message)
   multi_keycache_free();
   query_logger.cleanup();
   my_free_open_file_info();
-  if (defaults_argv)
-    free_defaults(defaults_argv);
   free_tmpdir(&mysql_tmpdir_list);
   my_free(opt_bin_logname);
   free_max_user_conn();
@@ -4244,14 +4239,10 @@ static int init_server_auto_options()
   }
 
   /* load all options in 'auto.cnf'. */
-  if (my_load_defaults(fname, groups, &argc, &argv, NULL))
+  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512, 0};
+  if (my_load_defaults(fname, groups, &argc, &argv, &alloc, NULL))
     DBUG_RETURN(1);
 
-  /*
-    Record the origial pointer allocated by my_load_defaults for free,
-    because argv will be changed by handle_options
-   */
-  char **old_argv= argv;
   if (handle_options(&argc, &argv, auto_options, mysqld_get_one_option))
     DBUG_RETURN(1);
 
@@ -4290,17 +4281,11 @@ static int init_server_auto_options()
     DBUG_PRINT("info", ("generated server_uuid=%s", server_uuid));
     LogErr(WARNING_LEVEL, ER_CREATING_NEW_UUID, server_uuid);
   }
-  /*
-    The uuid has been copied to server_uuid, so the memory allocated by
-    my_load_defaults can be freed now.
-   */
-  free_defaults(old_argv);
 
   if (flush)
     DBUG_RETURN(flush_auto_options(fname));
   DBUG_RETURN(0);
 err:
-  free_defaults(argv);
   DBUG_RETURN(1);
 }
 
@@ -5198,12 +5183,11 @@ int mysqld_main(int argc, char **argv)
   orig_argv= argv;
   my_getopt_use_args_separator= TRUE;
   my_defaults_read_login_file= FALSE;
-  if (load_defaults(MYSQL_CONFIG_NAME, load_default_groups, &argc, &argv))
+  if (load_defaults(MYSQL_CONFIG_NAME, load_default_groups, &argc, &argv, &argv_alloc))
   {
     flush_error_log_messages();
     return 1;
   }
-  defaults_argv= argv;
 
   /*
    Initialize variables cache for persisted variables, load persisted
@@ -6700,11 +6684,13 @@ struct my_option my_long_options[]=
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   /*
     Because Sys_var_bit does not support command-line options, we need to
-    explicitely add one for --autocommit
+    explicitly add one for --autocommit
   */
   {"autocommit", 0, "Set default value for autocommit (0 or 1)",
    &opt_autocommit, &opt_autocommit, 0,
-   GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, NULL},
+   GET_BOOL, OPT_ARG, 1, 0, 0,
+   & source_autocommit, /* arg_source, to be copied to Sys_var */
+   0, NULL},
   {"binlog-do-db", OPT_BINLOG_DO_DB,
    "Tells the master it should log updates for the specified database, "
    "and exclude all others not explicitly mentioned.",
@@ -8988,12 +8974,19 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   else
     global_system_variables.option_bits&= ~OPTION_BIG_SELECTS;
 
-  // Synchronize @@global.autocommit on --autocommit
+  // Synchronize @@global.autocommit value on --autocommit
   const ulonglong turn_bit_on= opt_autocommit ?
     OPTION_AUTOCOMMIT : OPTION_NOT_AUTOCOMMIT;
   global_system_variables.option_bits=
     (global_system_variables.option_bits &
      ~(OPTION_NOT_AUTOCOMMIT | OPTION_AUTOCOMMIT)) | turn_bit_on;
+
+  // Synchronize @@global.autocommit metadata on --autocommit
+  my_option *opt = & my_long_options[3];
+  DBUG_ASSERT(strcmp(opt->name, "autocommit") == 0);
+  DBUG_ASSERT(opt->arg_source != NULL);
+  Sys_autocommit_ptr->set_source_name(opt->arg_source->m_path_name);
+  Sys_autocommit_ptr->set_source(opt->arg_source->m_source);
 
   global_system_variables.sql_mode=
     expand_sql_mode(global_system_variables.sql_mode, NULL);

@@ -1473,9 +1473,8 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
 
   ndb_opt_set_usage_funcs(short_usage_sub, usage);
 
-  ndb_load_defaults(NULL, load_default_groups,&argc,&_argv);
-  // Save pointer to memory allocated by 'ndb_load_defaults'
-  char** defaults_argv= _argv;
+  MEM_ROOT alloc;
+  ndb_load_defaults(NULL, load_default_groups,&argc,&_argv,&alloc);
 
   int ho_error;
 #ifndef DBUG_OFF
@@ -1485,7 +1484,6 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
 			       ndb_std_get_one_option)))
   {
     usage();
-    ndb_free_defaults(defaults_argv);
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
 
@@ -1608,26 +1606,22 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
 
   if (opt_print == true){
     printExecutionTree();
-    ndb_free_defaults(defaults_argv);
     return 0;
   }
 
   if (opt_print_html == true){
     printExecutionTreeHTML();
-    ndb_free_defaults(defaults_argv);
     return 0;
   }
 
   if (opt_print_cases == true){
     printCases();
-    ndb_free_defaults(defaults_argv);
     return 0;
   }
 
   Ndb_cluster_connection con(opt_ndb_connectstring, opt_ndb_nodeid);
   if(m_connect_cluster && con.connect(12, 5, 1))
   {
-    ndb_free_defaults(defaults_argv);
     return NDBT_ProgramExit(NDBT_FAILED);
   }
   con.set_optimized_node_selection(opt_ndb_optimized_node_selection);
@@ -1644,7 +1638,6 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
     res = report(opt_testname);
   }
 
-  ndb_free_defaults(defaults_argv);
   return NDBT_ProgramExit(res);
 }
 

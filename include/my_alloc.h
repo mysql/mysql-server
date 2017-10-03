@@ -66,10 +66,7 @@ struct USED_MEM
 
 struct MEM_ROOT
 {
-  MEM_ROOT() :
-    free(nullptr), used(nullptr), pre_alloc(nullptr),
-    min_malloc(0) // for alloc_root_inited()
-  {}
+  MEM_ROOT() : MEM_ROOT(0, 512, 0) {}  // 0 = PSI_NOT_INSTRUMENTED
 
   MEM_ROOT(PSI_memory_key key, size_t block_size, size_t pre_alloc_size)
   {
