@@ -541,7 +541,7 @@ NdbImportImpl::Job::do_start()
       log2("running");
       check_teams(false);
       check_userstop();
-      NdbSleep_MilliSleep(100);
+      NdbSleep_MilliSleep(opt.m_checkloop);
     }
   } while (0);
   log1("stop");
@@ -551,7 +551,7 @@ NdbImportImpl::Job::do_start()
     check_teams(true);
     if (m_state == JobState::State_stop)
       m_state = JobState::State_stopped;
-    NdbSleep_MilliSleep(100);
+    NdbSleep_MilliSleep(opt.m_checkloop);
   }
   log1("stopped");
   collect_teams();
@@ -728,11 +728,12 @@ NdbImportImpl::Job::collect_stats()
 void
 NdbImportImpl::Job::stop_diag_team()
 {
+  const Opt& opt = m_util.c_opt;
   Team* team = m_teams[0];
   team->do_stop();
   while (team->m_state != TeamState::State_stopped)
   {
-    NdbSleep_MilliSleep(100);
+    NdbSleep_MilliSleep(opt.m_checkloop);
   }
   log1("diag team stopped");
 }
@@ -761,6 +762,7 @@ NdbImportImpl::Team::Team(Job& job,
   for (int k = 0; k < g_workerstatecnt; k++)
     m_workerstates[k] = 0;
   m_tabid = Inval_uint;
+  m_is_diag = false;
   // stats
   Stats& stats = m_job.m_stats;
   {
@@ -1199,9 +1201,16 @@ NdbImportImpl::Worker::do_start()
     }
     signal();
     unlock();
-    if (m_idlerun > opt.m_idlespin && opt.m_idlesleep != 0)
+    if (!m_team.m_is_diag)
     {
-      NdbSleep_MilliSleep(opt.m_idlesleep);
+      if (m_idlerun > opt.m_idlespin && opt.m_idlesleep != 0)
+      {
+        NdbSleep_MilliSleep(opt.m_idlesleep);
+      }
+    }
+    else
+    {
+      NdbSleep_MilliSleep(opt.m_checkloop);
     }
   }
   log1("stopped");
@@ -3153,6 +3162,7 @@ NdbImportImpl::DiagTeam::DiagTeam(Job& job,
   m_stopt_file(m_util, m_error),
   m_stats_file(m_util, m_error)
 {
+  m_is_diag = true;
 }
 
 NdbImportImpl::DiagTeam::~DiagTeam()
@@ -3985,10 +3995,11 @@ NdbImportImpl::stop_job(Job* job)
 void
 NdbImportImpl::wait_job(Job* job)
 {
+  const Opt& opt = m_util.c_opt;
   while (job->m_state != JobState::State_done)
   {
     log2("wait for " << g_str_state(JobState::State_done));
-    NdbSleep_MilliSleep(100);
+    NdbSleep_MilliSleep(opt.m_checkloop);
   }
   log1("done");
 }

@@ -77,6 +77,7 @@ public:
     bool m_no_hint;
     uint m_pagesize;
     uint m_pagecnt;
+    uint m_pagebuffer;
     uint m_rowbatch;
     uint m_rowbytes;
     uint m_opbatch;
@@ -87,6 +88,7 @@ public:
     uint m_rowswait;
     uint m_idlespin;
     uint m_idlesleep;
+    uint m_checkloop;
     uint m_alloc_chunk;
     uint m_rejects;
     // character set of input file (currently fixed as binary)

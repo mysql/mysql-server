@@ -82,7 +82,8 @@ NdbImport::Opt::Opt()
   m_no_asynch = false;
   m_no_hint = false;
   m_pagesize = 4096;
-  m_pagecnt = 64;
+  m_pagecnt = 0;
+  m_pagebuffer = 262144;
   m_rowbatch = 0;
   m_rowbytes = 262144;
   m_opbatch = 256;
@@ -93,6 +94,7 @@ NdbImport::Opt::Opt()
   m_rowswait = 1;
   m_idlespin = 0;
   m_idlesleep = 1;
+  m_checkloop = 100;
   m_alloc_chunk = 20;
   m_rejects = 0;
   // character set
@@ -171,6 +173,16 @@ NdbImport::set_opt(Opt& opt)
                            "number of db workers must be >= 1");
       return -1;
     }
+  }
+  if (opt.m_pagesize == 0)
+  {
+    util.set_error_usage(util.c_error, __LINE__,
+                         "option --pagesize must be non-zero");
+    return -1;
+  }
+  if (opt.m_pagebuffer != 0)
+  {
+    opt.m_pagecnt = (opt.m_pagebuffer + opt.m_pagesize - 1) / opt.m_pagesize;
   }
   if (opt.m_opbatch == 0)
   {

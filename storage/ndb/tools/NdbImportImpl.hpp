@@ -347,6 +347,7 @@ public:
     uint m_workerstates[g_workerstatecnt];
     uint m_tabid;
     RowMap m_rowmap_out;
+    bool m_is_diag;
     mutable Timer m_timer;
     Error m_error;              // team level
     bool has_error() const {

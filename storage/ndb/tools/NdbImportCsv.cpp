@@ -1193,7 +1193,7 @@ struct Ndb_import_csv_error {
     Value_error = 2,    // but DBTUP should be final arbiter
     Internal_error = 3
   };
-  static const int error_code_count = Value_error + 1;
+  static const int error_code_count = Internal_error + 1;
   int error_code;
   const char* error_text;
   int error_line;
@@ -1203,7 +1203,8 @@ static const Ndb_import_csv_error
 ndb_import_csv_error[Ndb_import_csv_error::error_code_count] = {
   { Ndb_import_csv_error::No_error, "no error", 0 },
   { Ndb_import_csv_error::Format_error, "format error", 0 },
-  { Ndb_import_csv_error::Value_error, "value error", 0 }
+  { Ndb_import_csv_error::Value_error, "value error", 0 },
+  { Ndb_import_csv_error::Internal_error, "internal error", 0 }
 };
 
 static void
@@ -1248,23 +1249,36 @@ ndb_import_csv_parse_decimal(const NdbImportCsv::Attr& attr,
 #endif
   // sign
   const char* p = datac;
+  const char* q = p;
   if (!is_unsigned)
     while (*p == '+' || *p == '-')
       p++;
   else
     while (*p == '+')
       p++;
+  q = p;
   // decimal_str2bin does not check string end so parse here
+  uint digits = 0;
   while (isdigit(*p))
     p++;
+  digits += p - q;
+  q = p;
   if (*p == '.')
   {
-    p++;
+    q = ++p;
     while (isdigit(*p))
       p++;
+    digits += p - q;
   }
   if (*p != 0)
   {
+    csv_error = ndb_import_csv_error[Ndb_import_csv_error::Format_error];
+    csv_error.error_line = __LINE__;
+    return false;
+  }
+  if (digits == 0)
+  {
+    // single "." is not valid decimal
     csv_error = ndb_import_csv_error[Ndb_import_csv_error::Format_error];
     csv_error.error_line = __LINE__;
     return false;
