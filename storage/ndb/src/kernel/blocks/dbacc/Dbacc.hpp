@@ -993,7 +993,7 @@ private:
   void increaselistcont(Page8Ptr);
   void seizeLeftlist(Page8Ptr slPageptr, Uint32 conidx);
   void seizeRightlist(Page8Ptr slPageptr, Uint32 conidx);
-  Uint32 readTablePk(Uint32 lkey1, Uint32 lkey2, Uint32 eh, OperationrecPtr);
+  Uint32 readTablePk(Uint32, Uint32, Uint32, OperationrecPtr, Uint32*);
   Uint32 getElement(const AccKeyReq* signal,
                     OperationrecPtr& lockOwner,
                     Page8Ptr& bucketPageptr,
@@ -1034,14 +1034,14 @@ private:
                           bool lo) const;
   void check_lock_upgrade(Signal* signal, OperationrecPtr lock_owner,
 			  OperationrecPtr release_op) const;
-  void allocOverflowPage();
+  Uint32 allocOverflowPage();
   bool getfragmentrec(FragmentrecPtr&, Uint32 fragId);
   void insertLockOwnersList(const OperationrecPtr&) const;
   void takeOutLockOwnersList(const OperationrecPtr&) const;
 
   void initFsOpRec(Signal* signal) const;
   void initOverpage(Page8Ptr);
-  void initPage(Page8Ptr);
+  void initPage(Page8Ptr, Uint32);
   void initRootfragrec(Signal* signal) const;
   void putOpInFragWaitQue(Signal* signal) const;
   void releaseFsConnRec(Signal* signal) const;
@@ -1054,13 +1054,12 @@ private:
   void seizeFsConnectRec(Signal* signal) const;
   void seizeFsOpRec(Signal* signal) const;
   void seizeOpRec();
-  void seizePage(Page8Ptr& spPageptr, int sub_page_id);
+  Uint32 seizePage(Page8Ptr& spPageptr, int sub_page_id);
   void seizeRootfragrec(Signal* signal) const;
   void seizeScanRec();
   void sendSystemerror(int line) const;
 
   void addFragRefuse(Signal* signal, Uint32 errorCode) const;
-  void ndbsttorryLab(Signal* signal) const;
   void acckeyref1Lab(Signal* signal, Uint32 result_code) const;
   void insertelementLab(Signal* signal,
                         Page8Ptr bucketPageptr,
@@ -1068,14 +1067,12 @@ private:
   void checkNextFragmentLab(Signal* signal);
   void endofexpLab(Signal* signal);
   void endofshrinkbucketLab(Signal* signal);
-  void sttorrysignalLab(Signal* signal) const;
+  void sttorrysignalLab(Signal* signal, Uint32 signalkey) const;
   void sendholdconfsignalLab(Signal* signal) const;
   void accIsLockedLab(Signal* signal, OperationrecPtr lockOwnerPtr) const;
   void insertExistElemLab(Signal* signal, OperationrecPtr lockOwnerPtr) const;
-  void refaccConnectLab(Signal* signal);
   void releaseScanLab(Signal* signal);
-  void ndbrestart1Lab();
-  void initialiseRecordsLab(Signal* signal, Uint32 ref, Uint32 data);
+  void initialiseRecordsLab(Signal* signal, Uint32, Uint32, Uint32);
   void checkNextBucketLab(Signal* signal);
   void storeDataPageInDirectoryLab(Signal* signal) const;
 
@@ -1127,8 +1124,6 @@ private:
 /* PAGE8                                                                             */
 /* --------------------------------------------------------------------------------- */
   /* 8 KB PAGE                       */
-  Page8Ptr expPageptr;
-
   Page32Lists pages;
   Page8List::Head cfreepages;
   Uint32 cpageCount;
@@ -1159,33 +1154,6 @@ private:
   Tabrec *tabrec;
   TabrecPtr tabptr;
   Uint32 ctablesize;
-  Uint32 tipPageId;
-  Uint32 texpDirInd;
-  Uint32 tdata0;
-  Uint32 tfid;
-  Uint32 tscanFlag;
-  Uint32 tmp;
-  Uint32 tmp2;
-  Uint32 tresult;
-  Uint32 tuserptr;
-  BlockReference tuserblockref;
-  Uint32 tiopIndex;
-  Uint32 tscanTrid1;
-  Uint32 tscanTrid2;
-
-  Uint32 cminusOne;
-  NodeId cmynodeid;
-  BlockReference cownBlockref;
-  BlockReference cndbcntrRef;
-  Uint16 csignalkey;
-  Uint32 czero;
-  union {
-  Uint32 ckeys[2048 * MAX_XFRM_MULTIPLY];
-  Uint64 ckeys_align;
-  };
-  
-  Uint32 c_errorInsert3000_TableId;
-  Uint32 c_memusage_report_frequency;
 };
 
 #ifdef DBACC_C
