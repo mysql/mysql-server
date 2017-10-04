@@ -62,7 +62,6 @@
 #include "sql/auth/auth_common.h" // check_table_access
 #include "sql/auto_thd.h"               // Auto_THD
 #include "sql/current_thd.h"
-#include "sql/dd_sql_view.h"      // update_referencing_views_metadata
 #include "sql/dd/cache/dictionary_client.h" // dd::cache::Dictionary_client
 #include "sql/dd/dd_schema.h"            // dd::Schema_MDL_locker
 #include "sql/dd/info_schema/metadata.h" // dd::info_schema::store_dynamic_p...
@@ -2228,15 +2227,6 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
       if (!error && store_infoschema_metadata)
         error= dd::info_schema::store_dynamic_plugin_I_S_metadata(thd, tmp);
       mysql_mutex_unlock(&LOCK_plugin);
-
-      if (!error && store_infoschema_metadata)
-      {
-        Uncommitted_tables_guard uncommitted_tables(thd);
-        error= update_referencing_views_metadata(thd,
-                                                 INFORMATION_SCHEMA_NAME.str,
-                                                 tmp->name.str, false,
-                                                 &uncommitted_tables);
-      }
     }
   }
 
@@ -2489,15 +2479,8 @@ static bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
     error= dd::info_schema::remove_I_S_view_metadata(
              thd, dd::String_type(orig_plugin_name.c_str(),
                                   orig_plugin_name.length()));
-    DBUG_ASSERT(!error || thd->is_error());
-
-    if (!error)
-    {
-      Uncommitted_tables_guard uncommitted_tables(thd);
-      error= update_referencing_views_metadata(thd, INFORMATION_SCHEMA_NAME.str,
-                                               orig_plugin_name.c_str(),
-                                               false, &uncommitted_tables);
-    }
+    if (error)
+      DBUG_ASSERT(thd->is_error());
   }
 
 err:
