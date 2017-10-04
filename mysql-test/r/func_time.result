@@ -1823,6 +1823,29 @@ a	UNIX_TIMESTAMP(a)	UNIX_TIMESTAMP('5000-01-01 00:00:00')
 5000-01-01 00:00:00	0.000000	0
 DROP TABLE t1;
 #
+# Bug#23529242 CONCAT: ASSERTION FAILED: MAYBE_NULL
+#
+Disable strict mode. This affects the nullability of string
+functions, and the bug only reproduces when CONCAT's return
+type is NOT NULL.
+SET @savmode=@@SESSION.SQL_MODE;
+SET SESSION SQL_MODE='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+SELECT UNIX_TIMESTAMP(COUNT(1));
+UNIX_TIMESTAMP(COUNT(1))
+0
+Warnings:
+Warning	1292	Incorrect datetime value: '1'
+SELECT CONCAT(UNIX_TIMESTAMP(COUNT(1)), '|');
+CONCAT(UNIX_TIMESTAMP(COUNT(1)), '|')
+0|
+Warnings:
+Warning	1292	Incorrect datetime value: '1'
+SET SESSION SQL_MODE=@savmode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+#
 # Bug#13988413 CRASH/ASSERTION AFTER INVALID MEMORY READ 
 #              IN MY_USECONDS_TO_STR
 #
