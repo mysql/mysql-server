@@ -1530,9 +1530,9 @@ innobase_fill_i_s_table(
 	Item*,
 	enum_schema_tables	idx)
 {
-        DBUG_ASSERT(idx == SCH_TABLESPACES);
+	DBUG_ASSERT(idx == SCH_TABLESPACES);
 
-        /** InnoDB does not implement I_S.TABLESPACES */
+	/** InnoDB does not implement I_S.TABLESPACES */
 
 	return(0);
 }
@@ -3597,7 +3597,12 @@ Validate_files::check(
 		}
 
 		std::string	new_path;
-		const char*	filename = file->filename().c_str();
+		std::string	dd_path{file->filename().c_str()};
+		const char*	filename = dd_path.c_str();
+
+		/* Just in case this dictionary was ported between
+		Windows and POSIX. */
+		Fil_path::normalize(dd_path);
 
 		if (fsp_is_ibd_tablespace(space_id)) {
 
@@ -3605,7 +3610,7 @@ Validate_files::check(
 
 			auto	state = fil_tablespace_path_equals(
 				tablespace->id(), space_id, space_name,
-				filename, &new_path);
+				dd_path, &new_path);
 
 			switch(state) {
 			case Fil_state::MATCHES:
@@ -3617,7 +3622,7 @@ Validate_files::check(
 					<< prefix
 					<< "Tablespace " << space_id << ","
 					<< " name '" << space_name << "',"
-					<< " file '" << filename << "'"
+					<< " file '" << dd_path << "'"
 					<< " is missing!";
 
 				continue;
@@ -3628,7 +3633,7 @@ Validate_files::check(
 					<< prefix
 					<< "Tablespace " << space_id << ","
 					<< " name '" << space_name << "',"
-					<< " file '" << filename << "'"
+					<< " file '" << dd_path << "'"
 					<< " was deleted!";
 
 				continue;
@@ -3651,7 +3656,7 @@ Validate_files::check(
 					<< " - "
 					<< "Tablespace " << space_id << ","
 					<< " name '" << space_name << "',"
-					<< " file '" << filename << "'"
+					<< " file '" << dd_path << "'"
 					<< " has been moved to"
 					<< " '" << new_path << "'";
 
@@ -3880,8 +3885,8 @@ innobase_dict_cache_reset_tables_and_tablespaces()
 	in LRU list */
 	while (table) {
 		/* Make sure table->is_dd_table is set */
-                char	db_buf[NAME_LEN + 1];
-                char	tbl_buf[NAME_LEN + 1];
+		char	db_buf[NAME_LEN + 1];
+		char	tbl_buf[NAME_LEN + 1];
 
 		dict_table_t*	next_table = UT_LIST_GET_NEXT(table_LRU, table);
 
@@ -3947,8 +3952,8 @@ innobase_dict_recover(
 			thd, NULL, "mysql/innodb_index_stats",
 			false, DICT_ERR_IGNORE_NONE);
 		dict_sys->ddl_log = dd_table_open_on_name(
-                        thd, NULL, "mysql/innodb_ddl_log",
-                        false, DICT_ERR_IGNORE_NONE);
+			thd, NULL, "mysql/innodb_ddl_log",
+			false, DICT_ERR_IGNORE_NONE);
 		log_ddl = UT_NEW_NOKEY(Log_DDL());
 	}
 
@@ -4065,7 +4070,7 @@ static bool innobase_is_supported_system_table(
 		"role_edges",
 		"default_roles",
 		"global_grants",
-                "password_history"};
+		"password_history"};
 
 	static const char*const*const end = tables + UT_ARR_SIZE(tables);
 
@@ -4212,7 +4217,7 @@ innodb_buffer_pool_size_init()
 					" is ignored for innodb_buffer_pool_size because"
 					" innodb_buffer_pool_size="
 					<< srv_buf_pool_curr_size
-				        <<" is specified explicitly.";
+					<<" is specified explicitly.";
 			}
 		}
 	}
@@ -4304,13 +4309,7 @@ innodb_init_params()
 	current_dir[2] = 0;
 	default_path = current_dir;
 
-	ut_a(default_path != nullptr);
-
 	std::string	mysqld_datadir{default_path};
-
-	if (mysqld_datadir.back() != OS_PATH_SEPARATOR) {
-		mysqld_datadir.push_back(OS_PATH_SEPARATOR);
-	}
 
 	MySQL_datadir_path = Fil_path{mysqld_datadir};
 
@@ -4320,11 +4319,11 @@ innodb_init_params()
 
 	srv_data_home = innobase_data_home_dir != nullptr
 			? innobase_data_home_dir : default_path;
+	Fil_path::normalize(srv_data_home);
 
 	if (srv_undo_dir == nullptr) {
 		srv_undo_dir = default_path;
 	}
-
 	Fil_path::normalize(srv_undo_dir);
 
 	/* The default dir for log files is the datadir of MySQL */
@@ -4332,6 +4331,7 @@ innodb_init_params()
 	if (srv_log_group_home_dir == nullptr) {
 		srv_log_group_home_dir = default_path;
 	}
+	Fil_path::normalize(srv_log_group_home_dir);
 
 	if (strchr(srv_log_group_home_dir, ';')) {
 		sql_print_error("syntax error in innodb_log_group_home_dir");
@@ -4393,7 +4393,7 @@ innodb_init_params()
 					" is ignored for innodb_log_file_size because"
 					" innodb_log_file_size="
 					<< innodb_log_file_size
-				        <<" is specified explicitly.";
+					<<" is specified explicitly.";
 			}
 		}
 	}
@@ -4594,7 +4594,7 @@ innodb_init_params()
 					" is ignored for innodb_flush_method because"
 					" innodb_flush_method="
 					<< innodb_flush_method_names[innodb_flush_method]
-				        <<" is specified explicitly.";
+					<<" is specified explicitly.";
 			}
 		}
 	}
@@ -5031,7 +5031,7 @@ dd_open_hardcoded(space_id_t space_id, const char* filename)
 
 		/* Set fil_space_t::size, which is 0 initially. */
 		ulint   size = fil_space_get_size(space_id);
-                ut_a(size != ULINT_UNDEFINED);
+		ut_a(size != ULINT_UNDEFINED);
 
 	} else {
 		fail = true;
@@ -5077,6 +5077,7 @@ innobase_init_files(
 
 	if (innobase_directories != nullptr && *innobase_directories != 0) {
 
+		Fil_path::normalize(innobase_directories);
 		directories.append(Fil_path::parse(innobase_directories));
 		directories.push_back(FIL_PATH_SEPARATOR);
 	}
@@ -11399,13 +11400,13 @@ error_ret:
 template<typename Index> const dd::Index* get_my_dd_index(const Index* index);
 
 template<> const dd::Index* get_my_dd_index<dd::Index>(const dd::Index* dd_index) {
-        return dd_index;
+	return dd_index;
 }
 
 template<>
 const dd::Index* get_my_dd_index<dd::Partition_index>(
-        const dd::Partition_index* dd_index) {
-        return (dd_index != nullptr) ? &dd_index->index() : nullptr;
+	const dd::Partition_index* dd_index) {
+	return (dd_index != nullptr) ? &dd_index->index() : nullptr;
 }
 
 /*****************************************************************//**
@@ -11451,7 +11452,7 @@ create_index(
 		const auto* dd_index_auto =
 				dd_table->indexes()[dd_index_num];
 
-                const dd::Index* dd_index = get_my_dd_index(dd_index_auto);
+		const dd::Index* dd_index = get_my_dd_index(dd_index_auto);
 		ut_ad(dd_index->name() == key->name);
 
 		size_t geom_col_idx;
@@ -12297,7 +12298,7 @@ innobase_dict_init(
 		" ENGINE=INNODB ROW_FORMAT=DYNAMIC "
 		"DEFAULT CHARSET=utf8 COLLATE=utf8_bin "
 		"STATS_PERSISTENT=0",
-                /* Tablespace */
+		/* Tablespace */
 		MYSQL_TABLESPACE_NAME.str);
 
 	static Plugin_table innodb_index_stats(
@@ -12328,8 +12329,8 @@ innobase_dict_init(
 		" ENGINE=INNODB ROW_FORMAT=DYNAMIC "
 		"DEFAULT CHARSET=utf8 COLLATE=utf8_bin "
 		"STATS_PERSISTENT=0",
-                /* Tablespace */
-                MYSQL_TABLESPACE_NAME.str);
+		/* Tablespace */
+		MYSQL_TABLESPACE_NAME.str);
 
 	static const Plugin_table innodb_dynamic_metadata(
 		/* Schema Name */
@@ -12343,8 +12344,8 @@ innobase_dict_init(
 		/* Options */
 		" ENGINE=INNODB ROW_FORMAT=DYNAMIC "
 		" STATS_PERSISTENT=0",
-                /* Tablespace */
-                MYSQL_TABLESPACE_NAME.str);
+		/* Tablespace */
+		MYSQL_TABLESPACE_NAME.str);
 
 	static const Plugin_table innodb_ddl_log(
 		/* Schema Name */
@@ -16508,11 +16509,11 @@ innobase_get_table_statistics(
 
 		if (innodb_get_table_statistics_for_uncached(
 					db_name, table_name,
-                                        norm_name,
+					norm_name,
 					se_private_id,
 					ts_se_private_data,
-                                        tbl_se_private_data,
-                                        flags, stats)) {
+					tbl_se_private_data,
+					flags, stats)) {
 			return(false);
 		}
 
@@ -16675,7 +16676,7 @@ innobase_get_tablespace_statistics(
 
 	space_id_t space_id;
 
-        ts_se_private_data.get_uint32(
+	ts_se_private_data.get_uint32(
 		dd_space_key_strings[DD_SPACE_ID], &space_id);
 
 	auto	space = fil_space_acquire(space_id);
@@ -16712,7 +16713,7 @@ innobase_get_tablespace_statistics(
 
 	stats->m_type = type;
 
-        stats->m_free_extents = space->free_len;
+	stats->m_free_extents = space->free_len;
 
 	page_size_t	page_size{space->flags};
 
@@ -21085,7 +21086,7 @@ checkpoint_now_set(
 
 		dberr_t err = fil_write_flushed_lsn(log_sys->lsn);
 
-                ut_a(err == DB_SUCCESS);
+		ut_a(err == DB_SUCCESS);
 	}
 }
 
