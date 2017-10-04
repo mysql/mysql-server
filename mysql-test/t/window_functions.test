@@ -3650,6 +3650,28 @@ EXECUTE s;
 EXECUTE s;
 DROP TABLE t;
 
+--echo #
+--echo # Bug#26907753 COMBINING CTE AND WINDOW FUNCTION GIVES WRONG RESULT
+--echo #
+
+CREATE TABLE t1 (i INTEGER);
+INSERT INTO t1 VALUES (1),(1),(2);
+
+SELECT * FROM
+    (SELECT LEAD(i) OVER w AS a, i AS b FROM t1
+     WINDOW w AS
+     (ORDER BY i ROWS CURRENT ROW))
+AS t WHERE a = b;
+
+WITH t2(i) AS (SELECT i+1 FROM t1)
+SELECT * FROM
+    (SELECT LEAD(i) OVER w AS a, i AS b FROM t2
+     WINDOW w AS
+     (ORDER BY i ROWS CURRENT ROW))
+AS t3 WHERE a = b;
+
+DROP TABLE t1;
+
 # Local Variables:
 # mode: sql
 # sql-product: mysql

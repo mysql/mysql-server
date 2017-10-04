@@ -450,8 +450,8 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
       {
         if (make_copy_field || (copy_result_field && !is_wf))
         {
-          DBUG_ASSERT(((Item_result_field*)item)->result_field);
-          *from_field= ((Item_result_field*)item)->result_field;
+          *from_field= item->get_tmp_table_field();
+          DBUG_ASSERT(*from_field);
         }
 
         result= create_tmp_field_from_item(item, table,
