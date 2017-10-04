@@ -2854,7 +2854,6 @@ Restore::parse_record(Signal* signal,
                       0,
                       Uint32(BackupFormat::INSERT_TYPE),
                       &rowid_val);
-    c_lqh->receive_attrinfo(signal, attr_start, attrLen);
   }
   else
   {
@@ -2948,7 +2947,6 @@ Restore::parse_record(Signal* signal,
                           gci_id,
                           header_type,
                           &rowid_val);
-        c_lqh->receive_attrinfo(signal, attr_start, attrLen);
       }
       else
       {
@@ -3064,13 +3062,13 @@ Restore::execute_operation(Signal *signal,
   }
   else
   {
+    Uint32 tableId = file_ptr.p->m_table_id;
     LqhKeyReq::setCorrFactorFlag(tmp, 0);
     LqhKeyReq::setNormalProtocolFlag(tmp, 0);
     LqhKeyReq::setDeferredConstraints(tmp, 0);
 
     if (g_key_descriptor_pool.getPtr(tableId)->hasCharAttr)
     {
-      Uint32 tableId = file_ptr.p->m_table_id;
       req->hashValue = calculate_hash(tableId, key_start);
     }
     else
@@ -3139,6 +3137,7 @@ Restore::execute_operation(Signal *signal,
 
     if (attrLen > 0)
     {
+      Uint32 * const attr_start = key_start + MAX_KEY_SIZE_IN_WORDS;
       sections.m_ptr[LqhKeyReq::AttrInfoSectionNum].i = RNIL;
       ok= appendToSection(sections.m_ptr[LqhKeyReq::AttrInfoSectionNum].i,
                           attr_start,

@@ -6470,7 +6470,7 @@ Dblqh::handle_nr_copy(Signal* signal, Ptr<TcConnectionrec> regTcPtr)
           ndbrequire(regTcPtr.p->activeCreat == Fragrecord::AC_NR_COPY);
 	  return;
         }
-        packLqhkeyreqLab(signal);
+        packLqhkeyreqLab(signal, regTcPtr);
         return;
       }
       else if (len == 0 && op == ZDELETE)
@@ -12826,7 +12826,7 @@ void Dblqh::nextScanConfScanLab(Signal* signal,
       {
         jam();
         scanPtr->scanState = ScanRecord::WAIT_SCAN_NEXTREQ;
-        sendScanFragConf(signal, ZFALSE);
+        sendScanFragConf(signal, ZFALSE, regTcPtr);
       }
       return;
     }
@@ -12839,11 +12839,11 @@ void Dblqh::nextScanConfScanLab(Signal* signal,
           (scanPtr->m_curr_batch_size_rows > 0)) {
         jam();
         scanPtr->scanReleaseCounter = 1;
-        scanReleaseLocksLab(signal);
+        scanReleaseLocksLab(signal, regTcPtr);
         return;
       }//if
       jam();
-      closeScanLab(signal);
+      closeScanLab(signal, regTcPtr);
       return;
     }//if
 
