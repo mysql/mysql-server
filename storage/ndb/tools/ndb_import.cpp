@@ -164,6 +164,11 @@ my_long_options[] =
     " CSV input worker allocates a double sized buffer",
     &g_opt.m_pagecnt, &g_opt.m_pagecnt, 0,
     GET_UINT, REQUIRED_ARG, g_opt.m_pagecnt, 0, 0, 0, 0, 0 },
+  { "pagebuffer", NDB_OPT_NOSHORT,
+    "Size of I/O buffers in bytes. Rounded up to pagesize and"
+    " overrides pagecnt",
+    &g_opt.m_pagebuffer, &g_opt.m_pagebuffer, 0,
+    GET_UINT, REQUIRED_ARG, g_opt.m_pagebuffer, 0, 0, 0, 0, 0 },
   { "rowbatch", NDB_OPT_NOSHORT,
     "Limit rows in row queues (0 no limit)",
     &g_opt.m_rowbatch, &g_opt.m_rowbatch, 0,

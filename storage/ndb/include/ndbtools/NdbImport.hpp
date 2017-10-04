@@ -77,6 +77,7 @@ public:
     bool m_no_hint;
     uint m_pagesize;
     uint m_pagecnt;
+    uint m_pagebuffer;
     uint m_rowbatch;
     uint m_rowbytes;
     uint m_opbatch;
