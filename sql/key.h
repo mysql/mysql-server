@@ -19,10 +19,10 @@
 #include <stddef.h>
 #include <sys/types.h>
 
+#include "lex_string.h"
 #include "my_base.h"                   /* ha_rows, ha_key_alg */
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "mysql/mysql_lex_string.h"    /* LEX_CSTRING */
 #include "mysql/udf_registration_types.h"
 #include "sql/key_spec.h"              /* fk_option */
 #include "sql/sql_plugin_ref.h"        /* plugin_ref */
@@ -32,7 +32,6 @@ class String;
 struct TABLE;
 
 struct MY_BITMAP;
-typedef MYSQL_LEX_CSTRING LEX_CSTRING;
 
 
 class FOREIGN_KEY
