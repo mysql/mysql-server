@@ -94,6 +94,7 @@ NdbImport::Opt::Opt()
   m_rowswait = 1;
   m_idlespin = 0;
   m_idlesleep = 1;
+  m_checkloop = 100;
   m_alloc_chunk = 20;
   m_rejects = 0;
   // character set

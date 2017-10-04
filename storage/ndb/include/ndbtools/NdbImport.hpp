@@ -88,6 +88,7 @@ public:
     uint m_rowswait;
     uint m_idlespin;
     uint m_idlesleep;
+    uint m_checkloop;
     uint m_alloc_chunk;
     uint m_rejects;
     // character set of input file (currently fixed as binary)
