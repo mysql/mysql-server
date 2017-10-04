@@ -12207,6 +12207,8 @@ ER_DEPRECATED_UTF8_ALIAS
 ER_DEPRECATED_NATIONAL
   eng "NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous."
 
+ER_SLAVE_POSSIBLY_DIVERGED_AFTER_DDL
+  eng "A commit for an atomic DDL statement was unsuccessful on the master and the slave. The slave supports atomic DDL statements but the master does not, so the action taken by the slave and master might differ. Check that their states have not diverged before proceeding."
 #
 # End of 8.0 Server error messages.
 # (Please read comments from the header of this section before adding error

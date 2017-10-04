@@ -5491,6 +5491,19 @@ compare_errors:
     DBUG_PRINT("info",("expected_error: %d  sql_errno: %d",
                        expected_error, actual_error));
 
+    if (actual_error != 0 && expected_error == actual_error)
+    {
+      if (!has_ddl_committed &&                 // Slave didn't commit a DDL
+          ddl_xid == binary_log::INVALID_XID && // The event was not logged as atomic DDL on master
+          !thd->rli_slave->ddl_not_atomic &&    // The DDL was considered atomic by the slave
+          is_atomic_ddl(thd, true))             // The DDL is atomic for the local server
+      {
+        thd->get_stmt_da()->reset_diagnostics_area();
+        my_error(ER_SLAVE_POSSIBLY_DIVERGED_AFTER_DDL, MYF(0), 0);
+        actual_error= ER_SLAVE_POSSIBLY_DIVERGED_AFTER_DDL;
+      }
+    }
+
     /*
       If a statement with expected error is received on slave and if the
       statement is not filtered on the slave, only then compare the expected

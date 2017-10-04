@@ -1618,7 +1618,7 @@ static void add_slave_skip_errors(const uint* errors, uint n_errors)
     /*
       The range for client side error is [2000-2999]
       so if the err_code doesn't lie in that and if less
-      than MAX_SLAVE_ERROR[10000] we enter the if loop.
+      than MAX_SLAVE_ERROR[12000] we enter the if loop.
     */
     if (err_code < MAX_SLAVE_ERROR &&
         (err_code < CR_MIN_ERROR || err_code > CR_MAX_ERROR))
