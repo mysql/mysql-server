@@ -22,24 +22,7 @@
   Common \#defines and includes for file and socket I/O.
 */
 
-#ifdef _WIN32
-/* Include common headers.*/
-# include <io.h>       /* access(), chmod() */
-#ifdef WIN32_LEAN_AND_MEAN
-#include <winsock2.h>
-#include <ws2tcpip.h> /* SOCKET */
-#endif
-#endif
-
-#ifndef MYSQL_ABI_CHECK
-#if !defined(_WIN32)
-#include <sys/socket.h>
-#include <unistd.h>
-#endif
-#include <errno.h>
-#include <limits.h>
-#include <sys/types.h>  // Needed for mode_t, so IWYU pragma: keep.
-#endif
+#include <mysql/components/services/my_io_bits.h>
 
 #ifdef _WIN32
 
@@ -192,16 +175,7 @@ static inline int is_directory_separator(char c)
 #define SOCKET_EMFILE   EMFILE
 #endif
 
-typedef int File;           /* File descriptor */
-#ifdef _WIN32
-typedef int MY_MODE;
-typedef int mode_t;
-typedef int socket_len_t;
-typedef SOCKET my_socket;
-#else
-typedef mode_t MY_MODE;
-typedef socklen_t socket_len_t;
-typedef int     my_socket;      /* File descriptor for sockets */
+#ifndef _WIN32
 #define INVALID_SOCKET -1
 #endif /* _WIN32 */
 

@@ -32,16 +32,10 @@
 #include "my_systime.h"
 #endif
 
-#include "my_macros.h"
-
-C_MODE_START
-
 #ifdef _WIN32
 typedef CONDITION_VARIABLE native_cond_t;
 #else
 typedef pthread_cond_t native_cond_t;
 #endif
-
-C_MODE_END
 
 #endif /* COMPONENTS_SERVICES_THR_COND_BITS_H */

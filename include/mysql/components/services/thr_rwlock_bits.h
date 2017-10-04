@@ -40,13 +40,9 @@
 #include <windows.h>
 #endif
 
-#include "my_inttypes.h"
-#include "my_macros.h"
-#include "my_thread.h"
+#include <mysql/components/services/my_thread_bits.h>
 #include <mysql/components/services/thr_cond_bits.h>
 #include <mysql/components/services/thr_mutex_bits.h>
-
-C_MODE_START
 
 #ifdef _WIN32
 typedef struct st_my_rw_lock_t
@@ -101,15 +97,13 @@ typedef struct st_rw_pr_lock_t {
   */
   native_cond_t no_active_readers;
   /** Number of active readers. */
-  uint active_readers;
+  unsigned int active_readers;
   /** Number of writers waiting for readers to go away. */
-  uint writers_waiting_readers;
+  unsigned int writers_waiting_readers;
   /** Indicates whether there is an active writer. */
   bool active_writer;
   /** Thread holding wr-lock (for debug purposes only). */
   my_thread_t writer_thread;
 } rw_pr_lock_t;
-
-C_MODE_END
 
 #endif /* COMPONENTS_SERVICES_THR_RWLOCK_BITS_H */

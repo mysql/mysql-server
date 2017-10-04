@@ -28,11 +28,6 @@
   Other compilers, like gcc, optimize these dependencies by default.
 */
 
-#include "my_inttypes.h"
-#include "my_macros.h"
-
-C_MODE_START
-
 /**
   @defgroup psi_abi_mutex Mutex Instrumentation (ABI)
   @ingroup psi_abi
@@ -80,7 +75,7 @@ struct PSI_mutex_info_v1
     The flags of the mutex to register.
     @sa PSI_FLAG_SINGLETON
   */
-  uint m_flags;
+  unsigned int m_flags;
   /** Volatility index. */
   int m_volatility;
   /** Documentation. */
@@ -123,7 +118,7 @@ typedef enum PSI_mutex_operation PSI_mutex_operation;
 struct PSI_mutex_locker_state_v1
 {
   /** Internal state. */
-  uint m_flags;
+  unsigned int m_flags;
   /** Current operation. */
   enum PSI_mutex_operation m_operation;
   /** Current mutex. */
@@ -131,9 +126,9 @@ struct PSI_mutex_locker_state_v1
   /** Current thread. */
   struct PSI_thread *m_thread;
   /** Timer start. */
-  ulonglong m_timer_start;
+  unsigned long long m_timer_start;
   /** Timer function. */
-  ulonglong (*m_timer)(void);
+  unsigned long long (*m_timer)(void);
   /** Internal data. */
   void *m_wait;
 };
@@ -198,8 +193,6 @@ typedef PSI_mutex_info_v1 PSI_mutex_info;
 typedef struct PSI_mutex_locker_state_v1 PSI_mutex_locker_state;
 
 /** @} (end of group psi_abi_mutex) */
-
-C_MODE_END
 
 #endif /* COMPONENTS_SERVICES_PSI_MUTEX_BITS_H */
 

@@ -25,17 +25,12 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#include <mysql/components/services/my_thread_bits.h>
+
 #include "my_compiler.h"
 #include "my_config.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
-
-#if defined(_WIN32)
-#include <windows.h>
-#else
-#include <pthread.h>                // IWYU pragma: export
-#include <sched.h>                  // IWYU pragma: export
-#endif
 
 #ifndef ETIME
 #define ETIME ETIMEDOUT             /* For FreeBSD */
@@ -80,30 +75,14 @@ static inline int is_timeout(int e) {
 C_MODE_START
 
 #ifdef _WIN32
-typedef DWORD            my_thread_t;
-typedef struct thread_attr
-{
-  DWORD dwStackSize;
-  int detachstate;
-} my_thread_attr_t;
 #define MY_THREAD_CREATE_JOINABLE 0
 #define MY_THREAD_CREATE_DETACHED 1
 typedef void * (__cdecl *my_start_routine)(void *);
 #else
-typedef pthread_t        my_thread_t;
-typedef pthread_attr_t   my_thread_attr_t;
 #define MY_THREAD_CREATE_JOINABLE PTHREAD_CREATE_JOINABLE
 #define MY_THREAD_CREATE_DETACHED PTHREAD_CREATE_DETACHED
 typedef void *(* my_start_routine)(void *);
 #endif
-
-typedef struct st_my_thread_handle
-{
-  my_thread_t thread;
-#ifdef _WIN32
-  HANDLE handle;
-#endif
-} my_thread_handle;
 
 static inline my_thread_t my_thread_self()
 {

@@ -53,7 +53,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
   @code
     int set_thread_resource_group_by_id(PSI_thread *psi_thread,
-                                        ulonglong thread_id,
+                                        unsigned long long thread_id,
                                         const char* group_name,
                                         int group_name_len,
                                         void *user_data)
@@ -88,7 +88,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
   @code
     int get_thread_system_attrs_by_id(PSI_thread *psi_thread,
-                                      ulonglong thread_id,
+                                      unsigned long long thread_id,
                                       PSI_thread_attrs *thread_attrs)
   @endcode
 

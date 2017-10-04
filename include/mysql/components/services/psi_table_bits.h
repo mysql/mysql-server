@@ -16,11 +16,6 @@
 #ifndef COMPONENTS_SERVICES_PSI_TABLE_BITS_H
 #define COMPONENTS_SERVICES_PSI_TABLE_BITS_H
 
-#include "my_inttypes.h"
-#include "my_macros.h"
-
-C_MODE_START
-
 /**
   @file
   Performance schema instrumentation interface.
@@ -67,7 +62,7 @@ typedef enum PSI_table_io_operation PSI_table_io_operation;
 struct PSI_table_locker_state
 {
   /** Internal state. */
-  uint m_flags;
+  unsigned int m_flags;
   /** Current io operation. */
   enum PSI_table_io_operation m_io_operation;
   /** Current table handle. */
@@ -77,9 +72,9 @@ struct PSI_table_locker_state
   /** Current thread. */
   struct PSI_thread *m_thread;
   /** Timer start. */
-  ulonglong m_timer_start;
+  unsigned long long m_timer_start;
   /** Timer function. */
-  ulonglong (*m_timer)(void);
+  unsigned long long (*m_timer)(void);
   /** Internal data. */
   void *m_wait;
   /**
@@ -87,7 +82,7 @@ struct PSI_table_locker_state
     For table io, the table io index.
     For table lock, the lock type.
   */
-  uint m_index;
+  unsigned int m_index;
 };
 typedef struct PSI_table_locker_state PSI_table_locker_state;
 
@@ -191,9 +186,9 @@ typedef struct PSI_table_locker *(*start_table_io_wait_v1_t)(
   struct PSI_table_locker_state *state,
   struct PSI_table *table,
   enum PSI_table_io_operation op,
-  uint index,
+  unsigned int index,
   const char *src_file,
-  uint src_line);
+  unsigned int src_line);
 
 /**
   Record a table instrumentation io wait end event.
@@ -201,7 +196,7 @@ typedef struct PSI_table_locker *(*start_table_io_wait_v1_t)(
   @param numrows the number of rows involved in io
 */
 typedef void (*end_table_io_wait_v1_t)(struct PSI_table_locker *locker,
-                                       ulonglong numrows);
+                                       unsigned long long numrows);
 
 /**
   Record a table instrumentation lock wait start event.
@@ -216,9 +211,9 @@ typedef struct PSI_table_locker *(*start_table_lock_wait_v1_t)(
   struct PSI_table_locker_state *state,
   struct PSI_table *table,
   enum PSI_table_lock_operation op,
-  ulong flags,
+  unsigned long flags,
   const char *src_file,
-  uint src_line);
+  unsigned int src_line);
 
 /**
   Record a table instrumentation lock wait end event.
@@ -233,7 +228,5 @@ typedef void (*end_table_lock_wait_v1_t)(struct PSI_table_locker *locker);
 typedef void (*unlock_table_v1_t)(struct PSI_table *table);
 
 /** @} (end of group psi_abi_table) */
-
-C_MODE_END
 
 #endif /* COMPONENTS_SERVICES_PSI_TABLE_BITS_H */
