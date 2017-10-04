@@ -1412,7 +1412,8 @@ private:
   Geometry *bg_geo_set_op(Geometry *g1, Geometry *g2, String *result);
 
   template<typename Coordsys>
-  Geometry *combine_sub_results(Geometry *g1, Geometry *g2, String *result);
+  Geometry *combine_sub_results(Geometry *g1, Geometry *g2,
+                                gis::srid_t default_srid, String *result);
   Geometry *simplify_multilinestring(Gis_multi_line_string *mls,
                                      String *result);
 
