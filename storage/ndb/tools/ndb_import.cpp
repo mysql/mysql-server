@@ -221,6 +221,14 @@ my_long_options[] =
     " e.g. passing control between CSV workers",
     &g_opt.m_idlesleep, &g_opt.m_idlesleep, 0,
     GET_UINT, REQUIRED_ARG, g_opt.m_idlesleep, 0, 0, 0, 0, 0 },
+  { "checkloop", NDB_OPT_NOSHORT,
+    "A job and its diagnostics team periodically check for"
+    " progress from lower levels. This option gives number of"
+    " milliseconds to wait between such checks."
+    " High values may cause data structures (rowmaps) to grow too much."
+    " Low values may interfere too much with the workers",
+    &g_opt.m_checkloop, &g_opt.m_checkloop, 0,
+    GET_UINT, REQUIRED_ARG, g_opt.m_checkloop, 0, 0, 0, 0, 0 },
   { "alloc-chunk", NDB_OPT_NOSHORT,
     "Number of free rows to alloc (seize) at a time."
     " Higher values reduce mutexing but also may reduce parallelism",
@@ -762,7 +770,7 @@ domonitor(NdbImport::Job& job)
   uint treshold = 1;
   while (1)
   {
-    NdbSleep_MilliSleep(100);
+    NdbSleep_MilliSleep(g_opt.m_checkloop);
     job.get_status();
     JobStatus::Status status = job.m_status;
     JobStats stats = job.m_stats;
