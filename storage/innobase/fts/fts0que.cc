@@ -3764,10 +3764,19 @@ fts_query_str_preprocess(
 	str_len = query_len * charset->casedn_multiply + 1;
 	str_ptr = static_cast<byte*>(ut_malloc(str_len));
 
-	*result_len = innobase_fts_casedn_str(
-		charset, const_cast<char*>(reinterpret_cast<const char*>(
-			query_str)), query_len,
-		reinterpret_cast<char*>(str_ptr), str_len);
+	/* For binary collations, a case sensitive search is
+	performed. Hence don't convert to lower case. */
+	if (my_binary_compare(charset)) {
+		memcpy(str_ptr, query_str, query_len);
+		str_ptr[query_len]= 0;
+		*result_len= query_len;
+	} else {
+		*result_len = innobase_fts_casedn_str(
+				charset, const_cast<char*>
+				(reinterpret_cast<const char*>( query_str)),
+				query_len,
+				reinterpret_cast<char*>(str_ptr), str_len);
+	}
 
 	ut_ad(*result_len < str_len);
 
