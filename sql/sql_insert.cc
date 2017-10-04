@@ -1888,12 +1888,13 @@ bool write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
             handled separately by THD::arg_of_last_insert_id_function.
           */
           insert_id_for_cur_row= table->file->insert_id_for_cur_row= 0;
-          trg_error= (table->triggers &&
-                      table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
-                                                        TRG_ACTION_AFTER, TRUE));
           info->stats.copied++;
         }
 
+        // Execute the 'AFTER, ON UPDATE' trigger
+        trg_error= (table->triggers &&
+                    table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
+                                                      TRG_ACTION_AFTER, TRUE));
         goto ok_or_after_trg_err;
       }
       else /* DUP_REPLACE */
