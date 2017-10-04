@@ -20,6 +20,7 @@
 #include <utility>
 
 #include "lex_string.h"
+#include "m_ctype.h"
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_sharedlib.h"
@@ -33,8 +34,6 @@
 class Acl_map;
 class THD;
 struct Grant_table_aggregate;
-
-extern "C" MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
 
 /**
   @class Security_context
