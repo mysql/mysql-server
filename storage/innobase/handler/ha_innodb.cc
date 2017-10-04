@@ -20264,28 +20264,15 @@ innodb_buffer_pool_evict_uncompressed(void)
 			ut_ad(block->in_unzip_LRU_list);
 			ut_ad(block->page.in_LRU_list);
 
-			rw_lock_t* hash_lock
-				= buf_page_hash_lock_get(buf_pool,
-							 block->page.id);
-			rw_lock_x_lock(hash_lock);
 			mutex_enter(&block->mutex);
 
-			if (!buf_page_can_relocate(&block->page)
-			    || block->page.oldest_modification) {
-
-				rw_lock_x_unlock(hash_lock);
-
+			if (!buf_LRU_free_page(&block->page, false)) {
 				mutex_exit(&block->mutex);
-
 				all_evicted = false;
-
 			} else {
-
-				btr_search_drop_page_hash_index(block);
-
-				buf_LRU_free_one_page(&block->page, false, true);
+				/* buf_LRU_free_page, releases LRU_list_mutex */
+				mutex_enter(&buf_pool->LRU_list_mutex);
 			}
-
 			block = prev_block;
 		}
 
