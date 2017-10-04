@@ -22,6 +22,7 @@ Data dictionary interface */
 #include <current_thd.h>
 #include <sql_thd_internal_api.h>
 #include <sql_class.h>
+#include <auto_thd.h>
 
 #include "dict0dd.h"
 #include "dict0dict.h"
@@ -5517,4 +5518,114 @@ dd_get_referenced_table(
 	}
 
 	return(ref);
+}
+
+/** Update all InnoDB tablespace cache objects. This step is done post
+dictionary trx rollback, binlog recovery and DDL_LOG apply. So DD is consistent.
+Update the cached tablespace objects, if they differ from dictionary
+@param[in,out]	thd	thread handle
+@retval	true	on error
+@retval	false	on success */
+bool
+dd_tablespace_update_cache(THD* thd)
+{
+	dd::cache::Dictionary_client*			dc
+		= dd::get_dd_client(thd);
+	dd::cache::Dictionary_client::Auto_releaser	releaser(dc);
+	std::vector<const dd::Tablespace*>		tablespaces;
+
+	space_id_t	max_id = 0;
+
+	if (dc->fetch_global_components(&tablespaces)) {
+		return(true);
+	}
+
+	bool		fail = false;
+
+	for (const dd::Tablespace* t : tablespaces) {
+		ut_ad(!fail);
+
+		if (t->engine() != innobase_hton_name) {
+			continue;
+		}
+
+		const dd::Properties&	p	= t->se_private_data();
+		uint32			id;
+		uint32			flags	= 0;
+
+		/* There should be exactly one file name associated
+		with each InnoDB tablespace, except innodb_system */
+		fail = p.get_uint32(dd_space_key_strings[DD_SPACE_ID], &id)
+			|| p.get_uint32(dd_space_key_strings[DD_SPACE_FLAGS],
+					&flags)
+			|| (t->files().size() != 1 &&
+			    strcmp(t->name().c_str(),
+				   dict_sys_t::s_sys_space_name) != 0);
+
+		if (fail) {
+			break;
+		}
+
+		/* Undo tablespaces may be deleted and re-created at
+		startup and not registered in DD. So exempt undo tablespaces
+		from verification */
+		if (fsp_is_undo_tablespace(id)) {
+			continue;
+		}
+
+		if (!dict_sys_t::is_reserved(id) && id > max_id) {
+			/* Currently try to find the max one only, it should
+			be able to reuse the deleted smaller ones later */
+			max_id = id;
+		}
+
+		const dd::Tablespace_file* f = *t->files().begin();
+		fail = f == nullptr;
+		if (fail) {
+			break;
+		}
+
+		const char*	space_name = t->name().c_str();
+		fil_space_t*	space = fil_space_get(id);
+
+		if (space != nullptr) {
+
+			/* If the tablespace is already in cache, verify that
+			the tablespace name matches the name in dictionary.
+			If it doesn't match, use the name from dictionary. */
+
+			ut_ad(space->flags == flags);
+
+			fil_space_update_name(space, space_name, false);
+
+		} else {
+			fil_type_t	purpose = fsp_is_system_temporary(id)
+				? FIL_TYPE_TEMPORARY : FIL_TYPE_TABLESPACE;
+
+			const char*	filename = f->filename().c_str();
+
+			/* If the user tablespace is not in cache, load the
+			tablespace now, with the name from dictionary */
+
+			/* It's safe to pass space_name in tablename charset
+			because filename is already in filename charset. */
+			dberr_t	err = fil_ibd_open(
+				false, purpose, id, flags, space_name,
+				nullptr, filename, false, false);
+			switch (err) {
+			case DB_SUCCESS:
+			case DB_CANNOT_OPEN_FILE:
+				break;
+			default:
+				ib::info() << "Unable to open tablespace " << id
+					<< " (flags=" << flags
+					<< ", filename=" << filename << ")."
+					<< " Have you deleted/moved the .IBD";
+				ut_strerr(err);
+			}
+		}
+	}
+
+	fil_set_max_space_id_if_bigger(max_id);
+	return(fail);
 }

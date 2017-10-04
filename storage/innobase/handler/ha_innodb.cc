@@ -60,6 +60,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <stdlib.h>
 #include <strfunc.h>
 #include <time.h>
+#include <auto_thd.h>
 
 #include "api0api.h"
 #include "api0misc.h"
@@ -3462,10 +3463,6 @@ boot_tablespaces(THD* thd)
 		fil_type_t	purpose = fsp_is_system_temporary(id)
 			? FIL_TYPE_TEMPORARY : FIL_TYPE_TABLESPACE;
 		const char*	filename = f->filename().c_str();
-		char		buf[FN_REFLEN * 2 + 1];
-
-		ut_ad(strlen(filename) < sizeof(buf));
-		strncpy(buf, filename, strlen(filename) + 1);
 
 		if (fsp_is_system_or_temp_tablespace(id)
 		    || fsp_is_undo_tablespace(id)
@@ -3710,6 +3707,11 @@ innobase_post_recover()
 	    || srv_force_recovery >= SRV_FORCE_NO_BACKGROUND) {
 		purge_sys->state = PURGE_STATE_DISABLED;
 		return;
+	}
+
+	Auto_THD thd;
+	if (dd_tablespace_update_cache(thd.thd)) {
+		ut_ad(0);
 	}
 
 	/* Now the InnoDB Metadata and file system should be consistent.
@@ -4355,6 +4357,8 @@ innodb_init_params()
 	/* Create the filespace flags. */
 	predefined_flags = fsp_flags_init(
 		univ_page_size, false, false, true, false);
+	predefined_flags = FSP_FLAGS_SET_SDI(predefined_flags);
+
 	srv_sys_space.set_flags(predefined_flags);
 
 	srv_sys_space.set_name(dict_sys_t::s_sys_space_name);
@@ -4704,16 +4708,12 @@ dd_open_hardcoded(space_id_t space_id, const char* filename)
 {
 	bool		fail = false;
 	fil_space_t*	space = fil_space_acquire_silent(space_id);
-	ulint		mysql_flags = FSP_FLAGS_SET_SDI(predefined_flags);
 
 	if (space != NULL) {
-		/* ADD SDI flag presence in predefined flags of mysql
-		tablespace. */
-
 		/* The tablespace was already opened up by redo log apply. */
-		ut_ad(space->flags == mysql_flags);
+		ut_ad(space->flags == predefined_flags);
 		if (strstr(UT_LIST_GET_FIRST(space->chain)->name, filename) != 0
-		    && space->flags == mysql_flags) {
+		    && space->flags == predefined_flags) {
 			fil_space_open_if_needed(space);
 		} else {
 			fail = true;
@@ -4721,7 +4721,7 @@ dd_open_hardcoded(space_id_t space_id, const char* filename)
 
 		fil_space_release(space);
 	} else if (fil_ibd_open(true, FIL_TYPE_TABLESPACE, space_id,
-				mysql_flags, dict_sys_t::s_dd_space_name,
+				predefined_flags, dict_sys_t::s_dd_space_name,
 				dict_sys_t::s_dd_space_name,
 				filename, true, false)
 		   == DB_SUCCESS) {

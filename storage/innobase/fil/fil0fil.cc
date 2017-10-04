@@ -4177,8 +4177,7 @@ fil_rename_tablespace_by_name(
 		ib::error()
 			<< "Cannot find space for " << old_name
 			<< " in tablespace memory cache";
-
-		return(DB_ERROR);
+		return(DB_TABLESPACE_NOT_FOUND);
 	}
 
 	auto    new_space = fil_space_get_by_name(new_name);
@@ -4191,24 +4190,18 @@ fil_rename_tablespace_by_name(
 				<< " is already in the tablespace"
 				<< " memory cache";
 
-			return(DB_ERROR);
+			return(DB_TABLESPACE_EXISTS);
 		}
 		return(DB_SUCCESS);
 	}
 
-	char*	new_space_name = mem_strdup(new_name);
-	char*	old_space_name = space->name;
+	fil_space_update_name(space, new_name, true);
 
-	fil_system->names.erase(space->name);
-	space->name = new_space_name;
-	auto	it = fil_system->names.insert(
-		Names::value_type(space->name, space));
 	mutex_exit(&fil_system->mutex);
-	ut_a(it.second);
-	ut_free(old_space_name);
 
 	return(DB_SUCCESS);
 }
+
 /* purecov: end */
 
 /** Create a tablespace file.
@@ -9423,5 +9416,46 @@ fil_tablespace_open_create()
 {
 	if (!srv_read_only_mode) {
 		fil_system->m_open.create_open_files();
+	}
+}
+
+/** Update the tablespace name. Incase, the new name
+and old name are same, no update done.
+@param[in,out]	space		tablespace object on which name
+				will be updated
+@param[in]	name		new name for tablespace
+@param[in]	has_fil_sys	true if fil_system mutex is
+				acquired */
+void
+fil_space_update_name(
+	fil_space_t*	space,
+	const char*	name,
+	bool		has_fil_sys)
+{
+	if (space == nullptr || name == nullptr
+	    || space->name == nullptr
+	    || strcmp(space->name, name) == 0) {
+		return;
+	}
+
+	if (!has_fil_sys) {
+		mutex_enter(&fil_system->mutex);
+	} else {
+		ut_ad(mutex_own(&fil_system->mutex));
+	}
+
+	/* Update the name */
+	fil_system->names.erase(space->name);
+	ut_free(space->name);
+	space->name = mem_strdup(name);
+#ifdef UNIV_DEBUG
+	auto	it =
+#endif /* UNIV_DEBUG */
+		fil_system->names.insert(
+		Names::value_type(space->name, space));
+	ut_ad(it.second);
+
+	if (!has_fil_sys) {
+		mutex_exit(&fil_system->mutex);
 	}
 }
