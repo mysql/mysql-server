@@ -352,11 +352,13 @@ int main(int argc,char *argv[])
   my_getopt_use_args_separator= TRUE;
   MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512, 0};
   if (load_defaults("my",load_default_groups,&argc,&argv,&alloc))
-   exit(1); 
+   return EXIT_FAILURE;
   my_getopt_use_args_separator= FALSE;
 
   if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
   {
+    mysql_close(&mysql);
+    my_end(my_end_arg);
     return ho_error;
   }
 
@@ -535,8 +537,7 @@ int main(int argc,char *argv[])
   }
   my_free(temp_argv);
   my_end(my_end_arg);
-  exit(error ? 1 : 0);
-  return 0;
+  return error ? EXIT_FAILURE : EXIT_SUCCESS;
 }
 
 
