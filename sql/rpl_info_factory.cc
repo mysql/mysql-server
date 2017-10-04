@@ -20,6 +20,7 @@
 #include <algorithm>
 
 #include "lex_string.h"
+#include "m_ctype.h"
 #include "m_string.h"
 #include "my_base.h"
 #include "my_compiler.h"
@@ -28,7 +29,6 @@
 #include "my_loglevel.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
-#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "sql/current_thd.h"
 #include "sql/field.h"

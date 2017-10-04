@@ -27,6 +27,7 @@
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
 #include "mysql/components/services/log_shared.h"
+#include "mysql/plugin.h"
 #include "mysql/psi/mysql_statement.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql_com.h"
@@ -40,7 +41,6 @@
 #include "sql/field.h"
 #include "sql/item.h"                 // Item_splocal
 #include "sql/item_cmpfunc.h"         // Item_func_eq
-#include "sql/key.h"
 #include "sql/log.h"                  // Query_logger
 #include "sql/mdl.h"
 #include "sql/mysqld.h"               // next_query_id

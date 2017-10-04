@@ -59,14 +59,13 @@
 
 *****************************************************************************/
 
-#include <stdbool.h>
 #include <string.h>
 #include <sys/types.h>
 
 #include "crypt_genhash_impl.h"
 #include "m_string.h"
 #include "my_inttypes.h"
-#include "mysql/udf_registration_types.h"
+#include "my_macros.h"
 #include "mysql_com.h"
 #include "sha1.h"
 

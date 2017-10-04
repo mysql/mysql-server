@@ -47,7 +47,7 @@
 
 #include "my_loglevel.h"
 #include "mysql_com.h"
-#include "sql/item_create.h"
+#include "sql/protocol.h"
 #include "sql/rpl_trx_tracking.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
@@ -72,7 +72,6 @@
 #include "my_io.h"
 #include "my_macros.h"
 #include "my_sqlcommand.h"
-#include "my_table_map.h"
 #include "my_thread.h"
 #include "my_thread_local.h"
 #include "my_time.h"
@@ -85,12 +84,10 @@
 #include "sql/conn_handler/connection_handler_impl.h" // Per_thread_connection_handler
 #include "sql/conn_handler/connection_handler_manager.h" // Connection_handler_manager
 #include "sql/conn_handler/socket_connection.h" // MY_BIND_ALL_ADDRESSES
-#include "sql/dd/info_schema/table_stats.h"
 #include "sql/derror.h"                  // read_texts
 #include "sql/discrete_interval.h"
 #include "sql/events.h"                  // Events
 #include "sql/hostname.h"                // host_cache_resize
-#include "sql/item_timefunc.h"           // ISO_FORMAT
 #include "sql/log.h"
 #include "sql/log_event.h"               // MAX_MAX_ALLOWED_PACKET
 #include "sql/mdl.h"
@@ -114,7 +111,6 @@
 #include "sql/sql_lex.h"
 #include "sql/sql_locale.h"              // my_locale_by_number
 #include "sql/sql_parse.h"               // killall_non_super_threads
-#include "sql/sql_time.h"                // global_date_format
 #include "sql/sql_tmp_table.h"           // internal_tmp_disk_storage_engine
 #include "sql/system_variables.h"
 #include "sql/table_cache.h"             // Table_cache_manager

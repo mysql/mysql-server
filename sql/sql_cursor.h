@@ -20,13 +20,12 @@
 #include <sys/types.h>
 #include <new>
 
-#include "mysql/udf_registration_types.h"
 #include "sql/sql_alloc.h"
 #include "sql/sql_class.h"                      /* Query_arena */
-#include "sql/sql_servers.h"
 
 class JOIN;
 class Query_result;
+struct MEM_ROOT;
 
 /**
   @file

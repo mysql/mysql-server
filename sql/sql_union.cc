@@ -34,6 +34,7 @@
 #include <string.h>
 #include <sys/types.h>
 
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_sys.h"
@@ -62,13 +63,12 @@
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_optimizer.h"                  // JOIN
-#include "sql/sql_parse.h"
 #include "sql/sql_select.h"
 #include "sql/sql_tmp_table.h"                  // tmp tables
+#include "sql/table_function.h"                     // Table_function
 #include "sql/thr_malloc.h"
 #include "sql/window.h"                         // Window
 #include "template_utils.h"
-#include "sql/table_function.h"                     // Table_function
 
 bool Query_result_union::prepare(List<Item>&, SELECT_LEX_UNIT *u)
 {

@@ -22,9 +22,6 @@
 #include "my_config.h"
 
 #include <errno.h>
-
-#include "my_loglevel.h"
-#include "mysql/udf_registration_types.h"
 #ifdef _WIN32
 #include <direct.h>
 #endif
@@ -48,14 +45,13 @@
 #include "my_macros.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
+#include "mysql/components/services/log_shared.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "mysys_err.h"       // EE_*
-#include "prealloced_array.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h" // SELECT_ACL
 #include "sql/auth/sql_security_ctx.h"
@@ -73,7 +69,6 @@
 #include "sql/error_handler.h" // Drop_table_error_handler
 #include "sql/events.h"      // Events
 #include "sql/handler.h"
-#include "sql/key.h"
 #include "sql/lock.h"        // lock_schema_name
 #include "sql/log.h"         // log_*()
 #include "sql/log_event.h"   // Query_log_event

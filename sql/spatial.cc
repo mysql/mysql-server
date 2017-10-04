@@ -20,6 +20,7 @@
 #include <map>
 #include <memory>
 #include <new>
+#include <type_traits>
 #include <utility>
 
 #include "m_ctype.h"

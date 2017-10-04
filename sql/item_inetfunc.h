@@ -18,7 +18,6 @@
 
 #include "m_ctype.h"
 #include "my_inttypes.h"
-#include "mysql/udf_registration_types.h"
 #include "sql/item_cmpfunc.h" // Item_bool_func
 #include "sql/item_func.h"
 #include "sql/item_strfunc.h" // Item_str_func

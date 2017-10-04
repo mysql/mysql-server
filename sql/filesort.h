@@ -22,15 +22,14 @@
 #include "my_base.h"                            /* ha_rows */
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "mysql/udf_registration_types.h"
 #include "sql/sql_alloc.h"                      /* Sql_alloc */
 
 class Addon_fields;
 class Field;
 class QEP_TAB;
 class THD;
-struct TABLE;
 struct ORDER;
+struct TABLE;
 struct st_sort_field;
 
 enum class Addon_fields_status;

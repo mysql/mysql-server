@@ -93,7 +93,6 @@ When one supplies long data for a placeholder:
 #include <algorithm>
 #include <atomic>
 #include <memory>
-#include <string>
 #include <unordered_map>
 #include <utility>
 
@@ -110,9 +109,12 @@ When one supplies long data for a placeholder:
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "my_time.h"
+#include "mysql/com_data.h"
+#include "mysql/components/services/log_shared.h"
 #include "mysql/plugin_audit.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_ps.h" // MYSQL_EXECUTE_PS
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"
@@ -123,7 +125,6 @@ When one supplies long data for a placeholder:
 #include "sql/derror.h"         // ER_THD
 #include "sql/field.h"
 #include "sql/handler.h"
-#include "sql/histograms/value_map.h"
 #include "sql/item.h"
 #include "sql/item_func.h"      // user_var_entry
 #include "sql/log.h"            // query_logger
@@ -133,6 +134,7 @@ When one supplies long data for a placeholder:
 #include "sql/opt_trace.h"      // Opt_trace_array
 #include "sql/protocol.h"
 #include "sql/psi_memory_key.h"
+#include "sql/resourcegroups/resource_group_basic_types.h"
 #include "sql/resourcegroups/resource_group_mgr.h"
 #include "sql/session_tracker.h"
 #include "sql/set_var.h"        // set_var_base
@@ -159,6 +161,10 @@ When one supplies long data for a placeholder:
 #include "sql/window.h"
 #include "sql_string.h"
 #include "violite.h"
+
+namespace resourcegroups {
+class Resource_group;
+}  // namespace resourcegroups
 
 using std::max;
 using std::min;

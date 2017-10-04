@@ -42,6 +42,7 @@
 #include "m_ctype.h"
 #include "m_string.h"           // my_stpcpy
 #include "map_helpers.h"
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -52,7 +53,6 @@
 #include "my_sharedlib.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
-#include "mysql/components/service.h"
 #include "mysql/components/service_implementation.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/mysql_rwlock_bits.h"
@@ -65,7 +65,6 @@
 #include "mysqld_error.h"       // ER_*
 #include "sql/field.h"
 #include "sql/handler.h"
-#include "sql/item_create.h"
 #include "sql/log.h"
 #include "sql/mdl.h"
 #include "sql/mysqld.h"         // opt_allow_suspicious_udfs
@@ -76,7 +75,6 @@
 #include "sql/sql_const.h"
 #include "sql/sql_parse.h"      // check_string_char_length
 #include "sql/sql_plugin.h"     // check_valid_path
-#include "sql/sql_servers.h"
 #include "sql/sql_table.h"      // write_bin_log
 #include "sql/table.h"          // TABLE_LIST
 #include "sql/thr_malloc.h"

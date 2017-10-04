@@ -18,6 +18,8 @@ TempTable custom allocator. */
 #ifndef TEMPTABLE_ALLOCATOR_H
 #define TEMPTABLE_ALLOCATOR_H
 
+#include <fcntl.h>
+
 #include <algorithm> /* std::max */
 #include <atomic>    /* std::atomic */
 #include <cstddef>   /* size_t */

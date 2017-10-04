@@ -22,6 +22,7 @@
 #include "mysqld_error.h"  // ER_*
 #include "sql/sql_error.h" // Sql_condition
 
+class String;
 class THD;
 struct TABLE_LIST;
 

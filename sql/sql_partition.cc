@@ -54,6 +54,7 @@
 
 #include "binary_log_types.h"
 #include "m_string.h"
+#include "my_bitmap.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -64,15 +65,16 @@
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
+#include "mysql_time.h"
 #include "mysqld_error.h"
-#include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"
 #include "sql/debug_sync.h"             // DEBUG_SYNC
 #include "sql/derror.h"                 // ER_THD
 #include "sql/enum_query_type.h"
 #include "sql/field.h"
-#include "sql/histograms/value_map.h"
+#include "sql/handler.h"
 #include "sql/item.h"                   // enum_monotoncity_info
 #include "sql/item_func.h"              // Item_func
 #include "sql/key.h"
@@ -93,13 +95,14 @@
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_parse.h"              // parse_sql
-#include "sql/sql_servers.h"
 #include "sql/sql_show.h"
 #include "sql/sql_table.h"              // build_table_filename
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/thr_malloc.h"
 #include "sql_string.h"
+
+struct MEM_ROOT;
 
 using std::max;
 using std::min;

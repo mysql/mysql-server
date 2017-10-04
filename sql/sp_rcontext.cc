@@ -18,6 +18,7 @@
 #include <atomic>
 #include <new>
 
+#include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_sys.h"
 #include "mysql/psi/psi_base.h"

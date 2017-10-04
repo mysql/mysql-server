@@ -16,21 +16,20 @@
 #ifndef SQL_TABLE_INCLUDED
 #define SQL_TABLE_INCLUDED
 
-#include <map>
 #include <stddef.h>
 #include <sys/types.h>
+#include <map>
 #include <set>
 #include <utility>
 #include <vector>
 
-#include "binary_log_types.h"  // enum_field_types
 #include "dd/string_type.h"
 #include "m_ctype.h"
 #include "mdl.h"
+#include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_sharedlib.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
-#include "mysql/psi/mysql_mutex.h"
 
 class Alter_info;
 class Alter_table_ctx;
@@ -41,18 +40,17 @@ class THD;
 class handler;
 struct TABLE;
 struct TABLE_LIST;
-struct TABLE_SHARE;
 struct handlerton;
 
 namespace dd {
+  class Foreign_key;
   class Schema;
   class Table;
-  class Foreign_key;
 }
 
 struct HA_CHECK_OPT;
 struct HA_CREATE_INFO;
-struct CHARSET_INFO;
+
 typedef mysql_mutex_t mysql_mutex_t;
 template<typename T> class List;
 

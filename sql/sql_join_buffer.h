@@ -23,7 +23,6 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysql/udf_registration_types.h"
 #include "sql/handler.h"
 #include "sql/sql_executor.h" // QEP_operation
 

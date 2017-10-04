@@ -16,31 +16,87 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+
 #include "binary_log_funcs.h"                   // my_time_binary_length
+#include "binary_log_types.h"
 #include "decimal.h"                            // E_DEC_OOM
+#include "lex_string.h"
+#include "m_ctype.h"
+#include "m_string.h"
 #include "my_base.h"                            // ha_storage_media
+#include "my_bitmap.h"
+#include "my_byteorder.h"
 #include "my_compare.h"                         // portable_sizeof_char_ptr
+#include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_pointer_arithmetic.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
 #include "my_time.h"                            // MYSQL_TIME_NOTE_TRUNCATED
+#include "mysql/udf_registration_types.h"
+#include "mysql_com.h"
+#include "mysql_time.h"
 #include "mysqld_error.h"                       // ER_*
 #include "nullable.h"
 #include "sql/gis/srid.h"
+#include "sql/sql_alloc.h"
 #include "sql/sql_bitmap.h"
+#include "sql/sql_const.h"
 #include "sql/sql_error.h"                      // Sql_condition
+#include "sql/sql_list.h"
 #include "sql/table.h"                          // TABLE
 #include "sql/thr_malloc.h"
 #include "sql_string.h"                         // String
 
 class Create_field;
 class Field;
+class Field_bit;
+class Field_bit_as_char;
+class Field_blob;
+class Field_datetime;
+class Field_decimal;
+class Field_double;
+class Field_enum;
+class Field_float;
+class Field_json;
+class Field_long;
+class Field_longlong;
+class Field_medium;
+class Field_new_decimal;
+class Field_newdate;
+class Field_num;
+class Field_real;
+class Field_set;
+class Field_short;
+class Field_str;
+class Field_string;
+class Field_temporal;
+class Field_temporal_with_date;
+class Field_temporal_with_date_and_time;
+class Field_temporal_with_date_and_timef;
+class Field_time;
+class Field_time_common;
+class Field_timef;
+class Field_timestamp;
+class Field_tiny;
+class Field_varstring;
+class Field_year;
 class Item;
-class Json_dom;
+class Json_diff_vector;
 class Json_wrapper;
+class KEY;
 class Protocol;
 class Relay_log_info;
 class Send_field;
-struct TABLE;
+class THD;
+class my_decimal;
+struct MEM_ROOT;
+struct TYPELIB;
+struct timeval;
 
 using Mysql::Nullable;
 
@@ -188,6 +244,7 @@ enum type_conversion_status
 #define MY_REPERTOIRE_NUMERIC   MY_REPERTOIRE_ASCII
 
 struct CACHE_FIELD;
+
 type_conversion_status field_conv(Field *to,Field *from);
 
 inline uint get_enum_pack_length(int elements)

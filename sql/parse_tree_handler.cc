@@ -15,6 +15,22 @@
 
 #include "parse_tree_handler.h"
 
+#include <string.h>
+
+#include "my_inttypes.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "mysqld_error.h"
+#include "sql/auth/auth_common.h"
+#include "sql/item.h"
+#include "sql/parse_tree_helpers.h"
+#include "sql/parse_tree_node_base.h"
+#include "sql/parse_tree_nodes.h"
+#include "sql/sql_class.h"
+#include "sql/sql_lex.h"
+
+class Sql_cmd;
+
 
 Sql_cmd *PT_handler_open::make_cmd(THD *thd)
 {

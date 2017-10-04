@@ -22,10 +22,9 @@
 #include <string>
 
 #include "lex_string.h"
+#include "m_ctype.h"
 #include "map_helpers.h"
 #include "my_dbug.h"
-#include "mysql/udf_registration_types.h"
-#include "sql/auth/sql_security_ctx.h"
 #include "sql/psi_memory_key.h"
 #include "sql/sp_head.h"
 

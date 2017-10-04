@@ -21,7 +21,6 @@
 #include "my_config.h"
 
 #include <errno.h>
-#include <limits.h>
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -41,10 +40,10 @@
 #include "m_string.h"
 #include "mf_wcomp.h"                       // wild_compare,wild_one,wild_many
 #include "mutex_lock.h"                     // MUTEX_LOCK
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_command.h"
-#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_dir.h"                         // MY_DIR
 #include "my_io.h"
@@ -55,11 +54,14 @@
 #include "my_thread_local.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/mysql_lex_string.h"
+#include "mysql/plugin.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
+#include "mysql_time.h"
 #include "mysqld_error.h"
+#include "nullable.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"           // check_grant_db
 #include "sql/auth/sql_security_ctx.h"
@@ -72,7 +74,6 @@
 #include "sql/error_handler.h"              // Internal_error_handler
 #include "sql/field.h"                      // Field
 #include "sql/filesort.h"                   // filesort_free_buffers
-#include "sql/histograms/value_map.h"
 #include "sql/item.h"                       // Item_empty_string
 #include "sql/item_cmpfunc.h"               // Item_cond
 #include "sql/item_func.h"
@@ -83,9 +84,7 @@
 #include "sql/mysqld.h"                     // lower_case_table_names
 #include "sql/mysqld_thd_manager.h"         // Global_THD_manager
 #include "sql/opt_trace.h"                  // fill_optimizer_trace_info
-#include "sql/partition_element.h"
 #include "sql/partition_info.h"             // partition_info
-#include "sql/partitioning/partition_handler.h" // Partition_handler
 #include "sql/protocol.h"                   // Protocol
 #include "sql/psi_memory_key.h"
 #include "sql/query_options.h"
@@ -106,17 +105,16 @@
 #include "sql/sql_plugin.h"                 // PLUGIN_IS_DELETED, LOCK_plugin
 #include "sql/sql_plugin_ref.h"
 #include "sql/sql_profile.h"
-#include "sql/sql_servers.h"
 #include "sql/sql_table.h"                  // filename_to_tablename
 #include "sql/sql_tmp_table.h"              // create_tmp_table
 #include "sql/sql_trigger.h"                // acquire_shared_mdl_for_trigger
-#include "sql/stateless_allocator.h"
 #include "sql/system_variables.h"
 #include "sql/table_trigger_dispatcher.h"   // Table_trigger_dispatcher
 #include "sql/temp_table_param.h"
 #include "sql/thr_malloc.h"
 #include "sql/trigger.h"                    // Trigger
 #include "sql/tztime.h"                     // Time_zone
+#include "template_utils.h"
 #include "thr_lock.h"
 
 namespace dd {

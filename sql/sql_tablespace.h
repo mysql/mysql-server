@@ -16,11 +16,16 @@
 #ifndef SQL_TABLESPACE_INCLUDED
 #define SQL_TABLESPACE_INCLUDED
 
-class THD;
-struct handlerton;
+#include <sys/types.h>
 
-#include "sql_cmd.h"       // Sql_cmd
 #include "handler.h"       // ts_command_type
+#include "lex_string.h"
+#include "my_inttypes.h"
+#include "my_sqlcommand.h"
+#include "sql/sql_alloc.h"
+#include "sql_cmd.h"       // Sql_cmd
+
+class THD;
 
 
 /**

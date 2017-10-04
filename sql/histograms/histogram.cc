@@ -32,18 +32,17 @@
 #include "binary_log_types.h"
 #include "lex_string.h"
 #include "m_ctype.h"
+#include "my_alloc.h"
 #include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"                     // my_micro_time, get_charset
 #include "my_time.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"
 #include "scope_guard.h"                // create_scope_guard
 #include "sql/auth/auth_common.h"
-#include "sql/auth/sql_security_ctx.h"
 #include "sql/dd/cache/dictionary_client.h"
 #include "sql/dd/dd.h"
 #include "sql/dd/string_type.h"
@@ -56,7 +55,9 @@
 #include "sql/histograms/equi_height.h" // Equi_height<T>
 #include "sql/histograms/singleton.h"   // Singleton<T>
 #include "sql/histograms/value_map.h"   // Value_map
+#include "sql/item.h"
 #include "sql/json_dom.h"               // Json_*
+#include "sql/key.h"
 #include "sql/mdl.h"                    // MDL_request
 #include "sql/my_decimal.h"
 #include "sql/psi_memory_key.h"         // key_memory_histograms
@@ -66,15 +67,15 @@
 #include "sql/sql_class.h"              // make_lex_string_root
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
-#include "sql/sql_servers.h"
 #include "sql/strfunc.h"                    // find_type2, find_set
 #include "sql/system_variables.h"
 #include "sql/table.h"
-#include "sql/thr_malloc.h"                 // MEM_ROOT
 #include "sql/transaction.h"            // trans_commit_stmt, trans_rollback_stmt
 #include "sql/tztime.h"                 // my_tz_UTC
 #include "sql_string.h"                 // String
 #include "template_utils.h"
+
+struct TYPELIB;
 
 namespace histograms {
 

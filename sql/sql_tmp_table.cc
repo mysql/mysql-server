@@ -35,19 +35,18 @@
 #include "my_compare.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_io.h"
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
-#include "my_thread_local.h"
 #include "myisam.h"               // MI_COLUMNDEF
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "sql/auth/auth_common.h"
 #include "sql/current_thd.h"
 #include "sql/debug_sync.h"       // DEBUG_SYNC
 #include "sql/field.h"
 #include "sql/filesort.h"         // filesort_free_buffers
+#include "sql/gis/srid.h"
 #include "sql/handler.h"
 #include "sql/item_func.h"        // Item_func
 #include "sql/item_sum.h"         // Item_sum
@@ -60,24 +59,21 @@
 #include "sql/psi_memory_key.h"
 #include "sql/query_options.h"
 #include "sql/sql_base.h"         // free_io_cache
-#include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"        // THD
 #include "sql/sql_const.h"
 #include "sql/sql_executor.h"     // SJ_TMP_TABLE
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_opt_exec_shared.h"
-#include "sql/sql_parse.h"
 #include "sql/sql_plugin.h"       // plugin_unlock
 #include "sql/sql_plugin_ref.h"
 #include "sql/sql_select.h"
-#include "sql/sql_servers.h"
 #include "sql/system_variables.h"
+#include "sql/table.h"
 #include "sql/temp_table_param.h"
 #include "sql/thr_malloc.h"
 #include "sql/window.h"
 #include "template_utils.h"
-#include "thr_lock.h"
 
 using std::max;
 using std::min;

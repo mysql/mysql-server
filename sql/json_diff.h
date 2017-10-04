@@ -28,6 +28,7 @@
   updated.
 */
 
+#include <stddef.h>
 #include <algorithm>
 #include <memory>                               // std::unique_ptr
 #include <vector>
@@ -37,8 +38,7 @@
 #include "sql/memroot_allocator.h"
 
 class Field_json;
-class Json_dom;
-class Json_wrapper;
+class String;
 
 /// Enum that describes what kind of operation a Json_diff object represents.
 enum class enum_json_diff_operation

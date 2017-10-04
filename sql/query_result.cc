@@ -26,18 +26,18 @@
 #endif
 #include <algorithm>
 
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_macros.h"
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_file.h"
-#include "mysql/psi/mysql_statement.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "sql/derror.h"        // ER_THD
 #include "sql/item.h"
 #include "sql/item_func.h"
-#include "sql/key.h"
 #include "sql/mysqld.h"        // key_select_to_file
 #include "sql/parse_tree_nodes.h" // PT_select_var
 #include "sql/protocol.h"
@@ -46,6 +46,7 @@
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
 #include "sql/system_variables.h"
+#include "sql_string.h"
 
 using std::min;
 

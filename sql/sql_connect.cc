@@ -26,9 +26,8 @@
 #include "my_loglevel.h"
 #include "my_psi_config.h"
 #include "mysql/components/services/log_shared.h"
-#include "mysql/udf_registration_types.h"
 #include "pfs_thread_provider.h"
-#include "sql/session_tracker.h"
+#include "sql/table.h"
 
 #ifndef _WIN32
 #include <netdb.h>
@@ -67,7 +66,6 @@
 #include "sql/derror.h"                 // ER_THD
 #include "sql/hostname.h"               // Host_errors
 #include "sql/item_func.h"              // mqh_used
-#include "sql/key.h"
 #include "sql/log.h"
 #include "sql/mysqld.h"                 // LOCK_user_conn
 #include "sql/protocol.h"

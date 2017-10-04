@@ -18,7 +18,6 @@
 
 #include <string>
 
-#include "my_inttypes.h"
 #include "sql/bootstrap_impl.h"
 
 class Compiled_in_command_iterator : public bootstrap::Command_iterator

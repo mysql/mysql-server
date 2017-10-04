@@ -19,22 +19,18 @@
 #include <stddef.h>
 #include <sys/types.h>
 
+#include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"                    // strmake_root
-#include "mysql/udf_registration_types.h"
 #include "sql/mdl.h"                   // MDL_savepoint
 #include "sql/rpl_transaction_ctx.h"   // Rpl_transaction_ctx
 #include "sql/rpl_transaction_write_set_ctx.h" // Transaction_write_set_ctx
-#include "sql/thr_malloc.h"
 #include "sql/xa.h"                    // XID_STATE
 
 class Ha_trx_info;
 class THD;
 struct handlerton;
-struct st_savepoint;
-
-struct CHANGED_TABLE_LIST;
 
 
 struct SAVEPOINT

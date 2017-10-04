@@ -28,7 +28,6 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_sys.h"
-#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "sql/debug_sync.h"
 #include "sql/field.h"
@@ -46,12 +45,13 @@
 #include "sql/sql_executor.h"                   // QEP_TAB
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
-#include "sql/sql_servers.h"
 #include "sql/sql_table.h"                      // primary_key_name
 #include "sql/table.h"
 #include "sql_string.h"
 #include "thr_lock.h"
 #include "typelib.h"
+
+struct MEM_ROOT;
 
 struct st_find_field
 {

@@ -19,6 +19,7 @@
 #include "sql/procedure.h"
 
 #include "decimal.h"
+#include "sql/my_decimal.h"
 
 my_decimal *Item_proc_string::val_decimal(my_decimal *decimal_value)
 {

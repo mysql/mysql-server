@@ -26,7 +26,9 @@
 #include <atomic>
 
 #include "binary_log_types.h"
+#include "lex_string.h"
 #include "m_ctype.h"
+#include "my_alloc.h"
 #include "my_bit.h"                   // my_count_bits
 #include "my_bitmap.h"
 #include "my_dbug.h"
@@ -36,7 +38,6 @@
 #include "my_table_map.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"         // Prealloced_array
@@ -72,6 +73,7 @@
 #include "sql/sql_data_change.h"
 #include "sql/sql_error.h"
 #include "sql/sql_executor.h"
+#include "sql/sql_lex.h"
 #include "sql/sql_opt_exec_shared.h"
 #include "sql/sql_optimizer.h"        // build_equal_items, substitute_gc
 #include "sql/sql_partition.h"        // partition_key_modified
@@ -86,7 +88,6 @@
 #include "sql/temp_table_param.h"
 #include "sql/transaction_info.h"
 #include "sql/trigger_def.h"
-#include "sql_string.h"
 #include "template_utils.h"
 #include "thr_lock.h"
 

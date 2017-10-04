@@ -60,7 +60,6 @@
 #include "sql/gis/geometries.h"
 #include "sql/gis/srid.h"
 #include "sql/gis/wkb_parser.h"
-#include "sql/gis_bg_traits.h"
 #include "sql/gstream.h"  // Gis_read_stream
 #include "sql/item_geofunc_internal.h"
 #include "sql/json_dom.h" // Json_wrapper

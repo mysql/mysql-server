@@ -30,7 +30,6 @@
 #include "my_inttypes.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysql/udf_registration_types.h"
 #include "sql/gis/srid.h"
 #include "sql/inplace_vector.h"
 #include "sql_string.h"                 // String

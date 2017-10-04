@@ -26,7 +26,6 @@
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"

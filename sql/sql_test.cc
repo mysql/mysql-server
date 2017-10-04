@@ -24,7 +24,9 @@
 #include <algorithm>
 #include <functional>
 
+#include "keycache.h"
 #include "lex_string.h"
+#include "m_ctype.h"
 #include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -35,9 +37,7 @@
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/udf_registration_types.h"
 #include "prealloced_array.h"
-#include "sql/auth/sql_security_ctx.h"
 #include "sql/events.h"
 #include "sql/field.h"
 #include "sql/item.h"
@@ -50,11 +50,9 @@
 #include "sql/opt_trace.h"
 #include "sql/opt_trace_context.h"
 #include "sql/psi_memory_key.h"
-#include "sql/sql_admin.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
-#include "sql/sql_executor.h"
 #include "sql/sql_opt_exec_shared.h"
 #include "sql/sql_optimizer.h" // JOIN
 #include "sql/sql_select.h"

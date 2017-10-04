@@ -15,9 +15,9 @@
 
 #include "sql/sql_initialize.h"
 
-#include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 
 #include "components/mysql_server/log_builtins_filter_imp.h" // verbosity
@@ -28,7 +28,6 @@
 #include "my_loglevel.h"
 #include "my_rnd.h"
 #include "my_sys.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "scripts/sql_commands_help_data.h"

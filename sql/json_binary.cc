@@ -26,7 +26,6 @@
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_sys.h"
-#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #ifdef MYSQL_SERVER
 #include "sql/check_stack.h"

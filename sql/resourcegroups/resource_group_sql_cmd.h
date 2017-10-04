@@ -16,26 +16,22 @@
 #ifndef RESOURCEGROUPS_RESOURCE_GROUP_SQL_CMD_H_
 #define RESOURCEGROUPS_RESOURCE_GROUP_SQL_CMD_H_
 
-#include "sql/parse_tree_node_base.h"        // Trivial_array
-#include "sql/resourcegroups/platform/thread_attrs_api.h"
+#include "lex_string.h"
+#include "my_inttypes.h"
+#include "my_sqlcommand.h"
+#include "sql/mem_root_array.h"
+#include "sql/parse_tree_node_base.h"
 #include "sql/resourcegroups/resource_group_basic_types.h" // Type, Range
-#include "sql/sql_base.h"
 #include "sql/sql_cmd.h"
-#include "sql/sql_cmd_dml.h"
-
-
-#include <memory>
-#include <vector>
 
 class PT_alter_resource_group;
 class PT_create_resource_group;
 class PT_drop_resource_group;
 class PT_set_resource_group;
+class THD;
 
 namespace resourcegroups
 {
-
-class Resource_group;
 
 
 /**

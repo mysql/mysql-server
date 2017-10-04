@@ -40,7 +40,6 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_macros.h"
-#include "mysql/udf_registration_types.h"
 #include "sql/enum_query_type.h"
 #include "sql/field.h"
 #include "sql/handler.h"
@@ -57,7 +56,6 @@
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"      // THD
 #include "sql/sql_const.h"
-#include "sql/sql_executor.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_opt_exec_shared.h"

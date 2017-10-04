@@ -40,7 +40,8 @@
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
-#include "mysql/udf_registration_types.h"
+#include "mysql/components/services/log_shared.h"
+#include "mysql/psi/mysql_statement.h"
 #include "mysql_com.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"
@@ -53,7 +54,6 @@
 #include "sql/binlog.h"                 /* mysql_bin_log.is_open() */
 #include "sql/field.h"
 #include "sql/handler.h"
-#include "sql/histograms/value_map.h"
 #include "sql/item_func.h"              /* mqh_used */
 #include "sql/key.h"                    /* key_copy, key_cmp_if_same */
                                         /* key_restore */

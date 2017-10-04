@@ -51,24 +51,21 @@ This file contains the implementation of error and warnings related
 #include "decimal.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_sys.h"
 #include "my_time.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/psi/psi_base.h"
+#include "mysql_time.h"
 #include "mysqld_error.h"
-#include "sql/auth/sql_security_ctx.h"
 #include "sql/derror.h"   // ER_THD
 #include "sql/item.h"
 #include "sql/log.h"      // sql_print_warning
 #include "sql/my_decimal.h"
 #include "sql/protocol.h"
-#include "sql/session_tracker.h"
 #include "sql/sql_class.h" // THD
 #include "sql/sql_const.h"
 #include "sql/sql_lex.h"
-#include "sql/sql_servers.h"
 #include "sql/system_variables.h"
 #include "sql/thr_malloc.h"
 

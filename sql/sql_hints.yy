@@ -19,6 +19,7 @@
 */
 
 %{
+#include "my_inttypes.h"
 #include "sql/derror.h"
 #include "sql/parse_tree_hints.h"
 #include "sql/sql_class.h"

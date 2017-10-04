@@ -25,11 +25,8 @@
 
 #include "lex_string.h"
 #include "m_ctype.h"
-#include "my_alloc.h"
-#include "my_bitmap.h"
 #include "my_command.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
 #include "my_getopt.h"
 #include "my_inttypes.h"
 #include "my_io.h"
@@ -38,7 +35,6 @@
 #include "my_sqlcommand.h"                 // SQLCOM_END
 #include "my_sys.h"                        // MY_TMPDIR
 #include "my_thread.h"                     // my_thread_attr_t
-#include "my_thread_local.h"               // my_get_thread_local
 #include "mysql/components/services/mysql_cond_bits.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/components/services/mysql_rwlock_bits.h"
@@ -50,30 +46,17 @@
 #include "mysql/components/services/psi_stage_bits.h"
 #include "mysql/components/services/psi_statement_bits.h"
 #include "mysql/components/services/psi_thread_bits.h"
-#include "mysql/mysql_lex_string.h"
-#include "mysql/plugin.h"
-#include "mysql/psi/mysql_cond.h"
-#include "mysql/psi/mysql_mutex.h"
-#include "mysql/psi/mysql_rwlock.h"        /* mysql_rwlock_t */
-#include "mysql/psi/psi_base.h"
-#include "mysql/psi/psi_stage.h"
-#include "mysql/psi/psi_statement.h"       /* PSI_statement_info */
-#include "mysql/udf_registration_types.h"
+#include "mysql/status_var.h"
 #include "mysql_com.h"                     // SERVER_VERSION_LENGTH
-#include "sql/rpl_filter.h"                // Rpl_filter
 #include "sql/sql_bitmap.h"
 #include "sql/sql_const.h"                 // UUID_LENGTH
 #include "sql/system_variables.h"
-#include "sql/thr_malloc.h"
 
 class Rpl_filter;
 class THD;
 class Time_zone;
+struct MEM_ROOT;
 struct handlerton;
-
-struct MY_BITMAP;
-struct SHOW_VAR;
-struct CHARSET_INFO;
 
 #if MAX_INDEXES <= 64
 typedef Bitmap<64>  Key_map;          /* Used for finding keys */

@@ -664,6 +664,9 @@ extern SERVICE_TYPE(log_builtins_string) *log_bs;
 #      define error_msg_by_errcode        log_bi->errmsg_by_errcode
 #      define error_code_by_errsymbol     log_bi->errcode_by_errsymbol
 #    else
+
+#include "sql/derror.h"
+
 #      define log_malloc(s)               my_malloc(0, (s), MYF(0))
 #      define log_free                    my_free
 #      define log_msg                     vsnprintf

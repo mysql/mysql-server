@@ -23,38 +23,64 @@
 
 #include "sql/field.h"
 
+#include "my_config.h"
+
 #include <errno.h>
+#include <float.h>
+#include <stddef.h>
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+
 #include <algorithm>
 #include <cmath>                         // isnan
 #include <memory>                        // unique_ptr
 
 #include "decimal.h"
+#include "my_alloc.h"
 #include "my_dbug.h"
+#include "my_double2ulonglong.h"
+#include "my_macros.h"
+#include "my_sqlcommand.h"
+#include "myisampack.h"
 #include "sql/current_thd.h"
+#include "sql/dd/cache/dictionary_client.h"
 #include "sql/derror.h"                  // ER_THD
 #include "sql/filesort.h"                // change_double_for_sort
 #include "sql/gis/rtree_support.h"       // get_mbr_from_store
 #include "sql/gis/srid.h"
+#include "sql/handler.h"
+#include "sql/item.h"
+#include "sql/item_func.h"
 #include "sql/item_json_func.h"          // ensure_utf8mb4
 #include "sql/item_timefunc.h"           // Item_func_now_local
 #include "sql/json_binary.h"             // json_binary::serialize
-#include "sql/json_dom.h"                // Json_dom, Json_wrapper
-#include "sql/json_binary.h"                 // json_binary::serialize
-#include "sql/json_dom.h"                    // Json_dom, Json_wrapper
 #include "sql/json_diff.h"                   // Json_diff_vector
+#include "sql/json_dom.h"                // Json_dom, Json_wrapper
+#include "sql/key.h"
 #include "sql/log_event.h"               // class Table_map_log_event
+#include "sql/my_decimal.h"
 #include "sql/mysqld.h"                  // log_10
+#include "sql/protocol.h"
+#include "sql/psi_memory_key.h"
 #include "sql/rpl_rli.h"                 // Relay_log_info
 #include "sql/rpl_slave.h"               // rpl_master_has_bug
 #include "sql/spatial.h"                 // Geometry
-#include "sql/sql_base.h"                // is_equal
 #include "sql/sql_class.h"               // THD
 #include "sql/sql_join_buffer.h"         // CACHE_FIELD
+#include "sql/sql_lex.h"
 #include "sql/sql_time.h"                // str_to_datetime_with_warn
 #include "sql/srs_fetcher.h"
 #include "sql/strfunc.h"                 // find_type2
+#include "sql/system_variables.h"
+#include "sql/transaction_info.h"
 #include "sql/tztime.h"                  // Time_zone
 #include "template_utils.h"              // pointer_cast
+#include "typelib.h"
+
+namespace dd {
+class Spatial_reference_system;
+}  // namespace dd
 
 using std::max;
 using std::min;

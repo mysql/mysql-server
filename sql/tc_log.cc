@@ -28,7 +28,6 @@
 #include "my_macros.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysqld_error.h"
-#include "sql/histograms/histogram.h"
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif

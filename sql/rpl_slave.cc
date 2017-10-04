@@ -28,7 +28,6 @@
 
 #include "my_config.h"
 
-#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <math.h>
@@ -37,14 +36,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/psi_memory_bits.h"
 #include "mysql/components/services/psi_stage_bits.h"
+#include "mysql/plugin.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
+#include "mysql/status_var.h"
 #include "sql/rpl_channel_service_interface.h"
-#include "sql/thr_malloc.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
@@ -80,7 +79,6 @@
 #include "my_systime.h"
 #include "my_thread_local.h"                   // thread_local_key_t
 #include "mysql.h"                             // MYSQL
-#include "mysql/plugin.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_thread.h"
@@ -139,6 +137,9 @@
 #include "sql_common.h"                        // end_server
 #include "sql_string.h"
 #include "typelib.h"
+
+struct mysql_cond_t;
+struct mysql_mutex_t;
 
 using std::min;
 using std::max;

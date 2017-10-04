@@ -19,7 +19,6 @@
 
 #include "sql/sql_insert.h"
 
-#include <assert.h>
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
@@ -29,7 +28,9 @@
 
 #include "binary_log_types.h"
 #include "lex_string.h"
+#include "m_ctype.h"
 #include "m_string.h"
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
@@ -47,7 +48,6 @@
 #include "sql/auth/auth_common.h"     // check_grant_all_columns
 #include "sql/binlog.h"
 #include "sql/dd/cache/dictionary_client.h"
-#include "sql/dd/dd_schema.h"         // dd::Schema_MDL_locker
 #include "sql/dd/dd.h"                // dd::get_dictionary
 #include "sql/dd/dictionary.h"        // dd::Dictionary
 #include "sql/dd_sql_view.h"          // update_referencing_views_metadata
@@ -55,9 +55,11 @@
 #include "sql/derror.h"               // ER_THD
 #include "sql/discrete_interval.h"
 #include "sql/field.h"
+#include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/key.h"
 #include "sql/lock.h"                 // mysql_unlock_tables
+#include "sql/mdl.h"
 #include "sql/mysqld.h"               // stage_update
 #include "sql/opt_explain.h"          // Modification_plan
 #include "sql/opt_explain_format.h"
@@ -75,7 +77,6 @@
 #include "sql/sql_lex.h"
 #include "sql/sql_optimizer.h"        // Prepare_error_tracker
 #include "sql/sql_resolver.h"         // validate_gc_assignment
-#include "sql/sql_servers.h"
 #include "sql/sql_show.h"             // store_create_info
 #include "sql/sql_table.h"            // quick_rm_table
 #include "sql/sql_tmp_table.h"        // create_tmp_field
@@ -90,6 +91,10 @@
 #include "sql_string.h"
 #include "template_utils.h"
 #include "thr_lock.h"
+
+namespace dd {
+class Table;
+}  // namespace dd
 
 
 static bool check_view_insertability(THD *thd, TABLE_LIST *view,

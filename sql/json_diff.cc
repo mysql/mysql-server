@@ -15,9 +15,20 @@
 
 #include "sql/json_diff.h"
 
+#include <sys/types.h>
+
+#include "lex_string.h"
+#include "my_alloc.h"
+#include "my_byteorder.h"
 #include "my_dbug.h"                            // DBUG_ASSERT
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
 #include "sql/current_thd.h"                    // current_thd
 #include "sql/field.h"                          // Field_json
+#include "sql/json_binary.h"
 #include "sql/json_dom.h"                       // Json_dom, Json_wrapper
 #include "sql/json_path.h"                      // Json_path
 #include "sql/log_event.h"                      // net_field_length_checked

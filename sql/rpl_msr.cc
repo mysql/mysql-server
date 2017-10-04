@@ -19,7 +19,6 @@
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_loglevel.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
 #include "sql/current_thd.h"

@@ -20,33 +20,31 @@
 #include <atomic>
 
 #include "lex_string.h"
+#include "m_ctype.h"
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_psi_config.h"
 #include "mysql/components/services/psi_statement_bits.h"
 #include "mysql/psi/mysql_sp.h"
-#include "mysql/psi/mysql_statement.h"
 #include "mysqld_error.h"
 #include "mysys_err.h"            // EE_OUTOFMEMORY
-#include "sql/auth/sql_security_ctx.h"
 #include "sql/derror.h"           // ER_THD
 #include "sql/error_handler.h"    // Internal_error_handler
 #include "sql/sp.h"               // sp_add_used_routine
 #include "sql/sp_head.h"          // sp_name
 #include "sql/sql_class.h"        // THD
-#include "sql/sql_connect.h"
 #include "sql/sql_db.h"           // get_default_db_collation
 #include "sql/sql_digest_stream.h"
 #include "sql/sql_error.h"        // Sql_condition
 #include "sql/sql_lex.h"
 #include "sql/sql_parse.h"        // parse_sql
-#include "sql/sql_servers.h"
 #include "sql/sql_show.h"         // append_identifier
 #include "sql/system_variables.h"
 #include "sql/trigger_creation_ctx.h" // Trigger_creation_ctx
 #include "sql_string.h"
 
 class sp_rcontext;
+struct MEM_ROOT;
 
 
 ///////////////////////////////////////////////////////////////////////////

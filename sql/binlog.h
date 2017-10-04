@@ -27,7 +27,6 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
-#include "my_psi_config.h"
 #include "my_sharedlib.h"
 #include "my_sys.h"
 #include "mysql/components/services/mysql_cond_bits.h"
@@ -37,13 +36,10 @@
 #include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"                 // Item_result
-#include "sql/rpl_gtid.h"              // Gtid_set, Sid_map
 #include "sql/rpl_trx_tracking.h"
 #include "sql/tc_log.h"                // TC_LOG
-#include "sql_string.h"
 #include "thr_mutex.h"
 
 class Format_description_log_event;

@@ -21,7 +21,6 @@
 
 #include "sql/handler.h"
 
-#include <assert.h>
 #include <boost/algorithm/string/case_conv.hpp>
 #include <boost/foreach.hpp>
 #include <boost/token_functions.hpp>
@@ -30,6 +29,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <atomic>
 #include <cmath>
 #include <list>
@@ -106,8 +106,8 @@
 #include "sql/sql_parse.h"            // check_stack_overrun
 #include "sql/sql_plugin.h"           // plugin_foreach
 #include "sql/sql_select.h"           // actual_key_parts
-#include "sql/sql_servers.h"
 #include "sql/sql_table.h"            // build_table_filename
+#include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/tc_log.h"
 #include "sql/thr_malloc.h"

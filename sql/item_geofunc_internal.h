@@ -35,20 +35,12 @@
 #include <utility>
 #include <vector>
 
-#include "my_inttypes.h"
 #include "sql/gis/srid.h"
 #include "sql/gis_bg_traits.h"
 #include "sql/item_geofunc.h"
 #include "sql/spatial.h"
-#include "sql/sql_exception_handler.h" // handle_gis_exception
-#include "sql/srs_fetcher.h"
 
 class String;
-class THD;
-
-namespace dd {
-class Spatial_reference_system;
-}  // namespace dd
 
 
 // GCC requires typename whenever needing to access a type inside a template,

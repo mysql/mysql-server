@@ -23,15 +23,16 @@
 #include "sql/sql_derived.h"
 
 #include <stddef.h>
+#include <string.h>
 #include <sys/types.h>
 
+#include "lex_string.h"
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_table_map.h"
-#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/debug_sync.h"                   // DEBUG_SYNC
@@ -54,11 +55,12 @@
 #include "sql/sql_view.h"                     // check_duplicate_names
 #include "sql/system_variables.h"
 #include "sql/table.h"
-#include "sql/temp_table_param.h"
 #include "sql/table_function.h"
+#include "sql/temp_table_param.h"
 #include "thr_lock.h"
 
 class Opt_trace_context;
+struct MI_COLUMNDEF;
 
 
 /**

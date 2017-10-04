@@ -24,6 +24,7 @@
 #include "sql/parse_tree_nodes.h"
 #include "sql/sp.h"
 #include "sql/sp_pcontext.h"       // sp_pcontext
+#include "sql/sql_udf.h"
 #include "sql/table.h"
 #include "sql/trigger_def.h"
 

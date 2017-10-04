@@ -16,9 +16,9 @@
 #ifndef RESOURCEGROUPS_THREAD_RESOURCE_CONTROL_H_
 #define RESOURCEGROUPS_THREAD_RESOURCE_CONTROL_H_
 
-#include <memory>
 #include <vector>
 
+#include "my_thread_os_id.h"
 #include "sql/resourcegroups/resource_group_basic_types.h" // Range, Type
 
 namespace resourcegroups

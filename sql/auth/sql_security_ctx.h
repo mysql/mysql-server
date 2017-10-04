@@ -23,8 +23,6 @@
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_dbug.h"
-#include "my_sharedlib.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "sql/auth/auth_common.h"
 #include "sql/sql_const.h"

@@ -52,7 +52,6 @@
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql/psi/mysql_statement.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "mysys_err.h"        // EE_CAPACITY_EXCEEDED
 #include "nullable.h"
@@ -87,9 +86,9 @@
 #include "sql/mem_root_array.h"
 #include "sql/mysqld.h"       // stage_execution_of_init_command
 #include "sql/mysqld_thd_manager.h" // Find_thd_with_id
+#include "sql/opt_hints.h"
 #include "sql/opt_trace.h"    // Opt_trace_start
 #include "sql/parse_location.h"
-#include "sql/parse_tree_helpers.h" // is_identifier
 #include "sql/parse_tree_node_base.h"
 #include "sql/parse_tree_nodes.h"
 #include "sql/persisted_variable.h"
@@ -98,6 +97,7 @@
 #include "sql/psi_memory_key.h"
 #include "sql/query_options.h"
 #include "sql/query_result.h"
+#include "sql/resourcegroups/resource_group_basic_types.h"
 #include "sql/resourcegroups/resource_group_mgr.h" // Resource_group_mgr::instance
 #include "sql/rpl_context.h"
 #include "sql/rpl_filter.h"   // rpl_filter
@@ -120,7 +120,6 @@
 #include "sql/sql_cmd.h"
 #include "sql/sql_connect.h"  // decrease_user_connections
 #include "sql/sql_const.h"
-#include "sql/sql_data_change.h"
 #include "sql/sql_db.h"       // mysql_change_db
 #include "sql/sql_digest.h"
 #include "sql/sql_digest_stream.h"
@@ -138,7 +137,6 @@
 #include "sql/sql_select.h"   // handle_query
 #include "sql/sql_show.h"     // find_schema_table
 #include "sql/sql_table.h"    // mysql_create_table
-#include "sql/sql_tablespace.h" // mysql_alter_tablespace
 #include "sql/sql_test.h"     // mysql_print_status
 #include "sql/sql_trigger.h"  // add_table_for_trigger
 #include "sql/sql_udf.h"
@@ -152,6 +150,14 @@
 #include "sql_string.h"
 #include "thr_lock.h"
 #include "violite.h"
+
+namespace dd {
+class Spatial_reference_system;
+}  // namespace dd
+namespace resourcegroups {
+class Resource_group;
+}  // namespace resourcegroups
+struct mysql_rwlock_t;
 
 namespace dd {
 class Schema;

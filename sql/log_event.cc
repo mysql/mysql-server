@@ -16,6 +16,8 @@
 
 #include "sql/log_event.h"
 
+#include "my_config.h"
+
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -31,7 +33,6 @@
 #include "base64.h"
 #include "binary_log_funcs.h"  // my_timestamp_binary_length
 #include "binary_log_types.h"
-#include "config.h"
 #include "debug_vars.h"
 #include "decimal.h"
 #include "m_ctype.h"
@@ -48,15 +49,19 @@
 #include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/psi_statement_bits.h"
 #include "mysql/psi/mysql_mutex.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_time.h"
+#include "psi_memory_key.h"
+#include "query_options.h"
 #include "sql/my_decimal.h"    // my_decimal
 #include "sql/rpl_handler.h"   // RUN_HOOK
 #include "sql/rpl_tblmap.h"
-#include "sql/session_tracker.h"
 #include "sql/system_variables.h"
 #include "sql/tc_log.h"
+#include "sql_const.h"
 #include "sql_string.h"
 #include "table_id.h"
+#include "template_utils.h"
 #include "wrapper_functions.h"
 
 #ifndef MYSQL_SERVER
@@ -148,6 +153,8 @@ slave_ignored_err_throttle(window_size,
 #include "sql/rpl_record.h"        // enum_row_image_type, Bit_reader
 #include "sql/rpl_utility.h"
 #include "sql/xa_aux.h"
+
+struct mysql_mutex_t;
 
 extern "C" {
 PSI_memory_key key_memory_log_event;

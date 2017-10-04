@@ -15,7 +15,6 @@
 
 #include "sql/rpl_mts_submode.h"
 
-#include <assert.h>
 #include <limits.h>
 #include <string.h>
 #include <time.h>

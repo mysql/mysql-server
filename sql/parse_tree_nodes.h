@@ -19,6 +19,7 @@
 #include <stddef.h>
 #include <sys/types.h>
 
+#include "binary_log_types.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "my_base.h"
@@ -27,20 +28,16 @@
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "my_thread_local.h"
 #include "my_time.h"
-#include "mysql/psi/mysql_statement.h"
-#include "mysql/udf_registration_types.h"
+#include "mysql/mysql_lex_string.h"
 #include "mysqld_error.h"
-#include "sql/auth/auth_common.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/enum_query_type.h"
 #include "sql/handler.h"
 #include "sql/item.h"
-#include "sql/item_create.h"
 #include "sql/item_func.h"
-#include "sql/key.h"
 #include "sql/key_spec.h"
-#include "sql/sql_load.h"            // Sql_cmd_load_table
 #include "sql/mdl.h"
 #include "sql/mem_root_array.h"
 #include "sql/mysqld.h"              // table_alias_charset
@@ -51,42 +48,36 @@
 #include "sql/parse_tree_partitions.h"
 #include "sql/partition_info.h"
 #include "sql/query_result.h"        // Query_result
+#include "sql/resourcegroups/resource_group_basic_types.h"
 #include "sql/resourcegroups/resource_group_sql_cmd.h"
-#include "sql/resourcegroups/resource_group_sql_cmd.h" // Type, Range
-#include "sql/session_tracker.h"
 #include "sql/set_var.h"
 #include "sql/sp_head.h"             // sp_head
 #include "sql/sql_admin.h"           // Sql_cmd_shutdown etc.
 #include "sql/sql_alloc.h"
 #include "sql/sql_alter.h"
 #include "sql/sql_class.h"           // THD
-#include "sql/sql_cmd_ddl_table.h"   // Sql_cmd_create_table
 #include "sql/sql_lex.h"             // LEX
 #include "sql/sql_list.h"
+#include "sql/sql_load.h"            // Sql_cmd_load_table
 #include "sql/sql_parse.h"           // add_join_natural
 #include "sql/sql_partition_admin.h"
-#include "sql/sql_servers.h"
 #include "sql/sql_show.h"
+#include "sql/sql_tablespace.h"          // Tablespace_options
 #include "sql/sql_truncate.h"        // Sql_cmd_truncate_table
 #include "sql/table.h"               // Common_table_expr
+#include "sql/table_function.h"          // Json_table_column
 #include "sql/window.h"              // Window
 #include "sql/window_lex.h"
 #include "sql_string.h"
-#include "sql/sql_tablespace.h"          // Tablespace_options
-#include "sql/sql_truncate.h"            // Sql_cmd_truncate_table
-#include "sql/table.h"                   // Common_table_expr
-
 #include "thr_lock.h"
-#include "sql/table_function.h"          // Json_table_column
 
 class PT_field_def_base;
 class PT_hint_list;
-class PT_partition; 
 class PT_query_expression;
 class PT_subquery;
+class PT_type;
 class Sql_cmd;
-class String;
-struct MYSQL_LEX_STRING;
+struct MEM_ROOT;
 
 /**
   @defgroup ptn  Parse tree nodes

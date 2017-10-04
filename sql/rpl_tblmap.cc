@@ -29,6 +29,8 @@
 #include "my_sys.h"
 #include "mysql/psi/psi_base.h"
 #include "sql/psi_memory_key.h"
+#include "sql/thr_malloc.h"
+#include "thr_malloc.h"
 
 #ifndef MYSQL_SERVER
 #define MAYBE_TABLE_NAME(T) ("")

@@ -24,18 +24,17 @@
 
 #include "binary_log_types.h"
 #include "extra/regex/my_regex.h" // my_regex_t
+#include "m_ctype.h"
 #include "my_alloc.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_macros.h"
 #include "my_sys.h"
 #include "my_table_map.h"
 #include "my_time.h"
 #include "mysql/udf_registration_types.h"
-#include "mysql_com.h"
+#include "mysql_time.h"
 #include "sql/enum_query_type.h"
-#include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/item_func.h"   // Item_int_func
 #include "sql/item_row.h"    // Item_row
@@ -46,7 +45,6 @@
 #include "sql/sql_const.h"
 #include "sql/sql_list.h"
 #include "sql/table.h"
-#include "sql/thr_malloc.h"
 #include "sql_string.h"
 #include "template_utils.h"  // down_cast
 
@@ -60,6 +58,7 @@ class Json_wrapper;
 class PT_item_list;
 class SELECT_LEX;
 class THD;
+struct MY_BITMAP;
 
 typedef int (Arg_comparator::*arg_cmp_func)();
 

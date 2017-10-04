@@ -19,20 +19,20 @@
 #include <algorithm>
 #include <new>
 
+#include "lex_string.h"
 #include "m_string.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_thread.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/psi/mysql_thread.h"
 #include "mysql/service_parser.h"
-#include "mysql/udf_registration_types.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"
 #include "sql/enum_query_type.h"
 #include "sql/error_handler.h"
 #include "sql/item.h"
-#include "sql/key.h"
 #include "sql/mdl.h"
 #include "sql/mysqld.h"                         // my_localhost
 #include "sql/mysqld_thd_manager.h"

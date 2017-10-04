@@ -25,6 +25,7 @@
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "mysqld.h"                     // mysqld_server_started
 #include "mysqld_error.h"
 #include "sql/auth/auth_common.h"
 #include "sql/dd/cache/dictionary_client.h" // dd::cache::Dictionary_client
@@ -39,7 +40,6 @@
 #include "sql/derror.h"                 // ER_THD
 #include "sql/error_handler.h"          // Internal_error_handler
 #include "sql/handler.h"                // HA_LEX_CREATE_TMP_TABLE
-#include "sql/key.h"
 #include "sql/mdl.h"
 #include "sql/set_var.h"
 #include "sql/sp_head.h"                // sp_name

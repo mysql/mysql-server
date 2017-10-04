@@ -49,11 +49,11 @@
 #include "sql/derror.h"          // ER_THD
 #include "sql/field.h"
 #include "sql/handler.h"
-#include "sql/histograms/value_map.h"
 #include "sql/item_cmpfunc.h"
 #include "sql/item_func.h"
 #include "sql/item_sum.h"        // Item_sum_max
 #include "sql/key.h"
+#include "sql/my_decimal.h"
 #include "sql/mysqld.h"          // in_left_expr_name
 #include "sql/opt_explain_format.h"
 #include "sql/opt_trace.h"       // OPT_TRACE_TRANSFORM
@@ -77,6 +77,7 @@
 #include "sql/sql_union.h"       // Query_result_union
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/table_function.h"
 #include "sql/temp_table_param.h"
 #include "sql/thr_malloc.h"
 #include "sql/window.h"

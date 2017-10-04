@@ -16,17 +16,21 @@
 #include "sql/parse_tree_hints.h"
 
 #include <stddef.h>
+#include <string.h>
 
+#include "m_ctype.h"
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
+#include "mysql/components/services/log_shared.h"
 #include "mysqld_error.h"
-#include "sql/auth/sql_security_ctx.h"
 #include "sql/derror.h"
 #include "sql/item_subselect.h"
 #include "sql/mysqld.h"    // table_alias_charset
 #include "sql/query_options.h"
+#include "sql/resourcegroups/resource_group_basic_types.h"
 #include "sql/resourcegroups/resource_group_mgr.h"
+#include "sql/set_var.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"

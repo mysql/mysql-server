@@ -21,14 +21,11 @@
 #include <string>
 
 #include "map_helpers.h"
-#include "my_inttypes.h"
-#include "mysql/udf_registration_types.h"
 #include "sql/mdl.h"
 
 class THD;
 // Forward declarations
 struct TABLE;
-
 struct THR_LOCK_DATA;
 
 struct MYSQL_LOCK

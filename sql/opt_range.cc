@@ -115,7 +115,6 @@
 #include <fcntl.h>
 #include <float.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <algorithm>
 #include <atomic>
@@ -139,10 +138,10 @@
 #include "my_sys.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "mysys_err.h"           // EE_CAPACITY_EXCEEDED
-#include "sql/auth/sql_security_ctx.h"
 #include "sql/check_stack.h"
 #include "sql/current_thd.h"
 #include "sql/derror.h"          // ER_THD
@@ -175,8 +174,6 @@
 #include "sql/sql_optimizer.h"   // JOIN
 #include "sql/sql_partition.h"   // HA_USE_AUTO_PARTITION
 #include "sql/sql_select.h"
-#include "sql/sql_servers.h"
-#include "sql/sql_tmp_table.h"
 #include "sql/system_variables.h"
 #include "sql/thr_malloc.h"
 #include "sql/uniques.h"         // Unique

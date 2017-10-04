@@ -41,21 +41,18 @@
 #include <utility>                     // std::pair
 
 #include "lex_string.h"                // LEX_CSTRING
+#include "m_ctype.h"
 #include "my_base.h"                   // ha_rows
-#include "sql/histograms/value_map.h"  // Histogram_comparator
 #include "sql/histograms/value_map_type.h"
-#include "sql/key.h"
 #include "sql/memroot_allocator.h"     // Memroot_allocator
 #include "sql/sql_alloc.h"             // Sql_alloc
 #include "sql/stateless_allocator.h"   // Stateless_allocator
-#include "sql/table.h"                 // TABLE_LIST
-#include "sql_string.h"
-
 
 class Item;
 class Json_dom;
 class Json_object;
 class THD;
+struct TYPELIB;
 
 namespace dd {
 class Table;

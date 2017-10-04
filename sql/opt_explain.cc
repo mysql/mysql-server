@@ -28,6 +28,7 @@
 #include <atomic>
 
 #include "ft_global.h"
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_alloc.h"
@@ -41,7 +42,6 @@
 #include "my_table_map.h"
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
@@ -79,8 +79,8 @@
 #include "sql/sql_partition.h" // for make_used_partitions_str()
 #include "sql/sql_select.h"
 #include "sql/table.h"
-#include "sql_string.h"
 #include "sql/table_function.h"      // Table_function
+#include "sql_string.h"
 
 class Opt_trace_context;
 

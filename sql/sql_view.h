@@ -17,7 +17,6 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "lex_string.h"
-#include "mysql/mysql_lex_string.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/mem_root_array.h"
 

@@ -20,12 +20,13 @@
 #include <unordered_map>
 #include <utility>
 
+#include "m_ctype.h"
 #include "m_string.h"
 #include "map_helpers.h"
 #include "my_dbug.h"
 #include "my_list.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "sql/auth/sql_security_ctx.h"
+#include "mysql/status_var.h"
 #include "sql/current_thd.h"
 #include "sql/item.h"
 #include "sql/mysqld.h"
@@ -38,6 +39,7 @@
 #include "sql/sys_vars_shared.h" // intern_find_sys_var
 #include "sql/system_variables.h"
 #include "sql_string.h"
+#include "typelib.h"
 
 /**
   Set value for global variable with PLUGIN_VAR_MEMALLOC flag.

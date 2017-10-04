@@ -71,8 +71,12 @@
 #include "sql/dd/dd_schema.h"
 #include "sql/dd/dd_table.h"          // dd::table_exists
 #include "sql/dd/dd_tablespace.h"     // dd::fill_table_and_parts_tablespace_name
+#include "sql/dd/string_type.h"
 #include "sql/dd/types/abstract_table.h"
+#include "sql/dd/types/column.h"
+#include "sql/dd/types/column_statistics.h"
 #include "sql/dd/types/foreign_key.h" // dd::Foreign_key
+#include "sql/dd/types/schema.h"
 #include "sql/dd/types/table.h"       // dd::Table
 #include "sql/dd/types/view.h"
 #include "sql/dd_table_share.h"       // open_table_def
@@ -81,11 +85,11 @@
 #include "sql/error_handler.h"        // Internal_error_handler
 #include "sql/field.h"
 #include "sql/handler.h"
+#include "sql/histograms/histogram.h"
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"         // Item_func_eq
 #include "sql/item_func.h"
 #include "sql/item_subselect.h"
-#include "sql/key.h"
 #include "sql/lock.h"                 // mysql_lock_remove
 #include "sql/log.h"
 #include "sql/log_event.h"            // Query_log_event
@@ -111,7 +115,6 @@
 #include "sql/sql_parse.h"            // is_update_query
 #include "sql/sql_prepare.h"          // Reprepare_observer
 #include "sql/sql_select.h"           // reset_statement_timer
-#include "sql/sql_servers.h"
 #include "sql/sql_show.h"             // append_identifier
 #include "sql/sql_sort.h"
 #include "sql/sql_table.h"            // build_table_filename
@@ -129,10 +132,6 @@
 #include "table_id.h"
 #include "template_utils.h"
 #include "thr_mutex.h"
-
-namespace dd {
-class Schema;
-}  // namespace dd
 
 using std::equal_to;
 using std::hash;

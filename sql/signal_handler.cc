@@ -20,8 +20,8 @@
 #include <time.h>
 #include <atomic>
 
+#include "lex_string.h"
 #include "my_inttypes.h"
-#include "mysql/udf_registration_types.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -32,7 +32,6 @@
 #include "my_sys.h"
 #include "sql/conn_handler/connection_handler_manager.h" // Connection_handler_manager
 #include "sql/current_thd.h"             // my_thread_get_THR_THD
-#include "sql/key.h"
 #include "sql/mysqld.h"
 #include "sql/mysqld_thd_manager.h"      // Global_THD_manager
 #include "sql/sql_class.h"

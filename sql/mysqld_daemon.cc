@@ -22,7 +22,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "my_loglevel.h"
 #include "sql/log.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>

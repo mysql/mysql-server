@@ -24,13 +24,13 @@
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "sql/current_thd.h" //current_thd
 #include "sql/derror.h"     //THD
 #include "sql/enum_query_type.h"
 #include "sql/item.h"
 #include "sql/sql_error.h"
-#include "sql/table.h"
 #include "sql_string.h"
 
 #ifdef HAVE_NETINET_IN_H

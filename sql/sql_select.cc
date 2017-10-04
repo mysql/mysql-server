@@ -30,11 +30,14 @@
 #include <algorithm>
 #include <atomic>
 
+#include "lex_string.h"
+#include "my_alloc.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"

@@ -23,15 +23,13 @@
 #include "my_base.h"                   /* ha_rows, ha_key_alg */
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "mysql/udf_registration_types.h"
 #include "sql/key_spec.h"              /* fk_option */
 #include "sql/sql_plugin_ref.h"        /* plugin_ref */
 
 class Field;
 class String;
-struct TABLE;
-
 struct MY_BITMAP;
+struct TABLE;
 
 
 class FOREIGN_KEY

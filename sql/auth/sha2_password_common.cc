@@ -16,10 +16,21 @@
 
 #include "sql/auth/sha2_password_common.h" /* validate_sha256_scramble */
 
+#include "my_config.h"
+
+#ifdef HAVE_ALLOCA_H
+#include <alloca.h>
+#endif
+#include <sha.hpp>
+#include <string.h>
+#include <sys/types.h>
+#include <types.hpp>
+#include <string>
+
+#include "my_compiler.h"
 #include "my_dbug.h"                    /* DBUG instrumentation */
-#include "my_inttypes.h"                /* typedefs */
-#include "mysql_com.h"                  /* generate_sha256_scramble */
-#include "sql/auth/i_sha2_password.h"   /* Internal classes */
+#include "my_inttypes.h"                // IWYU pragma: keep
+#include "sql/auth/i_sha2_password_common.h"
 
 namespace sha2_password
 {
@@ -442,6 +453,7 @@ namespace sha2_password
 
 */
 
+extern "C"
 bool generate_sha256_scramble(unsigned char *scramble, size_t scramble_size,
                               const char *src, size_t src_size,
                               const char *rnd, size_t rnd_size)

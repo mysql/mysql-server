@@ -19,7 +19,6 @@
 
 #include <stdio.h>
 #include <atomic>
-#include <new>
 
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -29,11 +28,11 @@
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_sp.h"
+#include "mysql_time.h"
 #include "mysqld_error.h"
 #include "sql/dd/cache/dictionary_client.h" // Auto_releaser
 #include "sql/event_db_repository.h" // Event_db_repository
 #include "sql/events.h"           // Events
-#include "sql/histograms/value_map.h"
 #include "sql/lock.h"             // lock_object_name
 #include "sql/log.h"              // log_*()
 #include "sql/malloc_allocator.h"

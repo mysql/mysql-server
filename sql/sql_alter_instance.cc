@@ -27,7 +27,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/derror.h"                 /* ER_THD */
 #include "sql/handler.h"                /* ha_resolve_by_legacy_type */
-#include "sql/key.h"
 #include "sql/sql_class.h"              /* THD */
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"

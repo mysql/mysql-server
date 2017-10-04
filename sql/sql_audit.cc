@@ -18,6 +18,7 @@
 #include <sys/types.h>
 
 #include "lex_string.h"
+#include "m_ctype.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -38,7 +39,6 @@
 #include "sql/auto_thd.h"                       // Auto_THD
 #include "sql/current_thd.h"
 #include "sql/error_handler.h"                  // Internal_error_handler
-#include "sql/key.h"
 #include "sql/log.h"
 #include "sql/mysqld.h"                         // sql_statement_names
 #include "sql/sql_class.h"                      // THD
@@ -48,7 +48,6 @@
 #include "sql/sql_plugin_ref.h"
 #include "sql/sql_rewrite.h"                    // mysql_rewrite_query
 #include "sql/table.h"
-#include "sql_chars.h"
 #include "sql_string.h"
 #include "thr_mutex.h"
 

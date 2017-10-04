@@ -19,7 +19,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
-#include <algorithm>
 #include <utility>
 
 #include "lex_string.h"
@@ -30,8 +29,8 @@
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "mysql/mysql_lex_string.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
@@ -59,7 +58,6 @@
 #include "sql/sp_cache.h"   // sp_cache_invalidate
 #include "sql/sql_base.h"   // get_table_def_key
 #include "sql/sql_class.h"  // THD
-#include "sql/sql_connect.h"
 #include "sql/sql_const.h"
 #include "sql/sql_digest_stream.h"
 #include "sql/sql_error.h"
@@ -75,8 +73,8 @@
 #include "thr_lock.h"
 
 namespace dd {
-class View;
 class Schema;
+class View;
 }  // namespace dd
 
 /*

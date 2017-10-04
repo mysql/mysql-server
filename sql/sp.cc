@@ -58,7 +58,6 @@
 #include "sql/error_handler.h" // Internal_error_handler
 #include "sql/field.h"
 #include "sql/handler.h"
-#include "sql/key.h"        // key_copy
 #include "sql/lock.h"       // lock_object_name
 #include "sql/log.h"
 #include "sql/log_event.h"  // append_query_string

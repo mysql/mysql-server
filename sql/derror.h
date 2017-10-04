@@ -41,8 +41,6 @@ struct
 } typedef server_error;
 
 class THD;
-struct TABLE;
-
 struct CHARSET_INFO;
 
 /**

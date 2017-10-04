@@ -19,7 +19,6 @@
 #include <stddef.h>
 
 #include "my_inttypes.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"   // HOSTNAME_LENGTH
 #include "sql/sql_const.h" // MAX_PASSWORD_LENGTH
 

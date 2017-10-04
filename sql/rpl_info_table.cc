@@ -28,7 +28,6 @@
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/thread_type.h"
-#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "sql/dynamic_ids.h"        // Server_ids
 #include "sql/field.h"

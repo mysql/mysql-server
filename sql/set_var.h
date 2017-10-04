@@ -29,18 +29,18 @@
 #include <vector>
 
 #include "lex_string.h"
-#include "map_helpers.h"
+#include "m_ctype.h"
 #include "my_getopt.h"        // get_opt_arg_type
 #include "my_inttypes.h"
-#include "my_systime.h"
-#include "mysql/plugin.h"     // enum_mysql_show_type
+#include "my_sys.h"
+#include "mysql/components/services/system_variable_source_type.h"
+#include "mysql/status_var.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"        // Item_result
 #include "prealloced_array.h" // Prealloced_array
 #include "sql/sql_alloc.h"    // Sql_alloc
 #include "sql/sql_const.h"    // SHOW_COMP_OPTION
 #include "sql/sql_plugin_ref.h" // plugin_ref
-#include "sql/thr_malloc.h"
 #include "typelib.h"          // TYPELIB
 
 class Item;
@@ -58,7 +58,6 @@ template <class Key, class Value> class collation_unordered_map;
 typedef ulonglong sql_mode_t;
 typedef enum enum_mysql_show_type SHOW_TYPE;
 typedef enum enum_mysql_show_scope SHOW_SCOPE;
-struct SHOW_VAR;
 template <class T> class List;
 
 extern TYPELIB bool_typelib;

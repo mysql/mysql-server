@@ -18,6 +18,7 @@
 
 #include <sys/types.h>
 
+#include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
@@ -25,11 +26,8 @@
 #include "mysql/components/services/mysql_rwlock_bits.h"
 #include "mysql/components/services/psi_rwlock_bits.h"
 #include "mysql/psi/mysql_rwlock.h"
-#include "mysql/psi/psi_base.h"
-#include "mysql/udf_registration_types.h"
 #include "sql/sql_list.h"                  // List
 #include "sql/sql_plugin_ref.h"            // plugin_ref
-#include "sql/thr_malloc.h"
 
 class Master_info;
 class String;
@@ -40,7 +38,6 @@ struct Binlog_storage_observer;
 struct Binlog_transmit_observer;
 struct Server_state_observer;
 struct Trans_observer;
-struct Trans_table_info;
 
 
 class Observer_info {

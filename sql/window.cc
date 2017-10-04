@@ -22,6 +22,7 @@
 #include <limits>
 #include <unordered_set>
 
+#include "binary_log_types.h"
 #include "m_ctype.h"
 #include "my_base.h"
 #include "my_dbug.h"
@@ -30,7 +31,6 @@
 #include "my_table_map.h"
 #include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
-#include "sql/auth/sql_security_ctx.h"
 #include "sql/derror.h"                         // ER_THD
 #include "sql/enum_query_type.h"
 #include "sql/handler.h"
