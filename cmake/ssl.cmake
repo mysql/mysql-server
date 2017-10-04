@@ -22,17 +22,20 @@
 #     - cmake -DWITH_SSL=</path/to/custom/openssl>
 #
 # The default value for WITH_SSL is "bundled"
-# set in cmake/build_configurations/feature_set.cmake
 #
-# For custom build/install of openssl, see the accompanying README and
-# INSTALL* files. When building with gcc, you must build the shared libraries
-# (in addition to the static ones):
-#   ./config --prefix=</path/to/custom/openssl> --shared; make; make install
-# On some platforms (mac) you need to choose 32/64 bit architecture.
-# Build/Install of openssl on windows is slightly different: you need to run
-# perl and nmake. You might also need to
-#   'set path=</path/to/custom/openssl>\bin;%PATH%
-# in order to find the .dll files at runtime.
+# WITH_SSL="system" means: use the SSL library that comes with the operating
+# system. This typically means you have to do 'yum install openssl-devel'
+# or something similar.
+#
+# For Windows or OsX, WITH_SSL="system" is handled a bit differently:
+# We assume you have installed
+#     https://slproweb.com/products/Win32OpenSSL.html
+#     find_package(OpenSSL) will locate it
+# or
+#     http://brewformulas.org/Openssl
+#     we give a hint /usr/local/opt/openssl to find_package(OpenSSL)
+# When the package has been located, we treat it as if cmake had been
+# invoked with  -DWITH_SSL=</path/to/custom/openssl>
 
 SET(WITH_SSL_DOC "bundled (use yassl)")
 SET(WITH_SSL_DOC
@@ -72,15 +75,32 @@ MACRO (MYSQL_USE_BUNDLED_SSL)
   ENDFOREACH()
 ENDMACRO()
 
+MACRO(RESET_SSL_VARIABLES)
+  UNSET(WITH_SSL_PATH)
+  UNSET(WITH_SSL_PATH CACHE)
+  UNSET(OPENSSL_ROOT_DIR)
+  UNSET(OPENSSL_ROOT_DIR CACHE)
+  UNSET(OPENSSL_INCLUDE_DIR)
+  UNSET(OPENSSL_INCLUDE_DIR CACHE)
+  UNSET(OPENSSL_APPLINK_C)
+  UNSET(OPENSSL_APPLINK_C CACHE)
+  UNSET(OPENSSL_LIBRARY)
+  UNSET(OPENSSL_LIBRARY CACHE)
+  UNSET(CRYPTO_LIBRARY)
+  UNSET(CRYPTO_LIBRARY CACHE)
+  UNSET(HAVE_SHA512_DIGEST_LENGTH)
+  UNSET(HAVE_SHA512_DIGEST_LENGTH CACHE)
+ENDMACRO()
+
 # MYSQL_CHECK_SSL
 #
 # Provides the following configure options:
 # WITH_SSL=[yes|bundled|system|<path/to/custom/installation>]
 MACRO (MYSQL_CHECK_SSL)
   IF(NOT WITH_SSL)
-   IF(WIN32)
-     CHANGE_SSL_SETTINGS("bundled")
-   ENDIF()
+    IF(WIN32)
+      CHANGE_SSL_SETTINGS("bundled")
+    ENDIF()
   ENDIF()
 
   # See if WITH_SSL is of the form </path/to/custom/installation>
@@ -118,9 +138,32 @@ MACRO (MYSQL_CHECK_SSL)
       UNSET(CRYPTO_LIBRARY CACHE)
     ENDIF()
   ELSEIF(WITH_SSL STREQUAL "system" OR
-         WITH_SSL STREQUAL "yes" OR
-         WITH_SSL_PATH
-         )
+      WITH_SSL STREQUAL "yes" OR
+      WITH_SSL_PATH
+      )
+    # Treat "system" the same way as -DWITH_SSL=</path/to/custom/openssl>
+    IF((APPLE OR WIN32) AND WITH_SSL STREQUAL "system")
+      # FindOpenSSL.cmake knows about
+      # http://www.slproweb.com/products/Win32OpenSSL.html
+      # and will look for "C:/OpenSSL-Win64/" (and others)
+      # For APPLE we set the hint /usr/local/opt/openssl
+      IF(LINK_STATIC_RUNTIME_LIBRARIES)
+        SET(OPENSSL_MSVC_STATIC_RT ON)
+      ENDIF()
+      IF(APPLE AND NOT OPENSSL_ROOT_DIR)
+        SET(OPENSSL_ROOT_DIR "/usr/local/opt/openssl")
+      ENDIF()
+      FIND_PACKAGE(OpenSSL)
+      IF(OPENSSL_FOUND)
+        GET_FILENAME_COMPONENT(OPENSSL_ROOT_DIR ${OPENSSL_INCLUDE_DIR} PATH)
+        MESSAGE(STATUS "system OpenSSL has root ${OPENSSL_ROOT_DIR}")
+        SET(WITH_SSL_PATH "${OPENSSL_ROOT_DIR}" CACHE PATH "Path to system SSL")
+      ELSE()
+        RESET_SSL_VARIABLES()
+        MESSAGE(SEND_ERROR "Could not find system OpenSSL")
+      ENDIF()
+    ENDIF()
+
     # First search in WITH_SSL_PATH.
     FIND_PATH(OPENSSL_ROOT_DIR
       NAMES include/openssl/ssl.h
@@ -267,18 +310,7 @@ MACRO (MYSQL_CHECK_SSL)
       SET(SSL_DEFINES "-DHAVE_OPENSSL")
     ELSE()
 
-      UNSET(WITH_SSL_PATH)
-      UNSET(WITH_SSL_PATH CACHE)
-      UNSET(OPENSSL_ROOT_DIR)
-      UNSET(OPENSSL_ROOT_DIR CACHE)
-      UNSET(OPENSSL_INCLUDE_DIR)
-      UNSET(OPENSSL_INCLUDE_DIR CACHE)
-      UNSET(OPENSSL_APPLINK_C)
-      UNSET(OPENSSL_APPLINK_C CACHE)
-      UNSET(OPENSSL_LIBRARY)
-      UNSET(OPENSSL_LIBRARY CACHE)
-      UNSET(CRYPTO_LIBRARY)
-      UNSET(CRYPTO_LIBRARY CACHE)
+      RESET_SSL_VARIABLES()
 
       MESSAGE(SEND_ERROR
         "Cannot find appropriate system libraries for SSL. "
