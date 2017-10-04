@@ -332,7 +332,6 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/locking_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/mypluglib.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/mysql_no_login.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/mysqlx.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/rewrite_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/rewriter.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_master.so
@@ -399,6 +398,9 @@ rm -r $(readlink var) var
 %changelog
 * Tue Dec 12 2017 Erlend Dahl <erlend.dahl@oracle.com> - 8.0.5-0.1
 - Removed milestone marker
+
+* Mon Dec 11 2017 Grzegorz Szwarc <grzegorz.szwarc@oracle.com> - 8.0.5-0.1
+- Move mysqlx to default plugin
 
 * Thu Dec 07 2017 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 8.0.4-0.1
 - Add mysqlbackup

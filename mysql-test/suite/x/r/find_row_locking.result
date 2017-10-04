@@ -1,0 +1,128 @@
+######### preparation #########
+
+0 rows affected
+
+1 rows affected
+
+0 rows affected
+
+0 rows affected
+
+1 rows affected
+
+1 rows affected
+
+1 rows affected
+
+0 rows affected
+connecting...
+active session is now 'session1'
+connecting...
+active session is now 'session2'
+######### Shared lock after shared lock #########
+switched to session session1
+Verify [Expecting performance_schema.data_locks to be empty]
+
+0 rows affected
+doc
+{"a": 1, "_id": "1"}
+command ok
+Verify [Expecting performance_schema.data_locks to be not empty]
+switched to session session2
+
+0 rows affected
+doc
+{"a": 1, "_id": "2"}
+command ok
+doc
+{"a": 1, "_id": "1"}
+command ok
+Verify [Expecting performance_schema.data_locks to be not empty]
+switched to session session1
+
+0 rows affected
+switched to session session2
+
+0 rows affected
+Verify [Expecting performance_schema.data_locks to be empty]
+######### Shared lock after exclusive lock #########
+switched to session session1
+Verify [Expecting performance_schema.data_locks to be empty]
+
+0 rows affected
+doc
+{"a": 1, "_id": "1"}
+command ok
+Verify [Expecting performance_schema.data_locks to be not empty]
+switched to session session2
+
+0 rows affected
+doc
+{"a": 1, "_id": "2"}
+command ok
+Got expected error: Lock wait timeout exceeded; try restarting transaction (code 1205)
+Verify [Expecting performance_schema.data_locks to be not empty]
+switched to session session1
+
+0 rows affected
+switched to session session2
+
+0 rows affected
+Verify [Expecting performance_schema.data_locks to be empty]
+######### Exclusive lock after shared lock #########
+switched to session session1
+Verify [Expecting performance_schema.data_locks to be empty]
+
+0 rows affected
+doc
+{"a": 1, "_id": "1"}
+command ok
+Verify [Expecting performance_schema.data_locks to be not empty]
+switched to session session2
+
+0 rows affected
+doc
+{"a": 1, "_id": "2"}
+command ok
+doc
+{"a": 1, "_id": "3"}
+command ok
+Got expected error: Lock wait timeout exceeded; try restarting transaction (code 1205)
+Verify [Expecting performance_schema.data_locks to be not empty]
+switched to session session1
+
+0 rows affected
+switched to session session2
+
+0 rows affected
+Verify [Expecting performance_schema.data_locks to be empty]
+######### Exclusive lock after exclusive lock #########
+switched to session session1
+Verify [Expecting performance_schema.data_locks to be empty]
+
+0 rows affected
+doc
+{"a": 1, "_id": "1"}
+command ok
+Verify [Expecting performance_schema.data_locks to be not empty]
+switched to session session2
+
+0 rows affected
+doc
+{"a": 1, "_id": "2"}
+command ok
+Got expected error: Lock wait timeout exceeded; try restarting transaction (code 1205)
+Verify [Expecting performance_schema.data_locks to be not empty]
+switched to session session1
+
+0 rows affected
+switched to session session2
+
+0 rows affected
+Verify [Expecting performance_schema.data_locks to be empty]
+closing session session2
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+DROP SCHEMA IF EXISTS xtest;

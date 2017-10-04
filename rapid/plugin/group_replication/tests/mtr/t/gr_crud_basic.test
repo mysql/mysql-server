@@ -26,7 +26,7 @@
 --source include/have_mysqlx_plugin.inc
 --source ../inc/have_group_replication_plugin_base.inc
 
---let plugins= MYSQLXPLUGIN,GROUP_REPLICATION
+--let plugins= GROUP_REPLICATION
 --source include/check_plugin_dir.inc
 
 # This initial setup starts three servers with all the prerequisites required
@@ -40,18 +40,15 @@
 # Install Mysqlx plugin on all servers.
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
---replace_regex /\.dll/.so/
---source include/xplugin_install_and_wait.inc
+--source include/xplugin_wait_for_interfaces.inc
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
---replace_regex /\.dll/.so/
---source include/xplugin_install_and_wait.inc
+--source include/xplugin_wait_for_interfaces.inc
 
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
---replace_regex /\.dll/.so/
---source include/xplugin_install_and_wait.inc
+--source include/xplugin_wait_for_interfaces.inc
 
 # File for starting GR through X-protocol
 # Bootstrap-server
@@ -533,17 +530,14 @@ EOF
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 --source include/stop_group_replication.inc
-UNINSTALL PLUGIN mysqlx;
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 --source include/stop_group_replication.inc
-UNINSTALL PLUGIN mysqlx;
 
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
 --source include/stop_group_replication.inc
-UNINSTALL PLUGIN mysqlx;
 
 # clean-up
 --remove_file $MYSQL_TMP_DIR/bootstrap_server.tmp

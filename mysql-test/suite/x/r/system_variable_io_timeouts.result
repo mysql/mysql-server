@@ -1,0 +1,296 @@
+CREATE USER 'regular_user'@'%' IDENTIFIED WITH 'mysql_native_password';
+CREATE USER 'var_admin_user'@'%' IDENTIFIED WITH 'mysql_native_password';
+CREATE USER 'super_user'@'%' IDENTIFIED WITH 'mysql_native_password';
+GRANT 'SYSTEM_VARIABLES_ADMIN' ON *.* TO 'var_admin_user'@'%';
+GRANT SUPER ON *.* TO 'super_user'@'%';
+#
+# Verify access to Mysqlx_wait_timeout system variable after plugin installation
+#
+# * invalid values
+# * user with permissions
+# * user without permissions
+#
+include/assert.inc [Mysqlx_wait_timeout global variablem must exist]
+SET @@GLOBAL.Mysqlx_wait_timeout="TEXT";
+ERROR 42000: Incorrect argument type to variable 'mysqlx_wait_timeout'
+SELECT @@GLOBAL.Mysqlx_wait_timeout;
+@@GLOBAL.Mysqlx_wait_timeout
+28800
+include/assert.inc [Invalid set doesn't change the value of  Mysqlx_wait_timeout (global variable)]
+#
+## user with permissions
+SET @@GLOBAL.Mysqlx_wait_timeout=10;
+include/assert.inc [User with permissions can change Mysqlx_wait_timeout value]
+#
+## user without permissions
+SET @@GLOBAL.Mysqlx_wait_timeout=11;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+include/assert.inc [User without permissions can't change Mysqlx_wait_timeout value]
+connecting...
+active session is now 'power_user'
+RUN SET SESSION Mysqlx_wait_timeout=10;
+
+0 rows affected
+Verify [Session variable "Mysqlx_wait_timeout" needs to have a value of 10]
+connecting...
+active session is now 'regular_user'
+RUN SET SESSION Mysqlx_wait_timeout=20;
+
+0 rows affected
+Verify [Session variable "Mysqlx_wait_timeout" needs to have a value of 20]
+closing session regular_user
+Mysqlx.Ok {
+  msg: "bye!"
+}
+SET @@GLOBAL.Mysqlx_wait_timeout=DEFAULT;
+#
+# Verify access to Mysqlx_wait_timeout system variable after plugin installation
+#
+# * invalid values
+# * user with permissions
+# * user without permissions
+#
+include/assert.inc [Mysqlx_wait_timeout global variablem must exist]
+SET @@GLOBAL.Mysqlx_wait_timeout="TEXT";
+ERROR 42000: Incorrect argument type to variable 'mysqlx_wait_timeout'
+SELECT @@GLOBAL.Mysqlx_wait_timeout;
+@@GLOBAL.Mysqlx_wait_timeout
+28800
+include/assert.inc [Invalid set doesn't change the value of  Mysqlx_wait_timeout (global variable)]
+#
+## user with permissions
+SET @@GLOBAL.Mysqlx_wait_timeout=10;
+include/assert.inc [User with permissions can change Mysqlx_wait_timeout value]
+#
+## user without permissions
+SET @@GLOBAL.Mysqlx_wait_timeout=11;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+include/assert.inc [User without permissions can't change Mysqlx_wait_timeout value]
+connecting...
+active session is now 'power_user'
+RUN SET SESSION Mysqlx_wait_timeout=10;
+
+0 rows affected
+Verify [Session variable "Mysqlx_wait_timeout" needs to have a value of 10]
+connecting...
+active session is now 'regular_user'
+RUN SET SESSION Mysqlx_wait_timeout=20;
+
+0 rows affected
+Verify [Session variable "Mysqlx_wait_timeout" needs to have a value of 20]
+closing session regular_user
+Mysqlx.Ok {
+  msg: "bye!"
+}
+SET @@GLOBAL.Mysqlx_wait_timeout=DEFAULT;
+#
+# Verify access to Mysqlx_interactive_timeout system variable after plugin installation
+#
+# * invalid values
+# * user with permissions
+# * user without permissions
+#
+include/assert.inc [Mysqlx_interactive_timeout global variablem must exist]
+SET @@GLOBAL.Mysqlx_interactive_timeout="TEXT";
+ERROR 42000: Incorrect argument type to variable 'mysqlx_interactive_timeout'
+SELECT @@GLOBAL.Mysqlx_interactive_timeout;
+@@GLOBAL.Mysqlx_interactive_timeout
+28800
+include/assert.inc [Invalid set doesn't change the value of  Mysqlx_interactive_timeout (global variable)]
+#
+## user with permissions
+SET @@GLOBAL.Mysqlx_interactive_timeout=10;
+include/assert.inc [User with permissions can change Mysqlx_interactive_timeout value]
+#
+## user without permissions
+SET @@GLOBAL.Mysqlx_interactive_timeout=11;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+include/assert.inc [User without permissions can't change Mysqlx_interactive_timeout value]
+SET @@GLOBAL.Mysqlx_interactive_timeout=DEFAULT;
+#
+# Verify access to Mysqlx_interactive_timeout system variable after plugin installation
+#
+# * invalid values
+# * user with permissions
+# * user without permissions
+#
+include/assert.inc [Mysqlx_interactive_timeout global variablem must exist]
+SET @@GLOBAL.Mysqlx_interactive_timeout="TEXT";
+ERROR 42000: Incorrect argument type to variable 'mysqlx_interactive_timeout'
+SELECT @@GLOBAL.Mysqlx_interactive_timeout;
+@@GLOBAL.Mysqlx_interactive_timeout
+28800
+include/assert.inc [Invalid set doesn't change the value of  Mysqlx_interactive_timeout (global variable)]
+#
+## user with permissions
+SET @@GLOBAL.Mysqlx_interactive_timeout=10;
+include/assert.inc [User with permissions can change Mysqlx_interactive_timeout value]
+#
+## user without permissions
+SET @@GLOBAL.Mysqlx_interactive_timeout=11;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+include/assert.inc [User without permissions can't change Mysqlx_interactive_timeout value]
+SET @@GLOBAL.Mysqlx_interactive_timeout=DEFAULT;
+#
+# Verify access to Mysqlx_read_timeout system variable after plugin installation
+#
+# * invalid values
+# * user with permissions
+# * user without permissions
+#
+include/assert.inc [Mysqlx_read_timeout global variablem must exist]
+SET @@GLOBAL.Mysqlx_read_timeout="TEXT";
+ERROR 42000: Incorrect argument type to variable 'mysqlx_read_timeout'
+SELECT @@GLOBAL.Mysqlx_read_timeout;
+@@GLOBAL.Mysqlx_read_timeout
+30
+include/assert.inc [Invalid set doesn't change the value of  Mysqlx_read_timeout (global variable)]
+#
+## user with permissions
+SET @@GLOBAL.Mysqlx_read_timeout=10;
+include/assert.inc [User with permissions can change Mysqlx_read_timeout value]
+#
+## user without permissions
+SET @@GLOBAL.Mysqlx_read_timeout=11;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+include/assert.inc [User without permissions can't change Mysqlx_read_timeout value]
+connecting...
+active session is now 'power_user'
+RUN SET SESSION Mysqlx_read_timeout=10;
+
+0 rows affected
+Verify [Session variable "Mysqlx_read_timeout" needs to have a value of 10]
+connecting...
+active session is now 'regular_user'
+RUN SET SESSION Mysqlx_read_timeout=20;
+
+0 rows affected
+Verify [Session variable "Mysqlx_read_timeout" needs to have a value of 20]
+closing session regular_user
+Mysqlx.Ok {
+  msg: "bye!"
+}
+SET @@GLOBAL.Mysqlx_read_timeout=DEFAULT;
+#
+# Verify access to Mysqlx_read_timeout system variable after plugin installation
+#
+# * invalid values
+# * user with permissions
+# * user without permissions
+#
+include/assert.inc [Mysqlx_read_timeout global variablem must exist]
+SET @@GLOBAL.Mysqlx_read_timeout="TEXT";
+ERROR 42000: Incorrect argument type to variable 'mysqlx_read_timeout'
+SELECT @@GLOBAL.Mysqlx_read_timeout;
+@@GLOBAL.Mysqlx_read_timeout
+30
+include/assert.inc [Invalid set doesn't change the value of  Mysqlx_read_timeout (global variable)]
+#
+## user with permissions
+SET @@GLOBAL.Mysqlx_read_timeout=10;
+include/assert.inc [User with permissions can change Mysqlx_read_timeout value]
+#
+## user without permissions
+SET @@GLOBAL.Mysqlx_read_timeout=11;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+include/assert.inc [User without permissions can't change Mysqlx_read_timeout value]
+connecting...
+active session is now 'power_user'
+RUN SET SESSION Mysqlx_read_timeout=10;
+
+0 rows affected
+Verify [Session variable "Mysqlx_read_timeout" needs to have a value of 10]
+connecting...
+active session is now 'regular_user'
+RUN SET SESSION Mysqlx_read_timeout=20;
+
+0 rows affected
+Verify [Session variable "Mysqlx_read_timeout" needs to have a value of 20]
+closing session regular_user
+Mysqlx.Ok {
+  msg: "bye!"
+}
+SET @@GLOBAL.Mysqlx_read_timeout=DEFAULT;
+#
+# Verify access to Mysqlx_write_timeout system variable after plugin installation
+#
+# * invalid values
+# * user with permissions
+# * user without permissions
+#
+include/assert.inc [Mysqlx_write_timeout global variablem must exist]
+SET @@GLOBAL.Mysqlx_write_timeout="TEXT";
+ERROR 42000: Incorrect argument type to variable 'mysqlx_write_timeout'
+SELECT @@GLOBAL.Mysqlx_write_timeout;
+@@GLOBAL.Mysqlx_write_timeout
+60
+include/assert.inc [Invalid set doesn't change the value of  Mysqlx_write_timeout (global variable)]
+#
+## user with permissions
+SET @@GLOBAL.Mysqlx_write_timeout=10;
+include/assert.inc [User with permissions can change Mysqlx_write_timeout value]
+#
+## user without permissions
+SET @@GLOBAL.Mysqlx_write_timeout=11;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+include/assert.inc [User without permissions can't change Mysqlx_write_timeout value]
+connecting...
+active session is now 'power_user'
+RUN SET SESSION Mysqlx_write_timeout=10;
+
+0 rows affected
+Verify [Session variable "Mysqlx_write_timeout" needs to have a value of 10]
+connecting...
+active session is now 'regular_user'
+RUN SET SESSION Mysqlx_write_timeout=20;
+
+0 rows affected
+Verify [Session variable "Mysqlx_write_timeout" needs to have a value of 20]
+closing session regular_user
+Mysqlx.Ok {
+  msg: "bye!"
+}
+SET @@GLOBAL.Mysqlx_write_timeout=DEFAULT;
+#
+# Verify access to Mysqlx_write_timeout system variable after plugin installation
+#
+# * invalid values
+# * user with permissions
+# * user without permissions
+#
+include/assert.inc [Mysqlx_write_timeout global variablem must exist]
+SET @@GLOBAL.Mysqlx_write_timeout="TEXT";
+ERROR 42000: Incorrect argument type to variable 'mysqlx_write_timeout'
+SELECT @@GLOBAL.Mysqlx_write_timeout;
+@@GLOBAL.Mysqlx_write_timeout
+60
+include/assert.inc [Invalid set doesn't change the value of  Mysqlx_write_timeout (global variable)]
+#
+## user with permissions
+SET @@GLOBAL.Mysqlx_write_timeout=10;
+include/assert.inc [User with permissions can change Mysqlx_write_timeout value]
+#
+## user without permissions
+SET @@GLOBAL.Mysqlx_write_timeout=11;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+include/assert.inc [User without permissions can't change Mysqlx_write_timeout value]
+connecting...
+active session is now 'power_user'
+RUN SET SESSION Mysqlx_write_timeout=10;
+
+0 rows affected
+Verify [Session variable "Mysqlx_write_timeout" needs to have a value of 10]
+connecting...
+active session is now 'regular_user'
+RUN SET SESSION Mysqlx_write_timeout=20;
+
+0 rows affected
+Verify [Session variable "Mysqlx_write_timeout" needs to have a value of 20]
+closing session regular_user
+Mysqlx.Ok {
+  msg: "bye!"
+}
+SET @@GLOBAL.Mysqlx_write_timeout=DEFAULT;
+DROP USER 'regular_user'@'%';
+DROP USER 'var_admin_user'@'%';
+DROP USER 'super_user'@'%';

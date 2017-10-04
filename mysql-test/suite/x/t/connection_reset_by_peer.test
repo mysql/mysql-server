@@ -1,0 +1,60 @@
+## Test cases for connections reset by client
+
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+
+## Test starts here
+
+--let $xtest_file= $MYSQL_TMP_DIR/connection_reset_by_peer.tmp
+--write_file $xtest_file
+-->quiet
+
+-->macro Long_run	%PROC_NAME%	%TABLE_NAME%
+-->newsession next_ses	x_root
+-->stmtsql SELECT COUNT(*) FROM information_schema.processlist
+-->recvresult
+
+-->sql
+DELIMITER //
+CREATE PROCEDURE %PROC_NAME%() 
+BEGIN
+  REPEAT
+    SELECT * FROM %TABLE_NAME%;
+  UNTIL FALSE END REPEAT;
+END
+//
+DELIMITER ;
+
+-->endsql
+
+-->stmtsql call %PROC_NAME%();
+-->recv quiet
+
+-->closesession abort
+
+-->wait_for 3	SELECT COUNT(*) FROM information_schema.processlist 
+
+-->stmtadmin list_clients
+-->recvresult client_id user host
+-->endmacro
+
+
+-->callmacro Long_run	xtest.long1	mysql.user
+-->callmacro Long_run	xtest.long2	xtest.empty
+
+
+EOF
+
+
+CREATE SCHEMA xtest;
+CREATE TABLE xtest.empty(a INT, b FLOAT);
+
+
+--exec $MYSQLXTEST -ux_root --file=$xtest_file 2>&1
+
+
+## Cleanup
+DROP SCHEMA IF EXISTS xtest;
+--remove_file $xtest_file
+--source include/xplugin_drop_user.inc

@@ -88,6 +88,7 @@ usr/lib/mysql/plugin/test_udf_services.so
 usr/lib/mysql/plugin/udf_example.so
 usr/lib/mysql/plugin/test_security_context.so
 usr/lib/mysql/plugin/test_services_plugin_registry.so
+usr/lib/mysql/plugin/component_mysqlx_global_reset.so
 @DEB_INSTALL_DEBUG_TEST_PLUGINS@
 # test suite
 usr/lib/mysql-test/*

@@ -1,0 +1,52 @@
+## generated
+## Doc: Insert a valid document with a bogus projection
+
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+## Test starts here
+--write_file $MYSQL_TMP_DIR/insert_doc_bad_proj.tmp
+## Test data
+-->sql
+drop schema if exists xtest;
+create schema xtest default charset='utf8mb4';
+use xtest;
+create table mycoll (doc JSON, _id VARBINARY(16) GENERATED ALWAYS AS (json_unquote(json_extract(doc, '$._id'))) stored PRIMARY KEY);
+create table mytable (i int NOT NULL, ui int unsigned, vc varchar(100), f float, d double, dt datetime, ts timestamp(5), j json);
+create table ` .'"````\\` (` .'"````\\` int);
+-->endsql
+Mysqlx.Crud.Insert {
+  collection {
+    name: "mycoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  projection {
+    name: "whatever"
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "\n{\n         \"_id\": \"X999_Y999\",\n         \"from\": {\n            \"name\": \"Tom Brady\", \"id\": \"X12\"\n         },\n         \"message\": \"Looking forward to 2010!\",\n         \"actions\": [\n            {\n               \"name\": \"Comment\",\n               \"link\": \"http://www.facebook.com/X999/posts/Y999\"\n            },\n            {\n               \"name\": \"Like\",\n               \"link\": \"http://www.facebook.com/X999/posts/Y999\"\n            }\n         ],\n         \"type\": \"status\",\n         \"created_time\": \"2010-08-02T21:27:44+0000\",\n         \"updated_time\": \"2010-08-02T21:27:44+0000\"\n      }\n"
+        }
+      }
+    }
+  }
+}
+
+## expect Mysqlx.Error
+-->recv
+
+## Cleanup
+-->sql
+drop schema if exists xtest;
+-->endsql
+EOF
+
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/insert_doc_bad_proj.tmp 2>&1
+
+## Cleanup
+--remove_file $MYSQL_TMP_DIR/insert_doc_bad_proj.tmp
+--source include/xplugin_drop_user.inc

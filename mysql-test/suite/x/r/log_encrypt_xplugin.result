@@ -1,0 +1,242 @@
+# Stop the MTR default DB server
+# create bootstrap file
+# Prepare new datadir
+# Run the bootstrap command with keyring
+# Starting server with keyring plugin
+SELECT @@global.innodb_redo_log_encrypt;
+@@global.innodb_redo_log_encrypt
+0
+SELECT @@global.innodb_undo_log_encrypt;
+@@global.innodb_undo_log_encrypt
+0
+CREATE USER 'x_root'@'localhost' IDENTIFIED WITH 'mysql_native_password';
+GRANT ALL ON *.* TO 'x_root'@'localhost' WITH GRANT OPTION;
+RUN SELECT @@global.innodb_redo_log_encrypt
+@@global.innodb_redo_log_encrypt
+0
+0 rows affected
+RUN SET GLOBAL innodb_redo_log_encrypt = 1
+
+0 rows affected
+RUN SELECT @@global.innodb_redo_log_encrypt
+@@global.innodb_redo_log_encrypt
+1
+0 rows affected
+RUN SET GLOBAL innodb_undo_log_encrypt = 1
+
+0 rows affected
+RUN SELECT @@global.innodb_undo_log_encrypt
+@@global.innodb_undo_log_encrypt
+1
+0 rows affected
+RUN DROP DATABASE IF EXISTS tde_db
+
+0 rows affected
+RUN CREATE DATABASE tde_db
+
+1 rows affected
+RUN USE tde_db
+
+0 rows affected
+RUN CREATE TABLE tde_db.t_encrypt(c2 INT NOT NULL,c3 LONGBLOB) ENCRYPTION="Y"  ENGINE = InnoDB
+
+0 rows affected
+RUN CREATE TABLE tde_db.t_non_encrypt(c2 INT NOT NULL,c3 LONGBLOB ) ENGINE = InnoDB
+
+0 rows affected
+RUN START TRANSACTION
+
+0 rows affected
+RUN INSERT INTO tde_db.t_encrypt(c2,c3) VALUES (1,CONCAT(REPEAT("a",6*512*512)))
+
+1 rows affected
+RUN INSERT INTO tde_db.t_encrypt SELECT c2,c3 FROM tde_db.t_encrypt
+
+1 rows affected
+Records: 1  Duplicates: 0  Warnings: 0
+RUN INSERT INTO tde_db.t_encrypt SELECT c2,c3 FROM tde_db.t_encrypt
+
+2 rows affected
+Records: 2  Duplicates: 0  Warnings: 0
+RUN INSERT INTO tde_db.t_non_encrypt(c2,c3) VALUES (1,CONCAT(REPEAT("a",6*512*512)))
+
+1 rows affected
+RUN INSERT INTO tde_db.t_non_encrypt SELECT c2,c3 FROM tde_db.t_non_encrypt
+
+1 rows affected
+Records: 1  Duplicates: 0  Warnings: 0
+RUN INSERT INTO tde_db.t_non_encrypt SELECT c2,c3 FROM tde_db.t_non_encrypt
+
+2 rows affected
+Records: 2  Duplicates: 0  Warnings: 0
+RUN COMMIT
+
+0 rows affected
+RUN SELECT c2,SUBSTRING(c3,1,10) FROM tde_db.t_encrypt
+c2	SUBSTRING(c3,1,10)
+1	aaaaaaaaaa
+1	aaaaaaaaaa
+1	aaaaaaaaaa
+1	aaaaaaaaaa
+0 rows affected
+RUN SELECT c2,SUBSTRING(c3,1,10) FROM tde_db.t_non_encrypt
+c2	SUBSTRING(c3,1,10)
+1	aaaaaaaaaa
+1	aaaaaaaaaa
+1	aaaaaaaaaa
+1	aaaaaaaaaa
+0 rows affected
+RUN START TRANSACTION
+
+0 rows affected
+RUN INSERT INTO tde_db.t_encrypt(c2,c3) VALUES (1,CONCAT(REPEAT("a",6*512*512)))
+
+1 rows affected
+RUN INSERT INTO tde_db.t_encrypt SELECT c2,c3 FROM tde_db.t_encrypt
+
+5 rows affected
+Records: 5  Duplicates: 0  Warnings: 0
+RUN INSERT INTO tde_db.t_encrypt SELECT c2,c3 FROM tde_db.t_encrypt
+
+10 rows affected
+Records: 10  Duplicates: 0  Warnings: 0
+RUN INSERT INTO tde_db.t_non_encrypt(c2,c3) VALUES (1,CONCAT(REPEAT("a",6*512*512)))
+
+1 rows affected
+RUN INSERT INTO tde_db.t_non_encrypt SELECT c2,c3 FROM tde_db.t_non_encrypt
+
+5 rows affected
+Records: 5  Duplicates: 0  Warnings: 0
+RUN INSERT INTO tde_db.t_non_encrypt SELECT c2,c3 FROM tde_db.t_non_encrypt
+
+10 rows affected
+Records: 10  Duplicates: 0  Warnings: 0
+RUN ROLLBACK
+
+0 rows affected
+RUN SELECT c2,SUBSTRING(c3,1,10) FROM tde_db.t_encrypt
+c2	SUBSTRING(c3,1,10)
+1	aaaaaaaaaa
+1	aaaaaaaaaa
+1	aaaaaaaaaa
+1	aaaaaaaaaa
+0 rows affected
+RUN SELECT c2,SUBSTRING(c3,1,10) FROM tde_db.t_non_encrypt
+c2	SUBSTRING(c3,1,10)
+1	aaaaaaaaaa
+1	aaaaaaaaaa
+1	aaaaaaaaaa
+1	aaaaaaaaaa
+0 rows affected
+RUN SET GLOBAL innodb_redo_log_encrypt = 0
+
+0 rows affected
+RUN SELECT @@global.innodb_redo_log_encrypt
+@@global.innodb_redo_log_encrypt
+0
+0 rows affected
+RUN SET GLOBAL innodb_undo_log_encrypt = 0
+
+0 rows affected
+RUN SELECT @@global.innodb_undo_log_encrypt
+@@global.innodb_undo_log_encrypt
+0
+0 rows affected
+RUN START TRANSACTION
+
+0 rows affected
+RUN INSERT INTO tde_db.t_encrypt(c2,c3) VALUES (1,CONCAT(REPEAT("a",6*512*512)))
+
+1 rows affected
+RUN INSERT INTO tde_db.t_non_encrypt(c2,c3) VALUES (1,CONCAT(REPEAT("a",6*512*512)))
+
+1 rows affected
+RUN COMMIT
+
+0 rows affected
+RUN START TRANSACTION
+
+0 rows affected
+RUN INSERT INTO tde_db.t_encrypt(c2,c3) VALUES (1,CONCAT(REPEAT("a",6*512*512)))
+
+1 rows affected
+RUN INSERT INTO tde_db.t_non_encrypt(c2,c3) VALUES (1,CONCAT(REPEAT("a",6*512*512)))
+
+1 rows affected
+RUN ROLLBACK
+
+0 rows affected
+RUN SELECT c2,SUBSTRING(c3,1,10) FROM tde_db.t_encrypt
+c2	SUBSTRING(c3,1,10)
+1	aaaaaaaaaa
+1	aaaaaaaaaa
+1	aaaaaaaaaa
+1	aaaaaaaaaa
+1	aaaaaaaaaa
+0 rows affected
+RUN SELECT c2,SUBSTRING(c3,1,10) FROM tde_db.t_non_encrypt
+c2	SUBSTRING(c3,1,10)
+1	aaaaaaaaaa
+1	aaaaaaaaaa
+1	aaaaaaaaaa
+1	aaaaaaaaaa
+1	aaaaaaaaaa
+0 rows affected
+RUN SELECT @@global.innodb_redo_log_encrypt
+@@global.innodb_redo_log_encrypt
+0
+0 rows affected
+RUN SET GLOBAL innodb_redo_log_encrypt = 1
+
+0 rows affected
+RUN SELECT @@global.innodb_undo_log_encrypt
+@@global.innodb_undo_log_encrypt
+0
+0 rows affected
+RUN SET GLOBAL innodb_undo_log_encrypt = 1
+
+0 rows affected
+RUN SELECT c2,SUBSTRING(c3,1,10) FROM tde_db.t_encrypt
+c2	SUBSTRING(c3,1,10)
+1	aaaaaaaaaa
+1	aaaaaaaaaa
+1	aaaaaaaaaa
+1	aaaaaaaaaa
+1	aaaaaaaaaa
+0 rows affected
+RUN SELECT c2,SUBSTRING(c3,1,10) FROM tde_db.t_non_encrypt
+c2	SUBSTRING(c3,1,10)
+1	aaaaaaaaaa
+1	aaaaaaaaaa
+1	aaaaaaaaaa
+1	aaaaaaaaaa
+1	aaaaaaaaaa
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+DROP USER 'x_root'@'localhost';
+SELECT @@global.innodb_redo_log_encrypt;
+@@global.innodb_redo_log_encrypt
+1
+SELECT @@global.innodb_undo_log_encrypt;
+@@global.innodb_undo_log_encrypt
+1
+# Restarting server with keyring plugin
+SELECT c2,SUBSTRING(c3,1,10) FROM tde_db.t_encrypt;
+c2	SUBSTRING(c3,1,10)
+1	aaaaaaaaaa
+1	aaaaaaaaaa
+1	aaaaaaaaaa
+1	aaaaaaaaaa
+1	aaaaaaaaaa
+SELECT c2,SUBSTRING(c3,1,10) FROM tde_db.t_non_encrypt;
+c2	SUBSTRING(c3,1,10)
+1	aaaaaaaaaa
+1	aaaaaaaaaa
+1	aaaaaaaaaa
+1	aaaaaaaaaa
+1	aaaaaaaaaa
+DROP DATABASE tde_db;
+# restart

@@ -8,7 +8,7 @@ test_system_variable_source_init start:
 Source of innodb_buffer_pool_size :  EXPLICIT.
 test_system_variable_source_init end:
 
-# restart: --innodb_dedicated_server=OFF --innodb_buffer_pool_size=24M
+# restart: --innodb_dedicated_server=OFF --innodb_buffer_pool_size=24M --skip-mysqlx
 # Install test component
 INSTALL COMPONENT "file://component_test_system_variable_source";
 # Un-Install test component

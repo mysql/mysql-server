@@ -26,12 +26,10 @@ CALL mtr.add_suppression("Statement is unsafe because it is being used inside a 
 # Install Mysqlx plugin on both master and slave servers.
 
 --source include/rpl_connection_master.inc
---replace_regex /\.dll/.so/
---source include/xplugin_install_and_wait.inc
+--source include/xplugin_wait_for_interfaces.inc
 
 --source include/rpl_connection_slave.inc
---replace_regex /\.dll/.so/
---source include/xplugin_install_and_wait.inc
+--source include/xplugin_wait_for_interfaces.inc
 
 # File for starting slave through X-protocol
 
@@ -145,12 +143,9 @@ EOF
 --exec $MYSQLXTEST --ssl-mode=REQUIRED -u root --port=$SLAVE_X_MYPORT --file=$MYSQL_TMP_DIR/stop_slave.tmp 2>&1
 
 
-# Uninstall mysqlx on all servers
 --source include/rpl_connection_master.inc
-UNINSTALL PLUGIN mysqlx;
 
 --source include/rpl_connection_slave.inc
-UNINSTALL PLUGIN mysqlx;
 
 # clean-up
 --remove_file $MYSQL_TMP_DIR/start_slave.tmp
