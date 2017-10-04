@@ -2579,7 +2579,7 @@ bool PT_window_list::contextualize(Parse_context *pc)
   }
 
   SELECT_LEX *select= pc->select;
-  select->m_windows.prepand(&m_windows);
+  select->m_windows.prepend(&m_windows);
 
   return false;
 }

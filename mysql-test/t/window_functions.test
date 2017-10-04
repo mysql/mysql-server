@@ -3623,6 +3623,7 @@ SELECT LEAD(a,1) OVER() FROM t GROUP BY a WITH ROLLUP;
 DROP TABLE t;
 
 --echo #End of test for Bug#26497247
+
 --echo #
 --echo # Bug #26496880: CRASH IN FIELD_BLOB::GET_KEY_IMAGE
 --echo #
@@ -3671,6 +3672,34 @@ SELECT * FROM
 AS t3 WHERE a = b;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#26813454 UNWARRANTED ERROR INDICATING WINDOW NAME NOT DEFINED
+--echo #
+CREATE TABLE sales(id INT AUTO_INCREMENT PRIMARY KEY, `date` DATE, sale INT);
+
+INSERT INTO sales(`date`, sale) VALUES
+  ('2017-03-01', 200),
+  ('2017-04-01', 300),
+  ('2017-05-01', 400),
+  ('2017-06-01', 200),
+  ('2017-07-01', 600),
+  ('2017-08-01', 100),
+  ('2017-03-01', 400),
+  ('2017-04-01', 300),
+  ('2017-05-01', 500),
+  ('2017-06-01', 400),
+  ('2017-07-01', 600),
+  ('2017-08-01', 150);
+
+SELECT MONTH(date), SUM(sale),
+       AVG(SUM(sale)) OVER w AS sliding_avg FROM sales GROUP BY MONTH(date)
+WINDOW w AS (ORDER BY MONTH(date)
+             RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING)
+ORDER BY AVG(SUM(sale)) OVER (ORDER BY MONTH(date)
+                              RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING),
+         MONTH(date);
+DROP TABLE sales;
 
 # Local Variables:
 # mode: sql
