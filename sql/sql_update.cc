@@ -2021,6 +2021,9 @@ bool Query_result_update::initialize_tables(JOIN *join)
     List<Item> temp_fields;
     ORDER     group;
     Temp_table_param *tmp_param;
+    if (table->vfield &&
+        validate_gc_assignment(thd, fields, values, table))
+      DBUG_RETURN(0);
 
     if (thd->lex->is_ignore())
       table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
@@ -2080,15 +2083,11 @@ bool Query_result_update::initialize_tables(JOIN *join)
       if (safe_update_on_fly(thd, join->best_ref[0], table_ref, all_tables))
       {
         table->mark_columns_needed_for_update(true/*mark_binlog_columns=true*/);
-	table_to_update= table;			// Update table on the fly
+        table_to_update= table;			// Update table on the fly
 	continue;
       }
     }
     table->mark_columns_needed_for_update(true/*mark_binlog_columns=true*/);
-
-    if (table->vfield &&
-        validate_gc_assignment(thd, fields, values, table))
-      DBUG_RETURN(0);
     /*
       enable uncacheable flag if we update a view with check option
       and check option has a subselect, otherwise, the check option
