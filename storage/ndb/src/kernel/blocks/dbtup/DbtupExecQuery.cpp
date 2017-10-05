@@ -966,7 +966,6 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
        // No tuple allocated yet
        goto do_refresh;
      }
-     ndbrequire(!Local_key::isInvalid(pageid, pageidx));
    }
 
    if (unlikely(isCopyTuple(pageid, pageidx)))

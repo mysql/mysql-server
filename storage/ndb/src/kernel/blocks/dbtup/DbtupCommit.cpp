@@ -36,21 +36,21 @@ extern EventLogger *g_eventLogger;
 #define DEB_LCP(arglist) do { } while (0)
 #endif
 
-#define DEBUG_LCP_DEL 1
+//#define DEBUG_LCP_DEL 1
 #ifdef DEBUG_LCP_DEL
 #define DEB_LCP_DEL(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP_DEL(arglist) do { } while (0)
 #endif
 
-#define DEBUG_LCP_SKIP 1
+//#define DEBUG_LCP_SKIP 1
 #ifdef DEBUG_LCP_SKIP
 #define DEB_LCP_SKIP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP_SKIP(arglist) do { } while (0)
 #endif
 
-#define DEBUG_LCP_SKIP_EXTRA 1
+//#define DEBUG_LCP_SKIP_EXTRA 1
 #ifdef DEBUG_LCP_SKIP_EXTRA
 #define DEB_LCP_SKIP_EXTRA(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
@@ -342,12 +342,13 @@ Dbtup::dealloc_tuple(Signal* signal,
        */
       extra_bits |= Tuple_header::LCP_SKIP;
       DEB_LCP_SKIP(("(%u)tab(%u,%u), row_id(%u,%u), handle_lcp_keep_commit"
-                    ", set LCP_SKIP",
+                    ", set LCP_SKIP, bits: %x",
                     instance(),
                     regFragPtr->fragTableId,
                     regFragPtr->fragmentId,
                     rowid.m_page_no,
-                    rowid.m_page_idx));
+                    rowid.m_page_idx,
+                    bits | extra_bits));
       handle_lcp_keep_commit(&rowid,
                              req_struct,
                              regOperPtr,
