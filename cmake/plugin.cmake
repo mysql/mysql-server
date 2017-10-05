@@ -50,7 +50,7 @@ ENDMACRO()
 MACRO(MYSQL_ADD_PLUGIN)
   MYSQL_PARSE_ARGUMENTS(ARG
     "LINK_LIBRARIES;DEPENDENCIES;MODULE_OUTPUT_NAME;STATIC_OUTPUT_NAME"
-    "STORAGE_ENGINE;STATIC_ONLY;MODULE_ONLY;MANDATORY;DEFAULT;DISABLED;TEST_ONLY;SKIP_INSTALL"
+    "STORAGE_ENGINE;STATIC_ONLY;MODULE_ONLY;CLIENT_ONLY;MANDATORY;DEFAULT;DISABLED;TEST_ONLY;SKIP_INSTALL"
     ${ARGN}
   )
   
@@ -166,7 +166,9 @@ MACRO(MYSQL_ADD_PLUGIN)
     ADD_LIBRARY(${target} MODULE ${SOURCES}) 
     SET_TARGET_PROPERTIES (${target} PROPERTIES PREFIX ""
       COMPILE_DEFINITIONS "MYSQL_DYNAMIC_PLUGIN")
-    TARGET_LINK_LIBRARIES (${target} mysqlservices)
+    IF(NOT ARG_CLIENT_ONLY)
+      TARGET_LINK_LIBRARIES (${target} mysqlservices)
+    ENDIF()
 
     # Plugin uses symbols defined in mysqld executable.
     # Some operating systems like Windows and OSX and are pretty strict about 
@@ -176,8 +178,10 @@ MACRO(MYSQL_ADD_PLUGIN)
     # Thus we skip TARGET_LINK_LIBRARIES on Linux, as it would only generate
     # an additional dependency.
     # Use MYSQL_PLUGIN_IMPORT for static data symbols to be exported.
-    IF(WIN32 OR APPLE)
-      TARGET_LINK_LIBRARIES (${target} mysqld ${ARG_LINK_LIBRARIES})
+    IF(NOT ARG_CLIENT_ONLY)
+      IF(WIN32 OR APPLE)
+        TARGET_LINK_LIBRARIES (${target} mysqld ${ARG_LINK_LIBRARIES})
+      ENDIF()
     ENDIF()
     ADD_DEPENDENCIES(${target} GenError ${ARG_DEPENDENCIES})
 
