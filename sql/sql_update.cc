@@ -457,9 +457,6 @@ bool Sql_cmd_update::update_single_table(THD *thd)
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
 
   table->mark_columns_needed_for_update(thd, false/*mark_binlog_columns=false*/);
-  if (table->vfield &&
-      validate_gc_assignment(update_field_list, update_value_list, table))
-    DBUG_RETURN(true);
 
   qep_tab.set_table(table);
   qep_tab.set_condition(conds);
@@ -1537,6 +1534,10 @@ bool Sql_cmd_update::prepare_inner(THD *thd)
     tl->updating= tl->map() & tables_for_update;
     if (tl->updating)
     {
+      if (tl->table->vfield &&
+          validate_gc_assignment(update_fields, update_value_list, tl->table))
+        DBUG_RETURN(true);                      /* purecov: inspected */
+
       // Mark all containing view references as updating
       for (TABLE_LIST *ref= tl; ref != NULL; ref= ref->referencing_view)
         ref->updating= true;
@@ -2066,9 +2067,6 @@ bool Query_result_update::optimize()
       }
     }
 
-    if (table->vfield &&
-        validate_gc_assignment(fields, values, table))
-      DBUG_RETURN(false);                      /* purecov: inspected */
     /*
       enable uncacheable flag if we update a view with check option
       and check option has a subselect, otherwise, the check option
