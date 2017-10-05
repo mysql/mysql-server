@@ -31,6 +31,8 @@
 #include "sql/persisted_variable.h"
 #include "sql/sql_audit.h"  // audit_global_variable_get
 #include "sql/sql_class.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_show.h"
 #include "storage/perfschema/pfs.h"
 #include "storage/perfschema/pfs_global.h"
 #include "storage/perfschema/pfs_visitor.h"

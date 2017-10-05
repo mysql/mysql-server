@@ -102,6 +102,7 @@
 #include "sql/debug_sync.h"
 #include "sql/mysqld.h"
 #include "sql/sql_class.h"                      // THD
+#include "sql/sql_lex.h"
 #include "sql/sql_show.h"                       // append_identifier
 #include "sql/sql_table.h"                     // build_table_filename
 #include "sql/thr_malloc.h"                     // int_sql_alloc

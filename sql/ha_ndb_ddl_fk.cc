@@ -26,6 +26,7 @@
 #include "sql/ndb_table_guard.h"
 #include "sql/ndb_tdc.h"
 #include "sql/sql_class.h"
+#include "sql/sql_lex.h"
 #include "sql/sql_table.h"
 #include "template_utils.h"
 

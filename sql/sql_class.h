@@ -31,6 +31,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <memory>
+
 #include "m_ctype.h"
 #include "my_alloc.h"
 #include "my_compiler.h"
@@ -100,7 +102,6 @@
 #include "sql/sql_const.h"
 #include "sql/sql_digest_stream.h"        // sql_digest_state
 #include "sql/sql_error.h"
-#include "sql/sql_lex.h"                  // LEX
 #include "sql/sql_list.h"
 #include "sql/sql_plugin_ref.h"
 #include "sql/sql_profile.h"              // PROFILING
@@ -111,14 +112,20 @@
 #include "thr_lock.h"
 #include "violite.h"
 
+class Parser_state;
 class Query_arena;
+class Query_tables_list;
 class Relay_log_info;
 class THD;
 class partition_info;
 class sp_rcontext;
 class user_var_entry;
+struct LEX;
 struct LEX_USER;
 struct ORDER;
+struct PSI_idle_locker;
+struct PSI_statement_locker;
+struct PSI_transaction_locker;
 struct TABLE;
 struct TABLE_LIST;
 struct User_level_lock;
@@ -883,6 +890,16 @@ public:
   */
   ulong want_privilege;
 
+private:
+  /**
+    The lex to hold the parsed tree of conventional (non-prepared) queries.
+    Whereas for prepared and stored procedure statements we use an own lex
+    instance for each new query, for conventional statements we reuse
+    the same lex. (@see mysql_parse for details).
+  */
+  std::unique_ptr<LEX> main_lex;
+
+public:
   LEX *lex;                                     // parse tree descriptor
   dd::cache::Dictionary_client *dd_client() const // Get the dictionary client.
   { return m_dd_client.get(); }
@@ -1220,11 +1237,7 @@ public:
       assert_plan_is_locked_if_other();
       return is_ps;
     }
-    bool is_single_table_plan() const
-    {
-      assert_plan_is_locked_if_other();
-      return lex->m_sql_cmd->is_single_table_plan();
-    }
+    bool is_single_table_plan() const;
     void set_modification_plan(Modification_plan *plan_arg);
 
   } query_plan;
@@ -1609,16 +1622,14 @@ private:
   /** An utility struct for @c Attachable_trx */
   struct Transaction_state
   {
-    Transaction_state()
-      : m_ha_data(PSI_NOT_INSTRUMENTED, m_ha_data.initial_capacity)
-    {}
+    Transaction_state(MEM_ROOT *root);
     void backup(THD *thd);
     void restore(THD *thd);
 
     /// SQL-command.
     enum_sql_command m_sql_command;
 
-    Query_tables_list m_query_tables_list;
+    Query_tables_list *m_query_tables_list;
 
     /// Open-tables state.
     Open_tables_backup m_open_tables_state;
@@ -1726,23 +1737,7 @@ private:
   {
   public:
     bool is_read_only() const { return false; }
-    Attachable_trx_rw(THD *thd, Attachable_trx *prev_trx= NULL)
-      : Attachable_trx(thd, prev_trx)
-    {
-      m_thd->tx_read_only= false;
-      m_thd->lex->sql_command= SQLCOM_END;
-      m_xa_state_saved= m_thd->get_transaction()->xid_state()->get_state();
-      thd->get_transaction()->xid_state()->set_state(XID_STATE::XA_NOTR);
-    }
-    ~Attachable_trx_rw()
-    {
-      /* The attachable transaction has been already committed */
-      DBUG_ASSERT(!m_thd->get_transaction()->is_active(Transaction_ctx::STMT)
-                  && !m_thd->get_transaction()->is_active(Transaction_ctx::SESSION));
-
-      m_thd->get_transaction()->xid_state()->set_state(m_xa_state_saved);
-      m_thd->tx_read_only= true;
-    }
+    Attachable_trx_rw(THD *thd, Attachable_trx *prev_trx= NULL);
 
   private:
     XID_STATE::xa_states m_xa_state_saved;
@@ -3778,12 +3773,7 @@ public:
 
     @return The current query in normalized form.
   */
-  const String normalized_query()
-  {
-    m_normalized_query.mem_free();
-    lex->unit->print(&m_normalized_query, QT_NORMALIZED_FORMAT);
-    return m_normalized_query;
-  }
+  const String normalized_query();
 
   /**
     Assign a new value to thd->m_query_string.
@@ -3933,13 +3923,6 @@ private:
   /** The current internal error handler for this thread, or NULL. */
   Internal_error_handler *m_internal_handler;
 
-  /**
-    The lex to hold the parsed tree of conventional (non-prepared) queries.
-    Whereas for prepared and stored procedure statements we use an own lex
-    instance for each new query, for conventional statements we reuse
-    the same lex. (@see mysql_parse for details).
-  */
-  LEX main_lex;
   /**
     This memory root is used for two purposes:
     - for conventional queries, to allocate structures stored in main_lex
@@ -4361,17 +4344,8 @@ inline LEX_STRING *lex_string_copy(MEM_ROOT *root, LEX_STRING *dst,
   return make_lex_string_root(root, dst, src, strlen(src), false);
 }
 
-/* Inline functions */
-
-inline bool add_item_to_list(THD *thd, Item *item)
-{
-  return thd->lex->select_lex->add_item_to_list(item);
-}
-
-inline void add_order_to_list(THD *thd, ORDER *order)
-{
-  thd->lex->select_lex->add_order_to_list(order);
-}
+bool add_item_to_list(THD *thd, Item *item);
+void add_order_to_list(THD *thd, ORDER *order);
 
 /*************************************************************************/
 

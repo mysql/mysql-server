@@ -392,6 +392,7 @@
 #include "sql/key.h"                            // key_copy
 #include "sql/mysqld.h"                         // my_localhost
 #include "sql/sql_class.h"
+#include "sql/sql_lex.h"
 #include "sql/sql_servers.h"     // FOREIGN_SERVER, get_server_by_name
 #include "template_utils.h"
 

@@ -137,13 +137,15 @@ void THD::Transaction_state::restore(THD *thd)
 
 THD::Attachable_trx::Attachable_trx(THD *thd,
                                     Attachable_trx *prev_trx)
- : m_thd(thd), m_reset_lex(RESET_LEX), m_prev_attachable_trx(prev_trx)
+ : m_thd(thd), m_reset_lex(RESET_LEX), m_prev_attachable_trx(prev_trx),
+   m_trx_state(&thd->main_mem_root)
 { init(); }
 
 THD::Attachable_trx::Attachable_trx(THD *thd,
                                     Attachable_trx *prev_trx,
                                     enum_reset_lex reset_lex)
- : m_thd(thd), m_reset_lex(reset_lex), m_prev_attachable_trx(prev_trx)
+ : m_thd(thd), m_reset_lex(reset_lex), m_prev_attachable_trx(prev_trx),
+   m_trx_state(&thd->main_mem_root)
 { init(); }
 
 void THD::Attachable_trx::init()
@@ -167,7 +169,7 @@ void THD::Attachable_trx::init()
   bool reset= (m_reset_lex == RESET_LEX ? true : false);
   if (DBUG_EVALUATE_IF("use_attachable_trx", false, reset))
   {
-    m_thd->lex->reset_n_backup_query_tables_list(&m_trx_state.m_query_tables_list);
+    m_thd->lex->reset_n_backup_query_tables_list(m_trx_state.m_query_tables_list);
     m_thd->lex->sql_command= SQLCOM_SELECT;
   }
 
@@ -272,7 +274,7 @@ THD::Attachable_trx::~Attachable_trx()
   if (DBUG_EVALUATE_IF("use_attachable_trx", false, reset))
   {
     m_thd->lex->restore_backup_query_tables_list(
-      &m_trx_state.m_query_tables_list);
+      m_trx_state.m_query_tables_list);
   }
 }
 
@@ -347,7 +349,8 @@ THD::THD(bool enable_plugins)
   :Query_arena(&main_mem_root, STMT_CONVENTIONAL_EXECUTION),
    mark_used_columns(MARK_COLUMNS_READ),
    want_privilege(0),
-   lex(&main_lex),
+   main_lex(new LEX),
+   lex(main_lex.get()),
    m_dd_client(new dd::cache::Dictionary_client(this)),
    m_query_string(NULL_CSTR),
    m_db(NULL_CSTR),
@@ -420,7 +423,7 @@ THD::THD(bool enable_plugins)
    is_a_srv_session_thd(false),
    m_is_plugin_fake_ddl(false)
 {
-  main_lex.reset();
+  main_lex->reset();
   set_psi(NULL);
   mdl_context.init(this);
   init_sql_alloc(key_memory_thd_main_mem_root,
@@ -3002,3 +3005,40 @@ bool THD::is_current_stmt_binlog_row_enabled_with_write_set_extraction() const
           is_current_stmt_binlog_format_row() &&
           !is_current_stmt_binlog_disabled());
 }
+
+bool THD::Query_plan::is_single_table_plan() const
+{
+  assert_plan_is_locked_if_other();
+  return lex->m_sql_cmd->is_single_table_plan();
+}
+
+THD::Attachable_trx_rw::Attachable_trx_rw(THD *thd, Attachable_trx *prev_trx)
+  : Attachable_trx(thd, prev_trx)
+{
+  m_thd->tx_read_only= false;
+  m_thd->lex->sql_command= SQLCOM_END;
+  m_xa_state_saved= m_thd->get_transaction()->xid_state()->get_state();
+  thd->get_transaction()->xid_state()->set_state(XID_STATE::XA_NOTR);
+}
+
+const String THD::normalized_query()
+{
+  m_normalized_query.mem_free();
+  lex->unit->print(&m_normalized_query, QT_NORMALIZED_FORMAT);
+  return m_normalized_query;
+}
+
+bool add_item_to_list(THD *thd, Item *item)
+{
+  return thd->lex->select_lex->add_item_to_list(item);
+}
+
+void add_order_to_list(THD *thd, ORDER *order)
+{
+  thd->lex->select_lex->add_order_to_list(order);
+}
+
+THD::Transaction_state::Transaction_state(MEM_ROOT *root)
+  : m_query_tables_list(new (root) Query_tables_list),
+    m_ha_data(PSI_NOT_INSTRUMENTED, m_ha_data.initial_capacity)
+{}

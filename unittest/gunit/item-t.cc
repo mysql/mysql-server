@@ -30,6 +30,7 @@
 #include "sql/item_strfunc.h"
 #include "sql/item_timefunc.h"
 #include "sql/sql_class.h"
+#include "sql/sql_lex.h"
 #include "sql/tztime.h"
 #include "unittest/gunit/fake_table.h"
 #include "unittest/gunit/mock_field_timestamp.h"

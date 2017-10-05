@@ -25,6 +25,7 @@
 #include "sql/dd/types/table.h"
 #include "sql/mdl.h"        // MDL_*
 #include "sql/sql_class.h"
+#include "sql/table.h"
 #include "sql/transaction.h"
 
 
