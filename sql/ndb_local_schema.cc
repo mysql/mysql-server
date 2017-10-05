@@ -260,7 +260,8 @@ Ndb_local_schema::Table::mdl_try_lock_for_rename(const char* new_db,
 
 void
 Ndb_local_schema::Table::rename_table(const char* new_db,
-                                      const char* new_name) const
+                                      const char* new_name,
+                                      int new_id, int new_version) const
 {
   // Acquire exclusive MDL lock on the table
   if (!mdl_try_lock_exclusive())
@@ -277,7 +278,8 @@ Ndb_local_schema::Table::rename_table(const char* new_db,
 
   if (!ndb_dd_rename_table(m_thd,
                            m_db, m_name,
-                           new_db, new_name)) /* commit_dd_changes */
+                           new_db, new_name,
+                           new_id, new_version))
   {
     log_warning("Failed to rename table in DD");
     return;

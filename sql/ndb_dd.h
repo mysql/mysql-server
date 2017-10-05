@@ -48,7 +48,8 @@ bool ndb_dd_rename_table(class THD* thd,
                          const char* old_schema_name,
                          const char* old_table_name,
                          const char* new_schema_name,
-                         const char* new_table_name);
+                         const char* new_table_name,
+                         int new_table_id, int new_table_version);
 
 bool ndb_dd_get_engine_for_table(THD *thd,
                                  const char *schema_name,

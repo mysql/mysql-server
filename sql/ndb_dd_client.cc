@@ -254,7 +254,8 @@ bool
 Ndb_dd_client::rename_table(const char* old_schema_name,
                             const char* old_table_name,
                             const char* new_schema_name,
-                            const char* new_table_name)
+                            const char* new_table_name,
+                            int new_table_id, int new_table_version)
 {
   dd::cache::Dictionary_client::Auto_releaser releaser(m_client);
 
@@ -277,10 +278,12 @@ Ndb_dd_client::rename_table(const char* old_schema_name,
                                          &to_table_def))
     return false;
 
-
   // Set schema id and table name
   to_table_def->set_schema_id(new_schema->id());
   to_table_def->set_name(new_table_name);
+
+  ndb_dd_table_set_object_id_and_version(to_table_def,
+                                         new_table_id, new_table_version);
 
   // Rename foreign keys
   if (dd::rename_foreign_keys(old_table_name, to_table_def))

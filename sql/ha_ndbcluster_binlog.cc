@@ -3737,7 +3737,7 @@ class Ndb_schema_event_handler {
 
     if (exists_in_DD)
     {
-      // The table exists in DD on this MySL Server, remove it
+      // The table exists in DD on this Server, remove it
       tab.remove_table();
     }
     else
@@ -3812,6 +3812,34 @@ class Ndb_schema_event_handler {
   }
 
 
+  bool
+  get_table_version_from_NDB(const char* db_name, const char* table_name,
+                             int* table_id, int* table_version)
+  {
+    DBUG_ENTER("get_table_version_from_NDB");
+    DBUG_PRINT("enter", ("db_name: %s, table_name: %s",
+                         db_name, table_name));
+
+    Thd_ndb* thd_ndb = get_thd_ndb(m_thd);
+    Ndb* ndb = thd_ndb->ndb;
+    ndb->setDatabaseName(db_name);
+    Ndb_table_guard ndbtab_g(ndb->getDictionary(), table_name);
+    const NDBTAB *ndbtab= ndbtab_g.get_table();
+    if (!ndbtab)
+    {
+      // Could not open table
+      DBUG_RETURN(false);
+    }
+
+    *table_id = ndbtab->getObjectId();
+    *table_version = ndbtab->getObjectVersion();
+
+    DBUG_PRINT("info", ("table_id: %d, table_version: %d",
+                        *table_id, *table_version));
+    DBUG_RETURN(true);
+  }
+
+
   void
   handle_rename_table(const Ndb_schema_op* schema)
   {
@@ -3872,9 +3900,25 @@ class Ndb_schema_event_handler {
     DBUG_ASSERT(!IS_TMP_PREFIX(schema->name));
     DBUG_ASSERT(!IS_TMP_PREFIX(NDB_SHARE::key_get_table_name(prepared_key)));
 
+    // Get the renamed tables id and new version from NDB
+    // NOTE! It would be better if these parameters was passed in the
+    // schema dist protocol. Both the id and version are used as the "key"
+    // when communicating but that's the original table id and version
+    // and not the new
+    int ndb_table_id, ndb_table_version;
+    if (!get_table_version_from_NDB(NDB_SHARE::key_get_db_name(prepared_key),
+                                    NDB_SHARE::key_get_table_name(prepared_key),
+                                    &ndb_table_id, &ndb_table_version))
+    {
+      // It was not possible to open the table from NDB
+      DBUG_ASSERT(false);
+      DBUG_VOID_RETURN;
+    }
+
     // Rename the local table
     from.rename_table(NDB_SHARE::key_get_db_name(prepared_key),
-                      NDB_SHARE::key_get_table_name(prepared_key));
+                      NDB_SHARE::key_get_table_name(prepared_key),
+                      ndb_table_id, ndb_table_version);
 
     // Rename share and release the old key
     NDB_SHARE_KEY* old_key = share->key;

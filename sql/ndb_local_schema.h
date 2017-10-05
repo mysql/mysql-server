@@ -74,7 +74,8 @@ public:
 
     bool is_local_table(bool* exists) const;
     void remove_table(void) const;
-    void rename_table(const char* new_db, const char* new_name) const;
+    void rename_table(const char* new_db, const char* new_name,
+                      int new_id, int new_version) const;
   };
 };
 

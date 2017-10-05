@@ -77,7 +77,8 @@ public:
                   dd::String_type* engine);
 
   bool rename_table(const char *old_schema_name, const char *old_table_name,
-                    const char *new_schema_name, const char *new_table_name);
+                    const char *new_schema_name, const char *new_table_name,
+                    int new_table_id, int new_table_version);
   bool drop_table(const char* schema_name, const char* table_name);
   bool install_table(const char* schema_name, const char* table_name,
                      const dd::sdi_t &sdi,
