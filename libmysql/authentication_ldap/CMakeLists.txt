@@ -60,5 +60,5 @@ MESSAGE(STATUS "SASL_LIBRARY_PATH = ${SASL_LIBRARY_PATH}")
 MYSQL_ADD_PLUGIN(authentication_ldap_sasl_client
                  auth_ldap_sasl_client.cc log_client.cc
                  LINK_LIBRARIES ${SASL_LIBRARY_PATH}
-                 MODULE_ONLY
+                 CLIENT_ONLY MODULE_ONLY
                  MODULE_OUTPUT_NAME "authentication_ldap_sasl_client")
