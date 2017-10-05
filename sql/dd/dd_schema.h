@@ -44,10 +44,10 @@ bool create_schema(THD *thd, const char *schema_name,
 
 /**
   Acquire MDL on schema name.
-  @param         thd         Thread context.
-  @param         schema_name Schema to check for.
-  @param         duration    duration type for MDL
-  @param[OUT]    ticket where to store ticket pointer
+  @param thd         Thread context.
+  @param schema_name Schema to check for.
+  @param duration    Duration type for MDL
+  @param ticket      Where to store ticket pointer
   (default: nullptr, no ticket pointer will be stored)
   @return        false if success, true if error.
 */
