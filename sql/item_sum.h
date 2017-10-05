@@ -2177,6 +2177,11 @@ public:
   */
   void cleanup() override;
   Item_result result_type() const override { return INT_RESULT; }
+private:
+  /**
+    Reset m_previous when we start a new partition
+  */
+  void reset_cmp();
 };
 
 

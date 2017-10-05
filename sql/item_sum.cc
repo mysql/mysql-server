@@ -5329,10 +5329,21 @@ bool Item_rank::check_wf_semantics(THD *thd, SELECT_LEX *select,
 longlong Item_rank::val_int()
 {
   DBUG_ENTER("Item_rank::val_int");
-
-  if (m_window->at_partition_border() && !m_window->needs_buffering())
+  if (m_window->needs_buffering())
+  {
+    /*
+      The comparator reset can't happen until we have called copy_fields for
+      the first row. This hasn't yet happened when reset_non_framing_wf_state
+      (and thence ::clear) is called from process_buffered_windowing_record, so
+      do it here.
+    */
+    if (m_window->rowno_in_partition() == 1)
+      reset_cmp();
+  }
+  else if (m_window->at_partition_border())
   {
     clear();
+    reset_cmp();
   }
 
   bool change= false;
@@ -5382,8 +5393,9 @@ my_decimal *Item_rank::val_decimal(my_decimal *buffer)
   return buffer;
 }
 
-void Item_rank::clear()
+void Item_rank::reset_cmp()
 {
+  // if no windowing steps, no comparison needed.
   if (m_window->has_windowing_steps())
   {
     List_iterator<Cached_item> li(m_previous);
@@ -5393,7 +5405,14 @@ void Item_rank::clear()
       item->cmp(); // set baseline
     }
   }
-  // if no windowing steps, no comparison needed.
+}
+
+void Item_rank::clear()
+{
+  /*
+    Cf. also ::reset_cmp which can't be called until we have the partition's
+    first row ready (after copy_fields).
+  */
   m_rank_ctr= 1;
   m_duplicates= -1;
 }
