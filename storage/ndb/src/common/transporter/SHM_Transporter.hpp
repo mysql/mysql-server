@@ -44,7 +44,8 @@ public:
 		  bool checksum, 
 		  bool signalId,
 		  key_t shmKey,
-		  Uint32 shmSize);
+		  Uint32 shmSize,
+		  bool preSendChecksum);
   
   /**
    * SHM destructor
