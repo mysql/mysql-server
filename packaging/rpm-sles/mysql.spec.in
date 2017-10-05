@@ -957,35 +957,35 @@ fi
 %attr(755, root, root) %{_bindir}/ndb_waiter
 %attr(755, root, root) %{_bindir}/ndbinfo_select_all
 
-%attr(644, root, root) %{_mandir}/man1/ndb-common-options.1*
-%attr(644, root, root) %{_mandir}/man1/ndb_blob_tool.1*
-%attr(644, root, root) %{_mandir}/man1/ndb_config.1*
-%attr(644, root, root) %{_mandir}/man1/ndb_cpcd.1*
-%attr(644, root, root) %{_mandir}/man1/ndb_delete_all.1*
-%attr(644, root, root) %{_mandir}/man1/ndb_desc.1*
-%attr(644, root, root) %{_mandir}/man1/ndb_drop_index.1*
-%attr(644, root, root) %{_mandir}/man1/ndb_drop_table.1*
-%attr(644, root, root) %{_mandir}/man1/ndb_error_reporter.1*
-%attr(644, root, root) %{_mandir}/man1/ndb_import.1*
-%attr(644, root, root) %{_mandir}/man1/ndb_index_stat.1*
-%attr(644, root, root) %{_mandir}/man1/ndb_mgm.1*
-%attr(644, root, root) %{_mandir}/man1/ndb_move_data.1*
-%attr(644, root, root) %{_mandir}/man1/ndb_perror.1*
-%attr(644, root, root) %{_mandir}/man1/ndb_print_backup_file.1*
-%attr(644, root, root) %{_mandir}/man1/ndb_print_file.1*
-%attr(644, root, root) %{_mandir}/man1/ndb_print_frag_file.1*
-%attr(644, root, root) %{_mandir}/man1/ndb_print_schema_file.1*
-%attr(644, root, root) %{_mandir}/man1/ndb_print_sys_file.1*
-%attr(644, root, root) %{_mandir}/man1/ndb_restore.1*
-%attr(644, root, root) %{_mandir}/man1/ndb_select_all.1*
-%attr(644, root, root) %{_mandir}/man1/ndb_select_count.1*
-%attr(644, root, root) %{_mandir}/man1/ndb_setup.py.1*
-%attr(644, root, root) %{_mandir}/man1/ndb_show_tables.1*
-%attr(644, root, root) %{_mandir}/man1/ndb_size.pl.1*
-%attr(644, root, root) %{_mandir}/man1/ndb_top.1*
-%attr(644, root, root) %{_mandir}/man1/ndb_waiter.1*
-%attr(644, root, root) %{_mandir}/man1/ndb_redo_log_reader.1*
-%attr(644, root, root) %{_mandir}/man1/ndbinfo_select_all.1*
+#%attr(644, root, root) %{_mandir}/man1/ndb-common-options.1*
+#%attr(644, root, root) %{_mandir}/man1/ndb_blob_tool.1*
+#%attr(644, root, root) %{_mandir}/man1/ndb_config.1*
+#%attr(644, root, root) %{_mandir}/man1/ndb_cpcd.1*
+#%attr(644, root, root) %{_mandir}/man1/ndb_delete_all.1*
+#%attr(644, root, root) %{_mandir}/man1/ndb_desc.1*
+#%attr(644, root, root) %{_mandir}/man1/ndb_drop_index.1*
+#%attr(644, root, root) %{_mandir}/man1/ndb_drop_table.1*
+#%attr(644, root, root) %{_mandir}/man1/ndb_error_reporter.1*
+#%attr(644, root, root) %{_mandir}/man1/ndb_import.1*
+#%attr(644, root, root) %{_mandir}/man1/ndb_index_stat.1*
+#%attr(644, root, root) %{_mandir}/man1/ndb_mgm.1*
+#%attr(644, root, root) %{_mandir}/man1/ndb_move_data.1*
+#%attr(644, root, root) %{_mandir}/man1/ndb_perror.1*
+#%attr(644, root, root) %{_mandir}/man1/ndb_print_backup_file.1*
+#%attr(644, root, root) %{_mandir}/man1/ndb_print_file.1*
+#%attr(644, root, root) %{_mandir}/man1/ndb_print_frag_file.1*
+#%attr(644, root, root) %{_mandir}/man1/ndb_print_schema_file.1*
+#%attr(644, root, root) %{_mandir}/man1/ndb_print_sys_file.1*
+#%attr(644, root, root) %{_mandir}/man1/ndb_restore.1*
+#%attr(644, root, root) %{_mandir}/man1/ndb_select_all.1*
+#%attr(644, root, root) %{_mandir}/man1/ndb_select_count.1*
+#%attr(644, root, root) %{_mandir}/man1/ndb_setup.py.1*
+#%attr(644, root, root) %{_mandir}/man1/ndb_show_tables.1*
+#%attr(644, root, root) %{_mandir}/man1/ndb_size.pl.1*
+#%attr(644, root, root) %{_mandir}/man1/ndb_top.1*
+#%attr(644, root, root) %{_mandir}/man1/ndb_waiter.1*
+#%attr(644, root, root) %{_mandir}/man1/ndb_redo_log_reader.1*
+#%attr(644, root, root) %{_mandir}/man1/ndbinfo_select_all.1*
 %endif #cluster
 
 %files devel
@@ -1165,15 +1165,15 @@ fi
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
 %attr(755, root, root) %{_sbindir}/ndb_mgmd
-%attr(644, root, root) %{_mandir}/man8/ndb_mgmd.8*
+#%attr(644, root, root) %{_mandir}/man8/ndb_mgmd.8*
 
 %files data-node
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
 %attr(755, root, root) %{_sbindir}/ndbd
 %attr(755, root, root) %{_sbindir}/ndbmtd
-%attr(644, root, root) %{_mandir}/man8/ndbd.8*
-%attr(644, root, root) %{_mandir}/man8/ndbmtd.8*
+#%attr(644, root, root) %{_mandir}/man8/ndbd.8*
+#%attr(644, root, root) %{_mandir}/man8/ndbmtd.8*
 
 %files auto-installer
 %defattr(-, root, root, -)
