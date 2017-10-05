@@ -802,7 +802,8 @@ Dbtup::commit_operation(Signal* signal,
     ndbassert(! (disk_ptr->m_header_bits & Tuple_header::FREE));
     copy_bits |= Tuple_header::DISK_PART;
   }
-  
+
+  Uint32 lcp_bits = 0;
   if (lcpScan_ptr_i != RNIL &&
       (bits & Tuple_header::ALLOC) &&
       !(bits & (Tuple_header::LCP_SKIP | Tuple_header::LCP_DELETE)))
@@ -825,7 +826,7 @@ Dbtup::commit_operation(Signal* signal,
          * in this case we avoid it by setting bit on Tuple header.
          */
         jam();
-        copy_bits |= Tuple_header::LCP_SKIP;
+        lcp_bits |= Tuple_header::LCP_SKIP;
         DEB_LCP_SKIP(("(%u)Set LCP_SKIP on tab(%u,%u), rowid(%u,%u)",
                       instance(),
                       regFragPtr->fragTableId,
@@ -848,7 +849,7 @@ Dbtup::commit_operation(Signal* signal,
                      rowid.m_page_no,
                      rowid.m_page_idx));
         ndbassert(c_backup->is_partial_lcp_enabled());
-        copy_bits |= Tuple_header::LCP_DELETE;
+        lcp_bits |= Tuple_header::LCP_DELETE;
       }
     }
   }
@@ -859,7 +860,26 @@ Dbtup::commit_operation(Signal* signal,
     Tuple_header::MM_GROWN;
   copy_bits &= ~(Uint32)clear;
 
-  tuple_ptr->m_header_bits= copy_bits;
+  /**
+   * Here we are copying header bits from the copy row to the main row.
+   * We need to ensure that a few bits are retained from the main row
+   * that are not necessarily set in the copy row.
+   *
+   * For example a row could have its LCP_SKIP set when it is updated
+   * or deleted before the LCP reaches it. After deleting it is important
+   * not to clear these when starting a new insert on the same row id.
+   * This is handled in DbtupExecQuery.cpp. Here we can be committing the
+   * same insert, so again it is important to not lose the LCP bits
+   * on the main row. The LCP bits are never needed on the copy row since
+   * the LCP only cares about the main rows. The LCP can even change
+   * the LCP bits between prepare and commit of a row change. Thus it is
+   * important to not lose the LCP_SKIP bit here.
+   *
+   * Similarly for LCP_DELETE we might lose the state after coming here
+   * again before the LCP have had time to come and reset the bits.
+   */
+  lcp_bits |= (bits & (Tuple_header::LCP_SKIP | Tuple_header::LCP_DELETE));
+  tuple_ptr->m_header_bits= copy_bits | lcp_bits;
   tuple_ptr->m_operation_ptr_i= save;
 
   if (regTabPtr->m_bits & Tablerec::TR_RowGCI &&
