@@ -849,7 +849,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
   ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
   Fragrecord& frag = *fragPtr.p;
   // tuple found
-  Tuple_header* th = 0;
+  Tuple_header* tuple_header_ptr = 0;
   Uint32 thbits = 0;
   Uint32 loop_count = 0;
   Uint32 foundGCI;
@@ -1465,7 +1465,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
             ndbassert(pos.m_realpid_mm == realpid);
           }
 #endif
-          th = (Tuple_header*)&page->m_data[key.m_page_idx];
+          tuple_header_ptr = (Tuple_header*)&page->m_data[key.m_page_idx];
 
           if ((key.m_page_idx + (size * 4)) <= Fix_page::DATA_WORDS)
           {
@@ -1507,7 +1507,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
              * inserted, it thus have no current committed state and is
              * thus here equivalent to the FREE state for LCP scans.
              */
-            thbits = th->m_header_bits;
+            thbits = tuple_header_ptr->m_header_bits;
             if ((bits & ScanOp::SCAN_LCP) &&
                 (thbits & Tuple_header::LCP_DELETE))
             {
@@ -1539,7 +1539,8 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
                 (thbits & Tuple_header::LCP_SKIP))
             {
               jam();
-              th->m_header_bits = thbits & (~Tuple_header::LCP_SKIP);
+              tuple_header_ptr->m_header_bits =
+                thbits & (~Tuple_header::LCP_SKIP);
               DEB_LCP_SKIP(("(%u)Reset LCP_SKIP on tab(%u,%u), rowid(%u,%u)"
                             ", header: %x",
                             instance(),
@@ -1548,14 +1549,18 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
                             key.m_page_no,
                             key.m_page_idx,
                             thbits));
-              updateChecksum(th, tablePtr.p, thbits, th->m_header_bits);
+              updateChecksum(tuple_header_ptr,
+                             tablePtr.p,
+                             thbits,
+                             tuple_header_ptr->m_header_bits);
             }
             scan.m_last_seen = __LINE__;
 	  }
 	  else if (bits & ScanOp::SCAN_NR)
 	  {
-            thbits = th->m_header_bits;
-	    if ((foundGCI = *th->get_mm_gci(tablePtr.p)) > scan.m_scanGCI ||
+            thbits = tuple_header_ptr->m_header_bits;
+	    if ((foundGCI = *tuple_header_ptr->get_mm_gci(tablePtr.p)) >
+                 scan.m_scanGCI ||
                 foundGCI == 0)
 	    {
               /**
@@ -1576,7 +1581,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
 	      }
 	    }
 	    else if ((thbits & Fix_page::FREE_RECORD) != Fix_page::FREE_RECORD && 
-		     th->m_operation_ptr_i != RNIL)
+		      tuple_header_ptr->m_operation_ptr_i != RNIL)
 	    {
 	      jam();
 	      goto found_tuple; // Locked tuple...
@@ -1624,15 +1629,20 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
             ndbassert(c_backup->is_partial_lcp_enabled());
             ndbassert((bits & ScanOp::SCAN_LCP) &&
                        pos.m_lcp_scan_changed_rows_page);
-            thbits = th->m_header_bits;
-            if ((foundGCI = *th->get_mm_gci(tablePtr.p)) > scan.m_scanGCI)
+            thbits = tuple_header_ptr->m_header_bits;
+            if ((foundGCI = *tuple_header_ptr->get_mm_gci(tablePtr.p)) >
+                 scan.m_scanGCI)
             {
               if (unlikely(thbits & Tuple_header::LCP_DELETE))
               {
                 jam();
                 /* Ensure that LCP_DELETE bit is clear before we move on */
-                th->m_header_bits = thbits & (~Tuple_header::LCP_DELETE);
-                updateChecksum(th, tablePtr.p, thbits, th->m_header_bits);
+                tuple_header_ptr->m_header_bits =
+                  thbits & (~Tuple_header::LCP_DELETE);
+                updateChecksum(tuple_header_ptr,
+                               tablePtr.p,
+                               thbits,
+                               tuple_header_ptr->m_header_bits);
                 ndbassert(!(thbits & Tuple_header::LCP_SKIP));
                 DEB_LCP_DEL(("(%u)Reset LCP_DELETE on tab(%u,%u),"
                              " rowid(%u,%u), header: %x",
@@ -1682,7 +1692,8 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
               {
                 /* Ensure that LCP_SKIP bit is clear before we move on */
                 jam();
-                th->m_header_bits = thbits & (~Tuple_header::LCP_SKIP);
+                tuple_header_ptr->m_header_bits =
+                  thbits & (~Tuple_header::LCP_SKIP);
                 DEB_LCP_SKIP(("(%u) 2 Reset LCP_SKIP on tab(%u,%u), rowid(%u,%u)"
                               ", header: %x",
                               instance(),
@@ -1691,7 +1702,10 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
                               key.m_page_no,
                               key.m_page_idx,
                               thbits));
-                updateChecksum(th, tablePtr.p, thbits, th->m_header_bits);
+                updateChecksum(tuple_header_ptr,
+                               tablePtr.p,
+                               thbits,
+                               tuple_header_ptr->m_header_bits);
               }
               else
               {
@@ -1776,8 +1790,8 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
           pos.m_get = ScanPos::Get_next_tuple;
           if (!page->is_free(key.m_page_idx))
           {
-            th = (Tuple_header*)page->get_ptr(key.m_page_idx);
-            thbits = th->m_header_bits;
+            tuple_header_ptr = (Tuple_header*)page->get_ptr(key.m_page_idx);
+            thbits = tuple_header_ptr->m_header_bits;
             goto found_tuple;
           }
         }
@@ -1805,7 +1819,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
           }
           else
           {
-            th->get_base_record_ref(key_mm);
+            tuple_header_ptr->get_base_record_ref(key_mm);
             // recompute for each disk tuple
             pos.m_realpid_mm = getRealpid(fragPtr.p, key_mm.m_page_no);
           }
@@ -1817,7 +1831,8 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
         {
           jam();
           /* Clear LCP_SKIP bit so that it will not show up in next LCP */
-          th->m_header_bits = thbits & ~(Uint32)Tuple_header::LCP_SKIP;
+          tuple_header_ptr->m_header_bits =
+            thbits & ~(Uint32)Tuple_header::LCP_SKIP;
 
           DEB_LCP_SKIP(("(%u) 3 Reset LCP_SKIP on tab(%u,%u), rowid(%u,%u)"
                         ", header: %x",
@@ -1828,7 +1843,10 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
                         key.m_page_idx,
                         thbits));
 
-          updateChecksum(th, tablePtr.p, thbits, th->m_header_bits);
+          updateChecksum(tuple_header_ptr,
+                         tablePtr.p,
+                         thbits,
+                         tuple_header_ptr->m_header_bits);
           scan.m_last_seen = __LINE__;
         }
       }
@@ -1870,13 +1888,15 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
            * Currently dead code since NR scans never use Disk data scans.
            */
           ndbassert(bits & ScanOp::SCAN_NR);
-          th->get_base_record_ref(key_mm);
+          tuple_header_ptr->get_base_record_ref(key_mm);
           // recompute for each disk tuple
           pos.m_realpid_mm = getRealpid(fragPtr.p, key_mm.m_page_no);
   
           Fix_page *mmpage = (Fix_page*)c_page_pool.getPtr(pos.m_realpid_mm);
-          th = (Tuple_header*)(mmpage->m_data + key_mm.m_page_idx);
-          if ((foundGCI = *th->get_mm_gci(tablePtr.p)) > scan.m_scanGCI ||
+          tuple_header_ptr =
+            (Tuple_header*)(mmpage->m_data + key_mm.m_page_idx);
+          if ((foundGCI = *tuple_header_ptr->get_mm_gci(tablePtr.p)) >
+               scan.m_scanGCI ||
               foundGCI == 0)
           {
             if (! (thbits & Tuple_header::FREE))
