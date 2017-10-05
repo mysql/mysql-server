@@ -303,6 +303,18 @@ TEST_F(JsonBinaryTest, BasicTest)
 }
 
 
+TEST_F(JsonBinaryTest, EmptyDocument)
+{
+  /*
+    An empty binary document is interpreted as the JSON null literal.
+    This is a special case to handle NULL values inserted into NOT
+    NULL columns using INSERT IGNORE or similar mechanisms.
+  */
+  Value val= parse_binary("", 0);
+  EXPECT_EQ(Value::LITERAL_NULL, val.type());
+}
+
+
 static MYSQL_TIME create_time()
 {
   const char *tstr= "13:14:15.654321";
@@ -836,8 +848,12 @@ static void check_corruption(THD *thd, const Json_dom *dom)
   EXPECT_FALSE(json_binary::serialize(thd, dom, &buf));
   EXPECT_TRUE(json_binary::parse_binary(buf.ptr(), buf.length()).is_valid());
 
-  // Truncated values should always be detected by is_valid().
-  for (size_t i= 0; i < buf.length() - 1; ++i)
+  /*
+    Truncated values should always be detected by is_valid(). Except
+    if it's truncated to an empty string, since parse_binary()
+    interprets the empty string as the JSON null literal.
+  */
+  for (size_t i= 1; i < buf.length() - 1; ++i)
   {
     EXPECT_FALSE(json_binary::parse_binary(buf.ptr(), i).is_valid());
     check_corrupted_binary(thd, buf.ptr(), i);
