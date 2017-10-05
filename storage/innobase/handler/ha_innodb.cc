@@ -7742,11 +7742,20 @@ build_template_field(
 		templ->clust_rec_field_no = v_no;
 		if (index->is_clustered()) {
 			templ->rec_field_no = templ->clust_rec_field_no;
+			templ->icp_rec_field_no = ULINT_UNDEFINED;
 		} else {
 			templ->rec_field_no
 				= index->get_col_pos(v_no, false, true);
+			/* Virtual columns may have to be read from the
+			secondary index before evaluating a pushed down
+			end-range condition in row_search_end_range_check().
+			Also consider column prefixes, since they can be used
+			for end-range checks. */
+			templ->icp_rec_field_no =
+				templ->rec_field_no != ULINT_UNDEFINED ?
+				templ->rec_field_no :
+				index->get_col_pos(v_no, true, true);
 		}
-		templ->icp_rec_field_no = ULINT_UNDEFINED;
 	}
 
 	if (field->real_maybe_null()) {
