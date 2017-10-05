@@ -3517,6 +3517,7 @@ Dbacc::getElement(const AccKeyReq* signal,
   Uint32 keys[2048 * MAX_XFRM_MULTIPLY];
   Uint64 keys_align;
   };
+  (void)keys_align;
 
   getdirindex(bucketPageptr, bucketConidx);
   elemPageptr = bucketPageptr;
@@ -5669,6 +5670,7 @@ LHBits32 Dbacc::getElementHash(OperationrecPtr& oprec)
       Uint32 keys[2048 * MAX_XFRM_MULTIPLY];
       Uint64 keys_align;
     };
+    (void)keys_align;
     Local_key localkey;
     localkey = oprec.p->localdata;
     Uint32 len = readTablePk(localkey.m_page_no,
@@ -5691,6 +5693,7 @@ LHBits32 Dbacc::getElementHash(Uint32 const* elemptr)
     Uint32 keys[2048 * MAX_XFRM_MULTIPLY];
     Uint64 keys_align;
   };
+  (void)keys_align;
   Uint32 elemhead = *elemptr;
   Local_key localkey;
   elemptr += 1;
