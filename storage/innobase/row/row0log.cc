@@ -572,6 +572,12 @@ row_log_table_delete(
 	const dtuple_t*	old_pk;
 	row_ext_t*	ext = NULL;
 
+	if (index->is_corrupted()
+	    || !dict_index_is_online_ddl(index)
+	    || index->online_log->error != DB_SUCCESS) {
+		return;
+	}
+
 	ut_ad(index->is_clustered());
 	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(rec_offs_n_fields(offsets) == dict_index_get_n_fields(index));
@@ -579,12 +585,6 @@ row_log_table_delete(
 	ut_ad(rw_lock_own_flagged(
 			&index->lock,
 			RW_LOCK_FLAG_S | RW_LOCK_FLAG_X | RW_LOCK_FLAG_SX));
-
-	if (index->is_corrupted()
-	    || !dict_index_is_online_ddl(index)
-	    || index->online_log->error != DB_SUCCESS) {
-		return;
-	}
 
 	dict_table_t* new_table = index->online_log->table;
 	dict_index_t* new_index = new_table->first_index();
@@ -926,6 +926,12 @@ row_log_table_low(
 	ulint			avail_size;
 	const dict_index_t*	new_index;
 
+	if (index->is_corrupted()
+	    || !dict_index_is_online_ddl(index)
+	    || index->online_log->error != DB_SUCCESS) {
+		return;
+	}
+
 	new_index = index->online_log->table->first_index();
 
 	ut_ad(index->is_clustered());
@@ -947,12 +953,6 @@ row_log_table_low(
 	ut_ad(!old_pk || old_pk->n_v_fields == 0);
 	ut_ad(!o_ventry || !insert);
 	ut_ad(!o_ventry || ventry);
-
-	if (index->is_corrupted()
-	    || !dict_index_is_online_ddl(index)
-	    || index->online_log->error != DB_SUCCESS) {
-		return;
-	}
 
 	if (!rec_offs_comp(offsets)) {
 		row_log_table_low_redundant(
