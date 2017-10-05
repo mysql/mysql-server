@@ -187,16 +187,18 @@ main(int argc, const char * argv[]){
     }
     ndbout << (* tabList) << endl;
     
-    const Uint32 noOfTables = tabList->SectionLength - 2;
-    for(Uint32 i = 0; i<noOfTables; i++){
-      BackupFormat::CtlFile::TableDescription * tabDesc;
-      if(!readTableDesc(f, &tabDesc)){
-	ndbout << "Invalid file missing table description" << endl;
-	break;
+    if (fileHeader.BackupVersion < NDB_MAKE_VERSION(7,6,4))
+    {
+      const Uint32 noOfTables = tabList->SectionLength - 2;
+      for(Uint32 i = 0; i<noOfTables; i++){
+        BackupFormat::CtlFile::TableDescription * tabDesc;
+        if(!readTableDesc(f, &tabDesc)){
+	  ndbout << "Invalid file missing table description" << endl;
+	  break;
+        }
+        ndbout << (* tabDesc) << endl;
       }
-      ndbout << (* tabDesc) << endl;
     }
-
     {
       BackupFormat::DataFile::FragmentHeader fragHeader;
       if(!readFragHeader(f, &fragHeader))
@@ -647,11 +649,13 @@ operator<<(NdbOut& ndbout, const BackupFormat::CtlFile::TableList & hf) {
   ndbout << "-- Table List:" << endl;
   ndbout << "SectionType: " << hf.SectionType << endl;
   ndbout << "SectionLength: " << hf.SectionLength << endl;
+  ndbout << "Tables: ";
   for(Uint32 i = 0; i < hf.SectionLength - 2; i++){
     ndbout << hf.TableIds[i] << " ";
     if((i + 1) % 16 == 0)
       ndbout << endl;
   }
+  ndbout << endl;
   return ndbout;
 }
 
