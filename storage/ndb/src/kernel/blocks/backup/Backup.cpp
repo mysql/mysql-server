@@ -7232,6 +7232,12 @@ Backup::fragmentCompleted(Signal* signal,
                ptr.p->m_first_data_file_number));
       c_tup->stop_lcp_scan(tabPtr.p->tableId, fragPtr.p->fragmentId);
     }
+    /**
+     * Ensure that we didn't find more rows in LCP than what was
+     * in fragment at start of LCP.
+     */
+    ndbrequire(ptr.p->m_row_count <=
+               (filePtr.p->m_lcp_inserts + filePtr.p->m_lcp_writes));
     ptr.p->slaveState.setState(STOPPING);
 
     /**
