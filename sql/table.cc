@@ -8223,8 +8223,8 @@ void TABLE::add_logical_diff(const Field_json *field,
     diffs->add_diff(path, operation);
   else
   {
-    Json_dom_ptr dom= new_value->clone_dom(field->table->in_use);
-    diffs->add_diff(path, operation, dom);
+    diffs->add_diff(path, operation,
+                    new_value->clone_dom(field->table->in_use));
   }
 #ifndef DBUG_OFF
   StringBuffer<STRING_BUFFER_USUAL_SIZE> path_str;

@@ -254,9 +254,9 @@ const Json_diff_vector Json_diff_vector::EMPTY_JSON_DIFF_VECTOR{Json_diff_vector
 
 void Json_diff_vector::add_diff(const Json_seekable_path &path,
                                 enum_json_diff_operation operation,
-                                Json_dom_ptr &dom)
+                                Json_dom_ptr dom)
 {
-  m_vector.emplace_back(path, operation, dom);
+  m_vector.emplace_back(path, operation, std::move(dom));
   m_binary_length+= at(size() - 1).binary_length();
 }
 
@@ -371,12 +371,12 @@ bool Json_diff_vector::read_binary(const char **from,
         goto corrupted;
       Json_wrapper wrapper(value);
       Json_dom_ptr dom= wrapper.clone_dom(current_thd);
-      if (dom == NULL)
+      if (dom == nullptr)
         DBUG_RETURN(true); /* purecov: inspected */ // OOM, error is reported
       wrapper.dbug_print();
 
       // Store diff
-      add_diff(path, operation, dom);
+      add_diff(path, operation, std::move(dom));
 
       p+= value_length;
       length -= value_length;
