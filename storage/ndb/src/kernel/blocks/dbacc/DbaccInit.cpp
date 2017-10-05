@@ -116,6 +116,7 @@ Dbacc::Dbacc(Block_context& ctx, Uint32 instanceNumber):
 
 #ifdef VM_TRACE
   {
+    Page8Ptr expPageptr;
     void* tmp[] = { &fragrecptr,
                     &operationRecPtr,
                     &queOperPtr,
