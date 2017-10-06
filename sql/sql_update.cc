@@ -2205,7 +2205,8 @@ void Query_result_update::cleanup()
                 Transaction_ctx::STMT));
 
   if (update_operations != NULL)
-    destroy_array(update_operations, update_table_count);
+    for (uint i= 0; i < update_table_count; i++)
+      destroy(update_operations[i]);
 }
 
 

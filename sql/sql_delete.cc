@@ -1026,7 +1026,11 @@ void Query_result_delete::cleanup()
     return;
 
   // Remove optimize structs for this operation.
-  destroy_array(tempfiles, delete_table_count);
+  for (uint counter= 0; counter < delete_table_count; counter++)
+  {
+    if (tempfiles && tempfiles[counter])
+      destroy(tempfiles[counter]);
+  }
   tempfiles= NULL;
   tables= NULL;
 }
