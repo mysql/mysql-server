@@ -23,7 +23,6 @@
 #endif
 #include <string.h>
 #include <sys/types.h>
-#include <types.hpp>
 #include <string>
 
 #include "my_compiler.h"
