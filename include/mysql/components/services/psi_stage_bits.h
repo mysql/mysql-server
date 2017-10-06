@@ -16,11 +16,6 @@
 #ifndef COMPONENTS_SERVICES_PSI_STAGE_BITS_H
 #define COMPONENTS_SERVICES_PSI_STAGE_BITS_H
 
-#include "my_inttypes.h"
-#include "my_macros.h"
-
-C_MODE_START
-
 /**
   @file
   Performance schema instrumentation interface.
@@ -57,8 +52,8 @@ typedef unsigned int PSI_stage_key;
 */
 struct PSI_stage_progress_v1
 {
-  ulonglong m_work_completed;
-  ulonglong m_work_estimated;
+  unsigned long long m_work_completed;
+  unsigned long long m_work_estimated;
 };
 typedef struct PSI_stage_progress_v1 PSI_stage_progress_v1;
 
@@ -77,7 +72,7 @@ struct PSI_stage_info_v1
     The flags of the stage instrument to register.
     @sa PSI_FLAG_PROGRESS
   */
-  uint m_flags;
+  unsigned int m_flags;
   /** Documentation. */
   const char *m_documentation;
 };
@@ -117,7 +112,5 @@ typedef struct PSI_stage_info_v1 PSI_stage_info;
 typedef struct PSI_stage_progress_v1 PSI_stage_progress;
 
 /** @} (end of group psi_abi_stage) */
-
-C_MODE_END
 
 #endif /* COMPONENTS_SERVICES_PSI_STAGE_BITS_H */

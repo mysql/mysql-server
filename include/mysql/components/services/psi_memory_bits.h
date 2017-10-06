@@ -16,16 +16,14 @@
 #ifndef COMPONENTS_SERVICES_PSI_MEMORY_BITS_H
 #define COMPONENTS_SERVICES_PSI_MEMORY_BITS_H
 
-#include "my_inttypes.h"
+#ifndef MYSQL_ABI_CHECK
+#include <stddef.h> /* size_t */
+#endif
 
 /**
   @file
   Performance schema instrumentation interface.
 */
-
-#ifdef __cplusplus
-extern "C" {
-#endif /* __cplusplus */
 
 /**
   @defgroup psi_abi_memory Memory Instrumentation (ABI)
@@ -57,7 +55,7 @@ struct PSI_memory_info_v1
     The flags of the memory instrument to register.
     @sa PSI_FLAG_ONLY_GLOBAL_STAT
   */
-  uint m_flags;
+  unsigned int m_flags;
   /** Volatility index. */
   int m_volatility;
   /** Documentation. */
@@ -121,10 +119,6 @@ typedef void (*memory_free_v1_t)(PSI_memory_key key,
                                  struct PSI_thread *owner);
 
 typedef struct PSI_memory_info_v1 PSI_memory_info;
-
-#ifdef __cplusplus
-}
-#endif /* __cplusplus */
 
 /** @} (end of group psi_abi_memory) */
 

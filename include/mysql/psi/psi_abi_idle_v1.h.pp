@@ -21,21 +21,19 @@ typedef int myf;
 #include "my_psi_config.h"
 #include "my_sharedlib.h"
 #include "mysql/components/services/psi_idle_bits.h"
-#include "my_inttypes.h"
-#include "my_macros.h"
 struct PSI_idle_locker;
 typedef struct PSI_idle_locker PSI_idle_locker;
 struct PSI_idle_locker_state_v1
 {
-  uint m_flags;
+  unsigned int m_flags;
   struct PSI_thread *m_thread;
-  ulonglong m_timer_start;
-  ulonglong (*m_timer)(void);
+  unsigned long long m_timer_start;
+  unsigned long long (*m_timer)(void);
   void *m_wait;
 };
 typedef struct PSI_idle_locker_state_v1 PSI_idle_locker_state_v1;
 typedef struct PSI_idle_locker *(*start_idle_wait_v1_t)(
-  struct PSI_idle_locker_state_v1 *state, const char *src_file, uint src_line);
+  struct PSI_idle_locker_state_v1 *state, const char *src_file, unsigned int src_line);
 typedef void (*end_idle_wait_v1_t)(struct PSI_idle_locker *locker);
 typedef struct PSI_idle_locker_state_v1 PSI_idle_locker_state;
 struct PSI_idle_bootstrap
