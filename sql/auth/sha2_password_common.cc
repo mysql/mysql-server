@@ -21,6 +21,9 @@
 #ifdef HAVE_ALLOCA_H
 #include <alloca.h>
 #endif
+#ifndef HAVE_YASSL
+#include <openssl/evp.h>
+#endif
 #include <string.h>
 #include <sys/types.h>
 #include <string>
