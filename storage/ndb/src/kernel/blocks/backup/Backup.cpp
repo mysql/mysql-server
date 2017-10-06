@@ -7235,9 +7235,23 @@ Backup::fragmentCompleted(Signal* signal,
     /**
      * Ensure that we didn't find more rows in LCP than what was
      * in fragment at start of LCP.
+     *
+     * If we run a full LCP we should always find as many rows as was
+     * present in the row count at the start of the LCP.
+     * If we run a partial LCP we should never find more rows in this
+     * LCP file than was present at the start of the LCP, this is the
+     * sum of rows from ALL pages and changed rows in CHANGE pages.
+     *
+     * This check is important such that we find inconsistencies as
+     * soon as they occur, rather than at the time when we recover
+     * when it is very difficult to trace back the source of the
+     * problem.
      */
-    ndbrequire(ptr.p->m_row_count <=
-               (filePtr.p->m_lcp_inserts + filePtr.p->m_lcp_writes));
+    ndbrequire(ptr.p->m_row_count == filePtr.p->m_lcp_inserts ||
+      ((ptr.p->m_num_parts_in_this_lcp != BackupFormat::NDB_MAX_LCP_PARTS) &&
+       (ptr.p->m_row_count >
+        (filePtr.p->m_lcp_inserts + filePtr.p->m_lcp_writes))));
+
     ptr.p->slaveState.setState(STOPPING);
 
     /**
