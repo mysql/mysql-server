@@ -7249,7 +7249,7 @@ Backup::fragmentCompleted(Signal* signal,
      */
     ndbrequire(ptr.p->m_row_count == filePtr.p->m_lcp_inserts ||
       ((ptr.p->m_num_parts_in_this_lcp != BackupFormat::NDB_MAX_LCP_PARTS) &&
-       (ptr.p->m_row_count >
+       (ptr.p->m_row_count >=
         (filePtr.p->m_lcp_inserts + filePtr.p->m_lcp_writes))));
 
     ptr.p->slaveState.setState(STOPPING);
