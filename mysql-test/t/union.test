@@ -2010,3 +2010,31 @@ eval select variable_name,
 from performance_schema.session_status
 where variable_name like 'created_tmp_%tables';
 --enable_query_log
+
+--echo #
+--echo # Bug#11747567: INTEGER CONSTANTS CASTED TO BIGINTS BY UNIONS
+--echo #
+
+CREATE TABLE t1(
+  a tinyint(4) DEFAULT NULL,
+  b int(11) DEFAULT NULL,
+  c bigint(20) DEFAULT NULL
+);
+
+CREATE VIEW v1 AS SELECT t1.a AS a, t1.b AS b,t1.c AS c, 1 AS
+`1`, 1 AS `My_exp_1`, 1 AS `My_exp_1_1` FROM t1 UNION SELECT -(1) AS `-1`,
+-(1) AS `-1`, -(1) AS `-1`, -(1) AS `-1`, -(1) AS `-1`, -(1) AS `-1`;
+
+CREATE VIEW v2 AS SELECT 1 AS `1`, 1 AS `My_exp_1`, 1 AS `My_exp_1_1`,
+-(1) AS `-1`, -(1) AS `My_exp_-1`, -(1) AS `My_exp_1_-1`;
+
+CREATE VIEW v3 AS SELECT t1.a AS a, t1.b AS b, t1.c AS c FROM t1;
+
+DESCRIBE v1;
+DESCRIBE v2;
+DESCRIBE v3;
+
+DROP TABLE t1;
+DROP VIEW v1,v2,v3;
+
+--echo # End of test for Bug#11747567

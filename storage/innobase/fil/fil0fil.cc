@@ -399,7 +399,8 @@ public:
 	dberr_t scan(const std::string& in_directories)
 		MY_ATTRIBUTE((warn_unused_result));
 
-	/** Clear all the tablespace data. */
+	/** Clear all the tablespace file data but leave the list of
+	scanned directories in place. */
 	void clear()
 	{
 		for (auto& dir : m_dirs) {
@@ -490,7 +491,6 @@ private:
 	@param[in]	duplicates	Duplicate tablespace IDs*/
 	void print_duplicates(const Space_id_set&  duplicates);
 
-private:
 	/** first=dir path from the user, second=files found under first. */
 	using Scanned = std::vector<Tablespace_files>;
 
@@ -1892,11 +1892,11 @@ Fil_shard::close_file(space_id_t space_id)
 
 		while (file.in_use > 0) {
 
-		       mutex_release();
+			mutex_release();
 
-		       os_thread_sleep(10000);
+			os_thread_sleep(10000);
 
-		       mutex_acquire();
+			mutex_acquire();
 		}
 
 		if (file.is_open) {
@@ -1926,8 +1926,8 @@ Fil_shard::update_space_name_map(fil_space_t* space, const char* new_name)
 	ut_a(it.second);
 }
 
-/** Check if the name is an undo tablespace name.
-@param[in]	name	Tablespace name 
+/** Check if the basename of a filepath is an undo tablespace name
+@param[in]	name	Tablespace name
 @return true if it is an undo tablespace name */
 bool
 Fil_path::is_undo_tablespace_name(const std::string& name)
@@ -3100,16 +3100,9 @@ Fil_shard::space_create(
 	/* Look for a matching tablespace. */
 	fil_space_t*	space = get_space_by_name(name);
 
-	if (space != nullptr) {
-
-		ib::warn()
-			<< "Tablespace '" << name << "' exists in the cache"
-			<< " with id << " << space->id << " != " << space_id;
-
-		return(get_space_by_id(space_id) == space ? space : nullptr);
+	if (space == nullptr) {
+		space = get_space_by_id(space_id);
 	}
-
-	space = get_space_by_id(space_id);
 
 	if (space != nullptr) {
 
@@ -3129,8 +3122,9 @@ Fil_shard::space_create(
 			<< " with id " << space_id << " to the tablespace"
 			<< " memory cache, but tablespace"
 			<< " '" << space->name << "'"
-			<< " already exists in the cache with the same"
-			<< " space ID. It maps to the following file(s): "
+			<< " already exists in the cache with space ID "
+			<< space->id
+			<< ". It maps to the following file(s): "
 			<< oss.str();
 
 		return(nullptr);
@@ -4691,7 +4685,7 @@ and a suffix.
 @param[in]	name_in		nullptr if path is full, or Table/Tablespace
 				name
 @param[in]	ext		the file extension to use
-@param[in]      trim            whether last name on the path should be trimmed
+@param[in]	trim		whether last name on the path should be trimmed
 @return own: file name; must be freed by ut_free() */
 char*
 Fil_path::make(
@@ -4725,11 +4719,19 @@ Fil_path::make(
 		name.assign(name_in);
 	}
 
-	/* If the name is a relative path like './', '../' or an absolute path,
-	do not prepend the datadir path.  */
+
+	/* Do not prepend the datadir path (which must be DOT_SLASH)
+	if the name is an absolute path or a relative path like
+	DOT_SLASH or DOT_DOT_SLASH.  */
 	if (is_absolute_path(name)
 	    || has_prefix(name, DOT_SLASH)
 	    || has_prefix(name, DOT_DOT_SLASH)) {
+
+		/* The datadir in InnoDB is always referred to by "./"
+		and so it is currenlty not possible for this routine to be
+		called with an absolute(path) and one of the name types in
+		this condition. */
+		ut_ad(path.empty() || path == DOT_SLASH);
 
 		path.clear();
 	}
@@ -4760,6 +4762,7 @@ Fil_path::make(
 		filepath.append(name);
 	}
 
+	/* Make sure that the specified suffix is at the end. */
 	if (ext != NO_EXT) {
 
 		const auto	suffix = dot_ext[ext];
@@ -5748,8 +5751,8 @@ fil_ibd_open(
 
 			ib::error()
 				<< "Could not find a valid tablespace file"
-			       << " for `" << space_name << "`. "
-			       << TROUBLESHOOT_DATADICT_MSG;
+				<< " for `" << space_name << "`. "
+				<< TROUBLESHOOT_DATADICT_MSG;
 		}
 
 		return(DB_CORRUPTION);
@@ -6200,10 +6203,9 @@ Fil_shard::space_check_exists(
 	mutex_acquire();
 
 	/* Look if there is a space with the same id */
-
 	fil_space_t*	space = get_space_by_id(space_id);
 
-	/* name is nullptr when replay DELETE ddl log. */
+	/* name is nullptr when replaying a DELETE ddl log. */
 	if (name == nullptr) {
 
 		mutex_release();
@@ -6254,8 +6256,6 @@ Fil_shard::space_check_exists(
 		}
 	}
 
-	bool	matching_exists = false;
-
 	/* Info from "fnamespace" comes from the ibd file itself, it can
 	be different from data obtained from System tables since file
 	operations are not transactional. If adjust_space is set, and the
@@ -6301,7 +6301,7 @@ Fil_shard::space_check_exists(
 		ib::error()
 			<< "Table " << name << " in InnoDB data dictionary"
 			" has tablespace id " << space_id << ", but the"
-		        " tablespace with that id has name "
+			" tablespace with that id has name "
 			<< space->name << ". Have you deleted or moved .ibd"
 			" files?";
 
@@ -6318,7 +6318,7 @@ Fil_shard::space_check_exists(
 
 	mutex_release();
 
-	return(matching_exists);
+	return(false);
 }
 
 /** Returns true if a matching tablespace exists in the InnoDB tablespace
@@ -8480,11 +8480,29 @@ This should not be called for temporary tables.
 bool
 fil_delete_file(const char* path)
 {
-	bool	success;
+	bool	success = true;
 
 	/* Force a delete of any stale .ibd files that are lying around. */
 
-	success = os_file_delete_if_exists(innodb_data_file_key, path, nullptr);
+#ifdef _WIN32
+	/* For Windows, we need to check the status of the file.
+	If there's a subdir with same name, we will skip to delete it.
+	Otherwise, it'll keep looping in os_file_delete_if_exists_func. */
+	os_file_type_t	type;
+	bool		exists;
+
+	os_file_status(path, &exists, &type);
+	if (type == OS_FILE_TYPE_DIR) {
+		ib::info() << "There is a directory with same name,"
+			" skip deleting " << path;
+	} else {
+		success = os_file_delete_if_exists(
+			innodb_data_file_key, path, nullptr);
+	}
+#else
+	success = os_file_delete_if_exists(
+		innodb_data_file_key, path, nullptr);
+#endif /* _WIN32 */
 
 	char*	cfg_filepath = Fil_path::make_cfg(path);
 
@@ -9144,7 +9162,7 @@ fil_tablespace_path_equals(
 	dd::Object_id	dd_object_id,
 	space_id_t	space_id,
 	const char*	space_name,
-	const char*	old_path,
+	std::string	old_path,
 	std::string*	new_path)
 {
 	ut_ad(Fil_path::has_ibd_suffix(old_path));
@@ -10262,15 +10280,14 @@ Fil_system::get_tablespace_id(const std::string& filename)
 
 	ifs.close();
 
+	/* Try the more heavy duty method, as a last resort. */
 	if (err != DB_SUCCESS) {
 
-		/* Try the more heavy duty method, as a last resort. The
-		ifstream will work for all file formats compressed or
+		/* The ifstream will work for all file formats compressed or
 		otherwise because the header of the page is not compressed.
 		Where it will fail is if the first page is corrupt. Then for
 		compressed tablespaces we don't know where the page boundary
 		starts because we don't know the page size. */
-
 
 		Datafile	file;
 
@@ -10760,7 +10777,7 @@ fil_check_path(const std::string& path)
 	return(fil_system->check_path(path));
 }
 
-/** Get the list of directories that InnoDB will search on startup.
+/** Get the list of directories that datafiles can reside in.
 @return the list of directories 'dir1;dir2;....;dirN' */
 std::string
 fil_get_dirs()

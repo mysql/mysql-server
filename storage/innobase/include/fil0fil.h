@@ -480,10 +480,12 @@ public:
 		if (path.size() >= 2
 		    && (path.front() == '\'' || path.back() == '"')) {
 
-			ut_ad(path.back() == '\'' || path.back() == '"');
-
 			path.erase(0, 1);
-			path.erase(path.size() - 1);
+
+			if (path.back() == '\'' || path.back() == '"') {
+
+				path.erase(path.size() - 1);
+			}
 		}
 
 		return(path);
@@ -1850,7 +1852,7 @@ fil_tablespace_path_equals(
 	dd::Object_id	dd_object_id,
 	space_id_t	space_id,
 	const char*	space_name,
-	const char*	old_path,
+	std::string	old_path,
 	std::string*	new_path)
 	MY_ATTRIBUTE((warn_unused_result));
 

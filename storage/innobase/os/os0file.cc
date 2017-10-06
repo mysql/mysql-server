@@ -2964,8 +2964,6 @@ AIO::is_linux_native_aio_supported()
 		}
 	} else {
 
-		Fil_path::normalize(srv_log_group_home_dir);
-
 		ulint	dirnamelen = strlen(srv_log_group_home_dir);
 
 		ut_a(dirnamelen < (sizeof name) - 10 - sizeof "ib_logfile");

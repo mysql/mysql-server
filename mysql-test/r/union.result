@@ -2848,3 +2848,41 @@ SELECT 1 UNION DISTINCT SELECT 2;
 variable_name	tweaked_value
 Created_tmp_disk_tables	0
 Created_tmp_tables	1
+#
+# Bug#11747567: INTEGER CONSTANTS CASTED TO BIGINTS BY UNIONS
+#
+CREATE TABLE t1(
+a tinyint(4) DEFAULT NULL,
+b int(11) DEFAULT NULL,
+c bigint(20) DEFAULT NULL
+);
+CREATE VIEW v1 AS SELECT t1.a AS a, t1.b AS b,t1.c AS c, 1 AS
+`1`, 1 AS `My_exp_1`, 1 AS `My_exp_1_1` FROM t1 UNION SELECT -(1) AS `-1`,
+-(1) AS `-1`, -(1) AS `-1`, -(1) AS `-1`, -(1) AS `-1`, -(1) AS `-1`;
+CREATE VIEW v2 AS SELECT 1 AS `1`, 1 AS `My_exp_1`, 1 AS `My_exp_1_1`,
+-(1) AS `-1`, -(1) AS `My_exp_-1`, -(1) AS `My_exp_1_-1`;
+CREATE VIEW v3 AS SELECT t1.a AS a, t1.b AS b, t1.c AS c FROM t1;
+DESCRIBE v1;
+Field	Type	Null	Key	Default	Extra
+a	tinyint(4)	YES		NULL	
+b	int(11)	YES		NULL	
+c	bigint(20)	YES		NULL	
+1	int(1)	NO		0	
+My_exp_1	int(1)	NO		0	
+My_exp_1_1	int(1)	NO		0	
+DESCRIBE v2;
+Field	Type	Null	Key	Default	Extra
+1	int(1)	NO		0	
+My_exp_1	int(1)	NO		0	
+My_exp_1_1	int(1)	NO		0	
+-1	int(2)	NO		0	
+My_exp_-1	int(2)	NO		0	
+My_exp_1_-1	int(2)	NO		0	
+DESCRIBE v3;
+Field	Type	Null	Key	Default	Extra
+a	tinyint(4)	YES		NULL	
+b	int(11)	YES		NULL	
+c	bigint(20)	YES		NULL	
+DROP TABLE t1;
+DROP VIEW v1,v2,v3;
+# End of test for Bug#11747567
