@@ -21626,7 +21626,7 @@ static MYSQL_SYSVAR_STR(undo_directory, srv_undo_dir,
 
 static MYSQL_SYSVAR_ULONG(undo_tablespaces, srv_undo_tablespaces,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_NOPERSIST,
-  "Number of undo tablespaces to use. ",
+  "Number of undo tablespaces to use. (deprecated)",
   NULL, innodb_undo_tablespaces_update,
   FSP_MIN_UNDO_TABLESPACES,	/* Default seting */
   FSP_MIN_UNDO_TABLESPACES,	/* Minimum value */
