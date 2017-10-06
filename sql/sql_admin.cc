@@ -419,7 +419,7 @@ send_histogram_results(THD *thd, const histograms::results_map &results,
         message.append(combined_name);
         message.append("' doesn't exist.");
         break;
-      case histograms::Message::READ_ONLY:
+      case histograms::Message::SERVER_READ_ONLY:
         message_type.assign("Error");
         message.assign("The server is in read-only mode.");
         combined_name.clear();
@@ -1371,7 +1371,7 @@ bool Sql_cmd_analyze_table::handle_histogram_command(THD *thd,
     if (read_only)
     {
       // Do not try to update histograms when in read_only mode.
-      results.emplace("", histograms::Message::READ_ONLY);
+      results.emplace("", histograms::Message::SERVER_READ_ONLY);
       res= false;
     }
     else

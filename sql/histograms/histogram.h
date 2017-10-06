@@ -83,7 +83,7 @@ enum class Message
   NO_HISTOGRAM_FOUND,
   HISTOGRAM_DELETED,
   NO_SUCH_TABLE,
-  READ_ONLY
+  SERVER_READ_ONLY
 };
 
 struct Histogram_psi_key_alloc
