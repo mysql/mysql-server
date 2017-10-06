@@ -110,12 +110,6 @@ Created 2/16/1996 Heikki Tuuri
 # include "ut0crc32.h"
 # include "ut0new.h"
 
-#ifdef HAVE_LZO1X
-#include <lzo/lzo1x.h>
-
-extern bool srv_lzo_disabled;
-#endif /* HAVE_LZO1X */
-
 /** fil_space_t::flags for hard-coded tablespaces */
 extern ulint		predefined_flags;
 

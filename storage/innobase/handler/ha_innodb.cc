@@ -4186,30 +4186,27 @@ innodb_buffer_pool_size_init()
 		static const char* variable_name = "innodb_buffer_pool_size";
 		enum enum_variable_source source;
 		if (!sysvar_source_svc->get(
-			variable_name, strlen(variable_name), &source))
-		{
+			variable_name, strlen(variable_name), &source)) {
 
-			/* If innodb_buffer_pool_size is not specified explicitly,
-			then set it according to server memory as follow:
-			1) server_memory < 1 GB then
-				innodb_buffer_pool_size = default.
-			2) server_memory <= 4 GB then
-				innodb_buffer_pool_size = 50% of server memory.
-			2) server_memory > 4 GB then
-				 innodb_buffer_pool_size = 75% of server memory.*/
 			if (source == COMPILED) {
+
 				double server_mem = get_sys_mem();
+
 				if (server_mem < 1.0) {
-					/* Do nothing. Current default is considered. */
+					;
 				} else if (server_mem <= 4.0) {
 					srv_buf_pool_size =
-						static_cast<ulint>(server_mem * 0.5 * GB);
+						static_cast<ulint>(
+							server_mem * 0.5 * GB);
 				} else
 					srv_buf_pool_size =
-						static_cast<ulint>(server_mem * 0.75 * GB);
+						static_cast<ulint>(
+							server_mem * 0.75 * GB);
 			} else {
-				ib::warn() << "Option innodb_dedicated_server"
-					" is ignored for innodb_buffer_pool_size because"
+				ib::warn()
+					<< "Option innodb_dedicated_server"
+					" is ignored for"
+					" innodb_buffer_pool_size because"
 					" innodb_buffer_pool_size="
 					<< srv_buf_pool_curr_size
 				        <<" is specified explicitly.";
@@ -4366,19 +4363,12 @@ innodb_init_params()
 		static const char* variable_name = "innodb_log_file_size";
 		enum enum_variable_source source;
 		if (!sysvar_source_svc->get(
-			variable_name, strlen(variable_name), &source))
-		{
-			/* If innodb_log_file_size is not specified explicitly,
-			then set it according to server memory as follow:
-			1) server_memory <   1 GB then innodb_log_file_size = default.
-			2) server_memory <=  4 GB then innodb_log_file_size =  128 MB.
-			3) server_memory <=  8 GB then innodb_log_file_size =  512 MB.
-			4) server_memory <= 16 GB then innodb_log_file_size = 1024 MB.
-			5) server_memory >  16 GB then innodb_log_file_size = 2048 MB.*/
+			variable_name, strlen(variable_name), &source)) {
+
 			if (source == COMPILED) {
 				double server_mem = get_sys_mem();
 				if (server_mem < 1.0) {
-					/* Do nothing. Current default is considered. */
+					;
 				} else if (server_mem <= 4.0) {
 					innodb_log_file_size = 128ULL * MB;
 				} else if (server_mem <= 8.0) {
@@ -4389,9 +4379,10 @@ innodb_init_params()
 					innodb_log_file_size = 2048ULL * MB;
 				}
 			} else {
-				ib::warn() << "Option innodb_dedicated_server"
-					" is ignored for innodb_log_file_size because"
-					" innodb_log_file_size="
+				ib::warn()
+					<< "Option innodb_dedicated_server"
+					" is ignored for innodb_log_file_size"
+					" because innodb_log_file_size="
 					<< innodb_log_file_size
 				        <<" is specified explicitly.";
 			}
@@ -4553,16 +4544,6 @@ innodb_init_params()
 		srv_use_doublewrite_buf = FALSE;
 	}
 
-#ifdef HAVE_LZO1X
-	if (lzo_init() != LZO_E_OK) {
-		ib::warn() << "lzo_init() failed, support disabled";
-		srv_lzo_disabled = true;
-	} else {
-		ib::info() << "LZO1X support available";
-		srv_lzo_disabled = false;
-	}
-#endif /* HAVE_LZO1X */
-
 #ifdef LINUX_NATIVE_AIO
 	if (srv_use_native_aio) {
 		ib::info() << "Using Linux native AIO";
@@ -4577,23 +4558,26 @@ innodb_init_params()
 #ifndef _WIN32
 	acquire_sysvar_source_service();
 	/* Check if innodb_dedicated_server == ON and O_DIRECT is supported */
-	if (srv_dedicated_server &&
-		sysvar_source_svc != nullptr &&
-		 os_is_o_direct_supported()) {
+	if (srv_dedicated_server
+	    && sysvar_source_svc != nullptr
+	    && os_is_o_direct_supported()) {
+
 		static const char* variable_name = "innodb_flush_method";
 		enum enum_variable_source source;
 		if (!sysvar_source_svc->get(
-			variable_name, strlen(variable_name), &source))
-		{
+			variable_name, strlen(variable_name), &source)) {
+
 			/* If innodb_flush_method is not specified explicitly */
 			if (source == COMPILED) {
 				innodb_flush_method = static_cast<ulong>(
 					SRV_UNIX_O_DIRECT_NO_FSYNC);
 			} else {
-				ib::warn() << "Option innodb_dedicated_server"
-					" is ignored for innodb_flush_method because"
-					" innodb_flush_method="
-					<< innodb_flush_method_names[innodb_flush_method]
+				ib::warn()
+					<< "Option innodb_dedicated_server"
+					" is ignored for innodb_flush_method"
+					"because innodb_flush_method="
+					<< innodb_flush_method_names[
+						innodb_flush_method]
 				        <<" is specified explicitly.";
 			}
 		}
