@@ -15,6 +15,7 @@
 
 #include "sql/auth/sql_authentication.h"
 
+#include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
 #include <fstream>                     // IWYU pragma: keep
@@ -31,11 +32,13 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_io.h"
 #include "my_loglevel.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "my_time.h"
 #include "mysql/components/services/log_shared.h"
+#include "mysql/plugin.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_my_plugin_log.h"
@@ -55,10 +58,8 @@
 #include "sql/conn_handler/connection_handler_manager.h" // Connection_handler_manager
 #include "sql/current_thd.h"            // current_thd
 #include "sql/derror.h"                 // ER_THD
-#include "sql/histograms/value_map.h"
 #include "sql/hostname.h"               // Host_errors, inc_host_errors
 #include "sql/log.h"                    // query_logger
-#include "sql/my_decimal.h"
 #include "sql/mysqld.h"                 // global_system_variables
 #include "sql/protocol.h"
 #include "sql/protocol_classic.h"
@@ -70,13 +71,14 @@
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_plugin.h"             // my_plugin_lock_by_name
-#include "sql/sql_servers.h"
 #include "sql/sql_time.h"               // Interval
 #include "sql/system_variables.h"
 #include "sql/tztime.h"                 // Time_zone
 #include "sql_common.h"                 // mpvio_info
 #include "sql_string.h"
 #include "violite.h"
+
+struct MEM_ROOT;
 
 #if defined(HAVE_OPENSSL)
 #ifndef HAVE_YASSL

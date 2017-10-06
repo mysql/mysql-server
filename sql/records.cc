@@ -31,7 +31,6 @@
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysql/udf_registration_types.h"
 #include "sql/field.h"
 #include "sql/filesort.h"        // filesort_free_buffers
 #include "sql/handler.h"
@@ -45,7 +44,6 @@
 #include "sql/sql_sort.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
-#include "sql_string.h"
 #include "thr_lock.h"
 #include "varlen_sort.h"
 

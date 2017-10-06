@@ -28,15 +28,12 @@
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
-#include "mysql/udf_registration_types.h"
 #include "sql/item.h"
-#include "sql/opt_trace.h"
 #include "sql/records.h"           // READ_RECORD
 #include "sql/sql_alloc.h"
 #include "sql/sql_class.h"         // THD
 #include "sql/sql_lex.h"
 #include "sql/sql_opt_exec_shared.h" // QEP_shared_owner
-#include "sql/sql_select.h"
 #include "sql/table.h"
 #include "sql/temp_table_param.h"  // Temp_table_param
 
@@ -45,17 +42,15 @@ class Field_longlong;
 class Filesort;
 class Item_sum;
 class JOIN;
-class Opt_trace_context;
+class JOIN_TAB;
 class Opt_trace_object;
-struct POSITION;
 class QEP_TAB;
 class QUICK_SELECT_I;
 struct CACHE_FIELD;
+struct MI_COLUMNDEF;
+struct POSITION;
 struct st_join_table;
 template <class T> class List;
-
-struct MI_COLUMNDEF;
-struct TABLE_REF;
 
 /**
    Possible status of a "nested loop" operation (Next_select_func family of
@@ -403,8 +398,6 @@ bool setup_copy_fields(THD *thd, Temp_table_param *param,
 		  uint elements, List<Item> &all_fields);
 bool check_unique_constraint(TABLE *table);
 ulonglong unique_hash(Field *field, ulonglong *hash);
-
-class Opt_trace_object;
 
 class QEP_TAB : public Sql_alloc, public QEP_shared_owner
 {

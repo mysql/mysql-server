@@ -18,6 +18,7 @@
 
 #include <sys/types.h>
 
+#include "m_ctype.h"
 #include "map_helpers.h"
 #include "my_inttypes.h"
 #include "my_sharedlib.h"
@@ -29,8 +30,6 @@
 #include "sql/sys_vars_shared.h" //For PolyLock, AutoWLock, AutoRLock
 
 namespace keyring {
-
-extern "C" MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
 
 class Keys_container : public IKeys_container
 {

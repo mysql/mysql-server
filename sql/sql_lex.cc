@@ -31,15 +31,15 @@
 #include "mysql_version.h"             // MYSQL_VERSION_ID
 #include "mysqld_error.h"
 #include "prealloced_array.h"          // Prealloced_array
-#include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"
-#include "sql/key.h"
+#include "sql/item_func.h"
 #include "sql/mysqld.h"                // table_alias_charset
 #include "sql/parse_location.h"
 #include "sql/parse_tree_nodes.h"      // PT_with_clause
 #include "sql/protocol.h"
 #include "sql/select_lex_visitor.h"
 #include "sql/sp_head.h"               // sp_head
+#include "sql/sql_base.h"
 #include "sql/sql_class.h"             // THD
 #include "sql/sql_error.h"
 #include "sql/sql_insert.h"            // Sql_cmd_insert_base
@@ -51,9 +51,9 @@
 #include "sql/sql_profile.h"
 #include "sql/sql_show.h"              // append_identifier
 #include "sql/sql_table.h"             // primary_key_name
-#include "sql/sql_tmp_table.h"
 #include "sql/sql_yacc.h"
 #include "sql/system_variables.h"
+#include "sql/table_function.h"
 #include "sql/window.h"
 #include "template_utils.h"
 

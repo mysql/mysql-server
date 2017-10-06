@@ -25,8 +25,6 @@
   @{
 */
 
-#include "my_inttypes.h"
-#include "my_io.h"
 #include "my_macros.h"
 #include "my_psi_config.h"  // IWYU pragma: keep
 #include "my_sharedlib.h"

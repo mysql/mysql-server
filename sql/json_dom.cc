@@ -28,17 +28,20 @@
 #include <sys/types.h>
 #include <algorithm>            // std::min, std::max
 #include <cmath>                // std::isfinite
-#include <functional>           // std::function
 
 #include "base64.h"
 #include "decimal.h"
+#include "json_binary.h"
 #include "m_ctype.h"
 #include "m_string.h"           // my_gcvt, _dig_vec_lower, my_strtod
+#include "malloc_allocator.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
+#include "my_decimal.h"
 #include "my_double2ulonglong.h"
 #include "my_sys.h"
 #include "my_time.h"
+#include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"       // ER_*
@@ -48,10 +51,8 @@
 #include "sql/current_thd.h"    // current_thd
 #include "sql/derror.h"         // ER_THD
 #include "sql/field.h"
-#include "sql/histograms/value_map.h"
 #include "sql/json_path.h"
 #include "sql/psi_memory_key.h" // key_memory_JSON
-#include "sql/session_tracker.h"
 #include "sql/sql_class.h"      // THD
 #include "sql/sql_const.h"      // STACK_MIN_SIZE
 #include "sql/sql_error.h"

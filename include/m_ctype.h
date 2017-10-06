@@ -172,6 +172,7 @@ typedef struct
 
 struct CHARSET_INFO;
 typedef struct CHARSET_INFO CHARSET_INFO;
+extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
 
 typedef struct MY_CHARSET_LOADER
 {

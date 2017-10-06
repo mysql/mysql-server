@@ -34,7 +34,6 @@
 #include "sql/handler.h"
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
-#include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql_string.h"
 

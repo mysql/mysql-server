@@ -18,14 +18,15 @@
 
 #include <stddef.h>
 #include <sys/types.h>
+#include <memory>
 #include <utility>              // std::forward
 
-#include "binary_log_types.h"
 #include "m_ctype.h"
 #include "my_inttypes.h"
 #include "my_time.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
+#include "mysql_time.h"
 #include "prealloced_array.h"   // Prealloced_array
 #include "sql/enum_query_type.h"
 #include "sql/field.h"
@@ -34,17 +35,16 @@
 #include "sql/item_strfunc.h"   // Item_str_func
 #include "sql/json_path.h"      // Json_path
 #include "sql/mem_root_array.h" // Mem_root_array
-#include "sql/my_decimal.h"
 #include "sql/parse_tree_node_base.h"
 #include "sql_string.h"
-#include "psi_memory_key.h"     // key_memory_JSON
-#include <vector>
 
 class Item_func_like;
+class Json_dom;
 class Json_scalar_holder;
 class Json_wrapper;
 class PT_item_list;
 class THD;
+class my_decimal;
 
 /** For use by JSON_CONTAINS_PATH() and JSON_SEARCH() */
 enum enum_one_or_all_type

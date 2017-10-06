@@ -32,33 +32,26 @@
 
 #include "ft_global.h"         // ft_hints
 #include "lex_string.h"
-#include "m_string.h"
+#include "m_ctype.h"
 #include "map_helpers.h"
 #include "my_alloc.h"
 #include "my_base.h"
-#include "my_bitmap.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_double2ulonglong.h"
 #include "my_inttypes.h"
 #include "my_io.h"
-#include "my_macros.h"
 #include "my_sys.h"
 #include "my_thread_local.h"   // my_errno
 #include "mysql/components/services/psi_table_bits.h"
-#include "mysql/psi/psi_table.h"
-#include "mysql/udf_registration_types.h"
 #include "sql/dd/object_id.h"  // dd::Object_id
-#include "sql/dd/properties.h" // dd::Properties
+#include "sql/dd/string_type.h"
 #include "sql/discrete_interval.h" // Discrete_interval
 #include "sql/key.h"
 #include "sql/sql_alloc.h"
-#include "sql/sql_bitmap.h"    // Key_map
 #include "sql/sql_const.h"     // SHOW_COMP_OPTION
 #include "sql/sql_list.h"      // SQL_I_List
 #include "sql/sql_plugin_ref.h" // plugin_ref
-#include "sql/system_variables.h" // System_status_var
-#include "sql/thr_malloc.h"
 #include "thr_lock.h"          // thr_lock_type
 #include "typelib.h"
 
@@ -73,28 +66,27 @@ class String;
 class THD;
 class handler;
 class partition_info;
+struct System_status_var;
 
 namespace dd {
 class Properties;
 }  // namespace dd
+struct FOREIGN_KEY_INFO;
+struct KEY_CACHE;
+struct MY_BITMAP;
+struct SAVEPOINT;
 struct TABLE;
 struct TABLE_LIST;
 struct TABLE_SHARE;
-struct handlerton;
 struct Tablespace_options;
+struct handlerton;
 
-struct MY_BITMAP;
-struct FOREIGN_KEY_INFO;
-struct KEY_CACHE;
-struct SAVEPOINT;
 typedef struct xid_t XID;
 struct MDL_key;
 
 namespace dd {
-  class  Schema;
   class  Table;
   class  Tablespace;
-
   struct sdi_key;
   struct sdi_vector;
 
@@ -3567,13 +3559,18 @@ protected:
   bool in_range_check_pushed_down;
 
 public:  
-  /*
+  /**
     End value for a range scan. If this is NULL the range scan has no
     end value. Should also be NULL when there is no ongoing range scan.
     Used by the read_range() functions and also evaluated by pushed
     index conditions.
   */
   key_range *end_range;
+  /**
+    Flag which tells if #end_range contains a virtual generated column.
+    The content is invalid when #end_range is @c nullptr.
+  */
+  bool m_virt_gcol_in_end_range= false;
   uint errkey;				/* Last dup key */
   uint key_used_on_scan;
   uint active_index;

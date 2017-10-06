@@ -30,8 +30,6 @@
 #include "sql/dd/types/foreign_key_element.h" // IWYU pragma: keep
 #include "sql/dd/types/object_type.h"         // dd::Object_type
 
-extern "C" MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
-
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////

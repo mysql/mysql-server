@@ -45,7 +45,6 @@
 #include "sql/sql_const.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
-#include "sql/sql_parse.h"
 #include "sql/table.h"
 #include "sql/window.h"
 #include "template_utils.h"

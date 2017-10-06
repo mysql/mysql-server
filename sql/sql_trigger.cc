@@ -45,7 +45,6 @@
 #include "sql/dd/types/trigger.h"
 #include "sql/debug_sync.h"           // DEBUG_SYNC
 #include "sql/derror.h"               // ER_THD
-#include "sql/key.h"
 #include "sql/mysqld.h"               // trust_function_creators
 #include "sql/sp_cache.h"             // sp_invalidate_cache()
 #include "sql/sp_head.h"              // sp_name
@@ -55,7 +54,6 @@
 #include "sql/sql_handler.h"          // mysql_ha_rm_tables()
 #include "sql/sql_lex.h"
 #include "sql/sql_table.h"            // build_table_filename()
-#include "sql/stateless_allocator.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/table_trigger_dispatcher.h" // Table_trigger_dispatcher

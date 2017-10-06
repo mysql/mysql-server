@@ -40,6 +40,7 @@
 #include "mutex_lock.h"          // MUTEX_LOCK
 #include "my_bit.h"              // my_count_bits
 #include "my_bitmap.h"
+#include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_macros.h"
 #include "my_psi_config.h"
@@ -47,16 +48,17 @@
 #include "my_systime.h"
 #include "my_thread.h"
 #include "my_user.h"             // parse_user
+#include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/mysql_cond_bits.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/components/services/psi_mutex_bits.h"
-#include "mysql/plugin.h"
 #include "mysql/plugin_audit.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_password_policy.h"
 #include "mysql/service_thd_wait.h"
+#include "mysql/status_var.h"
 #include "prealloced_array.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h" // check_password_strength
@@ -75,13 +77,10 @@
 #include "sql/debug_sync.h"      // DEBUG_SYNC
 #include "sql/derror.h"          // ER_THD
 #include "sql/error_handler.h"   // Internal_error_handler
-#include "sql/histograms/value_map.h"
 #include "sql/item_cmpfunc.h"    // get_datetime_value
-#include "sql/item_create.h"
 #include "sql/item_strfunc.h"    // Item_func_concat_ws
 #include "sql/json_dom.h"        // Json_wrapper
 #include "sql/key.h"
-#include "sql/log_event.h"
 #include "sql/mdl.h"
 #include "sql/mysqld.h"          // log_10 stage_user_sleep
 #include "sql/parse_tree_helpers.h" // PT_item_list
@@ -100,6 +99,7 @@
 #include "sql/sql_base.h"        // Internal_error_handler_holder
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"       // THD
+#include "sql/sql_cmd.h"
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
@@ -111,6 +111,7 @@
 #include "sql/strfunc.h"         // find_type
 #include "sql/system_variables.h"
 #include "sql/val_int_compare.h" // Integer_value
+#include "template_utils.h"
 #include "thr_mutex.h"
 
 class Protocol;

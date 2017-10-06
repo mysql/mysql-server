@@ -25,11 +25,12 @@
 #include <string.h>
 #include <atomic>
 
+#include "lex_string.h"
+#include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
@@ -39,7 +40,6 @@
 #include "sql/filesort.h"             // Filesort
 #include "sql/handler.h"
 #include "sql/item.h"
-#include "sql/key.h"
 #include "sql/key_spec.h"
 #include "sql/mem_root_array.h"
 #include "sql/mysqld.h"               // stage_...
@@ -55,6 +55,7 @@
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
 #include "sql/sql_executor.h"
+#include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_optimizer.h"        // optimize_cond, substitute_gc
 #include "sql/sql_resolver.h"         // setup_order
@@ -68,7 +69,6 @@
 #include "sql/transaction_info.h"
 #include "sql/trigger_def.h"
 #include "sql/uniques.h"              // Unique
-#include "sql_string.h"
 
 class COND_EQUAL;
 class Item_exists_subselect;
@@ -1026,7 +1026,11 @@ void Query_result_delete::cleanup()
     return;
 
   // Remove optimize structs for this operation.
-  destroy_array(tempfiles, delete_table_count);
+  for (uint counter= 0; counter < delete_table_count; counter++)
+  {
+    if (tempfiles && tempfiles[counter])
+      destroy(tempfiles[counter]);
+  }
   tempfiles= NULL;
   tables= NULL;
 }

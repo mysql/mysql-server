@@ -30,6 +30,7 @@
 #include "sql/item_strfunc.h"
 
 #include <stdio.h>
+#include <zconf.h>
 #include <zlib.h>
 #include <algorithm>
 #include <atomic>
@@ -69,15 +70,17 @@
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"         // current_thd
 #include "sql/dd/info_schema/table_stats.h"
+#include "sql/dd/info_schema/tablespace_stats.h"
 #include "sql/dd/properties.h"       // dd::Properties
 #include "sql/dd/string_type.h"
 #include "sql/dd_sql_view.h"         // push_view_warning_or_error
 #include "sql/derror.h"              // ER_THD
 #include "sql/handler.h"
-#include "sql/key.h"
+#include "sql/my_decimal.h"
 #include "sql/mysqld.h"              // binary_keyword etc
 #include "sql/resourcegroups/resource_group_mgr.h"  // num_vcpus
 #include "sql/rpl_gtid.h"
+#include "sql/sql_base.h"
 #include "sql/sql_class.h"           // THD
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
@@ -85,6 +88,7 @@
 #include "sql/sql_show.h" // grant_types
 #include "sql/strfunc.h"             // hexchar_to_int
 #include "sql/system_variables.h"
+#include "sql/table.h"
 #include "sql/val_int_compare.h"     // Integer_value
 #include "template_utils.h"
 #include "typelib.h"
@@ -3865,7 +3869,6 @@ bool Item_load_file::itemize(Parse_context *pc, Item **res)
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
 
 String *Item_load_file::val_str(String *str)
 {

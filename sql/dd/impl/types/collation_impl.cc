@@ -18,6 +18,7 @@
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"                // ER_*
+#include "sql/dd/impl/raw/object_keys.h"
 #include "sql/dd/impl/raw/raw_record.h"  // Raw_record
 #include "sql/dd/impl/tables/collations.h" // Collations
 #include "sql/dd/impl/transaction_impl.h" // Open_dictionary_tables_ctx

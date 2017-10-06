@@ -19,7 +19,6 @@
 
 /* This file defines structures needed by udf functions */
 
-#include <mysql/components/services/udf_registration.h>
 #include <stddef.h>
 #include <sys/types.h>
 
@@ -27,7 +26,6 @@
 #include "my_inttypes.h"
 #include "my_table_map.h"
 #include "mysql/udf_registration_types.h"
-#include "mysql_com.h"               // Item_result
 #include "sql/sql_alloc.h"           // Sql_alloc
 
 class Item;

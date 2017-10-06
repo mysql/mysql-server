@@ -17,7 +17,6 @@
 
 #include "my_config.h"
 
-#include <assert.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -26,6 +25,7 @@
 #include "m_string.h"
 #include "map_helpers.h"
 #include "mutex_lock.h"        // MUTEX_LOCK
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -42,6 +42,7 @@
 #include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/psi_memory_bits.h"
 #include "mysql/components/services/psi_mutex_bits.h"
+#include "mysql/components/services/system_variable_source_type.h"
 #include "mysql/plugin_audit.h"
 #include "mysql/plugin_auth.h"
 #include "mysql/plugin_clone.h"
@@ -53,7 +54,6 @@
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
@@ -62,11 +62,11 @@
 #include "sql/auth/auth_common.h" // check_table_access
 #include "sql/auto_thd.h"               // Auto_THD
 #include "sql/current_thd.h"
-#include "sql/dd_sql_view.h"      // update_referencing_views_metadata
 #include "sql/dd/cache/dictionary_client.h" // dd::cache::Dictionary_client
 #include "sql/dd/dd_schema.h"            // dd::Schema_MDL_locker
 #include "sql/dd/info_schema/metadata.h" // dd::info_schema::store_dynamic_p...
 #include "sql/dd/string_type.h" // dd::String_type
+#include "sql/dd_sql_view.h"      // update_referencing_views_metadata
 #include "sql/debug_sync.h"    // DEBUG_SYNC
 #include "sql/derror.h"        // ER_THD
 #include "sql/field.h"
@@ -89,19 +89,19 @@
 #include "sql/sql_list.h"
 #include "sql/sql_parse.h"     // check_string_char_length
 #include "sql/sql_plugin_var.h"
-#include "sql/sql_servers.h"
 #include "sql/sql_show.h"      // add_status_vars
 #include "sql/sql_table.h"
-#include "sql/strfunc.h"       // find_type
 #include "sql/sys_vars_resource_mgr.h"
 #include "sql/sys_vars_shared.h" // intern_find_sys_var
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/thr_malloc.h"
 #include "sql/transaction.h"   // trans_rollback_stmt
 #include "sql_string.h"
 #include "template_utils.h"    // pointer_cast
 #include "thr_lock.h"
 #include "thr_mutex.h"
+#include "typelib.h"
 
 
 /**
@@ -2228,15 +2228,6 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
       if (!error && store_infoschema_metadata)
         error= dd::info_schema::store_dynamic_plugin_I_S_metadata(thd, tmp);
       mysql_mutex_unlock(&LOCK_plugin);
-
-      if (!error && store_infoschema_metadata)
-      {
-        Uncommitted_tables_guard uncommitted_tables(thd);
-        error= update_referencing_views_metadata(thd,
-                                                 INFORMATION_SCHEMA_NAME.str,
-                                                 tmp->name.str, false,
-                                                 &uncommitted_tables);
-      }
     }
   }
 
@@ -2489,15 +2480,8 @@ static bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
     error= dd::info_schema::remove_I_S_view_metadata(
              thd, dd::String_type(orig_plugin_name.c_str(),
                                   orig_plugin_name.length()));
-    DBUG_ASSERT(!error || thd->is_error());
-
-    if (!error)
-    {
-      Uncommitted_tables_guard uncommitted_tables(thd);
-      error= update_referencing_views_metadata(thd, INFORMATION_SCHEMA_NAME.str,
-                                               orig_plugin_name.c_str(),
-                                               false, &uncommitted_tables);
-    }
+    if (error)
+      DBUG_ASSERT(thd->is_error());
   }
 
 err:

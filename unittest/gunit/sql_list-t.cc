@@ -243,6 +243,25 @@ TEST_F(SqlListTest, Sort)
   EXPECT_TRUE(m_int_list.is_empty());
 }
 
+// Tests prepend on empty list followed by push_back, Bug#26813454
+TEST_F(SqlListTest, PrependBug)
+{
+  int values1[] = {1,2};
+  insert_values(values1, &m_int_list);
+  EXPECT_EQ(2U, m_int_list.elements);
+
+  List<int> ilist;
+  EXPECT_TRUE(ilist.is_empty());
+  ilist.prepend(&m_int_list);
+
+  int values2[] = {3,4};
+  insert_values(values2, &ilist);
+  EXPECT_EQ(4U, ilist.elements);
+
+  for (int i=1; i <= 4; i++)
+    EXPECT_EQ(*ilist.pop(), i);
+}
+
 // Tests swap_elts
 TEST_F(SqlListTest, Swap)
 {

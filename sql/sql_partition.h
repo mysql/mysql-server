@@ -22,29 +22,23 @@
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "my_base.h"
-#include "my_bitmap.h"
 #include "my_inttypes.h"
-#include "mysql/udf_registration_types.h"
-#include "sql/handler.h"
 #include "sql/partition_element.h"   // partition_state
-#include "sql/thr_malloc.h"
 
 class Alter_info;
 class Alter_table_ctx;
 class Create_field;
 class Field;
 class Item;
+class KEY;
 class String;
 class THD;
 class partition_info;
-struct TABLE;
-struct TABLE_LIST;
-struct TABLE_SHARE;
-
-struct CHARSET_INFO;
-struct MY_BITMAP;
 struct HA_CREATE_INFO;
-class KEY;
+struct MEM_ROOT;
+struct MY_BITMAP;
+struct TABLE;
+struct handlerton;
 
 typedef key_range key_range;
 template <class T> class List;

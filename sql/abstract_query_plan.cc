@@ -31,6 +31,7 @@
 #include "sql/sql_executor.h" // QEP_TAB
 #include "sql/sql_opt_exec_shared.h"
 #include "sql/sql_optimizer.h" // JOIN
+#include "sql/sql_select.h"
 #include "sql/table.h"
 #include "sql/thr_malloc.h"
 

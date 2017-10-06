@@ -24,10 +24,6 @@
 #include "mysql/components/services/mysql_cond_bits.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/components/services/psi_mutex_bits.h"
-#include "mysql/psi/mysql_cond.h"
-#include "mysql/psi/mysql_mutex.h"
-#include "mysql/psi/psi_base.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"            // NAME_LEN
 #include "sql/rpl_info_handler.h" // Rpl_info_handler
 #include "sql/rpl_reporting.h"    // Slave_reporting_capability

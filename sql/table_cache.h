@@ -18,7 +18,6 @@
 
 #include <stddef.h>
 #include <sys/types.h>
-#include <map>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -27,14 +26,10 @@
 #include "lex_string.h"
 #include "my_base.h"
 #include "my_dbug.h"
-#include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/psi/psi_base.h"
-#include "mysql/psi/psi_mutex.h"
-#include "mysql/udf_registration_types.h"
 #include "sql/handler.h"
 #include "sql/sql_base.h"
 #include "sql/sql_class.h"

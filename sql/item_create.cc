@@ -40,12 +40,9 @@
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_time.h"
-#include "mysql/psi/mysql_statement.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"
-#include "sql/auth/sql_security_ctx.h"
-#include "sql/histograms/value_map.h"
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"    // Item_func_any_value
 #include "sql/item_func.h"       // Item_func_udf_str

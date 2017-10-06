@@ -17,26 +17,28 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <algorithm>
 
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_table_map.h"
 #include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
-#include "sql/auth/sql_security_ctx.h"
 #include "sql/derror.h"    // ER_THD
 #include "sql/error_handler.h"
+#include "sql/item.h"
 #include "sql/key.h"
 #include "sql/mysqld.h"    // table_alias_charset
-#include "sql/opt_trace.h"
 #include "sql/parse_tree_hints.h"
+#include "sql/set_var.h"
 #include "sql/sql_class.h" // THD
 #include "sql/sql_const.h"
 #include "sql/sql_error.h" // Sql_condition
 #include "sql/sql_optimizer.h" // JOIN class
 #include "sql/sql_select.h"
-#include "sql/sql_servers.h"
 #include "sql/table.h"
+
+struct MEM_ROOT;
 
 /**
   Information about hints. Sould be

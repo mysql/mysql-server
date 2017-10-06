@@ -46,10 +46,10 @@
 #include "mysql/psi/mysql_file.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/thread_type.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h"
 #include "sql/binlog.h"
 #include "sql/derror.h"
 #include "sql/error_handler.h" // Ignore_error_handler
@@ -58,10 +58,10 @@
 #include "sql/item.h"
 #include "sql/item_func.h"
 #include "sql/item_timefunc.h" // Item_func_now_local
-#include "sql/key.h"
 #include "sql/log.h"
 #include "sql/log_event.h" // Delete_file_log_event,
 #include "sql/mysqld.h"                         // mysql_real_data_home
+#include "sql/protocol.h"
 #include "sql/protocol_classic.h"
 #include "sql/psi_memory_key.h"
 #include "sql/query_result.h"

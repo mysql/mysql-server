@@ -15,7 +15,8 @@
 
 #include "sql/rpl_rli_pdb.h"
 
-#include <assert.h>
+#include "my_config.h"
+
 #include <string.h>
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
@@ -29,7 +30,6 @@
 #include <unordered_map>
 #include <utility>
 
-#include "config.h"
 #include "lex_string.h"
 #include "m_string.h"
 #include "map_helpers.h"
@@ -39,8 +39,8 @@
 #include "my_sys.h"
 #include "my_systime.h"
 #include "my_thread.h"
-#include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/psi_stage_bits.h"
+#include "mysql/plugin.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
@@ -60,7 +60,6 @@
 #include "sql/sql_lex.h"
 #include "sql/table.h"
 #include "sql/transaction_info.h"
-#include "sql_string.h"
 #include "thr_mutex.h"
 
 #ifndef DBUG_OFF

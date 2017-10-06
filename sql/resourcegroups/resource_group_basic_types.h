@@ -16,12 +16,9 @@
 #ifndef RESOURCEGROUPS_RESOURCE_GROUP_BASIC_TYPES_H_
 #define RESOURCEGROUPS_RESOURCE_GROUP_BASIC_TYPES_H_
 
+#include "lex_string.h"
 #include "mysql_com.h" // NAME_LEN
 #include "sql/resourcegroups/platform/thread_attrs_api.h" // platform::cpu_id_t
-
-// forward declaration
-struct MYSQL_LEX_CSTRING;
-typedef MYSQL_LEX_CSTRING LEX_CSTRING;
 
 namespace resourcegroups
 {

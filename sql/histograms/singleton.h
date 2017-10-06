@@ -64,25 +64,20 @@
 
 #include <stddef.h>
 #include <map>                // std::map
-#include <new>
 #include <string>             // std::string
 #include <utility>            // std::pair
 
-#include "my_base.h"          // ha_rows
 #include "my_inttypes.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_time.h"
 #include "sql/histograms/histogram.h" // Histogram, Histogram_comparator,
-#include "sql/histograms/value_map.h"        // Value_map
+#include "sql/histograms/value_map_type.h"
 #include "sql/memroot_allocator.h"
 #include "sql/my_decimal.h"
-#include "sql/thr_malloc.h"
 #include "sql_string.h"
-#include "template_utils.h"
 
 class Json_array;
 class Json_object;
-template <class T> class Memroot_allocator;
+struct MEM_ROOT;
 
 namespace histograms {
 

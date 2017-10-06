@@ -23,15 +23,14 @@
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
+#include "my_alloc.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h" /* MYSQL_ERRMSG_SIZE */
 #include "sql/sql_alloc.h"
 #include "sql/sql_list.h"
 #include "sql/sql_plist.h" /* I_P_List */
-#include "sql/thr_malloc.h"
 #include "sql_string.h"                        /* String */
 
 class THD;

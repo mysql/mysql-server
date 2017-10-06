@@ -25,6 +25,7 @@
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_psi_config.h"
+#include "mysql/plugin.h"
 #include "sql/current_thd.h"
 #include "sql/sql_base.h"                // enum_tdc_remove_table_type
 #include "sql/sql_class.h"

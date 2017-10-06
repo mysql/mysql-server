@@ -16,21 +16,22 @@
 #include "sql/auth/role_tables.h"
 
 #include <string.h>
+#include <type_traits>
 #include <utility>
 
 #include "lex_string.h"
+#include "m_ctype.h"
 #include "m_string.h"
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_internal.h"
 #include "sql/auth/sql_auth_cache.h"
-#include "sql/auth/sql_security_ctx.h"
 #include "sql/auth/sql_user_table.h"
 #include "sql/field.h"
 #include "sql/handler.h"
@@ -40,7 +41,6 @@
 #include "sql/records.h"
 #include "sql/sql_base.h"
 #include "sql/sql_const.h"
-#include "sql/sql_servers.h"
 #include "sql/table.h"
 #include "thr_lock.h"
 

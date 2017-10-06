@@ -23,10 +23,12 @@
 #include "my_dbug.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_shared.h"
 #include "mysql/psi/mysql_sp.h"
 #include "mysql/psi/mysql_statement.h"
+#include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysql/udf_registration_types.h"
+#include "mysql_time.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
                                                // struct Time_zone
@@ -38,12 +40,9 @@
 #include "sql/derror.h"
 #include "sql/event_parse_data.h"
 #include "sql/events.h"
-#include "sql/histograms/value_map.h"
-#include "sql/key.h"
                                                // append_identifier
 #include "sql/log.h"
 #include "sql/psi_memory_key.h"
-#include "sql/session_tracker.h"
 #include "sql/sp_head.h"
 #include "sql/sql_alloc.h"
 #include "sql/sql_class.h"
@@ -53,7 +52,6 @@
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_parse.h"                     // parse_sql
-#include "sql/sql_servers.h"
 #include "sql/sql_show.h"                      // append_definer,
 #include "sql/sql_time.h"                      // interval_type_to_name
 #include "sql/system_variables.h"

@@ -15,10 +15,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include "../../components/mysql_server/component_status_var_service.h"
 
-#include <string>
-
 #include "../../components/mysql_server/server_component.h"
-#include "sql/log.h"
+#include "mysql/components/service_implementation.h"
+
+struct SHOW_VAR;
 
 /**
   Its a dummy initialization function. And it will be called from

@@ -19,27 +19,21 @@
 #include <string.h>
 #include <sys/types.h>
 #include <string>
-#include <vector>
 
 #include "binary_log_types.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "map_helpers.h"
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_sharedlib.h"
 #include "my_sys.h"
 #include "my_table_map.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/components/services/psi_table_bits.h"
-#include "mysql/psi/mysql_mutex.h"
-#include "mysql/psi/psi_table.h"
-#include "mysql/udf_registration_types.h"
-#include "sql/auth/auth_common.h"
-#include "sql/dd/properties.h"
 #include "sql/dd/types/foreign_key.h" // dd::Foreign_key::enum_rule
 #include "sql/enum_query_type.h" // enum_query_type
 #include "sql/handler.h"   // row_type
@@ -47,7 +41,6 @@
 #include "sql/key_spec.h"
 #include "sql/mdl.h"       // MDL_wait_for_subgraph
 #include "sql/mem_root_array.h"
-#include "sql/memroot_allocator.h"
 #include "sql/opt_costmodel.h" // Cost_model_table
 #include "sql/record_buffer.h" // Record_buffer
 #include "sql/sql_alloc.h"
@@ -57,9 +50,6 @@
 #include "sql/sql_plist.h"
 #include "sql/sql_plugin_ref.h"
 #include "sql/sql_sort.h"  // Filesort_info
-#include "sql/system_variables.h"
-#include "sql/thr_malloc.h"
-#include "sql_string.h"
 #include "table_id.h"      // Table_id
 #include "thr_lock.h"
 #include "typelib.h"
@@ -83,8 +73,6 @@ class Item_field;
 class Json_diff_vector;
 class Json_seekable_path;
 class Json_wrapper;
-struct NESTED_JOIN;
-struct POSITION;
 class Query_result_union;
 class SELECT_LEX_UNIT;
 class Security_context;
@@ -95,12 +83,12 @@ class Table_trigger_dispatcher;
 class Temp_table_param;
 class partition_info;
 struct LEX;
+struct NESTED_JOIN;
+struct POSITION;
 struct Partial_update_info;
 struct TABLE;
 struct TABLE_LIST;
 struct TABLE_SHARE;
-template <class Key, class Value> class collation_unordered_map;
-template <class T> class Memroot_allocator;
 
 typedef int8 plan_idx;
 class Opt_hints_qb;
@@ -2140,8 +2128,6 @@ struct ST_FIELD_INFO
 };
 
 
-struct TABLE_LIST;
-
 struct ST_SCHEMA_TABLE
 {
   const char* table_name;
@@ -2327,7 +2313,6 @@ public:
   Field_map used_fields;
 };
 
-class Item_func;
 class Table_function;
 /*
   Table reference in the FROM clause.
@@ -3816,7 +3801,6 @@ extern LEX_STRING MYSQL_TABLESPACE_NAME;
 extern LEX_STRING RLI_INFO_NAME;
 extern LEX_STRING MI_INFO_NAME;
 extern LEX_STRING WORKER_INFO_NAME;
-extern "C" MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
 
 inline bool is_infoschema_db(const char *name, size_t len)
 {

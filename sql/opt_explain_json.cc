@@ -21,10 +21,10 @@
 #include <stdio.h>
 #include <sys/types.h>
 
+#include "m_ctype.h"
 #include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"        // current_thd
 #include "sql/enum_query_type.h"
 #include "sql/item.h"
@@ -37,8 +37,8 @@
 #include "sql/query_result.h"       // Query_result
 #include "sql/sql_class.h"          // THD
 #include "sql/sql_list.h"
-#include "sql/sql_parse.h"
 #include "sql/system_variables.h"
+#include "sql/table.h"
 #include "sql/temp_table_param.h"
 #include "sql/window.h"
 #include "sql_string.h"

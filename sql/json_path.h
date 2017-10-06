@@ -28,7 +28,6 @@
 #include <algorithm>
 #include <new>
 #include <string>
-#include <utility>                              // std::move
 
 #include "my_alloc.h"                           // MEM_ROOT
 #include "my_dbug.h"                            // DBUG_ASSERT

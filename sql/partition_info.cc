@@ -35,16 +35,15 @@
 #include "my_sys.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql_com.h"
+#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"             // *_ACL
-#include "sql/auth/sql_security_ctx.h"
 #include "sql/derror.h"                       // ER_THD
 #include "sql/error_handler.h"
 #include "sql/field.h"
+#include "sql/handler.h"
 #include "sql/item.h"
-#include "sql/item_create.h"
 #include "sql/partitioning/partition_handler.h" // PART_DEF_NAME, Partition_share
 #include "sql/set_var.h"
 #include "sql/sql_base.h"                     // fill_record

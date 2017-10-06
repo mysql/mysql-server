@@ -23,38 +23,64 @@
 
 #include "sql/field.h"
 
+#include "my_config.h"
+
 #include <errno.h>
+#include <float.h>
+#include <stddef.h>
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+
 #include <algorithm>
 #include <cmath>                         // isnan
 #include <memory>                        // unique_ptr
 
 #include "decimal.h"
+#include "my_alloc.h"
 #include "my_dbug.h"
+#include "my_double2ulonglong.h"
+#include "my_macros.h"
+#include "my_sqlcommand.h"
+#include "myisampack.h"
 #include "sql/current_thd.h"
+#include "sql/dd/cache/dictionary_client.h"
 #include "sql/derror.h"                  // ER_THD
 #include "sql/filesort.h"                // change_double_for_sort
 #include "sql/gis/rtree_support.h"       // get_mbr_from_store
 #include "sql/gis/srid.h"
+#include "sql/handler.h"
+#include "sql/item.h"
+#include "sql/item_func.h"
 #include "sql/item_json_func.h"          // ensure_utf8mb4
 #include "sql/item_timefunc.h"           // Item_func_now_local
 #include "sql/json_binary.h"             // json_binary::serialize
-#include "sql/json_dom.h"                // Json_dom, Json_wrapper
-#include "sql/json_binary.h"                 // json_binary::serialize
-#include "sql/json_dom.h"                    // Json_dom, Json_wrapper
 #include "sql/json_diff.h"                   // Json_diff_vector
+#include "sql/json_dom.h"                // Json_dom, Json_wrapper
+#include "sql/key.h"
 #include "sql/log_event.h"               // class Table_map_log_event
+#include "sql/my_decimal.h"
 #include "sql/mysqld.h"                  // log_10
+#include "sql/protocol.h"
+#include "sql/psi_memory_key.h"
 #include "sql/rpl_rli.h"                 // Relay_log_info
 #include "sql/rpl_slave.h"               // rpl_master_has_bug
 #include "sql/spatial.h"                 // Geometry
-#include "sql/sql_base.h"                // is_equal
 #include "sql/sql_class.h"               // THD
 #include "sql/sql_join_buffer.h"         // CACHE_FIELD
+#include "sql/sql_lex.h"
 #include "sql/sql_time.h"                // str_to_datetime_with_warn
 #include "sql/srs_fetcher.h"
 #include "sql/strfunc.h"                 // find_type2
+#include "sql/system_variables.h"
+#include "sql/transaction_info.h"
 #include "sql/tztime.h"                  // Time_zone
 #include "template_utils.h"              // pointer_cast
+#include "typelib.h"
+
+namespace dd {
+class Spatial_reference_system;
+}  // namespace dd
 
 using std::max;
 using std::min;
@@ -8930,19 +8956,8 @@ type_conversion_status Field_json::store_binary(const char *ptr, size_t length)
   /*
     We expect that a valid binary representation of a JSON document is
     passed to us.
-
-    We make an exception for the case of an empty binary string. Even
-    though an empty binary string is not a valid representation of a
-    JSON document, we might be served one as a result of inserting
-    NULL or DEFAULT into a not nullable JSON column using INSERT
-    IGNORE, or inserting DEFAULT into a not nullable JSON column in
-    non-strict SQL mode.
-
-    We accept an empty binary string in those cases. Such values will
-    be converted to the JSON null literal when they are read with
-    Field_json::val_json().
   */
-  DBUG_ASSERT(length == 0 || json_binary::parse_binary(ptr, length).is_valid());
+  DBUG_ASSERT(json_binary::parse_binary(ptr, length).is_valid());
 
   if (length > UINT_MAX32)
   {
@@ -9047,25 +9062,6 @@ bool Field_json::val_json(Json_wrapper *wr)
 
   String tmp;
   String *s= Field_blob::val_str(&tmp, &tmp);
-
-  /*
-    The empty string is not a valid JSON binary representation, so we
-    should have returned an error. However, sometimes an empty
-    Field_json object is created in order to retrieve meta-data.
-    Return a dummy value instead of raising an error. Bug#21104470.
-
-    The field could also contain an empty string after forcing NULL or
-    DEFAULT into a not nullable JSON column using lax error checking
-    (such as INSERT IGNORE or non-strict SQL mode). The JSON null
-    literal is used to represent the empty value in this case.
-    Bug#21437989.
-  */
-  if (s->length() == 0)
-  {
-    using namespace json_binary;
-    *wr= Json_wrapper(Value(Value::LITERAL_NULL));
-    DBUG_RETURN(false);
-  }
 
   json_binary::Value v(json_binary::parse_binary(s->ptr(), s->length()));
   if (v.type() == json_binary::Value::ERROR)
@@ -9352,6 +9348,21 @@ bool Field_json::get_time(MYSQL_TIME *ltime)
   if (result)
     set_zero_time(ltime, MYSQL_TIMESTAMP_DATETIME); /* purecov: inspected */
   return result;
+}
+
+
+int Field_json::cmp_binary(const uchar *a_ptr, const uchar *b_ptr,
+                           uint32 /* max_length */)
+{
+  char *a;
+  char *b;
+  memcpy(&a, a_ptr + packlength, sizeof(a));
+  memcpy(&b, b_ptr + packlength, sizeof(b));
+  uint32 a_length= get_length(a_ptr);
+  uint32 b_length= get_length(b_ptr);
+  Json_wrapper aw(json_binary::parse_binary(a, a_length));
+  Json_wrapper bw(json_binary::parse_binary(b, b_length));
+  return aw.compare(bw);
 }
 
 

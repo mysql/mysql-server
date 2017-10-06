@@ -39,6 +39,7 @@
 
 #include <memory>
 #include <new>
+#include <type_traits>
 
 #include "my_compiler.h"
 #include "my_inttypes.h"
@@ -176,6 +177,10 @@ inline void destroy(T *ptr) { if (ptr != nullptr) ptr->~T(); }
 template<class T>
 inline void destroy_array(T *ptr, size_t count)
 {
+  static_assert(!std::is_pointer<T>::value,
+                "You're trying to destroy an array of pointers, "
+                "not an array of objects. This is probably not "
+                "what you intended.");
   if (ptr != nullptr)
     for (size_t i= 0; i < count; ++i)
       destroy(&ptr[i]);

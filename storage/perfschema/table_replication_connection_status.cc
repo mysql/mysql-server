@@ -25,6 +25,7 @@
 
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "mysql/plugin_group_replication.h"
 #include "sql/log.h"
 #include "sql/rpl_group_replication.h"
 #include "sql/rpl_info.h"

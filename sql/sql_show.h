@@ -19,14 +19,14 @@
 #include <stddef.h>
 #include <vector>
 
+#include "binary_log_types.h"
 #include "lex_string.h"
+#include "m_ctype.h"
 #include "my_inttypes.h"
-#include "mysql/plugin.h"
+#include "mysql/status_var.h"
 #include "sql/handler.h"                        // enum_schema_tables
-#include "sql/key.h"
 #include "sql/set_var.h"                        // enum_var_type
 #include "sql/table.h"                          // enum_schema_table_state
-#include "sql/thr_malloc.h"
 #include "sql_string.h"                         // Simple_cstring
 #include "typelib.h"
 
@@ -36,6 +36,7 @@ class SELECT_LEX;
 class THD;
 class sp_name;
 struct LEX;
+struct MEM_ROOT;
 struct System_status_var;
 template <class T> class List;
 

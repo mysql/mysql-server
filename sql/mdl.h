@@ -31,23 +31,17 @@
 #include "mysql/components/services/mysql_rwlock_bits.h"
 #include "mysql/components/services/psi_mdl_bits.h"
 #include "mysql/components/services/psi_stage_bits.h"
-#include "mysql/psi/mysql_cond.h"
-#include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_rwlock.h"
-#include "mysql/psi/psi_mdl.h"
-#include "mysql/psi/psi_stage.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "sql/sql_plist.h"
 
-struct MEM_ROOT;
 class MDL_context;
 class MDL_lock;
 class MDL_ticket;
 class THD;
-struct MDL_key;
-
 struct LF_PINS;
+struct MDL_key;
+struct MEM_ROOT;
 
 /**
   @def ENTER_COND(C, M, S, O)

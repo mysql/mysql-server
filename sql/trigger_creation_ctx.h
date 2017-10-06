@@ -19,14 +19,11 @@
 
 ///////////////////////////////////////////////////////////////////////////
 
+#include "lex_string.h"
+#include "m_ctype.h"
 #include "my_alloc.h"
-#include "mysql/psi/mysql_statement.h"
-#include "sql/item_create.h"
-#include "sql/key.h"
-#include "sql/session_tracker.h"
 #include "sql/sp_head.h" // Stored_program_creation_ctx
 #include "sql/sql_alloc.h"
-#include "sql/sql_servers.h"
 #include "sql/thr_malloc.h"
 
 class Object_creation_ctx;

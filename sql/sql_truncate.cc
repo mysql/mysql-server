@@ -35,8 +35,6 @@
 #include "sql/dd/types/abstract_table.h" // dd::enum_table_type
 #include "sql/debug_sync.h" // DEBUG_SYNC
 #include "sql/handler.h"
-#include "sql/item_create.h"
-#include "sql/key.h"
 #include "sql/lock.h"       // MYSQL_OPEN_* flags
 #include "sql/mdl.h"
 #include "sql/query_options.h"

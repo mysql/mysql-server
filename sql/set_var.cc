@@ -32,6 +32,7 @@
 #include "mysql/components/services/log_shared.h"
 #include "mysql/plugin_audit.h"
 #include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_rwlock.h"
 #include "mysql/psi/psi_base.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
@@ -41,7 +42,6 @@
 #include "sql/enum_query_type.h"
 #include "sql/item.h"
 #include "sql/item_func.h"
-#include "sql/key.h"
 #include "sql/log.h"
 #include "sql/mysqld.h"          // system_charset_info
 #include "sql/persisted_variable.h"
@@ -56,7 +56,6 @@
 #include "sql/sql_parse.h"       // is_supported_parser_charset
 #include "sql/sql_select.h"      // free_underlaid_joins
 #include "sql/sql_show.h"        // append_identifier
-#include "sql/sql_table.h"
 #include "sql/sys_vars_shared.h" // PolyLock_mutex
 #include "sql/system_variables.h"
 #include "sql/table.h"

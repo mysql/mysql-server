@@ -16,12 +16,13 @@
 #ifndef SQL_AUTHORIZATION_INCLUDED
 #define SQL_AUTHORIZATION_INCLUDED
 
+#include <functional>
 #include <string>
 #include <utility>
 
+#include "lex_string.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "sql/auth/sql_auth_cache.h"
-#include "sql/key.h"
 
 class Role_id;
 class Security_context;

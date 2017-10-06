@@ -21,7 +21,6 @@
 
 #include "sql/handler.h"
 
-#include <assert.h>
 #include <boost/algorithm/string/case_conv.hpp>
 #include <boost/foreach.hpp>
 #include <boost/token_functions.hpp>
@@ -30,6 +29,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <atomic>
 #include <cmath>
 #include <list>
@@ -106,8 +106,8 @@
 #include "sql/sql_parse.h"            // check_stack_overrun
 #include "sql/sql_plugin.h"           // plugin_foreach
 #include "sql/sql_select.h"           // actual_key_parts
-#include "sql/sql_servers.h"
 #include "sql/sql_table.h"            // build_table_filename
+#include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/tc_log.h"
 #include "sql/thr_malloc.h"
@@ -7743,6 +7743,23 @@ int handler::read_range_next()
 }
 
 
+/**
+  Check if one of the columns in a key is a virtual generated column.
+
+  @param part    the first part of the key to check
+  @param length  the length of the key
+  @retval true   if the key contains a virtual generated column
+  @retval false  if the key does not contain a virtual generated column
+*/
+static bool key_has_vcol(const KEY_PART_INFO *part, uint length)
+{
+  for (uint len= 0; len < length; len+= part->store_length, ++part)
+    if (part->field->is_virtual_gcol())
+      return true;
+  return false;
+}
+
+
 void handler::set_end_range(const key_range* range,
                             enum_range_scan_direction direction)
 {
@@ -7753,6 +7770,7 @@ void handler::set_end_range(const key_range* range,
     range_key_part= table->key_info[active_index].key_part;
     key_compare_result_on_equal= ((range->flag == HA_READ_BEFORE_KEY) ? 1 :
                                   (range->flag == HA_READ_AFTER_KEY) ? -1 : 0);
+    m_virt_gcol_in_end_range= key_has_vcol(range_key_part, range->length);
   }
   else
     end_range= NULL;

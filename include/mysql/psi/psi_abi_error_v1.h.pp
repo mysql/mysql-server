@@ -3,7 +3,6 @@
 #include "my_psi_config.h"
 #include "my_sharedlib.h"
 #include "mysql/components/services/psi_error_bits.h"
-#include "my_macros.h"
 enum PSI_error_operation
 {
   PSI_ERROR_OPERATION_RAISED = 0,

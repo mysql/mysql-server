@@ -21,14 +21,13 @@
 #include "lex_string.h"
 #include "m_string.h"
 #include "my_base.h"
-#include "mysql/udf_registration_types.h"
 #include "sql/mem_root_array.h"
 #include "sql/sql_alloc.h"
 #include "sql/sql_list.h"
-#include "sql/thr_malloc.h"
 
 class Create_field;
 class THD;
+struct MEM_ROOT;
 
 
 enum keytype {

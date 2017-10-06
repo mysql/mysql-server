@@ -76,7 +76,8 @@ int main(int argc, char** argv){
   const char *load_default_groups[]= { "ndb_cpcd",0 };
   NDB_INIT(argv[0]);
 
-  load_defaults("ndb_cpcd",load_default_groups,&argc,&argv);
+  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512, 0};
+  load_defaults("ndb_cpcd",load_default_groups,&argc,&argv,&alloc);
   if (handle_options(&argc, &argv, my_long_options, get_one_option)) {
     print_defaults(MYSQL_CONFIG_NAME,load_default_groups);
     puts("");

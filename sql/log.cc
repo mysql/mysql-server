@@ -39,8 +39,8 @@
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/psi/mysql_rwlock.h"
-#include "sql/my_decimal.h"
-#include "sql/session_tracker.h"
+#include "mysql_time.h"
+#include "sql_string.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
@@ -76,7 +76,6 @@
 #include "sql/error_handler.h" // Internal_error_handler
 #include "sql/field.h"
 #include "sql/handler.h"
-#include "sql/key.h"
 #include "sql/mysqld.h"     // opt_log_syslog_enable
 #include "sql/psi_memory_key.h" // key_memory_File_query_log_name
 #include "sql/query_options.h"

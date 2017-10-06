@@ -10,7 +10,6 @@ TRUNCATE mysql.general_log;
 include/start_slave.inc
 CREATE TABLE t1 (i int NOT NULL PRIMARY KEY);
 include/sync_slave_sql_with_master.inc
-include/assert.inc [The slave thread does not write the same statement twice to the general log]
 DROP TABLE t1;
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc

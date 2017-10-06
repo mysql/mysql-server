@@ -23,11 +23,12 @@
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
+#include "mysql/components/services/mysql_cond_bits.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/components/services/psi_cond_bits.h"
 #include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_thd_wait.h"
-#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"              // ER_*
 #include "sql/conn_handler/channel_info.h" // Channel_info
 #include "sql/conn_handler/connection_handler_impl.h" // Per_thread_connection_handler

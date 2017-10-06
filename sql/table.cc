@@ -23,6 +23,8 @@
 #include <stdio.h>
 #include <algorithm>
 #include <string>
+#include <unordered_map>
+#include <utility>
 
 #include "ft_global.h"
 #include "m_string.h"
@@ -47,6 +49,7 @@
 #include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_table.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysql_version.h"               // MYSQL_VERSION_ID
 #include "mysqld_error.h"
@@ -64,12 +67,12 @@
 #include "sql/derror.h"                  // ER_THD
 #include "sql/error_handler.h"           // Strict_error_handler
 #include "sql/field.h"
-#include "sql/histograms/histogram.h"
+#include "sql/gis/srid.h"
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"            // and_conds
-#include "sql/item_create.h"
 #include "sql/json_diff.h"               // Json_diff_vector
 #include "sql/json_dom.h"                // Json_wrapper
+#include "sql/json_path.h"
 #include "sql/key.h"                     // find_ref_key
 #include "sql/log.h"
 #include "sql/my_decimal.h"
@@ -79,12 +82,13 @@
 #include "sql/parse_file.h"              // sql_parse_prepare
 #include "sql/partition_info.h"          // partition_info
 #include "sql/psi_memory_key.h"
+#include "sql/query_options.h"
 #include "sql/query_result.h"            // Query_result
-#include "sql/rpl_record.h"              // PARTIAL_JSON_UPDATES
 #include "sql/sql_base.h"
 #include "sql/sql_class.h"               // THD
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
+#include "sql/sql_opt_exec_shared.h"
 #include "sql/sql_parse.h"               // check_stack_overrun
 #include "sql/sql_partition.h"           // mysql_unpack_partition
 #include "sql/sql_plugin.h"              // plugin_unlock
@@ -100,7 +104,6 @@
 #include "sql_string.h"
 #include "template_utils.h"              // down_cast
 #include "thr_mutex.h"
-#include "table_function.h"              // Table_function
 
 /* INFORMATION_SCHEMA name */
 LEX_STRING INFORMATION_SCHEMA_NAME= {C_STRING_WITH_LEN("information_schema")};
@@ -8220,8 +8223,8 @@ void TABLE::add_logical_diff(const Field_json *field,
     diffs->add_diff(path, operation);
   else
   {
-    Json_dom_ptr dom= new_value->clone_dom(field->table->in_use);
-    diffs->add_diff(path, operation, dom);
+    diffs->add_diff(path, operation,
+                    new_value->clone_dom(field->table->in_use));
   }
 #ifndef DBUG_OFF
   StringBuffer<STRING_BUFFER_USUAL_SIZE> path_str;

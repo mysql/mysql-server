@@ -54,12 +54,14 @@
 #include "sql/rpl_trx_boundary_parser.h"
 #include "sql/sql_base.h"          // close_thread_tables
 #include "sql/sql_error.h"
+#include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_plugin.h"
 #include "sql/strfunc.h"           // strconvert
 #include "sql/transaction.h"       // trans_commit_stmt
 #include "sql/transaction_info.h"
 #include "sql/xa.h"
+#include "sql_string.h"
 #include "thr_mutex.h"
 
 class Item;

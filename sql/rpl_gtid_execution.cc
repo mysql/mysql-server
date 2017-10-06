@@ -19,6 +19,7 @@
 #include <sys/types.h>
 #include <atomic>
 
+#include "lex_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -28,7 +29,6 @@
 #include "mysql/psi/mysql_transaction.h"
 #include "mysql/thread_type.h"
 #include "mysqld_error.h"
-#include "sql/key.h"
 #include "sql/mysqld.h"                       // connection_events_loop_aborted
 #include "sql/rpl_gtid.h"
 #include "sql/rpl_rli.h"                      // Relay_log_info

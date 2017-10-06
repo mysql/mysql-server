@@ -29,6 +29,7 @@
 #include "my_io.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
+#include "mysql/plugin.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"

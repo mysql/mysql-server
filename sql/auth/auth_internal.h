@@ -17,6 +17,7 @@
 #ifndef AUTH_INTERNAL_INCLUDED
 #define AUTH_INTERNAL_INCLUDED
 
+#include <map>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>

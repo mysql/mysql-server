@@ -22,12 +22,11 @@
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"             // ER_*
-#include "sql/handler.h"
-#include "sql/key.h"
 #include "sql/mysqld.h"               // table_alias_charset
 #include "sql/sp_head.h"              // sp_head
-#include "sql/sql_servers.h"
 #include "sql/trigger.h"              // Trigger
+
+struct MEM_ROOT;
 
 
 Trigger_chain::~Trigger_chain()

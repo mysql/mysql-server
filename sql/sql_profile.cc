@@ -37,6 +37,7 @@
 
 #include "binary_log_types.h"
 #include "decimal.h"
+#include "m_ctype.h"
 #include "m_string.h"
 #include "my_base.h"
 #include "my_compiler.h"
@@ -44,7 +45,6 @@
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "my_systime.h"
-#include "sql/auth/sql_security_ctx.h"
 #include "sql/field.h"
 #include "sql/item.h"
 #include "sql/my_decimal.h"

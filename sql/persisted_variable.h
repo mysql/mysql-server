@@ -21,14 +21,16 @@
 #include <string>
 #include <vector>
 
+#include "my_alloc.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
-#include "mysql/psi/mysql_file.h"
+#include "mysql/psi/psi_base.h"
 
 class THD;
 class set_var;
 class sys_var;
+struct MYSQL_FILE;
 
 using std::string;
 using std::map;

@@ -26,7 +26,9 @@
 #include <atomic>
 
 #include "binary_log_types.h"
+#include "lex_string.h"
 #include "m_ctype.h"
+#include "my_alloc.h"
 #include "my_bit.h"                   // my_count_bits
 #include "my_bitmap.h"
 #include "my_dbug.h"
@@ -36,7 +38,6 @@
 #include "my_table_map.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"         // Prealloced_array
@@ -72,6 +73,7 @@
 #include "sql/sql_data_change.h"
 #include "sql/sql_error.h"
 #include "sql/sql_executor.h"
+#include "sql/sql_lex.h"
 #include "sql/sql_opt_exec_shared.h"
 #include "sql/sql_optimizer.h"        // build_equal_items, substitute_gc
 #include "sql/sql_partition.h"        // partition_key_modified
@@ -86,7 +88,6 @@
 #include "sql/temp_table_param.h"
 #include "sql/transaction_info.h"
 #include "sql/trigger_def.h"
-#include "sql_string.h"
 #include "template_utils.h"
 #include "thr_lock.h"
 
@@ -457,9 +458,6 @@ bool Sql_cmd_update::update_single_table(THD *thd)
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
 
   table->mark_columns_needed_for_update(thd, false/*mark_binlog_columns=false*/);
-  if (table->vfield &&
-      validate_gc_assignment(update_field_list, update_value_list, table))
-    DBUG_RETURN(true);
 
   qep_tab.set_table(table);
   qep_tab.set_condition(conds);
@@ -1537,6 +1535,10 @@ bool Sql_cmd_update::prepare_inner(THD *thd)
     tl->updating= tl->map() & tables_for_update;
     if (tl->updating)
     {
+      if (tl->table->vfield &&
+          validate_gc_assignment(update_fields, update_value_list, tl->table))
+        DBUG_RETURN(true);                      /* purecov: inspected */
+
       // Mark all containing view references as updating
       for (TABLE_LIST *ref= tl; ref != NULL; ref= ref->referencing_view)
         ref->updating= true;
@@ -2066,9 +2068,6 @@ bool Query_result_update::optimize()
       }
     }
 
-    if (table->vfield &&
-        validate_gc_assignment(fields, values, table))
-      DBUG_RETURN(false);                      /* purecov: inspected */
     /*
       enable uncacheable flag if we update a view with check option
       and check option has a subselect, otherwise, the check option
@@ -2207,7 +2206,8 @@ void Query_result_update::cleanup()
                 Transaction_ctx::STMT));
 
   if (update_operations != NULL)
-    destroy_array(update_operations, update_table_count);
+    for (uint i= 0; i < update_table_count; i++)
+      destroy(update_operations[i]);
 }
 
 

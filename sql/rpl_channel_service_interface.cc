@@ -15,7 +15,9 @@
 
 #include "sql/rpl_channel_service_interface.h"
 
+#include <stdio.h>
 #include <string.h>
+#include <sys/types.h>
 #include <atomic>
 #include <map>
 #include <utility>
@@ -31,7 +33,7 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysql/udf_registration_types.h"
+#include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/binlog.h"

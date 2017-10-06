@@ -25,8 +25,6 @@
 
 #include "my_config.h"
 
-#include "mysql/udf_registration_types.h"
-
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif

@@ -19,27 +19,29 @@
 #include <algorithm>
 
 #include "binary_log_types.h"
-#include "my_base.h"
+#include "lex_string.h"
+#include "m_ctype.h"
 #include "my_bitmap.h"        // MY_BITMAP
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_sys.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"
 #include "sql/derror.h"       // ER_THD
 #include "sql/field.h"        // Field
-#include "sql/json_diff.h"    // Json_diff_vector
-#include "sql/json_dom.h"     // Json_dom
-#include "sql/mysqld.h"       // ER
+#include "sql/log_event.h"
 #include "sql/rpl_rli.h"      // Relay_log_info
 #include "sql/rpl_utility.h"  // table_def
+#include "sql/sql_class.h"
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
+#include "sql/system_variables.h"
 #include "sql/table.h"        // TABLE
 #include "sql_string.h"
 #include "template_utils.h"   // down_cast
+
+class Json_diff_vector;
 
 using std::min;
 using std::max;

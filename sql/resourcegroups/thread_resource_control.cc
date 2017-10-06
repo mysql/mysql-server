@@ -15,11 +15,11 @@
 
 #include "thread_resource_control.h"
 
-#include <bitset>
-#include <memory>
+#include <stdint.h>
 
 #include "my_dbug.h"                  // DBUG_*
-#include "sql/dd/types/resource_group.h"  // dd::Resource_group
+#include "sql/log.h"
+#include "sql/resourcegroups/platform/thread_attrs_api.h"
 #include "sql/resourcegroups/resource_group_mgr.h" // num_vcpus
 
 namespace resourcegroups

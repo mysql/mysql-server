@@ -71,8 +71,12 @@
 #include "sql/dd/dd_schema.h"
 #include "sql/dd/dd_table.h"          // dd::table_exists
 #include "sql/dd/dd_tablespace.h"     // dd::fill_table_and_parts_tablespace_name
+#include "sql/dd/string_type.h"
 #include "sql/dd/types/abstract_table.h"
+#include "sql/dd/types/column.h"
+#include "sql/dd/types/column_statistics.h"
 #include "sql/dd/types/foreign_key.h" // dd::Foreign_key
+#include "sql/dd/types/schema.h"
 #include "sql/dd/types/table.h"       // dd::Table
 #include "sql/dd/types/view.h"
 #include "sql/dd_table_share.h"       // open_table_def
@@ -81,11 +85,11 @@
 #include "sql/error_handler.h"        // Internal_error_handler
 #include "sql/field.h"
 #include "sql/handler.h"
+#include "sql/histograms/histogram.h"
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"         // Item_func_eq
 #include "sql/item_func.h"
 #include "sql/item_subselect.h"
-#include "sql/key.h"
 #include "sql/lock.h"                 // mysql_lock_remove
 #include "sql/log.h"
 #include "sql/log_event.h"            // Query_log_event
@@ -111,7 +115,6 @@
 #include "sql/sql_parse.h"            // is_update_query
 #include "sql/sql_prepare.h"          // Reprepare_observer
 #include "sql/sql_select.h"           // reset_statement_timer
-#include "sql/sql_servers.h"
 #include "sql/sql_show.h"             // append_identifier
 #include "sql/sql_sort.h"
 #include "sql/sql_table.h"            // build_table_filename
@@ -129,10 +132,6 @@
 #include "table_id.h"
 #include "template_utils.h"
 #include "thr_mutex.h"
-
-namespace dd {
-class Schema;
-}  // namespace dd
 
 using std::equal_to;
 using std::hash;
@@ -682,12 +681,32 @@ TABLE_SHARE *get_table_share(THD *thd, const char *db,
   for ( ;; )
   {
     auto it= table_def_cache->find(string(key, key_length));
-    if (it == table_def_cache->end()) break;
+    if (it == table_def_cache->end())
+    {
+      if (thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::SCHEMA,
+                                                       db, "",
+                                                       MDL_INTENTION_EXCLUSIVE))
+      {
+         break;
+      }
+      mysql_mutex_unlock(&LOCK_open);
 
+      if (dd::mdl_lock_schema(thd, db, MDL_TRANSACTION))
+      {
+        // Lock LOCK_open again to preserve function contract
+        mysql_mutex_lock(&LOCK_open);
+        DBUG_RETURN(nullptr);
+      }
+
+      mysql_mutex_lock(&LOCK_open);
+      // Need to re-try the find after getting the mutex again
+      continue;
+    }
     share= it->second.get();
     if (!share->m_open_in_progress)
       DBUG_RETURN(process_found_table_share(thd, share, open_view));
 
+    DEBUG_SYNC(thd, "get_share_before_COND_open_wait");
     mysql_cond_wait(&COND_open, &LOCK_open);
   }
 
@@ -742,13 +761,11 @@ TABLE_SHARE *get_table_share(THD *thd, const char *db,
 
   {
     // We must make sure the schema is released and unlocked in the right order.
-    dd::Schema_MDL_locker mdl_handler(thd);
     dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
     const dd::Schema *sch= nullptr;
     const dd::Abstract_table *abstract_table= nullptr;
     open_table_err= true; // Assume error to simplify code below.
-    if (mdl_handler.ensure_locked(share->db.str) ||
-        thd->dd_client()->acquire(share->db.str, &sch) ||
+    if (thd->dd_client()->acquire(share->db.str, &sch) ||
         thd->dd_client()->acquire(share->db.str, share->table_name.str, &
                                   abstract_table))
     { }

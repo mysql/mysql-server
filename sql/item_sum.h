@@ -22,6 +22,7 @@
 #include <limits.h>
 #include <math.h>
 #include <stddef.h>
+#include <stdio.h>
 #include <sys/types.h>
 #include <utility>          // std::forward
 
@@ -36,28 +37,23 @@
 #include "my_table_map.h"
 #include "my_time.h"
 #include "my_tree.h"        // TREE
-#include "mysql/psi/mysql_statement.h"
 #include "mysql/udf_registration_types.h"
-#include "mysql_com.h"
+#include "mysql_time.h"
 #include "mysqld_error.h"
 #include "sql/enum_query_type.h"
-#include "sql/histograms/value_map.h"
 #include "sql/item.h"       // Item_result_field
-#include "sql/item_create.h"
 #include "sql/item_func.h"  // Item_int_func
 #include "sql/json_dom.h"   // Json_wrapper
 #include "sql/mem_root_array.h"
 #include "sql/my_decimal.h"
 #include "sql/parse_tree_node_base.h"
 #include "sql/parse_tree_nodes.h" // PT_window
-#include "sql/session_tracker.h"
 #include "sql/sql_alloc.h"  // Sql_alloc
+#include "sql/sql_base.h"
+#include "sql/sql_const.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
-#include "sql/sql_parse.h"
 #include "sql/sql_udf.h"    // udf_handler
-#include "sql/system_variables.h"
-#include "sql/table.h"
 #include "sql/window.h"
 #include "sql/window_lex.h"
 #include "sql_string.h"
@@ -66,9 +62,9 @@
 class Field;
 class Item_sum;
 class PT_item_list;
-class PT_order_list;
 class THD;
 class Temp_table_param;
+struct ORDER;
 struct TABLE;
 
 /**
@@ -148,8 +144,6 @@ public:
   virtual bool arg_is_null(bool use_null_value) = 0;
 };
 
-
-class SELECT_LEX;
 
 /**
   Class Item_sum is the base class used for special expressions that SQL calls

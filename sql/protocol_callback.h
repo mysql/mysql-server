@@ -26,15 +26,12 @@
 #include <stddef.h>
 #include <sys/types.h>
 
+#include "m_ctype.h"
 #include "my_command.h"
 #include "my_inttypes.h"
 #include "mysql/service_command.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_time.h"
-#include "sql/my_decimal.h"
 #include "sql/protocol.h"
-#include "sql/thr_malloc.h"
-#include "sql_string.h"
 #include "violite.h"
 
 class Item_param;

@@ -19,6 +19,7 @@
 
 #include <stddef.h>
 
+#include "lex_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_psi_config.h"
@@ -29,7 +30,6 @@
 #include "mysql/psi/mysql_statement.h"
 #include "mysql_com.h"
 #include "mysql_com_server.h"
-#include "sql/key.h"
                                         // MYSQL_START_IDLE_WAIT
 #include "sql/mysqld.h"                 // stage_starting
 #include "sql/protocol_classic.h"

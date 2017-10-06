@@ -50,6 +50,7 @@
 #include "sql/sql_plugin.h"    // plugin_int_to_ref
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/thr_malloc.h"
 #include "sql/transaction_info.h"
 #include "sql_string.h"
 
