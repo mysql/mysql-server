@@ -5617,7 +5617,7 @@ int mysqld_main(int argc, char **argv)
   /*
     We have enough space for fiddling with the argv, continue
   */
-  if (my_setwd(mysql_real_data_home,MYF(MY_WME)) && !opt_help)
+  if (!opt_help && my_setwd(mysql_real_data_home,MYF(MY_WME)))
   {
     LogErr(ERROR_LEVEL, ER_CANT_SET_DATADIR, mysql_real_data_home);
     unireg_abort(MYSQLD_ABORT_EXIT);        /* purecov: inspected */
@@ -8303,7 +8303,19 @@ mysqld_get_one_option(int optid,
       LogErr(WARNING_LEVEL, ER_THE_USER_ABIDES, argument, mysqld_user);
     break;
   case 's':
-    push_deprecated_warn_no_replacement(NULL, "--symbolic-links/-s");
+    if (argument[0] == '0')
+    {
+      sql_print_warning("Disabling symbolic links using --skip-symbolic-links "
+                        "(or equivalent) is the default. Consider not using "
+                        "this option as it is deprecated and will be removed "
+                        "in a future release.");
+    }
+    else
+    {
+      sql_print_warning("Enabling symbolic links using --symbolic-links/-s "
+                        "(or equivalent) is deprecated and will be removed in "
+                        "a future release.");
+    }
     break;
   case 'L':
     push_deprecated_warn(NULL, "--language/-l", "'--lc-messages-dir'");
