@@ -2213,6 +2213,8 @@ dict_load_table_low(
 /** Using the table->heap, copy the null-terminated filepath into
 table->data_dir_path. The data directory path is derived from the
 filepath by stripping the the table->name.m_name component suffix.
+If the filepath is not of the correct form (".../db/table.ibd"),
+then table->data_dir_path will remain nullptr.
 @param[in,out]	table		table instance
 @param[in]	filepath	filepath of tablespace */
 void
@@ -2226,7 +2228,7 @@ dict_save_data_dir_path(
 	ut_a(Fil_path::has_ibd_suffix(filepath));
 
 	/* Ensure this filepath is not the default filepath. */
-	char*   default_filepath = Fil_path::make(
+	char*	default_filepath = Fil_path::make(
 		"", table->name.m_name, IBD);
 
 	if (default_filepath == nullptr) {
@@ -2237,13 +2239,21 @@ dict_save_data_dir_path(
 	if (strcmp(filepath, default_filepath) != 0) {
 		size_t	pathlen = strlen(filepath);
 
-		 ut_a(pathlen < OS_FILE_MAX_PATH);
-		 ut_a(Fil_path::has_ibd_suffix(filepath));
+		ut_a(pathlen < OS_FILE_MAX_PATH);
+		ut_a(Fil_path::has_ibd_suffix(filepath));
 
-		 table->data_dir_path = mem_heap_strdup(
-			table->heap, filepath);
+		std::string	db_name{table->name.m_name};
+		size_t		pos = db_name.find_last_of('/');
+		ut_a(pos != std::string::npos);
+		db_name.resize(pos);
 
-		 Fil_path::make_data_dir_path(table->data_dir_path);
+		char* data_dir_path = mem_heap_strdup(table->heap, filepath);
+
+		Fil_path::make_data_dir_path(db_name, data_dir_path);
+
+		if (strlen(data_dir_path)) {
+			table->data_dir_path = data_dir_path;
+		}
 	}
 
 	ut_free(default_filepath);

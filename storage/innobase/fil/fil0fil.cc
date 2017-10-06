@@ -1926,6 +1926,71 @@ Fil_shard::update_space_name_map(fil_space_t* space, const char* new_name)
 	ut_a(it.second);
 }
 
+/** Check if the filepath provided is in a valid placement.
+1) File-per-table must be in a dir named for the schema.
+2) File-per-table must not be in the datadir.
+3) General tablespace must not be under the datadir.
+@param[in]	space_name	tablespace name
+@param[in]	path		filepath to validate
+@retval true if the filepath is a valid datafile location */
+bool
+Fil_path::is_valid_location(
+	const char*		space_name,
+	const std::string&	path)
+{
+	ut_ad(path.length() > 0);
+	ut_ad(space_name != nullptr);
+
+	std::string	name{space_name};
+
+	/* The path is a realpath to a file. Make sure it is not an
+	undo tablespace filename. Undo datafiles can be located anywhere. */
+	if (Fil_path::is_undo_tablespace_name(path)) {
+		return(true);
+	}
+
+	/* Strip off the filename to reduce the path to a directory. */
+	std::string	dirpath{path};
+	auto pos = dirpath.find_last_of(SEPARATOR);
+	dirpath.resize(pos);
+
+	pos = name.find_last_of(SEPARATOR);
+
+	if (pos == std::string::npos) {
+		/* This is a general  or system tablespace. */
+		if (MySQL_datadir_path.is_ancestor(dirpath)) {
+			ib::error() << "A general tablespace cannot"
+				<< " be located under the datadir."
+				<< " Cannot open file '" << path << "'.";
+			return(false);
+		}
+
+	} else {
+		/* This is a file-per-table datafile.
+		Reduce the name to just the db name. */
+		name.resize(pos);
+
+		if (MySQL_datadir_path.is_same_as(dirpath)) {
+			ib::error() << "A file-per-table tablespace cannot"
+				<< " be located in the datadir."
+				<< " Cannot open file" << path << "'.";
+			return(false);
+		}
+
+		/* Get the subdir that the file is in. */
+		pos = dirpath.find_last_of(SEPARATOR);
+		std::string	subdir =
+			(pos == std::string::npos
+			 ? dirpath : dirpath.substr(pos + 1, dirpath.length()));
+
+		if (name != subdir) {
+			return(false);
+		}
+	}
+
+	return(true);
+}
+
 /** Check if the basename of a filepath is an undo tablespace name
 @param[in]	name	Tablespace name
 @return true if it is an undo tablespace name */
@@ -4826,55 +4891,43 @@ Fil_path::make_new_ibd(
 	return(path);
 }
 
-/** This function reduces a null-terminated full remote path name into
-the path that is sent by MySQL for DATA DIRECTORY clause.  It replaces
-the 'databasename/tablename.ibd' found at the end of the path with just
-'tablename'.
+/** This function reduces a null-terminated full remote path name
+into the path that is sent by MySQL for DATA DIRECTORY clause.
+It replaces the 'databasename/tablename.ibd' found at the end of the
+path with just 'tablename'.
 
-Since the result is always smaller than the path sent in, no new memory
-is allocated. The caller should allocate memory for the path sent in.
-This function manipulates that path in place.
+Since the result is always smaller than the path sent in, no new
+memory is allocated. The caller should allocate memory for the path
+sent in. This function manipulates that path in place. If the path
+format is not as expected, set data_dir_path to "" and return.
 
-If the path format is not as expected, just return.  The result is used
-to inform a SHOW CREATE TABLE command.
-@param[in,out] data_dir_path	Full path/data_dir_path */
+The result is used to inform a SHOW CREATE TABLE command.
+@param[in,out]	data_dir_path	Full path/data_dir_path */
 void
 Fil_path::make_data_dir_path(char* data_dir_path)
 {
 	/* Replace the period before the extension with a null byte. */
-	char*	ptr = strrchr((char*) data_dir_path, '.');
-
-	if (ptr == nullptr) {
-		return;
-	}
-
-	*ptr = '\0';
+	ut_ad(has_ibd_suffix(data_dir_path));
+	char*	dot = strrchr((char*) data_dir_path, '.');
+	*dot = '\0';
 
 	/* The tablename starts after the last slash. */
-	ptr = strrchr((char*) data_dir_path, OS_PATH_SEPARATOR);
+	char* base_slash = strrchr((char*) data_dir_path, OS_PATH_SEPARATOR);
+	ut_ad(base_slash != nullptr);
 
-	if (ptr == nullptr) {
-		return;
-	}
+	*base_slash = '\0';
 
-	*ptr = '\0';
-
-	char*	tablename = ptr + 1;
+	std::string	base_name{base_slash + 1};
 
 	/* The database name starts after the next to last slash. */
-	ptr = strrchr((char*) data_dir_path, OS_SEPARATOR);
+	char* db_slash = strrchr((char*) data_dir_path, OS_SEPARATOR);
+	ut_ad(db_slash != nullptr);
+	char* db_name = db_slash + 1;
 
-	if (ptr == nullptr) {
-		return;
-	}
 
-	size_t	tablename_len = strlen(tablename);
-
-	++ptr;
-
-	memmove(ptr, tablename, tablename_len);
-
-	ptr[tablename_len] = '\0';
+	/* Overwrite the db_name with the base_name. */
+	memmove(db_name, base_name.c_str(), base_name.length());
+	db_name[base_name.length()] = '\0';
 }
 
 /** Write redo log for renaming a file.
@@ -9194,28 +9247,28 @@ fil_tablespace_path_equals(
 
 		std::string	old_dir = Fil_path::get_real_path(old_path);
 
-		auto	pos = old_dir.find_last_of(Fil_path::SEPARATOR);
-
-		ut_a(pos != std::string::npos);
-
 		/* Ignore the filename component of the old path. */
+		auto	pos = old_dir.find_last_of(Fil_path::SEPARATOR);
+		ut_a(pos != std::string::npos);
 		old_dir.resize(pos + 1);
-
-		ut_ad(Fil_path::is_separator(result.first.back()));
 		ut_ad(Fil_path::is_separator(old_dir.back()));
 
-		std::string		new_dir{result.first};
-		const std::string&	sub_dir = result.second->front();
+		/* Build the new path from the scan path and the found path. */
+		std::string	new_dir{result.first};
+		ut_ad(Fil_path::is_separator(new_dir.back()));
+		new_dir.append(result.second->front());
 
-		pos = sub_dir.find_last_of(Fil_path::SEPARATOR);
+		new_dir = Fil_path::get_real_path(new_dir);
 
-		if (pos != std::string::npos) {
-
-			new_dir.append(sub_dir.substr(0, pos + 1));
+		/* Do not use a datafile that is in the wrong place. */
+		if (!Fil_path::is_valid_location(space_name, new_dir)) {
+			return(Fil_state::MISSING);
 		}
 
-		old_dir = Fil_path::get_real_path(old_dir);
-		new_dir = Fil_path::get_real_path(new_dir);
+		/* Ignore the filename component of the new path. */
+		pos = new_dir.find_last_of(Fil_path::SEPARATOR);
+		ut_ad(pos != std::string::npos);
+		new_dir.resize(pos + 1);
 
 		if (old_dir.compare(new_dir) != 0) {
 
@@ -9226,9 +9279,9 @@ fil_tablespace_path_equals(
 				space_name, old_path, *new_path);
 
 			return(Fil_state::MOVED);
-		} else{
-			*new_path = old_path;
 		}
+
+		*new_path = old_path;
 	}
 
 	return(Fil_state::MATCHES);

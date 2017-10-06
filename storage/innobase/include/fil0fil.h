@@ -411,6 +411,19 @@ public:
 		return(m_path.compare(lhs.m_path));
 	}
 
+	/** Check if m_path is the same as path.
+	@param[in]	name	directory path to compare to
+	@return true if m_path is the same as path */
+	bool is_same_as(const std::string& path) const
+		MY_ATTRIBUTE((warn_unused_result))
+	{
+		if (m_path.empty() || path.empty()) {
+			return(false);
+		}
+
+		return(m_abs_path == get_real_path(path));
+	}
+
 	/** Check if m_path is the parent of name.
 	@param[in]	name		Path to compare to
 	@return true if m_path is an ancestor of name */
@@ -605,6 +618,17 @@ public:
 		return(std::equal(lhs.begin(), lhs.end(), rhs.begin()));
 	}
 
+	/** Check if the filepath provided is in a valid placement.
+	1) File-per-table must be in a dir named for the schema.
+	2) File-per-table must not be in the datadir.
+	3) General tablespace must no be under the datadir.
+	@param[in]	space_name	tablespace name
+	@param[in]	path		filepath to validate
+	@retval true if the filepath is a valid datafile location */
+	static bool is_valid_location(
+		const char*		space_name,
+		const std::string&	path);
+
 	/** Check if the name is an undo tablespace name.
 	@param[in]	name		Tablespace name
 	@return true if it is an undo tablespace name */
@@ -702,18 +726,18 @@ public:
 		const std::string&	name_in)
 		MY_ATTRIBUTE((warn_unused_result));
 
-	/** This function reduces a null-terminated full remote path name into
-	the path that is sent by MySQL for DATA DIRECTORY clause.  It replaces
-	the 'databasename/tablename.ibd' found at the end of the path with just
-	'tablename'.
+	/** This function reduces a null-terminated full remote path name
+	into the path that is sent by MySQL for DATA DIRECTORY clause.
+	It replaces the 'databasename/tablename.ibd' found at the end of the
+	path with just 'tablename'.
 
-	Since the result is always smaller than the path sent in, no new memory
-	is allocated. The caller should allocate memory for the path sent in.
-	This function manipulates that path in place.
+	Since the result is always smaller than the path sent in, no new
+	memory is allocated. The caller should allocate memory for the path
+	sent in. This function manipulates that path in place. If the path
+	format is not as expected, set data_dir_path to "" and return.
 
-	If the path format is not as expected, just return.  The result is used
-	to inform a SHOW CREATE TABLE command.
-	@param[in,out] data_dir_path           Full path/data_dir_path */
+	The result is used to inform a SHOW CREATE TABLE command.
+	@param[in,out]	data_dir_path	Full path/data_dir_path */
 	static void make_data_dir_path(char* data_dir_path);
 
 	/** @return the null path */

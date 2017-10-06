@@ -3454,31 +3454,24 @@ dd_load_tablespace(
 			<< table->space;
 	}
 
-	/* Use the remote filepath if needed. This parameter is optional
-	in the call to fil_ibd_open(). If not supplied, it will be built
-	from the space_name. */
-	char*	filepath = nullptr;
-	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
-		/* This will set table->data_dir_path from either
-		fil_system */
-		dd_get_and_save_data_dir_path(table, dd_table, true);
+	/* Try to get the filepath if this space_id is already open.
+	If the filepath is not found, fil_ibd_open() will make a default
+	filepath from the tablespace name */
+	char*	filepath = fil_space_get_first_path(table->space);
 
-		if (table->data_dir_path != nullptr) {
-
-			filepath = Fil_path::make(
-				table->data_dir_path,
-				table->name.m_name, IBD, true);
-		}
-
-	} else if (DICT_TF_HAS_SHARED_SPACE(table->flags)) {
-
+	if (filepath == nullptr) {
+		/* boot_tablespaces() made sure that the scanned filepath
+		is in the DD even if the datafile was moved. So let's use
+		that path to open this tablespace. */
 		mutex_exit(&dict_sys->mutex);
-		filepath = dd_get_first_path(heap, table, dd_table);
+		char*	filepath = dd_get_first_path(heap, table, dd_table);
 		mutex_enter(&dict_sys->mutex);
+
 		if (filepath == nullptr) {
 			ib::warn() << "Could not find the filepath"
-				" for table " << table->name <<
-				", space ID " << table->space;
+				<< " for table " << table->name
+				<< ", space ID " << table->space
+				<< " in the data dictionary.";
 		} else {
 			alloc_from_heap = true;
 		}
@@ -3494,7 +3487,11 @@ dd_load_tablespace(
 		true, FIL_TYPE_TABLESPACE, table->space,
 		fsp_flags, space_name, tbl_name, filepath, true, false);
 
-	if (err != DB_SUCCESS) {
+	if (err == DB_SUCCESS) {
+		/* This will set the DATA DIRECTORY for SHOW CREATE TABLE. */
+		dd_get_and_save_data_dir_path(table, dd_table, true);
+
+	} else {
 		/* We failed to find a sensible tablespace file */
 		table->ibd_file_missing = TRUE;
 	}

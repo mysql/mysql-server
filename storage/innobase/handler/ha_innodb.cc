@@ -3603,12 +3603,13 @@ Validate_files::check(
 		/* Just in case this dictionary was ported between
 		Windows and POSIX. */
 		Fil_path::normalize(dd_path);
+		Fil_state	state = Fil_state::MATCHES;
 
 		if (fsp_is_ibd_tablespace(space_id)) {
 
 			std::lock_guard<std::mutex> guard(m_mutex);
 
-			auto	state = fil_tablespace_path_equals(
+			state = fil_tablespace_path_equals(
 				tablespace->id(), space_id, space_name,
 				dd_path, &new_path);
 
@@ -3686,9 +3687,9 @@ Validate_files::check(
 
 		switch (err) {
 		case DB_SUCCESS:
-		case DB_CANNOT_OPEN_FILE:
 			break;
-
+		case DB_CANNOT_OPEN_FILE:
+		case DB_WRONG_FILE_NAME:
 		default:
 			ib::info()
 				<< prefix
