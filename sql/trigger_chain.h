@@ -21,16 +21,15 @@
 #include "lex_string.h"
 #include "sql/sql_alloc.h"                  // Sql_alloc
 #include "sql/sql_list.h"                   // List
-#include "sql/thr_malloc.h"
 #include "sql/trigger_def.h"                // enum_trigger_order_type
 
 class Query_tables_list;
 class THD;
 class Trigger;
+struct MEM_ROOT;
+struct MY_BITMAP;
 struct TABLE;
 struct TABLE_LIST;
-
-struct MY_BITMAP;
 
 
 class Trigger_chain : public Sql_alloc

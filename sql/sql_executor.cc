@@ -55,7 +55,6 @@
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/debug_sync.h"   // DEBUG_SYNC
-#include "sql/derror.h"
 #include "sql/enum_query_type.h"
 #include "sql/field.h"
 #include "sql/filesort.h"     // Filesort
@@ -85,11 +84,12 @@
 #include "sql/sql_join_buffer.h" // CACHE_FIELD
 #include "sql/sql_list.h"
 #include "sql/sql_optimizer.h" // JOIN
-#include "sql/sql_servers.h"
+#include "sql/sql_select.h"
 #include "sql/sql_show.h"     // get_schema_tables_result
 #include "sql/sql_sort.h"
 #include "sql/sql_tmp_table.h" // create_tmp_table
 #include "sql/system_variables.h"
+#include "sql/table_function.h"
 #include "sql/thr_malloc.h"
 #include "sql/window.h"
 #include "sql/window_lex.h"

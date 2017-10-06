@@ -49,11 +49,11 @@
 #include "sql/derror.h"          // ER_THD
 #include "sql/field.h"
 #include "sql/handler.h"
-#include "sql/histograms/value_map.h"
 #include "sql/item_cmpfunc.h"
 #include "sql/item_func.h"
 #include "sql/item_sum.h"        // Item_sum_max
 #include "sql/key.h"
+#include "sql/my_decimal.h"
 #include "sql/mysqld.h"          // in_left_expr_name
 #include "sql/opt_explain_format.h"
 #include "sql/opt_trace.h"       // OPT_TRACE_TRANSFORM
@@ -77,6 +77,7 @@
 #include "sql/sql_union.h"       // Query_result_union
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/table_function.h"
 #include "sql/temp_table_param.h"
 #include "sql/thr_malloc.h"
 #include "sql/window.h"
@@ -3994,6 +3995,10 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
 
   DBUG_ENTER("subselect_hash_sj_engine::setup");
 
+  DBUG_EXECUTE_IF("hash_semijoin_fail_in_setup",
+                  { my_error(ER_UNKNOWN_ERROR, MYF(0));
+                    DBUG_RETURN(true); });
+
   /* 1. Create/initialize materialization related objects. */
 
   /*
@@ -4202,15 +4207,19 @@ void subselect_hash_sj_engine::cleanup()
 {
   DBUG_ENTER("subselect_hash_sj_engine::cleanup");
   is_materialized= false;
-  result->cleanup(); /* Resets the temp table as well. */
+  if (result != nullptr)
+    result->cleanup(); /* Resets the temp table as well. */
   THD * const thd= item->unit->thd;
   DEBUG_SYNC(thd, "before_index_end_in_subselect");
-  TABLE *const table= tab->table();
-  if (table->file->inited)
-    table->file->ha_index_end();  // Close the scan over the index
-  free_tmp_table(thd, table);
-  // Note that tab->qep_cleanup() is not called
-  tab= NULL;
+  if (tab != nullptr)
+  {
+    TABLE *const table= tab->table();
+    if (table->file->inited)
+      table->file->ha_index_end();  // Close the scan over the index
+    free_tmp_table(thd, table);
+    // Note that tab->qep_cleanup() is not called
+    tab= nullptr;
+  }
   materialize_engine->cleanup();
   DBUG_VOID_RETURN;
 }

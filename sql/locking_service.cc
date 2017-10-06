@@ -21,8 +21,7 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_sys.h"
-#include "mysql/service_thd_wait.h"
-#include "mysql/udf_registration_types.h"
+#include "mysql/service_parser.h"
 #include "mysqld_error.h"
 #include "sql/current_thd.h" // current_thd
 #include "sql/error_handler.h" // Internal_error_handler

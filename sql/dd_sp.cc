@@ -21,15 +21,14 @@
 #include <ostream>
 #include <string>
 
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "sql/auth/sql_security_ctx.h"
 #include "sql/dd/collection.h"
 #include "sql/dd/properties.h"                 // Properties
 #include "sql/dd/string_type.h"                // dd::Stringstream_type
@@ -39,7 +38,7 @@
 #include "sql/dd/types/view.h"
 #include "sql/dd_table_share.h"                // dd_get_mysql_charset
 #include "sql/field.h"
-#include "sql/key.h"
+#include "sql/gis/srid.h"
 #include "sql/sp.h"                            // SP_DEFAULT_ACCESS_MAPPING
 #include "sql/sql_class.h"                     // THD
 #include "sql/sql_lex.h"

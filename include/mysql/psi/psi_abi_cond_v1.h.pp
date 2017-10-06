@@ -27,8 +27,6 @@ struct PSI_placeholder
   int m_placeholder;
 };
 #include "mysql/components/services/psi_cond_bits.h"
-#include "my_inttypes.h"
-#include "my_macros.h"
 typedef unsigned int PSI_cond_key;
 struct PSI_cond;
 typedef struct PSI_cond PSI_cond;
@@ -44,20 +42,20 @@ struct PSI_cond_info_v1
 {
   PSI_cond_key *m_key;
   const char *m_name;
-  uint m_flags;
+  unsigned int m_flags;
   int m_volatility;
   const char *m_documentation;
 };
 typedef struct PSI_cond_info_v1 PSI_cond_info_v1;
 struct PSI_cond_locker_state_v1
 {
-  uint m_flags;
+  unsigned int m_flags;
   enum PSI_cond_operation m_operation;
   struct PSI_cond *m_cond;
   struct PSI_mutex *m_mutex;
   struct PSI_thread *m_thread;
-  ulonglong m_timer_start;
-  ulonglong (*m_timer)(void);
+  unsigned long long m_timer_start;
+  unsigned long long (*m_timer)(void);
   void *m_wait;
 };
 typedef struct PSI_cond_locker_state_v1 PSI_cond_locker_state_v1;

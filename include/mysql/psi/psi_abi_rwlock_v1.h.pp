@@ -27,7 +27,6 @@ struct PSI_placeholder
   int m_placeholder;
 };
 #include "mysql/components/services/psi_rwlock_bits.h"
-#include "my_macros.h"
 typedef unsigned int PSI_rwlock_key;
 struct PSI_rwlock;
 typedef struct PSI_rwlock PSI_rwlock;
@@ -51,19 +50,19 @@ struct PSI_rwlock_info_v1
 {
   PSI_rwlock_key *m_key;
   const char *m_name;
-  uint m_flags;
+  unsigned int m_flags;
   int m_volatility;
   const char *m_documentation;
 };
 typedef struct PSI_rwlock_info_v1 PSI_rwlock_info_v1;
 struct PSI_rwlock_locker_state_v1
 {
-  uint m_flags;
+  unsigned int m_flags;
   enum PSI_rwlock_operation m_operation;
   struct PSI_rwlock *m_rwlock;
   struct PSI_thread *m_thread;
-  ulonglong m_timer_start;
-  ulonglong (*m_timer)(void);
+  unsigned long long m_timer_start;
+  unsigned long long (*m_timer)(void);
   void *m_wait;
 };
 typedef struct PSI_rwlock_locker_state_v1 PSI_rwlock_locker_state_v1;

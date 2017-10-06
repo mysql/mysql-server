@@ -35,7 +35,6 @@
 #include "sql/field.h"                          // my_charset_numeric
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"                      // Sql_condition
-#include "sql/system_variables.h"
 
 
 /**

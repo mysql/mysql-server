@@ -22,21 +22,16 @@
 #include <string.h>
 #include <sys/types.h>
 #include <memory>
-#include <new>
 #include <string>
 #include <vector>
 
-#include "map_helpers.h"
-#include "my_alloc.h"
 #include "my_base.h"              // ha_rows.
+#include "my_bitmap.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/udf_registration_types.h"
-#include "mysqld_error.h"         // ER_ILLEGAL_HA
 #include "priority_queue.h"
 #include "sql/handler.h"          // Handler_share
 #include "sql/key.h"              // key_rec_cmp
@@ -45,8 +40,9 @@
 
 class Field;
 class THD;
-class partition_element;
 class partition_info;
+struct mysql_mutex_t;
+template <class Key, class Value> class collation_unordered_map;
 
 namespace dd {
 class Table;
@@ -56,8 +52,6 @@ struct TABLE_SHARE;
 
 #define PARTITION_BYTES_IN_POS 2
 
-/* forward declarations */
-struct HA_CREATE_INFO;
 struct MEM_ROOT;
 
 static const uint NO_CURRENT_PART_ID= UINT_MAX32;

@@ -23,10 +23,10 @@
 
 #include "sql/item_cmpfunc.h"
 
-#include <array>
 #include <limits.h>
 #include <math.h>
 #include <algorithm>
+#include <array>
 #include <functional>
 #include <type_traits>
 
@@ -47,7 +47,6 @@
 #include "sql/current_thd.h"    // current_thd
 #include "sql/field.h"
 #include "sql/histograms/histogram.h"
-#include "sql/histograms/value_map.h"
 #include "sql/item_json_func.h" // json_value, get_json_atom_wrapper
 #include "sql/item_subselect.h" // Item_subselect
 #include "sql/item_sum.h"       // Item_sum_hybrid
@@ -55,9 +54,11 @@
 #include "sql/key.h"
 #include "sql/mysqld.h"         // log_10
 #include "sql/opt_trace.h"      // Opt_trace_object
+#include "sql/opt_trace_context.h"
 #include "sql/parse_tree_helpers.h" // PT_item_list
 #include "sql/set_var.h"
 #include "sql/sql_array.h"
+#include "sql/sql_base.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"      // THD
 #include "sql/sql_error.h"
@@ -66,7 +67,6 @@
 #include "sql/sql_opt_exec_shared.h"
 #include "sql/sql_optimizer.h"  // JOIN
 #include "sql/sql_select.h"
-#include "sql/sql_servers.h"
 #include "sql/sql_time.h"       // str_to_datetime
 #include "sql/system_variables.h"
 #include "sql/thr_malloc.h"

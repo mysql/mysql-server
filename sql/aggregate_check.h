@@ -449,10 +449,10 @@ VE2 are NULL then VE3 must be NULL, which makes the dependency NULL-friendly.
 #include <stddef.h>
 #include <sys/types.h>
 
+#include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_table_map.h"
-#include "mysql/udf_registration_types.h"
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"    // Item_func_any_value
 #include "sql/item_sum.h"        // Item_sum
@@ -462,7 +462,6 @@ VE2 are NULL then VE3 must be NULL, which makes the dependency NULL-friendly.
 
 class Opt_trace_context;
 class Opt_trace_object;
-class SELECT_LEX;
 class THD;
 struct TABLE_LIST;
 template <class T> class List;

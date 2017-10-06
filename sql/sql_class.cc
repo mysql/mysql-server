@@ -50,9 +50,9 @@
 #include "sql/derror.h"                      // ER_THD
 #include "sql/error_handler.h"               // Internal_error_handler
 #include "sql/item_func.h"                   // user_var_entry
-#include "sql/key.h"
 #include "sql/lock.h"                        // mysql_lock_abort_for_thread
 #include "sql/locking_service.h"             // release_all_locking_service_locks
+#include "sql/log_event.h"
 #include "sql/mysqld.h"                      // global_system_variables ...
 #include "sql/mysqld_thd_manager.h"          // Global_THD_manager
 #include "sql/psi_memory_key.h"
@@ -71,6 +71,7 @@
 #include "sql/sql_prepare.h"                 // Prepared_statement
 #include "sql/sql_time.h"                    // my_timeval_trunc
 #include "sql/sql_timer.h"                   // thd_timer_destroy
+#include "sql/table.h"
 #include "sql/tc_log.h"
 #include "sql/thr_malloc.h"
 #include "sql/transaction.h"                 // trans_rollback

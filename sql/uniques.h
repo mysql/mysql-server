@@ -24,7 +24,6 @@
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
 #include "my_tree.h"            // TREE
-#include "mysql/udf_registration_types.h"
 #include "prealloced_array.h"   // Prealloced_array
 #include "sql/sql_alloc.h"      // Sql_alloc
 #include "sql/sql_array.h"

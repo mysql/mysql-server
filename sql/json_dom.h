@@ -30,7 +30,6 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_time.h"         // MYSQL_TIME
 #include "prealloced_array.h"   // Prealloced_array
 #include "sql/json_binary.h"    // json_binary::Value
@@ -43,7 +42,6 @@ class Json_array;
 class Json_dom;
 class Json_object;
 class Json_path;
-class Json_path_leg;
 class Json_seekable_path;
 class Json_wrapper;
 class String;

@@ -19,13 +19,12 @@
 #include <stddef.h>
 
 #include "lex_string.h"
-#include "my_alloc.h"
 #include "my_sqlcommand.h"
 #include "sql/sql_alloc.h"          // Sql_alloc
 #include "sql/sql_cmd.h"            // Sql_cmd
 
-struct MEM_ROOT;
 class THD;
+struct MEM_ROOT;
 struct TABLE;
 
 class FOREIGN_SERVER : public Sql_alloc

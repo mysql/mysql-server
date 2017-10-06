@@ -19,8 +19,6 @@
 #include "my_config.h"
 
 #include <stddef.h>
-
-#include "mysql/udf_registration_types.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
@@ -28,6 +26,7 @@
 
 #include "binary_log_types.h"
 #include "lex_string.h"
+#include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_time.h"
@@ -37,7 +36,6 @@
 
 class THD;
 class my_decimal;
-class Time_zone;
 
 struct Date_time_format
 {

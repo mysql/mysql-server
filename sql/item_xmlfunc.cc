@@ -26,6 +26,7 @@
 #include "my_macros.h"
 #include "my_sys.h"
 #include "my_xml.h"             // my_xml_node_type
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/check_stack.h"
@@ -34,13 +35,11 @@
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"   // Item_bool_func
 #include "sql/item_func.h"
-#include "sql/session_tracker.h"
 #include "sql/sp_pcontext.h"    // sp_variable
 #include "sql/sql_class.h"      // THD
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
-#include "sql/system_variables.h"
 
 /*
   TODO: future development directions:

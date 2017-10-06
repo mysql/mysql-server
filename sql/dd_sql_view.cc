@@ -25,8 +25,8 @@
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
-#include "mysqld_error.h"
 #include "mysqld.h"                     // mysqld_server_started
+#include "mysqld_error.h"
 #include "sql/auth/auth_common.h"
 #include "sql/dd/cache/dictionary_client.h" // dd::cache::Dictionary_client
 #include "sql/dd/dd.h"                  // dd::get_dictionary
@@ -40,7 +40,6 @@
 #include "sql/derror.h"                 // ER_THD
 #include "sql/error_handler.h"          // Internal_error_handler
 #include "sql/handler.h"                // HA_LEX_CREATE_TMP_TABLE
-#include "sql/key.h"
 #include "sql/mdl.h"
 #include "sql/set_var.h"
 #include "sql/sp_head.h"                // sp_name
@@ -452,18 +451,7 @@ static bool open_views_and_update_metadata(
                     &prelocking_strategy))
     {
       thd->pop_internal_handler();
-      /*
-        If error is handled by the error handler then update status of the view
-        as "invalid." else report an error.
-
-        During server startup, my_message_stderr is set to the
-        error_handler_hook until all the server components and network are
-        initialized. my_message_stderr does not invoke error handlers pushed.
-        Even there will not be any concurrent operations at this stage to hit
-        deadlock and lock wait timeout situations. So during server startup,
-        view is marked as "invalid" in the error cases.
-      */
-      if (!mysqld_server_started || error_handler.is_view_invalid())
+      if (error_handler.is_view_invalid())
       {
         if (view->mdl_request.ticket != NULL)
         {
@@ -498,8 +486,7 @@ static bool open_views_and_update_metadata(
     {
       thd->lex= org_lex;
       thd->pop_internal_handler();
-      // Please refer comments in the view open error handling block above.
-      if (!mysqld_server_started || error_handler.is_view_invalid())
+      if (error_handler.is_view_invalid())
       {
         // Update view status in tables.options.view_valid.
         if (dd::update_view_status(thd, view->get_db_name(),
@@ -627,8 +614,6 @@ static bool is_view_metadata_update_needed(THD *thd, const char *db,
     break;
   case SQLCOM_CREATE_SPFUNCTION:
   case SQLCOM_DROP_FUNCTION:
-  case SQLCOM_INSTALL_PLUGIN:
-  case SQLCOM_UNINSTALL_PLUGIN:
     retval= true;
     break;
   default:
@@ -682,8 +667,7 @@ static bool update_view_metadata(THD *thd,
       (thd->lex->sql_command == SQLCOM_DROP_TABLE    ||
        thd->lex->sql_command == SQLCOM_DROP_VIEW     ||
        thd->lex->sql_command == SQLCOM_DROP_FUNCTION ||
-       thd->lex->sql_command == SQLCOM_DROP_DB ||
-       thd->lex->sql_command == SQLCOM_UNINSTALL_PLUGIN);
+       thd->lex->sql_command == SQLCOM_DROP_DB);
 
     // If operation is drop operation then view referencing it becomes invalid.
     // Hence mark all view as invalid.
@@ -712,19 +696,21 @@ static bool update_view_metadata(THD *thd,
 }
 
 
-static bool update_referencing_views_metadata(THD *thd,
-        const char *db, const char *table_name,
+bool update_referencing_views_metadata(THD *thd, const TABLE_LIST *table,
         const char *new_db, const char *new_table_name,
         bool commit_dd_changes,
         Uncommitted_tables_guard *uncommitted_tables)
 {
   DBUG_ENTER("update_referencing_views_metadata");
+  DBUG_ASSERT(table != nullptr);
 
   // Update metadata for view's referencing table.
-  if (is_view_metadata_update_needed(thd, db, table_name))
+  if (is_view_metadata_update_needed(thd, table->get_db_name(),
+                                     table->get_table_name()))
   {
     // Prepare list of all views referencing the table.
-    if (update_view_metadata<dd::View_table>(thd, db, table_name,
+    if (update_view_metadata<dd::View_table>(thd, table->get_db_name(),
+                                             table->get_table_name(),
                                              commit_dd_changes,
                                              uncommitted_tables))
       DBUG_RETURN(true);
@@ -741,43 +727,12 @@ static bool update_referencing_views_metadata(THD *thd,
 
 
 bool update_referencing_views_metadata(THD *thd, const TABLE_LIST *table,
-        const char *new_db, const char *new_table_name,
-        bool commit_dd_changes,
-        Uncommitted_tables_guard *uncommitted_tables)
-{
-  DBUG_ENTER("update_referencing_views_metadata");
-  DBUG_ASSERT(table != nullptr);
-
-  DBUG_RETURN(update_referencing_views_metadata(thd, table->get_db_name(),
-                                                table->get_table_name(),
-                                                new_db, new_table_name,
-                                                commit_dd_changes,
-                                                uncommitted_tables));
-}
-
-
-bool update_referencing_views_metadata(THD *thd, const TABLE_LIST *table,
         bool commit_dd_changes,
         Uncommitted_tables_guard *uncommitted_tables)
 {
   return update_referencing_views_metadata(thd, table, nullptr, nullptr,
                                            commit_dd_changes,
                                            uncommitted_tables);
-}
-
-
-bool update_referencing_views_metadata(THD *thd, const char *db_name,
-        const char *table_name,
-        bool commit_dd_changes,
-        Uncommitted_tables_guard *uncommitted_tables)
-{
-  DBUG_ENTER("update_referencing_views_metadata");
-  DBUG_ASSERT(db_name && table_name);
-
-  DBUG_RETURN(update_referencing_views_metadata(thd, db_name, table_name,
-                                                nullptr, nullptr,
-                                                commit_dd_changes,
-                                                uncommitted_tables));
 }
 
 

@@ -26,8 +26,6 @@
 #include "my_sys.h"
 #include "mysql/components/services/psi_error_bits.h"
 #include "mysql/psi/mysql_error.h"
-#include "mysql/psi/mysql_statement.h"
-#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"      // ER_*
 #include "sql/derror.h"        // ER_THD
 #include "sql/item.h"          // Item
@@ -35,8 +33,9 @@
 #include "sql/sp_rcontext.h"   // sp_rcontext
 #include "sql/sql_class.h"     // THD
 #include "sql/sql_lex.h"
-#include "sql/sql_servers.h"
 #include "sql_string.h"
+
+struct MEM_ROOT;
 
 
 /*

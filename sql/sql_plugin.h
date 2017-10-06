@@ -23,21 +23,18 @@
 
 #include "lex_string.h"
 #include "map_helpers.h"
-#include "my_inttypes.h"
 #include "my_io.h"
 #include "my_sqlcommand.h"          // enum_sql_command
 #include "mysql/components/services/mysql_mutex_bits.h"
-#include "mysql/psi/mysql_mutex.h"
 #include "sql/sql_cmd.h"            // Sql_cmd
 #include "sql/sql_plugin_ref.h"     // plugin_ref
-#include "sql/thr_malloc.h"
 
 class THD;
 class i_string;
+struct MEM_ROOT;
+struct SYS_VAR;
 struct my_option;
 struct st_bookmark;
-struct SHOW_VAR;
-struct SYS_VAR;
 template <class T> class I_List;
 
 

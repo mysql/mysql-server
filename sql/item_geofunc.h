@@ -26,7 +26,6 @@
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"
@@ -1412,7 +1411,8 @@ private:
   Geometry *bg_geo_set_op(Geometry *g1, Geometry *g2, String *result);
 
   template<typename Coordsys>
-  Geometry *combine_sub_results(Geometry *g1, Geometry *g2, String *result);
+  Geometry *combine_sub_results(Geometry *g1, Geometry *g2,
+                                gis::srid_t default_srid, String *result);
   Geometry *simplify_multilinestring(Gis_multi_line_string *mls,
                                      String *result);
 

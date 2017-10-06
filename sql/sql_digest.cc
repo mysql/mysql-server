@@ -24,11 +24,9 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
-#include "sha2.h"                   // SHA256
 #include "my_sys.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "sql/item_create.h"
+#include "sha2.h"                   // SHA256
 #include "sql/sql_digest_stream.h"  // sql_digest_state
 #include "sql/sql_lex.h"            // LEX_YYSTYPE
 #include "sql/sql_yacc.h"           // Generated code.

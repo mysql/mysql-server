@@ -1106,6 +1106,19 @@ SELECT a, UNIX_TIMESTAMP(a), UNIX_TIMESTAMP('5000-01-01 00:00:00') FROM t1;
 DROP TABLE t1;
 
 --echo #
+--echo # Bug#23529242 CONCAT: ASSERTION FAILED: MAYBE_NULL
+--echo #
+
+--echo Disable strict mode. This affects the nullability of string
+--echo functions, and the bug only reproduces when CONCAT's return
+--echo type is NOT NULL.
+SET @savmode=@@SESSION.SQL_MODE;
+SET SESSION SQL_MODE='';
+SELECT UNIX_TIMESTAMP(COUNT(1));
+SELECT CONCAT(UNIX_TIMESTAMP(COUNT(1)), '|');
+SET SESSION SQL_MODE=@savmode;
+
+--echo #
 --echo # Bug#13988413 CRASH/ASSERTION AFTER INVALID MEMORY READ 
 --echo #              IN MY_USECONDS_TO_STR
 --echo #

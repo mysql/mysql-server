@@ -39,6 +39,7 @@
 #include "control_events.h"
 #include "lex_string.h"
 #include "load_data_events.h"
+#include "m_ctype.h"
 #include "m_string.h"                // native_strncasecmp
 #include "my_bitmap.h"               // MY_BITMAP
 #include "my_dbug.h"
@@ -48,27 +49,25 @@
 #include "my_sharedlib.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
-#include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/components/services/psi_stage_bits.h"
-#include "mysql/psi/psi_stage.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"               // SERVER_VERSION_LENGTH
 #include "rows_event.h"
-#include "sql/item_create.h"
 #include "sql/psi_memory_key.h"
 #include "sql/query_options.h"       // OPTION_AUTO_IS_NULL
 #include "sql/rpl_gtid.h"            // enum_group_type
 #include "sql/rpl_utility.h"         // Hash_slave_rows
-#include "sql/session_tracker.h"
 #include "sql/sql_const.h"
-#include "sql/thr_malloc.h"
 #include "sql_string.h"
 #include "statement_events.h"
 #include "typelib.h"                 // TYPELIB
 
+class String;
 class THD;
 class Table_id;
+struct mysql_mutex_t;
+
 enum class enum_row_image_type;
 
 #ifdef MYSQL_SERVER
@@ -132,6 +131,7 @@ using binary_log::Format_description_event;
 
 typedef ulonglong sql_mode_t;
 struct db_worker_hash_entry;
+
 extern "C" MYSQL_PLUGIN_IMPORT char server_version[SERVER_VERSION_LENGTH];
 #if defined(MYSQL_SERVER)
 int ignored_error_code(int err_code);

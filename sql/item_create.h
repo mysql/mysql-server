@@ -38,8 +38,6 @@
 class Item;
 class PT_item_list;
 class THD;
-
-struct CHARSET_INFO;
 struct Cast_type;
 struct udf_func;
 

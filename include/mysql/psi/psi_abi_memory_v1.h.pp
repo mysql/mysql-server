@@ -2,31 +2,13 @@
 #include "my_psi_config.h"
 #include "my_sharedlib.h"
 #include "mysql/components/services/psi_memory_bits.h"
-#include "my_inttypes.h"
-#include "my_config.h"
-typedef unsigned char uchar;
-typedef signed char int8;
-typedef unsigned char uint8;
-typedef short int16;
-typedef unsigned short uint16;
-typedef int int32;
-typedef unsigned int uint32;
-typedef unsigned long long int ulonglong;
-typedef long long int longlong;
-typedef longlong int64;
-typedef ulonglong uint64;
-typedef unsigned long long my_ulonglong;
-typedef intptr_t intptr;
-typedef ulonglong my_off_t;
-typedef ptrdiff_t my_ptrdiff_t;
-typedef int myf;
 typedef unsigned int PSI_memory_key;
 struct PSI_thread;
 struct PSI_memory_info_v1
 {
   PSI_memory_key *m_key;
   const char *m_name;
-  uint m_flags;
+  unsigned int m_flags;
   int m_volatility;
   const char *m_documentation;
 };

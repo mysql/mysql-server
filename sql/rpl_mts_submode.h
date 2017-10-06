@@ -23,7 +23,6 @@
 #include "binlog_event.h"      // SEQ_UNINIT
 #include "my_inttypes.h"
 #include "my_thread_local.h"   // my_thread_id
-#include "mysql/udf_registration_types.h"
 #include "prealloced_array.h"  // Prealloced_array
 
 class Log_event;

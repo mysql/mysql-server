@@ -18,10 +18,11 @@
 
 #include "my_config.h"
 
+#include "my_alloc.h"
 #include "my_macros.h"
-#include "sql/histograms/value_map.h"
-#include "sql/sql_parse.h"
+#include "sql/gis/srid.h"
 #include "sql/system_variables.h"
+#include "typelib.h"
 
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
@@ -63,7 +64,6 @@
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
-#include "sql/sql_servers.h"
 #include "sql/sql_show.h"    // append_identifier
 #include "sql/sql_time.h"    // Date_time_format
 #include "sql/sql_view.h"    // VIEW_ANY_ACL
@@ -8759,7 +8759,10 @@ bool Item_ref::is_null()
 
 bool Item_ref::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
 {
-  return (null_value= (*ref)->get_date_result(ltime,fuzzydate));
+  DBUG_ASSERT(fixed);
+  bool result= (*ref)->get_date_result(ltime, fuzzydate);
+  null_value= (*ref)->null_value;
+  return result;
 }
 
 

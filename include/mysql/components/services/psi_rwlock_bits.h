@@ -16,10 +16,6 @@
 #ifndef COMPONENTS_SERVICES_PSI_RWLOCK_BITS_H
 #define COMPONENTS_SERVICES_PSI_RWLOCK_BITS_H
 
-#include "my_macros.h"
-
-C_MODE_START
-
 /**
   @file
   Performance schema instrumentation interface.
@@ -117,7 +113,7 @@ struct PSI_rwlock_info_v1
     The flags of the rwlock to register.
     @sa PSI_FLAG_SINGLETON
   */
-  uint m_flags;
+  unsigned int m_flags;
   /** Volatility index. */
   int m_volatility;
   /** Documentation. */
@@ -139,7 +135,7 @@ typedef struct PSI_rwlock_info_v1 PSI_rwlock_info_v1;
 struct PSI_rwlock_locker_state_v1
 {
   /** Internal state. */
-  uint m_flags;
+  unsigned int m_flags;
   /** Current operation. */
   enum PSI_rwlock_operation m_operation;
   /** Current rwlock. */
@@ -147,9 +143,9 @@ struct PSI_rwlock_locker_state_v1
   /** Current thread. */
   struct PSI_thread *m_thread;
   /** Timer start. */
-  ulonglong m_timer_start;
+  unsigned long long m_timer_start;
   /** Timer function. */
-  ulonglong (*m_timer)(void);
+  unsigned long long (*m_timer)(void);
   /** Internal data. */
   void *m_wait;
 };
@@ -238,7 +234,5 @@ typedef struct PSI_rwlock_info_v1 PSI_rwlock_info;
 typedef struct PSI_rwlock_locker_state_v1 PSI_rwlock_locker_state;
 
 /** @} (end of group psi_abi_rwlock) */
-
-C_MODE_END
 
 #endif /* COMPONENTS_SERVICES_PSI_RWLOCK_BITS_H */

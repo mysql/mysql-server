@@ -27,10 +27,8 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "mysql/udf_registration_types.h"
 #include "sql/current_thd.h"
 #include "sql/field.h"
-#include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/sql_class.h" // THD
 #include "sql/sql_list.h"

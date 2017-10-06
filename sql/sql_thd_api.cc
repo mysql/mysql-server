@@ -21,6 +21,7 @@
 #include <algorithm>
 #include <atomic>
 
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -31,16 +32,13 @@
 #include "my_thread_local.h"
 #include "mysql/components/services/psi_stage_bits.h"
 #include "mysql/components/services/psi_thread_bits.h"
-#include "mysql/mysql_lex_string.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/conn_handler/connection_handler_manager.h"
 #include "sql/current_thd.h"            // current_thd
 #include "sql/handler.h"
-#include "sql/key.h"
 #include "sql/mysqld.h"                 // key_thread_one_connection
 #include "sql/protocol_classic.h"
 #include "sql/query_options.h"
@@ -60,6 +58,8 @@
 #include "sql/xa.h"
 #include "sql_string.h"
 #include "violite.h"
+
+struct MYSQL_LEX_STRING;
 
 using std::min;
 

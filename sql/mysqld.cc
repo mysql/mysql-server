@@ -374,6 +374,7 @@
 #include "ft_global.h"
 #include "keycache.h"                   // KEY_CACHE
 #include "m_string.h"
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_bitmap.h"                  // MY_BITMAP
 #include "my_command.h"
@@ -389,6 +390,7 @@
 #include "my_timer.h"                   // my_timer_initialize
 #include "myisam.h"
 #include "mysql/components/services/log_shared.h"
+#include "mysql/plugin.h"
 #include "mysql/plugin_audit.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_file.h"
@@ -440,7 +442,6 @@
 #include "sql/event_data_objects.h"     // init_scheduler_psi_keys
 #include "sql/events.h"                 // Events
 #include "sql/handler.h"
-#include "sql/histograms/value_map.h"
 #include "sql/hostname.h"               // hostname_cache_init
 #include "sql/init.h"                   // unireg_init
 #include "sql/item.h"
@@ -481,7 +482,6 @@
 #include "sql/session_tracker.h"
 #include "sql/set_var.h"
 #include "sql/sp_head.h"                // init_sp_psi_keys
-#include "sql/sql_admin.h"
 #include "sql/sql_audit.h"              // mysql_audit_general
 #include "sql/sql_base.h"
 #include "sql/sql_callback.h"           // MUSQL_CALLBACK
@@ -501,13 +501,12 @@
 #include "sql/sql_show.h"
 #include "sql/sql_table.h"              // build_table_filename
 #include "sql/sql_test.h"               // mysql_print_status
-#include "sql/sql_time.h"               // Date_time_format
 #include "sql/sql_udf.h"
-#include "sql/strfunc.h"
 #include "sql/sys_vars.h"               // fixup_enforce_gtid_consistency_...
 #include "sql/sys_vars_shared.h"        // intern_find_sys_var
 #include "sql/table_cache.h"            // table_cache_manager
 #include "sql/tc_log.h"                 // tc_log
+#include "sql/thr_malloc.h"
 #include "sql/transaction.h"
 #include "sql/tztime.h"                 // Time_zone
 #include "sql/xa.h"
@@ -517,6 +516,7 @@
 #include "storage/perfschema/pfs_services.h"
 #include "thr_lock.h"
 #include "thr_mutex.h"
+#include "typelib.h"
 #include "violite.h"
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
@@ -533,7 +533,6 @@
 #ifdef MY_MSCRT_DEBUG
 #include <crtdbg.h>
 #endif
-#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <fenv.h>
@@ -5597,7 +5596,7 @@ int mysqld_main(int argc, char **argv)
   /*
     We have enough space for fiddling with the argv, continue
   */
-  if (my_setwd(mysql_real_data_home,MYF(MY_WME)) && !opt_help)
+  if (!opt_help && my_setwd(mysql_real_data_home,MYF(MY_WME)))
   {
     LogErr(ERROR_LEVEL, ER_CANT_SET_DATADIR, mysql_real_data_home);
     unireg_abort(MYSQLD_ABORT_EXIT);        /* purecov: inspected */
@@ -8335,7 +8334,19 @@ mysqld_get_one_option(int optid,
       LogErr(WARNING_LEVEL, ER_THE_USER_ABIDES, argument, mysqld_user);
     break;
   case 's':
-    push_deprecated_warn_no_replacement(NULL, "--symbolic-links/-s");
+    if (argument[0] == '0')
+    {
+      sql_print_warning("Disabling symbolic links using --skip-symbolic-links "
+                        "(or equivalent) is the default. Consider not using "
+                        "this option as it is deprecated and will be removed "
+                        "in a future release.");
+    }
+    else
+    {
+      sql_print_warning("Enabling symbolic links using --symbolic-links/-s "
+                        "(or equivalent) is deprecated and will be removed in "
+                        "a future release.");
+    }
     break;
   case 'L':
     push_deprecated_warn(NULL, "--language/-l", "'--lc-messages-dir'");

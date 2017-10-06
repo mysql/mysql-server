@@ -25,7 +25,6 @@
 #include <new>
 #include <utility>
 
-#include "decimal.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
@@ -46,7 +45,7 @@
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql/psi/mysql_statement.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/udf_registration_types.h"
+#include "mysql_time.h"
 #include "mysqld_error.h"
 #include "pfs_thread_provider.h"
 #include "rwlock_scoped_lock.h"
@@ -54,7 +53,6 @@
 #include "sql/conn_handler/connection_handler_manager.h"
 #include "sql/current_thd.h"
 #include "sql/derror.h"         // ER_DEFAULT
-#include "sql/histograms/value_map.h"
 #include "sql/log.h"             // Query log
 #include "sql/mysqld.h"          // current_thd
 #include "sql/mysqld_thd_manager.h" // Global_THD_manager
@@ -68,6 +66,8 @@
 #include "sql/sql_thd_internal_api.h" // thd_set_thread_stack
 #include "sql/system_variables.h"
 #include "thr_mutex.h"
+
+struct decimal_t;
 
 /**
   @file

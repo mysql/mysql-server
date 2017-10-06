@@ -17,10 +17,10 @@
 
 #include <sys/types.h>
 
+#include "m_ctype.h"
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"
 #include "sql/item.h"
 #include "sql/query_result.h"

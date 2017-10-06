@@ -17,6 +17,8 @@
 
 #include "my_time.h"                          // TIME_to_ulonglong_datetime
 #include "sql/dd/dd.h"                        // dd::create_object
+#include "sql/dd/cache/dictionary_client.h"
+#include "sql/dd/properties.h"
 #include "sql/dd/types/index_stat.h"          // dd::Index_stat
 #include "sql/dd/types/table_stat.h"          // dd::Table_stat
 #include "sql/debug_sync.h"                   // DEBUG_SYNC

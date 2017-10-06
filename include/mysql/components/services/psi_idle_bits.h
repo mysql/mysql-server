@@ -16,11 +16,6 @@
 #ifndef COMPONENTS_SERVICES_PSI_IDLE_BITS_H
 #define COMPONENTS_SERVICES_PSI_IDLE_BITS_H
 
-#include "my_inttypes.h"
-#include "my_macros.h"
-
-C_MODE_START
-
 /**
   @file
   Performance schema instrumentation interface.
@@ -49,13 +44,13 @@ typedef struct PSI_idle_locker PSI_idle_locker;
 struct PSI_idle_locker_state_v1
 {
   /** Internal state. */
-  uint m_flags;
+  unsigned int m_flags;
   /** Current thread. */
   struct PSI_thread *m_thread;
   /** Timer start. */
-  ulonglong m_timer_start;
+  unsigned long long m_timer_start;
   /** Timer function. */
-  ulonglong (*m_timer)(void);
+  unsigned long long (*m_timer)(void);
   /** Internal data. */
   void *m_wait;
 };
@@ -69,7 +64,7 @@ typedef struct PSI_idle_locker_state_v1 PSI_idle_locker_state_v1;
   @return an idle locker, or NULL
 */
 typedef struct PSI_idle_locker *(*start_idle_wait_v1_t)(
-  struct PSI_idle_locker_state_v1 *state, const char *src_file, uint src_line);
+  struct PSI_idle_locker_state_v1 *state, const char *src_file, unsigned int src_line);
 
 /**
   Record an idle instrumentation wait end event.
@@ -80,7 +75,5 @@ typedef void (*end_idle_wait_v1_t)(struct PSI_idle_locker *locker);
 typedef struct PSI_idle_locker_state_v1 PSI_idle_locker_state;
 
 /** @} (end of group psi_abi_idle) */
-
-C_MODE_END
 
 #endif /* COMPONENTS_SERVICES_PSI_IDLE_BITS_H */

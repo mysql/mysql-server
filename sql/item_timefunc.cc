@@ -35,7 +35,8 @@
 #include <string.h>
 
 #include "mysql_com.h"
-#include "sql/histograms/value_map.h"
+#include "sql/my_decimal.h"
+#include "typelib.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
@@ -46,7 +47,6 @@
 #include "my_dbug.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
-#include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"
 #include "sql/dd/info_schema/table_stats.h"
 #include "sql/dd/object_id.h" // dd::Object_id

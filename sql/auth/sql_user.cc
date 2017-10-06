@@ -20,6 +20,7 @@
 #include <set>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "lex_string.h"
@@ -27,28 +28,36 @@
 #include "m_string.h"
 #include "map_helpers.h"
 #include "my_alloc.h"
+#include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_loglevel.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "my_time.h"
 #include "mysql/components/services/log_shared.h"
+#include "mysql/mysql_lex_string.h"
 #include "mysql/plugin.h"
+#include "mysql/plugin_audit.h"
 #include "mysql/plugin_auth.h"
+#include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
+#include "mysql_time.h"
 #include "mysqld_error.h"
 #include "password.h"                   /* my_make_scrambled_password */
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"
 #include "sql/auth/dynamic_privilege_table.h"
 #include "sql/auth/sql_security_ctx.h"
+#include "sql/field.h"
+#include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/key.h"
 #include "sql/log_event.h"              /* append_query_string */
 #include "sql/protocol.h"
+#include "sql/sql_audit.h"
 #include "sql/sql_class.h"
 #include "sql/sql_connect.h"
 #include "sql/sql_const.h"
@@ -73,7 +82,6 @@
 #include "sql/derror.h"                 /* ER_THD */
 #include "sql/log.h"
 #include "sql/mysqld.h"
-#include "sql/sys_vars_shared.h"
 
 /**
   Auxiliary function for constructing a  user list string.

@@ -22,12 +22,14 @@
 #include <limits.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <new>
 #include <utility>
 
 #include "binary_log_types.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
+#include "map_helpers.h"
 #include "my_bitmap.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
@@ -37,14 +39,15 @@
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
 #include "myisam.h"                          // MI_MAX_MSG_BUF
+#include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/components/services/psi_memory_bits.h"
 #include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_memory.h"
+#include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "sql/auth/sql_security_ctx.h"
 #include "sql/derror.h"
 #include "sql/discrete_interval.h"
 #include "sql/field.h"
@@ -54,7 +57,6 @@
 #include "sql/partition_info.h"              // NOT_A_PARTITION_ID
 #include "sql/protocol.h"
 #include "sql/protocol_classic.h"
-#include "sql/psi_memory_key.h"
 #include "sql/set_var.h"
 #include "sql/sql_alter.h"
 #include "sql/sql_class.h"                   // THD
@@ -64,6 +66,7 @@
 #include "sql/sql_partition.h"      // LIST_PART_ENTRY, part_id_range
 #include "sql/system_variables.h"
 #include "sql/table.h"                       // TABLE_SHARE
+#include "sql/thr_malloc.h"
 #include "sql_string.h"
 #include "template_utils.h"
 #include "thr_mutex.h"

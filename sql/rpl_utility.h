@@ -27,8 +27,9 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
-#include "mysql/udf_registration_types.h"
 #include "sql/psi_memory_key.h"
+
+struct MY_BITMAP;
 
 #ifdef MYSQL_SERVER
 #include <memory>

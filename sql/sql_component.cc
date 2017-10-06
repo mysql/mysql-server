@@ -17,9 +17,11 @@
 #include "sql/sql_component.h"
 
 #include <stddef.h>
+#include <string.h>
 #include <vector>
 
 #include "../components/mysql_server/server_component.h" // imp_*
+#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/components/my_service.h"

@@ -30,7 +30,6 @@
 #include "my_psi_config.h"
 #include "my_time.h"                    // interval_type
 #include "mysql/components/services/psi_statement_bits.h"
-#include "mysql/psi/psi_statement.h"
 
 class String;
 class THD;

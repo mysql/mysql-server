@@ -24,7 +24,6 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
-#include "mysql/udf_registration_types.h"
 #include "sql/sql_cmd.h"      // Sql_cmd
 #include "sql/sql_plugin_ref.h" // plugin_ref
 #include "sql/xa_aux.h"       // serialize_xid

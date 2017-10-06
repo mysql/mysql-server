@@ -26,7 +26,6 @@
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"     // enum_sql_command
-#include "mysql/udf_registration_types.h"
 #include "sql/opt_trace_context.h" // Opt_trace_context
 
 class Cost_estimate;
@@ -36,8 +35,6 @@ class set_var_base;
 class sp_head;
 class sp_printable;
 struct TABLE_LIST;
-
-struct CHARSET_INFO;
 template <class T> class List;
 
 

@@ -27,8 +27,9 @@
 #include "my_loglevel.h"
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysql/udf_registration_types.h"
 #include "sql/thr_malloc.h"
+
+struct TYPELIB;
 
 #ifdef MYSQL_SERVER
 
@@ -57,10 +58,10 @@
 #include "sql/sql_list.h"
 #include "sql/sql_plugin_ref.h"
 #include "sql/sql_tmp_table.h"           // create_tmp_table_from_fields
+#include "sql_show.h"                    // show_sql_type
 #include "sql_string.h"
 #include "template_utils.h"              // delete_container_pointers
 #include "typelib.h"
-#include "sql_show.h"                    // show_sql_type
 
 using std::min;
 using std::max;

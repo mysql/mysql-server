@@ -22,6 +22,8 @@
 #include <atomic>
 
 #include "binlog_event.h"
+#include "my_bitmap.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
@@ -30,11 +32,8 @@
 #include "mysql/components/services/mysql_cond_bits.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/components/services/psi_mutex_bits.h"
-#include "mysql/psi/mysql_cond.h"
-#include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysql/udf_registration_types.h"
 #include "prealloced_array.h"  // Prealloced_array
 #include "sql/log_event.h"     // Format_description_log_event
 #include "sql/rpl_gtid.h"
@@ -47,7 +46,6 @@
 class Rpl_info_handler;
 class Slave_worker;
 struct TABLE;
-struct TABLE_REF;
 
 #ifndef DBUG_OFF
 extern ulong w_rr;

@@ -36,7 +36,6 @@
 #include <algorithm>
 #include <atomic>
 #include <cmath>
-#include <new>
 #include <vector>
 
 #include "my_base.h"
@@ -58,7 +57,6 @@
 #include "sql/sql_const.h"
 #include "sql/sql_sort.h"
 #include "sql/table.h"
-#include "sql_string.h"
 
 namespace 
 {

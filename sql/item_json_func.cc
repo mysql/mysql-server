@@ -28,20 +28,19 @@
 #include "binary_log_types.h"
 #include "m_string.h"
 #include "my_compare.h"
-#include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_macros.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"   // Prealloced_array
 #include "sql/current_thd.h"       // current_thd
-#include "sql/histograms/value_map.h"
 #include "sql/item_cmpfunc.h"      // Item_func_like
 #include "sql/item_subselect.h"
 #include "sql/json_diff.h"
 #include "sql/json_dom.h"
 #include "sql/json_path.h"
+#include "sql/my_decimal.h"
 #include "sql/psi_memory_key.h" // key_memory_JSON
-#include "sql/session_tracker.h"
 #include "sql/sql_class.h"      // THD
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
@@ -49,7 +48,6 @@
 #include "sql/sql_time.h"          // field_type_to_timestamp_type
 #include "sql/table.h"
 #include "template_utils.h"        // down_cast
-#include "sql_executor.h"       // Table_function_result
 
 class PT_item_list;
 

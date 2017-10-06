@@ -25,6 +25,7 @@
 #include "sql/sql_class.h"      // THD_STAGE_INFO
 #include "sql/sql_error.h"      // Sql_condition
 #include "sql/system_variables.h" // System_variables
+#include "sql/thr_malloc.h"
 
 
 struct CHANGED_TABLE_LIST

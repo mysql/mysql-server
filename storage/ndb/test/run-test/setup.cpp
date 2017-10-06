@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -108,7 +108,8 @@ setup_config(atrt_config& config, const char* atrt_mysqld)
     argv[argc++] = buf.c_str();
     char ** tmp = (char**)argv;
     const char *groups[] = { "cluster_config", 0 };
-    int ret = load_defaults(g_my_cnf, groups, &argc, &tmp);
+    MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512, 0};
+    int ret = load_defaults(g_my_cnf, groups, &argc, &tmp, &alloc);
     if (ret)
     {
       g_logger.error("Unable to load defaults for cluster: %s", 
@@ -185,7 +186,8 @@ setup_config(atrt_config& config, const char* atrt_mysqld)
       argv[argc++] = buf.c_str();
       const char *groups[] = { "mysql_cluster", 0 };
       char ** tmp = (char**)argv;
-      ret = load_defaults(g_my_cnf, groups, &argc, &tmp);
+      MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512, 0};
+      ret = load_defaults(g_my_cnf, groups, &argc, &tmp, &alloc);
       
       if (ret)
       {
@@ -346,7 +348,8 @@ load_process(atrt_config& config, atrt_cluster& cluster,
     return false;
   }
 
-  int ret = load_defaults(g_my_cnf, groups, &argc, &tmp);
+  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512, 0};
+  int ret = load_defaults(g_my_cnf, groups, &argc, &tmp, &alloc);
   if (ret)
   {
     g_logger.error("Unable to load defaults for cluster: %s", 

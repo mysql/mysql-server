@@ -24,15 +24,12 @@
 #include "lex_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "mysql/udf_registration_types.h"
-#include "sql/psi_memory_key.h"
 #include "sql/table.h"
+#include "sql/thr_malloc.h"
 
 class Item;
 class THD;
 
-struct ST_FIELD_INFO;
-struct ST_SCHEMA_TABLE;
 typedef int64 query_id_t;
 
 extern ST_FIELD_INFO query_profile_statistics_info[];

@@ -15,7 +15,6 @@
 
 #include "sql/rpl_info_table_access.h"
 
-#include <assert.h>
 #include <stddef.h>
 
 #include "binlog_event.h"
@@ -26,7 +25,6 @@
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "mysql/thread_type.h"
-#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "sql/current_thd.h"
 #include "sql/field.h"

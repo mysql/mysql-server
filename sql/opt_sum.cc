@@ -58,7 +58,6 @@
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_table_map.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "sql/field.h"
 #include "sql/handler.h"

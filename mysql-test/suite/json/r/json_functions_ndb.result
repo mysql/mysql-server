@@ -11375,7 +11375,7 @@ Warning	1364	Field 'j' doesn't have a default value
 UPDATE t SET j = JSON_REMOVE(j, '$[0]');
 SELECT j, JSON_STORAGE_SIZE(j), JSON_STORAGE_FREE(j) FROM t;
 j	JSON_STORAGE_SIZE(j)	JSON_STORAGE_FREE(j)
-null	2	0
+null	0	0
 DROP TABLE t;
 #
 # Bug#25893720: TABLE::SETUP_PARTIAL_UPDATE():

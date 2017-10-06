@@ -30,14 +30,11 @@
 #include "my_macros.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"
 #include "sql/derror.h"
 #include "sql/field.h"
-#include "sql/histograms/value_map.h"
 #include "sql/item_timefunc.h" // INTERNAL_FORMAT
 #include "sql/my_decimal.h"
-#include "sql/session_tracker.h"
 #include "sql/sql_class.h" // THD, MODE_STRICT_ALL_TABLES, MODE_STRICT_TRANS_TABLES
 #include "sql/sql_const.h"
 #include "sql/system_variables.h"

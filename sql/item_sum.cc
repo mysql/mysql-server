@@ -38,7 +38,6 @@
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/aggregate_check.h"           // Distinct_check
-#include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"               // current_thd
 #include "sql/derror.h"                    // ER_THD
 #include "sql/field.h"
@@ -50,7 +49,6 @@
 #include "sql/json_dom.h"
 #include "sql/key_spec.h"
 #include "sql/mysqld.h"
-#include "sql/opt_trace.h"
 #include "sql/parse_tree_helpers.h"        // PT_item_list
 #include "sql/parse_tree_nodes.h"          // PT_order_list
 #include "sql/sql_array.h"

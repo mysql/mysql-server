@@ -15,11 +15,11 @@
 
 #include "sql/parse_tree_partitions.h"
 
+#include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_sys.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "sql/auth/sql_security_ctx.h"
 #include "sql/derror.h"
 #include "sql/item.h"
 #include "sql/parse_location.h"

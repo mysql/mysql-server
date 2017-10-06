@@ -17,11 +17,11 @@
 
 #include "my_config.h"
 
-#include <algorithm>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
+#include <algorithm>
 #include <memory>
 #include <new>
 #include <utility>
@@ -42,14 +42,14 @@
 #include "mysql/components/services/psi_file_bits.h"
 #include "mysql/components/services/psi_memory_bits.h"
 #include "mysql/components/services/psi_mutex_bits.h"
-#include "mysql/plugin.h"
+#include "mysql/components/services/system_variable_source_type.h"
+#include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/udf_registration_types.h"
+#include "mysql/status_var.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
-#include "pfs_mutex_provider.h"
 #include "prealloced_array.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"
@@ -58,16 +58,14 @@
 #include "sql/json_dom.h"
 #include "sql/log.h"
 #include "sql/mysqld.h"
-#include "sql/psi_memory_key.h"
 #include "sql/set_var.h"
 #include "sql/sql_class.h"
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
-#include "sql/sql_servers.h"
 #include "sql/sql_show.h"
-#include "sql/sql_table.h"
 #include "sql/sys_vars_shared.h"
+#include "sql/thr_malloc.h"
 #include "sql_string.h"
 #include "thr_mutex.h"
 #include "typelib.h"

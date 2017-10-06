@@ -33,31 +33,27 @@
 #include "my_dbug.h"
 #include "my_double2ulonglong.h"
 #include "my_inttypes.h"
-#include "my_macros.h"
 #include "my_sys.h"
 #include "my_table_map.h"
 #include "my_time.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
+#include "mysql_time.h"
 #include "mysqld_error.h"
-#include "sql/dd/properties.h"
 #include "sql/enum_query_type.h"
 #include "sql/field.h"   // Derivation
-#include "sql/handler.h"
 #include "sql/mem_root_array.h"
 #include "sql/my_decimal.h" // my_decimal
 #include "sql/parse_tree_node_base.h" // Parse_tree_node
 #include "sql/sql_alloc.h"
 #include "sql/sql_array.h" // Bounds_checked_array
 #include "sql/sql_const.h"
-#include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/table_trigger_field_support.h" // Table_trigger_field_support
 #include "sql/thr_malloc.h"
 #include "sql/trigger_def.h" // enum_trigger_variable_type
 #include "sql_string.h"
 #include "template_utils.h"
-#include "typelib.h"
 
 class Item;
 class Item_field;
@@ -67,6 +63,8 @@ class SELECT_LEX;
 class Security_context;
 class THD;
 class user_var_entry;
+struct MEM_ROOT;
+struct TYPELIB;
 template <class T> class List;
 template <class T> class List_iterator;
 template <typename T> class SQL_I_List;

@@ -31,7 +31,6 @@
 #include "sql/dd/cache/dictionary_client.h"// dd::cache::Dictionary_client
 #include "sql/dd/dd_table.h"  // dd::table_storage_engine
 #include "sql/dd/types/abstract_table.h" // dd::Abstract_table
-#include "sql/dd/types/foreign_key.h" // dd::Foreign_key
 #include "sql/dd/types/table.h" // dd::Table
 #include "sql/dd_sql_view.h"  // View_metadata_updater
 #include "sql/handler.h"

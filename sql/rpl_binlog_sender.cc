@@ -15,7 +15,6 @@
 
 #include "sql/rpl_binlog_sender.h"
 
-#include <assert.h>
 #include <stdio.h>
 #include <algorithm>
 #include <atomic>
@@ -53,6 +52,7 @@
 #include "sql/rpl_reporting.h"       // MAX_SLAVE_ERRMSG
 #include "sql/sql_class.h"           // THD
 #include "sql/system_variables.h"
+#include "sql_string.h"
 #include "typelib.h"
 
 #ifndef DBUG_OFF

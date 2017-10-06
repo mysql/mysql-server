@@ -32,6 +32,8 @@
 #include <string.h>
 
 #include "m_ctype.h"
+#include "my_alloc.h"
+#include "my_compiler.h"
 #include "mysql/components/services/mysql_cond_bits.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/components/services/psi_idle_bits.h"
@@ -39,12 +41,9 @@
 #include "mysql/components/services/psi_statement_bits.h"
 #include "mysql/components/services/psi_thread_bits.h"
 #include "mysql/components/services/psi_transaction_bits.h"
-#include "mysql/udf_registration_types.h"
 #include "pfs_thread_provider.h"
-#include "sql/dd/cache/dictionary_client.h"
-#include "sql/item_create.h"
-#include "sql/key.h"
 #include "sql/psi_memory_key.h"
+#include "sql/resourcegroups/resource_group_basic_types.h"
 #include "sql/xa.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
@@ -64,23 +63,16 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
-#include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "my_table_map.h"
 #include "my_thread.h"
 #include "my_thread_local.h"
-#include "mysql/mysql_lex_string.h"       // LEX_STRING
-#include "mysql/psi/mysql_cond.h"
+#include "mysql/plugin.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_statement.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/psi/psi_idle.h"
-#include "mysql/psi/psi_stage.h"
-#include "mysql/psi/psi_statement.h"
-#include "mysql/psi/psi_thread.h"
-#include "mysql/psi/psi_transaction.h"
 #include "mysql/thread_type.h"
 #include "mysql_com.h"
 #include "mysql_com_server.h"             // NET_SERVER
@@ -103,7 +95,6 @@
 #include "sql/rpl_gtid.h"
 #include "sql/session_tracker.h"          // Session_tracker
 #include "sql/set_var.h"
-#include "sql/sql_admin.h"
 #include "sql/sql_cmd.h"
 #include "sql/sql_connect.h"
 #include "sql/sql_const.h"
@@ -111,13 +102,10 @@
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"                  // LEX
 #include "sql/sql_list.h"
-#include "sql/sql_plugin.h"
 #include "sql/sql_plugin_ref.h"
 #include "sql/sql_profile.h"              // PROFILING
-#include "sql/sql_servers.h"
 #include "sql/sys_vars_resource_mgr.h"    // Session_sysvar_resource_manager
 #include "sql/system_variables.h"         // system_variables
-#include "sql/table.h"
 #include "sql/transaction_info.h"         // Ha_trx_info
 #include "sql_string.h"
 #include "thr_lock.h"
@@ -129,9 +117,10 @@ class THD;
 class partition_info;
 class sp_rcontext;
 class user_var_entry;
-struct PSI_idle_locker;
-struct PSI_statement_locker;
-struct PSI_transaction_locker;
+struct LEX_USER;
+struct ORDER;
+struct TABLE;
+struct TABLE_LIST;
 struct User_level_lock;
 
 namespace dd {
@@ -150,8 +139,8 @@ class Rows_log_event;
 class Time_zone;
 class sp_cache;
 struct Binlog_user_var_event;
-
 struct LOG_INFO;
+
 typedef struct user_conn USER_CONN;
 struct MYSQL_LOCK;
 

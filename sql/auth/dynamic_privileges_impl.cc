@@ -21,7 +21,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include <mysql/service_plugin_registry.h>
 #include <stddef.h>
 #include <string>
-#include <unordered_map>
+#include <unordered_set>
 #include <utility>
 
 #include "m_string.h"

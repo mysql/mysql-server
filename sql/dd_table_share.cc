@@ -39,7 +39,7 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "sql/auth/sql_security_ctx.h"
+#include "nullable.h"
 #include "sql/dd/collection.h"
 #include "sql/dd/dd_table.h"                  // dd::FIELD_NAME_SEPARATOR_CHAR
 #include "sql/dd/dd_tablespace.h"             // dd::get_tablespace_name
@@ -49,6 +49,7 @@
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/column.h"              // dd::enum_column_types
 #include "sql/dd/types/column_type_element.h" // dd::Column_type_element
+#include "sql/dd/types/foreign_key.h"
 #include "sql/dd/types/index.h"               // dd::Index
 #include "sql/dd/types/index_element.h"       // dd::Index_element
 #include "sql/dd/types/partition.h"           // dd::Partition
@@ -57,6 +58,7 @@
 #include "sql/default_values.h"               // prepare_default_value_buffer...
 #include "sql/error_handler.h"                // Internal_error_handler
 #include "sql/field.h"
+#include "sql/gis/srid.h"
 #include "sql/handler.h"
 #include "sql/key.h"
 #include "sql/log.h"
@@ -70,13 +72,15 @@
 #include "sql/sql_partition.h"                // generate_partition_syntax
 #include "sql/sql_plugin.h"                   // plugin_unlock
 #include "sql/sql_plugin_ref.h"
-#include "sql/sql_servers.h"
 #include "sql/sql_table.h"                    // primary_key_name
 #include "sql/strfunc.h"                      // lex_cstring_handle
 #include "sql/system_variables.h"
 #include "sql/table.h"
-#include "sql_string.h"
 #include "typelib.h"
+
+namespace histograms {
+class Histogram;
+}  // namespace histograms
 
 
 enum_field_types dd_get_old_field_type(dd::enum_column_types type)

@@ -33,10 +33,10 @@
 #include <algorithm>
 
 #include "decimal.h"
+#include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
-#include "mysql/udf_registration_types.h"
 #include "sql_string.h"                         /* String */
 
 struct MYSQL_TIME;

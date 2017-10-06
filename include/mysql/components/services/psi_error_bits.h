@@ -16,10 +16,6 @@
 #ifndef COMPONENTS_SERVICES_PSI_ERROR_BITS_H
 #define COMPONENTS_SERVICES_PSI_ERROR_BITS_H
 
-#include "my_macros.h"
-
-C_MODE_START
-
 /**
   @file
   Performance schema instrumentation interface.
@@ -45,7 +41,5 @@ typedef void (*log_error_v1_t)(unsigned int error_num,
                                PSI_error_operation error_operation);
 
 /** @} (end of group psi_abi_error) */
-
-C_MODE_END
 
 #endif /* COMPONENTS_SERVICES_PSI_ERROR_BITS_H */

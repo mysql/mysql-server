@@ -23,21 +23,23 @@
 
 #include <string.h>
 #include <sys/types.h>
+#include <algorithm>
 #include <map>
 #include <memory>
 #include <new>
 #include <string>
+#include <type_traits>
 #include <utility>
 
 #include "binary_log_types.h"
 #include "lex_string.h"
+#include "m_ctype.h"
 #include "m_string.h"
 #include "map_helpers.h"
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_macros.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "my_table_map.h"
@@ -45,9 +47,8 @@
 #include "my_time.h"
 #include "mysql/components/services/psi_statement_bits.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/psi/psi_statement.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
+#include "mysqld_error.h"
 #include "prealloced_array.h"         // Prealloced_array
 #include "sql/dd/info_schema/table_stats.h"  // dd::info_schema::Table_stati...
 #include "sql/dd/info_schema/tablespace_stats.h" // dd::info_schema::Tablesp...
@@ -57,7 +58,6 @@
 #include "sql/item.h"                 // Name_resolution_context
 #include "sql/item_create.h"          // Cast_target
 #include "sql/item_subselect.h"       // chooser_compare_func_creator
-#include "sql/key.h"
 #include "sql/key_spec.h"             // KEY_CREATE_INFO
 #include "sql/lex_symbol.h"           // LEX_SYMBOL
 #include "sql/mdl.h"
@@ -100,6 +100,7 @@ class PT_base_index_option;
 class PT_column_attr_base;
 class PT_create_table_option;
 class PT_ddl_table_option;
+class PT_item_list;
 class PT_json_table_column;
 class PT_part_definition;
 class PT_part_value_item;
@@ -119,8 +120,8 @@ class SELECT_LEX_UNIT;
 class Select_lex_visitor;
 class THD;
 class Window;
+struct MEM_ROOT;
 
-class Json_table_column;
 enum class enum_jt_column;
 enum class enum_jtc_on : uint16;
 typedef Parse_tree_node_tmpl<struct Alter_tablespace_parse_context>
@@ -139,9 +140,6 @@ class sp_head;
 class sp_name;
 class sp_pcontext;
 struct sql_digest_state;
-class Sql_cmd_tablespace;
-class Sql_cmd_logfile_group;
-struct Tablespace_options;
 
 const size_t INITIAL_LEX_PLUGIN_LIST_SIZE = 16;
 

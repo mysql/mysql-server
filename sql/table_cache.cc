@@ -21,6 +21,7 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_macros.h"
+#include "mysql/psi/psi_base.h"
 #include "sql/sql_test.h" // lock_descriptions[]
 #include "thr_lock.h"
 #include "thr_mutex.h"

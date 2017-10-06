@@ -60,8 +60,7 @@
 class COND_EQUAL;
 class Item_sum;
 class Window;
-struct TABLE;
-struct TABLE_LIST;
+struct MYSQL_LOCK;
 
 typedef Bounds_checked_array<Item_null_result*> Item_null_array;
 

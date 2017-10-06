@@ -21,12 +21,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include "m_ctype.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "mysql/components/service.h"
 #include "mysql/components/service_implementation.h"
 #include "mysql/components/services/mysql_string.h"
 #include "mysql/psi/psi_memory.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysql/udf_registration_types.h"
 #include "sql_string.h"
 
 PSI_memory_key key_memory_string_service_iterator;

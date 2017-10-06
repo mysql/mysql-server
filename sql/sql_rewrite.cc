@@ -65,21 +65,22 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
+#include <algorithm>
 #include <set>
+#include <string>
 
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
-#include "mysql/udf_registration_types.h"
 #include "prealloced_array.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h" // GRANT_ACL
 #include "sql/auth/auth_internal.h"
 #include "sql/handler.h"
-#include "sql/key.h"
 #include "sql/log_event.h"  // append_query_string
 #include "sql/mysqld.h"     // opt_log_builtin_as_identified_by_password
 #include "sql/rpl_slave.h"  // SLAVE_SQL, SLAVE_IO

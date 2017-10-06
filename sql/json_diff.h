@@ -28,17 +28,18 @@
   updated.
 */
 
+#include <stddef.h>
 #include <algorithm>
 #include <memory>                               // std::unique_ptr
 #include <vector>
 
-#include "sql/json_dom.h"
 #include "sql/json_path.h"
 #include "sql/memroot_allocator.h"
 
 class Field_json;
 class Json_dom;
 class Json_wrapper;
+class String;
 
 /// Enum that describes what kind of operation a Json_diff object represents.
 enum class enum_json_diff_operation
@@ -96,27 +97,9 @@ public:
   */
   Json_diff(const Json_seekable_path &path,
             enum_json_diff_operation operation,
-            Json_dom_ptr &value)
+            std::unique_ptr<Json_dom> value)
     : m_path(), m_operation(operation), m_value(std::move(value))
   {
-    for (const Json_path_leg *leg : path)
-      m_path.append(*leg);
-  }
-
-  /**
-    Construct a Json_diff object.
-
-    @param path       the path that is changed
-    @param operation  the operation to perform on the path
-    @param value      the new value in the path (the Json_diff object
-                      takes over the ownership of the value)
-  */
-  Json_diff(const Json_seekable_path &path,
-            enum_json_diff_operation operation,
-            Json_dom *value)
-    : m_path(), m_operation(operation)
-  {
-    m_value.reset(value);
     for (const Json_path_leg *leg : path)
       m_path.append(*leg);
   }
@@ -173,7 +156,7 @@ public:
   */
   void add_diff(const Json_seekable_path &path,
                 enum_json_diff_operation operation,
-                Json_dom_ptr &dom);
+                std::unique_ptr<Json_dom> dom);
   /**
     Append a new diff at the end of this vector when operation == REMOVE.
     @param path Path to update

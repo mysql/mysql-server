@@ -71,11 +71,9 @@
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"               // check_table_access
-#include "sql/auth/sql_security_ctx.h"
 #include "sql/dd/types/abstract_table.h"        // dd::enum_table_type
 #include "sql/error_handler.h"
 #include "sql/field.h"

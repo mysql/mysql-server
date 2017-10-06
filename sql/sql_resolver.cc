@@ -32,6 +32,7 @@
 
 #include "binary_log_types.h"
 #include "lex_string.h"
+#include "my_alloc.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -40,7 +41,6 @@
 #include "my_sys.h"
 #include "my_table_map.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "sql/aggregate_check.h" // Group_check
 #include "sql/auth/auth_acls.h"
@@ -71,11 +71,10 @@
 #include "sql/sql_list.h"
 #include "sql/sql_optimizer.h"   // Prepare_error_tracker
 #include "sql/sql_select.h"
-#include "sql/sql_servers.h"
 #include "sql/sql_test.h"        // print_where
-#include "sql/sql_tmp_table.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/table_function.h"
 #include "sql/thr_malloc.h"
 #include "sql/window.h"
 #include "template_utils.h"

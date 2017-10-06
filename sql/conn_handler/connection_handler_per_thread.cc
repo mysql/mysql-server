@@ -37,7 +37,7 @@
 #include "mysql/psi/mysql_socket.h"
 #include "mysql/psi/mysql_thread.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/udf_registration_types.h"
+#include "mysql_com.h"
 #include "mysqld_error.h"                // ER_*
 #include "pfs_thread_provider.h"
 #include "sql/conn_handler/channel_info.h" // Channel_info

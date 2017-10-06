@@ -42,6 +42,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "my_dbug.h"
 #include "myisam.h"
 #include "myisammrg.h"
+#include "mysql/plugin.h"
 #include "password.h"       /* my_make_scrambled_password_323, my_make_scrambled_password */
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"

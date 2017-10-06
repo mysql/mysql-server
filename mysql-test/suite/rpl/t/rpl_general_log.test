@@ -2,7 +2,7 @@
 --source include/master-slave.inc
 
 #
-# BUG#12987771: REPLICATED STATEMENTS ARE DUPLICATED IN THE SLAVE GENERAL LOG 
+# BUG#12987771: REPLICATED STATEMENTS ARE DUPLICATED IN THE SLAVE GENERAL LOG
 #
 --connection slave
 
@@ -17,11 +17,9 @@ TRUNCATE mysql.general_log;
 --connection master
 CREATE TABLE t1 (i int NOT NULL PRIMARY KEY);
 
---source include/sync_slave_sql_with_master.inc 
-
---let $assert_cond= [SELECT count(*) as N FROM mysql.general_log WHERE argument="CREATE TABLE t1 (i int NOT NULL PRIMARY KEY)", N, 1] = 1
---let $assert_text= The slave thread does not write the same statement twice to the general log
---source include/assert.inc
+--source include/sync_slave_sql_with_master.inc
+--let $wait_condition=SELECT count(*)=1 FROM mysql.general_log WHERE argument="CREATE TABLE t1 (i int NOT NULL PRIMARY KEY)"
+--source include/wait_condition_or_abort.inc
 
 --connection master
 DROP TABLE t1;

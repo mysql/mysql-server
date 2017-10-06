@@ -36,7 +36,6 @@
 #include "sql/auth/sql_auth_cache.h"
 #include "sql/auth/sql_authorization.h"
 #include "sql/current_thd.h"
-#include "sql/key.h"
 #include "sql/mysqld.h"
 #include "sql/sql_class.h"
 

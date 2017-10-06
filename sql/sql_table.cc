@@ -27,6 +27,7 @@
 #include <atomic>
 #include <memory>
 #include <string>
+#include <type_traits>
 
 #include "binary_log_types.h"
 #include "binlog_event.h"
@@ -55,6 +56,7 @@
 #include "mysql_com.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"             // ER_*
+#include "nullable.h"
 #include "prealloced_array.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"     // check_fk_parent_table_access
@@ -83,6 +85,7 @@
 #include "sql/error_handler.h"        // Drop_table_error_handler
 #include "sql/field.h"
 #include "sql/filesort.h"             // Filesort
+#include "sql/gis/srid.h"
 #include "sql/handler.h"
 #include "sql/histograms/histogram.h"
 #include "sql/item.h"
@@ -107,6 +110,7 @@
 #include "sql/session_tracker.h"
 #include "sql/sql_alter.h"
 #include "sql/sql_base.h"             // lock_table_names
+#include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"            // THD
 #include "sql/sql_const.h"
 #include "sql/sql_db.h"               // get_default_db_collation
@@ -117,6 +121,7 @@
 #include "sql/sql_list.h"
 #include "sql/sql_parse.h"            // test_if_data_home_dir
 #include "sql/sql_partition.h"
+#include "sql/sql_plist.h"
 #include "sql/sql_plugin_ref.h"
 #include "sql/sql_resolver.h"         // setup_order
 #include "sql/sql_show.h"

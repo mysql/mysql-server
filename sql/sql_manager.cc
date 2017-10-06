@@ -23,6 +23,7 @@
 #include "sql/sql_manager.h"
 
 #include <errno.h>
+#include <sys/types.h>
 #include <time.h>
 
 #include "my_compiler.h"
@@ -36,7 +37,7 @@
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_thread.h"
-#include "mysql/udf_registration_types.h"
+#include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/log.h"
 #include "sql/mysqld.h"        // flush_time

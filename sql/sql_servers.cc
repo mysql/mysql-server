@@ -43,8 +43,10 @@
 #include <unordered_map>
 #include <utility>
 
+#include "m_ctype.h"
 #include "m_string.h"
 #include "map_helpers.h"
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -59,14 +61,11 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"
-#include "sql/auth/sql_security_ctx.h"
 #include "sql/field.h"
 #include "sql/handler.h"
-#include "sql/histograms/histogram.h"
 #include "sql/log.h"
 #include "sql/psi_memory_key.h"                 // key_memory_servers
 #include "sql/records.h"      // init_read_record, end_read_record

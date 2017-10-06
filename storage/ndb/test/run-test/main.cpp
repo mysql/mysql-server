@@ -649,7 +649,8 @@ parse_args(int argc, char** argv)
   g_logger.info("Bootstrapping using %s", mycnf.c_str());
   
   const char *groups[] = { "atrt", 0 };
-  int ret = load_defaults(mycnf.c_str(), groups, &argc, &argv);
+  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512, 0};
+  int ret = load_defaults(mycnf.c_str(), groups, &argc, &argv, &alloc);
 
   if (ret)
   {

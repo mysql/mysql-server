@@ -24,16 +24,15 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "mysql/udf_registration_types.h"
 #include "sql/check_stack.h"
 #include "sql/mem_root_array.h"
 #include "sql/parse_location.h"
 #include "sql/sql_const.h"
-#include "sql/thr_malloc.h"
 
 class SELECT_LEX;
 class Sql_alloc;
 class THD;
+struct MEM_ROOT;
 
 /**
   Sql_alloc-ed version of Mem_root_array with a trivial destructor of elements

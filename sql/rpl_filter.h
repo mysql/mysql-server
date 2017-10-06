@@ -36,7 +36,6 @@
 #include "sql_string.h"
 
 class Item;
-class String;
 class THD;
 struct TABLE_LIST;
 

@@ -25,8 +25,8 @@
 #include "my_sys.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/plugin.h"
+#include "mysql/plugin_group_replication.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"         // ER_*
 #include "sql/log.h"
 #include "sql/mysqld.h"           // mysqld_port

@@ -16,7 +16,6 @@
 
 #include "sql/transaction.h"
 
-#include <assert.h>
 #include <stddef.h>
 
 #include "lex_string.h"
@@ -28,7 +27,6 @@
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_transaction.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_common.h" // SUPER_ACL
@@ -47,7 +45,6 @@
 #include "sql/sql_class.h"    // THD
 #include "sql/sql_lex.h"
 #include "sql/system_variables.h"
-#include "sql/table.h"
 #include "sql/tc_log.h"
 #include "sql/transaction_info.h"
 #include "sql/xa.h"

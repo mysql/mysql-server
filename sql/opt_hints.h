@@ -24,26 +24,28 @@
 #include <stddef.h>
 #include <sys/types.h>
 
+#include "lex_string.h"
+#include "m_ctype.h"
 #include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "sql/dd/properties.h"
 #include "sql/enum_query_type.h"
 #include "sql/item_subselect.h" // Item_exists_subselect
-#include "sql/key.h"
 #include "sql/mem_root_array.h" // Mem_root_array
 #include "sql/sql_alloc.h"  // Sql_alloc
 #include "sql/sql_bitmap.h" // Bitmap
 #include "sql/sql_show.h"   // append_identifier
-#include "sql/system_variables.h"
-#include "sql/thr_malloc.h"
 #include "sql_string.h"     // String
 
+class Item;
 class JOIN;
 class Opt_hints_table;
-class THD;
 class Sys_var_hint;
+class THD;
+class set_var;
+class sys_var;
+struct MEM_ROOT;
 struct TABLE;
 struct TABLE_LIST;
 

@@ -30,13 +30,12 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/udf_registration_types.h"
 #include "sql/set_var.h"
-#include "sql/sql_servers.h"
-#include "sql/thr_malloc.h"
-#include "typelib.h"
 
 class Item;
 class THD;
+struct MEM_ROOT;
 struct SYS_VAR;
+struct TYPELIB;
 struct st_plugin_int;
 
 /*

@@ -20,10 +20,11 @@
 
 #include "sql/opt_trace.h"
 
-#include <assert.h>
+#include <float.h>
 #include <stdio.h>
 #include <new>
 
+#include "lex_string.h"
 #include "m_string.h"  // _dig_vec_lower
 #include "my_dbug.h"
 #include "my_pointer_arithmetic.h"
@@ -35,7 +36,6 @@
 #include "sql/enum_query_type.h"
 #include "sql/handler.h"
 #include "sql/item.h"  // Item
-#include "sql/key.h"
 #include "sql/table.h"
 #include "sql_string.h" // String
 

@@ -379,9 +379,8 @@
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld_error.h"
-#include "sql/psi_memory_key.h"
 #include "sql/sql_error.h"
-#include "sql/table.h"
+#include "sql/thr_malloc.h"
 #include "sql_string.h"
 #include "thr_mutex.h"
 

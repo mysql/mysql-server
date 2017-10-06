@@ -15,22 +15,24 @@
 
 #include "sql/binlog.h"
 
-#include <assert.h>
+#include "my_config.h"
+
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "config.h"
 #include "lex_string.h"
 #include "map_helpers.h"
+#include "my_alloc.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_systime.h"
 #include "my_thread.h"
-#include "mysql/components/services/log_shared.h"
 #include "sql/check_stack.h"
+#include "sql_string.h"
+#include "template_utils.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -69,8 +71,6 @@
 #include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/item_func.h"                  // user_var_entry
-#include "sql/json_diff.h"                      // Json_diff_vector
-#include "sql/json_dom.h"                       // Json_dom
 #include "sql/key.h"
 #include "sql/log.h"
 #include "sql/log_event.h"                  // Rows_log_event
@@ -91,6 +91,7 @@
 #include "sql/rpl_transaction_ctx.h"
 #include "sql/rpl_trx_boundary_parser.h"    // Transaction_boundary_parser
 #include "sql/rpl_utility.h"
+#include "sql/sql_base.h"                        // find_temporary_table
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"                  // THD
 #include "sql/sql_const.h"
@@ -99,7 +100,6 @@
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_parse.h"                  // sqlcom_can_generate_row_events
-#include "sql/sql_servers.h"
 #include "sql/sql_show.h"                   // append_identifier
 #include "sql/system_variables.h"
 #include "sql/table.h"
@@ -108,7 +108,6 @@
 #include "statement_events.h"
 #include "table_id.h"
 #include "thr_lock.h"
-#include "sql/sql_base.h"                        // find_temporary_table
 
 class Item;
 

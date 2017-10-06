@@ -27,8 +27,6 @@
 #include "my_psi_config.h"
 #include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/psi/psi_base.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "sql/binlog.h"
 #include "sql/log_event.h"           // Format_description_log_event
@@ -38,11 +36,9 @@
 #include "sql/rpl_trx_boundary_parser.h" // Transaction_boundary_parser
 #include "sql/sql_const.h"
 
-class Relay_log_info;
 class Rpl_info_handler;
 class Server_ids;
 class THD;
-
 struct MYSQL;
 
 #define DEFAULT_CONNECT_RETRY 60

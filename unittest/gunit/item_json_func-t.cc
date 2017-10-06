@@ -145,9 +145,8 @@ static void do_partial_update(Item_json_func *func,
   Json_diff_vector diffs(Json_diff_vector::allocator_type(thd->mem_root));
   for (const auto &diff : *table->get_logical_diffs(field))
   {
-    Json_dom_ptr dom_ptr= diff.value().clone_dom(thd);
     diffs.add_diff(diff.path(), diff.operation(),
-                   dom_ptr);
+                   diff.value().clone_dom(thd));
   }
 
   /*
@@ -175,9 +174,8 @@ static void do_partial_update(Item_json_func *func,
   diffs.clear();
   for (const auto &diff : *new_diffs)
   {
-    Json_dom_ptr dom_ptr= diff.value().clone_dom(thd);
     diffs.add_diff(diff.path(), diff.operation(),
-                   dom_ptr);
+                   diff.value().clone_dom(thd));
   }
   table->clear_partial_update_diffs();
   store_json(field, orig_json);

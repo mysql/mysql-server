@@ -42,19 +42,17 @@
 #include "my_sys.h"
 #include "mysql/plugin.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/status_var.h"
 #include "mysql/udf_registration_types.h"
-#include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/debug_sync.h"       // debug_sync_update
 #include "sql/handler.h"
 #include "sql/item.h"             // Item
-#include "sql/key.h"
 #include "sql/keycaches.h"        // default_key_cache_base
 #include "sql/mysqld.h"           // max_system_variables
 #include "sql/rpl_gtid.h"
 #include "sql/set_var.h"          // sys_var_chain
-#include "sql/sql_admin.h"
 #include "sql/sql_class.h"        // THD
 #include "sql/sql_connect.h"
 #include "sql/sql_const.h"

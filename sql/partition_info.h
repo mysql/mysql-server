@@ -21,8 +21,6 @@
 
 #include "my_bitmap.h"
 #include "my_inttypes.h"
-#include "mysql/udf_registration_types.h"
-#include "sql/handler.h"
 #include "sql/lock.h"                         // Tablespace_hash_set
 #include "sql/partition_element.h"
 #include "sql/sql_alloc.h"
@@ -35,14 +33,17 @@ class Item;
 class Partition_handler;
 class String;
 class THD;
+class handler;
+struct HA_CREATE_INFO;
 struct TABLE;
+struct handlerton;
 
 #define NOT_A_PARTITION_ID UINT_MAX32
 
 class Create_field;
 class partition_info;
-struct TABLE_LIST;
 struct PARTITION_ITERATOR;
+struct TABLE_LIST;
 
 /**
   A "Get next" function for partition iterator.

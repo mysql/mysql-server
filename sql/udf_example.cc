@@ -120,11 +120,11 @@
 #include <mutex>
 #include <new>
 #include <regex>
-#include <sstream>
 #include <string>
 #include <vector>
 
 #include "mysql.h"  // IWYU pragma: keep
+#include "mysql/udf_registration_types.h"
 
 #ifdef _WIN32
 /* inet_aton needs winsock library */

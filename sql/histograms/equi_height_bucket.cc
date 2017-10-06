@@ -20,19 +20,25 @@
 
 #include "sql/histograms/equi_height_bucket.h" // equi_height::Bucket
 
-#include <cmath>
+#include <stddef.h>
+#include <stdint.h>
+#include <sys/types.h>
+#include <algorithm>
+#include <limits>
 #include <memory>                          // std::unique_ptr
 
 #include "binary_log_types.h"
+#include "m_ctype.h"
 #include "my_base.h"                       // ha_rows
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_time.h"
 #include "mysql_time.h"
 #include "sql/histograms/value_map.h"      // Histogram_comparator
-#include "sql/item.h"                      // DTCollation
 #include "sql/json_dom.h"                  // Json_*
 #include "sql/my_decimal.h"                // my_decimal_cmp
 #include "sql/sql_time.h"                  // calc_time_diff
+#include "template_utils.h"
 
 namespace histograms {
 namespace equi_height {

@@ -39,6 +39,7 @@
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_stage.h"
+#include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_mdl.h"
 #include "mysql/service_thd_wait.h"
 #include "mysqld_error.h"

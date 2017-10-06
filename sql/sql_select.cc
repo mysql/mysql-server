@@ -30,11 +30,14 @@
 #include <algorithm>
 #include <atomic>
 
+#include "lex_string.h"
+#include "my_alloc.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
@@ -1280,6 +1283,8 @@ static bool setup_semijoin_dups_elimination(JOIN *join, uint no_jbuf_after)
                                                sjtbl->rowid_len + 
                                                sjtbl->null_bytes,
                                                sjtbl);
+          if (sjtbl->tmp_table == nullptr)
+            DBUG_RETURN(true);
           if (sjtbl->tmp_table->hash_field)
             sjtbl->tmp_table->file->ha_index_init(0, 0);
           join->sj_tmp_tables.push_back(sjtbl->tmp_table);
