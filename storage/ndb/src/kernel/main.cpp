@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -119,11 +119,6 @@ static void short_usage_sub(void)
   ndb_service_print_options("ndbd");
 }
 
-static void usage()
-{
-  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
-}
-
 /**
  * C++ Standard 3.6.1/3:
  *  The function main shall not be used (3.2) within a program.
@@ -133,7 +128,8 @@ static void usage()
 int
 real_main(int argc, char** argv)
 {
-  NDB_INIT(argv[0]);
+  Ndb_opts opts(argc, argv, my_long_options, load_default_groups);
+  opts.set_usage_funcs(short_usage_sub);
 
   // Print to stdout/console
   g_eventLogger->createConsoleHandler();
@@ -147,9 +143,6 @@ real_main(int argc, char** argv)
 
   // Turn on max loglevel for startup messages
   g_eventLogger->m_logLevel.setLogLevel(LogLevel::llStartUp, 15);
-
-  ndb_opt_set_usage_funcs(short_usage_sub, usage);
-  ndb_load_defaults(NULL,load_default_groups,&argc,&argv);
 
 #ifndef DBUG_OFF
   opt_debug= "d:t:O,/tmp/ndbd.trace";
@@ -166,8 +159,7 @@ real_main(int argc, char** argv)
   }
 
   int ho_error;
-  if ((ho_error=handle_options(&argc, &argv, my_long_options,
-                               ndb_std_get_one_option)))
+  if ((ho_error=opts.handle_options()))
     exit(ho_error);
 
   if (opt_no_daemon || opt_foreground) {
