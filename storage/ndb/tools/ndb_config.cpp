@@ -1,4 +1,4 @@
-/*
+ /*
    Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -152,12 +152,11 @@ static void short_usage_sub(void)
   ndb_short_usage_sub(NULL);
 }
 
-static void usage()
+static void usage_extra()
 {
   char desc[] =
     "This program will retreive config options for a ndb cluster\n";
   puts(desc);
-  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
 }
 
 /**
@@ -218,13 +217,9 @@ static ndb_mgm_configuration* load_configuration();
 
 int
 main(int argc, char** argv){
-  NDB_INIT(argv[0]);
-  ndb_opt_set_usage_funcs(short_usage_sub, usage);
-  ndb_load_defaults(NULL,load_default_groups,&argc,&argv);
-  int ho_error;
-  bool print_headers = false;
-  if ((ho_error=handle_options(&argc, &argv, my_long_options,
-			       ndb_std_get_one_option)))
+  Ndb_opts opts(argc, argv, my_long_options);
+  opts.set_usage_funcs(short_usage_sub, usage_extra);
+  if (opts.handle_options())
     exit(255);
 
   if (g_configinfo)
