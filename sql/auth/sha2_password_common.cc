@@ -21,7 +21,6 @@
 #ifdef HAVE_ALLOCA_H
 #include <alloca.h>
 #endif
-#include <sha.hpp>
 #include <string.h>
 #include <sys/types.h>
 #include <types.hpp>
