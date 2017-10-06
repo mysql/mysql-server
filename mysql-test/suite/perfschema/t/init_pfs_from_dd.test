@@ -39,7 +39,7 @@ SELECT COUNT(*) FROM performance_schema.cond_instances;
 
 --let LOG_FILE = $MYSQLTEST_VARDIR/tmp/bootstrap.err
 --let CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --debug=+d,test_p_s_metadata_version --innodb-read-only --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR --log-error=$LOG_FILE --secure-file-priv="" 2>&1
---error 1
+--error 1,42
 --exec $CMD
 --enable_warnings
 
