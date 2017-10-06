@@ -315,7 +315,7 @@ IF(WITH_EMBEDDED_SHARED_LIBRARY)
     )
 
   GET_TARGET_PROPERTY(libmysqld_link_flags libmysqld LINK_FLAGS)
-  IF(NOT libmysqld_link_flag)
+  IF(NOT libmysqld_link_flags)
     SET(libmysqld_link_flags)
   ENDIF()
   SET(libmysqld_link_flags

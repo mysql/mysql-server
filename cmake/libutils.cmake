@@ -59,16 +59,14 @@ ENDIF()
 
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/cmake_parse_arguments.cmake)
 # CREATE_EXPORT_FILE (VAR target api_functions)
-# Internal macro, used to create source file for shared libraries that 
-# otherwise consists entirely of "convenience" libraries. On Windows, 
-# also exports API functions as dllexport. On unix, creates a dummy file 
-# that references all exports and this prevents linker from creating an 
-# empty library(there are unportable alternatives, --whole-archive)
+# Internal macro, used on Windows to export API functions as dllexport.
+# Returns a list of extra files that should be linked into the library
+# (in the variable pointed to by VAR).
 MACRO(CREATE_EXPORT_FILE VAR TARGET API_FUNCTIONS)
+  SET(DUMMY ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}_dummy.cc)
+  CONFIGURE_FILE_CONTENT("" ${DUMMY})
   IF(WIN32)
-    SET(DUMMY ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}_dummy.c)
     SET(EXPORTS ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}_exports.def)
-    CONFIGURE_FILE_CONTENT("" ${DUMMY})
     SET(CONTENT "EXPORTS\n")
     FOREACH(FUNC ${API_FUNCTIONS})
       SET(CONTENT "${CONTENT} ${FUNC}\n")
@@ -76,18 +74,7 @@ MACRO(CREATE_EXPORT_FILE VAR TARGET API_FUNCTIONS)
     CONFIGURE_FILE_CONTENT(${CONTENT} ${EXPORTS})
     SET(${VAR} ${DUMMY} ${EXPORTS})
   ELSE()
-    SET(EXPORTS ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}_exports_file.cc)
-    SET(CONTENT)
-    FOREACH(FUNC ${API_FUNCTIONS})
-      SET(CONTENT "${CONTENT} extern void* ${FUNC}\;\n")
-    ENDFOREACH()
-    SET(CONTENT "${CONTENT} void *${TARGET}_api_funcs[] = {\n")
-    FOREACH(FUNC ${API_FUNCTIONS})
-     SET(CONTENT "${CONTENT} &${FUNC},\n")
-    ENDFOREACH()
-    SET(CONTENT "${CONTENT} (void *)0\n}\;")
-    CONFIGURE_FILE_CONTENT(${CONTENT} ${EXPORTS})
-    SET(${VAR} ${EXPORTS})
+    SET(${VAR} ${DUMMY})
   ENDIF()
 ENDMACRO()
 
@@ -232,7 +219,7 @@ ENDMACRO()
 MACRO(MERGE_LIBRARIES)
   MYSQL_PARSE_ARGUMENTS(ARG
     "EXPORTS;OUTPUT_NAME;COMPONENT"
-    "STATIC;SHARED;MODULE;NOINSTALL"
+    "STATIC;SHARED;MODULE;SKIP_INSTALL"
     ${ARGN}
   )
   LIST(GET ARG_DEFAULT_ARGS 0 TARGET) 
@@ -267,7 +254,19 @@ MACRO(MERGE_LIBRARIES)
       ENDFOREACH()
     ENDIF()
     CREATE_EXPORT_FILE(SRC ${TARGET} "${ARG_EXPORTS}")
-    IF(NOT ARG_NOINSTALL)
+    IF(UNIX)
+      # Mark every export as explicitly needed, so that ld won't remove the .a files
+      # containing them. This has a similar effect as --Wl,--no-whole-archive,
+      # but is more focused.
+      FOREACH(SYMBOL ${ARG_EXPORTS})
+        IF(APPLE)
+          SET(export_link_flags "${export_link_flags} -Wl,-u,_${SYMBOL}")
+        ELSE()
+          SET(export_link_flags "${export_link_flags} -Wl,-u,${SYMBOL}")
+        ENDIF()
+      ENDFOREACH()
+    ENDIF()
+    IF(NOT ARG_SKIP_INSTALL)
       ADD_VERSION_INFO(${TARGET} SHARED SRC)
     ENDIF()
     ADD_LIBRARY(${TARGET} ${LIBTYPE} ${SRC})
@@ -276,10 +275,11 @@ MACRO(MERGE_LIBRARIES)
       SET_TARGET_PROPERTIES(
         ${TARGET} PROPERTIES OUTPUT_NAME "${ARG_OUTPUT_NAME}")
     ENDIF()
+    SET_TARGET_PROPERTIES(${TARGET} PROPERTIES LINK_FLAGS "${export_link_flags}")
   ELSE()
     MESSAGE(FATAL_ERROR "Unknown library type")
   ENDIF()
-  IF(NOT ARG_NOINSTALL)
+  IF(NOT ARG_SKIP_INSTALL)
     IF(ARG_COMPONENT)
       SET(COMP COMPONENT ${ARG_COMPONENT}) 
     ENDIF()
