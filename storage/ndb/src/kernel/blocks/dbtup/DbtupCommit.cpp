@@ -855,11 +855,6 @@ Dbtup::commit_operation(Signal* signal,
     }
   }
   
-  Uint32 clear= 
-    Tuple_header::ALLOC | Tuple_header::FREE | Tuple_header::COPY_TUPLE |
-    Tuple_header::DISK_ALLOC | Tuple_header::DISK_INLINE | 
-    Tuple_header::MM_GROWN;
-  copy_bits &= ~(Uint32)clear;
 
   /**
    * Here we are copying header bits from the copy row to the main row.
@@ -878,8 +873,21 @@ Dbtup::commit_operation(Signal* signal,
    *
    * Similarly for LCP_DELETE we might lose the state after coming here
    * again before the LCP have had time to come and reset the bits.
+   *
+   * Similarly it is very important to not transport those bits from the
+   * copy row back to the main row. These bits should only be used in the
+   * main row and we should never take those bits from the copy row back
+   * to the main row.
    */
+
+  Uint32 clear= 
+    Tuple_header::ALLOC | Tuple_header::FREE | Tuple_header::COPY_TUPLE |
+    Tuple_header::DISK_ALLOC | Tuple_header::DISK_INLINE | 
+    Tuple_header::MM_GROWN | Tuple_header::LCP_SKIP |
+    Tuple_header::LCP_DELETE;
+  copy_bits &= ~(Uint32)clear;
   lcp_bits |= (bits & (Tuple_header::LCP_SKIP | Tuple_header::LCP_DELETE));
+
   tuple_ptr->m_header_bits= copy_bits | lcp_bits;
   tuple_ptr->m_operation_ptr_i= save;
 
