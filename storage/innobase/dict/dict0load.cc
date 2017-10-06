@@ -2242,14 +2242,9 @@ dict_save_data_dir_path(
 		ut_a(pathlen < OS_FILE_MAX_PATH);
 		ut_a(Fil_path::has_ibd_suffix(filepath));
 
-		std::string	db_name{table->name.m_name};
-		size_t		pos = db_name.find_last_of('/');
-		ut_a(pos != std::string::npos);
-		db_name.resize(pos);
-
 		char* data_dir_path = mem_heap_strdup(table->heap, filepath);
 
-		Fil_path::make_data_dir_path(db_name, data_dir_path);
+		Fil_path::make_data_dir_path(data_dir_path);
 
 		if (strlen(data_dir_path)) {
 			table->data_dir_path = data_dir_path;
