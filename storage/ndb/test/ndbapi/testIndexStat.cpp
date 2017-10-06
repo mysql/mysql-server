@@ -2208,9 +2208,6 @@ my_long_options[] =
     GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 }
 };
 
-const char*
-load_default_groups[] = { "mysql_cluster", 0 };
-
 static void
 short_usage_sub()
 {
@@ -2221,7 +2218,6 @@ static void
 usage()
 {
   ndbout << my_progname << ": ordered index stats test" << endl;
-  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
 }
 
 static int
