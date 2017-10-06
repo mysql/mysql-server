@@ -2211,7 +2211,7 @@ dict_load_table_low(
 }
 
 /** Using the table->heap, copy the null-terminated filepath into
-table->data_dir_path. The data directory path is derived form the
+table->data_dir_path. The data directory path is derived from the
 filepath by stripping the the table->name.m_name component suffix.
 @param[in,out]	table		table instance
 @param[in]	filepath	filepath of tablespace */
@@ -2258,35 +2258,30 @@ dict_get_and_save_data_dir_path(
 	dict_table_t*	table,
 	bool		dict_mutex_own)
 {
-	if (DICT_TF_HAS_DATA_DIR(table->flags)
-	    && table->data_dir_path == nullptr) {
+	if (!(DICT_TF_HAS_DATA_DIR(table->flags)
+	      && table->data_dir_path == nullptr)) {
+		return;
+	}
 
-		char*	path = fil_space_get_first_path(table->space);
+	char*	path = fil_space_get_first_path(table->space);
 
-		if (!dict_mutex_own) {
-			dict_mutex_enter_for_mysql();
-		}
+	if (!dict_mutex_own) {
+		dict_mutex_enter_for_mysql();
+	}
 
-		if (path == nullptr) {
-			path = dict_get_first_path(table->space);
-		}
+	if (path == nullptr) {
+		path = dict_get_first_path(table->space);
+	}
 
-		if (path != nullptr) {
-			dict_save_data_dir_path(table, path);
-			ut_free(path);
-		}
+	if (path != nullptr) {
+		dict_save_data_dir_path(table, path);
+		ut_free(path);
+	}
 
-		if (table->data_dir_path == nullptr) {
-			/* Since we did not set the table data_dir_path,
-			unset the flag.  This does not change SYS_DATAFILES
-			or SYS_TABLES or FSP_FLAGS on the header page of the
-			tablespace, but it makes dict_table_t consistent. */
-			table->flags &= ~DICT_TF_MASK_DATA_DIR;
-		}
+	ut_ad(table->data_dir_path != nullptr);
 
-		if (!dict_mutex_own) {
-			dict_mutex_exit_for_mysql();
-		}
+	if (!dict_mutex_own) {
+		dict_mutex_exit_for_mysql();
 	}
 }
 

@@ -8483,26 +8483,8 @@ fil_delete_file(const char* path)
 	bool	success = true;
 
 	/* Force a delete of any stale .ibd files that are lying around. */
-
-#ifdef _WIN32
-	/* For Windows, we need to check the status of the file.
-	If there's a subdir with same name, we will skip to delete it.
-	Otherwise, it'll keep looping in os_file_delete_if_exists_func. */
-	os_file_type_t	type;
-	bool		exists;
-
-	os_file_status(path, &exists, &type);
-	if (type == OS_FILE_TYPE_DIR) {
-		ib::info() << "There is a directory with same name,"
-			" skip deleting " << path;
-	} else {
-		success = os_file_delete_if_exists(
-			innodb_data_file_key, path, nullptr);
-	}
-#else
 	success = os_file_delete_if_exists(
 		innodb_data_file_key, path, nullptr);
-#endif /* _WIN32 */
 
 	char*	cfg_filepath = Fil_path::make_cfg(path);
 

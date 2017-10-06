@@ -3217,7 +3217,8 @@ dd_table_get_space_name(
 	DBUG_RETURN(space_name);
 }
 
-/** Get the first filepath from mysql.tablespace_datafiles for a given space_id.
+/** Get the first filepath from mysql.tablespace_datafiles
+for a given space_id.
 @tparam		Table		dd::Table or dd::Partition
 @param[in,out]	heap		heap for store file name.
 @param[in]	table		dict table
@@ -3234,8 +3235,8 @@ dd_get_first_path(
 	char*		filepath = nullptr;
 	dd::Tablespace*	dd_space = nullptr;
 	THD*		thd = current_thd;
-	MDL_ticket*     mdl = nullptr;
-	dd::Object_id   dd_space_id;
+	MDL_ticket*	mdl = nullptr;
+	dd::Object_id	dd_space_id;
 
 	ut_ad(!srv_is_being_shutdown);
 	ut_ad(!mutex_own(&dict_sys->mutex));
@@ -3252,13 +3253,13 @@ dd_get_first_path(
 				table->name.m_name, db_buf,
 				tbl_buf, nullptr, nullptr, nullptr)
 		    || dd_mdl_acquire(thd, &mdl, db_buf, tbl_buf)) {
-			return(filepath);
+			return(nullptr);
 		}
 
 		if (client->acquire(db_buf, tbl_buf, &table_def)
 			|| table_def == nullptr) {
 			dd_mdl_release(thd, &mdl);
-			return(filepath);
+			return(nullptr);
 		}
 
 		dd_space_id = dd_first_index(table_def)->tablespace_id();
@@ -3282,8 +3283,10 @@ dd_get_first_path(
 	return(filepath);
 }
 
-/** Make sure the data_dir_path is saved in dict_table_t if DATA DIRECTORY
-was used. Try to read it from the fil_system first, then from NEW DD.
+/** Make sure the data_dir_path is saved in dict_table_t if this is a
+remote single file tablespace. This allows DATA DIRECTORY to be
+displayed correctly for SHOW CREATE TABLE. Try to read the filepath
+from the fil_system first, then from the DD.
 @tparam		Table		dd::Table or dd::Partition
 @param[in,out]	table		Table object
 @param[in]	dd_table	DD table object
@@ -3297,41 +3300,36 @@ dd_get_and_save_data_dir_path(
 {
 	mem_heap_t*		heap = NULL;
 
-	if (DICT_TF_HAS_DATA_DIR(table->flags)
-	    && table->data_dir_path == nullptr) {
+	if (!(DICT_TF_HAS_DATA_DIR(table->flags)
+	      && table->data_dir_path == nullptr)) {
+		return;
+	}
 
-		char*	path = fil_space_get_first_path(table->space);
+	char*	path = fil_space_get_first_path(table->space);
 
-		if (!dict_mutex_own) {
-			dict_mutex_enter_for_mysql();
-		}
+	if (path == nullptr) {
+		heap = mem_heap_create(1000);
+		path = dd_get_first_path(heap, table, dd_table);
+	}
 
-		if (path == nullptr) {
-			heap = mem_heap_create(1000);
-			dict_mutex_exit_for_mysql();
-			path = dd_get_first_path(heap, table, dd_table);
-			dict_mutex_enter_for_mysql();
-		}
+	if (!dict_mutex_own) {
+		dict_mutex_enter_for_mysql();
+	}
 
-		if (path != nullptr) {
-			dict_save_data_dir_path(table, path);
-		}
+	if (path != nullptr) {
+		dict_save_data_dir_path(table, path);
+	}
 
-		if (table->data_dir_path == nullptr) {
-			/* Since we did not set the table data_dir_path,
-			unset the flag. */
-			table->flags &= ~DICT_TF_MASK_DATA_DIR;
-		}
+	ut_ad(table->data_dir_path != nullptr);
 
-		if (!dict_mutex_own) {
-			dict_mutex_exit_for_mysql();
-		}
+	if (!dict_mutex_own) {
+		dict_mutex_exit_for_mysql();
+	}
 
-		if (heap != nullptr) {
-			mem_heap_free(heap);
-		} else {
-			ut_free(path);
-		}
+	if (heap != nullptr) {
+		mem_heap_free(heap);
+	} else {
+		ut_free(path);
 	}
 }
 

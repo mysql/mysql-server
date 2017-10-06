@@ -1275,20 +1275,20 @@ innobase_get_index_column_cardinality(
 /**
   Retrieve ha_tablespace_statistics for the tablespace.
 
-  @param tablespace_name          Tablespace_name
-  @param file_name                Data file name.
-  @param ts_se_private_data       Tablespace SE private data.
-  @param[out] stats               Contains tablespace
-                                  statistics read from SE.
+  @param tablespace_name	Tablespace_name
+  @param file_name		Data file name.
+  @param ts_se_private_data	Tablespace SE private data.
+  @param[out] stats		Contains tablespace
+				statistics read from SE.
 
   @returns false on success, true on failure
 */
 static
 bool
 innobase_get_tablespace_statistics(const char *tablespace_name,
-                                   const char *file_name,
-                                   const dd::Properties &ts_se_private_data,
-                                   ha_tablespace_statistics *stats);
+				   const char *file_name,
+				   const dd::Properties &ts_se_private_data,
+				   ha_tablespace_statistics *stats);
 
 /** Perform post-commit/rollback cleanup after DDL statement.
 @param[in,out]	thd	connection thread */
@@ -14835,14 +14835,14 @@ validate_create_tablespace_info(
 		return(HA_WRONG_CREATE_OPTION);
 	}
 
-        if (!filepath.is_valid()) {
+	if (!filepath.is_valid()) {
 
-                my_error(ER_WRONG_FILE_NAME, MYF(0), filepath.path().c_str());
+		my_error(ER_WRONG_FILE_NAME, MYF(0), filepath.path().c_str());
 
-                my_printf_error(
-                        ER_WRONG_FILE_NAME, "Invalid use of ':'.", MYF(0));
+		my_printf_error(
+			ER_WRONG_FILE_NAME, "Invalid use of ':'.", MYF(0));
 
-                return(HA_WRONG_CREATE_OPTION);
+		return(HA_WRONG_CREATE_OPTION);
 	}
 
 #ifndef _WIN32
@@ -15089,7 +15089,7 @@ innobase_alter_tablespace(
 		break;
 
 	case DROP_TABLESPACE:
-                ut_ad(old_ts_def != NULL);
+		ut_ad(old_ts_def != NULL);
 		error = innobase_drop_tablespace(hton, thd, alter_info,
 						 old_ts_def);
 		break;
@@ -15097,7 +15097,7 @@ innobase_alter_tablespace(
 	case ALTER_TABLESPACE:
 		if (alter_info->ts_alter_tablespace_type ==
 		    ALTER_TABLESPACE_RENAME)
-                {
+		{
 			/* Only support rename tablespace at the time being */
 			from = old_ts_def->name().c_str();
 			to = new_ts_def->name().c_str();
@@ -16386,7 +16386,7 @@ innodb_get_table_statistics_for_uncached(
 	const char*		norm_name,
 	dd::Object_id		se_private_id,
 	const dd::Properties&	ts_se_private_data,
-        const dd::Properties&	tbl_se_private_data,
+	const dd::Properties&	tbl_se_private_data,
 	ulint			flags,
 	ha_statistics*		stats)
 {

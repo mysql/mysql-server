@@ -35,13 +35,13 @@ Created 2013-7-26 by Kevin Lewis
 /** Types of raw partitions in innodb_data_file_path */
 enum device_t {
 
-        /** Not a raw partition */
+	/** Not a raw partition */
 	SRV_NOT_RAW = 0,
 
-        /** A 'newraw' partition, only to be initialized */
+	/** A 'newraw' partition, only to be initialized */
 	SRV_NEW_RAW,
 
-        /** An initialized raw partition */
+	/** An initialized raw partition */
 	SRV_OLD_RAW
 };
 
@@ -495,10 +495,10 @@ protected:
 public:
 	/** Use the following to determine the uniqueness of this datafile. */
 #ifdef _WIN32
-        using WIN32_FILE_INFO = BY_HANDLE_FILE_INFORMATION;
+	using WIN32_FILE_INFO = BY_HANDLE_FILE_INFORMATION;
 
 	/** Use fields dwVolumeSerialNumber, nFileIndexLow, nFileIndexHigh. */
-        WIN32_FILE_INFO	        m_file_info;
+	WIN32_FILE_INFO		m_file_info;
 #else
 	/** Use field st_ino. */
 	struct stat		m_file_info;

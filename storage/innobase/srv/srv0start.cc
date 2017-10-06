@@ -279,7 +279,7 @@ srv_file_check_mode(
 
 #ifndef UNIV_HOTBACKUP
 /** I/o-handler thread function.
-@param[in]      segment         The AIO segment the thread will work on */
+@param[in]	segment		The AIO segment the thread will work on */
 static
 void
 io_handler_thread(ulint segment)
@@ -2077,19 +2077,19 @@ srv_start(bool create_new_db, const std::string& scan_directories)
 
 		if (t < start) {
 			if (t == 0) {
-		                os_thread_create(
+				os_thread_create(
 					io_ibuf_thread_key,
 					io_handler_thread,
 					t);
 			} else {
 				ut_ad(t == 1);
-		                os_thread_create(
+				os_thread_create(
 					io_log_thread_key,
 					io_handler_thread, t);
 			}
 		} else if (t >= start && t < (start + srv_n_read_io_threads)) {
 
-		        os_thread_create(
+			os_thread_create(
 				io_read_thread_key,
 				io_handler_thread, t);
 
@@ -2097,11 +2097,11 @@ srv_start(bool create_new_db, const std::string& scan_directories)
 			   && t < (start + srv_n_read_io_threads
 				   + srv_n_write_io_threads)) {
 
-		        os_thread_create(
+			os_thread_create(
 				io_write_thread_key,
 				io_handler_thread, t);
 		} else {
-		        os_thread_create(
+			os_thread_create(
 				io_handler_thread_key,
 				io_handler_thread, t);
 		}
@@ -2364,7 +2364,7 @@ files_checked:
 		flushed_lsn = log_get_lsn();
 
 		err = fil_write_flushed_lsn(flushed_lsn);
-                ut_a(err == DB_SUCCESS);
+		ut_a(err == DB_SUCCESS);
 
 		create_log_files_rename(
 			logfilename, dirnamelen, flushed_lsn, logfile0);
@@ -2536,7 +2536,7 @@ files_checked:
 
 			/* Stamp the LSN to the data files. */
 			err = fil_write_flushed_lsn(flushed_lsn);
-                        ut_a(err == DB_SUCCESS);
+			ut_a(err == DB_SUCCESS);
 
 			RECOVERY_CRASH(4);
 
@@ -2725,7 +2725,7 @@ files_checked:
 	didn't complete key rotation. Here, we will resume the
 	rotation. */
 	if (!srv_read_only_mode
-            && !create_new_db
+	    && !create_new_db
 	    && srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
 
 		if (!fil_encryption_rotate()) {
@@ -2815,15 +2815,15 @@ files_checked:
 /** Applier of dynamic metadata */
 struct metadata_applier
 {
-        /** Default constructor */
-        metadata_applier() {}
-        /** Visitor.
-        @param[in]      table   table to visit */
-        void operator()(dict_table_t* table) const
-        {
-                ut_ad(dict_sys->dynamic_metadata != NULL);
+	/** Default constructor */
+	metadata_applier() {}
+	/** Visitor.
+	@param[in]      table   table to visit */
+	void operator()(dict_table_t* table) const
+	{
+		ut_ad(dict_sys->dynamic_metadata != NULL);
 		ib_uint64_t	autoinc = table->autoinc;
-                dict_table_load_dynamic_metadata(table);
+		dict_table_load_dynamic_metadata(table);
 		/* For those tables which were not opened by
 		ha_innobase::open() and not initialized by
 		innobase_initialize_autoinc(), the next counter should be
@@ -2831,7 +2831,7 @@ struct metadata_applier
 		if (autoinc != table->autoinc && table->autoinc != ~0ULL) {
 			++table->autoinc;
 		}
-        }
+	}
 };
 
 /** Apply the dynamic metadata to all tables */
@@ -2839,15 +2839,15 @@ static
 void
 apply_dynamic_metadata()
 {
-        const metadata_applier  applier;
+	const metadata_applier  applier;
 
-        dict_sys->for_each_table(applier);
+	dict_sys->for_each_table(applier);
 
-        if (srv_dict_metadata != NULL) {
-                srv_dict_metadata->apply();
-                UT_DELETE(srv_dict_metadata);
-                srv_dict_metadata = NULL;
-        }
+	if (srv_dict_metadata != NULL) {
+		srv_dict_metadata->apply();
+		UT_DELETE(srv_dict_metadata);
+		srv_dict_metadata = NULL;
+	}
 }
 
 /** On a restart, initialize the remaining InnoDB subsystems so that
@@ -2921,7 +2921,7 @@ srv_start_threads(
 
 		/* Rollback all recovered transactions that are
 		not in committed nor in XA PREPARE state. */
-                trx_rollback_or_clean_is_active = true;
+		trx_rollback_or_clean_is_active = true;
 
 		os_thread_create(
 			trx_recovery_rollback_thread_key,
@@ -2971,7 +2971,7 @@ srv_fts_close(void)
 
 	for (table = UT_LIST_GET_FIRST(dict_sys->table_LRU);
 	     table; table = UT_LIST_GET_NEXT(table_LRU, table)) {
-		fts_t*          fts = table->fts;
+		fts_t*	fts = table->fts;
 
 		if (fts != NULL) {
 			fts_sync_table(table);
@@ -2980,7 +2980,7 @@ srv_fts_close(void)
 
 	for (table = UT_LIST_GET_FIRST(dict_sys->table_non_LRU);
 	     table; table = UT_LIST_GET_NEXT(table_LRU, table)) {
-		fts_t*          fts = table->fts;
+		fts_t*	fts = table->fts;
 
 		if (fts != NULL) {
 			fts_sync_table(table);
