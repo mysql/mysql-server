@@ -5589,6 +5589,43 @@ static void mysql_end_timer(ulong start_time,char *buff)
   my_stpcpy(strend(buff),")");
 }
 
+static const char* get_status_flag_string(unsigned int flag)
+{
+  switch (flag)
+  {
+  case SERVER_STATUS_IN_TRANS:
+    return "in_trans";
+  case SERVER_STATUS_AUTOCOMMIT:
+    return "autocommit";
+  case SERVER_MORE_RESULTS_EXISTS:
+    return "more_results";
+  case SERVER_QUERY_NO_GOOD_INDEX_USED:
+    return "no_good_index_used";
+  case SERVER_QUERY_NO_INDEX_USED:
+    return "no_index_used";
+  case SERVER_STATUS_CURSOR_EXISTS:
+    return "cursor_exists";
+  case SERVER_STATUS_LAST_ROW_SENT:
+    return "last_row_send";
+  case SERVER_STATUS_DB_DROPPED:
+    return "db_dropped";
+  case SERVER_STATUS_NO_BACKSLASH_ESCAPES:
+    return "no_backlash_escapes";
+  case SERVER_STATUS_METADATA_CHANGED:
+    return "metadata_changed";
+  case SERVER_QUERY_WAS_SLOW:
+    return "query_was_slow";
+  case SERVER_PS_OUT_PARAMS:
+    return "ps_out_params";
+  case SERVER_STATUS_IN_TRANS_READONLY:
+    return "readonly";
+  case SERVER_SESSION_STATE_CHANGED:
+    return "state_changed";
+  default:
+    return "unknown";
+  }
+}
+
 static const char* construct_prompt()
 {
   processed_prompt.mem_free();			// Erase the old prompt
@@ -5745,6 +5782,23 @@ static const char* construct_prompt()
       case 'l':
 	processed_prompt.append(delimiter_str);
 	break;
+      case 'x':
+        for (unsigned int bits= mysql.server_status, mask= 0x01;
+             bits > 0;
+             bits>>= 1, mask<<= 1)
+        {
+          if (!(bits & 1))
+            continue;
+
+          processed_prompt.append(get_status_flag_string(mysql.server_status &
+                                                         mask));
+
+          /* Append the delimiter if there are more flags */
+          if (bits > 1)
+            processed_prompt.append(' ');
+        }
+
+        break;
       default:
 	processed_prompt.append(c);
       }
