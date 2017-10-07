@@ -4518,7 +4518,7 @@ dd_process_dd_indexes_rec(
 	const byte*	field;
 	uint32		index_id;
 	uint32		space_id;
-	uint32		table_id;
+	uint64		table_id;
 
 	*index = nullptr;
 
@@ -4584,7 +4584,7 @@ dd_process_dd_indexes_rec(
 		return(false);
 	}
 
-	if (!p->get_uint32(dd_index_key_strings[DD_TABLE_ID], &table_id)) {
+	if (!p->get_uint64(dd_index_key_strings[DD_TABLE_ID], &table_id)) {
 		THD*		thd = current_thd;
 		dict_table_t*	table;
 

@@ -215,7 +215,7 @@ create table t2 (
 
 insert into t1 (name) values ('Matt'), ('Lilu'), ('Corbin'), ('Carly'), 
   ('Suzy'), ('Hoppy'), ('Burrito'), ('Mimi'), ('Sherry'), ('Ben'), ('Phil'), 
-  ('Emily'), ('Mike');
+  ('Emily');
 insert into t2 select * from t1;
 explain select * from t1 where name='matt';
 explain select * from t2 where name='matt';

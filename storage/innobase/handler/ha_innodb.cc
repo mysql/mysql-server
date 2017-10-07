@@ -4192,7 +4192,9 @@ innodb_buffer_pool_size_init()
 		static const char* variable_name = "innodb_buffer_pool_size";
 		enum enum_variable_source source;
 		if (!sysvar_source_svc->get(
-			variable_name, strlen(variable_name), &source)) {
+			variable_name,
+			static_cast<unsigned int>(strlen(variable_name)),
+			&source)) {
 
 			if (source == COMPILED) {
 
@@ -4364,8 +4366,9 @@ innodb_init_params()
 		static const char* variable_name = "innodb_log_file_size";
 		enum enum_variable_source source;
 		if (!sysvar_source_svc->get(
-			variable_name, strlen(variable_name), &source)) {
-
+			variable_name,
+			static_cast<unsigned int>(strlen(variable_name)),
+			&source)) {
 			if (source == COMPILED) {
 				double server_mem = get_sys_mem();
 				if (server_mem < 1.0) {
@@ -9024,7 +9027,7 @@ calc_row_difference(
 			if (!uvect->old_vrow) {
 				uvect->old_vrow = dtuple_create_with_vcol(
 					uvect->heap, 0, prebuilt->table->n_v_cols);
-				for (int j = 0; j < prebuilt->table->n_v_cols;
+				for (uint j = 0; j < prebuilt->table->n_v_cols;
 				     j++) {
 					dfield_t*       field =
 						dtuple_get_nth_v_field(
@@ -21949,7 +21952,7 @@ static MYSQL_SYSVAR_STR(undo_directory, srv_undo_dir,
 
 static MYSQL_SYSVAR_ULONG(undo_tablespaces, srv_undo_tablespaces,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_NOPERSIST,
-  "Number of undo tablespaces to use. ",
+  "Number of undo tablespaces to use. (deprecated)",
   NULL, innodb_undo_tablespaces_update,
   FSP_MIN_UNDO_TABLESPACES,	/* Default seting */
   FSP_MIN_UNDO_TABLESPACES,	/* Minimum value */

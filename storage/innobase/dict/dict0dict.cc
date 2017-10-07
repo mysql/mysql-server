@@ -2163,7 +2163,7 @@ dict_partitioned_table_remove_from_cache(
 {
 	ut_ad(mutex_own(&dict_sys->mutex));
 
-	uint16_t	name_len = strlen(name);
+	size_t	name_len = strlen(name);
 
 	for (uint32_t i = 0; i < hash_get_n_cells(dict_sys->table_id_hash);
 	     ++i) {

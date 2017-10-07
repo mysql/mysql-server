@@ -387,10 +387,11 @@ dict_sdi_set(
 	ib_sdi_key_t	ib_sdi_key;
 	ib_sdi_key.sdi_key = sdi_key;
 
-	Sdi_Compressor	compressor(sdi_len, sdi);
+	Sdi_Compressor	compressor(static_cast<uint32_t>(sdi_len), sdi);
 	compressor.compress();
 
-        dberr_t	err = ib_sdi_set(space_id, &ib_sdi_key, sdi_len,
+        dberr_t	err = ib_sdi_set(space_id, &ib_sdi_key,
+				 static_cast<uint32_t>(sdi_len),
 				 compressor.get_comp_len(),
 				 compressor.get_data(), trx);
 

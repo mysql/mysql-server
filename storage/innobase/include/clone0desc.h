@@ -285,7 +285,7 @@ struct Clone_File_Meta
 	uint		m_end_chunk;
 
 	/** File name length in bytes */
-	ulint		m_file_name_len;
+	size_t		m_file_name_len;
 
 	/** File name */
 	const char*	m_file_name;

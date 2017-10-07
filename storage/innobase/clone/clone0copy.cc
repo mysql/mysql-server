@@ -484,7 +484,8 @@ Clone_Snapshot::add_file(
 	/* Update maximum file name length in snapshot. */
 	if (file_meta->m_file_name_len > m_max_file_name_len) {
 
-		m_max_file_name_len = file_meta->m_file_name_len;
+		m_max_file_name_len = static_cast<uint32_t>(
+			file_meta->m_file_name_len);
 	}
 
 	return(DB_SUCCESS);
@@ -611,7 +612,7 @@ Clone_Snapshot::add_redo_file(
 	file_meta = build_file(file_name, file_size, file_offset, num_chunks, true);
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
-	m_monitor.add_estimate(file_meta->m_file_size);
+	m_monitor.add_estimate(static_cast<uint>(file_meta->m_file_size));
 #endif
 
 	if (file_meta == nullptr) {
@@ -763,7 +764,8 @@ Clone_Handle::send_file_metadata(
 			SRV_BUF_DUMP_FILENAME_DEFAULT;
 
 		file_desc.m_file_meta.m_file_name_len
-			= strlen(SRV_BUF_DUMP_FILENAME_DEFAULT) + 1;
+			= static_cast<uint32_t>(
+				strlen(SRV_BUF_DUMP_FILENAME_DEFAULT)) + 1;
 
 	} else if (!fsp_is_ibd_tablespace(
 			static_cast<space_id_t>(file_meta->m_space_id))
@@ -779,7 +781,8 @@ Clone_Handle::send_file_metadata(
 		ut_a(name_ptr != nullptr);
 
 		file_desc.m_file_meta.m_file_name = name_ptr;
-		file_desc.m_file_meta.m_file_name_len = strlen(name_ptr) + 1;
+		file_desc.m_file_meta.m_file_name_len =
+			static_cast<uint32_t>(strlen(name_ptr)) + 1;
 	}
 
 	file_desc.init_header(get_version());

@@ -7433,8 +7433,8 @@ i_s_dict_fill_innodb_tablespaces(
 
 	DBUG_ENTER("i_s_dict_fill_innodb_tablespaces");
 
-	snprintf(version_str, NAME_LEN, "%ld.%ld.%ld", major_version,
-		 minor_version, patch_version);
+	snprintf(version_str, NAME_LEN, ULINTPF "." ULINTPF "." ULINTPF,
+		major_version, minor_version, patch_version);
 
 	if (fsp_is_system_or_temp_tablespace(space)) {
 		row_format = "Compact or Redundant";
