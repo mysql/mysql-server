@@ -331,6 +331,8 @@ log_margin_checkpoint_age(
 		return;
 	}
 
+	margin += dict_persist_log_margin();
+
 	/* Our margin check should ensure that we never reach this condition.
 	Try to do checkpoint once. We cannot keep waiting here as it might
 	result in hang in case the current mtr has latch on oldest lsn */
@@ -2201,6 +2203,8 @@ log_checkpoint_margin(void)
 loop:
 	advance = 0;
 
+	uint64_t	dict_log_margin = dict_persist_log_margin();
+
 	log_mutex_enter();
 
 	if (!log->check_flush_or_checkpoint) {
@@ -2218,7 +2222,7 @@ loop:
 		advance = age - log->max_modified_age_sync;
 	}
 
-	checkpoint_age = log->lsn - log->last_checkpoint_lsn;
+	checkpoint_age = log->lsn - log->last_checkpoint_lsn + dict_log_margin;
 
 	bool	checkpoint_sync;
 	bool	do_checkpoint;
