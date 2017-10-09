@@ -3383,7 +3383,7 @@ bool Item_func_ifnull::resolve_type(THD *)
 
   switch (hybrid_type) {
   case STRING_RESULT:
-    if (aggregate_string_properties(data_type(), func_name(), args, 2))
+    if (aggregate_string_properties(func_name(), args, 2))
       return true;
     break;
   case DECIMAL_RESULT:
@@ -3579,12 +3579,11 @@ bool Item_func_if::resolve_type(THD*)
 
   if (cached_result_type == STRING_RESULT)
   {
-    if (aggregate_string_properties(data_type(), func_name(), args + 1, 2))
+    if (aggregate_string_properties(func_name(), args + 1, 2))
       return true;
   }
   else
   {
-    collation.set_numeric(); // Number
     aggregate_num_type(cached_result_type, args + 1, 2);
   }
   return false;
@@ -4065,7 +4064,7 @@ bool Item_func_case::resolve_type(THD *thd)
   if (cached_result_type == STRING_RESULT)
   {
     /* Note: String result type is the same for CASE and COALESCE. */
-    if (aggregate_string_properties(data_type(), func_name(), agg, nagg))
+    if (aggregate_string_properties(func_name(), agg, nagg))
       return true;
     /*
       Copy all THEN and ELSE items back to args[] array.
@@ -4079,7 +4078,6 @@ bool Item_func_case::resolve_type(THD *thd)
   }
   else
   {
-    collation.set_numeric();
     aggregate_num_type(cached_result_type, agg, nagg);
   }
 
@@ -4340,12 +4338,11 @@ bool Item_func_coalesce::resolve_type(THD *)
   hybrid_type= Field::result_merge_type(data_type());
   if (hybrid_type == STRING_RESULT)
   {
-    if (aggregate_string_properties(data_type(), func_name(), args, arg_count))
+    if (aggregate_string_properties(func_name(), args, arg_count))
       return true;
   }
   else
   {
-    collation.set_numeric(); // Number
     aggregate_num_type(hybrid_type, args, arg_count);
   }
 
