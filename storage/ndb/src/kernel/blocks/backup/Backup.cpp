@@ -693,11 +693,9 @@ Backup::calculate_disk_write_speed(Signal *signal)
      * might have as much as 20% more capacity to use.
      */
     jam();
-    EXECUTE_DIRECT(THRMAN,
-                   GSN_GET_CPU_USAGE_REQ,
-                   signal,
-                   1,
-                   getThrmanInstance());
+    EXECUTE_DIRECT_MT(THRMAN, GSN_GET_CPU_USAGE_REQ, signal,
+                      1,
+                      getThrmanInstance());
     Uint32 cpu_usage = signal->theData[0];
     if (cpu_usage < 90)
     {
@@ -5174,7 +5172,7 @@ Backup::afterGetTabinfoLockTab(Signal *signal,
     req->tableId = tabPtr.p->tableId;
     req->schemaTransId = 0;
     req->jamBufferPtr = jamBuffer();
-    EXECUTE_DIRECT(DBDIH, GSN_DIH_SCAN_TAB_REQ, signal,
+    EXECUTE_DIRECT_MT(DBDIH, GSN_DIH_SCAN_TAB_REQ, signal,
                DihScanTabReq::SignalLength, 0);
     DihScanTabConf * conf = (DihScanTabConf*)signal->getDataPtr();
     ndbrequire(conf->senderData == 0);
@@ -5352,8 +5350,8 @@ Backup::execDIH_SCAN_TAB_CONF(Signal* signal)
     req->tableId = tabPtr.p->tableId;
     req->schemaTransId = 0;
     req->jamBufferPtr = jamBuffer();
-    EXECUTE_DIRECT(DBDIH, GSN_DIH_SCAN_TAB_REQ, signal,
-                   DihScanTabReq::SignalLength, 0);
+    EXECUTE_DIRECT_MT(DBDIH, GSN_DIH_SCAN_TAB_REQ, signal,
+                      DihScanTabReq::SignalLength, 0);
     jamEntry();
     DihScanTabConf * conf = (DihScanTabConf*)signal->getDataPtr();
     ndbrequire(conf->senderData == 0);
@@ -5394,8 +5392,8 @@ Backup::getFragmentInfo(Signal* signal,
         req->scan_indicator = ZTRUE;
         req->jamBufferPtr = jamBuffer();
         req->get_next_fragid_indicator = 0;
-        EXECUTE_DIRECT(DBDIH, GSN_DIGETNODESREQ, signal,
-                       DiGetNodesReq::SignalLength, 0);
+        EXECUTE_DIRECT_MT(DBDIH, GSN_DIGETNODESREQ, signal,
+                          DiGetNodesReq::SignalLength, 0);
         jamEntry();
         DiGetNodesConf * conf = (DiGetNodesConf *)&signal->theData[0];
         Uint32 reqinfo = conf->reqinfo;
@@ -5427,8 +5425,8 @@ Backup::getFragmentInfo(Signal* signal,
     rep->tableId = tabPtr.p->tableId;
     rep->scanCookie = tabPtr.p->m_scan_cookie;
     rep->jamBufferPtr = jamBuffer();
-    EXECUTE_DIRECT(DBDIH, GSN_DIH_SCAN_TAB_COMPLETE_REP, signal,
-                   DihScanTabCompleteRep::SignalLength, 0);
+    EXECUTE_DIRECT_MT(DBDIH, GSN_DIH_SCAN_TAB_COMPLETE_REP, signal,
+                      DihScanTabCompleteRep::SignalLength, 0);
 
     fragNo = 0;
   }//for

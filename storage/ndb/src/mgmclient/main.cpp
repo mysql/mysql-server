@@ -185,6 +185,8 @@ int main(int argc, char** argv){
   delete com;
   ndb_end(opt_ndb_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
 
+  ndb_free_defaults(argv);
+
   // Don't allow negative return code
   if (ret < 0)
     ret = 255;

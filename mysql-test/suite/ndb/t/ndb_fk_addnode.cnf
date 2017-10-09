@@ -25,6 +25,8 @@ ndb-wait-connected=20
 ndb-wait-setup=60
 ndb-cluster-connection-pool=3
 ndb-extra-logging=99
+# Enable load data local functionality
+local-infile=true
 
 [cluster_config.ndbd.3.1]
 Nodegroup=65536

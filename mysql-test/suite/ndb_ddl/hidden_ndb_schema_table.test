@@ -1,0 +1,20 @@
+--source connect.inc
+
+#
+# The mysql.ndb_schema table should be not be visible in SHOW TABLES
+# or I_S.TABLES
+#
+
+# Iterate all mysqlds and check table is hidden everywhere
+let $i = $NUM_MYSQLDS;
+while($i)
+{
+  --connection mysqld$i
+
+  SHOW TABLES FROM mysql LIKE 'ndb_schema';
+  SELECT count(1) FROM INFORMATION_SCHEMA.TABLES
+    WHERE TABLE_SCHEMA = 'mysql' AND TABLE_NAME = 'ndb_schema';
+
+  dec $i;
+}
+

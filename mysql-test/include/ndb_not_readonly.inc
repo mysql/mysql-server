@@ -1,35 +1,49 @@
-# Check that server has come out ot readonly mode
 #
-# wait for server to connect properly to cluster
+# Wait until the MySQL Server has connected properly to the cluster
+# and come out of readonly mode
 #
 
 --disable_query_log
+--disable_result_log
 
+# Turn off binary logging for this session
 set @saved_log = @@sql_log_bin;
 set sql_log_bin = 0;
---error 0,ER_NO_SUCH_TABLE,ER_OPEN_AS_READONLY,ER_GET_ERRMSG,ER_TABLE_DEF_CHANGED,ER_NOT_FORM_FILE,ER_KEY_NOT_FOUND
-delete from mysql.ndb_schema where db="" and name="";
-let $mysql_errno= 1;
-let $counter= 600;
-while ($mysql_errno)
+
+let $counter = 600;
+let $connected = 0;
+while (!$connected)
 {
-  # Table is readonly until the mysqld has connected properly
-  --error 0,ER_NO_SUCH_TABLE,ER_OPEN_AS_READONLY,ER_GET_ERRMSG,ER_TABLE_DEF_CHANGED,ER_NOT_FORM_FILE,
-  replace into mysql.ndb_schema values("","",0,"",0,0,0,0,0);
+
+  # Disable "abort on error" and run some queries to check if cluster
+  # is operational
+  --disable_abort_on_error
+  CREATE TABLE check_not_readonly (a int primary key) engine = NDB;
+  INSERT INTO check_not_readonly VALUES(1);
+  --enable_abort_on_error
+
+  if (!$mysql_errno)
+  {
+    let $connected = 1;
+    DROP TABLE check_not_readonly;
+  }
+  # else
   if ($mysql_errno)
   {
     if (!$counter)
     {
-      die Failed while waiting for mysqld to come out of readonly mode;
+      die Timeout while waiting for MySQL Server to connect to cluster;
     }
     dec $counter;
     --sleep 0.1
   }
 }
-delete from mysql.ndb_schema where db="" and name="";
+
+# Restore binary logging for this session
 set sql_log_bin = @saved_log;
 
 --enable_query_log
+--enable_result_log
 
 #
 # connected

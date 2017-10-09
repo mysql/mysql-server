@@ -1,5 +1,3 @@
-drop table if exists t1;
-drop database if exists test2;
 set autocommit=0;
 create table t1 (
 a int not null primary key,

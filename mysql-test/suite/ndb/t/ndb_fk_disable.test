@@ -258,7 +258,7 @@ create table grandchild (
   unique(b) using hash,
   index(c)) engine = ndb;
 
-alter table grandchild add constraint fkname foreign key (a) references child (a) on delete cascade on update restrict;
+alter table grandchild add constraint fkname_child foreign key (a) references child (a) on delete cascade on update restrict;
 
 insert into parent values (1,1,1),(2,2,2);
 insert into child values (1,1,1),(2,2,2);
@@ -282,7 +282,7 @@ commit;
 set foreign_key_checks = 1;
 
 alter table child drop foreign key fkname;
-alter table grandchild drop foreign key fkname;
+alter table grandchild drop foreign key fkname_child;
 
 delete from grandchild;
 delete from child;
@@ -294,7 +294,7 @@ delete from parent;
 
 alter table child add constraint fkname foreign key (b) references parent(b) on delete restrict on update cascade;
 
-alter table grandchild add constraint fkname foreign key (b) references child(b) on delete restrict on update cascade;
+alter table grandchild add constraint fkname_child foreign key (b) references child(b) on delete restrict on update cascade;
 
 insert into parent values (1,1,1), (2,2,2);
 insert into child values (1,1,1),(2,2,2);
@@ -318,7 +318,7 @@ rollback;
 set foreign_key_checks = 1;
 
 alter table child drop foreign key fkname;
-alter table grandchild drop foreign key fkname;
+alter table grandchild drop foreign key fkname_child;
 
 delete from grandchild;
 delete from child;
@@ -330,7 +330,7 @@ delete from parent;
 
 alter table child add constraint fkname foreign key (a) references parent (a) on delete cascade on update restrict;
 
-alter table grandchild add constraint fkname foreign key (a) references child (a) on delete cascade on update restrict;
+alter table grandchild add constraint fkname_child foreign key (a) references child (a) on delete cascade on update restrict;
 
 set ndb_deferred_constraints = 1;
 
@@ -374,7 +374,7 @@ set ndb_deferred_constraints = 0;
 set foreign_key_checks = 1;
 
 alter table child drop foreign key fkname;
-alter table grandchild drop foreign key fkname;
+alter table grandchild drop foreign key fkname_child;
 
 delete from grandchild;
 delete from child;
@@ -386,7 +386,7 @@ delete from parent;
 
 alter table child add constraint fkname foreign key (b) references parent(b) on delete restrict on update cascade;
 
-alter table grandchild add constraint fkname foreign key (b) references child(b) on delete restrict on update cascade;
+alter table grandchild add constraint fkname_child foreign key (b) references child(b) on delete restrict on update cascade;
 
 set ndb_deferred_constraints = 1;
 
@@ -430,7 +430,7 @@ set ndb_deferred_constraints = 0;
 set foreign_key_checks = 1;
 
 alter table child drop foreign key fkname;
-alter table grandchild drop foreign key fkname;
+alter table grandchild drop foreign key fkname_child;
 
 delete from grandchild;
 delete from child;

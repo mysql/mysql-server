@@ -1,8 +1,8 @@
 --source setup.inc
 
 
-# Alter tables to InnoDB and verify that DD on all
-# servers are identical
+# Alter tables to InnoDB, they should then disappear from
+# all but the server where they were altered
 let $counter = 1;
 while ($counter <= $num_tables)
 {
@@ -15,8 +15,29 @@ while ($counter <= $num_tables)
   inc $counter;
 }
 
---source verify_mysql_dd.inc
 
+# Verify that t1 on first server contains the table in InnoDB
+# while it does not exist on the others(checking only two other servers)
+
+--connection mysqld1
+select TABLE_SCHEMA, TABLE_NAME, ENGINE
+  from information_schema.tables
+  where TABLE_SCHEMA = 'ndb_ddl_test'
+  order by TABLE_SCHEMA, TABLE_NAME;
+
+--connection mysqld2
+select TABLE_SCHEMA, TABLE_NAME, ENGINE
+  from information_schema.tables
+  where TABLE_SCHEMA = 'ndb_ddl_test'
+  order by TABLE_SCHEMA, TABLE_NAME;
+
+--connection mysqld3
+select TABLE_SCHEMA, TABLE_NAME, ENGINE
+  from information_schema.tables
+  where TABLE_SCHEMA = 'ndb_ddl_test'
+  order by TABLE_SCHEMA, TABLE_NAME;
+
+--connection mysqld1
 
 # Alter tables back to NDB and verify that DD on all
 # servers are identical
@@ -32,6 +53,7 @@ while ($counter <= $num_tables)
   inc $counter;
 }
 
+# All servers should be identical again
 --source verify_mysql_dd.inc
 
 --source cleanup.inc

@@ -23,7 +23,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` bigint(20) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COMMENT='NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM,READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COMMENT='NDB_TABLE=READ_BACKUP=1,PARTITION_BALANCE=FOR_RP_BY_LDM'
 drop table t2;
 create table t2 (a bigint, primary key (a)) engine=ndb
 comment="before NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM after";
@@ -32,7 +32,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` bigint(20) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COMMENT='before NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM,READ_BACKUP=1 after'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COMMENT='before NDB_TABLE=READ_BACKUP=1,PARTITION_BALANCE=FOR_RP_BY_LDM after'
 create table t3 (a bigint, primary key (a)) engine=ndb
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM";
 show create table t3;
@@ -40,7 +40,7 @@ Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` bigint(20) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COMMENT='NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM,READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COMMENT='NDB_TABLE=READ_BACKUP=1,PARTITION_BALANCE=FOR_RA_BY_LDM'
 create table t4 (a bigint, primary key (a)) engine=ndb
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_NODE";
 show create table t4;
@@ -48,7 +48,7 @@ Table	Create Table
 t4	CREATE TABLE `t4` (
   `a` bigint(20) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COMMENT='NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_NODE,READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COMMENT='NDB_TABLE=READ_BACKUP=1,PARTITION_BALANCE=FOR_RP_BY_NODE'
 create table t5 (a bigint, primary key (a)) engine=ndb
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_NODE";
 show create table t5;
@@ -56,7 +56,7 @@ Table	Create Table
 t5	CREATE TABLE `t5` (
   `a` bigint(20) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COMMENT='NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_NODE,READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COMMENT='NDB_TABLE=READ_BACKUP=1,PARTITION_BALANCE=FOR_RA_BY_NODE'
 -- t1 --
 Version: Any
 Fragment type: HashMapPartition
@@ -227,7 +227,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` bigint(20) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COMMENT='before NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM,FULLY_REPLICATED=1 after'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COMMENT='before NDB_TABLE=FULLY_REPLICATED=1,PARTITION_BALANCE=FOR_RA_BY_LDM after'
 create table t5 (a bigint, primary key (a)) engine=ndb
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_NODE";
 show create table t5;
@@ -235,6 +235,6 @@ Table	Create Table
 t5	CREATE TABLE `t5` (
   `a` bigint(20) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COMMENT='NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_NODE,FULLY_REPLICATED=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COMMENT='NDB_TABLE=FULLY_REPLICATED=1,PARTITION_BALANCE=FOR_RA_BY_NODE'
 drop table t1, t2, t5;
 set @@global.ndb_fully_replicated = @save_ndb_fully_replicated;

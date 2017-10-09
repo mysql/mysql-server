@@ -35,17 +35,6 @@ char *ndb_pack_varchar(const NdbDictionary::Column *col,
                        char *buf, const char *str, int sz);
 
 /**
-  Compare the extra metadata in the table with the data provided
-  by the arguments
-
-  @retval
-    0    ok
-*/
-
-int cmp_unpacked_frm(const NdbDictionary::Table* ndbtab, const void* data,
-                     size_t data_length);
-
-/**
    @brief ndb_get_extra_metadata_version, returns the version of the
           extra metadata attached to the table in NDB.
    @param ndbtab

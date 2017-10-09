@@ -596,8 +596,8 @@ private:
 public:
   virtual const char* get_filename(Uint32 fd) const { return "";}
 
-  void EXECUTE_DIRECT(ExecFunction f,
-                      Signal *signal);
+  void EXECUTE_DIRECT_FN(ExecFunction f,
+                         Signal *signal);
 
 protected:
   static Callback TheEmptyCallback;
@@ -727,20 +727,36 @@ protected:
 			   Uint32 length,
 			   SectionHandle* sections) const;
 
+  /**
+   * EXECUTE_DIRECT comes in four variants.
+   *
+   * EXECUTE_DIRECT_FN/2 with explicit function, not signal number, see above.
+   *
+   * EXECUTE_DIRECT/4 calls another block within same thread.
+   *
+   * EXECUTE_DIRECT_MT/5 used when other block may be in another thread.
+   *
+   * EXECUTE_DIRECT_SS/5 can pass sections in call to block in same thread.
+   */
+  void EXECUTE_DIRECT(Uint32 block,
+		      Uint32 gsn,
+		      Signal* signal,
+		      Uint32 len);
   /*
    * Instance defaults to instance of sender.  Using explicit
    * instance argument asserts that the call is thread-safe.
    */
-  void EXECUTE_DIRECT(Uint32 block, 
-		      Uint32 gsn, 
-		      Signal* signal, 
-		      Uint32 len,
-                      Uint32 givenInstanceNo);
-  void EXECUTE_DIRECT(Uint32 block, 
-		      Uint32 gsn, 
-		      Signal* signal, 
-		      Uint32 len);
-  
+  void EXECUTE_DIRECT_MT(Uint32 block,
+		         Uint32 gsn,
+		         Signal* signal,
+		         Uint32 len,
+                         Uint32 givenInstanceNo);
+  void EXECUTE_DIRECT_SS(Uint32 block,
+		         Uint32 gsn,
+		         Signal* signal,
+		         Uint32 len,
+                         SectionHandle* sections);
+
   class SectionSegmentPool& getSectionSegmentPool();
   void release(SegmentedSectionPtr & ptr);
   void release(SegmentedSectionPtrPOD & ptr) {
@@ -969,7 +985,7 @@ protected:
     Uint32 prevList;
   };
   typedef ArrayPool<FragmentSendInfo> FragmentSendInfo_pool;
-  typedef DLList<FragmentSendInfo, FragmentSendInfo_pool> FragmentSendInfo_list;
+  typedef DLList<FragmentSendInfo_pool> FragmentSendInfo_list;
   
   /**
    * sendFirstFragment
@@ -1284,7 +1300,7 @@ public:
     };
     typedef Ptr<ActiveMutex> ActiveMutexPtr;
     typedef ArrayPool<ActiveMutex> ActiveMutex_pool;
-    typedef DLList<ActiveMutex, ActiveMutex_pool> ActiveMutex_list;
+    typedef DLList<ActiveMutex_pool> ActiveMutex_list;
     
     bool seize(ActiveMutexPtr& ptr);
     void release(Uint32 activeMutexPtrI);
@@ -1772,19 +1788,19 @@ SimulatedBlock::subTime(Uint32 gsn, Uint64 time){
 
 inline
 void
-SimulatedBlock::EXECUTE_DIRECT(ExecFunction f,
-                               Signal *signal)
+SimulatedBlock::EXECUTE_DIRECT_FN(ExecFunction f,
+                                  Signal *signal)
 {
   (this->*f)(signal);
 }
 
 inline
 void
-SimulatedBlock::EXECUTE_DIRECT(Uint32 block, 
-			       Uint32 gsn, 
-			       Signal* signal, 
-			       Uint32 len,
-                               Uint32 instanceNo)
+SimulatedBlock::EXECUTE_DIRECT_MT(Uint32 block, 
+			          Uint32 gsn, 
+			          Signal* signal, 
+			          Uint32 len,
+                                  Uint32 instanceNo)
 {
   SimulatedBlock* rec_block;
   SimulatedBlock* main_block = globalData.getBlock(block);
@@ -1902,6 +1918,23 @@ SimulatedBlock::EXECUTE_DIRECT(Uint32 block,
   m_currentGsn = tGsn;
   subTime(tGsn, diff);
 #endif
+}
+
+inline
+void
+SimulatedBlock::EXECUTE_DIRECT_SS(Uint32 block, 
+			          Uint32 gsn, 
+			          Signal* signal, 
+			          Uint32 len,
+                                  SectionHandle* sections)
+{
+  signal->header.m_noOfSections = sections->m_cnt;
+  for (Uint32 i = 0; i < sections->m_cnt; i++)
+  {
+    signal->m_sectionPtrI[i] = sections->m_ptr[i].i;
+  }
+  sections->clear();
+  EXECUTE_DIRECT(block, gsn, signal, len);
 }
 
 // Do a consictency check before reusing a signal.

@@ -2,10 +2,6 @@
 # Test the behaviour of all SQL commands affected
 # by having MySQL privilege tables stored in the default
 # storage engine
-#
-# This test shares .result file with ndb_dist_priv_ndb which
-# sources the same ndb_dist_priv_common.inc file
-#
 
 --source include/have_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc

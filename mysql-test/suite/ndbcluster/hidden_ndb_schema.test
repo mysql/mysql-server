@@ -1,0 +1,72 @@
+#
+# The ndbcluster plugin creates a table in NDB which is used for
+# communicating between the MySQL Servers connected to the same cluster
+# while doing schema changes.
+#
+# The table is called ndb_schema and is in the mysql database.
+#
+# The table is hidden. It should not show up in information_schema
+# queries nor SHOW tables. Starting from MySQL Server 8.0 such a hidden
+# table is also not available in neither DML nor DML queries
+#
+
+--echo # Check that mysql.ndb_schema does not show up in SHOW TABLES
+SHOW TABLES FROM mysql LIKE 'ndb_schema';
+
+--echo # Check that mysql.ndb_schema does not show up in
+--echo # information_schema queries
+SELECT TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_SCHEMA = 'mysql' AND TABLE_NAME = 'ndb_schema';
+
+--echo # Check that table does not exist in SHOW CREATE TABLE
+--error ER_NO_SUCH_TABLE
+SHOW CREATE TABLE mysql.ndb_schema;
+
+--echo #
+--echo # Check that table is not availble in DML queries
+--echo #
+
+--error ER_NO_SUCH_TABLE
+SELECT * FROM mysql.ndb_schema;
+
+--error ER_NO_SUCH_TABLE
+INSERT INTO mysql.ndb_schema (db, name)
+  VALUES("","");
+
+--error ER_NO_SUCH_TABLE
+REPLACE INTO mysql.ndb_schema (db, name)
+  VALUES("","");
+
+--error ER_NO_SUCH_TABLE
+UPDATE mysql.ndb_schema SET node_id = 0
+  WHERE db="" AND name="";
+
+--error ER_NO_SUCH_TABLE
+DELETE FROM mysql.ndb_schema
+  WHERE db="" AND name="";
+
+--error ER_NO_SUCH_TABLE
+TRUNCATE mysql.ndb_schema;
+
+--echo #
+--echo # Check that table is not availble in DDL queries
+--echo #
+
+--echo # It's not possible to create mysql.ndb_schema in NDB
+--echo # (error is slightly confusing)
+--error ER_NO_SUCH_TABLE
+CREATE TABLE mysql.ndb_schema(a int primary key) engine = NDB;
+
+--echo # It's not possible to create mysql.ndb_schema in other engine
+--echo # (error is slightly confusing)
+--error ER_NO_SUCH_TABLE
+CREATE TABLE mysql.ndb_schema(a int primary key);
+
+--error ER_NO_SUCH_TABLE
+ALTER TABLE mysql.ndb_schema ALGORITHM=copy, add column b int null;
+
+--error ER_NO_SUCH_TABLE
+ALTER TABLE mysql.ndb_schema ALGORITHM=inplace, add column b int null;
+
+--error ER_NO_SUCH_TABLE
+DROP TABLE mysql.ndb_schema;

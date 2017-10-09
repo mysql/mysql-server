@@ -74,8 +74,9 @@ my_long_options[] =
     &g_opt.m_keep_state, &g_opt.m_keep_state, 0,
     GET_BOOL, NO_ARG, false, 0, 0, 0, 0, 0 },
   { "stats", NDB_OPT_NOSHORT,
-    "Collect internal statistics and write them into an additional"
-    " state file *.stt. The file is kept also on successful completion",
+    "Save performance related options and internal statistics into"
+    " additional state files with suffixes .sto and .stt. The files"
+    " are kept also on successful completion",
     &g_opt.m_stats, &g_opt.m_stats, 0,
     GET_BOOL, NO_ARG, false, 0, 0, 0, 0, 0 },
   { "input-type", NDB_OPT_NOSHORT,
@@ -163,6 +164,11 @@ my_long_options[] =
     " CSV input worker allocates a double sized buffer",
     &g_opt.m_pagecnt, &g_opt.m_pagecnt, 0,
     GET_UINT, REQUIRED_ARG, g_opt.m_pagecnt, 0, 0, 0, 0, 0 },
+  { "pagebuffer", NDB_OPT_NOSHORT,
+    "Size of I/O buffers in bytes. Rounded up to pagesize and"
+    " overrides pagecnt",
+    &g_opt.m_pagebuffer, &g_opt.m_pagebuffer, 0,
+    GET_UINT, REQUIRED_ARG, g_opt.m_pagebuffer, 0, 0, 0, 0, 0 },
   { "rowbatch", NDB_OPT_NOSHORT,
     "Limit rows in row queues (0 no limit)",
     &g_opt.m_rowbatch, &g_opt.m_rowbatch, 0,
@@ -200,14 +206,34 @@ my_long_options[] =
     "Number of milliseconds to sleep between temporary errors",
     &g_opt.m_tempdelay, &g_opt.m_tempdelay, 0,
     GET_UINT, REQUIRED_ARG, g_opt.m_tempdelay, 0, 0, 0, 0, 0 },
+  { "rowswait", NDB_OPT_NOSHORT,
+    "Number of milliseconds a worker waits for a signal that new rows"
+    " can be processed",
+    &g_opt.m_rowswait, &g_opt.m_rowswait, 0,
+    GET_UINT, REQUIRED_ARG, g_opt.m_rowswait, 0, 0, 0, 0, 0 },
   { "idlespin", NDB_OPT_NOSHORT,
     "Number of times to re-try before idlesleep",
     &g_opt.m_idlespin, &g_opt.m_idlespin, 0,
     GET_UINT, REQUIRED_ARG, g_opt.m_idlespin, 0, 0, 0, 0, 0 },
   { "idlesleep", NDB_OPT_NOSHORT,
-    "Number of milliseconds to sleep waiting for more to do",
+    "Number of milliseconds to sleep waiting for more to do."
+    " Cause can be row queues stall (see --rowswait) or"
+    " e.g. passing control between CSV workers",
     &g_opt.m_idlesleep, &g_opt.m_idlesleep, 0,
     GET_UINT, REQUIRED_ARG, g_opt.m_idlesleep, 0, 0, 0, 0, 0 },
+  { "checkloop", NDB_OPT_NOSHORT,
+    "A job and its diagnostics team periodically check for"
+    " progress from lower levels. This option gives number of"
+    " milliseconds to wait between such checks."
+    " High values may cause data structures (rowmaps) to grow too much."
+    " Low values may interfere too much with the workers",
+    &g_opt.m_checkloop, &g_opt.m_checkloop, 0,
+    GET_UINT, REQUIRED_ARG, g_opt.m_checkloop, 0, 0, 0, 0, 0 },
+  { "alloc-chunk", NDB_OPT_NOSHORT,
+    "Number of free rows to alloc (seize) at a time."
+    " Higher values reduce mutexing but also may reduce parallelism",
+    &g_opt.m_alloc_chunk, &g_opt.m_alloc_chunk, 0,
+    GET_UINT, REQUIRED_ARG, g_opt.m_alloc_chunk, 0, 0, 0, 0, 0 },
   { "rejects", NDB_OPT_NOSHORT,
     "Limit number of rejected rows (rows with permanent error) in data load."
     " Default is 0 which means that any rejected row causes a fatal error."
@@ -319,6 +345,7 @@ struct TableArg {
   std::string m_result_file;
   std::string m_reject_file;
   std::string m_rowmap_file;
+  std::string m_stopt_file;
   std::string m_stats_file;
 };
 
@@ -400,6 +427,7 @@ checkarg(TableArg& arg, const char* str)
     arg.m_result_file = path + stem + ".res";
     arg.m_reject_file = path + stem + ".rej";
     arg.m_rowmap_file = path + stem + ".map";
+    arg.m_stopt_file = path + stem + ".sto";
     arg.m_stats_file = path + stem + ".stt";
   } while (0);
   return ret;
@@ -742,7 +770,7 @@ domonitor(NdbImport::Job& job)
   uint treshold = 1;
   while (1)
   {
-    NdbSleep_MilliSleep(100);
+    NdbSleep_MilliSleep(g_opt.m_checkloop);
     job.get_status();
     JobStatus::Status status = job.m_status;
     JobStats stats = job.m_stats;
@@ -805,6 +833,7 @@ doimp()
       g_opt.m_result_file = arg.m_result_file.c_str();
       g_opt.m_reject_file = arg.m_reject_file.c_str();
       g_opt.m_rowmap_file = arg.m_rowmap_file.c_str();
+      g_opt.m_stopt_file = arg.m_stopt_file.c_str();
       g_opt.m_stats_file = arg.m_stats_file.c_str();
       CHK2(imp.set_opt(g_opt) == 0, "invalid options: "<< imp.get_error());
       NdbImport::Job job(imp);

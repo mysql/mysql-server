@@ -34,7 +34,3 @@ ndb_rpl_dd_advance: Need WL#9185 MySQL Cluster support for new DD
 ndb_rpl_ddl_open_trans: Need WL#9185 MySQL Cluster support for new DD
 ndb_rpl_dist_priv: Need WL#9185 MySQL Cluster support for new DD
 
-# Problem with CREATE LOGFILE GROUP. When running mysqld with --bin-log,
-# hitting DBUG_ASSERT claiming no transaction open
-ndb_rpl_dd_basic: Need WL#9185 MySQL Cluster support for new DD
-ndb_rpl_dd_partitions: Need WL#9185 MySQL Cluster support for new DD

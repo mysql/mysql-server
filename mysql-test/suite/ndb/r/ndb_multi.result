@@ -84,20 +84,18 @@ alter table t1 engine=ndb;
 show tables;
 Tables_in_test
 t1
-Warnings:
-Warning	1050	Local table test.t1 shadows ndb table
 select * from t1 order by c1;
 c1
 100
 344
 533
-drop table t1;
+drop table t1 /* engine = MyISAM */;
 select * from t1 order by c1;
 c1
 1
 3
 5
-drop table t1;
+drop table t1 /* engine = NDB */;
 create database db;
 use db;
 create table t1(x int) engine=ndb;
@@ -122,16 +120,6 @@ show tables;
 Tables_in_db
 t2
 drop database db;
-create database db;
-use db;
-create table t1(x int) engine=ndb;
-use db;
-show tables;
-Tables_in_db
-t1
-drop database db;
-use db;
-ERROR 42000: Unknown database 'db'
 use test;
 create table `test`.`t1$EX`
  (server_id int unsigned,
@@ -181,8 +169,6 @@ insert into t1 values ("g"),("h"),("i");
 show tables;
 Tables_in_test
 t1
-Warnings:
-Warning	1050	Local table test.t1 shadows ndb table
 select * from t1 order by s;
 s
 a
@@ -197,28 +183,6 @@ insert into t1 values(37);
 alter table t1 engine ndb;
 truncate t1;
 drop table t1;
-create table t1(a int primary key, b int not null, index(b)) engine = ndb;
-insert into t1 values (1,1), (2,2);
-set autocommit=0;
-begin;
-select count(*) from t1;
-count(*)
-2
-ALTER TABLE t1 algorithm=copy, ADD COLUMN c int;
-select a from t1 where b = 2;
-a
-2
-commit;
-show tables;
-Tables_in_test
-t1
-drop table t1;
-SHOW TABLES FROM mysql LIKE 'ndb_schema';
-Tables_in_mysql (ndb_schema)
-SELECT count(1) FROM INFORMATION_SCHEMA.TABLES
-WHERE TABLE_SCHEMA = 'mysql' AND TABLE_NAME = 'ndb_schema';
-count(1)
-0
 create table mysql.dummy(a int primary key, b int) engine=myisam;
 create table mysql.dummy(a int primary key, b int) engine=myisam;
 drop table mysql.dummy;
@@ -228,7 +192,7 @@ dummy	CREATE TABLE `dummy` (
   `a` int(11) NOT NULL,
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 drop table mysql.dummy;
 #
 # Testing schema identifier with length 63
@@ -312,36 +276,6 @@ ERROR 42000: Unknown database 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmn
 CREATE DATABASE
 abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz1234;
 ERROR 42000: Identifier name 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz1234' is too long
-#
-# 1. Check that DROP DATABASE removes leftover .ndb file
-#    in the database directory
-#
-create database db;
-use db;
-create table t1(x int) engine=ndb;
-create table t2(b int primary key) engine=ndb;
-create table t3_default_engine(c int primary key);
-drop database db;
-#
-# 2. Check that DROP DATABASE removes leftover .ndb file
-#    in the database directory on participating mysqld.
-#    This is the same testcase as BUG44529 with comments
-#
-# Create DATABASE and one table on first mysqld
-create database db;
-use db;
-create table t1(x int) engine=ndb;
-# Show that DATABASE exist on the pariticipant(second mysqld)
-# and create a .ndb file without corresponding table in NDB
-use db;
-show tables;
-Tables_in_db
-t1
-# Drop the DATABASE from first mysqld
-drop database db;
-# Check that the pariticipant has dropped the DATABASE
-use db;
-ERROR 42000: Unknown database 'db'
 CREATE DATABASE tmp_db;
 Let server2 create the table tmp_db.t1 in the background.
 CREATE TABLE tmp_db.t1 (k int primary key) ENGINE NDB;

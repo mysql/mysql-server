@@ -41,8 +41,7 @@ INITIAL_SIZE 12M
 ENGINE NDB;
 ALTER TABLESPACE ts1
 ADD DATAFILE 'datafile02.dat'
-INITIAL_SIZE = 4M 
-ENGINE=NDB;
+INITIAL_SIZE = 4M;
 CREATE TABLE t1
 (pk1 INT NOT NULL PRIMARY KEY, b INT NOT NULL, c INT NOT NULL)
 TABLESPACE ts1 STORAGE DISK
@@ -234,23 +233,19 @@ create table t1 (a int primary key, b int)
 engine = ndbcluster tablespace ts2 storage disk;
 insert into t1 values (1,1);
 alter tablespace ts2
-drop datafile 'datafile2_1.dat'
-engine ndb;
+drop datafile 'datafile2_1.dat';
 ERROR HY000: Failed to alter:  DROP DATAFILE
 drop table t1;
 alter tablespace ts2
-drop datafile 'datafile2_1.dat'
-engine ndb;
+drop datafile 'datafile2_1.dat';
 insert
 into City (Name,CountryCode,District,Population)
 values ('BeiJing','CN','Beijing',2000);
 ERROR HY000: Got error 1602 'No datafile in tablespace' from NDBCLUSTER
-drop tablespace ts2
-engine ndb;
+drop tablespace ts2;
 ERROR HY000: Tablespace `ts2` is not empty.
 drop table City;
-drop tablespace ts2
-engine ndb;
+drop tablespace ts2;
 CREATE TABLE t1 (a INT PRIMARY KEY, b CHAR(4) NOT NULL, c CHAR(4) NOT NULL, KEY(b)) TABLESPACE ts1 STORAGE DISK ENGINE = NDB;
 INSERT INTO t1 VALUES (1,'1','1'), (2,'2','2'), (3,'3','3');
 BEGIN;
@@ -558,13 +553,10 @@ update t1 set c1 = 1 where id = 2;
 ERROR 23000: Can't write; duplicate key in table ''
 drop table t1;
 ALTER TABLESPACE ts1 
-DROP DATAFILE 'datafile.dat' 
-ENGINE = NDB;
+DROP DATAFILE 'datafile.dat';
 ALTER TABLESPACE ts1 
-DROP DATAFILE 'datafile02.dat' 
-ENGINE = NDB;
-DROP TABLESPACE ts1 
-ENGINE = NDB;
+DROP DATAFILE 'datafile02.dat';
+DROP TABLESPACE ts1;
 DROP LOGFILE GROUP lg1 
 ENGINE =NDB;
 === bug#31712 ===
@@ -592,18 +584,15 @@ extent_size 2M
 engine ndb;
 alter tablespace ts1
 add datafile 'datafile02.dat'
-initial_size 1M
-engine ndb;
+initial_size 1M;
 ERROR HY000: Failed to alter:  CREATE DATAFILE
 show warnings;
 Level	Code	Message
 Warning	1296	Got error 1516 'File too small' from NDB
 Error	1533	Failed to alter:  CREATE DATAFILE
 alter tablespace ts1
-drop datafile 'datafile.dat'
-engine ndb;
-drop tablespace ts1
-engine ndb;
+drop datafile 'datafile.dat';
+drop tablespace ts1;
 drop logfile group lg1
 engine ndb;
 === bug#31782 ===
@@ -626,16 +615,14 @@ tablespace_name	file_type	file_name
 ts1	DATAFILE	datafile.dat
 ts1	TABLESPACE	NULL
 alter tablespace ts1
-drop datafile 'datafile.dat'
-engine ndb;
+drop datafile 'datafile.dat';
 select distinct tablespace_name, file_type, file_name
 from information_schema.files
 where engine = 'ndbcluster' and tablespace_name is not null
 order by file_type, file_name;
 tablespace_name	file_type	file_name
 ts1	TABLESPACE	NULL
-drop tablespace ts1
-engine ndb;
+drop tablespace ts1;
 drop logfile group lg1
 engine ndb;
 === bug#49709 ===
@@ -664,8 +651,7 @@ Warning	4	Extent size rounded up to kernel page size
 Warning	8	Datafile size rounded down to extent size
 alter tablespace ts1
 add datafile 'datafile02.dat'
-initial_size 3342335
-engine ndb;
+initial_size 3342335;
 Warnings:
 Warning	24	Datafile size rounded up to extent size
 select logfile_group_name, extra
@@ -693,13 +679,10 @@ file_name	initial_size	extent_size	total_extents	free_extents
 datafile.dat	3276800	327680	10	10
 datafile02.dat	3604480	327680	11	11
 alter tablespace ts1
-drop datafile 'datafile02.dat'
-engine ndb;
+drop datafile 'datafile02.dat';
 alter tablespace ts1
-drop datafile 'datafile.dat'
-engine ndb;
-drop tablespace ts1
-engine ndb;
+drop datafile 'datafile.dat';
+drop tablespace ts1;
 drop logfile group lg1
 engine ndb;
 set character_set_client=utf8;

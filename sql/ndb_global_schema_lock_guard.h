@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@ class Ndb_global_schema_lock_guard
 public:
   Ndb_global_schema_lock_guard(THD *thd);
   ~Ndb_global_schema_lock_guard();
-  int lock(bool report_cluster_disconnected=true);
+  int lock(void);
 private:
   THD* const m_thd;
   bool m_locked;

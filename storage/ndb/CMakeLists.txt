@@ -84,11 +84,14 @@ SET(NDBCLUSTER_SOURCES
   ../../sql/ndb_tdc.cc
   ../../sql/ndb_log.cc
   ../../sql/ndb_binlog_thread.cc
-  ../../sql/ndb_find_files_list.cc
   ../../sql/ndb_name_util.cc
   ../../sql/ndb_bitmap.cc
   ../../sql/ndb_table_map.cc
   ../../sql/ndb_dd.cc
+  ../../sql/ndb_modifiers.cc
+  ../../sql/ndb_dd_client.cc
+  ../../sql/ndb_dd_table.cc
+  ../../sql/ndb_dd_sdi.cc
 )
 
 # Include directories used when building ha_ndbcluster

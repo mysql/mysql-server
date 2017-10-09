@@ -65,7 +65,9 @@ struct NDB_SHARE {
   THR_LOCK lock;
   mysql_mutex_t mutex;
   struct NDB_SHARE_KEY* key;
-  uint use_count;
+  uint use_count() const { return m_use_count; }
+  uint increment_use_count() { return ++m_use_count; }
+  uint decrement_use_count() { return --m_use_count; }
   char *db;
   char *table_name;
   Ndb::TupleIdRange tuple_id_range;
@@ -108,19 +110,11 @@ struct NDB_SHARE {
   const char* key_string() const;
 
   const char* share_state_string() const;
+private:
+  uint m_use_count;
+  int binlog_init(THD *thd, TABLE *_table);
 };
 
-
-inline
-NDB_SHARE_STATE
-get_ndb_share_state(NDB_SHARE *share)
-{
-  NDB_SHARE_STATE state;
-  mysql_mutex_lock(&share->mutex);
-  state= share->state;
-  mysql_mutex_unlock(&share->mutex);
-  return state;
-}
 
 
 inline
@@ -193,31 +187,14 @@ static inline bool get_binlog_update_minimal(const NDB_SHARE *share)
 NDB_SHARE *ndbcluster_get_share(const char *key,
                                 struct TABLE *table,
                                 bool create_if_not_exists,
-                                bool have_lock);
+                                bool have_lock = false);
 NDB_SHARE *ndbcluster_get_share(NDB_SHARE *share);
-void ndbcluster_free_share(NDB_SHARE **share, bool have_lock);
+void ndbcluster_free_share(NDB_SHARE **share, bool have_lock = false);
 void ndbcluster_real_free_share(NDB_SHARE **share);
 int ndbcluster_rename_share(THD *thd,
                             NDB_SHARE *share,
                             struct NDB_SHARE_KEY* new_key);
 void ndbcluster_mark_share_dropped(NDB_SHARE** share);
-inline NDB_SHARE *get_share(const char *key,
-                            struct TABLE *table,
-                            bool create_if_not_exists= TRUE,
-                            bool have_lock= FALSE)
-{
-  return ndbcluster_get_share(key, table, create_if_not_exists, have_lock);
-}
-
-inline NDB_SHARE *get_share(NDB_SHARE *share)
-{
-  return ndbcluster_get_share(share);
-}
-
-inline void free_share(NDB_SHARE **share, bool have_lock= FALSE)
-{
-  ndbcluster_free_share(share, have_lock);
-}
 
 /**
    @brief Utility class for working with a temporary
@@ -234,14 +211,14 @@ class Ndb_share_temp_ref {
 public:
   Ndb_share_temp_ref(const char* key)
   {
-    m_share= get_share(key, NULL, FALSE);
+    m_share = ndbcluster_get_share(key, nullptr, false);
      // Should always exist
     assert(m_share);
      // already existed + this temp ref
-    assert(m_share->use_count >= 2);
+    assert(m_share->use_count() >= 2);
 
     DBUG_PRINT("NDB_SHARE", ("%s temporary  use_count: %u",
-                             m_share->key_string(), m_share->use_count));
+                             m_share->key_string(), m_share->use_count()));
   }
 
   ~Ndb_share_temp_ref()
@@ -249,13 +226,13 @@ public:
     /* release the temporary reference */
     assert(m_share);
     // at least  this temp ref
-    assert(m_share->use_count > 0);
+    assert(m_share->use_count() > 0);
 
     /* ndb_share reference temporary free */
     DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
-                             m_share->key_string(), m_share->use_count));
+                             m_share->key_string(), m_share->use_count()));
 
-    free_share(&m_share);
+    ndbcluster_free_share(&m_share);
   }
 
   // Return the NDB_SHARE* by type conversion operator
@@ -273,11 +250,5 @@ public:
   }
 };
 
-
-#define dbug_print_share(t, s)                  \
-  DBUG_LOCK_FILE;                               \
-  DBUG_EXECUTE("info",                          \
-               (s)->print((t), DBUG_FILE););    \
-  DBUG_UNLOCK_FILE;
 
 #endif

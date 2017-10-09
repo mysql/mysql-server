@@ -1,2 +1,5 @@
-# Disabled until table can be opened without comparing SDI
-table_private_id: Need WL#9185 MySQL Cluster support for new DD
+# Problem with missing information in information_schema
+tablespace_datafiles: Bug #26794727 MISSING DISK DATA INFORMATION IN INFORMATION_SCHEMA
+
+# Problem with incorrect partition information in information_schema
+information_schema_partitions: Bug #26794953 INCORRECT PARTITIONS INFORMATION IN INFORMATION_SCHEMA.PARTITIONS

@@ -584,10 +584,8 @@ alter table t1 algorithm=inplace, add column c0 int null column_format DYNAMIC;
 alter table t1 algorithm=inplace, add column c1 int null column_format DYNAMIC storage memory;
 drop table t1;
 ALTER TABLESPACE ts1
-DROP DATAFILE 'datafile.dat'
-ENGINE = NDB;
-DROP TABLESPACE ts1
-ENGINE = NDB;
+DROP DATAFILE 'datafile.dat';
+DROP TABLESPACE ts1;
 DROP LOGFILE GROUP lg1
 ENGINE =NDB;
 ********************

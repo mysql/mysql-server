@@ -97,7 +97,8 @@ TCP_Transporter::TCP_Transporter(TransporterRegistry &t_reg,
 	      0, false, 
 	      conf->checksum,
 	      conf->signalId,
-	      conf->tcp.sendBufferSize),
+	      conf->tcp.sendBufferSize,
+	      conf->preSendChecksum),
   reportFreq(4096),
   receiveCount(0), receiveSize(0),
   sendCount(0), sendSize(0), 
@@ -118,6 +119,8 @@ TCP_Transporter::TCP_Transporter(TransporterRegistry &t_reg,
    * Always set slowdown limit to 60% of overload limit
    */
   m_slowdown_limit = m_overload_limit * 6 / 10;
+
+  send_checksum_state.init();
 }
 
 
@@ -152,6 +155,7 @@ TCP_Transporter::resetBuffers()
 {
   assert(!isConnected());
   receiveBuffer.clear();
+  send_checksum_state.init();
 }
 
 bool TCP_Transporter::connect_server_impl(NDB_SOCKET_TYPE sockfd)
@@ -173,6 +177,7 @@ bool TCP_Transporter::connect_common(NDB_SOCKET_TYPE sockfd)
 
   get_callback_obj()->lock_transporter(remoteNodeId);
   theSocket = sockfd;
+  send_checksum_state.init();
   get_callback_obj()->unlock_transporter(remoteNodeId);
 
   DBUG_PRINT("info", ("Successfully set-up TCP transporter to node %d",
@@ -195,6 +200,7 @@ TCP_Transporter::initTransporter() {
     return false;
   }
   
+  send_checksum_state.init();
   return true;
 }
 
@@ -301,6 +307,7 @@ bool
 TCP_Transporter::doSend() {
   struct iovec iov[64];
   Uint32 cnt = fetch_send_iovec_data(iov, NDB_ARRAY_SIZE(iov));
+  Uint32 init_cnt = cnt;
 
   if (cnt == 0)
   {
@@ -330,8 +337,52 @@ TCP_Transporter::doSend() {
   {
     send_cnt++;
     Uint32 iovcnt = cnt > m_os_max_iovec ? m_os_max_iovec : cnt;
+    if (checksumUsed && check_send_checksum)
+    {
+      /* Check combination of sent + potential-to-be-sent */
+      checksum_state cs = send_checksum_state;
+      if (!cs.computev(iov + pos, iovcnt))
+      {
+        g_eventLogger->error("TCP_Transporter::doSend(%u) computev() failed. "
+                             "cnt %u iovcnt %u pos %u send_cnt %u sum_sent %u "
+                             "remain %u",
+                             remoteNodeId,
+                             cnt,
+                             iovcnt,
+                             pos,
+                             send_cnt,
+                             sum_sent,
+                             remain);
+        /* Consider disconnecting remote rather than killing node */
+        require(false);
+      }
+    }
     int nBytesSent = (int)my_socket_writev(theSocket, iov+pos, iovcnt);
     assert(nBytesSent <= (int)remain);
+
+    if (checksumUsed && check_send_checksum)
+    {
+      /* Add + check sent into current state */
+      if (nBytesSent > 0)
+      {
+        if (!send_checksum_state.computev(iov + pos, iovcnt, nBytesSent))
+        {
+          g_eventLogger->error("TCP_Transporter::doSend(%u) computev() failed. "
+                               "nBytesSent %u cnt %u iovcnt %u pos %u send_cnt %u "
+                               "sum_sent %u remain %u",
+                               remoteNodeId,
+                               nBytesSent,
+                               cnt,
+                               iovcnt,
+                               pos,
+                               send_cnt,
+                               sum_sent,
+                               remain);
+          /* Consider disconnecting remote rather than killing node */
+          require(false);
+        }
+      }
+    }
 
     if (Uint32(nBytesSent) == remain)  //Completed this send
     {
@@ -343,6 +394,7 @@ TCP_Transporter::doSend() {
     else if (nBytesSent > 0)           //Sent some, more pending
     {
       sum_sent += nBytesSent;
+      require(remain >= (Uint32)nBytesSent);
       remain -= nBytesSent;
 
       /**
@@ -354,6 +406,8 @@ TCP_Transporter::doSend() {
         nBytesSent -= iov[pos].iov_len;
         pos++;
         cnt--;
+        require(cnt <= init_cnt); //prevent overflow/ wrap around
+        require(pos < init_cnt); // avoid seg fault
       }
 
       if (nBytesSent > 0)
@@ -418,6 +472,8 @@ TCP_Transporter::doReceive(TransporterReceiveHandle& recvdata)
     if (nBytesRead > 0) {
       receiveBuffer.sizeOfData += nBytesRead;
       receiveBuffer.insertPtr  += nBytesRead;
+      require(receiveBuffer.insertPtr <= (char*)(receiveBuffer.startOfBuffer) +
+                 receiveBuffer.sizeOfBuffer); // prevent buf overflow
       
       if(receiveBuffer.sizeOfData > receiveBuffer.sizeOfBuffer){
 #ifdef DEBUG_TRANSPORTER

@@ -158,7 +158,7 @@ TARGET_LINK_LIBRARIES(ndb_move_data ndbclient_static ndbNDBT)
 IF(NOT WIN32)
 IF(NOT CMAKE_SYSTEM_NAME MATCHES "SunOS")
   IF (HAVE_NCURSESW_1 OR HAVE_NCURSESW_2 OR HAVE_NCURSESW_3 OR HAVE_NCURSESW_4 OR HAVE_NCURSESW_5)
-    MESSAGE("-- Adding ndb_top executable")
+    MESSAGE(STATUS "-- Adding ndb_top executable")
     FIND_LIBRARY(NCURSESW_LIB
                  NAMES ncursesw)
     IF (NOT NCURSESW_LIB)

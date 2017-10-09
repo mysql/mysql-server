@@ -518,9 +518,9 @@ time_field = '01:01:01' and
 date_time = '1901-01-01 01:01:01' 
 order by auto;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index	NULL	PRIMARY	4	NULL	#	#	Using where with pushed condition ((`test`.`t1`.`date_time` = '1901-01-01 01:01:01') and (`test`.`t1`.`year_field` = 1901) and (`test`.`t1`.`date_field` = '1901-01-01') and (`test`.`t1`.`ulonglong` = 1) and (`test`.`t1`.`ulong` = 1) and (`test`.`t1`.`umedium` = 1) and (`test`.`t1`.`ushort` = 1) and (`test`.`t1`.`utiny` = 1) and (`test`.`t1`.`longlong` = -1) and (`test`.`t1`.`long_int` = <cache>(-(1))) and (`test`.`t1`.`medium` = <cache>(-(1))) and (`test`.`t1`.`short` = <cache>(-(1))) and (`test`.`t1`.`tiny` = <cache>(-(1))) and (`test`.`t1`.`vbin` = 0xaaaa) and (`test`.`t1`.`bin` = 0xaaaa) and (`test`.`t1`.`string` = 'aaaa') and (`test`.`t1`.`vstring` = 'aaaa') and (`test`.`t1`.`real_float` > 1.0) and (`test`.`t1`.`real_float` < 2.0) and (`test`.`t1`.`real_double` > 1.0) and (`test`.`t1`.`real_double` < 2.0) and (`test`.`t1`.`real_decimal` > 1.0) and (`test`.`t1`.`real_decimal` < 2.0) and (`test`.`t1`.`options` = 'one') and (`test`.`t1`.`flags` = 'one') and (`test`.`t1`.`time_field` = '01:01:01'))
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index	NULL	PRIMARY	4	NULL	#	#	Using where with pushed condition ((`test`.`t1`.`date_time` = '1901-01-01 01:01:01') and (`test`.`t1`.`year_field` = 1901) and (`test`.`t1`.`date_field` = '1901-01-01') and (`test`.`t1`.`flags` = 'one') and (`test`.`t1`.`options` = 'one') and (`test`.`t1`.`ulonglong` = 1) and (`test`.`t1`.`ulong` = 1) and (`test`.`t1`.`umedium` = 1) and (`test`.`t1`.`ushort` = 1) and (`test`.`t1`.`utiny` = 1) and (`test`.`t1`.`longlong` = -1) and (`test`.`t1`.`long_int` = <cache>(-(1))) and (`test`.`t1`.`medium` = <cache>(-(1))) and (`test`.`t1`.`short` = <cache>(-(1))) and (`test`.`t1`.`tiny` = <cache>(-(1))) and (`test`.`t1`.`vbin` = 0xaaaa) and (`test`.`t1`.`bin` = 0xaaaa) and (`test`.`t1`.`vstring` = 'aaaa') and (`test`.`t1`.`string` = 'aaaa') and (`test`.`t1`.`real_float` > 1.0) and (`test`.`t1`.`real_float` < 2.0) and (`test`.`t1`.`real_double` > 1.0) and (`test`.`t1`.`real_double` < 2.0) and (`test`.`t1`.`real_decimal` > 1.0) and (`test`.`t1`.`real_decimal` < 2.0) and (`test`.`t1`.`time_field` = '01:01:01'))
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`auto` AS `auto` from `test`.`t1` where ((`test`.`t1`.`date_time` = '1901-01-01 01:01:01') and (`test`.`t1`.`year_field` = 1901) and (`test`.`t1`.`date_field` = '1901-01-01') and (`test`.`t1`.`ulonglong` = 1) and (`test`.`t1`.`ulong` = 1) and (`test`.`t1`.`umedium` = 1) and (`test`.`t1`.`ushort` = 1) and (`test`.`t1`.`utiny` = 1) and (`test`.`t1`.`longlong` = -1) and (`test`.`t1`.`long_int` = <cache>(-(1))) and (`test`.`t1`.`medium` = <cache>(-(1))) and (`test`.`t1`.`short` = <cache>(-(1))) and (`test`.`t1`.`tiny` = <cache>(-(1))) and (`test`.`t1`.`vbin` = 0xaaaa) and (`test`.`t1`.`bin` = 0xaaaa) and (`test`.`t1`.`string` = 'aaaa') and (`test`.`t1`.`vstring` = 'aaaa') and (`test`.`t1`.`real_float` > 1.0) and (`test`.`t1`.`real_float` < 2.0) and (`test`.`t1`.`real_double` > 1.0) and (`test`.`t1`.`real_double` < 2.0) and (`test`.`t1`.`real_decimal` > 1.0) and (`test`.`t1`.`real_decimal` < 2.0) and (`test`.`t1`.`options` = 'one') and (`test`.`t1`.`flags` = 'one') and (`test`.`t1`.`time_field` = '01:01:01')) order by `test`.`t1`.`auto`
+Note	1003	/* select#1 */ select `test`.`t1`.`auto` AS `auto` from `test`.`t1` where ((`test`.`t1`.`date_time` = '1901-01-01 01:01:01') and (`test`.`t1`.`year_field` = 1901) and (`test`.`t1`.`date_field` = '1901-01-01') and (`test`.`t1`.`flags` = 'one') and (`test`.`t1`.`options` = 'one') and (`test`.`t1`.`ulonglong` = 1) and (`test`.`t1`.`ulong` = 1) and (`test`.`t1`.`umedium` = 1) and (`test`.`t1`.`ushort` = 1) and (`test`.`t1`.`utiny` = 1) and (`test`.`t1`.`longlong` = -1) and (`test`.`t1`.`long_int` = <cache>(-(1))) and (`test`.`t1`.`medium` = <cache>(-(1))) and (`test`.`t1`.`short` = <cache>(-(1))) and (`test`.`t1`.`tiny` = <cache>(-(1))) and (`test`.`t1`.`vbin` = 0xaaaa) and (`test`.`t1`.`bin` = 0xaaaa) and (`test`.`t1`.`vstring` = 'aaaa') and (`test`.`t1`.`string` = 'aaaa') and (`test`.`t1`.`real_float` > 1.0) and (`test`.`t1`.`real_float` < 2.0) and (`test`.`t1`.`real_double` > 1.0) and (`test`.`t1`.`real_double` < 2.0) and (`test`.`t1`.`real_decimal` > 1.0) and (`test`.`t1`.`real_decimal` < 2.0) and (`test`.`t1`.`time_field` = '01:01:01')) order by `test`.`t1`.`auto`
 select auto from t1 where 
 string = "aaaa" and 
 vstring = "aaaa" and 
@@ -885,9 +885,9 @@ time_field = '01:01:01' and
 date_time = '1901-01-01 01:01:01' 
 order by auto;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ref	medium_index	medium_index	3	const	#	#	Using where with pushed condition ((`test`.`t1`.`date_time` = '1901-01-01 01:01:01') and (`test`.`t1`.`year_field` = 1901) and (`test`.`t1`.`date_field` = '1901-01-01') and (`test`.`t1`.`ulonglong` = 1) and (`test`.`t1`.`ulong` = 1) and (`test`.`t1`.`umedium` = 1) and (`test`.`t1`.`ushort` = 1) and (`test`.`t1`.`utiny` = 1) and (`test`.`t1`.`longlong` = -1) and (`test`.`t1`.`long_int` = <cache>(-(1))) and (`test`.`t1`.`short` = <cache>(-(1))) and (`test`.`t1`.`tiny` = <cache>(-(1))) and (`test`.`t1`.`vbin` = 0xaaaa) and (`test`.`t1`.`bin` = 0xaaaa) and (`test`.`t1`.`string` = 'aaaa') and (`test`.`t1`.`vstring` = 'aaaa') and (`test`.`t1`.`real_float` > 1.0) and (`test`.`t1`.`real_float` < 2.0) and (`test`.`t1`.`real_double` > 1.0) and (`test`.`t1`.`real_double` < 2.0) and (`test`.`t1`.`real_decimal` > 1.0) and (`test`.`t1`.`real_decimal` < 2.0) and (`test`.`t1`.`options` = 'one') and (`test`.`t1`.`flags` = 'one') and (`test`.`t1`.`time_field` = '01:01:01')); Using filesort
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ref	medium_index	medium_index	3	const	#	#	Using where with pushed condition ((`test`.`t1`.`date_time` = '1901-01-01 01:01:01') and (`test`.`t1`.`year_field` = 1901) and (`test`.`t1`.`date_field` = '1901-01-01') and (`test`.`t1`.`flags` = 'one') and (`test`.`t1`.`options` = 'one') and (`test`.`t1`.`ulonglong` = 1) and (`test`.`t1`.`ulong` = 1) and (`test`.`t1`.`umedium` = 1) and (`test`.`t1`.`ushort` = 1) and (`test`.`t1`.`utiny` = 1) and (`test`.`t1`.`longlong` = -1) and (`test`.`t1`.`long_int` = <cache>(-(1))) and (`test`.`t1`.`short` = <cache>(-(1))) and (`test`.`t1`.`tiny` = <cache>(-(1))) and (`test`.`t1`.`vbin` = 0xaaaa) and (`test`.`t1`.`bin` = 0xaaaa) and (`test`.`t1`.`vstring` = 'aaaa') and (`test`.`t1`.`string` = 'aaaa') and (`test`.`t1`.`real_float` > 1.0) and (`test`.`t1`.`real_float` < 2.0) and (`test`.`t1`.`real_double` > 1.0) and (`test`.`t1`.`real_double` < 2.0) and (`test`.`t1`.`real_decimal` > 1.0) and (`test`.`t1`.`real_decimal` < 2.0) and (`test`.`t1`.`time_field` = '01:01:01')); Using filesort
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`auto` AS `auto` from `test`.`t1` where ((`test`.`t1`.`date_time` = '1901-01-01 01:01:01') and (`test`.`t1`.`year_field` = 1901) and (`test`.`t1`.`date_field` = '1901-01-01') and (`test`.`t1`.`ulonglong` = 1) and (`test`.`t1`.`ulong` = 1) and (`test`.`t1`.`umedium` = 1) and (`test`.`t1`.`ushort` = 1) and (`test`.`t1`.`utiny` = 1) and (`test`.`t1`.`longlong` = -1) and (`test`.`t1`.`long_int` = <cache>(-(1))) and (`test`.`t1`.`medium` = -(1)) and (`test`.`t1`.`short` = <cache>(-(1))) and (`test`.`t1`.`tiny` = <cache>(-(1))) and (`test`.`t1`.`vbin` = 0xaaaa) and (`test`.`t1`.`bin` = 0xaaaa) and (`test`.`t1`.`string` = 'aaaa') and (`test`.`t1`.`vstring` = 'aaaa') and (`test`.`t1`.`real_float` > 1.0) and (`test`.`t1`.`real_float` < 2.0) and (`test`.`t1`.`real_double` > 1.0) and (`test`.`t1`.`real_double` < 2.0) and (`test`.`t1`.`real_decimal` > 1.0) and (`test`.`t1`.`real_decimal` < 2.0) and (`test`.`t1`.`options` = 'one') and (`test`.`t1`.`flags` = 'one') and (`test`.`t1`.`time_field` = '01:01:01')) order by `test`.`t1`.`auto`
+Note	1003	/* select#1 */ select `test`.`t1`.`auto` AS `auto` from `test`.`t1` where ((`test`.`t1`.`date_time` = '1901-01-01 01:01:01') and (`test`.`t1`.`year_field` = 1901) and (`test`.`t1`.`date_field` = '1901-01-01') and (`test`.`t1`.`flags` = 'one') and (`test`.`t1`.`options` = 'one') and (`test`.`t1`.`ulonglong` = 1) and (`test`.`t1`.`ulong` = 1) and (`test`.`t1`.`umedium` = 1) and (`test`.`t1`.`ushort` = 1) and (`test`.`t1`.`utiny` = 1) and (`test`.`t1`.`longlong` = -1) and (`test`.`t1`.`long_int` = <cache>(-(1))) and (`test`.`t1`.`medium` = -(1)) and (`test`.`t1`.`short` = <cache>(-(1))) and (`test`.`t1`.`tiny` = <cache>(-(1))) and (`test`.`t1`.`vbin` = 0xaaaa) and (`test`.`t1`.`bin` = 0xaaaa) and (`test`.`t1`.`vstring` = 'aaaa') and (`test`.`t1`.`string` = 'aaaa') and (`test`.`t1`.`real_float` > 1.0) and (`test`.`t1`.`real_float` < 2.0) and (`test`.`t1`.`real_double` > 1.0) and (`test`.`t1`.`real_double` < 2.0) and (`test`.`t1`.`real_decimal` > 1.0) and (`test`.`t1`.`real_decimal` < 2.0) and (`test`.`t1`.`time_field` = '01:01:01')) order by `test`.`t1`.`auto`
 select auto from t1 where 
 string = "aaaa" and 
 vstring = "aaaa" and 
@@ -1557,9 +1557,9 @@ select auto from t1 where
 '1901-01-01 01:01:01' in(date_time) 
 order by auto;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ref	medium_index	medium_index	3	const	#	#	Using where with pushed condition ((`test`.`t1`.`date_time` = '1901-01-01 01:01:01') and (`test`.`t1`.`year_field` = 1901) and (`test`.`t1`.`date_field` = '1901-01-01') and (`test`.`t1`.`ulonglong` = 1) and (`test`.`t1`.`ulong` = 1) and (`test`.`t1`.`umedium` = 1) and (`test`.`t1`.`ushort` = 1) and (`test`.`t1`.`utiny` = 1) and (`test`.`t1`.`longlong` = -1) and (`test`.`t1`.`long_int` = <cache>(-(1))) and (`test`.`t1`.`short` = <cache>(-(1))) and (`test`.`t1`.`tiny` = <cache>(-(1))) and (`test`.`t1`.`vbin` = 0xaaaa) and (`test`.`t1`.`bin` = 0xaaaa) and ('aaaa' = `test`.`t1`.`string`) and ('aaaa' = `test`.`t1`.`vstring`) and ('one' = `test`.`t1`.`options`) and ('one' = `test`.`t1`.`flags`) and ('01:01:01' = `test`.`t1`.`time_field`)); Using filesort
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ref	medium_index	medium_index	3	const	#	#	Using where with pushed condition ((`test`.`t1`.`date_time` = '1901-01-01 01:01:01') and (`test`.`t1`.`year_field` = 1901) and (`test`.`t1`.`date_field` = '1901-01-01') and (`test`.`t1`.`flags` = 'one') and (`test`.`t1`.`options` = 'one') and (`test`.`t1`.`ulonglong` = 1) and (`test`.`t1`.`ulong` = 1) and (`test`.`t1`.`umedium` = 1) and (`test`.`t1`.`ushort` = 1) and (`test`.`t1`.`utiny` = 1) and (`test`.`t1`.`longlong` = -1) and (`test`.`t1`.`long_int` = <cache>(-(1))) and (`test`.`t1`.`short` = <cache>(-(1))) and (`test`.`t1`.`tiny` = <cache>(-(1))) and (`test`.`t1`.`vbin` = 0xaaaa) and (`test`.`t1`.`bin` = 0xaaaa) and (`test`.`t1`.`vstring` = 'aaaa') and (`test`.`t1`.`string` = 'aaaa') and ('01:01:01' = `test`.`t1`.`time_field`)); Using filesort
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`auto` AS `auto` from `test`.`t1` where ((`test`.`t1`.`date_time` = '1901-01-01 01:01:01') and (`test`.`t1`.`year_field` = 1901) and (`test`.`t1`.`date_field` = '1901-01-01') and (`test`.`t1`.`ulonglong` = 1) and (`test`.`t1`.`ulong` = 1) and (`test`.`t1`.`umedium` = 1) and (`test`.`t1`.`ushort` = 1) and (`test`.`t1`.`utiny` = 1) and (`test`.`t1`.`longlong` = -1) and (`test`.`t1`.`long_int` = <cache>(-(1))) and (`test`.`t1`.`medium` = -(1)) and (`test`.`t1`.`short` = <cache>(-(1))) and (`test`.`t1`.`tiny` = <cache>(-(1))) and (`test`.`t1`.`vbin` = 0xaaaa) and (`test`.`t1`.`bin` = 0xaaaa) and ('aaaa' = `test`.`t1`.`string`) and ('aaaa' = `test`.`t1`.`vstring`) and ('one' = `test`.`t1`.`options`) and ('one' = `test`.`t1`.`flags`) and ('01:01:01' = `test`.`t1`.`time_field`)) order by `test`.`t1`.`auto`
+Note	1003	/* select#1 */ select `test`.`t1`.`auto` AS `auto` from `test`.`t1` where ((`test`.`t1`.`date_time` = '1901-01-01 01:01:01') and (`test`.`t1`.`year_field` = 1901) and (`test`.`t1`.`date_field` = '1901-01-01') and (`test`.`t1`.`flags` = 'one') and (`test`.`t1`.`options` = 'one') and (`test`.`t1`.`ulonglong` = 1) and (`test`.`t1`.`ulong` = 1) and (`test`.`t1`.`umedium` = 1) and (`test`.`t1`.`ushort` = 1) and (`test`.`t1`.`utiny` = 1) and (`test`.`t1`.`longlong` = -1) and (`test`.`t1`.`long_int` = <cache>(-(1))) and (`test`.`t1`.`medium` = -(1)) and (`test`.`t1`.`short` = <cache>(-(1))) and (`test`.`t1`.`tiny` = <cache>(-(1))) and (`test`.`t1`.`vbin` = 0xaaaa) and (`test`.`t1`.`bin` = 0xaaaa) and (`test`.`t1`.`vstring` = 'aaaa') and (`test`.`t1`.`string` = 'aaaa') and ('01:01:01' = `test`.`t1`.`time_field`)) order by `test`.`t1`.`auto`
 select auto from t1 where
 "aaaa" in(string) and 
 "aaaa" in(vstring) and 
@@ -2339,7 +2339,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	tx	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using where with pushed condition (`test`.`tx`.`c` = 1)
 1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using where with pushed condition (`test`.`t2`.`c` = 1); Using join buffer (Block Nested Loop)
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	Can't push table 't2' as child, 'type' must be a 'ref' access
 Note	1003	/* select#1 */ select `test`.`tx`.`a` AS `a`,`test`.`tx`.`b` AS `b`,`test`.`tx`.`c` AS `c`,`test`.`tx`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`tx` join `test`.`tx` `t2` where ((`test`.`tx`.`c` = 1) and (`test`.`t2`.`c` = 1))
 explain
@@ -2354,7 +2353,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.tx.c,test.tx.d	#	#	Child of 't2' in pushed join@1
 1	SIMPLE	t4	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.tx.d,test.t2.c	#	#	Child of 't3' in pushed join@1
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select straight_join `test`.`tx`.`a` AS `a`,`test`.`tx`.`b` AS `b`,`test`.`tx`.`c` AS `c`,`test`.`tx`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t3`.`d` AS `d`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t4`.`c` AS `c`,`test`.`t4`.`d` AS `d` from `test`.`tx` join `test`.`tx` `t2` join `test`.`tx` `t3` join `test`.`tx` `t4` where ((`test`.`t2`.`b` = `test`.`tx`.`b`) and (`test`.`t2`.`a` = `test`.`tx`.`a`) and (`test`.`t3`.`a` = `test`.`tx`.`c`) and (`test`.`t4`.`b` = `test`.`t2`.`c`) and (`test`.`t3`.`b` = `test`.`tx`.`d`) and (`test`.`t4`.`a` = `test`.`tx`.`d`))
 explain
 select t2.c, count(distinct t2.a)
@@ -2366,7 +2364,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	const	#	#	Using where; Using filesort
 1	SIMPLE	tx	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.t2.c,test.t2.d	#	#	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	Table 't2' is not pushable, need filesort before joining child tables
 Note	1003	/* select#1 */ select `test`.`t2`.`c` AS `c`,count(distinct `test`.`t2`.`a`) AS `count(distinct t2.a)` from `test`.`tx` join `test`.`tx` `t2` where ((`test`.`tx`.`b` = `test`.`t2`.`d`) and (`test`.`tx`.`a` = `test`.`t2`.`c`) and (`test`.`t2`.`a` = 4)) group by `test`.`t2`.`c`
 explain select * from tx join tx as t2 on tx.c=1 where t2.c=1;
@@ -2374,7 +2371,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	tx	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using where with pushed condition (`test`.`tx`.`c` = 1)
 1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using where with pushed condition (`test`.`t2`.`c` = 1); Using join buffer (Block Nested Loop)
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	Can't push table 't2' as child, 'type' must be a 'ref' access
 Note	1003	/* select#1 */ select `test`.`tx`.`a` AS `a`,`test`.`tx`.`b` AS `b`,`test`.`tx`.`c` AS `c`,`test`.`tx`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`tx` join `test`.`tx` `t2` where ((`test`.`tx`.`c` = 1) and (`test`.`t2`.`c` = 1))
 explain
@@ -2387,7 +2383,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	const	#	#	Using where; Using filesort
 1	SIMPLE	tx	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.t2.c,test.t2.d	#	#	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	Table 't2' is not pushable, need filesort before joining child tables
 Note	1003	/* select#1 */ select `test`.`t2`.`c` AS `c`,count(distinct `test`.`t2`.`a`) AS `count(distinct t2.a)` from `test`.`tx` join `test`.`tx` `t2` where ((`test`.`tx`.`b` = `test`.`t2`.`d`) and (`test`.`tx`.`a` = `test`.`t2`.`c`) and (`test`.`t2`.`a` = 4)) group by `test`.`t2`.`c`
 drop table tx;
@@ -2405,7 +2400,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using where
 2	DEPENDENT SUBQUERY	subq	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using where with pushed condition (`test`.`subq`.`i` = 3)
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1276	Field or reference 'test.t.i' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t`.`pk` AS `pk`,`test`.`t`.`i` AS `i` from `test`.`t` where exists(/* select#2 */ select 1 from `test`.`t` `subq` where ((`test`.`subq`.`i` = 3) and (`test`.`t`.`i` = 3)))
 explain 
@@ -2415,7 +2409,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using where
 2	DEPENDENT SUBQUERY	subq	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using where with pushed condition (`test`.`subq`.`i` = 3)
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1276	Field or reference 'test.t.i' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t`.`pk` AS `pk`,`test`.`t`.`i` AS `i` from `test`.`t` where exists(/* select#2 */ select 1 from `test`.`subq` where ((`test`.`subq`.`i` = 3) and (`test`.`t`.`i` = 3)))
 select * from t where exists
@@ -2559,7 +2552,6 @@ explain select * from a where a like 'abcdefg%';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	a	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using where with pushed condition (`test`.`a`.`a` like 'abcdefg%')
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a` from `test`.`a` where (`test`.`a`.`a` like 'abcdefg%')
 select * from a where a like 'abcdefg%';
 a

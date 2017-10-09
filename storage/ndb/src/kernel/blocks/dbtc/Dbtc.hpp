@@ -403,7 +403,7 @@ public:
   };
   typedef Ptr<TcDefinedTriggerData> DefinedTriggerPtr;
   typedef ArrayPool<TcDefinedTriggerData> TcDefinedTriggerData_pool;
-  typedef DLList<TcDefinedTriggerData, TcDefinedTriggerData_pool> TcDefinedTriggerData_list;
+  typedef DLList<TcDefinedTriggerData_pool> TcDefinedTriggerData_list;
   
   /**
    * Pool of trigger data record
@@ -516,9 +516,9 @@ public:
   };
   typedef Ptr<TcFiredTriggerData> FiredTriggerPtr;
   typedef ArrayPool<TcFiredTriggerData> TcFiredTriggerData_pool;
-  typedef DLFifoList<TcFiredTriggerData, TcFiredTriggerData_pool> TcFiredTriggerData_fifo;
-  typedef LocalDLFifoList<TcFiredTriggerData, TcFiredTriggerData_pool> Local_TcFiredTriggerData_fifo;
-  typedef DLHashTable<TcFiredTriggerData_pool, TcFiredTriggerData> TcFiredTriggerData_hash;
+  typedef DLFifoList<TcFiredTriggerData_pool> TcFiredTriggerData_fifo;
+  typedef LocalDLFifoList<TcFiredTriggerData_pool> Local_TcFiredTriggerData_fifo;
+  typedef DLHashTable<TcFiredTriggerData_pool> TcFiredTriggerData_hash;
   
   /**
    * Pool of trigger data record
@@ -604,7 +604,7 @@ public:
   
   typedef Ptr<TcIndexData> TcIndexDataPtr;
   typedef ArrayPool<TcIndexData> TcIndexData_pool;
-  typedef DLList<TcIndexData, TcIndexData_pool> TcIndexData_list;
+  typedef DLList<TcIndexData_pool> TcIndexData_list;
 
   /**
    * Pool of index data record
@@ -669,8 +669,8 @@ public:
   
   typedef Ptr<TcIndexOperation> TcIndexOperationPtr;
   typedef ArrayPool<TcIndexOperation> TcIndexOperation_pool;
-  typedef SLList<TcIndexOperation, TcIndexOperation_pool> TcIndexOperation_sllist;
-  typedef DLList<TcIndexOperation, TcIndexOperation_pool> TcIndexOperation_dllist;
+  typedef SLList<TcIndexOperation_pool> TcIndexOperation_sllist;
+  typedef DLList<TcIndexOperation_pool> TcIndexOperation_dllist;
 
   /**
    * Pool of index data record
@@ -718,8 +718,8 @@ public:
     }
   };
 
-  typedef RecordPool<TcFKData, RWPool<TcFKData> > FK_pool;
-  typedef KeyTable<FK_pool, TcFKData> FK_hash;
+  typedef RecordPool<RWPool<TcFKData> > FK_pool;
+  typedef KeyTable<FK_pool> FK_hash;
 
   FK_pool c_fk_pool;
   FK_hash c_fk_hash;
@@ -765,6 +765,7 @@ public:
   struct ApiConnectRecord {
     ApiConnectRecord(TcFiredTriggerData_pool & firedTriggerPool,
                      TcIndexOperation_pool & seizedIndexOpPool):
+      nextApiConnect(RNIL),
       m_special_op_flags(0),
       theFiredTriggers(firedTriggerPool),
       theSeizedIndexOperations(seizedIndexOpPool) 
@@ -861,7 +862,15 @@ public:
     Uint8 tckeyrec; // Changed from R
 
     Uint8 tcindxrec;
-    Uint8 apiFailState; // Changed R
+
+    enum ApiFailStates
+    {
+      AFS_API_OK = 0,
+      AFS_API_FAILED = 1,
+      AFS_API_DISCONNECTED = 2
+    };
+    Uint8 apiFailState;
+
     Uint8 timeOutCounter;
     Uint8 singleUserMode;
     
@@ -1244,9 +1253,9 @@ public:
   };
 
   typedef Ptr<ScanFragLocationRec> ScanFragLocationPtr;
-  typedef RecordPool<ScanFragLocationRec, RWPool<ScanFragLocationRec> > ScanFragLocation_pool;
-  typedef SLFifoList<ScanFragLocationRec, ScanFragLocation_pool> ScanFragLocation_list;
-  typedef LocalSLFifoList<ScanFragLocationRec, ScanFragLocation_pool> Local_ScanFragLocation_list;
+  typedef RecordPool<RWPool<ScanFragLocationRec> > ScanFragLocation_pool;
+  typedef SLFifoList<ScanFragLocation_pool> ScanFragLocation_list;
+  typedef LocalSLFifoList<ScanFragLocation_pool> Local_ScanFragLocation_list;
 
   ScanFragLocation_pool m_fragLocationPool;
 
@@ -1331,9 +1340,9 @@ public:
   
   typedef Ptr<ScanFragRec> ScanFragRecPtr;
   typedef UnsafeArrayPool<ScanFragRec> ScanFragRec_pool;
-  typedef SLList<ScanFragRec, ScanFragRec_pool> ScanFragRec_sllist;
-  typedef DLList<ScanFragRec, ScanFragRec_pool> ScanFragRec_dllist;
-  typedef LocalDLList<ScanFragRec, ScanFragRec_pool> Local_ScanFragRec_dllist;
+  typedef SLList<ScanFragRec_pool> ScanFragRec_sllist;
+  typedef DLList<ScanFragRec_pool> ScanFragRec_dllist;
+  typedef LocalDLList<ScanFragRec_pool> Local_ScanFragRec_dllist;
 
   /**
    * Each scan allocates one ScanRecord to store information 
@@ -1721,6 +1730,11 @@ private:
                          LqhTransConf::OperationStatus transStatus,
                          NodeId nodeId);
 
+  bool handleFailedApiConnection(Signal*,
+                                 Uint32 *TloopCount,
+                                 Uint32 TapiFailedNode,
+                                 bool apiNodeFailed);
+  void set_api_fail_state(Uint32 TapiFailedNode, bool apiNodeFailed);
   void handleApiFailState(Signal* signal, UintR anApiConnectptr);
   void handleFailedApiNode(Signal* signal,
                            UintR aFailedNode,
@@ -2211,8 +2225,10 @@ private:
   Uint16 terrorCode;
 
   UintR cfirstfreeTcConnect;
-  UintR cfirstfreeApiConnectCopy;
+  UintR cfirstfreeApiConnectCopy; /* CS_RESTART */
   UintR cfirstfreeCacheRec;
+  Uint32 cfirstApiConnectPREPARE_TO_COMMIT;
+  Uint32 clastApiConnectPREPARE_TO_COMMIT;
 
   UintR cfirstgcp;
   UintR clastgcp;
@@ -2320,7 +2336,7 @@ public:
 private:
   typedef Ptr<CommitAckMarker> CommitAckMarkerPtr;
   typedef ArrayPool<CommitAckMarker> CommitAckMarker_pool;
-  typedef DLHashTable<CommitAckMarker_pool, CommitAckMarker> CommitAckMarker_hash;
+  typedef DLHashTable<CommitAckMarker_pool> CommitAckMarker_hash;
   typedef CommitAckMarker_hash::Iterator CommitAckMarkerIterator;
   
   CommitAckMarker_pool m_commitAckMarkerPool;

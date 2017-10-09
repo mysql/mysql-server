@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,12 +25,13 @@
 
 
 // Adds "getCount" to DLHashTable
-template <class P, class T, class U = T>
-class DLCHashTable : public DLHashTable<P, T, U> {
+template <class P, class U = typename P::Type>
+class DLCHashTable : public DLHashTable<P, U> {
+  typedef typename P::Type T;
 public:
   // Ctor
   DLCHashTable(P & thePool) :
-    DLHashTable<P, T, U>(thePool),
+    DLHashTable<P, U>(thePool),
     m_count(0)
   {}
   
@@ -40,42 +41,42 @@ public:
   // Redefine methods which do add or remove
 
   void add(Ptr<T>& ptr) {
-    DLHashTable<P, T, U>::add(ptr);
+    DLHashTable<P, U>::add(ptr);
     m_count++;
   }
   
   void remove(Ptr<T>& ptr, const T & key) {
-    DLHashTable<P, T, U>::remove(ptr, key);
+    DLHashTable<P, U>::remove(ptr, key);
     m_count--;
   }
 
   void remove(Uint32 i) {
-    DLHashTable<P, T, U>::remove(i);
+    DLHashTable<P, U>::remove(i);
     m_count--;
   }
 
   void remove(Ptr<T>& ptr) {
-    DLHashTable<P, T, U>::remove(ptr);
+    DLHashTable<P, U>::remove(ptr);
     m_count--;
   }
 
   void removeAll() {
-    DLHashTable<P, T, U>::removeAll();
+    DLHashTable<P, U>::removeAll();
     m_count = 0;
   }
   
   void release(Ptr<T>& ptr, const T & key) {
-    DLHashTable<P, T, U>::release(ptr, key);
+    DLHashTable<P, U>::release(ptr, key);
     m_count--;
   }
 
   void release(Uint32 i) {
-    DLHashTable<P, T, U>::release(i);
+    DLHashTable<P, U>::release(i);
     m_count--;
   }
 
   void release(Ptr<T>& ptr) {
-    DLHashTable<P, T, U>::release(ptr);
+    DLHashTable<P, U>::release(ptr);
     m_count--;
   }
   

@@ -73,7 +73,7 @@ void ndb_rep_event_name(String *event_name,
                         const char *db, const char *tbl,
                         bool full, bool allow_hardcoded_name = true);
 
-int
+bool
 ndbcluster_get_binlog_replication_info(THD *thd, Ndb *ndb,
                                        const char* db,
                                        const char* table_name,
@@ -114,12 +114,6 @@ extern bool ndb_binlog_running;
 
 /* Prints ndb binlog status string in buf */
 size_t ndbcluster_show_status_binlog(char* buf, size_t buf_size);
-
-/*
-  Helper functions
-*/
-bool
-ndbcluster_check_if_local_table(const char *dbname, const char *tabname);
 
 
 
