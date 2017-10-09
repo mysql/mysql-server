@@ -22,7 +22,6 @@
 #include "sql/dd/impl/sdi.h"
 #include "sql/dd/string_type.h"
 
-
 bool
 ndb_dd_sdi_deserialize(THD* thd, const dd::sdi_t& sdi, dd::Table* table)
 {
