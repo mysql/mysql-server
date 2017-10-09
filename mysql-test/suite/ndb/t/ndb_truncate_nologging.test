@@ -9,6 +9,11 @@ connect (server3,127.0.0.1,root,,test,$MYSQLD3_PORT,);
 --echo Check that third mysqld is not writing binlog
 connection server3;
 -- source include/not_log_bin.inc
+# Since this server is intentionally running without log-bin, supress warning
+-- disable_query_log
+call mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
+-- enable_query_log
+
 connection server1;
 
 #
