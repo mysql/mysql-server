@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -102,10 +102,10 @@ my_bool my_init()
 
   /* Default creation of new files */
   if ((str= getenv("UMASK")) != 0)
-    my_umask= (int) (atoi_octal(str) | 0640);
+    my_umask= (int) (atoi_octal(str) | 0600);
   /* Default creation of new dir's */
   if ((str= getenv("UMASK_DIR")) != 0)
-    my_umask_dir= (int) (atoi_octal(str) | 0750);
+    my_umask_dir= (int) (atoi_octal(str) | 0700);
 
   instrumented_stdin.m_file= stdin;
   instrumented_stdin.m_psi= NULL;       /* not yet instrumented */
