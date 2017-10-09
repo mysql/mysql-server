@@ -702,7 +702,7 @@ int ha_partition::create_handler_files(const char *path,
 int ha_partition::create(const char *name, TABLE *table_arg,
 			 HA_CREATE_INFO *create_info)
 {
-  int error;
+  int error= 0;
   char name_buff[FN_REFLEN + 1], name_lc_buff[FN_REFLEN + 1];
   char *name_buffer_ptr;
   const char *path;
