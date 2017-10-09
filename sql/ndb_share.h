@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -197,6 +197,29 @@ inline NDB_SHARE *get_share(NDB_SHARE *share)
 inline void free_share(NDB_SHARE **share, bool have_lock= FALSE)
 {
   ndbcluster_free_share(share, have_lock);
+}
+
+// Utility class for locking access to shared auto_increment prefetch range
+class Ndb_tuple_id_range_guard {
+  NDB_SHARE* m_share;
+public:
+  Ndb_tuple_id_range_guard(NDB_SHARE* share) :
+    m_share(share),
+    range(share->tuple_id_range)
+  {
+    pthread_mutex_lock(&m_share->mutex);
+  }
+  ~Ndb_tuple_id_range_guard()
+  {
+    pthread_mutex_unlock(&m_share->mutex);
+  }
+  Ndb::TupleIdRange& range;
+};
+
+inline void reset_tuple_id_range(NDB_SHARE* share)
+{
+  Ndb_tuple_id_range_guard g(share);
+  g.range.reset();
 }
 
 #endif
