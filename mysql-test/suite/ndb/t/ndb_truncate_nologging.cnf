@@ -1,7 +1,7 @@
 !include ../my.cnf
 
 [cluster_config.1]
-mysqld=,
+mysqld=,,
 
 [mysqld]
 ndb-autoincrement-prefetch-sz=49
