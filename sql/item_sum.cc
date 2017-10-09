@@ -5808,7 +5808,7 @@ void Item_first_last_value::clear()
 }
 
 
-void Item_first_last_value::compute()
+bool Item_first_last_value::compute()
 {
   cnt++;
 
@@ -5827,6 +5827,7 @@ void Item_first_last_value::compute()
     m_value->cache_value();
     null_value= m_value->null_value;
   }
+  return null_value || current_thd->is_error();
 }
 
 longlong Item_first_last_value::val_int()
@@ -5834,7 +5835,9 @@ longlong Item_first_last_value::val_int()
   if (wf_common_init())
     return 0;
 
-  compute();
+  if (compute())
+    return 0;
+
   return m_value->val_int();
 }
 
@@ -5844,7 +5847,9 @@ double Item_first_last_value::val_real()
   if (wf_common_init())
     return 0.0;
 
-  compute();
+  if (compute())
+    return 0.0;
+
   return m_value->val_real();
 }
 
@@ -5853,7 +5858,9 @@ bool Item_first_last_value::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydat
   if (wf_common_init())
     return true;
 
-  compute();
+  if (compute())
+    return true;
+
   return m_value->get_date(ltime, fuzzydate);
 }
 
@@ -5862,7 +5869,9 @@ bool Item_first_last_value::get_time(MYSQL_TIME *ltime)
   if (wf_common_init())
     return true;
 
-  compute();
+  if (compute())
+    return true;
+
   return m_value->get_time(ltime);
 }
 
@@ -5871,7 +5880,9 @@ my_decimal *Item_first_last_value::val_decimal(my_decimal *decimal_buffer)
   if (wf_common_init())
     return decimal_buffer;
 
-  compute();
+  if (compute())
+    return nullptr;
+
   return m_value->val_decimal(decimal_buffer);
 }
 
@@ -5881,9 +5892,9 @@ String *Item_first_last_value::val_str(String *str)
   if (wf_common_init())
     return str;
 
-  compute();
-  if (null_value)
+  if (compute())
     return nullptr;
+
   return m_value->val_str(str);
 }
 
@@ -6031,7 +6042,7 @@ bool Item_nth_value::check_wf_semantics(THD *thd, SELECT_LEX *select,
 }
 
 
-void Item_nth_value::compute()
+bool Item_nth_value::compute()
 {
   m_cnt++;
 
@@ -6072,6 +6083,7 @@ void Item_nth_value::compute()
     //      null_value= m_value->null_value;
     //    }
   }
+  return null_value || current_thd->is_error();
 }
 
 longlong Item_nth_value::val_int()
@@ -6079,7 +6091,9 @@ longlong Item_nth_value::val_int()
   if (wf_common_init())
     return 0;
 
-  compute();
+  if (compute())
+    return 0;
+
   return m_value->val_int();
 }
 
@@ -6089,7 +6103,9 @@ double Item_nth_value::val_real()
   if (wf_common_init())
     return 0;
 
-  compute();
+  if (compute())
+    return 0.0;
+
   return m_value->val_real();
 }
 
@@ -6099,7 +6115,9 @@ my_decimal *Item_nth_value::val_decimal(my_decimal *decimal_buffer)
   if (wf_common_init())
     return decimal_buffer;
 
-  compute();
+  if (compute())
+    return nullptr;
+
   return m_value->val_decimal(decimal_buffer);
 }
 
@@ -6108,9 +6126,9 @@ String *Item_nth_value::val_str(String *str)
   if (wf_common_init())
     return str;
 
-  compute();
-  if(null_value)
+  if (compute())
     return nullptr;
+
   return m_value->val_str(str);
 }
 
@@ -6119,7 +6137,8 @@ bool Item_nth_value::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   if (wf_common_init())
     return true;
 
-  compute();
+  if (compute())
+    return true;
 
   return m_value->get_date(ltime, fuzzydate);
 }
@@ -6129,7 +6148,8 @@ bool Item_nth_value::get_time(MYSQL_TIME *ltime)
   if (wf_common_init())
     return true;
 
-  compute();
+  if (compute())
+    return true;
 
   return m_value->get_time(ltime);
 }
@@ -6217,7 +6237,9 @@ bool Item_lead_lag::fix_fields(THD *thd, Item **items)
     }
   }
   else
+  {
     m_n= 1;
+  }
 
   /*
     Canonicalize LEAD to negative LAG so we can order all sequentially around
@@ -6300,22 +6322,21 @@ longlong Item_lead_lag::val_int()
   if (wf_common_init())
     return 0;
 
-  compute();
-  return (m_has_value ?
-          (m_use_default ? m_default->val_int() : m_value->val_int()) :
-          0);
-}
+  if (compute())
+    return 0;
 
+  return m_use_default ? m_default->val_int() : m_value->val_int();
+}
 
 double Item_lead_lag::val_real()
 {
   if (wf_common_init())
     return 0;
 
-  compute();
-  return (m_has_value ?
-          (m_use_default ? m_default->val_real() : m_value->val_real()) :
-          0.0);
+  if (compute())
+    return 0.0;
+
+  return m_use_default ? m_default->val_real() : m_value->val_real();
 }
 
 
@@ -6324,12 +6345,11 @@ my_decimal *Item_lead_lag::val_decimal(my_decimal *decimal_buffer)
   if (wf_common_init())
     return decimal_buffer;
 
-  compute();
-  return (m_has_value ?
-          (m_use_default ?
-           m_default->val_decimal(decimal_buffer) :
-           m_value->val_decimal(decimal_buffer)) :
-          decimal_buffer);
+  if (compute())
+    return nullptr;
+
+  return m_use_default ? m_default->val_decimal(decimal_buffer) :
+    m_value->val_decimal(decimal_buffer);
 }
 
 String *Item_lead_lag::val_str(String *str)
@@ -6337,11 +6357,10 @@ String *Item_lead_lag::val_str(String *str)
   if (wf_common_init())
     return str;
 
-  compute();
+  if (compute())
+    return nullptr;
 
-  return (m_has_value ?
-          (m_use_default ? m_default->val_str(str) : m_value->val_str(str)) :
-          nullptr);
+  return m_use_default ? m_default->val_str(str) : m_value->val_str(str);
 }
 
 bool Item_lead_lag::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
@@ -6349,12 +6368,11 @@ bool Item_lead_lag::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   if (wf_common_init())
     return true;
 
-  compute();
-  DBUG_ASSERT(m_has_value || null_value);
-  return (m_has_value ?
-          (m_use_default ? m_default->get_date(ltime, fuzzydate) :
-           m_value->get_date(ltime, fuzzydate)) :
-          null_value);
+  if (compute())
+    return true;
+
+  return m_use_default ? m_default->get_date(ltime, fuzzydate) :
+    m_value->get_date(ltime, fuzzydate);
 }
 
 
@@ -6363,16 +6381,15 @@ bool Item_lead_lag::get_time(MYSQL_TIME *ltime)
   if (wf_common_init())
     return true;
 
-  compute();
-  DBUG_ASSERT(m_has_value || null_value);
-  return (m_has_value ?
-          (m_use_default ? m_default->get_time(ltime) : m_value->get_time(ltime)) :
-          null_value);
+  if (compute())
+    return true;
+
+  return m_use_default ? m_default->get_time(ltime) : m_value->get_time(ltime);
 }
 
-void Item_lead_lag::compute()
-{
 
+bool Item_lead_lag::compute()
+{
   if (m_window->do_inverse())
   {
     // nothing, not relevant for LEAD/LAG
@@ -6409,7 +6426,8 @@ void Item_lead_lag::compute()
       {
         null_value= true;
       }
-      return;
+
+      return null_value;
     }
 
     bool our_offset= (m_window->rowno_being_visited() ==
@@ -6445,6 +6463,7 @@ void Item_lead_lag::compute()
         null_value= true;
     }
   }
+  return null_value || current_thd->is_error();
 }
 
 bool Item_sum_json::fix_fields(THD *thd, Item **ref)

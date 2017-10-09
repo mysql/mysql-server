@@ -2301,6 +2301,7 @@ class Item_lead_lag : public Item_non_framing_wf
   Item_cache *m_value;
   Item_cache *m_default;
   /**
+    Execution state: if set, we already have a value for current row.
     State is used to avoid interference with other LEAD/LAG functions on
     the same window, since they share the same eval loop and they should
     trigger evaluation only when they are on the "right" row relative to
@@ -2308,7 +2309,7 @@ class Item_lead_lag : public Item_non_framing_wf
     for this function yet, or if we do (m_has_value==true), return the
     found value.
   */
-  bool m_has_value; ///< execution state: already have a value for current row
+  bool m_has_value;
   bool m_use_default; ///< execution state: use default value for current row
   typedef Item_non_framing_wf super;
 public:
@@ -2345,7 +2346,7 @@ public:
   double val_real() override;
   String *val_str(String *str) override;
   my_decimal *val_decimal(my_decimal *decimal_buffer) override;
-  
+
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
   bool get_time(MYSQL_TIME *ltime) override;
 
@@ -2359,12 +2360,18 @@ public:
 
   void set_has_value(bool value) { m_has_value= value; }
   bool has_value() const { return m_has_value; }
+
   void set_use_default(bool value) { m_use_default= value; }
   bool use_default() const { return m_use_default; }
 
 private:
   bool setup_lead_lag();
-  void compute();
+  /**
+    Core logic of LEAD/LAG window functions
+
+    @return true if computation yielded a NULL or error
+  */
+  bool compute();
 };
 
 
@@ -2422,7 +2429,12 @@ public:
 
 private:
   bool setup_first_last();
-  void compute();
+  /**
+    Core logic of FIRST/LAST_VALUE window functions
+
+    @return true if computation yielded a NULL or error
+  */
+  bool compute();
 };
 
 
@@ -2486,7 +2498,12 @@ public:
                       List<Item>& fields) override;
 
 private:
-  void compute();
+  /**
+    Core logic of NTH_VALUE window functions
+
+    @return true if computation yielded a NULL or error
+  */
+  bool compute();
 };
 
 /**
