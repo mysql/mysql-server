@@ -104,7 +104,7 @@ extern EventLogger * g_eventLogger;
 #define DEB_EXTRA_LCP(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_LCP
+#define DEBUG_LCP
 #ifdef DEBUG_LCP
 #define DEB_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
@@ -125,7 +125,7 @@ extern EventLogger * g_eventLogger;
 #define DEB_CUT_REDO(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_LOCAL_LCP
+#define DEBUG_LOCAL_LCP
 #ifdef DEBUG_LOCAL_LCP
 #define DEB_LOCAL_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
@@ -16215,7 +16215,7 @@ void Dblqh::execWAIT_ALL_COMPLETE_LCP_CONF(Signal *signal)
   c_local_lcp_sent_wait_all_complete_lcp_req = false;
   c_local_lcp_started = false;
   c_full_local_lcp_started = false;
-  DEB_LCP(("(%u)All LDMs have completed local LCP", instance()));
+  DEB_LOCAL_LCP(("(%u)All LDMs have completed local LCP", instance()));
   if (m_second_activate_fragment_ptr_i == RNIL)
   {
     jam();
