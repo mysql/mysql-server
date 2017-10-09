@@ -75,13 +75,7 @@ void QueryOperation::levelIsJoinTable(int level) {
 void QueryOperation::prepare(const NdbQueryOperationDef * root) {
   DEBUG_MARKER(UDEB_DEBUG);
   operationTree = root;
-  /**
-   * OJA: Temp patch to avoid build break due to WL10234 changed the
-   * (non-public) interface to ::prepare(). A 'class Ndb*' should
-   * be provided as argument. 'NULL' is just for avoiding build break,
-   * expects all nodejs tests to fail though
-   */
-  definedQuery = ndbQueryBuilder->prepare(NULL);
+  definedQuery = ndbQueryBuilder->prepare();
 }
 
 int QueryOperation::prepareAndExecute() {
