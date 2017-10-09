@@ -7246,8 +7246,14 @@ Backup::fragmentCompleted(Signal* signal,
      * soon as they occur, rather than at the time when we recover
      * when it is very difficult to trace back the source of the
      * problem.
+     *
+     * Error means that the table was dropped during LCP and in this
+     * case these numbers are not consistent, we're simply closing
+     * the LCP scan in an orderly manner with no rows read. So we
+     * should not crash in this case.
      */
-    ndbrequire(ptr.p->m_row_count == filePtr.p->m_lcp_inserts ||
+    ndbrequire(errCode != 0 ||
+               ptr.p->m_row_count == filePtr.p->m_lcp_inserts ||
       ((ptr.p->m_num_parts_in_this_lcp != BackupFormat::NDB_MAX_LCP_PARTS) &&
        (ptr.p->m_row_count >=
         (filePtr.p->m_lcp_inserts + filePtr.p->m_lcp_writes))));
