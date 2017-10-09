@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -4251,24 +4251,6 @@ ha_ndbcluster::set_auto_inc(THD *thd, Field *field)
   DBUG_RETURN(set_auto_inc_val(thd, next_val));
 }
 
-
-class Ndb_tuple_id_range_guard {
-  NDB_SHARE* m_share;
-public:
-  Ndb_tuple_id_range_guard(NDB_SHARE* share) :
-    m_share(share),
-    range(share->tuple_id_range)
-  {
-    pthread_mutex_lock(&m_share->mutex);
-  }
-  ~Ndb_tuple_id_range_guard()
-  {
-    pthread_mutex_unlock(&m_share->mutex);
-  }
-  Ndb::TupleIdRange& range;
-};
-
-
 inline
 int
 ha_ndbcluster::set_auto_inc_val(THD *thd, Uint64 value)
@@ -4281,12 +4263,15 @@ ha_ndbcluster::set_auto_inc_val(THD *thd, Uint64 value)
              ("Trying to set next auto increment value to %s",
               llstr(value, buff)));
 #endif
-  if (ndb->checkUpdateAutoIncrementValue(m_share->tuple_id_range, value))
   {
     Ndb_tuple_id_range_guard g(m_share);
-    if (ndb->setAutoIncrementValue(m_table, g.range, value, TRUE)
-        == -1)
-      ERR_RETURN(ndb->getNdbError());
+
+    if (ndb->checkUpdateAutoIncrementValue(g.range, value))
+    {
+      if (ndb->setAutoIncrementValue(m_table, g.range, value, TRUE)
+          == -1)
+        ERR_RETURN(ndb->getNdbError());
+    }
   }
   DBUG_RETURN(0);
 }
