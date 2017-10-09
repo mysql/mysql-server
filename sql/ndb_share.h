@@ -250,5 +250,27 @@ public:
   }
 };
 
+// Utility class for locking access to shared auto_increment prefetch range
+class Ndb_tuple_id_range_guard {
+  NDB_SHARE* m_share;
+public:
+  Ndb_tuple_id_range_guard(NDB_SHARE* share) :
+    m_share(share),
+    range(share->tuple_id_range)
+  {
+    mysql_mutex_lock(&m_share->mutex);
+  }
+  ~Ndb_tuple_id_range_guard()
+  {
+    mysql_mutex_unlock(&m_share->mutex);
+  }
+  Ndb::TupleIdRange& range;
+};
+
+inline void reset_tuple_id_range(NDB_SHARE* share)
+{
+  Ndb_tuple_id_range_guard g(share);
+  g.range.reset();
+}
 
 #endif
