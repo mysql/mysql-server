@@ -1,0 +1,27 @@
+!include ../my.cnf
+
+[cluster_config.1]
+mysqld=,,
+
+[mysqld]
+ndb-autoincrement-prefetch-sz=49
+
+[mysqld.1.1]
+log-bin=mysqld-bin
+
+[mysqld.2.1]
+log-bin=mysqld-bin
+
+[mysqld.3.1]
+skip-log-bin
+
+[ENV]
+
+NDB_CONNECTSTRING=             @mysql_cluster.1.ndb_connectstring
+MYSQLD1_SOCK=                  @mysqld.1.1.socket
+MYSQLD1_PORT=                  @mysqld.1.1.port
+MYSQLD2_SOCK=                  @mysqld.2.1.socket
+MYSQLD2_PORT=                  @mysqld.2.1.port
+MYSQLD3_SOCK=                  @mysqld.3.1.socket
+MYSQLD3_PORT=                  @mysqld.3.1.port
+
