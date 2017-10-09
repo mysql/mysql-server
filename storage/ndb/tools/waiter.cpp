@@ -172,7 +172,7 @@ int main(int argc, char** argv){
 
   if (waitClusterStatus(connect_string, wait_status) != 0)
     return NDBT_ProgramExit(NDBT_FAILED);
-  ndb_free_defaults(argv);
+  ndb_free_defaults(&alloc);
   return NDBT_ProgramExit(NDBT_OK);
 }
 
