@@ -207,6 +207,7 @@ real_main(int argc, char** argv)
              opt_allocated_nodeid, opt_retries, opt_delay);
   }
 
+  Ndb_opts::release();
   /**
     The angel process takes care of automatic restarts, by default this is
     the default to have an angel process. When an angel process is used the

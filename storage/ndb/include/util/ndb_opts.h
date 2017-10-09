@@ -160,8 +160,10 @@ public:
 
   int handle_options(my_bool (*get_opt_fn)(int, const struct my_option *,
                                            char *) = ndb_std_get_one_option) const;
-
   void usage() const;
+
+  static void registerUsage(Ndb_opts *);
+  static void release();
 
 private:
   int * main_argc_ptr;

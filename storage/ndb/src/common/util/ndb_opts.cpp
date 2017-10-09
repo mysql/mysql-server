@@ -157,34 +157,24 @@ ndb_free_defaults(char** argv)
   free_defaults(argv);
 }
 
-/* In most utilities, Ndb_opts exhibits a singleton pattern.
-   We take advantage of this to tie in with MySQL's usage() API
-   in option processing.
-   The only exception is ndbd, where the angel process registers
-   an Ndb_opts, but then forks, and the data node (child) process
-   registers again.
-*/
-static Ndb_opts * singletonNdbOpts;
+static Ndb_opts * registeredNdbOpts;
 
 static void ndb_opts_usage()
 {
-  singletonNdbOpts->usage();
+  registeredNdbOpts->usage();
 }
 
 void
-registerNdbOpts(Ndb_opts *r)
+Ndb_opts::registerUsage(Ndb_opts *r)
 {
-  if(singletonNdbOpts == NULL)  // Not an assert -- see comment above
-  {
-    singletonNdbOpts = r;
-    ndb_opt_set_usage_funcs(default_ndb_opt_short, ndb_opts_usage);
-  }
+  assert(registeredNdbOpts == NULL);
+  registeredNdbOpts = r;
+  ndb_opt_set_usage_funcs(default_ndb_opt_short, ndb_opts_usage);
 }
 
-void
-unregisterNdbOpts()
+void Ndb_opts::release()
 {
-  singletonNdbOpts = NULL;
+  registeredNdbOpts = NULL;
 }
 
 Ndb_opts::Ndb_opts(int & argc_ref, char** & argv_ref,
@@ -199,15 +189,15 @@ Ndb_opts::Ndb_opts(int & argc_ref, char** & argv_ref,
 {
   NDB_INIT(argv_ref[0]);   // ndb_init() can safely be called more than once
   ndb_load_defaults(NULL, mycnf_default_groups, main_argc_ptr, main_argv_ptr);
-  registerNdbOpts(this); 
+  Ndb_opts::registerUsage(this);
   defaults_argv = * main_argv_ptr;
 };
 
 Ndb_opts::~Ndb_opts()
 {
+  Ndb_opts::release();
   ndb_free_defaults(defaults_argv);
   ndb_end(0);  // ndb_end() can safely be called more than once
-  unregisterNdbOpts();
 }
 
 int Ndb_opts::handle_options(my_bool (*get_opt_fn)
