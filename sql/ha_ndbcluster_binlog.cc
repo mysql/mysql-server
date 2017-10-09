@@ -3569,7 +3569,17 @@ class Ndb_schema_event_handler {
       mysqld_close_cached_table(schema->db, schema->name);
     }
     if (share)
+    {
+      /**
+       * We need to reset any pre-fetch auto_increment range
+       * since an open share may be kept during the truncate
+       * operation for mysql servers that don't monitor table
+       * DDL-events (if binlogging is disabled).
+       */
+      if (get_binlog_nologging(share))
+        reset_tuple_id_range(share);
       free_share(&share); // temporary ref.
+    }
 
     if (is_local_table(schema->db, schema->name))
     {
