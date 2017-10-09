@@ -49,6 +49,10 @@
 #include "storage/ndb/include/ndbapi/NdbDictionary.hpp"
 #include "storage/ndb/include/ndbapi/ndb_cluster_connection.hpp"
 
+// NOTE! Code in ndb_binlog_open_shadow_table using this class should
+// be moved to separate ndb_dd_*  file.
+#include "sql/dd/cache/dictionary_client.h"
+
 extern bool opt_ndb_log_orig;
 extern bool opt_ndb_log_bin;
 extern bool opt_ndb_log_update_as_write;

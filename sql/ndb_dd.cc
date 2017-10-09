@@ -26,6 +26,7 @@
 #include "sql/sql_class.h"
 
 #include "sql/dd/dd.h"
+#include "sql/dd/properties.h"
 #include "sql/dd/types/table.h"
 
 bool ndb_sdi_serialize(THD *thd,

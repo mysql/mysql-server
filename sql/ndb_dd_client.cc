@@ -26,6 +26,8 @@
 #include "dd/types/table.h"
 #include "dd/dd_table.h"
 #include "ndb_dd_sdi.h"
+#include "sql/dd/cache/dictionary_client.h"
+#include "sql/dd/properties.h"
 
 
 Ndb_dd_client::Ndb_dd_client(THD* thd) :
