@@ -498,6 +498,11 @@ DDL_Log_Table::insert(
 	dtuple_t*	entry;
 	ulint		flags = BTR_NO_LOCKING_FLAG;
 	mem_heap_t*	offsets_heap = mem_heap_create(1000);
+	static std::atomic<uint64_t>	count(0);
+
+	if (count++ % 64 == 0) {
+		log_free_check();
+	}
 
 	create_tuple(record);
 	entry = row_build_index_entry(m_tuple, NULL, index, m_heap);
@@ -792,6 +797,11 @@ DDL_Log_Table::remove(
 	dberr_t			error = DB_SUCCESS;
 	enum row_search_result	search_result;
 	ulint			flags = BTR_NO_LOCKING_FLAG;
+	static uint64_t		count = 0;
+
+	if (count++ % 64 == 0) {
+		log_free_check();
+	}
 
 	create_tuple(id, clust_index);
 

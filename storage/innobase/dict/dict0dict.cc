@@ -5582,6 +5582,8 @@ dict_persist_init(void)
 	UT_LIST_INIT(dict_persist->dirty_dict_tables,
 		     &dict_table_t::dirty_dict_tables);
 
+	dict_persist->num_dirty_tables = 0;
+
 	dict_persist->persisters = UT_NEW_NOKEY(Persisters());
 	dict_persist->persisters->add(PM_INDEX_CORRUPTED);
 	dict_persist->persisters->add(PM_TABLE_AUTO_INC);
@@ -5826,6 +5828,7 @@ dict_table_mark_dirty(
 		/* Fall through */
 	case METADATA_BUFFERED:
 		table->dirty_status = METADATA_DIRTY;
+		++dict_persist->num_dirty_tables;
 	}
 
 	ut_ad(table->in_dirty_dict_tables_list);
@@ -5926,6 +5929,8 @@ dict_table_persist_to_dd_table_buffer_low(
 	ut_a(error == DB_SUCCESS);
 
 	table->dirty_status = METADATA_BUFFERED;
+	ut_ad(dict_persist->num_dirty_tables > 0);
+	--dict_persist->num_dirty_tables;
 }
 
 /** Write back the dirty persistent dynamic metadata of the table
@@ -5999,8 +6004,55 @@ dict_persist_to_dd_table_buffer(void)
 		table = next;
 	}
 
+	ut_ad(dict_persist->num_dirty_tables == 0);
+
 	mutex_exit(&dict_persist->mutex);
 	return(persisted);
+}
+
+/** Calcualte the redo log margin for current tables which have some changed
+dynamic metadata in memory and have not been written back to
+mysql.innodb_dynamic_metadata
+@return the rough redo log margin for current dynamic metadata changes */
+uint64_t
+dict_persist_log_margin()
+{
+	/* Below variables basically considers only the AUTO_INCREMENT counter
+	and a small margin for corrupted indexes. */
+
+	/* Every table will generate less than 80 bytes without
+	considering page split */
+	static constexpr uint32_t	log_margin_per_table_no_split = 80;
+
+	/* Every table metadata log may roughly consume such many bytes. */
+	static constexpr uint32_t	record_size_per_table = 50;
+
+	/* How many tables may generate one page split */
+	static const uint32_t		tables_per_split =
+		(univ_page_size.physical() - PAGE_NEW_SUPREMUM_END)
+		/ record_size_per_table / 2;
+
+	/* Every page split needs at most this log margin, if not root split. */
+	static const uint32_t		log_margin_per_split_no_root = 500;
+
+	/* Extra marge for root split, we always leave this margin,
+	since we don't know exactly it will split root or not */
+	static const uint32_t		log_margin_per_split_root =
+		univ_page_size.physical() * 1.5;
+
+	/* Read without holding the dict_persist_t::mutex */
+	uint32_t	num_dirty_tables = dict_persist->num_dirty_tables;
+	uint32_t	total_splits = 0;
+	uint32_t	num_tables = num_dirty_tables;
+
+	while (num_tables > 0) {
+		total_splits += num_tables / tables_per_split + 1;
+		num_tables = num_tables / tables_per_split;
+	}
+
+	return(num_dirty_tables * log_margin_per_table_no_split
+	       + total_splits * log_margin_per_split_no_root
+	       + (num_dirty_tables == 0 ? 0 : log_margin_per_split_root));
 }
 
 #ifdef UNIV_DEBUG
