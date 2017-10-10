@@ -299,7 +299,7 @@ void THD::enter_stage(const PSI_stage_info *new_stage,
     const char *msg= new_stage->m_name;
 
 #if defined(ENABLED_PROFILING)
-    profiling.status_change(msg, calling_func, calling_file, calling_line);
+    profiling->status_change(msg, calling_func, calling_file, calling_line);
 #endif
 
     m_current_stage_key= new_stage->m_key;
@@ -379,6 +379,9 @@ THD::THD(bool enable_plugins)
    m_attachable_trx(NULL),
    table_map_for_update(0),
    m_examined_row_count(0),
+#if defined(ENABLED_PROFILING)
+   profiling(new PROFILING),
+#endif
    m_stage_progress_psi(NULL),
    m_digest(NULL),
    m_statement_psi(NULL),
@@ -503,7 +506,7 @@ THD::THD(bool enable_plugins)
 
   init();
 #if defined(ENABLED_PROFILING)
-  profiling.set_thd(this);
+  profiling->set_thd(this);
 #endif
   m_user_connect= NULL;
   user_vars.clear();
@@ -920,7 +923,7 @@ void THD::cleanup_connection(void)
   get_stmt_da()->reset_condition_info(this);
   // clear profiling information
 #if defined(ENABLED_PROFILING)
-  profiling.cleanup();
+  profiling->cleanup();
 #endif
 
 #ifndef DBUG_OFF
@@ -3056,4 +3059,30 @@ void THD::change_item_tree(Item **place, Item *new_value)
     nocheck_register_item_tree_change(place, new_value);
   }
   *place= new_value;
+}
+
+bool THD::notify_hton_pre_acquire_exclusive(const MDL_key *mdl_key,
+                                            bool *victimized)
+{
+  return ha_notify_exclusive_mdl(this, mdl_key, HA_NOTIFY_PRE_EVENT,
+                                 victimized);
+}
+
+void THD::notify_hton_post_release_exclusive(const MDL_key *mdl_key)
+{
+  bool unused_arg;
+  ha_notify_exclusive_mdl(this, mdl_key, HA_NOTIFY_POST_EVENT, &unused_arg);
+}
+
+void reattach_engine_ha_data_to_thd(THD *thd, const struct handlerton *hton)
+{
+  if (hton->replace_native_transaction_in_thd)
+  {
+    /* restore the saved original engine transaction's link with thd */
+    void **trx_backup= &thd->get_ha_data(hton->slot)->ha_ptr_backup;
+
+    hton->
+      replace_native_transaction_in_thd(thd, *trx_backup, NULL);
+    *trx_backup= NULL;
+  }
 }

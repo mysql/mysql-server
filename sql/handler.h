@@ -110,14 +110,6 @@ namespace AQP {
 
 extern ulong savepoint_alloc_size;
 
-/*
-  We preallocate data for several storage engine plugins.
-  so: innodb + bdb + ndb + binlog + myisam + myisammrg + archive +
-      example + csv + heap + blackhole + federated + 0
-  (yes, the sum is deliberately inaccurate)
-*/
-#define PREALLOC_NUM_HA 15
-
 /// Maps from slot to plugin. May return NULL if plugin has been unloaded.
 st_plugin_int *hton2plugin(uint slot);
 /// Returns the size of the array holding pointers to plugins.
@@ -828,7 +820,7 @@ enum enum_schema_tables
 };
 
 enum ha_stat_type { HA_ENGINE_STATUS, HA_ENGINE_LOGS, HA_ENGINE_MUTEX };
-enum ha_notification_type { HA_NOTIFY_PRE_EVENT, HA_NOTIFY_POST_EVENT };
+enum ha_notification_type : int { HA_NOTIFY_PRE_EVENT, HA_NOTIFY_POST_EVENT };
 
 /** Clone operation types. */
 enum Ha_clone_type
@@ -2106,8 +2098,8 @@ inline bool ddl_is_atomic(const handlerton *hton)
   return (hton->flags & HTON_SUPPORTS_ATOMIC_DDL) != 0;
 }
 
-enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
-			 ISO_REPEATABLE_READ, ISO_SERIALIZABLE};
+enum enum_tx_isolation : int { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
+			       ISO_REPEATABLE_READ, ISO_SERIALIZABLE};
 
 enum enum_stats_auto_recalc { HA_STATS_AUTO_RECALC_DEFAULT= 0,
                               HA_STATS_AUTO_RECALC_ON,

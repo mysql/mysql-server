@@ -151,7 +151,7 @@ Field (abstract)
 */
 
 
-enum enum_check_fields
+enum enum_check_fields : int
 {
   CHECK_FIELD_IGNORE,
   CHECK_FIELD_WARN,

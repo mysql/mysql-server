@@ -2167,7 +2167,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
 
 #if defined(ENABLED_PROFILING)
   /* Discard the initial part of executing routines. */
-  thd->profiling.discard_current_query();
+  thd->profiling->discard_current_query();
 #endif
   do
   {
@@ -2179,8 +2179,8 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
      Profiling only records information for segments of code that set the
      source of the query, and almost all kinds of instructions in s-p do not.
     */
-    thd->profiling.finish_current_query();
-    thd->profiling.start_new_query("continuing inside routine");
+    thd->profiling->finish_current_query();
+    thd->profiling->start_new_query("continuing inside routine");
 #endif
 
     /* get_instr returns NULL when we're done. */
@@ -2188,7 +2188,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
     if (i == NULL)
     {
 #if defined(ENABLED_PROFILING)
-      thd->profiling.discard_current_query();
+      thd->profiling->discard_current_query();
 #endif
       break;
     }
@@ -2295,8 +2295,8 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
   } while (!err_status && !thd->killed && !thd->is_fatal_error);
 
 #if defined(ENABLED_PROFILING)
-  thd->profiling.finish_current_query();
-  thd->profiling.start_new_query("tail end of routine");
+  thd->profiling->finish_current_query();
+  thd->profiling->start_new_query("tail end of routine");
 #endif
 
   /* Restore query context. */

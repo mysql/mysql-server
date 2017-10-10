@@ -83,8 +83,6 @@
 #include "sql/auth/sql_security_ctx.h"    // Security_context
 #include "sql/discrete_interval.h"        // Discrete_interval
 #include "sql/enum_query_type.h"
-#include "sql/field.h"
-#include "sql/handler.h"
 #include "sql/mdl.h"
 #include "sql/opt_costmodel.h"
 #include "sql/opt_trace_context.h"        // Opt_trace_context
@@ -103,7 +101,6 @@
 #include "sql/sql_error.h"
 #include "sql/sql_list.h"
 #include "sql/sql_plugin_ref.h"
-#include "sql/sql_profile.h"              // PROFILING
 #include "sql/sys_vars_resource_mgr.h"    // Session_sysvar_resource_manager
 #include "sql/system_variables.h"         // system_variables
 #include "sql/transaction_info.h"         // Ha_trx_info
@@ -111,8 +108,13 @@
 #include "thr_lock.h"
 #include "violite.h"
 
+enum enum_check_fields : int;
+enum enum_tx_isolation : int;
+enum ha_notification_type : int;
+class Field;
 class Item;
 class Parser_state;
+class PROFILING;
 class Query_arena;
 class Query_tables_list;
 class Relay_log_info;
@@ -181,6 +183,14 @@ extern LEX_STRING EMPTY_STR;
 extern LEX_STRING NULL_STR;
 extern LEX_CSTRING EMPTY_CSTR;
 extern LEX_CSTRING NULL_CSTR;
+
+/*
+  We preallocate data for several storage engine plugins.
+  so: innodb + bdb + ndb + binlog + myisam + myisammrg + archive +
+      example + csv + heap + blackhole + federated + 0
+  (yes, the sum is deliberately inaccurate)
+*/
+constexpr size_t PREALLOC_NUM_HA = 15;
 
 /**
   To be used for pool-of-threads (implemented differently on various OSs)
@@ -2098,7 +2108,7 @@ public:
 
   const CHARSET_INFO *db_charset;
 #if defined(ENABLED_PROFILING)
-  PROFILING  profiling;
+  std::unique_ptr<PROFILING> profiling;
 #endif
 
   /** Current stage progress instrumentation. */
@@ -2650,17 +2660,9 @@ public:
                                   bool needs_thr_lock_abort);
 
   virtual bool notify_hton_pre_acquire_exclusive(const MDL_key *mdl_key,
-                                                 bool *victimized)
-  {
-    return ha_notify_exclusive_mdl(this, mdl_key, HA_NOTIFY_PRE_EVENT,
-                                   victimized);
-  }
+                                                 bool *victimized);
 
-  virtual void notify_hton_post_release_exclusive(const MDL_key *mdl_key)
-  {
-    bool unused_arg;
-    ha_notify_exclusive_mdl(this, mdl_key, HA_NOTIFY_POST_EVENT, &unused_arg);
-  }
+  virtual void notify_hton_post_release_exclusive(const MDL_key *mdl_key);
 
   /**
     Provide thread specific random seed for MDL_context's PRNG.
@@ -4541,18 +4543,7 @@ private:
   @param hton        pointer to handlerton
 */
 
-inline void reattach_engine_ha_data_to_thd(THD *thd, const struct handlerton *hton)
-{
-  if (hton->replace_native_transaction_in_thd)
-  {
-    /* restore the saved original engine transaction's link with thd */
-    void **trx_backup= &thd->get_ha_data(hton->slot)->ha_ptr_backup;
-
-    hton->
-      replace_native_transaction_in_thd(thd, *trx_backup, NULL);
-    *trx_backup= NULL;
-  }
-}
+void reattach_engine_ha_data_to_thd(THD *thd, const struct handlerton *hton);
 
 /*************************************************************************/
 

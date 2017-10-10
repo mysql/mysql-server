@@ -240,8 +240,8 @@ static bool handle_bootstrap_impl(THD *thd)
     thd->set_query_id(next_query_id());
     DBUG_PRINT("query",("%-.4096s",thd->query().str));
 #if defined(ENABLED_PROFILING)
-    thd->profiling.start_new_query();
-    thd->profiling.set_query_source(thd->query().str, thd->query().length);
+    thd->profiling->start_new_query();
+    thd->profiling->set_query_source(thd->query().str, thd->query().length);
 #endif
 
     thd->set_time();
@@ -264,7 +264,7 @@ static bool handle_bootstrap_impl(THD *thd)
     thd->send_statement_status();
 
 #if defined(ENABLED_PROFILING)
-    thd->profiling.finish_current_query();
+    thd->profiling->finish_current_query();
 #endif
 
     if (bootstrap_error)

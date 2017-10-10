@@ -2024,8 +2024,8 @@ mysqld_stmt_execute(THD *thd, Prepared_statement *stmt, bool has_new_types,
   DBUG_ENTER("mysqld_stmt_execute");
 
 #if defined(ENABLED_PROFILING)
-  thd->profiling.set_query_source(stmt->m_query_string.str,
-                                  stmt->m_query_string.length);
+  thd->profiling->set_query_source(stmt->m_query_string.str,
+                                   stmt->m_query_string.length);
 #endif
   DBUG_PRINT("info",("stmt: %p", stmt));
 

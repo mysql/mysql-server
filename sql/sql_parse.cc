@@ -1117,8 +1117,8 @@ void execute_init_command(THD *thd, LEX_STRING *init_command,
   mysql_rwlock_unlock(var_lock);
 
 #if defined(ENABLED_PROFILING)
-  thd->profiling.start_new_query();
-  thd->profiling.set_query_source(buf, len);
+  thd->profiling->start_new_query();
+  thd->profiling->set_query_source(buf, len);
 #endif
 
   THD_STAGE_INFO(thd, stage_execution_of_init_command);
@@ -1136,7 +1136,7 @@ void execute_init_command(THD *thd, LEX_STRING *init_command,
   protocol->set_vio(save_vio);
 
 #if defined(ENABLED_PROFILING)
-  thd->profiling.finish_current_query();
+  thd->profiling->finish_current_query();
 #endif
 }
 
@@ -1430,7 +1430,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
 
   /* SHOW PROFILE instrumentation, begin */
 #if defined(ENABLED_PROFILING)
-  thd->profiling.start_new_query();
+  thd->profiling->start_new_query();
 #endif
 
   /* Performance Schema Interface instrumentation, begin */
@@ -1702,7 +1702,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     DBUG_PRINT("query",("%-.4096s", thd->query().str));
 
 #if defined(ENABLED_PROFILING)
-    thd->profiling.set_query_source(thd->query().str, thd->query().length);
+    thd->profiling->set_query_source(thd->query().str, thd->query().length);
 #endif
 
     Parser_state parser_state;
@@ -1751,13 +1751,13 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
 
 /* SHOW PROFILE end */
 #if defined(ENABLED_PROFILING)
-      thd->profiling.finish_current_query();
+      thd->profiling->finish_current_query();
 #endif
 
 /* SHOW PROFILE begin */
 #if defined(ENABLED_PROFILING)
-      thd->profiling.start_new_query("continuing");
-      thd->profiling.set_query_source(beginning_of_next_stmt, length);
+      thd->profiling->start_new_query("continuing");
+      thd->profiling->set_query_source(beginning_of_next_stmt, length);
 #endif
 
 /* PSI begin */
@@ -2134,7 +2134,7 @@ done:
 
   /* SHOW PROFILE instrumentation, end */
 #if defined(ENABLED_PROFILING)
-  thd->profiling.finish_current_query();
+  thd->profiling->finish_current_query();
 #endif
 
   DBUG_RETURN(error);
@@ -2231,10 +2231,10 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
   case SCH_PROFILES:
     /* 
       Mark this current profiling record to be discarded.  We don't
-      wish to have SHOW commands show up in profiling.
+      wish to have SHOW commands show up in profiling->
     */
 #if defined(ENABLED_PROFILING)
-    thd->profiling.discard_current_query();
+    thd->profiling->discard_current_query();
 #endif
     break;
   case SCH_OPTIMIZER_TRACE:
@@ -3134,8 +3134,8 @@ mysql_execute_command(THD *thd, bool first_level)
   case SQLCOM_SHOW_PROFILES:
   {
 #if defined(ENABLED_PROFILING)
-    thd->profiling.discard_current_query();
-    res= thd->profiling.show_profiles();
+    thd->profiling->discard_current_query();
+    res= thd->profiling->show_profiles();
     if (res)
       goto error;
 #else

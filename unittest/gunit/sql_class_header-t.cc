@@ -28,3 +28,15 @@
 #ifdef ITEM_INCLUDED
 #error "sql_class.h includes item.h directly or indirectly; it should not."
 #endif
+
+#ifdef FIELD_INCLUDED
+#error "sql_class.h includes field.h directly or indirectly; it should not."
+#endif
+
+#ifdef HANDLER_INCLUDED
+#error "sql_class.h includes handler.h directly or indirectly; it should not."
+#endif
+
+#ifdef _SQL_PROFILE_H
+#error "sql_class.h includes sql_profile.h directly or indirectly; it should not."
+#endif
