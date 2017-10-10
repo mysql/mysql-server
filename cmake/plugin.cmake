@@ -124,6 +124,27 @@ MACRO(MYSQL_ADD_PLUGIN)
     ADD_LIBRARY(${target} STATIC ${SOURCES})
     SET_TARGET_PROPERTIES(${target}
       PROPERTIES COMPILE_DEFINITIONS "MYSQL_SERVER")
+    # Collect all static libraries in the same directory
+    SET_TARGET_PROPERTIES(${target} PROPERTIES
+      ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/archive_output_directory)
+
+    # Keep track of known convenience libraries, in a global scope.
+    # Static plugins may be linked into the mysqlserver library (embedded)
+    SET(KNOWN_CONVENIENCE_LIBRARIES
+      ${KNOWN_CONVENIENCE_LIBRARIES} ${target} CACHE INTERNAL "" FORCE)
+
+    # Generate a cmake file which will save the name of the library.
+    CONFIGURE_FILE(
+      ${MYSQL_CMAKE_SCRIPT_DIR}/save_archive_location.cmake.in
+      ${CMAKE_BINARY_DIR}/archive_output_directory/lib_location_${target}.cmake
+      @ONLY)
+    ADD_CUSTOM_COMMAND(TARGET ${target} POST_BUILD
+      COMMAND ${CMAKE_COMMAND}
+      -DTARGET_NAME=${target}
+      -DTARGET_LOC=$<TARGET_FILE:${target}>
+      -DCFG_INTDIR=${CMAKE_CFG_INTDIR}
+      -P ${CMAKE_BINARY_DIR}/archive_output_directory/lib_location_${target}.cmake
+      )
 
     DTRACE_INSTRUMENT(${target})
     ADD_DEPENDENCIES(${target} GenError ${ARG_DEPENDENCIES})
