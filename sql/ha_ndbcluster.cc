@@ -84,6 +84,7 @@
 #include "sql/ndb_dd_client.h"
 #include "sql/ndb_dd_table.h"
 #include "sql/ndb_dummy_ts.h"
+#include "sql/ndb_server_hooks.h"
 
 using std::string;
 using std::unique_ptr;
@@ -98,7 +99,7 @@ static const ulong ONE_YEAR_IN_SECONDS= (ulong) 3600L*24L*365L;
 
 ulong opt_ndb_extra_logging;
 static ulong opt_ndb_wait_connected;
-ulong opt_ndb_wait_setup;
+static ulong opt_ndb_wait_setup;
 static uint opt_ndb_cluster_connection_pool;
 static char* opt_connection_pool_nodeids_str;
 static uint opt_ndb_recv_thread_activation_threshold;
@@ -358,10 +359,12 @@ bool ndb_show_foreign_key_mock_tables(THD* thd)
   return value;
 }
 
-static int ndbcluster_end(handlerton *hton, ha_panic_function flag);
+static int ndbcluster_end(handlerton *hton, ha_panic_function);
 static bool ndbcluster_show_status(handlerton *hton, THD*,
                                    stat_print_fn *,
                                    enum ha_stat_type);
+static int
+ndbcluster_make_pushed_join(handlerton *, THD*, const AQP::Join_plan*);
 
 static int ndbcluster_get_tablespace(THD* thd,
                                      LEX_CSTRING db_name,
@@ -13444,9 +13447,9 @@ Ndb_index_stat_thread ndb_index_stat_thread;
 
 extern THD * ndb_create_thd(char * stackptr);
 
-static int ndb_wait_setup_func_impl(ulong max_wait)
+static int ndb_wait_setup_func(ulong max_wait)
 {
-  DBUG_ENTER("ndb_wait_setup_func_impl");
+  DBUG_ENTER("ndb_wait_setup_func");
 
   mysql_mutex_lock(&ndbcluster_mutex);
 
@@ -13456,9 +13459,9 @@ static int ndb_wait_setup_func_impl(ulong max_wait)
   while (max_wait &&
          (!ndb_setup_complete || !ndb_index_stat_thread.is_setup_complete()))
   {
-    int rc= mysql_cond_timedwait(&ndbcluster_cond,
-                                 &ndbcluster_mutex,
-                                 &abstime);
+    const int rc= mysql_cond_timedwait(&ndbcluster_cond,
+                                       &ndbcluster_mutex,
+                                       &abstime);
     if (rc)
     {
       if (rc == ETIMEDOUT)
@@ -13510,10 +13513,44 @@ static int ndb_wait_setup_func_impl(ulong max_wait)
   DBUG_RETURN((ndb_setup_complete == 1)? 0 : 1);
 }
 
-int(*ndb_wait_setup_func)(ulong) = 0;
+
+/*
+  Function installed as server hook to be called just before
+  connections are allowed. Wait for --ndb-wait-setup= seconds
+  for ndbcluster connect to NDB and complete setup.
+*/
 
 static int
-ndbcluster_make_pushed_join(handlerton *, THD*, const AQP::Join_plan*);
+ndb_wait_setup_server_startup(void*)
+{
+  if (ndb_wait_setup_func(opt_ndb_wait_setup) != 0)
+  {
+    ndb_log_error("Tables not available after %lu seconds. Consider "
+                  "increasing --ndb-wait-setup value", opt_ndb_wait_setup);
+  }
+  return 0; // NOTE! return value ignored by caller
+}
+
+
+/*
+  Function installed as server hook to be called before the applier thread
+  starts. Wait --ndb-wait-setup= seconds for ndbcluster connect to NDB
+  and complete setup.
+*/
+
+static int
+ndb_wait_setup_replication_applier(void*)
+{
+  if (ndb_wait_setup_func(opt_ndb_wait_setup) != 0)
+  {
+    ndb_log_error("NDB Slave: Tables not available after %lu seconds. Consider "
+                  "increasing --ndb-wait-setup value", opt_ndb_wait_setup);
+  }
+  return 0; // NOTE! could return error to fail applier
+}
+
+static Ndb_server_hooks ndb_server_hooks;
+
 
 /* Version in composite numerical format */
 static Uint32 ndb_version = NDB_VERSION_D;
@@ -13549,6 +13586,7 @@ static int ndb_recv_thread_cpu_mask_check_str(const char *str);
 static int ndb_recv_thread_cpu_mask_update();
 handlerton* ndbcluster_hton;
 
+
 /*
   Handle failure from ndbcluster_init() by printing error
   message(s) and exit the MySQL Server.
@@ -13569,21 +13607,27 @@ void ndbcluster_init_abort(const char* error)
 
 
 /*
-  Initialize the ndbcluster storage engine
- */
+  Initialize the ndbcluster storage engine part of the "ndbcluster plugin"
+
+  NOTE! As this is the init() function for a storage engine plugin,
+  the function is passed a pointer to the handlerton and not
+  the "ndbcluster plugin"
+*/
 
 static
-int ndbcluster_init(void* p)
+int ndbcluster_init(void* handlerton_ptr)
 {
   DBUG_ENTER("ndbcluster_init");
   DBUG_ASSERT(!ndbcluster_inited);
+
+  handlerton* hton = static_cast<handlerton*>(handlerton_ptr);
 
   if (unlikely(opt_initialize))
   {
     /* Don't schema-distribute 'mysqld --initialize' of data dictionary */
     ndb_log_info("'--initialize' -> ndbcluster plugin disabled");
-    ((handlerton *)p)->state = SHOW_OPTION_DISABLED;
-    DBUG_ASSERT(!ha_storage_engine_is_enabled(static_cast<handlerton*>(p)));
+    hton->state = SHOW_OPTION_DISABLED;
+    DBUG_ASSERT(!ha_storage_engine_is_enabled(hton));
     DBUG_RETURN(0); // Return before init will disable ndbcluster-SE.
   }
 
@@ -13618,49 +13662,55 @@ int ndbcluster_init(void* p)
   mysql_cond_init(PSI_INSTRUMENT_ME, &ndbcluster_cond);
   ndb_dictionary_is_mysqld= 1;
   ndb_setup_complete= 0;
-  ndbcluster_hton= (handlerton *)p;
-  ndbcluster_global_schema_lock_init(ndbcluster_hton);
+  
+  ndbcluster_hton= hton;
+  ndbcluster_global_schema_lock_init(hton);
 
-  {
-    handlerton *h= ndbcluster_hton;
-    h->state=            SHOW_OPTION_YES;
-    h->db_type=          DB_TYPE_NDBCLUSTER;
-    h->close_connection= ndbcluster_close_connection;
-    h->commit=           ndbcluster_commit;
-    h->rollback=         ndbcluster_rollback;
-    h->create=           ndbcluster_create_handler; /* Create a new handler */
-    h->drop_database=    ndbcluster_drop_database;  /* Drop a database */
-    h->panic=            ndbcluster_end;            /* Panic call */
-    h->show_status=      ndbcluster_show_status;    /* Show status */
-    h->get_tablespace=   ndbcluster_get_tablespace; /* Get ts for old ver */
-    h->alter_tablespace=
-        ndbcluster_alter_tablespace; /* Tablespace and logfile group */
-    h->partition_flags=  ndbcluster_partition_flags; /* Partition flags */
-    ndbcluster_binlog_init(h);
-    h->flags=            HTON_TEMPORARY_NOT_SUPPORTED |
-                         HTON_NO_BINLOG_ROW_OPT |
-                         HTON_SUPPORTS_FOREIGN_KEYS |
-                         HTON_SUPPORTS_ATOMIC_DDL;
-    h->discover=         ndbcluster_discover;
-    h->table_exists_in_engine= ndbcluster_table_exists_in_engine;
-    h->make_pushed_join= ndbcluster_make_pushed_join;
-    h->is_supported_system_table = is_supported_system_table;
+  hton->state=            SHOW_OPTION_YES;
+  hton->db_type=          DB_TYPE_NDBCLUSTER;
+  hton->close_connection= ndbcluster_close_connection;
+  hton->commit=           ndbcluster_commit;
+  hton->rollback=         ndbcluster_rollback;
+  hton->create=           ndbcluster_create_handler; /* Create a new handler */
+  hton->drop_database=    ndbcluster_drop_database;  /* Drop a database */
+  hton->panic=            ndbcluster_end;            /* Panic call */
+  hton->show_status=      ndbcluster_show_status;    /* Show status */
+  hton->get_tablespace=   ndbcluster_get_tablespace; /* Get ts for old ver */
+  hton->alter_tablespace=
+      ndbcluster_alter_tablespace; /* Tablespace and logfile group */
+  hton->partition_flags=  ndbcluster_partition_flags; /* Partition flags */
+  ndbcluster_binlog_init(hton);
+  hton->flags=            HTON_TEMPORARY_NOT_SUPPORTED |
+                          HTON_NO_BINLOG_ROW_OPT |
+                          HTON_SUPPORTS_FOREIGN_KEYS |
+                          HTON_SUPPORTS_ATOMIC_DDL;
+  hton->discover=         ndbcluster_discover;
+  hton->table_exists_in_engine= ndbcluster_table_exists_in_engine;
+  hton->make_pushed_join= ndbcluster_make_pushed_join;
+  hton->is_supported_system_table = is_supported_system_table;
 
-    {
-      // Install dummy callbacks to avoid writing <tablename>_<id>.SDI files
-      // in the data directory, those are just cumbersome having to delete
-      // and or rename on the other MySQL servers
-      h->sdi_create = ndb_dummy_ts::sdi_create;
-      h->sdi_drop = ndb_dummy_ts::sdi_drop;
-      h->sdi_get_keys = ndb_dummy_ts::sdi_get_keys;
-      h->sdi_get = ndb_dummy_ts::sdi_get;
-      h->sdi_set = ndb_dummy_ts::sdi_set;
-      h->sdi_delete = ndb_dummy_ts::sdi_delete;
-    }
-  }
+  // Install dummy callbacks to avoid writing <tablename>_<id>.SDI files
+  // in the data directory, those are just cumbersome having to delete
+  // and or rename on the other MySQL servers
+  hton->sdi_create = ndb_dummy_ts::sdi_create;
+  hton->sdi_drop = ndb_dummy_ts::sdi_drop;
+  hton->sdi_get_keys = ndb_dummy_ts::sdi_get_keys;
+  hton->sdi_get = ndb_dummy_ts::sdi_get;
+  hton->sdi_set = ndb_dummy_ts::sdi_set;
+  hton->sdi_delete = ndb_dummy_ts::sdi_delete;
 
   // Initialize NdbApi
   ndb_init_internal(1);
+
+  if (!ndb_server_hooks.register_server_started(ndb_wait_setup_server_startup))
+  {
+    ndbcluster_init_abort("Failed to register ndb_wait_setup at server startup");
+  }
+
+  if (!ndb_server_hooks.register_applier_start(ndb_wait_setup_replication_applier))
+  {
+    ndbcluster_init_abort("Failed to register ndb_wait_setup at applier start");
+  }
 
   /* allocate connection resources and connect to cluster */
   const uint global_opti_node_select= THDVAR(NULL, optimized_node_selection);
@@ -13694,6 +13744,7 @@ int ndbcluster_init(void* p)
   ndbcluster_dropped_tables.reset
     (new collation_unordered_map<std::string, NDB_SHARE *>
        (table_alias_charset, PSI_INSTRUMENT_ME));
+
   /* start the ndb injector thread */
   if (ndbcluster_binlog_start())
   {
@@ -13707,8 +13758,6 @@ int ndbcluster_init(void* p)
     ndbcluster_init_abort("Failed to start NDB Index Stat");
   }
 
-  ndb_wait_setup_func= ndb_wait_setup_func_impl;
-
   memset(&g_slave_api_client_stats, 0, sizeof(g_slave_api_client_stats));
 
   ndbcluster_inited= 1;
@@ -13717,7 +13766,7 @@ int ndbcluster_init(void* p)
 }
 
 
-static int ndbcluster_end(handlerton *hton, ha_panic_function type)
+static int ndbcluster_end(handlerton *hton, ha_panic_function)
 {
   DBUG_ENTER("ndbcluster_end");
 
@@ -13728,6 +13777,9 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
   /* Stop threads started by ndbcluster_init() */
   ndb_index_stat_thread.stop();
   ndbcluster_binlog_end();
+
+  // Unregister all server hooks
+  ndb_server_hooks.unregister_all();
 
   {
     mysql_mutex_lock(&ndbcluster_mutex);
@@ -13794,6 +13846,22 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
 
   DBUG_RETURN(0);
 }
+
+
+/*
+  Deintialize the ndbcluster storage engine part of the "ndbcluster plugin"
+
+  NOTE! As this is the deinit() function for a storage engine plugin,
+  the function is passed a pointer to the handlerton and not
+  the "ndbcluster plugin"
+*/
+
+static int
+ndbcluster_deinit(void*)
+{
+  return 0;
+}
+
 
 void ha_ndbcluster::print_error(int error, myf errflag)
 {
@@ -19467,7 +19535,7 @@ mysql_declare_plugin(ndbcluster)
   PLUGIN_LICENSE_GPL,
   ndbcluster_init,            /* plugin init */
   NULL,                       /* plugin check uninstall */
-  NULL,                       /* plugin deinit */
+  ndbcluster_deinit,          /* plugin deinit */
   0x0100,                     /* plugin version */
   ndb_status_vars,            /* status variables */
   system_variables,           /* system variables */
