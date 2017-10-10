@@ -32,7 +32,7 @@
 --echo [on master]
 connection master;
 CREATE USER rpluser_with_length_32_123456789@127.0.0.1 IDENTIFIED BY 'rpl';
---error 1470
+--error ER_WRONG_STRING_LENGTH
 CREATE USER rpluser_with_length_32_1234567890@127.0.0.1 IDENTIFIED BY 'rpl';
 GRANT REPLICATION SLAVE ON *.* TO rpluser_with_length_32_123456789@127.0.0.1;
 
@@ -150,19 +150,18 @@ CREATE USER u2 IDENTIFIED WITH 'caching_sha2_password' BY 'pwd_u2';
 --echo [on master]
 connection master;
 FLUSH PRIVILEGES;
---echo # Ensure that affect of FLUSH PRIVILEGE is prpoagated and cache from slave is also cleaned
+--echo # Ensure that affect of FLUSH PRIVILEGE is propagated and cache from slave is also cleaned
 --error 1
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -uu2 -ppwd_u2 --ssl-mode=DISABLED -e "SELECT USER(), CURRENT_USER()" 2>&1
+--source include/sync_slave_sql_with_master.inc
+--echo [on slave]
 --error 1
 --exec $MYSQL --host=127.0.0.1 -P $SLAVE_MYPORT -uu2 -ppwd_u2 --ssl-mode=DISABLED -e "SELECT USER(), CURRENT_USER()" 2>&1
 
---echo [on slave]
---connection slave
 source include/stop_slave.inc;
 
 --echo ==== Cleanup (Note that slave IO thread is not running) ====
 # cleanup: slave io thread has stopped so we reset replication
---source include/stop_slave_sql.inc
 --replace_column 2 ####
 CHANGE MASTER TO MASTER_USER = 'root', MASTER_PASSWORD = '';
 # clear Slave_IO_Errno
