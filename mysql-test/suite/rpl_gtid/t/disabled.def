@@ -10,4 +10,4 @@
 #
 ##############################################################################
 rpl_gtid_delete_memory_table_after_start_server : BUG#24351040 29/8/2017 Ivo Roylev
-rpl_gtid_perfschema_applier_xa_status : BUG#26710081 Aug 30 2017 Sujatha Disabled until bug is fixed
+

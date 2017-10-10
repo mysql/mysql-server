@@ -1422,7 +1422,8 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht_arg,
 */
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
   if (thd->m_transaction_psi == NULL &&
-      ht_arg->db_type != DB_TYPE_BINLOG)
+      ht_arg->db_type != DB_TYPE_BINLOG &&
+      !thd->is_attachable_transaction_active())
   {
     const XID *xid= trn_ctx->xid_state()->get_xid();
     bool autocommit= !thd->in_multi_stmt_transaction_mode();
