@@ -29,7 +29,9 @@ INCLUDE_DIRECTORIES(
 IF(NOT WIN32)
   ADD_DEFINITIONS(-DDEFAULT_PREFIX=\"${CMAKE_INSTALL_PREFIX}\")
 ENDIF()
-ADD_EXECUTABLE(atrt main.cpp setup.cpp files.cpp db.cpp command.cpp)
+MYSQL_ADD_EXECUTABLE(atrt main.cpp setup.cpp files.cpp db.cpp command.cpp
+  DESTINATION mysql-test/ndb
+  )
 TARGET_LINK_LIBRARIES(atrt ndbNDBT ndbclient_static mysqlclient)
 
 FILE(GLOB testcase_files RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*-tests.txt")
@@ -50,7 +52,6 @@ ADD_CUSTOM_COMMAND(OUTPUT check_testcase_files.passed
 ADD_CUSTOM_TARGET(check_testcase_files ALL
                   SOURCES check_testcase_files.passed)
 
-INSTALL(TARGETS atrt DESTINATION mysql-test/ndb)
 INSTALL(PROGRAMS   atrt-testBackup atrt-mysql-test-run
         DESTINATION bin)
 INSTALL(PROGRAMS atrt-analyze-result.sh atrt-backtrace.sh atrt-gather-result.sh
