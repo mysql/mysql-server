@@ -3523,6 +3523,47 @@ FROM t  GROUP BY a);
 DROP TABLE twf,t;
 
 --echo #
+--echo # Bug#26802696: DENSE_RANK WRONG WITH BUFFERED PROCESSING
+--echo #
+CREATE TABLE employee(department_id INT, salary INT);
+
+INSERT INTO employee VALUES (10, NULL),
+                            (10, 100000),
+                            (10, 60000),
+                            (10, 60000),
+                            (10, 70000),
+                            (20, 80000),
+                            (20, 65000),
+                            (20, 65000),
+                            (30, 300000),
+                            (30, 70000),
+                            (NULL, 75000);
+--echo with partitions
+SELECT department_id, salary,
+       RANK() OVER w AS rnk,
+       DENSE_RANK() OVER w AS dense,
+       NTILE(4) over w AS ntil,
+       CUME_DIST() OVER w AS cume,
+       PERCENT_RANK() over w AS `%rnk`
+  FROM employee
+  WINDOW w AS (PARTITION BY department_id
+               ORDER BY salary DESC)
+  ORDER BY department_id, salary DESC;
+
+--echo just default partition
+SELECT department_id, salary,
+       RANK() OVER w AS rnk,
+       DENSE_RANK() OVER w AS dense,
+       NTILE(4) over w AS ntil,
+       CUME_DIST() OVER w AS cume,
+       PERCENT_RANK() over w AS `%rnk`
+  FROM employee
+  WINDOW w AS (ORDER BY salary DESC)
+  ORDER BY salary DESC;
+
+DROP TABLE employee;
+
+--echo #
 --echo # Check that user hasn't changed default internal temporary table storage
 --echo # engine
 --echo #
