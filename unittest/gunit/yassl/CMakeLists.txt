@@ -27,5 +27,5 @@ STRING(REGEX REPLACE "-Werror( |$)" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
 MYSQL_ADD_EXECUTABLE(yassl-t yassl-t.cc ADD_TEST yassl)
 ADD_COMPILE_FLAGS(yassl-t.cc COMPILE_FLAGS ${DISABLE_PSI_OPTIONS})
-TARGET_LINK_LIBRARIES(yassl-t gunit_small sqlgunitlib strings dbug regex)
+TARGET_LINK_LIBRARIES(yassl-t gunit_small sqlgunitlib strings dbug)
 TARGET_LINK_LIBRARIES(yassl-t ${LIBSOCKET})

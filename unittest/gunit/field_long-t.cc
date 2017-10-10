@@ -21,6 +21,8 @@
 #include "sql/field.h"
 #include "unittest/gunit/fake_table.h"
 #include "unittest/gunit/test_utils.h"
+#include "unittest/gunit/mock_field_long.h"
+
 
 namespace field_long_unittest {
 
@@ -40,35 +42,6 @@ protected:
   Field_set *create_field_set(TYPELIB *tl);
 };
 
-class Mock_field_long : public Field_long
-{
-  uchar buffer[PACK_LENGTH];
-  uchar null_byte;
-  void initialize()
-  {
-    ptr= buffer;
-    memset(buffer, 0, PACK_LENGTH);
-    null_byte= '\0';
-    set_null_ptr(&null_byte, 1);
-  }
-public:
-  Mock_field_long()
-    : Field_long(0,                             // ptr_arg
-                 8,                             // len_arg
-                 NULL,                          // null_ptr_arg
-                 1,                             // null_bit_arg
-                 Field::NONE,                   // auto_flags_arg
-                 "field_name",                  // field_name_arg
-                 false,                         // zero_arg
-                 false)                         // unsigned_arg
-  {
-    initialize();
-  }
-
-  void make_writable() { bitmap_set_bit(table->write_set, field_index); }
-  void make_readable() { bitmap_set_bit(table->read_set, field_index); }
-
-};
 
 void test_store_long(Field_long *field,
                      const longlong store_value,

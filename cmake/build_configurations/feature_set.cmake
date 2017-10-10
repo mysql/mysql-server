@@ -1,4 +1,4 @@
-# Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -44,3 +44,4 @@ ENDIF()
 
 SET(WITH_SSL bundled CACHE STRING "")
 SET(WITH_ZLIB bundled CACHE STRING "")
+SET(WITH_ICU bundled CACHE STRING "")

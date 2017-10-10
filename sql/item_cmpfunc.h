@@ -1981,35 +1981,6 @@ public:
 };
 
 
-class Item_func_regex final : public Item_bool_func
-{
-  my_regex_t preg;
-  bool regex_compiled;
-  bool regex_is_const;
-  String prev_regexp;
-  DTCollation cmp_collation;
-  const CHARSET_INFO *regex_lib_charset;
-  int regex_lib_flags;
-  String conv;
-  int regcomp(bool send_error);
-public:
-  Item_func_regex(const POS &pos, Item *a,Item *b) :Item_bool_func(pos, a,b),
-    regex_compiled(0),regex_is_const(0) {}
-  void cleanup() override;
-  longlong val_int() override;
-  bool fix_fields(THD *thd, Item **ref) override;
-  const char *func_name() const override { return "regexp"; }
-
-  void print(String *str, enum_query_type query_type) override
-  {
-    print_op(str, query_type);
-  }
-
-  const CHARSET_INFO *compare_collation() const override
-  { return cmp_collation.collation; }
-};
-
-
 class Item_cond :public Item_bool_func
 {
   typedef Item_bool_func super;
