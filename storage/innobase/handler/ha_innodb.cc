@@ -140,6 +140,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0sdi.h"
 #include "dict0upgrade.h"
 #include "sql_base.h" // OPEN_FRM_FILE_ONLY
+#include "sql/item.h"
 #include "trx0roll.h"
 #include "trx0rseg.h"
 #include "trx0sys.h"

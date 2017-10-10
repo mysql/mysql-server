@@ -85,7 +85,6 @@
 #include "sql/enum_query_type.h"
 #include "sql/field.h"
 #include "sql/handler.h"
-#include "sql/item.h"
 #include "sql/mdl.h"
 #include "sql/opt_costmodel.h"
 #include "sql/opt_trace_context.h"        // Opt_trace_context
@@ -112,6 +111,7 @@
 #include "thr_lock.h"
 #include "violite.h"
 
+class Item;
 class Parser_state;
 class Query_arena;
 class Query_tables_list;
@@ -3004,20 +3004,7 @@ public:
   { return variables.character_set_client; }
   void update_charset();
 
-  void change_item_tree(Item **place, Item *new_value)
-  {
-    /* TODO: check for OOM condition here */
-    if (!stmt_arena->is_conventional())
-    {
-      DBUG_PRINT("info",
-                 ("change_item_tree place %p old_value %p new_value %p",
-                  place, *place, new_value));
-      if (new_value)
-        new_value->set_runtime_created(); /* Note the change of item tree */
-      nocheck_register_item_tree_change(place, new_value);
-    }
-    *place= new_value;
-  }
+  void change_item_tree(Item **place, Item *new_value);
 
   /**
     Remember that place was updated with new_value so it can be restored

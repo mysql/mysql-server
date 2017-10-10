@@ -25,3 +25,6 @@
 #error "sql_class.h includes sql_lex.h directly or indirectly; it should not."
 #endif
 
+#ifdef ITEM_INCLUDED
+#error "sql_class.h includes item.h directly or indirectly; it should not."
+#endif

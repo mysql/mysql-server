@@ -3042,3 +3042,18 @@ THD::Transaction_state::Transaction_state(MEM_ROOT *root)
   : m_query_tables_list(new (root) Query_tables_list),
     m_ha_data(PSI_NOT_INSTRUMENTED, m_ha_data.initial_capacity)
 {}
+
+void THD::change_item_tree(Item **place, Item *new_value)
+{
+  /* TODO: check for OOM condition here */
+  if (!stmt_arena->is_conventional())
+  {
+    DBUG_PRINT("info",
+               ("change_item_tree place %p old_value %p new_value %p",
+                place, *place, new_value));
+    if (new_value)
+      new_value->set_runtime_created(); /* Note the change of item tree */
+    nocheck_register_item_tree_change(place, new_value);
+  }
+  *place= new_value;
+}
