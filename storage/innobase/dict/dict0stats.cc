@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2009, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2009, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -37,6 +37,7 @@ Created Jan 06, 2010 Vasil Dimov
 #include "ha_prototypes.h"
 #include "ut0new.h"
 #include <mysql_com.h>
+#include "row0mysql.h"
 
 #include <algorithm>
 #include <map>
@@ -3590,6 +3591,9 @@ This function creates its own transaction and commits it.
 dberr_t
 dict_stats_rename_table(
 /*====================*/
+	bool		dict_locked,	/*!< in: true if dict_sys mutex
+					and dict_operation_lock are held,
+					otherwise false*/
 	const char*	old_name,	/*!< in: old name, e.g. 'db/table' */
 	const char*	new_name,	/*!< in: new name, e.g. 'db/table' */
 	char*		errstr,		/*!< out: error string if != DB_SUCCESS
@@ -3602,9 +3606,10 @@ dict_stats_rename_table(
 	char		new_table_utf8[MAX_TABLE_UTF8_LEN];
 	dberr_t		ret;
 
-	ut_ad(!rw_lock_own(dict_operation_lock, RW_LOCK_X));
-	ut_ad(!mutex_own(&dict_sys->mutex));
-
+	if (!dict_locked) {
+		ut_ad(!rw_lock_own(dict_operation_lock, RW_LOCK_X));
+		ut_ad(!mutex_own(&dict_sys->mutex));
+	}
 	/* skip innodb_table_stats and innodb_index_stats themselves */
 	if (strcmp(old_name, TABLE_STATS_NAME) == 0
 	    || strcmp(old_name, INDEX_STATS_NAME) == 0
@@ -3620,9 +3625,10 @@ dict_stats_rename_table(
 	dict_fs2utf8(new_name, new_db_utf8, sizeof(new_db_utf8),
 		     new_table_utf8, sizeof(new_table_utf8));
 
-	rw_lock_x_lock(dict_operation_lock);
-	mutex_enter(&dict_sys->mutex);
-
+	if (!dict_locked) {
+		rw_lock_x_lock(dict_operation_lock);
+		mutex_enter(&dict_sys->mutex);
+	}
 	ulint	n_attempts = 0;
 	do {
 		n_attempts++;
@@ -3708,9 +3714,10 @@ dict_stats_rename_table(
 		  || ret == DB_LOCK_WAIT_TIMEOUT)
 		 && n_attempts < 5);
 
-	mutex_exit(&dict_sys->mutex);
-	rw_lock_x_unlock(dict_operation_lock);
-
+	if(!dict_locked) {
+		mutex_exit(&dict_sys->mutex);
+		rw_lock_x_unlock(dict_operation_lock);
+	}
 	if (ret != DB_SUCCESS) {
 		ut_snprintf(errstr, errstr_sz,
 			    "Unable to rename statistics from"

@@ -28,6 +28,9 @@ Created 9/17/2000 Heikki Tuuri
 #include <debug_sync.h>
 #include <gstream.h>
 #include <spatial.h>
+#include <log.h>
+#include <mysys_err.h>
+#include <sql_error.h>
 
 #include "row0mysql.h"
 
@@ -5725,12 +5728,14 @@ funct_exit:
 }
 
 /** Renames a partitioned table for MySQL.
+@parama[in]	thd		Connection thread handle
 @param[in]	old_name	Old table name.
 @param[in]	new_name	New table name.
 @param[in,out]	trx		Transaction.
 @return error code or DB_SUCCESS */
 dberr_t
 row_rename_partitions_for_mysql(
+	THD*		thd,
 	const char*	old_name,
 	const char*	new_name,
 	trx_t*		trx)
@@ -5765,6 +5770,16 @@ row_rename_partitions_for_mysql(
 			strlen(table_name) - from_len + 1);
 		error = row_rename_table_for_mysql(table_name, to_name,
 						trx, false);
+		if (error == DB_SUCCESS) {
+			char    errstr[512];
+			error = dict_stats_rename_table(true, table_name, to_name,
+                                              errstr, sizeof(errstr));
+			if (error != DB_SUCCESS) {
+				ib::error() << errstr;
+				push_warning(thd, Sql_condition::SL_WARNING,
+                                     ER_LOCK_WAIT_TIMEOUT, errstr);
+			}
+		}
 		if (error != DB_SUCCESS) {
 			/* Rollback and return. */
 			trx_rollback_for_mysql(trx);
