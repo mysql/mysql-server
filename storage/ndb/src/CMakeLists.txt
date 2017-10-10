@@ -49,8 +49,24 @@ SET(NDBCLIENT_LIBS
   ndbgeneral
   ndbconf)
 
-MERGE_LIBRARIES(
-  ndbclient_static STATIC ${NDBCLIENT_LIBS} COMPONENT Development)
+MERGE_CONVENIENCE_LIBRARIES(
+  ndbclient_static ${NDBCLIENT_LIBS} COMPONENT Development)
+
+SET(KNOWN_CONVENIENCE_LIBRARIES
+  ${KNOWN_CONVENIENCE_LIBRARIES} ndbclient_static CACHE INTERNAL "" FORCE)
+
+# Generate a cmake file which will save the name of the library.
+CONFIGURE_FILE(
+  ${MYSQL_CMAKE_SCRIPT_DIR}/save_archive_location.cmake.in
+  ${CMAKE_BINARY_DIR}/archive_output_directory/lib_location_ndbclient_static.cmake
+  @ONLY)
+ADD_CUSTOM_COMMAND(TARGET ndbclient_static POST_BUILD
+  COMMAND ${CMAKE_COMMAND}
+  -DTARGET_NAME=ndbclient_static
+  -DTARGET_LOC=$<TARGET_FILE:ndbclient_static>
+  -DCFG_INTDIR=${CMAKE_CFG_INTDIR}
+  -P ${CMAKE_BINARY_DIR}/archive_output_directory/lib_location_ndbclient_static.cmake
+  )
 
 # Build test program to check linking against ndclient_static
 ADD_EXECUTABLE(ndbclient_static_link_test ndbclient_link_test.cpp)
