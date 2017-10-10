@@ -1265,3 +1265,31 @@ begin;
 update test12 set grade=0,date=now()  where age=20 and
 partition_id=1;
 drop table test12;
+
+
+Bug #26390658   RENAMING A PARTITIONED TABLE DOES NOT UPDATE
+MYSQL.INNODB_TABLE_STATS.
+
+CREATE DATABASE test_jfg;
+CREATE TABLE test_jfg.test_jfg1 (id int(10) unsigned NOT NULL,PRIMARY
+KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC;
+CREATE TABLE test_jfg.test_jfg2 (id int(10) unsigned NOT NULL,PRIMARY
+KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+PARTITION BY RANGE ( id ) (PARTITION p1000 VALUES LESS THAN (1000)
+ENGINE = InnoDB,PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE =
+InnoDB);
+SELECT database_name, table_name FROM mysql.innodb_table_stats WHERE
+database_name = 'test_jfg';
+database_name	table_name
+test_jfg	test_jfg1
+test_jfg	test_jfg2#P#p1000
+test_jfg	test_jfg2#P#pmax
+RENAME TABLE test_jfg.test_jfg1 TO test_jfg.test_jfg11;
+RENAME TABLE test_jfg.test_jfg2 TO test_jfg.test_jfg12;
+SELECT database_name, table_name FROM mysql.innodb_table_stats WHERE
+database_name = 'test_jfg';
+database_name	table_name
+test_jfg	test_jfg11
+test_jfg	test_jfg12#P#p1000
+test_jfg	test_jfg12#P#pmax
+DROP DATABASE test_jfg;

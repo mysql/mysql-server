@@ -547,6 +547,7 @@ row_rename_table_for_mysql(
 @return error code or DB_SUCCESS */
 dberr_t
 row_rename_partitions_for_mysql(
+	THD*		thd,
 	const char*	old_name,
 	const char*	new_name,
 	trx_t*		trx)
