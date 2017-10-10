@@ -506,6 +506,7 @@
 #include "sql/sys_vars_shared.h"        // intern_find_sys_var
 #include "sql/table_cache.h"            // table_cache_manager
 #include "sql/tc_log.h"                 // tc_log
+#include "sql/thd_raii.h"
 #include "sql/thr_malloc.h"
 #include "sql/transaction.h"
 #include "sql/tztime.h"                 // Time_zone

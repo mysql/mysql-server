@@ -53,7 +53,6 @@
 #include <sys/types.h>
 #include <time.h>
 #include <atomic>
-#include <memory>
 #include <new>
 #include <string>
 
@@ -69,9 +68,8 @@
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "my_table_map.h"
-#include "my_thread.h"
 #include "my_thread_local.h"
-#include "mysql/plugin.h"
+#include "mysql/plugin.h"                 // Needed by the thd_proc_info() macro.
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_statement.h"
 #include "mysql/psi/psi_base.h"
@@ -82,7 +80,6 @@
 #include "prealloced_array.h"
 #include "sql/auth/sql_security_ctx.h"    // Security_context
 #include "sql/discrete_interval.h"        // Discrete_interval
-#include "sql/enum_query_type.h"
 #include "sql/mdl.h"
 #include "sql/opt_costmodel.h"
 #include "sql/opt_trace_context.h"        // Opt_trace_context
@@ -93,8 +90,6 @@
 #include "sql/rpl_context.h"              // Rpl_thd_context
 #include "sql/rpl_gtid.h"
 #include "sql/session_tracker.h"          // Session_tracker
-#include "sql/set_var.h"
-#include "sql/sql_cmd.h"
 #include "sql/sql_connect.h"
 #include "sql/sql_const.h"
 #include "sql/sql_digest_stream.h"        // sql_digest_state
@@ -115,7 +110,6 @@ class Field;
 class Item;
 class Parser_state;
 class PROFILING;
-class Query_arena;
 class Query_tables_list;
 class Relay_log_info;
 class THD;
@@ -125,9 +119,6 @@ class user_var_entry;
 struct LEX;
 struct LEX_USER;
 struct ORDER;
-struct PSI_idle_locker;
-struct PSI_statement_locker;
-struct PSI_transaction_locker;
 struct TABLE;
 struct TABLE_LIST;
 struct User_level_lock;
@@ -4338,201 +4329,6 @@ void add_order_to_list(THD *thd, ORDER *order);
 
 /*************************************************************************/
 
-/** RAII class for temporarily turning off @@autocommit in the connection. */
-
-class Disable_autocommit_guard
-{
-public:
-
-  /**
-    @param thd  non-NULL - pointer to the context of connection in which
-                           @@autocommit mode needs to be disabled.
-                NULL     - if @@autocommit mode needs to be left as is.
-  */
-  Disable_autocommit_guard(THD *thd)
-    : m_thd(thd), m_save_option_bits(thd ? thd->variables.option_bits : 0)
-  {
-    if (m_thd)
-    {
-      /*
-        We can't disable auto-commit if there is ongoing transaction as this
-        might easily break statement/session transaction invariants.
-      */
-      DBUG_ASSERT(m_thd->get_transaction()->is_empty(Transaction_ctx::STMT) &&
-                  m_thd->get_transaction()->is_empty(Transaction_ctx::SESSION));
-
-      m_thd->variables.option_bits&= ~OPTION_AUTOCOMMIT;
-      m_thd->variables.option_bits|= OPTION_NOT_AUTOCOMMIT;
-    }
-  }
-
-  ~Disable_autocommit_guard()
-  {
-    if (m_thd)
-    {
-      /*
-        Both session and statement transactions need to be finished by the
-        time when we enable auto-commit mode back.
-      */
-      DBUG_ASSERT(m_thd->get_transaction()->is_empty(Transaction_ctx::STMT) &&
-                  m_thd->get_transaction()->is_empty(Transaction_ctx::SESSION));
-      m_thd->variables.option_bits= m_save_option_bits;
-    }
-  }
-
-private:
-  THD *m_thd;
-  ulonglong m_save_option_bits;
-};
-
-
-/**
-  RAII class which allows to temporary disable updating Gtid_state.
-*/
-
-class Disable_gtid_state_update_guard
-{
-public:
-  Disable_gtid_state_update_guard(THD *thd)
-    : m_thd(thd),
-      m_save_is_operating_substatement_implicitly(
-          thd->is_operating_substatement_implicitly),
-      m_save_skip_gtid_rollback(thd->skip_gtid_rollback)
-  {
-    m_thd->is_operating_substatement_implicitly= true;
-    m_thd->skip_gtid_rollback= true;
-  }
-
-  ~Disable_gtid_state_update_guard()
-  {
-    m_thd->is_operating_substatement_implicitly=
-      m_save_is_operating_substatement_implicitly;
-    m_thd->skip_gtid_rollback= m_save_skip_gtid_rollback;
-  }
-private:
-  THD *m_thd;
-  bool m_save_is_operating_substatement_implicitly;
-  bool m_save_skip_gtid_rollback;
-};
-
-
-/**
-  RAII class to temporarily disable binlogging.
-*/
-
-class Disable_binlog_guard
-{
-public:
-  Disable_binlog_guard(THD *thd)
-    : m_thd(thd), m_binlog_disabled(thd->variables.option_bits & OPTION_BIN_LOG)
-  {
-    thd->variables.option_bits &= ~OPTION_BIN_LOG;
-  }
-
-  ~Disable_binlog_guard()
-  {
-    if (m_binlog_disabled)
-      m_thd->variables.option_bits |= OPTION_BIN_LOG;
-  }
-
-private:
-  THD * const m_thd;
-  const bool m_binlog_disabled;
-};
-
-
-/**
-  RAII class which allows to save, clear and store binlog format state
-  There are two variables in THD class that will decide the binlog
-  format of a statement
-    i) THD::current_stmt_binlog_format
-   ii) THD::variables.binlog_format
-  Saving or Clearing or Storing of binlog format state should be done
-  for these two variables together all the time.
-*/
-class Save_and_Restore_binlog_format_state
-{
-public:
-  Save_and_Restore_binlog_format_state(THD *thd)
-    : m_thd(thd),
-    m_global_binlog_format(thd->variables.binlog_format),
-    m_current_stmt_binlog_format(BINLOG_FORMAT_STMT)
-  {
-    if (thd->is_current_stmt_binlog_format_row())
-      m_current_stmt_binlog_format= BINLOG_FORMAT_ROW;
-
-    thd->variables.binlog_format= BINLOG_FORMAT_STMT;
-    thd->clear_current_stmt_binlog_format_row();
-  }
-
-  ~Save_and_Restore_binlog_format_state()
-  {
-    DBUG_ASSERT(!m_thd->is_current_stmt_binlog_format_row());
-    m_thd->variables.binlog_format= m_global_binlog_format;
-    if (m_current_stmt_binlog_format == BINLOG_FORMAT_ROW)
-      m_thd->set_current_stmt_binlog_format_row();
-  }
-private:
-  THD *m_thd;
-  ulong m_global_binlog_format;
-  enum_binlog_format m_current_stmt_binlog_format;
-};
-
-
-/**
-  RAII class to temporarily turn off SQL modes that affect parsing
-  of expressions. Can also be used when printing expressions even
-  if it turns off more SQL modes than strictly necessary for it
-  (these extra modes are harmless as they do not affect expression
-  printing).
-*/
-class Sql_mode_parse_guard
-{
-public:
-  Sql_mode_parse_guard(THD *thd)
-    : m_thd(thd), m_old_sql_mode(thd->variables.sql_mode)
-  {
-    /*
-      Switch off modes which can prevent normal parsing of expressions:
-
-      - MODE_REAL_AS_FLOAT            affect only CREATE TABLE parsing
-      + MODE_PIPES_AS_CONCAT          affect expression parsing
-      + MODE_ANSI_QUOTES              affect expression parsing
-      + MODE_IGNORE_SPACE             affect expression parsing
-      - MODE_NOT_USED                 not used :)
-      * MODE_ONLY_FULL_GROUP_BY       affect execution
-      * MODE_NO_UNSIGNED_SUBTRACTION  affect execution
-      - MODE_NO_DIR_IN_CREATE         affect table creation only
-      - MODE_POSTGRESQL               compounded from other modes
-      - MODE_ORACLE                   compounded from other modes
-      - MODE_MSSQL                    compounded from other modes
-      - MODE_DB2                      compounded from other modes
-      - MODE_MAXDB                    affect only CREATE TABLE parsing
-      - MODE_NO_KEY_OPTIONS           affect only SHOW
-      - MODE_NO_TABLE_OPTIONS         affect only SHOW
-      - MODE_NO_FIELD_OPTIONS         affect only SHOW
-      - MODE_MYSQL323                 affect only SHOW
-      - MODE_MYSQL40                  affect only SHOW
-      - MODE_ANSI                     compounded from other modes
-                                      (+ transaction mode)
-      ? MODE_NO_AUTO_VALUE_ON_ZERO    affect UPDATEs
-      + MODE_NO_BACKSLASH_ESCAPES     affect expression parsing
-    */
-    thd->variables.sql_mode&= ~(MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
-                                MODE_IGNORE_SPACE | MODE_NO_BACKSLASH_ESCAPES);
-  }
-
-  ~Sql_mode_parse_guard()
-  {
-    m_thd->variables.sql_mode= m_old_sql_mode;
-  }
-
-private:
-  THD *m_thd;
-  const sql_mode_t m_old_sql_mode;
-};
-
-
 /**
   The function re-attaches the engine ha_data (which was previously detached by
   detach_ha_data_from_thd) to THD.
@@ -4545,6 +4341,5 @@ private:
 
 void reattach_engine_ha_data_to_thd(THD *thd, const struct handlerton *hton);
 
-/*************************************************************************/
 
 #endif /* SQL_CLASS_INCLUDED */

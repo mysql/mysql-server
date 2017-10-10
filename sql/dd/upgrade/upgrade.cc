@@ -63,6 +63,7 @@
 #include "sql/stateless_allocator.h"
 #include "sql/strfunc.h"                      // lex_cstring_handle
 #include "sql/table.h"
+#include "sql/thd_raii.h"
 #include "sql/transaction.h"                  // trans_rollback
 
 namespace dd {

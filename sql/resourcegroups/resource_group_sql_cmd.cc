@@ -52,6 +52,7 @@
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"                    // is_invalid_string
 #include "sql/system_variables.h"
+#include "sql/thd_raii.h"
 
 namespace dd {
 class Resource_group;

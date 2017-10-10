@@ -66,6 +66,7 @@
 #include "sql/sql_tmp_table.h"                // create_tmp_field
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/thd_raii.h"
 #include "sql/transaction.h"                  // trans_commit
 #include "sql/tztime.h"                       // Time_zone
 

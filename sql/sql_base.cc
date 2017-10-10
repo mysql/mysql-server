@@ -124,6 +124,7 @@
 #include "sql/table.h"                // TABLE_LIST
 #include "sql/table_cache.h"          // table_cache_manager
 #include "sql/table_trigger_dispatcher.h" // Table_trigger_dispatcher
+#include "sql/thd_raii.h"
 #include "sql/thr_malloc.h"
 #include "sql/transaction.h"          // trans_rollback_stmt
 #include "sql/transaction_info.h"

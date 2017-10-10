@@ -52,6 +52,7 @@
 #include "sql/sql_time.h"                     // interval_type_to_name
 #include "sql/system_variables.h"
 #include "sql/table.h"                        // Table_check_intact
+#include "sql/thd_raii.h"
 #include "sql/thr_malloc.h"
 #include "sql/transaction.h"                  // trans_commit
 #include "sql/tztime.h"                       // my_tz_find

@@ -53,6 +53,7 @@
 #include "sql/sql_view.h"               // mysql_register_view
 #include "sql/system_variables.h"
 #include "sql/table.h"                  // TABLE_LIST
+#include "sql/thd_raii.h"
 #include "sql/transaction.h"
 #include "thr_lock.h"
 

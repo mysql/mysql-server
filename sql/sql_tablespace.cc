@@ -49,6 +49,7 @@
 #include "sql/sql_table.h"                        // write_bin_log
 #include "sql/strfunc.h"                          // lex_cstring_handle
 #include "sql/system_variables.h"
+#include "sql/thd_raii.h"
 #include "sql/transaction.h"                      // trans_commit_stmt
 
 namespace {

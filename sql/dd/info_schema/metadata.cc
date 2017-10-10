@@ -67,6 +67,7 @@
 #include "sql/sql_show.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/thd_raii.h"
 
 namespace {
 

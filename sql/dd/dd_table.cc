@@ -81,6 +81,7 @@
 #include "sql/srs_fetcher.h"
 #include "sql/strfunc.h"                      // lex_cstring_handle
 #include "sql/table.h"
+#include "sql/thd_raii.h"
 #include "sql_string.h"
 #include "typelib.h"
 

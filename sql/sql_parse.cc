@@ -145,6 +145,7 @@
 #include "sql/system_variables.h" // System_status_var
 #include "sql/table.h"
 #include "sql/table_cache.h"  // table_cache_manager
+#include "sql/thd_raii.h"
 #include "sql/transaction.h"  // trans_rollback_implicit
 #include "sql/transaction_info.h"
 #include "sql_string.h"

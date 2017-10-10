@@ -31,6 +31,7 @@
 #include "sql/sql_lex.h"
 #include "sql/sql_show.h"                     // make_table_list
 #include "sql/sql_time.h"                     // my_longlong_to_datetime_with_warn
+#include "sql/thd_raii.h"
 #include "sql/transaction.h"                  // trans_commit
 #include "sql/tztime.h"                       // Time_zone
 

@@ -23,6 +23,7 @@
 #include "sql/dd/types/resource_group.h"       // dd::Resource_group
 #include "sql/resourcegroups/resource_group.h" // resourcegroups::Resource_group
 #include "sql/sql_class.h"                     // THD
+#include "sql/thd_raii.h"
 #include "sql/transaction.h"                   // trans_commit
 
 namespace dd {

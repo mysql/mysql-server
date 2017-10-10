@@ -48,6 +48,7 @@
 #include "sql/rpl_slave.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_table.h"  // build_table_filename,
+#include "sql/thd_raii.h"
 #include "sql/transaction.h"
 #include "storage/ndb/include/ndbapi/NdbDictionary.hpp"
 #include "storage/ndb/include/ndbapi/ndb_cluster_connection.hpp"

@@ -96,6 +96,7 @@
 #include "sql/sys_vars_shared.h" // intern_find_sys_var
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/thd_raii.h"
 #include "sql/thr_malloc.h"
 #include "sql/transaction.h"   // trans_rollback_stmt
 #include "sql_string.h"

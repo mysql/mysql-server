@@ -99,6 +99,7 @@
 #include "sql/system_variables.h"
 #include "sql/table_cache.h"             // table_cache_manager
 #include "sql/table_trigger_dispatcher.h" // Table_trigger_dispatcher
+#include "sql/thd_raii.h"
 #include "sql/thr_malloc.h"
 #include "sql/trigger_def.h"
 #include "sql_string.h"

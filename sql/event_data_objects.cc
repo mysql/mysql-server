@@ -55,6 +55,7 @@
 #include "sql/sql_time.h"                      // interval_type_to_name
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/thd_raii.h"
 #include "sql/thr_malloc.h"
                                                // date_add_interval,
                                                // calc_time_diff.
