@@ -2476,13 +2476,21 @@ files_checked:
 		    && (srv_log_file_size_requested != srv_log_file_size
 			|| srv_n_log_files_found != srv_n_log_files)) {
 
+			/* Prepare to replace the redo log files. */
+
+			if (srv_read_only_mode) {
+				ib::error() << "Cannot resize log files"
+					" in read-only mode.";
+				return(srv_init_abort(DB_READ_ONLY));
+			}
+
 			if (!srv_dict_metadata->empty()) {
+
 				/* Open this table in case srv_dict_metadata
 				should be applied to this table before
 				checkpoint. And because DD is not fully up yet,
-				the table can be opened by internal APIs.
-				FIXME: What if there is no enough room
-				in redo logs? */
+				the table can be opened by internal APIs. */
+
 				fil_space_t*	space =
 					fil_space_acquire_silent(
 						dict_sys_t::s_space_id);
@@ -2496,6 +2504,8 @@ files_checked:
 						dict_sys_t::s_dd_space_file_name,
 						true, false);
 					if (error != DB_SUCCESS) {
+						ib::error() << "Cannot open"
+							" DD tablespace.";
 						return(srv_init_abort(
 							DB_ERROR));
 					}
@@ -2505,15 +2515,11 @@ files_checked:
 
 				dict_persist->table_buffer = UT_NEW_NOKEY(
 					DDTableBuffer());
+				/* This writes redo logs. Since the log file
+				size hasn't changed now, there should be enough
+				room in log files, supposing log_free_check()
+				works fine before crash */
 				srv_dict_metadata->store();
-			}
-
-			/* Prepare to replace the redo log files. */
-
-			if (srv_read_only_mode) {
-				ib::error() << "Cannot resize log files"
-					" in read-only mode.";
-				return(srv_init_abort(DB_READ_ONLY));
 			}
 
 			/* Prepare to delete the old redo log files */

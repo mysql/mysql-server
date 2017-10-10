@@ -3701,6 +3701,22 @@ ORDER BY AVG(SUM(sale)) OVER (ORDER BY MONTH(date)
          MONTH(date);
 DROP TABLE sales;
 
+--echo #
+--echo # Bug#26739028: WINDOW FUNC + FROM_UNIXTIME CRASH
+--echo #
+
+SELECT FROM_UNIXTIME(LAG('',99)OVER(ROWS UNBOUNDED PRECEDING),'%I %l %I');
+SELECT FROM_UNIXTIME(FIRST_VALUE(@b)RESPECT NULLS OVER(),
+                 REPEAT('1',32))IS NOT FALSE;
+SELECT NULLIF((PASSWORD(FROM_UNIXTIME(NTH_VALUE(@b, 3) RESPECT NULLS
+                                  OVER(),(NOT(@f))))),(CURRENT_TIME()));
+SELECT ((NTILE(70)OVER())<<(FROM_UNIXTIME(LEAD('',67) RESPECT NULLS
+                                      OVER(),SHA(''))));
+SELECT FROM_UNIXTIME(LAG('-778:36:16.905133',246) RESPECT NULLS OVER(),
+                 REPLACE('%M%V   ','',''));
+
+--echo # End of test for Bug#26739028
+
 # Local Variables:
 # mode: sql
 # sql-product: mysql

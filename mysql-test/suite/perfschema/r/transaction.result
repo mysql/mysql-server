@@ -246,13 +246,13 @@ INSERT INTO t1 VALUES (602, 'IMPLICIT COMMIT');
 ALTER TABLE t1 ADD KEY (s3);
 ERROR 42000: Key column 's3' doesn't exist in table
 
-## Expect 0 active transactions, 0 committed transaction
+## Expect 0 active transactions, 1 committed transaction
 CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ACTIVE',    0, '', '', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 0);
 ACTUAL	EXPECTED
      0	       0
-CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'COMMITTED', 0, '', '', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 0);
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'COMMITTED', 0, '', '', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
 ACTUAL	EXPECTED
-     0	       0
+     1	       1
 CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', 0, '', '', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
 ACTUAL	EXPECTED
      1	       1
@@ -371,23 +371,23 @@ CALL clear_transaction_tables();
 SET SESSION AUTOCOMMIT = 0;
 SELECT COUNT(*) FROM performance_schema.events_transactions_current ORDER BY event_id;
 COUNT(*)
-1
+0
 
 #
 # STEP 8.1 - UPDATE NON-TRANSACTIONAL TABLE
 #
 INSERT INTO nt1 VALUES (801, 'NON-TRANSACTIONAL');
 
-## Expect 1 transaction in events_transactions_current
-CALL transaction_verifier(0, @con1_thread_id, 'transaction', '', 0, '', '', '', '', '', '', '', 0, 0, 0, 1);
+## Expect 0 transactions in events_transactions_current
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', '', 0, '', '', '', '', '', '', '', 0, 0, 0, 0);
 ACTUAL	EXPECTED
-     1	       1
+     0	       0
 COMMIT;
 
-## Expect 10 transactions in events_transactions_history
-CALL transaction_verifier(1, @con1_thread_id, 'transaction', '', 0, '', '', '', '', '', '', '', 0, 0, 0, 10);
+## Expect 0 transactions in events_transactions_history
+CALL transaction_verifier(1, @con1_thread_id, 'transaction', '', 0, '', '', '', '', '', '', '', 0, 0, 0, 0);
 ACTUAL	EXPECTED
-    10	      10
+     0	       0
 
 #
 # STEP 8.2 - UPDATE TRANSACTIONAL AND NON-TRANSACTIONAL TABLES
@@ -397,10 +397,10 @@ ACTUAL	EXPECTED
 
 INSERT INTO nt1 VALUES (802, 'NON-TRANSACTIONAL');
 
-## Expect 1 transaction in events_transactions_current
-CALL transaction_verifier(0, @con1_thread_id, 'transaction', '', 0, '', '', '', '', '', '', '', 0, 0, 0, 1);
+## Expect 0 transactions in events_transactions_current
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', '', 0, '', '', '', '', '', '', '', 0, 0, 0, 0);
 ACTUAL	EXPECTED
-     1	       1
+     0	       0
 
 ## Now transactional. Transaction should be started.
 INSERT INTO t1 VALUES (802, 'TRANSACTIONAL');
@@ -541,7 +541,7 @@ COMMIT;
 ## Expect 1 event, 0 stats
 SELECT * FROM performance_schema.events_transactions_summary_global_by_event_name;
 EVENT_NAME	COUNT_STAR	SUM_TIMER_WAIT	MIN_TIMER_WAIT	AVG_TIMER_WAIT	MAX_TIMER_WAIT	COUNT_READ_WRITE	SUM_TIMER_READ_WRITE	MIN_TIMER_READ_WRITE	AVG_TIMER_READ_WRITE	MAX_TIMER_READ_WRITE	COUNT_READ_ONLY	SUM_TIMER_READ_ONLY	MIN_TIMER_READ_ONLY	AVG_TIMER_READ_ONLY	MAX_TIMER_READ_ONLY
-transaction	17	0	0	0	0	1	0	0	0	0	16	0	0	0	0
+transaction	1	0	0	0	0	1	0	0	0	0	0	0	0	0	0
 
 ## Restore setup_consumers and setup_instruments
 UPDATE performance_schema.setup_consumers SET enabled = 'YES' WHERE name = 'thread_instrumentation';

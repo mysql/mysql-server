@@ -1422,7 +1422,8 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht_arg,
 */
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
   if (thd->m_transaction_psi == NULL &&
-      ht_arg->db_type != DB_TYPE_BINLOG)
+      ht_arg->db_type != DB_TYPE_BINLOG &&
+      !thd->is_attachable_transaction_active())
   {
     const XID *xid= trn_ctx->xid_state()->get_xid();
     bool autocommit= !thd->in_multi_stmt_transaction_mode();
@@ -5433,10 +5434,6 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
   int error;
   uchar *sdi_blob;
   size_t sdi_len;
-  char path[FN_REFLEN + 1];
-  HA_CREATE_INFO create_info;
-  TABLE table;
-  TABLE_SHARE share;
   DBUG_ENTER("ha_create_table_from_engine");
   DBUG_PRINT("enter", ("name '%s'.'%s'", db, name));
 
@@ -5447,18 +5444,20 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
   }
 
   /*
-    The table exists in the handler and could be discovered.
-    Import the SDI based on the sdi_blob and sdi_len, which are set.
+    Table was successfully discovered from SE, check if SDI need
+    to be installed or if that has already been done by SE.
+    No SDI blob returned from SE indicates it has installed
+    the table definition for this table into DD itself.
+    Otherwise, import the SDI based on the sdi_blob and sdi_len,
+    which are set.
   */
-
-  // Import the SDI
-  error= import_serialized_meta_data(sdi_blob, sdi_len, true);
-  my_free(sdi_blob);
-  if (error)
-    DBUG_RETURN(2);
-
-  build_table_filename(path, sizeof(path) - 1, db, name, "", 0);
-  init_tmp_table_share(thd, &share, db, 0, name, path, nullptr);
+  if (sdi_blob)
+  {
+    error= import_serialized_meta_data(sdi_blob, sdi_len, true);
+    my_free(sdi_blob);
+    if (error)
+      DBUG_RETURN(2);
+  }
 
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Table *table_def= nullptr;
@@ -5471,9 +5470,16 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
     DBUG_RETURN(3);
   }
 
+  char path[FN_REFLEN + 1];
+  build_table_filename(path, sizeof(path) - 1, db, name, "", 0);
+
+  TABLE_SHARE share;
+  init_tmp_table_share(thd, &share, db, 0, name, path, nullptr);
+
   if (open_table_def(thd, &share, *table_def))
     DBUG_RETURN(3);
 
+  TABLE table;
   // When db_stat is 0, we can pass nullptr as dd::Table since it won't be used.
   if (open_table_from_share(thd, &share, "" ,0, 0, 0, &table, FALSE, nullptr))
   {
@@ -5481,6 +5487,7 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
     DBUG_RETURN(3);
   }
 
+  HA_CREATE_INFO create_info;
   update_create_info_from_table(&create_info, &table);
   create_info.table_options|= HA_OPTION_CREATE_FROM_ENGINE;
 
@@ -5853,12 +5860,23 @@ int ha_change_key_cache(KEY_CACHE *old_key_cache,
 /**
   Try to discover one table from handler(s).
 
+  @param[in]      thd     Thread context.
+  @param[in]      db      Schema of table
+  @param[in]      name    Name of table
+  @param[out]     frmblob Pointer to blob with table defintion.
+  @param[out]     frmlen  Length of the returned table definition blob
+
   @retval
     -1   Table did not exists
   @retval
-    0   OK. In this case *frmblob and *frmlen are set
+    0   OK. Table could be discovered from SE.
+        The *frmblob and *frmlen may be set if returning a blob
+        which should be installed into data dictionary
+        by the caller.
+
   @retval
     >0   error.  frmblob and frmlen may not be set
+
 */
 struct st_discover_args
 {

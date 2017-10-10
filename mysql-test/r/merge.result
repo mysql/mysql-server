@@ -1323,9 +1323,6 @@ ALTER TABLE t2 RENAME TO t5;
 SELECT * FROM t3 ORDER BY c1;
 ERROR HY000: Table 't2' was not locked with LOCK TABLES
 ALTER TABLE t5 RENAME TO t2;
-ERROR HY000: Table 't5' was not locked with LOCK TABLES
-UNLOCK TABLES;
-ALTER TABLE t5 RENAME TO t2;
 SELECT * FROM t3 ORDER BY c1;
 c1
 1
@@ -1334,6 +1331,7 @@ c1
 4
 4
 4
+UNLOCK TABLES;
 #
 # Rename parent.
 #
@@ -1371,12 +1369,6 @@ c1
 # 5. Alter table rename with locked tables.
 ALTER TABLE t3 RENAME TO t5;
 SELECT * FROM t5 ORDER BY c1;
-ERROR HY000: Table 't5' was not locked with LOCK TABLES
-ALTER TABLE t5 RENAME TO t3;
-ERROR HY000: Table 't5' was not locked with LOCK TABLES
-UNLOCK TABLES;
-ALTER TABLE t5 RENAME TO t3;
-SELECT * FROM t3 ORDER BY c1;
 c1
 1
 2
@@ -1384,7 +1376,8 @@ c1
 4
 4
 4
-DROP TABLE t1, t2, t3;
+UNLOCK TABLES;
+DROP TABLE t1, t2, t5;
 #
 # Drop locked tables.
 #

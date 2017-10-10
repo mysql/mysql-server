@@ -369,8 +369,8 @@ MetadataRecover::apply()
 			}
 
 			table->dirty_status = METADATA_DIRTY;
-
 			ut_d(table->in_dirty_dict_tables_list = true);
+			++dict_persist->num_dirty_tables;
 		}
 
 		mutex_exit(&dict_persist->mutex);

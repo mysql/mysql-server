@@ -2461,10 +2461,17 @@ public:
   */
   uint32 max_char_length() const
   {
+    /*
+      Length of e.g. 5.5e5 in an expression such as GREATEST(5.5e5, '5') is 5
+      (length of that string) although length of the actual value is 6.
+      Return MAX_DOUBLE_STR_LENGTH to prevent truncation of data without having
+      to evaluate the value of the item.
+    */
+    uint32 max_len= data_type() == MYSQL_TYPE_DOUBLE ?
+                    MAX_DOUBLE_STR_LENGTH : max_length;
     if (result_type() == STRING_RESULT)
-      return max_length / collation.collation->mbmaxlen;
-    else
-      return max_length;
+      return max_len / collation.collation->mbmaxlen;
+    return max_len;
   }
 
   inline void fix_char_length(uint32 max_char_length_arg)
@@ -2563,11 +2570,8 @@ public:
   void aggregate_float_properties(Item **item, uint nitems);
   void aggregate_char_length(Item **args, uint nitems);
   void aggregate_temporal_properties(Item **item, uint nitems);
-  bool aggregate_string_properties(enum_field_types field_type,
-                                   const char *name, Item **item,
-                                   uint nitems);
-  void aggregate_num_type(Item_result result_type, Item **item,
-                          uint nitems);
+  bool aggregate_string_properties(const char *name, Item **item, uint nitems);
+  void aggregate_num_type(Item_result result_type, Item **item, uint nitems);
 
   /**
     This function applies only to Item_field objects referred to by an Item_ref
@@ -6058,9 +6062,6 @@ protected:
   Field::geometry_type geometry_type;
 
   void get_full_info(Item *item);
-
-  /* It is used to count decimal precision in join_types */
-  int prev_decimal_int_part;
 public:
   Item_type_holder(THD*, Item*);
 

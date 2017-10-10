@@ -235,12 +235,12 @@ insert into t2 values ("1.23456780");
 create table t3 select * from t2 union select * from t1;
 select * from t3;
 d
-1.2345678
-100000000
+1.234567800
+100000000.000000000
 show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `d` double DEFAULT NULL
+  `d` double(18,9) DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
 drop table t1, t2, t3;
 create table t1 select  105213674794682365.00 + 0.0 x;
