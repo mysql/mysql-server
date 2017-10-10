@@ -139,10 +139,12 @@ ELSE()
   ENDFOREACH()
   IF(NDBCLIENT_SYSTEM_LIBS)
     LIST(REMOVE_DUPLICATES NDBCLIENT_SYSTEM_LIBS)
+    MESSAGE(STATUS "System libs used by ndbclient_so: ${NDBCLIENT_SYSTEM_LIBS}")
+    TARGET_LINK_LIBRARIES(ndbclient_so LINK_INTERFACE_LIBRARIES
+      ${NDBCLIENT_SYSTEM_LIBS})
+  ELSE()
+    MESSAGE(STATUS "System libs used by ndbclient_so: [none]")
   ENDIF()
-  MESSAGE(STATUS "System libs used by ndbclient_so: ${NDBCLIENT_SYSTEM_LIBS}")
-  TARGET_LINK_LIBRARIES(ndbclient_so LINK_INTERFACE_LIBRARIES
-    ${NDBCLIENT_SYSTEM_LIBS})
 
   # Prepend any special linker flags(like -m64) for shared library
   GET_TARGET_PROPERTY(ndbclient_so_link_flags ndbclient_so LINK_FLAGS)
