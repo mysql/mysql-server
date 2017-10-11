@@ -368,8 +368,6 @@ enum mysql_option
   MYSQL_SET_CHARSET_DIR, MYSQL_SET_CHARSET_NAME, MYSQL_OPT_LOCAL_INFILE,
   MYSQL_OPT_PROTOCOL, MYSQL_SHARED_MEMORY_BASE_NAME, MYSQL_OPT_READ_TIMEOUT,
   MYSQL_OPT_WRITE_TIMEOUT, MYSQL_OPT_USE_RESULT,
-  MYSQL_OPT_USE_REMOTE_CONNECTION, MYSQL_OPT_USE_EMBEDDED_CONNECTION,
-  MYSQL_OPT_GUESS_CONNECTION, MYSQL_SET_CLIENT_IP,
   MYSQL_REPORT_DATA_TRUNCATION, MYSQL_OPT_RECONNECT,
   MYSQL_PLUGIN_DIR, MYSQL_DEFAULT_AUTH,
   MYSQL_OPT_BIND,
@@ -403,18 +401,8 @@ struct st_mysql_options {
   char *ssl_cipher;
   char *shared_memory_base_name;
   unsigned long max_allowed_packet;
-  bool unused6;
   bool compress,named_pipe;
-  bool unused1;
-  bool unused2;
-  bool unused3;
-  bool unused4;
-  enum mysql_option methods_to_use;
-  union {
-    char *client_ip;
-    char *bind_address;
-  } ci;
-  bool unused5;
+  char *bind_address;
   bool report_data_truncation;
   int (*local_infile_init)(void **, const char *, void *);
   int (*local_infile_read)(void *, char *, unsigned int);
@@ -478,8 +466,6 @@ typedef struct MYSQL
   bool free_me;
   bool reconnect;
   char scramble[20 +1];
-  bool unused1;
-  void *unused2, *unused3, *unused4, *unused5;
   LIST *stmts;
   const struct MYSQL_METHODS *methods;
   void *thd;
