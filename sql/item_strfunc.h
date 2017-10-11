@@ -315,15 +315,17 @@ class Item_func_concat_ws :public Item_str_func
 public:
   Item_func_concat_ws(List<Item> &list)
     : Item_str_func(list)
-  {}
+  {
+    null_on_null= false;
+  }
   Item_func_concat_ws(const POS &pos, PT_item_list *opt_list)
     : Item_str_func(pos, opt_list)
-  {}
-
+  {
+    null_on_null= false;
+  }
   String *val_str(String *) override;
   bool resolve_type(THD *thd) override;
   const char *func_name() const override { return "concat_ws"; }
-  table_map not_null_tables() const override { return 0; }
 };
 
 class Item_func_reverse :public Item_str_func
@@ -1179,7 +1181,10 @@ public:
 class Item_func_charset final : public Item_str_func
 {
 public:
-  Item_func_charset(const POS &pos, Item *a) :Item_str_func(pos, a) {}
+  Item_func_charset(const POS &pos, Item *a) :Item_str_func(pos, a)
+  {
+    null_on_null= false;
+  }
   String *val_str(String *) override;
   const char *func_name() const override { return "charset"; }
   bool resolve_type(THD *) override
@@ -1188,13 +1193,15 @@ public:
      maybe_null= false;
      return false;
   };
-  table_map not_null_tables() const override { return 0; }
 };
 
 class Item_func_collation :public Item_str_func
 {
 public:
-  Item_func_collation(const POS &pos, Item *a) :Item_str_func(pos, a) {}
+  Item_func_collation(const POS &pos, Item *a) :Item_str_func(pos, a)
+  {
+    null_on_null= false;
+  }
   String *val_str(String *) override;
   const char *func_name() const override { return "collation"; }
   bool resolve_type(THD *) override
@@ -1203,7 +1210,6 @@ public:
      maybe_null= false;
      return false;
   };
-  table_map not_null_tables() const override { return 0; }
 };
 
 class Item_func_weight_string final : public Item_str_func

@@ -78,11 +78,23 @@ class Item_func :public Item_result_field
   typedef Item_result_field super;
 protected:
   Item **args, *tmp_arg[2];
+  /**
+    Affects how to determine that NULL argument implies a NULL function return.
+    Default behaviour in this class is:
+    - if true, any NULL argument means the function returns NULL.
+    - if false, no such assumption is made and not_null_tables_cache is thus
+      set to 0.
+    null_on_null is true for all Item_func derived classes, except Item_func_sp,
+    all CASE derived functions and a few other functions.
+    RETURNS NULL ON NULL INPUT can be implemented for stored functions by
+    modifying this member in class Item_func_sp.
+  */
+  bool null_on_null = true;
   /*
     Allowed numbers of columns in result (usually 1, which means scalar value)
     0 means get this number from first argument
   */
-  uint allowed_arg_cols;
+  uint allowed_arg_cols = 1;
   /// Value used in calculation of result of used_tables()
   table_map used_tables_cache;
   /// Value used in calculation of result of not_null_tables()
@@ -120,34 +132,34 @@ public:
                        OPTIMIZE_EQUAL };
   enum Type type() const override { return FUNC_ITEM; }
   virtual enum Functype functype() const   { return UNKNOWN_FUNC; }
-  Item_func():
-    allowed_arg_cols(1), arg_count(0)
+  Item_func()
+    : arg_count(0)
   {
     args= tmp_arg;
   }
 
   explicit Item_func(const POS &pos)
-    : super(pos), allowed_arg_cols(1), arg_count(0)
+    : super(pos), arg_count(0)
   {
     args= tmp_arg;
   }
 
-  Item_func(Item *a):
-    allowed_arg_cols(1), arg_count(1)
+  Item_func(Item *a)
+    : arg_count(1)
   {
     args= tmp_arg;
     args[0]= a;
     set_accum_properties(a);
   }
-  Item_func(const POS &pos, Item *a): super(pos),
-    allowed_arg_cols(1), arg_count(1)
+  Item_func(const POS &pos, Item *a)
+    : super(pos), arg_count(1)
   {
     args= tmp_arg;
     args[0]= a;
   }
 
-  Item_func(Item *a,Item *b):
-    allowed_arg_cols(1), arg_count(2)
+  Item_func(Item *a,Item *b)
+    : arg_count(2)
   {
     args= tmp_arg;
     args[0]= a; args[1]= b;
@@ -155,15 +167,15 @@ public:
     add_accum_properties(a);
     add_accum_properties(b);
   }
-  Item_func(const POS &pos, Item *a,Item *b): super(pos),
-    allowed_arg_cols(1), arg_count(2)
+  Item_func(const POS &pos, Item *a,Item *b)
+    : super(pos), arg_count(2)
   {
     args= tmp_arg;
     args[0]= a; args[1]= b;
   }
 
-  Item_func(Item *a,Item *b,Item *c):
-    allowed_arg_cols(1), arg_count(3)
+  Item_func(Item *a,Item *b,Item *c)
+    : arg_count(3)
   {
     if ((args= (Item**) sql_alloc(sizeof(Item*)*3)))
     {
@@ -177,8 +189,8 @@ public:
       arg_count= 0; // OOM
   }
 
-  Item_func(const POS &pos, Item *a,Item *b,Item *c): super(pos),
-    allowed_arg_cols(1), arg_count(3)
+  Item_func(const POS &pos, Item *a,Item *b,Item *c)
+    : super(pos), arg_count(3)
   {
     if ((args= (Item**) sql_alloc(sizeof(Item*)*3)))
     {
@@ -188,8 +200,8 @@ public:
       arg_count= 0; // OOM
   }
 
-  Item_func(Item *a,Item *b,Item *c,Item *d):
-    allowed_arg_cols(1), arg_count(4)
+  Item_func(Item *a,Item *b,Item *c,Item *d)
+    : arg_count(4)
   {
     if ((args= (Item**) sql_alloc(sizeof(Item*)*4)))
     {
@@ -203,8 +215,8 @@ public:
     else
       arg_count= 0; // OOM
   }
-  Item_func(const POS &pos, Item *a,Item *b,Item *c,Item *d): super(pos),
-    allowed_arg_cols(1), arg_count(4)
+  Item_func(const POS &pos, Item *a,Item *b,Item *c,Item *d)
+    : super(pos), arg_count(4)
   {
     if ((args= (Item**) sql_alloc(sizeof(Item*)*4)))
     {
@@ -214,8 +226,8 @@ public:
       arg_count= 0; // OOM
   }
 
-  Item_func(Item *a,Item *b,Item *c,Item *d,Item* e):
-    allowed_arg_cols(1), arg_count(5)
+  Item_func(Item *a,Item *b,Item *c,Item *d,Item* e)
+    : arg_count(5)
   {
     if ((args= (Item**) sql_alloc(sizeof(Item*)*5)))
     {
@@ -231,7 +243,7 @@ public:
       arg_count= 0; // OOM
   }
   Item_func(const POS &pos, Item *a, Item *b, Item *c, Item *d, Item* e)
-    : super(pos), allowed_arg_cols(1), arg_count(5)
+    : super(pos), arg_count(5)
   {
     if ((args= (Item**) sql_alloc(sizeof(Item*)*5)))
     {
@@ -240,8 +252,11 @@ public:
     else
       arg_count= 0; // OOM
   }
+  Item_func(List<Item> &list)
+  {
+    set_arguments(list, false);
+  }
 
-  Item_func(List<Item> &list);
   Item_func(const POS &pos, PT_item_list *opt_list);
 
   // Constructor used for Item_cond_and/or (see Item comment)
@@ -253,17 +268,22 @@ public:
   bool fix_func_arg(THD *, Item **arg);
   void fix_after_pullout(SELECT_LEX *parent_select,
                          SELECT_LEX *removed_select) override;
-  table_map used_tables() const override;
   /**
      Returns the pseudo tables depended upon in order to evaluate this
      function expression. The default implementation returns the empty
      set.
   */
   virtual table_map get_initial_pseudo_tables() const { return 0; }
-  table_map not_null_tables() const override;
+  table_map used_tables() const override
+  {
+    return used_tables_cache;
+  }
+  table_map not_null_tables() const override
+  {
+    return not_null_tables_cache;
+  }
   void update_used_tables() override;
   void set_used_tables(table_map map) { used_tables_cache= map; }
-  void set_not_null_tables(table_map map) { not_null_tables_cache= map; }
   bool eq(const Item *item, bool binary_cmp) const override;
   virtual optimize_type select_optimize() const { return OPTIMIZE_NONE; }
   virtual bool have_rev_func() const { return 0; }
@@ -1504,7 +1524,10 @@ public:
 class Item_func_coercibility final : public Item_int_func
 {
 public:
-  Item_func_coercibility(const POS &pos, Item *a) :Item_int_func(pos, a) {}
+  Item_func_coercibility(const POS &pos, Item *a) :Item_int_func(pos, a)
+  {
+    null_on_null= false;
+  }
   longlong val_int() override;
   const char *func_name() const override { return "coercibility"; }
   bool resolve_type(THD *) override
@@ -1513,7 +1536,6 @@ public:
     maybe_null= false;
     return false;
   }
-  table_map not_null_tables() const override { return 0; }
 };
 
 class Item_func_locate : public Item_int_func
@@ -1885,7 +1907,9 @@ protected:
 public:
   Item_udf_func(const POS &pos, udf_func *udf_arg, PT_item_list *opt_list)
     :Item_func(pos, opt_list), udf(udf_arg)
-  {}
+  {
+    null_on_null= false;
+  }
 
   bool itemize(Parse_context *pc, Item **res) override;
   const char *func_name() const override { return udf.name(); }
@@ -1945,7 +1969,6 @@ public:
   }
   void cleanup() override;
   Item_result result_type() const override { return udf.result_type(); }
-  table_map not_null_tables() const override { return 0; }
   bool is_expensive() override { return true; }
   void print(String *str, enum_query_type query_type) override;
 
@@ -3344,7 +3367,9 @@ public:
     join_key(false),
     ft_handler(NULL), table_ref(NULL),
     master(NULL), concat_ws(NULL), hints(NULL), simple_expression(false)
-  {}
+  {
+    null_on_null= false;
+  }
 
   bool itemize(Parse_context *pc, Item **res) override;
 
@@ -3367,7 +3392,6 @@ public:
   enum Functype functype() const override { return FT_FUNC; }
   const char *func_name() const override { return "match"; }
   void update_used_tables() override {}
-  table_map not_null_tables() const override { return 0; }
   bool fix_fields(THD *thd, Item **ref) override;
   bool eq(const Item *, bool binary_cmp) const override;
   /* The following should be safe, even if we compare doubles */

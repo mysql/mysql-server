@@ -4225,10 +4225,6 @@ void Item_func_case::cleanup()
   Coalesce - return first not NULL argument.
 */
 
-Item_func_coalesce::Item_func_coalesce(const POS &pos, PT_item_list *list)
-  : Item_func_numhybrid(pos, list)
-{}
-
 String *Item_func_coalesce::str_op(String *str)
 {
   DBUG_ASSERT(fixed == 1);
