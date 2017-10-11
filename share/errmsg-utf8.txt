@@ -10927,6 +10927,11 @@ ER_JT_VALUE_OUT_OF_RANGE 22003
 
 ER_JT_MAX_NESTED_PATH 42000
   eng "More than supported %u NESTED PATHs were found in JSON_TABLE '%.192s'"
+
+ER_PASSWORD_EXPIRATION_NOT_SUPPORTED_BY_AUTH_METHOD
+  eng "The selected authentication method %.*s does not support password expiration"
+  bg "Избрания метод за удостоверяване %.*s не поддържа изтичане на пароли"
+
 #
 #  End of 8.0 error messages.
 #
