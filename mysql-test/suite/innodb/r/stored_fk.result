@@ -6,6 +6,8 @@ ERROR HY000: Cannot add foreign key constraint
 create table t1(f1 int primary key);
 create table t2(f1 int not null, f2 int as (f1) virtual,
 foreign key(f1) references t1(f1) on update cascade)engine=innodb;
+alter table t2 add column f3 int as (f1) stored, add column f4 int as (f1) virtual;
+ERROR HY000: Cannot add foreign key constraint
 drop table t2, t1;
 # adding foreign key constraint for base columns during alter copy.
 create table t1(f1 int primary key);

@@ -13091,6 +13091,94 @@ create_table_info_t::prepare_create_table(
 	DBUG_RETURN(parse_table_name(name));
 }
 
+/** Check a column (name) is a base column for any stored column in the table
+@param[in]	table	TABLE* for the table
+@param[in]	name	column name to check
+@return true if this is a base column */
+static
+bool
+innobase_is_base_s_col(
+	const TABLE*	table,
+	const char*	name)
+{
+
+	for (uint i = 0; i < table->s->fields; ++i) {
+                const Field* field = table->field[i];
+
+		if (!innobase_is_s_fld(field)) {
+			continue;
+		}
+
+		for (uint j = 0; j < table->s->fields; ++j) {
+			if (bitmap_is_set(
+				&field->gcol_info->base_columns_map, j)) {
+				const Field* base_field = table->field[j];
+				if (innobase_strcasecmp(
+					base_field->field_name, name) == 0) {
+					return(true);
+				}
+			}
+		}
+	}
+
+	return(false);
+}
+
+/** Check any cascading foreign key columns are base columns
+for any stored columns in the table
+@param[in]	dd_table	dd::Table for the table
+@param[in]	table		TABLE* for the table
+@return DB_NO_FK_ON_S_BASE_COL if found or DB_SUCCESS */
+static
+dberr_t
+innobase_check_fk_base_col(
+	const dd::Table*	dd_table,
+	const TABLE*		table)
+{
+
+	for (const dd::Foreign_key* key : dd_table->foreign_keys()) {
+		bool	upd_cascade = false;
+		bool	del_cascade = false;
+
+		switch (key->update_rule()) {
+		case dd::Foreign_key::RULE_CASCADE:
+		case dd::Foreign_key::RULE_SET_NULL:
+			upd_cascade = true;
+			break;
+		case dd::Foreign_key::RULE_NO_ACTION:
+		case dd::Foreign_key::RULE_RESTRICT:
+		case dd::Foreign_key::RULE_SET_DEFAULT:
+			break;
+		}
+
+		switch (key->delete_rule()) {
+		case dd::Foreign_key::RULE_CASCADE:
+		case dd::Foreign_key::RULE_SET_NULL:
+			del_cascade = true;
+			break;
+		case dd::Foreign_key::RULE_NO_ACTION:
+		case dd::Foreign_key::RULE_RESTRICT:
+		case dd::Foreign_key::RULE_SET_DEFAULT:
+			break;
+		}
+
+		if (!upd_cascade && !del_cascade) {
+			continue;
+		}
+
+		for (const dd::Foreign_key_element* key_e : key->elements()) {
+			dd::String_type col_name
+				= key_e->column().name();
+
+			if (innobase_is_base_s_col(
+				table, col_name.c_str())) {
+				return(DB_NO_FK_ON_S_BASE_COL);
+			}
+		}
+	}
+	return(DB_SUCCESS);
+}
+
 /** Create the internal innodb table.
 @param[in]	dd_table	dd::Table or nullptr for intrinsic table
 @return 0 or error number */
@@ -13112,6 +13200,14 @@ create_table_info_t::create_table(
 	Note: in case of TRUNCATE a fulltext table with
 	hidden doc id index. */
 	if (dd_table != nullptr) {
+		dberr_t	err = innobase_check_fk_base_col(dd_table, m_form);
+
+		if (err != DB_SUCCESS) {
+			error = convert_error_code_to_mysql(err, m_flags, NULL);
+
+			DBUG_RETURN(error);
+		}
+
 		for (auto index : dd_table->indexes()) {
 			if (my_strcasecmp(
 				system_charset_info,

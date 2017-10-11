@@ -8484,6 +8484,67 @@ FROM t  GROUP BY a);
 rnk
 DROP TABLE twf,t;
 #
+# Bug#26802696: DENSE_RANK WRONG WITH BUFFERED PROCESSING
+#
+CREATE TABLE employee(department_id INT, salary INT);
+INSERT INTO employee VALUES (10, NULL),
+(10, 100000),
+(10, 60000),
+(10, 60000),
+(10, 70000),
+(20, 80000),
+(20, 65000),
+(20, 65000),
+(30, 300000),
+(30, 70000),
+(NULL, 75000);
+with partitions
+SELECT department_id, salary,
+RANK() OVER w AS rnk,
+DENSE_RANK() OVER w AS dense,
+NTILE(4) over w AS ntil,
+CUME_DIST() OVER w AS cume,
+PERCENT_RANK() over w AS `%rnk`
+  FROM employee
+WINDOW w AS (PARTITION BY department_id
+ORDER BY salary DESC)
+ORDER BY department_id, salary DESC;
+department_id	salary	rnk	dense	ntil	cume	%rnk
+NULL	75000	1	1	1	1	0
+10	100000	1	1	1	0.2	0
+10	70000	2	2	1	0.4	0.25
+10	60000	3	3	2	0.8	0.5
+10	60000	3	3	3	0.8	0.5
+10	NULL	5	4	4	1	1
+20	80000	1	1	1	0.3333333333333333	0
+20	65000	2	2	2	1	0.5
+20	65000	2	2	3	1	0.5
+30	300000	1	1	1	0.5	0
+30	70000	2	2	2	1	1
+just default partition
+SELECT department_id, salary,
+RANK() OVER w AS rnk,
+DENSE_RANK() OVER w AS dense,
+NTILE(4) over w AS ntil,
+CUME_DIST() OVER w AS cume,
+PERCENT_RANK() over w AS `%rnk`
+  FROM employee
+WINDOW w AS (ORDER BY salary DESC)
+ORDER BY salary DESC;
+department_id	salary	rnk	dense	ntil	cume	%rnk
+30	300000	1	1	1	0.09090909090909091	0
+10	100000	2	2	1	0.18181818181818182	0.1
+20	80000	3	3	1	0.2727272727272727	0.2
+NULL	75000	4	4	2	0.36363636363636365	0.3
+10	70000	5	5	2	0.5454545454545454	0.4
+30	70000	5	5	2	0.5454545454545454	0.4
+20	65000	7	6	3	0.7272727272727273	0.6
+20	65000	7	6	3	0.7272727272727273	0.6
+10	60000	9	7	3	0.9090909090909091	0.8
+10	60000	9	7	4	0.9090909090909091	0.8
+10	NULL	11	8	4	1	1
+DROP TABLE employee;
+#
 # Check that user hasn't changed default internal temporary table storage
 # engine
 #

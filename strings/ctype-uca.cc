@@ -5157,6 +5157,8 @@ my_coll_init_uca(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader)
   cs->ctype= my_charset_utf8_unicode_ci.ctype;
   if (!cs->caseinfo)
     cs->caseinfo= &my_unicase_default;
+  if (!cs->uca)
+    cs->uca= &my_uca_v400;
   return create_tailoring(cs, loader);
 }
 
