@@ -7683,6 +7683,9 @@ ER_KEYRING_AWS_UDF_AWS_KMS_ERROR
 ER_BINLOG_UNSAFE_XA
   eng "Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements."
 
+ER_UDF_ERROR
+  eng "%s UDF failed; %s"
+
 #
 #  End of 5.7 error messages.
 #
@@ -10927,6 +10930,11 @@ ER_JT_VALUE_OUT_OF_RANGE 22003
 
 ER_JT_MAX_NESTED_PATH 42000
   eng "More than supported %u NESTED PATHs were found in JSON_TABLE '%.192s'"
+
+ER_PASSWORD_EXPIRATION_NOT_SUPPORTED_BY_AUTH_METHOD
+  eng "The selected authentication method %.*s does not support password expiration"
+  bg "Избрания метод за удостоверяване %.*s не поддържа изтичане на пароли"
+
 #
 #  End of 8.0 error messages.
 #
