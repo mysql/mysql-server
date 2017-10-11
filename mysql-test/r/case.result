@@ -423,3 +423,28 @@ a	b	c
 DROP FUNCTION f;
 DROP VIEW v0, v1, v2;
 DROP TABLE t00, t01;
+#
+# Bug #25051195 Wrong calculation of decimals after point for IFNULL w/ GROUP BY using
+#               temporary table.
+CREATE TABLE t (i1 INT,
+d1 DOUBLE,
+e2 DECIMAL(5,2));
+INSERT INTO t VALUES ( 6,    6.0,  10.0/3),
+( null, 9.0,  10.0/3),
+( 1,    null, 10.0/3),
+( 2,    2.0,  null  );
+Warnings:
+Note	1265	Data truncated for column 'e2' at row 1
+Note	1265	Data truncated for column 'e2' at row 2
+Note	1265	Data truncated for column 'e2' at row 3
+IFNULL and IF should yield same number for decimals after point here
+SELECT IFNULL(e2,i1) nullif_c,
+IF(e2 IS NULL,i1,e2) if_c,
+SUM(d1) FROM t
+GROUP BY e2,i1 ORDER BY nullif_c, SUM(d1);
+nullif_c	if_c	SUM(d1)
+2.00	2.00	2
+3.33	3.33	NULL
+3.33	3.33	6
+3.33	3.33	9
+DROP TABLE t;
