@@ -375,28 +375,6 @@ static int ndbcluster_alter_tablespace(handlerton*, THD* thd,
                                        dd::Tablespace*);
 static int handle_trailing_share(THD *thd, NDB_SHARE *share);
 
-/**
-   Used to fill in INFORMATION_SCHEMA* tables.
-
-   @param hton handle to the handlerton structure
-   @param thd the thread/connection descriptor
-   @param[in,out] tables the information schema table that is filled up
-   @param cond used for conditional pushdown to storage engine
-   @param schema_table_idx the table id that distinguishes the type of table
-
-   @return Operation status
- */
-static int
-ndbcluster_fill_is_table(handlerton *hton, THD *thd, TABLE_LIST *tables,
-                         Item *cond, enum enum_schema_tables schema_table_idx)
-{
-  DBUG_ASSERT(schema_table_idx == SCH_TABLESPACES);
-
-  // NDB does not implement SCH_TABLESPACES.
-
-  return  0;
-}
-
 
 static handler *ndbcluster_create_handler(handlerton *hton,
                                           TABLE_SHARE *table,
@@ -13661,7 +13639,6 @@ int ndbcluster_init(void* p)
     h->alter_tablespace=
         ndbcluster_alter_tablespace; /* Tablespace and logfile group */
     h->partition_flags=  ndbcluster_partition_flags; /* Partition flags */
-    h->fill_is_table=    ndbcluster_fill_is_table;
     ndbcluster_binlog_init(h);
     h->flags=            HTON_TEMPORARY_NOT_SUPPORTED |
                          HTON_NO_BINLOG_ROW_OPT |
