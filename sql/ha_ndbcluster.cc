@@ -360,12 +360,6 @@ bool ndb_show_foreign_key_mock_tables(THD* thd)
   return value;
 }
 
-bool ndb_log_exclusive_reads(THD *thd)
-{
-  const bool value = THDVAR(thd, log_exclusive_reads);
-  return value;
-}
-
 static int ndbcluster_end(handlerton *hton, ha_panic_function flag);
 static bool ndbcluster_show_status(handlerton *hton, THD*,
                                    stat_print_fn *,
@@ -380,28 +374,6 @@ static int ndbcluster_alter_tablespace(handlerton*, THD* thd,
                                        const dd::Tablespace*,
                                        dd::Tablespace*);
 static int handle_trailing_share(THD *thd, NDB_SHARE *share);
-
-/**
-   Used to fill in INFORMATION_SCHEMA* tables.
-
-   @param hton handle to the handlerton structure
-   @param thd the thread/connection descriptor
-   @param[in,out] tables the information schema table that is filled up
-   @param cond used for conditional pushdown to storage engine
-   @param schema_table_idx the table id that distinguishes the type of table
-
-   @return Operation status
- */
-static int
-ndbcluster_fill_is_table(handlerton *hton, THD *thd, TABLE_LIST *tables,
-                         Item *cond, enum enum_schema_tables schema_table_idx)
-{
-  DBUG_ASSERT(schema_table_idx == SCH_TABLESPACES);
-
-  // NDB does not implement SCH_TABLESPACES.
-
-  return  0;
-}
 
 
 static handler *ndbcluster_create_handler(handlerton *hton,
@@ -3651,7 +3623,7 @@ ha_ndbcluster::scan_handle_lock_tuple(NdbScanOperation *scanOp,
      * issue updateCurrentTuple with AnyValue explicitly set
      */
     if ((m_lock.type >= TL_WRITE_ALLOW_WRITE) &&
-        ndb_log_exclusive_reads(current_thd))
+        THDVAR(current_thd, log_exclusive_reads))
     {
       if (scan_log_exclusive_read(scanOp, trans))
       { 
@@ -4078,7 +4050,7 @@ ha_ndbcluster::pk_unique_index_read_key(uint idx, const uchar *key, uchar *buf,
         if it was a hidden primary key.
       */
       idx_type != UNDEFINED_INDEX &&
-      ndb_log_exclusive_reads(current_thd))
+      THDVAR(current_thd, log_exclusive_reads))
   {
     if (log_exclusive_read(key_rec, key, buf, ppartition_id) != 0)
       DBUG_RETURN(NULL);
@@ -13667,7 +13639,6 @@ int ndbcluster_init(void* p)
     h->alter_tablespace=
         ndbcluster_alter_tablespace; /* Tablespace and logfile group */
     h->partition_flags=  ndbcluster_partition_flags; /* Partition flags */
-    h->fill_is_table=    ndbcluster_fill_is_table;
     ndbcluster_binlog_init(h);
     h->flags=            HTON_TEMPORARY_NOT_SUPPORTED |
                          HTON_NO_BINLOG_ROW_OPT |
