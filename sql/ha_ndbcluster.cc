@@ -360,12 +360,6 @@ bool ndb_show_foreign_key_mock_tables(THD* thd)
   return value;
 }
 
-bool ndb_log_exclusive_reads(THD *thd)
-{
-  const bool value = THDVAR(thd, log_exclusive_reads);
-  return value;
-}
-
 static int ndbcluster_end(handlerton *hton, ha_panic_function flag);
 static bool ndbcluster_show_status(handlerton *hton, THD*,
                                    stat_print_fn *,
@@ -3651,7 +3645,7 @@ ha_ndbcluster::scan_handle_lock_tuple(NdbScanOperation *scanOp,
      * issue updateCurrentTuple with AnyValue explicitly set
      */
     if ((m_lock.type >= TL_WRITE_ALLOW_WRITE) &&
-        ndb_log_exclusive_reads(current_thd))
+        THDVAR(current_thd, log_exclusive_reads))
     {
       if (scan_log_exclusive_read(scanOp, trans))
       { 
@@ -4078,7 +4072,7 @@ ha_ndbcluster::pk_unique_index_read_key(uint idx, const uchar *key, uchar *buf,
         if it was a hidden primary key.
       */
       idx_type != UNDEFINED_INDEX &&
-      ndb_log_exclusive_reads(current_thd))
+      THDVAR(current_thd, log_exclusive_reads))
   {
     if (log_exclusive_read(key_rec, key, buf, ppartition_id) != 0)
       DBUG_RETURN(NULL);
