@@ -4803,9 +4803,8 @@ sub run_testcase ($) {
       # Check if check-testcase should be run
       if ($opt_check_testcases)
       {
-        if (($res == 0 and !restart_forced_by_test('force_restart')) or
-            ($res == 62 and
-             !restart_forced_by_test('force_restart_if_skipped')))
+        if ($res == 0 and !restart_forced_by_test('force_restart') or
+            $res == 62 and !restart_forced_by_test('force_restart_if_skipped'))
         {
           $check_res= check_testcase($tinfo, "after");
 
