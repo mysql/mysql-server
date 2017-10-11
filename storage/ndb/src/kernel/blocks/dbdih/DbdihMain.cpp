@@ -26341,6 +26341,12 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
     }
     
     infoEvent("-- Node %d LCP STATE --", getOwnNodeId());
+    if (refToMain(signal->getSendersBlockRef()) == DBLQH)
+    {
+      jam();
+      signal->theData[0] = 7011;
+      sendSignal(cmasterdihref, GSN_DUMP_STATE_ORD, signal, 1, JBB);
+    }
   }
 
   if(arg == DumpStateOrd::DihDumpLCPMasterTakeOver){

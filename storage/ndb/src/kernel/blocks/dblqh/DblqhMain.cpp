@@ -29450,7 +29450,11 @@ Dblqh::checkLcpFragWatchdog(Signal* signal)
                c_lcpFragWatchdog.elapsedNoProgressMillis / 1000,
                lcpStateString(c_lcpFragWatchdog.lcpState));
       
-      /* Dump some LCP state for debugging... */
+      /**
+       * Dump some LCP and GCP state for debugging...
+       * Also dump some states in master node to see if some LCP
+       * GCP or other protocol stalled.
+       */
       {
         DumpStateOrd* ds = (DumpStateOrd*) signal->getDataPtrSend();
 
@@ -29460,7 +29464,10 @@ Dblqh::checkLcpFragWatchdog(Signal* signal)
         
         ds->args[0] = 7012;
         sendSignal(DBDIH_REF, GSN_DUMP_STATE_ORD, signal, 1, JBA);
-        
+
+        ds->args[0] = 7011;
+        sendSignal(DBDIH_REF, GSN_DUMP_STATE_ORD, signal, 1, JBA);
+
         /* Get ref to our LDM's Backup instance */
         const BlockReference backupRef = calcInstanceBlockRef(BACKUP);
         
