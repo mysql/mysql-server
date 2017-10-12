@@ -61,6 +61,7 @@
 #include "sql/mdl.h"
 #include "sql/mysqld.h"                     // opt_readonly
 #include "sql/sql_class.h"                  // THD
+#include "sql/sql_lex.h"
 #include "sql/sql_plugin.h"                 // plugin_foreach
 #include "sql/sql_plugin_ref.h"
 #include "sql/sql_profile.h"
