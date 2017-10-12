@@ -123,6 +123,12 @@ ndb_fully_replicated: Bug #26794953 INCORRECT PARTITIONS INFORMATION IN INFORMAT
 ndb_no_rb_fragment_count: Bug #26794953 INCORRECT PARTITIONS INFORMATION IN INFORMATION_SCHEMA.PARTITIONS
 ndb_rb_fragment_count: Bug #26794953 INCORRECT PARTITIONS INFORMATION IN INFORMATION_SCHEMA.PARTITIONS
 
+# mysqldump fails to dump logfilegroups and partitions, thus the dump
+# is incomplete and tables in tablespaces can't be restored by running
+# the dumped sql file. This problem probably need both bug#26794727 as
+# well as WL#9185
+ndb_dd_dump: Bug#26794727 MISSING DISK DATA INFORMATION IN INFORMATION_SCHEMA
+
 # Problem with table present in DD and not in SE
 ndb_restore_schema_rewrites: Need WL#9185 MySQL Cluster support for new DD
 
