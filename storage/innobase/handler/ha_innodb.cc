@@ -3615,7 +3615,7 @@ Validate_files::check(
 
 		case Fil_state::MISSING:
 
-			ib::info()
+			ib::warn()
 				<< prefix
 				<< "Tablespace " << space_id << ","
 				<< " name '" << space_name << "',"
@@ -3626,7 +3626,7 @@ Validate_files::check(
 
 		case Fil_state::DELETED:
 
-			ib::info()
+			ib::warn()
 				<< prefix
 				<< "Tablespace " << space_id << ","
 				<< " name '" << space_name << "',"
