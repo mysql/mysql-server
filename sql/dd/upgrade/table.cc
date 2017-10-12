@@ -633,6 +633,7 @@ class Table_upgrade_guard
   handler *m_handler;
   bool m_is_table_open;
   LEX *m_lex_saved;
+  Item *m_free_list_saved;
 public:
 
   void update_mem_root(MEM_ROOT *mem_root)
@@ -661,6 +662,15 @@ public:
   {
     m_sql_mode= m_thd->variables.sql_mode;
     m_thd->variables.sql_mode= m_sql_mode;
+
+    /*
+      During table upgrade, allocation for the Item objects could happen in the
+      mem_root set for this scope. Hence saving current free_list state. Item
+      objects stored in THD::free_list during table upgrade are deallocated in
+      the destructor of the class.
+    */
+    m_free_list_saved= thd->free_list;
+    m_thd->free_list= nullptr;
   }
 
   ~Table_upgrade_guard()
@@ -671,6 +681,10 @@ public:
     // Free item list for partitions
     if (m_table->s->m_part_info)
       free_items(m_table->s->m_part_info->item_free_list);
+
+    // Free items allocated during table upgrade and restore old free list.
+    m_thd->free_items();
+    m_thd->free_list= m_free_list_saved;
 
     // Restore thread lex
     if (m_lex_saved != nullptr)
