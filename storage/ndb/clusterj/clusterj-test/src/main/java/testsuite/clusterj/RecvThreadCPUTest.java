@@ -34,7 +34,7 @@ public class RecvThreadCPUTest extends AbstractClusterJTest {
             createSessionFactoryAndVerify();
             sessionFactory.setRecvThreadCPUids(new short[] {0});
         } catch (Exception ex) {
-            if (ex.getMessage().matches("Binding the receiver thread to CPU is not supported.*")) {
+            if (ex.getMessage().matches("Binding the receiver thread to CPU is not supported in this environment.")) {
                 bindCPUsupported = false;
             }
         }

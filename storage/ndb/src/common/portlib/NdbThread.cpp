@@ -71,18 +71,6 @@ static int g_max_prio = 0;
 static bool get_prio_first = TRUE;
 #endif
 
-#if defined(HAVE_LINUX_SCHEDULING)
-static inline bool has_required_glibc_version() {
-  /* sched_setaffinity has a bug due to which it fails when an all-ones
-   * CPU mask is set. The bug is fixed in GLIBC v2.23. */
-  if (__GLIBC__ > 2 || ( __GLIBC__ == 2 && __GLIBC_MINOR__ >= 23 ))
-  {
-    return TRUE;
-  }
-  return FALSE;
-}
-#endif
-
 static NdbMutex *ndb_thread_mutex = 0;
 static struct NdbCondition * ndb_thread_condition = 0;
 
@@ -1356,13 +1344,7 @@ NdbThread_UnlockCPU(struct NdbThread* pThread)
      */
     cpu_set_t cpu_set;
     Uint32 i;
-    Uint32 num_cpus = sizeof(cpu_set_t) * 8;
-
-    if (!has_required_glibc_version())
-    {
-      error_no = BIND_CPU_NOT_SUPPORTED_ERROR;
-      return error_no;
-    }
+    Uint32 num_cpus = sysconf(_SC_NPROCESSORS_ONLN);
 
     CPU_ZERO(&cpu_set);
     for (i = 0; i < num_cpus; i++)
@@ -1566,7 +1548,6 @@ NdbThread_LockCPUSet(struct NdbThread* pThread,
 #if defined(HAVE_LINUX_SCHEDULING)
   /* Linux */
   cpu_set_t *cpu_set_ptr;
-  Uint32 i, num_cpus;
 #elif defined HAVE_CPUSET_SETAFFINITY
   /* FreeBSD */
   cpuset_t *cpu_set_ptr;
@@ -1581,23 +1562,6 @@ NdbThread_LockCPUSet(struct NdbThread* pThread,
 #if defined HAVE_LINUX_SCHEDULING
   /* Linux */
   cpu_set_ptr = (cpu_set_t*)ndb_cpu_set;
-
-  /* Check if an all mask cpu set is used */
-  num_cpus = sizeof(cpu_set_t) * 8;
-  for (i = 0; i < num_cpus; i++)
-  {
-    if (CPU_ISSET(i, cpu_set_ptr) == 0)
-    {
-      break;
-    }
-  }
-
-  if (i == num_cpus && !has_required_glibc_version())
-  {
-    /* All CPU masks are set but the environment doesn't
-     * have the required glibc version */
-    return BIND_CPU_NOT_SUPPORTED_ERROR;
-  }
 
   /* Lock against the bitmask defined by CPUSet */
   ret= sched_setaffinity(pThread->tid,
