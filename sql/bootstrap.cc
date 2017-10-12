@@ -385,6 +385,8 @@ bool run_bootstrap_thread(MYSQL_FILE *file, bootstrap_functor boot_handler,
   }
   /* Wait for thread to die */
   my_thread_join(&thread_handle, NULL);
+  // Free Items that were created during this execution.
+  thd->free_items();
   delete thd;
   DBUG_RETURN(bootstrap_error);
 }
