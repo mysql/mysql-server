@@ -22,7 +22,7 @@
 #include <unordered_set>
 
 #include "my_inttypes.h"
-#include "dd/string_type.h"
+#include "sql/dd/string_type.h"
 
 
 namespace dd {

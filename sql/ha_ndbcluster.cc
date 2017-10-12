@@ -28,7 +28,6 @@
 #include <string>
 
 #include "m_ctype.h"
-#include "mf_wcomp.h"
 #include "my_dbug.h"
 #include "mysql/plugin.h"
 #include "sql/abstract_query_plan.h"
@@ -77,7 +76,6 @@
 #ifndef DBUG_OFF
 #include "sql/sql_test.h"   // print_where
 #endif
-#include "sql/auth/auth_common.h" // wild_case_compare
 #include "sql/ndb_dd.h"
                             // tablename_to_filename
 #include "sql/sql_class.h"

@@ -24,7 +24,7 @@
    internal API.
 */
 
-#include "dd/string_type.h"
+#include "sql/dd/string_type.h"
 
 namespace dd {
   class Table;

@@ -15,19 +15,23 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "ndb_dd_client.h"
+#include "sql/ndb_dd_client.h"
 
-#include "sql_class.h"      // Using THD
-#include "mdl.h"            // MDL_*
-#include "transaction.h"    // trans_*
-
-#include "dd/dd.h"
-#include "ndb_dd_table.h"
-#include "dd/types/table.h"
-#include "dd/dd_table.h"
-#include "ndb_dd_sdi.h"
+#include <assert.h>
+#include "my_dbug.h"
 #include "sql/dd/cache/dictionary_client.h"
+#include "sql/dd/dd.h"
+#include "sql/dd/dd_table.h"
 #include "sql/dd/properties.h"
+#include "sql/dd/types/table.h"
+#include "sql/dd/types/schema.h"
+#include "sql/mdl.h"            // MDL_*
+#include "sql/ndb_dd_sdi.h"
+#include "sql/ndb_dd_table.h"
+#include "sql/query_options.h"  // OPTION_AUTOCOMMIT
+#include "sql/sql_class.h"      // THD
+#include "sql/system_variables.h"
+#include "sql/transaction.h"    // trans_*
 
 
 Ndb_dd_client::Ndb_dd_client(THD* thd) :
@@ -275,7 +279,7 @@ Ndb_dd_client::rename_table(const char* old_schema_name,
   }
 
   // Read table from DD
-  dd::Table *to_table_def= NULL;
+  dd::Table *to_table_def= nullptr;
   if (m_client->acquire_for_modification(old_schema_name, old_table_name,
                                          &to_table_def))
     return false;
@@ -357,27 +361,31 @@ Ndb_dd_client::install_table(const char* schema_name, const char* table_name,
     return false;
   }
 
-  std::unique_ptr<dd::Table> table_object{dd::create_object<dd::Table>()};
-  if (ndb_dd_sdi_deserialize(m_thd, sdi, table_object.get()))
+  std::unique_ptr<dd::Table> install_table{dd::create_object<dd::Table>()};
+  if (ndb_dd_sdi_deserialize(m_thd, sdi, install_table.get()))
   {
     return false;
   }
 
-  // Verfiy that table defintion unpacked from NDB
+  // Verify that table_name in the unpacked table definition
+  // matches the table name to install
+  DBUG_ASSERT(install_table->name() == table_name);
+
+  // Verify that table defintion unpacked from NDB
   // does not have any se_private fields set, those will be set
   // from the NDB table metadata
-  DBUG_ASSERT(table_object->se_private_id() == dd::INVALID_OBJECT_ID);
-  DBUG_ASSERT(table_object->se_private_data().raw_string() == "");
+  DBUG_ASSERT(install_table->se_private_id() == dd::INVALID_OBJECT_ID);
+  DBUG_ASSERT(install_table->se_private_data().raw_string() == "");
 
   // Assign the id of the schema to the table_object
-  table_object->set_schema_id(schema->id());
+  install_table->set_schema_id(schema->id());
 
   // Asign NDB id and version of the table
-  ndb_dd_table_set_object_id_and_version(table_object.get(),
+  ndb_dd_table_set_object_id_and_version(install_table.get(),
                                          ndb_table_id, ndb_table_version);
 
   const dd::Table *existing= nullptr;
-  if (m_client->acquire(schema->name(), table_object->name(), &existing))
+  if (m_client->acquire(schema_name, table_name, &existing))
   {
     return false;
   }
@@ -426,7 +434,7 @@ Ndb_dd_client::install_table(const char* schema_name, const char* table_name,
     }
   }
 
-  if (m_client->store(table_object.get()))
+  if (m_client->store(install_table.get()))
   {
     DBUG_ASSERT(false); // Failed to store
     return false;
