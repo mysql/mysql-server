@@ -4506,6 +4506,8 @@ public:
 
 class Item_int_with_ref :public Item_int
 {
+private:
+  enum_field_types cached_field_type;
 protected:
   Item *ref;
   type_conversion_status save_in_field_inner(Field *field, bool no_conversions)
@@ -4513,13 +4515,16 @@ protected:
     return ref->save_in_field(field, no_conversions);
   }
 public:
-  Item_int_with_ref(longlong i, Item *ref_arg, my_bool unsigned_arg) :
-    Item_int(i), ref(ref_arg)
+  Item_int_with_ref(enum_field_types field_type_arg,
+                    longlong i, Item *ref_arg, my_bool unsigned_arg) :
+    Item_int(i), cached_field_type(field_type_arg), ref(ref_arg)
+
   {
     unsigned_flag= unsigned_arg;
   }
   Item *clone_item();
   virtual Item *real_item() { return ref; }
+  enum_field_types field_type() const { return cached_field_type; }
 };
 
 
@@ -4528,18 +4533,14 @@ public:
 */
 class Item_temporal_with_ref :public Item_int_with_ref
 {
-private:
-  enum_field_types cached_field_type;
 public:
   Item_temporal_with_ref(enum_field_types field_type_arg,
                          uint8 decimals_arg, longlong i, Item *ref_arg,
                          bool unsigned_flag):
-    Item_int_with_ref(i, ref_arg, unsigned_flag),
-    cached_field_type(field_type_arg)
+    Item_int_with_ref(field_type_arg, i, ref_arg, unsigned_flag)
   {
     decimals= decimals_arg;
   }
-  enum_field_types field_type() const { return cached_field_type; }
   void print(String *str, enum_query_type query_type);
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
