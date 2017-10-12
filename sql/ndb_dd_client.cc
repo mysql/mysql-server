@@ -15,17 +15,22 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "ndb_dd_client.h"
+#include "sql/ndb_dd_client.h"
 
-#include "sql_class.h"      // Using THD
-#include "mdl.h"            // MDL_*
-#include "transaction.h"    // trans_*
-
-#include "dd/dd.h"
-#include "ndb_dd_table.h"
-#include "dd/types/table.h"
-#include "dd/dd_table.h"
-#include "ndb_dd_sdi.h"
+#include <assert.h>
+#include "my_dbug.h"
+#include "sql/dd/cache/dictionary_client.h"
+#include "sql/dd/dd.h"
+#include "sql/dd/dd_table.h"
+#include "sql/dd/types/table.h"
+#include "sql/dd/types/schema.h"
+#include "sql/mdl.h"            // MDL_*
+#include "sql/ndb_dd_sdi.h"
+#include "sql/ndb_dd_table.h"
+#include "sql/query_options.h"  // OPTION_AUTOCOMMIT
+#include "sql/sql_class.h"      // THD
+#include "sql/system_variables.h"
+#include "sql/transaction.h"    // trans_*
 
 
 Ndb_dd_client::Ndb_dd_client(THD* thd) :
@@ -273,7 +278,7 @@ Ndb_dd_client::rename_table(const char* old_schema_name,
   }
 
   // Read table from DD
-  dd::Table *to_table_def= NULL;
+  dd::Table *to_table_def= nullptr;
   if (m_client->acquire_for_modification(old_schema_name, old_table_name,
                                          &to_table_def))
     return false;

@@ -16,10 +16,11 @@
 */
 
 // Implements the function defined in ndb_dd_sdi.h
-#include "ndb_dd_sdi.h"
+#include "sql/ndb_dd_sdi.h"
 
 // Using
-#include "dd/impl/sdi.h"
+#include "sql/dd/impl/sdi.h"
+#include "sql/dd/string_type.h"
 
 
 bool
