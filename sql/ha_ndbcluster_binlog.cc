@@ -66,9 +66,6 @@ bool ndb_log_empty_epochs(void);
 
 void ndb_index_stat_restart();
 
-/*
-  defines for cluster replication table names
-*/
 #include "sql/ha_ndbcluster_tables.h"
 #include "sql/ndb_anyvalue.h"
 #include "sql/ndb_binlog_extra_row_info.h"
