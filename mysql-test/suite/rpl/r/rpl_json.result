@@ -1222,4 +1222,418 @@ Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JS
 DROP TABLE data_table;
 DROP TABLE json_data;
 include/sync_slave_sql_with_master.inc
+#
+# WL#9191: ADD JSON_PRETTY FUNCTION
+#
+[Connection Master]
+# Create tables of various data types
+CREATE TABLE data (pkey INT PRIMARY KEY AUTO_INCREMENT,
+txt TEXT, vcol VARCHAR(20), num INT,
+gcol INT AS (num * 2) VIRTUAL,
+gcol2 JSON AS (JSON_PRETTY(JSON_OBJECT(num,gcol))));
+CREATE TABLE json_data(pk INT PRIMARY KEY AUTO_INCREMENT, jcol TEXT, jgcol TEXT AS (JSON_PRETTY(jcol)));
+# Insert values into the tables using the pretty function
+INSERT INTO data (txt, vcol, num) VALUES ('abc', 'namotgr', 150),
+('fwjh4', 'ucierov', 142),
+('8942rhkjh', 'roiu3r', 913),
+('imfmf', 'r3jr2', 15),
+('32rj2jr', 'r2ihrhr', 32);
+INSERT INTO json_data(jcol) SELECT JSON_PRETTY(JSON_OBJECTAGG(pkey, gcol)) FROM data;
+INSERT INTO json_data(jcol) SELECT JSON_PRETTY(JSON_ARRAYAGG(txt)) FROM data;
+INSERT INTO json_data(jcol) SELECT JSON_PRETTY(JSON_PRETTY(gcol2)) FROM data;
+INSERT INTO json_data(jcol) SELECT JSON_PRETTY(JSON_OBJECT(num , vcol)) FROM data;
+INSERT INTO json_data(jcol) SELECT JSON_PRETTY(JSON_OBJECTAGG(pkey , txt)) FROM data;
+INSERT INTO json_data(jcol) SELECT JSON_PRETTY(JSON_ARRAY(gcol)) FROM data;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+# Check whether tables were created on the slave
+SELECT * FROM json_data;
+pk	jcol	jgcol
+1	{
+  "1": 300,
+  "2": 284,
+  "3": 1826,
+  "4": 30,
+  "5": 64
+}	{
+  "1": 300,
+  "2": 284,
+  "3": 1826,
+  "4": 30,
+  "5": 64
+}
+2	[
+  "abc",
+  "fwjh4",
+  "8942rhkjh",
+  "imfmf",
+  "32rj2jr"
+]	[
+  "abc",
+  "fwjh4",
+  "8942rhkjh",
+  "imfmf",
+  "32rj2jr"
+]
+3	{
+  "150": 300
+}	{
+  "150": 300
+}
+4	{
+  "142": 284
+}	{
+  "142": 284
+}
+5	{
+  "913": 1826
+}	{
+  "913": 1826
+}
+6	{
+  "15": 30
+}	{
+  "15": 30
+}
+7	{
+  "32": 64
+}	{
+  "32": 64
+}
+10	{
+  "150": "namotgr"
+}	{
+  "150": "namotgr"
+}
+11	{
+  "142": "ucierov"
+}	{
+  "142": "ucierov"
+}
+12	{
+  "913": "roiu3r"
+}	{
+  "913": "roiu3r"
+}
+13	{
+  "15": "r3jr2"
+}	{
+  "15": "r3jr2"
+}
+14	{
+  "32": "r2ihrhr"
+}	{
+  "32": "r2ihrhr"
+}
+17	{
+  "1": "abc",
+  "2": "fwjh4",
+  "3": "8942rhkjh",
+  "4": "imfmf",
+  "5": "32rj2jr"
+}	{
+  "1": "abc",
+  "2": "fwjh4",
+  "3": "8942rhkjh",
+  "4": "imfmf",
+  "5": "32rj2jr"
+}
+18	[
+  300
+]	[
+  300
+]
+19	[
+  284
+]	[
+  284
+]
+20	[
+  1826
+]	[
+  1826
+]
+21	[
+  30
+]	[
+  30
+]
+22	[
+  64
+]	[
+  64
+]
+SELECT gcol2  FROM data;
+gcol2
+{"150": 300}
+{"142": 284}
+{"913": 1826}
+{"15": 30}
+{"32": 64}
+include/diff_tables.inc [master:json_data, slave:json_data]
+include/diff_tables.inc [master:data, slave:data]
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+[Connection Master]
+# Update values in the table
+UPDATE json_data SET jcol= (SELECT JSON_PRETTY(JSON_ARRAYAGG(gcol2)) FROM data) WHERE pk= 2;
+UPDATE json_data SET jcol= (SELECT JSON_PRETTY(JSON_OBJECTAGG(pk,gcol)) FROM data) WHERE pk = 1;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM json_data;
+pk	jcol	jgcol
+1	{
+  "1": 300
+}	{
+  "1": 300
+}
+2	[
+  {
+    "150": 300
+  },
+  {
+    "142": 284
+  },
+  {
+    "913": 1826
+  },
+  {
+    "15": 30
+  },
+  {
+    "32": 64
+  }
+]	[
+  {
+    "150": 300
+  },
+  {
+    "142": 284
+  },
+  {
+    "913": 1826
+  },
+  {
+    "15": 30
+  },
+  {
+    "32": 64
+  }
+]
+3	{
+  "150": 300
+}	{
+  "150": 300
+}
+4	{
+  "142": 284
+}	{
+  "142": 284
+}
+5	{
+  "913": 1826
+}	{
+  "913": 1826
+}
+6	{
+  "15": 30
+}	{
+  "15": 30
+}
+7	{
+  "32": 64
+}	{
+  "32": 64
+}
+10	{
+  "150": "namotgr"
+}	{
+  "150": "namotgr"
+}
+11	{
+  "142": "ucierov"
+}	{
+  "142": "ucierov"
+}
+12	{
+  "913": "roiu3r"
+}	{
+  "913": "roiu3r"
+}
+13	{
+  "15": "r3jr2"
+}	{
+  "15": "r3jr2"
+}
+14	{
+  "32": "r2ihrhr"
+}	{
+  "32": "r2ihrhr"
+}
+17	{
+  "1": "abc",
+  "2": "fwjh4",
+  "3": "8942rhkjh",
+  "4": "imfmf",
+  "5": "32rj2jr"
+}	{
+  "1": "abc",
+  "2": "fwjh4",
+  "3": "8942rhkjh",
+  "4": "imfmf",
+  "5": "32rj2jr"
+}
+18	[
+  300
+]	[
+  300
+]
+19	[
+  284
+]	[
+  284
+]
+20	[
+  1826
+]	[
+  1826
+]
+21	[
+  30
+]	[
+  30
+]
+22	[
+  64
+]	[
+  64
+]
+include/diff_tables.inc [master:json_data, slave:json_data]
+[Connection Master]
+# Delete values from the table
+DELETE FROM json_data WHERE JSON_PRETTY(jgcol)  = (SELECT JSON_PRETTY(JSON_OBJECTAGG(pkey,txt)) FROM data);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM json_data;
+pk	jcol	jgcol
+1	{
+  "1": 300
+}	{
+  "1": 300
+}
+2	[
+  {
+    "150": 300
+  },
+  {
+    "142": 284
+  },
+  {
+    "913": 1826
+  },
+  {
+    "15": 30
+  },
+  {
+    "32": 64
+  }
+]	[
+  {
+    "150": 300
+  },
+  {
+    "142": 284
+  },
+  {
+    "913": 1826
+  },
+  {
+    "15": 30
+  },
+  {
+    "32": 64
+  }
+]
+3	{
+  "150": 300
+}	{
+  "150": 300
+}
+4	{
+  "142": 284
+}	{
+  "142": 284
+}
+5	{
+  "913": 1826
+}	{
+  "913": 1826
+}
+6	{
+  "15": 30
+}	{
+  "15": 30
+}
+7	{
+  "32": 64
+}	{
+  "32": 64
+}
+10	{
+  "150": "namotgr"
+}	{
+  "150": "namotgr"
+}
+11	{
+  "142": "ucierov"
+}	{
+  "142": "ucierov"
+}
+12	{
+  "913": "roiu3r"
+}	{
+  "913": "roiu3r"
+}
+13	{
+  "15": "r3jr2"
+}	{
+  "15": "r3jr2"
+}
+14	{
+  "32": "r2ihrhr"
+}	{
+  "32": "r2ihrhr"
+}
+18	[
+  300
+]	[
+  300
+]
+19	[
+  284
+]	[
+  284
+]
+20	[
+  1826
+]	[
+  1826
+]
+21	[
+  30
+]	[
+  30
+]
+22	[
+  64
+]	[
+  64
+]
+include/diff_tables.inc [master:json_data, slave:json_data]
+[Connection Master]
+DROP TABLE data;
+DROP TABLE json_data;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

@@ -1967,7 +1967,8 @@ JSON_DEPTH(j),
 JSON_ARRAY(j, j),
 JSON_OBJECT('k', j),
 JSON_UNQUOTE(CAST(j AS CHAR)),
-JSON_QUOTE(CAST(j AS CHAR))
+JSON_QUOTE(CAST(j AS CHAR)),
+JSON_PRETTY(j)
 FROM T_WITH_NULLS
 ORDER BY i;
 eval $query;
@@ -3349,6 +3350,44 @@ DELETE FROM t WHERE j IN (SELECT CAST('not json' AS JSON) FROM DUAL WHERE 1);
 SELECT * FROM t;
 DROP TABLE t;
 
+
+--echo #
+--echo # WL#9191: JSON_PRETTY function
+--echo #
+CREATE TABLE t(id INT PRIMARY KEY AUTO_INCREMENT,
+               uc VARCHAR(128) CHARACTER SET utf8mb4,
+               lc VARCHAR(128) CHARACTER SET latin1,
+               j JSON);
+INSERT INTO t(uc) VALUES
+(NULL),
+('{}'),
+('[]'),
+('[1,2,3]'),
+('{"a":1,"b":2}'),
+('{"a":[1,{}],"b":[]}'),
+('{"a":{"b":{"c":{"d":{"e":{"f":null}}}}}}'),
+('true'),
+('false'),
+('null'),
+('1'),
+('1.1'),
+('"hello"'),
+(JSON_ARRAY('abc
+def', '"abc"'));
+UPDATE t SET lc = uc, j = uc;
+SELECT JSON_PRETTY(uc) AS c1 FROM t ORDER BY id;
+SELECT JSON_PRETTY(lc) AS c1 FROM t ORDER BY id;
+SELECT JSON_PRETTY(j) AS c1 FROM t ORDER BY id;
+SELECT DISTINCT CHARSET(JSON_PRETTY(uc)) AS c1,
+                CHARSET(JSON_PRETTY(lc)) AS c2,
+                CHARSET(JSON_PRETTY(j)) AS c3 FROM t;
+DROP TABLE t;
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT JSON_PRETTY('this is not JSON') AS j;
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT JSON_PRETTY();
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT JSON_PRETTY('{}', 2);
 
 # Local Variables:
 # mode: sql

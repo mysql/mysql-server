@@ -1486,21 +1486,6 @@ void Json_array::clear()
 
 
 /**
-  Reserve space in a buffer. In order to avoid frequent reallocations,
-  allocate a new buffer at least as twice as large as the current
-  buffer if there is not enough space.
-
-  @param[in, out] buffer  the buffer in which to reserve space
-  @param[in]      needed  the number of bytes to reserve
-  @return false if successful, true if memory could not be allocated
-*/
-static bool reserve(String *buffer, size_t needed)
-{
-  return buffer->reserve(needed, buffer->alloced_length());
-}
-
-
-/**
   Perform quoting on a JSON string to make an external representation
   of it. it wraps double quotes (text quotes) around the string (cptr)
   an also performs escaping according to the following table:
@@ -1534,7 +1519,7 @@ static bool reserve(String *buffer, size_t needed)
 */
 bool double_quote(const char *cptr, size_t length, String *buf)
 {
-  if (reserve(buf, 2 + length) || buf->append('"'))
+  if (buf->append('"'))
     return true;                              /* purecov: inspected */
 
   for (size_t i= 0; i < length; i++)
@@ -1567,7 +1552,7 @@ bool double_quote(const char *cptr, size_t length, String *buf)
 
     if (done)
     {
-      if (reserve(buf, 2) || buf->append(esc[0]) || buf->append(esc[1]))
+      if (buf->append(esc[0]) || buf->append(esc[1]))
         return true;                          /* purecov: inspected */
     }
     else if (((cptr[i] & ~0x7f) == 0) && // bit 8 not set
@@ -1577,17 +1562,17 @@ bool double_quote(const char *cptr, size_t length, String *buf)
         Unprintable control character, use hex a hexadecimal number.
         The meaning of such a number determined by ISO/IEC 10646.
       */
-      if (reserve(buf, 5) || buf->append("\\u00") ||
+      if (buf->append("\\u00") ||
           buf->append(_dig_vec_lower[(cptr[i] & 0xf0) >> 4]) ||
           buf->append(_dig_vec_lower[(cptr[i] & 0x0f)]))
         return true;                          /* purecov: inspected */
     }
-    else if (reserve(buf, 1) || buf->append(cptr[i]))
+    else if (buf->append(cptr[i]))
     {
       return true;                            /* purecov: inspected */
     }
   }
-  return reserve(buf, 1) || buf->append('"');
+  return buf->append('"');
 }
 
 
@@ -1927,7 +1912,24 @@ static int print_string(String *buffer, bool json_quoted,
 {
   return json_quoted ?
     double_quote(data, length, buffer) :
-    (reserve(buffer, length) || buffer->append(data, length));
+    buffer->append(data, length);
+}
+
+
+/**
+  Helper function for wrapper_to_string() which adds a newline and indentation
+  up to the specified level.
+
+  @param[in,out] buffer  the buffer to write to
+  @param[in]     level   how many nesting levels to add indentation for
+  @retval false on success
+  @retval true on error
+*/
+static bool newline_and_indent(String *buffer, size_t level)
+{
+  // Append newline and two spaces per indentation level.
+  return buffer->append('\n') ||
+    buffer->fill(buffer->length() + level * 2, ' ');
 }
 
 
@@ -1937,10 +1939,20 @@ static int print_string(String *buffer, bool json_quoted,
   recursively. The depth parameter keeps track of the current nesting
   level. When it reaches JSON_DOCUMENT_MAX_DEPTH, it gives up in order
   to avoid running out of stack space.
+
+  @param[in]     wr          the value to convert to a string
+  @param[in,out] buffer      the buffer to write to
+  @param[in]     json_quoted quote strings if true
+  @param[in]     pretty      add newlines and indentation if true
+  @param[in]     func_name   the name of the calling function
+  @param[in]     depth       the nesting level of @a wr
+
+  @retval false on success
+  @retval true on error
 */
 static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
-                              bool json_quoted, const char *func_name,
-                              size_t depth)
+                              bool json_quoted, bool pretty,
+                              const char *func_name, size_t depth)
 {
   if (check_json_depth(++depth))
     return true;
@@ -1953,7 +1965,7 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
   case Json_dom::J_TIMESTAMP:
     {
       // Make sure the buffer has space for the datetime and the quotes.
-      if (reserve(buffer, MAX_DATE_STRING_REP_LENGTH + 2))
+      if (buffer->reserve(MAX_DATE_STRING_REP_LENGTH + 2))
         return true;                           /* purecov: inspected */
       MYSQL_TIME t;
       wr.get_datetime(&t);
@@ -1968,39 +1980,38 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
     }
   case Json_dom::J_ARRAY:
     {
-      /*
-        Reserve some space up front. We know we need at least 3 bytes
-        per array element (at least one byte for the element, one byte
-        for the comma, and one byte for the space).
-      */
-      size_t array_len= wr.length();
-      if (reserve(buffer, 3 * array_len) || buffer->append('['))
+      if (buffer->append('['))
         return true;                           /* purecov: inspected */
 
+      size_t array_len= wr.length();
       for (uint32 i= 0; i < array_len; ++i)
       {
-        if (i > 0 && (reserve(buffer, 2) || buffer->append(", ")))
+        if (i > 0 && buffer->append(pretty ? "," : ", "))
           return true;                         /* purecov: inspected */
 
-        if (wrapper_to_string(wr[i], buffer, true, func_name, depth))
+        if (pretty && newline_and_indent(buffer, depth))
+          return true;                         /* purecov: inspected */
+
+        if (wrapper_to_string(wr[i], buffer, true, pretty, func_name, depth))
           return true;                         /* purecov: inspected */
       }
-      if (reserve(buffer, 1) || buffer->append(']'))
+
+      if (pretty && array_len > 0 && newline_and_indent(buffer, depth - 1))
         return true;                           /* purecov: inspected */
+
+      if (buffer->append(']'))
+        return true;                           /* purecov: inspected */
+
       break;
     }
   case Json_dom::J_BOOLEAN:
-    {
-      const char *str= wr.get_boolean() ? "true" : "false";
-      size_t str_len= std::strlen(str);
-      if (reserve(buffer, str_len) || buffer->append(str, str_len))
-        return true;                          /* purecov: inspected */
-      break;
-    }
+    if (buffer->append(wr.get_boolean() ? "true" : "false"))
+      return true;                             /* purecov: inspected */
+    break;
   case Json_dom::J_DECIMAL:
     {
       int length= DECIMAL_MAX_STR_LENGTH + 1;
-      if (reserve(buffer, length))
+      if (buffer->reserve(length))
         return true;                           /* purecov: inspected */
       char *ptr= const_cast<char *>(buffer->ptr()) + buffer->length();
       my_decimal m;
@@ -2012,7 +2023,7 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
     }
   case Json_dom::J_DOUBLE:
     {
-      if (reserve(buffer, MY_GCVT_MAX_FIELD_WIDTH + 1))
+      if (buffer->reserve(MY_GCVT_MAX_FIELD_WIDTH + 1))
         return true;                           /* purecov: inspected */
       double d= wr.get_double();
       size_t len= my_gcvt(d, MY_GCVT_ARG_DOUBLE, MY_GCVT_MAX_FIELD_WIDTH,
@@ -2023,48 +2034,47 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
     }
   case Json_dom::J_INT:
     {
-      if (reserve(buffer, MAX_BIGINT_WIDTH + 1) ||
-          buffer->append_longlong(wr.get_int()))
+      if (buffer->append_longlong(wr.get_int()))
         return true;                           /* purecov: inspected */
       break;
     }
   case Json_dom::J_NULL:
-    if (reserve(buffer, 4) || buffer->append("null"))
+    if (buffer->append("null"))
       return true;                             /* purecov: inspected */
     break;
   case Json_dom::J_OBJECT:
     {
-      /*
-        Reserve some space up front to reduce the number of
-        reallocations needed. We know we need at least seven bytes per
-        member in the object. Two bytes for the quotes around the key
-        name, two bytes for the colon and space between the key and
-        the value, one byte for the value, and two bytes for the comma
-        and space between members. We're generous and assume at least
-        one byte in the key name as well, so we reserve eight bytes per
-        member.
-      */
-      if (reserve(buffer, 2 + 8 * wr.length()) || buffer->append('{'))
+      if (buffer->append('{'))
         return true;                           /* purecov: inspected */
-      uint32 i= 0;
+
+      bool first= true;
       for (Json_wrapper_object_iterator iter= wr.object_iterator();
            !iter.empty(); iter.next())
       {
-        if (i++ > 0 && (reserve(buffer, 2) || buffer->append(", ")))
+        if (!first && buffer->append(pretty ? "," : ", "))
+          return true;                         /* purecov: inspected */
+
+        first= false;
+
+        if (pretty && newline_and_indent(buffer, depth))
           return true;                         /* purecov: inspected */
 
         const std::string &key= iter.elt().first;
         const char *key_data= key.c_str();
         size_t key_length= key.length();
-        if (reserve(buffer, key_length + 4) ||
-            print_string(buffer, true, key_data, key_length) ||
-            reserve(buffer, 2) || buffer->append(": ") ||
-            wrapper_to_string(iter.elt().second, buffer, true, func_name,
-                              depth))
+        if (print_string(buffer, true, key_data, key_length) ||
+            buffer->append(": ") ||
+            wrapper_to_string(iter.elt().second, buffer, true, pretty,
+                              func_name, depth))
           return true;                         /* purecov: inspected */
       }
-      if (reserve(buffer, 1) || buffer->append('}'))
+
+      if (pretty && wr.length() > 0 && newline_and_indent(buffer, depth - 1))
         return true;                           /* purecov: inspected */
+
+      if (buffer->append('}'))
+        return true;                           /* purecov: inspected */
+
       break;
     }
   case Json_dom::J_OPAQUE:
@@ -2082,18 +2092,15 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
       const size_t needed=
         static_cast<size_t>(base64_needed_encoded_length(wr.get_data_length()));
 
-      const char *prefix= "base64:type";
-      const size_t prefix_len= std::strlen(prefix);
-      if (reserve(buffer, prefix_len + MAX_INT_WIDTH + 3 + needed) ||
-          single_quote(buffer, json_quoted) ||
-          buffer->append(prefix, prefix_len) ||
+      if (single_quote(buffer, json_quoted) ||
+          buffer->append("base64:type") ||
           buffer->append_ulonglong(wr.field_type()) ||
           buffer->append(':'))
         return true;                           /* purecov: inspected */
 
       // "base64:typeXX:<binary data>"
       size_t pos= buffer->length();
-      if (reserve(buffer, needed) ||
+      if (buffer->reserve(needed) ||
           base64_encode(wr.get_data(), wr.get_data_length(),
                         const_cast<char*>(buffer->ptr() + pos)))
         return true;                           /* purecov: inspected */
@@ -2113,8 +2120,7 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
     }
   case Json_dom::J_UINT:
     {
-      if (reserve(buffer, MAX_BIGINT_WIDTH) ||
-          buffer->append_ulonglong(wr.get_uint()))
+      if (buffer->append_ulonglong(wr.get_uint()))
         return true;                           /* purecov: inspected */
       break;
     }
@@ -2143,8 +2149,16 @@ bool Json_wrapper::to_string(String *buffer, bool json_quoted,
                              const char *func_name) const
 {
   buffer->set_charset(&my_charset_utf8mb4_bin);
-  return wrapper_to_string(*this, buffer, json_quoted, func_name, 0);
+  return wrapper_to_string(*this, buffer, json_quoted, false, func_name, 0);
 }
+
+
+bool Json_wrapper::to_pretty_string(String *buffer, const char *func_name) const
+{
+  buffer->set_charset(&my_charset_utf8mb4_bin);
+  return wrapper_to_string(*this, buffer, true, true, func_name, 0);
+}
+
 
 Json_dom::enum_json_type Json_wrapper::type() const
 {
