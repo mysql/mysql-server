@@ -34,24 +34,29 @@ SUM(LENGTH(word))
 DROP TABLE t1,t3;
 CREATE TABLE t1 (n INT) ENGINE=NDB;
 RESET MASTER;
-STOP SLAVE;
+include/stop_slave.inc
 RESET SLAVE;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 5000
+include/save_master_pos.inc
 RESET MASTER;
 LOCK TABLES t1 READ;
-START SLAVE;
+include/start_slave.inc
+include/sync_slave_io.inc
 UNLOCK TABLES;
+include/sync_slave_sql_with_io.inc
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 5000
 DROP TABLE t1;
 CREATE TABLE t1 (n INT);
 INSERT INTO t1 VALUES(3456);
+include/sync_slave_sql_with_master.inc
 SELECT n FROM t1;
 n
 3456
 DROP TABLE t1;
 # mysql.user table restored to original values.
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc
