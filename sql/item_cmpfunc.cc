@@ -3361,6 +3361,9 @@ void Item_func_between::print(String *str, enum_query_type query_type)
   str->append(')');
 }
 
+/**
+  @todo Consolidate type resolution logic with CASE and COALESCE.
+*/
 bool Item_func_ifnull::resolve_type(THD *)
 {
   uint32 char_length;
@@ -3376,7 +3379,8 @@ bool Item_func_ifnull::resolve_type(THD *)
     int len1= args[1]->max_char_length() - args[1]->decimals
       - (args[1]->unsigned_flag ? 0 : 1);
 
-    char_length= max(len0, len1) + decimals + (unsigned_flag ? 0 : 1);
+    char_length= max(len0, len1) + decimals + (unsigned_flag ? 0 : 1) +
+      (decimals > 0 ? 1 : 0);
   }
   else
     char_length= max(args[0]->max_char_length(), args[1]->max_char_length());
