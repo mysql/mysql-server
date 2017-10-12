@@ -87,13 +87,7 @@ Mapped_table* table_mapping::get_table(ulonglong table_id)
 */
 int table_mapping::expand()
 {
-  /*
-    If we wanted to use "tmp= new (&m_mem_root) entry[TABLE_ID_CHUNK]",
-    we would have to make "entry" derive from Sql_alloc but then it would not
-    be a POD anymore and we want it to be (see rpl_tblmap.h). So we allocate
-    in C.
-  */
-  entry *tmp= (entry *)alloc_root(&m_mem_root, TABLE_ID_CHUNK*sizeof(entry));
+  entry *tmp= new (&m_mem_root) entry[TABLE_ID_CHUNK];
   if (tmp == NULL)
     return ERR_MEMORY_ALLOCATION; // Memory allocation failed
 

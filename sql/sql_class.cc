@@ -137,13 +137,15 @@ void THD::Transaction_state::restore(THD *thd)
 
 THD::Attachable_trx::Attachable_trx(THD *thd,
                                     Attachable_trx *prev_trx)
- : m_thd(thd), m_reset_lex(RESET_LEX), m_prev_attachable_trx(prev_trx)
+ : m_thd(thd), m_reset_lex(RESET_LEX), m_prev_attachable_trx(prev_trx),
+   m_trx_state(&thd->main_mem_root)
 { init(); }
 
 THD::Attachable_trx::Attachable_trx(THD *thd,
                                     Attachable_trx *prev_trx,
                                     enum_reset_lex reset_lex)
- : m_thd(thd), m_reset_lex(reset_lex), m_prev_attachable_trx(prev_trx)
+ : m_thd(thd), m_reset_lex(reset_lex), m_prev_attachable_trx(prev_trx),
+   m_trx_state(&thd->main_mem_root)
 { init(); }
 
 void THD::Attachable_trx::init()
@@ -167,7 +169,7 @@ void THD::Attachable_trx::init()
   bool reset= (m_reset_lex == RESET_LEX ? true : false);
   if (DBUG_EVALUATE_IF("use_attachable_trx", false, reset))
   {
-    m_thd->lex->reset_n_backup_query_tables_list(&m_trx_state.m_query_tables_list);
+    m_thd->lex->reset_n_backup_query_tables_list(m_trx_state.m_query_tables_list);
     m_thd->lex->sql_command= SQLCOM_SELECT;
   }
 
@@ -272,7 +274,7 @@ THD::Attachable_trx::~Attachable_trx()
   if (DBUG_EVALUATE_IF("use_attachable_trx", false, reset))
   {
     m_thd->lex->restore_backup_query_tables_list(
-      &m_trx_state.m_query_tables_list);
+      m_trx_state.m_query_tables_list);
   }
 }
 
@@ -297,7 +299,7 @@ void THD::enter_stage(const PSI_stage_info *new_stage,
     const char *msg= new_stage->m_name;
 
 #if defined(ENABLED_PROFILING)
-    profiling.status_change(msg, calling_func, calling_file, calling_line);
+    profiling->status_change(msg, calling_func, calling_file, calling_line);
 #endif
 
     m_current_stage_key= new_stage->m_key;
@@ -347,7 +349,8 @@ THD::THD(bool enable_plugins)
   :Query_arena(&main_mem_root, STMT_CONVENTIONAL_EXECUTION),
    mark_used_columns(MARK_COLUMNS_READ),
    want_privilege(0),
-   lex(&main_lex),
+   main_lex(new LEX),
+   lex(main_lex.get()),
    m_dd_client(new dd::cache::Dictionary_client(this)),
    m_query_string(NULL_CSTR),
    m_db(NULL_CSTR),
@@ -376,6 +379,9 @@ THD::THD(bool enable_plugins)
    m_attachable_trx(NULL),
    table_map_for_update(0),
    m_examined_row_count(0),
+#if defined(ENABLED_PROFILING)
+   profiling(new PROFILING),
+#endif
    m_stage_progress_psi(NULL),
    m_digest(NULL),
    m_statement_psi(NULL),
@@ -420,7 +426,7 @@ THD::THD(bool enable_plugins)
    is_a_srv_session_thd(false),
    m_is_plugin_fake_ddl(false)
 {
-  main_lex.reset();
+  main_lex->reset();
   set_psi(NULL);
   mdl_context.init(this);
   init_sql_alloc(key_memory_thd_main_mem_root,
@@ -500,7 +506,7 @@ THD::THD(bool enable_plugins)
 
   init();
 #if defined(ENABLED_PROFILING)
-  profiling.set_thd(this);
+  profiling->set_thd(this);
 #endif
   m_user_connect= NULL;
   user_vars.clear();
@@ -917,7 +923,7 @@ void THD::cleanup_connection(void)
   get_stmt_da()->reset_condition_info(this);
   // clear profiling information
 #if defined(ENABLED_PROFILING)
-  profiling.cleanup();
+  profiling->cleanup();
 #endif
 
 #ifndef DBUG_OFF
@@ -3001,4 +3007,82 @@ bool THD::is_current_stmt_binlog_row_enabled_with_write_set_extraction() const
   return ((variables.transaction_write_set_extraction != HASH_ALGORITHM_OFF) &&
           is_current_stmt_binlog_format_row() &&
           !is_current_stmt_binlog_disabled());
+}
+
+bool THD::Query_plan::is_single_table_plan() const
+{
+  assert_plan_is_locked_if_other();
+  return lex->m_sql_cmd->is_single_table_plan();
+}
+
+THD::Attachable_trx_rw::Attachable_trx_rw(THD *thd, Attachable_trx *prev_trx)
+  : Attachable_trx(thd, prev_trx)
+{
+  m_thd->tx_read_only= false;
+  m_thd->lex->sql_command= SQLCOM_END;
+  m_xa_state_saved= m_thd->get_transaction()->xid_state()->get_state();
+  thd->get_transaction()->xid_state()->set_state(XID_STATE::XA_NOTR);
+}
+
+const String THD::normalized_query()
+{
+  m_normalized_query.mem_free();
+  lex->unit->print(&m_normalized_query, QT_NORMALIZED_FORMAT);
+  return m_normalized_query;
+}
+
+bool add_item_to_list(THD *thd, Item *item)
+{
+  return thd->lex->select_lex->add_item_to_list(item);
+}
+
+void add_order_to_list(THD *thd, ORDER *order)
+{
+  thd->lex->select_lex->add_order_to_list(order);
+}
+
+THD::Transaction_state::Transaction_state(MEM_ROOT *root)
+  : m_query_tables_list(new (root) Query_tables_list),
+    m_ha_data(PSI_NOT_INSTRUMENTED, m_ha_data.initial_capacity)
+{}
+
+void THD::change_item_tree(Item **place, Item *new_value)
+{
+  /* TODO: check for OOM condition here */
+  if (!stmt_arena->is_conventional())
+  {
+    DBUG_PRINT("info",
+               ("change_item_tree place %p old_value %p new_value %p",
+                place, *place, new_value));
+    if (new_value)
+      new_value->set_runtime_created(); /* Note the change of item tree */
+    nocheck_register_item_tree_change(place, new_value);
+  }
+  *place= new_value;
+}
+
+bool THD::notify_hton_pre_acquire_exclusive(const MDL_key *mdl_key,
+                                            bool *victimized)
+{
+  return ha_notify_exclusive_mdl(this, mdl_key, HA_NOTIFY_PRE_EVENT,
+                                 victimized);
+}
+
+void THD::notify_hton_post_release_exclusive(const MDL_key *mdl_key)
+{
+  bool unused_arg;
+  ha_notify_exclusive_mdl(this, mdl_key, HA_NOTIFY_POST_EVENT, &unused_arg);
+}
+
+void reattach_engine_ha_data_to_thd(THD *thd, const struct handlerton *hton)
+{
+  if (hton->replace_native_transaction_in_thd)
+  {
+    /* restore the saved original engine transaction's link with thd */
+    void **trx_backup= &thd->get_ha_data(hton->slot)->ha_ptr_backup;
+
+    hton->
+      replace_native_transaction_in_thd(thd, *trx_backup, NULL);
+    *trx_backup= NULL;
+  }
 }

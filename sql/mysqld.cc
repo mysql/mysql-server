@@ -506,6 +506,7 @@
 #include "sql/sys_vars_shared.h"        // intern_find_sys_var
 #include "sql/table_cache.h"            // table_cache_manager
 #include "sql/tc_log.h"                 // tc_log
+#include "sql/thd_raii.h"
 #include "sql/thr_malloc.h"
 #include "sql/transaction.h"
 #include "sql/tztime.h"                 // Time_zone
@@ -1182,7 +1183,7 @@ char *default_auth_plugin;
 /**
   Memory for allocating command line arguments, after load_defaults().
 */
-static MEM_ROOT argv_alloc{PSI_NOT_INSTRUMENTED, 512, 0};
+static MEM_ROOT argv_alloc{PSI_NOT_INSTRUMENTED, 512};
 /** Remaining command line arguments (count), filtered by handle_options().*/
 static int remaining_argc;
 /** Remaining command line arguments (arguments), filtered by handle_options().*/
@@ -4238,7 +4239,7 @@ static int init_server_auto_options()
   }
 
   /* load all options in 'auto.cnf'. */
-  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512, 0};
+  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
   if (my_load_defaults(fname, groups, &argc, &argv, &alloc, NULL))
     DBUG_RETURN(1);
 

@@ -816,7 +816,7 @@ public:
 
 protected:
   template<class T>
-  bool contextualize_attrs(Column_parse_context *pc, Trivial_array<T *> *attrs)
+  bool contextualize_attrs(Column_parse_context *pc, Mem_root_array<T *> *attrs)
   {
     if (attrs != NULL)
     {
@@ -848,11 +848,11 @@ class PT_field_def : public PT_field_def_base
 {
   typedef PT_field_def_base super;
 
-  Trivial_array<PT_column_attr_base *> *opt_attrs;
+  Mem_root_array<PT_column_attr_base *> *opt_attrs;
 
 public:
   PT_field_def(PT_type *type_node_arg,
-               Trivial_array<PT_column_attr_base *> *opt_attrs)
+               Mem_root_array<PT_column_attr_base *> *opt_attrs)
   : super(type_node_arg), opt_attrs(opt_attrs)
   {}
 
@@ -875,13 +875,13 @@ class PT_generated_field_def : public PT_field_def_base
 
   const Virtual_or_stored virtual_or_stored;
   Item *expr;
-  Trivial_array<PT_column_attr_base *> *opt_attrs;
+  Mem_root_array<PT_column_attr_base *> *opt_attrs;
 
 public:
   PT_generated_field_def(PT_type *type_node_arg,
       Item *expr,
       Virtual_or_stored virtual_or_stored,
-      Trivial_array<PT_column_attr_base *> *opt_attrs)
+      Mem_root_array<PT_column_attr_base *> *opt_attrs)
   : super(type_node_arg),
     virtual_or_stored(virtual_or_stored),
     expr(expr),

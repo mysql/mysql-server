@@ -19,6 +19,7 @@
 #include "my_inttypes.h"
 #include "sql/filesort.h"
 #include "sql/sort_param.h"
+#include "sql/sql_lex.h"
 #include "sql/sql_sort.h"
 #include "sql/sys_vars.h"
 #include "unittest/gunit/test_utils.h"

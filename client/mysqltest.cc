@@ -185,7 +185,7 @@ static bool disable_info= 1;
 static bool abort_on_error= 1;
 static bool server_initialized= 0;
 static bool is_windows= 0;
-static MEM_ROOT argv_alloc{PSI_NOT_INSTRUMENTED, 512, 0};
+static MEM_ROOT argv_alloc{PSI_NOT_INSTRUMENTED, 512};
 static const char *load_default_groups[]= { "mysqltest", "client", 0 };
 static char line_buffer[MAX_DELIMITER_LENGTH], *line_buffer_pos= line_buffer;
 static const char *opt_server_public_key= 0;

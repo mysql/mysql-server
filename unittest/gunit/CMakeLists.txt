@@ -327,6 +327,7 @@ SET(TESTS
   prealloced_array
   priority_queue
   record_buffer
+  sql_class_header
   sql_list
   sql_plist
   sql_string

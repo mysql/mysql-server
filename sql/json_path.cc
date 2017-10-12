@@ -165,7 +165,7 @@ Json_seekable_path::Json_seekable_path()
 // Json_path
 
 Json_path::Json_path()
-  : m_mem_root(key_memory_JSON, 256, 0)
+  : m_mem_root(key_memory_JSON, 256)
 {}
 
 

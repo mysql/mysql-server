@@ -35,7 +35,6 @@
 #include "priority_queue.h"
 #include "sql/handler.h"          // Handler_share
 #include "sql/key.h"              // key_rec_cmp
-#include "sql/sql_alloc.h"
 #include "sql/sql_partition.h"    // part_id_range
 
 class Field;
@@ -190,7 +189,7 @@ private:
 
   Returned from handler::get_partition_handler().
 */
-class Partition_handler :public Sql_alloc
+class Partition_handler
 {
 public:
   Partition_handler() {}
@@ -394,7 +393,7 @@ struct Key_rec_less
   - *_in_part() functions for row operations.
   - write_row_in_new_part() for handling 'fast' alter partition.
 */
-class Partition_helper : public Sql_alloc
+class Partition_helper
 {
   typedef Priority_queue<uchar *, std::vector<uchar*>, Key_rec_less> Prio_queue;
 public:

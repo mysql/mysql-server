@@ -39,7 +39,6 @@
 #include "sql/item_cmpfunc.h"         // Item_cond_and
 #include "sql/opt_costmodel.h"
 #include "sql/set_var.h"
-#include "sql/sql_alloc.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"            // THD
 #include "sql/sql_cmd_dml.h"          // Sql_cmd_dml
@@ -331,7 +330,7 @@ enum quick_type { QS_NONE, QS_RANGE, QS_DYNAMIC_RANGE};
   This class has to stay a POD, because it is memcpy'd in many places.
 */
 
-struct POSITION : public Sql_alloc
+struct POSITION
 {
   /**
     The number of rows that will be fetched by the chosen access
@@ -579,7 +578,7 @@ struct POSITION : public Sql_alloc
   - a join between the result of the set of previous plan nodes and
     this plan node.
 */
-class JOIN_TAB : public Sql_alloc, public QEP_shared_owner
+class JOIN_TAB : public QEP_shared_owner
 {
 public:
   JOIN_TAB();
@@ -910,7 +909,7 @@ extern "C" int refpos_order_cmp(const void* arg, const void *a,const void *b);
 
 /** class to copying an field/item to a key struct */
 
-class store_key :public Sql_alloc
+class store_key
 {
 public:
   bool null_key; /* TRUE <=> the value of the key has a null part */

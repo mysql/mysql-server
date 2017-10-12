@@ -69,6 +69,7 @@
 #include "sql/sql_plugin_ref.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/thd_raii.h"
 #include "sql_string.h"
 #include "violite.h"
                                         /* key_restore */

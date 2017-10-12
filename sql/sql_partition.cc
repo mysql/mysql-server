@@ -99,6 +99,7 @@
 #include "sql/sql_table.h"              // build_table_filename
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/thd_raii.h"
 #include "sql/thr_malloc.h"
 #include "sql_string.h"
 

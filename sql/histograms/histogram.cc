@@ -70,6 +70,7 @@
 #include "sql/strfunc.h"                    // find_type2, find_set
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/thd_raii.h"
 #include "sql/transaction.h"            // trans_commit_stmt, trans_rollback_stmt
 #include "sql/tztime.h"                 // my_tz_UTC
 #include "sql_string.h"                 // String

@@ -84,6 +84,7 @@
 #include "sql/sql_view.h"             // check_key_in_view
 #include "sql/system_variables.h"
 #include "sql/table_trigger_dispatcher.h" // Table_trigger_dispatcher
+#include "sql/thd_raii.h"
 #include "sql/thr_malloc.h"
 #include "sql/transaction.h"          // trans_commit_stmt
 #include "sql/transaction_info.h"

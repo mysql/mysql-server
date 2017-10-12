@@ -47,6 +47,7 @@
 #include "sql/sql_servers.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"                        // Table_check_intact
+#include "sql/thd_raii.h"
 #include "sql/thr_malloc.h"
 #include "sql_string.h"
 #include "thr_lock.h"

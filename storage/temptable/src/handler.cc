@@ -1155,7 +1155,6 @@ void Handler::test(TABLE* mysql_table) {
     t.performance();
 
     free_root(&handler::table->mem_root, 0);
-    handler::table->mem_root.min_malloc = 0;
 
     should_run = true;
   }

@@ -38,6 +38,7 @@
 #include "sql/sql_class.h"                    // THD
 #include "sql/sql_table.h"                    // build_tablename
 #include "sql/system_variables.h"
+#include "sql/thd_raii.h"
 #include "sql/transaction.h"                  // trans_commit
 #include "sql_string.h"
 

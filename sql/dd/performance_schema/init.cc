@@ -50,6 +50,7 @@
 #include "sql/stateless_allocator.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/thd_raii.h"
 
 namespace dd {
 class Schema;

@@ -33,6 +33,7 @@
 #include "sql/resourcegroups/resource_group_mgr.h" // Resource_group_mgr
 #include "sql/sql_class.h"     // THD
 #include "sql/sql_plugin.h"    // end_transaction
+#include "sql/thd_raii.h"
 
 bool Sql_cmd_install_component::execute(THD *thd)
 {

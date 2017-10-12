@@ -72,6 +72,7 @@
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/table_trigger_dispatcher.h"    // Table_trigger_dispatcher
+#include "sql/thd_raii.h"
 #include "sql/transaction.h"                 // trans_rollback_stmt
 #include "sql_string.h"
 #include "thr_lock.h"

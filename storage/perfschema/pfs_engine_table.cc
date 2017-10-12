@@ -31,6 +31,7 @@
 #include "sql/mysqld.h"    /* lower_case_table_names */
 #include "sql/sql_base.h"  // close_thread_tables
 #include "sql/sql_class.h"
+#include "sql/sql_lex.h"
 #include "storage/perfschema/pfs_buffer_container.h"
 /* For show status */
 #include "storage/perfschema/pfs_column_values.h"

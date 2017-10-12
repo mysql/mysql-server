@@ -76,10 +76,12 @@
 #include "sql/sql_parse.h"
 #include "sql/sql_partition.h"                // expr_to_string
 #include "sql/sql_plugin_ref.h"
+#include "sql/sql_show.h"
 #include "sql/sql_table.h"                    // primary_key_name
 #include "sql/srs_fetcher.h"
 #include "sql/strfunc.h"                      // lex_cstring_handle
 #include "sql/table.h"
+#include "sql/thd_raii.h"
 #include "sql_string.h"
 #include "typelib.h"
 

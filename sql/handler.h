@@ -48,7 +48,6 @@
 #include "sql/dd/string_type.h"
 #include "sql/discrete_interval.h" // Discrete_interval
 #include "sql/key.h"
-#include "sql/sql_alloc.h"
 #include "sql/sql_const.h"     // SHOW_COMP_OPTION
 #include "sql/sql_list.h"      // SQL_I_List
 #include "sql/sql_plugin_ref.h" // plugin_ref
@@ -110,14 +109,6 @@ namespace AQP {
 }
 
 extern ulong savepoint_alloc_size;
-
-/*
-  We preallocate data for several storage engine plugins.
-  so: innodb + bdb + ndb + binlog + myisam + myisammrg + archive +
-      example + csv + heap + blackhole + federated + 0
-  (yes, the sum is deliberately inaccurate)
-*/
-#define PREALLOC_NUM_HA 15
 
 /// Maps from slot to plugin. May return NULL if plugin has been unloaded.
 st_plugin_int *hton2plugin(uint slot);
@@ -829,7 +820,7 @@ enum enum_schema_tables
 };
 
 enum ha_stat_type { HA_ENGINE_STATUS, HA_ENGINE_LOGS, HA_ENGINE_MUTEX };
-enum ha_notification_type { HA_NOTIFY_PRE_EVENT, HA_NOTIFY_POST_EVENT };
+enum ha_notification_type : int { HA_NOTIFY_PRE_EVENT, HA_NOTIFY_POST_EVENT };
 
 /** Clone operation types. */
 enum Ha_clone_type
@@ -2107,8 +2098,8 @@ inline bool ddl_is_atomic(const handlerton *hton)
   return (hton->flags & HTON_SUPPORTS_ATOMIC_DDL) != 0;
 }
 
-enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
-			 ISO_REPEATABLE_READ, ISO_SERIALIZABLE};
+enum enum_tx_isolation : int { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
+			       ISO_REPEATABLE_READ, ISO_SERIALIZABLE};
 
 enum enum_stats_auto_recalc { HA_STATS_AUTO_RECALC_DEFAULT= 0,
                               HA_STATS_AUTO_RECALC_ON,
@@ -2225,12 +2216,11 @@ struct KEY_PAIR
   as early as during check_if_supported_inplace_alter().
 
   The SQL layer is responsible for destroying the object.
-  The class extends Sql_alloc so the memory will be mem root allocated.
 
   @see Alter_inplace_info
 */
 
-class inplace_alter_handler_ctx : public Sql_alloc
+class inplace_alter_handler_ctx
 {
 public:
   inplace_alter_handler_ctx() {}
@@ -3006,7 +2996,7 @@ public:
   Wrapper for struct ft_hints.
 */
 
-class Ft_hints: public Sql_alloc
+class Ft_hints
 {
 private:
   struct ft_hints hints;
@@ -3497,7 +3487,7 @@ public:
     get_partition_handler()
 */
 
-class handler :public Sql_alloc
+class handler
 {
   friend class Partition_handler;
 public:

@@ -41,6 +41,7 @@
 #include "my_sys.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/plugin.h"
+#include "sql/dd_sql_view.h"                // update_referencing_views_metadata
 #include "sql/dd/cache/dictionary_client.h" // dd::cache::Dictionary_client
 #include "sql/dd/dd_schema.h"               // dd::Schema_MDL_locker
 #include "sql/dd/dd_table.h"                // dd::get_sql_type_by_field_info
@@ -60,12 +61,14 @@
 #include "sql/mdl.h"
 #include "sql/mysqld.h"                     // opt_readonly
 #include "sql/sql_class.h"                  // THD
+#include "sql/sql_lex.h"
 #include "sql/sql_plugin.h"                 // plugin_foreach
 #include "sql/sql_plugin_ref.h"
 #include "sql/sql_profile.h"
 #include "sql/sql_show.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/thd_raii.h"
 
 namespace {
 
@@ -164,6 +167,35 @@ private:
 
   // List of plugins whose I_S tables are already present in DD.
   std::vector<dd::String_type> *m_plugin_names;
+};
+
+
+/**
+  Holds context during I_S table referencing view's status/column metadata
+  update.
+*/
+class View_metadata_update_ctx
+{
+public:
+  View_metadata_update_ctx(THD *thd, bool is_drop_tbl_op)
+    : m_thd(thd),
+      m_saved_sql_command(thd->lex->sql_command)
+  {
+    m_thd->lex->sql_command= is_drop_tbl_op ? SQLCOM_UNINSTALL_PLUGIN :
+                                              SQLCOM_INSTALL_PLUGIN;
+  }
+
+  ~View_metadata_update_ctx()
+  {
+    m_thd->lex->sql_command= m_saved_sql_command;
+  }
+
+private:
+  // Thread Handle.
+  THD  *m_thd;
+
+  // Saved SQL command.
+  enum_sql_command  m_saved_sql_command;
 };
 
 
@@ -283,11 +315,40 @@ bool store_in_dd(THD *thd, Update_context *ctx,
 
 
 /**
-  Store plugin IS table metadata into DD.
+  Helper method to store plugin IS table metadata into DD.
   Skip storing, if the I_S name is already present in
   Update_context plugin names.
 
-  @param THD    Thread ID
+  @param      thd            Thread ID
+  @param      plugin         Reference to a plugin.
+  @param      arg            Pointer to Context for I_S update.
+  @param[out] plugin_exists  Flag is set if plugin metadata already exists in
+                             data-dictionary.
+
+  @return
+    false on success
+    true when fails to store the metadata.
+*/
+
+static bool store_plugin_metadata(THD *thd, plugin_ref plugin,
+                                  Update_context *ctx)
+{
+  DBUG_ASSERT(plugin && ctx);
+
+  // Store in DD tables.
+  st_plugin_int *pi= plugin_ref_to_int(plugin);
+  ST_SCHEMA_TABLE *schema_table= plugin_data<ST_SCHEMA_TABLE*>(plugin);
+  return store_in_dd(thd, ctx, schema_table, pi->plugin->version);
+}
+
+
+/**
+  Store plugin IS table metadata into DD.
+  Update column metadata of views referencing I_S plugin table.
+  Skip storing, if the I_S name is already present in
+  Update_context plugin names.
+
+  @param thd    Thread ID
   @param plugin Reference to a plugin.
   @param arg    Pointer to Context for I_S update.
 
@@ -295,12 +356,11 @@ bool store_in_dd(THD *thd, Update_context *ctx,
     false on success
     true when fails to store the metadata.
 */
-bool store_plugin_metadata(THD *thd,
-                           plugin_ref plugin,
-                           void *arg)
-{
-  DBUG_ASSERT(plugin && arg);
 
+bool store_plugin_and_referencing_views_metadata(THD *thd,
+                                                 plugin_ref plugin,
+                                                 void *arg)
+{
   st_plugin_int *pi= plugin_ref_to_int(plugin);
   Update_context *ctx= static_cast<Update_context*>(arg);
 
@@ -311,12 +371,20 @@ bool store_plugin_metadata(THD *thd,
     if (std::find(ctx->plugin_names()->begin(),
                   ctx->plugin_names()->end(),
                   name) != ctx->plugin_names()->end() )
+    {
       return false;
+    }
   }
 
-  // Store in DD tables.
-  ST_SCHEMA_TABLE *schema_table= plugin_data<ST_SCHEMA_TABLE*>(plugin);
-  return store_in_dd(thd, ctx, schema_table, pi->plugin->version);
+  View_metadata_update_ctx vw_update_ctx(thd, false);
+  // Guard for uncommitted tables while updating views column metadata.
+  Uncommitted_tables_guard uncommitted_tables(thd);
+
+  return store_plugin_metadata(thd, plugin, ctx) ||
+         update_referencing_views_metadata(thd, INFORMATION_SCHEMA_NAME.str,
+           (plugin_data<ST_SCHEMA_TABLE*>(plugin))->table_name,
+           false,
+           &uncommitted_tables);
 }
 
 
@@ -389,6 +457,18 @@ bool update_plugins_I_S_metadata(THD *thd)
     // Remove metadata from DD if version mismatch.
     if (dd::info_schema::remove_I_S_view_metadata(thd, view->name()))
       break;
+
+    // Update status of referencing views.
+    {
+      View_metadata_update_ctx vw_update_ctx(thd, true);
+      // Guard for uncommitted tables while updating views column metadata.
+      Uncommitted_tables_guard uncommitted_tables(thd);
+
+      if (update_referencing_views_metadata(thd, INFORMATION_SCHEMA_NAME.str,
+                                            view->name().c_str(), false,
+                                            &uncommitted_tables))
+        break;
+    }
   }
 
 
@@ -397,7 +477,7 @@ bool update_plugins_I_S_metadata(THD *thd)
     Store I_S table metadata of plugins that are newly loaded.
   */
   error= error || plugin_foreach_with_mask(thd,
-                                  store_plugin_metadata,
+                                  store_plugin_and_referencing_views_metadata,
                                   MYSQL_INFORMATION_SCHEMA_PLUGIN,
                                   PLUGIN_IS_READY, &ctx);
 
@@ -466,6 +546,20 @@ bool update_server_I_S_metadata(THD *thd)
 
       if (error)
         break;
+
+      // Update status of views referencing a system view.
+      {
+        View_metadata_update_ctx vw_update_ctx(thd, true);
+        // Guard for uncommitted tables while updating views column metadata.
+        Uncommitted_tables_guard uncommitted_tables(thd);
+
+        error=
+          update_referencing_views_metadata(thd, INFORMATION_SCHEMA_NAME.str,
+                                            view->name().c_str(), false,
+                                            &uncommitted_tables);
+        if (error)
+          break;
+      }
     }
   }
 
@@ -548,9 +642,23 @@ bool store_server_I_S_metadata(THD *thd)
   bool error= false;
   Update_context ctx(thd, false);
   ST_SCHEMA_TABLE *schema_tables= get_schema_table(SCH_FIRST);
-  for (; schema_tables->table_name && !error; schema_tables++)
   {
-    error= store_in_dd(thd, &ctx, schema_tables, UNKNOWN_PLUGIN_VERSION);
+    View_metadata_update_ctx vw_update_ctx(thd, false);
+    // Guard for uncommitted tables while updating views column metadata.
+    Uncommitted_tables_guard uncommitted_tables(thd);
+
+    for (; schema_tables->table_name && !error; schema_tables++)
+    {
+      error= store_in_dd(thd, &ctx, schema_tables, UNKNOWN_PLUGIN_VERSION);
+      if (!error)
+      {
+        // Update column metadata of views referencing I_S plugin table.
+        error=
+          update_referencing_views_metadata(thd, INFORMATION_SCHEMA_NAME.str,
+                                            schema_tables->table_name, false,
+                                            &uncommitted_tables);
+      }
+    }
   }
 
   return dd::end_transaction(thd, error);
@@ -575,7 +683,7 @@ bool store_dynamic_plugin_I_S_metadata(THD *thd, st_plugin_int *plugin_int)
   Update_context ctx(thd, false);
   DBUG_ASSERT(plugin_int->plugin->type == MYSQL_INFORMATION_SCHEMA_PLUGIN);
 
-  return store_plugin_metadata(thd, plugin, (void*) &ctx);
+  return store_plugin_metadata(thd, plugin, &ctx);
 }
 
 

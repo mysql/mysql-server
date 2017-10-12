@@ -145,6 +145,7 @@
 #include "sql/system_variables.h" // System_status_var
 #include "sql/table.h"
 #include "sql/table_cache.h"  // table_cache_manager
+#include "sql/thd_raii.h"
 #include "sql/transaction.h"  // trans_rollback_implicit
 #include "sql/transaction_info.h"
 #include "sql_string.h"
@@ -1117,8 +1118,8 @@ void execute_init_command(THD *thd, LEX_STRING *init_command,
   mysql_rwlock_unlock(var_lock);
 
 #if defined(ENABLED_PROFILING)
-  thd->profiling.start_new_query();
-  thd->profiling.set_query_source(buf, len);
+  thd->profiling->start_new_query();
+  thd->profiling->set_query_source(buf, len);
 #endif
 
   THD_STAGE_INFO(thd, stage_execution_of_init_command);
@@ -1136,7 +1137,7 @@ void execute_init_command(THD *thd, LEX_STRING *init_command,
   protocol->set_vio(save_vio);
 
 #if defined(ENABLED_PROFILING)
-  thd->profiling.finish_current_query();
+  thd->profiling->finish_current_query();
 #endif
 }
 
@@ -1430,7 +1431,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
 
   /* SHOW PROFILE instrumentation, begin */
 #if defined(ENABLED_PROFILING)
-  thd->profiling.start_new_query();
+  thd->profiling->start_new_query();
 #endif
 
   /* Performance Schema Interface instrumentation, begin */
@@ -1702,7 +1703,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     DBUG_PRINT("query",("%-.4096s", thd->query().str));
 
 #if defined(ENABLED_PROFILING)
-    thd->profiling.set_query_source(thd->query().str, thd->query().length);
+    thd->profiling->set_query_source(thd->query().str, thd->query().length);
 #endif
 
     Parser_state parser_state;
@@ -1751,13 +1752,13 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
 
 /* SHOW PROFILE end */
 #if defined(ENABLED_PROFILING)
-      thd->profiling.finish_current_query();
+      thd->profiling->finish_current_query();
 #endif
 
 /* SHOW PROFILE begin */
 #if defined(ENABLED_PROFILING)
-      thd->profiling.start_new_query("continuing");
-      thd->profiling.set_query_source(beginning_of_next_stmt, length);
+      thd->profiling->start_new_query("continuing");
+      thd->profiling->set_query_source(beginning_of_next_stmt, length);
 #endif
 
 /* PSI begin */
@@ -2116,11 +2117,25 @@ done:
 
   /* Freeing the memroot will leave the THD::work_part_info invalid. */
   thd->work_part_info= nullptr;
-  free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
+
+  /*
+    If we've allocated a lot of memory (compared to the user's desired preallocation
+    size; note that we don't actually preallocate anymore), free it so that one
+    big query won't cause us to hold on to a lot of RAM forever. If not, keep the last
+    block so that the next query will hopefully be able to run without allocating
+    memory from the OS.
+
+    The factor 5 is pretty much arbitrary, but ends up allowing three allocations
+    (1 + 1.5 + 1.5²) under the current allocation policy.
+  */
+  if (thd->mem_root->allocated_size() < 5 * thd->variables.query_prealloc_size)
+    thd->mem_root->ClearForReuse();
+  else
+    thd->mem_root->Clear();
 
   /* SHOW PROFILE instrumentation, end */
 #if defined(ENABLED_PROFILING)
-  thd->profiling.finish_current_query();
+  thd->profiling->finish_current_query();
 #endif
 
   DBUG_RETURN(error);
@@ -2217,10 +2232,10 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
   case SCH_PROFILES:
     /* 
       Mark this current profiling record to be discarded.  We don't
-      wish to have SHOW commands show up in profiling.
+      wish to have SHOW commands show up in profiling->
     */
 #if defined(ENABLED_PROFILING)
-    thd->profiling.discard_current_query();
+    thd->profiling->discard_current_query();
 #endif
     break;
   case SCH_OPTIMIZER_TRACE:
@@ -3120,8 +3135,8 @@ mysql_execute_command(THD *thd, bool first_level)
   case SQLCOM_SHOW_PROFILES:
   {
 #if defined(ENABLED_PROFILING)
-    thd->profiling.discard_current_query();
-    res= thd->profiling.show_profiles();
+    thd->profiling->discard_current_query();
+    res= thd->profiling->show_profiles();
     if (res)
       goto error;
 #else
@@ -6145,16 +6160,31 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
     else
     {
       schema_table= find_schema_table(thd, ptr->table_name);
-      if (!schema_table ||
-          (schema_table->hidden &&
+      /*
+        Report an error
+          if hidden schema table name is used in the statement other than
+          SHOW statement OR
+          if unknown schema table is used in the statement other than
+          SHOW CREATE VIEW statement.
+        Invalid view warning is reported for SHOW CREATE VIEW statement in
+        the table open stage.
+      */
+      if ((!schema_table &&
+           !(thd->query_plan.get_command() == SQLCOM_SHOW_CREATE &&
+             thd->query_plan.get_lex()->only_view)) ||
+          (schema_table && schema_table->hidden &&
            (sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND) == 0))
       {
         my_error(ER_UNKNOWN_TABLE, MYF(0),
                  ptr->table_name, INFORMATION_SCHEMA_NAME.str);
         DBUG_RETURN(0);
       }
-      ptr->schema_table_name= const_cast<char*>(ptr->table_name);
-      ptr->schema_table= schema_table;
+
+      if (schema_table)
+      {
+        ptr->schema_table_name= const_cast<char*>(ptr->table_name);
+        ptr->schema_table= schema_table;
+      }
     }
   }
 

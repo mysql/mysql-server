@@ -29,7 +29,6 @@
 #include "my_base.h"        // ha_rows
 #include "my_bitmap.h"      // MY_BITMAP
 #include "my_dbug.h"
-#include "sql/sql_alloc.h"  // Sql_alloc
 
 class Item;
 struct TABLE;
@@ -61,7 +60,7 @@ enum enum_duplicates { DUP_ERROR, DUP_REPLACE, DUP_UPDATE };
       of the INSERT ... ON DUPLICATE KEY UPDATE no matter whether the row
       was actually changed or not.
 */
-class COPY_INFO: public Sql_alloc
+class COPY_INFO
 {
 public:
   class Statistics

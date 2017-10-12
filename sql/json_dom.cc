@@ -28,6 +28,8 @@
 #include <sys/types.h>
 #include <algorithm>            // std::min, std::max
 #include <cmath>                // std::isfinite
+#include <functional>           // std::function
+#include <new>
 
 #include "base64.h"
 #include "decimal.h"

@@ -536,8 +536,7 @@ int TC_LOG_MMAP::recover()
   }
 
   {
-    MEM_ROOT mem_root(
-      PSI_INSTRUMENT_ME, tc_log_page_size/3, tc_log_page_size/3);
+    MEM_ROOT mem_root(PSI_INSTRUMENT_ME, tc_log_page_size/3);
     memroot_unordered_set<my_xid> xids(&mem_root);
 
     for ( ; p < end_p ; p++)

@@ -76,6 +76,7 @@
 #include "sql/strfunc.h"                      // lex_cstring_handle
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/thd_raii.h"
 #include "typelib.h"
 
 namespace histograms {

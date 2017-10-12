@@ -34,8 +34,9 @@ SELECT b, COUNT(DISTINCT b) FROM t1 GROUP BY b ORDER BY -b;
 SET debug_sync = "now WAIT_FOR parked";
 # Set locally to shadow the global variable.
 SET debug = '';
+CALL mtr.add_suppression(".*Out of memory *");
 SET GLOBAL debug = '+d,simulate_out_of_memory';
 SET debug_sync = "now SIGNAL go";
-ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
+Got one of the listed errors
 SET GLOBAL debug = '';
 DROP TABLE t1;

@@ -64,6 +64,7 @@ DROP TABLE t1;
 
 CREATE TABLE t1(a BLOB);
 
+call mtr.add_suppression(".*Out of memory *");
 SET SESSION debug="+d,bug42064_simulate_oom";
 # May fail with either ER_OUT_OF_RESOURCES or EE_OUTOFMEMORY
 --error ER_OUT_OF_RESOURCES, 5

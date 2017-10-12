@@ -52,6 +52,7 @@
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"                    // is_invalid_string
 #include "sql/system_variables.h"
+#include "sql/thd_raii.h"
 
 namespace dd {
 class Resource_group;
@@ -106,7 +107,7 @@ static bool acquire_exclusive_mdl_for_resource_group(THD *thd,
 
 bool validate_vcpu_range_vector(
   std::vector<resourcegroups::Range> *vcpu_range_vector,
-  const Trivial_array<resourcegroups::Range> *cpu_list,
+  const Mem_root_array<resourcegroups::Range> *cpu_list,
   uint32_t num_vcpus)
 {
   DBUG_ENTER("resourcegroups::validate_vcpu_range_vector");

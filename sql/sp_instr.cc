@@ -855,7 +855,7 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp)
 
 #if defined(ENABLED_PROFILING)
   /* This SP-instr is profilable and will be captured. */
-  thd->profiling.set_query_source(m_query.str, m_query.length);
+  thd->profiling->set_query_source(m_query.str, m_query.length);
 #endif
 
   /*

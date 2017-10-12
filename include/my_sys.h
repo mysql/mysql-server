@@ -558,6 +558,23 @@ my_off_t my_b_safe_tell(IO_CACHE* info); /* picks the correct tell() */
 
 typedef uint32 ha_checksum;
 
+/*
+  How much overhead does malloc have. The code often allocates
+  something like 1024-MALLOC_OVERHEAD bytes
+*/
+#define MALLOC_OVERHEAD 8
+
+/* Typical record cache */
+#define RECORD_CACHE_SIZE      (uint) (64*1024-MALLOC_OVERHEAD)
+
+/** struct for once_alloc (block) */
+struct USED_MEM
+{
+  USED_MEM *next;                 /**< Next block in use */
+  unsigned int left;              /**< memory left in block  */
+  unsigned int size;              /**< size of block */
+};
+
 
 	/* Prototypes for mysys and my_func functions */
 
@@ -810,25 +827,12 @@ extern bool dynstr_set(DYNAMIC_STRING *str, const char *init_str);
 extern bool dynstr_realloc(DYNAMIC_STRING *str, size_t additional_size);
 extern bool dynstr_trunc(DYNAMIC_STRING *str, size_t n);
 extern void dynstr_free(DYNAMIC_STRING *str);
-#define alloc_root_inited(A) ((A)->min_malloc != 0)
-#define ALLOC_ROOT_MIN_BLOCK_SIZE (MALLOC_OVERHEAD + sizeof(USED_MEM) + 8)
-#define clear_alloc_root(A) do { (A)->free= (A)->used= (A)->pre_alloc= 0; (A)->min_malloc=0;} while(0)
-extern void init_alloc_root(PSI_memory_key key,
-                            MEM_ROOT *mem_root, size_t block_size,
-			    size_t pre_alloc_size);
-extern void *alloc_root(MEM_ROOT *mem_root, size_t Size);
+#define alloc_root_inited(A) ((A)->inited())
 extern void *multi_alloc_root(MEM_ROOT *mem_root, ...);
-extern void claim_root(MEM_ROOT *root);
-extern void free_root(MEM_ROOT *root, myf MyFLAGS);
-extern void reset_root_defaults(MEM_ROOT *mem_root, size_t block_size,
-                                size_t prealloc_size);
 extern char *strdup_root(MEM_ROOT *root,const char *str);
 extern char *safe_strdup_root(MEM_ROOT *root, const char *str);
 extern char *strmake_root(MEM_ROOT *root,const char *str,size_t len);
 extern void *memdup_root(MEM_ROOT *root,const void *str, size_t len);
-extern void set_memroot_max_capacity(MEM_ROOT *mem_root, size_t size);
-extern void set_memroot_error_reporting(MEM_ROOT *mem_root,
-                                       bool report_error);
 extern bool my_compress(uchar *, size_t *, size_t *);
 extern bool my_uncompress(uchar *, size_t , size_t *);
 extern uchar *my_compress_alloc(const uchar *packet, size_t *len,

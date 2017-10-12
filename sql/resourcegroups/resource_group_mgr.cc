@@ -51,6 +51,7 @@
 #include "sql/resourcegroups/thread_resource_control.h"
 #include "sql/sql_class.h"                       // class THD
 #include "sql/system_variables.h"
+#include "sql/thd_raii.h"
 #include "sql_string.h"                          // to_lex_cstring
 
 namespace resourcegroups

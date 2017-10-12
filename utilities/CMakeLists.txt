@@ -79,6 +79,11 @@ IF (WIN32 AND WITH_SSL_PATH AND HAVE_CRYPTO_DLL)
   ADD_DEPENDENCIES(comp_err copy_openssl_dlls)
 ENDIF()
 
+IF(APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
+  ADD_DEPENDENCIES(GenError copy_openssl_dlls)
+  ADD_DEPENDENCIES(comp_client_err copy_openssl_dlls)
+  ADD_DEPENDENCIES(comp_err copy_openssl_dlls)
+ENDIF()
 
 MYSQL_ADD_EXECUTABLE(my_print_defaults my_print_defaults.cc)
 TARGET_LINK_LIBRARIES(my_print_defaults  mysys mysys_ssl)

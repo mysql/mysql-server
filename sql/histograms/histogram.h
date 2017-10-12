@@ -45,7 +45,6 @@
 #include "my_base.h"                   // ha_rows
 #include "sql/histograms/value_map_type.h"
 #include "sql/memroot_allocator.h"     // Memroot_allocator
-#include "sql/sql_alloc.h"             // Sql_alloc
 #include "sql/stateless_allocator.h"   // Stateless_allocator
 
 class Item;
@@ -131,7 +130,7 @@ enum class enum_operator
 /**
   Histogram base class.
 */
-class Histogram : public Sql_alloc
+class Histogram
 {
 public:
   /// All supported histogram types in MySQL.

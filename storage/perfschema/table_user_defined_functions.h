@@ -28,7 +28,7 @@
 #include "storage/perfschema/pfs_engine_table.h"
 #include "storage/perfschema/table_helper.h"
 
-struct st_udf_func;
+struct udf_func;
 
 /**
   @addtogroup performance_schema_tables

@@ -1862,7 +1862,6 @@ bool PT_table_locking_clause::set_lock_for_tables(Parse_context *pc)
   {
     SELECT_LEX *select= pc->select;
 
-    SQL_I_List<TABLE_LIST> tables= select->table_list;
     TABLE_LIST *table_list= select->find_table_by_name(table_ident);
 
     THD *thd= pc->thd;

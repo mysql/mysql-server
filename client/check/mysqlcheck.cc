@@ -500,7 +500,7 @@ int main(int argc, char **argv)
   /*
   ** Check out the args
   */
-  MEM_ROOT alloc(PSI_NOT_INSTRUMENTED, 512, 0);
+  MEM_ROOT alloc(PSI_NOT_INSTRUMENTED, 512);
   if (get_options(&argc, &argv, &alloc))
   {
     my_end(my_end_arg);

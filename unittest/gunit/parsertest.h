@@ -21,6 +21,7 @@
 */
 
 #include "sql/sql_class.h"
+#include "sql/sql_lex.h"
 #include "sql/sql_parse.h"
 #include "unittest/gunit/test_utils.h"
 

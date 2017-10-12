@@ -85,7 +85,7 @@ public:
     @retval true  Failure
 */
 
-bool acquire_exclusive_backup_lock(THD *thd, ulong lock_wait_timeout);
+bool acquire_exclusive_backup_lock(THD *thd, unsigned long lock_wait_timeout);
 
 
 /**
@@ -99,7 +99,7 @@ bool acquire_exclusive_backup_lock(THD *thd, ulong lock_wait_timeout);
     @retval true  Failure
 */
 
-bool acquire_shared_backup_lock(THD *thd, ulong lock_wait_timeout);
+bool acquire_shared_backup_lock(THD *thd, unsigned long lock_wait_timeout);
 
 
 /**

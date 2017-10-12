@@ -27,6 +27,7 @@
 #include "my_psi_config.h"
 #include "mysql/plugin.h"
 #include "sql/current_thd.h"
+#include "sql/field.h"
 #include "sql/sql_base.h"                // enum_tdc_remove_table_type
 #include "sql/sql_class.h"
 #include "sql/sql_plugin.h"

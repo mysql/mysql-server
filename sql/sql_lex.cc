@@ -1081,7 +1081,7 @@ static char *get_text(Lex_input_stream *lip, int pre_skip, int post_skip)
       DBUG_ASSERT(end >= str);
 
       if (!(start= static_cast<char *>(lip->m_thd->alloc((uint) (end-str)+1))))
-	return (char*) "";		// Sql_alloc has set error flag
+	return (char*) "";		// MEM_ROOT has set error flag
 
       lip->m_cpp_text_start= lip->get_cpp_tok_start() + pre_skip;
       lip->m_cpp_text_end= lip->get_cpp_ptr() - post_skip;
@@ -2405,7 +2405,7 @@ bool SELECT_LEX::set_context(Name_resolution_context *outer_context)
 */
 
 bool SELECT_LEX::add_tables(THD *thd,
-                            const Trivial_array<Table_ident *> *tables,
+                            const Mem_root_array<Table_ident *> *tables,
                             ulong table_options,
                             thr_lock_type lock_type,
                             enum_mdl_type mdl_type)

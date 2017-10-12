@@ -108,7 +108,7 @@ setup_config(atrt_config& config, const char* atrt_mysqld)
     argv[argc++] = buf.c_str();
     char ** tmp = (char**)argv;
     const char *groups[] = { "cluster_config", 0 };
-    MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512, 0};
+    MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
     int ret = load_defaults(g_my_cnf, groups, &argc, &tmp, &alloc);
     if (ret)
     {
@@ -186,7 +186,7 @@ setup_config(atrt_config& config, const char* atrt_mysqld)
       argv[argc++] = buf.c_str();
       const char *groups[] = { "mysql_cluster", 0 };
       char ** tmp = (char**)argv;
-      MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512, 0};
+      MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
       ret = load_defaults(g_my_cnf, groups, &argc, &tmp, &alloc);
       
       if (ret)
@@ -348,7 +348,7 @@ load_process(atrt_config& config, atrt_cluster& cluster,
     return false;
   }
 
-  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512, 0};
+  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
   int ret = load_defaults(g_my_cnf, groups, &argc, &tmp, &alloc);
   if (ret)
   {

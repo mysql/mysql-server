@@ -111,7 +111,7 @@ int main(int argc, char **argv)
 
   myisamchk_init(&check_param);
   check_param.using_global_keycache = 0;
-  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512, 0};
+  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
   get_options(&argc,(char***) &argv, &alloc);
   myisam_quick_table_bits=decode_bits;
   error=0;
