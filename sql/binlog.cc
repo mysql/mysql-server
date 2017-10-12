@@ -6575,7 +6575,7 @@ int MYSQL_BIN_LOG::close_purge_index_file()
     error= my_close(purge_index_file.file, MYF(0));
   }
   my_delete(purge_index_file_name, MYF(0));
-  memset(&purge_index_file, 0, sizeof(purge_index_file));
+  new (&purge_index_file) IO_CACHE();
 
   DBUG_RETURN(error);
 }

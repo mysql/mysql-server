@@ -32,6 +32,19 @@ SET(MYISAM_SOURCES  ft_boolean_search.cc ft_nlq_search.cc ft_parser.cc ft_static
 				rt_split.cc sort.cc sp_key.cc mi_extrafunc.h myisamdef.h
 				rt_index.h mi_rkey.cc)
 
+# MyISAM relies heavily on memset/memcpy of structs, including non-POD ones.
+# As MyISAM is not maintained anymore, it is not worth fixing these,
+# so we turn off the warning instead.
+IF(CMAKE_COMPILER_IS_GNUCXX)
+  ADD_COMPILE_FLAGS(
+    ${MYISAM_SOURCES}
+    myisam_ftdump.cc
+    myisamchk.cc
+    myisamlog.cc
+    myisampack.cc
+    COMPILE_FLAGS "-Wno-class-memaccess")
+ENDIF()
+
 MYSQL_ADD_PLUGIN(myisam ${MYISAM_SOURCES} 
   STORAGE_ENGINE 
   MANDATORY

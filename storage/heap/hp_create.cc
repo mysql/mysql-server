@@ -67,8 +67,8 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info,
     
     for (i= key_segs= max_length= 0, keyinfo= keydef; i < keys; i++, keyinfo++)
     {
-      memset(&keyinfo->block, 0, sizeof(keyinfo->block));
-      memset(&keyinfo->rb_tree, 0, sizeof(keyinfo->rb_tree));
+      new (&keyinfo->block) HP_BLOCK();
+      new (&keyinfo->rb_tree) TREE();
       for (j= length= 0; j < keyinfo->keysegs; j++)
       {
 	length+= keyinfo->seg[j].length;
@@ -150,7 +150,8 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info,
     keyseg= (HA_KEYSEG*) (share->keydef + keys);
     init_block(&share->block, reclength + 1, min_records, max_records);
 	/* Fix keys */
-    memcpy(share->keydef, keydef, (size_t) (sizeof(keydef[0]) * keys));
+    for (i= 0; i < keys; ++i)
+      share->keydef[i]= std::move(keydef[i]);
     for (i= 0, keyinfo= share->keydef; i < keys; i++, keyinfo++)
     {
       keyinfo->seg= keyseg;

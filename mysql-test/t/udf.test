@@ -621,26 +621,6 @@ DROP TABLE t1;
 
 
 --echo #
---echo # Using C++ 11 Standard Library with MySQL code
---echo #
-
---replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
-eval CREATE FUNCTION my_cpp11_re_match
-RETURNS INTEGER SONAME "$UDF_EXAMPLE_LIB";
-
-SELECT my_cpp11_re_match('foo.*', 'foobar');
-CREATE TABLE t1(a VARCHAR(32), b VARCHAR(64));
-INSERT INTO t1 VALUES
-('.*middle.*', 'a value in the middle of a string'),
-('missing', 'some string value');
-# ('^prefix.*', 'prefix of longer string'),       Not supported with GCC 4.8
-# ('.*suffix$', 'string with suffix'),            Not supported with GCC 4.8
-SELECT a, b FROM t1 WHERE my_cpp11_re_match(a, b) > 0;
-
-DROP FUNCTION my_cpp11_re_match;
-DROP TABLE t1;
-
---echo #
 --echo # WL8980 - Move udf metatable table from MyISAM to InnoDB.
 --echo #
 

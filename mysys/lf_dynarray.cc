@@ -39,6 +39,8 @@
 #include <string.h>
 #include <sys/types.h>
 
+#include <algorithm>
+
 #include "lf.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
@@ -49,7 +51,7 @@
 
 void lf_dynarray_init(LF_DYNARRAY *array, uint element_size)
 {
-  memset(array, 0, sizeof(*array));
+  std::fill(begin(array->level), end(array->level), nullptr);
   array->size_of_element= element_size;
 }
 

@@ -3086,7 +3086,7 @@ innobase_register_trx(
 	THD*		thd,	/* in: MySQL thd (connection) object */
 	trx_t*		trx)	/* in: transaction to register */
 {
-	const ulonglong	trx_id = static_cast<const ulonglong>(
+	const ulonglong	trx_id = static_cast<ulonglong>(
 		trx_get_id_for_print(trx));
 
 	trans_register_ha(thd, FALSE, hton, &trx_id);
@@ -14350,7 +14350,6 @@ ha_innobase::truncate(dd::Table *table_def)
 	HA_CREATE_INFO	info;
 	const bool	file_per_table
 		= dict_table_is_file_per_table(m_prebuilt->table);
-	memset(&info, 0, sizeof info);
 	update_create_info_from_table(&info, table);
 	char* tsname	= NULL;
 

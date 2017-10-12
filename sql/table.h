@@ -2349,8 +2349,6 @@ class Table_function;
 
 struct TABLE_LIST
 {
-  TABLE_LIST() {}                          /* Remove gcc warning */
-
   /**
     Prepare TABLE_LIST that consists of one table instance to use in
     simple_open_and_lock_tables
@@ -2362,7 +2360,7 @@ struct TABLE_LIST
                              const char *alias_arg,
                              enum thr_lock_type lock_type_arg)
   {
-    memset(this, 0, sizeof(*this));
+    *this= TABLE_LIST();
     m_map= 1;
     db= (char*) db_name_arg;
     db_length= db_length_arg;
@@ -2929,22 +2927,22 @@ struct TABLE_LIST
     Created at parse time in SELECT_LEX::add_table_to_list() ->
     table_list.link_in_list().
   */
-  TABLE_LIST *next_local;
+  TABLE_LIST *next_local{nullptr};
   /* link in a global list of all queries tables */
-  TABLE_LIST *next_global, **prev_global;
-  const char *db, *table_name, *alias;
+  TABLE_LIST *next_global{nullptr}, **prev_global{nullptr};
+  const char *db{nullptr}, *table_name{nullptr}, *alias{nullptr};
   /*
     Target tablespace name: When creating or altering tables, this
     member points to the tablespace_name in the HA_CREATE_INFO struct.
   */
-  LEX_CSTRING target_tablespace_name;
-  char *schema_table_name;
-  char *option;                /* Used by cache index  */
+  LEX_CSTRING target_tablespace_name{nullptr, 0};
+  char *schema_table_name{nullptr};
+  char *option{nullptr};                /* Used by cache index  */
 
   /** Table level optimizer hints for this table.  */
-  Opt_hints_table *opt_hints_table;
+  Opt_hints_table *opt_hints_table{nullptr};
   /* Hints for query block of this table. */
-  Opt_hints_qb *opt_hints_qb;
+  Opt_hints_qb *opt_hints_qb{nullptr};
 
   void set_lock(const Lock_descriptor &descriptor)
   {
@@ -2962,16 +2960,16 @@ private:
     A table that takes part in a join operation must be assigned a unique
     table number.
   */
-  uint          m_tableno;              ///< Table number within query block
-  table_map     m_map;                  ///< Table map, derived from m_tableno
+  uint          m_tableno{0};              ///< Table number within query block
+  table_map     m_map{0};                  ///< Table map, derived from m_tableno
   /**
      If this table or join nest is the Y in "X [LEFT] JOIN Y ON C", this
      member points to C. May also be generated from JOIN ... USING clause.
      It may be modified only by permanent transformations (permanent = done
      once for all executions of a prepared statement).
   */
-  Item		*m_join_cond;
-  Item          *m_sj_cond;               ///< Synthesized semijoin condition
+  Item		*m_join_cond{nullptr};
+  Item          *m_sj_cond{nullptr};               ///< Synthesized semijoin condition
 public:
   /*
     (Valid only for semi-join nests) Bitmap of tables that are within the
@@ -2979,7 +2977,7 @@ public:
     tables that were pulled out of the semi-join nest remain listed as
     nest's children).
   */
-  table_map     sj_inner_tables;
+  table_map     sj_inner_tables{0};
 
   /*
     During parsing - left operand of NATURAL/USING join where 'this' is
@@ -2987,22 +2985,22 @@ public:
     'this' represents a NATURAL or USING join operation. Thus after
     parsing 'this' is a NATURAL/USING join iff (natural_join != NULL).
   */
-  TABLE_LIST *natural_join;
+  TABLE_LIST *natural_join{nullptr};
   /*
     True if 'this' represents a nested join that is a NATURAL JOIN.
     For one of the operands of 'this', the member 'natural_join' points
     to the other operand of 'this'.
   */
-  bool is_natural_join;
+  bool is_natural_join{false};
   /* Field names in a USING clause for JOIN ... USING. */
-  List<String> *join_using_fields;
+  List<String> *join_using_fields{nullptr};
   /*
     Explicitly store the result columns of either a NATURAL/USING join or
     an operand of such a join.
   */
-  List<Natural_join_column> *join_columns;
+  List<Natural_join_column> *join_columns{nullptr};
   /* TRUE if join_columns contains all columns of this table reference. */
-  bool is_join_columns_complete;
+  bool is_join_columns_complete{false};
 
   /*
     List of nodes in a nested join tree, that should be considered as
@@ -3011,16 +3009,16 @@ public:
     base tables. All of these TABLE_LIST instances contain a
     materialized list of columns. The list is local to a subquery.
   */
-  TABLE_LIST *next_name_resolution_table;
+  TABLE_LIST *next_name_resolution_table{nullptr};
   /* Index names in a "... JOIN ... USE/IGNORE INDEX ..." clause. */
-  List<Index_hint> *index_hints;
-  TABLE        *table;                          /* opened table */
-  Table_id table_id; /* table id (from binlog) for opened table */
+  List<Index_hint> *index_hints{nullptr};
+  TABLE        *table{nullptr};                          /* opened table */
+  Table_id table_id{}; /* table id (from binlog) for opened table */
   /*
     Query_result for derived table to pass it from table creation to table
     filling procedure
   */
-  Query_result_union  *derived_result;
+  Query_result_union  *derived_result{nullptr};
   /*
     Reference from aux_tables to local list entry of main select of
     multi-delete statement:
@@ -3028,12 +3026,12 @@ public:
     here it will be reference of first occurrence of t1 to second (as you
     can see this lists can't be merged)
   */
-  TABLE_LIST	*correspondent_table;
+  TABLE_LIST	*correspondent_table{nullptr};
 
   /*
     Holds the function used as the table function
   */
-  Table_function *table_function;
+  Table_function *table_function{nullptr};
 
 private:
   /**
@@ -3042,10 +3040,10 @@ private:
      E.g. for a query
      @verbatim SELECT * FROM (SELECT a FROM t1) b @endverbatim
   */
-  SELECT_LEX_UNIT *derived;		/* SELECT_LEX_UNIT of derived table */
+  SELECT_LEX_UNIT *derived{nullptr};		/* SELECT_LEX_UNIT of derived table */
 
   /// If non-NULL, the CTE which this table is derived from.
-  Common_table_expr *m_common_table_expr;
+  Common_table_expr *m_common_table_expr{nullptr};
   /**
     If the user has specified column names with the syntaxes "table name
     parenthesis column names":
@@ -3056,75 +3054,75 @@ private:
     CREATE VIEW v(column_names) AS ...
     then this points to the list of column names. NULL otherwise.
   */
-  const Create_col_name_list *m_derived_column_names;
+  const Create_col_name_list *m_derived_column_names{nullptr};
 
 public:
-  ST_SCHEMA_TABLE *schema_table;        /* Information_schema table */
-  SELECT_LEX *schema_select_lex;
+  ST_SCHEMA_TABLE *schema_table{nullptr};        /* Information_schema table */
+  SELECT_LEX *schema_select_lex{nullptr};
   /*
     True when the view field translation table is used to convert
     schema table fields for backwards compatibility with SHOW command.
   */
-  bool schema_table_reformed;
-  Temp_table_param *schema_table_param;
+  bool schema_table_reformed{false};
+  Temp_table_param *schema_table_param{nullptr};
   /* link to select_lex where this table was used */
-  SELECT_LEX *select_lex;
+  SELECT_LEX *select_lex{nullptr};
 
 private:
-  LEX *view;                    /* link on VIEW lex for merging */
+  LEX *view{nullptr};                    /* link on VIEW lex for merging */
 
 public:
   /// Array of selected expressions from a derived table or view.
-  Field_translator *field_translation;
+  Field_translator *field_translation{nullptr};
 
   /// pointer to element after last one in translation table above
-  Field_translator *field_translation_end;
+  Field_translator *field_translation_end{nullptr};
   /*
     List (based on next_local) of underlying tables of this view. I.e. it
     does not include the tables of subqueries used in the view. Is set only
     for merged views.
   */
-  TABLE_LIST	*merge_underlying_list;
+  TABLE_LIST	*merge_underlying_list{nullptr};
   /*
     - 0 for base tables
     - in case of the view it is the list of all (not only underlying
     tables but also used in subquery ones) tables of the view.
   */
-  List<TABLE_LIST> *view_tables;
+  List<TABLE_LIST> *view_tables{nullptr};
   /* most upper view this table belongs to */
-  TABLE_LIST	*belong_to_view;
+  TABLE_LIST	*belong_to_view{nullptr};
   /*
     The view directly referencing this table
     (non-zero only for merged underlying tables of a view).
   */
-  TABLE_LIST	*referencing_view;
+  TABLE_LIST	*referencing_view{nullptr};
   /* Ptr to parent MERGE table list item. See top comment in ha_myisammrg.cc */
-  TABLE_LIST    *parent_l;
+  TABLE_LIST    *parent_l{nullptr};
   /*
     Security  context (non-zero only for tables which belong
     to view with SQL SECURITY DEFINER)
   */
-  Security_context *security_ctx;
+  Security_context *security_ctx{nullptr};
   /*
     This view security context (non-zero only for views with
     SQL SECURITY DEFINER)
   */
-  Security_context *view_sctx;
+  Security_context *view_sctx{nullptr};
   /*
     List of all base tables local to a subquery including all view
     tables. Unlike 'next_local', this in this list views are *not*
     leaves. Created in setup_tables() -> make_leaf_tables().
   */
-  TABLE_LIST    *next_leaf;
-  Item          *derived_where_cond;    ///< WHERE condition from derived table
-  Item          *check_option;          ///< WITH CHECK OPTION condition
-  Item          *replace_filter;        ///< Filter for REPLACE command
-  LEX_STRING    select_stmt;            ///< text of (CREATE/SELECT) statement
-  LEX_STRING    source;                 ///< source of CREATE VIEW
-  LEX_CSTRING   view_db;                ///< saved view database
-  LEX_CSTRING   view_name;              ///< saved view name
-  LEX_STRING    timestamp;              ///< GMT time stamp of last operation
-  LEX_USER   definer;                ///< definer of view
+  TABLE_LIST    *next_leaf{nullptr};
+  Item          *derived_where_cond{nullptr};    ///< WHERE condition from derived table
+  Item          *check_option{nullptr};          ///< WITH CHECK OPTION condition
+  Item          *replace_filter{nullptr};        ///< Filter for REPLACE command
+  LEX_STRING    select_stmt{nullptr, 0};            ///< text of (CREATE/SELECT) statement
+  LEX_STRING    source{nullptr, 0};                 ///< source of CREATE VIEW
+  LEX_CSTRING   view_db{nullptr, 0};                ///< saved view database
+  LEX_CSTRING   view_name{nullptr, 0};              ///< saved view name
+  LEX_STRING    timestamp{nullptr, 0};              ///< GMT time stamp of last operation
+  LEX_USER      definer;                ///< definer of view
   /**
     @note: This field is currently not reliable when read from dictionary:
     If an underlying view is changed, updatable_view is not changed,
