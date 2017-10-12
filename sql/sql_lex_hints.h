@@ -30,10 +30,12 @@
 #include "sql/lex_symbol.h"
 #include "sql/sql_class.h"
 #include "sql/sql_digest_stream.h"
-#include "sql/sql_hints.yy.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_lex_hash.h"
 #include "sql_chars.h"
+
+// This must be last, due to bison 2.3 on OsX
+#include "sql/sql_hints.yy.h"
 
 class PT_hint_list;
 
