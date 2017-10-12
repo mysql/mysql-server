@@ -185,12 +185,6 @@ void Item_func::set_arguments(List<Item> &list, bool context_free)
   list.empty();					// Fields are used
 }
 
-Item_func::Item_func(List<Item> &list)
-  :allowed_arg_cols(1)
-{
-  set_arguments(list, false);
-}
-
 
 Item_func::Item_func(const POS &pos, PT_item_list *opt_list)
   : super(pos), allowed_arg_cols(1)
@@ -204,8 +198,10 @@ Item_func::Item_func(const POS &pos, PT_item_list *opt_list)
     set_arguments(opt_list->value, true);
 }
 
+
 Item_func::Item_func(THD *thd, Item_func *item)
   :Item_result_field(thd, item),
+   null_on_null(item->null_on_null),
    allowed_arg_cols(item->allowed_arg_cols),
    used_tables_cache(item->used_tables_cache),
    not_null_tables_cache(item->not_null_tables_cache),
@@ -312,6 +308,7 @@ Item_func::fix_fields(THD *thd, Item**)
         return true;
     }
   }
+
   if (resolve_type(thd) || thd->is_error()) // Some impls still not error-safe
     return true;
   fixed= true;
@@ -340,7 +337,8 @@ bool Item_func::fix_func_arg(THD *thd, Item **arg)
 
   maybe_null|=            item->maybe_null;
   used_tables_cache|=     item->used_tables();
-  not_null_tables_cache|= item->not_null_tables();
+  if (null_on_null)
+    not_null_tables_cache|= item->not_null_tables();
   add_accum_properties(item);
 
   return false;
@@ -371,7 +369,8 @@ void Item_func::fix_after_pullout(SELECT_LEX *parent_select,
       Item *const item= *arg;
       item->fix_after_pullout(parent_select, removed_select);
       used_tables_cache|=     item->used_tables();
-      not_null_tables_cache|= item->not_null_tables();
+      if (null_on_null)
+        not_null_tables_cache|= item->not_null_tables();
     }
   }
 }
@@ -518,18 +517,6 @@ void Item_func::update_used_tables()
     used_tables_cache|=args[i]->used_tables();
     add_accum_properties(args[i]);
   }
-}
-
-
-table_map Item_func::used_tables() const
-{
-  return used_tables_cache;
-}
-
-
-table_map Item_func::not_null_tables() const
-{
-  return not_null_tables_cache;
 }
 
 
@@ -8224,8 +8211,14 @@ Item_func_sp::Item_func_sp(const POS &pos,
                            const LEX_STRING &fn_name,
                            bool use_explicit_name,
                            PT_item_list *opt_list)
-: Item_func(pos, opt_list), m_sp(NULL), dummy_table(NULL), sp_result_field(NULL)
+: Item_func(pos, opt_list), m_sp(NULL), dummy_table(NULL),
+  sp_result_field(NULL)
 {
+  /*
+    Set to false here, which is the default according to SQL standard.
+    RETURNS NULL ON NULL INPUT can be implemented by modifying this member.
+  */
+  null_on_null= false;
   maybe_null= true;
   set_stored_program();
   THD *thd= current_thd;
