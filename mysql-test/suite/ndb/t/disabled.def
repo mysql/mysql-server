@@ -137,3 +137,6 @@ ndb_blob_big: Bug #25958538 BLOB SIZE INCREASES IN 8.0
 
 # Clusterj fails to start since libndbclient.se fails to load
 clusterj: Bug#26824659 LIBNDBCLIENT.SO FAILS TO LOAD LIBSSL.SO
+
+# Test fails with varying failures in all versions
+ndb_truncate_nologging: Bug#14845851 MYSQL CLUSTER - AUTO INCREMENT NOT RESET WHEN TRUNCATE NON-BINLOGGING SQL NODES
