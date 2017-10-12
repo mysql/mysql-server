@@ -56,21 +56,6 @@ static int indexToNumber(int index)
   return index + MIN_API_BLOCK_NO;
 }
 
-inline bool lock_cpu_api_disabled()
-{
-  /* sched_setaffinity has a bug due to which it fails when an all-ones
-   * CPU mask is set. This causes the unset_recv_thread_cpu() to fail.
-   * The bug is fixed in GLIBC v2.23. So the cpu locking apis are disabled
-   * if the glibc library used is from a lower version  */
-#if defined(HAVE_LINUX_SCHEDULING)
-  if (__GLIBC__ < 2 || ( __GLIBC__ == 2 && __GLIBC_MINOR__ < 23 ))
-  {
-    return true;
-  }
-#endif
-  return false;
-}
-
 #if defined DEBUG_TRANSPORTER
 #define TRP_DEBUG(t) ndbout << __FILE__ << ":" << __LINE__ << ":" << t << endl;
 #else
@@ -740,10 +725,6 @@ ReceiveThreadClient::trp_deliver_signal(const NdbApiSignal *signal,
 int
 TransporterFacade::unset_recv_thread_cpu(Uint32 recv_thread_id)
 {
-  if(lock_cpu_api_disabled())
-  {
-    return BIND_CPU_NOT_SUPPORTED_ERROR;
-  }
   if (recv_thread_id != 0)
   {
     return -1;
@@ -762,10 +743,6 @@ TransporterFacade::set_recv_thread_cpu(Uint16 *cpuid_array,
                                        Uint32 array_len,
                                        Uint32 recv_thread_id)
 {
-  if(lock_cpu_api_disabled())
-  {
-    return BIND_CPU_NOT_SUPPORTED_ERROR;
-  }
   if (array_len > 1 || array_len == 0)
   {
     return -1;
