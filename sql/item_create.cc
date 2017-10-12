@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2482,6 +2482,17 @@ protected:
   Create_func_json_depth() {}
   virtual ~Create_func_json_depth() {}
 };
+
+class Create_func_json_pretty : public Create_func_arg1
+{
+public:
+  static Create_func_json_pretty s_singleton;
+  virtual Item *create(THD *thd, Item *arg1)
+  {
+    return new (thd->mem_root) Item_func_json_pretty(POS(), arg1);
+  }
+};
+Create_func_json_pretty Create_func_json_pretty::s_singleton;
 
 class Create_func_json_type : public Create_func_arg1
 {
@@ -7526,6 +7537,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("JSON_CONTAINS_PATH") }, BUILDER(Create_func_json_contains_path)},
   { { C_STRING_WITH_LEN("JSON_LENGTH") }, BUILDER(Create_func_json_length)},
   { { C_STRING_WITH_LEN("JSON_DEPTH") }, BUILDER(Create_func_json_depth)},
+  { { C_STRING_WITH_LEN("JSON_PRETTY") }, BUILDER(Create_func_json_pretty)},
   { { C_STRING_WITH_LEN("JSON_TYPE") }, BUILDER(Create_func_json_type)},
   { { C_STRING_WITH_LEN("JSON_KEYS") }, BUILDER(Create_func_json_keys)},
   { { C_STRING_WITH_LEN("JSON_EXTRACT") }, BUILDER(Create_func_json_extract)},

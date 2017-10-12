@@ -801,6 +801,25 @@ public:
 };
 
 /**
+  Represents the JSON_PRETTY function.
+*/
+class Item_func_json_pretty :public Item_str_func
+{
+public:
+  Item_func_json_pretty(const POS &pos, Item *a) : Item_str_func(pos, a)
+  {}
+
+  const char *func_name() const { return "json_pretty"; }
+
+  void fix_length_and_dec()
+  {
+    fix_length_and_charset(MAX_BLOB_WIDTH, &my_charset_utf8mb4_bin);
+  }
+
+  String *val_str(String *str);
+};
+
+/**
   Turn a GEOMETRY value into a JSON value per the GeoJSON specification revison 1.0.
   This method is implemented in item_geofunc.cc.
 

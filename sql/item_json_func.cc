@@ -3542,3 +3542,32 @@ Json_scalar *get_json_scalar_from_holder(Json_scalar_holder *holder)
 {
   return boost::polymorphic_get<Json_scalar>(&holder->m_val);
 }
+
+
+String *Item_func_json_pretty::val_str(String *str)
+{
+  DBUG_ASSERT(fixed);
+  try
+  {
+    Json_wrapper wr;
+    if (get_json_wrapper(args, 0, str, func_name(), &wr))
+      return error_str();
+
+    null_value= args[0]->null_value;
+    if (null_value)
+      return NULL;
+
+    str->length(0);
+    if (wr.to_pretty_string(str, func_name()))
+      return error_str();                       /* purecov: inspected */
+
+    return str;
+  }
+  /* purecov: begin inspected */
+  catch (...)
+  {
+    handle_std_exception(func_name());
+    return error_str();
+  }
+  /* purecov: end */
+}
