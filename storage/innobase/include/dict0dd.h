@@ -1097,5 +1097,15 @@ bool
 dd_tablespace_get_discard(
 	const dd::Tablespace*	dd_space);
 
+/** Update all InnoDB tablespace cache objects. This step is done post
+dictionary trx rollback, binlog recovery and DDL_LOG apply. So DD is consistent.
+Update the cached tablespace objects, if they differ from dictionary
+@param[in,out]	thd	thread handle
+@retval	true	on error
+@retval	false	on success */
+MY_ATTRIBUTE((warn_unused_result))
+bool
+dd_tablespace_update_cache(THD* thd);
+
 #include "dict0dd.ic"
 #endif

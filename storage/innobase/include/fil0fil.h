@@ -1533,4 +1533,17 @@ fil_rename_tablespace_by_name(
         const char*	old_name,
         const char*     new_name);
 
+/** Update the tablespace name. Incase, the new name
+and old name are same, no update done.
+@param[in,out]	space		tablespace object on which name
+				will be updated
+@param[in]	name		new name for tablespace
+@param[in]	has_fil_sys	true if fil_system mutex is
+				acquired */
+void
+fil_space_update_name(
+	fil_space_t*	space,
+	const char*	name,
+	bool		has_fil_sys);
+
 #endif /* fil0fil_h */

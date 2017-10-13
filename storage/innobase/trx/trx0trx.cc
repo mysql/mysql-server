@@ -2217,6 +2217,9 @@ trx_commit(
 	if (trx_is_rseg_updated(trx)) {
 		mtr = &local_mtr;
 
+		DBUG_EXECUTE_IF("ib_trx_commit_crash_rseg_updated",
+				DBUG_SUICIDE(););
+
 		mtr_start_sync(mtr);
 	} else {
 		mtr = NULL;
