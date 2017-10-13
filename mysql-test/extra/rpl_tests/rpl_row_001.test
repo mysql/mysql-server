@@ -71,6 +71,13 @@ while ($1)
 }
 enable_query_log;
 SELECT COUNT(*) FROM t1;
+
+# When running this test with MySQL Cluster replication, the
+# binlog is written asynchronosly via NDB and the master pos
+# should not be saved until all the committed inserts have
+# been written to the binlog of this MySQL Server
+--source include/wait_for_ndb_committed_to_binlog.inc
+
 --source include/save_master_pos.inc
 
 # Try to cause a large relay log lag on the slave by locking t1
