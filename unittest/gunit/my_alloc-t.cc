@@ -165,4 +165,15 @@ TEST_F(MyAllocTest, MoveConstructorDoesNotLeak)
   alloc1= std::move(alloc2);
 }
 
+TEST_F(MyAllocTest, ExceptionalBlocksAreNotReusedForLargerAllocations)
+{
+  MEM_ROOT alloc(PSI_NOT_INSTRUMENTED, 512);
+  void *ptr= alloc.Alloc(600);
+  alloc.ClearForReuse();
+
+  // The allocated block is too small to satisfy this new, larger allocation.
+  void *ptr2= alloc.Alloc(605);
+  EXPECT_NE(ptr, ptr2);
+}
+
 }

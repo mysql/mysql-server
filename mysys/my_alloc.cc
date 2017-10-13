@@ -92,9 +92,13 @@ void *MEM_ROOT::AllocSlow(size_t length) {
 
     if (m_current_block == nullptr) {
       // This is the only block, so it has to be the current block, too.
-      // However, it will be full, so we won't be allocating from it.
+      // However, it will be full, so we won't be allocating from it
+      // unless ClearForReuse() is called.
       new_block->prev = nullptr;
       m_current_block = new_block;
+      m_current_free_end = pointer_cast<char *>(new_block) +
+          sizeof(*new_block) + length;
+      m_current_free_start = m_current_free_end;
     } else {
       // Insert the new block in the second-to-last position.
       new_block->prev = m_current_block->prev;
