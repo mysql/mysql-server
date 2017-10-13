@@ -179,7 +179,6 @@ set session transaction isolation level read uncommitted;
 start transaction;
 select f1, right(f2, 20) as p2 from t1;
 f1	p2
-10	--------------------
 select f1, right(f2, 20) as p2 from t2;
 f1	p2
 select f1, right(f2, 20) as p2 from t3;
@@ -270,7 +269,6 @@ set session transaction isolation level read uncommitted;
 start transaction;
 select f1, f2 from t1;
 f1	f2
-2	28
 select f1, f2 from t2;
 f1	f2
 select f1, f2 from t3;
