@@ -18,7 +18,6 @@
 
 #include "my_base.h"
 #include "sql/mem_root_array.h"
-#include "sql/sql_alloc.h"
 #include "sql/sql_list.h"
 
 
@@ -36,7 +35,7 @@ class Item;
 
 typedef Mem_root_array<Item*> Func_ptr_array;
 
-class Temp_table_param :public Sql_alloc
+class Temp_table_param
 {
 public:
   List<Item> copy_funcs;

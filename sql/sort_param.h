@@ -23,9 +23,9 @@
 #include "my_inttypes.h"
 #include "my_io.h"            // mysql_com.h needs my_socket
 #include "mysql_com.h"        // Item_result
-#include "sql/sql_alloc.h"    // sql_alloc
 #include "sql/sql_array.h"    // Bounds_checked_array
 #include "sql/sql_sort.h"     // Filesort_info
+#include "sql/thr_malloc.h"
 
 class Field;
 class Filesort;

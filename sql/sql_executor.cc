@@ -6418,7 +6418,7 @@ static bool remove_dup_with_hash_index(THD *thd, TABLE *table,
   handler *file= table->file;
   DBUG_ENTER("remove_dup_with_hash_index");
 
-  MEM_ROOT mem_root(key_memory_hash_index_key_buffer, 32768, 0);
+  MEM_ROOT mem_root(key_memory_hash_index_key_buffer, 32768);
   memroot_unordered_set<std::string> hash(&mem_root);
   hash.reserve(file->stats.records);
 

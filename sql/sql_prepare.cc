@@ -1588,7 +1588,7 @@ mysql_stmt_precheck(THD *thd, const COM_DATA *com_data,
   case COM_STMT_PREPARE:
   {
     if (! (*stmt= new Prepared_statement(thd)))
-      // out of memory: error is set in Sql_alloc
+      // out of memory: error is set in MEM_ROOT
       goto silent_error;           /* purecov: inspected */
 
     if (thd->stmt_map.insert(*stmt))
@@ -2024,8 +2024,8 @@ mysqld_stmt_execute(THD *thd, Prepared_statement *stmt, bool has_new_types,
   DBUG_ENTER("mysqld_stmt_execute");
 
 #if defined(ENABLED_PROFILING)
-  thd->profiling.set_query_source(stmt->m_query_string.str,
-                                  stmt->m_query_string.length);
+  thd->profiling->set_query_source(stmt->m_query_string.str,
+                                   stmt->m_query_string.length);
 #endif
   DBUG_PRINT("info",("stmt: %p", stmt));
 
@@ -3510,8 +3510,6 @@ Ed_result_set::Ed_result_set(List<Ed_row> *rows_arg,
   m_rows(rows_arg),
   m_next_rset(NULL)
 {
-  /* Take over responsibility for the memory */
-  clear_alloc_root(mem_root_arg);
 }
 
 /***************************************************************************
@@ -3644,7 +3642,6 @@ Protocol_local::Protocol_local(THD *thd, Ed_connection *ed_connection):
   m_send_metadata(false),
   m_thd(thd)
 {
-  clear_alloc_root(&m_rset_root);
 }
 
 /**

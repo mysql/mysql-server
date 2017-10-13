@@ -116,7 +116,7 @@ static const negated_function_mapping neg_map[]=
   Ndb_item with type == NDB_END_COND.
   NOT items represent negated conditions and generate NAND/NOR groups.
 */
-class Ndb_item : public Sql_alloc
+class Ndb_item
 {
 public:
   Ndb_item(NDB_ITEM_TYPE item_type) : type(item_type) {}
@@ -313,7 +313,7 @@ public:
   This class implements a linked list used for storing a
   serialization of the Item tree for condition pushdown.
  */
-class Ndb_cond : public Sql_alloc
+class Ndb_cond
 {
  public:
   Ndb_cond() : ndb_item(NULL), next(NULL), prev(NULL) {}
@@ -348,7 +348,7 @@ class Ndb_cond : public Sql_alloc
   prepared for handling several (C1 AND C2 ...) if the logic for
   pushing conditions is extended in sql_select.
 */
-class Ndb_cond_stack : public Sql_alloc
+class Ndb_cond_stack
 {
  public:
   Ndb_cond_stack() : ndb_cond(NULL), next(NULL) {}
@@ -373,7 +373,7 @@ class Ndb_cond_stack : public Sql_alloc
   to check specific order (currently used for detecting support for
   <field> LIKE <string>|<func>, but not <string>|<func> LIKE <field>).
  */
-class Ndb_expect_stack : public Sql_alloc
+class Ndb_expect_stack
 {
   static const uint MAX_EXPECT_ITEMS = Item::VIEW_FIXER_ITEM + 1;
   static const uint MAX_EXPECT_FIELD_TYPES = MYSQL_TYPE_GEOMETRY + 1;
@@ -557,7 +557,7 @@ private:
   Ndb_expect_stack* next;
 };
 
-class Ndb_rewrite_context : public Sql_alloc
+class Ndb_rewrite_context
 {
 public:
   Ndb_rewrite_context(Item_func *func)
@@ -579,7 +579,7 @@ public:
   if the condition found is supported, and information what is
   expected next in the tree inorder for the condition to be supported.
 */
-class Ndb_cond_traverse_context : public Sql_alloc
+class Ndb_cond_traverse_context
 {
  public:
    Ndb_cond_traverse_context(TABLE *tab, const NdbDictionary::Table *ndb_tab,

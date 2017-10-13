@@ -30,18 +30,8 @@
 #include "sql/sql_const.h"
 
 class SELECT_LEX;
-class Sql_alloc;
 class THD;
 struct MEM_ROOT;
-
-/**
-  Sql_alloc-ed version of Mem_root_array with a trivial destructor of elements
-
-  @tparam Element_type The type of the elements of the container.
-                       Elements must be copyable.
-*/
-template<typename Element_type> using Trivial_array=
-  Mem_root_array<Element_type, Sql_alloc>;
 
 // uncachable cause
 #define UNCACHEABLE_DEPENDENT   1

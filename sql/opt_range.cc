@@ -1248,7 +1248,7 @@ static bool all_same(const SEL_ROOT *sa1, const SEL_ROOT *sa2)
 class SEL_IMERGE;
 struct ROR_SCAN_INFO;
 
-class SEL_TREE :public Sql_alloc
+class SEL_TREE
 {
 public:
   /**
@@ -1616,7 +1616,7 @@ void range_optimizer_free()
   This class relies on memory manager to do the cleanup.
 */
 
-class SEL_IMERGE : public Sql_alloc
+class SEL_IMERGE
 {
   enum { PREALLOCED_TREES= 10};
 public:
@@ -1752,7 +1752,7 @@ int SEL_IMERGE::or_sel_imerge_with_checks(RANGE_OPT_PARAM *param, SEL_IMERGE* im
 
 
 SEL_TREE::SEL_TREE(SEL_TREE *arg, RANGE_OPT_PARAM *param):
-  Sql_alloc(), keys(param->mem_root, param->keys), n_ror_scans(0)
+  keys(param->mem_root, param->keys), n_ror_scans(0)
 {
   keys_map= arg->keys_map;
   type= arg->type;
@@ -1791,7 +1791,7 @@ SEL_TREE::SEL_TREE(SEL_TREE *arg, RANGE_OPT_PARAM *param):
 }
 
 
-SEL_IMERGE::SEL_IMERGE (SEL_IMERGE *arg, RANGE_OPT_PARAM *param) : Sql_alloc()
+SEL_IMERGE::SEL_IMERGE (SEL_IMERGE *arg, RANGE_OPT_PARAM *param)
 {
   uint elements= static_cast<uint>(arg->trees_end - arg->trees);
   if (elements > PREALLOCED_TREES)
@@ -8437,7 +8437,7 @@ tree_and(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
           Do not test use_count if there is a large range tree created.
           It takes too much time to traverse the tree.
         */
-        if (param->mem_root->allocated_size < 2097152)
+        if (param->mem_root->allocated_size() < 2097152)
           new_key->test_use_count(new_key);
 #endif
       }
@@ -8636,7 +8636,7 @@ tree_or(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
           Do not test use count if there is a large range tree created.
           It takes too much time to traverse the tree.
         */
-        if (param->mem_root->allocated_size < 2097152)
+        if (param->mem_root->allocated_size() < 2097152)
           new_key->test_use_count(new_key);
 #endif
       }

@@ -22,7 +22,6 @@
 #include "my_base.h"                            /* ha_rows */
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "sql/sql_alloc.h"                      /* Sql_alloc */
 
 class Addon_fields;
 class Field;
@@ -37,7 +36,7 @@ enum class Addon_fields_status;
 /**
   Sorting related info.
 */
-class Filesort: public Sql_alloc
+class Filesort
 {
 public:
   /// The QEP entry for the table to be sorted

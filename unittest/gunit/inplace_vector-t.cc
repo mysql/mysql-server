@@ -20,7 +20,6 @@
 #include <algorithm>
 
 #include "sql/inplace_vector.h"
-#include "sql/sql_alloc.h"
 
 namespace inplace_vector_unittest {
 
@@ -281,7 +280,7 @@ TEST_P(InplaceVectorTestP, DestroyingAlmostEmptyArrays)
   A simple class to verify that Inplace_vector also works for
   classes which have their own operator new/delete.
  */
-class TestAlloc : public Sql_alloc
+class TestAlloc
 {
 public:
   explicit TestAlloc(int val)
@@ -291,15 +290,17 @@ public:
   int getval() const { return m_int; }
 private:
   int m_int;
+
+  static void *operator new(size_t) { throw std::bad_alloc(); }
 };
 
 
 /*
   There is no THD and no mem-root available for the execution of this test.
   This shows that the memory management of Inplace_vector works OK for
-  classes inheriting from Sql_alloc.
+  classes with their own new/delete.
  */
-TEST_F(InplaceVectorTest, SqlAlloc)
+TEST_F(InplaceVectorTest, CustomNewDelete)
 {
   Inplace_vector<TestAlloc, 5> array(PSI_NOT_INSTRUMENTED);
   for (int ix= 0; ix < 42; ++ix)

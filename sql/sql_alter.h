@@ -30,7 +30,6 @@
 #include "nullable.h"
 #include "sql/gis/srid.h"
 #include "sql/mem_root_array.h" // Mem_root_array
-#include "sql/sql_alloc.h"
 #include "sql/sql_cmd.h" // Sql_cmd
 #include "sql/sql_cmd_ddl_table.h" // Sql_cmd_ddl_table
 #include "sql/sql_list.h" // List
@@ -51,7 +50,7 @@ using Mysql::Nullable;
   clauses in ALTER TABLE statement.
 */
 
-class Alter_drop : public Sql_alloc
+class Alter_drop
 {
 public:
   enum drop_type {KEY, COLUMN, FOREIGN_KEY };
@@ -71,7 +70,7 @@ public:
   COLUMN clause in ALTER TABLE statement.
 */
 
-class Alter_column : public Sql_alloc
+class Alter_column
 {
 public:
   /// The column name being altered.
@@ -115,7 +114,8 @@ private:
 
 
 /// An ALTER INDEX operation that changes the visibility of an index.
-class Alter_index_visibility: public Sql_alloc {
+class Alter_index_visibility
+{
 public:
   Alter_index_visibility(const char *name, bool is_visible) :
     m_name(name), m_is_visible(is_visible)
@@ -139,7 +139,7 @@ private:
   ALTER TABLE statement.
 */
 
-class Alter_rename_key : public Sql_alloc
+class Alter_rename_key
 {
 public:
   const char *old_name;

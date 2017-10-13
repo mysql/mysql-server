@@ -1820,7 +1820,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
   argc=1; argv=argv_buff; argv_buff[0]= (char*) "client";
   groups[0]= (char*) "client"; groups[1]= (char*) group; groups[2]=0;
 
-  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512, 0};
+  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
   my_load_defaults(filename, groups, &argc, &argv, &alloc, nullptr);
   if (argc != 1)				/* If some default option */
   {
@@ -2028,8 +2028,8 @@ void mysql_read_default_options(struct st_mysql_options *options,
           EXTENSION_SET_STRING(options, default_auth, opt_arg);
           break;
 	case OPT_bind_address:
-          my_free(options->ci.bind_address);
-          options->ci.bind_address= my_strdup(key_memory_mysql_options,
+          my_free(options->bind_address);
+          options->bind_address= my_strdup(key_memory_mysql_options,
                                               opt_arg, MYF(MY_WME));
           break;
         case OPT_enable_cleartext_plugin:
@@ -2410,7 +2410,6 @@ MYSQL_DATA *cli_read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
   }
   init_alloc_root(PSI_NOT_INSTRUMENTED,
                   result->alloc, 8192, 0); /* Assume rowlength < 8192 */
-  result->alloc->min_malloc= sizeof(MYSQL_ROWS);
   prev_ptr= &result->data;
   result->rows=0;
   result->fields=fields;
@@ -2612,7 +2611,6 @@ mysql_init(MYSQL *mysql)
   mysql->options.shared_memory_base_name= (char*) def_shared_memory_base_name;
 #endif
 
-  mysql->options.methods_to_use= MYSQL_OPT_GUESS_CONNECTION;
   mysql->options.report_data_truncation= TRUE;  /* default */
 
   /* Initialize extensions. */
@@ -4767,21 +4765,21 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     }
 
     /* Get address info for client bind name if it is provided */
-    if (mysql->options.ci.bind_address)
+    if (mysql->options.bind_address)
     {
       int bind_gai_errno= 0;
 
       DBUG_PRINT("info",("Resolving addresses for client bind: '%s'",
-                         mysql->options.ci.bind_address));
+                         mysql->options.bind_address));
       /* Lookup address info for name */
-      bind_gai_errno= getaddrinfo(mysql->options.ci.bind_address, 0,
+      bind_gai_errno= getaddrinfo(mysql->options.bind_address, 0,
                                   &hints, &client_bind_ai_lst);
       if (bind_gai_errno)
       {
         DBUG_PRINT("info",("client bind getaddrinfo error %d", bind_gai_errno));
         set_mysql_extended_error(mysql, CR_UNKNOWN_HOST, unknown_sqlstate,
                                  ER_CLIENT(CR_UNKNOWN_HOST),
-                                 mysql->options.ci.bind_address,
+                                 mysql->options.bind_address,
                                  bind_gai_errno);
 
         freeaddrinfo(res_lst);
@@ -5553,8 +5551,6 @@ void mysql_close_free_options(MYSQL *mysql)
   my_free(mysql->options.my_cnf_group);
   my_free(mysql->options.charset_dir);
   my_free(mysql->options.charset_name);
-  my_free(mysql->options.ci.client_ip);
-  /* ci.bind_adress is union with client_ip, already freed above */
   if (mysql->options.init_commands)
   {
     char **ptr= mysql->options.init_commands->begin();
@@ -5599,9 +5595,6 @@ void mysql_close_free(MYSQL *mysql)
   /* Free extension if any */
   if (mysql->extension)
     mysql_extension_free(static_cast<MYSQL_EXTENSION*>(mysql->extension));
-
-  my_free(mysql->info_buffer);
-  mysql->info_buffer= 0;
 
   my_free(mysql->field_alloc);
   mysql->field_alloc= nullptr;
@@ -6089,17 +6082,6 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
                 static_cast<const char*>(arg), MYF(MY_WME));
 #endif
     break;
-  case MYSQL_OPT_USE_REMOTE_CONNECTION:
-  case MYSQL_OPT_USE_EMBEDDED_CONNECTION:
-  case MYSQL_OPT_GUESS_CONNECTION:
-    mysql->options.methods_to_use= option;
-    break;
-  case MYSQL_SET_CLIENT_IP:
-    my_free(mysql->options.ci.client_ip);
-    mysql->options.ci.client_ip= my_strdup(key_memory_mysql_options,
-                                           static_cast<const char*>(arg),
-                                           MYF(MY_WME));
-    break;
   case MYSQL_REPORT_DATA_TRUNCATION:
     mysql->options.report_data_truncation= *(bool *) arg;
     break;
@@ -6107,10 +6089,10 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
     mysql->reconnect= *(bool *) arg;
     break;
   case MYSQL_OPT_BIND:
-    my_free(mysql->options.ci.bind_address);
-    mysql->options.ci.bind_address= my_strdup(key_memory_mysql_options,
-                                              static_cast<const char*>(arg),
-                                              MYF(MY_WME));
+    my_free(mysql->options.bind_address);
+    mysql->options.bind_address= my_strdup(key_memory_mysql_options,
+                                           static_cast<const char*>(arg),
+                                           MYF(MY_WME));
     break;
   case MYSQL_PLUGIN_DIR:
     EXTENSION_SET_STRING(&mysql->options, plugin_dir,
@@ -6280,8 +6262,7 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
     MYSQL_OPT_PROTOCOL, MYSQL_OPT_SSL_MODE, MYSQL_OPT_RETRY_COUNT
 
   bool
-    MYSQL_OPT_COMPRESS, MYSQL_OPT_LOCAL_INFILE, MYSQL_OPT_USE_REMOTE_CONNECTION,
-    MYSQL_OPT_USE_EMBEDDED_CONNECTION, MYSQL_OPT_GUESS_CONNECTION,
+    MYSQL_OPT_COMPRESS, MYSQL_OPT_LOCAL_INFILE,
     MYSQL_REPORT_DATA_TRUNCATION, MYSQL_OPT_RECONNECT,
     MYSQL_ENABLE_CLEARTEXT_PLUGIN, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS,
     MYSQL_OPT_OPTIONAL_RESULTSET_METADATA
@@ -6353,24 +6334,6 @@ mysql_get_option(MYSQL *mysql, enum mysql_option option, const void *arg)
     *((const char **)arg)= "";
 #endif
     break;
-  case MYSQL_OPT_USE_REMOTE_CONNECTION:
-    *((bool *)arg)=
-      (mysql->options.methods_to_use == MYSQL_OPT_USE_REMOTE_CONNECTION) ?
-                                        TRUE : FALSE;
-    break;
-  case MYSQL_OPT_USE_EMBEDDED_CONNECTION:
-    *((bool *)arg) =
-      (mysql->options.methods_to_use == MYSQL_OPT_USE_EMBEDDED_CONNECTION) ?
-    TRUE : FALSE;
-    break;
-  case MYSQL_OPT_GUESS_CONNECTION:
-    *((bool *)arg) =
-      (mysql->options.methods_to_use == MYSQL_OPT_GUESS_CONNECTION) ?
-    TRUE : FALSE;
-    break;
-  case MYSQL_SET_CLIENT_IP:
-    *((char **)arg) = mysql->options.ci.client_ip;
-    break;
   case MYSQL_REPORT_DATA_TRUNCATION:
     *((bool *)arg)= mysql->options.report_data_truncation;
     break;
@@ -6378,7 +6341,7 @@ mysql_get_option(MYSQL *mysql, enum mysql_option option, const void *arg)
     *((bool *)arg)= mysql->reconnect;
     break;
   case MYSQL_OPT_BIND:
-    *((char **)arg)= mysql->options.ci.bind_address;
+    *((char **)arg)= mysql->options.bind_address;
     break;
   case MYSQL_OPT_SSL_MODE:
     *((uint *) arg)= mysql->options.extension ?

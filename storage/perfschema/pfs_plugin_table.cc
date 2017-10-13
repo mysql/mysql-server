@@ -24,6 +24,7 @@
 #include <list>
 #include <string>
 
+#include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/pfs_priv_util.h"
 #include "storage/perfschema/pfs_column_values.h"

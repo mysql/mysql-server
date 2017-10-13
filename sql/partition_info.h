@@ -23,7 +23,6 @@
 #include "my_inttypes.h"
 #include "sql/lock.h"                         // Tablespace_hash_set
 #include "sql/partition_element.h"
-#include "sql/sql_alloc.h"
 #include "sql/sql_bitmap.h"                   // Bitmap
 #include "sql/sql_data_change.h"              // enum_duplicates
 #include "sql/sql_list.h"
@@ -214,7 +213,7 @@ public:
 };
 
 
-class partition_info : public Sql_alloc
+class partition_info
 {
 public:
   /*

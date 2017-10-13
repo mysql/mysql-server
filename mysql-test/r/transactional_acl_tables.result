@@ -1101,8 +1101,9 @@ DROP USER u1@h;
 CREATE USER u1@h;
 CREATE TABLE t1(a INT);
 SET debug="+d,mysql_table_grant_out_of_memory";
+CALL mtr.add_suppression(".*Out of memory *");
 GRANT SELECT ON t1 TO u1@h;
-ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
+Got one of the listed errors
 SET debug="-d,mysql_table_grant_out_of_memory";
 DROP TABLE t1;
 DROP USER u1@h;
@@ -1394,7 +1395,7 @@ GRANT USAGE ON *.* TO `u1`@`h`
 GRANT UPDATE (a) ON t1 TO u1@h;
 SET debug='+d,mysql_grant_table_init_out_of_memory';
 FLUSH PRIVILEGES;
-ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
+Got one of the listed errors
 SET debug='-d,mysql_grant_table_init_out_of_memory';
 DROP TABLE t1;
 DROP TABLE t2;

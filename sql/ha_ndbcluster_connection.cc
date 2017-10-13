@@ -25,6 +25,7 @@
 #include "sql/mysqld.h"     // server_id, connection_events_loop_aborted
 #include "sql/rpl_slave.h"  // report_port
 #include "sql/sql_class.h"
+#include "sql/sql_lex.h"
 #include "storage/ndb/include/kernel/ndb_limits.h"
 #include "storage/ndb/include/ndbapi/NdbApi.hpp"
 #include "storage/ndb/include/portlib/NdbTick.h"
@@ -36,6 +37,7 @@
 
 #include "sql/ndb_log.h"
 #include "sql/ndb_sleep.h"
+#include "sql/table.h"
 
 extern char *my_bind_addr_str;
 

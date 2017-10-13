@@ -26,7 +26,6 @@
 #include "my_inttypes.h"
 #include "my_table_map.h"
 #include "mysql/udf_registration_types.h"
-#include "sql/sql_alloc.h"           // Sql_alloc
 
 class Item;
 class Item_result_field;
@@ -50,7 +49,7 @@ struct udf_func
   ulong usage_count;
 };
 
-class udf_handler :public Sql_alloc
+class udf_handler
 {
  protected:
   udf_func *u_d;

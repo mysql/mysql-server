@@ -99,6 +99,7 @@
 #include "sql/system_variables.h"
 #include "sql/table_cache.h"             // table_cache_manager
 #include "sql/table_trigger_dispatcher.h" // Table_trigger_dispatcher
+#include "sql/thd_raii.h"
 #include "sql/thr_malloc.h"
 #include "sql/trigger_def.h"
 #include "sql_string.h"
@@ -7888,7 +7889,7 @@ LEX_USER::alloc(THD *thd, LEX_STRING *user_arg, LEX_STRING *host_arg)
   A struct that contains execution time state used for partial update of JSON
   columns.
 */
-struct Partial_update_info : public Sql_alloc
+struct Partial_update_info
 {
   Partial_update_info(const TABLE *table, const MY_BITMAP *columns,
                       bool logical_diffs)

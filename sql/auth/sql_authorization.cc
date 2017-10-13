@@ -108,6 +108,7 @@
 #include "sql/sql_view.h"               /* VIEW_ANY_ACL */
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/thd_raii.h"
 #include "sql_string.h"
 #include "template_utils.h"
 #include "thr_lock.h"

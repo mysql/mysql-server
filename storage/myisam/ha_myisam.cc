@@ -39,6 +39,7 @@
 #include "sql/log.h"
 #include "sql/mysqld.h"
 #include "sql/sql_class.h"                      // THD
+#include "sql/sql_lex.h"
 #include "sql/sql_plugin.h"
 #include "sql/sql_table.h"                      // tablename_to_filename
 #include "sql/system_variables.h"

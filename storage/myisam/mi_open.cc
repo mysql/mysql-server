@@ -28,6 +28,8 @@
 
 #include "my_config.h"
 
+#include <memory>
+
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/types.h>
@@ -673,7 +675,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
     goto err;
   memset(info.rec_buff, 0, mi_get_rec_buff_len(&info, info.rec_buff));
 
-  *m_info= std::move(info);
+  new (m_info) MI_INFO(std::move(info));
   thr_lock_data_init(&share->lock,&m_info->lock,(void*) m_info);
 
   if (!internal_table)

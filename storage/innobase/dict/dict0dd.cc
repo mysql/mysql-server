@@ -3300,8 +3300,8 @@ dd_get_and_save_data_dir_path(
 {
 	mem_heap_t*		heap = NULL;
 
-	if (!(DICT_TF_HAS_DATA_DIR(table->flags)
-	      && table->data_dir_path == nullptr)) {
+	if (!DICT_TF_HAS_DATA_DIR(table->flags)
+	    || table->data_dir_path != nullptr) {
 		return;
 	}
 
@@ -3309,7 +3309,13 @@ dd_get_and_save_data_dir_path(
 
 	if (path == nullptr) {
 		heap = mem_heap_create(1000);
+		if (dict_mutex_own) {
+			dict_mutex_exit_for_mysql();
+		}
 		path = dd_get_first_path(heap, table, dd_table);
+		if (dict_mutex_own) {
+			dict_mutex_enter_for_mysql();
+		}
 	}
 
 	if (!dict_mutex_own) {

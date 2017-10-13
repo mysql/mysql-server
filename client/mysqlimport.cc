@@ -635,7 +635,7 @@ int main(int argc, char **argv)
   MY_INIT(argv[0]);
 
   my_getopt_use_args_separator= TRUE;
-  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512, 0};
+  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
   if (load_defaults("my",load_default_groups,&argc,&argv,&alloc))
     return 1;
   my_getopt_use_args_separator= FALSE;

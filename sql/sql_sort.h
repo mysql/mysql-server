@@ -18,6 +18,7 @@
 
 #include "my_base.h"          // ha_rows
 #include "my_dbug.h"
+#include "my_sys.h"
 #include "sql/filesort_utils.h" // Filesort_buffer
 
 class Addon_fields;

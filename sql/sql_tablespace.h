@@ -22,7 +22,6 @@
 #include "lex_string.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
-#include "sql/sql_alloc.h"
 #include "sql_cmd.h"       // Sql_cmd
 
 class THD;
@@ -32,7 +31,7 @@ class THD;
   Structure used by parser to store options for tablespace statements
   and pass them on to Excution classes.
  */
-struct Tablespace_options : public Sql_alloc
+struct Tablespace_options
 {
   ulonglong extent_size= 1024*1024;        // Default 1 MByte
   ulonglong undo_buffer_size= 8*1024*1024; // Default 8 MByte

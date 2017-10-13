@@ -30,7 +30,6 @@
 #include "my_inttypes.h"
 #include "sql/item.h"
 #include "sql/records.h"           // READ_RECORD
-#include "sql/sql_alloc.h"
 #include "sql/sql_class.h"         // THD
 #include "sql/sql_lex.h"
 #include "sql/sql_opt_exec_shared.h" // QEP_shared_owner
@@ -102,7 +101,7 @@ typedef enum_nested_loop_state
   the tuple.
 */
 
-class SJ_TMP_TABLE : public Sql_alloc
+class SJ_TMP_TABLE
 {
 public:
   SJ_TMP_TABLE():hash_field(NULL)
@@ -164,7 +163,7 @@ public:
    - Description of expressions selected from subquery
    - The sj-materialization temporary table
 */
-class Semijoin_mat_exec : public Sql_alloc
+class Semijoin_mat_exec
 {
 public:
   Semijoin_mat_exec(TABLE_LIST *sj_nest, bool is_scan, uint table_count,
@@ -203,7 +202,7 @@ public:
   being cached, QEP_tmp_buffer is attached to a tmp table.
 */
 
-class QEP_operation :public Sql_alloc
+class QEP_operation
 {
 public:
   // Type of the operation
@@ -399,7 +398,7 @@ bool setup_copy_fields(THD *thd, Temp_table_param *param,
 bool check_unique_constraint(TABLE *table);
 ulonglong unique_hash(Field *field, ulonglong *hash);
 
-class QEP_TAB : public Sql_alloc, public QEP_shared_owner
+class QEP_TAB : public QEP_shared_owner
 {
 public:
   QEP_TAB() :
@@ -747,7 +746,7 @@ public:
 /**
    Use this class when you need a QEP_TAB not connected to any JOIN_TAB.
 */
-class QEP_TAB_standalone : public Sql_alloc
+class QEP_TAB_standalone
 {
 public:
   QEP_TAB_standalone() { m_qt.set_qs(&m_qs); }

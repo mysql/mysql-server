@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "table_function.h"
+#include "sql/table_function.h"
 
 #include <string.h>
 #include <algorithm>
@@ -21,7 +21,6 @@
 #include <new>
 
 #include "binary_log_types.h"
-#include "item_json_func.h"
 #include "m_string.h"
 #include "my_sys.h"
 #include "mysql/psi/psi_base.h"
@@ -30,9 +29,11 @@
 #include "mysql_time.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"
+#include "sql_string.h"
 #include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/item.h"
+#include "sql/item_json_func.h"
 #include "sql/json_dom.h"
 #include "sql/json_path.h"
 #include "sql/my_decimal.h"
@@ -41,10 +42,9 @@
 #include "sql/sql_show.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
-#include "sql_class.h"        // THD
-#include "sql_exception_handler.h"
-#include "sql_string.h"
-#include "sql_tmp_table.h"    // create_tmp_table_from_fields
+#include "sql/sql_class.h"        // THD
+#include "sql/sql_exception_handler.h"
+#include "sql/sql_tmp_table.h"    // create_tmp_table_from_fields
 #include "template_utils.h"
 
 /******************************************************************************

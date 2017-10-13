@@ -46,6 +46,7 @@
 #include "sql/sql_trigger.h"  // change_trigger_table_name
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/thd_raii.h"
 #include "sql/transaction.h"  // trans_commit_stmt
 
 namespace dd {

@@ -77,6 +77,7 @@
 #include "sql/sql_plugin.h"     // check_valid_path
 #include "sql/sql_table.h"      // write_bin_log
 #include "sql/table.h"          // TABLE_LIST
+#include "sql/thd_raii.h"
 #include "sql/thr_malloc.h"
 #include "sql/transaction.h"    // trans_*
 #include "thr_lock.h"

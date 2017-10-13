@@ -48,7 +48,6 @@
 #include "sql/my_decimal.h"
 #include "sql/parse_tree_node_base.h"
 #include "sql/parse_tree_nodes.h" // PT_window
-#include "sql/sql_alloc.h"  // Sql_alloc
 #include "sql/sql_base.h"
 #include "sql/sql_const.h"
 #include "sql/sql_lex.h"
@@ -79,7 +78,7 @@ struct TABLE;
   fields (quick_group is false);
 */
 
-class Aggregator : public Sql_alloc
+class Aggregator
 {
   friend class Item_sum;
   friend class Item_sum_sum;

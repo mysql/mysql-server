@@ -89,7 +89,6 @@
 #include "sql/psi_memory_key.h"
 #include "sql/query_options.h"
 #include "sql/sp_head.h"                    // sp_head
-#include "sql/sql_alloc.h"
 #include "sql/sql_base.h"                   // close_thread_tables
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"                  // THD
@@ -1995,7 +1994,7 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
   Return info about all processes
   returns for each thread: thread id, user, host, db, command, info
 ****************************************************************************/
-class thread_info : public Sql_alloc
+class thread_info
 {
 public:
   thread_info()

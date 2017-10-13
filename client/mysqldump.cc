@@ -145,7 +145,7 @@ static char  *opt_password=0,*current_user=0,
              *opt_compatible_mode_str= 0,
              *err_ptr= 0, *opt_ignore_error= 0,
              *log_error_file= NULL;
-static MEM_ROOT argv_alloc{PSI_NOT_INSTRUMENTED, 512, 0};
+static MEM_ROOT argv_alloc{PSI_NOT_INSTRUMENTED, 512};
 static char compatible_mode_normal_str[255];
 /* Server supports character_set_results session variable? */
 static bool server_supports_switching_charsets= TRUE;

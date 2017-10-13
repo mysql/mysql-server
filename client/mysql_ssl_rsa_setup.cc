@@ -451,7 +451,7 @@ int main(int argc, char *argv[])
   int ret_val= 0;
   Sql_string_t openssl_check("openssl version");
   bool save_skip_unknown= my_getopt_skip_unknown;
-  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512, 0};
+  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
 
   MY_INIT(argv[0]);
   DBUG_ENTER("main");

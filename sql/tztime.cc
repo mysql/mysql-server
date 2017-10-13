@@ -1540,7 +1540,7 @@ static const LEX_STRING tz_tables_names[MY_TZ_TABLES_COUNT]=
 
 static const LEX_STRING tz_tables_db_name= { C_STRING_WITH_LEN("mysql")};
 
-class Tz_names_entry: public Sql_alloc
+class Tz_names_entry
 {
 public:
   String name;

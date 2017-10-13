@@ -21,6 +21,7 @@
 #include "storage/perfschema/table_user_defined_functions.h"
 
 #include "sql/current_thd.h"
+#include "sql/field.h"
 #include "sql/sql_udf.h"
 
 THR_LOCK table_user_defined_functions::m_table_lock;

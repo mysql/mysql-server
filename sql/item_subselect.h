@@ -31,7 +31,6 @@
 #include "sql/enum_query_type.h"
 #include "sql/item.h" // Item_result_field
 #include "sql/parse_tree_node_base.h"
-#include "sql/sql_alloc.h"
 
 class Comp_creator;
 class Field;
@@ -465,7 +464,7 @@ private:
      IN->EXISTS transform. If this transform has not been done, pointer is
      NULL.
   */
-  struct In2exists_info: public Sql_alloc
+  struct In2exists_info
   {
     /**
        True: if IN->EXISTS has been done and has added a condition to the
@@ -598,7 +597,7 @@ public:
 };
 
 
-class subselect_engine: public Sql_alloc
+class subselect_engine
 {
 protected:
   Query_result_interceptor *result; /* results storage class */

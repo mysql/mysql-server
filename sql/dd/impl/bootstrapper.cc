@@ -66,6 +66,7 @@
 #include "sql/stateless_allocator.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/thd_raii.h"
 #include "sql/transaction.h"                  // trans_rollback
 
 // Execute a single SQL query.

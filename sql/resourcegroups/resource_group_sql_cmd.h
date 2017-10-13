@@ -44,7 +44,7 @@ class Sql_cmd_create_resource_group : public Sql_cmd
 
 public:
   Sql_cmd_create_resource_group(const LEX_CSTRING &name, const Type type,
-                                const Trivial_array<Range> *cpu_list,
+                                const Mem_root_array<Range> *cpu_list,
                                 int priority, bool enabled)
     : m_name(name), m_type(type), m_cpu_list(cpu_list), m_priority(priority),
       m_enabled(enabled)
@@ -58,7 +58,7 @@ public:
 private:
   const LEX_CSTRING m_name;
   const Type m_type;
-  const Trivial_array<Range> *m_cpu_list;
+  const Mem_root_array<Range> *m_cpu_list;
   int m_priority;
   bool m_enabled;
 };
@@ -74,7 +74,7 @@ class Sql_cmd_alter_resource_group : public Sql_cmd
 
 public:
   Sql_cmd_alter_resource_group(const LEX_CSTRING& name,
-                               const Trivial_array<Range> *cpu_list,
+                               const Mem_root_array<Range> *cpu_list,
                                int priority, bool enable, bool force,
                                bool use_enable)
     : m_name(name), m_cpu_list(cpu_list), m_priority(priority),
@@ -88,7 +88,7 @@ public:
 
 private:
   const LEX_CSTRING m_name;
-  const Trivial_array<Range> *m_cpu_list;
+  const Mem_root_array<Range> *m_cpu_list;
   int m_priority;
   bool m_enable;
   bool m_force;
@@ -131,7 +131,7 @@ class Sql_cmd_set_resource_group : public Sql_cmd
 public:
 
   Sql_cmd_set_resource_group(const LEX_CSTRING &name,
-                             Trivial_array<ulonglong> *thread_id_list)
+                             Mem_root_array<ulonglong> *thread_id_list)
     : m_name(name), m_thread_id_list(thread_id_list)
   {}
 
@@ -142,7 +142,7 @@ public:
 
 private:
   const LEX_CSTRING m_name;
-  Trivial_array<ulonglong> *m_thread_id_list;
+  Mem_root_array<ulonglong> *m_thread_id_list;
 };
 } // resourcegroups
 #endif // RESOURCEGROUPS_RESOURCE_GROUP_SQL_CMD_H_

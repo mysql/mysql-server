@@ -23,7 +23,6 @@
 
 #include "my_base.h"
 #include "my_dbug.h"
-#include "sql/sql_alloc.h"      // Sql_alloc
 
 class JOIN;
 class Item_func_match;
@@ -49,7 +48,7 @@ typedef int8 plan_idx;
 #define PRE_FIRST_PLAN_IDX (-1) ///< right before the first (first's index is 0)
 
 
-struct TABLE_REF : public Sql_alloc
+struct TABLE_REF
 {
   bool		key_err;
   /** True if something was read into buffer in join_read_key.  */
@@ -221,7 +220,7 @@ enum join_type { /*
 
 
 /// Holds members common to JOIN_TAB and QEP_TAB.
-class QEP_shared : public Sql_alloc
+class QEP_shared
 {
 public:
   QEP_shared() :

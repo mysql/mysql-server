@@ -74,6 +74,7 @@
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
 #include "sql/table.h"
+#include "sql/thd_raii.h"
 #include "sql/thr_malloc.h"
 #include "sql/transaction.h"  // trans_rollback_stmt, trans_commit_stmt
 #include "thr_lock.h"

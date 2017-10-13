@@ -1304,8 +1304,7 @@ fil_ibd_open(
 	MY_ATTRIBUTE((warn_unused_result));
 
 /** Returns true if a matching tablespace exists in the InnoDB tablespace
-memory cache. Note that if we have not done a crash recovery at the database
-startup, there may be many tablespaces which are not yet in the memory cache.
+memory cache.
 @param[in]	space_id	Tablespace ID
 @param[in]	name		Tablespace name used in
 				fil_space_create().

@@ -139,7 +139,6 @@ void init_tree(TREE *tree, size_t default_alloc_size, ulong memory_limit,
   {
     init_alloc_root(key_memory_TREE,
                     &tree->mem_root, default_alloc_size, 0);
-    tree->mem_root.min_malloc=(sizeof(TREE_ELEMENT)+tree->size_of_element);
   }
   DBUG_VOID_RETURN;
 }

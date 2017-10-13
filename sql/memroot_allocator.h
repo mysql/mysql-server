@@ -20,9 +20,8 @@
 #include <new>
 #include <utility>                              // std::forward
 
+#include "my_alloc.h"
 #include "my_dbug.h"
-#include "sql/sql_alloc.h"
-
 
 /**
   Memroot_allocator is a C++ STL memory allocator based on MEM_ROOT.

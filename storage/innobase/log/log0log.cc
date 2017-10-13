@@ -2341,6 +2341,14 @@ logs_empty_and_mark_files_at_shutdown(void)
 	algorithm only works if the server is idle at shutdown */
 
 	srv_shutdown_state = SRV_SHUTDOWN_CLEANUP;
+
+	if (srv_fast_shutdown == 2 && !srv_read_only_mode) {
+		/* In this scenario, no checkpoint would be done.
+		So write back metadata here explicitly, in case
+		dict_close() has problems. */
+		dict_persist_to_dd_table_buffer();
+	}
+
 loop:
 	os_thread_sleep(100000);
 
@@ -2450,14 +2458,7 @@ loop:
 			that we can recover all committed transactions in
 			a crash recovery. We must not write the lsn stamps
 			to the data files, since at a startup InnoDB deduces
-			from the stamps if the previous shutdown was clean.
-
-			In this path, there is no checkpoint, so we have to
-			write back persistent metadata before flushing.
-			There should be no concurrent DML, so no need to
-			require dict_persist::lock. */
-
-			dict_persist_to_dd_table_buffer();
+			from the stamps if the previous shutdown was clean. */
 
 			log_buffer_flush_to_disk();
 

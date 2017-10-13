@@ -1609,7 +1609,8 @@ DROP USER u1@h;
 CREATE USER u1@h;
 CREATE TABLE t1(a INT);
 SET debug="+d,mysql_table_grant_out_of_memory";
---error ER_OUT_OF_RESOURCES
+CALL mtr.add_suppression(".*Out of memory *");
+--error ER_OUT_OF_RESOURCES, 5
 GRANT SELECT ON t1 TO u1@h;
 SET debug="-d,mysql_table_grant_out_of_memory";
 DROP TABLE t1;
@@ -1859,7 +1860,7 @@ SHOW GRANTS FOR u1@h;
 
 GRANT UPDATE (a) ON t1 TO u1@h;
 SET debug='+d,mysql_grant_table_init_out_of_memory';
---error ER_OUT_OF_RESOURCES
+--error ER_OUT_OF_RESOURCES, 5
 FLUSH PRIVILEGES;
 SET debug='-d,mysql_grant_table_init_out_of_memory';
 

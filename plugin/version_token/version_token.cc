@@ -40,6 +40,7 @@
 #include "sql/derror.h"
 #include "sql/locking_service.h"
 #include "sql/sql_class.h"
+#include "sql/sql_lex.h"
 
 #ifdef WIN32
 #define PLUGIN_EXPORT extern "C" __declspec(dllexport)

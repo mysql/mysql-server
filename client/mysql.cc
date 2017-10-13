@@ -142,7 +142,7 @@ struct STATUS
 
 
 static HashTable ht;
-static MEM_ROOT argv_alloc{PSI_NOT_INSTRUMENTED, 512, 0};
+static MEM_ROOT argv_alloc{PSI_NOT_INSTRUMENTED, 512};
 
 enum enum_info_type { INFO_INFO,INFO_ERROR,INFO_RESULT};
 typedef enum enum_info_type INFO_TYPE;

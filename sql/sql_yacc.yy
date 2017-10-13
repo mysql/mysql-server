@@ -5002,7 +5002,7 @@ opt_tablespace_options:
 tablespace_option_list:
           tablespace_option
           {
-            $$= NEW_PTN Trivial_array<PT_alter_tablespace_option_base*>(YYMEM_ROOT);
+            $$= NEW_PTN Mem_root_array<PT_alter_tablespace_option_base*>(YYMEM_ROOT);
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT; /* purecov: inspected */ // OOM
           }
@@ -5034,7 +5034,7 @@ opt_alter_tablespace_options:
 alter_tablespace_option_list:
           alter_tablespace_option
           {
-            $$= NEW_PTN Trivial_array<PT_alter_tablespace_option_base*>(YYMEM_ROOT);
+            $$= NEW_PTN Mem_root_array<PT_alter_tablespace_option_base*>(YYMEM_ROOT);
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT; /* purecov: inspected */ // OOM
           }
@@ -5062,7 +5062,7 @@ opt_logfile_group_options:
 logfile_group_option_list:
           logfile_group_option
           {
-            $$= NEW_PTN Trivial_array<PT_alter_tablespace_option_base*>(YYMEM_ROOT);
+            $$= NEW_PTN Mem_root_array<PT_alter_tablespace_option_base*>(YYMEM_ROOT);
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT; /* purecov: inspected */ // OOM
           }
@@ -5092,7 +5092,7 @@ opt_alter_logfile_group_options:
 alter_logfile_group_option_list:
           alter_logfile_group_option
           {
-            $$= NEW_PTN Trivial_array<PT_alter_tablespace_option_base*>(YYMEM_ROOT);
+            $$= NEW_PTN Mem_root_array<PT_alter_tablespace_option_base*>(YYMEM_ROOT);
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT; /* purecov: inspected */ // OOM
           }
@@ -5465,7 +5465,7 @@ opt_part_defs:
 part_def_list:
           part_definition
           {
-            $$= NEW_PTN Trivial_array<PT_part_definition*>(YYMEM_ROOT);
+            $$= NEW_PTN Mem_root_array<PT_part_definition*>(YYMEM_ROOT);
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT; // OOM
           }
@@ -5522,7 +5522,7 @@ part_value_list:
           part_value_item_list_paren
           {
             $$= NEW_PTN
-              Trivial_array<PT_part_value_item_list_paren *>(YYMEM_ROOT);
+              Mem_root_array<PT_part_value_item_list_paren *>(YYMEM_ROOT);
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT; // OOM
           }
@@ -5555,7 +5555,7 @@ part_value_item_list_paren:
 part_value_item_list:
           part_value_item
           {
-            $$= NEW_PTN Trivial_array<PT_part_value_item *>(YYMEM_ROOT);
+            $$= NEW_PTN Mem_root_array<PT_part_value_item *>(YYMEM_ROOT);
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT; // OOM
           }
@@ -5581,7 +5581,7 @@ opt_sub_partition:
 sub_part_list:
           sub_part_definition
           {
-            $$= NEW_PTN Trivial_array<PT_subpartition *>(YYMEM_ROOT);
+            $$= NEW_PTN Mem_root_array<PT_subpartition *>(YYMEM_ROOT);
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT; // OOM
           }
@@ -5614,7 +5614,7 @@ part_option_list:
           }
         | part_option
           {
-            $$= NEW_PTN Trivial_array<PT_partition_option *>(YYMEM_ROOT);
+            $$= NEW_PTN Mem_root_array<PT_partition_option *>(YYMEM_ROOT);
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT; // OOM
           }
@@ -5674,7 +5674,7 @@ opt_if_not_exists:
 create_table_options_space_separated:
           create_table_option
           {
-            $$= NEW_PTN Trivial_array<PT_ddl_table_option *>(YYMEM_ROOT);
+            $$= NEW_PTN Mem_root_array<PT_ddl_table_option *>(YYMEM_ROOT);
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT; // OOM
           }
@@ -5689,7 +5689,7 @@ create_table_options_space_separated:
 create_table_options:
           create_table_option
           {
-            $$= NEW_PTN Trivial_array<PT_create_table_option *>(YYMEM_ROOT);
+            $$= NEW_PTN Mem_root_array<PT_create_table_option *>(YYMEM_ROOT);
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT; // OOM
           }
@@ -5889,7 +5889,7 @@ udf_type:
 table_element_list:
           table_element
           {
-            $$= NEW_PTN Trivial_array<PT_table_element *>(YYMEM_ROOT);
+            $$= NEW_PTN Mem_root_array<PT_table_element *>(YYMEM_ROOT);
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT; // OOM
           }
@@ -6005,7 +6005,7 @@ field_def:
               if (opt_attrs == NULL)
               {
                 opt_attrs= NEW_PTN
-                  Trivial_array<PT_column_attr_base *>(YYMEM_ROOT);
+                  Mem_root_array<PT_column_attr_base *>(YYMEM_ROOT);
                 if (opt_attrs == NULL)
                   MYSQL_YYABORT; // OOM
               }
@@ -6371,7 +6371,7 @@ column_attribute_list:
         | column_attribute
           {
             $$=
-              NEW_PTN Trivial_array<PT_column_attr_base *>(YYMEM_ROOT);
+              NEW_PTN Mem_root_array<PT_column_attr_base *>(YYMEM_ROOT);
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT; // OOM
           }
@@ -7424,7 +7424,7 @@ opt_alter_table_actions:
             $$= $1;
             if ($$.actions == NULL)
             {
-              $$.actions= NEW_PTN Trivial_array<PT_ddl_table_option *>(YYMEM_ROOT);
+              $$.actions= NEW_PTN Mem_root_array<PT_ddl_table_option *>(YYMEM_ROOT);
               if ($$.actions == NULL)
                 MYSQL_YYABORT; // OOM
             }
@@ -7599,7 +7599,7 @@ alter_list:
           alter_list_item
           {
             $$.flags.init();
-            $$.actions= NEW_PTN Trivial_array<PT_ddl_table_option *>(YYMEM_ROOT);
+            $$.actions= NEW_PTN Mem_root_array<PT_ddl_table_option *>(YYMEM_ROOT);
             if ($$.actions == NULL || $$.actions->push_back($1))
               MYSQL_YYABORT; // OOM
           }
@@ -8293,7 +8293,7 @@ keycache_stmt:
 keycache_list:
           assign_to_keycache
           {
-            $$= NEW_PTN Trivial_array<PT_assign_to_keycache *>(YYMEM_ROOT);
+            $$= NEW_PTN Mem_root_array<PT_assign_to_keycache *>(YYMEM_ROOT);
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT; // OOM
           }
@@ -8332,7 +8332,7 @@ preload_stmt:
 preload_list:
           preload_keys
           {
-            $$= NEW_PTN Trivial_array<PT_preload_keys *>(YYMEM_ROOT);
+            $$= NEW_PTN Mem_root_array<PT_preload_keys *>(YYMEM_ROOT);
             if ($$->push_back($1))
               MYSQL_YYABORT; // OOM
           }
@@ -10535,7 +10535,7 @@ columns_clause:
 columns_list:
           jt_column
           {
-            $$= NEW_PTN Trivial_array<PT_json_table_column *>(YYMEM_ROOT);
+            $$= NEW_PTN Mem_root_array<PT_json_table_column *>(YYMEM_ROOT);
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT; // OOM
           }
@@ -11441,7 +11441,7 @@ drop_role_stmt:
 table_list:
           table_ident
           {
-            $$= NEW_PTN Trivial_array<Table_ident *>(YYMEM_ROOT);
+            $$= NEW_PTN Mem_root_array<Table_ident *>(YYMEM_ROOT);
             if ($$->push_back($1))
               MYSQL_YYABORT; // OOM
           }
@@ -11486,7 +11486,7 @@ opt_drop_ts_options:
 drop_ts_option_list:
           drop_ts_option
           {
-            $$= NEW_PTN Trivial_array<PT_alter_tablespace_option_base*>(YYMEM_ROOT);
+            $$= NEW_PTN Mem_root_array<PT_alter_tablespace_option_base*>(YYMEM_ROOT);
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT; /* purecov: inspected */ // OOM
           }
@@ -13977,7 +13977,7 @@ set_resource_group_stmt:
 thread_id_list:
           real_ulong_num
           {
-            $$= NEW_PTN Trivial_array<ulonglong>(YYMEM_ROOT);
+            $$= NEW_PTN Mem_root_array<ulonglong>(YYMEM_ROOT);
             if ($$ == nullptr || $$->push_back($1))
               MYSQL_YYABORT; // OOM
           }
@@ -14523,7 +14523,7 @@ opt_privileges:
 role_or_privilege_list:
           role_or_privilege
           {
-            $$= NEW_PTN Trivial_array<PT_role_or_privilege *>(YYMEM_ROOT);
+            $$= NEW_PTN Mem_root_array<PT_role_or_privilege *>(YYMEM_ROOT);
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT; // OOM
           }
@@ -14832,7 +14832,7 @@ opt_column_list:
 column_list:
           ident
           {
-            $$= NEW_PTN Trivial_array<LEX_CSTRING>(YYMEM_ROOT);
+            $$= NEW_PTN Mem_root_array<LEX_CSTRING>(YYMEM_ROOT);
             if ($$ == NULL || $$->push_back(to_lex_cstring($1)))
               MYSQL_YYABORT; // OOM
           }
@@ -15765,7 +15765,7 @@ opt_resource_group_vcpu_list:
           /* empty */
           {
             /* Make an empty list. */
-            $$= NEW_PTN Trivial_array<resourcegroups::Range>(YYMEM_ROOT);
+            $$= NEW_PTN Mem_root_array<resourcegroups::Range>(YYMEM_ROOT);
             if ($$ == nullptr)
               MYSQL_YYABORT;
           }
@@ -15776,7 +15776,7 @@ vcpu_range_spec_list:
           vcpu_num_or_range
           {
             resourcegroups::Range r($1.start, $1.end);
-            $$= NEW_PTN Trivial_array<resourcegroups::Range>(YYMEM_ROOT);
+            $$= NEW_PTN Mem_root_array<resourcegroups::Range>(YYMEM_ROOT);
             if ($$ == nullptr || $$->push_back(r))
               MYSQL_YYABORT;
           }

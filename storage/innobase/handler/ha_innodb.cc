@@ -141,6 +141,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0sdi.h"
 #include "dict0upgrade.h"
 #include "sql_base.h" // OPEN_FRM_FILE_ONLY
+#include "sql/item.h"
 #include "trx0roll.h"
 #include "trx0rseg.h"
 #include "trx0sys.h"
@@ -1272,23 +1273,21 @@ innobase_get_index_column_cardinality(
 	dd::Object_id	se_private_id,
 	ulonglong*	cardinality);
 
-/**
-  Retrieve ha_tablespace_statistics for the tablespace.
+/** Retrieve ha_tablespace_statistics for the tablespace.
 
-  @param tablespace_name	Tablespace_name
-  @param file_name		Data file name.
-  @param ts_se_private_data	Tablespace SE private data.
-  @param[out] stats		Contains tablespace
+@param tablespace_name		Tablespace_name
+@param file_name		Data file name.
+@param ts_se_private_data	Tablespace SE private data.
+@param[out] stats		Contains tablespace
 				statistics read from SE.
-
-  @returns false on success, true on failure
-*/
+@return false on success, true on failure */
 static
 bool
-innobase_get_tablespace_statistics(const char *tablespace_name,
-				   const char *file_name,
-				   const dd::Properties &ts_se_private_data,
-				   ha_tablespace_statistics *stats);
+innobase_get_tablespace_statistics(
+	const char *tablespace_name,
+	const char *file_name,
+	const dd::Properties &ts_se_private_data,
+	ha_tablespace_statistics *stats);
 
 /** Perform post-commit/rollback cleanup after DDL statement.
 @param[in,out]	thd	connection thread */
@@ -3546,29 +3545,24 @@ Validate_files::check(
 		with each InnoDB tablespace, except innodb_system */
 
 		if (p.get_uint32(se_key_value[DD_SPACE_ID], &space_id)) {
-
 			/* Failed to fetch the tablespace ID */
-
 			++m_n_errors;
-
 			break;
 
-		} else if (p.get_uint32(se_key_value[DD_SPACE_FLAGS], &flags)) {
+		}
 
+		if (p.get_uint32(se_key_value[DD_SPACE_FLAGS], &flags)) {
 			/* Failed to fetch the tablespace flags. */
-
 			++m_n_errors;
-
 			break;
+		}
 
-		} else if (tablespace->files().size() != 1
-			   && strcmp(space_name, sys_space_name) != 0) {
+		if (tablespace->files().size() != 1
+		    && strcmp(space_name, sys_space_name) != 0) {
 
 			/* Only the InnoDB system tablespace has support for
 			multiple files per tablespace. For historial reasons. */
-
 			++m_n_errors;
-
 			break;
 		}
 
@@ -3585,98 +3579,99 @@ Validate_files::check(
 			}
 		}
 
-		const auto	file = *tablespace->files().begin();
-
-		if (fsp_is_system_or_temp_tablespace(space_id)
-		    || fsp_is_undo_tablespace(space_id)
-		    || fil_space_exists_in_mem(
-			space_id, space_name, false, true, heap, 0)) {
-
-			/* These are tracked and opened separately. */
+		/* Non-IBD datafiles are tracked and opened separately. */
+		if (!fsp_is_ibd_tablespace(space_id)) {
 			continue;
 		}
 
-		std::string	new_path;
+		/* If this IBD tablespace exists in memory correctly,
+		we can continue. */
+		if (fil_space_exists_in_mem(space_id, space_name,
+					    false, true, heap, 0)) {
+			continue;
+		}
+
+		/* Check if any IBD files are moved, deleted or missing. */
+
+		const auto	file = *tablespace->files().begin();
 		std::string	dd_path{file->filename().c_str()};
 		const char*	filename = dd_path.c_str();
+		std::string	new_path;
 
 		/* Just in case this dictionary was ported between
 		Windows and POSIX. */
 		Fil_path::normalize(dd_path);
 		Fil_state	state = Fil_state::MATCHES;
 
-		if (fsp_is_ibd_tablespace(space_id)) {
+		std::lock_guard<std::mutex> guard(m_mutex);
 
-			std::lock_guard<std::mutex> guard(m_mutex);
+		state = fil_tablespace_path_equals(
+			tablespace->id(), space_id, space_name,
+			dd_path, &new_path);
 
-			state = fil_tablespace_path_equals(
-				tablespace->id(), space_id, space_name,
-				dd_path, &new_path);
+		switch(state) {
+		case Fil_state::MATCHES:
+			break;
 
-			switch(state) {
-			case Fil_state::MATCHES:
-				break;
+		case Fil_state::MISSING:
 
-			case Fil_state::MISSING:
+			ib::warn()
+				<< prefix
+				<< "Tablespace " << space_id << ","
+				<< " name '" << space_name << "',"
+				<< " file '" << dd_path << "'"
+				<< " is missing!";
 
-				ib::info()
-					<< prefix
-					<< "Tablespace " << space_id << ","
-					<< " name '" << space_name << "',"
-					<< " file '" << dd_path << "'"
-					<< " is missing!";
+			continue;
 
-				continue;
+		case Fil_state::DELETED:
 
-			case Fil_state::DELETED:
+			ib::warn()
+				<< prefix
+				<< "Tablespace " << space_id << ","
+				<< " name '" << space_name << "',"
+				<< " file '" << dd_path << "'"
+				<< " was deleted!";
 
-				ib::info()
-					<< prefix
-					<< "Tablespace " << space_id << ","
-					<< " name '" << space_name << "',"
-					<< " file '" << dd_path << "'"
-					<< " was deleted!";
+			continue;
 
-				continue;
+		case Fil_state::MOVED:
 
-			case Fil_state::MOVED:
+			++*moved_count;
 
-				++*moved_count;
-
-				if (*moved_count
-				    > MOVED_FILES_PRINT_THRESHOLD) {
-
-					filename = new_path.c_str();
-
-					break;
-				}
-
-				ib::info()
-					<< prefix
-					<< "DD ID: " << tablespace->id()
-					<< " - "
-					<< "Tablespace " << space_id << ","
-					<< " name '" << space_name << "',"
-					<< " file '" << dd_path << "'"
-					<< " has been moved to"
-					<< " '" << new_path << "'";
+			if (*moved_count
+				> MOVED_FILES_PRINT_THRESHOLD) {
 
 				filename = new_path.c_str();
 
-				if (*moved_count
-				    == MOVED_FILES_PRINT_THRESHOLD) {
-
-					ib::info()
-						<< prefix
-						<< "Too many files have"
-						<< " have been moved, disabling"
-						<< " logging of detailed"
-						<< " messages";
-				}
-
-			case Fil_state::RENAMED:
 				break;
 			}
+
+			ib::info()
+				<< prefix
+				<< "DD ID: " << tablespace->id()
+				<< " - "
+				<< "Tablespace " << space_id << ","
+				<< " name '" << space_name << "',"
+				<< " file '" << dd_path << "'"
+				<< " has been moved to"
+				<< " '" << new_path << "'";
+
+			filename = new_path.c_str();
+
+			if (*moved_count
+				== MOVED_FILES_PRINT_THRESHOLD) {
+
+				ib::info()
+					<< prefix
+					<< "Too many files have"
+					<< " have been moved, disabling"
+					<< " logging of detailed"
+					<< " messages";
+			}
+
+		case Fil_state::RENAMED:
+			break;
 		}
 
 		/* It's safe to pass space_name in tablename charset because

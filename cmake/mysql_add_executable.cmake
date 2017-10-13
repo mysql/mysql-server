@@ -57,15 +57,29 @@ FUNCTION (MYSQL_ADD_EXECUTABLE)
   ADD_EXECUTABLE(${target} ${ARG_WIN32} ${sources})
 
   IF(APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
-    ADD_CUSTOM_COMMAND(TARGET ${target} POST_BUILD
-      COMMAND install_name_tool -change
+    IF(BUILD_IS_SINGLE_CONFIG)
+      ADD_CUSTOM_COMMAND(TARGET ${target} POST_BUILD
+        COMMAND install_name_tool -change
               "${CRYPTO_VERSION}" "@loader_path/../lib/${CRYPTO_VERSION}"
               $<TARGET_FILE_NAME:${target}>
-      COMMAND install_name_tool -change
+        COMMAND install_name_tool -change
               "${OPENSSL_VERSION}" "@loader_path/../lib/${OPENSSL_VERSION}"
               $<TARGET_FILE_NAME:${target}>
-      WORKING_DIRECTORY ${TARGET_RUNTIME_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}
+        WORKING_DIRECTORY ${TARGET_RUNTIME_OUTPUT_DIRECTORY}
       )
+    ELSE()
+      ADD_CUSTOM_COMMAND(TARGET ${target} POST_BUILD
+        COMMAND install_name_tool -change
+            "${CRYPTO_VERSION}"
+            "@loader_path/../../lib/${CMAKE_CFG_INTDIR}/${CRYPTO_VERSION}"
+        $<TARGET_FILE_NAME:${target}>
+        COMMAND install_name_tool -change
+            "${OPENSSL_VERSION}"
+            "@loader_path/../../lib/${CMAKE_CFG_INTDIR}/${OPENSSL_VERSION}"
+        $<TARGET_FILE_NAME:${target}>
+        WORKING_DIRECTORY ${TARGET_RUNTIME_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}
+      )
+    ENDIF()
   ENDIF()
 
   IF(ARG_EXCLUDE_FROM_ALL)

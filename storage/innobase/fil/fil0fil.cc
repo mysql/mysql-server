@@ -376,13 +376,13 @@ private:
 	to m_real_path. */
 
 	/** Mapping from tablespace ID to data filenames */
-	Paths			m_ibd_paths;
+	Paths		m_ibd_paths;
 
 	/** Mapping from tablespace ID to Undo files */
-	Paths			m_undo_paths;
+	Paths		m_undo_paths;
 
 	/** Top level directory where the above files were found. */
-	const Fil_path		m_dir;
+	const Fil_path	m_dir;
 };
 
 /** Directories scanned during startup and the files discovered. */
@@ -873,9 +873,7 @@ public:
 		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Returns true if a matching tablespace exists in the InnoDB
-	tablespace memory cache. Note that if we have not done a crash
-	recovery at the database startup, there may be many tablespaces
-	which are not yet in the memory cache.
+	tablespace memory cache.
 	@param[in]	space_id	Tablespace ID
 	@param[in]	name		Tablespace name used in space_create().
 	@param[in]	print_err	Print detailed error information to the
@@ -4888,6 +4886,8 @@ Fil_path::make_new_ibd(
 
 	path.append(name_in + ".ibd");
 
+	normalize(path);
+
 	return(path);
 }
 
@@ -6230,8 +6230,7 @@ fil_report_missing_tablespace(const char* name, space_id_t space_id)
 }
 
 /** Returns true if a matching tablespace exists in the InnoDB tablespace
-memory cache. Note that if we have not done a crash recovery at the database
-startup, there may be many tablespaces which are not yet in the memory cache.
+memory cache.
 @param[in]	space_id		Tablespace ID
 @param[in]	name			Tablespace name used in
 					fil_space_create().
@@ -6375,8 +6374,7 @@ Fil_shard::space_check_exists(
 }
 
 /** Returns true if a matching tablespace exists in the InnoDB tablespace
-memory cache. Note that if we have not done a crash recovery at the database
-startup, there may be many tablespaces which are not yet in the memory cache.
+memory cache.
 @param[in]	space_id	Tablespace ID
 @param[in]	name		Tablespace name used in space_create().
 @param[in]	print_err	Print detailed error information to the
