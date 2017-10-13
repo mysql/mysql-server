@@ -47,7 +47,6 @@ connection master;
 # Bug #26418: Slave out of sync after CREATE/DROP TEMPORARY TABLE + ROLLBACK
 # on master
 #
-#Note Matthias: to be merged to rpl_ddl.test
 
 --source include/not_ndb_default.inc
 
