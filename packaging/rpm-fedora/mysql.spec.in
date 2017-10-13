@@ -233,6 +233,7 @@ Requires:       mysql-commercial-libs%{?_isa} >= %{min}
 Requires:       mysql-community-libs%{?_isa} >= %{min}
 %endif
 Obsoletes:      mariadb-devel
+Obsoletes:      mariadb-connector-c-devel
 Obsoletes:      community-mysql-devel < %{version}-%{release}
 Obsoletes:      mysql-devel < %{version}-%{release}
 Provides:       mysql-devel = %{version}-%{release}
