@@ -272,13 +272,14 @@ it is not created by user and so not visible to end-user. */
 #define DICT_TF2_FLAG_UNSET(table, flag)	\
 	(table->flags2 &= ~(flag))
 
+
 /** Tables could be chained together with Foreign key constraint. When
 first load the parent table, we would load all of its descedents.
 This could result in rescursive calls and out of stack error eventually.
 DICT_FK_MAX_RECURSIVE_LOAD defines the maximum number of recursive loads,
 when exceeded, the child table will not be loaded. It will be loaded when
 the foreign constraint check needs to be run. */
-#define DICT_FK_MAX_RECURSIVE_LOAD	20
+#define DICT_FK_MAX_RECURSIVE_LOAD      20
 
 /** Similarly, when tables are chained together with foreign key constraints
 with on cascading delete/update clause, delete from parent table could
@@ -286,7 +287,7 @@ result in recursive cascading calls. This defines the maximum number of
 such cascading deletes/updates allowed. When exceeded, the delete from
 parent table will fail, and user has to drop excessive foreign constraint
 before proceeds. */
-#define FK_MAX_CASCADE_DEL		255
+#define FK_MAX_CASCADE_DEL		15
 
 /**********************************************************************//**
 Creates a table memory object.
@@ -1244,8 +1245,8 @@ struct dict_foreign_set_free {
 a foreign key constraint is enforced, therefore RESTRICT just means no flag */
 /* @{ */
 #define DICT_FOREIGN_ON_DELETE_CASCADE	1	/*!< ON DELETE CASCADE */
-#define DICT_FOREIGN_ON_DELETE_SET_NULL	2	/*!< ON UPDATE SET NULL */
-#define DICT_FOREIGN_ON_UPDATE_CASCADE	4	/*!< ON DELETE CASCADE */
+#define DICT_FOREIGN_ON_DELETE_SET_NULL	2	/*!< ON DELETE SET NULL */
+#define DICT_FOREIGN_ON_UPDATE_CASCADE	4	/*!< ON UPDATE CASCADE */
 #define DICT_FOREIGN_ON_UPDATE_SET_NULL	8	/*!< ON UPDATE SET NULL */
 #define DICT_FOREIGN_ON_DELETE_NO_ACTION 16	/*!< ON DELETE NO ACTION */
 #define DICT_FOREIGN_ON_UPDATE_NO_ACTION 32	/*!< ON UPDATE NO ACTION */
