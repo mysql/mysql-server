@@ -1740,8 +1740,11 @@ PageConverter::adjust_cluster_index_blob_column(
 	if (is_compressed_table()) {
 		mach_write_to_4(field, get_space_id());
 
+		ut_ad(m_index->m_srv_index != nullptr);
+		ut_ad(m_index->m_srv_index->is_clustered());
+
 		page_zip_write_blob_ptr(
-			m_page_zip_ptr, rec, m_cluster_index, offsets, i, 0);
+			m_page_zip_ptr, rec, m_index->m_srv_index, offsets, i, 0);
 	} else {
 		mlog_write_ulint(field, get_space_id(), MLOG_4BYTES, 0);
 	}

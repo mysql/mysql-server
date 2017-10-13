@@ -2079,13 +2079,13 @@ The information must already have been updated on the uncompressed page. */
 void
 page_zip_write_blob_ptr(
 /*====================*/
-	page_zip_des_t*	page_zip,/*!< in/out: compressed page */
-	const byte*	rec,	/*!< in/out: record whose data is being
-				written */
-	dict_index_t*	index,	/*!< in: index of the page */
-	const ulint*	offsets,/*!< in: rec_get_offsets(rec, index) */
-	ulint		n,	/*!< in: column index */
-	mtr_t*		mtr)	/*!< in: mini-transaction handle,
+	page_zip_des_t*		page_zip,/*!< in/out: compressed page */
+	const byte*		rec,	/*!< in/out: record whose data is being
+					written */
+	const dict_index_t*	index,	/*!< in: index of the page */
+	const ulint*		offsets,/*!< in: rec_get_offsets(rec, index) */
+	ulint			n,	/*!< in: column index */
+	mtr_t*			mtr)	/*!< in: mini-transaction handle,
 				or NULL if no logging is needed */
 {
 	const byte*	field;
