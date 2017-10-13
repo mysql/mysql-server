@@ -393,7 +393,7 @@ Ndb_expect_stack(): collation(NULL), length(0), max_length(0), next(NULL)
   ~Ndb_expect_stack()
   {
     if (next)
-      delete next;
+      destroy(next);
     next= NULL;
   }
   void push(Ndb_expect_stack* expect_next)
@@ -564,7 +564,7 @@ public:
     : func_item(func), left_hand_item(NULL), count(0) {}
   ~Ndb_rewrite_context()
   {
-    if (next) delete next;
+    if (next) destroy(next);
   }
   const Item_func *func_item;
   const Item *left_hand_item;
