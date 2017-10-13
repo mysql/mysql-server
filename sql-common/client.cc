@@ -5551,6 +5551,7 @@ void mysql_close_free_options(MYSQL *mysql)
   my_free(mysql->options.my_cnf_group);
   my_free(mysql->options.charset_dir);
   my_free(mysql->options.charset_name);
+  my_free(mysql->options.bind_address);
   if (mysql->options.init_commands)
   {
     char **ptr= mysql->options.init_commands->begin();
