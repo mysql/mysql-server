@@ -4886,6 +4886,8 @@ Fil_path::make_new_ibd(
 
 	path.append(name_in + ".ibd");
 
+	normalize(path);
+
 	return(path);
 }
 
