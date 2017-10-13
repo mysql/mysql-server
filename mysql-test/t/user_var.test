@@ -468,6 +468,8 @@ INSERT INTO t3 VALUES (1), (4), (7), (10);
 
 SET @var1 = 6;
 
+ANALYZE TABLE t1,t2,t3;
+
 let $query=
 SELECT t1.a, t2.a, t3.a, (@var1:= @var1+0) AS var
 FROM t1
@@ -524,9 +526,13 @@ DROP TABLE t1;
 CREATE TABLE t1(a INTEGER, b INTEGER);
 INSERT INTO t1 VALUES (1,1), (1,2), (2,1);
 
+
+
 let $query1=SELECT a FROM t1 WHERE a = @x;
 let $query2=SELECT a FROM t1 WHERE a = @x AND (@x:= @x);
 let $query3=SELECT a FROM t1 WHERE a = @x INTO @x;
+
+ANALYZE TABLE t1;
 
 eval explain $query1;
 eval explain $query2;
