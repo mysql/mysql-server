@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -202,6 +202,8 @@ namespace AQP
 
     bool uses_join_cache() const;
 
+    bool do_loosescan() const;
+    
     const Table_access* get_firstmatch_last_skipped() const;
 
     bool filesort_before_join() const;
