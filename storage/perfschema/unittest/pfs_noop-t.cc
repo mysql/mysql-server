@@ -144,6 +144,7 @@ void test_noop()
   PSI_server->end_file_wait(NULL, 0);
   PSI_server->start_file_close_wait(NULL, NULL, 0);
   PSI_server->end_file_close_wait(NULL, 0);
+  PSI_server->end_file_rename_wait(NULL, NULL, NULL, 0);
   PSI_server->start_stage(1, NULL, 0);
 
   PSI_stage_progress *progress;

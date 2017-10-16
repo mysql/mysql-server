@@ -1965,6 +1965,17 @@ typedef void (*end_file_close_wait_v1_t)
   (struct PSI_file_locker *locker, int rc);
 
 /**
+  Rename a file instrumentation close operation.
+  @param locker the file locker.
+  @param old_name name of the file to be renamed.
+  @param new_name name of the file after rename.
+  @param rc the rename operation return code (0 for success).
+*/
+typedef void (*end_file_rename_wait_v1_t)
+  (struct PSI_file_locker *locker, const char *old_name,
+   const char *new_name, int rc);
+
+/**
   Start a new stage, and implicitly end the previous stage.
   @param key the key of the new stage
   @param src_file the source file name
@@ -2581,6 +2592,8 @@ struct PSI_v1
   start_file_close_wait_v1_t start_file_close_wait;
   /** @sa end_file_close_wait_v1_t. */
   end_file_close_wait_v1_t end_file_close_wait;
+  /** @sa rename_file_close_wait_v1_t. */
+  end_file_rename_wait_v1_t end_file_rename_wait;
   /** @sa start_stage_v1_t. */
   start_stage_v1_t start_stage;
   /** @sa get_current_stage_progress_v1_t. */

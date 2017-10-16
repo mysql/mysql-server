@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -670,6 +670,9 @@ void destroy_thread(PFS_thread *pfs);
 
 PFS_file* find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
                               const char *filename, uint len, bool create);
+void find_and_rename_file(PFS_thread *thread, const char *old_filename,
+                          uint old_len, const char *new_filename,
+                          uint new_len);
 
 void release_file(PFS_file *pfs);
 void destroy_file(PFS_thread *thread, PFS_file *pfs);
