@@ -13523,6 +13523,10 @@ static int ndb_wait_setup_func(ulong max_wait)
 static int
 ndb_wait_setup_server_startup(void*)
 {
+  // Signal components that server is started
+  ndb_index_stat_thread.set_server_started();
+  ndbcluster_binlog_set_server_started();
+
   if (ndb_wait_setup_func(opt_ndb_wait_setup) != 0)
   {
     ndb_log_error("Tables not available after %lu seconds. Consider "
