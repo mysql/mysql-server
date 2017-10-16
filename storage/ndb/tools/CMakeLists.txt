@@ -200,9 +200,13 @@ INSTALL(FILES ${CMAKE_CURRENT_SOURCE_DIR}/ndb_dist_priv.sql
         DESTINATION ${INSTALL_MYSQLSHAREDIR})
 
 if(NOT WIN32)
-  configure_file("${CMAKE_CURRENT_SOURCE_DIR}/ndb_error_reporter.pl" "${CMAKE_CURRENT_BINARY_DIR}/ndb_error_reporter" COPYONLY)
-  EXECUTE_PROCESS(COMMAND chmod +x ${CMAKE_CURRENT_BINARY_DIR}/ndb_error_reporter)
-  INSTALL_SCRIPT(${CMAKE_CURRENT_BINARY_DIR}/ndb_error_reporter
+  SET(TARGET_RUNTIME_OUTPUT_DIRECTORY
+    ${CMAKE_BINARY_DIR}/runtime_output_directory)
+  CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/ndb_error_reporter.pl
+    ${TARGET_RUNTIME_OUTPUT_DIRECTORY}/ndb_error_reporter COPYONLY)
+  EXECUTE_PROCESS(COMMAND chmod +x
+    ${TARGET_RUNTIME_OUTPUT_DIRECTORY}/ndb_error_reporter)
+  INSTALL_SCRIPT(${TARGET_OUTPUT_DIRECTORY}/ndb_error_reporter
          DESTINATION ${INSTALL_BINDIR}
          COMPONENT ClusterTools)
 ENDIF()
