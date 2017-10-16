@@ -3775,15 +3775,14 @@ ha_ndbcluster::index_read_pushed(uchar *buf, const uchar *key,
     DBUG_ASSERT(m_next_row!=NULL);
     unpack_record_and_set_generated_fields(table, buf, m_next_row);
     m_thd_ndb->m_pushed_reads++;
+    DBUG_RETURN(0);
   }
   else
   {
     DBUG_ASSERT(result!=NdbQuery::NextResult_gotRow);
     DBUG_PRINT("info", ("No record found"));
-//  m_thd_ndb->m_pushed_reads++;
-//  DBUG_RETURN(HA_ERR_END_OF_FILE);
+    DBUG_RETURN(HA_ERR_END_OF_FILE);
   }
-  DBUG_RETURN(0);
 }
 
 
