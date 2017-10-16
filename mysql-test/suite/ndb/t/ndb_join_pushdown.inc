@@ -4725,6 +4725,65 @@ SELECT count(*)
     (SELECT /*+ SEMIJOIN(FIRSTMATCH)*/ table1s.c FROM t1 as table1s);
 
 
+##################################################
+# Bug#26919289:
+#    mysqld crash during join_pushdown analysis
+#
+# The mysql optimizer introduce syntetic JOIN_TAB
+# elements representing where the materialized subq
+# should be accessed in the query plan. As these
+# are not representing 'real tables', their 'tableno'
+# was not set up in ndb_pushed_builder_ctx C'tor.
+# It effectively contained uninitialized data, which was
+# then later used to access a 'tableno-bitmask'.
+###################################################
+
+explain
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as T3);
+
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as T3);
+
+
+explain
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as T3);
+
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as T3);
+
+
+explain
+select count(*)
+from (select * from t1 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as T3)) as t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
+
+select count(*)
+from (select * from t1 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as T3)) as t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
+
+
+explain
+select count(*)
+from (select * from t1 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as T3)) as t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as T3);
+
+select count(*)
+from (select * from t1 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as T3)) as t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as T3);
+
+
 #############################################
 # Subqueries-end
 #############################################

@@ -343,7 +343,7 @@ ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const AQP::Join_plan& plan)
 
       /**
        * FirstMatch algorithm may skip further nested-loop evaluation
-       * if this, and possible a number of previous tables.
+       * of this, and possible a number of previous tables.
        * Aggregate into the bitmap 'm_firstmatch_skipped' those tables
        * which 'FirstMatch' usage may possible skip.
        */
@@ -363,12 +363,18 @@ ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const AQP::Join_plan& plan)
     m_tables[0].m_maybe_pushable &= ~PUSHABLE_AS_CHILD;
     m_tables[count-1].m_maybe_pushable &= ~PUSHABLE_AS_PARENT;
 
+    for (uint i= 0; i < count; i++)
+    {
+      m_remap[i].to_external= MAX_TABLES;
+      m_remap[i].to_internal= MAX_TABLES;
+    }
+
     // Fill in table for maping internal <-> external table enumeration
     for (uint i= 0; i < count; i++)
     {
       const AQP::Table_access* const table = m_plan.get_table_access(i);
       uint external= table->get_table()->pos_in_table_list->tableno();
-      DBUG_ASSERT(external <= MAX_TABLES);
+      DBUG_ASSERT(external < MAX_TABLES);
 
       m_remap[i].to_external= external;
       m_remap[external].to_internal= i;
