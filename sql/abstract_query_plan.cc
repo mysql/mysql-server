@@ -440,6 +440,14 @@ namespace AQP
   }
 
   /**
+    Check if 'LooseScan' strategy is to be used for this table.
+  */
+  bool Table_access::do_loosescan() const
+  {
+    return get_qep_tab()->do_loosescan();
+  }
+
+  /**
     Check if 'FirstMatch' strategy is used for this table and return
     the last table 'firstmatch' will skip over.
     The tables ['last_skipped'..'this'] will form a range of tables
