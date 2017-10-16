@@ -104,7 +104,7 @@ extern EventLogger * g_eventLogger;
 #define DEB_EXTRA_LCP(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_LCP
+#define DEBUG_LCP
 #ifdef DEBUG_LCP
 #define DEB_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
