@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -825,7 +825,24 @@ ndb_pushed_builder_ctx::is_pushable_as_child(
     }
 
     /**
-     * Note, for both 'outer join' and 'FirstMatch' restriction above:
+     * 'Loosescan' is not supported for scan-child:
+     * This strategy requires the returned results to be sorted, which
+     * we do not support for child nodes in a pushed join.
+     */
+    if (table->do_loosescan())
+    {
+      EXPLAIN_NO_PUSH("Can't push table '%s' as child of '%s', "
+                      "'LooseScan' not allowed for a scan-child",
+                       table->get_table()->alias,
+                       m_join_root->get_table()->alias);
+
+      m_tables[tab_no].m_maybe_pushable &= ~PUSHABLE_AS_CHILD; // Permanently dissable
+      DBUG_RETURN(false);
+    }
+
+    /**
+     * Note, for all 'outer join', 'FirstMatch' and 'LooseScan'
+     * restriction above:
      * The restriction could have been lifted if we could
      * somehow ensure that all rows from a child scan are fetched
      * before we move to the next ancestor row.
