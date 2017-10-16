@@ -503,12 +503,13 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
       scan.m_accLockOp = RNIL;
       // remember it until LQH unlocks it
       addAccLockOp(scan, accLockOp);
+      scan.m_last_seen = __LINE__;
     } else {
       ndbrequire(! (scan.m_bits & ScanOp::SCAN_LOCK));
       // operation RNIL in LQH would signal no tuple returned
       accLockOp = (Uint32)-1;
+      scan.m_last_seen = __LINE__;
     }
-    scan.m_last_seen = __LINE__;
     const ScanPos& pos = scan.m_scanPos;
     conf->accOperationPtr = accLockOp;
     conf->fragId = frag.fragmentId;
