@@ -4785,7 +4785,7 @@ Dbtup::nr_delete(Signal* signal, Uint32 senderData,
                *ptr->get_mm_gci(tablePtr.p)));
 
   /* A row is deleted as part of Copy fragment or Restore */
-  fragPtr.p->m_restore_row_count--;
+  fragPtr.p->m_row_count--;
 
   if (tablePtr.p->m_attributes[MM].m_no_of_varsize +
       tablePtr.p->m_attributes[MM].m_no_of_dynamic)

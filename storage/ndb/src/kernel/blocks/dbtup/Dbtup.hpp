@@ -705,7 +705,8 @@ struct Fragrecord {
   Uint64 m_lcp_changed_rows;
   // Number of fixed-seize tuple parts (which equals the tuple count).
   Uint64 m_fixedElemCount;
-  Uint64 m_restore_row_count;
+  Uint64 m_row_count;
+  Uint64 m_committed_changes;
   /**
     Number of variable-size tuple parts, i.e. the number of tuples that has
     one or more non-NULL varchar/varbinary or blob fields. (The first few bytes
@@ -1840,6 +1841,8 @@ public:
   // Statistics about fragment memory usage.
   struct FragStats
   {
+    Uint64 committedRowCount;
+    Uint64 committedChanges;
     // Size of fixed-size part of record.
     Uint32 fixedRecordBytes;
     // Page size (32k, see File_formats::NDB_PAGE_SIZE).

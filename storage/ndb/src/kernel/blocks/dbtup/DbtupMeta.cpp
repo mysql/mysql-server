@@ -776,9 +776,10 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   regFragPtr.p->m_restore_lcp_id = RNIL;
   regFragPtr.p->m_restore_local_lcp_id = 0;
   regFragPtr.p->m_fixedElemCount = 0;
-  regFragPtr.p->m_restore_row_count = 0;
+  regFragPtr.p->m_row_count = 0;
   regFragPtr.p->m_lcp_start_gci = 0;
   regFragPtr.p->m_varElemCount = 0;
+  regFragPtr.p->m_committed_changes = 0;
   for (Uint32 i = 0; i<MAX_FREE_LIST+1; i++)
     ndbrequire(regFragPtr.p->free_var_page_array[i].isEmpty());
 
@@ -3159,6 +3160,8 @@ Dbtup::get_frag_stats(Uint32 fragId) const
   
   const Uint32 fixedWords = tabPtr.p->m_offsets[MM].m_fix_header_size;
   FragStats fs;
+  fs.committedRowCount      = fragptr.p->m_row_count;
+  fs.committedChanges       = fragptr.p->m_committed_changes;
   fs.fixedRecordBytes       = static_cast<Uint32>(fixedWords * sizeof(Uint32));
   fs.pageSizeBytes          = File_formats::NDB_PAGE_SIZE; /* 32768 */
   // Round downwards.
@@ -3190,7 +3193,7 @@ Dbtup::get_restore_row_count(Uint32 tableId, Uint32 fragId)
   tabPtr.i= tableId;
   ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
   getFragmentrec(fragPtr, fragId, tabPtr.p);
-  return fragPtr.p->m_restore_row_count;
+  return fragPtr.p->m_row_count;
 }
 
 void
@@ -3271,7 +3274,7 @@ Dbtup::get_lcp_frag_stats(Uint32 fragPtrI,
   FragrecordPtr fragptr;
   fragptr.i = fragPtrI;
   ptrCheckGuard(fragptr, cnoOfFragrec, fragrecord);
-  row_count = fragptr.p->m_restore_row_count;
+  row_count = fragptr.p->m_row_count;
   row_change_count = fragptr.p->m_lcp_changed_rows;
   maxPageCount = fragptr.p->m_max_page_cnt;
 

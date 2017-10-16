@@ -2320,12 +2320,6 @@ void Dbacc::execACC_COMMITREQ(Signal* signal)
 	return;
       } else {
 	jam();
-#ifdef ERROR_INSERT
-        ndbrequire(fragrecptr.p->noOfElements > 0);
-#else
-        ndbassert(fragrecptr.p->noOfElements > 0);
-#endif
-	fragrecptr.p->noOfElements--;
 	fragrecptr.p->slack += fragrecptr.p->elementLength;
 #ifdef ERROR_INSERT
         if (force_expand_shrink || fragrecptr.p->slack > fragrecptr.p->slackCheck)
@@ -2347,7 +2341,6 @@ void Dbacc::execACC_COMMITREQ(Signal* signal)
       }//if
     } else {
       jam();                                                /* EXPAND PROCESS HANDLING */
-      fragrecptr.p->noOfElements++;
       fragrecptr.p->slack -= fragrecptr.p->elementLength;
 #ifdef ERROR_INSERT
       if ((force_expand_shrink || fragrecptr.p->slack < 0) &&
@@ -6777,7 +6770,6 @@ void Dbacc::initFragAdd(Signal* signal,
   regFragPtr.p->slackCheck = Int64(Tmp1) * Tmp2;
   regFragPtr.p->mytabptr = req->tableId;
   regFragPtr.p->roothashcheck = req->kValue + req->lhFragBits;
-  regFragPtr.p->noOfElements = 0;
   regFragPtr.p->m_commit_count = 0; // stable results
   for (Uint32 i = 0; i < MAX_PARALLEL_SCANS_PER_FRAG; i++) {
     regFragPtr.p->scan[i] = RNIL;
@@ -9157,32 +9149,6 @@ Dbacc::getL2PMapAllocBytes(Uint32 fragId) const
   FragmentrecPtr fragPtr(NULL, fragId);
   ptrCheckGuard(fragPtr, cfragmentsize, fragmentrec);
   return fragPtr.p->directory.getByteSize();
-}
-
-void
-Dbacc::execREAD_PSEUDO_REQ(Signal* signal){
-  jamEntry();
-  fragrecptr.i = signal->theData[0];
-  Uint32 attrId = signal->theData[1];
-  ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
-  Uint64 tmp;
-  switch(attrId){
-  case AttributeHeader::ROW_COUNT:
-    tmp = fragrecptr.p->noOfElements;
-    break;
-  case AttributeHeader::COMMIT_COUNT:
-    tmp = fragrecptr.p->m_commit_count;
-    break;
-  default:
-    tmp = 0;
-  }
-  memcpy(signal->theData, &tmp, 8); /* must be memcpy, gives strange results on
-				     * ithanium gcc (GCC) 3.4.1 smp linux 2.4
-				     * otherwise
-				     */
-  //  Uint32 * src = (Uint32*)&tmp;
-  //  signal->theData[0] = src[0];
-  //  signal->theData[1] = src[1];
 }
 
 #ifdef VM_TRACE
