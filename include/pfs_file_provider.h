@@ -86,6 +86,9 @@ void pfs_start_file_close_wait_v1(PSI_file_locker *locker,
 
 void pfs_end_file_close_wait_v1(PSI_file_locker *locker, int rc);
 
+void pfs_end_file_rename_wait_v1(PSI_file_locker *locker, const char *old_name,
+                                 const char *new_name, int rc);
+
 C_MODE_END
 
 #endif /* MYSQL_DYNAMIC_PLUGIN */
