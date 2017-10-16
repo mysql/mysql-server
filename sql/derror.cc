@@ -321,4 +321,5 @@ open_err:
 void MY_LOCALE_ERRMSGS::destroy()
 {
   my_free(errmsgs);
+  errmsgs= nullptr;
 }
