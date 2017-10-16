@@ -388,7 +388,6 @@ struct Fragmentrec {
   };
   Uint32 tupFragptr;
   Uint32 roothashcheck;
-  Uint32 noOfElements;
   Uint32 m_commit_count;
   State rootState;
   
@@ -816,7 +815,6 @@ public:
   class Dblqh* c_lqh;
 
   void execACCMINUPDATE(Signal* signal);
-  void execREAD_PSEUDO_REQ(Signal* signal);
   // Get the size of the logical to physical page map, in bytes.
   Uint32 getL2PMapAllocBytes(Uint32 fragId) const;
   void removerow(Uint32 op, const Local_key*);

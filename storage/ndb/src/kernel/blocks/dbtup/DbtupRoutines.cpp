@@ -2581,18 +2581,16 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
     sz = 1;
     break;
   case AttributeHeader::ROW_COUNT:
+  {
+    Uint64 row_count = req_struct->fragPtrP->m_row_count;
+    memcpy(&outBuffer[1], &row_count, 8);
+    sz = 2;
+    break;
+  }
   case AttributeHeader::COMMIT_COUNT:
   {
-    const Uint32 DataSz = 2;
-    SignalT<DataSz> signalT;
-    Signal * signal = new (&signalT) Signal(0);
-
-    signal->theData[0] = req_struct->operPtrP->userpointer;
-    signal->theData[1] = attrId;
-    
-    EXECUTE_DIRECT(DBLQH, GSN_READ_PSEUDO_REQ, signal, 2);
-    outBuffer[1] = signal->theData[0];
-    outBuffer[2] = signal->theData[1];
+    Uint64 committed_changes = req_struct->fragPtrP->m_committed_changes;
+    memcpy(&outBuffer[1], &committed_changes, 8);
     sz = 2;
     break;
   }

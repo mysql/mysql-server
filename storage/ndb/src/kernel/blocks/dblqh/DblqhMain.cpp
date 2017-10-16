@@ -4171,18 +4171,6 @@ Dblqh::execREAD_PSEUDO_REQ(Signal* signal){
   case AttributeHeader::RANGE_NO:
     signal->theData[0] = regTcPtr.p->m_scan_curr_range_no;
     break;
-  case AttributeHeader::ROW_COUNT:
-  case AttributeHeader::COMMIT_COUNT:
-  {
-    jam();
-    FragrecordPtr regFragptr;
-    regFragptr.i = regTcPtr.p->fragmentptr;
-    c_fragment_pool.getPtr(regFragptr);
-    
-    signal->theData[0] = regFragptr.p->accFragptr;
-    c_acc->execREAD_PSEUDO_REQ(signal);
-    break;
-  }
   case AttributeHeader::RECORDS_IN_RANGE:
   case AttributeHeader::INDEX_STAT_KEY:
   case AttributeHeader::INDEX_STAT_VALUE:
@@ -28883,20 +28871,11 @@ void Dblqh::execDBINFO_SCANREQ(Signal *signal)
             Fragrecord* const frag = 
               c_fragment_pool.getPtr(tabPtr.p->fragrec[f]);
 
-            Uint64 commitCount = 0;
-            if (frag->accFragptr != RNIL)
-            {
-              // Fetch 'commit_count'.
-              Uint32* const sigData = signal->getDataPtrSend();
-              sigData[0] = frag->accFragptr;
-              sigData[1] = AttributeHeader::COMMIT_COUNT;
-              EXECUTE_DIRECT(DBACC, GSN_READ_PSEUDO_REQ, signal, 2);
-              /*
-                Must use memcpy rather than assignment, since sigData may not 
-                be suitably aligned.
-              */
-              memcpy(&commitCount, sigData, sizeof commitCount);
-            }
+            /* Get fragment's stats from TUP */
+            const Dbtup::FragStats fs
+                = c_tup->get_frag_stats(frag->tupFragptr);
+
+            const Uint64 commitCount = fs.committedChanges;
 
             Fragrecord::UsageStat& useStat = frag->m_useStat;
 
@@ -28991,9 +28970,6 @@ void Dblqh::execDBINFO_SCANREQ(Signal *signal)
             row.write_uint32(tableid);
             row.write_uint32(myFragPtr.p->fragId);
 
-            FragrecordPtr rowsLookupFragPtr;
-            rowsLookupFragPtr.i = myFragPtr.i;
-            
             Uint64 hashMapBytes = 0;
             Uint32 accL2PMapBytes = 0;
 
@@ -29001,8 +28977,6 @@ void Dblqh::execDBINFO_SCANREQ(Signal *signal)
             {
               jam();
               ndbassert(DictTabInfo::isOrderedIndex(tabPtr.p->tableType));
-              /* Lookup row count on base table fragment */
-              rowsLookupFragPtr.i = myFragPtr.p->tableFragptr;
             }
             else
             {
@@ -29011,20 +28985,6 @@ void Dblqh::execDBINFO_SCANREQ(Signal *signal)
                 c_acc->getL2PMapAllocBytes(myFragPtr.p->accFragptr);
               hashMapBytes = c_acc->getLinHashByteSize(myFragPtr.p->accFragptr);
             }
-            c_fragment_pool.getPtr(rowsLookupFragPtr);
-            
-            ndbrequire(rowsLookupFragPtr.p->accFragptr != RNIL);
-            
-            signal->theData[0] = rowsLookupFragPtr.p->accFragptr;
-            signal->theData[1] = AttributeHeader::ROW_COUNT;
-            
-            EXECUTE_DIRECT(DBACC, GSN_READ_PSEUDO_REQ, signal, 2);
-            Uint64 rows = 0;
-            /*
-              signal->theData may not be 64-bit aligned. Therefore, we use
-              memcpy rather than assignment.
-            */
-            memcpy(&rows, signal->theData, sizeof rows);
             
             const Uint64 fixedSlotsAvailable = 
               fs.fixedMemoryAllocPages * fs.fixedSlotsPerPage;
@@ -29036,7 +28996,7 @@ void Dblqh::execDBINFO_SCANREQ(Signal *signal)
             const Uint64 fixedFreeBytes
               = fixedFreeSlots * fs.fixedRecordBytes;
             
-            row.write_uint64(rows);
+            row.write_uint64(fs.committedRowCount);
             row.write_uint64(fs.fixedMemoryAllocPages * fs.pageSizeBytes);
             row.write_uint64(fixedFreeBytes);
             row.write_uint64(fs.fixedElemCount);
@@ -30322,43 +30282,34 @@ Dblqh::log_fragment_copied(Signal* signal)
 {
   jam();
   
-  Uint64 fragRows = 0;
-  if (fragptr.p->accFragptr != RNIL)
-  {
-    ndbassert(DictTabInfo::isTable(fragptr.p->tableType) ||
-              DictTabInfo::isHashIndex(fragptr.p->tableType));
-    /* Determine number of rows in this fragment... */
-    
-    signal->theData[0] = fragptr.p->accFragptr;
-    signal->theData[1] = AttributeHeader::ROW_COUNT;
-    EXECUTE_DIRECT(DBACC, GSN_READ_PSEUDO_REQ, signal, 2);
-    jamEntry();
-    
-    memcpy(&fragRows, &signal->theData[0], sizeof(Uint64));
-  
-    Uint64 percentChanged = (fragRows ? 
-          ((c_fragCopyRowsIns + c_fragCopyRowsDel) * 100) / fragRows
-                             : 0);
-  
-    /* Have already copied a fragment...report on it now */
-    g_eventLogger->info("LDM(%u): Completed copy of fragment T%uF%u. "
-                        "Changed +%llu/-%llu rows, %llu bytes. "
-                        "%llu pct churn to %llu rows.",
-                        instance(),
-                        c_fragCopyTable,
-                        c_fragCopyFrag,
-                        c_fragCopyRowsIns,
-                        c_fragCopyRowsDel,
-                        c_fragBytesCopied,
-                        percentChanged,
-                        fragRows);
-  
-    c_totalCopyRowsIns+= c_fragCopyRowsIns;
-    c_totalCopyRowsDel+= c_fragCopyRowsDel;
-    c_totalBytesCopied+= c_fragBytesCopied;
-    c_fragCopyTable = RNIL;
-    c_fragCopyFrag = RNIL;
-  }
+  /* Get fragment's stats from TUP */
+  const Dbtup::FragStats fs
+      = c_tup->get_frag_stats(fragptr.p->tupFragptr);
+
+  const Uint64 fragRows = fs.committedRowCount;
+
+  Uint64 percentChanged = (fragRows ?
+        ((c_fragCopyRowsIns + c_fragCopyRowsDel) * 100) / fragRows
+                           : 0);
+
+  /* Have already copied a fragment...report on it now */
+  g_eventLogger->info("LDM(%u): Completed copy of fragment T%uF%u. "
+                      "Changed +%llu/-%llu rows, %llu bytes. "
+                      "%llu pct churn to %llu rows.",
+                      instance(),
+                      c_fragCopyTable,
+                      c_fragCopyFrag,
+                      c_fragCopyRowsIns,
+                      c_fragCopyRowsDel,
+                      c_fragBytesCopied,
+                      percentChanged,
+                      fragRows);
+
+  c_totalCopyRowsIns+= c_fragCopyRowsIns;
+  c_totalCopyRowsDel+= c_fragCopyRowsDel;
+  c_totalBytesCopied+= c_fragBytesCopied;
+  c_fragCopyTable = RNIL;
+  c_fragCopyFrag = RNIL;
   c_fragCopyRowsIns = 0;
   c_fragCopyRowsDel = 0;
   c_fragBytesCopied = 0;

@@ -390,8 +390,8 @@ Dbtup::dealloc_tuple(Signal* signal,
   setInvalidChecksum(ptr, regTabPtr);
   if (regOperPtr->op_struct.bit_field.m_tuple_existed_at_start)
   {
-    ndbrequire(regFragPtr->m_restore_row_count > 0);
-    regFragPtr->m_restore_row_count--;
+    ndbrequire(regFragPtr->m_row_count > 0);
+    regFragPtr->m_row_count--;
   }
 }
 
@@ -919,7 +919,7 @@ Dbtup::commit_operation(Signal* signal,
   setChecksum(tuple_ptr, regTabPtr);
   if (!regOperPtr->op_struct.bit_field.m_tuple_existed_at_start)
   {
-    regFragPtr->m_restore_row_count++;
+    regFragPtr->m_row_count++;
   }
 }
 
@@ -1396,6 +1396,8 @@ skip_disk:
     c_undo_buffer.free_copy_tuple(&regOperPtr.p->m_copy_tuple_location);
   }
   
+  regFragPtr.p->m_committed_changes++;
+
   initOpConnection(regOperPtr.p);
   signal->theData[0] = 0;
 }
