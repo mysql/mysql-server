@@ -9580,6 +9580,18 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
   }//for
   if(masterTakeOver){
     jam();
+    NodeRecordPtr nodePtr;
+    g_eventLogger->info("Master takeover started from %u", oldMasterId);
+    for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++)
+    {
+      ptrAss(nodePtr, nodeRecord);
+      if (nodePtr.p->nodeStatus == NodeRecord::ALIVE)
+      {
+        jamLine(nodePtr.i);
+        ndbrequire(nodePtr.p->noOfStartedChkpt == 0);
+        ndbrequire(nodePtr.p->noOfQueuedChkpt == 0);
+      }
+    }
     startLcpMasterTakeOver(signal, oldMasterId);
     startGcpMasterTakeOver(signal, oldMasterId);
 
@@ -18035,6 +18047,7 @@ void Dbdih::handleStartLcpReq(Signal *signal, StartLcpReq *req)
 
       StartLcpConf * conf = (StartLcpConf*)signal->getDataPtrSend();
       conf->senderRef = reference();
+      conf->lcpId = SYSFILE->latestLCP_ID;
       sendSignal(c_lcpState.m_masterLcpDihRef, GSN_START_LCP_CONF, signal,
                  StartLcpConf::SignalLength, JBB);
       return;
@@ -18070,6 +18083,7 @@ void Dbdih::handleStartLcpReq(Signal *signal, StartLcpReq *req)
 
       StartLcpConf * conf = (StartLcpConf*)signal->getDataPtrSend();
       conf->senderRef = reference();
+      conf->lcpId = SYSFILE->latestLCP_ID;
       sendSignal(c_lcpState.m_masterLcpDihRef, GSN_START_LCP_CONF, signal,
                  StartLcpConf::SignalLength, JBB);
       return;
@@ -18330,6 +18344,7 @@ void Dbdih::initLcpLab(Signal* signal, Uint32 senderRef, Uint32 tableId)
 
   StartLcpConf * conf = (StartLcpConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
+  conf->lcpId = SYSFILE->latestLCP_ID;
   sendSignal(c_lcpState.m_masterLcpDihRef, GSN_START_LCP_CONF, signal,
              StartLcpConf::SignalLength, JBB);
 }//Dbdih::initLcpLab()
