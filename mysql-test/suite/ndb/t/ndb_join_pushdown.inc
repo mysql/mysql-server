@@ -4628,6 +4628,10 @@ drop table table1;
 # test for handling limitations / problems
 # specific to these features
 
+#############################################
+# Testing of subqueries and join pushdown
+#############################################
+
 ##############
 # Bug #16664035
 # PUSHED JOIN TOGETHER WITH 'FIRSTMATCH' STRATEGY MAY RETURN TOO MANY ROWS
@@ -4691,6 +4695,46 @@ set optimizer_switch='materialization=default';
 
 --error 0,1193
 set global debug=@save_debug;
+
+
+##################################################
+# Bug##26926666
+#   'LOOSESCAN' TABLES SHOULD NOT BE CHILD MEMBERS IN A PUSHED JOIN
+#
+##################################################
+
+######
+# Expect a query plan where the subquery table1s becomes
+# a child candidate in a pushed join. 'LooseScan' require
+# sorted results to be returned from the (child) table, which
+# we do not implement.
+
+explain SELECT count(*)
+  FROM (t1 AS table1 JOIN t1 AS table2 USING(a,b))
+  WHERE table1.b IN
+    (SELECT /*+ SEMIJOIN(LOOSESCAN)*/ table1s.c FROM t1 as table1s);
+SELECT count(*)
+  FROM (t1 AS table1 JOIN t1 AS table2 USING(a,b))
+  WHERE table1.b IN
+    (SELECT /*+ SEMIJOIN(LOOSESCAN)*/ table1s.c FROM t1 as table1s);
+
+########
+# Same query with 'FirstMatch', suplements FirstMatch (bug#16664035)
+# testcase above
+explain SELECT count(*)
+  FROM (t1 AS table1 JOIN t1 AS table2 USING(a,b))
+  WHERE table1.b IN
+    (SELECT /*+ SEMIJOIN(FIRSTMATCH)*/ table1s.c FROM t1 as table1s);
+SELECT count(*)
+  FROM (t1 AS table1 JOIN t1 AS table2 USING(a,b))
+  WHERE table1.b IN
+    (SELECT /*+ SEMIJOIN(FIRSTMATCH)*/ table1s.c FROM t1 as table1s);
+
+
+#############################################
+# Subqueries-end
+#############################################
+
 
 connection ddl;
 drop table t1;
