@@ -98,11 +98,13 @@ drop database mysqltest3;
 
 # Check that we can change global.collation_server (since 5.0.3)
 
+set @old_character_set_server= @@global.character_set_server;
 set global character_set_server=latin2;
-set global character_set_server=latin1; # back
+set @@global.character_set_server= @old_character_set_server;
 connection master;
+set @old_character_set_server= @@global.character_set_server;
 set global character_set_server=latin2;
-set global character_set_server=latin1; # back
+set @@global.character_set_server= @old_character_set_server;
 
 # Test of wrong character set numbers;
 error 1115;

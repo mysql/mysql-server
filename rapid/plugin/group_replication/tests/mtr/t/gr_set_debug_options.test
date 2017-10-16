@@ -204,3 +204,10 @@ SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="";
 --enable_query_log
 
 --source ../inc/group_replication_end.inc
+
+# Known issue: Once bug#26729404 is fixed, remove the below lines.
+# For Server2, the value of gr_communications_debug_options can't be
+# set back to GCS_DEBUG_INVALID since its a garbage value and this
+# will cause check-testcase failure on server2. Thus, disabling the
+# check-testcase by sourcing 'force_restart.inc' file for the test.
+--source include/force_restart.inc

@@ -4847,9 +4847,20 @@ sub run_testcase ($) {
             "disable check-testcases.\n";
           $res= 1;
         }
-        elsif ($opt_check_testcases and
-               !restart_forced_by_test('force_restart') and
-               !restart_forced_by_test('force_restart_if_skipped'))
+      }
+      elsif ($res == 1)
+      {
+        # Test case has failed, delete 'no_result_file' key and its
+        # associated value from the test object to avoid any unknown error.
+        delete $tinfo->{'no_result_file'} if $tinfo->{'no_result_file'};
+      }
+
+      # Check if check-testcase should be run
+      if ($opt_check_testcases)
+      {
+        if (($res == 0 and !restart_forced_by_test('force_restart')) or
+            ($res == 62 and
+             !restart_forced_by_test('force_restart_if_skipped')))
         {
           $check_res= check_testcase($tinfo, "after");
 
@@ -4861,12 +4872,6 @@ sub run_testcase ($) {
             $res= 1;
           }
         }
-      }
-      elsif ($res == 1)
-      {
-        # Test case has failed, delete 'no_result_file' key and its
-        # associated value from the test object to avoid any unknown error.
-        delete $tinfo->{'no_result_file'} if $tinfo->{'no_result_file'};
       }
 
       if ($res == 0)

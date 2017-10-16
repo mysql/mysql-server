@@ -158,6 +158,7 @@ SET @@session.default_week_format=0;
 --echo * local_infile *
 
 --connection slave
+SET @old_local_infile= @@global.local_infile;
 SET @@global.local_infile=0;
 
 --connection master
@@ -315,6 +316,7 @@ SET @@global.character_set_database=@restore_slave_character_set_database;
 SET @@global.collation_server=@restore_slave_collation_server;
 SET @@global.max_heap_table_size=@restore_slave_max_heap_table_size;
 SET @@global.default_storage_engine=@restore_slave_storage_engine;
+SET @@global.local_infile= @old_local_infile;
 
 # Put at the end since the test otherwise emptied the table.
 
