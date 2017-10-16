@@ -12,6 +12,7 @@ include/rpl_sync.inc
 #
 # Create the events in each member.
 #
+SET @old_event_scheduler= @@global.event_scheduler;
 SET SESSION sql_log_bin= 0;
 SET GLOBAL event_scheduler=on|
 CREATE EVENT IF NOT EXISTS test.event1
@@ -36,6 +37,7 @@ END WHILE;
 END|
 SET SESSION sql_log_bin= 1;
 [connection server2]
+SET @old_event_scheduler= @@global.event_scheduler;
 SET SESSION sql_log_bin= 0;
 SET GLOBAL event_scheduler=on|
 CREATE EVENT IF NOT EXISTS test.event2
@@ -60,6 +62,7 @@ END WHILE;
 END|
 SET SESSION sql_log_bin= 1;
 [connection server3]
+SET @old_event_scheduler= @@global.event_scheduler;
 SET SESSION sql_log_bin= 0;
 SET GLOBAL event_scheduler=on|
 CREATE EVENT IF NOT EXISTS test.event3
@@ -123,17 +126,17 @@ include/assert.inc ['The group replication applier channel is ON']
 SET SESSION sql_log_bin= 0;
 DROP EVENT IF EXISTS test.event1;
 SET SESSION sql_log_bin= 1;
-SET GLOBAL event_scheduler=off;
+SET GLOBAL event_scheduler= @old_event_scheduler;
 [connection server2]
 SET SESSION sql_log_bin= 0;
 DROP EVENT IF EXISTS test.event2;
 SET SESSION sql_log_bin= 1;
-SET GLOBAL event_scheduler=off;
+SET GLOBAL event_scheduler= @old_event_scheduler;
 [connection server3]
 SET SESSION sql_log_bin= 0;
 DROP EVENT IF EXISTS test.event3;
 SET SESSION sql_log_bin= 1;
-SET GLOBAL event_scheduler=off;
+SET GLOBAL event_scheduler= @old_event_scheduler;
 [connection server1]
 DROP TABLE t1;
 include/group_replication_end.inc
