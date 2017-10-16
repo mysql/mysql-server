@@ -6246,6 +6246,40 @@ count(*)
 16
 set optimizer_switch='materialization=default';
 set global debug=@save_debug;
+explain SELECT count(*)
+FROM (t1 AS table1 JOIN t1 AS table2 USING(a,b))
+WHERE table1.b IN
+(SELECT /*+ SEMIJOIN(LOOSESCAN)*/ table1s.c FROM t1 as table1s);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	table2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	PRIMARY	NULL	NULL	NULL	16	100.00	Parent of 2 pushed join@1
+1	SIMPLE	table1s	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	test.table2.b	2	100.00	LooseScan
+1	SIMPLE	table1	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.table2.a,test.table2.b	1	100.00	Child of 'table2' in pushed join@1
+Warnings:
+Note	1003	Can't push table 'table1s' as child of 'table2', 'LooseScan' not allowed for a scan-child
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#2` LOOSESCAN) */ count(0) AS `count(*)` from `test`.`t1` `table1` semi join (`test`.`t1` `table1s`) join `test`.`t1` `table2` where ((`test`.`table1`.`a` = `test`.`table2`.`a`) and (`test`.`table1s`.`c` = `test`.`table2`.`b`) and (`test`.`table1`.`b` = `test`.`table2`.`b`))
+SELECT count(*)
+FROM (t1 AS table1 JOIN t1 AS table2 USING(a,b))
+WHERE table1.b IN
+(SELECT /*+ SEMIJOIN(LOOSESCAN)*/ table1s.c FROM t1 as table1s);
+count(*)
+16
+explain SELECT count(*)
+FROM (t1 AS table1 JOIN t1 AS table2 USING(a,b))
+WHERE table1.b IN
+(SELECT /*+ SEMIJOIN(FIRSTMATCH)*/ table1s.c FROM t1 as table1s);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	table1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	PRIMARY	NULL	NULL	NULL	16	100.00	Parent of 2 pushed join@1
+1	SIMPLE	table2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.table1.a,test.table1.b	1	100.00	Child of 'table1' in pushed join@1
+1	SIMPLE	table1s	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	test.table1.b	2	100.00	FirstMatch(table2)
+Warnings:
+Note	1003	Can't push table 'table1s' as child of 'table1', 'FirstMatch' not allowed to contain scan-child
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#2` FIRSTMATCH) */ count(0) AS `count(*)` from `test`.`t1` `table1` semi join (`test`.`t1` `table1s`) join `test`.`t1` `table2` where ((`test`.`table2`.`a` = `test`.`table1`.`a`) and (`test`.`table2`.`b` = `test`.`table1`.`b`) and (`test`.`table1s`.`c` = `test`.`table1`.`b`))
+SELECT count(*)
+FROM (t1 AS table1 JOIN t1 AS table2 USING(a,b))
+WHERE table1.b IN
+(SELECT /*+ SEMIJOIN(FIRSTMATCH)*/ table1s.c FROM t1 as table1s);
+count(*)
+16
 drop table t1;
 CREATE TABLE ndb_order_test (
 node_id int(10) unsigned NOT NULL,
@@ -6307,8 +6341,8 @@ where new.variable_name = old.variable_name
 order by new.variable_name;
 variable_name	new.variable_value - old.variable_value
 Ndb_pruned_scan_count	8
-Ndb_pushed_queries_defined	421
+Ndb_pushed_queries_defined	425
 Ndb_pushed_queries_dropped	8
-Ndb_sorted_scan_count	13
+Ndb_sorted_scan_count	29
 drop table server_counts_at_startup;
 set ndb_join_pushdown = @save_ndb_join_pushdown;

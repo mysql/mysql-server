@@ -207,6 +207,8 @@ namespace AQP
 
     bool uses_join_cache() const;
 
+    bool do_loosescan() const;
+    
     const Table_access* get_firstmatch_last_skipped() const;
 
     bool filesort_before_join() const;
