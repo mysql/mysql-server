@@ -48,6 +48,8 @@ BEGIN_SERVICE_DEFINITION(psi_file_v1)
   start_file_close_wait_v1_t start_file_close_wait;
   /** @sa end_file_close_wait_v1_t. */
   end_file_close_wait_v1_t end_file_close_wait;
+  /** @sa rename_file_close_wait_v1_t. */
+  end_file_rename_wait_v1_t end_file_rename_wait;
 END_SERVICE_DEFINITION(psi_file_v1)
 
 #define REQUIRES_PSI_FILE_SERVICE REQUIRES_SERVICE(psi_file_v1)

@@ -1412,12 +1412,12 @@ inline_mysql_file_rename(
   struct PSI_file_locker *locker;
   PSI_file_locker_state state;
   locker = PSI_FILE_CALL(get_thread_file_name_locker)(
-    &state, key, PSI_FILE_RENAME, to, &locker);
+    &state, key, PSI_FILE_RENAME, from, &locker);
   if (likely(locker != NULL))
   {
     PSI_FILE_CALL(start_file_wait)(locker, (size_t)0, src_file, src_line);
     result = my_rename(from, to, flags);
-    PSI_FILE_CALL(end_file_wait)(locker, (size_t)0);
+    PSI_FILE_CALL(end_file_rename_wait)(locker, from, to, result);
     return result;
   }
 #endif
@@ -1505,12 +1505,12 @@ inline_mysql_file_rename_with_symlink(
   struct PSI_file_locker *locker;
   PSI_file_locker_state state;
   locker = PSI_FILE_CALL(get_thread_file_name_locker)(
-    &state, key, PSI_FILE_RENAME, to, &locker);
+    &state, key, PSI_FILE_RENAME, from, &locker);
   if (likely(locker != NULL))
   {
     PSI_FILE_CALL(start_file_wait)(locker, (size_t)0, src_file, src_line);
     result = my_rename_with_symlink(from, to, flags);
-    PSI_FILE_CALL(end_file_wait)(locker, (size_t)0);
+    PSI_FILE_CALL(end_file_rename_wait)(locker, from, to, result);
     return result;
   }
 #endif
