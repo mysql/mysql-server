@@ -1032,6 +1032,7 @@ String *Item_func_geomfromgeojson::val_str(String *buf)
   Geometry *result_geometry= NULL;
 
   m_srid_found_in_document = -1;
+  m_toplevel= true;
   if (parse_object(root_obj, &rollback, &collection_buffer, false,
                    &result_geometry))
   {
@@ -1158,6 +1159,15 @@ parse_object(const Json_object *object, bool *rollback, String *buffer,
       const Json_object *crs_obj= down_cast<const Json_object *>(crs_member);
       if (parse_crs_object(crs_obj))
         return true;
+      // Only top-level crs specifications are allowed, unless it's a repeated
+      // specification of the top-level SRID.
+      if (!m_toplevel &&
+          m_srid_found_in_document !=
+              (m_user_provided_srid ? m_user_srid : 4326))
+      {
+        my_error(ER_INVALID_GEOJSON_CRS_NOT_TOP_LEVEL, MYF(0), func_name());
+        return true;
+      }
     }
     else if (crs_member->json_type() != enum_json_type::J_NULL)
     {
@@ -1165,6 +1175,69 @@ parse_object(const Json_object *object, bool *rollback, String *buffer,
                CRS_MEMBER, "object");
       return true;
     }
+  }
+  m_toplevel= false;
+
+  // CRS member parsing is done, so at this point we have an SRID, either
+  // default, user specified, or parsed from the document.
+  //
+  // Now we set the allowed range for longitude and latitude coordinates based
+  // on that SRID. Geographic coordinates have limits (-180, 180] and [90, 90]
+  // in degrees (other values for other units), while Cartesians coordinates are
+  // unlimited.
+  if (m_user_provided_srid || m_srid_found_in_document >= 0)
+  {
+    gis::srid_t srid=
+      m_user_provided_srid ? m_user_srid : m_srid_found_in_document;
+
+    if (srid != 0)
+    {
+      Srs_fetcher fetcher(current_thd);
+      const dd::Spatial_reference_system *srs= nullptr;
+      dd::cache::Dictionary_client
+        ::Auto_releaser releaser(current_thd->dd_client());
+      if (fetcher.acquire(srid, &srs))
+      {
+        return true; /* purecov: inspected */
+      }
+
+      if (srs == nullptr)
+      {
+        my_error(ER_SRS_NOT_FOUND, MYF(0), m_srid_found_in_document);
+        return true;
+      }
+
+      if (srs->is_cartesian())
+      {
+        m_min_longitude= -std::numeric_limits<double>::infinity();
+        m_max_longitude= std::numeric_limits<double>::infinity();
+        m_min_latitude= -std::numeric_limits<double>::infinity();
+        m_max_latitude= std::numeric_limits<double>::infinity();
+      }
+      else
+      {
+        m_min_longitude= srs->from_radians(-M_PI);
+        m_max_longitude= srs->from_radians(M_PI);
+        m_min_latitude= srs->from_radians(-M_PI_2);
+        m_max_latitude= srs->from_radians(M_PI_2);
+      }
+    }
+    else
+    {
+      // SRID 0.
+      m_min_longitude= -std::numeric_limits<double>::infinity();
+      m_max_longitude= std::numeric_limits<double>::infinity();
+      m_min_latitude= -std::numeric_limits<double>::infinity();
+      m_max_latitude= std::numeric_limits<double>::infinity();
+    }
+  }
+  else
+  {
+    // Default is SRID 4326 (WGS84), which is in degrees.
+    m_min_longitude= -180.0;
+    m_max_longitude= 180.0;
+    m_min_latitude= -90.0;
+    m_max_latitude= 90.0;
   }
 
   // Handle feature objects and feature collection objects.
@@ -1340,10 +1413,29 @@ get_positions(const Json_array *coordinates, Gis_point *point)
     */
     Json_wrapper coord((*coordinates)[i]);
     coord.set_alias();
+    double coordinate= coord.coerce_real("");
     if (i == 0)
-      point->set<0>(coord.coerce_real(""));
+    {
+      // Longitude.
+      if (coordinate <= m_min_longitude || coordinate > m_max_longitude)
+      {
+        my_error(ER_LONGITUDE_OUT_OF_RANGE, MYF(0), coordinate, func_name(),
+                 m_min_longitude, m_max_longitude);
+        return true;
+      }
+      point->set<0>(coordinate);
+    }
     else if (i == 1)
-      point->set<1>(coord.coerce_real(""));
+    {
+      // Latitude.
+      if (coordinate < m_min_latitude || coordinate > m_max_latitude)
+      {
+        my_error(ER_LATITUDE_OUT_OF_RANGE, MYF(0), coordinate, func_name(),
+                 m_min_latitude, m_max_latitude);
+        return true;
+      }
+      point->set<1>(coordinate);
+    }
   }
 
   return false;
