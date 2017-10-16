@@ -6147,6 +6147,67 @@ WHERE table1.b IN
 (SELECT /*+ SEMIJOIN(FIRSTMATCH)*/ table1s.c FROM t1 as table1s);
 count(*)
 16
+explain
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as T3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	16	Parent of 2 pushed join@1; Using where
+1	PRIMARY	t2	ref	PRIMARY	PRIMARY	4	test.t1.b	1	Child of 't1' in pushed join@1
+2	DEPENDENT SUBQUERY	T3	index_subquery	c	c	4	func	2	NULL
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as T3);
+count(*)
+64
+explain
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as T3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	c	NULL	NULL	NULL	16	Parent of 2 pushed join@1; Using where
+1	PRIMARY	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	Child of 't1' in pushed join@1
+2	DEPENDENT SUBQUERY	T3	index_subquery	c	c	4	func	2	NULL
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as T3);
+count(*)
+13
+explain
+select count(*)
+from (select * from t1 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as T3)) as t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	16	NULL
+1	PRIMARY	t2	eq_ref	PRIMARY	PRIMARY	8	t1.b,t1.c	1	NULL
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	16	Using where
+3	DEPENDENT SUBQUERY	T3	index_subquery	c	c	4	func	2	NULL
+select count(*)
+from (select * from t1 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as T3)) as t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
+count(*)
+13
+explain
+select count(*)
+from (select * from t1 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as T3)) as t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as T3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	16	Using where
+1	PRIMARY	t2	eq_ref	PRIMARY	PRIMARY	8	t1.b,t1.c	1	NULL
+4	DEPENDENT SUBQUERY	T3	index_subquery	c	c	4	func	2	NULL
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	16	Using where
+3	DEPENDENT SUBQUERY	T3	index_subquery	c	c	4	func	2	NULL
+select count(*)
+from (select * from t1 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as T3)) as t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as T3);
+count(*)
+13
 drop table t1;
 CREATE TABLE ndb_order_test (
 node_id int(10) unsigned NOT NULL,
@@ -6202,10 +6263,10 @@ where new.variable_name = old.variable_name
 order by new.variable_name;
 variable_name	new.variable_value - old.variable_value
 NDB_PRUNED_SCAN_COUNT	11
-NDB_PUSHED_QUERIES_DEFINED	437
+NDB_PUSHED_QUERIES_DEFINED	441
 NDB_PUSHED_QUERIES_DROPPED	11
-NDB_PUSHED_QUERIES_EXECUTED	573
-NDB_SORTED_SCAN_COUNT	125
+NDB_PUSHED_QUERIES_EXECUTED	575
+NDB_SORTED_SCAN_COUNT	202
 drop table server_counts_at_startup;
 set ndb_join_pushdown = @save_ndb_join_pushdown;
 set @@global.optimizer_switch=default;
