@@ -1,9 +1,5 @@
 /*
-<<<<<<< HEAD
-   Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
-=======
    Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
->>>>>>> mysql-5.6-cluster-7.4
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -429,6 +425,14 @@ namespace AQP
   {
     return get_qep_tab()->op &&
       get_qep_tab()->op->type() == QEP_operation::OT_CACHE;
+  }
+
+  /**
+    Check if 'LooseScan' strategy is to be used for this table.
+  */
+  bool Table_access::do_loosescan() const
+  {
+    return get_qep_tab()->do_loosescan();
   }
 
   /**
