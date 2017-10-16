@@ -8701,7 +8701,7 @@ void Dbdih::execCOPY_FRAGCONF(Signal* signal)
   ndbrequire(conf->sendingNodeId == takeOverPtr.p->toCopyNode);
   ndbrequire(takeOverPtr.p->toSlaveStatus == TakeOverRecord::TO_COPY_FRAG);
 
-  g_eventLogger->debug("COPY_FRAGCONF: thread: %u, tab: %u, frag: %u",
+  g_eventLogger->debug("COPY_FRAGCONF: thread: %u, tab(%u,%u)",
     takeOverPtr.i,
     takeOverPtr.p->toCurrentTabref,
     takeOverPtr.p->toCurrentFragid);
@@ -8737,7 +8737,7 @@ void Dbdih::execCOPY_FRAGCONF(Signal* signal)
   
   sendSignal(lqhRef, GSN_COPY_ACTIVEREQ, signal,
              CopyActiveReq::SignalLength, JBB);
-  g_eventLogger->debug("COPY_ACTIVEREQ: thread: %u, tab: %u, frag: %u",
+  g_eventLogger->debug("COPY_ACTIVEREQ: thread: %u, tab(%u,%u)",
     takeOverPtr.i,
     takeOverPtr.p->toCurrentTabref,
     takeOverPtr.p->toCurrentFragid);

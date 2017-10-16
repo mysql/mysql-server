@@ -104,11 +104,18 @@ extern EventLogger * g_eventLogger;
 #define DEB_EXTRA_LCP(arglist) do { } while (0)
 #endif
 
-#define DEBUG_LCP
+//#define DEBUG_LCP
 #ifdef DEBUG_LCP
 #define DEB_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP(arglist) do { } while (0)
+#endif
+
+#define DEBUG_COPY
+#ifdef DEBUG_COPY
+#define DEB_COPY(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_COPY(arglist) do { } while (0)
 #endif
 
 //#define DEBUG_GCP
@@ -14399,10 +14406,10 @@ Dblqh::execPREPARE_COPY_FRAG_REQ(Signal* signal)
   if (! DictTabInfo::isOrderedIndex(tabptr.p->tableType))
   {
     jam();
-    DEB_LCP(("(%u)Copy tab(%u,%u) starts",
-             instance(),
-             c_fragCopyTable,
-             c_fragCopyFrag));
+    DEB_COPY(("(%u)Copy tab(%u,%u) starts",
+              instance(),
+              c_fragCopyTable,
+              c_fragCopyFrag));
     ndbrequire(getFragmentrec(signal, req.fragId));
     
     /**
@@ -14432,10 +14439,10 @@ Dblqh::execPREPARE_COPY_FRAG_REQ(Signal* signal)
        * of UNDO log. We will respond to this signal when
        * overload is gone.
        */
-      DEB_LCP(("(%u)Halt after PREPARE_COPY_FRAG_REQ, tab(%u,%u)",
-               instance(),
-               req.tableId,
-               req.fragId));
+      DEB_COPY(("(%u)Halt after PREPARE_COPY_FRAG_REQ, tab(%u,%u)",
+                instance(),
+                req.tableId,
+                req.fragId));
       c_copy_frag_halted = true;
       c_copy_frag_halt_state = PREPARE_COPY_FRAG_IS_HALTED;
       return;
@@ -14544,6 +14551,10 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
     scans.addFirst(scanptr);
   }
 
+  DEB_COPY(("(%u)COPY_FRAGREQ tab(%u,%u)",
+            instance(),
+            tabptr.i,
+            fragId));
 /* ------------------------------------------------------------------------- */
 // We keep track of how many operation records in ACC that has been booked.
 // Copy fragment has records always booked and thus need not book any. The
@@ -15473,6 +15484,10 @@ void Dblqh::tupCopyCloseConfLab(Signal* signal,
     else
     {
       jam();
+      DEB_COPY(("(%u)COPY_FRAGCONF tab(%u,%u)",
+                instance(),
+                tcConnectptr.p->tableref,
+                tcConnectptr.p->fragmentid));
       CopyFragConf * const conf = (CopyFragConf *)&signal->theData[0];
       conf->userPtr = scanptr.p->copyPtr;
       conf->sendingNodeId = cownNodeid;
@@ -15636,10 +15651,10 @@ void Dblqh::execCOPY_ACTIVEREQ(Signal* signal)
   else
   {
     jam();
-    DEB_LCP(("(%u)Activate REDO log of tab(%u,%u)",
-             instance(),
-             tabptr.i,
-             fragId));
+    DEB_COPY(("(%u)Activate REDO log of tab(%u,%u)",
+              instance(),
+              tabptr.i,
+              fragId));
     CRASH_INSERTION(5091);
     /**
      * At first COPY_ACTIVEREQ to activate REDO log on any
