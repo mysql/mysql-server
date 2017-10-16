@@ -8764,3 +8764,57 @@ FROM_UNIXTIME(LAG('-778:36:16.905133',246) RESPECT NULLS OVER(),
 REPLACE('%M%V   ','',''))
 NULL
 # End of test for Bug#26739028
+#
+# Bug#26389508: INT JOIN_READ_KEY(QEP_TAB*): ASSERTION
+#               `!TABLE->HAS_NULL_ROW()' FAILED
+#
+CREATE TABLE t1 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_int int(11) DEFAULT NULL,
+PRIMARY KEY (pk)
+);
+INSERT INTO t1 VALUES (1,NULL),(2,4),(3,-501481472),(4,NULL),(5,3);
+CREATE TABLE t2 (
+col_int_key int(11) DEFAULT NULL,
+KEY col_int_key (col_int_key)
+);
+INSERT INTO t2 VALUES (NULL),(NULL),(NULL),(NULL),(5),(5);
+This JOIN needs the fix
+SELECT FIRST_VALUE( alias1.pk ) OVER
+(ROWS BETWEEN UNBOUNDED PRECEDING AND 1 FOLLOWING) AS field1
+FROM  t1 AS alias1 RIGHT JOIN t2 AS alias2
+ON  alias1.pk = alias2.col_int_key;
+field1
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+This doesn't and shouldn't do save/restore it (not JT_EQ_REF). Verify
+with debugger.
+SELECT FIRST_VALUE( alias1.pk ) OVER
+(ROWS BETWEEN UNBOUNDED PRECEDING AND 1 FOLLOWING) AS field1
+FROM  t1 AS alias1 RIGHT JOIN t2 AS alias2
+ON  alias1.pk > alias2.col_int_key;
+field1
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+Nor this one (not first window). Verify with debugger.
+SELECT ROW_NUMBER() OVER () AS `row#`,
+FIRST_VALUE( alias1.pk ) OVER
+(ROWS BETWEEN UNBOUNDED PRECEDING AND 1 FOLLOWING) AS field1
+FROM  t1 AS alias1 RIGHT JOIN t2 AS alias2
+ON  alias1.pk = alias2.col_int_key;
+row#	field1
+1	NULL
+2	NULL
+3	NULL
+4	NULL
+5	NULL
+6	NULL
+DROP TABLE t1, t2;

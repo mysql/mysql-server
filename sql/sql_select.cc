@@ -4771,6 +4771,9 @@ bool JOIN::make_tmp_tables_info()
        */
       const uint widx= REF_SLICE_WIN_1 + wno;
       const int fbidx= widx + m_windows.elements; // use far area
+      m_windows[wno]->set_needs_restore_input_row(
+        wno == 0 && qep_tab[primary_tables - 1].type() == JT_EQ_REF);
+
 
       if (m_windows[wno]->needs_buffering())
       {
