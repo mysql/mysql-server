@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -77,6 +77,9 @@ void pfs_start_file_close_wait_v1(PSI_file_locker *locker,
                                   uint src_line);
 
 void pfs_end_file_close_wait_v1(PSI_file_locker *locker, int rc);
+
+void pfs_end_file_rename_wait_v1(PSI_file_locker *locker, const char *old_name,
+                                 const char *new_name, int rc);
 
 C_MODE_END
 

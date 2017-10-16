@@ -538,7 +538,7 @@ pfs_os_file_rename_func(
 
 	bool	result = os_file_rename_func(oldpath, newpath);
 
-	register_pfs_file_rename_end(locker, 0);
+	register_pfs_file_rename_end(locker, oldpath, newpath, !result);
 
 	return(result);
 }

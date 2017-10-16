@@ -471,6 +471,14 @@ static void end_file_close_wait_noop(PSI_file_locker *locker NNN,
   return;
 }
 
+static void end_file_rename_wait_noop(PSI_file_locker *locker NNN,
+                                      const char *old_name NNN,
+                                      const char *new_name NNN,
+                                      int result NNN)
+{
+  return;
+}
+
 static PSI_stage_progress*
 start_stage_noop(PSI_stage_key key NNN,
                  const char *src_file NNN, int src_line NNN)
@@ -954,6 +962,7 @@ static PSI PSI_noop=
   end_file_wait_noop,
   start_file_close_wait_noop,
   end_file_close_wait_noop,
+  end_file_rename_wait_noop,
   start_stage_noop,
   get_current_stage_progress_noop,
   end_stage_noop,
