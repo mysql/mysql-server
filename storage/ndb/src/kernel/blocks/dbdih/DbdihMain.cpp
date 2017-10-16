@@ -11543,6 +11543,8 @@ void Dbdih::execMASTER_LCPREQ(Signal* signal)
   if (c_lcpState.lcpStatus == LCP_INIT_TABLES)
   {
     jam();
+    c_lcpState.m_participatingDIH.clear();
+    c_lcpState.m_participatingLQH.clear();
     c_lcpState.setLcpStatus(LCP_STATUS_IDLE, __LINE__);
   }
   sendMASTER_LCPCONF(signal, __LINE__);
@@ -11609,6 +11611,8 @@ err7230:
     //Uint32 lcpId = SYSFILE->latestLCP_ID;
     SYSFILE->latestLCP_ID--;
     Sysfile::clearLCPOngoing(SYSFILE->systemRestartBits);
+    c_lcpState.m_participatingDIH.clear();
+    c_lcpState.m_participatingLQH.clear();
     c_lcpState.setLcpStatus(LCP_STATUS_IDLE, __LINE__);
 #if 0
     if(c_copyGCISlave.m_copyReason == CopyGCIReq::LOCAL_CHECKPOINT){
