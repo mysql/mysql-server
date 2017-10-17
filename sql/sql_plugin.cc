@@ -1258,6 +1258,9 @@ static int plugin_initialize(st_plugin_int *plugin)
   DBUG_ASSERT(state == PLUGIN_IS_UNINITIALIZED);
 
   mysql_mutex_unlock(&LOCK_plugin);
+
+  DEBUG_SYNC(current_thd, "in_plugin_initialize");
+
   if (plugin_type_initialize[plugin->plugin->type])
   {
     if ((*plugin_type_initialize[plugin->plugin->type])(plugin))
@@ -2410,6 +2413,8 @@ static bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
     */
     plugin->state= PLUGIN_IS_DYING;
     mysql_mutex_unlock(&LOCK_plugin);
+
+    DEBUG_SYNC(current_thd, "in_plugin_check_uninstall");
 
     /*
       Check uninstall may perform complex operations,
