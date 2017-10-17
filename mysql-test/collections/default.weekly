@@ -18,8 +18,8 @@
 # rpl and binlog suites run with all 3
 # binlog-formats  row, stmt and mixed
 # Run with --big-test option so that longer tests are also run
-# Run with --run-non-parallel-tests option so that non parallel tests are also run
-perl mysql-test-run.pl --debug-server --force --timer  --big-test --run-non-parallel-tests --testcase-timeout=90  --parallel=auto --experimental=collections/default.experimental --comment=all-default-big  --vardir=var-all-default-big  --report-features  --unit-tests-report --no-skip
+# Run with --non-parallel-test option so that non parallel tests are also run
+perl mysql-test-run.pl --debug-server --force --timer  --big-test --non-parallel-test --testcase-timeout=90  --parallel=auto --experimental=collections/default.experimental --comment=all-default-big  --vardir=var-all-default-big  --report-features  --unit-tests-report --no-skip
 
 # Run default suites with ps protocol
 perl mysql-test-run.pl --debug-server --force --timer    --big-test --testcase-timeout=90 --parallel=auto --experimental=collections/default.experimental --comment=ps-debug-big  --vardir=var-ps-debug-big  --ps-protocol
@@ -50,16 +50,16 @@ perl mysql-test-run.pl --debug-server --timer --force  --comment=memcached --var
 # MTR or mysqld options in this section
 
 # Additional mode for rpl. Multi-Threaded Slave
-# Run with --run-non-parallel-tests option so that non parallel tests are also run
-perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=rpl-mts-db --vardir=var-rpl-mts-db --experimental=collections/default.experimental --mysqld=--slave-preserve-commit-order=OFF --mysqld=--slave-parallel-type=database --do-suite=rpl --no-skip --run-non-parallel-tests
+# Run with --non-parallel-test option so that non parallel tests are also run
+perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=rpl-mts-db --vardir=var-rpl-mts-db --experimental=collections/default.experimental --mysqld=--slave-preserve-commit-order=OFF --mysqld=--slave-parallel-type=database --do-suite=rpl --no-skip --non-parallel-test
 
 # Additional mode for rpl. Single-Threaded Slave
-# Run with --run-non-parallel-tests option so that non parallel tests are also run
-perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=rpl-sts --vardir=var-rpl-sts --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=0 --do-suite=rpl --no-skip --run-non-parallel-tests
+# Run with --non-parallel-test option so that non parallel tests are also run
+perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=rpl-sts --vardir=var-rpl-sts --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=0 --do-suite=rpl --no-skip --non-parallel-test
 
 # Additional GTID coverage (rpl suite with gtid_mode=ON)
-# Run with --run-non-parallel-tests option so that non parallel tests are also run
-perl mysql-test-run.pl --debug-server --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=rpl-gtid --vardir=var-rpl-gtid --suite=rpl --mysqld=--enforce-gtid-consistency --mysqld=--gtid-mode=on --no-skip --run-non-parallel-tests
+# Run with --non-parallel-test option so that non parallel tests are also run
+perl mysql-test-run.pl --debug-server --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=rpl-gtid --vardir=var-rpl-gtid --suite=rpl --mysqld=--enforce-gtid-consistency --mysqld=--gtid-mode=on --no-skip --non-parallel-test
 
 # Additional GTID coverage (binlog suite with gtid_mode=ON)
 perl mysql-test-run.pl --debug-server --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=binlog_with_gtid --vardir=var-binlog_gtid --suite=binlog --mysqld=--enforce-gtid-consistency --mysqld=--gtid-mode=on --no-skip
