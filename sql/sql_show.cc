@@ -238,6 +238,9 @@ static bool show_plugins(THD *thd, plugin_ref plugin,
   case PLUGIN_IS_READY:
     table->field[2]->store(STRING_WITH_LEN("ACTIVE"), cs);
     break;
+  case PLUGIN_IS_DYING:
+    table->field[2]->store(STRING_WITH_LEN("DELETING"), cs);
+    break;
   case PLUGIN_IS_DISABLED:
     table->field[2]->store(STRING_WITH_LEN("DISABLED"), cs);
     break;
