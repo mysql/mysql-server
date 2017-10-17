@@ -23,6 +23,7 @@
 #include "my_dbug.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
+#include "mysqld.h"
 #include "mysql/psi/mysql_sp.h"
 #include "mysql/psi/mysql_statement.h"
 #include "mysql/service_mysql_alloc.h"
@@ -1353,6 +1354,8 @@ bool construct_drop_event_sql(THD *thd, String *sp_sql,
   append_identifier(thd, sp_sql, event_name.str,
                     event_name.length);
 
+  // Set query id for DROP EVENT constructed by the Event Scheduler..
+  thd->set_query_id(next_query_id());
   DBUG_RETURN(ret);
 }
 
