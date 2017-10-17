@@ -3937,6 +3937,12 @@ buffer_record_somewhere(THD *thd, Window *w, int64 rowno)
     w->save_special_record(rowno, t);
     DBUG_RETURN(false); // special record, don't put in frame buffer
   }
+  else if (w->needs_restore_input_row())
+  {
+    w->save_special_record(Window::FBC_LAST_BUFFERED_ROW, t);
+    // Also put in frame buffer
+  }
+
 
   DBUG_ASSERT(t->is_created());
 
@@ -4031,8 +4037,7 @@ buffer_record_somewhere(THD *thd, Window *w, int64 rowno)
       if ((w->m_tmp_pos.m_position =
            (uchar*)sql_alloc(t->file->ref_length)) == nullptr)
         DBUG_RETURN(true);
-      
-   }
+    }
 
     error= t->file->ha_rnd_next(record);
     t->file->position(record);
@@ -4268,13 +4273,17 @@ bring_back_frame_row(THD *thd,
   DBUG_ASSERT(reason == Window::REA_MISC_POSITIONS || fno == 0);
 
   uchar *fb_rec= w.frame_buffer()->record[0];
+  w.set_input_row_clobbered(rowno != w.last_rowno_in_cache() &&
+                            rowno != Window::FBC_LAST_BUFFERED_ROW);
 
-  if (rowno == Window::FBC_FIRST_IN_NEXT_PARTITION)
+  if (rowno == Window::FBC_FIRST_IN_NEXT_PARTITION ||
+      rowno == Window::FBC_LAST_BUFFERED_ROW)
   {
     w.restore_special_record(rowno, fb_rec);
   }
   else
   {
+    DBUG_ASSERT(reason != Window::REA_WONT_UPDATE_HINT);
 
 #if !defined(DBUG_OFF) && defined(WF_DEBUG)
     /*
@@ -4288,6 +4297,7 @@ bring_back_frame_row(THD *thd,
     void *tmpbuff= std::malloc(v.size());
     std::memcpy(tmpbuff, v.data(), v.size());
 #endif
+
     if (read_frame_buffer_row(rowno, &w, reason == Window::REA_MISC_POSITIONS))
       DBUG_RETURN(true);
     
@@ -5574,7 +5584,7 @@ reestablish_new_partition_row(Window &w,
 
   /* bring back saved row for next partition */
   if (bring_back_frame_row(thd, w, Window::FBC_FIRST_IN_NEXT_PARTITION,
-                           Window::REA_FIRST_IN_PARTITION))
+                           Window::REA_WONT_UPDATE_HINT))
     DBUG_RETURN(true);
 
   DBUG_RETURN(false);
@@ -5840,6 +5850,21 @@ end_write_wf(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
       else if (end_of_records)
       {
         out_tbl->m_window->reset_partition_state();
+      }
+      else if (win->input_row_clobbered() &&
+               win->needs_restore_input_row())
+      {
+        /*
+          Reestablish last row read from input table in case it is needed again
+          before reading a new row. May be necessary if this is the first window
+          following after a join, cf. the caching presumption in join_read_key.
+          This logic can be removed if we move to copying between out
+          tmp record and frame buffer record, instead of involving the in
+          record. FIXME.
+        */
+        if (bring_back_frame_row(thd, *win, Window::FBC_LAST_BUFFERED_ROW,
+                                 Window::REA_WONT_UPDATE_HINT))
+          DBUG_RETURN(NESTED_LOOP_ERROR);
       }
     }
     else

@@ -1957,4 +1957,12 @@ fil_rename_tablespace_by_name(
 void
 fil_free_scanned_files();
 
+/** Update the tablespace name. Incase, the new name
+and old name are same, no update done.
+@param[in,out]	space		tablespace object on which name
+				will be updated
+@param[in]	name		new name for tablespace */
+void
+fil_space_update_name(fil_space_t* space, const char* name);
+
 #endif /* fil0fil_h */

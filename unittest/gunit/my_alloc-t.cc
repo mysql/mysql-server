@@ -171,6 +171,17 @@ TEST_F(MyAllocTest, ExceptionalBlocksAreNotReusedForLargerAllocations)
   void *ptr= alloc.Alloc(600);
   alloc.ClearForReuse();
 
+  if (alloc.allocated_size() == 0)
+  {
+    /*
+      The MEM_ROOT was all cleared out (probably because we're running under
+      Valgrind/ASAN), so we are obviously not doing any reuse. Moreover,
+      the test below is unsafe in this case, since the system malloc() could
+      reuse the block.
+    */
+    return;
+  }
+
   // The allocated block is too small to satisfy this new, larger allocation.
   void *ptr2= alloc.Alloc(605);
   EXPECT_NE(ptr, ptr2);

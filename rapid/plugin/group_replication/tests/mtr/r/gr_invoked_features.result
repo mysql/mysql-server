@@ -42,9 +42,10 @@ INSERT INTO t11 VALUES(4,4,f1(4));
 INSERT INTO t11 VALUES(7,7,f1(7));
 CALL p11(5, UUID());
 CALL p11(10, UUID());
+SET @old_event_scheduler= @@global.event_scheduler;
 SET GLOBAL EVENT_SCHEDULER = on;
 ALTER EVENT e1 ENABLE;
-SET GLOBAL EVENT_SCHEDULER = off;
+SET GLOBAL EVENT_SCHEDULER = @old_event_scheduler;
 include/rpl_sync.inc
 
 SHOW TABLES LIKE 't%';

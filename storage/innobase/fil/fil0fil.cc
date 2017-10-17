@@ -5347,8 +5347,7 @@ Fil_system::rename_tablespace_name(const char* old_name, const char* new_name)
 		ib::error()
 			<< "Cannot find tablespace for '" << old_name << "'"
 			<< " in tablespace memory cache";
-
-		return(DB_ERROR);
+		return(DB_TABLESPACE_NOT_FOUND);
 	}
 
 	Fil_shard*	new_shard = nullptr;
@@ -5375,7 +5374,7 @@ Fil_system::rename_tablespace_name(const char* old_name, const char* new_name)
 				<< " is already in the tablespace"
 				<< " memory cache";
 
-			return(DB_ERROR);
+			return(DB_TABLESPACE_EXISTS);
 		} else {
 			ut_a(new_shard == old_shard);
 		}
@@ -10826,3 +10825,28 @@ fil_free_scanned_files()
 	fil_system->free_scanned_files();
 }
 
+/** Update the tablespace name. Incase, the new name
+and old name are same, no update done.
+@param[in,out]	space		tablespace object on which name
+				will be updated
+@param[in]	name		new name for tablespace */
+void
+fil_space_update_name(fil_space_t* space, const char* name)
+{
+	if (space == nullptr 
+	    || name == nullptr
+	    || space->name == nullptr
+	    || strcmp(space->name, name) == 0) {
+
+		return;
+	}
+
+	dberr_t	err = fil_rename_tablespace_by_name(space->name, name);
+
+	if (err != DB_SUCCESS) {
+		ib::warn()
+			<< "Tablespace rename '" << space->name << "' to"
+			<< " '" << name << "' failed!";
+
+	}
+}

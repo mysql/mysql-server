@@ -1362,13 +1362,6 @@ bool Window::setup_windows(THD* thd,
 }
 
 
-bool Window::needs_sorting()
-{
-  return (m_partition_by != nullptr ||
-          m_order_by != nullptr);
-}
-
-
 bool Window::has_dynamic_frame_upper_bound() const
 {
   return m_frame == nullptr && m_order_by != nullptr;
@@ -1525,12 +1518,6 @@ void Window::reset_execution_state(Reset_level level)
   m_last_rowno_in_range_frame= 0;
 }
 
-
-bool Window::is_last_row_in_frame ()
-{
-  return (m_is_last_row_in_frame ||
-          m_select->table_list.elements == 0);
-}
 
 //int64 Window::frame_cardinality()
 //{

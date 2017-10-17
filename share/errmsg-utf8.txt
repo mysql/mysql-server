@@ -10935,7 +10935,9 @@ ER_PASSWORD_EXPIRATION_NOT_SUPPORTED_BY_AUTH_METHOD
   eng "The selected authentication method %.*s does not support password expiration"
   bg "Избрания метод за удостоверяване %.*s не поддържа изтичане на пароли"
 
+ER_INVALID_GEOJSON_CRS_NOT_TOP_LEVEL
+  eng "Invalid GeoJSON data provided to function %s: Member 'crs' must be specified in the top level object."
+
 #
 #  End of 8.0 error messages.
 #
-

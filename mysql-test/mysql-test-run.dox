@@ -859,6 +859,13 @@
   @ref PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl" to pick a value
   automatically, based on system information. The parallel option may
   also be given using the environment variable <b>MTR_PARALLEL</b>.
+
+  @note
+  Test cases which use <b>not_parallel.inc</b> are run at the end with
+  a parallel value of <b>1</b> overriding the <b>`--parallel`</b>
+  option value. Such test cases will be executed at the end of the test
+  run one at a time. These tests also require
+  <b>`--run-non-parallel-tests`</b> option to be ON.
 */
 
 ###############################################################################
@@ -4534,6 +4541,15 @@
       Allow a failed and retried test to fail more than the default 2
       times before giving it up. Setting it to 0 or 1 effectively
       turns off retries
+    </li>
+
+    <li>
+      <tt>`--run-non-parallel-tests`</tt>
+
+      Allow tests marked as "non-parallel" to run. Tests can be thus
+      marked by including the line
+      <b>`--source` include/not_parallel.inc</b>, and they will only
+      be run if this option is enabled.
     </li>
 
     <li>

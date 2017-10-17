@@ -155,6 +155,13 @@ protected:
   bool m_opt_last_row;
 
   /**
+    Can be true if first window after a join: we may need to restore the input
+    record after buffered window processing if join_read_key's caching logic
+    presumes the record hasn't been modified (when last qep_tab uses JT_EQ_REF).
+  */
+  bool m_needs_restore_input_row;
+
+  /**
     The last window to be evaluated at execution time.
   */
   bool m_last;
@@ -218,6 +225,7 @@ public:
     accesses, cf. #m_frame_buffer_positions.
   */
   enum retrieve_cached_row_reason {
+    REA_WONT_UPDATE_HINT= -1, // special value when using restore_special_record
     REA_FIRST_IN_PARTITION= 0,
     REA_CURRENT= 1,
     REA_FIRST_IN_FRAME= 2,
@@ -329,10 +337,12 @@ public:
     FBC_FIRST_IN_STATIC_RANGE= -2,
     /// An already prepared output row whose result we want to reuse.
     FBC_LAST_RESULT_OPTIMIZED_RANGE= -3,
+    /// The last row cached in the frame buffer; needed to resurrect input row
+    FBC_LAST_BUFFERED_ROW= -4,
     // Insert new values here.
     // And keep the ones below up to date.
     FBC_FIRST_KEY= FBC_FIRST_IN_NEXT_PARTITION,
-    FBC_LAST_KEY= FBC_LAST_RESULT_OPTIMIZED_RANGE,
+    FBC_LAST_KEY= FBC_LAST_BUFFERED_ROW,
   };
 
 protected:
@@ -577,6 +587,14 @@ protected:
   */
   bool m_dont_aggregate;
 
+  /*
+    When we bring back rows from the frame buffer to the input row,
+    we destroy its contents, unless the row we bring back is
+    m_last_rowno_in_cache. True if we last brought back something else.
+    Set by bring_back_frame_row. Used to determine if we need to resurrect
+    row m_last_rowno_in_cache when needed.
+   */
+  bool m_input_row_clobbered;
   /*------------------------------------------------------------------------
    *
    * Constructors
@@ -605,6 +623,7 @@ private:
       m_static_aggregates(false),
       m_opt_first_row(false),
       m_opt_last_row(false),
+      m_needs_restore_input_row(false),
       m_last(false),
       m_ancestor(nullptr),
       m_tmp_pos(nullptr, -1),
@@ -629,7 +648,8 @@ private:
       m_is_last_row_in_frame(false),
       m_do_copy_null(false),
       m_inverse_aggregation(false),
-      m_dont_aggregate(false)
+      m_dont_aggregate(false),
+      m_input_row_clobbered(false)
   {
     m_opt_nth_row.m_offsets.init_empty_const();
     m_opt_lead_lag.m_offsets.init_empty_const();
@@ -933,7 +953,10 @@ public:
     @return true if we have such a clause, which means we need to sort the
             input table before evaluating the window functions
   */
-  bool needs_sorting();
+  bool needs_sorting() const
+  {
+    return (m_partition_by != nullptr || m_order_by != nullptr);
+  }
 
   /**
     If we cannot compute the window function without looking at succeeding
@@ -981,6 +1004,16 @@ public:
   bool is_last() const { return m_last; }
 
   /**
+    See #m_needs_restore_input_row
+  */
+  void set_needs_restore_input_row(bool b) { m_needs_restore_input_row= b; }
+
+  /**
+    See #m_needs_restore_input_row
+  */
+  bool needs_restore_input_row() const { return m_needs_restore_input_row; }
+
+  /**
     See #m_opt_nth_row
   */
   const st_nth &opt_nth_row() const { return m_opt_nth_row; }
@@ -993,7 +1026,7 @@ public:
   /**
     Getter for m_frame_buffer_param, q.v.
   */
-  Temp_table_param *frame_buffer_param() { return m_frame_buffer_param; }
+  Temp_table_param *frame_buffer_param() const { return m_frame_buffer_param; }
 
   /**
     Setter for m_frame_buffer_param, q.v.
@@ -1003,7 +1036,7 @@ public:
   /**
     Getter for m_frame_buffer, q.v.
   */
-  TABLE *frame_buffer() { return m_frame_buffer; }
+  TABLE *frame_buffer() const { return m_frame_buffer; }
 
   /**
     Setter for m_frame_buffer, q.v.
@@ -1013,7 +1046,7 @@ public:
   /**
    Getter for m_outtable_param, q.v.
    */
-  Temp_table_param *outtable_param() { return m_outtable_param; }
+  Temp_table_param *outtable_param() const { return m_outtable_param; }
 
   /**
    Setter for m_outtable_param, q.v.
@@ -1044,7 +1077,7 @@ public:
 
     @returns reference to the map containing the buffered rows
   */
-  std::unordered_map<uint64, std::vector<uchar>> &frame_buffer_cache()
+  std::unordered_map<uint64, std::vector<uchar>> &frame_buffer_cache() const
   {
     return m_frame_buffer_cache;
   }
@@ -1061,7 +1094,7 @@ public:
   /**
     See #m_last_row_output
   */
-  int64 last_row_output() { return m_last_row_output; }
+  int64 last_row_output() const { return m_last_row_output; }
 
   /**
     See #m_last_row_output
@@ -1071,7 +1104,7 @@ public:
   /**
    See #m_rowno_being_visited
    */
-  int64 rowno_being_visited() { return m_rowno_being_visited; }
+  int64 rowno_being_visited() const { return m_rowno_being_visited; }
 
   /**
    See #m_rowno_being_visited
@@ -1081,7 +1114,7 @@ public:
   /**
     See #m_last_rowno_in_cache
   */
-  int64 last_rowno_in_cache () { return m_last_rowno_in_cache; }
+  int64 last_rowno_in_cache () const { return m_last_rowno_in_cache; }
 
   /**
     See #m_last_rowno_in_cache
@@ -1091,7 +1124,7 @@ public:
   /**
     See #m_last_rowno_in_range_frame
   */
-  int64 last_rowno_in_range_frame () { return m_last_rowno_in_range_frame; }
+  int64 last_rowno_in_range_frame () const { return m_last_rowno_in_range_frame; }
 
   /**
     See #m_last_rowno_in_range_frame
@@ -1101,7 +1134,7 @@ public:
   /**
     See #m_last_rowno_in_peerset
   */
-  int64 last_rowno_in_peerset() { return m_last_rowno_in_peerset; }
+  int64 last_rowno_in_peerset() const { return m_last_rowno_in_peerset; }
 
   /**
     See #m_last_rowno_in_peerset
@@ -1111,7 +1144,7 @@ public:
   /**
     See #m_do_copy_null
   */
-  bool do_copy_null () { return m_do_copy_null; }
+  bool do_copy_null () const { return m_do_copy_null; }
 
   /**
     See #m_do_copy_null
@@ -1121,7 +1154,7 @@ public:
   /**
     See #m_inverse_aggregation
   */
-  bool do_inverse () { return m_inverse_aggregation; }
+  bool do_inverse () const { return m_inverse_aggregation; }
 
   /**
     See #m_inverse_aggregation
@@ -1135,7 +1168,7 @@ public:
   /**
     See #m_aggregates_primed
   */
-  bool aggregates_primed() { return m_aggregates_primed; }
+  bool aggregates_primed() const { return m_aggregates_primed; }
 
   /**
     See #m_aggregates_primed
@@ -1145,7 +1178,7 @@ public:
   /**
     See #m_dont_aggregate
   */
-  bool dont_aggregate() { return m_dont_aggregate; }
+  bool dont_aggregate() const { return m_dont_aggregate; }
 
   /**
     See #m_dont_aggregate
@@ -1157,9 +1190,22 @@ public:
   }
 
   /**
+    See #m_input_row_clobbered
+  */
+  bool input_row_clobbered() const { return m_input_row_clobbered; }
+
+  /**
+    See #m_input_row_clobbered
+  */
+  void set_input_row_clobbered(bool b) { m_input_row_clobbered= b; }
+
+  /**
     See #m_is_last_row_in_frame
   */
-  bool is_last_row_in_frame ();
+  bool is_last_row_in_frame() const
+  {
+    return m_is_last_row_in_frame || m_select->table_list.elements == 0;
+  }
 
   /**
     See #m_is_last_row_in_frame
@@ -1176,7 +1222,7 @@ public:
   /**
     See #m_rowno_in_frame
   */
-  int64 rowno_in_frame () { return m_rowno_in_frame; }
+  int64 rowno_in_frame () const { return m_rowno_in_frame; }
 
   /**
     See #m_rowno_in_frame
@@ -1190,7 +1236,7 @@ public:
   /**
     See #m_rowno_in_partition
   */
-  int64 rowno_in_partition () { return m_rowno_in_partition; }
+  int64 rowno_in_partition () const { return m_rowno_in_partition; }
 
   /**
     See #m_rowno_in_partition
@@ -1208,7 +1254,10 @@ public:
   /**
     See #m_first_rowno_in_range_frame
   */
-  int64 first_rowno_in_range_frame() { return m_first_rowno_in_range_frame; }
+  int64 first_rowno_in_range_frame() const
+  {
+    return m_first_rowno_in_range_frame;
+  }
 
   /**
     See #m_frame_buffer_total_rows
@@ -1221,7 +1270,7 @@ public:
   /**
     See #m_frame_buffer_total_rows
   */
-  int64 frame_buffer_total_rows() { return m_frame_buffer_total_rows; }
+  int64 frame_buffer_total_rows() const { return m_frame_buffer_total_rows; }
 
   /**
     See #m_frame_buffer_partition_offset
@@ -1234,7 +1283,7 @@ public:
   /**
     See #m_frame_buffer_partition_offset
   */
-  int64 frame_buffer_partition_offset()
+  int64 frame_buffer_partition_offset() const
   {
     return m_frame_buffer_partition_offset;
   }

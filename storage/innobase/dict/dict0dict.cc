@@ -7901,10 +7901,6 @@ dict_table_change_id_sys_tables()
 	for (uint32_t i = 0; i < SYS_NUM_SYSTEM_TABLES; i++) {
 		dict_table_t*	system_table = dict_table_get_low(SYSTEM_TABLE_NAME[i]);
 
-		/* It's possible the SYS_VIRTUAL is not exist. */
-		if (system_table == nullptr && i == 8) {
-			continue;
-		}
 		ut_a(system_table != nullptr);
 		ut_ad(dict_sys_table_id[i] == system_table->id);
 
@@ -7916,6 +7912,8 @@ dict_table_change_id_sys_tables()
 		dict_table_change_id_in_cache(system_table, new_table_id);
 
 		dict_sys_table_id[i] = system_table->id;
+
+		dict_table_prevent_eviction(system_table);
 	}
 }
 
@@ -7988,10 +7986,6 @@ dict_sys_table_id_build()
 	for (uint32_t i = 0; i < SYS_NUM_SYSTEM_TABLES; i++) {
 		dict_table_t*	system_table = dict_table_get_low(SYSTEM_TABLE_NAME[i]);
 
-		/* It's possible the SYS_VIRTUAL is not exist. */
-		if (system_table == nullptr && i == 8) {
-			continue;
-		}
 		ut_a(system_table != nullptr);
 		dict_sys_table_id[i] = system_table->id;
 	}
