@@ -26,6 +26,7 @@ TempTable public handler API implementation. */
 #include "my_dbug.h"
 #include "sql/handler.h"
 #include "sql/mysqld.h" /* temptable_max_ram */
+#include "sql/system_variables.h"
 #include "sql/table.h"
 #include "storage/temptable/include/temptable/handler.h"
 #include "storage/temptable/include/temptable/row.h"

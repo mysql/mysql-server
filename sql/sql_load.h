@@ -22,9 +22,9 @@
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
-#include "sql/query_result.h"                   /* sql_exchange */
 #include "sql/sql_cmd.h"                        /* Sql_cmd */
 #include "sql/sql_data_change.h"                /* enum_duplicates */
+#include "sql/sql_exchange.h"                   /* sql_exchange */
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql_string.h"

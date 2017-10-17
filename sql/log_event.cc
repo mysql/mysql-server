@@ -109,7 +109,7 @@
 #include "sql/mdl.h"
 #include "sql/mysqld.h"        // lower_case_table_names server_uuid ...
 #include "sql/protocol.h"
-#include "sql/query_result.h"  // sql_exchange
+#include "sql/sql_exchange.h"  // sql_exchange
 #include "sql/rpl_msr.h"       // channel_map
 #include "sql/rpl_mts_submode.h" // Mts_submode
 #include "sql/rpl_reporting.h"

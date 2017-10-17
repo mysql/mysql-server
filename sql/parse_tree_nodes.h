@@ -55,6 +55,7 @@
 #include "sql/sql_admin.h"           // Sql_cmd_shutdown etc.
 #include "sql/sql_alter.h"
 #include "sql/sql_class.h"           // THD
+#include "sql/sql_exchange.h"
 #include "sql/sql_lex.h"             // LEX
 #include "sql/sql_list.h"
 #include "sql/sql_load.h"            // Sql_cmd_load_table

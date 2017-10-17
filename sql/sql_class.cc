@@ -66,6 +66,7 @@
 #include "sql/sql_base.h"                    // close_temporary_tables
 #include "sql/sql_callback.h"                // MYSQL_CALLBACK
 #include "sql/sql_handler.h"                 // mysql_ha_cleanup
+#include "sql/sql_lex.h"
 #include "sql/sql_parse.h"                   // is_update_query
 #include "sql/sql_plugin.h"                  // plugin_thdvar_init
 #include "sql/sql_prepare.h"                 // Prepared_statement

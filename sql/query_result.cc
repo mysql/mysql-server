@@ -45,6 +45,7 @@
 #include "sql/sql_class.h"     // THD
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
+#include "sql/sql_exchange.h"
 #include "sql/system_variables.h"
 #include "sql_string.h"
 

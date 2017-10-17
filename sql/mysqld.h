@@ -50,7 +50,6 @@
 #include "mysql_com.h"                     // SERVER_VERSION_LENGTH
 #include "sql/sql_bitmap.h"
 #include "sql/sql_const.h"                 // UUID_LENGTH
-#include "sql/system_variables.h"
 
 class Rpl_filter;
 class THD;
