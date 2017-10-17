@@ -7016,7 +7016,7 @@ bool Xid_log_event::do_commit(THD *thd_arg)
 
 /**
    Worker commits Xid transaction and in case of its transactional
-   info table marks the current group as done in the Coordnator's
+   info table marks the current group as done in the Coordinator's
    Group Assigned Queue.
 
    @return zero as success or non-zero as an error
