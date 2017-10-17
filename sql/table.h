@@ -36,7 +36,6 @@
 #include "mysql/components/services/psi_table_bits.h"
 #include "sql/dd/types/foreign_key.h" // dd::Foreign_key::enum_rule
 #include "sql/enum_query_type.h" // enum_query_type
-#include "sql/handler.h"   // row_type
 #include "sql/key.h"
 #include "sql/key_spec.h"
 #include "sql/mdl.h"       // MDL_wait_for_subgraph
@@ -66,13 +65,17 @@ class Field_json;
 /* Structs that defines the TABLE */
 class File_parser;
 class GRANT_TABLE;
+class Handler_share;
 class Index_hint;
 class Item;
 class Item_field;
 class Json_diff_vector;
 class Json_seekable_path;
 class Json_wrapper;
+class Opt_hints_qb;
+class Opt_hints_table;
 class Query_result_union;
+class SELECT_LEX;
 class SELECT_LEX_UNIT;
 class Security_context;
 class String;
@@ -80,19 +83,19 @@ class THD;
 class Table_cache_element;
 class Table_trigger_dispatcher;
 class Temp_table_param;
+class handler;
 class partition_info;
+enum enum_stats_auto_recalc : int;
+enum row_type : int;
+struct HA_CREATE_INFO;
 struct LEX;
 struct NESTED_JOIN;
-struct POSITION;
 struct Partial_update_info;
 struct TABLE;
 struct TABLE_LIST;
 struct TABLE_SHARE;
-
+struct handlerton;
 typedef int8 plan_idx;
-class Opt_hints_qb;
-class Opt_hints_table;
-class SELECT_LEX;
 
 namespace dd {
   class Table;
@@ -116,13 +119,6 @@ enum class enum_json_diff_operation;
                           if ((A)->s->null_bytes > 0) \
                           memset((A)->null_flags, 255, (A)->s->null_bytes);\
                         }
-
-/*
-  Used to identify NESTED_JOIN structures within a join (applicable to
-  structures representing outer joins that have not been simplified away).
-*/
-typedef ulonglong nested_join_map;
-
 
 #define tmp_file_prefix "#sql"			/**< Prefix for tmp tables */
 #define tmp_file_prefix_length 4
@@ -1547,14 +1543,8 @@ public:
   void mark_generated_columns(bool is_update);
   bool is_field_used_by_generated_columns(uint field_index);
   void mark_gcol_in_maps(Field *field);
-  inline void column_bitmaps_set(MY_BITMAP *read_set_arg,
-                                 MY_BITMAP *write_set_arg)
-  {
-    read_set= read_set_arg;
-    write_set= write_set_arg;
-    if (file && created)
-      file->column_bitmaps_signal();
-  }
+  void column_bitmaps_set(MY_BITMAP *read_set_arg,
+                                 MY_BITMAP *write_set_arg);
   inline void column_bitmaps_set_no_signal(MY_BITMAP *read_set_arg,
                                            MY_BITMAP *write_set_arg)
   {
@@ -1585,22 +1575,7 @@ public:
   void copy_tmp_key(int old_idx, bool modify_share);
   void drop_unused_tmp_keys(bool modify_share);
 
-  void set_keyread(bool flag)
-  {
-    DBUG_ASSERT(file);
-    if (flag && !key_read)
-    {
-      key_read= 1;
-      if (is_created())
-        file->extra(HA_EXTRA_KEYREAD);
-    }
-    else if (!flag && key_read)
-    {
-      key_read= 0;
-      if (is_created())
-        file->extra(HA_EXTRA_NO_KEYREAD);
-    }
-  }
+  void set_keyread(bool flag);
 
   /**
     Check whether the given index has a virtual generated columns.
@@ -1629,14 +1604,7 @@ public:
     Set the table as "created", and enable flags in storage engine
     that could not be enabled without an instantiated table.
   */
-  void set_created()
-  {
-    if (created)
-      return;
-    if (key_read)
-      file->extra(HA_EXTRA_KEYREAD);
-    created= true;
-  }
+  void set_created();
   /**
     Set the contents of table to be "deleted", ie "not created", after having
     deleted the contents.
@@ -3530,101 +3498,6 @@ typedef Table_list_adapter<Local_tables_iterator> Local_tables_list;
 
 /// A list interface over the TABLE_LIST::next_global pointer.
 typedef Table_list_adapter<Global_tables_iterator> Global_tables_list;
-
-/**
-  Semijoin_mat_optimize collects data used when calculating the cost of
-  executing a semijoin operation using a materialization strategy.
-  It is used during optimization phase only.
-*/
-
-struct Semijoin_mat_optimize
-{
-  /// Optimal join order calculated for inner tables of this semijoin op.
-  POSITION *positions;
-  /// True if data types allow the MaterializeLookup semijoin strategy
-  bool lookup_allowed;
-  /// True if data types allow the MaterializeScan semijoin strategy
-  bool scan_allowed;
-  /// Expected number of rows in the materialized table
-  double expected_rowcount;
-  /// Materialization cost - execute sub-join and write rows to temp.table
-  Cost_estimate materialization_cost;
-  /// Cost to make one lookup in the temptable
-  Cost_estimate lookup_cost;
-  /// Cost of scanning the materialized table
-  Cost_estimate scan_cost;
-  /// Array of pointers to fields in the materialized table.
-  Item_field **mat_fields;
-};
-
-
-/**
-  Struct NESTED_JOIN is used to represent how tables are connected through
-  outer join operations and semi-join operations to form a query block.
-  Out of the parser, inner joins are also represented by NESTED_JOIN
-  structs, but these are later flattened out by simplify_joins().
-  Some outer join nests are also flattened, when it can be determined that
-  they can be processed as inner joins instead of outer joins.
-*/
-struct NESTED_JOIN
-{
-  List<TABLE_LIST>  join_list;       /* list of elements in the nested join */
-  table_map         used_tables;     /* bitmap of tables in the nested join */
-  table_map         not_null_tables; /* tables that rejects nulls           */
-  /**
-    Used for pointing out the first table in the plan being covered by this
-    join nest. It is used exclusively within make_outerjoin_info().
-   */
-  plan_idx first_nested;
-  /**
-    Set to true when natural join or using information has been processed.
-  */
-  bool natural_join_processed;
-  /**
-    Number of tables and outer join nests administered by this nested join
-    object for the sake of cost analysis. Includes direct member tables as
-    well as tables included through semi-join nests, but notice that semi-join
-    nests themselves are not counted.
-  */
-  uint              nj_total;
-  /**
-    Used to count tables in the nested join in 2 isolated places:
-    1. In make_outerjoin_info(). 
-    2. check_interleaving_with_nj/backout_nj_state (these are called
-       by the join optimizer. 
-    Before each use the counters are zeroed by SELECT_LEX::reset_nj_counters.
-  */
-  uint              nj_counter;
-  /**
-    Bit identifying this nested join. Only nested joins representing the
-    outer join structure need this, other nests have bit set to zero.
-  */
-  nested_join_map   nj_map;
-  /**
-    Tables outside the semi-join that are used within the semi-join's
-    ON condition (ie. the subquery WHERE clause and optional IN equalities).
-  */
-  table_map         sj_depends_on;
-  /**
-    Outer non-trivially correlated tables, a true subset of sj_depends_on
-  */
-  table_map         sj_corr_tables;
-  /**
-    Query block id if this struct is generated from a subquery transform.
-  */
-  uint query_block_id;
-
-  /// Bitmap of which strategies are enabled for this semi-join nest
-  uint sj_enabled_strategies;
-
-  /*
-    Lists of trivially-correlated expressions from the outer and inner tables
-    of the semi-join, respectively.
-  */
-  List<Item>        sj_outer_exprs, sj_inner_exprs;
-  Semijoin_mat_optimize sjm;
-};
-
 
 struct OPEN_TABLE_LIST
 {

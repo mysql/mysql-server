@@ -29,6 +29,7 @@
 #include "sql/item.h"
 #include "sql/key.h"
 #include "sql/mysqld.h"    // table_alias_charset
+#include "sql/nested_join.h"
 #include "sql/parse_tree_hints.h"
 #include "sql/set_var.h"
 #include "sql/sql_class.h" // THD

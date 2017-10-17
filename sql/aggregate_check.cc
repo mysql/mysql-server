@@ -36,6 +36,7 @@
 #include "sql/item_func.h"
 #include "sql/item_row.h"
 #include "sql/key.h"
+#include "sql/nested_join.h"
 #include "sql/opt_trace.h"
 #include "sql/opt_trace_context.h"
 #include "sql/parse_tree_nodes.h"

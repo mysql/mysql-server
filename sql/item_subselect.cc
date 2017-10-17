@@ -55,6 +55,7 @@
 #include "sql/key.h"
 #include "sql/my_decimal.h"
 #include "sql/mysqld.h"          // in_left_expr_name
+#include "sql/nested_join.h"
 #include "sql/opt_explain_format.h"
 #include "sql/opt_trace.h"       // OPT_TRACE_TRANSFORM
 #include "sql/opt_trace_context.h"

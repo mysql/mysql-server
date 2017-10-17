@@ -53,6 +53,7 @@
 #include "sql/json_dom.h"       // Json_scalar_holder
 #include "sql/key.h"
 #include "sql/mysqld.h"         // log_10
+#include "sql/nested_join.h"
 #include "sql/opt_trace.h"      // Opt_trace_object
 #include "sql/opt_trace_context.h"
 #include "sql/parse_tree_helpers.h" // PT_item_list
