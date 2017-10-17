@@ -152,15 +152,12 @@ internal_set_super_read_only(Sql_service_interface *sql_interface)
   if (srv_err == 0)
   {
 #ifndef DBUG_OFF
-    sql_interface->execute_query("SELECT @@GLOBAL.super_read_only;", &rset);
-    DBUG_ASSERT(rset.getLong(0) == 1);
+    long err;
+    err = sql_interface->execute_query("SELECT @@GLOBAL.super_read_only;", &rset);
+
+    DBUG_ASSERT(!err && rset.get_rows() > 0 && rset.getLong(0) == 1);
     log_message(MY_INFORMATION_LEVEL, "Setting super_read_only=ON.");
 #endif
-  }
-  else
-  {
-    log_message(MY_ERROR_LEVEL, "'SET super_read_only= 1' query execution"
-      " resulted in failure. errno: %d", srv_err); /* purecov: inspected */
   }
 
   DBUG_RETURN(srv_err);
@@ -224,18 +221,14 @@ internal_reset_super_read_only(Sql_service_interface *sql_interface)
 
   const char * query= "SET GLOBAL super_read_only= 0";
   long srv_err= sql_interface->execute_query(query);
-  if (srv_err)
-  {
-    log_message(MY_ERROR_LEVEL, "SET super_read_only query execution "
-      "resulted in failure. errno: %d", srv_err); /* purecov: inspected */
-  }
 #ifndef DBUG_OFF
-  else
+  if (srv_err == 0)
   {
+    long err;
     query= "SELECT @@GLOBAL.super_read_only;";
-    sql_interface->execute_query(query, &rset);
-    DBUG_ASSERT(rset.getLong(0) == 0);
+    err= sql_interface->execute_query(query, &rset);
 
+    DBUG_ASSERT(!err && rset.get_rows() > 0 && rset.getLong(0) == 0);
     log_message(MY_INFORMATION_LEVEL, "Setting super_read_only=OFF.");
   }
 #endif
@@ -273,18 +266,14 @@ internal_reset_read_only(Sql_service_interface *sql_interface)
   const char* query= "SET GLOBAL read_only= 0";
   long srv_err= sql_interface->execute_query(query);
 
-  if (srv_err)
-  {
-
-    log_message(MY_ERROR_LEVEL, "SET read_only query execution "
-      "resulted in failure. errno: %d", srv_err); /* purecov: inspected */
-  }
 #ifndef DBUG_OFF
-  else
+  if (srv_err == 0)
   {
+    long err;
     query= "SELECT @@GLOBAL.read_only";
-    sql_interface->execute_query(query, &rset);
-    DBUG_ASSERT(rset.getLong(0) == 0);
+    err= sql_interface->execute_query(query, &rset);
+
+    DBUG_ASSERT(!err && rset.get_rows() > 0 && rset.getLong(0) == 0);
     log_message(MY_INFORMATION_LEVEL, "Setting read_only=OFF.");
   }
 #endif
@@ -351,14 +340,9 @@ internal_get_server_super_read_only(Sql_service_interface *sql_interface)
 
   long srv_error=
     sql_interface->execute_query("SELECT @@GLOBAL.super_read_only", &rset);
-  if (srv_error == 0)
+  if (srv_error == 0 && rset.get_rows() > 0)
   {
     server_super_read_only= rset.getLong(0);
-  }
-  else
-  {
-    log_message(MY_ERROR_LEVEL, " SELECT @@GLOBAL.read_only "
-      "resulted in failure. errno: %d", srv_error); /* purecov: inspected */
   }
 
   DBUG_RETURN(server_super_read_only);
@@ -393,14 +377,9 @@ internal_get_server_read_only(Sql_service_interface *sql_interface)
   Sql_resultset rset;
   longlong server_read_only= -1;
   long srv_error= sql_interface->execute_query("SELECT @@GLOBAL.read_only", &rset);
-  if (srv_error == 0)
+  if (srv_error == 0 && rset.get_rows())
   {
     server_read_only= rset.getLong(0);
-  }
-  else
-  {
-    log_message(MY_ERROR_LEVEL, " SELECT @@GLOBAL.read_only "
-      "resulted in failure. errno: %d", srv_error); /* purecov: inspected */
   }
 
   DBUG_RETURN(server_read_only);
@@ -435,15 +414,10 @@ internal_get_server_gtid_executed(Sql_service_interface *sql_interface,
   Sql_resultset rset;
   long srv_err=
     sql_interface->execute_query("SELECT @@GLOBAL.gtid_executed", &rset);
-  if (srv_err == 0)
+  if (srv_err == 0 && rset.get_rows() > 0)
   {
     gtid_executed.assign(rset.getString(0));
     DBUG_RETURN(0);
-  }
-  else
-  {
-    log_message(MY_ERROR_LEVEL, "Internal query: SELECT GLOBAL.gtid_executed"
-      " resulted in failure. errno: %d", srv_err); /* purecov: inspected */
   }
   DBUG_RETURN(1);
 }
