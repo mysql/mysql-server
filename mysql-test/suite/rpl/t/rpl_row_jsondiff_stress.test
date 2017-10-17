@@ -460,7 +460,26 @@ while (!$done)
     if ($verb>=1) { SELECT * FROM t; }
 
     if ($verb==3) { echo # Replicate, reset binlogs, reset replication, pickup new slave config; }
-    --source include/rpl_reset.inc
+
+    --source include/rpl_sync.inc
+
+    --source include/rpl_connection_master.inc
+    RESET MASTER;
+
+    --source include/rpl_connection_slave.inc
+    --source include/stop_slave.inc
+    RESET MASTER;
+    RESET SLAVE;
+    --source include/start_slave.inc
+
+    --let $rpl_connection_name=server_3
+    --source include/rpl_connection.inc
+    --source include/stop_slave.inc
+    RESET MASTER;
+    RESET SLAVE;
+    --source include/start_slave.inc
+
+    --source include/rpl_connection_master.inc
     --source include/save_binlog_position.inc
 
     if ($verb==3) { echo # Execute UPDATE; }
@@ -479,6 +498,7 @@ while (!$done)
     --source include/rpl_diff.inc
 
     DROP TABLE t;
+    --source include/rpl_sync.inc
   }
 
   --inc $iteration
