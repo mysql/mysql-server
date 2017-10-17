@@ -339,3 +339,17 @@ SELECT GREATEST('95-05-05', date '10-10-10') + 0.00;
 SELECT GREATEST(date '1995-05-05', '10-10-10') + 0.00;
 
 -- echo # End of test for Bug#25123839
+
+-- echo #
+-- echo # Bug#26975864: ASSERTION FAILED: DEC <= 6, MY_DATETIME_TO_STR, LEAST,
+-- echo # GREATEST, ETC
+-- echo #
+
+CREATE TABLE t1 (a DATETIME, b BLOB, c TEXT, d CHAR(10), e BINARY(10),
+f VARBINARY(10));
+SET @a='2017-01-01';
+INSERT INTO t1 VALUES ('2017-02-02 12:00:00', @a, @a, @a, @a, @a);
+SELECT GREATEST(a, b), GREATEST(a, c), GREATEST(a, d), GREATEST(a, e),
+GREATEST(a, f) FROM t1;
+SET @a=NULL;
+DROP TABLE t1;

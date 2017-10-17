@@ -3562,12 +3562,11 @@ bool Item_func_min_max::resolve_type(THD *)
       }
     }
     /*
-      If one or more of the arguments have a temporal data type, data type of
-      this item must be set accordingly temporarily to ensure that the various
-      aggregate functions derive the correct properties.
+      If one or more, but not all, of the arguments have a temporal data type,
+      the data type of this item must be set temporarily to ensure that the
+      various aggregate functions derive the correct properties.
     */
-    enum_field_types tmp_data_type= has_temporal_arg() &&
-                                    data_type() == MYSQL_TYPE_VARCHAR ?
+    enum_field_types tmp_data_type= (!is_temporal() && has_temporal_arg()) ?
                                     temporal_item->data_type() : data_type();
     enum_field_types aggregated_data_type= data_type();
     set_data_type(tmp_data_type);
