@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1767,13 +1767,14 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
       release_mdl= true;
 
       DEBUG_SYNC(thd, "ha_commit_trans_after_acquire_commit_lock");
+    }
 
-      if (stmt_has_updated_trans_table(ha_info) && check_readonly(thd, true))
-      {
-        ha_rollback_trans(thd, all);
-        error= 1;
-        goto end;
-      }
+    if (rw_trans && stmt_has_updated_trans_table(ha_info)
+        && check_readonly(thd, true))
+    {
+      ha_rollback_trans(thd, all);
+      error= 1;
+      goto end;
     }
 
     if (!trn_ctx->no_2pc(trx_scope) && (trn_ctx->rw_ha_count(trx_scope) > 1))
@@ -8657,6 +8658,59 @@ bool ha_notify_alter_table(THD *thd, const MDL_key *mdl_key,
                             MYSQL_STORAGE_ENGINE_PLUGIN, &rollback_params);
     }
     return true;
+  }
+  return false;
+}
+
+/**
+  Set the transaction isolation level for the next transaction and update
+  session tracker information about the transaction isolation level.
+
+  @param thd           THD session setting the tx_isolation.
+  @param tx_isolation  The isolation level to be set.
+  @param one_shot      True if the isolation level should be restored to
+                       session default after finishing the transaction.
+*/
+bool set_tx_isolation(THD *thd,
+                      enum_tx_isolation tx_isolation,
+                      bool one_shot)
+{
+  Transaction_state_tracker *tst= NULL;
+
+  if (thd->variables.session_track_transaction_info > TX_TRACK_NONE)
+    tst= (Transaction_state_tracker *)
+           thd->session_tracker.get_tracker(TRANSACTION_INFO_TRACKER);
+
+  thd->tx_isolation= tx_isolation;
+
+  if (one_shot)
+  {
+    DBUG_ASSERT(!thd->in_active_multi_stmt_transaction());
+    DBUG_ASSERT(!thd->in_sub_stmt);
+    enum enum_tx_isol_level l;
+    switch (thd->tx_isolation) {
+    case ISO_READ_UNCOMMITTED:
+      l=  TX_ISOL_UNCOMMITTED;
+      break;
+    case ISO_READ_COMMITTED:
+      l=  TX_ISOL_COMMITTED;
+      break;
+    case ISO_REPEATABLE_READ:
+      l= TX_ISOL_REPEATABLE;
+      break;
+    case ISO_SERIALIZABLE:
+      l= TX_ISOL_SERIALIZABLE;
+      break;
+    default:
+      DBUG_ASSERT(0);
+      return true;
+    }
+    if (tst)
+      tst->set_isol_level(thd, l);
+  }
+  else if (tst)
+  {
+    tst->set_isol_level(thd, TX_ISOL_INHERIT);
   }
   return false;
 }

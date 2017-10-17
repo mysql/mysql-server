@@ -1,0 +1,160 @@
+#
+# Test case to verify that asynchronous replication channel cannot be started
+# on secondary, while group replication is running on single primary-mode.
+#
+# Test:
+#
+# 1. Start GR on server1 & 2.
+# 2. Create new channel ch3_2: server2(slave), server3(master).
+# 3. Add some data to server1 & 3.
+# 4. Verify for following scenarios:
+#    1. start slave and and verify for
+#       ER_GROUP_REPLICATION_CONFIGURATION error.
+#    2. start slave io and verify for
+#       ER_GROUP_REPLICATION_CONFIGURATION error.
+#    3. start slave sql and verify for
+#       ER_GROUP_REPLICATION_CONFIGURATION error.
+# 6. Verify channel ch3_2 IO & SQL THREADS are OFF.
+# 7. Verify data(t2 table) didn't replicated from server3 to server1 & 2.
+# 8. Clean up.
+#
+
+--source include/big_test.inc
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 3
+--let $rpl_group_replication_single_primary_mode=1
+--source ../inc/group_replication.inc
+
+--echo
+--echo # 1. Start GR on server1 & 2
+
+# Boostrap start GR on server1 (Primary)
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+# Start GR on server2 (Secondary)
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+--echo
+--echo # 2. Create new channel ch3_2: server2(slave), server3(master)
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--replace_result $SERVER_MYPORT_3 SERVER_3_PORT
+--eval CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=$SERVER_MYPORT_3 for channel 'ch3_2'
+
+
+--echo
+--echo # 3. Add some data to server1 & 3
+
+# server1: create table t1 and add data
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+CREATE TABLE test.t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO test.t1 VALUES (1);
+
+# server3: create table t2 and add data
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+CREATE TABLE test.t2 (c1 INT NOT NULL) ENGINE=InnoDB;
+INSERT INTO test.t2 VALUES (1);
+
+
+--echo
+--echo # 4. Verify the error scenarios.
+
+# variables for wait_for_slave_io_error.inc and wait_for_slave_sql_error.inc
+--let $rpl_channel_name=ch3_2
+
+--let $slave_io_errno= convert_error(ER_SLAVE_FATAL_ERROR)
+--let $show_slave_io_error= 0
+--let $slave_io_error_replace= / at [0-9]*/ at XXX/
+
+--let $slave_sql_errno= convert_error(ER_SLAVE_FATAL_ERROR)
+--let $show_slave_sql_error= 0
+--let $slave_sql_error_replace= / at [0-9]*/ at XXX/
+
+--echo
+--echo # 4.1 start slave and verify for error ER_SLAVE_FATAL_ERROR
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+START SLAVE FOR CHANNEL 'ch3_2';
+--source include/wait_for_slave_io_error.inc
+--source include/wait_for_slave_sql_error.inc
+
+--echo
+--echo # 4.2 start slave io and verify for error ER_SLAVE_FATAL_ERROR
+START SLAVE IO_THREAD FOR CHANNEL 'ch3_2';
+--source include/wait_for_slave_io_error.inc
+
+--echo
+--echo # 4.3 start slave sql and verify for error ER_SLAVE_FATAL_ERROR
+START SLAVE SQL_THREAD FOR CHANNEL 'ch3_2';
+--source include/wait_for_slave_sql_error.inc
+
+--let $rpl_channel_name=
+
+--echo
+--echo # 5. Verify occurrence of error message
+--replace_regex /[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]\.[0-9][0-9][0-9][0-9][0-9][0-9][-+Z][0-9:]* *[0-9]* *\[/DATE_TIME [/
+
+--let $grep_file= $MYSQLTEST_VARDIR/tmp/gr_secondary_scenario2.err
+--let $grep_pattern= Can't start slave IO THREAD when group replication is running with single primary-mode on a secondary member
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
+--let $grep_file= $MYSQLTEST_VARDIR/tmp/gr_secondary_scenario2.err
+--let $grep_pattern= Can't start slave SQL THREAD when group replication is running with single primary-mode on a secondary member
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
+--echo
+--echo # 6. Verify channel ch3_2 IO & SQL THREAD is OFF
+--let $assert_text= Verify channel ch3_2 IO_THREAD is OFF
+--let $assert_cond= "[SELECT SERVICE_STATE FROM performance_schema.replication_connection_status WHERE channel_name = \'ch3_2\', SERVICE_STATE, 1]" = "OFF"
+--source include/assert.inc
+
+--let $assert_text= Verify channel ch3_2 SQL_THREAD is OFF
+--let $assert_cond= "[SELECT SERVICE_STATE FROM performance_schema.replication_applier_status WHERE channel_name = \'ch3_2\', SERVICE_STATE, 1]" = "OFF"
+--source include/assert.inc
+
+--echo
+--echo # 7. Verifying data(t2 table) didn't replicated from server3 to server1 & 2
+
+# Wait for all servers to be in sync
+--source include/rpl_sync.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $assert_text= Verify only single table present i.e. t1
+--let $assert_cond= "[SELECT count(table_name) COUNT FROM INFORMATION_SCHEMA.TABLES WHERE table_schema = \'test\', COUNT, 1]" = "1"
+--source include/assert.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $assert_text= Verify only single table present i.e. t1
+--let $assert_cond= "[SELECT count(table_name) COUNT FROM INFORMATION_SCHEMA.TABLES WHERE table_schema = \'test\', COUNT, 1]" = "1"
+--source include/assert.inc
+
+
+--echo
+--echo # 8. Clean Up
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+RESET SLAVE ALL FOR CHANNEL 'ch3_2';
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+DROP TABLE test.t1;
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+DROP TABLE test.t2;
+
+--source ../inc/group_replication_end.inc

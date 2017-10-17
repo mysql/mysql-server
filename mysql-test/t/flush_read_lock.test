@@ -1731,6 +1731,9 @@ unlock tables;
 --echo # Check that XA non-COMMIT statements are not and COMMIT is
 --echo # blocked by active FTWRL in another connection
 --echo #
+--echo # XA COMMIT, XA ROLLBACK and XA PREPARE does take COMMIT lock to ensure
+--echo # that nothing is written to bin log and redo log under FTWRL mode.
+--echo #
 --echo # Switching to connection '$con_aux1'.
 connection $con_aux1;
 flush tables with read lock;
@@ -1749,13 +1752,41 @@ flush tables with read lock;
 --echo # Switching to connection 'default'.
 connection default;
 xa end 'test1';
-xa prepare 'test1';
-xa rollback 'test1';
+--echo # Send XA PREPARE 'test1'
+--send xa prepare 'test1'
 --echo # Switching to connection '$con_aux1'.
 connection $con_aux1;
+--echo # Wait until XA PREPARE is blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for commit lock" and
+        info = "xa prepare 'test1'";
+--source include/wait_condition.inc
 unlock tables;
 --echo # Switching to connection 'default'.
 connection default;
+--echo # Reap XA PREPARE.
+--reap
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+flush tables with read lock;
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Send XA ROLLBACK 'test1'
+--send xa rollback 'test1'
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+--echo # Wait until XA ROLLBACK is blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for commit lock" and
+        info = "xa rollback 'test1'";
+--source include/wait_condition.inc
+unlock tables;
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Reap XA ROLLBACK
+--reap
 xa start 'test1';
 insert into t3_trans values (1);
 --echo # Switching to connection '$con_aux1'.
@@ -1765,7 +1796,26 @@ flush tables with read lock;
 connection default;
 connection default;
 xa end 'test1';
-xa prepare 'test1';
+--echo # Send XA PREPARE 'test1'
+--send xa prepare 'test1'
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+--echo # Wait until XA PREPARE is blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for commit lock" and
+        info = "xa prepare 'test1'";
+--source include/wait_condition.inc
+unlock tables;
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Reap XA PREPARE.
+--reap
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+flush tables with read lock;
+--echo # Switching to connection 'default'.
+connection default;
 --echo # Send:
 --send xa commit 'test1';
 --echo # Switching to connection '$con_aux1'.
@@ -1775,6 +1825,63 @@ let $wait_condition=
   select count(*) = 1 from information_schema.processlist
   where state = "Waiting for commit lock" and
         info = "xa commit 'test1'";
+--source include/wait_condition.inc
+unlock tables;
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Reap XA COMMIT.
+--reap
+delete from t3_trans;
+--echo #
+--echo # Check that XA COMMIT / ROLLBACK for prepared transaction from a
+--echo # disconnected session is blocked by active FTWRL in another connection.
+--echo #
+--echo # Create temporary connection for XA transaction.
+connect (con_tmp,localhost,root,,);
+xa start 'test1';
+insert into t3_trans values (1);
+xa end 'test1';
+xa prepare 'test1';
+--echo # Disconnect temporary connection
+disconnect con_tmp;
+--echo # Create temporary connection for XA transaction.
+connect (con_tmp,localhost,root,,);
+xa start 'test2';
+insert into t3_trans values (2);
+xa end 'test2';
+xa prepare 'test2';
+--echo # Disconnect temporary connection
+disconnect con_tmp;
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+flush tables with read lock;
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Send XA ROLLBACK 'test1'
+--send xa rollback 'test1'
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+--echo # Wait until XA ROLLBACK is blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for commit lock" and
+        info = "xa rollback 'test1'";
+--source include/wait_condition.inc
+unlock tables;
+flush tables with read lock;
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Reap XA ROLLBACK
+--reap
+--echo # Send XA COMMIT
+--send xa commit 'test2';
+--echo # Switching to connection '$con_aux1'.
+connection $con_aux1;
+--echo # Wait until XA COMMIT is blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for commit lock" and
+        info = "xa commit 'test2'";
 --source include/wait_condition.inc
 unlock tables;
 --echo # Switching to connection 'default'.

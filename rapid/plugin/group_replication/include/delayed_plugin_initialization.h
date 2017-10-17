@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -56,7 +56,17 @@ public:
   /**
     Wait for the initialization thread to do its job.
   */
-  void wait_for_initialization();
+  void wait_for_thread_end();
+
+  /**
+    Signal that the read mode is set on the server.
+  */
+  void signal_read_mode_ready();
+
+  /**
+    Wait for the read mode to be set by the thread process.
+  */
+  void wait_for_read_mode();
 
 private:
 
@@ -67,6 +77,9 @@ private:
 
   /* Is the server ready*/
   bool is_server_ready;
+
+  /* Is the read mode already set*/
+  bool is_super_read_only_set;
 
   /* Thread related structures */
 

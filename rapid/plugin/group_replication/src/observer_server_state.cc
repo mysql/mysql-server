@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,7 +13,6 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "sql_service_gr_user.h"
 #include "observer_server_state.h"
 #include "delayed_plugin_initialization.h"
 
@@ -24,12 +23,10 @@ using std::string;
 */
 int group_replication_before_handle_connection(Server_state_param *param)
 {
-  if (wait_on_engine_initialization || delay_gr_user_creation)
+  if (wait_on_engine_initialization)
   {
     delayed_initialization_thread->signal_thread_ready();
-    delayed_initialization_thread->wait_for_initialization();
-    delete delayed_initialization_thread;
-    delayed_initialization_thread= NULL;
+    delayed_initialization_thread->wait_for_read_mode();
   }
   return 0;
 }

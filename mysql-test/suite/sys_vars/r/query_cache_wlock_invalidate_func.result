@@ -4,23 +4,43 @@
 ** Connecting con1 using root **
 ** Connection con0 **
 SET @start_global_value = @@GLOBAL.query_cache_wlock_invalidate;
+Warnings:
+Warning	1287	'@@query_cache_wlock_invalidate' is deprecated and will be removed in a future release.
 SET @start_session_value = @@SESSION.query_cache_wlock_invalidate;
+Warnings:
+Warning	1287	'@@query_cache_wlock_invalidate' is deprecated and will be removed in a future release.
 SET @old_cache_size = @@GLOBAL.query_cache_size;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 SET @old_cache_type = @@GLOBAL.query_cache_type;
+Warnings:
+Warning	1287	'@@query_cache_type' is deprecated and will be removed in a future release.
 CREATE TABLE t1(id int, value varchar(10));
 INSERT INTO t1 VALUES(1, 'val1');
 INSERT INTO t1 VALUES(2, 'val2');
 INSERT INTO t1 VALUES(3, 'val3');
 SET GLOBAL query_cache_size = 131072;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 FLUSHING CACHE
 SET GLOBAL query_cache_size = 0;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 SET GLOBAL query_cache_size = 131072;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 SET GLOBAL query_cache_type = ON;
+Warnings:
+Warning	1287	'@@query_cache_type' is deprecated and will be removed in a future release.
 Testing for value ON
 ** Connection con0 **
 SET SESSION query_cache_wlock_invalidate = ON;
+Warnings:
+Warning	1287	'@@query_cache_wlock_invalidate' is deprecated and will be removed in a future release.
 ** Connection con1 **
 SET SESSION query_cache_wlock_invalidate = ON;
+Warnings:
+Warning	1287	'@@query_cache_wlock_invalidate' is deprecated and will be removed in a future release.
 '#----------------------------FN_DYNVARS_136_01--------------#'
 Testing for cache invalidation
 SELECT * FROM t1;
@@ -64,8 +84,12 @@ id	value
 Testing for value OFF
 ** Connection con0 **
 SET SESSION query_cache_wlock_invalidate = OFF;
+Warnings:
+Warning	1287	'@@query_cache_wlock_invalidate' is deprecated and will be removed in a future release.
 ** Connection con1 **
 SET SESSION query_cache_wlock_invalidate = OFF;
+Warnings:
+Warning	1287	'@@query_cache_wlock_invalidate' is deprecated and will be removed in a future release.
 '#----------------------------FN_DYNVARS_136_03------------------#'
 Testing for cache invalidation
 SELECT * FROM t1;
@@ -123,33 +147,49 @@ UNLOCK TABLES;
 ** Connection con1 **
 '#----------------------------FN_DYNVARS_136_05------------------------#'
 SET GLOBAL query_cache_wlock_invalidate = OFF;
+Warnings:
+Warning	1287	'@@query_cache_wlock_invalidate' is deprecated and will be removed in a future release.
 ** Connecting con_int1 using root **
 ** Connection con_int1 **
 SELECT @@SESSION.query_cache_wlock_invalidate;
 @@SESSION.query_cache_wlock_invalidate
 0
+Warnings:
+Warning	1287	'@@query_cache_wlock_invalidate' is deprecated and will be removed in a future release.
 Expected Value : 0 / OFF;
 SET SESSION query_cache_wlock_invalidate = ON;
+Warnings:
+Warning	1287	'@@query_cache_wlock_invalidate' is deprecated and will be removed in a future release.
 ** Connecting con_int2 using root **
 ** Connection con_int2 **
 SELECT @@SESSION.query_cache_wlock_invalidate;
 @@SESSION.query_cache_wlock_invalidate
 0
+Warnings:
+Warning	1287	'@@query_cache_wlock_invalidate' is deprecated and will be removed in a future release.
 Expected Value : 0 / OFF;
 SET SESSION query_cache_wlock_invalidate = OFF;
+Warnings:
+Warning	1287	'@@query_cache_wlock_invalidate' is deprecated and will be removed in a future release.
 ** Connection con_int1 **
 SELECT @@SESSION.query_cache_wlock_invalidate;
 @@SESSION.query_cache_wlock_invalidate
 1
+Warnings:
+Warning	1287	'@@query_cache_wlock_invalidate' is deprecated and will be removed in a future release.
 Expected Value : 1 / ON;
 ** Connection con_int2 **
 SELECT @@SESSION.query_cache_wlock_invalidate;
 @@SESSION.query_cache_wlock_invalidate
 0
+Warnings:
+Warning	1287	'@@query_cache_wlock_invalidate' is deprecated and will be removed in a future release.
 Expected Value : 0 / OFF;
 SELECT @@GLOBAL.query_cache_wlock_invalidate;
 @@GLOBAL.query_cache_wlock_invalidate
 0
+Warnings:
+Warning	1287	'@@query_cache_wlock_invalidate' is deprecated and will be removed in a future release.
 Expected Value : 0 / OFF;
 ** Connection default **
 Disconnecting Connections con_int1, con_int2
@@ -157,9 +197,17 @@ Disconnecting Connections con_int1, con_int2
 CLEANUP
 ** Connection con0 **
 SET @@GLOBAL.query_cache_wlock_invalidate = @start_global_value;
+Warnings:
+Warning	1287	'@@query_cache_wlock_invalidate' is deprecated and will be removed in a future release.
 SET @@SESSION.query_cache_wlock_invalidate = @start_session_value ;
+Warnings:
+Warning	1287	'@@query_cache_wlock_invalidate' is deprecated and will be removed in a future release.
 SET @@GLOBAL.query_cache_size = @old_cache_size;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 SET @@GLOBAL.query_cache_type = @old_cache_type;
+Warnings:
+Warning	1287	'@@query_cache_type' is deprecated and will be removed in a future release.
 ** Connection default **
 Disconnecting Connections con0, con1
 DROP TABLE t1;

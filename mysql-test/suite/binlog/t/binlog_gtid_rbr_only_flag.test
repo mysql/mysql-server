@@ -1,0 +1,93 @@
+# ==== Purpose ====
+#
+# This test will generate many workloads and will assert that the rbr_only
+# flags in binary log are "yes" only for transactions containing only RBR
+# DML transactions.
+#
+# ==== Related Bugs and Worklogs ====
+#
+# BUG#25040331 INTERLEAVED XA TRANSACTIONS MAY DEADLOCK SLAVE APPLIER WITH
+#              REPEATABLE READ
+#
+
+--source include/have_gtid.inc
+# This test case requires MIXED binary log format
+--source include/have_binlog_format_mixed.inc
+
+# This DDL will not be evaluated by the assert
+CREATE TABLE log (
+  c1 INT AUTO_INCREMENT PRIMARY KEY,
+  c2 TEXT,
+  c3 INT NOT NULL DEFAULT 0);
+
+RESET MASTER;
+--let $server_uuid= `SELECT @@server_uuid`
+
+--echo # 1 - Empty transaction
+--replace_result $server_uuid SERVER_UUID
+--eval SET GTID_NEXT='$server_uuid:1'
+BEGIN;
+COMMIT;
+SET GTID_NEXT=AUTOMATIC;
+
+# Empty XA transaction are not binary logged
+
+--echo # 2 and 3 - XA SBR + XA COMMIT
+XA START 'a';
+INSERT INTO log (c2) VALUES ('XA COMMIT');
+XA END 'a';
+XA PREPARE 'a';
+XA COMMIT 'a';
+
+--echo # 4 and 5 - XA SBR + XA ROLLBACK
+XA START 'b';
+INSERT INTO log (c2) VALUES ('XA ROLLBACK');
+XA END 'b';
+XA PREPARE 'b';
+XA ROLLBACK 'b';
+
+--echo # 6 - Atomic DDL
+CREATE TABLE t1 (c1 INT);
+
+--echo # 7 - non-atomic DDL
+CREATE TABLE t2 (c1 INT);
+
+--echo # 8 - SBR only DML transaction
+BEGIN;
+INSERT INTO log (c2) VALUES ('SBR only DML transaction');
+COMMIT;
+
+--echo # 9 - SBR and RBR DML transaction
+BEGIN;
+INSERT INTO log (c2) VALUES ('SBR and RBR DML transaction');
+INSERT INTO log (c2, c3) VALUES ('SBR and RBR DML transaction', RAND()*100);
+COMMIT;
+
+--echo # 10 - RBR only DML transaction
+BEGIN;
+INSERT INTO log (c2, c3) VALUES ('RBR only DML transaction', RAND()*100);
+COMMIT;
+
+--echo # 11 - RBR only DML transaction with SAVEPOINT
+BEGIN;
+INSERT INTO log (c2, c3) VALUES ('RBR only DML transaction with SAVEPOINT', RAND()*100);
+SAVEPOINT `a`;
+INSERT INTO log (c2, c3) VALUES ('RBR only DML transaction with SAVEPOINT', RAND()*100);
+SAVEPOINT `b`;
+INSERT INTO log (c2, c3) VALUES ('RBR only DML transaction with SAVEPOINT', RAND()*100);
+COMMIT;
+
+--echo # 12 - RBR only DML with rows query info
+SET @@SESSION.binlog_rows_query_log_events = ON;
+BEGIN;
+INSERT INTO log (c2, c3) VALUES ('DML with rows query info', RAND()*100);
+COMMIT;
+SET @@SESSION.binlog_rows_query_log_events = OFF;
+
+--let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+#                       1   2  3   4  5  6  7  8  9  10  11  12
+--let $rbr_only_flags= no,yes,no,yes,no,no,no,no,no,yes,yes,yes
+--source include/assert_rbr_only_flags.inc
+
+# Cleanup
+DROP TABLE t1, t2, log;

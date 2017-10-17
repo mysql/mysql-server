@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,6 +29,9 @@ public:
 
   /** Observer for receiver thread stops */
   int thread_stop(Binlog_relay_IO_param *param);
+
+  /** Observer for applier thread starts */
+  int applier_start(Binlog_relay_IO_param *param);
 
   /** Observer for applier thread stops */
   int applier_stop(Binlog_relay_IO_param *param, bool aborted);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@ class Commit_order_manager
 {
 public:
   Commit_order_manager(uint32 worker_numbers);
-  ~Commit_order_manager() {}
+  ~Commit_order_manager();
 
   /**
     Register the worker into commit order queue when coordinator dispatches a
@@ -124,6 +124,10 @@ private:
   }
 
   uint32 queue_front() { return queue_head; }
+
+  // Copy constructor is not implemented
+  Commit_order_manager(const Commit_order_manager&);
+  Commit_order_manager& operator=(const Commit_order_manager&);
 };
 
 inline bool has_commit_order_manager(THD *thd)

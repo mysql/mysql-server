@@ -78,6 +78,10 @@ using std::string;
 #define MAX_EMBEDDED_SERVER_ARGS 64
 #define MAX_DELIMITER_LENGTH 16
 #define DEFAULT_MAX_CONN       128
+#define REPLACE_ROUND_MAX      16
+#ifdef _WIN32
+#define snprintf sprintf_s
+#endif
 
 /* Flags controlling send and reap */
 #define QUERY_SEND_FLAG  1
@@ -394,7 +398,7 @@ enum enum_commands {
   Q_DISABLE_RECONNECT, Q_ENABLE_RECONNECT,
   Q_IF,
   Q_DISABLE_PARSING, Q_ENABLE_PARSING,
-  Q_REPLACE_REGEX, Q_REMOVE_FILE, Q_FILE_EXIST,
+  Q_REPLACE_REGEX, Q_REPLACE_NUMERIC_ROUND, Q_REMOVE_FILE, Q_FILE_EXIST,
   Q_WRITE_FILE, Q_COPY_FILE, Q_PERL, Q_DIE, Q_EXIT, Q_SKIP,
   Q_CHMOD_FILE, Q_APPEND_FILE, Q_CAT_FILE, Q_DIFF_FILES,
   Q_SEND_QUIT, Q_CHANGE_USER, Q_MKDIR, Q_RMDIR,
@@ -480,6 +484,7 @@ const char *command_names[]=
   "disable_parsing",
   "enable_parsing",
   "replace_regex",
+  "replace_numeric_round",
   "remove_file",
   "file_exists",
   "write_file",
@@ -659,6 +664,13 @@ void free_replace();
 void do_get_replace_regex(struct st_command *command);
 void free_replace_regex();
 
+/* For replace numeric round */
+static int glob_replace_numeric_round= -1;
+void do_get_replace_numeric_round(struct st_command *command);
+void free_replace_numeric_round();
+void replace_numeric_round_append(int round, DYNAMIC_STRING* ds,
+                                   const char *from, size_t len);
+
 /* Used by sleep */
 void check_eol_junk_line(const char *eol);
 
@@ -669,6 +681,7 @@ void free_all_replace(){
   free_replace();
   free_replace_regex();
   free_replace_column();
+  free_replace_numeric_round();
 }
 
 
@@ -2578,11 +2591,40 @@ void var_query_set(VAR *var, const char *query, const char** query_end)
 	    len= strlen(val);
 	  }
 	}
-	
+        DYNAMIC_STRING ds_temp;
+        init_dynamic_string(&ds_temp, "", 512, 512);
+
+        /* Store result from replace_result in ds_temp */
 	if (glob_replace)
-	  replace_strings_append(glob_replace, &result, val, len);
-	else
+	    replace_strings_append(glob_replace, &ds_temp, val, len);
+
+         /*
+           Call the replace_numeric_round function with the specified
+           precision. It may be used along with replace_result, so use the
+           output from replace_result as the input for replace_numeric_round.
+        */
+	if (glob_replace_numeric_round >= 0)
+        {
+          /* Copy the result from replace_result if it was used, into buffer */
+          if (ds_temp.length > 0)
+          {
+            char buffer[512];
+            strcpy(buffer, ds_temp.str);
+            dynstr_free(&ds_temp);
+            init_dynamic_string(&ds_temp, "", 512, 512);
+            replace_numeric_round_append(glob_replace_numeric_round, &ds_temp,
+                                          buffer, strlen(buffer));
+          }
+          else
+	    replace_numeric_round_append(glob_replace_numeric_round, &ds_temp,
+                                          val, len);
+        }
+
+        if(!glob_replace &&  glob_replace_numeric_round < 0)
 	  dynstr_append_mem(&result, val, len);
+        else
+          dynstr_append_mem(&result, ds_temp.str, strlen(ds_temp.str));
+        dynstr_free(&ds_temp);
       }
       dynstr_append_mem(&result, "\t", 1);
     }
@@ -9533,6 +9575,9 @@ int main(int argc, char **argv)
       case Q_REPLACE_COLUMN:
 	do_get_replace_column(command);
 	break;
+      case Q_REPLACE_NUMERIC_ROUND:
+	do_get_replace_numeric_round(command);
+	break;
       case Q_SAVE_MASTER_POS: do_save_master_pos(); break;
       case Q_SYNC_WITH_MASTER: do_sync_with_master(command); break;
       case Q_SYNC_SLAVE_WITH_MASTER:
@@ -9883,6 +9928,158 @@ void free_replace_column()
   max_replace_column= 0;
 }
 
+/*
+  Functions to round numeric results.
+
+SYNOPSIS
+  do_get_replace_numeric_round()
+  command - command handle
+
+DESCRIPTION
+  replace_numeric_round <precision>
+
+  where precision is the number of digits after the decimal point
+  that the result will be rounded off to. The precision can only
+  be a number between 0 and 16.
+  eg. replace_numeric_round 10;
+  Numbers which are > 1e10 or < -1e10 are represented using the
+  exponential notation after they are rounded off.
+  Trailing zeroes after the decimal point are removed from the
+  numbers.
+  If the precision is 0, then the value is rounded off to the
+  nearest whole number.
+*/
+void do_get_replace_numeric_round(struct st_command *command)
+{
+  DYNAMIC_STRING ds_round;
+  const struct command_arg numeric_arg =
+    { "precision", ARG_STRING, TRUE, &ds_round,
+      "Number of decimal precision"};
+  DBUG_ENTER("get_replace_numeric_round");
+
+  check_command_args(command, command->first_argument,
+                     &numeric_arg,
+                     sizeof(numeric_arg)/sizeof(struct command_arg),
+                     ' ');
+
+  // Parse the argument string to get the precision
+  long int v= 0;
+  if (str2int(ds_round.str, 10, 0, REPLACE_ROUND_MAX, &v) == NullS)
+    die("A number between 0 and %d is required for the precision "\
+        "in replace_numeric_round", REPLACE_ROUND_MAX);
+
+  glob_replace_numeric_round= (int) v;
+  dynstr_free(&ds_round);
+  DBUG_VOID_RETURN;
+}
+
+
+void free_replace_numeric_round()
+{
+  glob_replace_numeric_round= -1;
+}
+
+
+/*
+  Round the digits after the decimal point to the specified precision
+  by iterating through the result set element, identifying the part to
+  be rounded off, and rounding that part off.
+*/
+void replace_numeric_round_append(int round, DYNAMIC_STRING* result,
+                                   const char *from, size_t len)
+{
+  while (len > 0)
+  {
+    // Move pointer to the start of the numeric values
+    size_t size= strcspn(from, "0123456789");
+    if (size > 0)
+    {
+      dynstr_append_mem(result, from, size);
+      from+= size;
+      len-= size;
+    }
+
+    /*
+      Move the pointer to the end of the numeric values and the
+      the start of the non-numeric values such as "." and "e"
+    */
+    size= strspn(from, "0123456789");
+    int r= round;
+
+    /*
+      If result from one of the rows of the result set is null,
+      break the loop
+    */
+    if (*(from + size) == 0)
+    {
+      dynstr_append_mem(result, from, size);
+      break;
+    }
+
+    switch (*(from + size))
+    {
+    // double/float
+    case '.':
+      size_t size1;
+      size1= strspn(from + size + 1, "0123456789");
+
+      /*
+        Restrict rounding to less than the
+        the existing precision to avoid 1.2 being replaced
+        to 1.2000000
+      */
+      if (size1 < (size_t) r)
+        r= size1;
+    // fallthrough: all cases till next break are executed
+    case 'e':
+    case 'E':
+      if (isdigit(*(from + size + 1)))
+      {
+        char *end;
+        double val= strtod(from, &end);
+        if (end != NULL)
+        {
+          const char *format= (val < 1e10 && val > -1e10) ? "%.*f" : "%.*e";
+          char buf[40];
+
+          size= snprintf(buf, sizeof(buf), format, r, val);
+          if (val < 1e10 && val > -1e10 && r > 0)
+          {
+            /*
+              2.0000000 need to be represented as 2 for consistency
+              2.0010000 also becomes 2.001
+            */
+            while (buf[size-1] == '0')
+              size--;
+
+            // don't leave 100. trailing
+            if (buf[size-1] == '.')
+              size--;
+          }
+          dynstr_append_mem(result, buf, size);
+          len-= (end - from);
+          from= end;
+          break;
+        }
+      }
+
+      /*
+        This is because strtod didn't convert or there wasn't digits after
+        [.eE] so output without changing
+      */
+      dynstr_append_mem(result, from, size);
+      from+= size;
+      len-= size;
+      break;
+    // int
+    default:
+      dynstr_append_mem(result, from, size);
+      from+= size;
+      len-= size;
+      break;
+    }
+  }
+}
 
 /****************************************************************************/
 /*
@@ -11107,13 +11304,43 @@ void replace_dynstr_append_mem(DYNAMIC_STRING *ds,
     }
   }
 
+  DYNAMIC_STRING ds_temp;
+  init_dynamic_string(&ds_temp, "", 512, 512);
+
+  /* Store result from replace_result in ds_temp */
   if (glob_replace)
   {
     /* Normal replace */
-    replace_strings_append(glob_replace, ds, val, len);
+      replace_strings_append(glob_replace, &ds_temp, val, len);
   }
-  else
+
+  /*
+    Call the replace_numeric_round function with the specified
+    precision. It may be used along with replace_result, so use the
+    output from replace_result as the input for replace_numeric_round.
+  */
+  if (glob_replace_numeric_round >= 0)
+  {
+    /* Copy the result from replace_result if it was used, into buffer */
+    if(ds_temp.length > 0)
+    {
+      char buffer[512];
+      strcpy(buffer, ds_temp.str);
+      dynstr_free(&ds_temp);
+      init_dynamic_string(&ds_temp, "", 512, 512);
+      replace_numeric_round_append(glob_replace_numeric_round, &ds_temp,
+                                    buffer, strlen(buffer));
+    }
+    else
+      replace_numeric_round_append(glob_replace_numeric_round, &ds_temp,
+                                    val, len);
+  }
+
+  if (!glob_replace && glob_replace_numeric_round < 0)
     dynstr_append_mem(ds, val, len);
+  else
+    dynstr_append_mem(ds, ds_temp.str, strlen(ds_temp.str));
+  dynstr_free(&ds_temp);
 }
 
 

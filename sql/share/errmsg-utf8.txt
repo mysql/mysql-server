@@ -7669,6 +7669,21 @@ ER_TABLE_REFERENCED
 ER_PARTITION_ENGINE_DEPRECATED_FOR_TABLE
   eng "The partition engine, used by table '%-.192s.%-.192s', is deprecated and will be removed in a future release. Please use native partitioning instead."
 
+ER_WARN_USING_GEOMFROMWKB_TO_SET_SRID_ZERO 01000
+  eng "%.192s(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use %.192s(st_aswkb(geometry), 0) instead."
+
+ER_WARN_USING_GEOMFROMWKB_TO_SET_SRID 01000
+  eng "%.192s(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use %.192s(st_aswkb(geometry), srid) instead."
+
+ER_XA_RETRY
+  eng "The resource manager is not able to commit the transaction branch at this time. Please retry later."
+
+ER_KEYRING_AWS_UDF_AWS_KMS_ERROR
+  eng "Function %s failed due to: %s."
+
+ER_BINLOG_UNSAFE_XA
+  eng "Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements."
+
 #
 #  End of 5.7 error messages.
 #

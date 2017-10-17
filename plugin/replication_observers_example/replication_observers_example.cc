@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -345,6 +345,7 @@ Trans_observer trans_observer = {
 */
 static int binlog_relay_thread_start_call= 0;
 static int binlog_relay_thread_stop_call= 0;
+static int binlog_relay_applier_start_call= 0;
 static int binlog_relay_applier_stop_call= 0;
 static int binlog_relay_before_request_transmit_call= 0;
 static int binlog_relay_after_read_event_call= 0;
@@ -365,6 +366,13 @@ static void dump_binlog_relay_calls()
     my_plugin_log_message(&plugin_info_ptr,
                           MY_INFORMATION_LEVEL,
                           "\nreplication_observers_example_plugin:binlog_relay_thread_stop");
+  }
+
+  if (binlog_relay_applier_start_call)
+  {
+    my_plugin_log_message(&plugin_info_ptr,
+                          MY_INFORMATION_LEVEL,
+                          "\nreplication_observers_example_plugin:binlog_relay_applier_start");
   }
 
   if (binlog_relay_applier_stop_call)
@@ -417,6 +425,12 @@ int binlog_relay_thread_stop(Binlog_relay_IO_param *param)
   return 0;
 }
 
+int binlog_relay_applier_start(Binlog_relay_IO_param *param)
+{
+  binlog_relay_applier_start_call++;
+  return 0;
+}
+
 int binlog_relay_applier_stop(Binlog_relay_IO_param *param,
                               bool aborted)
 {
@@ -464,6 +478,7 @@ Binlog_relay_IO_observer relay_io_observer = {
 
   binlog_relay_thread_start,
   binlog_relay_thread_stop,
+  binlog_relay_applier_start,
   binlog_relay_applier_stop,
   binlog_relay_before_request_transmit,
   binlog_relay_after_read_event,
@@ -491,7 +506,8 @@ int validate_plugin_server_requirements(Trans_param *param)
 
   Gtid gtid= { fake_sidno, fake_gno };
   Gtid_specification gtid_spec= { GTID_GROUP, gtid };
-  Gtid_log_event *gle= new Gtid_log_event(param->server_id, true, 0, 1, gtid_spec);
+  Gtid_log_event *gle=
+    new Gtid_log_event(param->server_id, true, 0, 1, true, gtid_spec);
 
   if (gle->is_valid())
     success++;
@@ -507,7 +523,8 @@ int validate_plugin_server_requirements(Trans_param *param)
     Instantiate a anonymous Gtid_log_event without a THD parameter.
   */
   Gtid_specification anonymous_gtid_spec= { ANONYMOUS_GROUP, gtid };
-  gle= new Gtid_log_event(param->server_id, true, 0, 1, anonymous_gtid_spec);
+  gle=
+    new Gtid_log_event(param->server_id, true, 0, 1, true, anonymous_gtid_spec);
 
   if (gle->is_valid())
     success++;
@@ -574,7 +591,11 @@ int validate_plugin_server_requirements(Trans_param *param)
   char *hostname, *uuid;
   uint port;
   unsigned int server_version;
-  get_server_parameters(&hostname, &port, &uuid, &server_version);
+  st_server_ssl_variables server_ssl_variables=
+      {false,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL};
+
+  get_server_parameters(&hostname, &port, &uuid, &server_version,
+                        &server_ssl_variables);
 
   Trans_context_info startup_pre_reqs;
   get_server_startup_prerequirements(startup_pre_reqs, false);

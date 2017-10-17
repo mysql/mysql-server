@@ -884,7 +884,7 @@
    fun:malloc
    fun:CRYPTO_malloc
    fun:sk_new
-   fun:load_builtin_compressions
+   ...
    fun:SSL_COMP_get_compression_methods
    fun:SSL_library_init
 }
@@ -1205,5 +1205,406 @@
   fun:sslaccept
   ...
   fun:server_mpvio_read_packet
+  ...
+}
+
+#
+# Rules to suppress leaks from plugin dependencies
+#
+
+{
+  TPL leak 1
+  Memcheck:Leak
+  match-leak-kinds: reachable
+  fun:malloc
+  fun:CRYPTO_malloc
+  fun:BUF_strndup
+  fun:CONF_module_add
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  fun:_ZL17plugin_initializeP13st_plugin_int
+  ...
+}
+
+{
+  TPL leak 2
+  Memcheck:Leak
+  match-leak-kinds: reachable
+  fun:malloc
+  fun:CRYPTO_malloc
+  fun:BUF_strndup
+  fun:CONF_module_add
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  fun:_ZL17plugin_initializeP13st_plugin_int
+  ...
+}
+
+{
+  TPL leak 3
+  Memcheck:Leak
+  match-leak-kinds: reachable
+  fun:malloc
+  fun:CRYPTO_malloc
+  fun:lh_insert
+  fun:int_thread_set_item
+  fun:ERR_get_state
+  fun:ERR_clear_error
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  fun:_ZL17plugin_initializeP13st_plugin_int
+  ...
+}
+
+{
+  TPL leak 4
+  Memcheck:Leak
+  match-leak-kinds: reachable
+  fun:malloc
+  fun:CRYPTO_malloc
+  fun:sk_new
+  fun:CONF_module_add
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  fun:_ZL17plugin_initializeP13st_plugin_int
+  ...
+}
+
+{
+  TPL leak 5
+  Memcheck:Leak
+  match-leak-kinds: reachable
+  fun:malloc
+  fun:CRYPTO_malloc
+  fun:sk_new
+  fun:SSL_COMP_get_compression_methods
+  fun:SSL_library_init
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  fun:_ZL17plugin_initializeP13st_plugin_int
+  ...
+}
+
+{
+  TPL leak 6
+  Memcheck:Leak
+  match-leak-kinds: reachable
+  fun:malloc
+  fun:CRYPTO_malloc
+  fun:CONF_module_add
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  fun:_ZL17plugin_initializeP13st_plugin_int
+  ...
+}
+
+{
+  TPL leak 7
+  Memcheck:Leak
+  match-leak-kinds: reachable
+  fun:malloc
+  fun:CRYPTO_malloc
+  fun:CONF_module_add
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  fun:_ZL17plugin_initializeP13st_plugin_int
+  ...
+}
+
+{
+  TPL leak 8
+  Memcheck:Leak
+  match-leak-kinds: reachable
+  fun:malloc
+  fun:CRYPTO_malloc
+  fun:lh_new
+  fun:int_thread_get
+  fun:int_thread_set_item
+  fun:ERR_get_state
+  fun:ERR_clear_error
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  fun:_ZL17plugin_initializeP13st_plugin_int
+  ...
+}
+
+{
+  TPL leak 9
+  Memcheck:Leak
+  match-leak-kinds: reachable
+  fun:malloc
+  fun:CRYPTO_malloc
+  fun:ERR_get_state
+  fun:ERR_clear_error
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  fun:_ZL17plugin_initializeP13st_plugin_int
+  ...
+}
+
+{
+  TPL leak 10
+  Memcheck:Leak
+  match-leak-kinds: definite
+  fun:malloc
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  fun:_ZL17plugin_initializeP13st_plugin_int
+  ...
+}
+
+{ 
+  TPL leak 11
+  Memcheck:Leak
+  match-leak-kinds: reachable
+  fun:malloc
+  fun:CRYPTO_malloc
+  fun:ERR_get_state
+  fun:ERR_put_error
+  fun:PEM_read_bio
+  fun:PEM_X509_INFO_read_bio
+  fun:X509_load_cert_crl_file
+  fun:by_file_ctrl
+  fun:X509_STORE_load_locations
+  obj:*
+  obj:* 
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  fun:_ZL17plugin_initializeP13st_plugin_int
+}
+
+{
+  TPL leak 12
+  Memcheck:Leak
+  match-leak-kinds: reachable
+  fun:malloc
+  fun:CRYPTO_malloc
+  fun:BUF_strndup
+  fun:CONF_module_add
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+}
+
+{
+  TPL leak 13
+  Memcheck:Leak
+  match-leak-kinds: reachable
+  fun:malloc
+  fun:CRYPTO_malloc
+  fun:CONF_module_add
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+}
+
+{
+  TPL leak 14
+  Memcheck:Leak
+  match-leak-kinds: reachable
+  fun:malloc
+  fun:CRYPTO_malloc
+  fun:sk_new
+  fun:SSL_COMP_get_compression_methods
+  fun:SSL_library_init
+  obj:*
+  fun:_ZL17plugin_initializeP13st_plugin_int
+  ...
+}
+
+{
+  TPL leak 15
+  Memcheck:Leak
+  match-leak-kinds: reachable
+  fun:malloc
+  fun:CRYPTO_malloc
+  fun:lh_insert
+  fun:int_thread_set_item
+  fun:ERR_get_state
+  fun:ERR_put_error
+  fun:PEM_read_bio
+  fun:PEM_X509_INFO_read_bio
+  fun:X509_load_cert_crl_file
+  fun:by_file_ctrl
+  fun:X509_STORE_load_locations
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+}
+
+{
+  TPL leak 16
+  Memcheck:Leak
+  match-leak-kinds: reachable
+  fun:realloc
+  fun:CRYPTO_realloc
+  fun:sk_insert
+  fun:CONF_module_add
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  fun:_ZL17plugin_initializeP13st_plugin_int
+  ...
+}
+
+{
+  TPL leak 17
+  Memcheck:Leak
+  match-leak-kinds: reachable
+  fun:malloc
+  fun:CRYPTO_malloc
+  fun:lh_insert
+  fun:int_thread_set_item
+  fun:ERR_get_state
+  fun:ERR_clear_error
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+}
+
+{
+  TPL leak 18
+  Memcheck:Leak
+  match-leak-kinds: reachable
+  fun:malloc
+  fun:CRYPTO_malloc
+  fun:lh_insert
+  fun:int_thread_set_item
+  fun:ERR_get_state
+  fun:ERR_clear_error
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+}
+
+{
+  TPL leak 19
+  Memcheck:Leak
+  match-leak-kinds: reachable
+  fun:malloc
+  fun:CRYPTO_malloc
+  fun:ERR_get_state
+  fun:ERR_clear_error
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+}
+
+{
+  TPL leak 20
+  Memcheck:Leak
+  match-leak-kinds: definite
+  fun:malloc
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  fun:_ZL17plugin_initializeP13st_plugin_int
+  ...
+}
+
+{
+  TPL leak 21
+  Memcheck:Leak
+  match-leak-kinds: possible
+  fun:malloc
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  fun:_ZL17plugin_initializeP13st_plugin_int
   ...
 }

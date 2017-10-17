@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,7 +26,9 @@ struct IKey : public Keyring_alloc
   //key_signature:= key_id || user_id
   virtual std::string* get_key_signature() const= 0;
   virtual std::string* get_key_type()= 0;
-  virtual uchar* get_key_data() = 0;
+  virtual std::string* get_key_id()= 0;
+  virtual std::string* get_user_id()= 0;
+  virtual uchar* get_key_data()= 0;
   virtual size_t get_key_data_size()= 0;
   virtual size_t get_key_pod_size() const = 0;
   virtual uchar* release_key_data()= 0;
@@ -39,6 +41,7 @@ struct IKey : public Keyring_alloc
   virtual my_bool is_key_type_valid()= 0;
   virtual my_bool is_key_id_valid()= 0;
   virtual my_bool is_key_valid()= 0;
+  virtual my_bool is_key_length_valid()= 0;
 
   virtual ~IKey() {}
 };

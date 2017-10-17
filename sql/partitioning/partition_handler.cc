@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -2132,41 +2132,6 @@ int Partition_helper::ph_rnd_pos(uchar *buf, uchar *pos)
   DBUG_RETURN(rnd_pos_in_part(part_id, buf, (pos + PARTITION_BYTES_IN_POS)));
 }
 
-
-/**
-  Read row using position using given record to find.
-
-  This works as position()+rnd_pos() functions, but does some extra work,
-  calculating m_last_part - the partition to where the 'record' should go.
-
-  Only useful when position is based on primary key
-  (HA_PRIMARY_KEY_REQUIRED_FOR_POSITION).
-
-  @param record  Current record in MySQL Row Format.
-
-  @return Operation status.
-    @retval    0  Success
-    @retval != 0  Error code
-*/
-
-int Partition_helper::ph_rnd_pos_by_record(uchar *record)
-{
-  DBUG_ENTER("Partition_helper::ph_rnd_pos_by_record");
-
-  DBUG_ASSERT(m_handler->ha_table_flags() &
-              HA_PRIMARY_KEY_REQUIRED_FOR_POSITION);
-  /* TODO: Support HA_READ_BEFORE_WRITE_REMOVAL */
-  /* Set m_last_part correctly. */
-  if (unlikely(get_part_for_delete(record,
-                                   m_table->record[0],
-                                   m_part_info,
-                                   &m_last_part)))
-    DBUG_RETURN(HA_ERR_INTERNAL_ERROR);
-
-  DBUG_RETURN(rnd_pos_by_record_in_last_part(record));
-}
-
-
 /****************************************************************************
                 MODULE index scan
 ****************************************************************************/
@@ -2501,7 +2466,6 @@ int Partition_helper::ph_index_read_map(uchar *buf,
                                      enum ha_rkey_function find_flag)
 {
   DBUG_ENTER("Partition_handler::ph_index_read_map");
-  m_handler->end_range= NULL;
   m_index_scan_type= PARTITION_INDEX_READ;
   m_start_key.key= key;
   m_start_key.keypart_map= keypart_map;
@@ -2617,7 +2581,6 @@ int Partition_helper::ph_index_first(uchar *buf)
 {
   DBUG_ENTER("Partition_helper::ph_index_first");
 
-  m_handler->end_range= NULL;
   m_index_scan_type= PARTITION_INDEX_FIRST;
   m_reverse_order= false;
   DBUG_RETURN(common_first_last(buf));
@@ -2643,6 +2606,13 @@ int Partition_helper::ph_index_last(uchar *buf)
 {
   DBUG_ENTER("Partition_helper::ph_index_last");
 
+  int error = HA_ERR_END_OF_FILE;
+  uint part_id = m_part_info->get_first_used_partition();
+  if (part_id == MY_BIT_NONE)
+  {
+     /* No partition to scan. */
+      DBUG_RETURN(error);
+  }
   m_index_scan_type= PARTITION_INDEX_LAST;
   m_reverse_order= true;
   DBUG_RETURN(common_first_last(buf));
@@ -2699,7 +2669,6 @@ int Partition_helper::ph_index_read_last_map(uchar *buf,
   DBUG_ENTER("Partition_helper::ph_index_read_last_map");
 
   m_ordered= true;                              // Safety measure
-  m_handler->end_range= NULL;
   m_index_scan_type= PARTITION_INDEX_READ_LAST;
   m_start_key.key= key;
   m_start_key.keypart_map= keypart_map;

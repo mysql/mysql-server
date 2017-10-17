@@ -20,7 +20,6 @@
 #include "observer_trans.h"
 #include "plugin.h"
 #include "plugin_log.h"
-#include "sql_service_gr_user.h"
 #include "pipeline_stats.h"
 
 using std::string;
@@ -34,9 +33,10 @@ unsigned int plugin_version= 0;
 static mysql_mutex_t plugin_running_mutex;
 static bool group_replication_running;
 bool wait_on_engine_initialization= false;
-bool delay_gr_user_creation= false;
 bool server_shutdown_status= false;
 bool plugin_is_auto_starting= false;
+static bool plugin_is_waiting_to_set_server_read_mode= false;
+static bool plugin_is_being_uninstalled= false;
 
 /* Plugin modules */
 //The plugin applier
@@ -47,14 +47,19 @@ Recovery_module *recovery_module= NULL;
 Gcs_operations *gcs_module= NULL;
 //The channel observation module
 Channel_observation_manager *channel_observation_manager= NULL;
+//The Single primary channel observation module
+Asynchronous_channels_state_observer
+    *asynchronous_channels_state_observer= NULL;
 //Lock to check if the plugin is running or not.
 Checkable_rwlock *plugin_stop_lock;
 //Class to coordinate access to the plugin stop lock
 Shared_writelock *shared_plugin_stop_lock;
-//Read mode handler
-Read_mode_handler *read_mode_handler= NULL;
 //Initialization thread for server starts
 Delayed_initialization_thread *delayed_initialization_thread= NULL;
+//The transaction handler for network partitions
+Group_partition_handling *group_partition_handler= NULL;
+//The handler for transaction killing when an error or partition happens
+Blocked_transaction_handler *blocked_transaction_handler= NULL;
 
 /* Group communication options */
 char *local_address_var= NULL;
@@ -148,6 +153,9 @@ int write_set_extraction_algorithm= HASH_ALGORITHM_OFF;
 /* Generic components variables */
 ulong components_stop_timeout_var= LONG_TIMEOUT;
 
+/* The timeout before going to error when majority becomes unreachable */
+ulong timeout_on_unreachable_var= 0;
+
 /**
   The default value for auto_increment_increment is choosen taking into
   account the maximum usable values for each possible auto_increment_increment
@@ -178,6 +186,18 @@ ulong flow_control_mode_var= FCM_QUOTA;
 int flow_control_certifier_threshold_var= DEFAULT_FLOW_CONTROL_THRESHOLD;
 int flow_control_applier_threshold_var= DEFAULT_FLOW_CONTROL_THRESHOLD;
 
+/* Transaction size limits */
+#define DEFAULT_TRANSACTION_SIZE_LIMIT 0
+#define MAX_TRANSACTION_SIZE_LIMIT 2147483647
+#define MIN_TRANSACTION_SIZE_LIMIT 0
+ulong transaction_size_limit_var= DEFAULT_TRANSACTION_SIZE_LIMIT;
+
+/* Member Weight limits */
+#define DEFAULT_MEMBER_WEIGHT 50
+#define MAX_MEMBER_WEIGHT 100
+#define MIN_MEMBER_WEIGHT 0
+uint member_weight_var= DEFAULT_MEMBER_WEIGHT;
+
 /* Downgrade options */
 char allow_local_lower_version_join_var= 0;
 
@@ -202,12 +222,34 @@ static bool init_group_sidno();
 
 static void initialize_ssl_option_map();
 
+int configure_group_communication(st_server_ssl_variables *ssl_variables);
+int configure_group_member_manager(char *hostname, char *uuid,
+                                   uint port, unsigned int server_version);
+bool check_async_channel_running_on_secondary();
+int configure_compatibility_manager();
+int initialize_recovery_module();
+int configure_and_start_applier_module();
+void initialize_asynchronous_channels_observer();
+void initialize_group_partition_handler();
+int start_group_communication();
+void declare_plugin_running();
+int leave_group();
+int terminate_plugin_modules(bool flag_stop_async_channel= false);
+int terminate_applier_module();
+int terminate_recovery_module();
+void terminate_asynchronous_channels_observer();
+
 /*
   Auxiliary public functions.
 */
 void *get_plugin_pointer()
 {
   return plugin_info_ptr;
+}
+
+mysql_mutex_t* get_plugin_running_lock()
+{
+  return &plugin_running_mutex;
 }
 
 bool plugin_is_group_replication_running()
@@ -290,8 +332,6 @@ int plugin_group_replication_start()
 
   Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
 
-  int error= 0;
-
   if (plugin_is_group_replication_running())
     DBUG_RETURN(GROUP_REPLICATION_ALREADY_RUNNING);
   if (check_if_server_properly_configured())
@@ -334,61 +374,64 @@ int plugin_group_replication_start()
     Instantiate certification latch.
   */
   certification_latch= new Wait_ticket<my_thread_id>();
-  read_mode_handler= new Read_mode_handler();
-  Sql_service_command *sql_command_interface= new Sql_service_command();
-  Sql_service_interface *sql_interface= NULL;
-  int check_gr_user= 1;
+
+  // GR delayed initialization.
+  if (!server_engine_initialized())
+  {
+    wait_on_engine_initialization= true;
+    plugin_is_auto_starting= false;
+
+    delayed_initialization_thread= new Delayed_initialization_thread();
+    if (delayed_initialization_thread->launch_initialization_thread())
+    {
+      /* purecov: begin inspected */
+      log_message(MY_ERROR_LEVEL,
+                  "It was not possible to guarantee the initialization of plugin"
+                    " structures on server start");
+      delete delayed_initialization_thread;
+      delayed_initialization_thread= NULL;
+      DBUG_RETURN(GROUP_REPLICATION_CONFIGURATION_ERROR);
+      /* purecov: end */
+    }
+
+    DBUG_RETURN(0); //leave the decision for later
+  }
+
+  DBUG_RETURN(initialize_plugin_and_join(PSESSION_DEDICATED_THREAD,
+                                         NULL));
+}
+
+int initialize_plugin_and_join(enum_plugin_con_isolation sql_api_isolation,
+                               Delayed_initialization_thread *delayed_init_thd)
+{
+  DBUG_ENTER("initialize_plugin_and_join");
+
+  int error= 0;
+
+  //Avoid unnecessary operations
+  bool enabled_super_read_only= false;
+  bool read_only_mode= false, super_read_only_mode=false;
+
+  st_server_ssl_variables server_ssl_variables=
+    {false,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL};
+
+  char *hostname, *uuid;
+  uint port;
+  unsigned int server_version;
+
+  Sql_service_command_interface *sql_command_interface=
+    new Sql_service_command_interface();
 
   // GCS interface.
   if ((error= gcs_module->initialize()))
     goto err; /* purecov: inspected */
 
-  // GR delayed initialization.
-  if(!server_engine_initialized())
-  {
-    wait_on_engine_initialization= true;
-    plugin_is_auto_starting= false;
-    delete sql_command_interface;
-
-    DBUG_RETURN(0); //leave the decision for later
-  }
-
   // Setup SQL service interface.
-  if (sql_command_interface->establish_session_connection(false))
+  if (sql_command_interface->
+    establish_session_connection(sql_api_isolation, plugin_info_ptr))
   {
     error =1; /* purecov: inspected */
     goto err; /* purecov: inspected */
-  }
-
-  sql_interface= sql_command_interface->get_sql_service_interface();
-  check_gr_user= check_group_replication_user(false,sql_interface);
-
-  if (check_gr_user < 0)
-  {
-    /* purecov: begin inspected */
-    log_message(MY_ERROR_LEVEL,
-                "Could not evaluate if the group replication user is present in"
-                " the server");
-    error =1;
-    goto err;
-    /* purecov: end */
-  }
-  if (!check_gr_user)
-  {
-    log_message(MY_WARNING_LEVEL,
-                "The group replication user is not present in the server."
-                " The user will be recreated, please do not remove it");
-
-    if (create_group_replication_user(false, sql_interface))
-    {
-      /* purecov: begin inspected */
-      log_message(MY_ERROR_LEVEL,
-                  "It was not possible to create the group replication user used"
-                  "by the plugin for internal operations.");
-      error =1;
-      goto err;
-      /* purecov: end */
-    }
   }
 
   if (sql_command_interface->set_interface_user(GROUPREPL_USER))
@@ -397,8 +440,35 @@ int plugin_group_replication_start()
     goto err; /* purecov: inspected */
   }
 
+  get_read_mode_state(sql_command_interface, &read_only_mode,
+                      &super_read_only_mode);
+
+  /*
+   At this point in the code, set the super_read_only mode here on the
+   server to protect recovery and version module of the Group Replication.
+   This can only be done on START command though, on installs there are
+   deadlock issues.
+  */
+  if (!plugin_is_auto_starting &&
+      enable_super_read_only_mode(sql_command_interface))
+  {
+    /* purecov: begin inspected */
+    error =1;
+    log_message(MY_ERROR_LEVEL,
+                "Could not enable the server read only mode and guarantee a "
+                  "safe recovery execution");
+    goto err;
+    /* purecov: end */
+  }
+  enabled_super_read_only= true;
+  if (delayed_init_thd)
+    delayed_init_thd->signal_read_mode_ready();
+
+  get_server_parameters(&hostname, &port, &uuid, &server_version,
+                        &server_ssl_variables);
+
   // Setup GCS.
-  if ((error= configure_group_communication(sql_interface)))
+  if ((error= configure_group_communication(&server_ssl_variables)))
   {
     log_message(MY_ERROR_LEVEL,
                 "Error on group communication engine initialization");
@@ -406,8 +476,20 @@ int plugin_group_replication_start()
   }
 
   // Setup Group Member Manager.
-  if ((error= configure_group_member_manager()))
+  if ((error= configure_group_member_manager(hostname, uuid, port,
+                                             server_version)))
     goto err; /* purecov: inspected */
+
+  if (check_async_channel_running_on_secondary())
+  {
+    error= 1;
+    log_message(MY_ERROR_LEVEL, "Can't start group replication on secondary"
+      " member with single primary-mode while"
+      " asynchronous replication channels are"
+      " running.");
+    goto err; /* purecov: inspected */
+  }
+
   configure_compatibility_manager();
   DBUG_EXECUTE_IF("group_replication_compatibility_rule_error",
                   {
@@ -435,23 +517,8 @@ int plugin_group_replication_start()
                     compatibility_mgr->set_local_version(current_version);
                   };);
 
-  /*
-   At this point in the code, set the super_read_only mode here on the
-   server to protect recovery and version module of the Group Replication.
-   This can only be done on START command though, on installs there are
-   deadlock issues.
-  */
-  if (!plugin_is_auto_starting &&
-      read_mode_handler->set_super_read_only_mode(sql_command_interface))
-  {
-    /* purecov: begin inspected */
-    error =1;
-    log_message(MY_ERROR_LEVEL,
-                "Could not enable the server read only mode and guarantee a "
-                "safe recovery execution");
-    goto err;
-    /* purecov: end */
-  }
+  // need to be initialized before applier, is called on kill_pending_transactions
+  blocked_transaction_handler= new Blocked_transaction_handler();
 
   if ((error= initialize_recovery_module()))
     goto err; /* purecov: inspected */
@@ -463,8 +530,15 @@ int plugin_group_replication_start()
     goto err;
   }
 
-  DBUG_EXECUTE_IF("group_replication_read_mode_error",
-                  { read_mode_handler->set_to_fail(); };);
+  initialize_asynchronous_channels_observer();
+  initialize_group_partition_handler();
+
+  DBUG_EXECUTE_IF("group_replication_before_joining_the_group",
+                  {
+                    const char act[]= "now wait_for signal.continue_group_join";
+                    DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                       STRING_WITH_LEN(act)));
+                  });
 
   if ((error= start_group_communication()))
   {
@@ -485,26 +559,38 @@ int plugin_group_replication_start()
     goto err;
   }
   group_replication_running= true;
+  log_primary_member_details();
 
 err:
-  delete sql_command_interface;
-
   if (error)
   {
+    //Unblock the possible stuck delayed thread
+    if (delayed_init_thd)
+      delayed_init_thd->signal_read_mode_ready();
     leave_group();
     terminate_plugin_modules();
+
+    if (!server_shutdown_status && server_engine_initialized()
+        && enabled_super_read_only)
+    {
+      set_read_mode_state(sql_command_interface, read_only_mode,
+                          super_read_only_mode);
+    }
     if (certification_latch != NULL)
     {
       delete certification_latch; /* purecov: inspected */
       certification_latch= NULL;  /* purecov: inspected */
     }
   }
+
+  delete sql_command_interface;
   plugin_is_auto_starting= false;
 
   DBUG_RETURN(error);
 }
 
-int configure_group_member_manager()
+int configure_group_member_manager(char *hostname, char *uuid,
+                                   uint port, unsigned int server_version)
 {
   DBUG_ENTER("configure_group_member_manager");
 
@@ -522,11 +608,14 @@ int configure_group_member_manager()
     /* purecov: end */
   }
 
+  if (!strcmp(uuid, group_name_var))
+  {
+    log_message(MY_ERROR_LEVEL,
+                "Member server_uuid is incompatible with the group. "
+                "Server_uuid %s matches group_name %s.", uuid, group_name_var);
+    DBUG_RETURN(GROUP_REPLICATION_CONFIGURATION_ERROR);
+  }
   //Configure Group Member Manager
-  char *hostname, *uuid;
-  uint port;
-  unsigned int server_version;
-  get_server_parameters(&hostname, &port, &uuid, &server_version);
   plugin_version= server_version;
 
   uint32 local_version= plugin_version;
@@ -544,6 +633,7 @@ int configure_group_member_manager()
                   };);
   Member_version local_member_plugin_version(local_version);
   delete local_member_info;
+
   local_member_info= new Group_member_info(hostname,
                                            port,
                                            uuid,
@@ -554,11 +644,23 @@ int configure_group_member_manager()
                                            gtid_assignment_block_size_var,
                                            Group_member_info::MEMBER_ROLE_SECONDARY,
                                            single_primary_mode_var,
-                                           enforce_update_everywhere_checks_var);
+                                           enforce_update_everywhere_checks_var,
+                                           member_weight_var);
 
   //Create the membership info visible for the group
   delete group_member_mgr;
   group_member_mgr= new Group_member_info_manager(local_member_info);
+
+  log_message(MY_INFORMATION_LEVEL,
+              "Member configuration: "
+              "member_id: %lu; "
+              "member_uuid: \"%s\"; "
+              "single-primary mode: \"%s\"; "
+              "group_replication_auto_increment_increment: %lu; ",
+              get_server_id(),
+              (local_member_info != NULL) ? local_member_info->get_uuid().c_str() : "NULL",
+              single_primary_mode_var ? "true" : "false",
+              auto_increment_increment_var);
 
   DBUG_RETURN(0);
 }
@@ -682,12 +784,36 @@ int plugin_group_replication_stop()
 
   Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
 
+  /*
+    We delete the delayed initialization object here because:
+
+    1) It is invoked even if the plugin is stopped as failed starts may still
+    leave the class instantiated. This way, either the stop command or the
+    deinit process that calls this method will always clean this class
+
+    2) Its use is on before_handle_connection, meaning no stop command can be
+    made before that. This makes this delete safe under the plugin running
+    mutex.
+  */
+  if (delayed_initialization_thread != NULL)
+  {
+    wait_on_engine_initialization= false;
+    delayed_initialization_thread->signal_thread_ready();
+    delayed_initialization_thread->wait_for_thread_end();
+    delete delayed_initialization_thread;
+    delayed_initialization_thread= NULL;
+  }
+
   shared_plugin_stop_lock->grab_write_lock();
   if (!plugin_is_group_replication_running())
   {
     shared_plugin_stop_lock->release_write_lock();
     DBUG_RETURN(0);
   }
+  log_message(MY_INFORMATION_LEVEL,
+              "Plugin 'group_replication' is stopping.");
+
+  plugin_is_waiting_to_set_server_read_mode= true;
 
   // wait for all transactions waiting for certification
   bool timeout=
@@ -695,21 +821,38 @@ int plugin_group_replication_stop()
   if (timeout)
   {
     //if they are blocked, kill them
-    unblock_waiting_transactions();
+    blocked_transaction_handler->unblock_waiting_transactions();
   }
 
   /* first leave all joined groups (currently one) */
   leave_group();
 
-  int error= terminate_plugin_modules();
+  int error= terminate_plugin_modules(true);
 
   group_replication_running= false;
   shared_plugin_stop_lock->release_write_lock();
+  log_message(MY_INFORMATION_LEVEL,
+              "Plugin 'group_replication' has been stopped.");
+
+  // Enable super_read_only.
+  if (!server_shutdown_status &&
+      !plugin_is_being_uninstalled &&
+      server_engine_initialized())
+  {
+    if (enable_server_read_mode(PSESSION_DEDICATED_THREAD))
+    {
+      log_message(MY_ERROR_LEVEL,
+                  "On plugin shutdown it was not possible to enable the "
+                  "server read only mode. Local transactions will be accepted "
+                  "and committed."); /* purecov: inspected */
+    }
+    plugin_is_waiting_to_set_server_read_mode= false;
+  }
 
   DBUG_RETURN(error);
 }
 
-int terminate_plugin_modules()
+int terminate_plugin_modules(bool flag_stop_async_channel)
 {
 
   if(terminate_recovery_module())
@@ -738,22 +881,30 @@ int terminate_plugin_modules()
                 " applier termination.");
   }
 
-  if (!server_shutdown_status && server_engine_initialized())
+  terminate_asynchronous_channels_observer();
+
+  if (flag_stop_async_channel)
   {
-    Sql_service_command *sql_command_interface= new Sql_service_command();
-    if (sql_command_interface->establish_session_connection(false) ||
-        sql_command_interface->set_interface_user(GROUPREPL_USER) ||
-        read_mode_handler->reset_super_read_only_mode(sql_command_interface))
+    int channel_err= channel_stop_all(CHANNEL_APPLIER_THREAD|CHANNEL_RECEIVER_THREAD,
+                            components_stop_timeout_var);
+    if (channel_err)
     {
-      //Do not throw an error as the user can reset the read mode
-      log_message(MY_WARNING_LEVEL,
-                  "On plugin shutdown it was not possible to reset the server"
-                  " read mode settings. Try to reset it manually."); /* purecov: inspected */
+      log_message(MY_ERROR_LEVEL,
+                  "Error stopping all replication channels while server was"
+                  " leaving the group. Please check the error log for "
+                  "additional details. Got error: %d", channel_err);
+      if (!error)
+      {
+        error= GROUP_REPLICATION_CONFIGURATION_ERROR;
+      }
     }
-    delete sql_command_interface;
   }
 
-  delete read_mode_handler;
+  delete group_partition_handler;
+  group_partition_handler= NULL;
+
+  delete blocked_transaction_handler;
+  blocked_transaction_handler= NULL;
 
   /*
     Destroy certification latch.
@@ -853,36 +1004,6 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info)
   //Initialize the compatibility module before starting
   init_compatibility_manager();
 
-  //Create the group replication user and give it grants.
-  if(server_engine_initialized())
-  {
-    if (create_group_replication_user(false))
-    {
-      /* purecov: begin inspected */
-      log_message(MY_ERROR_LEVEL,
-                  "It was not possible to create the group replication user used"
-                  "by the plugin for internal operations.");
-      return 1;
-      /* purecov: end */
-    }
-  }
-  else
-  {
-    delayed_initialization_thread= new Delayed_initialization_thread();
-    if (delayed_initialization_thread->launch_initialization_thread())
-    {
-      /* purecov: begin inspected */
-      log_message(MY_ERROR_LEVEL,
-                  "It was not possible to guarantee the initialization of plugin"
-                  " structures on server start");
-      delete delayed_initialization_thread;
-      delayed_initialization_thread= NULL;
-      return 1;
-      /* purecov: end */
-    }
-    delay_gr_user_creation= true;
-  }
-
   plugin_is_auto_starting= start_group_replication_at_boot_var;
   if (start_group_replication_at_boot_var && group_replication_start())
   {
@@ -899,6 +1020,7 @@ int plugin_group_replication_deinit(void *p)
   if (plugin_info_ptr == NULL)
     return 0;
 
+  plugin_is_being_uninstalled= true;
   int observer_unregister_error= 0;
 
   //plugin_group_replication_stop will be called from this method stack
@@ -906,28 +1028,13 @@ int plugin_group_replication_deinit(void *p)
     log_message(MY_ERROR_LEVEL,
                 "Failure when cleaning Group Replication server state");
 
-  DBUG_EXECUTE_IF("group_replication_bypass_user_removal",
-          { server_shutdown_status= true; };);
-
-  if(!server_shutdown_status && server_engine_initialized())
-  {
-    if(remove_group_replication_user(false))
-    {
-      //Do not throw an error as the user can remove the user
-      log_message(MY_WARNING_LEVEL,
-                  "On plugin shutdown there was an error when removing the"
-                  " user associate to the plugin: " GROUPREPL_USER "."
-                  " You can remove it manually if desired.");
-    }
-  }
-
-  if(group_member_mgr != NULL)
+  if (group_member_mgr != NULL)
   {
     delete group_member_mgr;
     group_member_mgr= NULL;
   }
 
-  if(local_member_info != NULL)
+  if (local_member_info != NULL)
   {
     delete local_member_info;
     local_member_info= NULL;
@@ -970,16 +1077,6 @@ int plugin_group_replication_deinit(void *p)
     log_message(MY_INFORMATION_LEVEL,
                 "All Group Replication server observers"
                 " have been successfully unregistered");
-
-  if (delayed_initialization_thread != NULL)
-  {
-    delay_gr_user_creation= false;
-    wait_on_engine_initialization= false;
-    delayed_initialization_thread->signal_thread_ready();
-    delayed_initialization_thread->wait_for_initialization();
-    delete delayed_initialization_thread;
-    delayed_initialization_thread= NULL;
-  }
 
   delete gcs_module;
   gcs_module= NULL;
@@ -1103,6 +1200,13 @@ int configure_and_start_applier_module()
   DBUG_RETURN(error);
 }
 
+void initialize_group_partition_handler()
+{
+  group_partition_handler=
+      new Group_partition_handling(shared_plugin_stop_lock,
+                                   timeout_on_unreachable_var);
+}
+
 int terminate_applier_module()
 {
 
@@ -1122,7 +1226,7 @@ int terminate_applier_module()
   return error;
 }
 
-int configure_group_communication(Sql_service_interface *sql_interface)
+int configure_group_communication(st_server_ssl_variables *ssl_variables)
 {
   DBUG_ENTER("configure_group_communication");
 
@@ -1161,33 +1265,17 @@ int configure_group_communication(Sql_service_interface *sql_interface)
   std::string ssl_mode(ssl_mode_values[ssl_mode_var]);
   if (ssl_mode_var > 0)
   {
-    std::string query= "SELECT @@have_ssl='YES', @@ssl_key, @@ssl_cert, "
-                       "@@ssl_ca, @@ssl_capath, @@ssl_cipher, @@ssl_crl, "
-                       "@@ssl_crlpath, @@tls_version;";
-    Sql_resultset rset;
-    long query_error= sql_interface->execute_query(query, &rset);
-    if (query_error || rset.get_rows() != 1 || rset.get_cols() != 9)
-    {
-      /* purecov: begin inspected */
-      log_message(MY_ERROR_LEVEL,
-                  "Unable to fetch SSL configuration from server, START "
-                  "GROUP_REPLICATION will abort");
-      DBUG_RETURN(GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR);
-      /* purecov: end */
-    }
-
-    bool have_ssl = rset.getLong(0);
-    std::string ssl_key(rset.getString(1));
-    std::string ssl_cert(rset.getString(2));
-    std::string ssl_ca(rset.getString(3));
-    std::string ssl_capath(rset.getString(4));
-    std::string ssl_cipher(rset.getString(5));
-    std::string ssl_crl(rset.getString(6));
-    std::string ssl_crlpath(rset.getString(7));
-    std::string tls_version(rset.getString(8));
+    std::string ssl_key(ssl_variables->ssl_key ? ssl_variables->ssl_key : "");
+    std::string ssl_cert(ssl_variables->ssl_cert ? ssl_variables->ssl_cert : "");
+    std::string ssl_ca(ssl_variables->ssl_ca ? ssl_variables->ssl_ca : "");
+    std::string ssl_capath(ssl_variables->ssl_capath ? ssl_variables->ssl_capath : "");
+    std::string ssl_cipher(ssl_variables->ssl_cipher ? ssl_variables->ssl_cipher : "");
+    std::string ssl_crl(ssl_variables->ssl_crl ? ssl_variables->ssl_crl : "");
+    std::string ssl_crlpath(ssl_variables->ssl_crlpath ? ssl_variables->ssl_crlpath : "");
+    std::string tls_version(ssl_variables->tls_version? ssl_variables->tls_version : "");
 
     // SSL support on server.
-    if (have_ssl)
+    if (ssl_variables->have_ssl_opt)
     {
       gcs_module_parameters.add_parameter("ssl_mode", ssl_mode);
       gcs_module_parameters.add_parameter("server_key_file", ssl_key);
@@ -1303,7 +1391,7 @@ int start_group_communication()
                                                 recovery_module,
                                                 view_change_notifier,
                                                 compatibility_mgr,
-                                                read_mode_handler);
+                                                components_stop_timeout_var);
 
   view_change_notifier->start_view_modification();
 
@@ -1311,6 +1399,47 @@ int start_group_communication()
     DBUG_RETURN(GROUP_REPLICATION_COMMUNICATION_LAYER_JOIN_ERROR);
 
   DBUG_RETURN(0);
+}
+
+bool check_async_channel_running_on_secondary()
+{
+  /* To stop group replication to start on secondary member with single primary-
+     mode, when any async channels are running, we verify whether member is not
+    bootstrapping. As only when the member is bootstrapping, it can be the
+    primary leader on a single primary member context.
+  */
+  if (single_primary_mode_var && !bootstrap_group_var)
+  {
+    if (is_any_slave_channel_running(
+        CHANNEL_RECEIVER_THREAD | CHANNEL_APPLIER_THREAD))
+    {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+void initialize_asynchronous_channels_observer()
+{
+  if (single_primary_mode_var)
+  {
+    asynchronous_channels_state_observer=
+        new Asynchronous_channels_state_observer();
+    channel_observation_manager
+        ->register_channel_observer(asynchronous_channels_state_observer);
+  }
+}
+
+void terminate_asynchronous_channels_observer()
+{
+  if (asynchronous_channels_state_observer != NULL)
+  {
+    channel_observation_manager
+      ->unregister_channel_observer(asynchronous_channels_state_observer);
+    delete asynchronous_channels_state_observer;
+    asynchronous_channels_state_observer= NULL;
+  }
 }
 
 int initialize_recovery_module()
@@ -1370,6 +1499,18 @@ bool get_allow_local_disjoint_gtids_join()
 {
   DBUG_ENTER("get_allow_local_disjoint_gtids_join");
   DBUG_RETURN(allow_local_disjoint_gtids_join_var);
+}
+
+ulong get_transaction_size_limit()
+{
+  DBUG_ENTER("get_transaction_size_limit");
+  DBUG_RETURN(transaction_size_limit_var);
+}
+
+bool is_plugin_waiting_to_set_server_read_mode()
+{
+  DBUG_ENTER("is_plugin_waiting_to_set_server_read_mode");
+  DBUG_RETURN(plugin_is_waiting_to_set_server_read_mode);
 }
 
 /*
@@ -1461,7 +1602,7 @@ static int check_if_server_properly_configured()
     {
       log_message(MY_ERROR_LEVEL,
                   "In order to use parallel applier on Group Replication, parameter "
-                  "slave-parallel-workers must be set to 'LOGICAL_CLOCK'.");
+                  "slave-parallel-type must be set to 'LOGICAL_CLOCK'.");
       DBUG_RETURN(1);
     }
 
@@ -1763,6 +1904,10 @@ static void update_component_timeout(MYSQL_THD thd, SYS_VAR *var,
   {
     recovery_module->set_stop_wait_timeout(in_val);
   }
+  if (events_handler != NULL)
+  {
+    events_handler->set_stop_wait_timeout(in_val);
+  }
 
   DBUG_VOID_RETURN;
 }
@@ -1925,6 +2070,19 @@ static int check_force_members(MYSQL_THD thd, SYS_VAR *var,
   if (length == 0)
     goto update_value;
 
+  // if group replication isn't running and majority is reachable you can't
+  // update force_members
+  if (!plugin_is_group_replication_running() ||
+      !group_member_mgr->is_majority_unreachable())
+  {
+    log_message(MY_ERROR_LEVEL,
+                "group_replication_force_members can only be updated"
+                " when Group Replication is running and a majority of the"
+                " members are unreachable");
+    error= 1;
+    goto end;
+  }
+
   if ((error= gcs_module->force_members(str)))
     goto end;
 
@@ -2078,6 +2236,39 @@ check_enforce_update_everywhere_checks(MYSQL_THD thd, SYS_VAR *var,
   *(my_bool *)save = enforce_update_everywhere_checks_val;
 
   DBUG_RETURN(0);
+}
+
+static void update_unreachable_timeout(MYSQL_THD thd, SYS_VAR *var,
+                                       void *var_ptr, const void *save)
+{
+  DBUG_ENTER("update_unreachable_timeout");
+
+  ulong in_val= *static_cast<const ulong*>(save);
+  (*(ulong*) var_ptr)= (*(ulong*) save);
+
+  if (group_partition_handler != NULL)
+  {
+    group_partition_handler->update_timeout_on_unreachable(in_val);
+  }
+
+  DBUG_VOID_RETURN;
+}
+
+static void
+update_member_weight(MYSQL_THD, SYS_VAR*,
+                     void *var_ptr, const void *save)
+{
+  DBUG_ENTER("update_member_weight");
+
+  (*(uint*) var_ptr)= (*(uint*) save);
+  uint in_val= *static_cast<const uint*>(save);
+
+  if (local_member_info != NULL)
+  {
+    local_member_info->set_member_weight(in_val);
+  }
+
+  DBUG_VOID_RETURN;
 }
 
 //Base plugin variables
@@ -2505,6 +2696,47 @@ static MYSQL_SYSVAR_INT(
   0                                    /* block */
 );
 
+static MYSQL_SYSVAR_ULONG(
+  transaction_size_limit,              /* name */
+  transaction_size_limit_var,          /* var */
+  PLUGIN_VAR_OPCMDARG,                 /* optional var */
+  "Specifies the limit of transaction size that can be transferred over network.",
+  NULL,                                /* check func. */
+  NULL,                                /* update func. */
+  DEFAULT_TRANSACTION_SIZE_LIMIT,      /* default */
+  MIN_TRANSACTION_SIZE_LIMIT,          /* min */
+  MAX_TRANSACTION_SIZE_LIMIT,          /* max */
+  0                                    /* block */
+);
+
+static MYSQL_SYSVAR_ULONG(
+  unreachable_majority_timeout,                    /* name */
+  timeout_on_unreachable_var,                      /* var */
+  PLUGIN_VAR_OPCMDARG,                             /* optional var */
+  "The number of seconds before going into error when a majority of members is unreachable."
+  "If 0 there is no action taken.",
+  NULL,                                            /* check func. */
+  update_unreachable_timeout,                      /* update func. */
+  0,                                               /* default */
+  0,                                               /* min */
+  LONG_TIMEOUT,                                    /* max */
+  0                                                /* block */
+);
+
+static MYSQL_SYSVAR_UINT(
+  member_weight,                       /* name */
+  member_weight_var,                   /* var */
+  PLUGIN_VAR_OPCMDARG,                 /* optional var */
+  "Member weight will determine the member role in the group on"
+  " future primary elections",
+  NULL,                                /* check func. */
+  update_member_weight,                /* update func. */
+  DEFAULT_MEMBER_WEIGHT,               /* default */
+  MIN_MEMBER_WEIGHT,                   /* min */
+  MAX_MEMBER_WEIGHT,                   /* max */
+  0                                    /* block */
+);
+
 static SYS_VAR* group_replication_system_vars[]= {
   MYSQL_SYSVAR(group_name),
   MYSQL_SYSVAR(start_on_boot),
@@ -2538,6 +2770,9 @@ static SYS_VAR* group_replication_system_vars[]= {
   MYSQL_SYSVAR(flow_control_mode),
   MYSQL_SYSVAR(flow_control_certifier_threshold),
   MYSQL_SYSVAR(flow_control_applier_threshold),
+  MYSQL_SYSVAR(transaction_size_limit),
+  MYSQL_SYSVAR(unreachable_majority_timeout),
+  MYSQL_SYSVAR(member_weight),
   NULL,
 };
 
@@ -2551,28 +2786,8 @@ show_primary_member(MYSQL_THD thd, SHOW_VAR *var, char *buff)
   if (group_member_mgr && single_primary_mode_var &&
       plugin_is_group_replication_running())
   {
-    std::vector<Group_member_info*>* members=
-      group_member_mgr->get_all_members();
-    std::vector<Group_member_info*>::iterator it;
-    std::string primary_member_uuid;
-
-    for (it= members->begin(); it != members->end(); it++)
-    {
-      Group_member_info* info= *it;
-      if (info->get_role() == Group_member_info::MEMBER_ROLE_PRIMARY)
-      {
-        DBUG_ASSERT(primary_member_uuid.empty());
-        primary_member_uuid =info->get_uuid();
-      }
-
-      // always delete the copies that were in the vector
-      delete info;
-    }
-    if (primary_member_uuid.empty() ||
-        Group_member_info::MEMBER_ERROR == local_member_info->get_recovery_status())
-      primary_member_uuid= "UNDEFINED";
-
-    delete members;
+    string primary_member_uuid;
+    group_member_mgr->get_primary_member_uuid(primary_member_uuid);
 
     strncpy(buff, primary_member_uuid.c_str(), SHOW_VAR_FUNC_BUFF_SIZE);
     buff[SHOW_VAR_FUNC_BUFF_SIZE - 1] = 0;

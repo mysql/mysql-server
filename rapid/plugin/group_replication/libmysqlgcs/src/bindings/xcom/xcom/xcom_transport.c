@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -53,7 +53,7 @@
 #include "xcom_ssl_transport.h"
 #endif
 
-#define MY_XCOM_PROTO x_1_1
+#define MY_XCOM_PROTO x_1_2
 
 xcom_proto const my_min_xcom_version = x_1_0; /* The minimum protocol version I am able to understand */
 xcom_proto const my_xcom_version = MY_XCOM_PROTO; /* The maximun protocol version I am able to understand */
@@ -377,12 +377,8 @@ static void dump_header(char *buf)
 
 void dbg_app_data(app_data_ptr a);
 
-#ifdef HAVE___CONST
-#define const __const
-#else
 #ifdef OLD_XDR
 #define const
-#endif
 #endif
 
 /* ARGSUSED */
@@ -421,11 +417,7 @@ x_putbytes (XDR *xdrs, const char *bp MY_ATTRIBUTE((unused)), u_int len)
 
 
 static u_int
-#if defined(__APPLE__) || defined(__FreeBSD__) || defined(X_GETPOSTN_NOT_USE_CONST)
-x_getpostn (XDR *xdrs)
-#else
 x_getpostn (const XDR *xdrs)
-#endif
 {
 #ifdef OLD_XDR
   return (u_int)(xdrs->x_handy);
@@ -900,41 +892,43 @@ int	srv_unref(server *s)
 /* }}} */
 
 /* Listen for connections on socket and create a handler task */
-int	tcp_server(task_arg arg)
-{
-	DECL_ENV
-	    int	fd;
-	int	cfd;
-	int refused;
-	END_ENV;
-	TASK_BEGIN
-	    ep->fd = get_int_arg(arg);
-	ep->refused= 0;
-	unblock_fd(ep->fd);
-	DBGOUT(FN; NDBG(ep->fd, d); );
-        G_MESSAGE("Ready to accept incoming connections on %s:%d "
-                  "(socket=%d)!",
-                  "0.0.0.0",
-                  xcom_listen_port, ep->fd);
-	do {
-		TASK_CALL(accept_tcp(ep->fd, &ep->cfd));
-                /* Callback to check that the file descriptor is accepted. */
-                if (xcom_socket_accept_callback && !xcom_socket_accept_callback(ep->cfd))
-                {
-                  shut_close_socket(&ep->cfd);
-                  ep->cfd= -1;
-                  ep->refused= 1;
-                  TASK_YIELD;
-                  continue;
-                }
-                ep->refused= 0;
-		DBGOUT(FN; NDBG(ep->cfd, d); );
-		task_new(acceptor_learner_task, int_arg(ep->cfd), "acceptor_learner_task", XCOM_THREAD_DEBUG);
-	} while (!xcom_shutdown && (ep->cfd >= 0 || ep->refused));
-	FINALLY
-	assert(ep->fd >= 0);
-	shut_close_socket(&ep->fd);
-	TASK_END;
+int tcp_server(task_arg arg) {
+  DECL_ENV
+  int fd;
+  int cfd;
+  int refused;
+  END_ENV;
+  TASK_BEGIN
+  ep->fd = get_int_arg(arg);
+  ep->refused = 0;
+  unblock_fd(ep->fd);
+  DBGOUT(FN; NDBG(ep->fd, d););
+  G_MESSAGE(
+      "Ready to accept incoming connections on %s:%d "
+      "(socket=%d)!",
+      "0.0.0.0", xcom_listen_port, ep->fd);
+  do {
+    TASK_CALL(accept_tcp(ep->fd, &ep->cfd));
+    /* Callback to check that the file descriptor is accepted. */
+    if (xcom_socket_accept_callback && !xcom_socket_accept_callback(ep->cfd)) {
+      shut_close_socket(&ep->cfd);
+      ep->cfd = -1;
+    }
+    if(ep->cfd == -1){
+      G_MESSAGE("accept failed");
+      ep->refused = 1;
+      TASK_DELAY(0.1);
+    } else {
+      ep->refused = 0;
+      DBGOUT(FN; NDBG(ep->cfd, d););
+      task_new(acceptor_learner_task, int_arg(ep->cfd), "acceptor_learner_task",
+               XCOM_THREAD_DEBUG);
+    }
+  } while (!xcom_shutdown && (ep->cfd >= 0 || ep->refused));
+  FINALLY
+  assert(ep->fd >= 0);
+  shut_close_socket(&ep->fd);
+  TASK_END;
 }
 
 #ifdef XCOM_HAVE_OPENSSL
@@ -980,6 +974,8 @@ int	tcp_server(task_arg arg)
 		}																\
 	}
 #endif
+
+void server_detected(server *s) { s->detected = task_now(); }
 
 /* Try to connect to another node */
 static int	dial(server *s)
@@ -1032,7 +1028,8 @@ int	send_msg(server *s, node_no from, node_no to, uint32_t group_id, pax_msg *p)
 		p->to = to;
 		p->group_id = group_id;
 		p->max_synode = get_max_synode();
- 		MAY_DBG(FN; PTREXP(p); STREXP(s->srv); NDBG(p->from, d); NDBG(p->to, d); NDBG(p->group_id, u));
+		p->delivered_msg = get_delivered_msg();
+		MAY_DBG(FN; PTREXP(p); STREXP(s->srv); NDBG(p->from, d); NDBG(p->to, d); NDBG(p->group_id, u));
 		channel_put(&s->outgoing, &link->l);
 	}
 	return 0;
@@ -1167,8 +1164,21 @@ int	send_to_acceptors(pax_msg *p, const char *dbg)
 #endif
 
 /* Used by :/int.*read_msg */
+/**
+  Reads n bytes from connection rfd without buffering reads.
+
+  @param[in]     rfd Pointer to open connection.
+  @param[out]    p   Output buffer.
+  @param[in]     n   Number of bytes to read.
+  @param[out]    s   Pointer to server.
+  @param[out]    ret Number of bytes read, or -1 if failure.
+
+  @return
+    @retval 0 if task should terminate.
+    @retval 1 if it should continue.
+*/
 static int	read_bytes(connection_descriptor const * rfd, char *p, uint32_t n,
-                       int64_t *ret)
+                       server *s, int64_t *ret)
 {
 	DECL_ENV
 	    uint32_t left;
@@ -1195,6 +1205,7 @@ static int	read_bytes(connection_descriptor const * rfd, char *p, uint32_t n,
 		} else {
 			ep->bytes += nread;
 			ep->left -= (uint32_t)nread;
+			if (s) server_detected(s);
 		}
 	}
 	assert(ep->left == 0);
@@ -1203,7 +1214,22 @@ static int	read_bytes(connection_descriptor const * rfd, char *p, uint32_t n,
 	    TASK_END;
 }
 
-static int	buffered_read_bytes(connection_descriptor const * rfd, srv_buf *buf, char *p, uint32_t n, int64_t *ret)
+/**
+  Reads n bytes from connection rfd with buffering reads.
+
+  @param[in]     rfd Pointer to open connection.
+  @param[in,out] buf Used for buffering reads.
+                     Originally initialized by caller, maintained by buffered_read_bytes.
+  @param[out]    p   Output buffer.
+  @param[in]     n   Number of bytes to read
+  @param[out]    s   Pointer to server.
+  @param[out]    ret Number of bytes read, or -1 if failure.
+
+  @return
+    @retval 0 if task should terminate.
+    @retval 1 if it should continue.
+*/
+static int	buffered_read_bytes(connection_descriptor const * rfd, srv_buf *buf, char *p, uint32_t n, server *s, int64_t *ret)
 {
 	DECL_ENV
 	    uint32_t	left;
@@ -1222,7 +1248,7 @@ static int	buffered_read_bytes(connection_descriptor const * rfd, srv_buf *buf, 
 
 	if(ep->left >= srv_buf_capacity(buf)){
 		/* Too big, do direct read of rest */
-		TASK_CALL(read_bytes(rfd, ep->bytes, ep->left, ret));
+		TASK_CALL(read_bytes(rfd, ep->bytes, ep->left, s, ret));
 		if(*ret <= 0){
 			TASK_FAIL;
 		}
@@ -1249,6 +1275,7 @@ static int	buffered_read_bytes(connection_descriptor const * rfd, srv_buf *buf, 
 				nget = get_srv_buf(buf, ep->bytes, ep->left);
 				ep->bytes += nget;
 				ep->left -= nget;
+				if (s) server_detected(s);
 			}
 		}
 	}
@@ -1275,7 +1302,7 @@ void put_header_1_0(unsigned char header_buf[], uint32_t msgsize,
 }
 
 /* See also :/static .*read_bytes */
-int	read_msg(connection_descriptor * rfd, pax_msg *p, int64_t *ret)
+int read_msg(connection_descriptor *rfd, pax_msg *p, server *s, int64_t *ret)
 {
 	int deserialize_ok = 0;
 
@@ -1294,7 +1321,7 @@ int	read_msg(connection_descriptor * rfd, pax_msg *p, int64_t *ret)
 		ep->bytes = NULL;
 		/* Read length field, protocol version, and checksum */
 		ep->n = 0;
-		TASK_CALL(read_bytes(rfd, (char*)ep->header_buf, MSG_HDR_SIZE, &ep->n));
+		TASK_CALL(read_bytes(rfd, (char*)ep->header_buf, MSG_HDR_SIZE, s, &ep->n));
 
 		if (ep->n != MSG_HDR_SIZE) {
 			DBGOUT(FN; NDBG(ep->n, u));
@@ -1353,12 +1380,13 @@ int	read_msg(connection_descriptor * rfd, pax_msg *p, int64_t *ret)
 
 	/* Read message */
 	ep->n = 0;
-	TASK_CALL(read_bytes(rfd, ep->bytes, ep->msgsize, &ep->n));
+	TASK_CALL(read_bytes(rfd, ep->bytes, ep->msgsize, s, &ep->n));
 
 	if (ep->n > 0) {
 		/* Deserialize message */
 		deserialize_ok = deserialize_msg(p, rfd->x_proto, ep->bytes, ep->msgsize);
 		MAY_DBG(FN; STRLIT(" deserialized message"));
+
 	}
 	/* Deallocate buffer */
 	X_FREE(ep->bytes);
@@ -1371,8 +1399,8 @@ int	read_msg(connection_descriptor * rfd, pax_msg *p, int64_t *ret)
 		TASK_END;
 }
 
-int	buffered_read_msg(connection_descriptor *rfd, srv_buf *buf, pax_msg *p,
-                      int64_t *ret)
+int buffered_read_msg(connection_descriptor *rfd, srv_buf *buf,
+                      pax_msg *p, server *s, int64_t *ret)
 {
 	int deserialize_ok = 0;
 
@@ -1394,7 +1422,7 @@ int	buffered_read_msg(connection_descriptor *rfd, srv_buf *buf, pax_msg *p,
 		ep->bytes = NULL;
 		/* Read length field, protocol version, and checksum */
 		ep->n = 0;
-		TASK_CALL(buffered_read_bytes(rfd, buf, (char*)ep->header_buf, MSG_HDR_SIZE, &ep->n));
+		TASK_CALL(buffered_read_bytes(rfd, buf, (char*)ep->header_buf, MSG_HDR_SIZE, s, &ep->n));
 
 		if (ep->n != MSG_HDR_SIZE) {
 			DBGOUT(FN; NDBG(ep->n, u));
@@ -1451,12 +1479,13 @@ int	buffered_read_msg(connection_descriptor *rfd, srv_buf *buf, pax_msg *p,
 	}
 	/* Read message */
 	ep->n = 0;
-	TASK_CALL(buffered_read_bytes(rfd, buf, ep->bytes, ep->msgsize, &ep->n));
+	TASK_CALL(buffered_read_bytes(rfd, buf, ep->bytes, ep->msgsize, s, &ep->n));
 
 	if (ep->n > 0) {
 		/* Deserialize message */
 		deserialize_ok = deserialize_msg(p, rfd->x_proto, ep->bytes, ep->msgsize);
 		MAY_DBG(FN; STRLIT(" deserialized message"));
+
 	}
 	/* Deallocate buffer */
 	X_FREE(ep->bytes);
@@ -1482,7 +1511,7 @@ int	recv_proto(connection_descriptor const * rfd, xcom_proto *x_proto,
 
 	/* Read length field, protocol version, and checksum */
 	ep->n = 0;
-	TASK_CALL(read_bytes(rfd, (char*)ep->header_buf, MSG_HDR_SIZE, &ep->n));
+	TASK_CALL(read_bytes(rfd, (char*)ep->header_buf, MSG_HDR_SIZE, 0, &ep->n));
 
 	if (ep->n != MSG_HDR_SIZE) {
 		DBGOUT(FN; NDBG(ep->n, ll));
@@ -1584,20 +1613,11 @@ int	sender_task(task_arg arg)
 
 				/* If ep->link->p is 0, it is a protocol (re)negotiation request */
 				if(ep->link->p){
-					if(ep->s->con.x_proto != get_latest_common_proto()){ /* See if we need renegotiation */
-					ADD_EVENTS(
-						add_event(string_arg("renegotiate get_latest_common_proto()"));
-						add_event(string_arg( xcom_proto_to_str(get_latest_common_proto())));
-						add_event(string_arg( xcom_proto_to_str(ep->s->con.x_proto)));
-					);
-						channel_put_front(&ep->s->outgoing, &ep->link->l); /* Push message back in queue, will be handled after negotiation */
-						start_protocol_negotiation(&ep->s->outgoing);
-					}else{
 						ADD_EVENTS(
 							add_event(string_arg("sending ep->link->p->synode"));
 							add_synode_event(ep->link->p->synode);
 							add_event(string_arg("to"));
-							add_event(int_arg(ep->link->p->to));
+							add_event(uint_arg(ep->link->p->to));
 							add_event(string_arg(pax_op_to_str(ep->link->p->op)));
 						);
 						TASK_CALL(_send_msg(ep->s, ep->link->p, ep->link->to, &ret));
@@ -1608,10 +1628,9 @@ int	sender_task(task_arg arg)
 							add_event(string_arg("sent ep->link->p->synode"));
 							add_synode_event(ep->link->p->synode);
 							add_event(string_arg("to"));
-							add_event(int_arg(ep->link->p->to));
+							add_event(uint_arg(ep->link->p->to));
 							add_event(string_arg(pax_op_to_str(ep->link->p->op)));
 						);
-					}
 				} else {
 					set_connected(&ep->s->con, CON_FD);
 					/* Send protocol negotiation request */
@@ -1834,12 +1853,6 @@ int	tcp_reaper_task(task_arg arg MY_ATTRIBUTE((unused)))
 	    TASK_END;
 }
 
-
-server *get_server(site_def const *s, node_no i)
-{
-	assert(s);
-	return s->servers[i];
-}
 
 #define TERMINATE_CLIENT(ep) {						\
 		if (ep->s->crash_on_error)				\
@@ -2096,6 +2109,7 @@ bool_t xdr_node_list_1_1(XDR *xdrs, node_list_1_1 *objp)
 		return xdr_array (xdrs, (char **)&objp->node_list_val, (u_int *) &objp->node_list_len, NSERVERS,
 		sizeof (node_address), (xdrproc_t) xdr_node_address_with_1_0);
 	case x_1_1:
+	case x_1_2:
 		return xdr_array (xdrs, (char **)&objp->node_list_val, (u_int *) &objp->node_list_len, NSERVERS,
 		sizeof (node_address), (xdrproc_t) xdr_node_address);
 	default:
@@ -2114,3 +2128,24 @@ bool_t xdr_checked_data(XDR *xdrs, checked_data *objp)
 		return FALSE;
 	return xdr_bytes(xdrs, (char **)&objp->data_val, (u_int *) &objp->data_len, 0xffffffff);
 }
+
+bool_t xdr_pax_msg(XDR *xdrs, pax_msg *objp)
+{
+	xcom_proto vx = *((xcom_proto * )xdrs->x_public);
+	/* Select protocol encode/decode based on the x_public field of the xdr struct */
+	switch (vx) {
+	case x_1_0:
+	case x_1_1:
+		if (!xdr_pax_msg_1_1(xdrs, (pax_msg_1_1*)objp))
+			return FALSE;
+		if (xdrs->x_op == XDR_DECODE)
+			objp->delivered_msg = get_delivered_msg(); /* Use our own minimum */
+		return TRUE;
+	case x_1_2:
+		return xdr_pax_msg_1_2(xdrs, objp);
+	default:
+		return FALSE;
+	}
+}
+
+

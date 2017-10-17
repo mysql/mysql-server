@@ -84,7 +84,8 @@ Query_tables_list::binlog_stmt_unsafe_errcode[BINLOG_STMT_UNSAFE_COUNT] =
   ER_BINLOG_UNSAFE_UPDATE_IGNORE,
   ER_BINLOG_UNSAFE_INSERT_TWO_KEYS,
   ER_BINLOG_UNSAFE_AUTOINC_NOT_FIRST,
-  ER_BINLOG_UNSAFE_FULLTEXT_PLUGIN
+  ER_BINLOG_UNSAFE_FULLTEXT_PLUGIN,
+  ER_BINLOG_UNSAFE_XA
 };
 
 
@@ -529,7 +530,6 @@ void lex_end(LEX *lex)
 
   delete lex->sphead;
   lex->sphead= NULL;
-  lex->clear_values_map();
 
   DBUG_VOID_RETURN;
 }

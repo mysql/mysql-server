@@ -37,6 +37,15 @@ ELSE()
   SET (DEB_CONTROL_SERVER_CONFLICT_NDB "mysql-cluster-community-server, mysql-cluster-commercial-server")
   SET (DEB_CONTROL_CLIENT_CONFLICT_NDB "mysql-cluster-community-client, mysql-cluster-commercial-client")
 ENDIF()
+# Timestamp for use in debian/changelog
+IF (NOT DEFINED DEB_CHANGELOG_TIMESTAMP)
+  execute_process(
+    COMMAND date --rfc-2822
+    OUTPUT_VARIABLE DEB_CHANGELOG_TIMESTAMP
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+  SET (DEB_CHANGELOG_TIMESTAMP ${DEB_CHANGELOG_TIMESTAMP} CACHE STRING "")
+ENDIF()
 # Commercial or community
 IF (DEB_PRODUCT STREQUAL "commercial")
   SET (DEB_COPYRIGHT_UPSTREAMNAME "MySQL Commercial Server ${MYSQL_BASE_VERSION}")
@@ -52,6 +61,8 @@ IF (DEB_PRODUCT STREQUAL "commercial")
 "
 debian/extra/audit_log-plugin
 debian/extra/authentication_pam-plugin
+debian/extra/authentication_ldap_sasl-plugin
+debian/extra/authentication_ldap_simple-plugin
 debian/extra/firewall-plugin
 debian/extra/keyring_okv-plugin
 debian/extra/openssl_udf-plugin
@@ -61,18 +72,47 @@ debian/extra/thread_pool-plugin
 "
 usr/lib/mysql/plugin/audit_log.so
 usr/lib/mysql/plugin/authentication_pam.so
+usr/lib/mysql/plugin/authentication_ldap_sasl.so
+usr/lib/mysql/plugin/authentication_ldap_simple.so
 usr/lib/mysql/plugin/keyring_okv.so
 usr/lib/mysql/plugin/openssl_udf.so
 usr/lib/mysql/plugin/thread_pool.so
 usr/lib/mysql/plugin/firewall.so
+")
+  # Add debug versions of commercial plugins, if enabled
+  IF (DEFINED DEB_WITH_DEBUG)
+    SET (DEB_INSTALL_SERVER_PLUGINS "${DEB_INSTALL_SERVER_PLUGINS}
 usr/lib/mysql/plugin/debug/audit_log.so
 usr/lib/mysql/plugin/debug/authentication_pam.so
+usr/lib/mysql/plugin/debug/authentication_ldap_sasl.so
+usr/lib/mysql/plugin/debug/authentication_ldap_simple.so
 usr/lib/mysql/plugin/debug/keyring_okv.so
 usr/lib/mysql/plugin/debug/openssl_udf.so
 usr/lib/mysql/plugin/debug/thread_pool.so
 usr/lib/mysql/plugin/debug/firewall.so
 ")
+  ENDIF()
+
+  IF (DEB_AWS_SDK)
+    SET (DEB_CMAKE_EXTRAS "${DEB_CMAKE_EXTRAS} -DWITH_AWS_SDK=${DEB_AWS_SDK} -DDEB_AWS_SDK=${DEB_AWS_SDK}")
+    SET (DEB_INCLUDE_BINARIES_EXTRA "${DEB_INCLUDE_BINARIES_EXTRA}
+debian/extra/keyring_aws-plugin
+")
+    SET (DEB_INSTALL_SERVER_PLUGINS "${DEB_INSTALL_SERVER_PLUGINS}
+usr/lib/mysql/plugin/keyring_aws.so
+")
+    IF (DEFINED DEB_WITH_DEBUG)
+      SET (DEB_INSTALL_SERVER_PLUGINS "${DEB_INSTALL_SERVER_PLUGINS}
+usr/lib/mysql/plugin/debug/keyring_aws.so
+")
+    ENDIF()
+  ENDIF()
+
+  IF (WITH_CURL)
+    SET (DEB_CMAKE_EXTRAS "${DEB_CMAKE_EXTRAS} -DWITH_CURL=${WITH_CURL}")
+  ENDIF()
   SET (DEB_REMOVEPATTERN "gpl.in")
+  SET (DEB_CONTROL_BDEPS_EXTRA ",libldap2-dev, libsasl2-dev")
 ELSE()
   SET (DEB_PRODUCT "${DEB_BASE_PRODUCT}community")
   SET (DEB_COPYRIGHT_UPSTREAMNAME "MySQL Server ${MYSQL_BASE_VERSION}")
@@ -83,6 +123,7 @@ ELSE()
   SET (DEB_INSTALL_LICENSEFILE "COPYING")
   SET (DEB_SERVERVERSION "${DEB_BASE_VERSION}-1")
   SET (DEB_REMOVEPATTERN "com.in")
+  SET (DEB_CONTROL_BDEPS_EXTRA "")
 ENDIF()
 
 # Platform specifics. The differences are generally only distro version
@@ -236,6 +277,9 @@ ENDIF()
 
 IF (DEFINED WITH_NDBCLUSTER_STORAGE_ENGINE)
   INCLUDE(deb_ndb.cmake)
+ENDIF()
+if (DEFINED DEB_WITH_DEBUG)
+  INCLUDE(deb_debug.cmake)
 ENDIF()
 # All files are configured and copied to the debian/ directory, which is used 
 # by debuild to make the packages

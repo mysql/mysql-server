@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -464,7 +464,8 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
       goto err;
   }
 
-  if (check_fk_parent_table_access(thd, &lex->create_info, &lex->alter_info))
+  if (check_fk_parent_table_access(thd, create_table->db,
+                                   &lex->create_info, &lex->alter_info))
     goto err;
 
   error= FALSE;
@@ -494,8 +495,11 @@ bool check_readonly(THD *thd, bool err_if_readonly)
   if (!opt_readonly)
     DBUG_RETURN(FALSE);
 
-  /* thread is replication slave, do not prohibit operation: */
-  if (thd->slave_thread)
+  /*
+    Thread is replication slave or skip_read_only check is enabled for the
+    command, do not prohibit operation.
+  */
+  if (thd->slave_thread || thd->is_cmd_skip_readonly())
     DBUG_RETURN(FALSE);
 
   bool is_super = thd->security_context()->check_access(SUPER_ACL);
@@ -4329,10 +4333,11 @@ bool check_global_access(THD *thd, ulong want_access)
 /**
   Checks foreign key's parent table access.
 
-  @param thd	       [in]	Thread handler
-  @param create_info   [in]     Create information (like MAX_ROWS, ENGINE or
+  @param thd              [in]  Thread handler
+  @param child_table_db   [in]  Database of child table
+  @param create_info      [in]  Create information (like MAX_ROWS, ENGINE or
                                 temporary table flag)
-  @param alter_info    [in]     Initial list of columns and indexes for the
+  @param alter_info       [in]  Initial list of columns and indexes for the
                                 table to be created
 
   @retval
@@ -4341,6 +4346,7 @@ bool check_global_access(THD *thd, ulong want_access)
    true	  error or access denied. Error is sent to client in this case.
 */
 bool check_fk_parent_table_access(THD *thd,
+                                  const char *child_table_db,
                                   HA_CREATE_INFO *create_info,
                                   Alter_info *alter_info)
 {
@@ -4383,10 +4389,17 @@ bool check_fk_parent_table_access(THD *thd,
         if (fk_key->ref_db.str && check_and_convert_db_name(&db_name, false))
           return true;
       }
-      else if (thd->lex->copy_db_to(&db_name.str, &db_name.length))
-        return true;
       else
+      {
+        /*
+          If database name for parent table is not specified explicitly
+          SEs assume that it is the same as database name of child table.
+          We do the same here.
+        */
         is_qualified_table_name= false;
+        db_name.str= const_cast<char*>(child_table_db);
+        db_name.length= strlen(child_table_db);
+      }
 
       // if lower_case_table_names is set then convert tablename to lower case.
       if (lower_case_table_names)

@@ -26,7 +26,8 @@ Description: Management server
 
 Package: mysql-${DEB_PRODUCTNAME}-data-node
 Architecture: any
-Depends: \${shlibs:Depends}, \${misc:Depends}
+Depends: \${shlibs:Depends}, \${misc:Depends},
+ libclass-methodmaker-perl
 Description: Data node
  This package contains MySQL Cluster Data Node Daemon, it's the process
  that is used to handle all the data in tables using the NDB Cluster
@@ -35,7 +36,8 @@ Description: Data node
 
 Package: mysql-${DEB_PRODUCTNAME}-auto-installer
 Architecture: any
-Depends: \${shlibs:Depends}, \${misc:Depends}
+Depends: \${shlibs:Depends}, \${misc:Depends},
+ python-paramiko
 Description: Data node
  This package contains MySQL Cluster Data Node Daemon, it's the process
  that is used to handle all the data in tables using the NDB Cluster
@@ -129,7 +131,7 @@ Description: memcached
 /usr/share/man/man1/ndb_show_tables.1*
 /usr/share/man/man1/ndb_size.pl.1*
 /usr/share/man/man1/ndb_waiter.1*
-/usr/share/man/man1/ndbd_redo_log_reader.1*
+/usr/share/man/man1/ndb_redo_log_reader.1*
 /usr/share/man/man1/ndbinfo_select_all.1*
 ")
 
@@ -156,11 +158,11 @@ Description: memcached
 ")
   SET (DEB_NDB_RULES_DOCDIRS
 "
-	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-@DEB_PRODUCTNAME@-auto-installer
-	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-@DEB_PRODUCTNAME@-data-node
-	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-@DEB_PRODUCTNAME@-java
-	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-@DEB_PRODUCTNAME@-management-server
-	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-@DEB_PRODUCTNAME@-memcached
+	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-auto-installer
+	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-data-node
+	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-java
+	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-management-server
+	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-memcached
 	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/ndbclient
 	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/ndbclient-dev
 ")

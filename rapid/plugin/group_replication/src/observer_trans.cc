@@ -18,6 +18,7 @@
 
 #include "observer_trans.h"
 #include "plugin_log.h"
+#include "plugin.h"
 #include <mysql/service_rpl_transaction_ctx.h>
 #include <mysql/service_rpl_transaction_write_set.h>
 #include "sql_command_test.h"
@@ -294,6 +295,14 @@ int group_replication_trans_before_commit(Trans_param *param)
 
   shared_plugin_stop_lock->grab_read_lock();
 
+  if (is_plugin_waiting_to_set_server_read_mode())
+  {
+    log_message(MY_ERROR_LEVEL,
+                "Transaction cannot be executed while Group Replication is stopping.");
+    shared_plugin_stop_lock->release_read_lock();
+    DBUG_RETURN(1);
+  }
+
   /* If the plugin is not running, before commit should return success. */
   if (!plugin_is_group_replication_running())
   {
@@ -337,6 +346,9 @@ int group_replication_trans_before_commit(Trans_param *param)
   }
 
   // Transaction information.
+  const ulong transaction_size_limit= get_transaction_size_limit();
+  my_off_t transaction_size= 0;
+
   const bool is_gtid_specified= param->gtid_info.type == GTID_GROUP;
   Gtid gtid= { param->gtid_info.sidno, param->gtid_info.gno };
   if (!is_gtid_specified)
@@ -362,6 +374,7 @@ int group_replication_trans_before_commit(Trans_param *param)
 
   // Binlog cache.
   bool is_dml= true;
+  bool may_have_sbr_stmts= !is_dml;
   IO_CACHE *cache_log= NULL;
   my_off_t cache_log_position= 0;
   bool reinit_cache_log_required= false;
@@ -378,6 +391,7 @@ int group_replication_trans_before_commit(Trans_param *param)
     cache_log= param->stmt_cache_log;
     cache_log_position= stmt_cache_log_position;
     is_dml= false;
+    may_have_sbr_stmts= true;
   }
   else
   {
@@ -478,14 +492,37 @@ int group_replication_trans_before_commit(Trans_param *param)
       cleanup_transaction_write_set(write_set);
       DBUG_ASSERT(is_gtid_specified || (tcle->get_write_set()->size() > 0));
     }
+    else
+    {
+      /*
+        For empty transactions we should set the GTID may_have_sbr_stmts. See
+        comment at binlog_cache_data::may_have_sbr_stmts().
+      */
+      may_have_sbr_stmts= true;
+    }
   }
 
   // Write transaction context to group replication cache.
   tcle->write(cache);
 
   // Write Gtid log event to group replication cache.
-  gle= new Gtid_log_event(param->server_id, is_dml, 0, 1, gtid_specification);
+  gle= new Gtid_log_event(param->server_id, is_dml, 0, 1,
+                          may_have_sbr_stmts,
+                          gtid_specification);
   gle->write(cache);
+
+  transaction_size= cache_log_position + my_b_tell(cache);
+  if (is_dml && transaction_size_limit &&
+     transaction_size > transaction_size_limit)
+  {
+    log_message(MY_ERROR_LEVEL, "Error on session %u. "
+                "Transaction of size %llu exceeds specified limit %lu. "
+                "To increase the limit please adjust group_replication_transaction_size_limit option.",
+                param->thread_id, transaction_size,
+                transaction_size_limit);
+    error= pre_wait_error;
+    goto err;
+  }
 
   // Reinit group replication cache to read.
   if (reinit_cache(cache, READ_CACHE, 0))

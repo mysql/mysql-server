@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,72 +18,83 @@
 
 #include "sql_service_command.h"
 
-class Read_mode_handler
-{
-public:
-  /**
-    Create a new handler to set and unset the super read only mode in the server
-  */
-  Read_mode_handler();
 
-  /** Destructor*/
- ~Read_mode_handler();
+/**
+  This method creates a server session and connects to the server
+  to enable the read mode
 
-  /**
-    Set the super read only mode in the server.
+  @param session_isolation session creation requirements: use current thread,
+                           use thread but initialize it or create it in a
+                           dedicated thread
 
-    @param sql_service_command  Command interface given to execute the command
+  @return the operation status
+    @retval 0      OK
+    @retval !=0    Error
+*/
+int enable_server_read_mode(enum_plugin_con_isolation session_isolation);
 
-    @return the operation status
-      @retval 0      OK
-      @retval !=0    Error
-  */
-  long set_super_read_only_mode(Sql_service_command *sql_service_command);
+/**
+  This method creates a server session and connects to the server
+  to disable the read mode
 
-  /**
-    Reset the read only mode in the server.
+   @param session_isolation session creation requirements: use current thread,
+                           use thread but initialize it or create it in a
+                           dedicated thread
 
-    @param sql_service_command  Command interface given to execute the command
-    @param force_reset          Always reset super_read_only variable
+  @return the operation status
+    @retval 0      OK
+    @retval !=0    Error
+*/
+int disable_server_read_mode(enum_plugin_con_isolation session_isolation);
 
-    @note: if force_reset is false, the value is reset according to the value
-    present in the server when set_super_read_only_mode was executed
+/**
+  Enable the super read only mode in the server.
 
-    @return the operation status
-      @retval 0      OK
-      @retval !=0    Error
-  */
-  long reset_super_read_only_mode(Sql_service_command *sql_service_command,
-                                  bool force_reset= false);
+  @param sql_service_command  Command interface given to execute the command
 
-  /**
-    Returns true if the assessment and activation of the read mode is already done
-  */
-  bool is_read_mode_active()
-  {
-    return read_mode_active;
-  }
+  @return the operation status
+    @retval 0      OK
+    @retval !=0    Error
+*/
+long enable_super_read_only_mode(Sql_service_command_interface *sql_service_command);
 
-#ifndef DBUG_OFF
-  void set_to_fail()
-  {
-    is_set_to_fail= true;
-  }
-#endif
+/**
+  Disable the read only mode in the server.
 
-private:
-  /** If the mode was set or not */
-  bool read_mode_active;
-  /** If the server is in (simple) read mode */
-  longlong server_read_only;
-  /** If the server is in super read mode*/
-  longlong server_super_read_only;
+  @param sql_service_command  Command interface given to execute the command
 
-#ifndef DBUG_OFF
-  /** Make the read mode activation fail (when debug flags don't work) */
-  bool is_set_to_fail;
-#endif
-  mysql_mutex_t read_mode_lock;
-};
+  @return the operation status
+    @retval 0      OK
+    @retval !=0    Error
+*/
+long disable_super_read_only_mode(Sql_service_command_interface *sql_service_command);
+
+/**
+  Get read mode status from server.
+
+  @param sql_service_command        Command interface given to execute the command
+  @param read_only_enabled          Update with value of read only mode
+  @param super_read_only_enabled    Update with value of super read only mode
+
+  @return the operation status
+    @retval 0      OK
+    @retval !=0    Error
+*/
+long get_read_mode_state(Sql_service_command_interface *sql_service_command,
+                         bool *read_only_enabled, bool *super_read_only_enabled);
+
+/**
+  Set read mode status from server.
+
+  @param sql_service_command        Command interface given to execute the command
+  @param read_only_enabled          Value to set on read only mode
+  @param super_read_only_enabled    Value to set on super read only mode
+
+  @return the operation status
+    @retval 0      OK
+    @retval !=0    Error
+*/
+long set_read_mode_state(Sql_service_command_interface *sql_service_command,
+                         bool read_only_enabled, bool super_read_only_enabled);
 
 #endif /* READ_MODE_HANDLER_INCLUDE */

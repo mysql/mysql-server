@@ -28,6 +28,10 @@ typedef struct cfg_app_xcom
   */
   unsigned int m_poll_spin_loops;
 
+  /*
+   cache size limit and interval
+  */
+  size_t cache_limit;
 } cfg_app_xcom_st;
 
 /*

@@ -82,6 +82,8 @@ drop table if exists t1;
 # only a command-line switch.
 #
 set @@session.tx_isolation="read-committed";
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 # Prepare data. We need a table with a unique index,
 # for join_read_key to be used. The other column
 # allows to control what passes WHERE clause filter.
@@ -373,6 +375,8 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 # Switching to connection default
 commit;
 set @@session.tx_isolation=default;
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 drop table t1;
 #
 # End of 5.1 tests

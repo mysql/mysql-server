@@ -144,6 +144,8 @@ xxxxxxxxxxxxxxxxxxxxxxxxxxxxsy
 xxxxxxxxxxxxxxxxxxxxxxxxxxxxgw
 ** Results should not be sorted **
 RESET QUERY CACHE;
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 '#--------------------FN_DYNVARS_098_04-------------------------#'
 SET max_sort_length=29;
 SELECT c from t ORDER BY c, id;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -333,13 +333,14 @@ namespace keyring__api_unittest
     key_type= NULL;
     my_free(key);
     key= NULL;
-    EXPECT_EQ(mysql_key_store("Artur_key", "AES", "Artur", sample_key_data.c_str(),
-                              sample_key_data.length() + 1), 0);
+    std::string arturs_key_data= "Artur";
+    EXPECT_EQ(mysql_key_store("Artur_key", "AES", "Artur", arturs_key_data.c_str(),
+                              arturs_key_data.length() + 1), 0);
     EXPECT_EQ(mysql_key_fetch("Artur_key", &key_type, "Artur", &key,
                               &key_len), 0);
     EXPECT_STREQ("AES", key_type);
-    EXPECT_EQ(key_len, sample_key_data.length()+1);
-    ASSERT_TRUE(memcmp((char *)key, sample_key_data.c_str(), key_len) == 0);
+    EXPECT_EQ(key_len, arturs_key_data.length()+1);
+    ASSERT_TRUE(memcmp((char *)key, arturs_key_data.c_str(), key_len) == 0);
     my_free(key_type);
     key_type= NULL;
     my_free(key);
@@ -351,8 +352,8 @@ namespace keyring__api_unittest
     EXPECT_EQ(mysql_key_fetch("Artur_key", &key_type, "Artur", &key,
                               &key_len), 0);
     EXPECT_STREQ("AES", key_type);
-    EXPECT_EQ(key_len, sample_key_data.length()+1);
-    ASSERT_TRUE(memcmp((char *)key, sample_key_data.c_str(), key_len) == 0);
+    EXPECT_EQ(key_len, arturs_key_data.length()+1);
+    ASSERT_TRUE(memcmp((char *)key, arturs_key_data.c_str(), key_len) == 0);
     my_free(key_type);
     key_type= NULL;
     my_free(key);

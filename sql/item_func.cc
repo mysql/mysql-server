@@ -480,6 +480,22 @@ void Item_func::update_used_tables()
 }
 
 
+void Item_func_sp::fix_after_pullout(SELECT_LEX *parent_select,
+                                     SELECT_LEX *removed_select)
+{
+  Item_func::fix_after_pullout(parent_select, removed_select);
+
+  /*
+    Prevents function from being evaluated before it is locked.
+    @todo - make this dependent on READS SQL or MODIFIES SQL.
+            Due to a limitation in how functions are evaluated, we need to
+            ensure that we are in a prelocked mode even though the function
+            doesn't reference any tables.
+  */
+  used_tables_cache|= PARAM_TABLE_BIT;
+}
+
+
 table_map Item_func::used_tables() const
 {
   return used_tables_cache;
@@ -2566,6 +2582,7 @@ Item_func_latlongfromgeohash::check_geohash_argument_valid_type(Item *item)
   {
   case MYSQL_TYPE_VARCHAR:
   case MYSQL_TYPE_VAR_STRING:
+  case MYSQL_TYPE_STRING:
   case MYSQL_TYPE_BLOB:
   case MYSQL_TYPE_TINY_BLOB:
   case MYSQL_TYPE_MEDIUM_BLOB:
@@ -8818,8 +8835,6 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
 
   /* These is reset/set by Item_func::fix_fields. */
   with_stored_program= true;
-  if (!m_sp->m_chistics->detistic || !tables_locked_cache)
-    const_item_cache= false;
 
   if (res)
     DBUG_RETURN(res);
@@ -8856,9 +8871,6 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
 void Item_func_sp::update_used_tables()
 {
   Item_func::update_used_tables();
-
-  if (!m_sp->m_chistics->detistic)
-    const_item_cache= false;
 
   /* This is reset by Item_func::update_used_tables(). */
   with_stored_program= true;

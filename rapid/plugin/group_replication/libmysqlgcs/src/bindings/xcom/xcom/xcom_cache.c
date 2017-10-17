@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,6 +36,14 @@
 #include "task_debug.h"
 #include "site_def.h"
 #include "bitset.h"
+#include "app_data.h"
+#include "simset.h"
+#include "xcom_cfg.h"
+
+#define DBG_CACHE_SIZE 0
+
+/* Protect at least MIN_CACHED * (number of nodes) pax_machine objects from deallocation by shrink_cache */
+#define MIN_CACHED 10
 
 /* {{{ Paxos machine cache */
 
@@ -43,6 +51,24 @@ struct lru_machine {
   linkage lru_link;
   pax_machine pax;
 };
+
+static synode_no last_removed_cache;
+
+int	was_removed_from_cache(synode_no x)
+{
+	ADD_EVENTS(
+	    add_event(string_arg("x "));
+	    add_synode_event(x);
+	    add_event(string_arg("last_removed_cache "));
+	    add_synode_event(last_removed_cache);
+	);
+	/*
+	What to do with requests from nodes that have a different group ID?
+	Should we just ignore them, as we do with the current code,
+	or should we do something about it?
+	*/
+	return last_removed_cache.group_id == x.group_id && !synode_gt(x, last_removed_cache);
+}
 
 #define BUCKETS (CACHED)
 
@@ -144,42 +170,36 @@ static int	is_noop(synode_no synode)
 }
 #endif
 
+/*
+Get a machine for (re)use.
+The machines are statically allocated, and organized in two lists.
+probation_lru is the free list.
+protected_lru tracks the machines that are currently in the cache in
+lest recently used order.
+*/
 static lru_machine *lru_get()
 {
-  lru_machine *retval = NULL;
-  if (!link_empty(&probation_lru))
-    retval = (lru_machine * ) link_first(&probation_lru);
-  else
-    retval = (lru_machine * ) link_first(&protected_lru);
-  assert(!is_busy_machine(&retval->pax));
-  return retval;
+	lru_machine * retval = NULL;
+	if (!link_empty(&probation_lru)) {
+		retval = (lru_machine * ) link_first(&probation_lru);
+	} else {
+		retval = (lru_machine * ) link_first(&protected_lru);
+		/* Since this machine is in in the cache, we need to update
+		last_removed_cache */
+		last_removed_cache = retval->pax.synode;
+
+	}
+	assert(!is_busy_machine(&retval->pax));
+	return retval;
 }
 
-#if 0
-static lru_machine *lru_touch(pax_machine *p)
-{
-  lru_machine * lru = p->lru;
-  if (0 && p->learner.msg && p->learner.msg->op == no_op)
-    link_into(link_out(&lru->lru_link), &probation_lru);
-  else
-    link_into(link_out(&lru->lru_link), &protected_lru);
-  return lru;
-}
-#endif
-static lru_machine *lru_touch_miss(pax_machine *p)
-{
-  lru_machine * lru = p->lru;
-  link_into(link_out(&lru->lru_link), &probation_lru);
-  return lru;
-}
-#if 0
 static lru_machine *lru_touch_hit(pax_machine *p)
 {
   lru_machine * lru = p->lru;
   link_into(link_out(&lru->lru_link), &protected_lru);
   return lru;
 }
-#endif
+
 
 /* Initialize the message cache */
 void init_cache()
@@ -191,12 +211,11 @@ void init_cache()
   for (i = 0; i < CACHED; i++) {
     lru_machine * l = &cache[i];
     link_init(&l->lru_link, type_hash("lru_machine"));
-    if (1)
-      link_into(&l->lru_link, &probation_lru);
-    else
-      link_into(&l->lru_link, &protected_lru);
+    link_into(&l->lru_link, &probation_lru);
     init_pax_machine(&l->pax, l, null_synode);
   }
+  init_cache_size(); /* After cache has been intialized, size is 0 */
+  last_removed_cache = null_synode;
 }
 
 void deinit_cache()
@@ -248,12 +267,64 @@ pax_machine *get_cache(synode_no synode)
     retval = hash_out(&l->pax); /* Remove from hash table */
     init_pax_machine(retval, l, synode); /* Initialize */
     hash_in(retval);            /* Insert in hash table again */
-    lru_touch_miss(retval);
-  } else {
-    lru_touch_miss(retval);
   }
+  lru_touch_hit(retval); /* Insert in protected_lru */
   MAY_DBG(FN; SYCEXP(synode); PTREXP(retval));
   return retval;
+}
+
+static inline int can_deallocate(lru_machine *link_iter)
+{
+	synode_no delivered_msg;
+	site_def const *site = get_site_def();
+	site_def const *dealloc_site = find_site_def(link_iter->pax.synode);
+
+	/* If we have no site, or site was just installed, refuse deallocation */
+	if(site == 0)
+		return 0;
+	/*
+		With the patch that was put in to ensure that nodes always see  a
+		global  view  message when it joins, the node that joins may need
+		messages which are significantly behind the point where the  node
+		joins  (effectively starting with the latest config). So there is
+		a very real risk that a node which joined might find  that  those
+		messages had been removed, since all the other nodes had executed
+		past that point. This test effectively stops  garbage  collection
+		of  old  messages until the joining node has got a chance to tell
+		the others about its low water mark. If  it  has  not  done  that
+		within  DETECTOR_LIVE_TIMEOUT,  it will be considered dead by the
+		other nodes anyway, and expelled.
+	*/
+	if((site->install_time + DETECTOR_LIVE_TIMEOUT) > task_now())
+		return 0;
+	if(dealloc_site == 0)/* Synode does not match any site, OK to deallocate */
+		return 1;
+	delivered_msg = get_min_delivered_msg(site);
+	if(synode_eq(delivered_msg,null_synode)) /* Missing info from some node, not OK */
+		return 0;
+	return link_iter->pax.synode.group_id != delivered_msg.group_id ||
+		(link_iter->pax.synode.msgno + MIN_CACHED) < delivered_msg.msgno;
+}
+
+/*
+	Loop through the LRU (protected_lru) and deallocate objects until the size of
+	the cache is below the limit.
+	The freshly initialized objects are put into the probation_lru, so we can always start
+	scanning at the end of protected_lru.
+	lru_get will always look in probation_lru first.
+*/
+void shrink_cache()
+{
+	FWD_ITER(&protected_lru, lru_machine,
+	if ( above_cache_limit() &&  can_deallocate(link_iter)) {
+	    last_removed_cache = link_iter->pax.synode;
+		hash_out(&link_iter->pax); /* Remove from hash table */
+		link_into(link_out(&link_iter->lru_link), &probation_lru); /* Put in probation lru */
+		init_pax_machine(&link_iter->pax, link_iter, null_synode);
+	} else {
+		return;
+	}
+	);
 }
 
 void xcom_cache_var_init()
@@ -268,28 +339,29 @@ void xcom_cache_var_init()
 /* Initialize a Paxos instance */
 static pax_machine *init_pax_machine(pax_machine *p, lru_machine *lru, synode_no synode)
 {
-  link_init(&p->hash_link, type_hash("pax_machine"));
-  p->lru = lru;
-  p->synode = synode;
-  p->last_modified = 0.0;
-  link_init(&p->rv, type_hash("task_env"));
-  init_ballot(&p->proposer.bal, 0, 0);
-  init_ballot(&p->proposer.sent_prop, 0, 0);
-  init_ballot(&p->proposer.sent_learn, -1, 0);
-  if (!p->proposer.prep_nodeset)
-    p->proposer.prep_nodeset = new_bit_set(NSERVERS);
-  BIT_ZERO(p->proposer.prep_nodeset);
-  if (!p->proposer.prop_nodeset)
-    p->proposer.prop_nodeset = new_bit_set(NSERVERS);
-  BIT_ZERO(p->proposer.prop_nodeset);
-  replace_pax_msg(&p->proposer.msg, NULL);
-  init_ballot(&p->acceptor.promise, 0, 0);
-  replace_pax_msg(&p->acceptor.msg, NULL);
-  replace_pax_msg(&p->learner.msg, NULL);
-  p->lock = 0;
-  p->op = initial_op;
-  p->force_delivery = 0;
-  return p;
+	sub_cache_size(pax_machine_size(p));
+	link_init(&p->hash_link, type_hash("pax_machine"));
+	p->lru = lru;
+	p->synode = synode;
+	p->last_modified = 0.0;
+	link_init(&p->rv, type_hash("task_env"));
+	init_ballot(&p->proposer.bal, 0, 0);
+	init_ballot(&p->proposer.sent_prop, 0, 0);
+	init_ballot(&p->proposer.sent_learn, -1, 0);
+	if (!p->proposer.prep_nodeset)
+		p->proposer.prep_nodeset = new_bit_set(NSERVERS);
+	BIT_ZERO(p->proposer.prep_nodeset);
+	if (!p->proposer.prop_nodeset)
+		p->proposer.prop_nodeset = new_bit_set(NSERVERS);
+	BIT_ZERO(p->proposer.prop_nodeset);
+	replace_pax_msg(&p->proposer.msg, NULL);
+	init_ballot(&p->acceptor.promise, 0, 0);
+	replace_pax_msg(&p->acceptor.msg, NULL);
+	replace_pax_msg(&p->learner.msg, NULL);
+	p->lock = 0;
+	p->op = initial_op;
+	p->force_delivery = 0;
+	return p;
 }
 
 int	lock_pax_machine(pax_machine *p)
@@ -350,4 +422,76 @@ char *dbg_pax_machine(pax_machine *p)
 }
 
 /* purecov: end */
+
+/*
+  Return the size of a pax_msg. Counts only the pax_msg struct itself
+  and the size of the app_data.
+*/
+static inline size_t get_app_msg_size(pax_msg const *p)
+{
+       if(!p)
+               return (size_t) 0;
+       else
+               return sizeof(pax_msg) + app_data_list_size(p->a);
+}
+
+/*
+  Return the size of the messages referenced by a pax_machine.
+  The pax_machine itself is statically allocated, so we do
+  not count this when computing the cache size.
+*/
+size_t pax_machine_size(pax_machine const *p)
+{
+       size_t size = get_app_msg_size(p->proposer.msg);
+
+       if (p->acceptor.msg && p->proposer.msg != p->acceptor.msg)
+               size += get_app_msg_size(p->acceptor.msg);
+
+       if (p->learner.msg && p->acceptor.msg != p->learner.msg && p->proposer.msg != p->learner.msg)
+               size += get_app_msg_size(p->learner.msg);
+       return size;
+}
+
+static size_t cache_size = 0;
+
+/* The cache itself is statically allocated, set size of dynamically allocted data to 0 */
+void init_cache_size()
+{
+       cache_size = 0;
+}
+
+/* Add to cache size */
+size_t add_cache_size(size_t x)
+{
+       cache_size += x;
+       if (DBG_CACHE_SIZE && x)
+               G_MESSAGE("%f %s:%d cache_size %lu x %lu", seconds(), __FILE__, __LINE__,
+                         (long unsigned int)cache_size, (long unsigned int)x);
+       return cache_size;
+}
+
+/* Subtract from cache size */
+size_t sub_cache_size(size_t x)
+{
+       cache_size -= x;
+       if (DBG_CACHE_SIZE && x)
+               G_MESSAGE("%f %s:%d cache_size %lu x %lu", seconds(), __FILE__, __LINE__,
+                         (long unsigned int)cache_size, (long unsigned int)x);
+       return cache_size;
+}
+
+/* See if cache is above limit */
+int    above_cache_limit()
+{
+       return  the_app_xcom_cfg && cache_size > the_app_xcom_cfg->cache_limit ;
+}
+
+/* If cfg object exits, set max cache size */
+size_t set_max_cache_size(size_t x)
+{
+       if (the_app_xcom_cfg)
+               return the_app_xcom_cfg->cache_limit = x;
+       else
+               return 0;
+}
 /* }}} */

@@ -1,6 +1,5 @@
-call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot find a free slot for an undo log. Do you have too");
-set @old_innodb_undo_logs = @@innodb_undo_logs;
-set global innodb_undo_logs=1;
+set @old_innodb_rollback_segments = @@innodb_rollback_segments;
+set global innodb_rollback_segments=1;
 show variables like "max_connections";
 Variable_name	Value
 max_connections	64
@@ -25,4 +24,4 @@ select count(*) from information_schema.processlist;
 count(*)
 33
 drop database mysqltest;
-set global innodb_undo_logs = @old_innodb_undo_logs;
+set global innodb_rollback_segments = @old_innodb_rollback_segments;

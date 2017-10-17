@@ -147,6 +147,7 @@ include/assert.inc [The value of auto_increment_increment for server3 should be 
 include/assert.inc [The value of auto_increment_offset for server3 should be 3]
 include/assert.inc [The value of auto_increment_increment for server4 should be 1]
 include/assert.inc [The value of auto_increment_offset for server4 should be 1]
+include/assert_and_disable_read_only.inc
 INSERT INTO t1 VALUES(NULL);
 INSERT INTO t1 VALUES(NULL);
 INSERT INTO t1 VALUES(NULL);
@@ -184,6 +185,7 @@ include/assert.inc [The value of auto_increment_increment for server2 should be 
 include/assert.inc [The value of auto_increment_offset for server2 should be 2]
 include/assert.inc [The value of auto_increment_increment for server3 should be 1]
 include/assert.inc [The value of auto_increment_offset for server3 should be 1]
+include/assert_and_disable_read_only.inc
 INSERT INTO t1 VALUES(NULL);
 INSERT INTO t1 VALUES(NULL);
 INSERT INTO t1 VALUES(NULL);
@@ -209,6 +211,7 @@ include/assert.inc [The value of auto_increment_increment for server1 should be 
 include/assert.inc [The value of auto_increment_offset for server1 should be 1]
 include/assert.inc [The value of auto_increment_increment for server2 should be 1]
 include/assert.inc [The value of auto_increment_offset for server2 should be 1]
+include/assert_and_disable_read_only.inc
 ############################################################
 # 3. Start group replication on all members and wait for sync
 ############################################################

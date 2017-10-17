@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -273,8 +273,9 @@ int Sql_service_interface::set_session_user(const char *user)
   {
     /* purecov: begin inspected */
     log_message(MY_ERROR_LEVEL,
-                "Unable to use user %s context when contacting the server for"
-                " internal plugin requests.", user);
+                "There was an error when trying to access the server with user:"
+                " %s. Make sure the user is present in the server and that"
+                " mysql_upgrade was run after a server update.", user);
     return 1;
     /* purecov: end */
   }

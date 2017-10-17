@@ -3,7 +3,7 @@
 #
 # Test:
 # 0. This test requires one server.
-# 1. Basic check that there are 32 GR variables.
+# 1. Basic check that there are 35 GR variables.
 # 2. Verify that all the group replication variables are GLOBAL variables.
 # 3. Verify values of GLOBAL and SESSION variables using below commands:-
 #  - SHOW GLOBAL VARIABLES LIKE 'group_replication_..'
@@ -26,13 +26,15 @@
 --source ../inc/start_and_bootstrap_group_replication.inc
 --source include/stop_group_replication.inc
 
+--sleep 30
+
 --echo
---echo # Test#1: Basic check that there are 32 GR variables.
+--echo # Test#1: Basic check that there are 35 GR variables.
 
 # Note: If a new GR variable is added or an old GR variable is removed, then
 # update this testcase for the sanity check.
---let $assert_text= There are 32 GR variables at present.
---let $assert_cond= "[SELECT COUNT(*) FROM performance_schema.global_variables WHERE VARIABLE_NAME LIKE \\'group_replication%\']" = 32
+--let $assert_text= There are 35 GR variables at present.
+--let $assert_cond= "[SELECT COUNT(*) FROM performance_schema.global_variables WHERE VARIABLE_NAME LIKE \\'group_replication%\']" = 35
 --source include/assert.inc
 
 # Take backup of GR variables
@@ -66,6 +68,9 @@
 --let $saved_gr_recovery_use_ssl = `SELECT @@GLOBAL.group_replication_recovery_use_ssl;`
 --let $saved_gr_ssl_mode = `SELECT @@GLOBAL.group_replication_ssl_mode;`
 --let $saved_gr_start_on_boot = `SELECT @@GLOBAL.group_replication_start_on_boot;`
+--let $saved_gr_transaction_size_limit = `SELECT @@GLOBAL.group_replication_transaction_size_limit;`
+--let $saved_gr_unreachable_majority_timeout = `SELECT @@GLOBAL.group_replication_unreachable_majority_timeout`
+--let $saved_gr_member_weight = `SELECT @@GLOBAL.group_replication_member_weight;`
 --enable_query_log
 
 --echo
@@ -130,6 +135,12 @@ SET @@SESSION.group_replication_single_primary_mode= 0;
 SET @@SESSION.group_replication_ssl_mode= "REQUIRED";
 --error ER_GLOBAL_VARIABLE
 SET @@SESSION.group_replication_start_on_boot= 1;
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_transaction_size_limit= 10240;
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_unreachable_majority_timeout= 10240;
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_member_weight= 80;
 
 # GR variables should be set at GLOBAL level.
 # Set values to GLOBAL GR variables to test further.
@@ -163,6 +174,9 @@ SET GLOBAl group_replication_single_primary_mode= OFF;
 SET GLOBAL group_replication_recovery_use_ssl= ON;
 SET GLOBAL group_replication_ssl_mode= "REQUIRED";
 SET GLOBAL group_replication_start_on_boot= ON;
+SET GLOBAL group_replication_transaction_size_limit= 100000;
+SET GLOBAL group_replication_unreachable_majority_timeout= 100000;
+SET GLOBAL group_replication_member_weight= 70;
 --enable_query_log
 
 --echo
@@ -664,6 +678,57 @@ SET GLOBAL group_replication_start_on_boot= ON;
 --let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_start_on_boot\', VARIABLE_VALUE, 1]" = "ON"
 --source include/assert.inc
 
+# group_replication_transaction_size_limit
+--let $assert_text= Verify GLOBAL value of group_replication_transaction_size_limit
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_transaction_size_limit\', Value, 1]" = 100000
+--source include/assert.inc
+
+--let $assert_text= Verify GLOBAL value of group_replication_transaction_size_limit
+--let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_transaction_size_limit\', VARIABLE_VALUE, 1]" = 100000
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_transaction_size_limit
+--let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_transaction_size_limit\', Value, 1]" = 100000
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_transaction_size_limit
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_transaction_size_limit\', VARIABLE_VALUE, 1]" = 100000
+--source include/assert.inc
+
+# group_replication_unreachable_majority_timeout
+--let $assert_text= Verify GLOBAL value of group_replication_unreachable_majority_timeout
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_unreachable_majority_timeout\', Value, 1]" = 100000
+--source include/assert.inc
+
+--let $assert_text= Verify GLOBAL value of group_replication_unreachable_majority_timeout
+--let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_unreachable_majority_timeout\', VARIABLE_VALUE, 1]" = 100000
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_unreachable_majority_timeout
+--let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_unreachable_majority_timeout\', Value, 1]" = 100000
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_unreachable_majority_timeout
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_unreachable_majority_timeout\', VARIABLE_VALUE, 1]" = 100000
+--source include/assert.inc
+
+# group_replication_member_weight
+--let $assert_text= Verify GLOBAL value of group_replication_member_weight
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_member_weight\', Value, 1]" = 70
+--source include/assert.inc
+
+--let $assert_text= Verify GLOBAL value of group_replication_member_weight
+--let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_member_weight\', VARIABLE_VALUE, 1]" = 70
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_member_weight
+--let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_member_weight\', Value, 1]" = 70
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_member_weight
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_member_weight\', VARIABLE_VALUE, 1]" = 70
+--source include/assert.inc
+
 --echo
 --echo # Clean up
 --source include/stop_group_replication.inc
@@ -699,6 +764,9 @@ SET GLOBAL group_replication_start_on_boot= ON;
 --eval SET @@GLOBAL.group_replication_recovery_use_ssl= $saved_gr_recovery_use_ssl
 --eval SET @@GLOBAL.group_replication_ssl_mode= $saved_gr_ssl_mode
 --eval SET @@GLOBAL.group_replication_start_on_boot= $saved_gr_start_on_boot
+--eval SET @@GLOBAL.group_replication_transaction_size_limit= $saved_gr_transaction_size_limit
+--eval SET @@GLOBAL.group_replication_unreachable_majority_timeout= $saved_gr_unreachable_majority_timeout
+--eval SET @@GLOBAL.group_replication_member_weight= $saved_gr_member_weight
 --enable_query_log
 
 --source ../inc/group_replication_end.inc

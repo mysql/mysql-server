@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -75,6 +75,8 @@ extern PSI_mutex_key
               key_GR_LOCK_channel_observation_list,
               key_GR_LOCK_delayed_init_run,
               key_GR_LOCK_delayed_init_server_ready,
+              key_GR_LOCK_group_part_handler_run,
+              key_GR_LOCK_group_part_handler_abort,
               key_GR_LOCK_view_modification_wait,
               key_GR_LOCK_group_info_manager,
               key_GR_LOCK_pipeline_continuation,
@@ -85,10 +87,14 @@ extern PSI_mutex_key
               key_GR_LOCK_recovery_module_run,
               key_GR_LOCK_recovery,
               key_GR_LOCK_recovery_donor_selection,
+              key_GR_LOCK_session_thread_method_exec,
+              key_GR_LOCK_session_thread_run,
               key_GR_LOCK_plugin_running,
               key_GR_LOCK_force_members_running,
               key_GR_LOCK_write_lock_protection,
-              key_GR_LOCK_pipeline_stats_flow_control;
+              key_GR_LOCK_pipeline_stats_flow_control,
+              key_GR_LOCK_pipeline_stats_transactions_waiting_apply,
+              key_GR_LOCK_trx_unlocking;
 
 extern PSI_cond_key
               key_GR_COND_applier_module_run,
@@ -98,6 +104,8 @@ extern PSI_cond_key
               key_GR_COND_cert_broadcast_dispatcher_run,
               key_GR_COND_delayed_init_run,
               key_GR_COND_delayed_init_server_ready,
+              key_GR_COND_group_part_handler_run,
+              key_GR_COND_group_part_handler_abort,
               key_GR_COND_view_modification_wait,
               key_GR_COND_pipeline_continuation,
               key_GR_COND_synchronized_queue,
@@ -105,12 +113,16 @@ extern PSI_cond_key
               key_GR_COND_wait_ticket,
               key_GR_COND_recovery_module_run,
               key_GR_COND_recovery,
+              key_GR_COND_session_thread_method_exec,
+              key_GR_COND_session_thread_run,
               key_GR_COND_pipeline_stats_flow_control;
 
 extern PSI_thread_key
                key_GR_THD_applier_module_receiver,
                key_GR_THD_cert_broadcast,
                key_GR_THD_delayed_init,
+               key_GR_THD_plugin_session,
+               key_GR_THD_group_partition_handler,
                key_GR_THD_recovery;
 
 extern PSI_rwlock_key

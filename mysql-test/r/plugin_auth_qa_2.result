@@ -7,7 +7,7 @@ GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_1_dest identified by 'dest_pas
 Warnings:
 Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
 GRANT PROXY ON qa_test_1_dest TO qa_test_1_user;
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys');
+SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
 user	plugin	authentication_string
 qa_test_1_dest	mysql_native_password	*DFCACE76914AD7BD801FC1A1ECF6562272621A22
 qa_test_1_user	qa_auth_interface	qa_test_1_dest
@@ -21,7 +21,7 @@ exec MYSQL PLUGIN_AUTH_OPT -h localhost -P MASTER_MYPORT -u qa_test_1_user --pas
 mysql: [Warning] Using a password on the command line interface can be insecure.
 current_user()	user()	@@local.proxy_user	@@local.external_user
 qa_test_1_user@%	qa_test_1_user@localhost	NULL	NULL
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys');
+SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
 user	plugin	authentication_string
 qa_test_1_dest	mysql_native_password	*DFCACE76914AD7BD801FC1A1ECF6562272621A22
 qa_test_1_user	qa_auth_interface	qa_test_1_dest
@@ -36,7 +36,7 @@ Warnings:
 Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
 GRANT PROXY ON qa_test_2_dest TO qa_test_2_user;
 GRANT PROXY ON authenticated_as TO qa_test_2_user;
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys');
+SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
 user	plugin	authentication_string
 authenticated_as	mysql_native_password	*DFCACE76914AD7BD801FC1A1ECF6562272621A22
 qa_test_2_dest	mysql_native_password	*DFCACE76914AD7BD801FC1A1ECF6562272621A22
@@ -51,7 +51,7 @@ exec MYSQL PLUGIN_AUTH_OPT -h localhost -P MASTER_MYPORT -u qa_test_2_user --pas
 mysql: [Warning] Using a password on the command line interface can be insecure.
 current_user()	user()	@@local.proxy_user	@@local.external_user
 authenticated_as@%	user_name@localhost	'qa_test_2_user'@'%'	externaluser
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys');
+SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
 user	plugin	authentication_string
 authenticated_as	mysql_native_password	*DFCACE76914AD7BD801FC1A1ECF6562272621A22
 qa_test_2_dest	mysql_native_password	*DFCACE76914AD7BD801FC1A1ECF6562272621A22
@@ -97,7 +97,7 @@ Warnings:
 Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
 GRANT PROXY ON qa_test_5_dest TO qa_test_5_user;
 GRANT PROXY ON qa_test_5_dest TO ''@'localhost';
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys');
+SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
 user	plugin	authentication_string
 	mysql_native_password	*DFCACE76914AD7BD801FC1A1ECF6562272621A22
 qa_test_5_dest	mysql_native_password	*DFCACE76914AD7BD801FC1A1ECF6562272621A22
@@ -115,7 +115,7 @@ GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_6_dest identified by 'dest_pas
 Warnings:
 Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
 GRANT PROXY ON qa_test_6_dest TO qa_test_6_user;
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys');
+SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
 user	plugin	authentication_string
 qa_test_6_dest	mysql_native_password	*DFCACE76914AD7BD801FC1A1ECF6562272621A22
 qa_test_6_user	qa_auth_interface	qa_test_6_dest
@@ -125,7 +125,7 @@ ERROR 1045 (28000): Access denied for user 'qa_test_6_user'@'localhost' (using p
 GRANT PROXY ON qa_test_6_dest TO root IDENTIFIED WITH qa_auth_interface AS 'qa_test_6_dest';
 Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys');
+SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
 user	plugin	authentication_string
 qa_test_6_dest	mysql_native_password	*DFCACE76914AD7BD801FC1A1ECF6562272621A22
 qa_test_6_user	qa_auth_interface	qa_test_6_dest
@@ -133,7 +133,7 @@ exec MYSQL PLUGIN_AUTH_OPT -h localhost -P MASTER_MYPORT --user=root  --password
 mysql: [Warning] Using a password on the command line interface can be insecure.
 ERROR 1045 (28000): Access denied for user 'root'@'localhost' (using password: YES)
 REVOKE PROXY ON qa_test_6_dest FROM root;
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys');
+SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
 user	plugin	authentication_string
 qa_test_6_dest	mysql_native_password	*DFCACE76914AD7BD801FC1A1ECF6562272621A22
 qa_test_6_user	qa_auth_interface	qa_test_6_dest
@@ -143,7 +143,7 @@ ERROR 1045 (28000): Access denied for user 'root'@'localhost' (using password: Y
 DROP USER qa_test_6_user;
 DROP USER qa_test_6_dest;
 DELETE FROM mysql.user WHERE user='root' AND plugin='qa_auth_interface';
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys');
+SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
 user	plugin	authentication_string
 === Test of the --default_auth option for clients ====
 CREATE USER qa_test_11_user IDENTIFIED WITH qa_auth_interface AS 'qa_test_11_dest';

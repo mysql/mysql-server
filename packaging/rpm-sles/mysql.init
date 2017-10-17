@@ -70,16 +70,11 @@ socket=$(get_option  socket "$datadir/mysql.sock" mysqld)
 pidfile=$(get_option pid-file "/var/run/mysql/mysqld.pid" mysqld mysqld_safe)
 
 install_validate_password_sql_file () {
-    local dir
     local initfile
-    if [ -d /var/lib/mysql-files ]; then
-        dir=/var/lib/mysql-files
-    else
-        dir=/tmp
-    fi
-    initfile="$(mktemp $dir/install-validate-password-plugin.XXXXXX.sql)"
-    chown mysql:mysql "$initfile"
-    echo "INSERT INTO mysql.plugin (name, dl) VALUES ('validate_password', 'validate_password.so');" > $initfile
+    initfile="$(mktemp /tmp/install-validate-password-plugin.XXXXXX.sql)"
+    chmod a+r "$initfile"
+    echo "SET @@SESSION.SQL_LOG_BIN=0;" > "$initfile"
+    echo "INSERT INTO mysql.plugin (name, dl) VALUES ('validate_password', 'validate_password.so');" >> $initfile
     echo $initfile
 }
 

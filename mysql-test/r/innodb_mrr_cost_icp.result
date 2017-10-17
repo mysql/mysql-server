@@ -761,6 +761,8 @@ SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 SELECT @@tx_isolation;
 @@tx_isolation
 REPEATABLE-READ
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 START TRANSACTION;
 EXPLAIN SELECT * FROM t1 WHERE a > 2 FOR UPDATE;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra

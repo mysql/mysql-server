@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,6 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <my_global.h>
+#include <sstream>
 #include "keyring.h"
 
 namespace keyring
@@ -23,10 +24,10 @@ namespace keyring
   PSI_rwlock_key key_LOCK_keyring;
 }
 
-mysql_rwlock_t LOCK_keyring;
+extern mysql_rwlock_t LOCK_keyring;
 
 boost::movelib::unique_ptr<IKeys_container> keys(NULL);
-my_bool is_keys_container_initialized= FALSE;
+volatile my_bool is_keys_container_initialized= FALSE;
 boost::movelib::unique_ptr<ILogger> logger(NULL);
 boost::movelib::unique_ptr<char[]> keyring_file_data(NULL);
 
@@ -54,10 +55,70 @@ void keyring_init_psi_keys(void)
 }
 #endif //HAVE_PSI_INTERFACE
 
-my_bool init_keyring_locks()
+int init_keyring_locks()
 {
-  if (mysql_rwlock_init(keyring::key_LOCK_keyring, &LOCK_keyring))
+  return mysql_rwlock_init(keyring::key_LOCK_keyring, &LOCK_keyring);
+}
+
+my_bool is_key_length_and_type_valid(const char *key_type, size_t key_len)
+{
+  my_bool is_key_len_valid= FALSE;
+  my_bool is_type_valid= TRUE;
+
+  if(strcmp(key_type, "AES") == 0)
+    is_key_len_valid= (key_len == 16 || key_len == 24 || key_len == 32);
+  else if (strcmp(key_type, "RSA") == 0)
+    is_key_len_valid= (key_len == 128 || key_len == 256 || key_len == 512);
+  else if (strcmp(key_type, "DSA") == 0)
+    is_key_len_valid= (key_len == 128 || key_len == 256 || key_len == 384);
+  else
+  {
+    is_type_valid= FALSE;
+    logger->log(MY_ERROR_LEVEL, "Invalid key type");
+  }
+
+  if (is_type_valid == TRUE && is_key_len_valid == FALSE)
+    logger->log(MY_ERROR_LEVEL, "Invalid key length for given block cipher");
+
+  return is_type_valid && is_key_len_valid;
+}
+
+void log_operation_error(const char *failed_operation, const char *plugin_name)
+{
+ if (logger != NULL)
+ {
+   std::ostringstream err_msg;
+   err_msg << "Failed to " << failed_operation << " due to internal exception inside "
+           << plugin_name << " plugin";
+   logger->log(MY_ERROR_LEVEL, err_msg.str().c_str());
+ }
+}
+
+my_bool create_keyring_dir_if_does_not_exist(const char *keyring_file_path)
+{
+  if (!keyring_file_path || strlen(keyring_file_path) == 0)
     return TRUE;
+  char keyring_dir[FN_REFLEN];
+  size_t keyring_dir_length;
+  dirname_part(keyring_dir, keyring_file_path, &keyring_dir_length);
+  if (keyring_dir_length > 1 && (keyring_dir[keyring_dir_length-1] == FN_LIBCHAR))
+  {
+    keyring_dir[keyring_dir_length-1]= '\0';
+    --keyring_dir_length;
+  }
+  int flags=
+#ifdef _WIN32
+    0
+#else
+    S_IRWXU | S_IRGRP | S_IXGRP
+#endif
+    ;
+  /*
+    If keyring_dir_length is 0, it means file
+    is being created current working directory
+  */
+  if (strlen(keyring_dir) != 0)
+   my_mkdir(keyring_dir, flags, MYF(0));
   return FALSE;
 }
 
@@ -106,7 +167,7 @@ my_bool mysql_key_fetch(boost::movelib::unique_ptr<IKey> key_to_fetch, char **ke
   return FALSE;
 }
 
-my_bool check_key_for_writting(IKey* key, std::string error_for)
+my_bool check_key_for_writing(IKey* key, std::string error_for)
 {
   std::string error_msg= "Error while ";
   error_msg+= error_for;
@@ -130,7 +191,7 @@ my_bool mysql_key_store(boost::movelib::unique_ptr<IKey> key_to_store)
   if (is_keys_container_initialized == FALSE)
     return TRUE;
 
-  if (check_key_for_writting(key_to_store.get(), "storing"))
+  if (check_key_for_writing(key_to_store.get(), "storing"))
     return TRUE;
 
   if (key_to_store->get_key_data_size() > 0)

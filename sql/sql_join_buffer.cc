@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -754,6 +754,7 @@ int JOIN_CACHE_BKA::init()
 
   tables= qep_tab - tab;
 
+  filter_virtual_gcol_base_cols();
   calc_record_fields();
 
   /* Mark all fields that can be used as arguments for this key access */
@@ -865,6 +866,7 @@ int JOIN_CACHE_BKA::init()
   use_emb_key= check_emb_key_usage();
 
   create_remaining_fields(FALSE);
+  restore_virtual_gcol_base_cols();
   bitmap_clear_all(&qep_tab->table()->tmp_set);
 
   set_constants();

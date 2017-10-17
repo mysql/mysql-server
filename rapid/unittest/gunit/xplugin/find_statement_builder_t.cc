@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -347,16 +347,16 @@ TEST_F(Find_statement_builder_test, build_document_with_grouping_and_criteria)
       "                                                {type: V_DOUBLE"
       "                                                v_double: 2.0}}}}";
   ASSERT_NO_THROW(builder.build(msg));
-  EXPECT_EQ(
+  EXPECT_STREQ(
       "SELECT JSON_OBJECT('zeta', `_DERIVED_TABLE_`.`zeta`) AS doc FROM ("
       "SELECT JSON_EXTRACT(doc,'$.alpha') AS `zeta` "
       "FROM `xschema`.`xtable` "
       "WHERE (JSON_EXTRACT(doc,'$.delta') > 1) "
       "GROUP BY JSON_EXTRACT(doc,'$.alpha') "
+      "HAVING (JSON_EXTRACT(doc,'$.lambda') < 2) "
       "ORDER BY JSON_EXTRACT(doc,'$.beta') DESC"
-      ") AS `_DERIVED_TABLE_` "
-      "HAVING (JSON_EXTRACT(doc,'$.lambda') < 2)",
-      query.get());
+      ") AS `_DERIVED_TABLE_`",
+      query.get().c_str());
 }
 
 

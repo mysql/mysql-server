@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,20 +25,25 @@ PSI_mutex_key  key_GR_LOCK_applier_module_run,
                key_GR_LOCK_channel_observation_list,
                key_GR_LOCK_delayed_init_run,
                key_GR_LOCK_delayed_init_server_ready,
+               key_GR_LOCK_group_part_handler_run,
+               key_GR_LOCK_group_part_handler_abort,
                key_GR_LOCK_view_modification_wait,
                key_GR_LOCK_group_info_manager,
                key_GR_LOCK_pipeline_continuation,
                key_GR_LOCK_synchronized_queue,
                key_GR_LOCK_count_down_latch,
                key_GR_LOCK_wait_ticket,
-               key_GR_LOCK_read_mode,
                key_GR_LOCK_recovery_module_run,
                key_GR_LOCK_recovery,
                key_GR_LOCK_recovery_donor_selection,
+               key_GR_LOCK_session_thread_method_exec,
+               key_GR_LOCK_session_thread_run,
                key_GR_LOCK_plugin_running,
                key_GR_LOCK_force_members_running,
                key_GR_LOCK_write_lock_protection,
-               key_GR_LOCK_pipeline_stats_flow_control;
+               key_GR_LOCK_pipeline_stats_flow_control,
+               key_GR_LOCK_pipeline_stats_transactions_waiting_apply,
+               key_GR_LOCK_trx_unlocking;
 
 PSI_cond_key   key_GR_COND_applier_module_run,
                key_GR_COND_applier_module_suspend,
@@ -47,6 +52,8 @@ PSI_cond_key   key_GR_COND_applier_module_run,
                key_GR_COND_cert_broadcast_dispatcher_run,
                key_GR_COND_delayed_init_run,
                key_GR_COND_delayed_init_server_ready,
+               key_GR_COND_group_part_handler_run,
+               key_GR_COND_group_part_handler_abort,
                key_GR_COND_view_modification_wait,
                key_GR_COND_pipeline_continuation,
                key_GR_COND_synchronized_queue,
@@ -54,11 +61,15 @@ PSI_cond_key   key_GR_COND_applier_module_run,
                key_GR_COND_wait_ticket,
                key_GR_COND_recovery_module_run,
                key_GR_COND_recovery,
+               key_GR_COND_session_thread_method_exec,
+               key_GR_COND_session_thread_run,
                key_GR_COND_pipeline_stats_flow_control;
 
 PSI_thread_key key_GR_THD_applier_module_receiver,
                key_GR_THD_cert_broadcast,
                key_GR_THD_delayed_init,
+               key_GR_THD_plugin_session,
+               key_GR_THD_group_partition_handler,
                key_GR_THD_recovery;
 
 PSI_rwlock_key key_GR_RWLOCK_cert_stable_gtid_set,
@@ -79,20 +90,25 @@ static PSI_mutex_info all_group_replication_psi_mutex_keys[]=
   {&key_GR_LOCK_channel_observation_list, "LOCK_channel_observation_list", PSI_FLAG_GLOBAL},
   {&key_GR_LOCK_delayed_init_run, "LOCK_delayed_init_run", PSI_FLAG_GLOBAL},
   {&key_GR_LOCK_delayed_init_server_ready, "LOCK_delayed_init_server_ready", PSI_FLAG_GLOBAL},
+  {&key_GR_LOCK_group_part_handler_run, "key_GR_LOCK_group_part_handler_run", PSI_FLAG_GLOBAL},
+  {&key_GR_LOCK_group_part_handler_abort, "key_GR_LOCK_group_part_handler_abort", PSI_FLAG_GLOBAL},
   {&key_GR_LOCK_view_modification_wait, "LOCK_view_modification_wait", PSI_FLAG_GLOBAL},
   {&key_GR_LOCK_group_info_manager, "LOCK_group_info_manager", PSI_FLAG_GLOBAL},
   {&key_GR_LOCK_pipeline_continuation, "LOCK_pipeline_continuation", PSI_FLAG_GLOBAL},
   {&key_GR_LOCK_synchronized_queue, "LOCK_synchronized_queue", PSI_FLAG_GLOBAL},
   {&key_GR_LOCK_count_down_latch, "LOCK_count_down_latch", PSI_FLAG_GLOBAL},
   {&key_GR_LOCK_wait_ticket, "LOCK_wait_ticket", PSI_FLAG_GLOBAL},
-  {&key_GR_LOCK_read_mode, "LOCK_read_mode", PSI_FLAG_GLOBAL},
   {&key_GR_LOCK_recovery_module_run, "LOCK_recovery_module_run", PSI_FLAG_GLOBAL},
   {&key_GR_LOCK_recovery, "LOCK_recovery", PSI_FLAG_GLOBAL},
   {&key_GR_LOCK_recovery_donor_selection, "LOCK_recovery_donor_selection", PSI_FLAG_GLOBAL},
+  {&key_GR_LOCK_session_thread_method_exec, "LOCK_session_thread_method_exec", PSI_FLAG_GLOBAL},
+  {&key_GR_LOCK_session_thread_run, "LOCK_session_thread_run", PSI_FLAG_GLOBAL},
   {&key_GR_LOCK_plugin_running, "LOCK_plugin_running", PSI_FLAG_GLOBAL},
   {&key_GR_LOCK_force_members_running, "LOCK_force_members_running", PSI_FLAG_GLOBAL},
   {&key_GR_LOCK_write_lock_protection, "LOCK_write_lock_protection", PSI_FLAG_GLOBAL},
-  {&key_GR_LOCK_pipeline_stats_flow_control, "LOCK_pipeline_stats_flow_control", PSI_FLAG_GLOBAL}
+  {&key_GR_LOCK_pipeline_stats_flow_control, "LOCK_pipeline_stats_flow_control", PSI_FLAG_GLOBAL},
+  {&key_GR_LOCK_pipeline_stats_transactions_waiting_apply, "LOCK_pipeline_stats_transactions_waiting_apply", PSI_FLAG_GLOBAL},
+  {&key_GR_LOCK_trx_unlocking, "LOCK_transaction_unblocking", PSI_FLAG_GLOBAL}
 };
 
 static PSI_cond_info all_group_replication_psi_condition_keys[]=
@@ -104,6 +120,8 @@ static PSI_cond_info all_group_replication_psi_condition_keys[]=
   {&key_GR_COND_cert_broadcast_dispatcher_run, "COND_certifier_broadcast_dispatcher_run", PSI_FLAG_GLOBAL},
   {&key_GR_COND_delayed_init_run,  "COND_delayed_init_run", PSI_FLAG_GLOBAL},
   {&key_GR_COND_delayed_init_server_ready, "COND_delayed_init_server_ready", PSI_FLAG_GLOBAL},
+  {&key_GR_LOCK_group_part_handler_run, "COND_group_part_handler_run", PSI_FLAG_GLOBAL},
+  {&key_GR_LOCK_group_part_handler_abort, "COND_group_part_handler_abort", PSI_FLAG_GLOBAL},
   {&key_GR_COND_view_modification_wait, "COND_view_modification_wait", PSI_FLAG_GLOBAL},
   {&key_GR_COND_pipeline_continuation, "COND_pipeline_continuation", PSI_FLAG_GLOBAL},
   {&key_GR_COND_synchronized_queue, "COND_synchronized_queue", PSI_FLAG_GLOBAL},
@@ -111,6 +129,8 @@ static PSI_cond_info all_group_replication_psi_condition_keys[]=
   {&key_GR_COND_wait_ticket, "COND_wait_ticket", PSI_FLAG_GLOBAL},
   {&key_GR_COND_recovery_module_run, "COND_recovery_module_run", PSI_FLAG_GLOBAL},
   {&key_GR_COND_recovery, "COND_recovery", PSI_FLAG_GLOBAL},
+  {&key_GR_COND_session_thread_method_exec, "COND_session_thread_method_exec", PSI_FLAG_GLOBAL},
+  {&key_GR_COND_session_thread_run, "COND_session_thread_run", PSI_FLAG_GLOBAL},
   {&key_GR_COND_pipeline_stats_flow_control, "COND_pipeline_stats_flow_control", PSI_FLAG_GLOBAL},
 };
 
@@ -119,6 +139,8 @@ static PSI_thread_info all_group_replication_psi_thread_keys[]=
   {&key_GR_THD_applier_module_receiver, "THD_applier_module_receiver", PSI_FLAG_GLOBAL},
   {&key_GR_THD_cert_broadcast, "THD_certifier_broadcast", PSI_FLAG_GLOBAL},
   {&key_GR_THD_delayed_init, "THD_delayed_initialization", PSI_FLAG_GLOBAL},
+  {&key_GR_THD_plugin_session, "THD_plugin_server_session", PSI_FLAG_GLOBAL},
+  {&key_GR_THD_group_partition_handler, "THD_group_partition_handler", PSI_FLAG_GLOBAL},
   {&key_GR_THD_recovery, "THD_recovery", PSI_FLAG_GLOBAL}
 };
 

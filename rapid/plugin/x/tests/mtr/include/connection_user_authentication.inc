@@ -1,8 +1,8 @@
 --source ../include/xplugin_preamble.inc
 
 ## Test starts here
---let $mysqlxscript_success= $MYSQL_TMP_DIR/connection_mysqlxsys_success.tmp
---let $mysqlxscript_failure= $MYSQL_TMP_DIR/connection_mysqlxsys_failure.tmp
+--let $mysqlxscript_success= $MYSQL_TMP_DIR/connection_mysqlx_user.tmp
+--let $mysqlxscript_failure= $MYSQL_TMP_DIR/connection_mysqlx_user_failure.tmp
 --let $MYSQLXTEST_LOGIN_SUCCESS= $MYSQLXTEST -uuser1 -f $mysqlxscript_success --schema xtest --fatal-errors=1
 --let $MYSQLXTEST_LOGIN_FAILURE= $MYSQLXTEST -uuser1 -f $mysqlxscript_failure --schema xtest --fatal-errors=1 --no-auth
 

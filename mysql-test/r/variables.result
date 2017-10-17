@@ -29,8 +29,14 @@ set @my_net_buffer_length         =@@global.net_buffer_length;
 set @my_net_write_timeout         =@@global.net_write_timeout;
 set @my_net_read_timeout          =@@global.net_read_timeout;
 set @my_query_cache_limit         =@@global.query_cache_limit;
+Warnings:
+Warning	1287	'@@query_cache_limit' is deprecated and will be removed in a future release.
 set @my_query_cache_type          =@@global.query_cache_type;
+Warnings:
+Warning	1287	'@@query_cache_type' is deprecated and will be removed in a future release.
 set @my_query_cache_size          =@@global.query_cache_size;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 set @my_server_id                 =@@global.server_id;
 set @my_slow_launch_time          =@@global.slow_launch_time;
 set @my_storage_engine            =@@global.default_storage_engine;
@@ -212,6 +218,8 @@ select * from information_schema.global_variables where variable_name like 'defa
 VARIABLE_NAME	VARIABLE_VALUE
 DEFAULT_STORAGE_ENGINE	MRG_MYISAM
 set GLOBAL query_cache_size=102400;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 set GLOBAL myisam_max_sort_file_size=2000000;
 Warnings:
 Warning	1292	Truncated incorrect myisam_max_sort_file_size value: '2000000'
@@ -542,10 +550,15 @@ Warning	1292	Truncated incorrect net_buffer_length value: '100'
 set net_read_timeout=100;
 set net_write_timeout=100;
 set global query_cache_limit=100;
+Warnings:
+Warning	1287	'@@query_cache_limit' is deprecated and will be removed in a future release.
 set global query_cache_size=100;
 Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 Warning	1292	Truncated incorrect query_cache_size value: '100'
 set global query_cache_type=demand;
+Warnings:
+Warning	1287	'@@query_cache_type' is deprecated and will be removed in a future release.
 set read_buffer_size=100;
 Warnings:
 Warning	1292	Truncated incorrect read_buffer_size value: '100'
@@ -587,6 +600,8 @@ set tmp_table_size=100;
 Warnings:
 Warning	1292	Truncated incorrect tmp_table_size value: '100'
 set tx_isolation="READ-COMMITTED";
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 set wait_timeout=100;
 set global log_warnings=1;
 Warnings:
@@ -1084,8 +1099,14 @@ set global net_buffer_length         =@my_net_buffer_length;
 set global net_write_timeout         =@my_net_write_timeout;
 set global net_read_timeout          =@my_net_read_timeout;
 set global query_cache_limit         =@my_query_cache_limit;
+Warnings:
+Warning	1287	'@@query_cache_limit' is deprecated and will be removed in a future release.
 set global query_cache_type          =@my_query_cache_type;
+Warnings:
+Warning	1287	'@@query_cache_type' is deprecated and will be removed in a future release.
 set global query_cache_size          =@my_query_cache_size;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 set global server_id                 =@my_server_id;
 set global slow_launch_time          =@my_slow_launch_time;
 set global default_storage_engine            =@my_storage_engine;

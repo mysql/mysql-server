@@ -450,7 +450,8 @@ int mysql_audit_notify(THD *thd, mysql_event_general_subclass_t subclass,
   event.general_command.str= msg;
   event.general_command.length= msg_len;
 
-  if (subclass == MYSQL_AUDIT_GENERAL_ERROR)
+  if (subclass == MYSQL_AUDIT_GENERAL_ERROR ||
+      subclass == MYSQL_AUDIT_GENERAL_STATUS)
   {
     Ignore_event_error_handler handler(thd, subclass_name);
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1366,80 +1366,6 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
 
 
 /**
-   Class circular_buffer_queue.
-
-   Content of the being dequeued item is copied to the arg-pointer
-   location.
-
-   @return the queue's array index that the de-queued item
-           located at, or an error as an int outside the legacy
-           [0, size) (value `size' is excluded) range.
-*/
-
-template <typename Element_type>
-ulong circular_buffer_queue<Element_type>::de_queue(Element_type *val)
-{
-  ulong ret;
-  if (entry == size)
-  {
-    DBUG_ASSERT(len == 0);
-    return (ulong) -1;
-  }
-
-  ret= entry;
-  *val= m_Q[entry];
-  len--;
-
-  // pre boundary cond
-  if (avail == size)
-    avail= entry;
-  entry= (entry + 1) % size;
-
-  // post boundary cond
-  if (avail == entry)
-    entry= size;
-
-  DBUG_ASSERT(entry == size ||
-              (len == (avail >= entry)? (avail - entry) :
-               (size + avail - entry)));
-  DBUG_ASSERT(avail != entry);
-
-  return ret;
-}
-
-/**
-   Similar to de_queue() but removing an item from the tail side.
-
-   return  the queue's array index that the de-queued item
-           located at, or an error.
-*/
-template <typename Element_type>
-ulong circular_buffer_queue<Element_type>::de_tail(Element_type *val)
-{
-  if (entry == size)
-  {
-    DBUG_ASSERT(len == 0);
-    return (ulong) -1;
-  }
-
-  avail= (entry + len - 1) % size;
-  *val= m_Q[avail];
-  len--;
-
-  // post boundary cond
-  if (avail == entry)
-    entry= size;
-
-  DBUG_ASSERT(entry == size ||
-              (len == (avail >= entry)? (avail - entry) :
-               (size + avail - entry)));
-  DBUG_ASSERT(avail != entry);
-
-  return avail;
-}
-
-
-/**
    two index comparision to determine which of the two
    is ordered first.
 
@@ -2278,26 +2204,27 @@ bool append_item_to_jobs(slave_job_item *job_item,
   ulonglong new_pend_size;
   PSI_stage_info old_stage;
 
-
   DBUG_ASSERT(thd == current_thd);
-
-  if (ev_size > rli->mts_pending_jobs_size_max)
-  {
-    char llbuff[22];
-    llstr(rli->get_event_relay_log_pos(), llbuff);
-    my_error(ER_MTS_EVENT_BIGGER_PENDING_JOBS_SIZE_MAX, MYF(0),
-             job_item->data->get_type_str(),
-             rli->get_event_relay_log_name(), llbuff, ev_size,
-             rli->mts_pending_jobs_size_max);
-    /* Waiting in slave_stop_workers() avoidance */
-    rli->mts_group_status= Relay_log_info::MTS_KILLED_GROUP;
-    return ret;
-  }
 
   mysql_mutex_lock(&rli->pending_jobs_lock);
   new_pend_size= rli->mts_pending_jobs_size + ev_size;
-  // C waits basing on *data* sizes in the queues
-  while (new_pend_size > rli->mts_pending_jobs_size_max)
+  bool big_event= (ev_size > rli->mts_pending_jobs_size_max);
+  /*
+    C waits basing on *data* sizes in the queues.
+    If it is a big event (event size is greater than
+    slave_pending_jobs_size_max but less than slave_max_allowed_packet),
+    it will wait for all the jobs in the workers's queue to be
+    completed. If it is normal event (event size is less than
+    slave_pending_jobs_size_max), then it will wait for
+    enough empty memory to keep the event in one of the workers's
+    queue.
+    NOTE: Receiver thread (I/O thread) is taking care of restricting
+    the event size to slave_max_allowed_packet. If an event from
+    the master is bigger than this value, IO thread will be stopped
+    with error ER_NET_PACKET_TOO_LARGE.
+  */
+  while ( (!big_event && new_pend_size > rli->mts_pending_jobs_size_max)
+          || (big_event && rli->mts_pending_jobs_size != 0 ))
   {
     rli->mts_wq_oversize= TRUE;
     rli->wq_size_waits_cnt++; // waiting due to the total size

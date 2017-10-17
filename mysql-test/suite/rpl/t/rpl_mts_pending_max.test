@@ -1,0 +1,112 @@
+###############################################################################
+# Bug #21280753 MTS MUST BE ABLE HANDLE LARGE PACKETS WITH SMALL
+# SLAVE_PENDING_JOBS_SIZE_MAX
+#
+# To prove the slave applier can apply events that are larger
+# than SLAVE_PENDING_JOBS_SIZE_MAX but only one at a time.
+#
+# Steps to reproduce the issue:
+#
+#   0) Set SLAVE_PENDING_JOBS_SIZE_MAX to a smaller number (1024)
+#      and slave_parallel_workers to 2 to make the test easy.
+#
+#   1) Create initial data required for the test
+#      (two databases (db1, db2) and two tables (db1.t and db2.t)).
+#
+#   2) Prove that Coordinator will make a big event (bigger in size than
+#      SLAVE_PENDING_JOBS_SIZE_MAX) wait for all workers to finish
+#      their work (empty their queue) before processing the big event.
+#
+#   3) Prove that when a big event is being processed by a
+#      worker, Coordinator will make smaller events to wait.
+#
+#   4) Prove that when a big event is being processed by a
+#      worker, Coordinator will make another big event also to wait.
+#
+#   5) Cleanup (drop tables/databases and reset the variables)
+#
+###############################################################################
+
+# Row format is choosen so that event size can be changed easily.
+--source include/have_binlog_format_row.inc
+
+# The test is designed to work for slave_parallel_type=database
+# (db1 and db2 queries)
+--source include/have_slave_parallel_type_database.inc
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+--echo #
+--echo #   0) Set SLAVE_PENDING_JOBS_SIZE_MAX to a smaller number (1024)
+--echo #      and slave_parallel_workers to 2 to make the test easy.
+--echo #
+--source include/rpl_connection_slave.inc
+SET @save.slave_pending_jobs_size_max= @@global.slave_pending_jobs_size_max;
+SET @save.slave_parallel_workers= @@global.slave_parallel_workers;
+--let $mts_pending_max=1024
+--eval SET @@GLOBAL.slave_pending_jobs_size_max= $mts_pending_max
+--eval SET @@GLOBAL.slave_parallel_workers= 2
+--disable_warnings
+--source include/start_slave.inc
+--enable_warnings
+
+--echo #
+--echo #
+--echo #   1) Create initial data required for the test
+--echo #      (two databases (db1, db2) and two tables (db1.t and db2.t)).
+--echo #
+--source include/rpl_connection_master.inc
+CREATE DATABASE db1;
+CREATE DATABASE db2;
+CREATE TABLE db1.t (a TEXT) ENGINE=INNODB;
+CREATE TABLE db2.t (a TEXT) ENGINE=INNODB;
+--source include/sync_slave_sql_with_master.inc
+
+--echo #
+--echo #   2) Prove that Coordinator will make a big event (bigger in size than
+--echo #      SLAVE_PENDING_JOBS_SIZE_MAX) wait for all workers to finish
+--echo #      their work (empty their queue) before processing the big event.
+--echo #
+--let $table_to_lock=db1.t
+--let $query_that_waits_on_table_lock=INSERT INTO db1.t VALUES ('small event')
+--let $query_that_needs_to_be_processed_by_coordinator=INSERT INTO db2.t VALUES (REPEAT('big event', $mts_pending_max))
+--let $tables_involved_in_test=db1.t, db2.t
+--source ../mysql-test/extra/rpl_tests/rpl_mts_pending_events.inc
+
+--echo #
+--echo #   3) When a big event is being processed by a worker,
+--echo #      Coordinator will make smaller events to wait until the big event
+--echo #      is executed completely.
+--echo #
+--echo #
+--let $table_to_lock=db1.t
+--let $query_that_waits_on_table_lock=INSERT INTO db1.t VALUES (REPEAT('big event', $mts_pending_max))
+--let $query_that_needs_to_be_processed_by_coordinator=INSERT INTO db2.t VALUES ('small event')
+--let $tables_involved_in_test=db1.t, db2.t
+--source ../mysql-test/extra/rpl_tests/rpl_mts_pending_events.inc
+
+--echo #
+--echo #   4) When a big event is being processed by a worker,
+--echo #      Coordinator will make another big event also to wait until the
+--echo #      first big event is executed completely.
+--echo #
+--let $table_to_lock=db1.t
+--let $query_that_waits_on_table_lock=INSERT INTO db1.t VALUES (REPEAT('big event', $mts_pending_max))
+--let $query_that_needs_to_be_processed_by_coordinator=INSERT INTO db2.t VALUES (REPEAT('big event', $mts_pending_max))
+--let $tables_involved_in_test=db1.t, db2.t
+--source ../mysql-test/extra/rpl_tests/rpl_mts_pending_events.inc
+
+--echo #
+--echo #   5) Cleanup (drop tables/databases and reset the variables)
+--echo #
+--source include/rpl_connection_master.inc
+DROP DATABASE db1;
+DROP DATABASE db2;
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave_sql.inc
+SET @@global.slave_pending_jobs_size_max=  @save.slave_pending_jobs_size_max;
+SET @@GLOBAL.slave_parallel_workers= @save.slave_parallel_workers;
+--disable_warnings
+--source include/start_slave_sql.inc
+--enable_warnings
+--source include/rpl_end.inc

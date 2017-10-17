@@ -2,7 +2,7 @@
 #define HANDLER_INCLUDED
 
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -2860,9 +2860,18 @@ public:
   */
   virtual int rnd_pos_by_record(uchar *record)
     {
+      int error;
       DBUG_ASSERT(table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION);
+
+      error = ha_rnd_init(FALSE);
+      if (error != 0)
+            return error;
+
       position(record);
-      return ha_rnd_pos(record, ref);
+      error = ha_rnd_pos(record, ref);
+      ha_rnd_end();
+      return error;
+
     }
   virtual int read_first_row(uchar *buf, uint primary_key);
   virtual ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key)
@@ -4132,5 +4141,8 @@ bool ha_notify_alter_table(THD *thd, const MDL_key *mdl_key,
 
 int commit_owned_gtids(THD *thd, bool all, bool *need_clear_ptr);
 int commit_owned_gtid_by_partial_command(THD *thd);
+bool set_tx_isolation(THD *thd,
+                      enum_tx_isolation tx_isolation,
+                      bool one_shot);
 
 #endif /* HANDLER_INCLUDED */

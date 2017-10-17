@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -145,11 +145,11 @@ enum options_client
   Client deprecation warnings
 */
 #define CLIENT_WARN_DEPRECATED_NO_REPLACEMENT(opt) \
-  printf("WARNING: " opt \
+  fprintf(stderr, "WARNING: " opt \
          " is deprecated and will be removed in a future version\n")
 
 #define CLIENT_WARN_DEPRECATED(opt, new_opt) \
-  printf("WARNING: " opt \
+  fprintf(stderr, "WARNING: " opt \
          " is deprecated and will be removed in a future version. " \
          "Use " new_opt " instead.\n")
 

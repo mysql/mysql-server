@@ -1,6 +1,6 @@
 #! /bin/bash
 
-# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -31,18 +31,23 @@ get_option () {
 
 install_validate_password_sql_file () {
     local initfile
-    initfile="$(mktemp /tmp/install-validate-password-plugin.XXXXXX.sql)"
+    initfile="$(mktemp /var/lib/mysql-files/install-validate-password-plugin.XXXXXX.sql)"
     chmod a+r "$initfile"
-    echo "INSERT INTO mysql.plugin (name, dl) VALUES ('validate_password', 'validate_password.so');" > $initfile
+    echo "SET @@SESSION.SQL_LOG_BIN=0;" > "$initfile"
+    echo "INSERT INTO mysql.plugin (name, dl) VALUES ('validate_password', 'validate_password.so');" >> $initfile
     echo $initfile
 }
 
 install_db () {
     # Note: something different than datadir=/var/lib/mysql requires SELinux policy changes (in enforcing mode)
 
+    # No automatic init wanted
+    [ -e /etc/sysconfig/mysql ] && . /etc/sysconfig/mysql
+    [ -n "$NO_INIT" ] && exit 0
+
     local instance=$1
     datadir=$(get_option mysqld datadir "/var/lib/mysql${instance:+-$instance}" $instance)
-    log=$(get_option mysqld log-error "/var/log/mysql${instance:+-$instance}.log" $instance)
+    log=$(get_option mysqld 'log[_-]error' "/var/log/mysql${instance:+-$instance}.log" $instance)
 
     # Restore log, dir, perms and SELinux contexts
 
@@ -63,7 +68,7 @@ install_db () {
 	for dir in /var/lib/mysql-files /var/lib/mysql-keyring ; do
             if [ -x /usr/sbin/semanage -a -d /var/lib/mysql -a -d $dir ] ; then
                 /usr/sbin/semanage fcontext -a -e /var/lib/mysql $dir >/dev/null 2>&1
-                /sbin/restorecon $dir
+                /sbin/restorecon -r $dir
             fi
 	done
     fi

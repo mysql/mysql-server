@@ -20,6 +20,8 @@ SET GLOBAL TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 SELECT @@tx_isolation;
 @@tx_isolation
 REPEATABLE-READ
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 SELECT COUNT(*) FROM tab;
 COUNT(*)
 1
@@ -31,6 +33,8 @@ SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 SELECT @@tx_isolation;
 @@tx_isolation
 READ-COMMITTED
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 START TRANSACTION;
 INSERT INTO tab(c1,c2,c3,c4,c5) 
 VALUES(2,ST_GeomFromText('POINT(20 20)'),ST_GeomFromText('LINESTRING(20 20,30 30,40 40)'),
@@ -97,6 +101,8 @@ SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 SELECT @@tx_isolation;
 @@tx_isolation
 REPEATABLE-READ
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 SELECT COUNT(*) FROM tab;
 COUNT(*)
 1
@@ -108,6 +114,8 @@ SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 SELECT @@tx_isolation;
 @@tx_isolation
 READ-COMMITTED
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 START TRANSACTION;
 INSERT INTO tab(c1,c2,c3,c4,c5) 
 VALUES(2,ST_GeomFromText('POINT(20 20)'),ST_GeomFromText('LINESTRING(20 20,30 30,40 40)'),

@@ -1,0 +1,49 @@
+# ==== Purpose ====
+#
+# This test will issue a CHANGE MASTER TO MASTER_DELAY while both replication
+# threads are stopped and there are content received by the I/O thread yet to
+# be applied by the SQL thread.
+#
+# The test case verifies that issuing the CHANGE MASTER will not purge the
+# relay log, and the replica will not lose master contents.
+#
+# ==== Related Bugs and Worklogs ====
+#
+# BUG#23203678 CHANGING MASTER_DELAY AFTER STOP SLAVE RESULTS IN LOSS OF EVENTS
+#
+
+# This test case is binary log format agnostic
+--source include/have_binlog_format_mixed.inc
+--source include/master-slave.inc
+
+CREATE TABLE t1 (c1 int);
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave_sql.inc
+
+--source include/rpl_connection_master.inc
+INSERT INTO t1 VALUES (1);
+
+--source include/sync_slave_io_with_master.inc
+# As a workaround, not stopping the I/O thread on line below would
+# prevent the slave from purging the relay log.
+--source include/stop_slave_io.inc
+
+CHANGE MASTER TO MASTER_DELAY=1;
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+
+--let $inserted_value=query_get_value(SELECT * FROM t1, c1, 1)
+--let $assert_text= Assert that the \$inserted_value is equal to 1
+--let $assert_cond= "$inserted_value" = "1"
+--source include/assert.inc
+
+# Clean up
+--source include/stop_slave.inc
+CHANGE MASTER TO MASTER_DELAY=0;
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/rpl_end.inc

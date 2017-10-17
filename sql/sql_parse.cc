@@ -1904,6 +1904,7 @@ done:
   thd->reset_query();
   thd->set_command(COM_SLEEP);
   thd->proc_info= 0;
+  thd->lex->sql_command= SQLCOM_END;
 
   /* Performance Schema Interface instrumentation, end */
   MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
@@ -3560,44 +3561,6 @@ end_with_restore_list:
     break;
   }
   case SQLCOM_REPLACE:
-#ifndef DBUG_OFF
-    if (mysql_bin_log.is_open())
-    {
-      /*
-        Generate an incident log event before writing the real event
-        to the binary log.  We put this event is before the statement
-        since that makes it simpler to check that the statement was
-        not executed on the slave (since incidents usually stop the
-        slave).
-
-        Observe that any row events that are generated will be
-        generated before.
-
-        This is only for testing purposes and will not be present in a
-        release build.
-      */
-
-      binary_log::Incident_event::enum_incident incident=
-                                     binary_log::Incident_event::INCIDENT_NONE;
-      DBUG_PRINT("debug", ("Just before generate_incident()"));
-      DBUG_EXECUTE_IF("incident_database_resync_on_replace",
-                      incident= binary_log::Incident_event::INCIDENT_LOST_EVENTS;);
-      if (incident)
-      {
-        Incident_log_event ev(thd, incident);
-        const char* err_msg= "Generate an incident log event before "
-                             "writing the real event to the binary "
-                             "log for testing purposes.";
-        if (mysql_bin_log.write_incident(&ev, true/*need_lock_log=true*/,
-                                         err_msg))
-        {
-          res= 1;
-          break;
-        }
-      }
-      DBUG_PRINT("debug", ("Just after generate_incident()"));
-    }
-#endif
   case SQLCOM_INSERT:
   case SQLCOM_REPLACE_SELECT:
   case SQLCOM_INSERT_SELECT:
@@ -5390,6 +5353,8 @@ void THD::reset_for_next_command()
   thd->want_privilege= ~NO_ACCESS;
 
   thd->gtid_executed_warning_issued= false;
+
+  thd->reset_skip_readonly_check();
 
   DBUG_PRINT("debug",
              ("is_current_stmt_binlog_format_row(): %d",

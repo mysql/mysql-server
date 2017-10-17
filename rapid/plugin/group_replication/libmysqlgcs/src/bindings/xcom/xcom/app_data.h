@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,14 +34,12 @@ app_data_ptr new_exit();
 app_data_ptr new_nodes(u_int n, node_address *names, cargo_type cargo);
 app_data_ptr new_reset(cargo_type type);
 
-d_xdr_funcs(app_data_ptr)
-unsigned long msg_count(app_data_ptr a);
 void _replace_app_data_list(app_data_list target, app_data_ptr source);
 char *dbg_app_data(app_data_ptr a);
 void follow(app_data_list l, app_data_ptr p);
 void sort_app_data(app_data_ptr x[], int n);
-size_t app_data_size(app_data_ptr const a);
-
+size_t app_data_size(app_data const *a);
+size_t app_data_list_size(app_data const *a);
 
 
 #ifdef __cplusplus

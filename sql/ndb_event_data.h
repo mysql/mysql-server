@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,9 @@
 
 #include <my_global.h> // my_alloc.h
 #include <my_alloc.h> // MEM_ROOT
+#include <my_bitmap.h>
+
+#include <ndbapi/ndbapi_limits.h>
 
 class Ndb_event_data
 {
@@ -34,8 +37,15 @@ public:
   struct TABLE *shadow_table;
   struct NDB_SHARE *share;
   union NdbValue *ndb_value[2];
+  /* Bitmap with bit set for all primary key columns. */
+  MY_BITMAP *pk_bitmap;
+  my_bitmap_map pk_bitbuf[(NDB_MAX_ATTRIBUTES_IN_TABLE +
+                            8*sizeof(my_bitmap_map) - 1) /
+                           (8*sizeof(my_bitmap_map))];
 
   void print(const char* where, FILE* file) const;
+  void init_pk_bitmap();
+  void generate_minimal_bitmap(MY_BITMAP *before, MY_BITMAP *after);
 };
 
 #endif

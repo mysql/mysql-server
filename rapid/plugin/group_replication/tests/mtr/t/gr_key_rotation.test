@@ -31,7 +31,7 @@ set sql_log_bin=0;
 call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'Error while loading keyring content*");
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'keyring_file initialization failure.*");
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'File .*/keyring' not found .*");
+call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'File .*keyring' not found .*");
 set sql_log_bin=1;
 
 # Scenario 1
@@ -80,7 +80,7 @@ call mtr.add_suppression("\\[Error\\] Plugin group_replication reported: 'The se
 call mtr.add_suppression("\\[Warning\\] Plugin group_replication reported: 'Skipping leave operation:*");
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'Error while loading keyring content*");
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'keyring_file initialization failure.*");
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'File .*/keyring' not found .*");
+call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'File .*keyring' not found .*");
 call mtr.add_suppression("\\[Error\\] Plugin group_replication reported: 'Message received while the plugin is not ready, message discarded'*");
 set sql_log_bin=1;
 

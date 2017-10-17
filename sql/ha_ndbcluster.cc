@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18722,6 +18722,21 @@ SHOW_VAR ndb_status_variables_export[]= {
   {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}
 };
 
+
+static void cache_check_time_update(MYSQL_THD thd,
+                                    struct st_mysql_sys_var *var,
+                                    void *var_ptr,
+                                    const void *save)
+{
+  push_warning_printf(thd, Sql_condition::SL_WARNING,
+                      ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
+                      ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
+                      "@@ndb_cache_check_time");
+
+  opt_ndb_cache_check_time= *static_cast<const ulong*>(save);
+}
+
+
 static MYSQL_SYSVAR_ULONG(
   cache_check_time,                  /* name */
   opt_ndb_cache_check_time,              /* var */
@@ -18729,9 +18744,10 @@ static MYSQL_SYSVAR_ULONG(
   "A dedicated thread is created to, at the given "
   "millisecond interval, invalidate the query cache "
   "if another MySQL server in the cluster has changed "
-  "the data in the database.",
+  "the data in the database. "
+  "This variable is deprecated and will be removed in a future release.",
   NULL,                              /* check func. */
-  NULL,                              /* update func. */
+  &cache_check_time_update,          /* update func. */
   0,                                 /* default */
   0,                                 /* min */
   ONE_YEAR_IN_SECONDS,               /* max */
@@ -19038,13 +19054,27 @@ static MYSQL_SYSVAR_BOOL(
   opt_ndb_log_update_as_write,       /* var */
   PLUGIN_VAR_OPCMDARG,
   "For efficiency log only after image as a write event. "
-  "Ignore before image. This may cause compatability problems if "
+  "Ignore before image. This may cause compatibility problems if "
   "replicating to other storage engines than ndbcluster.",
   NULL,                              /* check func. */
   NULL,                              /* update func. */
   1                                  /* default */
 );
 
+my_bool opt_ndb_log_update_minimal;
+static MYSQL_SYSVAR_BOOL(
+  log_update_minimal,                  /* name */
+  opt_ndb_log_update_minimal,          /* var */
+  PLUGIN_VAR_OPCMDARG,
+  "For efficiency, log updates in a minimal format"
+  "Log only the primary key value(s) in the before "
+  "image. Log only the changed columns in the after "
+  "image. This may cause compatibility problems if "
+  "replicating to other storage engines than ndbcluster.",
+  NULL,                              /* check func. */
+  NULL,                              /* update func. */
+  0                                  /* default */
+);
 
 my_bool opt_ndb_log_updated_only;
 static MYSQL_SYSVAR_BOOL(
@@ -19053,7 +19083,7 @@ static MYSQL_SYSVAR_BOOL(
   PLUGIN_VAR_OPCMDARG,
   "For efficiency log only updated columns. Columns are considered "
   "as \"updated\" even if they are updated with the same value. "
-  "This may cause compatability problems if "
+  "This may cause compatibility problems if "
   "replicating to other storage engines than ndbcluster.",
   NULL,                              /* check func. */
   NULL,                              /* update func. */
@@ -19375,6 +19405,7 @@ static struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(eventbuffer_free_percent),
   MYSQL_SYSVAR(log_update_as_write),
   MYSQL_SYSVAR(log_updated_only),
+  MYSQL_SYSVAR(log_update_minimal),
   MYSQL_SYSVAR(log_empty_update),
   MYSQL_SYSVAR(log_orig),
   MYSQL_SYSVAR(distribution),
