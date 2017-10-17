@@ -209,7 +209,7 @@ EXECUTING:[102][SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE
 			[meta][field] charsetnr: 83
 			[meta][field] flags: 128 (BINARY )
 			[meta][field] decimals: 31
-			[meta][field] type: VARCHAR (15)
+			[meta][field] type: BLOB (252)
 
 
 		[meta][charset result] number: 33
@@ -241,7 +241,7 @@ EXECUTING:[102][SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE
 			[meta][field] charsetnr: 83
 			[meta][field] flags: 128 (BINARY )
 			[meta][field] decimals: 31
-			[meta][field] type: VARCHAR (15)
+			[meta][field] type: BLOB (252)
 
 
 		[meta][charset result] number: 33
@@ -949,7 +949,7 @@ EXECUTING:[102][SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE
 			[meta][field] charsetnr: 83
 			[meta][field] flags: 128 (BINARY )
 			[meta][field] decimals: 31
-			[meta][field] type: VARCHAR (15)
+			[meta][field] type: BLOB (252)
 
 
 		[meta][charset result] number: 33
@@ -981,7 +981,7 @@ EXECUTING:[102][SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE
 			[meta][field] charsetnr: 83
 			[meta][field] flags: 128 (BINARY )
 			[meta][field] decimals: 31
-			[meta][field] type: VARCHAR (15)
+			[meta][field] type: BLOB (252)
 
 
 		[meta][charset result] number: 33
