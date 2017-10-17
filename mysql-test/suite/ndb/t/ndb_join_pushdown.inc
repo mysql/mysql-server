@@ -4742,46 +4742,46 @@ explain
 select count(*)
 from t1
 join t1 as t2 on t2.a = t1.b
-where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as T3);
+where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3);
 
 select count(*)
 from t1
 join t1 as t2 on t2.a = t1.b
-where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as T3);
+where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3);
 
 
 explain
 select count(*)
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
-where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as T3);
+where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3);
 
 select count(*)
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
-where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as T3);
+where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3);
 
 
 explain
 select count(*)
-from (select * from t1 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as T3)) as t1
+from (select * from t1 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3)) as t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
 
 select count(*)
-from (select * from t1 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as T3)) as t1
+from (select * from t1 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3)) as t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
 
 
 explain
 select count(*)
-from (select * from t1 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as T3)) as t1
+from (select * from t1 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3)) as t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
-where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as T3);
+where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3);
 
 select count(*)
-from (select * from t1 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as T3)) as t1
+from (select * from t1 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3)) as t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
-where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as T3);
+where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3);
 
 
 #############################################
