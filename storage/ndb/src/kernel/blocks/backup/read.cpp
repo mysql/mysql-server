@@ -51,6 +51,10 @@ NdbOut & operator<<(NdbOut&, const BackupFormat::CtlFile::GCPEntry &);
 Int32 readLogEntry(ndbzio_stream*, Uint32**);
 
 static Uint32 recNo;
+static Uint32 recInsert;
+static Uint32 recWrite;
+static Uint32 recDeleteByRowId;
+static Uint32 recDeleteByPageId;
 static Uint32 logEntryNo;
 
 inline void ndb_end_and_exit(int exitcode)
@@ -338,6 +342,10 @@ readFragHeader(ndbzio_stream* f, BackupFormat::DataFile::FragmentHeader * dst){
     RETURN_FALSE();
 
   recNo = 0;
+  recInsert = 0;
+  recWrite = 0;
+  recDeleteByRowId = 0;
+  recDeleteByPageId = 0;
 
   return true;
 }
@@ -389,12 +397,42 @@ readRecord(ndbzio_stream* f, Uint32 **dst){
 
   if(len > 0)
   {
-    ndbout_c("RecNo: %u: Header: %x, page(%u,%u)",
-             recNo, header, theData.buf[0], theData.buf[1]);
-    recNo++;
+    Uint32 header_type = header >> 16;
+    if (header_type == BackupFormat::INSERT_TYPE)
+    {
+      ndbout_c("INSERT: RecNo: %u: Len: %x, page(%u,%u)",
+               recNo, len, theData.buf[0], theData.buf[1]);
+      recNo++;
+      recInsert++;
+    }
+    else if (header_type == BackupFormat::WRITE_TYPE)
+    {
+      ndbout_c("WRITE: RecNo: %u: Len: %x, page(%u,%u)",
+               recNo, len, theData.buf[0], theData.buf[1]);
+      recNo++;
+      recWrite++;
+    }
+    else if (header_type == BackupFormat::DELETE_BY_ROWID_TYPE)
+    {
+      ndbout_c("DELETE_BY_ROWID: RecNo: %u: Len: %x, page(%u,%u)",
+               recNo, len, theData.buf[0], theData.buf[1]);
+      recNo++;
+      recDeleteByRowId++;
+    }
+    else if (header_type == BackupFormat::DELETE_BY_PAGEID_TYPE)
+    {
+      ndbout_c("DELETE_BY_PAGEID: RecNo: %u: Len: %x, page(%u)",
+               recNo, len, theData.buf[0]);
+      recNo++;
+      recDeleteByPageId++;
+    }
   }
   else
   {
+    ndbout_c("Found %d INSERT records", recInsert);
+    ndbout_c("Found %d records", recWrite);
+    ndbout_c("Found %d records", recDeleteByRowId);
+    ndbout_c("Found %d records", recDeleteByPageId);
     ndbout_c("Found %d records", recNo);
   }
   
