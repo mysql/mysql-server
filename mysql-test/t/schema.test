@@ -9,6 +9,13 @@
 # Save the initial number of concurrent sessions.
 --source include/count_sessions.inc
 
+# MDL blocking concurrent drop schema is different with --ps-protocol
+let $drop_schema_target_state='Waiting for schema metadata lock';
+if (`SELECT $PS_PROTOCOL = 1`)
+{
+  let $drop_schema_target_state='Waiting for table metadata lock';
+}
+
 --disable_warnings
 drop database if exists mysqltest1;
 --enable_warnings
@@ -44,11 +51,11 @@ connection con2;
 
 --echo # Connection default
 connection default;
+
 let $wait_condition= SELECT COUNT(*)= 1 FROM information_schema.processlist
-                     WHERE state= 'Waiting for schema metadata lock'
+                     WHERE state= $drop_schema_target_state
                      AND info='DROP SCHEMA schema1';
 --source include/wait_condition.inc
-
 --error ER_NO_SUCH_DB
 ALTER SCHEMA schema1 DEFAULT CHARACTER SET utf8;
 SET autocommit= TRUE;
@@ -172,8 +179,9 @@ connection con2;
 
 --echo # Connection 3
 connection con3;
+
 let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist 
-  WHERE state='Waiting for schema metadata lock' and info='DROP DATABASE db1';
+  WHERE state= $drop_schema_target_state;
 --source include/wait_condition.inc
 
 --echo # But it should still be possible to CREATE/ALTER/DROP other databases.
