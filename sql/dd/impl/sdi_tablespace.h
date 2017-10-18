@@ -41,31 +41,9 @@ namespace sdi_tablespace {
   SDI. Dropping a tablespace implies that all SDIs in it are dropped
   also.
 
-  @note
-  Likewise there is no function for dropping the schema
-  sdi. Since a schema cannnot be dropped until it is empty, there will
-  not be any tablespaces containing the schema SDI when the schema is
-  dropped.
-
   @{
 */
 
-/**
-  Looks up the relevant tablespaces for the table and stores the
-  schema SDI in each.
-
-  @note Might be possible to optimize this if we can deduce that the
-  schema SDI has already been stored for some other table in the same
-  tablespace.
-
-  @param thd
-  @param hton
-  @param sdi
-  @param schema
-  @param table
- */
-bool store_sch_sdi(THD *thd, const handlerton &hton, const Sdi_type &sdi,
-                   const Schema &schema, const Table &table);
 
 /**
   Looks up the relevant tablespaces for the table and stores the

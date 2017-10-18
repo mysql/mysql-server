@@ -42,7 +42,6 @@
 #include "sql/dd/types/partition.h"
 #include "sql/dd/types/partition_index.h"
 #include "sql/dd/types/partition_value.h"
-#include "sql/dd/types/schema.h"
 #include "sql/dd/types/table.h"
 #include "sql/dd/types/tablespace.h"
 #include "sql/dd/types/tablespace_file.h"
@@ -78,13 +77,6 @@ static void mock_properties(dd::Properties &p, uint64 size)
     std::string key= std::to_string(i);
     p.set_uint64(dd::String_type{key.begin(), key.end()}, i);
   }
-}
-
-
-static void mock_dd_obj(dd::Schema *s)
-{
-  s->set_created(42);
-  s->set_last_altered(42);
 }
 
 
@@ -385,11 +377,6 @@ void api_test(const AP &ap)
 
 // Test cases
 
-TEST(SdiTest, Schema)
-{
-  simple_test<dd::Schema>();
-}
-
 TEST(SdiTest, Column_type_element)
 {
   simple_test<dd::Column_type_element>();
@@ -475,13 +462,6 @@ TEST(SdiTest, Tablespace_file)
 TEST(SdiTest, Tablespace)
 {
   simple_test<dd::Tablespace>();
-}
-
-TEST(SdiTest, Schema_API)
-{
-  std::unique_ptr<dd::Schema> s(dd::create_object<dd::Schema>());
-  mock_dd_obj(s.get());
-  api_test(s);
 }
 
 TEST(SdiTest, Table_API)
