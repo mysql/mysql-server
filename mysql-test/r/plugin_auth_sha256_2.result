@@ -2,6 +2,7 @@ CREATE USER 'kristofer' IDENTIFIED BY 'secret';
 SELECT user FROM mysql.user ORDER BY user;
 user
 kristofer
+mysql.infoschema
 mysql.session
 mysql.sys
 root
