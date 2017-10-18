@@ -28,7 +28,6 @@
 #include "plugin/x/ngs/include/ngs/error_code.h"
 #include "plugin/x/ngs/include/ngs/interface/sql_session_interface.h"
 #include "plugin/x/ngs/include/ngs/protocol_fwd.h"
-#include "plugin/x/ngs/include/ngs/protocol_fwd.h"
 
 namespace xpl {
 class Session;
@@ -109,6 +108,9 @@ class Admin_command_handler {
 
   Session *m_session;
 };
+
+#define DOC_MEMBER_REGEX \
+  R"(\\$((\\*{2})?(\\[([[:digit:]]+|\\*)\\]|\\.([[:alpha:]_\\$][[:alnum:]_\\$]*|\\*|\\".*\\")))*)"
 
 }  // namespace xpl
 
