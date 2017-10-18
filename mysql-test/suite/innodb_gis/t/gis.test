@@ -298,7 +298,7 @@ drop table t1;
 
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE `t1` (`object_id` bigint(20) unsigned NOT NULL default '0', `geo`
-geometry NOT NULL default '');
+geometry NOT NULL);
 SET sql_mode = default;
 
 insert into t1 values ('85984',ST_GeomFromText('MULTIPOLYGON(((-115.006363
