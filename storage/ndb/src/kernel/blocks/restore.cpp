@@ -48,11 +48,32 @@ extern EventLogger * g_eventLogger;
 #define DEB_RES(arglist) do { } while (0)
 #endif
 
+#define DEBUG_RES_OPEN 1
+#ifdef DEBUG_RES_OPEN
+#define DEB_RES_OPEN(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_RES_OPEN(arglist) do { } while (0)
+#endif
+
+#define DEBUG_RES_PARTS 1
+#ifdef DEBUG_RES_PARTS
+#define DEB_RES_PARTS(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_RES_PARTS(arglist) do { } while (0)
+#endif
+
 #define DEBUG_RES_STAT 1
 #ifdef DEBUG_RES_STAT
 #define DEB_RES_STAT(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_RES_STAT(arglist) do { } while (0)
+#endif
+
+#define DEBUG_RES_STAT_EXTRA 1
+#ifdef DEBUG_RES_STAT_EXTRA
+#define DEB_RES_STAT_EXTRA(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_RES_STAT_EXTRA(arglist) do { } while (0)
 #endif
 
 //#define DEBUG_RES_DEL 1
@@ -1929,6 +1950,25 @@ Restore::release_file(FilePtr file_ptr, bool statistics)
                   file_ptr.p->m_rows_restored_delete_failed,
                   file_ptr.p->m_ignored_rows));
   }
+  else
+  {
+    DEB_RES_STAT_EXTRA((
+                  "(%u)Restore tab(%u,%u): file_index: %u"
+                  ", inserts: %llu, writes: %llu"
+                  ", deletes: %llu, delete_pages: %llu"
+                  ", delete_failed: %llu"
+                  ", ignored rows: %llu",
+                  instance(),
+                  file_ptr.p->m_table_id,
+                  file_ptr.p->m_fragment_id,
+                  file_ptr.p->m_current_file_index - 1,
+                  file_ptr.p->m_rows_restored_insert,
+                  file_ptr.p->m_rows_restored_write,
+                  file_ptr.p->m_rows_restored_delete,
+                  file_ptr.p->m_rows_restored_delete_page,
+                  file_ptr.p->m_rows_restored_delete_failed,
+                  file_ptr.p->m_ignored_rows));
+  }
 
   pages.release();
   if (statistics)
@@ -1979,7 +2019,8 @@ Restore::prepare_parts_for_execution(Signal *signal, FilePtr file_ptr)
     struct BackupFormat::PartPair partPair =
       lcpCtlFilePtr->partPairs[file_ptr.p->m_current_file_index];
 
-    DEB_RES(("(%u)Prepare ALL parts[%u] = (%u,%u)",
+    DEB_RES_PARTS((
+             "(%u)Prepare ALL parts[%u] = (%u,%u)",
              instance(),
              file_ptr.p->m_current_file_index,
              partPair.startPart,
@@ -2003,7 +2044,8 @@ Restore::prepare_parts_for_execution(Signal *signal, FilePtr file_ptr)
     struct BackupFormat::PartPair partPair =
       lcpCtlFilePtr->partPairs[i];
 
-    DEB_RES(("(%u)Prepare IGNORE parts[%u] = (%u,%u)",
+    DEB_RES_PARTS((
+             "(%u)Prepare IGNORE parts[%u] = (%u,%u)",
              instance(),
              i,
              partPair.startPart,
@@ -2101,9 +2143,9 @@ Restore::open_data_file(Signal* signal, FilePtr file_ptr)
   req->fileFlags = FsOpenReq::OM_READONLY | FsOpenReq::OM_GZ;
   req->userPointer = file_ptr.i;
  
-  DEB_RES(("(%u)open_data_file data file number = %u",
-           instance(),
-           file_ptr.p->m_file_id));
+  DEB_RES_OPEN(("(%u)open_data_file data file number = %u",
+                instance(),
+                file_ptr.p->m_file_id));
   FsOpenReq::setVersion(req->fileNumber, 5);
   FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_DATA);
   FsOpenReq::v5_setLcpNo(req->fileNumber, file_ptr.p->m_file_id);
@@ -3361,15 +3403,16 @@ Restore::restore_lcp_conf(Signal *signal, FilePtr file_ptr)
      */
     if (file_ptr.p->m_rows_in_lcp != file_ptr.p->m_rows_restored)
     {
-      g_eventLogger->info("Inconsistency in restoring"
-                          " tab(%u,%u), restored %llu rows"
-                          ", expected %llu rows, "
-                          "Requires initial node restart to fix",
-                          file_ptr.p->m_table_id,
-                          file_ptr.p->m_fragment_id,
-                          file_ptr.p->m_rows_restored,
-                          file_ptr.p->m_rows_in_lcp);
-      ndbrequire(file_ptr.p->m_rows_in_lcp == file_ptr.p->m_rows_restored)
+      char buf[512];
+      BaseString::snprintf(buf, sizeof(buf),
+                           "Inconsistency in restoring T%uF%u, restored"
+                           " %llu rows, expected to restore %llu rows"
+                           "\nInitial node restart is required to recover",
+                           file_ptr.p->m_table_id,
+                           file_ptr.p->m_fragment_id,
+                           file_ptr.p->m_rows_restored,
+                           file_ptr.p->m_rows_in_lcp);
+      progError(__LINE__, NDBD_EXIT_INVALID_LCP_FILE, buf);  
     }
   }
 
@@ -3388,16 +3431,17 @@ Restore::restore_lcp_conf(Signal *signal, FilePtr file_ptr)
                                    file_ptr.p->m_fragment_id) !=
       file_ptr.p->m_rows_restored)
   {
-    g_eventLogger->info("Inconsistency in restoring tab(%u,%u),"
-                        " restored %llu rows, TUP claims %llu rows",
-                        file_ptr.p->m_table_id,
-                        file_ptr.p->m_fragment_id,
-                        file_ptr.p->m_rows_restored,
-                        c_tup->get_restore_row_count(file_ptr.p->m_table_id,
-                                                 file_ptr.p->m_fragment_id));
-    ndbrequire(c_tup->get_restore_row_count(file_ptr.p->m_table_id,
-                                            file_ptr.p->m_fragment_id) ==
-               file_ptr.p->m_rows_in_lcp);
+    char buf[512];
+    BaseString::snprintf(buf, sizeof(buf),
+                         "Inconsistency in restoring T%uF%u, restored"
+                         " %llu rows, TUP claims %llu rows"
+                         "\nInitial node restart is required to recover",
+                         file_ptr.p->m_table_id,
+                         file_ptr.p->m_fragment_id,
+                         file_ptr.p->m_rows_restored,
+                         c_tup->get_restore_row_count(file_ptr.p->m_table_id,
+                                             file_ptr.p->m_fragment_id));
+    progError(__LINE__, NDBD_EXIT_INVALID_LCP_FILE, buf);  
   }
   signal->theData[0] = NDB_LE_ReadLCPComplete;
   signal->theData[1] = file_ptr.p->m_table_id;
