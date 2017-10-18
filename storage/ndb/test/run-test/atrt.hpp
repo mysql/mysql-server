@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -139,6 +139,7 @@ extern Logger g_logger;
 
 bool parse_args(int argc, char** argv);
 bool setup_config(atrt_config&, const char * mysqld);
+bool load_deployment_options(atrt_config&);
 bool configure(atrt_config&, int setup);
 bool setup_directories(atrt_config&, int setup);
 bool setup_files(atrt_config&, int setup, int sshx);

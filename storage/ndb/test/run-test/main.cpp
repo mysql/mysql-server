@@ -247,6 +247,12 @@ main(int argc, char ** argv)
     goto end;
   }
 
+  if (!load_deployment_options(g_config))
+  {
+    g_logger.critical("Failed to setup deployment options");
+    goto end;
+  }
+
   if (!configure(g_config, g_do_setup))
   {
     g_logger.critical("Failed to configure");
