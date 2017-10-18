@@ -20,8 +20,11 @@
 
 #include "NDBT.hpp"
 #include "NDBT_Test.hpp"
+#include "my_thread_local.h"
 #include <portlib/NdbEnv.h>
 #include <logger/Logger.hpp>
+
+#include "my_alloc.h"
 
 static int opt_stop_on_error = 0;
 

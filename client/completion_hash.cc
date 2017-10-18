@@ -23,6 +23,7 @@
 #include "client/completion_hash.h"
 
 #include "m_string.h"
+#include "my_alloc.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"

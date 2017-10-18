@@ -28,6 +28,7 @@
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_sys.h"
+#include "my_thread_local.h"
 #include "mysys_err.h"
 #include "storage/myisam/myisam_sys.h"
 

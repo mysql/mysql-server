@@ -56,7 +56,6 @@ struct PSI_stage_bootstrap
 {
   void *(*get_interface)(int version);
 };
-typedef struct PSI_stage_bootstrap PSI_stage_bootstrap;
 struct PSI_stage_service_v1
 {
   register_stage_v1_t register_stage;

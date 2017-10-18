@@ -31,6 +31,7 @@
 
 #include "client/logger.h"
 #include "client/path.h"
+#include "my_alloc.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"

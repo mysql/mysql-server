@@ -29,6 +29,7 @@ class Cost_constant_cache;
 extern "C" {
   CHARSET_INFO *system_charset_info= NULL;
 }
+class THD;
 
 namespace {
 

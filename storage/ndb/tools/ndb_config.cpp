@@ -71,6 +71,8 @@
 #include <NdbAutoPtr.hpp>
 #include <NdbTCP.h>
 
+#include "my_alloc.h"
+
 static int g_verbose = 0;
 
 static int g_nodes, g_connections, g_system, g_section;
