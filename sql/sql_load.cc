@@ -372,8 +372,8 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
         thd->lex->set_var_list.push_back(user_var);
       }
     }
-    /* We explicitly ignore the return value */
-    (void)check_that_all_fields_are_given_values(thd, table, table_list);
+    if (check_that_all_fields_are_given_values(thd, table, table_list))
+      DBUG_RETURN(TRUE);
     /* Fix the expressions in SET clause */
     if (setup_fields(thd, Ref_item_array(), m_opt_set_exprs, SELECT_ACL,
                      nullptr, false, false))

@@ -11005,7 +11005,6 @@ bool Create_field::init(THD *thd, const char *fld_name,
   case MYSQL_TYPE_TINY_BLOB:
   case MYSQL_TYPE_LONG_BLOB:
   case MYSQL_TYPE_MEDIUM_BLOB:
-  case MYSQL_TYPE_GEOMETRY:
   case MYSQL_TYPE_JSON:
     if (fld_default_value)
     {
@@ -11033,6 +11032,14 @@ bool Create_field::init(THD *thd, const char *fld_name,
                             fld_name);
       }
       def= 0;
+    }
+    flags|= BLOB_FLAG;
+    break;
+  case MYSQL_TYPE_GEOMETRY:
+    if (fld_default_value)
+    {
+      my_error(ER_BLOB_CANT_HAVE_DEFAULT, MYF(0), fld_name);
+      DBUG_RETURN(TRUE);
     }
     flags|= BLOB_FLAG;
     break;

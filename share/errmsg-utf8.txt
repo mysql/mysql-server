@@ -10935,6 +10935,9 @@ ER_PASSWORD_EXPIRATION_NOT_SUPPORTED_BY_AUTH_METHOD
 ER_INVALID_GEOJSON_CRS_NOT_TOP_LEVEL
   eng "Invalid GeoJSON data provided to function %s: Member 'crs' must be specified in the top level object."
 
+ER_BAD_NULL_ERROR_NOT_IGNORED 23000
+  eng "Column '%-.192s' cannot be null"
+
 #
 #  End of 8.0 error messages.
 #
