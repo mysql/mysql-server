@@ -22,6 +22,7 @@
 #include "sql/ndb_dd_client.h"
 #include "sql/ndb_dd_table.h"
 #include "sql/ndb_dd_sdi.h"
+#include "sql/ndb_name_util.h"
 
 #include "sql/sql_class.h"
 
@@ -38,7 +39,7 @@ bool ndb_sdi_serialize(THD *thd,
   // or else have temporary name
   DBUG_ASSERT(table_def->hidden() == dd::Abstract_table::HT_VISIBLE ||
               table_def->hidden() == dd::Abstract_table::HT_HIDDEN_SE ||
-              is_prefix(table_def->name().c_str(), tmp_file_prefix));
+              ndb_name_is_temp(table_def->name().c_str()));
 
   // Make a copy of the table definition to allow it to
   // be modified before serialization
@@ -81,7 +82,7 @@ void ndb_dd_fix_inplace_alter_table_def(dd::Table* table_def,
   DBUG_PRINT("enter", ("proper_table_name: %s", proper_table_name));
 
   // Check that the proper_table_name is not a temporary name
-  DBUG_ASSERT(!is_prefix(proper_table_name, tmp_file_prefix));
+  DBUG_ASSERT(!ndb_name_is_temp(proper_table_name));
 
   table_def->set_name(proper_table_name);
   table_def->set_hidden(dd::Abstract_table::HT_VISIBLE);

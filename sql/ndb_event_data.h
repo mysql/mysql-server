@@ -18,35 +18,64 @@
 #ifndef NDB_EVENT_DATA_H
 #define NDB_EVENT_DATA_H
 
-#include <stdio.h>
-
 #include "my_alloc.h" // MEM_ROOT
 #include "sql/ndb_bitmap.h"
 #include "storage/ndb/include/ndbapi/ndbapi_limits.h"
 
+namespace dd {
+  class Table;
+}
+
+struct NDB_SHARE;
+
+/*
+  Ndb_event_data holds information related to
+  receiving events from NDB
+*/
 
 class Ndb_event_data
 {
-public:
   Ndb_event_data(); // Not implemented
   Ndb_event_data(const Ndb_event_data&); // Not implemented
-  Ndb_event_data(struct NDB_SHARE *the_share);
-
+  Ndb_event_data(NDB_SHARE* the_share);
+public:
   ~Ndb_event_data();
 
   MEM_ROOT mem_root;
   struct TABLE *shadow_table;
-  struct NDB_SHARE *share;
+  NDB_SHARE *share;
   union NdbValue *ndb_value[2];
+
+  MY_BITMAP stored_columns;
+  void init_stored_columns();
+
+  // Does the table have blobs
+  bool have_blobs;
+
+private:
   /* Bitmap with bit set for all primary key columns. */
   MY_BITMAP *pk_bitmap;
   my_bitmap_map pk_bitbuf[(NDB_MAX_ATTRIBUTES_IN_TABLE +
                             8*sizeof(my_bitmap_map) - 1) /
                            (8*sizeof(my_bitmap_map))];
-
-  void print(const char* where, FILE* file) const;
+public:
   void init_pk_bitmap();
   void generate_minimal_bitmap(MY_BITMAP *before, MY_BITMAP *after);
+
+private:
+  TABLE *open_shadow_table(class THD* thd,
+                           const char *db, const char *table_name,
+                           const char *key, const dd::Table *table_def,
+                           class THD *owner_thd);
+public:
+  // Factory function
+  static Ndb_event_data* create_event_data(class THD* thd,
+                                           NDB_SHARE *share,
+                                           const char *db,
+                                           const char *table_name,
+                                           const char *key,
+                                           class THD* owner_thd,
+                                           const dd::Table *table_def);
 };
 
 #endif

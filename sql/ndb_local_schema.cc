@@ -83,7 +83,7 @@ void Ndb_local_schema::Base::log_warning(const char* fmt, ...) const
   if (m_push_warnings)
   {
     // Append the error which caused the error to thd's warning list
-    push_warning_printf(m_thd, Sql_condition::SL_NOTE,
+    push_warning_printf(m_thd, Sql_condition::SL_WARNING,
                         ER_GET_ERRMSG, "Ndb schema[%s.%s]: %s",
                         m_db, m_name, buf);
   }

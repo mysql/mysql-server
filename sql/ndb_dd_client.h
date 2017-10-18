@@ -30,6 +30,7 @@ namespace dd {
   namespace cache {
     class Dictionary_client;
   }
+  class Table;
 }
 
 
@@ -84,6 +85,8 @@ public:
                      const dd::sdi_t &sdi,
                      int ndb_table_id, int ndb_table_version,
                      bool force_overwrite);
+  bool get_table(const char* schema_name, const char* table_name,
+                 const dd::Table **table_def);
 
   bool fetch_schema_names(class std::vector<std::string>*);
   bool get_ndb_table_names_in_schema(const char* schema_name,

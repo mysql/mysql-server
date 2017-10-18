@@ -18,16 +18,23 @@
 #include "sql/ndb_event_data.h"
 
 #include "my_pointer_arithmetic.h"
+#include "sql/dd_table_share.h"
+#include "sql/ndb_table_map.h"
+#include "sql/sql_base.h"
+#include "sql/sql_class.h"
 #include "sql/table.h"
 
 
 Ndb_event_data::Ndb_event_data(NDB_SHARE *the_share) :
-  shadow_table(NULL),
+  shadow_table(nullptr),
   share(the_share),
   pk_bitmap(NULL)
 {
-  ndb_value[0]= NULL;
-  ndb_value[1]= NULL;
+  ndb_value[0]= nullptr;
+  ndb_value[1]= nullptr;
+
+  // Mark the stored_columns bitmap as not initialized
+  stored_columns.bitmap = nullptr;
 }
 
 
@@ -40,6 +47,8 @@ Ndb_event_data::~Ndb_event_data()
   delete pk_bitmap;
   pk_bitmap = NULL;
 
+  bitmap_free(&stored_columns);
+
   free_root(&mem_root, MYF(0));
   share= NULL;
   /*
@@ -49,47 +58,6 @@ Ndb_event_data::~Ndb_event_data()
   my_free(ndb_value[0]);
 }
 
-
-void Ndb_event_data::print(const char* where, FILE* file) const
-{
-  fprintf(file,
-          "%s shadow_table: %p '%s.%s'\n",
-          where,
-          shadow_table, shadow_table->s->db.str,
-          shadow_table->s->table_name.str);
-
-  // Print stats for the MEM_ROOT where Ndb_event_data
-  // has allocated the shadow_table etc.
-  {
-    USED_MEM *mem_block;
-    size_t mem_root_used = 0;
-    size_t mem_root_size = 0;
-
-    /* iterate through (partially) free blocks */
-    for (mem_block= mem_root.free; mem_block; mem_block= mem_block->next)
-    {
-      const size_t block_used =
-          mem_block->size - // Size of block
-          ALIGN_SIZE(sizeof(USED_MEM)) - // Size of header
-          mem_block->left; // What's unused in block
-      mem_root_used += block_used;
-      mem_root_size += mem_block->size;
-    }
-
-    /* iterate through the used blocks */
-    for (mem_block= mem_root.used; mem_block; mem_block= mem_block->next)
-    {
-      const size_t block_used =
-          mem_block->size - // Size of block
-          ALIGN_SIZE(sizeof(USED_MEM)) - // Size of header
-          mem_block->left; // What's unused in block
-      mem_root_used += block_used;
-      mem_root_size += mem_block->size;
-    }
-    fprintf(file, "  - mem_root size: %lu\n", (unsigned long)mem_root_size);
-    fprintf(file, "  - mem_root used: %lu\n", (unsigned long)mem_root_used);
-  }
-}
 
 /*
  * While writing an UPDATE_ROW event to the binlog, a bitmap is
@@ -125,6 +93,7 @@ void Ndb_event_data::init_pk_bitmap()
   assert(!bitmap_is_clear_all(pk_bitmap));
 }
 
+
 /*
  * Modify the column bitmaps generated for UPDATE_ROW as per
  * the MINIMAL binlog format type. Expected arguments:
@@ -152,4 +121,118 @@ void Ndb_event_data::generate_minimal_bitmap(MY_BITMAP *before, MY_BITMAP *after
     // no usable PK bitmap, set Before Image = After Image
     bitmap_copy(before, after);
   }
+}
+
+
+
+void Ndb_event_data::init_stored_columns()
+{
+  const int n_fields = shadow_table->s->fields;
+  bitmap_init(&stored_columns, 0, n_fields, false);
+
+  if (Ndb_table_map::has_virtual_gcol(shadow_table))
+  {
+    for(int i = 0 ; i < n_fields; i++)
+    {
+      Field * field = shadow_table->field[i];
+      if (field->stored_in_db)
+        bitmap_set_bit(&stored_columns, i);
+    }
+  }
+  else
+  {
+    bitmap_set_all(&stored_columns);  // all columns are stored
+  }
+}
+
+TABLE* Ndb_event_data::open_shadow_table(THD* thd, const char* db,
+                                         const char* table_name,
+                                         const char* key,
+                                         const dd::Table* table_def,
+                                         THD* owner_thd) {
+  DBUG_ENTER("Ndb_event_data::open_shadow_table");
+  DBUG_ASSERT(table_def);
+
+  TABLE_SHARE* shadow_table_share =
+      (TABLE_SHARE*)alloc_root(&mem_root, sizeof(TABLE_SHARE));
+  TABLE* shadow_table = (TABLE*)alloc_root(&mem_root, sizeof(TABLE));
+
+  init_tmp_table_share(thd, shadow_table_share, db, 0, table_name, key,
+                       nullptr);
+
+  int error = 0;
+  if ((error = open_table_def(thd, shadow_table_share, *table_def)) ||
+      (error = open_table_from_share(
+           thd, shadow_table_share, "", 0,
+           (uint)(OPEN_FRM_FILE_ONLY | DELAYED_OPEN | READ_ALL), 0,
+           shadow_table, false, table_def))) {
+    DBUG_PRINT("error", ("failed to open shadow table, error: %d", error));
+    free_table_share(shadow_table_share);
+    DBUG_RETURN(nullptr);
+  }
+
+  mysql_mutex_lock(&LOCK_open);
+  assign_new_table_id(shadow_table_share);
+  mysql_mutex_unlock(&LOCK_open);
+
+  // Allocate strings for db and table_name for shadow_table
+  // in event_data's MEM_ROOT(where the shadow_table itself is allocated)
+  lex_string_copy(&mem_root, &shadow_table->s->db, db);
+  lex_string_copy(&mem_root, &shadow_table->s->table_name, table_name);
+
+  shadow_table->in_use = owner_thd;
+
+  // Can't use 'use_all_columns()' as the file object is not setup
+  // yet (and never will)
+  shadow_table->column_bitmaps_set_no_signal(&shadow_table->s->all_set,
+                                             &shadow_table->s->all_set);
+
+  DBUG_RETURN(shadow_table);
+}
+
+/*
+  Create event data for the table given in share. This includes
+  opening a shadow table. The shadow table is used when
+  receiving and event from the data nodes which need to be written
+  to the binlog injector.
+*/
+
+Ndb_event_data* Ndb_event_data::create_event_data(
+    THD* thd, NDB_SHARE* share, const char* db, const char* table_name,
+    const char* key, THD* owner_thd, const dd::Table* table_def) {
+  DBUG_ENTER("Ndb_event_data::create_event_data");
+  DBUG_ASSERT(table_def);
+
+  Ndb_event_data* event_data = new Ndb_event_data(share);
+
+  // Setup THR_MALLOC to allocate memory from the MEM_ROOT in the
+  // newly created Ndb_event_data
+  MEM_ROOT** root_ptr = THR_MALLOC;
+  MEM_ROOT* old_root = *root_ptr;
+  init_sql_alloc(PSI_INSTRUMENT_ME, &event_data->mem_root, 1024, 0);
+  *root_ptr = &event_data->mem_root;
+
+  // Create the shadow table
+  TABLE* shadow_table = event_data->open_shadow_table(thd, db, table_name, key,
+                                                      table_def, owner_thd);
+  if (!shadow_table) {
+    DBUG_PRINT("error", ("failed to open shadow table"));
+    delete event_data;
+    *root_ptr = old_root;
+    DBUG_RETURN(nullptr);
+  }
+  event_data->shadow_table = shadow_table;
+
+  // Calculate event_data bitmaps after assigning the shadow_table
+  event_data->init_pk_bitmap();
+  event_data->init_stored_columns();
+
+  // Calculate if the assigned shadow_table have blobs and save that
+  // information for later when events are received
+  event_data->have_blobs = Ndb_table_map::have_physical_blobs(shadow_table);
+
+  // Restore old root
+  *root_ptr = old_root;
+
+  DBUG_RETURN(event_data);
 }

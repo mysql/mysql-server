@@ -442,6 +442,18 @@ Ndb_dd_client::install_table(const char* schema_name, const char* table_name,
   return true;
 }
 
+bool
+Ndb_dd_client::get_table(const char *schema_name, const char *table_name,
+                         const dd::Table **table_def)
+{
+  if (m_client->acquire(schema_name, table_name, table_def))
+  {
+    my_error(ER_NO_SUCH_TABLE, MYF(0), schema_name, table_name);
+    return false;
+  }
+  return true;
+}
+
 
 bool
 Ndb_dd_client::fetch_schema_names(std::vector<std::string>* names)

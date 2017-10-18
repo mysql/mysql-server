@@ -69,3 +69,44 @@ ndb_get_extra_metadata_version(const NdbDictionary::Table *ndbtab)
   DBUG_RETURN(version);
 
 }
+
+
+bool
+ndb_table_has_blobs(const NdbDictionary::Table *ndbtab)
+{
+  const int num_columns = ndbtab->getNoOfColumns();
+  for (int i = 0; i < num_columns; i++)
+  {
+    const NdbDictionary::Column::Type column_type =
+        ndbtab->getColumn(i)->getType();
+    if (column_type == NdbDictionary::Column::Blob ||
+        column_type == NdbDictionary::Column::Text)
+    {
+      // Found at least one blob column, the table has blobs
+      return true;
+    }
+  }
+  return false;
+}
+
+
+bool
+ndb_table_has_hidden_pk(const NdbDictionary::Table *ndbtab)
+{
+  const char* hidden_pk_name = "$PK";
+  if (ndbtab->getNoOfPrimaryKeys() == 1)
+  {
+    const NdbDictionary::Column* ndbcol = ndbtab->getColumn(hidden_pk_name);
+    if (ndbcol &&
+        ndbcol->getType() == NdbDictionary::Column::Bigunsigned &&
+        ndbcol->getLength() == 1 &&
+        ndbcol->getNullable() == false &&
+        ndbcol->getPrimaryKey() == true &&
+        ndbcol->getAutoIncrement() == true &&
+        ndbcol->getDefaultValue() == nullptr)
+    {
+      return true;
+    }
+  }
+  return false;
+}

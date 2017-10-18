@@ -42,4 +42,23 @@ char *ndb_pack_varchar(const NdbDictionary::Column *col,
  */
 Uint32 ndb_get_extra_metadata_version(const NdbDictionary::Table* ndbtab);
 
+
+/**
+ * @brief ndb_table_has_blobs, check if the NDB table has blobs
+ * @param ndbtab
+ * @return true if the table have blobs
+ */
+bool ndb_table_has_blobs(const NdbDictionary::Table* ndbtab);
+
+
+/**
+ * @brief ndb_table_has_hidden_pk, check if the NDB table has a hidden
+ *        primary key(as created by ndbcluster to support having table
+ *        without primary key in NDB)
+ * @param ndbtab
+ * @return true if the table has a hidden primary key
+ */
+bool ndb_table_has_hidden_pk(const NdbDictionary::Table* ndbtab);
+
 #endif
+

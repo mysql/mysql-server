@@ -42,6 +42,7 @@
 #include "sql/mysqld.h"     // global_system_variables table_alias_charset ...
 #include "sql/mysqld_thd_manager.h" // Global_THD_manager
 #include "sql/ndb_anyvalue.h"
+#include "sql/ndb_binlog_client.h"
 #include "sql/ndb_binlog_extra_row_info.h"
 #include "sql/ndb_bitmap.h"
 #include "sql/ndb_component.h"
@@ -86,8 +87,10 @@
 #include "sql/ndb_dummy_ts.h"
 #include "sql/ndb_server_hooks.h"
 
-using std::string;
-using std::unique_ptr;
+typedef NdbDictionary::Column NDBCOL;
+typedef NdbDictionary::Table NDBTAB;
+typedef NdbDictionary::Index NDBINDEX;
+typedef NdbDictionary::Dictionary NDBDICT;
 
 // ndb interface initialization/cleanup
 extern "C" void ndb_init_internal(Uint32);
@@ -374,7 +377,6 @@ static int ndbcluster_alter_tablespace(handlerton*, THD* thd,
                                        st_alter_tablespace* info,
                                        const dd::Tablespace*,
                                        dd::Tablespace*);
-static int handle_trailing_share(THD *thd, NDB_SHARE *share);
 
 
 static handler *ndbcluster_create_handler(handlerton *hton,
@@ -438,14 +440,14 @@ static int ndbcluster_inited= 0;
 */
 int ndb_setup_complete= 0; // Use ndbcluster_mutex & ndbcluster_cond
 extern Ndb* g_ndb;
+extern Ndb_cluster_connection *g_ndb_cluster_connection;
 
 /// Handler synchronization
 mysql_mutex_t ndbcluster_mutex;
 mysql_cond_t  ndbcluster_cond;
 
-/// Table lock handling
-unique_ptr<collation_unordered_map<string, NDB_SHARE *>>
-  ndbcluster_open_tables, ndbcluster_dropped_tables;
+static const char* ndbcluster_hton_name = "ndbcluster";
+static const int ndbcluster_hton_name_length = sizeof(ndbcluster_hton_name)-1;
 
 static void modify_shared_stats(NDB_SHARE *share,
                                 Ndb_local_table_statistics *local_stat);
@@ -4819,6 +4821,8 @@ ha_ndbcluster::eventSetAnyValue(THD *thd,
   }
 #endif
 }
+
+extern NDB_SHARE *ndb_apply_status_share;
 
 
 /**
@@ -10288,6 +10292,11 @@ void ha_ndbcluster::append_create_info(String *packet)
   }
 }
 
+static bool drop_table_and_related(THD *thd, Ndb *ndb,
+                                   NdbDictionary::Dictionary *dict,
+                                   const NdbDictionary::Table *table,
+                                   int drop_flags, bool skip_related);
+
 /**
   Create a table in NDB Cluster
 
@@ -10381,12 +10390,13 @@ int ha_ndbcluster::create(const char *name,
   if (create_info->table_options & HA_OPTION_CREATE_FROM_ENGINE)
   {
     // This is the final step of table discovery, the table already exists
-    // in NDB and it should already have been added to local DD by
+    // in NDB and it has already been added to local DD by
     // calling ha_discover() and thus ndbcluster_discover()
     // Just finish this process by setting up the binlog for this table
     const int setup_result =
-        ndbcluster_create_binlog_setup(thd, ndb, name,
-                                       m_dbname, m_tabname, form);
+        ndbcluster_binlog_setup_table(thd, ndb,
+                                      m_dbname, m_tabname,
+                                      table_def);
     DBUG_ASSERT(setup_result == 0); // Catch in debug
     if (setup_result == HA_ERR_TABLE_EXIST)
     {
@@ -10410,9 +10420,8 @@ int ha_ndbcluster::create(const char *name,
   {
     DBUG_PRINT("info", ("Detected copying ALTER TABLE"));
 
-    // Check that the table name is temporary ie. starts with #sql
-    DBUG_ASSERT(!is_user_table(form));
-    DBUG_ASSERT(is_prefix(form->s->table_name.str, tmp_file_prefix));
+    // Check that the table name is a temporary name
+    DBUG_ASSERT(ndb_name_is_temp(form->s->table_name.str));
 
     if (!THDVAR(thd, allow_copying_alter_table) &&
         (thd->lex->alter_info->requested_algorithm ==
@@ -10594,16 +10603,17 @@ int ha_ndbcluster::create(const char *name,
     DBUG_RETURN(HA_WRONG_CREATE_OPTION);
   }
 
-  /* Read ndb_replication entry for this table, if any */
-  Uint32 binlog_flags;
+  // Read mysql.ndb_replication settings for this table, if any
+  uint32 binlog_flags;
   const st_conflict_fn_def* conflict_fn= NULL;
   st_conflict_fn_arg args[MAX_CONFLICT_ARGS];
-  Uint32 num_args = MAX_CONFLICT_ARGS;
+  uint num_args = MAX_CONFLICT_ARGS;
 
-  if (ndbcluster_get_binlog_replication_info(thd, ndb, m_dbname,
-                                             m_tabname, ::server_id,
-                                             &binlog_flags, &conflict_fn,
-                                             args, &num_args))
+  Ndb_binlog_client binlog_client(thd, m_dbname, m_tabname);
+  if (binlog_client.read_replication_info(ndb, m_dbname,
+                                          m_tabname, ::server_id,
+                                          &binlog_flags, &conflict_fn,
+                                          args, &num_args))
   {
     DBUG_RETURN(HA_WRONG_CREATE_OPTION);
   }
@@ -10611,8 +10621,7 @@ int ha_ndbcluster::create(const char *name,
   /* Reset database name */
   ndb->setDatabaseName(m_dbname);
 
-  /* TODO : Add as per conflict function 'virtual' */
-  /* Use ndb_replication information as required */
+  // Use mysql.ndb_replication settings when creating table
   if (conflict_fn != NULL)
   {
     switch(conflict_fn->type)
@@ -11249,95 +11258,91 @@ cleanup_failed:
     // be opened and as such the NDB error can be returned here
     ERR_RETURN(dict->getNdbError());
   }
-  else
+
+  mysql_mutex_lock(&ndbcluster_mutex);
+
+  // Create NDB_SHARE for the new table
+  NDB_SHARE *share = NDB_SHARE::create_and_acquire_reference(name, "create");
+
+  mysql_mutex_unlock(&ndbcluster_mutex);
+
+  if (!share)
   {
-    NDB_SHARE *share= 0;
-    mysql_mutex_lock(&ndbcluster_mutex);
-    /*
-      First make sure we get a "fresh" share here, not an old trailing one...
-    */
-    {
-      if ((share= find_or_nullptr(*ndbcluster_open_tables, name)))
-        handle_trailing_share(thd, share);
-    }
-    /*
-      get a new share
-    */
-
-    /* Get a temporary ref AND a ref from open_tables iff share created */
-    if (!(share = ndbcluster_get_share(name, form, true, true)))
-    {
-      ndb_log_error("allocating table share for %s failed", name);
-    }
-    else
-    {
-      DBUG_PRINT("NDB_SHARE", ("%s binlog create  use_count: %u",
-                               share->key_string(), share->use_count()));
-    }
-    mysql_mutex_unlock(&ndbcluster_mutex);
-
-    while (!IS_TMP_PREFIX(m_tabname))
-    {
-      if (share)
-      {
-        /* Set the Binlogging information we retrieved above */
-        ndbcluster_apply_binlog_replication_info(thd,
-                                                 share,
-                                                 m_table,
-                                                 conflict_fn,
-                                                 args,
-                                                 num_args,
-                                                 binlog_flags);
-      }
-
-      String event_name(INJECTOR_EVENT_LEN);
-      ndb_rep_event_name(&event_name, m_dbname, m_tabname,
-                         get_binlog_full(share));
-      int do_event_op= ndb_binlog_running;
-
-      if (!ndb_schema_dist_is_ready() &&
-          strcmp(share->db, NDB_REP_DB) == 0 &&
-          strcmp(share->table_name, NDB_SCHEMA_TABLE) == 0)
-        do_event_op= 1;
-
-      /*
-        Always create an event for the table, as other mysql servers
-        expect it to be there.
-      */
-      if (!Ndb_dist_priv_util::is_distributed_priv_table(m_dbname, m_tabname) &&
-          !ndbcluster_create_event(thd, ndb, m_table, event_name.c_ptr(), share,
-                                   do_event_op ? 2 : 1/* push warning */))
-      {
-        ndb_log_verbose(1, "NDB Binlog: CREATE TABLE Event: %s",
-                        event_name.c_ptr());
-
-        if (ndbcluster_create_event_ops(thd, share,
-                                        m_table, event_name.c_ptr()))
-        {
-          ndb_log_error("NDB Binlog: FAILED CREATE TABLE event operations. "
-                        "Event: %s", name);
-          /* a warning has been issued to the client */
-        }
-      }
-      /*
-        warning has been issued if ndbcluster_create_event failed
-        and (share && do_event_op)
-      */
-      if (share && !do_event_op)
-        set_binlog_nologging(share);
-      ndbcluster_log_schema_op(thd,
-                               thd->query().str, thd->query().length,
-                               share->db, share->table_name,
-                               m_table->getObjectId(),
-                               m_table->getObjectVersion(),
-                               (thd_sql_command(thd) == SQLCOM_TRUNCATE ?
-                               SOT_TRUNCATE_TABLE : SOT_CREATE_TABLE),
-			       NULL, NULL);
-      break;
-    }
-    if (share)
-      ndbcluster_free_share(&share); // temporary ref.
+    // Failed to create the NDB_SHARE instance for this table, most likely OOM.
+    // Try to drop the table from NDB before returning
+    (void)drop_table_and_related(thd, ndb, dict, m_table,
+                                 0,          // drop_flags
+                                 false);     // skip_related
+    m_table = nullptr;
+    my_printf_error(ER_OUTOFMEMORY,
+                    "Failed to acquire NDB_SHARE while creating table '%s'",
+                    MYF(0), name);
+    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
   }
+
+  if (ndb_name_is_temp(m_tabname))
+  {
+    // Temporary table created OK
+    NDB_SHARE::release_reference(share, "create"); // temporary ref.
+    m_table= 0;
+    DBUG_RETURN(0); // All OK
+  }
+
+  // Apply the mysql.ndb_replication settings
+  // NOTE! Should check error and fail the create
+  (void)binlog_client.apply_replication_info(ndb, share,
+                                             m_table,
+                                             conflict_fn,
+                                             args,
+                                             num_args,
+                                             binlog_flags);
+
+  if (binlog_client.table_should_have_event(share, m_table))
+  {
+    if (binlog_client.create_event(ndb, m_table, share))
+    {
+      // Failed to create event for this table, fail the CREATE
+      // and drop the table from NDB before returning
+      (void)drop_table_and_related(thd, ndb, dict, m_table,
+                                   0,          // drop_flags
+                                   false);     // skip_related
+      m_table = nullptr;
+      my_printf_error(ER_INTERNAL_ERROR,
+                      "Failed to to create event for table '%s'",
+                      MYF(0), name);
+      DBUG_RETURN(ER_INTERNAL_ERROR);
+    }
+
+    if (binlog_client.table_should_have_event_op(share))
+    {
+      Ndb_event_data* event_data;
+      if (!binlog_client.create_event_data(share, table_def, &event_data) ||
+          binlog_client.create_event_op(share, m_table, event_data))
+      {
+        // Failed to create event operation for this table, fail the CREATE
+        // and drop the table from NDB before returning
+        (void)drop_table_and_related(thd, ndb, dict, m_table,
+                                     0,          // drop_flags
+                                     false);     // skip_related
+        m_table = nullptr;
+        my_printf_error(ER_INTERNAL_ERROR,
+                        "Failed to to create event operation for table '%s'",
+                        MYF(0), name);
+        DBUG_RETURN(ER_INTERNAL_ERROR);
+      }
+    }
+  }
+
+  ndbcluster_log_schema_op(thd,
+                           thd->query().str, thd->query().length,
+                           share->db, share->table_name,
+                           m_table->getObjectId(),
+                           m_table->getObjectVersion(),
+                           (thd_sql_command(thd) == SQLCOM_TRUNCATE ?
+                              SOT_TRUNCATE_TABLE : SOT_CREATE_TABLE),
+                           NULL, NULL);
+
+  NDB_SHARE::release_reference(share, "create"); // temporary ref.
 
   m_table= 0;
   DBUG_RETURN(0); // All OK
@@ -11670,7 +11675,7 @@ ha_ndbcluster::rename_table_impl(THD* thd, Ndb* ndb,
   const int ndb_table_id= orig_tab->getObjectId();
   const int ndb_table_version= orig_tab->getObjectVersion();
 
-  Ndb_share_temp_ref share(from);
+  Ndb_share_temp_ref share(from, "rename_table_impl");
   if (real_rename)
   {
     /*
@@ -11697,7 +11702,7 @@ ha_ndbcluster::rename_table_impl(THD* thd, Ndb* ndb,
   }
   NDB_SHARE_KEY* old_key = share->key; // Save current key
   NDB_SHARE_KEY* new_key = NDB_SHARE::create_key(to);
-  (void)ndbcluster_rename_share(thd, share, new_key);
+  (void)NDB_SHARE::rename_share(share, new_key);
 
   NdbDictionary::Table new_tab= *orig_tab;
   new_tab.setName(new_tabname);
@@ -11729,7 +11734,7 @@ ha_ndbcluster::rename_table_impl(THD* thd, Ndb* ndb,
   {
     const NdbError ndb_error= dict->getNdbError();
     // Rename the share back to old_key
-    (void)ndbcluster_rename_share(thd, share, old_key);
+    (void)NDB_SHARE::rename_share(share, old_key);
     // Release the unused new_key
     NDB_SHARE::free_key(new_key);
     ERR_RETURN(ndb_error);
@@ -11759,42 +11764,52 @@ ha_ndbcluster::rename_table_impl(THD* thd, Ndb* ndb,
   /* handle old table */
   if (drop_events)
   {
-    ndbcluster_drop_event(thd, ndb, share,
-                          old_dbname, old_tabname);
+    Ndb_binlog_client::drop_events_for_table(thd, ndb,
+                                             old_dbname, old_tabname);
   }
+
+  Ndb_binlog_client binlog_client(thd, new_dbname, new_tabname);
 
   if (create_events)
   {
     Ndb_table_guard ndbtab_g2(dict, new_tabname);
     const NDBTAB *ndbtab= ndbtab_g2.get_table();
 
-    ndbcluster_read_binlog_replication(thd, ndb, share, ndbtab,
-                                       ::server_id);
+    // NOTE! Should check error and fail the rename
+    (void)binlog_client.read_and_apply_replication_info(ndb, share, ndbtab,
+                                                        ::server_id);
 
-    /* always create an event for the table */
-    String event_name(INJECTOR_EVENT_LEN);
-    ndb_rep_event_name(&event_name, new_dbname, new_tabname,
-                       get_binlog_full(share));
-
-    if (!Ndb_dist_priv_util::is_distributed_priv_table(new_dbname,
-                                                       new_tabname) &&
-        !ndbcluster_create_event(thd, ndb, ndbtab, event_name.c_ptr(), share,
-                                 ndb_binlog_running ? 2 : 1/* push warning */))
+    if (binlog_client.table_should_have_event(share, ndbtab))
     {
-      ndb_log_verbose(1, "NDB Binlog: RENAME Event: %s", event_name.c_ptr());
-
-      if (share->op == 0 &&
-          ndbcluster_create_event_ops(thd, share, ndbtab, event_name.c_ptr()))
+      if (binlog_client.create_event(ndb, ndbtab, share))
       {
-        ndb_log_error("NDB Binlog: FAILED create event operations "
-                      "during RENAME. Event %s", event_name.c_ptr());
-        /* a warning has been issued to the client */
+        // Failed to create event for this table, fail the rename
+        // NOTE! Should cover whole function with schema transaction to cleanup
+        my_printf_error(ER_INTERNAL_ERROR,
+                        "Failed to to create event for table '%s'",
+                        MYF(0), share->key_string());
+        DBUG_RETURN(ER_INTERNAL_ERROR);
+      }
+
+      if (binlog_client.table_should_have_event_op(share))
+      {
+        // NOTE! Simple renames performs the rename without recreating the event
+        // operation, thus the check of share->op below.
+        Ndb_event_data* event_data;
+        if (share->op == nullptr &&
+            (!binlog_client.create_event_data(share, to_table_def,
+                                              &event_data) ||
+             binlog_client.create_event_op(share, ndbtab, event_data)))
+        {
+          // Failed to create event for this table, fail the rename
+          // NOTE! Should cover whole function with schema transaction to cleanup
+          my_printf_error(ER_INTERNAL_ERROR,
+                          "Failed to to create event operation for table '%s'",
+                          MYF(0), share->key_string());
+          DBUG_RETURN(ER_INTERNAL_ERROR);
+        }
       }
     }
-    /*
-      warning has been issued if ndbcluster_create_event failed
-      and ndb_binlog_running
-    */
   }
 
   if (real_rename)
@@ -11947,8 +11962,8 @@ int ha_ndbcluster::rename_table(const char *from, const char *to,
 
   // Magically detect if this is a rename or some form of alter
   // and decide which actions need to be performed
-  const bool old_is_temp = IS_TMP_PREFIX(m_tabname);
-  const bool new_is_temp = IS_TMP_PREFIX(new_tabname);
+  const bool old_is_temp = ndb_name_is_temp(m_tabname);
+  const bool new_is_temp = ndb_name_is_temp(new_tabname);
 
   switch (thd_sql_command(thd))
   {
@@ -12120,70 +12135,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to,
 }
 
 
-/**
-  Delete table from NDB Cluster.
-*/
 
-static
-void
-delete_table_drop_share_do_drop(NDB_SHARE* share)
-{
-  DBUG_ENTER("delete_table_drop_share_do_drop");
-
-  mysql_mutex_assert_owner(&ndbcluster_mutex);
-  DBUG_ASSERT(share);
-
-  if (share->state != NSS_DROPPED)
-  {
-    /*
-      The share ref from 'ndbcluster_open_tables' has not been freed, free it
-    */
-    ndbcluster_mark_share_dropped(&share);
-  }
-
-  ndbcluster_free_share(&share, true /* have_lock */);
-
-  DBUG_VOID_RETURN;
-}
-
-
-static
-void
-delete_table_drop_share(NDB_SHARE* share)
-{
-  DBUG_ENTER("delete_table_drop_share");
-
-  if (share)
-  {
-    mysql_mutex_lock(&ndbcluster_mutex);
-    delete_table_drop_share_do_drop(share);
-    mysql_mutex_unlock(&ndbcluster_mutex);
-  }
-
-  DBUG_VOID_RETURN;
-}
-
-
-static
-void
-delete_table_drop_share_from_path(const char * path)
-{
-  DBUG_ENTER("delete_table_drop_share_from_path");
-
-  mysql_mutex_lock(&ndbcluster_mutex);
-
-  NDB_SHARE* share = ndbcluster_get_share(path,
-                                          nullptr,  /* table */
-                                          false,    /* create_if_not_exists */
-                                          true);    /* have_lock */
-  if (share)
-  {
-    delete_table_drop_share_do_drop(share);
-  }
-  mysql_mutex_unlock(&ndbcluster_mutex);
-
-  DBUG_VOID_RETURN;
-}
 
 
 // Declare adapter functions for Dummy_table_util function
@@ -12193,6 +12145,10 @@ extern void ndb_fk_util_drop_list(THD*, Ndb* ndb, NdbDictionary::Dictionary*, Li
 extern bool ndb_fk_util_drop_table(THD*, Ndb* ndb, NdbDictionary::Dictionary*,
                                    const NdbDictionary::Table*);
 extern bool ndb_fk_util_is_mock_name(const char* table_name);
+
+/**
+  Delete table and its related objects from NDB.
+*/
 
 static
 bool
@@ -12261,21 +12217,17 @@ drop_table_impl(THD *thd, Ndb *ndb,
   int ndb_table_id= 0;
   int ndb_table_version= 0;
 
-  /* ndb_share reference temporary */
-  NDB_SHARE *share= ndbcluster_get_share(path, nullptr, false);
-  if (share)
-  {
-    DBUG_PRINT("NDB_SHARE", ("%s temporary  use_count: %u",
-                             share->key_string(), share->use_count()));
-  }
+  NDB_SHARE *share=
+      NDB_SHARE::acquire_reference_by_key(path,
+                                          "delete_table");
 
   bool skip_related= false;
   int drop_flags = 0;
-  /* Copying alter can leave #sql table which is parent of old FKs */
+  // Copying alter can leave temporary named table which is parent of old FKs
   if ((thd->lex->sql_command == SQLCOM_ALTER_TABLE ||
        thd->lex->sql_command == SQLCOM_DROP_INDEX ||
        thd->lex->sql_command == SQLCOM_CREATE_INDEX) &&
-      strncmp(table_name, "#sql", 4) == 0)
+      ndb_name_is_temp(table_name))
   {
     DBUG_PRINT("info", ("Using cascade constraints for ALTER of temp table"));
     drop_flags |= NDBDICT::DropTableCascadeConstraints;
@@ -12339,38 +12291,32 @@ drop_table_impl(THD *thd, Ndb *ndb,
 
   if (res)
   {
-    /* the drop table failed for some reason, drop the share anyways */
-    delete_table_drop_share(share);
+    // The drop table failed for some reason, just release the share
+    // reference and return the error
+    if (share)
+    {
+      NDB_SHARE::release_reference(share, "delete_table");
+    }
     DBUG_RETURN(res);
   }
 
-  /* stop the logging of the dropped table, and cleanup */
-
-  /*
-    drop table is successful even if table does not exist in ndb
-    and in case table was actually not dropped, there is no need
-    to force a gcp, and setting the event_name to null will indicate
-    that there is no event to be dropped
-  */
-  int table_dropped= dict->getNdbError().code != 709;
-
+  // Drop table is successful even if table didn't exist in NDB
+  const bool table_dropped= dict->getNdbError().code != 709;
+  if (table_dropped)
   {
-    if (table_dropped)
-    {
-      ndbcluster_handle_drop_table(thd, ndb, share, "delete table", 
-                                   db, table_name);
-    }
-    else
-    {
-      /**
-       * Setting 0,0 will cause ndbcluster_drop_event *not* to be called
-       */
-      ndbcluster_handle_drop_table(thd, ndb, share, "delete table", 
-                                   0, 0);
-    }
+    // Drop the event(s) for the table
+    Ndb_binlog_client::drop_events_for_table(thd, ndb,
+                                             db, table_name);
   }
 
-  if (!IS_TMP_PREFIX(table_name) &&
+  if (share)
+  {
+    // Wait for binlog thread to detect the dropped table
+    // and release it's event operations
+    ndbcluster_binlog_wait_synch_drop_table(thd, share);
+  }
+
+  if (!ndb_name_is_temp(table_name) &&
       thd->lex->sql_command != SQLCOM_TRUNCATE)
   {
     ndbcluster_log_schema_op(thd,
@@ -12406,7 +12352,7 @@ drop_table_impl(THD *thd, Ndb *ndb,
 
       // Assumption is that this is the drop of original table
       // which now has a temporary name
-      DBUG_ASSERT(IS_TMP_PREFIX(table_name));
+      DBUG_ASSERT(ndb_name_is_temp(table_name));
 
       const char* orig_db = thd->lex->select_lex->table_list.first->db;
       const char* orig_name =
@@ -12421,7 +12367,14 @@ drop_table_impl(THD *thd, Ndb *ndb,
     }
   }
 
-  delete_table_drop_share(share);
+  if (share)
+  {
+    mysql_mutex_lock(&ndbcluster_mutex);
+    NDB_SHARE::mark_share_dropped(&share);
+    NDB_SHARE::release_reference_have_lock(share, "delete_table");
+    mysql_mutex_unlock(&ndbcluster_mutex);
+  }
+
   DBUG_RETURN(0);
 }
 
@@ -12435,18 +12388,6 @@ int ha_ndbcluster::delete_table(const char *name, const dd::Table *)
 
   // Never called on an open handler
   DBUG_ASSERT(m_table == NULL);
-
-  if (get_thd_ndb(thd)->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT))
-  {
-    /*
-      Table was dropped from another mysqld and is already
-      dropped in NDB.
-    */
-    DBUG_PRINT("info", ("Table is already dropped in NDB"));
-    delete_table_drop_share_from_path(name);
-
-    DBUG_RETURN(0); // Success
-  }
 
   set_dbname(name);
   set_tabname(name);
@@ -12599,10 +12540,12 @@ ha_ndbcluster::~ha_ndbcluster()
 
   if (m_share)
   {
-    /* ndb_share reference handler free */
-    DBUG_PRINT("NDB_SHARE", ("%s handler free  use_count: %u",
-                             m_share->key_string(), m_share->use_count()));
-    ndbcluster_free_share(&m_share);
+    // NOTE! Release the m_share acquired in create(), this
+    // violates the normal flow which acquires in open() and
+    // releases in close(). Code path seems unused.
+    DBUG_ASSERT(false);
+
+    NDB_SHARE::release_for_handler(m_share, this);
   }
   release_metadata(thd, ndb);
   release_blobs_buffer();
@@ -12731,29 +12674,30 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked,
     DBUG_RETURN(res);
   }
 
-  /* ndb_share reference handler */
-  if ((m_share = ndbcluster_get_share(name, table, false)) == 0)
+  // Acquire NDB_SHARE reference for handler
   {
-    /**
-     * No share present...we must create one
-     */
-    ndb_log_verbose(19,
-                    "Calling ndbcluster_create_binlog_setup(%s) in ::open",
-                    name);
+    NDB_SHARE *share = NDB_SHARE::acquire_for_handler(name, this);
+    if (share == nullptr) {
+      // No NDB_SHARE has been created for this table
+      // NOTE! This should never happen under normal circumstances, the
+      // NDB_SHARE should already have been created by schema distribution
+      // or auto discovery
+      DBUG_ASSERT(false);
 
-    Ndb* ndb= check_ndb_in_thd(thd);
-    ndbcluster_create_binlog_setup(thd, ndb, name,
-                                   m_dbname, m_tabname, table);
-    if ((m_share = ndbcluster_get_share(name, table, false)) == 0)
-    {
-      local_close(thd, FALSE);
-      DBUG_RETURN(1);
+      // Create share and check if binlogging should be setup for this table
+      ndbcluster_binlog_setup_table(thd, get_thd_ndb(thd)->ndb,
+                                    m_dbname, m_tabname, table_def);
+
+      // Try to acquire NDB_SHARE again
+      share = NDB_SHARE::acquire_for_handler(name, this);
+      if (share == nullptr) {
+        local_close(thd, false);
+        DBUG_RETURN(1);
+      }
     }
+    m_share = share;
   }
 
-  DBUG_PRINT("NDB_SHARE", ("%s handler  use_count: %u",
-                           m_share->key_string(), m_share->use_count()));
- 
   // Init table lock structure
   thr_lock_data_init(&m_share->lock,&m_lock,(void*) 0);
 
@@ -13006,12 +12950,9 @@ void ha_ndbcluster::local_close(THD *thd, bool release_metadata_flag)
   }
   if (m_share)
   {
-    /* ndb_share reference handler free */
-    DBUG_PRINT("NDB_SHARE", ("%s handler free  use_count: %u",
-                             m_share->key_string(), m_share->use_count()));
-    ndbcluster_free_share(&m_share);
+    NDB_SHARE::release_for_handler(m_share, this);
+    m_share = nullptr;
   }
-  m_share= 0;
   if (release_metadata_flag)
   {
     ndb= thd ? check_ndb_in_thd(thd) : g_ndb;
@@ -13307,7 +13248,7 @@ int ndbcluster_drop_database_impl(THD *thd, const char *path)
     // Ignore Blob part tables - they are deleted when their table
     // is deleted.
     if (my_strcasecmp(system_charset_info, elmt.database, dbname) ||
-        IS_NDB_BLOB_PREFIX(elmt.name) ||
+        ndb_name_is_blob_prefix(elmt.name) ||
         ndb_fk_util_is_mock_name(elmt.name))
       continue;
     DBUG_PRINT("info", ("%s must be dropped", elmt.name));     
@@ -13716,6 +13657,9 @@ int ndbcluster_init(void* handlerton_ptr)
     ndbcluster_init_abort("Failed to register ndb_wait_setup at applier start");
   }
 
+  // Initialize NDB_SHARE factory
+  NDB_SHARE::initialize(table_alias_charset);
+
   /* allocate connection resources and connect to cluster */
   const uint global_opti_node_select= THDVAR(NULL, optimized_node_selection);
   if (ndbcluster_connect(connect_callback, opt_ndb_wait_connected,
@@ -13741,13 +13685,6 @@ int ndbcluster_init(void* handlerton_ptr)
       }
     }
   }
-
-  ndbcluster_open_tables.reset
-    (new collation_unordered_map<std::string, NDB_SHARE *>
-       (table_alias_charset, PSI_INSTRUMENT_ME));
-  ndbcluster_dropped_tables.reset
-    (new collation_unordered_map<std::string, NDB_SHARE *>
-       (table_alias_charset, PSI_INSTRUMENT_ME));
 
   /* start the ndb injector thread */
   if (ndbcluster_binlog_start())
@@ -13785,56 +13722,7 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function)
   // Unregister all server hooks
   ndb_server_hooks.unregister_all();
 
-  {
-    mysql_mutex_lock(&ndbcluster_mutex);
-    uint save = ndbcluster_open_tables->size(); (void)save;
-    while (!ndbcluster_open_tables->empty())
-    {
-      NDB_SHARE *share= ndbcluster_open_tables->begin()->second;
-#ifndef DBUG_OFF
-      fprintf(stderr,
-              "NDB: table share %s with use_count %d state: %s(%u) still open\n",
-              share->key_string(), share->use_count(),
-              share->share_state_string(),
-              (uint)share->state);
-#endif
-
-      // If last ref, share is destructed, else moved to dropped_tables (see below)
-      ndbcluster_mark_share_dropped(&share);
-    }
-    mysql_mutex_unlock(&ndbcluster_mutex);
-    DBUG_ASSERT(save == 0);
-  }
-  ndbcluster_open_tables->clear();
-
-  {
-    mysql_mutex_lock(&ndbcluster_mutex);
-    uint save = ndbcluster_dropped_tables->size(); (void)save;
-    while (!ndbcluster_dropped_tables->empty())
-    {
-      NDB_SHARE *share= ndbcluster_dropped_tables->begin()->second;
-#ifndef DBUG_OFF
-      fprintf(stderr,
-              "NDB: table share %s with use_count %d state: %s(%u) not freed\n",
-              share->key_string(), share->use_count(),
-              share->share_state_string(),
-              (uint)share->state);
-      /**
-       * For unknown reasons...the dist-priv tables linger here
-       * TODO investigate why
-       */
-      if (Ndb_dist_priv_util::is_distributed_priv_table(share->db,
-                                                        share->table_name))
-      {
-        save--;
-      }
-#endif
-      ndbcluster_real_free_share(&share);
-    }
-    mysql_mutex_unlock(&ndbcluster_mutex);
-    DBUG_ASSERT(save == 0);
-  }
-  ndbcluster_dropped_tables.reset();
+  NDB_SHARE::deinitialize();
 
   ndb_index_stat_end();
   ndbcluster_disconnect();
@@ -14266,412 +14154,6 @@ bool ha_ndbcluster::low_byte_first() const
 #endif
 }
 
-
-/*
-  For some reason a share is still around, try to salvage the situation
-  by closing all cached tables. If the share still exists, there is an
-  error somewhere but only report this to the error log.  Keep this
-  "trailing share" but rename it since there are still references to it
-  to avoid segmentation faults.  There is a risk that the memory for
-  this trailing share leaks.
-  
-  Must be called with "ndbcluster_mutex" locked
-*/
-static
-int handle_trailing_share(THD *thd, NDB_SHARE *share)
-{
-  static ulong trailing_share_id= 0;
-  DBUG_ENTER("handle_trailing_share");
-
-  mysql_mutex_assert_owner(&ndbcluster_mutex);
-
-  /* ndb_share reference temporary, free below */
-  share->increment_use_count();
-
-  mysql_mutex_unlock(&ndbcluster_mutex);
-
-  ndb_tdc_close_cached_table(thd, share->db, share->table_name);
-
-  mysql_mutex_lock(&ndbcluster_mutex);
-  /* ndb_share reference temporary free */
-  DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
-                           share->key_string(), share->use_count()));
-  if (!share->decrement_use_count())
-  {
-    ndb_log_verbose(9, "handle_trailing_share: %s use_count: %u",
-                    share->key_string(), share->use_count());
-    ndb_log_verbose(1,
-                    "NDB_SHARE, trailing share %s, "
-                    "released by close_cached_tables",
-                    share->key_string());
-    ndbcluster_real_free_share(&share);
-    DBUG_RETURN(0);
-  }
-  ndb_log_verbose(9, "handle_trailing_share: %s use_count: %u",
-                  share->key_string(), share->use_count());
-
-  /*
-    share still exists, if share has not been dropped by server
-    release that share
-  */
-  if (share->state != NSS_DROPPED)
-  {
-    ndb_log_verbose(9, "handle_trailing_share: %s use_count: %u",
-                    share->key_string(), share->use_count());
-
-    ndbcluster_mark_share_dropped(&share);
-    if (share == NULL) //Last share ref dropped
-      DBUG_RETURN(0);
-  }
-
-  DBUG_PRINT("info", ("NDB_SHARE: %s already exists use_count=%d, op=0x%lx.",
-                      share->key_string(), share->use_count(), (long) share->op));
-
-  ndb_log_warning("NDB_SHARE, %s already exists use_count=%d."
-                  " Moving away for safety, but possible memleak.",
-                  share->key_string(), share->use_count());
-
-  /*
-    Ndb share has not been released as it should
-  */
-
-  /*
-    This is probably an error.  We can however save the situation
-    at the cost of a possible mem leak, by "renaming" the share
-  */
-  // As share is now NSS_DROPPED, it should not be in the open_tables list
-  DBUG_ASSERT(share->state == NSS_DROPPED);
-  assert(ndbcluster_open_tables->erase(share->key_string()) != 0);
-
-  // Remove entry with existing 'key' from dropped_tables list
-  bool found= ndbcluster_dropped_tables->erase(share->key_string()) != 0;
-  assert(found); (void)found;
-
-  {
-    /*
-      Give the leaked share a new name using a running number
-    */
-    char leak_name_buf[16]; // strlen("#leak4294967295")
-    my_snprintf(leak_name_buf, sizeof(leak_name_buf),
-                "#leak%lu", trailing_share_id++);
-    share->key = NDB_SHARE::create_key(leak_name_buf);
-    // Note that share->db, share->table_name as well
-    // as share->shadow_table->s->db etc. points into the memory
-    // which share->key pointed to before the memory for leak key
-    // was allocated, so it's not a good time to free the old key
-    // here.
-  }
-  // Reinsert into dropped_tables with new key
-  // NOTE: The only reason to maintain a ref to it at all, seems
-  //   to be that a potential later ndbcluster_real_free_share()
-  //   expect to find it in the ndbcluster_dropped_tables list.
-  //   ... and it would provide some help in debugging leaked shares.
-  ndbcluster_dropped_tables->emplace(share->key_string(), share);
-  DBUG_RETURN(0);
-}
-
-
-int
-ndbcluster_rename_share(THD *thd, NDB_SHARE *share, NDB_SHARE_KEY* new_key)
-{
-  DBUG_ENTER("ndbcluster_rename_share");
-  mysql_mutex_lock(&ndbcluster_mutex);
-  DBUG_PRINT("enter", ("share->key: '%s'", share->key_string()));
-  DBUG_PRINT("enter", ("new_key: '%s'",
-                       NDB_SHARE::key_get_key(new_key).c_str()));
-
-  // Handle the case where NDB_SHARE with new_key already exists
-  {
-    const auto it = ndbcluster_open_tables->find
-      (NDB_SHARE::key_get_key(new_key));
-    if (it != ndbcluster_open_tables->end())
-    {
-      handle_trailing_share(thd, it->second);
-    }
-  }
-
-  /* Update the share hash key. */
-  NDB_SHARE_KEY *old_key= share->key;
-  share->key= new_key;
-  ndbcluster_open_tables->erase(NDB_SHARE::key_get_key(old_key));
-  ndbcluster_open_tables->emplace(NDB_SHARE::key_get_key(new_key), share);
-
-  DBUG_PRINT("info", ("setting db and table_name to point at new key"));
-  share->db= NDB_SHARE::key_get_db_name(share->key);
-  share->table_name= NDB_SHARE::key_get_table_name(share->key);
-
-  Ndb_event_data *event_data= share->get_event_data_ptr();
-  if (event_data && event_data->shadow_table)
-  {
-    if (!IS_TMP_PREFIX(share->table_name))
-    {
-      DBUG_PRINT("info", ("Renaming shadow table"));
-      // Allocate new strings for db and table_name for shadow_table
-      // in event_data's MEM_ROOT(where the shadow_table itself is allocated)
-      // NOTE! This causes a slight memory leak since the already existing
-      // strings are not release until the mem_root is eventually
-      // released.
-      lex_string_copy(&event_data->mem_root,
-                      &event_data->shadow_table->s->db,
-                      share->db);
-      lex_string_copy(&event_data->mem_root,
-                      &event_data->shadow_table->s->table_name,
-                      share->table_name);
-    }
-    else
-    {
-      DBUG_PRINT("info", ("Name is temporary, skip rename of shadow table"));
-      /**
-       * we don't rename the table->s here 
-       *   that is used by injector
-       *   as we don't know if all events has been processed
-       * This will be dropped anyway
-       */
-    }
-  }
-  /* else rename will be handled when the ALTER event comes */
-
-  mysql_mutex_unlock(&ndbcluster_mutex);
-  DBUG_RETURN(0);
-}
-
-/*
-  Increase refcount on existing share.
-  Always returns share and cannot fail.
-*/
-NDB_SHARE *ndbcluster_get_share(NDB_SHARE *share)
-{
-  mysql_mutex_lock(&ndbcluster_mutex);
-  share->increment_use_count();
-  mysql_mutex_unlock(&ndbcluster_mutex);
-  return share;
-}
-
-
-
-NDB_SHARE*
-NDB_SHARE::create(const char* key, TABLE* table)
-{
-  NDB_SHARE* share;
-  if (!(share= (NDB_SHARE*) my_malloc(PSI_INSTRUMENT_ME,
-                                      sizeof(*share),
-                                      MYF(MY_WME | MY_ZEROFILL))))
-    return NULL;
-
-  share->flags= 0;
-  share->state= NSS_INITIAL;
-
-  /* Allocates enough space for key, db, and table_name */
-  share->key= NDB_SHARE::create_key(key);
-
-  share->db= NDB_SHARE::key_get_db_name(share->key);
-  share->table_name= NDB_SHARE::key_get_table_name(share->key);
-
-  thr_lock_init(&share->lock);
-  mysql_mutex_init(PSI_INSTRUMENT_ME, &share->mutex, MY_MUTEX_INIT_FAST);
-
-  share->m_cfn_share= NULL;
-
-  share->op= 0;
-  share->new_op= 0;
-  share->event_data= 0;
-  share->stored_columns.bitmap= 0;
-
-  // NDB_SHARE has been allocated with zerofill, just verify pointer is NULL
-  DBUG_ASSERT(share->inplace_alter_new_table_def == nullptr);
-
-  if (share->binlog_init(current_thd, table))
-  {
-    DBUG_PRINT("error", ("get_share: %s could not init share", key));
-    DBUG_ASSERT(share->event_data == NULL);
-    NDB_SHARE::destroy(share);
-    return NULL;
-  }
-
-  return share;
-}
-
-
-static inline
-NDB_SHARE *
-ndbcluster_get_share_have_lock(const char *key, TABLE *table,
-                               bool create_if_not_exists)
-{
-  NDB_SHARE *share;
-  DBUG_ENTER("ndbcluster_get_share_have_lock");
-  DBUG_PRINT("enter", ("key: '%s'", key));
-
-  mysql_mutex_assert_owner(&ndbcluster_mutex);
-
-  auto it= ndbcluster_open_tables->find(key);
-  if (it == ndbcluster_open_tables->end())
-  {
-    if (!create_if_not_exists)
-    {
-      DBUG_PRINT("error", ("get_share: %s does not exist", key));
-      DBUG_RETURN(nullptr);
-    }
-
-    if (!(share= NDB_SHARE::create(key, table)))
-    {
-      DBUG_PRINT("error", ("get_share: failed to alloc share"));
-      my_error(ER_OUTOFMEMORY, MYF(0), static_cast<int>(sizeof(*share)));
-      DBUG_RETURN(nullptr);
-    }
-
-    // Insert the new share in list of open shares
-    ndbcluster_open_tables->emplace(key, share);
-
-    // Add share refcount from 'ndbcluster_open_tables'
-    share->increment_use_count();
-  }
-  else
-  {
-    share= it->second;
-  }
-
-  // Add refcount for returned 'share'.
-  share->increment_use_count();
-
-  DBUG_RETURN(share);
-}
-
-
-/**
-  Get NDB_SHARE for key
-
-  Returns share for key, and increases the refcount on the share.
-
-  @param create_if_not_exists, creates share if it does not already exist
-  @param have_lock, ndbcluster_mutex already locked
-*/
-
-NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
-                                bool create_if_not_exists,
-                                bool have_lock)
-{
-  NDB_SHARE *share;
-  DBUG_ENTER("ndbcluster_get_share");
-  DBUG_PRINT("enter", ("key: '%s', create_if_not_exists: %d, have_lock: %d",
-                       key, create_if_not_exists, have_lock));
-
-  if (!have_lock)
-    mysql_mutex_lock(&ndbcluster_mutex);
-
-  share= ndbcluster_get_share_have_lock(key, table, create_if_not_exists);
-
-  if (!have_lock)
-    mysql_mutex_unlock(&ndbcluster_mutex);
-
-  DBUG_RETURN(share);
-}
-
-/**
- * Permanently free a share which is no longer referred.
- * Share is assumed to already be in state NSS_DROPPED,
- * which also implies that there are no remaining 'index_stat'
- *
- * The table should be in the dropped_tables list, from which it
- * is removed. It should *not* be in the dropped_tables list.
- *
- * Precondition: ndbcluster_mutex lock should be held.
- */
-void ndbcluster_real_free_share(NDB_SHARE **share)
-{
-  DBUG_ENTER("ndbcluster_real_free_share");
-
-  if ((*share)->state == NSS_DROPPED)
-  {
-    // Remove from dropped_tables hash-list.
-    const bool found =
-      ndbcluster_dropped_tables->erase((*share)->key_string()) != 0;
-    assert(found); (void)found;
-
-    // A DROPPED share, even if 'trailing', should not be in the open list.
-    assert(ndbcluster_open_tables->erase((*share)->key_string()) == 0);
-  }
-  else
-  {
-    ndb_log_warning("ndbcluster_real_free_share: %s, still open - "
-                      "ignored 'free' (leaked?)", (*share)->key_string());
-    assert(false); // Don't free a share not yet DROPPED
-  }
-
-  NDB_SHARE::destroy(*share);
-  *share= 0;
-
-  DBUG_VOID_RETURN;
-}
-
-
-void ndbcluster_free_share(NDB_SHARE **share, bool have_lock)
-{
-  if (!have_lock)
-    mysql_mutex_lock(&ndbcluster_mutex);
-  mysql_mutex_assert_owner(&ndbcluster_mutex);
-
-  if (!(*share)->decrement_use_count())
-  {
-    // Noone is using the NDB_SHARE anymore, release it
-    ndbcluster_real_free_share(share);
-  }
-
-  if (!have_lock)
-    mysql_mutex_unlock(&ndbcluster_mutex);
-}
-
-
-/**
- * ndbcluster_mark_share_dropped(): Set the share state to NSS_DROPPED.
- *
- * As a 'DROPPED' share could no longer be in the 'ndbcluster_open_tables' hash,
- * it is removed from this hash list. As we are not interested in any index_stat
- * for a dropped table, it is also freed now.
- *
- * The share reference count related to the 'open_tables' ref is decremented,
- * and the share is permanently deleted if '==0'.
- * Else, the share is put into the 'ndbcluster_dropped_tables' where it may 
- * exist until the last reference has been removed.
- *
- * The lock on the ndbcluster_mutex should be held when calling function.
- */
-void
-ndbcluster_mark_share_dropped(NDB_SHARE** share)
-{
-  if ((*share)->state == NSS_DROPPED)
-  {
-    // A DROPPED share should not be in the open_tables list
-    assert(ndbcluster_open_tables->erase((*share)->key_string()) != 0);
-    return;
-  }
-  // A non-DROPPED share should not be in dropped_tables list yet.
-  assert(ndbcluster_dropped_tables->erase((*share)->key_string()) == 0);
-
-  (*share)->state= NSS_DROPPED;
-  (*share)->decrement_use_count();
-
-  if (ndbcluster_open_tables->erase((*share)->key_string()) != 0)
-  {
-    // index_stat not needed anymore, free it.
-    ndb_index_stat_free(*share);
-
-    // When dropped a share is either immediately destroyed, or 
-    // put in 'dropped' list awaiting remaining refs to be freed.
-    if ((*share)->use_count() == 0)
-    {
-      NDB_SHARE::destroy(*share);
-      *share= NULL;
-    }
-    else
-    {
-      ndbcluster_dropped_tables->emplace((*share)->key_string(), *share);
-    }
-  }
-  else
-  {
-    assert(false);
-  }
-}
 
 struct ndb_table_statistics_row {
   Uint64 rows;
@@ -17700,9 +17182,9 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
     }
   }
 
-  ndbcluster_get_share(m_share); // Increase ref_count
-  DBUG_PRINT("NDB_SHARE", ("%s binlog schema  use_count: %u",
-                           m_share->key_string(), m_share->use_count()));
+  // Pin the NDB_SHARE of the altered table
+  NDB_SHARE::acquire_reference_on_existing(m_share,
+                                           "inplace_alter");
 
   if (dict->beginSchemaTrans() == -1)
   {
@@ -18089,7 +17571,9 @@ ha_ndbcluster::commit_inplace_alter_table(TABLE *altered_table,
   delete alter_data;
   ha_alter_info->handler_ctx= 0;
 
-  ndbcluster_free_share(&m_share); // Decrease ref_count
+
+  // Unpin the NDB_SHARE of the altered table
+  NDB_SHARE::release_reference(m_share, "inplace_alter");
 
   DBUG_RETURN(false); // OK
 }
@@ -18104,7 +17588,7 @@ ha_ndbcluster::abort_inplace_alter_table(TABLE *altered_table,
   if (!alter_data)
   {
     // Could not find any alter_data, nothing to abort or already aborted
-    DBUG_RETURN(false);
+    DBUG_RETURN(false); // OK
   }
 
   NDBDICT *dict= alter_data->dictionary;
@@ -18113,14 +17597,14 @@ ha_ndbcluster::abort_inplace_alter_table(TABLE *altered_table,
     DBUG_PRINT("info", ("Failed to abort schema transaction"));
     ERR_PRINT(dict->getNdbError());
   }
-  /* ndb_share reference schema free */
-  DBUG_PRINT("NDB_SHARE", ("%s binlog schema free  use_count: %u",
-                           m_share->key_string(), m_share->use_count()));
+
   delete alter_data;
   ha_alter_info->handler_ctx= 0;
 
-  ndbcluster_free_share(&m_share); // Decrease ref_count
-  DBUG_RETURN(false);
+  // Unpin the NDB_SHARE of the altered table
+  NDB_SHARE::release_reference(m_share, "inplace_alter");
+
+  DBUG_RETURN(false); // OK
 }
 
 void ha_ndbcluster::notify_table_changed(Alter_inplace_info *)
@@ -19405,47 +18889,7 @@ static
 void
 dbg_check_shares_update(THD*, st_mysql_sys_var*, void*, const void*)
 {
-  ndb_log_info("dbug_check_shares open:");
-  for (const auto &key_and_value : *ndbcluster_open_tables)
-  {
-    const NDB_SHARE *share= key_and_value.second;
-    ndb_log_info("  %s.%s: state: %s(%u) use_count: %u",
-                 share->db, share->table_name,
-                 share->share_state_string(),
-                 (unsigned)share->state,
-                 share->use_count());
-    assert(share->state != NSS_DROPPED);
-  }
-
-  ndb_log_info("dbug_check_shares dropped:");
-  for (const auto &key_and_value : *ndbcluster_dropped_tables)
-  {
-    const NDB_SHARE *share= key_and_value.second;
-    ndb_log_info("  %s.%s: state: %s(%u) use_count: %u",
-                 share->db, share->table_name,
-                 share->share_state_string(),
-                 (unsigned)share->state,
-                 share->use_count());
-    assert(share->state == NSS_DROPPED);
-  }
-
-  /**
-   * Only shares in mysql database may be open...
-   */
-  for (const auto &key_and_value : *ndbcluster_open_tables)
-  {
-    const NDB_SHARE *share= key_and_value.second;
-    assert(strcmp(share->db, "mysql") == 0);
-  }
-
-  /**
-   * Only shares in mysql database may be open...
-   */
-  for (const auto &key_and_value : *ndbcluster_dropped_tables)
-  {
-    const NDB_SHARE *share= key_and_value.second;
-    assert(strcmp(share->db, "mysql") == 0);
-  }
+  NDB_SHARE::dbg_check_shares_update();
 }
 
 static MYSQL_THDVAR_UINT(
