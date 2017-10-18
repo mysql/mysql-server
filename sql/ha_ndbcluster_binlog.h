@@ -98,6 +98,8 @@ ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
 
 int ndbcluster_binlog_start();
 
+void ndbcluster_binlog_set_server_started();
+
 int ndbcluster_binlog_end();
 
 /*

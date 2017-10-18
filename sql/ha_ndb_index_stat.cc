@@ -24,7 +24,7 @@
 #include "my_dbug.h"
 #include "sql/ha_ndbcluster.h"
 #include "sql/ha_ndbcluster_connection.h"
-#include "sql/mysqld.h"     // LOCK_*, mysqld_server_started
+#include "sql/mysqld.h"     // LOCK_global_system_variables
 
 
 /* from other files */
@@ -2498,7 +2498,6 @@ extern Ndb_cluster_connection* g_ndb_cluster_connection;
 void
 Ndb_index_stat_thread::do_run()
 {
-  struct timespec abstime;
   DBUG_ENTER("Ndb_index_stat_thread::do_run");
 
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
@@ -2506,24 +2505,11 @@ Ndb_index_stat_thread::do_run()
 
   log_info("Starting...");
 
-  log_verbose(1, "Wait for server start completed");
-  /*
-    wait for mysql server to start
-  */
-  mysql_mutex_lock(&LOCK_server_started);
-  while (!mysqld_server_started)
+  if (!wait_for_server_started())
   {
-    set_timespec(&abstime, 1);
-    mysql_cond_timedwait(&COND_server_started, &LOCK_server_started,
-	                 &abstime);
-    if (is_stop_requested())
-    {
-      mysql_mutex_unlock(&LOCK_server_started);
-      mysql_mutex_lock(&LOCK_client_waiting);
-      goto ndb_index_stat_thread_end;
-    }
+    mysql_mutex_lock(&LOCK_client_waiting);
+    goto ndb_index_stat_thread_end;
   }
-  mysql_mutex_unlock(&LOCK_server_started);
 
   log_verbose(1, "Wait for cluster to start");
   /*
@@ -2562,6 +2548,7 @@ Ndb_index_stat_thread::do_run()
   bool check_sys;
   check_sys= true;
 
+  struct timespec abstime;
   set_timespec(&abstime, 0);
   for (;;)
   {

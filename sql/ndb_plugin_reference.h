@@ -15,23 +15,25 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-// Implements the function defined in ndb_dd_sdi.h
-#include "sql/ndb_dd_sdi.h"
+#ifndef NDB_PLUGIN_REFERENCE_H
+#define NDB_PLUGIN_REFERENCE_H
 
-// Using
-#include "sql/dd/impl/sdi.h"
-#include "sql/dd/string_type.h"
+#include "sql_plugin_ref.h"
 
-bool
-ndb_dd_sdi_deserialize(THD* thd, const dd::sdi_t& sdi, dd::Table* table)
+/*
+  RAII style class for locking the "ndbcluster plugin" and accessing
+  it's handle
+*/
+
+class Ndb_plugin_reference
 {
-  return dd::deserialize(thd, sdi, table);
-}
+  plugin_ref plugin;
+public:
+  Ndb_plugin_reference();
 
+  bool lock();
+  st_plugin_int* handle() const;
+  ~Ndb_plugin_reference();
+};
 
-dd::sdi_t
-ndb_dd_sdi_serialize(THD* thd, const dd::Table& table,
-                     const dd::String_type& schema_name)
-{
-  return dd::serialize(thd, table, schema_name);
-}
+#endif

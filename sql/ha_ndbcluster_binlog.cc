@@ -27,7 +27,7 @@
 #include "sql/ha_ndbcluster_connection.h"
 #include "sql/log_event.h"  // my_strmov_quoted_identifier
                             // tablename_to_filename
-#include "sql/mysqld.h"     // global_system_variables table_alias_charset ...
+#include "sql/mysqld.h"     // opt_bin_log
 #include "sql/mysqld_thd_manager.h" // Global_THD_manager
 #include "sql/ndb_bitmap.h"
 #include "sql/ndb_dd.h"
@@ -4974,6 +4974,12 @@ int ndbcluster_binlog_start()
 }
 
 
+void ndbcluster_binlog_set_server_started()
+{
+  ndb_binlog_thread.set_server_started();
+}
+
+
 /**************************************************************
   Internal helper functions for creating/dropping ndb events
   used by the client sql threads
@@ -7210,30 +7216,19 @@ restart_cluster_failure:
     ndb_binlog_running= TRUE;
   }
   log_verbose(1, "Setup completed");
-  /* Thread start up completed  */
 
-  log_verbose(1, "Wait for server start completed");
   /*
-    wait for mysql server to start (so that the binlog is started
+    Wait for the MySQL Server to start (so that the binlog is started
     and thus can receive the first GAP event)
   */
-  mysql_mutex_lock(&LOCK_server_started);
-  while (!mysqld_server_started)
+  if (!wait_for_server_started())
   {
-    struct timespec abstime;
-    set_timespec(&abstime, 1);
-    mysql_cond_timedwait(&COND_server_started, &LOCK_server_started,
-                         &abstime);
-    if (is_stop_requested())
-    {
-      mysql_mutex_unlock(&LOCK_server_started);
-      goto err;
-    }
+    goto err;
   }
-  mysql_mutex_unlock(&LOCK_server_started);
 
-  // Defer call of THD::init_query_mem_roots until after mysqld_server_started
-  // to ensure that the parts of MySQL Server it uses has been created
+  // Defer call of THD::init_query_mem_roots until after
+  // wait_for_server_started() to ensure that the parts of
+  // MySQL Server it uses has been created
   thd->init_query_mem_roots();
   lex_start(thd);
 

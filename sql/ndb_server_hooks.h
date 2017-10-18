@@ -15,23 +15,23 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-// Implements the function defined in ndb_dd_sdi.h
-#include "sql/ndb_dd_sdi.h"
+#ifndef NDB_SERVER_HOOKS_H
+#define NDB_SERVER_HOOKS_H
 
-// Using
-#include "sql/dd/impl/sdi.h"
-#include "sql/dd/string_type.h"
 
-bool
-ndb_dd_sdi_deserialize(THD* thd, const dd::sdi_t& sdi, dd::Table* table)
+class Ndb_server_hooks
 {
-  return dd::deserialize(thd, sdi, table);
-}
+  using hook_t = int (void*);
 
+  struct Server_state_observer* m_server_state_observer = nullptr;
+  struct Binlog_relay_IO_observer* m_binlog_relay_io_observer = nullptr;
 
-dd::sdi_t
-ndb_dd_sdi_serialize(THD* thd, const dd::Table& table,
-                     const dd::String_type& schema_name)
-{
-  return dd::serialize(thd, table, schema_name);
-}
+public:
+  ~Ndb_server_hooks();
+
+  bool register_server_started(hook_t*);
+  bool register_applier_start(hook_t*);
+  void unregister_all(void);
+};
+
+#endif

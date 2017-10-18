@@ -16,10 +16,10 @@
 */
 
 // Implements the functions defined in ndb_dd_table.h
-#include "ndb_dd_table.h"
+#include "sql/ndb_dd_table.h"
 
-#include "dd/properties.h"
-#include "dd/types/table.h"
+#include "sql/dd/properties.h"
+#include "sql/dd/types/table.h"
 
 // The key used to store the NDB tables object version in the
 // se_private_data field of DD
