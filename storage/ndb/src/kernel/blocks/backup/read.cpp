@@ -490,6 +490,9 @@ NdbOut & operator<<(NdbOut& ndbout,
   ndbout << "MaxPageCount: " << lcf.MaxPageCount << endl;
   ndbout << "MaxNumberDataFiles: " << lcf.MaxNumberDataFiles << endl;
   ndbout << "LastDataFileNumber: " << lcf.LastDataFileNumber << endl;
+  ndbout << "RowCount: " <<
+            Uint64(Uint64(lcf.RowCountLow) +
+                   (Uint64(lcf.RowCountHigh) << 32)) << endl;
   ndbout << "MaxPartPairs: " << lcf.MaxPartPairs << endl;
   ndbout << "NumPartPairs: " << lcf.NumPartPairs << endl;
   if (lcf.NumPartPairs > BackupFormat::NDB_MAX_LCP_PARTS)
@@ -558,6 +561,8 @@ readLCPCtlFile(ndbzio_stream* f, BackupFormat::LCPCtlFile *ret)
     ntohl(theData.LCPCtlFile.MaxNumberDataFiles);
   theData.LCPCtlFile.LastDataFileNumber =
     ntohl(theData.LCPCtlFile.LastDataFileNumber);
+  theData.LCPCtlFile.RowCountLow = ntohl(theData.LCPCtlFile.RowCountLow);
+  theData.LCPCtlFile.RowCountHigh = ntohl(theData.LCPCtlFile.RowCountHigh);
   theData.LCPCtlFile.MaxPartPairs = ntohl(theData.LCPCtlFile.MaxPartPairs);
   theData.LCPCtlFile.NumPartPairs = ntohl(theData.LCPCtlFile.NumPartPairs);
 
