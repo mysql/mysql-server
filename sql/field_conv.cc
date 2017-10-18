@@ -265,6 +265,15 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
     field->set_warning(Sql_condition::SL_WARNING, ER_BAD_NULL_ERROR, 1);
     /* fall through */
   case CHECK_FIELD_IGNORE:
+    if (field->type() == MYSQL_TYPE_BLOB)
+    {
+      /*
+        BLOB/TEXT fields only store a pointer to their actual contents
+        in the record. Make this a valid pointer to an empty string
+        instead of nullptr.
+      */
+      return field->store("", 0, field->charset());
+    }
     return TYPE_OK;
   case CHECK_FIELD_ERROR_FOR_NULL:
     my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);

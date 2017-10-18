@@ -849,3 +849,18 @@ WHERE innr1.pk = 5 OR outr2.pk <> 7
 );
 ERROR 21000: Subquery returns more than 1 row
 DROP TABLE t1, t2;
+#
+# Bug#23321196: GCOLS: ASSERTION FAILURE:
+#               DFIELD_IS_NULL(DFIELD2) || DFIELD2->DATA
+#
+CREATE TABLE t(gc TEXT GENERATED ALWAYS AS (NULL) NOT NULL, KEY (gc(1)));
+INSERT IGNORE INTO t VALUES ();
+Warnings:
+Warning	1048	Column 'gc' cannot be null
+SELECT * FROM t;
+gc
+
+DELETE FROM t;
+SELECT * FROM t;
+gc
+DROP TABLE t;
