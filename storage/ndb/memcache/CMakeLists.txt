@@ -245,6 +245,14 @@ target_link_libraries(ndbmemcache
                       ${MEMCACHED_UTILITIES_LIBRARY})
 
 ### Build the module
+IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  # Turn off array-bounds warning in ndb_engine.cc wich occurs
+  # when it uses the struct engine_info in the external memcached
+  # file engine.h to define its engine capabilities.
+  ADD_COMPILE_FLAGS(src/ndb_engine.cc
+                   COMPILE_FLAGS "-Wno-array-bounds")
+ENDIF()
+
 add_library(ndb_engine MODULE src/ndb_engine.cc src/stub.cc)
 
 target_link_libraries(ndb_engine ndbmemcache ndbclient_static)

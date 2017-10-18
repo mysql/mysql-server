@@ -420,7 +420,3 @@ ADD_SUBDIRECTORY(wix)
 IF(WITH_UNIT_TESTS)
   FILE(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/unittest/ndb)
 ENDIF()
-
-# Show any MySQL Server patches
-#INCLUDE(ndb_show_patches)
-#NDB_SHOW_PATCHES()
