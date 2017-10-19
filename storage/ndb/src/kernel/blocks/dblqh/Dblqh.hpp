@@ -262,6 +262,7 @@ class Lgman;
 #define ZDELAY_FS_OPEN 27
 #endif
 #define ZSTART_LOCAL_LCP 28
+#define ZCHECK_SYSTEM_SCANS 29
 
 /* ------------------------------------------------------------------------- */
 /*        NODE STATE DURING SYSTEM RESTART, VARIABLES CNODES_SR_STATE        */
@@ -575,6 +576,7 @@ public:
     NodeId scanNodeId;
     Uint16 scanReleaseCounter;
     Uint16 scanNumber;
+    Uint16 scan_lastSeen;
 
     // scan source block, block object and function ACC TUX TUP
     BlockReference scanBlockref;
@@ -3907,6 +3909,13 @@ public:
   bool handleLCPSurfacing(Signal *signal);
   bool is_disk_columns_in_table(Uint32 tableId);
   void sendSTART_FRAGCONF(Signal*);
+  void handle_check_system_scans();
+#define ZLCP_CHECK_INDEX 0
+#define ZBACKUP_CHECK_INDEX 1
+#define ZCOPY_FRAGREQ_CHECK_INDEX 2
+  Uint32 c_check_scanptr_i[3];
+  Uint32 c_check_scanptr_save_line[3];
+  Uint32 c_check_scanptr_save_timer[3];
 
   AlterTabReq c_keep_alter_tab_req;
   Uint32 c_keep_alter_tab_req_len;
