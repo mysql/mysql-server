@@ -49,10 +49,6 @@ extern std::unique_ptr<collation_unordered_map<std::string, NDB_SHARE *>>
 */
 void ndbcluster_binlog_init(handlerton* hton);
 
-/*
-  Initialize the binlog part of the NDB_SHARE
-*/
-int ndbcluster_binlog_init_share(THD *thd, NDB_SHARE *share, TABLE *table);
 int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
                                    const char *db,
                                    const char *table_name,
