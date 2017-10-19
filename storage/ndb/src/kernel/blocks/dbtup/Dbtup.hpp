@@ -3631,6 +3631,7 @@ public:
   bool is_disk_columns_in_table(Uint32 tableId);
 
 private:
+  bool c_started;
   // these 2 were file-static before mt-lqh
   bool f_undo_done;
   Dbtup::Apply_undo f_undo;

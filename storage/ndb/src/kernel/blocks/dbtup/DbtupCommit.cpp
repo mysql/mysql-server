@@ -36,7 +36,7 @@ extern EventLogger *g_eventLogger;
 #define DEB_LCP(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_LCP_DEL 1
+#define DEBUG_LCP_DEL 1
 #ifdef DEBUG_LCP_DEL
 #define DEB_LCP_DEL(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
@@ -50,11 +50,11 @@ extern EventLogger *g_eventLogger;
 #define DEB_LCP_SKIP(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_LCP_SKIP_EXTRA 1
-#ifdef DEBUG_LCP_SKIP_EXTRA
-#define DEB_LCP_SKIP_EXTRA(arglist) do { g_eventLogger->info arglist ; } while (0)
+#define DEBUG_LCP_SKIP_DELETE 1
+#ifdef DEBUG_LCP_SKIP_DELETE
+#define DEB_LCP_SKIP_DELETE(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
-#define DEB_LCP_SKIP_EXTRA(arglist) do { } while (0)
+#define DEB_LCP_SKIP_DELETE(arglist) do { } while (0)
 #endif
 
 //#define DEBUG_LCP_SCANNED_BIT 1
@@ -341,14 +341,15 @@ Dbtup::dealloc_tuple(Signal* signal,
        *
        */
       extra_bits |= Tuple_header::LCP_SKIP;
-      DEB_LCP_SKIP(("(%u)tab(%u,%u), row_id(%u,%u), handle_lcp_keep_commit"
-                    ", set LCP_SKIP, bits: %x",
-                    instance(),
-                    regFragPtr->fragTableId,
-                    regFragPtr->fragmentId,
-                    rowid.m_page_no,
-                    rowid.m_page_idx,
-                    bits | extra_bits));
+      DEB_LCP_SKIP_DELETE(("(%u)tab(%u,%u), row_id(%u,%u),"
+                           " handle_lcp_keep_commit"
+                           ", set LCP_SKIP, bits: %x",
+                           instance(),
+                           regFragPtr->fragTableId,
+                           regFragPtr->fragmentId,
+                           rowid.m_page_no,
+                           rowid.m_page_idx,
+                           bits | extra_bits));
       handle_lcp_keep_commit(&rowid,
                              req_struct,
                              regOperPtr,
@@ -357,7 +358,8 @@ Dbtup::dealloc_tuple(Signal* signal,
     }
     else
     {
-      DEB_LCP_SKIP_EXTRA(("(%u)tab(%u,%u), row_id(%u,%u) DELETE already LCP:ed",
+      DEB_LCP_SKIP_DELETE(("(%u)tab(%u,%u), row_id(%u,%u) DELETE"
+                           " already LCP:ed",
                            instance(),
                            regFragPtr->fragTableId,
                            regFragPtr->fragmentId,
@@ -365,7 +367,20 @@ Dbtup::dealloc_tuple(Signal* signal,
                            rowid.m_page_idx));
     }
   }
-  
+
+#ifdef DEBUG_DELETE_EXTRA
+  if (c_started)
+  {
+    Local_key rowid = regOperPtr->m_tuple_location;
+    rowid.m_page_no = page->frag_page_id;
+    DEB_DELETE_EXTRA(("(%u)tab(%u,%u),DELETE row_id(%u,%u)",
+                      instance(),
+                      regFragPtr->fragTableId,
+                      regFragPtr->fragmentId,
+                      rowid.m_page_no,
+                      rowid.m_page_idx));
+  }
+#endif
   ptr->m_header_bits = bits | extra_bits;
   
   if (regTabPtr->m_bits & Tablerec::TR_RowGCI)

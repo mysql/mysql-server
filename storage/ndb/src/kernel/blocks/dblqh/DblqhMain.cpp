@@ -97,42 +97,49 @@
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
 
-//#define DEBUG_EXTRA_LCP
+//#define DEBUG_EXTRA_LCP 1
 #ifdef DEBUG_EXTRA_LCP
 #define DEB_EXTRA_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_EXTRA_LCP(arglist) do { } while (0)
 #endif
 
-#define DEBUG_LCP
+#define DEBUG_LCP 1
 #ifdef DEBUG_LCP
 #define DEB_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP(arglist) do { } while (0)
 #endif
 
-#define DEBUG_COPY
+//#define DEBUG_LCP_RESTORE
+#ifdef DEBUG_LCP_RESTORE
+#define DEB_LCP_RESTORE(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LCP_RESTORE(arglist) do { } while (0)
+#endif
+
+#define DEBUG_COPY 1
 #ifdef DEBUG_COPY
 #define DEB_COPY(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_COPY(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_GCP
+//#define DEBUG_GCP 1
 #ifdef DEBUG_GCP
 #define DEB_GCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_GCP(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_CUT_REDO
+//#define DEBUG_CUT_REDO 1
 #ifdef DEBUG_CUT_REDO
 #define DEB_CUT_REDO(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_CUT_REDO(arglist) do { } while (0)
 #endif
 
-#define DEBUG_LOCAL_LCP
+#define DEBUG_LOCAL_LCP 1
 #ifdef DEBUG_LOCAL_LCP
 #define DEB_LOCAL_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
@@ -6459,7 +6466,7 @@ Dblqh::handle_nr_copy(Signal* signal, Ptr<TcConnectionrec> regTcPtr)
           jam();
           c_restore->delete_by_rowid_succ(regTcPtr.p->tcOprec);
         }
-        DEB_LCP(("(%u)tab(%u,%u) rowid(%u,%u), set GCI = %u",
+        DEB_LCP_RESTORE(("(%u)tab(%u,%u) rowid(%u,%u), set GCI = %u",
                  instance(),
                  regTcPtr.p->tableref,
                  regTcPtr.p->fragmentid,

@@ -196,6 +196,10 @@ void insert_row(Uint32 page_id, Uint32 page_idx)
   new_row_entry->page_idx = page_idx;
   new_row_entry->prev_ptr = NULL;
   new_row_entry->next_ptr = row_entries[page_id];
+  if (row_entries[page_id] != NULL)
+  {
+    row_entries[page_id]->prev_ptr = new_row_entry;
+  }
   row_entries[page_id] = new_row_entry;
 }
 
@@ -258,6 +262,7 @@ void delete_page(Uint32 page_id)
 
 void print_rows()
 {
+  Uint32 row_count = 0;
   for (Uint32 page_id = 0; page_id < max_pages; page_id++)
   {
     if (row_entries[page_id] != NULL)
@@ -267,9 +272,11 @@ void print_rows()
       {
         ndbout_c("Found row(%u,%u)", page_id, current->page_idx);
         current = current->next_ptr;
+        row_count++;
       } while (current != NULL);
     }
   }
+  ndbout_c("Found a total of %u rows after restore", row_count);
 }
 
 void delete_all()
