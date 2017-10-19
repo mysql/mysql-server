@@ -6245,7 +6245,7 @@
 
       Execute the shell command using the <b>popen()</b> library call.
       References to variables within the command are replaced with the
-      corresponding values. Use “<b>\$</b>” to specify a literal
+      corresponding values. Use “<b>\\$</b>” to specify a literal
       “<b>$</b>” character.
 
       On Cygwin, the command is executed from <b>cmd.exe</b>, so
