@@ -44,9 +44,9 @@ typedef pthread_attr_t   my_thread_attr_t;
 
 struct my_thread_handle
 {
-  my_thread_t thread{0};
+  my_thread_t thread;
 #ifdef _WIN32
-  HANDLE handle{INVALID_HANDLE_VALUE};
+  HANDLE handle;
 #endif
 };
 

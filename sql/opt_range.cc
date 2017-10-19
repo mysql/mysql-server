@@ -1957,7 +1957,7 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
     thd->mem_root= alloc.get();
   }
   else if (alloc != nullptr)
-    ::new (alloc.get()) MEM_ROOT(PSI_NOT_INSTRUMENTED, 0);
+    memset(alloc.get(), 0, sizeof(*alloc));
   file= head->file;
   record= head->record[0];
 
@@ -2032,6 +2032,7 @@ QUICK_INDEX_MERGE_SELECT::QUICK_INDEX_MERGE_SELECT(THD *thd_param,
   DBUG_ENTER("QUICK_INDEX_MERGE_SELECT::QUICK_INDEX_MERGE_SELECT");
   index= MAX_KEY;
   head= table;
+  memset(&read_record, 0, sizeof(read_record));
   init_sql_alloc(key_memory_quick_index_merge_root,
                  &alloc, thd->variables.range_alloc_block_size, 0);
   DBUG_VOID_RETURN;
@@ -2098,7 +2099,7 @@ QUICK_ROR_INTERSECT_SELECT::QUICK_ROR_INTERSECT_SELECT(THD *thd_param,
     init_sql_alloc(key_memory_quick_ror_intersect_select_root,
                    &alloc, thd->variables.range_alloc_block_size, 0);
   else
-    ::new (&alloc) MEM_ROOT(PSI_NOT_INSTRUMENTED, 0);
+    memset(&alloc, 0, sizeof(MEM_ROOT));
   last_rowid= (uchar*) alloc_root(parent_alloc? parent_alloc : &alloc,
                                   head->file->ref_length);
 }
@@ -14181,7 +14182,7 @@ QUICK_GROUP_MIN_MAX_SELECT(TABLE *table, JOIN *join_arg, bool have_min_arg,
     join->thd->mem_root= &alloc;
   }
   else
-    ::new (&alloc) MEM_ROOT;  // ensure that it's not used
+    memset(&alloc, 0, sizeof(MEM_ROOT));  // ensure that it's not used
 }
 
 

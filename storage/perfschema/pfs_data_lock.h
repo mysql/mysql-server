@@ -39,8 +39,8 @@ struct pk_pos_data_lock
   void
   reset()
   {
-    memset(m_engine_lock_id, 0, sizeof(m_engine_lock_id));
-    m_engine_lock_id_length= 0;
+    // POD type, must initialize every byte for memcmp()
+    memset(this, 0, sizeof(pk_pos_data_lock));
   }
 
   void
@@ -54,9 +54,6 @@ struct pk_pos_data_lock
   char m_engine_lock_id[128];
   size_t m_engine_lock_id_length;
 };
-
-// This structure is memcmp-ed, so we need to have no padding.
-static_assert(sizeof(pk_pos_data_lock) == 128 + sizeof(size_t), "");
 
 /** A row of table PERFORMANCE_SCHEMA.DATA_LOCKS. */
 struct row_data_lock
@@ -102,10 +99,7 @@ struct pk_pos_data_lock_wait
   reset()
   {
     // POT type, must initialize every byte for memcmp()
-    memset(m_requesting_engine_lock_id, 0, sizeof(m_requesting_engine_lock_id));
-    m_requesting_engine_lock_id_length= 0;
-    memset(m_blocking_engine_lock_id, 0, sizeof(m_blocking_engine_lock_id));
-    m_blocking_engine_lock_id_length= 0;
+    memset(this, 0, sizeof(pk_pos_data_lock_wait));
   }
 
   void
@@ -129,9 +123,6 @@ struct pk_pos_data_lock_wait
   char m_blocking_engine_lock_id[128];
   size_t m_blocking_engine_lock_id_length;
 };
-
-// This structure is memcmp-ed, so we need to have no padding.
-static_assert(sizeof(pk_pos_data_lock_wait) == 2 * (128 + sizeof(size_t)), "");
 
 /** A row of table PERFORMANCE_SCHEMA.DATA_LOCK_WAITS. */
 struct row_data_lock_wait

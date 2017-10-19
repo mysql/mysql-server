@@ -2460,7 +2460,7 @@ int add_status_vars(const SHOW_VAR *list)
     while (list->name)
       all_status_vars.push_back(*list++);
   }
-  catch (const std::bad_alloc&)
+  catch (std::bad_alloc)
   {
     my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR),
              static_cast<int>(sizeof(Status_var_array::value_type)));

@@ -331,6 +331,7 @@ SET(TESTS
   sql_list
   sql_plist
   sql_string
+  stdcxx
   stl_alloc
   strings_skip_trailing
   strings_strnxfrm

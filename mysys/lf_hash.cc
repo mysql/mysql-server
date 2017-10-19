@@ -522,13 +522,10 @@ int lf_hash_insert(LF_HASH *hash, LF_PINS *pins, const void *data)
   node= (LF_SLIST *)lf_alloc_new(pins);
   if (unlikely(!node))
     return -1;
-  uchar *extra_data= (uchar *)(node + 1);  // Stored immediately after the node.
   if (hash->initialize)
-    (*hash->initialize)(extra_data, (const uchar*)data);
+    (*hash->initialize)((uchar*)(node + 1), (const uchar*)data);
   else
-  {
-    memcpy(extra_data, data, hash->element_size);
-  }
+    memcpy(node+1, data, hash->element_size);
   node->key= hash_key(hash, (uchar *)(node+1), &node->keylen);
   hashnr= calc_hash(hash, node->key, node->keylen);
   bucket= hashnr % hash->size;

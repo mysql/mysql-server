@@ -32,13 +32,8 @@ extern "C" {
 
 typedef struct LIST
 {
-#if defined(__cplusplus) && __cplusplus >= 201103L
-  struct LIST *prev{nullptr},*next{nullptr};
-  void *data{nullptr};
-#else
   struct LIST *prev,*next;
   void *data;
-#endif
 } LIST;
 
 typedef int (*list_walk_action)(void *,void *);

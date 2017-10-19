@@ -318,7 +318,7 @@ static void check_locks(THR_LOCK *lock, const char *where,
 void thr_lock_init(THR_LOCK *lock)
 {
   DBUG_ENTER("thr_lock_init");
-  new (lock) THR_LOCK();
+  memset(lock, 0, sizeof(*lock));
 
   mysql_mutex_init(key_THR_LOCK_mutex, &lock->mutex, MY_MUTEX_INIT_FAST);
   lock->read.last= &lock->read.data;

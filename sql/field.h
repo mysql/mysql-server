@@ -3966,8 +3966,8 @@ public:
   }
   void reset_fields()
   { 
-    value= String();
-    old_value= String();
+    memset(&value, 0, sizeof(value)); 
+    memset(&old_value, 0, sizeof(old_value));
   }
   size_t get_field_buffer_size() { return value.alloced_length(); }
 #ifndef WORDS_BIGENDIAN

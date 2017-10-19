@@ -41,7 +41,7 @@ bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist)
 
   Prealloced_array<char*, 10> full_list(key_memory_MY_TMPDIR_full_list);
 
-  *tmpdir= MY_TMPDIR();
+  memset(tmpdir, 0, sizeof(*tmpdir));
   if (!pathlist || !pathlist[0])
   {
     /* Get default temporary directory */

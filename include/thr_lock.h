@@ -117,18 +117,18 @@ struct THR_LOCK_INFO
 
 struct THR_LOCK_DATA
 {
-  THR_LOCK_INFO *owner{nullptr};
-  THR_LOCK_DATA *next{nullptr},**prev{nullptr};
-  THR_LOCK *lock{nullptr};
-  mysql_cond_t *cond{nullptr};
-  enum thr_lock_type type{TL_IGNORE};
-  void *status_param{nullptr};			/* Param to status functions */
-  void *debug_print_param{nullptr};
-  struct PSI_table *m_psi{nullptr};
+  THR_LOCK_INFO *owner;
+  THR_LOCK_DATA *next,**prev;
+  THR_LOCK *lock;
+  mysql_cond_t *cond;
+  enum thr_lock_type type;
+  void *status_param;			/* Param to status functions */
+  void *debug_print_param;
+  struct PSI_table *m_psi;
 };
 
 struct st_lock_list {
-  THR_LOCK_DATA *data{nullptr},**last{nullptr};
+  THR_LOCK_DATA *data,**last;
 };
 
 struct THR_LOCK
@@ -140,13 +140,13 @@ struct THR_LOCK
   struct st_lock_list write_wait;
   struct st_lock_list write;
   /* write_lock_count is incremented for write locks and reset on read locks */
-  ulong write_lock_count{0};
-  uint read_no_write_count{0};
-  void (*get_status)(void*, int){0};	/* When one gets a lock */
-  void (*copy_status)(void*,void*){0};
-  void (*update_status)(void*){0};		/* Before release of write */
-  void (*restore_status)(void*){0};         /* Before release of read */
-  bool (*check_status)(void *){0};
+  ulong write_lock_count;
+  uint read_no_write_count;
+  void (*get_status)(void*, int);	/* When one gets a lock */
+  void (*copy_status)(void*,void*);
+  void (*update_status)(void*);		/* Before release of write */
+  void (*restore_status)(void*);         /* Before release of read */
+  bool (*check_status)(void *);
 };
 
 

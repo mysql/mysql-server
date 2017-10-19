@@ -235,6 +235,7 @@ public:
     m_lex_query_tables_own_last(NULL)
   {
     set_lex(lex, is_lex_owner);
+    memset(&m_lex_mem_root, 0, sizeof (MEM_ROOT));
   }
 
   virtual ~sp_lex_instr()
@@ -247,6 +248,7 @@ public:
     */
     if (alloc_root_inited(&m_lex_mem_root))
       free_items();
+    free_root(&m_lex_mem_root, MYF(0));
   }
 
   /**
