@@ -61,7 +61,6 @@
 #include "sql/lock.h"                 // mysql_unlock_tables
 #include "sql/mdl.h"
 #include "sql/mysqld.h"               // stage_update
-#include "sql/nested_join.h"
 #include "sql/opt_explain.h"          // Modification_plan
 #include "sql/opt_explain_format.h"
 #include "sql/partition_info.h"       // partition_info

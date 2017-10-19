@@ -86,7 +86,6 @@
 #include "sql/mem_root_array.h"
 #include "sql/mysqld.h"       // stage_execution_of_init_command
 #include "sql/mysqld_thd_manager.h" // Find_thd_with_id
-#include "sql/nested_join.h"
 #include "sql/opt_hints.h"
 #include "sql/opt_trace.h"    // Opt_trace_start
 #include "sql/parse_location.h"

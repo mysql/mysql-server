@@ -93,7 +93,6 @@
 #include "sql/log.h"
 #include "sql/mdl.h"
 #include "sql/mysqld.h"                 /* lower_case_table_names */
-#include "sql/nested_join.h"
 #include "sql/protocol.h"
 #include "sql/sp.h"                     /* sp_exist_routines */
 #include "sql/sql_alter.h"

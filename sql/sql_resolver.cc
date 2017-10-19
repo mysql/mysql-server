@@ -56,7 +56,6 @@
 #include "sql/item_subselect.h"
 #include "sql/item_sum.h"        // Item_sum
 #include "sql/mem_root_array.h"
-#include "sql/nested_join.h"
 #include "sql/opt_hints.h"
 #include "sql/opt_range.h"       // prune_partitions
 #include "sql/opt_trace.h"       // Opt_trace_object

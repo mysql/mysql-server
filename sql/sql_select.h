@@ -57,8 +57,6 @@ class Query_result;
 class Temp_table_param;
 template <class T> class List;
 
-typedef ulonglong nested_join_map;
-
 class Sql_cmd_select : public Sql_cmd_dml
 {
 public:

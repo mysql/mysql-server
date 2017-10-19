@@ -34,7 +34,6 @@
 #include "sql/current_thd.h"
 #include "sql/item_func.h"
 #include "sql/mysqld.h"                // table_alias_charset
-#include "sql/nested_join.h"
 #include "sql/parse_location.h"
 #include "sql/parse_tree_nodes.h"      // PT_with_clause
 #include "sql/protocol.h"

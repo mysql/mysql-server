@@ -94,7 +94,6 @@
 #include "sql/log.h"
 #include "sql/log_event.h"            // Query_log_event
 #include "sql/mysqld.h"               // slave_open_temp_tables
-#include "sql/nested_join.h"
 #include "sql/partition_info.h"       // partition_info
 #include "sql/psi_memory_key.h"       // key_memory_TABLE
 #include "sql/query_options.h"

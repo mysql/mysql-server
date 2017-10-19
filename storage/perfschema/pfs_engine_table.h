@@ -26,7 +26,6 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "sql/auth/auth_common.h" /* struct ACL_* */
-#include "sql/handler.h"
 #include "sql/key.h"
 #include "sql/table.h"
 #include "storage/perfschema/pfs.h"

@@ -47,7 +47,6 @@
 #include "sql/item_cmpfunc.h"
 #include "sql/key.h"
 #include "sql/merge_sort.h"     // merge_sort
-#include "sql/nested_join.h"
 #include "sql/opt_costmodel.h"
 #include "sql/opt_hints.h"      // hint_table_state
 #include "sql/opt_range.h"      // QUICK_SELECT_I

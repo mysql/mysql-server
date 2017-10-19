@@ -60,7 +60,6 @@
 #include "sql/key_spec.h"
 #include "sql/lock.h"            // mysql_unlock_some_tables
 #include "sql/mysqld.h"          // stage_optimizing
-#include "sql/nested_join.h"
 #include "sql/opt_costmodel.h"
 #include "sql/opt_explain.h"     // join_type_str
 #include "sql/opt_hints.h"       // hint_table_state
