@@ -527,23 +527,6 @@ a	my_median(b)
 DROP FUNCTION my_median;
 DROP TABLE t1;
 #
-# Using C++ 11 Standard Library with MySQL code
-#
-CREATE FUNCTION my_cpp11_re_match
-RETURNS INTEGER SONAME "UDF_EXAMPLE_LIB";
-SELECT my_cpp11_re_match('foo.*', 'foobar');
-my_cpp11_re_match('foo.*', 'foobar')
-1
-CREATE TABLE t1(a VARCHAR(32), b VARCHAR(64));
-INSERT INTO t1 VALUES
-('.*middle.*', 'a value in the middle of a string'),
-('missing', 'some string value');
-SELECT a, b FROM t1 WHERE my_cpp11_re_match(a, b) > 0;
-a	b
-.*middle.*	a value in the middle of a string
-DROP FUNCTION my_cpp11_re_match;
-DROP TABLE t1;
-#
 # WL8980 - Move udf metatable table from MyISAM to InnoDB.
 #
 SET autocommit= 0;

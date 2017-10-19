@@ -174,11 +174,11 @@ static log_service_instance       *log_service_instances= nullptr; ///< anchor
   log_errstream struct to describe their log-files. These structs are
   opaque to the log-services.
 */
-typedef struct _log_errstream
+struct log_errstream
 {
-  FILE                            *file;           ///< file to log to
+  FILE                            *file{nullptr};  ///< file to log to
   mysql_mutex_t                    LOCK_errstream; ///< lock for logging
-} log_errstream;
+};
 
 
 /**
@@ -2897,7 +2897,7 @@ DEFINE_METHOD(int, log_builtins_imp::open_errstream,  (const char *file,
   if (les == nullptr)
     return -3;
 
-  memset(les, 0, sizeof(log_errstream));
+  new (les) log_errstream();
 
   if (mysql_mutex_init(0, &les->LOCK_errstream, MY_MUTEX_INIT_FAST))
   {

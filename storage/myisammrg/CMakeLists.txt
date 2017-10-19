@@ -20,4 +20,11 @@ SET(MYISAMMRG_SOURCES  myrg_close.cc myrg_create.cc myrg_delete.cc myrg_extra.cc
 				myrg_rprev.cc myrg_rrnd.cc myrg_rsame.cc myrg_static.cc myrg_update.cc
 				myrg_write.cc myrg_records.cc)
 
+# MyISAM relies heavily on memset/memcpy of structs, including non-POD ones.
+# As MyISAM is not maintained anymore, it is not worth fixing these,
+# so we turn off the warning instead.
+IF(CMAKE_COMPILER_IS_GNUCXX)
+  ADD_COMPILE_FLAGS(${MYISAMMRG_SOURCES} COMPILE_FLAGS "-Wno-class-memaccess")
+ENDIF()
+
 MYSQL_ADD_PLUGIN(myisammrg ${MYISAMMRG_SOURCES} STORAGE_ENGINE MANDATORY)

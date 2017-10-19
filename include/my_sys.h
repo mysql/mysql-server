@@ -339,17 +339,17 @@ extern struct st_my_file_info *my_file_info;
 
 struct DYNAMIC_ARRAY
 {
-  uchar *buffer;
-  uint elements,max_element;
-  uint alloc_increment;
-  uint size_of_element;
-  PSI_memory_key m_psi_key;
+  uchar *buffer{nullptr};
+  uint elements{0},max_element{0};
+  uint alloc_increment{0};
+  uint size_of_element{0};
+  PSI_memory_key m_psi_key{PSI_NOT_INSTRUMENTED};
 };
 
 struct MY_TMPDIR
 {
-  char **list;
-  uint cur, max;
+  char **list{nullptr};
+  uint cur{0}, max{0};
   mysql_mutex_t mutex;
 };
 
@@ -381,34 +381,34 @@ struct IO_CACHE_SHARE
 struct IO_CACHE		/* Used when cacheing files */
 {
   /* Offset in file corresponding to the first byte of uchar* buffer. */
-  my_off_t pos_in_file;
+  my_off_t pos_in_file{0};
   /*
     The offset of end of file for READ_CACHE and WRITE_CACHE.
     For SEQ_READ_APPEND it the maximum of the actual end of file and
     the position represented by read_end.
   */
-  my_off_t end_of_file;
+  my_off_t end_of_file{0};
   /* Points to current read position in the buffer */
-  uchar	*read_pos;
+  uchar	*read_pos{nullptr};
   /* the non-inclusive boundary in the buffer for the currently valid read */
-  uchar  *read_end;
-  uchar  *buffer;				/* The read buffer */
+  uchar  *read_end{nullptr};
+  uchar  *buffer{nullptr};				/* The read buffer */
   /* Used in ASYNC_IO */
-  uchar  *request_pos;
+  uchar  *request_pos{nullptr};
 
   /* Only used in WRITE caches and in SEQ_READ_APPEND to buffer writes */
-  uchar  *write_buffer;
+  uchar  *write_buffer{nullptr};
   /*
     Only used in SEQ_READ_APPEND, and points to the current read position
     in the write buffer. Note that reads in SEQ_READ_APPEND caches can
     happen from both read buffer (uchar* buffer) and write buffer
     (uchar* write_buffer).
   */
-  uchar *append_read_pos;
+  uchar *append_read_pos{nullptr};
   /* Points to current write position in the write buffer */
-  uchar *write_pos;
+  uchar *write_pos{nullptr};
   /* The non-inclusive boundary of the valid write area */
-  uchar *write_end;
+  uchar *write_end{nullptr};
 
   /*
     Current_pos and current_end are convenience variables used by
@@ -416,7 +416,7 @@ struct IO_CACHE		/* Used when cacheing files */
     current_pos points to &write_pos, and current_end to &write_end in a
     WRITE_CACHE, and &read_pos and &read_end respectively otherwise
   */
-  uchar  **current_pos, **current_end;
+  uchar  **current_pos{nullptr}, **current_end{nullptr};
 
   /*
     The lock is for append buffer used in SEQ_READ_APPEND cache
@@ -430,7 +430,7 @@ struct IO_CACHE		/* Used when cacheing files */
     It should be set to NULL to disable the feature.  Only
     READ_CACHE mode is supported.
   */
-  IO_CACHE_SHARE *share;
+  IO_CACHE_SHARE *share{nullptr};
 
   /*
     A caller will use my_b_read() macro to read from the cache
@@ -440,18 +440,18 @@ struct IO_CACHE		/* Used when cacheing files */
     my_b_read() will call read_function to fetch the data. read_function
     must never be invoked directly.
   */
-  int (*read_function)(IO_CACHE *,uchar *,size_t);
+  int (*read_function)(IO_CACHE *,uchar *,size_t) {nullptr};
   /*
     Same idea as in the case of read_function, except my_b_write() needs to
     be replaced with my_b_append() for a SEQ_READ_APPEND cache
   */
-  int (*write_function)(IO_CACHE *,const uchar *,size_t);
+  int (*write_function)(IO_CACHE *,const uchar *,size_t) {nullptr};
   /*
     Specifies the type of the cache. Depending on the type of the cache
     certain operations might not be available and yield unpredicatable
     results. Details to be documented later
   */
-  enum cache_type type;
+  enum cache_type type{TYPE_NOT_SET};
   /*
     Callbacks when the actual read I/O happens. These were added and
     are currently used for binary logging of LOAD DATA INFILE - when a
@@ -459,20 +459,20 @@ struct IO_CACHE		/* Used when cacheing files */
     when IO_CACHE is closed, we create an end event. These functions could,
     of course be used for other things
   */
-  IO_CACHE_CALLBACK pre_read;
-  IO_CACHE_CALLBACK post_read;
-  IO_CACHE_CALLBACK pre_close;
+  IO_CACHE_CALLBACK pre_read{nullptr};
+  IO_CACHE_CALLBACK post_read{nullptr};
+  IO_CACHE_CALLBACK pre_close{nullptr};
   /*
     Counts the number of times, when we were forced to use disk. We use it to
     increase the binlog_cache_disk_use and binlog_stmt_cache_disk_use status
     variables.
   */
-  ulong disk_writes;
-  void* arg;				/* for use by pre/post_read */
-  char *file_name;			/* if used with 'open_cached_file' */
-  char *dir,*prefix;
-  File file; /* file descriptor */
-  PSI_file_key file_key; /* instrumented file key */
+  ulong disk_writes{0};
+  void* arg{nullptr};				/* for use by pre/post_read */
+  char *file_name{nullptr};			/* if used with 'open_cached_file' */
+  char *dir{nullptr}, *prefix{nullptr};
+  File file{-1}; /* file descriptor */
+  PSI_file_key file_key{PSI_NOT_INSTRUMENTED}; /* instrumented file key */
 
   /*
     seek_not_done is set by my_b_seek() to inform the upcoming read/write
@@ -481,20 +481,20 @@ struct IO_CACHE		/* Used when cacheing files */
     "hard" error, and the actual number of I/O-ed bytes if the read/write was
     partial.
   */
-  bool seek_not_done;
-  int error;
+  bool seek_not_done{false};
+  int error{0};
   /* buffer_length is memory size allocated for buffer or write_buffer */
-  size_t	buffer_length;
+  size_t	buffer_length{0};
   /* read_length is the same as buffer_length except when we use async io */
-  size_t  read_length;
-  myf	myflags;			/* Flags used to my_read/my_write */
+  size_t  read_length{0};
+  myf	myflags{0};			/* Flags used to my_read/my_write */
   /*
     alloced_buffer is 1 if the buffer was allocated by init_io_cache() and
     0 if it was supplied by the user.
     Currently READ_NET is the only one that will use a buffer allocated
     somewhere else
   */
-  bool alloced_buffer;
+  bool alloced_buffer{false};
 };
 
 typedef int (*qsort_cmp)(const void *,const void *);

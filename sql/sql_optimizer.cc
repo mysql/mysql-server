@@ -9986,7 +9986,7 @@ static bool make_join_select(JOIN *join, Item *cond)
         std::pair<SELECT_LEX *, int> pair_object(join->select_lex, i);
         cond->walk(&Item::inform_item_in_cond_of_tab,
                    Item::WALK_POSTFIX,
-                   pointer_cast<uchar * const>(&pair_object));
+                   pointer_cast<uchar *>(&pair_object));
       }
 
     }
