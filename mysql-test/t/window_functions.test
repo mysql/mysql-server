@@ -3548,7 +3548,7 @@ SELECT department_id, salary,
   FROM employee
   WINDOW w AS (PARTITION BY department_id
                ORDER BY salary DESC)
-  ORDER BY department_id, salary DESC;
+  ORDER BY department_id, salary DESC, ntil;
 
 --echo just default partition
 SELECT department_id, salary,
@@ -3559,7 +3559,7 @@ SELECT department_id, salary,
        PERCENT_RANK() over w AS `%rnk`
   FROM employee
   WINDOW w AS (ORDER BY salary DESC)
-  ORDER BY salary DESC;
+  ORDER BY salary DESC, department_id, ntil;
 
 DROP TABLE employee;
 

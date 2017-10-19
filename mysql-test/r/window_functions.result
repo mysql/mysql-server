@@ -8508,7 +8508,7 @@ PERCENT_RANK() over w AS `%rnk`
   FROM employee
 WINDOW w AS (PARTITION BY department_id
 ORDER BY salary DESC)
-ORDER BY department_id, salary DESC;
+ORDER BY department_id, salary DESC, ntil;
 department_id	salary	rnk	dense	ntil	cume	%rnk
 NULL	75000	1	1	1	1	0
 10	100000	1	1	1	0.2	0
@@ -8530,7 +8530,7 @@ CUME_DIST() OVER w AS cume,
 PERCENT_RANK() over w AS `%rnk`
   FROM employee
 WINDOW w AS (ORDER BY salary DESC)
-ORDER BY salary DESC;
+ORDER BY salary DESC, department_id, ntil;
 department_id	salary	rnk	dense	ntil	cume	%rnk
 30	300000	1	1	1	0.09090909090909091	0
 10	100000	2	2	1	0.18181818181818182	0.1
