@@ -3039,38 +3039,36 @@ static void replace_crlf_with_lf(char *buf)
   *replace = '\x0';
 }
 #endif
-/*
-  Execute given command.
 
-  SYNOPSIS
-  do_exec()
-  query	called command
 
-  DESCRIPTION
-  exec <command>
-
-  Execute the text between exec and end of line in a subprocess.
-  The error code returned from the subprocess is checked against the
-  expected error array, previously set with the --error command.
-  It can thus be used to execute a command that shall fail.
-
-  NOTE
-  Although mysqltest is executed from cygwin shell, the command will be
-  executed in "cmd.exe". Thus commands like "rm" etc can NOT be used, use
-  mysqltest commmand(s) like "remove_file" for that
-*/
-
+/// Execute the shell command using the popen() library call. References
+/// to variables within the command are replaced with the corresponding
+/// values. Use “\\$” to specify a literal “$” character.
+///
+/// The error code returned from the subprocess is checked against the
+/// expected error array, previously set with the --error command. It can
+/// thus be used to execute a command that shall fail.
+///
+/// @code
+/// exec command [args]
+/// @endcode
+///
+/// @param command Pointer to the st_command structure which holds the
+///                arguments and information for the command.
+///
+/// @note
+/// It is recommended to use mysqltest command(s) like "remove_file"
+/// instead of executing the shell commands using 'exec' command.
 static void do_exec(struct st_command *command)
 {
   int error;
-  char buf[512];
   FILE *res_file;
   char *cmd= command->first_argument;
   DYNAMIC_STRING ds_cmd;
   DBUG_ENTER("do_exec");
   DBUG_PRINT("enter", ("cmd: '%s'", cmd));
 
-  /* Skip leading space */
+  // Skip leading space
   while (*cmd && my_isspace(charset_info, *cmd))
     cmd++;
   if (!*cmd)
@@ -3078,26 +3076,27 @@ static void do_exec(struct st_command *command)
   command->last_argument= command->end;
 
   init_dynamic_string(&ds_cmd, 0, command->query_len+256, 256);
-  /* Eval the command, thus replacing all environment variables */
+  // Eval the command, thus replacing all environment variables
   do_eval(&ds_cmd, cmd, command->end, !is_windows);
 
-  /* Check if echo should be replaced with "builtin" echo */
+  // Check if echo should be replaced with "builtin" echo
   if (builtin_echo[0] && strncmp(cmd, "echo", 4) == 0)
   {
-    /* Replace echo with our "builtin" echo */
+    // Replace echo with our "builtin" echo
     replace(&ds_cmd, "echo", 4, builtin_echo, strlen(builtin_echo));
   }
 
 #ifdef _WIN32
-  /* Replace /dev/null with NUL */
+  // Replace "/dev/null" with NUL
   while(replace(&ds_cmd, "/dev/null", 9, "NUL", 3) == 0)
     ;
-  /* Replace "closed stdout" with non existing output fd */
+
+  // Replace "closed stdout" with non existing output fd
   while(replace(&ds_cmd, ">&-", 3, ">&4", 3) == 0)
     ;
 #endif
 
-  /* exec command is interpreted externally and will not take newlines */
+  // exec command is interpreted externally and will not take newlines
   while(replace(&ds_cmd, "\n", 1, " ", 1) == 0)
     ;
   
@@ -3117,8 +3116,13 @@ static void do_exec(struct st_command *command)
     die("popen(\"%s\", \"r\") failed", command->first_argument);
   }
 
-  while (fgets(buf, sizeof(buf), res_file))
+  char buf[512];
+  std::string str;
+  while (std::fgets(buf, sizeof(buf), res_file))
   {
+    if (strlen(buf) < 1)
+      continue;
+
 #ifdef WIN32
     // Replace CRLF char with LF.
     // See bug#22608247 and bug#22811243
@@ -3137,9 +3141,35 @@ static void do_exec(struct st_command *command)
     }
     else
     {
-      replace_dynstr_append(&ds_res, buf);
+      // Read the file line by line. Check if the buffer read from the
+      // file ends with EOL character.
+      if ((buf[strlen(buf)-1] != '\n' && strlen(buf) < (sizeof(buf) - 1)) ||
+          (buf[strlen(buf)-1] == '\n'))
+      {
+        // Found EOL
+        if (str.length())
+        {
+          // Temporary string exists, append the current buffer read
+          // to the temporary string.
+          str.append(buf);
+          replace_dynstr_append(&ds_res, str.c_str());
+          str.clear();
+        }
+        else
+        {
+          // Entire line is read at once
+          replace_dynstr_append(&ds_res, buf);
+        }
+      }
+      else
+      {
+        // The buffer read from the file doesn't end with EOL character,
+        // store it in a temporary string.
+        str.append(buf);
+      }
     }
   }
+
   error= pclose(res_file);
   if (error > 0)
   {
@@ -3184,7 +3214,7 @@ static void do_exec(struct st_command *command)
   else if (command->expected_errors.err[0].type == ERR_ERRNO &&
            command->expected_errors.err[0].code.errnum != 0)
   {
-    /* Error code we wanted was != 0, i.e. not an expected success */
+    // Error code we wanted was != 0, i.e. not an expected success
     log_msg("exec of '%s failed, error: %d, errno: %d",
             ds_cmd.str, error, errno);
     dynstr_free(&ds_cmd);
