@@ -369,6 +369,12 @@ void Dblqh::execCONTINUEB(Signal* signal)
   LogPartRecordPtr save;
   TcConnectionrecPtr tcConnectptr;
   switch (tcase) {
+  case ZCHECK_SYSTEM_SCANS:
+  {
+    handle_check_system_scans();
+    sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 10000, 1);
+    break;
+  }
   case ZLOG_LQHKEYREQ:
     if (cnoOfLogPages == 0) {
       jam();
@@ -1062,6 +1068,13 @@ void Dblqh::startphase1Lab(Signal* signal, Uint32 _dummy, Uint32 ownNodeId)
   ctupBlockref  = calcInstanceBlockRef(DBTUP);
   ctuxBlockref  = calcInstanceBlockRef(DBTUX);
   cownref       = calcInstanceBlockRef(DBLQH);
+
+  for (Uint32 i = 0; i <= ZCOPY_FRAGREQ_CHECK_INDEX; i++)
+  {
+    c_check_scanptr_i[i] = RNIL;
+    c_check_scanptr_save_line[i] = __LINE__;
+    c_check_scanptr_save_timer[i] = 0;
+  }
   ndbassert(cownref == reference());
   for (Ti = 0; Ti < chostFileSize; Ti++) {
     ThostPtr.i = Ti;
@@ -1197,6 +1210,8 @@ void Dblqh::startphase2Lab(Signal* signal, Uint32 _dummy)
   tcConnectptr.i = 0;
   ptrAss(tcConnectptr, tcConnectionrec);
   moreconnectionsLab(signal, tcConnectptr);
+  signal->theData[0] = ZCHECK_SYSTEM_SCANS;
+  sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 10000, 1);
   return;
 }//Dblqh::startphase2Lab()
 
@@ -9778,7 +9793,7 @@ void Dblqh::releaseTcrec(Signal* signal, TcConnectionrecPtr locTcConnectptr)
   }
 }//Dblqh::releaseTcrec()
 
-void Dblqh::releaseTcrecLog(Signal* signal, TcConnectionrecPtr locTcConnectptr) 
+void Dblqh::releaseTcrecLog(Signal* signal, TcConnectionrecPtr locTcConnectptr)
 {
   jamDebug();
   Uint32 numFree = ctcNumFree;
@@ -11391,6 +11406,7 @@ void Dblqh::continueScanNextReqLab(Signal* signal,
     jam();
     scanPtr->scanCompletedStatus = ZTRUE;
     scanPtr->scanState = ScanRecord::WAIT_SCAN_NEXTREQ;
+    scanPtr->scan_lastSeen = __LINE__;
     sendScanFragConf(signal, ZFALSE, regTcPtr);
     return;
   }
@@ -11420,6 +11436,7 @@ void Dblqh::scanLockReleasedLab(Signal* signal,
                scanPtr->scanLockHold != ZTRUE) {
       jam();
       scanPtr->scanState = ScanRecord::WAIT_SCAN_NEXTREQ;
+      scanPtr->scan_lastSeen = __LINE__;
       sendScanFragConf(signal, ZFALSE, regTcPtr);
     } else {
       jam();
@@ -11443,6 +11460,7 @@ void Dblqh::scanLockReleasedLab(Signal* signal,
     the API.
     */
     scanPtr->scanState = ScanRecord::WAIT_SCAN_NEXTREQ;
+    scanPtr->scan_lastSeen = __LINE__;
     sendScanFragConf(signal, ZFALSE, regTcPtr);
   }
   else
@@ -12259,6 +12277,7 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
         ( scanptr.p->scanAiLength > 0 )) {
       jam();
       regTcPtr->transactionState = TcConnectionrec::WAIT_SCAN_AI;
+      scanptr.p->scan_lastSeen = __LINE__;
       return;
     }//if
     continueAfterReceivingAllAiLab(signal, tcConnectptr);
@@ -12267,6 +12286,7 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
 
 error_handler2:
   // no scan number allocated
+  scanptr.p->scan_lastSeen = __LINE__;
   if (scanptr.p->m_reserved == 0)
   {
     jam();
@@ -12304,6 +12324,7 @@ void Dblqh::continueAfterReceivingAllAiLab(
 
   if(scanPtr->scanState == ScanRecord::IN_QUEUE){
     jam();
+    scanPtr->scan_lastSeen = __LINE__;
     return;
   }
 
@@ -12708,6 +12729,7 @@ void Dblqh::storedProcConfScanLab(Signal* signal,
     signal->theData[2] = NextScanReq::ZSCAN_NEXT;
     signal->theData[0] = sig0;
     scanPtr->scanState = ScanRecord::WAIT_NEXT_SCAN;
+    scanPtr->scan_lastSeen = __LINE__;
     send_next_NEXT_SCANREQ(signal, block, f, scanPtr);
     return;
   }
@@ -12821,6 +12843,7 @@ void Dblqh::nextScanConfScanLab(Signal* signal,
       {
         jam();
         scanPtr->scanState = ScanRecord::WAIT_SCAN_NEXTREQ;
+        scanPtr->scan_lastSeen = __LINE__;
         sendScanFragConf(signal, ZFALSE, regTcPtr);
       }
       return;
@@ -12859,6 +12882,7 @@ void Dblqh::nextScanConfScanLab(Signal* signal,
     }
     else
     {
+      scanPtr->scan_lastSeen = __LINE__;
       next_scanconf_load_diskpage(signal, scanPtr, tcConnectptr,fragPtrP);
     }
   }
@@ -12904,6 +12928,7 @@ void Dblqh::nextScanConfScanLab(Signal* signal,
       }
       jam();
       scanPtr->scanState = ScanRecord::WAIT_SCAN_NEXTREQ;
+      scanPtr->scan_lastSeen = __LINE__;
       sendScanFragConf(signal, ZFALSE, tcConnectptr.p);
       return;
     }//if
@@ -12916,6 +12941,7 @@ void Dblqh::nextScanConfScanLab(Signal* signal,
     }
     else
     {
+      scanPtr->scan_lastSeen = __LINE__;
       Uint32 sig0 = scanPtr->scanAccPtr;
       BlockReference blockRef = scanPtr->scanBlockref;
       jam();
@@ -13200,6 +13226,7 @@ void Dblqh::scanTupkeyConfLab(Signal* signal,
     if (scanPtr->scanLockHold == ZTRUE) {
       jam();
       scanPtr->scanState = ScanRecord::WAIT_SCAN_NEXTREQ;
+      scanPtr->scan_lastSeen = __LINE__;
       sendScanFragConf(signal, ZFALSE, regTcPtr);
       return;
     } else {
@@ -13251,6 +13278,7 @@ void Dblqh::scanNextLoopLab(Signal* signal)
 
   ndbrequire(is_scan_ok(scanPtr, fragstatus));
   scanPtr->scanState = ScanRecord::WAIT_NEXT_SCAN;
+  scanPtr->scan_lastSeen = __LINE__;
   send_next_NEXT_SCANREQ(signal, block, f, scanPtr);
 }//Dblqh::scanNextLoopLab()
 
@@ -13372,6 +13400,7 @@ void Dblqh::closeScanLab(Signal* signal, TcConnectionrec* regTcPtr)
   ExecFunction f = scanPtr->scanFunction_NEXT_SCANREQ;
 
   scanPtr->scanState = ScanRecord::WAIT_CLOSE_SCAN;
+  scanPtr->scan_lastSeen = __LINE__;
   regTcPtr->transactionState = TcConnectionrec::SCAN_STATE_USED;
   signal->theData[1] = RNIL;
   signal->theData[2] = NextScanReq::ZSCAN_CLOSE;
@@ -13425,6 +13454,12 @@ void Dblqh::accScanCloseConfLab(Signal* signal,
 void Dblqh::tupScanCloseConfLab(Signal* signal,
                                 TcConnectionrecPtr tcConnectptr)
 {
+  if (scanptr.p->copyPtr != RNIL)
+  {
+    DEB_COPY(("tupScanCloseConfLab from COPY_FRAGREQ"));
+    tupCopyCloseConfLab(signal, tcConnectptr);
+    return;
+  }
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
   fragptr.i = regTcPtr->fragmentptr;
   c_fragment_pool.getPtr(fragptr);
@@ -13465,6 +13500,7 @@ void Dblqh::tupScanCloseConfLab(Signal* signal,
       tcConnectptr.i = restart.p->scanTcrec;
       ptrCheckGuard(tcConnectptr, ctcConnectrecFileSize, tcConnectionrec);
       scanptr = restart;
+      ndbrequire(scanptr.p->copyPtr == RNIL);
       continueAfterReceivingAllAiLab(signal, tcConnectptr);
       return;
     }
@@ -13498,6 +13534,7 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
   scanPtr->scanCompletedStatus = ZFALSE;
   scanPtr->scanFlag = ZFALSE;
   scanPtr->scanErrorCounter = 0;
+  scanPtr->scan_lastSeen = __LINE__;
   scanPtr->m_stop_batch = 0;
   scanPtr->m_curr_batch_size_rows = 0;
   scanPtr->m_curr_batch_size_bytes= 0;
@@ -13664,12 +13701,16 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
     {
       jam();
       free = LCP_ScanNo;
+      c_check_scanptr_i[ZLCP_CHECK_INDEX] = scanptr.i;
+      c_check_scanptr_save_timer[ZLCP_CHECK_INDEX] = regTcPtr->tcTimer;
     }
     else
     {
       /* Backup scan */
       jam();
       free = Backup_ScanNo;
+      c_check_scanptr_i[ZBACKUP_CHECK_INDEX] = scanptr.i;
+      c_check_scanptr_save_timer[ZBACKUP_CHECK_INDEX] = regTcPtr->tcTimer;
     }
     ndbassert(tFragPtr.p->m_scanNumberMask.get(free));
   }
@@ -13868,6 +13909,19 @@ bool Dblqh::finishScanrec(Signal* signal,
     else
     {
       jamDebug();
+      if (scanptr.p->scanNumber == LCP_ScanNo)
+      {
+        c_check_scanptr_i[ZLCP_CHECK_INDEX] = RNIL;
+      }
+      else if (scanptr.p->scanNumber == Backup_ScanNo)
+      {
+        c_check_scanptr_i[ZBACKUP_CHECK_INDEX] = RNIL;
+      }
+      else
+      {
+        ndbrequire(scanptr.p->scanNumber == NR_ScanNo);
+        c_check_scanptr_i[ZCOPY_FRAGREQ_CHECK_INDEX] = RNIL;
+      }
       scans.remove(scanptr);
       m_reserved_scans.addFirst(scanptr);
     }
@@ -13965,6 +14019,7 @@ void Dblqh::releaseScanrec(Signal* signal)
   scanPtr->scanState = ScanRecord::SCAN_FREE;
   scanPtr->scanType = ScanRecord::ST_IDLE;
   scanPtr->scanTcWaiting = 0;
+  scanPtr->scan_lastSeen = __LINE__;
 }//Dblqh::releaseScanrec()
 
 /* ------------------------------------------------------------------------
@@ -14599,8 +14654,11 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
     scanPtr->readCommitted = 0;
     scanPtr->prioAFlag = ZFALSE;
     scanPtr->scanStoredProcId = RNIL;
+    scanPtr->scan_lastSeen = __LINE__;
     scanPtr->scan_direct_count = ZMAX_SCAN_DIRECT_COUNT - 1;
     fragptr.p->m_scanNumberMask.clear(NR_ScanNo);
+    c_check_scanptr_i[ZCOPY_FRAGREQ_CHECK_INDEX] = scanptr.i;
+    c_check_scanptr_save_timer[ZBACKUP_CHECK_INDEX] = tcConnectptr.p->tcTimer;
   }
   
   initScanTc(0,
@@ -14714,10 +14772,8 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
   {
     /* ACC_SCANREF */
     jamEntry();
-    const AccScanRef *ref = (const AccScanRef*)signal->getDataPtr();
-    tcConnectptr.p->errorCode = ref->errorCode;
     scanPtr->scanErrorCounter++;
-    tupCopyCloseConfLab(signal, tcConnectptr);
+    execACC_SCANREF(signal, tcConnectptr);
   }
 }//Dblqh::execCOPY_FRAGREQ()
 
@@ -14820,6 +14876,7 @@ void Dblqh::accScanConfCopyLab(Signal* signal)
     signal->theData[2] = NextScanReq::ZSCAN_NEXT;
     signal->theData[0] = sig0;
     scanPtr->scanState = ScanRecord::WAIT_NEXT_SCAN_COPY;
+    scanPtr->scan_lastSeen = __LINE__;
     send_next_NEXT_SCANREQ(signal, block, f, scanPtr);
   }
 }//Dblqh::accScanConfCopyLab()
@@ -14859,6 +14916,7 @@ void Dblqh::nextScanConfCopyLab(Signal* signal,
 /*---------------------------------------------------------------------------*/
     scanptr.p->scanCompletedStatus = ZTRUE;
     scanptr.p->scanState = ScanRecord::WAIT_LQHKEY_COPY;
+    scanptr.p->scan_lastSeen = __LINE__;
     if (ERROR_INSERTED(5043))
     {
       CLEAR_ERROR_INSERT_VALUE;
@@ -14944,6 +15002,7 @@ void Dblqh::nextScanConfCopyLab(Signal* signal,
     // If accOperationPtr == RNIL no record was returned by ACC
     if (nextScanConf->accOperationPtr == RNIL) {
       jam();
+      scanptr.p->scan_lastSeen = __LINE__;
       signal->theData[0] = scanptr.p->scanAccPtr;
       signal->theData[1] = AccCheckScan::ZCHECK_LCP_STOP;
       sendSignal(scanptr.p->scanBlockref, GSN_ACC_CHECK_SCAN, signal, 2, JBB);
@@ -14958,6 +15017,7 @@ void Dblqh::nextScanConfCopyLab(Signal* signal,
     tcConP->transactionState = TcConnectionrec::COPY_TUPKEY;
     if(tcConP->m_disk_table)
     {
+      scanptr.p->scan_lastSeen = __LINE__;
       next_scanconf_load_diskpage(signal, scanptr.p, tcConnectptr,fragPtrP);
     }
     else
@@ -15227,8 +15287,9 @@ void Dblqh::copyCompletedLab(Signal* signal,
   {
     jam();
     /* No more outstanding copy rows. We are only waiting now. */
-    DEB_LOCAL_LCP(("(%u):2: Copy fragment process halted", instance()));
+    DEB_COPY(("(%u):2: Copy fragment process halted", instance()));
     scanptr.p->scanState = ScanRecord::COPY_FRAG_HALTED;
+    scanptr.p->scan_lastSeen = __LINE__;
     c_copy_frag_live_node_halted = true;
     c_copy_frag_live_node_performing_halt = false;
     send_halt_copy_frag_conf(signal, false);
@@ -15289,8 +15350,9 @@ void Dblqh::nextRecordCopy(Signal* signal,
     {
       jam();
       /* No more outstanding copy rows. We are only waiting now. */
-      DEB_LOCAL_LCP(("(%u):Copy fragment process halted", instance()));
+      DEB_COPY(("(%u):Copy fragment process halted", instance()));
       scanPtr->scanState = ScanRecord::COPY_FRAG_HALTED;
+      scanPtr->scan_lastSeen = __LINE__;
       c_copy_frag_live_node_halted = true;
       c_copy_frag_live_node_performing_halt = false;
       send_halt_copy_frag_conf(signal, false);
@@ -15316,6 +15378,7 @@ void Dblqh::nextRecordCopy(Signal* signal,
    * No need to commit (unlock) if no previous operation in ACC
    */
   scanPtr->scanState = ScanRecord::WAIT_NEXT_SCAN_COPY;
+  scanPtr->scan_lastSeen = __LINE__;
   send_next_NEXT_SCANREQ(signal, block, f, scanPtr);
 }//Dblqh::nextRecordCopy()
 
@@ -15348,6 +15411,7 @@ void Dblqh::closeCopyLab(Signal* signal,
 /*---------------------------------------------------------------------------*/
     jam();
     scanPtr->scanState = ScanRecord::WAIT_LQHKEY_COPY;
+    scanPtr->scan_lastSeen = __LINE__;
     return;
   }//if
   fragptr.i = regTcPtr->fragmentptr;
@@ -15372,6 +15436,7 @@ void Dblqh::closeCopyLab(Signal* signal,
   ExecFunction f = scanPtr->scanFunction_NEXT_SCANREQ;
 
   scanPtr->scanState = ScanRecord::WAIT_CLOSE_COPY;
+  scanPtr->scan_lastSeen = __LINE__;
   signal->theData[0] = sig0;
   signal->theData[1] = RNIL;
   signal->theData[2] = NextScanReq::ZSCAN_CLOSE;
@@ -15507,6 +15572,7 @@ void Dblqh::tupCopyCloseConfLab(Signal* signal,
       tcConnectptr.i = restart.p->scanTcrec;
       ptrCheckGuard(tcConnectptr, ctcConnectrecFileSize, tcConnectionrec);
       scanptr = restart;
+      ndbrequire(scanptr.p->copyPtr == RNIL);
       continueAfterReceivingAllAiLab(signal, tcConnectptr);
       return;
     }
@@ -16454,7 +16520,7 @@ Dblqh::send_halt_copy_frag(Signal *signal)
      * COPY_FRAG_HALT_STATE_IDLE. Will halt copy fragment when receiving
      * PREPARE_COPY_FRAGREQ.
      */
-    DEB_LOCAL_LCP(("(%u): Halted, no active copy", instance()));
+    DEB_COPY(("(%u): Halted, no active copy", instance()));
     c_copy_frag_halted = true;
     c_copy_frag_halt_state = COPY_FRAG_HALT_STATE_IDLE;
     return;
@@ -16482,10 +16548,10 @@ Dblqh::send_halt_copy_frag(Signal *signal)
      * PREPARE_COPY_FRAG_REQ arrive or we will see that the
      * first phase of copy fragment is completed.
      */
-    DEB_LOCAL_LCP(("(%u): Halt when first LQHKEYREQ arrives, tab(%u,%u)",
-                   instance(),
-                   c_fragCopyTable,
-                   c_fragCopyFrag));
+    DEB_COPY(("(%u): Halt when first LQHKEYREQ arrives, tab(%u,%u)",
+              instance(),
+              c_fragCopyTable,
+              c_fragCopyFrag));
     c_copy_frag_halted = false;
     c_copy_frag_halt_state = COPY_FRAG_HALT_WAIT_FIRST_LQHKEYREQ;
     return;
@@ -16497,10 +16563,10 @@ Dblqh::send_halt_copy_frag(Signal *signal)
    * Send HALT_COPY_FRAG_REQ to live node to stop copy fragment process
    * temporarily.
    */
-  DEB_LOCAL_LCP(("(%u): Halt copy fragment process in live node, tab(%u,%u)",
-                 instance(),
-                 c_fragCopyTable,
-                 c_fragCopyFrag));
+  DEB_COPY(("(%u): Halt copy fragment process in live node, tab(%u,%u)",
+            instance(),
+            c_fragCopyTable,
+            c_fragCopyFrag));
   c_copy_frag_halted = false;
   c_copy_frag_halt_process_locked = true;
   c_copy_frag_halt_state = WAIT_HALT_COPY_FRAG_CONF;
@@ -16542,11 +16608,11 @@ Dblqh::execHALT_COPY_FRAG_CONF(Signal *signal)
   {
     jam();
     ndbrequire(is_copy_frag_in_progress());
-    DEB_LOCAL_LCP(("(%u)Halted copy fragment process in live node,"
-                   " tab(%u,%u)",
-                   instance(),
-                   tabptr.i,
-                   fragId));
+    DEB_COPY(("(%u)Halted copy fragment process in live node,"
+              " tab(%u,%u)",
+              instance(),
+              tabptr.i,
+              fragId));
     c_copy_frag_halted = true;
     c_copy_frag_halt_state = COPY_FRAG_IS_HALTED;
     if (!c_undo_log_overloaded)
@@ -16561,18 +16627,18 @@ Dblqh::execHALT_COPY_FRAG_CONF(Signal *signal)
    * The copy fragment completed before we got to it. Let's restart
    * the halt process.
    */
-  DEB_LOCAL_LCP(("(%u)Completed copy fragment process in live node"
-                 ", tab(%u,%u)",
-                 instance(),
-                 tabptr.i,
-                 fragId));
+  DEB_COPY(("(%u)Completed copy fragment process in live node"
+            ", tab(%u,%u)",
+            instance(),
+            tabptr.i,
+            fragId));
   ndbrequire(!c_copy_frag_halted);
   c_copy_frag_halt_state = COPY_FRAG_HALT_STATE_IDLE;
   if (c_undo_log_overloaded && is_copy_frag_in_progress())
   {
     jam();
-    DEB_LOCAL_LCP(("(%u): Restart halt copy fragment process",
-                   instance()));
+    DEB_COPY(("(%u): Restart halt copy fragment process",
+              instance()));
     send_halt_copy_frag(signal);
   }
   return;
@@ -16594,8 +16660,8 @@ Dblqh::send_resume_copy_frag(Signal *signal)
        * copy fragment process. So simply continue after resetting
        * c_copy_frag_halted flag.
        */
-      DEB_LOCAL_LCP(("(%u): Copy fragment process resumed, was idle",
-                     instance()));
+      DEB_COPY(("(%u): Copy fragment process resumed, was idle",
+                instance()));
       c_copy_frag_halted = false;
       return;
     }
@@ -16613,10 +16679,10 @@ Dblqh::send_resume_copy_frag(Signal *signal)
       ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
       ndbrequire(getFragmentrec(signal, fragId));
 
-      DEB_LOCAL_LCP(("(%u): Send RESUME_COPY_FRAG_REQ, tab(%u,%u)",
-                     instance(),
-                     fragptr.p->tabRef,
-                     fragptr.p->fragId));
+      DEB_COPY(("(%u): Send RESUME_COPY_FRAG_REQ, tab(%u,%u)",
+                instance(),
+                fragptr.p->tabRef,
+                fragptr.p->fragId));
       c_copy_frag_halt_process_locked = true;
       BlockReference ref = numberToRef(DBLQH,
                                        fragptr.p->lqhInstanceKey,
@@ -16636,10 +16702,10 @@ Dblqh::send_resume_copy_frag(Signal *signal)
       jam();
       Uint32 tableId = c_prepare_copy_fragreq_save.tableId;
       Uint32 fragId = c_prepare_copy_fragreq_save.fragId;
-      DEB_LOCAL_LCP(("(%u): Resume PREPARE_COPY_FRAGREQ, tab(%u,%u)",
-                     instance(),
-                     tableId,
-                     fragId));
+      DEB_COPY(("(%u): Resume PREPARE_COPY_FRAGREQ, tab(%u,%u)",
+                instance(),
+                tableId,
+                fragId));
       Uint32 max_page;
       tabptr.i = tableId;
       ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
@@ -16670,8 +16736,8 @@ Dblqh::send_resume_copy_frag(Signal *signal)
      * an idle state again.
      */
     c_copy_frag_halted = false;
-    DEB_LOCAL_LCP(("(%u): Resumed, was still waiting for LQHKEYREQ",
-                   instance()));
+    DEB_COPY(("(%u): Resumed, was still waiting for LQHKEYREQ",
+              instance()));
     c_copy_frag_halt_state = COPY_FRAG_HALT_STATE_IDLE;
     return;
   }
@@ -16691,17 +16757,17 @@ Dblqh::execRESUME_COPY_FRAG_CONF(Signal *signal)
   c_copy_frag_halted = false;
   c_copy_frag_halt_process_locked = false;
   c_copy_frag_halt_state = COPY_FRAG_HALT_STATE_IDLE;
-  DEB_LOCAL_LCP(("(%u) execRESUME_COPY_FRAG_CONF, tab(%u,%u)",
-                instance(),
-                c_fragCopyTable,
-                c_fragCopyFrag));
+  DEB_COPY(("(%u) execRESUME_COPY_FRAG_CONF, tab(%u,%u)",
+            instance(),
+            c_fragCopyTable,
+            c_fragCopyFrag));
   if (c_undo_log_overloaded && is_copy_frag_in_progress())
   {
     jam();
     /**
      * UNDO log is overloaded again. We need to halt it again.
      */
-    DEB_LOCAL_LCP(("(%u): Need to halt again", instance()));
+    DEB_COPY(("(%u): Need to halt again", instance()));
     send_halt_copy_frag(signal);
     return;
   }
@@ -16714,10 +16780,10 @@ Dblqh::execRESUME_COPY_FRAG_CONF(Signal *signal)
      * state, so we can simply return and the copy processes will
      * continue as normal. The resume was done by the live node.
      */
-    DEB_LOCAL_LCP(("(%u): Resumed copy fragment, tab(%u,%u)",
-                  instance(),
-                  c_fragCopyTable,
-                  c_fragCopyFrag));
+    DEB_COPY(("(%u): Resumed copy fragment, tab(%u,%u)",
+              instance(),
+              c_fragCopyTable,
+              c_fragCopyFrag));
     return;
   }
 }
@@ -16821,7 +16887,7 @@ Dblqh::execHALT_COPY_FRAG_REQ(Signal *signal)
      * copy fragment going on. So if none is active anymore it
      * means we've already completed the copy. We return immediately.
      */
-    DEB_LOCAL_LCP(("(%u):HALT_COPY_FRAG_REQ: no active copy",
+    DEB_COPY(("(%u):HALT_COPY_FRAG_REQ: no active copy",
                    instance()));
     send_halt_copy_frag_conf(signal, true);
     return;
@@ -16833,8 +16899,8 @@ Dblqh::execHALT_COPY_FRAG_REQ(Signal *signal)
    * will respond, we will also respond if not able to halt it
    * before it was completed.
    */
-  DEB_LOCAL_LCP(("(%u):HALT_COPY_FRAG_REQ: start halting",
-                 instance()));
+  DEB_COPY(("(%u):HALT_COPY_FRAG_REQ: start halting",
+            instance()));
   c_copy_frag_live_node_performing_halt = true;
   c_copy_frag_live_node_halted = false;
 }
@@ -16865,7 +16931,7 @@ Dblqh::execRESUME_COPY_FRAG_REQ(Signal *signal)
   ndbrequire(!c_copy_frag_live_node_performing_halt);
   ndbrequire(c_tc_connect_rec_copy_frag != RNIL);
   c_copy_frag_live_node_halted = false;
-  DEB_LOCAL_LCP(("(%u):RESUME_COPY_FRAG_REQ received", instance()));
+  DEB_COPY(("(%u):RESUME_COPY_FRAG_REQ received", instance()));
 
   send_resume_copy_frag_conf(signal);
 
@@ -30043,6 +30109,69 @@ Dblqh::check_ndb_versions() const
     }
   }
   return true;
+}
+
+void
+Dblqh::handle_check_system_scans()
+{
+  ScanRecordPtr loc_scanptr;
+  TcConnectionrecPtr loc_tcConnectptr;
+  for (Uint32 i = 0; i <= ZCOPY_FRAGREQ_CHECK_INDEX; i++)
+  {
+    jam();
+    if (c_check_scanptr_i[i] != RNIL)
+    {
+      loc_scanptr.i = c_check_scanptr_i[i];
+      c_scanRecordPool.getPtr(loc_scanptr);
+      loc_tcConnectptr.i = loc_scanptr.p->scanTcrec;
+      ptrCheckGuard(loc_tcConnectptr, ctcConnectrecFileSize, tcConnectionrec);
+      if (loc_scanptr.p->scan_lastSeen == c_check_scanptr_save_line[i] &&
+          loc_tcConnectptr.p->tcTimer != 0 &&
+          loc_tcConnectptr.p->tcTimer == c_check_scanptr_save_timer[i])
+      {
+        /**
+         * We are at the same line, the time is still the same as the last
+         * 10 second.
+         * Report where we are and what type of scan that has stalled.
+         */
+        jam();
+        Uint32 time_stalled =
+          cLqhTimeOutCount - c_check_scanptr_save_timer[i];
+        time_stalled /= 100;
+        if (i == ZLCP_CHECK_INDEX)
+        {
+          g_eventLogger->info("LCP Scan have stalled for %u seconds, last"
+                              " seen on line %u",
+                              time_stalled,
+                              c_check_scanptr_save_line[i]);
+        }
+        else if (i == ZBACKUP_CHECK_INDEX)
+        {
+          g_eventLogger->info("Backup Scan have stalled for %u seconds, last"
+                              " seen on line %u",
+                              time_stalled,
+                              c_check_scanptr_save_line[i]);
+        }
+        else if (i == ZCOPY_FRAGREQ_CHECK_INDEX)
+        {
+          g_eventLogger->info("COPY_FRAGREQ Scan have stalled for %u seconds,"
+                              "last seen on line %u",
+                              time_stalled,
+                              c_check_scanptr_save_line[i]);
+        }
+      }
+      else
+      {
+        jam();
+        c_check_scanptr_save_line[i] = loc_scanptr.p->scan_lastSeen;
+        c_check_scanptr_save_timer[i] = loc_tcConnectptr.p->tcTimer;
+      }
+    }
+    else
+    {
+      c_check_scanptr_save_timer[i] = cLqhTimeOutCount;
+    }
+  }
 }
 
 void
