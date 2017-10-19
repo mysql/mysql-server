@@ -27,6 +27,7 @@
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "myisammrg.h"
+#include "sql/handler.h"
 #include "sql/table.h"
 
 /** 
