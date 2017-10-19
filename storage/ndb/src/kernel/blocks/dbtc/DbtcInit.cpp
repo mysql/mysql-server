@@ -177,7 +177,7 @@ void Dbtc::initRecords()
   Pool_context pc;
   pc.m_block = this;
   c_scan_frag_pool.init(RT_DBTC_SCAN_FRAGMENT, pc, 0, UINT32_MAX);
-  m_fragLocationPool.init(RT_DBTC_FRAG_LOCATION, pc);
+  m_fragLocationPool.init(RT_DBTC_FRAG_LOCATION, pc, 0, UINT32_MAX);
   m_commitAckMarkerPool.init(CommitAckMarker::TYPE_ID, pc, 0, UINT32_MAX);
 }//Dbtc::initRecords()
 

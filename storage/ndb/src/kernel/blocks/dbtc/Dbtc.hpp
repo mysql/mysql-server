@@ -1314,22 +1314,26 @@ public:
    */
   struct ScanFragLocationRec
   {
+    STATIC_CONST( TYPE_ID = RT_DBTC_FRAG_LOCATION );
+
+    ScanFragLocationRec()
+    : m_magic(Magic::make(TYPE_ID)),
+      nextList(RNIL)
+    {}
+
+    Uint32 m_magic;
+
     Uint32 blockRef;
     Uint32 fragId;
 
     /**
      * Next ptr (used in pool/list)
      */
-    union {
-      Uint32 nextPool;
-      Uint32 nextList;
-    };
-
-    Uint32 m_magic;    //Needed by RWPool
+    Uint32 nextList;
   };
 
   typedef Ptr<ScanFragLocationRec> ScanFragLocationPtr;
-  typedef RecordPool<RWPool<ScanFragLocationRec> > ScanFragLocation_pool;
+  typedef TransientPool<ScanFragLocationRec> ScanFragLocation_pool;
   typedef SLFifoList<ScanFragLocation_pool> ScanFragLocation_list;
   typedef LocalSLFifoList<ScanFragLocation_pool> Local_ScanFragLocation_list;
 
