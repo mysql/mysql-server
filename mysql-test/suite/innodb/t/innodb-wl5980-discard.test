@@ -697,4 +697,5 @@ call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Ignoring tablespace 
 call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Tablespace for table .* is set as discarded");
 call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Unable to open tablespace .* \\(flags=.*, filename=");
 call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Trying to access missing tablespace .*");
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Tablespace .*, name '.*', file '.*' is missing!");
 -- enable_query_log
