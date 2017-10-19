@@ -36,6 +36,13 @@ extern EventLogger *g_eventLogger;
 #define DEB_LCP(arglist) do { } while (0)
 #endif
 
+#define DEBUG_DELETE_EXTRA 1
+#ifdef DEBUG_DELETE_EXTRA
+#define DEB_DELETE_EXTRA(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_DELETE_EXTRA(arglist) do { } while (0)
+#endif
+
 #define DEBUG_LCP_DEL 1
 #ifdef DEBUG_LCP_DEL
 #define DEB_LCP_DEL(arglist) do { g_eventLogger->info arglist ; } while (0)
