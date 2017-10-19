@@ -364,18 +364,206 @@ void SHA::Update(const byte* data, word32 len)
 #endif // DO_SHA_ASM
 
 
+#ifdef ARMV8_CE_SHA
+
+void SHA::Transform()
+{
+    word32     a, e, e0, e1;
+    uint32x4_t SHA1_K0, SHA1_K1, SHA1_K2, SHA1_K3;
+    uint32x4_t abcd, abcd_pre;
+    uint32x4_t w0_3, w4_7, w8_11, w12_15;
+    uint32x4_t wk0, wk1;
+
+    // Load Initial Digest
+    abcd = vld1q_u32( (const uint32_t  *)digest_ );
+    abcd_pre = abcd;
+    e = digest_[4];
+
+    // Set SHA1 Constants ( FIPS.180-4 - & 4.2.1 )
+    SHA1_K0 = vdupq_n_u32( 0x5A827999 );
+    SHA1_K1 = vdupq_n_u32( 0x6ED9EBA1 );
+    SHA1_K2 = vdupq_n_u32( 0x8F1BBCDC );
+    SHA1_K3 = vdupq_n_u32( 0xCA62C1D6 );
+
+    // Load 512 bit/16-DWORD: A block message
+    w0_3   = vld1q_u32( (const uint32_t  *)(buffer_) );
+    w4_7   = vld1q_u32( (const uint32_t  *)(buffer_ + 4) );
+    w8_11  = vld1q_u32( (const uint32_t  *)(buffer_ + 8) );
+    w12_15 = vld1q_u32( (const uint32_t  *)(buffer_ + 12) );
+
+#ifdef BIG_ENDIAN_ORDER
+    w0_3   = vreinterpretq_u32_u8( vrev32q_u8( vreinterpretq_u8_u32( w0_3 ) ) );
+    w4_7   = vreinterpretq_u32_u8( vrev32q_u8( vreinterpretq_u8_u32( w4_7 ) ) );
+    w8_11  = vreinterpretq_u32_u8( vrev32q_u8( vreinterpretq_u8_u32( w8_11 ) ) );
+    w12_15 = vreinterpretq_u32_u8( vrev32q_u8( vreinterpretq_u8_u32( w12_15 ) ) );
+#endif
+
+    // Loop unrolled: repetitions 20 for SHA1 80 rounds
+    // wk: Wt + Kt ( FIPS.180-4 - & 6.1.2 )
+    wk0 = vaddq_u32( w0_3, SHA1_K0 );
+    wk1 = vaddq_u32( w4_7, SHA1_K0 );
+
+    // repetition #0
+    a = vgetq_lane_u32( abcd, 0 );
+    e1 = vsha1h_u32( a );
+    abcd = vsha1cq_u32( abcd, e, wk0 );
+    wk0 = vaddq_u32( w8_11, SHA1_K0 );
+    w0_3 = vsha1su0q_u32( w0_3, w4_7, w8_11 );
+
+    a = vgetq_lane_u32( abcd, 0 );
+    e0 = vsha1h_u32( a );
+    abcd = vsha1cq_u32( abcd, e1, wk1 );
+    wk1 = vaddq_u32( w12_15, SHA1_K0 );
+    w0_3 = vsha1su1q_u32( w0_3, w12_15 );
+    w4_7 = vsha1su0q_u32( w4_7, w8_11, w12_15 );
+
+    a = vgetq_lane_u32( abcd, 0 );
+    e1 = vsha1h_u32( a );
+    abcd = vsha1cq_u32( abcd, e0, wk0 );
+    wk0 = vaddq_u32( w0_3, SHA1_K0 );
+    w4_7 = vsha1su1q_u32( w4_7, w0_3 );
+    w8_11 = vsha1su0q_u32( w8_11, w12_15, w0_3 );
+
+    a = vgetq_lane_u32( abcd, 0 );
+    e0 = vsha1h_u32( a );
+    abcd = vsha1cq_u32( abcd, e1, wk1 );
+    wk1 = vaddq_u32( w4_7, SHA1_K1 );
+    w8_11 = vsha1su1q_u32( w8_11, w4_7 );
+    w12_15 = vsha1su0q_u32( w12_15, w0_3, w4_7 );
+
+    // repetition #4
+    a = vgetq_lane_u32( abcd, 0 );
+    e1 = vsha1h_u32( a );
+    abcd = vsha1cq_u32( abcd, e0, wk0 );
+    wk0 = vaddq_u32( w8_11, SHA1_K1 );
+    w12_15 = vsha1su1q_u32( w12_15, w8_11 );
+    w0_3 = vsha1su0q_u32( w0_3, w4_7, w8_11 );
+
+    a = vgetq_lane_u32( abcd, 0 );
+    e0 = vsha1h_u32( a );
+    abcd = vsha1pq_u32( abcd, e1, wk1 );
+    wk1 = vaddq_u32( w12_15, SHA1_K1 );
+    w0_3 = vsha1su1q_u32( w0_3, w12_15 );
+    w4_7 = vsha1su0q_u32( w4_7, w8_11, w12_15 );
+
+    a = vgetq_lane_u32( abcd, 0 );
+    e1 = vsha1h_u32( a );
+    abcd = vsha1pq_u32( abcd, e0, wk0 );
+    wk0 = vaddq_u32( w0_3, SHA1_K1 );
+    w4_7 = vsha1su1q_u32( w4_7, w0_3 );
+    w8_11 = vsha1su0q_u32( w8_11, w12_15, w0_3 );
+
+    a = vgetq_lane_u32( abcd, 0 );
+    e0 = vsha1h_u32( a );
+    abcd = vsha1pq_u32( abcd, e1, wk1 );
+    wk1 = vaddq_u32( w4_7, SHA1_K1 );
+    w8_11 = vsha1su1q_u32( w8_11, w4_7 );
+    w12_15 = vsha1su0q_u32( w12_15, w0_3, w4_7 );
+
+    // repetition #8
+    a = vgetq_lane_u32( abcd, 0 );
+    e1 = vsha1h_u32( a );
+    abcd = vsha1pq_u32( abcd, e0, wk0 );
+    wk0 = vaddq_u32( w8_11, SHA1_K2 );
+    w12_15 = vsha1su1q_u32( w12_15, w8_11 );
+    w0_3 = vsha1su0q_u32( w0_3, w4_7, w8_11 );
+
+    a = vgetq_lane_u32( abcd, 0 );
+    e0 = vsha1h_u32( a );
+    abcd = vsha1pq_u32( abcd, e1, wk1 );
+    wk1 = vaddq_u32( w12_15, SHA1_K2 );
+    w0_3 = vsha1su1q_u32( w0_3, w12_15 );
+    w4_7 = vsha1su0q_u32( w4_7, w8_11, w12_15 );
+
+    a = vgetq_lane_u32( abcd, 0 );
+    e1 = vsha1h_u32( a );
+    abcd = vsha1mq_u32( abcd, e0, wk0 );
+    wk0 = vaddq_u32( w0_3, SHA1_K2 );
+    w4_7 = vsha1su1q_u32( w4_7, w0_3 );
+    w8_11 = vsha1su0q_u32( w8_11, w12_15, w0_3 );
+
+    a = vgetq_lane_u32( abcd, 0 );
+    e0 = vsha1h_u32( a );
+    abcd = vsha1mq_u32( abcd, e1, wk1 );
+    wk1 = vaddq_u32( w4_7, SHA1_K2 );
+    w8_11 = vsha1su1q_u32( w8_11, w4_7 );
+    w12_15 = vsha1su0q_u32( w12_15, w0_3, w4_7 );
+
+    // repetition #12
+    a = vgetq_lane_u32( abcd, 0 );
+    e1 = vsha1h_u32( a );
+    abcd = vsha1mq_u32( abcd, e0, wk0 );
+    wk0 = vaddq_u32( w8_11, SHA1_K2 );
+    w12_15 = vsha1su1q_u32( w12_15, w8_11 );
+    w0_3 = vsha1su0q_u32( w0_3, w4_7, w8_11 );
+
+    a = vgetq_lane_u32( abcd, 0 );
+    e0 = vsha1h_u32( a );
+    abcd = vsha1mq_u32( abcd, e1, wk1 );
+    wk1 = vaddq_u32( w12_15, SHA1_K3 );
+    w0_3 = vsha1su1q_u32( w0_3, w12_15 );
+    w4_7 = vsha1su0q_u32( w4_7, w8_11, w12_15 );
+
+    a = vgetq_lane_u32( abcd, 0 );
+    e1 = vsha1h_u32( a );
+    abcd = vsha1mq_u32( abcd, e0, wk0 );
+    wk0 = vaddq_u32( w0_3, SHA1_K3 );
+    w4_7 = vsha1su1q_u32( w4_7, w0_3 );
+    w8_11 = vsha1su0q_u32( w8_11, w12_15, w0_3 );
+
+    a = vgetq_lane_u32( abcd, 0 );
+    e0 = vsha1h_u32( a );
+    abcd = vsha1pq_u32( abcd, e1, wk1 );
+    wk1 = vaddq_u32( w4_7, SHA1_K3 );
+    w8_11 = vsha1su1q_u32( w8_11, w4_7 );
+    w12_15 = vsha1su0q_u32( w12_15, w0_3, w4_7 );
+
+    // repetition #16
+    a = vgetq_lane_u32( abcd, 0 );
+    e1 = vsha1h_u32( a );
+    abcd = vsha1pq_u32( abcd, e0, wk0 );
+    wk0 = vaddq_u32( w8_11, SHA1_K3 );
+    w12_15 = vsha1su1q_u32( w12_15, w8_11 );
+    w0_3 = vsha1su0q_u32( w0_3, w4_7, w8_11 );
+
+    a = vgetq_lane_u32( abcd, 0 );
+    e0 = vsha1h_u32( a );
+    abcd = vsha1pq_u32( abcd, e1, wk1 );
+    wk1 = vaddq_u32( w12_15, SHA1_K3 );
+    w0_3 = vsha1su1q_u32( w0_3, w12_15 );
+
+    a = vgetq_lane_u32( abcd, 0 );
+    e1 = vsha1h_u32( a );
+    abcd = vsha1pq_u32( abcd, e0, wk0 );
+
+    // Last repetition
+    a = vgetq_lane_u32( abcd, 0 );
+    e0 = vsha1h_u32( a );
+    abcd = vsha1pq_u32( abcd, e1, wk1 );
+
+    e = e + e0;
+    abcd = vaddq_u32( abcd_pre, abcd );
+
+    // Write back to digest : H0~H5 for SHA1
+    vst1q_u32( (uint32_t *)digest_, abcd );
+    digest_[4] = e;
+
+}
+
+#else
+
 void SHA::Transform()
 {
     word32 W[BLOCK_SIZE / sizeof(word32)];
 
-    // Copy context->state[] to working vars 
+    // Copy context->state[] to working vars
     word32 a = digest_[0];
     word32 b = digest_[1];
     word32 c = digest_[2];
     word32 d = digest_[3];
     word32 e = digest_[4];
 
-    // 4 rounds of 20 operations each. Loop unrolled. 
+    // 4 rounds of 20 operations each. Loop unrolled.
     R0(a,b,c,d,e, 0); R0(e,a,b,c,d, 1); R0(d,e,a,b,c, 2); R0(c,d,e,a,b, 3);
     R0(b,c,d,e,a, 4); R0(a,b,c,d,e, 5); R0(e,a,b,c,d, 6); R0(d,e,a,b,c, 7);
     R0(c,d,e,a,b, 8); R0(b,c,d,e,a, 9); R0(a,b,c,d,e,10); R0(e,a,b,c,d,11);
@@ -413,6 +601,29 @@ void SHA::Transform()
     memset(W, 0, sizeof(W));
 }
 
+#endif
+
+
+
+// SHA256 Constants
+static const word32 K256[64] = {
+        0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
+        0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+        0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
+        0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+        0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc,
+        0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+        0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7,
+        0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+        0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
+        0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+        0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3,
+        0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+        0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5,
+        0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+        0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
+        0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+};
 
 #define blk2(i) (W[i&15]+=s1(W[(i-2)&15])+W[(i-7)&15]+s0(W[(i-15)&15]))
 
@@ -438,25 +649,106 @@ void SHA::Transform()
 #define s1(x) (rotrFixed(x,17)^rotrFixed(x,19)^(x>>10))
 
 
-static const word32 K256[64] = {
-	0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
-	0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
-	0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
-	0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
-	0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc,
-	0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
-	0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7,
-	0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
-	0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
-	0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
-	0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3,
-	0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
-	0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5,
-	0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
-	0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
-	0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
-};
 
+#ifdef ARMV8_CE_SHA
+
+#define Rx(T0, T1, K, W0, W1, W2, W3)  \
+    W0 = vsha256su0q_u32( W0, W1 );    \
+    d2 = d0;                           \
+    T1 = vaddq_u32( W1, K );           \
+    d0 = vsha256hq_u32( d0, d1, T0 );  \
+    d1 = vsha256h2q_u32( d1, d2, T0 ); \
+    W0 = vsha256su1q_u32( W0, W2, W3 );
+
+#define Ry(T0, T1, K, W1)  \
+    d2 = d0;                           \
+    T1 = vaddq_u32( W1, K );          \
+    d0 = vsha256hq_u32( d0, d1, T0 );  \
+    d1 = vsha256h2q_u32( d1, d2, T0 );
+
+#define Rz(T0)  \
+    d2 = d0;                           \
+    d0 = vsha256hq_u32( d0, d1, T0 );  \
+    d1 = vsha256h2q_u32( d1, d2, T0 );
+
+
+static void Transform256(word32* digest_, word32* buffer_)
+{
+    uint32x4_t k0_3, k4_7, k8_11, k12_15, k16_19, k20_23, k24_27, k28_31;
+    uint32x4_t k32_35, k36_39, k40_43, k44_47, k48_51, k52_55, k56_59, k60_63;
+    uint32x4_t s0, s1;
+    uint32x4_t w0_3, w4_7, w8_11, w12_15;
+    uint32x4_t d0, d1, d2;
+    uint32x4_t t0, t1;
+
+    // Set SHA256 Constants ( FIPS.180-4 )
+    k0_3   = vld1q_u32( &K256[0x00] );
+    k4_7   = vld1q_u32( &K256[0x04] );
+    k8_11  = vld1q_u32( &K256[0x08] );
+    k12_15 = vld1q_u32( &K256[0x0c] );
+    k16_19 = vld1q_u32( &K256[0x10] );
+    k20_23 = vld1q_u32( &K256[0x14] );
+    k24_27 = vld1q_u32( &K256[0x18] );
+    k28_31 = vld1q_u32( &K256[0x1c] );
+    k32_35 = vld1q_u32( &K256[0x20] );
+    k36_39 = vld1q_u32( &K256[0x24] );
+    k40_43 = vld1q_u32( &K256[0x28] );
+    k44_47 = vld1q_u32( &K256[0x2c] );
+    k48_51 = vld1q_u32( &K256[0x30] );
+    k52_55 = vld1q_u32( &K256[0x34] );
+    k56_59 = vld1q_u32( &K256[0x38] );
+    k60_63 = vld1q_u32( &K256[0x3c] );
+
+    // Load Initial Digest
+    s0 = vld1q_u32( (const uint32_t  *)digest_ );
+    s1 = vld1q_u32( (const uint32_t  *)( digest_ + 4 ) );
+
+    // Load 512 bit/per-block message
+    w0_3   = vld1q_u32( (const uint32_t  *)(buffer_) );
+    w4_7   = vld1q_u32( (const uint32_t  *)(buffer_ + 4) );
+    w8_11  = vld1q_u32( (const uint32_t  *)(buffer_ + 8) );
+    w12_15 = vld1q_u32( (const uint32_t  *)(buffer_ + 12) );
+
+#ifdef BIG_ENDIAN_ORDER
+    w0_3   = vreinterpretq_u32_u8( vrev32q_u8( vreinterpretq_u8_u32( w0_3 ) ) );
+    w4_7   = vreinterpretq_u32_u8( vrev32q_u8( vreinterpretq_u8_u32( w4_7 ) ) );
+    w8_11  = vreinterpretq_u32_u8( vrev32q_u8( vreinterpretq_u8_u32( w8_11 ) ) );
+    w12_15 = vreinterpretq_u32_u8( vrev32q_u8( vreinterpretq_u8_u32( w12_15 ) ) );
+#endif
+
+    // initialize t0, d0, d1
+    t0 = vaddq_u32( w0_3, k0_3 );
+    d0 = s0;
+    d1 = s1;
+
+    // Loop unrolled: repetitions 16 for SHA256 64 rounds
+    Rx( t0, t1, k4_7, w0_3, w4_7, w8_11, w12_15 );
+    Rx( t1, t0, k8_11, w4_7, w8_11, w12_15, w0_3 );
+    Rx( t0, t1, k12_15, w8_11, w12_15, w0_3, w4_7 );
+    Rx( t1, t0, k16_19, w12_15, w0_3, w4_7, w8_11 );
+    Rx( t0, t1, k20_23, w0_3, w4_7, w8_11, w12_15 );
+    Rx( t1, t0, k24_27, w4_7, w8_11, w12_15, w0_3 );
+    Rx( t0, t1, k28_31, w8_11, w12_15, w0_3, w4_7 );
+    Rx( t1, t0, k32_35, w12_15, w0_3, w4_7, w8_11 );
+    Rx( t0, t1, k36_39, w0_3, w4_7, w8_11, w12_15 );
+    Rx( t1, t0, k40_43, w4_7, w8_11, w12_15, w0_3 );
+    Rx( t0, t1, k44_47, w8_11, w12_15, w0_3, w4_7 );
+    Rx( t1, t0, k48_51, w12_15, w0_3, w4_7, w8_11 );
+    Ry( t0, t1, k52_55, w4_7 );
+    Ry( t1, t0, k56_59, w8_11 );
+    Ry( t0, t1, k60_63, w12_15 );
+    Rz( t1 );
+
+    // At last
+    s0 = vaddq_u32( s0, d0 );
+    s1 = vaddq_u32( s1, d1 );
+
+    // Write back to digest : H0~H7 for SHA256
+    vst1q_u32( (uint32_t *)digest_, s0 );
+    vst1q_u32( (uint32_t *)( digest_ + 4 ), s1 );
+}
+
+#else
 
 static void Transform256(word32* digest_, word32* buffer_)
 {
@@ -490,6 +782,8 @@ static void Transform256(word32* digest_, word32* buffer_)
     memset(W, 0, sizeof(W));
     memset(T, 0, sizeof(T));
 }
+
+#endif /*endif ARMV8_CE_SHA*/
 
 
 // undef for 256
@@ -582,7 +876,7 @@ static void Transform512(word64* digest_, word64* buffer_)
         R(12); R(13); R(14); R(15);
     }
 
-    // Add the working vars back into digest 
+    // Add the working vars back into digest
 
     digest_[0] += a(0);
     digest_[1] += b(0);
@@ -808,7 +1102,7 @@ void SHA::AsmTransform(const byte* data, word32 times)
         AS2(    mov   esp, ebp                  )   \
         AS1(    pop   ebp                       )   \
         AS1(    emms   )                            \
-        AS1(    ret 8  )   
+        AS1(    ret 8  )
 #endif
 
     PROLOG()
@@ -1007,12 +1301,12 @@ void SHA::AsmTransform(const byte* data, word32 times)
 
     // setup next round
     AS2(    movd  ebp, mm2              )   // times
- 
+
     AS2(    mov   edi, DWORD PTR [esp + 64] )   // data
-    
+
     AS2(    add   edi, 64               )   // next round of data
     AS2(    mov   [esp + 64], edi       )   // restore
-    
+
     AS1(    dec   ebp                   )
     AS2(    movd  mm2, ebp              )
 #ifdef _MSC_VER
@@ -1021,7 +1315,7 @@ void SHA::AsmTransform(const byte* data, word32 times)
     AS1(    jnz   0b )         // loopStart
 #endif
 
-    // inline adjust 
+    // inline adjust
     AS2(    add   esp, 68               )   // fix room on stack
 
     EPILOG()
