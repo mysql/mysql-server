@@ -7984,9 +7984,9 @@ bool Item::aggregate_string_properties(const char *name,
     and the result maximum length in characters is longer than the MySQL
     maximum CHAR/BINARY size, convert to a variable-sized type.
   */
-  //if (data_type() == MYSQL_TYPE_STRING &&
-  //    max_char_length() > MAX_FIELD_CHARLENGTH)
-  //  set_data_type(MYSQL_TYPE_VARCHAR);
+  if (data_type() == MYSQL_TYPE_STRING &&
+      max_char_length() > MAX_FIELD_CHARLENGTH)
+    set_data_type(MYSQL_TYPE_VARCHAR);
 
   return false;
 }
