@@ -6020,6 +6020,57 @@ SET DEBUG_SYNC= 'RESET';
 --echo # Switching to back to default at end of test case
 --connection default
 
+--echo #
+--echo # Bug#26739438 DEADLOCK ON GET_LOCK(..., 0)
+--echo #
+--echo # Run GET_LOCK(...,0) from two connections to which would previously
+--echo # cause deadlock
+
+CREATE TABLE t1(i INT);
+INSERT INTO t1 VALUES (0), (1);
+
+--echo # Starting con0
+connect (con0,localhost,root,,test,,);
+SELECT i FROM t1 WHERE i = 0 AND GET_LOCK(i, 0);
+
+--echo # Starting con1
+connect (con1,localhost,root,,test,,);
+SELECT i FROM t1 WHERE i = 1 AND GET_LOCK(i, 0);
+
+--echo # Send query which will do a 0-wait on i=0 while holding lock on i=1
+SET DEBUG_SYNC='mdl_acquire_lock_wait SIGNAL wait0 WAIT_FOR go0';
+--send SELECT i FROM t1 WHERE GET_LOCK(i, 0) AND i = 0
+
+--echo # Switch to con0. Send query which will do a 0-wait on i=1 while
+--echo # holding lock on i=0
+connection con0;
+SET DEBUG_SYNC='mdl_acquire_lock_wait SIGNAL wait1 WAIT_FOR go1';
+--send SELECT i FROM t1 WHERE GET_LOCK(i, 0) AND i = 1
+
+--echo # Switch to default connection and wait until both con0 and con1
+--echo # are ready to check for deadlocks 
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR wait0';
+SET DEBUG_SYNC='now WAIT_FOR wait1';
+
+--echo # Tell both connections to proceed
+SET DEBUG_SYNC='now SIGNAL go0';
+SET DEBUG_SYNC='now SIGNAL go1';
+
+--echo # Wait for con0
+connection con0;
+--reap
+
+--echo # Wait for con1 (should not deadlock)
+connection con1;
+--reap
+
+connection default;
+disconnect con0;
+disconnect con1;
+
+DROP TABLE t1;
+
 # Check that all connections opened by test cases in this file are really
 # gone so execution of other tests won't be affected by their presence.
 --source include/wait_until_count_sessions.inc
