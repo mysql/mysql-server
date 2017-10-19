@@ -14598,6 +14598,7 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
     scanPtr->m_exec_direct_batch_size_words = 0;
     scanPtr->readCommitted = 0;
     scanPtr->prioAFlag = ZFALSE;
+    scanPtr->scanStoredProcId = RNIL;
     scanPtr->scan_direct_count = ZMAX_SCAN_DIRECT_COUNT - 1;
     fragptr.p->m_scanNumberMask.clear(NR_ScanNo);
   }
@@ -14713,7 +14714,10 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
   {
     /* ACC_SCANREF */
     jamEntry();
-    execACC_SCANREF(signal, tcConnectptr);
+    const AccScanRef *ref = (const AccScanRef*)signal->getDataPtr();
+    tcConnectptr.p->errorCode = ref->errorCode;
+    scanPtr->scanErrorCounter++;
+    tupCopyCloseConfLab(signal, tcConnectptr);
   }
 }//Dblqh::execCOPY_FRAGREQ()
 

@@ -32,7 +32,7 @@ static const Uint32 MaxReadWords = 32768;
 bool readHeader(ndbzio_stream*, BackupFormat::FileHeader *);
 bool readFragHeader(ndbzio_stream*, BackupFormat::DataFile::FragmentHeader *);
 bool readFragFooter(ndbzio_stream*, BackupFormat::DataFile::FragmentFooter *);
-Int32 readRecord(ndbzio_stream*, Uint32 **);
+Int32 readRecord(ndbzio_stream*, Uint32 **, Uint32*, bool print);
 
 NdbOut & operator<<(NdbOut&, const BackupFormat::FileHeader &); 
 NdbOut & operator<<(NdbOut&, const BackupFormat::DataFile::FragmentHeader &); 
@@ -50,12 +50,32 @@ NdbOut & operator<<(NdbOut&, const BackupFormat::CtlFile::GCPEntry &);
 
 Int32 readLogEntry(ndbzio_stream*, Uint32**);
 
+struct RowEntry
+{
+  Uint32 page_id;
+  Uint32 page_idx;
+  RowEntry *prev_ptr;
+  RowEntry *next_ptr;
+};
+
 static Uint32 recNo;
 static Uint32 recInsert;
 static Uint32 recWrite;
 static Uint32 recDeleteByRowId;
 static Uint32 recDeleteByPageId;
 static Uint32 logEntryNo;
+static bool print_restored_rows = false;
+static int print_restored_rows_table = -1;
+static int print_restored_rows_fid = -1;
+static int print_restored_rows_ctl_dir = 0;
+static int parts_array[BackupFormat::NDB_MAX_LCP_PARTS];
+static Uint32 max_pages = 0;
+static int verbose_level = 0;
+static RowEntry **row_entries = NULL;
+
+#define IGNORE_PART 1
+#define ALL_PART 2
+#define CHANGE_PART 3
 
 inline void ndb_end_and_exit(int exitcode)
 {
@@ -63,18 +83,525 @@ inline void ndb_end_and_exit(int exitcode)
   exit(exitcode);
 }
 
-int
-main(int argc, const char * argv[]){
+Uint32
+get_part_id(Uint32 page_id)
+{
+  static Uint32 reverse_3bits_array[8] = { 0, 4, 2, 6, 1, 5, 3, 7 };
+  const Uint32 lowest_3bits_page_id = page_id & 7;
+  const Uint32 low_3bits_page_id = (page_id >> 3) & 7;
+  const Uint32 high_3bits_page_id = (page_id >> 6) & 7;
+  const Uint32 highest_3bits_page_id = (page_id >> 9) & 3;
+  Uint32 part_id =
+    reverse_3bits_array[highest_3bits_page_id] +
+    (reverse_3bits_array[high_3bits_page_id] << 3) +
+    (reverse_3bits_array[low_3bits_page_id] << 6) +
+    (reverse_3bits_array[lowest_3bits_page_id] << 9);
+  part_id >>= 1;
+  return part_id;
+}
 
+const char*
+get_part_type_string(Uint32 part_type)
+{
+  if (part_type == IGNORE_PART)
+    return "IGNORE_PART";
+  if (part_type == ALL_PART)
+    return "ALL_PART";
+  if (part_type == CHANGE_PART)
+    return "CHANGE_PART";
+  assert(false);
+  return "UNKNOWN";
+}
+
+const char*
+get_header_string(Uint32 header_type)
+{
+  if (header_type == BackupFormat::INSERT_TYPE)
+    return "INSERT";
+  if (header_type == BackupFormat::WRITE_TYPE)
+    return "WRITE";
+  if (header_type == BackupFormat::DELETE_BY_ROWID_TYPE)
+    return "DELETE_BY_ROWID";
+  if (header_type == BackupFormat::DELETE_BY_PAGEID_TYPE)
+    return "DELETE_BY_PAGEID";
+  assert(false);
+  return "UNKNOWN";
+}
+
+Uint32 move_file_back(Uint32 file, Uint32 num_back)
+{
+  if (file >= num_back)
+    return (file - num_back);
+  return (file + BackupFormat::NDB_MAX_LCP_FILES - num_back);
+}
+
+Uint32 move_file_forward(Uint32 file, Uint32 num_forward)
+{
+  if ((file + num_forward) >= BackupFormat::NDB_MAX_LCP_FILES)
+    return (file + num_forward - BackupFormat::NDB_MAX_LCP_FILES);
+  return (file + num_forward);
+}
+
+Uint32 move_part_forward(Uint32 file, Uint32 num_forward)
+{
+  if ((file + num_forward) >= BackupFormat::NDB_MAX_LCP_PARTS)
+    return (file + num_forward - BackupFormat::NDB_MAX_LCP_PARTS);
+  return (file + num_forward);
+}
+
+RowEntry* find_row(Uint32 page_id, Uint32 page_idx)
+{
+  if (page_id >= max_pages)
+    return NULL;
+  if (row_entries[page_id] == NULL)
+    return NULL;
+  RowEntry *current = row_entries[page_id];
+  do
+  {
+    if (current->page_id != page_id)
+    {
+      ndbout_c("Inconsistent hash table");
+      ndb_end_and_exit(1);
+    }
+    if (current->page_idx == page_idx)
+      return current;
+    current = current->next_ptr;
+  } while (current != NULL);
+  return NULL;
+}
+
+void insert_row(Uint32 page_id, Uint32 page_idx)
+{
+  if (page_id >= max_pages)
+  {
+    ndbout_c("Trying to insert row(%u,%u) beyond max_pages: %u",
+             page_id,
+             page_idx,
+             max_pages);
+    return;
+  }
+  RowEntry *found_row_entry = find_row(page_id, page_idx);
+  if (found_row_entry != NULL)
+  {
+    /* Entry already existed */
+    return;
+  }
+  RowEntry *new_row_entry = (RowEntry*)malloc(sizeof(struct RowEntry));
+  if (new_row_entry == NULL)
+  {
+    ndbout_c("Malloc failure in insert_row");
+    ndb_end_and_exit(1);
+  }
+  new_row_entry->page_id = page_id;
+  new_row_entry->page_idx = page_idx;
+  new_row_entry->prev_ptr = NULL;
+  new_row_entry->next_ptr = row_entries[page_id];
+  row_entries[page_id] = new_row_entry;
+}
+
+void delete_row(Uint32 page_id, Uint32 page_idx)
+{
+  if (page_id >= max_pages)
+  {
+    ndbout_c("Trying to delete row(%u,%u) beyond max_pages: %u",
+             page_id,
+             page_idx,
+             max_pages);
+    return;
+  }
+  RowEntry *found_row_entry = find_row(page_id, page_idx);
+  if (found_row_entry == NULL)
+  {
+    ndbout_c("Trying to delete row(%u,%u) NOT FOUND",
+             page_id,
+             page_idx);
+    return;
+  }
+  if (found_row_entry->prev_ptr == NULL)
+  {
+    /* First entry in linked list */
+    row_entries[page_id] = found_row_entry->next_ptr;
+  }
+  else
+  {
+    found_row_entry->prev_ptr->next_ptr =
+      found_row_entry->next_ptr;
+  }
+  if (found_row_entry->next_ptr != NULL)
+  {
+    found_row_entry->next_ptr->prev_ptr =
+      found_row_entry->prev_ptr;
+  }
+  free(found_row_entry);
+}
+
+void delete_page(Uint32 page_id)
+{
+  if (page_id >= max_pages)
+  {
+    ndbout_c("Trying to delete page(%u) beyond max_pages: %u",
+             page_id,
+             max_pages);
+    return;
+  }
+  if (row_entries[page_id] == NULL)
+    return;
+  RowEntry *current = row_entries[page_id];
+  row_entries[page_id] = NULL;
+  do
+  {
+    RowEntry *free_row = current;
+    current = current->next_ptr;
+    free(free_row);
+  } while (current != NULL);
+}
+
+void print_rows()
+{
+  for (Uint32 page_id = 0; page_id < max_pages; page_id++)
+  {
+    if (row_entries[page_id] != NULL)
+    {
+      RowEntry *current = row_entries[page_id];
+      do
+      {
+        ndbout_c("Found row(%u,%u)", page_id, current->page_idx);
+        current = current->next_ptr;
+      } while (current != NULL);
+    }
+  }
+}
+
+void delete_all()
+{
+  for (Uint32 page_id = 0; page_id < max_pages; page_id++)
+  {
+    delete_page(page_id);
+  }
+}
+
+void handle_print_restored_rows(void)
+{
+  ndbout_c("Print restored rows for T%uF%u",
+           print_restored_rows_table,
+           print_restored_rows_fid);
+
+  char buf[255];
+  ndbzio_stream fo;
+  bzero(&fo, sizeof(fo));
+  BaseString::snprintf(buf, sizeof(buf),
+                       "%u/T%uF%u.ctl",
+                       print_restored_rows_ctl_dir,
+                       print_restored_rows_table,
+                       print_restored_rows_fid);
+  int r = ndbzopen(&fo,buf,O_RDONLY);
+  if(r != 1)
+  {
+    ndbout_c("Failed to open file '%s', error: %d",
+             buf, r);
+    ndb_end_and_exit(1);
+  }
+  ndbzio_stream* f = &fo;
+  BackupFormat::FileHeader fileHeader;
+  if (!readHeader(f, &fileHeader))
+  {
+    ndbout << "Invalid ctl file!" << endl;
+    ndb_end_and_exit(1);
+  }
+  if (fileHeader.FileType != BackupFormat::LCP_CTL_FILE)
+  {
+    ndbout << "Invalid ctl file header!" << endl;
+    ndb_end_and_exit(1);
+  }
+  union
+  {
+    BackupFormat::LCPCtlFile lcpCtlFilePtr;
+    char extra_space[4 * BackupFormat::NDB_MAX_LCP_PARTS];
+  };
+  if (!readLCPCtlFile(f, &lcpCtlFilePtr))
+  {
+    ndbout << "Invalid LCP Control file!" << endl;
+    ndb_end_and_exit(1);
+  }
+  ndbzclose(f);
+
+  /**
+   * Allocate the array of linked list first pointers.
+   */
+  max_pages = lcpCtlFilePtr.MaxPageCount;
+  row_entries = (RowEntry**)malloc(sizeof(RowEntry*) * max_pages);
+  if (row_entries == NULL)
+  {
+    ndbout << "Malloc failure" << endl;
+    ndb_end_and_exit(1);
+  }
+  memset(row_entries, 0, sizeof(RowEntry*) * max_pages);
+
+  Uint32 last_file = lcpCtlFilePtr.LastDataFileNumber;
+  Uint32 num_parts = lcpCtlFilePtr.NumPartPairs;
+  Uint32 current_file = move_file_back(last_file, (num_parts - 1));
+  Uint32 inx = 0;
+  Uint32 first_change = lcpCtlFilePtr.partPairs[inx].startPart;
+  for (Uint32 i = current_file; i <= last_file; i = move_file_forward(i,1))
+  {
+    Uint32 first_all = lcpCtlFilePtr.partPairs[inx].startPart;
+    Uint32 first_ignore =
+      move_part_forward(first_all, lcpCtlFilePtr.partPairs[inx].numParts);
+    inx++;
+    memset(&parts_array[0], 0, sizeof(parts_array));
+    for (Uint32 j = first_change; j != first_all; j = move_part_forward(j,1))
+    {
+      parts_array[j] = CHANGE_PART;
+      assert(j < BackupFormat::NDB_MAX_LCP_PARTS);
+    }
+    for (Uint32 j = first_all; j != first_ignore; j = move_part_forward(j,1))
+    {
+      parts_array[j] = ALL_PART;
+      assert(j < BackupFormat::NDB_MAX_LCP_PARTS);
+    }
+    for (Uint32 j = first_ignore; j != first_change; j = move_part_forward(j,1))
+    {
+      parts_array[j] = IGNORE_PART;
+      assert(j < BackupFormat::NDB_MAX_LCP_PARTS);
+    }
+    for (Uint32 j = 0; j < BackupFormat::NDB_MAX_LCP_PARTS; j++)
+    {
+      assert(parts_array[0] != 0);
+    }
+    ndbout_c("Processing %u/T%uF%u.Data",
+             i,
+             print_restored_rows_table,
+             print_restored_rows_fid);
+    bzero(&fo, sizeof(fo));
+    BaseString::snprintf(buf, sizeof(buf),
+                         "%u/T%uF%u.Data",
+                         i,
+                         print_restored_rows_table,
+                         print_restored_rows_fid);
+    r = ndbzopen(&fo,buf,O_RDONLY);
+    if(r != 1)
+    {
+      ndbout_c("Failed to open file '%s', error: %d",
+               buf, r);
+      //ndb_end_and_exit(1);
+      continue;
+    }
+    if (!readHeader(f, &fileHeader))
+    {
+      ndbout << "Invalid file!" << endl;
+      ndb_end_and_exit(1);
+    }	
+    BackupFormat::CtlFile::TableList * tabList;
+    if (!readTableList(f, &tabList))
+    {
+      ndbout << "Invalid file! No table list" << endl;
+      break;
+    }
+    BackupFormat::DataFile::FragmentHeader fragHeader;
+    if (!readFragHeader(f, &fragHeader))
+    {
+      ndbout << "Invalid file! No table list" << endl;
+      break;
+    }
+    Uint32 len, * data, header_type;
+    while((len = readRecord(f, &data, &header_type, false)) > 0)
+    {
+      Uint32 page_id = data[0];
+      Uint32 page_idx = data[1];
+      Uint32 part_id = get_part_id(page_id);
+      const char *header_string = get_header_string(header_type);
+      const char *part_string = get_part_type_string(parts_array[part_id]);
+      if (parts_array[part_id] == IGNORE_PART)
+      {
+        continue;
+      }
+      else if (parts_array[part_id] == ALL_PART)
+      {
+        if (header_type != BackupFormat::INSERT_TYPE)
+        {
+          ndbout_c("NOT INSERT_TYPE when expected");
+          ndb_end_and_exit(1);
+        }
+        if (verbose_level > 0)
+        ndbout_c("%s: page(%u,%u), len: %u, part_id: %u, part_type: %s",
+                 header_string,
+                 page_id,
+                 page_idx,
+                 len,
+                 part_id,
+                 part_string);
+        insert_row(page_id, page_idx);
+      }
+      else if (parts_array[part_id] != CHANGE_PART)
+      {
+        ndbout_c("NOT CHANGE_PART when expected");
+        ndb_end_and_exit(1);
+      }
+      else
+      {
+        if (header_type == BackupFormat::INSERT_TYPE)
+        {
+          ndbout_c("INSERT_TYPE in CHANGE_PART");
+          ndb_end_and_exit(1);
+        }
+        if (header_type == BackupFormat::DELETE_BY_PAGEID_TYPE)
+        {
+          if (verbose_level > 0)
+          ndbout_c("%s: page(%u), len: %u, part_id: %u, part_type: %s",
+                   header_string,
+                   page_id,
+                   len,
+                   part_id,
+                   part_string);
+          delete_page(page_id);
+        }
+        else if (header_type == BackupFormat::WRITE_TYPE)
+        {
+          if (verbose_level > 0)
+          ndbout_c("%s: page(%u,%u), len: %u, part_id: %u, part_type: %s",
+                   header_string,
+                   page_id,
+                   page_idx,
+                   len,
+                   part_id,
+                   part_string);
+          insert_row(page_id, page_idx);
+        }
+        else if (header_type == BackupFormat::DELETE_BY_ROWID_TYPE)
+        {
+          if (verbose_level > 0)
+          ndbout_c("%s: page(%u,%u), len: %u, part_id: %u, part_type: %s",
+                   header_string,
+                   page_id,
+                   page_idx,
+                   len,
+                   part_id,
+                   part_string);
+          delete_row(page_id, page_idx);
+        }
+        else
+        {
+          ndbout_c("Wrong header_type: %u in CHANGE_PART", header_type);
+          ndb_end_and_exit(1);
+        }
+      }
+    }
+    ndbzclose(f);
+  }
+  print_rows();
+  delete_all();
+  exit(0);
+}
+
+int
+main(int argc, const char * argv[])
+{
+  const char *file = argv[1];
   ndb_init();
-  if(argc <= 1){
+  if (argc > 2)
+  {
+    for (int i = 1; i < argc; i++)
+    {
+      if (print_restored_rows)
+      {
+        if (!strncmp(argv[i], "-v", 2))
+        {
+          verbose_level++;
+        }
+        else if (!strncmp(argv[i], "-c", 2))
+        {
+          if (i + 1 < argc)
+          {
+            int ret = sscanf(argv[i+1], "%d", &print_restored_rows_ctl_dir);
+            if (ret != 1 ||
+                (print_restored_rows_ctl_dir != 0 &&
+                 print_restored_rows_ctl_dir != 1))
+            {
+              printf("Usage: %s <filename>\n", argv[0]);
+              ndb_end_and_exit(1);
+            }
+            i++;
+          }
+          else
+          {
+            printf("Usage: %s <filename>\n", argv[0]);
+            ndb_end_and_exit(1);
+          }
+        }
+        else if (!strncmp(argv[i], "-f", 2))
+        {
+          if (i + 1 < argc)
+          {
+            int ret = sscanf(argv[i+1], "%d", &print_restored_rows_fid);
+            if (ret != 1)
+            {
+              printf("Usage: %s <filename>\n", argv[0]);
+              ndb_end_and_exit(1);
+            }
+            i++;
+          }
+          else
+          {
+            printf("Usage: %s <filename>\n", argv[0]);
+            ndb_end_and_exit(1);
+          }
+        }
+        else if (!strncmp(argv[i], "-t", 2))
+        {
+          if (i + 1 < argc)
+          {
+            int ret = sscanf(argv[i+1], "%d", &print_restored_rows_table);
+            if (ret != 1)
+            {
+              printf("Usage: %s <filename>\n", argv[0]);
+              ndb_end_and_exit(1);
+            }
+            i++;
+          }
+          else
+          {
+            printf("Usage: %s <filename>\n", argv[0]);
+            ndb_end_and_exit(1);
+          }
+        }
+      }
+      else
+      {
+        if (!strncmp(argv[i], "--print-restored-rows", 22))
+        {
+          print_restored_rows = true;
+        }
+        else
+        {
+          printf("Usage: %s <filename>\n", argv[0]);
+          ndb_end_and_exit(1);
+        }
+      }
+    }
+  }
+  else if (argc == 2)
+  {
+    ;
+  }
+  else if (argc <= 1)
+  {
     printf("Usage: %s <filename>\n", argv[0]);
     ndb_end_and_exit(1);
+  }
+  if (print_restored_rows)
+  {
+    if (print_restored_rows_table == -1 ||
+        print_restored_rows_fid == -1)
+    {
+      printf("Usage: %s <filename>\n", argv[0]);
+      ndb_end_and_exit(1);
+    }
+    handle_print_restored_rows();
   }
 
   ndbzio_stream fo;
   bzero(&fo, sizeof(fo));
-  int r= ndbzopen(&fo,argv[1], O_RDONLY);
+  int r= ndbzopen(&fo,file, O_RDONLY);
 
   if(r != 1)
   {
@@ -100,8 +627,8 @@ main(int argc, const char * argv[]){
 	break;
       ndbout << fragHeader << endl;
       
-      Uint32 len, * data;
-      while((len = readRecord(f, &data)) > 0){
+      Uint32 len, * data, header_type;
+      while((len = readRecord(f, &data, &header_type, true)) > 0){
 #if 0
 	ndbout << "-> " << hex;
 	for(Uint32 i = 0; i<len; i++){
@@ -209,8 +736,8 @@ main(int argc, const char * argv[]){
 	break;
       ndbout << fragHeader << endl;
       
-      Uint32 len, * data;
-      while((len = readRecord(f, &data)) > 0){
+      Uint32 len, * data, header_type;
+      while((len = readRecord(f, &data, &header_type, true)) > 0){
 #if 0
 	ndbout << "-> " << hex;
 	for(Uint32 i = 0; i<len; i++){
@@ -382,7 +909,8 @@ static union {
 } theData;
 
 Int32
-readRecord(ndbzio_stream* f, Uint32 **dst){
+readRecord(ndbzio_stream* f, Uint32 **dst, Uint32 *ext_header_type, bool print)
+{
   Uint32 len;
   if(aread(&len, 1, 4, f) != 4)
     RETURN_FALSE();
@@ -398,41 +926,50 @@ readRecord(ndbzio_stream* f, Uint32 **dst){
   if(len > 0)
   {
     Uint32 header_type = header >> 16;
+    *ext_header_type = header_type;
     if (header_type == BackupFormat::INSERT_TYPE)
     {
-      ndbout_c("INSERT: RecNo: %u: Len: %x, page(%u,%u)",
-               recNo, len, theData.buf[0], theData.buf[1]);
+      if (print)
+        ndbout_c("INSERT: RecNo: %u: Len: %x, page(%u,%u)",
+                 recNo, len, theData.buf[0], theData.buf[1]);
       recNo++;
       recInsert++;
     }
     else if (header_type == BackupFormat::WRITE_TYPE)
     {
-      ndbout_c("WRITE: RecNo: %u: Len: %x, page(%u,%u)",
-               recNo, len, theData.buf[0], theData.buf[1]);
+      if (print)
+        ndbout_c("WRITE: RecNo: %u: Len: %x, page(%u,%u)",
+                 recNo, len, theData.buf[0], theData.buf[1]);
       recNo++;
       recWrite++;
     }
     else if (header_type == BackupFormat::DELETE_BY_ROWID_TYPE)
     {
-      ndbout_c("DELETE_BY_ROWID: RecNo: %u: Len: %x, page(%u,%u)",
-               recNo, len, theData.buf[0], theData.buf[1]);
+      if (print)
+        ndbout_c("DELETE_BY_ROWID: RecNo: %u: Len: %x, page(%u,%u)",
+                 recNo, len, theData.buf[0], theData.buf[1]);
       recNo++;
       recDeleteByRowId++;
     }
     else if (header_type == BackupFormat::DELETE_BY_PAGEID_TYPE)
     {
-      ndbout_c("DELETE_BY_PAGEID: RecNo: %u: Len: %x, page(%u)",
-               recNo, len, theData.buf[0]);
+      if (print)
+        ndbout_c("DELETE_BY_PAGEID: RecNo: %u: Len: %x, page(%u)",
+                 recNo, len, theData.buf[0]);
       recNo++;
       recDeleteByPageId++;
+    }
+    else
+    {
+      ndbout_c("Wrong header type %u", header_type);
     }
   }
   else
   {
     ndbout_c("Found %d INSERT records", recInsert);
-    ndbout_c("Found %d records", recWrite);
-    ndbout_c("Found %d records", recDeleteByRowId);
-    ndbout_c("Found %d records", recDeleteByPageId);
+    ndbout_c("Found %d WRITE records", recWrite);
+    ndbout_c("Found %d DELETE BY ROWID records", recDeleteByRowId);
+    ndbout_c("Found %d DELETE BY PAGEID records", recDeleteByPageId);
     ndbout_c("Found %d records", recNo);
   }
   
