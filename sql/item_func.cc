@@ -85,7 +85,6 @@
 #include "sql/mysqld.h"          // log_10 stage_user_sleep
 #include "sql/parse_tree_helpers.h" // PT_item_list
 #include "sql/psi_memory_key.h"
-#include "sql/query_result.h"    // sql_exchange
 #include "sql/resourcegroups/resource_group.h"
 #include "sql/resourcegroups/resource_group_basic_types.h"
 #include "sql/resourcegroups/resource_group_mgr.h"
@@ -101,6 +100,7 @@
 #include "sql/sql_class.h"       // THD
 #include "sql/sql_cmd.h"
 #include "sql/sql_error.h"
+#include "sql/sql_exchange.h"    // sql_exchange
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_load.h"        // Sql_cmd_load_table
@@ -3563,12 +3563,11 @@ bool Item_func_min_max::resolve_type(THD *)
       }
     }
     /*
-      If one or more of the arguments have a temporal data type, data type of
-      this item must be set accordingly temporarily to ensure that the various
-      aggregate functions derive the correct properties.
+      If one or more, but not all, of the arguments have a temporal data type,
+      the data type of this item must be set temporarily to ensure that the
+      various aggregate functions derive the correct properties.
     */
-    enum_field_types tmp_data_type= has_temporal_arg() &&
-                                    data_type() == MYSQL_TYPE_VARCHAR ?
+    enum_field_types tmp_data_type= (!is_temporal() && has_temporal_arg()) ?
                                     temporal_item->data_type() : data_type();
     enum_field_types aggregated_data_type= data_type();
     set_data_type(tmp_data_type);

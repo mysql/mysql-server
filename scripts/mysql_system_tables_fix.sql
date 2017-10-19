@@ -26,6 +26,19 @@
 set sql_mode='';
 set default_storage_engine=InnoDB;
 
+# Create a user mysql.infoschema@localhost as the owner of views in information_schema.
+# That user should be created at the beginning of the script, because a query against a
+# view from information_schema leads to check for presence of a user specified in view's DEFINER clause.
+# If the user mysql.infoschema@localhost hadn't been created at the beginning of the script,
+# the query from information_schema.tables below would have failed with the error
+# ERROR 1449 (HY000): The user specified as a definer ('mysql.infoschema'@'localhost') does not exist.
+
+INSERT IGNORE INTO mysql.user
+(host, user, select_priv, plugin, authentication_string, ssl_cipher, x509_issuer, x509_subject)
+VALUES ('localhost','mysql.infoschema','Y','mysql_native_password','*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE','','','');
+
+FLUSH PRIVILEGES;
+
 # Move distributed grant tables to default engine during upgrade, remember
 # which tables was moved so they can be moved back after upgrade
 SET @had_distributed_user =
@@ -617,6 +630,8 @@ UPDATE user SET account_locked = 'N' WHERE @hadAccountLocked=0;
 
 -- need to compensate for the ALTER TABLE user .. CONVERT TO CHARACTER SET above
 ALTER TABLE user MODIFY account_locked ENUM('N', 'Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL;
+
+UPDATE user SET account_locked ='Y' WHERE host = 'localhost' AND user = 'mysql.infoschema';
 
 --
 -- Drop password column

@@ -1137,11 +1137,11 @@ sub collect_one_test_case {
       if ( $default_storage_engine =~ /^mysiam/i );
   }
 
-  # Skip non-parallel tests if 'run-non-parallel-tests' option is disabled
-  if ($tinfo->{'not_parallel'} and !$::opt_run_non_parallel_tests)
+  # Skip non-parallel tests if 'non-parallel-test' option is disabled
+  if ($tinfo->{'not_parallel'} and !$::opt_non_parallel_test)
   {
     $tinfo->{'skip'}= 1;
-    $tinfo->{'comment'}= "Test needs 'run-non-parallel-tests' option";
+    $tinfo->{'comment'}= "Test needs 'non-parallel-test' option";
     return $tinfo;
   }
 

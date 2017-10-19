@@ -5,8 +5,8 @@
 # include default.weekly
 
 perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=debug      --vardir=var-debug --skip-rpl --report-features --debug-server
-#Run with --run-non-parallel-tests option so that non parallel tests are also run
-perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=normal     --vardir=var-normal --report-features --unit-tests-report --run-non-parallel-tests
+# Run with --non-parallel-test option so that non parallel tests are also run
+perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=normal     --vardir=var-normal --report-features --unit-tests-report --non-parallel-test
 perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=ps         --vardir=var-ps --ps-protocol
 perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=funcs2     --vardir=var-funcs2     --suite=funcs_2
 perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=partitions --vardir=var-parts      --suite=parts

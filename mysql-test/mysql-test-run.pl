@@ -345,7 +345,7 @@ my $opt_max_save_datadir= env_or_val(MTR_MAX_SAVE_DATADIR => 20);
 my $opt_max_test_fail= env_or_val(MTR_MAX_TEST_FAIL => 10);
 
 our $opt_parallel= $ENV{MTR_PARALLEL};
-our $opt_run_non_parallel_tests;
+our $opt_non_parallel_test;
 
 our $opt_summary_report;
 our $opt_xml_report;
@@ -1201,7 +1201,7 @@ sub command_line_setup {
 	     'parallel=s'               => \$opt_parallel,
 
              # Option to run the tests sourcing 'not_parallel.inc' file
-             'run-non-parallel-tests'   => \$opt_run_non_parallel_tests,
+             'non-parallel-test'        => \$opt_non_parallel_test,
 
              # Config file to use as template for all tests
 	     'defaults-file=s'          => \&collect_option,
@@ -7669,8 +7669,7 @@ Misc options
   force-restart         Always restart servers between tests
   parallel=N            Run tests in N parallel threads (default=1)
                         Use parallel=auto for auto-setting of N
-  run-non-parallel-tests
-                        Also run tests marked as 'non-parallel'. Tests sourcing
+  non-parallel-test     Also run tests marked as 'non-parallel'. Tests sourcing
                         'not_parallel.inc' are marked as 'non-parallel' tests.
   repeat=N              Run each test N number of times
   retry=N               Retry tests that fail N times, limit number of failures

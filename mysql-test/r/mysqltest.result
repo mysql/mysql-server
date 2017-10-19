@@ -1559,3 +1559,9 @@ Sample test
 The test 'MYSQLTEST_VARDIR/tmp/bug25929826.test' is not supported by this installation
 Detected in file MYSQLTEST_VARDIR/tmp/bug25929826.test at line 3:
 reason: Skipping bug25929826.test
+#
+# BUG#26630826: MTR: REPLACE_RESULT IS NOT ABLE TO REPLACE LONG
+#               STRINGS IN PATH NAME
+#
+REPLACE_STRING
+mysqltest: At line 1: query 'SELECT REPLACE_STRING FROM t1' failed: 1146: Table 'test.t1' doesn't exist

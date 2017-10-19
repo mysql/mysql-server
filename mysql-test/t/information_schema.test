@@ -2318,3 +2318,17 @@ SELECT COLUMN_DEFAULT FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME= 't1';
 
 --echo # Cleanup.
 DROP TABLE t1;
+
+--echo #
+--echo # BUG#25185947 -- issues with renaming root user
+--echo #
+
+RENAME USER root@localhost TO master@localhost;
+FLUSH PRIVILEGES;
+
+--echo # Without patch, SHOW DATABASES returns error ERROR 1449 (HY000):
+--echo # The user specified as a definer ('root'@'localhost') does not exist
+SHOW DATABASES;
+
+RENAME USER master@localhost TO root@localhost;
+FLUSH PRIVILEGES;

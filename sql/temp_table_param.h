@@ -19,6 +19,7 @@
 #include "my_base.h"
 #include "sql/mem_root_array.h"
 #include "sql/sql_list.h"
+#include "sql/window.h"
 
 
 struct MI_COLUMNDEF;

@@ -865,7 +865,7 @@
   a parallel value of <b>1</b> overriding the <b>`--parallel`</b>
   option value. Such test cases will be executed at the end of the test
   run one at a time. These tests also require
-  <b>`--run-non-parallel-tests`</b> option to be ON.
+  <b>`--non-parallel-test`</b> option to be ON.
 */
 
 ###############################################################################
@@ -4544,7 +4544,7 @@
     </li>
 
     <li>
-      <tt>`--run-non-parallel-tests`</tt>
+      <tt>`--non-parallel-test`</tt>
 
       Allow tests marked as "non-parallel" to run. Tests can be thus
       marked by including the line
@@ -6245,7 +6245,7 @@
 
       Execute the shell command using the <b>popen()</b> library call.
       References to variables within the command are replaced with the
-      corresponding values. Use “<b>\$</b>” to specify a literal
+      corresponding values. Use “<b>\\$</b>” to specify a literal
       “<b>$</b>” character.
 
       On Cygwin, the command is executed from <b>cmd.exe</b>, so

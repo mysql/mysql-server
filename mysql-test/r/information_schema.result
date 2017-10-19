@@ -544,11 +544,11 @@ NULL
 drop table t1;
 SHOW CREATE TABLE INFORMATION_SCHEMA.character_sets;
 View	Create View	character_set_client	collation_connection
-CHARACTER_SETS	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`CHARACTER_SETS` AS select `cs`.`name` AS `CHARACTER_SET_NAME`,`col`.`name` AS `DEFAULT_COLLATE_NAME`,`cs`.`comment` AS `DESCRIPTION`,`cs`.`mb_max_length` AS `MAXLEN` from (`mysql`.`character_sets` `cs` join `mysql`.`collations` `col` on((`cs`.`default_collation_id` = `col`.`id`)))	utf8	utf8_general_ci
+CHARACTER_SETS	CREATE ALGORITHM=UNDEFINED DEFINER=`mysql.infoschema`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`CHARACTER_SETS` AS select `cs`.`name` AS `CHARACTER_SET_NAME`,`col`.`name` AS `DEFAULT_COLLATE_NAME`,`cs`.`comment` AS `DESCRIPTION`,`cs`.`mb_max_length` AS `MAXLEN` from (`mysql`.`character_sets` `cs` join `mysql`.`collations` `col` on((`cs`.`default_collation_id` = `col`.`id`)))	utf8	utf8_general_ci
 set names latin2;
 SHOW CREATE TABLE INFORMATION_SCHEMA.character_sets;
 View	Create View	character_set_client	collation_connection
-CHARACTER_SETS	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`CHARACTER_SETS` AS select `cs`.`name` AS `CHARACTER_SET_NAME`,`col`.`name` AS `DEFAULT_COLLATE_NAME`,`cs`.`comment` AS `DESCRIPTION`,`cs`.`mb_max_length` AS `MAXLEN` from (`mysql`.`character_sets` `cs` join `mysql`.`collations` `col` on((`cs`.`default_collation_id` = `col`.`id`)))	utf8	utf8_general_ci
+CHARACTER_SETS	CREATE ALGORITHM=UNDEFINED DEFINER=`mysql.infoschema`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`CHARACTER_SETS` AS select `cs`.`name` AS `CHARACTER_SET_NAME`,`col`.`name` AS `DEFAULT_COLLATE_NAME`,`cs`.`comment` AS `DESCRIPTION`,`cs`.`mb_max_length` AS `MAXLEN` from (`mysql`.`character_sets` `cs` join `mysql`.`collations` `col` on((`cs`.`default_collation_id` = `col`.`id`)))	utf8	utf8_general_ci
 set names latin1;
 create table t1 select * from information_schema.CHARACTER_SETS
 where CHARACTER_SET_NAME like "latin1" order by character_set_name;
@@ -2535,3 +2535,20 @@ COLUMN_DEFAULT
 0x09
 # Cleanup.
 DROP TABLE t1;
+#
+# BUG#25185947 -- issues with renaming root user
+#
+RENAME USER root@localhost TO master@localhost;
+FLUSH PRIVILEGES;
+# Without patch, SHOW DATABASES returns error ERROR 1449 (HY000):
+# The user specified as a definer ('root'@'localhost') does not exist
+SHOW DATABASES;
+Database
+information_schema
+mtr
+mysql
+performance_schema
+sys
+test
+RENAME USER master@localhost TO root@localhost;
+FLUSH PRIVILEGES;

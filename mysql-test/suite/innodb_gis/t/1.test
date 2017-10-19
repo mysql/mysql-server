@@ -301,7 +301,7 @@ drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 
 CREATE TABLE `t1` (`object_id` bigint(20) unsigned NOT NULL default '0', `geo`
-geometry NOT NULL default '') ENGINE=InnoDB ;
+geometry NOT NULL) ENGINE=InnoDB ;
 
 SET sql_mode = default;
 

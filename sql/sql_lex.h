@@ -75,6 +75,7 @@
 #include "sql/sql_connect.h"          // USER_RESOURCES
 #include "sql/sql_const.h"
 #include "sql/sql_data_change.h"      // enum_duplicates
+#include "sql/sql_exchange.h"
 #include "sql/sql_get_diagnostics.h"  // Diagnostics_information
 #include "sql/sql_list.h"
 #include "sql/sql_plugin_ref.h"
@@ -196,8 +197,6 @@ enum enum_yes_no_unknown
 };
 
 enum class enum_ha_read_modes;
-
-enum enum_filetype { FILETYPE_CSV, FILETYPE_XML };
 
 /**
   used by the parser to store internal variable name
@@ -1740,58 +1739,6 @@ struct Query_options {
 
   bool merge(const Query_options &a, const Query_options &b);
   bool save_to(Parse_context *);
-};
-
-
-/**
-  Helper for the sql_exchange class
-*/
-
-struct Line_separators
-{
-  const String *line_term;
-  const String *line_start;
-
-  void cleanup() { line_term= line_start= NULL; }
-  void merge_line_separators(const Line_separators &s)
-  {
-    if (s.line_term != NULL)
-      line_term= s.line_term;
-    if (s.line_start != NULL)
-      line_start= s.line_start;
-  }
-};
-
-
-/**
-  Helper for the sql_exchange class
-*/
-
-struct Field_separators
-{
-  const String *field_term;
-  const String *escaped;
-  const String *enclosed;
-  bool opt_enclosed;
-  
-  void cleanup()
-  {
-    field_term= escaped= enclosed= NULL;
-    opt_enclosed= false;
-  }
-  void merge_field_separators(const Field_separators &s)
-  {
-    if (s.field_term != NULL)
-      field_term= s.field_term;
-    if (s.escaped != NULL)
-      escaped= s.escaped;
-    if (s.enclosed != NULL)
-      enclosed= s.enclosed;
-    // TODO: a bug?
-    // OPTIONALLY ENCLOSED BY x ENCLOSED BY y == OPTIONALLY ENCLOSED BY y
-    if (s.opt_enclosed)
-      opt_enclosed= s.opt_enclosed;
-  }
 };
 
 

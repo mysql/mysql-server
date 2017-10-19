@@ -811,9 +811,7 @@ CREATE TABLE t2 (geom GEOMETRY NOT NULL SRID 0, SPATIAL KEY gk(geom));
 INSERT INTO t2 SELECT ST_GeomFromText(st) FROM t1;
 ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 drop table t1, t2;
-CREATE TABLE t1 (`geometry` geometry NOT NULL default '' SRID 0,SPATIAL KEY `gndx` (`geometry`)) ENGINE=MyISAM DEFAULT CHARSET=latin1;
-Warnings:
-Warning	1101	BLOB, TEXT, GEOMETRY or JSON column 'geometry' can't have a default value
+CREATE TABLE t1 (`geometry` geometry NOT NULL SRID 0,SPATIAL KEY `gndx` (`geometry`)) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 INSERT INTO t1 (geometry) VALUES
 (ST_PolygonFromText('POLYGON((-18.6086111000 -66.9327777000, -18.6055555000
 -66.8158332999, -18.7186111000 -66.8102777000, -18.7211111000 -66.9269443999,
@@ -827,11 +825,9 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
 CREATE TABLE t1 (
-c1 geometry NOT NULL default '' SRID 0,
+c1 geometry NOT NULL SRID 0,
 SPATIAL KEY i1 (c1)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
-Warnings:
-Warning	1101	BLOB, TEXT, GEOMETRY or JSON column 'c1' can't have a default value
 INSERT INTO t1 (c1) VALUES (
 ST_PolygonFromText('POLYGON((-18.6086111000 -66.9327777000,
                             -18.6055555000 -66.8158332999,
@@ -843,11 +839,9 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 DROP TABLE t1;
 CREATE TABLE t1 (
-c1 geometry NOT NULL default '' SRID 0,
+c1 geometry NOT NULL SRID 0,
 SPATIAL KEY i1 (c1)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
-Warnings:
-Warning	1101	BLOB, TEXT, GEOMETRY or JSON column 'c1' can't have a default value
 INSERT INTO t1 (c1) VALUES (
 ST_PolygonFromText('POLYGON((-18.6086111000 -66.9327777000,
                             -18.6055555000 -66.8158332999,
@@ -1468,7 +1462,7 @@ CREATE TABLE t1(foo GEOMETRY NOT NULL SRID 0, SPATIAL INDEX(foo) );
 INSERT INTO t1(foo) VALUES (NULL);
 ERROR 23000: Column 'foo' cannot be null
 INSERT INTO t1() VALUES ();
-ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+ERROR HY000: Field 'foo' doesn't have a default value
 INSERT INTO t1(foo) VALUES ('');
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 DROP TABLE t1;
@@ -1572,7 +1566,7 @@ INSERT INTO t1 VALUES(0, ST_GEOMFROMTEXT("point (1 1)"));
 INSERT IGNORE INTO t1 SET a=0, b=ST_GEOMFROMTEXT("error");
 ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 INSERT IGNORE INTO t1 SET a=1, b=NULL;
-ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+ERROR 23000: Column 'b' cannot be null
 SELECT a, ST_ASTEXT(b) FROM t1;
 a	ST_ASTEXT(b)
 0	POINT(1 1)

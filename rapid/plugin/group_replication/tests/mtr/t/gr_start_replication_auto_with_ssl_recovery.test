@@ -32,16 +32,7 @@
 --replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
 --source include/restart_mysqld.inc
 
-# saving initial auto_increment_increment and auto_increment_offset
-# to be restored at end
---connection server1
---let $_init_server1_auto_increment= `SELECT @@GLOBAL.AUTO_INCREMENT_INCREMENT`
---let $_init_server1_auto_offset= `SELECT @@GLOBAL.AUTO_INCREMENT_OFFSET`
-
 --connection server2
---let $_init_server2_auto_increment= `SELECT @@GLOBAL.AUTO_INCREMENT_INCREMENT`
---let $_init_server2_auto_offset= `SELECT @@GLOBAL.AUTO_INCREMENT_OFFSET`
-
 #Connection options (Update the options file if changed)
 --let $recovery_user= rec_ssl_user
 
@@ -127,19 +118,11 @@ set session sql_log_bin=1;
 RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
 RESET MASTER;
 
-# reset auto_increment variables from initial saved values
---eval SET GLOBAL AUTO_INCREMENT_INCREMENT= $_init_server2_auto_increment
---eval SET GLOBAL AUTO_INCREMENT_OFFSET= $_init_server2_auto_offset
-
 --connection server1
 
 --source include/stop_group_replication.inc
 
 RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
 RESET MASTER;
-
-# reset auto_increment variables from initial saved values
---eval SET GLOBAL AUTO_INCREMENT_INCREMENT= $_init_server1_auto_increment
---eval SET GLOBAL AUTO_INCREMENT_OFFSET= $_init_server1_auto_offset
 
 --source ../inc/gr_clear_configuration.inc

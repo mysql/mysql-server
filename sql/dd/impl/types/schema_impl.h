@@ -74,10 +74,6 @@ public:
 
   virtual bool restore_attributes(const Raw_record &r);
 
-  void serialize(Sdi_wcontext *wctx, Sdi_writer *w) const;
-
-  bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val);
-
 public:
   /////////////////////////////////////////////////////////////////////////
   // Default collation.

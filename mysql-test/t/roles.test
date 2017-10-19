@@ -22,7 +22,7 @@ CREATE ROLE r1 IDENTIFIED BY 'test';
 --echo # Created roles should not allow login per default
 --echo # WL988.R-1.4
 --replace_column 3 <default_plugin>
-SELECT user,host, plugin,IF(account_locked = 'Y',"Account is locked","ERROR") FROM mysql.user u WHERE u.user NOT IN ('root', 'mysql.sys', 'mysql.session');
+SELECT user,host, plugin,IF(account_locked = 'Y',"Account is locked","ERROR") FROM mysql.user u WHERE u.user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
 
 --echo # Creating roles which already exist should not cause an error to be raised
 --echo # WL988.I-1
@@ -448,7 +448,7 @@ SELECT * FROM mysql.default_roles;
 
 DROP DATABASE db1;
 DROP PROCEDURE test.sp1;
-SELECT user,host FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
+SELECT user,host FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
 DROP ROLE maintenance_admin;
 DROP ROLE user_admin;
 DROP ROLE security_admin;

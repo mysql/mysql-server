@@ -2099,13 +2099,32 @@ bool check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
         view= table_list->is_view();
       }
       if (view)
-        (*field)->set_warning(Sql_condition::SL_WARNING,
-                              ER_NO_DEFAULT_FOR_VIEW_FIELD, 1,
-                              table_list->view_db.str,
-                              table_list->view_name.str);
+      {
+        if ((*field)->type() == MYSQL_TYPE_GEOMETRY)
+        {
+          my_error(ER_NO_DEFAULT_FOR_VIEW_FIELD, MYF(0),
+                   table_list->view_db.str, table_list->view_name.str);
+        }
+        else
+        {
+          (*field)->set_warning(Sql_condition::SL_WARNING,
+                                ER_NO_DEFAULT_FOR_VIEW_FIELD, 1,
+                                table_list->view_db.str,
+                                table_list->view_name.str);
+        }
+      }
       else
-        (*field)->set_warning(Sql_condition::SL_WARNING,
-                              ER_NO_DEFAULT_FOR_FIELD, 1);
+      {
+        if ((*field)->type() == MYSQL_TYPE_GEOMETRY)
+        {
+          my_error(ER_NO_DEFAULT_FOR_FIELD, MYF(0), (*field)->field_name);
+        }
+        else
+        {
+          (*field)->set_warning(Sql_condition::SL_WARNING,
+                                ER_NO_DEFAULT_FOR_FIELD, 1);
+        }
+      }
     }
   }
   bitmap_clear_all(write_set);
