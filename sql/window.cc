@@ -1024,23 +1024,6 @@ public:
 };
 
 
-/**
-  For now, we allow only the use of the new temp table memory engine,
-  and not the old HEAP engine. This makes the old logic to handle overflow
-  irrelevant, but we keep it now in case we decide to allow using HEAP again.
-  FIXME.
-*/
-static bool check_acceptable_storage_engines(THD *thd)
-{
-  if (thd->variables.internal_tmp_mem_storage_engine != TMP_TABLE_TEMPTABLE)
-  {
-    my_error(ER_WINDOW_SE_NOT_ACCEPTABLE, MYF(0));
-    return true;
-  }
-
-  return false;
-}
-
 bool Window::setup_windows(THD* thd,
                            SELECT_LEX *select,
                            Ref_item_array ref_item_array,
@@ -1050,9 +1033,6 @@ bool Window::setup_windows(THD* thd,
                            List<Window> &windows)
 {
   bool some_window_needs_frame_buffer= false;
-
-  if (check_acceptable_storage_engines(thd))
-    return true;
 
   if (!select->first_execution)
   {

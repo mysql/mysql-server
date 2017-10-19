@@ -8545,15 +8545,6 @@ NULL	75000	4	4	2	0.36363636363636365	0.3
 10	NULL	11	8	4	1	1
 DROP TABLE employee;
 #
-# Check that user hasn't changed default internal temporary table storage
-# engine
-#
-SET @savmode=@@GLOBAL.INTERNAL_TMP_MEM_STORAGE_ENGINE;
-SET INTERNAL_TMP_MEM_STORAGE_ENGINE='MEMORY';
-SELECT ROW_NUMBER() OVER () FROM DUAL;
-ERROR HY000: Windowing requires @@internal_tmp_mem_storage_engine=TempTable.
-SET INTERNAL_TMP_MEM_STORAGE_ENGINE=@savmode;
-#
 # Bug#26500442: WINDOW FUNCTIONS: CRASH IN WINDOW::HAS_WINDOWING_STEPS
 #
 CREATE TABLE t(a INT);

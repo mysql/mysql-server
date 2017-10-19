@@ -3564,16 +3564,6 @@ SELECT department_id, salary,
 DROP TABLE employee;
 
 --echo #
---echo # Check that user hasn't changed default internal temporary table storage
---echo # engine
---echo #
-SET @savmode=@@GLOBAL.INTERNAL_TMP_MEM_STORAGE_ENGINE;
-SET INTERNAL_TMP_MEM_STORAGE_ENGINE='MEMORY';
---error ER_WINDOW_SE_NOT_ACCEPTABLE
-SELECT ROW_NUMBER() OVER () FROM DUAL;
-SET INTERNAL_TMP_MEM_STORAGE_ENGINE=@savmode;
-
---echo #
 --echo # Bug#26500442: WINDOW FUNCTIONS: CRASH IN WINDOW::HAS_WINDOWING_STEPS
 --echo #
 CREATE TABLE t(a INT);

@@ -121,11 +121,6 @@ public:
   bool bit_fields_as_long;
   /// Whether the UNIQUE index can be promoted to PK
   bool can_use_pk_for_unique;
-  /**
-    Whether table scan may start from any row defined by a rnd_pos() call.
-    @todo remove in WL#9236.
-  */
-  bool allow_scan_from_position;
 
   bool m_window_short_circuit; ///< (Last) window's tmp file step can be skipped
   Window *m_window; ///< The window, if any,  dedicated to this tmp table
@@ -146,7 +141,7 @@ public:
      table_charset(NULL),
      schema_table(false), precomputed_group_by(false), force_copy_fields(false),
      skip_create_table(false), bit_fields_as_long(false),
-     can_use_pk_for_unique(true), allow_scan_from_position(false),
+     can_use_pk_for_unique(true),
      m_window_short_circuit(false),
      m_window(nullptr), hidden_func_count(0)
   {}

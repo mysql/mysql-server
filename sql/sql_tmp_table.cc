@@ -1299,32 +1299,8 @@ update_hidden:
     using_unique_constraint= true;
   }
 
-  /*
-    On the 3rd argument - force_disk_table:
-
-    unique constraint is implemented as index lookups (ha_index_read); if
-    allow_scan_from_position is true, we will be doing, on table->file:
-    Initialize Scan (rnd_init), Read Next Row (rnd_next, many times),
-    Get Position of Current row (position()), End Scan (rnd_end),
-    Write Row (write_row, many times),
-    Initialize Scan (rnd_init), Read Row at Position (rnd_pos),
-    Read Next Row (rnd_next).
-    This will work if TempTable is used, but will not work for the Heap
-    engine (TMP_TABLE_MEMORY) for the reason below. So only pick
-    on-disk if the configured engine is Heap.
-    write_row checks unique constraint so calls ha_index_read.
-    rnd_pos re-starts the scan on the same row where it had left. In
-    MEMORY, write_row modifies this member of the cursor:
-    HEAP_INFO::current_ptr; current_ptr is properly restored by
-    rnd_pos. But the write, to check the unique constraint, calls
-    ha_index_read (hp_rkey) which modifies another member of the cursor:
-    HEAP_INFO::current_record, which rnd_pos cannot restore. In that case,
-    rnd_pos will work, but rnd_next won't. Thus we switch to InnoDB.
-  */
-  if (setup_tmp_table_handler(table, select_options,
-            (param->allow_scan_from_position && using_unique_constraint &&
-            thd->variables.internal_tmp_mem_storage_engine == TMP_TABLE_MEMORY),
-            param->schema_table))
+  if (setup_tmp_table_handler(table, select_options, false,
+                              param->schema_table))
     goto err;                                   /* purecov: inspected */
 
   if (table->s->keys == 1 && table->key_info)
