@@ -61,7 +61,6 @@ void Dbtc::initData()
   c_theDefinedTriggerPool.setSize(c_maxNumberOfDefinedTriggers);
   c_theFiredTriggerPool.setSize(c_maxNumberOfFiredTriggers);
   c_theIndexPool.setSize(c_maxNumberOfIndexes);
-  c_theIndexOperationPool.setSize(c_maxNumberOfIndexOperations);
   c_theAttributeBufferPool.setSize(c_transactionBufferSpace);
   c_firedTriggerHash.setSize((c_maxNumberOfFiredTriggers+10)/10);
 }//Dbtc::initData()
@@ -118,15 +117,6 @@ void Dbtc::initRecords()
   }
   while (indexes.releaseFirst());
 
-  // Init all index operation records
-  TcIndexOperation_sllist indexOps(c_theIndexOperationPool);
-  TcIndexOperationPtr ioptr;
-  while (indexOps.seizeFirst(ioptr) == true) {
-    p= ioptr.p;
-    new (p) TcIndexOperation(); // TODO : Modify alloc size of c_theAttributeBufferPool
-  }
-  while (indexOps.releaseFirst());
-
   c_apiConTimer = (UintR*)allocRecord("ApiConTimer",
 				      sizeof(UintR),
 				      capiConnectFilesize);
@@ -168,7 +158,6 @@ void Dbtc::initRecords()
     ptrAss(ptr, tcConnectRecord);
     new (ptr.p) TcConnectRecord();
   }
-  while (indexOps.releaseFirst());
   
   gcpRecord = (GcpRecord*)allocRecord("GcpRecord",
 				      sizeof(GcpRecord), 
@@ -179,6 +168,7 @@ void Dbtc::initRecords()
   c_scan_frag_pool.init(RT_DBTC_SCAN_FRAGMENT, pc, 0, UINT32_MAX);
   m_fragLocationPool.init(RT_DBTC_FRAG_LOCATION, pc, 0, UINT32_MAX);
   m_commitAckMarkerPool.init(CommitAckMarker::TYPE_ID, pc, 0, UINT32_MAX);
+  c_theIndexOperationPool.init(TcIndexOperation::TYPE_ID, pc, 0, UINT32_MAX);
 }//Dbtc::initRecords()
 
 bool
@@ -214,7 +204,6 @@ Dbtc::Dbtc(Block_context& ctx, Uint32 instanceNo):
   c_maxNumberOfFiredTriggers(0),
   c_theIndexes(c_theIndexPool),
   c_maxNumberOfIndexes(0),
-  c_maxNumberOfIndexOperations(0),
   c_fk_hash(c_fk_pool),
   m_commitAckMarkerHash(m_commitAckMarkerPool)
 {
@@ -225,15 +214,13 @@ Dbtc::Dbtc(Block_context& ctx, Uint32 instanceNo):
   ndbrequire(p != 0);
 
   Uint32 transactionBufferMemory = 0;
-  Uint32 maxNoOfIndexes = 0, maxNoOfConcurrentIndexOperations = 0;
+  Uint32 maxNoOfIndexes = 0;
   Uint32 maxNoOfTriggers = 0, maxNoOfFiredTriggers = 0;
 
   ndb_mgm_get_int_parameter(p, CFG_DB_TRANS_BUFFER_MEM,  
 			    &transactionBufferMemory);
   ndb_mgm_get_int_parameter(p, CFG_DICT_TABLE,
 			    &maxNoOfIndexes);
-  ndb_mgm_get_int_parameter(p, CFG_DB_NO_INDEX_OPS, 
-			    &maxNoOfConcurrentIndexOperations);
   ndb_mgm_get_int_parameter(p, CFG_DB_NO_TRIGGERS, 
 			    &maxNoOfTriggers);
   ndb_mgm_get_int_parameter(p, CFG_DB_NO_TRIGGER_OPS, 
@@ -242,7 +229,6 @@ Dbtc::Dbtc(Block_context& ctx, Uint32 instanceNo):
   c_transactionBufferSpace = 
     transactionBufferMemory / AttributeBuffer::getSegmentSize();
   c_maxNumberOfIndexes = maxNoOfIndexes;
-  c_maxNumberOfIndexOperations = maxNoOfConcurrentIndexOperations;
   c_maxNumberOfDefinedTriggers = maxNoOfTriggers;
   c_maxNumberOfFiredTriggers = maxNoOfFiredTriggers;
 

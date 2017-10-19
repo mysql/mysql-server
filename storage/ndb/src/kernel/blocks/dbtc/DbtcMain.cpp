@@ -16723,7 +16723,7 @@ void Dbtc::execDBINFO_SCANREQ(Signal *signal)
         c_theIndexOperationPool.getSize(),
         c_theIndexOperationPool.getEntrySize(),
         c_theIndexOperationPool.getUsedHi(),
-        { CFG_DB_NO_INDEX_OPS,0,0,0 }},
+        { 0, 0, 0, 0 }},
       { "Operations",
         c_counters.cconcurrentOp,
         ctcConnectFilesize,

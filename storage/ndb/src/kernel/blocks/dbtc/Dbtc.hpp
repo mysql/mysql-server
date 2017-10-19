@@ -629,7 +629,10 @@ public:
   UintR c_maxNumberOfIndexes;
 
   struct TcIndexOperation {
+    STATIC_CONST( TYPE_ID = RT_DBTC_INDEX_OPERATION );
+
     TcIndexOperation() :
+      m_magic(Magic::make(TYPE_ID)),
       indexOpState(IOS_NOOP),
       pendingKeyInfo(0),
       keyInfoSectionIVal(RNIL),
@@ -646,6 +649,8 @@ public:
     {
     }
     
+    Uint32 m_magic;
+
     // Index data
     Uint32 indexOpId;
     IndexOperationState indexOpState; // Used to mark on-going TcKeyReq
@@ -665,12 +670,9 @@ public:
     Uint32 savedFlags; // Saved transaction flags
 
     /**
-     * Next ptr (used in pool/list)
+     * Next ptr (used in list)
      */
-    union {
-      Uint32 nextPool;
-      Uint32 nextList;
-    };
+    Uint32 nextList;
     /**
      * Prev pointer (used in list)
      */
@@ -678,7 +680,7 @@ public:
   };
   
   typedef Ptr<TcIndexOperation> TcIndexOperationPtr;
-  typedef ArrayPool<TcIndexOperation> TcIndexOperation_pool;
+  typedef TransientPool<TcIndexOperation> TcIndexOperation_pool;
   typedef SLList<TcIndexOperation_pool> TcIndexOperation_sllist;
   typedef DLList<TcIndexOperation_pool> TcIndexOperation_dllist;
 
@@ -687,8 +689,6 @@ public:
    */
   TcIndexOperation_pool c_theIndexOperationPool;
   RSS_AP_SNAPSHOT(c_theIndexOperationPool);
-
-  UintR c_maxNumberOfIndexOperations;   
 
   struct TcFKData {
     TcFKData() {}
