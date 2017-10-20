@@ -8132,7 +8132,8 @@ dict_table_get_datadir(const dict_table_t* table)
 {
 	std::string	path;
 
-	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
+	if (DICT_TF_HAS_DATA_DIR(table->flags)
+		&& table->data_dir_path != nullptr) {
 
 		path.assign(table->data_dir_path);
 	}
