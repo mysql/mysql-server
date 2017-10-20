@@ -4608,6 +4608,12 @@ Dbtup::nr_update_gci(Uint32 fragPtrI,
    * flag to avoid it being set other than when done
    * with a purpose to actually set it (happens in
    * DELETE BY PAGEID and DELETE BY ROWID).
+   *
+   * This code is called in restore for DELETE BY
+   * ROWID and PAGEID. We want to set the GCI in
+   * this specific case, but not for WRITEs and
+   * INSERTs, so we make this condition always
+   * true.
    */
   if (tablePtr.p->m_bits & Tablerec::TR_RowGCI || true)
   {
