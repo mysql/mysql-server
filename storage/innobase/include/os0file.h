@@ -35,8 +35,6 @@ Created 10/21/1995 Heikki Tuuri
 #ifndef os0file_h
 #define os0file_h
 
-#include "my_dbug.h"
-#include "my_io.h"
 #include "univ.i"
 #include "os/file.h"
 
