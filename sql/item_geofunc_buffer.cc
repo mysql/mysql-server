@@ -390,17 +390,21 @@ String *Item_func_buffer::val_str(String *str_value_arg)
   DBUG_ENTER("Item_func_buffer::val_str");
   DBUG_ASSERT(fixed == 1);
   String strat_bufs[side_strategy + 1];
+
   String *obj= args[0]->val_str(&tmp_value);
+  if (!obj || args[0]->null_value)
+    DBUG_RETURN(error_str());
+
   double dist= args[1]->val_real();
+  if (args[1]->null_value)
+    DBUG_RETURN (error_str());
+
   Geometry_buffer buffer;
   Geometry *geom;
   String *str_result= str_value_arg;
 
   null_value= false;
   bg_resbuf_mgr.free_result_buffer();
-
-  if (!obj || args[0]->null_value || args[1]->null_value)
-    DBUG_RETURN(error_str());
 
   // Reset the two arrays, set_strategies() requires the settings array to
   // be brand new on every ST_Buffer() call.

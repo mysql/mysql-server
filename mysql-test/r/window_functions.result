@@ -8818,3 +8818,10 @@ row#	field1
 5	NULL
 6	NULL
 DROP TABLE t1, t2;
+#
+# Bug#26975882: CRASH IN STRING::COPY, USUALLY WITH WKB FUNCTIONS
+#               / WINDOW FUNC
+#
+SELECT ST_BUFFER(ST_ASBINARY(1), ST_ASBINARY(NTH_VALUE('4714-05-04',1)OVER(),'axis-order=long-lat'));
+ERROR 22023: Invalid GIS data provided to function st_aswkb.
+# End of test for Bug#26975882
