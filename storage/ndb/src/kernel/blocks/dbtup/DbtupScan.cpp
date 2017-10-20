@@ -1076,9 +1076,13 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
            * page was resurrected again and finally now we come here to
            * handle the page. Again in this case we can move on since the
            * page was handled at the time the page was dropped.
-           * 4) The page entry is non-empty and the page existed at time
-           * of LCP start. This is the normal page handling where we scan
-           * one row at a time.
+           *
+           * 2) and 3) are found through either the LCP_SCANNED_BIT being
+           * set in the page map, or by the page_to_skip_lcp bit being set
+           * on the page object.
+           *
+           * 4) The page entry is non-empty. This is the normal page
+           * handling where we scan one row at a time.
            *
            * Finally the case 4) can have four distinct options as well.
            * 4a) The page existed before the LCP started and had rows
@@ -1090,15 +1094,14 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
            * it (thus got the LCP skip bit set on the page). It belonged to
            * the ALL ROWS pages and thus the page will be skipped.
            *
+           * Discovered either by LCP_SCANNED_BIT or by page_to_skip_lcp bit
+           * being set on the page.
+           *
            * 4c) Same as 4b) except that it belongs to the CHANGED ROWS pages.
            * Also the last LCP state was D. Page is ignored.
            *
            * 4d) Same as 4c) except that last LCP state was A. In this we
            * record the page as a DELETE by PAGEID in the LCP.
-           *
-           * Both option 2) and 3) is indicated by the flag derived from
-           * the page map which is reported back in the call to
-           * getRealPidLcpScan.
            */
           if (bits & ScanOp::SCAN_LCP)
           {
@@ -2241,11 +2244,21 @@ Dbtup::handle_lcp_drop_change_page(Fragrecord *fragPtrP,
    *
    * This procedure will guarantee that we have space to record the
    * DELETE by ROWIDs in the LCP keep list.
+   *
+   * An especially complex case happens when the LCP scan is in the
+   * middle of scanning this page. This could happen due to an
+   * inopportune real-time break in combination with multiple
+   * deletes happening within this real-time break.
+   *
+   * If page_to_skip_lcp bit was set we will perform delete_by_pageid
+   * here. So we need not worry about this flag in call to
+   * is_rowid_in_remaining_lcp_set for each row in loop, this call will
+   * ensure that we will skip any rows already handled by the LCP scan.
    */
   ScanOpPtr scanPtr;
   TablerecPtr tablePtr;
   c_scanOpPool.getPtr(scanPtr, fragPtrP->m_lcp_scan_op);
-  tablePtr.i = scanPtr.p->m_tableId;
+  tablePtr.i = fragPtrP->fragTableId;
   ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
   Uint32 scanGCI = scanPtr.p->m_scanGCI;
   Uint32 idx = 0; /* First record index */
@@ -2264,6 +2277,8 @@ Dbtup::handle_lcp_drop_change_page(Fragrecord *fragPtrP,
   if (!delete_by_pageid)
   {
     jam();
+    Local_key key;
+    key.m_page_no = logicalPageId;
     while ((idx + size) <= Fix_page::DATA_WORDS)
     {
       Tuple_header *th = (Tuple_header*)&page->m_data[idx];
@@ -2279,7 +2294,15 @@ Dbtup::handle_lcp_drop_change_page(Fragrecord *fragPtrP,
        * row was inserted after start of LCP. So we will definitely record it
        * here for DELETE by ROWID.
        */
-      if ((rowGCI > scanGCI || rowGCI == 0) && lcp_skip_not_set)
+      key.m_page_idx = idx;
+      bool is_in_remaining_lcp_set =
+        is_rowid_in_remaining_lcp_set(pagePtr.p,
+                                      key,
+                                      *scanPtr.p,
+                                      0);
+      if ((rowGCI > scanGCI || rowGCI == 0) &&
+          lcp_skip_not_set &&
+          is_in_remaining_lcp_set)
       {
         jam();
         jamLine((Uint16)idx);
@@ -2296,7 +2319,7 @@ Dbtup::handle_lcp_drop_change_page(Fragrecord *fragPtrP,
       {
         DEB_LCP_REL(("(%u)tab(%u,%u)page(%u,%u) skipped"
                      "lcp_skip_not_set: %u, rowGCI: %u"
-                     " scanGCI: %u",
+                     " scanGCI: %u, in LCP set: %u",
                      instance(),
                      fragPtrP->fragTableId,
                      fragPtrP->fragmentId,
@@ -2304,7 +2327,8 @@ Dbtup::handle_lcp_drop_change_page(Fragrecord *fragPtrP,
                      idx,
                      lcp_skip_not_set,
                      rowGCI,
-                     scanGCI));
+                     scanGCI,
+                     is_in_remaining_lcp_set));
       }
       idx += size;
     }

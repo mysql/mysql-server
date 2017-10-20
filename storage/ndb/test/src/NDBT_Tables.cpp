@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -599,6 +599,30 @@ static
 const
 NDBT_Table T16("T16", sizeof(T16Attribs)/sizeof(NDBT_Attribute), T16Attribs);
 
+static
+const
+NDBT_Attribute T17Attribs[] = {
+  NDBT_Attribute("KOL1", NdbDictionary::Column::Unsigned, 1, true, false),
+  NDBT_Attribute("KOL2", NdbDictionary::Column::Binary, 8000),
+  NDBT_Attribute("KOL99", NdbDictionary::Column::Unsigned, 1, false, false),
+};
+
+static
+const
+NDBT_Table T17("T17", sizeof(T17Attribs)/sizeof(NDBT_Attribute), T17Attribs);
+
+static
+const
+NDBT_Attribute T18Attribs[] = {
+  NDBT_Attribute("KOL1", NdbDictionary::Column::Unsigned, 1, true, false),
+  NDBT_Attribute("KOL2", NdbDictionary::Column::Varbinary, 13500),
+  NDBT_Attribute("KOL99", NdbDictionary::Column::Unsigned, 1, false, false),
+};
+
+static
+const
+NDBT_Table T18("T18", sizeof(T18Attribs)/sizeof(NDBT_Attribute), T18Attribs);
+
 /*
   C2 DHCP TABLES, MAYBE THESE SHOULD BE MOVED TO THE UTIL_TABLES?
 */
@@ -763,6 +787,8 @@ NDBT_Table *test_tables[]=
   &T14,
   &T15,
   &T16,
+  &T17,
+  &T18,
   &I1,
   &I2,
   &I3,

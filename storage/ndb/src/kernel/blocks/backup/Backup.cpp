@@ -6523,6 +6523,17 @@ Backup::hash_lcp_part(Uint32 page_id) const
   return part_id;
 }
 
+bool
+Backup::is_change_part_state(Uint32 page_id)
+{
+  BackupRecordPtr ptr;
+  jamEntry();
+  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  Uint32 part_id = hash_lcp_part(page_id);
+  bool is_all_part = is_all_rows_page(ptr, part_id);
+  return !is_all_part;
+}
+
 void
 Backup::get_page_info(BackupRecordPtr ptr,
                       Uint32 part_id,
@@ -9320,9 +9331,9 @@ Backup::execFSREMOVECONF(Signal* signal)
  *     ..............................................................
  *
  * A stands for an allocation event, D stands for an release event (drop page)
- * [AD].. stands for a A followed by D but possibly several ones and possiblhy
+ * [AD].. stands for a A followed by D but possibly several ones and possibly
  * also no events.
- * E stands for empty set of events (no A or D events happened in the period.
+ * E stands for empty set of events (no A or D events happened in the period).
  *
  * Case 1: Dropped before start of last LCP and dropped at start of this LCP
  * Desired action for ALL ROWS pages: Ignore page
@@ -9331,7 +9342,7 @@ Backup::execFSREMOVECONF(Signal* signal)
  *
  * D  LCP_Start(n)   [AD]..    LCP_Start(n+1)  E           LCP_End(n+1) (1)
  * D  LCP_Start(n)   [AD]..    LCP_Start(n+1)  A           LCP_End(n+1) (2)
- * D  LCP_Start(n)   [AD]..    LCP_Start(n+1)  [AD].. A    LCP_End(n+1) (3)
+ * D  LCP_Start(n)   [AD]..    LCP_Start(n+1)  [AD]..A     LCP_End(n+1) (3)
  *
  * (1) is found by the empty page when the LCP scan finds it and the
  *     LCP_SCANNED_BIT is not set. Thus ALL ROWS pages knows to ignore the
@@ -9350,11 +9361,14 @@ Backup::execFSREMOVECONF(Signal* signal)
  *     LCP scan has reached the page. When LCP scan reaches the page we will
  *     set the state of last LCP to D when page->is_page_to_skip_lcp() is
  *     true.
- *    
+ *
  * (3) is found by discovering that LCP_SCANNED_BIT is set since the first
  *     D event after LCP start handled the page and handled any needed
  *     DELETE by PAGEID. After discovering this one needs to reset the
- *     LCP_SCANNED_BIT again.
+ *     LCP_SCANNED_BIT again. At the first A the page_to_skip_lcp bit
+ *     was set, but the first D issued a DELETE BY PAGEID and dropped
+ *     the page and to flag that the LCP scan was handled the
+ *     LCP_SCANNED_BIT was set.
  *
  *     We read the old last LCP state and set the new last LCP state when
  *     reaching the first D event after start of LCP. The
