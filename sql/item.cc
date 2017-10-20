@@ -1371,7 +1371,7 @@ bool Item::get_date_from_time(MYSQL_TIME *ltime)
    MYSQL_TIME tm;
    if (get_time(&tm))
    {
-     DBUG_ASSERT(null_value);
+     DBUG_ASSERT(null_value || current_thd->is_error());
      return true;
    }
    time_to_datetime(current_thd, &tm, ltime);
