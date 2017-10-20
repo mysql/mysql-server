@@ -5975,9 +5975,10 @@ sub mysqld_arguments ($$$) {
     defined $mysqld->option("log_error");
 
   # In the [mysqld] section
-  $found_log_error= 1 if defined mysqld_group() and
-                         (defined mysqld_group()->option("log-error") or
-                          defined mysqld_group()->option("log_error"));
+  $found_log_error= 1 if
+    !found_log_error and defined mysqld_group() and
+    (defined mysqld_group()->option("log-error") or
+     defined mysqld_group()->option("log_error"));
 
   foreach my $arg ( @$extra_opts )
   {
