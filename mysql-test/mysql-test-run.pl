@@ -5982,54 +5982,55 @@ sub mysqld_arguments ($$$) {
   my $found_no_console= 0;
   my $found_log_error= 0;
 
-  # Do not add console if log-error found in .cnf file for windows
-  open (CONFIG_FILE, " < $path_config_file") or die ("Could not open output file $path_config_file");
-  while ( <CONFIG_FILE> )
-  {
-    if ( m/^log[-_]error/ ) {
-      $found_log_error= 1;
-    }
-  }
-  close (CONFIG_FILE);
+  # Check if the option 'log-error' is found in the .cnf file
+  # In the group defined for the server
+  $found_log_error= 1 if
+    defined $mysqld->option("log-error") or
+    defined $mysqld->option("log_error");
+
+  # In the [mysqld] section
+  $found_log_error= 1 if defined mysqld_group() and
+                         (defined mysqld_group()->option("log-error") or
+                          defined mysqld_group()->option("log_error"));
 
   foreach my $arg ( @$extra_opts )
   {
     # Skip option file options because they are handled above
     next if ( grep { $arg =~ $_ } @options);
 
-    if ($arg =~ /--log[-_]error/)
+    if ($arg =~ /--log[-_]error=/ or $arg =~ /--log[-_]error$/)
     {
       $found_log_error= 1;
     }
-
-    # Allow --skip-core-file to be set in <testname>-[master|slave].opt file
-    if ($arg eq "--skip-core-file")
+    elsif ($arg eq "--skip-core-file")
     {
+      # Allow --skip-core-file to be set in <testname>-[master|slave].opt file
       $found_skip_core= 1;
+      next;
     }
     elsif ($arg eq "--no-console")
     {
-        $found_no_console= 1;
+      $found_no_console= 1;
+      next;
     }
     elsif ($arg =~ /--loose[-_]skip[-_]log[-_]bin/ and
            $mysqld->option("log-slave-updates"))
     {
-      ; # Dont add --skip-log-bin when mysqld have --log-slave-updates in config
+      # Dont add --skip-log-bin when mysqld has --log-slave-updates in config
+      next;
     }
     elsif ($arg eq "")
     {
       # We can get an empty argument when  we set environment variables to ""
       # (e.g plugin not found). Just skip it.
+      next;
     }
     elsif ($arg eq "--daemonize")
     {
       $mysqld->{'daemonize'}= 1;
-      mtr_add_arg($args, "%s", $arg);
     }
-    else
-    {
-      mtr_add_arg($args, "%s", $arg);
-    }
+
+    mtr_add_arg($args, "%s", $arg);
   }
 
   $opt_skip_core = $found_skip_core;
@@ -6398,6 +6399,10 @@ sub ndb_mgmds { return _like('cluster_config.ndb_mgmd.'); }
 sub clusters  { return _like('mysql_cluster.'); }
 sub memcacheds { return _like('memcached.'); }
 sub all_servers { return ( mysqlds(), ndb_mgmds(), ndbds(), memcacheds() ); }
+# Return an object which refers to the group named '[mysqld]'
+# from the my.cnf file. Options specified in the section can
+# be accessed using it.
+sub mysqld_group { return $config ? $config->group('mysqld') : (); }
 
 #
 # Filter a list of servers and return only those that are part
