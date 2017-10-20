@@ -3272,71 +3272,6 @@ ib_sdi_open_table(
 	return(err);
 }
 
-
-/* TODO: remove this workaround for Bug#26539665 after discussing with runtime team
-@param[in]	space_id	space id
-@param[in]	ib_sdi_key	SDI key to uniquely identify the tablespace
-				object
-@param[in]	uncomp_len	uncompressed length of SDI
-@param[in]	comp_len	compressed length of SDI
-@param[in]	sdi		compressed SDI to be stored in tablespace
-@return DB_SUCCESS if SDI Insert/Update is successful, else error */
-static
-dberr_t
-ib_sdi_insert_schema(
-	uint32_t		space_id,
-	const ib_sdi_key_t*	ib_sdi_key,
-	uint32_t		uncomp_len,
-	uint32_t		comp_len,
-	const void*		sdi)
-{
-	/* use separate trx for schema SDI */
-	/* do non-locking MVCC read to see schema SDI already exists */
-	/* If exists, just return, we never update schema SDI */
-	/* If doesn't exist and we get DB_LOCK_WAIT/DB_DEADLOCK due to
-	concurrent inserts of same schema SDI, retry until success */
-	trx_t* trx = trx_allocate_for_mysql();
-	trx_start_internal(trx);
-
-	ib_crsr_t	ib_crsr = NULL;
-	ib_err_t	err = ib_sdi_open_table(
-		space_id, trx, &ib_crsr);
-
-	if (err != DB_SUCCESS) {
-		trx_commit_for_mysql(trx);
-		trx_free_for_mysql(trx);
-		return(err);
-	}
-
-	ib_tpl_t	schema_tuple = ib_sdi_create_insert_tuple(
-		ib_crsr, ib_sdi_key->sdi_key, uncomp_len,
-		comp_len, sdi);
-
-	ib_cursor_set_lock_mode(ib_crsr, IB_LOCK_X);
-	ib_tpl_t	key_tpl = ib_sdi_create_search_tuple(
-		ib_crsr, ib_sdi_key->sdi_key);
-
-	ib_cursor_set_match_mode(ib_crsr, IB_EXACT_MATCH);
-	ib_cursor_set_lock_mode(ib_crsr, IB_LOCK_NONE);
-	err = ib_cursor_moveto(ib_crsr, key_tpl, IB_CUR_LE, 0);
-
-	if (err == DB_RECORD_NOT_FOUND) {
-		do {
-			/* Do insert. handle lock wait timeout and deadlock */
-			err = ib_cursor_insert_row(ib_crsr, schema_tuple);
-		} while (err == DB_LOCK_WAIT_TIMEOUT || err == DB_DEADLOCK);
-	}
-
-	ut_ad(err == DB_SUCCESS || err == DB_DUPLICATE_KEY);
-
-	ib_tuple_delete(key_tpl);
-	ib_tuple_delete(schema_tuple);
-	ib_cursor_close(ib_crsr);
-	trx_commit_for_mysql(trx);
-	trx_free_for_mysql(trx);
-	return(DB_SUCCESS);
-}
-
 /** Insert/Update SDI in tablespace
 @param[in]	tablespace_id	tablespace id
 @param[in]	ib_sdi_key	SDI key to uniquely identify the tablespace
@@ -3364,13 +3299,6 @@ ib_sdi_set(
 			<< " " << ib_sdi_key->sdi_key->id
 			<< " sdi_len: " << comp_len;
 	);
-
-	/* TODO: remove this workaround for handling Schema SDI
-	(Bug#26539665) */
-	if (ib_sdi_key->sdi_key->type == 0) {
-		return(ib_sdi_insert_schema(tablespace_id, ib_sdi_key,
-					    uncomp_len, comp_len, sdi));
-	}
 
 	ib_crsr_t	ib_crsr = NULL;
 	ib_err_t	err = ib_sdi_open_table(
