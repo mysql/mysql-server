@@ -3798,6 +3798,16 @@ SELECT ROW_NUMBER() OVER () AS `row#`,
 
 DROP TABLE t1, t2;
 
+--echo #
+--echo # Bug#26975882: CRASH IN STRING::COPY, USUALLY WITH WKB FUNCTIONS
+--echo #               / WINDOW FUNC
+--echo #
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_BUFFER(ST_ASBINARY(1), ST_ASBINARY(NTH_VALUE('4714-05-04',1)OVER(),'axis-order=long-lat'));
+
+--echo # End of test for Bug#26975882
+
 # Local Variables:
 # mode: sql
 # sql-product: mysql
