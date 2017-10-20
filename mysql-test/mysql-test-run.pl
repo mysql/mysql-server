@@ -5990,7 +5990,7 @@ sub mysqld_arguments ($$$) {
 
   # In the [mysqld] section
   $found_log_error= 1 if
-    !found_log_error and defined mysqld_group() and
+    !$found_log_error and defined mysqld_group() and
     (defined mysqld_group()->option("log-error") or
      defined mysqld_group()->option("log_error"));
 
