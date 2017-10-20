@@ -1233,6 +1233,8 @@ public:
 
   void setRestorableGci(Uint32);
   Uint32 getRestorableGci();
+public:
+  bool is_change_part_state(Uint32 page_id);
 };
 
 inline

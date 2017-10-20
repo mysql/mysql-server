@@ -3680,7 +3680,7 @@ TESTCASE("SR11", "More tests of SR4 variant\n")
   TC_PROPERTY("NumParts", 10);
   TC_PROPERTY("SetMinTimeLCP", Uint32(0));
   TC_PROPERTY("PerformUpdates", Uint32(0));
-  TC_PROPERTY("VerifyInsert", Uint32(0));
+  TC_PROPERTY("VerifyInsert", Uint32(1));
   TC_PROPERTY("VerifyDelete", Uint32(0));
   TC_PROPERTY("Step", Uint32(1));
   TC_PROPERTY("Batch", Uint32(1));

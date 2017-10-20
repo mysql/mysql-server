@@ -950,7 +950,6 @@ Dbtup::releaseFragPage(Fragrecord* fragPtrP,
   ndbrequire(next != 0 && prev != 0);
   ndbassert(((*prev) & FREE_PAGE_BIT) == FREE_PAGE_BIT);
 
-  bool all_part = true;
   bool page_freed = false;
   Uint32 lcp_scanned_bit = (*next) & LCP_SCANNED_BIT;
   Uint32 last_lcp_state = (*prev) & LAST_LCP_FREE_BIT;
@@ -975,7 +974,8 @@ Dbtup::releaseFragPage(Fragrecord* fragPtrP,
     if (is_rowid_in_remaining_lcp_set(pagePtr.p,
                                       key,
                                       *scanOp.p,
-                                      1 /* Debug for LCP scanned bit */))
+                                      1 /* Debug for LCP scanned bit */) ||
+        pagePtr.p->is_page_to_skip_lcp())
     {
       jam();
       lcp_to_scan = true;
@@ -988,6 +988,17 @@ Dbtup::releaseFragPage(Fragrecord* fragPtrP,
          * now before we release the page and record the needed
          * information. Also we haven't already dropped the page
          * already before in this LCP scan.
+         *
+         * is_rowid_in_remaining_lcp_set is normally false when
+         * is_page_to_skip_lcp is true. The problem however is that
+         * this is a state on the page, and the page is being dropped,
+         * so in this case we need to ensure that the page is not
+         * containing any row at restore. We ensure this by using
+         * a DELETE BY PAGEID in this case. We also flag that the
+         * page have been scanned for LCP in the page map. It is
+         * possible to arrive here after allocate, drop, allocate
+         * and drop again. In this case the LCP scanned bit will
+         * still be set and we can ignore the page.
          *
          * We will release the page during handle_lcp_drop_change
          * to ensure that we are certain to get the space we
@@ -1010,7 +1021,23 @@ Dbtup::releaseFragPage(Fragrecord* fragPtrP,
          *
          * No need to clear the page to skip lcp flag here since the
          * page is dropped immediately following this.
+         *
+         * If last page state was D the page will be empty at the
+         * previous LCP, so this means that there is no need to
+         * delete rows that won't be there. There is not really any
+         * problem in performing deletes in this case, but it would
+         * cause unnecessary work. The rows that was present in the
+         * page at start of LCP have already been handled through
+         * LCP keep list.
+         *
+         * If last state was A there was a set of rows installed by
+         * the previous LCP, some of those rows will remain if we
+         * don't ensure that they are removed. So in this case we
+         * remove all rows on the page that hasn't got the LCP_SKIP
+         * flag set. Those rows with this flag set have been handled
+         * by the LCP keep list before arriving here.
          */
+        bool is_change_part = c_backup->is_change_part_state(logicalPageId);
         DEB_LCP_SCANNED_BIT(("(%u)Set lcp_scanned_bit on tab(%u,%u):%u",
                              instance(),
                              fragPtrP->fragTableId,
@@ -1019,7 +1046,7 @@ Dbtup::releaseFragPage(Fragrecord* fragPtrP,
         lcp_scanned_bit = LCP_SCANNED_BIT;
         Uint32 new_last_lcp_state = pagePtr.p->is_page_to_skip_lcp() ?
                                     LAST_LCP_FREE_BIT : 0;
-        if (!all_part && (last_lcp_state == 0))
+        if (is_change_part && (last_lcp_state == 0))
         {
           /**
            * Page is a change page and last LCP state was A.
@@ -1043,10 +1070,10 @@ Dbtup::releaseFragPage(Fragrecord* fragPtrP,
         }
         else
         {
-          DEB_LCP_REL(("(%u) all_part: %u, last_lcp_state: %u "
+          DEB_LCP_REL(("(%u) change_part: %u, last_lcp_state: %u "
                     "in tab(%u,%u) page(%u)",
                    instance(),
-                   all_part,
+                   is_change_part,
                    last_lcp_state,
                    fragPtrP->fragTableId,
                    fragPtrP->fragmentId,
