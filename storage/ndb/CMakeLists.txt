@@ -135,27 +135,19 @@ IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-strict-aliasing")
 ENDIF()
 
-# Disable specific types of warnings for storage/ndb
+# Disable specific types of warnings for ndbcluster source files
 # if the compiler supports the flag
-IF(CMAKE_COMPILER_IS_GNUCXX)
+IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   INCLUDE(CheckCXXCompilerFlag)
   FOREACH(warning
           "unused-but-set-variable"
-          "strict-aliasing"
-          "unused-parameter"
-          # Downgrade -Werror to warning for "may be used uninitialized"
-          # and "is used uninitialized in this function"
-          "error=maybe-uninitialized"
-          "error=uninitialized"
-          # Downgrade placement-new as part of Bug #24822203
-          "error=placement-new")
+          "unused-parameter")
     STRING(REPLACE "-" "_" warning_ ${warning})
     STRING(TOUPPER ${warning_} WARNING)
     CHECK_CXX_COMPILER_FLAG("-Wno-${warning}" HAVE_${WARNING})
     IF(HAVE_${WARNING})
-      MESSAGE(STATUS "Disabling -W${warning} warning for building NDB")
-      SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-${warning}")
-      SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-${warning}")
+      ADD_COMPILE_FLAGS(${NDBCLUSTER_SOURCES}
+                        COMPILE_FLAGS -Wno-${warning})
     ENDIF()
   ENDFOREACH()
 ENDIF()
