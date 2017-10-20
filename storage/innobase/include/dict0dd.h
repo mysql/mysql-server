@@ -275,7 +275,6 @@ inline
 const dd::Index*
 dd_first_index(const dd::Table* table)
 {
-	ut_ad(table->partitions().empty());
 	return(dd_first<dd::Table, dd::Index>(table));
 }
 

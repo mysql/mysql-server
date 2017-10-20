@@ -3275,13 +3275,16 @@ dd_get_first_path(
 		ut_a(false);
 	}
 
-	ut_a(dd_space != nullptr);
-	dd::Tablespace_file*	dd_file = const_cast<
-		dd::Tablespace_file*>(*(dd_space->files().begin()));
+	if (dd_space != nullptr) {
+		dd::Tablespace_file*	dd_file = const_cast<
+			dd::Tablespace_file*>(*(dd_space->files().begin()));
 
-	filepath = mem_heap_strdup(heap, dd_file->filename().c_str());
+		filepath = mem_heap_strdup(heap, dd_file->filename().c_str());
 
-	return(filepath);
+		return(filepath);
+	}
+
+	return(nullptr);
 }
 
 /** Make sure the data_dir_path is saved in dict_table_t if this is a
@@ -3326,8 +3329,6 @@ dd_get_and_save_data_dir_path(
 	if (path != nullptr) {
 		dict_save_data_dir_path(table, path);
 	}
-
-	ut_ad(table->data_dir_path != nullptr);
 
 	if (!dict_mutex_own) {
 		dict_mutex_exit_for_mysql();
