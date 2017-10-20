@@ -16,7 +16,6 @@
 #include <sstream>
 
 #include "gcs_base_test.h"
-#include "my_io.h"
 
 namespace gcs_logging_unittest
 {

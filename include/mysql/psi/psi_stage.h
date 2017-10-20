@@ -47,6 +47,7 @@ struct PSI_stage_bootstrap
   */
   void *(*get_interface)(int version);
 };
+typedef struct PSI_stage_bootstrap PSI_stage_bootstrap;
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
 

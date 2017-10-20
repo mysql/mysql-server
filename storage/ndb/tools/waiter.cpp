@@ -29,8 +29,6 @@
 
 #include <kernel/NodeBitmask.hpp>
 
-#include "my_alloc.h"
-
 static int
 waitClusterStatus(const char* _addr, ndb_mgm_node_status _status);
 

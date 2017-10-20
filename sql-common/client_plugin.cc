@@ -36,7 +36,6 @@
 
 #include "errmsg.h"
 #include "m_string.h"
-#include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"

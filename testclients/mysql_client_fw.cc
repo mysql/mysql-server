@@ -19,7 +19,6 @@
 
 #include "errmsg.h"
 #include "m_string.h"
-#include "my_alloc.h"
 #include "my_default.h"
 #include "my_getopt.h"
 #include "my_sys.h"

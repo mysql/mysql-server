@@ -26,7 +26,6 @@
 #include "Ndbfs.hpp"
 #include "AsyncFile.hpp"
 #include "PosixAsyncFile.hpp"
-#include "my_thread_local.h"
 
 #include <ErrorHandlingMacros.hpp>
 #include <kernel_types.h>

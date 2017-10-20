@@ -20,7 +20,6 @@
 #include <kernel/NodeBitmask.hpp>
 #include <portlib/ndb_daemon.h>
 
-#include "my_alloc.h"
 #include "ndbd.hpp"
 #include "angel.hpp"
 

@@ -25,7 +25,6 @@
 #include "ndbapi/ndberror.h"
 #include "mgmapi/ndbd_exit_codes.h"
 #include "mgmapi/mgmapi_error.h"
-#include "my_alloc.h"
 
 static bool opt_verbose;
 static bool opt_silent; // Overrides verbose and sets it to 0

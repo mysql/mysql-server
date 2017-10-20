@@ -16,7 +16,6 @@
 #ifndef SQL_PLUGIN_REF_INCLUDED
 #define SQL_PLUGIN_REF_INCLUDED
 
-#include "lex_string.h"
 #include "my_alloc.h"
 #include "mysql/mysql_lex_string.h"
 #include "prealloced_array.h"

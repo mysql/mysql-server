@@ -18,8 +18,6 @@
 #include <ndb_global.h>
 #include <ndb_opts.h>
 
-#include "my_alloc.h"
-
 // copied from mysql.cc to get readline
 extern "C" {
 #if defined(_WIN32)

@@ -22,10 +22,19 @@
 
 #include "my_config.h"
 
+#include "m_ctype.h"                    /* CHARSET_INFO */
+#include "m_string.h"                   /* STRING_WITH_LEN */
+#include "my_alloc.h"                   /* USED_MEM */
+#include "my_compiler.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_macros.h"
+#include "my_psi_config.h"              /* IWYU pragma: keep */
+#include "my_sharedlib.h"
+
 #ifdef HAVE_ALLOCA_H
 #include <alloca.h>
 #endif
-#include <limits.h>
 #ifdef _WIN32
 #include <malloc.h>
 #endif
@@ -34,39 +43,26 @@
 #endif
 #include <stdarg.h>
 #include <stdio.h>
-#include <sys/select.h>
+#include <string.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <time.h>
 
-#include "m_ctype.h"                    /* CHARSET_INFO */
-#include "m_string.h"                   /* IWYU pragma: keep */
-#include "my_compiler.h"
-#include "my_inttypes.h"
-#include "my_loglevel.h"
-#include "my_macros.h"
-#include "my_psi_config.h"              /* IWYU pragma: keep */
-#include "my_sharedlib.h"
 #include "mysql/psi/mysql_cond.h"       /* mysql_cond_t */
 #include "mysql/psi/mysql_mutex.h"      /* mysql_mutex_t */
+#include "mysql/psi/mysql_rwlock.h"     /* mysql_rwlock_t */
+#include "mysql/psi/mysql_thread.h"     /* mysql_thread_t */
+#include "mysql/psi/psi_data_lock.h"    /* PSI_data_lock_service_t */
+#include "mysql/psi/psi_error.h"        /* PSI_error_service_t */
 #include "mysql/psi/psi_file.h"         /* PSI_file_service_t */
-#include "mysql/psi/psi_stage.h"
-
-struct PSI_cond_bootstrap;
-struct PSI_data_lock_bootstrap;
-struct PSI_error_bootstrap;
-struct PSI_file_bootstrap;
-struct PSI_idle_bootstrap;
-struct PSI_mdl_bootstrap;
-struct PSI_memory_bootstrap;
-struct PSI_mutex_bootstrap;
-struct PSI_rwlock_bootstrap;
-struct PSI_socket_bootstrap;
-struct PSI_stage_bootstrap;
-struct PSI_statement_bootstrap;
-struct PSI_table_bootstrap;
-struct PSI_thread_bootstrap;
-struct PSI_transaction_bootstrap;
-struct MEM_ROOT;
+#include "mysql/psi/psi_idle.h"         /* PSI_idle_service_t */
+#include "mysql/psi/psi_mdl.h"          /* PSI_mdl_service_t */
+#include "mysql/psi/psi_memory.h"       /* PSI_memory_service_t */
+#include "mysql/psi/psi_socket.h"       /* PSI_socket_service_t */
+#include "mysql/psi/psi_stage.h"        /* PSI_stage_info */
+#include "mysql/psi/psi_statement.h"    /* PSI_statement_service_t */
+#include "mysql/psi/psi_table.h"        /* PSI_table_service_t */
+#include "mysql/psi/psi_transaction.h"  /* PSI_transaction_service_t */
 
 C_MODE_START
 

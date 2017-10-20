@@ -20,7 +20,6 @@
 #include <sys/types.h>
 
 #include "client/client_priv.h"
-#include "my_alloc.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"

@@ -47,6 +47,7 @@ struct PSI_cond_bootstrap
   */
   void *(*get_interface)(int version);
 };
+typedef struct PSI_cond_bootstrap PSI_cond_bootstrap;
 
 #ifdef HAVE_PSI_COND_INTERFACE
 

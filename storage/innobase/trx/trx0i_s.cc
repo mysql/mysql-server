@@ -58,8 +58,6 @@ Created July 17, 2007 Vasil Dimov
 #include "trx0trx.h"
 #include "ut0mem.h"
 
-#include "storage/perfschema/pfs_data_lock.h"
-
 /** Initial number of rows in the table cache */
 #define TABLE_CACHE_INITIAL_ROWSNUM	1024
 

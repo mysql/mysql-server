@@ -76,7 +76,6 @@
 #include "sql/tc_log.h"
 #include "sql/thr_malloc.h"
 #include "sql/transaction.h"                 // trans_rollback
-#include "sql/transaction_info.h"
 #include "sql/xa.h"
 #include "thr_mutex.h"
 

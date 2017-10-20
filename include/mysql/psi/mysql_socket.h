@@ -29,7 +29,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 
 /* For MY_STAT */
 #include "my_dir.h"
-#include "my_io.h"
 /* For my_chsize */
 #include "my_sys.h"
 #include "mysql/psi/psi_socket.h"

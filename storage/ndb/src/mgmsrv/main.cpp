@@ -21,7 +21,6 @@
 #include "MgmtSrvr.hpp"
 #include "EventLogger.hpp"
 #include "Config.hpp"
-#include "my_alloc.h"
 
 #include <version.h>
 #include <kernel_types.h>
