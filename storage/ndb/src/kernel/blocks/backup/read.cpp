@@ -260,6 +260,33 @@ void delete_page(Uint32 page_id)
   } while (current != NULL);
 }
 
+void check_data(const char *file_input)
+{
+  FILE *file = fopen(file_input, "r");
+  if (file != NULL)
+  {
+    char line [100];
+    while (fgets(line,sizeof(line),file)!= NULL) /* read a line from a file */
+    {
+      Uint32 page_id, page_idx;
+      int ret = sscanf(line, "%d %d", &page_id, &page_idx);
+      if (ret != 2)
+      {
+        ndbout_c("-n file expects a file with two numbers page_id space page_idx");
+        ndb_end_and_exit(1);
+      }
+      RowEntry *found_entry = find_row(page_id, page_idx);
+      if (found_entry != NULL)
+      {
+        ndbout_c("Found deleted row in hash: row_id(%u,%u)",
+                 found_entry->page_id,
+                 found_entry->page_idx);
+      }
+    }
+    fclose(file);
+  }
+}
+
 void print_rows()
 {
   Uint32 row_count = 0;
@@ -287,7 +314,7 @@ void delete_all()
   }
 }
 
-void handle_print_restored_rows(void)
+void handle_print_restored_rows(const char *file_input)
 {
   ndbout_c("Print restored rows for T%uF%u",
            print_restored_rows_table,
@@ -496,6 +523,10 @@ void handle_print_restored_rows(void)
     ndbzclose(f);
   }
   print_rows();
+  if (file_input)
+  {
+    check_data(file_input);
+  }
   delete_all();
   exit(0);
 }
@@ -504,6 +535,7 @@ int
 main(int argc, const char * argv[])
 {
   const char *file = argv[1];
+  const char *file_input = NULL;
   ndb_init();
   if (argc > 2)
   {
@@ -571,6 +603,19 @@ main(int argc, const char * argv[])
             ndb_end_and_exit(1);
           }
         }
+        else if (!strncmp(argv[i], "-n", 2))
+        {
+          if (i + 1 < argc)
+          {
+            file_input = argv[i+1];
+            i++;
+          }
+          else
+          {
+            printf("Usage: %s <filename>\n", argv[0]);
+            ndb_end_and_exit(1);
+          }
+        }
       }
       else
       {
@@ -603,7 +648,7 @@ main(int argc, const char * argv[])
       printf("Usage: %s <filename>\n", argv[0]);
       ndb_end_and_exit(1);
     }
-    handle_print_restored_rows();
+    handle_print_restored_rows(file_input);
   }
 
   ndbzio_stream fo;
