@@ -34,6 +34,13 @@
 #define DEB_LCP(arglist) do { } while (0)
 #endif
 
+#define DEBUG_LCP_REL 1
+#ifdef DEBUG_LCP_REL
+#define DEB_LCP_REL(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LCP_REL(arglist) do { } while (0)
+#endif
+
 //#define DEBUG_LCP_FREE 1
 #ifdef DEBUG_LCP_FREE
 #define DEB_LCP_FREE(arglist) do { g_eventLogger->info arglist ; } while (0)
@@ -48,7 +55,7 @@
 #define DEB_LCP_SKIP(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_LCP_SCANNED_BIT 1
+#define DEBUG_LCP_SCANNED_BIT 1
 #ifdef DEBUG_LCP_SCANNED_BIT
 #define DEB_LCP_SCANNED_BIT(arglist) \
   do { g_eventLogger->info arglist ; } while (0)
@@ -933,11 +940,11 @@ Dbtup::releaseFragPage(Fragrecord* fragPtrP,
    * We optimise on that DynArr256 always will have the pair on the
    * same 256 byte page. Thus they lie consecutive to each other.
    */
-  DEB_LCP(("(%u)releaseFragPage: tab(%u,%u):%u",
-            instance(),
-            fragPtrP->fragTableId,
-            fragPtrP->fragmentId,
-            logicalPageId));
+  DEB_LCP_REL(("(%u)releaseFragPage: tab(%u,%u):%u",
+               instance(),
+               fragPtrP->fragTableId,
+               fragPtrP->fragmentId,
+               logicalPageId));
   Uint32 *next = map.set(2 * logicalPageId);
   Uint32 *prev = map.set(2 * logicalPageId + 1);
   ndbrequire(next != 0 && prev != 0);
@@ -1034,8 +1041,28 @@ Dbtup::releaseFragPage(Fragrecord* fragPtrP,
                                       pagePtr,
                                       delete_by_pageid);
         }
+        else
+        {
+          DEB_LCP_REL(("(%u) all_part: %u, last_lcp_state: %u "
+                    "in tab(%u,%u) page(%u)",
+                   instance(),
+                   all_part,
+                   last_lcp_state,
+                   fragPtrP->fragTableId,
+                   fragPtrP->fragmentId,
+                   logicalPageId));
+        }
         last_lcp_state = new_last_lcp_state;
       }
+    }
+    else
+    {
+      DEB_LCP_REL(("(%u)lcp_scanned_bit already set when page released"
+                   "in tab(%u,%u) page(%u)",
+                   instance(),
+                   fragPtrP->fragTableId,
+                   fragPtrP->fragmentId,
+                   logicalPageId));
     }
   }
   if (!lcp_to_scan)

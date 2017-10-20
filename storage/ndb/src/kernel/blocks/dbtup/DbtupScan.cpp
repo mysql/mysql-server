@@ -63,11 +63,18 @@
 #define DEB_LCP_SKIP_EXTRA(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_LCP_KEEP 1
+#define DEBUG_LCP_KEEP 1
 #ifdef DEBUG_LCP_KEEP
 #define DEB_LCP_KEEP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP_KEEP(arglist) do { } while (0)
+#endif
+
+#define DEBUG_LCP_REL 1
+#ifdef DEBUG_LCP_REL
+#define DEB_LCP_REL(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LCP_REL(arglist) do { } while (0)
 #endif
 
 //#define DEBUG_NR_SCAN 1
@@ -2093,7 +2100,11 @@ Dbtup::handle_lcp_keep(Signal* signal,
       key.m_page_no = page_id;
       key.m_page_idx = ZNIL;
       ndbrequire(num_entries == 1);
-      DEB_LCP_KEEP(("(%u)Handle LCP keep DELETE by PAGEID", instance()));
+      DEB_LCP_KEEP(("(%u)tab(%u,%u) page(%u): Handle LCP keep DELETE by PAGEID",
+                    instance(),
+                    fragPtr.p->fragTableId,
+                    fragPtr.p->fragmentId,
+                    page_id));
       record_delete_by_pageid(signal,
                               fragPtr.p->fragTableId,
                               fragPtr.p->fragmentId,
@@ -2108,12 +2119,18 @@ Dbtup::handle_lcp_keep(Signal* signal,
       jam();
       /* DELETE by ROWID */
       Local_key key;
-      DEB_LCP_KEEP(("(%u)Handle LCP keep DELETE by ROWID", instance()));
       key.m_page_no = page_id;
       ndbrequire(num_entries > 0);
       num_entries--;
       key.m_page_no = page_id;
       key.m_page_idx = page_index_array[num_entries];
+      DEB_LCP_KEEP(("(%u)tab(%u,%u) page(%u,%u): "
+                    "Handle LCP keep DELETE by ROWID",
+                    instance(),
+                    fragPtr.p->fragTableId,
+                    fragPtr.p->fragmentId,
+                    key.m_page_no,
+                    key.m_page_idx));
       record_delete_by_rowid(signal,
                              fragPtr.p->fragTableId,
                              fragPtr.p->fragmentId,
@@ -2144,7 +2161,12 @@ Dbtup::handle_lcp_keep(Signal* signal,
     remove_top_from_lcp_keep_list(fragPtr.p, copytuple, tmp);
 
     c_backup->change_current_page_temp(copytuple[0]);
-    DEB_LCP_KEEP(("(%u)Handle LCP keep insert entry", instance()));
+    DEB_LCP_KEEP(("(%u)tab(%u,%u) page(%u,%u): Handle LCP keep insert entry",
+                  instance(),
+                  fragPtr.p->fragTableId,
+                  fragPtr.p->fragmentId,
+                  tmp.m_page_no,
+                  tmp.m_page_idx));
     Local_key save = tmp;
     setCopyTuple(tmp.m_page_no, tmp.m_page_idx);
     prepareTUPKEYREQ(tmp.m_page_no, tmp.m_page_idx, fragPtr.i);
@@ -2175,7 +2197,10 @@ Dbtup::remove_top_from_lcp_keep_list(Fragrecord *fragPtrP,
   if (fragPtrP->m_lcp_keep_list_head.isNull())
   {
     jam();
-    DEB_LCP_KEEP(("(%u)LCP keep list empty again", instance()));
+    DEB_LCP_KEEP(("(%u) tab(%u,%u): LCP keep list empty again",
+                  instance(),
+                  fragPtrP->fragTableId,
+                  fragPtrP->fragmentId));
     ndbassert(tmp.m_page_no == fragPtrP->m_lcp_keep_list_tail.m_page_no);
     ndbassert(tmp.m_page_idx == fragPtrP->m_lcp_keep_list_tail.m_page_idx);
     fragPtrP->m_lcp_keep_list_tail.setNull();
@@ -2229,6 +2254,13 @@ Dbtup::handle_lcp_drop_change_page(Fragrecord *fragPtrP,
   Uint32 found_idx_count = 0;
   ndbrequire(size >= 20);
   Uint16 found_idx[2048]; /* Fixed size header never smaller than 20 bytes */
+  DEB_LCP_REL(("(%u)tab(%u,%u)page(%u) handle_lcp_drop_page,"
+               " delete_by_page: %u",
+               instance(),
+               fragPtrP->fragTableId,
+               fragPtrP->fragmentId,
+               logicalPageId,
+               delete_by_pageid));
   if (!delete_by_pageid)
   {
     jam();
@@ -2253,6 +2285,26 @@ Dbtup::handle_lcp_drop_change_page(Fragrecord *fragPtrP,
         jamLine((Uint16)idx);
         found_idx[found_idx_count] = idx;
         found_idx_count++;
+        DEB_LCP_REL(("(%u)tab(%u,%u)page(%u,%u) Keep_list DELETE_BY_ROWID",
+                     instance(),
+                     fragPtrP->fragTableId,
+                     fragPtrP->fragmentId,
+                     logicalPageId,
+                     idx));
+      }
+      else
+      {
+        DEB_LCP_REL(("(%u)tab(%u,%u)page(%u,%u) skipped"
+                     "lcp_skip_not_set: %u, rowGCI: %u"
+                     " scanGCI: %u",
+                     instance(),
+                     fragPtrP->fragTableId,
+                     fragPtrP->fragmentId,
+                     logicalPageId,
+                     idx,
+                     lcp_skip_not_set,
+                     rowGCI,
+                     scanGCI));
       }
       idx += size;
     }
@@ -2262,6 +2314,11 @@ Dbtup::handle_lcp_drop_change_page(Fragrecord *fragPtrP,
     jam();
     found_idx_count = 1;
     found_idx[0] = ZNIL; /* Indicates DELETE by PAGEID */
+    DEB_LCP_REL(("(%u)tab(%u,%u)page(%u) Keep_list DELETE_BY_PAGEID",
+                 instance(),
+                 fragPtrP->fragTableId,
+                 fragPtrP->fragmentId,
+                 logicalPageId));
   }
   Local_key location;
   /**
