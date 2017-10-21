@@ -1541,6 +1541,23 @@ NdbImportImpl::CsvInputTeam::CsvInputTeam(Job& job,
   Team(job, "csv-input", workercnt),
   m_file(m_util, m_error)
 {
+  // stats
+  Stats& stats = m_job.m_stats;
+  {
+    const Name name(m_name, "waittail");
+    Stat* stat = stats.create(name, 0, 0);
+    m_stat_waittail = stat;
+  }
+  {
+    const Name name(m_name, "waitmove");
+    Stat* stat = stats.create(name, 0, 0);
+    m_stat_waitmove = stat;
+  }
+  {
+    const Name name(m_name, "movetail");
+    Stat* stat = stats.create(name, 0, 0);
+    m_stat_movetail = stat;
+  }
 }
 
 NdbImportImpl::CsvInputTeam::~CsvInputTeam()
@@ -1787,6 +1804,8 @@ NdbImportImpl::CsvInputWorker::state_waittail()
     m_state = WorkerState::State_stop;
     return;
   }
+  CsvInputTeam& team = static_cast<CsvInputTeam&>(m_team);
+  team.m_stat_waittail->add(1);
   m_idle = true;
 }
 
@@ -1809,12 +1828,14 @@ NdbImportImpl::CsvInputWorker::state_movetail()
     m_state = WorkerState::State_stop;
     return;
   }
+  CsvInputTeam& team = static_cast<CsvInputTeam&>(m_team);
   CsvInputWorker* w2 = static_cast<CsvInputWorker*>(next_worker());
   w2->lock();
   log2("next worker: " << *w2);
   if (w2->m_inputstate == InputState::State_waittail)
   {
     m_csvinput->do_movetail(*w2->m_csvinput);
+    team.m_stat_movetail->add(1);
     m_inputstate = InputState::State_eval;
     w2->m_inputstate = InputState::State_parse;
   }
@@ -1825,6 +1846,7 @@ NdbImportImpl::CsvInputWorker::state_movetail()
   else
   {
     // cannot move tail yet
+    team.m_stat_waitmove->add(1);
     m_idle = true;
   }
   w2->unlock();
