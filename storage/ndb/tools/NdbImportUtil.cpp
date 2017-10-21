@@ -3131,7 +3131,7 @@ testlist()
 {
   ndbout << "testlist" << endl;
   NdbImportUtil util;
-  util.c_opt.m_verbose = 3;
+  util.c_opt.m_log_level = 3;
   MyRecs recs;
   const uint poolsize = 256;
   MyRec* recpool = new MyRec [poolsize];
@@ -3694,7 +3694,7 @@ teststat()
 {
   ndbout << "teststat" << endl;
   NdbImportUtil util;
-  util.c_opt.m_verbose = 3;
+  util.c_opt.m_log_level = 3;
   UtilStats stats(util);
   static const uint stattot = 256;
   uint statcnt = stats.m_stats.size();
