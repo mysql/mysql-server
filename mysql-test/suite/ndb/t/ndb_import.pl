@@ -319,7 +319,7 @@ sub run_import {
   if ($opts->{resumeopt}) {
     push(@cmd, "--resume");
   }
-  push(@cmd, "--verbose=1");
+  push(@cmd, "--log-level=1");
   push(@cmd, $test->{database});
   my $tables = $test->{tables};
   for my $table (@$tables) {

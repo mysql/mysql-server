@@ -278,9 +278,10 @@ my_long_options[] =
     " r-lines terminated by \\r\\n",
     &g_opt.m_csvopt, &g_opt.m_csvopt, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  { "verbose", 'v',
-    "Verbosity level for debug messages (0-2 or 0-4 in debug)",
-    &g_opt.m_verbose, &g_opt.m_verbose, 0,
+  { "log-level", NDB_OPT_NOSHORT,
+    "Print internal log at given level (0-2 or 0-4 if debug compiled)."
+    " Like --debug, this option is for developers",
+    &g_opt.m_log_level, &g_opt.m_log_level, 0,
     GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "abort-on-error", NDB_OPT_NOSHORT,
     "Dump core on any error, debug option",

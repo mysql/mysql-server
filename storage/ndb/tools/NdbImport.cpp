@@ -103,7 +103,7 @@ NdbImport::Opt::Opt()
   // csv options
   m_csvopt = 0;
   // debug options
-  m_verbose = 0;
+  m_log_level = 0;
   m_abort_on_error = false;
   m_errins_type = 0;
   m_errins_delay = 1000;
