@@ -302,10 +302,7 @@ sub run_import {
   push(@cmd, "--keep-state");
   push(@cmd, "--stats");
   push(@cmd, "--input-type=csv");
-  push(@cmd, "--input-workers=2");
   push(@cmd, "--output-type=ndb");
-  push(@cmd, "--output-workers=2");
-  push(@cmd, "--db-workers=2");
   push(@cmd, "--temperrors=100");
   if (defined($test->{csvfmt}{csvopt})) {
     push(@cmd, "--csvopt=$test->{csvfmt}{csvopt}");
