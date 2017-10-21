@@ -1864,8 +1864,20 @@ void
 NdbImportImpl::CsvInputWorker::state_send()
 {
   log2("state_send");
+  const Opt& opt = m_util.c_opt;
   do
   {
+    // max-rows is a test option, it need not be exact
+    if (opt.m_max_rows != 0)
+    {
+      RowList& rows_out = *m_team.m_job.m_rows_relay;
+      if (rows_out.totcnt() >= opt.m_max_rows)
+      {
+        log1("stop on max-rows option");
+        m_inputstate = InputState::State_eof;
+        break;
+      }
+    }
     uint curr = 0;
     uint left = 0;
     m_csvinput->do_send(curr, left);
