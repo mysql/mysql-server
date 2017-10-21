@@ -108,8 +108,9 @@ my_long_options[] =
     &g_opt.m_ignore_lines, &g_opt.m_ignore_lines, 0,
     GET_UINT, REQUIRED_ARG, g_opt.m_ignore_lines, 0, 0, 0, 0, 0 },
   { "max-rows", NDB_OPT_NOSHORT,
-    "Limit number of input data rows"
-    " (mainly a test option, default 0 means no limit)",
+    "Limit number of rows proccessed."
+    " Mainly a test option. Default 0 means no limit."
+    " More rows may be processed",
     &g_opt.m_max_rows, &g_opt.m_max_rows, 0,
     GET_UINT, REQUIRED_ARG, g_opt.m_max_rows, 0, 0, 0, 0, 0 },
   { "continue", NDB_OPT_NOSHORT,
