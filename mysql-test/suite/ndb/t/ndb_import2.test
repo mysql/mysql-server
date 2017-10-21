@@ -77,7 +77,7 @@ exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING"
 
 --echo # import t1, t2
 
-exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --keep-state --verbose=1
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --keep-state --log-level=1
      --temperrors=1000
      test
      $MYSQLTEST_VARDIR/tmp/t1.csv

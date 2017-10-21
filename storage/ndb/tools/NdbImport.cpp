@@ -62,10 +62,10 @@ NdbImport::Opt::Opt()
   m_table = 0;
   m_input_type = "csv";
   m_input_file = 0;
-  m_input_workers = 2;
+  m_input_workers = 4;
   m_output_type = "ndb";
   m_output_workers = 2;
-  m_db_workers = 1;
+  m_db_workers = 4;
   m_ignore_lines = 0;
   m_max_rows = 0;
   m_result_file = 0;
@@ -83,15 +83,15 @@ NdbImport::Opt::Opt()
   m_no_hint = false;
   m_pagesize = 4096;
   m_pagecnt = 0;
-  m_pagebuffer = 262144;
+  m_pagebuffer = 500000;
   m_rowbatch = 0;
-  m_rowbytes = 262144;
-  m_opbatch = 256;
+  m_rowbytes = 500000;
+  m_opbatch = 500;
   m_opbytes = 0;
   m_polltimeout = 1000;
   m_temperrors = 0;
   m_tempdelay = 10;
-  m_rowswait = 1;
+  m_rowswait = 10;
   m_idlespin = 0;
   m_idlesleep = 1;
   m_checkloop = 100;
@@ -103,7 +103,7 @@ NdbImport::Opt::Opt()
   // csv options
   m_csvopt = 0;
   // debug options
-  m_verbose = 0;
+  m_log_level = 0;
   m_abort_on_error = false;
   m_errins_type = 0;
   m_errins_delay = 1000;

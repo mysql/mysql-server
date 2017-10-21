@@ -99,7 +99,7 @@ public:
     OptCsv m_optcsv;
     const char* m_csvopt;
     // debug options
-    uint m_verbose;
+    uint m_log_level;
     bool m_abort_on_error;
     const char* m_errins_type;
     uint m_errins_delay;

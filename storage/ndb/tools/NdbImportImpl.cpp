@@ -1541,6 +1541,23 @@ NdbImportImpl::CsvInputTeam::CsvInputTeam(Job& job,
   Team(job, "csv-input", workercnt),
   m_file(m_util, m_error)
 {
+  // stats
+  Stats& stats = m_job.m_stats;
+  {
+    const Name name(m_name, "waittail");
+    Stat* stat = stats.create(name, 0, 0);
+    m_stat_waittail = stat;
+  }
+  {
+    const Name name(m_name, "waitmove");
+    Stat* stat = stats.create(name, 0, 0);
+    m_stat_waitmove = stat;
+  }
+  {
+    const Name name(m_name, "movetail");
+    Stat* stat = stats.create(name, 0, 0);
+    m_stat_movetail = stat;
+  }
 }
 
 NdbImportImpl::CsvInputTeam::~CsvInputTeam()
@@ -1787,6 +1804,8 @@ NdbImportImpl::CsvInputWorker::state_waittail()
     m_state = WorkerState::State_stop;
     return;
   }
+  CsvInputTeam& team = static_cast<CsvInputTeam&>(m_team);
+  team.m_stat_waittail->add(1);
   m_idle = true;
 }
 
@@ -1809,12 +1828,14 @@ NdbImportImpl::CsvInputWorker::state_movetail()
     m_state = WorkerState::State_stop;
     return;
   }
+  CsvInputTeam& team = static_cast<CsvInputTeam&>(m_team);
   CsvInputWorker* w2 = static_cast<CsvInputWorker*>(next_worker());
   w2->lock();
   log2("next worker: " << *w2);
   if (w2->m_inputstate == InputState::State_waittail)
   {
     m_csvinput->do_movetail(*w2->m_csvinput);
+    team.m_stat_movetail->add(1);
     m_inputstate = InputState::State_eval;
     w2->m_inputstate = InputState::State_parse;
   }
@@ -1825,6 +1846,7 @@ NdbImportImpl::CsvInputWorker::state_movetail()
   else
   {
     // cannot move tail yet
+    team.m_stat_waitmove->add(1);
     m_idle = true;
   }
   w2->unlock();
@@ -1842,8 +1864,20 @@ void
 NdbImportImpl::CsvInputWorker::state_send()
 {
   log2("state_send");
+  const Opt& opt = m_util.c_opt;
   do
   {
+    // max-rows is a test option, it need not be exact
+    if (opt.m_max_rows != 0)
+    {
+      RowList& rows_out = *m_team.m_job.m_rows_relay;
+      if (rows_out.totcnt() >= opt.m_max_rows)
+      {
+        log1("stop on max-rows option");
+        m_inputstate = InputState::State_eof;
+        break;
+      }
+    }
     uint curr = 0;
     uint left = 0;
     m_csvinput->do_send(curr, left);
@@ -3226,7 +3260,7 @@ NdbImportImpl::DiagTeam::read_old_diags(const char* name,
     uint pagesize = opt.m_pagesize;
     uint pagecnt = opt.m_pagecnt;
     buf[i] = new Buf(true);
-    buf[i]->alloc(pagesize, pagecnt);
+    buf[i]->alloc(pagesize, 2 * pagecnt);
     RowMap rowmap_in(m_util);   // dummy
     csvinput[i] = new CsvInput(m_impl.m_csv,
                                Name(name, i),
@@ -3869,6 +3903,7 @@ NdbImportImpl::DiagWorker::write_stopt()
     { "no_hint", (uint)opt.m_no_hint },
     { "pagesize", opt.m_pagesize },
     { "pagecnt", opt.m_pagecnt },
+    { "pagebuffer", opt.m_pagebuffer },
     { "rowbatch", opt.m_rowbatch },
     { "rowbytes", opt.m_rowbytes },
     { "opbatch", opt.m_opbatch },
@@ -3876,6 +3911,7 @@ NdbImportImpl::DiagWorker::write_stopt()
     { "rowswait", opt.m_rowswait },
     { "idlespin", opt.m_idlespin },
     { "idlesleep", opt.m_idlesleep },
+    { "checkloop", opt.m_checkloop },
     { "alloc_chunk", opt.m_alloc_chunk }
   };
   const uint ov_size = sizeof(ov_list) / sizeof(ov_list[0]);
