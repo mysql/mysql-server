@@ -3248,7 +3248,7 @@ NdbImportImpl::DiagTeam::read_old_diags(const char* name,
     uint pagesize = opt.m_pagesize;
     uint pagecnt = opt.m_pagecnt;
     buf[i] = new Buf(true);
-    buf[i]->alloc(pagesize, pagecnt);
+    buf[i]->alloc(pagesize, 2 * pagecnt);
     RowMap rowmap_in(m_util);   // dummy
     csvinput[i] = new CsvInput(m_impl.m_csv,
                                Name(name, i),
