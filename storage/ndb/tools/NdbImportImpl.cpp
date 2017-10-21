@@ -3869,6 +3869,7 @@ NdbImportImpl::DiagWorker::write_stopt()
     { "no_hint", (uint)opt.m_no_hint },
     { "pagesize", opt.m_pagesize },
     { "pagecnt", opt.m_pagecnt },
+    { "pagebuffer", opt.m_pagebuffer },
     { "rowbatch", opt.m_rowbatch },
     { "rowbytes", opt.m_rowbytes },
     { "opbatch", opt.m_opbatch },
@@ -3876,6 +3877,7 @@ NdbImportImpl::DiagWorker::write_stopt()
     { "rowswait", opt.m_rowswait },
     { "idlespin", opt.m_idlespin },
     { "idlesleep", opt.m_idlesleep },
+    { "checkloop", opt.m_checkloop },
     { "alloc_chunk", opt.m_alloc_chunk }
   };
   const uint ov_size = sizeof(ov_list) / sizeof(ov_list[0]);

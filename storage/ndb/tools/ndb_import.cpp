@@ -356,6 +356,7 @@ const char* g_reserved_extension[] = {
   ".res",
   ".rej",
   ".map",
+  ".sto",
   ".stt",
   0
 };
