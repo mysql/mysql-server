@@ -464,6 +464,10 @@ public:
     virtual void do_end();
     CsvSpec m_csvspec;
     WorkerFile m_file;
+    // stats
+    Stat* m_stat_waittail;
+    Stat* m_stat_waitmove;
+    Stat* m_stat_movetail;
   };
 
   struct CsvInputWorker : Worker {

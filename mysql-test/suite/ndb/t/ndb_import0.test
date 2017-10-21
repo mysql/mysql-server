@@ -7,17 +7,17 @@
 
 --echo # database argument is required
 --error 1
-exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --keep-state --verbose=1
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --keep-state --log-level=1
      >> $NDB_TOOLS_OUTPUT 2>&1;
 
 --echo # no args is ok
 --error 0
-exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --keep-state --verbose=1
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --keep-state --log-level=1
      test >> $NDB_TOOLS_OUTPUT 2>&1;
 
 --echo # table does not exist
 --error 1
-exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --keep-state --verbose=1
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --keep-state --log-level=1
      test '/foo/data/t1.csv' >> $NDB_TOOLS_OUTPUT 2>&1;
 
 create table t1 (
@@ -27,7 +27,7 @@ create table t1 (
 
 --echo # csv file does not exist
 --error 1
-exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --keep-state --verbose=1
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --keep-state --log-level=1
      test '/foo/data/t1.csv' >> $NDB_TOOLS_OUTPUT 2>&1;
 
 perl;
@@ -49,24 +49,24 @@ EOF
 
 --echo # bad state dir
 --error 1
-exec $NDB_IMPORT --state-dir=/foo/state --keep-state --verbose=1
+exec $NDB_IMPORT --state-dir=/foo/state --keep-state --log-level=1
      test $MYSQLTEST_VARDIR/tmp/t1.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 
 --echo # normal import
-exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --keep-state --verbose=1
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --keep-state --log-level=1
      --input-type=csv --output-type=ndb
      test $MYSQLTEST_VARDIR/tmp/t1.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 select count(*) from t1;
 
 --echo # invalid --input-type
 --error 1
-exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --keep-state --verbose=1
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --keep-state --log-level=1
      --input-type=xxx --output-type=ndb
      test $MYSQLTEST_VARDIR/tmp/t1.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 
 --echo # invalid --output-type
 --error 1
-exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --keep-state --verbose=1
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --keep-state --log-level=1
      --input-type=csv --output-type=xxx
      test $MYSQLTEST_VARDIR/tmp/t1.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 
@@ -105,7 +105,7 @@ create table t2ver (
 ) charset utf8
   engine=ndb;
 
-exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --keep-state --verbose=1
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --keep-state --log-level=1
      test $MYSQLTEST_VARDIR/tmp/t2.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 
 --disable_query_log
@@ -155,7 +155,7 @@ create table t3 (
 
 create table t3ver like t3;
 
-exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --keep-state --verbose=1
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --keep-state --log-level=1
      test $MYSQLTEST_VARDIR/tmp/t3.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 
 --disable_query_log
@@ -201,7 +201,7 @@ create table t4 (
   b int not null
 ) engine=ndb;
 
-exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --verbose=1
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --log-level=1
      --rejects=3
      test $MYSQLTEST_VARDIR/tmp/t4.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 select count(*) from t4;
@@ -219,7 +219,7 @@ select count(*) from t4;
 
 delete from t4;
 
-exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --verbose=1
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --log-level=1
      --rejects=3 --stats
      test $MYSQLTEST_VARDIR/tmp/t4.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 select count(*) from t4;
@@ -254,7 +254,7 @@ write_file $MYSQLTEST_VARDIR/tmp/t5c.csv;
 EOF
 
 --error 1
-exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --verbose=1
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --log-level=1
      --continue
      test
      $MYSQLTEST_VARDIR/tmp/t5a.csv
@@ -270,7 +270,7 @@ delete from t5c;
 create table t5b like t5a;
 
 --error 1
-exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --verbose=1
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --log-level=1
      --continue
      test
      $MYSQLTEST_VARDIR/tmp/t5a.csv
@@ -300,7 +300,7 @@ write_file $MYSQLTEST_VARDIR/tmp/t6.csv;
 EOF
 
 --error 0
-exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --verbose=1
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --log-level=1
      --csvopt=cq
      test $MYSQLTEST_VARDIR/tmp/t6.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 
@@ -374,7 +374,7 @@ create table t7 (
 
 create table t7ver like t7;
 
-exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --verbose=1
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --log-level=1
      --csvopt=r --keep-state
      test $MYSQLTEST_VARDIR/tmp/t7.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 
@@ -401,14 +401,14 @@ delete from t7;
 
 if (!$is_windows)
 {
-exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp/imp0 --verbose=1
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp/imp0 --log-level=1
      --csvopt=r --keep-state
      test $MYSQLTEST_VARDIR/tmp/imp0/t7.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 }
 
 if ($is_windows)
 {
-exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR\tmp\imp0 --verbose=1
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR\tmp\imp0 --log-level=1
      --csvopt=r --keep-state
      test $MYSQLTEST_VARDIR\tmp\imp0\t7.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 }
@@ -475,7 +475,7 @@ character set binary
 lines terminated by '\n';
 --enable_query_log
 
-exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --verbose=1
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --log-level=1
      --csvopt=d --keep-state
      test $MYSQLTEST_VARDIR/tmp/t8.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 
@@ -524,7 +524,7 @@ select * from t9ver order by a;
 
 if (!$is_windows)
 {
-exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --verbose=1
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --log-level=1
      --keep-state
      --fields-terminated-by='::'
      --fields-optionally-enclosed-by='-'
@@ -534,7 +534,7 @@ exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --verbose=1
 
 if ($is_windows)
 {
-exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --verbose=1
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --log-level=1
      --keep-state
      --fields-terminated-by=::
      --fields-optionally-enclosed-by=-

@@ -53,7 +53,7 @@ typedef NdbImport::Error Error;
 
 #define logN(x, n) \
   do { \
-    if (unlikely(m_util.c_opt.m_verbose >= n)) \
+    if (unlikely(m_util.c_opt.m_log_level >= n)) \
     { \
       NdbMutex_Lock(m_util.c_logmutex); \
       m_util.c_logtimer.stop(); \

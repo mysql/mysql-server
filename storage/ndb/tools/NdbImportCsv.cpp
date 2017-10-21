@@ -458,7 +458,7 @@ void
 NdbImportCsv::Input::do_parse()
 {
 #ifdef VM_TRACE
-  NdbImportCsv_yydebug = (m_util.c_opt.m_verbose >= 4);
+  NdbImportCsv_yydebug = (m_util.c_opt.m_log_level >= 4);
 #endif
   m_parse->do_parse();
 #ifdef VM_TRACE
@@ -1004,7 +1004,7 @@ NdbImportCsv::Regex::Regex(NdbImportUtil& util,
   {
     char msg[256];
     my_regerror(ret, &m_regex, msg, sizeof(msg));
-    m_util.c_opt.m_verbose = 1;
+    m_util.c_opt.m_log_level = 1;
     log1("abort: regcomp error " << ret << ": " << msg);
     require(false);
   }
@@ -1029,7 +1029,7 @@ NdbImportCsv::Regex::match(const char* string)
     {
       char msg[256];
       my_regerror(ret, &m_regex, msg, sizeof(msg));
-      m_util.c_opt.m_verbose = 1;
+      m_util.c_opt.m_log_level = 1;
       log1("abort: regexec error " << ret << ": " << msg);
       require(false);
     }
@@ -2923,7 +2923,7 @@ testinput1()
 {
   NdbImportUtil util;
   NdbOut& out = *util.c_log;
-  util.c_opt.m_verbose = 4;
+  util.c_opt.m_log_level = 4;
   out << "testinput1" << endl;
   NdbImportCsv csv(util);
   OptCsv optcsv;
@@ -3012,7 +3012,7 @@ testinput2()
 {
   NdbImportUtil util;
   NdbOut& out = *util.c_log;
-  util.c_opt.m_verbose = 2;
+  util.c_opt.m_log_level = 2;
   util.c_opt.m_abort_on_error = 1;
   out << "testinput2" << endl;
   const char* path = "test.csv";
