@@ -8080,7 +8080,8 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   if (src_table->table->s->tablespace &&
       strlen(src_table->table->s->tablespace) > 0)
   {
-    DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+    DBUG_ASSERT(src_table->table->s->tmp_table ||
+                  thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
                   src_table->db, src_table->table_name, MDL_SHARED));
 
     tablespace_set.insert(src_table->table->s->tablespace);
@@ -8136,6 +8137,15 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   */
   local_create_info.data_file_name= local_create_info.index_file_name= NULL;
   local_create_info.alias= create_info->alias;
+
+  /*
+    Keep tablespace, only if it was specified explicitly in CREATE
+    TABLE when source table was created.
+  */
+  if (src_table_obj && !src_table_obj->is_explicit_tablespace())
+  {
+    local_create_info.tablespace= nullptr;
+  }
 
   /*
     Lock the FK children, in case the new table introduces a missing parent.

@@ -126,6 +126,14 @@ public:
   virtual void set_tablespace_id(Object_id tablespace_id)
   { m_tablespace_id= tablespace_id; }
 
+  virtual bool is_explicit_tablespace() const
+  {
+    bool is_explicit= false;
+    if (options().exists("explicit_tablespace"))
+      options().get_bool("explicit_tablespace", &is_explicit);
+    return is_explicit;
+  }
+
   /////////////////////////////////////////////////////////////////////////
   // engine.
   /////////////////////////////////////////////////////////////////////////

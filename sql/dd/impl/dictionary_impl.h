@@ -132,11 +132,15 @@ public:
   static Object_id default_catalog_id()
   { return DEFAULT_CATALOG_ID; }
 
+  static Object_id dd_tablespace_id()
+  { return DD_TABLESPACE_ID; }
+
   static const String_type &default_catalog_name()
   { return DEFAULT_CATALOG_NAME; }
 
 private:
   static Object_id DEFAULT_CATALOG_ID;
+  static Object_id DD_TABLESPACE_ID;
   static const String_type DEFAULT_CATALOG_NAME;
 };
 
