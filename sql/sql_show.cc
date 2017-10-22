@@ -66,6 +66,7 @@
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/dd/cache/dictionary_client.h" // dd::cache::Dictionary_client
 #include "sql/dd/dd_schema.h"               // dd::Schema_MDL_locker
+#include "sql/dd/types/table.h"             // dd::Table
 #include "sql/dd/string_type.h"
 #include "sql/debug_sync.h"                 // DEBUG_SYNC
 #include "sql/derror.h"                     // ER_THD
@@ -1625,12 +1626,33 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   {
     show_table_options= TRUE;
 
+    // Show tablespace name only if it is explicitly provided by user.
+    bool show_tablespace= false;
+    if (share->tmp_table)
+    {
+      // Innodb allows temporary tables in be in system temporary tablespace.
+      show_tablespace= share->tablespace;
+    }
+    else if (share->tablespace)
+    {
+      dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+      const dd::Table *table_obj= nullptr;
+      if (thd->dd_client()->acquire(dd::String_type(share->db.str),
+                                    dd::String_type(share->table_name.str),
+                                    &table_obj))
+      {
+        DBUG_RETURN(true);
+      }
+      DBUG_ASSERT(table_obj != nullptr);
+      show_tablespace= table_obj->is_explicit_tablespace();
+    }
+
     /* TABLESPACE and STORAGE */
-    if (share->tablespace ||
+    if (show_tablespace ||
         share->default_storage_media != HA_SM_DEFAULT)
     {
       packet->append(STRING_WITH_LEN(" /*!50100"));
-      if (share->tablespace)
+      if (show_tablespace)
       {
         packet->append(STRING_WITH_LEN(" TABLESPACE "));
         append_identifier(thd, packet, share->tablespace,
