@@ -1206,6 +1206,10 @@ res_with_true
 big5_chinese_ci
 SET @@collation_connection = ON;
 ERROR HY000: Unknown collation: 'ON'
+SET @@collation_connection = repeat('e', 256);
+ERROR HY000: Unknown collation: 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+SET @@collation_connection = repeat('e', 1024);
+ERROR HY000: Unknown collation: 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
 '#--------------------FN_DYNVARS_015_11-------------------------#'
 SET @@global.collation_connection = latin7_binary;
 ERROR HY000: Unknown collation: 'latin7_binary'
@@ -1224,6 +1228,10 @@ ERROR HY000: Unknown collation: ' eucjpms_bin'
 SET @@global.collation_connection = true;
 SET @@global.collation_connection = ON;
 ERROR HY000: Unknown collation: 'ON'
+SET @@global.collation_connection = repeat('e', 256);
+ERROR HY000: Unknown collation: 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+SET @@global.collation_connection = repeat('e', 1024);
+ERROR HY000: Unknown collation: 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
 '#--------------------FN_DYNVARS_015_12-------------------------#'
 SELECT @@global.collation_connection =
 (SELECT VARIABLE_VALUE FROM performance_schema.global_variables
