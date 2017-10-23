@@ -39,7 +39,8 @@ public:
                 bool oneTrans = false,
 		int updateValue = 0,
 		bool abort = false,
-                bool abort_on_first_error = false);
+                bool abort_on_first_error = false,
+                int row_step = 1);
 
   int loadTableStartFrom(Ndb*, 
                          int startFrom,
@@ -50,7 +51,8 @@ public:
                          bool oneTrans = false,
                          int updateValue = 0,
                          bool abort = false,
-                         bool abort_on_first_error = false);
+                         bool abort_on_first_error = false,
+                         int row_step = 1);
 
   int scanReadRecords(Ndb*, 
 		      int records,
@@ -128,7 +130,9 @@ public:
   int fillTable(Ndb*,
 		int batch=512);
 
-  int fillTableStartFrom(Ndb*, int startFrom, int batch=512);
+  int fillTableStartFrom(Ndb*,
+                         int startFrom,
+                         int batch=512);
 
   /**
    * Reading using UniqHashIndex with key = pk

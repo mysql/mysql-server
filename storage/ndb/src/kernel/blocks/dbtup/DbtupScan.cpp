@@ -42,6 +42,13 @@
 #define DEB_LCP_DEL(arglist) do { } while (0)
 #endif
 
+//#define DEBUG_LCP_DEL2 1
+#ifdef DEBUG_LCP_DEL2
+#define DEB_LCP_DEL2(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LCP_DEL2(arglist) do { } while (0)
+#endif
+
 //#define DEBUG_LCP_DEL_EXTRA 1
 #ifdef DEBUG_LCP_DEL_EXTRA
 #define DEB_LCP_DEL_EXTRA(arglist) do { g_eventLogger->info arglist ; } while (0)
@@ -369,24 +376,25 @@ Dbtup::execACC_CHECK_SCAN(Signal* signal)
 
   const bool lcp = (scan.m_bits & ScanOp::SCAN_LCP);
 
-  if (lcp && ! fragPtr.p->m_lcp_keep_list_head.isNull())
+  if (scan.m_state == ScanOp::First)
   {
-    jam();
-    /**
-     * Handle lcp keep list already here
-     *   So that scan state is not altered
-     *   if lcp_keep rows are found in ScanOp::First
-     */
-    scan.m_last_seen = __LINE__;
-    handle_lcp_keep(signal, fragPtr, scanPtr.p);
-    return;
-  }
-
-  if (scan.m_state == ScanOp::First) {
+    if (lcp && ! fragPtr.p->m_lcp_keep_list_head.isNull())
+    {
+      jam();
+      /**
+       * Handle lcp keep list already here
+       *   So that scan state is not altered
+       *   if lcp_keep rows are found in ScanOp::First
+       */
+      scan.m_last_seen = __LINE__;
+      handle_lcp_keep(signal, fragPtr, scanPtr.p);
+      return;
+    }
     jam();
     scanFirst(signal, scanPtr);
   }
-  if (scan.m_state == ScanOp::Next) {
+  if (scan.m_state == ScanOp::Next)
+  {
     jam();
     bool immediate = scanNext(signal, scanPtr);
     if (! immediate) {
@@ -873,8 +881,9 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
   {
     jam();
     /**
-     * Handle lcp keep list here to, due to scanCont
+     * Handle lcp keep list here too, due to scanCont
      */
+    /* Coverage tested */
     handle_lcp_keep(signal, fragPtr, scanPtr.p);
     scan.m_last_seen = __LINE__;
     return false;
@@ -935,6 +944,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
           if (likely(bits & ScanOp::SCAN_LCP))
           {
             jam();
+            /* Coverage tested path */
             /**
              * We could be scanning for a long time and only finding LCP_SKIP
              * records, we need to keep the LCP watchdog aware that we are
@@ -984,6 +994,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
                * to ensure that all the lcp scanned bits are reset.
                */
               jam();
+              ndbassert(false); //COVERAGE_TEST
               /* We will not scan this page, so reset flag immediately */
               reset_lcp_scanned_bit(fragPtr.p, key.m_page_no);
               scan.m_last_seen = __LINE__;
@@ -1110,6 +1121,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
             if (lcp_page_already_scanned)
             {
               jam();
+              /* Coverage tested */
 #ifdef DEBUG_LCP_SCANNED_BIT
               if (next_ptr)
               {
@@ -1143,19 +1155,20 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
                * new last LCP state is D. Ensure that LAST_LCP_FREE_BIT
                * is set to indicate that LCP state is D for this LCP.
                */
-              DEB_LCP_DEL(("(%u)tab(%u,%u) page(%u),"
-                           " is_last_lcp_state_A: %u, CHANGED: %u",
-                           instance(),
-                           fragPtr.p->fragTableId,
-                           fragPtr.p->fragmentId,
-                           key.m_page_no,
-                           is_last_lcp_state_A,
-                           pos.m_lcp_scan_changed_rows_page));
+              DEB_LCP_DEL2(("(%u)tab(%u,%u) page(%u),"
+                            " is_last_lcp_state_A: %u, CHANGED: %u",
+                            instance(),
+                            fragPtr.p->fragTableId,
+                            fragPtr.p->fragmentId,
+                            key.m_page_no,
+                            is_last_lcp_state_A,
+                            pos.m_lcp_scan_changed_rows_page));
 
               set_last_lcp_state(prev_ptr, true);
               if (!need_record_dropped_change)
               {
                 jam();
+                /* Coverage tested */
                 /* LCP case 1b) and 1c) above goes this way */
                 scan.m_last_seen = __LINE__;
                 pos.m_get = ScanPos::Get_next_page_mm;
@@ -1164,6 +1177,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
               else
               {
                 jam();
+                /* Coverage tested */
                 /* 1a) as described above */
                 scan.m_last_seen = __LINE__;
                 pos.m_get = ScanPos::Get_next_page_mm;
@@ -1256,6 +1270,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
           if (pos.m_lcp_scan_changed_rows_page && !pos.m_is_last_lcp_state_D)
           {
             jam();
+            ndbassert(false); //COVERAGE_TEST
             /**
              * Case 4d) from above
              * At start of LCP the page was dropped, we have information that
@@ -1269,6 +1284,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
           else
           {
             jam();
+            ndbassert(false); //COVERAGE_TEST
             /**
              * Case 4b) and 4c) from above
              * For ALL ROWS pages the rows should be skipped for LCP, we clear
@@ -1648,6 +1664,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
               {
                 jam();
                 /* Ensure that LCP_DELETE bit is clear before we move on */
+                /* Coverage tested path */
                 tuple_header_ptr->m_header_bits =
                   thbits & (~Tuple_header::LCP_DELETE);
                 updateChecksum(tuple_header_ptr,
@@ -1703,6 +1720,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
               {
                 /* Ensure that LCP_SKIP bit is clear before we move on */
                 jam();
+                ndbassert(false); //COVERAGE_TEST
                 tuple_header_ptr->m_header_bits =
                   thbits & (~Tuple_header::LCP_SKIP);
                 DEB_LCP_SKIP(("(%u) 2 Reset LCP_SKIP on tab(%u,%u), rowid(%u,%u)"
@@ -1730,7 +1748,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
                               foundGCI,
                               scan.m_scanGCI,
                               thbits));
-
+                ndbassert(false); //COVERAGE_TEST
               }
               jam();
               scan.m_last_seen = __LINE__;
@@ -2278,6 +2296,7 @@ Dbtup::handle_lcp_drop_change_page(Fragrecord *fragPtrP,
   {
     jam();
     Local_key key;
+    ndbassert(false); //COVERAGE TEST
     key.m_page_no = logicalPageId;
     while ((idx + size) <= Fix_page::DATA_WORDS)
     {
@@ -2336,6 +2355,7 @@ Dbtup::handle_lcp_drop_change_page(Fragrecord *fragPtrP,
   else
   {
     jam();
+    ndbassert(false); //COVERAGE TEST
     found_idx_count = 1;
     found_idx[0] = ZNIL; /* Indicates DELETE by PAGEID */
     DEB_LCP_REL(("(%u)tab(%u,%u)page(%u) Keep_list DELETE_BY_PAGEID",

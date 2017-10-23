@@ -444,6 +444,7 @@ Dbtup::handle_lcp_keep_commit(const Local_key* rowid,
                               Tablerec * regTabPtr)
 {
   bool disk = false;
+  /* Coverage tested */
   Uint32 sizes[4];
   Uint32 * copytuple = get_copy_tuple_raw(&opPtrP->m_copy_tuple_location);
   Tuple_header * dst = get_copy_tuple(copytuple);
