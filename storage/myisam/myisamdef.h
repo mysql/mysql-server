@@ -30,6 +30,7 @@
 #include "mysql/plugin_ftparser.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_rwlock.h"
+#include "mysql/psi/mysql_thread.h"
 #include "thr_lock.h"
 
 /* undef map from my_nosys; We need test-if-disk full */

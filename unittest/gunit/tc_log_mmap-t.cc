@@ -25,6 +25,7 @@
 #include "sql/mysqld.h"
 #include "sql/sql_class.h"
 #include "sql/tc_log.h"
+#include "sql/transaction_info.h"
 #include "unittest/gunit/test_utils.h"
 #include "unittest/gunit/thread_utils.h"
 

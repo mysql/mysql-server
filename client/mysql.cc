@@ -72,6 +72,7 @@
 #endif
 
 #if defined(HAVE_TERM_H)
+#define NOMACROS  // move() macro interferes with std::move.
 #include <curses.h>
 #include <term.h>
 #endif

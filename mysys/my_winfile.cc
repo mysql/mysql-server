@@ -52,6 +52,7 @@
 #include <sys/stat.h>
 
 #include "my_dbug.h"
+#include "my_io.h"
 #include "my_thread_local.h"
 #include "mysys_priv.h"
 

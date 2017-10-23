@@ -38,6 +38,7 @@ Created 5/11/1994 Heikki Tuuri
 # include <mysql_com.h>
 #endif /* !UNIV_HOTBACKUP */
 
+#include "mysql_com.h"
 #include "os0thread.h"
 #include "ut0ut.h"
 

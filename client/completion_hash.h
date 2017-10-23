@@ -23,6 +23,7 @@
 
 #include <sys/types.h>
 
+#include "my_alloc.h"
 #include "my_sys.h"
 
 typedef struct _entry {

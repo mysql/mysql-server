@@ -27,6 +27,9 @@
 
 #ifdef _WIN32
 
+#include "my_io.h"
+#include "my_thread_local.h"
+
 /*
   Check a file or path for accessability.
  

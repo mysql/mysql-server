@@ -34,6 +34,7 @@ Data dictionary interface */
 #include "dict0priv.h"
 #include <dd/properties.h>
 #include "dict0mem.h"
+#include "mysql_com.h"
 #ifndef UNIV_HOTBACKUP
 # include "dict0stats.h"
 #endif /* !UNIV_HOTBACKUP */

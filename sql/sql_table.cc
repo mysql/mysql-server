@@ -43,6 +43,7 @@
 #include "my_compiler.h"
 #endif /* !UNIV_HOTBACKUP */
 #include "my_dbug.h"
+#include "mysql_com.h"
 #ifndef UNIV_HOTBACKUP
 #include "my_io.h"
 #include "my_loglevel.h"

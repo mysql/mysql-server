@@ -25,6 +25,8 @@
 #include <NDBT.hpp> 
 #include <NdbSleep.h>
 #include <UtilTransactions.hpp>
+
+#include "my_alloc.h"
  
 static int 
 select_count(Ndb* pNdb, const NdbDictionary::Table* pTab,

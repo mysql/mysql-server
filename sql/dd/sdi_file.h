@@ -19,6 +19,7 @@
 #include <stddef.h>
 #include <utility>
 
+#include "mysql/mysql_lex_string.h"
 #include "prealloced_array.h"   // Prealloced_array
 #include "sql/dd/impl/sdi.h"    // dd::Sdi_type
 #include "sql/dd/object_id.h"   // dd::Object_id

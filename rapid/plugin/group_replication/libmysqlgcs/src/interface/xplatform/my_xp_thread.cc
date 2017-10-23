@@ -18,6 +18,7 @@
 #include <errno.h>
 
 #include "my_compiler.h"
+#include "mysql/psi/mysql_thread.h"
 
 #ifndef XCOM_STANDALONE
 My_xp_thread_server::My_xp_thread_server()

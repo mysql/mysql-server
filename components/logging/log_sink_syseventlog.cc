@@ -18,6 +18,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include "log_service_imp.h"
 #include "m_string.h"      // native_strncasecmp()/native_strcasecmp()
 #include "my_compiler.h"
+#include "my_io.h"
 #include "my_sys.h"
 #include "mysqld_error.h"  // so we can throw ER_LOG_SYSLOG_*
 #ifndef _WIN32
