@@ -5695,14 +5695,18 @@ Backup::start_lcp_scan(Signal *signal,
   }
   c_backupFilePool.getPtr(filePtr, ptr.p->dataFilePtr[0]);
   Uint32 delay = 0;
-  if (ERROR_INSERTED(10047) &&
-      ptr.p->m_lcp_max_page_cnt > 20)
+  if (ERROR_INSERTED(10047))
   {
-    g_eventLogger->info("(%u)Start LCP on tab(%u,%u) 3 seconds delay",
+    g_eventLogger->info("(%u)Start LCP on tab(%u,%u) 3 seconds delay, max_page: %u",
                         instance(),
                         tabPtr.p->tableId,
-                        fragPtr.p->fragmentId);
-    delay = 3000;
+                        fragPtr.p->fragmentId,
+                        ptr.p->m_lcp_max_page_cnt);
+
+    if (ptr.p->m_lcp_max_page_cnt > 20)
+    {
+      delay = 3000;
+    }
   }
   sendScanFragReq(signal, ptr, filePtr, tabPtr, fragPtr, delay);
 }
@@ -13680,7 +13684,21 @@ Backup::openFilesReplyLCP(Signal* signal,
      */
     BackupFilePtr zeroFilePtr;
     c_backupFilePool.getPtr(zeroFilePtr, ptr.p->dataFilePtr[0]);
-    sendScanFragReq(signal, ptr, zeroFilePtr, tabPtr, fragPtr, 0);
+    Uint32 delay = 0;
+    if (ERROR_INSERTED(10047))
+    {
+      g_eventLogger->info("(%u)Start LCP on tab(%u,%u) 3 seconds delay, max_page: %u",
+                          instance(),
+                          tabPtr.p->tableId,
+                          fragPtr.p->fragmentId,
+                          ptr.p->m_lcp_max_page_cnt);
+
+      if (ptr.p->m_lcp_max_page_cnt > 20)
+      {
+        delay = 3000;
+      }
+    }
+    sendScanFragReq(signal, ptr, zeroFilePtr, tabPtr, fragPtr, delay);
   }
 }
 

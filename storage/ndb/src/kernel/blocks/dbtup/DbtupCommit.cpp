@@ -43,6 +43,13 @@ extern EventLogger *g_eventLogger;
 #define DEB_DELETE_EXTRA(arglist) do { } while (0)
 #endif
 
+#define DEBUG_INSERT_EXTRA 1
+#ifdef DEBUG_INSERT_EXTRA
+#define DEB_INSERT_EXTRA(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_INSERT_EXTRA(arglist) do { } while (0)
+#endif
+
 #define DEBUG_LCP_DEL 1
 #ifdef DEBUG_LCP_DEL
 #define DEB_LCP_DEL(arglist) do { g_eventLogger->info arglist ; } while (0)
@@ -827,6 +834,19 @@ Dbtup::commit_operation(Signal* signal,
     copy_bits |= Tuple_header::DISK_PART;
   }
 
+#ifdef DEBUG_INSERT_EXTRA
+  if (c_started)
+  {
+    Local_key rowid = regOperPtr->m_tuple_location;
+    rowid.m_page_no = pagePtr.p->frag_page_id;
+    g_eventLogger->info("(%u)tab(%u,%u) commit rowid(%u,%u)",
+                        instance(),
+                        regFragPtr->fragTableId,
+                        regFragPtr->fragmentId,
+                        rowid.m_page_no,
+                        rowid.m_page_idx);
+  }
+#endif
   Uint32 lcp_bits = 0;
   if (lcpScan_ptr_i != RNIL &&
       (bits & Tuple_header::ALLOC) &&

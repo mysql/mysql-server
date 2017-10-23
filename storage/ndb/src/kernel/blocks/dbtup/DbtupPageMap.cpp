@@ -41,6 +41,13 @@
 #define DEB_LCP_REL(arglist) do { } while (0)
 #endif
 
+#define DEBUG_LCP_ALLOC 1
+#ifdef DEBUG_LCP_ALLOC
+#define DEB_LCP_ALLOC(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LCP_ALLOC(arglist) do { } while (0)
+#endif
+
 //#define DEBUG_LCP_FREE 1
 #ifdef DEBUG_LCP_FREE
 #define DEB_LCP_FREE(arglist) do { g_eventLogger->info arglist ; } while (0)
@@ -48,7 +55,7 @@
 #define DEB_LCP_FREE(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_LCP_SKIP 1
+#define DEBUG_LCP_SKIP 1
 #ifdef DEBUG_LCP_SKIP
 #define DEB_LCP_SKIP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
@@ -464,7 +471,7 @@ Dbtup::insert_new_page_into_page_map(EmulatedJamBuffer *jamBuf,
   DynArr256 map(c_page_map_pool, regFragPtr->m_page_map);
   Uint32 pageId = regFragPtr->m_max_page_cnt;
   Uint32 *ptr;
-  Uint32 *prev_ptr;
+  Uint32 *prev_ptr = 0;
   if (pageId >= MAX_PAGES_IN_DYN_ARRAY ||
       ((prev_ptr = map.set(2 * pageId + 1)) == 0) ||
       ((ptr = map.set(2 * pageId)) == 0))
@@ -697,6 +704,7 @@ Dbtup::handle_lcp_skip_bit(EmulatedJamBuffer *jamBuf,
          * to do with the page whether to skip or record it as DELETE by
          * PAGEID.
          */
+        /* Coverage tested */
         DEB_LCP_SKIP(("(%u)LCP_SKIP in tab(%u,%u):%u",
                        instance(),
                        fragPtrP->fragTableId,
@@ -707,6 +715,7 @@ Dbtup::handle_lcp_skip_bit(EmulatedJamBuffer *jamBuf,
       else
       {
         jam();
+        /* Coverage tested */
         /**
          * The page had already been handled since it had been dropped
          * after LCP start and is now allocated again still before the
@@ -737,6 +746,11 @@ Dbtup::handle_new_page(EmulatedJamBuffer *jamBuf,
                        PagePtr pagePtr,
                        Uint32 page_no)
 {
+  DEB_LCP_ALLOC(("(%u)allocFragPage: tab(%u,%u) page(%u)",
+                 instance(),
+                 fragPtrP->fragTableId,
+                 fragPtrP->fragmentId,
+                 page_no));
   c_page_pool.getPtr(pagePtr);
   init_page(fragPtrP, pagePtr, page_no);
   handle_lcp_skip_bit(jamBuf, fragPtrP, pagePtr, page_no);
@@ -940,7 +954,7 @@ Dbtup::releaseFragPage(Fragrecord* fragPtrP,
    * We optimise on that DynArr256 always will have the pair on the
    * same 256 byte page. Thus they lie consecutive to each other.
    */
-  DEB_LCP_REL(("(%u)releaseFragPage: tab(%u,%u):%u",
+  DEB_LCP_REL(("(%u)releaseFragPage: tab(%u,%u) page(%u)",
                instance(),
                fragPtrP->fragTableId,
                fragPtrP->fragmentId,
