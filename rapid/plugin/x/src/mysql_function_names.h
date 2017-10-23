@@ -41,6 +41,7 @@ inline std::string to_upper(const std::string &value) {
 
 bool does_return_json_mysql_function(const std::string &name);
 bool is_native_mysql_function(const std::string &name);
+bool is_native_mysql_json_function(const std::string &name);
 
 }  // namespace xpl
 
