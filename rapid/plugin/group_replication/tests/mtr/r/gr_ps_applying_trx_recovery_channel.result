@@ -6,6 +6,9 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection server1]
 include/start_and_bootstrap_group_replication.inc
 [connection server2]
+SET @slave_parallel_type_saved= @@GLOBAL.SLAVE_PARALLEL_TYPE;
+SET @slave_parallel_workers_saved= @@GLOBAL.SLAVE_PARALLEL_WORKERS;
+SET @slave_preserver_commit_order_saved= @@GLOBAL.SLAVE_PRESERVE_COMMIT_ORDER;
 SET GLOBAL slave_parallel_type= 'LOGICAL_CLOCK';
 SET GLOBAL slave_parallel_workers= 4;
 SET GLOBAL slave_preserve_commit_order= ON;
@@ -16,5 +19,8 @@ Note	1760	Storing MySQL user name or password information in the master info rep
 include/start_group_replication.inc
 include/assert.inc [GTID_EXECUTED must be UUID:1-2]
 include/assert.inc [There can be no applying transactions when the service state is off]
+SET @@GLOBAL.SLAVE_PARALLEL_TYPE= @slave_parallel_type_saved;
+SET @@GLOBAL.SLAVE_PARALLEL_WORKERS= @slave_parallel_workers_saved;
+SET @@GLOBAL.SLAVE_PRESERVE_COMMIT_ORDER= @slave_preserver_commit_order_saved;
 include/stop_group_replication.inc
 include/group_replication_end.inc
