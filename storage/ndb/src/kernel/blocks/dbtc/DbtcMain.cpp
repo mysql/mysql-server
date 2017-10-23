@@ -272,7 +272,7 @@ void Dbtc::execCONTINUEB(Signal* signal)
     apiConnectptr.i = Tdata0;
     ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
     tcConnectptr.i = Tdata1;
-    ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
+    tcConnectRecord.getPtr(tcConnectptr);
     commit020Lab(signal);
     return;
   case TcContinueB::ZSEND_COMPLETE_LOOP:
@@ -280,7 +280,7 @@ void Dbtc::execCONTINUEB(Signal* signal)
     apiConnectptr.i = Tdata0;
     ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
     tcConnectptr.i = Tdata1;
-    ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
+    tcConnectRecord.getPtr(tcConnectptr);
     complete010Lab(signal);
     return;
   case TcContinueB::ZHANDLE_FAILED_API_NODE:
@@ -727,7 +727,7 @@ void Dbtc::scan_for_read_backup(Signal *signal,
     {
       case CS_STARTED:
       {
-        if (regApiPtr->firstTcConnect == RNIL)
+        if (regApiPtr->tcConnect.isEmpty())
         {
           /**
            * No transaction have started, safe to ignore these transactions.
@@ -929,18 +929,18 @@ void Dbtc::execREAD_CONFIG_REQ(Signal* signal)
   initData();
   
   UintR apiConnect;
-  UintR tcConnect;
+  UintR tcConnectFail;
   UintR tables;
   UintR tcScan;
 
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TC_API_CONNECT, &apiConnect));
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TC_TC_CONNECT, &tcConnect));
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TC_TC_CONNECT_FAIL, &tcConnectFail));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TC_TABLE, &tables));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TC_SCAN, &tcScan));
 
   ccacheFilesize = (apiConnect/3) + 1;
   capiConnectFilesize = apiConnect;
-  ctcConnectFilesize  = tcConnect;
+  ctcConnectFailCount = tcConnectFail;
   ctabrecFilesize     = tables;
   cscanrecFileSize = tcScan;
 
@@ -966,6 +966,12 @@ void Dbtc::execREAD_CONFIG_REQ(Signal* signal)
   val = ~(Uint32)0;
   ndb_mgm_get_int_parameter(p, CFG_DB_MAX_DML_OPERATIONS_PER_TRANSACTION, &val);
   m_max_writes_per_trans = val;
+
+  if (m_max_writes_per_trans == ~(Uint32)0)
+  {
+    m_max_writes_per_trans = tcConnectFail;
+  }
+  ndbrequire(m_max_writes_per_trans <= tcConnectFail);
 
   ctimeOutCheckDelay = 50; // 500ms
   ctimeOutCheckDelayScan = 40; // 400ms
@@ -1321,11 +1327,10 @@ bool Dbtc::handleFailedApiConnection(Signal *signal,
            << apiConnectptr.p->ndbapiBlockref << endl
            << "  apiNode = " << refToNode(apiConnectptr.p->ndbapiBlockref) 
            << endl;
-    if (apiConnectptr.p->lastTcConnect != RNIL)
+    LocalTcConnectRecord_fifo tcConList(tcConnectRecord, (apiConnectptr.p->tcConnect));
+    if (tcConList.last(tcConnectptr))
     {
       jam();
-      tcConnectptr.i = apiConnectptr.p->lastTcConnect;
-      ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
       ndbout << "  tcConnectptr.i = " << tcConnectptr.i << endl
              << "  tcConnectstate = " << tcConnectptr.p->tcConnectstate 
              << endl;
@@ -1897,7 +1902,7 @@ Dbtc::TCKEY_abort(Signal* signal, int place)
   case 0:
     jam();
     terrorCode = ZSTATE_ERROR;
-    apiConnectptr.p->firstTcConnect = RNIL;
+    apiConnectptr.p->tcConnect.init();
     printState(signal, 4);
     abortBeginErrorLab(signal);
     return;
@@ -2408,9 +2413,10 @@ void Dbtc::execKEYINFO(Signal* signal)
     return;
   }
 
-  tcConnectptr.i = apiConnectptr.p->lastTcConnect;
-  ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
-  switch (tcConnectptr.p->tcConnectstate) {
+  LocalTcConnectRecord_fifo tcConList(tcConnectRecord, apiConnectptr.p->tcConnect);
+  ndbrequire(tcConList.last(tcConnectptr));
+  switch (tcConnectptr.p->tcConnectstate)
+  {
   case OS_WAIT_KEYINFO:
     jam();
     tckeyreq020Lab(signal);
@@ -2579,8 +2585,8 @@ void Dbtc::execATTRINFO(Signal* signal)
     /* Setup tcConnectptr to ensure that error handling etc.
      * can access required state
      */
-    tcConnectptr.i = regApiPtr->lastTcConnect;
-    ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
+    LocalTcConnectRecord_fifo tcConList(tcConnectRecord, regApiPtr->tcConnect);
+    ndbrequire( tcConList.last(tcConnectptr));
 
     /* Add AttrInfo to any existing AttrInfo we have 
      * Some short TCKEYREQ signals have no ATTRINFO in
@@ -2619,8 +2625,8 @@ void Dbtc::execATTRINFO(Signal* signal)
 	    <<", TattrlengthRemain="<<TattrlengthRemain
 	    <<", TattrLen="<< regCachePtr->attrlength
 	    <<", TcurrReclenAi="<< regCachePtr->currReclenAi);
-      tcConnectptr.i = regApiPtr->lastTcConnect;
-      ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
+      LocalTcConnectRecord_fifo tcConList(tcConnectRecord, regApiPtr->tcConnect);
+      ndbrequire( tcConList.last(tcConnectptr));
       aiErrorLab(signal);
     }//if
     return;
@@ -2825,9 +2831,8 @@ void Dbtc::initApiConnectRec(Signal* signal,
   tc_clearbit(regApiPtr->m_flags, ApiConnectRecord::TF_EXEC_FLAG);
   regApiPtr->returncode = 0;
   regApiPtr->returnsignal = RS_TCKEYCONF;
-  ndbassert(regApiPtr->firstTcConnect == RNIL);
-  regApiPtr->firstTcConnect = RNIL;
-  regApiPtr->lastTcConnect = RNIL;
+  ndbassert(regApiPtr->tcConnect.isEmpty());
+  regApiPtr->tcConnect.init();
   regApiPtr->firedFragId = RNIL;
   regApiPtr->globalcheckpointid = 0;
   regApiPtr->lqhkeyconfrec = 0;
@@ -2893,35 +2898,16 @@ int
 Dbtc::seizeTcRecord(Signal* signal)
 {
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
-  TcConnectRecord *localTcConnectRecord = tcConnectRecord;
-  UintR TfirstfreeTcConnect = cfirstfreeTcConnect;
-  UintR TtcConnectFilesize = ctcConnectFilesize;
-  tcConnectptr.i = TfirstfreeTcConnect;
-  if (TfirstfreeTcConnect >= TtcConnectFilesize) {
+  if (!tcConnectRecord.seize(tcConnectptr))
+  {
     int place = 3;
-    if (TfirstfreeTcConnect != RNIL) {
-      place = 10;
-    }//if
     TCKEY_abort(signal, place);
     return 1;
-  }//if
-  //--------------------------------------------------------------------------
-  // Optimised version of ptrAss(tcConnectptr, tcConnectRecord)
-  //--------------------------------------------------------------------------
-  TcConnectRecord * const regTcPtr = 
-                           &localTcConnectRecord[TfirstfreeTcConnect];
-
-  UintR TlastTcConnect = regApiPtr->lastTcConnect;
-  UintR TtcConnectptrIndex = tcConnectptr.i;
-  TcConnectRecordPtr tmpTcConnectptr;
-
-  cfirstfreeTcConnect = regTcPtr->nextTcConnect;
-  tcConnectptr.p = regTcPtr;
+  }
+  TcConnectRecord * const regTcPtr = tcConnectptr.p;
 
   c_counters.cconcurrentOp++;
 
-  regTcPtr->prevTcConnect = TlastTcConnect;
-  regTcPtr->nextTcConnect = RNIL;
   regTcPtr->numFiredTriggers = 0;
   regTcPtr->numReceivedTriggers = 0;
   regTcPtr->triggerExecutionCount = 0;
@@ -2932,17 +2918,9 @@ Dbtc::seizeTcRecord(Signal* signal)
   regTcPtr->tcConnectstate = OS_ABORTING;
   regTcPtr->noOfNodes = 0;
 
-  regApiPtr->lastTcConnect = TtcConnectptrIndex;
+  LocalTcConnectRecord_fifo tcConList(tcConnectRecord, regApiPtr->tcConnect);
+  tcConList.addLast(tcConnectptr);
 
-  if (TlastTcConnect == RNIL) {
-    jamDebug();
-    regApiPtr->firstTcConnect = TtcConnectptrIndex;
-  } else {
-    tmpTcConnectptr.i = TlastTcConnect;
-    jamDebug();
-    ptrCheckGuard(tmpTcConnectptr, TtcConnectFilesize, localTcConnectRecord);
-    tmpTcConnectptr.p->nextTcConnect = TtcConnectptrIndex;
-  }//if
   return 0;
 }//Dbtc::seizeTcRecord()
 
@@ -2993,13 +2971,10 @@ Dbtc::dump_trans(ApiConnectRecordPtr transPtr)
          transPtr.p->m_pre_commit_pass);
 
   Uint32 i = 0;
-  tcConnectptr.i = transPtr.p->firstTcConnect;
-  while (tcConnectptr.i != RNIL)
+  LocalTcConnectRecord_fifo tcConList(tcConnectRecord, transPtr.p->tcConnect);
+  if (tcConList.first(tcConnectptr)) do
   {
     jam();
-    ptrCheckGuard(tcConnectptr,
-                  ctcConnectFilesize, tcConnectRecord);
-
     Ptr<TcDefinedTriggerData> trigPtr;
     if (tcConnectptr.p->currentTriggerId != RNIL)
     {
@@ -3016,28 +2991,22 @@ Dbtc::dump_trans(ApiConnectRecordPtr transPtr)
            tcConnectptr.p->currentTriggerId == RNIL ? RNIL :
            (Uint32)trigPtr.p->triggerType,
            tcConnectptr.p->apiConnect);
-
-    tcConnectptr.i = tcConnectptr.p->nextTcConnect;
-  }
+  } while (tcConList.next(tcConnectptr));
 }
 
 bool
 Dbtc::hasOp(ApiConnectRecordPtr transPtr, Uint32 opPtrI)
 {
   TcConnectRecordPtr tcPtr;
-  tcPtr.i = transPtr.p->firstTcConnect;
-  while (tcPtr.i != RNIL)
+  LocalTcConnectRecord_fifo tcConList(tcConnectRecord, transPtr.p->tcConnect);
+  if (tcConList.first(tcPtr)) do
   {
     jam();
-    ptrCheckGuard(tcPtr,
-                  ctcConnectFilesize, tcConnectRecord);
     if (tcPtr.i == opPtrI)
     {
       return tcPtr.p->apiConnect == transPtr.i;
     }
-
-    tcPtr.i = tcPtr.p->nextTcConnect;
-  }
+  } while (tcConList.next(tcPtr));
 
   return false;
 }
@@ -3151,7 +3120,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   }
   break;
   case CS_STARTED:
-    if(TstartFlag == 1 && regApiPtr->firstTcConnect == RNIL)
+    if (TstartFlag == 1 && regApiPtr->tcConnect.isEmpty())
     {
       /**
        * If last operation in last transaction was a simple/dirty read
@@ -4333,7 +4302,7 @@ void Dbtc::attrinfoDihReceivedLab(Signal* signal)
       //ndbassert(false); // see above
       TcConnectRecordPtr opPtr;
       opPtr.i = trigOp;
-      ptrCheckGuard(opPtr, ctcConnectFilesize, tcConnectRecord);
+      tcConnectRecord.getPtr(opPtr);
       ndbrequire(apiConnectptr.p->m_executing_trigger_ops > 0);
       apiConnectptr.p->m_executing_trigger_ops--;
       trigger_op_finished(signal, apiConnectptr, RNIL, opPtr.p, 0);
@@ -4802,46 +4771,21 @@ void Dbtc::releaseDirtyRead(Signal* signal,
 /* ------------------------------------------------------------------------- */
 void Dbtc::unlinkReadyTcCon(Signal* signal) 
 {
-  TcConnectRecordPtr urtTcConnectptr;
-
-  TcConnectRecord * const regTcPtr = tcConnectptr.p;
-  TcConnectRecord *localTcConnectRecord = tcConnectRecord;
-  UintR TtcConnectFilesize = ctcConnectFilesize;
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
-  if (regTcPtr->prevTcConnect != RNIL) {
-    jam();
-    urtTcConnectptr.i = regTcPtr->prevTcConnect;
-    ptrCheckGuard(urtTcConnectptr, TtcConnectFilesize, localTcConnectRecord);
-    urtTcConnectptr.p->nextTcConnect = regTcPtr->nextTcConnect;
-  } else {
-    jam();
-    regApiPtr->firstTcConnect = regTcPtr->nextTcConnect;
-  }//if
-  if (regTcPtr->nextTcConnect != RNIL) {
-    jam();
-    urtTcConnectptr.i = regTcPtr->nextTcConnect;
-    ptrCheckGuard(urtTcConnectptr, TtcConnectFilesize, localTcConnectRecord);
-    urtTcConnectptr.p->prevTcConnect = regTcPtr->prevTcConnect;
-  } else {
-    jam();
-    regApiPtr->lastTcConnect = tcConnectptr.p->prevTcConnect;
-  }//if
+
+  LocalTcConnectRecord_fifo tcConList(tcConnectRecord, regApiPtr->tcConnect);
+  tcConList.remove(tcConnectptr);
 }//Dbtc::unlinkReadyTcCon()
 
 void Dbtc::releaseTcCon() 
 {
   TcConnectRecord * const regTcPtr = tcConnectptr.p;
-  UintR TfirstfreeTcConnect = cfirstfreeTcConnect;
-  UintR TtcConnectptrIndex = tcConnectptr.i;
 
   ndbrequire(regTcPtr->commitAckMarker == RNIL);
   regTcPtr->tcConnectstate = OS_CONNECTED;
-  regTcPtr->nextTcConnect = TfirstfreeTcConnect;
   regTcPtr->apiConnect = RNIL;
   regTcPtr->m_special_op_flags = 0;
   regTcPtr->indexOp = RNIL;
-  cfirstfreeTcConnect = TtcConnectptrIndex;
-  c_counters.cconcurrentOp--;
 
   if (regTcPtr->triggeringOperation != RNIL &&
       regTcPtr->currentTriggerId != RNIL)
@@ -4862,6 +4806,8 @@ void Dbtc::releaseTcCon()
 
   ndbrequire(regTcPtr->thePendingTriggers.isEmpty());
 
+  tcConnectRecord.release(tcConnectptr);
+  c_counters.cconcurrentOp--;
 }//Dbtc::releaseTcCon()
 
 void Dbtc::execPACKED_SIGNAL(Signal* signal) 
@@ -5174,13 +5120,11 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
   UintR tlastLqhConnect;
   UintR treadlenAi;
   UintR TtcConnectptrIndex;
-  UintR TtcConnectFilesize = ctcConnectFilesize;
 
   tlastLqhConnect = lqhKeyConf->connectPtr;
   TtcConnectptrIndex = lqhKeyConf->opPtr;
   tlastLqhBlockref = lqhKeyConf->userRef;
   treadlenAi = lqhKeyConf->readLen;
-  TcConnectRecord *localTcConnectRecord = tcConnectRecord;
 
   /*------------------------------------------------------------------------
    * NUMBER OF EXTERNAL TRIGGERS FIRED IN DATA[6] 
@@ -5200,14 +5144,14 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
    * this. 
    * This is more reason to ignore the signal if not all states are correct.
    *------------------------------------------------------------------------*/
-  if (TtcConnectptrIndex >= TtcConnectFilesize) {
-    TCKEY_abort(signal, 25);
+  tcConnectptr.i = TtcConnectptrIndex;
+  if (!tcConnectRecord.getValidPtr(tcConnectptr) || tcConnectptr.isNull())
+  {
+    warningReport(signal, 23);
     return;
   }//if
-  TcConnectRecord* const regTcPtr = &localTcConnectRecord[TtcConnectptrIndex];
+  TcConnectRecord* const regTcPtr = tcConnectptr.p;
   OperationState TtcConnectstate = regTcPtr->tcConnectstate;
-  tcConnectptr.i = TtcConnectptrIndex;
-  tcConnectptr.p = regTcPtr;
   if (TtcConnectstate != OS_OPERATING) {
     warningReport(signal, 23);
     return;
@@ -5405,15 +5349,21 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     ndbrequire( regTcPtr->triggeringOperation == RNIL );
 
     /* Switch to the original locking operation */
-    if (unlikely( lockingOpI >= ctcConnectFilesize ))
+    if (lockingOpI == RNIL)
     {
       jam();
       TCKEY_abort(signal, 61);
       return;
     }
-    tcConnectptr.i = lockingOpI;
-    ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
     
+    tcConnectptr.i = lockingOpI;
+    if (!tcConnectRecord.getValidPtr(tcConnectptr))
+    {
+      jam();
+      TCKEY_abort(signal, 63);
+      return;
+    }
+
     const TcConnectRecord * regLockTcPtr = tcConnectptr.p;
     
     /* Validate the locking operation's state */
@@ -5448,7 +5398,7 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
 
     /* Switch back to the unlock operation */
     tcConnectptr.i = unlockOpI;
-    ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
+    tcConnectRecord.getPtr(tcConnectptr);
 
     /* Release the unlock operation */
     unlinkReadyTcCon(signal);
@@ -5547,7 +5497,7 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
                                   refToNode(regApiPtr.p->ndbapiBlockref),
                                   regTcPtr->tcNodedata[0]);
     opPtr.i = regTcPtr->triggeringOperation;
-    ptrCheckGuard(opPtr, ctcConnectFilesize, localTcConnectRecord);
+    tcConnectRecord.getPtr(opPtr);
     trigger_op_finished(signal, regApiPtr, regTcPtr->currentTriggerId,
                         opPtr.p, 0);
     executeTriggers(signal, &regApiPtr);
@@ -5961,8 +5911,8 @@ Dbtc::startSendFireTrigReq(Signal* signal, Ptr<ApiConnectRecord> regApiPtr)
 
   ndbassert(regApiPtr.p->m_firstTcConnectPtrI_FT == RNIL);
   ndbassert(regApiPtr.p->m_lastTcConnectPtrI_FT == RNIL);
-  regApiPtr.p->m_firstTcConnectPtrI_FT = regApiPtr.p->firstTcConnect;
-  regApiPtr.p->m_lastTcConnectPtrI_FT = regApiPtr.p->lastTcConnect;
+  regApiPtr.p->m_firstTcConnectPtrI_FT = regApiPtr.p->tcConnect.getFirst();
+  regApiPtr.p->m_lastTcConnectPtrI_FT = regApiPtr.p->tcConnect.getLast();
   sendFireTrigReq(signal, regApiPtr);
 }
 
@@ -6190,19 +6140,18 @@ void Dbtc::execDIVERIFYCONF(Signal* signal)
     }
   }
 
-  UintR TtcConnectptrIndex = regApiPtr->firstTcConnect;
-  UintR TtcConnectFilesize = ctcConnectFilesize;
-  TcConnectRecord *localTcConnectRecord = tcConnectRecord;
-
   regApiPtr->counter = regApiPtr->lqhkeyconfrec;
   regApiPtr->apiConnectstate = CS_COMMITTING;
-  if (TtcConnectptrIndex >= TtcConnectFilesize) {
-    TCKEY_abort(signal, 33);
+
+  if (regApiPtr->tcConnect.isEmpty())
+  {
+    TCKEY_abort(signal, 33); // Not really invalid, rather just empty
     return;
-  }//if
-  TcConnectRecord* const regTcPtr = &localTcConnectRecord[TtcConnectptrIndex];
-  tcConnectptr.i = TtcConnectptrIndex;
-  tcConnectptr.p = regTcPtr;
+  }
+
+  LocalTcConnectRecord_fifo tcConList(tcConnectRecord, regApiPtr->tcConnect);
+  tcConList.first(tcConnectptr);
+
   commit020Lab(signal);
 }//Dbtc::execDIVERIFYCONF()
 
@@ -6355,12 +6304,11 @@ void Dbtc::commit020Lab(Signal* signal)
 {
   TcConnectRecordPtr localTcConnectptr;
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
-  UintR TtcConnectFilesize = ctcConnectFilesize;
-  TcConnectRecord *localTcConnectRecord = tcConnectRecord;
 
   localTcConnectptr.p = tcConnectptr.p;
   setApiConTimer(apiConnectptr.i, ctcTimer, __LINE__);
   UintR Tcount = 0;
+  LocalTcConnectRecord_fifo tcConList(tcConnectRecord, regApiPtr->tcConnect);
   do {
     /*-----------------------------------------------------------------------
      * WE ARE NOW READY TO RELEASE ALL OPERATIONS ON THE LQH                  
@@ -6368,7 +6316,6 @@ void Dbtc::commit020Lab(Signal* signal)
     /* *********< */
     /*  COMMIT  < */
     /* *********< */
-    localTcConnectptr.i = localTcConnectptr.p->nextTcConnect;
     /* Clear per-operation record CommitAckMarker ref if necessary */
     if (localTcConnectptr.p->commitAckMarker != RNIL)
     {
@@ -6379,14 +6326,13 @@ void Dbtc::commit020Lab(Signal* signal)
     localTcConnectptr.p->tcConnectstate = OS_COMMITTING;
     Tcount += sendCommitLqh(signal, localTcConnectptr.p);
 
-    if (localTcConnectptr.i != RNIL) {
+    if (tcConList.next(localTcConnectptr))
+    {
       if (Tcount < 16 &&
           ! (ERROR_INSERTED(8057) ||
              ERROR_INSERTED(8073) ||
              ERROR_INSERTED(8089)))
       {
-        ptrCheckGuard(localTcConnectptr,
-                      TtcConnectFilesize, localTcConnectRecord);
         jam();
         continue;
       } else {
@@ -6526,9 +6472,7 @@ void Dbtc::execCOMMITTED(Signal* signal)
   ApiConnectRecordPtr localApiConnectptr;
   ApiConnectRecordPtr localCopyPtr;
 
-  UintR TtcConnectFilesize = ctcConnectFilesize;
   UintR TapiConnectFilesize = capiConnectFilesize;
-  TcConnectRecord *localTcConnectRecord = tcConnectRecord;
   ApiConnectRecord *localApiConnectRecord = apiConnectRecord;
 
 #ifdef ERROR_INSERT
@@ -6554,7 +6498,7 @@ void Dbtc::execCOMMITTED(Signal* signal)
 #endif
   localTcConnectptr.i = signal->theData[0];
   jamEntry();
-  ptrCheckGuard(localTcConnectptr, TtcConnectFilesize, localTcConnectRecord);
+  tcConnectRecord.getPtr(localTcConnectptr);
   localApiConnectptr.i = localTcConnectptr.p->apiConnect;
   if (localTcConnectptr.p->tcConnectstate != OS_COMMITTING) {
     warningReport(signal, 4);
@@ -6602,9 +6546,7 @@ void Dbtc::execCOMMITTED(Signal* signal)
   apiConnectptr = localApiConnectptr;
   localCopyPtr = sendApiCommitAndCopy(signal);
 
-  localTcConnectptr.i = localCopyPtr.p->firstTcConnect;
   UintR Tlqhkeyconfrec = localCopyPtr.p->lqhkeyconfrec;
-  ptrCheckGuard(localTcConnectptr, TtcConnectFilesize, localTcConnectRecord);
   localCopyPtr.p->counter = Tlqhkeyconfrec;
   
   if (ERROR_INSERTED(8111))
@@ -6623,7 +6565,9 @@ void Dbtc::execCOMMITTED(Signal* signal)
   }
 
   apiConnectptr = localCopyPtr;
-  tcConnectptr = localTcConnectptr;
+
+  LocalTcConnectRecord_fifo tcConList(tcConnectRecord, localCopyPtr.p->tcConnect);
+  ndbrequire( tcConList.first(tcConnectptr));
   complete010Lab(signal);
   return;
 
@@ -6754,7 +6698,6 @@ err8055:
 void Dbtc::copyApi(ApiConnectRecordPtr copyPtr, ApiConnectRecordPtr regApiPtr)
 {
   UintR TndbapiConnect = regApiPtr.p->ndbapiConnect;
-  UintR TfirstTcConnect = regApiPtr.p->firstTcConnect;
   UintR Ttransid1 = regApiPtr.p->transid[0];
   UintR Ttransid2 = regApiPtr.p->transid[1];
   UintR Tlqhkeyconfrec = regApiPtr.p->lqhkeyconfrec;
@@ -6766,7 +6709,7 @@ void Dbtc::copyApi(ApiConnectRecordPtr copyPtr, ApiConnectRecordPtr regApiPtr)
 
   copyPtr.p->ndbapiBlockref = regApiPtr.p->ndbapiBlockref;
   copyPtr.p->ndbapiConnect = TndbapiConnect;
-  copyPtr.p->firstTcConnect = TfirstTcConnect;
+  copyPtr.p->tcConnect = regApiPtr.p->tcConnect;
   copyPtr.p->apiConnectstate = CS_COMPLETING;
   copyPtr.p->transid[0] = Ttransid1;
   copyPtr.p->transid[1] = Ttransid2;
@@ -6784,8 +6727,7 @@ void Dbtc::copyApi(ApiConnectRecordPtr copyPtr, ApiConnectRecordPtr regApiPtr)
   setApiConTimer(regApiPtr.i, 0, __LINE__);
   regApiPtr.p->apiConnectstate = CS_CONNECTED;
   regApiPtr.p->commitAckMarker = RNIL;
-  regApiPtr.p->firstTcConnect = RNIL;
-  regApiPtr.p->lastTcConnect = RNIL;
+  regApiPtr.p->tcConnect.init();
   regApiPtr.p->m_transaction_nodes.clear();
   regApiPtr.p->singleUserMode = 0;
   regApiPtr.p->num_commit_ack_markers = 0;
@@ -6870,13 +6812,12 @@ void Dbtc::complete010Lab(Signal* signal)
 {
   TcConnectRecordPtr localTcConnectptr;
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
-  UintR TtcConnectFilesize = ctcConnectFilesize;
-  TcConnectRecord *localTcConnectRecord = tcConnectRecord;
 
   localTcConnectptr.p = tcConnectptr.p;
   setApiConTimer(apiConnectptr.i, ctcTimer, __LINE__);
   UintR TapiConnectptrIndex = apiConnectptr.i;
   UintR Tcount = 0;
+  LocalTcConnectRecord_fifo tcConList(tcConnectRecord, regApiPtr->tcConnect);
   do {
     localTcConnectptr.p->apiConnect = TapiConnectptrIndex;
     localTcConnectptr.p->tcConnectstate = OS_COMPLETING;
@@ -6884,15 +6825,12 @@ void Dbtc::complete010Lab(Signal* signal)
     /* ************ */
     /*  COMPLETE  < */
     /* ************ */
-    const Uint32 nextTcConnect = localTcConnectptr.p->nextTcConnect;
     Tcount += sendCompleteLqh(signal, localTcConnectptr.p);
-    localTcConnectptr.i = nextTcConnect;
-    if (localTcConnectptr.i != RNIL) {
+    if (tcConList.next(localTcConnectptr))
+    {
       if (Tcount < 16 &&
           !ERROR_INSERTED(8112)) 
       {
-        ptrCheckGuard(localTcConnectptr,
-                      TtcConnectFilesize, localTcConnectRecord);
         jam();
         continue;
       } else {
@@ -7019,8 +6957,6 @@ Dbtc::sendFireTrigReq(Signal* signal,
                       Ptr<ApiConnectRecord> regApiPtr)
 {
   ndbrequire(regApiPtr.p->apiConnectstate != CS_WAIT_FIRE_TRIG_REQ);
-  UintR TtcConnectFilesize = ctcConnectFilesize;
-  TcConnectRecord *localTcConnectRecord = tcConnectRecord;
   TcConnectRecordPtr localTcConnectptr;
 
   setApiConTimer(regApiPtr.i, ctcTimer, __LINE__);
@@ -7055,6 +6991,9 @@ Dbtc::sendFireTrigReq(Signal* signal,
   Uint32 concurrentLimit =
     MaxOutstandingFireTrigReqPerTrans - currentFireTrigReqs;
 
+  LocalTcConnectRecord_fifo tcConList(tcConnectRecord, regApiPtr.p->tcConnect);
+  tcConnectRecord.getPtr(localTcConnectptr);
+
   for (Uint32 i = 0;
        prevOpPtrI != TlastOpPtrI &&
          i < ProcessingUnitsLimit &&
@@ -7063,10 +7002,6 @@ Dbtc::sendFireTrigReq(Signal* signal,
           MaxExecutingTriggerOpsPerTrans);
        i++)
   {
-    ptrCheckGuard(localTcConnectptr,
-                  TtcConnectFilesize, localTcConnectRecord);
-
-    const Uint32 nextTcConnect = localTcConnectptr.p->nextTcConnect;
     Uint32 flags = localTcConnectptr.p->m_special_op_flags;
     if (flags & passflag)
     {
@@ -7095,14 +7030,14 @@ Dbtc::sendFireTrigReq(Signal* signal,
     prevOpPtrI = localTcConnectptr.i;
 
     /**
-     * nextTcConnect can go beyond the TlastOpPtrI.
+     * next TcConnectRecord can go beyond the TlastOpPtrI.
      * However at this point, apiConnectState will go over to
      * CS_WAIT_FIRE_TRIG_REQ.
      * After reaching this state, this method will not be called.
-     * So no need to check nextTCconnect going out of range.
+     * So no need to check next TcConnectRecord going out of range.
      */
-    localTcConnectptr.i = nextTcConnect;
-    regApiPtr.p->m_firstTcConnectPtrI_FT = nextTcConnect;
+    tcConList.next(localTcConnectptr);
+    regApiPtr.p->m_firstTcConnectPtrI_FT = localTcConnectptr.i;
   }
 
   regApiPtr.p->lqhkeyreqrec = Tlqhkeyreqrec;
@@ -7238,15 +7173,13 @@ Dbtc::execFIRE_TRIG_CONF(Signal* signal)
   TcConnectRecordPtr localTcConnectptr;
   ApiConnectRecordPtr regApiPtr;
 
-  UintR TtcConnectFilesize = ctcConnectFilesize;
   UintR TapiConnectFilesize = capiConnectFilesize;
-  TcConnectRecord *localTcConnectRecord = tcConnectRecord;
   ApiConnectRecord *localApiConnectRecord = apiConnectRecord;
 
   const FireTrigConf * conf = CAST_CONSTPTR(FireTrigConf, signal->theData);
   localTcConnectptr.i = conf->tcOpRec;
   jamEntry();
-  ptrCheckGuard(localTcConnectptr, TtcConnectFilesize, localTcConnectRecord);
+  tcConnectRecord.getPtr(localTcConnectptr);
   regApiPtr.i = localTcConnectptr.p->apiConnect;
   if (localTcConnectptr.p->tcConnectstate != OS_FIRE_TRIG_REQ)
   {
@@ -7323,15 +7256,13 @@ Dbtc::execFIRE_TRIG_REF(Signal* signal)
   TcConnectRecordPtr localTcConnectptr;
   ApiConnectRecordPtr regApiPtr;
 
-  UintR TtcConnectFilesize = ctcConnectFilesize;
   UintR TapiConnectFilesize = capiConnectFilesize;
-  TcConnectRecord *localTcConnectRecord = tcConnectRecord;
   ApiConnectRecord *localApiConnectRecord = apiConnectRecord;
 
   const FireTrigRef * ref = CAST_CONSTPTR(FireTrigRef, signal->theData);
   localTcConnectptr.i = ref->tcOpRec;
   jamEntry();
-  ptrCheckGuard(localTcConnectptr, TtcConnectFilesize, localTcConnectRecord);
+  tcConnectRecord.getPtr(localTcConnectptr);
   regApiPtr.i = localTcConnectptr.p->apiConnect;
   if (localTcConnectptr.p->tcConnectstate != OS_FIRE_TRIG_REQ)
   {
@@ -7528,9 +7459,7 @@ void Dbtc::execCOMPLETED(Signal* signal)
   TcConnectRecordPtr localTcConnectptr;
   ApiConnectRecordPtr localApiConnectptr;
 
-  UintR TtcConnectFilesize = ctcConnectFilesize;
   UintR TapiConnectFilesize = capiConnectFilesize;
-  TcConnectRecord *localTcConnectRecord = tcConnectRecord;
   ApiConnectRecord *localApiConnectRecord = apiConnectRecord;
 
 #ifdef ERROR_INSERT
@@ -7558,7 +7487,7 @@ void Dbtc::execCOMPLETED(Signal* signal)
 #endif
   localTcConnectptr.i = signal->theData[0];
   jamEntry();
-  ptrCheckGuard(localTcConnectptr, TtcConnectFilesize, localTcConnectRecord);
+  tcConnectRecord.getPtr(localTcConnectptr);
   bool Tcond1 = (localTcConnectptr.p->tcConnectstate != OS_COMPLETING);
   localApiConnectptr.i = localTcConnectptr.p->apiConnect;
   if (Tcond1) {
@@ -7615,20 +7544,13 @@ void Dbtc::execCOMPLETED(Signal* signal)
 /*---------------------------------------------------------------------------*/
 void Dbtc::releaseTransResources(Signal* signal) 
 {
-  TcConnectRecordPtr localTcConnectptr;
-  UintR TtcConnectFilesize = ctcConnectFilesize;
-  TcConnectRecord *localTcConnectRecord = tcConnectRecord;
   apiConnectptr.p->m_transaction_nodes.clear();
-  localTcConnectptr.i = apiConnectptr.p->firstTcConnect;
-  do {
+  LocalTcConnectRecord_fifo tcConList(tcConnectRecord, apiConnectptr.p->tcConnect);
+  while (tcConList.removeFirst(tcConnectptr))
+  {
     jam();
-    ptrCheckGuard(localTcConnectptr, TtcConnectFilesize, localTcConnectRecord);
-    UintR rtrTcConnectptrIndex = localTcConnectptr.p->nextTcConnect;
-    tcConnectptr.i = localTcConnectptr.i;
-    tcConnectptr.p = localTcConnectptr.p;
-    localTcConnectptr.i = rtrTcConnectptrIndex;
     releaseTcCon();
-  } while (localTcConnectptr.i != RNIL);
+  }
   handleGcp(signal, apiConnectptr);
   releaseFiredTriggerData(&apiConnectptr.p->theFiredTriggers);
   releaseAllSeizedIndexOperations(apiConnectptr.p);
@@ -7684,7 +7606,7 @@ void Dbtc::releaseDirtyWrite(Signal* signal)
   releaseTcCon();
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
   if (regApiPtr->apiConnectstate == CS_START_COMMITTING) {
-    if (regApiPtr->firstTcConnect == RNIL) {
+    if (regApiPtr->tcConnect.isEmpty()) {
       jam();
       regApiPtr->apiConnectstate = CS_CONNECTED;
       setApiConTimer(apiConnectptr.i, 0, __LINE__);
@@ -7716,14 +7638,20 @@ void Dbtc::execLQHKEYREF(Signal* signal)
   jamEntry();
   
   UintR compare_transid1, compare_transid2;
-  UintR TtcConnectFilesize = ctcConnectFilesize;
   /*-------------------------------------------------------------------------
    *                                                                         
    * RELEASE NODE BUFFER(S) TO INDICATE THAT THIS OPERATION HAVE NO 
    * TRANSACTION PARTS ACTIVE ANYMORE. 
    * LQHKEYREF HAVE CLEARED ALL PARTS ON ITS PATH BACK TO TC.
    *-------------------------------------------------------------------------*/
-  if (lqhKeyRef->connectPtr < TtcConnectFilesize) {
+  tcConnectptr.i = lqhKeyRef->connectPtr;
+  if (!tcConnectRecord.getValidPtr(tcConnectptr))
+  {
+    warningReport(signal, 26);
+    // errorReport(signal, 6);
+  }
+  else
+  {
     /*-----------------------------------------------------------------------
      * WE HAVE TO CHECK THAT THE TRANSACTION IS STILL VALID. FIRST WE CHECK 
      * THAT THE LQH IS STILL CONNECTED TO A TC, IF THIS HOLDS TRUE THEN THE 
@@ -7733,9 +7661,7 @@ void Dbtc::execLQHKEYREF(Signal* signal)
      * IF NOT SIMPLY EXIT AND FORGET THE SIGNAL SINCE THE TRANSACTION IS    
      * ALREADY COMPLETED (ABORTED).
      *-----------------------------------------------------------------------*/
-    tcConnectptr.i = lqhKeyRef->connectPtr;
     Uint32 errCode = terrorCode = lqhKeyRef->errorCode;
-    ptrAss(tcConnectptr, tcConnectRecord);
     TcConnectRecord * const regTcPtr = tcConnectptr.p;
     if (regTcPtr->tcConnectstate == OS_OPERATING) {
       Uint32 save = apiConnectptr.i = regTcPtr->apiConnect;
@@ -7769,10 +7695,9 @@ void Dbtc::execLQHKEYREF(Signal* signal)
         regApiPtr->m_executing_trigger_ops--;
 
 	TcConnectRecordPtr opPtr;
-	TcConnectRecord *localTcConnectRecord = tcConnectRecord;
 
         opPtr.i = triggeringOp;
-        ptrCheckGuard(opPtr, ctcConnectFilesize, localTcConnectRecord);
+        tcConnectRecord.getPtr(opPtr);
 
         const Uint32 opType = regTcPtr->operation;
         Ptr<TcDefinedTriggerData> trigPtr;
@@ -7990,9 +7915,7 @@ void Dbtc::execLQHKEYREF(Signal* signal)
     } else {
       warningReport(signal, 26);
     }//if
-  } else {
-    errorReport(signal, 6);
-  }//if
+  }
   return;
 }//Dbtc::execLQHKEYREF()
 
@@ -8069,9 +7992,10 @@ void Dbtc::execTC_COMMITREQ(Signal* signal)
     regApiPtr->m_flags |= ApiConnectRecord::TF_EXEC_FLAG;
     switch (regApiPtr->apiConnectstate) {
     case CS_STARTED:
-      tcConnectptr.i = regApiPtr->firstTcConnect;
-      if (tcConnectptr.i != RNIL) {
-        ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
+      if (!regApiPtr->tcConnect.isEmpty())
+      {
+        tcConnectptr.i = regApiPtr->tcConnect.getFirst();
+        tcConnectRecord.getPtr(tcConnectptr);
         if (regApiPtr->lqhkeyconfrec == regApiPtr->lqhkeyreqrec) {
           jam();
           /*******************************************************************/
@@ -8560,17 +8484,14 @@ void Dbtc::execABORTED(Signal* signal)
   /*------------------------------------------------------------------------
    *    ONE PARTICIPANT IN THE TRANSACTION HAS REPORTED THAT IT IS ABORTED.
    *------------------------------------------------------------------------*/
-  if (tcConnectptr.i >= ctcConnectFilesize) {
-    errorReport(signal, 0);
-    return;
-  }//if
   /*-------------------------------------------------------------------------
    *     WE HAVE TO CHECK THAT THIS IS NOT AN OLD SIGNAL BELONGING TO A     
    *     TRANSACTION ALREADY ABORTED. THIS CAN HAPPEN WHEN TIME-OUT OCCURS  
    *     IN TC WAITING FOR ABORTED.                                         
    *-------------------------------------------------------------------------*/
-  ptrAss(tcConnectptr, tcConnectRecord);
-  if (tcConnectptr.p->tcConnectstate != OS_ABORT_SENT) {
+  if (!tcConnectRecord.getValidPtr(tcConnectptr) ||
+      tcConnectptr.p->tcConnectstate != OS_ABORT_SENT)
+  {
     warningReport(signal, 2);
     return;
     /*-----------------------------------------------------------------------*/
@@ -8697,7 +8618,7 @@ void Dbtc::abort010Lab(Signal* signal)
   transP->abortState = AS_ACTIVE;
   transP->counter = 0;
 
-  if (transP->firstTcConnect == RNIL) {
+  if (transP->tcConnect.isEmpty()) {
     jam();
     /*--------------------------------------------------------------------*/
     /* WE HAVE NO PARTICIPANTS IN THE TRANSACTION.                        */
@@ -8705,7 +8626,7 @@ void Dbtc::abort010Lab(Signal* signal)
     releaseAbortResources(signal);
     return;
   }//if
-  tcConnectptr.i = transP->firstTcConnect;
+  tcConnectptr.i = transP->tcConnect.getFirst();
   abort015Lab(signal);
 }//Dbtc::abort010Lab()
 
@@ -8724,7 +8645,7 @@ void Dbtc::abort015Lab(Signal* signal)
 ABORT020:
   jam();
   TloopCount++;
-  ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
+  tcConnectRecord.getPtr(tcConnectptr);
   switch (tcConnectptr.p->tcConnectstate) {
   case OS_WAIT_DIH:
   case OS_WAIT_KEYINFO:
@@ -8778,9 +8699,9 @@ ABORT020:
     return;
   }//switch
 
-  if (tcConnectptr.p->nextTcConnect != RNIL) {
+  if (tcConnectptr.p->nextList != RNIL) {
     jam();
-    tcConnectptr.i = tcConnectptr.p->nextTcConnect;
+    tcConnectptr.i = tcConnectptr.p->nextList;
     if (TloopCount < 1024 &&
         !ERROR_INSERTED(8089) &&
         !ERROR_INSERTED(8105))
@@ -9264,7 +9185,7 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
     /*       TIME-OUT DURING ABORT. WE NEED TO SEND ABORTED FOR ALL     */
     /*       NODES THAT HAVE FAILED BEFORE SENDING ABORTED.             */
     /*------------------------------------------------------------------*/
-    tcConnectptr.i = apiConnectptr.p->firstTcConnect;
+    tcConnectptr.i = apiConnectptr.p->tcConnect.getFirst();
     sendAbortedAfterTimeout(signal, 0);
     break;
   case CS_START_SCAN:{
@@ -9290,7 +9211,7 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
   case CS_WAIT_ABORT_CONF:
     jam();
     tcConnectptr.i = apiConnectptr.p->currentTcConnect;
-    ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
+    tcConnectRecord.getPtr(tcConnectptr);
     arrGuard(apiConnectptr.p->currentReplicaNo, MAX_REPLICAS);
     hostptr.i = tcConnectptr.p->tcNodedata[apiConnectptr.p->currentReplicaNo];
     ptrCheckGuard(hostptr, chostFilesize, hostRecord);
@@ -9317,7 +9238,7 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
     jam();
     CRASH_INSERTION(8053);
     tcConnectptr.i = apiConnectptr.p->currentTcConnect;
-    ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
+    tcConnectRecord.getPtr(tcConnectptr);
     arrGuard(apiConnectptr.p->currentReplicaNo, MAX_REPLICAS);
     hostptr.i = tcConnectptr.p->tcNodedata[apiConnectptr.p->currentReplicaNo];
     ptrCheckGuard(hostptr, chostFilesize, hostRecord);
@@ -9343,7 +9264,7 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
   case CS_WAIT_COMPLETE_CONF:
     jam();
     tcConnectptr.i = apiConnectptr.p->currentTcConnect;
-    ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
+    tcConnectRecord.getPtr(tcConnectptr);
     arrGuard(apiConnectptr.p->currentReplicaNo, MAX_REPLICAS);
     hostptr.i = tcConnectptr.p->tcNodedata[apiConnectptr.p->currentReplicaNo];
     ptrCheckGuard(hostptr, chostFilesize, hostRecord);
@@ -9395,7 +9316,7 @@ void Dbtc::sendAbortedAfterTimeout(Signal* signal, int Tcheck)
 		 apiConnectptr.i, 
 		 transP->apiConnectstate,
 		 c_apiConTimer_line[apiConnectptr.i],
-		 transP->firstTcConnect,
+                 transP->tcConnect.getFirst(),
 		 c_apiConTimer[apiConnectptr.i]
 		 );
     ndbout_c("TC: %d: %d state=%d abort==IDLE place: %d fop=%d t: %d", 
@@ -9403,7 +9324,7 @@ void Dbtc::sendAbortedAfterTimeout(Signal* signal, int Tcheck)
 	     apiConnectptr.i, 
 	     transP->apiConnectstate,
 	     c_apiConTimer_line[apiConnectptr.i],
-	     transP->firstTcConnect,
+             transP->tcConnect.getFirst(),
 	     c_apiConTimer[apiConnectptr.i]
 	     );
     ndbabort();
@@ -9493,7 +9414,7 @@ void Dbtc::sendAbortedAfterTimeout(Signal* signal, int Tcheck)
       }
       return;
     }//if
-    ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
+    tcConnectRecord.getPtr(tcConnectptr);
     if(TloopCount < 16){
       jam();
       tmp[TloopCount-1] = tcConnectptr.p->tcConnectstate;
@@ -9559,7 +9480,7 @@ void Dbtc::sendAbortedAfterTimeout(Signal* signal, int Tcheck)
         }//if
       }//for
     }//if
-    tcConnectptr.i = tcConnectptr.p->nextTcConnect;
+    tcConnectptr.i = tcConnectptr.p->nextList;
   } while (1);
 }//Dbtc::sendAbortedAfterTimeout()
 
@@ -10820,7 +10741,7 @@ Dbtc::findTcConnectFail(Signal* signal,
   tcConnectptr.i = ctcConnectFailHash[bucket];
   while (tcConnectptr.i != RNIL)
   {
-    ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
+    tcConnectRecord.getPtr(tcConnectptr);
     if (tcConnectptr.p->tcOprec == tcOprec &&
         tcConnectptr.p->apiConnect == apiConnectptr.i &&
         apiConnectptr.p->transid[0] == transid1 &&
@@ -10843,24 +10764,24 @@ void Dbtc::remove_transaction_from_tc_fail_hash(Signal *signal)
 {
   TcConnectRecordPtr remTcConnectptr;
 
-  remTcConnectptr.i = apiConnectptr.p->firstTcConnect;
+  remTcConnectptr.i = apiConnectptr.p->tcConnect.getFirst();
   while (remTcConnectptr.i != RNIL)
   {
     jam();
     TcConnectRecordPtr loopTcConnectptr;
-    TcConnectRecordPtr prevTcConnectptr;
-    ptrCheckGuard(remTcConnectptr, ctcConnectFilesize, tcConnectRecord);
+    TcConnectRecordPtr prevListptr;
+    tcConnectRecord.getPtr(remTcConnectptr);
     bool found = false;
     Uint32 bucket = get_tc_fail_bucket(apiConnectptr.p->transid[0],
                                        remTcConnectptr.p->tcOprec);
-    prevTcConnectptr.i = RNIL;
+    prevListptr.i = RNIL;
     loopTcConnectptr.i = ctcConnectFailHash[bucket];
     while (loopTcConnectptr.i != RNIL)
     {
       if (loopTcConnectptr.i == remTcConnectptr.i)
       {
         found = true;
-        if (prevTcConnectptr.i == RNIL)
+        if (prevListptr.i == RNIL)
         {
           jam();
           /* We were first in the hash linked list */
@@ -10871,8 +10792,8 @@ void Dbtc::remove_transaction_from_tc_fail_hash(Signal *signal)
         {
           /* Link past our record in the hash list */
           jam();
-          ptrCheckGuard(prevTcConnectptr, ctcConnectFilesize, tcConnectRecord);
-          prevTcConnectptr.p->nextTcFailHash =
+          tcConnectRecord.getPtr(prevListptr);
+          prevListptr.p->nextTcFailHash =
             remTcConnectptr.p->nextTcFailHash;
         }
         remTcConnectptr.p->nextTcFailHash = RNIL;
@@ -10881,13 +10802,13 @@ void Dbtc::remove_transaction_from_tc_fail_hash(Signal *signal)
       else
       {
         jam();
-        ptrCheckGuard(loopTcConnectptr, ctcConnectFilesize, tcConnectRecord);
-        prevTcConnectptr.i = loopTcConnectptr.i;
+        tcConnectRecord.getPtr(loopTcConnectptr);
+        prevListptr.i = loopTcConnectptr.i;
         loopTcConnectptr.i = loopTcConnectptr.p->nextTcFailHash;
       }
     }
     ndbrequire(found);
-    remTcConnectptr.i = remTcConnectptr.p->nextTcConnect;
+    remTcConnectptr.i = remTcConnectptr.p->nextList;
   }
 }
 
@@ -11083,7 +11004,7 @@ void Dbtc::execLQH_TRANSCONF(Signal* signal)
     }
     else
     {
-      if (cfirstfreeTcConnectFail == RNIL)
+      if (cfreeTcConnectFail.isEmpty())
       {
         /**
          * We failed to allocate a TC record, given that we can no longer
@@ -11103,13 +11024,12 @@ void Dbtc::execLQH_TRANSCONF(Signal* signal)
          * than the failed node had. This could happen but isn't
          * recommended.
          */
-        Uint32 tcConnect = ctcConnectFilesize;
         jam();
         g_eventLogger->info("Need to do another round of TC takeover handling."
                             " The failed node had a higher setting of "
                             "MaxNoOfConcurrentOperations than this node has, "
                             "this node has MaxNoOfConcurrentOperations = %u",
-                            tcConnect);
+                            ctcConnectFailCount);
         tcNodeFailptr.p->takeOverFailed = true;
         remove_transaction_from_tc_fail_hash(signal);
         releaseMarker(apiConnectptr.p);
@@ -11382,8 +11302,8 @@ void Dbtc::completeTransAtTakeOverDoOne(Signal* signal, UintR TtakeOverInd)
     /*       COMPLETE PHASE.                                      */
     /*------------------------------------------------------------*/
     sendTCKEY_FAILCONF(signal, apiConnectptr.p);
-    tcConnectptr.i = apiConnectptr.p->firstTcConnect;
-    ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
+    tcConnectptr.i = apiConnectptr.p->tcConnect.getFirst();
+    tcConnectRecord.getPtr(tcConnectptr);
     apiConnectptr.p->currentTcConnect = tcConnectptr.i;
     apiConnectptr.p->currentReplicaNo = tcConnectptr.p->lastReplicaNo;
     tcurrentReplicaNo = tcConnectptr.p->lastReplicaNo;
@@ -11397,8 +11317,8 @@ void Dbtc::completeTransAtTakeOverDoOne(Signal* signal, UintR TtakeOverInd)
     /*       PART WAS COMMITTED. COMPLETE THE COMMIT PHASE FIRST. */
     /*       THEN CONTINUE AS AFTER COMMITTED.                    */
     /*------------------------------------------------------------*/
-    tcConnectptr.i = apiConnectptr.p->firstTcConnect;
-    ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
+    tcConnectptr.i = apiConnectptr.p->tcConnect.getFirst();
+    tcConnectRecord.getPtr(tcConnectptr);
     apiConnectptr.p->currentTcConnect = tcConnectptr.i;
     apiConnectptr.p->currentReplicaNo = tcConnectptr.p->lastReplicaNo;
     tcurrentReplicaNo = tcConnectptr.p->lastReplicaNo;
@@ -11419,8 +11339,8 @@ void Dbtc::completeTransAtTakeOverDoOne(Signal* signal, UintR TtakeOverInd)
     /*       PREPARED ACTUALLY. WE WILL LEAVE THIS PROBLEM UNTIL  */
     /*       LATER VERSIONS.                                      */
     /*------------------------------------------------------------*/
-    tcConnectptr.i = apiConnectptr.p->firstTcConnect;
-    ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
+    tcConnectptr.i = apiConnectptr.p->tcConnect.getFirst();
+    tcConnectRecord.getPtr(tcConnectptr);
     apiConnectptr.p->currentTcConnect = tcConnectptr.i;
     apiConnectptr.p->currentReplicaNo = tcConnectptr.p->lastReplicaNo;
     tcurrentReplicaNo = tcConnectptr.p->lastReplicaNo;
@@ -11608,15 +11528,12 @@ void Dbtc::execABORTCONF(Signal* signal)
     sendSignalWithDelay(cownref, GSN_ABORTCONF, signal, 2000, 5);
     return;
   }//if
-  if (tcConnectptr.i >= ctcConnectFilesize) {
-    errorReport(signal, 5);
-    return;
-  }//if
-  ptrAss(tcConnectptr, tcConnectRecord);
-  if (tcConnectptr.p->tcConnectstate != OS_WAIT_ABORT_CONF) {
+  if (!tcConnectRecord.getValidPtr(tcConnectptr) ||
+      tcConnectptr.p->tcConnectstate != OS_WAIT_ABORT_CONF)
+  {
     warningReport(signal, 16);
     return;
-  }//if
+  }
   apiConnectptr.i = tcConnectptr.p->apiConnect;
   ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
   if (apiConnectptr.p->apiConnectstate != CS_WAIT_ABORT_CONF) {
@@ -11696,7 +11613,7 @@ void Dbtc::toAbortHandlingLab(Signal* signal)
       /*------------------------------------------------------------*/
       /*       THE LAST REPLICA IN THIS OPERATION HAVE COMMITTED.   */
       /*------------------------------------------------------------*/
-      tcConnectptr.i = tcConnectptr.p->nextTcConnect;
+      tcConnectptr.i = tcConnectptr.p->nextList;
       if (tcConnectptr.i == RNIL) {
 	/*------------------------------------------------------------*/
 	/*       WE HAVE COMPLETED THE ABORT PHASE. WE CAN NOW REPORT */
@@ -11723,7 +11640,7 @@ void Dbtc::toAbortHandlingLab(Signal* signal)
         return;
       }//if
       apiConnectptr.p->currentTcConnect = tcConnectptr.i;
-      ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
+      tcConnectRecord.getPtr(tcConnectptr);
       apiConnectptr.p->currentReplicaNo = tcConnectptr.p->lastReplicaNo;
       tcurrentReplicaNo = tcConnectptr.p->lastReplicaNo;
     }//if
@@ -11748,12 +11665,9 @@ void Dbtc::execCOMMITCONF(Signal* signal)
     sendSignalWithDelay(cownref, GSN_COMMITCONF, signal, 2000, 4);
     return;
   }//if
-  if (tcConnectptr.i >= ctcConnectFilesize) {
-    errorReport(signal, 4);
-    return;
-  }//if
-  ptrAss(tcConnectptr, tcConnectRecord);
-  if (tcConnectptr.p->tcConnectstate != OS_WAIT_COMMIT_CONF) {
+  if (!tcConnectRecord.getValidPtr(tcConnectptr) ||
+      tcConnectptr.p->tcConnectstate != OS_WAIT_COMMIT_CONF)
+  {
     warningReport(signal, 8);
     return;
   }//if
@@ -11848,7 +11762,7 @@ void Dbtc::toCommitHandlingLab(Signal* signal)
       /*------------------------------------------------------------*/
       /*       THE LAST REPLICA IN THIS OPERATION HAVE COMMITTED.   */
       /*------------------------------------------------------------*/
-      tcConnectptr.i = tcConnectptr.p->nextTcConnect;
+      tcConnectptr.i = tcConnectptr.p->nextList;
       if (tcConnectptr.i == RNIL) {
 	/*------------------------------------------------------------*/
 	/*       WE HAVE COMPLETED THE COMMIT PHASE. WE CAN NOW REPORT*/
@@ -11862,16 +11776,16 @@ void Dbtc::toCommitHandlingLab(Signal* signal)
           jam();
           apiConnectptr = sendApiCommitAndCopy(signal);
         }//if
-        apiConnectptr.p->currentTcConnect = apiConnectptr.p->firstTcConnect;
-        tcConnectptr.i = apiConnectptr.p->firstTcConnect;
-        ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
+        apiConnectptr.p->currentTcConnect = apiConnectptr.p->tcConnect.getFirst();
+        tcConnectptr.i = apiConnectptr.p->tcConnect.getFirst();
+        tcConnectRecord.getPtr(tcConnectptr);
         tcurrentReplicaNo = tcConnectptr.p->lastReplicaNo;
         apiConnectptr.p->currentReplicaNo = tcurrentReplicaNo;
         toCompleteHandlingLab(signal);
         return;
       }//if
       apiConnectptr.p->currentTcConnect = tcConnectptr.i;
-      ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
+      tcConnectRecord.getPtr(tcConnectptr);
       apiConnectptr.p->currentReplicaNo = tcConnectptr.p->lastReplicaNo;
       tcurrentReplicaNo = tcConnectptr.p->lastReplicaNo;
     }//if
@@ -11896,12 +11810,9 @@ void Dbtc::execCOMPLETECONF(Signal* signal)
     sendSignalWithDelay(cownref, GSN_COMPLETECONF, signal, 2000, 4);
     return;
   }//if
-  if (tcConnectptr.i >= ctcConnectFilesize) {
-    errorReport(signal, 3);
-    return;
-  }//if
-  ptrAss(tcConnectptr, tcConnectRecord);
-  if (tcConnectptr.p->tcConnectstate != OS_WAIT_COMPLETE_CONF) {
+  if (!tcConnectRecord.getValidPtr(tcConnectptr) ||
+      tcConnectptr.p->tcConnectstate != OS_WAIT_COMPLETE_CONF)
+  {
     warningReport(signal, 12);
     return;
   }//if
@@ -11985,7 +11896,7 @@ void Dbtc::toCompleteHandlingLab(Signal* signal)
       apiConnectptr.p->currentReplicaNo--;
       tcurrentReplicaNo = apiConnectptr.p->currentReplicaNo;
     } else {
-      tcConnectptr.i = tcConnectptr.p->nextTcConnect;
+      tcConnectptr.i = tcConnectptr.p->nextList;
       if (tcConnectptr.i == RNIL) {
         /*------------------------------------------------------------*/
         /*       WE HAVE COMPLETED THIS TRANSACTION NOW AND CAN       */
@@ -12024,7 +11935,7 @@ void Dbtc::toCompleteHandlingLab(Signal* signal)
       /*       FIRST REPLICA SINCE IT IS THE COMPLETE PHASE.        */
       /*------------------------------------------------------------*/
       apiConnectptr.p->currentTcConnect = tcConnectptr.i;
-      ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
+      tcConnectRecord.getPtr(tcConnectptr);
       tcurrentReplicaNo = tcConnectptr.p->lastReplicaNo;
       apiConnectptr.p->currentReplicaNo = tcurrentReplicaNo;
     }//if
@@ -12045,9 +11956,8 @@ void Dbtc::initApiConnectFail(Signal* signal,
 {
   apiConnectptr.p->transid[0] = transid1;
   apiConnectptr.p->transid[1] = transid2;
-  apiConnectptr.p->firstTcConnect = RNIL;
+  apiConnectptr.p->tcConnect.init();
   apiConnectptr.p->currSavePointId = 0;
-  apiConnectptr.p->lastTcConnect = RNIL;
   BlockReference blockRef = calcTcBlockRef(tcNodeFailptr.p->takeOverNode);
 
   apiConnectptr.p->tcBlockref = blockRef;
@@ -12198,16 +12108,13 @@ void Dbtc::initTcFail(Signal* signal)
 /*----------------------------------------------------------*/
 void Dbtc::releaseTakeOver(Signal* signal) 
 {
-  TcConnectRecordPtr rtoNextTcConnectptr;
 
-  rtoNextTcConnectptr.i = apiConnectptr.p->firstTcConnect;
-  do {
+  LocalTcConnectRecord_fifo tcConList(tcConnectRecord, apiConnectptr.p->tcConnect);
+  while (tcConList.removeFirst(tcConnectptr))
+  {
     jam();
-    tcConnectptr.i = rtoNextTcConnectptr.i;
-    ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
-    rtoNextTcConnectptr.i = tcConnectptr.p->nextTcConnect;
     releaseTcConnectFail(signal);
-  } while (rtoNextTcConnectptr.i != RNIL);
+  }
   releaseApiConnectFail(signal);
 }//Dbtc::releaseTakeOver()
 
@@ -12218,9 +12125,9 @@ void Dbtc::releaseTakeOver(Signal* signal)
 /*---------------------------------------------------------------------------*/
 void Dbtc::setupFailData(Signal* signal) 
 {
-  tcConnectptr.i = apiConnectptr.p->firstTcConnect;
+  LocalTcConnectRecord_fifo tcConList(tcConnectRecord, apiConnectptr.p->tcConnect);
+  ndbrequire(tcConList.first(tcConnectptr));
   do {
-    ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
     switch (tcConnectptr.p->tcConnectstate) {
     case OS_PREPARED:
     case OS_COMMITTING:
@@ -12283,12 +12190,11 @@ void Dbtc::setupFailData(Signal* signal)
     }//if
     tcConnectptr.p->tcConnectstate = OS_TAKE_OVER;
     tcConnectptr.p->tcOprec = tcConnectptr.i;
-    tcConnectptr.i = tcConnectptr.p->nextTcConnect;
-  } while (tcConnectptr.i != RNIL);
+  } while (tcConList.next(tcConnectptr));
   apiConnectptr.p->tcBlockref = cownref;
-  apiConnectptr.p->currentTcConnect = apiConnectptr.p->firstTcConnect;
-  tcConnectptr.i = apiConnectptr.p->firstTcConnect;
-  ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
+  apiConnectptr.p->currentTcConnect = apiConnectptr.p->tcConnect.getFirst();
+  tcConnectptr.i = apiConnectptr.p->tcConnect.getFirst();
+  tcConnectRecord.getPtr(tcConnectptr);
   apiConnectptr.p->currentReplicaNo = tcConnectptr.p->lastReplicaNo;
   tcurrentReplicaNo = tcConnectptr.p->lastReplicaNo;
 }//Dbtc::setupFailData()
@@ -12805,7 +12711,7 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
 	transP->abortState == AS_IDLE) {
       jam();
     } else if(transP->apiConnectstate == CS_STARTED && 
-	      transP->firstTcConnect == RNIL){
+              transP->tcConnect.isEmpty()){
       jam();
       // left over from simple/dirty read
     } else {
@@ -15068,8 +14974,7 @@ void Dbtc::initApiConnect(Signal* signal)
     apiConnectptr.p->ndbapiBlockref = 0xFFFFFFFF; // Invalid ref
     apiConnectptr.p->commitAckMarker = RNIL;
     apiConnectptr.p->num_commit_ack_markers = 0;
-    apiConnectptr.p->firstTcConnect = RNIL;
-    apiConnectptr.p->lastTcConnect = RNIL;
+    apiConnectptr.p->tcConnect.init();
     apiConnectptr.p->m_flags = 0;
     apiConnectptr.p->m_special_op_flags = 0;
     apiConnectptr.p->accumulatingIndexOp = RNIL;
@@ -15099,8 +15004,7 @@ void Dbtc::initApiConnect(Signal* signal)
       apiConnectptr.p->ndbapiBlockref = 0xFFFFFFFF; // Invalid ref
       apiConnectptr.p->commitAckMarker = RNIL;
       apiConnectptr.p->num_commit_ack_markers = 0;
-      apiConnectptr.p->firstTcConnect = RNIL;
-      apiConnectptr.p->lastTcConnect = RNIL;
+      apiConnectptr.p->tcConnect.init();
       apiConnectptr.p->m_flags = 0;
       apiConnectptr.p->m_special_op_flags = 0;
       apiConnectptr.p->accumulatingIndexOp = RNIL;
@@ -15130,8 +15034,7 @@ void Dbtc::initApiConnect(Signal* signal)
     apiConnectptr.p->ndbapiBlockref = 0xFFFFFFFF; // Invalid ref
     apiConnectptr.p->commitAckMarker = RNIL;
     apiConnectptr.p->num_commit_ack_markers = 0;
-    apiConnectptr.p->firstTcConnect = RNIL;
-    apiConnectptr.p->lastTcConnect = RNIL;
+    apiConnectptr.p->tcConnect.init();
     apiConnectptr.p->m_flags = 0;
     apiConnectptr.p->m_special_op_flags = 0;
     apiConnectptr.p->accumulatingIndexOp = RNIL;
@@ -15320,43 +15223,25 @@ void Dbtc::initTable(Signal* signal)
 
 void Dbtc::initialiseTcConnect(Signal* signal) 
 {
-  ndbrequire(ctcConnectFilesize >= 2);
-
-  // Place half of tcConnectptr's in cfirstfreeTcConnectFail list
-  Uint32 titcTmp = ctcConnectFilesize / 2;
-  for (tcConnectptr.i = 0; tcConnectptr.i < titcTmp; tcConnectptr.i++) {
+  jam();
+  LocalTcConnectRecord_fifo tcConList(tcConnectRecord, cfreeTcConnectFail);
+  Uint32 tcConnectFailCount = 0;
+#ifdef VM_TRACE
+  Uint32 prevptr = 0;
+#endif
+  while (tcConnectFailCount < ctcConnectFailCount)
+  {
     refresh_watch_dog();
     jam();
-    ptrAss(tcConnectptr, tcConnectRecord);
-    new (tcConnectptr.p) TcConnectRecord();
-    tcConnectptr.p->tcConnectstate = OS_CONNECTED;
-    tcConnectptr.p->apiConnect = RNIL;
-    tcConnectptr.p->noOfNodes = 0;
-    tcConnectptr.p->nextTcConnect = tcConnectptr.i + 1;
-    tcConnectptr.p->commitAckMarker = RNIL;
-  }//for
-  tcConnectptr.i = titcTmp - 1;
-  ptrAss(tcConnectptr, tcConnectRecord);
-  tcConnectptr.p->nextTcConnect = RNIL;
-  cfirstfreeTcConnectFail = 0;
-
-  // Place other half in cfirstfreeTcConnect list
-  for (tcConnectptr.i = titcTmp; tcConnectptr.i < ctcConnectFilesize; 
-       tcConnectptr.i++) {
-    refresh_watch_dog();
-    jam();
-    ptrAss(tcConnectptr, tcConnectRecord);
-    new (tcConnectptr.p) TcConnectRecord();
-    tcConnectptr.p->tcConnectstate = OS_CONNECTED;
-    tcConnectptr.p->apiConnect = RNIL;
-    tcConnectptr.p->noOfNodes = 0;
-    tcConnectptr.p->nextTcConnect = tcConnectptr.i + 1;
-    tcConnectptr.p->commitAckMarker = RNIL;
-  }//for
-  tcConnectptr.i = ctcConnectFilesize - 1;
-  ptrAss(tcConnectptr, tcConnectRecord);
-  tcConnectptr.p->nextTcConnect = RNIL;
-  cfirstfreeTcConnect = titcTmp;
+    TcConnectRecordPtr tcConnectptr;
+    ndbrequire(tcConnectRecord.seize(tcConnectptr));
+    tcConnectFailCount++;
+#ifdef VM_TRACE
+    ndbassert((prevptr == 0) || (prevptr < tcConnectptr.i));
+    prevptr = tcConnectptr.i;
+#endif
+    tcConList.addLast(tcConnectptr);
+  }
   c_counters.cconcurrentOp = 0;
 }//Dbtc::initialiseTcConnect()
 
@@ -15384,20 +15269,9 @@ void Dbtc::linkGciInGcilist(Ptr<GcpRecord> gcpPtr)
 /* ------------------------------------------------------------------------- */
 void Dbtc::linkTcInConnectionlist(Signal* signal) 
 {
-  /* POINTER FOR THE CONNECT_RECORD */
-  TcConnectRecordPtr ltcTcConnectptr;
-
-  tcConnectptr.p->nextTcConnect = RNIL;
-  ltcTcConnectptr.i = apiConnectptr.p->lastTcConnect;
-  apiConnectptr.p->lastTcConnect = tcConnectptr.i;
-  if (ltcTcConnectptr.i == RNIL) {
-    jam();
-    apiConnectptr.p->firstTcConnect = tcConnectptr.i;
-  } else {
-    jam();
-    ptrCheckGuard(ltcTcConnectptr, ctcConnectFilesize, tcConnectRecord);
-    ltcTcConnectptr.p->nextTcConnect = tcConnectptr.i;
-  }//if
+  LocalTcConnectRecord_fifo tcConList(tcConnectRecord, apiConnectptr.p->tcConnect);
+  tcConList.addLast(tcConnectptr);
+  ndbrequire(tcConnectptr.p->nextList == RNIL);
 }//Dbtc::linkTcInConnectionlist()
 
 /*---------------------------------------------------------------------------*/
@@ -15429,22 +15303,19 @@ void Dbtc::releaseAbortResources(Signal* signal)
     releaseAttrinfo();
     releaseKeys();
   }//if
-  tcConnectptr.i = apiConnectptr.p->firstTcConnect;
-  while (tcConnectptr.i != RNIL) {
+  LocalTcConnectRecord_fifo tcConList(tcConnectRecord, apiConnectptr.p->tcConnect);
+  while (tcConList.removeFirst(tcConnectptr))
+  {
     jam();
-    ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
     // Clear any markers that have not already been cleared
     clearCommitAckMarker(apiConnectptr.p, tcConnectptr.p);
-    rarTcConnectptr.i = tcConnectptr.p->nextTcConnect;
     releaseTcCon();
-    tcConnectptr.i = rarTcConnectptr.i;
   }//while
 
   ndbrequire(apiConnectptr.p->num_commit_ack_markers == 0);
   releaseMarker(apiConnectptr.p);
 
-  apiConnectptr.p->firstTcConnect = RNIL;
-  apiConnectptr.p->lastTcConnect = RNIL;
+  apiConnectptr.p->tcConnect.init();
   apiConnectptr.p->m_transaction_nodes.clear();
   apiConnectptr.p->singleUserMode = 0;
 
@@ -15585,10 +15456,8 @@ void Dbtc::releaseKeys()
 
 void Dbtc::releaseTcConnectFail(Signal* signal) 
 {
-  ptrGuard(tcConnectptr);
-  tcConnectptr.p->nextTcConnect = cfirstfreeTcConnectFail;
-  tcConnectptr.p->tcConnectstate = OS_CONNECTED;
-  cfirstfreeTcConnectFail = tcConnectptr.i;
+  LocalTcConnectRecord_fifo tcConList(tcConnectRecord, cfreeTcConnectFail);
+  tcConList.addFirst(tcConnectptr);
 }//Dbtc::releaseTcConnectFail()
 
 void Dbtc::seizeApiConnect(Signal* signal) 
@@ -15619,22 +15488,11 @@ void Dbtc::seizeApiConnectFail(Signal* signal)
   apiConnectptr.p->nextApiConnect = RNIL;
 }//Dbtc::seizeApiConnectFail()
 
-void Dbtc::seizeTcConnect(Signal* signal) 
-{
-  tcConnectptr.i = cfirstfreeTcConnect;
-  ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
-  cfirstfreeTcConnect = tcConnectptr.p->nextTcConnect;
-  c_counters.cconcurrentOp++;
-  tcConnectptr.p->m_special_op_flags = 0;
-  tcConnectptr.p->tcConnectstate = OS_ABORTING;
-  tcConnectptr.p->noOfNodes = 0;
-}//Dbtc::seizeTcConnect()
-
 void Dbtc::seizeTcConnectFail(Signal* signal) 
 {
-  tcConnectptr.i = cfirstfreeTcConnectFail;
-  ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
-  cfirstfreeTcConnectFail = tcConnectptr.p->nextTcConnect;
+  LocalTcConnectRecord_fifo tcConList(tcConnectRecord, cfreeTcConnectFail);
+  ndbrequire(tcConList.removeFirst(tcConnectptr));
+  tcConnectptr.p = new (tcConnectptr.p) TcConnectRecord();
 }//Dbtc::seizeTcConnectFail()
 
 /**
@@ -16033,34 +15891,36 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     {
       numRecords = MAX_RECORDS_AT_A_TIME;
     }
-    if (recordNo >= ctcConnectFilesize)
-    {
-      return;
-    }
 
     TcConnectRecordPtr tc;
     tc.i = recordNo;
-    ptrAss(tc, tcConnectRecord);
-    if (tc.p->tcConnectstate == OS_CONNECTED ||
-        !includeOnlyActive)
+    if (tcConnectRecord.getValidPtr(tc))
     {
-      dumpState->args[0] = DumpStateOrd::TcDumpOneTcConnectRec;
-      dumpState->args[1] = recordNo;
-      dumpState->args[2] = instanceId;
-      signal->setLength(3);
-      execDUMP_STATE_ORD(signal);
+      if (tc.p->tcConnectstate != OS_CONNECTED ||
+          !includeOnlyActive)
+      {
+        dumpState->args[0] = DumpStateOrd::TcDumpOneTcConnectRec;
+        dumpState->args[1] = recordNo;
+        dumpState->args[2] = instanceId;
+        signal->setLength(3);
+        execDUMP_STATE_ORD(signal);
+      }
     }
 
     numRecords--;
     recordNo++;
-    if (recordNo < ctcConnectFilesize && numRecords > 0)
+    if (numRecords > 0)
     {
-      dumpState->args[0] = DumpStateOrd::TcDumpSetOfTcConnectRec;
-      dumpState->args[1] = recordNo;
-      dumpState->args[2] = numRecords;
-      dumpState->args[3] = instanceId;
-      dumpState->args[4] = includeOnlyActive;
-      sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, 5, JBB);
+      (void) tcConnectRecord.getUncheckedPtrs(&recordNo, &tc, 1);
+      if (recordNo != RNIL)
+      {
+        dumpState->args[0] = DumpStateOrd::TcDumpSetOfTcConnectRec;
+        dumpState->args[1] = recordNo;
+        dumpState->args[2] = numRecords;
+        dumpState->args[3] = instanceId;
+        dumpState->args[4] = includeOnlyActive;
+        sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, 5, JBB);
+      }
     }
     return;
   }
@@ -16088,10 +15948,6 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     {
       return;
     }
-    if (recordNo >= ctcConnectFilesize)
-    {
-      return;
-    }
     if (instanceId != instance())
     {
       return;
@@ -16099,7 +15955,10 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
 
     TcConnectRecordPtr tc;
     tc.i = recordNo;
-    ptrAss(tc, tcConnectRecord);
+    if (!tcConnectRecord.getValidPtr(tc))
+    {
+      return;
+    }
     infoEvent("Dbtc::TcConnectRecord[%d]: state=%d, apiCon=%d, "
 	      "commitAckMarker=%d",
 	      tc.i,
@@ -16118,7 +15977,7 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
               tc.p->tcNodedata[2],
               tc.p->tcNodedata[3]);
     infoEvent(" next=%d, instance=%u ",
-	      tc.p->nextTcConnect,
+              tc.p->nextList,
               instance());
     return;
   }
@@ -16262,7 +16121,7 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     infoEvent(" next=%d, instance=%u, firstTc=%d ",
 	      ap.p->nextApiConnect,
               instance(),
-              ap.p->firstTcConnect);
+              ap.p->tcConnect.getFirst());
     return;
   }
 
@@ -16627,7 +16486,7 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     case 1: 
       infoEvent("TC : Concurrent operations in use/total : %u/%u (%u bytes each)", 
                 c_counters.cconcurrentOp, 
-                ctcConnectFilesize,
+                tcConnectRecord.getSize(),
                 (Uint32) sizeof(TcConnectRecord));
       resource++;
       position = 0;
@@ -16726,9 +16585,9 @@ void Dbtc::execDBINFO_SCANREQ(Signal *signal)
         { 0, 0, 0, 0 }},
       { "Operations",
         c_counters.cconcurrentOp,
-        ctcConnectFilesize,
-        sizeof(TcConnectRecord),
-        0,
+        tcConnectRecord.getSize(),
+        tcConnectRecord.getEntrySize(),
+        tcConnectRecord.getUsedHi(),
         { CFG_DB_NO_TRANSACTIONS,
           CFG_DB_NO_OPS,0,0 }},
       { "TC Scan Record",  /* TC redundantly included to improve readability */
@@ -17674,7 +17533,7 @@ void Dbtc::execFIRE_TRIG_ORD(Signal* signal)
   
   /* Get triggering operation record */
   opPtr.i = fireOrd->getConnectionPtr();
-  ptrCheckGuard(opPtr, ctcConnectFilesize, tcConnectRecord);
+  tcConnectRecord.getPtr(opPtr);
   
   /* Get transaction record */
   transPtr.i = opPtr.p->apiConnect;
@@ -18048,7 +17907,7 @@ void Dbtc::execTCINDXREQ(Signal* signal)
    if (startFlag == 1 &&
        (regApiPtr->apiConnectstate == CS_CONNECTED ||
         (regApiPtr->apiConnectstate == CS_STARTED && 
-         regApiPtr->firstTcConnect == RNIL) ||
+         regApiPtr->tcConnect.isEmpty()) ||
         (regApiPtr->apiConnectstate == CS_ABORTING && 
          regApiPtr->abortState == AS_IDLE)))
   {
@@ -19002,7 +18861,7 @@ void Dbtc::readIndexTable(Signal* signal,
      * Remember ptr to index read operation
      *   (used to set correct save point id on index operation later)
      */
-    indexOp->indexReadTcConnect = regApiPtr->lastTcConnect;
+    indexOp->indexReadTcConnect = regApiPtr->tcConnect.getLast();
   }
 
   return;
@@ -19115,7 +18974,7 @@ void Dbtc::executeIndexOperation(Signal* signal,
    */
   TcConnectRecordPtr tmp;
   tmp.i = indexOp->indexReadTcConnect;
-  ptrCheckGuard(tmp, ctcConnectFilesize, tcConnectRecord);
+  tcConnectRecord.getPtr(tmp);
   const Uint32 currSavePointId = regApiPtr->currSavePointId;
   const Uint32 triggeringOp = tmp.p->triggeringOperation;
   const Uint32 triggerId = tmp.p->currentTriggerId;
@@ -19321,10 +19180,10 @@ Dbtc::trigger_op_finished(Signal* signal,
     jam();
     if (unlikely((triggeringOp->triggerExecutionCount == 0)))
     {
-      printf("%u : 0x%x->triggerExecutionCount == 0\n",
+      printf("%u : %p->triggerExecutionCount == 0\n",
              __LINE__,
-             Uint32(triggeringOp - this->tcConnectRecord));
-      dump_trans(regApiPtr);
+             triggeringOp);
+      dump_trans(apiConnectptr);
     }
     ndbrequire(triggeringOp->triggerExecutionCount > 0);
     triggeringOp->triggerExecutionCount--;
@@ -19409,7 +19268,6 @@ void Dbtc::continueTriggeringOp(Signal* signal,
 void Dbtc::executeTriggers(Signal* signal, ApiConnectRecordPtr* transPtr)
 {
   ApiConnectRecord* regApiPtr = transPtr->p;
-  TcConnectRecord *localTcConnectRecord = tcConnectRecord;
   TcConnectRecordPtr opPtr;
   FiredTriggerPtr trigPtr;
   jam();
@@ -19455,7 +19313,7 @@ void Dbtc::executeTriggers(Signal* signal, ApiConnectRecordPtr* transPtr)
 
         // Execute ready triggers in parallel
         opPtr.i = trigPtr.p->fireingOperation;
-        ptrCheckGuard(opPtr, ctcConnectFilesize, localTcConnectRecord);
+        tcConnectRecord.getPtr(opPtr);
 	FiredTriggerPtr nextTrigPtr = trigPtr;
 	regApiPtr->theFiredTriggers.next(nextTrigPtr);
         ndbrequire(opPtr.p->apiConnect == transPtr->i);
@@ -20034,7 +19892,7 @@ Dbtc::fk_execTCINDXREQ(Signal* signal,
     jam();
     TcConnectRecordPtr tcPtr;
     tcPtr.i = indexOpPtr.p->indexReadTcConnect;
-    ptrCheckGuard(tcPtr, ctcConnectFilesize, tcConnectRecord);
+    tcConnectRecord.getPtr(tcPtr);
     tcPtr.p->triggeringOperation = opPtr.i;
     ndbrequire(hasOp(transPtr, opPtr.i));
   }
@@ -20131,23 +19989,25 @@ Dbtc::fk_scanFromChildTable(Signal* signal,
     return;
   }
 
-  if (unlikely(cfirstfreeTcConnect == RNIL))
+  // TODO check against MaxDMLOperationsPerTransaction (not for failover?)
+  if (unlikely(!tcConnectRecord.seize(tcConnectptr)))
   {
     jam();
     abortTransFromTrigger(signal, *transPtr, ZNO_FREE_TC_CONNECTION);
     return;
   }
+  c_counters.cconcurrentOp++;
 
   seizeApiConnect(signal);
   if (unlikely(terrorCode != ZOK))
   {
     jam();
     abortTransFromTrigger(signal, *transPtr, terrorCode);
+    releaseTcCon();
     return;
   }
 
   // seize a TcConnectRecord to keep track of trigger stuff
-  seizeTcConnect(0);
   TcConnectRecordPtr tcPtr = tcConnectptr;
 
   // Reuse the ApiConnectRecordPtr, set this TC as (internal) 'API-client' 
@@ -20315,7 +20175,7 @@ Dbtc::execKEYINFO20(Signal* signal)
 
   TcConnectRecordPtr tcPtr;
   tcPtr.i = conf->clientOpPtr;
-  ptrCheckGuard(tcPtr, ctcConnectFilesize, tcConnectRecord);
+  tcConnectRecord.getPtr(tcPtr);
 
   ApiConnectRecordPtr scanApiConnectPtr;
   scanApiConnectPtr.i = tcPtr.p->apiConnect;
@@ -20439,7 +20299,7 @@ Dbtc::execKEYINFO20(Signal* signal)
 
   TcConnectRecordPtr opPtr; // triggering operation
   opPtr.i = tcPtr.p->triggeringOperation;
-  ptrCheckGuard(opPtr, ctcConnectFilesize, tcConnectRecord);
+  tcConnectRecord.getPtr(opPtr);
 
   /**
    * Fix savepoint id -
@@ -20490,7 +20350,7 @@ Dbtc::execSCAN_TABCONF(Signal* signal)
 
   TcConnectRecordPtr tcPtr;
   tcPtr.i = conf->apiConnectPtr;
-  ptrCheckGuard(tcPtr, ctcConnectFilesize, tcConnectRecord);
+  tcConnectRecord.getPtr(tcPtr);
 
   ApiConnectRecordPtr scanApiConnectPtr;
   scanApiConnectPtr.i = tcPtr.p->apiConnect;
@@ -20562,7 +20422,7 @@ Dbtc::execSCAN_TABCONF(Signal* signal)
     jam();
     TcConnectRecordPtr opPtr; // triggering operation
     opPtr.i = tcPtr.p->triggeringOperation;
-    ptrCheckGuard(opPtr, ctcConnectFilesize, tcConnectRecord);
+    tcConnectRecord.getPtr(opPtr);
     TcConnectRecord * triggeringOp = opPtr.p;
     if (triggeringOp->operation == ZDELETE &&
         (fkPtr.p->bits & (CreateFKImplReq::FK_DELETE_CASCADE | CreateFKImplReq::FK_DELETE_SET_NULL)))
@@ -20730,7 +20590,7 @@ Dbtc::fk_scanFromChildTable_done(Signal* signal, TcConnectRecordPtr tcPtr)
     return;
   }
 
-  ptrCheckGuard(opPtr, ctcConnectFilesize, tcConnectRecord);
+  tcConnectRecord.getPtr(opPtr);
   if (opPtr.p->apiConnect != orgApiConnectPtr.i)
   {
     jam();
@@ -20783,7 +20643,7 @@ Dbtc::execSCAN_TABREF(Signal* signal)
 
   TcConnectRecordPtr tcPtr;
   tcPtr.i = ref->apiConnectPtr;
-  ptrCheckGuard(tcPtr, ctcConnectFilesize, tcConnectRecord);
+  tcConnectRecord.getPtr(tcPtr);
 
   ApiConnectRecordPtr scanApiConnectPtr;
   scanApiConnectPtr.i = tcPtr.p->apiConnect;
@@ -21811,7 +21671,7 @@ Dbtc::executeFullyReplicatedTrigger(Signal* signal,
   signal->m_sectionPtrI[ TcKeyReq::AttrInfoSectionNum ] = attrIVal;
   signal->header.m_noOfSections = sendAttrInfo? 2 : 1;
 
-  Uint32 saveOp = regApiPtr->lastTcConnect;
+  Uint32 saveOp = regApiPtr->tcConnect.getLast();
   Uint32 saveState = regApiPtr->apiConnectstate;
 
   /**
@@ -21845,7 +21705,7 @@ Dbtc::executeFullyReplicatedTrigger(Signal* signal,
       saveState == CS_START_COMMITTING) &&
       currState == saveState);
 
-  if (ok && regApiPtr->lastTcConnect != saveOp)
+  if (ok && regApiPtr->tcConnect.getLast() != saveOp)
   {
     jam();
     /**

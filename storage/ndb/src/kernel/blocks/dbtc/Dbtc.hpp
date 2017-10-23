@@ -734,6 +734,134 @@ public:
   FK_pool c_fk_pool;
   FK_hash c_fk_hash;
 
+  /************************** TC CONNECT RECORD ************************/
+  /* *******************************************************************/
+  /* TC CONNECT RECORD KEEPS ALL INFORMATION TO CARRY OUT A TRANSACTION*/
+  /* THE TRANSACTION CONTROLLER ESTABLISHES CONNECTIONS TO DIFFERENT   */
+  /* BLOCKS TO CARRY OUT THE TRANSACTION. THERE CAN BE SEVERAL RECORDS */
+  /* PER ACTIVE TRANSACTION. THE TC CONNECT RECORD COOPERATES WITH THE */
+  /* API CONNECT RECORD FOR COMMUNICATION WITH THE API AND WITH THE    */
+  /* LQH CONNECT RECORD FOR COMMUNICATION WITH THE LQH'S INVOLVED IN   */
+  /* THE TRANSACTION. TC CONNECT RECORD IS PERMANENTLY CONNECTED TO A  */
+  /* RECORD IN DICT AND ONE IN DIH. IT CONTAINS A LIST OF ACTIVE LQH   */
+  /* CONNECT RECORDS AND A LIST OF STARTED BUT NOT ACTIVE LQH CONNECT  */
+  /* RECORDS. IT DOES ALSO CONTAIN A LIST OF ALL OPERATIONS THAT ARE   */
+  /* EXECUTED WITH THE TC CONNECT RECORD.                              */
+  /*******************************************************************>*/
+  /*       TC_CONNECT RECORD ALIGNED TO BE 128 BYTES                   */
+  /*******************************************************************>*/
+  struct TcConnectRecord
+  {
+    STATIC_CONST( TYPE_ID = RT_DBTC_CONNECT_RECORD );
+
+    TcConnectRecord()
+    : m_magic(Magic::make(TYPE_ID)),
+      commitAckMarker(RNIL),
+      tcConnectstate(OS_CONNECTED),
+      apiConnect(RNIL),
+      nextList(RNIL),
+      noOfNodes(0),
+      m_special_op_flags(0),
+      prevList(RNIL),
+      triggeringOperation(RNIL),
+      indexOp(RNIL),
+      currentTriggerId(RNIL)
+    {
+      NdbTick_Invalidate(&m_start_ticks);
+    }
+
+    Uint32 m_magic;
+    //---------------------------------------------------
+    // First 16 byte cache line. Those variables are only
+    // used in error cases.
+    //---------------------------------------------------
+    UintR  tcOprec;      /* TC OPREC of operation being taken over       */
+    Uint16 failData[4];  /* Failed nodes when taking over an operation   */
+    UintR  nextTcFailHash;
+
+    //---------------------------------------------------
+    // Second 16 byte cache line. Those variables are used
+    // from LQHKEYCONF to sending COMMIT and COMPLETED.
+    //---------------------------------------------------
+    UintR lastLqhCon;        /* Connect record in last replicas Lqh record   */
+    Uint16 lastLqhNodeId;    /* Node id of last replicas Lqh                 */
+    Uint16 m_execAbortOption;/* TcKeyReq::ExecuteAbortOption */
+    UintR  commitAckMarker;  /* CommitMarker I value */
+
+    //---------------------------------------------------
+    // Third 16 byte cache line. The hottest variables.
+    //---------------------------------------------------
+    OperationState tcConnectstate;         /* THE STATE OF THE CONNECT*/
+    UintR apiConnect;                      /* POINTER TO API CONNECT RECORD */
+    UintR nextList;                   /* NEXT TC RECORD*/
+    Uint8 dirtyOp;
+    Uint8 opSimple;
+    Uint8 lastReplicaNo;     /* NUMBER OF THE LAST REPLICA IN THE OPERATION */
+    Uint8 noOfNodes;         /* TOTAL NUMBER OF NODES IN OPERATION          */
+    Uint8 operation;         /* OPERATION TYPE                              */
+                             /* 0 = READ REQUEST                            */
+                             /* 1 = UPDATE REQUEST                          */
+                             /* 2 = INSERT REQUEST                          */
+                             /* 3 = DELETE REQUEST                          */
+    Uint16 m_special_op_flags; // See ApiConnectRecord::SpecialOpFlags
+    enum SpecialOpFlags {
+      SOF_NORMAL = 0,
+      SOF_INDEX_TABLE_READ = 1,       // Read index table
+      SOF_REORG_TRIGGER = 4,          // A reorg trigger
+      SOF_REORG_MOVING = 8,           // A record that should be moved
+      SOF_TRIGGER = 16,               // A trigger
+      SOF_REORG_COPY = 32,
+      SOF_REORG_DELETE = 64,
+      SOF_DEFERRED_UK_TRIGGER = 128,  // Op has deferred trigger
+      SOF_DEFERRED_FK_TRIGGER = 256,
+      SOF_FK_READ_COMMITTED = 512,    // reply to TC even for dirty read
+      SOF_FULLY_REPLICATED_TRIGGER = 1024,
+      SOF_UTIL_FLAG = 2048            // Sender to TC is DBUTIL (higher prio)
+    };
+
+    static inline bool isIndexOp(Uint16 flags) {
+      return (flags & SOF_INDEX_TABLE_READ) != 0;
+    }
+
+    //---------------------------------------------------
+    // Fourth 16 byte cache line. The mildly hot variables.
+    // tcNodedata expands 4 Bytes into the next cache line
+    // with indexes almost never used.
+    //---------------------------------------------------
+    UintR clientData;           /* SENDERS OPERATION POINTER              */
+    UintR prevList;        /* DOUBLY LINKED LIST OF TC CONNECT RECORDS*/
+    UintR savePointId;
+
+    Uint16 tcNodedata[4];
+    /* Instance key to send to LQH.  Receiver maps it to actual instance. */
+    Uint16 lqhInstanceKey;
+
+    // Trigger data
+    UintR numFiredTriggers;      // As reported by lqhKeyConf
+    UintR numReceivedTriggers;   // FIRE_TRIG_ORD
+    UintR triggerExecutionCount;// No of outstanding op due to triggers
+    UintR savedState[LqhKeyConf::SignalLength];
+    /**
+     * The list of pending fired triggers
+     */
+    TcFiredTriggerData_fifo::Head thePendingTriggers;
+
+    UintR triggeringOperation;  // Which operation was "cause" of this op
+
+    // Index data
+    UintR indexOp;
+    UintR currentTriggerId;
+    union {
+      Uint32 attrInfoLen;
+      Uint32 triggerErrorCode;
+    };
+    NDB_TICKS m_start_ticks;
+  };
+
+  typedef Ptr<TcConnectRecord> TcConnectRecordPtr;
+  typedef TransientPool<TcConnectRecord> TcConnectRecord_pool;
+  typedef LocalDLFifoList<TcConnectRecord_pool> LocalTcConnectRecord_fifo;
+
   /************************** API CONNECT RECORD ***********************
    * The API connect record contains the connection record to which the
    * application connects.  
@@ -788,6 +916,7 @@ public:
       theSeizedIndexOperations(seizedIndexOpPool) 
     {
       NdbTick_Invalidate(&m_start_ticks);
+      tcConnect.init();
     }
     
     //---------------------------------------------------
@@ -795,7 +924,7 @@ public:
     //---------------------------------------------------
     ConnectionState apiConnectstate;
     UintR transid[2];
-    UintR firstTcConnect;
+    LocalTcConnectRecord_fifo::Head tcConnect;
     
     //---------------------------------------------------
     // Second 16 byte cache line. Hot variables.
@@ -829,7 +958,6 @@ public:
     // cache line in this one. Variables primarily used
     // in early phase.
     //---------------------------------------------------
-    UintR lastTcConnect;
     UintR lqhkeyreqrec;
     union {
       Uint32 buddyPtr;
@@ -1016,119 +1144,6 @@ public:
   
   typedef Ptr<ApiConnectRecord> ApiConnectRecordPtr;
 
-
-  /************************** TC CONNECT RECORD ************************/
-  /* *******************************************************************/
-  /* TC CONNECT RECORD KEEPS ALL INFORMATION TO CARRY OUT A TRANSACTION*/
-  /* THE TRANSACTION CONTROLLER ESTABLISHES CONNECTIONS TO DIFFERENT   */
-  /* BLOCKS TO CARRY OUT THE TRANSACTION. THERE CAN BE SEVERAL RECORDS */
-  /* PER ACTIVE TRANSACTION. THE TC CONNECT RECORD COOPERATES WITH THE */
-  /* API CONNECT RECORD FOR COMMUNICATION WITH THE API AND WITH THE    */
-  /* LQH CONNECT RECORD FOR COMMUNICATION WITH THE LQH'S INVOLVED IN   */
-  /* THE TRANSACTION. TC CONNECT RECORD IS PERMANENTLY CONNECTED TO A  */
-  /* RECORD IN DICT AND ONE IN DIH. IT CONTAINS A LIST OF ACTIVE LQH   */
-  /* CONNECT RECORDS AND A LIST OF STARTED BUT NOT ACTIVE LQH CONNECT  */
-  /* RECORDS. IT DOES ALSO CONTAIN A LIST OF ALL OPERATIONS THAT ARE   */
-  /* EXECUTED WITH THE TC CONNECT RECORD.                              */
-  /*******************************************************************>*/
-  /*       TC_CONNECT RECORD ALIGNED TO BE 128 BYTES                   */
-  /*******************************************************************>*/
-  struct TcConnectRecord {
-    TcConnectRecord()
-    {
-      NdbTick_Invalidate(&m_start_ticks);
-    }
-    //---------------------------------------------------
-    // First 16 byte cache line. Those variables are only
-    // used in error cases.
-    //---------------------------------------------------
-    UintR  tcOprec;      /* TC OPREC of operation being taken over       */
-    Uint16 failData[4];  /* Failed nodes when taking over an operation   */
-    UintR  nextTcFailHash;
-    
-    //---------------------------------------------------
-    // Second 16 byte cache line. Those variables are used
-    // from LQHKEYCONF to sending COMMIT and COMPLETED.
-    //---------------------------------------------------
-    UintR lastLqhCon;        /* Connect record in last replicas Lqh record   */
-    Uint16 lastLqhNodeId;    /* Node id of last replicas Lqh                 */
-    Uint16 m_execAbortOption;/* TcKeyReq::ExecuteAbortOption */
-    UintR  commitAckMarker;  /* CommitMarker I value */
-    
-    //---------------------------------------------------
-    // Third 16 byte cache line. The hottest variables.
-    //---------------------------------------------------
-    OperationState tcConnectstate;         /* THE STATE OF THE CONNECT*/
-    UintR apiConnect;                      /* POINTER TO API CONNECT RECORD */
-    UintR nextTcConnect;                   /* NEXT TC RECORD*/
-    Uint8 dirtyOp;
-    Uint8 opSimple;   
-    Uint8 lastReplicaNo;     /* NUMBER OF THE LAST REPLICA IN THE OPERATION */
-    Uint8 noOfNodes;         /* TOTAL NUMBER OF NODES IN OPERATION          */
-    Uint8 operation;         /* OPERATION TYPE                              */
-                             /* 0 = READ REQUEST                            */
-                             /* 1 = UPDATE REQUEST                          */
-                             /* 2 = INSERT REQUEST                          */
-                             /* 3 = DELETE REQUEST                          */
-    Uint16 m_special_op_flags; // See ApiConnectRecord::SpecialOpFlags
-    enum SpecialOpFlags {
-      SOF_NORMAL = 0,
-      SOF_INDEX_TABLE_READ = 1,       // Read index table
-      SOF_REORG_TRIGGER = 4,          // A reorg trigger
-      SOF_REORG_MOVING = 8,           // A record that should be moved
-      SOF_TRIGGER = 16,               // A trigger
-      SOF_REORG_COPY = 32,
-      SOF_REORG_DELETE = 64,
-      SOF_DEFERRED_UK_TRIGGER = 128,  // Op has deferred trigger
-      SOF_DEFERRED_FK_TRIGGER = 256,
-      SOF_FK_READ_COMMITTED = 512,    // reply to TC even for dirty read
-      SOF_FULLY_REPLICATED_TRIGGER = 1024,
-      SOF_UTIL_FLAG = 2048            // Sender to TC is DBUTIL (higher prio)
-    };
-    
-    static inline bool isIndexOp(Uint16 flags) {
-      return (flags & SOF_INDEX_TABLE_READ) != 0;
-    }
-
-    //---------------------------------------------------
-    // Fourth 16 byte cache line. The mildly hot variables.
-    // tcNodedata expands 4 Bytes into the next cache line
-    // with indexes almost never used.
-    //---------------------------------------------------
-    UintR clientData;           /* SENDERS OPERATION POINTER              */
-    UintR prevTcConnect;        /* DOUBLY LINKED LIST OF TC CONNECT RECORDS*/
-    UintR savePointId;
-
-    Uint16 tcNodedata[4];
-    /* Instance key to send to LQH.  Receiver maps it to actual instance. */
-    Uint16 lqhInstanceKey;
-    
-    // Trigger data
-    UintR numFiredTriggers;      // As reported by lqhKeyConf
-    UintR numReceivedTriggers;   // FIRE_TRIG_ORD
-    UintR triggerExecutionCount;// No of outstanding op due to triggers
-    UintR savedState[LqhKeyConf::SignalLength];
-    /**
-     * The list of pending fired triggers
-     */
-    TcFiredTriggerData_fifo::Head thePendingTriggers;
-
-    UintR triggeringOperation;  // Which operation was "cause" of this op
-    
-    // Index data
-    UintR indexOp;
-    UintR currentTriggerId;
-    union {
-      Uint32 attrInfoLen;
-      Uint32 triggerErrorCode;
-    };
-    NDB_TICKS m_start_ticks;
-  };
-  
-  friend struct TcConnectRecord;
-  
-  typedef Ptr<TcConnectRecord> TcConnectRecordPtr;
-  
   // ********************** CACHE RECORD **************************************
   //---------------------------------------------------------------------------
   // This record is used between reception of TCKEYREQ and sending of LQHKEYREQ
@@ -1877,7 +1892,6 @@ private:
   void seizeApiConnectFail(Signal* signal);
   void crash_gcp(Uint32 line);
   void seizeGcp(Ptr<GcpRecord> & dst, Uint64 gci);
-  void seizeTcConnect(Signal* signal);
   void seizeTcConnectFail(Signal* signal);
   Ptr<ApiConnectRecord> sendApiCommitAndCopy(Signal* signal);
   void sendApiCommitSignal(Signal* signal, Ptr<ApiConnectRecord>);
@@ -2176,9 +2190,9 @@ private:
   ApiConnectRecordPtr apiConnectptr;
   UintR capiConnectFilesize;
 
-  TcConnectRecord *tcConnectRecord;
+  TcConnectRecord_pool tcConnectRecord;
   TcConnectRecordPtr tcConnectptr;
-  UintR ctcConnectFilesize;
+  UintR ctcConnectFailCount;
 
   CacheRecord *cacheRecord;
   CacheRecordPtr cachePtr;
@@ -2306,7 +2320,6 @@ private:
   Uint16 cownNodeid;
   Uint16 terrorCode;
 
-  UintR cfirstfreeTcConnect;
   UintR cfirstfreeApiConnectCopy; /* CS_RESTART */
   UintR cfirstfreeCacheRec;
   Uint32 cfirstApiConnectPREPARE_TO_COMMIT;
@@ -2500,7 +2513,7 @@ private:
   /*******************************************************************>*/
   /*       TC_CONNECT RECORD ALIGNED TO BE 128 BYTES                   */
   /*******************************************************************>*/
-  UintR cfirstfreeTcConnectFail;
+  LocalTcConnectRecord_fifo::Head cfreeTcConnectFail;
 
   /* POINTER FOR THE LQH RECORD*/
   /* ************************ HOST RECORD ********************************* */

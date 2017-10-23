@@ -43,7 +43,6 @@ void Dbtc::initData()
   cgcpFilesize = ZGCP_FILESIZE;
   cscanrecFileSize = ZSCANREC_FILE_SIZE;
   ctabrecFilesize = ZTABREC_FILESIZE;
-  ctcConnectFilesize = ZTC_CONNECT_FILESIZE;
   cdihblockref = DBDIH_REF;
   cspjInstanceRR = 1;
   m_load_balancer_location = 0;
@@ -125,10 +124,6 @@ void Dbtc::initRecords()
 					   sizeof(UintR),
 					   capiConnectFilesize);
 
-  tcConnectRecord = (TcConnectRecord*)allocRecord("TcConnectRecord",
-						  sizeof(TcConnectRecord),
-						  ctcConnectFilesize);
-  
   m_commitAckMarkerHash.setSize(1024);
   c_theCommitAckMarkerBufferPool.setSize(4 * capiConnectFilesize);
 
@@ -151,13 +146,6 @@ void Dbtc::initRecords()
     ptrAss(ptr, scanRecord);
     new (ptr.p) ScanRecord();
   }
-  for (Uint32 i = 0; i < ctcConnectFilesize; i++)
-  {
-    TcConnectRecordPtr ptr;
-    ptr.i = i;
-    ptrAss(ptr, tcConnectRecord);
-    new (ptr.p) TcConnectRecord();
-  }
   
   gcpRecord = (GcpRecord*)allocRecord("GcpRecord",
 				      sizeof(GcpRecord), 
@@ -169,6 +157,7 @@ void Dbtc::initRecords()
   m_fragLocationPool.init(RT_DBTC_FRAG_LOCATION, pc, 0, UINT32_MAX);
   m_commitAckMarkerPool.init(CommitAckMarker::TYPE_ID, pc, 0, UINT32_MAX);
   c_theIndexOperationPool.init(TcIndexOperation::TYPE_ID, pc, 0, UINT32_MAX);
+  tcConnectRecord.init(TcConnectRecord::TYPE_ID, pc, 0, UINT32_MAX);
 }//Dbtc::initRecords()
 
 bool
@@ -209,6 +198,8 @@ Dbtc::Dbtc(Block_context& ctx, Uint32 instanceNo):
 {
   BLOCK_CONSTRUCTOR(Dbtc);
   
+  cfreeTcConnectFail.init();
+
   const ndb_mgm_configuration_iterator * p = 
     ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
@@ -325,7 +316,6 @@ Dbtc::Dbtc(Block_context& ctx, Uint32 instanceNo):
 
   cacheRecord = 0;
   apiConnectRecord = 0;
-  tcConnectRecord = 0;
   hostRecord = 0;
   tableRecord = 0;
   scanRecord = 0;
@@ -338,7 +328,6 @@ Dbtc::Dbtc(Block_context& ctx, Uint32 instanceNo):
 
   cacheRecord = 0;
   apiConnectRecord = 0;
-  tcConnectRecord = 0;
   hostRecord = 0;
   tableRecord = 0;
   scanRecord = 0;
@@ -361,10 +350,6 @@ Dbtc::~Dbtc()
 		sizeof(ApiConnectRecord),
 		capiConnectFilesize);
   
-  deallocRecord((void **)&tcConnectRecord, "TcConnectRecord",
-		sizeof(TcConnectRecord),
-		ctcConnectFilesize);
-
   deallocRecord((void **)&hostRecord, "HostRecord",
 		sizeof(HostRecord),
 		chostFilesize);

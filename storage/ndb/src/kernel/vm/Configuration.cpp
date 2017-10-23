@@ -716,6 +716,8 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
   unsigned int noOfScanRecords = 0;
   unsigned int noOfLocalScanRecords = 0;
   unsigned int noBatchSize = 0;
+  unsigned int maxOpsPerTrans = ~(Uint32)0;
+
   m_logLevel = new LogLevel();
   if (!m_logLevel)
   {
@@ -735,7 +737,8 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     { CFG_DB_NO_ATTRIBUTES, &noOfAttributes, false },
     { CFG_DB_NO_OPS, &noOfOperations, false },
     { CFG_DB_NO_LOCAL_OPS, &noOfLocalOperations, true },
-    { CFG_DB_NO_TRANSACTIONS, &noOfTransactions, false }
+    { CFG_DB_NO_TRANSACTIONS, &noOfTransactions, false },
+    { CFG_DB_MAX_DML_OPERATIONS_PER_TRANSACTION, &maxOpsPerTrans, false }
   };
 
   ndb_mgm_configuration_iterator db(*(ndb_mgm_configuration*)ownConfig, 0);
@@ -989,11 +992,31 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     /**
      * Tc Size Alt values
      */
+    if (maxOpsPerTrans == ~(Uint32)0)
+    {
+      maxOpsPerTrans = noOfOperations;
+    }
+    if (maxOpsPerTrans > noOfOperations)
+    {
+      BaseString::snprintf(
+          buf,
+          sizeof(buf),
+          "Config param MaxDMLOperationsPerTransaction(%u) must not be bigger"
+          " than available failover records given by "
+          "MaxNoOfConcurrentOperations(%u)\n",
+          maxOpsPerTrans,
+          noOfOperations);
+      ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, msg, buf);
+    }
+
     cfg.put(CFG_TC_API_CONNECT, 
 	    3 * noOfTransactions);
     
-    cfg.put(CFG_TC_TC_CONNECT, 
-	    (2 * noOfOperations) + 16 + noOfTransactions);
+    cfg.put(CFG_TC_TC_CONNECT,
+	    noOfOperations + 8 + (noOfTransactions + 1) / 2);
+
+    cfg.put(CFG_TC_TC_CONNECT_FAIL,
+	    noOfOperations + 8 + (noOfTransactions + 1) / 2);
     
     cfg.put(CFG_TC_TABLE, 
 	    noOfMetaTables);

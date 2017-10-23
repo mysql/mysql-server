@@ -68,4 +68,6 @@
 
 #define CFG_TUP_NO_TRIGGERS   (PRIVATE_BASE + 45)
 
+#define CFG_TC_TC_CONNECT_FAIL (PRIVATE_BASE + 46)
+
 #endif
