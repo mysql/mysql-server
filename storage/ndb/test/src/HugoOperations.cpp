@@ -475,8 +475,9 @@ HugoOperations::setNonPkValues(NdbOperation* pOp, int rowId, int updateId)
 int HugoOperations::pkInsertRecord(Ndb* pNdb,
 				   int recordNo,
 				   int numRecords,
-				   int updatesValue){
-  
+				   int updatesValue,
+                                   int row_step)
+{
   int check;
   for(int r=0; r < numRecords; r++){
     NdbOperation* pOp = getOperation(pTrans, NdbOperation::InsertRequest);
@@ -492,8 +493,9 @@ int HugoOperations::pkInsertRecord(Ndb* pNdb,
       setNdbError(pTrans->getNdbError());
       return NDBT_FAILED;
     }
-    
-    if(setValues(pOp, r+recordNo, updatesValue) != NDBT_OK)
+    if(setValues(pOp,
+                 (r * row_step) + recordNo,
+                 updatesValue) != NDBT_OK)
     {
       m_error.code = pTrans->getNdbError().code;
       g_err << __LINE__ << " setValues failed" << endl;
@@ -501,7 +503,9 @@ int HugoOperations::pkInsertRecord(Ndb* pNdb,
     }
 
     Uint32 partId;
-    if(getPartIdForRow(pOp, r+recordNo, partId))
+    if(getPartIdForRow(pOp,
+                       (r * row_step) + recordNo,
+                       partId))
       pOp->setPartitionId(partId);
     
   }

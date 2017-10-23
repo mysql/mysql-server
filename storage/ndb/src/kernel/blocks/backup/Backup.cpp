@@ -5694,7 +5694,17 @@ Backup::start_lcp_scan(Signal *signal,
     return;
   }
   c_backupFilePool.getPtr(filePtr, ptr.p->dataFilePtr[0]);
-  sendScanFragReq(signal, ptr, filePtr, tabPtr, fragPtr, 0);
+  Uint32 delay = 0;
+  if (ERROR_INSERTED(10047) &&
+      ptr.p->m_lcp_max_page_cnt > 20)
+  {
+    g_eventLogger->info("(%u)Start LCP on tab(%u,%u) 3 seconds delay",
+                        instance(),
+                        tabPtr.p->tableId,
+                        fragPtr.p->fragmentId);
+    delay = 3000;
+  }
+  sendScanFragReq(signal, ptr, filePtr, tabPtr, fragPtr, delay);
 }
 
 void

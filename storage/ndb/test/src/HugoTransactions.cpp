@@ -638,11 +638,12 @@ HugoTransactions::loadTable(Ndb* pNdb,
                             bool oneTrans,
 			    int value,
 			    bool abort,
-                            bool abort_on_first_error)
+                            bool abort_on_first_error,
+                            int row_step)
 {
   return loadTableStartFrom(pNdb, 0, records, batch, allowConstraintViolation,
                             doSleep, oneTrans, value, abort,
-                            abort_on_first_error);
+                            abort_on_first_error, row_step);
 }
 
 int
@@ -655,7 +656,9 @@ HugoTransactions::loadTableStartFrom(Ndb* pNdb,
                                      bool oneTrans,
                                      int value,
                                      bool abort,
-                                     bool abort_on_first_error){
+                                     bool abort_on_first_error,
+                                     int row_step)
+{
   int             check;
   int             retryAttempt = 0;
   int             retryMax = 5;
@@ -676,23 +679,28 @@ HugoTransactions::loadTableStartFrom(Ndb* pNdb,
   
   //Uint32 orgbatch = batch;
   g_info << "|- Inserting records..." << endl;
-  for (int c=0 ; c<records; ){
+  for (int c=0 ; c < records; )
+  {
+    int key;
     bool closeTrans = true;
 
     if(c + batch > records)
       batch = records - c;
-    
+    key = c * row_step;
     if (retryAttempt >= retryMax){
       g_info << "Record " << c << " could not be inserted, has retried "
 	     << retryAttempt << " times " << endl;
       // Reset retry counters and continue with next record
       retryAttempt = 0;
-      c++;
+      if (row_step == 1)
+      {
+        c+= row_step;
+      }
     }
     if (doSleep > 0)
       NdbSleep_MilliSleep(doSleep);
 
-    //    if (first_batch || !oneTrans) {
+    //    if (first_batch || !oneTrans)
     if (first_batch || !pTrans) {
       first_batch = false;
       pTrans = pNdb->startTransaction();
@@ -710,8 +718,7 @@ HugoTransactions::loadTableStartFrom(Ndb* pNdb,
         return NDBT_FAILED;
       }
     }
-
-    if(pkInsertRecord(pNdb, c + startFrom, batch, value) != NDBT_OK)
+    if(pkInsertRecord(pNdb, key + startFrom, batch, value, row_step) != NDBT_OK)
     { 
       NDB_ERR(pTrans->getNdbError());
       setNdbError(pTrans->getNdbError());
@@ -757,7 +764,7 @@ HugoTransactions::loadTableStartFrom(Ndb* pNdb,
 	break;
 	
       case NdbError::TemporaryError:      
-        if (abort_on_first_error)
+        if (abort_on_first_error || row_step != 1)
         {
           return err.code;
         }
@@ -801,7 +808,7 @@ HugoTransactions::loadTableStartFrom(Ndb* pNdb,
     }
     
     // Step to next record
-    c = c+batch; 
+    c = c+batch;
     retryAttempt = 0;
   }
 
@@ -1558,7 +1565,7 @@ HugoTransactions::pkDelRecords(Ndb* pNdb,
                                int step)
 {
   int deleted = 0;
-  int                  r = start_record;
+  int                  r = 0;
   int                  retryAttempt = 0;
   int                  check;
 
@@ -1610,7 +1617,10 @@ HugoTransactions::pkDelRecords(Ndb* pNdb,
     if (timer_active)
       timer_start = NdbTick_getCurrentTicks();
 
-    if(pkDeleteRecord(pNdb, r, batch, step) != NDBT_OK)
+    if(pkDeleteRecord(pNdb,
+                      start_record + (r * step),
+                      batch,
+                      step) != NDBT_OK)
     {
       const NdbError err = pTrans->getNdbError();
       NDB_ERR(err);
@@ -1645,6 +1655,7 @@ HugoTransactions::pkDelRecords(Ndb* pNdb,
 	    break;
 	  }
 	}
+        g_err << "r = " << r << endl;
 	NDB_ERR(err);
 	setNdbError(err);
 	g_err << r << ": " << err.code << " " << err.message << endl;
@@ -1672,7 +1683,7 @@ HugoTransactions::pkDelRecords(Ndb* pNdb,
       m_stats_latency->addObservation((double)elapsed);
     }
 
-    r += (batch * step); // Read next record
+    r += batch; // Read next record
     batch_no++;
   }
 

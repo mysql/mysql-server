@@ -42,7 +42,8 @@ public:
   int pkInsertRecord(Ndb*,
 		     int recordNo,
 		     int numRecords = 1,
-		     int updatesValue = 0);
+		     int updatesValue = 0,
+                     int row_step = 1);
   
   int pkWriteRecord(Ndb*,
 		    int recordNo,
