@@ -288,11 +288,17 @@ int main(int argc,char *argv[])
         if ((ndb_error_string(code, ndb_string, sizeof(ndb_string)) < 0) &&
             (ndbd_exit_string(code, ndb_string, sizeof(ndb_string)) < 0) &&
             (mgmapi_error_string(code, ndb_string, sizeof(ndb_string)) < 0))
-	{
+        {
           msg= 0;
-	}
-	else
-	  msg= ndb_string;
+        }
+        else
+          msg= ndb_string;
+
+        fprintf(stderr,
+                "Warning: using '--ndb' with 'perror' is deprecated and this "
+                "functionality may not be available in the future versions, "
+                "please use 'ndb_perror' instead\n");
+
         if (msg)
         {
           if (verbose)
