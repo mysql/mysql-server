@@ -15,6 +15,7 @@
 # Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
 --source include/have_slave_repository_type_table.inc
 
+--let $rpl_gtid_utils= 1
 --source include/master-slave.inc
 
 --source include/rpl_connection_slave.inc
