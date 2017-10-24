@@ -77,12 +77,12 @@ get_write_set_algorithm_string(unsigned int algorithm)
   }
 }
 
-template <class type> uint64 calc_hash(ulong algorithm, type T)
+template <class type> uint64 calc_hash(ulong algorithm, type T, size_t len)
 {
   if(algorithm == HASH_ALGORITHM_MURMUR32)
-    return (murmur3_32((const uchar*)T, strlen(T), 0));
+    return (murmur3_32((const uchar*)T, len, 0));
   else
-    return (MY_XXH64((const uchar*)T, strlen(T), 0));
+    return (MY_XXH64((const uchar*)T, len, 0));
 }
 
 /**
@@ -303,7 +303,7 @@ static void generate_hash_pke(std::string pke, THD* thd)
   DBUG_PRINT("info", ("The hashed value is %s for %u", string_pke,
                       thd->thread_id()));
   uint64 hash= calc_hash<const char *>(thd->variables.transaction_write_set_extraction,
-                                       string_pke);
+                                       string_pke, pke.size());
   Rpl_transaction_write_set_ctx *transaction_write_set_ctc=
     thd->get_transaction()->get_transaction_write_set_ctx();
   transaction_write_set_ctc->add_write_set(hash);
@@ -315,11 +315,6 @@ void add_pke(TABLE *table, THD *thd)
   DBUG_ENTER("add_pke");
   std::string pke;
   std::string temporary_pke;
-  // Buffer to read the names of the database and table names which is less
-  // than 1024. So its a safe limit.
-  char name_read_buffer[NAME_READ_BUFFER_SIZE];
-  // Buffer to read the row data from the table record[0].
-  String row_data(name_read_buffer, sizeof(name_read_buffer), &my_charset_bin);
 
   // Fetching the foreign key value of the table and storing it in a map.
   std::map<std::string,std::string> foreign_key_map;
@@ -414,24 +409,33 @@ void add_pke(TABLE *table, THD *thd)
       {
         // read the primary key field values in str.
         int index= table->key_info[key_number].key_part[i].fieldnr;
-        table->field[index-1]->val_str(&row_data);
+        size_t length= 0;
 
         /* Ignore if the value is NULL. */
         if (table->field[index-1]->is_null())
           break;
 
-        char* pk_value= (char*) my_malloc(
-                                key_memory_write_set_extraction,
-                                row_data.length()+1, MYF(0));
-        // buffer to be used for my_safe_itoa.
-        char *buf= (char*) my_malloc(
-                                key_memory_write_set_extraction,
-                                row_data.length(), MYF(0));
+        const CHARSET_INFO* cs= table->field[index-1]->charset();
+        int max_length= cs->coll->strnxfrmlen(cs,
+                                   table->field[index-1]->pack_length());
 
-        strmake(pk_value, row_data.c_ptr_safe(), row_data.length());
-        const char *lenStr = my_safe_itoa(10, (row_data.length()),
-                                          &buf[row_data.length()-1]);
-        unhashed_string.append(pk_value);
+        char* pk_value= (char*) my_malloc(key_memory_write_set_extraction,
+                                          max_length+1, MYF(MY_ZEROFILL));
+
+        /*
+          convert to normalized string and store so that it can be
+          sorted using binary comparison functions like memcmp.
+        */
+        length= table->field[index-1]->make_sort_key((uchar*)pk_value,
+                                                     max_length);
+        pk_value[length]= 0;
+
+        // buffer to be used for my_safe_itoa.
+        char *buf= (char*) my_malloc(key_memory_write_set_extraction,
+                                     length, MYF(0));
+        const char *lenStr = my_safe_itoa(10, length, &buf[length-1]);
+
+        unhashed_string.append(pk_value, length);
         unhashed_string.append(HASH_STRING_SEPARATOR);
         unhashed_string.append(lenStr);
         my_free(buf);
@@ -465,24 +469,33 @@ void add_pke(TABLE *table, THD *thd)
         foreign_key_map[table->s->field[i]->field_name];
       if (referenced_FQTN.size() > 0)
       {
-        table->field[i]->val_str(&row_data);
+        size_t length= 0;
 
         /* Ignore if the value is NULL. */
         if (table->field[i]->is_null())
           continue;
 
-        char* pk_value= (char*) my_malloc(
-                                key_memory_write_set_extraction,
-                                row_data.length()+1, MYF(0));
-        // buffer to be used for my_safe_itoa.
-        char *buf= (char*) my_malloc(
-                                key_memory_write_set_extraction,
-                                row_data.length(), MYF(0));
+        const CHARSET_INFO* cs= table->field[i]->charset();
+        int max_length= cs->coll->strnxfrmlen(cs,
+                                    table->field[i]->pack_length());
 
-        strmake(pk_value, row_data.c_ptr_safe(), row_data.length());
-        const char *lenStr = my_safe_itoa(10, (row_data.length()),
-                                          &buf[row_data.length()-1]);
-        referenced_FQTN.append(pk_value);
+        char* pk_value= (char*) my_malloc(key_memory_write_set_extraction,
+                                          max_length+1, MYF(MY_ZEROFILL));
+
+        /*
+          convert to normalized string and store so that it can be
+          sorted using binary comparison functions like memcmp.
+        */
+        length= table->field[i]->make_sort_key((uchar*)pk_value, max_length);
+
+        pk_value[length]= 0;
+
+        // buffer to be used for my_safe_itoa.
+        char *buf= (char*) my_malloc(key_memory_write_set_extraction,
+                                     length, MYF(0));
+        const char *lenStr = my_safe_itoa(10, length, &buf[length-1]);
+
+        referenced_FQTN.append(pk_value, length);
         referenced_FQTN.append(HASH_STRING_SEPARATOR);
         referenced_FQTN.append(lenStr);
 
