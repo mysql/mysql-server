@@ -56,6 +56,7 @@
 #include "sql/dd/types/foreign_key.h"         // dd::Foreign_key
 #include "sql/dd/types/table.h"               // dd::Table
 #include "sql/dd/upgrade/global.h"
+#include "sql/dd/upgrade/upgrade.h"
 #include "sql/field.h"
 #include "sql/handler.h"                      // legacy_db_type
 #include "sql/key.h"
@@ -1857,12 +1858,15 @@ static bool migrate_table_to_dd(THD *thd,
     asserts that Field objects in TABLE_SHARE doesn't have
     expressions assigned.
   */
+  Bootstrap_error_handler bootstrap_error_handler;
+  bootstrap_error_handler.set_log_error(false);
   if (fix_generated_columns_for_upgrade(thd, table, alter_info.create_list))
   {
-    LogErr(ERROR_LEVEL,
-           ER_CANT_UPGRADE_GENERATED_COLUMNS_TO_DD);
+    LogErr(ERROR_LEVEL, ER_CANT_UPGRADE_GENERATED_COLUMNS_TO_DD,
+           schema_name.c_str(), table_name.c_str());
     return true;
   }
+  bootstrap_error_handler.set_log_error(true);
 
   FOREIGN_KEY *fk_key_info_buffer= NULL;
   uint fk_number= 0;
