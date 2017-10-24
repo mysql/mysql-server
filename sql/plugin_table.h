@@ -19,7 +19,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "sql/sql_list.h"      // SQL_I_List
+#include "sql/sql_list.h"      // List
 
 /**
   Class to hold information regarding a table to be created on

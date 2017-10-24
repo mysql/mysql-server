@@ -33,6 +33,7 @@
 #include "my_psi_config.h"
 #include "myisam.h"
 #include "myisampack.h"
+#include "mysql/plugin.h"
 #include "sql/current_thd.h"
 #include "sql/derror.h"
 #include "sql/key.h"                            // key_copy

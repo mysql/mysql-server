@@ -39,6 +39,7 @@
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
 #include "myisam.h"               // MI_COLUMNDEF
+#include "mysql/plugin.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
