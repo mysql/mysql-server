@@ -615,6 +615,8 @@
   @sa cli_safe_read_with_ok(), read_ok_ex(), net_send_ok(), net_send_eof()
 */
 #define CLIENT_DEPRECATE_EOF (1UL << 24)
+
+
 /**
   Verify server certificate.
 
@@ -622,6 +624,7 @@
 
   @deprecated in favor of --ssl-mode.
 */
+#define CLIENT_SSL_VERIFY_SERVER_CERT (1UL << 30)
 
 
 /**
@@ -630,7 +633,6 @@
 #define CLIENT_OPTIONAL_RESULTSET_METADATA (1UL << 25)
 
 
-#define CLIENT_SSL_VERIFY_SERVER_CERT (1UL << 30)
 /**
   Don't reset the options after an unsuccessful connect
 
