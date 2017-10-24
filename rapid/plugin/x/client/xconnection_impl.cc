@@ -25,6 +25,9 @@
 #include "my_config.h"
 
 #include <errno.h>
+#ifdef HAVE_NETINET_IN_H
+#include <netinet/in.h>
+#endif
 #include <cassert>
 #include <limits>
 #include <sstream>

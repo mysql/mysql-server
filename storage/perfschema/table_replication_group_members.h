@@ -22,14 +22,18 @@
   Table replication_group_members (declarations).
 */
 
-#include <mysql/plugin_group_replication.h>
 #include <sys/types.h>
 
+#include "my_base.h"
 #include "mysql_com.h"
 #include "sql/rpl_info.h"
 #include "sql/sql_const.h"  // UUID_LENGTH
-#include "storage/perfschema/pfs_column_types.h"
 #include "storage/perfschema/pfs_engine_table.h"
+
+class Field;
+class Plugin_table;
+struct TABLE;
+struct THR_LOCK;
 
 /**
   @addtogroup performance_schema_tables

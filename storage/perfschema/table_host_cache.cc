@@ -25,6 +25,7 @@
 #include "sql/current_thd.h"
 #include "sql/field.h"
 #include "sql/hostname.h"
+#include "sql/plugin_table.h"
 #include "sql/sql_class.h"
 
 THR_LOCK table_host_cache::m_table_lock;

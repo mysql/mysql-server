@@ -15,6 +15,7 @@
 
 #include "storage/perfschema/ha_perfschema.h"
 
+#include <string.h>
 /**
   @file storage/perfschema/ha_perfschema.cc
   Performance schema storage engine (implementation).
@@ -22,24 +23,48 @@
 #include <atomic>
 
 #include "lex_string.h"
+#include "lf.h"
+#include "m_string.h"
+#include "my_alloc.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_thread.h"
+#include "my_sys.h"
+#include "mysql/components/services/pfs_plugin_table_service.h"
 #include "mysql/plugin.h"
+#include "mysql/status_var.h"
+#include "mysqld_error.h"
 #include "sql/hostname.h"
 #include "sql/mysqld.h"
 #include "sql/sql_class.h"
-#include "sql/sql_plugin.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
 #include "storage/perfschema/pfs_account.h"
 #include "storage/perfschema/pfs_buffer_container.h"
+#include "storage/perfschema/pfs_builtin_memory.h"
 #include "storage/perfschema/pfs_column_values.h"
+#include "storage/perfschema/pfs_digest.h"
 #include "storage/perfschema/pfs_engine_table.h"
+#include "storage/perfschema/pfs_events_stages.h"
+#include "storage/perfschema/pfs_events_statements.h"
+#include "storage/perfschema/pfs_events_transactions.h"
+#include "storage/perfschema/pfs_events_waits.h"
+#include "storage/perfschema/pfs_global.h"
 #include "storage/perfschema/pfs_host.h"
 #include "storage/perfschema/pfs_instr.h"
 #include "storage/perfschema/pfs_instr_class.h"
-#include "storage/perfschema/pfs_plugin_table.h"
-#include "storage/perfschema/pfs_prepared_stmt.h"
 #include "storage/perfschema/pfs_program.h"
+#include "storage/perfschema/pfs_setup_actor.h"
+#include "storage/perfschema/pfs_setup_object.h"
+#include "storage/perfschema/pfs_stat.h"
 #include "storage/perfschema/pfs_user.h"
+
+class KEY;
+class Plugin_table;
+class Plugin_tablespace;
+namespace dd {
+class Table;
+}  // namespace dd
+template <class T> class List;
 
 handlerton *pfs_hton = NULL;
 

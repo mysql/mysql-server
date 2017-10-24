@@ -27,13 +27,16 @@
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "storage/perfschema/pfs_account.h"
 #include "storage/perfschema/pfs_builtin_memory.h"
+#include "storage/perfschema/pfs_host.h"
 #include "storage/perfschema/pfs_instr.h"
 #include "storage/perfschema/pfs_lock.h"
 #include "storage/perfschema/pfs_prepared_stmt.h"
 #include "storage/perfschema/pfs_program.h"
 #include "storage/perfschema/pfs_setup_actor.h"
 #include "storage/perfschema/pfs_setup_object.h"
+#include "storage/perfschema/pfs_user.h"
 
 #define USE_SCALABLE
 

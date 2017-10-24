@@ -24,12 +24,23 @@
 #include <sys/types.h>
 
 #include "my_inttypes.h"
-#include "storage/perfschema/pfs_column_types.h"
-#include "storage/perfschema/pfs_engine_table.h"
-#include "storage/perfschema/pfs_instr.h"
-#include "storage/perfschema/pfs_instr_class.h"
 #include "storage/perfschema/table_all_instr.h"
 #include "storage/perfschema/table_helper.h"
+
+class Field;
+class PFS_engine_table;
+class Plugin_table;
+struct PFS_cond;
+struct PFS_engine_table_share;
+struct PFS_file;
+struct PFS_instr;
+struct PFS_instr_class;
+struct PFS_mutex;
+struct PFS_rwlock;
+struct PFS_single_stat;
+struct PFS_socket;
+struct TABLE;
+struct THR_LOCK;
 
 /**
   @addtogroup performance_schema_tables

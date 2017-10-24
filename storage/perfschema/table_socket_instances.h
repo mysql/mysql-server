@@ -21,12 +21,22 @@
   Table SOCKET_INSTANCES (declarations).
 */
 
+#ifdef HAVE_NETINET_IN_H
+#include <netinet/in.h>
+#endif
 #include <sys/types.h>
 
+#include "my_base.h"
 #include "my_inttypes.h"
-#include "storage/perfschema/pfs_column_types.h"
+#include "mysql/components/services/psi_socket_bits.h"
 #include "storage/perfschema/pfs_engine_table.h"
 #include "storage/perfschema/table_helper.h"
+
+class Field;
+class Plugin_table;
+struct PFS_socket;
+struct TABLE;
+struct THR_LOCK;
 
 /**
   @addtogroup performance_schema_tables

@@ -59,6 +59,7 @@
 #include "sql/log.h"
 #include "sql/mdl.h"
 #include "sql/mysqld.h"
+#include "sql/plugin_table.h"
 #include "sql/sql_base.h"                     // close_thread_tables
 #include "sql/sql_class.h"                    // THD
 #include "sql/sql_list.h"

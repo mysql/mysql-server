@@ -25,15 +25,16 @@
 #include <sys/types.h>
 #include <time.h>
 
-#include "mysql_com.h"
+#include "my_base.h"
 #include "sql/rpl_info.h" /*CHANNEL_NAME_LENGTH*/
-#include "sql/rpl_mi.h"
-#include "sql/rpl_msr.h"
-#include "storage/perfschema/pfs_column_types.h"
 #include "storage/perfschema/pfs_engine_table.h"
 #include "storage/perfschema/table_helper.h"
 
+class Field;
 class Master_info;
+class Plugin_table;
+struct TABLE;
+struct THR_LOCK;
 
 /**
   @addtogroup performance_schema_tables

@@ -41,7 +41,6 @@
 #include "sql/dd/types/table.h"               // dd::Table
 #include "sql/dd/types/tablespace.h"          // dd::Tablespace
 #include "sql/dd/types/tablespace_file.h"     // dd::Tablespace_file
-#include "sql/handler.h"
 #include "sql/key.h"
 #include "sql/sql_class.h"                    // THD
 #include "sql/sql_servers.h"

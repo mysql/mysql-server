@@ -24,6 +24,7 @@
 #include "my_thread.h"
 #include "sql/item_func.h"
 #include "sql/mysqld_thd_manager.h"
+#include "sql/plugin_table.h"
 /* Iteration on THD from the sql layer. */
 #include "sql/sql_class.h"
 #include "storage/perfschema/pfs_buffer_container.h"

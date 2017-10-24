@@ -19,30 +19,29 @@
 #include <mysql/components/services/pfs_plugin_table_service.h>
 #include <stddef.h>
 #include <sys/types.h>
+#include <atomic>
+#include <vector>
 
-#include "lex_string.h"
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/psi/mysql_mutex.h"
 #include "sql/auth/auth_common.h" /* struct ACL_* */
-#include "sql/handler.h"
 #include "sql/key.h"
-#include "sql/table.h"
 #include "storage/perfschema/pfs.h"
 
-class PFS_engine_key;
-class PFS_engine_index;
 class PFS_engine_index_abstract;
-
+class Plugin_table;
+struct TABLE;
 struct THR_LOCK;
+template <class T> class List;
 
 /**
   @file storage/perfschema/pfs_engine_table.h
   Performance schema tables (declarations).
 */
-
-#include "storage/perfschema/pfs_instr_class.h"
 
 class Field;
 struct PFS_engine_table_share;

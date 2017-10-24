@@ -141,6 +141,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 # include "row0quiesce.h"
 # include "row0sel.h"
 # include "row0upd.h"
+# include "sql/plugin_table.h"
 # include "srv0mon.h"
 # include "srv0srv.h"
 # include "srv0start.h"

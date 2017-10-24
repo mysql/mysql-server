@@ -461,6 +461,7 @@
 #include "sql/options_mysqld.h"         // OPT_THREAD_CACHE_SIZE
 #include "sql/partitioning/partition_handler.h" // partitioning_init
 #include "sql/persisted_variable.h"     // Persisted_variables_cache
+#include "sql/plugin_table.h"
 #include "sql/protocol.h"
 #include "sql/psi_memory_key.h"         // key_memory_MYSQL_RELAY_LOG_index
 #include "sql/query_options.h"

@@ -18,9 +18,17 @@
 
 #include <sys/types.h>
 
+#include "my_base.h"
 #include "my_inttypes.h"
 #include "sql/handler.h" /* class handler */
+#include "sql/sql_const.h"
+#include "thr_lock.h"
 
+class PFS_engine_table;
+class THD;
+namespace dd {
+class Table;
+}  // namespace dd
 /**
   @file storage/perfschema/ha_perfschema.h
   Performance schema storage engine (declarations).
@@ -30,7 +38,9 @@
   @{
 */
 struct PFS_engine_table_share;
-class PFS_engine_table;
+struct TABLE;
+struct TABLE_SHARE;
+
 /** Name of the performance schema engine. */
 extern const char *pfs_engine_name;
 

@@ -29,8 +29,7 @@
 #include "sql/dd/types/object_table.h"
 #include "sql/dd/types/system_view.h"
 #include "sql/handler.h"
-
-class Plugin_tablespace;
+#include "sql/plugin_table.h"
 
 namespace dd {
 

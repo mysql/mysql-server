@@ -21,9 +21,15 @@
   Table PERFORMANCE_TIMERS (declarations).
 */
 
+#include "my_base.h"
 #include "my_rdtsc.h"
 #include "storage/perfschema/pfs_column_types.h"
 #include "storage/perfschema/pfs_engine_table.h"
+
+class Field;
+class Plugin_table;
+struct TABLE;
+struct THR_LOCK;
 
 /**
   @addtogroup performance_schema_tables
