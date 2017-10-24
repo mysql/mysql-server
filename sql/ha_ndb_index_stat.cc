@@ -1225,7 +1225,6 @@ ndb_index_stat_free(NDB_SHARE *share)
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
   mysql_mutex_lock(&ndb_index_stat_thread.stat_mutex);
 
-  uint found= 0;
   Ndb_index_stat *st;
   while ((st= share->index_stat_list) != 0)
   {
@@ -1238,7 +1237,6 @@ ndb_index_stat_free(NDB_SHARE *share)
     assert(!st->to_delete);
     st->to_delete= true;
     st->abort_request= true;
-    found++;
     glob.drop_count++;
     assert(st->drop_bytes == 0);
     st->drop_bytes+= st->query_bytes + st->clean_bytes;
