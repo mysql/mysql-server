@@ -25,6 +25,7 @@
 #include "sql/debug_sync.h"
 #include "sql/mdl.h"
 #include "sql/sql_base.h"
+#include "sql/sql_class.h"
 #include "unittest/gunit/test_utils.h"
 #include "unittest/gunit/thread_utils.h"
 

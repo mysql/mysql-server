@@ -21,6 +21,7 @@
 #include "plugin/keyring/file_io.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/current_thd.h"
+#include "sql/sql_class.h"
 #include "unittest/gunit/keyring/mock_logger.h"
 #include "unittest/gunit/test_utils.h"
 
