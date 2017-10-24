@@ -21,6 +21,7 @@
 #include <my_default.h>
 #include <mysql_version.h>
 #include <ndb_version.h>
+#include "my_alloc.h"
 
 #include "CPCD.hpp"
 #include "APIService.hpp"
