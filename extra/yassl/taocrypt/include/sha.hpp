@@ -24,6 +24,18 @@
 
 #include "hash.hpp"
 
+#if defined ARMV8_CE_SHA
+    #include <arm_neon.h>
+    #if defined(__BYTE_ORDER__)
+        #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+            #define LITTLE_ENDIAN_ORDER
+        #else
+            #define BIG_ENDIAN_ORDER
+        #endif
+    #else
+        #error macro __BYTE_ORDER__ is not defined in host compiler
+    #endif
+#endif
 
 #if defined(TAOCRYPT_X86ASM_AVAILABLE) && defined(TAO_ASM)
     #define DO_SHA_ASM
