@@ -3125,12 +3125,6 @@ public:
   longlong val_int() override;
   String *val_str(String *str) override;
   my_decimal *val_decimal(my_decimal *) override;
-  double val_real_result() override;
-  longlong val_int_result() override;
-  bool val_bool_result() override;
-  String *str_result(String *str) override;
-  my_decimal *val_decimal_result(my_decimal *) override;
-  bool is_null_result() override;
   bool update_hash(const void *ptr, uint length, enum Item_result type,
   		   const CHARSET_INFO *cs, Derivation dv, bool unsigned_arg);
   bool send(Protocol *protocol, String *str_arg) override;

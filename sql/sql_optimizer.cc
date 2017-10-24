@@ -11692,6 +11692,16 @@ void JOIN::refine_best_rowcount()
   set_if_smaller(best_rowcount, unit->select_limit_cnt);
 }
 
+
+List<Item> *JOIN::get_current_fields()
+{
+  DBUG_ASSERT((int)current_ref_item_slice >= 0);
+  if (current_ref_item_slice == REF_SLICE_SAVE)
+    return fields;
+  return &tmp_fields_list[current_ref_item_slice];
+}
+
+
 /**
   @} (end of group Query_Optimizer)
 */

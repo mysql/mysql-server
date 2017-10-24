@@ -120,7 +120,7 @@ bool Distinct_check::check_query(THD *thd)
       This query is valid because the expression in ORDER BY is the same as
       the one in SELECT list. But in setup_order():
       'b' in ORDER BY (not yet fixed) is still a 'generic' Item_field,
-      'b' in SELECT (already fixed) is Item_direct_view_ref referencing 'x*2'
+      'b' in SELECT (already fixed) is Item_view_ref referencing 'x*2'
       (so type()==REF_ITEM).
       So Item_field::eq() says the 'b's are different, so 'sin(b)' of
       ORDER BY is not found equal to 'sin(b)' of SELECT.
@@ -817,7 +817,7 @@ bool Group_check::is_in_fd_of_underlying(Item_ident *item)
                       pointer_cast<uchar *>(&ut));
     /*
       todo When we eliminate all uses of cached_table, we can probably add a
-      derived_table_ref field to Item_direct_view_ref objects and use it here.
+      derived_table_ref field to Item_view_ref objects and use it here.
     */
     TABLE_LIST *const tl= item->cached_table;
     DBUG_ASSERT(tl->is_view_or_derived());

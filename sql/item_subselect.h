@@ -450,7 +450,7 @@ private:
     This will refer to a cached value which is reevaluated once for each
     candidate row, cf. setup in #single_value_transformer.
   */
-  Item_direct_ref *m_injected_left_expr;
+  Item_ref *m_injected_left_expr;
 
   /**
     Pointer to the created Item_in_optimizer; it is stored for the same

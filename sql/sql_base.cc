@@ -8946,7 +8946,7 @@ find_item_in_list(THD *thd, Item *find, List<Item> &items, uint *counter,
         SELECT 1 FROM t1 AS t1_o GROUP BY a
           HAVING (SELECT t1_o.a FROM t1 AS t1_i GROUP BY t1_i.a LIMIT 1).
         Processing all Item_refs here will cause t1_o.a to resolve to itself.
-        We still need to process the special case of Item_direct_view_ref 
+        We still need to process the special case of Item_view_ref
         because in the context of views they have the same meaning as 
         Item_field for tables.
       */

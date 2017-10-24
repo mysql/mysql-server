@@ -26,6 +26,35 @@ struct st_columndef;
 class KEY;
 class Copy_field;
 class Item;
+class Window;
+
+
+/**
+   Helper class for copy_funcs(); represents an Item to copy from table to
+   next tmp table.
+*/
+class Func_ptr
+{
+public:
+  Func_ptr(Item *f) : m_func(f), m_contains_alias_of_expr(false) {}
+  /**
+    Calculates if m_func contains an alias to an expression of the SELECT list
+    of 'select'.
+    @param          select     query block to search in.
+    @returns the true/false result and also stores it in the object.
+  */
+  bool set_contains_alias_of_expr(const SELECT_LEX *select);
+  /// @returns the previously calculated information.
+  bool contains_alias_of_expr() const
+  { return m_contains_alias_of_expr; }
+  Item *func() const { return m_func; }
+private:
+  Item *m_func;
+  bool m_contains_alias_of_expr;
+};
+
+/// Used by copy_funcs()
+typedef Mem_root_array<Func_ptr> Func_ptr_array;
 
 
 /**
@@ -34,11 +63,10 @@ class Item;
   used only internally by the query execution engine.
 */
 
-typedef Mem_root_array<Item*> Func_ptr_array;
-
 class Temp_table_param :public Sql_alloc
 {
 public:
+  /// Is used by copy_fields() to copy non-column expressions.
   List<Item> copy_funcs;
   Copy_field *copy_field, *copy_field_end;
   uchar	    *group_buff;
@@ -124,7 +152,6 @@ public:
 
   bool m_window_short_circuit; ///< (Last) window's tmp file step can be skipped
   Window *m_window; ///< The window, if any,  dedicated to this tmp table
-  uint hidden_func_count; ///< Count of functions not present in select list
 
   Temp_table_param()
     :copy_field(NULL), copy_field_end(NULL),
@@ -143,7 +170,7 @@ public:
      skip_create_table(false), bit_fields_as_long(false),
      can_use_pk_for_unique(true),
      m_window_short_circuit(false),
-     m_window(nullptr), hidden_func_count(0)
+     m_window(nullptr)
   {}
   ~Temp_table_param()
   {
