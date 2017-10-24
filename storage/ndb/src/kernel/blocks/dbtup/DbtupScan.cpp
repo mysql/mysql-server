@@ -70,7 +70,7 @@
 #define DEB_LCP_SKIP_EXTRA(arglist) do { } while (0)
 #endif
 
-#define DEBUG_LCP_KEEP 1
+//#define DEBUG_LCP_KEEP 1
 #ifdef DEBUG_LCP_KEEP
 #define DEB_LCP_KEEP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
@@ -1728,7 +1728,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
               {
                 /* Ensure that LCP_SKIP bit is clear before we move on */
                 jam();
-                ndbassert(false); //COVERAGE_TEST
+                /* Coverage tested */
                 tuple_header_ptr->m_header_bits =
                   thbits & (~Tuple_header::LCP_SKIP);
                 DEB_LCP_SKIP(("(%u) 2 Reset LCP_SKIP on tab(%u,%u), rowid(%u,%u)"
@@ -1900,7 +1900,8 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
                                 frag.fragmentId,
                                 scan,
                                 key.m_page_no,
-                                size);
+                                size,
+                                true);
         return false;
       }
 
@@ -1959,7 +1960,8 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
                                frag.fragmentId,
                                scan,
                                pos.m_key_mm,
-                               foundGCI);
+                               foundGCI,
+                               true);
         // TUPKEYREQ handles savepoint stuff
         return false;
       }
@@ -2004,7 +2006,8 @@ Dbtup::record_delete_by_rowid(Signal *signal,
                               Uint32 fragmentId,
                               ScanOp &scan,
                               Local_key &key,
-                              Uint32 foundGCI)
+                              Uint32 foundGCI,
+                              bool set_scan_state)
 {
   const Uint32 bits = scan.m_bits;
   DEB_LCP_DEL_EXTRA(("(%u)Delete by rowid tab(%u,%u), page(%u,%u)",
@@ -2021,7 +2024,8 @@ Dbtup::record_delete_by_rowid(Signal *signal,
   conf->localKey[1] = key.m_page_idx;
   conf->gci = foundGCI;
   Uint32 blockNo = refToMain(scan.m_userRef);
-  scan.m_state = ScanOp::Next;
+  if (set_scan_state)
+    scan.m_state = ScanOp::Next;
   EXECUTE_DIRECT(blockNo,
                  GSN_NEXT_SCANCONF,
                  signal,
@@ -2035,7 +2039,8 @@ Dbtup::record_delete_by_pageid(Signal *signal,
                                Uint32 fragmentId,
                                ScanOp &scan,
                                Uint32 page_no,
-                               Uint32 record_size)
+                               Uint32 record_size,
+                               bool set_scan_state)
 {
   DEB_LCP_DEL_EXTRA(("(%u)Delete by pageid tab(%u,%u), page(%u)",
                      instance(),
@@ -2058,7 +2063,8 @@ Dbtup::record_delete_by_pageid(Signal *signal,
   conf->localKey[1] = page_idx;
   conf->gci = record_size; /* Used to transport record size */
   Uint32 blockNo = refToMain(scan.m_userRef);
-  scan.m_state = ScanOp::Next;
+  if (set_scan_state)
+    scan.m_state = ScanOp::Next;
   EXECUTE_DIRECT(blockNo,
                  GSN_NEXT_SCANCONF,
                  signal,
@@ -2137,13 +2143,14 @@ Dbtup::handle_lcp_keep(Signal* signal,
                     fragPtr.p->fragTableId,
                     fragPtr.p->fragmentId,
                     page_id));
+      remove_top_from_lcp_keep_list(fragPtr.p, copytuple, tmp);
       record_delete_by_pageid(signal,
                               fragPtr.p->fragTableId,
                               fragPtr.p->fragmentId,
                               *scanPtrP,
                               page_id,
-                              size);
-      remove_top_from_lcp_keep_list(fragPtr.p, copytuple, tmp);
+                              size,
+                              false);
       c_undo_buffer.free_copy_tuple(&tmp);
     }
     else
@@ -2156,6 +2163,7 @@ Dbtup::handle_lcp_keep(Signal* signal,
       num_entries--;
       key.m_page_no = page_id;
       key.m_page_idx = page_index_array[num_entries];
+      copytuple[4] = num_entries;
       DEB_LCP_KEEP(("(%u)tab(%u,%u) page(%u,%u): "
                     "Handle LCP keep DELETE by ROWID",
                     instance(),
@@ -2163,22 +2171,22 @@ Dbtup::handle_lcp_keep(Signal* signal,
                     fragPtr.p->fragmentId,
                     key.m_page_no,
                     key.m_page_idx));
+      if (num_entries == 0)
+      {
+        jam();
+        remove_top_from_lcp_keep_list(fragPtr.p, copytuple, tmp);
+      }
       record_delete_by_rowid(signal,
                              fragPtr.p->fragTableId,
                              fragPtr.p->fragmentId,
                              *scanPtrP,
                              key,
-                             0);
+                             0,
+                             false);
       if (num_entries == 0)
       {
         jam();
-        remove_top_from_lcp_keep_list(fragPtr.p, copytuple, tmp);
         c_undo_buffer.free_copy_tuple(&tmp);
-      }
-      else
-      {
-        jam();
-        copytuple[4] = num_entries;
       }
     }
   }
@@ -2241,6 +2249,18 @@ Dbtup::remove_top_from_lcp_keep_list(Fragrecord *fragPtrP,
     ndbassert(tmp.m_page_no == fragPtrP->m_lcp_keep_list_tail.m_page_no);
     ndbassert(tmp.m_page_idx == fragPtrP->m_lcp_keep_list_tail.m_page_idx);
     fragPtrP->m_lcp_keep_list_tail.setNull();
+  }
+  else
+  {
+    jam();
+    DEB_LCP_KEEP(("(%u)tab(%u,%u) move LCP keep head(%u,%u),tail(%u,%u)",
+                  instance(),
+                  fragPtrP->fragTableId,
+                  fragPtrP->fragmentId,
+                  fragPtrP->m_lcp_keep_list_head.m_page_no,
+                  fragPtrP->m_lcp_keep_list_head.m_page_idx,
+                  fragPtrP->m_lcp_keep_list_tail.m_page_no,
+                  fragPtrP->m_lcp_keep_list_tail.m_page_idx));
   }
 }
 
@@ -2352,7 +2372,7 @@ Dbtup::handle_lcp_drop_change_page(Fragrecord *fragPtrP,
       }
       else
       {
-        DEB_LCP_REL(("(%u)tab(%u,%u)page(%u,%u) skipped"
+        DEB_LCP_REL(("(%u)tab(%u,%u)page(%u,%u) skipped "
                      "lcp_skip_not_set: %u, rowGCI: %u"
                      " scanGCI: %u, in LCP set: %u",
                      instance(),

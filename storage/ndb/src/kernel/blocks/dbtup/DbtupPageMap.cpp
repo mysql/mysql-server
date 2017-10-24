@@ -34,14 +34,14 @@
 #define DEB_LCP(arglist) do { } while (0)
 #endif
 
-#define DEBUG_LCP_REL 1
+//#define DEBUG_LCP_REL 1
 #ifdef DEBUG_LCP_REL
 #define DEB_LCP_REL(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP_REL(arglist) do { } while (0)
 #endif
 
-#define DEBUG_LCP_ALLOC 1
+//#define DEBUG_LCP_ALLOC 1
 #ifdef DEBUG_LCP_ALLOC
 #define DEB_LCP_ALLOC(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else

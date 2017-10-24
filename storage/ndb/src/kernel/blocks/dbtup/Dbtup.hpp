@@ -3224,14 +3224,16 @@ private:
                                Uint32 fragmentId,
                                ScanOp &scan,
                                Uint32 page_no,
-                               Uint32 record_size);
+                               Uint32 record_size,
+                               bool set_scan_state);
 
   void record_delete_by_rowid(Signal *signal,
                               Uint32 tableId,
                               Uint32 fragmentId,
                               ScanOp &scan,
                               Local_key &key,
-                              Uint32 foundGCI);
+                              Uint32 foundGCI,
+                              bool set_scan_state);
 
 //---------------------------------------------------------------
 // Variable Allocator
