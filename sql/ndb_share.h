@@ -116,17 +116,6 @@ private:
 };
 
 
-
-inline
-void
-set_ndb_share_state(NDB_SHARE *share, NDB_SHARE_STATE state)
-{
-  mysql_mutex_lock(&share->mutex);
-  share->state= state;
-  mysql_mutex_unlock(&share->mutex);
-}
-
-
 /* NDB_SHARE.flags */
 #define NSF_HIDDEN_PK   1u /* table has hidden primary key */
 #define NSF_BLOB_FLAG   2u /* table has blob attributes */

@@ -18089,7 +18089,6 @@ ha_ndbcluster::commit_inplace_alter_table(TABLE *altered_table,
   delete alter_data;
   ha_alter_info->handler_ctx= 0;
 
-  set_ndb_share_state(m_share, NSS_INITIAL);
   ndbcluster_free_share(&m_share); // Decrease ref_count
 
   DBUG_RETURN(false); // OK
@@ -18119,7 +18118,7 @@ ha_ndbcluster::abort_inplace_alter_table(TABLE *altered_table,
                            m_share->key_string(), m_share->use_count()));
   delete alter_data;
   ha_alter_info->handler_ctx= 0;
-  set_ndb_share_state(m_share, NSS_INITIAL);
+
   ndbcluster_free_share(&m_share); // Decrease ref_count
   DBUG_RETURN(false);
 }
