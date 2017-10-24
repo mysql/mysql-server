@@ -29,6 +29,7 @@
 #include "my_io.h"
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_memory.h"
+#include "mysql/psi/mysql_socket.h"
 #include "mysql/psi/psi_memory.h"  // IWYU pragma: keep
 #include "mysql/service_mysql_alloc.h"
 #include "vio/vio_priv.h"

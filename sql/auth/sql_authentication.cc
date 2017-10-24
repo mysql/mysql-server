@@ -18,6 +18,8 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <fstream>                     // IWYU pragma: keep
 #include <string>                       /* std::string */
 #include <utility>
@@ -31,6 +33,7 @@
 #include "my_command.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_dir.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_loglevel.h"

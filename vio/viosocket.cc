@@ -55,6 +55,8 @@
 # include <sys/ioctl.h>
 #endif
 
+#include "mysql/psi/mysql_socket.h"
+
 int vio_errno(Vio *vio MY_ATTRIBUTE((unused)))
 {
   /* These transport types are not Winsock based. */
