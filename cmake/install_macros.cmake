@@ -34,7 +34,7 @@ MACRO (INSTALL_DEBUG_SYMBOLS targets)
      ENDIF()
     ENDIF()
 
-    IF(target STREQUAL "mysqld")
+    IF(target STREQUAL "mysqld" OR target STREQUAL "mysqlbackup")
       SET(comp Server)
     ELSE()
       SET(comp Debuginfo)

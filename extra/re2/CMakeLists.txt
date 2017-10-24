@@ -6,19 +6,6 @@
 
 INCLUDE_DIRECTORIES(.)
 
-# disable warnings about signed/unsigned comparison
-#SET(WARNFLAGS "-Wall -Wno-sign-compare")
-#SET(CMAKE_CXX_FLAGS
-#  "${CMAKE_CXX_FLAGS} ${OPTFLAGS} ${WARNFLAGS}")
-
-
-IF(DEFINED WIN32)
-   IF(MSVC)
-       ADD_DEFINITIONS(-DSTL_MSVC)
-   ENDIF()
-ENDIF()
-
-
 SET(RE2_SOURCES
     util/arena.cc
     util/hash.cc
@@ -58,3 +45,23 @@ SET(RE2_SOURCES
     )
 
 ADD_LIBRARY(re2_lib STATIC ${RE2_SOURCES})
+
+#
+# Disabling of various compiler warnings for GCC/Clang
+#
+
+IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  MY_CHECK_CXX_COMPILER_FLAG("-Wtautological-undefined-compare"
+                             HAVE_TAUTOLOGICAL_UNDEFINED_COMPARE)
+  IF(HAVE_TAUTOLOGICAL_UNDEFINED_COMPARE)
+    # Boost source has unused local typedefs.
+    ADD_COMPILE_FLAGS(${RE2_SOURCES}
+                      COMPILE_FLAGS "-Wno-tautological-undefined-compare")
+  ENDIF()
+ENDIF()
+
+IF(DEFINED WIN32)
+  IF(MSVC)
+    ADD_DEFINITIONS(-DSTL_MSVC)
+  ENDIF()
+ENDIF()
