@@ -36,14 +36,14 @@ extern EventLogger *g_eventLogger;
 #define DEB_LCP(arglist) do { } while (0)
 #endif
 
-#define DEBUG_DELETE_EXTRA 1
+//#define DEBUG_DELETE_EXTRA 1
 #ifdef DEBUG_DELETE_EXTRA
 #define DEB_DELETE_EXTRA(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_DELETE_EXTRA(arglist) do { } while (0)
 #endif
 
-#define DEBUG_INSERT_EXTRA 1
+//#define DEBUG_INSERT_EXTRA 1
 #ifdef DEBUG_INSERT_EXTRA
 #define DEB_INSERT_EXTRA(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
@@ -57,7 +57,7 @@ extern EventLogger *g_eventLogger;
 #define DEB_LCP_DEL(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_LCP_SKIP 1
+#define DEBUG_LCP_SKIP 1
 #ifdef DEBUG_LCP_SKIP
 #define DEB_LCP_SKIP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
@@ -354,6 +354,7 @@ Dbtup::dealloc_tuple(Signal* signal,
        * pages only.
        *
        */
+      /* Coverage tested */
       extra_bits |= Tuple_header::LCP_SKIP;
       DEB_LCP_SKIP_DELETE(("(%u)tab(%u,%u), row_id(%u,%u),"
                            " handle_lcp_keep_commit"
@@ -372,6 +373,7 @@ Dbtup::dealloc_tuple(Signal* signal,
     }
     else
     {
+      /* ndbassert(false);  COVERAGE TEST */
       DEB_LCP_SKIP_DELETE(("(%u)tab(%u,%u), row_id(%u,%u) DELETE"
                            " already LCP:ed",
                            instance(),
@@ -870,6 +872,7 @@ Dbtup::commit_operation(Signal* signal,
          * in this case we avoid it by setting bit on Tuple header.
          */
         jam();
+        /* Coverage tested */
         lcp_bits |= Tuple_header::LCP_SKIP;
         DEB_LCP_SKIP(("(%u)Set LCP_SKIP on tab(%u,%u), rowid(%u,%u)",
                       instance(),
@@ -886,6 +889,7 @@ Dbtup::commit_operation(Signal* signal,
          * this to ensure that it doesn't disappear with a later insert
          * operation.
          */
+        /* Coverage tested */
         DEB_LCP_DEL(("(%u)Set LCP_DELETE on tab(%u,%u), rowid(%u,%u)",
                      instance(),
                      regFragPtr->fragTableId,
