@@ -208,6 +208,17 @@ void get_date_from_daynr(long daynr,uint *ret_year,uint *ret_month,
 
 	/* Functions to handle periods */
 
+bool valid_period(ulong period)
+{
+  if (period <= 0)
+    return false;
+  if ((period % 100) == 0)
+    return false;
+  if ((period % 100) > 12)
+    return false;
+  return true;
+}
+
 ulong convert_period_to_month(ulong period)
 {
   ulong a,b;

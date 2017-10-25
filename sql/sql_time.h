@@ -65,6 +65,7 @@ struct Known_date_time_format
 #define WEEK_YEAR            2
 #define WEEK_FIRST_WEEKDAY   4
 
+bool valid_period(ulong period);
 ulong convert_period_to_month(ulong period);
 ulong convert_month_to_period(ulong month);
 void mix_date_and_time(MYSQL_TIME *ldate, const MYSQL_TIME *ltime);
