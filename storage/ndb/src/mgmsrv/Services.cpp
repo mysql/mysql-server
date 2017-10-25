@@ -337,7 +337,7 @@ MgmApiSession::MgmApiSession(class MgmtSrvr & mgm, NDB_SOCKET_TYPE sock, Uint64 
   m_errorInsert= 0;
 
   struct sockaddr_in addr;
-  socket_len_t addrlen= sizeof(addr);
+  ndb_socket_len_t addrlen= sizeof(addr);
   if (my_getpeername(sock, (struct sockaddr*)&addr, &addrlen) == 0)
   {
     char addr_buf[NDB_ADDR_STRLEN];
@@ -524,7 +524,7 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
 
   struct sockaddr_in addr;
   {
-    socket_len_t addrlen= sizeof(addr);
+    ndb_socket_len_t addrlen= sizeof(addr);
     int r = my_getpeername(m_socket, (struct sockaddr*)&addr, &addrlen);
     if (r != 0 )
     {

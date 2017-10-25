@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -364,7 +364,7 @@ int Ndb_check_socket_hup(NDB_SOCKET_TYPE sock)
   fd_set readfds, writefds, errorfds;
   struct timeval tv= {0,0};
   int s_err;
-  socket_len_t s_err_size= sizeof(s_err);
+  ndb_socket_len_t s_err_size= sizeof(s_err);
 
   FD_ZERO(&readfds);
   FD_ZERO(&writefds);

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -177,7 +177,7 @@ SocketClient::connect(const char* server_hostname,
   {
     // Check socket level error code
     int so_error = 0;
-    socket_len_t len= sizeof(so_error);
+    ndb_socket_len_t len= sizeof(so_error);
     if (my_getsockopt(m_sockfd, SOL_SOCKET, SO_ERROR, &so_error, &len) < 0)
     {
       my_socket_close(m_sockfd);
