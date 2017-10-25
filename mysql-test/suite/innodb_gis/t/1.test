@@ -174,7 +174,7 @@ explain SELECT ST_SRID(ST_GeomFromText('LineString(1 1,2 2)',0));
 #select ST_issimple(MultiPoint(Point(3, 6), Point(4, 10))), ST_issimple(Point(3, 6)),ST_issimple(ST_PolygonFromText('POLYGON((10 10,20 10,20 20,10 20,10 10))')),ST_issimple(ST_GeometryFromText('POINT(1 4)')), ST_issimple(ST_AsWKB(ST_GeometryFromText('POINT(1 4)')));
 explain select ST_issimple(MultiPoint(Point(3, 6), Point(4, 10))), ST_issimple(Point(3, 6));
 
-create table t1 (a geometry not null);
+create table t1 (a geometry not null SRID 0);
 insert into t1 values (ST_GeomFromText('Point(1 2)'));
 -- error 1416
 insert into t1 values ('Garbage');

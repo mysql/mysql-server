@@ -64,7 +64,7 @@ begin
                        c4 JSON , 
                        c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
                        c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-                       c7 POINT NOT NULL,
+                       c7 POINT NOT NULL SRID 0,
                        spatial INDEX idx2 (c7)    
                        ) ENCRYPTION="Y"  ENGINE = InnoDB;
 
@@ -74,7 +74,7 @@ begin
                        c4 JSON ,
                        c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
                        c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-                       c7 POINT NOT NULL,
+                       c7 POINT NOT NULL SRID 0,
                        spatial INDEX idx2 (c7)
                        )  ENGINE = InnoDB;
 
@@ -103,7 +103,7 @@ begin
                        c4 JSON ,
                        c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
                        c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-                       c7 POINT NOT NULL,
+                       c7 POINT NOT NULL SRID 0,
                        spatial INDEX idx2 (c7)
                        )  ENCRYPTION="Y" ENGINE = InnoDB;
    CREATE TABLE tde_db.t_non_encrypt_2(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -111,7 +111,7 @@ begin
                        c4 JSON ,
                        c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
                        c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-                       c7 POINT NOT NULL,
+                       c7 POINT NOT NULL SRID 0,
                        spatial INDEX idx2 (c7)
                        )  ENGINE = InnoDB;
    /*  insert into encrypt table 2 */
@@ -163,7 +163,7 @@ CREATE TABLE tde_db.t_encrypt_3(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
                        c4 JSON ,
                        c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
                        c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-                       c7 POINT NOT NULL,
+                       c7 POINT NOT NULL SRID 0,
                        spatial INDEX idx2 (c7)
                        )  ENCRYPTION="Y" ENGINE = InnoDB;
 --echo # new non encrypt table 
@@ -172,7 +172,7 @@ CREATE TABLE tde_db.t_non_encrypt_3(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
                        c4 JSON ,
                        c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
                        c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-                       c7 POINT NOT NULL,
+                       c7 POINT NOT NULL SRID 0,
                        spatial INDEX idx2 (c7)
                        )  ENGINE = InnoDB;
 
@@ -230,7 +230,7 @@ CREATE TABLE tde_db.t_encrypt_4(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
                        c4 JSON ,
                        c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
                        c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-                       c7 POINT NOT NULL,
+                       c7 POINT NOT NULL SRID 0,
                        spatial INDEX idx2 (c7)
                        )  ENCRYPTION="Y" ENGINE = InnoDB;
 CREATE TABLE tde_db.t_non_encrypt_4(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -238,7 +238,7 @@ CREATE TABLE tde_db.t_non_encrypt_4(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
                        c4 JSON ,
                        c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
                        c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-                       c7 POINT NOT NULL,
+                       c7 POINT NOT NULL SRID 0,
                        spatial INDEX idx2 (c7)
                        )  ENGINE = InnoDB;
 
@@ -294,7 +294,7 @@ CREATE TABLE tde_db.t_non_encrypt_4(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
                        c4 JSON ,
                        c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
                        c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-                       c7 POINT NOT NULL,
+                       c7 POINT NOT NULL SRID 0,
                        spatial INDEX idx2 (c7)
                        )  ENCRYPTION="Y" ENGINE = InnoDB;
 
@@ -304,7 +304,7 @@ CREATE TABLE tde_db.t_non_encrypt_4(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
                        c4 JSON ,
                        c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
                        c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-                       c7 POINT NOT NULL,
+                       c7 POINT NOT NULL SRID 0,
                        spatial INDEX idx2 (c7)
                        )  ENGINE = InnoDB;
 
@@ -352,7 +352,7 @@ begin
                        c4 JSON , 
                        c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
                        c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-                       c7 POINT NOT NULL,
+                       c7 POINT NOT NULL SRID 0,
                        spatial INDEX idx2 (c7)    
                        ) ENCRYPTION="Y"  ENGINE = InnoDB;
 
@@ -362,7 +362,7 @@ begin
                        c4 JSON ,
                        c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
                        c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-                       c7 POINT NOT NULL,
+                       c7 POINT NOT NULL SRID 0,
                        spatial INDEX idx2 (c7)
                        )  ENGINE = InnoDB;
 
@@ -391,7 +391,7 @@ begin
                        c4 JSON ,
                        c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
                        c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-                       c7 POINT NOT NULL,
+                       c7 POINT NOT NULL SRID 0,
                        spatial INDEX idx2 (c7)
                        )  ENCRYPTION="Y" ENGINE = InnoDB;
    CREATE TABLE tde_db.t_non_encrypt_2(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -399,7 +399,7 @@ begin
                        c4 JSON ,
                        c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
                        c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-                       c7 POINT NOT NULL,
+                       c7 POINT NOT NULL SRID 0,
                        spatial INDEX idx2 (c7)
                        )  ENGINE = InnoDB;
    /*  insert into encrypt table 2 */
@@ -478,7 +478,7 @@ CREATE TABLE tde_db.t_encrypt_4(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
                        c4 JSON ,
                        c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
                        c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-                       c7 POINT NOT NULL,
+                       c7 POINT NOT NULL SRID 0,
                        spatial INDEX idx2 (c7)
                        )  ENCRYPTION="Y" ENGINE = InnoDB;
 CREATE TABLE tde_db.t_non_encrypt_4(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -486,7 +486,7 @@ CREATE TABLE tde_db.t_non_encrypt_4(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
                        c4 JSON ,
                        c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
                        c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-                       c7 POINT NOT NULL,
+                       c7 POINT NOT NULL SRID 0,
                        spatial INDEX idx2 (c7)
                        )  ENGINE = InnoDB;
 
@@ -519,7 +519,7 @@ CREATE TABLE tde_db.t_encrypt_4(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
                        c4 JSON ,
                        c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
                        c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-                       c7 POINT NOT NULL,
+                       c7 POINT NOT NULL SRID 0,
                        spatial INDEX idx2 (c7)
                        )  ENCRYPTION="Y" ENGINE = InnoDB;
 
@@ -558,7 +558,7 @@ CREATE TABLE tde_db.t_encrypt_4(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
                        c4 JSON ,
                        c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
                        c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-                       c7 POINT NOT NULL,
+                       c7 POINT NOT NULL SRID 0,
                        spatial INDEX idx2 (c7)
                        )  ENCRYPTION="Y" ENGINE = InnoDB;
 
@@ -568,7 +568,7 @@ CREATE TABLE tde_db.t_non_encrypt_4(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
                        c4 JSON ,
                        c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
                        c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
-                       c7 POINT NOT NULL,
+                       c7 POINT NOT NULL SRID 0,
                        spatial INDEX idx2 (c7)
                        )  ENGINE = InnoDB;
 

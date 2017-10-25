@@ -86,7 +86,7 @@ DROP TABLE t2, t1;
 # Verify that index types that cannot be used as foreign keys are
 # ignored when creating foreign keys.
 set @@foreign_key_checks=0;
-CREATE TABLE t1(a CHAR(100), b GEOMETRY NOT NULL) ENGINE InnoDB;
+CREATE TABLE t1(a CHAR(100), b GEOMETRY NOT NULL SRID 0) ENGINE InnoDB;
 # Creating a foreign key on a GEOMETRY column is not supported
 ALTER TABLE t1 ADD CONSTRAINT fi_b FOREIGN KEY(b) REFERENCES ti2(b);
 ERROR 42000: BLOB/TEXT column 'b' used in key specification without a key length
