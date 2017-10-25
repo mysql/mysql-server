@@ -10209,13 +10209,17 @@ fil_tablespace_path_equals(
 		in the DD dictionary. Such renames should be handled by the
 		atomic DDL "ddl_log". */
 
-		std::string	old_dir = Fil_path::get_real_path(old_path);
+		std::string	old_dir{old_path};
 
 		/* Ignore the filename component of the old path. */
 		auto	pos = old_dir.find_last_of(Fil_path::SEPARATOR);
-		ut_a(pos != std::string::npos);
-		old_dir.resize(pos + 1);
-		ut_ad(Fil_path::is_separator(old_dir.back()));
+		if (pos == std::string::npos) {
+			old_dir = MySQL_datadir_path;
+		} else {
+			old_dir.resize(pos + 1);
+			ut_ad(Fil_path::is_separator(old_dir.back()));
+		}
+		old_dir = Fil_path::get_real_path(old_dir);
 
 		/* Build the new path from the scan path and the found path. */
 		std::string	new_dir{result.first};
@@ -10226,6 +10230,11 @@ fil_tablespace_path_equals(
 
 		/* Do not use a datafile that is in the wrong place. */
 		if (!Fil_path::is_valid_location(space_name, new_dir)) {
+			ib::info()
+				<< "Cannot use scanned file " << new_dir
+				<< "for tablespace " << space_name
+				<< "because it is not in a valid location.";
+
 			return(Fil_state::MISSING);
 		}
 
@@ -10736,7 +10745,6 @@ fil_tablespace_redo_encryption(
 	}
 
 	ulint	offset;
-
 
 	offset = mach_read_from_2(ptr);
 	ptr += 2;
