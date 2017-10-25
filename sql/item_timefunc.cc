@@ -2758,7 +2758,7 @@ bool Item_func_makedate::get_date(MYSQL_TIME *ltime, my_time_flags_t)
   long days;
 
   if (args[0]->null_value || args[1]->null_value ||
-      year < 0 || year > 9999 || daynr <= 0)
+      year < 0 || year > 9999 || daynr <= 0 || daynr > MAX_DAY_NUMBER)
     goto err;
 
   if (year < 100)
