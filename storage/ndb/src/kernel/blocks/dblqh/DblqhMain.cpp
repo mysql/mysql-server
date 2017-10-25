@@ -17795,16 +17795,6 @@ Dblqh::lcp_max_completed_gci(Uint32 & completedGci,
      */
     fragptr.p->maxGciCompletedInLcp = restorable_gci;
   }
-  if (fragptr.p->maxGciCompletedInLcp < c_keep_gci_for_lcp)
-  {
-    jam();
-    /**
-     * maxGciCompletedInLcp can never be smaller than the restorable GCI
-     * at the time when we start the LCP.
-     */
-    fragptr.p->maxGciCompletedInLcp = c_keep_gci_for_lcp;
-  }
-
   completedGci = fragptr.p->maxGciCompletedInLcp;
   DEB_LCP(("(%u)maxGciCompletedInLcp = %u, tab(%u,%u)",
            instance(),

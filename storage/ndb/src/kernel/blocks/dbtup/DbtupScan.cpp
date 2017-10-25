@@ -1672,7 +1672,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
               {
                 jam();
                 /* Ensure that LCP_DELETE bit is clear before we move on */
-                /* Coverage tested path */
+                /* Coverage tested */
                 tuple_header_ptr->m_header_bits =
                   thbits & (~Tuple_header::LCP_DELETE);
                 updateChecksum(tuple_header_ptr,
@@ -2359,6 +2359,7 @@ Dbtup::handle_lcp_drop_change_page(Fragrecord *fragPtrP,
           lcp_skip_not_set &&
           is_in_remaining_lcp_set)
       {
+        /* Coverage tested */
         jam();
         jamLine((Uint16)idx);
         found_idx[found_idx_count] = idx;
@@ -2372,6 +2373,7 @@ Dbtup::handle_lcp_drop_change_page(Fragrecord *fragPtrP,
       }
       else
       {
+        /* Coverage tested */
         DEB_LCP_REL(("(%u)tab(%u,%u)page(%u,%u) skipped "
                      "lcp_skip_not_set: %u, rowGCI: %u"
                      " scanGCI: %u, in LCP set: %u",

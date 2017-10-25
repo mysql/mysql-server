@@ -1073,6 +1073,7 @@ Dbtup::releaseFragPage(Fragrecord* fragPtrP,
            * is completed.
            */
           jam();
+          /* Coverage tested */
           c_page_pool.getPtr(pagePtr);
           bool delete_by_pageid = pagePtr.p->is_page_to_skip_lcp();
           page_freed = true;
@@ -1084,6 +1085,7 @@ Dbtup::releaseFragPage(Fragrecord* fragPtrP,
         }
         else
         {
+          /* Coverage tested */
           DEB_LCP_REL(("(%u) change_part: %u, last_lcp_state: %u "
                     "in tab(%u,%u) page(%u)",
                    instance(),
@@ -1095,15 +1097,20 @@ Dbtup::releaseFragPage(Fragrecord* fragPtrP,
         }
         last_lcp_state = new_last_lcp_state;
       }
+      else
+      {
+        DEB_LCP_REL(("(%u)lcp_scanned_bit already set when page released"
+                     "in tab(%u,%u) page(%u)",
+                     instance(),
+                     fragPtrP->fragTableId,
+                     fragPtrP->fragmentId,
+                     logicalPageId));
+        /* ndbassert(false); COVERAGE TEST */
+      }
     }
     else
     {
-      DEB_LCP_REL(("(%u)lcp_scanned_bit already set when page released"
-                   "in tab(%u,%u) page(%u)",
-                   instance(),
-                   fragPtrP->fragTableId,
-                   fragPtrP->fragmentId,
-                   logicalPageId));
+      /* ndbassert(pagePtr.p->is_page_to_skip_lcp()); COVERAGE TEST */
     }
   }
   if (!lcp_to_scan)
