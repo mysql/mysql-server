@@ -4479,9 +4479,7 @@ do concat('a',concat_ws('a', 0x2859, 'a' ,
 trim(period_add('a',1) from (1&''))
 )
 );
-Warnings:
-Warning	1292	Truncated incorrect INTEGER value: ''
-Warning	1292	Truncated incorrect INTEGER value: 'a'
+ERROR HY000: Incorrect arguments to PERIOD_ADD
 #
 # End of 5.6 tests
 #
