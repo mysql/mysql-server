@@ -5702,33 +5702,20 @@ bool Item_first_last_value::check_wf_semantics(THD *thd, SELECT_LEX *select,
 
 bool Item_first_last_value::resolve_type(THD *thd MY_ATTRIBUTE((unused)))
 {
-  Item *item= args[0];
-  decimals=item->decimals;
+  aggregate_type(make_array(args, 1));
+  m_hybrid_type= Field::result_merge_type(data_type());
+  maybe_null= args[0]->maybe_null;
 
-  switch (m_hybrid_type= item->result_type()) {
-    case INT_RESULT:
-    case DECIMAL_RESULT:
-    case STRING_RESULT:
-      max_length= item->max_length;
-      break;
-    case REAL_RESULT:
-      max_length= float_length(decimals);
-      break;
-    case ROW_RESULT:
-    default:
-      DBUG_ASSERT(0);
-  };
-
-  maybe_null= true;
-  unsigned_flag=item->unsigned_flag;
-  null_value= TRUE;
-
-  item= args[0]->real_item();
-
-  if (item->type() == Item::FIELD_ITEM)
-    set_data_type_from_item(item);
+  if (m_hybrid_type == STRING_RESULT)
+  {
+    if (aggregate_string_properties(func_name(), args, 1))
+      return true;
+  }
   else
-    set_data_type_from_result(m_hybrid_type, max_length);
+  {
+    collation.set_numeric(); // Number
+    aggregate_num_type(m_hybrid_type, args, 1);
+  }
 
   return false;
 }
@@ -5860,6 +5847,19 @@ bool Item_first_last_value::get_time(MYSQL_TIME *ltime)
   return m_value->get_time(ltime);
 }
 
+
+bool Item_first_last_value::val_json(Json_wrapper *jw)
+{
+  if (wf_common_init())
+    return true;
+
+  if (compute())
+    return null_value ? false : true;
+
+  return  m_value->val_json(jw);
+}
+
+
 my_decimal *Item_first_last_value::val_decimal(my_decimal *decimal_buffer)
 {
   if (wf_common_init())
@@ -5885,34 +5885,20 @@ String *Item_first_last_value::val_str(String *str)
 
 bool Item_nth_value::resolve_type(THD *thd MY_ATTRIBUTE((unused)))
 {
-  Item *item= args[0];
-
-  decimals=item->decimals;
-
-  switch (m_hybrid_type= item->result_type()) {
-    case INT_RESULT:
-    case DECIMAL_RESULT:
-    case STRING_RESULT:
-      max_length= item->max_length;
-      break;
-    case REAL_RESULT:
-      max_length= float_length(decimals);
-      break;
-    case ROW_RESULT:
-    default:
-      DBUG_ASSERT(0);
-  };
-
+  aggregate_type(make_array(args, 1));
+  m_hybrid_type= Field::result_merge_type(data_type());
   maybe_null= true;
-  unsigned_flag=item->unsigned_flag;
-  null_value= true;
 
-  item= item->real_item();
-
-  if (item->type() == Item::FIELD_ITEM)
-    set_data_type_from_item(item);
+  if (m_hybrid_type == STRING_RESULT)
+  {
+    if (aggregate_string_properties(func_name(), args, 1))
+      return true;
+  }
   else
-    set_data_type_from_result(m_hybrid_type, max_length);
+  {
+    collation.set_numeric(); // Number
+    aggregate_num_type(m_hybrid_type, args, 1);
+  }
 
   return false;
 }
@@ -6137,6 +6123,17 @@ bool Item_nth_value::get_time(MYSQL_TIME *ltime)
     return true;
 
   return m_value->get_time(ltime);
+}
+
+bool Item_nth_value::val_json(Json_wrapper *jw)
+{
+  if (wf_common_init())
+    return true;
+
+  if (compute())
+    return null_value ? false : true;
+
+  return m_value->val_json(jw);
 }
 
 
@@ -6369,6 +6366,20 @@ bool Item_lead_lag::get_time(MYSQL_TIME *ltime)
     return true;
 
   return m_use_default ? m_default->get_time(ltime) : m_value->get_time(ltime);
+}
+
+
+bool Item_lead_lag::val_json(Json_wrapper *jw)
+{
+  if (wf_common_init())
+    return true;
+
+  if (compute())
+    return null_value ? false : true;
+
+  return (m_has_value ?
+          (m_use_default ? m_default->val_json(jw) : m_value->val_json(jw)) :
+          false);
 }
 
 

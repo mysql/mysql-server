@@ -2363,6 +2363,7 @@ public:
 
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
   bool get_time(MYSQL_TIME *ltime) override;
+  bool val_json(Json_wrapper *wr) override;
 
   bool two_pass() const override
   {
@@ -2433,6 +2434,7 @@ public:
 
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
   bool get_time(MYSQL_TIME *ltime) override;
+  bool val_json(Json_wrapper *wr) override;
 
   void reset_field() override { DBUG_ASSERT(false); }
   void update_field() override { DBUG_ASSERT(false); }
@@ -2503,6 +2505,7 @@ public:
 
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
   bool get_time(MYSQL_TIME *ltime) override;
+  bool val_json(Json_wrapper *wr) override;
 
   void reset_field() override { DBUG_ASSERT(false); }
   void update_field() override { DBUG_ASSERT(false); }
