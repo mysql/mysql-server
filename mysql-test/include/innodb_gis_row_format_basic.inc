@@ -10,7 +10,7 @@ eval CREATE TABLE t1 (
   c2 varchar(15) collate utf8_bin DEFAULT NULL,
   c1 varchar(15) collate utf8_bin DEFAULT NULL,
   c3 varchar(10) collate utf8_bin DEFAULT NULL,
-  spatial_point point NOT NULL,
+  spatial_point point NOT NULL SRID 0,
   PRIMARY KEY(id),
   SPATIAL KEY (spatial_point)
 ) ROW_FORMAT=$row_format ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin;

@@ -68,7 +68,7 @@ i int(10) unsigned not null auto_increment primary key,
 a varchar(255) not null,
 FULLTEXT KEY (a)
 ) ENGINE = INNODB;
-create table t15 (c1 int, c2 geometry not null, spatial index (c2)) engine=innodb;
+create table t15 (c1 int, c2 geometry not null SRID 0, spatial index (c2)) engine=innodb;
 CREATE TABLE t16 (
 a INT,
 b INT,

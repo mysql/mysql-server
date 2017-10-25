@@ -2,7 +2,7 @@
 USE test;
 DROP TABLE IF EXISTS gis_point_with_spatial_index;
 CREATE TABLE gis_point_with_spatial_index  (fid INTEGER NOT NULL PRIMARY KEY, g POINT 
-NOT NULL,spatial index (g) ) engine=myisam;
+NOT NULL SRID 0,spatial index (g) ) engine=myisam;
 select count(g) from gis_point_with_spatial_index where ST_AsText(g) like "%100 10%";
 count(g)
 0
@@ -11,7 +11,7 @@ ST_AsText(g)
 DROP TABLE IF EXISTS gis_point_with_spatial_index;
 DROP TABLE IF EXISTS gis_line_with_spatial_index;
 CREATE TABLE gis_line_with_spatial_index  (fid INTEGER NOT NULL PRIMARY KEY, g LINESTRING 
-NOT NULL, spatial index (g) ) engine=myisam;
+NOT NULL SRID 0, spatial index (g) ) engine=myisam;
 select count(g) from gis_line_with_spatial_index where ST_AsText(g) like "%100 10%";
 count(g)
 0
@@ -20,7 +20,7 @@ ST_AsText(g)
 DROP TABLE IF EXISTS gis_line_with_spatial_index;
 DROP TABLE IF EXISTS gis_polygon_with_spatial_index;
 CREATE TABLE gis_polygon_with_spatial_index  (fid INTEGER NOT NULL PRIMARY KEY, g POLYGON 
-NOT NULL, spatial index (g) ) engine=myisam;
+NOT NULL SRID 0, spatial index (g) ) engine=myisam;
 select count(g) from gis_polygon_with_spatial_index where ST_AsText(g) like "%10 10%";
 count(g)
 0
@@ -29,7 +29,7 @@ ST_AsText(g)
 DROP TABLE IF EXISTS gis_polygon_with_spatial_index;
 DROP TABLE IF EXISTS gis_multipoint_with_spatial_index;
 CREATE TABLE gis_multipoint_with_spatial_index  (fid INTEGER NOT NULL PRIMARY KEY, g MULTIPOINT
-NOT NULL, spatial index (g) ) engine=myisam;
+NOT NULL SRID 0, spatial index (g) ) engine=myisam;
 select count(g) from gis_multipoint_with_spatial_index where ST_AsText(g) like "%10 10%";
 count(g)
 0
@@ -38,7 +38,7 @@ ST_AsText(g)
 DROP TABLE IF EXISTS gis_multipoint_with_spatial_index;
 DROP TABLE IF EXISTS gis_multiline_with_spatial_index;
 CREATE TABLE gis_multiline_with_spatial_index  (fid INTEGER NOT NULL PRIMARY KEY, g MULTILINESTRING
-NOT NULL, spatial index (g) ) engine=myisam;
+NOT NULL SRID 0, spatial index (g) ) engine=myisam;
 select count(g) from gis_multiline_with_spatial_index where ST_AsText(g) like "%10 0%";
 count(g)
 0
@@ -47,7 +47,7 @@ ST_AsText(g)
 DROP TABLE IF EXISTS gis_multiline_with_spatial_index;
 DROP TABLE IF EXISTS gis_multipolygon_with_spatial_index;
 CREATE TABLE gis_multipolygon_with_spatial_index  (fid INTEGER NOT NULL PRIMARY KEY, g MULTIPOLYGON
-NOT NULL, spatial index (g) ) engine=myisam;
+NOT NULL SRID 0, spatial index (g) ) engine=myisam;
 select count(g) from gis_multipolygon_with_spatial_index where ST_AsText(g) like "%10 10%";
 count(g)
 0
@@ -61,7 +61,7 @@ ST_AsText(g)
 DROP TABLE IF EXISTS gis_multipolygon_with_spatial_index;
 DROP TABLE IF EXISTS gis_geometrycollection_with_spatial_index;
 CREATE TABLE gis_geometrycollection_with_spatial_index  (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRYCOLLECTION 
-NOT NULL, spatial index (g) ) engine=myisam;
+NOT NULL SRID 0, spatial index (g) ) engine=myisam;
 select count(g) from gis_geometrycollection_with_spatial_index where ST_AsText(g) like "%10 10%";
 count(g)
 0
@@ -70,7 +70,7 @@ ST_AsText(g)
 DROP TABLE IF EXISTS gis_geometrycollection_with_spatial_index;
 DROP TABLE IF EXISTS gis_geometry_with_spatial_index;
 CREATE TABLE gis_geometry_with_spatial_index  (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY 
-NOT NULL, spatial index (g) ) engine=myisam;
+NOT NULL SRID 0, spatial index (g) ) engine=myisam;
 select count(g) from gis_geometry_with_spatial_index where ST_AsText(g) like "%10 10%";
 count(g)
 0
@@ -79,7 +79,7 @@ ST_AsText(g)
 DROP TABLE IF EXISTS gis_geometry_with_spatial_index;
 DROP TABLE IF EXISTS gis_point_and_int_with_spatial_index;
 CREATE TABLE gis_point_and_int_with_spatial_index  (fid INTEGER NOT NULL PRIMARY KEY, g LINESTRING 
-NOT NULL,spatial index (g) ) engine=myisam;
+NOT NULL SRID 0,spatial index (g) ) engine=myisam;
 select count(g) from gis_point_and_int_with_spatial_index where ST_AsText(g) like "%100 10%";
 count(g)
 0
@@ -87,7 +87,7 @@ select ST_AsText(g) from gis_point_and_int_with_spatial_index where ST_AsText(g)
 ST_AsText(g)
 DROP TABLE IF EXISTS gis_point_and_int_with_spatial_index;
 CREATE TABLE gis_point_and_int_with_spatial_index  (fid INTEGER NOT NULL PRIMARY KEY, g POINT 
-NOT NULL, a int,  spatial index (g) ) engine=myisam;
+NOT NULL SRID 0, a int,  spatial index (g) ) engine=myisam;
 #INSERT valid entries to Point class
 INSERT INTO gis_point_and_int_with_spatial_index VALUES
 (101, ST_PointFromText('POINT(10 10)'),1),
@@ -113,7 +113,7 @@ POINT(100 20)
 POINT(100 20)
 DROP TABLE IF EXISTS gis_point_and_int_with_spatial_index;
 CREATE TABLE gis_point_and_int_with_spatial_index  (fid INTEGER NOT NULL PRIMARY KEY, g POINT 
-NOT NULL, a int,  index (a) ) engine=myisam;
+NOT NULL SRID 0, a int,  index (a) ) engine=myisam;
 #INSERT valid entries to Point class
 INSERT INTO gis_point_and_int_with_spatial_index VALUES
 (101, ST_PointFromText('POINT(10 10)'),1),
@@ -137,7 +137,7 @@ COUNT(a)
 DROP TABLE IF EXISTS gis_point_and_int_with_spatial_index ;
 DROP TABLE IF EXISTS gis_linestring_and_int_with_spatial_index ;
 CREATE TABLE gis_linestring_and_int_with_spatial_index  (fid INTEGER NOT NULL PRIMARY KEY, g LINESTRING 
-NOT NULL, a int,  spatial index (g) ) engine=myisam;
+NOT NULL SRID 0, a int,  spatial index (g) ) engine=myisam;
 #INSERT valid entries to Point class
 INSERT INTO gis_linestring_and_int_with_spatial_index VALUES
 (201,ST_LineFromText('LINESTRING(0 0,0 10,10 0)'),1),
@@ -165,7 +165,7 @@ COUNT(g)
 DROP TABLE IF EXISTS gis_linestring_and_int_with_spatial_index ;
 DROP TABLE IF EXISTS gis_multilinestring_and_int_with_spatial_index ;
 CREATE TABLE gis_multilinestring_and_int_with_spatial_index  (fid INTEGER PRIMARY KEY, g MULTILINESTRING 
-NOT NULL, a int,  spatial index (g) ) engine=myisam;
+NOT NULL SRID 0, a int,  spatial index (g) ) engine=myisam;
 #INSERT valid entries to Point class
 INSERT INTO gis_multilinestring_and_int_with_spatial_index VALUES
 (300,ST_MultiLineStringFromText('MULTILINESTRING((10 48,10 21,10 0),(16 0,16 23,16 48))'),1),
@@ -190,7 +190,7 @@ COUNT(g)
 DROP TABLE IF EXISTS gis_multilinestring_and_int_with_spatial_index ;
 DROP TABLE IF EXISTS gis_polygon_and_int_with_spatial_index ;
 CREATE TABLE gis_polygon_and_int_with_spatial_index  (fid INTEGER PRIMARY KEY, g POLYGON
-NOT NULL, a int,  spatial index (g) ) engine=myisam;
+NOT NULL SRID 0, a int,  spatial index (g) ) engine=myisam;
 #INSERT valid entries to Point class
 INSERT INTO gis_polygon_and_int_with_spatial_index VALUES
 (300,ST_PolygonFromText('POLYGON((183670 10,2470 10,20 249380,10 254760,183670 10))'),12),
@@ -216,7 +216,7 @@ COUNT(g)
 DROP TABLE IF EXISTS gis_polygon_and_int_with_spatial_index ;
 DROP TABLE IF EXISTS gis_multipolygon_and_int_with_spatial_index ;
 CREATE TABLE gis_multipolygon_and_int_with_spatial_index  (fid INTEGER PRIMARY KEY, g multiPOLYGON
-NOT NULL, a int,  spatial index (g) ) engine=myisam;
+NOT NULL SRID 0, a int,  spatial index (g) ) engine=myisam;
 #INSERT valid entries to Point class
 INSERT INTO gis_multipolygon_and_int_with_spatial_index VALUES
 (1,ST_MultiPolygonFromText('MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))'),1),
@@ -249,7 +249,7 @@ ERROR 42000: All parts of a SPATIAL index must be NOT NULL
 CREATE TABLE gis_multipolygon_and_int_with_spatial_index  (fid INTEGER NOT NULL, g MULTIPOLYGON, a int,  spatial index (fid) ) engine=myisam;
 ERROR 42000: A SPATIAL index may only contain a geometrical type column
 CREATE TABLE gis_multipolygon_and_int_with_spatial_index  (fid INTEGER PRIMARY KEY, g MULTIPOLYGON
-NOT NULL, a int,  spatial index (g) ) engine=myisam;
+NOT NULL SRID 0, a int,  spatial index (g) ) engine=myisam;
 #INSERT valid entries to Point class
 INSERT INTO gis_multipolygon_and_int_with_spatial_index VALUES
 (1,ST_MultiPolygonFromText('MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))'),1),

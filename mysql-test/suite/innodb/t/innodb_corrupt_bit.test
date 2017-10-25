@@ -189,7 +189,7 @@ CREATE TABLE t3 (
         c CHAR(10),
         v VARCHAR(100),
         t TEXT,
-        p POINT NOT NULL);
+        p POINT NOT NULL SRID 0);
 
 CREATE INDEX idx_b ON t3(b);
 
