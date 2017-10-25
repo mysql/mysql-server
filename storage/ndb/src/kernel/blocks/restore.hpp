@@ -152,6 +152,10 @@ private:
     Uint32 m_create_gci;
     Uint32 m_max_page_cnt;
 
+    Uint32 m_rowid_page_no;
+    Uint32 m_rowid_page_idx;
+    Uint32 m_error_code;
+
     Uint32 m_file_id;
     Uint32 m_max_parts;
     Uint32 m_max_files;
@@ -229,6 +233,11 @@ private:
                     const Uint32*,
                     Uint32 len,
                     BackupFormat::RecordType type);
+  void handle_return_execute_operation(Signal*,
+                                       FilePtr,
+                                       const Uint32 *data,
+                                       Uint32 len,
+                                       Uint32 outstanding);
   void execute_operation(Signal*,
                          FilePtr,
                          Uint32 keyLen,
