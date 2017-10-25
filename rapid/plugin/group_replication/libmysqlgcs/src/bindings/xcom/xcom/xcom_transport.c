@@ -375,7 +375,7 @@ static bool_t x_putbytes(XDR *xdrs, const char *bp MY_ATTRIBUTE((unused)),
 static u_int
 #if defined(__APPLE__) || defined(__FreeBSD__) || \
     defined(X_GETPOSTN_NOT_USE_CONST)
-x_getpostn(XDR *xdrs)
+x_getpostn(__const XDR *xdrs)
 #else
 x_getpostn(const XDR *xdrs)
 #endif
@@ -1067,8 +1067,21 @@ int send_to_acceptors(pax_msg *p, const char *dbg) {
 #endif
 
 /* Used by :/int.*read_msg */
+/**
+  Reads n bytes from connection rfd without buffering reads.
+
+  @param[in]     rfd Pointer to open connection.
+  @param[out]    p   Output buffer.
+  @param[in]     n   Number of bytes to read.
+  @param[out]    s   Pointer to server.
+  @param[out]    ret Number of bytes read, or -1 if failure.
+
+  @return
+    @retval 0 if task should terminate.
+    @retval 1 if it should continue.
+*/
 static int read_bytes(connection_descriptor const *rfd, char *p, uint32_t n,
-                      int64_t *ret) {
+                      server *s, int64_t *ret) {
   DECL_ENV
   uint32_t left;
   char *bytes;
@@ -1093,6 +1106,7 @@ static int read_bytes(connection_descriptor const *rfd, char *p, uint32_t n,
     } else {
       ep->bytes += nread;
       ep->left -= (uint32_t)nread;
+      if (s) server_detected(s);
     }
   }
   assert(ep->left == 0);
@@ -1101,8 +1115,23 @@ static int read_bytes(connection_descriptor const *rfd, char *p, uint32_t n,
   TASK_END;
 }
 
-static int buffered_read_bytes(connection_descriptor const *rfd, srv_buf *buf,
-                               char *p, uint32_t n, int64_t *ret) {
+/**
+  Reads n bytes from connection rfd with buffering reads.
+
+  @param[in]     rfd Pointer to open connection.
+  @param[in,out] buf Used for buffering reads.
+                     Originally initialized by caller, maintained by buffered_read_bytes.
+  @param[out]    p   Output buffer.
+  @param[in]     n   Number of bytes to read
+  @param[out]    s   Pointer to server.
+  @param[out]    ret Number of bytes read, or -1 if failure.
+
+  @return
+    @retval 0 if task should terminate.
+    @retval 1 if it should continue.
+*/
+static int	buffered_read_bytes(connection_descriptor const * rfd, srv_buf *buf,
+                                char *p, uint32_t n, server *s, int64_t *ret) {
   DECL_ENV
   uint32_t left;
   char *bytes;
@@ -1120,7 +1149,7 @@ static int buffered_read_bytes(connection_descriptor const *rfd, srv_buf *buf,
 
   if (ep->left >= srv_buf_capacity(buf)) {
     /* Too big, do direct read of rest */
-    TASK_CALL(read_bytes(rfd, ep->bytes, ep->left, ret));
+    TASK_CALL(read_bytes(rfd, ep->bytes, ep->left, s, ret));
     if (*ret <= 0) {
       TASK_FAIL;
     }
@@ -1147,6 +1176,7 @@ static int buffered_read_bytes(connection_descriptor const *rfd, srv_buf *buf,
         nget = get_srv_buf(buf, ep->bytes, ep->left);
         ep->bytes += nget;
         ep->left -= nget;
+        if (s) server_detected(s);
       }
     }
   }
@@ -1171,7 +1201,7 @@ void put_header_1_0(unsigned char header_buf[], uint32_t msgsize,
 }
 
 /* See also :/static .*read_bytes */
-int read_msg(connection_descriptor *rfd, pax_msg *p, int64_t *ret) {
+int read_msg(connection_descriptor *rfd, pax_msg *p, server *s, int64_t *ret) {
   int deserialize_ok = 0;
 
   DECL_ENV
@@ -1189,7 +1219,7 @@ int read_msg(connection_descriptor *rfd, pax_msg *p, int64_t *ret) {
     ep->bytes = NULL;
     /* Read length field, protocol version, and checksum */
     ep->n = 0;
-    TASK_CALL(read_bytes(rfd, (char *)ep->header_buf, MSG_HDR_SIZE, &ep->n));
+    TASK_CALL(read_bytes(rfd, (char*)ep->header_buf, MSG_HDR_SIZE, s, &ep->n));
 
     if (ep->n != MSG_HDR_SIZE) {
       G_INFO("Failure reading from fd=%d n=%" PRIu64, rfd->fd, ep->n);
@@ -1248,7 +1278,7 @@ int read_msg(connection_descriptor *rfd, pax_msg *p, int64_t *ret) {
 
   /* Read message */
   ep->n = 0;
-  TASK_CALL(read_bytes(rfd, ep->bytes, ep->msgsize, &ep->n));
+  TASK_CALL(read_bytes(rfd, ep->bytes, ep->msgsize, s, &ep->n));
 
   if (ep->n > 0) {
     /* Deserialize message */
@@ -1266,8 +1296,8 @@ int read_msg(connection_descriptor *rfd, pax_msg *p, int64_t *ret) {
   TASK_END;
 }
 
-int buffered_read_msg(connection_descriptor *rfd, srv_buf *buf, pax_msg *p,
-                      int64_t *ret) {
+int buffered_read_msg(connection_descriptor *rfd, srv_buf *buf,
+                      pax_msg *p, server *s, int64_t *ret) {
   int deserialize_ok = 0;
 
   DECL_ENV
@@ -1288,8 +1318,8 @@ int buffered_read_msg(connection_descriptor *rfd, srv_buf *buf, pax_msg *p,
     ep->bytes = NULL;
     /* Read length field, protocol version, and checksum */
     ep->n = 0;
-    TASK_CALL(buffered_read_bytes(rfd, buf, (char *)ep->header_buf,
-                                  MSG_HDR_SIZE, &ep->n));
+    TASK_CALL(buffered_read_bytes(rfd, buf, (char*)ep->header_buf, MSG_HDR_SIZE,
+                                  s, &ep->n));
 
     if (ep->n != MSG_HDR_SIZE) {
       DBGOUT(FN; NDBG64(ep->n));
@@ -1343,7 +1373,7 @@ int buffered_read_msg(connection_descriptor *rfd, srv_buf *buf, pax_msg *p,
   }
   /* Read message */
   ep->n = 0;
-  TASK_CALL(buffered_read_bytes(rfd, buf, ep->bytes, ep->msgsize, &ep->n));
+  TASK_CALL(buffered_read_bytes(rfd, buf, ep->bytes, ep->msgsize, s, &ep->n));
 
   if (ep->n > 0) {
     /* Deserialize message */
@@ -1373,7 +1403,7 @@ int recv_proto(connection_descriptor const *rfd, xcom_proto *x_proto,
 
   /* Read length field, protocol version, and checksum */
   ep->n = 0;
-  TASK_CALL(read_bytes(rfd, (char *)ep->header_buf, MSG_HDR_SIZE, &ep->n));
+  TASK_CALL(read_bytes(rfd, (char*)ep->header_buf, MSG_HDR_SIZE, 0, &ep->n));
 
   if (ep->n != MSG_HDR_SIZE) {
     DBGOUT(FN; NDBG64(ep->n));
@@ -1727,11 +1757,6 @@ int tcp_reaper_task(task_arg arg MY_ATTRIBUTE((unused))) {
   }
   FINALLY
   TASK_END;
-}
-
-server *get_server(site_def const *s, node_no i) {
-  assert(s);
-  return s->servers[i];
 }
 
 #define TERMINATE_CLIENT(ep)            \
