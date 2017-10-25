@@ -2473,7 +2473,8 @@ files_checked:
 				return(srv_init_abort(DB_READ_ONLY));
 			}
 
-			if (!srv_dict_metadata->empty()) {
+			if (srv_dict_metadata != nullptr
+			    && !srv_dict_metadata->empty()) {
 
 				/* Open this table in case srv_dict_metadata
 				should be applied to this table before
