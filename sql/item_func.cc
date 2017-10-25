@@ -3365,7 +3365,7 @@ longlong Item_func_round::int_op()
   if ((dec >= 0) || args[1]->unsigned_flag)
     return value; // integer have not digits after point
 
-  abs_dec= -dec;
+  abs_dec= -static_cast<ulonglong>(dec);
   longlong tmp;
   
   if(abs_dec >= array_elements(log_10_int))
