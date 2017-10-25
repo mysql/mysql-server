@@ -384,7 +384,7 @@ int Ndb_check_socket_hup(NDB_SOCKET_TYPE sock)
     return 1;
 
   s_err=0;
-  if (my_getsockopt(sock, SOL_SOCKET, SO_ERROR, &s_err, &s_err_size) != 0)
+  if (ndb_getsockopt(sock, SOL_SOCKET, SO_ERROR, &s_err, &s_err_size) != 0)
     return(1);
 
   if (s_err)

@@ -107,7 +107,7 @@ SocketServer::Session * TransporterService::newSession(NDB_SOCKET_TYPE sockfd)
   DBUG_ENTER("SocketServer::Session * TransporterService::newSession");
   if (m_auth && !m_auth->server_authenticate(sockfd))
   {
-    ndb_socket_close(sockfd, true); // Close with reset
+    ndb_socket_close_with_reset(sockfd, true); // Close with reset
     DBUG_RETURN(0);
   }
 
@@ -115,7 +115,7 @@ SocketServer::Session * TransporterService::newSession(NDB_SOCKET_TYPE sockfd)
   bool close_with_reset = true;
   if (!m_transporter_registry->connect_server(sockfd, msg, close_with_reset))
   {
-    ndb_socket_close(sockfd, close_with_reset);
+    ndb_socket_close_with_reset(sockfd, close_with_reset);
     DBUG_RETURN(0);
   }
 
@@ -184,7 +184,7 @@ TransporterReceiveData::epoll_add(TCP_Transporter *t)
     int op = EPOLL_CTL_ADD;
     int ret_val, error;
 
-    if (!my_socket_valid(sock_fd))
+    if (!ndb_socket_valid(sock_fd))
       return FALSE;
 
     event_poll.data.u32 = t->getRemoteNodeId();
@@ -442,8 +442,8 @@ TransporterRegistry::~TransporterRegistry()
 
   if (m_has_extra_wakeup_socket)
   {
-    my_socket_close(m_extra_wakeup_sockets[0]);
-    my_socket_close(m_extra_wakeup_sockets[1]);
+    ndb_socket_close(m_extra_wakeup_sockets[0]);
+    ndb_socket_close(m_extra_wakeup_sockets[1]);
   }
 
   DBUG_VOID_RETURN;
@@ -1115,7 +1115,7 @@ TransporterRegistry::setup_wakeup_socket(TransporterReceiveHandle& recvdata)
 
   assert(!recvdata.m_transporters.get(0));
 
-  if (my_socketpair(m_extra_wakeup_sockets))
+  if (ndb_socketpair(m_extra_wakeup_sockets))
   {
     perror("socketpair failed!");
     return false;
@@ -1152,10 +1152,10 @@ TransporterRegistry::setup_wakeup_socket(TransporterReceiveHandle& recvdata)
   return true;
 
 err:
-  my_socket_close(m_extra_wakeup_sockets[0]);
-  my_socket_close(m_extra_wakeup_sockets[1]);
-  my_socket_invalidate(m_extra_wakeup_sockets+0);
-  my_socket_invalidate(m_extra_wakeup_sockets+1);
+  ndb_socket_close(m_extra_wakeup_sockets[0]);
+  ndb_socket_close(m_extra_wakeup_sockets[1]);
+  ndb_socket_invalidate(m_extra_wakeup_sockets+0);
+  ndb_socket_invalidate(m_extra_wakeup_sockets+1);
   return false;
 }
 
@@ -1165,7 +1165,7 @@ TransporterRegistry::wakeup()
   if (m_has_extra_wakeup_socket)
   {
     static char c = 37;
-    my_send(m_extra_wakeup_sockets[1], &c, 1, 0);
+    ndb_send(m_extra_wakeup_sockets[1], &c, 1, 0);
   }
 }
 
@@ -1365,7 +1365,7 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis,
     if (!recvdata.m_transporters.get(node_id))
       continue;
 
-    if (is_connected(node_id) && t->isConnected() && my_socket_valid(socket))
+    if (is_connected(node_id) && t->isConnected() && ndb_socket_valid(socket))
     {
       idx[i] = recvdata.m_socket_poller.add(socket, true, false, false);
     }
@@ -1665,8 +1665,8 @@ TransporterRegistry::consume_extra_sockets()
   NDB_SOCKET_TYPE sock = m_extra_wakeup_sockets[0];
   do
   {
-    ret = my_recv(sock, buf, sizeof(buf), 0);
-    err = my_socket_errno();
+    ret = ndb_recv(sock, buf, sizeof(buf), 0);
+    err = ndb_socket_errno();
   } while (ret == sizeof(buf) || (ret == -1 && err == EINTR));
 
   /* Notify upper layer of explicit wakeup */
@@ -2526,7 +2526,7 @@ bool TransporterRegistry::report_dynamic_ports(NdbMgmHandle h) const
 NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle *h)
 {
   NDB_SOCKET_TYPE sockfd;
-  my_socket_invalidate(&sockfd);
+  ndb_socket_invalidate(&sockfd);
 
   DBUG_ENTER("TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle)");
 
@@ -2548,7 +2548,7 @@ NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle *h)
    */
   DBUG_PRINT("info", ("Converting handle to transporter"));
   sockfd= ndb_mgm_convert_to_transporter(h);
-  if (!my_socket_valid(sockfd))
+  if (!ndb_socket_valid(sockfd))
   {
     g_eventLogger->error("Failed to convert to transporter (%s: %d)",
                          __FILE__, __LINE__);
@@ -2567,7 +2567,7 @@ TransporterRegistry::connect_ndb_mgmd(const char* server_name,
 {
   NdbMgmHandle h= ndb_mgm_create_handle();
   NDB_SOCKET_TYPE s;
-  my_socket_invalidate(&s);
+  ndb_socket_invalidate(&s);
 
   DBUG_ENTER("TransporterRegistry::connect_ndb_mgmd(SocketClient)");
 

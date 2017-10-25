@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -153,7 +153,7 @@ CPCDAPISession::CPCDAPISession(NDB_SOCKET_TYPE sock,
 }
 
 CPCDAPISession::CPCDAPISession(FILE * f, CPCD & cpcd)
-  : SocketServer::Session(my_socket_create_invalid())
+  : SocketServer::Session(ndb_socket_create_invalid())
   , m_cpcd(cpcd)
 {
   m_input = new FileInputStream(f);
@@ -192,7 +192,7 @@ CPCDAPISession::runSession(){
       break;
     }
   }
-  NDB_CLOSE_SOCKET(m_socket);
+  ndb_socket_close(m_socket);
 }
 
 void

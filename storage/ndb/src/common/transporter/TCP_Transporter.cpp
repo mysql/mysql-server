@@ -107,7 +107,7 @@ TCP_Transporter::TCP_Transporter(TransporterRegistry &t_reg,
   maxReceiveSize = conf->tcp.maxReceiveSize;
   
   // Initialize member variables
-  my_socket_invalidate(&theSocket);
+  ndb_socket_invalidate(&theSocket);
 
   sockOptNodelay    = 1;
   setIf(sockOptRcvBufSize, conf->tcp.tcpRcvBufSize, 0);
@@ -142,7 +142,7 @@ TCP_Transporter::configure_derived(const TransporterConfiguration* conf)
 TCP_Transporter::~TCP_Transporter() {
   
   // Disconnect
-  if (my_socket_valid(theSocket))
+  if (ndb_socket_valid(theSocket))
     doDisconnect();
   
   // Delete receive buffer!!
@@ -212,9 +212,9 @@ set_get(NDB_SOCKET_TYPE fd, int level, int optval, const char *optname,
   int actual = 0, defval = 0;
   ndb_socket_len_t len = sizeof(actual);
 
-  my_getsockopt(fd, level, optval, (char*)&defval, &len);
+  ndb_getsockopt(fd, level, optval, (char*)&defval, &len);
 
-  if (my_setsockopt(fd, level, optval,
+  if (ndb_setsockopt(fd, level, optval,
                     (char*)&val, sizeof(val)) < 0)
   {
 #ifdef DEBUG_TRANSPORTER
@@ -224,7 +224,7 @@ set_get(NDB_SOCKET_TYPE fd, int level, int optval, const char *optname,
   }
   
   len = sizeof(actual);
-  if ((my_getsockopt(fd, level, optval,
+  if ((ndb_getsockopt(fd, level, optval,
                      (char*)&actual, &len) == 0) &&
       actual != val)
   {
@@ -272,7 +272,7 @@ TCP_Transporter::setSocketOptions(NDB_SOCKET_TYPE socket)
 
 bool TCP_Transporter::setSocketNonBlocking(NDB_SOCKET_TYPE socket)
 {
-  if(my_socket_nonblock(socket, true)==0)
+  if(ndb_socket_nonblock(socket, true)==0)
     return true;
   return false;
 }
@@ -288,7 +288,7 @@ TCP_Transporter::send_is_possible(NDB_SOCKET_TYPE fd,int timeout_millisec) const
 {
   ndb_socket_poller poller;
 
-  if (!my_socket_valid(fd))
+  if (!ndb_socket_valid(fd))
     return false;
 
   poller.add(fd, false, true, false);
@@ -357,7 +357,7 @@ TCP_Transporter::doSend() {
         require(false);
       }
     }
-    int nBytesSent = (int)my_socket_writev(theSocket, iov+pos, iovcnt);
+    int nBytesSent = (int)ndb_socket_writev(theSocket, iov+pos, iovcnt);
     assert(nBytesSent <= (int)remain);
 
     if (checksumUsed && check_send_checksum)
@@ -419,14 +419,14 @@ TCP_Transporter::doSend() {
     }
     else                               //Send failed, terminate
     {
-      const int err = my_socket_errno();
+      const int err = ndb_socket_errno();
 
 #if defined DEBUG_TRANSPORTER
       g_eventLogger->error("Send Failure(disconnect==%d) to node = %d "
                            "nBytesSent = %d "
                            "errno = %d strerror = %s",
                            DISCONNECT_ERRNO(err, nBytesSent),
-                           remoteNodeId, nBytesSent, my_socket_errno(),
+                           remoteNodeId, nBytesSent, ndb_socket_errno(),
                            (char*)ndbstrerror(err));
 #endif
 
@@ -464,7 +464,7 @@ TCP_Transporter::doReceive(TransporterReceiveHandle& recvdata)
   // It reads the external TCP/IP interface once
   Uint32 size = receiveBuffer.sizeOfBuffer - receiveBuffer.sizeOfData;
   if(size > 0){
-    const int nBytesRead = (int)my_recv(theSocket,
+    const int nBytesRead = (int)ndb_recv(theSocket,
 				receiveBuffer.insertPtr,
 				size < maxReceiveSize ? size : maxReceiveSize,
 				0);
@@ -502,12 +502,12 @@ TCP_Transporter::doReceive(TransporterReceiveHandle& recvdata)
 #if defined DEBUG_TRANSPORTER
       g_eventLogger->error("Receive Failure(disconnect==%d) to node = %d nBytesSent = %d "
                            "errno = %d strerror = %s",
-                           DISCONNECT_ERRNO(my_socket_errno(), nBytesRead),
-                           remoteNodeId, nBytesRead, my_socket_errno(),
-                           (char*)ndbstrerror(my_socket_errno()));
+                           DISCONNECT_ERRNO(ndb_socket_errno(), nBytesRead),
+                           remoteNodeId, nBytesRead, ndb_socket_errno(),
+                           (char*)ndbstrerror(ndb_socket_errno()));
 #endif   
-      if(DISCONNECT_ERRNO(my_socket_errno(), nBytesRead)){
-	do_disconnect(my_socket_errno());
+      if(DISCONNECT_ERRNO(ndb_socket_errno(), nBytesRead)){
+	do_disconnect(ndb_socket_errno());
       } 
     }
     return nBytesRead;
@@ -522,13 +522,13 @@ TCP_Transporter::disconnectImpl()
   get_callback_obj()->lock_transporter(remoteNodeId);
 
   NDB_SOCKET_TYPE sock = theSocket;
-  my_socket_invalidate(&theSocket);
+  ndb_socket_invalidate(&theSocket);
 
   get_callback_obj()->unlock_transporter(remoteNodeId);
 
-  if(my_socket_valid(sock))
+  if(ndb_socket_valid(sock))
   {
-    if(my_socket_close(sock) < 0){
+    if(ndb_socket_close(sock) < 0){
       report_error(TE_ERROR_CLOSING_SOCKET);
     }
   }

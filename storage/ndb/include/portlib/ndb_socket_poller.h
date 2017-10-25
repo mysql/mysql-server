@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -286,7 +286,7 @@ public:
       if (likely(res >= 0))
         return res; // Default return path
 
-      const int error = my_socket_errno();
+      const int error = ndb_socket_errno();
       if (res == -1 &&
           (error == EINTR || error == EAGAIN))
       {

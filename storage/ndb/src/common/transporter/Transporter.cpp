@@ -145,7 +145,7 @@ Transporter::connect_server(NDB_SOCKET_TYPE sockfd,
   }
 
   // Cache the connect address
-  my_socket_connect_address(sockfd, &m_connect_address);
+  ndb_socket_connect_address(sockfd, &m_connect_address);
 
   if (!connect_server_impl(sockfd))
   {
@@ -218,7 +218,7 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd) {
     DBUG_RETURN(true);
   }
 
-  if (!my_socket_valid(sockfd))
+  if (!ndb_socket_valid(sockfd))
   {
     DBUG_PRINT("error", ("Socket " MY_SOCKET_FORMAT " is not valid",
                          MY_SOCKET_FORMAT_VALUE(sockfd)));
@@ -235,7 +235,7 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd) {
   if (s_output.println("%d %d", localNodeId, m_type) < 0)
   {
     DBUG_PRINT("error", ("Send of 'hello' failed"));
-    NDB_CLOSE_SOCKET(sockfd);
+    ndb_socket_close(sockfd);
     DBUG_RETURN(false);
   }
 
@@ -246,7 +246,7 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd) {
   if (s_input.gets(buf, 256) == 0)
   {
     DBUG_PRINT("error", ("Failed to read reply"));
-    NDB_CLOSE_SOCKET(sockfd);
+    ndb_socket_close(sockfd);
     DBUG_RETURN(false);
   }
 
@@ -262,7 +262,7 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd) {
     break;
   default:
     DBUG_PRINT("error", ("Failed to parse reply"));
-    NDB_CLOSE_SOCKET(sockfd);
+    ndb_socket_close(sockfd);
     DBUG_RETURN(false);
   }
 
@@ -274,7 +274,7 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd) {
   {
     g_eventLogger->error("Connected to wrong nodeid: %d, expected: %d",
                          nodeId, remoteNodeId);
-    NDB_CLOSE_SOCKET(sockfd);
+    ndb_socket_close(sockfd);
     DBUG_RETURN(false);
   }
 
@@ -285,12 +285,12 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd) {
     g_eventLogger->error("Connection to node: %d uses different transporter "
                          "type: %d, expected type: %d",
                          nodeId, remote_transporter_type, m_type);
-    NDB_CLOSE_SOCKET(sockfd);
+    ndb_socket_close(sockfd);
     DBUG_RETURN(false);
   }
 
   // Cache the connect address
-  my_socket_connect_address(sockfd, &m_connect_address);
+  ndb_socket_connect_address(sockfd, &m_connect_address);
 
   if (!connect_client_impl(sockfd))
     DBUG_RETURN(false);

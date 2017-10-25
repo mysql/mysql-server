@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
 
    This program is free software; you can redistribute it and/or modify
@@ -375,7 +375,7 @@ SimpleCpcClient::list_processes(Vector<Process> &procs, Properties& reply) {
 SimpleCpcClient::SimpleCpcClient(const char *_host, int _port) {
   host = strdup(_host);
   port = _port;
-  my_socket_invalidate(&cpc_sock);
+  ndb_socket_invalidate(&cpc_sock);
 }
 
 SimpleCpcClient::~SimpleCpcClient() {
@@ -386,9 +386,9 @@ SimpleCpcClient::~SimpleCpcClient() {
 
   port = 0;
 
-  if(my_socket_valid(cpc_sock)) {
-    my_socket_close(cpc_sock);
-    my_socket_invalidate(&cpc_sock);
+  if(ndb_socket_valid(cpc_sock)) {
+    ndb_socket_close(cpc_sock);
+    ndb_socket_invalidate(&cpc_sock);
   }
 }
 
@@ -398,8 +398,8 @@ SimpleCpcClient::connect() {
   struct hostent *hp;
 
   /* Create socket */
-  cpc_sock = my_socket_create(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-  if(!my_socket_valid(cpc_sock))
+  cpc_sock = ndb_socket_create(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+  if(!ndb_socket_valid(cpc_sock))
     return -1;
 
   /* Connect socket */
@@ -412,7 +412,7 @@ SimpleCpcClient::connect() {
 
   memcpy(&sa.sin_addr, hp->h_addr, hp->h_length);
   sa.sin_port = htons(port);
-  if (my_connect_inet(cpc_sock, &sa) < 0)
+  if (ndb_connect_inet(cpc_sock, &sa) < 0)
     return -1;
 
   return 0;

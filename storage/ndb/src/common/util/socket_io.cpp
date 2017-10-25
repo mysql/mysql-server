@@ -61,7 +61,7 @@ read_socket(NDB_SOCKET_TYPE socket, int timeout_millis,
   if (res <= 0)
     return res;
 
-  return (int)my_recv(socket, &buf[0], buflen, 0);
+  return (int)ndb_recv(socket, &buf[0], buflen, 0);
 }
 
 extern "C"
@@ -88,7 +88,7 @@ readln_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
   do
   {
     int t;
-    while((t = (int)my_recv(socket, ptr, len, MSG_PEEK)) == -1
+    while((t = (int)ndb_recv(socket, ptr, len, MSG_PEEK)) == -1
           && socket_errno == EINTR);
     
     if(t < 1)
@@ -106,7 +106,7 @@ readln_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
 	 */
 	for (len = 1 + i; len; )
 	{
-	  while ((t = (int)my_recv(socket, ptr, len, 0)) == -1
+          while ((t = (int)ndb_recv(socket, ptr, len, 0)) == -1
                  && socket_errno == EINTR);
 	  if (t < 1)
 	    return -1;
@@ -129,7 +129,7 @@ readln_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
     
     for (int tmp = t; tmp; )
     {
-      while ((t = (int)my_recv(socket, ptr, tmp, 0)) == -1 && socket_errno == EINTR);
+      while ((t = (int)ndb_recv(socket, ptr, tmp, 0)) == -1 && socket_errno == EINTR);
       if (t < 1)
       {
 	return -1;
@@ -166,7 +166,7 @@ write_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
 
   const char * tmp = &buf[0];
   while(len > 0){
-    const int w = (int)my_send(socket, tmp, len, 0);
+    const int w = (int)ndb_send(socket, tmp, len, 0);
     if(w == -1){
       return -1;
     }
