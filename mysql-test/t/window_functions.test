@@ -3808,6 +3808,23 @@ SELECT ST_BUFFER(ST_ASBINARY(1), ST_ASBINARY(NTH_VALUE('4714-05-04',1)OVER(),'ax
 
 --echo # End of test for Bug#26975882
 
+--echo #
+--echo # Bug#26740557: WINDOW FUNC + JSON: ASSERTION FAILED:
+--echo #               FALSE IN ITEM::VAL_JSON
+--echo #
+
+SELECT ((MAKETIME(((QUARTER('| !*c>*{/'))<=>
+               (FIRST_VALUE(JSON_OBJECTAGG('key4',0x067c13d0d0d7d8c8d768aef7)
+                    )OVER())),'9236-05-27',0xe2a7d4))^(0x1109));
+--error ER_INVALID_TYPE_FOR_JSON
+SELECT ((FIRST_VALUE(JSON_MERGE_PATCH(1.755913e+308,'{ }'))OVER())<=(1));
+--error ER_INVALID_TYPE_FOR_JSON
+SELECT ((QUOTE(JSON_KEYS(FIRST_VALUE(JSON_KEYS(EXP(-15676),ABS('d0'))
+                          )OVER())))>=(CONNECTION_ID()));
+SELECT JSON_LENGTH(FIRST_VALUE(JSON_OBJECTAGG('key2','*B'))OVER());
+
+--echo # End of test for Bug#26740557
+
 # Local Variables:
 # mode: sql
 # sql-product: mysql

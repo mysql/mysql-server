@@ -663,7 +663,26 @@ DO ((LAG(LAST_DAY("]<$*_#[DB!^+ : 3"),89) OVER (RANGE UNBOUNDED PRECEDING)) >
               INTERVAL(0x1446C5A2627FB06D88DC63D66B36DF) DAY_MICROSECOND)
              USING BIG5)));
 
+--echo #
+--echo # Bug#26740557: WINDOW FUNC + JSON: ASSERTION FAILED:
+--echo #               FALSE IN ITEM::VAL_JSON
+--echo #
 
+SELECT ((MAKETIME(((QUARTER('| !*c>*{/'))<=>
+               (LAG(JSON_OBJECTAGG('key4',0x067c13d0d0d7d8c8d768aef7)
+                    ,7)OVER())),'9236-05-27',0xe2a7d4))^(0x1109));
+SELECT ((LAG(JSON_MERGE_PATCH(1.755913e+308,'{ }'),246)OVER())<=(1));
+--error ER_INVALID_TYPE_FOR_JSON
+SELECT ((LAG(JSON_MERGE_PATCH(1.755913e+308,'{ }'),0)OVER())<=(1));
+SELECT ((QUOTE(JSON_KEYS(LEAD(JSON_KEYS(EXP(-15676),ABS('d0')),
+                          162)OVER())))>=(CONNECTION_ID()));
+--error ER_INVALID_TYPE_FOR_JSON
+SELECT ((QUOTE(JSON_KEYS(LEAD(JSON_KEYS(EXP(-15676),ABS('d0')),
+                          0)OVER())))>=(CONNECTION_ID()));
+SELECT JSON_LENGTH(LEAD(JSON_OBJECTAGG('key2','*B'),172)OVER());
+SELECT JSON_LENGTH(LEAD(JSON_OBJECTAGG('key2','*B'),0)OVER());
+
+--echo # End of test for Bug#26740557
 
 # Local Variables:
 # mode: sql
