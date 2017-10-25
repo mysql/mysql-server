@@ -7129,7 +7129,7 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
       DBUG_EXECUTE_IF("fault_injection_new_file_rotate_event", errno=2;);
       close_on_error= true;
       my_printf_error(ER_ERROR_ON_WRITE,
-                      ER_THD(current_thd, ER_CANT_OPEN_FILE),
+                      ER_THD(current_thd, ER_ERROR_ON_WRITE),
                       MYF(ME_FATALERROR), name,
                       errno, my_strerror(errbuf, sizeof(errbuf), errno));
       goto end;
