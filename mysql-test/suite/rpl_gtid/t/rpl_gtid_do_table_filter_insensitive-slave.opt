@@ -1,2 +1,2 @@
---bootstrap --lower_case_table_names=1
+--initialize --lower_case_table_names=1
 --replicate-do-db=MYDB --replicate-do-table=mýdb.ţ1 --replicate-do-table=mydb.T2 

@@ -1,1 +1,1 @@
---bootstrap --innodb-data-file-path=ibdata1:50M;ibdata2:50M:autoextend
+--initialize --innodb-data-file-path=ibdata1:50M;ibdata2:50M:autoextend

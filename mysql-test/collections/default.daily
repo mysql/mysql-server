@@ -69,9 +69,9 @@ perl mysql-test-run.pl --force --timer   --comment=binlog_with_gtid --vardir=var
 
 #######SECTION 4 : EXTENDED RUNS FOR INNODB SUITES #####
 # Run innodb suite including big-test with innodb-page-size=4k
-perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60   --comment=innodb_page-size-4k_size --vardir=var-innodb_page-size-4k --mysqld=--innodb-page-size=4k --suite=innodb --no-skip
+perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60   --comment=innodb_page-size-4k_size --vardir=var-innodb_page-size-4k --initialize --innodb-page-size=4k --mysqld=--innodb-page-size=4k --suite=innodb --no-skip
 # Run innodb suite with innodb-page-size=8k
-perl mysql-test-run.pl --timer --force   --comment=innodb-page-size-8k --vardir=var-innodb-page-size-8k  --mysqld=--innodb-page-size=8k --suite=innodb --no-skip
+perl mysql-test-run.pl --timer --force   --comment=innodb-page-size-8k --vardir=var-innodb-page-size-8k  --initialize --innodb-page-size=8k --mysqld=--innodb-page-size=8k --suite=innodb --no-skip
 
 ####END OF SECTION4(EXTENDED INNODB) ####################
 

@@ -1,1 +1,1 @@
---bootstrap --innodb_rollback_segments=1
+--initialize --innodb_rollback_segments=1
