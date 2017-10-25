@@ -1393,7 +1393,8 @@ bool make_truncated_value_warning(THD *thd,
 bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type,
                        Interval interval)
 {
-  long period, sign;
+  unsigned long period;
+  long sign;
 
   ltime->neg= 0;
 
@@ -1452,11 +1453,21 @@ bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type,
   }
   case INTERVAL_DAY:
   case INTERVAL_WEEK:
-    period= (calc_daynr(ltime->year,ltime->month,ltime->day) +
-             sign * (long) interval.day);
-    /* Daynumber from year 0 to 9999-12-31 */
-    if ((ulong) period > MAX_DAY_NUMBER)
-      goto invalid_date;
+    period= calc_daynr(ltime->year,ltime->month,ltime->day);
+    if (interval.neg)
+    {
+      if (period < interval.day)  // Before 0.
+        goto invalid_date;
+      period-= interval.day;
+    }
+    else
+    {
+      if (period + interval.day < period)  // Overflow.
+        goto invalid_date;
+      if (period + interval.day > MAX_DAY_NUMBER)  // After 9999-12-31.
+        goto invalid_date;
+      period+= interval.day;
+    }
     get_date_from_daynr((long) period,&ltime->year,&ltime->month,&ltime->day);
     break;
   case INTERVAL_YEAR:
@@ -1472,10 +1483,10 @@ bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type,
   case INTERVAL_MONTH:
     period= (ltime->year*12 + sign * (long) interval.year*12 +
 	     ltime->month-1 + sign * (long) interval.month);
-    if ((ulong) period >= 120000L)
+    if (period >= 120000L)
       goto invalid_date;
-    ltime->year= (uint) (period / 12);
-    ltime->month= (uint) (period % 12L)+1;
+    ltime->year= period / 12;
+    ltime->month= (period % 12L)+1;
     /* Adjust day if the new month doesn't have enough days */
     if (ltime->day > days_in_month[ltime->month-1])
     {
