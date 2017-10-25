@@ -24,7 +24,9 @@
 #include "my_io.h"
 #include "my_psi_config.h"
 #include "my_sys.h"                             // my_write, my_malloc
+#include "mysql/psi/mysql_thread.h"
 #include "mysql_com.h"
+#include "mysql/components/services/psi_thread_bits.h"
 #include "sql_string.h" /* STRING_PSI_MEMORY_KEY */
 
 

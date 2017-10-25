@@ -25,12 +25,14 @@
 #include "libbinlogevents/include/control_events.h"     // binary_log::Uuid
 #include "map_helpers.h"
 #include "my_dbug.h"
+#include "my_thread_local.h"
 #include "mysql/psi/mysql_rwlock.h" // mysql_rwlock_t
 #include "prealloced_array.h"   // Prealloced_array
 #include "template_utils.h"
 #include "typelib.h"
 
 struct TABLE_LIST;
+class THD;
 
 /**
   Report an error from code that can be linked into either the server

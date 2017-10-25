@@ -108,7 +108,7 @@ private:
 	{
 		my_thread_init();
 
-#ifdef UNIV_PFS_THREAD
+#if defined(UNIV_PFS_THREAD) && !defined(UNIV_HOTBACKUP)
 		if (m_pfs_key.m_value != PFS_NOT_INSTRUMENTED.m_value) {
 			PSI_thread*	psi;
 
@@ -118,7 +118,7 @@ private:
 			PSI_THREAD_CALL(set_thread_os_id)(psi);
 			PSI_THREAD_CALL(set_thread)(psi);
 		}
-#endif /* UNIV_PFS_THREAD */
+#endif /* UNIV_PFS_THREAD && !UNIV_HOTBACKUP */
 
 		std::atomic_thread_fence(std::memory_order_release);
 
@@ -141,11 +141,11 @@ private:
 
 		my_thread_end();
 
-#ifdef UNIV_PFS_THREAD
+#if defined(UNIV_PFS_THREAD) && !defined(UNIV_HOTBACKUP)
 		if (m_pfs_key.m_value != PFS_NOT_INSTRUMENTED.m_value) {
 			PSI_THREAD_CALL(delete_current_thread)();
 		}
-#endif /* UNIV_PFS_THREAD */
+#endif /* UNIV_PFS_THREAD && !UNIV_HOTBACKUP */
 	}
 private:
 #ifdef UNIV_PFS_THREAD
@@ -213,7 +213,7 @@ par_for(mysql_pfs_key_t		pfs_key,
 	}
 }
 
-#ifdef UNIV_PFS_THREAD
+#if defined(UNIV_PFS_THREAD) && !defined(UNIV_HOTBACKUP)
 #define par_for(...)		par_for(__VA_ARGS__)
 #else
 #define par_for(k, ...)		par_for(0, __VA_ARGS__)

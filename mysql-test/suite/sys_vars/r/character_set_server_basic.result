@@ -456,6 +456,10 @@ res_with_true
 big5
 SET @@character_set_server = ON;
 ERROR 42000: Unknown character set: 'ON'
+SET @@character_set_server = repeat('e', 256);
+ERROR 42000: Unknown character set: 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+SET @@character_set_server = repeat('e', 1024);
+ERROR 42000: Unknown character set: 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
 '#--------------------FN_DYNVARS_009_11-------------------------#'
 SET @@global.character_set_server = abc;
 ERROR 42000: Unknown character set: 'abc'
@@ -474,6 +478,10 @@ ERROR 42000: Unknown character set: 'utf'
 SET @@global.character_set_server = true;
 SET @@global.character_set_server = ON;
 ERROR 42000: Unknown character set: 'ON'
+SET @@global.character_set_server = repeat('e', 256);
+ERROR 42000: Unknown character set: 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+SET @@global.character_set_server = repeat('e', 1024);
+ERROR 42000: Unknown character set: 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
 '#--------------------FN_DYNVARS_009_12-------------------------#'
 SELECT @@global.character_set_server =
 (SELECT VARIABLE_VALUE FROM performance_schema.global_variables

@@ -33,7 +33,7 @@ Created 10/25/1995 Heikki Tuuri
 #include "page0size.h"
 #include "fil0types.h"
 #ifndef UNIV_HOTBACKUP
-#include "ibuf0types.h"
+# include "ibuf0types.h"
 #endif /* !UNIV_HOTBACKUP */
 #include "ut0new.h"
 
@@ -44,6 +44,13 @@ Created 10/25/1995 Heikki Tuuri
 
 extern const char general_space_name[];
 extern volatile bool	recv_recovery_on;
+
+#ifdef UNIV_HOTBACKUP
+# include<unordered_set>
+using	Dir_set = std::unordered_set<std::string>;
+extern Dir_set	rem_gen_ts_dirs;
+extern bool	replay_in_datadir;
+#endif /* UNIV_HOTBACKUP */
 
 // Forward declaration
 struct trx_t;
@@ -917,7 +924,6 @@ extern ulint	fil_n_pending_tablespace_flushes;
 /** Number of files currently open */
 extern ulint	fil_n_file_opened;
 
-#ifndef UNIV_HOTBACKUP
 /** Look up a tablespace.
 The caller should hold an InnoDB table lock or a MDL that prevents
 the tablespace from being dropped during the operation,
@@ -931,6 +937,7 @@ fil_space_t*
 fil_space_get(space_id_t space_id)
 	MY_ATTRIBUTE((warn_unused_result));
 
+#ifndef UNIV_HOTBACKUP
 /** Returns the latch of a file space.
 @param[in]	space_id	Tablespace ID
 @param[out]	flags	tablespace flags
@@ -939,14 +946,14 @@ rw_lock_t*
 fil_space_get_latch(space_id_t id, ulint* flags)
 	MY_ATTRIBUTE((warn_unused_result));
 
-#ifdef UNIV_DEBUG
+# ifdef UNIV_DEBUG
 /** Gets the type of a file space.
 @param[in]	space_id	Tablespace ID
 @return file type */
 fil_type_t
 fil_space_get_type(space_id_t space_id)
 	MY_ATTRIBUTE((warn_unused_result));
-#endif /* UNIV_DEBUG */
+# endif /* UNIV_DEBUG */
 
 /** Note that a tablespace has been imported.
 It is initially marked as FIL_TYPE_IMPORT so that no logging is
@@ -1129,6 +1136,24 @@ dberr_t
 fil_write_flushed_lsn(lsn_t lsn)
 	MY_ATTRIBUTE((warn_unused_result));
 
+#else /* !UNIV_HOTBACKUP */
+/** Extends all tablespaces to the size stored in the space header. During the
+mysqlbackup --apply-log phase we extended the spaces on-demand so that log
+records could be applied, but that may have left spaces still too small
+compared to the size stored in the space header. */
+void
+meb_extend_tablespaces_to_stored_len();
+
+/** Process a file name passed as an input
+@param[in]	name		absolute path of tablespace file
+@param[in]	space_id	the tablespace ID */
+void
+meb_fil_name_process(
+	const char*	name,
+	space_id_t	space_id);
+
+#endif /* !UNIV_HOTBACKUP */
+
 /** Acquire a tablespace when it could be dropped concurrently.
 Used by background threads that do not necessarily hold proper locks
 for concurrency control.
@@ -1152,22 +1177,6 @@ fil_space_acquire_silent(space_id_t space_id)
 void
 fil_space_release(fil_space_t* space);
 
-#endif /* !UNIV_HOTBACKUP */
-
-/** Deletes an IBD tablespace, either general or single-table.
-The tablespace must be cached in the memory cache. This will delete the
-datafile, fil_space_t & fil_node_t entries from the file_system_t cache.
-@param[in]	space_id	Tablespace ID
-@param[in]	buf_remove	Specify the action to take on the pages
-for this table in the buffer pool.
-@return DB_SUCCESS, DB_TABLESPCE_NOT_FOUND or DB_IO_ERROR */
-dberr_t
-fil_delete_tablespace(
-	space_id_t	space_id,
-	buf_remove_t	buf_remove)
-	MY_ATTRIBUTE((warn_unused_result));
-
-#ifndef UNIV_HOTBACKUP
 /** Fetch the file name opened for a space_id during recovery
 from the file map.
 @param[in]	space_id	Undo tablespace ID
@@ -1212,7 +1221,6 @@ memory cache. Discarding is like deleting a tablespace, but
 dberr_t
 fil_discard_tablespace(space_id_t space_id)
 	MY_ATTRIBUTE((warn_unused_result));
-#endif /* !UNIV_HOTBACKUP */
 
 /** Test if a tablespace file can be renamed to a new filepath by checking
 if that the old filepath exists and the new filepath does not exist.
@@ -1263,7 +1271,19 @@ fil_ibd_create(
 	ulint		flags,
 	page_no_t	size)
 	MY_ATTRIBUTE((warn_unused_result));
-#ifndef UNIV_HOTBACKUP
+
+/** Deletes an IBD tablespace, either general or single-table.
+The tablespace must be cached in the memory cache. This will delete the
+datafile, fil_space_t & fil_node_t entries from the file_system_t cache.
+@param[in]	space_id	Tablespace ID
+@param[in]	buf_remove	Specify the action to take on the pages
+for this table in the buffer pool.
+@return DB_SUCCESS, DB_TABLESPCE_NOT_FOUND or DB_IO_ERROR */
+dberr_t
+fil_delete_tablespace(
+	space_id_t	space_id,
+	buf_remove_t	buf_remove)
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** Open a single-table tablespace and optionally check the space id is
 right in it. If not successful, print an error message to the error log. This
@@ -1324,7 +1344,6 @@ fil_space_exists_in_mem(
 	mem_heap_t*	heap,
 	table_id_t	table_id)
 	MY_ATTRIBUTE((warn_unused_result));
-#else /* !UNIV_HOTBACKUP */
 
 /** Extends all tablespaces to the size stored in the space header. During the
 mysqlbackup --apply-log phase we extended the spaces on-demand so that log
@@ -1332,8 +1351,6 @@ records could be appllied, but that may have left spaces still too small
 compared to the size stored in the space header. */
 void
 fil_extend_tablespaces_to_stored_len();
-
-#endif /* !UNIV_HOTBACKUP */
 
 /** Try to extend a tablespace if it is smaller than the specified size.
 @param[in,out]	space		Tablespace ID
@@ -1460,7 +1477,7 @@ fil_validate();
 @param[in]	addr		File address to check
 @return true if undefined */
 bool
-fil_addr_is_null(fil_addr_t addr)
+fil_addr_is_null(const fil_addr_t& addr)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /** Get the predecessor of a file page.

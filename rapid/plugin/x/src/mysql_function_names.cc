@@ -19,8 +19,6 @@
 
 #include "plugin/x/src/mysql_function_names.h"
 
-#include <algorithm>
-
 namespace xpl {
 
 namespace {
@@ -256,18 +254,22 @@ bool contains(const Container &container, const Value &value) {
 
 bool does_return_json_mysql_function(const std::string &name) {
   const std::string source = to_upper(name);
-
   return contains(mysql_functions_that_return_json, source);
+}
+
+bool is_native_mysql_json_function(const std::string &name) {
+  const std::string source = to_upper(name);
+  return contains(mysql_functions_that_return_json, source) ||
+         contains(mysql_functions_that_operate_on_json, source);
 }
 
 bool is_native_mysql_function(const std::string &name) {
   const std::string source = to_upper(name);
-
   return contains(mysql_functions_that_return_json, source) ||
-      contains(mysql_functions_that_operate_on_json, source) ||
-      contains(native_mysql_functions, source) ||
-      contains(special_mysql_functions, source) ||
-      contains(other_mysql_functions, source);
+         contains(mysql_functions_that_operate_on_json, source) ||
+         contains(native_mysql_functions, source) ||
+         contains(special_mysql_functions, source) ||
+         contains(other_mysql_functions, source);
 }
 
 }  // namespace xpl

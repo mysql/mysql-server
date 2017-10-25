@@ -454,6 +454,27 @@ to provide a persistent MySQL Cluster data store.
 
 %endif # cluster
 
+%if 0%{?commercial}
+%package        backup
+Summary:        MySQL Enterprise Backup
+Group:          Applications/Databases
+Provides:       meb = %{version}-%{release}
+Provides:       meb%{?_isa} = %{version}-%{release}
+Obsoletes:      meb < %{version}-%{release}
+Obsoletes:      meb%{?_isa} < %{version}-%{release}
+%description    backup
+Implementing proper database backup and disaster recovery plans to
+protect against accidental loss of data, database corruption,
+hardware/operating system crashes orany natural disasters has become
+one of the most important responsibilities of the Database
+Administrator (DBAs).
+
+MySQL Enterprise Backup provides DBAs with a high-performance, online
+"hot" backup solution with data compression technology to ensure your
+data is protected in case of downtime or an outage. MySQL is a
+trademark of %{mysql_vendor}
+%endif
+
 %prep
 %setup -q -T -a 0 -a 10 -c -n %{src_dir}
 pushd %{src_dir}
@@ -498,6 +519,9 @@ mkdir debug
 %if 0%{?ndb_nodejs_extras_path:1}
            -DNDB_NODEJS_EXTRAS_PATH=%{ndb_nodejs_extras_path} \
 %endif
+%if 0%{?commercial}
+           -DWITH_MEB=1 \
+%endif
            -DWITH_INNODB_MEMCACHED=1 \
            -DINSTALL_LIBDIR="%{_lib}/mysql" \
            -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
@@ -538,6 +562,9 @@ mkdir release
 %endif
 %if 0%{?ndb_nodejs_extras_path:1}
            -DNDB_NODEJS_EXTRAS_PATH=%{ndb_nodejs_extras_path} \
+%endif
+%if 0%{?commercial}
+           -DWITH_MEB=1 \
 %endif
            -DWITH_INNODB_MEMCACHED=1 \
            -DINSTALL_LIBDIR="%{_lib}/mysql" \
@@ -1192,7 +1219,18 @@ fi
 %{_datadir}/mysql/java/
 %endif # cluster
 
+%if 0%{?commercial}
+%files backup
+%defattr(-, root, root, -)
+%doc %{src_dir}/packaging/meb/LICENSE.meb
+%doc %{src_dir}/packaging/meb/LICENSE.third_party
+%attr(755, root, root) %{_bindir}/mysqlbackup
+%endif
+
 %changelog
+* Mon Sep 25 2017 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 8.0.4-0.1
+- Add meb as sub package
+
 * Tue Aug 29 2017 Erlend Dahl <erlend.dahl@oracle.com> - 9.0.0-0.1
 - Change the global milestone to 'dmr'
 

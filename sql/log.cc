@@ -295,7 +295,6 @@ static void ull2timeval(ulonglong utime, struct timeval *tv)
 File_query_log::File_query_log(enum_log_table_type log_type)
   : m_log_type(log_type), name(NULL), write_error(false), log_open(false)
 {
-  memset(&log_file, 0, sizeof(log_file));
   mysql_mutex_init(key_LOG_LOCK_log, &LOCK_log, MY_MUTEX_INIT_SLOW);
 #ifdef HAVE_PSI_INTERFACE
   if (log_type == QUERY_LOG_GENERAL)

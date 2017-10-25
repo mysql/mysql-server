@@ -39,6 +39,8 @@
 
 #include "m_string.h"
 
+#include <limits.h>
+
 #ifndef ll2str
 
 /*

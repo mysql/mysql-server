@@ -285,7 +285,11 @@ enum SSL_type
 };
 
 #ifdef __cplusplus
-/* This structure is for every connection on both sides */
+/*
+ This structure is for every connection on both sides.
+ Note that it has a non-default move assignment operator, so if adding more
+ members, you'll need to update operator=.
+*/
 struct Vio
 {
   MYSQL_SOCKET  mysql_socket;           /* Instrumented socket */
@@ -394,6 +398,7 @@ private:
 public:
   Vio(const Vio&) = delete;
   Vio &operator=(const Vio&) = delete;
+  Vio &operator=(Vio&& vio);
 };
 
 }

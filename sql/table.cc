@@ -77,6 +77,7 @@
 #include "sql/log.h"
 #include "sql/my_decimal.h"
 #include "sql/mysqld.h"                  // reg_ext key_file_frm ...
+#include "sql/nested_join.h"
 #include "sql/opt_trace.h"               // opt_trace_disable_if_no_security_...
 #include "sql/opt_trace_context.h"
 #include "sql/parse_file.h"              // sql_parse_prepare
@@ -6568,6 +6569,31 @@ void TABLE::drop_unused_tmp_keys(bool modify_share)
   keys_in_use_for_order_by.set_prefix(s->keys);
 }
 
+void TABLE::set_keyread(bool flag)
+{
+  DBUG_ASSERT(file);
+  if (flag && !key_read)
+  {
+    key_read= 1;
+    if (is_created())
+      file->extra(HA_EXTRA_KEYREAD);
+  }
+  else if (!flag && key_read)
+  {
+    key_read= 0;
+    if (is_created())
+      file->extra(HA_EXTRA_NO_KEYREAD);
+  }
+}
+
+void TABLE::set_created()
+{
+  if (created)
+    return;
+  if (key_read)
+    file->extra(HA_EXTRA_KEYREAD);
+  created= true;
+}
 
 /*
   Mark columns the handler needs for doing an insert
@@ -7800,6 +7826,14 @@ void TABLE::mark_gcol_in_maps(Field *field)
   }
 }
 
+void TABLE::column_bitmaps_set(MY_BITMAP *read_set_arg,
+                               MY_BITMAP *write_set_arg)
+{
+  read_set= read_set_arg;
+  write_set= write_set_arg;
+  if (file && created)
+    file->column_bitmaps_signal();
+}
 
 bool TABLE_LIST::set_recursive_reference()
 {

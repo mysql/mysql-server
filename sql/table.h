@@ -20,6 +20,7 @@
 #include <sys/types.h>
 #include <string>
 
+#ifndef UNIV_HOTBACKUP
 #include "binary_log_types.h"
 #include "lex_string.h"
 #include "m_ctype.h"
@@ -36,7 +37,6 @@
 #include "mysql/components/services/psi_table_bits.h"
 #include "sql/dd/types/foreign_key.h" // dd::Foreign_key::enum_rule
 #include "sql/enum_query_type.h" // enum_query_type
-#include "sql/handler.h"   // row_type
 #include "sql/key.h"
 #include "sql/key_spec.h"
 #include "sql/mdl.h"       // MDL_wait_for_subgraph
@@ -53,6 +53,12 @@
 #include "thr_lock.h"
 #include "typelib.h"
 
+#else /* !UNIV_HOTBACKUP */
+#ifdef MYSQL_CLIENT
+#undef MYSQL_CLIENT
+#endif /* MYSQL_CLIENT */
+#endif /* !UNIV_HOTBACKUP */
+#ifndef UNIV_HOTBACKUP
 namespace histograms
 {
   class Histogram;
@@ -66,13 +72,17 @@ class Field_json;
 /* Structs that defines the TABLE */
 class File_parser;
 class GRANT_TABLE;
+class Handler_share;
 class Index_hint;
 class Item;
 class Item_field;
 class Json_diff_vector;
 class Json_seekable_path;
 class Json_wrapper;
+class Opt_hints_qb;
+class Opt_hints_table;
 class Query_result_union;
+class SELECT_LEX;
 class SELECT_LEX_UNIT;
 class Security_context;
 class String;
@@ -80,19 +90,19 @@ class THD;
 class Table_cache_element;
 class Table_trigger_dispatcher;
 class Temp_table_param;
+class handler;
 class partition_info;
+enum enum_stats_auto_recalc : int;
+enum row_type : int;
+struct HA_CREATE_INFO;
 struct LEX;
 struct NESTED_JOIN;
-struct POSITION;
 struct Partial_update_info;
 struct TABLE;
 struct TABLE_LIST;
 struct TABLE_SHARE;
-
+struct handlerton;
 typedef int8 plan_idx;
-class Opt_hints_qb;
-class Opt_hints_table;
-class SELECT_LEX;
 
 namespace dd {
   class Table;
@@ -116,19 +126,14 @@ enum class enum_json_diff_operation;
                           if ((A)->s->null_bytes > 0) \
                           memset((A)->null_flags, 255, (A)->s->null_bytes);\
                         }
-
-/*
-  Used to identify NESTED_JOIN structures within a join (applicable to
-  structures representing outer joins that have not been simplified away).
-*/
-typedef ulonglong nested_join_map;
-
+#endif /* !UNIV_HOTBACKUP */
 
 #define tmp_file_prefix "#sql"			/**< Prefix for tmp tables */
 #define tmp_file_prefix_length 4
 #define TMP_TABLE_KEY_EXTRA 8
 #define PLACEHOLDER_TABLE_ROW_ESTIMATE 2
 
+#ifndef UNIV_HOTBACKUP
 /**
   Enumerate possible types of a table from re-execution
   standpoint.
@@ -1547,14 +1552,8 @@ public:
   void mark_generated_columns(bool is_update);
   bool is_field_used_by_generated_columns(uint field_index);
   void mark_gcol_in_maps(Field *field);
-  inline void column_bitmaps_set(MY_BITMAP *read_set_arg,
-                                 MY_BITMAP *write_set_arg)
-  {
-    read_set= read_set_arg;
-    write_set= write_set_arg;
-    if (file && created)
-      file->column_bitmaps_signal();
-  }
+  void column_bitmaps_set(MY_BITMAP *read_set_arg,
+                                 MY_BITMAP *write_set_arg);
   inline void column_bitmaps_set_no_signal(MY_BITMAP *read_set_arg,
                                            MY_BITMAP *write_set_arg)
   {
@@ -1585,22 +1584,7 @@ public:
   void copy_tmp_key(int old_idx, bool modify_share);
   void drop_unused_tmp_keys(bool modify_share);
 
-  void set_keyread(bool flag)
-  {
-    DBUG_ASSERT(file);
-    if (flag && !key_read)
-    {
-      key_read= 1;
-      if (is_created())
-        file->extra(HA_EXTRA_KEYREAD);
-    }
-    else if (!flag && key_read)
-    {
-      key_read= 0;
-      if (is_created())
-        file->extra(HA_EXTRA_NO_KEYREAD);
-    }
-  }
+  void set_keyread(bool flag);
 
   /**
     Check whether the given index has a virtual generated columns.
@@ -1629,14 +1613,7 @@ public:
     Set the table as "created", and enable flags in storage engine
     that could not be enabled without an instantiated table.
   */
-  void set_created()
-  {
-    if (created)
-      return;
-    if (key_read)
-      file->extra(HA_EXTRA_KEYREAD);
-    created= true;
-  }
+  void set_created();
   /**
     Set the contents of table to be "deleted", ie "not created", after having
     deleted the contents.
@@ -2349,8 +2326,6 @@ class Table_function;
 
 struct TABLE_LIST
 {
-  TABLE_LIST() {}                          /* Remove gcc warning */
-
   /**
     Prepare TABLE_LIST that consists of one table instance to use in
     simple_open_and_lock_tables
@@ -2362,7 +2337,7 @@ struct TABLE_LIST
                              const char *alias_arg,
                              enum thr_lock_type lock_type_arg)
   {
-    memset(this, 0, sizeof(*this));
+    *this= TABLE_LIST();
     m_map= 1;
     db= (char*) db_name_arg;
     db_length= db_length_arg;
@@ -2929,22 +2904,22 @@ struct TABLE_LIST
     Created at parse time in SELECT_LEX::add_table_to_list() ->
     table_list.link_in_list().
   */
-  TABLE_LIST *next_local;
+  TABLE_LIST *next_local{nullptr};
   /* link in a global list of all queries tables */
-  TABLE_LIST *next_global, **prev_global;
-  const char *db, *table_name, *alias;
+  TABLE_LIST *next_global{nullptr}, **prev_global{nullptr};
+  const char *db{nullptr}, *table_name{nullptr}, *alias{nullptr};
   /*
     Target tablespace name: When creating or altering tables, this
     member points to the tablespace_name in the HA_CREATE_INFO struct.
   */
-  LEX_CSTRING target_tablespace_name;
-  char *schema_table_name;
-  char *option;                /* Used by cache index  */
+  LEX_CSTRING target_tablespace_name{nullptr, 0};
+  char *schema_table_name{nullptr};
+  char *option{nullptr};                /* Used by cache index  */
 
   /** Table level optimizer hints for this table.  */
-  Opt_hints_table *opt_hints_table;
+  Opt_hints_table *opt_hints_table{nullptr};
   /* Hints for query block of this table. */
-  Opt_hints_qb *opt_hints_qb;
+  Opt_hints_qb *opt_hints_qb{nullptr};
 
   void set_lock(const Lock_descriptor &descriptor)
   {
@@ -2962,16 +2937,16 @@ private:
     A table that takes part in a join operation must be assigned a unique
     table number.
   */
-  uint          m_tableno;              ///< Table number within query block
-  table_map     m_map;                  ///< Table map, derived from m_tableno
+  uint          m_tableno{0};              ///< Table number within query block
+  table_map     m_map{0};                  ///< Table map, derived from m_tableno
   /**
      If this table or join nest is the Y in "X [LEFT] JOIN Y ON C", this
      member points to C. May also be generated from JOIN ... USING clause.
      It may be modified only by permanent transformations (permanent = done
      once for all executions of a prepared statement).
   */
-  Item		*m_join_cond;
-  Item          *m_sj_cond;               ///< Synthesized semijoin condition
+  Item		*m_join_cond{nullptr};
+  Item          *m_sj_cond{nullptr};               ///< Synthesized semijoin condition
 public:
   /*
     (Valid only for semi-join nests) Bitmap of tables that are within the
@@ -2979,7 +2954,7 @@ public:
     tables that were pulled out of the semi-join nest remain listed as
     nest's children).
   */
-  table_map     sj_inner_tables;
+  table_map     sj_inner_tables{0};
 
   /*
     During parsing - left operand of NATURAL/USING join where 'this' is
@@ -2987,22 +2962,22 @@ public:
     'this' represents a NATURAL or USING join operation. Thus after
     parsing 'this' is a NATURAL/USING join iff (natural_join != NULL).
   */
-  TABLE_LIST *natural_join;
+  TABLE_LIST *natural_join{nullptr};
   /*
     True if 'this' represents a nested join that is a NATURAL JOIN.
     For one of the operands of 'this', the member 'natural_join' points
     to the other operand of 'this'.
   */
-  bool is_natural_join;
+  bool is_natural_join{false};
   /* Field names in a USING clause for JOIN ... USING. */
-  List<String> *join_using_fields;
+  List<String> *join_using_fields{nullptr};
   /*
     Explicitly store the result columns of either a NATURAL/USING join or
     an operand of such a join.
   */
-  List<Natural_join_column> *join_columns;
+  List<Natural_join_column> *join_columns{nullptr};
   /* TRUE if join_columns contains all columns of this table reference. */
-  bool is_join_columns_complete;
+  bool is_join_columns_complete{false};
 
   /*
     List of nodes in a nested join tree, that should be considered as
@@ -3011,16 +2986,16 @@ public:
     base tables. All of these TABLE_LIST instances contain a
     materialized list of columns. The list is local to a subquery.
   */
-  TABLE_LIST *next_name_resolution_table;
+  TABLE_LIST *next_name_resolution_table{nullptr};
   /* Index names in a "... JOIN ... USE/IGNORE INDEX ..." clause. */
-  List<Index_hint> *index_hints;
-  TABLE        *table;                          /* opened table */
-  Table_id table_id; /* table id (from binlog) for opened table */
+  List<Index_hint> *index_hints{nullptr};
+  TABLE        *table{nullptr};                          /* opened table */
+  Table_id table_id{}; /* table id (from binlog) for opened table */
   /*
     Query_result for derived table to pass it from table creation to table
     filling procedure
   */
-  Query_result_union  *derived_result;
+  Query_result_union  *derived_result{nullptr};
   /*
     Reference from aux_tables to local list entry of main select of
     multi-delete statement:
@@ -3028,12 +3003,12 @@ public:
     here it will be reference of first occurrence of t1 to second (as you
     can see this lists can't be merged)
   */
-  TABLE_LIST	*correspondent_table;
+  TABLE_LIST	*correspondent_table{nullptr};
 
   /*
     Holds the function used as the table function
   */
-  Table_function *table_function;
+  Table_function *table_function{nullptr};
 
 private:
   /**
@@ -3042,10 +3017,10 @@ private:
      E.g. for a query
      @verbatim SELECT * FROM (SELECT a FROM t1) b @endverbatim
   */
-  SELECT_LEX_UNIT *derived;		/* SELECT_LEX_UNIT of derived table */
+  SELECT_LEX_UNIT *derived{nullptr};		/* SELECT_LEX_UNIT of derived table */
 
   /// If non-NULL, the CTE which this table is derived from.
-  Common_table_expr *m_common_table_expr;
+  Common_table_expr *m_common_table_expr{nullptr};
   /**
     If the user has specified column names with the syntaxes "table name
     parenthesis column names":
@@ -3056,75 +3031,75 @@ private:
     CREATE VIEW v(column_names) AS ...
     then this points to the list of column names. NULL otherwise.
   */
-  const Create_col_name_list *m_derived_column_names;
+  const Create_col_name_list *m_derived_column_names{nullptr};
 
 public:
-  ST_SCHEMA_TABLE *schema_table;        /* Information_schema table */
-  SELECT_LEX *schema_select_lex;
+  ST_SCHEMA_TABLE *schema_table{nullptr};        /* Information_schema table */
+  SELECT_LEX *schema_select_lex{nullptr};
   /*
     True when the view field translation table is used to convert
     schema table fields for backwards compatibility with SHOW command.
   */
-  bool schema_table_reformed;
-  Temp_table_param *schema_table_param;
+  bool schema_table_reformed{false};
+  Temp_table_param *schema_table_param{nullptr};
   /* link to select_lex where this table was used */
-  SELECT_LEX *select_lex;
+  SELECT_LEX *select_lex{nullptr};
 
 private:
-  LEX *view;                    /* link on VIEW lex for merging */
+  LEX *view{nullptr};                    /* link on VIEW lex for merging */
 
 public:
   /// Array of selected expressions from a derived table or view.
-  Field_translator *field_translation;
+  Field_translator *field_translation{nullptr};
 
   /// pointer to element after last one in translation table above
-  Field_translator *field_translation_end;
+  Field_translator *field_translation_end{nullptr};
   /*
     List (based on next_local) of underlying tables of this view. I.e. it
     does not include the tables of subqueries used in the view. Is set only
     for merged views.
   */
-  TABLE_LIST	*merge_underlying_list;
+  TABLE_LIST	*merge_underlying_list{nullptr};
   /*
     - 0 for base tables
     - in case of the view it is the list of all (not only underlying
     tables but also used in subquery ones) tables of the view.
   */
-  List<TABLE_LIST> *view_tables;
+  List<TABLE_LIST> *view_tables{nullptr};
   /* most upper view this table belongs to */
-  TABLE_LIST	*belong_to_view;
+  TABLE_LIST	*belong_to_view{nullptr};
   /*
     The view directly referencing this table
     (non-zero only for merged underlying tables of a view).
   */
-  TABLE_LIST	*referencing_view;
+  TABLE_LIST	*referencing_view{nullptr};
   /* Ptr to parent MERGE table list item. See top comment in ha_myisammrg.cc */
-  TABLE_LIST    *parent_l;
+  TABLE_LIST    *parent_l{nullptr};
   /*
     Security  context (non-zero only for tables which belong
     to view with SQL SECURITY DEFINER)
   */
-  Security_context *security_ctx;
+  Security_context *security_ctx{nullptr};
   /*
     This view security context (non-zero only for views with
     SQL SECURITY DEFINER)
   */
-  Security_context *view_sctx;
+  Security_context *view_sctx{nullptr};
   /*
     List of all base tables local to a subquery including all view
     tables. Unlike 'next_local', this in this list views are *not*
     leaves. Created in setup_tables() -> make_leaf_tables().
   */
-  TABLE_LIST    *next_leaf;
-  Item          *derived_where_cond;    ///< WHERE condition from derived table
-  Item          *check_option;          ///< WITH CHECK OPTION condition
-  Item          *replace_filter;        ///< Filter for REPLACE command
-  LEX_STRING    select_stmt;            ///< text of (CREATE/SELECT) statement
-  LEX_STRING    source;                 ///< source of CREATE VIEW
-  LEX_CSTRING   view_db;                ///< saved view database
-  LEX_CSTRING   view_name;              ///< saved view name
-  LEX_STRING    timestamp;              ///< GMT time stamp of last operation
-  LEX_USER   definer;                ///< definer of view
+  TABLE_LIST    *next_leaf{nullptr};
+  Item          *derived_where_cond{nullptr};    ///< WHERE condition from derived table
+  Item          *check_option{nullptr};          ///< WITH CHECK OPTION condition
+  Item          *replace_filter{nullptr};        ///< Filter for REPLACE command
+  LEX_STRING    select_stmt{nullptr, 0};            ///< text of (CREATE/SELECT) statement
+  LEX_STRING    source{nullptr, 0};                 ///< source of CREATE VIEW
+  LEX_CSTRING   view_db{nullptr, 0};                ///< saved view database
+  LEX_CSTRING   view_name{nullptr, 0};              ///< saved view name
+  LEX_STRING    timestamp{nullptr, 0};              ///< GMT time stamp of last operation
+  LEX_USER      definer;                ///< definer of view
   /**
     @note: This field is currently not reliable when read from dictionary:
     If an underlying view is changed, updatable_view is not changed,
@@ -3533,101 +3508,6 @@ typedef Table_list_adapter<Local_tables_iterator> Local_tables_list;
 /// A list interface over the TABLE_LIST::next_global pointer.
 typedef Table_list_adapter<Global_tables_iterator> Global_tables_list;
 
-/**
-  Semijoin_mat_optimize collects data used when calculating the cost of
-  executing a semijoin operation using a materialization strategy.
-  It is used during optimization phase only.
-*/
-
-struct Semijoin_mat_optimize
-{
-  /// Optimal join order calculated for inner tables of this semijoin op.
-  POSITION *positions;
-  /// True if data types allow the MaterializeLookup semijoin strategy
-  bool lookup_allowed;
-  /// True if data types allow the MaterializeScan semijoin strategy
-  bool scan_allowed;
-  /// Expected number of rows in the materialized table
-  double expected_rowcount;
-  /// Materialization cost - execute sub-join and write rows to temp.table
-  Cost_estimate materialization_cost;
-  /// Cost to make one lookup in the temptable
-  Cost_estimate lookup_cost;
-  /// Cost of scanning the materialized table
-  Cost_estimate scan_cost;
-  /// Array of pointers to fields in the materialized table.
-  Item_field **mat_fields;
-};
-
-
-/**
-  Struct NESTED_JOIN is used to represent how tables are connected through
-  outer join operations and semi-join operations to form a query block.
-  Out of the parser, inner joins are also represented by NESTED_JOIN
-  structs, but these are later flattened out by simplify_joins().
-  Some outer join nests are also flattened, when it can be determined that
-  they can be processed as inner joins instead of outer joins.
-*/
-struct NESTED_JOIN
-{
-  List<TABLE_LIST>  join_list;       /* list of elements in the nested join */
-  table_map         used_tables;     /* bitmap of tables in the nested join */
-  table_map         not_null_tables; /* tables that rejects nulls           */
-  /**
-    Used for pointing out the first table in the plan being covered by this
-    join nest. It is used exclusively within make_outerjoin_info().
-   */
-  plan_idx first_nested;
-  /**
-    Set to true when natural join or using information has been processed.
-  */
-  bool natural_join_processed;
-  /**
-    Number of tables and outer join nests administered by this nested join
-    object for the sake of cost analysis. Includes direct member tables as
-    well as tables included through semi-join nests, but notice that semi-join
-    nests themselves are not counted.
-  */
-  uint              nj_total;
-  /**
-    Used to count tables in the nested join in 2 isolated places:
-    1. In make_outerjoin_info(). 
-    2. check_interleaving_with_nj/backout_nj_state (these are called
-       by the join optimizer. 
-    Before each use the counters are zeroed by SELECT_LEX::reset_nj_counters.
-  */
-  uint              nj_counter;
-  /**
-    Bit identifying this nested join. Only nested joins representing the
-    outer join structure need this, other nests have bit set to zero.
-  */
-  nested_join_map   nj_map;
-  /**
-    Tables outside the semi-join that are used within the semi-join's
-    ON condition (ie. the subquery WHERE clause and optional IN equalities).
-  */
-  table_map         sj_depends_on;
-  /**
-    Outer non-trivially correlated tables, a true subset of sj_depends_on
-  */
-  table_map         sj_corr_tables;
-  /**
-    Query block id if this struct is generated from a subquery transform.
-  */
-  uint query_block_id;
-
-  /// Bitmap of which strategies are enabled for this semi-join nest
-  uint sj_enabled_strategies;
-
-  /*
-    Lists of trivially-correlated expressions from the outer and inner tables
-    of the semi-join, respectively.
-  */
-  List<Item>        sj_outer_exprs, sj_inner_exprs;
-  Semijoin_mat_optimize sjm;
-};
-
-
 struct OPEN_TABLE_LIST
 {
   OPEN_TABLE_LIST *next;
@@ -3800,7 +3680,9 @@ extern LEX_STRING MYSQL_TABLESPACE_NAME;
 extern LEX_STRING RLI_INFO_NAME;
 extern LEX_STRING MI_INFO_NAME;
 extern LEX_STRING WORKER_INFO_NAME;
+#endif /* !UNIV_HOTBACKUP */
 
+#ifndef UNIV_HOTBACKUP
 inline bool is_infoschema_db(const char *name, size_t len)
 {
   return (INFORMATION_SCHEMA_NAME.length == len &&
@@ -4016,4 +3898,5 @@ bool create_table_share_for_upgrade(THD *thd,
                                     bool is_fix_view_cols_and_deps);
 //////////////////////////////////////////////////////////////////////////
 
+#endif /* !UNIV_HOTBACKUP */
 #endif /* TABLE_INCLUDED */

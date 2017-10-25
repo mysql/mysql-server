@@ -443,12 +443,6 @@ public:
     m_reversed_access(false),
     m_fetched_rows(0)
   {
-    /**
-       @todo Add constructor to READ_RECORD.
-       All users do init_read_record(), which does memset(),
-       rather than invoking a constructor.
-    */
-    memset(&read_record, 0, sizeof(read_record));
   }
 
   /// Initializes the object from a JOIN_TAB

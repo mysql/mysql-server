@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -38,6 +38,7 @@ thr_get_trx(
 	return(thr->graph->trx);
 }
 
+#ifndef UNIV_HOTBACKUP
 /*******************************************************************//**
 Determines if this thread is rolling back an incomplete transaction
 in crash recovery.
@@ -51,6 +52,7 @@ thr_is_recv(
 {
 	return(trx_is_recv(thr->graph->trx));
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /***********************************************************************//**
 Gets the first thr in a fork. */

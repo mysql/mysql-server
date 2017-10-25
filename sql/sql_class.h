@@ -43,6 +43,7 @@
 #include "mysql/components/services/psi_statement_bits.h"
 #include "mysql/components/services/psi_thread_bits.h"
 #include "mysql/components/services/psi_transaction_bits.h"
+#include "mysql/psi/mysql_thread.h"
 #include "pfs_thread_provider.h"
 #include "sql/psi_memory_key.h"
 #include "sql/resourcegroups/resource_group_basic_types.h"

@@ -472,6 +472,16 @@ sub main {
     $opt_parallel= 1;
   }
 
+  #
+  # Please note, that disk_usage() will print a space to separate its
+  # information from the preceding string, if the disk usage report is
+  # enabled. Otherwise an empty string is returned.
+  #
+  my $du = disk_usage();
+  if ($du) {
+    mtr_report(sprintf("Disk usage of vardir in MB:%s",$du));
+  }
+
   # Create server socket on any free port
   my $server = new IO::Socket::INET
     (
@@ -1338,6 +1348,7 @@ sub command_line_setup {
 	     'retry=i'                  => \$opt_retry,
 	     'retry-failure=i'          => \$opt_retry_failure,
              'timer!'                   => \&report_option,
+             'disk-usage!'              => \&report_option,
              'user=s'                   => \$opt_user,
              'testcase-timeout=i'       => \$opt_testcase_timeout,
              'suite-timeout=i'          => \$opt_suite_timeout,
@@ -2494,6 +2505,32 @@ sub mysqlpump_arguments ($) {
   client_debug_arg($args, "mysqlpump-$group_suffix");
   return mtr_args2str($exe, @$args);
 }
+
+sub mysqlbackup_arguments ()
+{
+  my $exe= mtr_exe_maybe_exists(vs_config_dirs('runtime_output_directory',
+                                               'mysqlbackup'),
+                                "$basedir/bin/mysqlbackup",
+                                "$path_client_bindir/mysqlbackup");
+  return "" unless $exe;
+
+  my $args;
+  mtr_init_args(\$args);
+  if ( $opt_valgrind_clients )
+  {
+    valgrind_client_arguments($args, \$exe);
+  }
+  return mtr_args2str($exe, @$args);
+}
+
+sub mysqlbackup_plugin_dir ()
+{
+  my $fnm= find_plugin('mysqlbackup_sbt_test_mms', 'plugin_output_directory');
+  return "" unless $fnm;
+
+  return dirname($fnm);
+}
+
 #
 # Set environment to be used by childs of this process for
 # things that are constant during the whole lifetime of mysql-test-run
@@ -2735,6 +2772,11 @@ sub environment_setup {
   $ENV{'EXE_MYSQL'}=                   $exe_mysql;
   $ENV{'PATH_CONFIG_FILE'}=            $path_config_file;
   $ENV{'MYSQL_SSL_RSA_SETUP'}=         $exe_mysql_ssl_rsa_setup;
+
+  $ENV{'MYSQLBACKUP'}=                 mysqlbackup_arguments()
+                                         unless $ENV{'MYSQLBACKUP'};
+  $ENV{'MYSQLBACKUP_PLUGIN_DIR'}=      mysqlbackup_plugin_dir()
+                                         unless $ENV{'MYSQLBACKUP_PLUGIN_DIR'};
 
   my $exe_mysqld= find_mysqld($basedir);
   $ENV{'MYSQLD'}= $exe_mysqld;
@@ -5940,54 +5982,56 @@ sub mysqld_arguments ($$$) {
   my $found_no_console= 0;
   my $found_log_error= 0;
 
-  # Do not add console if log-error found in .cnf file for windows
-  open (CONFIG_FILE, " < $path_config_file") or die ("Could not open output file $path_config_file");
-  while ( <CONFIG_FILE> )
-  {
-    if ( m/^log[-_]error/ ) {
-      $found_log_error= 1;
-    }
-  }
-  close (CONFIG_FILE);
+  # Check if the option 'log-error' is found in the .cnf file
+  # In the group defined for the server
+  $found_log_error= 1 if
+    defined $mysqld->option("log-error") or
+    defined $mysqld->option("log_error");
+
+  # In the [mysqld] section
+  $found_log_error= 1 if
+    !$found_log_error and defined mysqld_group() and
+    (defined mysqld_group()->option("log-error") or
+     defined mysqld_group()->option("log_error"));
 
   foreach my $arg ( @$extra_opts )
   {
     # Skip option file options because they are handled above
     next if ( grep { $arg =~ $_ } @options);
 
-    if ($arg =~ /--log[-_]error/)
+    if ($arg =~ /--log[-_]error=/ or $arg =~ /--log[-_]error$/)
     {
       $found_log_error= 1;
     }
-
-    # Allow --skip-core-file to be set in <testname>-[master|slave].opt file
-    if ($arg eq "--skip-core-file")
+    elsif ($arg eq "--skip-core-file")
     {
+      # Allow --skip-core-file to be set in <testname>-[master|slave].opt file
       $found_skip_core= 1;
+      next;
     }
     elsif ($arg eq "--no-console")
     {
-        $found_no_console= 1;
+      $found_no_console= 1;
+      next;
     }
     elsif ($arg =~ /--loose[-_]skip[-_]log[-_]bin/ and
            $mysqld->option("log-slave-updates"))
     {
-      ; # Dont add --skip-log-bin when mysqld have --log-slave-updates in config
+      # Dont add --skip-log-bin when mysqld has --log-slave-updates in config
+      next;
     }
     elsif ($arg eq "")
     {
       # We can get an empty argument when  we set environment variables to ""
       # (e.g plugin not found). Just skip it.
+      next;
     }
     elsif ($arg eq "--daemonize")
     {
       $mysqld->{'daemonize'}= 1;
-      mtr_add_arg($args, "%s", $arg);
     }
-    else
-    {
-      mtr_add_arg($args, "%s", $arg);
-    }
+
+    mtr_add_arg($args, "%s", $arg);
   }
 
   $opt_skip_core = $found_skip_core;
@@ -6356,6 +6400,10 @@ sub ndb_mgmds { return _like('cluster_config.ndb_mgmd.'); }
 sub clusters  { return _like('mysql_cluster.'); }
 sub memcacheds { return _like('memcached.'); }
 sub all_servers { return ( mysqlds(), ndb_mgmds(), ndbds(), memcacheds() ); }
+# Return an object which refers to the group named '[mysqld]'
+# from the my.cnf file. Options specified in the section can
+# be accessed using it.
+sub mysqld_group { return $config ? $config->group('mysqld') : (); }
 
 #
 # Filter a list of servers and return only those that are part
@@ -7646,6 +7694,7 @@ Misc options
   user=USER             User for connecting to mysqld(default: $opt_user)
   comment=STR           Write STR to the output
   timer                 Show test case execution time.
+  disk-usage            Show disk usage of vardir after each test.
   verbose               More verbose output(use multiple times for even more)
   verbose-restart       Write when and why servers are restarted
   start                 Only initialize and start the servers. If a testcase is

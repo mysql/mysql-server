@@ -2995,9 +2995,6 @@ const MY_CSET_OS_NAME charsets[]=
   {"cp28598",        "hebrew",   my_cs_exact},
   {"cp28599",        "latin5",   my_cs_exact},
   {"cp28603",        "latin7",   my_cs_exact},
-#ifdef UNCOMMENT_THIS_WHEN_WL_4579_IS_DONE
-  {"cp28605",        "latin9",   my_cs_exact},
-#endif
   {"cp38598",        "hebrew",   my_cs_exact},
   {"cp51932",        "ujis",     my_cs_exact},
   {"cp51936",        "gb2312",   my_cs_exact},
@@ -3040,13 +3037,6 @@ const MY_CSET_OS_NAME charsets[]=
   {"ISO_8859-13",    "latin7",   my_cs_exact},
   {"ISO8859-13",     "latin7",   my_cs_exact},
   {"ISO-8859-13",    "latin7",   my_cs_exact},
-
-#ifdef UNCOMMENT_THIS_WHEN_WL_4579_IS_DONE
-  {"iso885915",      "latin9",   my_cs_exact},
-  {"ISO_8859-15",    "latin9",   my_cs_exact},
-  {"ISO8859-15",     "latin9",   my_cs_exact},
-  {"ISO-8859-15",    "latin9",   my_cs_exact},
-#endif
 
   {"iso88592",       "latin2",   my_cs_exact},
   {"ISO_8859-2",     "latin2",   my_cs_exact},
@@ -3093,7 +3083,7 @@ const MY_CSET_OS_NAME charsets[]=
 };
 
 
-static const char *
+const char *
 my_os_charset_to_mysql_charset(const char *csname)
 {
   const MY_CSET_OS_NAME *csp;

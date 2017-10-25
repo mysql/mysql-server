@@ -181,7 +181,7 @@ namespace dd {
 namespace sdi_tablespace {
 bool store_tbl_sdi(THD *thd, const handlerton &hton,
                    const dd::Sdi_type &sdi, const dd::Table &table,
-                   const dd::Schema &schema)
+                   const dd::Schema &schema MY_ATTRIBUTE((unused)))
 {
   const dd::sdi_key_t key= get_sdi_key(table);
 

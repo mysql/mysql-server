@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -150,7 +150,9 @@ enum ib_quiesce_t {
 	QUIESCE_COMPLETE		/*!< All done */
 };
 
+#ifndef UNIV_HOTBACKUP
 typedef ib_mutex_t DictSysMutex;
+#endif /* !UNIV_HOTBACKUP */
 
 /** Prefix for tmp tables, adopted from sql/table.h */
 #define TEMP_FILE_PREFIX		"#sql"

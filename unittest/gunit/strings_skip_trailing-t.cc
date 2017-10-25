@@ -18,88 +18,64 @@
   Bug#16395778 SUBOPTIMAL CODE IN SKIP_TRAILING_SPACE()
 
   Below we test some alternative implementations for skip_trailing_space.
-  In order to do benchmarking, configure in optimized mode, and
-  generate a separate executable for this file:
-    cmake -DMERGE_UNITTESTS=0
-  You may want to tweak some constants below:
-   - experiment with num_iterations
-   - experiment with inserting something in front of the whitespace
-   - experiment with different test_values
-  run 'strings-t --disable-tap-output' to see timing reports for your platform.
  */
-
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
 
 #include <gtest/gtest.h>
 #include <string>
 
+#include "m_string.h"
+#include "unittest/gunit/benchmark.h"
 #include "unittest/gunit/skip_trailing.h"
 
 namespace skip_trailing_space_unittest {
 
-#if defined(GTEST_HAS_PARAM_TEST)
-
-#if !defined(DBUG_OFF)
-// There is no point in benchmarking anything in debug mode.
-const size_t num_iterations= 1ULL;
-#else
-// Set this so that each test case takes a few seconds.
-// And set it back to a small value before pushing!!
-// const size_t num_iterations= 200000000ULL;
-const size_t num_iterations= 2ULL;
-#endif
-
-class SkipTrailingSpaceTest : public ::testing::TestWithParam<int>
+static inline void benchmark_func(size_t iters,
+                                  const uchar *func(const uchar *, size_t),
+                                  size_t length)
 {
-protected:
-  virtual void SetUp()
+  StopBenchmarkTiming();
+  // Insert something else (or nothing) here,
+  //   to see effects of alignment of data:
+  std::string str= "1";
+  str.append(length, ' ');
+  StartBenchmarkTiming();
+
+  for (size_t i = 0; i < iters; ++i)
   {
-    int num_spaces= GetParam();
-    // Insert something else (or nothing) here,
-    //   to see effects of alignment of data:
-    m_string.append("1");
-    for (int ix= 0 ; ix < num_spaces; ++ix)
-      m_string.append(" ");
-    m_length= m_string.length();
+    func(pointer_cast<const uchar *>(str.data()), length);
   }
-  size_t m_length;
-  std::string m_string;
-};
-
-int test_values[]= {0, 24, 100, 150};
-
-INSTANTIATE_TEST_CASE_P(Skip, SkipTrailingSpaceTest,
-                        ::testing::ValuesIn(test_values));
-
-TEST_P(SkipTrailingSpaceTest, Unaligned)
-{
-  for (size_t ix= 0; ix < num_iterations; ++ix)
-    skip_trailing_unalgn(reinterpret_cast<const uchar*>(m_string.c_str()),
-                         m_length);
 }
 
-TEST_P(SkipTrailingSpaceTest, Original)
-{
-  for (size_t ix= 0; ix < num_iterations; ++ix)
-    skip_trailing_orig(reinterpret_cast<const uchar*>(m_string.c_str()),
-                       m_length);
-}
+#define INSTANTIATE_TEST(name, func, length)  \
+  static void name(size_t iters)              \
+  {                                           \
+    benchmark_func(iters, func, length);      \
+  }                                           \
+  BENCHMARK(name);
 
-TEST_P(SkipTrailingSpaceTest, FourByte)
-{
-  for (size_t ix= 0; ix < num_iterations; ++ix)
-    skip_trailing_4byte(reinterpret_cast<const uchar*>(m_string.c_str()),
-                        m_length);
-}
+INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_Unaligned_0, skip_trailing_unalgn, 0);
+INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_Unaligned_24, skip_trailing_unalgn, 24);
+INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_Unaligned_100, skip_trailing_unalgn, 100);
+INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_Unaligned_150, skip_trailing_unalgn, 150);
 
-TEST_P(SkipTrailingSpaceTest, EightByte)
-{
-  for (size_t ix= 0; ix < num_iterations; ++ix)
-    skip_trailing_8byte(reinterpret_cast<const uchar*>(m_string.c_str()),
-                        m_length);
-}
+INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_Original_0, skip_trailing_orig, 0);
+INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_Original_24, skip_trailing_orig, 24);
+INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_Original_100, skip_trailing_orig, 100);
+INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_Original_150, skip_trailing_orig, 150);
 
-#endif  // GTEST_HAS_PARAM_TEST
+INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_FourByte_0, skip_trailing_4byte, 0);
+INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_FourByte_24, skip_trailing_4byte, 24);
+INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_FourByte_100, skip_trailing_4byte, 100);
+INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_FourByte_150, skip_trailing_4byte, 150);
+
+INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_EightByte_0, skip_trailing_8byte, 0);
+INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_EightByte_24, skip_trailing_8byte, 24);
+INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_EightByte_100, skip_trailing_8byte, 100);
+INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_EightByte_150, skip_trailing_8byte, 150);
+
+INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_Current_0, skip_trailing_space, 0);
+INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_Current_24, skip_trailing_space, 24);
+INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_Current_100, skip_trailing_space, 100);
+INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_Current_150, skip_trailing_space, 150);
 
 }

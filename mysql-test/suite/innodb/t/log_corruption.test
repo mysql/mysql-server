@@ -155,7 +155,7 @@ let SEARCH_PATTERN=InnoDB: Set innodb_force_recovery to ignore this error;
 --exec unzip $MYSQL_TEST_DIR/suite/innodb/t/log_corruption6.zip -d $newdir > $SEARCH_FILE
 --error 1,42
 --exec $MYSQLD $args
-let SEARCH_PATTERN=InnoDB: The log file was created by mysqlbackup --apply-log at ibbackup was here!!!1!\\. The following crash recovery is part of a normal restore\\.;
+let SEARCH_PATTERN=InnoDB: The log file was created by mysqlbackup --apply-log at MEB      was here!!!1!\\. The following crash recovery is part of a normal restore\\.;
 --source include/search_pattern.inc
 let SEARCH_PATTERN=InnoDB: ############### CORRUPT LOG RECORD FOUND ###############;
 --source include/search_pattern.inc

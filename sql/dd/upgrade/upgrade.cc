@@ -743,56 +743,6 @@ bool Upgrade_status::remove()
 }
 
 
-/**
-  Bootstrap thread executes SQL statements.
-  Any error in the execution of SQL statements causes call to my_error().
-  At this moment, error handler hook is set to my_message_stderr.
-  my_message_stderr() prints the error messages to standard error stream but
-  it does not follow the standard error format. Further, the error status is
-  not set in Diagnostics Area.
-
-  This class is to create RAII error handler hooks to be used when executing
-  statements from bootstrap thread.
-
-  It will print the error in the standard error format.
-  Diagnostics Area error status will be set to avoid asserts.
-  Error will be handler by caller function.
-*/
-
-class Bootstrap_error_handler
-{
-private:
-  void (*m_old_error_handler_hook)(uint, const char *, myf);
-
-  //  Set the error in DA. Optionally print error in log.
-  static void my_message_bootstrap(uint error, const char *str, myf MyFlags)
-  {
-    my_message_sql(error, str, MyFlags | (m_log_error ? ME_ERRORLOG : 0));
-  }
-
-public:
-  Bootstrap_error_handler()
-  {
-    m_old_error_handler_hook= error_handler_hook;
-    error_handler_hook= my_message_bootstrap;
-  }
-
-  // Mark as error is set.
-  void set_log_error(bool log_error)
-  {
-    m_log_error= log_error;
-  }
-
-  ~Bootstrap_error_handler()
-  {
-    error_handler_hook= m_old_error_handler_hook;
-  }
-  static bool m_log_error;
-};
-
-bool Bootstrap_error_handler::m_log_error= true;
-
-
 // Delete dictionary tables
 bool terminate(THD *thd)
 {

@@ -31,8 +31,6 @@ simple headers.
 
 #include "univ.i"
 
-#if !defined UNIV_HOTBACKUP
-
 /* Forward declarations */
 class ha_innobase;
 class THD;
@@ -526,5 +524,4 @@ check_trx_exists(THD* thd);
 void
 innobase_commit_low(trx_t* trx);
 
-#endif /* !UNIV_HOTBACKUP */
 #endif /* HA_INNODB_PROTOTYPES_H */

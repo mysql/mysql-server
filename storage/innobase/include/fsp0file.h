@@ -32,6 +32,26 @@ Created 2013-7-26 by Kevin Lewis
 #include "os0file.h"
 #include <vector>
 
+#ifdef UNIV_HOTBACKUP
+# include "fil0fil.h"
+# include "fsp0types.h"
+
+/** MEB routine to get the tables' encryption key. MEB will
+extract the encryption key from the backup.
+@param[in]	space_id	sace_id of the tablespace for which
+encryption-key is needed.
+@param[out]	encryption_key	The encryption-key of the tablespace.
+@param[out]	encryption_iv	The encryption-iv to be used with the
+encryption-key.
+@return	true	if the encryption-key/iv for the given space_id
+is found, false otherwise. */
+extern bool
+meb_get_encryption_key(
+	ulint	space_id,
+	byte*	encryption_key,
+	byte*	encryption_iv);
+#endif /* UNIV_HOTBACKUP */
+
 /** Types of raw partitions in innodb_data_file_path */
 enum device_t {
 
@@ -379,6 +399,29 @@ public:
 	@return DB_SUCCESS if space id was successfully identified,
 	else DB_ERROR. */
 	dberr_t find_space_id();
+
+#ifdef UNIV_HOTBACKUP
+	/** @return file size in number of pages */
+	page_no_t size() const
+	{
+		return(m_size);
+	}
+
+	/** Set the tablespace ID.
+	@param[in]	space_id	Tablespace ID to set */
+	void set_space_id(space_id_t space_id)
+	{
+		ut_ad(space_id <= 0xFFFFFFFFU);
+		m_space_id = space_id;
+	}
+
+	/** Set th tablespace flags
+	@param[in]	fsp_flags	Tablespace flags */
+	void set_flags(ulint flags)
+	{
+		m_flags = flags;
+	}
+#endif /* UNIV_HOTBACKUP */
 
 private:
 	/** Free the filepath buffer. */

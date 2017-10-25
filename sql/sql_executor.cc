@@ -68,6 +68,7 @@
 #include "sql/log.h"
 #include "sql/mem_root_array.h"
 #include "sql/mysqld.h"       // stage_executing
+#include "sql/nested_join.h"
 #include "sql/opt_explain_format.h"
 #include "sql/opt_range.h"    // QUICK_SELECT_I
 #include "sql/opt_trace.h"    // Opt_trace_object

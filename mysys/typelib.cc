@@ -24,6 +24,7 @@
 
 #include "m_ctype.h"
 #include "m_string.h"
+#include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"

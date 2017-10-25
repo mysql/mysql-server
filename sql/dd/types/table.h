@@ -128,6 +128,7 @@ public:
 
   virtual Object_id tablespace_id() const = 0;
   virtual void set_tablespace_id(Object_id tablespace_id) = 0;
+  virtual bool is_explicit_tablespace() const = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // engine.

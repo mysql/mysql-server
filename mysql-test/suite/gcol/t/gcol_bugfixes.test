@@ -815,3 +815,14 @@ WHERE outr1.pk > (SELECT innr1.gc2 AS y
                  );
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#23321196: GCOLS: ASSERTION FAILURE:
+--echo #               DFIELD_IS_NULL(DFIELD2) || DFIELD2->DATA
+--echo #
+CREATE TABLE t(gc TEXT GENERATED ALWAYS AS (NULL) NOT NULL, KEY (gc(1)));
+INSERT IGNORE INTO t VALUES ();
+SELECT * FROM t;
+DELETE FROM t;
+SELECT * FROM t;
+DROP TABLE t;

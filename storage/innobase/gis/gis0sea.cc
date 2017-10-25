@@ -32,7 +32,6 @@ Created 2014/01/16 Jimmy Yang
 #include "page0page.h"
 #include "page0zip.h"
 
-#ifndef UNIV_HOTBACKUP
 #include "btr0cur.h"
 #include "btr0pcur.h"
 #include "btr0sea.h"
@@ -42,8 +41,6 @@ Created 2014/01/16 Jimmy Yang
 #include "srv0mon.h"
 #include "trx0trx.h"
 #include "sync0sync.h"
-
-#endif /* UNIV_HOTBACKUP */
 
 /** Restore the stored position of a persistent cursor bufferfixing the page */
 static
@@ -1569,7 +1566,6 @@ rtr_copy_buf(
 	(another) thread while it was copied. */
 	memcpy(&matches->block.page, &block->page, sizeof(buf_page_t));
 	matches->block.frame = block->frame;
-#ifndef UNIV_HOTBACKUP
 	matches->block.unzip_LRU = block->unzip_LRU;
 
 	ut_d(matches->block.in_unzip_LRU_list = block->in_unzip_LRU_list);
@@ -1593,8 +1589,6 @@ rtr_copy_buf(
 
 	/* Use copy CTOR rather than assignment operator */
 	ut_d(new (&matches->block.debug_latch) rw_lock_t(block->debug_latch));
-
-#endif /* !UNIV_HOTBACKUP */
 }
 
 /****************************************************************//**

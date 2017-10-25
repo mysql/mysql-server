@@ -1605,7 +1605,7 @@ Item_sum_bit::eval_op(Char_op char_op, Int_op int_op)
     if (buff_length != s1->length())
     {
       my_error(ER_INVALID_BITWISE_OPERANDS_SIZE, MYF(0), func_name());
-      return false;
+      return true;
     }
 
     // At this point the values should be not-null and have the same size.

@@ -56,6 +56,7 @@
 #include "sql/lock.h"            // mysql_unlock_some_tables,
 #include "sql/my_decimal.h"
 #include "sql/mysqld.h"          // stage_init
+#include "sql/nested_join.h"
 #include "sql/opt_explain.h"
 #include "sql/opt_explain_format.h"
 #include "sql/opt_hints.h"       // hint_key_state()

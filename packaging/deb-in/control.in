@@ -282,3 +282,4 @@ Description: MySQL Test Run MTR - The MySQL testsuite
  database server.
 
 @DEB_NDB_CONTROL_EXTRAS@
+@DEB_COMMERCIAL_CONTROL_EXTRAS@

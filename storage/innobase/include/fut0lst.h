@@ -45,7 +45,6 @@ constexpr ulint FLST_BASE_NODE_SIZE = 4 + 2 * FIL_ADDR_SIZE;
 /* The physical size of a list node in bytes */
 constexpr ulint FLST_NODE_SIZE = 2 * FIL_ADDR_SIZE;
 
-#if !defined UNIV_HOTBACKUP
 /** Initializes a list base node.
 @param[in]	base	pointer to base node
 @param[in]	mtr	mini-transaction handle */
@@ -158,8 +157,6 @@ flst_validate(
 	mtr_t*			mtr1);	/*!< in: mtr */
 
 #include "fut0lst.ic"
-
-#endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG
 /** In-memory representation of flst_base_node_t */

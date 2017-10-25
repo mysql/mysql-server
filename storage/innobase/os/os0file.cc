@@ -45,26 +45,26 @@ Created 10/21/1995 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 # include "os0event.h"
 # include "os0thread.h"
+#endif /* !UNIV_HOTBACKUP */
+
 #ifdef _WIN32
 # include <sys/stat.h>
 # include <errno.h>
 # include <tchar.h>
 # include <codecvt>
 # include <mbstring.h>
-# endif /* _WIN32 */
-#else /* !UNIV_HOTBACKUP */
-# ifdef _WIN32
-#  include <errno.h>
-#  include <sys/stat.h>
-# endif /* _WIN32 */
-#endif /* !UNIV_HOTBACKUP */
+#endif /* _WIN32 */
 
 #ifdef __linux__
 #include <sys/sendfile.h>
 #endif /* __linux__ */
 
 #ifdef LINUX_NATIVE_AIO
-#include <libaio.h>
+# ifndef UNIV_HOTBACKUP
+#  include <libaio.h>
+# else /* !UNIV_HOTBACKUP */
+#  undef LINUX_NATIVE_AIO
+# endif /* !UNIV_HOTBACKUP */
 #endif /* LINUX_NATIVE_AIO */
 
 #ifdef HAVE_FALLOC_PUNCH_HOLE_AND_KEEP_SIZE
@@ -85,6 +85,10 @@ Created 10/21/1995 Heikki Tuuri
 #include <vector>
 #include <sys/types.h>
 #include <functional>
+
+#ifdef UNIV_HOTBACKUP
+# include <data0type.h>
+#endif /* UNIV_HOTBACKUP */
 
 /** Insert buffer segment id */
 static const ulint IO_IBUF_SEGMENT = 0;
@@ -208,14 +212,13 @@ i.e.: SRV_N_PENDING_IOS_PER_THREAD */
 
 #endif /* _WIN32 */
 
-#ifndef UNIV_HOTBACKUP
-
 /** In simulated aio, merge at most this many consecutive i/os */
 static const ulint	OS_AIO_MERGE_N_CONSECUTIVE = 64;
 
 /** Flag indicating if the page_cleaner is in active state. */
 extern bool buf_page_cleaner_is_active;
 
+#ifndef UNIV_HOTBACKUP
 /**********************************************************************
 
 InnoDB AIO Implementation:
@@ -280,6 +283,7 @@ mysql_pfs_key_t  innodb_arch_file_key;
 mysql_pfs_key_t  innodb_clone_file_key;
 #endif /* UNIV_PFS_IO */
 
+#endif /* !UNIV_HOTBACKUP */
 /** The asynchronous I/O context */
 struct Slot {
 	/** index of the slot in the aio array */
@@ -820,7 +824,6 @@ static ulint		os_aio_n_segments = ULINT_UNDEFINED;
 /** If the following is true, read i/o handler threads try to
 wait until a batch of new read requests have been posted */
 static bool		os_aio_recommend_sleep_for_read_threads = false;
-#endif /* !UNIV_HOTBACKUP */
 
 ulint	os_n_file_reads		= 0;
 static ulint	os_bytes_read_since_printout = 0;
@@ -1631,7 +1634,7 @@ os_aio_validate_skip()
  * On Windows, mandatory locking is used.
  */
 # undef USE_FILE_LOCK
-#endif
+#endif /* UNIV_HOTBACKUP || _WIN32 */
 #ifdef USE_FILE_LOCK
 /** Obtain an exclusive lock on a file.
 @param[in]	fd		file descriptor
@@ -1669,8 +1672,6 @@ os_file_lock(
 	return(0);
 }
 #endif /* USE_FILE_LOCK */
-
-#ifndef UNIV_HOTBACKUP
 
 /** Calculates local segment number and aio array from global segment number.
 @param[out]	array		aio wait array
@@ -1772,6 +1773,7 @@ AIO::release_with_mutex(Slot* slot)
 	release();
 }
 
+#ifndef UNIV_HOTBACKUP
 /** Creates a temporary file.  This function is like tmpfile(3), but
 the temporary file is created in the given parameter path. If the path
 is NULL then it will create the file in the MySQL server configuration
@@ -1802,6 +1804,7 @@ os_file_create_tmpfile(
 
 	return(file);
 }
+#endif  /* !UNIV_HOTBACKUP */
 
 /** Rewind file to its start, read at most size - 1 bytes from it to str, and
 NUL-terminate str. All errors are silently ignored. This function is
@@ -1905,8 +1908,6 @@ os_file_io_complete(
 
 	return(DB_SUCCESS);
 }
-
-#endif /* !UNIV_HOTBACKUP */
 
 /** Check if the path refers to the root of a drive using a pointer
 to the last directory separator that the caller has fixed.
@@ -3087,6 +3088,7 @@ os_file_get_last_error_low(
 				<< "The error means the system"
 				" cannot find the path specified.";
 
+#ifndef UNIV_HOTBACKUP
 			if (srv_is_being_started) {
 
 				ib::error()
@@ -3095,6 +3097,7 @@ os_file_get_last_error_low(
 					" directories yourself, InnoDB"
 					" does not create them.";
 			}
+#endif /* !UNIV_HOTBACKUP */
 		} else if (err == EACCES) {
 
 			ib::error()
@@ -4393,6 +4396,7 @@ os_file_get_last_error_low(
 				<< "The error means the system"
 				" cannot find the path specified.";
 
+#ifndef UNIV_HOTBACKUP
 			if (srv_is_being_started) {
 				ib::error()
 					<< "If you are installing InnoDB,"
@@ -4400,6 +4404,7 @@ os_file_get_last_error_low(
 					" directories yourself, InnoDB"
 					" does not create them.";
 			}
+#endif /* !UNIV_HOTBACKUP */
 
 		} else if (err == ERROR_ACCESS_DENIED) {
 
@@ -4802,7 +4807,7 @@ os_file_create_func(
 
 #ifdef UNIV_HOTBACKUP
 	attributes |= FILE_FLAG_NO_BUFFERING;
-#else
+#else /* UNIV_HOTBACKUP */
 	if (purpose == OS_FILE_AIO) {
 
 #ifdef WIN_ASYNC_IO
@@ -4927,6 +4932,10 @@ os_file_create_simple_no_error_handling_func(
 	DWORD		attributes	= 0;
 	DWORD		share_mode	= FILE_SHARE_READ;
 
+#ifdef UNIV_HOTBACKUP
+	share_mode |= FILE_SHARE_WRITE;
+#endif /* UNIV_HOTBACKUP */
+
 	ut_a(name);
 
 	ut_a(!(create_mode & OS_FILE_ON_ERROR_SILENT));
@@ -5017,7 +5026,7 @@ os_file_delete_if_exists_func(const char* name, bool* exist)
 	ulint	count = 0;
 
 	for (;;) {
-		/* In Windows, deleting an .ibd file may fail if ibbackup
+		/* In Windows, deleting an .ibd file may fail if mysqlbackup
 		is copying it */
 
 		bool	ret = DeleteFile((LPCTSTR) name);
@@ -5070,7 +5079,7 @@ os_file_delete_func(
 	ulint	count	= 0;
 
 	for (;;) {
-		/* In Windows, deleting an .ibd file may fail if ibbackup
+		/* In Windows, deleting an .ibd file may fail if mysqlbackup
 		is copying it */
 
 		BOOL	ret = DeleteFile((LPCTSTR) name);
@@ -5094,8 +5103,9 @@ os_file_delete_func(
 			os_file_get_last_error(true);
 
 			ib::warn()
-				<< "Cannot delete file '" << name << "'. Are "
-				<< "you running ibbackup to back up the file?";
+				<< "Cannot delete file '" << name
+				<< "'. Are you running mysqlbackup"
+				<< " to back up the file?";
 		}
 
 		/* sleep for a second */
@@ -6019,7 +6029,13 @@ os_file_handle_error_cond_exit(
 		}
 
 		if (should_exit) {
+#ifndef UNIV_HOTBACKUP
 			srv_fatal_error();
+#else /* !UNIV_HOTBACKUP */
+			ib::fatal()
+				<< "Internal error,"
+				<< " cannot continue operation.";
+#endif /* !UNIV_HOTBACKUP */
 		}
 	}
 
@@ -6927,11 +6943,13 @@ AIO::start(
 	ulint	start = srv_read_only_mode ? 0 : 2;
 	ulint	n_segs = n_readers + start;
 
+#ifndef UNIV_HOTBACKUP
 	/* 0 is the ibuf segment and 1 is the redo log segment. */
 	for (ulint i = start; i < n_segs; ++i) {
 		ut_a(i < SRV_MAX_N_IO_THREADS);
 		srv_io_thread_function[i] = "read thread";
 	}
+#endif /* !UNIV_HOTBACKUP */
 
 	ulint	n_segments = n_readers;
 
@@ -6945,7 +6963,9 @@ AIO::start(
 
 		++n_segments;
 
+#ifndef UNIV_HOTBACKUP
 		srv_io_thread_function[0] = "insert buffer thread";
+#endif /* !UNIV_HOTBACKUP */
 
 		s_log = create(LATCH_ID_OS_AIO_LOG_MUTEX, n_per_seg, 1);
 
@@ -6955,7 +6975,9 @@ AIO::start(
 
 		++n_segments;
 
+#ifndef UNIV_HOTBACKUP
 		srv_io_thread_function[1] = "log thread";
+#endif /* !UNIV_HOTBAKUP */
 
 	} else {
 		s_ibuf = s_log = NULL;
@@ -6970,10 +6992,12 @@ AIO::start(
 
 	n_segments += n_writers;
 
+#ifndef UNIV_HOTBACKUP
 	for (ulint i = start + n_readers; i < n_segments; ++i) {
 		ut_a(i < SRV_MAX_N_IO_THREADS);
 		srv_io_thread_function[i] = "write thread";
 	}
+#endif /* !UNIV_HOTBACKUP */
 
 	ut_ad(n_segments >= static_cast<ulint>(srv_read_only_mode ? 2 : 4));
 
@@ -7118,6 +7142,62 @@ os_fusionio_get_sector_size()
 }
 #endif /* !NO_FALLOCATE && UNIV_LINUX */
 
+/** Creates and initializes block_cache. Creates array of MAX_BLOCKS
+and allocates the memory in each block to hold BUFFER_BLOCK_SIZE
+of data.
+
+This function is called by InnoDB during AIO init (os_aio_init()).
+It is also by MEB while applying the redo logs on TDE tablespaces, the
+"Blocks" allocated in this block_cache are used to hold the decrypted page
+data. */
+void
+os_create_block_cache()
+{
+	ut_a(block_cache == NULL);
+
+	block_cache = UT_NEW_NOKEY(Blocks(MAX_BLOCKS));
+
+	for (Blocks::iterator it = block_cache->begin();
+	     it != block_cache->end();
+	     ++it) {
+
+		ut_a(it->m_in_use == 0);
+		ut_a(it->m_ptr == NULL);
+
+		/* Allocate double of max page size memory, since
+		compress could generate more bytes than orgininal
+		data. */
+		it->m_ptr = static_cast<byte*>(
+			ut_malloc_nokey(BUFFER_BLOCK_SIZE));
+
+		ut_a(it->m_ptr != NULL);
+	}
+}
+
+#ifdef UNIV_HOTBACKUP
+/** De-allocates block cache at InnoDB shutdown. */
+void
+meb_free_block_cache()
+{
+
+	if (block_cache ==  NULL) {
+		return;
+	}
+
+	for (Blocks::iterator it = block_cache->begin();
+	     it != block_cache->end();
+	     ++it) {
+
+		ut_a(it->m_in_use == 0);
+		ut_free(it->m_ptr);
+	}
+
+	UT_DELETE(block_cache);
+
+	block_cache = NULL;
+}
+#endif /* UNIV_HOTBACKUP */
+
 /** Initializes the asynchronous io system. Creates one array each for ibuf
 and log i/o. Also creates one array each for read and write where each
 array is divided logically into n_readers and n_writers
@@ -7142,25 +7222,7 @@ os_aio_init(
 	}
 #endif /* _WIN32 */
 
-	ut_a(block_cache == NULL);
-
-	block_cache = UT_NEW_NOKEY(Blocks(MAX_BLOCKS));
-
-	for (Blocks::iterator it = block_cache->begin();
-	     it != block_cache->end();
-	     ++it) {
-
-		ut_a(it->m_in_use == 0);
-		ut_a(it->m_ptr == NULL);
-
-		/* Allocate double of max page size memory, since
-		compress could generate more bytes than orgininal
-		data. */
-		it->m_ptr = static_cast<byte*>(
-			ut_malloc_nokey(BUFFER_BLOCK_SIZE));
-
-		ut_a(it->m_ptr != NULL);
-	}
+	os_create_block_cache();
 
 	/* Get sector size for DIRECT_IO. In this case, we need to
 	know the sector size for aligning the write buffer. */
@@ -7701,7 +7763,9 @@ os_aio_windows_handler(
 	/* NOTE! We only access constant fields in os_aio_array. Therefore
 	we do not have to acquire the protecting mutex yet */
 
+#ifndef UNIV_HOTBACKUP
 	ut_ad(os_aio_validate_skip());
+#endif /* !UNIV_HOTBACKUP */
 
 	if (array == AIO::sync_array()) {
 
@@ -7720,7 +7784,12 @@ os_aio_windows_handler(
 
 	array->acquire();
 
-	if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS
+	if (
+#ifndef UNIV_HOTBACKUP
+	    srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS
+#else /* !UNIV_HOTBACKUP */
+	    true
+#endif /* !UNIV_HOTBACKUP */
 	    && array->is_empty()
 	    && !buf_page_cleaner_is_active) {
 
@@ -7862,7 +7931,9 @@ os_aio_func(
 	ut_ad(n > 0);
 	ut_ad((n % OS_FILE_LOG_BLOCK_SIZE) == 0);
 	ut_ad((offset % OS_FILE_LOG_BLOCK_SIZE) == 0);
+#ifndef UNIV_HOTBACKUP
 	ut_ad(os_aio_validate_skip());
+#endif /* !UNIV_HOTBACKUP */
 
 #ifdef WIN_ASYNC_IO
 	ut_ad((n & 0xFFFFFFFFUL) == n);
@@ -8384,7 +8455,9 @@ SimulatedAIOHandler::check_pending(
 	/* NOTE! We only access constant fields in os_aio_array.
 	Therefore we do not have to acquire the protecting mutex yet */
 
+#ifndef UNIV_HOTBACKUP
 	ut_ad(os_aio_validate_skip());
+#endif /* !UNIV_HOTBACKUP */
 
 	ut_ad(m_segment < m_array->get_n_segments());
 
@@ -8467,8 +8540,11 @@ os_aio_simulated_handler(
 			break;
 
 		} else if (n_reserved == 0
+#ifndef UNIV_HOTBACKUP
 			   && !buf_page_cleaner_is_active
-			   && srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
+			   && srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS
+#endif /* !UNIV_HOTBACKUP */
+			   ) {
 
 			/* There is no completed request. If there
 			are no pending request at all, and the system
@@ -8703,6 +8779,7 @@ os_aio_print(FILE*	file)
 	double		time_elapsed;
 	double		avg_bytes_read;
 
+#ifndef UNIV_HOTBACKUP
 	for (ulint i = 0; i < srv_n_file_io_threads; ++i) {
 		fprintf(file, "I/O thread %lu state: %s (%s)",
 			(ulong) i,
@@ -8717,6 +8794,7 @@ os_aio_print(FILE*	file)
 
 		fprintf(file, "\n");
 	}
+#endif /* !UNIV_HOTBACKUP */
 
 	fputs("Pending normal aio reads:", file);
 
@@ -8909,6 +8987,7 @@ Encryption::random_value(byte* value)
 void
 Encryption::create_master_key(byte** master_key)
 {
+#ifndef UNIV_HOTBACKUP
 	size_t	key_len;
 	char*	key_type = NULL;
 	char	key_name[ENCRYPTION_MASTER_KEY_NAME_MAX_LEN];
@@ -8948,6 +9027,7 @@ Encryption::create_master_key(byte** master_key)
 	if (key_type != nullptr) {
 		my_free(key_type);
 	}
+#endif /* !UNIV_HOTBACKUP */
 }
 
 /** Get master key by key id.
@@ -8960,6 +9040,7 @@ Encryption::get_master_key(
 	char*		srv_uuid,
 	byte**		master_key)
 {
+#ifndef UNIV_HOTBACKUP
 	size_t	key_len = 0;
 	char*	key_type = nullptr;
 	char	key_name[ENCRYPTION_MASTER_KEY_NAME_MAX_LEN];
@@ -9010,6 +9091,7 @@ Encryption::get_master_key(
 			<< "{" << msg.str() << "}";
 	}
 #endif /* UNIV_ENCRYPT_DEBUG */
+#endif /* !UNIV_HOTBACKUP */
 }
 
 /** Current master key id */
@@ -9028,6 +9110,7 @@ Encryption::get_master_key(
 	byte**		master_key,
 	Version*	version)
 {
+#ifndef UNIV_HOTBACKUP
 	int	ret;
 	size_t	key_len;
 	char*	key_type = nullptr;
@@ -9125,6 +9208,7 @@ Encryption::get_master_key(
 	if (key_type != nullptr) {
 		my_free(key_type);
 	}
+#endif /* !UNIV_HOTBACKUP */
 }
 
 /** Fill the encryption information.
@@ -10163,6 +10247,7 @@ Encryption::decrypt(
 	return(DB_SUCCESS);
 }
 
+#ifndef UNIV_HOTBACKUP
 /** Check if keyring plugin loaded. */
 bool
 Encryption::check_keyring()
@@ -10205,6 +10290,7 @@ Encryption::check_keyring()
 
 	return(ret);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /** Check if the path is a directory. The file/directory must exist.
 @param[in]	path		The path to check

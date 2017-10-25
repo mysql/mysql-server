@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -101,6 +101,7 @@ UT_MUTEX_TYPE(TTASEventMutex, BlockMutexPolicy, BlockSyncArrayMutex)
 
 #endif /* !UNIV_DEBUG */
 
+#ifndef UNIV_HOTBACKUP
 #ifdef MUTEX_FUTEX
 /** The default mutex type. */
 typedef FutexMutex ib_mutex_t;
@@ -154,6 +155,11 @@ in the debug version. */
 #define mutex_own(M)			/* No op */
 #define mutex_validate(M)		/* No op */
 #endif /* UNIV_DEBUG */
+#else /* !UNIV_HOTBACKUP */
+# include "../meb/mutex.h"
+typedef meb::Mutex ib_mutex_t;
+typedef meb::Mutex ib_bpmutex_t;
+#endif /* !UNIV_HOTBACKUP */
 
 /** Iterate over the mutex meta data */
 class MutexMonitor {
@@ -208,6 +214,7 @@ public:
 /** Defined in sync0sync.cc */
 extern MutexMonitor*	mutex_monitor;
 
+#ifndef UNIV_HOTBACKUP
 /**
 Creates, or rather, initializes a mutex object in a specified memory
 location (which must be appropriately aligned). The mutex is initialized
@@ -241,5 +248,6 @@ void mutex_destroy(
 	mutex->destroy();
 }
 #endif /* UNIV_LIBRARY */
+#endif /* !UNIV_HOTBACKUP */
 
 #endif /* ut0mutex_h */

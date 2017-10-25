@@ -24,6 +24,7 @@
 #include <sys/types.h>
 
 #include "lf.h"
+#include "mysql_com.h"
 #include "sql_string.h"
 #include "storage/perfschema/pfs_global.h"
 #include "storage/perfschema/pfs_lock.h"

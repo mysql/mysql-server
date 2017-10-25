@@ -296,7 +296,7 @@ mem_heap_create_block_func(
 	/* In dynamic allocation, calculate the size: block header + data. */
 	len = MEM_BLOCK_HEADER_SIZE + MEM_SPACE_NEEDED(n);
 
-#ifndef UNIV_LIBRARY
+#if !defined(UNIV_LIBRARY) && !defined(UNIV_HOTBACKUP)
 	if (type == MEM_HEAP_DYNAMIC || len < UNIV_PAGE_SIZE / 2) {
 
 		ut_ad(type == MEM_HEAP_DYNAMIC || n <= MEM_MAX_ALLOC_IN_BUF);
@@ -337,11 +337,12 @@ mem_heap_create_block_func(
 	block->buf_block = buf_block;
 	block->free_block = NULL;
 
-#else /* !UNIV_LIBRARY */
+#else /* !UNIV_LIBRARY && !UNIV_HOTBACKUP */
 	len = MEM_BLOCK_HEADER_SIZE + MEM_SPACE_NEEDED(n);
 	block = static_cast<mem_block_t*>(ut_malloc_nokey(len));
-	ut_ad(block);
-#endif /* !UNIV_LIBRARY */
+	ut_a(block);
+	block->free_block = NULL;
+#endif /* !UNIV_LIBRARY && !UNIV_HOTBACKUP */
 
 	ut_d(ut_strlcpy_rev(block->file_name, file_name,
 			    sizeof(block->file_name)));
@@ -466,7 +467,7 @@ mem_heap_block_free(
 	}
 #endif
 
-#ifndef UNIV_LIBRARY
+#if !defined(UNIV_LIBRARY) && !defined(UNIV_HOTBACKUP)
 	if (type == MEM_HEAP_DYNAMIC || len < UNIV_PAGE_SIZE / 2) {
 
 		ut_ad(!buf_block);
@@ -479,11 +480,12 @@ mem_heap_block_free(
 		UNIV_MEM_ALLOC(block, UNIV_PAGE_SIZE);
 		buf_block_free(buf_block);
 	}
-#else /* !UNIV_LIBRARY */
+#else /* !UNIV_LIBRARY && !UNIV_HOTBACKUP */
 	ut_free(block);
-#endif /* !UNIV_LIBRARY */
+#endif /* !UNIV_LIBRARY && !UNIV_HOTBACKUP */
 }
 
+#ifndef UNIV_HOTBACKUP
 #ifndef UNIV_LIBRARY
 /******************************************************************//**
 Frees the free_block field from a memory heap. */
@@ -508,3 +510,4 @@ mem_heap_free_block_free(
 	}
 }
 #endif /* !UNIV_LIBRARY */
+#endif /* !UNIV_HOTBACKUP */

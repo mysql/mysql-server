@@ -32,6 +32,10 @@ Created 3/26/1996 Heikki Tuuri
 #include "mtr0mtr.h"
 #include "trx0sys.h"
 
+#ifdef UNIV_HOTBACKUP
+# include"que0que.h"
+#endif /* UNIV_HOTBACKUP */
+
 extern bool	trx_rollback_or_clean_is_active;
 
 /*******************************************************************//**

@@ -1234,6 +1234,7 @@ page_delete_rec_list_start(
 		return;
 	}
 
+#ifndef UNIV_HOTBACKUP
 	mlog_id_t	type;
 
 	if (page_rec_is_comp(rec)) {
@@ -1243,6 +1244,7 @@ page_delete_rec_list_start(
 	}
 
 	page_delete_rec_list_write_log(rec, index, type, mtr);
+#endif /* !UNIV_HOTBACKUP */
 
 	page_cur_set_before_first(block, &cur1);
 	page_cur_move_to_next(&cur1);
@@ -2383,6 +2385,7 @@ page_validate(
 	same temp-table in parallel.
 	max_trx_id is ignored for temp tables because it not required
 	for MVCC. */
+#ifndef UNIV_HOTBACKUP
 	if (dict_index_is_sec_or_ibuf(index)
 	    && !index->table->is_temporary()
 	    && page_is_leaf(page)
@@ -2399,6 +2402,7 @@ page_validate(
 			goto func_exit2;
 		}
 	}
+#endif /* !UNIV_HOTBACKUP */
 
 	heap = mem_heap_create(UNIV_PAGE_SIZE + 200);
 
@@ -2492,6 +2496,8 @@ page_validate(
 				goto func_exit;
 			}
 		}
+#else /* !UNIV_HOTBACKUP */
+		UT_NOT_USED(old_rec);
 #endif /* !UNIV_HOTBACKUP */
 
 		if (page_rec_is_user_rec(rec)) {
@@ -2702,7 +2708,6 @@ page_find_rec_with_heap_no(
 		}
 	}
 }
-#endif /* !UNIV_HOTBACKUP */
 
 /*******************************************************//**
 Removes the record from a leaf page. This function does not log
@@ -2758,6 +2763,7 @@ page_delete_rec(
 
 	return(no_compress_needed);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /** Get the last non-delete-marked record on a page.
 @param[in]	page	index tree leaf page

@@ -35,6 +35,8 @@ Created 10/21/1995 Heikki Tuuri
 #ifndef os0file_h
 #define os0file_h
 
+#include "my_dbug.h"
+#include "my_io.h"
 #include "univ.i"
 #include "os/file.h"
 
@@ -121,6 +123,11 @@ struct pfs_os_file_t {
 	os_file_t   m_file;
 #ifdef UNIV_PFS_IO
 	struct PSI_file *m_psi;
+#else /* UNIV_PFS_IO */
+	struct pfs_os_file_t& operator=(os_file_t file) {
+		m_file = file;
+		return(*this);
+	}
 #endif /* UNIV_PFS_IO */
 };
 
@@ -1932,6 +1939,12 @@ void
 unit_test_os_file_get_parent_dir();
 #endif /* UNIV_ENABLE_UNIT_TEST_GET_PARENT_DIR */
 
+#ifdef UNIV_HOTBACKUP
+/** Deallocates the "Blocks" in block_cache */
+void
+meb_free_block_cache();
+#endif /* UNIV_HOTBACKUP */
+
 /** Initializes the asynchronous io system. Creates one array each for ibuf
 and log i/o. Also creates one array each for read and write where each
 array is divided logically into n_read_segs and n_write_segs
@@ -2071,7 +2084,7 @@ os_file_get_status(
 	bool		check_rw_perm,
 	bool		read_only);
 
-#if !defined(UNIV_HOTBACKUP)
+#ifndef UNIV_HOTBACKUP
 /** Creates a temporary file in the location specified by the parameter
 path. If the path is NULL then it will be created on --tmpdir location.
 This function is defined in ha_innodb.cc.

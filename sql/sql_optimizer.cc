@@ -60,6 +60,7 @@
 #include "sql/key_spec.h"
 #include "sql/lock.h"            // mysql_unlock_some_tables
 #include "sql/mysqld.h"          // stage_optimizing
+#include "sql/nested_join.h"
 #include "sql/opt_costmodel.h"
 #include "sql/opt_explain.h"     // join_type_str
 #include "sql/opt_hints.h"       // hint_table_state
@@ -9985,7 +9986,7 @@ static bool make_join_select(JOIN *join, Item *cond)
         std::pair<SELECT_LEX *, int> pair_object(join->select_lex, i);
         cond->walk(&Item::inform_item_in_cond_of_tab,
                    Item::WALK_POSTFIX,
-                   pointer_cast<uchar * const>(&pair_object));
+                   pointer_cast<uchar *>(&pair_object));
       }
 
     }

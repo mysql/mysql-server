@@ -18,14 +18,20 @@
 
 #include "my_config.h"
 
+#include <atomic>
+
 #include <stddef.h>
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
 #include <sys/types.h>
+#ifdef WIN32
+#include <ws2tcpip.h>   // socklen_t
+#endif
 
 #include "my_compiler.h"
-#include "my_dbug.h"
 #include "my_inttypes.h"
-#include "sql/current_thd.h"
-#include "sql/sql_class.h"
+#include "sql/thr_malloc.h"
 
 /**
   @file storage/perfschema/pfs_global.h
@@ -149,8 +155,7 @@ uint pfs_get_socket_address(char *host,
   Helper to allocate an object from mem_root.
   @param CLASS Class to instantiate
 */
-#define PFS_NEW(CLASS) \
-  reinterpret_cast<CLASS *>(new (current_thd->alloc(sizeof(CLASS))) CLASS())
+#define PFS_NEW(CLASS) (new (*THR_MALLOC) CLASS())
 
 void pfs_print_error(const char *format, ...)
   MY_ATTRIBUTE((format(printf, 1, 2)));

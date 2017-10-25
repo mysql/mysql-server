@@ -26,6 +26,7 @@
 
 #include "lf.h"
 #include "my_inttypes.h"
+#include "mysql_com.h"
 #include "sql/sql_digest.h"
 #include "storage/perfschema/pfs_column_types.h"
 #include "storage/perfschema/pfs_histogram.h"

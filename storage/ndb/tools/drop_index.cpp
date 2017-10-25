@@ -22,6 +22,8 @@
 #include <NdbApi.hpp>
 #include <NDBT.hpp>
 
+#include "my_alloc.h"
+
 static const char* _dbname = "TEST_DB";
 
 const char *load_default_groups[]= { "mysql_cluster",0 };

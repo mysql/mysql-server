@@ -52,7 +52,9 @@ typedef void (*tree_element_free)(void*, TREE_FREE, const void *);
 
 struct TREE_ELEMENT
 {
-  TREE_ELEMENT *left,*right;
+  TREE_ELEMENT() : count(0), colour(0) {}
+
+  TREE_ELEMENT *left{nullptr},*right{nullptr};
   uint32 count:31,
 	 colour:1;			/* black is marked as 1 */
 };
@@ -61,16 +63,16 @@ struct TREE_ELEMENT
 
 struct TREE
 {
-  TREE_ELEMENT *root,null_element;
-  TREE_ELEMENT **parents[MAX_TREE_HEIGHT];
-  uint offset_to_key,elements_in_tree,size_of_element;
-  ulong memory_limit, allocated;
-  qsort2_cmp compare;
-  const void *custom_arg;
+  TREE_ELEMENT *root{nullptr},null_element;
+  TREE_ELEMENT **parents[MAX_TREE_HEIGHT] {nullptr};
+  uint offset_to_key{0}, elements_in_tree{0}, size_of_element{0};
+  ulong memory_limit{0}, allocated{0};
+  qsort2_cmp compare{nullptr};
+  const void *custom_arg{nullptr};
   MEM_ROOT mem_root;
-  bool with_delete;
-  tree_element_free free;
-  uint flag;
+  bool with_delete{false};
+  tree_element_free free{nullptr};
+  uint flag{0};
 };
 
 	/* Functions on whole tree */

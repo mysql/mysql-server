@@ -72,7 +72,6 @@ struct PSI_mutex_bootstrap
 {
   void *(*get_interface)(int version);
 };
-typedef struct PSI_mutex_bootstrap PSI_mutex_bootstrap;
 struct PSI_mutex_service_v1
 {
   register_mutex_v1_t register_mutex;

@@ -10371,7 +10371,7 @@ ER_CANT_LOCK_TABLESPACE
   eng "Unable to acquire lock on tablespace name %s"
 
 ER_CANT_UPGRADE_GENERATED_COLUMNS_TO_DD
-  eng "Error in processing generated columns"
+  eng "Error in processing generated columns for table %s.%s"
 
 ER_DD_ERROR_CREATING_ENTRY
   eng "Error in Creating DD entry for %s.%s"

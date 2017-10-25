@@ -24,6 +24,7 @@ Created  10/2016 Jimmy Yamg
 *******************************************************/
 
 #include "sql_table.h"
+#ifndef UNIV_HOTBACKUP
 #include "dict0crea.h"
 #include "sql_base.h"
 #include "field.h"
@@ -58,6 +59,7 @@ dd_get_space_id(const dd::Partition& partition)
 	}
 	return(id);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 #ifdef DBUG_OFF
 #define	path_to_tablename(t, n, l, f) filename_to_tablename((t), (n), (l))
@@ -152,6 +154,7 @@ dd_parse_tbl_name(
 	return(true);
 }
 
+#ifndef UNIV_HOTBACKUP
 /** Look up a column in a table using the system_charset_info collation.
 @param[in]	dd_table	data dictionary table
 @param[in]	name		column name
@@ -470,3 +473,4 @@ dd_get_version(
 
 	return(version);
 }
+#endif /* !UNIV_HOTBACKUP */

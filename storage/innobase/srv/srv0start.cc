@@ -78,7 +78,6 @@ Created 2/16/1996 Heikki Tuuri
 #include "trx0sys.h"
 #include "trx0trx.h"
 #include "ut0mem.h"
-#ifndef UNIV_HOTBACKUP
 # include <zlib.h>
 
 # include "arch0arch.h"
@@ -171,7 +170,6 @@ static pfs_os_file_t	files[1000];
 
 /** Name of srv_monitor_file */
 static char*	srv_monitor_file_name;
-#endif /* !UNIV_HOTBACKUP */
 
 /** */
 #define SRV_MAX_N_PENDING_SYNC_IOS	100
@@ -271,7 +269,6 @@ srv_file_check_mode(
 	return(true);
 }
 
-#ifndef UNIV_HOTBACKUP
 /** I/o-handler thread function.
 @param[in]	segment		The AIO segment the thread will work on */
 static
@@ -284,9 +281,7 @@ io_handler_thread(ulint segment)
 		fil_aio_wait(segment);
 	}
 }
-#endif /* !UNIV_HOTBACKUP */
 
-#ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
 Creates a log file.
 @return DB_SUCCESS or error code */
@@ -2484,7 +2479,8 @@ files_checked:
 				return(srv_init_abort(DB_READ_ONLY));
 			}
 
-			if (!srv_dict_metadata->empty()) {
+			if (srv_dict_metadata != nullptr
+			    && !srv_dict_metadata->empty()) {
 
 				/* Open this table in case srv_dict_metadata
 				should be applied to this table before
@@ -3174,7 +3170,6 @@ srv_shutdown()
 	srv_shutdown_state = SRV_SHUTDOWN_NONE;
 	srv_start_state = SRV_START_STATE_NONE;
 }
-#endif /* !UNIV_HOTBACKUP */
 
 #if 0 // TODO: Enable this in WL#6608
 /********************************************************************

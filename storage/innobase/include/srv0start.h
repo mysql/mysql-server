@@ -143,6 +143,7 @@ srv_get_encryption_data_filename(
 	dict_table_t*	table,
 	char*		filename,
 	ulint		max_len);
+#endif /* !UNIV_HOTBACKUP */
 
 /** Log sequence number at shutdown */
 extern	lsn_t	srv_shutdown_lsn;
@@ -184,7 +185,6 @@ enum srv_shutdown_t {
 SRV_SHUTDOWN_CLEANUP and then to SRV_SHUTDOWN_LAST_PHASE, and so on */
 extern	enum srv_shutdown_t	srv_shutdown_state;
 
-#endif /* !UNIV_HOTBACKUP */
 
 /** Call exit(3) */
 void

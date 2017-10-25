@@ -22,6 +22,7 @@
 
 #include "m_ctype.h"
 #include "m_string.h"
+#include "my_alloc.h"
 #include "my_sys.h"
 #include "my_time.h"
 #include "mysys_err.h"

@@ -59,7 +59,6 @@ struct PSI_file_bootstrap
   */
   void *(*get_interface)(int version);
 };
-typedef struct PSI_file_bootstrap PSI_file_bootstrap;
 
 #ifdef HAVE_PSI_FILE_INTERFACE
 

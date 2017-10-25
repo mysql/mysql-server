@@ -16,6 +16,9 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_loglevel.h"
+#if !defined(HAVE_YASSL) && !defined(HAVE_PSI_INTERFACE)
+#include "mysql/psi/mysql_rwlock.h"
+#endif
 #include "mysql/service_mysql_alloc.h"
 #include "vio/vio_priv.h"
 

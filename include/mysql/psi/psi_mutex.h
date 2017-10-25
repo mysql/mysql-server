@@ -46,7 +46,6 @@ struct PSI_mutex_bootstrap
   */
   void *(*get_interface)(int version);
 };
-typedef struct PSI_mutex_bootstrap PSI_mutex_bootstrap;
 
 #ifdef HAVE_PSI_MUTEX_INTERFACE
 

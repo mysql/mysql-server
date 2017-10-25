@@ -605,7 +605,7 @@ enum legacy_db_type
   DB_TYPE_DEFAULT=127 // Must be last
 };
 
-enum row_type { ROW_TYPE_NOT_USED=-1, ROW_TYPE_DEFAULT, ROW_TYPE_FIXED,
+enum row_type : int { ROW_TYPE_NOT_USED=-1, ROW_TYPE_DEFAULT, ROW_TYPE_FIXED,
 		ROW_TYPE_DYNAMIC, ROW_TYPE_COMPRESSED,
 		ROW_TYPE_REDUNDANT, ROW_TYPE_COMPACT,
                 /** Unused. Reserved for future versions. */
@@ -2101,7 +2101,7 @@ inline bool ddl_is_atomic(const handlerton *hton)
 enum enum_tx_isolation : int { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
 			       ISO_REPEATABLE_READ, ISO_SERIALIZABLE};
 
-enum enum_stats_auto_recalc { HA_STATS_AUTO_RECALC_DEFAULT= 0,
+enum enum_stats_auto_recalc : int { HA_STATS_AUTO_RECALC_DEFAULT= 0,
                               HA_STATS_AUTO_RECALC_ON,
                               HA_STATS_AUTO_RECALC_OFF };
 

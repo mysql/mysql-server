@@ -17,6 +17,8 @@
  * decimal_utils.cpp
  */
 
+#include <assert.h>
+
 #include "m_string.h"
 #include "decimal.h"
 
