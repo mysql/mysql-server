@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,6 +23,8 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+
+typedef socklen_t ndb_socket_len_t;
 
 #define MY_SOCKET_FORMAT "%d"
 #define MY_SOCKET_FORMAT_VALUE(x) (x.fd)
@@ -137,7 +139,7 @@ static inline int my_bind_inet(ndb_socket_t s, const struct sockaddr_in *my_addr
 static inline int my_socket_get_port(ndb_socket_t s, unsigned short *port)
 {
   struct sockaddr_in servaddr;
-  socket_len_t sock_len = sizeof(servaddr);
+  ndb_socket_len_t sock_len = sizeof(servaddr);
   if(getsockname(s.fd, (struct sockaddr*)&servaddr, &sock_len) < 0) {
     return 1;
   }
@@ -153,7 +155,7 @@ static inline int my_listen(ndb_socket_t s, int backlog)
 
 static inline
 ndb_socket_t my_accept(ndb_socket_t s, struct sockaddr *addr,
-                       socket_len_t *addrlen)
+                       ndb_socket_len_t *addrlen)
 {
   ndb_socket_t r;
   r.fd= accept(s.fd, addr, addrlen);
@@ -168,14 +170,14 @@ static inline int my_connect_inet(ndb_socket_t s, const struct sockaddr_in *addr
 
 static inline
 int my_getsockopt(ndb_socket_t s, int level, int optname,
-                  void *optval, socket_len_t *optlen)
+                  void *optval, ndb_socket_len_t *optlen)
 {
   return getsockopt(s.fd, level, optname, optval, optlen);
 }
 
 static inline
 int my_setsockopt(ndb_socket_t s, int level, int optname,
-                  void *optval, socket_len_t optlen)
+                  void *optval, ndb_socket_len_t optlen)
 {
   return setsockopt(s.fd, level, optname, optval, optlen);
 }
@@ -184,7 +186,7 @@ static inline
 int my_socket_connect_address(ndb_socket_t s, struct in_addr *a)
 {
   struct sockaddr_in addr;
-  socket_len_t addrlen= sizeof(addr);
+  ndb_socket_len_t addrlen= sizeof(addr);
   if(getpeername(s.fd, (struct sockaddr*)&addr, &addrlen))
     return my_socket_errno();
 
@@ -193,7 +195,7 @@ int my_socket_connect_address(ndb_socket_t s, struct in_addr *a)
 }
 
 static inline
-int my_getpeername(ndb_socket_t s, struct sockaddr *a, socket_len_t *addrlen)
+int my_getpeername(ndb_socket_t s, struct sockaddr *a, ndb_socket_len_t *addrlen)
 {
   if(getpeername(s.fd, a, addrlen))
     return my_socket_errno();
@@ -202,7 +204,7 @@ int my_getpeername(ndb_socket_t s, struct sockaddr *a, socket_len_t *addrlen)
 }
 
 static inline
-int ndb_getsockname(ndb_socket_t s, struct sockaddr *a, socket_len_t *addrlen)
+int ndb_getsockname(ndb_socket_t s, struct sockaddr *a, ndb_socket_len_t *addrlen)
 {
   if(getsockname(s.fd, a, addrlen))
     return 1;

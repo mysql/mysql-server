@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,9 +19,9 @@
 #define NDB_SOCKET_H
 
 #ifdef _WIN32
-#include <ndb_socket_win32.h>
+#include "ndb_socket_win32.h"
 #else
-#include <ndb_socket_posix.h>
+#include "ndb_socket_posix.h"
 #endif
 
 static inline

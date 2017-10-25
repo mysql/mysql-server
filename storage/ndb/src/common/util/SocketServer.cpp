@@ -132,7 +132,7 @@ SocketServer::setup(SocketServer::Service * service,
 
   /* Get the address and port we bound to */
   struct sockaddr_in serv_addr;
-  socket_len_t addr_len = sizeof(serv_addr);
+  ndb_socket_len_t addr_len = sizeof(serv_addr);
   if(ndb_getsockname(sock, (struct sockaddr *) &serv_addr, &addr_len))
   {
     ndbout_c("An error occurred while trying to find out what"
