@@ -97,9 +97,9 @@ struct PARTITION_ITERATOR
 
   struct st_field_value_range
   {
-    longlong start;
-    longlong cur;
-    longlong end;
+    ulonglong start;
+    ulonglong cur;
+    ulonglong end;
   };
 
   union

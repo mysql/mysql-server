@@ -6920,7 +6920,7 @@ static int get_part_iter_for_interval_via_walking(partition_info *part_info,
   }
 
   /* Get integers for left and right interval bound */
-  longlong a, b;
+  ulonglong a, b;
   uint len= field->pack_length_in_rec();
   store_key_image_to_rec(field, min_value, len);
   a= field->val_int();
@@ -6934,7 +6934,7 @@ static int get_part_iter_for_interval_via_walking(partition_info *part_info,
     (x,y]-type interval then the following "b +=..." code will convert it to
     an empty interval by "wrapping around" a + 4G-1 + 1 = a.
   */
-  if ((ulonglong)b - (ulonglong)a == ~0ULL)
+  if (b - a == ~0ULL)
     DBUG_RETURN(-1);
 
   if (flags & NEAR_MIN)
