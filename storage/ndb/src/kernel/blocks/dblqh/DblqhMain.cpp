@@ -3697,8 +3697,19 @@ void Dblqh::earlyKeyReqAbort(Signal* signal,
     ref->errorCode = errCode;
     ref->transId1 = transid1;
     ref->transId2 = transid2;
-    sendSignal(signal->senderBlockRef(), GSN_LQHKEYREF, signal, 
-	       LqhKeyRef::SignalLength, JBB);
+    Uint32 block = refToMain(signal->senderBlockRef());
+    if (block != RESTORE)
+    {
+      sendSignal(signal->senderBlockRef(), GSN_LQHKEYREF, signal, 
+	         LqhKeyRef::SignalLength, JBB);
+    }
+    else
+    {
+      ndbrequire(refToNode(signal->senderBlockRef()) == cownNodeid &&
+                 refToInstance(signal->senderBlockRef()) == instance());
+      EXECUTE_DIRECT(RESTORE, GSN_LQHKEYREF,
+                     signal, LqhKeyRef::SignalLength);
+    }
   }//if
   return;
 }//Dblqh::earlyKeyReqAbort()
@@ -4696,8 +4707,18 @@ void Dblqh::sendLqhkeyconfTc(Signal* signal,
   if (!send_packed)
   {
     lqhKeyConf->connectPtr = tcConnectptr.i;
-    sendSignal(atcBlockref, GSN_LQHKEYCONF,
-               signal, LqhKeyConf::SignalLength, JBB);
+    if (block == RESTORE)
+    {
+      ndbrequire(refToNode(atcBlockref) == cownNodeid &&
+                 refToInstance(atcBlockref) == instance());
+      EXECUTE_DIRECT(RESTORE, GSN_LQHKEYCONF,
+                     signal, LqhKeyConf::SignalLength);
+    }
+    else
+    {
+      sendSignal(atcBlockref, GSN_LQHKEYCONF,
+                 signal, LqhKeyConf::SignalLength, JBB);
+    }
   }
 }//Dblqh::sendLqhkeyconfTc()
 
@@ -6537,7 +6558,7 @@ Dblqh::handle_nr_copy(Signal* signal, Ptr<TcConnectionrec> regTcPtr)
     }
     /**
      * 2) Delete specified row at different rowid (if exists)
-     * It is technically possible that the row with the same primary key
+     * It is technically possible that a row with the same primary key
      * also exists. This record then has a different row id. This is an
      * interesting case which can happen if the given primary key and then
      * later inserted again. We have to handle this case now even though it
@@ -6725,7 +6746,7 @@ Dblqh::nr_copy_delete_row(Signal* signal,
     {
       req->hashValue = md5_hash((Uint64*)(signal->theData+24), len);
     }
-    req->keyLen = 0; // seach by local key
+    req->keyLen = 0; // search by local key
     req->localKey[0] = rowid->m_page_no;
     req->localKey[1] = rowid->m_page_idx;
     siglen = AccKeyReq::SignalLength_localKey;
@@ -10510,8 +10531,19 @@ void Dblqh::continueAfterLogAbortWriteLab(
     lqhKeyRef->errorCode = regTcPtr->errorCode;
     lqhKeyRef->transId1 = regTcPtr->transid[0];
     lqhKeyRef->transId2 = regTcPtr->transid[1];
-    sendSignal(regTcPtr->clientBlockref, GSN_LQHKEYREF, signal, 
-               LqhKeyRef::SignalLength, JBB);
+    Uint32 block = refToMain(regTcPtr->clientBlockref);
+    if (block != RESTORE)
+    {
+      sendSignal(regTcPtr->clientBlockref, GSN_LQHKEYREF, signal, 
+                 LqhKeyRef::SignalLength, JBB);
+    }
+    else
+    {
+      ndbrequire(refToNode(regTcPtr->clientBlockref) == cownNodeid &&
+                 refToInstance(regTcPtr->clientBlockref) == instance());
+      EXECUTE_DIRECT(RESTORE, GSN_LQHKEYREF,
+                     signal, LqhKeyRef::SignalLength);
+    }
   } else if (regTcPtr->abortState == TcConnectionrec::ABORT_FROM_TC) {
     jam();
     sendAborted(signal, tcConnectptr);

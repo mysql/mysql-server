@@ -2319,8 +2319,8 @@ Dbtup::handle_lcp_drop_change_page(Fragrecord *fragPtrP,
   Uint32 size = tablePtr.p->m_offsets[MM].m_fix_header_size; /* Row size */
   Fix_page *page = (Fix_page*)pagePtr.p;
   Uint32 found_idx_count = 0;
-  ndbrequire(size >= 20);
-  Uint16 found_idx[2048]; /* Fixed size header never smaller than 20 bytes */
+  ndbrequire(size >= 4);
+  Uint16 found_idx[2048]; /* Fixed size header never smaller than 16 bytes */
   DEB_LCP_REL(("(%u)tab(%u,%u)page(%u) handle_lcp_drop_page,"
                " delete_by_page: %u",
                instance(),

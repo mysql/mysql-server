@@ -83,7 +83,7 @@ extern EventLogger * g_eventLogger;
 #define DEB_RES_DEL(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_HIGH_RES 1
+#define DEBUG_HIGH_RES 1
 #ifdef DEBUG_HIGH_RES
 #define DEB_HIGH_RES(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
@@ -2125,6 +2125,12 @@ Restore::start_restore_lcp(Signal *signal, FilePtr file_ptr)
   file_ptr.p->m_max_files = lcpCtlFilePtr->MaxNumberDataFiles;
   file_ptr.p->m_file_id = lcpCtlFilePtr->LastDataFileNumber;
   file_ptr.p->m_table_version = lcpCtlFilePtr->CreateTableVersion;
+  DEB_RES_OPEN(("(%u) tab(%u,%u), num_files: %u, last_file: %u",
+                instance(),
+                file_ptr.p->m_table_id,
+                file_ptr.p->m_fragment_id,
+                file_ptr.p->m_num_files,
+                file_ptr.p->m_file_id));
   ndbrequire(file_ptr.p->m_num_files > 0);
   ndbrequire(file_ptr.p->m_num_files <= BackupFormat::NDB_MAX_LCP_PARTS);
   ndbrequire(file_ptr.p->m_file_id <= BackupFormat::NDB_MAX_LCP_FILES);
@@ -2143,9 +2149,12 @@ Restore::open_data_file(Signal* signal, FilePtr file_ptr)
   req->fileFlags = FsOpenReq::OM_READONLY | FsOpenReq::OM_GZ;
   req->userPointer = file_ptr.i;
  
-  DEB_RES_OPEN(("(%u)open_data_file data file number = %u",
+  DEB_RES_OPEN(("(%u)tab(%u,%u) open_data_file data file number = %u",
                 instance(),
+                file_ptr.p->m_table_id,
+                file_ptr.p->m_fragment_id,
                 file_ptr.p->m_file_id));
+
   FsOpenReq::setVersion(req->fileNumber, 5);
   FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_DATA);
   FsOpenReq::v5_setLcpNo(req->fileNumber, file_ptr.p->m_file_id);
@@ -2802,6 +2811,7 @@ Restore::parse_record(Signal* signal,
 {
   Uint32 page_no = data[1];
   data += 1;
+  file_ptr.p->m_error_code = 0;
   ndbrequire(file_ptr.p->m_lcp_version >= NDBD_RAW_LCP);
   if (page_no >= file_ptr.p->m_max_page_cnt)
   {
@@ -2867,6 +2877,7 @@ Restore::parse_record(Signal* signal,
       return; /* Silence compiler warnings */
     }
   }
+  Uint32 outstanding = file_ptr.p->m_outstanding_operations;
   if (header_type == BackupFormat::INSERT_TYPE)
   {
     /**
@@ -2879,6 +2890,8 @@ Restore::parse_record(Signal* signal,
     jam();
     rowid_val.m_page_no = data[0];
     rowid_val.m_page_idx = data[1];
+    file_ptr.p->m_rowid_page_no = rowid_val.m_page_no;
+    file_ptr.p->m_rowid_page_idx = rowid_val.m_page_idx;
     Uint32 keyLen = c_tup->read_lcp_keys(file_ptr.p->m_table_id,
                                          data+2,
                                          len - 3,
@@ -2888,6 +2901,16 @@ Restore::parse_record(Signal* signal,
     Uint32 attrLen = 1 + len - 3;
     file_ptr.p->m_rows_restored_insert++;
     memcpy(attr_start + 1, data+2, 4 * (len - 3));
+    DEB_HIGH_RES(("(%u)INSERT_TYPE tab(%u,%u), rowid(%u,%u),"
+                  " keyLen: %u, key[0]: %x",
+                  instance(),
+                  file_ptr.p->m_table_id,
+                  file_ptr.p->m_fragment_id,
+                  rowid_val.m_page_no,
+                  rowid_val.m_page_idx,
+                  keyLen,
+                  key_start[0]));
+
     execute_operation(signal,
                       file_ptr,
                       keyLen,
@@ -2896,6 +2919,11 @@ Restore::parse_record(Signal* signal,
                       0,
                       Uint32(BackupFormat::INSERT_TYPE),
                       &rowid_val);
+    handle_return_execute_operation(signal,
+                                    file_ptr,
+                                    data,
+                                    len,
+                                    outstanding);
   }
   else
   {
@@ -2905,6 +2933,8 @@ Restore::parse_record(Signal* signal,
       Local_key rowid_val;
       rowid_val.m_page_no = data[0];
       rowid_val.m_page_idx = data[1];
+      file_ptr.p->m_rowid_page_no = rowid_val.m_page_no;
+      file_ptr.p->m_rowid_page_idx = rowid_val.m_page_idx;
       jam();
       Uint32 gci_id = 0;
       Uint32 sent_header_type;
@@ -2936,11 +2966,27 @@ Restore::parse_record(Signal* signal,
         }
         sent_header_type = (Uint32)BackupFormat::DELETE_BY_ROWID_TYPE;
         file_ptr.p->m_rows_restored_delete++;
+        DEB_HIGH_RES(("(%u)1:DELETE_BY_ROWID tab(%u,%u), rowid(%u,%u),"
+                      " gci=%u",
+                       instance(),
+                       file_ptr.p->m_table_id,
+                       file_ptr.p->m_fragment_id,
+                       rowid_val.m_page_no,
+                       rowid_val.m_page_idx,
+                       gci_id));
       }
       else
       {
         sent_header_type = (Uint32)BackupFormat::DELETE_BY_ROWID_WRITE_TYPE;
         file_ptr.p->m_rows_restored_write++;
+        DEB_HIGH_RES(("(%u)2:DELETE_BY_ROWID tab(%u,%u), rowid(%u,%u),"
+                      " gci=%u",
+                       instance(),
+                       file_ptr.p->m_table_id,
+                       file_ptr.p->m_fragment_id,
+                       rowid_val.m_page_no,
+                       rowid_val.m_page_idx,
+                       gci_id));
       }
       execute_operation(signal,
                         file_ptr,
@@ -2989,6 +3035,11 @@ Restore::parse_record(Signal* signal,
                           gci_id,
                           header_type,
                           &rowid_val);
+        handle_return_execute_operation(signal,
+                                        file_ptr,
+                                        data,
+                                        len,
+                                        outstanding);
       }
       else
       {
@@ -3002,7 +3053,7 @@ Restore::parse_record(Signal* signal,
          * The key is instead the rowid which is sent when the row id flag is
          * set.
          */
-        DEB_HIGH_RES(("(%u)DELETE_BY_ROWID tab(%u,%u), rowid(%u,%u), gci=%u",
+        DEB_HIGH_RES(("(%u)3:DELETE_BY_ROWID tab(%u,%u), rowid(%u,%u), gci=%u",
                        instance(),
                        file_ptr.p->m_table_id,
                        file_ptr.p->m_fragment_id,
@@ -3010,6 +3061,7 @@ Restore::parse_record(Signal* signal,
                        rowid_val.m_page_idx,
                        gci_id));
         ndbrequire(len == (3 + 1));
+        ndbrequire(outstanding == file_ptr.p->m_outstanding_operations);
       }
     }
     else
@@ -3046,9 +3098,123 @@ Restore::parse_record(Signal* signal,
       }
       ndbrequire(file_ptr.p->m_outstanding_operations > 0);
       file_ptr.p->m_outstanding_operations--;
+      ndbrequire(outstanding == file_ptr.p->m_outstanding_operations);
       check_restore_ready(signal, file_ptr);
     }
   }
+}
+
+void
+Restore::handle_return_execute_operation(Signal *signal,
+                                         FilePtr file_ptr,
+                                         const Uint32 *data,
+                                         Uint32 len,
+                                         Uint32 outstanding)
+{
+  ndbrequire(outstanding == file_ptr.p->m_outstanding_operations);
+  if (file_ptr.p->m_error_code == 0)
+  {
+    return; /* Normal path, return */
+  }
+  Uint32 * const key_start = signal->getDataPtrSend()+24;
+  Uint32 * const attr_start = key_start + MAX_KEY_SIZE_IN_WORDS;
+  Local_key rowid_val;
+  Uint32 keyLen;
+  Uint32 attrLen = 1 + len - 3;
+
+  if (file_ptr.p->m_error_code != 630 ||
+      file_ptr.p->m_num_files == 1 ||
+      file_ptr.p->m_current_file_index == 0)
+    goto error;
+
+  jam();
+  /**
+   * 630 means that key already exists. When inserting a row during
+   * restore it is normal that the key we're inserting can exist. This
+   * key can have been inserted by a previous insert into a different
+   * rowid.
+   *
+   * The rowid where this key previously existed can have a DELETE BY
+   * ROWID operation in the LCP files, it could have a WRITE with a
+   * different key as well.
+   * In both those cases it is possible that the INSERT comes before
+   * this DELETE BY ROWID or WRITE operation since these happen in
+   * rowid order and not in key order. They can even happen in a
+   * different LCP file since one LCP can span multiple LCP files.
+   *
+   * To ensure consistency we track exactly how many rows we restored
+   * during the restore of the LCP files.
+   *
+   * We need to reinitialise key data and attribute data from data
+   * array since signal object isn't safe after executing the
+   * LQHKEYREQ signal.
+   *
+   * This cannot happen with only 1 LCP file and it cannot happen in
+   * the first LCP file.
+   */
+
+  DEB_RES(("(%u)tab(%u,%u) rowid(%u,%u) key already existed,"
+           " num_files: %u, current_file: %u",
+           instance(),
+           file_ptr.p->m_table_id,
+           file_ptr.p->m_fragment_id,
+           file_ptr.p->m_rowid_page_no,
+           file_ptr.p->m_rowid_page_idx,
+           file_ptr.p->m_num_files,
+           file_ptr.p->m_current_file_index));
+
+  keyLen = c_tup->read_lcp_keys(file_ptr.p->m_table_id,
+                                data+2,
+                                len - 3,
+                                key_start);
+  execute_operation(signal,
+                    file_ptr,
+                    keyLen,
+                    0,
+                    ZDELETE,
+                    0,
+                    BackupFormat::NORMAL_DELETE_TYPE,
+                    NULL);
+
+  ndbrequire(outstanding == file_ptr.p->m_outstanding_operations);
+  if (file_ptr.p->m_error_code != 0)
+    goto error;
+
+  /**
+   * Setup key data and attribute data again, since the signal
+   * object cannot be regarded as safe, we need to reinitialise
+   * this data.
+   */
+  keyLen = c_tup->read_lcp_keys(file_ptr.p->m_table_id,
+                                data+2,
+                                len - 3,
+                                key_start);
+  AttributeHeader::init(attr_start,
+                        AttributeHeader::READ_LCP, 4*(len - 3));
+  memcpy(attr_start + 1, data+2, 4 * (len - 3));
+  rowid_val.m_page_no = data[0];
+  rowid_val.m_page_idx = data[1];
+  execute_operation(signal,
+                    file_ptr,
+                    keyLen,
+                    attrLen,
+                    ZINSERT,
+                    0,
+                    Uint32(BackupFormat::INSERT_TYPE),
+                    &rowid_val);
+  ndbrequire(outstanding == file_ptr.p->m_outstanding_operations);
+  ndbrequire(file_ptr.p->m_error_code == 0);
+  return;
+
+error:
+  g_eventLogger->info("(%u)tab(%u,%u),rowid(%u,%u) crash, error: %u",
+                      instance(),
+                      file_ptr.p->m_table_id,
+                      file_ptr.p->m_fragment_id,
+                      file_ptr.p->m_rowid_page_no,
+                      file_ptr.p->m_rowid_page_idx,
+                      file_ptr.p->m_error_code);
+  ndbrequire(file_ptr.p->m_error_code == 0);
 }
 
 void
@@ -3119,7 +3285,7 @@ Restore::execute_operation(Signal *signal,
     }
   }
   LqhKeyReq::setNoDiskFlag(tmp, 1);
-  LqhKeyReq::setRowidFlag(tmp, 1);
+  LqhKeyReq::setRowidFlag(tmp, (rowid_val != 0));
   req->clientConnectPtr = (file_ptr.i + (header_type << 28));
   req->tcBlockref = reference();
   req->savePointId = 0;
@@ -3146,11 +3312,14 @@ Restore::execute_operation(Signal *signal,
      * We reuse the Node Restart Copy handling to perform
      * DELETE by ROWID. In this case we need to set the GCI of the record.
      */
-    req->variableData[pos++] = rowid_val->m_page_no;
-    req->variableData[pos++] = rowid_val->m_page_idx;
-    req->variableData[pos++] = gci_id;
-    LqhKeyReq::setGCIFlag(tmp, 1);
-    LqhKeyReq::setNrCopyFlag(tmp, 1);
+    if (rowid_val)
+    {
+      req->variableData[pos++] = rowid_val->m_page_no;
+      req->variableData[pos++] = rowid_val->m_page_idx;
+      LqhKeyReq::setGCIFlag(tmp, 1);
+      LqhKeyReq::setNrCopyFlag(tmp, 1);
+      req->variableData[pos++] = gci_id;
+    }
   }
   req->requestInfo = tmp;
   if (short_lqhkeyreq)
@@ -3224,6 +3393,7 @@ Restore::execLQHKEYREF(Signal* signal)
   
   ndbrequire(file_ptr.p->m_outstanding_operations > 0);
   file_ptr.p->m_outstanding_operations--;
+  file_ptr.p->m_error_code = 0;
   switch (header_type)
   {
     case BackupFormat::DELETE_BY_ROWID_TYPE:
@@ -3243,12 +3413,12 @@ Restore::execLQHKEYREF(Signal* signal)
     }
     case BackupFormat::INSERT_TYPE:
     case BackupFormat::WRITE_TYPE:
+    case BackupFormat::NORMAL_DELETE_TYPE:
     default:
     {
       jam();
-      /* Should never fail unless we run out of memory which is also a bug */
-      jamLine(Uint16(header_type));
-      crash_during_restore(file_ptr, __LINE__, ref->errorCode);
+      file_ptr.p->m_error_code = ref->errorCode;
+      return;
     }
   }
   file_ptr.p->m_rows_restored_delete_failed++;
@@ -3316,6 +3486,7 @@ Restore::execLQHKEYCONF(Signal* signal)
   
   ndbassert(file_ptr.p->m_outstanding_operations);
   file_ptr.p->m_outstanding_operations--;
+  file_ptr.p->m_error_code = 0;
   switch (header_type)
   {
     case BackupFormat::INSERT_TYPE:
@@ -3326,6 +3497,11 @@ Restore::execLQHKEYCONF(Signal* signal)
     case BackupFormat::WRITE_TYPE:
       jam();
       file_ptr.p->m_rows_restored++;
+      file_ptr.p->m_row_operations++;
+      break;
+    case BackupFormat::NORMAL_DELETE_TYPE:
+      jam();
+      file_ptr.p->m_rows_restored--;
       file_ptr.p->m_row_operations++;
       break;
     case BackupFormat::DELETE_BY_ROWID_TYPE:

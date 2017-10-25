@@ -42,7 +42,8 @@ struct BackupFormat {
     DELETE_BY_ROWID_TYPE   = 2,
     DELETE_BY_PAGEID_TYPE  = 3,
     DELETE_BY_ROWID_WRITE_TYPE = 4,
-    END_TYPE               = 5
+    NORMAL_DELETE_TYPE     = 5,
+    END_TYPE               = 6
   };
 
   /**

@@ -71,6 +71,7 @@ static int print_restored_rows_ctl_dir = 0;
 static int parts_array[BackupFormat::NDB_MAX_LCP_PARTS];
 static Uint32 max_pages = 0;
 static int verbose_level = 0;
+static int already_inserted_count = 0;
 static RowEntry **row_entries = NULL;
 
 #define IGNORE_PART 1
@@ -170,7 +171,7 @@ RowEntry* find_row(Uint32 page_id, Uint32 page_idx)
   return NULL;
 }
 
-void insert_row(Uint32 page_id, Uint32 page_idx)
+void insert_row(Uint32 page_id, Uint32 page_idx, bool is_insert)
 {
   if (page_id >= max_pages)
   {
@@ -183,7 +184,12 @@ void insert_row(Uint32 page_id, Uint32 page_idx)
   RowEntry *found_row_entry = find_row(page_id, page_idx);
   if (found_row_entry != NULL)
   {
-    /* Entry already existed */
+    if (is_insert)
+    {
+      /* Entry already existed */
+      ndbout_c("row(%u,%u) already existed", page_id, page_idx);
+      already_inserted_count++;
+    }
     return;
   }
   RowEntry *new_row_entry = (RowEntry*)malloc(sizeof(struct RowEntry));
@@ -304,6 +310,11 @@ void print_rows()
     }
   }
   ndbout_c("Found a total of %u rows after restore", row_count);
+  if (already_inserted_count != 0)
+  {
+    ndbout_c("Found a total of %u rows already existing",
+             already_inserted_count);
+  }
 }
 
 void delete_all()
@@ -438,7 +449,7 @@ void handle_print_restored_rows(const char *file_input)
       break;
     }
     Uint32 len, * data, header_type;
-    while((len = readRecord(f, &data, &header_type, false)) > 0)
+    while((len = readRecord(f, &data, &header_type, (verbose_level > 0))) > 0)
     {
       Uint32 page_id = data[0];
       Uint32 page_idx = data[1];
@@ -464,7 +475,7 @@ void handle_print_restored_rows(const char *file_input)
                  len,
                  part_id,
                  part_string);
-        insert_row(page_id, page_idx);
+        insert_row(page_id, page_idx, true);
       }
       else if (parts_array[part_id] != CHANGE_PART)
       {
@@ -499,7 +510,7 @@ void handle_print_restored_rows(const char *file_input)
                    len,
                    part_id,
                    part_string);
-          insert_row(page_id, page_idx);
+          insert_row(page_id, page_idx, false);
         }
         else if (header_type == BackupFormat::DELETE_BY_ROWID_TYPE)
         {
