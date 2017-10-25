@@ -457,7 +457,7 @@ struct IO_CACHE		/* Used when cacheing files */
     certain operations might not be available and yield unpredicatable
     results. Details to be documented later
   */
-  enum cache_type type{TYPE_NOT_SET};
+  cache_type type{TYPE_NOT_SET};
   /*
     Callbacks when the actual read I/O happens. These were added and
     are currently used for binary logging of LOAD DATA INFILE - when a
