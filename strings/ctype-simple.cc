@@ -607,7 +607,7 @@ longlong my_strntoll_8bit(const CHARSET_INFO *cs,
     return negative ? LLONG_MIN : LLONG_MAX;
   }
 
-  return (negative ? -((longlong) i) : (longlong) i);
+  return negative ? -i : i;
 
 noconv:
   err[0]= EDOM;
@@ -696,7 +696,7 @@ ulonglong my_strntoull_8bit(const CHARSET_INFO *cs,
     return (~(ulonglong) 0);
   }
 
-  return (negative ? -((longlong) i) : (longlong) i);
+  return negative ? -i : i;
 
 noconv:
   err[0]= EDOM;
