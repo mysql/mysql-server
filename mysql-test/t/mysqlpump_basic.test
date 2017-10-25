@@ -656,3 +656,27 @@ let SEARCH_PATTERN= mysqlpump: \[WARNING\];
 # cleanup
 --remove_file $MYSQLTEST_VARDIR/log/err.log
 --remove_file $MYSQLTEST_VARDIR/tmp/bug26694675.sql
+
+-- echo #
+-- echo # Bug#26116415 TABLESPACE CLAUSE CONFUSES MYSQLPUMP
+-- echo #
+
+CREATE TABLESPACE `mytbsp` ADD DATAFILE 'mytbsp.ibd' ENGINE INNODB;
+
+CREATE TABLE `test`.`t1` (a integer) TABLESPACE `mytbsp`;
+
+SHOW CREATE TABLE test.t1;
+
+--let $program= $MYSQL_PUMP --include-databases=test --include-tables=t1
+
+--exec $PROGRAM >> $MYSQL_TMP_DIR/mysqlpump.sql
+
+DROP TABLE `test`.`t1`;
+
+--exec $MYSQL < $MYSQL_TMP_DIR/mysqlpump.sql
+
+SHOW CREATE TABLE test.t1;
+
+DROP TABLE `test`.`t1`;
+DROP TABLESPACE `mytbsp`;
+

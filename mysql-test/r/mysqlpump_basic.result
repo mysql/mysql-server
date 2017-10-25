@@ -718,3 +718,21 @@ INSERT INTO t VALUES (9), (0);
 DROP DATABASE bug26694675;
 check for warnings
 Pattern "mysqlpump: \[WARNING\]" not found
+#
+# Bug#26116415 TABLESPACE CLAUSE CONFUSES MYSQLPUMP
+#
+CREATE TABLESPACE `mytbsp` ADD DATAFILE 'mytbsp.ibd' ENGINE INNODB;
+CREATE TABLE `test`.`t1` (a integer) TABLESPACE `mytbsp`;
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `mytbsp` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+DROP TABLE `test`.`t1`;
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `mytbsp` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+DROP TABLE `test`.`t1`;
+DROP TABLESPACE `mytbsp`;
