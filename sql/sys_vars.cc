@@ -76,6 +76,7 @@
 #include "my_thread_local.h"
 #include "my_time.h"
 #include "myisam.h"                      // myisam_flush
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql_version.h"
 #include "sql/auth/auth_acls.h"

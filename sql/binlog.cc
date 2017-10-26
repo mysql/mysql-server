@@ -57,6 +57,7 @@
 #include "my_sqlcommand.h"
 #include "my_stacktrace.h"                  // my_safe_print_system_time
 #include "my_thread_local.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/service_mysql_alloc.h"

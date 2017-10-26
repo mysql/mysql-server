@@ -70,6 +70,7 @@
 #include "my_loglevel.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"

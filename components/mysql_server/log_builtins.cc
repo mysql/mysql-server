@@ -37,6 +37,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include "sql/mysqld.h"       // opt_log_(timestamps|error_services),
 #include "sql/sql_class.h"    // THD
 
+// Must come after sql/log.h.
+#include "mysql/components/services/log_builtins.h"
+
 #ifndef _WIN32
 #include <syslog.h>
 #else

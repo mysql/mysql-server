@@ -42,6 +42,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include "sql/log.h"
 #include "sql/udf_registration_imp.h"
 
+// Must come after sql/log.h.
+#include "mysql/components/services/log_builtins.h"
+
 /* Implementation located in the mysql_server component. */
 extern SERVICE_TYPE(mysql_cond_v1) SERVICE_IMPLEMENTATION(mysql_server, mysql_cond_v1);
 extern SERVICE_TYPE(mysql_mutex_v1) SERVICE_IMPLEMENTATION(mysql_server, mysql_mutex_v1);

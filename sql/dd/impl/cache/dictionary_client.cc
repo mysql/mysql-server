@@ -24,6 +24,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/dd/cache/multi_map_base.h"

@@ -22,6 +22,7 @@
 #include "channel_info.h"               // Channel_info
 #include "connection_handler_manager.h" // Connection_handler_manager
 #include "my_shm_defaults.h"
+#include "mysql/components/services/log_builtins.h"
 #include "sql/log.h"
 #include "sql/mysqld.h"                 // connection_events_loop_aborted
 #include "sql/psi_memory_key.h"

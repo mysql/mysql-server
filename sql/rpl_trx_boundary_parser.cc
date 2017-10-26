@@ -23,6 +23,7 @@
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_loglevel.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysqld_error.h"
 #include "sql/log.h"
 #include "sql/log_event.h" // Log_event

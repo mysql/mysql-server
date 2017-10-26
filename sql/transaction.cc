@@ -26,6 +26,7 @@
 #include "my_loglevel.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/psi/mysql_transaction.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"

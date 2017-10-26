@@ -20,6 +20,7 @@
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysqld_error.h"
 #include "sql/current_thd.h"

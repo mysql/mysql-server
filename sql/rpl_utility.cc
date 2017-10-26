@@ -26,6 +26,7 @@
 #include "my_dbug.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/service_mysql_alloc.h"
 #include "sql/thr_malloc.h"
 
@@ -40,6 +41,7 @@ struct TYPELIB;
 #include "m_string.h"
 #include "my_base.h"
 #include "my_bitmap.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/psi/psi_memory.h"
 #include "mysqld_error.h"
 #include "sql/dd/dd.h"                   // get_dictionary

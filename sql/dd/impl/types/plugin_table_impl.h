@@ -16,6 +16,7 @@
 #ifndef DD__PLUGIN_TABLE_IMPL_INCLUDED
 #define DD__PLUGIN_TABLE_IMPL_INCLUDED
 
+#include "mysql/components/services/log_builtins.h"
 #include "sql/dd/impl/types/plugin_table_definition_impl.h"
 #include "sql/dd/types/object_table.h"
 

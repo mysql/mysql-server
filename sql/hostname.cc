@@ -31,6 +31,7 @@
 #include "map_helpers.h"
 #include "my_loglevel.h"
 #include "my_psi_config.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/components/services/psi_mutex_bits.h"
 #include "thr_mutex.h"

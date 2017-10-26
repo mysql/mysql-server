@@ -47,6 +47,8 @@
 #include "storage/myisam/myisamdef.h"
 #include "storage/myisam/rt_index.h"
 
+#include "mysql/components/services/log_builtins.h"
+
 using std::min;
 using std::max;
 

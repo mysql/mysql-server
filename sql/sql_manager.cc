@@ -32,6 +32,7 @@
 #include "my_loglevel.h"
 #include "my_systime.h"
 #include "my_thread.h"         // my_thread_t
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/mysql_cond_bits.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/psi/mysql_cond.h"

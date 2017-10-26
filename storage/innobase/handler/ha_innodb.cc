@@ -123,6 +123,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 # include "my_io.h"
 # include "my_macros.h"
 # include "my_psi_config.h"
+# include "mysql/components/services/log_builtins.h"
 # include "mysql/psi/mysql_data_lock.h"
 #endif /* !UNIV_HOTBACKUP */
 #include "mysys_err.h"

@@ -30,6 +30,7 @@
 #include "my_inttypes.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysqld_error.h"
 #include "sql/derror.h"                         // MY_LOCALE_ERRMSGS
 #include "sql/log.h"
