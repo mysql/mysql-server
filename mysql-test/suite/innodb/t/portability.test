@@ -70,7 +70,6 @@ SHOW CREATE TABLE tab3;
 --copy_file $MYSQLD_OLD_DATADIR/ib_buffer_pool $MYSQLD_NEW_DATADIR/ib_buffer_pool
 --copy_file $MYSQLD_OLD_DATADIR/ibdata1 $MYSQLD_NEW_DATADIR/ibdata1
 --copy_files_wildcard $MYSQLD_OLD_DATADIR  $MYSQLD_NEW_DATADIR *.ibd
---copy_files_wildcard $MYSQLD_OLD_DATADIR  $MYSQLD_NEW_DATADIR *.sdi
 --copy_files_wildcard $MYSQLD_OLD_DATADIR  $MYSQLD_NEW_DATADIR undo*
 --copy_files_wildcard $MYSQLD_OLD_DATADIR  $MYSQLD_NEW_DATADIR ib_logfile*
 
