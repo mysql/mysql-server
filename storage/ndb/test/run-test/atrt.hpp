@@ -62,6 +62,9 @@ struct atrt_options {
 
 struct atrt_process {
   unsigned m_index;
+  BaseString m_name;
+  unsigned int m_procno;
+
   struct atrt_host* m_host;
   struct atrt_cluster* m_cluster;
 
@@ -72,6 +75,7 @@ struct atrt_process {
     AP_NDB_MGMD = 4,
     AP_MYSQLD = 16,
     AP_CLIENT = 32,
+    AP_CUSTOM = 64,
     AP_CLUSTER = 256  // Used for options parsing for "cluster" options
   } m_type;
 
