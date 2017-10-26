@@ -134,13 +134,6 @@ struct DABits
      */ 
     NI_INNER_JOIN = 0x400,
 
-    /**
-     * A SEMI_JOIN is as an INNER_JOIN, except that duplicates matching
-     * the same parent row can be skipped.
-     * In Sql terms this is similar to a IN/EXIST subquery.
-     */
-    NI_SEMI_JOIN = 0x800,
-
     NI_END = 0
   };
 

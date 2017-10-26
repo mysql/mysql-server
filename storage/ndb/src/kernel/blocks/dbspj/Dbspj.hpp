@@ -1045,7 +1045,7 @@ public:
      *
      * m_next_nodes: (The execution order)
      *   The list of TreeNodes having operations to be started after
-     *   this TreeNode. Either when a single operation completes, or
+     *   this TreeNode, either when a single operation completes, or
      *   after completion of entire 'batch' from this TreeNode.
      *   All 'm_child_nodes' will either be directly included in
      *   the 'next' list, or be included in the 'next' list of some
@@ -1061,8 +1061,8 @@ public:
      * a specific node relates to other TreeNodes:
      *
      * - 'ancestors' are the set of TreeNodes reachable through
-     *    this nodes (grand-)parentPtr(s)
-     * - 'coverage' are the set of (grand-)children reachable through
+     *    this node's (grand-)parentPtr(s)
+     * - 'coverage' is the set of (grand-)children reachable through
      *    a 'm_child_nodes' dive. Also include this TreeNode itself.
      * - 'predecessors' are the TreeNodes which will be executed prior
      *    to this TreeNode. This include all 'ancestors', as well as
