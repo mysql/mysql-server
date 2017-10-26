@@ -24,8 +24,6 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
-#include "mysql/components/services/my_io_bits.h"
-
 typedef socklen_t ndb_socket_len_t;
 
 #define MY_SOCKET_FORMAT "%d"
