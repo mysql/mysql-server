@@ -7226,8 +7226,6 @@ Fil_system::meb_name_process(
 			break;
 		}
 	}
-
-	ut_free(name);
 }
 
 /** Process a file name passed as an input
@@ -9920,103 +9918,6 @@ fil_tablespace_encryption_init(const fil_space_t* space)
 	}
 }
 
-/** Lookup the tablespace ID for recovery and DDL log apply.
-@param[in]	space_id		Tablespace ID to lookup
-@return true if the space ID is known. */
-bool
-Fil_system::lookup_for_recovery(space_id_t space_id)
-{
-	ut_ad(recv_recovery_is_on() || Log_DDL::is_in_recovery());
-
-	/* Single threaded code, no need to acquire mutex. */
-	const auto	result = get_scanned_files(space_id);
-
-	if (recv_recovery_is_on()) {
-		const auto&	end = recv_sys->deleted.end();
-		const auto&	it = recv_sys->deleted.find(space_id);
-
-		if (result.second == nullptr) {
-
-			/* If it wasn't deleted after finding it on disk then
-			we tag it as missing. */
-
-			if (it == end) {
-
-				recv_sys->missing_ids.insert(space_id);
-			}
-
-			return(false);
-		}
-
-		/* Check that it wasn't deleted. */
-
-		return(it == end);
-	}
-
-	return(result.second != nullptr);
-}
-
-/** Lookup the tablespace ID.
-@param[in]	space_id		Tablespace ID to lookup
-@return true if the space ID is known. */
-bool
-fil_tablespace_lookup_for_recovery(space_id_t space_id)
-{
-	return(fil_system->lookup_for_recovery(space_id));
-}
-
-/** Open a tablespace that has a redo/DDL log record to apply.
-@param[in]	space_id		Tablespace ID
-@return true if the open was successful */
-bool
-Fil_system::open_for_recovery(space_id_t space_id)
-{
-	ut_ad(recv_recovery_is_on() || Log_DDL::is_in_recovery());
-
-	if (!lookup_for_recovery(space_id)) {
-		return(false);
-	}
-
-	const auto	result = get_scanned_files(space_id);
-
-	/* Duplicates should have been sorted out before start of recovery. */
-	ut_a(result.second->size() == 1);
-
-	const auto&		filename = result.second->front();
-	const std::string	path = result.first + filename;
-
-	fil_space_t*	space;
-
-	auto	status = ibd_open_for_recovery(space_id, path, space);
-
-	if (status == FIL_LOAD_OK) {
-
-		/* For encrypted tablespace, set key and iv. */
-		if (FSP_FLAGS_GET_ENCRYPTION(space->flags)
-		    && recv_sys->keys!= nullptr) {
-
-			fil_tablespace_encryption_init(space);
-		}
-
-		if (!recv_sys->dblwr.deferred.empty()) {
-			buf_dblwr_recover_pages(space);
-		}
-
-		return(true);
-	}
-
-	return(false);
-}
-
-/** Open a tablespace that has a redo log record to apply.
-@param[in]	space_id		Tablespace ID
-@return true if the open was successful */
-bool
-fil_tablespace_open_for_recovery(space_id_t space_id)
-{
-	return(fil_system->open_for_recovery(space_id));
-}
-
 /** Update the DD if any files were moved to a new location.
 Free the Tablespace_files instance.
 @param[in]	read_only_mode	true if InnoDB is started in read only mode.
@@ -10157,6 +10058,103 @@ fil_op_replay_rename_for_ddl(
 	}
 
 	return(fil_op_replay_rename(page_id, old_name, new_name));
+}
+
+/** Lookup the tablespace ID for recovery and DDL log apply.
+@param[in]	space_id		Tablespace ID to lookup
+@return true if the space ID is known. */
+bool
+Fil_system::lookup_for_recovery(space_id_t space_id)
+{
+	ut_ad(recv_recovery_is_on() || Log_DDL::is_in_recovery());
+
+	/* Single threaded code, no need to acquire mutex. */
+	const auto	result = get_scanned_files(space_id);
+
+	if (recv_recovery_is_on()) {
+		const auto&	end = recv_sys->deleted.end();
+		const auto&	it = recv_sys->deleted.find(space_id);
+
+		if (result.second == nullptr) {
+
+			/* If it wasn't deleted after finding it on disk then
+			we tag it as missing. */
+
+			if (it == end) {
+
+				recv_sys->missing_ids.insert(space_id);
+			}
+
+			return(false);
+		}
+
+		/* Check that it wasn't deleted. */
+
+		return(it == end);
+	}
+
+	return(result.second != nullptr);
+}
+
+/** Lookup the tablespace ID.
+@param[in]	space_id		Tablespace ID to lookup
+@return true if the space ID is known. */
+bool
+fil_tablespace_lookup_for_recovery(space_id_t space_id)
+{
+	return(fil_system->lookup_for_recovery(space_id));
+}
+
+/** Open a tablespace that has a redo/DDL log record to apply.
+@param[in]	space_id		Tablespace ID
+@return true if the open was successful */
+bool
+Fil_system::open_for_recovery(space_id_t space_id)
+{
+	ut_ad(recv_recovery_is_on() || Log_DDL::is_in_recovery());
+
+	if (!lookup_for_recovery(space_id)) {
+		return(false);
+	}
+
+	const auto	result = get_scanned_files(space_id);
+
+	/* Duplicates should have been sorted out before start of recovery. */
+	ut_a(result.second->size() == 1);
+
+	const auto&		filename = result.second->front();
+	const std::string	path = result.first + filename;
+
+	fil_space_t*	space;
+
+	auto	status = ibd_open_for_recovery(space_id, path, space);
+
+	if (status == FIL_LOAD_OK) {
+
+		/* For encrypted tablespace, set key and iv. */
+		if (FSP_FLAGS_GET_ENCRYPTION(space->flags)
+		    && recv_sys->keys!= nullptr) {
+
+			fil_tablespace_encryption_init(space);
+		}
+
+		if (!recv_sys->dblwr.deferred.empty()) {
+			buf_dblwr_recover_pages(space);
+		}
+
+		return(true);
+	}
+
+	return(false);
+}
+
+/** Open a tablespace that has a redo log record to apply.
+@param[in]	space_id		Tablespace ID
+@return true if the open was successful */
+bool
+fil_tablespace_open_for_recovery(space_id_t space_id)
+{
+	return(fil_system->open_for_recovery(space_id));
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -10439,10 +10437,10 @@ fil_tablespace_redo_create(
 	}
 
 #ifdef UNIV_HOTBACKUP
+
 	meb_tablespace_redo_create(page_id, flags, name);
 
-	return(ptr);
-#endif /* UNIV_HOTBACKUP */
+#else /* !UNIV_HOTBACKUP */
 
 	const auto	result = fil_system->get_scanned_files(page_id.space());
 
@@ -10469,6 +10467,7 @@ fil_tablespace_redo_create(
 			ib::info() << "Create '" << abs_name << "' failed!";
 		}
 	}
+#endif /* UNIV_HOTBACKUP */
 
 	return(ptr);
 }
@@ -10575,10 +10574,10 @@ fil_tablespace_redo_rename(
 	Fil_path::normalize(to_name);
 
 #ifdef UNIV_HOTBACKUP
+
 	meb_tablespace_redo_rename(page_id, from_name, to_name);
 
-	return(ptr);
-#endif /* UNIV_HOTBACKUP */
+#else /* !UNIV_HOTBACKUP */
 
 	auto	abs_to_name = Fil_path::get_real_path(to_name);
 
@@ -10606,6 +10605,7 @@ fil_tablespace_redo_rename(
 
 		return(nullptr);
 	}
+#endif /* UNIV_HOTBACKUP */
 
 	return(ptr);
 }
@@ -10673,10 +10673,10 @@ fil_tablespace_redo_delete(
 	}
 
 #ifdef UNIV_HOTBACKUP
+
 	meb_tablespace_redo_delete(page_id, name);
 
-	return(ptr);
-#endif /* UNIV_HOTBACKUP */
+#else /* !UNIV_HOTBACKUP */
 
 	const auto	result = fil_system->get_scanned_files(page_id.space());
 
@@ -10704,6 +10704,7 @@ fil_tablespace_redo_delete(
 
 	bool	success = fil_system->erase(page_id.space());
 	ut_a(success);
+#endif /* UNIV_HOTBACKUP */
 
 	return(ptr);
 }
