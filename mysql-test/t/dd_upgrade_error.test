@@ -26,7 +26,7 @@ let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57;
 --exec echo $MYSQL_TMP_DIR/bootstrap.log
 
 --echo # Copy mismatch .frms to test_mismatch dir
---copy_files_wildcard $MYSQL_TMP_DIR/data57/mismatch_frms/ $MYSQL_TMP_DIR/data57/test_mismatch/
+--copy_files_wildcard $MYSQL_TMP_DIR/data57/mismatch_frms/ $MYSQL_TMP_DIR/data57/test_mismatch/ *
 
 --echo # Starting the DB server will fail since the data dir contains
 --echo # tables with non native partitioning.

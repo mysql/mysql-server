@@ -2247,10 +2247,14 @@ remove_file non_existing_file;
 --exec echo "remove_files_wildcard ;" | $MYSQL_TEST 2>&1
 
 --error 1
-remove_files_wildcard non_existing_dir;
+remove_files_wildcard non_existing_dir *;
 
 --error 1
 remove_files_wildcard non_existing_dir non_existing_file;
+
+# Pattern is a mandatory argument
+--error 1
+--exec echo "remove_files_wildcard $MYSQLTEST_VARDIR/tmp/ ;" | $MYSQL_TEST 2>&1
 
 # ----------------------------------------------------------------------------
 # test for write_file
@@ -2932,7 +2936,7 @@ list_files_write_file $MYSQLTEST_VARDIR/tmp/testdir/dir-list.txt $MYSQLTEST_VARD
 cat_file $MYSQLTEST_VARDIR/tmp/testdir/dir-list.txt;
 remove_files_wildcard $MYSQLTEST_VARDIR/tmp/testdir file*.txt;
 list_files $MYSQLTEST_VARDIR/tmp/testdir;
-remove_files_wildcard $MYSQLTEST_VARDIR/tmp/testdir;
+remove_files_wildcard $MYSQLTEST_VARDIR/tmp/testdir *;
 list_files $MYSQLTEST_VARDIR/tmp/testdir;
 rmdir $MYSQLTEST_VARDIR/tmp/testdir;
 
@@ -3262,8 +3266,8 @@ connection default;
 --copy_files_wildcard $MYSQLTEST_VARDIR/std_data/ $MYSQLTEST_VARDIR/copy1/ *.txt
 --list_files $MYSQLTEST_VARDIR/copy1/
 
-# Copy all the files from the directory if no pattern is provided
---copy_files_wildcard $MYSQLTEST_VARDIR/copy1/ $MYSQLTEST_VARDIR/copy2/
+# Copy all the files from the directory by specifying *
+--copy_files_wildcard $MYSQLTEST_VARDIR/copy1/ $MYSQLTEST_VARDIR/copy2/ *
 --list_files $MYSQLTEST_VARDIR/copy2/
 
 # Overwriting of files is allowed
@@ -3275,19 +3279,23 @@ connection default;
 
 # Source directory does not exist
 --error 1
---copy_files_wildcard $MYSQLTEST_VARDIR/abc/ $MYSQLTEST_VARDIR/copy1/
+--copy_files_wildcard $MYSQLTEST_VARDIR/abc/ $MYSQLTEST_VARDIR/copy1/ *
 
---remove_files_wildcard $MYSQLTEST_VARDIR/copy2/
+--remove_files_wildcard $MYSQLTEST_VARDIR/copy2/ *
 # Source directory does not have any files in it
 --error 1
---copy_files_wildcard $MYSQLTEST_VARDIR/copy2/ $MYSQLTEST_VARDIR/copy1/
+--copy_files_wildcard $MYSQLTEST_VARDIR/copy2/ $MYSQLTEST_VARDIR/copy1/ *
 
---remove_files_wildcard $MYSQLTEST_VARDIR/copy1/
+--remove_files_wildcard $MYSQLTEST_VARDIR/copy1/ *
 --rmdir $MYSQLTEST_VARDIR/copy1/
 
 # Destination directory does not exist
 --error 1
 --copy_files_wildcard $MYSQLTEST_VARDIR/std_data/ $MYSQLTEST_VARDIR/copy1/ *
+
+# Pattern is a mandatory argument
+--error 1
+--exec echo "copy_files_wildcard $MYSQLTEST_VARDIR/std_data/ $MYSQLTEST_VARDIR/copy2/ ;" | $MYSQL_TEST 2>&1
 
 --rmdir $MYSQLTEST_VARDIR/copy2/
 
@@ -3983,3 +3991,114 @@ EOF
 --replace_result $replace_string REPLACE_STRING tab1 t1
 --error 1
 --exec echo "SELECT $replace_string FROM tab1;" | $MYSQL_TEST  2>&1
+
+--echo #
+--echo # Bug#24671890: ENHANCE THE METHOD REMOVE_FILE IN MTR
+--echo #
+
+--echo # Test the retry argument for copy_file
+
+--write_file $MYSQLTEST_VARDIR/tmp/24671890.txt
+bug fixes in MTR
+EOF
+--copy_file $MYSQLTEST_VARDIR/tmp/24671890.txt $MYSQLTEST_VARDIR/tmp/24671890_2.txt 1
+
+# Test invalid values of retry
+--write_file $MYSQLTEST_VARDIR/tmp/invalid.txt
+Test invalid values of retry parameter
+EOF
+
+--error 1
+--exec echo "copy_file $MYSQLTEST_VARDIR/tmp/invalid.txt $MYSQLTEST_VARDIR/tmp/invalidated.txt 5abc;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "copy_file $MYSQLTEST_VARDIR/tmp/invalid.txt $MYSQLTEST_VARDIR/tmp/invalidated.txt -5;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "copy_file $MYSQLTEST_VARDIR/tmp/invalid.txt $MYSQLTEST_VARDIR/tmp/invalidated.txt ?;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "copy_file $MYSQLTEST_VARDIR/tmp/invalid.txt $MYSQLTEST_VARDIR/tmp/invalidated.txt abcd;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "copy_file $MYSQLTEST_VARDIR/tmp/invalid.txt $MYSQLTEST_VARDIR/tmp/invalidated.txt 2147483648;" | $MYSQL_TEST 2>&1
+
+
+--echo # Test the retry argument for copy_files_wildcard
+
+--mkdir $MYSQLTEST_VARDIR/tmp/tmp1
+--copy_files_wildcard $MYSQLTEST_VARDIR/tmp/ $MYSQLTEST_VARDIR/tmp/tmp1 246* 1
+
+# Test invalid values of retry
+--error 1
+--exec echo "copy_files_wildcard $MYSQLTEST_VARDIR/tmp/ $MYSQLTEST_VARDIR/tmp/tmp1 in* 1oo1;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "copy_files_wildcard $MYSQLTEST_VARDIR/tmp/ $MYSQLTEST_VARDIR/tmp/tmp1 in* abcd;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "copy_files_wildcard $MYSQLTEST_VARDIR/tmp/ $MYSQLTEST_VARDIR/tmp/tmp1 in* :;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "copy_files_wildcard $MYSQLTEST_VARDIR/tmp/ $MYSQLTEST_VARDIR/tmp/tmp1 in* -12;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "copy_files_wildcard $MYSQLTEST_VARDIR/tmp/ $MYSQLTEST_VARDIR/tmp/tmp1 in* 2147483648000;" | $MYSQL_TEST 2>&1
+
+--echo # Test the retry argument for move_file command
+
+--move_file $MYSQLTEST_VARDIR/tmp/24671890.txt $MYSQLTEST_VARDIR/tmp/tmp1/24671890_3.txt 1
+
+# Test invalid values of retry
+--error 1
+--exec echo "move_file $MYSQLTEST_VARDIR/tmp/invalid.txt $MYSQLTEST_VARDIR/tmp/invalidated.txt 11a;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "move_file $MYSQLTEST_VARDIR/tmp/invalid.txt $MYSQLTEST_VARDIR/tmp/invalidated.txt aabb;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "move_file $MYSQLTEST_VARDIR/tmp/invalid.txt $MYSQLTEST_VARDIR/tmp/invalidated.txt -1;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "move_file $MYSQLTEST_VARDIR/tmp/invalid.txt $MYSQLTEST_VARDIR/tmp/invalidated.txt ??;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "move_file $MYSQLTEST_VARDIR/tmp/invalid.txt $MYSQLTEST_VARDIR/tmp/invalidated.txt 21474836489;" | $MYSQL_TEST 2>&1
+
+--echo # Test the retry argument for file_exists command
+
+--file_exists $MYSQLTEST_VARDIR/tmp/tmp1/24671890_3.txt 1
+
+# Test invalid values of retry
+--error 1
+--exec echo "file_exists $MYSQLTEST_VARDIR/tmp/invalid.txt a10a;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "file_exists $MYSQLTEST_VARDIR/tmp/invalid.txt ghghg;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "file_exists $MYSQLTEST_VARDIR/tmp/invalid.txt -5;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "file_exists $MYSQLTEST_VARDIR/tmp/invalid.txt !;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "file_exists $MYSQLTEST_VARDIR/tmp/invalid.txt 21474836487;" | $MYSQL_TEST 2>&1
+
+--echo # Test the retry argument for remove_files_wildcard command
+
+--remove_files_wildcard $MYSQLTEST_VARDIR/tmp/tmp1/ 246* 1
+
+# Test invalid values of retry
+--error 1
+--exec echo "remove_files_wildcard $MYSQLTEST_VARDIR/tmp/ in* blah;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "remove_files_wildcard $MYSQLTEST_VARDIR/tmp/ in* -8;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "remove_files_wildcard $MYSQLTEST_VARDIR/tmp/ in* oo7;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "remove_files_wildcard $MYSQLTEST_VARDIR/tmp/ in* ?1;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "remove_files_wildcard $MYSQLTEST_VARDIR/tmp/ * 21474836480;" | $MYSQL_TEST 2>&1
+
+--echo # Test invalid values of retry for remove_file command
+
+--error 1
+--exec echo "remove_file  $MYSQLTEST_VARDIR/tmp/invalid.txt xyz;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "remove_file $MYSQLTEST_VARDIR/tmp/invalid.txt -10;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "remove_file $MYSQLTEST_VARDIR/tmp/invalid.txt ll11;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "remove_file $MYSQLTEST_VARDIR/tmp/invalid.txt ?1?;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "remove_file $MYSQLTEST_VARDIR/tmp/invalid.txt 2147483648;" | $MYSQL_TEST 2>&1
+
+# Clean up
+--rmdir $MYSQLTEST_VARDIR/tmp/tmp1/
+--remove_file $MYSQLTEST_VARDIR/tmp/invalid.txt
+--remove_file $MYSQLTEST_VARDIR/tmp/24671890_2.txt

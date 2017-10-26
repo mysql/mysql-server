@@ -37,6 +37,6 @@ SELECT * FROM t1 ORDER BY i;
 DROP TABLE t1;
 
 --echo # Clean \$EXPORT_DIR
---remove_files_wildcard $EXPORT_DIR
+--remove_files_wildcard $EXPORT_DIR *
 --echo # Remove \$EXPORT_DIR
 --force-rmdir $EXPORT_DIR

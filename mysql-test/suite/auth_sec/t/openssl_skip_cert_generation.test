@@ -21,13 +21,7 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --shutdown_server
 --source include/wait_until_disconnected.inc
 
-perl;
-my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/mysqld.1.err";
-while (-e $filetodelete) {
-  unlink $filetodelete;
-  sleep 1;
-}
-EOF
+--remove_file $server_log 10
 
 --remove_file $MYSQLTEST_VARDIR/mysqld.1/data/ca.pem
 
@@ -45,13 +39,7 @@ let SEARCH_PATTERN= Skipping generation of SSL certificates as certificate files
 --shutdown_server
 --source include/wait_until_disconnected.inc
 
-perl;
-my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/mysqld.1.err";
-while (-e $filetodelete) {
-  unlink $filetodelete;
-  sleep 1;
-}
-EOF
+--remove_file $server_log 10
 
 --remove_file $MYSQLTEST_VARDIR/mysqld.1/data/ca-key.pem
 --remove_file $MYSQLTEST_VARDIR/mysqld.1/data/server-cert.pem

@@ -14,13 +14,7 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --shutdown_server
 --source include/wait_until_disconnected.inc
 
-perl;
-my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/mysqld.1.err";
-while (-e $filetodelete) {
-  unlink $filetodelete;
-  sleep 1;
-}
-EOF
+--remove_file $server_log 10
 
 --exec echo "restart: --secure-file-priv=$MYSQLTEST_VARDIR/mysqld.1/Data" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect

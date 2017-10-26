@@ -14,7 +14,7 @@ create table t1 (a INT, b INT, c BLOB, PRIMARY KEY (a,b), d TEXT) CHARSET=latin1
 ALTER TABLE t1 DISCARD TABLESPACE;
 
 --echo # copy 5.7 .ibd and .cfg
---copy_files_wildcard $MYSQL_TMP_DIR/57import/ $MYSQLD_DATADIR/test/
+--copy_files_wildcard $MYSQL_TMP_DIR/57import/ $MYSQLD_DATADIR/test/ *
 
 ALTER TABLE t1 IMPORT TABLESPACE;
 

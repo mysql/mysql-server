@@ -20,13 +20,8 @@ call mtr.add_suppression("Failed to set up SSL because of");
 # We let our server restart attempts write to the file $error_log.
 let $error_log= $MYSQLTEST_VARDIR/log/my_restart.err;
 
-perl;
-my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/my_restart.err";
-while (-e $filetodelete) {
-  unlink $filetodelete;
-  sleep 1;
-}
-EOF
+--error 0,1
+--remove_file $error_log
 
 let $MYSQLD_DATADIR= `SELECT @@datadir`;
 let $MYSQL_SOCKET= `SELECT @@socket`;
