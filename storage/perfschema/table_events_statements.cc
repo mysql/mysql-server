@@ -26,6 +26,7 @@
 #include "my_dbug.h"
 #include "my_thread.h"
 #include "sql/plugin_table.h"
+#include "sql/table.h"
 #include "sql/sp_head.h" /* TYPE_ENUM_FUNCTION, ... */
 #include "storage/perfschema/pfs_buffer_container.h"
 #include "storage/perfschema/pfs_events_statements.h"

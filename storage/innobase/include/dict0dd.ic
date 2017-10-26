@@ -29,6 +29,7 @@ Created  10/2016 Jimmy Yamg
 #include "sql_base.h"
 #include "field.h"
 #include "dict0priv.h"
+#include "sql/table.h"
 
 /** Get the explicit dd::Tablespace::id of a partition.
 @param[in]	partition	partition or subpartition

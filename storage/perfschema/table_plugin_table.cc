@@ -21,6 +21,7 @@
 #include "storage/perfschema/table_plugin_table.h"
 #include "storage/perfschema/pfs_plugin_table.h"
 #include "sql/field.h"
+#include "sql/table.h"
 
 int
 PFS_plugin_table_index::init(PSI_table_handle *plugin_table,

@@ -18,6 +18,7 @@
 
 #include <gtest/gtest.h>
 
+#include "sql/sql_class.h"
 #include "unittest/gunit/fake_table.h"
 #include "unittest/gunit/mock_field_timestamp.h"
 #include "unittest/gunit/test_utils.h"

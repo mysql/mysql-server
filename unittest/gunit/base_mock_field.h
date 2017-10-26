@@ -23,6 +23,7 @@
 
 #include "sql/json_dom.h"
 #include "sql/field.h"
+#include "sql/table.h"
 
 /**
   Base mocks for Field_*. Create subclasses mocking additional virtual

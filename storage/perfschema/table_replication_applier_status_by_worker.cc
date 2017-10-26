@@ -35,6 +35,7 @@
 #include "sql/rpl_rli_pdb.h"
 #include "sql/rpl_slave.h"
 #include "sql/sql_parse.h"
+#include "sql/table.h"
 #include "storage/perfschema/pfs_instr.h"
 #include "storage/perfschema/pfs_instr_class.h"
 

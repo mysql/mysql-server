@@ -24,6 +24,7 @@
 #include "sql/json_dom.h"
 #include "sql/json_path.h"
 #include "sql/my_decimal.h"
+#include "sql/sql_class.h"
 #include "sql/sql_time.h"
 #include "sql_string.h"
 #include "template_utils.h"     // down_cast

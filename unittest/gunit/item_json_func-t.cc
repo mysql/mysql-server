@@ -19,6 +19,7 @@
 #include "sql/item_json_func.h"
 #include "sql/json_diff.h"
 #include "sql/json_dom.h"
+#include "sql/sql_class.h"
 #include "sql/sql_list.h"
 #include "unittest/gunit/base_mock_field.h"
 #include "unittest/gunit/benchmark.h"
