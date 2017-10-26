@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -455,7 +455,7 @@ int runTestMgmApiEventTimeout(NDBT_Context* ctx, NDBT_Step* step)
     ndb_native_socket_t fd= ndb_mgm_listen_event(h, filter);
     ndb_socket_t my_fd = ndb_socket_create_from_native(fd);
 
-    if(!my_socket_valid(my_fd))
+    if(!ndb_socket_valid(my_fd))
     {
       ndbout << "FAILED: could not listen to event" << endl;
       result= NDBT_FAILED;

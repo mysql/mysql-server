@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -106,7 +106,7 @@ void ndb_mgm_destroy_logevent_handle(NdbLogEventHandle * h)
     return;
 
   if ( *h )
-    my_socket_close((*h)->socket);
+    ndb_socket_close((*h)->socket);
 
   free(*h);
   * h = 0;

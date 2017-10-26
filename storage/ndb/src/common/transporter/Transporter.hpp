@@ -30,7 +30,7 @@
 #include <NdbMutex.h>
 #include <NdbThread.h>
 
-#include <ndb_socket.h>
+#include "ndb_socket.h"
 
 class Transporter {
   friend class TransporterRegistry;

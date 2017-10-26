@@ -5491,7 +5491,7 @@ int runGetLogEventPretty(NDBT_Context* ctx, NDBT_Step* step)
   ndb_native_socket_t fd= ndb_mgm_listen_event(mgmd.handle(), filter);
   ndb_socket_t my_fd = ndb_socket_create_from_native(fd);
 
-  if(!my_socket_valid(my_fd))
+  if(!ndb_socket_valid(my_fd))
   {
     ndbout << "FAILED: could not listen to event" << endl;
     return NDBT_FAILED;

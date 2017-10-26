@@ -265,7 +265,7 @@ MgmtSrvr::MgmtSrvr(const MgmtOpts& opts) :
   /* Setup clusterlog as client[0] in m_event_listner */
   {
     Ndb_mgmd_event_service::Event_listener se;
-    my_socket_invalidate(&(se.m_socket));
+    ndb_socket_invalidate(&(se.m_socket));
     for(size_t t = 0; t<LogLevel::LOGLEVEL_CATEGORIES; t++){
       se.m_logLevel.setLogLevel((LogLevel::EventCategory)t, 7);
     }
