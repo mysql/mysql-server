@@ -1165,6 +1165,18 @@ private:
 	/** Flushes to disk possible writes cached by the OS. */
 	void redo_space_flush();
 
+	/** First we open the file in the normal mode, no async I/O here, for
+	simplicity. Then do some checks, and close the file again.  NOTE that we
+	could not use the simple file read function os_file_read() in Windows
+	to read from a file opened for async I/O!
+	@param[in,out]	file		Get the size of this file
+	@param[in]	read_only_mode	true if read only mode set
+	@return DB_SUCCESS or error */
+	dberr_t get_file_size(
+		fil_node_t*	file,
+		bool		read_only_mode)
+		MY_ATTRIBUTE((warn_unused_result));
+
 	/** Get the AIO mode.
 	@param[in]	req_type	IO request type
 	@param[in]	sync		true if Synchronous IO
@@ -2492,8 +2504,222 @@ fil_node_create(
 	return(file == nullptr ? nullptr : file->name);
 }
 
+/** First we open the file in the normal mode, no async I/O here, for
+simplicity. Then do some checks, and close the file again.  NOTE that we
+could not use the simple file read function os_file_read() in Windows
+to read from a file opened for async I/O!
+@param[in,out]	file		Get the size of this file
+@param[in]	read_only_mode	true if read only mode set
+@return DB_SUCCESS or error */
+dberr_t
+Fil_shard::get_file_size(
+	fil_node_t*	file,
+	bool		read_only_mode)
+{
+	bool		success;
+	fil_space_t*	space = file->space;
+
+	do {
+		ut_a(!file->is_open);
+
+		file->handle = os_file_create_simple_no_error_handling(
+			innodb_data_file_key, file->name, OS_FILE_OPEN,
+			OS_FILE_READ_ONLY, read_only_mode, &success);
+
+		if (!success) {
+
+			/* The following call prints an error message */
+			ulint	err = os_file_get_last_error(true);
+
+			if (err == EMFILE + 100) {
+
+				if (close_files_in_LRU(true)) {
+
+					continue;
+				}
+			}
+
+			ib::warn()
+				<< "Cannot open '" << file->name << "'."
+				" Have you deleted .ibd files under a"
+				" running mysqld server?";
+
+			return(DB_ERROR);
+		}
+
+	} while (!success);
+
+	os_offset_t	size_bytes = os_file_get_size(file->handle);
+
+	ut_a(size_bytes != (os_offset_t) -1);
+
+#ifdef UNIV_HOTBACKUP
+	if (space->id == TRX_SYS_SPACE) {
+		file->size = (ulint) (size_bytes / UNIV_PAGE_SIZE);
+		space->size += file->size;
+		os_file_close(file->handle);
+		return(DB_SUCCESS);
+	}
+#endif /* UNIV_HOTBACKUP */
+
+	/* Convert to size in pages. */
+	file->size = (ulint) (size_bytes / UNIV_PAGE_SIZE);
+
+	ut_a(space->purpose != FIL_TYPE_LOG);
+
+	/* Read the first page of the tablespace */
+
+	byte*	buf2 = static_cast<byte*>(ut_malloc_nokey(2 * UNIV_PAGE_SIZE));
+
+	/* Align memory for file I/O if we might have O_DIRECT set */
+
+	byte*	page = static_cast<byte*>(ut_align(buf2, UNIV_PAGE_SIZE));
+
+	ut_ad(page == page_align(page));
+
+	IORequest	request(IORequest::READ);
+
+	success = os_file_read(request, file->handle, page, 0, UNIV_PAGE_SIZE);
+	ut_ad(success);
+
+	ulint		flags = fsp_header_get_flags(page);
+	space_id_t	space_id = fsp_header_get_space_id(page);
+
+	/* Close the file now that we have read the space id from it */
+
+	os_file_close(file->handle);
+
+	const page_size_t	page_size(flags);
+
+	ulint	min_size = FIL_IBD_FILE_INITIAL_SIZE * page_size.physical();
+
+	if (size_bytes < min_size) {
+
+		ib::error()
+			<< "The size of tablespace file "
+			<< file->name << " is only "
+			<< size_bytes
+			<< ", should be at least "
+			<< min_size << "!";
+
+		ut_error;
+	}
+
+	if (space_id != space->id) {
+
+		ib::fatal()
+			<< "Tablespace id is " << space->id
+			<< " in the data dictionary but"
+			<< " in file " << file->name
+			<< " it is " << space_id << "!";
+	}
+
+	const page_size_t	space_page_size(space->flags);
+
+	if (!page_size.equals_to(space_page_size)) {
+
+		ib::fatal()
+			<< "Tablespace file " << file->name
+			<< " has page size " << page_size
+			<< " (flags=" << ib::hex(flags)
+			<< ") but the data dictionary expects"
+			<< " page size " << space_page_size
+			<< " (flags="
+			<< ib::hex(space->flags) << ")!";
+	}
+
+	/* TODO: Remove this adjustment and enable the below
+	assert after dict_tf_to_fsp_flags() removal. */
+	space->flags |= flags & FSP_FLAGS_MASK_SDI;
+	/* ut_ad(space->flags == flags); */
+
+	if (space->flags != flags) {
+
+		ib::fatal()
+			<< "Table flags are "
+			<< ib::hex(space->flags)
+			<< " in the data dictionary but the"
+			<< " flags in file " << file->name
+			<< " are " << ib::hex(flags) << "!";
+	}
+
+	{
+		page_no_t	size = fsp_header_get_field(page, FSP_SIZE);
+
+		page_no_t	free_limit;
+
+		free_limit = fsp_header_get_field(page, FSP_FREE_LIMIT);
+
+		ulint		free_len;
+
+		free_len = flst_get_len(FSP_HEADER_OFFSET + FSP_FREE + page);
+
+		ut_ad(space->free_limit == 0
+		      || space->free_limit == free_limit);
+
+		ut_ad(space->free_len == 0 || space->free_len == free_len);
+
+		space->size_in_header = size;
+		space->free_limit = free_limit;
+
+		ut_a(free_len < std::numeric_limits<uint32_t>::max());
+
+		space->free_len = (uint32_t) free_len;
+	}
+
+	ut_free(buf2);
+
+	/* For encrypted tablespace, we need to check the
+	encrytion key and iv(initial vector) is readed. */
+	if (FSP_FLAGS_GET_ENCRYPTION(flags)
+	    && !recv_recovery_is_on()
+	    && space->encryption_type != Encryption::AES) {
+
+		ib::error()
+			<< "Can't read encryption key from file "
+			<< file->name << "!";
+
+		return(DB_ERROR);
+
+	}
+
+	if (file->size == 0) {
+
+		ulint	extent_size;
+
+		extent_size = page_size.physical() * FSP_EXTENT_SIZE;
+
+#ifndef UNIV_HOTBACKUP
+		/* Truncate the size to a multiple of extent size. */
+		if (size_bytes >= extent_size) {
+
+			size_bytes = ut_2pow_round(size_bytes, extent_size);
+		}
+#else /* !UNIV_HOTBACKUP */
+
+		/* After apply-incremental, tablespaces are not
+		extended to a whole megabyte. Do not cut off
+		valid data. */
+
+#endif /* !UNIV_HOTBACKUP */
+
+		file->size = static_cast<page_no_t>(
+			size_bytes / page_size.physical());
+
+		space->size += file->size;
+
+	} else if (space->id != TRX_SYS_SPACE && space->size == 0) {
+
+		/* Only the TRX_SYS_SPACE has multiple files. */
+
+		space->size = file->size;
+	}
+
+	return(DB_SUCCESS);
+}
+
 /** Open a file of a tablespace.
-The caller must own the fil_system mutex.
+The caller must own the shard mutex.
 @param[in,out]	file		Tablespace file
 @param[in]	extend		true if the file is being extended
 @return false if the file can't be opened, otherwise true */
@@ -2543,228 +2769,12 @@ Fil_shard::open_file(fil_node_t* file, bool extend)
 #endif /* !UNIV_HOTBACKUP */
 		)) {
 
-		/* We do not know the size of the file yet. First we
-		open the file in the normal mode, no async I/O here,
-		for simplicity. Then do some checks, and close the
-		file again.  NOTE that we could not use the simple
-		file read function os_file_read() in Windows to read
-		from a file opened for async I/O! */
-
-		do {
-			ut_a(!file->is_open);
-
-			file->handle = os_file_create_simple_no_error_handling(
-				innodb_data_file_key, file->name, OS_FILE_OPEN,
-				OS_FILE_READ_ONLY, read_only_mode, &success);
-
-			if (!success) {
-
-				/* The following call prints an error message */
-				ulint	err = os_file_get_last_error(true);
-
-				if (err == EMFILE + 100) {
-
-					if (close_files_in_LRU(true)) {
-
-						continue;
-					}
-				}
-
-				ib::warn()
-					<< "Cannot open '" << file->name << "'."
-					" Have you deleted .ibd files under a"
-					" running mysqld server?";
-
-				return(false);
-			}
-
-		} while (!success);
-
-		os_offset_t	size_bytes;
-
-		size_bytes = os_file_get_size(file->handle);
-
-		ut_a(size_bytes != (os_offset_t) -1);
-
-		if (space->id != TRX_SYS_SPACE) {
-
-			file->size = (ulint) (size_bytes / UNIV_PAGE_SIZE);
-
-			os_file_close(file->handle);
-
-			ut_a(space->purpose != FIL_TYPE_LOG);
-
-			/* Read the first page of the tablespace */
-
-			byte*	buf2;
-
-			buf2 = static_cast<byte*>(
-				ut_malloc_nokey(2 * UNIV_PAGE_SIZE));
-
-			/* Align memory for file I/O if we might
-			have O_DIRECT set */
-
-			byte*	page;
-
-			page = static_cast<byte*>(
-				ut_align(buf2, UNIV_PAGE_SIZE));
-
-			ut_ad(page == page_align(page));
-
-			IORequest	request(IORequest::READ);
-
-			success = os_file_read(
-				request, file->handle, page, 0, UNIV_PAGE_SIZE);
-
-			space_id_t	space_id;
-			ulint		flags = fsp_header_get_flags(page);
-
-			space_id = fsp_header_get_space_id(page);
-
-			/* Close the file now that we have read the space
-			id from it */
-
-			os_file_close(file->handle);
-
-			const page_size_t	page_size(flags);
-
-			ulint	min_size;
-
-			min_size = FIL_IBD_FILE_INITIAL_SIZE
-				* page_size.physical();
-
-			if (size_bytes < min_size) {
-
-				ib::error()
-					<< "The size of tablespace file "
-					<< file->name << " is only "
-					<< size_bytes
-					<< ", should be at least "
-					<< min_size << "!";
-
-				ut_error;
-			}
-
-			if (space_id != space->id) {
-
-				ib::fatal()
-					<< "Tablespace id is " << space->id
-					<< " in the data dictionary but"
-					<< " in file " << file->name
-					<< " it is " << space_id << "!";
-			}
-
-			const page_size_t	space_page_size(space->flags);
-
-			if (!page_size.equals_to(space_page_size)) {
-
-				ib::fatal()
-					<< "Tablespace file " << file->name
-					<< " has page size " << page_size
-					<< " (flags=" << ib::hex(flags)
-					<< ") but the data dictionary expects"
-					<< " page size " << space_page_size
-					<< " (flags="
-					<< ib::hex(space->flags) << ")!";
-			}
-
-			/* TODO: Remove this adjustment and enable the below
-			assert after dict_tf_to_fsp_flags() removal. */
-			space->flags |= flags & FSP_FLAGS_MASK_SDI;
-			/* ut_ad(space->flags == flags); */
-
-			if (space->flags != flags) {
-
-				ib::fatal()
-					<< "Table flags are "
-					<< ib::hex(space->flags)
-					<< " in the data dictionary but the"
-					<< " flags in file " << file->name
-					<< " are " << ib::hex(flags) << "!";
-			}
-
-			{
-				page_no_t	size;
-
-				size = fsp_header_get_field(page, FSP_SIZE);
-
-				page_no_t	free_limit;
-
-				free_limit = fsp_header_get_field(
-					page, FSP_FREE_LIMIT);
-
-				ulint		free_len;
-
-				free_len = flst_get_len(
-					FSP_HEADER_OFFSET + FSP_FREE + page);
-
-				ut_ad(space->free_limit == 0
-				      || space->free_limit == free_limit);
-
-				ut_ad(space->free_len == 0
-				      || space->free_len == free_len);
-
-				space->size_in_header = size;
-				space->free_limit = free_limit;
-
-				ut_a(free_len
-				     < std::numeric_limits<uint32_t>::max());
-
-				space->free_len = (uint32_t) free_len;
-			}
-
-			ut_free(buf2);
-
-			/* For encrypted tablespace, we need to check the
-			encrytion key and iv(initial vector) is readed. */
-			if (FSP_FLAGS_GET_ENCRYPTION(flags)
-			    && !recv_recovery_is_on()) {
-
-				if (space->encryption_type != Encryption::AES) {
-
-					ib::error()
-						<< "Can't read encryption"
-						<< " key from file "
-						<< file->name << "!";
-
-					return(false);
-				}
-			}
-
-			if (file->size == 0) {
-
-				ulint	extent_size;
-
-				extent_size = page_size.physical()
-					* FSP_EXTENT_SIZE;
-
-#ifndef UNIV_HOTBACKUP
-				/* Truncate the size to a multiple of
-				extent size. */
-				if (size_bytes >= extent_size) {
-
-					size_bytes = ut_2pow_round(
-						size_bytes, extent_size);
-				}
-#else /* !UNIV_HOTBACKUP */
-
-				/* After apply-incremental, tablespaces are not
-				extended to a whole megabyte. Do not cut off
-				valid data. */
-#endif /* !UNIV_HOTBACKUP */
-
-				file->size = static_cast<page_no_t>(
-					(size_bytes / page_size.physical()));
-
-				space->size += file->size;
-			}
+		/* We don't know the file size yet. */
+		dberr_t	err = get_file_size(file, read_only_mode);
+
+		if (err != DB_SUCCESS) {
+			return(false);
 		}
-#ifdef UNIV_HOTBACKUP
-		else {
-			space->size += file->size;
-		}
-#endif /* UNIV_HOTBACKUP */
-
 	}
 
 	/* Open the file for reading and writing, in Windows normally in the
@@ -5779,8 +5789,11 @@ fil_ibd_create(
 	success = os_file_flush(file);
 
 	if (!success) {
-		ib::error() << "File flush of tablespace '"
+
+		ib::error()
+			<< "File flush of tablespace '"
 			<< path << "' failed";
+
 		os_file_close(file);
 		os_file_delete(innodb_data_file_key, path);
 		return(DB_ERROR);
@@ -6310,7 +6323,7 @@ Fil_shard::ibd_open_for_recovery(
 
 	/* We do not use the size information we have about the file, because
 	the rounding formula for extents and pages is somewhat complex; we
-	let fil_node_open() do that task. */
+	let fil_node_create() do that task. */
 
 	const fil_node_t*	file;
 
@@ -11531,7 +11544,7 @@ fil_check_extend_space(fil_node_t* file)
 			<< " pages to " << space->size_in_header
 			<< " pages as stored in space header.";
 
-		if(!shard->space_extend(space, space->size_in_header)) {
+		if (!shard->space_extend(space, space->size_in_header)) {
 
 			ib::error()
 				<< "Failed to extend tablespace."
@@ -11585,7 +11598,7 @@ and old name are same, no update done.
 void
 fil_space_update_name(fil_space_t* space, const char* name)
 {
-	if (space == nullptr 
+	if (space == nullptr
 	    || name == nullptr
 	    || space->name == nullptr
 	    || strcmp(space->name, name) == 0) {

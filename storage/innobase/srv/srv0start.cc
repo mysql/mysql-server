@@ -434,9 +434,10 @@ create_log_files(
 
 		sprintf(logfilename + dirnamelen, "ib_logfile%u", i);
 
-		if (!fil_node_create(logfilename,
-				     static_cast<page_no_t>(srv_log_file_size),
-				     log_space, false, false)) {
+		if (fil_node_create(
+			logfilename,
+			static_cast<page_no_t>(srv_log_file_size),
+			log_space, false, false) == nullptr) {
 
 			ib::error()
 				<< "Cannot create file for log file "
@@ -882,8 +883,10 @@ srv_undo_tablespace_open(space_id_t space_id)
 		page_no_t	n_pages = static_cast<page_no_t>(
 			size / UNIV_PAGE_SIZE);
 
-		if (nullptr == fil_node_create(file_name, n_pages, space,
-					       false, atomic_write)) {
+		if (fil_node_create(
+			file_name, n_pages, space, false, atomic_write)
+			== nullptr) {
+
 			os_file_close(fh);
 
 			ib::error()
@@ -2280,10 +2283,11 @@ srv_start(bool create_new_db, const std::string& scan_directories)
 		for (unsigned j = 0; j < i; j++) {
 			sprintf(logfilename + dirnamelen, "ib_logfile%u", j);
 
-			if (!fil_node_create(
+			if (fil_node_create(
 				logfilename,
 				static_cast<page_no_t>(srv_log_file_size),
-				log_space, false, false)) {
+				log_space, false, false) == nullptr) {
+
 				return(srv_init_abort(DB_ERROR));
 			}
 		}
