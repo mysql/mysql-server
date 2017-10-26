@@ -140,6 +140,7 @@
 #include "sql_common.h"                        // end_server
 #include "sql_string.h"
 #include "typelib.h"
+#include "sql/sql_backup_lock.h"               // is_instance_backup_locked
 
 using std::min;
 using std::max;
@@ -9001,7 +9002,27 @@ static Log_event* next_event(Relay_log_info* rli)
       mysql_file_close(rli->cur_log_fd, MYF(MY_WME));
       rli->cur_log_fd = -1;
 
-      if (relay_log_purge)
+      Is_instance_backup_locked_result is_instance_locked;
+      is_instance_locked = is_instance_backup_locked(thd);
+
+      int i= 0;
+      while (is_instance_locked == Is_instance_backup_locked_result::OOM &&
+             i < MYSQL_BIN_LOG::MAX_RETRIES_BY_OOM)
+      {
+        /* Sleep 1 microsecond per try to avoid temporary 'out of memory' */
+        my_sleep(1);
+        is_instance_locked = is_instance_backup_locked(thd);
+        i++;
+      }
+
+      if (is_instance_locked == Is_instance_backup_locked_result::OOM)
+      {
+        errmsg = "OOM happened when checking if instance was locked for backup";
+        goto err;
+      }
+
+      if (relay_log_purge &&
+          is_instance_locked == Is_instance_backup_locked_result::NOT_LOCKED)
       {
         /*
           purge_first_log will properly set up relay log coordinates in rli.
