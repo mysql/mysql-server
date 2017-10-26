@@ -22,5 +22,3 @@ main.internal_tmp_disk_storage_engine : 2017-04-13 Allen Disabled it since it's 
 main.innodb_mysql_sync           : Bug#25887335 2017-04-13 Allen Disabled it since it's failing on pb2.
 
 # log_components_syslog    : WL#9343 2017-02-07 Tatiana provided for review/QA; should not be run routinely to prevent spamming the test host's log. may be removed later.
-
-file_contents            : Bug#26958920 MAIN.FILE_CONTENTS FAIL WHEN RUN WITH CLUSTER RPM
