@@ -716,6 +716,17 @@ int Persisted_variables_cache::read_persist_file()
         while (!ro_iter.empty())
         {
           const std::string key= ro_iter.elt().first;
+          if (ro_iter.elt().second.is_dom())
+          {
+            Json_dom *key_value_type= reinterpret_cast<Json_string* >
+              (ro_iter.elt().second.to_dom(NULL));
+            if (key_value_type &&
+              key_value_type->json_type() != enum_json_type::J_STRING)
+            {
+              LogErr(ERROR_LEVEL, ER_JSON_PARSE_ERROR);
+              return 1;
+            }
+          }
           const std::string key_value= ro_iter.elt().second.get_data();
           m_persist_ro_variables[key]= key_value;
           ro_iter.next();
@@ -724,6 +735,18 @@ int Persisted_variables_cache::read_persist_file()
     }
     else
     {
+      if (iter.elt().second.is_dom())
+      {
+        /* ensure that key value is string type */
+        Json_dom *key_value_type= reinterpret_cast<Json_string* >
+          (iter.elt().second.to_dom(NULL));
+        if (key_value_type &&
+          key_value_type->json_type() != enum_json_type::J_STRING)
+        {
+          LogErr(ERROR_LEVEL, ER_JSON_PARSE_ERROR);
+          return 1;
+        }
+      }
       const std::string key_value= iter.elt().second.get_data();
       st_persist_var persist_var(key, key_value);
       m_persist_variables.push_back(persist_var);
