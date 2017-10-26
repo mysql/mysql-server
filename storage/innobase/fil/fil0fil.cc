@@ -1504,7 +1504,7 @@ retry:
 
 		success = os_file_read(
 			request,
-			node->handle, page, 0, UNIV_PAGE_SIZE);
+			node->handle, page, 0, UNIV_ZIP_SIZE_MIN);
 
 		space_id = fsp_header_get_space_id(page);
 		flags = fsp_header_get_flags(page);
@@ -4290,6 +4290,8 @@ fil_ibd_create(
 	ut_a(size >= FIL_IBD_FILE_INITIAL_SIZE);
 	ut_a(fsp_flags_is_valid(flags));
 
+	const page_size_t	page_size(flags);
+
 	/* Create the subdirectories in the path, if they are
 	not there already. */
 	if (!has_shared_space) {
@@ -4342,7 +4344,7 @@ fil_ibd_create(
 	if (fil_fusionio_enable_atomic_write(file)) {
 
 		int     ret = posix_fallocate(
-				file.m_file, 0, size * UNIV_PAGE_SIZE);
+				file.m_file, 0, size * page_size.physical());
 
 		if (ret != 0) {
 
@@ -4350,7 +4352,7 @@ fil_ibd_create(
 				"posix_fallocate(): Failed to preallocate"
 				" data for file " << path
 				<< ", desired size "
-				<< size * UNIV_PAGE_SIZE
+				<< size * page_size.physical()
 				<< " Operating system error number " << ret
 				<< ". Check"
 				" that the disk is not full or a disk quota"
@@ -4369,14 +4371,14 @@ fil_ibd_create(
 		atomic_write = false;
 
 		success = os_file_set_size(
-			path, file, 0, size * UNIV_PAGE_SIZE,
+			path, file, 0, size * page_size.physical(),
 			srv_read_only_mode, true);
 	}
 #else
 	atomic_write = false;
 
 	success = os_file_set_size(
-		path, file, 0, size * UNIV_PAGE_SIZE,
+		path, file, 0, size * page_size.physical(),
 		srv_read_only_mode, true);
 
 #endif /* !NO_FALLOCATE && UNIV_LINUX */
@@ -4398,7 +4400,7 @@ fil_ibd_create(
 		dberr_t	punch_err;
 
 		punch_err = os_file_punch_hole(
-			file.m_file, 0, size * UNIV_PAGE_SIZE);
+			file.m_file, 0, size * page_size.physical());
 
 		if (punch_err != DB_SUCCESS) {
 			punch_hole = false;
@@ -4414,15 +4416,15 @@ fil_ibd_create(
 	with zeros from the call of os_file_set_size(), until a buffer pool
 	flush would write to it. */
 
-	buf2 = static_cast<byte*>(ut_malloc_nokey(3 * UNIV_PAGE_SIZE));
+	buf2 = static_cast<byte*>(ut_malloc_nokey(3 * page_size.logical()));
 	/* Align the memory for file i/o if we might have O_DIRECT set */
-	page = static_cast<byte*>(ut_align(buf2, UNIV_PAGE_SIZE));
+	page = static_cast<byte*>(ut_align(buf2, page_size.logical()));
 
-	memset(page, '\0', UNIV_PAGE_SIZE);
+	memset(page, '\0', page_size.logical());
 
 	/* Add the UNIV_PAGE_SIZE to the table flags and write them to the
 	tablespace header. */
-	flags = fsp_flags_set_page_size(flags, univ_page_size);
+	flags = fsp_flags_set_page_size(flags, page_size);
 	fsp_header_init_fields(page, space_id, flags);
 	mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, space_id);
 
@@ -4431,7 +4433,6 @@ fil_ibd_create(
 	mach_write_to_4(page + FIL_PAGE_SPACE_VERSION,
 			 DD_SPACE_CURRENT_SPACE_VERSION);
 
-	const page_size_t	page_size(flags);
 	IORequest		request(IORequest::WRITE);
 
 	if (!page_size.is_compressed()) {
@@ -4449,7 +4450,7 @@ fil_ibd_create(
 		page_zip_des_t	page_zip;
 
 		page_zip_set_size(&page_zip, page_size.physical());
-		page_zip.data = page + UNIV_PAGE_SIZE;
+		page_zip.data = page + page_size.logical();
 #ifdef UNIV_DEBUG
 		page_zip.m_start =
 #endif /* UNIV_DEBUG */
@@ -4656,7 +4657,7 @@ fil_ibd_open(
 
 #ifdef UNIV_DEBUG
 	/* TODO: WL#11063 will deal with import and upgrade tablespace */
-	if (validate && !old_space && !for_import) {
+	if (0 && validate && !old_space && !for_import) {
 		ut_ad(df.server_version() == DD_SPACE_CURRENT_SRV_VERSION);
 		ut_ad(df.space_version() == DD_SPACE_CURRENT_SPACE_VERSION);
 	}
@@ -4896,9 +4897,13 @@ fil_ibd_open_for_recovery(
 		/* Get and test the file size. */
 		size = os_file_get_size(file.handle());
 
-		/* Every .ibd file is created >= 4 pages in size.
-		Smaller files cannot be OK. */
-		minimum_size = FIL_IBD_FILE_INITIAL_SIZE * UNIV_PAGE_SIZE;
+		/* Every .ibd file is created >= FIL_IBD_FILE_INITIAL_SIZE
+		pages in size. Smaller files cannot be OK. */
+		{
+			const page_size_t page_size(file.flags());
+			minimum_size = FIL_IBD_FILE_INITIAL_SIZE
+				* page_size.physical();
+		}
 
 		if (size == static_cast<os_offset_t>(-1)) {
 			/* The following call prints an error message */
@@ -5546,10 +5551,12 @@ meb_extend_tablespaces_to_stored_len(void)
 		mutex_exit(&fil_system->mutex); /* no need to protect with a
 					      mutex, because this is a
 					      single-threaded operation */
+
+		const page_size_t	page_size(space->flags);
 		error = fil_read(
 			page_id_t(space->id, 0),
-			page_size_t(space->flags),
-			0, univ_page_size.physical(), buf);
+			page_size,
+			0, page_size.physical(), buf);
 
 		ut_a(error == DB_SUCCESS);
 
@@ -7243,7 +7250,7 @@ fil_tablespace_iterate(
 
 	IORequest	request(IORequest::READ);
 
-	err = os_file_read(request, file, page, 0, UNIV_PAGE_SIZE);
+	err = os_file_read(request, file, page, 0, UNIV_ZIP_SIZE_MIN);
 
 	if (err != DB_SUCCESS) {
 
