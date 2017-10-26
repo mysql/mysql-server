@@ -49,6 +49,7 @@
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/column.h"              // dd::enum_column_types
 #include "sql/dd/types/column_type_element.h" // dd::Column_type_element
+#include "sql/dd/types/foreign_key_element.h" // dd::Foreign_key_element
 #include "sql/dd/types/index.h"               // dd::Index
 #include "sql/dd/types/index_element.h"       // dd::Index_element
 #include "sql/dd/types/partition.h"           // dd::Partition
@@ -2325,6 +2326,37 @@ static bool fill_foreign_keys_from_dd(TABLE_SHARE *share,
                                 fk->referenced_table_name().length(),
                                 false))
         return true;
+      if (!make_lex_string_root(&share->mem_root,
+                                &share->foreign_key[i].unique_constraint_name,
+                                fk->unique_constraint_name().c_str(),
+                                fk->unique_constraint_name().length(),
+                                false))
+        return true;
+
+      share->foreign_key[i].update_rule= fk->update_rule();
+      share->foreign_key[i].delete_rule= fk->delete_rule();
+
+      share->foreign_key[i].columns= fk->elements().size();
+      if (!(share->foreign_key[i].column_name= (LEX_CSTRING*)
+                       alloc_root(&share->mem_root,
+                                  share->foreign_key[i].columns *
+                                  sizeof(LEX_CSTRING))))
+        return true;
+
+      uint j= 0;
+
+      for (const dd::Foreign_key_element *fk_el : fk->elements())
+      {
+        if (!make_lex_string_root(&share->mem_root,
+                                  &share->foreign_key[i].column_name[j],
+                                  fk_el->column().name().c_str(),
+                                  fk_el->column().name().length(),
+                                  false))
+          return true;
+
+        ++j;
+      }
+
       ++i;
     }
   }

@@ -649,6 +649,17 @@ typedef struct Table_share_foreign_key_info
 {
   LEX_CSTRING referenced_table_db;
   LEX_CSTRING referenced_table_name;
+  /**
+    Name of unique key matching FK in parent table, "" if there is no
+    unique key.
+  */
+  LEX_CSTRING unique_constraint_name;
+  dd::Foreign_key::enum_rule update_rule, delete_rule;
+  uint columns;
+  /**
+    Arrays with names of referencing columns of the FK.
+  */
+  LEX_CSTRING *column_name;
 } TABLE_SHARE_FOREIGN_KEY_INFO;
 
 

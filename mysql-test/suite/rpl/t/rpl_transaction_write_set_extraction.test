@@ -9,8 +9,8 @@
 --source include/have_debug.inc
 --source include/master-slave.inc
 
---let $assert_text= The value for transaction_write_set_extraction shoudl be MURMUR32
---let $assert_cond= "[SELECT @@SESSION.transaction_write_set_extraction]" = "MURMUR32"
+--let $assert_text= The value for transaction_write_set_extraction must be XXHASH64
+--let $assert_cond= "[SELECT @@SESSION.transaction_write_set_extraction]" = "XXHASH64"
 --source include/assert.inc
 
 # Table with single valued Primary key field with insert and update
@@ -93,6 +93,50 @@ UPDATE t3 SET c1=3 WHERE c1=1;
 --source include/rpl_sync.inc
 SET @@GLOBAL.DEBUG= @debug_saved;
 DROP TABLE t3;
+DROP TABLE t2;
+DROP TABLE t1;
+--source include/rpl_sync.inc
+
+# Table with Foreign Key referencing a Unique Key
+
+--connection master
+
+CREATE TABLE t1 (c1 BINARY(1) PRIMARY KEY, c2 BINARY(1), UNIQUE KEY(c2));
+CREATE TABLE t2 (x1 BINARY(1) PRIMARY KEY, x2 BINARY(1), FOREIGN KEY (x2) REFERENCES t1(c2));
+
+INSERT INTO t1 VALUES (1,1);
+SET @@GLOBAL.DEBUG= @debug_saved;
+SET @@GLOBAL.DEBUG= '+d,PKE_assert_foreign_key_on_referenced_unique_key_parent_generated_insert';
+INSERT INTO t1 VALUES (2,2);
+SET @@GLOBAL.DEBUG= @debug_saved;
+SET @@GLOBAL.DEBUG= '+d,PKE_assert_foreign_key_on_referenced_unique_key_generated_insert';
+INSERT INTO t2 VALUES (1,1);
+SET @@GLOBAL.DEBUG= @debug_saved;
+SET @@GLOBAL.DEBUG= '+d,PKE_assert_foreign_key_on_referenced_unique_key_generated_update';
+UPDATE t2 SET x2=2 WHERE x1=1;
+SET @@GLOBAL.DEBUG= @debug_saved;
+DROP TABLE t2;
+DROP TABLE t1;
+--source include/rpl_sync.inc
+
+# Table with Foreign Key referencing a NON Unique Key
+
+--connection master
+
+CREATE TABLE t1 (c1 BINARY(1) PRIMARY KEY, c2 BINARY(1), KEY(c2));
+CREATE TABLE t2 (x1 BINARY(1) PRIMARY KEY, x2 BINARY(1), FOREIGN KEY (x2) REFERENCES t1(c2));
+
+INSERT INTO t1 VALUES (1,1);
+SET @@GLOBAL.DEBUG= @debug_saved;
+SET @@GLOBAL.DEBUG= '+d,PKE_assert_foreign_key_on_referenced_non_unique_key_parent_generated_insert';
+INSERT INTO t1 VALUES (2,2);
+SET @@GLOBAL.DEBUG= @debug_saved;
+SET @@GLOBAL.DEBUG= '+d,PKE_assert_foreign_key_on_referenced_non_unique_key_generated_insert';
+INSERT INTO t2 VALUES (1,1);
+SET @@GLOBAL.DEBUG= @debug_saved;
+SET @@GLOBAL.DEBUG= '+d,PKE_assert_foreign_key_on_referenced_non_unique_key_generated_update';
+UPDATE t2 SET x2=2 WHERE x1=1;
+SET @@GLOBAL.DEBUG= @debug_saved;
 DROP TABLE t2;
 DROP TABLE t1;
 --source include/rpl_sync.inc
