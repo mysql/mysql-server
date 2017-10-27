@@ -907,9 +907,13 @@ public:
   static const Uint8 MaxCascadingScansPerTransaction = 1;
   static const Uint32 MaxExecutingTriggerOpsPerTrans = 32;
 
-  struct ApiConnectRecord {
+  struct ApiConnectRecord
+  {
+    STATIC_CONST( TYPE_ID = RT_DBTC_API_CONNECT_RECORD );
+
     ApiConnectRecord(TcFiredTriggerData_pool & firedTriggerPool,
                      TcIndexOperation_pool & seizedIndexOpPool):
+      m_magic(Magic::make(TYPE_ID)),
       nextApiConnect(RNIL),
       m_special_op_flags(0),
       theFiredTriggers(firedTriggerPool),
@@ -919,6 +923,7 @@ public:
       tcConnect.init();
     }
     
+    Uint32 m_magic;
     //---------------------------------------------------
     // First 16 byte cache line. Hot variables.
     //---------------------------------------------------
