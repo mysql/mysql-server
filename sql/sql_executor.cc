@@ -717,11 +717,11 @@ copy_funcs(Temp_table_param *param, const THD *thd, Copy_func_type type)
     case CFT_WF_NON_FRAMING:
       do_copy= (f->m_is_window_function &&
                 !down_cast<Item_sum *>(f)->framing() &&
-                !down_cast<Item_sum *>(f)->two_pass());
+                !down_cast<Item_sum *>(f)->needs_card());
       break;
-    case CFT_WF_TWO_PASS:
+    case CFT_WF_NEEDS_CARD:
       do_copy= (f->m_is_window_function &&
-                down_cast<Item_sum *>(f)->two_pass());
+                down_cast<Item_sum *>(f)->needs_card());
       break;
     case CFT_NON_WF:
       do_copy= !f->m_is_window_function;
@@ -3979,19 +3979,6 @@ buffer_record_somewhere(THD *thd, Window *w, int64 rowno)
   TABLE * const t= w->frame_buffer();
   uchar *record= t->record[0];
 
-#if !defined(DBUG_OFF) && defined(WF_DEBUG)
-  const ulong length= t->s->reclength;
-  /*
-    We copy the record to m_frame_buffer_cache as well as to tmp filed for
-    debugging
-  */
-  auto result=
-  w->frame_buffer_cache().emplace(std::make_pair(rowno,
-                                                 std::vector<uchar>(length)));
-  std::vector<unsigned char> &v= result.first->second;
-  std::memcpy(v.data(), record, length);
-#endif
-
   if (rowno == Window::FBC_FIRST_IN_NEXT_PARTITION)
   {
     w->save_special_record(rowno, t);
@@ -4099,6 +4086,7 @@ buffer_record_somewhere(THD *thd, Window *w, int64 rowno)
         DBUG_RETURN(true);
     }
 
+    // Do a read to establish scan position, then get it
     error= t->file->ha_rnd_next(record);
     t->file->position(record);
     std::memcpy(
@@ -4345,35 +4333,8 @@ bring_back_frame_row(THD *thd,
   {
     DBUG_ASSERT(reason != Window::REA_WONT_UPDATE_HINT);
 
-#if !defined(DBUG_OFF) && defined(WF_DEBUG)
-    /*
-      In debug mode we store the frame buffer rows in m_frame_buffer_cache as
-      well as well as in tmp file to check that tmp files give back the correct
-      value. Remove when we trust the code.
-    */
-    const auto result= w.frame_buffer_cache().find(rowno);
-    DBUG_ASSERT(result != w.frame_buffer_cache().end());
-    const std::vector<unsigned char> &v= result->second;
-    void *tmpbuff= std::malloc(v.size());
-    std::memcpy(tmpbuff, v.data(), v.size());
-#endif
-
     if (read_frame_buffer_row(rowno, &w, reason == Window::REA_MISC_POSITIONS))
       DBUG_RETURN(true);
-    
-#if !defined(DBUG_OFF) && defined(WF_DEBUG)
-    /*
-      If we use HEAP frame buffer, compare with in-memory version for
-      debugging purposes. HEAP implies no BLOBs, so its safe to disregard those.
-    */
-    if (w.frame_buffer()->s->db_type()->db_type != DB_TYPE_INNODB &&
-        std::memcmp(tmpbuff, fb_rec, v.size()))
-    {
-      DBUG_ASSERT(false);
-    }
-    
-    std::free(tmpbuff);
-#endif
     
     /* Got row rowno in record[0], remember position */
     const TABLE *const t= w.frame_buffer();
@@ -4424,13 +4385,6 @@ bring_back_frame_row(THD *thd,
 */
 void Window::save_special_record(uint64 special_rowno, TABLE *t)
 {
-#ifdef WF_DEBUG
-  const auto result= frame_buffer_cache().
-    emplace(std::make_pair(special_rowno, std::vector<uchar>(t->s->reclength)));
-  std::vector<unsigned char> &v= result.first->second;
-  const uchar *record= t->record[0];
-  std::memcpy(v.data(), record, t->s->reclength);
-#endif // WF_DEBUG
   size_t l= t->s->reclength;
   DBUG_ASSERT(m_special_rows_cache_max_length >= l); // check room.
   // From negative enum, get proper array index:
@@ -4450,12 +4404,6 @@ void Window::save_special_record(uint64 special_rowno, TABLE *t)
 */
 void Window::restore_special_record(uint64 special_rowno, uchar *record)
 {
-#ifdef WF_DEBUG
-  const auto result=
-    frame_buffer_cache().find(special_rowno);
-  const std::vector<unsigned char> &v= result->second;
-  std::memcpy(record, v.data(), v.size());
-#endif // WF_DEBUG
   int idx= FBC_FIRST_KEY - special_rowno;
   size_t l= m_special_rows_cache_length[idx];
   std::memcpy(record, m_special_rows_cache +
@@ -4526,21 +4474,21 @@ exists_computable_row(Window &w,
                       const bool new_partition_or_eof)
 {
   return ( (lower <= last_row_in_cache && upper <= last_row_in_cache &&
-            !w.has_two_pass_wf()) || /* we have cached enough rows */
+            !w.some_wf_needs_frame_card()) || /* we have cached enough rows */
           new_partition_or_eof /* we have cached all rows, so proceed */);
 }
 
 
 /**
-  Process two-pass window functions
+  Process window functions that need partition cardinality
 */
-bool process_two_pass_wfs(THD *thd,
-                          Temp_table_param *param,
-                          const Window::st_nth &have_nth_value,
-                          const Window::st_lead_lag &have_lead_lag,
-                          const int64 current_row,
-                          Window &w,
-                          enum Window::retrieve_cached_row_reason current_row_reason)
+bool process_wfs_needing_card(THD *thd,
+                              Temp_table_param *param,
+                              const Window::st_nth &have_nth_value,
+                              const Window::st_lead_lag &have_lead_lag,
+                              const int64 current_row,
+                              Window &w,
+                              enum Window::retrieve_cached_row_reason current_row_reason)
 {
   w.set_rowno_being_visited(current_row);
 
@@ -4549,7 +4497,7 @@ bool process_two_pass_wfs(THD *thd,
     w.reset_lead_lag();
 
   // This also handles LEAD(.., 0)
-  if (copy_funcs(param, thd, CFT_WF_TWO_PASS))
+  if (copy_funcs(param, thd, CFT_WF_NEEDS_CARD))
     return true;
 
   if (!have_lead_lag.m_offsets.empty())
@@ -4579,7 +4527,7 @@ bool process_two_pass_wfs(THD *thd,
           return true;
       }
 
-      if (copy_funcs(param, thd, CFT_WF_TWO_PASS))
+      if (copy_funcs(param, thd, CFT_WF_NEEDS_CARD))
         return true;
     }
     /* Bring back the fields for the output row */
@@ -4864,9 +4812,6 @@ process_buffered_windowing_record(THD *thd,
     }
   }
   
-  if (current_row == 1)
-    reset_non_framing_wf_state(param->items_to_copy);
-
   if (current_row > last_rowno_in_cache ||
       !exists_computable_row(w, last_rowno_in_cache, lower_limit, upper_limit,
                             new_partition_or_eof))
@@ -4902,14 +4847,21 @@ process_buffered_windowing_record(THD *thd,
     if (copy_fields(param, thd))
       DBUG_RETURN(true);
 
-    /* E.g. ROW_NUMBER, RANK, RANK_DENSE */
-    if (copy_funcs(param, thd, CFT_WF_NON_FRAMING))
-      DBUG_RETURN(true);
-
-    if (!optimizable || (current_row == lower_limit && !w.aggregates_primed()))
+    if (current_row == 1)
+    {
+      // Can't do this earlier; comparator resets require copy_fields done above
+      reset_non_framing_wf_state(param->items_to_copy);
+      reset_framing_wf_states(param->items_to_copy);
+    }
+    else if (!optimizable ||
+             (current_row == lower_limit && !w.aggregates_primed()))
     {
       reset_framing_wf_states(param->items_to_copy);
     } // else for optimizable we remember state and update it for row 2..N
+
+    /* E.g. ROW_NUMBER, RANK, RANK_DENSE */
+    if (copy_funcs(param, thd, CFT_WF_NON_FRAMING))
+      DBUG_RETURN(true);
 
     if (!optimizable || (current_row == lower_limit && !w.aggregates_primed()))
     {
@@ -5089,14 +5041,14 @@ process_buffered_windowing_record(THD *thd,
         w.set_is_last_row_in_frame(false); // undo temporary state
 
       /* NTILE and other two-pass wfs which do not need peerset */
-      if (w.has_two_pass_wf() && new_partition_or_eof && !needs_peerset
+      if (w.some_wf_needs_frame_card() && new_partition_or_eof && !needs_peerset
           && rowno == current_row)
       {
-        if (process_two_pass_wfs(thd, param, have_nth_value, have_lead_lag,
-                                 current_row, w,
-                                 n == 1 ?
-                                 Window::REA_FIRST_IN_FRAME :
-                                 Window::REA_LAST_IN_FRAME))
+        if (process_wfs_needing_card(thd, param, have_nth_value, have_lead_lag,
+                                     current_row, w,
+                                     n == 1 ?
+                                     Window::REA_FIRST_IN_FRAME :
+                                     Window::REA_LAST_IN_FRAME))
             DBUG_RETURN(true);
 
         two_pass_done= true;
@@ -5589,7 +5541,7 @@ process_buffered_windowing_record(THD *thd,
     w.set_aggregates_primed(true);
 
   /* NTILE and other non-frame wfs */
-  if (w.has_two_pass_wf() && !two_pass_done)
+  if (w.some_wf_needs_frame_card() && !two_pass_done)
   {
     /* Set up the non-wf fields for aggregating to the output row. */
     if (bring_back_frame_row(thd, w, current_row, Window::REA_CURRENT))
@@ -5598,8 +5550,8 @@ process_buffered_windowing_record(THD *thd,
     if (copy_fields(param, thd)) // wfs read args fields from outfile record
       DBUG_RETURN(true);
 
-    if (process_two_pass_wfs(thd, param, have_nth_value, have_lead_lag,
-                             current_row, w,  Window::REA_CURRENT))
+    if (process_wfs_needing_card(thd, param, have_nth_value, have_lead_lag,
+                                 current_row, w,  Window::REA_CURRENT))
         DBUG_RETURN(true);
 
     out_fields_ready= true;
@@ -5831,6 +5783,54 @@ end_write_wf(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
     PARTITION BY or ORDER BY in the window, and there is more than one table
     in the join, the logical input can consist of more than one table 
     (qep_tab-1 .. qep_tab-n). 
+
+
+
+    The first thing we do in this function, is:
+    we copy fields from IN to OUT (copy_fields), and evaluate non-WF functions
+    (copy_funcs): those functions then read their arguments from IN and store
+    their result into their result_field which is a field in OUT.
+    We then evaluate any HAVING, on OUT table.
+    The next steps depend on if we have a FB (Frame Buffer) or not.
+
+    (a) If we have no FB, we immediately calculate the WFs over the OUT row,
+    store their value in OUT row, and pass control to next plan operator
+    (write_or_send_row) - we're done.
+
+    (b) If we have a FB, let's take SUM(A+FLOOR(B)) OVER (ROWS 2 FOLLOWING) as
+    example. Above, we have stored A and the result of FLOOR in OUT. Now we
+    buffer (save) the row into the FB: for that, we copy field A from IN to
+    FB, and FLOOR's result_field from OUT to FB; a single copy_fields() call
+    handles both copy jobs.
+    Then we look at the rows we have buffered and may realize that we have
+    enough of the frame to calculate SUM for a certain row (not necessarily
+    the one we just buffered; might be an earlier row, in our example it is
+    the row which is 2 rows above the buffered row). If we do, to calculate
+    WFs, we bring back the frame's rows; which is done by:
+    first copying field A and FLOOR's result_field in directions
+    opposite to above (using one copy_fields), then copying field A from IN to
+    OUT, thus getting in OUT all that SUM needs (A and FLOOR), then giving
+    that OUT row to SUM (SUM will then add the row's value to its total; that
+    happens in copy_funcs). After we have done that on all rows of the frame,
+    we have the values of SUM ready in OUT, we also restore the row which owns
+    this SUM value, in the same way as we restored the frame's rows, and
+    we pass control to next plan operator (write_or_send_row) - we're done for
+    this row. However, when the next plan operator is done and we regain
+    control, we loop to check if we can calculate one more row with the frame
+    we have, and if so, we do. Until we can't calculate any more row in which
+    case we're back to just buffering.
+
+    @todo If we have buffering, for fields (not result_field of non-WF
+    functions), we do:
+    copy_fields IN->OUT, copy_fields IN->FB (buffering phase), and later
+    (restoration phase): copy_fields FB->IN, copy_fields IN->OUT.
+    The copy_fields IN->OUT before buffering, is useless as the OUT values
+    will not be used (they'll be overwritten). We have two possible
+    alternative improvements, any of which would avoid one copying:
+    - remove this copy_fields (the buffering-phase IN->OUT)
+    - keep it but change the rest to: OUT->FB, FB->OUT; that eliminates the
+    restoration-phase IN->OUT; this design would be in line with what is done
+    for result_field of non-WF functions.
   */
   Window *const win= out_tbl->m_window;
   const bool window_buffering= win->needs_buffering();
@@ -5907,8 +5907,6 @@ end_write_wf(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
 
         if (copy_fields(out_tbl, thd))
           DBUG_RETURN(NESTED_LOOP_ERROR);           /* purecov: inspected */
-
-        reset_framing_wf_states(out_tbl->items_to_copy);
 
         if (buffer_windowing_record(thd, out_tbl,
                                     nullptr /* first in new partition */))

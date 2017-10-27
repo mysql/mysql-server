@@ -333,9 +333,11 @@ enum Copy_func_type
    */
   CFT_WF_NON_FRAMING,
   /**
-    In windowing step, copies two-pass window functions.
+    In windowing step, copies window functions that need frame cardinality,
+    that is we need to read all rows of a partition before we can compute the
+    wf's value for the the first row in the partition.
   */
-  CFT_WF_TWO_PASS,
+  CFT_WF_NEEDS_CARD,
   /**
     In final windowing step, copies all non-wf functions. Must be called after
     all wfs have been evaluated. gbtodo, Really? so it's forbidden to use

@@ -9058,3 +9058,19 @@ SELECT JSON_LENGTH(FIRST_VALUE(JSON_OBJECTAGG('key2','*B'))OVER());
 JSON_LENGTH(FIRST_VALUE(JSON_OBJECTAGG('key2','*B'))OVER())
 1
 # End of test for Bug#26740557
+#
+# Check for errors
+#
+CREATE TABLE t1 (i INTEGER);
+SELECT AVG(i) FROM t1 WINDOW w AS (ORDER BY i);
+ERROR 42000: In aggregated query without GROUP BY, expression #1 of PARTITION BY or ORDER BY clause of window 'w' contains nonaggregated column 'test.t1.i'; this is incompatible with sql_mode=only_full_group_by
+SELECT AVG(i), RANK() OVER (ORDER BY i) FROM t1;
+ERROR 42000: In aggregated query without GROUP BY, expression #1 of PARTITION BY or ORDER BY clause of window '<unnamed window>' contains nonaggregated column 'test.t1.i'; this is incompatible with sql_mode=only_full_group_by
+SELECT AVG(i) FROM t1 ORDER BY RANK() OVER (PARTITION BY AVG(i) ORDER BY i);
+ERROR 42000: In aggregated query without GROUP BY, expression #1 of PARTITION BY or ORDER BY clause of window '<unnamed window>' contains nonaggregated column 'test.t1.i'; this is incompatible with sql_mode=only_full_group_by
+SELECT AVG(i), RANK() OVER w FROM t1 WINDOW w AS (ORDER BY i);
+ERROR 42000: In aggregated query without GROUP BY, expression #1 of PARTITION BY or ORDER BY clause of window 'w' contains nonaggregated column 'test.t1.i'; this is incompatible with sql_mode=only_full_group_by
+SELECT (select AVG(i)+RANK() OVER (ORDER BY i)) FROM t1;
+ERROR 42000: In aggregated query without GROUP BY, expression #1 of SELECT list contains nonaggregated column 'test.t1.i'; this is incompatible with sql_mode=only_full_group_by
+DROP TABLE t1;
+# End of checking for errors

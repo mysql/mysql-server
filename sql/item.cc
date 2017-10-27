@@ -2100,6 +2100,12 @@ public:
 /**
   Move SUM items out from item tree and replace with reference.
 
+  The general goal of this is to get a list of group aggregates, and window
+  functions, and their arguments, so that the code which manages internal tmp
+  tables (creation, row copying) has a list of all aggregates (which require
+  special management) and a list of their arguments (which must be carried
+  from tmp table to tmp table until the aggregate can be computed).
+
   @param thd             Current session
   @param ref_item_array  Pointer to array of reference fields
   @param fields          All fields in select
@@ -2146,16 +2152,20 @@ public:
 
   Examples:
   (1) SELECT a+FIRST_VALUE(b*SUM(c/d)) OVER (...)
-  Assume we have done fix_fields() on this SELECT list.
+  Assume we have done fix_fields() on this SELECT list, which list is so far
+  only '+'.
   This '+' contains a WF (and a group aggregate function), so the resolver
   (generally, SELECT_LEX::prepare()) calls Item::split_sum_func2 on the '+';
   as this '+' is neither a WF nor a group aggregate, but contains some, it
   calls Item_func::split_sum_func which calls Item::split_sum_func2 on every
   argument of the '+':
     * for 'a', it adds it to 'fields' as a hidden item
-    * then the FIRST_VALUE wf is added as a hidden item
+    * then the FIRST_VALUE wf is added as a hidden item; this is necessary so
+    that create_tmp_table() and copy_funcs can spot the WF.
     * next, for FIRST_VALUE: it is a WF, so its Item_sum::split_sum_func is
-    called, which calls Item::split_sum_func2 on its argument (the '*'); this
+    called, as its arguments need to be added as hidden items so they can get
+    carried forward between the tmp tables. This split_sum_func calls
+    Item::split_sum_func2 on its argument (the '*'); this
     '*' is not a group aggregate but contains one, so its
     Item_func::split_sum_func is called, which calls Item::split_sum_func2 on
     every argument of the '*':
@@ -2165,7 +2175,8 @@ public:
   So we finally have, in 'fields':
      SUM, b, FIRST_VALUE, a, +
   Each time we add a hidden item we re-point its parent to the hidden item
-  using an Item_ref.
+  using an Item_aggregate_ref. For example, '+'::args[0] is made to point to
+  an Item_aggregate_ref which points to the hidden 'a'.
 */
 
 void Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
@@ -2187,7 +2198,7 @@ void Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
         ((Item_func *) this)->functype() == Item_func::TRIG_COND_FUNC)) ||
       type() == ROW_ITEM)
   {
-    /* Will split complicated items and ignore simple ones */
+    // Do not add item to hidden list; possibly split it
     split_sum_func(thd, ref_item_array, fields);
   }
   else if ((type() == SUM_FUNC_ITEM || !const_for_execution()) &&
@@ -2207,7 +2218,7 @@ void Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
       Exception is Item_view_ref which we need to wrap in
       Item_ref to allow fields from view being stored in tmp table.
       Item_subselect can be added to "fields" only if it's a scalar subquery;
-      indeed a subquery of another is wrapped in Item_in_optimizer at this
+      indeed a subquery of another type is wrapped in Item_in_optimizer at this
       stage, so when splitting Item_in_optimizer, if we added the underlying
       Item_subselect to "fields" below it would be later evaluated by
       copy_fields() (in tmp table processing), which would be incorrect as the
@@ -2250,6 +2261,10 @@ void Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
     }
     thd->change_item_tree(ref, item_ref);
 
+    /*
+      A WF must both be added to hidden list (done above), and be split so its
+      arguments are added into the hidden list (done below):
+    */
     if (m_is_window_function)
       split_sum_func(thd, ref_item_array, fields);
   }

@@ -36,10 +36,6 @@
 #include "sql/window_lex.h"
 #include "sql_string.h"
 
-#ifdef WF_DEBUG
-#include <unordered_map>
-#endif
-
 #include <sys/types.h>
 #include <cstring>                              // std::memcpy
 
@@ -77,13 +73,6 @@ class Temp_table_param;
   The latter is marked as such for ease of separation later.
 */
 class Window {
-public:
-  /// @returns the first PARTITION BY expression for this window
-  ORDER *first_partition_by() const;
-
-  /// @returns the first ORDER BY expression for this window
-  ORDER *first_order_by() const;
-
   /*------------------------------------------------------------------------
    *
    * Variables stable during execution
@@ -384,33 +373,10 @@ protected:
   */
   int64 m_frame_buffer_partition_offset;
 
-// Enable for more checks. Not for Valgrind as not freed.
-// @todo: Remove entirely.
-#ifdef WF_DEBUG
   /**
-    Execution state: used iff m_needs_frame_buffering. Holds the in memory
-    alternative frame buffer used in the prototype prior to using a tmp file.
-    After we started using a real tmp file for the frame buffer, we retained
-    this cache in debug mode for asserting that the tmp file returns the correct
-    values, in any case for a two other records we never write to the tmp file,
-    (cf. the Special_keys enumeration):
-       - the first row in the next partition: we had to read that row in order
-         to know when a full partition has been read when we buffer partition
-         rows, so we need somehwere to store it, and we chose not to store it
-         in the frame buffer tmp file since it doesn't logically belong there
-         and its layout may be different depending on how we choose to store
-         the frame buffer records.
-       - the first record as fully evaluated in a partition with no frames and
-         no ORDER BY: in such cases the aggregate window functions (SUM, AVG..)
-         will have the same value for all rows, so we skip evaluating them for
-         rows 2..N where N is the last row in the partition.
-  */
-  std::unordered_map<uint64, std::vector<uchar>> m_frame_buffer_cache;
-#endif // WF_DEBUG
-  /**
-     Holds a fixed number of copies of special rows; each copy can use up to
-     #m_special_rows_cache_max_length bytes.
-     cf. the Special_keys enumeration.
+    Holds a fixed number of copies of special rows; each copy can use up to
+    #m_special_rows_cache_max_length bytes.
+    cf. the Special_keys enumeration.
   */
   uchar *m_special_rows_cache;
   /// Length of each copy in #m_special_rows_cache, in bytes
@@ -471,14 +437,6 @@ protected:
     output within the partition. 1-based.
   */
   int64 m_rowno_in_partition;
-
-  /**
-    Execution state: number of rows in frame. Only calculated if we need it,
-    if not, 0. For example, NTH_VALUE(e, n) FROM LAST needs it.
-   
-    @note FROM LAST is not yet supported.
-  */
-  // int64 m_frame_cardinality;
 
   /**
    Execution state: for optimizable aggregates, cf. m_row_optimizable and
@@ -644,7 +602,6 @@ private:
       m_rowno_being_visited(0),
       m_rowno_in_frame(0),
       m_rowno_in_partition(0),
-      // m_frame_cardinality(0),
       m_aggregates_primed(false),
       m_first_rowno_in_range_frame(1),
       m_last_rowno_in_range_frame(0),
@@ -721,7 +678,7 @@ public:
     the ancestor chain. Uniqueness checked in #setup_windows
     SQL 2011 7.11 GR 1.b.i.5.A-C
   */
-  const PT_order_list *order() const
+  const PT_order_list *effective_order_by() const
   {
     const PT_order_list *o= m_order_by;
     const Window *w= m_ancestor;
@@ -735,10 +692,21 @@ public:
   }
 
   /**
+    Get the first argument of the ORDER BY clause for this window
+    if any. "ORDER BY" is not checked in ancestor unlike
+    effective_order_by().
+    Use when the goal is to operate on the set of item clauses for
+    all windows of a query. When interrogating the effective order
+    by for a window (specified for it or inherited from another
+    window) use effective_order_by().
+  */
+  ORDER *first_order_by() const;
+
+  /**
     Get partition, if any. That is, the partition if any, of the
     root window. SQL 2011 7.11 GR 1.b.i.4.A-C
   */
-  const PT_order_list *partition() const
+  const PT_order_list *effective_partition_by() const
   {
     const PT_order_list *p= m_partition_by;
     const Window *w= m_ancestor;
@@ -758,6 +726,16 @@ public:
     }
     return p;
   }
+  /**
+    Get the first argument of the PARTITION clause for this window
+    if any. "PARTITION BY" is not checked in ancestor unlike
+    effective_partition_by().
+    Use when the goal is to operate on the set of item clauses for
+    all windows of a query. When interrogating the effective
+    partition by for a window (specified for it or inherited from
+    another window) use effective_partition_by().
+  */
+  ORDER *first_partition_by() const;
 
   /**
     Get the list of functions invoked on this window.
@@ -1072,20 +1050,6 @@ public:
   */
   bool has_dynamic_frame_upper_bound() const;
 
-#ifdef WF_DEBUG
-  /**
-    If a window needs buffering for its rows before we can evalate some
-    window function referencing that window, this map contains the
-    buffered rows.
-
-    @returns reference to the map containing the buffered rows
-  */
-  std::unordered_map<uint64, std::vector<uchar>> &frame_buffer_cache() const
-  {
-    return m_frame_buffer_cache;
-  }
-#endif // WF_DEBUG
-
   /**
     Allocate the cache for special rows
     @param thd      thread handle
@@ -1311,13 +1275,12 @@ public:
 
     @returns true if that is the case, else false
   */
-  bool has_two_pass_wf();
+  bool some_wf_needs_frame_card();
 
   /**
     Free up any resource used to process the window functions of this window,
     e.g. temporary files and in-memory data structures. Called when done
     with all window processing steps from SELECT_LEX::cleanup.
-    FIXME: release earlier?
   */
   void cleanup(THD *thd);
 
@@ -1355,8 +1318,6 @@ public:
     Reset the execution state for all window functions defined on this window.
   */
   void reset_all_wf_state();
-
-  enum Wf_type { WT_FRAMING=1, WT_TWO_PASS=2, WT_STREAMING=4 };
 
   /**
     Collects evaluation requirements from a window function,
@@ -1411,7 +1372,7 @@ public:
             m_name->str_value.ptr() : "<unnamed window>");
   }
 
-  void print(THD *thd, SELECT_LEX *lex, String *str, enum_query_type qt,
+  void print(THD *thd, String *str, enum_query_type qt,
              bool expand_definition) const;
 
   bool has_windowing_steps() const;

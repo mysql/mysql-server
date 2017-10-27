@@ -25,7 +25,6 @@ select bit_and(3) over ();
 --error ER_NOT_SUPPORTED_YET
 select bit_xor(3) over ();
 
-
 --echo Single window function (plus ORDER BY).
 CREATE TABLE t(i INT, j INT);
 INSERT INTO t VALUES (1,1);
@@ -4017,6 +4016,27 @@ SELECT ((QUOTE(JSON_KEYS(FIRST_VALUE(JSON_KEYS(EXP(-15676),ABS('d0'))
 SELECT JSON_LENGTH(FIRST_VALUE(JSON_OBJECTAGG('key2','*B'))OVER());
 
 --echo # End of test for Bug#26740557
+
+--echo #
+--echo # Check for errors
+--echo #
+
+CREATE TABLE t1 (i INTEGER);
+
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+SELECT AVG(i) FROM t1 WINDOW w AS (ORDER BY i);
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+SELECT AVG(i), RANK() OVER (ORDER BY i) FROM t1;
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+SELECT AVG(i) FROM t1 ORDER BY RANK() OVER (PARTITION BY AVG(i) ORDER BY i);
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+SELECT AVG(i), RANK() OVER w FROM t1 WINDOW w AS (ORDER BY i);
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+SELECT (select AVG(i)+RANK() OVER (ORDER BY i)) FROM t1;
+
+DROP TABLE t1;
+
+--echo # End of checking for errors
 
 # Local Variables:
 # mode: sql
