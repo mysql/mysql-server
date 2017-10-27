@@ -4799,9 +4799,7 @@ void Dbtc::releaseTcCon()
 
   if (!regTcPtr->thePendingTriggers.isEmpty())
   {
-    Local_TcFiredTriggerData_fifo
-      list(c_theFiredTriggerPool, regTcPtr->thePendingTriggers);
-    releaseFiredTriggerData(&list);
+    releaseFiredTriggerData(&regTcPtr->thePendingTriggers);
   }
 
   ndbrequire(regTcPtr->thePendingTriggers.isEmpty());
@@ -5455,7 +5453,9 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     {
       // We have received all data
       jam();
-      regApiPtr.p->theFiredTriggers.appendList(regTcPtr->thePendingTriggers);
+      Local_TcFiredTriggerData_fifo
+        list(c_theFiredTriggerPool, regApiPtr.p->theFiredTriggers);
+      list.appendList(regTcPtr->thePendingTriggers);
       executeTriggers(signal, &regApiPtr);
     }
     // else wait for more trigger data
@@ -17679,7 +17679,9 @@ void Dbtc::execFIRE_TRIG_ORD(Signal* signal)
           transPtr.p->isExecutingDeferredTriggers())
       {
         jam();
-        transPtr.p->theFiredTriggers.appendList(opPtr.p->thePendingTriggers);
+        Local_TcFiredTriggerData_fifo
+          list(c_theFiredTriggerPool, transPtr.p->theFiredTriggers);
+        list.appendList(opPtr.p->thePendingTriggers);
 	executeTriggers(signal, &transPtr);
       }
       return;
@@ -19288,7 +19290,9 @@ void Dbtc::executeTriggers(Signal* signal, ApiConnectRecordPtr* transPtr)
         (regApiPtr->apiConnectstate == CS_WAIT_FIRE_TRIG_REQ))
     {
       jam();
-      regApiPtr->theFiredTriggers.first(trigPtr);
+      Local_TcFiredTriggerData_fifo
+        list(c_theFiredTriggerPool, regApiPtr->theFiredTriggers);
+      list.first(trigPtr);
       while (trigPtr.i != RNIL) {
         jam();
         if (regApiPtr->cascading_scans_count >=
@@ -19315,7 +19319,7 @@ void Dbtc::executeTriggers(Signal* signal, ApiConnectRecordPtr* transPtr)
         opPtr.i = trigPtr.p->fireingOperation;
         tcConnectRecord.getPtr(opPtr);
 	FiredTriggerPtr nextTrigPtr = trigPtr;
-	regApiPtr->theFiredTriggers.next(nextTrigPtr);
+	list.next(nextTrigPtr);
         ndbrequire(opPtr.p->apiConnect == transPtr->i);
 
         if (opPtr.p->numReceivedTriggers == opPtr.p->numFiredTriggers ||
@@ -19341,7 +19345,8 @@ void Dbtc::executeTriggers(Signal* signal, ApiConnectRecordPtr* transPtr)
 	  tmp2.release();
 	  LocalAttributeBuffer tmp3(pool, trigPtr.p->afterValues);
 	  tmp3.release();
-          regApiPtr->theFiredTriggers.release(trigPtr);
+          list.remove(trigPtr);
+          c_theFiredTriggerPool.release(trigPtr);
         }
 	trigPtr = nextTrigPtr;
       }
@@ -20895,35 +20900,13 @@ Dbtc::fk_readFromParentTable(Signal* signal,
   regApiPtr->m_executing_trigger_ops++;
 }
 
-void Dbtc::releaseFiredTriggerData(TcFiredTriggerData_fifo* triggers)
+void Dbtc::releaseFiredTriggerData(Local_TcFiredTriggerData_fifo::Head*
+                                   triggers_head)
 {
+  Local_TcFiredTriggerData_fifo triggers(c_theFiredTriggerPool, *triggers_head);
   FiredTriggerPtr trigPtr;
 
-  triggers->first(trigPtr);
-  while (trigPtr.i != RNIL) {
-    jam();
-    // Release trigger records
-
-    AttributeBuffer::DataBufferPool & pool = c_theAttributeBufferPool;
-    LocalAttributeBuffer tmp1(pool, trigPtr.p->keyValues);
-    tmp1.release();
-    LocalAttributeBuffer tmp2(pool, trigPtr.p->beforeValues);
-    tmp2.release();
-    LocalAttributeBuffer tmp3(pool, trigPtr.p->afterValues);
-    tmp3.release();
-    
-    triggers->next(trigPtr);
-  }
-  while (triggers->releaseFirst());
-}
-
-void Dbtc::releaseFiredTriggerData(Local_TcFiredTriggerData_fifo*
-                                   triggers)
-{
-  FiredTriggerPtr trigPtr;
-
-  triggers->first(trigPtr);
-  while (trigPtr.i != RNIL)
+  while (triggers.removeFirst(trigPtr))
   {
     jam();
     // Release trigger records
@@ -20935,9 +20918,7 @@ void Dbtc::releaseFiredTriggerData(Local_TcFiredTriggerData_fifo*
     tmp2.release();
     LocalAttributeBuffer tmp3(pool, trigPtr.p->afterValues);
     tmp3.release();
-    FiredTriggerPtr save = trigPtr;
-    triggers->next(trigPtr);
-    triggers->release(save);
+    c_theFiredTriggerPool.release(trigPtr);
   }
 }
 

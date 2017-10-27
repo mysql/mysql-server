@@ -90,17 +90,20 @@ void Dbtc::initRecords()
 
   for(unsigned i = 0; i<capiConnectFilesize; i++) {
     p = &apiConnectRecord[i];
-    new (p) ApiConnectRecord(c_theFiredTriggerPool, 
-			     c_theIndexOperationPool);
+    new (p) ApiConnectRecord(c_theIndexOperationPool);
   }
   // Init all fired triggers
-  TcFiredTriggerData_fifo triggers(c_theFiredTriggerPool);
+  DLFifoList<TcFiredTriggerData_pool> triggers(c_theFiredTriggerPool);
   FiredTriggerPtr tptr;
-  while (triggers.seizeLast(tptr) == true) {
-    p= tptr.p;
-    new (p) TcFiredTriggerData();
+  while (c_theFiredTriggerPool.seize(tptr))
+  {
+    triggers.addLast(tptr);
+    new (tptr.p) TcFiredTriggerData();
   }
-  while (triggers.releaseFirst());
+  while (triggers.removeFirst(tptr))
+  {
+    c_theFiredTriggerPool.release(tptr);
+  }
   /*
     The code above temporarily allocates all TcFiredTriggerData records.
     Therefore we need to reset freeMin now, to get meaningful values.

@@ -523,7 +523,6 @@ public:
   };
   typedef Ptr<TcFiredTriggerData> FiredTriggerPtr;
   typedef ArrayPool<TcFiredTriggerData> TcFiredTriggerData_pool;
-  typedef DLFifoList<TcFiredTriggerData_pool> TcFiredTriggerData_fifo;
   typedef LocalDLFifoList<TcFiredTriggerData_pool> Local_TcFiredTriggerData_fifo;
   typedef DLHashTable<TcFiredTriggerData_pool> TcFiredTriggerData_hash;
   
@@ -768,6 +767,7 @@ public:
       currentTriggerId(RNIL)
     {
       NdbTick_Invalidate(&m_start_ticks);
+      thePendingTriggers.init();
     }
 
     Uint32 m_magic;
@@ -844,7 +844,7 @@ public:
     /**
      * The list of pending fired triggers
      */
-    TcFiredTriggerData_fifo::Head thePendingTriggers;
+    Local_TcFiredTriggerData_fifo::Head thePendingTriggers;
 
     UintR triggeringOperation;  // Which operation was "cause" of this op
 
@@ -911,16 +911,15 @@ public:
   {
     STATIC_CONST( TYPE_ID = RT_DBTC_API_CONNECT_RECORD );
 
-    ApiConnectRecord(TcFiredTriggerData_pool & firedTriggerPool,
-                     TcIndexOperation_pool & seizedIndexOpPool):
+    ApiConnectRecord(TcIndexOperation_pool & seizedIndexOpPool):
       m_magic(Magic::make(TYPE_ID)),
       nextApiConnect(RNIL),
       m_special_op_flags(0),
-      theFiredTriggers(firedTriggerPool),
       theSeizedIndexOperations(seizedIndexOpPool) 
     {
       NdbTick_Invalidate(&m_start_ticks);
       tcConnect.init();
+      theFiredTriggers.init();
     }
     
     Uint32 m_magic;
@@ -1056,7 +1055,7 @@ public:
     /**
      * The list of fired triggers
      */  
-    TcFiredTriggerData_fifo theFiredTriggers;
+    Local_TcFiredTriggerData_fifo::Head theFiredTriggers;
 
     // Count the outstanding FIRE_TRIG_REQs of a transaction.
     // Limit it in order to avoid job buffer overload
@@ -2059,8 +2058,7 @@ private:
                                      ApiConnectRecordPtr* transPtr,
                                      TcConnectRecordPtr* opPtr);
 
-  void releaseFiredTriggerData(TcFiredTriggerData_fifo* triggers);
-  void releaseFiredTriggerData(Local_TcFiredTriggerData_fifo* triggers);
+  void releaseFiredTriggerData(Local_TcFiredTriggerData_fifo::Head* triggers);
   void abortTransFromTrigger(Signal* signal, const ApiConnectRecordPtr& transPtr, 
                              Uint32 error);
   // Generated statement blocks
