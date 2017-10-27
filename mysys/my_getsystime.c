@@ -38,7 +38,9 @@ Initialise highest available time resolution API on Windows
 */
 my_bool win_init_get_system_time_as_file_time()
 {
-  HMODULE h= LoadLibrary("kernel32.dll");
+  DWORD error;
+  HMODULE h;
+  h= LoadLibrary("kernel32.dll");
   if (h != NULL)
   {
     time_fn pfn= (time_fn) GetProcAddress(h, "GetSystemTimePreciseAsFileTime");
@@ -48,7 +50,7 @@ my_bool win_init_get_system_time_as_file_time()
     return FALSE;
   }
 
-  DWORD error= GetLastError();
+  error= GetLastError();
   my_printf_error(0,
     "LoadLibrary(\"kernel32.dll\") failed: GetLastError returns %lu",
     MYF(0),
