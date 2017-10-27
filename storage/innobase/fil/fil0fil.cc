@@ -2562,9 +2562,6 @@ Fil_shard::get_file_size(
 	}
 #endif /* UNIV_HOTBACKUP */
 
-	/* Convert to size in pages. */
-	file->size = (ulint) (size_bytes / UNIV_PAGE_SIZE);
-
 	ut_a(space->purpose != FIL_TYPE_LOG);
 
 	/* Read the first page of the tablespace */
@@ -2597,10 +2594,8 @@ Fil_shard::get_file_size(
 
 		ib::error()
 			<< "The size of tablespace file "
-			<< file->name << " is only "
-			<< size_bytes
-			<< ", should be at least "
-			<< min_size << "!";
+			<< file->name << " is only " << size_bytes
+			<< ", should be at least " << min_size << "!";
 
 		ut_error;
 	}
@@ -2609,11 +2604,11 @@ Fil_shard::get_file_size(
 
 		ib::fatal()
 			<< "Tablespace id is " << space->id
-			<< " in the data dictionary but"
-			<< " in file " << file->name
-			<< " it is " << space_id << "!";
+			<< " in the data dictionary but in file "
+			<< file->name << " it is " << space_id << "!";
 	}
 
+	/* We need to adjust for compressed pages. */
 	const page_size_t	space_page_size(space->flags);
 
 	if (!page_size.equals_to(space_page_size)) {
@@ -2707,12 +2702,6 @@ Fil_shard::get_file_size(
 			size_bytes / page_size.physical());
 
 		space->size += file->size;
-
-	} else if (space->id != TRX_SYS_SPACE && space->size == 0) {
-
-		/* Only the TRX_SYS_SPACE has multiple files. */
-
-		space->size = file->size;
 	}
 
 	return(DB_SUCCESS);
@@ -7728,7 +7717,7 @@ fil_report_invalid_page_access_low(
 
 	ut_error;
 
-	//_exit(1);
+	_exit(1);
 }
 
 #define fil_report_invalid_page_access(b, s, n, o, l, t)		\
@@ -7841,8 +7830,6 @@ Fil_shard::get_file_for_io(
 
 		fil_node_t&	f = space->files.front();
 
-		ib::warn() << space->name << ", " << f.size << ", " << *page_no;
-
 		if ((fsp_is_ibd_tablespace(space->id) && f.size == 0)
 		    || f.size > *page_no) {
 
@@ -7863,8 +7850,6 @@ Fil_shard::get_file_for_io(
 
 				/* Page access request for a page that is
 				outside the truncated UNDO tablespace bounds. */
-
-				ib::warn() << space->name << " - TRUNCATED";
 
 				return(DB_TABLE_NOT_FOUND);
 			}
