@@ -371,6 +371,7 @@ SELECT @@innodb_fast_shutdown, @@innodb_default_row_format, @@innodb_flush_log_a
 #
 # this is the wrong format with event_scheduler value not being string
 # server should fail to start
+# on windows even though server fails to start return code is 0, thus expecting error to be 0 or 1
 # this is the wrong format with binlog_gtid_simple_recovery value not being string
 # server should fail to start
 # this is the wrong format with no ',' between key/value pair
