@@ -19034,7 +19034,7 @@ void Dbtc::executeIndexOperation(Signal* signal,
 bool Dbtc::seizeIndexOperation(ApiConnectRecord* regApiPtr,
 			       TcIndexOperationPtr& indexOpPtr)
 {
-  if (regApiPtr->theSeizedIndexOperations.seizeFirst(indexOpPtr))
+  if (c_theIndexOperationPool.seize(indexOpPtr))
   {
     jam();
     ndbassert(indexOpPtr.p->pendingKeyInfo == 0);
@@ -19045,6 +19045,10 @@ bool Dbtc::seizeIndexOperation(ApiConnectRecord* regApiPtr,
     ndbassert(indexOpPtr.p->pendingTransIdAI == 0);
     ndbassert(indexOpPtr.p->transIdAISectionIVal == RNIL);
     ndbassert(indexOpPtr.p->savedFlags == 0);
+
+    LocalTcIndexOperation_dllist list(c_theIndexOperationPool,
+                                      regApiPtr->theSeizedIndexOperations);
+    list.addFirst(indexOpPtr);
     return true;
   }
   jam();
@@ -19066,15 +19070,26 @@ void Dbtc::releaseIndexOperation(ApiConnectRecord* regApiPtr,
   releaseSection(indexOp->transIdAISectionIVal);
   indexOp->transIdAISectionIVal= RNIL;
   indexOp->savedFlags= 0;
-  regApiPtr->theSeizedIndexOperations.release(indexOp->indexOpId);
+
+  TcIndexOperationPtr indexOpPtr; // TODO get it passed into function
+  indexOpPtr.i = indexOp->indexOpId;
+  c_theIndexOperationPool.getPtr(indexOpPtr);
+  ndbrequire(indexOpPtr.p == indexOp);
+
+  LocalTcIndexOperation_dllist list(c_theIndexOperationPool,
+                                    regApiPtr->theSeizedIndexOperations);
+  list.remove(indexOpPtr);
+  c_theIndexOperationPool.release(indexOpPtr);
 }
 
 void Dbtc::releaseAllSeizedIndexOperations(ApiConnectRecord* regApiPtr)
 {
+  LocalTcIndexOperation_dllist list(c_theIndexOperationPool,
+                                    regApiPtr->theSeizedIndexOperations);
   TcIndexOperationPtr seizedIndexOpPtr;
 
-  regApiPtr->theSeizedIndexOperations.first(seizedIndexOpPtr);
-  while(seizedIndexOpPtr.i != RNIL) {
+  while (list.removeFirst(seizedIndexOpPtr))
+  {
     jam();
     TcIndexOperation* indexOp = seizedIndexOpPtr.p;
 
@@ -19090,12 +19105,8 @@ void Dbtc::releaseAllSeizedIndexOperations(ApiConnectRecord* regApiPtr)
     releaseSection(indexOp->transIdAISectionIVal);
     indexOp->transIdAISectionIVal = RNIL;
     indexOp->savedFlags= 0;
-    regApiPtr->theSeizedIndexOperations.next(seizedIndexOpPtr);
-  }
-  jam();
-  while (regApiPtr->theSeizedIndexOperations.releaseFirst())
-  {
-    ;
+
+    c_theIndexOperationPool.release(seizedIndexOpPtr);
   }
   jam();
 }

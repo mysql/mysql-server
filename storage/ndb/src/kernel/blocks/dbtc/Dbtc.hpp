@@ -680,8 +680,7 @@ public:
   
   typedef Ptr<TcIndexOperation> TcIndexOperationPtr;
   typedef TransientPool<TcIndexOperation> TcIndexOperation_pool;
-  typedef SLList<TcIndexOperation_pool> TcIndexOperation_sllist;
-  typedef DLList<TcIndexOperation_pool> TcIndexOperation_dllist;
+  typedef LocalDLList<TcIndexOperation_pool> LocalTcIndexOperation_dllist;
 
   /**
    * Pool of index data record
@@ -911,15 +910,15 @@ public:
   {
     STATIC_CONST( TYPE_ID = RT_DBTC_API_CONNECT_RECORD );
 
-    ApiConnectRecord(TcIndexOperation_pool & seizedIndexOpPool):
+    ApiConnectRecord():
       m_magic(Magic::make(TYPE_ID)),
       nextApiConnect(RNIL),
-      m_special_op_flags(0),
-      theSeizedIndexOperations(seizedIndexOpPool) 
+      m_special_op_flags(0)
     {
       NdbTick_Invalidate(&m_start_ticks);
       tcConnect.init();
       theFiredTriggers.init();
+      theSeizedIndexOperations.init();
     }
     
     Uint32 m_magic;
@@ -1084,7 +1083,7 @@ public:
     UintR executingIndexOp;
     UintR tcIndxSendArray[6];
     NDB_TICKS m_start_ticks;
-    TcIndexOperation_dllist theSeizedIndexOperations;
+    LocalTcIndexOperation_dllist::Head theSeizedIndexOperations;
 
 #ifdef ERROR_INSERT
     Uint32 continueBCount;  // ERROR_INSERT 8082

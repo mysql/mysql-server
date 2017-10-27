@@ -90,7 +90,7 @@ void Dbtc::initRecords()
 
   for(unsigned i = 0; i<capiConnectFilesize; i++) {
     p = &apiConnectRecord[i];
-    new (p) ApiConnectRecord(c_theIndexOperationPool);
+    new (p) ApiConnectRecord();
   }
   // Init all fired triggers
   DLFifoList<TcFiredTriggerData_pool> triggers(c_theFiredTriggerPool);
