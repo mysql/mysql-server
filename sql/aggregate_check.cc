@@ -40,7 +40,6 @@
 #include "sql/opt_trace.h"
 #include "sql/opt_trace_context.h"
 #include "sql/parse_tree_nodes.h"
-#include "sql/sql_array.h"
 #include "sql/sql_base.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
@@ -168,8 +167,8 @@ bool Distinct_check::check_query(THD *thd)
 
 /**
    Rejects the query if it does aggregation or grouping, and expressions in
-   its SELECT list, ORDER BY clause, or HAVING condition, may vary inside a
-   group (are not "group-invariant").
+   its SELECT list, ORDER BY clause, HAVING condition, or window functions
+   may vary inside a group (are not "group-invariant").
 */
 bool Group_check::check_query(THD *thd)
 {
@@ -180,6 +179,7 @@ bool Group_check::check_query(THD *thd)
   Item *expr;
   uint number_in_list= 1;
   const char *place= "SELECT list";
+
   while ((expr= select_exprs_it++))
   {
     if (check_expression(thd, expr, true))
@@ -213,21 +213,18 @@ bool Group_check::check_query(THD *thd)
       goto err;
   }
 
-  // Validate windows' ORDER BY and PARTITION BY clauses
+  // Validate windows' ORDER BY and PARTITION BY clauses.
   char buff[STRING_BUFFER_USUAL_SIZE];
   {
     List_iterator<Window> li(select->m_windows);
     for (Window *w= li++; w != nullptr; w= li++)
     {
-      const PT_order_list *li[]= { w->partition(), w->order() };
-      auto constexpr size= sizeof(li) / sizeof(PT_order_list*);
-      number_in_list= 1;
-
-      for (auto it: Bounds_checked_array<const PT_order_list *>(li, size))
+      for (auto it: {w->first_partition_by(), w->first_order_by()})
       {
         if (it != nullptr)
         {
-          for (ORDER *o= it->value.first; o != nullptr; o= o->next)
+          number_in_list= 1;
+          for (ORDER *o= it; o != nullptr; o= o->next)
           {
             Item *expr= *(o->item);
             if (check_expression(thd, expr, false))

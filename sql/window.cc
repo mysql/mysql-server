@@ -221,7 +221,7 @@ static Item_cache *make_result_item(Item *value)
 
 bool Window::setup_range_expressions(THD *thd)
 {
-  const PT_order_list *o= order();
+  const PT_order_list *o= effective_order_by();
 
   if (o == nullptr && m_frame->m_unit == WFU_RANGE)
   {
@@ -239,10 +239,7 @@ bool Window::setup_range_expressions(THD *thd)
     }
   }
 
-  PT_border *ba[]= { m_frame->m_from, m_frame->m_to };
-  auto constexpr siz= sizeof(ba) / sizeof(PT_border *);
-
-  for (auto border : Bounds_checked_array<PT_border *>(ba, siz))
+  for (auto border : { m_frame->m_from, m_frame->m_to })
   {
     Item_func *cmp= nullptr, **cmp_ptr= nullptr /* to silence warning */ ;
     enum_window_border_type border_type= border->m_border_type;
@@ -354,8 +351,10 @@ ORDER *Window::sorting_order(THD *thd)
 {
   if (m_sorting_order == nullptr)
   {
-    ORDER *part= partition() ? partition()->value.first : nullptr;
-    ORDER *ord= order() ? order()->value.first : nullptr;
+    ORDER *part= effective_partition_by() ?
+      effective_partition_by()->value.first : nullptr;
+    ORDER *ord= effective_order_by() ?
+      effective_order_by()->value.first : nullptr;
 
     /*
       1. Copy both lists
@@ -529,7 +528,7 @@ bool Window::before_or_after_frame(bool before)
   */
   (void)candidate->update_null_value();
 
-  const bool asc= order()->value.first->direction == ORDER_ASC;
+  const bool asc= effective_order_by()->value.first->direction == ORDER_ASC;
   const bool nulls_at_infinity= // true if NULLs stick to 'infinity'
     before ? asc : !asc;
 
@@ -811,10 +810,7 @@ bool Window::check_border_sanity(THD *thd, Window *w,
 
   const PT_frame &fr= *f;
 
-  PT_border *ba[]= { fr.m_from, fr.m_to };
-  auto constexpr siz= sizeof(ba) / sizeof(PT_border *);
-
-  for (auto border : Bounds_checked_array<PT_border *>(ba, siz))
+  for (auto border : { fr.m_from, fr.m_to })
   {
     enum_window_border_type border_t= border->m_border_type;
     switch (fr.m_unit)
@@ -1074,11 +1070,13 @@ bool Window::setup_windows(THD* thd,
     while ((w= w_it++))
     {
       const PT_frame *f= w->frame();
-      const PT_order_list *o= w->order();
+      const PT_order_list *o= w->effective_order_by();
       if (w->setup_ordering_cached_items(thd, select, o, false))
         return true;
 
-      if (w->setup_ordering_cached_items(thd, select, w->partition(), true))
+      if (w->setup_ordering_cached_items(thd, select,
+                                         w->effective_partition_by(),
+                                         true))
         return true;
 
       /*
@@ -1255,7 +1253,7 @@ bool Window::setup_windows(THD* thd,
   while ((w= w_it++))
   {
     const PT_frame *f= w->frame();
-    const PT_order_list *o= w->order();
+    const PT_order_list *o= w->effective_order_by();
 
     if (w->check_unique_name(windows))
       return true;
@@ -1263,7 +1261,9 @@ bool Window::setup_windows(THD* thd,
     if (w->setup_ordering_cached_items(thd, select, o, false))
       return true;
 
-    if (w->setup_ordering_cached_items(thd, select, w->partition(), true))
+    if (w->setup_ordering_cached_items(thd, select,
+                                       w->effective_partition_by(),
+                                       true))
       return true;
 
     if (w->check_window_functions(thd, select))
@@ -1290,38 +1290,6 @@ bool Window::setup_windows(THD* thd,
       my_error(ER_NOT_SUPPORTED_YET, MYF(0), "GROUPS");
       return true;
     }
-
-#if 0 // GROUPS not yet supported, see error above.
-    /*
-      If frame uses GROUPS <value>, require ORDER BY
-      cf. SQL 2011 SR 11.c.i)
-    */
-    if (f != nullptr && f->m_unit == WFU_GROUPS)
-    {
-      if (o == nullptr || o->value.elements != 1)
-      {
-        my_error(ER_WINDOW_GROUPS_REQUIRES_ORDER_BY_COL, MYF(0),
-                 w->printable_name());
-        return true;
-      }
-      /* check the ORDER BY type */
-      Item *order_expr= *(o->value.first->item);
-
-      /* must be numeric */
-      switch (order_expr->result_type())
-      {
-        case INT_RESULT:
-        case REAL_RESULT:
-        case DECIMAL_RESULT:
-          goto ok2;
-        default: ;
-      }
-      my_error(ER_WINDOW_GROUPS_REQUIRES_ORDER_BY_COL, MYF(0),
-               w->printable_name());
-      return true;
-    ok2: ;
-    }
-#endif
 
     /*
       So we can determine is a row's value falls within range of current row's
@@ -1368,15 +1336,9 @@ void Window::cleanup(THD *thd)
   {
     (void)m_frame_buffer->file->ha_index_or_rnd_end();
     free_tmp_table(thd, m_frame_buffer);
-#ifdef WF_DEBUG
-    m_frame_buffer_cache.clear();
-#endif // WF_DEBUG
   }
 
-  List<Cached_item> *lis[]= { &m_order_by_items, &m_partition_items };
-  auto constexpr siz= sizeof(lis) / sizeof(List<Cached_item> *);
-
-  for (auto it : Bounds_checked_array<List<Cached_item> *>(lis, siz))
+  for (auto it : { &m_order_by_items, &m_partition_items })
   {
     List_iterator<Cached_item> li(*it);
     Cached_item *ci;
@@ -1428,9 +1390,7 @@ void Window::reset_execution_state(Reset_level level)
         need to reset it to original pointer(item_ptr).
       */
       {
-        const PT_order_list *li[]= { m_partition_by, m_order_by };
-        auto constexpr siz= sizeof(li) / sizeof(PT_order_list*);
-        for (auto it : Bounds_checked_array<const PT_order_list *>(li, siz))
+        for (auto it : { m_partition_by, m_order_by })
         {
           if (it != nullptr)
           {
@@ -1475,21 +1435,18 @@ void Window::reset_execution_state(Reset_level level)
 
   /*
     These state variables are always set per row processed, so no need to
-    reset here
-  */
-  // m_rowno_being_visited= 0;
-  // m_last_rowno_in_peerset= 0;
-  // m_partition_border= true;
-  // m_frame_cardinality= 0;
-  // m_dont_aggregate= false;
-  // m_inverse_aggregation= false;
-  // m_rowno_in_frame= 0;
-  // m_rowno_in_partition= 0;
-  // m_do_copy_null= false;
-  // m_is_last_row_in_frame= false;
+    reset here:
+        m_rowno_being_visited
+        m_last_rowno_in_peerset
+        m_partition_border
+        m_dont_aggregate
+        m_inverse_aggregation
+        m_rowno_in_frame
+        m_rowno_in_partition
+        m_do_copy_null
+        m_is_last_row_in_frame
 
-  /*
-    These need resetting for all levels
+    But these need resetting for all levels
   */
   m_last_row_output= 0;
   m_last_rowno_in_cache= 0;
@@ -1499,21 +1456,7 @@ void Window::reset_execution_state(Reset_level level)
 }
 
 
-//int64 Window::frame_cardinality()
-//{
-//  if (!m_needs_frame_buffering)
-//    return m_rowno_in_frame;
-//  else
-//  {
-//    if (m_frame == nullptr)
-//      return m_last_rowno_in_cache;
-//    else
-//      return m_frame_cardinality;
-//  }
-//}
-
-
-bool Window::has_two_pass_wf()
+bool Window::some_wf_needs_frame_card()
 {
   List_iterator<Item_sum> it(m_functions);
   Item_result_field *f;
@@ -1521,7 +1464,7 @@ bool Window::has_two_pass_wf()
   {
     if (f->type() == Item::SUM_FUNC_ITEM &&
         !down_cast<Item_sum *>(f)->framing() &&
-        down_cast<Item_sum *>(f)->two_pass())
+        down_cast<Item_sum *>(f)->needs_card())
       return true;
   }
 
@@ -1582,32 +1525,10 @@ void Window::print_frame(String *str, enum_query_type qt) const
   print_border(str, f.m_from, qt);
   str->append(" AND ");
   print_border(str, f.m_to, qt);
-
-  // if (f.m_exclusion != nullptr)
-  // {
-  //   str->append(" EXCLUDE ");
-  //   const char *what;
-  //   switch (f.m_exclusion->exclusion())
-  //   {
-  //     case WFX_CURRENT_ROW:
-  //       what= "CURRENT ROW";
-  //       break;
-  //     case WFX_GROUP:
-  //       what= "GROUP";
-  //       break;
-  //     case WFX_TIES:
-  //       what= "TIES";
-  //       break;
-  //     case WFX_NO_OTHERS:
-  //       what= "NO OTHERS";
-  //       break;
-  //   }
-  //   str->append(what);
-  // }
 }
 
 
-void Window::print(THD *thd, SELECT_LEX *lex, String *str, enum_query_type qt,
+void Window::print(THD *thd, String *str, enum_query_type qt,
                    bool expand_definition) const
 {
   if (m_name != nullptr && !expand_definition)
@@ -1627,18 +1548,17 @@ void Window::print(THD *thd, SELECT_LEX *lex, String *str, enum_query_type qt,
       str->append(' ');
     }
 
-
     if (m_partition_by != nullptr)
     {
       str->append("PARTITION BY ");
-      lex->print_order(str, m_partition_by->value.first, qt);
+      SELECT_LEX::print_order(str, m_partition_by->value.first, qt);
       str->append(' ');
     }
 
     if (m_order_by != nullptr)
     {
       str->append("ORDER BY ");
-      lex->print_order(str, m_order_by->value.first, qt);
+      SELECT_LEX::print_order(str, m_order_by->value.first, qt);
       str->append(' ');
     }
 
@@ -1657,8 +1577,7 @@ void Window::reset_all_wf_state()
   Item_sum *sum;
   while ((sum= ls++))
   {
-    bool framing[2]= {false, true};
-    for (auto f : Bounds_checked_array<bool>(framing, 2))
+    for (auto f : {false, true})
     {
       (void)sum->walk(&Item::reset_wf_state,
                       Item::enum_walk(Item::WALK_POSTFIX),

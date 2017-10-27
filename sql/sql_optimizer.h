@@ -601,8 +601,18 @@ public:
       slice overwriting is necessary, and it is used to restore
       original values in slice 0 after having been overwritten.
     - slices 5 -> N are used by windowing:
-      1 window: N==5       N==7 used by window 1 for framing tmp table
-      2 windows: N==6      N==8 used by window 2 for framing tmp table
+      first are all the window's out tmp tables,
+      the next indexes are reserved for the windows' frame buffers (in the same
+      order), if any, e.g.
+
+      One window:      5: window 1's out table
+                       6: window 1's FB
+
+      Two windows:     5: window 1's out table
+                       6: window 2's out table
+                       7: window 1's FB
+                       8: window 2's FB
+      and so on.
 
     Slice 0 is allocated for the lifetime of a statement, whereas slices 1-4
     are associated with a single optimization. The size of slice 0 determines

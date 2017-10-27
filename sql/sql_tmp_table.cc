@@ -297,10 +297,13 @@ static Field *create_tmp_field_for_schema(Item *item, TABLE *table)
                        the temporary table
   @param table_cant_handle_bit_fields
   @param make_copy_field
-  @param copy_result_field TRUE <=> return item's result field in the from_field
-                       arg. This is used for a window's OUT table when
-                       windows uses frame buffer to copy a function's result
-                       field from OUT table to frame buffer (and back).
+  @param copy_result_field TRUE <=> save item's result_field in the from_field
+                       arg, before changing it. This is used for a window's
+                       OUT table when window uses frame buffer to copy a
+                       function's result field from OUT table to frame buffer
+                       (and back). @note that the goals of 'from_field' when
+                       this argument is true and when it is false, are
+                       different.
 
   @retval NULL On error.
 
@@ -433,8 +436,6 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   case Item::VARBIN_ITEM:
   case Item::PARAM_ITEM:
   case Item::SUM_FUNC_ITEM:
-      // Need to make result field for WF in the 'else' branch as WFs are
-      // evaluated via copy_funcs
       if (type == Item::SUM_FUNC_ITEM && !is_wf)
       {
         Item_sum *item_sum=(Item_sum*) item;
@@ -444,7 +445,25 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
       }
       else
       {
-        if (make_copy_field || (copy_result_field && !is_wf))
+        /*
+          (2) we're windowing. The Item doesn't contain any not-yet-calculated
+          window function (per logic in our caller create_tmp_table()). So it
+          is an ordinary function or can be considered as such. We're creating
+          the OUT table using IN table as source, and we have previously
+          created a frame buffer (FB) using IN table as source. That previous
+          creation has set IN's item's result_field to be the FB field. Here
+          we save that FB field in from_field. Right after that,
+          create_tmp_field_from_item() sets IN's item's result_field to the
+          OUT field (which OUT field is the 'result' variable). We mark the
+          OUT field with FIELD_IS_MARKED. Later we detect the mark, and create
+          a Copy_field to from_field (FB) from the marked field (OUT). The end
+          situation is: IN's item's result_field is in OUT, enabling the
+          initial function evaluation and saving of its result in OUT; the
+          Copy_field from OUT to FB and back will allow buffering/restoration
+          of that result.
+        */
+        if (make_copy_field ||
+            (copy_result_field && !is_wf)) // (2)
         {
           *from_field= item->get_tmp_table_field();
           DBUG_ASSERT(*from_field);
@@ -1108,15 +1127,24 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
                                         ((windowing == TMP_WIN_CONDITIONAL) &&
                                          (param->m_window != tmp_file_window))))
         /*
-          we are not evaluating wf (or expression containing a wf
+          we are not evaluating wf (or expression containing a wf)
           for this window yet, i.e. it will happen in a later windowing step.
         */
         || (!item->m_is_window_function &&
             windowing != TMP_WIN_UNCONDITIONAL && item->has_wf()))
         /*
-          Query_result_union::create_result_table always sees the
+          If this is not the last tmp table of windowing, this function of a
+          WF can, or cannot, be evaluated yet (it depends on if the WF's
+          window step has passed or not). So we do not evaluate it. Note that
+          it means that a function of a WF is always evaluated when we are at
+          the last tmp table of windowing, even though its WF has possibly
+          been evaluated earlier in a previous tmp table of windowing (that is
+          possible if we have 2 windows or more).
+
+          If this is a tmp table to store a query's result:
+          Query_result_union::create_result_table should always see the
           evaluated field, not the expression function containing a wf, it is
-          already evaluated:
+          already evaluated. And this field must be copied.
         */
     {
       /* Do nothing */
@@ -1177,32 +1205,34 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
     else
     {
       /*
-        The last parameter to create_tmp_field() is a bit tricky:
+        Parameters of create_tmp_field():
 
+        (1) is a bit tricky:
         We need to set it to 0 in union, to get fill_record() to modify the
         temporary table.
         We need to set it to 1 on multi-table-update and in select to
         write rows to the temporary table.
         We here distinguish between UNION and multi-table-updates by the fact
         that in the later case group is set to the row pointer.
+        (2) If item->marker == 4 then we force create_tmp_field
+        to create a 64-bit longs for BIT fields because HEAP
+        tables can't index BIT fields directly. We do the same
+        for distinct, as we want the distinct index to be
+        usable in this case too.
+        (3) This is the OUT table of windowing, there is a frame buffer, and
+        the item is an expression which can store its value in a result_field
+        (e.g. it is Item_func). In that case we pass copy_result_field=true.
       */
       new_field= (param->schema_table) ?
         create_tmp_field_for_schema(item, table) :
         create_tmp_field(thd, table, item, type, copy_func,
                          tmp_from_field, &default_field[fieldnr],
-                         group != 0,
+                         group != 0, // (1)
                          !force_copy_fields &&
                            (not_all_columns || group !=0),
-                         /*
-                           If item->marker == 4 then we force create_tmp_field
-                           to create a 64-bit longs for BIT fields because HEAP
-                           tables can't index BIT fields directly. We do the same
-                           for distinct, as we want the distinct index to be
-                           usable in this case too.
-                         */
-                         item->marker == 4 || param->bit_fields_as_long,
+                         item->marker == 4 || param->bit_fields_as_long, //(2)
                          force_copy_fields,
-                         (windowing == TMP_WIN_CONDITIONAL &&
+                         (windowing == TMP_WIN_CONDITIONAL && // (3)
                           param->m_window->frame_buffer_param() &&
                           item->is_result_field()));
 
@@ -1584,8 +1614,7 @@ update_hidden:
           field->flags & FIELD_IS_MARKED)
       {
         Temp_table_param *window_fb= param->m_window->frame_buffer_param();
-        // This is the result field of a function in the out-table.
-        // We need to copy it from out-table to window's frame buffer
+        // Grep for FIELD_IS_MARKED in this file.
         field->flags^= FIELD_IS_MARKED;
         window_fb->copy_field_end->set(from_field[i], field,
                                        save_sum_fields);

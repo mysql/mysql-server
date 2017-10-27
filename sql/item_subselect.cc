@@ -762,6 +762,29 @@ bool Item_subselect::walk_body(Item_processor processor, enum_walk walk,
         if ((*order->item)->walk(processor, walk, arg))
           return true;
       }
+
+      // walk windows' ORDER BY and PARTITION BY clauses.
+      List_iterator<Window> liw(lex->m_windows);
+      for (Window *w= liw++; w != nullptr; w= liw++)
+      {
+        /*
+          We use first_order_by() instead of order() because if a window
+          references another window and they thus share the same ORDER BY,
+          we want to walk that clause only once here
+          (Same for partition as well)".
+        */
+        for (auto it: {w->first_partition_by(), w->first_order_by() })
+        {
+          if (it != nullptr)
+          {
+            for (ORDER *o= it; o != nullptr; o= o->next)
+            {
+              if ((*o->item)->walk(processor, walk, arg))
+                return true;
+            }
+          }
+        }
+      }
     }
   }
 

@@ -1921,7 +1921,8 @@ public:
   virtual void top_level_item() {}
   /*
     set field of temporary table for Item which can be switched on temporary
-    table during query processing (grouping and so on)
+    table during query processing (grouping and so on). @see
+    Item_result_field.
   */
   virtual void set_result_field(Field*) {}
   virtual bool is_result_field() const { return false; }
@@ -4421,7 +4422,25 @@ private:
   void bin_string_init(const char *str, size_t str_length);
 };
 
-class Item_result_field :public Item	/* Item with result field */
+
+/**
+  Item with result field.
+
+  It adds to an Item a "result_field" Field member. This is for an item which
+  may have a result (e.g. Item_func), and may store this result into a field;
+  usually this field is a column of an internal temporary table. So the
+  function may be evaluated by save_in_field(), storing result into
+  result_field in tmp table. Then this result can be copied from tmp table to
+  a following tmp table (e.g. GROUP BY table then ORDER BY table), or to a row
+  buffer and back, as we want to avoid multiple evaluations of the Item, first
+  because of performance, second because that evaluation may have side
+  effects, e.g. SLEEP, GET_LOCK, RAND, window functions doing
+  accumulations...
+  Item_field and Item_ref also have a "result_field" for a similar goal.
+  Literals don't need such "result_field" as their value is readily
+  available.
+*/
+class Item_result_field :public Item
 {
 public:
   Field *result_field;				/* Save result here */
@@ -4474,7 +4493,7 @@ public:
   bool mark_field_in_map(uchar *arg) override
   {
     bool rc= Item::mark_field_in_map(arg);
-    if (result_field)
+    if (result_field) // most likely result_field will be read too
       rc|= Item::mark_field_in_map(pointer_cast<Mark_field *>(arg),
                                    result_field);
     return rc;
