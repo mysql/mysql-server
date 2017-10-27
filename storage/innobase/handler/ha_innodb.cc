@@ -4128,6 +4128,14 @@ innobase_change_buffering_inited_ok:
 # endif /* HAVE_UT_CHRONO_T */
 #endif /* UNIV_ENABLE_UNIT_TEST_ROW_RAW_FORMAT_INT */
 
+#ifndef UNIV_HOTBACKUP
+#ifdef _WIN32
+	if (ut_win_init_time()) {
+		DBUG_RETURN(innobase_init_abort());
+	}
+#endif /* _WIN32 */
+#endif /* !UNIV_HOTBACKUP */
+
 	DBUG_RETURN(0);
 }
 
