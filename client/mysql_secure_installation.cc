@@ -20,6 +20,9 @@
 #include <sys/types.h>
 
 #include "client/client_priv.h"
+#ifdef _WIN32
+#include "m_ctype.h"
+#endif
 #include "my_alloc.h"
 #include "my_compiler.h"
 #include "my_dbug.h"

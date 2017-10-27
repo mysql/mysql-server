@@ -19,6 +19,7 @@
 #include <sys/types.h>
 #include <algorithm>
 
+#include "memory_debugging.h"
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_compiler.h"

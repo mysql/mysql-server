@@ -28,6 +28,7 @@
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
+#include "memory_debugging.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
 #include "my_dbug.h"

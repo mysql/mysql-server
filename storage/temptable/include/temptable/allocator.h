@@ -50,10 +50,11 @@ https://msdn.microsoft.com/en-us/library/windows/desktop/aa366891(v=vs.85).aspx
 
 #include "my_config.h"              /* HAVE_LIBNUMA */
 
+#include "memory_debugging.h"
 #include "my_dbug.h"                /* DBUG_ASSERT(), DBUG_PRINT() */
 #include "my_io.h"                  /* File */
 #include "my_psi_config.h"          /* HAVE_PSI_MEMORY_INTERFACE */
-#include "my_sys.h"                 /* create_temp_file(), my_*(), MEM_*() */
+#include "my_sys.h"                 /* create_temp_file(), my_*() */
 #include "mysql/psi/mysql_memory.h" /* PSI_MEMORY_CALL */
 #include "mysql/psi/psi_base.h"     /* PSI_NOT_INSTRUMENTED */
 #include "mysql/psi/psi_memory.h"   /* PSI_memory_key, PSI_memory_info */

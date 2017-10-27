@@ -21,6 +21,7 @@
 #include <new>
 
 #include "lex_string.h"
+#include "memory_debugging.h"
 #include "my_compiler.h"
 #include "my_getopt.h"
 #include "my_inttypes.h"

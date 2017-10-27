@@ -41,6 +41,7 @@
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "map_helpers.h"
+#include "memory_debugging.h"
 #include "my_alloc.h"
 #include "my_bitmap.h"
 #include "my_byteorder.h"

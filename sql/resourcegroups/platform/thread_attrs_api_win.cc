@@ -19,6 +19,7 @@
 
 #include "sql/log.h"
 #include "my_dbug.h"
+#include "my_sys.h"
 
 namespace resourcegroups
 {

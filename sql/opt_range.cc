@@ -127,6 +127,7 @@
 #include "binary_log_types.h"
 #include "lex_string.h"
 #include "m_ctype.h"
+#include "memory_debugging.h"
 #include "mf_wcomp.h"            // wild_compare
 #include "my_alloc.h"
 #include "my_byteorder.h"

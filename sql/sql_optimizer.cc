@@ -37,6 +37,7 @@
 #include "binary_log_types.h"
 #include "ft_global.h"
 #include "m_ctype.h"
+#include "memory_debugging.h"
 #include "my_bit.h"              // my_count_bits
 #include "my_bitmap.h"
 #include "my_dbug.h"

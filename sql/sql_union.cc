@@ -34,6 +34,7 @@
 #include <string.h>
 #include <sys/types.h>
 
+#include "memory_debugging.h"
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_dbug.h"
