@@ -31,13 +31,13 @@
 #include "my_inttypes.h"
 #include "sql/item.h"       // Item
 #include "sql/mem_root_array.h"
+#include "sql/temp_table_param.h"
 
 class Create_field;
 class Field;
 class KEY;
 class SJ_TMP_TABLE;
 class THD;
-class Temp_table_param;
 struct MI_COLUMNDEF;
 struct ORDER;
 struct TABLE;
@@ -88,7 +88,7 @@ bool instantiate_tmp_table(THD *thd, TABLE *table, KEY *keyinfo,
                            MI_COLUMNDEF **recinfo,
                            ulonglong options, bool big_tables);
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
-                        Mem_root_array<Item *> *copy_func, Field **from_field,
+                        Func_ptr_array *copy_func, Field **from_field,
                         Field **default_field,
                         bool group, bool modify_item,
                         bool table_cant_handle_bit_fields,

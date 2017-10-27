@@ -2115,8 +2115,8 @@ Item_in_subselect::single_value_transformer(SELECT_LEX *select,
       As far as  Item_ref_in_optimizer do not substitute itself on fix_fields
       we can use same item for all selects.
     */
-    Item_direct_ref *const left=
-      new Item_direct_ref(&select->context, (Item**)optimizer->get_cache(),
+    Item_ref *const left=
+      new Item_ref(&select->context, (Item**)optimizer->get_cache(),
 			 (char *)"<no matter>", (char *)in_left_expr_name);
     if (left == NULL)
       DBUG_RETURN(RES_ERROR);
@@ -2209,14 +2209,47 @@ Item_in_subselect::single_value_in_to_exists_transformer(SELECT_LEX *select,
       select->group_list.elements || select->m_windows.elements > 0)
   {
     bool tmp;
+    Item_ref_null_helper *ref_null=
+      new Item_ref_null_helper(&select->context, this,
+                               &select->base_ref_items[0],
+                               (char *)"<ref>", this->full_name());
     Item_bool_func *item=
-      func->create(m_injected_left_expr,
-                   new Item_ref_null_helper(&select->context,
-                                            this,
-                                            &select->base_ref_items[0],
-                                            (char *)"<ref>",
-                                            this->full_name()));
+      func->create(m_injected_left_expr, ref_null);
     item->set_created_by_in2exists();
+
+    /*
+      Assume that the expression in the SELECT list, is a function of a group
+      aggregate which is aggregated in an outer query, for example
+      SELECT ... FROM t1 WHERE t1.b IN (SELECT <expr of SUM(t1.a)> FROM t2). We
+      are changing it to
+      SELECT ... FROM t1 WHERE t1.b IN (SELECT <expr of SUM(t1.a)> FROM t2
+                                        HAVING t1.b=ref-to-<expr of SUM(t1.a)>).
+      SUM is an "inner sum func", its fix_fields() has added it to
+      inner_sum_func_list of the outer query; the outer query will do
+      split_sum_func on it which will add SUM as a hidden item and replace it
+      in 'expr' with a pointer to an Item_ref.
+      If 'expr' is a function which has SUM as one of its arguments, the
+      SELECT list and HAVING access 'expr' through two different pointers, but
+      there's only one 'expr' Item, which accesses SUM through one pointer, so
+      there's a single ref_by pointer to remember, we use ref_by[0].
+      But if 'expr' is directly the SUM, with no Item in between, then there
+      are two places where 'expr' should be replaced: the iterator in the
+      SELECT list, and the 'ref-to-expr' in HAVING above. So we have to
+      document those 2 places in ref_by[0] and ref_by[1].
+    */
+    Item *selected= select->base_ref_items[0];
+    if (selected->type() == SUM_FUNC_ITEM)
+    {
+      Item_sum *selected_sum= static_cast<Item_sum *>(selected);
+      if (!selected_sum->ref_by[0])
+        selected_sum->ref_by[0]= ref_null->ref;
+      else
+      {
+        // Slot 0 already occupied, use 1.
+        DBUG_ASSERT(!selected_sum->ref_by[1]);
+        selected_sum->ref_by[1]= ref_null->ref;
+      }
+    }
     if (!abort_on_null && left_expr->maybe_null)
     {
       /* 
@@ -2630,7 +2663,7 @@ Item_in_subselect::row_value_in_to_exists_transformer(SELECT_LEX *select)
       if (item_i->check_cols(left_expr->element_index(i)->cols()))
         DBUG_RETURN(RES_ERROR);
       Item_ref *const left=
-        new Item_direct_ref(&select->context,
+        new Item_ref(&select->context,
                             (*optimizer->get_cache())->addr(i),
                             (char *)"<no matter>", (char *)in_left_expr_name);
       if (left == NULL)
@@ -2642,7 +2675,7 @@ Item_in_subselect::row_value_in_to_exists_transformer(SELECT_LEX *select)
       Item_bool_func *item=
         new Item_func_eq(left,
                          new
-                         Item_direct_ref(&select->context,
+                         Item_ref(&select->context,
                                          pitem_i,
                                          (char *)"<no matter>",
                                          (char *)"<list ref>")
@@ -2661,7 +2694,7 @@ Item_in_subselect::row_value_in_to_exists_transformer(SELECT_LEX *select)
         having_col_item->set_created_by_in2exists();
         Item_bool_func *item_isnull= new
           Item_func_isnull(new
-                           Item_direct_ref(&select->context,
+                           Item_ref(&select->context,
                                            pitem_i,
                                            (char *)"<no matter>",
                                            (char *)"<list ref>")

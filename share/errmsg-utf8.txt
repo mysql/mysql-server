@@ -8005,7 +8005,7 @@ ER_WINDOW_EXPLAIN_JSON
 ER_WINDOW_FUNCTION_IGNORES_FRAME
   eng "Window function '%s' ignores the frame clause of window '%s' and aggregates over the whole partition"
 
-ER_WINDOW_SE_NOT_ACCEPTABLE
+ER_WL9236_NOW_UNUSED
   eng "Windowing requires @@internal_tmp_mem_storage_engine=TempTable."
 
 ER_INVALID_NO_OF_ARGS

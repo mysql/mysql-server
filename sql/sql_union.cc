@@ -177,7 +177,6 @@ bool Query_result_union::create_result_table(THD *thd_arg,
         their columns' values, not in insertion order.
       */
       tmp_table_param.can_use_pk_for_unique= false;
-      tmp_table_param.allow_scan_from_position= true;
     }
     if (unit->mixed_union_operators())
     {

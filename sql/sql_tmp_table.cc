@@ -308,7 +308,7 @@ static Field *create_tmp_field_for_schema(Item *item, TABLE *table)
 */
 
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
-                        Mem_root_array<Item *> *copy_func, Field **from_field,
+                        Func_ptr_array *copy_func, Field **from_field,
                         Field **default_field,
                         bool group, bool modify_item,
                         bool table_cant_handle_bit_fields,
@@ -707,6 +707,131 @@ static void set_real_row_type(TABLE *table)
 }
 
 
+bool Func_ptr::set_contains_alias_of_expr(const SELECT_LEX *select)
+{
+  // We cast 'const' away, but the walker will not modify '*select'.
+  uchar *walk_arg=
+    const_cast<uchar*>(reinterpret_cast<const uchar*>(select));
+  return
+    m_contains_alias_of_expr=
+    m_func->walk(&Item::contains_alias_of_expr,
+                 Item::enum_walk(Item::WALK_PREFIX |
+                                 // ref to alias might be in a subquery
+                                 Item::WALK_SUBQUERY),
+                 walk_arg);
+}
+
+
+/**
+  Moves to the end of the 'copy_func' array the elements which contain a
+  reference to an alias of an expression of the SELECT list of 'select'.
+  @param[in,out]  copy_func  array to sort
+  @param          select     query block to search in.
+*/
+void sort_copy_func(const SELECT_LEX *select, Func_ptr_array *copy_func)
+{
+  /*
+    In the select->all_fields list, there are hidden elements first, then
+    non-hidden. Non-hidden are those of the SELECT list. Hidden ones are:
+    (a) those of GROUP BY, HAVING, ORDER BY
+    (b) those which have been extracted from higher-level elements (of the
+    SELECT, GROUP BY, etc) by split_sum_func() (when aggregates are
+    involved).
+    Note that the clauses in (a) are allowed to reference a non-hidden
+    expression through an alias (e.g. "SELECT a+2 AS x GROUP BY x+3"),
+
+    Let's go through the process of writing to the tmp table
+    (e.g. end_write(), end_write_group()). We also include here the
+    "pseudo-tmp table" embedded into REF_ITEM_SLICE3, used by
+    end_send_group().
+    (1) we switch to the REF_SLICE used to read from that tmp table
+    (2.1) we (copy_fields() part 1) copy some columns from the
+    output of the previous step of execution (e.g. the join's output) to the
+    tmp table
+    (2.2) (specifically for REF_SLICE_TMP3 in end_send_group()) we
+    (copy_fields() part 2) evaluate some expressions from the same previous
+    step of execution, with Item_copy::copy(). The mechanism of Item_copy is:
+    * copy() evaluates the expression and caches its value in memory
+    * val_*() returns the cached value;
+    so Item_copy::copy() for "a+2" evaluates "a+2" (using the join's value
+    of "a") and caches the value; then Item_copy::copy() for "x+3" evaluates
+    "x", through Item_ref (because of the alias), that Item_ref points to
+    the Item_copy for "a+2" (does not point to the "a+2" Item_func_plus
+    expression, as we advanced the REF_SLICE to TMP3); copy() on
+    "x+3" thus evaluates the Item_copy for "a+2" which returns the cached value.
+    This way, if "a+2" were rather some non-deterministic expression
+    (e.g. rand()), the logic above does only one evaluation of rand(), which is
+    correct (the two objects "x" and "a+2" in 'fields' thus have equal
+    values).
+    For this to work, the Item_copy for "x" must be copy()d after that
+    of "a+2", so it can use the value cached for "a+2". setup_copy_fields()
+    ensures this by putting Item_copy-s of hidden elements last.
+    (3) We are now done with copy_fields(). Next is copy_funcs(). It
+    is meant to evaluate expressions and store their values into the tmp table.
+    [ note that we could replace Item_copy in (2) with a real one-row tmp
+    table; then end_send_group() could just use copy_funcs() instead of
+    Item_copy: copy_funcs() would store into the tmp table's column which
+    would thus be the storage for the cached value ].
+    Because we advanced the REF_SLICE, when copy_funcs() evaluates an
+    expression which uses Item_ref, that Item_ref may point to a column of
+    the tmp table. It is thus important that this column has been filled
+    already. So the order of evaluation of expressions by copy_funcs() must
+    respect "dependencies".
+    It is correct to evaluate elements of (b) first, as they are inner to
+    others. But it is incorrect to evaluate elements of (a) first if they
+    refer to non-hidden elements through aliases.
+    So, we sort elements below, putting to the end the ones which use
+    aliases. We use a stable sort, to not disturb any dependence already
+    reflected in the order.
+
+    A simpler and more robust solution would be to break the design that
+    hidden elements are always first in SELECT_LEX::all_fields: references
+    using aliases (in GROUP BY, HAVING, ORDER BY) would be added to
+    all_fields last (after the SELECT list); an inner element (split by
+    split_sum_func) would be added right before its containing element. That
+    would reflect dependencies naturally. But it is hard to implement, as
+    some code relies on the fact that non-hidden elements are last, and
+    other code relies on the fact that SELECT::fields is just a part of
+    SELECT::all_fields (i.e. they share 'next' pointers, in the
+    implementation).
+
+    You may wonder why setup_copy_fields() can solve the dependency problem
+    by putting all hidden elements last, while for the copy_func array we
+    have a (more complex) sort. It's because setup_copy_fields() is for
+    end_send_group() which handles only queries with GROUP BY without ORDER
+    BY, window functions or DISTINCT. So the hidden elements produced by
+    split_sum_func are only group aggregates (not anything from WFs), which
+    setup_copy_fields() ignores: these aggregates are thus not cached
+    (neither in Item_copy, nor in a further tmp table's row as there's no tmp
+    table); so any parent item which references them,
+    if evaluated, will reach to the aggregate, not to any cache
+    materializing the aggregate, so will get an up-to-date value.
+    Whereas with window functions, it's possible to have a hidden element be an
+    aggregate (produced by split_sum_func) _and_ be materialized (into a
+    further tmp table), so we cannot ignore such Item anymore: we have to
+    leave it at the beginning of the copy_func array. Except if it contains
+    an alias to an expression of the SELECT list: in that case, the sorting
+    will move it to the end, but will also move the aliased expression, and
+    their relative order will remain unchanged thanks to stable sort, so
+    their evaluation will be in the right order.
+
+    So we walk each item to copy, and record if it uses an alias. If we
+    found such items, we sort.
+  */
+  bool need_sort= false;
+  for (uint i= 0 ; i < copy_func->size() ; i++)
+    need_sort|= copy_func->at(i).set_contains_alias_of_expr(select);
+  if (need_sort)
+    std::stable_sort(copy_func->begin(), copy_func->end(),
+                     [] (const Func_ptr &lhs, const Func_ptr &rhs)
+                     {
+                       return !lhs.contains_alias_of_expr() &&
+                         rhs.contains_alias_of_expr();
+                     }
+                     );
+}
+
+
 /**
   Helper function for create_tmp_table_* family for setting tmp table fields
   to their place in record buffer
@@ -1086,7 +1211,14 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
         DBUG_ASSERT(thd->is_fatal_error);
         goto err;				// Got OOM
       }
-      if (type == Item::SUM_FUNC_ITEM)
+      /*
+        Some group aggregate function use result_field to maintain their
+        current value (e.g. Item_avg_field stores both count and sum there).
+        But only for the group-by table. So do not set result_field if this is
+        a tmp table for UNION or derived table materialization.
+      */
+      if (type == Item::SUM_FUNC_ITEM &&
+          windowing != TMP_WIN_UNCONDITIONAL)
 	((Item_sum *) item)->result_field= new_field;
       tmp_from_field++;
       reclength+=new_field->pack_length();
@@ -1138,10 +1270,6 @@ update_hidden:
         distinct_key_length+= new_field->pack_length();
     }
 
-    // Update the hidden function count (used in copy_funcs)
-    if (hidden_field_count > 0)
-      param->hidden_func_count= copy_func->size();
-
     if (!--hidden_field_count)
     {
       /*
@@ -1164,7 +1292,7 @@ update_hidden:
       hidden_uneven_bit_length= total_uneven_bit_length;
       total_uneven_bit_length= 0;
     }
-  }
+  } // end of while ((item=li++)).
 
   DBUG_ASSERT(fieldnr == (uint) (reg_field - table->field));
   DBUG_ASSERT(field_count >= (uint) (reg_field - table->field));
@@ -1200,6 +1328,13 @@ update_hidden:
     table->group= group;				/* Table is grouped by key */
     param->group_buff= group_buff;
     share->keys= 1;
+    // Let each group expression know the column which materializes its value
+    for (ORDER *cur_group= group; cur_group; cur_group= cur_group->next)
+    {
+      Field *field= (*cur_group->item)->get_tmp_table_field();
+      DBUG_ASSERT(field->table == table);
+      cur_group->field_in_tmp_table= field;
+    }
     // Use key definition created below only if the key isn't too long.
     // Otherwise a dedicated key over a hash value will be created and this
     // definition will be used by server to calc hash.
@@ -1219,8 +1354,7 @@ update_hidden:
       ORDER *cur_group= group;
       for (; cur_group ; cur_group= cur_group->next, key_part_info++)
       {
-        Field *field= (*cur_group->item)->get_tmp_table_field();
-        DBUG_ASSERT(field->table == table);
+        Field *field= cur_group->field_in_tmp_table;
         key_part_info->init_from_field(field);
 
         /* In GROUP BY 'a' and 'a ' are equal for VARCHAR fields */
@@ -1295,32 +1429,8 @@ update_hidden:
     using_unique_constraint= true;
   }
 
-  /*
-    On the 3rd argument - force_disk_table:
-
-    unique constraint is implemented as index lookups (ha_index_read); if
-    allow_scan_from_position is true, we will be doing, on table->file:
-    Initialize Scan (rnd_init), Read Next Row (rnd_next, many times),
-    Get Position of Current row (position()), End Scan (rnd_end),
-    Write Row (write_row, many times),
-    Initialize Scan (rnd_init), Read Row at Position (rnd_pos),
-    Read Next Row (rnd_next).
-    This will work if TempTable is used, but will not work for the Heap
-    engine (TMP_TABLE_MEMORY) for the reason below. So only pick
-    on-disk if the configured engine is Heap.
-    write_row checks unique constraint so calls ha_index_read.
-    rnd_pos re-starts the scan on the same row where it had left. In
-    MEMORY, write_row modifies this member of the cursor:
-    HEAP_INFO::current_ptr; current_ptr is properly restored by
-    rnd_pos. But the write, to check the unique constraint, calls
-    ha_index_read (hp_rkey) which modifies another member of the cursor:
-    HEAP_INFO::current_record, which rnd_pos cannot restore. In that case,
-    rnd_pos will work, but rnd_next won't. Thus we switch to InnoDB.
-  */
-  if (setup_tmp_table_handler(table, select_options,
-            (param->allow_scan_from_position && using_unique_constraint &&
-            thd->variables.internal_tmp_mem_storage_engine == TMP_TABLE_MEMORY),
-            param->schema_table))
+  if (setup_tmp_table_handler(table, select_options, false,
+                              param->schema_table))
     goto err;                                   /* purecov: inspected */
 
   if (table->s->keys == 1 && table->key_info)
@@ -1393,7 +1503,7 @@ update_hidden:
     goto err;
   param->func_count= copy_func->size();
   DBUG_ASSERT(param->func_count <= copy_func_count); // Used <= allocated
-
+  sort_copy_func(thd->lex->current_select(), copy_func);
   setup_tmp_table_column_bitmaps(table, bitmaps);
 
   recinfo=param->start_recinfo;
@@ -1449,18 +1559,23 @@ update_hidden:
          by the Item_field object from which 'field' has been created.
       */
       Field *orig_field= default_field[i];
-      /* Get the value from default_values */
+      /*
+        Get the value from default_values. Note that orig_field->ptr might not
+        point into record[0] if previous step is REF_SLICE_TMP3 and we are
+        creating a tmp table to materialize the query's result.
+      */
       my_ptrdiff_t diff= orig_field->table->default_values_offset();
-      orig_field->move_field_offset(diff);      // Points now at default_values
-      if (orig_field->is_real_null())
+      Field *f_in_record0= orig_field->table->field[orig_field->field_index];
+      f_in_record0->move_field_offset(diff);      // Points now at default_values
+      if (f_in_record0->is_real_null())
         field->set_null();
       else
       {
         field->set_notnull();
-        memcpy(field->ptr, orig_field->ptr, field->pack_length());
+        memcpy(field->ptr, f_in_record0->ptr, field->pack_length());
       }
-      orig_field->move_field_offset(-diff);     // Back to record[0]
-    } 
+      f_in_record0->move_field_offset(-diff);     // Back to record[0]
+    }
 
     if (from_field[i])
     {						/* Not a table Item */
@@ -1530,17 +1645,17 @@ update_hidden:
     */
     for (; cur_group ; cur_group= cur_group->next, key_part_info++)
     {
-      Field *field= (*cur_group->item)->get_tmp_table_field();
-      DBUG_ASSERT(field->table == table);
+      Field *field= cur_group->field_in_tmp_table;
       bool maybe_null= (*cur_group->item)->maybe_null;
       key_part_info->init_from_field(key_part_info->field);
       keyinfo->key_length+= key_part_info->store_length;
 
       cur_group->buff= (char*) group_buff;
-      cur_group->field= field->new_key_field(thd->mem_root, table,
-                                             group_buff + maybe_null);
+      cur_group->field_in_tmp_table=
+        field->new_key_field(thd->mem_root, table,
+                             group_buff + maybe_null);
 
-      if (!cur_group->field)
+      if (!cur_group->field_in_tmp_table)
         goto err; /* purecov: inspected */
 
       if (maybe_null)
@@ -1555,7 +1670,7 @@ update_hidden:
         cur_group->buff++;                        // Pointer to field data
         group_buff++;                         // Skipp null flag
       }
-      group_buff+= cur_group->field->pack_length();
+      group_buff+= cur_group->field_in_tmp_table->pack_length();
     }
   }
 

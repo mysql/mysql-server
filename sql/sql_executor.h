@@ -432,8 +432,6 @@ public:
     op(NULL),
     tmp_table_param(NULL),
     filesort(NULL),
-    fields(NULL),
-    all_fields(NULL),
     ref_item_slice(REF_SLICE_SAVE),
     send_records(0),
     quick_traced_before(false),
@@ -656,20 +654,8 @@ public:
   Filesort *filesort;
 
   /**
-    List of topmost expressions in the select list. The *next* JOIN TAB
-    in the plan should use it to obtain correct values. Same applicable to
-    all_fields. These lists are needed because after tmp tables functions
-    will be turned to fields. These variables are pointing to
-    tmp_fields_list[123]. Valid only for tmp tables and the last non-tmp
-    table in the query plan.
-    @see JOIN::make_tmp_tables_info()
-  */
-  List<Item> *fields;
-  /** List of all expressions in the select list */
-  List<Item> *all_fields;
-  /**
-    Slice number of the ref items array to switch to before sending rows.
-    Valid only for tmp tables.
+    Slice number of the ref items array to switch to before reading rows from
+    this table.
   */
   uint ref_item_slice;
 

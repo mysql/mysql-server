@@ -442,11 +442,13 @@ public:
   */
 
   /**
-    Non-null for a group aggregate which is aggregated into an outer query
-    block and is the argument of a function; it is then a pointer to that
-    function's args[i] pointer.
+    For a group aggregate which is aggregated into an outer query
+    block; none, or just the first or both cells may be non-zero. They are
+    filled with references to the group aggregate (for example if it is the
+    argument of a function; it is then a pointer to that function's args[i]
+    pointer). "ref_by" stands for "referenced by".
   */
-  Item **ref_by;
+  Item **ref_by[2];
   Item_sum *next; ///< next in the circular chain of registered objects
   Item_sum *in_sum_func;   ///< the containing set function if any
   SELECT_LEX *base_select; ///< query block where function is placed
