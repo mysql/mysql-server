@@ -36,7 +36,6 @@
 #include <sys/types.h>
 
 #include "lex_string.h"
-#include "m_ctype.h"
 #include "my_command.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -53,6 +52,7 @@
 #include "sql/auth/sql_security_ctx.h" // Security_context
 
 class THD;
+struct CHARSET_INFO;
 struct TABLE_LIST;
 
 ////////////////////////////////////////////////////////////

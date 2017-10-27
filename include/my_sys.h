@@ -40,7 +40,6 @@
 #include <sys/types.h>
 #include <time.h>
 
-#include "m_ctype.h"                    /* CHARSET_INFO */
 #include "m_string.h"                   /* IWYU pragma: keep */
 #include "my_compiler.h"
 #include "my_inttypes.h"
@@ -48,10 +47,14 @@
 #include "my_macros.h"
 #include "my_psi_config.h"              /* IWYU pragma: keep */
 #include "my_sharedlib.h"
+#include "mysql/components/services/psi_memory_bits.h"
 #include "mysql/psi/mysql_cond.h"       /* mysql_cond_t */
 #include "mysql/psi/mysql_mutex.h"      /* mysql_mutex_t */
 #include "mysql/psi/psi_file.h"         /* PSI_file_service_t */
 #include "mysql/psi/psi_stage.h"
+
+struct CHARSET_INFO;
+struct MY_CHARSET_LOADER;
 
 struct PSI_cond_bootstrap;
 struct PSI_data_lock_bootstrap;
