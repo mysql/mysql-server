@@ -200,7 +200,8 @@ public:
 #endif
   };
 
-  Gcalc_result_receiver() : collection_result(FALSE), n_shapes(0), n_holes(0)
+  Gcalc_result_receiver() : n_points(0), collection_result(FALSE), n_shapes(0),
+    n_holes(0), prev_x(0), prev_y(0), shape_area(0)
     {}
   int start_shape(Gcalc_function::shape_type shape);
   int add_point(double x, double y);
@@ -362,6 +363,8 @@ private:
     m_res_hook= &result->next;
     result->pi= pi;
     result->intersection_point= intersection_point;
+    result->x= 0;
+    result->y= 0;
     return result;
   }
 
