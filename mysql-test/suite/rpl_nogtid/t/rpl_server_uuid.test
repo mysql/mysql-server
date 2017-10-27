@@ -27,6 +27,9 @@ CALL mtr.add_suppression("Slave I/O: SET @master_heartbeat_period to master fail
 CALL mtr.add_suppression("Notifying master by SET @master_binlog_checksum= @@global.binlog_checksum failed with error");
 CALL mtr.add_suppression("A slave with the same server_uuid/server_id as this slave has connected to the master");
 
+--let $old_log_error_verbosity= `SELECT @@GLOBAL.LOG_ERROR_VERBOSITY`
+SET @@GLOBAL.LOG_ERROR_VERBOSITY= 3;
+
 --let $uuid_file= auto.cnf
 
 --let $master_datadir=`SELECT @@DATADIR`
@@ -307,4 +310,9 @@ eval CHANGE MASTER TO
 --let $rpl_server_number= 3
 --source include/rpl_restart_server.inc
 --source include/stop_slave.inc
+
+--source include/rpl_connection_master.inc
+--replace_result $old_log_error_verbosity OLD_LOG_ERROR_VERBOSITY
+eval SET @@GLOBAL.log_error_verbosity= $old_log_error_verbosity;
+
 --source include/rpl_end.inc
