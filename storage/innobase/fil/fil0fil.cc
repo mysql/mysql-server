@@ -800,7 +800,7 @@ public:
 	void prepare_to_free_file(fil_node_t* file);
 
 	/** If the tablespace is on the unflushed list and there
-	are no pending flushed then remove from the unflushed list.
+	are no pending flushes then remove from the unflushed list.
 	@param[in,out]	space		Tablespace to remove*/
 	void remove_from_unflushed_list(fil_space_t* space);
 
@@ -2983,7 +2983,6 @@ Fil_shard::get_reserved_space(space_id_t space_id)
 		   && fil_space_t::s_redo_space != nullptr) {
 
 		return(fil_space_t::s_redo_space);
-
 	}
 
 	return(get_space_by_id(space_id));
@@ -7727,7 +7726,9 @@ fil_report_invalid_page_access_low(
 #endif /* UNIV_DEBUG */
 		<< ".";
 
-	_exit(1);
+	ut_error;
+
+	//_exit(1);
 }
 
 #define fil_report_invalid_page_access(b, s, n, o, l, t)		\
@@ -7840,6 +7841,8 @@ Fil_shard::get_file_for_io(
 
 		fil_node_t&	f = space->files.front();
 
+		ib::warn() << space->name << ", " << f.size << ", " << *page_no;
+
 		if ((fsp_is_ibd_tablespace(space->id) && f.size == 0)
 		    || f.size > *page_no) {
 
@@ -7860,6 +7863,8 @@ Fil_shard::get_file_for_io(
 
 				/* Page access request for a page that is
 				outside the truncated UNDO tablespace bounds. */
+
+				ib::warn() << space->name << " - TRUNCATED";
 
 				return(DB_TABLE_NOT_FOUND);
 			}
@@ -8431,7 +8436,7 @@ fil_io(
 }
 
 /** If the tablespace is on the unflushed list and there are no pending
-flushed then remove from the unflushed list.
+flushes then remove from the unflushed list.
 @param[in,out]	space		Tablespace to remove */
 void
 Fil_shard::remove_from_unflushed_list(fil_space_t* space)
@@ -8453,21 +8458,24 @@ Fil_shard::redo_space_flush()
 	ut_ad(mutex_owned());
 	ut_ad(m_id == REDO_SHARD);
 
-	fil_space_t*	space;
+	fil_space_t*	space = fil_space_t::s_redo_space;
 
-	space = get_space_by_id(dict_sys_t::s_log_space_first_id);
+	if (space == nullptr) {
+		space = get_space_by_id(dict_sys_t::s_log_space_first_id);
+	} else {
+		ut_ad(space
+		      == get_space_by_id(dict_sys_t::s_log_space_first_id));
+	}
 
 	ut_a(!space->stop_new_ops);
 	ut_a(space->purpose == FIL_TYPE_LOG);
-
-	if (space->stop_new_ops) {
-		return;
-	}
 
 	/* Prevent dropping of the space while we are flushing */
 	++space->n_pending_flushes;
 
 	for (auto& file : space->files) {
+
+		ut_a(!file.is_raw_disk);
 
 		int64_t	old_mod_counter = file.modification_counter;
 
@@ -8482,12 +8490,6 @@ Fil_shard::redo_space_flush()
 		++fil_n_pending_log_flushes;
 
 		bool	skip_flush = false;
-#ifdef _WIN32
-		if (file.is_raw_disk) {
-
-			skip_flush = true;;
-		}
-#endif /* _WIN32 */
 
 		/* Wait for some other thread that is flushing. */
 		while (file.n_pending_flushes > 0 && !skip_flush) {
@@ -8495,9 +8497,11 @@ Fil_shard::redo_space_flush()
 			/* Release the mutex to avoid deadlock with
 			the flushing thread. */
 
+			int64_t	sig_count = os_event_reset(file.sync_event);
+
 			mutex_release();
 
-			os_thread_yield();
+			os_event_wait_low(file.sync_event, sig_count);
 
 			mutex_acquire();
 

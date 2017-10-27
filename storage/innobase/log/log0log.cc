@@ -941,10 +941,10 @@ log_io_complete(log_group_t* group)
 	}
 #endif /* _WIN32 */
 
+	log_io_complete_checkpoint();
+
 	DBUG_PRINT("ib_log", ("checkpoint info written to group %u",
 				unsigned(group->id)));
-
-	log_io_complete_checkpoint();
 }
 
 /** Fill redo log header
@@ -1980,7 +1980,7 @@ log_group_header_read(
 
 	MONITOR_INC(MONITOR_LOG_IO);
 
-        dberr_t err;
+	dberr_t err;
 
 	err = fil_redo_io(
                 IORequestLogRead,
@@ -2069,7 +2069,9 @@ log_checkpoint(
 		log_mutex_exit();
 	}
 
-#ifndef _WIN32
+#ifdef _WIN32
+	fil_flush_file_spaces(to_int(FIL_TYPE_TABLESPACE));
+#else
 	switch (srv_unix_file_flush_method) {
 	case SRV_UNIX_NOSYNC:
 		break;
@@ -2539,10 +2541,10 @@ loop:
 	}
 
 	if (!srv_read_only_mode) {
-                dberr_t err;
+		dberr_t err;
 
 		err = fil_write_flushed_lsn(lsn);
-                ut_a(err == DB_SUCCESS);
+		ut_a(err == DB_SUCCESS);
 	}
 
 	fil_close_all_files();

@@ -664,7 +664,7 @@ buf_dblwr_recover_page(
 			0, page_size.physical(),
 			const_cast<byte*>(page), NULL);
 
-                ut_a(err == DB_SUCCESS);
+		ut_a(err == DB_SUCCESS);
 
 		ib::info()
 			<< "Recovered page "
@@ -964,18 +964,18 @@ buf_dblwr_write_block_to_datafile(
 		type |= IORequest::DO_NOT_WAKE;
 	}
 
-        dberr_t         err;
+	dberr_t         err;
 	IORequest	request(type);
 
 	if (bpage->zip.data != NULL) {
 		ut_ad(bpage->size.is_compressed());
 
 		err = fil_io(
-                        request, sync, bpage->id, bpage->size, 0,
-                        bpage->size.physical(),
-                        (void*) bpage->zip.data, (void*) bpage);
+			request, sync, bpage->id, bpage->size, 0,
+			bpage->size.physical(), (void*) bpage->zip.data,
+			(void*) bpage);
 
-                ut_a(err == DB_SUCCESS);
+		ut_a(err == DB_SUCCESS);
 
 	} else {
 		ut_ad(!bpage->size.is_compressed());
@@ -990,11 +990,10 @@ buf_dblwr_write_block_to_datafile(
 		buf_dblwr_check_page_lsn(block->frame);
 
 		err = fil_io(
-                        request,
-                        sync, bpage->id, bpage->size, 0, bpage->size.physical(),
-                        block->frame, block);
+			request, sync, bpage->id, bpage->size, 0,
+			bpage->size.physical(), block->frame, block);
 
-                ut_a(err == DB_SUCCESS);
+		ut_a(err == DB_SUCCESS);
 	}
 }
 
@@ -1009,7 +1008,7 @@ buf_dblwr_flush_buffered_writes(void)
 /*=================================*/
 {
 	ulint		len;
-        dberr_t         err;
+	dberr_t		err;
 	byte*		write_buf;
 	ulint		first_free;
 
@@ -1096,11 +1095,11 @@ try_again:
 		     buf_dblwr->first_free) * UNIV_PAGE_SIZE;
 
 	err = fil_io(
-                IORequestWrite, true,
-                page_id_t(TRX_SYS_SPACE, buf_dblwr->block1), univ_page_size,
-                0, len, (void*) write_buf, NULL);
+		IORequestWrite, true,
+		page_id_t(TRX_SYS_SPACE, buf_dblwr->block1), univ_page_size,
+		0, len, (void*) write_buf, NULL);
 
-        ut_a(err == DB_SUCCESS);
+		ut_a(err == DB_SUCCESS);
 
 	if (buf_dblwr->first_free <= TRX_SYS_DOUBLEWRITE_BLOCK_SIZE) {
 		/* No unwritten pages in the second block. */
@@ -1115,11 +1114,11 @@ try_again:
 		    + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE;
 
 	err = fil_io(
-                IORequestWrite, true,
-                page_id_t(TRX_SYS_SPACE, buf_dblwr->block2), univ_page_size,
-                0, len, (void*) write_buf, NULL);
+		IORequestWrite, true,
+		page_id_t(TRX_SYS_SPACE, buf_dblwr->block2), univ_page_size,
+		0, len, (void*) write_buf, NULL);
 
-        ut_a(err == DB_SUCCESS);
+	ut_a(err == DB_SUCCESS);
 
 flush:
 	/* increment the doublewrite flushed pages counter */
@@ -1251,7 +1250,7 @@ buf_dblwr_write_single_page(
 	bool		sync)	/*!< in: true if sync IO requested */
 {
 	page_no_t	i;
-        dberr_t         err;
+	dberr_t         err;
 	ulint		n_slots;
 	page_no_t	size;
 	page_no_t	offset;
@@ -1341,23 +1340,21 @@ retry:
 		       univ_page_size.physical() - bpage->size.physical());
 
 		err = fil_io(
-                        IORequestWrite, true,
-                        page_id_t(TRX_SYS_SPACE, offset), univ_page_size, 0,
-                        univ_page_size.physical(),
-                        (void*) (buf_dblwr->write_buf
-                                 + univ_page_size.physical() * i), NULL);
+			IORequestWrite, true, page_id_t(TRX_SYS_SPACE, offset),
+			univ_page_size, 0, univ_page_size.physical(),
+			(void*) (buf_dblwr->write_buf
+				 + univ_page_size.physical() * i), NULL);
 	} else {
 		/* It is a regular page. Write it directly to the
 		doublewrite buffer */
 
 		err = fil_io(
-                        IORequestWrite, true,
-                        page_id_t(TRX_SYS_SPACE, offset), univ_page_size, 0,
-                        univ_page_size.physical(),
-                        (void*) ((buf_block_t*) bpage)->frame, NULL);
+			IORequestWrite, true, page_id_t(TRX_SYS_SPACE, offset),
+			univ_page_size, 0, univ_page_size.physical(),
+			(void*) ((buf_block_t*) bpage)->frame, NULL);
 	}
 
-        ut_a(err == DB_SUCCESS);
+	ut_a(err == DB_SUCCESS);
 
 	/* Now flush the doublewrite buffer data to disk */
 	fil_flush(TRX_SYS_SPACE);

@@ -260,11 +260,9 @@ recv_calc_lsn_on_data_add(
 /** Destructor */
 MetadataRecover::~MetadataRecover()
 {
-	PersistentTables::iterator	iter;
+	for (auto& table : m_tables) {
 
-	for (iter = m_tables.begin(); iter != m_tables.end(); ++iter) {
-
-		ut_free(iter->second);
+		UT_DELETE(table.second);
 	}
 }
 
@@ -280,11 +278,7 @@ MetadataRecover::getMetadata(
 	PersistentTables::iterator	iter = m_tables.find(id);
 
 	if (iter == m_tables.end()) {
-		PersistentTableMetadata* mem =
-			static_cast<PersistentTableMetadata*>(
-				ut_zalloc_nokey(sizeof *metadata));
-
-		metadata = new (mem) PersistentTableMetadata(id, 0);
+		metadata = UT_NEW_NOKEY(PersistentTableMetadata(id, 0));
 
 		m_tables.insert(std::make_pair(id, metadata));
 	} else {

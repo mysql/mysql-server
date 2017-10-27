@@ -463,12 +463,12 @@ create_log_files(
 
 	/* Write encryption information into the first log file header
 	if redo log is set with encryption. */
-	if (FSP_FLAGS_GET_ENCRYPTION(log_space->flags)) {
-		if (!log_write_encryption(log_space->encryption_key,
-					  log_space->encryption_iv,
-					  true)) {
-			return(DB_ERROR);
-		}
+	if (FSP_FLAGS_GET_ENCRYPTION(log_space->flags)
+	    && !log_write_encryption(
+		    log_space->encryption_key, log_space->encryption_iv,
+		    true)) {
+
+		return(DB_ERROR);
 	}
 
 	return(DB_SUCCESS);
