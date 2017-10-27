@@ -5435,22 +5435,6 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
 
   DBUG_EXECUTE_IF("parser_debug", turn_parser_debug_on(););
 
-  /*
-    Warning.
-    The purpose of query_cache_send_result_to_client() is to lookup the
-    query in the query cache first, to avoid parsing and executing it.
-    So, the natural implementation would be to:
-    - first, call query_cache_send_result_to_client,
-    - second, if caching failed, initialise the lexical and syntactic parser.
-    The problem is that the query cache depends on a clean initialization
-    of (among others) lex->safe_to_cache_query and thd->server_status,
-    which are reset respectively in
-    - lex_start()
-    - mysql_reset_thd_for_next_command()
-    So, initializing the lexical analyser *before* using the query cache
-    is required for the cache to work properly.
-    FIXME: cleanup the dependencies in the code to simplify this.
-  */
   mysql_reset_thd_for_next_command(thd);
   lex_start(thd);
 
