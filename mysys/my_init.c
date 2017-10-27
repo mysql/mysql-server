@@ -32,6 +32,7 @@
 #pragma comment(lib, "ws2_32")
 my_bool have_tcpip=0;
 static void my_win_init();
+my_bool win_init_get_system_time_as_file_time();
 #endif
 
 #define SCALE_SEC       100
@@ -126,6 +127,8 @@ my_bool my_init()
     DBUG_PROCESS((char*) (my_progname ? my_progname : "unknown"));
 #ifdef _WIN32
     my_win_init();
+    if (win_init_get_system_time_as_file_time())
+      DBUG_RETURN(TRUE);
 #endif
     DBUG_PRINT("exit", ("home: '%s'", home_dir));
     DBUG_RETURN(FALSE);
