@@ -1183,6 +1183,7 @@ int Gcalc_operation_reducer::get_polygon_result(res_point *cur,
     if(glue->up)
       glue->up->down= NULL;
     free_result(glue);
+    cur->glue= NULL;
   }
   DBUG_RETURN(get_result_thread(cur, storage, 1) ||
               storage->complete_shape());
