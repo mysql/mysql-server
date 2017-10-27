@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
+#include "m_ctype.h"
 #include "m_string.h"
 #include "my_getopt.h"
 #include "my_sys.h"

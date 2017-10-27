@@ -22,7 +22,7 @@
 #include <atomic>
 #include <list>
 
-#include "libbinlogevents/include/control_events.h"     // binary_log::Uuid
+#include "libbinlogevents/include/uuid.h"
 #include "map_helpers.h"
 #include "my_dbug.h"
 #include "my_thread_local.h"

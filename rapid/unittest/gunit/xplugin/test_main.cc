@@ -18,6 +18,7 @@
 #include <gtest/gtest.h>
 #include <stdio.h>
 
+#include "m_ctype.h"
 #include "my_sys.h"
 
 const CHARSET_INFO *data_ctx_charset= &my_charset_utf8mb4_general_ci;

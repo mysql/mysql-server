@@ -18,6 +18,7 @@
 #include <mysqld_error.h>
 
 #include "errmsg.h"
+#include "m_ctype.h"
 #include "m_string.h"
 #include "my_alloc.h"
 #include "my_default.h"
