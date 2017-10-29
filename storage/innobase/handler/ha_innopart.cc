@@ -1284,9 +1284,8 @@ void ha_innopart::clear_ins_upd_nodes()
 		for (uint i = 0; i < m_tot_parts; i++) {
 			if (m_upd_node_parts[i] != NULL) {
 				upd_node_t*	upd = m_upd_node_parts[i];
-				if (upd->cascade_top) {
+				if (upd->cascade_heap) {
 					mem_heap_free(upd->cascade_heap);
-					upd->cascade_top = false;
 					upd->cascade_heap = NULL;
 				}
 				if (upd->in_mysql_interface) {
