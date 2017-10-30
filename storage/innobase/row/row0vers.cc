@@ -738,6 +738,20 @@ row_vers_vc_matches_cluster(
 					field2->len = ind_field->prefix_len;
 				}
 
+				/* For multi-byte character sets (like utf8mb4)
+				and index on prefix of varchar vcol, we log
+				prefix_len * mbmaxlen bytes but the actual
+				secondaary index record size can be less than
+				that. For comparision, use actual length of
+				secondary index record */
+				uint8_t mbmax_len =
+					DATA_MBMAXLEN(field2->type.mbminmaxlen);
+				if (ind_field->prefix_len != 0
+				    && !dfield_is_null(field2)
+				    && mbmax_len > 1) {
+					field2->len = field1->len;
+				}
+
 				/* The index field mismatch */
 				if (v_heap || cmp_dfield_dfield(
 					    field2, field1,
