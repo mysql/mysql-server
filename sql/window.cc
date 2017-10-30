@@ -229,7 +229,7 @@ static Item_cache *make_result_item(Item *value)
 static ORDER *elt(const SQL_I_List<ORDER> &list, uint i)
 {
   ORDER *o= list.first;
-  while (o != nullptr && i >= 0)
+  while (o != nullptr)
   {
     if (i-- == 0)
       return o;
