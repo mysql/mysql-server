@@ -728,6 +728,9 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
   */
   mysql_mutex_unlock(&LOCK_open);
   DEBUG_SYNC(thd, "get_share_before_open");
+  /*
+    If there is a record in the Data Dictionary, add its information to the SHARE Object
+  */
   open_table_err= open_table_def(thd, share, db_flags);
 
   /*
