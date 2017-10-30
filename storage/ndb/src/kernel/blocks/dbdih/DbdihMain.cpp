@@ -17992,9 +17992,10 @@ void Dbdih::execSTART_LCP_REQ(Signal* signal)
   StartLcpReq * req = (StartLcpReq*)signal->getDataPtr();
   ndbrequire(!c_start_node_lcp_req_outstanding);
 
-  if ((getNodeInfo(refToNode(req->senderRef)).m_version <
-       NDBD_SUPPORT_PAUSE_LCP) ||
-       req->pauseStart == StartLcpReq::NormalLcpStart)
+  if (((getNodeInfo(refToNode(req->senderRef)).m_version <
+        NDBD_SUPPORT_PAUSE_LCP) ||
+        req->pauseStart == StartLcpReq::NormalLcpStart) &&
+        req->participatingLQH.get(cownNodeId))
   {
     jam();
     c_save_startLcpReq = *req;
