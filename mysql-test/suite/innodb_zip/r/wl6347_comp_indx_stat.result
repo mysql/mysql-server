@@ -19,17 +19,17 @@ SET GLOBAL innodb_compression_level=0;
 # Create table & Index
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
-ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
-CREATE INDEX  idx9 ON tab5(col_9(10));
-CREATE INDEX  idx8 ON tab5(col_8(10));
-CREATE INDEX  idx7 ON tab5(col_7(10));
-CREATE INDEX  idx6 ON tab5(col_6(10));
-CREATE INDEX  idx5 ON tab5(col_5(10));
-CREATE INDEX  idx4 ON tab5(col_4(10));
-CREATE INDEX  idx3 ON tab5(col_3(10));
-CREATE INDEX  idx2 ON tab5(col_2(10));
-CREATE INDEX  idx1 ON tab5(col_1(10));
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255),
+KEY idx1(col_1(10)),
+KEY idx2(col_2(10)),
+KEY idx3(col_3(10)),
+KEY idx4(col_4(10)),
+KEY idx5(col_5(10)),
+KEY idx6(col_6(10)),
+KEY idx7(col_7(10)),
+KEY idx8(col_8(10)),
+KEY idx9(col_9(10))
+)ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
 # check the stats of the table & size of the table
 SET @inl_val=1;
 # Check the stats of the table
@@ -365,17 +365,17 @@ SET GLOBAL innodb_cmp_per_index_enabled=1;
 # Create table & Index
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
-ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2;
-CREATE INDEX  idx9 ON tab5(col_9(10));
-CREATE INDEX  idx8 ON tab5(col_8(10));
-CREATE INDEX  idx7 ON tab5(col_7(10));
-CREATE INDEX  idx6 ON tab5(col_6(10));
-CREATE INDEX  idx5 ON tab5(col_5(10));
-CREATE INDEX  idx4 ON tab5(col_4(10));
-CREATE INDEX  idx3 ON tab5(col_3(10));
-CREATE INDEX  idx2 ON tab5(col_2(10));
-CREATE INDEX  idx1 ON tab5(col_1(10));
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255),
+KEY idx1(col_1(10)),
+KEY idx2(col_2(10)),
+KEY idx3(col_3(10)),
+KEY idx4(col_4(10)),
+KEY idx5(col_5(10)),
+KEY idx6(col_6(10)),
+KEY idx7(col_7(10)),
+KEY idx8(col_8(10)),
+KEY idx9(col_9(10))
+)ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2;
 # check the stats of the table & size of the table
 SET @inl_val=1;
 # Check the stats of the table
@@ -711,17 +711,17 @@ SET GLOBAL innodb_cmp_per_index_enabled=1;
 # Create table & Index
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
-ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
-CREATE INDEX  idx9 ON tab5(col_9(10));
-CREATE INDEX  idx8 ON tab5(col_8(10));
-CREATE INDEX  idx7 ON tab5(col_7(10));
-CREATE INDEX  idx6 ON tab5(col_6(10));
-CREATE INDEX  idx5 ON tab5(col_5(10));
-CREATE INDEX  idx4 ON tab5(col_4(10));
-CREATE INDEX  idx3 ON tab5(col_3(10));
-CREATE INDEX  idx2 ON tab5(col_2(10));
-CREATE INDEX  idx1 ON tab5(col_1(10));
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255),
+KEY idx1(col_1(10)),
+KEY idx2(col_2(10)),
+KEY idx3(col_3(10)),
+KEY idx4(col_4(10)),
+KEY idx5(col_5(10)),
+KEY idx6(col_6(10)),
+KEY idx7(col_7(10)),
+KEY idx8(col_8(10)),
+KEY idx9(col_9(10))
+)ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
 # check the stats of the table & size of the table
 SET @inl_val=1;
 # Check the stats of the table
@@ -1024,17 +1024,17 @@ SET GLOBAL innodb_cmp_per_index_enabled=1;
 # Create table & Index
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
-ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
-CREATE INDEX  idx9 ON tab5(col_9(10));
-CREATE INDEX  idx8 ON tab5(col_8(10));
-CREATE INDEX  idx7 ON tab5(col_7(10));
-CREATE INDEX  idx6 ON tab5(col_6(10));
-CREATE INDEX  idx5 ON tab5(col_5(10));
-CREATE INDEX  idx4 ON tab5(col_4(10));
-CREATE INDEX  idx3 ON tab5(col_3(10));
-CREATE INDEX  idx2 ON tab5(col_2(10));
-CREATE INDEX  idx1 ON tab5(col_1(10));
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255),
+KEY idx1(col_1(10)),
+KEY idx2(col_2(10)),
+KEY idx3(col_3(10)),
+KEY idx4(col_4(10)),
+KEY idx5(col_5(10)),
+KEY idx6(col_6(10)),
+KEY idx7(col_7(10)),
+KEY idx8(col_8(10)),
+KEY idx9(col_9(10))
+)ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
 # check the stats of the table & size of the table
 SET @inl_val=1;
 # Check the stats of the table
@@ -1337,17 +1337,17 @@ SET GLOBAL innodb_cmp_per_index_enabled=1;
 # Create table & Index
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
-ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=16;
-CREATE INDEX  idx9 ON tab5(col_9(10));
-CREATE INDEX  idx8 ON tab5(col_8(10));
-CREATE INDEX  idx7 ON tab5(col_7(10));
-CREATE INDEX  idx6 ON tab5(col_6(10));
-CREATE INDEX  idx5 ON tab5(col_5(10));
-CREATE INDEX  idx4 ON tab5(col_4(10));
-CREATE INDEX  idx3 ON tab5(col_3(10));
-CREATE INDEX  idx2 ON tab5(col_2(10));
-CREATE INDEX  idx1 ON tab5(col_1(10));
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255),
+KEY idx1(col_1(10)),
+KEY idx2(col_2(10)),
+KEY idx3(col_3(10)),
+KEY idx4(col_4(10)),
+KEY idx5(col_5(10)),
+KEY idx6(col_6(10)),
+KEY idx7(col_7(10)),
+KEY idx8(col_8(10)),
+KEY idx9(col_9(10))
+)ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=16;
 # check the stats of the table & size of the table
 SET @inl_val=1;
 # Check the stats of the table
@@ -1661,17 +1661,17 @@ SET GLOBAL innodb_compression_level=9;
 # Create table & Index
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
-ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
-CREATE INDEX  idx9 ON tab5(col_9(10));
-CREATE INDEX  idx8 ON tab5(col_8(10));
-CREATE INDEX  idx7 ON tab5(col_7(10));
-CREATE INDEX  idx6 ON tab5(col_6(10));
-CREATE INDEX  idx5 ON tab5(col_5(10));
-CREATE INDEX  idx4 ON tab5(col_4(10));
-CREATE INDEX  idx3 ON tab5(col_3(10));
-CREATE INDEX  idx2 ON tab5(col_2(10));
-CREATE INDEX  idx1 ON tab5(col_1(10));
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255),
+KEY idx1(col_1(10)),
+KEY idx2(col_2(10)),
+KEY idx3(col_3(10)),
+KEY idx4(col_4(10)),
+KEY idx5(col_5(10)),
+KEY idx6(col_6(10)),
+KEY idx7(col_7(10)),
+KEY idx8(col_8(10)),
+KEY idx9(col_9(10))
+)ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
 # check the stats of the table & size of the table
 # The size of the file with 0 compress = 65536
 SET @inl_val=1;
@@ -2009,17 +2009,17 @@ SET GLOBAL innodb_cmp_per_index_enabled=ON;
 # Create table & Index
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
-ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2;
-CREATE INDEX  idx9 ON tab5(col_9(10));
-CREATE INDEX  idx8 ON tab5(col_8(10));
-CREATE INDEX  idx7 ON tab5(col_7(10));
-CREATE INDEX  idx6 ON tab5(col_6(10));
-CREATE INDEX  idx5 ON tab5(col_5(10));
-CREATE INDEX  idx4 ON tab5(col_4(10));
-CREATE INDEX  idx3 ON tab5(col_3(10));
-CREATE INDEX  idx2 ON tab5(col_2(10));
-CREATE INDEX  idx1 ON tab5(col_1(10));
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255),
+KEY idx1(col_1(10)),
+KEY idx2(col_2(10)),
+KEY idx3(col_3(10)),
+KEY idx4(col_4(10)),
+KEY idx5(col_5(10)),
+KEY idx6(col_6(10)),
+KEY idx7(col_7(10)),
+KEY idx8(col_8(10)),
+KEY idx9(col_9(10))
+)ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2;
 # check the stats of the table & size of the table
 # The size of the file with 0 compress = 65536
 SET @inl_val=1;
@@ -2357,17 +2357,17 @@ SET GLOBAL innodb_cmp_per_index_enabled=ON;
 # Create table & Index
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
-ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
-CREATE INDEX  idx9 ON tab5(col_9(10));
-CREATE INDEX  idx8 ON tab5(col_8(10));
-CREATE INDEX  idx7 ON tab5(col_7(10));
-CREATE INDEX  idx6 ON tab5(col_6(10));
-CREATE INDEX  idx5 ON tab5(col_5(10));
-CREATE INDEX  idx4 ON tab5(col_4(10));
-CREATE INDEX  idx3 ON tab5(col_3(10));
-CREATE INDEX  idx2 ON tab5(col_2(10));
-CREATE INDEX  idx1 ON tab5(col_1(10));
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255),
+KEY idx1(col_1(10)),
+KEY idx2(col_2(10)),
+KEY idx3(col_3(10)),
+KEY idx4(col_4(10)),
+KEY idx5(col_5(10)),
+KEY idx6(col_6(10)),
+KEY idx7(col_7(10)),
+KEY idx8(col_8(10)),
+KEY idx9(col_9(10))
+)ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
 # check the stats of the table & size of the table
 # The size of the file with 0 compress = 65536
 SET @inl_val=1;
@@ -2672,17 +2672,17 @@ SET GLOBAL innodb_cmp_per_index_enabled=ON;
 # Create table & Index
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
-ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
-CREATE INDEX  idx9 ON tab5(col_9(10));
-CREATE INDEX  idx8 ON tab5(col_8(10));
-CREATE INDEX  idx7 ON tab5(col_7(10));
-CREATE INDEX  idx6 ON tab5(col_6(10));
-CREATE INDEX  idx5 ON tab5(col_5(10));
-CREATE INDEX  idx4 ON tab5(col_4(10));
-CREATE INDEX  idx3 ON tab5(col_3(10));
-CREATE INDEX  idx2 ON tab5(col_2(10));
-CREATE INDEX  idx1 ON tab5(col_1(10));
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255),
+KEY idx1(col_1(10)),
+KEY idx2(col_2(10)),
+KEY idx3(col_3(10)),
+KEY idx4(col_4(10)),
+KEY idx5(col_5(10)),
+KEY idx6(col_6(10)),
+KEY idx7(col_7(10)),
+KEY idx8(col_8(10)),
+KEY idx9(col_9(10))
+)ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
 # check the stats of the table & size of the table
 # The size of the file with 0 compress = 122880
 SET @inl_val=1;
@@ -2987,17 +2987,17 @@ SET GLOBAL innodb_cmp_per_index_enabled=ON;
 # Create table & Index
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
-ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=16;
-CREATE INDEX  idx9 ON tab5(col_9(10));
-CREATE INDEX  idx8 ON tab5(col_8(10));
-CREATE INDEX  idx7 ON tab5(col_7(10));
-CREATE INDEX  idx6 ON tab5(col_6(10));
-CREATE INDEX  idx5 ON tab5(col_5(10));
-CREATE INDEX  idx4 ON tab5(col_4(10));
-CREATE INDEX  idx3 ON tab5(col_3(10));
-CREATE INDEX  idx2 ON tab5(col_2(10));
-CREATE INDEX  idx1 ON tab5(col_1(10));
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255),
+KEY idx1(col_1(10)),
+KEY idx2(col_2(10)),
+KEY idx3(col_3(10)),
+KEY idx4(col_4(10)),
+KEY idx5(col_5(10)),
+KEY idx6(col_6(10)),
+KEY idx7(col_7(10)),
+KEY idx8(col_8(10)),
+KEY idx9(col_9(10))
+)ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=16;
 # check the stats of the table & size of the table
 # The size of the file with 0 compress = 245760
 SET @inl_val=1;
@@ -3312,17 +3312,17 @@ SET GLOBAL innodb_compression_level=default;
 # Create table & Index
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
-ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
-CREATE INDEX  idx9 ON tab5(col_9(10));
-CREATE INDEX  idx8 ON tab5(col_8(10));
-CREATE INDEX  idx7 ON tab5(col_7(10));
-CREATE INDEX  idx6 ON tab5(col_6(10));
-CREATE INDEX  idx5 ON tab5(col_5(10));
-CREATE INDEX  idx4 ON tab5(col_4(10));
-CREATE INDEX  idx3 ON tab5(col_3(10));
-CREATE INDEX  idx2 ON tab5(col_2(10));
-CREATE INDEX  idx1 ON tab5(col_1(10));
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255),
+KEY idx1(col_1(10)),
+KEY idx2(col_2(10)),
+KEY idx3(col_3(10)),
+KEY idx4(col_4(10)),
+KEY idx5(col_5(10)),
+KEY idx6(col_6(10)),
+KEY idx7(col_7(10)),
+KEY idx8(col_8(10)),
+KEY idx9(col_9(10))
+)ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
 # check the stats of the table & size of the table
 # The size of the file with 0 compress = 65536
 SET @inl_val=1;
@@ -3628,17 +3628,17 @@ SET GLOBAL innodb_compression_level=default;
 # Create table & Index
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
-ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2;
-CREATE INDEX  idx9 ON tab5(col_9(10));
-CREATE INDEX  idx8 ON tab5(col_8(10));
-CREATE INDEX  idx7 ON tab5(col_7(10));
-CREATE INDEX  idx6 ON tab5(col_6(10));
-CREATE INDEX  idx5 ON tab5(col_5(10));
-CREATE INDEX  idx4 ON tab5(col_4(10));
-CREATE INDEX  idx3 ON tab5(col_3(10));
-CREATE INDEX  idx2 ON tab5(col_2(10));
-CREATE INDEX  idx1 ON tab5(col_1(10));
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255),
+KEY idx1(col_1(10)),
+KEY idx2(col_2(10)),
+KEY idx3(col_3(10)),
+KEY idx4(col_4(10)),
+KEY idx5(col_5(10)),
+KEY idx6(col_6(10)),
+KEY idx7(col_7(10)),
+KEY idx8(col_8(10)),
+KEY idx9(col_9(10))
+)ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2;
 # check the stats of the table & size of the table
 # The size of the file with 0 compress = 65536
 SET @inl_val=1;
@@ -3919,17 +3919,17 @@ SET GLOBAL innodb_compression_level=default;
 # Create table & Index
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
-ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
-CREATE INDEX  idx9 ON tab5(col_9(10));
-CREATE INDEX  idx8 ON tab5(col_8(10));
-CREATE INDEX  idx7 ON tab5(col_7(10));
-CREATE INDEX  idx6 ON tab5(col_6(10));
-CREATE INDEX  idx5 ON tab5(col_5(10));
-CREATE INDEX  idx4 ON tab5(col_4(10));
-CREATE INDEX  idx3 ON tab5(col_3(10));
-CREATE INDEX  idx2 ON tab5(col_2(10));
-CREATE INDEX  idx1 ON tab5(col_1(10));
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255),
+KEY idx1(col_1(10)),
+KEY idx2(col_2(10)),
+KEY idx3(col_3(10)),
+KEY idx4(col_4(10)),
+KEY idx5(col_5(10)),
+KEY idx6(col_6(10)),
+KEY idx7(col_7(10)),
+KEY idx8(col_8(10)),
+KEY idx9(col_9(10))
+)ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
 # check the stats of the table & size of the table
 # The size of the file with 0 compress = 65536
 SET @inl_val=1;
@@ -4210,17 +4210,17 @@ SET GLOBAL innodb_compression_level=default;
 # Create table & Index
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
-ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
-CREATE INDEX  idx9 ON tab5(col_9(10));
-CREATE INDEX  idx8 ON tab5(col_8(10));
-CREATE INDEX  idx7 ON tab5(col_7(10));
-CREATE INDEX  idx6 ON tab5(col_6(10));
-CREATE INDEX  idx5 ON tab5(col_5(10));
-CREATE INDEX  idx4 ON tab5(col_4(10));
-CREATE INDEX  idx3 ON tab5(col_3(10));
-CREATE INDEX  idx2 ON tab5(col_2(10));
-CREATE INDEX  idx1 ON tab5(col_1(10));
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255),
+KEY idx1(col_1(10)),
+KEY idx2(col_2(10)),
+KEY idx3(col_3(10)),
+KEY idx4(col_4(10)),
+KEY idx5(col_5(10)),
+KEY idx6(col_6(10)),
+KEY idx7(col_7(10)),
+KEY idx8(col_8(10)),
+KEY idx9(col_9(10))
+)ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
 # check the stats of the table & size of the table
 # The size of the file with 0 compress = 122880
 SET @inl_val=1;
@@ -4501,17 +4501,17 @@ SET GLOBAL innodb_compression_level=default;
 # Create table & Index
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
-ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=16;
-CREATE INDEX  idx9 ON tab5(col_9(10));
-CREATE INDEX  idx8 ON tab5(col_8(10));
-CREATE INDEX  idx7 ON tab5(col_7(10));
-CREATE INDEX  idx6 ON tab5(col_6(10));
-CREATE INDEX  idx5 ON tab5(col_5(10));
-CREATE INDEX  idx4 ON tab5(col_4(10));
-CREATE INDEX  idx3 ON tab5(col_3(10));
-CREATE INDEX  idx2 ON tab5(col_2(10));
-CREATE INDEX  idx1 ON tab5(col_1(10));
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255),
+KEY idx1(col_1(10)),
+KEY idx2(col_2(10)),
+KEY idx3(col_3(10)),
+KEY idx4(col_4(10)),
+KEY idx5(col_5(10)),
+KEY idx6(col_6(10)),
+KEY idx7(col_7(10)),
+KEY idx8(col_8(10)),
+KEY idx9(col_9(10))
+)ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=16;
 # check the stats of the table & size of the table
 # The size of the file with 0 compress = 245760
 SET @inl_val=1;
@@ -4812,17 +4812,17 @@ SELECT @@innodb_compression_level;
 # Create table & Index
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
-ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
-CREATE INDEX  idx9 ON tab5(col_9(10));
-CREATE INDEX  idx8 ON tab5(col_8(10));
-CREATE INDEX  idx7 ON tab5(col_7(10));
-CREATE INDEX  idx6 ON tab5(col_6(10));
-CREATE INDEX  idx5 ON tab5(col_5(10));
-CREATE INDEX  idx4 ON tab5(col_4(10));
-CREATE INDEX  idx3 ON tab5(col_3(10));
-CREATE INDEX  idx2 ON tab5(col_2(10));
-CREATE INDEX  idx1 ON tab5(col_1(10));
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255),
+KEY idx1(col_1(10)),
+KEY idx2(col_2(10)),
+KEY idx3(col_3(10)),
+KEY idx4(col_4(10)),
+KEY idx5(col_5(10)),
+KEY idx6(col_6(10)),
+KEY idx7(col_7(10)),
+KEY idx8(col_8(10)),
+KEY idx9(col_9(10))
+)ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
 # check the stats of the table & size of the table
 SET @inl_val=1;
 # Check the stats of the table
@@ -5158,17 +5158,17 @@ SET GLOBAL innodb_cmp_per_index_enabled=ON;
 # Create table & Index
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
-ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2;
-CREATE INDEX  idx9 ON tab5(col_9(10));
-CREATE INDEX  idx8 ON tab5(col_8(10));
-CREATE INDEX  idx7 ON tab5(col_7(10));
-CREATE INDEX  idx6 ON tab5(col_6(10));
-CREATE INDEX  idx5 ON tab5(col_5(10));
-CREATE INDEX  idx4 ON tab5(col_4(10));
-CREATE INDEX  idx3 ON tab5(col_3(10));
-CREATE INDEX  idx2 ON tab5(col_2(10));
-CREATE INDEX  idx1 ON tab5(col_1(10));
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255),
+KEY idx1(col_1(10)),
+KEY idx2(col_2(10)),
+KEY idx3(col_3(10)),
+KEY idx4(col_4(10)),
+KEY idx5(col_5(10)),
+KEY idx6(col_6(10)),
+KEY idx7(col_7(10)),
+KEY idx8(col_8(10)),
+KEY idx9(col_9(10))
+)ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2;
 # check the stats of the table & size of the table
 SET @inl_val=1;
 # Check the stats of the table
@@ -5471,17 +5471,17 @@ SET GLOBAL innodb_cmp_per_index_enabled=ON;
 # Create table & Index
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
-ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
-CREATE INDEX  idx9 ON tab5(col_9(10));
-CREATE INDEX  idx8 ON tab5(col_8(10));
-CREATE INDEX  idx7 ON tab5(col_7(10));
-CREATE INDEX  idx6 ON tab5(col_6(10));
-CREATE INDEX  idx5 ON tab5(col_5(10));
-CREATE INDEX  idx4 ON tab5(col_4(10));
-CREATE INDEX  idx3 ON tab5(col_3(10));
-CREATE INDEX  idx2 ON tab5(col_2(10));
-CREATE INDEX  idx1 ON tab5(col_1(10));
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255),
+KEY idx1(col_1(10)),
+KEY idx2(col_2(10)),
+KEY idx3(col_3(10)),
+KEY idx4(col_4(10)),
+KEY idx5(col_5(10)),
+KEY idx6(col_6(10)),
+KEY idx7(col_7(10)),
+KEY idx8(col_8(10)),
+KEY idx9(col_9(10))
+)ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
 # check the stats of the table & size of the table
 SET @inl_val=1;
 # Check the stats of the table
@@ -5784,17 +5784,17 @@ SET GLOBAL innodb_cmp_per_index_enabled=ON;
 # Create table & Index
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
-ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
-CREATE INDEX  idx9 ON tab5(col_9(10));
-CREATE INDEX  idx8 ON tab5(col_8(10));
-CREATE INDEX  idx7 ON tab5(col_7(10));
-CREATE INDEX  idx6 ON tab5(col_6(10));
-CREATE INDEX  idx5 ON tab5(col_5(10));
-CREATE INDEX  idx4 ON tab5(col_4(10));
-CREATE INDEX  idx3 ON tab5(col_3(10));
-CREATE INDEX  idx2 ON tab5(col_2(10));
-CREATE INDEX  idx1 ON tab5(col_1(10));
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255),
+KEY idx1(col_1(10)),
+KEY idx2(col_2(10)),
+KEY idx3(col_3(10)),
+KEY idx4(col_4(10)),
+KEY idx5(col_5(10)),
+KEY idx6(col_6(10)),
+KEY idx7(col_7(10)),
+KEY idx8(col_8(10)),
+KEY idx9(col_9(10))
+)ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
 # check the stats of the table & size of the table
 SET @inl_val=1;
 # Check the stats of the table
@@ -6097,17 +6097,17 @@ SET GLOBAL innodb_cmp_per_index_enabled=ON;
 # Create table & Index
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
-ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=16;
-CREATE INDEX  idx9 ON tab5(col_9(10));
-CREATE INDEX  idx8 ON tab5(col_8(10));
-CREATE INDEX  idx7 ON tab5(col_7(10));
-CREATE INDEX  idx6 ON tab5(col_6(10));
-CREATE INDEX  idx5 ON tab5(col_5(10));
-CREATE INDEX  idx4 ON tab5(col_4(10));
-CREATE INDEX  idx3 ON tab5(col_3(10));
-CREATE INDEX  idx2 ON tab5(col_2(10));
-CREATE INDEX  idx1 ON tab5(col_1(10));
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255),
+KEY idx1(col_1(10)),
+KEY idx2(col_2(10)),
+KEY idx3(col_3(10)),
+KEY idx4(col_4(10)),
+KEY idx5(col_5(10)),
+KEY idx6(col_6(10)),
+KEY idx7(col_7(10)),
+KEY idx8(col_8(10)),
+KEY idx9(col_9(10))
+)ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=16;
 # check the stats of the table & size of the table
 SET @inl_val=1;
 # Check the stats of the table
@@ -6433,17 +6433,17 @@ SELECT @@innodb_compression_level;
 # Create table & Index
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
-ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
-CREATE INDEX  idx9 ON tab5(col_9(10));
-CREATE INDEX  idx8 ON tab5(col_8(10));
-CREATE INDEX  idx7 ON tab5(col_7(10));
-CREATE INDEX  idx6 ON tab5(col_6(10));
-CREATE INDEX  idx5 ON tab5(col_5(10));
-CREATE INDEX  idx4 ON tab5(col_4(10));
-CREATE INDEX  idx3 ON tab5(col_3(10));
-CREATE INDEX  idx2 ON tab5(col_2(10));
-CREATE INDEX  idx1 ON tab5(col_1(10));
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255),
+KEY idx1(col_1(10)),
+KEY idx2(col_2(10)),
+KEY idx3(col_3(10)),
+KEY idx4(col_4(10)),
+KEY idx5(col_5(10)),
+KEY idx6(col_6(10)),
+KEY idx7(col_7(10)),
+KEY idx8(col_8(10)),
+KEY idx9(col_9(10))
+)ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
 # check the stats of the table & size of the table
 SET @inl_val=1;
 # Check the stats of the table
@@ -6781,17 +6781,17 @@ SET GLOBAL innodb_compression_failure_threshold_pct=10;
 # Create table & Index
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
-ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2;
-CREATE INDEX  idx9 ON tab5(col_9(10));
-CREATE INDEX  idx8 ON tab5(col_8(10));
-CREATE INDEX  idx7 ON tab5(col_7(10));
-CREATE INDEX  idx6 ON tab5(col_6(10));
-CREATE INDEX  idx5 ON tab5(col_5(10));
-CREATE INDEX  idx4 ON tab5(col_4(10));
-CREATE INDEX  idx3 ON tab5(col_3(10));
-CREATE INDEX  idx2 ON tab5(col_2(10));
-CREATE INDEX  idx1 ON tab5(col_1(10));
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255),
+KEY idx1(col_1(10)),
+KEY idx2(col_2(10)),
+KEY idx3(col_3(10)),
+KEY idx4(col_4(10)),
+KEY idx5(col_5(10)),
+KEY idx6(col_6(10)),
+KEY idx7(col_7(10)),
+KEY idx8(col_8(10)),
+KEY idx9(col_9(10))
+)ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2;
 # check the stats of the table & size of the table
 SET @inl_val=1;
 # Check the stats of the table
@@ -7094,17 +7094,17 @@ SET GLOBAL innodb_cmp_per_index_enabled=ON;
 # Create table & Index
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
-ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
-CREATE INDEX  idx9 ON tab5(col_9(10));
-CREATE INDEX  idx8 ON tab5(col_8(10));
-CREATE INDEX  idx7 ON tab5(col_7(10));
-CREATE INDEX  idx6 ON tab5(col_6(10));
-CREATE INDEX  idx5 ON tab5(col_5(10));
-CREATE INDEX  idx4 ON tab5(col_4(10));
-CREATE INDEX  idx3 ON tab5(col_3(10));
-CREATE INDEX  idx2 ON tab5(col_2(10));
-CREATE INDEX  idx1 ON tab5(col_1(10));
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255),
+KEY idx1(col_1(10)),
+KEY idx2(col_2(10)),
+KEY idx3(col_3(10)),
+KEY idx4(col_4(10)),
+KEY idx5(col_5(10)),
+KEY idx6(col_6(10)),
+KEY idx7(col_7(10)),
+KEY idx8(col_8(10)),
+KEY idx9(col_9(10))
+)ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
 # check the stats of the table & size of the table
 SET @inl_val=1;
 # Check the stats of the table
@@ -7408,17 +7408,17 @@ SET GLOBAL innodb_compression_failure_threshold_pct=10;
 # Create table & Index
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
-ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
-CREATE INDEX  idx9 ON tab5(col_9(10));
-CREATE INDEX  idx8 ON tab5(col_8(10));
-CREATE INDEX  idx7 ON tab5(col_7(10));
-CREATE INDEX  idx6 ON tab5(col_6(10));
-CREATE INDEX  idx5 ON tab5(col_5(10));
-CREATE INDEX  idx4 ON tab5(col_4(10));
-CREATE INDEX  idx3 ON tab5(col_3(10));
-CREATE INDEX  idx2 ON tab5(col_2(10));
-CREATE INDEX  idx1 ON tab5(col_1(10));
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255),
+KEY idx1(col_1(10)),
+KEY idx2(col_2(10)),
+KEY idx3(col_3(10)),
+KEY idx4(col_4(10)),
+KEY idx5(col_5(10)),
+KEY idx6(col_6(10)),
+KEY idx7(col_7(10)),
+KEY idx8(col_8(10)),
+KEY idx9(col_9(10))
+)ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
 # check the stats of the table & size of the table
 SET @inl_val=1;
 # Check the stats of the table
@@ -7721,17 +7721,17 @@ SET GLOBAL innodb_cmp_per_index_enabled=ON;
 # Create table & Index
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
-col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255))
-ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=16;
-CREATE INDEX  idx9 ON tab5(col_9(10));
-CREATE INDEX  idx8 ON tab5(col_8(10));
-CREATE INDEX  idx7 ON tab5(col_7(10));
-CREATE INDEX  idx6 ON tab5(col_6(10));
-CREATE INDEX  idx5 ON tab5(col_5(10));
-CREATE INDEX  idx4 ON tab5(col_4(10));
-CREATE INDEX  idx3 ON tab5(col_3(10));
-CREATE INDEX  idx2 ON tab5(col_2(10));
-CREATE INDEX  idx1 ON tab5(col_1(10));
+col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255),
+KEY idx1(col_1(10)),
+KEY idx2(col_2(10)),
+KEY idx3(col_3(10)),
+KEY idx4(col_4(10)),
+KEY idx5(col_5(10)),
+KEY idx6(col_6(10)),
+KEY idx7(col_7(10)),
+KEY idx8(col_8(10)),
+KEY idx9(col_9(10))
+)ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=16;
 # check the stats of the table & size of the table
 SET @inl_val=1;
 # Check the stats of the table
