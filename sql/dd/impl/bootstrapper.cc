@@ -977,9 +977,6 @@ bool initialize(THD *thd)
   thd->variables.transaction_read_only= false;
   thd->tx_read_only= false;
 
-  // Set explicit_defaults_for_timestamp variable for dictionary creation
-  thd->variables.explicit_defaults_for_timestamp= true;
-
   Disable_autocommit_guard autocommit_guard(thd);
 
   Dictionary_impl *d= dd::Dictionary_impl::instance();
