@@ -3163,8 +3163,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     outparam->found_next_number_field=
       outparam->field[(uint) (share->found_next_number_field - share->field)];
 
-  /* Fix key->name and key_part->field */
-  /* the copy of Indexes, all information will be allocated*/
+  /* Fix key->name and key_part->field,the copy of Indexes, all information will be allocated*/
   if (share->key_parts)
   {
     KEY	*key_info, *key_info_end;
@@ -3220,16 +3219,16 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
 
   if (share->partition_info_str_len && outparam->file)
   {
-  /*
-    In this execution we must avoid calling thd->change_item_tree since
-    we might release memory before statement is completed. We do this
-    by changing to a new statement arena. As part of this arena we also
-    set the memory root to be the memory root of the table since we
-    call the parser and fix_fields which both can allocate memory for
-    item objects. We keep the arena to ensure that we can release the
-    free_list when closing the table object.
-    SEE Bug #21658
-  */
+   /*
+      In this execution we must avoid calling thd->change_item_tree since
+      we might release memory before statement is completed. We do this
+      by changing to a new statement arena. As part of this arena we also
+      set the memory root to be the memory root of the table since we
+      call the parser and fix_fields which both can allocate memory for
+      item objects. We keep the arena to ensure that we can release the
+      free_list when closing the table object.
+      SEE Bug #21658
+    */
 
     Query_arena *backup_stmt_arena_ptr= thd->stmt_arena;
     Query_arena backup_arena;
@@ -3643,21 +3642,20 @@ ulong make_new_entry(File file, uchar *fileinfo, TYPELIB *formnames,
     {
       mysql_file_seek(file, (ulong) (endpos-bufflength), MY_SEEK_SET, MYF(0));
       if (mysql_file_read(file, buff, bufflength, MYF(MY_NABP+MY_WME)))
-	DBUG_RETURN(0L);
+        	DBUG_RETURN(0L);
       mysql_file_seek(file, (ulong) (endpos-bufflength+IO_SIZE), MY_SEEK_SET,
                       MYF(0));
       if ((mysql_file_write(file, buff, bufflength, MYF(MY_NABP+MY_WME))))
-	DBUG_RETURN(0);
+          	DBUG_RETURN(0);
       endpos-=bufflength; bufflength=IO_SIZE;
     }
     memset(buff, 0, IO_SIZE);			/* Null new block */
     mysql_file_seek(file, (ulong) maxlength, MY_SEEK_SET, MYF(0));
     if (mysql_file_write(file, buff, bufflength, MYF(MY_NABP+MY_WME)))
-	DBUG_RETURN(0L);
+	      DBUG_RETURN(0L);
     maxlength+=IO_SIZE;				/* Fix old ref */
     int2store(fileinfo+6,maxlength);
-    for (i=names, pos= (uchar*) *formnames->type_names+n_length-1; i-- ;
-	 pos+=4)
+    for (i=names, pos= (uchar*) *formnames->type_names+n_length-1; i--;pos+=4)
     {
       endpos=uint4korr(pos)+IO_SIZE;
       int4store(pos,endpos);
@@ -3704,8 +3702,7 @@ void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg)
       my_error(ER_NO_SUCH_TABLE, MYF(0), share->db.str, share->table_name.str);
       break;
     case HA_ERR_TABLESPACE_MISSING:
-      my_snprintf(errbuf, MYSYS_STRERROR_SIZE, "`%s`.`%s`", share->db.str,
-                  share->table_name.str);
+      my_snprintf(errbuf, MYSYS_STRERROR_SIZE, "`%s`.`%s`", share->db.str,share->table_name.str);
       my_error(ER_TABLESPACE_MISSING, MYF(0), errbuf);
       break;
     default:
@@ -3798,9 +3795,9 @@ fix_type_pointers(const char ***array, TYPELIB *point_to_type, uint types,
     {
       while ((type_name=strchr(ptr+1,chr)) != NullS)
       {
-	*((*array)++) = ptr+1;
-	*type_name= '\0';		/* End string */
-	ptr=type_name;
+        *((*array)++) = ptr+1;
+        *type_name= '\0';		/* End string */
+        ptr=type_name;
       }
       ptr+=2;				/* Skip end mark and last 0 */
     }
@@ -3863,10 +3860,9 @@ static uint find_field(Field **fields, uchar *record, uint start, uint length)
     if ((*field)->offset(record) == start)
     {
       if ((*field)->key_length() == length)
-	return (i);
-      if (!pos || fields[pos-1]->pack_length() <
-	  (*field)->pack_length())
-	pos= i;
+      	return (i);
+      if (!pos || fields[pos-1]->pack_length() <(*field)->pack_length())
+	      pos= i;
     }
   }
   return (pos);
