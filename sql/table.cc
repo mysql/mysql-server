@@ -3370,31 +3370,30 @@ partititon_err:
 
       switch (ha_err)
       {
-	case HA_ERR_TABLESPACE_MISSING:
+	      case HA_ERR_TABLESPACE_MISSING:
           /*
             In case of Innodb table space header may be corrupted or
-	    ibd file might be missing
+	          ibd file might be missing
           */
           error= 1;
           DBUG_ASSERT(my_errno() == HA_ERR_TABLESPACE_MISSING);
           break;
         case HA_ERR_NO_SUCH_TABLE:
-	  /*
+	        /*
             The table did not exists in storage engine, use same error message
             as if the .frm file didn't exist
           */
-	  error= 1;
-	  set_my_errno(ENOENT);
+	         error= 1;
+	         set_my_errno(ENOENT);
           break;
         case EMFILE:
-	  /*
+	        /*
             Too many files opened, use same error message as if the .frm
             file can't open
            */
-          DBUG_PRINT("error", ("open file: %s failed, too many files opened (errno: %d)", 
-		  share->normalized_path.str, ha_err));
-	  error= 1;
-	  set_my_errno(EMFILE);
+          DBUG_PRINT("error", ("open file: %s failed, too many files opened (errno: %d)",share->normalized_path.str, ha_err));
+        	error= 1;
+	        set_my_errno(EMFILE);
           break;
         default:
           outparam->file->print_error(ha_err, MYF(0));
@@ -3403,7 +3402,7 @@ partititon_err:
             error= 7;
           break;
       }
-      goto err;                                 /* purecov: inspected */
+      goto err;      
     }
   }
 
