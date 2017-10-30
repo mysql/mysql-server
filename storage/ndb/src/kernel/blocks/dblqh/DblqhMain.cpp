@@ -17062,6 +17062,10 @@ Dblqh::force_lcp(Signal* signal)
  * function each time we come to LQHFRAGREQ and coming to
  * lcp_max_completed_gci.
  *
+ * We only receive this signal when we are participating in
+ * the distributed LCP to avoid messing things up for local LCP
+ * execution.
+ *
  * We keep the gci - 1 from here as well just to verify that
  * the keepGci isn't set before this GCI, this would indicate
  * some severe problem of our understanding of the code.
@@ -17795,6 +17799,16 @@ Dblqh::lcp_max_completed_gci(Uint32 & completedGci,
      */
     fragptr.p->maxGciCompletedInLcp = restorable_gci;
   }
+  if (fragptr.p->maxGciCompletedInLcp < c_keep_gci_for_lcp)
+  {
+    jam();
+    /**
+     * maxGciCompletedInLcp can never be smaller than the restorable GCI
+     * at the time when we start the LCP.
+     */
+    fragptr.p->maxGciCompletedInLcp = c_keep_gci_for_lcp;
+  }
+
   completedGci = fragptr.p->maxGciCompletedInLcp;
   DEB_LCP(("(%u)maxGciCompletedInLcp = %u, tab(%u,%u)",
            instance(),
