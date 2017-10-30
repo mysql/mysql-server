@@ -3088,6 +3088,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   outparam->file= 0;
   if (!(prgflag & OPEN_FRM_FILE_ONLY))
   {
+    /* With the struct TABLE_SHARE,the handler of the table Object will be produced */
     if (!(outparam->file= get_new_handler(share, &outparam->mem_root,
                                           share->db_type())))
       goto err;
@@ -3163,6 +3164,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
       outparam->field[(uint) (share->found_next_number_field - share->field)];
 
   /* Fix key->name and key_part->field */
+  /* the copy of Indexes, all information will be allocated*/
   if (share->key_parts)
   {
     KEY	*key_info, *key_info_end;
@@ -3346,6 +3348,7 @@ partititon_err:
     *vfield_ptr= 0;                              // End marker
   }
   /* The table struct is now initialized;  Open the table */
+  /* Opening the table,MySQL initialize the value of increment column,and create the Object of indexes ,the struct of searching and etc.*/
   error= 2;
   if (db_stat)
   {
