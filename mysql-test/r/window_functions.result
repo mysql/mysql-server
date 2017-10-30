@@ -9074,3 +9074,93 @@ SELECT (select AVG(i)+RANK() OVER (ORDER BY i)) FROM t1;
 ERROR 42000: In aggregated query without GROUP BY, expression #1 of SELECT list contains nonaggregated column 'test.t1.i'; this is incompatible with sql_mode=only_full_group_by
 DROP TABLE t1;
 # End of checking for errors
+#
+# Bug#27010574 WINDOW FUNCTIONS: BUG WITH LAST_VALUE AND FRAME
+#
+CREATE TABLE t(a INT, b INT);
+INSERT INTO t VALUES (1,1),
+(2,1),
+(3,2),
+(4,2),
+(5,3),
+(6,3);
+SELECT a, b,
+LAST_VALUE(a) OVER (ORDER BY b,a) AS `last` FROM t;
+a	b	last
+1	1	1
+2	1	2
+3	2	3
+4	2	4
+5	3	5
+6	3	6
+SELECT a, b,
+LAST_VALUE(a) OVER (ORDER BY b,a
+RANGE BETWEEN UNBOUNDED PRECEDING AND
+CURRENT ROW) AS `last`
+  FROM t;
+a	b	last
+1	1	1
+2	1	2
+3	2	3
+4	2	4
+5	3	5
+6	3	6
+INSERT INTO t VALUES (1,1),
+(4,2),
+(NULL, 2),
+(NULL, NULL),
+(2, NULL);
+SELECT a, b, COUNT(a) OVER w AS cnt,
+COUNT(*) OVER w AS `cnt(*)`,
+FIRST_VALUE(a) OVER w AS first,
+LAST_VALUE (a) OVER w AS last
+FROM t WINDOW w AS (ORDER BY b,a DESC);
+a	b	cnt	cnt(*)	first	last
+2	NULL	1	1	2	2
+NULL	NULL	1	2	2	NULL
+2	1	2	3	2	2
+1	1	4	5	2	1
+1	1	4	5	2	1
+4	2	6	7	2	4
+4	2	6	7	2	4
+3	2	7	8	2	3
+NULL	2	7	9	2	NULL
+6	3	8	10	2	6
+5	3	9	11	2	5
+SELECT a, b, COUNT(a) OVER w AS cnt,
+COUNT(*) OVER w AS `cnt(*)`,
+FIRST_VALUE(a) OVER w AS first,
+LAST_VALUE (a) OVER w AS last
+FROM t WINDOW w AS (ORDER BY b,a DESC
+RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW);
+a	b	cnt	cnt(*)	first	last
+2	NULL	1	1	2	2
+NULL	NULL	1	2	2	NULL
+2	1	2	3	2	2
+1	1	4	5	2	1
+1	1	4	5	2	1
+4	2	6	7	2	4
+4	2	6	7	2	4
+3	2	7	8	2	3
+NULL	2	7	9	2	NULL
+6	3	8	10	2	6
+5	3	9	11	2	5
+SELECT a, b, COUNT(a) OVER w AS cnt,
+COUNT(*) OVER w AS `cnt(*)`,
+FIRST_VALUE(a) OVER w AS first,
+LAST_VALUE (a) OVER w AS last
+FROM t WINDOW w AS (ORDER BY b,a DESC
+RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING);
+a	b	cnt	cnt(*)	first	last
+2	NULL	9	11	2	5
+NULL	NULL	8	10	NULL	5
+2	1	8	9	2	5
+1	1	7	8	1	5
+1	1	7	8	1	5
+4	2	5	6	4	5
+4	2	5	6	4	5
+3	2	3	4	3	5
+NULL	2	2	3	NULL	5
+6	3	2	2	6	5
+5	3	1	1	5	5
+DROP TABLE t;

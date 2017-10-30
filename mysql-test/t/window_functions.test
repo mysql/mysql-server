@@ -4038,6 +4038,52 @@ DROP TABLE t1;
 
 --echo # End of checking for errors
 
+--echo #
+--echo # Bug#27010574 WINDOW FUNCTIONS: BUG WITH LAST_VALUE AND FRAME
+--echo #
+CREATE TABLE t(a INT, b INT);
+INSERT INTO t VALUES (1,1),
+                     (2,1),
+                     (3,2),
+                     (4,2),
+                     (5,3),
+                     (6,3);
+SELECT a, b,
+       LAST_VALUE(a) OVER (ORDER BY b,a) AS `last` FROM t;
+SELECT a, b,
+       LAST_VALUE(a) OVER (ORDER BY b,a
+                           RANGE BETWEEN UNBOUNDED PRECEDING AND
+                                 CURRENT ROW) AS `last`
+  FROM t;
+
+INSERT INTO t VALUES (1,1),
+                     (4,2),
+                     (NULL, 2),
+                     (NULL, NULL),
+                     (2, NULL);
+
+SELECT a, b, COUNT(a) OVER w AS cnt,
+       COUNT(*) OVER w AS `cnt(*)`,
+       FIRST_VALUE(a) OVER w AS first,
+       LAST_VALUE (a) OVER w AS last
+  FROM t WINDOW w AS (ORDER BY b,a DESC);
+
+SELECT a, b, COUNT(a) OVER w AS cnt,
+       COUNT(*) OVER w AS `cnt(*)`,
+       FIRST_VALUE(a) OVER w AS first,
+       LAST_VALUE (a) OVER w AS last
+  FROM t WINDOW w AS (ORDER BY b,a DESC
+                      RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW);
+
+SELECT a, b, COUNT(a) OVER w AS cnt,
+       COUNT(*) OVER w AS `cnt(*)`,
+       FIRST_VALUE(a) OVER w AS first,
+       LAST_VALUE (a) OVER w AS last
+  FROM t WINDOW w AS (ORDER BY b,a DESC
+                      RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING);
+
+DROP TABLE t;
+
 # Local Variables:
 # mode: sql
 # sql-product: mysql
