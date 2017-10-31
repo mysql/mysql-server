@@ -3041,6 +3041,11 @@ join_materialize_semijoin(QEP_TAB *tab)
   // Fields of inner tables should not be read anymore:
   for (QEP_TAB *t= first; t <= last; t++)
   {
+    // Rows may persist across executions for these types:
+    if (t->type() == JT_EQ_REF ||
+        t->type() == JT_CONST ||
+        t->type() == JT_SYSTEM)
+      continue;
     TABLE *const inner_table= t->table();
     TRASH(inner_table->record[0], inner_table->s->reclength);
   }
