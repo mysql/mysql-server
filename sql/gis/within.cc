@@ -121,8 +121,7 @@ bool Within::eval(const Cartesian_point *g1,
 
 // within(Cartesian_linestring, *)
 
-bool Within::eval(const Cartesian_linestring *g1,
-                  const Cartesian_point *g2) const {
+bool Within::eval(const Cartesian_linestring *, const Cartesian_point *) const {
   // A linestring can never be within a point.
   return false;
 }
@@ -165,8 +164,8 @@ bool Within::eval(const Cartesian_linestring *g1,
                      mask));
 }
 
-bool Within::eval(const Cartesian_linestring *g1,
-                  const Cartesian_multipoint *g2) const {
+bool Within::eval(const Cartesian_linestring *,
+                  const Cartesian_multipoint *) const {
   // A linestring can never be within a multipoint.
   return false;
 }
@@ -185,14 +184,13 @@ bool Within::eval(const Cartesian_linestring *g1,
 
 // within(Cartesian_polygon, *)
 
-bool Within::eval(const Cartesian_polygon *g1,
-                  const Cartesian_point *g2) const {
+bool Within::eval(const Cartesian_polygon *, const Cartesian_point *) const {
   // A polygon can never be within a point.
   return false;
 }
 
-bool Within::eval(const Cartesian_polygon *g1,
-                  const Cartesian_linestring *g2) const {
+bool Within::eval(const Cartesian_polygon *,
+                  const Cartesian_linestring *) const {
   // A polygon can never be within a linestring.
   return false;
 }
@@ -216,14 +214,14 @@ bool Within::eval(const Cartesian_polygon *g1,
   return eval(g1, down_cast<Cartesian_multipolygon *>(g2_mpy.get()));
 }
 
-bool Within::eval(const Cartesian_polygon *g1,
-                  const Cartesian_multipoint *g2) const {
+bool Within::eval(const Cartesian_polygon *,
+                  const Cartesian_multipoint *) const {
   // A polygon can never be within a multipoint.
   return false;
 }
 
-bool Within::eval(const Cartesian_polygon *g1,
-                  const Cartesian_multilinestring *g2) const {
+bool Within::eval(const Cartesian_polygon *,
+                  const Cartesian_multilinestring *) const {
   // A polygon can never be within a multilinestring.
   return false;
 }
@@ -562,8 +560,8 @@ bool Within::eval(const Cartesian_multipoint *g1,
 
 // within(Cartesian_multilinestring, *)
 
-bool Within::eval(const Cartesian_multilinestring *g1,
-                  const Cartesian_point *g2) const {
+bool Within::eval(const Cartesian_multilinestring *,
+                  const Cartesian_point *) const {
   // A multilinestring can never be within a point.
   return false;
 }
@@ -606,8 +604,8 @@ bool Within::eval(const Cartesian_multilinestring *g1,
                      mask));
 }
 
-bool Within::eval(const Cartesian_multilinestring *g1,
-                  const Cartesian_multipoint *g2) const {
+bool Within::eval(const Cartesian_multilinestring *,
+                  const Cartesian_multipoint *) const {
   // A multilinestring can never be within a multipoint.
   return false;
 }
@@ -626,14 +624,14 @@ bool Within::eval(const Cartesian_multilinestring *g1,
 
 // within(Cartesian_multipolygon, *)
 
-bool Within::eval(const Cartesian_multipolygon *g1,
-                  const Cartesian_point *g2) const {
+bool Within::eval(const Cartesian_multipolygon *,
+                  const Cartesian_point *) const {
   // A multipolygon can never be within a point.
   return false;
 }
 
-bool Within::eval(const Cartesian_multipolygon *g1,
-                  const Cartesian_linestring *g2) const {
+bool Within::eval(const Cartesian_multipolygon *,
+                  const Cartesian_linestring *) const {
   // A multipolygon can never be within a linestring.
   return false;
 }
@@ -657,14 +655,14 @@ bool Within::eval(const Cartesian_multipolygon *g1,
   return eval(g1, down_cast<Cartesian_multipolygon *>(g2_mpy.get()));
 }
 
-bool Within::eval(const Cartesian_multipolygon *g1,
-                  const Cartesian_multipoint *g2) const {
+bool Within::eval(const Cartesian_multipolygon *,
+                  const Cartesian_multipoint *) const {
   // A multipolygon can never be within a multipoint.
   return false;
 }
 
-bool Within::eval(const Cartesian_multipolygon *g1,
-                  const Cartesian_multilinestring *g2) const {
+bool Within::eval(const Cartesian_multipolygon *,
+                  const Cartesian_multilinestring *) const {
   // A multipolygon can never be within a multilinestring.
   return false;
 }
@@ -724,8 +722,8 @@ bool Within::eval(const Geographic_point *g1,
 
 // within(Geographic_linestring, *)
 
-bool Within::eval(const Geographic_linestring *g1,
-                  const Geographic_point *g2) const {
+bool Within::eval(const Geographic_linestring *,
+                  const Geographic_point *) const {
   // A linestring can never be within a point.
   return false;
 }
@@ -769,8 +767,8 @@ bool Within::eval(const Geographic_linestring *g1,
                      mask, m_geographic_ll_la_aa_strategy));
 }
 
-bool Within::eval(const Geographic_linestring *g1,
-                  const Geographic_multipoint *g2) const {
+bool Within::eval(const Geographic_linestring *,
+                  const Geographic_multipoint *) const {
   // A linestring can never be within a multipoint.
   return false;
 }
@@ -789,14 +787,13 @@ bool Within::eval(const Geographic_linestring *g1,
 
 // within(Geographic_polygon, *)
 
-bool Within::eval(const Geographic_polygon *g1,
-                  const Geographic_point *g2) const {
+bool Within::eval(const Geographic_polygon *, const Geographic_point *) const {
   // A polygon can never be within a point.
   return false;
 }
 
-bool Within::eval(const Geographic_polygon *g1,
-                  const Geographic_linestring *g2) const {
+bool Within::eval(const Geographic_polygon *,
+                  const Geographic_linestring *) const {
   // A polygon can never be within a linestring.
   return false;
 }
@@ -820,14 +817,14 @@ bool Within::eval(const Geographic_polygon *g1,
   return eval(g1, down_cast<Geographic_multipolygon *>(g2_mpy.get()));
 }
 
-bool Within::eval(const Geographic_polygon *g1,
-                  const Geographic_multipoint *g2) const {
+bool Within::eval(const Geographic_polygon *,
+                  const Geographic_multipoint *) const {
   // A polygon can never be within a multipoint.
   return false;
 }
 
-bool Within::eval(const Geographic_polygon *g1,
-                  const Geographic_multilinestring *g2) const {
+bool Within::eval(const Geographic_polygon *,
+                  const Geographic_multilinestring *) const {
   // A polygon can never be within a multilinestring.
   return false;
 }
@@ -1176,8 +1173,8 @@ bool Within::eval(const Geographic_multipoint *g1,
 
 // within(Geographic_multilinestring, *)
 
-bool Within::eval(const Geographic_multilinestring *g1,
-                  const Geographic_point *g2) const {
+bool Within::eval(const Geographic_multilinestring *,
+                  const Geographic_point *) const {
   // A multilinestring can never be within a point.
   return false;
 }
@@ -1221,8 +1218,8 @@ bool Within::eval(const Geographic_multilinestring *g1,
                      mask, m_geographic_ll_la_aa_strategy));
 }
 
-bool Within::eval(const Geographic_multilinestring *g1,
-                  const Geographic_multipoint *g2) const {
+bool Within::eval(const Geographic_multilinestring *,
+                  const Geographic_multipoint *) const {
   // A multilinestring can never be within a multipoint.
   return false;
 }
@@ -1241,14 +1238,14 @@ bool Within::eval(const Geographic_multilinestring *g1,
 
 // within(Geographic_multipolygon, *)
 
-bool Within::eval(const Geographic_multipolygon *g1,
-                  const Geographic_point *g2) const {
+bool Within::eval(const Geographic_multipolygon *,
+                  const Geographic_point *) const {
   // A multipolygon can never be within a point.
   return false;
 }
 
-bool Within::eval(const Geographic_multipolygon *g1,
-                  const Geographic_linestring *g2) const {
+bool Within::eval(const Geographic_multipolygon *,
+                  const Geographic_linestring *) const {
   // A multipolygon can never be within a linestring.
   return false;
 }
@@ -1272,14 +1269,14 @@ bool Within::eval(const Geographic_multipolygon *g1,
   return eval(g1, down_cast<Geographic_multipolygon *>(g2_mpy.get()));
 }
 
-bool Within::eval(const Geographic_multipolygon *g1,
-                  const Geographic_multipoint *g2) const {
+bool Within::eval(const Geographic_multipolygon *,
+                  const Geographic_multipoint *) const {
   // A multipolygon can never be within a multipoint.
   return false;
 }
 
-bool Within::eval(const Geographic_multipolygon *g1,
-                  const Geographic_multilinestring *g2) const {
+bool Within::eval(const Geographic_multipolygon *,
+                  const Geographic_multilinestring *) const {
   // A multipolygon can never be within a multilinestring.
   return false;
 }

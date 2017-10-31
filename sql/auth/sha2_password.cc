@@ -1374,7 +1374,6 @@ static SYS_VAR* caching_sha2_password_sysvars[]= {
 /**
   Handle an authentication audit event.
 
-  @param [in] thd         MySQL Thread Handle
   @param [in] event_class Event class information
   @param [in] event       Event structure
 
@@ -1382,7 +1381,7 @@ static SYS_VAR* caching_sha2_password_sysvars[]= {
 */
 
 static int
-sha2_cache_cleaner_notify(MYSQL_THD thd,
+sha2_cache_cleaner_notify(MYSQL_THD,
                           mysql_event_class_t event_class,
                           const void *event)
 {

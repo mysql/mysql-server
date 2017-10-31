@@ -265,7 +265,8 @@ bool clear_default_roles(THD *thd, TABLE *table, LEX_USER *user,
     @retval false User was removed
 */
 
-bool revoke_role_helper(THD *thd, std::string &authid_role,
+bool revoke_role_helper(THD *thd MY_ATTRIBUTE((unused)),
+                        std::string &authid_role,
                         std::string &authid_user,
                         Role_vertex_descriptor *user_vert)
 {
@@ -329,7 +330,7 @@ void revoke_role(THD *thd, ACL_USER *role, ACL_USER *user)
     has changed. As a consequence we now need to rebuild the authid_to_vertex
     index.
 */
-void rebuild_vertex_index(THD *thd)
+void rebuild_vertex_index(THD *thd MY_ATTRIBUTE((unused)))
 {
   DBUG_ASSERT(assert_acl_cache_write_lock(thd));
   for (auto &acl_user : *acl_users)
@@ -432,7 +433,7 @@ bool revoke_all_roles_from_user(THD *thd, TABLE *edge_table,
                                 TABLE *defaults_table, LEX_USER *user_name)
 {
   List_of_granted_roles granted_roles;
-  get_granted_roles(thd, user_name, &granted_roles);
+  get_granted_roles(user_name, &granted_roles);
   Auth_id_ref user_name_authid= create_authid_from(user_name);
   bool error= drop_role(thd, edge_table, defaults_table, user_name_authid);
   return error;
@@ -452,7 +453,7 @@ bool revoke_all_roles_from_user(THD *thd, TABLE *edge_table,
     @retval false Successful
 */
 bool revoke_all_granted_roles(THD *thd, TABLE *table, LEX_USER *user_from,
-                             List_of_granted_roles *granted_roles)
+                              List_of_granted_roles *granted_roles)
 {
   DBUG_ENTER("revoke_all_granted_roles");
   std::string authid_user= create_authid_str_from(user_from);
@@ -497,7 +498,6 @@ bool is_role_id(LEX_USER *authid)
 
   @see mysql_grant_role
 
-  @param thd Thread handler
   @param role A pointer to the role to be granted
   @param user A pointer to the user which will be granted
   @param with_admin_opt True if the user should have the ability to pass on the
@@ -505,8 +505,7 @@ bool is_role_id(LEX_USER *authid)
 
   @return
 */
-void grant_role(THD *thd, ACL_USER *role, const ACL_USER *user,
-                                bool with_admin_opt)
+void grant_role(ACL_USER *role, const ACL_USER *user, bool with_admin_opt)
 {
   DBUG_ENTER("grant_role");
   bool is_added;
@@ -654,7 +653,7 @@ bool roles_rename_authid(THD *thd, TABLE *edge_table, TABLE *defaults_table,
         /* An invalid reference was encountered; just ignore it. */
         continue;
       }
-      grant_role(thd, acl_role, acl_user_to, ref.second);
+      grant_role(acl_role, acl_user_to, ref.second);
       Auth_id_ref authid_role= create_authid_from(acl_role);
       Auth_id_ref authid_user= create_authid_from(acl_user_to);
       ret= modify_role_edges_in_table(thd, edge_table, authid_role, authid_user,
@@ -831,8 +830,8 @@ void make_database_privilege_statement(THD *thd, ACL_USER *role,
 
 */
 
-void make_proxy_privilege_statement(THD *thd, ACL_USER *user,
-                                    Protocol *protocol)
+void make_proxy_privilege_statement(THD *thd MY_ATTRIBUTE((unused)),
+                                    ACL_USER *user, Protocol *protocol)
 {
   DBUG_ASSERT(assert_acl_cache_read_lock(thd));
   for (ACL_PROXY_USER *proxy= acl_proxy_users->begin();
@@ -1403,7 +1402,7 @@ public:
   {}
 
   template < typename Vertex, typename Graph >
-  void discover_vertex(Vertex u, const Graph & g) const
+  void discover_vertex(Vertex u, const Graph &) const
   {
     ACL_USER acl_user= get(boost::vertex_acl_user_t(), *g_granted_roles)[u];
     if (acl_user.user == g_active_dummy_user)
@@ -1540,7 +1539,7 @@ IS_internal_schema_access::check(ulong want_access,
 }
 
 const ACL_internal_table_access *
-IS_internal_schema_access::lookup(const char *name) const
+IS_internal_schema_access::lookup(const char *) const
 {
   /* There are no per table rules for the information schema. */
   return NULL;
@@ -3228,7 +3227,7 @@ bool mysql_grant_role(THD *thd, const List <LEX_USER > *users,
         DBUG_PRINT("info",("User %s@%s will inherit from %s@%s",
                            acl_user->user, acl_user->host.get_host(),
         role->user.str, role->host.str));
-        grant_role(thd, acl_role, acl_user, with_admin_opt);
+        grant_role(acl_role, acl_user, with_admin_opt);
         Auth_id_ref from_user= create_authid_from(role);
         Auth_id_ref to_user= create_authid_from(acl_user);
         errors= modify_role_edges_in_table(thd, table, from_user, to_user,
@@ -4797,7 +4796,7 @@ bool mysql_show_grants(THD *thd, LEX_USER *lex_user,
   for(auto &role_ref : using_roles)
   {
     List_of_granted_roles granted_roles;
-    get_granted_roles(thd, lex_user, &granted_roles);
+    get_granted_roles(lex_user, &granted_roles);
     std::string authid(create_authid_str_from(role_ref));
     if (find(granted_roles.begin(), granted_roles.end(), authid) ==
           granted_roles.end())
@@ -5269,11 +5268,11 @@ public:
     : is_grave(false)
   {}
 
-  virtual bool handle_condition(THD *thd,
+  virtual bool handle_condition(THD *,
                                 uint sql_errno,
-                                const char* sqlstate,
+                                const char*,
                                 Sql_condition::enum_severity_level *level,
-                                const char* msg)
+                                const char*)
   {
     if (*level == Sql_condition::SL_ERROR)
     {
@@ -5593,7 +5592,7 @@ void fill_effective_table_privileges(THD *thd, GRANT_INFO *grant,
 
 bool
 acl_check_proxy_grant_access(THD *thd, const char *host, const char *user,
-                             bool with_grant)
+                             bool with_grant MY_ATTRIBUTE((unused)))
 {
   DBUG_ENTER("acl_check_proxy_grant_access");
   DBUG_PRINT("info", ("user=%s host=%s with_grant=%d", user, host,
@@ -5659,7 +5658,7 @@ acl_check_proxy_grant_access(THD *thd, const char *host, const char *user,
 }
 
 
-int fill_schema_user_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
+int fill_schema_user_privileges(THD *thd, TABLE_LIST *tables, Item *)
 {
   int error= 0;
   ACL_USER *acl_user;
@@ -5750,7 +5749,7 @@ err:
 }
 
 
-int fill_schema_schema_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
+int fill_schema_schema_privileges(THD *thd, TABLE_LIST *tables, Item *)
 {
   int error= 0;
   ACL_DB *acl_db;
@@ -5824,7 +5823,7 @@ err:
 }
 
 
-int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
+int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, Item *)
 {
   int error= 0;
   char buff[USERNAME_LENGTH + HOSTNAME_LENGTH + 3];
@@ -5906,7 +5905,7 @@ err:
 }
 
 
-int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
+int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, Item *)
 {
   int error= 0;
   char buff[USERNAME_LENGTH + HOSTNAME_LENGTH + 3];
@@ -6346,7 +6345,7 @@ void activate_all_granted_and_mandatory_roles(const ACL_USER *acl_user,
   Role_index_map::iterator it= g_authid_to_vertex->find(key);
   if (it == g_authid_to_vertex->end())
     return; // No user vertex founds
-  get_granted_roles(it->second, [&](const Role_id rid, bool with_admin)
+  get_granted_roles(it->second, [&](const Role_id rid, bool)
   {
     LEX_CSTRING str_user= {rid.user().c_str(), rid.user().length()};
     LEX_CSTRING str_host= {rid.host().c_str(), rid.host().length()};
@@ -6366,13 +6365,11 @@ void activate_all_granted_and_mandatory_roles(const ACL_USER *acl_user,
   This is a convenience function.
   @see get_granted_roles(Role_vertex_descriptor &v,
                          List_of_granted_roles *granted_roles)
-  @param thd Thread handler
   @param user The authid to check for granted roles
   @param [out] granted_roles A list of granted authids
 */
 
-void get_granted_roles(THD *thd, LEX_USER *user,
-                       List_of_granted_roles *granted_roles)
+void get_granted_roles(LEX_USER *user, List_of_granted_roles *granted_roles)
 {
   Role_index_map::iterator it;
   std::string str_user= create_authid_str_from(user);

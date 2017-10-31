@@ -32,7 +32,7 @@
 
 #include <exception>
 
-#include "my_dbug.h"         // DBUG_ASSERT
+#include "my_dbug.h"  // DBUG_ASSERT
 #include "sql/gis/geometries.h"
 #include "sql/gis/geometries_cs.h"
 #include "template_utils.h"  // down_cast

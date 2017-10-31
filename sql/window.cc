@@ -730,7 +730,6 @@ bool Window::setup_ordering_cached_items(THD *thd,
 
 
 bool Window::resolve_window_ordering(THD *thd,
-                                   SELECT_LEX *select,
                                    Ref_item_array ref_item_array,
                                    TABLE_LIST *tables,
                                    List<Item> &fields,
@@ -825,8 +824,7 @@ bool Window::equal_sort(THD *thd, Window *w1, Window *w2)
 }
 
 
-void Window::reorder_and_eliminate_sorts(THD *thd, List<Window> &windows,
-                                         SELECT_LEX &select)
+void Window::reorder_and_eliminate_sorts(THD *thd, List<Window> &windows)
 {
   for (uint i= 0; i < windows.elements - 1; i++)
   {
@@ -1133,13 +1131,13 @@ bool Window::setup_windows(THD* thd,
       thd->lex->allow_sum_func|= (nesting_map)1 << select->nest_level;
 
       if (w->m_partition_by != nullptr &&
-          w->resolve_window_ordering(thd, select, ref_item_array,
+          w->resolve_window_ordering(thd, ref_item_array,
                                      tables, fields, all_fields,
                                      w->m_partition_by->value.first, true))
         return true;
 
       if (w->m_order_by != nullptr &&
-          w->resolve_window_ordering(thd, select, ref_item_array,
+          w->resolve_window_ordering(thd, ref_item_array,
                                      tables, fields, all_fields,
                                      w->m_order_by->value.first, false))
         return true;
@@ -1201,13 +1199,13 @@ bool Window::setup_windows(THD* thd,
     w->m_select= select;
 
     if (w->m_partition_by != nullptr &&
-        w->resolve_window_ordering(thd, select, ref_item_array,
+        w->resolve_window_ordering(thd, ref_item_array,
                                  tables, fields, all_fields,
                                  w->m_partition_by->value.first, true))
       return true;
 
     if (w->m_order_by != nullptr &&
-        w->resolve_window_ordering(thd, select, ref_item_array,
+        w->resolve_window_ordering(thd, ref_item_array,
                                  tables, fields, all_fields,
                                  w->m_order_by->value.first, false))
       return true;
@@ -1383,7 +1381,7 @@ bool Window::setup_windows(THD* thd,
       return true;
   }
 
-  reorder_and_eliminate_sorts(thd, windows, *select);
+  reorder_and_eliminate_sorts(thd, windows);
 
   /* Do this last, after any re-ordering */
   windows[windows.elements - 1]->m_last= true;

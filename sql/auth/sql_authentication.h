@@ -90,7 +90,7 @@ class String;
 
 bool init_rsa_keys(void);
 void deinit_rsa_keys(void);
-int show_rsa_public_key(THD *thd, SHOW_VAR *var, char *buff);
+int show_rsa_public_key(SHOW_VAR *var);
 
 #ifndef HAVE_YASSL
 typedef struct rsa_st RSA;

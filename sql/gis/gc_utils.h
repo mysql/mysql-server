@@ -23,7 +23,7 @@
 
 #include <memory>  // std::unique_ptr
 
-#include "sql/dd/types/spatial_reference_system.h" // dd::Spatial_reference_system
+#include "sql/dd/types/spatial_reference_system.h"  // dd::Spatial_reference_system
 #include "sql/gis/difference_functor.h"
 #include "sql/gis/geometries.h"
 #include "sql/gis/union_functor.h"
