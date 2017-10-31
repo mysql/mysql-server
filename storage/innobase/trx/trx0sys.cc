@@ -418,6 +418,8 @@ trx_sys_init_at_db_start(void)
 		ib::info() << "Trx id counter is " << trx_sys->max_trx_id;
 	}
 
+	trx_sys->found_prepared_trx = trx_sys->n_prepared_trx > 0;
+
 	trx_sys_mutex_exit();
 
 	return(purge_queue);

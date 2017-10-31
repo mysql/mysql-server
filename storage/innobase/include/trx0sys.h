@@ -542,7 +542,11 @@ struct trx_sys_t {
 
 	ulint		n_prepared_trx;	/*!< Number of transactions currently
 					in the XA PREPARED state */
+
+	bool		found_prepared_trx; /*!< True if XA PREPARED trxs are
+					    found. */
 };
+
 #endif /* !UNIV_HOTBACKUP */
 
 /** A list of undo tablespace IDs found in the TRX_SYS page.
