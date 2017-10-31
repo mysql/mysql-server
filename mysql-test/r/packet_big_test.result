@@ -1,0 +1,11 @@
+#
+# BUG# 26974113 - CONTRIBUTION BY FACEBOOK; READ COMPRESSED PACKETS OF SIZE 0XFFFFFF
+#
+# The below SQL commands shall be run with --compress option.
+SET GLOBAL max_allowed_packet=33554432;
+connect(con1, localhost, root,,);
+connection con1;
+SELECT REPEAT('T', 16777211);
+disconnect con1;
+connection default;
+SET GLOBAL MAX_ALLOWED_PACKET=default;

@@ -110,7 +110,7 @@ typedef struct st_net {
   int fcntl;
   unsigned int *return_status;
   unsigned char reading_or_writing;
-  char save_char;
+  unsigned char save_char;
   bool compress;
   unsigned int last_errno;
   unsigned char error;
