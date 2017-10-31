@@ -808,10 +808,10 @@ CONFIGURE_FILE(
 SET(KNOWN_CONVENIENCE_LIBRARIES "" CACHE INTERNAL "")
 # Add to the 'make clean' target.
 # With this you need to do 'cmake .' before doing 'make' again.
-GET_PROPERTY(CLEAN_FILES DIRECTORY PROPERTY ADDITIONAL_MAKE_CLEAN_FILES)
-SET_PROPERTY(DIRECTORY PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
-  "${CLEAN_FILES}" "${CMAKE_BINARY_DIR}/archive_output_directory"
-)
+SET_PROPERTY(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
+  "${CMAKE_BINARY_DIR}/archive_output_directory"
+  "${CMAKE_BINARY_DIR}/library_output_directory"
+  )
 
 # Handle the "INFO_*" files.
 INCLUDE(${CMAKE_BINARY_DIR}/info_macros.cmake)
