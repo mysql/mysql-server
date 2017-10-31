@@ -133,7 +133,6 @@ class Mock_share : public TABLE_SHARE
 public:
   Mock_share(const char *key)
   {
-    memset((TABLE_SHARE *)this, 0, sizeof(TABLE_SHARE));
     /*
       Both table_cache_key and cache_element array are used by
       Table_cache code.

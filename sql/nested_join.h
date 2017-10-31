@@ -44,13 +44,13 @@ typedef ulonglong nested_join_map;
 struct Semijoin_mat_optimize
 {
   /// Optimal join order calculated for inner tables of this semijoin op.
-  POSITION *positions;
+  POSITION *positions{nullptr};
   /// True if data types allow the MaterializeLookup semijoin strategy
-  bool lookup_allowed;
+  bool lookup_allowed{false};
   /// True if data types allow the MaterializeScan semijoin strategy
-  bool scan_allowed;
+  bool scan_allowed{false};
   /// Expected number of rows in the materialized table
-  double expected_rowcount;
+  double expected_rowcount{0.0};
   /// Materialization cost - execute sub-join and write rows to temp.table
   Cost_estimate materialization_cost;
   /// Cost to make one lookup in the temptable
@@ -58,7 +58,7 @@ struct Semijoin_mat_optimize
   /// Cost of scanning the materialized table
   Cost_estimate scan_cost;
   /// Array of pointers to fields in the materialized table.
-  Item_field **mat_fields;
+  Item_field **mat_fields{nullptr};
 };
 
 /**
@@ -72,24 +72,24 @@ struct Semijoin_mat_optimize
 struct NESTED_JOIN
 {
   List<TABLE_LIST>  join_list;       /* list of elements in the nested join */
-  table_map         used_tables;     /* bitmap of tables in the nested join */
-  table_map         not_null_tables; /* tables that rejects nulls           */
+  table_map         used_tables{0};     /* bitmap of tables in the nested join */
+  table_map         not_null_tables{0}; /* tables that rejects nulls           */
   /**
     Used for pointing out the first table in the plan being covered by this
     join nest. It is used exclusively within make_outerjoin_info().
   */
-  plan_idx first_nested;
+  plan_idx first_nested{0};
   /**
     Set to true when natural join or using information has been processed.
   */
-  bool natural_join_processed;
+  bool natural_join_processed{false};
   /**
     Number of tables and outer join nests administered by this nested join
     object for the sake of cost analysis. Includes direct member tables as
     well as tables included through semi-join nests, but notice that semi-join
     nests themselves are not counted.
   */
-  uint              nj_total;
+  uint              nj_total{0};
   /**
     Used to count tables in the nested join in 2 isolated places:
     1. In make_outerjoin_info().
@@ -97,28 +97,28 @@ struct NESTED_JOIN
        by the join optimizer.
     Before each use the counters are zeroed by SELECT_LEX::reset_nj_counters.
   */
-  uint              nj_counter;
+  uint              nj_counter{0};
   /**
     Bit identifying this nested join. Only nested joins representing the
     outer join structure need this, other nests have bit set to zero.
   */
-  nested_join_map   nj_map;
+  nested_join_map   nj_map{0};
   /**
     Tables outside the semi-join that are used within the semi-join's
     ON condition (ie. the subquery WHERE clause and optional IN equalities).
   */
-  table_map         sj_depends_on;
+  table_map         sj_depends_on{0};
   /**
     Outer non-trivially correlated tables, a true subset of sj_depends_on
   */
-  table_map         sj_corr_tables;
+  table_map         sj_corr_tables{0};
   /**
     Query block id if this struct is generated from a subquery transform.
   */
-  uint query_block_id;
+  uint query_block_id{0};
 
   /// Bitmap of which strategies are enabled for this semi-join nest
-  uint sj_enabled_strategies;
+  uint sj_enabled_strategies{0};
 
   /*
     Lists of trivially-correlated expressions from the outer and inner tables

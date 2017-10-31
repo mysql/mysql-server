@@ -435,7 +435,7 @@ TABLE_SHARE *alloc_table_share(const char *db,
                        table_cache_instances * sizeof(*cache_element_array),
                        NULL))
   {
-    memset(share, 0, sizeof(*share));
+    new (share) TABLE_SHARE();
 
     share->set_table_cache_key(key_buff, key, key_length);
 
@@ -501,7 +501,7 @@ void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
   DBUG_ENTER("init_tmp_table_share");
   DBUG_PRINT("enter", ("table: '%s'.'%s'", key, table_name));
 
-  memset(share, 0, sizeof(*share));
+  new (share) TABLE_SHARE();
 
   if (mem_root)
     share->mem_root= std::move(*mem_root);
@@ -534,6 +534,14 @@ void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
   DBUG_VOID_RETURN;
 }
 
+
+// NOTE: This has a copy in pfs_server_stubs.cc.
+TABLE_SHARE::TABLE_SHARE()
+  : row_type(ROW_TYPE_DEFAULT),
+    real_row_type(ROW_TYPE_DEFAULT),
+    stats_auto_recalc(HA_STATS_AUTO_RECALC_DEFAULT)
+{
+}
 
 Key_map TABLE_SHARE::usable_indexes(const THD *thd) const
 {
@@ -2626,11 +2634,9 @@ static bool fix_fields_gcol_func(THD *thd, Field *field)
 
   /*
     Set-up the TABLE_LIST object to be a list with a single table
-    Set the object to zero to create NULL pointers and set alias
-    and real name to table name and get database name from file name.
+    Set alias and real name to table name and get database name from file name.
   */
 
-  memset((void*)&tables, 0, sizeof(TABLE_LIST));
   tables.alias= tables.table_name= table->s->table_name.str;
   tables.table= table;
   tables.next_local= 0;
@@ -3057,7 +3063,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
                       share->table_name.str, outparam));
 
   error= 1;
-  memset(outparam, 0, sizeof(*outparam));
+  new (outparam) TABLE();
   outparam->in_use= thd;
   outparam->s= share;
   outparam->db_stat= db_stat;
@@ -4608,15 +4614,13 @@ TABLE_LIST *TABLE_LIST::new_nested_join(MEM_ROOT *allocator,
 {
   DBUG_ASSERT(belongs_to && select);
 
-  TABLE_LIST *const join_nest=
-    (TABLE_LIST *) alloc_root(allocator, ALIGN_SIZE(sizeof(TABLE_LIST))+
-                                                    sizeof(NESTED_JOIN));
-  if (join_nest == NULL)
-    return NULL;
+  TABLE_LIST *const join_nest= new (allocator) TABLE_LIST;
+  if (join_nest == nullptr)
+    return nullptr;
 
-  memset(join_nest, 0, ALIGN_SIZE(sizeof(TABLE_LIST)) + sizeof(NESTED_JOIN));
-  join_nest->nested_join=
-    (NESTED_JOIN *) ((uchar *)join_nest + ALIGN_SIZE(sizeof(TABLE_LIST)));
+  join_nest->nested_join= new (allocator) NESTED_JOIN;
+  if (join_nest->nested_join == nullptr)
+    return nullptr;
 
   join_nest->db= (char *)"";
   join_nest->db_length= 0;

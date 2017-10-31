@@ -92,8 +92,20 @@ enum thr_locked_row_action { THR_DEFAULT, THR_WAIT, THR_NOWAIT, THR_SKIP };
 
 struct Lock_descriptor
 {
-  enum thr_lock_type type;
-  enum thr_locked_row_action action;
+  /*
+    These constructors are no longer needed when we go to C++14, where
+    aggregate initialization is allowed on classes that have default
+    member initializers.
+  */
+  Lock_descriptor() {}
+
+  Lock_descriptor(thr_lock_type type_arg, thr_locked_row_action action_arg)
+    : type(type_arg), action(action_arg)
+  {
+  }
+
+  thr_lock_type type{TL_UNLOCK};
+  thr_locked_row_action action{THR_DEFAULT};
 };
 
 enum enum_thr_lock_result { THR_LOCK_SUCCESS= 0, THR_LOCK_ABORTED= 1,
