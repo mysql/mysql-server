@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -464,14 +464,14 @@ setup_repl(atrt_process* dst, atrt_process* src)
 		   mysql_error(&src->m_mysql));
     return false;
   }
-  
+
   BaseString tmp;
-  tmp.assfmt("CHANGE MASTER TO   "
-	     " MASTER_HOST='%s', "
-	     " MASTER_PORT=%u    ",
-	     dst->m_host->m_hostname.c_str(),
-	     atoi(find(dst, "--port=")));
-  
+  tmp.assfmt("CHANGE MASTER TO "
+             " MASTER_HOST='%s',"
+             " MASTER_PORT=%u,"
+             " MASTER_USER='root'",
+             dst->m_host->m_hostname.c_str(), atoi(find(dst, "--port=")));
+
   if (!run_query(src, tmp.c_str()))
   {
     g_logger.error("Failed to setup repl from %s to %s: %s",

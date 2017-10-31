@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -55,10 +55,6 @@ struct proc_option f_options[] = {
   ,{ "--host=",        atrt_process::AP_CLIENT, 0 }
   ,{ "--server-id=",   atrt_process::AP_MYSQLD, PO_REP }
   ,{ "--log-bin",      atrt_process::AP_MYSQLD, PO_REP_MASTER }
-  ,{ "--master-host=", atrt_process::AP_MYSQLD, PO_REP_SLAVE }
-  ,{ "--master-port=", atrt_process::AP_MYSQLD, PO_REP_SLAVE }
-  ,{ "--master-user=", atrt_process::AP_MYSQLD, PO_REP_SLAVE }
-  ,{ "--master-password=", atrt_process::AP_MYSQLD, PO_REP_SLAVE }
   ,{ "--ndb-connectstring=", atrt_process::AP_MYSQLD | atrt_process::AP_CLUSTER
      ,PO_NDB }
   ,{ "--ndbcluster", atrt_process::AP_MYSQLD, PO_NDB }
@@ -858,34 +854,7 @@ generate(atrt_process& proc, const char * name, Properties& props)
     opts.m_generated.put(name, "");
     return true;
   }
-  else if (strcmp(name, "--master-host=") == 0)
-  {
-    require(proc.m_rep_src != 0);
-    opts.m_loaded.put(name, proc.m_rep_src->m_host->m_hostname.c_str());
-    opts.m_generated.put(name, proc.m_rep_src->m_host->m_hostname.c_str());
-    return true;
-  }
-  else if (strcmp(name, "--master-port=") == 0)
-  {
-    const char* val;
-    require(proc.m_rep_src->m_options.m_loaded.get("--port=", &val));
-    opts.m_loaded.put(name, val);
-    opts.m_generated.put(name, val);
-    return true;
-  }
-  else if (strcmp(name, "--master-user=") == 0)
-  {
-    opts.m_loaded.put(name, "root");
-    opts.m_generated.put(name, "root");
-    return true;
-  }
-  else if (strcmp(name, "--master-password=") == 0)
-  {
-    opts.m_loaded.put(name, "\"\"");
-    opts.m_generated.put(name, "\"\"");
-    return true;
-  }
-  
+
   g_logger.warning("Unknown parameter: %s", name);
   return true;
 }
