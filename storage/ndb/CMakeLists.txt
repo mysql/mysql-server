@@ -144,7 +144,7 @@ IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
           "unused-parameter")
     STRING(REPLACE "-" "_" warning_ ${warning})
     STRING(TOUPPER ${warning_} WARNING)
-    CHECK_CXX_COMPILER_FLAG("-Wno-${warning}" HAVE_${WARNING})
+    CHECK_CXX_COMPILER_FLAG("-W${warning}" HAVE_${WARNING})
     IF(HAVE_${WARNING})
       ADD_COMPILE_FLAGS(${NDBCLUSTER_SOURCES}
                         COMPILE_FLAGS -Wno-${warning})
