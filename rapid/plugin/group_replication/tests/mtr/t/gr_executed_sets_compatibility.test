@@ -18,21 +18,9 @@
 #   3) Try to add server 1 to the group. It fails because server 1 has 5
 #      transaction and server 2 only has 1
 #
-# Test case 3: Test case 1 with a forced entry
-#   1) Stop and clean server 2.
-#   1) Boot the group with server 1
-#   2) Insert a transaction on server 2 that acquires a local GTID
-#   3) Set the allow_local_disjoint_gtids_join option to 1 in server 2
-#   4) Start group replication on server 2, it should succeed.
+# 3. Verify all is fine.
 #
-# Test case 4: Add a member that has the transaction present on member 2
-#   1) Insert a transaction on server 3 with the same GTID of that present on 2.
-#   2) Start group replication on server 3, it should succeed since server 2, a
-#      member of the group knows this transaction.
-#
-# 5. Verify all is fine.
-#
-# 6. Clean up.
+# 4. Clean up.
 ################################################################################
 
 --source include/big_test.inc
@@ -40,7 +28,6 @@
 --source ../inc/have_group_replication_plugin.inc
 --let $rpl_gtid_utils= 1
 --let $rpl_skip_group_replication_start= 1
---let $rpl_server_count= 3
 --source ../inc/group_replication.inc
 --let $errand_transaction_uuid= aaaaaaaa-bbbb-aaaa-bbbb-aaaaaaaaaaaa
 
@@ -165,55 +152,8 @@ RESET MASTER;
 
 --source ../inc/start_and_bootstrap_group_replication.inc
 
---echo #
---echo # Test case 3: Repeat test case 1 again but now force the member to join
---echo # The start group replication command shall succeed.
---echo #
-
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
-
---eval SET GTID_NEXT= "$errand_transaction_uuid:1"
-CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
-SET GTID_NEXT= "AUTOMATIC";
-
---let $assert_text= The member shall contain a local transaction
---let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$errand_transaction_uuid:1";
---source include/assert.inc
-
-SET GLOBAL group_replication_allow_local_disjoint_gtids_join= 1;
-
---source include/start_group_replication.inc
-
---let $assert_text= The joiner shall contain both group and local transactions
---let $assert_cond= GTID_IS_EQUAL("[SELECT @@GLOBAL.GTID_EXECUTED]", "$errand_transaction_uuid:1,$group_replication_group_name:1-6")
---source include/assert.inc
-
---let $rpl_connection_name= server1
---source include/rpl_connection.inc
-
---let $assert_text= The old member shall only contain group transactions
---let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$group_replication_group_name:1-6";
---source include/assert.inc
-
-
---echo #
---echo # Test case 4: Member 3 joins the group with the same transaction as member 2
---echo # The start group replication command shall succeed without forcing it
---echo #
-
---let $rpl_connection_name= server3
---source include/rpl_connection.inc
-
---eval SET GTID_NEXT= "$errand_transaction_uuid:1"
-
-CREATE TABLE t3 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
-
-SET GTID_NEXT= "AUTOMATIC";
-
---let $assert_text= The third member to join has a local transaction
---let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$errand_transaction_uuid:1";
---source include/assert.inc
 
 --source include/start_group_replication.inc
 
@@ -226,19 +166,14 @@ SET GTID_NEXT= "AUTOMATIC";
 
 INSERT INTO t1 VALUES (2);
 
-# We cannot use rpl_sync.inc because of errand transactions.
---let $sync_slave_connection= server2
---source include/sync_slave_sql_with_master.inc
+--source include/rpl_sync.inc
 
 --let $assert_text= 'There are two values in table t1'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 2
 --source include/assert.inc
 
---let $rpl_connection_name= server1
+--let $rpl_connection_name= server2
 --source include/rpl_connection.inc
-
---let $sync_slave_connection= server3
---source include/sync_slave_sql_with_master.inc
 
 --let $assert_text= 'There are two values in table t1'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 2
@@ -247,28 +182,6 @@ INSERT INTO t1 VALUES (2);
 --echo #
 --echo # Cleaning up
 --echo #
-
---let $rpl_connection_name= server3
---source include/rpl_connection.inc
-
---source include/stop_group_replication.inc
-DROP TABLE t3;
-DROP TABLE t1;
-RESET MASTER;
-
---let $rpl_connection_name= server2
---source include/rpl_connection.inc
-
-SET GLOBAL group_replication_allow_local_disjoint_gtids_join= 0;
-
---source include/stop_group_replication.inc
-
-DROP TABLE t2;
-DROP TABLE t1;
-RESET MASTER;
-
---let $rpl_connection_name= server1
---source include/rpl_connection.inc
 
 DROP TABLE t1;
 

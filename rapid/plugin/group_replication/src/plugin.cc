@@ -217,9 +217,6 @@ uint member_weight_var= DEFAULT_MEMBER_WEIGHT;
 /* Downgrade options */
 bool allow_local_lower_version_join_var= 0;
 
-/* Allow errand transactions */
-bool allow_local_disjoint_gtids_join_var= 0;
-
 /* Define what debug options will be activated */
 char * communication_debug_options_var= NULL;
 
@@ -1662,12 +1659,6 @@ bool get_allow_local_lower_version_join()
   DBUG_RETURN(allow_local_lower_version_join_var);
 }
 
-bool get_allow_local_disjoint_gtids_join()
-{
-  DBUG_ENTER("get_allow_local_disjoint_gtids_join");
-  DBUG_RETURN(allow_local_disjoint_gtids_join_var);
-}
-
 ulong get_transaction_size_limit()
 {
   DBUG_ENTER("get_transaction_size_limit");
@@ -2877,16 +2868,6 @@ static MYSQL_SYSVAR_BOOL(
   0                                      /* default */
 );
 
-static MYSQL_SYSVAR_BOOL(
-  allow_local_disjoint_gtids_join,       /* name */
-  allow_local_disjoint_gtids_join_var,   /* var */
-  PLUGIN_VAR_OPCMDARG,                   /* optional var */
-  "Allow this server to join the group even if it has transactions not present in the group",
-  NULL,                                  /* check func. */
-  NULL,                                  /* update func*/
-  0                                      /* default */
-);
-
 static MYSQL_SYSVAR_ULONG(
   auto_increment_increment,          /* name */
   auto_increment_increment_var,      /* var */
@@ -3214,7 +3195,6 @@ static SYS_VAR* group_replication_system_vars[]= {
   MYSQL_SYSVAR(recovery_reconnect_interval),
   MYSQL_SYSVAR(components_stop_timeout),
   MYSQL_SYSVAR(allow_local_lower_version_join),
-  MYSQL_SYSVAR(allow_local_disjoint_gtids_join),
   MYSQL_SYSVAR(auto_increment_increment),
   MYSQL_SYSVAR(compression_threshold),
   MYSQL_SYSVAR(gtid_assignment_block_size),

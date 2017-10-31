@@ -49,7 +49,6 @@ if ( ($found == 0) && (not $line =~ m{$search_pattern}) ) {
 # Many other variables are not considered due to their dynamic values and
 # values with different runs across different machines
 
-&mySubroutine('group_replication_allow_local_disjoint_gtids_join');
 &mySubroutine('group_replication_allow_local_lower_version_join');
 &mySubroutine('group_replication_auto_increment_increment');
 &mySubroutine('group_replication_bootstrap_group');
