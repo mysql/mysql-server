@@ -1,11 +1,16 @@
 # *******************************************************
-# wl#8619 : Testing the functionality when datadir files
-# and absolute path (DATA DIRECTORY) *.ibd files moving
-# around and start the server and check the DB state
+# wl#8619 : Testing the functionality of portability
+# The  *.ibd files can be moved into any of the following 
+# listed known directories
+# 1) --datadir  (mysql home)
+# 2) --innodb-directories= dir1;dir2;etc...
+# 3) --innodb-undo-dirrectory
+# 4) --innodb-data-home-dir (ibdata1 and ibtemp1 are bootstrapped here.)
 # Note : --datadir as whole unit should be moved and its
 # folder hierarchy should be preserved
-# The *.ibd, files,absolute path and its folder ('test')
-# hierarchy should be preserved
+# The *.ibd files created with DB directory (absolute paths)
+# User has to follow the MySQL rules while moving the 
+# files.
 # Test full path and relative path of --datadir and
 # absolute path
 # ******************************************************
