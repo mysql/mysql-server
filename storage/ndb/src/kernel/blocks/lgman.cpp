@@ -4833,11 +4833,12 @@ Lgman::execute_undo_record(Signal* signal)
         local_lcp = 0;
       }
 
-      if((m_latest_lcp == 0) ||
-	 (lcp < m_latest_lcp) ||
-         (lcp == m_latest_lcp && local_lcp < m_latest_local_lcp) ||
-	 (lcp == m_latest_lcp &&  local_lcp == m_latest_local_lcp &&
-	  mask == File_formats::Undofile::UNDO_LCP_FIRST))
+      if ((m_latest_lcp == 0) ||
+          (lcp < m_latest_lcp) ||
+          (lcp == m_latest_lcp && local_lcp < m_latest_local_lcp) ||
+          (lcp == m_latest_lcp &&  local_lcp == m_latest_local_lcp &&
+           (mask == File_formats::Undofile::UNDO_LCP_FIRST ||
+            mask == File_formats::Undofile::UNDO_LOCAL_LCP_FIRST)))
       {
         jam();
         g_eventLogger->info("LGMAN: Stop UNDO log execution at LSN %llu,"
