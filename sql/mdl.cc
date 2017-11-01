@@ -1013,7 +1013,7 @@ public:
   */
   static bitmap_t scoped_lock_fast_path_granted_bitmap(const MDL_lock &lock)
   {
-    return (lock.m_fast_path_state & 0xFFFFFFFFFFFFFFFULL) ?
+    return (lock.m_fast_path_state.load() & 0xFFFFFFFFFFFFFFFULL) ?
             MDL_BIT(MDL_INTENTION_EXCLUSIVE) : 0;
   }
 
@@ -1350,7 +1350,7 @@ static int mdl_lock_match_unused(const uchar *arg)
     since the fact that MDL_lock object is unused will be properly
     validated later anyway.
   */
-  return (lock->m_fast_path_state == 0);
+  return (lock->m_fast_path_state.load() == 0);
 }
 } /* extern "C" */
 
