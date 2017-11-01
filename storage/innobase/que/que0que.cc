@@ -486,6 +486,7 @@ que_graph_free_recursive(
 			upd->in_mysql_interface = FALSE;
 		}
 
+		que_graph_free_recursive(upd->cascade_node);
 		if (upd->cascade_heap) {
 			mem_heap_free(upd->cascade_heap);
 			upd->cascade_heap = NULL;
