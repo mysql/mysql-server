@@ -3573,8 +3573,11 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
   DBUG_ASSERT(number > 0);
 
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
-  if (!acl_cache_lock.lock(!no_errors))
-    DBUG_RETURN(true);
+  if (sctx->get_active_roles()->size() == 0)
+  {
+    if (!acl_cache_lock.lock(!no_errors))
+      DBUG_RETURN(true);
+  }
 
   for (tl= tables;
        tl && number-- && tl != first_not_own_table;
