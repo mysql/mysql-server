@@ -1,5 +1,5 @@
 CREATE TABLE t1 (
-a char(10) NOT NULL primary key,
+a char(10) CHARSET latin1 NOT NULL primary key,
 b int,
 c blob,
 unique key (b)
@@ -153,7 +153,7 @@ counter_name	diff
 LOCAL_READS	131
 READS	131
 drop table counters_at_startup;
-row
+output_line
 -- t1 --
 Table options: readbackup, fullyreplicated
 -- Attributes --
@@ -425,7 +425,7 @@ counter_name	diff
 LOCAL_READS	129
 READS	129
 drop table counters_at_startup;
-row
+output_line
 -- t1 --
 Table options: readbackup, fullyreplicated
 -- Attributes --
