@@ -18,7 +18,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 ***********************************************************************/
 
 /**************************************************//**
-@file innodb_engine.c
+@file
 InnoDB Memcached Engine code
 
 Extracted and modified from NDB memcached project

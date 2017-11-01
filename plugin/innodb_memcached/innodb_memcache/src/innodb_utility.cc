@@ -17,7 +17,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /**************************************************//**
-@file innodb_utility.c
+@file
 
 Created 03/15/2011	Jimmy Yang (most macros and defines are adopted
 			from utility files in the InnoDB. Namely,
