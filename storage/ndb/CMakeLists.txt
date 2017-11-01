@@ -141,6 +141,8 @@ IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   INCLUDE(CheckCXXCompilerFlag)
   FOREACH(warning
           "unused-but-set-variable"
+          # Missing falltrough in switch/case/break statements
+	  "implicit-fallthrough"
 	  "error=unused-parameter")
     STRING(REPLACE "-" "_" warning_ ${warning})
     STRING(TOUPPER ${warning_} WARNING)
