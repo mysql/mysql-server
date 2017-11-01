@@ -1833,6 +1833,11 @@ Dbtup::disk_restart_undo(Signal* signal,
   case File_formats::Undofile::UNDO_LCP_FIRST:
   case File_formats::Undofile::UNDO_LCP:
   {
+    /**
+     * Searching for end of UNDO log execution is only done in
+     * lgman.cpp. So here we assume that we are supposed to continue
+     * executing the UNDO log. So no checks for end in this logic.
+     */
     jam();
     Uint32 lcpId;
     Uint32 localLcpId;
