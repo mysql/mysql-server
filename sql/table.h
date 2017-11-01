@@ -1823,7 +1823,7 @@ private:
     The bitmap is lazily allocated in the TABLE's mem_root when
     #mark_column_for_partial_update() is called.
   */
-  MY_BITMAP *m_partial_update_columns;
+  MY_BITMAP *m_partial_update_columns{nullptr};
 
   /**
     Object which contains execution time state used for partial update
@@ -1832,13 +1832,13 @@ private:
     It is allocated in the execution mem_root by #setup_partial_update() if
     there are columns that have been marked as eligible for partial update.
   */
-  Partial_update_info *m_partial_update_info;
+  Partial_update_info *m_partial_update_info{nullptr};
 
   /**
     This flag decides whether or not we should log the drop temporary table
     command.
   */
-  bool should_binlog_drop_if_temp_flag;
+  bool should_binlog_drop_if_temp_flag{false};
 public:
   /**
     Does this table have any columns that can be updated using partial update

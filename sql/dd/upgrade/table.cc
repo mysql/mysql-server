@@ -1629,7 +1629,6 @@ static bool migrate_table_to_dd(THD *thd,
     }
 
     // Fix pointers in TABLE, TABLE_SHARE
-    memset(table, 0, sizeof(*table));
     table->s= &share;
     table->in_use= thd;
     table->mem_root= std::move(mem_root);

@@ -1047,7 +1047,7 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   param->items_to_copy= copy_func;
   /* make table according to fields */
 
-  memset(table, 0, sizeof(*table));
+  new (table) TABLE;
   memset(reg_field, 0, sizeof(Field*)*(field_count + 2));
   memset(default_field, 0, sizeof(Field*) * (field_count + 1));
   memset(from_field, 0, sizeof(Field*)*(field_count + 1));
@@ -1416,12 +1416,8 @@ update_hidden:
       Field **reg_field;
       keyinfo->user_defined_key_parts= field_count-param->hidden_field_count;
       keyinfo->actual_key_parts= keyinfo->user_defined_key_parts;
-      if (!(key_part_info= (KEY_PART_INFO*)
-            alloc_root(&share->mem_root,
-                       keyinfo->user_defined_key_parts * sizeof(KEY_PART_INFO))))
+      if (!(key_part_info= new (&share->mem_root) KEY_PART_INFO[keyinfo->user_defined_key_parts]))
         goto err;
-      memset(key_part_info, 0, keyinfo->user_defined_key_parts *
-             sizeof(KEY_PART_INFO));
       table->key_info= share->key_info= keyinfo;
       keyinfo->key_part= key_part_info;
       keyinfo->actual_flags= keyinfo->flags= HA_NOSAME | HA_NULL_ARE_EQUAL;
@@ -1866,7 +1862,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   }
 
   /* STEP 3: Create TABLE description */
-  memset(table, 0, sizeof(*table));
+  new (table) TABLE;
   memset(reg_field, 0, sizeof(Field*) * 3);
   table->init_tmp_table(thd, share, &own_root, NULL, "weedout-tmp",
                         reg_field, blob_field, false);
@@ -2116,8 +2112,8 @@ TABLE *create_tmp_table_from_fields(THD *thd, List<Create_field> &field_list,
                         NullS))
     return 0;
 
-  memset(table, 0, sizeof(*table));
-  memset(share, 0, sizeof(*share));
+  new (table) TABLE;
+  new (share) TABLE_SHARE;
   table->init_tmp_table(thd, share, m_root, NULL, alias, reg_field,
                         blob_field, is_virtual);
 

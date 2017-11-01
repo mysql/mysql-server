@@ -9199,7 +9199,6 @@ longlong Item_func_can_access_column::val_int()
 
   // Check access
   GRANT_INFO grant_info;
-  memset(&grant_info, 0, sizeof (grant_info));
 
   if (check_access(thd, SELECT_ACL, schema_name_ptr->ptr(),
                    &grant_info.privilege, nullptr, false, true))
@@ -9313,7 +9312,6 @@ longlong Item_func_can_access_view::val_int()
 
   TABLE_LIST table_list;
   uint view_access;
-  memset(&table_list, 0, sizeof(table_list));
   table_list.db= schema_name_ptr->ptr();
   table_list.table_name= table_name_ptr->ptr();
   table_list.grant.privilege= thd->col_access;

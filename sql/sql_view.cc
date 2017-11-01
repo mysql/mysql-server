@@ -1451,7 +1451,6 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
     */
       
     TABLE_LIST view_no_suid;
-    memset(static_cast<void *>(&view_no_suid), 0, sizeof(TABLE_LIST));
     view_no_suid.db= view_ref->db;
     view_no_suid.table_name= view_ref->table_name;
 

@@ -307,7 +307,6 @@ bool update_table_stats(THD *thd, TABLE_LIST *table)
 {
   // Update the object properties
   HA_CREATE_INFO create_info;
-  memset(&create_info, 0, sizeof(create_info));
 
   TABLE *analyze_table= table->table;
   handler *file= analyze_table->file;

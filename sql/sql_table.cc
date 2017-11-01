@@ -8040,7 +8040,6 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
 bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
                              HA_CREATE_INFO *create_info)
 {
-  HA_CREATE_INFO local_create_info;
   Alter_info local_alter_info(thd->mem_root);
   Alter_table_ctx local_alter_ctx; // Not used
   bool is_trans= FALSE;
@@ -8129,7 +8128,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   }
 
   /* Fill HA_CREATE_INFO and Alter_info with description of source table. */
-  memset(&local_create_info, 0, sizeof(local_create_info));
+  HA_CREATE_INFO local_create_info;
   local_create_info.db_type= src_table->table->s->db_type();
   local_create_info.row_type= src_table->table->s->row_type;
   if (mysql_prepare_alter_table(thd, src_table_obj,
@@ -14450,7 +14449,6 @@ copy_data_between_tables(THD * thd,
   Copy_field *copy,*copy_end;
   ulong found_count,delete_count;
   READ_RECORD info;
-  TABLE_LIST   tables;
   List<Item>   fields;
   List<Item>   all_fields;
   ha_rows examined_rows, found_rows, returned_rows;
@@ -14547,7 +14545,7 @@ copy_data_between_tables(THD * thd,
       from->sort.io_cache=(IO_CACHE*) my_malloc(key_memory_TABLE_sort_io_cache,
                                                 sizeof(IO_CACHE),
                                                 MYF(MY_FAE | MY_ZEROFILL));
-      memset(&tables, 0, sizeof(tables));
+      TABLE_LIST   tables;
       tables.table= from;
       tables.alias= tables.table_name= from->s->table_name.str;
       tables.db= from->s->db.str;

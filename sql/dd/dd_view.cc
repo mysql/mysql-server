@@ -273,7 +273,6 @@ static bool fill_dd_view_columns(THD *thd,
   TABLE table;
   TABLE_SHARE share;
   init_tmp_table_share(thd, &share, "", 0, "", "", nullptr);
-  memset(&table, 0, sizeof(table));
   table.s= &share;
   handler *file= get_new_handler(&share, false, thd->mem_root,
                                  ha_default_temp_handlerton(thd));

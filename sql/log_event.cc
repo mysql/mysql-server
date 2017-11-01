@@ -8422,7 +8422,6 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
      column_after_image for m_cols_ai.bitmap. m_cols_ai is only initialized
      for UPDATE_ROWS_EVENTS, else it is equal to the before image.
   */
-  memset(&m_cols, 0, sizeof(m_cols));
   /* if bitmap_init fails, is_valid will be set to false */
   if (likely(!bitmap_init(&m_cols,
                           m_width <= sizeof(m_bitbuf) * 8 ? m_bitbuf : NULL,
