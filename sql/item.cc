@@ -2113,69 +2113,81 @@ public:
                          Item_sum::ref_by[].
   @param skip_registered <=> function be must skipped for registered SUM items
 
-  @note
-    This is from split_sum_func2() for items that should be split
-
     All found SUM items are added FIRST in the fields list and
     we replace the item with a reference.
 
     thd->fatal_error() may be called if we are out of memory
 
     The logic of skip_registered is:
-    - split_sum_func() is called when an aggregate is part of a bigger
-    expression, example: '1+max()'.
-    - an Item_sum has ref_by[0]!=nullptr when it is a group aggregate located
-    in a subquery but aggregating in a more outer query.
-    - this ref_by is necessary because for such aggregates, there are two
-    phases:
-      * fix_fields() is called by the subquery, which puts the item into the
-      outer SELECT_LEX::inner_sum_func_list.
-      * the outer query scans that list, calls split_sum_func2(), it replaces
-      the aggregate with an Item_ref, so it needs to correct the
-      pointer-to-aggregate held by the '+' item; so it needs access to the
-      pointer; this is possible because fix_fields() has stored the address of
-      this pointer into ref_by[0].
-    - So when we call split_sum_func for any aggregate, if we are in the
-    subquery, we do not want to modify the outer-aggregated aggregates, and as
-    those are detectable because they have ref_by[0]!=0: we pass
-    'skip_registered=true'.
-    - On the other hand, if we are in the outer query and scan
-    inner_sum_func_list, it's time to modify the aggregate which was skipped
-    by the subquery, so we pass 'skip_registered=false'.
-    - Finally, if the subquery was transformed with IN-to-EXISTS, a new HAVING
-    condition may have been added, which contains an Item_ref to the same
-    Item_sum; that makes a second pointer, ref_by[1], to remember.
-    @todo rename skip_registered to some name which better evokes
-    "outer-ness" of the item; subquery_none exercises this function
-    (Bug#11762); and rename ref_by too, as it's set only for outer-aggregated
-    items.
+
+      - split_sum_func() is called when an aggregate is part of a bigger
+        expression, example: '1+max()'.
+
+      - an Item_sum has ref_by[0]!=nullptr when it is a group aggregate located
+        in a subquery but aggregating in a more outer query.
+
+      - this ref_by is necessary because for such aggregates, there are two
+        phases:
+
+         - fix_fields() is called by the subquery, which puts the item into the
+           outer SELECT_LEX::inner_sum_func_list.
+
+         - the outer query scans that list, calls split_sum_func2(), it
+           replaces the aggregate with an Item_ref, so it needs to correct the
+           pointer-to-aggregate held by the '+' item; so it needs access to the
+           pointer; this is possible because fix_fields() has stored the
+           address of this pointer into ref_by[0].
+
+      - So when we call split_sum_func for any aggregate, if we are in the
+        subquery, we do not want to modify the outer-aggregated aggregates, and
+        as those are detectable because they have ref_by[0]!=0: we pass
+        'skip_registered=true'.
+
+      - On the other hand, if we are in the outer query and scan
+        inner_sum_func_list, it's time to modify the aggregate which was
+        skipped by the subquery, so we pass 'skip_registered=false'.
+
+      - Finally, if the subquery was transformed with IN-to-EXISTS, a new
+        HAVING condition may have been added, which contains an Item_ref to the
+        same Item_sum; that makes a second pointer, ref_by[1], to remember.
+        @todo rename skip_registered to some name which better evokes
+        "outer-ness" of the item; subquery_none exercises this function
+        (Bug#11762); and rename ref_by too, as it's set only for
+        outer-aggregated items.
 
   Examples:
-  (1) SELECT a+FIRST_VALUE(b*SUM(c/d)) OVER (...)
+
+      (1) SELECT a+FIRST_VALUE(b*SUM(c/d)) OVER (...)
+
   Assume we have done fix_fields() on this SELECT list, which list is so far
-  only '+'.
-  This '+' contains a WF (and a group aggregate function), so the resolver
-  (generally, SELECT_LEX::prepare()) calls Item::split_sum_func2 on the '+';
-  as this '+' is neither a WF nor a group aggregate, but contains some, it
-  calls Item_func::split_sum_func which calls Item::split_sum_func2 on every
-  argument of the '+':
-    * for 'a', it adds it to 'fields' as a hidden item
-    * then the FIRST_VALUE wf is added as a hidden item; this is necessary so
-    that create_tmp_table() and copy_funcs can spot the WF.
-    * next, for FIRST_VALUE: it is a WF, so its Item_sum::split_sum_func is
-    called, as its arguments need to be added as hidden items so they can get
-    carried forward between the tmp tables. This split_sum_func calls
-    Item::split_sum_func2 on its argument (the '*'); this
-    '*' is not a group aggregate but contains one, so its
-    Item_func::split_sum_func is called, which calls Item::split_sum_func2 on
-    every argument of the '*':
-      ** for 'b', adds it to 'fields' as a hidden item
-      ** for SUM: it is a group aggregate (and doesn't contain any WF) so it
-      adds it to 'fields' as a hidden item.
+  only '+'. This '+' contains a WF (and a group aggregate function), so the
+  resolver (generally, SELECT_LEX::prepare()) calls Item::split_sum_func2 on
+  the '+'; as this '+' is neither a WF nor a group aggregate, but contains
+  some, it calls Item_func::split_sum_func which calls Item::split_sum_func2 on
+  every argument of the '+':
+
+   - for 'a', it adds it to 'fields' as a hidden item
+
+   - then the FIRST_VALUE wf is added as a hidden item; this is necessary so
+     that create_tmp_table() and copy_funcs can spot the WF.
+
+   - next, for FIRST_VALUE: it is a WF, so its Item_sum::split_sum_func is
+     called, as its arguments need to be added as hidden items so they can get
+     carried forward between the tmp tables. This split_sum_func calls
+     Item::split_sum_func2 on its argument (the '*'); this
+     '*' is not a group aggregate but contains one, so its
+     Item_func::split_sum_func is called, which calls Item::split_sum_func2 on
+     every argument of the '*':
+       - for 'b', adds it to 'fields' as a hidden item
+       - for SUM: it is a group aggregate (and doesn't contain any WF) so it
+         adds it to 'fields' as a hidden item.
+
   So we finally have, in 'fields':
-     SUM, b, FIRST_VALUE, a, +
+
+      SUM, b, FIRST_VALUE, a, +
+
   Each time we add a hidden item we re-point its parent to the hidden item
-  using an Item_aggregate_ref. For example, args[0] of '+' is made to point to
+  using an Item_aggregate_ref. For example, the args[0] of '+' is made to point to
   an Item_aggregate_ref which points to the hidden 'a'.
 */
 
