@@ -4479,7 +4479,7 @@ do concat('a',concat_ws('a', 0x2859, 'a' ,
 trim(period_add('a',1) from (1&''))
 )
 );
-ERROR HY000: Incorrect arguments to PERIOD_ADD
+ERROR HY000: Incorrect arguments to period_add
 #
 # End of 5.6 tests
 #
