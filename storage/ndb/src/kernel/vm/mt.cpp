@@ -1655,6 +1655,7 @@ public:
  * is non-NULL, then we're using send threads, otherwise if NULL, there
  * are no send threads.
  */
+static char* g_send_threads_mem = NULL;
 static thr_send_threads *g_send_threads = NULL;
 
 extern "C"
@@ -7590,7 +7591,16 @@ ThreadConfig::ipControlLoop(NdbThread* pThis)
 
   if (globalData.ndbMtSendThreads)
   {
-    g_send_threads = new thr_send_threads();
+    /**
+     * new operator do not ensure alignment for overaligned data types.
+     * As for g_thr_repository, overallocate memory and construct the
+     * thr_send_threads object within at aligned address.
+     */
+    g_send_threads_mem = new char[sizeof(thr_send_threads) + NDB_CL];
+    const int aligned_offs = NDB_CL_PADSZ((UintPtr)g_send_threads_mem);
+    char* cache_aligned_mem = &g_send_threads_mem[aligned_offs];
+    require((((UintPtr)cache_aligned_mem) % NDB_CL) == 0);
+    g_send_threads = new (cache_aligned_mem) thr_send_threads();
   }
 
   /**
@@ -7670,8 +7680,10 @@ ThreadConfig::ipControlLoop(NdbThread* pThis)
   /* Delete send threads, includes waiting for threads to shutdown */
   if (g_send_threads)
   {
-    delete g_send_threads;
+    g_send_threads->~thr_send_threads();
     g_send_threads = NULL;
+    delete[] g_send_threads_mem;
+    g_send_threads_mem = NULL;
   }
   globalEmulatorData.theConfiguration->removeThread(pThis);
 }

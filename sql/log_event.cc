@@ -2015,7 +2015,7 @@ static const uchar *get_quote_table()
   static uchar buf[256][5];
   for (int i= 0; i < 256; i++)
   {
-    char str[5];
+    char str[6];
     switch (i)
     {
     case '\b': strcpy(str, "\\b"); break;
