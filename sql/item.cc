@@ -2175,7 +2175,7 @@ public:
   So we finally have, in 'fields':
      SUM, b, FIRST_VALUE, a, +
   Each time we add a hidden item we re-point its parent to the hidden item
-  using an Item_aggregate_ref. For example, '+'::args[0] is made to point to
+  using an Item_aggregate_ref. For example, args[0] of '+' is made to point to
   an Item_aggregate_ref which points to the hidden 'a'.
 */
 
