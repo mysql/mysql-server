@@ -1660,6 +1660,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL) },
  
   {
+    CFG_DB_O_DIRECT_SYNC_FLAG,
+    "ODirectSyncFlag",
+    DB_TOKEN,
+    "O_DIRECT writes are treated as sync:ed writes",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_BOOL,
+    "false",
+    "false",
+    "true"},
+
+  {
     CFG_DB_O_DIRECT,
     "ODirect",
     DB_TOKEN,
@@ -1670,6 +1682,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "false",
     "false",
     "true"},
+
   {
     CFG_DB_COMPRESSED_BACKUP,
     "CompressedBackup",

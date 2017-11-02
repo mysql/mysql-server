@@ -1520,7 +1520,7 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_DISCLESS, &c_diskless));
   c_o_direct = true;
   ndb_mgm_get_int_parameter(p, CFG_DB_O_DIRECT, &c_o_direct);
-  
+
   m_use_om_init = 0;
   {
     const char * conf = 0;
@@ -1539,6 +1539,30 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
       }
     }
   }
+
+  c_o_direct_sync_flag = false;
+  ndb_mgm_get_int_parameter(p,
+                            CFG_DB_O_DIRECT_SYNC_FLAG,
+                            &c_o_direct_sync_flag);
+#ifdef WIN32
+  /**
+   * Windows currently has no support for O_DIRECT and in
+   * O_DIRECT_SYNC mode we optimise away needed FSYNCs
+   * So avoid doing that by accident on Win
+   */
+  if (c_o_direct_sync_flag)
+  {
+    g_eventLogger->warning("ODirectSyncFlag not supported on Windows, ignored");
+    c_o_direct_sync_flag = false;
+  }
+else
+  if (c_o_direct_sync_flag && m_use_om_init == 0)
+  {
+    g_eventLogger->warning("ODirectSyncFlag not supported"
+                           "without setting InitFragmentLogFiles=full");
+    c_o_direct_sync_flag = false;
+  }
+#endif
 
   Uint32 tmp= 0;
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_LQH_FRAG, &tmp));
@@ -20018,11 +20042,23 @@ void Dblqh::openFileRw(Signal* signal,
   signal->theData[3] = olfLogFilePtr.p->fileName[1];
   signal->theData[4] = olfLogFilePtr.p->fileName[2];
   signal->theData[5] = olfLogFilePtr.p->fileName[3];
-  signal->theData[6] = FsOpenReq::OM_READWRITE | FsOpenReq::OM_AUTOSYNC | FsOpenReq::OM_CHECK_SIZE;
+  signal->theData[6] = FsOpenReq::OM_READWRITE |
+                       FsOpenReq::OM_AUTOSYNC |
+                       FsOpenReq::OM_CHECK_SIZE;
   if (c_o_direct)
+  {
+    jam();
     signal->theData[6] |= FsOpenReq::OM_DIRECT;
+    if (c_o_direct_sync_flag)
+    {
+      jam();
+      signal->theData[6] |= FsOpenReq::OM_DIRECT_SYNC;
+    }
+  }
   if (writeBuffer)
+  {
     signal->theData[6] |= FsOpenReq::OM_WRITE_BUFFER;
+  }
 
   req->auto_sync_size = MAX_REDO_PAGES_WITHOUT_SYNCH * sizeof(LogPageRecord);
   Uint64 sz = clogFileSize;
@@ -20047,10 +20083,21 @@ void Dblqh::openLogfileInit(Signal* signal)
   signal->theData[3] = logFilePtr.p->fileName[1];
   signal->theData[4] = logFilePtr.p->fileName[2];
   signal->theData[5] = logFilePtr.p->fileName[3];
-  signal->theData[6] = FsOpenReq::OM_READWRITE | FsOpenReq::OM_TRUNCATE | FsOpenReq::OM_CREATE | FsOpenReq::OM_AUTOSYNC | FsOpenReq::OM_WRITE_BUFFER;
+  signal->theData[6] = FsOpenReq::OM_READWRITE |
+                       FsOpenReq::OM_TRUNCATE |
+                       FsOpenReq::OM_CREATE |
+                       FsOpenReq::OM_AUTOSYNC |
+                       FsOpenReq::OM_WRITE_BUFFER;
   if (c_o_direct)
+  {
+    jam();
     signal->theData[6] |= FsOpenReq::OM_DIRECT;
-
+    if (c_o_direct_sync_flag)
+    {
+      jam();
+      signal->theData[6] |= FsOpenReq::OM_DIRECT_SYNC;
+    }
+  }
   Uint64 sz = Uint64(clogFileSize) * 1024 * 1024;
   req->file_size_hi = Uint32(sz >> 32);
   req->file_size_lo = Uint32(sz);
@@ -20172,9 +20219,20 @@ void Dblqh::openNextLogfile(Signal* signal)
     signal->theData[3] = onlLogFilePtr.p->fileName[1];
     signal->theData[4] = onlLogFilePtr.p->fileName[2];
     signal->theData[5] = onlLogFilePtr.p->fileName[3];
-    signal->theData[6] = FsOpenReq::OM_READWRITE | FsOpenReq::OM_AUTOSYNC | FsOpenReq::OM_CHECK_SIZE | FsOpenReq::OM_WRITE_BUFFER;
+    signal->theData[6] = FsOpenReq::OM_READWRITE |
+                         FsOpenReq::OM_AUTOSYNC |
+                         FsOpenReq::OM_CHECK_SIZE |
+                         FsOpenReq::OM_WRITE_BUFFER;
     if (c_o_direct)
+    {
+      jam();
       signal->theData[6] |= FsOpenReq::OM_DIRECT;
+      if (c_o_direct_sync_flag)
+      {
+        jam();
+        signal->theData[6] |= FsOpenReq::OM_DIRECT_SYNC;
+      }
+    }
     req->auto_sync_size = MAX_REDO_PAGES_WITHOUT_SYNCH * sizeof(LogPageRecord);
     Uint64 sz = clogFileSize;
     sz *= 1024; sz *= 1024;
