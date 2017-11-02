@@ -4653,7 +4653,6 @@ String *Item_func_get_dd_column_privileges::val_str(String *str)
 
       THD *thd= current_thd;
       GRANT_INFO grant_info;
-      memset(&grant_info, 0, sizeof (grant_info));
       fill_effective_table_privileges(thd,
                                       &grant_info,
                                       schema_name_ptr->c_ptr_safe(),

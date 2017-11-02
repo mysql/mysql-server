@@ -788,7 +788,6 @@ bool Sql_cmd_delete::prepare_inner(THD *thd)
     List<Item>   fields;
     List<Item>   all_fields;
 
-    memset(&tables, 0, sizeof(tables));
     tables.table = table_list->table;
     tables.alias = table_list->alias;
 

@@ -456,10 +456,6 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
       wild_length= strlen(wild);
   }
 
-
-
-  memset(&table_list, 0, sizeof(table_list));
-
   if (!(dirp = my_dir(path,MYF(dir ? MY_WANT_STAT : 0))))
   {
     if (my_errno() == ENOENT)
@@ -3626,7 +3622,6 @@ make_table_name_list(THD *thd, List<LEX_STRING> *table_names, LEX *lex,
       if (!(thd->col_access & TABLE_ACLS))
       {
         TABLE_LIST table_list;
-        memset(&table_list, 0, sizeof(table_list));
         table_list.db= db_name->str;
         table_list.db_length= db_name->length;
         table_list.table_name= const_cast<char*>(name->c_str());
