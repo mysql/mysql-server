@@ -1058,14 +1058,23 @@ Next_select_func JOIN::get_end_select_func()
 static size_t record_prefix_size(const QEP_TAB *qep_tab)
 {
   const TABLE *table= qep_tab->table();
-  const Field *last_field= nullptr;
 
-  // Go through all the columns in the read_set, and find the last field.
+  /*
+    Find the end of the last column that is read, or the beginning of
+    the record if no column is read.
+
+    We want the column that is physically last in table->record[0],
+    which is not necessarily the column that is last in table->field.
+    For example, virtual columns come at the end of the record, even
+    if they are not at the end of table->field. This means we need to
+    inspect all the columns in the read set and take the one with the
+    highest end pointer.
+  */
+  uchar *prefix_end= table->record[0];  // beginning of record
   for (auto f= table->field, end= table->field + table->s->fields; f < end; ++f)
   {
-    if (bitmap_is_set(table->read_set, (*f)->field_index) &&
-        (last_field == nullptr || last_field->ptr < (*f)->ptr))
-      last_field= *f;
+    if (bitmap_is_set(table->read_set, (*f)->field_index))
+      prefix_end= std::max(prefix_end, (*f)->ptr + (*f)->pack_length());
   }
 
   /*
@@ -1084,16 +1093,15 @@ static size_t record_prefix_size(const QEP_TAB *qep_tab)
          kp < end; ++kp)
     {
       const Field *f= table->field[kp->fieldnr - 1];
-      if (last_field == nullptr || last_field->ptr < f->ptr)
-        last_field= f;
+      /*
+        If a key column comes after all the columns in the read set,
+        extend the prefix to include the key column.
+      */
+      prefix_end= std::max(prefix_end, f->ptr + f->pack_length());
     }
   }
 
-  // If no column is read (for example, SELECT 1 FROM t), the prefix is 0.
-  if (last_field == nullptr)
-    return 0;
-
-  return last_field->offset(table->record[0]) + last_field->pack_length();
+  return prefix_end - table->record[0];
 }
 
 
