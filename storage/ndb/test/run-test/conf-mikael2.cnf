@@ -45,6 +45,7 @@ MaxNoOfSavedMessages= 5
 NoOfFragmentLogFiles = 8
 FragmentLogFileSize = 64M
 ODirect=1
+ODirectSyncFlag=1
 MaxNoOfAttributes=2000
 Checksum=1
 

@@ -99,6 +99,7 @@ private:
   STATIC_CONST( OM_THREAD_POOL    = 0x10000 );
   STATIC_CONST( OM_WRITE_BUFFER   = 0x20000 );
   STATIC_CONST( OM_READ_SIZE      = 0x40000 );
+  STATIC_CONST( OM_DIRECT_SYNC    = 0x80000 );
   
   enum Suffixes {
     S_DATA = 0,
