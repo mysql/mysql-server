@@ -293,7 +293,9 @@ private:
   RSS_AP_SNAPSHOT(c_statOpPool);
 
   /* Max schema object build batchsize from config */
-  Uint32 c_maxSchemaObjectBuildBatchSize;
+  Uint32 c_maxUIBuildBatchSize;
+  Uint32 c_maxFKBuildBatchSize;
+  Uint32 c_maxReorgBuildBatchSize;
 
   // System start
   void execREAD_CONFIG_REQ(Signal* signal);

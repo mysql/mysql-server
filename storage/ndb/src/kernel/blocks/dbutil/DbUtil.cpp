@@ -185,9 +185,17 @@ DbUtil::execREAD_CONFIG_REQ(Signal* signal)
 
   {
     /* ** Dimensioning inputs : */
-    Uint32 maxSchemaObjectBuildBatchSize = 64;
-    ndb_mgm_get_int_parameter(p, CFG_DB_BUILD_MAX_BATCHSIZE,
-                              &maxSchemaObjectBuildBatchSize);
+    Uint32 maxUIBuildBatchSize = 64;
+    ndb_mgm_get_int_parameter(p, CFG_DB_UI_BUILD_MAX_BATCHSIZE,
+                              &maxUIBuildBatchSize);
+    
+    Uint32 maxFKBuildBatchSize = 64;
+    ndb_mgm_get_int_parameter(p, CFG_DB_FK_BUILD_MAX_BATCHSIZE,
+                              &maxFKBuildBatchSize);
+    
+    Uint32 maxReorgBuildBatchSize = 64;
+    ndb_mgm_get_int_parameter(p, CFG_DB_REORG_BUILD_MAX_BATCHSIZE,
+                              &maxReorgBuildBatchSize);
     
     /* Based on existing setting, probably excessive */
     const Uint32 MaxNonSchemaBuildOps = 48;
@@ -199,8 +207,11 @@ DbUtil::execREAD_CONFIG_REQ(Signal* signal)
     const Uint32 PagesPerTransaction = 0;    /* Not used currently */
     
     /* ** Calculations */
-    const Uint32 MaxConcurrentOps = maxSchemaObjectBuildBatchSize 
-      + MaxNonSchemaBuildOps;
+    const Uint32 MaxConcurrentOps = maxUIBuildBatchSize 
+                                  + maxFKBuildBatchSize
+                                  + maxReorgBuildBatchSize
+                                  + MaxNonSchemaBuildOps;
+
     /* Some support for multiple ops per trans, but unused? */ 
     const Uint32 MaxConcurrentTrans = MaxConcurrentOps;
 
@@ -236,8 +247,12 @@ DbUtil::execREAD_CONFIG_REQ(Signal* signal)
     if (0)
     {
       ndbout_c("Inputs : ");
-      ndbout_c("  MaxSchemaObjectBuildBatchSize : %u",
-               maxSchemaObjectBuildBatchSize);
+      ndbout_c("  MaxUIBuildBatchSize : %u",
+               maxUIBuildBatchSize);
+      ndbout_c("  MaxFKBuildBatchSize : %u",
+               maxFKBuildBatchSize);
+      ndbout_c("  MaxReorgBuildBatchSize : %u",
+               maxReorgBuildBatchSize);
       ndbout_c("  MaxPreparedOps : %u", MaxPreparedOps);
       ndbout_c("  MaxNonSchemaBuildOps : %u", MaxNonSchemaBuildOps);
       ndbout_c("  NumConcurrentPrepares : %u", NumConcurrentPrepares);

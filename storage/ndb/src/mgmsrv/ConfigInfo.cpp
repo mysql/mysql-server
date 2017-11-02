@@ -2314,11 +2314,41 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   },
 
   {
-    CFG_DB_BUILD_MAX_BATCHSIZE,
-    "MaxSchemaBuildBatchSize",
+    CFG_DB_UI_BUILD_MAX_BATCHSIZE,
+    "MaxUIBuildBatchSize",
     DB_TOKEN,
-    "Max scan batch size to use for internal database object builds.  "
-    "Increasing this may speed up database object builds, at the "
+    "Max scan batch size to use for building unique indexes.  "
+    "Increasing this may speed up unique index builds, at the "
+    "risk of greater impact to ongoing traffic.",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "64",
+    "16",
+    "512"
+  },
+
+  {
+    CFG_DB_FK_BUILD_MAX_BATCHSIZE,
+    "MaxFKBuildBatchSize",
+    DB_TOKEN,
+    "Max scan batch size to use for building foreign keys.  "
+    "Increasing this may speed up foreign key builds, at the "
+    "risk of greater impact to ongoing traffic.",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "64",
+    "16",
+    "512"
+  },
+
+  {
+    CFG_DB_REORG_BUILD_MAX_BATCHSIZE,
+    "MaxReorgBuildBatchSize",
+    DB_TOKEN,
+    "Max scan batch size to use for reorganising table partitions.  "
+    "Increasing this may speed up reorganisation of table partitions, at the "
     "risk of greater impact to ongoing traffic.",
     ConfigInfo::CI_USED,
     false,
