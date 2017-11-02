@@ -4511,6 +4511,9 @@ drop table table1;
 
 #############################################
 # Testing of subqueries and join pushdown
+#
+#  Note that subqueries has limitations very similar
+#  to outer joins. 
 #############################################
 
 ##############
@@ -4685,6 +4688,119 @@ where t2.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ t4s.c
   from t1 as t3s join t1 as t4s on t4s.a = t3s.b);
 
 SET optimizer_switch=@save_optimizer_switch;
+
+
+###################################################
+# Bug #26984919
+#   SPJ: 'DUPLICATE WEEDOUT' STRATEGY MAY RETURN INCORRECT RESULTS
+
+###################################################
+
+# Use debug hook to enforce only 4 rows in each batch (multiple roundtips)
+--error 0,1193
+set global debug='+d,max_4rows_in_spj_batches';
+
+
+explain
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+where t1.c IN (
+  select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t3s.c from t1 as t3s
+  join t1 as t4s on t4s.a = t3s.b);
+
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+where t1.c IN (
+  select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t3s.c from t1 as t3s
+  join t1 as t4s on t4s.a = t3s.b);
+
+
+explain
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+where t2.c IN (
+  select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t3s.c from t1 as t3s
+  join t1 as t4s on t4s.a = t3s.b);
+
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+where t2.c IN (
+  select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t3s.c from t1 as t3s
+  join t1 as t4s on t4s.a = t3s.b);
+
+
+explain
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+join t1 as t3 on t3.a = t2.b
+where t1.c IN (
+  select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t4s.c from t1 as t4s
+  join t1 as t5s on t5s.a = t4s.b
+  join t1 as t6s on t6s.a = t5s.b
+);
+
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+join t1 as t3 on t3.a = t2.b
+where t1.c IN (
+  select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t4s.c from t1 as t4s
+  join t1 as t5s on t5s.a = t4s.b
+  join t1 as t6s on t6s.a = t5s.b
+);
+
+
+explain
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+join t1 as t3 on t3.a = t2.b
+where t2.c IN (
+  select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t4s.c from t1 as t4s
+  join t1 as t5s on t5s.a = t4s.b
+  join t1 as t6s on t6s.a = t5s.b
+);
+
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+join t1 as t3 on t3.a = t2.b
+where t2.c IN (
+  select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t4s.c from t1 as t4s
+  join t1 as t5s on t5s.a = t4s.b
+  join t1 as t6s on t6s.a = t5s.b
+);
+
+
+explain
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+join t1 as t3 on t3.a = t2.b
+where t3.c IN (
+  select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t4s.c from t1 as t4s
+  join t1 as t5s on t5s.a = t4s.b
+  join t1 as t6s on t6s.a = t5s.b
+);
+
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+join t1 as t3 on t3.a = t2.b
+where t3.c IN (
+  select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t4s.c from t1 as t4s
+  join t1 as t5s on t5s.a = t4s.b
+  join t1 as t6s on t6s.a = t5s.b
+);
+
+
+--error 0,1193
+set global debug=@save_debug;
 
 
 #############################################

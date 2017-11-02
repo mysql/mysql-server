@@ -6069,7 +6069,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	c	NULL	NULL	NULL	16	100.00	NULL
 1	SIMPLE	subq	ref	c	c	4	test.t1.c	2	100.00	FirstMatch(t1)
 Warnings:
-Note	1003	Can't push table 'subq' as child of 't1', 'FirstMatch' not allowed to contain scan-child
+Note	1003	Can't push table 'subq' as child of 't1', semi join of scan-child not implemented
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` semi join (`test`.`t1` `subq`) where (`test`.`subq`.`c` = `test`.`t1`.`c`)
 select count(*) from t1 where
 t1.c in (select c from t1 as subq);
@@ -6084,8 +6084,9 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	subq1	ref	c	c	4	test.t1.c	2	100.00	FirstMatch(t1)
 1	SIMPLE	subq2	ref	d	d	4	test.t1.d	2	100.00	FirstMatch(subq1)
 Warnings:
-Note	1003	Can't push table 'subq1' as child of 't1', 'FirstMatch' not allowed to contain scan-child
-Note	1003	Can't push table 'subq2' as child of 't1', 'FirstMatch' not allowed to contain scan-child
+Note	1003	Can't push table 'subq1' as child of 't1', semi join of scan-child not implemented
+Note	1003	Can't push table 'subq2' as child of 't1', semi join of scan-child not implemented
+Note	1003	Can't push table 'subq2' as child of 'subq1', their dependency is 'const'
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` semi join (`test`.`t1` `subq1`) semi join (`test`.`t1` `subq2`) where ((`test`.`subq2`.`d` = `test`.`t1`.`d`) and (`test`.`subq1`.`c` = `test`.`t1`.`c`))
 select count(*) from t1 where 
 t1.c in (select c from t1 as subq1) and
@@ -6101,8 +6102,9 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	subq1	ref	c	c	4	test.t1.c	2	100.00	NULL
 1	SIMPLE	subq2	ref	c	c	4	test.t1.c	2	100.00	FirstMatch(t1)
 Warnings:
-Note	1003	Can't push table 'subq1' as child of 't1', 'FirstMatch' not allowed to contain scan-child
-Note	1003	Can't push table 'subq2' as child of 't1', 'FirstMatch' not allowed to contain scan-child
+Note	1003	Can't push table 'subq1' as child of 't1', semi join of scan-child not implemented
+Note	1003	Can't push table 'subq2' as child of 't1', semi join of scan-child not implemented
+Note	1003	Can't push table 'subq2' as child of 'subq1', their dependency is 'const'
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` semi join (`test`.`t1` `subq2` join `test`.`t1` `subq1`) where ((`test`.`subq1`.`c` = `test`.`t1`.`c`) and (`test`.`subq2`.`c` = `test`.`t1`.`c`))
 select count(*) from t1 where 
 t1.c in (select c from t1 as subq1 where 
@@ -6114,12 +6116,11 @@ select count(*) from t1 where
 t1.c in (select subq1.c from t1 as subq1 straight_join t1 as subq2 on subq1.a = subq2.c);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	c	NULL	NULL	NULL	16	100.00	NULL
-1	SIMPLE	subq1	ref	PRIMARY,c	c	4	test.t1.c	2	100.00	NULL
-1	SIMPLE	subq2	ref	c	c	4	test.subq1.a	2	100.00	FirstMatch(t1)
+1	SIMPLE	subq1	ref	PRIMARY,c	c	4	test.t1.c	2	100.00	Parent of 2 pushed join@1
+1	SIMPLE	subq2	ref	c	c	4	test.subq1.a	2	100.00	Child of 'subq1' in pushed join@1; FirstMatch(t1)
 Warnings:
-Note	1003	Can't push table 'subq1' as child of 't1', 'FirstMatch' not allowed to contain scan-child
+Note	1003	Can't push table 'subq1' as child of 't1', semi join of scan-child not implemented
 Note	1003	Can't push table 'subq2' as child of 't1', column 'subq1.a' is outside scope of pushable join
-Note	1003	Can't push table 'subq2' as child of 'subq1', 'FirstMatch' not allowed to contain scan-child
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` semi join (`test`.`t1` `subq1` straight_join `test`.`t1` `subq2`) where ((`test`.`subq2`.`c` = `test`.`subq1`.`a`) and (`test`.`subq1`.`c` = `test`.`t1`.`c`))
 select count(*) from t1 where 
 t1.c in (select subq1.c from t1 as subq1 straight_join t1 as subq2 on subq1.a = subq2.c);
@@ -6237,6 +6238,134 @@ from t1 as t3s join t1 as t4s on t4s.a = t3s.b);
 count(*)
 256
 SET optimizer_switch=@save_optimizer_switch;
+set global debug='+d,max_4rows_in_spj_batches';
+explain
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+where t1.c IN (
+select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t3s.c from t1 as t3s
+join t1 as t4s on t4s.a = t3s.b);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	<subquery2>	ALL	NULL	NULL	NULL	NULL	NULL	NULL
+1	SIMPLE	t1	ref	c	c	4	<subquery2>.c	2	Parent of 2 pushed join@1
+1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	test.t1.b	1	Child of 't1' in pushed join@1
+2	MATERIALIZED	t3s	ALL	c	NULL	NULL	NULL	16	NULL
+2	MATERIALIZED	t4s	ref	PRIMARY	PRIMARY	4	test.t3s.b	1	NULL
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+where t1.c IN (
+select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t3s.c from t1 as t3s
+join t1 as t4s on t4s.a = t3s.b);
+count(*)
+64
+explain
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+where t2.c IN (
+select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t3s.c from t1 as t3s
+join t1 as t4s on t4s.a = t3s.b);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	Parent of 2 pushed join@1
+1	SIMPLE	t2	ref	PRIMARY,c	PRIMARY	4	test.t1.b	1	Child of 't1' in pushed join@1
+1	SIMPLE	t3s	ref	c	c	4	test.t2.c	2	Parent of 2 pushed join@2
+1	SIMPLE	t4s	ref	PRIMARY	PRIMARY	4	test.t3s.b	1	Child of 't3s' in pushed join@2; FirstMatch(t2)
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+where t2.c IN (
+select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t3s.c from t1 as t3s
+join t1 as t4s on t4s.a = t3s.b);
+count(*)
+64
+explain
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+join t1 as t3 on t3.a = t2.b
+where t1.c IN (
+select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t4s.c from t1 as t4s
+join t1 as t5s on t5s.a = t4s.b
+join t1 as t6s on t6s.a = t5s.b
+);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	<subquery2>	ALL	NULL	NULL	NULL	NULL	NULL	NULL
+1	SIMPLE	t1	ref	c	c	4	<subquery2>.c	2	Parent of 3 pushed join@1
+1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	test.t1.b	1	Child of 't1' in pushed join@1
+1	SIMPLE	t3	ref	PRIMARY	PRIMARY	4	test.t2.b	1	Child of 't2' in pushed join@1
+2	MATERIALIZED	t4s	ALL	c	NULL	NULL	NULL	16	NULL
+2	MATERIALIZED	t5s	ref	PRIMARY	PRIMARY	4	test.t4s.b	1	NULL
+2	MATERIALIZED	t6s	ref	PRIMARY	PRIMARY	4	test.t5s.b	1	NULL
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+join t1 as t3 on t3.a = t2.b
+where t1.c IN (
+select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t4s.c from t1 as t4s
+join t1 as t5s on t5s.a = t4s.b
+join t1 as t6s on t6s.a = t5s.b
+);
+count(*)
+256
+explain
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+join t1 as t3 on t3.a = t2.b
+where t2.c IN (
+select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t4s.c from t1 as t4s
+join t1 as t5s on t5s.a = t4s.b
+join t1 as t6s on t6s.a = t5s.b
+);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	Parent of 3 pushed join@1
+1	SIMPLE	t2	ref	PRIMARY,c	PRIMARY	4	test.t1.b	1	Child of 't1' in pushed join@1
+1	SIMPLE	t3	ref	PRIMARY	PRIMARY	4	test.t2.b	1	Child of 't2' in pushed join@1
+1	SIMPLE	t4s	ref	c	c	4	test.t2.c	2	Parent of 3 pushed join@2
+1	SIMPLE	t5s	ref	PRIMARY	PRIMARY	4	test.t4s.b	1	Child of 't4s' in pushed join@2
+1	SIMPLE	t6s	ref	PRIMARY	PRIMARY	4	test.t5s.b	1	Child of 't5s' in pushed join@2; FirstMatch(t3)
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+join t1 as t3 on t3.a = t2.b
+where t2.c IN (
+select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t4s.c from t1 as t4s
+join t1 as t5s on t5s.a = t4s.b
+join t1 as t6s on t6s.a = t5s.b
+);
+count(*)
+256
+explain
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+join t1 as t3 on t3.a = t2.b
+where t3.c IN (
+select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t4s.c from t1 as t4s
+join t1 as t5s on t5s.a = t4s.b
+join t1 as t6s on t6s.a = t5s.b
+);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	Parent of 3 pushed join@1
+1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	test.t1.b	1	Child of 't1' in pushed join@1
+1	SIMPLE	t3	ref	PRIMARY,c	PRIMARY	4	test.t2.b	1	Child of 't2' in pushed join@1
+1	SIMPLE	t4s	ref	c	c	4	test.t3.c	2	Parent of 3 pushed join@2
+1	SIMPLE	t5s	ref	PRIMARY	PRIMARY	4	test.t4s.b	1	Child of 't4s' in pushed join@2
+1	SIMPLE	t6s	ref	PRIMARY	PRIMARY	4	test.t5s.b	1	Child of 't5s' in pushed join@2; FirstMatch(t3)
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+join t1 as t3 on t3.a = t2.b
+where t3.c IN (
+select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t4s.c from t1 as t4s
+join t1 as t5s on t5s.a = t4s.b
+join t1 as t6s on t6s.a = t5s.b
+);
+count(*)
+256
+set global debug=@save_debug;
 drop table t1;
 CREATE TABLE ndb_order_test (
 node_id int(10) unsigned NOT NULL,
@@ -6292,9 +6421,9 @@ where new.variable_name = old.variable_name
 order by new.variable_name;
 variable_name	new.variable_value - old.variable_value
 NDB_PRUNED_SCAN_COUNT	8
-NDB_PUSHED_QUERIES_DEFINED	439
+NDB_PUSHED_QUERIES_DEFINED	457
 NDB_PUSHED_QUERIES_DROPPED	8
-NDB_PUSHED_QUERIES_EXECUTED	558
+NDB_PUSHED_QUERIES_EXECUTED	1163
 NDB_SORTED_SCAN_COUNT	13
 drop table server_counts_at_startup;
 set ndb_join_pushdown = @save_ndb_join_pushdown;
