@@ -1407,22 +1407,38 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
       DumpStateOrd * const & dumpState = (DumpStateOrd *)&signal->theData[0];
       Uint32 arg = dumpState->args[0];
       Uint32 first_val = dumpState->args[1];
-      if (signal->length() != 2)
+      if (signal->length() > 0)
       {
-        ndbout_c("dump 103000 X, where X is between 0 and 10 to set"
-                 "transactional priority");
-      }
-      else if (arg == DumpStateOrd::SetSchedulerResponsiveness)
-      {
-        if (first_val > 10)
+        if (val == DumpStateOrd::SetSchedulerResponsiveness)
         {
-          ndbout_c("Trying to set SchedulerResponsiveness outside 0-10");
+          if (signal->length() != 2)
+          {
+            ndbout_c("dump 103000 X, where X is between 0 and 10 to set"
+                     "transactional priority");
+          }
+          else if (arg == DumpStateOrd::SetSchedulerResponsiveness)
+          {
+            if (first_val > 10)
+            {
+              ndbout_c("Trying to set SchedulerResponsiveness outside 0-10");
+            }
+            else
+            {
+              ndbout_c("Setting SchedulerResponsiveness to %u", first_val);
+              Configuration *conf = globalEmulatorData.theConfiguration;
+              conf->setSchedulerResponsiveness(first_val);
+            }
+          }
         }
-        else
+        else if (val == DumpStateOrd::EnableEventLoggerDebug)
         {
-          ndbout_c("Setting SchedulerResponsiveness to %u", first_val);
-          Configuration *conf = globalEmulatorData.theConfiguration;
-          conf->setSchedulerResponsiveness(first_val);
+          g_eventLogger->info("Enable Debug level in node log");
+          g_eventLogger->enable(Logger::LL_DEBUG);
+        }
+        else if (val == DumpStateOrd::DisableEventLoggerDebug)
+        {
+          g_eventLogger->info("Disable Debug level in node log");
+          g_eventLogger->disable(Logger::LL_DEBUG);
         }
       }
     }
