@@ -156,10 +156,26 @@ SELECT * FROM t3;
 SHOW TABLES;
 DROP TABLE t2,t3;
 
-# The orphan file from fault 0 would also be removed by the following statment
+# The orphan file from fault 0 would not allow to create the table
 --error ER_TABLESPACE_EXISTS
 CREATE TABLE t0(a INT PRIMARY KEY) ENGINE=InnoDB;
+# Check if file was not removed
+--error ER_TABLESPACE_EXISTS
+CREATE TABLE t0(a INT PRIMARY KEY) ENGINE=InnoDB;
+# Remove the orphan file and try again.
+--remove_file $MYSQLD_DATADIR/test/t0.ibd
+CREATE TABLE t0(a INT PRIMARY KEY) ENGINE=InnoDB;
+DROP TABLE t0;
 
+# The existing directory shall not allow to create the table
+--mkdir $MYSQLD_DATADIR/test/t0.ibd
+--error ER_TABLESPACE_EXISTS
+CREATE TABLE t0(a INT PRIMARY KEY) ENGINE=InnoDB;
+# Check if directory was not removed
+--error ER_TABLESPACE_EXISTS
+CREATE TABLE t0(a INT PRIMARY KEY) ENGINE=InnoDB;
+--rmdir $MYSQLD_DATADIR/test/t0.ibd
+# Remove the blocking dir and try again.
 CREATE TABLE t0(a INT PRIMARY KEY) ENGINE=InnoDB;
 DROP TABLE t0;
 
