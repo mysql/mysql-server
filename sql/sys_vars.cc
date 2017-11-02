@@ -3154,7 +3154,7 @@ static Sys_var_ulong Sys_optimizer_trace_max_mem_size(
        "optimizer_trace_max_mem_size",
        "Maximum allowed cumulated size of stored optimizer traces",
        SESSION_VAR(optimizer_trace_max_mem_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, ULONG_MAX), DEFAULT(1024*16), BLOCK_SIZE(1));
+       VALID_RANGE(0, ULONG_MAX), DEFAULT(1024*1024), BLOCK_SIZE(1));
 
 #endif
 
