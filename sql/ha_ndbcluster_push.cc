@@ -364,6 +364,15 @@ ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const AQP::Join_plan& plan)
     m_tables[0].m_maybe_pushable &= ~PUSHABLE_AS_CHILD;
     m_tables[count-1].m_maybe_pushable &= ~PUSHABLE_AS_PARENT;
 
+#if !defined(NDEBUG)
+    // Fill in garbage table enums.
+    for (uint i= 0; i < MAX_TABLES; i++)
+    {
+      m_remap[i].to_external= 0x1111;
+      m_remap[i].to_internal= 0x2222;
+    }
+#endif
+
     for (uint i= 0; i < count; i++)
     {
       m_remap[i].to_external= MAX_TABLES;
@@ -404,9 +413,10 @@ uint
 ndb_pushed_builder_ctx::get_table_no(const Item* key_item) const
 {
   DBUG_ASSERT(key_item->type() == Item::FIELD_ITEM);
+  const uint count= m_plan.get_access_count();
   table_map bitmap= key_item->used_tables();
 
-  for (uint i= 0; i<MAX_TABLES && bitmap!=0; i++, bitmap>>=1)
+  for (uint i= 0; i<count && bitmap!=0; i++, bitmap>>=1)
   {
     if (bitmap & 1)
     {

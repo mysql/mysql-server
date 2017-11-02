@@ -4670,6 +4670,23 @@ join t1 as t2 on t2.a = t1.b and t2.b = t1.c
 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3);
 
 
+set @save_optimizer_switch = @@session.optimizer_switch;
+SET optimizer_switch='block_nested_loop=off';
+
+explain
+select count(*)
+from t1 cross join t1 as t2
+where t2.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ t4s.c
+  from t1 as t3s join t1 as t4s on t4s.a = t3s.b);
+
+select count(*)
+from t1 cross join t1 as t2
+where t2.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ t4s.c
+  from t1 as t3s join t1 as t4s on t4s.a = t3s.b);
+
+SET optimizer_switch=@save_optimizer_switch;
+
+
 #############################################
 # Subqueries-end
 #############################################
