@@ -3185,8 +3185,7 @@ Suma::SyncRecord::nextScan(Signal* signal)
   req->transId2 = (SUMA << 20) + (suma.getOwnNodeId() << 8);
   req->clientOpPtr = (ptrI << 16);
   req->batch_size_rows= m_scan_batchsize;
-
-  req->batch_size_bytes= 0;
+  req->batch_size_bytes = m_scan_batchsize * MAX_NORMAL_ROW_SIZE;
 
   Uint32 * attrInfo = signal->theData + 25;
   attrInfo[0] = attrBuf.getSize();
@@ -3319,7 +3318,7 @@ Suma::execSUB_SYNC_CONTINUE_CONF(Signal* signal){
   req->transId1 = 0;
   req->transId2 = (SUMA << 20) + (getOwnNodeId() << 8);
   req->batch_size_rows = batchSize;
-  req->batch_size_bytes = 0;
+  req->batch_size_bytes = batchSize * MAX_NORMAL_ROW_SIZE;
   sendSignal(lqhRef, GSN_SCAN_NEXTREQ, signal, 
 	     ScanFragNextReq::SignalLength, JBB);
 }
