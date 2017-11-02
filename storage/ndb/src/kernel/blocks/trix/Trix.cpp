@@ -1049,6 +1049,7 @@ void Trix::startTableScan(Signal* signal, SubscriptionRecPtr subRecPtr)
   subSyncReq->requestInfo = 0;
   subSyncReq->fragCount = subRec->fragCount;
   subSyncReq->fragId = subRec->fragId;
+  subSyncReq->batchSize = 16;
 
   if (subRec->m_flags & SubscriptionRecord::RF_NO_DISK)
   {
