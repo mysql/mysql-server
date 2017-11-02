@@ -292,6 +292,9 @@ private:
   StatOp_pool c_statOpPool;
   RSS_AP_SNAPSHOT(c_statOpPool);
 
+  /* Max schema object build batchsize from config */
+  Uint32 c_maxSchemaObjectBuildBatchSize;
+
   // System start
   void execREAD_CONFIG_REQ(Signal* signal);
   void execSTTOR(Signal* signal);
