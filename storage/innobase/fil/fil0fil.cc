@@ -2064,15 +2064,19 @@ Fil_path::is_valid_location(
 
 	/* Strip off the filename to reduce the path to a directory. */
 	std::string	dirpath{path};
-	auto pos = dirpath.find_last_of(SEPARATOR);
+	auto		pos = dirpath.find_last_of(SEPARATOR);
+
 	dirpath.resize(pos);
 
 	pos = name.find_last_of(SEPARATOR);
 
 	if (pos == std::string::npos) {
+
 		/* This is a general  or system tablespace. */
+
 		if (MySQL_datadir_path.is_ancestor(dirpath)) {
-			ib::error() << "A general tablespace cannot"
+			ib::error()
+				<< "A general tablespace cannot"
 				<< " be located under the datadir."
 				<< " Cannot open file '" << path << "'.";
 			return(false);
@@ -2081,10 +2085,12 @@ Fil_path::is_valid_location(
 	} else {
 		/* This is a file-per-table datafile.
 		Reduce the name to just the db name. */
+
 		name.resize(pos);
 
 		if (MySQL_datadir_path.is_same_as(dirpath)) {
-			ib::error() << "A file-per-table tablespace cannot"
+			ib::error()
+				<< "A file-per-table tablespace cannot"
 				<< " be located in the datadir."
 				<< " Cannot open file" << path << "'.";
 			return(false);
@@ -2092,12 +2098,20 @@ Fil_path::is_valid_location(
 
 		/* Get the subdir that the file is in. */
 		pos = dirpath.find_last_of(SEPARATOR);
+
 		std::string	subdir =
-			(pos == std::string::npos
-			 ? dirpath : dirpath.substr(pos + 1, dirpath.length()));
+			(pos == std::string::npos)
+			 ? dirpath
+			 : dirpath.substr(pos + 1, dirpath.length());
 
 		if (name != subdir) {
-			return(false);
+
+			Fil_path::convert_to_filename_charset(name);
+
+			if (name != subdir) {
+
+				return(false);
+			}
 		}
 	}
 
@@ -6909,6 +6923,8 @@ compared to the size stored in the space header. */
 void
 Fil_shard::meb_extend_tablespaces_to_stored_len()
 {
+	ut_ad(mutex_owned());
+
 	byte*	buf = static_cast<byte*>(ut_malloc_nokey(UNIV_PAGE_SIZE));
 
 	ut_a(buf != nullptr);
@@ -6921,6 +6937,8 @@ Fil_shard::meb_extend_tablespaces_to_stored_len()
 
 		/* No need to protect with a mutex, because this is
 		a single-threaded operation */
+
+		mutex_release();
 
 		dberr_t	error;
 
@@ -6951,6 +6969,8 @@ Fil_shard::meb_extend_tablespaces_to_stored_len()
 
 			ut_a(success);
 		}
+
+		mutex_acquire();
 	}
 
 	ut_free(buf);
@@ -8099,6 +8119,8 @@ Fil_shard::do_io(
 	dberr_t		err = get_file_for_io(req_type, space, &page_no, file);
 
 	if (err == DB_TABLE_NOT_FOUND) {
+
+		mutex_release();
 
 		return(err);
 
@@ -10223,24 +10245,29 @@ fil_tablespace_path_equals(
 
 		/* Build the new path from the scan path and the found path. */
 		std::string	new_dir{result.first};
+
 		ut_ad(Fil_path::is_separator(new_dir.back()));
+
 		new_dir.append(result.second->front());
 
 		new_dir = Fil_path::get_real_path(new_dir);
 
 		/* Do not use a datafile that is in the wrong place. */
 		if (!Fil_path::is_valid_location(space_name, new_dir)) {
+
 			ib::info()
 				<< "Cannot use scanned file " << new_dir
-				<< "for tablespace " << space_name
-				<< "because it is not in a valid location.";
+				<< " for tablespace " << space_name
+				<< " because it is not in a valid location.";
 
 			return(Fil_state::MISSING);
 		}
 
 		/* Ignore the filename component of the new path. */
 		pos = new_dir.find_last_of(Fil_path::SEPARATOR);
+
 		ut_ad(pos != std::string::npos);
+
 		new_dir.resize(pos + 1);
 
 		if (old_dir.compare(new_dir) != 0) {
@@ -10379,10 +10406,6 @@ fil_tablespace_redo_create(
 		return(nullptr);
 	}
 
-	ulint	len = mach_read_from_2(ptr + 4);
-
-	ptr += 2;
-
 #ifdef UNIV_HOTBACKUP
 	ulint	flags = mach_read_from_4(ptr);
 #else
@@ -10390,6 +10413,10 @@ fil_tablespace_redo_create(
 #endif /* UNIV_HOTBACKUP */
 
 	ptr += 4;
+
+	ulint	len = mach_read_from_2(ptr);
+
+	ptr += 2;
 
 	/* Do we have the full/valid file name. */
 	if (end < ptr + len || len < 5) {
@@ -10770,6 +10797,19 @@ fil_tablespace_redo_encryption(
 		return(nullptr);
 	}
 
+#ifdef UNIV_HOTBACKUP
+	if (fil_space_get(space_id)
+	    && !meb_get_encryption_key(space_id, key, iv)) {
+
+		recv_sys->found_corrupt_log = true;
+
+		ib::fatal()
+			<< "Encryption informaton"
+			<< " in the redo log of space "
+			<< space_id << " is invalid"
+			<< " MEB cannot proceed with the operation.";
+	}
+#else /* UNIV_HOTBACKUP */
 	if (!Encryption::decode_encryption_info(key, iv, ptr)) {
 
 		recv_sys->found_corrupt_log = true;
@@ -10781,6 +10821,7 @@ fil_tablespace_redo_encryption(
 
 		return(nullptr);
 	}
+#endif /* UNIV_HOTBACKUP */
 
 	ut_ad(len == ENCRYPTION_INFO_SIZE_V1
 	      || len == ENCRYPTION_INFO_SIZE_V2);
@@ -11611,5 +11652,27 @@ fil_space_update_name(fil_space_t* space, const char* name)
 			<< "Tablespace rename '" << space->name << "' to"
 			<< " '" << name << "' failed!";
 
+	}
+}
+
+/** Convert filename to the file system charset format.
+@param[in,out]	name		Filename to convert */
+void
+Fil_path::convert_to_filename_charset(std::string& name)
+{
+	uint	errors = 0;
+	char	old_name[MAX_TABLE_NAME_LEN + 20] = "";
+	char	filename[MAX_TABLE_NAME_LEN + 20] = "";
+
+	strncpy(filename, name.c_str(), MAX_TABLE_NAME_LEN + 20);
+	strncpy(old_name, filename, MAX_TABLE_NAME_LEN + 20);
+
+	ut_ad(strchr(filename, '/') == nullptr);
+
+	innobase_convert_to_filename_charset(
+		filename, old_name, MAX_TABLE_NAME_LEN);
+
+	if (errors == 0) {
+		name.assign(filename);
 	}
 }

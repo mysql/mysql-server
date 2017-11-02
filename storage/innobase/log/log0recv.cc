@@ -2766,17 +2766,17 @@ meb_apply_log_record(
 
 		recv_addr->state = RECV_DISCARDED;
 
-		mutex_enter(&(recv_sys->mutex));
+		mutex_enter(&recv_sys->mutex);
 
 		ut_a(recv_sys->n_addrs);
 		--recv_sys->n_addrs;
 
-		mutex_exit(&(recv_sys->mutex));
+		mutex_exit(&recv_sys->mutex);
 
 		return;
 	}
 
-	mutex_enter(&(recv_sys->mutex));
+	mutex_enter(&recv_sys->mutex);
 
 	/* We simulate a page read made by the buffer pool, to
 	make sure the recovery apparatus works ok. We must init
@@ -2801,6 +2801,8 @@ meb_apply_log_record(
 			<< recv_addr->space << " to hold "
 			<< recv_addr->page_no << " pages";
 	}
+
+	mutex_exit(&recv_sys->mutex);
 
 	/* Read the page from the tablespace file. */
 
@@ -2841,7 +2843,7 @@ meb_apply_log_record(
 
 	apply_log_mutex.unlock();
 
-	mutex_enter(&(recv_sys->mutex));
+	mutex_enter(&recv_sys->mutex);
 
 	/* Write the page back to the tablespace file using the
 	fil0fil.cc routines */
@@ -2851,7 +2853,7 @@ meb_apply_log_record(
 		mach_read_from_8(block->frame + FIL_PAGE_LSN),
 		fsp_is_checksum_disabled(block->page.id.space()));
 
-	mutex_exit(&(recv_sys->mutex));
+	mutex_exit(&recv_sys->mutex);
 
 	if (page_size.is_compressed()) {
 

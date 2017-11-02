@@ -754,6 +754,10 @@ public:
 		return(s_null_path);
 	}
 
+	/** Convert filename to the file system charset format.
+	@param[in,out]	name		Filename to convert */
+	static void convert_to_filename_charset(std::string& name);
+
 protected:
 	/** Path to a file or directory. */
 	std::string		m_path;

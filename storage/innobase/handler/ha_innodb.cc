@@ -23318,7 +23318,6 @@ const char*	FOREIGN_KEY_CONSTRAINTS_MSG =
 const char*	INNODB_PARAMETERS_MSG =
 	"Please refer to " REFMAN "innodb-parameters.html";
 
-#ifndef UNIV_HOTBACKUP
 /**********************************************************************
 Converts an identifier from my_charset_filename to UTF-8 charset.
 @return result string length, as returned by strconvert() */
@@ -23336,6 +23335,8 @@ innobase_convert_to_filename_charset(
 	return(static_cast<uint>(strconvert(
 		cs_from, from, cs_to, to, static_cast<size_t>(len), &errors)));
 }
+
+#ifndef UNIV_HOTBACKUP
 
 /**********************************************************************
 Converts an identifier from my_charset_filename to UTF-8 charset.
