@@ -9,7 +9,3 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-
-gr_read_committed_isolation : BUG#25392468 2017-01-16 Jaideep TESTS WAITING ON ROLLBACK FAILING WITH WAIT_CONDITION
-gr_read_uncommitted_isolation : BUG#25392468 2017-01-16 Jaideep TESTS WAITING ON ROLLBACK FAILING WITH WAIT_CONDITION
-gr_repeatable_read_isolation : BUG#25392468 2017-01-16 Jaideep TESTS WAITING ON ROLLBACK FAILING WITH WAIT_CONDITION
