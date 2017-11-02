@@ -220,6 +220,7 @@
 
 #define CFG_DB_DISK_DATA_FORMAT       648
 #define CFG_DB_ENABLE_PARTIAL_LCP     649
+#define CFG_DB_O_DIRECT_SYNC_FLAG     650
 
 #define CFG_NODE_ARBIT_RANK           200
 #define CFG_NODE_ARBIT_DELAY          201

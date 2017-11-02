@@ -1,6 +1,4 @@
-/*
-   Copyright (C) 2003, 2005, 2006 MySQL AB, 2008 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -70,6 +68,14 @@ printFSOPENREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receive
     fprintf(output, ", O_DIRECT");
   if (flags & FsOpenReq::OM_GZ)
     fprintf(output, ", gz compressed");
+  if (flags & FsOpenReq::OM_THREAD_POOL)
+    fprintf(output, ", threadpool");
+  if (flags & FsOpenReq::OM_WRITE_BUFFER)
+    fprintf(output, ", write buffer");
+  if (flags & FsOpenReq::OM_READ_SIZE)
+    fprintf(output, ", read size");
+  if (flags & FsOpenReq::OM_DIRECT_SYNC)
+    fprintf(output, ", O_DIRECT_SYNC");
 
   fprintf(output, "\n");
   return true;

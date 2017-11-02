@@ -3499,6 +3499,7 @@ private:
   
   Uint32 c_diskless;
   Uint32 c_o_direct;
+  Uint32 c_o_direct_sync_flag;
   Uint32 m_use_om_init;
   Uint32 c_error_insert_table_id;
 
