@@ -3623,8 +3623,50 @@ public:
     Ptr<Page> m_page_ptr;
     Ptr<Extent_info> m_extent_ptr;
     Local_key m_key;
+    Uint32 nextList;
+    union { Uint32 nextPool; Uint32 prevList; };
+    Uint32 m_magic;
+
     Apply_undo();
   };
+  typedef RecordPool<RWPool<Apply_undo> > Apply_undo_pool;
+  typedef DLCFifoList<Apply_undo_pool> Apply_undo_list;
+  typedef LocalDLCFifoList<Apply_undo_pool> LocalApply_undo_list;
+
+  Apply_undo_pool c_apply_undo_pool;
+
+  struct Pending_undo_page
+  {
+    Pending_undo_page()  {}
+    Pending_undo_page(Uint32 file_no, Uint32 page_no)
+    {
+      m_file_no = file_no;
+      m_page_no = page_no;
+    }
+
+    Uint16 m_file_no;
+    Uint32 m_page_no;
+    Apply_undo_list::Head m_apply_undo_head;
+
+    Uint32 nextHash;
+    union { Uint32 prevHash; Uint32 nextPool; };
+    Uint32 m_magic;
+
+    Uint32 hashValue() const
+    {
+      return m_file_no << 16 | m_page_no;
+    }
+
+    bool equal(const Pending_undo_page& obj) const
+    {
+      return m_file_no == obj.m_file_no && m_page_no == obj.m_page_no;
+    }
+  };
+
+  typedef RecordPool<RWPool<Pending_undo_page> >
+    Pending_undo_page_pool;
+  typedef DLCHashTable<Pending_undo_page_pool>
+    Pending_undo_page_hash;
 
   void disk_restart_lcp_id(Uint32 table,
                            Uint32 frag,
@@ -3635,6 +3677,10 @@ public:
 
 private:
   bool c_started;
+
+  Pending_undo_page_pool c_pending_undo_page_pool;
+  Pending_undo_page_hash c_pending_undo_page_hash;
+
   // these 2 were file-static before mt-lqh
   bool f_undo_done;
   Dbtup::Apply_undo f_undo;
@@ -3647,6 +3693,8 @@ private:
                              Uint32 flag,
                              Uint32 lcpId,
                              Uint32 localLcpId);
+  void release_undo_record(Ptr<Apply_undo>&, bool);
+
   void disk_restart_undo_callback(Signal* signal, Uint32, Uint32);
   void disk_restart_undo_alloc(Apply_undo*);
   void disk_restart_undo_update(Apply_undo*);
