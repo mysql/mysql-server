@@ -2612,6 +2612,7 @@ Suma::execSUB_SYNC_REQ(Signal* signal)
   syncPtr.p->m_requestInfo      = req->requestInfo;
   syncPtr.p->m_frag_cnt         = req->fragCount;
   syncPtr.p->m_frag_id          = req->fragId;
+  syncPtr.p->m_scan_batchsize   = req->batchSize;
   syncPtr.p->m_tableId          = subPtr.p->m_tableId;
   syncPtr.p->m_sourceInstance   = RNIL;
   syncPtr.p->m_headersSection   = RNIL;
@@ -3123,7 +3124,6 @@ Suma::SyncRecord::nextScan(Signal* signal)
   BlockReference lqhRef = numberToRef(DBLQH, instanceKey, suma.getOwnNodeId());
   
   ScanFragReq * req = (ScanFragReq *)signal->getDataPtrSend();
-  const Uint32 parallelism = 16;
   //const Uint32 attrLen = 5 + attrBuf.getSize();
 
   req->senderData = ptrI;
@@ -3184,7 +3184,7 @@ Suma::SyncRecord::nextScan(Signal* signal)
   req->transId1 = 0;
   req->transId2 = (SUMA << 20) + (suma.getOwnNodeId() << 8);
   req->clientOpPtr = (ptrI << 16);
-  req->batch_size_rows= parallelism;
+  req->batch_size_rows= m_scan_batchsize;
 
   req->batch_size_bytes= 0;
 
@@ -3297,10 +3297,12 @@ Suma::execSUB_SYNC_CONTINUE_CONF(Signal* signal){
 
   ndbrequire(c_subscriptions.find(subPtr, key));
 
+  Uint32 batchSize;
   Uint32 instanceKey;
   {
     Ptr<SyncRecord> syncPtr;
     c_syncPool.getPtr(syncPtr, syncPtrI);
+    batchSize = syncPtr.p->m_scan_batchsize;
     LocalSyncRecordBuffer fragBuf(c_dataBufferPool, syncPtr.p->m_fragments);
     SyncRecordBuffer::DataBufferIterator fragIt;
     bool ok = fragBuf.position(fragIt, syncPtr.p->m_currentFragment);
@@ -3316,7 +3318,7 @@ Suma::execSUB_SYNC_CONTINUE_CONF(Signal* signal){
   req->requestInfo = 0;
   req->transId1 = 0;
   req->transId2 = (SUMA << 20) + (getOwnNodeId() << 8);
-  req->batch_size_rows = 16;
+  req->batch_size_rows = batchSize;
   req->batch_size_bytes = 0;
   sendSignal(lqhRef, GSN_SCAN_NEXTREQ, signal, 
 	     ScanFragNextReq::SignalLength, JBB);
