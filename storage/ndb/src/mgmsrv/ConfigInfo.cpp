@@ -2313,6 +2313,21 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL)
   },
 
+  {
+    CFG_DB_BUILD_MAX_BATCHSIZE,
+    "MaxSchemaBuildBatchSize",
+    DB_TOKEN,
+    "Max scan batch size to use for internal database object builds.  "
+    "Increasing this may speed up database object builds, at the "
+    "risk of greater impact to ongoing traffic.",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "64",
+    "16",
+    "512"
+  },
+
   /***************************************************************************
    * API
    ***************************************************************************/
