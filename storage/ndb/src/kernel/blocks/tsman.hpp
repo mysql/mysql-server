@@ -270,6 +270,12 @@ private:
                                         Uint64 data_pages,
                                         bool v2);
   void sendEND_LCPCONF(Signal*);
+  void get_set_extent_info(Signal *signal,
+                           Local_key &key,
+                           Uint32 &tableId,
+                           Uint32 &fragId,
+                           Uint32 &create_table_version,
+                           bool read);
 };
 
 inline
@@ -413,6 +419,36 @@ public:
    * Update lsn of page corresponing to key
    */
   int update_lsn(Local_key* key, Uint64 lsn);
+
+  /**
+   * During UNDO log execution TUP proxy needs a fast method
+   * to get the table id and fragment id based on the page id.
+   * We get this information from the extent information.
+   */
+  void get_extent_info(Local_key &key);
+  Uint32 get_table_id()
+  {
+    return m_table_id;
+  }
+  Uint32 get_fragment_id()
+  {
+    return m_fragment_id;
+  }
+  Uint32 get_create_table_version()
+  {
+    return m_create_table_version;
+  }
+
+  /**
+   * TUP proxy might discover an extent header that haven't
+   * been written. This can happen if the node crashes before
+   * completing an LCP before the crash and after the extent
+   * was created. In this case we might have pages written
+   * but not yet the extent written. These are found since there
+   * must be an UNDO log record referring to them since the WAL
+   * principle applies here.
+   */
+  void write_extent_info(Local_key &key);
 };
 
 inline
@@ -517,7 +553,29 @@ Tablespace_client::restart_undo_page_free_bits(Local_key* key,
 					      committed_bits);
 }
 
+inline
+void
+Tablespace_client::get_extent_info(Local_key &key)
+{
+  m_tsman->get_set_extent_info(m_signal,
+                               key,
+                               m_table_id,
+                               m_fragment_id,
+                               m_create_table_version,
+                               true);
+}
 
+inline
+void
+Tablespace_client::write_extent_info(Local_key &key)
+{
+  m_tsman->get_set_extent_info(m_signal,
+                               key,
+                               m_table_id,
+                               m_fragment_id,
+                               m_create_table_version,
+                               false);
+}
 #undef JAM_FILE_ID
 
 #endif

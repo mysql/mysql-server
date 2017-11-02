@@ -72,7 +72,8 @@ DbtupProxy::callREAD_CONFIG_REQ(Signal* signal)
   ndbrequire(p != 0);
   
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_TABLE, &c_tableRecSize));
-  c_tableRec = (Uint8*)allocRecord("TableRec", sizeof(Uint8), c_tableRecSize);
+  c_tableRec = (Uint32*)allocRecord("TableRec", sizeof(Uint32),
+                                    c_tableRecSize);
   D("proxy:" << V(c_tableRecSize));
   Uint32 i;
   for (i = 0; i < c_tableRecSize; i++)
@@ -89,7 +90,9 @@ DbtupProxy::callSTTOR(Signal* signal)
   switch (startPhase) {
   case 1:
     c_pgman = (Pgman*)globalData.getBlock(PGMAN);
+    c_tsman = (Tsman*)globalData.getBlock(TSMAN);
     ndbrequire(c_pgman != 0);
+    ndbrequire(c_tsman != 0);
     break;
   }
   backSTTOR(signal);
@@ -338,43 +341,85 @@ DbtupProxy::disk_restart_undo(Signal* signal, Uint64 lsn,
 
   if (undo.m_actions & Proxy_undo::ReadTupPage) {
     jam();
-    /*
-     * Page request goes to the extra PGMAN worker (our thread).
-     * TUP worker reads same page again via another PGMAN worker.
-     * MT-LGMAN is planned, do not optimize (pass page) now
-     *
-     * We need to read page in order to get table id and fragment id.
-     * This is not part of the UNDO log information and this information
-     * is required such that we can map this to the correct LDM
-     * instance. We will not make page dirty, so it will be replaced
-     * as soon as we need a dirty page or we're out of pages in this
-     * PGMAN instance.
-     */
-    Page_cache_client pgman(this, c_pgman);
-    Page_cache_client::Request req;
-
-    /**
-     * Ensure that we crash if we try to make a LCP of this page
-     * later, should never happen since we never do any LCP of
-     * pages connected to fragments in extra pgman worker.
-     * page.
-     */
-    req.m_table_id = RNIL;
-    req.m_fragment_id = 0;
-    req.m_page = undo.m_key;
-    req.m_callback.m_callbackData = 0;
-    req.m_callback.m_callbackFunction = 
-      safe_cast(&DbtupProxy::disk_restart_undo_callback);
-
-    int ret = pgman.get_page(signal, req, 0);
-    ndbrequire(ret >= 0);
-    if (ret > 0) {
-      jam();
-      execute(signal, req.m_callback, (Uint32)ret);
+    Uint32 create_table_version;
+    Uint32 tableId;
+    Uint32 fragId;
+    {
+      /**
+       * A quick way to get the page id translated to table id
+       * and fragment id is to get it from the extent information
+       * stored in TSMAN. It creates a contention point around
+       * TSMAN that eventually will have to be resolved, but it
+       * should be much preferred to reading each page from disk
+       * to be able to get the fragment id and table id.
+       *
+       * In rare cases we will not find a translation, in this case
+       * we need to read the page to get the table id and fragment
+       * id. If the page also doesn't contain any valid table id
+       * and fragment id then it is safe to ignore the log record
+       * since there is no page written that needs UNDO on.
+       *
+       * We need the table id and fragment id to be able to map the
+       * page id to the correct LDM instance.
+       */
+      Tablespace_client tsman(signal, this, c_tsman,
+                              0, 0, 0, 0); //Ignored for this call
+      tsman.get_extent_info(undo.m_key);
+      tableId = tsman.get_table_id();
+      fragId = tsman.get_fragment_id();
+      create_table_version = tsman.get_create_table_version();
     }
-    return;
-  }
 
+    if (tableId >= c_tableRecSize ||
+        c_tableRec[tableId] != create_table_version)
+    {
+      jam();
+      /*
+       * An invalid table id or an incorrect table version means that
+       * the extent information was not to be trusted. We attempt to
+       * read the page and get information from there instead.
+       *
+       * Page request goes to the extra PGMAN worker (our thread).
+       * TUP worker reads same page again via another PGMAN worker.
+       * MT-LGMAN is planned, do not optimize (pass page) now
+       *
+       * We need to read page in order to get table id and fragment id.
+       * This is not part of the UNDO log information and this information
+       * is required such that we can map this to the correct LDM
+       * instance. We will not make page dirty, so it will be replaced
+       * as soon as we need a dirty page or we're out of pages in this
+       * PGMAN instance.
+       */
+      Page_cache_client pgman(this, c_pgman);
+      Page_cache_client::Request req;
+
+      /**
+       * Ensure that we crash if we try to make a LCP of this page
+       * later, should never happen since we never do any LCP of
+       * pages connected to fragments in extra pgman worker.
+       * page.
+       */
+      req.m_table_id = RNIL;
+      req.m_fragment_id = 0;
+      req.m_page = undo.m_key;
+      req.m_callback.m_callbackData = 0;
+      req.m_callback.m_callbackFunction =
+        safe_cast(&DbtupProxy::disk_restart_undo_callback);
+
+      int ret = pgman.get_page(signal, req, 0);
+      ndbrequire(ret >= 0);
+      if (ret > 0) {
+        jam();
+        execute(signal, req.m_callback, (Uint32)ret);
+      }
+      return;
+    }
+    DEB_TUP_RESTART(("DBTUP(0) create_table_version:%u c_tableRec:%u",
+                              create_table_version,
+                              c_tableRec[tableId]));
+    undo.m_table_id = tableId;
+    undo.m_fragment_id = fragId;
+  }
   disk_restart_undo_finish(signal);
 }
 
@@ -394,39 +439,78 @@ DbtupProxy::disk_restart_undo_callback(Signal* signal, Uint32, Uint32 page_id)
     const File_formats::Page_header& header = page->m_page_header;
     const Uint32 page_type = header.m_page_type;
 
-    if (page_type == 0) { // wl4391_todo ?
+    if (page_type == 0)
+    {
       jam();
+      /**
+       * Page not written, no need to worry about UNDO log, nothing
+       * written that requires UNDO.
+       */
       ndbrequire(header.m_page_lsn_hi == 0 && header.m_page_lsn_lo == 0);
       undo.m_actions |= Proxy_undo::NoExecute;
       undo.m_actions |= Proxy_undo::SendUndoNext;
-      D("proxy: callback" << V(page_type));
-    } else {
-      ndbrequire(page_type == File_formats::PT_Tup_fixsize_page ||
-                 page_type == File_formats::PT_Tup_varsize_page);
-
-      Uint64 page_lsn = (Uint64(header.m_page_lsn_hi) << 32) + header.m_page_lsn_lo;
-      if (! (undo.m_lsn <= page_lsn))
-      {
-        jam();
-        undo.m_actions |= Proxy_undo::NoExecute;
-        undo.m_actions |= Proxy_undo::SendUndoNext;
-      }
-
-      undo.m_table_id = page->m_table_id;
-      undo.m_fragment_id = page->m_fragment_id;
-      D("proxy: callback" << V(undo.m_table_id) <<
-                             V(undo.m_fragment_id) <<
-                             V(undo.m_create_table_version));
-      const Uint32 tableId = undo.m_table_id;
-      if (tableId >= c_tableRecSize || c_tableRec[tableId] == 0) {
-        D("proxy: table dropped" << V(tableId));
-        undo.m_actions |= Proxy_undo::NoExecute;
-        undo.m_actions |= Proxy_undo::SendUndoNext;
-      }
+      D("proxy: page never written" << V(page_type));
+      disk_restart_undo_finish(signal);
+      return;
     }
-  }
+    jam();
+    undo.m_table_id = page->m_table_id;
+    undo.m_fragment_id = page->m_fragment_id;
+    D("proxy: callback" << V(undo.m_table_id) <<
+                           V(undo.m_fragment_id) <<
+                           V(undo.m_create_table_version));
+    const Uint32 tableId = undo.m_table_id;
+    if (tableId >= c_tableRecSize ||
+        c_tableRec[tableId] != page->m_create_table_version)
+    {
+      jam();
+      /**
+       * Also the table had invalid data, it have belonged to another
+       * table and have never been written by this table instance. So
+       * we can safely proceed.
+       */
+      D("proxy: page not written by this table" << V(tableId));
+      undo.m_actions |= Proxy_undo::NoExecute;
+      undo.m_actions |= Proxy_undo::SendUndoNext;
+      disk_restart_undo_finish(signal);
+      return;
+    }
+    ndbrequire(page_type == File_formats::PT_Tup_fixsize_page ||
+               page_type == File_formats::PT_Tup_varsize_page);
 
-  disk_restart_undo_finish(signal);
+    {
+      /**
+       * The page had a correct table id and fragment id. Since we
+       * came here the extent information haven't been written.
+       * Update the extent information now even if the UNDO log
+       * is not to be executed.
+       */
+      jam();
+      Tablespace_client tsman(signal,
+                              this,
+                              c_tsman,
+                              page->m_table_id,
+                              page->m_fragment_id,
+                              page->m_create_table_version,
+                              0); //Ignored for this call
+      tsman.write_extent_info(undo.m_key);
+    }
+    Uint64 page_lsn = (Uint64(header.m_page_lsn_hi) << 32)
+        + header.m_page_lsn_lo;
+    if (! (undo.m_lsn <= page_lsn))
+    {
+      /**
+       * Page lsn shows that this UNDO log record was never applied. So
+       * no need to execute UNDO log record.
+       */
+      jam();
+      undo.m_actions |= Proxy_undo::NoExecute;
+      undo.m_actions |= Proxy_undo::SendUndoNext;
+      disk_restart_undo_finish(signal);
+      return;
+    }
+    disk_restart_undo_finish(signal);
+  }
 }
 
 void

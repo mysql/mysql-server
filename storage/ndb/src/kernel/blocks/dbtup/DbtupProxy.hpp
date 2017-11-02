@@ -34,9 +34,10 @@ protected:
   virtual SimulatedBlock* newWorker(Uint32 instanceNo);
 
   class Pgman* c_pgman; // PGMAN proxy
+  class Tsman *c_tsman;
 
   Uint32 c_tableRecSize;
-  Uint8* c_tableRec;    // bool => table exists
+  Uint32* c_tableRec;    // bool => table exists
 
   // GSN_READ_CONFIG_REQ
   virtual void callREAD_CONFIG_REQ(Signal*);
