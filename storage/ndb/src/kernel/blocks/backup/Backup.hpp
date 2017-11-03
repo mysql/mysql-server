@@ -179,6 +179,7 @@ protected:
 
   void execLCP_PREPARE_REQ(Signal* signal);
   void execLCP_FRAGMENT_REQ(Signal*);
+  void execSYNC_PAGE_WAIT_REP(Signal*);
   void execSYNC_PAGE_CACHE_CONF(Signal*);
   void execSYNC_EXTENT_PAGES_CONF(Signal*);
   void execEND_LCPREQ(Signal* signal);
@@ -546,6 +547,12 @@ public:
         m_initial_lcp_started = false;
         m_wait_gci_to_delete = 0;
         localLcpId = 0;
+        m_wait_data_file_close = false;
+        m_disk_data_exist = false;
+        m_wait_sync_extent = false;
+        m_wait_disk_data_sync = false;
+        m_num_sync_pages_waiting = 0;
+        m_num_sync_extent_pages_written = 0;
         /*
           report of backup status uses these variables to keep track
           if backup ia running and current state
@@ -648,10 +655,13 @@ public:
 
     /* State variables for finalisation of LCP processing of a fragment. */
     bool m_disk_data_exist;
-    bool wait_data_file_close;
-    bool wait_disk_data_sync;
+    bool m_wait_data_file_close;
+    bool m_wait_disk_data_sync;
+    bool m_wait_sync_extent;
     bool m_lcp_lsn_synced;
 
+    Uint32 m_num_sync_pages_waiting;
+    Uint32 m_num_sync_extent_pages_written;
     /* Data for delete LCP file process */
     Uint32 deleteFilePtr;
     Uint32 currentDeleteLcpFile;

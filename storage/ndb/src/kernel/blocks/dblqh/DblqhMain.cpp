@@ -29409,6 +29409,14 @@ Dblqh::lcpStateString(LcpStatusConf::LcpState lcpState)
       return "LCP_SCANNING";
     case LcpStatusConf::LCP_SCANNED:
       return "LCP_SCANNED";
+    case LcpStatusConf::LCP_WAIT_SYNC_DISK:
+      return "LCP_WAIT_SYNC_DISK";
+    case LcpStatusConf::LCP_WAIT_SYNC_EXTENT:
+      return "LCP_WAIT_SYNC_EXTENT";
+    case LcpStatusConf::LCP_WAIT_WRITE_CTL_FILE:
+      return "LCP_WAIT_WRITE_CTL_FILE";
+    case LcpStatusConf::LCP_WAIT_CLOSE_EMPTY:
+      return "LCP_WAIT_CLOSE_EMPTY";
     case LcpStatusConf::LCP_PREPARE_READ_CTL_FILES:
       return "LCP_PREPARE_READ_CTL_FILES";
     case LcpStatusConf::LCP_PREPARE_OPEN_DATA_FILE:

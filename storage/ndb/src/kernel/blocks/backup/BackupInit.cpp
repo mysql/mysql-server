@@ -143,6 +143,7 @@ Backup::Backup(Block_context& ctx, Uint32 instanceNumber) :
   addRecSignal(GSN_LCP_PREPARE_REQ, &Backup::execLCP_PREPARE_REQ);
   addRecSignal(GSN_END_LCPREQ, &Backup::execEND_LCPREQ);
 
+  addRecSignal(GSN_SYNC_PAGE_WAIT_REP, &Backup::execSYNC_PAGE_WAIT_REP);
   addRecSignal(GSN_SYNC_PAGE_CACHE_CONF, &Backup::execSYNC_PAGE_CACHE_CONF);
   addRecSignal(GSN_SYNC_EXTENT_PAGES_CONF,
                &Backup::execSYNC_EXTENT_PAGES_CONF);

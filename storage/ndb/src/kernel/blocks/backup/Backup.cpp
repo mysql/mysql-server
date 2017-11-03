@@ -11430,6 +11430,7 @@ Backup::lcp_update_ctl_page(BackupRecordPtr ptr,
                                m_newestRestorableGci,
                                m_newestRestorableGci);
   lcpCtlFilePtr->MaxGciCompleted = maxCompletedGci;
+  ptr.p->slaveState.setState(STOPPING);
   c_lqh->lcp_complete_scan(ptr.p->newestGci);
   if (ptr.p->newestGci != lcpCtlFilePtr->MaxGciWritten)
   {
@@ -11508,6 +11509,9 @@ Backup::handle_idle_lcp(Signal *signal, BackupRecordPtr ptr)
   ptr.p->deleteDataFileNumber = RNIL;
   lcp_write_ctl_file_to_disk(signal, file_ptr, page_ptr);
   lcp_close_data_file(signal, ptr, true);
+  ptr.p->m_wait_disk_data_sync = false;
+  ptr.p->m_wait_sync_extent = false;
+  ptr.p->m_wait_data_file_close = false;
   ptr.p->m_outstanding_operations = 2;
 }
 
@@ -12411,8 +12415,9 @@ Backup::lcp_start_complete_processing(Signal *signal, BackupRecordPtr ptr)
    * of the database by using backups.
    */
 
-  ptr.p->wait_data_file_close = true;
-  ptr.p->wait_disk_data_sync = true;
+  ptr.p->m_wait_data_file_close = true;
+  ptr.p->m_wait_disk_data_sync = true;
+  ptr.p->m_wait_sync_extent = true;
   ptr.p->m_disk_data_exist = false;
 
   if (ptr.p->m_current_lcp_lsn == Uint64(0))
@@ -12422,7 +12427,8 @@ Backup::lcp_start_complete_processing(Signal *signal, BackupRecordPtr ptr)
      * table. So we can safely ignore going to PGMAN to sync data pages.
      */
     jam();
-    ptr.p->wait_disk_data_sync = false;
+    ptr.p->m_wait_disk_data_sync = false;
+    ptr.p->m_wait_sync_extent = false;
     lcp_write_ctl_file(signal, ptr);
     return;
   }
@@ -12431,6 +12437,7 @@ Backup::lcp_start_complete_processing(Signal *signal, BackupRecordPtr ptr)
   FragmentPtr fragPtr;
   ptr.p->tables.first(tabPtr);
   tabPtr.p->fragments.getPtr(fragPtr, 0);
+  ptr.p->m_num_sync_pages_waiting = Uint32(~0);
 
   SyncPageCacheReq *sync_req = (SyncPageCacheReq*)signal->getDataPtrSend();
   sync_req->senderData = ptr.i;
@@ -12439,6 +12446,28 @@ Backup::lcp_start_complete_processing(Signal *signal, BackupRecordPtr ptr)
   sync_req->fragmentId = fragPtr.p->fragmentId;
   sendSignal(ref, GSN_SYNC_PAGE_CACHE_REQ, signal,
              SyncPageCacheReq::SignalLength, JBB);
+}
+
+void
+Backup::execSYNC_PAGE_WAIT_REP(Signal *signal)
+{
+  jamEntry();
+  BackupRecordPtr ptr;
+  c_backupPool.getPtr(ptr, signal->theData[0]);
+  if (ptr.p->m_wait_disk_data_sync)
+  {
+    jam();
+    ptr.p->m_num_sync_pages_waiting = signal->theData[1];
+  }
+  else if (ptr.p->m_wait_sync_extent)
+  {
+    jam();
+    ptr.p->m_num_sync_extent_pages_written = signal->theData[1];
+  }
+  else
+  {
+    ndbrequire(false);
+  }
 }
 
 void
@@ -12451,6 +12480,7 @@ Backup::execSYNC_PAGE_CACHE_CONF(Signal *signal)
   jamEntry();
 
   c_backupPool.getPtr(ptr, conf->senderData);
+  ptr.p->m_num_sync_pages_waiting = 0;
   ptr.p->tables.first(tabPtr);
   tabPtr.p->fragments.getPtr(fragPtr, 0);
   ndbrequire(conf->tableId == tabPtr.p->tableId);
@@ -12463,10 +12493,11 @@ Backup::execSYNC_PAGE_CACHE_CONF(Signal *signal)
                       fragPtr.p->fragmentId,
                       conf->diskDataExistFlag));
 
+  ptr.p->m_wait_disk_data_sync = false;
   if (!conf->diskDataExistFlag)
   {
     jam();
-    ptr.p->wait_disk_data_sync = false;
+    ptr.p->m_wait_sync_extent = false;
     lcp_write_ctl_file(signal, ptr);
     return;
   }
@@ -12474,10 +12505,11 @@ Backup::execSYNC_PAGE_CACHE_CONF(Signal *signal)
   if (!ptr.p->m_first_fragment)
   {
     jam();
-    ptr.p->wait_disk_data_sync = false;
+    ptr.p->m_wait_sync_extent = false;
     lcp_write_ctl_file(signal, ptr);
     return;
   }
+  ptr.p->m_num_sync_extent_pages_written = Uint32(~0);
   /**
    * Sync extent pages, this is sent to Proxy block that routes the signal to
    * the "extra" PGMAN worker that handles the extent pages.
@@ -12500,6 +12532,7 @@ Backup::execSYNC_EXTENT_PAGES_CONF(Signal *signal)
   jamEntry();
 
   c_backupPool.getPtr(ptr, conf->senderData);
+  ptr.p->m_num_sync_extent_pages_written = 0;
   if (ptr.p->slaveState.getState() == DEFINED)
   {
     jam();
@@ -12507,7 +12540,7 @@ Backup::execSYNC_EXTENT_PAGES_CONF(Signal *signal)
     return;
   }
   ndbrequire(ptr.p->slaveState.getState() == STOPPING);
-  ptr.p->wait_disk_data_sync = false;
+  ptr.p->m_wait_sync_extent = false;
   lcp_write_ctl_file(signal, ptr);
 }
 
@@ -12529,8 +12562,8 @@ Backup::lcp_close_data_file_conf(Signal* signal, BackupRecordPtr ptr)
     finalize_lcp_processing(signal, ptr);
     return;
   }
-  ndbrequire(ptr.p->wait_data_file_close);
-  ptr.p->wait_data_file_close = false;
+  ndbrequire(ptr.p->m_wait_data_file_close);
+  ptr.p->m_wait_data_file_close = false;
   lcp_write_ctl_file(signal, ptr);
 }
 
@@ -12574,8 +12607,9 @@ Backup::lcp_pre_sync_lsn(BackupRecordPtr ptr)
 void
 Backup::lcp_write_ctl_file(Signal *signal, BackupRecordPtr ptr)
 {
-  if (ptr.p->wait_data_file_close ||
-      ptr.p->wait_disk_data_sync)
+  if (ptr.p->m_wait_data_file_close ||
+      ptr.p->m_wait_sync_extent ||
+      ptr.p->m_wait_disk_data_sync)
   {
     jam();
     return;
@@ -13904,7 +13938,31 @@ Backup::execLCP_STATUS_REQ(Signal* signal)
           break;
         case STOPPING:
           jam();
-          state = LcpStatusConf::LCP_SCANNED;
+          if (ptr.p->m_wait_disk_data_sync)
+          {
+            jam();
+            state = LcpStatusConf::LCP_WAIT_SYNC_DISK;
+          }
+          else if (ptr.p->m_wait_sync_extent)
+          {
+            jam();
+            state = LcpStatusConf::LCP_WAIT_SYNC_EXTENT;
+          }
+          else if (ptr.p->m_wait_data_file_close)
+          {
+            jam();
+            state = LcpStatusConf::LCP_SCANNED;
+          }
+          else if (ptr.p->m_empty_lcp)
+          {
+            jam();
+            state = LcpStatusConf::LCP_WAIT_CLOSE_EMPTY;
+          }
+          else
+          {
+            jam();
+            state = LcpStatusConf::LCP_WAIT_WRITE_CTL_FILE;
+          }
           break;
         case DEFINED:
           jam();
@@ -13976,6 +14034,10 @@ Backup::execLCP_STATUS_REQ(Signal* signal)
       conf->lcpScannedPages = 0;
       
       if (state == LcpStatusConf::LCP_SCANNING ||
+          state == LcpStatusConf::LCP_WAIT_SYNC_DISK ||
+          state == LcpStatusConf::LCP_WAIT_SYNC_EXTENT ||
+          state == LcpStatusConf::LCP_WAIT_WRITE_CTL_FILE ||
+          state == LcpStatusConf::LCP_WAIT_CLOSE_EMPTY ||
           state == LcpStatusConf::LCP_SCANNED)
       {
         jam();
@@ -14014,18 +14076,51 @@ Backup::execLCP_STATUS_REQ(Signal* signal)
         else if (state == LcpStatusConf::LCP_SCANNED)
         {
           jam();
-          /* May take some time to drain the FS buffer, depending on
-           * size of buff, achieved rate.
-           * We provide the buffer fill level so that requestors
-           * can observe whether there's progress in this phase.
-           */
-          Uint64 flushBacklog = 
-            filePtr.p->operation.dataBuffer.getUsableSize() -
-            filePtr.p->operation.dataBuffer.getFreeSize();
-          
+          BackupFilePtr tmp_filePtr;
+          Uint64 flushBacklog = 0;
+          for (Uint32 i = 0; i < ptr.p->m_num_lcp_files; i++)
+          {
+            c_backupFilePool.getPtr(tmp_filePtr, ptr.p->dataFilePtr[i]);
+            /* May take some time to drain the FS buffer, depending on
+             * size of buff, achieved rate.
+             * We provide the buffer fill level so that requestors
+             * can observe whether there's progress in this phase.
+             */
+            flushBacklog +=
+              tmp_filePtr.p->operation.dataBuffer.getUsableSize() -
+              tmp_filePtr.p->operation.dataBuffer.getFreeSize();
+          }
           setWords(flushBacklog,
                    conf->completionStateHi,
                    conf->completionStateLo);
+        }
+        else if (state == LcpStatusConf::LCP_WAIT_SYNC_DISK)
+        {
+          jam();
+          conf->completionStateHi = 0;
+          conf->completionStateLo = ptr.p->m_num_sync_pages_waiting;
+        }
+        else if (state == LcpStatusConf::LCP_WAIT_SYNC_EXTENT)
+        {
+          jam();
+          conf->completionStateHi = 0;
+          conf->completionStateLo = ptr.p->m_num_sync_extent_pages_written;
+        }
+        else if (state == LcpStatusConf::LCP_WAIT_WRITE_CTL_FILE)
+        {
+          jam();
+          conf->completionStateHi = 0;
+          conf->completionStateLo = 0;
+        }
+        else if (state == LcpStatusConf::LCP_WAIT_CLOSE_EMPTY)
+        {
+          jam();
+          conf->completionStateHi = 0;
+          conf->completionStateLo = ptr.p->m_outstanding_operations;
+        }
+        else
+        {
+          ndbrequire(false); // Impossible state
         }
       }
       else if (state == LcpStatusConf::LCP_WAIT_END_LCP)
