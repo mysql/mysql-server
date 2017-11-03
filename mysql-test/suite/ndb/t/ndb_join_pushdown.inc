@@ -4917,6 +4917,59 @@ where t3.c IN (
 set global debug=@save_debug;
 
 
+###################################################
+# Bug#27022925
+#   SPJ: 'MATERIALIZED' SEMI JOINS ARE NOT CONSIDDERED FOR JOIN PUSHOWN
+#
+#   Joins entirely inside a 'MATERIALIZED' semi join
+#   not considdered for join pushdown.
+#
+# Test cases should demonstrate that the 't3s join t4s'
+# subqueries can now be pushed down, and materialized.
+#
+###################################################
+explain
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+where t1.c IN (
+  select /*+ SEMIJOIN(MATERIALIZATION)*/ t3s.c from t1 as t3s
+  join t1 as t4s on t4s.a = t3s.b);
+
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+where t1.c IN (
+  select /*+ SEMIJOIN(MATERIALIZATION)*/ t3s.c from t1 as t3s
+  join t1 as t4s on t4s.a = t3s.b);
+
+
+explain
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+where t1.c IN(
+  select /*+ SEMIJOIN(MATERIALIZATION)*/ t3s1.c from t1 as t3s1
+  join t1 as t4s1 on t4s1.a = t3s1.b
+ )
+and t1.d IN (
+  select /*+ SEMIJOIN(MATERIALIZATION)*/ t3s2.c from t1 as t3s2
+  join t1 as t4s2 on t4s2.a = t3s2.b
+ );
+
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+where t1.c IN(
+  select /*+ SEMIJOIN(MATERIALIZATION)*/ t3s1.c from t1 as t3s1
+  join t1 as t4s1 on t4s1.a = t3s1.b
+ )
+and t1.d IN (
+  select /*+ SEMIJOIN(MATERIALIZATION)*/ t3s2.c from t1 as t3s2
+  join t1 as t4s2 on t4s2.a = t3s2.b
+ );
+
+
 #############################################
 # Subqueries-end
 #############################################

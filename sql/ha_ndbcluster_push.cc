@@ -293,6 +293,12 @@ ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const AQP::Join_plan& plan)
       m_tables[i].m_maybe_pushable= 0;
 
       const AQP::Table_access* const table = m_plan.get_table_access(i);
+      if (table->get_table() == NULL)
+      {
+        // There could be unused tables allocated in the 'plan', skip these
+        continue;
+      }
+      
       if (table->get_table()->s->db_type()->db_type != DB_TYPE_NDBCLUSTER)
       {
         DBUG_PRINT("info", ("Table '%s' not in ndb engine, not pushable", 
@@ -362,12 +368,15 @@ ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const AQP::Join_plan& plan)
     // Fill in table for maping internal <-> external table enumeration
     for (uint i= 0; i < count; i++)
     {
-      const AQP::Table_access* const table = m_plan.get_table_access(i);
-      uint external= table->get_table()->pos_in_table_list->tableno();
-      DBUG_ASSERT(external < MAX_TABLES);
+      if (m_tables[i].m_maybe_pushable)
+      {
+        const AQP::Table_access* const table = m_plan.get_table_access(i);	
+        const uint external= table->get_table()->pos_in_table_list->tableno();
+        DBUG_ASSERT(external <  MAX_TABLES);
 
-      m_remap[i].to_external= external;
-      m_remap[external].to_internal= i;
+        m_remap[i].to_external= external;
+        m_remap[external].to_internal= i;
+      }
     }
   }
 } // ndb_pushed_builder_ctx::ndb_pushed_builder_ctx()
@@ -583,7 +592,10 @@ ndb_pushed_builder_ctx::is_pushable_as_child(
   
   if ((m_tables[tab_no].m_maybe_pushable & PUSHABLE_AS_CHILD) != PUSHABLE_AS_CHILD)
   {
-    DBUG_PRINT("info", ("Table %s already known 'not is_pushable_as_child'", table->get_table()->alias));
+    if (table->get_table()) //Possible not a real table at all
+    {
+      DBUG_PRINT("info", ("Table %s already known 'not is_pushable_as_child'", table->get_table()->alias));
+    }
     DBUG_RETURN(false);
   }
 
