@@ -9511,15 +9511,16 @@ int MYSQL_BIN_LOG::recover(IO_CACHE *log, Format_description_log_event *fdle,
     is partially written to the binlog.
   */
   bool in_transaction= FALSE;
+  int memory_page_size= my_getpagesize();
 
   if (! fdle->is_valid() ||
-      my_hash_init(&xids, &my_charset_bin, TC_LOG_PAGE_SIZE/3, 0,
-                   sizeof(my_xid), 0, 0, MYF(0),
+      my_hash_init(&xids, &my_charset_bin, memory_page_size/3, 0,
+                   sizeof(my_xid), 0, 0, 0,
                    key_memory_binlog_recover_exec))
     goto err1;
 
   init_alloc_root(key_memory_binlog_recover_exec,
-                  &mem_root, TC_LOG_PAGE_SIZE, TC_LOG_PAGE_SIZE);
+                  &mem_root, memory_page_size, memory_page_size);
 
   while ((ev= Log_event::read_log_event(log, 0, fdle, TRUE))
          && ev->is_valid())
