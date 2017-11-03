@@ -10938,6 +10938,8 @@ ER_INVALID_GEOJSON_CRS_NOT_TOP_LEVEL
 ER_BAD_NULL_ERROR_NOT_IGNORED 23000
   eng "Column '%-.192s' cannot be null"
 
+ER_THREAD_PRIORITY_IGNORED
+  eng "Thread priority attribute setting in Resource Group SQL shall be ignored due to unsupported platform or insufficient privilege."
 #
 #  End of 8.0 error messages.
 #

@@ -658,10 +658,17 @@ FROM mysql.user WHERE super_priv = 'Y' AND @hadXARecoverAdminPriv = 0;
 COMMIT;
 
 -- Add the privilege BACKUP_ADMIN for every user who has the privilege RELOAD
--- provided that there isn't a user who already has the privilige BACKUP_ADMIN.
+-- provided that there isn't a user who already has the privilege BACKUP_ADMIN.
 SET @hadBackupAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'BACKUP_ADMIN');
 INSERT INTO global_grants SELECT user, host, 'BACKUP_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
 FROM mysql.user WHERE Reload_priv = 'Y' AND @hadBackupAdminPriv = 0;
+COMMIT;
+
+-- Add the privilege RESOURCE_GROUP_ADMIN for every user who has the privilege SUPER
+-- provided that there isn't a user who already has the privilege RESOURCE_GROUP_ADMIN.
+SET @hadResourceGroupAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'RESOURCE_GROUP_ADMIN');
+INSERT INTO global_grants SELECT user, host, 'RESOURCE_GROUP_ADMIN',
+IF(grant_priv = 'Y', 'Y', 'N') FROM mysql.user WHERE super_priv = 'Y' AND @hadResourceGroupAdminPriv = 0;
 COMMIT;
 
 # Activate the new, possible modified privilege tables

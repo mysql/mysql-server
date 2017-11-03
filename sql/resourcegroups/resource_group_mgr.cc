@@ -15,6 +15,7 @@
 
 #include "resource_group_mgr.h"
 
+#include "mysql/components/services/log_builtins.h"  // LogErr
 #include "sql/auth/auth_acls.h"                  // SUPER_ACL
 #include "sql/current_thd.h"                     // current_thd
 #include "sql/dd/cache/dictionary_client.h"      // Dictionary_client
@@ -334,7 +335,10 @@ bool Resource_group_mgr::init()
 
   m_resource_group_support= true;
   mysql_rwlock_init(key_rwlock_resource_group_mgr_map_lock, &m_map_rwlock);
+
   m_thread_priority_available= platform::can_thread_priority_be_set();
+  if (!m_thread_priority_available)
+    LogErr(INFORMATION_LEVEL, ER_THREAD_PRIORITY_IGNORED);
 
   m_registry_svc= mysql_plugin_registry_acquire();
   if (!m_registry_svc)
@@ -589,8 +593,7 @@ bool Resource_group_mgr::switch_resource_group_if_needed(
     }
 
     Security_context *sctx= thd->security_context();
-    if (!(sctx->check_access(SUPER_ACL) ||
-          sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN")).first ||
+    if (!(sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN")).first ||
           sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_USER")).first))
     {
       thd->resource_group_ctx()->m_warn= WARN_RESOURCE_GROUP_ACCESS_DENIED;
