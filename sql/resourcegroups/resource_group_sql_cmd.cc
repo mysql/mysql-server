@@ -206,11 +206,10 @@ bool resourcegroups::Sql_cmd_create_resource_group::execute(THD *thd)
     DBUG_RETURN(true);
 
   Security_context *sctx= thd->security_context();
-  if (!(sctx->check_access(SUPER_ACL) ||
-        sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN")).first))
+  if (!sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN")).first)
   {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
-             "SUPER OR RESOURCE_GROUP_ADMIN");
+             "RESOURCE_GROUP_ADMIN");
     DBUG_RETURN(true);
   }
 
@@ -343,11 +342,10 @@ bool resourcegroups::Sql_cmd_alter_resource_group::execute(THD *thd)
     DBUG_RETURN(true);
 
   Security_context *sctx= thd->security_context();
-  if (!(sctx->check_access(SUPER_ACL) ||
-        sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN")).first))
+  if (!sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN")).first)
   {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
-             "SUPER OR RESOURCE_GROUP_ADMIN");
+             "RESOURCE_GROUP_ADMIN");
     DBUG_RETURN(true);
   }
 
@@ -477,11 +475,10 @@ bool resourcegroups::Sql_cmd_drop_resource_group::execute(THD *thd)
     DBUG_RETURN(true);
 
   Security_context *sctx= thd->security_context();
-  if (!(sctx->check_access(SUPER_ACL) ||
-        sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN")).first))
+  if (!sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN")).first)
   {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
-             "SUPER OR RESOURCE_GROUP_ADMIN");
+             "RESOURCE_GROUP_ADMIN");
     DBUG_RETURN(true);
   }
 
@@ -671,12 +668,11 @@ bool resourcegroups::Sql_cmd_set_resource_group::execute(THD *thd)
   DBUG_ENTER("resourcegroups::Sql_cmd_set_resource_group::execute");
 
   Security_context *sctx= thd->security_context();
-  if (!(sctx->check_access(SUPER_ACL) ||
-        sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN")).first ||
+  if (!(sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN")).first ||
         sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_USER")).first))
   {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
-             "SUPER OR RESOURCE_GROUP_ADMIN OR RESOURCE_GROUP_USER");
+             "RESOURCE_GROUP_ADMIN OR RESOURCE_GROUP_USER");
     DBUG_RETURN(true);
   }
 
@@ -689,11 +685,10 @@ bool resourcegroups::Sql_cmd_set_resource_group::execute(THD *thd)
     DBUG_RETURN(true);
 
   if ((resource_group->type() == Type::SYSTEM_RESOURCE_GROUP) &&
-      !(sctx->check_access(SUPER_ACL) ||
-        sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN")).first))
+      !sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN")).first)
   {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
-             "SUPER OR RESOURCE_GROUP_ADMIN");
+             "RESOURCE_GROUP_ADMIN");
     DBUG_RETURN(true);
   }
 

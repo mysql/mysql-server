@@ -10941,9 +10941,11 @@ ER_INVALID_GEOJSON_CRS_NOT_TOP_LEVEL
 ER_BAD_NULL_ERROR_NOT_IGNORED 23000
   eng "Column '%-.192s' cannot be null"
 
+ER_THREAD_PRIORITY_IGNORED
+  eng "Thread priority attribute setting in Resource Group SQL shall be ignored due to unsupported platform or insufficient privilege."
+
 WARN_USELESS_SPATIAL_INDEX
   eng "The spatial index on column '%.64s' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column."
-
 #
 #  End of 8.0 error messages.
 #
