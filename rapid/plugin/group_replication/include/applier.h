@@ -138,7 +138,8 @@ public:
                                                    bool wait_for_execution= true)= 0;
   virtual void awake_applier_module()= 0;
   virtual void interrupt_applier_suspension_wait()= 0;
-  virtual int wait_for_applier_event_execution(double timeout)= 0;
+  virtual int wait_for_applier_event_execution(double timeout,
+                                               bool check_and_purge_partial_transactions)= 0;
   virtual size_t get_message_queue_size()= 0;
   virtual Member_applier_state get_applier_status()= 0;
   virtual void add_suspension_packet()= 0;
@@ -432,13 +433,17 @@ public:
 
     @param timeout  the time (seconds) after which the method returns if the
                     above condition was not satisfied
+    @param check_and_purge_partial_transactions
+                    on successful executions, check and purge partial
+                    transactions in the relay log
 
     @return the operation status
       @retval 0      All transactions were executed
       @retval -1     A timeout occurred
       @retval -2     An error occurred
   */
-  virtual int wait_for_applier_event_execution(double timeout);
+  virtual int wait_for_applier_event_execution(double timeout,
+                                               bool check_and_purge_partial_transactions);
 
   /**
     Returns the handler instance in the applier module responsible for
