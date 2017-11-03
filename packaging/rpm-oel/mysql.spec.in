@@ -814,6 +814,14 @@ rm -f %{buildroot}%{_datadir}/mysql/win_install_firewall.sql
 rm -rf %{buildroot}%{_bindir}/mysql_embedded
 rm -f %{buildroot}%{_datadir}/mysql/audit_log_filter_win_install.sql
 
+# Remove obsoleted man pages
+rm -f %{buildroot}%{_mandir}/man1/mysql-stress-test.pl.1
+rm -f %{buildroot}%{_mandir}/man1/mysql-test-run.pl.1
+rm -f %{buildroot}%{_mandir}/man1/mysql_client_test.1
+rm -f %{buildroot}%{_mandir}/man1/mysql_client_test_embedded.1
+rm -f %{buildroot}%{_mandir}/man1/mysqltest.1
+rm -f %{buildroot}%{_mandir}/man1/mysqltest_embedded.1
+
 # Remove upcoming man pages, to avoid breakage when they materialize
 # Keep this comment as a placeholder for future cases
 # rm -f %{buildroot}%{_mandir}/man1/<manpage>.1
@@ -1268,13 +1276,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_server.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_security_context.so
 
-%attr(644, root, root) %{_mandir}/man1/mysql_client_test.1*
-%attr(644, root, root) %{_mandir}/man1/mysql-stress-test.pl.1*
-%attr(644, root, root) %{_mandir}/man1/mysql-test-run.pl.1*
-%attr(644, root, root) %{_mandir}/man1/mysql_client_test_embedded.1*
-%attr(644, root, root) %{_mandir}/man1/mysqltest.1*
-%attr(644, root, root) %{_mandir}/man1/mysqltest_embedded.1*
-
 %files embedded
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
@@ -1359,6 +1360,9 @@ fi
 %endif # cluster
 
 %changelog
+* Tue Oct 31 2017 Bjorn Munch <bjorn.munch@oracle.com> - 5.7.21-1
+- Remove obsoleted mysqltest man pages
+
 * Fri May 26 2017 Harin Vadodaria <harin.vadodaria@oracle.com> - 5.7.19-1
 - Add keyring_aws.so plugin to commercial server subpackage
 
