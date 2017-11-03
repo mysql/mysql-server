@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -446,6 +446,14 @@ rm -rf %{buildroot}%{_bindir}/mysql_embedded
 rm -rf %{buildroot}%{_bindir}/mysql_setpermission
 rm -rf %{buildroot}%{_mandir}/man1/mysql_setpermission.1*
 
+# Remove obsoleted man pages
+rm -f %{buildroot}%{_mandir}/man1/mysql-stress-test.pl.1
+rm -f %{buildroot}%{_mandir}/man1/mysql-test-run.pl.1
+rm -f %{buildroot}%{_mandir}/man1/mysql_client_test.1
+rm -f %{buildroot}%{_mandir}/man1/mysql_client_test_embedded.1
+rm -f %{buildroot}%{_mandir}/man1/mysqltest.1
+rm -f %{buildroot}%{_mandir}/man1/mysqltest_embedded.1
+
 # rcmysql symlink
 install -d %{buildroot}%{_sbindir}
 ln -sf %{_initrddir}/mysql %{buildroot}%{_sbindir}/rcmysql
@@ -525,7 +533,6 @@ fi
 %attr(644, root, root) %{_mandir}/man1/mysqlhotcopy.1*
 %attr(644, root, root) %{_mandir}/man1/mysqlman.1*
 %attr(644, root, root) %{_mandir}/man1/mysql.server.1*
-%attr(644, root, root) %{_mandir}/man1/mysqltest.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_tzinfo_to_sql.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_zap.1*
 %attr(644, root, root) %{_mandir}/man1/mysqlbug.1*
@@ -715,13 +722,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_interface.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_server.so
 
-%attr(644, root, root) %{_mandir}/man1/mysql_client_test.1*
-%attr(644, root, root) %{_mandir}/man1/mysql-stress-test.pl.1*
-%attr(644, root, root) %{_mandir}/man1/mysql-test-run.pl.1*
-%attr(644, root, root) %{_mandir}/man1/mysql_client_test_embedded.1*
-%attr(644, root, root) %{_mandir}/man1/mysqltest.1*
-%attr(644, root, root) %{_mandir}/man1/mysqltest_embedded.1*
-
 %files bench
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
@@ -742,6 +742,9 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/libmysqld.so
 
 %changelog
+* Tue Oct 31 2017 Bjorn Munch <bjorn.munch@oracle.com> - 5.5.59-1
+- Remove obsoleted mysqltest man pages
+
 * Mon Sep 26 2016 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.5.53-1
 - Include mysql-files directory
 
