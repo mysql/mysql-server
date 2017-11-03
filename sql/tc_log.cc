@@ -85,7 +85,6 @@ ulong tc_log_page_waits= 0;
 
 static const char tc_log_magic[]={(char) 254, 0x23, 0x05, 0x74};
 
-ulong opt_tc_log_size= TC_LOG_MIN_SIZE;
 ulong tc_log_max_pages_used=0, tc_log_page_size=0, tc_log_cur_pages_used=0;
 
 int TC_LOG_MMAP::open(const char *opt_name)
@@ -98,10 +97,6 @@ int TC_LOG_MMAP::open(const char *opt_name)
   DBUG_ASSERT(opt_name && opt_name[0]);
 
   tc_log_page_size= my_getpagesize();
-  if (TC_LOG_PAGE_SIZE > tc_log_page_size)
-  {
-    DBUG_ASSERT(TC_LOG_PAGE_SIZE % tc_log_page_size == 0);
-  }
 
   fn_format(logname,opt_name,mysql_data_home,"",MY_UNPACK_FILENAME);
   if ((fd= mysql_file_open(key_file_tclog, logname, O_RDWR, MYF(0))) < 0)

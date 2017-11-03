@@ -1362,7 +1362,7 @@ log-syslog-facility daemon
 log-syslog-include-pid TRUE
 log-syslog-tag 
 log-tc tc.log
-log-tc-size 24576
+log-tc-size #####
 log-throttle-queries-not-using-indexes 0
 log-timestamps UTC
 log-warnings 0

@@ -314,6 +314,8 @@ bool opt_endinfo, using_udf_functions;
 my_bool locked_in_memory;
 bool opt_using_transactions;
 bool volatile abort_loop;
+ulong opt_tc_log_size;
+
 static enum_server_operational_state server_operational_state= SERVER_BOOTING;
 ulong log_warnings;
 bool  opt_log_syslog_enable;
@@ -5736,8 +5738,9 @@ struct my_option my_long_options[]=
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"log-tc-size", 0, "Size of transaction coordinator log.",
    &opt_tc_log_size, &opt_tc_log_size, 0, GET_ULONG,
-   REQUIRED_ARG, TC_LOG_MIN_SIZE, TC_LOG_MIN_SIZE, ULONG_MAX, 0,
-   TC_LOG_PAGE_SIZE, 0},
+   REQUIRED_ARG, TC_LOG_MIN_PAGES * my_getpagesize(),
+   TC_LOG_MIN_PAGES * my_getpagesize(), ULONG_MAX, 0,
+   my_getpagesize(), 0},
   {"master-info-file", 0,
    "The location and name of the file that remembers the master and where "
    "the I/O replication thread is in the master's binlogs.",
