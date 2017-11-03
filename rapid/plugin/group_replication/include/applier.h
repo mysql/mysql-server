@@ -660,10 +660,14 @@ private:
   mysql_cond_t  run_cond;
   /* Applier running flag */
   bool applier_running;
+  /* Applier thread running flag */
+  bool applier_thread_running;
   /* Applier abort flag */
   bool applier_aborted;
   /* Applier error during execution */
   int applier_error;
+  /* Applier killed status */
+  bool applier_killed_status;
 
   //condition and lock used to suspend/awake the applier module
   /* The lock for suspending/wait for the awake of  the applier module */

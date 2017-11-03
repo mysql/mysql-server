@@ -1,0 +1,74 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Setup GR environment and get thread id
+#    of the query which will be killed.
+
+[connection server1]
+SET sql_log_bin=0;
+CALL mtr.add_suppression("Error writing file.*(errno: 28 - No space left on device)");
+CALL mtr.add_suppression("Disk is full writing.*(Errcode: 28 - No space left on device)");
+CALL mtr.add_suppression("Retry in 60 secs. Message reprinted in 600 secs");
+CALL mtr.add_suppression("Unblocking the group replication thread waiting for applier to start, as the start group replication was killed");
+CALL mtr.add_suppression("Unable to initialize the Group Replication applier module.");
+CALL mtr.add_suppression("MYSQL_BIN_LOG::open failed to sync the index file.");
+CALL mtr.add_suppression("Failed in open_log.*called from Relay_log_info::rli_init_info");
+CALL mtr.add_suppression("Failed to setup the group replication applier thread.");
+SET sql_log_bin=1;
+SET GLOBAL group_replication_group_name= "GROUP_REPLICATION_GROUP_NAME";
+SET GLOBAL group_replication_bootstrap_group=ON;
+
+# 2. Block START GR with no disk space.
+
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= 'd,simulate_file_write_error';
+START GROUP_REPLICATION;
+
+# 3. Verify START GR is blocked.
+
+[connection server_1]
+
+# 4. Kill the blocked START GR command.
+
+KILL QUERY CONNECTION_ID;
+
+# 5. Reap the killed command and reset debug point.
+
+[connection server1]
+ERROR HY000: The START GROUP_REPLICATION command failed as the applier module failed to start.
+SET @@GLOBAL.DEBUG= @debug_save;
+
+# 6. Verify member is still OFFLINE
+
+include/gr_wait_for_member_state.inc
+
+# 7. Verify no more thread is waiting for disk space
+
+
+# 8. Restart group_replication on server1 and server2.
+
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+
+# 9. Add some data to server1.
+
+[connection server1]
+CREATE TABLE test.t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO test.t1 VALUES (1);
+
+# 10. Verify data is replicated to the group.
+
+include/rpl_sync.inc
+[connection server1]
+include/assert.inc [Verify test.t1 is synced]
+[connection server2]
+include/assert.inc [Verify test.t1 is synced]
+
+# 11. Clean up
+
+DROP TABLE t1;
+include/group_replication_end.inc
