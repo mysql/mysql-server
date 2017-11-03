@@ -757,10 +757,10 @@ rm -f %{buildroot}%{_datadir}/mysql/audit_log_filter_win_install.sql
 # rm -f %{buildroot}%{_mandir}/man1/<manpage>.1
 
 # Remove removed manpages here until they are removed from the docs repo
-rm -f  %{buildroot}%{_mandir}/man1/mysql_plugin.1
-rm -f  %{buildroot}%{_mandir}/man1/mysql_install_db.1
-rm -f  %{buildroot}%{_mandir}/man1/mysql_client_test_embedded.1*
-rm -f  %{buildroot}%{_mandir}/man1/mysqltest_embedded.1*
+rm -f %{buildroot}%{_mandir}/man1/mysql-stress-test.pl.1
+rm -f %{buildroot}%{_mandir}/man1/mysql-test-run.pl.1
+rm -f %{buildroot}%{_mandir}/man1/mysql_client_test.1
+rm -f %{buildroot}%{_mandir}/man1/mysqltest.1
 
 %check
 %if 0%{?runselftest} || 0%{?with_unittests}
@@ -1286,11 +1286,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_services_plugin_registry.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_udf_services.so
 
-%attr(644, root, root) %{_mandir}/man1/mysql_client_test.1*
-%attr(644, root, root) %{_mandir}/man1/mysql-stress-test.pl.1*
-%attr(644, root, root) %{_mandir}/man1/mysql-test-run.pl.1*
-%attr(644, root, root) %{_mandir}/man1/mysqltest.1*
-
 %if 0%{?rhel} == 7
 %files embedded-compat
 %defattr(-, root, root, -)
@@ -1363,8 +1358,9 @@ fi
 %endif
 
 %changelog
-* Mon Sep 25 2017 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 8.0.4-0.1
+* Tue Oct 31 2017 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 8.0.4-0.1
 - Add meb as sub package
+- Remove obsoleted mysqltest man pages
 
 * Wed Jul 19 2017 V S Murthy Sidagam <venkata.sidagam@oracle.com> - 8.0.3-0.1
 - Updated for 8.0.3 release
