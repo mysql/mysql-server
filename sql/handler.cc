@@ -5501,7 +5501,13 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
   create_info.table_options|= HA_OPTION_CREATE_FROM_ENGINE;
 
   get_canonical_filename(table.file, path, path);
-  error=table.file->ha_create(path, &table, &create_info, NULL);
+  std::unique_ptr<dd::Table> table_def_clone(table_def->clone());
+  error=table.file->ha_create(path, &table, &create_info, table_def_clone.get());
+  /*
+    Note that the table_def_clone is not stored into the DD,
+    necessary changes to the table_def should already have
+    been done in ha_discover/import_serialized_meta_data.
+  */
   (void) closefrm(&table, 1);
 
   DBUG_RETURN(error != 0);
