@@ -1008,6 +1008,11 @@ bool Explain_table_base::explain_extra_common(int quick_type,
     int pushed_id= 0;
     for (QEP_TAB* prev= select_lex->join->qep_tab; prev <= tab; prev++)
     {
+#ifndef MCP_BUG27067538
+      if (prev->table() == NULL)
+        continue;
+#endif
+
       const TABLE* prev_root= prev->table()->file->root_of_pushed_join();
       if (prev_root == prev->table())
       {

@@ -37,7 +37,7 @@ namespace AQP
 {
   Join_plan::Join_plan(const JOIN* join)
    : m_qep_tabs(join->qep_tab),
-     m_access_count(join->primary_tables),
+     m_access_count(join->tables),
      m_table_accesses(NULL)
   {
     /*
@@ -514,7 +514,10 @@ namespace AQP
     // Remove the QEP_TABs constness allowing the QEP_TAB
     // instance for this part ot the join to be modified
     QEP_TAB* const qep_tab= const_cast<QEP_TAB*>(get_qep_tab());
-    qep_tab->set_pushed_table_access_method();
+    if (qep_tab->table() != NULL)
+    {
+      qep_tab->set_pushed_table_access_method();
+    }
   }
 
 }
