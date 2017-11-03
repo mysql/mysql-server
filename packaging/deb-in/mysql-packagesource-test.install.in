@@ -17,10 +17,6 @@
 usr/bin/mysql_client_test
 usr/bin/mysqltest
 usr/bin/mysqlxtest
-# manpages
-usr/share/man/man1/mysql_client_test.1
-usr/share/man/man1/mysql-test-run.pl.1
-usr/share/man/man1/mysqltest.1
 # plugins
 usr/lib/mysql/plugin/auth.so
 usr/lib/mysql/plugin/auth_test_plugin.so
