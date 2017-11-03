@@ -2923,12 +2923,24 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable,
       table= wtable;
     }
 
-    /*
-      TABLE has no copy ctor; can't use the move ctor as we use both objects
-      when we migrate rows.
-    */
     table->mem_root.Clear();
-    memcpy(&new_table, table, sizeof(new_table));
+
+    // Set up a partial copy of the table.
+    new_table.record[0]= table->record[0];
+    new_table.record[1]= table->record[1];
+    new_table.field= table->field;
+    new_table.key_info= table->key_info;
+    new_table.in_use= table->in_use;
+    new_table.db_stat= table->db_stat;
+    new_table.key_info= table->key_info;
+    new_table.hash_field= table->hash_field;
+    new_table.group= table->group;
+    new_table.distinct= table->distinct;
+    new_table.alias= table->alias;
+    new_table.pos_in_table_list= table->pos_in_table_list;
+    new_table.reginfo= table->reginfo;
+    new_table.read_set= table->read_set;
+    new_table.write_set= table->write_set;
 
     new_table.s= &share; // New table points to new share
 
@@ -3071,19 +3083,19 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable,
 
     }
 
-    destroy(table->file);
-    table->file=0;
     /*
-      '*table' is overwritten with 'new_table'. new_table was set up as
-      '*table', so, between the start and end of this function, pointers like
-      'table, table->record, table->record[i]' are preserved. This is important,
-      for example because some Item_field->field->ptr points into
-      table->record[0]: such pointer remains valid after the conversion and
-      will allow to access rows of the new TABLE.
+      Replace the guts of the old table with the new one, although keeping
+      most members.
     */
-    *table= std::move(new_table);
-
-    // 'table' is now new and points to new share
+    destroy(table->file);
+    table->s= new_table.s;
+    table->file= new_table.file;
+    table->db_stat= new_table.db_stat;
+    table->in_use= new_table.in_use;
+    table->no_rows= new_table.no_rows;
+    table->record[0]= new_table.record[0];
+    table->record[1]= new_table.record[1];
+    table->mem_root= std::move(new_table.mem_root);
 
     /*
       Depending on if this TABLE clone is early/late in optimization, or in

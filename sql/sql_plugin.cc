@@ -945,15 +945,14 @@ static st_plugin_int *plugin_insert_or_reuse(st_plugin_int *plugin)
     tmp= *it;
     if (tmp->state == PLUGIN_IS_FREED)
     {
-      memcpy(tmp, plugin, sizeof(st_plugin_int));
+      *tmp = std::move(*plugin);
       DBUG_RETURN(tmp);
     }
   }
   if (plugin_array->push_back(plugin))
     DBUG_RETURN(NULL);
   tmp= plugin_array->back()=
-    static_cast<st_plugin_int*>(memdup_root(&plugin_mem_root, plugin,
-                                            sizeof(st_plugin_int)));
+    new (&plugin_mem_root) st_plugin_int(std::move(*plugin));
   DBUG_RETURN(tmp);
 }
 
@@ -979,8 +978,6 @@ static bool plugin_add(MEM_ROOT *tmp_root,
     mysql_mutex_lock(&LOCK_plugin);
     DBUG_RETURN(TRUE);
   }
-  /* Clear the whole struct to catch future extensions. */
-  memset(&tmp, 0, sizeof(tmp));
   if (! (tmp.plugin_dl= plugin_dl_add(dl, report)))
     DBUG_RETURN(TRUE);
   /* Find plugin by name */
@@ -1545,7 +1542,6 @@ bool plugin_register_builtin_and_init_core_se(int *argc, char **argv)
     for (struct st_mysql_plugin *plugin= *builtins; plugin->info; plugin++)
     {
       struct st_plugin_int tmp;
-      memset(&tmp, 0, sizeof(tmp));
       tmp.plugin= plugin;
       tmp.name.str= (char *)plugin->name;
       tmp.name.length= strlen(plugin->name);
@@ -1702,8 +1698,7 @@ static bool register_builtin(st_mysql_plugin *plugin,
     DBUG_RETURN(true);
 
   *ptr= plugin_array->back()=
-    static_cast<st_plugin_int*>(memdup_root(&plugin_mem_root, tmp,
-                                            sizeof(st_plugin_int)));
+    new (&plugin_mem_root) st_plugin_int(std::move(*tmp));
 
   plugin_hash[plugin->type]->emplace(to_string((*ptr)->name), *ptr);
 
@@ -3468,8 +3463,12 @@ static int test_plugin_options(MEM_ROOT *tmp_root, st_plugin_int *tmp,
   bool disable_plugin;
   enum_plugin_load_option plugin_load_option= tmp->load_option;
 
-  MEM_ROOT *mem_root= alloc_root_inited(&tmp->mem_root) ?
-                      &tmp->mem_root : &plugin_mem_root;
+  /*
+    We should use tmp->mem_root here instead of the global plugin_mem_root,
+    but tmp->root is not always properly freed, so it will cause leaks in
+    Valgrind (e.g. the main.validate_password_plugin test).
+  */
+  MEM_ROOT *mem_root= &plugin_mem_root;
   SYS_VAR **opt;
   my_option *opts= NULL;
   LEX_STRING plugin_name;

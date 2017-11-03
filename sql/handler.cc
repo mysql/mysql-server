@@ -1368,7 +1368,7 @@ void ha_pre_dd_shutdown(void)
 
 */
 void trans_register_ha(THD *thd, bool all, handlerton *ht_arg,
-                       const ulonglong *trxid)
+                       const ulonglong *trxid MY_ATTRIBUTE((unused)))
 {
   Ha_trx_info *ha_info;
   Transaction_ctx *trn_ctx= thd->get_transaction();
@@ -2630,8 +2630,6 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
   TABLE_SHARE dummy_share;
   DBUG_ENTER("ha_delete_table");
 
-  memset(&dummy_table, 0, sizeof(dummy_table));
-  memset(&dummy_share, 0, sizeof(dummy_share));
   dummy_table.s= &dummy_share;
 
   /* DB_TYPE_UNKNOWN is used in ALTER TABLE when renaming only .frm files */

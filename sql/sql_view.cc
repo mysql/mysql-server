@@ -267,7 +267,7 @@ static bool fill_defined_view_parts(THD *thd, TABLE_LIST *view)
   const char *cache_key;
   size_t cache_key_length= get_table_def_key(view, &cache_key);
   TABLE_LIST decoy;
-  memcpy (&decoy, view, sizeof (TABLE_LIST));
+  decoy= *view;
 
   mysql_mutex_lock(&LOCK_open);
 

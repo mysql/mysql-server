@@ -456,7 +456,6 @@ Trigger::Trigger(const LEX_CSTRING &trigger_name,
   m_parse_error_message[0]= 0;
 
   construct_definer_value(mem_root, &m_definer, definer_user, definer_host);
-  memset(&m_subject_table_grant, 0, sizeof (m_subject_table_grant));
 }
 
 

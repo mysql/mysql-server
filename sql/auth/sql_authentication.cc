@@ -1024,7 +1024,7 @@ static bool find_mpvio_user(THD *thd, MPVIO_EXT *mpvio)
 
 static bool
 read_client_connect_attrs(char **ptr, size_t *max_bytes_available,
-                          MPVIO_EXT *mpvio)
+                          MPVIO_EXT *mpvio MY_ATTRIBUTE((unused)))
 {
   size_t length, length_length;
   char *ptr_save;
