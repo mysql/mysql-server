@@ -1631,7 +1631,7 @@ Pgman::sendSYNC_PAGE_WAIT_REP(Signal *signal, bool normal_pages)
     jam();
     signal->theData[0] = senderData;
     signal->theData[1] = count;
-    sendSignal(ref, GSN_SYNC_PAGE_WAIT_REP, signal, 2, JBB);
+    sendSignal(ref, GSN_SYNC_PAGE_WAIT_REP, signal, 2, JBA);
   }
 }
 
