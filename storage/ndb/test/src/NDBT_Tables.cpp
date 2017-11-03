@@ -615,7 +615,7 @@ static
 const
 NDBT_Attribute T18Attribs[] = {
   NDBT_Attribute("KOL1", NdbDictionary::Column::Unsigned, 1, true, false),
-  NDBT_Attribute("KOL2", NdbDictionary::Column::Varbinary, 13500),
+  NDBT_Attribute("KOL2", NdbDictionary::Column::Longvarbinary, 13500),
   NDBT_Attribute("KOL99", NdbDictionary::Column::Unsigned, 1, false, false),
 };
 
