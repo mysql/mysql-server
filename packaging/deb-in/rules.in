@@ -102,4 +102,8 @@ override_dh_install:
 		-Xusr/share/mysql/binary-configure \
 		-Xusr/share/mysql/docs/mysql.info \
 		-Xusr/share/man/man1/mysqlman.1 \
+		-Xusr/share/man/man1/mysqltest \
+		-Xusr/share/man/man1/mysql_client_test \
+		-Xusr/share/man/man1/mysql-stress-test.pl.1 \
+		-Xusr/share/man/man1/mysql-test-run.pl.1 \
 		-X.h.pp
