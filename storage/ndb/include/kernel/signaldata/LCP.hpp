@@ -346,7 +346,8 @@ public:
     LCP_WAIT_SYNC_DISK = 10,
     LCP_WAIT_SYNC_EXTENT = 11,
     LCP_WAIT_WRITE_CTL_FILE = 12,
-    LCP_WAIT_CLOSE_EMPTY = 13
+    LCP_WAIT_CLOSE_EMPTY = 13,
+    LCP_WAIT_FINAL_SYNC_EXTENT = 14
   };
 private:
   Uint32 senderRef;

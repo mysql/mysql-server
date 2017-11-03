@@ -550,6 +550,7 @@ public:
         m_wait_data_file_close = false;
         m_disk_data_exist = false;
         m_wait_sync_extent = false;
+        m_wait_final_sync_extent = false;
         m_wait_disk_data_sync = false;
         m_num_sync_pages_waiting = 0;
         m_num_sync_extent_pages_written = 0;
@@ -658,6 +659,7 @@ public:
     bool m_wait_data_file_close;
     bool m_wait_disk_data_sync;
     bool m_wait_sync_extent;
+    bool m_wait_final_sync_extent;
     bool m_lcp_lsn_synced;
 
     Uint32 m_num_sync_pages_waiting;

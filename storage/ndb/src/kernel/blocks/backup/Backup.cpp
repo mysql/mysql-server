@@ -88,6 +88,13 @@ static NDB_TICKS startTime;
 #define DEB_LCP(arglist) do { } while (0)
 #endif
 
+//#define DEBUG_LCP_DEL_FILES 1
+#ifdef DEBUG_LCP_DEL_FILES
+#define DEB_LCP_DEL_FILES(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LCP_DEL_FILES(arglist) do { } while (0)
+#endif
+
 //#define DEBUG_LCP_DEL 1
 #ifdef DEBUG_LCP_DEL
 #define DEB_LCP_DEL(arglist) do { g_eventLogger->info arglist ; } while (0)
@@ -12459,7 +12466,8 @@ Backup::execSYNC_PAGE_WAIT_REP(Signal *signal)
     jam();
     ptr.p->m_num_sync_pages_waiting = signal->theData[1];
   }
-  else if (ptr.p->m_wait_sync_extent)
+  else if (ptr.p->m_wait_sync_extent ||
+           ptr.p->m_wait_final_sync_extent)
   {
     jam();
     ptr.p->m_num_sync_extent_pages_written = signal->theData[1];
@@ -13014,7 +13022,7 @@ Backup::execRESTORABLE_GCI_REP(Signal *signal)
              restorable_gci));
     return;
   }
-#ifdef DEBUG_LCP
+#ifdef DEBUG_LCP_DEL_FILES
   DeleteLcpFilePtr deleteLcpFilePtr;
   LocalDeleteLcpFile_list queue(c_deleteLcpFilePool,
                                 m_delete_lcp_file_head);
@@ -13025,20 +13033,20 @@ Backup::execRESTORABLE_GCI_REP(Signal *signal)
   if (m_delete_lcp_files_ongoing)
   {
     jam();
-    DEB_LCP(("(%u)TAGX Completed GCI: %u (delete files ongoing)"
-             ", waitGCI: %u",
-             instance(),
-             m_newestRestorableGci,
-             waitGCI));
+    DEB_LCP_DEL_FILES(("(%u)TAGX Completed GCI: %u (delete files ongoing)"
+                       ", waitGCI: %u",
+                       instance(),
+                       m_newestRestorableGci,
+                       waitGCI));
     return;
   }
   jam();
-  DEB_LCP(("(%u)TAGX Completed GCI: %u (delete files not ongoing)"
-           ", waitGCI: %u, m_lcp_ptr_i = %u",
-           instance(),
-           m_newestRestorableGci,
-           waitGCI,
-           m_lcp_ptr_i));
+  DEB_LCP_DEL_FILES(("(%u)TAGX Completed GCI: %u (delete files not ongoing)"
+                     ", waitGCI: %u, m_lcp_ptr_i = %u",
+                     instance(),
+                     m_newestRestorableGci,
+                     waitGCI,
+                     m_lcp_ptr_i));
   if (m_lcp_ptr_i != RNIL)
   {
     jam();
@@ -13082,8 +13090,9 @@ Backup::delete_lcp_file_processing(Signal *signal, Uint32 ptrI)
       lcp_open_ctl_file(signal, ptr, 1);
       return;
     }
-    DEB_LCP(("(%u)TAGB Completed delete files, queue empty, no LCP wait",
-             instance()));
+    DEB_LCP_DEL_FILES(("(%u)TAGB Completed delete files,"
+                       " queue empty, no LCP wait",
+                       instance()));
     return;
   }
   queue.first(deleteLcpFilePtr);
@@ -13373,11 +13382,11 @@ Backup::lcp_remove_file(Signal* signal,
     jam();
     FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_DATA);
     FsOpenReq::v5_setLcpNo(req->fileNumber, deleteLcpFilePtr.p->firstFileId);
-    DEB_LCP(("(%u)TAGD Remove data file: %u for tab(%u,%u)",
-             instance(),
-             deleteLcpFilePtr.p->firstFileId,
-             deleteLcpFilePtr.p->tableId,
-             deleteLcpFilePtr.p->fragmentId));
+    DEB_LCP_DEL_FILES(("(%u)TAGD Remove data file: %u for tab(%u,%u)",
+                       instance(),
+                       deleteLcpFilePtr.p->firstFileId,
+                       deleteLcpFilePtr.p->tableId,
+                       deleteLcpFilePtr.p->fragmentId));
   }
   else
   {
@@ -13385,11 +13394,11 @@ Backup::lcp_remove_file(Signal* signal,
     FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_CTL);
     FsOpenReq::v5_setLcpNo(req->fileNumber,
                            deleteLcpFilePtr.p->lcpCtlFileNumber);
-    DEB_LCP(("(%u)TAGD Remove control file: %u for tab(%u,%u)",
-             instance(),
-             deleteLcpFilePtr.p->lcpCtlFileNumber,
-             deleteLcpFilePtr.p->tableId,
-             deleteLcpFilePtr.p->fragmentId));
+    DEB_LCP_DEL_FILES(("(%u)TAGD Remove control file: %u for tab(%u,%u)",
+                       instance(),
+                       deleteLcpFilePtr.p->lcpCtlFileNumber,
+                       deleteLcpFilePtr.p->tableId,
+                       deleteLcpFilePtr.p->fragmentId));
   }
   FsOpenReq::v5_setTableId(req->fileNumber, deleteLcpFilePtr.p->tableId);
   FsOpenReq::v5_setFragmentId(req->fileNumber, deleteLcpFilePtr.p->fragmentId);
@@ -13775,6 +13784,8 @@ Backup::execEND_LCPREQ(Signal* signal)
    * sharing those pages again and then we need to ensure that the
    * free status is up-to-date in preparation for a potential restart.
    */
+  ptr.p->m_wait_final_sync_extent = true;
+  ptr.p->m_num_sync_extent_pages_written = Uint32(~0);
   {
     SyncExtentPagesReq *req = (SyncExtentPagesReq*)signal->getDataPtrSend();
     req->senderData = ptr.i;
@@ -13793,7 +13804,7 @@ Backup::finish_end_lcp(Signal *signal, BackupRecordPtr ptr)
   DEB_LCP(("(%u)TAGE SYNC_EXTENT_PAGES_CONF: lcpId: %u",
           instance(),
           ptr.p->backupId));
-
+  ptr.p->m_wait_final_sync_extent = false;
   LocalDeleteLcpFile_list queue(c_deleteLcpFilePool,
                                 m_delete_lcp_file_head);
   if (!queue.isEmpty())
@@ -13922,6 +13933,11 @@ Backup::execLCP_STATUS_REQ(Signal* signal)
       {
         jam();
         state = LcpStatusConf::LCP_WAIT_END_LCP;
+      }
+      else if (ptr.p->m_wait_final_sync_extent)
+      {
+        jam();
+        state = LcpStatusConf::LCP_WAIT_FINAL_SYNC_EXTENT;
       }
       else
       {
@@ -14132,6 +14148,12 @@ Backup::execLCP_STATUS_REQ(Signal* signal)
         ndbrequire(!queue.isEmpty());
         conf->completionStateHi = 0;
         conf->completionStateLo = m_newestRestorableGci;
+      }
+      else if (state == LcpStatusConf::LCP_WAIT_FINAL_SYNC_EXTENT)
+      {
+        jam();
+        conf->completionStateHi = 0;
+        conf->completionStateLo = ptr.p->m_num_sync_extent_pages_written;
       }
       else if (state == LcpStatusConf::LCP_PREPARED)
       {
