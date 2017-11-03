@@ -18,12 +18,6 @@ usr/bin/mysql_client_test
 usr/bin/mysql_client_test_embedded
 usr/bin/mysqltest
 usr/bin/mysqltest_embedded
-# manpages
-usr/share/man/man1/mysql_client_test.1
-usr/share/man/man1/mysql_client_test_embedded.1
-usr/share/man/man1/mysql-test-run.pl.1
-usr/share/man/man1/mysqltest.1
-usr/share/man/man1/mysqltest_embedded.1
 # plugins
 usr/lib/mysql/plugin/auth.so
 usr/lib/mysql/plugin/auth_test_plugin.so
