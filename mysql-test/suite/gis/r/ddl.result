@@ -97,7 +97,7 @@ ERROR HY000: Incorrect usage of SRID and non-geometry column
 # optimizer
 CREATE TABLE t1 (col1 POINT NOT NULL, SPATIAL INDEX (col1));
 Warnings:
-Warning	4576	The spatial index on column 'col1' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column.
+Warning	4577	The spatial index on column 'col1' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column.
 INSERT INTO t1 VALUES (POINT(0, 0)), (POINT(0.5, 0.5)), (POINT(1, 1));
 # Update table statistics to make the EXPLAIN stable
 ANALYZE TABLE t1;
@@ -153,7 +153,7 @@ ST_GeomFromText("POINT(1 1)", 0),
 ST_GeomFromText("POINT(1 1)", 4326));
 ALTER TABLE t1 ADD SPATIAL INDEX idx1 (col_no_srid);
 Warnings:
-Warning	4576	The spatial index on column 'col_no_srid' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column.
+Warning	4577	The spatial index on column 'col_no_srid' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column.
 ALTER TABLE t1 ADD SPATIAL INDEX idx2 (col_srid_0);
 ALTER TABLE t1 ADD SPATIAL INDEX idx3 (col_srid_4326);
 ALTER TABLE t1 DROP INDEX idx2;
@@ -162,7 +162,7 @@ ALTER TABLE t1 DROP INDEX idx1;
 CREATE SPATIAL INDEX idx1 ON t1 (col_srid_4326);
 CREATE SPATIAL INDEX idx2 ON t1 (col_no_srid);
 Warnings:
-Warning	4576	The spatial index on column 'col_no_srid' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column.
+Warning	4577	The spatial index on column 'col_no_srid' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column.
 CREATE SPATIAL INDEX idx3 ON t1 (col_srid_0);
 DROP INDEX idx1 ON t1;
 DROP INDEX idx2 ON t1;
@@ -175,7 +175,7 @@ SPATIAL INDEX idx1 (col_no_srid),
 SPATIAL INDEX idx2 (col_srid_0),
 SPATIAL INDEX idx3 (col_srid_4326));
 Warnings:
-Warning	4576	The spatial index on column 'col_no_srid' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column.
+Warning	4577	The spatial index on column 'col_no_srid' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column.
 INSERT INTO t1 VALUES (
 ST_GeomFromText("POINT(0 0)", 0),
 ST_GeomFromText("POINT(0 0)", 0),
@@ -356,18 +356,18 @@ g1 POINT NOT NULL
 , SPATIAL INDEX idx2 (g2)
 , SPATIAL INDEX idx3 (g3));
 Warnings:
-Warning	4576	The spatial index on column 'g1' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column.
-Warning	4576	The spatial index on column 'g2' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column.
+Warning	4577	The spatial index on column 'g1' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column.
+Warning	4577	The spatial index on column 'g2' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column.
 DROP INDEX idx1 ON t1;
 DROP INDEX idx2 ON t1;
 DROP INDEX idx3 ON t1;
 # Verify that we get the same warning when using CREATE INDEX syntax.
 CREATE SPATIAL INDEX idx1 ON t1 (g1);
 Warnings:
-Warning	4576	The spatial index on column 'g1' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column.
+Warning	4577	The spatial index on column 'g1' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column.
 CREATE SPATIAL INDEX idx2 ON t1 (g2);
 Warnings:
-Warning	4576	The spatial index on column 'g2' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column.
+Warning	4577	The spatial index on column 'g2' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column.
 CREATE SPATIAL INDEX idx3 ON t1 (g3);
 DROP INDEX idx1 ON t1;
 DROP INDEX idx2 ON t1;
@@ -375,9 +375,9 @@ DROP INDEX idx3 ON t1;
 # Verify that we get the same warning when using ALTER TABLE syntax.
 ALTER TABLE t1 ADD SPATIAL INDEX idx1 (g1);
 Warnings:
-Warning	4576	The spatial index on column 'g1' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column.
+Warning	4577	The spatial index on column 'g1' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column.
 ALTER TABLE t1 ADD SPATIAL INDEX idx2 (g2);
 Warnings:
-Warning	4576	The spatial index on column 'g2' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column.
+Warning	4577	The spatial index on column 'g2' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column.
 ALTER TABLE t1 ADD SPATIAL INDEX idx3 (g3);
 DROP TABLE t1;
