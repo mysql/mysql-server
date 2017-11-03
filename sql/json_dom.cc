@@ -33,7 +33,7 @@
 #include "base64.h"
 #include "decimal.h"
 #include "m_ctype.h"
-#include "m_string.h"           // my_gcvt, _dig_vec_lower, my_strtod
+#include "m_string.h"           // my_gcvt, _dig_vec_lower
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_double2ulonglong.h"
@@ -572,16 +572,17 @@ public:
     return seeing_value(create_dom_ptr<Json_double>(d));
   }
 
-  bool RawNumber(const char* str, SizeType length, bool)
+  /* purecov: begin deadcode */
+  bool RawNumber(const char*, SizeType, bool)
   {
-    char *end[]= { const_cast<char*>(str) + length };
-    int error= 0;
-    double value = my_strtod(str, end, &error);
-
-    if (error == EOVERFLOW)
-      return false;
-    return Double(value);
+    /*
+      Never called, since we don't instantiate the parser with
+      kParseNumbersAsStringsFlag.
+    */
+    DBUG_ASSERT(false);
+    return false;
   }
+  /* purecov: end */
 
   bool String(const char* str, SizeType length, bool)
   {
@@ -663,16 +664,12 @@ private:
 
 #ifdef MYSQL_SERVER
 Json_dom_ptr Json_dom::parse(const char *text, size_t length,
-                             const char **syntaxerr, size_t *offset,
-                             bool handle_numbers_as_double)
+                             const char **syntaxerr, size_t *offset)
 {
   Rapid_json_handler handler;
   MemoryStream ss(text, length);
   Reader reader;
-  bool success=
-    handle_numbers_as_double ?
-    reader.Parse<kParseNumbersAsStringsFlag>(ss, handler) :
-    reader.Parse<kParseDefaultFlags>(ss, handler);
+  bool success= reader.Parse<kParseDefaultFlags>(ss, handler);
 
   if (success)
   {
@@ -742,8 +739,17 @@ public:
   { return seeing_scalar(); }
   bool String(const char*, SizeType, bool) { return seeing_scalar(); }
   bool Key(const char*, SizeType, bool) { return seeing_scalar(); }
+  /* purecov: begin deadcode */
   bool RawNumber(const char*, SizeType, bool)
-  { return seeing_scalar(); }
+  {
+    /*
+      Never called, since we don't instantiate the parser with
+      kParseNumbersAsStringsFlag.
+    */
+    DBUG_ASSERT(false);
+    return false;
+  }
+  /* purecov: end */
 };
 
 } // namespace
@@ -1866,10 +1872,22 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
       if (buffer->reserve(MY_GCVT_MAX_FIELD_WIDTH + 1))
         return true;                           /* purecov: inspected */
       double d= wr.get_double();
+      const char *start= buffer->ptr() + buffer->length();
       size_t len= my_gcvt(d, MY_GCVT_ARG_DOUBLE, MY_GCVT_MAX_FIELD_WIDTH,
-                          const_cast<char *>(buffer->ptr()) + buffer->length(),
-                          NULL);
+                          const_cast<char *>(start), nullptr);
       buffer->length(buffer->length() + len);
+      /*
+        my_gcvt() doesn't preserve trailing zeros after the decimal point,
+        so for floating-point values with no fractional part we get 1
+        instead of 1.0. We want the string representation to preserve the
+        information that this is a floating-point number, so append ".0" if
+        my_gcvt() neither used scientific notation nor included a decimal
+        point. This makes it distinguishable from integers.
+      */
+      if (std::none_of(start, start + len,
+                       [](char c) { return c == '.' || c == 'e'; }) &&
+          buffer->append(STRING_WITH_LEN(".0")))
+        return true;                          /* purecov: inspected */
       break;
     }
   case enum_json_type::J_INT:

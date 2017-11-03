@@ -228,14 +228,10 @@ bool json_value(Item **args, uint arg_idx, Json_wrapper *result);
   @param[out] str           the string buffer
   @param[in]  func_name     the name of the function we are executing
   @param[out] wrapper       the JSON value wrapper
-  @param[in]  handle_numbers_as_double
-                            whether numbers should be handled as double. If set
-                            to TRUE, all numbers are parsed as DOUBLE
   @returns false if we found a value or NULL, true if not.
 */
 bool get_json_wrapper(Item **args, uint arg_idx, String *str,
-                      const char *func_name, Json_wrapper *wrapper,
-                      bool handle_numbers_as_double= false);
+                      const char *func_name, Json_wrapper *wrapper);
 
 /**
   Convert Json values or MySQL values to JSON.
@@ -911,7 +907,6 @@ bool parse_json(const String &res,
                 const char *func_name,
                 Json_dom_ptr *dom,
                 bool require_str_or_json,
-                bool *parse_error,
-                bool handle_numbers_as_double= false);
+                bool *parse_error);
 
 #endif /* ITEM_JSON_FUNC_INCLUDED */
