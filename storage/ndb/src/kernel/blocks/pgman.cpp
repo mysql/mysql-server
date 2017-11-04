@@ -1627,11 +1627,29 @@ Pgman::sendSYNC_PAGE_WAIT_REP(Signal *signal, bool normal_pages)
      * When called from drop_page we don't have a signal object.
      * At the same time we focus on IO progress and not on tables
      * being dropped.
+     *
+     * We send it as direct signal for normal pages to avoid
+     * overhead of otherwise sending on A-level. A-level would
+     * be needed as SYNC_PAGE_CACHE_CONF is sent on A-level to
+     * avoid the signals to come in wrong order.
+     *
+     * For extent pages it must be a buffered but here it is
+     * sufficient to send on B-level since SYNC_EXTENT_PAGES_CONF
+     * is sent on B-level.
      */
     jam();
     signal->theData[0] = senderData;
     signal->theData[1] = count;
-    sendSignal(ref, GSN_SYNC_PAGE_WAIT_REP, signal, 2, JBA);
+    if (normal_pages)
+    {
+      jam();
+      EXECUTE_DIRECT(BACKUP, GSN_SYNC_PAGE_WAIT_REP, signal, 2);
+    }
+    else
+    {
+      jam();
+      sendSignal(ref, GSN_SYNC_PAGE_WAIT_REP, signal, 2, JBB);
+    }
   }
 }
 
