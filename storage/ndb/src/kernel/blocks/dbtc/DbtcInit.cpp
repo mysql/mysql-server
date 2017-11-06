@@ -119,14 +119,6 @@ void Dbtc::initRecords()
   }
   while (indexes.releaseFirst());
 
-  c_apiConTimer = (UintR*)allocRecord("ApiConTimer",
-				      sizeof(UintR),
-				      capiConnectFilesize);
-  
-  c_apiConTimer_line = (UintR*)allocRecord("ApiConTimer_line",
-					   sizeof(UintR),
-					   capiConnectFilesize);
-
   m_commitAckMarkerHash.setSize(1024);
   c_theCommitAckMarkerBufferPool.setSize(4 * capiConnectFilesize);
 
@@ -161,6 +153,8 @@ void Dbtc::initRecords()
   m_commitAckMarkerPool.init(CommitAckMarker::TYPE_ID, pc, 0, UINT32_MAX);
   c_theIndexOperationPool.init(TcIndexOperation::TYPE_ID, pc, 0, UINT32_MAX);
   tcConnectRecord.init(TcConnectRecord::TYPE_ID, pc, 0, UINT32_MAX);
+  c_apiConTimersPool.init(ApiConTimers::TYPE_ID, pc, 0, UINT32_MAX);
+  c_apiConTimersList.init();
 }//Dbtc::initRecords()
 
 bool
@@ -197,7 +191,8 @@ Dbtc::Dbtc(Block_context& ctx, Uint32 instanceNo):
   c_theIndexes(c_theIndexPool),
   c_maxNumberOfIndexes(0),
   c_fk_hash(c_fk_pool),
-  m_commitAckMarkerHash(m_commitAckMarkerPool)
+  m_commitAckMarkerHash(m_commitAckMarkerPool),
+  c_currentApiConTimers(NULL)
 {
   BLOCK_CONSTRUCTOR(Dbtc);
   
@@ -324,8 +319,6 @@ Dbtc::Dbtc(Block_context& ctx, Uint32 instanceNo):
   scanRecord = 0;
   gcpRecord = 0;
   tcFailRecord = 0;
-  c_apiConTimer = 0;
-  c_apiConTimer_line = 0;
   cpackedListIndex = 0;
   c_ongoing_take_over_cnt = 0;
 
@@ -336,8 +329,6 @@ Dbtc::Dbtc(Block_context& ctx, Uint32 instanceNo):
   scanRecord = 0;
   gcpRecord = 0;
   tcFailRecord = 0;
-  c_apiConTimer = 0;
-  c_apiConTimer_line = 0;
   m_deferred_enabled = ~Uint32(0);
   m_max_writes_per_trans = ~Uint32(0);
 }//Dbtc::Dbtc()
@@ -372,13 +363,6 @@ Dbtc::~Dbtc()
   deallocRecord((void **)&tcFailRecord, "TcFailRecord",
 		sizeof(TcFailRecord), 1);
   
-  deallocRecord((void **)&c_apiConTimer, "ApiConTimer",
-		sizeof(UintR),
-		capiConnectFilesize);
-
-  deallocRecord((void **)&c_apiConTimer_line, "ApiConTimer",
-		sizeof(UintR),
-		capiConnectFilesize);
 }//Dbtc::~Dbtc()
 
 BLOCK_FUNCTIONS(Dbtc)

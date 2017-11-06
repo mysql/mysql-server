@@ -194,11 +194,11 @@ Dbtc::updateBuddyTimer(ApiConnectRecordPtr apiPtr)
     ApiConnectRecordPtr buddyApiPtr;
     buddyApiPtr.i = apiPtr.p->buddyPtr;
     ptrCheckGuard(buddyApiPtr, capiConnectFilesize, apiConnectRecord);
-    if (getApiConTimer(buddyApiPtr.i) != 0) {
+    if (getApiConTimer(buddyApiPtr) != 0) {
       if ((apiPtr.p->transid[0] == buddyApiPtr.p->transid[0]) &&
           (apiPtr.p->transid[1] == buddyApiPtr.p->transid[1])) {
         jam();
-        setApiConTimer(buddyApiPtr.i, ctcTimer, __LINE__);
+        setApiConTimer(buddyApiPtr, ctcTimer, __LINE__);
       } else {
         jam();
         // Not a buddy anymore since not the same transid
@@ -1861,7 +1861,7 @@ void Dbtc::printState(Signal* signal, int place, bool force_trace)
 	 << " ndbapiBlockref = " << hex <<apiConnectptr.p->ndbapiBlockref
 	 << " Transid = " << apiConnectptr.p->transid[0]
 	 << " " << apiConnectptr.p->transid[1] << endl;
-  ndbout << "apiTimer = " << getApiConTimer(apiConnectptr.i)
+  ndbout << "apiTimer = " << getApiConTimer(apiConnectptr)
 	 << " counter = " << apiConnectptr.p->counter
 	 << " lqhkeyconfrec = " << apiConnectptr.p->lqhkeyconfrec
 	 << " lqhkeyreqrec = " << apiConnectptr.p->lqhkeyreqrec
@@ -2402,7 +2402,7 @@ void Dbtc::execKEYINFO(Signal* signal)
     TCKEY_abort(signal, 42);
     return;
   }//if
-  setApiConTimer(apiConnectptr.i, TtcTimer, __LINE__);
+  setApiConTimer(apiConnectptr, TtcTimer, __LINE__);
   cachePtr.i = TcachePtr;
   cachePtr.p = regCachePtr;
 
@@ -2502,7 +2502,7 @@ void Dbtc::tckeyreq020Lab(Signal* signal)
      * Set timer and state and wait
      */
     jam();
-    setApiConTimer(apiConnectptr.i, ctcTimer, __LINE__);
+    setApiConTimer(apiConnectptr, ctcTimer, __LINE__);
     regCachePtr->save1 = Tlen;
     tcConnectptr.p->tcConnectstate = OS_WAIT_KEYINFO;
     return;
@@ -2601,7 +2601,7 @@ void Dbtc::execATTRINFO(Signal* signal)
       return;
     }//if
 
-    setApiConTimer(apiConnectptr.i, TtcTimer, __LINE__);
+    setApiConTimer(apiConnectptr, TtcTimer, __LINE__);
 
     if (TattrlengthRemain == 0) {
       /****************************************************************>*/
@@ -3152,6 +3152,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
 	TCKEY_abort(signal, 1);
 	return;
       }//if
+      ndbrequire(regApiPtr->apiCopyRecord != RNIL);
     }
     break;
   case CS_ABORTING:
@@ -3234,7 +3235,21 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     TCKEY_abort(signal, 55);
     return;
   }//switch
-  
+
+  if (regApiPtr->apiCopyRecord == RNIL)
+  {
+    ndbrequire(TstartFlag == 1);
+    if (cfirstfreeApiConnectCopy == RNIL)
+    {
+      jam();
+      releaseSections(handle);
+      terrorCode = ZSEIZE_API_COPY_ERROR;
+      releaseAtErrorLab(signal);
+      return;
+    }
+    seizeApiConnectCopy(signal);
+  }
+
   if (localTabptr.p->checkTable(tcKeyReq->tableSchemaVersion)) {
     ;
   } else {
@@ -3719,7 +3734,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
      * THE TCKEYREQ DIDN'T CONTAIN ALL KEY DATA, 
      * SAVE STATE AND WAIT FOR KEYINFO 
      * --------------------------------------------------------------------*/
-    setApiConTimer(apiConnectptr.i, ctcTimer, __LINE__);
+    setApiConTimer(apiConnectptr, ctcTimer, __LINE__);
     regCachePtr->save1 = 8;
     regTcPtr->tcConnectstate = OS_WAIT_KEYINFO;
     return;
@@ -3858,7 +3873,7 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
     return;
   }
 
-  setApiConTimer(apiConnectptr.i, TtcTimer, __LINE__);
+  setApiConTimer(apiConnectptr, TtcTimer, __LINE__);
   regCachePtr->hashValue = ThashValue;
 
   ndbassert( signal->getNoOfSections() == 0 );
@@ -4215,7 +4230,7 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
     if (regCachePtr->lenAiInTckeyreq < regCachePtr->attrlength) {
       TtcTimer = ctcTimer;
       jam();
-      setApiConTimer(apiConnectptr.i, TtcTimer, __LINE__);
+      setApiConTimer(apiConnectptr, TtcTimer, __LINE__);
       regTcPtr->tcConnectstate = OS_WAIT_ATTR;
       return;
     } else {
@@ -4680,7 +4695,7 @@ void Dbtc::packLqhkeyreq040Lab(Signal* signal,
   UintR Tread = (regTcPtr->operation == ZREAD);
   UintR Tdirty = (regTcPtr->dirtyOp == ZTRUE);
   UintR Tboth = Tread & Tdirty;
-  setApiConTimer(apiConnectptr.i, TtcTimer, __LINE__);
+  setApiConTimer(apiConnectptr, TtcTimer, __LINE__);
   jamDebug();
   /*--------------------------------------------------------------------
    *   WE HAVE SENT ALL THE SIGNALS OF THIS OPERATION. SET STATE AND EXIT.
@@ -4755,7 +4770,7 @@ void Dbtc::releaseDirtyRead(Signal* signal,
     sendtckeyconf(signal, state == CS_START_COMMITTING);
     regApiPtr.p->apiConnectstate = 
       (state == CS_START_COMMITTING ? CS_CONNECTED : state);
-    setApiConTimer(regApiPtr.i, 0, __LINE__);
+    setApiConTimer(regApiPtr, 0, __LINE__);
 
     return;
   }
@@ -5256,7 +5271,7 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
 
   /* Handle case where LQHKEYREQ requested an LQH CommitAckMarker */
   Uint32 commitAckMarker = regTcPtr->commitAckMarker;
-  setApiConTimer(apiConnectptr.i, TtcTimer, __LINE__);
+  setApiConTimer(apiConnectptr, TtcTimer, __LINE__);
   if (commitAckMarker != RNIL)
   {
     /* Update TC CommitAckMarker record to track LQH CommitAckMarkers */
@@ -5926,7 +5941,6 @@ Dbtc::startSendFireTrigReq(Signal* signal, Ptr<ApiConnectRecord> regApiPtr)
 /*****************************************************************************/
 void Dbtc::diverify010Lab(Signal* signal) 
 {
-  UintR TfirstfreeApiConnectCopy = cfirstfreeApiConnectCopy;
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
   signal->theData[0] = apiConnectptr.i;
   signal->theData[1] = instance() ? instance() - 1 : 0;
@@ -5954,63 +5968,52 @@ void Dbtc::diverify010Lab(Signal* signal)
 
   if (regApiPtr->lqhkeyreqrec)
   {
-    if (TfirstfreeApiConnectCopy != RNIL) {
-      seizeApiConnectCopy(signal);
-      regApiPtr->apiConnectstate = CS_PREPARE_TO_COMMIT;
-      /*-----------------------------------------------------------------------
-       * WE COME HERE ONLY IF THE TRANSACTION IS PREPARED ON ALL TC CONNECTIONS
-       * THUS WE CAN START THE COMMIT PHASE BY SENDING DIVERIFY ON ALL TC     
-       * CONNECTIONS AND THEN WHEN ALL DIVERIFYCONF HAVE BEEN RECEIVED THE 
-       * COMMIT MESSAGE CAN BE SENT TO ALL INVOLVED PARTS.
-       *---------------------------------------------------------------------*/
-      * (EmulatedJamBuffer**)(signal->theData+2) = jamBuffer();
-      EXECUTE_DIRECT_MT(DBDIH, GSN_DIVERIFYREQ, signal,
-                        2 + sizeof(void*)/sizeof(Uint32), 0);
-      if (clastApiConnectPREPARE_TO_COMMIT != RNIL ||
-          signal->theData[3] != 0)
+    ndbrequire(regApiPtr->apiCopyRecord != RNIL);
+    tc_clearbit(regApiPtr->m_flags,
+                ApiConnectRecord::TF_TRIGGER_PENDING);
+    regApiPtr->m_special_op_flags = 0;
+
+    regApiPtr->apiConnectstate = CS_PREPARE_TO_COMMIT;
+    /*-----------------------------------------------------------------------
+     * WE COME HERE ONLY IF THE TRANSACTION IS PREPARED ON ALL TC CONNECTIONS
+     * THUS WE CAN START THE COMMIT PHASE BY SENDING DIVERIFY ON ALL TC     
+     * CONNECTIONS AND THEN WHEN ALL DIVERIFYCONF HAVE BEEN RECEIVED THE 
+     * COMMIT MESSAGE CAN BE SENT TO ALL INVOLVED PARTS.
+     *---------------------------------------------------------------------*/
+    * (EmulatedJamBuffer**)(signal->theData+2) = jamBuffer();
+    EXECUTE_DIRECT_MT(DBDIH, GSN_DIVERIFYREQ, signal,
+                      2 + sizeof(void*)/sizeof(Uint32), 0);
+    if (clastApiConnectPREPARE_TO_COMMIT != RNIL ||
+        signal->theData[3] != 0)
+    {
+      /* Put transaction last in verification queue */
+      ndbrequire(regApiPtr->nextApiConnect == RNIL);
+      if (clastApiConnectPREPARE_TO_COMMIT != RNIL)
       {
-        /* Put transaction last in verification queue */
-        ndbrequire(regApiPtr->nextApiConnect == RNIL);
-        if (clastApiConnectPREPARE_TO_COMMIT != RNIL)
-        {
-          ApiConnectRecord* apiPtr;
-          apiPtr = &apiConnectRecord[clastApiConnectPREPARE_TO_COMMIT];
-          ndbrequire(apiPtr->nextApiConnect == RNIL);
-          apiPtr->nextApiConnect = apiConnectptr.i;
-        }
-        else
-        {
-          ndbassert(cfirstApiConnectPREPARE_TO_COMMIT == RNIL);
-          cfirstApiConnectPREPARE_TO_COMMIT = apiConnectptr.i;
-        }
-        clastApiConnectPREPARE_TO_COMMIT = apiConnectptr.i;
-        /**
-         * If execDIVERIFYCONF is called below, make it pop a transaction
-         * from verifiction queue.
-         * Note, that even if DBDIH says ok without queue, DBTC can still
-         * have a queue since there can be DIVERIFYCONF still in flight.
-         */
-        signal->theData[0] = RNIL;
+        ApiConnectRecord* apiPtr;
+        apiPtr = &apiConnectRecord[clastApiConnectPREPARE_TO_COMMIT];
+        ndbrequire(apiPtr->nextApiConnect == RNIL);
+        apiPtr->nextApiConnect = apiConnectptr.i;
       }
-      if (signal->theData[3] == 0)
+      else
       {
-        execDIVERIFYCONF(signal);
+        ndbassert(cfirstApiConnectPREPARE_TO_COMMIT == RNIL);
+        cfirstApiConnectPREPARE_TO_COMMIT = apiConnectptr.i;
       }
-      return;
-    } else {
-      /*-----------------------------------------------------------------------
-       * There were no free copy connections available. We must abort the 
-       * transaction since otherwise we will have a problem with the report 
-       * to the application.
-       * This should more or less not happen but if it happens we do 
-       * not want to crash and we do not want to create code to handle it 
-       * properly since it is difficult to test it and will be complex to 
-       * handle a problem more or less not occurring.
-       *---------------------------------------------------------------------*/
-      terrorCode = ZSEIZE_API_COPY_ERROR;
-      abortErrorLab(signal);
-      return;
+      clastApiConnectPREPARE_TO_COMMIT = apiConnectptr.i;
+      /**
+       * If execDIVERIFYCONF is called below, make it pop a transaction
+       * from verifiction queue.
+       * Note, that even if DBDIH says ok without queue, DBTC can still
+       * have a queue since there can be DIVERIFYCONF still in flight.
+       */
+      signal->theData[0] = RNIL;
     }
+    if (signal->theData[3] == 0)
+    {
+      execDIVERIFYCONF(signal);
+    }
+    return;
   }
   else
   {
@@ -6018,7 +6021,7 @@ void Dbtc::diverify010Lab(Signal* signal)
     sendtckeyconf(signal, 1);
     regApiPtr->apiConnectstate = CS_CONNECTED;
     regApiPtr->m_transaction_nodes.clear();
-    setApiConTimer(apiConnectptr.i, 0,__LINE__);
+    setApiConTimer(apiConnectptr, 0, __LINE__);
   }
 }//Dbtc::diverify010Lab()
 
@@ -6306,7 +6309,7 @@ void Dbtc::commit020Lab(Signal* signal)
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
 
   localTcConnectptr.p = tcConnectptr.p;
-  setApiConTimer(apiConnectptr.i, ctcTimer, __LINE__);
+  setApiConTimer(apiConnectptr, ctcTimer, __LINE__);
   UintR Tcount = 0;
   LocalTcConnectRecord_fifo tcConList(tcConnectRecord, regApiPtr->tcConnect);
   do {
@@ -6514,7 +6517,7 @@ void Dbtc::execCOMMITTED(Signal* signal)
   bool TcheckCondition = 
     (TapiConnectstate != CS_COMMIT_SENT) || (Tcounter != 0);
 
-  setApiConTimer(localApiConnectptr.i, ctcTimer, __LINE__);
+  setApiConTimer(localApiConnectptr, ctcTimer, __LINE__);
   localApiConnectptr.p->counter = Tcounter;
   localTcConnectptr.p->tcConnectstate = OS_COMMITTED;
   if (Tdata1 != 0) {
@@ -6724,7 +6727,7 @@ void Dbtc::copyApi(ApiConnectRecordPtr copyPtr, ApiConnectRecordPtr regApiPtr)
   ptrCheckGuard(gcpPtr, TgcpFilesize, localGcpRecord);
   unlinkApiConnect(gcpPtr, regApiPtr);
   linkApiToGcp(gcpPtr, copyPtr);
-  setApiConTimer(regApiPtr.i, 0, __LINE__);
+  setApiConTimer(regApiPtr, 0, __LINE__);
   regApiPtr.p->apiConnectstate = CS_CONNECTED;
   regApiPtr.p->commitAckMarker = RNIL;
   regApiPtr.p->tcConnect.init();
@@ -6814,7 +6817,7 @@ void Dbtc::complete010Lab(Signal* signal)
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
 
   localTcConnectptr.p = tcConnectptr.p;
-  setApiConTimer(apiConnectptr.i, ctcTimer, __LINE__);
+  setApiConTimer(apiConnectptr, ctcTimer, __LINE__);
   UintR TapiConnectptrIndex = apiConnectptr.i;
   UintR Tcount = 0;
   LocalTcConnectRecord_fifo tcConList(tcConnectRecord, regApiPtr->tcConnect);
@@ -6959,7 +6962,7 @@ Dbtc::sendFireTrigReq(Signal* signal,
   ndbrequire(regApiPtr.p->apiConnectstate != CS_WAIT_FIRE_TRIG_REQ);
   TcConnectRecordPtr localTcConnectptr;
 
-  setApiConTimer(regApiPtr.i, ctcTimer, __LINE__);
+  setApiConTimer(regApiPtr, ctcTimer, __LINE__);
   regApiPtr.p->apiConnectstate = CS_SEND_FIRE_TRIG_REQ;
 
   UintR TopPtrI = regApiPtr.p->m_firstTcConnectPtrI_FT;
@@ -7209,7 +7212,7 @@ Dbtc::execFIRE_TRIG_CONF(Signal* signal)
 
   CRASH_INSERTION(8092);
 
-  setApiConTimer(regApiPtr.i, ctcTimer, __LINE__);
+  setApiConTimer(regApiPtr, ctcTimer, __LINE__);
   ndbassert(Tlqhkeyreqrec > 0);
   regApiPtr.p->lqhkeyreqrec = Tlqhkeyreqrec - 1;
   localTcConnectptr.p->tcConnectstate = OS_PREPARED;
@@ -7507,7 +7510,7 @@ void Dbtc::execCOMPLETED(Signal* signal)
     warningReport(signal, 7);
     return;
   }//if
-  setApiConTimer(localApiConnectptr.i, ctcTimer, __LINE__);
+  setApiConTimer(localApiConnectptr, ctcTimer, __LINE__);
   localApiConnectptr.p->counter = Tcounter;
   localTcConnectptr.p->tcConnectstate = OS_COMPLETED;
   localTcConnectptr.p->noOfNodes = 0; // == releaseNodes(signal)
@@ -7591,7 +7594,7 @@ void Dbtc::releaseApiConCopy(Signal* signal)
   UintR TfirstfreeApiConnectCopyOld = cfirstfreeApiConnectCopy;
   cfirstfreeApiConnectCopy = apiConnectptr.i;
   regApiPtr->nextApiConnect = TfirstfreeApiConnectCopyOld;
-  setApiConTimer(apiConnectptr.i, 0, __LINE__);
+  setApiConTimer(apiConnectptr, 0, __LINE__);
   regApiPtr->apiConnectstate = CS_RESTART;
   ndbrequire(regApiPtr->commitAckMarker == RNIL);
 }//Dbtc::releaseApiConCopy()
@@ -7609,7 +7612,7 @@ void Dbtc::releaseDirtyWrite(Signal* signal)
     if (regApiPtr->tcConnect.isEmpty()) {
       jam();
       regApiPtr->apiConnectstate = CS_CONNECTED;
-      setApiConTimer(apiConnectptr.i, 0, __LINE__);
+      setApiConTimer(apiConnectptr, 0, __LINE__);
       sendtckeyconf(signal, 1);
     }//if
   }//if
@@ -7872,7 +7875,7 @@ void Dbtc::execLQHKEYREF(Signal* signal)
       Uint32 clientData = regTcPtr->clientData;
       unlinkReadyTcCon(signal);   /* LINK TC CONNECT RECORD OUT OF  */
       releaseTcCon();       /* RELEASE THE TC CONNECT RECORD  */
-      setApiConTimer(apiConnectptr.i, ctcTimer, __LINE__);
+      setApiConTimer(apiConnectptr, ctcTimer, __LINE__);
       if (isIndexOp) {
         jam();
 	regApiPtr->lqhkeyreqrec--; // Compensate for extra during read
@@ -8004,7 +8007,7 @@ void Dbtc::execTC_COMMITREQ(Signal* signal)
           // Start the commit order.
           /*******************************************************************/
           regApiPtr->returnsignal = RS_TC_COMMITCONF;
-          setApiConTimer(apiConnectptr.i, ctcTimer, __LINE__);
+          setApiConTimer(apiConnectptr, ctcTimer, __LINE__);
           diverify010Lab(signal);
           return;
         } else {
@@ -8222,8 +8225,8 @@ void Dbtc::execTC_HBREP(Signal* signal)
   if (apiConnectptr.p->transid[0] == tcHbRep->transId1 &&
       apiConnectptr.p->transid[1] == tcHbRep->transId2){
 
-    if (getApiConTimer(apiConnectptr.i) != 0){
-      setApiConTimer(apiConnectptr.i, ctcTimer, __LINE__);
+    if (getApiConTimer(apiConnectptr) != 0){
+      setApiConTimer(apiConnectptr, ctcTimer, __LINE__);
     } else {
       DEBUG("TCHBREP received when timer was off apiConnectptr.i=" 
 	    << apiConnectptr.i);
@@ -8553,7 +8556,7 @@ void Dbtc::execABORTED(Signal* signal)
   }//for
   tcConnectptr.p->noOfNodes = 0;
   tcConnectptr.p->tcConnectstate = OS_ABORTING;
-  setApiConTimer(apiConnectptr.i, ctcTimer, __LINE__);
+  setApiConTimer(apiConnectptr, ctcTimer, __LINE__);
   apiConnectptr.p->counter--;
   if (apiConnectptr.p->counter > 0) {
     jam();
@@ -8717,7 +8720,7 @@ ABORT020:
        * been received before all have been sent.
        *---------------------------------------------------------------------*/
       apiConnectptr.p->counter++;
-      setApiConTimer(apiConnectptr.i, ctcTimer, __LINE__);
+      setApiConTimer(apiConnectptr, ctcTimer, __LINE__);
       signal->theData[0] = TcContinueB::ZABORT_BREAK;
       signal->theData[1] = tcConnectptr.i;
       signal->theData[2] = apiConnectptr.i;
@@ -8740,7 +8743,7 @@ ABORT020:
 
   if (apiConnectptr.p->counter > 0) {
     jam();
-    setApiConTimer(apiConnectptr.i, ctcTimer, __LINE__);
+    setApiConTimer(apiConnectptr, ctcTimer, __LINE__);
     return;
   }//if
   /*-----------------------------------------------------------------------
@@ -8893,7 +8896,7 @@ void Dbtc::checkStartTimeout(Signal* signal)
   ctimeOutCheckActive = TOCS_TRUE;
   ctimeOutCheckCounter = 0;
   ctimeOutMissedHeartbeats = 0;
-  timeOutLoopStartLab(signal, 0); // 0 is first api connect record
+  timeOutLoopStartLab(signal, 0); // 0 is first api connect timers record
   return;
 }//checkStartTimeout()
 
@@ -8958,24 +8961,16 @@ we spread it out from 0 to 70 ms if base time-out is smaller than 300 msec,
 and otherwise we spread it out 310 ms.
 */
 /*------------------------------------------------------------------*/
-void Dbtc::timeOutLoopStartLab(Signal* signal, Uint32 api_con_ptr) 
+void Dbtc::timeOutLoopStartLab(Signal* signal, Uint32 api_con_timer_ptr)
 {
-  Uint32 end_ptr, time_passed, time_out_value, mask_value;
+  Uint32 time_passed, time_out_value, mask_value;
   Uint32 old_mask_value= 0;
-  const Uint32 api_con_sz= capiConnectFilesize;
   const Uint32 tc_timer= ctcTimer;
   const Uint32 time_out_param= ctimeOutValue;
   const Uint32 old_time_out_param= c_abortRec.oldTimeOutValue;
 
   ctimeOutCheckHeartbeat = tc_timer;
 
-  if (api_con_ptr + 1024 < api_con_sz) {
-    jam();
-    end_ptr= api_con_ptr + 1024;
-  } else {
-    jam();
-    end_ptr= api_con_sz;
-  }
   if (time_out_param > 300) {
     jam();
     mask_value= 63;
@@ -9002,41 +8997,103 @@ void Dbtc::timeOutLoopStartLab(Signal* signal, Uint32 api_con_ptr)
       old_mask_value= 31;
     }
   }
-  for ( ; api_con_ptr < end_ptr; api_con_ptr++) {
-    Uint32 api_timer= getApiConTimer(api_con_ptr);
-    if (api_timer != 0) {
-      jam();
-      jamLine(api_con_ptr & 0xFFFF);
-      Uint32 error= ZTIME_OUT_ERROR;
-      time_out_value= time_out_param + (ndb_rand() & mask_value);
-      if (unlikely(old_mask_value)) // abort during single user mode
+  Uint32 timers_ptr_count = 0;
+  Uint32 api_con_timers_ptr = (api_con_timer_ptr == RNIL)
+                                  ? RNIL
+                                  : (api_con_timer_ptr >> ApiConTimers::INDEX_BITS);
+  bool found = false;
+  while (api_con_timers_ptr != RNIL &&
+         timers_ptr_count < 1024)
+  {
+    ApiConTimersPtr timers[8];
+    Uint32 ptr_cnt =
+        c_apiConTimersPool.getUncheckedPtrs(&api_con_timers_ptr,
+                                            timers,
+                                            NDB_ARRAY_SIZE(timers));
+    timers_ptr_count += NDB_ARRAY_SIZE(timers);
+    for (Uint32 i = 0; i < ptr_cnt; i++)
+    {
+      if (!Magic::match(timers[i].p->m_magic, ApiConTimers::TYPE_ID))
       {
-        apiConnectptr.i = api_con_ptr;
-        ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
-        if ((getNodeState().getSingleUserApi() ==
-             refToNode(apiConnectptr.p->ndbapiBlockref)) ||
-            !(apiConnectptr.p->singleUserMode & (1 << NDB_SUM_LOCKED)))
+        continue;
+      }
+      Uint32 timer_index = 0;
+      if (i == 0 &&
+          timers[i].i == (api_con_timer_ptr >> ApiConTimers::INDEX_BITS))
+      {
+        timer_index = api_con_timer_ptr & ApiConTimers::INDEX_MASK;
+      }
+      for (;
+           timer_index < timers[i].p->m_top;
+           timer_index++)
+      {
+        Uint32 api_timer = timers[i].p->m_entries[timer_index].m_timer;
+        if (api_timer == 0)
         {
-          // api allowed during single user, use original timeout
-          time_out_value=
-            old_time_out_param + (api_con_ptr & old_mask_value);
+          continue;
         }
-        else
+        apiConnectptr.i =
+            timers[i].p->m_entries[timer_index].m_apiConnectRecord;
+        ndbrequire(apiConnectptr.i != RNIL);
+        jam();
+        jamLine(apiConnectptr.i & 0xFFFF);
+        ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
+        Uint32 error= ZTIME_OUT_ERROR;
+        time_out_value= time_out_param + (ndb_rand() & mask_value);
+        if (unlikely(old_mask_value)) // abort during single user mode
         {
-          error= ZCLUSTER_IN_SINGLEUSER_MODE;
+          if ((getNodeState().getSingleUserApi() ==
+               refToNode(apiConnectptr.p->ndbapiBlockref)) ||
+              !(apiConnectptr.p->singleUserMode & (1 << NDB_SUM_LOCKED)))
+          {
+            // api allowed during single user, use original timeout
+            time_out_value=
+              old_time_out_param + (apiConnectptr.i & old_mask_value);
+          }
+          else
+          {
+            error= ZCLUSTER_IN_SINGLEUSER_MODE;
+          }
+        }
+        time_passed= tc_timer - api_timer;
+        if (time_passed > time_out_value)
+        {
+          jam();
+          timeOutFoundLab(signal, apiConnectptr.i, error);
+          timer_index++;
+          if (timer_index < ApiConTimers::INDEX_MAX_COUNT)
+          {
+            api_con_timer_ptr =
+              (timers[i].i << ApiConTimers::INDEX_BITS) | timer_index;
+          }
+          else if (i + 1 < ptr_cnt)
+          {
+            api_con_timer_ptr = timers[i + 1].i << ApiConTimers::INDEX_BITS;
+          }
+          else if (api_con_timers_ptr != RNIL)
+          {
+            api_con_timer_ptr = api_con_timers_ptr << ApiConTimers::INDEX_BITS;
+          }
+          else
+          {
+            api_con_timer_ptr = RNIL;
+          }
+          found = true;
+          break;
         }
       }
-      time_passed= tc_timer - api_timer;
-      if (time_passed > time_out_value) 
+      if (found)
       {
-        jam();
-        timeOutFoundLab(signal, api_con_ptr, error);
-	api_con_ptr++;
-	break;
+        break;
       }
     }
+    if (found)
+    {
+      break;
+    }
   }
-  if (api_con_ptr == api_con_sz) {
+  if (api_con_timers_ptr == RNIL)
+  {
     jam();
     /*------------------------------------------------------------------*/
     /*                                                                  */
@@ -9047,7 +9104,7 @@ void Dbtc::timeOutLoopStartLab(Signal* signal, Uint32 api_con_ptr)
     ctimeOutCheckActive = TOCS_FALSE;
   } else {
     jam();
-    sendContinueTimeOutControl(signal, api_con_ptr);
+    sendContinueTimeOutControl(signal, api_con_timer_ptr);
   }
   return;
 }//Dbtc::timeOutLoopStartLab()
@@ -9067,7 +9124,7 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
 	<< " apiConnectptr.i = " << apiConnectptr.i 
 	<< " - exec: "
         << tc_testbit(apiConnectptr.p->m_flags, ApiConnectRecord::TF_EXEC_FLAG)
-	<< " - place: " << c_apiConTimer_line[apiConnectptr.i]
+        << " - place: " << apiConnectptr.p->m_apiConTimer_line
 	<< " code: " << errCode
         << " lqhkeyreqrec: " << apiConnectptr.p->lqhkeyreqrec
         << " lqhkeyconfrec: " << apiConnectptr.p->lqhkeyconfrec
@@ -9089,7 +9146,7 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
       than the shorter Deadlock detection timeout.
       */
       if (c_appl_timeout_value == 0 ||
-          (ctcTimer - getApiConTimer(apiConnectptr.i)) <= c_appl_timeout_value) {
+          (ctcTimer - getApiConTimer(apiConnectptr)) <= c_appl_timeout_value) {
         jam();
         return;
       }//if
@@ -9137,7 +9194,7 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
     // To ensure against strange bugs we crash the system if we have passed
     // time-out period by a factor of 10 and it is also at least 5 seconds.
     /*------------------------------------------------------------------*/
-    Uint32 time_passed = ctcTimer - getApiConTimer(apiConnectptr.i);
+    Uint32 time_passed = ctcTimer - getApiConTimer(apiConnectptr);
     if (time_passed > 500 &&
         time_passed > (5 * cDbHbInterval) &&
         time_passed > (10 * ctimeOutValue))
@@ -9149,7 +9206,7 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
                (Uint32)apiConnectptr.p->apiConnectstate);
 
       // Reset timeout to not flood log...
-      setApiConTimer(apiConnectptr.i, 0, __LINE__);
+      setApiConTimer(apiConnectptr, 0, __LINE__);
     }//if
     break;
   }
@@ -9197,7 +9254,8 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
       than the shorter Deadlock detection timeout.
     */
     if (c_appl_timeout_value == 0 ||
-	(ctcTimer - getApiConTimer(apiConnectptr.i)) <= c_appl_timeout_value) {
+        (ctcTimer - getApiConTimer(apiConnectptr)) <= c_appl_timeout_value)
+    {
       jam();
       return;
     }//if
@@ -9315,20 +9373,20 @@ void Dbtc::sendAbortedAfterTimeout(Signal* signal, int Tcheck)
 		 __LINE__,
 		 apiConnectptr.i, 
 		 transP->apiConnectstate,
-		 c_apiConTimer_line[apiConnectptr.i],
+                 apiConnectptr.p->m_apiConTimer_line,
                  transP->tcConnect.getFirst(),
-		 c_apiConTimer[apiConnectptr.i]
+                 getApiConTimer(apiConnectptr)
 		 );
     ndbout_c("TC: %d: %d state=%d abort==IDLE place: %d fop=%d t: %d", 
 	     __LINE__,
 	     apiConnectptr.i, 
 	     transP->apiConnectstate,
-	     c_apiConTimer_line[apiConnectptr.i],
+             apiConnectptr.p->m_apiConTimer_line,
              transP->tcConnect.getFirst(),
-	     c_apiConTimer[apiConnectptr.i]
+             getApiConTimer(apiConnectptr)
 	     );
     ndbabort();
-    setApiConTimer(apiConnectptr.i, 0, __LINE__);
+    setApiConTimer(apiConnectptr, 0, __LINE__);
     return;
   }
   
@@ -9397,7 +9455,7 @@ void Dbtc::sendAbortedAfterTimeout(Signal* signal, int Tcheck)
       // Insert a real-time break for large transactions to avoid blowing
       // away the job buffer.
       /*------------------------------------------------------------------*/
-      setApiConTimer(apiConnectptr.i, ctcTimer, __LINE__);
+      setApiConTimer(apiConnectptr, ctcTimer, __LINE__);
       apiConnectptr.p->counter++;
       signal->theData[0] = TcContinueB::ZABORT_TIMEOUT_BREAK;
       signal->theData[1] = tcConnectptr.i;
@@ -9461,7 +9519,7 @@ void Dbtc::sendAbortedAfterTimeout(Signal* signal, int Tcheck)
             signal->theData[2] = apiConnectptr.p->transid[0];
             signal->theData[3] = apiConnectptr.p->transid[1];
             sendSignal(TBRef, GSN_ABORT, signal, 4, JBB);
-            setApiConTimer(apiConnectptr.i, ctcTimer, __LINE__);
+            setApiConTimer(apiConnectptr, ctcTimer, __LINE__);
             break;
           } else {
             jam();
@@ -9469,7 +9527,7 @@ void Dbtc::sendAbortedAfterTimeout(Signal* signal, int Tcheck)
 	     * The node we are waiting for is dead. We will send ABORTED to
 	     * ourselves vicarious for the failed node.
 	     *--------------------------------------------------------------*/
-            setApiConTimer(apiConnectptr.i, ctcTimer, __LINE__);
+            setApiConTimer(apiConnectptr, ctcTimer, __LINE__);
             signal->theData[0] = tcConnectptr.i;
             signal->theData[1] = apiConnectptr.p->transid[0];
             signal->theData[2] = apiConnectptr.p->transid[1];
@@ -10312,7 +10370,7 @@ Dbtc::nodeFailCheckTransactions(Signal* signal,
 
       // Force timeout regardless of state      
       c_appl_timeout_value = 1;
-      setApiConTimer(transPtr.i, TtcTimer - 2, __LINE__);
+      setApiConTimer(transPtr, TtcTimer - 2, __LINE__);
       timeOutFoundLab(signal, transPtr.i, ZNODEFAIL_BEFORE_COMMIT);
       c_appl_timeout_value = TapplTimeout;
       
@@ -11581,7 +11639,7 @@ void Dbtc::toAbortHandlingLab(Signal* signal)
           jam();
           Uint32 instanceKey = tcConnectptr.p->lqhInstanceKey;
           tblockref = numberToRef(DBLQH, instanceKey, hostptr.i);
-          setApiConTimer(apiConnectptr.i, ctcTimer, __LINE__);
+          setApiConTimer(apiConnectptr, ctcTimer, __LINE__);
           tcConnectptr.p->tcConnectstate = OS_WAIT_ABORT_CONF;
           apiConnectptr.p->apiConnectstate = CS_WAIT_ABORT_CONF;
           apiConnectptr.p->timeOutCounter = 0;
@@ -11726,7 +11784,7 @@ void Dbtc::toCommitHandlingLab(Signal* signal)
           jam();
           Uint32 instanceKey = tcConnectptr.p->lqhInstanceKey;
           tblockref = numberToRef(DBLQH, instanceKey, hostptr.i);
-          setApiConTimer(apiConnectptr.i, ctcTimer, __LINE__);
+          setApiConTimer(apiConnectptr, ctcTimer, __LINE__);
           apiConnectptr.p->apiConnectstate = CS_WAIT_COMMIT_CONF;
           apiConnectptr.p->timeOutCounter = 0;
           tcConnectptr.p->tcConnectstate = OS_WAIT_COMMIT_CONF;
@@ -11870,7 +11928,7 @@ void Dbtc::toCompleteHandlingLab(Signal* signal)
           jam();
           Uint32 instanceKey = tcConnectptr.p->lqhInstanceKey;
           tblockref = numberToRef(DBLQH, instanceKey, hostptr.i);
-          setApiConTimer(apiConnectptr.i, ctcTimer, __LINE__);
+          setApiConTimer(apiConnectptr, ctcTimer, __LINE__);
           tcConnectptr.p->tcConnectstate = OS_WAIT_COMPLETE_CONF;
           apiConnectptr.p->apiConnectstate = CS_WAIT_COMPLETE_CONF;
           apiConnectptr.p->timeOutCounter = 0;
@@ -11966,7 +12024,7 @@ void Dbtc::initApiConnectFail(Signal* signal,
   apiConnectptr.p->buddyPtr = RNIL;
   apiConnectptr.p->m_transaction_nodes.clear();
   apiConnectptr.p->singleUserMode = 0;
-  setApiConTimer(apiConnectptr.i, 0, __LINE__);
+  setApiConTimer(apiConnectptr, 0, __LINE__);
   switch(transStatus){
   case LqhTransConf::Committed:
     jam();
@@ -12838,7 +12896,7 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   * We start the timer on scanRec to be able to discover a 
   * timeout in the API the API now is in charge!
   ***********************************************************/
-  setApiConTimer(apiConnectptr.i, ctcTimer, __LINE__);
+  setApiConTimer(apiConnectptr, ctcTimer, __LINE__);
   updateBuddyTimer(apiConnectptr);
 
   /***********************************************************
@@ -13093,7 +13151,7 @@ void Dbtc::scanKeyinfoLab(Signal* signal)
   {
     jam();
     /* More KeyInfo still to come - continue waiting */
-    setApiConTimer(apiConnectptr.i, ctcTimer, __LINE__);
+    setApiConTimer(apiConnectptr, ctcTimer, __LINE__);
     return;
   }
 
@@ -13265,7 +13323,7 @@ void Dbtc::execDIH_SCAN_TAB_CONF(Signal* signal,
   scanptr.p->scanNoFrag = tfragCount;
   scanptr.p->scanState = ScanRecord::RUNNING;
 
-  setApiConTimer(apiConnectptr.i, 0, __LINE__);
+  setApiConTimer(apiConnectptr, 0, __LINE__);
   updateBuddyTimer(apiConnectptr);
   
   /**
@@ -13548,7 +13606,7 @@ void Dbtc::releaseScanResources(Signal* signal,
   
   apiConnectptr.p->apiScanRec = RNIL;
   apiConnectptr.p->apiConnectstate = CS_CONNECTED;
-  setApiConTimer(apiConnectptr.i, 0, __LINE__);
+  setApiConTimer(apiConnectptr, 0, __LINE__);
 }//Dbtc::releaseScanResources()
 
 bool Dbtc::sendDihGetNodeReq(Signal* signal,
@@ -14210,7 +14268,7 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
    * START THE ACTUAL LOGIC OF SCAN_NEXTREQ. 
    ********************************************************/
   // Stop the timer that is used to check for timeout in the API 
-  setApiConTimer(apiConnectptr.i, 0, __LINE__);
+  setApiConTimer(apiConnectptr, 0, __LINE__);
   ScanRecordPtr scanptr;
   scanptr.i = apiConnectptr.p->apiScanRec;
   ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
@@ -14838,7 +14896,7 @@ void Dbtc::sendScanTabConf(Signal* signal, ScanRecordPtr scanPtr) {
       /**
        * All scan frags delivered...waiting for API
        */
-      setApiConTimer(apiConnectptr.i, ctcTimer, __LINE__);
+      setApiConTimer(apiConnectptr, ctcTimer, __LINE__);
     }
     else
     {
@@ -14967,7 +15025,9 @@ void Dbtc::initApiConnect(Signal* signal)
     ptrAss(apiConnectptr, apiConnectRecord);
     apiConnectptr.p->apiConnectstate = CS_DISCONNECTED;
     apiConnectptr.p->apiFailState = ApiConnectRecord::AFS_API_OK;
-    setApiConTimer(apiConnectptr.i, 0, __LINE__);
+    apiConnectptr.p->m_apiConTimer = RNIL;
+    ndbrequire(seizeApiConTimer(apiConnectptr));
+    setApiConTimer(apiConnectptr, 0, __LINE__);
     apiConnectptr.p->takeOverRec = (Uint8)Z8NIL;
     apiConnectptr.p->cachePtr = RNIL;
     apiConnectptr.p->nextApiConnect = apiConnectptr.i + 1;
@@ -14997,7 +15057,9 @@ void Dbtc::initApiConnect(Signal* signal)
       ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
       apiConnectptr.p->apiConnectstate = CS_RESTART;
       apiConnectptr.p->apiFailState = ApiConnectRecord::AFS_API_OK;
-      setApiConTimer(apiConnectptr.i, 0, __LINE__);
+      apiConnectptr.p->m_apiConTimer = RNIL;
+      ndbrequire(seizeApiConTimer(apiConnectptr));
+      setApiConTimer(apiConnectptr, 0, __LINE__);
       apiConnectptr.p->takeOverRec = (Uint8)Z8NIL;
       apiConnectptr.p->cachePtr = RNIL;
       apiConnectptr.p->nextApiConnect = apiConnectptr.i + 1;
@@ -15025,7 +15087,9 @@ void Dbtc::initApiConnect(Signal* signal)
     refresh_watch_dog();
     jam();
     ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
-    setApiConTimer(apiConnectptr.i, 0, __LINE__);
+    apiConnectptr.p->m_apiConTimer = RNIL;
+    ndbrequire(seizeApiConTimer(apiConnectptr));
+    setApiConTimer(apiConnectptr, 0, __LINE__);
     apiConnectptr.p->apiFailState = ApiConnectRecord::AFS_API_OK;
     apiConnectptr.p->apiConnectstate = CS_RESTART;
     apiConnectptr.p->takeOverRec = (Uint8)Z8NIL;
@@ -15397,8 +15461,8 @@ void Dbtc::releaseAbortResources(Signal* signal)
     }//if
 
   }
-  setApiConTimer(apiConnectptr.i, 0, 
-		 100000+c_apiConTimer_line[apiConnectptr.i]);
+  setApiConTimer(apiConnectptr, 0,
+                 100000 + apiConnectptr.p->m_apiConTimer_line);
   time_track_complete_transaction_error(apiConnectptr.p);
   if (apiConnectptr.p->apiFailState != ApiConnectRecord::AFS_API_OK)
   {
@@ -15414,11 +15478,14 @@ void Dbtc::releaseApiCon(Signal* signal, UintR TapiConnectPtr)
 
   TlocalApiConnectptr.i = TapiConnectPtr;
   ptrCheckGuard(TlocalApiConnectptr, capiConnectFilesize, apiConnectRecord);
-  ndbassert(TlocalApiConnectptr.p->apiCopyRecord == RNIL);
+  if(TlocalApiConnectptr.p->apiCopyRecord != RNIL)
+  {
+  // TODO when making ApiRecordPool dynamic, free copy record here if unused.
+  }
   ndbassert(TlocalApiConnectptr.p->nextApiConnect == RNIL);
   TlocalApiConnectptr.p->nextApiConnect = cfirstfreeApiConnect;
   cfirstfreeApiConnect = TlocalApiConnectptr.i;
-  setApiConTimer(TlocalApiConnectptr.i, 0, __LINE__);
+  setApiConTimer(TlocalApiConnectptr, 0, __LINE__);
   TlocalApiConnectptr.p->apiConnectstate = CS_DISCONNECTED;
   ndbassert(TlocalApiConnectptr.p->m_transaction_nodes.isclear());
   ndbassert(TlocalApiConnectptr.p->apiScanRec == RNIL);
@@ -15438,7 +15505,7 @@ void Dbtc::releaseApiConnectFail(Signal* signal)
 {
   apiConnectptr.p->apiConnectstate = CS_RESTART;
   apiConnectptr.p->takeOverRec = (Uint8)Z8NIL;
-  setApiConTimer(apiConnectptr.i, 0, __LINE__);
+  setApiConTimer(apiConnectptr, 0, __LINE__);
   apiConnectptr.p->nextApiConnect = cfirstfreeApiConnectFail;
   cfirstfreeApiConnectFail = apiConnectptr.i;
   ndbrequire(apiConnectptr.p->commitAckMarker == RNIL);
@@ -15469,7 +15536,7 @@ void Dbtc::seizeApiConnect(Signal* signal)
     ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
     cfirstfreeApiConnect = apiConnectptr.p->nextApiConnect;
     apiConnectptr.p->nextApiConnect = RNIL;
-    setApiConTimer(apiConnectptr.i, 0, __LINE__);
+    setApiConTimer(apiConnectptr, 0, __LINE__);
     apiConnectptr.p->apiConnectstate = CS_CONNECTED; /* STATE OF CONNECTION */
     tc_clearbit(apiConnectptr.p->m_flags,
                 ApiConnectRecord::TF_TRIGGER_PENDING);
@@ -16109,7 +16176,7 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
 	      ap.p->apiScanRec);
     infoEvent(" ctcTimer=%d, apiTimer=%d, counter=%d, retcode=%d, "
 	      "retsig=%d",
-	      ctcTimer, getApiConTimer(ap.i),
+              ctcTimer, getApiConTimer(ap),
 	      ap.p->counter,
 	      ap.p->returncode,
 	      ap.p->returnsignal);
@@ -16824,7 +16891,7 @@ Dbtc::ndbinfo_write_trans(Ndbinfo::Row & row, ApiConnectRecordPtr transPtr)
 
   row.write_uint32(outstanding);
 
-  Uint32 apiTimer = getApiConTimer(transPtr.i);
+  Uint32 apiTimer = getApiConTimer(transPtr);
   row.write_uint32(apiTimer ? (ctcTimer - apiTimer) / 100 : 0);
   return true;
 }
@@ -16879,7 +16946,7 @@ Dbtc::match_and_print(Signal* signal, ApiConnectRecordPtr apiPtr)
   Uint32 len = signal->getLength();
   Uint32* start = signal->theData + 2;
   Uint32* end = signal->theData + len;
-  Uint32 apiTimer = getApiConTimer(apiPtr.i);
+  Uint32 apiTimer = getApiConTimer(apiPtr);
   while (start < end)
   {
     jam();
@@ -16981,7 +17048,7 @@ Dbtc::match_and_print(Signal* signal, ApiConnectRecordPtr apiPtr)
 		       apiPtr.p->transid[0],
 		       apiPtr.p->transid[1],
 		       apiTimer ? (ctcTimer - apiTimer) / 100 : 0,
-		       c_apiConTimer_line[apiPtr.i],
+                       apiPtr.p->m_apiConTimer_line,
 		       stateptr);
   infoEvent("%s", buf);
   
@@ -17629,7 +17696,7 @@ void Dbtc::execFIRE_TRIG_ORD(Signal* signal)
     if(likely( ok ))
     {
       jam();
-      setApiConTimer(transPtr.i, ctcTimer, __LINE__);
+      setApiConTimer(transPtr, ctcTimer, __LINE__);
       opPtr.p->numReceivedTriggers++;
 
       /**
@@ -17944,6 +18011,25 @@ void Dbtc::execTCINDXREQ(Signal* signal)
     apiConnectptr = transPtr;
     abortErrorLab(signal);
     return;
+  }
+
+  if (regApiPtr->apiCopyRecord == RNIL)
+  {
+    jam();
+    if (cfirstfreeApiConnectCopy == RNIL)
+    {
+      jam();
+      releaseSections(handle);
+      terrorCode = ZSEIZE_API_COPY_ERROR;
+      regApiPtr->m_flags |=
+        TcKeyReq::getExecuteFlag(tcIndxRequestInfo) ?
+        ApiConnectRecord::TF_EXEC_FLAG : 0;
+      apiConnectptr = transPtr;
+      abortErrorLab(signal);
+      return;
+    }
+    apiConnectptr = transPtr;
+    seizeApiConnectCopy(signal);
   }
 
   if (ERROR_INSERTED(8036) || !seizeIndexOperation(regApiPtr, indexOpPtr)) {

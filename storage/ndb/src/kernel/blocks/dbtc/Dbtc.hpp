@@ -885,16 +885,48 @@ public:
   // We break out the API Timer for optimisation on scanning rather than
   // on fast access.
   /*******************************************************************>*/
-  inline void setApiConTimer(Uint32 apiConPtrI, Uint32 value, Uint32 line){
-    c_apiConTimer[apiConPtrI] = value;
-    c_apiConTimer_line[apiConPtrI] = line;
-  }
+  struct ApiConTimers
+  {
+    STATIC_CONST( TYPE_ID = RT_DBTC_API_CONNECT_TIMERS );
+    STATIC_CONST( INDEX_BITS = 3 );
+    STATIC_CONST( INDEX_MASK = (1 << INDEX_BITS) - 1 );
+    STATIC_CONST( INDEX_MAX_COUNT = (1 << INDEX_BITS) - 2 );
 
-  inline Uint32 getApiConTimer(Uint32 apiConPtrI) const {
-    return c_apiConTimer[apiConPtrI];
-  }
-  UintR* c_apiConTimer;
-  UintR* c_apiConTimer_line;
+    struct TimerEntry
+    {
+      Uint32 m_timer;
+      Uint32 m_apiConnectRecord;
+    };
+
+    ApiConTimers():
+      m_magic(Magic::make(TYPE_ID)),
+      m_count(0),
+      m_top(0),
+      nextList(RNIL),
+      prevList(RNIL)
+    {}
+
+    static void static_asserts()
+    {
+      STATIC_ASSERT(sizeof(ApiConTimers) ==
+                      sizeof(TimerEntry) << INDEX_BITS);
+    }
+
+    Uint32 m_magic;
+    Uint16 m_count;
+    Uint16 m_top;
+    Uint32 nextList;
+    Uint32 prevList;
+    TimerEntry m_entries[INDEX_MAX_COUNT];
+  };
+
+  typedef Ptr<ApiConTimers> ApiConTimersPtr;
+  typedef TransientPool<ApiConTimers> ApiConTimers_pool;
+  typedef LocalDLFifoList<ApiConTimers_pool> LocalApiConTimers_list;
+
+  ApiConTimers_pool c_apiConTimersPool;
+  LocalApiConTimers_list::Head c_apiConTimersList;
+  ApiConTimers* c_currentApiConTimers;
 
   /**
    * Limit the resource (signal/job buffer) usage of a transaction
@@ -912,6 +944,8 @@ public:
 
     ApiConnectRecord():
       m_magic(Magic::make(TYPE_ID)),
+      m_apiConTimer(RNIL),
+      m_apiConTimer_line(0),
       nextApiConnect(RNIL),
       m_special_op_flags(0)
     {
@@ -925,6 +959,8 @@ public:
     //---------------------------------------------------
     // First 16 byte cache line. Hot variables.
     //---------------------------------------------------
+    Uint32 m_apiConTimer;
+    Uint32 m_apiConTimer_line; // Last line updating timer
     ConnectionState apiConnectstate;
     UintR transid[2];
     LocalTcConnectRecord_fifo::Head tcConnect;
@@ -1146,6 +1182,106 @@ public:
   };
   
   typedef Ptr<ApiConnectRecord> ApiConnectRecordPtr;
+
+  void setApiConTimer(ApiConnectRecordPtr apiConPtr, Uint32 value, Uint32 line)
+  {
+    const Uint32 apiConTimer = apiConPtr.p->m_apiConTimer;
+    ApiConTimersPtr apiConTimers;
+    ndbrequire(apiConTimer != RNIL);
+    apiConTimers.i = apiConTimer >> ApiConTimers::INDEX_BITS;
+    c_apiConTimersPool.getPtr(apiConTimers);
+    const Uint32 timer_index = apiConTimer & ApiConTimers::INDEX_MASK;
+    ndbassert(timer_index < apiConTimers.p->m_top);
+    ndbassert(apiConTimers.p->m_count > 0);
+    ndbassert(apiConTimers.p->m_entries[timer_index].m_apiConnectRecord ==
+                apiConPtr.i);
+
+    apiConTimers.p->m_entries[timer_index].m_timer = value;
+    apiConPtr.p->m_apiConTimer_line = line;
+  }
+
+  Uint32 getApiConTimer(const ApiConnectRecordPtr apiConPtr) const
+  {
+    const Uint32 apiConTimer = apiConPtr.p->m_apiConTimer;
+    ApiConTimersPtr apiConTimers;
+    ndbrequire(apiConTimer != RNIL);
+    apiConTimers.i = apiConTimer >> ApiConTimers::INDEX_BITS;
+    c_apiConTimersPool.getPtr(apiConTimers);
+    const Uint32 timer_index = apiConTimer & ApiConTimers::INDEX_MASK;
+    ndbassert(timer_index < apiConTimers.p->m_top);
+    ndbassert(apiConTimers.p->m_count > 0);
+    ndbassert(apiConTimers.p->m_entries[timer_index].m_apiConnectRecord ==
+                apiConPtr.i);
+
+    return apiConTimers.p->m_entries[timer_index].m_timer;
+  }
+
+  bool seizeApiConTimer(ApiConnectRecordPtr apiConPtr)
+  {
+    ndbrequire(apiConPtr.p->m_apiConTimer == RNIL);
+    if ((c_currentApiConTimers == NULL) ||
+        (c_currentApiConTimers->m_top == ApiConTimers::INDEX_MAX_COUNT))
+    {
+      jam();
+      ApiConTimersPtr apiConTimersptr;
+      if (!c_apiConTimersPool.seize(apiConTimersptr))
+      {
+        jam();
+        return false;
+      }
+      LocalApiConTimers_list timers_list(c_apiConTimersPool,
+                                         c_apiConTimersList);
+      timers_list.addLast(apiConTimersptr);
+      c_currentApiConTimers = apiConTimersptr.p;
+    }
+    ApiConTimers* apiConTimers = c_currentApiConTimers;
+    const Uint32 timer_index = apiConTimers->m_top;
+    const Uint32 apiConTimer =
+      (c_apiConTimersList.getLast() << ApiConTimers::INDEX_BITS) | timer_index;
+    apiConTimers->m_entries[timer_index].m_timer = 0;
+    apiConTimers->m_entries[timer_index].m_apiConnectRecord = apiConPtr.i;
+    apiConTimers->m_top++;
+    apiConTimers->m_count++;
+    apiConPtr.p->m_apiConTimer = apiConTimer;
+    apiConPtr.p->m_apiConTimer_line = 0;
+    return true;
+  }
+
+  void releaseApiConTimer(ApiConnectRecordPtr apiConPtr)
+  {
+    const Uint32 apiConTimer = apiConPtr.p->m_apiConTimer;
+    ndbrequire(apiConTimer != RNIL);
+
+    ApiConTimersPtr apiConTimers;
+    apiConTimers.i = apiConTimer >> ApiConTimers::INDEX_BITS;
+    c_apiConTimersPool.getPtr(apiConTimers);
+    const Uint32 timer_index = apiConTimer & ApiConTimers::INDEX_MASK;
+    apiConTimers.p->m_entries[timer_index].m_timer = 0;
+    apiConTimers.p->m_entries[timer_index].m_apiConnectRecord = RNIL;
+    ndbassert(apiConTimers.p->m_count > 0);
+    apiConTimers.p->m_count--;
+    if (apiConTimers.p->m_count == 0)
+    {
+      jam();
+      LocalApiConTimers_list timers_list(c_apiConTimersPool,
+                                         c_apiConTimersList);
+      timers_list.remove(apiConTimers);
+      c_apiConTimersPool.release(apiConTimers);
+      if (apiConTimers.p == c_currentApiConTimers)
+      {
+        jam();
+        if (timers_list.last(apiConTimers))
+        {
+          c_currentApiConTimers = apiConTimers.p;
+        }
+        else
+        {
+          c_currentApiConTimers = NULL;
+        }
+      }
+    }
+    apiConPtr.p->m_apiConTimer = RNIL;
+  }
 
   // ********************** CACHE RECORD **************************************
   //---------------------------------------------------------------------------
