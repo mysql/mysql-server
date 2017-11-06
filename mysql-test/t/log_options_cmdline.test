@@ -186,7 +186,8 @@ UNINSTALL COMPONENT "file://component_log_sink_json";
    my @ignore_patterns=
    ("\\[Warning\\] \\[[^]]*\\] Changed limits",
     "\\[Note\\] \\[[^]]*\\] Running in sandbox",
-    "\\[Note\\] \\[[^]]*\\] Basedir set to");
+    "\\[Note\\] \\[[^]]*\\] Basedir set to",
+    "\\[Note\\] \\[[^]]*\\] Thread priority attribute");
 
    my $ignore_regex= "(". join('|', @ignore_patterns). ")";
    # --------
