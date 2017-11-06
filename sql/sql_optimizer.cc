@@ -3766,6 +3766,17 @@ static bool check_simple_equality(THD *thd,
       const_item= left_item;
     }
 
+    /*
+      If the constant expression contains a reference to the field
+      (for example, a = (a IS NULL)), we don't want to replace the
+      field with the constant expression as it makes the predicates
+      more complex and may introduce cycles in the Item tree.
+    */
+    if (const_item != nullptr &&
+        const_item->walk(&Item::find_field_processor, Item::WALK_POSTFIX,
+                         pointer_cast<uchar*>(field_item->field)))
+      return false;
+
     if (const_item &&
         field_item->result_type() == const_item->result_type())
     {

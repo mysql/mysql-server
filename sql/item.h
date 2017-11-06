@@ -2115,6 +2115,8 @@ public:
   virtual bool find_item_in_field_list_processor(uchar *) { return false; }
   virtual bool change_context_processor(uchar *) { return false; }
   virtual bool find_item_processor(uchar *arg) { return this == (void *) arg; }
+  /// Is this an Item_field which references the given Field argument?
+  virtual bool find_field_processor(uchar *) { return false; }
   /**
     Mark underlying field in read or write map of a table.
 
@@ -3317,6 +3319,8 @@ public:
   bool add_field_to_cond_set_processor(uchar *) override;
   bool remove_column_from_bitmap(uchar *arg) override;
   bool find_item_in_field_list_processor(uchar *arg) override;
+  bool find_field_processor(uchar *arg) override
+  { return pointer_cast<Field *>(arg) == field; }
   bool check_gcol_func_processor(uchar *int_arg) override;
   bool mark_field_in_map(uchar *arg) override
   {
