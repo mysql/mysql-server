@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -492,6 +492,7 @@ dict_table_close(
 					indexes after an aborted online
 					index creation */
 {
+	ibool		drop_aborted;
 	if (!dict_locked && !dict_table_is_intrinsic(table)) {
 		mutex_enter(&dict_sys->mutex);
 	}
@@ -499,6 +500,10 @@ dict_table_close(
 	ut_ad(mutex_own(&dict_sys->mutex) || dict_table_is_intrinsic(table));
 	ut_a(table->get_ref_count() > 0);
 
+	drop_aborted = try_drop
+			&& table->drop_aborted
+			&& table->get_ref_count() == 1
+			&& dict_table_get_first_index(table);
 	table->release();
 
 	/* Intrinsic table is not added to dictionary cache so skip other
@@ -533,12 +538,6 @@ dict_table_close(
 
 	if (!dict_locked) {
 		table_id_t	table_id	= table->id;
-		ibool		drop_aborted;
-
-		drop_aborted = try_drop
-			&& table->drop_aborted
-			&& table->get_ref_count() == 1
-			&& dict_table_get_first_index(table);
 
 		mutex_exit(&dict_sys->mutex);
 
@@ -2155,6 +2154,28 @@ dict_table_remove_from_cache_low(
 		foreign->referenced_index = NULL;
 	}
 
+	if (lru_evict && table->drop_aborted) {
+		/* Do as dict_table_try_drop_aborted() does. */
+
+		trx_t* trx = trx_allocate_for_background();
+
+		ut_ad(mutex_own(&dict_sys->mutex));
+		ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
+
+		/* Mimic row_mysql_lock_data_dictionary(). */
+		trx->dict_operation_lock_mode = RW_X_LATCH;
+
+		trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
+
+		/* Silence a debug assertion in row_merge_drop_indexes(). */
+		ut_d(table->acquire());
+		row_merge_drop_indexes(trx, table, TRUE);
+		ut_d(table->release());
+		ut_ad(table->get_ref_count() == 0);
+		trx_commit_for_mysql(trx);
+		trx->dict_operation_lock_mode = 0;
+		trx_free_for_background(trx);
+	}
 	/* Remove the indexes from the cache */
 
 	for (index = UT_LIST_GET_LAST(table->indexes);
@@ -2185,29 +2206,6 @@ dict_table_remove_from_cache_low(
 
 	if (lru_evict) {
 		dict_table_autoinc_store(table);
-	}
-
-	if (lru_evict && table->drop_aborted) {
-		/* Do as dict_table_try_drop_aborted() does. */
-
-		trx_t* trx = trx_allocate_for_background();
-
-		ut_ad(mutex_own(&dict_sys->mutex));
-		ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
-
-		/* Mimic row_mysql_lock_data_dictionary(). */
-		trx->dict_operation_lock_mode = RW_X_LATCH;
-
-		trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
-
-		/* Silence a debug assertion in row_merge_drop_indexes(). */
-		ut_d(table->acquire());
-		row_merge_drop_indexes(trx, table, TRUE);
-		ut_d(table->release());
-		ut_ad(table->get_ref_count() == 0);
-		trx_commit_for_mysql(trx);
-		trx->dict_operation_lock_mode = 0;
-		trx_free_for_background(trx);
 	}
 
 	/* Free virtual column template if any */
