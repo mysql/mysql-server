@@ -1,0 +1,122 @@
+# ***************************************************
+# wl#8619: Test the basic functionality of portability
+# Test by moving --datadir location to new location 
+# start the server with only by providing the --datadir
+# Here in this case no need to pass the option 
+# --innodb-directories
+# ****************************************************
+--source include/have_innodb_max_16k.inc
+
+let $MYSQLD_OLD_DATADIR = `select @@datadir`;
+
+# Create new datadir folders like data
+--mkdir $MYSQL_TMP_DIR/new_datadir
+--mkdir $MYSQL_TMP_DIR/new_datadir/data
+let $MYSQLD_NEW_DATADIR = $MYSQL_TMP_DIR/new_datadir/data;
+--mkdir $MYSQLD_NEW_DATADIR/test
+--mkdir $MYSQLD_NEW_DATADIR/mysql
+--mkdir $MYSQLD_NEW_DATADIR/sys
+--mkdir $MYSQLD_NEW_DATADIR/performance_schema
+--mkdir $MYSQLD_NEW_DATADIR/mtr
+
+--echo ## create tables and tablespaces without absolute paths
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' Engine=InnoDB;
+
+CREATE TABLE tab1(c1 int, c2 varchar(10)) TABLESPACE=ts1;
+
+INSERT INTO tab1 VALUES(1, 'VISH');
+
+CREATE TABLE tab2(c1 int, c2 varchar(10)) Engine=InnoDB;
+
+INSERT INTO tab2 VALUES(2, 'VISH');
+
+CREATE INDEX ix1 ON tab1(c2) USING BTREE;
+
+CREATE INDEX ix1 ON tab2(c2) ;
+
+--echo ## Stop DB server
+--source include/shutdown_mysqld.inc
+
+--echo # Copy whole --datadir files into new location
+--copy_file $MYSQLD_OLD_DATADIR/auto.cnf $MYSQLD_NEW_DATADIR/auto.cnf
+--copy_file $MYSQLD_OLD_DATADIR/ib_buffer_pool $MYSQLD_NEW_DATADIR/ib_buffer_pool
+--copy_file $MYSQLD_OLD_DATADIR/ibdata1 $MYSQLD_NEW_DATADIR/ibdata1
+--copy_files_wildcard $MYSQLD_OLD_DATADIR  $MYSQLD_NEW_DATADIR *.ibd
+--copy_files_wildcard $MYSQLD_OLD_DATADIR  $MYSQLD_NEW_DATADIR undo*
+--copy_files_wildcard $MYSQLD_OLD_DATADIR  $MYSQLD_NEW_DATADIR ib_logfile*
+
+--copy_files_wildcard $MYSQLD_OLD_DATADIR/test/  $MYSQLD_NEW_DATADIR/test/ *.*
+--copy_files_wildcard $MYSQLD_OLD_DATADIR/sys/  $MYSQLD_NEW_DATADIR/sys/ *.*
+--copy_files_wildcard $MYSQLD_OLD_DATADIR/performance_schema/  $MYSQLD_NEW_DATADIR/performance_schema/ *.*
+--copy_files_wildcard $MYSQLD_OLD_DATADIR/mysql/  $MYSQLD_NEW_DATADIR/mysql/ *.*
+--copy_files_wildcard $MYSQLD_OLD_DATADIR/mtr/  $MYSQLD_NEW_DATADIR/mtr/ *.*
+
+--echo ## Start with new --datadir
+--let $restart_parameters="restart: --datadir=$MYSQLD_NEW_DATADIR"
+--source include/start_mysqld_no_echo.inc
+
+--echo ## Check datadir started with new one
+--replace_result $MYSQLD_NEW_DATADIR NEW_DATADIR
+SELECT @@datadir;
+
+--echo ## Check with SHOW
+SHOW CREATE TABLE tab1;
+
+SHOW CREATE TABLE tab2;
+
+--echo ## Check with DML and DDL
+SELECT * FROM tab1;
+
+SELECT * FROM tab2;
+
+DELETE FROM tab1;
+
+DELETE FROM tab2;
+
+ALTER TABLE tab1 add column c3 varchar(10);
+
+INSERT INTO tab1 VALUES(1, 'VISH','NATH');
+
+INSERT INTO tab2 VALUES(2, 'VISH');
+
+SELECT * FROM tab1;
+
+SELECT * FROM tab2;
+
+# Clean up new datadir
+DROP TABLE tab1;
+DROP TABLE tab2;
+DROP TABLESPACE ts1;
+
+--echo # Stop DB server with new datadir
+--source include/shutdown_mysqld.inc
+
+# Clean up new datadir while server is OFF
+--remove_files_wildcard $MYSQLD_NEW_DATADIR/test/ *.*
+--remove_files_wildcard $MYSQLD_NEW_DATADIR/sys/ *.*
+--remove_files_wildcard $MYSQLD_NEW_DATADIR/mysql/ *.*
+--remove_files_wildcard $MYSQLD_NEW_DATADIR/mtr/ *.*
+--remove_files_wildcard $MYSQLD_NEW_DATADIR/performance_schema/ *
+--rmdir $MYSQLD_NEW_DATADIR/mtr
+--rmdir $MYSQLD_NEW_DATADIR/mysql
+--rmdir $MYSQLD_NEW_DATADIR/sys
+--rmdir $MYSQLD_NEW_DATADIR/test
+--rmdir $MYSQLD_NEW_DATADIR/performance_schema
+--remove_files_wildcard $MYSQLD_NEW_DATADIR/ *
+--rmdir $MYSQLD_NEW_DATADIR
+--rmdir $MYSQL_TMP_DIR/new_datadir
+
+--echo # Re-start with old --datadir
+--replace_result $MYSQLD_OLD_DATADIR OLD_DATADIR
+--let $restart_parameters="restart: --datadir=$MYSQLD_OLD_DATADIR"
+--source include/start_mysqld.inc
+
+--echo # Check --datadir started with old
+--replace_result $MYSQLD_OLD_DATADIR OLD_DATADIR
+SELECT @@datadir;
+
+# Clean up old datadir
+DROP TABLE tab1;
+DROP TABLE tab2;
+DROP TABLESPACE ts1;
+
