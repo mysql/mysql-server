@@ -2262,8 +2262,7 @@ sub find_mysqld {
 
   my ($mysqld_basedir)= $ENV{MTR_BINDIR}|| @_;
 
-  my @mysqld_names= ("mysqld", "mysqld-max-nt", "mysqld-max",
-		     "mysqld-nt");
+  my @mysqld_names= ("mysqld");
 
   if ( $opt_debug_server ){
     # Put mysqld-debug first in the list of binaries to look for
@@ -2510,7 +2509,6 @@ sub mysqlbackup_arguments ()
 {
   my $exe= mtr_exe_maybe_exists(vs_config_dirs('runtime_output_directory',
                                                'mysqlbackup'),
-                                "$basedir/bin/mysqlbackup",
                                 "$path_client_bindir/mysqlbackup");
   return "" unless $exe;
 
@@ -3199,15 +3197,21 @@ sub vs_config_dirs ($$) {
   my ($path_part, $exe) = @_;
 
   $exe = "" if not defined $exe;
-  if ($opt_vs_config)
+
+  if (IS_WINDOWS)
   {
-    return ("$bindir/$path_part/$opt_vs_config/$exe");
+    if ($opt_vs_config)
+    {
+      return ("$bindir/$path_part/$opt_vs_config/$exe");
+    }
+
+    return ("$bindir/$path_part/Release/$exe",
+            "$bindir/$path_part/RelWithDebinfo/$exe",
+            "$bindir/$path_part/Debug/$exe",
+            "$bindir/$path_part/$exe");
   }
 
-  return ("$bindir/$path_part/Release/$exe",
-          "$bindir/$path_part/RelWithDebinfo/$exe",
-          "$bindir/$path_part/Debug/$exe",
-          "$bindir/$path_part/$exe");
+  return("$bindir/$path_part/$exe");
 }
 
 
