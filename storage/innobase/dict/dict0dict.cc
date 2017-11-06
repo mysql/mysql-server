@@ -558,13 +558,17 @@ dict_table_close(
 					indexes after an aborted online
 					index creation */
 {
+	ibool	drop_aborted;
 	if (!dict_locked && !table->is_intrinsic()) {
 		mutex_enter(&dict_sys->mutex);
 	}
 
 	ut_ad(mutex_own(&dict_sys->mutex) || table->is_intrinsic());
 	ut_a(table->get_ref_count() > 0);
-
+	drop_aborted = try_drop
+		&& table->drop_aborted
+		&& table->get_ref_count() == 1
+		&& table->first_index();
 	table->release();
 
 #ifndef UNIV_HOTBACKUP
@@ -600,12 +604,6 @@ dict_table_close(
 
 	if (!dict_locked) {
 		table_id_t	table_id	= table->id;
-		ibool		drop_aborted;
-
-		drop_aborted = try_drop
-			&& table->drop_aborted
-			&& table->get_ref_count() == 1
-			&& table->first_index();
 
 		mutex_exit(&dict_sys->mutex);
 
