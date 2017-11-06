@@ -80,7 +80,13 @@ CREATE TABLESPACE test/s_bad ADD DATAFILE 's_bad.ibd';
 --error ER_WRONG_TABLESPACE_NAME
 CREATE TABLESPACE `test/s_bad` ADD DATAFILE 's_bad.ibd';
 LET $TWOFIFTYFIVE=../xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx;
+<<<<<<< HEAD
 --error ER_WRONG_FILE_NAME
+=======
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: File .* 'delete' returned OS error .*");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: File .* 'stat' returned OS error .*");
+--error ER_CREATE_FILEGROUP_FAILED
+>>>>>>> mysql-trunk
 eval CREATE TABLESPACE `s_too_long_file_name` ADD DATAFILE '$TWOFIFTYFIVE.ibd';
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW WARNINGS;
@@ -975,7 +981,7 @@ DROP TABLESPACE s1;
 --echo #
 USE test;
 CREATE TABLESPACE s1 ADD DATAFILE 's1.ibd' ENGINE InnoDB;
-CREATE TABLE t1 (a geometry NOT NULL, SPATIAL (a)) ENGINE=InnoDB;
+CREATE TABLE t1 (a geometry NOT NULL SRID 0, SPATIAL (a)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (st_GeomFromText("LINESTRING(100 100, 200 200, 300 300)")) ;
 DELIMITER |;
 CREATE PROCEDURE p1()

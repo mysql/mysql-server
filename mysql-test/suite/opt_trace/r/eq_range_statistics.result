@@ -612,7 +612,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b=4)	{
                       "access_type": "ref",
                       "index": "a",
                       "chosen": false,
-                      "cause": "unreliable_ref_cost_and_range_uses_more_keyparts"
+                      "cause": "range_uses_more_keyparts"
                     },
                     {
                       "rows_to_scan": 3,
@@ -823,7 +823,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b>4)	{
                       "access_type": "ref",
                       "index": "a",
                       "chosen": false,
-                      "cause": "unreliable_ref_cost_and_range_uses_more_keyparts"
+                      "cause": "range_uses_more_keyparts"
                     },
                     {
                       "rows_to_scan": 3,
@@ -1033,7 +1033,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b IS NULL)	{
                       "access_type": "ref",
                       "index": "a",
                       "chosen": false,
-                      "cause": "unreliable_ref_cost_and_range_uses_more_keyparts"
+                      "cause": "range_uses_more_keyparts"
                     },
                     {
                       "rows_to_scan": 3,

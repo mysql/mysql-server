@@ -409,7 +409,7 @@ bool SELECT_LEX::prepare(THD *thd)
     { 
       item_sum= item_sum->next;
       item_sum->split_sum_func2(thd, base_ref_items,
-                                all_fields, item_sum->ref_by, false);
+                                all_fields, nullptr, false);
     } while (item_sum != end);
   }
 
@@ -2286,10 +2286,10 @@ SELECT_LEX::convert_subquery_to_semijoin(Item_exists_subselect *subq_pred)
 
        (TODO: can we just create a list of pointers and hope the expressions
        will not substitute themselves on fix_fields()? or we need to wrap
-       them into Item_direct_view_refs and store pointers to those. The
-       pointers to Item_direct_view_refs are guaranteed to be stable as 
-       Item_direct_view_refs doesn't substitute itself with anything in 
-       Item_direct_view_ref::fix_fields.
+       them into Item_view_refs and store pointers to those. The
+       pointers to Item_view_refs are guaranteed to be stable as
+       Item_view_refs doesn't substitute itself with anything in
+       Item_view_ref::fix_fields.
 
     We have a special case for IN predicates with a scalar subquery or a
     row subquery in the predicand (left operand), such as this:
@@ -3051,25 +3051,13 @@ void SELECT_LEX::merge_contexts(SELECT_LEX *inner)
 
     - adds fields referenced from inner query blocks to the current select list
 
-    - Decides which class to use to reference the items (Item_ref or
-      Item_direct_ref)
+    - creates an object to use to reference the items (Item_ref)
 
     - fixes references (Item_ref objects) to these fields.
 
     If a field isn't already on the select list and the base_ref_items array
     is provided then it is added to the all_fields list and the pointer to
     it is saved in the base_ref_items array.
-
-    The class to access the outer field is determined by the following rules:
-
-    -#. If the outer field isn't used under an aggregate function then the
-        Item_ref class should be used.
-
-    -#. If the outer field is used under an aggregate function and this
-        function is, in turn, aggregated in the query block where the outer
-        field was resolved or some query nested therein, then the
-        Item_direct_ref class should be used. Also it should be used if we are
-        grouping by a subquery containing the outer field.
 
     The resolution is done here and not at the fix_fields() stage as
     it can be done only after aggregate functions are fixed and pulled up to
@@ -3091,7 +3079,6 @@ bool SELECT_LEX::fix_inner_refs(THD *thd)
   List_iterator<Item_outer_ref> ref_it(inner_refs_list);
   while ((ref= ref_it++))
   {
-    bool direct_ref= false;
     Item *item= ref->outer_ref;
     Item **item_ref= ref->ref;
 
@@ -3111,44 +3098,7 @@ bool SELECT_LEX::fix_inner_refs(THD *thd)
       item_ref= add_hidden_item(item);
     }
 
-    if (ref->in_sum_func)
-    {
-      if (ref->in_sum_func->base_select->nest_level > nest_level)
-        direct_ref= true;
-      else
-      {
-        for (Item_sum *sum_func= ref->in_sum_func;
-             sum_func && sum_func->aggr_select &&
-                         sum_func->aggr_select->nest_level >= nest_level;
-             sum_func= sum_func->in_sum_func)
-        {
-          if (sum_func->aggr_select->nest_level == nest_level)
-          {
-            direct_ref= true;
-            break;
-          }
-        }
-      }
-    }
-    else
-    {
-      /*
-        Check if GROUP BY item trees contain the outer ref:
-        in this case we have to use Item_direct_ref instead of Item_ref.
-      */
-      for (ORDER *group= group_list.first; group; group= group->next)
-      {
-        if ((*group->item)->walk(&Item::find_item_processor, walk_subquery,
-                                 (uchar *) ref))
-        {
-          direct_ref= true;
-          break;
-        }
-      }
-    }
-    Item_ref *const new_ref= direct_ref ?
-              new Item_direct_ref(ref->context, item_ref, ref->table_name,
-                                  ref->field_name, ref->is_alias_of_expr()) :
+    Item_ref *const new_ref=
               new Item_ref(ref->context, item_ref, ref->table_name,
                            ref->field_name, ref->is_alias_of_expr());
     if (!new_ref)
@@ -3512,7 +3462,7 @@ find_order_in_list(THD *thd, Ref_item_array ref_item_array,
     newly created object.
   */
   if (order_item->type() == Item::SUM_FUNC_ITEM)
-    ((Item_sum *)order_item)->ref_by= all_fields.head_ref();
+    ((Item_sum *)order_item)->ref_by[0]= all_fields.head_ref();
 
   /*
     Currently, we assume that this assertion holds. If it turns out

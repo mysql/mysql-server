@@ -59,7 +59,7 @@ int my_socket_close(ndb_socket_t s)
 int my_socketpair(ndb_socket_t s[2])
 {
   struct sockaddr_in addr;
-  socket_len_t addrlen = sizeof(addr);
+  ndb_socket_len_t addrlen = sizeof(addr);
   ndb_socket_t listener;
 
   my_socket_invalidate(&listener);

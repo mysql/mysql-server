@@ -40,6 +40,7 @@
 #include "my_sqlcommand.h"
 #include "my_thread_local.h"
 #include "myisam.h"                      // MI_MAX_KEY_LENGTH
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/plugin.h"
@@ -5516,16 +5517,16 @@ static Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
     table_name= view->table_name;
   }
   /*
-    @note Creating an Item_direct_view_ref object on top of an Item_field
+    @note Creating an Item_view_ref object on top of an Item_field
           means that the underlying Item_field object may be shared by
           multiple occurrences of superior fields. This is a vulnerable
           practice, so special precaution must be taken to avoid programming
           mistakes, such as forgetting to mark the use of a field in both
           read_set and write_set (may happen e.g in an UPDATE statement).
   */
-  Item *item= new Item_direct_view_ref(context, field_ref,
-                                       view->alias, table_name,
-                                       name, view);
+  Item *item= new Item_view_ref(context, field_ref,
+                                view->alias, table_name,
+                                name, view);
   DBUG_RETURN(item);
 }
 

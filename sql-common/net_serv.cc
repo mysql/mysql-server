@@ -1080,8 +1080,13 @@ my_net_read(NET *net)
     net->remain_in_buf= (ulong) (buf_length - start_of_packet);
     len = ((ulong) (start_of_packet - first_packet_offset) - NET_HEADER_SIZE -
            multi_byte_packet);
-    net->save_char= net->read_pos[len];	/* Must be saved */
-    net->read_pos[len]=0;		/* Safeguard for mysql_use_result */
+    /*
+      Save byte to restore when processing remaining buffer. Skip ahead when
+      the packet is a zero packet terminated (in case of multiple of 0xffffff).
+    */
+    if (net->remain_in_buf)
+      net->save_char= net->read_pos[len + multi_byte_packet];
+    net->read_pos[len]= '\0'; // Safeguard for mysql_use_result.
   }
   return static_cast<ulong>(len);
 }

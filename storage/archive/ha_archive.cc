@@ -29,6 +29,7 @@
 #include "my_dir.h"
 #include "my_psi_config.h"
 #include "myisam.h"
+#include "mysql/plugin.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_memory.h"
 #include "sql/derror.h"

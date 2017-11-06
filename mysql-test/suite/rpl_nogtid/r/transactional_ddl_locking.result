@@ -1262,6 +1262,7 @@ ALTER DATABASE db1 CHARACTER SET big5;;
 --- connection master2 ---
 --- connection master1 ---
 reap result of previous---
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 --- connection master ---
 COMMIT;
 --- connection slave ---

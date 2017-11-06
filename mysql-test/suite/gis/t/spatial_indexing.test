@@ -16,7 +16,7 @@ DROP TABLE IF EXISTS gis_point_with_spatial_index;
 --enable_warnings
 
 CREATE TABLE gis_point_with_spatial_index  (fid INTEGER NOT NULL PRIMARY KEY, g POINT 
-NOT NULL,spatial index (g) ) engine=myisam;
+NOT NULL SRID 0,spatial index (g) ) engine=myisam;
 
 let $i=$k;
 while ($i)
@@ -41,7 +41,7 @@ DROP TABLE IF EXISTS gis_line_with_spatial_index;
 --enable_warnings
 
 CREATE TABLE gis_line_with_spatial_index  (fid INTEGER NOT NULL PRIMARY KEY, g LINESTRING 
-NOT NULL, spatial index (g) ) engine=myisam;
+NOT NULL SRID 0, spatial index (g) ) engine=myisam;
 
 let $i=$k;
 while ($i)
@@ -67,7 +67,7 @@ DROP TABLE IF EXISTS gis_polygon_with_spatial_index;
 --enable_warnings
 
 CREATE TABLE gis_polygon_with_spatial_index  (fid INTEGER NOT NULL PRIMARY KEY, g POLYGON 
-NOT NULL, spatial index (g) ) engine=myisam;
+NOT NULL SRID 0, spatial index (g) ) engine=myisam;
 
 let $i=$k;
 while ($i)
@@ -93,7 +93,7 @@ DROP TABLE IF EXISTS gis_multipoint_with_spatial_index;
 --enable_warnings
 
 CREATE TABLE gis_multipoint_with_spatial_index  (fid INTEGER NOT NULL PRIMARY KEY, g MULTIPOINT
-NOT NULL, spatial index (g) ) engine=myisam;
+NOT NULL SRID 0, spatial index (g) ) engine=myisam;
 
 let $i=$k;
 while ($i)
@@ -119,7 +119,7 @@ DROP TABLE IF EXISTS gis_multiline_with_spatial_index;
 --enable_warnings
 
 CREATE TABLE gis_multiline_with_spatial_index  (fid INTEGER NOT NULL PRIMARY KEY, g MULTILINESTRING
-NOT NULL, spatial index (g) ) engine=myisam;
+NOT NULL SRID 0, spatial index (g) ) engine=myisam;
 
 let $i=$k;
 while ($i)
@@ -145,7 +145,7 @@ DROP TABLE IF EXISTS gis_multipolygon_with_spatial_index;
 --enable_warnings
 
 CREATE TABLE gis_multipolygon_with_spatial_index  (fid INTEGER NOT NULL PRIMARY KEY, g MULTIPOLYGON
-NOT NULL, spatial index (g) ) engine=myisam;
+NOT NULL SRID 0, spatial index (g) ) engine=myisam;
 
 let $i=$k;
 while ($i)
@@ -173,7 +173,7 @@ DROP TABLE IF EXISTS gis_geometrycollection_with_spatial_index;
 --enable_warnings
 
 CREATE TABLE gis_geometrycollection_with_spatial_index  (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRYCOLLECTION 
-NOT NULL, spatial index (g) ) engine=myisam;
+NOT NULL SRID 0, spatial index (g) ) engine=myisam;
 
 let $i=$k;
 while ($i)
@@ -199,7 +199,7 @@ DROP TABLE IF EXISTS gis_geometry_with_spatial_index;
 --enable_warnings
 
 CREATE TABLE gis_geometry_with_spatial_index  (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY 
-NOT NULL, spatial index (g) ) engine=myisam;
+NOT NULL SRID 0, spatial index (g) ) engine=myisam;
 
 let $i=$k;
 while ($i)
@@ -226,7 +226,7 @@ DROP TABLE IF EXISTS gis_point_and_int_with_spatial_index;
 --enable_warnings
 
 CREATE TABLE gis_point_and_int_with_spatial_index  (fid INTEGER NOT NULL PRIMARY KEY, g LINESTRING 
-NOT NULL,spatial index (g) ) engine=myisam;
+NOT NULL SRID 0,spatial index (g) ) engine=myisam;
 
 let $i=$k;
 while ($i)
@@ -247,7 +247,7 @@ DROP TABLE IF EXISTS gis_point_and_int_with_spatial_index;
 # Check indexes for spatial data and normal data on same table with spatial index
 ############################################################################################
 CREATE TABLE gis_point_and_int_with_spatial_index  (fid INTEGER NOT NULL PRIMARY KEY, g POINT 
-NOT NULL, a int,  spatial index (g) ) engine=myisam;
+NOT NULL SRID 0, a int,  spatial index (g) ) engine=myisam;
 # Inserting the values specific to the spatial objects                                     #
 --echo #INSERT valid entries to Point class
 --disable_warnings
@@ -286,7 +286,7 @@ DROP TABLE IF EXISTS gis_point_and_int_with_spatial_index;
 #POINT: Check indexes for spatial data and normal data on same table with spatial index
 ############################################################################################
 CREATE TABLE gis_point_and_int_with_spatial_index  (fid INTEGER NOT NULL PRIMARY KEY, g POINT 
-NOT NULL, a int,  index (a) ) engine=myisam;
+NOT NULL SRID 0, a int,  index (a) ) engine=myisam;
 # Inserting the values specific to the spatial objects                                     #
 --echo #INSERT valid entries to Point class
 --disable_warnings
@@ -327,7 +327,7 @@ DROP TABLE IF EXISTS gis_point_and_int_with_spatial_index ;
 DROP TABLE IF EXISTS gis_linestring_and_int_with_spatial_index ;
 --enable_warnings
 CREATE TABLE gis_linestring_and_int_with_spatial_index  (fid INTEGER NOT NULL PRIMARY KEY, g LINESTRING 
-NOT NULL, a int,  spatial index (g) ) engine=myisam;
+NOT NULL SRID 0, a int,  spatial index (g) ) engine=myisam;
 # Inserting the values specific to the spatial objects                                     #
 --echo #INSERT valid entries to Point class
 --disable_warnings
@@ -370,7 +370,7 @@ DROP TABLE IF EXISTS gis_linestring_and_int_with_spatial_index ;
 DROP TABLE IF EXISTS gis_multilinestring_and_int_with_spatial_index ;
 --enable_warnings
 CREATE TABLE gis_multilinestring_and_int_with_spatial_index  (fid INTEGER PRIMARY KEY, g MULTILINESTRING 
-NOT NULL, a int,  spatial index (g) ) engine=myisam;
+NOT NULL SRID 0, a int,  spatial index (g) ) engine=myisam;
 # Inserting the values specific to the spatial objects                                     #
 --echo #INSERT valid entries to Point class
 --disable_warnings
@@ -412,7 +412,7 @@ DROP TABLE IF EXISTS gis_multilinestring_and_int_with_spatial_index ;
 DROP TABLE IF EXISTS gis_polygon_and_int_with_spatial_index ;
 --enable_warnings
 CREATE TABLE gis_polygon_and_int_with_spatial_index  (fid INTEGER PRIMARY KEY, g POLYGON
-NOT NULL, a int,  spatial index (g) ) engine=myisam;
+NOT NULL SRID 0, a int,  spatial index (g) ) engine=myisam;
 # Inserting the values specific to the spatial objects                                     #
 --echo #INSERT valid entries to Point class
 --disable_warnings
@@ -455,7 +455,7 @@ DROP TABLE IF EXISTS gis_polygon_and_int_with_spatial_index ;
 DROP TABLE IF EXISTS gis_multipolygon_and_int_with_spatial_index ;
 --enable_warnings
 CREATE TABLE gis_multipolygon_and_int_with_spatial_index  (fid INTEGER PRIMARY KEY, g multiPOLYGON
-NOT NULL, a int,  spatial index (g) ) engine=myisam;
+NOT NULL SRID 0, a int,  spatial index (g) ) engine=myisam;
 # Inserting the values specific to the spatial objects                                     #
 --echo #INSERT valid entries to Point class
 --disable_warnings
@@ -504,7 +504,7 @@ CREATE TABLE gis_multipolygon_and_int_with_spatial_index  (fid INTEGER NOT NULL,
 CREATE TABLE gis_multipolygon_and_int_with_spatial_index  (fid INTEGER NOT NULL, g MULTIPOLYGON, a int,  spatial index (fid) ) engine=myisam;
 
 CREATE TABLE gis_multipolygon_and_int_with_spatial_index  (fid INTEGER PRIMARY KEY, g MULTIPOLYGON
-NOT NULL, a int,  spatial index (g) ) engine=myisam;
+NOT NULL SRID 0, a int,  spatial index (g) ) engine=myisam;
 # Inserting the values specific to the spatial objects                                     #
 --echo #INSERT valid entries to Point class
 --disable_warnings

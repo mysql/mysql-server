@@ -389,6 +389,7 @@
 #include "my_time.h"
 #include "my_timer.h"                   // my_timer_initialize
 #include "myisam.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/plugin.h"
 #include "mysql/plugin_audit.h"
@@ -461,6 +462,7 @@
 #include "sql/options_mysqld.h"         // OPT_THREAD_CACHE_SIZE
 #include "sql/partitioning/partition_handler.h" // partitioning_init
 #include "sql/persisted_variable.h"     // Persisted_variables_cache
+#include "sql/plugin_table.h"
 #include "sql/protocol.h"
 #include "sql/psi_memory_key.h"         // key_memory_MYSQL_RELAY_LOG_index
 #include "sql/query_options.h"

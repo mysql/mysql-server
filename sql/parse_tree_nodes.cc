@@ -40,7 +40,6 @@
 #include "sql/sp.h"         // sp_add_used_routine
 #include "sql/sp_instr.h"   // sp_instr_set
 #include "sql/sp_pcontext.h"
-#include "sql/sql_array.h"
 #include "sql/sql_base.h"                    // find_temporary_table
 #include "sql/sql_call.h"   // Sql_cmd_call...
 #include "sql/sql_cmd.h"
@@ -2547,10 +2546,7 @@ bool PT_window::contextualize(Parse_context *pc)
 
   if (m_frame != NULL)
   {
-    PT_border *ba[]= { m_frame->m_from, m_frame->m_to };
-    auto constexpr siz= sizeof(ba) / sizeof(PT_border *);
-
-    for (auto bound : Bounds_checked_array<PT_border *>(ba, siz))
+    for (auto bound : { m_frame->m_from, m_frame->m_to })
     {
       if (bound->m_border_type == WBT_VALUE_PRECEDING ||
            bound->m_border_type == WBT_VALUE_FOLLOWING)

@@ -9,4 +9,4 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-binlog_xa_commit_failure : BUG#26962434 October 13 2017 Dmitry Shulga
+binlog_xa_commit_failure : BUG#26849138 October 13 2017 Dmitry Shulga

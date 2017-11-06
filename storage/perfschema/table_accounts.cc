@@ -25,6 +25,7 @@
 #include "my_dbug.h"
 #include "my_thread.h"
 #include "sql/field.h"
+#include "sql/plugin_table.h"
 #include "storage/perfschema/pfs_account.h"
 #include "storage/perfschema/pfs_instr.h"
 #include "storage/perfschema/pfs_instr_class.h"

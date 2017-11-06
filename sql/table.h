@@ -291,7 +291,16 @@ struct ORDER
      SELECT a AS foo GROUP BY a: false.
   */
   bool   used_alias;
-  Field  *field;                        /* If tmp-table group */
+  /**
+    When GROUP BY is implemented with a temporary table (i.e. the table takes
+    care to store only unique group rows, table->group != nullptr), each GROUP
+    BY expression is stored in a column of the table, which is
+    'field_in_tmp_table'.
+    Such field may point into table->record[0] (if we only use it to get its
+    value from a tmp table's row), or into 'buff' (if we use it to do index
+    lookup into the tmp table).
+  */
+  Field  *field_in_tmp_table;
   char   *buff;                         /* If tmp-table group */
   table_map used, depend_map;
   bool is_position;  /* An item expresses a position in a ORDER clause */
@@ -626,6 +635,17 @@ typedef struct Table_share_foreign_key_info
 {
   LEX_CSTRING referenced_table_db;
   LEX_CSTRING referenced_table_name;
+  /**
+    Name of unique key matching FK in parent table, "" if there is no
+    unique key.
+  */
+  LEX_CSTRING unique_constraint_name;
+  dd::Foreign_key::enum_rule update_rule, delete_rule;
+  uint columns;
+  /**
+    Arrays with names of referencing columns of the FK.
+  */
+  LEX_CSTRING *column_name;
 } TABLE_SHARE_FOREIGN_KEY_INFO;
 
 

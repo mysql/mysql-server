@@ -116,6 +116,17 @@ dict_build_tablespace(
 
 	Datafile*	datafile = tablespace->first_datafile();
 
+	/* If file already exists we cannot write delete space to ddl log. */
+	os_file_type_t	type;
+	bool	exists;
+	if (os_file_status(datafile->filepath(), &exists, &type)) {
+		if (exists) {
+			return DB_TABLESPACE_EXISTS;
+		}
+	} else {
+		return DB_IO_ERROR;
+	}
+
 	log_ddl->write_delete_space_log(
 		trx, NULL, space, datafile->filepath(), false, true);
 
@@ -227,6 +238,19 @@ dict_build_tablespace_for_table(
 		} else {
 			filepath = Fil_path::make_ibd_from_table_name(
 				table->name.m_name);
+		}
+
+		/* If file already exists we cannot write delete space to ddl log. */
+		os_file_type_t	type;
+		bool	exists;
+		if (os_file_status(filepath, &exists, &type)) {
+			if (exists) {
+				ut_free(filepath);
+				return DB_TABLESPACE_EXISTS;
+			}
+		} else {
+			ut_free(filepath);
+			return DB_IO_ERROR;
 		}
 
 		log_ddl->write_delete_space_log(

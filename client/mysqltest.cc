@@ -3240,6 +3240,65 @@ enum enum_operator
 };
 
 
+/// Uses strtol function to get the integer value from a string.
+///
+/// @param ds_retry Dynamic string which may contain an integer
+///                 or an alphanumeric string.
+///
+/// @retval Integer value corresponding to the contents of the string,
+///         if conversion is successful, or -1 if integer is out of
+///         range, or if the conversion fails.
+static int get_int_val(DYNAMIC_STRING *ds_retry)
+{
+  int retry;
+  size_t size;
+  try
+  {
+    retry= std::stoi(ds_retry->str, &size, 10);
+    if(size != ds_retry->length)
+      retry= -1;
+  }
+  catch(std::out_of_range)
+  {
+    fprintf(stderr, "Retry value is out of range. ");
+    retry= -1;
+  }
+  catch(std::invalid_argument)
+  {
+    retry= -1;
+  }
+  return retry;
+}
+
+
+/// Template function that frees memory of the dynamic string
+/// passed to the function.
+///
+/// @param val Dynamic string whose memory needs to be freed.
+template <typename T>
+static void free_dynamic_strings(T *val)
+{
+  dynstr_free(val);
+}
+
+
+/// Frees the memory of dynamic strings passed to the function.
+/// It accepts a variable number of dynamic strings, and through
+/// recursion, frees the memory. The other template function
+/// which calls dynstr_free() is called here.
+///
+/// @param first The dynamic string passed to the function which
+///              gets freed using dynstr_free().
+/// @param rest  Rest of the dynamic strings which are passed to
+///              the function, through recursion, end up being
+///              freed by dynstr_free().
+template <typename T1, typename... T2>
+static void free_dynamic_strings(T1 *first, T2 *... rest)
+{
+  free_dynamic_strings(first);
+  free_dynamic_strings(rest...);
+}
+
 /*
   Decrease or increase the value of a variable
 
@@ -3285,22 +3344,21 @@ static int do_modify_var(struct st_command *command,
 }
 
 
-/*
-  SYNOPSIS
-  do_remove_file
-  command	called command
 
-  DESCRIPTION
-  remove_file <file_name>
-  Remove the file <file_name>
-*/
-
+/// Removes the file passed as the argument and retries a specified
+/// number of times, if it is unsuccessful.
+///
+/// @param command Pointer to the st_command structure which holds the
+///                arguments and information for the command.
 static void do_remove_file(struct st_command *command)
 {
   int error;
   static DYNAMIC_STRING ds_filename;
+  static DYNAMIC_STRING ds_retry;
+
   const struct command_arg rm_args[] = {
-    { "filename", ARG_STRING, TRUE, &ds_filename, "File to delete" }
+    { "filename", ARG_STRING, TRUE, &ds_filename, "File to delete" },
+    { "retry", ARG_STRING, FALSE, &ds_retry, "Number of retries" }
   };
   DBUG_ENTER("do_remove_file");
 
@@ -3308,35 +3366,48 @@ static void do_remove_file(struct st_command *command)
                      rm_args, sizeof(rm_args)/sizeof(struct command_arg),
                      ' ');
 
+  // Check if the retry value is passed, and if it is an integer
+  int retry= 0;
+  if (ds_retry.length)
+  {
+    retry= get_int_val(&ds_retry);
+    if (retry < 0)
+    {
+      // In case of invalid retry, copy the value passed to print later
+      char buf[32];
+      strmake(buf, ds_retry.str, sizeof(buf) - 1);
+      free_dynamic_strings(&ds_filename, &ds_retry);
+      die("Invalid value '%s' for retry argument given to remove_file " \
+          "command.", buf);
+    }
+  }
+
   DBUG_PRINT("info", ("removing file: %s", ds_filename.str));
   error= my_delete(ds_filename.str, MYF(0)) != 0;
+
   /*
-    Some anti-virus programs hold access to files for a short time
-    even after the application/server quit. During testing, sleep
-    5 seconds and then retry once more to avoid spurious test failures.
-    Also on slow/loaded machines the file system may need to catch up.
+    If the remove command fails due to an environmental issue, the command can
+    be retried a specified number of times before throwing an error.
   */
-  if (error)
+  for(int i= 0; error && (i < retry); i++)
   {
-    my_sleep(5 * 1000 * 1000);
-    error= my_delete(ds_filename.str, MYF(0)) != 0;
+    sleep(1);
+    error= my_delete(ds_filename.str, MYF(0)) !=0;
   }
+
+
   handle_command_error(command, error);
-  dynstr_free(&ds_filename);
+  free_dynamic_strings(&ds_filename, &ds_retry);
   DBUG_VOID_RETURN;
 }
 
 
-/*
-  SYNOPSIS
-  do_remove_files_wildcard
-  command	called command
-
-  DESCRIPTION
-  remove_files_wildcard <directory> [<file_name_pattern>]
-  Remove the files in <directory> optionally matching <file_name_pattern>
-*/
-
+/// Removes the files in the specified directory, by matching the
+/// file name pattern. Retry of the command can happen optionally with
+/// an interval of one second between each retry if the command fails.
+///
+/// @param command Pointer to the st_command structure which holds the
+///                arguments and information for the command.
 static void do_remove_files_wildcard(struct st_command *command)
 {
   int error= 0;
@@ -3346,13 +3417,14 @@ static void do_remove_files_wildcard(struct st_command *command)
   char dir_separator[2];
   static DYNAMIC_STRING ds_directory;
   static DYNAMIC_STRING ds_wild;
-  static DYNAMIC_STRING ds_file_to_remove;
+  static DYNAMIC_STRING ds_retry;
   char dirname[FN_REFLEN];
   
   const struct command_arg rm_args[] = {
     { "directory", ARG_STRING, TRUE, &ds_directory,
       "Directory containing files to delete" },
-    { "filename", ARG_STRING, FALSE, &ds_wild, "File pattern to delete" }
+    { "pattern", ARG_STRING, TRUE, &ds_wild, "File pattern to delete" },
+    { "retry", ARG_STRING, FALSE, &ds_retry, "Number of retries" }
   };
   DBUG_ENTER("do_remove_files_wildcard");
 
@@ -3361,6 +3433,23 @@ static void do_remove_files_wildcard(struct st_command *command)
                      ' ');
   fn_format(dirname, ds_directory.str, "", "", MY_UNPACK_FILENAME);
 
+  // Check if the retry value is passed, and if it is an interger
+  int retry= 0;
+  if (ds_retry.length)
+  {
+    retry= get_int_val(&ds_retry);
+    if (retry < 0)
+    {
+      // In case of invalid retry, copy the value passed to print later
+      char buf[32];
+      strmake(buf, ds_retry.str, sizeof(buf) - 1);
+      free_dynamic_strings(&ds_directory, &ds_wild, &ds_retry);
+      die("Invalid value '%s' for retry argument given to " \
+          "remove_files_wildcard command.", buf);
+    }
+  }
+
+  static DYNAMIC_STRING ds_file_to_remove;
   DBUG_PRINT("info", ("listing directory: %s", dirname));
   /* Note that my_dir sorts the list if not given any flags */
   if (!(dir_info= my_dir(dirname, MYF(MY_DONT_SORT | MY_WANT_STAT))))
@@ -3385,8 +3474,7 @@ static void do_remove_files_wildcard(struct st_command *command)
     /* MY_S_ISREG does not work here on Windows, just skip directories */
     if (MY_S_ISDIR(file->mystat->st_mode))
       continue;
-    if (ds_wild.length &&
-        wild_compare_full(file->name, ds_wild.str, false, 0, '?', '*'))
+    if (wild_compare_full(file->name, ds_wild.str, false, 0, '?', '*'))
       continue;
     /* Not required as the var ds_file_to_remove.length already has the
        length in canonnicalized form */
@@ -3395,6 +3483,16 @@ static void do_remove_files_wildcard(struct st_command *command)
     dynstr_append(&ds_file_to_remove, file->name);
     DBUG_PRINT("info", ("removing file: %s", ds_file_to_remove.str));
     error= my_delete(ds_file_to_remove.str, MYF(0)) != 0;
+
+    /*
+      If the remove command fails due to an environmental issue, the command
+      can be retried a specified number of times before throwing an error.
+    */
+    for(int j= 0; error && (j < retry); j++)
+    {
+      sleep(1);
+      error= my_delete(ds_file_to_remove.str, MYF(0)) !=0;
+    }
     if (error)
       break;
   }
@@ -3402,33 +3500,28 @@ static void do_remove_files_wildcard(struct st_command *command)
 
 end:
   handle_command_error(command, error);
-  dynstr_free(&ds_directory);
-  dynstr_free(&ds_wild);
-  dynstr_free(&ds_file_to_remove);
+  free_dynamic_strings(&ds_directory, &ds_wild, &ds_file_to_remove, &ds_retry);
   DBUG_VOID_RETURN;
 }
 
 
-/*
-  SYNOPSIS
-  do_copy_file
-  command	command handle
-
-  DESCRIPTION
-  copy_file <from_file> <to_file>
-  Copy <from_file> to <to_file>
-
-  NOTE! Will fail if <to_file> exists
-*/
-
+/// Copy the source file to destination file. Copy will fail if the
+/// destination file exists. Retry of the command can happen optionally with
+/// an interval of one second between each retry if the command fails.
+///
+/// @param command Pointer to the st_command structure which holds the
+///                arguments and information for the command.
 static void do_copy_file(struct st_command *command)
 {
   int error;
   static DYNAMIC_STRING ds_from_file;
   static DYNAMIC_STRING ds_to_file;
+  static DYNAMIC_STRING ds_retry;
+
   const struct command_arg copy_file_args[] = {
     { "from_file", ARG_STRING, TRUE, &ds_from_file, "Filename to copy from" },
-    { "to_file", ARG_STRING, TRUE, &ds_to_file, "Filename to copy to" }
+    { "to_file", ARG_STRING, TRUE, &ds_to_file, "Filename to copy to" },
+    { "retry", ARG_STRING, FALSE, &ds_retry, "Number of retries" }
   };
   DBUG_ENTER("do_copy_file");
 
@@ -3437,25 +3530,41 @@ static void do_copy_file(struct st_command *command)
                      sizeof(copy_file_args)/sizeof(struct command_arg),
                      ' ');
 
+  // Check if the retry value is passed, and if it is an interger
+  int retry= 0;
+  if (ds_retry.length)
+  {
+    retry= get_int_val(&ds_retry);
+    if (retry < 0)
+    {
+      // In case of invalid retry, copy the value passed to print later
+      char buf[32];
+      strmake(buf, ds_retry.str, sizeof(buf) - 1);
+      free_dynamic_strings(&ds_from_file, &ds_to_file, &ds_retry);
+      die("Invalid value '%s' for retry argument given to copy_file " \
+          "command.", buf);
+    }
+  }
+
   DBUG_PRINT("info", ("Copy %s to %s", ds_from_file.str, ds_to_file.str));
   /* MY_HOLD_ORIGINAL_MODES prevents attempts to chown the file */
   error= (my_copy(ds_from_file.str, ds_to_file.str,
                   MYF(MY_DONT_OVERWRITE_FILE | MY_HOLD_ORIGINAL_MODES)) != 0);
+
   /*
-    Some anti-virus programs hold access to files for a short time
-    even after the application/server quit. During testing, sleep
-    5 seconds and then retry once more to avoid spurious test failures.
-    Also on slow/loaded machines the file system may need to catch up.
+    If the copy command fails due to an environmental issue, the command can
+    be retried a specified number of times before throwing an error.
   */
-  if (error)
+  for(int i= 0; error && (i < retry); i++)
   {
-    my_sleep(5 * 1000 * 1000);
-    error= (my_copy(ds_from_file.str, ds_to_file.str,
-                    MYF(MY_DONT_OVERWRITE_FILE | MY_HOLD_ORIGINAL_MODES)) != 0);
+    sleep(1);
+    error=
+      (my_copy(ds_from_file.str, ds_to_file.str,
+               MYF(MY_DONT_OVERWRITE_FILE | MY_HOLD_ORIGINAL_MODES)) != 0);
   }
+
   handle_command_error(command, error);
-  dynstr_free(&ds_from_file);
-  dynstr_free(&ds_to_file);
+  free_dynamic_strings(&ds_from_file, &ds_to_file, &ds_retry);
   DBUG_VOID_RETURN;
 }
 
@@ -3656,34 +3765,31 @@ static void do_force_cpdir(struct st_command * command)
 }
 
 
-/*
-  SYNOPSIS
-  do_copy_files_wildcard
-  command       command handle
-
-  DESCRIPTION
-  copy_file <from_directory> <to_directory> [<file_name_pattern>]
-  Copy files <from_directory> to <to_directory> optionally
-  matching <file_name_pattern>
-
-  NOTE! Will fail if no files match the <file_name_pattern>
-        Will fail if <from_directory> is empty and/or there are no
-        files in it.
-        Will fail if <from_directory> or <to_directory> or both do not exist.
-*/
-
+/// Copy files from source directory to destination directory, by matching
+/// a specified file name pattern.
+///
+/// Copy will fail if no files match the pattern. It will fail if source
+/// directory is empty and/or there are no files in it. Copy will also
+/// fail if source directory or destination directory or both do not
+/// exist. Retry of the command can happen optionally with an interval of
+/// one second between each retry if the command fails.
+///
+/// @param command Pointer to the st_command structure which holds the
+///                arguments and information for the command.
 static void do_copy_files_wildcard(struct st_command * command)
 {
   static DYNAMIC_STRING ds_source;
   static DYNAMIC_STRING ds_destination;
   static DYNAMIC_STRING ds_wild;
+  static DYNAMIC_STRING ds_retry;
 
   const struct command_arg copy_file_args[] = {
     { "from_directory", ARG_STRING, TRUE, &ds_source,
       "Directory to copy from" },
     { "to_directory", ARG_STRING, TRUE, &ds_destination,
       "Directory to copy to" },
-    { "filename", ARG_STRING, FALSE, &ds_wild, "File name pattern"}
+    { "pattern", ARG_STRING, TRUE, &ds_wild, "File name pattern"},
+    { "retry", ARG_STRING, FALSE, &ds_retry, "Number of retries"}
   };
   DBUG_ENTER("do_copy_files_wildcard");
 
@@ -3698,6 +3804,24 @@ static void do_copy_files_wildcard(struct st_command * command)
   DBUG_PRINT("info", ("listing directory: %s", ds_source.str));
 
   int error= 0;
+
+  // Check if the retry value is passed, and if it is an integer
+  int retry= 0;
+  if (ds_retry.length)
+  {
+    retry= get_int_val(&ds_retry);
+    if (retry < 0)
+    {
+      // In case of invalid retry, copy the value passed to print later
+      char buf[32];
+      strmake(buf, ds_retry.str, sizeof(buf) - 1);
+      free_dynamic_strings(&ds_source, &ds_destination, &ds_wild, &ds_retry);
+      die("Invalid value '%s' for retry argument given to " \
+          "copy_files_wildcard command.", buf);
+    }
+  }
+
+
   /* Note that my_dir sorts the list if not given any flags */
   MY_DIR *dir_info= my_dir(ds_source.str, MYF(MY_DONT_SORT | MY_WANT_STAT));
 
@@ -3745,8 +3869,7 @@ static void do_copy_files_wildcard(struct st_command * command)
       continue;
 
     /* Copy only those files which the pattern matches */
-    if (ds_wild.length &&
-        wild_compare_full(file->name, ds_wild.str, false, 0, '?', '*'))
+    if (wild_compare_full(file->name, ds_wild.str, false, 0, '?', '*'))
       continue;
 
     match_count++;
@@ -3758,6 +3881,18 @@ static void do_copy_files_wildcard(struct st_command * command)
     /* MY_HOLD_ORIGINAL_MODES prevents attempts to chown the file */
     error= (my_copy(ds_source.str, ds_destination.str,
                     MYF(MY_HOLD_ORIGINAL_MODES)) != 0);
+
+    /*
+      If the copy command fails due to an environmental issue, the command can
+      be retried a specified number of times before throwing an error.
+    */
+    for(int j= 0; error && (j < retry); j++)
+    {
+      sleep(1);
+      error=
+        (my_copy(ds_source.str, ds_destination.str,
+                 MYF(MY_DONT_OVERWRITE_FILE | MY_HOLD_ORIGINAL_MODES)) != 0);
+    }
 
     if (error)
       goto end;
@@ -3773,10 +3908,7 @@ static void do_copy_files_wildcard(struct st_command * command)
 end:
   my_dirend(dir_info);
   handle_command_error(command, error);
-  dynstr_free(&ds_source);
-  dynstr_free(&ds_destination);
-  dynstr_free(&ds_wild);
-
+  free_dynamic_strings(&ds_source, &ds_destination, &ds_wild, &ds_retry);
   DBUG_VOID_RETURN;
 }
 
@@ -3798,35 +3930,13 @@ static int move_file_by_copy_delete(const char *from, const char *to)
   int error_copy,error_delete;
   error_copy= (my_copy(from,to,
                   MYF(MY_HOLD_ORIGINAL_MODES)) != 0);
-  /*
-    Some anti-virus programs hold access to files for a short time
-    even after the application/server quit. During testing, sleep
-    5 seconds and then retry once more to avoid spurious test failures.
-    Also on slow/loaded machines the file system may need to catch up.
-  */
-  if (error_copy)
-  {
-    my_sleep(5 * 1000 * 1000);
-    error_copy= (my_copy(from,to,
-                  MYF(MY_HOLD_ORIGINAL_MODES)) != 0);
-  }
   if (error_copy)
   {
     return error_copy;
   }
 
   error_delete= my_delete(from, MYF(0)) != 0;
-  /*
-    Some anti-virus programs hold access to files for a short time
-    even after the application/server quit. During testing, sleep
-    5 seconds and then retry once more to avoid spurious test failures.
-    Also on slow/loaded machines the file system may need to catch up.
-  */
-  if (error_delete)
-  {
-    my_sleep(5 * 1000 * 1000);
-    error_delete= my_delete(from, MYF(0)) != 0;
-  }
+
   /*
     If deleting the source file fails, rollback by deleting the
     redundant copy at the destinatiion.
@@ -3838,24 +3948,23 @@ static int move_file_by_copy_delete(const char *from, const char *to)
   return error_delete;
 }
 
-/*
-  SYNOPSIS
-  do_move_file
-  command	command handle
-
-  DESCRIPTION
-  move_file <from_file> <to_file>
-  Move <from_file> to <to_file>
-*/
-
+/// Moves a file to destination file. Retry of the command can happen
+/// optionally with an interval of one second between each retry if
+/// the command fails.
+///
+/// @param command Pointer to the st_command structure which holds the
+///                arguments and information for the command.
 static void do_move_file(struct st_command *command)
 {
   int error;
   static DYNAMIC_STRING ds_from_file;
   static DYNAMIC_STRING ds_to_file;
+  static DYNAMIC_STRING ds_retry;
+
   const struct command_arg move_file_args[] = {
     { "from_file", ARG_STRING, TRUE, &ds_from_file, "Filename to move from" },
-    { "to_file", ARG_STRING, TRUE, &ds_to_file, "Filename to move to" }
+    { "to_file", ARG_STRING, TRUE, &ds_to_file, "Filename to move to" },
+    { "retry", ARG_STRING, FALSE, &ds_retry, "Number of retries" }
   };
   DBUG_ENTER("do_move_file");
 
@@ -3864,9 +3973,26 @@ static void do_move_file(struct st_command *command)
                      sizeof(move_file_args)/sizeof(struct command_arg),
                      ' ');
 
+  // Check if the retry value is passed, and if it is an interger
+  int retry= 0;
+  if (ds_retry.length)
+  {
+    retry= get_int_val(&ds_retry);
+    if (retry < 0)
+    {
+      // In case of invalid retry, copy the value passed to print later
+      char buf[32];
+      strmake(buf, ds_retry.str, sizeof(buf) - 1);
+      free_dynamic_strings(&ds_from_file, &ds_to_file, &ds_retry);
+      die("Invalid value '%s' for retry argument given to move_file " \
+          "command.", buf);
+    }
+  }
+
   DBUG_PRINT("info", ("Move %s to %s", ds_from_file.str, ds_to_file.str));
   error= (my_rename(ds_from_file.str, ds_to_file.str,
                     MYF(0)) != 0);
+
   /*
     Use my_copy() followed by my_delete() for moving a file instead of
     my_rename() when my_errno is EXDEV. This is because my_rename() fails
@@ -3877,25 +4003,22 @@ static void do_move_file(struct st_command *command)
   {
     error= move_file_by_copy_delete(ds_from_file.str, ds_to_file.str);
   }
-  else if (error)
+
+ /*
+   If the command fails due to an environmental issue, the command can be
+   retried a specified number of times before throwing an error.
+ */
+  for(int i= 0; error && (i < retry); i++)
   {
-    /*
-      Some anti-virus programs hold access to files for a short time
-      even after the application/server quit. During testing, sleep
-      5 seconds and then retry once more to avoid spurious test failures.
-      Also on slow/loaded machines the file system may need to catch up.
-    */
-    my_sleep(5 * 1000 * 1000);
-    error= (my_rename(ds_from_file.str, ds_to_file.str,
-                      MYF(0)) != 0);
+    sleep(1);
+    error= (my_rename(ds_from_file.str, ds_to_file.str, MYF(0)) != 0);
+
     if (error && (my_errno() == EXDEV))
-    {
       error= move_file_by_copy_delete(ds_from_file.str, ds_to_file.str);
-    }
   }
+
   handle_command_error(command, error);
-  dynstr_free(&ds_from_file);
-  dynstr_free(&ds_to_file);
+  free_dynamic_strings(&ds_from_file, &ds_to_file, &ds_retry);
   DBUG_VOID_RETURN;
 }
 
@@ -3944,22 +4067,21 @@ static void do_chmod_file(struct st_command *command)
 }
 
 
-/*
-  SYNOPSIS
-  do_file_exists
-  command	called command
-
-  DESCRIPTION
-  fiile_exist <file_name>
-  Check if file <file_name> exists
-*/
-
+/// Check if specified file exists. Retry of the command can happen
+/// optionally with an interval of one second between each retry if
+/// the command fails.
+///
+/// @param command Pointer to the st_command structure which holds the
+///                arguments and information for the command.
 static void do_file_exist(struct st_command *command)
 {
   int error;
   static DYNAMIC_STRING ds_filename;
+  static DYNAMIC_STRING ds_retry;
+
   const struct command_arg file_exist_args[] = {
-    { "filename", ARG_STRING, TRUE, &ds_filename, "File to check if it exist" }
+    { "filename", ARG_STRING, TRUE, &ds_filename, "File to check if it exist" },
+    { "retry", ARG_STRING, FALSE, &ds_retry, "Number of retries" }
   };
   DBUG_ENTER("do_file_exist");
 
@@ -3968,10 +4090,37 @@ static void do_file_exist(struct st_command *command)
                      sizeof(file_exist_args)/sizeof(struct command_arg),
                      ' ');
 
+  // Check if the retry value is passed, and if it is an interger
+  int retry= 0;
+  if (ds_retry.length)
+  {
+    retry= get_int_val(&ds_retry);
+    if (retry < 0)
+    {
+      // In case of invalid retry, copy the value passed to print later
+      char buf[32];
+      strmake(buf, ds_retry.str, sizeof(buf) - 1);
+      free_dynamic_strings(&ds_filename, &ds_retry);
+      die("Invalid value '%s' for retry argument given to file_exists " \
+          "command.", buf);
+    }
+  }
+
   DBUG_PRINT("info", ("Checking for existence of file: %s", ds_filename.str));
   error= (access(ds_filename.str, F_OK) != 0);
+
+  /*
+    If the file_exists command fails due to an environmental issue, the command
+    can be retried a specified number of times before throwing an error.
+  */
+  for(int i= 0; error && (i < retry); i++)
+  {
+    sleep(1);
+    error= (access(ds_filename.str, F_OK) != 0);
+  }
+
   handle_command_error(command, error);
-  dynstr_free(&ds_filename);
+  free_dynamic_strings(&ds_filename, &ds_retry);
   DBUG_VOID_RETURN;
 }
 

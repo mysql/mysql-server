@@ -26,6 +26,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
+#include "mysql/psi/mysql_socket.h"
 #include "vio/vio_priv.h"
 
 #ifdef HAVE_OPENSSL

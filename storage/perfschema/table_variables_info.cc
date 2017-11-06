@@ -27,11 +27,13 @@
 #include "sql/current_thd.h"
 #include "sql/field.h"
 #include "sql/mysqld.h"
+#include "sql/plugin_table.h"
 #include "sql/sql_class.h"
 #include "storage/perfschema/pfs_column_types.h"
 #include "storage/perfschema/pfs_column_values.h"
 #include "storage/perfschema/pfs_global.h"
 #include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/table_helper.h"
 
 THR_LOCK table_variables_info::m_table_lock;
 

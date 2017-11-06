@@ -218,7 +218,7 @@ DROP TABLE t5;
 include/rpl_restart_server.inc [server_number=1]
 ###################### TEST #12
 FLUSH LOGS;
-ERROR HY000: Can't open file: 'master-bin' (errno: 2 - No such file or directory)
+ERROR HY000: Error writing file 'master-bin' (errno: 2 - No such file or directory)
 RESET MASTER;
 CREATE TABLE t5 (a INT);
 INSERT INTO t4 VALUES ('bbbbb');

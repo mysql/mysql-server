@@ -16,6 +16,7 @@
 #ifndef MYSQL_FILE_IO_H
 #define MYSQL_FILE_IO_H
 
+#include "my_dir.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "plugin/keyring/common/logger.h"

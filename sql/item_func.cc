@@ -3365,7 +3365,7 @@ longlong Item_func_round::int_op()
   if ((dec >= 0) || args[1]->unsigned_flag)
     return value; // integer have not digits after point
 
-  abs_dec= -dec;
+  abs_dec= -static_cast<ulonglong>(dec);
   longlong tmp;
   
   if(abs_dec >= array_elements(log_10_int))
@@ -6413,17 +6413,17 @@ void Item_func_set_user_var::save_item_result(Item *item)
 
   switch (cached_result_type) {
   case REAL_RESULT:
-    save_result.vreal= item->val_real_result();
+    save_result.vreal= item->val_real();
     break;
   case INT_RESULT:
-    save_result.vint= item->val_int_result();
+    save_result.vint= item->val_int();
     unsigned_flag= item->unsigned_flag;
     break;
   case STRING_RESULT:
-    save_result.vstr= item->str_result(&value);
+    save_result.vstr= item->val_str(&value);
     break;
   case DECIMAL_RESULT:
-    save_result.vdec= item->val_decimal_result(&decimal_buff);
+    save_result.vdec= item->val_decimal(&decimal_buff);
     break;
   case ROW_RESULT:
   default:
@@ -6543,56 +6543,6 @@ my_decimal *Item_func_set_user_var::val_decimal(my_decimal *val)
   return entry->val_decimal(&null_value, val);
 }
 
-
-double Item_func_set_user_var::val_real_result()
-{
-  DBUG_ASSERT(fixed == 1);
-  check(TRUE);
-  update();					// Store expression
-  return entry->val_real(&null_value);
-}
-
-longlong Item_func_set_user_var::val_int_result()
-{
-  DBUG_ASSERT(fixed == 1);
-  check(TRUE);
-  update();					// Store expression
-  return entry->val_int(&null_value);
-}
-
-bool Item_func_set_user_var::val_bool_result()
-{
-  DBUG_ASSERT(fixed == 1);
-  check(TRUE);
-  update();					// Store expression
-  return entry->val_int(&null_value) != 0;
-}
-
-String *Item_func_set_user_var::str_result(String *str)
-{
-  DBUG_ASSERT(fixed == 1);
-  check(TRUE);
-  update();					// Store expression
-  return entry->val_str(&null_value, str, decimals);
-}
-
-
-my_decimal *Item_func_set_user_var::val_decimal_result(my_decimal *val)
-{
-  DBUG_ASSERT(fixed == 1);
-  check(TRUE);
-  update();					// Store expression
-  return entry->val_decimal(&null_value, val);
-}
-
-
-bool Item_func_set_user_var::is_null_result()
-{
-  DBUG_ASSERT(fixed == 1);
-  check(TRUE);
-  update();					// Store expression
-  return is_null();
-}
 
 // just the assignment, for use in "SET @a:=5" type self-prints
 void Item_func_set_user_var::print_assignment(String *str,

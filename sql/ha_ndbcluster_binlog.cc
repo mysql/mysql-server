@@ -21,6 +21,7 @@
 
 #include "my_dbug.h"
 #include "my_thread.h"
+#include "mysql/plugin.h"
 #include "sql/binlog.h"
 #include "sql/dd/cache/dictionary_client.h"
 #include "sql/dd/types/abstract_table.h"

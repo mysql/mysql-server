@@ -412,7 +412,7 @@ struct SORT_INFO
   ha_rows max_records{0};
   uint current_key{0}, total_keys{0};
   myf myf_rw{0};
-  enum data_file_type new_data_file_type{STATIC_RECORD};
+  data_file_type new_data_file_type{STATIC_RECORD};
   MI_INFO *info{nullptr};
   MI_CHECK *param{nullptr};
   uchar *buff{nullptr};

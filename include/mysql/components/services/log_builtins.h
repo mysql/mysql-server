@@ -31,6 +31,9 @@
 #include <stdarg.h>
 
 #include "my_compiler.h"
+#ifdef MYSQL_SERVER
+#include "sql/log.h"
+#endif
 
 
 /**

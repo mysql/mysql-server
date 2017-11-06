@@ -23,12 +23,18 @@
 
 #include <sys/types.h>
 
+#include "my_base.h"
+#include "my_inttypes.h"
+#include "mysql/components/services/system_variable_source_type.h"
+#include "mysql_com.h"
 #include "storage/perfschema/pfs_column_types.h"
 #include "storage/perfschema/pfs_engine_table.h"
-#include "storage/perfschema/pfs_instr.h"
-#include "storage/perfschema/pfs_instr_class.h"
 #include "storage/perfschema/pfs_variable.h"
-#include "storage/perfschema/table_helper.h"
+
+class Field;
+class Plugin_table;
+struct TABLE;
+struct THR_LOCK;
 
 /**
   A row of table

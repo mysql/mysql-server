@@ -366,6 +366,22 @@ SELECT @@innodb_fast_shutdown, @@innodb_default_row_format, @@innodb_flush_log_a
 # Cleanup
 # Restart server with all defaults
 # restart
+#
+# BUG#26085774: SERVER CRASHES WHEN STARTED USING CORRUPTED MYSQLD-AUTO.CNF
+#
+# this is the wrong format with event_scheduler value not being string
+# server should fail to start
+# on windows even though server fails to start return code is 0, thus expecting error to be 0 or 1
+# this is the wrong format with binlog_gtid_simple_recovery value not being string
+# server should fail to start
+# this is the wrong format with no ',' between key/value pair
+# server should fail to start
+# this is the wrong format with wrong static variables group name
+# server should fail to start
+# this is the wrong format with group name
+# server should fail to start
+# start server with all defaults
+# restart
 SELECT 'END OF TEST';
 END OF TEST
 END OF TEST

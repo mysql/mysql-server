@@ -25,6 +25,7 @@
 
 #include "my_loglevel.h"
 #include "my_psi_config.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "pfs_thread_provider.h"
 #include "sql/table.h"

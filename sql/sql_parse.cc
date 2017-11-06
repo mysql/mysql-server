@@ -45,6 +45,7 @@
 #include "my_thread_local.h"
 #include "my_time.h"
 #include "mysql/com_data.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/psi_statement_bits.h"
 #include "mysql/plugin_audit.h"

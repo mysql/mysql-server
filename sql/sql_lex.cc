@@ -3374,7 +3374,7 @@ void SELECT_LEX::print(THD *thd, String *str, enum_query_type query_type)
     append_identifier(thd, str, w->name()->item_name.ptr(),
                       strlen(w->name()->item_name.ptr()));
     str->append(" AS ");
-    w->print(thd, this, str, query_type, true);
+    w->print(thd, str, query_type, true);
   }
 
   if (order_list.elements)

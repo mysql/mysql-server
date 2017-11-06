@@ -1304,8 +1304,16 @@ COUNT(*) OVER ()	MOD(STD(i),2)
 4	NULL
 SELECT DISTINCT COUNT(*) OVER (), MOD(VARIANCE(i),2) FROM tj2 GROUP BY i ;
 COUNT(*) OVER ()	MOD(VARIANCE(i),2)
+4	0
+4	NULL
+SELECT DISTINCT COUNT(*) OVER (), MOD(STD(i),2) as a FROM tj2 GROUP BY i ORDER BY MOD(STD(i),2);
+COUNT(*) OVER ()	a
 4	NULL
 4	0
+SELECT DISTINCT COUNT(*) OVER (), MOD(STD(i),2) as a FROM tj2 GROUP BY i ORDER BY MOD(STD(i),2) DESC;
+COUNT(*) OVER ()	a
+4	0
+4	NULL
 Bug fix GROUP BY with window function referring column used in grouping expression
 SELECT i, STD(i) OVER (), MOD(STD(i),2) FROM tj2 GROUP BY i ;
 i	STD(i) OVER ()	MOD(STD(i),2)

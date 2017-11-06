@@ -57,6 +57,7 @@
 #include "my_sqlcommand.h"
 #include "my_stacktrace.h"                  // my_safe_print_system_time
 #include "my_thread_local.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/service_mysql_alloc.h"
@@ -7139,7 +7140,7 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
       DBUG_EXECUTE_IF("fault_injection_new_file_rotate_event", errno=2;);
       close_on_error= true;
       my_printf_error(ER_ERROR_ON_WRITE,
-                      ER_THD(current_thd, ER_CANT_OPEN_FILE),
+                      ER_THD(current_thd, ER_ERROR_ON_WRITE),
                       MYF(ME_FATALERROR), name,
                       errno, my_strerror(errbuf, sizeof(errbuf), errno));
       goto end;

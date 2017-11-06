@@ -47,6 +47,8 @@ CREATE TABLESPACE test/s_bad ADD DATAFILE 's_bad.ibd';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '/s_bad ADD DATAFILE 's_bad.ibd'' at line 1
 CREATE TABLESPACE `test/s_bad` ADD DATAFILE 's_bad.ibd';
 ERROR 42000: InnoDB: A general tablespace name cannot contain '/'.
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: File .* 'delete' returned OS error .*");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: File .* 'stat' returned OS error .*");
 CREATE TABLESPACE `s_too_long_file_name` ADD DATAFILE '../xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.ibd';
 ERROR HY000: Incorrect File Name '../xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.ibd'.
 SHOW WARNINGS;
@@ -1607,7 +1609,7 @@ DROP TABLESPACE s1;
 #
 USE test;
 CREATE TABLESPACE s1 ADD DATAFILE 's1.ibd' ENGINE InnoDB;
-CREATE TABLE t1 (a geometry NOT NULL, SPATIAL (a)) ENGINE=InnoDB;
+CREATE TABLE t1 (a geometry NOT NULL SRID 0, SPATIAL (a)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (st_GeomFromText("LINESTRING(100 100, 200 200, 300 300)")) ;
 CREATE PROCEDURE p1()
 BEGIN

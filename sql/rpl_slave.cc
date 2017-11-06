@@ -36,6 +36,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/psi_memory_bits.h"
 #include "mysql/components/services/psi_stage_bits.h"
 #include "mysql/plugin.h"

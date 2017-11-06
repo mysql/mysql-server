@@ -19,6 +19,7 @@
 
 #include "my_dbug.h"
 #include "my_sys.h"               // my_sleep.h
+#include "mysql/plugin.h"
 #include "sql/ndb_sleep.h"
 #include "sql/sql_class.h"
 #include "sql/sql_thd_internal_api.h" // thd_query_unsafe

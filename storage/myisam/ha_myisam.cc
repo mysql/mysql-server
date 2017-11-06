@@ -33,6 +33,7 @@
 #include "my_psi_config.h"
 #include "myisam.h"
 #include "myisampack.h"
+#include "mysql/plugin.h"
 #include "sql/current_thd.h"
 #include "sql/derror.h"
 #include "sql/key.h"                            // key_copy
@@ -45,6 +46,8 @@
 #include "sql/system_variables.h"
 #include "storage/myisam/myisamdef.h"
 #include "storage/myisam/rt_index.h"
+
+#include "mysql/components/services/log_builtins.h"
 
 using std::min;
 using std::max;

@@ -25,6 +25,7 @@
 #include "my_inttypes.h"
 #include "my_loglevel.h"
 #include "my_systime.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_sp.h"

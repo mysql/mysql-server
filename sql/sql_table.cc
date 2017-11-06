@@ -51,6 +51,7 @@
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "my_time.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/psi_stage_bits.h"
 #include "mysql/psi/mysql_mutex.h"
@@ -4824,6 +4825,29 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
         my_error(ER_SPATIAL_MUST_HAVE_GEOM_COL, MYF(0));
         DBUG_RETURN(true);
       }
+
+      /*
+        If the field is without an SRID specification, issue a warning telling
+        the user that this index will not be used by the optimizer (useless
+        spatial index). We do however have to allow creating such index in
+        order to support dump/restore from older MySQL versions to new
+        versions.
+
+        NOTE: At this stage of ALTER TABLE/CREATE INDEX/whatever DDL, we may
+        have copied all existing indexes into key list. Thus, this function may
+        run for indexes that already exists. The variable
+        "check_for_duplicate_indexes" will however be set to "false" for indexes
+        that already are created, so we use this variable to distinguish between
+        indexes that are to be created, and those that already are created.
+      */
+      if (key->check_for_duplicate_indexes && !sql_field->m_srid.has_value())
+      {
+        push_warning_printf(thd, Sql_condition::SL_WARNING,
+                            WARN_USELESS_SPATIAL_INDEX,
+                            ER_THD(thd, WARN_USELESS_SPATIAL_INDEX),
+                            sql_field->field_name);
+      }
+
       /*
         4 is: (Xmin,Xmax,Ymin,Ymax), this is for 2D case
         Lately we'll extend this code to support more dimensions

@@ -49,6 +49,7 @@
 #include "my_sys.h"
 #include "my_thread.h"
 #include "mysqld_error.h"
+#include "mysql/components/services/log_builtins.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/conn_handler/channel_info.h" // Channel_info
 #include "sql/conn_handler/init_net_server_extension.h" // init_net_server_extension

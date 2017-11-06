@@ -52,6 +52,7 @@
 #include "my_sqlcommand.h"
 #include "my_sys.h"                   // MEM_DEFINED_IF_ADDRESSABLE()
 #include "myisam.h"                   // TT_FOR_UPGRADE
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_file.h"

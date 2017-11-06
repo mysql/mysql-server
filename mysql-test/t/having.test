@@ -767,6 +767,10 @@ CREATE TABLE seq_calls (
 );
 INSERT INTO seq_calls VALUES(0);
 
+# This function toggles between 0 and 1 at each call.
+# As it doesn't depend only on its input parameters (which are none),
+# per the SQL std it is not deterministic.
+
 DELIMITER |;
 CREATE FUNCTION next_seq_value() RETURNS INT
 BEGIN
@@ -792,6 +796,8 @@ SELECT t, next_seq_value() r FROM t1 FORCE INDEX(t)
 # Statement with select distinct so reference to functions in having will
 # result in re-execution of functions.
 SELECT * FROM series, seq_calls;
+UPDATE series set val=0;
+
 SELECT DISTINCT t1.t, next_seq_value() r  FROM t1, t1 P
        WHERE P.t = t1.t HAVING r = 1 ORDER BY t1.u;
 
@@ -800,8 +806,12 @@ PREPARE STMT FROM 'SELECT t, next_seq_value() r FROM t1 FORCE INDEX(t)
               GROUP BY t HAVING (SELECT 1 FROM t1 WHERE r = 1 LIMIT 1)
               ORDER BY t1.u';
 SELECT * FROM series, seq_calls;
+UPDATE series set val=0;
+
 EXECUTE stmt;
 SELECT * FROM series, seq_calls;
+UPDATE series set val=1;
+
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
@@ -811,6 +821,7 @@ INSERT INTO t1 SELECT * FROM t1;
 ALTER TABLE t1 ADD KEY(t, u);
 ANALYZE TABLE t1;
 SELECT * FROM series, seq_calls;
+UPDATE series set val=0;
 SELECT next_seq_value() r, MIN(u) FROM t1 GROUP BY t HAVING r = 1;
 
 # Cleanup
@@ -914,3 +925,30 @@ INSERT INTO t2 VALUES(2);
 SELECT c1 FROM t1 WHERE EXISTS(SELECT * FROM t2 HAVING c2>0);
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # BUG#26781725 INCORRECT RESULTS FOR QUERY(MAX FUNC+HAVING CLAUSE) WHEN USED INSIDE VIEW
+--echo #
+
+CREATE TABLE CC (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_varchar_key varchar(1) NOT NULL,
+  col_varchar varchar(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_varchar_key (col_varchar_key)
+);
+INSERT INTO CC VALUES
+ (10,'v','v'),(18,'a','a'),(19,'v','v'),(20,'u','u'),(21,'s','s'),(22,'y','y'),
+ (23,'z','z'),(28,'y','y');
+
+let $query=
+SELECT MAX(col_varchar_key) AS field1 FROM CC AS alias1
+ HAVING field1 <> 5;
+
+eval $query;
+eval CREATE OR REPLACE VIEW v1 AS $query;
+
+SELECT * FROM v1;
+
+DROP TABLE CC;
+DROP VIEW v1;

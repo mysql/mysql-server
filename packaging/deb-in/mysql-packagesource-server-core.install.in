@@ -42,7 +42,6 @@ usr/share/man/man1/my_print_defaults.1
 usr/share/man/man1/myisamchk.1
 usr/share/man/man1/myisamlog.1
 usr/share/man/man1/myisampack.1
-usr/share/man/man1/mysql-stress-test.pl.1
 usr/share/man/man1/mysql_secure_installation.1
 usr/share/man/man1/mysql_ssl_rsa_setup.1
 usr/share/man/man1/mysql_tzinfo_to_sql.1

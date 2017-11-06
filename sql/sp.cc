@@ -34,6 +34,7 @@
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/psi_statement_bits.h"
 #include "mysql/psi/mysql_sp.h"

@@ -442,11 +442,13 @@ public:
   */
 
   /**
-    Non-null for a group aggregate which is aggregated into an outer query
-    block and is the argument of a function; it is then a pointer to that
-    function's args[i] pointer.
+    For a group aggregate which is aggregated into an outer query
+    block; none, or just the first or both cells may be non-zero. They are
+    filled with references to the group aggregate (for example if it is the
+    argument of a function; it is then a pointer to that function's args[i]
+    pointer). "ref_by" stands for "referenced by".
   */
-  Item **ref_by;
+  Item **ref_by[2];
   Item_sum *next; ///< next in the circular chain of registered objects
   Item_sum *in_sum_func;   ///< the containing set function if any
   SELECT_LEX *base_select; ///< query block where function is placed
@@ -693,11 +695,14 @@ public:
   virtual bool framing() const { return true; }
 
   /**
-    Return true if we need to know the cardinality of the partition, i.e.
-    we need two passes over the rows in the partition to be able to evaluate
-    the window function.
+    Return true if we need to make two passes over the rows in the partition -
+    either because we need the cardinality of it (and we need to read all
+    rows to detect the next partition), or we need to have all partition rows
+    available to evaluate the window function for some other reason, e.g.
+    we may need the last row in the partition in the frame buffer to be able
+    to evaluate LEAD.
   */
-  virtual bool two_pass() const { return false; }
+  virtual bool needs_card() const { return false; }
 
   /**
     Common initial actions for window functions. For non-buffered processing
@@ -973,7 +978,6 @@ public:
     :Item_sum_num(pos, item_par, window), hybrid_type(INVALID_RESULT), m_count(0),
      m_frame_null_count(0)
   {
-    clear();
     set_distinct(distinct);
   }
 
@@ -2046,7 +2050,7 @@ public:
   The subclasses can be divided in two disjoint sub-categories:
      - one-pass
      - two-pass (requires partition cardinality to be evaluated)
-  cf. method two_pass.
+  cf. method needs_card.
 */
 class Item_non_framing_wf : public Item_sum
 {
@@ -2170,11 +2174,6 @@ public:
   */
   void cleanup() override;
   Item_result result_type() const override { return INT_RESULT; }
-private:
-  /**
-    Reset m_previous when we start a new partition
-  */
-  void reset_cmp();
 };
 
 
@@ -2200,7 +2199,7 @@ public:
   bool check_wf_semantics(THD *thd, SELECT_LEX *select,
                           Window::Evaluation_requirements *reqs) override;
 
-  bool two_pass() const override { return true; }
+  bool needs_card() const override { return true; }
   void clear() override {};
   longlong val_int() override;
   double val_real() override;
@@ -2244,7 +2243,7 @@ public:
 
   bool check_wf_semantics(THD *thd, SELECT_LEX *select,
                           Window::Evaluation_requirements *reqs) override;
-  bool two_pass() const override { return true; }
+  bool needs_card() const override { return true; }
 
   void clear() override;
   void cleanup() override;
@@ -2289,15 +2288,12 @@ public:
                           Window::Evaluation_requirements *reqs) override;
   Item_result result_type() const override { return INT_RESULT; }
   void clear() override {}
-  bool two_pass() const override { return true; }
+  bool needs_card() const override { return true; }
 };
 
 
 /**
   LEAD/LAG window functions, cf. SQL 2011 Section 6.10 \<window function\>
-
-  The result type of this function is the same as the argument, so we
-  inherit only Item_func.
 */
 class Item_lead_lag : public Item_non_framing_wf
 {
@@ -2356,10 +2352,19 @@ public:
 
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
   bool get_time(MYSQL_TIME *ltime) override;
+  bool val_json(Json_wrapper *wr) override;
 
-  bool two_pass() const override
+  bool needs_card() const override
   {
-    return true; /* FIXME poss. optimization: m_is_lead; */
+    /*
+      A possible optimization here: if LAG, we are only interested in rows we
+      have already seen, so we might compute the result without reading the
+      entire partition as soon as we have the current row.  Similarly, a small
+      LEAD value might avoid reading the entire partition also, giving shorter
+      time to first result. For now, we read the entirely partition for these
+      window functions - for simplicity.
+    */
+    return true;
   }
 
   void split_sum_func(THD* thd, Ref_item_array ref_item_array,
@@ -2426,6 +2431,7 @@ public:
 
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
   bool get_time(MYSQL_TIME *ltime) override;
+  bool val_json(Json_wrapper *wr) override;
 
   void reset_field() override { DBUG_ASSERT(false); }
   void update_field() override { DBUG_ASSERT(false); }
@@ -2496,6 +2502,7 @@ public:
 
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
   bool get_time(MYSQL_TIME *ltime) override;
+  bool val_json(Json_wrapper *wr) override;
 
   void reset_field() override { DBUG_ASSERT(false); }
   void update_field() override { DBUG_ASSERT(false); }

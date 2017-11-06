@@ -70,7 +70,6 @@
 #include "my_sys.h"
 #include "my_table_map.h"
 #include "my_thread_local.h"
-#include "mysql/plugin.h"                 // Needed by the thd_proc_info() macro.
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_statement.h"
 #include "mysql/psi/psi_base.h"
@@ -144,9 +143,6 @@ struct LOG_INFO;
 
 typedef struct user_conn USER_CONN;
 struct MYSQL_LOCK;
-
-#define thd_proc_info(thd, msg) \
-  set_thd_proc_info(thd, msg, __func__, __FILE__, __LINE__)
 
 extern "C"
 void thd_enter_cond(void *opaque_thd, mysql_cond_t *cond, mysql_mutex_t *mutex,

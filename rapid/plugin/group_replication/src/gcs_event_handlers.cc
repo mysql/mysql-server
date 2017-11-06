@@ -1431,44 +1431,19 @@ Plugin_gcs_events_handler::check_group_compatibility(size_t number_of_members) c
   {
     if (group_data_compatibility > 0)
     {
-      if(get_allow_local_disjoint_gtids_join())
-      {
-        log_message(MY_WARNING_LEVEL,
-                    "The member contains transactions not present in the group. "
-                    "It is only allowed to join due to "
-                    "group_replication_allow_local_disjoint_gtids_join option");
-      }
-      else {
-        log_message(MY_ERROR_LEVEL,
-                    "The member contains transactions not present in the group. "
-                    "The member will now exit the group.");
-        log_message(MY_INFORMATION_LEVEL,
-                    "To force this member into the group you can use the "
-                    "group_replication_allow_local_disjoint_gtids_join option");
-        return GROUP_REPLICATION_CONFIGURATION_ERROR;
-      }
+      log_message(MY_ERROR_LEVEL,
+                  "The member contains transactions not present in the group. "
+                  "The member will now exit the group.");
+      return GROUP_REPLICATION_CONFIGURATION_ERROR;
     }
     else //error
     {
       /* purecov: begin inspected */
-      if(get_allow_local_disjoint_gtids_join())
-      {
-        log_message(MY_WARNING_LEVEL,
-                    "It was not possible to assess if the member has more "
-                    "transactions than the group. "
-                    "It is only allowed to join due to the "
-                    "group_replication_allow_local_disjoint_gtids_join option");
-      }
-      else {
-        log_message(MY_ERROR_LEVEL,
-                    "It was not possible to assess if the member has more "
-                    "transactions than the group. "
-                    "The member will now exit the group.");
-        log_message(MY_INFORMATION_LEVEL,
-                    "To force this member into the group you can use the "
-                    "group_replication_allow_local_disjoint_gtids_join option");
-        return GROUP_REPLICATION_CONFIGURATION_ERROR;
-      }
+      log_message(MY_ERROR_LEVEL,
+                  "It was not possible to assess if the member has more "
+                  "transactions than the group. "
+                  "The member will now exit the group.");
+      return GROUP_REPLICATION_CONFIGURATION_ERROR;
       /* purecov: end */
     }
   }

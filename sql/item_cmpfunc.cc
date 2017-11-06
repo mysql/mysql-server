@@ -2383,7 +2383,7 @@ longlong Item_in_optimizer::val_int()
       else 
       {
         /* The subquery has to be evaluated */
-        (void) item_subs->val_bool_result();
+        (void) item_subs->val_bool();
         if (!item_subs->value)
           null_value= item_subs->null_value;
         else
@@ -2398,7 +2398,7 @@ longlong Item_in_optimizer::val_int()
     }
     return 0;
   }
-  tmp= args[1]->val_bool_result();
+  tmp= args[1]->val_bool();
   null_value= args[1]->null_value;
   return tmp;
 }

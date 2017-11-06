@@ -32,6 +32,7 @@
 #include "my_macros.h"
 #include "my_sys.h"
 #include "myisam.h"                          // TT_USEFRM
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql_com.h"

@@ -32,6 +32,7 @@
 #include "my_dbug.h"
 #include "my_dir.h"            // MY_STAT
 #include "my_thread_local.h"   // my_errno
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld_error.h"      // ER_*
 #include "sql/dynamic_ids.h"   // Server_ids

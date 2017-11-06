@@ -24,18 +24,17 @@
 
 #include "my_config.h"
 
-#include <mysql/psi/mysql_socket.h>
 #include <stddef.h>
-
-#include "my_thread.h" /* my_thread_handle */
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
 #include <sys/types.h>
 
 #include "my_inttypes.h"
-#include "my_io.h"
 #include "my_psi_config.h"  // IWYU pragma: keep
+#include "mysql/components/services/my_io_bits.h"
+#include "mysql/components/services/my_thread_bits.h"
+#include "mysql/components/services/mysql_socket_bits.h"
 
 struct Vio;
 
@@ -63,6 +62,7 @@ void init_vio_psi_keys();
 
 #ifndef MYSQL_VIO
 struct Vio;
+
 typedef Vio Vio;
 #define MYSQL_VIO Vio*
 #endif

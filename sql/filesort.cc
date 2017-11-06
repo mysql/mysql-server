@@ -44,6 +44,7 @@
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/service_mysql_alloc.h"
@@ -798,7 +799,7 @@ uint Filesort::make_sortorder()
     if (real_item->type() == Item::FIELD_ITEM)
     {
       /*
-        Could be a field, or Item_direct_view_ref/Item_ref wrapping a field
+        Could be a field, or Item_view_ref/Item_ref wrapping a field
         If it is an Item_outer_ref, only_full_group_by has been switched off.
       */
       DBUG_ASSERT

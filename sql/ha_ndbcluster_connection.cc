@@ -20,6 +20,7 @@
 #include <mysql/psi/mysql_thread.h>
 
 #include "my_dbug.h"
+#include "mysql/plugin.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/mysqld.h"     // server_id, connection_events_loop_aborted

@@ -32,6 +32,7 @@
 #include "my_io.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_file.h"             // mysql_file_open
@@ -1235,6 +1236,14 @@ bool fill_dd_and_finalize(THD *thd)
 
   // RAII to handle error messages.
   Bootstrap_error_handler bootstrap_error_handler;
+
+  /*
+    While migrating tables, mysql_prepare_create_table() is called which checks
+    for duplicated value in SET data type. Error is reported for duplicated
+    values only in strict sql mode. Reset the value of sql_mode to zero while
+    migrating data to dictionary.
+  */
+  thd->variables.sql_mode= 0;
 
   std::vector<dd::String_type> db_name;
   std::vector<dd::String_type>::iterator it;

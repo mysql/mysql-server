@@ -26,6 +26,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include "log_builtins_filter_imp.h"
 #include "log_builtins_imp.h" // internal structs
                               // connection_events_loop_aborted()
+#include "my_dir.h"
 #include "registry.h"         // mysql_registry_imp
 #include "server_component.h"
 #include "sql/current_thd.h"  // current_thd
@@ -35,6 +36,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
                               // get_server_errmsgs, LogVar
 #include "sql/mysqld.h"       // opt_log_(timestamps|error_services),
 #include "sql/sql_class.h"    // THD
+
+// Must come after sql/log.h.
+#include "mysql/components/services/log_builtins.h"
 
 #ifndef _WIN32
 #include <syslog.h>

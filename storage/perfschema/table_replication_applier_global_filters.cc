@@ -25,6 +25,7 @@
 
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "sql/plugin_table.h"
 #include "sql/rpl_info.h"
 #include "sql/rpl_mi.h"
 #include "sql/rpl_msr.h" /* Multisource replication */
@@ -33,6 +34,7 @@
 #include "sql/sql_parse.h"
 #include "storage/perfschema/pfs_instr.h"
 #include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/table_helper.h"
 
 THR_LOCK table_replication_applier_global_filters::m_table_lock;
 

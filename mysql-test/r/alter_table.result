@@ -958,12 +958,12 @@ engine=myisam default charset=latin1;
 alter table t1 change t t text;
 drop table t1;
 CREATE TABLE t1 (a varchar(500));
-ALTER TABLE t1 ADD b GEOMETRY NOT NULL, ADD SPATIAL INDEX(b);
+ALTER TABLE t1 ADD b GEOMETRY NOT NULL SRID 0, ADD SPATIAL INDEX(b);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(500) DEFAULT NULL,
-  `b` geometry NOT NULL,
+  `b` geometry NOT NULL /*!80003 SRID 0 */,
   SPATIAL KEY `b` (`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ALTER TABLE t1 ADD KEY(b(50));
@@ -971,7 +971,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(500) DEFAULT NULL,
-  `b` geometry NOT NULL,
+  `b` geometry NOT NULL /*!80003 SRID 0 */,
   SPATIAL KEY `b` (`b`),
   KEY `b_2` (`b`(50))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
@@ -980,7 +980,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(500) DEFAULT NULL,
-  `b` geometry NOT NULL,
+  `b` geometry NOT NULL /*!80003 SRID 0 */,
   `c` point DEFAULT NULL,
   SPATIAL KEY `b` (`b`),
   KEY `b_2` (`b`(50))

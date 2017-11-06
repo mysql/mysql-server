@@ -22,6 +22,7 @@
 
 #include "sql/current_thd.h"
 #include "sql/field.h"
+#include "sql/plugin_table.h"
 #include "sql/sql_class.h"
 #include "sql/sql_udf.h"
 

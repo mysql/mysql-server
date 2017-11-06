@@ -10,6 +10,7 @@ CALL mtr.add_suppression("Master's UUID has changed, although this should not ha
 CALL mtr.add_suppression("Slave I/O: SET @master_heartbeat_period to master failed with error: Lost connection to MySQL server during query");
 CALL mtr.add_suppression("Notifying master by SET @master_binlog_checksum= @@global.binlog_checksum failed with error");
 CALL mtr.add_suppression("A slave with the same server_uuid/server_id as this slave has connected to the master");
+SET @@GLOBAL.LOG_ERROR_VERBOSITY= 3;
 include/sync_slave_sql_with_master.inc
 
 # Case 1:
@@ -134,4 +135,6 @@ include/assert_grep.inc [Found the expected line in server 2 error log]
 include/assert_grep.inc [Found the expected line in server 3 error log]
 include/rpl_restart_server.inc [server_number=3]
 include/stop_slave.inc
+[connection master]
+SET @@GLOBAL.log_error_verbosity= OLD_LOG_ERROR_VERBOSITY;
 include/rpl_end.inc

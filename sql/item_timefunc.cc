@@ -1065,12 +1065,15 @@ longlong Item_func_period_add::val_int()
   ulong period=(ulong) args[0]->val_int();
   int months=(int) args[1]->val_int();
 
-  if ((null_value=args[0]->null_value || args[1]->null_value) ||
-      period == 0L)
+  if ((null_value=args[0]->null_value || args[1]->null_value))
     return 0; /* purecov: inspected */
+  if (!valid_period(period))
+  {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+    return error_int();
+  }
   return (longlong)
-    convert_month_to_period((uint) ((int) convert_period_to_month(period)+
-				    months));
+    convert_month_to_period(convert_period_to_month(period) + months);
 }
 
 
@@ -1082,6 +1085,11 @@ longlong Item_func_period_diff::val_int()
 
   if ((null_value=args[0]->null_value || args[1]->null_value))
     return 0; /* purecov: inspected */
+  if (!valid_period(period1) || !valid_period(period2))
+  {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+    return error_int();
+  }
   return (longlong) ((long) convert_period_to_month(period1)-
 		     (long) convert_period_to_month(period2));
 }
@@ -2750,7 +2758,7 @@ bool Item_func_makedate::get_date(MYSQL_TIME *ltime, my_time_flags_t)
   long days;
 
   if (args[0]->null_value || args[1]->null_value ||
-      year < 0 || year > 9999 || daynr <= 0)
+      year < 0 || year > 9999 || daynr <= 0 || daynr > MAX_DAY_NUMBER)
     goto err;
 
   if (year < 100)

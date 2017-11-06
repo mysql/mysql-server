@@ -27,6 +27,7 @@
 
 --let $recovery_user= recovery_user
 --let $recovery_password= recovery_password
+--let $fake_transaction_uuid= aaaaaaaa-bbbb-aaaa-bbbb-aaaaaaaaaaaa
 
 --echo #
 --echo # Start a new member with some group data but no replication user
@@ -39,6 +40,17 @@
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
 
+# Log fake transactions to allow server2 to join the group with
+# extra data.
+--eval SET GTID_NEXT= "$fake_transaction_uuid:1"
+BEGIN;
+COMMIT;
+SET GTID_NEXT= "AUTOMATIC";
+--eval SET GTID_NEXT= "$fake_transaction_uuid:2"
+BEGIN;
+COMMIT;
+SET GTID_NEXT= "AUTOMATIC";
+
 --echo #
 --echo # Add some extra data on server 2 and then start group replication
 --echo # Create a replication user so recovery can connect
@@ -46,13 +58,12 @@ INSERT INTO t1 VALUES (1);
 
 --connection server2
 
-SET SESSION sql_log_bin= 0;
-call mtr.add_suppression(".*This member has more executed transactions *.*");
-call mtr.add_suppression("The member contains transactions not present in the group. It is only allowed to *.*");
-SET SESSION sql_log_bin= 1;
-
+--eval SET GTID_NEXT= "$fake_transaction_uuid:1"
 CREATE TABLE lost_test_table (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+SET GTID_NEXT= "AUTOMATIC";
+--eval SET GTID_NEXT= "$fake_transaction_uuid:2"
 INSERT INTO lost_test_table VALUES (1);
+SET GTID_NEXT= "AUTOMATIC";
 
 SET SESSION sql_log_bin= 0;
 --eval CREATE USER "$recovery_user" IDENTIFIED BY "$recovery_password"
@@ -60,7 +71,6 @@ SET SESSION sql_log_bin= 0;
 FLUSH PRIVILEGES;
 SET SESSION sql_log_bin= 1;
 
-SET GLOBAL group_replication_allow_local_disjoint_gtids_join= 1;
 --source include/start_group_replication.inc
 
 --echo #
@@ -93,10 +103,11 @@ SET @debug_save_rec_int= @@GLOBAL.group_replication_recovery_reconnect_interval;
 --enable_warnings
 
 SET GLOBAL group_replication_recovery_reconnect_interval= 1; # 1 second
-SET GLOBAL group_replication_allow_local_disjoint_gtids_join= 1;
 
+SET SESSION sql_log_bin= 0;
 CREATE TABLE lost_test_table (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO lost_test_table VALUES (1);
+SET SESSION sql_log_bin= 1;
 
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
 --source include/start_group_replication_command.inc
@@ -134,7 +145,6 @@ SET SESSION sql_log_bin= 1;
 --echo #
 
 SET @@GLOBAL.group_replication_recovery_reconnect_interval= @debug_save_rec_int;
-SET GLOBAL group_replication_allow_local_disjoint_gtids_join= 0;
 
 DROP TABLE t1;
 
@@ -147,8 +157,6 @@ RESET MASTER;
 --connection server2
 
 --source include/stop_group_replication.inc
-
-SET GLOBAL group_replication_allow_local_disjoint_gtids_join= 0;
 
 SET SESSION sql_log_bin= 0;
 --eval DROP USER "$recovery_user"

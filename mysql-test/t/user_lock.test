@@ -414,7 +414,7 @@ DROP TRIGGER trig_t1_ins;
 --delimiter |
 CREATE TRIGGER trig_t1_ins BEFORE INSERT ON t1 FOR EACH ROW
 BEGIN
-  SET @aux = GET_LOCK(2,0);
+  SET @aux = GET_LOCK(2,1);
   IF @aux <> 1 THEN
       SIGNAL SQLSTATE '45000'
       SET MESSAGE_TEXT = 'LOCK 2 not got. Abort.', MYSQL_ERRNO = 9999;

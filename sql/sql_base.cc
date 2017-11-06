@@ -48,6 +48,7 @@
 #include "my_systime.h"
 #include "my_table_map.h"
 #include "my_thread_local.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/mysql_cond_bits.h"
 #include "mysql/components/services/psi_cond_bits.h"
 #include "mysql/components/services/psi_mutex_bits.h"
@@ -8947,7 +8948,7 @@ find_item_in_list(THD *thd, Item *find, List<Item> &items, uint *counter,
         SELECT 1 FROM t1 AS t1_o GROUP BY a
           HAVING (SELECT t1_o.a FROM t1 AS t1_i GROUP BY t1_i.a LIMIT 1).
         Processing all Item_refs here will cause t1_o.a to resolve to itself.
-        We still need to process the special case of Item_direct_view_ref 
+        We still need to process the special case of Item_view_ref
         because in the context of views they have the same meaning as 
         Item_field for tables.
       */
@@ -9857,9 +9858,21 @@ bool setup_fields(THD *thd, Ref_item_array ref_item_array,
 
     if (sum_func_list)
     {
+      /*
+        (1) Contains a grouped aggregate but is not one. If it is one, we do
+        not split, but in create_tmp_table() we look at its arguments and add
+        them to the tmp table, which achieves the same result as for window
+        functions in (2) but differently.
+        @todo: unify this (do like (2), probably).
+        (2) Contains a window function. Even if it is a window function, we
+        have to collect its arguments and add them to the hidden list of
+        items, as those arguments have to be stored in the first tmp tables,
+        and carried forward up to the tmp table where the WF can be
+        evaluated.
+      */
       if ((item->has_aggregation() && !(item->type() == Item::SUM_FUNC_ITEM &&
-           !item->m_is_window_function)) ||
-          item->has_wf())
+                                        !item->m_is_window_function)) || //(1)
+          item->has_wf())                       // (2)
         item->split_sum_func(thd, ref_item_array, *sum_func_list);
     }
 

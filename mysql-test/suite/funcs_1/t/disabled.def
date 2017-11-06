@@ -11,3 +11,4 @@
 ##############################################################################
 is_basics_mixed @windows : bug#25882809 2017-04-12 INCORRECT RESULT WHEN USING SUBQUERY ON TOP OF VIEW
 is_basics_mixed @darwin : bug#25882809 2017-04-12 INCORRECT RESULT WHEN USING SUBQUERY ON TOP OF VIEW
+is_basics_mixed         : Bug#27021672 2017-10-25 Malika Disabled as it is failing often on PB2

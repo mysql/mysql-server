@@ -86,7 +86,6 @@ establish_session_connection(enum_plugin_con_isolation isolation_param,
       m_plugin_session_thread->terminate_session_thread();
       delete m_plugin_session_thread;
       m_plugin_session_thread = NULL;
-      m_server_interface= NULL;
     } else
     {
       delete m_server_interface;

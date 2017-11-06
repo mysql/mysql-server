@@ -257,9 +257,17 @@ row_upd_check_references_constraints(
 			we will release dict_operation_lock temporarily!
 			But the counter on the table protects 'foreign' from
 			being dropped while the check is running. */
+                        if (foreign_table) {
+				os_atomic_increment_ulint(&foreign_table->n_foreign_key_checks_running, 1);
+			}
 
 			err = row_ins_check_foreign_constraint(
 				FALSE, foreign, table, entry, thr);
+
+			if (foreign_table) {
+				os_atomic_decrement_ulint(&foreign_table->n_foreign_key_checks_running, 1);
+			}
+
 
 			if (ref_table != NULL) {
 				dict_table_close(ref_table, FALSE, FALSE);
@@ -277,11 +285,6 @@ func_exit:
 	mem_heap_free(heap);
 
 	DEBUG_SYNC_C("foreign_constraint_check_for_update_done");
-
-	DBUG_EXECUTE_IF("row_upd_cascade_lock_wait_err",
-		err = DB_LOCK_WAIT;
-		DBUG_SET("-d,row_upd_cascade_lock_wait_err"););
-
 	DBUG_RETURN(err);
 }
 
@@ -2012,7 +2015,6 @@ row_upd_store_v_row(
 						cascade update. And virtual
 						column can't be affected,
 						so it is Ok to set it to NULL */
-						ut_ad(!node->cascade_top);
 						dfield_set_null(dfield);
 					} else {
 						dfield_t*       vfield
@@ -3315,59 +3317,4 @@ error_handling:
 	DBUG_RETURN(thr);
 }
 
-#ifdef UNIV_DEBUG
-/** Ensure that the member cascade_upd_nodes has only one update node
-for each of the tables.  This is useful for testing purposes. */
-void upd_node_t::check_cascade_only_once()
-{
-	DBUG_ENTER("upd_node_t::check_cascade_only_once");
-
-	dbug_trace();
-
-	for (upd_cascade_t::const_iterator i = cascade_upd_nodes->begin();
-	     i != cascade_upd_nodes->end(); ++i) {
-
-		const upd_node_t*	update_node = *i;
-		std::string	table_name(update_node->table->name.m_name);
-		ulint	count = 0;
-
-		for (upd_cascade_t::const_iterator j
-			= cascade_upd_nodes->begin();
-		     j != cascade_upd_nodes->end(); ++j) {
-
-			const upd_node_t*	node = *j;
-
-			if (table_name == node->table->name.m_name) {
-				DBUG_ASSERT(count++ == 0);
-			}
-		}
-	}
-
-	DBUG_VOID_RETURN;
-}
-
-/** Print information about this object into the trace log file. */
-void upd_node_t::dbug_trace()
-{
-	DBUG_ENTER("upd_node_t::dbug_trace");
-
-	for (upd_cascade_t::const_iterator i = cascade_upd_nodes->begin();
-	     i != cascade_upd_nodes->end(); ++i) {
-
-		const upd_node_t*	update_node = *i;
-		DBUG_LOG("upd_node_t", "cascade_upd_nodes: Cascade to table: "
-			 << update_node->table->name);
-	}
-
-	for (upd_cascade_t::const_iterator j = new_upd_nodes->begin();
-	     j != new_upd_nodes->end(); ++j) {
-
-		const upd_node_t*	update_node = *j;
-		DBUG_LOG("upd_node_t", "new_upd_nodes: Cascade to table: "
-			 << update_node->table->name);
-	}
-
-	DBUG_VOID_RETURN;
-}
-#endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */

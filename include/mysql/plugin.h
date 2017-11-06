@@ -560,6 +560,9 @@ struct st_mysql_value
   Miscellaneous functions for plugin implementors
 */
 
+#define thd_proc_info(thd, msg) \
+  set_thd_proc_info(thd, msg, __func__, __FILE__, __LINE__)
+
 #ifdef __cplusplus
 extern "C" {
 #endif

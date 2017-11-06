@@ -29,6 +29,7 @@
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "my_thread.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/psi_statement_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"

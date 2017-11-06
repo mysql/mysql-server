@@ -39,6 +39,7 @@
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
 #include "myisam.h"                          // MI_MAX_MSG_BUF
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/components/services/psi_memory_bits.h"
 #include "mysql/components/services/psi_mutex_bits.h"

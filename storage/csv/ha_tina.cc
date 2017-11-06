@@ -51,6 +51,7 @@ TODO:
 #include "map_helpers.h"
 #include "my_dbug.h"
 #include "my_psi_config.h"
+#include "mysql/plugin.h"
 #include "mysql/psi/mysql_memory.h"
 #include "sql/field.h"
 #include "sql/sql_class.h"

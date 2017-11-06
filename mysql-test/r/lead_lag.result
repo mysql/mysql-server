@@ -1880,3 +1880,37 @@ DO ((LAG(LAST_DAY("]<$*_#[DB!^+ : 3"),89) OVER (RANGE UNBOUNDED PRECEDING)) >
 (CONVERT(("1985-10-19 03:36:29.304455" -
 INTERVAL(0x1446C5A2627FB06D88DC63D66B36DF) DAY_MICROSECOND)
 USING BIG5)));
+#
+# Bug#26740557: WINDOW FUNC + JSON: ASSERTION FAILED:
+#               FALSE IN ITEM::VAL_JSON
+#
+SELECT ((MAKETIME(((QUARTER('| !*c>*{/'))<=>
+(LAG(JSON_OBJECTAGG('key4',0x067c13d0d0d7d8c8d768aef7)
+,7)OVER())),'9236-05-27',0xe2a7d4))^(0x1109));
+((MAKETIME(((QUARTER('| !*c>*{/'))<=>
+(LAG(JSON_OBJECTAGG('key4',0x067c13d0d0d7d8c8d768aef7)
+,7)OVER())),'9236-05-27',0xe2a7d4))^(0x1109))
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '| !*c>*{/'
+Warning	1292	Truncated incorrect INTEGER value: '9236-05-27'
+SELECT ((LAG(JSON_MERGE_PATCH(1.755913e+308,'{ }'),246)OVER())<=(1));
+((LAG(JSON_MERGE_PATCH(1.755913e+308,'{ }'),246)OVER())<=(1))
+NULL
+SELECT ((LAG(JSON_MERGE_PATCH(1.755913e+308,'{ }'),0)OVER())<=(1));
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_merge_patch; a JSON string or JSON type is required.
+SELECT ((QUOTE(JSON_KEYS(LEAD(JSON_KEYS(EXP(-15676),ABS('d0')),
+162)OVER())))>=(CONNECTION_ID()));
+((QUOTE(JSON_KEYS(LEAD(JSON_KEYS(EXP(-15676),ABS('d0')),
+162)OVER())))>=(CONNECTION_ID()))
+0
+SELECT ((QUOTE(JSON_KEYS(LEAD(JSON_KEYS(EXP(-15676),ABS('d0')),
+0)OVER())))>=(CONNECTION_ID()));
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_keys; a JSON string or JSON type is required.
+SELECT JSON_LENGTH(LEAD(JSON_OBJECTAGG('key2','*B'),172)OVER());
+JSON_LENGTH(LEAD(JSON_OBJECTAGG('key2','*B'),172)OVER())
+NULL
+SELECT JSON_LENGTH(LEAD(JSON_OBJECTAGG('key2','*B'),0)OVER());
+JSON_LENGTH(LEAD(JSON_OBJECTAGG('key2','*B'),0)OVER())
+1
+# End of test for Bug#26740557

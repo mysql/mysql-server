@@ -38,7 +38,6 @@
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/current_thd.h"
-#include "sql/handler.h"
 #include "sql/psi_memory_key.h"
 #include "sql/query_options.h"
 #include "sql/rpl_context.h"

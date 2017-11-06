@@ -1605,12 +1605,4 @@ public:
   int update();                   /**< apply new value */
 };
 
-
-/*
-  Include fluent C++ error logging API, LogErr(). It should
-  be readily available to make the bar to using the new system
-  as low possible.
-*/
-#include <mysql/components/services/log_builtins.h>
-
 #endif /* LOG_H */

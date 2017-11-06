@@ -21,6 +21,7 @@
 #include "lex_string.h"
 #include "my_dbug.h"
 #include "my_loglevel.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysqld_error.h"
 #include "sql/dd/cache/dictionary_client.h" // dd::cache::Dictionary_client

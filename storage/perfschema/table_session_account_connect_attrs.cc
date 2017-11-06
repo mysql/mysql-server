@@ -23,6 +23,7 @@
 #include <sys/types.h>
 
 #include "my_dbug.h"
+#include "sql/plugin_table.h"
 
 THR_LOCK table_session_account_connect_attrs::m_table_lock;
 

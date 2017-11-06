@@ -24,14 +24,17 @@
 
 #include <sys/types.h>
 
-#include "my_io.h"
+#include "my_base.h"
+#include "my_inttypes.h"
 #include "mysql_com.h"
-#include "sql/rpl_info.h" /* CHANNEL_NAME_LENGTH*/
-#include "sql/rpl_mi.h"
-#include "sql/rpl_msr.h"
-#include "storage/perfschema/pfs_column_types.h"
+#include "sql/rpl_filter.h"
+#include "sql_string.h"
 #include "storage/perfschema/pfs_engine_table.h"
-#include "storage/perfschema/table_helper.h"
+
+class Field;
+class Plugin_table;
+struct TABLE;
+struct THR_LOCK;
 
 /** A row in the table */
 struct st_row_applier_global_filters
