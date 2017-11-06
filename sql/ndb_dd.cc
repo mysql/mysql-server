@@ -42,8 +42,7 @@ bool ndb_sdi_serialize(THD *thd,
 
   // Make a copy of the table definition to allow it to
   // be modified before serialization
-  std::unique_ptr<dd::Table> table_def_clone(
-        dynamic_cast<dd::Table*>(table_def->clone()));
+  std::unique_ptr<dd::Table> table_def_clone(table_def->clone());
 
   // Don't include the se_private_id in the serialized table def.
   table_def_clone->set_se_private_id(dd::INVALID_OBJECT_ID);
