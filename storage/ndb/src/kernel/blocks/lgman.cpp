@@ -2600,7 +2600,9 @@ Lgman::get_log_buffer(Ptr<Logfile_group> ptr,
   Uint32 total_free= ptr.p->m_free_buffer_words;
   ndbrequire(total_free >= sz);
   Uint32 pos= ptr.p->m_pos[PRODUCER].m_current_pos.m_idx;
-  Uint32 free = get_undo_page_words(ptr) - pos;
+  Uint32 undo_page_words = get_undo_page_words(ptr);
+  ndbrequire(undo_page_words >= pos);
+  Uint32 free = undo_page_words - pos;
 
   if(sz <= free)
   {
@@ -2610,7 +2612,9 @@ next:
     ndbrequire(total_free >= sz);
     ptr.p->m_free_buffer_words = total_free - sz;
     ptr.p->m_pos[PRODUCER].m_current_pos.m_idx = pos + sz;
-    return get_undo_data_ptr((Uint32*)page, ptr, jamBuf) + pos;
+    Uint32* record = get_undo_data_ptr((Uint32*)page, ptr, jamBuf) + pos;
+    ndbrequire(record < &((Uint32*)page)[GLOBAL_PAGE_SIZE_WORDS]);
+    return record;
   }
   thrjam(jamBuf);
   
@@ -5067,6 +5071,7 @@ Lgman::get_next_undo_record(Uint64 * this_lsn)
     jam();
     record = get_undo_data_ptr((Uint32*)pageP, lg_ptr, jamBuffer())
              + (pos - 1);
+    ndbrequire(record < &((Uint32*)pageP)[GLOBAL_PAGE_SIZE_WORDS]);
     Uint32 len= (* record) & 0xFFFF;
     ndbrequire(len);
     Uint32 *prev= record - len;
