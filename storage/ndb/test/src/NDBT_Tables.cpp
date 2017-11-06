@@ -599,6 +599,7 @@ static
 const
 NDBT_Table T16("T16", sizeof(T16Attribs)/sizeof(NDBT_Attribute), T16Attribs);
 
+/*
 static
 const
 NDBT_Attribute T17Attribs[] = {
@@ -625,6 +626,7 @@ NDBT_Attribute T18Attribs[] = {
 static
 const
 NDBT_Table T18("T18", sizeof(T18Attribs)/sizeof(NDBT_Attribute), T18Attribs);
+*/
 
 /*
   C2 DHCP TABLES, MAYBE THESE SHOULD BE MOVED TO THE UTIL_TABLES?
@@ -790,8 +792,10 @@ NDBT_Table *test_tables[]=
   &T14,
   &T15,
   &T16,
+/*
   &T17,
   &T18,
+*/
   &I1,
   &I2,
   &I3,
