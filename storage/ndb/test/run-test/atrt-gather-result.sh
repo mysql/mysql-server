@@ -63,7 +63,7 @@ while [ $# -gt 0 ]; do
   rsync -a --exclude='BACKUP' --exclude='ndb_*_fs' "$SRC_PATH" .
   RESULT="$?"
   set -e
-  if [ ${RESULT} -ne 0 && ${RESULT} -ne 24 ] ; then
+  if [ ${RESULT} -ne 0 -a ${RESULT} -ne 24 ] ; then
     echo "rsync error: $RESULT"
     exit 1
   fi 
