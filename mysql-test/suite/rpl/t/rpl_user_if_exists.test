@@ -95,5 +95,216 @@ let SEARCH_FILE= $server_log;
 --let SEARCH_PATTERN= Following users were specified in CREATE USER IF NOT EXISTS
 --source include/search_pattern_in_file.inc
 
+--echo WL11144: Check that ALTER/CREATE/DROP USER IF [NOT] EXISTS will succesfully replicate in multi user scenarios
+
+--source include/rpl_connection_master.inc
+--echo # All users exist on master, some on slave
+
+CREATE USER u1,u2;
+set @@session.sql_log_bin=0;
+CREATE USER u3,u4;
+set @@session.sql_log_bin=1;
+
+ALTER USER IF EXISTS u1, u2, u3, u4 ACCOUNT LOCK;
+CREATE USER IF NOT EXISTS u1, u2, u3, u4;
+DROP USER u1, u2, u3, u4;
+
+CREATE USER u1,u2;
+set @@session.sql_log_bin=0;
+CREATE USER u3,u4;
+set @@session.sql_log_bin=1;
+
+DROP USER IF EXISTS u1, u2, u3, u4;
+--source include/sync_slave_sql_with_master.inc
+
+--echo # All users exist on master, none on slave
+
+--source include/rpl_connection_master.inc
+set @@session.sql_log_bin=0;
+CREATE USER u1,u2,u3,u4;
+set @@session.sql_log_bin=1;
+
+ALTER USER IF EXISTS u1, u2, u3, u4 ACCOUNT LOCK;
+CREATE USER IF NOT EXISTS u1, u2, u3, u4;
+DROP USER u1, u2, u3, u4;
+
+set @@session.sql_log_bin=0;
+CREATE USER u1,u2,u3,u4;
+set @@session.sql_log_bin=1;
+
+DROP USER IF EXISTS u1, u2, u3, u4;
+--source include/sync_slave_sql_with_master.inc
+
+--echo # Some users exist on master, others on slave
+
+--source include/rpl_connection_master.inc
+set @@session.sql_log_bin=0;
+CREATE USER u3,u4;
+set @@session.sql_log_bin=1;
+
+--source include/sync_slave_sql_with_master.inc
+CREATE USER u1,u2;
+
+--source include/rpl_connection_master.inc
+ALTER USER IF EXISTS u1, u2, u3, u4 ACCOUNT LOCK;
+CREATE USER IF NOT EXISTS u1, u2, u3, u4;
+
+set @@session.sql_log_bin=0;
+DROP USER u1,u2;
+set @@session.sql_log_bin=1;
+
+--source include/sync_slave_sql_with_master.inc
+DROP USER u3,u4;
+
+--source include/rpl_connection_master.inc
+DROP USER IF EXISTS u1, u2, u3, u4;
+
+--echo # Some users exist on master, all on slave
+
+--source include/sync_slave_sql_with_master.inc
+CREATE USER u1,u2;
+
+--source include/rpl_connection_master.inc
+CREATE USER u3,u4;
+
+ALTER USER IF EXISTS u1, u2, u3, u4 ACCOUNT LOCK;
+CREATE USER IF NOT EXISTS u1, u2, u3, u4;
+
+set sql_log_bin=0;
+DROP USER u1,u2;
+set sql_log_bin=1;
+
+DROP USER IF EXISTS u1, u2, u3, u4;
+--source include/sync_slave_sql_with_master.inc
+
+--echo # Some users exist on master, none on slave
+
+--source include/rpl_connection_master.inc
+set @@session.sql_log_bin=0;
+CREATE USER u3,u4;
+set @@session.sql_log_bin=1;
+
+ALTER USER IF EXISTS u1, u2, u3, u4 ACCOUNT LOCK;
+CREATE USER IF NOT EXISTS u1, u2, u3, u4;
+DROP USER u1, u2, u3, u4;
+
+set @@session.sql_log_bin=0;
+CREATE USER u3,u4;
+set @@session.sql_log_bin=1;
+DROP USER IF EXISTS u1, u2, u3, u4;
+
+--echo # No users exist on master, some on slave
+
+--source include/sync_slave_sql_with_master.inc
+CREATE USER u3,u4;
+
+--source include/rpl_connection_master.inc
+
+ALTER USER IF EXISTS u1, u2, u3, u4 ACCOUNT LOCK;
+CREATE USER IF NOT EXISTS u1, u2, u3, u4;
+DROP USER u1, u2;
+
+set @@session.sql_log_bin=0;
+DROP USER u3,u4;
+set @@session.sql_log_bin=1;
+
+DROP USER IF EXISTS u1, u2, u3, u4;
+
+--echo # No users exist on master, all on slave
+
+--source include/sync_slave_sql_with_master.inc
+
+CREATE USER u1,u2,u3,u4;
+
+--source include/rpl_connection_master.inc
+
+ALTER USER IF EXISTS u1, u2, u3, u4 ACCOUNT LOCK;
+CREATE USER IF NOT EXISTS u1, u2, u3, u4;
+
+set @@session.sql_log_bin=0;
+DROP USER u1, u2, u3, u4;
+set @@session.sql_log_bin=1;
+
+DROP USER IF EXISTS u1, u2, u3, u4;
+
+# Check that if Create/alter user if exists gets ERROR it won't be logged in the binary log.
+# If GTID mode is ON check that GTID won't be generated.
+
+--let $pos_before= query_get_value(show master status,Position,1)
+--let $gtid_executed_before= `SELECT @@GLOBAL.GTID_EXECUTED`
+
+# Gets error due to INCORRECT day value specified.
+--error ER_WRONG_VALUE
+CREATE USER IF NOT EXISTS u1 PASSWORD EXPIRE INTERVAL 66666 DAY;
+--error ER_WRONG_VALUE
+ALTER USER IF EXISTS u1 PASSWORD EXPIRE INTERVAL 66666 DAY;
+
+# Gets error as only INTEGERS are allowed.
+--error ER_PARSE_ERROR
+CREATE USER IF NOT EXISTS u1 PASSWORD EXPIRE INTERVAL 66666888888888888888 DAY;
+--error ER_PARSE_ERROR
+ALTER USER IF EXISTS u1 PASSWORD EXPIRE INTERVAL 66666888888888888888 DAY;
+
+# Check that  the above statements have not been logged in binary log
+--let $assert_text= assert that the above Event has not been added to binlog
+--let $assert_cond= [SHOW MASTER STATUS, Position,1] = $pos_before
+--source include/assert.inc
+
+--let $gtid_executed_after= `SELECT @@GLOBAL.GTID_EXECUTED`
+# Check that the GTID has not been generated for the above failed statements
+--let $assert_text= assert that the GTID has not been generated
+--let $assert_cond= "$gtid_executed_after" = "$gtid_executed_before"
+--source include/assert.inc
+
+# Check that replication works correctly in multi create/alter statements
+# where create/alter of some user gets failed.
+
+# User u1 does not exists
+
+CREATE USER u3 IDENTIFIED WITH 'mysql_native_password';
+# CREATE gets ERROR since shsh auth_plugin do not exists
+--error ER_PLUGIN_IS_NOT_LOADED
+CREATE USER IF NOT EXISTS u1 IDENTIFIED WITH 'shsh',u2 IDENTIFIED WITH 'sha256_password',u3 IDENTIFIED WITH 'sha256_password';
+--source include/sync_slave_sql_with_master.inc
+
+# Check that user u3's auth_plugin has not changed
+--let $auth_plugin= query_get_value(select *from mysql.user where User='u3',plugin, 1)
+--let $assert_text= assert that u3's auth_plugin has not changed
+--let $assert_cond= "mysql_native_password" = "$auth_plugin"
+--source include/assert.inc
+
+--source include/rpl_connection_master.inc
+DROP USER u2;
+
+# User u1 exists
+
+CREATE USER u1;
+# CREATE gets ERROR since shsh auth_plugin do not exists
+--error ER_PLUGIN_IS_NOT_LOADED
+CREATE USER IF NOT EXISTS u1 IDENTIFIED WITH 'shsh',u2 IDENTIFIED BY 'pass',u3 IDENTIFIED WITH 'sha256_password';
+--source include/sync_slave_sql_with_master.inc
+
+# Check that user u3's auth_plugin has not changed
+--let $auth_plugin= query_get_value(select *from mysql.user where User='u3',plugin, 1)
+--let $assert_text= assert that u3's auth_plugin has not changed
+--let $assert_cond=  "$auth_plugin" = "mysql_native_password"
+--source include/assert.inc
+
+--source include/rpl_connection_master.inc
+
+# ALTER gets ERROR since shsh auth_plugin do not exists
+--error ER_PLUGIN_IS_NOT_LOADED
+ALTER USER IF EXISTS u1 IDENTIFIED WITH 'shsh',u2 IDENTIFIED BY 'xyz',u3 IDENTIFIED WITH 'sha256_password';
+
+--source include/sync_slave_sql_with_master.inc
+
+# Check that user u3's auth_plugin has got changed
+--let $auth_plugin= query_get_value(select *from mysql.user where User='u3',plugin, 1)
+--let $assert_text= assert that u3's auth_plugin has been changed by alter
+--let $assert_cond=  "$auth_plugin" = "sha256_password"
+--source include/assert.inc
+
+--source include/rpl_connection_master.inc
+DROP USER u1,u2,u3;
+
 --source include/rpl_end.inc
-# End:
