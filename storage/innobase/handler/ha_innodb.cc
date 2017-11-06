@@ -11191,6 +11191,12 @@ create_index(
 	/* Assert that "GEN_CLUST_INDEX" cannot be used as non-primary index */
 	ut_a(innobase_strcasecmp(key->name, innobase_index_reserve_name) != 0);
 
+	if(key->key_length == 0) {
+		my_error(ER_WRONG_KEY_COLUMN,
+			 MYF(0),
+			 key->key_part->field->field_name);
+		DBUG_RETURN(ER_WRONG_KEY_COLUMN);
+	}
 	ind_type = 0;
 	if (key->flags & HA_SPATIAL) {
 		ind_type = DICT_SPATIAL;
