@@ -10,7 +10,20 @@ while ($counter <= $num_tables)
    # Default table name is t$counter, ie. t1, t2, etc
    let $tx=t$counter;
 
+  # Save table id
+  let $table_id = `SELECT id FROM test.ndbinfo_dict_obj_info
+                     WHERE fq_name = 'ndb_ddl_test/def/$tx'`;
+
   eval TRUNCATE TABLE $tx;
+
+  # Show that table id is still the same after truncate. When creating
+  # table with same name, NDB reuses table id
+  let $new_table_id = `SELECT id FROM test.ndbinfo_dict_obj_info
+                         WHERE fq_name = 'ndb_ddl_test/def/$tx'`;
+  if ($table_id != $new_table_id)
+  {
+    die The table truncated but didnt get same table id;
+  }
 
   # Check that new table contains expected number of rows
   let $tx_count = `SELECT count(*) from $tx`;

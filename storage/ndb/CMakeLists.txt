@@ -141,7 +141,7 @@ IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   INCLUDE(CheckCXXCompilerFlag)
   FOREACH(warning
           "unused-but-set-variable"
-          "unused-parameter")
+	  "error=unused-parameter")
     STRING(REPLACE "-" "_" warning_ ${warning})
     STRING(TOUPPER ${warning_} WARNING)
     CHECK_CXX_COMPILER_FLAG("-W${warning}" HAVE_${WARNING})
