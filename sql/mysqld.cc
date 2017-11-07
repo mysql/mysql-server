@@ -1082,7 +1082,7 @@ Lt_creator lt_creator;
 Ge_creator ge_creator;
 Le_creator le_creator;
 
-Rpl_filter* global_rpl_filter;
+Rpl_global_filter rpl_global_filter;
 Rpl_filter* binlog_filter;
 
 struct System_variables global_system_variables;
@@ -2025,8 +2025,7 @@ static void clean_up(bool print_message)
   free_max_user_conn();
   end_slave_list();
   delete binlog_filter;
-  delete global_rpl_filter;
-  rpl_filter_map.clean_up();
+  rpl_channel_filters.clean_up();
   end_ssl();
   vio_end();
   my_regex_end();
@@ -3328,9 +3327,8 @@ int init_common_variables()
   max_system_variables.pseudo_thread_id= (my_thread_id) ~0;
   server_start_time= flush_status_time= my_time(0);
 
-  global_rpl_filter= new Rpl_filter;
   binlog_filter= new Rpl_filter;
-  if (!global_rpl_filter || !binlog_filter)
+  if (!binlog_filter)
   {
     LogErr(ERROR_LEVEL, ER_RPL_BINLOG_FILTERS_OOM, strerror(errno));
     return 1;
@@ -3800,13 +3798,24 @@ int init_common_variables()
     Build do_table and ignore_table rules to hashes
     after the resetting of table_alias_charset.
   */
-  if (global_rpl_filter->build_do_table_hash() ||
-      global_rpl_filter->build_ignore_table_hash())
+  if (rpl_global_filter.build_do_table_hash() ||
+      rpl_global_filter.build_ignore_table_hash())
   {
     LogErr(ERROR_LEVEL, ER_CANT_HASH_DO_AND_IGNORE_RULES);
     return 1;
   }
-  if (rpl_filter_map.build_do_and_ignore_table_hashes())
+
+  /*
+    Reset the P_S view for global replication filter at
+    the end of server startup.
+  */
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+  rpl_global_filter.wrlock();
+  rpl_global_filter.reset_pfs_view();
+  rpl_global_filter.unlock();
+#endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+
+  if (rpl_channel_filters.build_do_and_ignore_table_hashes())
     return 1;
 
   return 0;
@@ -5994,7 +6003,7 @@ int mysqld_main(int argc, char **argv)
       Group replication filters should be discarded before init_slave(), otherwise
       the pre-configured filters will be referenced by group replication channels.
     */
-    rpl_filter_map.discard_group_replication_filters();
+    rpl_channel_filters.discard_group_replication_filters();
 
     /*
       init_slave() must be called after the thread keys are created.
@@ -6014,7 +6023,7 @@ int mysqld_main(int argc, char **argv)
       'group_replication_applier' which is disallowed, then the
       per-channel replication filter is discarded with a warning.
     */
-    rpl_filter_map.discard_all_unattached_filters();
+    rpl_channel_filters.discard_all_unattached_filters();
   }
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
@@ -8178,9 +8187,9 @@ static int mysql_init_variables()
   @retval
     1    Error
 */
-static bool is_global_rpl_filter_setting(char* argument)
+static bool is_rpl_global_filter_setting(char* argument)
 {
-  DBUG_ENTER("is_global_rpl_filter_setting");
+  DBUG_ENTER("is_rpl_global_filter_setting");
 
   bool res= false;
   char *p= strchr(argument, ':');
@@ -8380,60 +8389,60 @@ mysqld_get_one_option(int optid,
     break;
   case (int)OPT_REPLICATE_IGNORE_DB:
   {
-    if (is_global_rpl_filter_setting(argument))
+    if (is_rpl_global_filter_setting(argument))
     {
-      global_rpl_filter->add_ignore_db(argument);
-      global_rpl_filter->ignore_db_statistics.set_all(
-        CONFIGURED_BY_STARTUP_OPTIONS, 0);
+      rpl_global_filter.add_ignore_db(argument);
+      rpl_global_filter.ignore_db_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS);
     }
     else
     {
       parse_filter_arg(&channel_name, &filter_val, argument);
-      rpl_filter= rpl_filter_map.get_channel_filter(channel_name);
+      rpl_filter= rpl_channel_filters.get_channel_filter(channel_name);
       rpl_filter->add_ignore_db(filter_val);
       rpl_filter->ignore_db_statistics.set_all(
-        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL, 0);
+        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL);
     }
     break;
   }
   case (int)OPT_REPLICATE_DO_DB:
   {
-    if (is_global_rpl_filter_setting(argument))
+    if (is_rpl_global_filter_setting(argument))
     {
-      global_rpl_filter->add_do_db(argument);
-      global_rpl_filter->do_db_statistics.set_all(
-        CONFIGURED_BY_STARTUP_OPTIONS, 0);
+      rpl_global_filter.add_do_db(argument);
+      rpl_global_filter.do_db_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS);
     }
     else
     {
       parse_filter_arg(&channel_name, &filter_val, argument);
-      rpl_filter= rpl_filter_map.get_channel_filter(channel_name);
+      rpl_filter= rpl_channel_filters.get_channel_filter(channel_name);
       rpl_filter->add_do_db(filter_val);
       rpl_filter->do_db_statistics.set_all(
-        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL, 0);
+        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL);
     }
     break;
   }
   case (int)OPT_REPLICATE_REWRITE_DB:
   {
     char* key,*val;
-    if (is_global_rpl_filter_setting(argument))
+    if (is_rpl_global_filter_setting(argument))
     {
       if (parse_replicate_rewrite_db(&key, &val, argument))
         return 1;
-      global_rpl_filter->add_db_rewrite(key, val);
-      global_rpl_filter->rewrite_db_statistics.set_all(
-        CONFIGURED_BY_STARTUP_OPTIONS, 0);
+      rpl_global_filter.add_db_rewrite(key, val);
+      rpl_global_filter.rewrite_db_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS);
     }
     else
     {
       parse_filter_arg(&channel_name, &filter_val, argument);
-      rpl_filter= rpl_filter_map.get_channel_filter(channel_name);
+      rpl_filter= rpl_channel_filters.get_channel_filter(channel_name);
       if (parse_replicate_rewrite_db(&key, &val, filter_val))
         return 1;
       rpl_filter->add_db_rewrite(key, val);
       rpl_filter->rewrite_db_statistics.set_all(
-        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL, 0);
+        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL);
     }
     break;
   }
@@ -8450,73 +8459,73 @@ mysqld_get_one_option(int optid,
   }
   case (int)OPT_REPLICATE_DO_TABLE:
   {
-    if (is_global_rpl_filter_setting(argument))
+    if (is_rpl_global_filter_setting(argument))
     {
-      if (global_rpl_filter->add_do_table_array(argument))
+      if (rpl_global_filter.add_do_table_array(argument))
       {
         LogErr(ERROR_LEVEL, ER_RPL_CANT_ADD_DO_TABLE, argument);
         return 1;
       }
-      global_rpl_filter->do_table_statistics.set_all(
-        CONFIGURED_BY_STARTUP_OPTIONS, 0);
+      rpl_global_filter.do_table_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS);
     }
     else
     {
       parse_filter_arg(&channel_name, &filter_val, argument);
-      rpl_filter= rpl_filter_map.get_channel_filter(channel_name);
+      rpl_filter= rpl_channel_filters.get_channel_filter(channel_name);
       if (rpl_filter->add_do_table_array(filter_val))
       {
         LogErr(ERROR_LEVEL, ER_RPL_CANT_ADD_DO_TABLE, argument);
         return 1;
       }
       rpl_filter->do_table_statistics.set_all(
-        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL, 0);
+        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL);
     }
     break;
   }
   case (int)OPT_REPLICATE_WILD_DO_TABLE:
   {
-    if (is_global_rpl_filter_setting(argument))
+    if (is_rpl_global_filter_setting(argument))
     {
-      if (global_rpl_filter->add_wild_do_table(argument))
+      if (rpl_global_filter.add_wild_do_table(argument))
       {
         sql_print_error("Could not add wild do table rule '%s'!\n", argument);
         return 1;
       }
-      global_rpl_filter->wild_do_table_statistics.set_all(
-        CONFIGURED_BY_STARTUP_OPTIONS, 0);
+      rpl_global_filter.wild_do_table_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS);
     }
     else
     {
       parse_filter_arg(&channel_name, &filter_val, argument);
-      rpl_filter= rpl_filter_map.get_channel_filter(channel_name);
+      rpl_filter= rpl_channel_filters.get_channel_filter(channel_name);
       if (rpl_filter->add_wild_do_table(filter_val))
       {
         sql_print_error("Could not add wild do table rule '%s'!\n", argument);
         return 1;
       }
       rpl_filter->wild_do_table_statistics.set_all(
-        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL, 0);
+        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL);
     }
     break;
   }
   case (int)OPT_REPLICATE_WILD_IGNORE_TABLE:
   {
-    if (is_global_rpl_filter_setting(argument))
+    if (is_rpl_global_filter_setting(argument))
     {
-      if (global_rpl_filter->add_wild_ignore_table(argument))
+      if (rpl_global_filter.add_wild_ignore_table(argument))
       {
         sql_print_error("Could not add wild ignore table rule '%s'!\n",
                         argument);
         return 1;
       }
-      global_rpl_filter->wild_ignore_table_statistics.set_all(
-        CONFIGURED_BY_STARTUP_OPTIONS, 0);
+      rpl_global_filter.wild_ignore_table_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS);
     }
     else
     {
       parse_filter_arg(&channel_name, &filter_val, argument);
-      rpl_filter= rpl_filter_map.get_channel_filter(channel_name);
+      rpl_filter= rpl_channel_filters.get_channel_filter(channel_name);
       if (rpl_filter->add_wild_ignore_table(filter_val))
       {
         sql_print_error("Could not add wild ignore table rule '%s'!\n",
@@ -8524,33 +8533,33 @@ mysqld_get_one_option(int optid,
         return 1;
       }
       rpl_filter->wild_ignore_table_statistics.set_all(
-        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL, 0);
+        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL);
     }
     break;
   }
   case (int)OPT_REPLICATE_IGNORE_TABLE:
   {
-    if (is_global_rpl_filter_setting(argument))
+    if (is_rpl_global_filter_setting(argument))
     {
-      if (global_rpl_filter->add_ignore_table_array(argument))
+      if (rpl_global_filter.add_ignore_table_array(argument))
       {
         LogErr(ERROR_LEVEL, ER_RPL_CANT_ADD_IGNORE_TABLE, argument);
         return 1;
       }
-      global_rpl_filter->ignore_table_statistics.set_all(
-        CONFIGURED_BY_STARTUP_OPTIONS, 0);
+      rpl_global_filter.ignore_table_statistics.set_all(
+        CONFIGURED_BY_STARTUP_OPTIONS);
     }
     else
     {
       parse_filter_arg(&channel_name, &filter_val, argument);
-      rpl_filter= rpl_filter_map.get_channel_filter(channel_name);
+      rpl_filter= rpl_channel_filters.get_channel_filter(channel_name);
       if (rpl_filter->add_ignore_table_array(filter_val))
       {
         LogErr(ERROR_LEVEL, ER_RPL_CANT_ADD_IGNORE_TABLE, argument);
         return 1;
       }
       rpl_filter->ignore_table_statistics.set_all(
-        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL, 0);
+        CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL);
     }
     break;
   }
