@@ -3172,10 +3172,10 @@ sub check_debug_support ($) {
 
 
 #
-# Helper function to handle configuration-based subdirectories which Visual
-# Studio uses for storing binaries.  If opt_vs_config is set, this returns
-# a path based on that setting; if not, it returns paths for the default
-# /release/ and /debug/ subdirectories.
+# Helper function to handle configuration-based subdirectories which
+# Visual Studio or XCode uses for storing binaries.  If opt_vs_config
+# is set, this returns a path based on that setting; if not, it
+# returns paths for the default /release/ and /debug/ subdirectories.
 #
 # $exe can be undefined, if the directory itself will be used
 #
@@ -3184,7 +3184,7 @@ sub vs_config_dirs ($$) {
 
   $exe = "" if not defined $exe;
 
-  if (IS_WINDOWS)
+  if (IS_WINDOWS or IS_MAC)
   {
     if ($opt_vs_config)
     {
