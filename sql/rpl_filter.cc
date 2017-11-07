@@ -70,7 +70,8 @@ Rpl_pfs_filter::Rpl_pfs_filter(const char* channel_name,
 {
   m_channel_name= channel_name;
   m_filter_name= filter_name;
-  m_filter_rule.copy(filter_rule);
+  if (!filter_rule.is_empty())
+    m_filter_rule.copy(filter_rule);
   m_rpl_filter_statistics= rpl_filter_statistics;
 }
 
@@ -81,7 +82,8 @@ Rpl_pfs_filter::Rpl_pfs_filter(const Rpl_pfs_filter &other)
   m_filter_name= other.m_filter_name;
   m_rpl_filter_statistics= other.m_rpl_filter_statistics;
   /* Deep copy */
-  m_filter_rule.copy(other.m_filter_rule);
+  if (!other.m_filter_rule.is_empty())
+    m_filter_rule.copy(other.m_filter_rule);
 }
 
 
