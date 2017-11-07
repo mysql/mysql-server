@@ -109,6 +109,10 @@ ALTER TABLE mysql.proxies_priv MODIFY User char(16) binary DEFAULT '' NOT NULL;
 ALTER TABLE mysql.proxies_priv MODIFY Proxied_user char(16) binary DEFAULT '' NOT NULL;
 ALTER TABLE mysql.proxies_priv MODIFY Grantor char(77) DEFAULT '' NOT NULL;
 
+--disable_query_log
+CALL mtr.add_suppression("Cannot load from .* The table is probably corrupted");
+--enable_query_log
+
 --echo # Tables with user name column downgraded to 5.6, now run mysql_upgrade
 # Filter out ndb_binlog_index to mask differences due to running with or
 # without ndb.
