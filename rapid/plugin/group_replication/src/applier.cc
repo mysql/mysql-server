@@ -780,6 +780,12 @@ void Applier_module::kill_pending_transactions(bool set_read_mode,
   //kill pending transactions
   blocked_transaction_handler->unblock_waiting_transactions();
 
+  DBUG_EXECUTE_IF("group_replication_applier_thread_wait_kill_pending_transaction",
+                  {
+                    const char act[]= "now wait_for signal.gr_applier_early_failure";
+                    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+                  });
+
   if (!already_locked)
     shared_stop_write_lock->release_write_lock();
 
