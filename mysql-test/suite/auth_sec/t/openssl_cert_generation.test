@@ -75,7 +75,7 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 
 --remove_file $server_log 10
 
---exec echo "restart: --auto_generate_certs=0 --sha256_password_auto_generate_rsa_keys=0" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart: --auto_generate_certs=0 --sha256_password_auto_generate_rsa_keys=0 --log-error-verbosity=3" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
@@ -135,7 +135,7 @@ disconnect test_root_2;
 
 --remove_file $server_log 10
 
---exec echo "restart:--auto_generate_certs --skip-sha256_password_auto_generate_rsa_keys" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart:--auto_generate_certs --skip-sha256_password_auto_generate_rsa_keys --log-error-verbosity=3 --console" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
@@ -180,7 +180,7 @@ let SEARCH_PATTERN= Auto generated SSL certificates are placed in data directory
 
 --remove_file $server_log 10
 
---exec echo "restart: --skip-ssl --skip-auto_generate_certs --sha256_password_auto_generate_rsa_keys" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart: --skip-ssl --skip-auto_generate_certs --sha256_password_auto_generate_rsa_keys --log-error-verbosity=3 --console" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
@@ -223,7 +223,7 @@ let SEARCH_PATTERN= Auto generated RSA key files are placed in data directory.;
 
 --remove_file $server_log 10
 
---exec echo "restart:--auto_generate_certs=1 --sha256_password_auto_generate_rsa_keys=1" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart:--auto_generate_certs=1 --sha256_password_auto_generate_rsa_keys=1 --log-error-verbosity=3 --console" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
@@ -289,7 +289,7 @@ disconnect test_root_4;
 --remove_file $MYSQLTEST_VARDIR/mysqld.1/data/private_key.pem
 --remove_file $MYSQLTEST_VARDIR/mysqld.1/data/public_key.pem
 
---exec echo "restart:--auto_generate_certs=ON --sha256_password_auto_generate_rsa_keys=ON" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart:--auto_generate_certs=ON --sha256_password_auto_generate_rsa_keys=ON --log-error-verbosity=3 --console" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
@@ -361,7 +361,7 @@ disconnect test_root_6;
 --remove_file $MYSQLTEST_VARDIR/mysqld.1/data/private_key.pem
 --remove_file $MYSQLTEST_VARDIR/mysqld.1/data/public_key.pem
 
---exec echo "restart: --skip-ssl --auto_generate_certs=ON --sha256_password_auto_generate_rsa_keys=ON" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart: --skip-ssl --auto_generate_certs=ON --sha256_password_auto_generate_rsa_keys=ON --log-error-verbosity=3 --console" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
@@ -437,7 +437,7 @@ disconnect test_root_7;
 
 --remove_file $server_log 10
 
---exec echo "restart:--auto_generate_certs=ON --skip-sha256_password_auto_generate_rsa_keys --ssl-cipher=DHE-RSA-AES256-SHA" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart:--auto_generate_certs=ON --skip-sha256_password_auto_generate_rsa_keys --ssl-cipher=DHE-RSA-AES256-SHA --log-error-verbosity=3 --console" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect

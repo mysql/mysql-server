@@ -8,7 +8,7 @@ let bugdir= $MYSQLTEST_VARDIR/tmp/log_file;
 
 --source include/shutdown_mysqld.inc
 let SEARCH_FILE = $bugdir/my_restart.err;
-let $args=--defaults-file=$bugdir/my.cnf --loose-console --innodb_dedicated_server=OFF --core-file > $SEARCH_FILE 2>&1 ;
+let $args=--defaults-file=$bugdir/my.cnf --loose-console --innodb_dedicated_server=OFF --core-file --log-error-verbosity=3 > $SEARCH_FILE 2>&1 ;
 
 --echo # Write tmp/log_file/my.cnf
 --write_file $bugdir/my.cnf

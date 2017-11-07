@@ -381,7 +381,7 @@ SELECT * FROM yy;
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
-let $mysqld=$MYSQLD_CMD --core-file --console > $SEARCH_FILE 2>&1;
+let $mysqld=$MYSQLD_CMD --core-file --console --log-error-verbosity=3 >$SEARCH_FILE 2>&1;
 
 # TODO: This could fail to refuse startup, in case there was a log
 # checkpoint after the INSERT INTO yn.

@@ -59,7 +59,6 @@ FLUSH ERROR LOGS;
 1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_json"
 1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET GLOBAL log_error_services= "log_sink_internal"
 1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SELECT "I SHOULD be visible in the error log!"
-1970-01-01T00:00:00.000000Z 0 [Note] [003621] Parser saw: SET GLOBAL log_error_verbosity= DEFAULT
 
 ###
 ### done

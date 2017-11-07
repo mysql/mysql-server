@@ -11,6 +11,7 @@
 # This test is therefore provided for convenience, but disabled by
 # default, and is not expect to pass on all platforms.
 #
+SET @orig_log_error_verbosity= @@GLOBAL.log_error_verbosity;
 SET @@global.log_error_verbosity=3;
 FLUSH LOGS;
 SET @@session.debug="+d,parser_stmt_to_error_log";
@@ -36,6 +37,7 @@ UNINSTALL COMPONENT "file://component_log_sink_syseventlog";
 # cleanup
 SET @@session.debug="-d,parser_stmt_to_error_log";
 SET @@session.debug="-d,log_error_normalize";
+SET @@global.log_error_verbosity= @orig_log_error_verbosity;
 FLUSH ERROR LOGS;
 
 ###

@@ -3,6 +3,9 @@
 call mtr.add_suppression("This is a warning from test plugin");
 call mtr.add_suppression("This is an error from test plugin");
 
+SET @orig_log_error_verbosity= @@global.log_error_verbosity;
+SET @@global.log_error_verbosity= 3;
+
 --echo ------ Run plugin ------------------------------------------------
 --replace_result $TESTSERVICES TESTSERVICES
 eval INSTALL PLUGIN test_services SONAME '$TESTSERVICES';
@@ -30,6 +33,8 @@ SET @@global.test_services_non_default_variable= DEFAULT;
 
 --echo ------ Stop plugin -----------------------------------------------
 UNINSTALL PLUGIN test_services;
+
+SET @@global.log_error_verbosity= @orig_log_error_verbosity;
 
 --disable_warnings
 
