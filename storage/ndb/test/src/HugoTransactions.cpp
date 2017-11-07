@@ -1571,7 +1571,7 @@ HugoTransactions::pkDelRecords(Ndb* pNdb,
 
   g_info << "|- Deleting records..." << endl;
   int batch_no = 0;
-  while (r < records){
+  while ((r + start_record) < records){
     if(r + batch > records)
       batch = records - r;
 
