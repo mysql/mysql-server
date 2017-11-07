@@ -138,6 +138,11 @@ IF(CMAKE_COMPILER_IS_GNUCXX)
           "unused-but-set-variable"
           "strict-aliasing"
           "unused-parameter"
+          "unused-variable"
+          # gcc 7 gives ~200 warnings of the form
+          # "this statement may fall through" for missing // Fall through
+          # comments in switch/case/break statements.
+          "implicit-fallthrough"
           # Downgrade -Werror to warning for "may be used uninitialized"
           # and "is used uninitialized in this function"
           "error=maybe-uninitialized"
@@ -146,7 +151,7 @@ IF(CMAKE_COMPILER_IS_GNUCXX)
           "error=placement-new")
     STRING(REPLACE "-" "_" warning_ ${warning})
     STRING(TOUPPER ${warning_} WARNING)
-    CHECK_CXX_COMPILER_FLAG("-Wno-${warning}" HAVE_${WARNING})
+    CHECK_CXX_COMPILER_FLAG("-W${warning}" HAVE_${WARNING})
     IF(HAVE_${WARNING})
       MESSAGE(STATUS "Disabling -W${warning} warning for building NDB")
       SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-${warning}")

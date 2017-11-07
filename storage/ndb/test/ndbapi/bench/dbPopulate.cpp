@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -119,7 +119,7 @@ static void populateServers(UserHandle *uh, int count)
       /* serverName[j] = 0;	not null-terminated */
 
       for(j = 0; j < suffix_length; j++){
-	 char sbuf[SUBSCRIBER_NUMBER_SUFFIX_LENGTH + 1];
+	 char sbuf[SUBSCRIBER_NUMBER_SUFFIX_LENGTH + 2];
          sprintf(sbuf, "%.*d", SUBSCRIBER_NUMBER_SUFFIX_LENGTH, j);
 	 memcpy(suffix, sbuf, SUBSCRIBER_NUMBER_SUFFIX_LENGTH);
          userDbInsertServer(uh, i, suffix, serverName);
