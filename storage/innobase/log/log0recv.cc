@@ -4243,9 +4243,13 @@ recv_recovery_from_checkpoint_start(lsn_t flush_lsn)
 
 	ut_memcpy(log_sys->buf, recv_sys->last_block, OS_FILE_LOG_BLOCK_SIZE);
 
+	/* Set buffer position and mark that everything was written. */
 	log_sys->buf_free = (ulint) log_sys->lsn % OS_FILE_LOG_BLOCK_SIZE;
 	log_sys->buf_next_to_write = log_sys->buf_free;
-	log_sys->write_lsn = log_sys->lsn;
+
+	/* Set the recovered lsn as written and flushed. */
+	log_sys->write_lsn = log_sys->current_flush_lsn =
+		log_sys->flushed_to_disk_lsn = log_sys->lsn;
 
 	log_sys->last_checkpoint_lsn = checkpoint_lsn;
 
