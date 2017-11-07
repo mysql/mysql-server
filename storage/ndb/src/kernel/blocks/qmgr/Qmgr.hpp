@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -417,8 +417,9 @@ private:
   void sendCmRegrefLab(Signal* signal, BlockReference ref, 
 		       CmRegRef::ErrorCode);
   void systemErrorBecauseOtherNodeFailed(Signal* signal, Uint32 line, NodeId);
-  void systemErrorLab(Signal* signal, Uint32 line,
-		      const char* message = NULL);
+  [[noreturn]] void systemErrorLab(Signal* signal,
+                                   Uint32 line,
+                                   const char* message = NULL);
   void prepFailReqLab(Signal* signal);
   void prepFailConfLab(Signal* signal);
   void prepFailRefLab(Signal* signal);

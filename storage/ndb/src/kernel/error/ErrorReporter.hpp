@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,16 +36,15 @@
 class ErrorReporter
 {
 public:
-  static void handleAssert(const char* message, 
-			   const char* file, 
-			   int line, int ec = NDBD_EXIT_PRGERR)
-    ATTRIBUTE_NORETURN;
+  [[noreturn]] static void handleAssert(const char* message,
+                                        const char* file,
+                                        int line,
+                                        int ec = NDBD_EXIT_PRGERR);
   
-  static void handleError(int faultID, 
-			  const char* problemData,
-                          const char* objRef,
-			  enum NdbShutdownType = NST_ErrorHandler)
-    ATTRIBUTE_NORETURN;
+  [[noreturn]] static void handleError(int faultID,
+                                       const char* problemData,
+                                       const char* objRef,
+                                       enum NdbShutdownType = NST_ErrorHandler);
   
   static void formatMessage(int thr_no,
                             Uint32 num_threads, int faultID,

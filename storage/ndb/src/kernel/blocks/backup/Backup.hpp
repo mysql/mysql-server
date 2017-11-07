@@ -394,7 +394,11 @@ public:
     Backup & backup;
     BlockNumber number() const { return backup.number(); }
     EmulatedJamBuffer *jamBuffer() const { return backup.jamBuffer(); }
-    void progError(int line, int cause, const char * extra, const char * check) {
+    [[noreturn]] void progError(int line,
+                                int cause,
+                                const char * extra,
+                                const char * check)
+    {
       backup.progError(line, cause, extra, check);
     }
   };
@@ -516,7 +520,11 @@ public:
     
     BlockNumber number() const { return backup.number(); }
     EmulatedJamBuffer *jamBuffer() const { return backup.jamBuffer(); }
-    void progError(int line, int cause, const char * extra, const char * check) {
+    [[noreturn]] void progError(int line,
+                                int cause,
+                                const char * extra,
+                                const char * check)
+    {
       backup.progError(line, cause, extra, check);
     }
   private:
@@ -805,7 +813,11 @@ public:
     Backup & backup;
     BlockNumber number() const { return backup.number(); }
     EmulatedJamBuffer *jamBuffer() const { return backup.jamBuffer(); }
-    void progError(int line, int cause, const char * extra, const char * check) {
+    [[noreturn]] void progError(int line,
+                                int cause,
+                                const char * extra,
+                                const char * check)
+    {
       backup.progError(line, cause, extra, check);
     }
   };

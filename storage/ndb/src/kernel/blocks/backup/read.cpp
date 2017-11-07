@@ -91,7 +91,7 @@ static RowEntry **row_all_entries = NULL;
 #define ALL_PART 2
 #define CHANGE_PART 3
 
-inline void ndb_end_and_exit(int exitcode)
+[[noreturn]] inline void ndb_end_and_exit(int exitcode)
 {
   ndb_end(0);
   exit(exitcode);

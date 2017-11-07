@@ -3588,7 +3588,6 @@ void Ndbcntr::execREAD_NODESREQ(Signal* signal)
 void Ndbcntr::systemErrorLab(Signal* signal, int line) 
 {
   progError(line, NDBD_EXIT_NDBREQUIRE); /* BUG INSERTION */
-  return;
 }//Ndbcntr::systemErrorLab()
 
 /*###########################################################################*/
