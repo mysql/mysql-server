@@ -24,5 +24,5 @@ main.innodb_mysql_sync           : Bug#25887335 2017-04-13 Allen Disabled it sin
 # log_components_syslog    : WL#9343 2017-02-07 Tatiana provided for review/QA; should not be run routinely to prevent spamming the test host's log. may be removed later.
 
 main.outfile             : Bug#27021672 2017-10-25 Malika Disabled as it is failing on PB2
-main.ps_sys_upgrade      : Bug#27021672 2017-10-25 Malika Disabled as it is failing on PB2
+main.ps_sys_upgrade      : Bug#24619634 2017-10-25 Malika Disabled as it is failing on PB2
  
