@@ -661,7 +661,7 @@ public:
 
   virtual void on_wkb_start(Geometry::wkbByteOrder bo,
                             Geometry::wkbType geotype,
-                            const void *, uint32, bool has_hdr)
+                            const void *wkb, uint32 len, bool has_hdr)
   {
     if (!is_ok)
       return;
@@ -1135,15 +1135,15 @@ public:
   {
   }
 
-  virtual void on_wkb_start(Geometry::wkbByteOrder,
+  virtual void on_wkb_start(Geometry::wkbByteOrder bo,
                             Geometry::wkbType geotype,
-                            const void *, uint32, bool)
+                            const void *wkb, uint32 len, bool has_hdr)
   {
     if (geotype != Geometry::wkb_geometrycollection)
       num++;
   }
 
-  virtual void on_wkb_end(const void *)
+  virtual void on_wkb_end(const void *wkb)
   {
   }
 };

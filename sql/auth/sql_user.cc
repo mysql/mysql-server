@@ -252,7 +252,8 @@ enum enum_acl_lists
   PROXY_USERS_ACL
 };
 
-int check_change_password(THD *thd, const char *host, const char *user)
+int check_change_password(THD *thd, const char *host, const char *user,
+                          const char *new_password, size_t new_password_len)
 {
   Security_context *sctx;
   if (!initialized)
@@ -1334,7 +1335,7 @@ bool change_password(THD *thd, const char *host, const char *user,
                       host,user,new_password));
   DBUG_ASSERT(host != 0);                        // Ensured by parent
 
-  if (check_change_password(thd, host, user))
+  if (check_change_password(thd, host, user, new_password, new_password_len))
     DBUG_RETURN(true);
 
   /*

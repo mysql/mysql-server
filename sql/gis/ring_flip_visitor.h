@@ -16,7 +16,7 @@
 // this program; if not, write to the Free Software Foundation, 51 Franklin
 // Street, Suite 500, Boston, MA 02110-1335 USA.
 
-#include "sql/dd/types/spatial_reference_system.h"  // dd::Spatial_reference_system
+#include "sql/dd/types/spatial_reference_system.h" // dd::Spatial_reference_system
 #include "sql/gis/geometry_visitor.h"
 
 namespace gis {
@@ -50,11 +50,11 @@ class Ring_flip_visitor : public Nop_visitor {
   bool visit_enter(Polygon *py) override;
   bool visit_enter(Multipolygon *py) override;
 
-  bool visit_enter(Multipoint *) override {
+  bool visit_enter(Multipoint *mpt) override {
     return true;  // Don't descend into each point.
   }
 
-  bool visit_enter(Multilinestring *) override {
+  bool visit_enter(Multilinestring *mls) override {
     return true;  // Don't descend into each linestring.
   }
 };

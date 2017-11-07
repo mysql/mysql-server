@@ -23,7 +23,7 @@
 #include <cmath>  // std::isnan
 #include <exception>
 
-#include "sql/dd/types/spatial_reference_system.h"  // dd::Spatial_reference_system
+#include "sql/dd/types/spatial_reference_system.h" // dd::Spatial_reference_system
 #include "sql/gis/box.h"
 #include "sql/gis/box_traits.h"
 #include "sql/gis/geometries.h"
@@ -46,7 +46,7 @@ bool mbrs_are_equal(Box const &mbr1, Box const &mbr2) {
                         *down_cast<const Geographic_box *>(&mbr2));
   }
   DBUG_ASSERT(false); /* purecov: inspected */
-  return false;       /* purecov: inspected */
+  return false; /* purecov: inspected */
 }
 
 bool mbr_is_empty(Box const &mbr) {

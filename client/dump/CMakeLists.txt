@@ -21,8 +21,6 @@ IF(USING_LOCAL_BOOST)
     -DBOOST_SYSTEM_NO_DEPRECATED)
 ENDIF()
 
-INCLUDE_DIRECTORIES(SYSTEM ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
-
 SET(MYSQLPUMP_LIB_SOURCES
   abstract_chain_element.cc
   abstract_connection_provider.cc
@@ -93,7 +91,68 @@ ADD_CONVENIENCE_LIBRARY(mysqlpump_lib ${MYSQLPUMP_LIB_SOURCES})
 TARGET_LINK_LIBRARIES(mysqlpump_lib
    client_base ${LZ4_LIBRARY})
 
+ADD_COMPILE_FLAGS(
+  ${MYSQLPUMP_LIB_SOURCES}
+  COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
+  )
+
+# Files that use Boost sources that trigger compilation warnings
+SET(MYSQLPUMP_BOOST_SOURCES
+  abstract_crawler.cc
+  abstract_mysql_chain_element_extension.cc
+  abstract_progress_watcher.cc
+  mysql_chain_element_options.cc
+  mysql_object_reader.cc
+  mysqldump_tool_chain_maker.cc
+  mysqldump_tool_chain_maker_options.cc
+  object_filter.cc
+  object_queue.cc
+  program.cc
+  standard_progress_watcher.cc
+  sql_formatter.cc
+  table.cc
+)
+
+#
+# Disabling of various compiler warnings for GCC/Clang
+#
+
+IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  # Common for all versions of GCC/Clang
+
+  # Boost source use undefined symbols in #if checks
+  ADD_COMPILE_FLAGS(${MYSQLPUMP_BOOST_SOURCES}
+                    COMPILE_FLAGS "-Wno-undef")
+  # Boost source use auto_ptr, deprecated in C++11
+  ADD_COMPILE_FLAGS(${MYSQLPUMP_BOOST_SOURCES}
+                    COMPILE_FLAGS "-Wno-deprecated-declarations")
+  # Boost atomics triggers bogus warning in GCC, see
+  # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=61489
+  ADD_COMPILE_FLAGS(${MYSQLPUMP_BOOST_SOURCES}
+                    COMPILE_FLAGS "-Wno-missing-field-initializers")
+  
+  # Only for some versions of GCC/Clang
+
+  MY_CHECK_CXX_COMPILER_FLAG("-Wunused-local-typedefs" HAVE_UNUSED_TYPEDEFS)
+  IF(HAVE_UNUSED_TYPEDEFS)
+    # Boost source has unused local typedefs.
+    ADD_COMPILE_FLAGS(${MYSQLPUMP_BOOST_SOURCES}
+                      COMPILE_FLAGS "-Wno-unused-local-typedefs")
+  ENDIF()
+  
+  MY_CHECK_CXX_COMPILER_FLAG("-Wlogical-op" HAVE_LOGICAL_OP)
+  IF(HAVE_LOGICAL_OP)
+    # Boost source has logical && with non-zero constant
+    ADD_COMPILE_FLAGS(${MYSQLPUMP_BOOST_SOURCES}
+                      COMPILE_FLAGS "-Wno-logical-op")
+  ENDIF()
+
+ENDIF()
+
 MYSQL_ADD_EXECUTABLE(mysqlpump  program.cc)
+ADD_COMPILE_FLAGS(
+  program.cc COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
+)
 
 TARGET_LINK_LIBRARIES(mysqlpump mysqlpump_lib)
 

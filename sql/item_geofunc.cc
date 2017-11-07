@@ -4186,7 +4186,7 @@ public:
   }
 
 
-  virtual void on_wkb_end(const void *wkb MY_ATTRIBUTE((unused)))
+  virtual void on_wkb_end(const void *wkb)
   {
     if (pt_start)
       DBUG_ASSERT(static_cast<const char *>(pt_start) + POINT_DATA_SIZE == wkb);
@@ -5709,8 +5709,7 @@ public:
 
   virtual void on_wkb_start(Geometry::wkbByteOrder,
                             Geometry::wkbType geotype,
-                            const void *wkb, uint32 len,
-                            bool has_hdr MY_ATTRIBUTE((unused)))
+                            const void *wkb, uint32 len, bool has_hdr)
   {
     if (!m_isvalid)
       return;
@@ -6655,6 +6654,8 @@ double Item_func_distance::val_real()
 
 double Item_func_distance_sphere::val_real()
 {
+  typedef bgcs::spherical_equatorial<bg::degree> bgcssed;
+
   DBUG_ENTER("Item_func_distance_sphere::val_real");
   DBUG_ASSERT(fixed);
 

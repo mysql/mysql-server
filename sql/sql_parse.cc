@@ -3964,7 +3964,9 @@ mysql_execute_command(THD *thd, bool first_level)
         }
         else if (is_acl_user(thd, user->host.str, user->user.str) &&
                  user->auth.str &&
-                 check_change_password(thd, user->host.str, user->user.str))
+                 check_change_password (thd, user->host.str, user->user.str,
+                                        user->auth.str,
+                                        user->auth.length))
           goto error;
       }
     }

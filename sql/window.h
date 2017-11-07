@@ -884,6 +884,7 @@ public:
     Resolve and set up the PARTITION BY or an ORDER BY list of a window.
 
     @param thd              The session's execution thread
+    @param select           The select for which we are doing windowing
     @param ref_item_array
     @param tables           The list of tables involved
     @param fields           The list of selected fields
@@ -894,6 +895,7 @@ public:
     @returns false if success, true if error
   */
   bool resolve_window_ordering(THD *thd,
+                             SELECT_LEX *select,
                              Ref_item_array ref_item_array,
                              TABLE_LIST *tables,
                              List<Item> &fields,
@@ -1394,7 +1396,8 @@ private:
     If the result set is implicitly grouped, we also skip any sorting for
     windows.
   */
-  static void reorder_and_eliminate_sorts(THD *thd, List<Window> &windows);
+  static void reorder_and_eliminate_sorts(THD *thd, List<Window> &windows,
+                                          SELECT_LEX &select);
 
   /**
     Return true of the physical[1] sort orderings for the two windows are the

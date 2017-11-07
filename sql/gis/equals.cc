@@ -20,7 +20,7 @@
 #include <boost/geometry.hpp>
 #include <memory>  // std::unique_ptr
 
-#include "sql/dd/types/spatial_reference_system.h"  // dd::Spatial_reference_system
+#include "sql/dd/types/spatial_reference_system.h" // dd::Spatial_reference_system
 #include "sql/gis/box.h"
 #include "sql/gis/box_traits.h"
 #include "sql/gis/equals_functor.h"
@@ -29,8 +29,8 @@
 #include "sql/gis/geometries_traits.h"
 #include "sql/gis/mbr_utils.h"
 #include "sql/gis/relops.h"
-#include "sql/sql_exception_handler.h"  // handle_gis_exception
-#include "template_utils.h"             // down_cast
+#include "sql/sql_exception_handler.h" // handle_gis_exception
+#include "template_utils.h"         // down_cast
 
 namespace bg = boost::geometry;
 
@@ -176,12 +176,14 @@ bool Equals::eval(const Cartesian_point *g1, const Cartesian_point *g2) const {
   return bg::equals(*g1, *g2);
 }
 
-bool Equals::eval(const Cartesian_point *, const Cartesian_linestring *) const {
+bool Equals::eval(const Cartesian_point *g1,
+                  const Cartesian_linestring *g2) const {
   // A point may never be equal to a linestring.
   return false;
 }
 
-bool Equals::eval(const Cartesian_point *, const Cartesian_polygon *) const {
+bool Equals::eval(const Cartesian_point *g1,
+                  const Cartesian_polygon *g2) const {
   // A point may never be equal to a polygon.
   return false;
 }
@@ -197,14 +199,14 @@ bool Equals::eval(const Cartesian_point *g1,
   return bg::equals(*g1, *g2);
 }
 
-bool Equals::eval(const Cartesian_point *,
-                  const Cartesian_multilinestring *) const {
+bool Equals::eval(const Cartesian_point *g1,
+                  const Cartesian_multilinestring *g2) const {
   // A point may never be equal to a multilinestring.
   return false;
 }
 
-bool Equals::eval(const Cartesian_point *,
-                  const Cartesian_multipolygon *) const {
+bool Equals::eval(const Cartesian_point *g1,
+                  const Cartesian_multipolygon *g2) const {
   // A point may never be equal to a multipolygon.
   return false;
 }
@@ -213,7 +215,8 @@ bool Equals::eval(const Cartesian_point *,
 
 // equals(Cartesian_linestring, *)
 
-bool Equals::eval(const Cartesian_linestring *, const Cartesian_point *) const {
+bool Equals::eval(const Cartesian_linestring *g1,
+                  const Cartesian_point *g2) const {
   // A linestring may never be equal to a point.
   return false;
 }
@@ -223,8 +226,8 @@ bool Equals::eval(const Cartesian_linestring *g1,
   return bg::equals(*g1, *g2);
 }
 
-bool Equals::eval(const Cartesian_linestring *,
-                  const Cartesian_polygon *) const {
+bool Equals::eval(const Cartesian_linestring *g1,
+                  const Cartesian_polygon *g2) const {
   // A linestring may never be equal to a polygon.
   return false;
 }
@@ -235,8 +238,8 @@ bool Equals::eval(const Cartesian_linestring *g1,
                                                                         g1, g2);
 }
 
-bool Equals::eval(const Cartesian_linestring *,
-                  const Cartesian_multipoint *) const {
+bool Equals::eval(const Cartesian_linestring *g1,
+                  const Cartesian_multipoint *g2) const {
   // A linestring may never be equal to a multipoint.
   return false;
 }
@@ -246,8 +249,8 @@ bool Equals::eval(const Cartesian_linestring *g1,
   return bg::equals(*g1, *g2);
 }
 
-bool Equals::eval(const Cartesian_linestring *,
-                  const Cartesian_multipolygon *) const {
+bool Equals::eval(const Cartesian_linestring *g1,
+                  const Cartesian_multipolygon *g2) const {
   // A linestring may never be equal to a multipolygon.
   return false;
 }
@@ -256,13 +259,14 @@ bool Equals::eval(const Cartesian_linestring *,
 
 // equals(Cartesian_polygon, *)
 
-bool Equals::eval(const Cartesian_polygon *, const Cartesian_point *) const {
+bool Equals::eval(const Cartesian_polygon *g1,
+                  const Cartesian_point *g2) const {
   // A polygon may never be equal to a point.
   return false;
 }
 
-bool Equals::eval(const Cartesian_polygon *,
-                  const Cartesian_linestring *) const {
+bool Equals::eval(const Cartesian_polygon *g1,
+                  const Cartesian_linestring *g2) const {
   // A polygon may never be equal to a linestring.
   return false;
 }
@@ -278,14 +282,14 @@ bool Equals::eval(const Cartesian_polygon *g1,
                                                                         g1, g2);
 }
 
-bool Equals::eval(const Cartesian_polygon *,
-                  const Cartesian_multipoint *) const {
+bool Equals::eval(const Cartesian_polygon *g1,
+                  const Cartesian_multipoint *g2) const {
   // A polygon may never be equal to a multipoint.
   return false;
 }
 
-bool Equals::eval(const Cartesian_polygon *,
-                  const Cartesian_multilinestring *) const {
+bool Equals::eval(const Cartesian_polygon *g1,
+                  const Cartesian_multilinestring *g2) const {
   // A polygon may never be equal to a multilinestring.
   return false;
 }
@@ -314,14 +318,14 @@ bool Equals::eval(const Cartesian_multipoint *g1,
   return eval(g2, g1);
 }
 
-bool Equals::eval(const Cartesian_multipoint *,
-                  const Cartesian_linestring *) const {
+bool Equals::eval(const Cartesian_multipoint *g1,
+                  const Cartesian_linestring *g2) const {
   // A multipoint may never be equal to a linestring.
   return false;
 }
 
-bool Equals::eval(const Cartesian_multipoint *,
-                  const Cartesian_polygon *) const {
+bool Equals::eval(const Cartesian_multipoint *g1,
+                  const Cartesian_polygon *g2) const {
   // A multipoint may never be equal to a polygon.
   return false;
 }
@@ -337,14 +341,14 @@ bool Equals::eval(const Cartesian_multipoint *g1,
   return bg::equals(*g1, *g2);
 }
 
-bool Equals::eval(const Cartesian_multipoint *,
-                  const Cartesian_multilinestring *) const {
+bool Equals::eval(const Cartesian_multipoint *g1,
+                  const Cartesian_multilinestring *g2) const {
   // A multipoint may never be equal to a multilinestring.
   return false;
 }
 
-bool Equals::eval(const Cartesian_multipoint *,
-                  const Cartesian_multipolygon *) const {
+bool Equals::eval(const Cartesian_multipoint *g1,
+                  const Cartesian_multipolygon *g2) const {
   // A multipoint may never be equal to a multipolygon.
   return false;
 }
@@ -353,8 +357,8 @@ bool Equals::eval(const Cartesian_multipoint *,
 
 // equals(Cartesian_multilinestring, *)
 
-bool Equals::eval(const Cartesian_multilinestring *,
-                  const Cartesian_point *) const {
+bool Equals::eval(const Cartesian_multilinestring *g1,
+                  const Cartesian_point *g2) const {
   // A multilinestring may never be equal to a point.
   return false;
 }
@@ -364,8 +368,8 @@ bool Equals::eval(const Cartesian_multilinestring *g1,
   return bg::equals(*g1, *g2);
 }
 
-bool Equals::eval(const Cartesian_multilinestring *,
-                  const Cartesian_polygon *) const {
+bool Equals::eval(const Cartesian_multilinestring *g1,
+                  const Cartesian_polygon *g2) const {
   // A multilinestring may never be equal to a polygon.
   return false;
 }
@@ -376,8 +380,8 @@ bool Equals::eval(const Cartesian_multilinestring *g1,
                                                                         g1, g2);
 }
 
-bool Equals::eval(const Cartesian_multilinestring *,
-                  const Cartesian_multipoint *) const {
+bool Equals::eval(const Cartesian_multilinestring *g1,
+                  const Cartesian_multipoint *g2) const {
   // A multilinestring may never be equal to a multipoint.
   return false;
 }
@@ -387,8 +391,8 @@ bool Equals::eval(const Cartesian_multilinestring *g1,
   return bg::equals(*g1, *g2);
 }
 
-bool Equals::eval(const Cartesian_multilinestring *,
-                  const Cartesian_multipolygon *) const {
+bool Equals::eval(const Cartesian_multilinestring *g1,
+                  const Cartesian_multipolygon *g2) const {
   // A multilinestring may never be equal to a multipolygon.
   return false;
 }
@@ -397,14 +401,14 @@ bool Equals::eval(const Cartesian_multilinestring *,
 
 // equals(Cartesian_multipolygon, *)
 
-bool Equals::eval(const Cartesian_multipolygon *,
-                  const Cartesian_point *) const {
+bool Equals::eval(const Cartesian_multipolygon *g1,
+                  const Cartesian_point *g2) const {
   // A multipolygon may never be equal to a point.
   return false;
 }
 
-bool Equals::eval(const Cartesian_multipolygon *,
-                  const Cartesian_linestring *) const {
+bool Equals::eval(const Cartesian_multipolygon *g1,
+                  const Cartesian_linestring *g2) const {
   // A multipolygon may never be equal to a linestring.
   return false;
 }
@@ -420,14 +424,14 @@ bool Equals::eval(const Cartesian_multipolygon *g1,
                                                                         g1, g2);
 }
 
-bool Equals::eval(const Cartesian_multipolygon *,
-                  const Cartesian_multipoint *) const {
+bool Equals::eval(const Cartesian_multipolygon *g1,
+                  const Cartesian_multipoint *g2) const {
   // A multipolygon may never be equal to a multipoint.
   return false;
 }
 
-bool Equals::eval(const Cartesian_multipolygon *,
-                  const Cartesian_multilinestring *) const {
+bool Equals::eval(const Cartesian_multipolygon *g1,
+                  const Cartesian_multilinestring *g2) const {
   // A multipolygon may never be equal to a multilinestring.
   return false;
 }
@@ -448,13 +452,14 @@ bool Equals::eval(const Geographic_point *g1,
   return bg::equals(*g1, *g2);
 }
 
-bool Equals::eval(const Geographic_point *,
-                  const Geographic_linestring *) const {
+bool Equals::eval(const Geographic_point *g1,
+                  const Geographic_linestring *g2) const {
   // A point may never be equal to a linestring.
   return false;
 }
 
-bool Equals::eval(const Geographic_point *, const Geographic_polygon *) const {
+bool Equals::eval(const Geographic_point *g1,
+                  const Geographic_polygon *g2) const {
   // A point may never be equal to a polygon.
   return false;
 }
@@ -472,14 +477,14 @@ bool Equals::eval(const Geographic_point *g1,
   return bg::equals(*g1, *g2);
 }
 
-bool Equals::eval(const Geographic_point *,
-                  const Geographic_multilinestring *) const {
+bool Equals::eval(const Geographic_point *g1,
+                  const Geographic_multilinestring *g2) const {
   // A point may never be equal to a multilinestring.
   return false;
 }
 
-bool Equals::eval(const Geographic_point *,
-                  const Geographic_multipolygon *) const {
+bool Equals::eval(const Geographic_point *g1,
+                  const Geographic_multipolygon *g2) const {
   // A point may never be equal to a multipolygon.
   return false;
 }
@@ -488,8 +493,8 @@ bool Equals::eval(const Geographic_point *,
 
 // equals(Geographic_linestring, *)
 
-bool Equals::eval(const Geographic_linestring *,
-                  const Geographic_point *) const {
+bool Equals::eval(const Geographic_linestring *g1,
+                  const Geographic_point *g2) const {
   // A linestring may never be equal to a point.
   return false;
 }
@@ -499,8 +504,8 @@ bool Equals::eval(const Geographic_linestring *g1,
   return bg::equals(*g1, *g2, m_geographic_ll_aa_strategy);
 }
 
-bool Equals::eval(const Geographic_linestring *,
-                  const Geographic_polygon *) const {
+bool Equals::eval(const Geographic_linestring *g1,
+                  const Geographic_polygon *g2) const {
   // A linestring may never be equal to a polygon.
   return false;
 }
@@ -511,8 +516,8 @@ bool Equals::eval(const Geographic_linestring *g1,
       *this, g1, g2);
 }
 
-bool Equals::eval(const Geographic_linestring *,
-                  const Geographic_multipoint *) const {
+bool Equals::eval(const Geographic_linestring *g1,
+                  const Geographic_multipoint *g2) const {
   // A linestring may never be equal to a multipoint.
   return false;
 }
@@ -522,8 +527,8 @@ bool Equals::eval(const Geographic_linestring *g1,
   return bg::equals(*g1, *g2, m_geographic_ll_aa_strategy);
 }
 
-bool Equals::eval(const Geographic_linestring *,
-                  const Geographic_multipolygon *) const {
+bool Equals::eval(const Geographic_linestring *g1,
+                  const Geographic_multipolygon *g2) const {
   // A linestring may never be equal to a multipolygon.
   return false;
 }
@@ -532,13 +537,14 @@ bool Equals::eval(const Geographic_linestring *,
 
 // equals(Geographic_polygon, *)
 
-bool Equals::eval(const Geographic_polygon *, const Geographic_point *) const {
+bool Equals::eval(const Geographic_polygon *g1,
+                  const Geographic_point *g2) const {
   // A polygon may never be equal to a point.
   return false;
 }
 
-bool Equals::eval(const Geographic_polygon *,
-                  const Geographic_linestring *) const {
+bool Equals::eval(const Geographic_polygon *g1,
+                  const Geographic_linestring *g2) const {
   // A polygon may never be equal to a linestring.
   return false;
 }
@@ -554,14 +560,14 @@ bool Equals::eval(const Geographic_polygon *g1,
       *this, g1, g2);
 }
 
-bool Equals::eval(const Geographic_polygon *,
-                  const Geographic_multipoint *) const {
+bool Equals::eval(const Geographic_polygon *g1,
+                  const Geographic_multipoint *g2) const {
   // A polygon may never be equal to a multipoint.
   return false;
 }
 
-bool Equals::eval(const Geographic_polygon *,
-                  const Geographic_multilinestring *) const {
+bool Equals::eval(const Geographic_polygon *g1,
+                  const Geographic_multilinestring *g2) const {
   // A polygon may never be equal to a multilinestring.
   return false;
 }
@@ -590,14 +596,14 @@ bool Equals::eval(const Geographic_multipoint *g1,
   return eval(g2, g1);
 }
 
-bool Equals::eval(const Geographic_multipoint *,
-                  const Geographic_linestring *) const {
+bool Equals::eval(const Geographic_multipoint *g1,
+                  const Geographic_linestring *g2) const {
   // A multipoint may never be equal to a linestring.
   return false;
 }
 
-bool Equals::eval(const Geographic_multipoint *,
-                  const Geographic_polygon *) const {
+bool Equals::eval(const Geographic_multipoint *g1,
+                  const Geographic_polygon *g2) const {
   // A multipoint may never be equal to a polygon.
   return false;
 }
@@ -615,14 +621,14 @@ bool Equals::eval(const Geographic_multipoint *g1,
   return bg::equals(*g1, *g2);
 }
 
-bool Equals::eval(const Geographic_multipoint *,
-                  const Geographic_multilinestring *) const {
+bool Equals::eval(const Geographic_multipoint *g1,
+                  const Geographic_multilinestring *g2) const {
   // A multipoint may never be equal to a multilinestring.
   return false;
 }
 
-bool Equals::eval(const Geographic_multipoint *,
-                  const Geographic_multipolygon *) const {
+bool Equals::eval(const Geographic_multipoint *g1,
+                  const Geographic_multipolygon *g2) const {
   // A multipoint may never be equal to a multipolygon.
   return false;
 }
@@ -631,8 +637,8 @@ bool Equals::eval(const Geographic_multipoint *,
 
 // equals(Geographic_multilinestring, *)
 
-bool Equals::eval(const Geographic_multilinestring *,
-                  const Geographic_point *) const {
+bool Equals::eval(const Geographic_multilinestring *g1,
+                  const Geographic_point *g2) const {
   // A multilinestring may never be equal to a point.
   return false;
 }
@@ -642,8 +648,8 @@ bool Equals::eval(const Geographic_multilinestring *g1,
   return bg::equals(*g1, *g2, m_geographic_ll_aa_strategy);
 }
 
-bool Equals::eval(const Geographic_multilinestring *,
-                  const Geographic_polygon *) const {
+bool Equals::eval(const Geographic_multilinestring *g1,
+                  const Geographic_polygon *g2) const {
   // A multilinestring may never be equal to a polygon.
   return false;
 }
@@ -654,8 +660,8 @@ bool Equals::eval(const Geographic_multilinestring *g1,
       *this, g1, g2);
 }
 
-bool Equals::eval(const Geographic_multilinestring *,
-                  const Geographic_multipoint *) const {
+bool Equals::eval(const Geographic_multilinestring *g1,
+                  const Geographic_multipoint *g2) const {
   // A multilinestring may never be equal to a multipoint.
   return false;
 }
@@ -665,8 +671,8 @@ bool Equals::eval(const Geographic_multilinestring *g1,
   return bg::equals(*g1, *g2, m_geographic_ll_aa_strategy);
 }
 
-bool Equals::eval(const Geographic_multilinestring *,
-                  const Geographic_multipolygon *) const {
+bool Equals::eval(const Geographic_multilinestring *g1,
+                  const Geographic_multipolygon *g2) const {
   // A multilinestring may never be equal to a multipolygon.
   return false;
 }
@@ -675,14 +681,14 @@ bool Equals::eval(const Geographic_multilinestring *,
 
 // equals(Geographic_multipolygon, *)
 
-bool Equals::eval(const Geographic_multipolygon *,
-                  const Geographic_point *) const {
+bool Equals::eval(const Geographic_multipolygon *g1,
+                  const Geographic_point *g2) const {
   // A multipolygon may never be equal to a point.
   return false;
 }
 
-bool Equals::eval(const Geographic_multipolygon *,
-                  const Geographic_linestring *) const {
+bool Equals::eval(const Geographic_multipolygon *g1,
+                  const Geographic_linestring *g2) const {
   // A multipolygon may never be equal to a linestring.
   return false;
 }
@@ -698,14 +704,14 @@ bool Equals::eval(const Geographic_multipolygon *g1,
       *this, g1, g2);
 }
 
-bool Equals::eval(const Geographic_multipolygon *,
-                  const Geographic_multipoint *) const {
+bool Equals::eval(const Geographic_multipolygon *g1,
+                  const Geographic_multipoint *g2) const {
   // A multipolygon may never be equal to a multipoint.
   return false;
 }
 
-bool Equals::eval(const Geographic_multipolygon *,
-                  const Geographic_multilinestring *) const {
+bool Equals::eval(const Geographic_multipolygon *g1,
+                  const Geographic_multilinestring *g2) const {
   // A multipolygon may never be equal to a multilinestring.
   return false;
 }

@@ -2836,6 +2836,7 @@ end_index_init:
   @brief Helper function to grant_reload. Reloads procs_priv table is it
     exists.
 
+  @param thd A pointer to the thread handler object.
   @param table A pointer to the table list.
 
   @see grant_reload
@@ -2845,7 +2846,7 @@ end_index_init:
     @retval TRUE An error has occurred.
 */
 
-static bool grant_reload_procs_priv(TABLE_LIST *table)
+static bool grant_reload_procs_priv(THD *thd, TABLE_LIST *table)
 {
   DBUG_ENTER("grant_reload_procs_priv");
 
@@ -2948,7 +2949,7 @@ bool grant_reload(THD *thd)
       pre 4.1 privilage tables
     */
     if ((return_val= (grant_load(thd, tables) ||
-                      grant_reload_procs_priv(&tables[2]))
+                      grant_reload_procs_priv(thd, &tables[2]))
        ))
     {                                             // Error. Revert to old hash
       DBUG_PRINT("error",("Reverting to old privileges"));
@@ -3099,7 +3100,7 @@ void acl_update_user(const char *user, const char *host,
 }
 
 
-void acl_insert_user(THD *thd MY_ATTRIBUTE((unused)), const char *user, const char *host,
+void acl_insert_user(THD *thd, const char *user, const char *host,
                      enum SSL_type ssl_type,
                      const char *ssl_cipher,
                      const char *x509_issuer,
@@ -3487,7 +3488,7 @@ Acl_map::~Acl_map()
     // Db_access_map is automatically destroyed and cleaned up.
 }
 
-Acl_map::Acl_map(const Acl_map &)
+Acl_map::Acl_map(const Acl_map &map)
 {
   // An Acl_map should not be copied
   DBUG_ASSERT(false);
@@ -3513,7 +3514,7 @@ Acl_map &Acl_map::operator=(Acl_map &&map)
 }
 
 Acl_map &
-Acl_map::operator=(const Acl_map &)
+Acl_map::operator=(const Acl_map &map)
 {
   return *this;
 }
@@ -3796,7 +3797,7 @@ public:
     @param [in] msg           Message string. Unused.
   */
 
-  virtual bool handle_condition(THD *thd MY_ATTRIBUTE((unused)),
+  virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char *sqlstate MY_ATTRIBUTE((unused)),
                                 Sql_condition::enum_severity_level *level MY_ATTRIBUTE((unused)),

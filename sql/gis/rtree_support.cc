@@ -132,8 +132,8 @@ bool mbr_equal_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
   return result;
 }
 
-bool mbr_intersect_cmp(rtr_mbr_t* a MY_ATTRIBUTE((unused)),
-                       rtr_mbr_t* b MY_ATTRIBUTE((unused))) {
+bool mbr_intersect_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
+                       rtr_mbr_t* b) {
   // This assertion contains the old return value of the function. Given a valid
   // box, it should always be true.
   DBUG_ASSERT((b->xmin <= a->xmax || b->xmax >= a->xmin) &&
@@ -141,8 +141,9 @@ bool mbr_intersect_cmp(rtr_mbr_t* a MY_ATTRIBUTE((unused)),
   return true;
 }
 
-bool mbr_disjoint_cmp(rtr_mbr_t* a, rtr_mbr_t* b) {
-  return !mbr_intersect_cmp(a, b);
+bool mbr_disjoint_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
+                      rtr_mbr_t* b) {
+  return !mbr_intersect_cmp(srs, a, b);
 }
 
 bool mbr_within_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
@@ -197,7 +198,7 @@ bool mbr_within_cmp(const dd::Spatial_reference_system* srs, rtr_mbr_t* a,
 }
 
 void mbr_join(const dd::Spatial_reference_system* srs, double* a,
-              const double* b, int n_dim MY_ATTRIBUTE((unused))) {
+              const double* b, int n_dim) {
   DBUG_ASSERT(n_dim == 2);
 
   try {
@@ -231,7 +232,7 @@ void mbr_join(const dd::Spatial_reference_system* srs, double* a,
 }
 
 double mbr_join_area(const dd::Spatial_reference_system* srs, const double* a,
-                     const double* b, int n_dim MY_ATTRIBUTE((unused))) {
+                     const double* b, int n_dim) {
   DBUG_ASSERT(n_dim == 2);
 
   double area = 0.0;
@@ -268,7 +269,7 @@ double mbr_join_area(const dd::Spatial_reference_system* srs, const double* a,
 }
 
 double compute_area(const dd::Spatial_reference_system* srs, const double* a,
-                    int n_dim MY_ATTRIBUTE((unused))) {
+                    int n_dim) {
   DBUG_ASSERT(n_dim == 2);
 
   double area = 0.0;
@@ -297,8 +298,7 @@ double compute_area(const dd::Spatial_reference_system* srs, const double* a,
 }
 
 int get_mbr_from_store(const dd::Spatial_reference_system* srs, uchar* store,
-                       uint size, uint n_dims MY_ATTRIBUTE((unused)),
-                       double* mbr, gis::srid_t* srid) {
+                       uint size, uint n_dims, double* mbr, gis::srid_t* srid) {
   DBUG_ASSERT(n_dims == 2);
   // The SRS should match the SRID of the geometry, with one exception: For
   // backwards compatibility it is allowed to create indexes with mixed

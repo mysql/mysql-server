@@ -21,7 +21,7 @@
 /// This file declares the interface of relational GIS operations. These are
 /// boolean operations that compute relations between geometries.
 
-#include "sql/dd/types/spatial_reference_system.h"  // dd::Spatial_reference_system
+#include "sql/dd/types/spatial_reference_system.h" // dd::Spatial_reference_system
 #include "sql/gis/geometries.h"
 
 namespace gis {
