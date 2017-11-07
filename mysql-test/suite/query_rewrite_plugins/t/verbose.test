@@ -9,6 +9,8 @@ SET sql_mode = 'PIPES_AS_CONCAT';
 SHOW VARIABLES LIKE 'Rewriter_verbose';
 
 --echo # We want notes to show in the error log.
+SET @orig_log_error_verbosity= @@GLOBAL.log_error_verbosity;
+SET @@global.log_error_verbosity=3;
 SELECT @@log_error_verbosity;
 
 INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
@@ -46,3 +48,4 @@ SELECT @pfs_digest = @log_digest AS digest_is_correct;
 --source suite/query_rewrite_plugins/include/drop_error_log.inc
 --source suite/query_rewrite_plugins/include/uninstall_rewriter.inc
 SET sql_mode = DEFAULT;
+SET @@global.log_error_verbosity= @orig_log_error_verbosity;

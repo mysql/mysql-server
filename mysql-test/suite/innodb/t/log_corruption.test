@@ -6,7 +6,7 @@ write_file $newdir/mysql/plugin.frm;
 EOF
 
 let SEARCH_FILE = $newdir/my_restart.err;
-let $args=--no-defaults --innodb_dedicated_server=OFF --datadir=$newdir --secure-file-priv="" --loose-skip-auto-generate-certs --loose-skip-sha256-password-auto-generate-rsa-keys --loose-console --loose-skip-log-bin > $SEARCH_FILE 2>&1 ;
+let $args=--no-defaults --innodb_dedicated_server=OFF --datadir=$newdir --secure-file-priv="" --loose-skip-auto-generate-certs --loose-skip-sha256-password-auto-generate-rsa-keys --loose-console --loose-skip-log-bin --log-error-verbosity=3 > $SEARCH_FILE 2>&1 ;
 
 --echo # redo log from before MySQL 5.7.9
 --exec unzip $MYSQL_TEST_DIR/suite/innodb/t/log_corruption.zip -d $newdir > $SEARCH_FILE
