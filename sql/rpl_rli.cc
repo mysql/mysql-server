@@ -261,8 +261,8 @@ Relay_log_info::~Relay_log_info()
 
     if (rpl_filter != NULL)
     {
-      /* Remove the channel's replication filter from rpl_filter_map. */
-      rpl_filter_map.delete_filter(rpl_filter);
+      /* Remove the channel's replication filter from rpl_channel_filters. */
+      rpl_channel_filters.delete_filter(rpl_filter);
       rpl_filter= NULL;
     }
 

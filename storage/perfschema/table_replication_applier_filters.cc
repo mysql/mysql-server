@@ -100,9 +100,9 @@ table_replication_applier_filters::reset_position(void)
 ha_rows
 table_replication_applier_filters::get_row_count()
 {
-  rpl_filter_map.rdlock();
-  uint count = rpl_filter_map.get_filter_count();
-  rpl_filter_map.unlock();
+  rpl_channel_filters.rdlock();
+  uint count = rpl_channel_filters.get_filter_count();
+  rpl_channel_filters.unlock();
 
   return count;
 }
@@ -113,11 +113,11 @@ table_replication_applier_filters::rnd_next(void)
   int res = HA_ERR_END_OF_FILE;
   Rpl_pfs_filter *rpl_pfs_filter = NULL;
 
-  rpl_filter_map.wrlock();
+  rpl_channel_filters.rdlock();
   for (m_pos.set_at(&m_next_pos); res != 0; m_pos.next())
   {
-    /* Get ith rpl_pfs_filter from rpl_filter_map. */
-    rpl_pfs_filter = rpl_filter_map.get_filter_at_pos(m_pos.m_index);
+    /* Get ith rpl_pfs_filter from rpl_channel_filters. */
+    rpl_pfs_filter = rpl_channel_filters.get_filter_at_pos(m_pos.m_index);
 
     if (rpl_pfs_filter == NULL)
     {
@@ -130,7 +130,7 @@ table_replication_applier_filters::rnd_next(void)
       res = 0;
     }
   }
-  rpl_filter_map.unlock();
+  rpl_channel_filters.unlock();
 
   return res;
 }
@@ -143,15 +143,15 @@ table_replication_applier_filters::rnd_pos(const void *pos)
 
   set_position(pos);
 
-  rpl_filter_map.wrlock();
-  /* Get ith rpl_pfs_filter from rpl_filter_map. */
-  rpl_pfs_filter = rpl_filter_map.get_filter_at_pos(m_pos.m_index - 1);
+  rpl_channel_filters.rdlock();
+  /* Get ith rpl_pfs_filter from rpl_channel_filters. */
+  rpl_pfs_filter = rpl_channel_filters.get_filter_at_pos(m_pos.m_index - 1);
   if (rpl_pfs_filter)
   {
     make_row(rpl_pfs_filter);
     ret = 0;
   }
-  rpl_filter_map.unlock();
+  rpl_channel_filters.unlock();
 
   return ret;
 }
@@ -175,12 +175,12 @@ table_replication_applier_filters::make_row(Rpl_pfs_filter *rpl_pfs_filter)
     m_row.filter_rule.copy(rpl_pfs_filter->get_filter_rule());
 
   m_row.configured_by =
-    rpl_pfs_filter->m_rpl_filter_statistics.get_configured_by();
+    rpl_pfs_filter->get_rpl_filter_statistics()->get_configured_by();
 
   m_row.active_since =
-    rpl_pfs_filter->m_rpl_filter_statistics.get_active_since();
+    rpl_pfs_filter->get_rpl_filter_statistics()->get_active_since();
 
-  m_row.counter = rpl_pfs_filter->m_rpl_filter_statistics.get_counter();
+  m_row.counter = rpl_pfs_filter->get_rpl_filter_statistics()->get_counter();
 
   m_row_exists = true;
 }

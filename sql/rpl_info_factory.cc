@@ -303,7 +303,7 @@ Relay_log_info *Rpl_info_factory::create_rli(uint rli_option,
   }
 
   /* Set filters here to guarantee that any rli object has a valid filter */
-  rpl_filter= rpl_filter_map.get_channel_filter(channel);
+  rpl_filter= rpl_channel_filters.get_channel_filter(channel);
   if (rpl_filter == NULL)
   {
     sql_print_error("Slave: failed in creating filter for channel '%s'",
