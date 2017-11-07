@@ -1,6 +1,5 @@
 # For easier human reading (MTR doesn't care), please keep entries
 # in alphabetical order. This also helps with merge conflict resolution.
 
-group_replication.gr_applier_early_failure                      # BUG#25654425  2017-05-12 Nuno Carvalho
 group_replication.gr_majority_loss_restart                      # BUG#25553294  2017-05-12 Nuno Carvalho
 group_replication.gr_recovery_donor_retry                       # BUG#25900013  2017-05-12 Nuno Carvalho
