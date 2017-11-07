@@ -452,7 +452,6 @@ SET(SQL_SHARED_SOURCES
   tztime.cc
   uniques.cc
   xa.cc
-  ${DD_SOURCES}
   ${MYSQL_SERVER_SUB_COMPONENT_SOURCES}
 )
 
@@ -714,6 +713,13 @@ ADD_DEPENDENCIES(sql_gis GenBootstrapPriv)
 ADD_DEPENDENCIES(sql_gis GenSysSchema)
 ADD_DEPENDENCIES(sql_gis GenError)
 
+ADD_CONVENIENCE_LIBRARY(sql_dd ${DD_SOURCES})
+ADD_DEPENDENCIES(sql_dd GenServerSource)
+ADD_DEPENDENCIES(sql_dd GenDigestServerSource)
+ADD_DEPENDENCIES(sql_dd GenBootstrapPriv)
+ADD_DEPENDENCIES(sql_dd GenSysSchema)
+ADD_DEPENDENCIES(sql_dd GenError)
+
 #
 # On Windows platform we compile in the clinet-side Windows Native Authentication
 # plugin which is used by the client connection code included in the server.
@@ -817,7 +823,7 @@ ENDIF()
 
 SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE) 
 TARGET_LINK_LIBRARIES(mysqld
-  sql_main sql_gis binlog rpl master slave sql_main sql_gis mysys mysys_ssl
+  sql_main sql_gis binlog rpl master slave sql_main sql_dd sql_gis mysys mysys_ssl
   binlogevents_static)
 
 # Remove transitive link dependencies when linking plugins
