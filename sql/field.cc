@@ -6663,7 +6663,7 @@ int Field_newdate::cmp(const uchar *a_ptr, const uchar *b_ptr)
 size_t Field_newdate::make_sort_key(uchar *to,
                                     size_t length MY_ATTRIBUTE((unused)))
 {
-  DBUG_ASSERT(length == 3);
+  memset(to, 0, length);
   to[0] = ptr[2];
   to[1] = ptr[1];
   to[2] = ptr[0];
