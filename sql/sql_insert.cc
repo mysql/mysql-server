@@ -3080,10 +3080,19 @@ bool Query_result_create::send_eof()
   {
     Uncommitted_tables_guard uncommitted_tables(thd);
 
+    /*
+      We can rollback target table creation by dropping it even for SEs which
+      don't support atomic DDL. So there is no need to commit changes to
+      metadata of dependent views below.
+      Moreover, doing these intermediate commits can be harmful as in RBR mode
+      they will flush CREATE TABLE event and row events to the binary log
+      which, in case of later error, will create discrepancy with rollback of
+      statement by target table removal.
+      Such intermediate commits also wipe out transaction's unsafe-to-rollback
+      flags which leads to broken assertions in Query_result_insert::send_eof().
+    */
     if (!error)
-      error= update_referencing_views_metadata(thd, create_table,
-                                               !(table->s->db_type()->flags &
-                                                 HTON_SUPPORTS_ATOMIC_DDL),
+      error= update_referencing_views_metadata(thd, create_table, false,
                                                &uncommitted_tables);
   }
 
