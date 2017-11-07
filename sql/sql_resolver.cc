@@ -3825,6 +3825,14 @@ bool SELECT_LEX::resolve_rollup(THD *thd)
           item->eq(*group->item, false))
       {
         item->maybe_null= true;
+        /*
+          If this is a reference, e.g a view column, we need the column to be
+          marked as nullable also, since this will form the basis of temporary
+          table fields.  Copy_field's from_null_ptr, to_null_ptr will be
+          missing if the Item_field isn't marked correctly, which will cause
+          problems if we have buffered windowing.
+        */
+        item->real_item()->maybe_null= true;
         found_in_group= true;
         break;
       }
