@@ -1,7 +1,7 @@
 # ==== Purpose ====
 #
 # Verify that GTID_EXECUTED and GTID_PURGED are correctly restored by
-# mysqldump, even after a restart.
+# mysqlpump, even after a restart.
 #
 # ==== Implementation ====
 #
@@ -29,9 +29,9 @@ FLUSH LOGS;
 INSERT INTO t1 VALUES (2);
 --let $gtid_executed= `SELECT @@GLOBAL.GTID_EXECUTED`
 
---let $name = dump
-# Use --ignore-table=proc to workaround BUG#25295631.
---let $program = $MYSQL_DUMP --all-databases --triggers --routines --events --ignore-table=mysql.proc
+--let $name= pump
+# Skip routines to workaround BUG#25292963
+--let $program= $MYSQL_PUMP --add-drop-table --all-databases --include-routines=o
 
 --echo ==== $name and restore ====
 
