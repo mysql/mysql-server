@@ -22,44 +22,6 @@
 #include "plugin/group_replication/include/plugin_log.h"
 #include <mysqld_error.h>
 
-/* keep it in sync with enum_server_command in my_command.h */
-const LEX_STRING command_name[]={
-  { C_STRING_WITH_LEN("Sleep") },
-  { C_STRING_WITH_LEN("Quit") },
-  { C_STRING_WITH_LEN("Init DB") },
-  { C_STRING_WITH_LEN("Query") },
-  { C_STRING_WITH_LEN("Field List") },
-  { C_STRING_WITH_LEN("Create DB") },
-  { C_STRING_WITH_LEN("Drop DB") },
-  { C_STRING_WITH_LEN("Refresh") },
-  { C_STRING_WITH_LEN("Shutdown") },
-  { C_STRING_WITH_LEN("Statistics") },
-  { C_STRING_WITH_LEN("Processlist") },
-  { C_STRING_WITH_LEN("Connect") },
-  { C_STRING_WITH_LEN("Kill") },
-  { C_STRING_WITH_LEN("Debug") },
-  { C_STRING_WITH_LEN("Ping") },
-  { C_STRING_WITH_LEN("Time") },
-  { C_STRING_WITH_LEN("Delayed insert") },
-  { C_STRING_WITH_LEN("Change user") },
-  { C_STRING_WITH_LEN("Binlog Dump") },
-  { C_STRING_WITH_LEN("Table Dump") },
-  { C_STRING_WITH_LEN("Connect Out") },
-  { C_STRING_WITH_LEN("Register Slave") },
-  { C_STRING_WITH_LEN("Prepare") },
-  { C_STRING_WITH_LEN("Execute") },
-  { C_STRING_WITH_LEN("Long Data") },
-  { C_STRING_WITH_LEN("Close stmt") },
-  { C_STRING_WITH_LEN("Reset stmt") },
-  { C_STRING_WITH_LEN("Set option") },
-  { C_STRING_WITH_LEN("Fetch") },
-  { C_STRING_WITH_LEN("Daemon") },
-  { C_STRING_WITH_LEN("Binlog Dump GTID") },
-  { C_STRING_WITH_LEN("Reset Connection") },
-  { C_STRING_WITH_LEN("Error") }  // Last command number
-};
-
-
 /* Sql_service_interface constructor */
 Sql_service_interface::Sql_service_interface(enum cs_text_or_binary cs_txt_bin,
                                              const CHARSET_INFO *charset)
