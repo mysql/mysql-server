@@ -159,27 +159,15 @@ bool setup_config(atrt_config& config, const char* atrt_mysqld) {
       int argc = 1;
       const char* argv[] = {"atrt", 0, 0};
       argv[argc++] = buf.c_str();
-<<<<<<< HEAD
-      const char *groups[] = { "mysql_cluster", 0 };
-      char ** tmp = (char**)argv;
-      MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512, 0};
-      ret = load_defaults(g_my_cnf, groups, &argc, &tmp, &alloc);
-      
-      if (ret)
-      {
-	g_logger.error("Unable to load defaults for cluster: %s", 
-		       clusters[i].c_str());
-	return false;
-=======
       const char* groups[] = {"mysql_cluster", 0};
       char** tmp = (char**)argv;
-      ret = load_defaults(g_my_cnf, groups, &argc, &tmp);
+      MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512, 0};
+      ret = load_defaults(g_my_cnf, groups, &argc, &tmp, &alloc);
 
       if (ret) {
         g_logger.error("Unable to load defaults for cluster: %s",
                        clusters[i].c_str());
         return false;
->>>>>>> mysql-8.0-cluster-8.0
       }
 
       load_options(argc, tmp, atrt_process::AP_CLUSTER, cluster->m_options);
@@ -319,19 +307,11 @@ static bool load_process(atrt_config& config, atrt_cluster& cluster,
       return false;
   }
 
-<<<<<<< HEAD
   MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512, 0};
   int ret = load_defaults(g_my_cnf, groups, &argc, &tmp, &alloc);
-  if (ret)
-  {
-    g_logger.error("Unable to load defaults for cluster: %s", 
-		   cluster.m_name.c_str());
-=======
-  int ret = load_defaults(g_my_cnf, groups, &argc, &tmp);
   if (ret) {
     g_logger.error("Unable to load defaults for cluster: %s",
                    cluster.m_name.c_str());
->>>>>>> mysql-8.0-cluster-8.0
     return false;
   }
 
