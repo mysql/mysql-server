@@ -6129,10 +6129,18 @@ os_file_set_size(
 	bool		read_only,
 	bool		flush)
 {
-	/* Write up to 1 megabyte at a time. */
-	ulint	buf_size = ut_min(
-		static_cast<ulint>(64),
-		static_cast<ulint>(size / UNIV_PAGE_SIZE));
+	/* Write up to FSP_EXTENT_SIZE bytes at a time. */
+	ulint	buf_size = 0;
+
+	if (size <= UNIV_PAGE_SIZE) {
+		buf_size = 1;
+	} else {
+		buf_size = ut_min(
+			static_cast<ulint>(64),
+			static_cast<ulint>(size / UNIV_PAGE_SIZE));
+	}
+
+	ut_ad(buf_size != 0);
 
 	buf_size *= UNIV_PAGE_SIZE;
 
