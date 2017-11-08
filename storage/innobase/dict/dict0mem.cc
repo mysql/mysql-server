@@ -237,11 +237,20 @@ dict_mem_table_col_rename_low(
 		char*	col_names;
 
 		if (to_len > from_len) {
+			ulint table_size_before_rename_col
+				= mem_heap_get_size(table->heap);
 			col_names = static_cast<char*>(
 				mem_heap_alloc(
 					table->heap,
 					full_len + to_len - from_len));
-
+			ulint table_size_after_rename_col
+				= mem_heap_get_size(table->heap);
+			if (table_size_before_rename_col
+				!= table_size_after_rename_col) {
+				dict_sys->size +=
+					table_size_after_rename_col
+						- table_size_before_rename_col;
+			}
 			memcpy(col_names, t_col_names, prefix_len);
 		} else {
 			col_names = const_cast<char*>(t_col_names);
