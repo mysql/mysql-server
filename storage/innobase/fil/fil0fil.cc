@@ -4330,7 +4330,7 @@ fil_ibd_create(
 		}
 
 		if (error == OS_FILE_DISK_FULL) {
-			return(DB_OUT_OF_FILE_SPACE);
+			return(DB_OUT_OF_DISK_SPACE);
 		}
 
 		return(DB_ERROR);
@@ -4384,7 +4384,7 @@ fil_ibd_create(
 	if (!success) {
 		os_file_close(file);
 		os_file_delete(innodb_data_file_key, path);
-		return(DB_OUT_OF_FILE_SPACE);
+		return(DB_OUT_OF_DISK_SPACE);
 	}
 
 	/* Note: We are actually punching a hole, previous contents will
