@@ -6,3 +6,6 @@ TRUNCATE TABLE t5;
 TRUNCATE TABLE t6;
 TRUNCATE TABLE t7;
 == verify_mysql_dd.inc ==
+DROP TABLE ndb_ddl_test.t3;
+TRUNCATE ndb_ddl_test.t5;
+== verify_mysql_dd.inc ==
