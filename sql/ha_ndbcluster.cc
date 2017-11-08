@@ -938,7 +938,6 @@ handle_conflict_op_error(NdbTransaction* trans,
 static int
 handle_row_conflict(NDB_CONFLICT_FN_SHARE* cfn_share,
                     const char* tab_name,
-                    bool table_has_blobs,
                     const char* handling_type,
                     const NdbRecord* key_rec,
                     const NdbRecord* data_rec,
@@ -4991,7 +4990,6 @@ ha_ndbcluster::prepare_conflict_detection(enum_conflicting_op_type op_type,
       */
       res = handle_row_conflict(m_share->m_cfn_share,
                                 m_share->table_name,
-                                m_share->flags & NSF_BLOB_FLAG,
                                 "Transaction",
                                 key_rec,
                                 data_rec,
@@ -5429,7 +5427,6 @@ handle_conflict_op_error(NdbTransaction* trans,
 
       int res = handle_row_conflict(cfn_share,
                                     share->table_name,
-                                    false, /* table_has_blobs */
                                     "Row",
                                     key_rec,
                                     data_rec,
@@ -5910,7 +5907,6 @@ static Ndb_exceptions_data StaticRefreshExceptionsData=
 static int
 handle_row_conflict(NDB_CONFLICT_FN_SHARE* cfn_share,
                     const char* table_name,
-                    bool table_has_blobs,
                     const char* handling_type,
                     const NdbRecord* key_rec,
                     const NdbRecord* data_rec,
@@ -5960,28 +5956,6 @@ handle_row_conflict(NDB_CONFLICT_FN_SHARE* cfn_share,
 
     do
     {
-      /* We cannot refresh a row which has Blobs, as we do not support
-       * Blob refresh yet.
-       * Rows implicated by a transactional conflict function may have
-       * Blobs.
-       * We will generate an error in this case
-       */
-      if (table_has_blobs)
-      {
-        char msg[FN_REFLEN];
-        my_snprintf(msg, sizeof(msg), "%s conflict handling "
-                    "on table %s failed as table has Blobs which cannot be refreshed.",
-                    handling_type,
-                    table_name);
-
-        push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                            ER_EXCEPTIONS_WRITE_ERROR,
-                            ER_THD(current_thd, ER_EXCEPTIONS_WRITE_ERROR),
-                            msg);
-
-        DBUG_RETURN(ER_EXCEPTIONS_WRITE_ERROR);
-      }
-
       /* When the slave splits an epoch into batches, a conflict row detected
        * and refreshed in an early batch can be written to by operations in
        * a later batch.  As the operations will not have applied, and the
@@ -6096,6 +6070,32 @@ handle_row_conflict(NDB_CONFLICT_FN_SHARE* cfn_share,
         else
         {
           char msg[FN_REFLEN];
+
+          /* We cannot refresh a row which has Blobs, as we do not support
+           * Blob refresh yet.
+           * Rows implicated by a transactional conflict function may have
+           * Blobs.
+           * We will generate an error in this case
+           */
+          const int NDBAPI_ERR_REFRESH_ON_BLOB_TABLE = 4343;
+          if (err.code == NDBAPI_ERR_REFRESH_ON_BLOB_TABLE)
+          {
+            // Generate legacy error message instead of using
+            // the error code and message returned from NdbApi
+            my_snprintf(msg, sizeof(msg),
+                        "%s conflict handling on table %s failed as table "
+                        "has Blobs which cannot be refreshed.",
+                        handling_type,
+                        table_name);
+
+            push_warning_printf(current_thd, Sql_condition::SL_WARNING,
+                                ER_EXCEPTIONS_WRITE_ERROR,
+                                ER_THD(current_thd, ER_EXCEPTIONS_WRITE_ERROR),
+                                msg);
+
+            DBUG_RETURN(ER_EXCEPTIONS_WRITE_ERROR);
+          }
+
           my_snprintf(msg, sizeof(msg), "Row conflict handling "
                       "on table %s hit Ndb error %d '%s'",
                       table_name,
