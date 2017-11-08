@@ -497,6 +497,7 @@ ut_strerr(
 	case DB_OUT_OF_MEMORY:
 		return("Cannot allocate memory");
 	case DB_OUT_OF_FILE_SPACE:
+	case DB_OUT_OF_DISK_SPACE:
 		return("Out of disk space");
 	case DB_LOCK_WAIT:
 		return("Lock wait");

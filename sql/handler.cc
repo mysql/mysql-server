@@ -752,6 +752,7 @@ int ha_init_errors(void)
   SETMSG(HA_ERR_WRONG_FILE_NAME,		ER_DEFAULT(ER_WRONG_FILE_NAME));
   SETMSG(HA_ERR_NOT_ALLOWED_COMMAND,		ER_DEFAULT(ER_NOT_ALLOWED_COMMAND));
   SETMSG(HA_ERR_COMPUTE_FAILED,		"Compute virtual column value failed");
+  SETMSG(HA_ERR_DISK_FULL,		ER_DEFAULT(ER_DISK_FULL));
   /* Register the error messages for use with my_error(). */
   return my_error_register(get_handler_errmsg, HA_ERR_FIRST, HA_ERR_LAST);
 }
@@ -4356,6 +4357,13 @@ void handler::print_error(int error, myf errflag)
   case HA_ERR_INDEX_FILE_FULL:
   {
     textno=ER_RECORD_FILE_FULL;
+    /* Write the error message to error log */
+    errflag|= ME_ERRORLOG;
+    break;
+  }
+  case HA_ERR_DISK_FULL:
+  {
+    textno=ER_DISK_FULL;
     /* Write the error message to error log */
     errflag|= ME_ERRORLOG;
     break;
