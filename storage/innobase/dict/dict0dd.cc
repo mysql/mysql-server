@@ -5596,6 +5596,12 @@ Update the cached tablespace objects, if they differ from dictionary
 bool
 dd_tablespace_update_cache(THD* thd)
 {
+	/* If there are no prepared trxs, then DD reads would have been
+	already consistent. No need to update cache */
+	if (!trx_sys->found_prepared_trx) {
+		return(false);
+	}
+
 	dd::cache::Dictionary_client*			dc
 		= dd::get_dd_client(thd);
 	dd::cache::Dictionary_client::Auto_releaser	releaser(dc);
