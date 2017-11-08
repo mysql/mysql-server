@@ -1823,7 +1823,7 @@ main(int argc, char** argv)
       if (!g_consumers[i]->update_apply_status(metaData))
       {
         err << "Restore: Failed to restore epoch" << endl;
-        return -1;
+        exitHandler(NDBT_FAILED);
       }
   }
 
@@ -1854,13 +1854,13 @@ main(int argc, char** argv)
       for(Uint32 j= 0; j < g_consumers.size(); j++)
       {
         if (!g_consumers[j]->rebuild_indexes(* table))
-          return -1;
+          exitHandler(NDBT_FAILED);
       }
     }
     for(Uint32 j= 0; j < g_consumers.size(); j++)
     {
       if (!g_consumers[j]->endOfTablesFK())
-        return -1;
+        exitHandler(NDBT_FAILED);
     }
   }
 
