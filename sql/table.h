@@ -3172,7 +3172,7 @@ public:
      Specifies which kind of table should be open for this element
      of table list.
   */
-  enum enum_open_type open_type{OT_TEMPORARY_OR_BASE};
+  enum_open_type open_type{OT_TEMPORARY_OR_BASE};
   /* TRUE if this merged view contain auto_increment field */
   bool          contain_auto_increment{false};
   /// TRUE <=> VIEW CHECK OPTION condition is processed (also for prep. stmts)
