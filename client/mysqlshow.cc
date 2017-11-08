@@ -27,6 +27,7 @@
 
 #include "caching_sha2_passwordopt-vars.h"
 #include "client/client_priv.h"
+#include "m_ctype.h"
 #include "m_string.h"
 #include "my_alloc.h"
 #include "my_dbug.h"

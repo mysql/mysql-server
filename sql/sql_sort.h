@@ -141,10 +141,10 @@ class Filesort_info
   Filesort_buffer filesort_buffer;
 
 public:
-  IO_CACHE *io_cache;             ///< If sorted through filesort
+  IO_CACHE *io_cache{nullptr};             ///< If sorted through filesort
   Merge_chunk_array merge_chunks; ///< Array of chunk descriptors
 
-  Addon_fields *addon_fields;     ///< Addon field descriptors.
+  Addon_fields *addon_fields{nullptr};     ///< Addon field descriptors.
 
   /**
     If the entire result of filesort fits in memory, we skip the merge phase.
@@ -154,13 +154,13 @@ public:
     This new buffer is [sorted_result ... sorted_result_end]
     @see save_index()
    */
-  bool      sorted_result_in_fsbuf;
-  uchar     *sorted_result;
-  uchar     *sorted_result_end;
-  bool      m_using_varlen_keys;
-  uint      m_sort_length;
+  bool      sorted_result_in_fsbuf{false};
+  uchar     *sorted_result{nullptr};
+  uchar     *sorted_result_end{nullptr};
+  bool      m_using_varlen_keys{false};
+  uint      m_sort_length{0};
 
-  ha_rows   found_records;        ///< How many records in sort.
+  ha_rows   found_records{0};        ///< How many records in sort.
 
   // Note that we use the default copy CTOR / assignment operator in filesort().
   Filesort_info(const Filesort_info&)= default;

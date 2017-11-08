@@ -50,7 +50,7 @@ INSERT INTO t1 VALUES(9);
 [connection slave]
 include/wait_for_slave_param.inc [Slave_IO_State]
 include/stop_slave_sql.inc
-include/rpl_restart_server.inc [server_number=2 parameters: --relay_log_recovery]
+include/rpl_restart_server.inc [server_number=2 parameters: --relay_log_recovery --log-error-verbosity=3]
 include/start_slave.inc
 include/assert_grep.inc [Found no warning messages about I/O thread waiting before stopping]
 [connection master]

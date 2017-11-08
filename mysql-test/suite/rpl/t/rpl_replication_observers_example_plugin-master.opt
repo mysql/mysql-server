@@ -1,2 +1,2 @@
 $RPL_OBS_EXAMPLE_OPT
---no-console --log_error=$MYSQLTEST_VARDIR/tmp/rpl_replication_observers_example_plugin.err
+--no-console --log_error=$MYSQLTEST_VARDIR/tmp/rpl_replication_observers_example_plugin.err --log-error-verbosity=3

@@ -15,6 +15,9 @@
 
 #include <stddef.h>
 
+#ifdef _WIN32
+#include "m_ctype.h"
+#endif
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_io.h"

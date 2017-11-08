@@ -27,6 +27,7 @@
 #include "sql/plugin_table.h"
 /* Iteration on THD from the sql layer. */
 #include "sql/sql_class.h"
+#include "sql/table.h"
 #include "storage/perfschema/pfs_buffer_container.h"
 #include "storage/perfschema/pfs_column_types.h"
 #include "storage/perfschema/pfs_column_values.h"

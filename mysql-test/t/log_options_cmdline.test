@@ -108,7 +108,7 @@ DROP TABLE t1;
 --let LOG_FILE8 = $MYSQLTEST_VARDIR/tmp/wl9344.err
 --let $MSG_DIR = $MYSQLTEST_VARDIR/tmp/empty_lcmsgsdir
 --mkdir $MSG_DIR
---let restart_parameters="restart: --log-error=$LOG_FILE8 --lc-messages-dir=$MSG_DIR"
+--let restart_parameters="restart: --log-error=$LOG_FILE8 --lc-messages-dir=$MSG_DIR --log-error-verbosity=3"
 --replace_result $LOG_FILE8 LOG_FILE8 $MSG_DIR MSG_DIR
 --source include/restart_mysqld.inc
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
@@ -158,7 +158,7 @@ INSTALL COMPONENT "file://component_log_sink_json";
 --let LOG_FILE11= $MYSQLTEST_VARDIR/tmp/test11.err
 --let LOG_FILE11j= $MYSQLTEST_VARDIR/tmp/test11.err.00.json
 --let $log_services="log_filter_internal;log_sink_internal;log_sink_json"
---let restart_parameters="restart: --no-console --log-error=$LOG_FILE11 --log-error-services=$log_services "
+--let restart_parameters="restart: --no-console --log-error=$LOG_FILE11 --log-error-services=$log_services --log-error-verbosity=3"
 --replace_result $LOG_FILE11 LOG_FILE11
 --source include/restart_mysqld.inc
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
@@ -186,7 +186,8 @@ UNINSTALL COMPONENT "file://component_log_sink_json";
    my @ignore_patterns=
    ("\\[Warning\\] \\[[^]]*\\] Changed limits",
     "\\[Note\\] \\[[^]]*\\] Running in sandbox",
-    "\\[Note\\] \\[[^]]*\\] Basedir set to");
+    "\\[Note\\] \\[[^]]*\\] Basedir set to",
+    "\\[Note\\] \\[[^]]*\\] Thread priority attribute");
 
    my $ignore_regex= "(". join('|', @ignore_patterns). ")";
    # --------

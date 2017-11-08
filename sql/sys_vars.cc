@@ -2336,7 +2336,7 @@ static Sys_var_ulong Sys_log_error_verbosity(
        "Messages sent to the client are unaffected by this setting.",
        GLOBAL_VAR(log_error_verbosity),
        CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1, 3), DEFAULT(3), BLOCK_SIZE(1), NO_MUTEX_GUARD,
+       VALID_RANGE(1, 3), DEFAULT(2), BLOCK_SIZE(1), NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(update_log_error_verbosity));
 
 static Sys_var_enum Sys_log_timestamps(

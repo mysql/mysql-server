@@ -188,11 +188,19 @@ INCLUDE_DIRECTORIES(
   ${GTEST_SOURCE_DIR}/include
 )
 
+# Some tests require Boost.
+INCLUDE_DIRECTORIES(SYSTEM ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
+
 # Turn off some warning flags when compiling GUnit
 IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-undef")
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-missing-field-initializers")
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-missing-format-attribute")
+
+  MY_CHECK_CXX_COMPILER_FLAG("-Wunused-but-set-variable" HAVE_UNUSED_BUT_SET)
+  IF(HAVE_UNUSED_BUT_SET)
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-but-set-variable")
+  ENDIF()
 
   MY_CHECK_CXX_COMPILER_FLAG("-Wunused-local-typedefs" HAVE_UNUSED_TYPEDEFS)
   IF(HAVE_UNUSED_TYPEDEFS)
@@ -498,23 +506,6 @@ IF(HAVE_NO_BUILTIN_MEMCMP)
     COMPILE_FLAGS "-fno-builtin-memcmp"
     )
 ENDIF()
-
-## BOOST_HEAP_ASSERT generates if () ; else ;
-## Also Boost has unused parameter warnings.
-IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  ADD_COMPILE_FLAGS(
-    bounded_queue-t.cc
-    COMPILE_FLAGS "-Wno-empty-body -Wno-unused-parameter"
-    )
-ENDIF()
-ADD_COMPILE_FLAGS(
-  bounded_queue-t.cc
-  COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
-  )
-ADD_COMPILE_FLAGS(
-  pump_object_filter-t.cc
-  COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
-  )
 
 FOREACH(test ${SERVER_TESTS})
   SET(SRC_FILES ${test}-t.cc)

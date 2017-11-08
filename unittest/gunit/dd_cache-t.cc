@@ -44,6 +44,7 @@
 #include "sql/dd/properties.h"
 #include "sql/mdl.h"
 #include "sql/sql_base.h"
+#include "sql/sql_class.h"
 #include "unittest/gunit/dd.h"
 #include "unittest/gunit/test_mdl_context_owner.h"
 #include "unittest/gunit/test_utils.h"

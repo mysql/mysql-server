@@ -47,10 +47,10 @@
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"                      // Sql_condition
 #include "sql/sql_list.h"
-#include "sql/table.h"                          // TABLE
 #include "sql/thr_malloc.h"
 #include "sql_string.h"                         // String
 
+class Blob_mem_storage;
 class Create_field;
 class Field;
 class Field_bit;
@@ -94,6 +94,8 @@ class Send_field;
 class THD;
 class my_decimal;
 struct MEM_ROOT;
+struct TABLE;
+struct TABLE_SHARE;
 struct TYPELIB;
 struct timeval;
 
@@ -1146,13 +1148,7 @@ public:
   */
   virtual void store_timestamp(const timeval*) { DBUG_ASSERT(false); }
 
-  virtual void set_default()
-  {
-    if (has_insert_default_function())
-      evaluate_insert_default_function();
-    else
-      copy_data(table->default_values_offset());
-  }
+  virtual void set_default();
 
 
   /**
@@ -1241,34 +1237,7 @@ public:
     @return    true if the full table's row is NULL or the Field has value NULL
                false if neither table's row nor the Field has value NULL
   */
-  bool is_null(my_ptrdiff_t row_offset= 0) const
-  {
-    /*
-      if the field is NULLable, it returns NULLity based
-      on m_null_ptr[row_offset] value. Otherwise it returns
-      NULL flag depending on TABLE::has_null_row() value.
-
-      The table may have been marked as containing only NULL values
-      for all fields if it is a NULL-complemented row of an OUTER JOIN
-      or if the query is an implicitly grouped query (has aggregate
-      functions but no GROUP BY clause) with no qualifying rows. If
-      this is the case (in which TABLE::has_null_row() is true) and the
-      field is not nullable, the field is considered to be NULL.
-
-      Do not change the order of testing. Fields may be associated
-      with a TABLE object without being part of the current row.
-      For NULL value check to work for these fields, they must
-      have a valid m_null_ptr, and this pointer must be checked before
-      TABLE::has_null_row().
-    */
-    if (real_maybe_null())
-      return (m_null_ptr[row_offset] & null_bit);
-
-    if (is_tmp_nullable())
-      return m_is_tmp_null;
-
-    return table->has_null_row();
-  }
+  bool is_null(my_ptrdiff_t row_offset= 0) const;
 
   /**
     Check whether the Field has value NULL (temporary or actual).
@@ -1319,9 +1288,7 @@ public:
     enum_check_fields check_for_truncated_fields)
   { m_check_for_truncated_fields_saved= check_for_truncated_fields; }
 
-  bool maybe_null(void) const
-  { return real_maybe_null() || table->is_nullable(); }
-
+  bool maybe_null(void) const;
   /// @return true if this field is NULL-able, false otherwise.
   bool real_maybe_null(void) const
   { return m_null_ptr != NULL; }
@@ -1329,8 +1296,7 @@ public:
   uint null_offset(const uchar *record) const
   { return (uint) (m_null_ptr - record); }
 
-  uint null_offset() const
-  { return null_offset(table->record[0]); }
+  uint null_offset() const;
 
   void set_null_ptr(uchar *p_null_ptr, uint p_null_bit)
   {
@@ -1357,12 +1323,7 @@ public:
       the record. If the field does not use any bits of the null
       bytes, the value 0 (LAST_NULL_BYTE_UNDEF) is returned.
    */
-  size_t last_null_byte() const {
-    size_t bytes= do_last_null_byte();
-    DBUG_PRINT("debug", ("last_null_byte() ==> %ld", (long) bytes));
-    DBUG_ASSERT(bytes <= table->s->null_bytes);
-    return bytes;
-  }
+  size_t last_null_byte() const;
 
   virtual void make_field(Send_field *);
 
@@ -1519,24 +1480,14 @@ public:
   /**
      @overload Field::pack(uchar*, const uchar*, uint, bool)
   */
-  uchar *pack(uchar *to, const uchar *from)
-  {
-    DBUG_ENTER("Field::pack");
-    uchar *result= this->pack(to, from, UINT_MAX, table->s->db_low_byte_first);
-    DBUG_RETURN(result);
-  }
+  uchar *pack(uchar *to, const uchar *from);
 
   virtual const uchar *unpack(uchar* to, const uchar *from,
                               uint param_data, bool low_byte_first);
   /**
      @overload Field::unpack(uchar*, const uchar*, uint, bool)
   */
-  const uchar *unpack(uchar* to, const uchar *from)
-  {
-    DBUG_ENTER("Field::unpack");
-    const uchar *result= unpack(to, from, 0U, table->s->db_low_byte_first);
-    DBUG_RETURN(result);
-  }
+  const uchar *unpack(uchar* to, const uchar *from);
 
   /**
     Write the field for the binary log in diff format.
@@ -1643,11 +1594,7 @@ public:
     return (op_result == E_DEC_TRUNCATED);
   }
   bool warn_if_overflow(int op_result);
-  void init(TABLE *table_arg)
-  {
-    orig_table= table= table_arg;
-    table_name= &table_arg->alias;
-  }
+  void init(TABLE *table_arg);
 
   /* maximum possible display length */
   virtual uint32 max_display_length()= 0;
@@ -1898,57 +1845,25 @@ protected:
       longlongstore(to, val);
   }
 
-  uchar *pack_int16(uchar *to, const uchar *from, bool low_byte_first_to)
-  {
-    handle_int16(to, from, table->s->db_low_byte_first, low_byte_first_to);
-    return to  + sizeof(int16);
-  }
+  uchar *pack_int16(uchar *to, const uchar *from, bool low_byte_first_to);
 
   const uchar *unpack_int16(uchar* to, const uchar *from,
-                            bool low_byte_first_from)
-  {
-    handle_int16(to, from, low_byte_first_from, table->s->db_low_byte_first);
-    return from + sizeof(int16);
-  }
+                            bool low_byte_first_from);
 
-  uchar *pack_int24(uchar *to, const uchar *from, bool low_byte_first_to)
-  {
-    handle_int24(to, from, table->s->db_low_byte_first, low_byte_first_to);
-    return to + 3;
-  }
+  uchar *pack_int24(uchar *to, const uchar *from, bool low_byte_first_to);
 
   const uchar *unpack_int24(uchar* to, const uchar *from,
-                            bool low_byte_first_from)
-  {
-    handle_int24(to, from, low_byte_first_from, table->s->db_low_byte_first);
-    return from + 3;
-  }
+                            bool low_byte_first_from);
 
-  uchar *pack_int32(uchar *to, const uchar *from, bool low_byte_first_to)
-  {
-    handle_int32(to, from, table->s->db_low_byte_first, low_byte_first_to);
-    return to  + sizeof(int32);
-  }
+  uchar *pack_int32(uchar *to, const uchar *from, bool low_byte_first_to);
 
   const uchar *unpack_int32(uchar* to, const uchar *from,
-                            bool low_byte_first_from)
-  {
-    handle_int32(to, from, low_byte_first_from, table->s->db_low_byte_first);
-    return from + sizeof(int32);
-  }
+                            bool low_byte_first_from);
 
-  uchar *pack_int64(uchar* to, const uchar *from, bool low_byte_first_to)
-  {
-    handle_int64(to, from, table->s->db_low_byte_first, low_byte_first_to);
-    return to + sizeof(int64);
-  }
+  uchar *pack_int64(uchar* to, const uchar *from, bool low_byte_first_to);
 
   const uchar *unpack_int64(uchar* to, const uchar *from,
-                            bool low_byte_first_from)
-  {
-    handle_int64(to, from, low_byte_first_from, table->s->db_low_byte_first);
-    return from + sizeof(int64);
-  }
+                            bool low_byte_first_from);
 
 };
 
@@ -2053,11 +1968,7 @@ public:
 
   type_conversion_status store_decimal(const my_decimal *d);
   uint32 max_data_length() const;
-  bool is_updatable() const
-  {
-    DBUG_ASSERT(table && table->write_set);
-    return bitmap_is_set(table->write_set, field_index);
-  }
+  bool is_updatable() const;
 };
 
 /* base class for float and double and decimal (old one) */
@@ -3742,22 +3653,10 @@ public:
                   uint32 len_arg, uint length_bytes_arg,
                   uchar *null_ptr_arg, uchar null_bit_arg,
 		  uchar auto_flags_arg, const char *field_name_arg,
-		  TABLE_SHARE *share, const CHARSET_INFO *cs)
-    :Field_longstr(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
-                   auto_flags_arg, field_name_arg, cs),
-     length_bytes(length_bytes_arg)
-  {
-    share->varchar_fields++;
-  }
+		  TABLE_SHARE *share, const CHARSET_INFO *cs);
   Field_varstring(uint32 len_arg,bool maybe_null_arg,
                   const char *field_name_arg,
-                  TABLE_SHARE *share, const CHARSET_INFO *cs)
-    :Field_longstr((uchar*) 0,len_arg, maybe_null_arg ? (uchar*) "": 0, 0,
-                   NONE, field_name_arg, cs),
-     length_bytes(len_arg < 256 ? 1 :2)
-  {
-    share->varchar_fields++;
-  }
+                  TABLE_SHARE *share, const CHARSET_INFO *cs);
 
   enum_field_types type() const override { return MYSQL_TYPE_VARCHAR; }
   bool match_collation_to_optimize_range() const override { return true; }
@@ -3974,20 +3873,15 @@ public:
   static
 #endif
   void store_length(uchar *i_ptr, uint i_packlength, uint32 i_number, bool low_byte_first);
-  void store_length(uchar *i_ptr, uint i_packlength, uint32 i_number)
-  {
-    store_length(i_ptr, i_packlength, i_number, table->s->db_low_byte_first);
-  }
+  void store_length(uchar *i_ptr, uint i_packlength, uint32 i_number);
   inline void store_length(uint32 number)
   {
     store_length(ptr, packlength, number);
   }
   uint32 data_length(uint row_offset= 0) { return get_length(row_offset); }
-  inline uint32 get_length(uint row_offset= 0)
-  { return get_length(ptr+row_offset, this->packlength, table->s->db_low_byte_first); }
+  uint32 get_length(uint row_offset= 0);
   uint32 get_length(const uchar *ptr, uint packlength, bool low_byte_first);
-  uint32 get_length(const uchar *ptr_arg)
-  { return get_length(ptr_arg, this->packlength, table->s->db_low_byte_first); }
+  uint32 get_length(const uchar *ptr_arg);
   inline void get_ptr(uchar **str)
     {
       memcpy(str, ptr+packlength, sizeof(uchar*));

@@ -8,7 +8,7 @@
 
 let MYSQLD_DATADIR= `select @@datadir`;
 let SEARCH_FILE= $MYSQLTEST_VARDIR/tmp/my_restart.err;
-let $mysqld=$MYSQLD_CMD --core-file --console > $SEARCH_FILE 2>&1;
+let $mysqld=$MYSQLD_CMD --core-file --console --log-error-verbosity=3 > $SEARCH_FILE 2>&1;
 
 --echo # Clear old log file
 --source include/shutdown_mysqld.inc

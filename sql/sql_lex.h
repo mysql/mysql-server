@@ -36,6 +36,7 @@
 #include "m_ctype.h"
 #include "m_string.h"
 #include "map_helpers.h"
+#include "memory_debugging.h"
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"

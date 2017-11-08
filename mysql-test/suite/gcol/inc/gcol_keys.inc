@@ -922,6 +922,31 @@ CONNECTION default;
 COMMIT;
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#27010089: ASSERTION FAILURE:
+--echo # ROW0SEL.CC:2846:TEMPL->MYSQL_COL_LEN == LEN
+--echo #
+
+CREATE TABLE t (
+pk INTEGER AUTO_INCREMENT PRIMARY KEY,
+col_int_key INTEGER GENERATED ALWAYS AS (1) VIRTUAL,
+col_varchar VARCHAR(7) ,
+col_varchar_key VARCHAR(14) GENERATED ALWAYS AS ('abc') VIRTUAL,
+KEY (col_varchar_key(5), col_int_key),
+KEY (col_int_key, col_varchar_key));
+
+INSERT INTO t VALUES (), ();
+
+SELECT 1 FROM t AS alias1
+WHERE EXISTS
+(SELECT SQ2_alias1.col_int_key AS SQ2_field1
+ FROM t AS SQ2_alias1 JOIN t AS SQ2_alias2
+ ON (SQ2_alias2.col_varchar_key = SQ2_alias1.col_varchar_key)
+ WHERE SQ2_alias1.col_varchar <> alias1.col_varchar AND
+       SQ2_alias1.col_int_key >= SQ2_alias2.pk);
+
+DROP TABLE t;
 }
 
 --echo #

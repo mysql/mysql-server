@@ -15,6 +15,7 @@
 
 #include "vio_priv.h"
 
+#include "my_byteorder.h"
 #include "my_shm_defaults.h"
 
 size_t vio_read_shared_memory(Vio *vio, uchar *buf, size_t size)

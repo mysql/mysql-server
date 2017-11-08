@@ -19,6 +19,7 @@
 
 #include "sql/gis/geometries_cs.h"
 #include "sql/gis/geometries_traits.h"
+#include "template_utils.h"
 
 namespace gis {
 

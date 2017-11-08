@@ -25,6 +25,7 @@
 #include "sql/plugin_table.h"
 #include "sql/sql_class.h"
 #include "sql/sql_udf.h"
+#include "sql/table.h"
 
 THR_LOCK table_user_defined_functions::m_table_lock;
 

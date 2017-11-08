@@ -1955,6 +1955,12 @@ void Field_num::add_zerofill_and_unsigned(String &res) const
     res.append(STRING_WITH_LEN(" zerofill"));
 }
 
+size_t Field::last_null_byte() const {
+  size_t bytes= do_last_null_byte();
+  DBUG_PRINT("debug", ("last_null_byte() ==> %ld", (long) bytes));
+  DBUG_ASSERT(bytes <= table->s->null_bytes);
+  return bytes;
+}
 
 void Field::make_field(Send_field *field)
 {
@@ -6689,7 +6695,7 @@ int Field_newdate::cmp(const uchar *a_ptr, const uchar *b_ptr)
 size_t Field_newdate::make_sort_key(uchar *to,
                                     size_t length MY_ATTRIBUTE((unused)))
 {
-  DBUG_ASSERT(length == 3);
+  memset(to, 0, length);
   to[0] = ptr[2];
   to[1] = ptr[1];
   to[2] = ptr[0];
@@ -11916,3 +11922,169 @@ bool Field::is_part_of_actual_key(THD *thd, uint cur_index, KEY *cur_index_info)
     part_of_key.is_set(cur_index) :
     part_of_key_not_extended.is_set(cur_index);
 }
+
+void Field::set_default()
+{
+  if (has_insert_default_function())
+    evaluate_insert_default_function();
+  else
+    copy_data(table->default_values_offset());
+}
+
+bool Field::is_null(my_ptrdiff_t row_offset) const
+{
+  /*
+    if the field is NULLable, it returns NULLity based
+    on m_null_ptr[row_offset] value. Otherwise it returns
+    NULL flag depending on TABLE::has_null_row() value.
+
+    The table may have been marked as containing only NULL values
+    for all fields if it is a NULL-complemented row of an OUTER JOIN
+    or if the query is an implicitly grouped query (has aggregate
+    functions but no GROUP BY clause) with no qualifying rows. If
+    this is the case (in which TABLE::has_null_row() is true) and the
+    field is not nullable, the field is considered to be NULL.
+
+    Do not change the order of testing. Fields may be associated
+    with a TABLE object without being part of the current row.
+    For NULL value check to work for these fields, they must
+    have a valid m_null_ptr, and this pointer must be checked before
+    TABLE::has_null_row().
+  */
+  if (real_maybe_null())
+    return (m_null_ptr[row_offset] & null_bit);
+
+  if (is_tmp_nullable())
+    return m_is_tmp_null;
+
+  return table->has_null_row();
+}
+
+bool Field::maybe_null() const
+{
+  return real_maybe_null() || table->is_nullable();
+}
+
+uint Field::null_offset() const
+{
+  return null_offset(table->record[0]);
+}
+
+uchar *Field::pack(uchar *to, const uchar *from)
+{
+  DBUG_ENTER("Field::pack");
+  uchar *result= this->pack(to, from, UINT_MAX, table->s->db_low_byte_first);
+  DBUG_RETURN(result);
+}
+
+const uchar *Field::unpack(uchar* to, const uchar *from)
+{
+  DBUG_ENTER("Field::unpack");
+  const uchar *result= unpack(to, from, 0U, table->s->db_low_byte_first);
+  DBUG_RETURN(result);
+}
+
+void Field::init(TABLE *table_arg)
+{
+  orig_table= table= table_arg;
+  table_name= &table_arg->alias;
+}
+
+uchar *Field::pack_int16(uchar *to, const uchar *from, bool low_byte_first_to)
+{
+  handle_int16(to, from, table->s->db_low_byte_first, low_byte_first_to);
+  return to  + sizeof(int16);
+}
+
+const uchar *Field::unpack_int16(uchar* to, const uchar *from,
+                                 bool low_byte_first_from)
+{
+  handle_int16(to, from, low_byte_first_from, table->s->db_low_byte_first);
+  return from + sizeof(int16);
+}
+
+uchar *Field::pack_int24(uchar *to, const uchar *from, bool low_byte_first_to)
+{
+  handle_int24(to, from, table->s->db_low_byte_first, low_byte_first_to);
+  return to + 3;
+}
+
+const uchar *Field::unpack_int24(uchar* to, const uchar *from,
+                                 bool low_byte_first_from)
+{
+  handle_int24(to, from, low_byte_first_from, table->s->db_low_byte_first);
+  return from + 3;
+}
+
+uchar *Field::pack_int32(uchar *to, const uchar *from, bool low_byte_first_to)
+{
+  handle_int32(to, from, table->s->db_low_byte_first, low_byte_first_to);
+  return to  + sizeof(int32);
+}
+
+const uchar *Field::unpack_int32(uchar* to, const uchar *from,
+                                 bool low_byte_first_from)
+{
+  handle_int32(to, from, low_byte_first_from, table->s->db_low_byte_first);
+  return from + sizeof(int32);
+}
+
+uchar *Field::pack_int64(uchar* to, const uchar *from, bool low_byte_first_to)
+{
+  handle_int64(to, from, table->s->db_low_byte_first, low_byte_first_to);
+  return to + sizeof(int64);
+}
+
+const uchar *Field::unpack_int64(uchar* to, const uchar *from,
+                                 bool low_byte_first_from)
+{
+  handle_int64(to, from, low_byte_first_from, table->s->db_low_byte_first);
+  return from + sizeof(int64);
+}
+
+bool Field_longstr::is_updatable() const
+{
+  DBUG_ASSERT(table && table->write_set);
+  return bitmap_is_set(table->write_set, field_index);
+}
+
+Field_varstring::Field_varstring(uchar *ptr_arg,
+                                 uint32 len_arg, uint length_bytes_arg,
+                                 uchar *null_ptr_arg, uchar null_bit_arg,
+                                 uchar auto_flags_arg,
+                                 const char *field_name_arg,
+                                 TABLE_SHARE *share, const CHARSET_INFO *cs)
+  :Field_longstr(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
+                 auto_flags_arg, field_name_arg, cs),
+   length_bytes(length_bytes_arg)
+{
+  share->varchar_fields++;
+}
+
+Field_varstring::Field_varstring(uint32 len_arg, bool maybe_null_arg,
+                                 const char *field_name_arg,
+                                 TABLE_SHARE *share, const CHARSET_INFO *cs)
+  :Field_longstr((uchar*) 0,len_arg, maybe_null_arg ? (uchar*) "": 0, 0,
+                 NONE, field_name_arg, cs),
+   length_bytes(len_arg < 256 ? 1 :2)
+{
+  share->varchar_fields++;
+}
+
+void Field_blob::store_length(uchar *i_ptr, uint i_packlength,
+                              uint32 i_number)
+{
+  store_length(i_ptr, i_packlength, i_number, table->s->db_low_byte_first);
+}
+
+uint32 Field_blob::get_length(uint row_offset)
+{
+  return get_length(ptr+row_offset, this->packlength,
+                    table->s->db_low_byte_first);
+}
+
+uint32 Field_blob::get_length(const uchar *ptr_arg)
+{
+  return get_length(ptr_arg, this->packlength, table->s->db_low_byte_first);
+}
+

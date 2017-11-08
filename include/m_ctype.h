@@ -171,7 +171,9 @@ typedef struct
 } my_match_t;
 
 struct CHARSET_INFO;
+#ifndef __cplusplus
 typedef struct CHARSET_INFO CHARSET_INFO;
+#endif
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
 
 typedef struct MY_CHARSET_LOADER

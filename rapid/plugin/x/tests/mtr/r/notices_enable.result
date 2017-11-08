@@ -366,7 +366,6 @@ Mysqlx.Resultset.ColumnMetaData {
   schema: "test"
   catalog: "def"
   length: 11
-  flags: 128
 }
 
 Mysqlx.Resultset.ColumnMetaData {
@@ -471,7 +470,6 @@ Mysqlx.Resultset.ColumnMetaData {
   schema: "test"
   catalog: "def"
   length: 11
-  flags: 128
 }
 
 Mysqlx.Resultset.ColumnMetaData {
@@ -585,7 +583,6 @@ Mysqlx.Resultset.ColumnMetaData {
   schema: "test"
   catalog: "def"
   length: 11
-  flags: 128
 }
 
 Mysqlx.Resultset.ColumnMetaData {

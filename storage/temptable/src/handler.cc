@@ -205,7 +205,7 @@ int Handler::close() {
   m_rnd_iterator_is_positioned = false;
   m_index_cursor.unposition();
 
-  const Result ret = Result::OK;
+  const Result ret MY_ATTRIBUTE((unused)) = Result::OK;
 
   DBUG_PRINT("temptable_api", ("this=%p; return=%s", this, result_to_string(ret)));
 
@@ -219,7 +219,7 @@ int Handler::rnd_init(bool) {
 
   m_rnd_iterator_is_positioned = false;
 
-  const Result ret = Result::OK;
+  const Result ret MY_ATTRIBUTE((unused)) = Result::OK;
 
   DBUG_PRINT("temptable_api", ("this=%p; return=%s", this, result_to_string(ret)));
 
@@ -307,7 +307,7 @@ int Handler::rnd_pos(uchar* mysql_row, uchar* position) {
 
   m_opened_table->row(m_rnd_iterator, mysql_row);
 
-  const Result ret = Result::OK;
+  const Result ret MY_ATTRIBUTE((unused)) = Result::OK;
 
   DBUG_PRINT("temptable_api",
              ("this=%p position=%p out=(%s); return=%s", this, position,
@@ -324,7 +324,7 @@ int Handler::rnd_end() {
 
   m_rnd_iterator_is_positioned = false;
 
-  const Result ret = Result::OK;
+  const Result ret MY_ATTRIBUTE((unused)) = Result::OK;
 
   DBUG_PRINT("temptable_api", ("this=%p; return=%s", this, result_to_string(ret)));
 
@@ -666,7 +666,7 @@ int Handler::index_end() {
 
   m_index_cursor.unposition();
 
-  const Result ret = Result::OK;
+  const Result ret MY_ATTRIBUTE((unused)) = Result::OK;
 
   DBUG_PRINT("temptable_api", ("this=%p; return=%s", this, result_to_string(ret)));
 
@@ -789,7 +789,7 @@ int Handler::truncate(dd::Table*) {
   m_rnd_iterator_is_positioned = false;
   m_index_cursor.unposition();
 
-  const Result ret = Result::OK;
+  const Result ret MY_ATTRIBUTE((unused)) = Result::OK;
 
   DBUG_PRINT("temptable_api", ("this=%p; return=%s", this, result_to_string(ret)));
 
@@ -816,7 +816,7 @@ int Handler::info(uint) {
     key->set_in_memory_estimate(1.0);
   }
 
-  const Result ret = Result::OK;
+  const Result ret MY_ATTRIBUTE((unused)) = Result::OK;
 
   DBUG_PRINT("temptable_api", ("this=%p out=(stats.records=%llu); return=%s", this,
                             stats.records, result_to_string(ret)));

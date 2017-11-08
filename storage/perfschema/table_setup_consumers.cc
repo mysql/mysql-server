@@ -26,6 +26,8 @@
 #include "my_thread.h"
 #include "sql/field.h"
 #include "sql/plugin_table.h"
+#include "sql/table.h"
+#include "storage/perfschema/pfs_events_transactions.h"
 #include "storage/perfschema/pfs_digest.h"
 #include "storage/perfschema/pfs_events_waits.h"
 #include "storage/perfschema/pfs_instr.h"

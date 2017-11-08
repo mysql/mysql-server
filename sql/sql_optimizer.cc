@@ -37,6 +37,7 @@
 #include "binary_log_types.h"
 #include "ft_global.h"
 #include "m_ctype.h"
+#include "memory_debugging.h"
 #include "my_bit.h"              // my_count_bits
 #include "my_bitmap.h"
 #include "my_dbug.h"
@@ -3765,6 +3766,17 @@ static bool check_simple_equality(THD *thd,
     {
       const_item= left_item;
     }
+
+    /*
+      If the constant expression contains a reference to the field
+      (for example, a = (a IS NULL)), we don't want to replace the
+      field with the constant expression as it makes the predicates
+      more complex and may introduce cycles in the Item tree.
+    */
+    if (const_item != nullptr &&
+        const_item->walk(&Item::find_field_processor, Item::WALK_POSTFIX,
+                         pointer_cast<uchar*>(field_item->field)))
+      return false;
 
     if (const_item &&
         field_item->result_type() == const_item->result_type())

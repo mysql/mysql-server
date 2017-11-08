@@ -34,16 +34,16 @@ typedef uint32 my_bitmap_map;
 
 struct MY_BITMAP
 {
-  my_bitmap_map *bitmap;
-  uint n_bits; /* number of bits occupied by the above */
-  my_bitmap_map last_word_mask;
-  my_bitmap_map *last_word_ptr;
+  my_bitmap_map *bitmap{nullptr};
+  uint n_bits{0}; /* number of bits occupied by the above */
+  my_bitmap_map last_word_mask{0};
+  my_bitmap_map *last_word_ptr{nullptr};
   /*
      mutex will be acquired for the duration of each bitmap operation if
      thread_safe flag in bitmap_init was set.  Otherwise, we optimize by not
      acquiring the mutex
    */
-  mysql_mutex_t *mutex;
+  mysql_mutex_t *mutex{nullptr};
 };
 
 #ifdef	__cplusplus

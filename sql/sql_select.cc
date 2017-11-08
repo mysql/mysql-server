@@ -31,6 +31,7 @@
 #include <atomic>
 
 #include "lex_string.h"
+#include "memory_debugging.h"
 #include "my_alloc.h"
 #include "my_compiler.h"
 #include "my_dbug.h"

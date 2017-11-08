@@ -551,7 +551,7 @@ int Recovery_module::wait_for_applier_module_recovery()
       while (recovery_completion_policy == RECOVERY_POLICY_WAIT_EXECUTED
              && !recovery_aborted && error != 0)
       {
-        error= applier_module->wait_for_applier_event_execution(1);
+        error= applier_module->wait_for_applier_event_execution(1, false);
 
         /* purecov: begin inspected */
         if (error == -2) //error when waiting

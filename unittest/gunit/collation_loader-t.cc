@@ -27,6 +27,7 @@
 #include <gtest/gtest.h>
 #include <vector>
 
+#include "m_ctype.h"
 #include "unittest/gunit/benchmark.h"
 #include "my_sys.h"
 

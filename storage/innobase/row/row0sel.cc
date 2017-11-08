@@ -4203,7 +4203,7 @@ row_search_end_range_check(
 						       offsets,
 						       templ.icp_rec_field_no,
 						       &templ,
-						       false)) {
+						       ULINT_UNDEFINED)) {
 				return(false);
 			}
 		}

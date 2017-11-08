@@ -780,6 +780,12 @@ void Applier_module::kill_pending_transactions(bool set_read_mode,
   //kill pending transactions
   blocked_transaction_handler->unblock_waiting_transactions();
 
+  DBUG_EXECUTE_IF("group_replication_applier_thread_wait_kill_pending_transaction",
+                  {
+                    const char act[]= "now wait_for signal.gr_applier_early_failure";
+                    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+                  });
+
   if (!already_locked)
     shared_stop_write_lock->release_write_lock();
 
@@ -837,7 +843,7 @@ Applier_module::wait_for_applier_complete_suspension(bool *abort_flag,
   {
     error= APPLIER_GTID_CHECK_TIMEOUT_ERROR; //timeout error
     while (error == APPLIER_GTID_CHECK_TIMEOUT_ERROR && !(*abort_flag))
-      error= wait_for_applier_event_execution(1); //blocking
+      error= wait_for_applier_event_execution(1, true); //blocking
   }
 
   return (error == APPLIER_RELAY_LOG_NOT_INITED);
@@ -867,7 +873,8 @@ Applier_module::is_applier_thread_waiting()
 }
 
 int
-Applier_module::wait_for_applier_event_execution(double timeout)
+Applier_module::wait_for_applier_event_execution(double timeout,
+                                                 bool check_and_purge_partial_transactions)
 {
   DBUG_ENTER("Applier_module::wait_for_applier_event_execution");
   int error= 0;
@@ -885,7 +892,8 @@ Applier_module::wait_for_applier_event_execution(double timeout)
       the applier thread will release the lock and update the applier thread
       execution position correctly and safely.
     */
-    if (((Applier_handler*)event_applier)->is_partial_transaction_on_relay_log())
+    if (check_and_purge_partial_transactions &&
+        ((Applier_handler*)event_applier)->is_partial_transaction_on_relay_log())
     {
         error= purge_applier_queue_and_restart_applier_module();
     }

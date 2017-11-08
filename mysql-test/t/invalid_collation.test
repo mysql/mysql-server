@@ -76,4 +76,4 @@ SHOW CREATE TABLE t1;
 DROP TABLE t1;
 DROP TABLE t2;
 
---eval SET @@global.log_error_verbosity = $old_log_error_verbosity
+--eval SET @@global.log_error_verbosity= $old_log_error_verbosity

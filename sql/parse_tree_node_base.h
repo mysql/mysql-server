@@ -20,10 +20,10 @@
 #include <cstdlib>
 #include <new>
 
+#include "memory_debugging.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_sys.h"
 #include "sql/check_stack.h"
 #include "sql/mem_root_array.h"
 #include "sql/parse_location.h"

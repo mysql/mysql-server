@@ -2931,7 +2931,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable,
       TABLE has no copy ctor; can't use the move ctor as we use both objects
       when we migrate rows.
     */
-    DBUG_ASSERT(!alloc_root_inited(&table->mem_root));
+    table->mem_root.Clear();
     memcpy(&new_table, table, sizeof(new_table));
 
     new_table.s= &share; // New table points to new share

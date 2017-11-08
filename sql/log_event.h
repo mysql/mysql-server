@@ -62,6 +62,7 @@
 #include "sql_string.h"
 #include "statement_events.h"
 #include "typelib.h"                 // TYPELIB
+#include "uuid.h"
 
 class String;
 class THD;

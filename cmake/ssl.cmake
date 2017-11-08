@@ -516,18 +516,18 @@ MACRO(MYSQL_CHECK_SSL_DLLS)
         )
       MESSAGE(STATUS "SSL_LIBRARIES = ${SSL_LIBRARIES}")
 
+      # Do copying and dependency patching in a sub-process,
+      # so that we can skip it if already done.
       ADD_CUSTOM_TARGET(copy_openssl_dlls ALL
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${CRYPTO_FULL_NAME}" "./${CRYPTO_VERSION}"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${OPENSSL_FULL_NAME}" "./${OPENSSL_VERSION}"
-        COMMAND ${CMAKE_COMMAND} -E create_symlink
-          "${CRYPTO_VERSION}" "${CRYPTO_NAME}"
-        COMMAND ${CMAKE_COMMAND} -E create_symlink
-          "${OPENSSL_VERSION}" "${OPENSSL_NAME}"
-        COMMAND chmod +w "${CRYPTO_VERSION}" "${OPENSSL_VERSION}"
-        COMMAND install_name_tool -change
-        "${OPENSSL_DEPS}" "@loader_path/${CRYPTO_VERSION}" "${OPENSSL_VERSION}"
+        COMMAND ${CMAKE_COMMAND}
+        -DCRYPTO_FULL_NAME="${CRYPTO_FULL_NAME}"
+        -DCRYPTO_NAME="${CRYPTO_NAME}"
+        -DCRYPTO_VERSION="${CRYPTO_VERSION}"
+        -DOPENSSL_DEPS="${OPENSSL_DEPS}"
+        -DOPENSSL_FULL_NAME="${OPENSSL_FULL_NAME}"
+        -DOPENSSL_NAME="${OPENSSL_NAME}"
+        -DOPENSSL_VERSION="${OPENSSL_VERSION}"
+        -P ${CMAKE_SOURCE_DIR}/cmake/install_name_tool.cmake
 
         WORKING_DIRECTORY
         "${CMAKE_BINARY_DIR}/library_output_directory/${CMAKE_CFG_INTDIR}"

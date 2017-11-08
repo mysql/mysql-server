@@ -28,6 +28,7 @@
 #include "sql/ndb_tdc.h"
 #include "sql/sql_class.h"
 #include "sql/sql_table.h"  // build_table_filename
+#include "sql/table.h"
 #include "storage/ndb/src/ndbapi/NdbInfo.hpp"
 
 static MYSQL_THDVAR_UINT(

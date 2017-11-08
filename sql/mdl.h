@@ -517,9 +517,9 @@ public:
   }
 
 private:
-  uint16 m_length;
-  uint16 m_db_name_length;
-  char m_ptr[MAX_MDLKEY_LENGTH];
+  uint16 m_length{0};
+  uint16 m_db_name_length{0};
+  char m_ptr[MAX_MDLKEY_LENGTH]{0};
   static PSI_stage_info m_namespace_to_wait_state_name[NAMESPACE_END];
 private:
   MDL_key(const MDL_key &);                     /* not implemented */
@@ -535,35 +535,32 @@ private:
   sites and hence different lifetimes. The allocation of lock requests is
   controlled from outside of the MDL subsystem, while allocation of granted
   locks (tickets) is controlled within the MDL subsystem.
-
-  MDL_request is a C structure, you don't need to call a constructor
-  or destructor for it.
 */
 
 class MDL_request
 {
 public:
   /** Type of metadata lock. */
-  enum          enum_mdl_type type;
+  enum_mdl_type type{MDL_INTENTION_EXCLUSIVE};
   /** Duration for requested lock. */
-  enum enum_mdl_duration duration;
+  enum_mdl_duration duration{MDL_STATEMENT};
 
   /**
     Pointers for participating in the list of lock requests for this context.
   */
-  MDL_request *next_in_list;
-  MDL_request **prev_in_list;
+  MDL_request *next_in_list{nullptr};
+  MDL_request **prev_in_list{nullptr};
   /**
     Pointer to the lock ticket object for this lock request.
     Valid only if this lock request is satisfied.
   */
-  MDL_ticket *ticket;
+  MDL_ticket *ticket{nullptr};
 
   /** A lock is requested based on a fully qualified name and type. */
   MDL_key key;
 
-  const char *m_src_file;
-  uint m_src_line;
+  const char *m_src_file{nullptr};
+  uint m_src_line{0};
 
 public:
   static void *operator new(size_t size, MEM_ROOT *mem_root,
