@@ -9164,3 +9164,41 @@ NULL	2	2	3	NULL	5
 6	3	2	2	6	5
 5	3	1	1	5	5
 DROP TABLE t;
+#
+# Bug#26975848: IFNULL: CRASHES WITH FIRST_VALUE
+# Bug#27062796: WINDOW FUNC: CRASH IN STRING::COPY WITH WKB FUNCTIONS
+# Bug#27062694: WINDOW FUNC: MUCH CRASHING WITH FIRST_VALUE/LAST_VALUE!!
+#
+SELECT IFNULL(JSON_TYPE(CASE WHEN(1) THEN(1) ELSE(1) END),
+LAST_VALUE('')OVER());
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_type; a JSON string or JSON type is required.
+SELECT IFNULL((UUID_TO_BIN(0xAB8631)),(FIRST_VALUE(2.469566E+307)OVER()));
+ERROR HY000: Incorrect string value: '\xAB\x861' for function uuid_to_bin
+SELECT IFNULL((JSON_TYPE(@c)),(FIRST_VALUE(@b)OVER()));
+IFNULL((JSON_TYPE(@c)),(FIRST_VALUE(@b)OVER()))
+NULL
+DO ST_WITHIN(ST_ASWKB(ST_ASBINARY(1,'axis-order=srid-defined')), ST_ASWKT(
+ST_ASBINARY(LAST_VALUE(4732)OVER()),'axis-order=srid-defined'));
+ERROR 22023: Invalid GIS data provided to function st_aswkb.
+DO ST_OVERLAPS(ST_ASWKB(ST_ASBINARY(1,'axis-order=lat-long'),
+'axis-order=srid-defined'), ST_ASWKT(LAST_VALUE('*7') OVER()));
+ERROR 22023: Invalid GIS data provided to function st_aswkb.
+DO ST_POINTN(ST_ASWKT(ST_ASWKT(ST_ASWKB(6565))),
+ST_ASBINARY(LAST_VALUE(0xfd8b9af2bedb16c0d7f1cca63b5c9e) OVER()));
+ERROR 22023: Invalid GIS data provided to function st_aswkb.
+DO POW(-8714,REPEAT('1',32)) OR
+VALIDATE_PASSWORD_STRENGTH(LAST_VALUE(1) OVER());
+ERROR 22003: DOUBLE value is out of range in 'pow(-(8714),repeat('1',32))'
+DO SUBSTRING_INDEX(((((RADIANS(0xBD)) && (ST_SRID(1, 4326)))) OR
+(COT(UUID_SHORT()))), FIRST_VALUE(ROW_COUNT())RESPECT NULLS OVER(), 171);
+ERROR 22023: Invalid GIS data provided to function st_srid.
+DO ((JSON_TYPE('4:8')) AND (((ROLES_GRAPHML()) LIKE (FIRST_VALUE(31543)
+RESPECT NULLS OVER()))));
+ERROR 22032: Invalid JSON text in argument 1 to function json_type: "The document root must not be followed by other values." at position 1.
+DO CONCAT_WS( JSON_OBJECTAGG( ROW_COUNT(), BIT_COUNT(-23163)),
+DEGREES((1.595545e+308)), REPEAT(FIRST_VALUE('%0') OVER(), 30));
+ERROR 22003: DOUBLE value is out of range in 'degrees(1.595545e+308)'
+DO REPLACE((( RELEASE_LOCK( ACOS(0x41))) OR (1)), LAST_VALUE(9.750062e+306)
+RESPECT NULLS OVER(), UUID_SHORT());
+ERROR 42000: Incorrect user-level lock name 'NULL'.
+# End of test for Bug#26975848, Bug#27062796, Bug#27062694
