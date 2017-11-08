@@ -6,6 +6,8 @@
 connect (spj,localhost,root,,test);
 connect (ddl,localhost,root,,test);
 
+select @@session.optimizer_switch;
+
 --disable_warnings
 connection ddl;
 drop table if exists t1,t2,t3,t4;
@@ -4663,6 +4665,7 @@ insert into t1 values
 set global debug='+d,max_4rows_in_spj_batches';
 
 # Make use of FirstMatch more likely:
+set @save_optimizer_switch = @@optimizer_switch;
 set optimizer_switch='materialization=off';
 
 # 'subq' should use 'ref, FirstMatch(t1)', preventing join pushdown
@@ -4694,7 +4697,7 @@ select count(*) from t1 where
 select count(*) from t1 where 
   t1.c in (select subq1.c from t1 as subq1 straight_join t1 as subq2 on subq1.a = subq2.c);
 
-set optimizer_switch='materialization=default';
+set optimizer_switch=@save_optimizer_switch;
 
 --error 0,1193
 set global debug=@save_debug;
@@ -4712,6 +4715,11 @@ set global debug=@save_debug;
 # sorted results to be returned from the (child) table, which
 # we do not implement.
 
+connection spj;
+set @save_optimizer_switch = @@optimizer_switch;
+set @@optimizer_switch='semijoin=on';
+set @@optimizer_switch='loosescan=on';
+
 explain SELECT count(*)
   FROM (t1 AS table1 JOIN t1 AS table2 USING(a,b))
   WHERE table1.b IN
@@ -4724,6 +4732,9 @@ SELECT count(*)
 ########
 # Same query with 'FirstMatch', suplements FirstMatch (bug#16664035)
 # testcase above
+
+set @@optimizer_switch='firstmatch=on';
+
 explain SELECT count(*)
   FROM (t1 AS table1 JOIN t1 AS table2 USING(a,b))
   WHERE table1.b IN
@@ -4733,6 +4744,7 @@ SELECT count(*)
   WHERE table1.b IN
     (SELECT /*+ SEMIJOIN(FIRSTMATCH)*/ table1s.c FROM t1 as table1s);
 
+set optimizer_switch=@save_optimizer_switch;
 
 ##################################################
 # Bug#26919289:
@@ -4747,6 +4759,11 @@ SELECT count(*)
 # then later used to access a 'tableno-bitmask'.
 ###################################################
 
+connection spj;
+set @save_optimizer_switch = @@optimizer_switch;
+set @@optimizer_switch='semijoin=on';
+set @@optimizer_switch='materialization=on';
+
 explain
 select count(*)
 from t1
@@ -4793,8 +4810,7 @@ join t1 as t2 on t2.a = t1.b and t2.b = t1.c
 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3);
 
 
-set @save_optimizer_switch = @@session.optimizer_switch;
-SET optimizer_switch='block_nested_loop=off';
+set optimizer_switch='block_nested_loop=off';
 
 explain
 select count(*)
@@ -4807,7 +4823,7 @@ from t1 cross join t1 as t2
 where t2.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ t4s.c
   from t1 as t3s join t1 as t4s on t4s.a = t3s.b);
 
-SET optimizer_switch=@save_optimizer_switch;
+set optimizer_switch=@save_optimizer_switch;
 
 
 ###################################################
@@ -4820,6 +4836,9 @@ SET optimizer_switch=@save_optimizer_switch;
 --error 0,1193
 set global debug='+d,max_4rows_in_spj_batches';
 
+connection spj;
+set @save_optimizer_switch = @@optimizer_switch;
+set @@optimizer_switch='semijoin=on';
 
 explain
 select count(*)
@@ -4922,6 +4941,7 @@ where t3.c IN (
 --error 0,1193
 set global debug=@save_debug;
 
+set optimizer_switch=@save_optimizer_switch;
 
 #############################################
 # Subqueries-end
