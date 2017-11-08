@@ -22,6 +22,7 @@
 #include <atomic>
 #include <list>
 
+#include "libbinlogevents/include/control_events.h"
 #include "libbinlogevents/include/uuid.h"
 #include "map_helpers.h"
 #include "my_dbug.h"
