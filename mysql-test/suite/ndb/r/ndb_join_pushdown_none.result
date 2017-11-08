@@ -1,3 +1,6 @@
+select @@session.optimizer_switch;
+@@session.optimizer_switch
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=off,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=off,semijoin=off,loosescan=off,firstmatch=off,subquery_materialization_cost_based=on,use_index_extensions=on
 drop table if exists t1,t2,t3,t4;
 create temporary table server_counts_at_startup
 select * from information_schema.global_status 
@@ -6061,6 +6064,7 @@ insert into t1 values
 (3,1,1,2), (3,2,2,3), (3,4,3,4),
 (4,1,4,5), (4,2,5,1), (4,3,1,2);
 set global debug='+d,max_4rows_in_spj_batches';
+set @save_optimizer_switch = @@optimizer_switch;
 set optimizer_switch='materialization=off';
 explain extended
 select count(*) from t1 where 
@@ -6117,45 +6121,54 @@ select count(*) from t1 where
 t1.c in (select subq1.c from t1 as subq1 straight_join t1 as subq2 on subq1.a = subq2.c);
 count(*)
 16
-set optimizer_switch='materialization=default';
+set optimizer_switch=@save_optimizer_switch;
 set global debug=@save_debug;
+set @save_optimizer_switch = @@optimizer_switch;
+set @@optimizer_switch='semijoin=on';
+set @@optimizer_switch='loosescan=on';
 explain SELECT count(*)
 FROM (t1 AS table1 JOIN t1 AS table2 USING(a,b))
 WHERE table1.b IN
 (SELECT /*+ SEMIJOIN(LOOSESCAN)*/ table1s.c FROM t1 as table1s);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	table1	ALL	PRIMARY	NULL	NULL	NULL	16	Parent of 2 pushed join@1; Using where
-1	PRIMARY	table2	eq_ref	PRIMARY	PRIMARY	8	test.table1.a,test.table1.b	1	Child of 'table1' in pushed join@1
-2	DEPENDENT SUBQUERY	table1s	index_subquery	c	c	4	func	2	NULL
+1	SIMPLE	table1	ALL	PRIMARY	NULL	NULL	NULL	16	Parent of 2 pushed join@1
+1	SIMPLE	table2	eq_ref	PRIMARY	PRIMARY	8	test.table1.a,test.table1.b	1	Child of 'table1' in pushed join@1
+1	SIMPLE	table1s	ref	c	c	4	test.table1.b	2	Start temporary; End temporary
 SELECT count(*)
 FROM (t1 AS table1 JOIN t1 AS table2 USING(a,b))
 WHERE table1.b IN
 (SELECT /*+ SEMIJOIN(LOOSESCAN)*/ table1s.c FROM t1 as table1s);
 count(*)
 16
+set @@optimizer_switch='firstmatch=on';
 explain SELECT count(*)
 FROM (t1 AS table1 JOIN t1 AS table2 USING(a,b))
 WHERE table1.b IN
 (SELECT /*+ SEMIJOIN(FIRSTMATCH)*/ table1s.c FROM t1 as table1s);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	table1	ALL	PRIMARY	NULL	NULL	NULL	16	Parent of 2 pushed join@1; Using where
-1	PRIMARY	table2	eq_ref	PRIMARY	PRIMARY	8	test.table1.a,test.table1.b	1	Child of 'table1' in pushed join@1
-2	DEPENDENT SUBQUERY	table1s	index_subquery	c	c	4	func	2	NULL
+1	SIMPLE	table1	ALL	PRIMARY	NULL	NULL	NULL	16	Parent of 2 pushed join@1
+1	SIMPLE	table2	eq_ref	PRIMARY	PRIMARY	8	test.table1.a,test.table1.b	1	Child of 'table1' in pushed join@1
+1	SIMPLE	table1s	ref	c	c	4	test.table1.b	2	FirstMatch(table2)
 SELECT count(*)
 FROM (t1 AS table1 JOIN t1 AS table2 USING(a,b))
 WHERE table1.b IN
 (SELECT /*+ SEMIJOIN(FIRSTMATCH)*/ table1s.c FROM t1 as table1s);
 count(*)
 16
+set optimizer_switch=@save_optimizer_switch;
+set @save_optimizer_switch = @@optimizer_switch;
+set @@optimizer_switch='semijoin=on';
+set @@optimizer_switch='materialization=on';
 explain
 select count(*)
 from t1
 join t1 as t2 on t2.a = t1.b
 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	16	Parent of 2 pushed join@1; Using where
-1	PRIMARY	t2	ref	PRIMARY	PRIMARY	4	test.t1.b	1	Child of 't1' in pushed join@1
-2	DEPENDENT SUBQUERY	t3	index_subquery	c	c	4	func	2	NULL
+1	SIMPLE	<subquery2>	ALL	NULL	NULL	NULL	NULL	NULL	NULL
+1	SIMPLE	t1	ref	c	c	4	<subquery2>.c	2	Parent of 2 pushed join@1
+1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	test.t1.b	1	Child of 't1' in pushed join@1
+2	MATERIALIZED	t3	ALL	c	NULL	NULL	NULL	16	NULL
 select count(*)
 from t1
 join t1 as t2 on t2.a = t1.b
@@ -6168,9 +6181,9 @@ from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	c	NULL	NULL	NULL	16	Parent of 2 pushed join@1; Using where
-1	PRIMARY	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	Child of 't1' in pushed join@1
-2	DEPENDENT SUBQUERY	t3	index_subquery	c	c	4	func	2	NULL
+1	SIMPLE	t1	ALL	c	NULL	NULL	NULL	16	Parent of 2 pushed join@1
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	Child of 't1' in pushed join@1
+1	SIMPLE	t3	ref	c	c	4	test.t1.c	2	Start temporary; End temporary
 select count(*)
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
@@ -6182,10 +6195,11 @@ select count(*)
 from (select * from t1 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3)) as t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	16	NULL
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	NULL
 1	PRIMARY	t2	eq_ref	PRIMARY	PRIMARY	8	t1.b,t1.c	1	NULL
-2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	16	Using where
-3	DEPENDENT SUBQUERY	t3	index_subquery	c	c	4	func	2	NULL
+2	DERIVED	<subquery3>	ALL	NULL	NULL	NULL	NULL	NULL	NULL
+2	DERIVED	t1	ref	c	c	4	<subquery3>.c	2	NULL
+3	MATERIALIZED	t3	ALL	c	NULL	NULL	NULL	16	NULL
 select count(*)
 from (select * from t1 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3)) as t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
@@ -6197,37 +6211,40 @@ from (select * from t1 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c f
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	16	Using where
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	NULL
 1	PRIMARY	t2	eq_ref	PRIMARY	PRIMARY	8	t1.b,t1.c	1	NULL
-4	DEPENDENT SUBQUERY	t3	index_subquery	c	c	4	func	2	NULL
-2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	16	Using where
-3	DEPENDENT SUBQUERY	t3	index_subquery	c	c	4	func	2	NULL
+1	PRIMARY	t3	ref	c	c	4	t1.c	2	Start temporary; End temporary
+2	DERIVED	<subquery3>	ALL	NULL	NULL	NULL	NULL	NULL	NULL
+2	DERIVED	t1	ref	c	c	4	<subquery3>.c	2	NULL
+3	MATERIALIZED	t3	ALL	c	NULL	NULL	NULL	16	NULL
 select count(*)
 from (select * from t1 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3)) as t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3);
 count(*)
 13
-set @save_optimizer_switch = @@session.optimizer_switch;
-SET optimizer_switch='block_nested_loop=off';
+set optimizer_switch='block_nested_loop=off';
 explain
 select count(*)
 from t1 cross join t1 as t2
 where t2.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ t4s.c
 from t1 as t3s join t1 as t4s on t4s.a = t3s.b);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	16	NULL
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	16	Using where
-2	DEPENDENT SUBQUERY	t3s	ALL	NULL	NULL	NULL	NULL	16	Parent of 2 pushed join@1
-2	DEPENDENT SUBQUERY	t4s	ref	PRIMARY,c	PRIMARY	4	test.t3s.b	1	Child of 't3s' in pushed join@1; Using where
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	NULL
+1	SIMPLE	<subquery2>	ALL	NULL	NULL	NULL	NULL	NULL	NULL
+1	SIMPLE	t2	ref	c	c	4	<subquery2>.c	2	NULL
+2	MATERIALIZED	t3s	ALL	NULL	NULL	NULL	NULL	16	NULL
+2	MATERIALIZED	t4s	ref	PRIMARY,c	PRIMARY	4	test.t3s.b	1	NULL
 select count(*)
 from t1 cross join t1 as t2
 where t2.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ t4s.c
 from t1 as t3s join t1 as t4s on t4s.a = t3s.b);
 count(*)
 256
-SET optimizer_switch=@save_optimizer_switch;
+set optimizer_switch=@save_optimizer_switch;
 set global debug='+d,max_4rows_in_spj_batches';
+set @save_optimizer_switch = @@optimizer_switch;
+set @@optimizer_switch='semijoin=on';
 explain
 select count(*)
 from t1
@@ -6236,10 +6253,10 @@ where t1.c IN (
 select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t3s.c from t1 as t3s
 join t1 as t4s on t4s.a = t3s.b);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	16	Parent of 2 pushed join@1; Using where
-1	PRIMARY	t2	ref	PRIMARY	PRIMARY	4	test.t1.b	1	Child of 't1' in pushed join@1
-2	DEPENDENT SUBQUERY	t3s	ref	c	c	4	func	2	Parent of 2 pushed join@1
-2	DEPENDENT SUBQUERY	t4s	ref	PRIMARY	PRIMARY	4	test.t3s.b	1	Child of 't3s' in pushed join@1
+1	SIMPLE	t3s	ALL	c	NULL	NULL	NULL	16	Parent of 3 pushed join@1; Start temporary
+1	SIMPLE	t4s	ref	PRIMARY	PRIMARY	4	test.t3s.b	1	Child of 't3s' in pushed join@1
+1	SIMPLE	t1	ref	c	c	4	test.t3s.c	2	Child of 't3s' in pushed join@1; End temporary
+1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	test.t1.b	1	NULL
 select count(*)
 from t1
 join t1 as t2 on t2.a = t1.b
@@ -6256,10 +6273,10 @@ where t2.c IN (
 select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t3s.c from t1 as t3s
 join t1 as t4s on t4s.a = t3s.b);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	16	Parent of 2 pushed join@1
-1	PRIMARY	t2	ref	PRIMARY	PRIMARY	4	test.t1.b	1	Child of 't1' in pushed join@1; Using where
-2	DEPENDENT SUBQUERY	t3s	ref	c	c	4	func	2	Parent of 2 pushed join@1
-2	DEPENDENT SUBQUERY	t4s	ref	PRIMARY	PRIMARY	4	test.t3s.b	1	Child of 't3s' in pushed join@1
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	Parent of 2 pushed join@1
+1	SIMPLE	t2	ref	PRIMARY,c	PRIMARY	4	test.t1.b	1	Child of 't1' in pushed join@1
+1	SIMPLE	t3s	ref	c	c	4	test.t2.c	2	Parent of 2 pushed join@2; Start temporary
+1	SIMPLE	t4s	ref	PRIMARY	PRIMARY	4	test.t3s.b	1	Child of 't3s' in pushed join@2; End temporary
 select count(*)
 from t1
 join t1 as t2 on t2.a = t1.b
@@ -6279,12 +6296,12 @@ join t1 as t5s on t5s.a = t4s.b
 join t1 as t6s on t6s.a = t5s.b
 );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	16	Parent of 3 pushed join@1; Using where
-1	PRIMARY	t2	ref	PRIMARY	PRIMARY	4	test.t1.b	1	Child of 't1' in pushed join@1
-1	PRIMARY	t3	ref	PRIMARY	PRIMARY	4	test.t2.b	1	Child of 't2' in pushed join@1
-2	DEPENDENT SUBQUERY	t4s	ref	c	c	4	func	2	Parent of 3 pushed join@1
-2	DEPENDENT SUBQUERY	t5s	ref	PRIMARY	PRIMARY	4	test.t4s.b	1	Child of 't4s' in pushed join@1
-2	DEPENDENT SUBQUERY	t6s	ref	PRIMARY	PRIMARY	4	test.t5s.b	1	Child of 't5s' in pushed join@1
+1	SIMPLE	t4s	ALL	c	NULL	NULL	NULL	16	Parent of 4 pushed join@1; Start temporary
+1	SIMPLE	t5s	ref	PRIMARY	PRIMARY	4	test.t4s.b	1	Child of 't4s' in pushed join@1
+1	SIMPLE	t6s	ref	PRIMARY	PRIMARY	4	test.t5s.b	1	Child of 't5s' in pushed join@1
+1	SIMPLE	t1	ref	c	c	4	test.t4s.c	2	Child of 't4s' in pushed join@1; End temporary
+1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	test.t1.b	1	Parent of 2 pushed join@2
+1	SIMPLE	t3	ref	PRIMARY	PRIMARY	4	test.t2.b	1	Child of 't2' in pushed join@2
 select count(*)
 from t1
 join t1 as t2 on t2.a = t1.b
@@ -6307,12 +6324,12 @@ join t1 as t5s on t5s.a = t4s.b
 join t1 as t6s on t6s.a = t5s.b
 );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	16	Parent of 3 pushed join@1
-1	PRIMARY	t2	ref	PRIMARY	PRIMARY	4	test.t1.b	1	Child of 't1' in pushed join@1; Using where
-1	PRIMARY	t3	ref	PRIMARY	PRIMARY	4	test.t2.b	1	Child of 't2' in pushed join@1
-2	DEPENDENT SUBQUERY	t4s	ref	c	c	4	func	2	Parent of 3 pushed join@1
-2	DEPENDENT SUBQUERY	t5s	ref	PRIMARY	PRIMARY	4	test.t4s.b	1	Child of 't4s' in pushed join@1
-2	DEPENDENT SUBQUERY	t6s	ref	PRIMARY	PRIMARY	4	test.t5s.b	1	Child of 't5s' in pushed join@1
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	Parent of 3 pushed join@1
+1	SIMPLE	t2	ref	PRIMARY,c	PRIMARY	4	test.t1.b	1	Child of 't1' in pushed join@1
+1	SIMPLE	t3	ref	PRIMARY	PRIMARY	4	test.t2.b	1	Child of 't2' in pushed join@1
+1	SIMPLE	t4s	ref	c	c	4	test.t2.c	2	Parent of 3 pushed join@2; Start temporary
+1	SIMPLE	t5s	ref	PRIMARY	PRIMARY	4	test.t4s.b	1	Child of 't4s' in pushed join@2
+1	SIMPLE	t6s	ref	PRIMARY	PRIMARY	4	test.t5s.b	1	Child of 't5s' in pushed join@2; End temporary
 select count(*)
 from t1
 join t1 as t2 on t2.a = t1.b
@@ -6335,12 +6352,12 @@ join t1 as t5s on t5s.a = t4s.b
 join t1 as t6s on t6s.a = t5s.b
 );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	16	Parent of 3 pushed join@1
-1	PRIMARY	t2	ref	PRIMARY	PRIMARY	4	test.t1.b	1	Child of 't1' in pushed join@1
-1	PRIMARY	t3	ref	PRIMARY	PRIMARY	4	test.t2.b	1	Child of 't2' in pushed join@1; Using where
-2	DEPENDENT SUBQUERY	t4s	ref	c	c	4	func	2	Parent of 3 pushed join@1
-2	DEPENDENT SUBQUERY	t5s	ref	PRIMARY	PRIMARY	4	test.t4s.b	1	Child of 't4s' in pushed join@1
-2	DEPENDENT SUBQUERY	t6s	ref	PRIMARY	PRIMARY	4	test.t5s.b	1	Child of 't5s' in pushed join@1
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	Parent of 3 pushed join@1
+1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	test.t1.b	1	Child of 't1' in pushed join@1
+1	SIMPLE	t3	ref	PRIMARY,c	PRIMARY	4	test.t2.b	1	Child of 't2' in pushed join@1
+1	SIMPLE	t4s	ref	c	c	4	test.t3.c	2	Parent of 3 pushed join@2; Start temporary
+1	SIMPLE	t5s	ref	PRIMARY	PRIMARY	4	test.t4s.b	1	Child of 't4s' in pushed join@2
+1	SIMPLE	t6s	ref	PRIMARY	PRIMARY	4	test.t5s.b	1	Child of 't5s' in pushed join@2; End temporary
 select count(*)
 from t1
 join t1 as t2 on t2.a = t1.b
@@ -6353,6 +6370,7 @@ join t1 as t6s on t6s.a = t5s.b
 count(*)
 256
 set global debug=@save_debug;
+set optimizer_switch=@save_optimizer_switch;
 drop table t1;
 CREATE TABLE ndb_order_test (
 node_id int(10) unsigned NOT NULL,
@@ -6408,10 +6426,10 @@ where new.variable_name = old.variable_name
 order by new.variable_name;
 variable_name	new.variable_value - old.variable_value
 NDB_PRUNED_SCAN_COUNT	11
-NDB_PUSHED_QUERIES_DEFINED	463
+NDB_PUSHED_QUERIES_DEFINED	459
 NDB_PUSHED_QUERIES_DROPPED	11
-NDB_PUSHED_QUERIES_EXECUTED	1589
-NDB_SORTED_SCAN_COUNT	202
+NDB_PUSHED_QUERIES_EXECUTED	1176
+NDB_SORTED_SCAN_COUNT	93
 drop table server_counts_at_startup;
 set ndb_join_pushdown = @save_ndb_join_pushdown;
 set @@global.optimizer_switch=default;
