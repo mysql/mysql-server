@@ -1,4 +1,7 @@
 set @@global.optimizer_switch='block_nested_loop=off';
+select @@session.optimizer_switch;
+@@session.optimizer_switch
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=off,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on
 drop table if exists t1,t2,t3,t4;
 create temporary table server_counts_at_startup
 select * from performance_schema.global_status 
@@ -6175,6 +6178,7 @@ insert into t1 values
 (3,1,1,2), (3,2,2,3), (3,4,3,4),
 (4,1,4,5), (4,2,5,1), (4,3,1,2);
 set global debug='+d,max_4rows_in_spj_batches';
+set @save_optimizer_switch = @@optimizer_switch;
 set optimizer_switch='materialization=off';
 explain
 select count(*) from t1 where 
@@ -6240,8 +6244,11 @@ select count(*) from t1 where
 t1.c in (select subq1.c from t1 as subq1 straight_join t1 as subq2 on subq1.a = subq2.c);
 count(*)
 16
-set optimizer_switch='materialization=default';
+set optimizer_switch=@save_optimizer_switch;
 set global debug=@save_debug;
+set @save_optimizer_switch = @@optimizer_switch;
+set @@optimizer_switch='semijoin=on';
+set @@optimizer_switch='loosescan=on';
 explain SELECT count(*)
 FROM (t1 AS table1 JOIN t1 AS table2 USING(a,b))
 WHERE table1.b IN
@@ -6259,6 +6266,7 @@ WHERE table1.b IN
 (SELECT /*+ SEMIJOIN(LOOSESCAN)*/ table1s.c FROM t1 as table1s);
 count(*)
 16
+set @@optimizer_switch='firstmatch=on';
 explain SELECT count(*)
 FROM (t1 AS table1 JOIN t1 AS table2 USING(a,b))
 WHERE table1.b IN
@@ -6276,6 +6284,10 @@ WHERE table1.b IN
 (SELECT /*+ SEMIJOIN(FIRSTMATCH)*/ table1s.c FROM t1 as table1s);
 count(*)
 16
+set optimizer_switch=@save_optimizer_switch;
+set @save_optimizer_switch = @@optimizer_switch;
+set @@optimizer_switch='semijoin=on';
+set @@optimizer_switch='materialization=on';
 explain
 select count(*)
 from t1
@@ -6353,8 +6365,7 @@ join t1 as t2 on t2.a = t1.b and t2.b = t1.c
 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3);
 count(*)
 13
-set @save_optimizer_switch = @@session.optimizer_switch;
-SET optimizer_switch='block_nested_loop=off';
+set optimizer_switch='block_nested_loop=off';
 explain
 select count(*)
 from t1 cross join t1 as t2
@@ -6378,8 +6389,10 @@ where t2.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ t4s.c
 from t1 as t3s join t1 as t4s on t4s.a = t3s.b);
 count(*)
 256
-SET optimizer_switch=@save_optimizer_switch;
+set optimizer_switch=@save_optimizer_switch;
 set global debug='+d,max_4rows_in_spj_batches';
+set @save_optimizer_switch = @@optimizer_switch;
+set @@optimizer_switch='semijoin=on';
 explain
 select count(*)
 from t1
@@ -6526,6 +6539,7 @@ join t1 as t6s on t6s.a = t5s.b
 count(*)
 256
 set global debug=@save_debug;
+set optimizer_switch=@save_optimizer_switch;
 explain
 select count(*)
 from t1
