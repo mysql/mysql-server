@@ -24,7 +24,7 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --shutdown_server 10
 --source include/wait_until_disconnected.inc
 
---remove_file $server_log 10
+--remove_file $server_log 25
 
 --echo # Copy SSL certificates before restarting.
 --echo # They should be picked up automatically by server.
@@ -76,7 +76,7 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --shutdown_server 10
 --source include/wait_until_disconnected.inc
 
---remove_file $server_log 10
+--remove_file $server_log 25
 
 --echo # Remove one of the certificates/keys.
 --remove_file $DATADIR_LOCATION/server-key.pem

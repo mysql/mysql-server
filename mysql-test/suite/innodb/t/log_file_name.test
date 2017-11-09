@@ -12,7 +12,7 @@ let $mysqld=$MYSQLD_CMD --core-file --console --log-error-verbosity=3 > $SEARCH_
 
 --echo # Clear old log file
 --source include/shutdown_mysqld.inc
---move_file $MYSQLTEST_VARDIR/log/mysqld.1.err $MYSQLTEST_VARDIR/tmp/mysqld_00.log
+--move_file $MYSQLTEST_VARDIR/log/mysqld.1.err $MYSQLTEST_VARDIR/tmp/mysqld_00.log 25
 --source include/start_mysqld.inc
 
 -- echo # Do up some DDL and DML to recover
