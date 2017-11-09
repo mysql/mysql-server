@@ -36,6 +36,7 @@
 #include <vector>
 
 #include "binlog_event.h"
+#include "byteorder.h"
 #include "template_utils.h"
 #include "uuid.h"
 
