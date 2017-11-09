@@ -1112,6 +1112,10 @@ struct MY_ALIGNED(NDB_CL) thr_data
   Uint32 m_sched_responsiveness;
   Uint32 m_max_signals_before_send;
   Uint32 m_max_signals_before_send_flush;
+
+#ifdef ERROR_INSERT
+  bool m_delayed_prepare;
+#endif
 };
 
 struct mt_send_handle  : public TransporterSendBufferHandle
@@ -4105,6 +4109,18 @@ do_send(struct thr_data* selfptr, bool must_send)
     : -selfptr->m_pending_send_count;  // All busy, or didn't find any work (-> -0)
 }
 
+#ifdef ERROR_INSERT
+void
+mt_set_delayed_prepare(Uint32 self)
+{
+  thr_repository *rep = g_thr_repository;
+  struct thr_data *selfptr = &rep->m_thread[self];
+  
+  selfptr->m_delayed_prepare = true;
+}
+#endif
+
+
 /**
  * These are the implementations of the TransporterSendBufferHandle methods
  * in ndbmtd.
@@ -4112,6 +4128,19 @@ do_send(struct thr_data* selfptr, bool must_send)
 Uint32 *
 mt_send_handle::getWritePtr(NodeId node, Uint32 len, Uint32 prio, Uint32 max)
 {
+
+#ifdef ERROR_INSERT
+  if (m_selfptr->m_delayed_prepare)
+  {
+    g_eventLogger->info("MT thread %u delaying in prepare",
+                        m_selfptr->m_thr_no);
+    NdbSleep_MilliSleep(500);
+    g_eventLogger->info("MT thread %u finished delay, clearing",
+                        m_selfptr->m_thr_no);
+    m_selfptr->m_delayed_prepare = false;
+  }
+#endif
+
   struct thr_send_buffer * b = m_selfptr->m_send_buffers+node;
   thr_send_page * p = b->m_last_page;
   if ((p != 0) && (p->m_bytes + p->m_start + len <= thr_send_page::max_bytes()))
@@ -6107,6 +6136,9 @@ thr_init(struct thr_repository* rep, struct thr_data *selfptr, unsigned int cnt,
 
   selfptr->m_thread = 0;
   selfptr->m_cpu = NO_LOCK_CPU;
+#ifdef ERROR_INSERT
+  selfptr->m_delayed_prepare = false;
+#endif
 }
 
 /* Have to do this after init of all m_in_queues is done. */
