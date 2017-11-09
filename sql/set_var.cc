@@ -1221,8 +1221,7 @@ void set_var_user::print(THD*, String *str)
 int set_var_password::check(THD *thd)
 {
   /* Returns 1 as the function sends error to client */
-  return check_change_password(thd, user->host.str, user->user.str,
-                               password, strlen(password)) ? 1 : 0;
+  return check_change_password(thd, user->host.str, user->user.str) ? 1 : 0;
 }
 
 int set_var_password::update(THD *thd)

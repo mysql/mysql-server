@@ -16,6 +16,8 @@
 #ifndef PARSE_TREE_COL_ATTRS_INCLUDED
 #define PARSE_TREE_COL_ATTRS_INCLUDED
 
+#include <type_traits>
+
 #include "my_dbug.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql_com.h"
@@ -25,6 +27,7 @@
 #include "sql/parse_tree_node_base.h"
 #include "sql/sql_alter.h"
 #include "sql/sql_class.h"
+#include "sql/sql_lex.h"
 #include "sql/sql_parse.h"
 
 using Mysql::Nullable;
@@ -429,10 +432,12 @@ class PT_numeric_type : public PT_type
   const char *dec;
   Field_option options;
 
+  using Parent_type = std::remove_const<decltype(PT_type::type)>::type;
+
 public:
   PT_numeric_type(Numeric_type type_arg,
                   const char *length, const char *dec, Field_option options)
-  : PT_type(static_cast<decltype(PT_type::type)>(type_arg)),
+  : PT_type(static_cast<Parent_type>(type_arg)),
     length(length),
     dec(dec),
     options(options)
@@ -496,12 +501,14 @@ class PT_char_type : public PT_type
   const CHARSET_INFO *charset;
   const bool force_binary;
 
+  using Parent_type = std::remove_const<decltype(PT_type::type)>::type;
+
 public:
   PT_char_type(Char_type char_type,
                const char *length,
                const CHARSET_INFO *charset,
                bool force_binary= false)
-  : PT_type(static_cast<decltype(PT_type::type)>(char_type)),
+  : PT_type(static_cast<Parent_type>(char_type)),
     length(length),
     charset(charset),
     force_binary(force_binary)
@@ -541,11 +548,13 @@ class PT_blob_type : public PT_type
   const CHARSET_INFO *charset;
   const bool force_binary;
 
+  using Parent_type = std::remove_const<decltype(PT_type::type)>::type;
+
 public:
   PT_blob_type(Blob_type blob_type,
                const CHARSET_INFO *charset,
                bool force_binary= false)
-  : PT_type(static_cast<decltype(PT_type::type)>(blob_type)),
+  : PT_type(static_cast<Parent_type>(blob_type)),
     length(NULL),
     charset(charset),
     force_binary(force_binary)
@@ -606,9 +615,11 @@ class PT_time_type : public PT_type
 {
   const char *dec;
 
+  using Parent_type = std::remove_const<decltype(PT_type::type)>::type;
+
 public:
   PT_time_type(Time_type time_type, const char *dec)
-  : PT_type(static_cast<decltype(PT_type::type)>(time_type)),
+  : PT_type(static_cast<Parent_type>(time_type)),
     dec(dec)
   {}
 
@@ -702,11 +713,13 @@ class PT_enum_type_tmpl : public PT_type
   const CHARSET_INFO *charset;
   const bool force_binary;
 
+  using Parent_type = std::remove_const<decltype(PT_type::type)>::type;
+
 public:
   PT_enum_type_tmpl(List<String> *interval_list,
                     const CHARSET_INFO *charset,
                     bool force_binary)
-  : PT_type(static_cast<decltype(PT_type::type)>(enum_type)),
+  : PT_type(static_cast<Parent_type>(enum_type)),
     interval_list(interval_list),
     charset(charset),
     force_binary(force_binary)

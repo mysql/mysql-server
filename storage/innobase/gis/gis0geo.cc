@@ -291,7 +291,7 @@ rtree_key_cmp(
 
 	switch (mode) {
 	case PAGE_CUR_INTERSECT:
-		if (mbr_intersect_cmp(srs, &x, &y)) {
+		if (mbr_intersect_cmp(&x, &y)) {
 			return(0);
 		}
 		break;
@@ -311,7 +311,7 @@ rtree_key_cmp(
 		}
 		break;
 	case PAGE_CUR_DISJOINT:
-		if (!mbr_disjoint_cmp(srs, &x, &y)
+		if (!mbr_disjoint_cmp(&x, &y)
 		    || (b_len - (2 * dim_len) > 0)) {
 			return(0);
 		}

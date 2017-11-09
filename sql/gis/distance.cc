@@ -20,17 +20,17 @@
 #include "sql/gis/distance.h"
 
 #include <boost/geometry.hpp>  // boost::geometry::distance
-#include <cmath>  // std::isfinite
+#include <cmath>               // std::isfinite
 #include <limits>
 
-#include "my_inttypes.h"            // MYF
-#include "my_sys.h"                 // my_error
-#include "mysqld_error.h"           // Error codes
-#include "sql/dd/types/spatial_reference_system.h" // dd::Spatial_reference_system
+#include "my_inttypes.h"                            // MYF
+#include "my_sys.h"                                 // my_error
+#include "mysqld_error.h"                           // Error codes
+#include "sql/dd/types/spatial_reference_system.h"  // dd::Spatial_reference_system
 #include "sql/gis/distance_functor.h"
 #include "sql/gis/geometries.h"
 #include "sql/gis/geometries_traits.h"
-#include "sql/sql_exception_handler.h" // handle_gis_exception
+#include "sql/sql_exception_handler.h"  // handle_gis_exception
 
 namespace bg = boost::geometry;
 namespace bgs = boost::geometry::srs;

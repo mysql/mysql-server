@@ -317,7 +317,7 @@ bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst)
       free_root(&tmp_mem, MYF(0));
       DBUG_RETURN(true);
     }
-    grant_role(thd, acl_role, acl_user, *with_admin_opt == 'Y' ? 1 : 0);
+    grant_role(acl_role, acl_user, *with_admin_opt == 'Y' ? 1 : 0);
   }
   end_read_record(&read_record_info);
 

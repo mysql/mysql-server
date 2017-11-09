@@ -3051,7 +3051,11 @@ static int my_vio_is_encrypted(MYSQL_PLUGIN_VIO *vio)
   return (mpvio->vio_is_encrypted);
 }
 
-int show_rsa_public_key(THD *thd, SHOW_VAR *var, char *buff)
+/*
+  The unused parameters must be here due to function pointer casting
+  in sql_show.cc.
+*/
+int show_rsa_public_key(THD *, SHOW_VAR *var MY_ATTRIBUTE((unused)), char *)
 {
 #ifndef HAVE_YASSL
   var->type= SHOW_CHAR;
