@@ -27,13 +27,13 @@
   Simple CPC client class.
 */
 class SimpleCpcClient {
-public:
+ public:
   SimpleCpcClient(const char *host, int port);
   ~SimpleCpcClient();
 
-  int getPort() const { return port;}
-  const char * getHost() const { return host;}
-  
+  int getPort() const { return port; }
+  const char *getHost() const { return host; }
+
   struct Process {
     int m_id;
     BaseString m_name;
@@ -50,7 +50,7 @@ public:
 
     BaseString m_type;
     BaseString m_status;
-    
+
     BaseString m_stdin;
     BaseString m_stdout;
     BaseString m_stderr;
@@ -58,15 +58,15 @@ public:
     BaseString m_shutdown_options;
   };
 
-private:
+ private:
   class ParserDummy : SocketServer::Session {
-  public:
+   public:
     ParserDummy(NDB_SOCKET_TYPE sock);
   };
-  
+
   typedef Parser<ParserDummy> Parser_t;
   typedef ParserRow<ParserDummy> ParserRow_t;
-  
+
   char *host;
   int port;
   NDB_SOCKET_TYPE cpc_sock;
@@ -75,26 +75,25 @@ private:
 
   Uint32 m_cpcd_protocol_version;
 
-public:  
+ public:
   int connect();
-  int list_processes(Vector<Process>&, Properties &reply);
-  int start_process(Uint32 id, Properties& reply);
-  int stop_process(Uint32 id, Properties& reply);
-  int undefine_process(Uint32 id, Properties& reply);
-  int define_process(Process & p, Properties& reply);
-  int show_version(Properties& reply);
-  int select_protocol(Properties& reply);
-  
-private:
+  int list_processes(Vector<Process> &, Properties &reply);
+  int start_process(Uint32 id, Properties &reply);
+  int stop_process(Uint32 id, Properties &reply);
+  int undefine_process(Uint32 id, Properties &reply);
+  int define_process(Process &p, Properties &reply);
+  int show_version(Properties &reply);
+  int select_protocol(Properties &reply);
+
+ private:
   int cpc_send(const char *cmd, const Properties &args);
 
   Parser_t::ParserStatus cpc_recv(const ParserRow_t *syntax,
-				  const Properties **reply,
-				  void **user_data = NULL);
+                                  const Properties **reply,
+                                  void **user_data = NULL);
 
-  const Properties *cpc_call(const char *cmd,
-			     const Properties &args,
-			     const ParserRow_t *reply_syntax);
+  const Properties *cpc_call(const char *cmd, const Properties &args,
+                             const ParserRow_t *reply_syntax);
 };
 
 #endif /* !__CPCCLIENT_HPP_INCLUDED__ */
