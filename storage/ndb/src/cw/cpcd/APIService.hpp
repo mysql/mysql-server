@@ -53,6 +53,8 @@ public:
   void listProcesses(Parser_t::Context & ctx, const class Properties & args);
   void showVersion(Parser_t::Context & ctx, const class Properties & args);
   void selectProtocol(Parser_t::Context & ctx, const class Properties & args);
+
+  bool may_print_process_cpuset() const { return m_protocol_version >= 2; }
 };
 
 class CPCDAPIService : public SocketServer::Service {

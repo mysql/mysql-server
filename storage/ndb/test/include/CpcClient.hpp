@@ -41,6 +41,7 @@ public:
     BaseString m_owner;
     BaseString m_group;
     BaseString m_runas;
+    BaseString m_cpuset;
 
     BaseString m_cwd;
     BaseString m_env;

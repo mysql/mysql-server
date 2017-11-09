@@ -38,6 +38,14 @@
 #include <sys/resource.h>
 #endif
 
+#ifdef HAVE_LINUX_SCHEDULING
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+#include <sched.h>
+#include <stdlib.h>  // atoi
+#endif
+
 void
 CPCD::Process::print(FILE * f){
   fprintf(f, "define process\n");
@@ -51,6 +59,7 @@ CPCD::Process::print(FILE * f){
   fprintf(f, "cwd: %s\n",   m_cwd.c_str()   ? m_cwd.c_str()   : "");
   fprintf(f, "owner: %s\n", m_owner.c_str() ? m_owner.c_str() : "");
   fprintf(f, "runas: %s\n", m_runas.c_str() ? m_runas.c_str() : "");
+  fprintf(f, "cpuset: %s\n", m_cpuset.c_str() ? m_cpuset.c_str() : "");
   fprintf(f, "stdin: %s\n", m_stdin.c_str() ? m_stdin.c_str() : "");
   fprintf(f, "stdout: %s\n", m_stdout.c_str() ? m_stdout.c_str() : "");
   fprintf(f, "stderr: %s\n", m_stderr.c_str() ? m_stderr.c_str() : "");
@@ -62,6 +71,7 @@ CPCD::Process::print(FILE * f){
 CPCD::Process::Process(const Properties & props, class CPCD *cpcd) {
   m_id = -1;
   m_pid = bad_pid;
+
   props.get("id", (Uint32 *) &m_id);
   props.get("name", m_name);
   props.get("group", m_group);
@@ -72,6 +82,7 @@ CPCD::Process::Process(const Properties & props, class CPCD *cpcd) {
   props.get("owner", m_owner);
   props.get("type", m_type);
   props.get("runas", m_runas);
+  props.get("cpuset", m_cpuset);
 
   props.get("stdin", m_stdin);
   props.get("stdout", m_stdout);
@@ -343,6 +354,11 @@ save_environment(const char *env, Vector<BaseString> &saved) {
 void
 CPCD::Process::do_exec() {
   unsigned i;
+
+  if (! setCPUAffinity())
+  {
+    _exit(1);
+  }
 
 #ifdef _WIN32
   Vector<BaseString> saved;
@@ -745,4 +761,38 @@ CPCD::Process::stop() {
 
   m_pid = bad_pid;
   m_status = STOPPED;
+}
+
+bool CPCD::Process::setCPUAffinity()
+{
+  if (m_cpuset.empty())
+  {
+    return true;
+  }
+
+  #ifndef HAVE_LINUX_SCHEDULING
+    logger.critical("Setting CPU affinity in a non-supported system");
+    return false;
+  #else
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+
+    Vector<BaseString> cpu_list;
+    m_cpuset.split(cpu_list, BaseString(","));
+    for (unsigned int i = 0; i < cpu_list.size(); i++)
+    {
+      int cpu = atoi(cpu_list[i].c_str());
+      CPU_SET(cpu, &cpuset);
+    }
+
+    int status = sched_setaffinity(0, sizeof(cpuset), &cpuset);
+    if (status != 0)
+    {
+      logger.error(
+        "sched_setaffinity: %s, cpus: %s", strerror(errno), m_cpuset.c_str());
+      return false;
+    }
+
+    return true;
+  #endif
 }

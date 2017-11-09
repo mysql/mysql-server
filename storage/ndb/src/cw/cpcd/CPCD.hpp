@@ -223,6 +223,12 @@ public:
     BaseString m_runas;
 
     /**
+     * @brief CPUs affinity set
+     * @desc Format CPU0,CPU1,...
+     */
+    BaseString m_cpuset;
+
+    /**
      * @brief redirection for stdin
      */
     BaseString m_stdin;
@@ -254,6 +260,7 @@ public:
   private:
     class CPCD *m_cpcd;
     void do_exec();
+    bool setCPUAffinity();
   };
 
   /**
