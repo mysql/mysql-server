@@ -1,7 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
-
-   All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -45,6 +43,17 @@
    0, 0, \
    0, \
   (desc), 0 }
+
+#define CPC_IGNORE_EXTRA_ARG() \
+ { "", \
+   0, \
+   ParserRow_t::Arg, \
+   ParserRow_t::LongString, \
+   ParserRow_t::Ignore, \
+   ParserRow_t::IgnoreMinMax, \
+   0, 0, \
+   0, \
+   0, 0 }
 
 #define CPC_END() \
  { 0, \
@@ -372,11 +381,81 @@ SimpleCpcClient::list_processes(Vector<Process> &procs, Properties& reply) {
   return 0;
 }
 
+int
+SimpleCpcClient::show_version(Properties& reply)
+{
+  const ParserRow_t start_reply[] = {
+    CPC_CMD("show version", NULL, ""),
+    CPC_ARG("supported protocol", Int, Optional, ""),
+    CPC_IGNORE_EXTRA_ARG(),
+
+    CPC_END()
+  };
+
+  Properties args;
+
+  const Properties* ret = cpc_call("show version", args, start_reply);
+  if (ret == 0)
+  {
+    reply.put("status", (Uint32)0);
+    reply.put("errormessage", "unknown error");
+    return -1;
+  }
+
+  Uint32 version;
+  if (!ret->get("supported protocol", &version))
+  {
+    reply.put("status", 1);
+    return -1;
+  }
+
+  reply.put("version", version);
+  delete ret;
+
+  return 0;
+}
+
+int
+SimpleCpcClient::select_protocol(Properties& reply)
+{
+  const ParserRow_t start_reply[] = {
+    CPC_CMD("select protocol", NULL, ""),
+    CPC_ARG("status", Int, Mandatory, ""),
+    CPC_ARG("errormessage", String, Optional, ""),
+
+    CPC_END()
+  };
+
+  Properties args;
+  args.put("version", CPC_PROTOCOL_VERSION);
+
+  const Properties* ret = cpc_call("select protocol", args, start_reply);
+  if (ret == 0){
+    reply.put("status", (Uint32)0);
+    reply.put("errormessage", "unknown error");
+    return -1;
+  }
+
+  Uint32 status = 0;
+  ret->get("status", &status);
+  reply.put("status", status);
+  if (status != 0) {
+    BaseString msg;
+    ret->get("errormessage", msg);
+    reply.put("errormessage", msg.c_str());
+  }
+
+  delete ret;
+
+  return 0;
+}
+
 
 SimpleCpcClient::SimpleCpcClient(const char *_host, int _port) {
   host = strdup(_host);
   port = _port;
   my_socket_invalidate(&cpc_sock);
+  m_cpcd_protocol_version = 0;
 }
 
 SimpleCpcClient::~SimpleCpcClient() {
@@ -415,6 +494,27 @@ SimpleCpcClient::connect() {
   sa.sin_port = htons(port);
   if (my_connect_inet(cpc_sock, &sa) < 0)
     return -1;
+
+  try {
+    Properties p;
+    int res = show_version(p);
+    if (res != 0) throw "Failure to get CPCD version";
+
+    Uint32 version = 1;
+    p.get("version", &version);
+
+    m_cpcd_protocol_version = version;
+    if (m_cpcd_protocol_version < CPC_PROTOCOL_VERSION) {
+      throw "Unsupported protocol";
+    }
+
+    res = select_protocol(p);
+    if (res != 0) throw "Unable to set client's protocol";
+  } catch (const char* msg) {
+    my_socket_close(cpc_sock);
+    my_socket_invalidate(&cpc_sock);
+    return -1;
+  }
 
   return 0;
 }
