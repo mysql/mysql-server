@@ -15,7 +15,5 @@
 
 usr/bin/mysqlbackup
 # legal
-usr/LICENSE.meb usr/share/doc/mysql-enterprise-backup/
-usr/LICENSE.third_party usr/share/doc/mysql-enterprise-backup/
-usr/share/mysql/@DEB_INSTALL_LICENSEFILE@ usr/share/doc/mysql-enterprise-backup/
-usr/share/mysql/README usr/share/doc/mysql-enterprise-backup/
+usr/LICENSE.meb usr/share/doc/mysql-commercial-backup/
+usr/LICENSE.third_party usr/share/doc/mysql-commercial-backup/

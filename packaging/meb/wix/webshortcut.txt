@@ -1,4 +1,0 @@
-# Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
-#
-[InternetShortcut]
-URL=http://dev.mysql.com/doc/mysql-enterprise-backup/4.0/en/
