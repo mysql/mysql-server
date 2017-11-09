@@ -300,10 +300,25 @@ MACRO(MY_SANITIZER_CHECK SAN_OPT RESULT)
 ENDMACRO()
 
 OPTION(WITH_ASAN "Enable address sanitizer" OFF)
+OPTION(WITH_ASAN_SCOPE "Enable -fsanitize-address-use-after-scope" OFF)
 IF(WITH_ASAN)
   MY_SANITIZER_CHECK("-fsanitize=address" WITH_ASAN_OK)
   IF(WITH_ASAN_OK)
     SET(HAVE_ASAN 1)
+    # This works with clang, but not gcc it seems.
+    MY_CHECK_CXX_COMPILER_FLAG(
+      "-fsanitize=address -fsanitize-address-use-after-scope"
+      HAVE_SANITIZE_SCOPE)
+    IF(WITH_ASAN_SCOPE AND HAVE_SANITIZE_SCOPE)
+      SET(CMAKE_C_FLAGS_DEBUG
+        "${CMAKE_C_FLAGS_DEBUG} -fsanitize-address-use-after-scope")
+      SET(CMAKE_C_FLAGS_RELWITHDEBINFO
+        "${CMAKE_C_FLAGS_RELWITHDEBINFO} -fsanitize-address-use-after-scope")
+      SET(CMAKE_CXX_FLAGS_DEBUG
+        "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize-address-use-after-scope")
+      SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO
+        "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -fsanitize-address-use-after-scope")
+    ENDIF()
   ELSE()
     MESSAGE(FATAL_ERROR "Do not know how to enable address sanitizer")
   ENDIF()
