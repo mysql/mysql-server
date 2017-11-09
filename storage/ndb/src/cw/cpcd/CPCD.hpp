@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2007 MySQL AB, 2009, 2010 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -82,6 +81,8 @@ enum RequestStatusCode {
  */
 class CPCD {
 public:
+  STATIC_CONST( CPC_PROTOCOL_VERSION = 2);
+
   /** @brief Describes the status of a client request */
   class RequestStatus {
   public:
@@ -375,6 +376,7 @@ private:
   friend class Process;  
   bool notifyChanges();
   int findUniqueId();
+
   BaseString m_procfile;
   Monitor *m_monitor;
 };

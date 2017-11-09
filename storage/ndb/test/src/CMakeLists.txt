@@ -1,5 +1,4 @@
-# Copyright (C) 2008 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
-#  All rights reserved. Use is subject to license terms.
+# Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,6 +20,8 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/test/include
                     ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi
                     ${CMAKE_SOURCE_DIR}/storage/ndb/include/debugger)
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_ndbapitest.cmake)
+
+ADD_DEFINITIONS(-fexceptions)
 
 ADD_CONVENIENCE_LIBRARY(ndbNDBT
         NDBT_ReturnCodes.cpp

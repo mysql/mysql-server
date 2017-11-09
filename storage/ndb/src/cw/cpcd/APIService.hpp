@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003, 2005, 2006 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,6 +31,7 @@ class CPCDAPISession : public SocketServer::Session {
   InputStream *m_input;
   OutputStream *m_output;
   Parser_t *m_parser;
+  Uint32 m_protocol_version;
 
   Vector<int> m_temporaryProcesses;
   
@@ -52,6 +52,7 @@ public:
   void showProcess(Parser_t::Context & ctx, const class Properties & args);
   void listProcesses(Parser_t::Context & ctx, const class Properties & args);
   void showVersion(Parser_t::Context & ctx, const class Properties & args);
+  void selectProtocol(Parser_t::Context & ctx, const class Properties & args);
 };
 
 class CPCDAPIService : public SocketServer::Service {

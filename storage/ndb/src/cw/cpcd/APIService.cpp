@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -140,12 +140,15 @@ ParserRow<CPCDAPISession> commands[] =
 
   CPCD_CMD("show version", &CPCDAPISession::showVersion, ""),
   
+  CPCD_CMD("select protocol", &CPCDAPISession::selectProtocol, ""),
+    CPCD_ARG("version", Int, Mandatory, "Protocol version to use"),
+
   CPCD_END()
 };
-CPCDAPISession::CPCDAPISession(NDB_SOCKET_TYPE sock,
-			       CPCD & cpcd)
+CPCDAPISession::CPCDAPISession(NDB_SOCKET_TYPE sock, CPCD & cpcd)
   : SocketServer::Session(sock)
   , m_cpcd(cpcd)
+  , m_protocol_version(1)
 {
   m_input = new SocketInputStream(sock, 7*24*60*60000);
   m_output = new SocketOutputStream(sock);
@@ -155,6 +158,7 @@ CPCDAPISession::CPCDAPISession(NDB_SOCKET_TYPE sock,
 CPCDAPISession::CPCDAPISession(FILE * f, CPCD & cpcd)
   : SocketServer::Session(my_socket_create_invalid())
   , m_cpcd(cpcd)
+  , m_protocol_version(1)
 {
   m_input = new FileInputStream(f);
   m_parser = new Parser<CPCDAPISession>(commands, *m_input);
@@ -398,8 +402,38 @@ CPCDAPISession::showVersion(Parser_t::Context & /* unused */,
   CPCD::RequestStatus rs;
 
   m_output->println("show version");
-  m_output->println("compile time: %s %s", __DATE__, __TIME__);
 
+  m_output->println("compile time: %s %s", __DATE__, __TIME__);
+  m_output->println("supported protocol: %u", CPCD::CPC_PROTOCOL_VERSION);
+  m_output->println("effective protocol: %u", m_protocol_version);
+  m_output->println("%s", "");
+}
+
+void
+CPCDAPISession::selectProtocol(Parser_t::Context & /* unused */,
+                               const class Properties & args)
+{
+  Uint32 version;
+  CPCD::RequestStatus rs;
+
+  args.get("version", & version);
+  if (version < 1)
+  {
+    rs.err(Error, "Invalid protocol version");
+  }
+  else if (version > CPCD::CPC_PROTOCOL_VERSION)
+  {
+    rs.err(Error, "Unsupported protocol version");
+  }
+  else
+  {
+    m_protocol_version = version;
+  }
+
+  m_output->println("select protocol");
+  m_output->println("status: %d", rs.getStatus());
+  if (rs.getStatus() != 0)
+    m_output->println("errormessage: %s", rs.getErrMsg());
   m_output->println("%s", "");
 }
 

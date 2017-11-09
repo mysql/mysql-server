@@ -1,7 +1,5 @@
 /*
-   Copyright (C) 2003-2007 MySQL AB, 2009 Sun Microsystems, Inc.
-
-   All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -72,6 +70,10 @@ private:
   int port;
   NDB_SOCKET_TYPE cpc_sock;
 
+  enum { CPC_PROTOCOL_VERSION = 2 };
+
+  Uint32 m_cpcd_protocol_version;
+
 public:  
   int connect();
   int list_processes(Vector<Process>&, Properties &reply);
@@ -79,11 +81,11 @@ public:
   int stop_process(Uint32 id, Properties& reply);
   int undefine_process(Uint32 id, Properties& reply);
   int define_process(Process & p, Properties& reply);
+  int show_version(Properties& reply);
+  int select_protocol(Properties& reply);
   
 private:
-  int cpc_send(const char *cmd,
-	       const Properties &args);
-
+  int cpc_send(const char *cmd, const Properties &args);
 
   Parser_t::ParserStatus cpc_recv(const ParserRow_t *syntax,
 				  const Properties **reply,
