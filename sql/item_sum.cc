@@ -2048,7 +2048,10 @@ my_decimal *Item_sum_sum::val_decimal(my_decimal *val)
   if (m_is_window_function)
   {
     if (wf_common_init())
-      return nullptr;
+    {
+      my_decimal_set_zero(val);
+      return null_value ? nullptr : val;
+    }
 
     if (m_window->dont_aggregate())
       return &dec_buffs[1];
@@ -2433,7 +2436,10 @@ my_decimal *Item_sum_avg::val_decimal(my_decimal *val)
   if (m_is_window_function)
   {
     if (wf_common_init())
-      DBUG_RETURN(nullptr);
+    {
+      my_decimal_set_zero(val);
+      DBUG_RETURN(null_value ? nullptr : val);
+    }
 
     if (m_window->dont_aggregate())
     {
@@ -3211,7 +3217,10 @@ my_decimal *Item_sum_hybrid::val_decimal(my_decimal *val)
   if (m_is_window_function)
   {
     if (wf_common_init())
-      return nullptr;
+    {
+       my_decimal_set_zero(val);
+       return null_value ? nullptr : val;
+    }
     bool ret= false;
     m_optimize ? ret= compute() : add();
     if (ret)
@@ -5831,7 +5840,10 @@ bool Item_first_last_value::val_json(Json_wrapper *jw)
 my_decimal *Item_first_last_value::val_decimal(my_decimal *decimal_buffer)
 {
   if (wf_common_init())
-    return decimal_buffer;
+  {
+    my_decimal_set_zero(decimal_buffer);
+    return null_value ? nullptr : decimal_buffer;
+  }
 
   if (compute())
     return nullptr;
@@ -6052,7 +6064,11 @@ double Item_nth_value::val_real()
 my_decimal *Item_nth_value::val_decimal(my_decimal *decimal_buffer)
 {
   if (wf_common_init())
-    return decimal_buffer;
+  {
+    my_decimal_set_zero(decimal_buffer);
+    return null_value ? nullptr : decimal_buffer;
+  }
+
 
   if (compute())
     return nullptr;
@@ -6292,7 +6308,11 @@ double Item_lead_lag::val_real()
 my_decimal *Item_lead_lag::val_decimal(my_decimal *decimal_buffer)
 {
   if (wf_common_init())
-    return decimal_buffer;
+  {
+    my_decimal_set_zero(decimal_buffer);
+    return null_value ? nullptr : decimal_buffer;
+  }
+
 
   if (compute())
     return nullptr;
