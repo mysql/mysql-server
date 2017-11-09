@@ -2072,7 +2072,7 @@ Fil_path::is_valid_location(
 
 	if (pos == std::string::npos) {
 
-		/* This is a general  or system tablespace. */
+		/* This is a general or system tablespace. */
 
 		if (MySQL_datadir_path.is_ancestor(dirpath)) {
 			ib::error()
@@ -10221,68 +10221,68 @@ fil_tablespace_path_equals(
 
 	/* Check that it wasn't deleted. */
 	if (it != end) {
-
 		return(Fil_state::DELETED);
-
-	} else {
-
-		/* Don't compare the full filename, there can be a mismatch if
-		there was a DDL in progress and we will end up renaming the path
-		in the DD dictionary. Such renames should be handled by the
-		atomic DDL "ddl_log". */
-
-		std::string	old_dir{old_path};
-
-		/* Ignore the filename component of the old path. */
-		auto	pos = old_dir.find_last_of(Fil_path::SEPARATOR);
-		if (pos == std::string::npos) {
-			old_dir = MySQL_datadir_path;
-		} else {
-			old_dir.resize(pos + 1);
-			ut_ad(Fil_path::is_separator(old_dir.back()));
-		}
-		old_dir = Fil_path::get_real_path(old_dir);
-
-		/* Build the new path from the scan path and the found path. */
-		std::string	new_dir{result.first};
-
-		ut_ad(Fil_path::is_separator(new_dir.back()));
-
-		new_dir.append(result.second->front());
-
-		new_dir = Fil_path::get_real_path(new_dir);
-
-		/* Do not use a datafile that is in the wrong place. */
-		if (!Fil_path::is_valid_location(space_name, new_dir)) {
-
-			ib::info()
-				<< "Cannot use scanned file " << new_dir
-				<< " for tablespace " << space_name
-				<< " because it is not in a valid location.";
-
-			return(Fil_state::MISSING);
-		}
-
-		/* Ignore the filename component of the new path. */
-		pos = new_dir.find_last_of(Fil_path::SEPARATOR);
-
-		ut_ad(pos != std::string::npos);
-
-		new_dir.resize(pos + 1);
-
-		if (old_dir.compare(new_dir) != 0) {
-
-			*new_path = result.first + result.second->front();
-
-			fil_system->moved(
-				dd_object_id, space_id,
-				space_name, old_path, *new_path);
-
-			return(Fil_state::MOVED);
-		}
-
-		*new_path = old_path;
 	}
+
+	/* A file with this space_id was found during scanning.
+	Validate its location and see if it was moved.
+
+	Don't compare the full filename, there can be a mismatch if
+	there was a DDL in progress and we will end up renaming the path
+	in the DD dictionary. Such renames should be handled by the
+	atomic DDL "ddl_log". */
+
+	std::string	old_dir{old_path};
+
+	/* Ignore the filename component of the old path. */
+	auto	pos = old_dir.find_last_of(Fil_path::SEPARATOR);
+	if (pos == std::string::npos) {
+		old_dir = MySQL_datadir_path;
+	} else {
+		old_dir.resize(pos + 1);
+		ut_ad(Fil_path::is_separator(old_dir.back()));
+	}
+	old_dir = Fil_path::get_real_path(old_dir);
+
+	/* Build the new path from the scan path and the found path. */
+	std::string	new_dir{result.first};
+
+	ut_ad(Fil_path::is_separator(new_dir.back()));
+
+	new_dir.append(result.second->front());
+
+	new_dir = Fil_path::get_real_path(new_dir);
+
+	/* Do not use a datafile that is in the wrong place. */
+	if (!Fil_path::is_valid_location(space_name, new_dir)) {
+
+		ib::info()
+			<< "Cannot use scanned file " << new_dir
+			<< " for tablespace " << space_name
+			<< " because it is not in a valid location.";
+
+		return(Fil_state::MISSING);
+	}
+
+	/* Ignore the filename component of the new path. */
+	pos = new_dir.find_last_of(Fil_path::SEPARATOR);
+
+	ut_ad(pos != std::string::npos);
+
+	new_dir.resize(pos + 1);
+
+	if (old_dir.compare(new_dir) != 0) {
+
+		*new_path = result.first + result.second->front();
+
+		fil_system->moved(
+			dd_object_id, space_id,
+			space_name, old_path, *new_path);
+
+		return(Fil_state::MOVED);
+	}
+
+	*new_path = old_path;
 
 	return(Fil_state::MATCHES);
 }

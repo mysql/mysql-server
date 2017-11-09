@@ -11767,8 +11767,34 @@ create_table_info_t::create_option_data_directory_is_valid()
 		is_valid = false;
 	}
 
-	/* We check for a DATA DIRECTORY mixed with TABLESPACE in
-	create_option_tablespace_is_valid(), no need to here. */
+	/* We checked previously for a conflicting DATA DIRECTORY mixed
+	with TABLESPACE in create_option_tablespace_is_valid().
+	An ALTER TABLE statement might have both if it is being moved.
+	So if m_tablespace is set, don't check the existing data_file_name. */
+	if (m_create_info->tablespace != nullptr) {
+		return(is_valid);
+	}
+
+	/* Do not allow a datafile outside the known directories. */
+	char* file_path = Fil_path::make(
+		m_create_info->data_file_name, m_table_name, IBD, true);
+
+	if (!Fil_path::is_valid_location(m_table_name, file_path)) {
+
+		push_warning(
+			m_thd, Sql_condition::SL_WARNING,
+			ER_ILLEGAL_HA_CREATE_OPTION,
+			"InnoDB: DATA DIRECTORY is not in a valid location."
+			" It is not found in innodb_directories.");
+
+		ib::error() <<  "Cannot create table " << m_table_name
+			<< " in directory " << file_path
+			<< " because it is not in a valid location.";
+
+		is_valid = false;
+	}
+
+	ut_free(file_path);
 
 	return(is_valid);
 }
@@ -12471,11 +12497,9 @@ create_table_info_t::parse_table_name(
 	m_remote_path[0] = '\0';
 	m_tablespace[0] = '\0';
 
-	/* Make sure DATA DIRECTORY is compatible with other options
-	and set the remote path.  In the case of either;
-	  CREATE TEMPORARY TABLE ... DATA DIRECTORY={path} ... ;
-	  CREATE TABLE ... DATA DIRECTORY={path} TABLESPACE={name}... ;
-	we ignore the DATA DIRECTORY. */
+	/* Set the remote path if DATA DIRECTORY is valid. If not,
+	we ignore the DATA DIRECTORY.  In strict mode, a non-valid
+	value would have already been rejected. */
 	if (m_create_info->data_file_name != nullptr
 	    && *m_create_info->data_file_name != '\0') {
 		if (!create_option_data_directory_is_valid()) {
