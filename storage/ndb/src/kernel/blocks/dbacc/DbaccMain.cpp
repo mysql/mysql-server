@@ -6839,6 +6839,7 @@ void Dbacc::execACC_SCANREQ(Signal* signal) //Direct Executed
   scanPtr.p->scanTrid1 = scanTrid1;
   scanPtr.p->scanTrid2 = scanTrid2;
   scanPtr.p->scanLockHeld = 0;
+  scanPtr.p->scanLockCount = 0;
   scanPtr.p->scanOpsAllocated = 0;
   scanPtr.p->scanFirstActiveOp = RNIL;
   scanPtr.p->scanFirstQueuedOp = RNIL;
@@ -7808,6 +7809,7 @@ void Dbacc::putOpScanLockQue() const
   }//if
   scanPtr.p->scanLastLockedOp = operationRecPtr.i;
   scanPtr.p->scanLockHeld++;
+  scanPtr.p->scanLockCount++;
 
 }//Dbacc::putOpScanLockQue()
 
@@ -8896,12 +8898,13 @@ Dbacc::execDUMP_STATE_ORD(Signal* signal)
 	      scanPtr.p->minBucketIndexToRescan,
 	      scanPtr.p->maxBucketIndexToRescan);
     infoEvent(" scanBucketState=%d, scanLockHeld=%d, userBlockRef=%d, "
-	      "scanMask=%d scanLockMode=%d",
+	      "scanMask=%d scanLockMode=%d, scanLockCount=%d",
 	      scanPtr.p->scanBucketState,
 	      scanPtr.p->scanLockHeld,
 	      scanPtr.p->scanUserblockref,
 	      scanPtr.p->scanMask,
-	      scanPtr.p->scanLockMode);
+	      scanPtr.p->scanLockMode,
+              scanPtr.p->scanLockCount);
     return;
   }
 

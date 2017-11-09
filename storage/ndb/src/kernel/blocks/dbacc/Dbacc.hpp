@@ -767,6 +767,7 @@ struct ScanRec {
   Uint32 minBucketIndexToRescan;
   Uint32 maxBucketIndexToRescan;
   Uint32 scanOpsAllocated;
+  Uint32 scanLockCount;
   ScanBucketState scanBucketState;
   ScanState scanState;
   Uint16 scanLockHeld;
