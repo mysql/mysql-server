@@ -378,7 +378,7 @@ void Dblqh::execCONTINUEB(Signal* signal)
   switch (tcase) {
   case ZCHECK_SYSTEM_SCANS:
   {
-    handle_check_system_scans();
+    handle_check_system_scans(signal);
     sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 10000, 1);
     break;
   }
@@ -11169,6 +11169,7 @@ void Dblqh::execNEXT_SCANCONF(Signal* signal)
   loc_tcConnectptr.i = scanPtr->scanTcrec;
   scanPtr->m_row_id.m_page_idx = pageIdx;
   scanPtr->m_row_id.m_page_no = pageNo;
+  scanPtr->scan_check_lcp_stop = 0;
 
 #ifdef VM_TRACE
   if (signal->getLength() > 2 && nextScanConf->accOperationPtr != RNIL)
@@ -12791,8 +12792,15 @@ void Dblqh::execCHECK_LCP_STOP(Signal* signal)
 {
   const Uint32 scanPtrI = signal->theData[0];
   jamEntry();
-  if (signal->theData[1] == ZTRUE) {
+  if (signal->theData[1] == ZTRUE)
+  {
+    ScanRecordPtr loc_scanptr;
     jam();
+    loc_scanptr.i = scanPtrI;
+    c_scanRecordPool.getPtr(loc_scanptr);
+    loc_scanptr.p->scan_lastSeen = __LINE__;
+    loc_scanptr.p->scan_check_lcp_stop++;
+
     signal->theData[0] = ZCHECK_LCP_STOP_BLOCKED;
     signal->theData[1] = scanPtrI;
     sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 10, 2);
@@ -13574,6 +13582,7 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
   scanPtr->scanFlag = ZFALSE;
   scanPtr->scanErrorCounter = 0;
   scanPtr->scan_lastSeen = __LINE__;
+  scanPtr->scan_check_lcp_stop = 0;
   scanPtr->m_stop_batch = 0;
   scanPtr->m_curr_batch_size_rows = 0;
   scanPtr->m_curr_batch_size_bytes= 0;
@@ -14694,10 +14703,12 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
     scanPtr->prioAFlag = ZFALSE;
     scanPtr->scanStoredProcId = RNIL;
     scanPtr->scan_lastSeen = __LINE__;
+    scanPtr->scan_check_lcp_stop = 0;
     scanPtr->scan_direct_count = ZMAX_SCAN_DIRECT_COUNT - 1;
     fragptr.p->m_scanNumberMask.clear(NR_ScanNo);
     c_check_scanptr_i[ZCOPY_FRAGREQ_CHECK_INDEX] = scanptr.i;
-    c_check_scanptr_save_timer[ZBACKUP_CHECK_INDEX] = tcConnectptr.p->tcTimer;
+    c_check_scanptr_save_timer[ZCOPY_FRAGREQ_CHECK_INDEX] =
+      tcConnectptr.p->tcTimer;
   }
   
   initScanTc(0,
@@ -30163,7 +30174,7 @@ Dblqh::check_ndb_versions() const
 }
 
 void
-Dblqh::handle_check_system_scans()
+Dblqh::handle_check_system_scans(Signal *signal)
 {
   ScanRecordPtr loc_scanptr;
   TcConnectionrecPtr loc_tcConnectptr;
@@ -30191,24 +30202,41 @@ Dblqh::handle_check_system_scans()
         time_stalled /= 100;
         if (i == ZLCP_CHECK_INDEX)
         {
+          jam();
           g_eventLogger->info("LCP Scan have stalled for %u seconds, last"
-                              " seen on line %u",
+                              "last seen on line %u, check_lcp_stop_count: %u",
                               time_stalled,
-                              c_check_scanptr_save_line[i]);
+                              c_check_scanptr_save_line[i],
+                              loc_scanptr.p->scan_check_lcp_stop);
         }
         else if (i == ZBACKUP_CHECK_INDEX)
         {
+          jam();
           g_eventLogger->info("Backup Scan have stalled for %u seconds, last"
-                              " seen on line %u",
+                              "last seen on line %u, check_lcp_stop_count: %u",
                               time_stalled,
-                              c_check_scanptr_save_line[i]);
+                              c_check_scanptr_save_line[i],
+                              loc_scanptr.p->scan_check_lcp_stop);
         }
         else if (i == ZCOPY_FRAGREQ_CHECK_INDEX)
         {
+          jam();
           g_eventLogger->info("COPY_FRAGREQ Scan have stalled for %u seconds,"
-                              "last seen on line %u",
+                              "last seen on line %u, check_lcp_stop_count: %u",
                               time_stalled,
-                              c_check_scanptr_save_line[i]);
+                              c_check_scanptr_save_line[i],
+                              loc_scanptr.p->scan_check_lcp_stop);
+          signal->theData[0] = DumpStateOrd::AccDumpOneScanRec;
+          signal->theData[1] = loc_scanptr.p->scanAccPtr;
+          EXECUTE_DIRECT(DBACC, GSN_DUMP_STATE_ORD, signal, 2);
+        }
+        signal->theData[0] = DumpStateOrd::LqhDumpOneScanRec;
+        signal->theData[1] = loc_scanptr.i;
+        EXECUTE_DIRECT(DBLQH, GSN_DUMP_STATE_ORD, signal, 2);
+        if (time_stalled >= 120)
+        {
+          jam();
+          abort();
         }
       }
       else

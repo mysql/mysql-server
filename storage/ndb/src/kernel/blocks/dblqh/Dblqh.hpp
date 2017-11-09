@@ -567,6 +567,7 @@ public:
      * This is _always_ main table, even in range scan
      *   in which case scanTcrec->fragmentptr is different
      */
+    Uint32 scan_check_lcp_stop;
     Uint32 fragPtrI;
     UintR scanStoredProcId;
     ScanState scanState;
@@ -3909,7 +3910,7 @@ public:
   bool handleLCPSurfacing(Signal *signal);
   bool is_disk_columns_in_table(Uint32 tableId);
   void sendSTART_FRAGCONF(Signal*);
-  void handle_check_system_scans();
+  void handle_check_system_scans(Signal*);
 #define ZLCP_CHECK_INDEX 0
 #define ZBACKUP_CHECK_INDEX 1
 #define ZCOPY_FRAGREQ_CHECK_INDEX 2
