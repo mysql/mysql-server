@@ -237,15 +237,16 @@ TEST_F(MemRootTest, ResizeGrow)
 
 TEST_F(MemRootTest, ResizeShrink)
 {
+  size_t counter= 0;
   Mem_root_array<DestroyCounter> array(m_mem_root_p);
   array.reserve(100);
-  size_t counter= 0;
   DestroyCounter foo(&counter);
   array.resize(10, foo);
   EXPECT_EQ(0U, counter);
   array.resize(5);
   EXPECT_EQ(5U, counter);
 }
+
 
 TEST_F(MemRootTest, Erase)
 {
