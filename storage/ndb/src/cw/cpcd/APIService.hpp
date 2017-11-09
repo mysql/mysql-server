@@ -18,8 +18,8 @@
 #ifndef CPCD_API_HPP
 #define CPCD_API_HPP
 
-#include <Parser.hpp>
 #include <InputStream.hpp>
+#include <Parser.hpp>
 #include <SocketServer.hpp>
 
 class CPCD;
@@ -27,42 +27,44 @@ class CPCD;
 class CPCDAPISession : public SocketServer::Session {
   typedef Parser<CPCDAPISession> Parser_t;
 
-  class CPCD & m_cpcd;
+  class CPCD &m_cpcd;
   InputStream *m_input;
   OutputStream *m_output;
   Parser_t *m_parser;
   Uint32 m_protocol_version;
 
   Vector<int> m_temporaryProcesses;
-  
+
   void printProperty(Properties *prop, const char *key);
-public:
+
+ public:
   CPCDAPISession(NDB_SOCKET_TYPE, class CPCD &);
-  CPCDAPISession(FILE * f, CPCD & cpcd);
+  CPCDAPISession(FILE *f, CPCD &cpcd);
   ~CPCDAPISession();
 
   virtual void runSession();
   virtual void stopSession();
   void loadFile();
-  
-  void defineProcess(Parser_t::Context & ctx, const class Properties & args);
-  void undefineProcess(Parser_t::Context & ctx, const class Properties & args);
-  void startProcess(Parser_t::Context & ctx, const class Properties & args);
-  void stopProcess(Parser_t::Context & ctx, const class Properties & args);
-  void showProcess(Parser_t::Context & ctx, const class Properties & args);
-  void listProcesses(Parser_t::Context & ctx, const class Properties & args);
-  void showVersion(Parser_t::Context & ctx, const class Properties & args);
-  void selectProtocol(Parser_t::Context & ctx, const class Properties & args);
+
+  void defineProcess(Parser_t::Context &ctx, const class Properties &args);
+  void undefineProcess(Parser_t::Context &ctx, const class Properties &args);
+  void startProcess(Parser_t::Context &ctx, const class Properties &args);
+  void stopProcess(Parser_t::Context &ctx, const class Properties &args);
+  void showProcess(Parser_t::Context &ctx, const class Properties &args);
+  void listProcesses(Parser_t::Context &ctx, const class Properties &args);
+  void showVersion(Parser_t::Context &ctx, const class Properties &args);
+  void selectProtocol(Parser_t::Context &ctx, const class Properties &args);
 
   bool may_print_process_cpuset() const { return m_protocol_version >= 2; }
 };
 
 class CPCDAPIService : public SocketServer::Service {
-  class CPCD & m_cpcd;
-public:
-  CPCDAPIService(class CPCD & cpcd) : m_cpcd(cpcd) {}
+  class CPCD &m_cpcd;
 
-  CPCDAPISession * newSession(NDB_SOCKET_TYPE theSock){
+ public:
+  CPCDAPIService(class CPCD &cpcd) : m_cpcd(cpcd) {}
+
+  CPCDAPISession *newSession(NDB_SOCKET_TYPE theSock) {
     return new CPCDAPISession(theSock, m_cpcd);
   }
 };
