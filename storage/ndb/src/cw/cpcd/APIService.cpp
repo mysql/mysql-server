@@ -15,7 +15,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
 #include <Parser.hpp>
 #include <NdbOut.hpp>
 #include <Properties.hpp>
@@ -119,6 +118,7 @@ ParserRow<CPCDAPISession> commands[] =
     CPCD_ARG("cwd",    String, Mandatory, "Working directory of process"),
     CPCD_ARG("owner",  String, Mandatory, "Owner of process"),
     CPCD_ARG("runas",  String, Optional,  "Run as user"),
+    CPCD_ARG("cpuset", LongString, Optional, "CPU affinity set"),
     CPCD_ARG("stdout", String, Optional,  "Redirection of stdout"),
     CPCD_ARG("stderr", String, Optional,  "Redirection of stderr"),
     CPCD_ARG("stdin",  String, Optional,  "Redirection of stderr"),
@@ -366,6 +366,11 @@ CPCDAPISession::listProcesses(Parser_t::Context & /* unused */,
     m_output->println("owner: %s", p->m_owner.c_str());
     m_output->println("group: %s", p->m_group.c_str());
     m_output->println("runas: %s", p->m_runas.c_str());
+
+    if (may_print_process_cpuset()) {
+      m_output->println("cpuset: %s", p->m_cpuset.c_str());
+    }
+
     m_output->println("stdin: %s", p->m_stdin.c_str());
     m_output->println("stdout: %s", p->m_stdout.c_str());
     m_output->println("stderr: %s", p->m_stderr.c_str());    

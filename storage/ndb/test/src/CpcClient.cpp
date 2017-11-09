@@ -230,6 +230,7 @@ convert(const Properties & src, SimpleCpcClient::Process & dst){
   b &= src.get("env",    dst.m_env);
   b &= src.get("cwd",    dst.m_cwd);
   b &= src.get("runas",  dst.m_runas);
+  b &= src.get("cpuset",   dst.m_cpuset);
 
   b &= src.get("stdin",  dst.m_stdin);
   b &= src.get("stdout", dst.m_stdout);
@@ -254,6 +255,11 @@ convert(const SimpleCpcClient::Process & src, Properties & dst ){
   b &= dst.put("env",    src.m_env.c_str());
   b &= dst.put("cwd",    src.m_cwd.c_str());
   b &= dst.put("runas",  src.m_runas.c_str());
+
+  if (! src.m_cpuset.empty())
+  {
+    b &= dst.put("cpuset", src.m_cpuset.c_str());
+  }
 
   b &= dst.put("stdin",  src.m_stdin.c_str());
   b &= dst.put("stdout", src.m_stdout.c_str());
@@ -315,14 +321,15 @@ SimpleCpcClient::list_processes(Vector<Process> &procs, Properties& reply) {
     CPC_ARG("id",    Int,    Mandatory, "Id of process."),
     CPC_ARG("name",  String, Mandatory, "Name of process"),
     CPC_ARG("group", String, Mandatory, "Group of process"),
-    CPC_ARG("env",   String, Mandatory, "Environment variables for process"),
+    CPC_ARG("env", LongString, Mandatory, "Environment variables for process"),
     CPC_ARG("path",  String, Mandatory, "Path to binary"),
-    CPC_ARG("args",  String, Mandatory, "Arguments to process"),
+    CPC_ARG("args", LongString, Mandatory, "Arguments to process"),
     CPC_ARG("type",  String, Mandatory, "Type of process"),
     CPC_ARG("cwd",   String, Mandatory, "Working directory of process"),
     CPC_ARG("owner", String, Mandatory, "Owner of process"),
     CPC_ARG("status",String, Mandatory, "Status of process"),
     CPC_ARG("runas", String, Mandatory, "Run as user"),
+    CPC_ARG("cpuset", LongString, Optional, "CPU affinity set"),
     CPC_ARG("stdin", String, Mandatory, "Redirect stdin"),
     CPC_ARG("stdout",String, Mandatory, "Redirect stdout"),
     CPC_ARG("stderr",String, Mandatory, "Redirect stderr"),
