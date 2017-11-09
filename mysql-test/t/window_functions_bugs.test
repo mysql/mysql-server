@@ -144,3 +144,30 @@ INSERT INTO t1 VALUES
  ('{"txt": "cdef"}'), ('{"txt": "defg"}');
 SELECT doc->'$.txt', LAG(doc->'$.txt') OVER (ORDER BY doc->'$.txt') FROM t1;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#27061487 WINDOW FUNC, CRASH IN DECIMAL2BIN
+--echo #
+CREATE TABLE t(a INT);
+INSERT INTO t VALUES (1), (2), (3);
+SELECT FIRST_VALUE(-2605.952148) OVER
+         (PARTITION BY a ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING)
+  FROM t WINDOW w1 AS (PARTITION BY a);
+SELECT LAST_VALUE(-2605.952148) OVER
+         (PARTITION BY a ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING)
+  FROM t WINDOW w1 AS (PARTITION BY a);
+--echo These don't suffer from the error as their maybe_null==true,
+--echo but including tests since we updated their code in case this
+--echo changes: NTH(<non-null arg>, 1) is really the same as
+--echo FIRST_VALUE, for example, and could have been made
+--echo maybe_null==false.
+SELECT NTH_VALUE(-2605.952148, 1) OVER
+         (PARTITION BY a ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING)
+  FROM t WINDOW w1 AS (PARTITION BY a);
+SELECT LEAD(-2605.952148, 1) OVER
+         (PARTITION BY a ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING)
+  FROM t WINDOW w1 AS (PARTITION BY a);
+SELECT MAX(-2605.952148) OVER
+         (PARTITION BY a ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING)
+  FROM t WINDOW w1 AS (PARTITION BY a);
+DROP TABLE t;
