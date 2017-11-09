@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -247,6 +247,10 @@ ParserImpl::matchArg(Context* ctx, const char * buf, const DummyRow rows[]){
 	continue;
       }
     }
+    else if (strcmp(tmp->name, "") == 0)
+    {
+      return tmp;
+    }
     tmp++;
   }
   return 0;
@@ -273,6 +277,10 @@ ParserImpl::parseArg(Context * ctx,
   if(arg == 0){
     ctx->m_status = Parser<Dummy>::UnknownArgument;
     return false;
+  }
+  if (arg->argRequired == ParserRow<Dummy>::Ignore)
+  {
+    return true;
   }
 
   if (append && arg->argType != DummyRow::LongString)
