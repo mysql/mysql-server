@@ -4942,10 +4942,12 @@ static int init_server_components()
   query_logger.set_handlers(log_output_options);
 
   // Open slow log file if enabled.
+  query_logger.set_log_file(QUERY_LOG_SLOW);
   if (opt_slow_log && query_logger.reopen_log_file(QUERY_LOG_SLOW))
     opt_slow_log= false;
 
   // Open general log file if enabled.
+  query_logger.set_log_file(QUERY_LOG_GENERAL);
   if (opt_general_log && query_logger.reopen_log_file(QUERY_LOG_GENERAL))
     opt_general_log= false;
 
