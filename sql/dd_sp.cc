@@ -170,6 +170,8 @@ static void prepare_type_string_from_dd_param(THD *thd,
   // Get type in string format.
   TABLE table;
   TABLE_SHARE share;
+  memset(&table, 0, sizeof(table));
+  memset(&share, 0, sizeof(share));
   table.in_use= thd;
   table.s= &share;
 

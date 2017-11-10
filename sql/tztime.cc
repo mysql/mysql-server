@@ -1564,9 +1564,10 @@ public:
 static void
 tz_init_table_list(TABLE_LIST *tz_tabs)
 {
+  memset(tz_tabs, 0, sizeof(TABLE_LIST) * MY_TZ_TABLES_COUNT);
+
   for (int i= 0; i < MY_TZ_TABLES_COUNT; i++)
   {
-    new (&tz_tabs[i]) TABLE_LIST;
     tz_tabs[i].alias= tz_tabs[i].table_name= tz_tables_names[i].str;
     tz_tabs[i].table_name_length= tz_tables_names[i].length;
     tz_tabs[i].db= tz_tables_db_name.str;
@@ -1693,6 +1694,7 @@ my_tz_init(THD *org_thd, const char *default_tzname, bool bootstrap)
     leap seconds shared by all time zones.
   */
   thd->set_db(db);
+  memset(&tz_tables[0], 0, sizeof(TABLE_LIST));
   tz_tables[0].alias= tz_tables[0].table_name=
     (char*)"time_zone_leap_second";
   tz_tables[0].table_name_length= 21;

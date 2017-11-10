@@ -8058,7 +8058,7 @@ static int mysql_init_variables()
   mysqld_user= mysqld_chroot= opt_init_file= opt_bin_logname = 0;
   prepared_stmt_count= 0;
   mysqld_unix_port= opt_mysql_tmpdir= my_bind_addr_str= NullS;
-  new (&mysql_tmpdir_list) MY_TMPDIR;
+  memset(&mysql_tmpdir_list, 0, sizeof(mysql_tmpdir_list));
   memset(&global_status_var, 0, sizeof(global_status_var));
   opt_large_pages= 0;
   opt_super_large_pages= 0;

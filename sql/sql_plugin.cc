@@ -979,6 +979,8 @@ static bool plugin_add(MEM_ROOT *tmp_root,
     mysql_mutex_lock(&LOCK_plugin);
     DBUG_RETURN(TRUE);
   }
+  /* Clear the whole struct to catch future extensions. */
+  memset(&tmp, 0, sizeof(tmp));
   if (! (tmp.plugin_dl= plugin_dl_add(dl, report)))
     DBUG_RETURN(TRUE);
   /* Find plugin by name */
@@ -1543,6 +1545,7 @@ bool plugin_register_builtin_and_init_core_se(int *argc, char **argv)
     for (struct st_mysql_plugin *plugin= *builtins; plugin->info; plugin++)
     {
       struct st_plugin_int tmp;
+      memset(&tmp, 0, sizeof(tmp));
       tmp.plugin= plugin;
       tmp.name.str= (char *)plugin->name;
       tmp.name.length= strlen(plugin->name);
@@ -1699,7 +1702,8 @@ static bool register_builtin(st_mysql_plugin *plugin,
     DBUG_RETURN(true);
 
   *ptr= plugin_array->back()=
-    new (&plugin_mem_root) st_plugin_int(std::move(*tmp));
+    static_cast<st_plugin_int*>(memdup_root(&plugin_mem_root, tmp,
+                                            sizeof(st_plugin_int)));
 
   plugin_hash[plugin->type]->emplace(to_string((*ptr)->name), *ptr);
 

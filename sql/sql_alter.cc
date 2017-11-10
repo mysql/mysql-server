@@ -290,6 +290,7 @@ bool Sql_cmd_alter_table::execute(THD *thd)
     // Rename of table
     DBUG_ASSERT(alter_info.flags & Alter_info::ALTER_RENAME);
     TABLE_LIST tmp_table;
+    memset(&tmp_table, 0, sizeof(tmp_table));
     tmp_table.table_name= alter_info.new_table_name.str;
     tmp_table.db= alter_info.new_db_name.str;
     tmp_table.grant.privilege= priv;

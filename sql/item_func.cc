@@ -8868,6 +8868,7 @@ bool check_table_and_trigger_access(Item **args,
     DBUG_RETURN(false);
 
   TABLE_LIST table_list;
+  memset(&table_list, 0, sizeof (table_list));
   table_list.db= schema_name_ptr->ptr();
   table_list.db_length= schema_name_ptr->length();
   table_list.table_name= table_name_ptr->ptr();
