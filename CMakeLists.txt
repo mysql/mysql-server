@@ -315,6 +315,7 @@ MACRO (MY_CHECK_C_COMPILER_FLAG FLAG RESULT)
   SET(SAVE_CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS}")
   SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} ${FLAG}")
   CHECK_C_SOURCE_COMPILES("int main(void) { return 0; }" ${RESULT}
+    FAIL_REGEX "unknown argument ignored"
     FAIL_REGEX "argument unused during compilation"
     FAIL_REGEX "unsupported .*option"
     FAIL_REGEX "unknown .*option"
@@ -331,6 +332,7 @@ MACRO (MY_CHECK_CXX_COMPILER_FLAG FLAG RESULT)
   SET(SAVE_CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS}")
   SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} ${FLAG}")
   CHECK_CXX_SOURCE_COMPILES("int main(void) { return 0; }" ${RESULT}
+    FAIL_REGEX "unknown argument ignored"
     FAIL_REGEX "argument unused during compilation"
     FAIL_REGEX "unsupported .*option"
     FAIL_REGEX "unknown .*option"
