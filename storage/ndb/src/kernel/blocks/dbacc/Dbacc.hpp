@@ -744,13 +744,13 @@ struct Operationrec {
 /* --------------------------------------------------------------------------------- */
 struct ScanRec {
   enum ScanState {
-    WAIT_NEXT,  
-    SCAN_DISCONNECT
+    WAIT_NEXT = 0,
+    SCAN_DISCONNECT = 1
   };
   enum ScanBucketState {
-    FIRST_LAP,
-    SECOND_LAP,
-    SCAN_COMPLETED
+    FIRST_LAP = 0,
+    SECOND_LAP = 1,
+    SCAN_COMPLETED = 2
   };
   Uint32 activeLocalFrag;
   Uint32 nextBucketIndex;
@@ -771,6 +771,7 @@ struct ScanRec {
   ScanBucketState scanBucketState;
   ScanState scanState;
   Uint16 scanLockHeld;
+  Uint16 scan_lastSeen;
   Uint32 scanUserblockref;
   Uint32 scanMask;
   Uint8 scanLockMode;

@@ -379,6 +379,7 @@ void Dblqh::execCONTINUEB(Signal* signal)
   case ZCHECK_SYSTEM_SCANS:
   {
     handle_check_system_scans(signal);
+    signal->theData[0] = ZCHECK_SYSTEM_SCANS;
     sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 10000, 1);
     break;
   }
@@ -11169,7 +11170,6 @@ void Dblqh::execNEXT_SCANCONF(Signal* signal)
   loc_tcConnectptr.i = scanPtr->scanTcrec;
   scanPtr->m_row_id.m_page_idx = pageIdx;
   scanPtr->m_row_id.m_page_no = pageNo;
-  scanPtr->scan_check_lcp_stop = 0;
 
 #ifdef VM_TRACE
   if (signal->getLength() > 2 && nextScanConf->accOperationPtr != RNIL)
@@ -12813,6 +12813,7 @@ void Dblqh::checkLcpStopBlockedLab(Signal* signal)
   Fragrecord::FragStatus fragstatus = fragptr.p->fragStatus;
   ScanRecord * const scanPtr = scanptr.p;
   BlockReference blockRef = scanPtr->scanBlockref;
+  scanptr.p->scan_lastSeen = __LINE__;
   signal->theData[0] = scanPtr->scanAccPtr;
   signal->theData[1] = AccCheckScan::ZNOT_CHECK_LCP_STOP;
   ndbrequire(is_scan_ok(scanPtr, fragstatus));
@@ -12835,6 +12836,7 @@ void Dblqh::nextScanConfScanLab(Signal* signal,
   if (fragId != RNIL && accOpPtr != RNIL)
   {
     check_send_scan_hb_rep(signal, scanPtr, regTcPtr);
+    scanPtr->scan_check_lcp_stop = 0;
     set_acc_ptr_in_scan_record(scanPtr,
                                scanPtr->m_curr_batch_size_rows,
                                accOpPtr);
@@ -12959,6 +12961,7 @@ void Dblqh::nextScanConfScanLab(Signal* signal,
 	  (scanPtr->m_curr_batch_size_rows > 0)) {
 	jam();
 	scanPtr->scanReleaseCounter = 1;
+        scanPtr->scan_check_lcp_stop = 0;
 	scanReleaseLocksLab(signal, tcConnectptr.p);
 	return;
       }//if
@@ -12974,6 +12977,7 @@ void Dblqh::nextScanConfScanLab(Signal* signal,
 	scanPtr->scanCompletedStatus = ZTRUE;
       }
       jam();
+      scanPtr->scan_check_lcp_stop = 0;
       scanPtr->scanState = ScanRecord::WAIT_SCAN_NEXTREQ;
       scanPtr->scan_lastSeen = __LINE__;
       sendScanFragConf(signal, ZFALSE, tcConnectptr.p);
@@ -13448,6 +13452,7 @@ void Dblqh::closeScanLab(Signal* signal, TcConnectionrec* regTcPtr)
 
   scanPtr->scanState = ScanRecord::WAIT_CLOSE_SCAN;
   scanPtr->scan_lastSeen = __LINE__;
+  scanPtr->scan_check_lcp_stop = 0;
   regTcPtr->transactionState = TcConnectionrec::SCAN_STATE_USED;
   signal->theData[1] = RNIL;
   signal->theData[2] = NextScanReq::ZSCAN_CLOSE;
@@ -14964,6 +14969,7 @@ void Dblqh::nextScanConfCopyLab(Signal* signal,
 // Wait until copying is completed also at the starting node before reporting
 // completion. Signal completion through scanCompletedStatus-flag.
 /*---------------------------------------------------------------------------*/
+    scanptr.p->scan_check_lcp_stop = 0;
     scanptr.p->scanCompletedStatus = ZTRUE;
     scanptr.p->scanState = ScanRecord::WAIT_LQHKEY_COPY;
     scanptr.p->scan_lastSeen = __LINE__;
@@ -14998,6 +15004,7 @@ void Dblqh::nextScanConfCopyLab(Signal* signal,
      * This performs DELETE by ROWID, if there is a row at this ROWID in the
      * starting node it will also know the primary key to delete.
      */
+    scanptr.p->scan_check_lcp_stop = 0;
     ndbrequire(nextScanConf->accOperationPtr == RNIL);
     initCopyTc(signal, ZDELETE, tcConP);
     set_acc_ptr_in_scan_record(scanptr.p, 0, RNIL);
@@ -15064,6 +15071,7 @@ void Dblqh::nextScanConfCopyLab(Signal* signal,
     
     Fragrecord* fragPtrP= fragptr.p;
     scanptr.p->scanState = ScanRecord::WAIT_TUPKEY_COPY;
+    scanptr.p->scan_check_lcp_stop = 0;
     tcConP->transactionState = TcConnectionrec::COPY_TUPKEY;
     if(tcConP->m_disk_table)
     {
@@ -15487,6 +15495,7 @@ void Dblqh::closeCopyLab(Signal* signal,
 
   scanPtr->scanState = ScanRecord::WAIT_CLOSE_COPY;
   scanPtr->scan_lastSeen = __LINE__;
+  scanPtr->scan_check_lcp_stop = 0;
   signal->theData[0] = sig0;
   signal->theData[1] = RNIL;
   signal->theData[2] = NextScanReq::ZSCAN_CLOSE;
@@ -27956,6 +27965,9 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
               sp.p->lcpScan,
               sp.p->m_row_id.m_page_no,
               sp.p->m_row_id.m_page_idx);
+    infoEvent("scan_lastSeen=%d, scan_check_lcp_stop=%u",
+              sp.p->scan_lastSeen,
+              sp.p->scan_check_lcp_stop);
     return;
   }
   if(dumpState->args[0] == DumpStateOrd::LqhDumpLcpState){
