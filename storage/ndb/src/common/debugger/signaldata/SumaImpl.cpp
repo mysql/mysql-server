@@ -1,6 +1,4 @@
-/*
-   Copyright (C) 2003, 2005-2007 MySQL AB
-    All rights reserved. Use is subject to license terms.
+/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -152,6 +150,10 @@ printSUB_SYNC_REQ(FILE * output, const Uint32 * theData,
   fprintf(output, " subscriptionId: %x\n", sig->subscriptionId);
   fprintf(output, " subscriptionKey: %x\n", sig->subscriptionKey);
   fprintf(output, " syncPart: %x\n", sig->part);
+  fprintf(output, " requestInfo : %x\n", sig->requestInfo);
+  fprintf(output, " fragCount : %u\n", sig->fragCount);
+  fprintf(output, " fragId : %u\n", sig->fragId);
+  fprintf(output, " batchSize : %u\n", sig->batchSize); 
   return false;
 }
 
