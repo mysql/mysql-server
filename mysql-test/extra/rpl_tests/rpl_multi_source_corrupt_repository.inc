@@ -311,6 +311,13 @@ while ($i <= $number_of_channels)
   #############################################################################
 
   --echo ===== Executing SHOW SLAVE FOR CHANNEL on channel $channel_name.
+
+    # Wait until slave threads are synced with master
+    --let $wait_condition=SELECT COUNT(*)=$number_of_good_channels FROM performance_schema.threads WHERE NAME="thread/sql/slave_sql" AND PROCESSLIST_STATE="Slave has read all relay log; waiting for more updates";
+  --source include/wait_condition_or_abort.inc
+  --let $wait_condition=SELECT COUNT(*)=$number_of_good_channels FROM performance_schema.threads WHERE NAME="thread/sql/slave_io" AND PROCESSLIST_STATE="Waiting for master to send event";
+  --source include/wait_condition_or_abort.inc
+
   --let $status_items=Slave_IO_State,Slave_SQL_Running_State,Last_IO_Errno,Last_IO_Error,Last_SQL_Errno,Last_SQL_Error,Channel_Name
   --let $rpl_channel_name=$channel_name
   --source include/show_slave_status.inc
@@ -333,6 +340,7 @@ while ($i <= $number_of_channels)
     --let $rpl_channel_name=$channel_name
     --let $sync_slave_connection=server_$rpl_number_of_servers
     --source include/sync_slave_sql_with_master.inc
+    --dec $number_of_good_channels
   }
 
   #############################################################################
