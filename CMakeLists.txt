@@ -367,6 +367,7 @@ MACRO(MY_SANITIZER_CHECK SAN_OPT ADD_OPTIMIZATION RESULT)
 ENDMACRO()
 
 OPTION(WITH_ASAN "Enable address sanitizer" OFF)
+OPTION(WITH_ASAN_SCOPE "Enable -fsanitize-address-use-after-scope" OFF)
 IF(WITH_ASAN)
   MY_SANITIZER_CHECK("-fsanitize=address" TRUE WITH_ASAN_OK)
   IF(WITH_ASAN_OK)
@@ -375,7 +376,7 @@ IF(WITH_ASAN)
     MY_CHECK_CXX_COMPILER_FLAG(
       "-fsanitize=address -fsanitize-address-use-after-scope"
       HAVE_SANITIZE_SCOPE)
-    IF(HAVE_SANITIZE_SCOPE)
+    IF(WITH_ASAN_SCOPE AND HAVE_SANITIZE_SCOPE)
       SET(CMAKE_C_FLAGS_DEBUG
         "${CMAKE_C_FLAGS_DEBUG} -fsanitize-address-use-after-scope")
       SET(CMAKE_C_FLAGS_RELWITHDEBINFO
