@@ -206,11 +206,15 @@ DbUtil::execREAD_CONFIG_REQ(Signal* signal)
     const Uint32 PagesPerPreparingOp = 5;    /* Arbitrary */
     const Uint32 PagesPerTransaction = 0;    /* Not used currently */
     
-    /* ** Calculations */
-    const Uint32 MaxConcurrentOps = maxUIBuildBatchSize 
-                                  + maxFKBuildBatchSize
-                                  + maxReorgBuildBatchSize
-                                  + MaxNonSchemaBuildOps;
+    /**
+     * Calculations:
+     * Normally these operations cannot happen in parallel. But the DICT framework
+     * has no specific block against that they occur in parallel, we will use the
+     * the maximum of the 3 types + the non-schema as maximum concurrent ops.
+     */
+    Uint32 max = MAX(maxUIBuildBatchSize, maxFKBuildBatchSize);
+    max = MAX(max, maxReorgBuildBatchSize);
+    const Uint32 MaxConcurrentOps = max + MaxNonSchemaBuildOps;
 
     /* Some support for multiple ops per trans, but unused? */ 
     const Uint32 MaxConcurrentTrans = MaxConcurrentOps;
