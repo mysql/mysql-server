@@ -1377,7 +1377,7 @@ int main(int argc, char **argv)
 
  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
  if (load_defaults("my", client_test_load_default_groups, &argc, &argv, &alloc))
- exit(1);
+   return 1;
 
  get_options(&argc, &argv);
 
@@ -1462,5 +1462,5 @@ int main(int argc, char **argv)
  }
  my_free(opt_password);
  my_free(opt_host);
- exit(0);
+ return 0;
 }
