@@ -5462,7 +5462,8 @@ static Sys_var_charptr Sys_general_log_path(
        IN_FS_CHARSET, DEFAULT(0), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_log_path), ON_UPDATE(fix_general_log_file));
 
-static bool fix_slow_log_file(sys_var*, THD *thd, enum_var_type)
+static bool fix_slow_log_file(sys_var*,
+                              THD *thd MY_ATTRIBUTE((unused)), enum_var_type)
 {
   bool res;
 
