@@ -9233,17 +9233,20 @@ std::string row_to_string(const uchar* mysql_row, TABLE* mysql_table) {
   }
 
   const uint number_of_fields = mysql_table->s->fields;
-  DBUG_ASSERT(number_of_fields > 0);
 
   /* See where the fields currently point to. */
   uchar* fields_orig_buf;
-  Field* first_field = mysql_table->field[0];
-  if (first_field->ptr >= buf0 && first_field->ptr < buf0 + mysql_row_length) {
-    fields_orig_buf = buf0;
+  if (number_of_fields == 0) {
+    fields_orig_buf = buf_used_by_mysql;
   } else {
-    DBUG_ASSERT(first_field->ptr >= buf1);
-    DBUG_ASSERT(first_field->ptr < buf1 + mysql_row_length);
-    fields_orig_buf = buf1;
+    Field* first_field = mysql_table->field[0];
+    if (first_field->ptr >= buf0 && first_field->ptr < buf0 + mysql_row_length) {
+      fields_orig_buf = buf0;
+    } else {
+      DBUG_ASSERT(first_field->ptr >= buf1);
+      DBUG_ASSERT(first_field->ptr < buf1 + mysql_row_length);
+      fields_orig_buf = buf1;
+    }
   }
 
   /* Repoint if necessary. */
