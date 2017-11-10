@@ -497,8 +497,8 @@ private:
   */
   bool seeing_value(Json_dom_ptr value)
   {
-    if (value == nullptr || check_json_depth(m_depth + 1))
-      return false;
+    if (value == nullptr)
+      return false;                             /* purecov: inspected */
     switch (m_state)
     {
     case expect_anything:
@@ -596,12 +596,8 @@ public:
   bool StartObject()
   {
     DUMP_CALLBACK("start object {", state);
-    auto object= new (std::nothrow) Json_object();
-    bool success= seeing_value(Json_dom_ptr(object));
-    m_depth++;
-    m_current_element= object;
-    m_state= expect_object_key;
-    return success;
+    return start_object_or_array(create_dom_ptr<Json_object>(),
+                                 expect_object_key);
   }
 
   bool EndObject(SizeType)
@@ -615,12 +611,8 @@ public:
   bool StartArray()
   {
     DUMP_CALLBACK("start array [", state);
-    auto array= new (std::nothrow) Json_array();
-    bool success= seeing_value(Json_dom_ptr(array));
-    m_depth++;
-    m_current_element= array;
-    m_state= expect_array_value;
-    return success;
+    return start_object_or_array(create_dom_ptr<Json_array>(),
+                                 expect_array_value);
   }
 
   bool EndArray(SizeType)
@@ -633,8 +625,6 @@ public:
 
   bool Key(const char* str, SizeType len, bool)
   {
-    if (check_json_depth(m_depth + 1))
-      return false;
     DBUG_ASSERT(m_state == expect_object_key);
     m_state= expect_object_value;
     m_key.assign(str, len);
@@ -642,6 +632,16 @@ public:
   }
 
 private:
+  bool start_object_or_array(Json_dom_ptr value, enum_state next_state)
+  {
+    Json_dom *dom= value.get();
+    bool success=
+      seeing_value(std::move(value)) && !check_json_depth(++m_depth);
+    m_current_element= dom;
+    m_state= next_state;
+    return success;
+  }
+
   void end_object_or_array()
   {
     m_depth--;
@@ -709,50 +709,20 @@ namespace
   The handler keeps track of how deeply nested the document is, and it
   raises an error and stops parsing when the depth exceeds
   JSON_DOCUMENT_MAX_DEPTH.
+
+  All the member functions follow the rapidjson convention of
+  returning true on success and false on failure.
 */
-class Syntax_check_handler
+class Syntax_check_handler : public BaseReaderHandler<>
 {
 private:
-  size_t m_depth;        ///< The current depth of the document
-
-  bool seeing_scalar()
-  {
-    return !check_json_depth(m_depth + 1);
-  }
+  size_t m_depth{0};     ///< The current depth of the document
 
 public:
-  Syntax_check_handler() : m_depth(0) {}
-
-  /*
-    These functions are callbacks used by rapidjson::Reader when
-    parsing a JSON document. They all follow the rapidjson convention
-    of returning true on success and false on failure.
-  */
   bool StartObject() { return !check_json_depth(++m_depth); }
   bool EndObject(SizeType) { --m_depth; return true; }
   bool StartArray() { return !check_json_depth(++m_depth); }
   bool EndArray(SizeType) { --m_depth; return true; }
-  bool Null() { return seeing_scalar(); }
-  bool Bool(bool) { return seeing_scalar(); }
-  bool Int(int) { return seeing_scalar(); }
-  bool Uint(unsigned) { return seeing_scalar(); }
-  bool Int64(int64_t) { return seeing_scalar(); }
-  bool Uint64(uint64_t) { return seeing_scalar(); }
-  bool Double(double, bool is_int MY_ATTRIBUTE((unused)) = false)
-  { return seeing_scalar(); }
-  bool String(const char*, SizeType, bool) { return seeing_scalar(); }
-  bool Key(const char*, SizeType, bool) { return seeing_scalar(); }
-  /* purecov: begin deadcode */
-  bool RawNumber(const char*, SizeType, bool)
-  {
-    /*
-      Never called, since we don't instantiate the parser with
-      kParseNumbersAsStringsFlag.
-    */
-    DBUG_ASSERT(false);
-    return false;
-  }
-  /* purecov: end */
 };
 
 } // namespace
@@ -1803,9 +1773,6 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
                               bool json_quoted, bool pretty,
                               const char *func_name, size_t depth)
 {
-  if (check_json_depth(++depth))
-    return true;
-
   switch (wr.type())
   {
   case enum_json_type::J_TIME:
@@ -1829,6 +1796,9 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
     }
   case enum_json_type::J_ARRAY:
     {
+      if (check_json_depth(++depth))
+        return true;
+
       if (buffer->append('['))
         return true;                           /* purecov: inspected */
 
@@ -1905,6 +1875,9 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
     break;
   case enum_json_type::J_OBJECT:
     {
+      if (check_json_depth(++depth))
+        return true;
+
       if (buffer->append('{'))
         return true;                           /* purecov: inspected */
 
