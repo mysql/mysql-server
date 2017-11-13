@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -102,7 +102,7 @@ struct ParserRow {
 public:
   enum Type { Cmd, Arg, CmdAlias, ArgAlias, End }; // Put new types before end
   enum ArgType { String, Int, Properties, LongString };
-  enum ArgRequired { Mandatory, Optional };
+  enum ArgRequired { Mandatory, Optional, Ignore };
   enum ArgMinMax { CheckMinMax, IgnoreMinMax };
   
   const char * name;
