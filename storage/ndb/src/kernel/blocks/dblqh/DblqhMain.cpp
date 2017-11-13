@@ -104,7 +104,7 @@ extern EventLogger * g_eventLogger;
 #define DEB_EXTRA_LCP(arglist) do { } while (0)
 #endif
 
-#define DEBUG_LCP 1
+//#define DEBUG_LCP 1
 #ifdef DEBUG_LCP
 #define DEB_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
@@ -118,7 +118,7 @@ extern EventLogger * g_eventLogger;
 #define DEB_LCP_RESTORE(arglist) do { } while (0)
 #endif
 
-#define DEBUG_COPY 1
+//#define DEBUG_COPY 1
 #ifdef DEBUG_COPY
 #define DEB_COPY(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
@@ -139,7 +139,7 @@ extern EventLogger * g_eventLogger;
 #define DEB_CUT_REDO(arglist) do { } while (0)
 #endif
 
-#define DEBUG_LOCAL_LCP 1
+//#define DEBUG_LOCAL_LCP 1
 #ifdef DEBUG_LOCAL_LCP
 #define DEB_LOCAL_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
