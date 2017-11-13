@@ -674,6 +674,7 @@ int runSystemRestartLCP_1(NDBT_Context *ctx, NDBT_Step *step)
         return result;
     }
     CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
+    g_err << "count = " << count << endl;
     CHECK(count == (records / 10));
 
     /**
