@@ -12219,6 +12219,7 @@ create_table_info_t::create_options_are_invalid()
 
 	if (m_create_info->data_file_name != nullptr
 	    && *m_create_info->data_file_name != '\0'
+	    && m_table_name != nullptr
 	    && !create_option_data_directory_is_valid()) {
 		ret = "DATA DIRECTORY";
 	}
@@ -12501,7 +12502,8 @@ create_table_info_t::parse_table_name(
 	we ignore the DATA DIRECTORY.  In strict mode, a non-valid
 	value would have already been rejected. */
 	if (m_create_info->data_file_name != nullptr
-	    && *m_create_info->data_file_name != '\0') {
+	    && *m_create_info->data_file_name != '\0'
+	    && m_table_name != nullptr) {
 		if (!create_option_data_directory_is_valid()) {
 			push_warning_printf(
 				m_thd, Sql_condition::SL_WARNING,
