@@ -505,7 +505,7 @@ mkdir debug
            -DCMAKE_C_FLAGS="$optflags" \
            -DCMAKE_CXX_FLAGS="$optflags" \
            -DINSTALL_LIBDIR="%{_lib}/mysql" \
-           -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
+           -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin/debug" \
            -DINSTALL_SQLBENCHDIR=share \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
