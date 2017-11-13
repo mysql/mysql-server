@@ -137,11 +137,9 @@ extern CHARSET_INFO my_charset_utf16le_bin;
 using std::string;
 using std::unique_ptr;
 
-C_MODE_START
 static void signal_handler(int sig);
 static bool get_one_option(int optid, const struct my_option *,
                            char *argument);
-C_MODE_END
 
 enum {
   OPT_PS_PROTOCOL=OPT_MAX_CLIENT_OPTION, OPT_SP_PROTOCOL,

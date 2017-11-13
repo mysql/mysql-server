@@ -145,7 +145,6 @@ static RSA *rsa_init(MYSQL *mysql)
     @retval CR_OK Authentication succeeded.
 */
 
-extern "C"
 int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
 {
   bool uses_password= mysql->passwd[0] != 0;
@@ -342,7 +341,6 @@ static char request_public_key= '\2';
 static char fast_auth_success= '\3';
 static char perform_full_authentication= '\4';
 
-extern "C"
 int caching_sha2_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
 {
   bool uses_password= mysql->passwd[0] != 0;

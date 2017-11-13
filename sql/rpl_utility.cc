@@ -759,9 +759,7 @@ err:
 
 #endif /* MYSQL_SERVER */
 
-extern "C" {
 PSI_memory_key key_memory_table_def_memory;
-}
 
 table_def::table_def(unsigned char *types, ulong size,
                      uchar *field_metadata, int metadata_size,

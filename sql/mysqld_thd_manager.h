@@ -29,14 +29,8 @@
 
 class THD;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 void thd_lock_thread_count();
 void thd_unlock_thread_count();
-#ifdef __cplusplus
-}
-#endif
 
 
 /**

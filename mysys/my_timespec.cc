@@ -23,7 +23,7 @@
   @file mysys/my_timespec.cc
 */
 
-extern "C" void set_timespec_nsec(struct timespec *abstime, ulonglong nsec)
+void set_timespec_nsec(struct timespec *abstime, ulonglong nsec)
 {
   ulonglong now= my_getsystime() + (nsec / 100);
   ulonglong tv_sec= now / 10000000ULL;
@@ -36,7 +36,7 @@ extern "C" void set_timespec_nsec(struct timespec *abstime, ulonglong nsec)
 }
 
 
-extern "C" void set_timespec(struct timespec *abstime, ulonglong sec)
+void set_timespec(struct timespec *abstime, ulonglong sec)
 {
   set_timespec_nsec(abstime, sec * 1000000000ULL);
 }

@@ -332,8 +332,8 @@ void net_clear_error(NET *net)
 */
 
 void set_mysql_extended_error(MYSQL *mysql, int errcode,
-                                     const char *sqlstate,
-                                     const char *format, ...)
+                              const char *sqlstate,
+                              const char *format, ...)
 {
   NET *net;
   va_list args;
@@ -3202,7 +3202,6 @@ mysql_set_character_set_with_default_collation(MYSQL *mysql)
 }
 
 
-C_MODE_START
 int mysql_init_character_set(MYSQL *mysql)
 {
   /* Set character set */
@@ -3240,7 +3239,6 @@ int mysql_init_character_set(MYSQL *mysql)
   }
   return 0;
 }
-C_MODE_END
 
 /*********** client side authentication support **************************/
 

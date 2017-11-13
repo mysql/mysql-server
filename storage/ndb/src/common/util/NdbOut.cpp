@@ -212,7 +212,7 @@ ndbout_c(const char * fmt, ...){
   va_end(ap);
 }
 
-extern "C" int ndbout_printer(const char * fmt, ...)
+int ndbout_printer(const char * fmt, ...)
 {
   va_list ap;
 

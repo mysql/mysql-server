@@ -155,11 +155,9 @@ slave_ignored_err_throttle(window_size,
 
 struct mysql_mutex_t;
 
-extern "C" {
 PSI_memory_key key_memory_log_event;
 PSI_memory_key key_memory_Incident_log_event_message;
 PSI_memory_key key_memory_Rows_query_log_event_rows_query;
-}
 
 using std::min;
 using std::max;

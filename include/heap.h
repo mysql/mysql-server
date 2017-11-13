@@ -38,10 +38,6 @@
 #include "my_tree.h"
 #include "thr_lock.h"
 
-#ifdef	__cplusplus
-extern "C" {
-#endif
-
 	/* defines used by heap-funktions */
 
 #define HP_MAX_LEVELS	4		/* 128^5 records is enough */
@@ -259,8 +255,4 @@ extern uchar * heap_find(HP_INFO *info,int inx,const uchar *key);
 extern int heap_check_heap(HP_INFO *info, bool print_status);
 extern void heap_position(HP_INFO *info, HP_HEAP_POSITION *pos);
 
-
-#ifdef	__cplusplus
-}
-#endif
 #endif

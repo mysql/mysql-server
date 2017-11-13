@@ -69,8 +69,6 @@
 class THD;
 struct MDL_key;
 
-C_MODE_START
-
 // ===========================================================================
 
 static void register_thread_noop(const char *,
@@ -1338,8 +1336,6 @@ void set_psi_memory_service(void *psi)
 {
   psi_memory_service= (PSI_memory_service_t *) psi;
 }
-
-C_MODE_END
 
 // ===========================================================================
 

@@ -8378,7 +8378,7 @@ end:
   purposes.
 */
 
-extern "C" void slave_io_thread_detach_vio()
+void slave_io_thread_detach_vio()
 {
   THD *thd= current_thd;
   if (thd && thd->slave_thread)

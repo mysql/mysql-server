@@ -24,10 +24,6 @@
 
 #include "my_inttypes.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /*
   Calculate how much memory needed for dst of base64_encode()
 */
@@ -62,8 +58,4 @@ int64 base64_decode(const char *src, size_t src_len,
 /* Allow multuple chunks 'AAA= AA== AA==', binlog uses this */
 #define MY_BASE64_DECODE_ALLOW_MULTIPLE_CHUNKS 1
 
-
-#ifdef __cplusplus
-}
-#endif
 #endif /* !__BASE64_H_INCLUDED__ */

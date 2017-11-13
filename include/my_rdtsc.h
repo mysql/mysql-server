@@ -59,8 +59,6 @@ struct my_timer_info
 
 typedef struct my_timer_info MY_TIMER_INFO;
 
-C_MODE_START
-
 /**
   A cycle timer.
   @return the current timer value, in cycles.
@@ -96,8 +94,6 @@ ulonglong my_timer_ticks(void);
   @param [out] mti the timer characteristics.
 */
 void my_timer_init(MY_TIMER_INFO *mti);
-
-C_MODE_END
 
 #define MY_TIMER_ROUTINE_ASM_X86                  1
 #define MY_TIMER_ROUTINE_ASM_X86_64               2

@@ -314,9 +314,7 @@ print_plan(JOIN* join, uint idx, double record_count, double read_time,
 
 #endif  /* !DBUG_OFF */
 
-C_MODE_START
 static int print_key_cache_status(const char *name, KEY_CACHE *key_cache);
-C_MODE_END
 
 struct TABLE_LOCK_INFO
 {

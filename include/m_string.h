@@ -39,10 +39,6 @@
 */
 #define NullS (char *) 0
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
-
 /*
   my_str_malloc(), my_str_realloc() and my_str_free() are assigned to
   implementations in strings/alloc.c, but can be overridden in
@@ -293,7 +289,9 @@ size_t my_gcvt(double x, my_gcvt_arg_type type, int width, char *to,
 #define MY_GCVT_MAX_FIELD_WIDTH (DBL_DIG + 4 + MY_MAX(5, MAX_DECPT_FOR_F_FORMAT)) \
 
 extern char *int2str(long val, char *dst, int radix, int upcase);
+C_MODE_START
 extern char *int10_to_str(long val,char *dst,int radix);
+C_MODE_END
 extern char *str2int(const char *src,int radix,long lower,long upper,
 			 long *val);
 longlong my_strtoll10(const char *nptr, char **endptr, int *error);
@@ -324,10 +322,6 @@ static inline char *ullstr(longlong value, char *buff)
   longlong10_to_str(value, buff, 10);
   return buff;
 }
-
-#if defined(__cplusplus)
-}
-#endif
 
 #define STRING_WITH_LEN(X) (X), ((sizeof(X) - 1))
 #define USTRING_WITH_LEN(X) ((uchar*) X), ((sizeof(X) - 1))

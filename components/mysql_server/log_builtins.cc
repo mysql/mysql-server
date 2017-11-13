@@ -53,11 +53,8 @@ static HANDLE             hEventLog= NULL;                  // global
 #endif
 
 
-extern "C"
-{
 PSI_memory_key key_memory_log_error_loaded_services;
 PSI_memory_key key_memory_log_error_stack;
-}
 
 using std::string;
 using std::unique_ptr;

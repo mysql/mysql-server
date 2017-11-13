@@ -31,8 +31,6 @@
 #include "my_sys.h"                             /* loglevel */
 #include <mysql/components/services/system_variable_source_type.h> /* enum_variable_source */
 
-C_MODE_START
-
 #define GET_NO_ARG     1
 #define GET_BOOL       2
 #define GET_INT        3
@@ -139,8 +137,8 @@ extern bool my_getopt_print_errors;
 extern bool my_getopt_skip_unknown;
 extern my_error_reporter my_getopt_error_reporter;
 
-extern int handle_options (int *argc, char ***argv, 
-			   const struct my_option *longopts, my_get_one_option);
+extern "C" int handle_options (int *argc, char ***argv, 
+                               const struct my_option *longopts, my_get_one_option);
 extern int my_handle_options (int *argc, char ***argv,
                               const struct my_option *longopts,
                               my_get_one_option,
@@ -165,8 +163,6 @@ double getopt_ulonglong2double(ulonglong);
 int findopt(char *, uint, const struct my_option **);
 
 bool is_key_cache_variable_suffix(const char *suffix);
-
-C_MODE_END
 
 #endif /* _my_getopt_h */
 

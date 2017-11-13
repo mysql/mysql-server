@@ -1,5 +1,5 @@
 #ifndef MYSQL_SERVICE_THD_ALLOC_INCLUDED
-/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,20 +31,12 @@
 #include <stdlib.h>
 #endif
 
-#ifdef __cplusplus
 class THD;
 #define MYSQL_THD THD*
-#else
-#define MYSQL_THD void*
-#endif
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #include <mysql/mysql_lex_string.h>
 
-extern struct thd_alloc_service_st {
+extern "C" struct thd_alloc_service_st {
   void *(*thd_alloc_func)(MYSQL_THD, size_t);
   void *(*thd_calloc_func)(MYSQL_THD, size_t);
   char *(*thd_strdup_func)(MYSQL_THD, const char *);
@@ -121,10 +113,6 @@ MYSQL_LEX_STRING *thd_make_lex_string(MYSQL_THD thd, MYSQL_LEX_STRING *lex_str,
                                       const char *str, size_t size,
                                       int allocate_lex_string);
 
-#endif
-
-#ifdef __cplusplus
-}
 #endif
 
 #define MYSQL_SERVICE_THD_ALLOC_INCLUDED

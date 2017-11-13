@@ -469,9 +469,7 @@ extern "C" void (*debug_sync_C_callback_ptr)(const char *, size_t);
 /**
   Callbacks from C files.
 */
-C_MODE_START
 static void debug_sync_C_callback(const char *, size_t);
-C_MODE_END
 
 /**
   Callback for debug sync, to be used by C files. See thr_lock.c for example.

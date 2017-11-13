@@ -31,8 +31,6 @@
 #include "my_sharedlib.h"
 #include "mysql/components/services/psi_table_bits.h"
 
-C_MODE_START
-
 /**
   @def PSI_TABLE_VERSION_1
   Performance Schema Table Interface number for version 1.
@@ -103,7 +101,5 @@ extern MYSQL_PLUGIN_IMPORT PSI_table_service_t *psi_table_service;
 #endif /* HAVE_PSI_TABLE_INTERFACE */
 
 /** @} (end of group psi_abi_table) */
-
-C_MODE_END
 
 #endif /* MYSQL_PSI_TRANSACTION_H */

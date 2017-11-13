@@ -30,8 +30,6 @@
 #include "my_sharedlib.h"
 #include "mysql/components/services/psi_socket_bits.h"
 
-C_MODE_START
-
 /**
   @def PSI_SOCKET_VERSION_1
   Performance Schema Socket Interface number for version 1.
@@ -87,7 +85,5 @@ extern MYSQL_PLUGIN_IMPORT PSI_socket_service_t *psi_socket_service;
 #endif /* HAVE_PSI_SOCKET_INTERFACE */
 
 /** @} (end of group psi_abi_socket) */
-
-C_MODE_END
 
 #endif /* MYSQL_PSI_SOCKET_H */

@@ -35,10 +35,6 @@ class Security_context;
 #endif
 typedef char my_svc_bool;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /**
   @ingroup group_ext_plugin_services
 
@@ -65,7 +61,7 @@ extern "C" {
 
   @sa Security_context, THD, MYSQL_SECURITY_CONTEXT
 */
-extern struct security_context_service_st {
+extern "C" struct security_context_service_st {
   /**
     Retrieves a handle to the current security context for a thread.
     @sa ::thd_get_security_context
@@ -149,9 +145,5 @@ extern struct security_context_service_st {
   my_svc_bool security_context_get_option(MYSQL_SECURITY_CONTEXT, const char *name, void *inout_pvalue);
   my_svc_bool security_context_set_option(MYSQL_SECURITY_CONTEXT, const char *name, void *pvalue);
 #endif /* !MYSQL_DYNAMIC_PLUGIN */
-
-#ifdef __cplusplus
-}
-#endif /* _cplusplus */
 
 #endif /* !MYSQL_SERVICE_SECURITY_CONTEXT */

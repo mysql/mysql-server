@@ -36,8 +36,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 
-extern "C" bool array_append_string_unique(const char *str,
-                                           const char **array, size_t size)
+bool array_append_string_unique(const char *str, const char **array, size_t size)
 {
   const char **p;
   /* end points at the terminating NULL element */

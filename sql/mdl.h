@@ -1263,7 +1263,7 @@ extern mysql_mutex_t LOCK_open;
   max_write_lock_count high priority, strong locks successively,
   to avoid starving out weak, lower priority locks.
 */
-extern "C" ulong max_write_lock_count;
+extern ulong max_write_lock_count;
 
 extern int32 mdl_locks_unused_locks_low_water;
 

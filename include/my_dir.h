@@ -26,9 +26,6 @@
 
 #include "my_inttypes.h"
 
-#ifdef	__cplusplus
-extern "C" {
-#endif
 
 	/* Defines for my_dir and my_stat */
 
@@ -90,10 +87,6 @@ extern MY_DIR *my_dir(const char *path,myf MyFlags);
 extern void my_dirend(MY_DIR *buffer);
 extern MY_STAT *my_stat(const char *path, MY_STAT *stat_area, myf my_flags);
 extern int my_fstat(int filenr, MY_STAT *stat_area);
-
-#ifdef	__cplusplus
-}
-#endif
 
 #endif /* MY_DIR_H */
 

@@ -47,7 +47,7 @@
 #include "sql/debug_sync.h"
 #include "sql/thr_malloc.h"
 
-extern "C" MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
+extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
 
 static PSI_memory_key key_memory_MDL_context_acquire_locks;
 

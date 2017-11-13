@@ -71,7 +71,6 @@
   Negative error numbers are allowed. Overlap of error numbers is not allowed.
   Not registered error numbers will be translated to "Unknown error %d.".
 */
-extern "C" {
 static struct my_err_head
 {
   struct my_err_head    *meh_next;         /* chain link */
@@ -79,7 +78,6 @@ static struct my_err_head
   int                   meh_first;       /* error number matching array slot 0 */
   int                   meh_last;          /* error number matching last slot */
 } my_errmsgs_globerrs = {NULL, get_global_errmsg, EE_ERROR_FIRST, EE_ERROR_LAST};
-}
 
 static struct my_err_head *my_errmsgs_list= &my_errmsgs_globerrs;
 
@@ -339,8 +337,7 @@ void my_message(uint error, const char *str, myf MyFlags)
   @retval  != 0     Error
 */
 
-extern "C" int my_error_register(const char* (*get_errmsg) (int),
-                                 int first, int last)
+int my_error_register(const char* (*get_errmsg) (int), int first, int last)
 {
   struct my_err_head *meh_p;
   struct my_err_head **search_meh_pp;

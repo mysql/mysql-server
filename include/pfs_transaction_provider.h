@@ -37,8 +37,6 @@ struct PSI_transaction_locker;
 
 #define PSI_TRANSACTION_CALL(M) pfs_ ## M ## _v1
 
-C_MODE_START
-
 PSI_transaction_locker*
 pfs_get_thread_transaction_locker_v1(PSI_transaction_locker_state *state,
                                      const void *xid,
@@ -74,8 +72,6 @@ void pfs_inc_transaction_release_savepoint_v1(PSI_transaction_locker *locker,
                                               ulong count);
 
 void pfs_end_transaction_v1(PSI_transaction_locker *locker, bool commit);
-
-C_MODE_END
 
 #endif /* MYSQL_DYNAMIC_PLUGIN */
 #endif /* MYSQL_SERVER */

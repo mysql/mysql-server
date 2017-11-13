@@ -7219,8 +7219,6 @@ bool check_string_char_length(const LEX_CSTRING &str, const char *err_msg,
     0	ok
     1	error  
 */
-C_MODE_START
-
 int test_if_data_home_dir(const char *dir)
 {
   char path[FN_REFLEN];
@@ -7253,8 +7251,6 @@ int test_if_data_home_dir(const char *dir)
   }
   DBUG_RETURN(0);
 }
-
-C_MODE_END
 
 
 /**

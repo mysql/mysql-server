@@ -341,7 +341,6 @@ ulonglong my_timer_ticks(void)
   for cycles, at least. But remember it's a minimum.
 */
 
-extern "C" {
 static void my_timer_init_overhead(ulonglong *overhead,
                                    ulonglong (*cycle_timer)(void),
                                    ulonglong (*this_timer)(void),
@@ -417,7 +416,6 @@ static ulonglong my_timer_init_resolution(ulonglong (*this_timer)(void),
     return best_jump;
   return 1;
 }
-} // extern C
 
 /*
   Calculate cycle frequency by seeing how many cycles pass
@@ -464,7 +462,7 @@ static ulonglong my_timer_init_frequency(MY_TIMER_INFO *mti)
   Set: function, overhead, actual frequency, resolution.
 */
 
-extern "C" void my_timer_init(MY_TIMER_INFO *mti)
+void my_timer_init(MY_TIMER_INFO *mti)
 {
   ulonglong (*best_timer)(void);
   ulonglong best_timer_overhead;

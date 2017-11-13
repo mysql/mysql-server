@@ -37,8 +37,6 @@
 #include <pthread.h>
 #endif /* HAVE_PTHREAD_THREADID_NP */
 
-C_MODE_START
-
 typedef unsigned long long my_thread_os_id_t;
 
 /**
@@ -91,7 +89,5 @@ static inline my_thread_os_id_t my_thread_os_id()
 #endif /* HAVE_SYS_GETTID */
 #endif /* HAVE_SYS_THREAD_SELFID */
 }
-
-C_MODE_END
 
 #endif /* MY_THREAD_OS_ID_INCLUDED */

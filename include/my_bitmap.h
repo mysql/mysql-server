@@ -46,9 +46,6 @@ struct MY_BITMAP
   mysql_mutex_t *mutex{nullptr};
 };
 
-#ifdef	__cplusplus
-extern "C" {
-#endif
 extern void create_last_word_mask(MY_BITMAP *map);
 extern bool bitmap_init(MY_BITMAP *map, my_bitmap_map *buf, uint n_bits,
                         bool thread_safe);
@@ -144,9 +141,5 @@ static inline void bitmap_set_all(MY_BITMAP *map)
 {
   memset(map->bitmap, 0xFF, 4 * no_words_in_map(map));
 }
-
-#ifdef	__cplusplus
-}
-#endif
 
 #endif /* _my_bitmap_h_ */

@@ -2746,10 +2746,8 @@ static bool add_line(String &buffer, char *line, size_t line_length,
 
 #ifdef HAVE_READLINE
 
-C_MODE_START
 static char *new_command_generator(const char *text, int);
 static char **new_mysql_completion(const char *text, int start, int end);
-C_MODE_END
 
 /*
   Tell the GNU Readline library how to complete.  We want to try to complete

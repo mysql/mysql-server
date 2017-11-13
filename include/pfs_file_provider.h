@@ -38,8 +38,6 @@
 
 #define PSI_FILE_CALL(M) pfs_ ## M ## _v1
 
-C_MODE_START
-
 void pfs_register_file_v1(const char *category,
                           PSI_file_info_v1 *info,
                           int count);
@@ -88,8 +86,6 @@ void pfs_end_file_close_wait_v1(PSI_file_locker *locker, int rc);
 
 void pfs_end_file_rename_wait_v1(PSI_file_locker *locker, const char *old_name,
                                  const char *new_name, int rc);
-
-C_MODE_END
 
 #endif /* MYSQL_DYNAMIC_PLUGIN */
 #endif /* MYSQL_SERVER */

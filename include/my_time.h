@@ -26,8 +26,6 @@
 
 struct timeval;
 
-C_MODE_START
-
 extern ulonglong log_10_int[20];
 extern uchar days_in_month[];
 extern const char my_zero_datetime6[]; /* "0000-00-00 00:00:00.000000" */
@@ -241,7 +239,5 @@ enum interval_type
   INTERVAL_MINUTE_SECOND, INTERVAL_DAY_MICROSECOND, INTERVAL_HOUR_MICROSECOND,
   INTERVAL_MINUTE_MICROSECOND, INTERVAL_SECOND_MICROSECOND, INTERVAL_LAST
 };
-
-C_MODE_END
 
 #endif /* _my_time_h_ */

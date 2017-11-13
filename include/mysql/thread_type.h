@@ -22,10 +22,6 @@
   @file include/mysql/thread_type.h
 */
 
-#ifdef  __cplusplus
-extern "C"{
-#endif
-
 /* Flags for the THD::system_thread variable */
 enum enum_thread_type
 {
@@ -44,9 +40,5 @@ enum enum_thread_type
   SYSTEM_THREAD_SERVER_INITIALIZE= 2048,
   SYSTEM_THREAD_INIT_FILE= 4096
 };
-
-#ifdef  __cplusplus
-}
-#endif
 
 #endif /* THREAD_TYPE_INCLUDED */

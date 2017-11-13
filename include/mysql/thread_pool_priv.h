@@ -47,10 +47,6 @@
 #include "sql/table.h"
 
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /**
   Called by the server when a new client connects.
 
@@ -104,10 +100,6 @@ void inc_thread_created();
 
 void thd_lock_thread_count();
 void thd_unlock_thread_count();
-
-#ifdef __cplusplus
-}
-#endif
 
 /*
   Interface to global thread list iterator functions.

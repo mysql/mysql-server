@@ -30,11 +30,8 @@
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_loglevel.h"
+#include "my_macros.h"
 #include "my_sharedlib.h"
-
-#ifdef	__cplusplus
-extern "C" {
-#endif
 
 #define MY_CS_NAME_SIZE			32
 #define MY_CS_CTYPE_TABLE_SIZE		257
@@ -452,7 +449,9 @@ struct CHARSET_INFO
 */
 
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_bin;
+C_MODE_START
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_latin1;
+C_MODE_END
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_filename;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_utf8mb4_0900_ai_ci;
 
@@ -783,9 +782,5 @@ values < 0x7F. */
 #define my_strntoll(s, a, b, c, d, e) ((s)->cset->strntoll((s),(a),(b),(c),(d),(e)))
 #define my_strntoull(s, a, b, c,d, e) ((s)->cset->strntoull((s),(a),(b),(c),(d),(e)))
 #define my_strntod(s, a, b, c, d)     ((s)->cset->strntod((s),(a),(b),(c),(d)))
-
-#ifdef	__cplusplus
-}
-#endif
 
 #endif /* _m_ctype_h */

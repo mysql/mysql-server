@@ -356,7 +356,6 @@ ulong get_max_connections()
 //////////////////////////////////////////////////////////
 
 
-extern "C"
 void thd_binlog_pos(const MYSQL_THD thd,
                     const char **file_var,
                     unsigned long long *pos_var)
@@ -365,21 +364,18 @@ void thd_binlog_pos(const MYSQL_THD thd,
 }
 
 
-extern "C"
 int mysql_tmpfile(const char *prefix)
 {
   return mysql_tmpfile_path(mysql_tmpdir, prefix);
 }
 
 
-extern "C"
 int thd_in_lock_tables(const MYSQL_THD thd)
 {
   return thd->in_lock_tables;
 }
 
 
-extern "C"
 int thd_tablespace_op(const MYSQL_THD thd)
 {
   /*
@@ -430,14 +426,12 @@ const char *set_thd_proc_info(MYSQL_THD thd_arg, const char *info,
 }
 
 
-extern "C"
 void **thd_ha_data(const MYSQL_THD thd, const struct handlerton *hton)
 {
   return &(const_cast<THD*>(thd))->get_ha_data(hton->slot)->ha_ptr;
 }
 
 
-extern "C"
 void thd_storage_lock_wait(MYSQL_THD thd, long long value)
 {
   thd->utime_after_lock+= value;
@@ -447,7 +441,6 @@ void thd_storage_lock_wait(MYSQL_THD thd, long long value)
 /**
   Provide a handler data getter to simplify coding
 */
-extern "C"
 void *thd_get_ha_data(const MYSQL_THD thd, const struct handlerton *hton)
 {
   return *thd_ha_data(thd, hton);
@@ -458,7 +451,6 @@ void *thd_get_ha_data(const MYSQL_THD thd, const struct handlerton *hton)
   Provide a handler data setter to simplify coding
   @see thd_set_ha_data() definition in plugin.h
 */
-extern "C"
 void thd_set_ha_data(MYSQL_THD thd, const struct handlerton *hton,
                      const void *ha_data)
 {
@@ -474,35 +466,30 @@ void thd_set_ha_data(MYSQL_THD thd, const struct handlerton *hton,
 }
 
 
-extern "C"
 long long thd_test_options(const MYSQL_THD thd, long long test_options)
 {
   return thd->variables.option_bits & test_options;
 }
 
 
-extern "C"
 int thd_sql_command(const MYSQL_THD thd)
 {
   return (int) thd->lex->sql_command;
 }
 
 
-extern "C"
 int thd_tx_isolation(const MYSQL_THD thd)
 {
   return (int) thd->tx_isolation;
 }
 
 
-extern "C"
 int thd_tx_is_read_only(const MYSQL_THD thd)
 {
   return (int) thd->tx_read_only;
 }
 
 
-extern "C"
 int thd_tx_priority(const MYSQL_THD thd)
 {
   return (thd->thd_tx_priority != 0
@@ -511,7 +498,6 @@ int thd_tx_priority(const MYSQL_THD thd)
 }
 
 
-extern "C"
 MYSQL_THD thd_tx_arbitrate(MYSQL_THD requestor, MYSQL_THD holder)
 {
  /* Should be different sessions. */
@@ -524,14 +510,12 @@ MYSQL_THD thd_tx_arbitrate(MYSQL_THD requestor, MYSQL_THD holder)
 }
 
 
-extern "C"
 int thd_tx_is_dd_trx(const MYSQL_THD thd)
 {
   return (int) thd->is_attachable_ro_transaction_active();
 }
 
 
-extern "C"
 void thd_inc_row_count(MYSQL_THD thd)
 {
   thd->get_stmt_da()->inc_current_row_for_condition();
@@ -550,7 +534,6 @@ void thd_inc_row_count(MYSQL_THD thd)
   @return Pointer to string
 */
 
-extern "C"
 char *thd_security_context(MYSQL_THD thd, char *buffer, size_t length,
                            size_t max_query_len)
 {
@@ -629,7 +612,6 @@ char *thd_security_context(MYSQL_THD thd, char *buffer, size_t length,
 }
 
 
-extern "C"
 void thd_get_xid(const MYSQL_THD thd, MYSQL_XID *xid)
 {
   *xid = *(MYSQL_XID *) thd->get_transaction()->xid_state()->get_xid();
@@ -643,7 +625,6 @@ void thd_get_xid(const MYSQL_THD thd, MYSQL_XID *xid)
   @retval 1 the user thread has been killed
 */
 
-extern "C"
 int thd_killed(const MYSQL_THD thd)
 {
   if (thd == NULL)
@@ -658,7 +639,6 @@ int thd_killed(const MYSQL_THD thd)
   @param thd  user thread connection handle
 */
 
-extern "C"
 void thd_set_kill_status(const MYSQL_THD thd)
 {
   thd->send_kill_message();
@@ -671,7 +651,6 @@ void thd_set_kill_status(const MYSQL_THD thd)
   @return thread id
 */
 
-extern "C"
 unsigned long thd_get_thread_id(const MYSQL_THD thd)
 {
   return((unsigned long)thd->thread_id());
@@ -685,7 +664,6 @@ unsigned long thd_get_thread_id(const MYSQL_THD thd)
   @retval 0 batching not allowed
 */
 
-extern "C"
 int thd_allow_batch(MYSQL_THD thd)
 {
   if ((thd->variables.option_bits & OPTION_ALLOW_BATCH) ||
@@ -695,7 +673,6 @@ int thd_allow_batch(MYSQL_THD thd)
 }
 
 
-extern "C"
 void thd_mark_transaction_to_rollback(MYSQL_THD thd, int all)
 {
   DBUG_ENTER("thd_mark_transaction_to_rollback");
@@ -719,35 +696,30 @@ void thd_mark_transaction_to_rollback(MYSQL_THD thd, int all)
 //////////////////////////////////////////////////////////
 
 
-extern "C"
 void *thd_alloc(MYSQL_THD thd, size_t size)
 {
   return thd->alloc(size);
 }
 
 
-extern "C"
 void *thd_calloc(MYSQL_THD thd, size_t size)
 {
   return thd->mem_calloc(size);
 }
 
 
-extern "C"
 char *thd_strdup(MYSQL_THD thd, const char *str)
 {
   return thd->mem_strdup(str);
 }
 
 
-extern "C"
 char *thd_strmake(MYSQL_THD thd, const char *str, size_t size)
 {
   return thd->strmake(str, size);
 }
 
 
-extern "C"
 MYSQL_LEX_STRING *thd_make_lex_string(MYSQL_THD thd,
                                       MYSQL_LEX_STRING *lex_str,
                                       const char *str, size_t size,
@@ -758,7 +730,6 @@ MYSQL_LEX_STRING *thd_make_lex_string(MYSQL_THD thd,
 }
 
 
-extern "C"
 void *thd_memdup(MYSQL_THD thd, const void* str, size_t size)
 {
   return thd->memdup(str, size);
@@ -792,7 +763,7 @@ void *thd_memdup(MYSQL_THD thd, const void* str, size_t size)
 
   thd_wait_end MUST be called immediately after waking up again.
 */
-extern "C" void thd_wait_begin(MYSQL_THD thd, int wait_type)
+void thd_wait_begin(MYSQL_THD thd, int wait_type)
 {
   MYSQL_CALLBACK(Connection_handler_manager::event_functions,
                  thd_wait_begin, (thd, wait_type));
@@ -804,7 +775,7 @@ extern "C" void thd_wait_begin(MYSQL_THD thd, int wait_type)
 
   @param  thd   Thread handle
 */
-extern "C" void thd_wait_end(MYSQL_THD thd)
+void thd_wait_end(MYSQL_THD thd)
 {
   MYSQL_CALLBACK(Connection_handler_manager::event_functions,
                  thd_wait_end, (thd));
@@ -822,7 +793,6 @@ extern "C" void thd_wait_end(MYSQL_THD thd)
    The caller should guarantee thd_wait_for does not be freed, when it is
    called.
 */
-extern "C"
 void thd_report_row_lock_wait(THD* self, THD *wait_for)
 {
   DBUG_ENTER("thd_report_row_lock_wait");

@@ -70,8 +70,7 @@ static inline bool init_acquire(UDF_INIT *initid, UDF_ARGS *args, char *message)
   return false;
 }
 
-
-C_MODE_START
+extern "C" {
 
 bool service_get_read_locks_init(UDF_INIT *initid, UDF_ARGS *args,
                                  char *message)
@@ -151,4 +150,4 @@ long long service_release_locks(UDF_INIT*, UDF_ARGS *args,
   return !release_locking_service_locks(NULL, lock_namespace);
 }
 
-C_MODE_END
+}  // extern "C"

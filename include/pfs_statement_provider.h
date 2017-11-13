@@ -40,8 +40,6 @@ struct sql_digest_storage;
 #define PSI_STATEMENT_CALL(M) pfs_ ## M ## _v1
 #define PSI_DIGEST_CALL(M) pfs_ ## M ## _v1
 
-C_MODE_START
-
 void pfs_register_statement_v1(const char *category,
                                PSI_statement_info_v1 *info,
                                int count);
@@ -115,8 +113,6 @@ PSI_digest_locker *pfs_digest_start_v1(PSI_statement_locker *locker);
 
 void pfs_digest_end_v1(PSI_digest_locker *locker,
                        const sql_digest_storage *digest);
-
-C_MODE_END
 
 #endif /* MYSQL_DYNAMIC_PLUGIN */
 #endif /* MYSQL_SERVER */

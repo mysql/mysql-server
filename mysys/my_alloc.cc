@@ -232,11 +232,11 @@ void *multi_alloc_root(MEM_ROOT *root, ...) {
   DBUG_RETURN((void *)start);
 }
 
-extern "C" char *strdup_root(MEM_ROOT *root, const char *str) {
+char *strdup_root(MEM_ROOT *root, const char *str) {
   return strmake_root(root, str, strlen(str));
 }
 
-extern "C" char *safe_strdup_root(MEM_ROOT *root, const char *str) {
+char *safe_strdup_root(MEM_ROOT *root, const char *str) {
   return str ? strdup_root(root, str) : 0;
 }
 

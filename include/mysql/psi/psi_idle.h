@@ -31,8 +31,6 @@
 #include "my_sharedlib.h"
 #include "mysql/components/services/psi_idle_bits.h"
 
-C_MODE_START
-
 /**
   @def PSI_IDLE_VERSION_1
   Performance Schema Idle Interface number for version 1.
@@ -83,7 +81,5 @@ extern MYSQL_PLUGIN_IMPORT PSI_idle_service_t *psi_idle_service;
 #endif /* HAVE_PSI_IDLE_INTERFACE */
 
 /** @} (end of group psi_abi_idle) */
-
-C_MODE_END
 
 #endif /* MYSQL_PSI_IDLE_H */

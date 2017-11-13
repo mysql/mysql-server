@@ -1320,8 +1320,6 @@ struct System_status_var* get_thd_status_var(THD *thd)
   return & thd->status_var;
 }
 
-C_MODE_START
-
 static void option_error_reporter(enum loglevel level, const char *format, ...)
   MY_ATTRIBUTE((format(printf, 2, 3)));
 
@@ -1363,7 +1361,6 @@ static void charset_error_reporter(enum loglevel level,
   error_log_printf(level, format, args);
   va_end(args);
 }
-C_MODE_END
 
 struct rand_struct sql_rand; ///< used by sql_class.cc:THD::THD()
 

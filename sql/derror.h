@@ -96,9 +96,7 @@ public:
 const char* ER_DEFAULT(int mysql_errno);
 const char* ER_THD(const THD *thd, int mysql_errno);
 
-C_MODE_START
 const char *get_server_errmsgs(int mysql_errno);
-C_MODE_END
 
 const char *mysql_errno_to_symbol(int mysql_errno);
 int         mysql_symbol_to_errno(const char *error_symbol);

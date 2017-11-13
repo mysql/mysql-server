@@ -25,8 +25,6 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 
-C_MODE_START
-
 /** AES IV size is 16 bytes for all supported ciphers except ECB */
 #define MY_AES_IV_SIZE 16
 
@@ -134,7 +132,5 @@ int my_aes_get_size(uint32 source_length, enum my_aes_opmode opmode);
 
 bool my_aes_needs_iv(my_aes_opmode opmode);
 
-
-C_MODE_END
 
 #endif /* MY_AES_INCLUDED */

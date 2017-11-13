@@ -42,9 +42,6 @@
 #include "sql/sql_class.h"
 #include "sql/srv_session.h"
 
-extern "C"
-{
-
 /**
   Initializes physical thread to use with session service.
 
@@ -201,5 +198,3 @@ int srv_session_server_is_available()
 {
   return get_server_state() == SERVER_OPERATING;
 }
-
-} /* extern "C" */

@@ -179,10 +179,8 @@ DEFINE_BOOL_METHOD(mysql_release_backup_lock,
   tests. */
 struct CHARSET_INFO;
 
-extern "C"
-{
-  CHARSET_INFO *system_charset_info= &my_charset_latin1;
-}
+CHARSET_INFO *system_charset_info= &my_charset_latin1;
+
 char opt_plugin_dir[FN_REFLEN];
 
 bool check_string_char_length(const LEX_CSTRING &, const char *,

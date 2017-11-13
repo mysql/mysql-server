@@ -974,8 +974,6 @@ calc_tmp_field_type(enum enum_field_types table_field_type,
 
 /***************************************************************************/
 
-C_MODE_START
-
 /* Declarations for auxilary C-callbacks */
 
 static int simple_raw_key_cmp(const void* arg,
@@ -990,8 +988,6 @@ static int item_sum_distinct_walk(void *element, element_count,
 {
   return ((Aggregator_distinct*) (item))->unique_walk_function(element);
 }
-
-C_MODE_END
 
 /***************************************************************************/
 /**
@@ -4465,7 +4461,6 @@ String *Item_sum_udf_str::val_str(String *str)
   @retval  1 : key1 > key2 
 */
 
-extern "C"
 int group_concat_key_cmp_with_distinct(const void* arg, const void* key1, 
                                        const void* key2)
 {
@@ -4505,7 +4500,6 @@ int group_concat_key_cmp_with_distinct(const void* arg, const void* key1,
   function of sort for syntax: GROUP_CONCAT(expr,... ORDER BY col,... )
 */
 
-extern "C"
 int group_concat_key_cmp_with_order(const void* arg, const void* key1, 
                                     const void* key2)
 {
@@ -4554,7 +4548,6 @@ int group_concat_key_cmp_with_order(const void* arg, const void* key1,
   Append data from current leaf to item->result.
 */
 
-extern "C"
 int dump_leaf_key(void* key_arg, element_count count MY_ATTRIBUTE((unused)),
                   void* item_arg)
 {

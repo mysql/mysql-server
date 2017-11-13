@@ -665,12 +665,10 @@ handler *get_new_handler(TABLE_SHARE *share, bool partitioned,
 
 static const char **handler_errmsgs;
 
-C_MODE_START
 static const char *get_handler_errmsg(int nr)
 {
   return handler_errmsgs[nr - HA_ERR_FIRST];
 }
-C_MODE_END
 
 
 /**

@@ -309,8 +309,6 @@ void dec_connection_count()
 }
 
 
-extern "C"
-{
 int my_connection_handler_set(Connection_handler_functions *chf,
                               THD_event_functions *tef)
 {
@@ -338,5 +336,4 @@ int my_connection_handler_reset()
     Connection_handler_manager::saved_event_functions;
   return Connection_handler_manager::get_instance()->
     unload_connection_handler();
-}
 }

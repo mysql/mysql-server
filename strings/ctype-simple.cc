@@ -1070,7 +1070,6 @@ size_t my_charpos_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 }
 
 
-extern "C"
 size_t my_well_formed_len_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                                const char *start, const char *end,
                                size_t nchars, int *error)

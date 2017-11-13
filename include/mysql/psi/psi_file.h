@@ -30,8 +30,6 @@
 #include "my_sharedlib.h"
 #include "mysql/components/services/psi_file_bits.h"
 
-C_MODE_START
-
 /**
   @def PSI_FILE_VERSION_1
   Performance Schema File Interface number for version 1.
@@ -107,7 +105,5 @@ extern MYSQL_PLUGIN_IMPORT PSI_file_service_t *psi_file_service;
 #endif /* HAVE_PSI_FILE_INTERFACE */
 
 /** @} (end of group psi_abi_file) */
-
-C_MODE_END
 
 #endif /* MYSQL_PSI_FILE_H */

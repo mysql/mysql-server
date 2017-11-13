@@ -35,8 +35,6 @@
 
 #define PSI_MUTEX_CALL(M) pfs_ ## M ## _v1
 
-C_MODE_START
-
 void pfs_register_mutex_v1(const char *category,
                            PSI_mutex_info_v1 *info,
                            int count);
@@ -54,8 +52,6 @@ pfs_start_mutex_wait_v1(PSI_mutex_locker_state *state,
 void pfs_unlock_mutex_v1(PSI_mutex *mutex);
 
 void pfs_end_mutex_wait_v1(PSI_mutex_locker* locker, int rc);
-
-C_MODE_END
 
 #endif /* MYSQL_DYNAMIC_PLUGIN */
 #endif /* MYSQL_SERVER */

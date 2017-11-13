@@ -46,9 +46,7 @@
 */
 
 
-extern "C" {
 int (*my_string_stack_guard)(int)= NULL;
-}
 
 static char *mstr(char *str,const char *src,size_t l1,size_t l2)
 {

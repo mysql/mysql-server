@@ -35,9 +35,7 @@
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
 
-extern "C" {
 extern PSI_memory_key key_memory_log_event;
-}
 #else
 #include <cassert>
 #ifndef _GNU_SOURCE

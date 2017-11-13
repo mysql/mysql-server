@@ -39,11 +39,11 @@
   Mock thd_wait_begin/end functions
 */
 
-extern "C" void thd_wait_begin(THD*, int)
+void thd_wait_begin(THD*, int)
 {
 }
 
-extern "C" void thd_wait_end(THD*)
+void thd_wait_end(THD*)
 {
 }
 

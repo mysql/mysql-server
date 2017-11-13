@@ -29,8 +29,6 @@
 #include "mysql/psi/psi_memory.h"
 #include "violite.h"
 
-C_MODE_START
-
 extern PSI_memory_key key_memory_vio;
 extern PSI_memory_key key_memory_vio_read_buffer;
 
@@ -66,7 +64,5 @@ void vio_ssl_delete(Vio *vio);
 bool vio_ssl_has_data(Vio *vio);
 
 #endif /* HAVE_OPENSSL */
-
-C_MODE_END
 
 #endif /* VIO_PRIV_INCLUDED */

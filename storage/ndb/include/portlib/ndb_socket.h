@@ -52,13 +52,9 @@ ndb_socket_t ndb_socket_create_from_native(ndb_native_socket_t native_socket)
   return s;
 }
 
-C_MODE_START
-
 /*
   create a pair of connected sockets
 */
 int my_socketpair(ndb_socket_t s[2]);
-
-C_MODE_END
 
 #endif

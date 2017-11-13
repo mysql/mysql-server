@@ -31,8 +31,6 @@
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 
-C_MODE_START
-
 /* declare structures that is used by KEY_CACHE */
 
 struct BLOCK_LINK;
@@ -166,5 +164,4 @@ extern void multi_key_cache_change(KEY_CACHE *old_data,
 				   KEY_CACHE *new_data);
 extern int reset_key_cache_counters(const char *name,
                                     KEY_CACHE *key_cache);
-C_MODE_END
 #endif /* _keycache_h */

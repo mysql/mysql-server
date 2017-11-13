@@ -207,7 +207,6 @@ copy_uca_collation(CHARSET_INFO *to, CHARSET_INFO *from)
 }
 
 
-extern "C" {
 static int add_collation(CHARSET_INFO *cs)
 {
   if (cs->name && (cs->number ||
@@ -370,7 +369,6 @@ my_free_c(void *ptr)
 {
   my_free(ptr);
 }
-} // extern C
 
 /**
   Initialize character set loader to use mysys memory management functions.
@@ -470,7 +468,6 @@ void add_compiled_collation(CHARSET_INFO *cs)
 
 static std::once_flag charsets_initialized;
 
-extern "C" {
 static void init_available_charsets(void)
 {
   char fname[FN_REFLEN + sizeof(MY_CHARSET_INDEX)];
@@ -487,7 +484,6 @@ static void init_available_charsets(void)
   my_charset_loader_init_mysys(&loader);
   my_stpcpy(get_charsets_dir(fname), MY_CHARSET_INDEX);
   my_read_charset_file(&loader, fname, MYF(0));
-}
 }
 
 static const char*
