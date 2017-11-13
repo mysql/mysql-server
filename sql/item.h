@@ -738,11 +738,12 @@ public:
     Provide data type for a user or system variable, based on the type of
     the item that is assigned to the variable.
 
+    @note MYSQL_TYPE_VARCHAR is returned for all string types, but must be
+          further adjusted based on maximum string length by the caller.
+
     @param src_type  Source type that variable's type is derived from
-    @param max_bytes Maximum string size in bytes, used for string types
   */
-  static enum_field_types type_for_variable(enum_field_types src_type,
-                                            uint32 max_bytes)
+  static enum_field_types type_for_variable(enum_field_types src_type)
   {
     switch (src_type)
     {
@@ -778,12 +779,11 @@ public:
       case MYSQL_TYPE_SET:
       case MYSQL_TYPE_GEOMETRY:
       case MYSQL_TYPE_NULL:
-        return MYSQL_TYPE_VARCHAR;
       case MYSQL_TYPE_TINY_BLOB:
       case MYSQL_TYPE_BLOB:
       case MYSQL_TYPE_MEDIUM_BLOB:
       case MYSQL_TYPE_LONG_BLOB:
-        return string_field_type(max_bytes);
+        return MYSQL_TYPE_VARCHAR;
       default:
         DBUG_ASSERT(false);
         return MYSQL_TYPE_NULL;

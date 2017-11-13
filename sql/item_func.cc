@@ -6009,10 +6009,31 @@ bool Item_func_set_user_var::resolve_type(THD*)
   else
     collation.collation= args[0]->collation.collation;
 
-  set_data_type(Item::type_for_variable(args[0]->data_type(),
-                                        args[0]->max_length));
-  max_length= args[0]->max_length;
+  enum_field_types data_type= Item::type_for_variable(args[0]->data_type());
+  switch (data_type)
+  {
+  case MYSQL_TYPE_LONGLONG:
+    set_data_type_longlong();
+    max_length= args[0]->max_length; // Preserves "length" of integer constants
+    break;
+  case MYSQL_TYPE_NEWDECIMAL:
+    set_data_type_decimal(args[0]->decimal_precision(), args[0]->decimals);
+    break;
+  case MYSQL_TYPE_DOUBLE:
+    set_data_type_double();
+    break;
+  case MYSQL_TYPE_VARCHAR:
+    set_data_type_string(args[0]->max_char_length());
+    break;
+  case MYSQL_TYPE_NULL:
+  default:
+    DBUG_ASSERT(false);
+    set_data_type(MYSQL_TYPE_NULL);
+    break;
+  }
+
   unsigned_flag= args[0]->unsigned_flag;
+
   return false;
 }
 
