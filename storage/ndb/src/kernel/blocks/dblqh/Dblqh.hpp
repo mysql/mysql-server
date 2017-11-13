@@ -42,6 +42,7 @@
 #include "../dbacc/Dbacc.hpp"
 #include "../dbtux/Dbtux.hpp"
 #include "../backup/Backup.hpp"
+#include "../restore.hpp"
 
 class Dbacc;
 class Dbtup;
@@ -261,6 +262,7 @@ class Lgman;
 #define ZDELAY_FS_OPEN 27
 #endif
 #define ZSTART_LOCAL_LCP 28
+#define ZCHECK_SYSTEM_SCANS 29
 
 /* ------------------------------------------------------------------------- */
 /*        NODE STATE DURING SYSTEM RESTART, VARIABLES CNODES_SR_STATE        */
@@ -565,6 +567,7 @@ public:
      * This is _always_ main table, even in range scan
      *   in which case scanTcrec->fragmentptr is different
      */
+    Uint32 scan_check_lcp_stop;
     Uint32 fragPtrI;
     UintR scanStoredProcId;
     ScanState scanState;
@@ -574,6 +577,7 @@ public:
     NodeId scanNodeId;
     Uint16 scanReleaseCounter;
     Uint16 scanNumber;
+    Uint16 scan_lastSeen;
 
     // scan source block, block object and function ACC TUX TUP
     BlockReference scanBlockref;
@@ -3135,6 +3139,7 @@ private:
   Dbacc* c_acc;
   Backup* c_backup;
   Lgman* c_lgman;
+  Restore* c_restore;
 
   /**
    * Read primary key from tup
@@ -3905,6 +3910,13 @@ public:
   bool handleLCPSurfacing(Signal *signal);
   bool is_disk_columns_in_table(Uint32 tableId);
   void sendSTART_FRAGCONF(Signal*);
+  void handle_check_system_scans(Signal*);
+#define ZLCP_CHECK_INDEX 0
+#define ZBACKUP_CHECK_INDEX 1
+#define ZCOPY_FRAGREQ_CHECK_INDEX 2
+  Uint32 c_check_scanptr_i[3];
+  Uint32 c_check_scanptr_save_line[3];
+  Uint32 c_check_scanptr_save_timer[3];
 
   AlterTabReq c_keep_alter_tab_req;
   Uint32 c_keep_alter_tab_req_len;

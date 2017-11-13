@@ -952,7 +952,6 @@ int runBug15587(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 #define NO_NODE_GROUP int(-1)
-#define FREE_NODE_GROUP 65535
 #define MAX_NDB_NODES 49
 #define MAX_NDB_NODE_GROUPS 48
 
@@ -976,13 +975,13 @@ void getNodeGroups(NdbRestarter & restarter)
   for (int i = 0; i < numDbNodes; i++)
   {
     int nodeId = restarter.getDbNodeId(i);
+    int nodeGroupId = restarter.getNodeGroup(nodeId);
     ndbout_c("nodeId: %d", nodeId);
     require(nodeId != -1);
-    int nodeGroupId = restarter.getNodeGroup(nodeId);
     ndbout_c("nodeGroupId: %d", nodeGroupId);
     require(nodeGroupId != -1);
     nodeGroup[nodeId] = nodeGroupId;
-    if (nodeGroupId == FREE_NODE_GROUP)
+    if (nodeGroupId == NDBT_NO_NODE_GROUP_ID)
     {
       numNoNodeGroups++;
     }
@@ -1048,7 +1047,7 @@ int getFirstNodeInNodeGroup(NdbRestarter & restarter,
     if (nodeGroupRequested != NO_NODE_GROUP &&
         nodeGroupId != nodeGroupRequested)
       continue;
-    if (nodeGroupId != FREE_NODE_GROUP)
+    if (nodeGroupId != NDBT_NO_NODE_GROUP_ID)
     {
       return nodeId;
     }
@@ -1071,7 +1070,7 @@ int getNextNodeInNodeGroup(NdbRestarter & restarter,
     require(nodeId != -1);
     int nodeGroupId = nodeGroup[nodeId];
     require(nodeGroupId != NO_NODE_GROUP);
-    if (nodeGroupId == FREE_NODE_GROUP)
+    if (nodeGroupId == NDBT_NO_NODE_GROUP_ID)
       continue;
     if (nodeGroupRequested != NO_NODE_GROUP &&
         nodeGroupId != nodeGroupRequested)
@@ -3064,7 +3063,11 @@ runPnr(NDBT_Context* ctx, NDBT_Step* step)
   for (int i = 0; i<res.getNumDbNodes(); i++)
   {
     int node = res.getDbNodeId(i);
-    nodegroups[res.getNodeGroup(node)]++;
+    int ng = res.getNodeGroup(node);
+    if (ng != NDBT_NO_NODE_GROUP_ID)
+    {
+      nodegroups[ng]++;
+    }
   }
   
   for (int i = 0; i<MAX_NDB_NODES; i++)
@@ -3095,6 +3098,8 @@ runPnr(NDBT_Context* ctx, NDBT_Step* step)
     while (max_cnt(ng_copy, MAX_NDB_NODES) > 1)
     {
       int node = res.getNode(NdbRestarter::NS_RANDOM);
+      if (res.getNodeGroup(node) == NDBT_NO_NODE_GROUP_ID)
+        continue;
       bool found = false;
       for (Uint32 i = 0; i < nodes.size(); i++)
       {
@@ -3716,6 +3721,8 @@ runMNF(NDBT_Context* ctx, NDBT_Step* step)
   {
     int nodeId = res.getDbNodeId(i);
     int ng = res.getNodeGroup(nodeId);
+    if (ng == NDBT_NO_NODE_GROUP_ID)
+      continue;
     if (ng_count[ng] == 0)
     {
       part0.push_back(nodeId);
@@ -5104,6 +5111,8 @@ runForceStopAndRestart(NDBT_Context* ctx, NDBT_Step* step)
   {
     int node = res.getDbNodeId(j);
     int ng = res.getNodeGroup(node);
+    if (ng == NDBT_NO_NODE_GROUP_ID)
+      continue;
     if (nodeGroupMap.get(ng))
     {
       group2.push_back(node);
@@ -6272,7 +6281,9 @@ runDeleteRestart(NDBT_Context* ctx, NDBT_Step* step)
       if (diff < 0)
         diff = -diff;
 
-      int diffpct = (100 * diff) / time0->events[i].MemoryUsage.pages_used;
+      int diffpct = 0;
+      if (time0->events[i].MemoryUsage.pages_used > 0)
+        diffpct = (100 * diff) / time0->events[i].MemoryUsage.pages_used;
       ndbout_c("node %u pages %u - %u => diff pct: %u%% (max: %u) => %s",
                node,
                time0->events[i].MemoryUsage.pages_used,
