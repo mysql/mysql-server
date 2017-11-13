@@ -1597,7 +1597,7 @@ public:
   bool match(const PFS_host *pfs);
   bool match(const PFS_account *pfs);
   bool match(const PFS_setup_actor *pfs);
-  bool match(const char *host, uint host_length);
+  bool match(const char *host, size_t host_length);
 };
 
 class PFS_key_role : public PFS_key_string<ROLENAME_LENGTH>
@@ -1669,7 +1669,7 @@ public:
   }
 
   bool match(const LEX_STRING *name);
-  bool match(const char *name, uint name_length);
+  bool match(const char *name, size_t name_length);
 };
 
 class PFS_key_group_name : public PFS_key_string<NAME_CHAR_LEN>
@@ -1684,7 +1684,7 @@ public:
   }
 
   bool match(const LEX_STRING *name);
-  bool match(const char *name, uint name_length);
+  bool match(const char *name, size_t name_length);
   bool match(PFS_thread *pfs);
 };
 
@@ -1748,7 +1748,7 @@ public:
   }
 
   bool match(const PFS_socket *pfs);
-  bool match(const char *ip, uint ip_length);
+  bool match(const char *ip, size_t ip_length);
 };
 
 class PFS_key_statement_name : public PFS_key_string<PFS_MAX_INFO_NAME_LENGTH>
@@ -1796,7 +1796,7 @@ public:
   bool match(const PFS_prepared_stmt *pfs);
   bool match(const PFS_object_row *pfs);
   bool match(const PFS_setup_object *pfs);
-  bool match(const char *schema_name, uint schema_name_length);
+  bool match(const char *schema_name, size_t schema_name_length);
 };
 
 class PFS_key_object_name : public PFS_key_string<NAME_CHAR_LEN>
@@ -1816,7 +1816,7 @@ public:
   bool match(const PFS_object_row *pfs);
   bool match(const PFS_index_row *pfs);
   bool match(const PFS_setup_object *pfs);
-  bool match(const char *schema_name, uint schema_name_length);
+  bool match(const char *schema_name, size_t schema_name_length);
 };
 
 class PFS_key_object_type : public PFS_engine_key

@@ -6082,7 +6082,7 @@ dict_persist_log_margin()
 	/* Extra marge for root split, we always leave this margin,
 	since we don't know exactly it will split root or not */
 	static const uint32_t		log_margin_per_split_root =
-		univ_page_size.physical() * 1.5;
+		univ_page_size.physical() / 2 * 3; /* Add 50% margin. */
 
 	/* Read without holding the dict_persist_t::mutex */
 	uint32_t	num_dirty_tables = dict_persist->num_dirty_tables;

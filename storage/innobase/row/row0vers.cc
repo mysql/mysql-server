@@ -733,10 +733,10 @@ row_vers_vc_matches_cluster(
 				/* For multi-byte character sets (like utf8mb4)
 				and index on prefix of varchar vcol, we log
 				prefix_len * mbmaxlen bytes but the actual
-				secondaary index record size can be less than
-				that. For comparision, use actual length of
+				secondary index record size can be less than
+				that. For comparison, use actual length of
 				secondary index record */
-				uint8_t mbmax_len =
+				ulint mbmax_len =
 					DATA_MBMAXLEN(field2->type.mbminmaxlen);
 				if (ind_field->prefix_len != 0
 				    && !dfield_is_null(field2)

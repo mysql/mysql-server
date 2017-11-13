@@ -403,7 +403,7 @@ public:
 		return(m_size);
 	}
 
-	void set_space_id(ulint space_id)
+	void set_space_id(space_id_t space_id)
 	{
 		ut_ad(space_id <= 0xFFFFFFFFU);
 		m_space_id = space_id;
