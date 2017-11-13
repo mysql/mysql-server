@@ -1556,12 +1556,12 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "BackupDataBufferSize",
     DB_TOKEN,
     "Default size of databuffer for a backup (in bytes)",
-    ConfigInfo::CI_USED,
+    ConfigInfo::CI_DEPRECATED,
     false,
     ConfigInfo::CI_INT,
-    "16M",
+    "1M",
     "512K",
-    STR_VALUE(MAX_INT_RNIL) },
+    "16M" },
 
   { 
     CFG_DB_BACKUP_LOG_BUFFER_MEM,
@@ -1580,24 +1580,24 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "BackupWriteSize",
     DB_TOKEN,
     "Default size of filesystem writes made by backup (in bytes)",
-    ConfigInfo::CI_USED,
+    ConfigInfo::CI_DEPRECATED,
     false,
     ConfigInfo::CI_INT,
     "256K",
     "32K",
-    STR_VALUE(MAX_INT_RNIL) },
+    "1M" },
 
   { 
     CFG_DB_BACKUP_MAX_WRITE_SIZE,
     "BackupMaxWriteSize",
     DB_TOKEN,
     "Max size of filesystem writes made by backup (in bytes)",
-    ConfigInfo::CI_USED,
+    ConfigInfo::CI_DEPRECATED,
     false,
     ConfigInfo::CI_INT,
     "1M",
     "256K",
-    STR_VALUE(MAX_INT_RNIL) },
+    "2M" },
 
   { 
     CFG_DB_STRING_MEMORY,
@@ -2246,9 +2246,23 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     0,
     ConfigInfo::CI_BOOL,
-    "false",
+    "true",
     "false",
     "true"
+  },
+  {
+    CFG_DB_RECOVERY_WORK,
+    "RecoveryWork",
+    DB_TOKEN,
+    "Percentage of storage overhead for LCP files, increasing the value"
+    " means less work in normal operation and more at recovery, decreasing"
+    " it means more work in normal operation and less work in recovery",
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_INT,
+    "50",
+    "25",
+    "100"
   },
 
   {

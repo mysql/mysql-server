@@ -91,7 +91,6 @@ Dbacc::Dbacc(Block_context& ctx, Uint32 instanceNumber):
   addRecSignal(GSN_ACC_CHECK_SCAN, &Dbacc::execACC_CHECK_SCAN);
   addRecSignal(GSN_EXPANDCHECK2, &Dbacc::execEXPANDCHECK2);
   addRecSignal(GSN_SHRINKCHECK2, &Dbacc::execSHRINKCHECK2);
-  addRecSignal(GSN_READ_PSEUDO_REQ, &Dbacc::execREAD_PSEUDO_REQ);
 
   // Received signals
   addRecSignal(GSN_STTOR, &Dbacc::execSTTOR);

@@ -467,10 +467,12 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
     conf->scanPtr = scan.m_userPtr;
     conf->accOperationPtr = RNIL;       // no tuple returned
     conf->fragId = frag.m_fragId;
-    unsigned signalLength = 3;
     // if TC has ordered scan close, it will be detected here
-    sendSignal(scan.m_userRef, GSN_NEXT_SCANCONF,
-               signal, signalLength, JBB);
+    sendSignal(scan.m_userRef,
+               GSN_NEXT_SCANCONF,
+               signal,
+               NextScanConf::SignalLengthNoTuple,
+               JBB);
     return;     // stop
   }
   // check index online
@@ -617,14 +619,16 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
     getTupAddr(frag, ent, lkey1, lkey2);
     conf->localKey[0] = lkey1;
     conf->localKey[1] = lkey2;
-    unsigned signalLength = 5;
     // add key info
     // next time look for next entry
     scan.m_state = ScanOp::Next;
     /* We need primary table fragment id here, not index fragment id */
     c_tup->prepareTUPKEYREQ(lkey1, lkey2, frag.m_tupTableFragPtrI);
     const Uint32 blockNo = refToMain(scan.m_userRef);
-    EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, signalLength);
+    EXECUTE_DIRECT(blockNo,
+                   GSN_NEXT_SCANCONF,
+                   signal,
+                   NextScanConf::SignalLengthNoGCI);
     return;
   }
   // XXX in ACC this is checked before req->checkLcpStop
@@ -634,9 +638,11 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
     conf->scanPtr = scan.m_userPtr;
     conf->accOperationPtr = RNIL;
     conf->fragId = RNIL;
-    unsigned signalLength = 3;
     Uint32 blockNo = refToMain(scan.m_userRef);
-    EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, signalLength);
+    EXECUTE_DIRECT(blockNo,
+                   GSN_NEXT_SCANCONF,
+                   signal,
+                   NextScanConf::SignalLengthNoTuple);
     return;
   }
   ndbrequire(false);
@@ -1180,12 +1186,11 @@ Dbtux::scanClose(Signal* signal, ScanOpPtr scanPtr)
     conf->scanPtr = scanPtr.p->m_userPtr;
     conf->accOperationPtr = RNIL;
     conf->fragId = RNIL;
-    unsigned signalLength = 3;
     releaseScanOp(scanPtr);
     EXECUTE_DIRECT(blockNo,
                    GSN_NEXT_SCANCONF,
                    signal,
-                   signalLength);
+                   NextScanConf::SignalLengthNoTuple);
   } else {
     // send ref
     NextScanRef* ref = (NextScanRef*)signal->getDataPtr();
