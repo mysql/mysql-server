@@ -4834,11 +4834,9 @@ Lgman::execute_undo_record(Signal* signal)
                     block_instance, count_processed));
         ndbassert((count_processed != 0) &&
                   (count_processed <= MAX_PENDING_UNDO_RECORDS));
-        ndbassert(m_pending_undo_records[block_instance] <= MAX_PENDING_UNDO_RECORDS);
-        ndbassert(m_pending_undo_records[0] <=
-               MAX_NDBMT_LQH_WORKERS * MAX_PENDING_UNDO_RECORDS);
-        ndbrequire(count_processed <= m_pending_undo_records[0]);
-        ndbrequire(count_processed <= m_pending_undo_records[block_instance]);
+        ndbrequire(abs(m_pending_undo_records[block_instance]) <= MAX_PENDING_UNDO_RECORDS);
+        ndbrequire(abs(m_pending_undo_records[0]) <=
+                       MAX_NDBMT_LQH_WORKERS * MAX_PENDING_UNDO_RECORDS);
         m_pending_undo_records[0] -= count_processed; // decrement total_pending
         m_pending_undo_records[block_instance] -= count_processed;
 
@@ -4870,6 +4868,7 @@ Lgman::execute_undo_record(Signal* signal)
            */
           m_pending_undo_records[0] += 1;
           m_pending_undo_records[ldm_tup_instance] += 1;
+          ndbrequire(abs(m_pending_undo_records[ldm_tup_instance]) <= MAX_PENDING_UNDO_RECORDS);
           if (DEBUG_UNDO_EXECUTION)
           {
             g_eventLogger->info("<m_pending_undo_records>");

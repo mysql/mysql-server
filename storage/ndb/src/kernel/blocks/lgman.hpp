@@ -323,7 +323,7 @@ private:
    * UNDO_TUP_FREE and UNDO_TUP_FREE_PART.
    *
    */
-  Uint32 m_pending_undo_records[MAX_NDBMT_LQH_WORKERS + 1];
+  int m_pending_undo_records[MAX_NDBMT_LQH_WORKERS + 1];
 
   void client_lock(BlockNumber block, int line, SimulatedBlock*);
   void client_unlock(BlockNumber block, int line, SimulatedBlock*);
