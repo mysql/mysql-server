@@ -1571,7 +1571,7 @@ HugoTransactions::pkDelRecords(Ndb* pNdb,
 
   g_info << "|- Deleting records..." << endl;
   int batch_no = 0;
-  while ((r + start_record) < records){
+  while (r < records){
     if(r + batch > records)
       batch = records - r;
 
@@ -1617,8 +1617,9 @@ HugoTransactions::pkDelRecords(Ndb* pNdb,
     if (timer_active)
       timer_start = NdbTick_getCurrentTicks();
 
+    int row = start_record + (r * step);
     if(pkDeleteRecord(pNdb,
-                      start_record + (r * step),
+                      row,
                       batch,
                       step) != NDBT_OK)
     {
