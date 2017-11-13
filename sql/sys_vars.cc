@@ -4174,9 +4174,9 @@ bool Sys_var_gtid_mode::global_update(THD* thd, set_var *var)
   lock_count= 3;
 
   // Generate note in log
-  LogErr(INFORMATION_LEVEL, ER_CHANGED_GTID_MODE,
+  LogErr(SYSTEM_LEVEL, ER_CHANGED_GTID_MODE,
          gtid_mode_names[old_gtid_mode],
-         gtid_mode_names[new_gtid_mode]).force_print();
+         gtid_mode_names[new_gtid_mode]);
 
   // Rotate
   {
@@ -6220,10 +6220,10 @@ bool Sys_var_gtid_purged::global_update(THD *thd, set_var *var)
   gtid_state->get_lost_gtids()->to_string(&current_gtid_purged);
 
   // Log messages saying that GTID_PURGED and GTID_EXECUTED were changed.
-  LogErr(INFORMATION_LEVEL, ER_GTID_PURGED_WAS_CHANGED,
-         previous_gtid_purged, current_gtid_purged).force_print();
-  LogErr(INFORMATION_LEVEL, ER_GTID_EXECUTED_WAS_CHANGED,
-         previous_gtid_executed, current_gtid_executed).force_print();
+  LogErr(SYSTEM_LEVEL, ER_GTID_PURGED_WAS_CHANGED,
+         previous_gtid_purged, current_gtid_purged);
+  LogErr(SYSTEM_LEVEL, ER_GTID_EXECUTED_WAS_CHANGED,
+         previous_gtid_executed, current_gtid_executed);
 
 end:
   global_sid_lock->unlock();
