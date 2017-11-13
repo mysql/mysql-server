@@ -21,8 +21,6 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/test/include
                     ${CMAKE_SOURCE_DIR}/storage/ndb/include/debugger)
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_ndbapitest.cmake)
 
-ADD_DEFINITIONS(-fexceptions)
-
 ADD_CONVENIENCE_LIBRARY(ndbNDBT
         NDBT_ReturnCodes.cpp
         NDBT_Error.cpp
