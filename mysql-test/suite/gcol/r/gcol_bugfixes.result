@@ -864,3 +864,18 @@ DELETE FROM t;
 SELECT * FROM t;
 gc
 DROP TABLE t;
+#
+# Bug #27041382: ASSERTION `!TABLE->IN_USE->IS_ERROR()' FAILED.
+#
+CREATE TABLE t1 (c1 VARCHAR(100),
+c2 VARCHAR(400) GENERATED ALWAYS AS (CONCAT(c1,c1)));
+CREATE TRIGGER trg1 BEFORE INSERT ON t1
+FOR EACH ROW INSERT/*!INTO*/t1 VALUES (1);
+INSERT INTO t1  VALUES (),();
+ERROR 42000: Trigger 'trg1' has an error in its body: 'You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 't1 VALUES (1)' at line 1'
+INSERT INTO t1(c1)  SELECT 1 FROM DUAL;
+ERROR 42000: Trigger 'trg1' has an error in its body: 'You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 't1 VALUES (1)' at line 1'
+LOAD DATA INFILE '../../std_data/loaddata5.dat'
+ INTO TABLE t1 FIELDS TERMINATED BY '' ENCLOSED BY '' (c1) ;
+ERROR 42000: Trigger 'trg1' has an error in its body: 'You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 't1 VALUES (1)' at line 1'
+DROP TABLE t1;

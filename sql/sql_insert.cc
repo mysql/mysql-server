@@ -1404,6 +1404,19 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd)
     ctx_state.restore_state(context, table_list);
   }
 
+  if (insert_table->triggers)
+  {
+    /*
+      We don't need to mark columns which are used by ON DELETE and
+      ON UPDATE triggers, which may be invoked in case of REPLACE or
+      INSERT ... ON DUPLICATE KEY UPDATE, since before doing actual
+      row replacement or update write_record() will mark all table
+      fields as used.
+    */
+    if (insert_table->triggers->mark_fields(TRG_EVENT_INSERT))
+      DBUG_RETURN(true);
+  }
+
   if (!select_insert && insert_table->part_info)
   {
     uint num_partitions= 0;
