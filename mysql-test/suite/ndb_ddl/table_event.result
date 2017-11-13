@@ -1,0 +1,12 @@
+Found event for 'mysql.ndb_apply_status'
+Found event for 'mysql.ndb_schema'
+Found event for 'ndb_ddl_test.t1'
+Found event for 'ndb_ddl_test.t2'
+Found event for 'ndb_ddl_test.t3'
+Found event for 'ndb_ddl_test.t4'
+Found event for 'ndb_ddl_test.t5'
+Found event for 'ndb_ddl_test.t6'
+Found event for 'ndb_ddl_test.t7'
+Found event for 'ndb_ddl_test.t8'
+NOTE! t9 have hidden pk and blobs -> no event
+No event found for 'ndb_ddl_test.t9'

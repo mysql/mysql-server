@@ -1284,15 +1284,15 @@ class Ndb_binlog_setup {
       }
       else
       {
-        if (ndbtab->getObjectId() != table_id ||
-            ndbtab->getObjectVersion() != table_version)
-        {
-          need_install = true;
-          need_overwrite = true;
-          ndb_log_info("Table %s.%s have different version in DD, installing",
-                   schema_name, table_name);
-        }
+      if (ndbtab->getObjectId() != table_id ||
+          ndbtab->getObjectVersion() != table_version)
+      {
+        need_install = true;
+        need_overwrite = true;
+        ndb_log_info("Table %s.%s have different version in DD, installing",
+                     schema_name, table_name);
       }
+    }
     }
 
     if (need_install)
