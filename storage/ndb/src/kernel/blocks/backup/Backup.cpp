@@ -12112,6 +12112,17 @@ Backup::calculate_number_of_parts(BackupRecordPtr ptr)
   Uint32 max_file_rule = MIN(max_file_rule_1, max_file_rule_2);
   max_file_rule = MAX(1, max_file_rule);
   Uint32 num_lcp_files = MIN(min_file_rule, max_file_rule);
+  if (!is_partial_lcp_enabled())
+  {
+    /**
+     * To not set EnablePartialLcp to true is mostly there to be able to
+     * use NDB as close to the 7.5 manner as possible, this means also not
+     * using 8 files when partial LCP isn't enabled. So we use only one
+     * file here, it will always be full writes in this case.
+     */
+    jam();
+    num_lcp_files = 1;
+  }
   ptr.p->m_num_lcp_files = num_lcp_files;
   DEB_EXTRA_LCP(("(%u) min_file_rules1 = %u, max_file_rule1 = %u",
                  instance(),
