@@ -1927,6 +1927,7 @@ runCheckOpenNextRedoLogFile(NDBT_Context* ctx, NDBT_Step* step)
   // Commit the open transaction to trim the redo log.
   int retries = -1;
   int success_after_err = 0;
+  bool committed = false;
   NdbError err;
   int upval = 0;
   g_err << "Filling redo logs" << endl;
@@ -1950,10 +1951,13 @@ runCheckOpenNextRedoLogFile(NDBT_Context* ctx, NDBT_Step* step)
       CHK3(nodeid != 0, "No nodeid found with almost full logpart");
       CHK3(full_logpart != UINT32_MAX, "No logpart became full");
 
-      // Commit the open transaction to trim the redo log part.
-      CHK3(ops->execute_Commit(GETNDB(step)) == 0,
-           "Error: failed to commit the open transaction.");
-
+      if (!committed)
+      {
+        // Commit the open transaction to trim the redo log part.
+        CHK3(ops->execute_Commit(GETNDB(step)) == 0,
+             "Error: failed to commit the open transaction.");
+      }
+      committed = true;
       g_err << "Check whether the redo log is trimmed" << endl;
       CHK3(((redologpart_is_trimmed(ctx, usage_before, full_logpart,
                                     nodeid)) == NDBT_OK),

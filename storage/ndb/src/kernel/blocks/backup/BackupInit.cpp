@@ -279,19 +279,27 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   jam();
 
   const Uint32 DEFAULT_WRITE_SIZE = (256 * 1024);
-  const Uint32 DEFAULT_MAX_WRITE_SIZE = (1024 * 1024);
-  const Uint32 DEFAULT_BUFFER_SIZE = (1 * 1024 * 1024);
+  const Uint32 DEFAULT_MAX_WRITE_SIZE = (512 * 1024);
+  const Uint32 DEFAULT_BUFFER_SIZE = (512 * 1024);
 
   Uint32 szDataBuf = DEFAULT_BUFFER_SIZE;
   Uint32 szLogBuf = DEFAULT_BUFFER_SIZE;
   Uint32 szWrite = DEFAULT_WRITE_SIZE;
   Uint32 maxWriteSize = DEFAULT_MAX_WRITE_SIZE;
 
-  ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_DATA_BUFFER_MEM, &szDataBuf);
-  ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_LOG_BUFFER_MEM, &szLogBuf);
-  ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_WRITE_SIZE, &szWrite);
-  ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_MAX_WRITE_SIZE, &maxWriteSize);
+  /**
+   * We make the backup data buffer, write size and max write size hard coded.
+   * The sizes are large enough to provide enough bandwidth on hard drives.
+   * On SSD the defaults will be just fine. By limiting the backup data buffer
+   * size we avoid that we spend a lot of CPU resources to fill up the data
+   * buffer where there is anyways no room to write it out to the file.
+   *
+   * ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_DATA_BUFFER_MEM, &szDataBuf);
+   * ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_WRITE_SIZE, &szWrite);
+   * ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_MAX_WRITE_SIZE, &maxWriteSize);
+   */
 
+  ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_LOG_BUFFER_MEM, &szLogBuf);
   if (maxWriteSize < szWrite)
   {
     /**
