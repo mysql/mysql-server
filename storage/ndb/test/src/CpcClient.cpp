@@ -457,8 +457,8 @@ int SimpleCpcClient::connect() {
     res = select_protocol(p);
     if (res != 0) throw "Unable to set client's protocol";
   } catch (const char *msg) {
-    my_socket_close(cpc_sock);
-    my_socket_invalidate(&cpc_sock);
+    ndb_socket_close(cpc_sock);
+    ndb_socket_invalidate(&cpc_sock);
     return -1;
   }
 
