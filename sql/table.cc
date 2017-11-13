@@ -6572,18 +6572,7 @@ void TABLE::drop_unused_tmp_keys(bool modify_share)
 void TABLE::mark_columns_needed_for_insert(THD *thd)
 {
   mark_columns_per_binlog_row_image(thd);
-  if (triggers)
-  {
-    /*
-      We don't need to mark columns which are used by ON DELETE and
-      ON UPDATE triggers, which may be invoked in case of REPLACE or
-      INSERT ... ON DUPLICATE KEY UPDATE, since before doing actual
-      row replacement or update write_record() will mark all table
-      fields as used.
-    */
-    if (triggers->mark_fields(TRG_EVENT_INSERT))
-      return;
-  }
+
   if (found_next_number_field)
     mark_auto_increment_column();
   /* Mark all generated columns as writable */
