@@ -970,15 +970,28 @@ static bool fix_view_cols_and_deps(THD *thd, TABLE_LIST *view_ref,
   */
   if (error)
   {
+    error= false;
     /*
       Do not print warning if view belongs to sys schema. Sys schema views will
       get fixed when mysql_upgrade is executed.
     */
     if (db_name != "sys")
-      LogErr(WARNING_LEVEL, ER_DD_CANT_RESOLVE_VIEW,
-             db_name.c_str(), view_name.c_str());
+    {
+      if (Bootstrap_error_handler::abort_on_error)
+      {
+        // Exit the upgrade process by reporting an error.
+        sql_print_error("Upgrade of view '%s.%s' failed. Re-create the view "
+                        "with the explicit column name lesser than 64 characters.",
+                         db_name.c_str(), view_name.c_str());
+        error= true;
+      }
+      else
+      {
+         LogErr(WARNING_LEVEL, ER_DD_CANT_RESOLVE_VIEW,
+                db_name.c_str(), view_name.c_str());
+      }
+    }
     update_view_status(thd, db_name.c_str(), view_name.c_str(), false, true);
-    error= false;
   }
 
   // Restore variables

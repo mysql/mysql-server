@@ -115,7 +115,24 @@ private:
   //  Set the error in DA. Optionally print error in log.
   static void my_message_bootstrap(uint error, const char *str, myf MyFlags)
   {
+    set_abort_on_error(error);
     my_message_sql(error, str, MyFlags | (m_log_error ? ME_ERRORLOG : 0));
+  }
+
+  // Set abort on error flag and enable error logging for certain fatal error.
+  static void set_abort_on_error(uint error)
+  {
+    switch (error)
+    {
+    case ER_WRONG_COLUMN_NAME:
+    {
+      abort_on_error= true;
+      m_log_error= true;
+      break;
+    }
+    default:
+      break;
+    }
   }
 
 public:
@@ -136,6 +153,7 @@ public:
     error_handler_hook= m_old_error_handler_hook;
   }
   static bool m_log_error;
+  static bool abort_on_error;
 };
 
 } // namespace upgrade
