@@ -1624,6 +1624,9 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       DBUG_EXECUTE_IF("parser_stmt_to_error_log", {
         LogErr(INFORMATION_LEVEL, ER_PARSER_TRACE, thd->query().str);
       });
+      DBUG_EXECUTE_IF("parser_stmt_to_error_log_with_system_prio", {
+        LogErr(SYSTEM_LEVEL, ER_PARSER_TRACE, thd->query().str);
+      });
     }
     break;
   }
@@ -1707,6 +1710,9 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
 
     DBUG_EXECUTE_IF("parser_stmt_to_error_log", {
         LogErr(INFORMATION_LEVEL, ER_PARSER_TRACE, thd->query().str);
+      });
+    DBUG_EXECUTE_IF("parser_stmt_to_error_log_with_system_prio", {
+        LogErr(SYSTEM_LEVEL, ER_PARSER_TRACE, thd->query().str);
       });
 
     while (!thd->killed && (parser_state.m_lip.found_semicolon != NULL) &&

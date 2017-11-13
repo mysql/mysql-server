@@ -275,9 +275,7 @@ static const log_item_wellknown_key log_item_wellknown_keys[] =
   { C_STRING_WITH_LEN("misc_integer"), LOG_INTEGER,    LOG_ITEM_GEN_INTEGER },
   { C_STRING_WITH_LEN("misc_string"),  LOG_LEX_STRING,
                                        LOG_ITEM_GEN_LEX_STRING },
-  { C_STRING_WITH_LEN("misc_cstring"), LOG_CSTRING,    LOG_ITEM_GEN_CSTRING },
-  { C_STRING_WITH_LEN("effective_prio"),
-                                       LOG_INTEGER,    LOG_ITEM_LOG_EPRIO }
+  { C_STRING_WITH_LEN("misc_cstring"), LOG_CSTRING,    LOG_ITEM_GEN_CSTRING }
 };
 
 static uint log_item_wellknown_keys_count=
@@ -1052,17 +1050,27 @@ bool log_item_set_cstring(log_item_data *lid, const char *s)
   @param   prio       the severity/prio in question
 
   @return             a label corresponding to that priority.
-  @retval  "Error"    for prio of ERROR_LEVEL or higher
+  @retval  "System"   for prio of SYSTEM_LEVEL
+  @retval  "Error"    for prio of ERROR_LEVEL
   @retval  "Warning"  for prio of WARNING_LEVEL
-  @retval  "Note"     otherwise
+  @retval  "Note"     for prio of INFORMATION_LEVEL
 */
 const char *log_label_from_prio(int prio)
 {
-  return ((prio <= ERROR_LEVEL)
-          ? "Error"
-          : (prio == WARNING_LEVEL)
-            ? "Warning"
-            : "Note");
+  switch (prio)
+  {
+  case SYSTEM_LEVEL:
+    return "System";
+  case ERROR_LEVEL:
+    return "Error";
+  case WARNING_LEVEL:
+    return "Warning";
+  case INFORMATION_LEVEL:
+    return "Note";
+  default:
+    DBUG_ASSERT(false);
+    return "";
+  }
 }
 
 
@@ -1140,42 +1148,18 @@ static int log_sink_trad(void *instance MY_ATTRIBUTE((unused)), log_line *ll)
       msg_len= strlen(msg);
 
       prio= ERROR_LEVEL;                // force severity
-      out_types&= ~(LOG_ITEM_LOG_LABEL|LOG_ITEM_LOG_EPRIO); // regenerate label
+      out_types&= ~(LOG_ITEM_LOG_LABEL); // regenerate label
       out_types|= LOG_ITEM_LOG_MESSAGE; // we added a message
     }
 
     {
       char          buff_line[LOG_BUFF_MAX];
-      char          buff_label[16];
       size_t        len;
 
       if (!(out_types & LOG_ITEM_LOG_LABEL))
       {
-        label=     log_label_from_prio(prio);
+        label= (prio == ERROR_LEVEL) ? "ERROR" : log_label_from_prio(prio);
         label_len= strlen(label);
-
-        if ((out_types & LOG_ITEM_LOG_EPRIO) ||
-            (prio == ERROR_LEVEL))
-        {
-          /*
-            Special feature of this log-writer:
-            for diagnostics,
-            - if we have an override (force-print etc.), lowercase the
-              label as it doesn't coincide with the actual filtering.
-              -
-          */
-
-          const char *label_read=  label;
-          char       *label_write= buff_label;
-
-          DBUG_ASSERT(label_len < sizeof(buff_label));
-
-          while (*label_read)
-            *(label_write++)= toupper(*(label_read++));
-          *label_write= '\0';
-
-          label= buff_label;
-        }
       }
 
       if (!(out_types & LOG_ITEM_LOG_TIMESTAMP))
@@ -3369,17 +3353,30 @@ DEFINE_METHOD(int, log_builtins_syseventlog_imp::write, (enum loglevel level,
                                                          const char *msg))
 {
   int      ret= 0;
-  int      _level;
   mysql_mutex_lock(&THR_LOCK_log_syseventlog);
 
 #ifdef _WIN32
+  int      _level= EVENTLOG_INFORMATION_TYPE;
   wchar_t  buff[MAX_SYSLOG_MESSAGE_SIZE];
   wchar_t *u16buf= NULL;
   size_t   nchars;
   uint     dummy_errors;
 
-  _level= (level == INFORMATION_LEVEL) ? EVENTLOG_INFORMATION_TYPE :
-    (level == WARNING_LEVEL) ? EVENTLOG_WARNING_TYPE : EVENTLOG_ERROR_TYPE;
+  switch (level)
+  {
+  case INFORMATION_LEVEL:
+  case SYSTEM_LEVEL:
+    _level= EVENTLOG_INFORMATION_TYPE;
+    break;
+  case WARNING_LEVEL:
+    _level= EVENTLOG_WARNING_TYPE;
+    break;
+  case ERROR_LEVEL:
+    _level= EVENTLOG_ERROR_TYPE;
+    break;
+  default:
+    DBUG_ASSERT(false);
+  }
 
   if (hEventLog)
   {
@@ -3398,9 +3395,23 @@ DEFINE_METHOD(int, log_builtins_syseventlog_imp::write, (enum loglevel level,
   }
 
 #else
+  int      _level= LOG_INFO;
 
-  _level= (level == INFORMATION_LEVEL) ? LOG_INFO :
-    (level == WARNING_LEVEL) ? LOG_WARNING : LOG_ERR;
+  switch (level)
+  {
+  case INFORMATION_LEVEL:
+  case SYSTEM_LEVEL:
+    _level= LOG_INFO;
+    break;
+  case WARNING_LEVEL:
+    _level= LOG_WARNING;
+    break;
+  case ERROR_LEVEL:
+    _level= LOG_ERR;
+    break;
+  default:
+    DBUG_ASSERT(false);
+  }
 
   syslog(_level, "%s", msg);
 
