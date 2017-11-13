@@ -705,6 +705,8 @@ struct Fragrecord {
   Uint64 m_lcp_changed_rows;
   // Number of fixed-seize tuple parts (which equals the tuple count).
   Uint64 m_fixedElemCount;
+  Uint64 m_row_count;
+  Uint64 m_committed_changes;
   /**
     Number of variable-size tuple parts, i.e. the number of tuples that has
     one or more non-NULL varchar/varbinary or blob fields. (The first few bytes
@@ -834,6 +836,7 @@ struct Operationrec {
      */
     unsigned int m_triggers : 2;
     unsigned int m_disable_fk_checks : 1;
+    unsigned int m_tuple_existed_at_start : 1;
   };
 
   union OpStruct {
@@ -1457,8 +1460,7 @@ typedef Ptr<HostBuffer> HostBufferPtr;
     STATIC_CONST( ALLOC       = 0x00100000 ); // Is record allocated now
     STATIC_CONST( NOT_USED_BIT= 0x00200000 ); //
     STATIC_CONST( MM_GROWN    = 0x00400000 ); // Has MM part grown
-    STATIC_CONST( FREED       = 0x00800000 ); // Is freed
-    STATIC_CONST( FREE        = 0x00800000 ); // alias
+    STATIC_CONST( FREE        = 0x00800000 ); // Is free
     STATIC_CONST( LCP_SKIP    = 0x01000000 ); // Should not be returned in LCP
     STATIC_CONST( VAR_PART    = 0x04000000 ); // Is there a varpart
     STATIC_CONST( REORG_MOVE  = 0x08000000 ); // Tuple will be moved in reorg
@@ -1807,7 +1809,10 @@ public:
   Uint32 get_max_lcp_record_size(Uint32 tableId);
   
   int nr_read_pk(Uint32 fragPtr, const Local_key*, Uint32* dataOut, bool&copy);
-  int nr_update_gci(Uint32 fragPtr, const Local_key*, Uint32 gci);
+  int nr_update_gci(Uint32 fragPtr,
+                    const Local_key*,
+                    Uint32 gci,
+                    bool tuple_exists);
   int nr_delete(Signal*, Uint32, Uint32 fragPtr, const Local_key*, Uint32 gci);
 
   void nr_delete_page_callback(Signal*, Uint32 op, Uint32 page);
@@ -1823,6 +1828,7 @@ public:
   void stop_lcp_scan(Uint32 tableId, Uint32 fragmentId);
   void lcp_frag_watchdog_print(Uint32 tableId, Uint32 fragmentId);
 
+  Uint64 get_restore_row_count(Uint32 tableId, Uint32 fragmentId);
   void set_lcp_start_gci(Uint32 fragPtrI, Uint32 startGci);
   void get_lcp_frag_stats(Uint32 fragPtrI,
                           Uint32 startGci,
@@ -1835,6 +1841,8 @@ public:
   // Statistics about fragment memory usage.
   struct FragStats
   {
+    Uint64 committedRowCount;
+    Uint64 committedChanges;
     // Size of fixed-size part of record.
     Uint32 fixedRecordBytes;
     // Page size (32k, see File_formats::NDB_PAGE_SIZE).
@@ -3212,16 +3220,20 @@ private:
                        Uint32 page_no);
 
   void record_delete_by_pageid(Signal *signal,
+                               Uint32 tableId,
                                Uint32 fragmentId,
                                ScanOp &scan,
-                               Local_key &key,
-                               Uint32 record_size);
+                               Uint32 page_no,
+                               Uint32 record_size,
+                               bool set_scan_state);
 
   void record_delete_by_rowid(Signal *signal,
+                              Uint32 tableId,
                               Uint32 fragmentId,
                               ScanOp &scan,
                               Local_key &key,
-                              Uint32 foundGCI);
+                              Uint32 foundGCI,
+                              bool set_scan_state);
 
 //---------------------------------------------------------------
 // Variable Allocator
@@ -3621,6 +3633,7 @@ public:
   bool is_disk_columns_in_table(Uint32 tableId);
 
 private:
+  bool c_started;
   // these 2 were file-static before mt-lqh
   bool f_undo_done;
   Dbtup::Apply_undo f_undo;

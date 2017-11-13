@@ -157,3 +157,7 @@ cmd: testBasic
 args: -n DeleteNdbInFlight T1
 max-time : 60
 
+cmd: testIndex
+args: -r 10 -n NF_Mixed T1 T6 T13 ;
+max-time: 1200
+

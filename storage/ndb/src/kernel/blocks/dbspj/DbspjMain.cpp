@@ -751,7 +751,7 @@ Dbspj::nodeFail_checkRequests(Signal* signal)
   failed.assign(NdbNodeBitmask::Size, signal->theData+2);
 
   Request_iterator iter;
-  Request_hash * hash;
+  Request_hash * hash = NULL;
   switch(type){
   case 1:
     hash = &m_lookup_request_hash;

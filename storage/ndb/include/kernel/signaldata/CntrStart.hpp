@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,12 +35,14 @@ class CntrStartReq {
   friend bool printCNTR_START_REQ(FILE*, const Uint32 *, Uint32, Uint16);
   
 public:
-  STATIC_CONST( SignalLength = 3 );
+  STATIC_CONST( OldSignalLength = 3 );
+  STATIC_CONST( SignalLength = 4 );
 private:
   
   Uint32 nodeId;
   Uint32 startType;
   Uint32 lastGci;
+  Uint32 lastLcpId;
 };
 
 class CntrStartRef {

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -42,7 +42,8 @@ public:
   int pkInsertRecord(Ndb*,
 		     int recordNo,
 		     int numRecords = 1,
-		     int updatesValue = 0);
+		     int updatesValue = 0,
+                     int row_step = 1);
   
   int pkWriteRecord(Ndb*,
 		    int recordNo,
@@ -85,7 +86,8 @@ public:
   
   int pkDeleteRecord(Ndb*,
 		     int recordNo,
-		     int numRecords = 1);
+		     int numRecords = 1,
+                     int step = 1);
   
   int pkRefreshRecord(Ndb*,
                       int recordNo,
