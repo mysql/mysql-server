@@ -24,7 +24,7 @@
 
 #define JAM_FILE_ID 421
 
-#define DEBUG_899_ERROR 1
+//#define DEBUG_899_ERROR 1
 #ifdef DEBUG_899_ERROR
 #define DEB_899_ERROR(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else

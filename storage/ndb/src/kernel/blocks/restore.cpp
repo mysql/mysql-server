@@ -48,28 +48,28 @@ extern EventLogger * g_eventLogger;
 #define DEB_RES(arglist) do { } while (0)
 #endif
 
-#define DEBUG_RES_OPEN 1
+//#define DEBUG_RES_OPEN 1
 #ifdef DEBUG_RES_OPEN
 #define DEB_RES_OPEN(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_RES_OPEN(arglist) do { } while (0)
 #endif
 
-#define DEBUG_RES_PARTS 1
+//#define DEBUG_RES_PARTS 1
 #ifdef DEBUG_RES_PARTS
 #define DEB_RES_PARTS(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_RES_PARTS(arglist) do { } while (0)
 #endif
 
-#define DEBUG_RES_STAT 1
+//#define DEBUG_RES_STAT 1
 #ifdef DEBUG_RES_STAT
 #define DEB_RES_STAT(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_RES_STAT(arglist) do { } while (0)
 #endif
 
-#define DEBUG_RES_STAT_EXTRA 1
+//#define DEBUG_RES_STAT_EXTRA 1
 #ifdef DEBUG_RES_STAT_EXTRA
 #define DEB_RES_STAT_EXTRA(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
@@ -83,7 +83,7 @@ extern EventLogger * g_eventLogger;
 #define DEB_RES_DEL(arglist) do { } while (0)
 #endif
 
-#define DEBUG_HIGH_RES 1
+//#define DEBUG_HIGH_RES 1
 #ifdef DEBUG_HIGH_RES
 #define DEB_HIGH_RES(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else

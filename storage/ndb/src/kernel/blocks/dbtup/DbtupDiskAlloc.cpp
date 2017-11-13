@@ -51,7 +51,7 @@
 #define DEB_EXTENT_BITS_HASH(arglist) do { } while (0)
 #endif
 
-#define DEBUG_UNDO 1
+//#define DEBUG_UNDO 1
 #ifdef DEBUG_UNDO
 #define DEB_UNDO(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
