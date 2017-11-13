@@ -30,6 +30,10 @@ static bool load_process(atrt_config&, atrt_cluster&, atrt_process::Type,
                          unsigned idx, const char* hostname);
 static bool load_options(int argc, char** argv, int type, atrt_options&);
 
+bool load_deployment_options_for_process(atrt_process& proc,
+                                         BaseString clusterName);
+BaseString getProcGroupName(atrt_process::Type type);
+
 enum {
   PO_NDB = atrt_options::AO_NDBCLUSTER,
   PO_REP_SLAVE = 256,
@@ -202,6 +206,94 @@ static char* dirname(const char* path) {
   }
   free(s);
   return 0;
+}
+
+bool load_deployment_options(atrt_config& config) {
+  bool status = true;
+  for (unsigned i = 0; i < config.m_clusters.size(); i++) {
+    atrt_cluster& cluster = *config.m_clusters[i];
+    for (unsigned j = 0; j < cluster.m_processes.size(); j++) {
+      atrt_process& proc = *cluster.m_processes[j];
+      status &= load_deployment_options_for_process(proc, cluster.m_name);
+    }
+  }
+  return status;
+}
+
+bool load_deployment_options_for_process(atrt_process& proc,
+                                         BaseString cluster_name) {
+  BaseString proc_name = getProcGroupName(proc.m_type);
+  if (proc_name.empty()) {
+    g_logger.debug("Skipping deployment_options loading for process type %d",
+                   proc.m_type);
+    return true;
+  }
+
+  const char* groups[] = {"cluster_deployment", 0, 0, 0};
+  BaseString proc_group;
+  proc_group.assfmt("%s.%s", groups[0], proc_name.c_str());
+  groups[1] = proc_group.c_str();
+  BaseString proc_group_idx;
+  proc_group_idx.assfmt("%s.%s.%d", groups[0], proc_name.c_str(), proc.m_index);
+  groups[2] = proc_group_idx.c_str();
+
+  BaseString suffix;
+  suffix.assfmt("--defaults-group-suffix=%s", cluster_name.c_str());
+  int argc = 2;
+  const char* argv[] = {"cluster_deployment", suffix.c_str(), 0};
+  char** tmp = (char**)argv;
+
+  int ret = load_defaults(g_my_cnf, groups, &argc, &tmp);
+  if (ret != 0) {
+    g_logger.error("Failed to load defaults for cluster %s's process %d",
+                   cluster_name.c_str(), proc.m_type);
+
+    return false;
+  }
+
+  char* cpuset = NULL;
+  struct my_option options[] = {
+      {"cpuset", 0, "CPU affinity set to which the process will be locked to",
+       &cpuset, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+      {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
+
+  int status = handle_options(&argc, &tmp, options, NULL);
+  if (status != 0) {
+    g_logger.error("Failed to handle options for cluster %s' process %d",
+                   cluster_name.c_str(), proc.m_type);
+
+    return false;
+  }
+
+  proc.m_proc.m_cpuset = BaseString(cpuset);
+  return true;
+}
+
+BaseString getProcGroupName(atrt_process::Type type) {
+  BaseString name;
+  switch (type) {
+    case atrt_process::AP_CLIENT:
+      name.assign("client");
+      break;
+    case atrt_process::AP_MYSQLD:
+      name.assign("mysqld");
+      break;
+    case atrt_process::AP_NDB_API:
+      name.assign("ndb_api");
+      break;
+    case atrt_process::AP_NDB_MGMD:
+      name.assign("ndb_mgmd");
+      break;
+    case atrt_process::AP_NDBD:
+      name.assign("ndbd");
+      break;
+    case atrt_process::AP_ALL:
+    case atrt_process::AP_CLUSTER:
+      // No group name in my.cnf skipping
+      break;
+  }
+
+  return name;
 }
 
 static bool load_process(atrt_config& config, atrt_cluster& cluster,
