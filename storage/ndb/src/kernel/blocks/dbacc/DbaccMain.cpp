@@ -2319,12 +2319,6 @@ void Dbacc::execACC_COMMITREQ(Signal* signal)
 	return;
       } else {
 	jam();
-#ifdef ERROR_INSERT
-        ndbrequire(fragrecptr.p->noOfElements > 0);
-#else
-        ndbassert(fragrecptr.p->noOfElements > 0);
-#endif
-	fragrecptr.p->noOfElements--;
 	fragrecptr.p->slack += fragrecptr.p->elementLength;
 #ifdef ERROR_INSERT
         if (force_expand_shrink || fragrecptr.p->slack > fragrecptr.p->slackCheck)
@@ -2346,7 +2340,6 @@ void Dbacc::execACC_COMMITREQ(Signal* signal)
       }//if
     } else {
       jam();                                                /* EXPAND PROCESS HANDLING */
-      fragrecptr.p->noOfElements++;
       fragrecptr.p->slack -= fragrecptr.p->elementLength;
 #ifdef ERROR_INSERT
       if ((force_expand_shrink || fragrecptr.p->slack < 0) &&
@@ -6776,7 +6769,6 @@ void Dbacc::initFragAdd(Signal* signal,
   regFragPtr.p->slackCheck = Int64(Tmp1) * Tmp2;
   regFragPtr.p->mytabptr = req->tableId;
   regFragPtr.p->roothashcheck = req->kValue + req->lhFragBits;
-  regFragPtr.p->noOfElements = 0;
   regFragPtr.p->m_commit_count = 0; // stable results
   for (Uint32 i = 0; i < MAX_PARALLEL_SCANS_PER_FRAG; i++) {
     regFragPtr.p->scan[i] = RNIL;
@@ -6846,6 +6838,7 @@ void Dbacc::execACC_SCANREQ(Signal* signal) //Direct Executed
   scanPtr.p->scanTrid1 = scanTrid1;
   scanPtr.p->scanTrid2 = scanTrid2;
   scanPtr.p->scanLockHeld = 0;
+  scanPtr.p->scanLockCount = 0;
   scanPtr.p->scanOpsAllocated = 0;
   scanPtr.p->scanFirstActiveOp = RNIL;
   scanPtr.p->scanFirstQueuedOp = RNIL;
@@ -6853,6 +6846,7 @@ void Dbacc::execACC_SCANREQ(Signal* signal) //Direct Executed
   scanPtr.p->scanFirstLockedOp = RNIL;
   scanPtr.p->scanLastLockedOp = RNIL;
   scanPtr.p->scanState = ScanRec::WAIT_NEXT;
+  scanPtr.p->scan_lastSeen = __LINE__;
   initScanFragmentPart();
 
   /* ************************ */
@@ -6938,11 +6932,11 @@ void Dbacc::execNEXT_SCANREQ(Signal* signal)
      * ------------------------------------------------------------------- */
     releaseScanLab(signal);
     return;
-    break;
   default:
     ndbrequire(false);
     break;
   }//switch
+  scanPtr.p->scan_lastSeen = __LINE__;
   signal->theData[0] = scanPtr.i;
   signal->theData[1] = AccCheckScan::ZNOT_CHECK_LCP_STOP;
   execACC_CHECK_SCAN(signal);
@@ -7042,6 +7036,7 @@ void Dbacc::checkNextBucketLab(Signal* signal)
       ndbassert(!scanPtr.p->isInContainer());
       releaseScanBucket(gnsPageidptr, conidx, scanPtr.p->scanMask);
     }//if
+    scanPtr.p->scan_lastSeen = __LINE__;
     signal->theData[0] = scanPtr.i;
     signal->theData[1] = AccCheckScan::ZCHECK_LCP_STOP;
     sendSignal(reference(), GSN_ACC_CHECK_SCAN, signal, 2, JBB);
@@ -7092,6 +7087,7 @@ void Dbacc::checkNextBucketLab(Signal* signal)
       operationRecPtr.p->m_op_bits = Operationrec::OP_INITIAL;
       releaseOpRec();
       scanPtr.p->scanOpsAllocated--;
+      scanPtr.p->scan_lastSeen = __LINE__;
       signal->theData[0] = scanPtr.i;
       signal->theData[1] = AccCheckScan::ZCHECK_LCP_STOP;
       sendSignal(reference(), GSN_ACC_CHECK_SCAN, signal, 2, JBB);
@@ -7116,6 +7112,7 @@ void Dbacc::checkNextBucketLab(Signal* signal)
                                 operationRecPtr.p->m_lockTime,
                                 getHighResTimer());
         putOpScanLockQue();	/* PUT THE OP IN A QUE IN THE SCAN REC */
+        scanPtr.p->scan_lastSeen = __LINE__;
         signal->theData[0] = scanPtr.i;
         signal->theData[1] = AccCheckScan::ZCHECK_LCP_STOP;
         sendSignal(reference(), GSN_ACC_CHECK_SCAN, signal, 2, JBB);
@@ -7130,6 +7127,7 @@ void Dbacc::checkNextBucketLab(Signal* signal)
 	operationRecPtr.p->m_op_bits = Operationrec::OP_INITIAL;
         releaseOpRec();
 	scanPtr.p->scanOpsAllocated--;
+        scanPtr.p->scan_lastSeen = __LINE__;
         signal->theData[0] = scanPtr.i;
         signal->theData[1] = AccCheckScan::ZCHECK_LCP_STOP;
         sendSignal(reference(), GSN_ACC_CHECK_SCAN, signal, 2, JBB);
@@ -7148,6 +7146,7 @@ void Dbacc::checkNextBucketLab(Signal* signal)
   // down here except when the tuple was deleted permanently 
   // and no new operation has inserted it again.
   /* ----------------------------------------------------------------------- */
+  scanPtr.p->scan_lastSeen = __LINE__;
   putActiveScanOp();
   sendNextScanConf(signal);
   return;
@@ -7255,16 +7254,18 @@ void Dbacc::releaseScanLab(Signal* signal)
   }//for
   // Stops the heartbeat
   Uint32 blockNo = refToMain(scanPtr.p->scanUserblockref);
-  signal->theData[0] = scanPtr.p->scanUserptr;
-  signal->theData[1] = RNIL;
-  signal->theData[2] = RNIL;
+  NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
+
+  conf->scanPtr = scanPtr.p->scanUserptr;
+  conf->accOperationPtr = RNIL;
+  conf->fragId = RNIL;
   fragrecptr.p->activeScanMask &= ~scanPtr.p->scanMask;
   scanPtr.p->activeLocalFrag = RNIL;
   releaseScanRec();
   EXECUTE_DIRECT(blockNo,
                  GSN_NEXT_SCANCONF,
                  signal,
-                 3);
+                 NextScanConf::SignalLengthNoTuple);
   return;
 }//Dbacc::releaseScanLab()
 
@@ -7401,6 +7402,7 @@ void Dbacc::execACC_CHECK_SCAN(Signal* signal)
       scanPtr.p->scanOpsAllocated--;
       continue;
     }//if
+    scanPtr.p->scan_lastSeen = __LINE__;
     putActiveScanOp();
     sendNextScanConf(signal);
     return;
@@ -7414,13 +7416,15 @@ void Dbacc::execACC_CHECK_SCAN(Signal* signal)
     // The scan is now completed and there are no more locks outstanding. Thus we
     // we will report the scan as completed to LQH.
     //----------------------------------------------------------------------------
-    signal->theData[0] = scanPtr.p->scanUserptr;
-    signal->theData[1] = RNIL;
-    signal->theData[2] = RNIL;
+    scanPtr.p->scan_lastSeen = __LINE__;
+    NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
+    conf->scanPtr = scanPtr.p->scanUserptr;
+    conf->accOperationPtr = RNIL;
+    conf->fragId = RNIL;
     EXECUTE_DIRECT(refToMain(scanPtr.p->scanUserblockref),
                    GSN_NEXT_SCANCONF,
                    signal,
-                   3);
+                   NextScanConf::SignalLengthNoTuple);
     return;
   }//if
   if (TcheckLcpStop == AccCheckScan::ZCHECK_LCP_STOP) {
@@ -7438,6 +7442,7 @@ void Dbacc::execACC_CHECK_SCAN(Signal* signal)
     jamEntry();
     if (signal->theData[0] == RNIL) {
       jam();
+      scanPtr.p->scan_lastSeen = __LINE__;
       return;
     }//if
   }//if
@@ -7451,10 +7456,16 @@ void Dbacc::execACC_CHECK_SCAN(Signal* signal)
       ((scanPtr.p->scanBucketState == ScanRec::SCAN_COMPLETED) &&
        (scanPtr.p->scanLockHeld > 0))) {
     jam();
-    signal->theData[0] = scanPtr.p->scanUserptr;
-    signal->theData[1] = RNIL; // No operation is returned
-    signal->theData[2] = 512;  // MASV  
-    sendSignal(scanPtr.p->scanUserblockref, GSN_NEXT_SCANCONF, signal, 3, JBB);
+    scanPtr.p->scan_lastSeen = __LINE__;
+    NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
+    conf->scanPtr = scanPtr.p->scanUserptr;
+    conf->accOperationPtr = RNIL;
+    conf->fragId = 512; // MASV
+    sendSignal(scanPtr.p->scanUserblockref,
+               GSN_NEXT_SCANCONF,
+               signal,
+               NextScanConf::SignalLengthNoTuple,
+               JBB);
     return;
   }
   if (scanPtr.p->scanBucketState == ScanRec::SCAN_COMPLETED) {
@@ -7807,6 +7818,7 @@ void Dbacc::putOpScanLockQue() const
   }//if
   scanPtr.p->scanLastLockedOp = operationRecPtr.i;
   scanPtr.p->scanLockHeld++;
+  scanPtr.p->scanLockCount++;
 
 }//Dbacc::putOpScanLockQue()
 
@@ -7948,6 +7960,7 @@ void Dbacc::releaseScanRec()
   // Put scan record in free list
   scanPtr.p->scanNextfreerec = cfirstFreeScanRec;
   scanPtr.p->scanState = ScanRec::SCAN_DISCONNECT;
+  scanPtr.p->scan_lastSeen = __LINE__;
   cfirstFreeScanRec = scanPtr.i;
 
 }//Dbacc::releaseScanRec()
@@ -8058,12 +8071,16 @@ void Dbacc::sendNextScanConf(Signal* signal)
    * LQH WILL NOT HAVE ANY USE OF THE TUPLE KEY LENGTH IN THIS CASE AND 
    * SO WE DO NOT PROVIDE IT. IN THIS CASE THESE VALUES ARE UNDEFINED. 
    * ---------------------------------------------------------------------- */
-  signal->theData[0] = scanUserPtr;
-  signal->theData[1] = opPtrI;
-  signal->theData[2] = fid;
-  signal->theData[3] = localKey.m_page_no;
-  signal->theData[4] = localKey.m_page_idx;
-  EXECUTE_DIRECT(refToMain(blockRef), GSN_NEXT_SCANCONF, signal, 5);
+  NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
+  conf->scanPtr = scanUserPtr;
+  conf->accOperationPtr = opPtrI;
+  conf->fragId = fid;
+  conf->localKey[0] = localKey.m_page_no;
+  conf->localKey[1] = localKey.m_page_idx;
+  EXECUTE_DIRECT(refToMain(blockRef),
+                 GSN_NEXT_SCANCONF,
+                 signal,
+                 NextScanConf::SignalLengthNoGCI);
   return;
 }//Dbacc::sendNextScanConf()
 
@@ -8873,30 +8890,33 @@ Dbacc::execDUMP_STATE_ORD(Signal* signal)
     infoEvent("Dbacc::ScanRec[%d]: state=%d, transid(0x%x, 0x%x)",
 	      scanPtr.i, scanPtr.p->scanState,scanPtr.p->scanTrid1,
 	      scanPtr.p->scanTrid2);
-    infoEvent(" activeLocalFrag=%d, nextBucketIndex=%d",
+    infoEvent("activeLocalFrag=%d, nextBucketIndex=%d",
 	      scanPtr.p->activeLocalFrag,
 	      scanPtr.p->nextBucketIndex);
-    infoEvent(" scanNextfreerec=%d firstActOp=%d firstLockedOp=%d, "
-	      "scanLastLockedOp=%d firstQOp=%d lastQOp=%d",
+    infoEvent("scanNextfreerec=%d firstActOp=%d firstLockedOp=%d",
 	      scanPtr.p->scanNextfreerec,
 	      scanPtr.p->scanFirstActiveOp,
-	      scanPtr.p->scanFirstLockedOp,
+	      scanPtr.p->scanFirstLockedOp);
+    infoEvent("scanLastLockedOp=%d firstQOp=%d lastQOp=%d",
 	      scanPtr.p->scanLastLockedOp,
 	      scanPtr.p->scanFirstQueuedOp,
 	      scanPtr.p->scanLastQueuedOp);
-    infoEvent(" scanUserP=%d, startNoBuck=%d, minBucketIndexToRescan=%d, "
-	      "maxBucketIndexToRescan=%d",
+    infoEvent("scanUserP=%d, startNoBuck=%d, minBucketIndexToRescan=%d",
 	      scanPtr.p->scanUserptr,
 	      scanPtr.p->startNoOfBuckets,
-	      scanPtr.p->minBucketIndexToRescan,
-	      scanPtr.p->maxBucketIndexToRescan);
-    infoEvent(" scanBucketState=%d, scanLockHeld=%d, userBlockRef=%d, "
-	      "scanMask=%d scanLockMode=%d",
+	      scanPtr.p->minBucketIndexToRescan);
+    infoEvent("maxBucketIndexToRescan=%d, scan_lastSeen = %d, cfreeopRec=%d",
+	      scanPtr.p->maxBucketIndexToRescan,
+              scanPtr.p->scan_lastSeen,
+              cfreeopRec);
+    infoEvent("scanBucketState=%d, scanLockHeld=%d, userBlockRef=%d",
 	      scanPtr.p->scanBucketState,
 	      scanPtr.p->scanLockHeld,
-	      scanPtr.p->scanUserblockref,
+	      scanPtr.p->scanUserblockref);
+    infoEvent("scanMask=%d scanLockMode=%d, scanLockCount=%d",
 	      scanPtr.p->scanMask,
-	      scanPtr.p->scanLockMode);
+	      scanPtr.p->scanLockMode,
+              scanPtr.p->scanLockCount);
     return;
   }
 
@@ -9144,32 +9164,6 @@ Dbacc::getL2PMapAllocBytes(Uint32 fragId) const
   FragmentrecPtr fragPtr(NULL, fragId);
   ptrCheckGuard(fragPtr, cfragmentsize, fragmentrec);
   return fragPtr.p->directory.getByteSize();
-}
-
-void
-Dbacc::execREAD_PSEUDO_REQ(Signal* signal){
-  jamEntry();
-  fragrecptr.i = signal->theData[0];
-  Uint32 attrId = signal->theData[1];
-  ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
-  Uint64 tmp;
-  switch(attrId){
-  case AttributeHeader::ROW_COUNT:
-    tmp = fragrecptr.p->noOfElements;
-    break;
-  case AttributeHeader::COMMIT_COUNT:
-    tmp = fragrecptr.p->m_commit_count;
-    break;
-  default:
-    tmp = 0;
-  }
-  memcpy(signal->theData, &tmp, 8); /* must be memcpy, gives strange results on
-				     * ithanium gcc (GCC) 3.4.1 smp linux 2.4
-				     * otherwise
-				     */
-  //  Uint32 * src = (Uint32*)&tmp;
-  //  signal->theData[0] = src[0];
-  //  signal->theData[1] = src[1];
 }
 
 #ifdef VM_TRACE

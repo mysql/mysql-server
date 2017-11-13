@@ -388,7 +388,6 @@ struct Fragmentrec {
   };
   Uint32 tupFragptr;
   Uint32 roothashcheck;
-  Uint32 noOfElements;
   Uint32 m_commit_count;
   State rootState;
   
@@ -745,13 +744,13 @@ struct Operationrec {
 /* --------------------------------------------------------------------------------- */
 struct ScanRec {
   enum ScanState {
-    WAIT_NEXT,  
-    SCAN_DISCONNECT
+    WAIT_NEXT = 0,
+    SCAN_DISCONNECT = 1
   };
   enum ScanBucketState {
-    FIRST_LAP,
-    SECOND_LAP,
-    SCAN_COMPLETED
+    FIRST_LAP = 0,
+    SECOND_LAP = 1,
+    SCAN_COMPLETED = 2
   };
   Uint32 activeLocalFrag;
   Uint32 nextBucketIndex;
@@ -768,9 +767,11 @@ struct ScanRec {
   Uint32 minBucketIndexToRescan;
   Uint32 maxBucketIndexToRescan;
   Uint32 scanOpsAllocated;
+  Uint32 scanLockCount;
   ScanBucketState scanBucketState;
   ScanState scanState;
   Uint16 scanLockHeld;
+  Uint16 scan_lastSeen;
   Uint32 scanUserblockref;
   Uint32 scanMask;
   Uint8 scanLockMode;
@@ -816,7 +817,6 @@ public:
   class Dblqh* c_lqh;
 
   void execACCMINUPDATE(Signal* signal);
-  void execREAD_PSEUDO_REQ(Signal* signal);
   // Get the size of the logical to physical page map, in bytes.
   Uint32 getL2PMapAllocBytes(Uint32 fragId) const;
   void removerow(Uint32 op, const Local_key*);

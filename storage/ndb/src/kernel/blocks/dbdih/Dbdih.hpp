@@ -1267,6 +1267,7 @@ private:
   void execNDB_STARTREQ(Signal *);
   void execGETGCIREQ(Signal *);
   void execGET_LATEST_GCI_REQ(Signal*);
+  void execSET_LATEST_LCP_ID(Signal*);
   void execDIH_RESTARTREQ(Signal *);
   void execSTART_RECCONF(Signal *);
   void execSTART_FRAGREF(Signal *);

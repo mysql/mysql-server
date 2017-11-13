@@ -24,6 +24,12 @@
 
 #define JAM_FILE_ID 421
 
+//#define DEBUG_899_ERROR 1
+#ifdef DEBUG_899_ERROR
+#define DEB_899_ERROR(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_899_ERROR(arglist) do { } while (0)
+#endif
 
 //
 // Fixed Allocator
@@ -245,6 +251,12 @@ Dbtup::alloc_fix_rowid(Uint32 * err,
   case ZTH_MM_FREE:
     if (((Fix_page*)pagePtr.p)->alloc_record(idx) != idx)
     {
+      DEB_899_ERROR(("(%u)899 error FREE: tab(%u,%u) rowid(%u,%u)",
+                      instance(),
+                      regFragPtr->fragTableId,
+                      regFragPtr->fragmentId,
+                      page_no,
+                      idx));
       * err = ZROWID_ALLOCATED;
       return 0;
     }
@@ -263,6 +275,12 @@ Dbtup::alloc_fix_rowid(Uint32 * err,
     return pagePtr.p->m_data + idx;
   case ZTH_MM_FULL:
     * err = ZROWID_ALLOCATED;
+    DEB_899_ERROR(("(%u)899 error FULL: tab(%u,%u) rowid(%u,%u)",
+                    instance(),
+                    regFragPtr->fragTableId,
+                    regFragPtr->fragmentId,
+                    page_no,
+                    idx));
     return 0;
   default:
     ndbrequire(false);

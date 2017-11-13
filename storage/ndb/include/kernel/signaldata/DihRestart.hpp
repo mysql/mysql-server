@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -45,9 +45,10 @@ struct DihRestartRef
 
 struct DihRestartConf
 {
-  STATIC_CONST( SignalLength = 2 + NdbNodeBitmask::Size );
+  STATIC_CONST( SignalLength = 3 + NdbNodeBitmask::Size );
   Uint32 unused;
   Uint32 latest_gci;
+  Uint32 latest_lcp_id;
   Uint32 no_nodegroup_mask[NdbNodeBitmask::Size];
 };
 

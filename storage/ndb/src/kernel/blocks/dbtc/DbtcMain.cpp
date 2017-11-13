@@ -21748,6 +21748,17 @@ Dbtc::time_track_complete_scan_frag_error(
 {
   HostRecordPtr hostPtr;
   /* Scan frag operations are recorded on the DB node */
+  if (!NdbTick_IsValid(scanFragPtr->m_start_ticks))
+  {
+    /**
+     * We can come here after sending CLOSE flag on SCAN_FRAGREQ
+     * while still waiting for SCAN_FRAGCONF, if SCAN_FRAGCONF
+     * arrives before this returns and in addition we send
+     * SCAN_FRAGREF we crash unless we check for this.
+     */
+    jam();
+    return;
+  }
   Uint32 pos =
     time_track_calculate_histogram_position(scanFragPtr->m_start_ticks);
   Uint32 dbNodeId = refToNode(scanFragPtr->lqhBlockref);
